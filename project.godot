@@ -10,7 +10,7 @@ config_version=5
 
 [application]
 
-config/name="Dev_Project_260312"
+config/name="Dev_Project_260730"
 run/main_scene="uid://bwmyhb2qc6n21"
 config/features=PackedStringArray("4.7", "Forward Plus")
 
