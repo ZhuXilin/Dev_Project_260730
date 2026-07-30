@@ -95,7 +95,7 @@ func _build_preview():
 	add_child(unit_instance)
 
 	var unit_name = _get_unit_name()
-	var team_id = 0 if team == Team.玩家 else 1
+	var team_id = team  # 直接使用枚举值，玩家=0，敌人=1
 	var data = UnitDataManagerClass.get_unit_data(unit_name)
 
 	var anim_sprite = unit_instance.get_node("Sprite") as AnimatedSprite2D
@@ -113,7 +113,10 @@ func _build_preview():
 		if not loaded_ok:
 			anim_sprite.visible = false
 
+		# 应用队伍颜色
 		_apply_shader_to_sprite(anim_sprite, team_id)
+		
+		# 翻转方向：敌人朝左（flip_h = true），玩家朝右（false）
 		anim_sprite.flip_h = (team_id == 1)
 
 	var name_label = unit_instance.get_node("NameLabel") as Label
@@ -133,31 +136,31 @@ func _build_preview():
 	if Engine.is_editor_hint():
 		queue_redraw()
 
-func _apply_texture_to_animated_sprite(anim_sprite: AnimatedSprite2D, data: Dictionary):
-	var path = data.get("texture_path", "")
-	if path and ResourceLoader.exists(path):
-		var texture = load(path) as Texture2D
-		if texture:
-			var frames = SpriteFrames.new()
-			frames.add_animation("idle")
-			frames.add_frame("idle", texture)
-			anim_sprite.sprite_frames = frames
-			anim_sprite.play("idle")
-			anim_sprite.playing = true
-			return
-	anim_sprite.visible = false
-
 func _apply_shader_to_sprite(sprite: CanvasItem, team_id: int):
+	# 确保 team_id 有效
+	if team_id != 0 and team_id != 1:
+		team_id = 0
+	
+	if not sprite:
+		return
+	
 	var shader = preload("res://content/resource/shader/replace_color.gdshader") as Shader
 	if not shader:
-		sprite.modulate = Globals.get_team_color(team_id, true)
+		# 回退：直接设置颜色
+		var color = Color(0.1216, 0.2196, 0.9373) if team_id == 0 else Color(0.8784, 0.0, 0.3725)
+		sprite.modulate = color
 		return
+	
 	var mat = ShaderMaterial.new()
 	mat.shader = shader
+	# 使用全局常量，避免调用实例方法（编辑器环境可能不完整）
 	mat.set_shader_parameter("target_color_1", Globals.TARGET_COLOR_1)
 	mat.set_shader_parameter("target_color_2", Globals.TARGET_COLOR_2)
-	mat.set_shader_parameter("assign_color_1", Globals.get_team_color(team_id, true))
-	mat.set_shader_parameter("assign_color_2", Globals.get_team_color(team_id, false))
+	
+	# 直接从 TEAM_COLORS 常量读取颜色
+	var colors = Globals.TEAM_COLORS.get(team_id, Globals.TEAM_COLORS[0])
+	mat.set_shader_parameter("assign_color_1", colors["primary"])
+	mat.set_shader_parameter("assign_color_2", colors["secondary"])
 	sprite.material = mat
 	sprite.modulate = Color.WHITE
 
