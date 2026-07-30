@@ -1,0 +1,83 @@
+[gd_scene format=3 uid="uid://bwmyhb2qc6n21"]
+
+[ext_resource type="Script" uid="uid://bng5jksp1aki1" path="res://function/script/MainMenu.gd" id="1_x3a2x"]
+[ext_resource type="Texture2D" uid="uid://ri3cfgo6tsuj" path="res://content/images/system/主菜单背景.png" id="2_hkwpj"]
+[ext_resource type="StyleBox" uid="uid://6qbsaxkfwg3o" path="res://content/resource/stylebox/8bit_style_box_flat.tres" id="3_06ybj"]
+
+[node name="MainMenu" type="Control" unique_id=1935541303]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_x3a2x")
+
+[node name="ColorRect" type="ColorRect" parent="." unique_id=987427809]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0, 0, 0, 1)
+
+[node name="BackgroundTexture" type="TextureRect" parent="." unique_id=660272735]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -128.0
+offset_top = -128.0
+offset_right = 128.0
+offset_bottom = 128.0
+grow_horizontal = 2
+grow_vertical = 2
+texture = ExtResource("2_hkwpj")
+
+[node name="CenterContainer" type="CenterContainer" parent="." unique_id=1232825122]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -48.5
+offset_right = 48.5
+offset_bottom = 71.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="VBoxContainer" type="VBoxContainer" parent="CenterContainer" unique_id=56837053]
+layout_mode = 2
+
+[node name="Text" type="Label" parent="CenterContainer/VBoxContainer" unique_id=378818790]
+layout_mode = 2
+text = "游 戏 开 发 中"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Start" type="Button" parent="CenterContainer/VBoxContainer" unique_id=880886941]
+layout_mode = 2
+theme_override_font_sizes/font_size = 8
+theme_override_styles/normal = ExtResource("3_06ybj")
+theme_override_styles/pressed = ExtResource("3_06ybj")
+theme_override_styles/hover = ExtResource("3_06ybj")
+theme_override_styles/disabled = ExtResource("3_06ybj")
+theme_override_styles/focus = ExtResource("3_06ybj")
+text = "开始游戏"
+
+[node name="Quit" type="Button" parent="CenterContainer/VBoxContainer" unique_id=1366490189]
+layout_mode = 2
+theme_override_font_sizes/font_size = 8
+theme_override_styles/normal = ExtResource("3_06ybj")
+theme_override_styles/pressed = ExtResource("3_06ybj")
+theme_override_styles/hover = ExtResource("3_06ybj")
+theme_override_styles/disabled = ExtResource("3_06ybj")
+theme_override_styles/focus = ExtResource("3_06ybj")
+text = "退出游戏"
+
+[connection signal="pressed" from="CenterContainer/VBoxContainer/Start" to="." method="_on_start_pressed"]
+[connection signal="pressed" from="CenterContainer/VBoxContainer/Quit" to="." method="_on_quit_pressed"]

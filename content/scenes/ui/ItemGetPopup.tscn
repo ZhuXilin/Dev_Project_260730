@@ -1,0 +1,37 @@
+[gd_scene format=3 uid="uid://bppf0p4sou1bk"]
+
+[ext_resource type="Script" uid="uid://deacmu77jbqhc" path="res://function/script/ItemGetPopup.gd" id="1_gysqd"]
+[ext_resource type="StyleBox" uid="uid://6qbsaxkfwg3o" path="res://content/resource/stylebox/8bit_style_box_flat.tres" id="2_xoyin"]
+
+[node name="ItemGetPopup" type="CanvasLayer" unique_id=372262229]
+script = ExtResource("1_gysqd")
+
+[node name="ItemPanel" type="PanelContainer" parent="." unique_id=1888729527]
+anchors_preset = -1
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 168.0
+offset_top = 104.0
+offset_right = -168.0
+offset_bottom = -104.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_styles/panel = ExtResource("2_xoyin")
+
+[node name="BoxContainer" type="HBoxContainer" parent="ItemPanel" unique_id=116707033]
+layout_mode = 2
+
+[node name="Icon" type="TextureRect" parent="ItemPanel/BoxContainer" unique_id=932558897]
+layout_mode = 2
+size_flags_horizontal = 4
+size_flags_vertical = 4
+
+[node name="Name" type="Label" parent="ItemPanel/BoxContainer" unique_id=387224797]
+layout_mode = 2
+size_flags_horizontal = 4
+theme_override_font_sizes/font_size = 8
+
+[node name="Count" type="Label" parent="ItemPanel/BoxContainer" unique_id=985281504]
+layout_mode = 2
+size_flags_horizontal = 4
+theme_override_font_sizes/font_size = 8

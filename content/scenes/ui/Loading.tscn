@@ -1,0 +1,42 @@
+[gd_scene format=3 uid="uid://p1uigghifdg2"]
+
+[ext_resource type="Script" uid="uid://co36xeo7r6mki" path="res://function/script/Loading.gd" id="1_eppwq"]
+
+[node name="Loading" type="Control" unique_id=1926892029]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_eppwq")
+
+[node name="BackgroundColor" type="ColorRect" parent="." unique_id=1211112946]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0, 0, 0, 1)
+
+[node name="MapNameLabel" type="Label" parent="." unique_id=1721455626]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -160.0
+offset_top = -40.0
+offset_right = 160.0
+offset_bottom = 40.0
+grow_horizontal = 2
+grow_vertical = 2
+text = "NEW MAP"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Timer" type="Timer" parent="." unique_id=278471956]
+wait_time = 2.0
+one_shot = true

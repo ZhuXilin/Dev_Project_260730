@@ -1,0 +1,101 @@
+{
+  "剑士": {
+	"max_hp": 22,
+	"defense": 0,
+	"magic_defense": 0,
+	"move_range": 5,
+	"skill": 5,
+	"speed": 6,
+	"luck": 5,
+	"ignore_terrain_cost": false,
+	"sprite_frames_path": "res://content/images/characters/unit_swordsmen_frames.tres"
+  },
+  "枪兵": {
+	"max_hp": 27,
+	"defense": 1,
+	"magic_defense": 0,
+	"move_range": 7,
+	"skill": 3,
+	"speed": 3,
+	"luck": 2,
+	"ignore_terrain_cost": false,
+	"sprite_frames_path": "res://content/images/characters/unit_knight_frames.tres"
+  },
+  "斧兵": {
+	"max_hp": 17,
+	"defense": 0,
+	"magic_defense": 0,
+	"move_range": 4,
+	"skill": 1,
+	"speed": 2,
+	"luck": 1,
+	"ignore_terrain_cost": false,
+	"sprite_frames_path": "res://content/images/characters/unit_axeman_frames.tres"
+  },
+  "弓兵": {
+	"max_hp": 14,
+	"defense": 0,
+	"magic_defense": 0,
+	"move_range": 5,
+	"skill": 4,
+	"speed": 3,
+	"luck": 2,
+	"ignore_terrain_cost": false,
+	"sprite_frames_path": "res://content/images/characters/unit_archer_frames.tres"
+  },
+  "飞马": {
+	"max_hp": 24,
+	"defense": 1,
+	"magic_defense": 0,
+	"move_range": 7,
+	"skill": 4,
+	"speed": 3,
+	"luck": 4,
+	"ignore_terrain_cost": true,
+	"sprite_frames_path": "res://content/images/characters/unit_pegasus_frames.tres"
+  },
+  "法师": {
+	"max_hp": 18,
+	"defense": 0,
+	"magic_defense": 2,
+	"move_range": 5,
+	"skill": 3,
+	"speed": 4,
+	"luck": 2,
+	"ignore_terrain_cost": false,
+	"sprite_frames_path": "res://content/images/characters/unit_mage_frames.tres"
+  },
+  "修女": {
+	"max_hp": 14,
+	"defense": 0,
+	"magic_defense": 3,
+	"move_range": 4,
+	"skill": 3,
+	"speed": 4,
+	"luck": 4,
+	"ignore_terrain_cost": false,
+	"sprite_frames_path": "res://content/images/characters/unit_cleric_frames.tres"
+  },
+	"龙人": {
+	  "max_hp": 30,
+	  "defense": 5,
+	  "magic_defense": 5,
+	  "move_range": 3,
+	  "skill": 2,
+	  "speed": 2,
+	  "luck": 3,
+	  "ignore_terrain_cost": false,
+	  "sprite_frames_path": "res://content/images/characters/unit_dragonborn.tres"
+	},
+	"重甲兵": {
+	  "max_hp": 30,
+	  "defense": 4,
+	  "magic_defense": 0,
+	  "move_range": 3,
+	  "skill": 2,
+	  "speed": 2,
+	  "luck": 2,
+	  "ignore_terrain_cost": false,
+	  "sprite_frames_path": "res://content/images/characters/unit_heavyarmored.tres"
+	}
+}

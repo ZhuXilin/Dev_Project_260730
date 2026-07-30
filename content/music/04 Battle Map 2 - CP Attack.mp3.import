@@ -1,0 +1,19 @@
+[remap]
+
+importer="mp3"
+type="AudioStreamMP3"
+uid="uid://c0534f8g1252l"
+path="res://.godot/imported/04 Battle Map 2 - CP Attack.mp3-6d6a0c698e5a73845a56a6fe0ab351f8.mp3str"
+
+[deps]
+
+source_file="res://content/music/04 Battle Map 2 - CP Attack.mp3"
+dest_files=["res://.godot/imported/04 Battle Map 2 - CP Attack.mp3-6d6a0c698e5a73845a56a6fe0ab351f8.mp3str"]
+
+[params]
+
+loop=true
+loop_offset=0.0
+bpm=0.0
+beat_count=0
+bar_beats=4

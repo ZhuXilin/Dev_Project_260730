@@ -1,0 +1,37 @@
+[gd_scene format=3 uid="uid://c73jcwoiocpfd"]
+
+[ext_resource type="StyleBox" uid="uid://6qbsaxkfwg3o" path="res://content/resource/stylebox/8bit_style_box_flat.tres" id="1_q0had"]
+
+[node name="DialogueUi" type="CanvasLayer" unique_id=2135418119]
+layer = 10
+
+[node name="DialoguePanel" type="Panel" parent="." unique_id=1612508632]
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -156.0
+offset_top = -64.0
+offset_right = 156.0
+offset_bottom = -5.0
+grow_horizontal = 2
+grow_vertical = 0
+theme_override_styles/panel = ExtResource("1_q0had")
+
+[node name="NameLabel" type="Label" parent="DialoguePanel" unique_id=753210977]
+layout_mode = 0
+offset_left = 16.0
+offset_top = 6.0
+offset_right = 304.0
+offset_bottom = 22.0
+theme_override_font_sizes/font_size = 8
+
+[node name="TextLabel" type="Label" parent="DialoguePanel" unique_id=76340494]
+layout_mode = 0
+offset_left = 16.0
+offset_top = 22.0
+offset_right = 304.0
+offset_bottom = 59.0
+theme_override_font_sizes/font_size = 8
+autowrap_mode = 3

@@ -1,0 +1,51 @@
+{
+  "village_encounter": {
+	"actions": [
+	  { "type": "dialog", "dialog_id": "treasure_hunt" },
+	  { "type": "give_item", "item_id": "potion", "count": 3 }
+	],
+	"once": true
+  },
+  "obtain_longbow": {
+	"actions": [
+	  { "type": "give_item", "item_id": "longbow", "count": 1 }
+	],
+	"once": true
+  },
+  "trap_hp": {
+	"actions": [
+	  { "type": "damage", "amount": -5 }
+	],
+	"once": true
+  },
+  "heal_spot": {
+	"actions": [
+	  { "type": "heal", "amount": 10 }
+	],
+	"once": false
+  },
+	"battle_intro_1": {
+	  "actions": [
+		{ "type": "dialog", "dialog_id": "battle_start_1" },
+	  ],
+	  "once": true
+	},
+	"battle_intro_2": {
+	  "actions": [
+		{ "type": "dialog", "dialog_id": "battle_start_2" }
+	  ],
+	  "once": true
+	},
+	"healer_advice_event": {
+		"actions": [
+		{ "type": "dialog", "dialog_id": "healer_advice" }
+	],
+	"once": true
+  },
+	"village_gossip_event": {
+		"actions": [
+		{ "type": "dialog", "dialog_id": "village_gossip" }
+	],
+	"once": true
+  }
+}

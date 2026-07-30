@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="MapData" format=3 uid="uid://ctnfk0q4b3pv3"]
+
+[ext_resource type="PackedScene" uid="uid://cn3v1ruqadp0x" path="res://content/scenes/maps/Level01.tscn" id="1_wqe1q"]
+[ext_resource type="Script" uid="uid://ljo1eo241sn4" path="res://function/resource/MapData.gd" id="2_o8uvt"]
+[ext_resource type="Script" uid="uid://vemht4bwgak4" path="res://function/resource/UnitConfig.gd" id="3_shm8a"]
+
+[resource]
+script = ExtResource("2_o8uvt")
+map_name = "新的旅程"
+scene = ExtResource("1_wqe1q")
+metadata/_custom_type_script = "uid://ljo1eo241sn4"

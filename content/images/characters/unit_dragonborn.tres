@@ -1,0 +1,89 @@
+[gd_resource type="SpriteFrames" format=3 uid="uid://de85phcrs335r"]
+
+[ext_resource type="Texture2D" uid="uid://dov0bfr3jcuwo" path="res://content/images/characters/unit_dragonborn.png" id="1_t6jh4"]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_nsmtx"]
+atlas = ExtResource("1_t6jh4")
+region = Rect2(96, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_xrjqr"]
+atlas = ExtResource("1_t6jh4")
+region = Rect2(128, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_4uh21"]
+atlas = ExtResource("1_t6jh4")
+region = Rect2(0, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_47uun"]
+atlas = ExtResource("1_t6jh4")
+region = Rect2(32, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_e31rx"]
+atlas = ExtResource("1_t6jh4")
+region = Rect2(64, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_8cekx"]
+atlas = ExtResource("1_t6jh4")
+region = Rect2(160, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_ywg1j"]
+atlas = ExtResource("1_t6jh4")
+region = Rect2(192, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_1j2ib"]
+atlas = ExtResource("1_t6jh4")
+region = Rect2(224, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_fryrc"]
+atlas = ExtResource("1_t6jh4")
+region = Rect2(256, 0, 32, 32)
+
+[resource]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_nsmtx")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_xrjqr")
+}],
+"loop": 1,
+"name": &"down",
+"speed": 5.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_4uh21")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_47uun")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_e31rx")
+}],
+"loop": 1,
+"name": &"idle",
+"speed": 5.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_8cekx")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_ywg1j")
+}],
+"loop": 1,
+"name": &"side",
+"speed": 5.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_1j2ib")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_fryrc")
+}],
+"loop": 1,
+"name": &"up",
+"speed": 5.0
+}]

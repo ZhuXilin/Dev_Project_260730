@@ -1,0 +1,48 @@
+; Engine configuration file.
+; It's best edited using the editor UI and not directly,
+; since the parameters that go here are not all obvious.
+;
+; Format:
+;   [section] ; section goes between []
+;   param=value ; assign values to parameters
+
+config_version=5
+
+[application]
+
+config/name="Dev_Project_260312"
+run/main_scene="uid://bwmyhb2qc6n21"
+config/features=PackedStringArray("4.7", "Forward Plus")
+
+[autoload]
+
+Globals="*uid://desbxe15ptc48"
+SignalBus="*uid://dfecwvpce8ifx"
+InputManager="*uid://oqx10w687a2n"
+EventManager="*uid://36prv21qq35c"
+TurnManager="*uid://bibfhp5lyerw1"
+CombatManager="*uid://bq0ti8ol6mel"
+TerrainManager="*uid://lx1iryg2wj2h"
+UnitManager="*uid://cb1bifaneowre"
+LevelManager="*uid://kkjvccivi6ap"
+MusicManager="*uid://dx5ggucn8e4lh"
+SoundManager="*uid://q2rgim5dwebk"
+DialogueManager="*uid://dw5lgfphefd5x"
+EnemyAi="*uid://cl5iv0a3ilksh"
+ItemManager="*uid://b6reldtlje3ar"
+
+[display]
+
+window/size/viewport_width=400
+window/size/viewport_height=240
+window/stretch/mode="canvas_items"
+
+[physics]
+
+3d/physics_engine="Jolt Physics"
+
+[rendering]
+
+textures/canvas_textures/default_texture_filter=0
+rendering_device/driver.windows="d3d12"
+textures/vram_compression/import_etc2_astc=true

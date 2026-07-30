@@ -1,0 +1,25 @@
+[gd_resource type="Resource" script_class="SoundConfig" format=3 uid="uid://be8ftnkh4iaf8"]
+
+[ext_resource type="AudioStream" uid="uid://cgrasi626apvk" path="res://content/sound/Click.mp3" id="1_8l24p"]
+[ext_resource type="Script" uid="uid://lw1x2a7w3gui" path="res://function/resource/SoundConfig.gd" id="1_mfb7o"]
+[ext_resource type="AudioStream" uid="uid://d3ghetos2sjk6" path="res://content/sound/Heal.wav" id="1_q3nft"]
+[ext_resource type="AudioStream" uid="uid://0trlgnr8glxh" path="res://content/sound/ReceivedItem.mp3" id="2_jnutg"]
+[ext_resource type="AudioStream" uid="uid://bhdrvm6aalp0p" path="res://content/sound/Exchange.wav" id="2_ttjgu"]
+[ext_resource type="AudioStream" uid="uid://led5njnffbde" path="res://content/sound/Ladder.wav" id="3_8l24p"]
+[ext_resource type="AudioStream" uid="uid://dige4cmigsdgi" path="res://content/sound/Cursor2.wav" id="4_sfmkp"]
+[ext_resource type="AudioStream" uid="uid://djyve7l6ivlxb" path="res://content/sound/Walk1.mp3" id="4_ttjgu"]
+[ext_resource type="AudioStream" uid="uid://o0rx80tymr1y" path="res://content/sound/Cursor1.wav" id="5_q3nft"]
+[ext_resource type="AudioStream" uid="uid://b5gy0dcii8vxf" path="res://content/sound/Wait.mp3" id="9_fn40i"]
+
+[resource]
+script = ExtResource("1_mfb7o")
+select_unit = ExtResource("5_q3nft")
+hit = ExtResource("2_ttjgu")
+miss = ExtResource("3_8l24p")
+heal = ExtResource("1_q3nft")
+move_sound = ExtResource("4_ttjgu")
+cancel = ExtResource("1_8l24p")
+invalid_click = ExtResource("4_sfmkp")
+wait = ExtResource("9_fn40i")
+get_item = ExtResource("2_jnutg")
+metadata/_custom_type_script = "uid://lw1x2a7w3gui"

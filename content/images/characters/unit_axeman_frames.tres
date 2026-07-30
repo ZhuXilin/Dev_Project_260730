@@ -1,0 +1,82 @@
+[gd_resource type="SpriteFrames" format=3 uid="uid://b7v6ta8grnm8a"]
+
+[ext_resource type="Texture2D" uid="uid://dh3ffth3ljww8" path="res://content/images/characters/unit_axeman.png" id="1_v7pgl"]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_rmws8"]
+atlas = ExtResource("1_v7pgl")
+region = Rect2(64, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_yyeg3"]
+atlas = ExtResource("1_v7pgl")
+region = Rect2(96, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_1wa2e"]
+atlas = ExtResource("1_v7pgl")
+region = Rect2(0, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_nf85x"]
+atlas = ExtResource("1_v7pgl")
+region = Rect2(32, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_ieqmb"]
+atlas = ExtResource("1_v7pgl")
+region = Rect2(128, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_5csg6"]
+atlas = ExtResource("1_v7pgl")
+region = Rect2(160, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_hxagx"]
+atlas = ExtResource("1_v7pgl")
+region = Rect2(192, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_sw4bj"]
+atlas = ExtResource("1_v7pgl")
+region = Rect2(224, 0, 32, 32)
+
+[resource]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_rmws8")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_yyeg3")
+}],
+"loop": 1,
+"name": &"down",
+"speed": 5.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_1wa2e")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_nf85x")
+}],
+"loop": 1,
+"name": &"idle",
+"speed": 5.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_ieqmb")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_5csg6")
+}],
+"loop": 1,
+"name": &"side",
+"speed": 5.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_hxagx")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_sw4bj")
+}],
+"loop": 1,
+"name": &"up",
+"speed": 5.0
+}]
