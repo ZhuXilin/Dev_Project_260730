@@ -127,7 +127,7 @@ func reset_all_game_state():
 	UnitManager.clear_all_units()
 	
 	DialogueManager.reset()
-	visited_nodes.clear()
+
 	print("所有游戏状态已重置")
 	
 # 实例方法（非静态），可直接通过 Globals.get_team_color() 调用

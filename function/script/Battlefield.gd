@@ -170,7 +170,7 @@ func _ready():
 	if camera_controller:
 		camera_controller.set_grid_size(CELL_SIZE)
 		var viewport_size = get_viewport().get_visible_rect().size
-		camera_controller.set_edge_scroll_margin(viewport_size.x * 0.25)
+		camera_controller.set_edge_scroll_margin(viewport_size.x * 0.16)
 
 	if action_menu:
 		action_menu.visible = false
@@ -877,13 +877,17 @@ func _on_wait_btn_pressed():
 	InputManager.on_wait_button_pressed()
 
 func _on_request_show_victory(winning_team: int):
-	# ---- 安全获取场景树 ----
 	var tree = get_tree()
 	if not tree:
 		print("错误：无法获取场景树，无法处理胜利")
 		return
 
-	# ---- 清理动画和状态 ----
+	# ---- 声明变量（只声明一次） ----
+	var label_text = ""
+	var button_text = ""
+	var callback = Callable()
+
+	# ---- 清理 ----
 	if is_instance_valid(movement_animator):
 		movement_animator.cancel_movement()
 	if is_instance_valid(camera_controller):
@@ -893,7 +897,6 @@ func _on_request_show_victory(winning_team: int):
 	_on_clear_highlight_unit()
 	TurnManager.clear_ai_state()
 
-	# ---- 隐藏所有UI ----
 	if is_instance_valid(ui_manager):
 		ui_manager.hide_menu()
 	if is_instance_valid(menu_blocker):
@@ -911,7 +914,6 @@ func _on_request_show_victory(winning_team: int):
 	if is_instance_valid(item_list_panel):
 		item_list_panel.visible = false
 
-	# ---- 重置输入状态 ----
 	InputManager.selected_unit = null
 	InputManager.interaction_phase = "idle"
 	InputManager.current_highlight_cells = {}
@@ -925,25 +927,28 @@ func _on_request_show_victory(winning_team: int):
 	#  地图模式（从地图进入的战斗）
 	# =====================================================
 	if Globals.is_map_mode:
-		# 通知地图场景战斗结束
-		SignalBus.battle_completed.emit(winning_team)
-
 		if is_win:
 			if is_last:
 				MusicManager.play_win_game_music()
 			else:
 				MusicManager.play_victory_music()
-			await tree.create_timer(1.0).timeout
+			label_text = "战斗胜利！"
+			button_text = "继续旅程"
+			callback = Callable(self, "_on_map_victory_continue")
 		else:
 			MusicManager.play_defeat_music()
-			await tree.create_timer(1.5).timeout
+			label_text = "战斗失败"
+			button_text = "重新挑战"
+			callback = Callable(self, "_on_map_defeat_retry")
 
-		# 返回地图场景
-		tree.change_scene_to_file("res://content/scenes/ui/MapScene.tscn")
+		if is_instance_valid(ui_manager):
+			ui_manager.show_victory(label_text, button_text, callback)
+		else:
+			tree.change_scene_to_file("res://content/scenes/ui/MapScene.tscn")
 		return
 
 	# =====================================================
-	#  非地图模式（原有旧版流程，可能用于调试）
+	#  非地图模式（原有旧版流程）
 	# =====================================================
 	if is_win and is_last:
 		MusicManager.play_win_game_music()
@@ -952,9 +957,6 @@ func _on_request_show_victory(winning_team: int):
 	else:
 		MusicManager.play_defeat_music()
 
-	var label_text = ""
-	var button_text = ""
-	var callback = Callable()
 	if is_win:
 		if is_last:
 			label_text = "全部胜利"
@@ -1848,3 +1850,19 @@ func _create_scroll_container(child: Control, parent: Node, container_name: Stri
 	child.size_flags_vertical = Control.SIZE_EXPAND_FILL
 
 	return scroll
+
+# ---- 地图模式胜利继续 ----
+func _on_map_victory_continue():
+	print("地图模式：战斗胜利，继续旅程")
+	# 通知地图更新
+	SignalBus.battle_completed.emit(0)
+	var tree = get_tree()
+	if tree:
+		tree.change_scene_to_file("res://content/scenes/ui/MapScene.tscn")
+
+# ---- 地图模式失败重试 ----
+func _on_map_defeat_retry():
+	print("地图模式：战斗失败，重新挑战")
+	var tree = get_tree()
+	if tree:
+		tree.change_scene_to_file("res://content/scenes/ui/MapScene.tscn")

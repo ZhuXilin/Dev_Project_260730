@@ -2,7 +2,7 @@ extends CanvasLayer
 
 var current_day: int = 1
 var map_data: MapLevelData
-var selected_node: MapNode = null
+var selected_node: MapNode = null   # 暂未使用，但保留
 var level_list: Array[MapData] = []
 
 @onready var node_container = $NodeContainer
@@ -124,11 +124,11 @@ func on_node_selected(node: MapNode):
 	if not node.is_available or node.is_visited:
 		print("节点不可选或已访问")
 		return
-	selected_node = node
-	# 保存节点状态
+	# 保存状态到全局
 	var key = "%d_%d" % [node.position.x, node.position.y]
 	Globals.visited_nodes[key] = true
-	_load_combat_for_node(selected_node)
+	# 直接进入战斗
+	_load_combat_for_node(node)
 
 func _load_combat_for_node(node: MapNode):
 	var map_to_load = node.map_data
@@ -178,8 +178,8 @@ func _on_back_pressed():
 
 func _on_battle_completed(winning_team: int):
 	if winning_team == 0:
-		if selected_node:
+		if map_data and map_data.root_node:
+			# 更新地图可用性
 			_update_availability(map_data.root_node)
-			_update_buttons()
 	else:
 		print("战斗失败，可重新尝试")
