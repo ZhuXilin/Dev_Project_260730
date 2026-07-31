@@ -108,9 +108,9 @@ func _ready():
 		"setting_panel": setting_panel,
 		"item_action_panel": item_action_panel
 	}
-	for name in node_list:
-		if not node_list[name]:
-			print("警告：节点 '", name, "' 未找到！")
+	for node_name in node_list:
+		if not node_list[node_name]:
+			print("警告：节点 '", node_name, "' 未找到！")
 
 	# ---- 原有逻辑开始 ----
 	setting_btn.pressed.connect(_on_setting_btn_pressed)
@@ -877,6 +877,13 @@ func _on_wait_btn_pressed():
 	InputManager.on_wait_button_pressed()
 
 func _on_request_show_victory(winning_team: int):
+	# ---- 安全获取场景树 ----
+	var tree = get_tree()
+	if not tree:
+		print("错误：无法获取场景树，无法处理胜利")
+		return
+
+	# ---- 清理动画和状态 ----
 	if is_instance_valid(movement_animator):
 		movement_animator.cancel_movement()
 	if is_instance_valid(camera_controller):
@@ -886,6 +893,7 @@ func _on_request_show_victory(winning_team: int):
 	_on_clear_highlight_unit()
 	TurnManager.clear_ai_state()
 
+	# ---- 隐藏所有UI ----
 	if is_instance_valid(ui_manager):
 		ui_manager.hide_menu()
 	if is_instance_valid(menu_blocker):
@@ -903,6 +911,7 @@ func _on_request_show_victory(winning_team: int):
 	if is_instance_valid(item_list_panel):
 		item_list_panel.visible = false
 
+	# ---- 重置输入状态 ----
 	InputManager.selected_unit = null
 	InputManager.interaction_phase = "idle"
 	InputManager.current_highlight_cells = {}
@@ -911,32 +920,56 @@ func _on_request_show_victory(winning_team: int):
 
 	var is_win = (winning_team == 0)
 	var is_last = LevelManager.is_last_level()
-	
-	# ===== 地图模式判断 =====
+
+	# =====================================================
+	#  地图模式（从地图进入的战斗）
+	# =====================================================
 	if Globals.is_map_mode:
-		# 战斗结束，通知地图更新
+		# 通知地图场景战斗结束
 		SignalBus.battle_completed.emit(winning_team)
+
 		if is_win:
 			if is_last:
 				MusicManager.play_win_game_music()
 			else:
 				MusicManager.play_victory_music()
-			await get_tree().create_timer(1.0).timeout
-			# ---- 安全切换 ----
-			var tree = get_tree()
-			if tree:
-				tree.change_scene_to_file("res://content/scenes/ui/MapScene.tscn")
-			else:
-				print("错误：无法获取场景树，无法返回地图")
+			await tree.create_timer(1.0).timeout
 		else:
 			MusicManager.play_defeat_music()
-			await get_tree().create_timer(1.5).timeout
-			var tree = get_tree()
-			if tree:
-				tree.change_scene_to_file("res://content/scenes/ui/MapScene.tscn")
-			else:
-				print("错误：无法获取场景树，无法返回地图")
+			await tree.create_timer(1.5).timeout
+
+		# 返回地图场景
+		tree.change_scene_to_file("res://content/scenes/ui/MapScene.tscn")
 		return
+
+	# =====================================================
+	#  非地图模式（原有旧版流程，可能用于调试）
+	# =====================================================
+	if is_win and is_last:
+		MusicManager.play_win_game_music()
+	elif is_win:
+		MusicManager.play_victory_music()
+	else:
+		MusicManager.play_defeat_music()
+
+	var label_text = ""
+	var button_text = ""
+	var callback = Callable()
+	if is_win:
+		if is_last:
+			label_text = "全部胜利"
+			button_text = "回到开始"
+		else:
+			label_text = "战斗胜利"
+			button_text = "下一关"
+		callback = Callable(LevelManager, "on_victory")
+	else:
+		label_text = "战斗失败"
+		button_text = "回到开始"
+		callback = Callable(LevelManager, "on_defeat")
+
+	if is_instance_valid(ui_manager):
+		ui_manager.show_victory(label_text, button_text, callback)
 
 func _on_turn_changed(team: int):
 	print("_on_turn_changed 被调用，team:", team)

@@ -42,6 +42,8 @@ var is_item_action_panel_open: bool = false
 var suppress_sound: bool = false
 var is_map_mode: bool = false
 var current_map_node_id: String = ""
+var map_node_states: Dictionary = {}  # key: node_id, value: { "visited": bool, "completed": bool }
+var visited_nodes: Dictionary = {}  # key: "x_y", value: true
 
 # ---- 默认道具（游戏启动时加载） ----
 var default_items = {
@@ -124,6 +126,8 @@ func reset_all_game_state():
 	
 	UnitManager.clear_all_units()
 	
+	DialogueManager.reset()
+	visited_nodes.clear()
 	print("所有游戏状态已重置")
 	
 # 实例方法（非静态），可直接通过 Globals.get_team_color() 调用

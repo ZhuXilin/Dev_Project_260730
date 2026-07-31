@@ -65,8 +65,12 @@ func trigger_event(event_id: String, unit: Unit = null, default_music: AudioStre
 				var dialog_id = action.get("dialog_id", "")
 				var music_stream = action.get("music", default_music)
 				if dialog_id != "":
-					DialogueManager.start_dialogue(dialog_id, music_stream)
-					await DialogueManager.dialogue_finished
+					# 如果对话已经激活，则跳过等待
+					if DialogueManager.is_active:
+						print("对话已激活，跳过: ", dialog_id)
+					else:
+						DialogueManager.start_dialogue(dialog_id, music_stream)
+						await DialogueManager.dialogue_finished
 				else:
 					push_error("对话动作缺少 dialog_id")
 			"give_item":

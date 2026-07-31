@@ -8,6 +8,7 @@ var current_level_index : int = 0
 var _levels : Array[MapData] = []
 var _days_levels: Array = []  # 每个元素是 Array[MapData]（无嵌套泛型）
 var is_map_mode: bool = false
+var visited_nodes: Array = []  # 存储已访问节点的 node_id
 
 func _ready():
 	_load_level_list()

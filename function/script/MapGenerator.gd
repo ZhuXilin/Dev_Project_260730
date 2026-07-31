@@ -136,23 +136,10 @@ static func _connect_layers(from_nodes: Array[MapNode], to_nodes: Array[MapNode]
 
 static func _assign_map_data(nodes: Array, level_list: Array[MapData], _day: int):
 	var battle_nodes = nodes.filter(func(n):
-		return n.node_type in [
-			MapNode.NodeType.START,
-			MapNode.NodeType.NORMAL,
-			MapNode.NodeType.ELITE,
-			MapNode.NodeType.BOSS
-		]
+		return n.node_type in [MapNode.NodeType.START, MapNode.NodeType.NORMAL, MapNode.NodeType.ELITE, MapNode.NodeType.BOSS]
 	)
-	print("=== 分配地图数据，战斗节点数：", battle_nodes.size(), "，可用地图数：", level_list.size())
-	var idx = 0
-	for node in battle_nodes:
-		if idx < level_list.size():
-			node.map_data = level_list[idx]
-			print("  节点 ", node.node_type, " 分配地图：", level_list[idx].map_name)
-			idx += 1
-		else:
-			node.map_data = _create_fallback_map_data(node.node_type)
-			print("  节点 ", node.node_type, " 使用备用地图（测试战斗）")
+	for i in range(battle_nodes.size()):
+		battle_nodes[i].map_data = level_list[i % level_list.size()]
 
 static func _create_fallback_map_data(_type: MapNode.NodeType) -> MapData:
 	var map = MapData.new()

@@ -61,6 +61,14 @@ func generate_map(day: int):
 	for i in range(level_list.size()):
 		print("  地图 ", i, "：", level_list[i].map_name)
 	map_data = MapGenerator.generate_day(day, level_list)
+	
+	# 恢复已访问状态
+	for node in map_data.nodes:
+		var key = "%d_%d" % [node.position.x, node.position.y]
+		if Globals.visited_nodes.has(key):
+			node.is_visited = true
+			node.is_available = false
+	
 	_draw_connections()
 	_create_node_buttons()
 	_update_availability(map_data.root_node)
@@ -101,8 +109,9 @@ func _update_availability(start_node: MapNode):
 		visited.append(current)
 		if current.is_visited:
 			for conn in current.connected_nodes:
-				conn.is_available = true
-				queue.append(conn)
+				if not conn.is_visited:
+					conn.is_available = true
+					queue.append(conn)
 	_update_buttons()
 
 func _update_buttons():
@@ -111,10 +120,14 @@ func _update_buttons():
 			child.setup(child.map_node, self)
 
 func on_node_selected(node: MapNode):
+	print("on_node_selected 被调用, 节点:", node.node_type)
 	if not node.is_available or node.is_visited:
+		print("节点不可选或已访问")
 		return
 	selected_node = node
-	Globals.current_map_node_id = node.node_id   # 需要在 Globals.gd 中添加变量
+	# 保存节点状态
+	var key = "%d_%d" % [node.position.x, node.position.y]
+	Globals.visited_nodes[key] = true
 	_load_combat_for_node(selected_node)
 
 func _load_combat_for_node(node: MapNode):
@@ -159,19 +172,14 @@ func _create_default_map() -> MapData:
 
 func _on_back_pressed():
 	print("返回主菜单")
+	Globals.visited_nodes.clear()
 	MusicManager.stop_music()
 	get_tree().change_scene_to_file("res://content/scenes/ui/MainMenu.tscn")
 
 func _on_battle_completed(winning_team: int):
 	if winning_team == 0:
-		var node_id = Globals.current_map_node_id
-		if node_id != "":
-			var node = map_data.get_node_by_id(node_id)
-			if node:
-				node.is_completed = true
-				node.is_visited = true
-				_update_availability(map_data.root_node)
-				_update_buttons()
-			Globals.current_map_node_id = ""
+		if selected_node:
+			_update_availability(map_data.root_node)
+			_update_buttons()
 	else:
 		print("战斗失败，可重新尝试")
