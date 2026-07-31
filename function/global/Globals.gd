@@ -41,6 +41,7 @@ var is_weapon_select_active : bool = false
 var is_item_action_panel_open: bool = false
 var suppress_sound: bool = false
 var is_map_mode: bool = false
+var current_map_node_id: String = ""
 
 # ---- 默认道具（游戏启动时加载） ----
 var default_items = {

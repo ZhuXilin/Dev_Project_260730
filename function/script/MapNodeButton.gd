@@ -2,17 +2,17 @@ extends Button
 class_name MapNodeButton
 
 @export var map_node: MapNode
+var map_scene_ref: CanvasLayer
 
-func setup(node_data: MapNode):
+func setup(node_data: MapNode, map_scene: CanvasLayer):
 	map_node = node_data
+	map_scene_ref = map_scene
 	text = _get_node_label(node_data.node_type)
 	size = Vector2(64, 28)
 	position = node_data.position - size / 2
 	
 	disabled = not node_data.is_available
 	modulate = _get_color(node_data)
-	
-	print("setup 按钮: ", text, " disabled:", disabled, " modulate:", modulate)
 	
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	
@@ -33,9 +33,6 @@ func setup(node_data: MapNode):
 		check.add_theme_font_size_override("font_size", 12)
 		check.position = Vector2(size.x - 18, 4)
 		add_child(check)
-	
-	# 调试输出
-	# print("按钮 ", text, " 可用:", node_data.is_available)
 
 func _get_node_label(type: MapNode.NodeType) -> String:
 	match type:
@@ -58,8 +55,7 @@ func _get_color(node: MapNode) -> Color:
 
 func _on_clicked():
 	print("地图按钮被点击: ", text)
-	var map_scene = get_parent().get_parent()
-	if map_scene and map_scene.has_method("on_node_selected"):
-		map_scene.on_node_selected(map_node)
+	if map_scene_ref and map_scene_ref.has_method("on_node_selected"):
+		map_scene_ref.on_node_selected(map_node)
 	else:
-		print("错误: 无法找到 MapScene 或 on_node_selected 方法")
+		print("错误: map_scene_ref 无效或没有 on_node_selected 方法")

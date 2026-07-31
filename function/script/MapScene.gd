@@ -48,7 +48,6 @@ func _ready():
 	if not SignalBus.battle_completed.is_connected(_on_battle_completed):
 		SignalBus.battle_completed.connect(_on_battle_completed)
 	
-	# ---- 播放地图音乐 ----
 	if MusicManager.config and MusicManager.config.map_music:
 		MusicManager.play_music(MusicManager.config.map_music)
 
@@ -58,6 +57,9 @@ func _safe_connect(source: Object, signal_name: String, target_callable: Callabl
 	source.connect(signal_name, target_callable)
 
 func generate_map(day: int):
+	print("=== 生成地图，level_list 大小：", level_list.size())
+	for i in range(level_list.size()):
+		print("  地图 ", i, "：", level_list[i].map_name)
 	map_data = MapGenerator.generate_day(day, level_list)
 	_draw_connections()
 	_create_node_buttons()
@@ -81,7 +83,7 @@ func _create_node_buttons():
 			child.queue_free()
 	for node in map_data.nodes:
 		var btn = MapNodeButton.new()
-		btn.setup(node)
+		btn.setup(node, self)
 		node_container.add_child(btn)
 
 func _update_availability(start_node: MapNode):
@@ -106,16 +108,13 @@ func _update_availability(start_node: MapNode):
 func _update_buttons():
 	for child in node_container.get_children():
 		if child is MapNodeButton:
-			child.setup(child.map_node)
+			child.setup(child.map_node, self)
 
-# ---- 点击节点直接进入战斗 ----
 func on_node_selected(node: MapNode):
-	print("on_node_selected 被调用, 节点:", node.node_type)
 	if not node.is_available or node.is_visited:
-		print("节点不可选或已访问")
 		return
 	selected_node = node
-	# 直接进入战斗
+	Globals.current_map_node_id = node.node_id   # 需要在 Globals.gd 中添加变量
 	_load_combat_for_node(selected_node)
 
 func _load_combat_for_node(node: MapNode):
@@ -131,10 +130,32 @@ func _load_combat_for_node(node: MapNode):
 	_load_combat(map_to_load)
 
 func _load_combat(map_data_arg: MapData):
+	if not map_data_arg:
+		print("错误：地图数据为空，使用备用地图")
+		map_data_arg = _create_default_map()
+	elif not map_data_arg.scene and map_data_arg.unit_configs.is_empty():
+		print("警告：地图数据缺少场景和单位配置，使用备用地图")
+		map_data_arg = _create_default_map()
+	
 	print("加载战斗场景: ", map_data_arg.map_name)
 	Globals.current_map_data = map_data_arg
 	Globals.reset_all_game_state()
-	get_tree().change_scene_to_file("res://content/scenes/levels/Battlefield.tscn")
+	get_tree().change_scene_to_file("res://content/scenes/ui/Loading.tscn")
+
+func _create_default_map() -> MapData:
+	var map = MapData.new()
+	map.map_name = "备用地图"
+	var cfg = UnitConfig.new()
+	cfg.unit_name = "剑士"
+	cfg.team_id = 0
+	cfg.position = Vector2i(10, 10)
+	map.unit_configs.append(cfg)
+	var enemy_cfg = UnitConfig.new()
+	enemy_cfg.unit_name = "斧兵"
+	enemy_cfg.team_id = 1
+	enemy_cfg.position = Vector2i(5, 5)
+	map.unit_configs.append(enemy_cfg)
+	return map
 
 func _on_back_pressed():
 	print("返回主菜单")
@@ -143,10 +164,14 @@ func _on_back_pressed():
 
 func _on_battle_completed(winning_team: int):
 	if winning_team == 0:
-		if selected_node:
-			selected_node.is_completed = true
-			selected_node.is_visited = true
-			_update_availability(map_data.root_node)
-			_update_buttons()
+		var node_id = Globals.current_map_node_id
+		if node_id != "":
+			var node = map_data.get_node_by_id(node_id)
+			if node:
+				node.is_completed = true
+				node.is_visited = true
+				_update_availability(map_data.root_node)
+				_update_buttons()
+			Globals.current_map_node_id = ""
 	else:
 		print("战斗失败，可重新尝试")

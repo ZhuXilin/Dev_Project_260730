@@ -3,8 +3,13 @@ class_name Battlefield
 
 const UnitDataManagerClass = preload("res://function/script/UnitDataManager.gd")
 
+# ---- 导出变量 ----
 @export var map_data : MapData = null
+@export var transition_delay_before_fade : float = 1.0
+@export var transition_delay_after_fade : float = 1.0
 
+# ---- 节点引用（方式一：使用 @onready 自动获取） ----
+# 如果您仍在使用 @onready，保留以下代码；如果已改为手动获取，请注释或删除
 @onready var action_menu : CanvasLayer = $ActionMenu
 @onready var attack_btn : Button = $ActionMenu/ActionPanel/ButtonContainer/AttackBtn
 @onready var move_btn : Button = $ActionMenu/ActionPanel/ButtonContainer/MoveBtn
@@ -14,20 +19,16 @@ const UnitDataManagerClass = preload("res://function/script/UnitDataManager.gd")
 @onready var victory_label : Label = $VictoryLayer/VictoryPanel/VictoryLabel
 @onready var victory_button : Button = $VictoryLayer/VictoryPanel/VictoryButton
 @onready var turn_overlay : ColorRect = $TurnLayer/TurnRect
-
 @onready var cursor_layer : CanvasLayer = $CursorLayer
 @onready var cursor : TextureRect = $CursorLayer/Cursor
-
 @onready var highlight_manager : HighlightManager = $HighlightManager
 @onready var movement_animator : MovementAnimator = $MovementAnimator
 @onready var ui_manager : UIManager = $UIManager
 @onready var turnlayer_manager : TurnLayerManager = $TurnLayerManager
 @onready var camera_controller : CameraController = $Camera2D
 @onready var menu_blocker : ColorRect = $MenuBlocker
-
 @onready var info_panel : PanelContainer = $Info/InfoPanel
 @onready var info_text_label : Label = $Info/InfoPanel/InfoTextLabel
-
 @onready var setting_panel : PanelContainer = $SettingLayer/SettingPanel
 @onready var setting_end_turn_btn : Button = $SettingLayer/SettingPanel/SettingContainer/EndTurnBtn
 @onready var setting_btn : Button = $SettingLayer/SettingPanel/SettingContainer/SettingBtn
@@ -35,32 +36,83 @@ const UnitDataManagerClass = preload("res://function/script/UnitDataManager.gd")
 @onready var team_view_btn : Button = $SettingLayer/SettingPanel/SettingContainer/TeamViewBtn
 @onready var team_view_panel : PanelContainer = $SettingLayer/TeamViewPanel
 @onready var team_view_container : VBoxContainer = $SettingLayer/TeamViewPanel/TeamViewContainer
-@onready var speed_indicator: Label = $SpeedLayer/SpeedIndicator
-
-@export var transition_delay_before_fade : float = 1.0
-@export var transition_delay_after_fade : float = 1.0
-
+@onready var speed_indicator : Label = $SpeedLayer/SpeedIndicator
 @onready var item_list_btn : Button = $SettingLayer/SettingPanel/SettingContainer/ItemListBtn
 @onready var item_list_panel : PanelContainer = $SettingLayer/ItemListPanel
 @onready var item_list_container : VBoxContainer = $SettingLayer/ItemListPanel/ItemListContainer
-@onready var item_action_panel: CanvasLayer = $ItemActionPanel
+@onready var item_action_panel : CanvasLayer = $ItemActionPanel
 
+# ---- 常量 ----
 const CELL_SIZE : int = 16
-var map_grid_size : Vector2i = Vector2i(20, 15)
-var _initialized : bool = false
-var _viewport_scale : float = 1.0
-var _battle_start_event_id: String = ""
-var _attack_indicator : TextureRect = null
-
-# ---- 功能格系统 ----
-var map_functions : Dictionary = {}
-var _turn_changed_locked : bool = false
-
 const PERFORMANCE_DURATION : float = 0.5
 const ItemGetPopupScene = preload("res://content/scenes/ui/ItemGetPopup.tscn")
 
+# ---- 普通变量（运行时可修改） ----
+var map_grid_size : Vector2i = Vector2i(20, 15)
+var _initialized : bool = false
+var _viewport_scale : float = 1.0
+var _battle_start_event_id : String = ""
+var _attack_indicator : TextureRect = null
+var map_functions : Dictionary = {}
+var _turn_changed_locked : bool = false
+
 # ===================== 生命周期 =====================
 func _ready():
+	print("=== Battlefield _ready 开始 ===")
+	
+	# ---- 手动获取所有节点（替代 @onready） ----
+	action_menu = get_node("ActionMenu")
+	attack_btn = get_node("ActionMenu/ActionPanel/ButtonContainer/AttackBtn")
+	move_btn = get_node("ActionMenu/ActionPanel/ButtonContainer/MoveBtn")
+	equip_btn = get_node("ActionMenu/ActionPanel/ButtonContainer/EquipBtn")
+	wait_btn = get_node("ActionMenu/ActionPanel/ButtonContainer/WaitBtn")
+	victory_panel = get_node("VictoryLayer/VictoryPanel")
+	victory_label = get_node("VictoryLayer/VictoryPanel/VictoryLabel")
+	victory_button = get_node("VictoryLayer/VictoryPanel/VictoryButton")
+	turn_overlay = get_node("TurnLayer/TurnRect")
+	cursor_layer = get_node("CursorLayer")
+	cursor = get_node("CursorLayer/Cursor")
+	highlight_manager = $HighlightManager
+	movement_animator = $MovementAnimator
+	ui_manager = $UIManager
+	turnlayer_manager = $TurnLayerManager
+	camera_controller = $Camera2D
+	menu_blocker = $MenuBlocker
+	info_panel = $Info/InfoPanel
+	info_text_label = $Info/InfoPanel/InfoTextLabel
+	setting_panel = $SettingLayer/SettingPanel
+	setting_end_turn_btn = $SettingLayer/SettingPanel/SettingContainer/EndTurnBtn
+	setting_btn = $SettingLayer/SettingPanel/SettingContainer/SettingBtn
+	setting_menu_panel = $SettingLayer/SettingMenuPanel
+	team_view_btn = $SettingLayer/SettingPanel/SettingContainer/TeamViewBtn
+	team_view_panel = $SettingLayer/TeamViewPanel
+	team_view_container = $SettingLayer/TeamViewPanel/TeamViewContainer
+	speed_indicator = $SpeedLayer/SpeedIndicator
+	item_list_btn = $SettingLayer/SettingPanel/SettingContainer/ItemListBtn
+	item_list_panel = $SettingLayer/ItemListPanel
+	item_list_container = $SettingLayer/ItemListPanel/ItemListContainer
+	item_action_panel = $ItemActionPanel
+
+	# ---- 检查关键节点，打印缺失警告 ----
+	var node_list = {
+		"action_menu": action_menu,
+		"attack_btn": attack_btn,
+		"move_btn": move_btn,
+		"wait_btn": wait_btn,
+		"victory_panel": victory_panel,
+		"turn_overlay": turn_overlay,
+		"cursor": cursor,
+		"highlight_manager": highlight_manager,
+		"menu_blocker": menu_blocker,
+		"info_panel": info_panel,
+		"setting_panel": setting_panel,
+		"item_action_panel": item_action_panel
+	}
+	for name in node_list:
+		if not node_list[name]:
+			print("警告：节点 '", name, "' 未找到！")
+
+	# ---- 原有逻辑开始 ----
 	setting_btn.pressed.connect(_on_setting_btn_pressed)
 	equip_btn.pressed.connect(_on_equip_btn_pressed)
 	item_list_btn.pressed.connect(_on_item_list_btn_pressed)
@@ -76,14 +128,18 @@ func _ready():
 	team_view_btn.pressed.connect(_on_team_view_btn_pressed)
 
 	_attack_indicator = TextureRect.new()
-	_attack_indicator.texture = cursor.texture
+	if cursor and cursor.texture:
+		_attack_indicator.texture = cursor.texture
+	else:
+		print("警告：cursor.texture 无效，使用默认纹理")
 	_attack_indicator.size = Vector2(CELL_SIZE, CELL_SIZE)
 	_attack_indicator.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_attack_indicator.z_index = 5
 	_attack_indicator.visible = false
 	add_child(_attack_indicator)
 
-	victory_panel.visible = false
+	if victory_panel:
+		victory_panel.visible = false
 
 	_initialize_managers()
 	_connect_signals()
@@ -92,26 +148,44 @@ func _ready():
 		turn_overlay.modulate = Color(1, 1, 1, 0)
 		Globals.is_fading = false
 
+	# ---- 加载地图（增加健壮性） ----
 	if Globals.current_map_data:
-		load_map(Globals.current_map_data)
+		var map_to_load = Globals.current_map_data
+		# 检查地图数据是否有效
+		if not map_to_load.scene and map_to_load.unit_configs.is_empty():
+			print("警告：当前地图数据无效，使用默认地图")
+			_load_default_map()
+		else:
+			print("加载地图：", map_to_load.map_name)
+			load_map(map_to_load)
 	else:
+		print("没有地图数据，加载默认地图")
 		_load_default_map()
 
 	if not map_data:
 		var map_pixel_size = Vector2(map_grid_size.x * CELL_SIZE, map_grid_size.y * CELL_SIZE)
-		camera_controller.set_map_boundary(Rect2(Vector2.ZERO, map_pixel_size))
+		if camera_controller:
+			camera_controller.set_map_boundary(Rect2(Vector2.ZERO, map_pixel_size))
 
-	camera_controller.set_grid_size(CELL_SIZE)
-	var viewport_size = get_viewport().get_visible_rect().size
-	camera_controller.set_edge_scroll_margin(viewport_size.x * 0.25)
+	if camera_controller:
+		camera_controller.set_grid_size(CELL_SIZE)
+		var viewport_size = get_viewport().get_visible_rect().size
+		camera_controller.set_edge_scroll_margin(viewport_size.x * 0.25)
 
-	action_menu.visible = false
-	move_btn.disabled = true
-	attack_btn.disabled = true
-	wait_btn.disabled = true
-	info_panel.visible = false
-	setting_panel.visible = false
-	item_action_panel.visible = false
+	if action_menu:
+		action_menu.visible = false
+	if move_btn:
+		move_btn.disabled = true
+	if attack_btn:
+		attack_btn.disabled = true
+	if wait_btn:
+		wait_btn.disabled = true
+	if info_panel:
+		info_panel.visible = false
+	if setting_panel:
+		setting_panel.visible = false
+	if item_action_panel:
+		item_action_panel.visible = false
 
 	InputManager.selected_unit = null
 	InputManager.interaction_phase = "idle"
@@ -125,19 +199,22 @@ func _ready():
 	TurnManager.last_player_unit = null
 	TurnManager.current_turn_team = 0
 
-	highlight_manager.clear_highlight()
+	if highlight_manager:
+		highlight_manager.clear_highlight()
 	_on_clear_highlight_unit()
 
-	menu_blocker.mouse_filter = Control.MOUSE_FILTER_STOP
-	menu_blocker.visible = false
-	menu_blocker.gui_input.connect(_on_menu_blocker_clicked)
-	menu_blocker.size = Vector2(map_grid_size.x * CELL_SIZE, map_grid_size.y * CELL_SIZE)
-	menu_blocker.position = Vector2.ZERO
-	menu_blocker.z_index = 10
+	if menu_blocker:
+		menu_blocker.mouse_filter = Control.MOUSE_FILTER_STOP
+		menu_blocker.visible = false
+		menu_blocker.gui_input.connect(_on_menu_blocker_clicked)
+		menu_blocker.size = Vector2(map_grid_size.x * CELL_SIZE, map_grid_size.y * CELL_SIZE)
+		menu_blocker.position = Vector2.ZERO
+		menu_blocker.z_index = 10
 
+	# ---- 战斗开始事件 ----
 	if _battle_start_event_id != "":
 		print("检测到战斗开始事件：", _battle_start_event_id)
-		var music = MusicManager.config.battle_start_dialogue_music
+		var music = MusicManager.config.battle_start_dialogue_music if MusicManager.config else null
 		if EventManager and EventManager.has_event(_battle_start_event_id):
 			await EventManager.trigger_event(_battle_start_event_id, null, music)
 		else:
@@ -150,9 +227,10 @@ func _ready():
 	else:
 		print("没有战斗开始事件")
 
-	MusicManager.stop_music()
-	MusicManager._saved_stream = null
-	MusicManager._saved_position = 0.0
+	if MusicManager:
+		MusicManager.stop_music()
+		MusicManager._saved_stream = null
+		MusicManager._saved_position = 0.0
 
 	await get_tree().process_frame
 	print("=== 准备启动玩家回合 ===")
@@ -332,36 +410,84 @@ func _get_viewport_scale() -> float:
 
 # ===================== 地图加载 =====================
 func load_map(new_map_data: MapData):
+	print("=== load_map 被调用 ===")
+	print("地图数据：", new_map_data)
+	print("地图名称：", new_map_data.map_name if new_map_data else "null")
+
+	if not new_map_data:
+		print("地图数据为空，加载默认地图")
+		_load_default_map()
+		return
+	# 确保有有效数据
+	if not new_map_data.scene and new_map_data.unit_configs.is_empty():
+		print("地图数据缺少 scene 和 unit_configs，加载默认地图")
+		_load_default_map()
+		return
+	
 	self.map_data = new_map_data
 
+	# ---- 第二步：加载地形 ----
 	var tilemap : TileMapLayer = null
 	var main_scene_instance : Node = null
 	var used_rect : Rect2i = Rect2i()
 
 	if new_map_data.scene:
-		main_scene_instance = new_map_data.scene.instantiate()
-		tilemap = _find_tilemap(main_scene_instance)
-		if tilemap:
-			var old_tilemap = get_node_or_null("TerrainTileMap")
-			if old_tilemap:
-				old_tilemap.queue_free()
-			main_scene_instance.name = "TerrainTileMap"
-			add_child(main_scene_instance)
-			move_child(main_scene_instance, 0)
-			tilemap.z_index = -1
-			used_rect = tilemap.get_used_rect()
-			if used_rect.size.x > 0 and used_rect.size.y > 0:
-				map_grid_size = used_rect.size
-			else:
-				map_grid_size = new_map_data.map_size
-			TerrainManager.grid_size = map_grid_size
-			TerrainManager.load_from_tilemap(tilemap, map_grid_size)
-			_extract_map_unit_placers(main_scene_instance)
-		else:
-			push_error("场景中未找到 TileMapLayer")
+		# 尝试实例化场景
+		var scene = load(new_map_data.scene.resource_path)
+		if scene is PackedScene:
+			main_scene_instance = scene.instantiate()
 			if main_scene_instance:
-				main_scene_instance.queue_free()
-			# 尝试从已有节点获取
+				tilemap = _find_tilemap(main_scene_instance)
+				if tilemap:
+					# 成功找到 TileMapLayer
+					var old_tilemap = get_node_or_null("TerrainTileMap")
+					if old_tilemap:
+						old_tilemap.queue_free()
+					main_scene_instance.name = "TerrainTileMap"
+					add_child(main_scene_instance)
+					move_child(main_scene_instance, 0)
+					tilemap.z_index = -1
+					used_rect = tilemap.get_used_rect()
+					if used_rect.size.x > 0 and used_rect.size.y > 0:
+						map_grid_size = used_rect.size
+					else:
+						map_grid_size = new_map_data.map_size
+					TerrainManager.grid_size = map_grid_size
+					TerrainManager.load_from_tilemap(tilemap, map_grid_size)
+					_extract_map_unit_placers(main_scene_instance)
+				else:
+					push_error("场景中未找到 TileMapLayer，使用默认地形")
+					main_scene_instance.queue_free()
+					main_scene_instance = null
+					# 尝试使用现有地形
+					tilemap = get_node_or_null("TerrainTileMap") as TileMapLayer
+					if tilemap:
+						used_rect = tilemap.get_used_rect()
+						if used_rect.size.x > 0 and used_rect.size.y > 0:
+							map_grid_size = used_rect.size
+						else:
+							map_grid_size = new_map_data.map_size
+						TerrainManager.grid_size = map_grid_size
+						TerrainManager.load_from_tilemap(tilemap, map_grid_size)
+					else:
+						_generate_default_terrain(new_map_data.map_size)
+			else:
+				push_error("无法实例化场景：", new_map_data.scene.resource_path)
+				# 回退
+				tilemap = get_node_or_null("TerrainTileMap") as TileMapLayer
+				if tilemap:
+					used_rect = tilemap.get_used_rect()
+					if used_rect.size.x > 0 and used_rect.size.y > 0:
+						map_grid_size = used_rect.size
+					else:
+						map_grid_size = new_map_data.map_size
+					TerrainManager.grid_size = map_grid_size
+					TerrainManager.load_from_tilemap(tilemap, map_grid_size)
+				else:
+					_generate_default_terrain(new_map_data.map_size)
+		else:
+			push_error("无法加载场景文件：", new_map_data.scene.resource_path)
+			# 回退
 			tilemap = get_node_or_null("TerrainTileMap") as TileMapLayer
 			if tilemap:
 				used_rect = tilemap.get_used_rect()
@@ -372,10 +498,9 @@ func load_map(new_map_data: MapData):
 				TerrainManager.grid_size = map_grid_size
 				TerrainManager.load_from_tilemap(tilemap, map_grid_size)
 			else:
-				# 无地形，生成默认平地
 				_generate_default_terrain(new_map_data.map_size)
 	else:
-		# 没有场景，尝试从已有节点获取
+		# 没有场景，使用已有地形或默认
 		tilemap = get_node_or_null("TerrainTileMap") as TileMapLayer
 		if tilemap:
 			used_rect = tilemap.get_used_rect()
@@ -386,26 +511,30 @@ func load_map(new_map_data: MapData):
 			TerrainManager.grid_size = map_grid_size
 			TerrainManager.load_from_tilemap(tilemap, map_grid_size)
 		else:
-			# 无地形，生成默认平地
 			_generate_default_terrain(new_map_data.map_size)
 
+	# ---- 第三步：清除旧单位 ----
 	_clear_units()
 
+	# ---- 第四步：生成单位 ----
 	var configs: Array[UnitConfig] = []
 	if main_scene_instance:
 		configs = UnitSpawner.extract_configs_from_node(main_scene_instance)
-	if configs.size() == 0 and new_map_data.unit_configs.size() > 0:
+	if configs.is_empty() and new_map_data.unit_configs:
 		configs = new_map_data.unit_configs
 
-	if configs.size() > 0:
-		UnitSpawner.spawn_units_from_configs(self, configs, grid_to_world)
-	else:
+	if configs.is_empty():
+		print("警告：没有单位配置，使用测试单位")
 		UnitSpawner.spawn_test_units(self, grid_to_world)
+	else:
+		UnitSpawner.spawn_units_from_configs(self, configs, grid_to_world)
 
+	# 确保所有单位位置正确
 	for unit in UnitManager.unit_list:
 		unit.position = grid_to_world(unit.grid_cell)
 		unit.z_index = 1
 
+	# ---- 第五步：设置地图边界 ----
 	var map_pixel_rect = Rect2()
 	if used_rect.size.x > 0 and used_rect.size.y > 0:
 		map_pixel_rect = Rect2(
@@ -427,7 +556,23 @@ func load_map(new_map_data: MapData):
 	TurnManager.map_functions = map_functions
 	print("地图加载完成：", new_map_data.map_name)
 
-# ---- 辅助函数：生成默认地形 ----
+# ---- 辅助函数：生成备用地图 ----
+func _create_fallback_map_data() -> MapData:
+	var map = MapData.new()
+	map.map_name = "备用地图"
+	var cfg = UnitConfig.new()
+	cfg.unit_name = "剑士"
+	cfg.team_id = 0
+	cfg.position = Vector2i(10, 10)
+	map.unit_configs.append(cfg)
+	var enemy_cfg = UnitConfig.new()
+	enemy_cfg.unit_name = "斧兵"
+	enemy_cfg.team_id = 1
+	enemy_cfg.position = Vector2i(5, 5)
+	map.unit_configs.append(enemy_cfg)
+	return map
+
+# ---- 辅助函数：生成默认平地地形 ----
 func _generate_default_terrain(map_size: Vector2i):
 	map_grid_size = map_size
 	TerrainManager.grid_size = map_size
@@ -518,36 +663,38 @@ func _center_camera_on_player():
 		camera_controller.smooth_move_to(target_pos, 0.0, true)
 
 func _load_default_map():
+	print("加载默认测试地图")
 	var default_map = MapData.new()
 	default_map.map_name = "默认地图"
-	default_map.scene = null
-	default_map.map_size = map_grid_size
-	var configs: Array[UnitConfig] = []
+	default_map.scene = null  # 无场景
+	default_map.map_size = Vector2i(20, 15)
+	
+	# 添加一些单位
 	var p1 = UnitConfig.new()
 	p1.unit_name = "剑士"
 	p1.team_id = 0
 	p1.position = Vector2i(15, 10)
-	configs.append(p1)
+	default_map.unit_configs.append(p1)
 
 	var p2 = UnitConfig.new()
 	p2.unit_name = "枪兵"
 	p2.team_id = 0
 	p2.position = Vector2i(15, 11)
-	configs.append(p2)
+	default_map.unit_configs.append(p2)
 
 	var e1 = UnitConfig.new()
 	e1.unit_name = "枪兵"
 	e1.team_id = 1
 	e1.position = Vector2i(3, 3)
-	configs.append(e1)
+	default_map.unit_configs.append(e1)
 
 	var e2 = UnitConfig.new()
 	e2.unit_name = "斧兵"
 	e2.team_id = 1
 	e2.position = Vector2i(3, 4)
-	configs.append(e2)
+	default_map.unit_configs.append(e2)
 
-	default_map.unit_configs = configs
+	# 调用 load_map 加载这个地图
 	load_map(default_map)
 
 func _clear_units():
@@ -557,6 +704,8 @@ func _clear_units():
 			child.queue_free()
 
 func _find_tilemap(node: Node) -> TileMapLayer:
+	if not node:
+		return null
 	if node is TileMapLayer:
 		return node
 	for child in node.get_children():
@@ -768,46 +917,26 @@ func _on_request_show_victory(winning_team: int):
 		# 战斗结束，通知地图更新
 		SignalBus.battle_completed.emit(winning_team)
 		if is_win:
-			# 播放胜利音乐（可选）
 			if is_last:
 				MusicManager.play_win_game_music()
 			else:
 				MusicManager.play_victory_music()
 			await get_tree().create_timer(1.0).timeout
-			get_tree().change_scene_to_file("res://content/scenes/ui/MapScene.tscn")
+			# ---- 安全切换 ----
+			var tree = get_tree()
+			if tree:
+				tree.change_scene_to_file("res://content/scenes/ui/MapScene.tscn")
+			else:
+				print("错误：无法获取场景树，无法返回地图")
 		else:
 			MusicManager.play_defeat_music()
 			await get_tree().create_timer(1.5).timeout
-			# 失败后返回地图（可重新尝试）
-			get_tree().change_scene_to_file("res://content/scenes/ui/MapScene.tscn")
+			var tree = get_tree()
+			if tree:
+				tree.change_scene_to_file("res://content/scenes/ui/MapScene.tscn")
+			else:
+				print("错误：无法获取场景树，无法返回地图")
 		return
-	# ===== 非地图模式（原有逻辑） =====
-
-	if is_win and is_last:
-		MusicManager.play_win_game_music()
-	elif is_win:
-		MusicManager.play_victory_music()
-	else:
-		MusicManager.play_defeat_music()
-
-	var label_text = ""
-	var button_text = ""
-	var callback = Callable()
-	if is_win:
-		if is_last:
-			label_text = "全部胜利"
-			button_text = "回到开始"
-		else:
-			label_text = "战斗胜利"
-			button_text = "下一关"
-		callback = Callable(LevelManager, "on_victory")
-	else:
-		label_text = "战斗失败"
-		button_text = "回到开始"
-		callback = Callable(LevelManager, "on_defeat")
-
-	if is_instance_valid(ui_manager):
-		ui_manager.show_victory(label_text, button_text, callback)
 
 func _on_turn_changed(team: int):
 	print("_on_turn_changed 被调用，team:", team)

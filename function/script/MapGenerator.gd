@@ -102,7 +102,7 @@ static func generate_day(day: int, level_list: Array[MapData] = []) -> MapLevelD
 			node.connected_nodes.append(boss)
 
 	if root:
-		nodes.append(root)
+		nodes.insert(0, root)  # 将起点放到最前面，确保它获得第一个地图数据
 
 	if not level_list.is_empty():
 		_assign_map_data(nodes, level_list, day)
@@ -143,13 +143,16 @@ static func _assign_map_data(nodes: Array, level_list: Array[MapData], _day: int
 			MapNode.NodeType.BOSS
 		]
 	)
+	print("=== 分配地图数据，战斗节点数：", battle_nodes.size(), "，可用地图数：", level_list.size())
 	var idx = 0
 	for node in battle_nodes:
 		if idx < level_list.size():
 			node.map_data = level_list[idx]
+			print("  节点 ", node.node_type, " 分配地图：", level_list[idx].map_name)
 			idx += 1
 		else:
 			node.map_data = _create_fallback_map_data(node.node_type)
+			print("  节点 ", node.node_type, " 使用备用地图（测试战斗）")
 
 static func _create_fallback_map_data(_type: MapNode.NodeType) -> MapData:
 	var map = MapData.new()
