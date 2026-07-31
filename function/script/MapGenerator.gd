@@ -8,101 +8,100 @@ static func generate_day(day: int, level_list: Array[MapData] = []) -> MapLevelD
 	var root: MapNode = null
 
 	match day:
-		1:
-			root = _create_node(MapNode.NodeType.START, Vector2(160, 210))
-			var layer1 = _create_layer_nodes(nodes, [
-				MapNode.NodeType.NORMAL,
+		1, 2, 3:
+			# 定义层索引
+			const LAYER_START = 0
+			const LAYER_BRANCH1 = 1
+			const LAYER_JUNCTION1 = 2
+			const LAYER_BRANCH2 = 3
+			const LAYER_JUNCTION2 = 4
+			const LAYER_BOSS = 5
+
+			var y_start = 210
+			var y_branch1 = 170
+			var y_junction1 = 130
+			var y_branch2 = 90
+			var y_junction2 = 50
+			var y_boss = 20
+			var x_positions = [80, 130, 190, 240]
+
+			# 起点
+			root = _create_node(MapNode.NodeType.START, Vector2(160, y_start), LAYER_START)
+			root.custom_label = "起点"
+
+			# 第一层分支（4条路线）
+			var layer1_types = [
 				MapNode.NodeType.ELITE,
-				MapNode.NodeType.NORMAL
-			], Vector2(80, 165), Vector2(160, 165), Vector2(240, 165))
-			_connect_layers([root], layer1)
-			
-			var layer2 = _create_layer_nodes(nodes, [
 				MapNode.NodeType.NORMAL,
 				MapNode.NodeType.SHOP,
 				MapNode.NodeType.EVENT
-			], Vector2(80, 120), Vector2(160, 120), Vector2(240, 120))
-			_connect_layers(layer1, layer2)
-			
-			var layer3 = _create_layer_nodes(nodes, [
-				MapNode.NodeType.NORMAL,
-				MapNode.NodeType.NORMAL,
-				MapNode.NodeType.NORMAL
-			], Vector2(80, 75), Vector2(160, 75), Vector2(240, 75))
-			_connect_layers(layer2, layer3)
-			
-			var boss = _create_node(MapNode.NodeType.BOSS, Vector2(160, 30))
-			nodes.append(boss)
-			_connect_layers(layer3, [boss])
-			
-		2:
-			root = _create_node(MapNode.NodeType.CAMPFIRE, Vector2(160, 210))
-			var layer1 = _create_layer_nodes(nodes, [
-				MapNode.NodeType.NORMAL,
+			]
+			var layer1_labels = ["精英路线", "战斗路线", "均衡路线", "事件路线"]
+			var layer1_nodes = _create_labeled_nodes(nodes, layer1_types, layer1_labels, x_positions, y_branch1, LAYER_BRANCH1)
+
+			# 汇合节点①
+			var junction1 = _create_node(MapNode.NodeType.EVENT, Vector2(160, y_junction1), LAYER_JUNCTION1)
+			junction1.custom_label = "汇合点①"
+			nodes.append(junction1)
+
+			# 连接起点 → 第一层
+			for node in layer1_nodes:
+				root.connected_nodes.append(node)
+
+			# 连接第一层 → 汇合①
+			for node in layer1_nodes:
+				node.connected_nodes.append(junction1)
+
+			# 第二层分支（4条路线）
+			var layer2_types = [
 				MapNode.NodeType.ELITE,
-				MapNode.NodeType.NORMAL
-			], Vector2(80, 165), Vector2(160, 165), Vector2(240, 165))
-			_connect_layers([root], layer1)
-			
-			var layer2 = _create_layer_nodes(nodes, [
+				MapNode.NodeType.NORMAL,
 				MapNode.NodeType.SHOP,
-				MapNode.NodeType.EVENT,
-				MapNode.NodeType.ELITE
-			], Vector2(80, 120), Vector2(160, 120), Vector2(240, 120))
-			_connect_layers(layer1, layer2)
-			
-			var layer3 = _create_layer_nodes(nodes, [
-				MapNode.NodeType.ELITE,
-				MapNode.NodeType.NORMAL,
-				MapNode.NodeType.ELITE
-			], Vector2(80, 75), Vector2(160, 75), Vector2(240, 75))
-			_connect_layers(layer2, layer3)
-			
-			var boss = _create_node(MapNode.NodeType.BOSS, Vector2(160, 30))
+				MapNode.NodeType.EVENT
+			]
+			var layer2_labels = ["精英路线", "战斗路线", "均衡路线", "事件路线"]
+			var layer2_nodes = _create_labeled_nodes(nodes, layer2_types, layer2_labels, x_positions, y_branch2, LAYER_BRANCH2)
+
+			# 汇合节点②
+			var junction2 = _create_node(MapNode.NodeType.EVENT, Vector2(160, y_junction2), LAYER_JUNCTION2)
+			junction2.custom_label = "汇合点②"
+			nodes.append(junction2)
+
+			# 连接汇合① → 第二层
+			for node in layer2_nodes:
+				junction1.connected_nodes.append(node)
+
+			# 连接第二层 → 汇合②
+			for node in layer2_nodes:
+				node.connected_nodes.append(junction2)
+
+			# Boss
+			var boss = _create_node(MapNode.NodeType.BOSS, Vector2(160, y_boss), LAYER_BOSS)
+			boss.custom_label = "Boss"
 			nodes.append(boss)
-			_connect_layers(layer3, [boss])
-			
-		3:
-			root = _create_node(MapNode.NodeType.CAMPFIRE, Vector2(160, 210))
-			var layer1 = _create_layer_nodes(nodes, [
-				MapNode.NodeType.ELITE,
-				MapNode.NodeType.ELITE,
-				MapNode.NodeType.ELITE
-			], Vector2(80, 165), Vector2(160, 165), Vector2(240, 165))
-			_connect_layers([root], layer1)
-			
-			var layer2 = _create_layer_nodes(nodes, [
-				MapNode.NodeType.ELITE,
-				MapNode.NodeType.ELITE,
-				MapNode.NodeType.ELITE
-			], Vector2(80, 120), Vector2(160, 120), Vector2(240, 120))
-			_connect_layers(layer1, layer2)
-			
-			var layer3 = _create_layer_nodes(nodes, [
-				MapNode.NodeType.ELITE,
-				MapNode.NodeType.ELITE,
-				MapNode.NodeType.ELITE
-			], Vector2(80, 75), Vector2(160, 75), Vector2(240, 75))
-			_connect_layers(layer2, layer3)
-			
-			var prep = _create_node(MapNode.NodeType.FINAL_PREP, Vector2(160, 30))
-			nodes.append(prep)
-			_connect_layers(layer3, [prep])
-			
-			var boss = _create_node(MapNode.NodeType.BOSS, Vector2(160, 15))
-			nodes.append(boss)
-			prep.connected_nodes.append(boss)
+
+			# 连接汇合② → Boss
+			junction2.connected_nodes.append(boss)
+
 		_:
-			root = _create_node(MapNode.NodeType.START, Vector2(160, 210))
-			var node = _create_node(MapNode.NodeType.NORMAL, Vector2(160, 165))
-			nodes.append(node)
-			root.connected_nodes.append(node)
-			var boss = _create_node(MapNode.NodeType.BOSS, Vector2(160, 120))
+			# 默认测试地图（以防万一）
+			root = _create_node(MapNode.NodeType.START, Vector2(160, 210), 0)
+			root.custom_label = "起点"
+			var node1 = _create_node(MapNode.NodeType.NORMAL, Vector2(120, 165), 1)
+			node1.custom_label = "战斗"
+			var node2 = _create_node(MapNode.NodeType.ELITE, Vector2(200, 165), 1)
+			node2.custom_label = "精英"
+			nodes.append(node1)
+			nodes.append(node2)
+			root.connected_nodes = [node1, node2]
+			var boss = _create_node(MapNode.NodeType.BOSS, Vector2(160, 120), 2)
+			boss.custom_label = "Boss"
 			nodes.append(boss)
-			node.connected_nodes.append(boss)
+			node1.connected_nodes.append(boss)
+			node2.connected_nodes.append(boss)
 
 	if root:
-		nodes.insert(0, root)  # 将起点放到最前面，确保它获得第一个地图数据
+		nodes.append(root)
 
 	if not level_list.is_empty():
 		_assign_map_data(nodes, level_list, day)
@@ -112,35 +111,53 @@ static func generate_day(day: int, level_list: Array[MapData] = []) -> MapLevelD
 	data.map_name = "第%d天" % day
 	return data
 
-static func _create_node(type: MapNode.NodeType, pos: Vector2) -> MapNode:
-	var node = MapNode.new()
-	node.node_type = type
-	node.position = pos
-	node.is_available = false
-	node.is_visited = false
-	return node
-
-static func _create_layer_nodes(nodes: Array, types: Array, pos1: Vector2, pos2: Vector2, pos3: Vector2) -> Array[MapNode]:
+# ---- 辅助函数：创建带标签的节点列表 ----
+static func _create_labeled_nodes(nodes: Array, types: Array, labels: Array, x_positions: Array, y: float, layer: int) -> Array[MapNode]:
 	var result: Array[MapNode] = []
-	for i in range(3):
-		var pos = [pos1, pos2, pos3][i]
-		var node = _create_node(types[i], pos)
+	for i in range(types.size()):
+		var pos = Vector2(x_positions[i], y)
+		var node = _create_node(types[i], pos, layer)
+		node.custom_label = labels[i]
 		nodes.append(node)
 		result.append(node)
 	return result
 
-static func _connect_layers(from_nodes: Array[MapNode], to_nodes: Array[MapNode]):
-	for from in from_nodes:
-		for to in to_nodes:
-			from.connected_nodes.append(to)
+# ---- 创建单个节点（必须传入 layer） ----
+static func _create_node(type: MapNode.NodeType, pos: Vector2, layer: int) -> MapNode:
+	var node = MapNode.new()
+	node.node_type = type
+	node.position = pos
+	node.layer = layer
+	node.is_available = false
+	node.is_visited = false
+	return node
 
+# ---- 连接两层（按顺序一一对应） ----
+static func _connect_layers(from_nodes: Array[MapNode], to_nodes: Array[MapNode]):
+	var min_count = min(from_nodes.size(), to_nodes.size())
+	for i in range(min_count):
+		from_nodes[i].connected_nodes.append(to_nodes[i])
+
+# ---- 分配地图数据到战斗节点 ----
 static func _assign_map_data(nodes: Array, level_list: Array[MapData], _day: int):
 	var battle_nodes = nodes.filter(func(n):
-		return n.node_type in [MapNode.NodeType.START, MapNode.NodeType.NORMAL, MapNode.NodeType.ELITE, MapNode.NodeType.BOSS]
+		return n.node_type in [
+			MapNode.NodeType.NORMAL,
+			MapNode.NodeType.ELITE,
+			MapNode.NodeType.BOSS
+		]
 	)
-	for i in range(battle_nodes.size()):
-		battle_nodes[i].map_data = level_list[i % level_list.size()]
+	var idx = 0
+	for node in battle_nodes:
+		# ---- 如果 level_list 足够，按顺序分配；否则循环使用 ----
+		if level_list.size() > 0:
+			node.map_data = level_list[idx % level_list.size()]
+			idx += 1
+		else:
+			# 如果 level_list 为空，则使用备用
+			node.map_data = _create_fallback_map_data(node.node_type)
 
+# ---- 创建备用地图 ----
 static func _create_fallback_map_data(_type: MapNode.NodeType) -> MapData:
 	var map = MapData.new()
 	map.map_name = "测试战斗"

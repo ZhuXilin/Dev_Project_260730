@@ -394,15 +394,12 @@ theme_override_styles/panel = ExtResource("3_c18at")
 
 [node name="VictoryButton" type="Button" parent="VictoryLayer/VictoryPanel" unique_id=546599419]
 layout_mode = 1
-anchors_preset = 8
-anchor_left = 0.5
-anchor_top = 0.5
-anchor_right = 0.5
-anchor_bottom = 0.5
-offset_left = -64.0
-offset_top = -2.0
-offset_right = 64.0
-offset_bottom = 20.0
+anchors_preset = -1
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 8.0
+offset_top = 26.0
+offset_right = -8.0
 grow_horizontal = 2
 grow_vertical = 2
 theme_override_font_sizes/font_size = 10
@@ -415,15 +412,13 @@ text = "NEXT LEVEL"
 
 [node name="VictoryLabel" type="Label" parent="VictoryLayer/VictoryPanel" unique_id=710091341]
 layout_mode = 1
-anchors_preset = 8
-anchor_left = 0.5
-anchor_top = 0.5
-anchor_right = 0.5
-anchor_bottom = 0.5
-offset_left = -64.0
-offset_top = -20.0
-offset_right = 64.0
-offset_bottom = 3.0
+anchors_preset = -1
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 8.0
+offset_top = 4.0
+offset_right = -8.0
+offset_bottom = -21.0
 grow_horizontal = 2
 grow_vertical = 2
 text = "GAME OVER"

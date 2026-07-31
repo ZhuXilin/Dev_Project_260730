@@ -7,5 +7,5 @@
 
 [resource]
 script = ExtResource("4_3u704")
-levels = Array[ExtResource("1_2fy4q")]([ExtResource("3_pqbo0"), ExtResource("2_2dik3"), ExtResource("2_2dik3"), ExtResource("3_pqbo0"), ExtResource("2_2dik3"), ExtResource("3_pqbo0"), ExtResource("2_2dik3"), ExtResource("3_pqbo0"), ExtResource("2_2dik3"), ExtResource("3_pqbo0"), ExtResource("2_2dik3")])
+levels = Array[ExtResource("1_2fy4q")]([ExtResource("3_pqbo0"), ExtResource("2_2dik3"), ExtResource("2_2dik3"), ExtResource("3_pqbo0"), ExtResource("2_2dik3"), ExtResource("3_pqbo0"), ExtResource("2_2dik3"), ExtResource("3_pqbo0"), ExtResource("2_2dik3"), ExtResource("3_pqbo0"), ExtResource("2_2dik3"), ExtResource("3_pqbo0"), ExtResource("3_pqbo0")])
 metadata/_custom_type_script = "uid://bdgijrg1hdj6f"

@@ -119,17 +119,15 @@ func reset_all_game_state():
 	TurnManager.all_acted = false
 	TurnManager.is_moving = false
 	TurnManager.is_ai_moving = false
-	TurnManager.clear_ai_state()            # 替代 ai_queue 赋值
+	TurnManager.clear_ai_state()
 	TurnManager.last_player_unit = null
 	TurnManager.current_turn_team = 0
 	TurnManager.is_game_over = false
 	
 	UnitManager.clear_all_units()
 	
-	DialogueManager.reset()
+	print("所有游戏状态已重置（保留地图进度）")
 
-	print("所有游戏状态已重置")
-	
 # 实例方法（非静态），可直接通过 Globals.get_team_color() 调用
 func get_team_color(team_id: int, primary: bool = true) -> Color:
 	var colors = TEAM_COLORS.get(team_id, TEAM_COLORS[0])
