@@ -17,6 +17,21 @@ func setup(node_data: MapNode, map_scene: CanvasLayer):
 	add_theme_font_size_override("font_size", 5)
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	
+	# ---- 强制所有状态下的字体颜色为白色 ----
+	add_theme_color_override("font_color", Color.WHITE)
+	add_theme_color_override("font_color_disabled", Color.WHITE)
+	add_theme_color_override("font_color_hover", Color.WHITE)
+	add_theme_color_override("font_color_pressed", Color.WHITE)
+	
+	# ---- 使用 8bit_style_box_flat 样式（不透明） ----
+	var stylebox = load("res://content/resource/stylebox/8bit_style_box_flat.tres")
+	if stylebox:
+		add_theme_stylebox_override("normal", stylebox)
+		add_theme_stylebox_override("pressed", stylebox)
+		add_theme_stylebox_override("hover", stylebox)
+		add_theme_stylebox_override("disabled", stylebox)
+		add_theme_stylebox_override("focus", stylebox)
+	
 	if pressed.is_connected(_on_clicked):
 		pressed.disconnect(_on_clicked)
 	pressed.connect(_on_clicked)
@@ -28,8 +43,10 @@ func setup(node_data: MapNode, map_scene: CanvasLayer):
 			break
 
 func _get_node_label(node: MapNode) -> String:
-	if node.custom_label != "":
-		return node.custom_label
+	# 优先显示地图名
+	if node.map_data and node.map_data.map_name != "":
+		return node.map_data.map_name
+	# 否则显示类型名
 	match node.node_type:
 		MapNode.NodeType.START: return "起点"
 		MapNode.NodeType.CAMPFIRE: return "篝火"

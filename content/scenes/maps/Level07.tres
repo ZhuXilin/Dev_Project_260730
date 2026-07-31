@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="MapData" format=3 uid="uid://b5b2ag6a3xlb"]
+
+[ext_resource type="PackedScene" uid="uid://v8otwk7dvbmf" path="res://content/scenes/maps/Level07.tscn" id="1_m0c3b"]
+[ext_resource type="Script" uid="uid://ljo1eo241sn4" path="res://function/resource/MapData.gd" id="2_4ud86"]
+
+[resource]
+script = ExtResource("2_4ud86")
+map_name = "战前休整"
+scene = ExtResource("1_m0c3b")
+node_type = 7
+metadata/_custom_type_script = "uid://ljo1eo241sn4"

@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="MapData" format=3 uid="uid://d38oihcohb12p"]
+
+[ext_resource type="PackedScene" uid="uid://bpbkl0fkybo4l" path="res://content/scenes/maps/Level09.tscn" id="1_20u35"]
+[ext_resource type="Script" uid="uid://ljo1eo241sn4" path="res://function/resource/MapData.gd" id="2_8k2de"]
+
+[resource]
+script = ExtResource("2_8k2de")
+map_name = "占位关卡"
+scene = ExtResource("1_20u35")
+metadata/_custom_type_script = "uid://ljo1eo241sn4"

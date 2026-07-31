@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="MapData" format=3 uid="uid://b6i6ilbr0ftu4"]
+
+[ext_resource type="PackedScene" uid="uid://dbvj0fmyaywba" path="res://content/scenes/maps/Level06.tscn" id="1_86igq"]
+[ext_resource type="Script" uid="uid://ljo1eo241sn4" path="res://function/resource/MapData.gd" id="2_njsdg"]
+
+[resource]
+script = ExtResource("2_njsdg")
+map_name = "村庄"
+scene = ExtResource("1_86igq")
+node_type = 5
+metadata/_custom_type_script = "uid://ljo1eo241sn4"

@@ -7,4 +7,5 @@
 script = ExtResource("2_o8uvt")
 map_name = "新的旅程"
 scene = ExtResource("1_wqe1q")
+node_type = 0
 metadata/_custom_type_script = "uid://ljo1eo241sn4"

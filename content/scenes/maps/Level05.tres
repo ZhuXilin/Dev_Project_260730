@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="MapData" format=3 uid="uid://bqcgi808squvc"]
+
+[ext_resource type="PackedScene" uid="uid://bon388j0xhir" path="res://content/scenes/maps/Level05.tscn" id="1_5igoy"]
+[ext_resource type="Script" uid="uid://ljo1eo241sn4" path="res://function/resource/MapData.gd" id="2_6mkw4"]
+
+[resource]
+script = ExtResource("2_6mkw4")
+map_name = "飞龙顶"
+scene = ExtResource("1_5igoy")
+node_type = 3
+metadata/_custom_type_script = "uid://ljo1eo241sn4"

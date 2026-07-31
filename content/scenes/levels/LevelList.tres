@@ -3,9 +3,16 @@
 [ext_resource type="Script" uid="uid://ljo1eo241sn4" path="res://function/resource/MapData.gd" id="1_2fy4q"]
 [ext_resource type="Resource" uid="uid://b263elddwv42f" path="res://content/scenes/maps/Level02.tres" id="2_2dik3"]
 [ext_resource type="Resource" uid="uid://ctnfk0q4b3pv3" path="res://content/scenes/maps/Level01.tres" id="3_pqbo0"]
+[ext_resource type="Resource" uid="uid://7o7gmv081dob" path="res://content/scenes/maps/Level03.tres" id="4_2dik3"]
 [ext_resource type="Script" uid="uid://bdgijrg1hdj6f" path="res://function/resource/LevelList.gd" id="4_3u704"]
+[ext_resource type="Resource" uid="uid://2anhtrsqasu8" path="res://content/scenes/maps/Level04.tres" id="5_3u704"]
+[ext_resource type="Resource" uid="uid://bqcgi808squvc" path="res://content/scenes/maps/Level05.tres" id="6_cvn5t"]
+[ext_resource type="Resource" uid="uid://b6i6ilbr0ftu4" path="res://content/scenes/maps/Level06.tres" id="7_28ec5"]
+[ext_resource type="Resource" uid="uid://b5b2ag6a3xlb" path="res://content/scenes/maps/Level07.tres" id="8_n3gn8"]
+[ext_resource type="Resource" uid="uid://bv47ksslcit63" path="res://content/scenes/maps/Level08.tres" id="9_jx122"]
+[ext_resource type="Resource" uid="uid://d38oihcohb12p" path="res://content/scenes/maps/Level09.tres" id="10_wot0e"]
 
 [resource]
 script = ExtResource("4_3u704")
-levels = Array[ExtResource("1_2fy4q")]([ExtResource("3_pqbo0"), ExtResource("2_2dik3"), ExtResource("2_2dik3"), ExtResource("3_pqbo0"), ExtResource("3_pqbo0"), ExtResource("3_pqbo0"), ExtResource("2_2dik3"), ExtResource("3_pqbo0"), ExtResource("3_pqbo0")])
+levels = Array[ExtResource("1_2fy4q")]([ExtResource("3_pqbo0"), ExtResource("2_2dik3"), ExtResource("4_2dik3"), ExtResource("5_3u704"), ExtResource("6_cvn5t"), ExtResource("7_28ec5"), ExtResource("8_n3gn8"), ExtResource("9_jx122"), ExtResource("10_wot0e")])
 metadata/_custom_type_script = "uid://bdgijrg1hdj6f"

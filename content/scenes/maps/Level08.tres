@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="MapData" format=3 uid="uid://bv47ksslcit63"]
+
+[ext_resource type="PackedScene" uid="uid://b3gmbl7f6l7r8" path="res://content/scenes/maps/Level08.tscn" id="1_clcds"]
+[ext_resource type="Script" uid="uid://ljo1eo241sn4" path="res://function/resource/MapData.gd" id="2_ubw88"]
+
+[resource]
+script = ExtResource("2_ubw88")
+map_name = "篝火"
+scene = ExtResource("1_clcds")
+node_type = 1
+metadata/_custom_type_script = "uid://ljo1eo241sn4"
