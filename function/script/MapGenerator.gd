@@ -139,7 +139,7 @@ static func _connect_layers(from_nodes: Array[MapNode], to_nodes: Array[MapNode]
 		from_nodes[i].connected_nodes.append(to_nodes[i])
 
 # ---- 分配地图数据到战斗节点 ----
-static func _assign_map_data(nodes: Array, level_list: Array[MapData], _day: int):
+static func _assign_map_data(nodes: Array, _level_list: Array[MapData], _day: int):
 	var battle_nodes = nodes.filter(func(n):
 		return n.node_type in [
 			MapNode.NodeType.NORMAL,
@@ -147,14 +147,11 @@ static func _assign_map_data(nodes: Array, level_list: Array[MapData], _day: int
 			MapNode.NodeType.BOSS
 		]
 	)
-	var idx = 0
 	for node in battle_nodes:
-		# ---- 如果 level_list 足够，按顺序分配；否则循环使用 ----
-		if level_list.size() > 0:
-			node.map_data = level_list[idx % level_list.size()]
-			idx += 1
+		var map = LevelManager.get_map_for_node_type(node.node_type)
+		if map:
+			node.map_data = map
 		else:
-			# 如果 level_list 为空，则使用备用
 			node.map_data = _create_fallback_map_data(node.node_type)
 
 # ---- 创建备用地图 ----

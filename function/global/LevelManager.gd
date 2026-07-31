@@ -6,9 +6,10 @@ const LEVEL_LIST_PATH : String = "res://content/scenes/levels/LevelList.tres"
 
 var current_level_index : int = 0
 var _levels : Array[MapData] = []
-var _days_levels: Array = []  # 每个元素是 Array[MapData]（无嵌套泛型）
+var _days_levels: Array = []           # 按天分组
+var _levels_by_type: Dictionary = {}   # key: MapNode.NodeType, value: Array[MapData]
+var _type_index: Dictionary = {}       # 每种类型的轮转索引
 var is_map_mode: bool = false
-var visited_nodes: Array = []  # 存储已访问节点的 node_id
 
 func _ready():
 	_load_level_list()
@@ -27,6 +28,7 @@ func _load_level_list():
 	if level_list is LevelListScript:
 		_levels = level_list.levels
 		print("成功加载关卡列表，共 ", _levels.size(), " 关")
+		_group_levels_by_type()
 		_group_levels_by_day()
 	else:
 		push_error("关卡列表资源类型错误，期望 LevelList 类型：", LEVEL_LIST_PATH)
@@ -38,24 +40,45 @@ func _use_fallback_levels():
 	var fallback_map = load("res://content/maps/Level01.tres") as MapData
 	if fallback_map:
 		_levels.append(fallback_map)
+	_group_levels_by_type()
 	_group_levels_by_day()
 
-# ---- 按天分组 ----
+# ---- 按节点类型分组 ----
+func _group_levels_by_type():
+	_levels_by_type.clear()
+	_type_index.clear()
+	
+	for type in range(8):
+		_levels_by_type[type] = []
+		_type_index[type] = 0
+	
+	for map in _levels:
+		var type = MapNode.NodeType.NORMAL
+		if map.node_type != null:
+			type = map.node_type
+		if not _levels_by_type.has(type):
+			_levels_by_type[type] = []
+		_levels_by_type[type].append(map)
+	
+	print("=== 按类型分组 ===")
+	for type in _levels_by_type:
+		if _levels_by_type[type].size() > 0:
+			print("  类型 ", type, "：", _levels_by_type[type].size(), " 个地图")
+
+# ---- 按天分组（每天3关，用于地图路线） ----
 func _group_levels_by_day():
 	_days_levels.clear()
-	var per_day = 3  # 每天3个战斗节点
+	var per_day = 3
 	var total = _levels.size()
 	for day in range(3):
 		var start = day * per_day
 		var end = min(start + per_day, total)
-		var day_levels: Array[MapData] = []  # 这里使用一维数组泛型是合法的
+		var day_levels: Array[MapData] = []
 		for i in range(start, end):
 			day_levels.append(_levels[i])
 		_days_levels.append(day_levels)
-	# 如果某些天不够，填充重复或生成默认
 	while _days_levels.size() < 3:
 		var last = _days_levels[-1] if not _days_levels.is_empty() else []
-		# 由于 last 是 Array，使用 duplicate() 复制
 		_days_levels.append(last.duplicate())
 	print("已按天分组：", _days_levels.size(), "天，每天", _days_levels[0].size(), "个关卡")
 
@@ -64,6 +87,35 @@ func get_levels_for_day(day: int) -> Array:
 	if day >= 1 and day <= _days_levels.size():
 		return _days_levels[day-1]
 	return []
+
+# ---- 根据节点类型获取对应地图（轮转分配） ----
+func get_map_for_node_type(node_type: int) -> MapData:
+	var list = _levels_by_type.get(node_type, [])
+	
+	# 如果该类型没有专属地图，尝试使用 ANY 类型（假设 8 为 ANY）
+	if list.is_empty():
+		list = _levels_by_type.get(8, [])
+		if list.is_empty():
+			# 如果 ANY 也没有，使用 NORMAL 类型作为备用
+			list = _levels_by_type.get(MapNode.NodeType.NORMAL, [])
+	
+	if list.is_empty():
+		print("警告：没有找到类型 ", node_type, " 的地图，使用备用地图")
+		return _create_fallback_map_data()
+	
+	# 轮转分配
+	var idx = _type_index.get(node_type, 0)
+	var map = list[idx % list.size()]
+	_type_index[node_type] = (idx + 1) % list.size()
+	return map
+
+# ---- 创建备用地图 ----
+func _create_fallback_map_data() -> MapData:
+	var map = MapData.new()
+	map.map_name = "备用地图"
+	map.map_size = Vector2i(20, 15)
+	map.node_type = MapNode.NodeType.NORMAL
+	return map
 
 # ---- 游戏启动（进入地图） ----
 func start_game():
@@ -85,7 +137,7 @@ func load_map(map_data: MapData):
 	Globals.is_map_mode = true
 	get_tree().change_scene_to_file("res://content/scenes/levels/Battlefield.tscn")
 
-# ---- 胜利处理（地图模式） ----
+# ---- 胜利处理 ----
 func on_victory():
 	current_level_index += 1
 	if current_level_index < _levels.size():

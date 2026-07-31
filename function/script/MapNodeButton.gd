@@ -9,13 +9,12 @@ func setup(node_data: MapNode, map_scene: CanvasLayer):
 	map_scene_ref = map_scene
 	text = _get_node_label(node_data)
 	
-	# ---- 缩小到 40x20，字体5，保持清晰 ----
 	size = Vector2(40, 20)
 	position = node_data.position - size / 2
 	disabled = not node_data.is_available
 	modulate = _get_color(node_data)
 	visible = true
-	add_theme_font_size_override("font_size", 5)   # 更小字体，但可读
+	add_theme_font_size_override("font_size", 5)
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	
 	if pressed.is_connected(_on_clicked):

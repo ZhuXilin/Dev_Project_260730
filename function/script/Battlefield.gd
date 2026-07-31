@@ -418,23 +418,20 @@ func load_map(new_map_data: MapData):
 		print("地图数据为空，加载默认地图")
 		_load_default_map()
 		return
-	# 确保有有效数据
-	if not new_map_data.scene and new_map_data.unit_configs.is_empty():
-		print("地图数据缺少 scene 和 unit_configs，加载默认地图")
-		_load_default_map()
-		return
 	
-	self.map_data = new_map_data
+	# ---- 声明变量（只一次） ----
+	var map_pixel_rect: Rect2
+	var tilemap: TileMapLayer = null
+	var main_scene_instance: Node = null
+	var used_rect: Rect2i = Rect2i()
 
-	# ---- 第二步：加载地形 ----
-	var tilemap : TileMapLayer = null
-	var main_scene_instance : Node = null
-	var used_rect : Rect2i = Rect2i()
-
+	# ---- 尝试加载场景 ----
 	if new_map_data.scene:
-		# 尝试实例化场景
-		var scene = load(new_map_data.scene.resource_path)
-		if scene is PackedScene:
+		var scene_path = new_map_data.scene.resource_path
+		print("加载场景：", scene_path)
+		
+		var scene = load(scene_path) as PackedScene
+		if scene:
 			main_scene_instance = scene.instantiate()
 			if main_scene_instance:
 				tilemap = _find_tilemap(main_scene_instance)
@@ -456,77 +453,44 @@ func load_map(new_map_data: MapData):
 					TerrainManager.load_from_tilemap(tilemap, map_grid_size)
 					_extract_map_unit_placers(main_scene_instance)
 				else:
-					push_error("场景中未找到 TileMapLayer，使用默认地形")
-					main_scene_instance.queue_free()
-					main_scene_instance = null
-					# 尝试使用现有地形
-					tilemap = get_node_or_null("TerrainTileMap") as TileMapLayer
-					if tilemap:
-						used_rect = tilemap.get_used_rect()
-						if used_rect.size.x > 0 and used_rect.size.y > 0:
-							map_grid_size = used_rect.size
-						else:
-							map_grid_size = new_map_data.map_size
-						TerrainManager.grid_size = map_grid_size
-						TerrainManager.load_from_tilemap(tilemap, map_grid_size)
-					else:
-						_generate_default_terrain(new_map_data.map_size)
+					print("错误：场景中未找到 TileMapLayer，使用默认地形")
+					if main_scene_instance:
+						main_scene_instance.queue_free()
+						main_scene_instance = null
 			else:
-				push_error("无法实例化场景：", new_map_data.scene.resource_path)
-				# 回退
-				tilemap = get_node_or_null("TerrainTileMap") as TileMapLayer
-				if tilemap:
-					used_rect = tilemap.get_used_rect()
-					if used_rect.size.x > 0 and used_rect.size.y > 0:
-						map_grid_size = used_rect.size
-					else:
-						map_grid_size = new_map_data.map_size
-					TerrainManager.grid_size = map_grid_size
-					TerrainManager.load_from_tilemap(tilemap, map_grid_size)
-				else:
-					_generate_default_terrain(new_map_data.map_size)
+				print("错误：无法实例化场景：", scene_path)
 		else:
-			push_error("无法加载场景文件：", new_map_data.scene.resource_path)
-			# 回退
-			tilemap = get_node_or_null("TerrainTileMap") as TileMapLayer
-			if tilemap:
-				used_rect = tilemap.get_used_rect()
-				if used_rect.size.x > 0 and used_rect.size.y > 0:
-					map_grid_size = used_rect.size
-				else:
-					map_grid_size = new_map_data.map_size
-				TerrainManager.grid_size = map_grid_size
-				TerrainManager.load_from_tilemap(tilemap, map_grid_size)
-			else:
-				_generate_default_terrain(new_map_data.map_size)
+			print("错误：无法加载场景文件：", scene_path)
+	
+	# ---- 如果未找到地形，生成默认 ----
+	if not tilemap:
+		_generate_default_terrain(new_map_data.map_size)
+		used_rect = Rect2i(Vector2i.ZERO, map_grid_size)
+		map_pixel_rect = Rect2(Vector2.ZERO, new_map_data.map_size * CELL_SIZE)
+		menu_blocker.size = new_map_data.map_size * CELL_SIZE
+		menu_blocker.position = Vector2.ZERO
 	else:
-		# 没有场景，使用已有地形或默认
-		tilemap = get_node_or_null("TerrainTileMap") as TileMapLayer
-		if tilemap:
-			used_rect = tilemap.get_used_rect()
-			if used_rect.size.x > 0 and used_rect.size.y > 0:
-				map_grid_size = used_rect.size
-			else:
-				map_grid_size = new_map_data.map_size
-			TerrainManager.grid_size = map_grid_size
-			TerrainManager.load_from_tilemap(tilemap, map_grid_size)
-		else:
-			_generate_default_terrain(new_map_data.map_size)
+		# 从 TileMap 获取边界
+		map_pixel_rect = Rect2(
+			used_rect.position * CELL_SIZE,
+			used_rect.size * CELL_SIZE
+		)
+		menu_blocker.size = used_rect.size * CELL_SIZE
+		menu_blocker.position = used_rect.position * CELL_SIZE
 
-	# ---- 第三步：清除旧单位 ----
+	# ---- 清除旧单位 ----
 	_clear_units()
 
-	# ---- 第四步：生成单位 ----
+	# ---- 生成单位 ----
 	var configs: Array[UnitConfig] = []
 	if main_scene_instance:
 		configs = UnitSpawner.extract_configs_from_node(main_scene_instance)
-	if configs.is_empty() and new_map_data.unit_configs:
-		configs = new_map_data.unit_configs
 
 	if configs.is_empty():
-		print("警告：没有单位配置，使用测试单位")
+		print("警告：场景中没有 UnitPlacer 节点，使用测试单位")
 		UnitSpawner.spawn_test_units(self, grid_to_world)
 	else:
+		print("从场景提取到 ", configs.size(), " 个单位配置")
 		UnitSpawner.spawn_units_from_configs(self, configs, grid_to_world)
 
 	# 确保所有单位位置正确
@@ -534,20 +498,7 @@ func load_map(new_map_data: MapData):
 		unit.position = grid_to_world(unit.grid_cell)
 		unit.z_index = 1
 
-	# ---- 第五步：设置地图边界 ----
-	var map_pixel_rect = Rect2()
-	if used_rect.size.x > 0 and used_rect.size.y > 0:
-		map_pixel_rect = Rect2(
-			used_rect.position * CELL_SIZE,
-			used_rect.size * CELL_SIZE
-		)
-		menu_blocker.size = used_rect.size * CELL_SIZE
-		menu_blocker.position = used_rect.position * CELL_SIZE
-	else:
-		map_pixel_rect = Rect2(Vector2.ZERO, new_map_data.map_size * CELL_SIZE)
-		menu_blocker.size = new_map_data.map_size * CELL_SIZE
-		menu_blocker.position = Vector2.ZERO
-
+	# ---- 设置摄像机边界 ----
 	menu_blocker.z_index = 2
 	camera_controller.set_map_boundary(map_pixel_rect)
 	print("地图边界（像素）:", map_pixel_rect)
@@ -555,6 +506,19 @@ func load_map(new_map_data: MapData):
 	_center_camera_on_player()
 	TurnManager.map_functions = map_functions
 	print("地图加载完成：", new_map_data.map_name)
+
+# ---- 生成默认地形 ----
+func _generate_default_terrain(map_size: Vector2i):
+	map_grid_size = map_size
+	TerrainManager.grid_size = map_size
+	var grid = []
+	for y in range(map_size.y):
+		var row = []
+		for x in range(map_size.x):
+			row.append(TerrainManager.TerrainType.PLAIN)
+		grid.append(row)
+	TerrainManager.terrain_grid = grid
+	print("生成默认平地地形，尺寸：", map_size)
 
 # ---- 辅助函数：生成备用地图 ----
 func _create_fallback_map_data() -> MapData:
@@ -571,19 +535,6 @@ func _create_fallback_map_data() -> MapData:
 	enemy_cfg.position = Vector2i(5, 5)
 	map.unit_configs.append(enemy_cfg)
 	return map
-
-# ---- 辅助函数：生成默认平地地形 ----
-func _generate_default_terrain(map_size: Vector2i):
-	map_grid_size = map_size
-	TerrainManager.grid_size = map_size
-	var grid = []
-	for y in range(map_size.y):
-		var row = []
-		for x in range(map_size.x):
-			row.append(TerrainManager.TerrainType.PLAIN)
-		grid.append(row)
-	TerrainManager.terrain_grid = grid
-	print("生成默认平地地形，尺寸：", map_size)
 
 # ---- 辅助函数：创建全平地 ----
 func _create_flat_terrain(size: Vector2i):

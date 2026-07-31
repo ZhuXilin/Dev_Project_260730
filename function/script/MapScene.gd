@@ -176,13 +176,13 @@ func _load_combat(map_data_arg: MapData):
 	if not map_data_arg:
 		print("错误：地图数据为空，使用备用地图")
 		map_data_arg = _create_default_map()
-	elif not map_data_arg.scene and map_data_arg.unit_configs.is_empty():
-		print("警告：地图数据缺少场景和单位配置，使用备用地图")
+	elif not map_data_arg.scene:
+		print("警告：地图数据缺少场景文件，使用备用地图")
 		map_data_arg = _create_default_map()
 	
-	print("加载战斗场景：", map_data_arg.map_name)
+	print("加载战斗场景: ", map_data_arg.map_name)
 	Globals.current_map_data = map_data_arg
-	Globals.reset_all_game_state()  # 清理战斗相关状态，但保留 visited_nodes
+	Globals.reset_all_game_state()
 	get_tree().change_scene_to_file("res://content/scenes/ui/Loading.tscn")
 
 # ---- 创建备用地图（当原始数据无效时使用） ----
