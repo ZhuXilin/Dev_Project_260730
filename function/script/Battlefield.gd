@@ -361,6 +361,7 @@ func load_map(new_map_data: MapData):
 			push_error("场景中未找到 TileMapLayer")
 			if main_scene_instance:
 				main_scene_instance.queue_free()
+			# 尝试从已有节点获取
 			tilemap = get_node_or_null("TerrainTileMap") as TileMapLayer
 			if tilemap:
 				used_rect = tilemap.get_used_rect()
@@ -370,7 +371,11 @@ func load_map(new_map_data: MapData):
 					map_grid_size = new_map_data.map_size
 				TerrainManager.grid_size = map_grid_size
 				TerrainManager.load_from_tilemap(tilemap, map_grid_size)
+			else:
+				# 无地形，生成默认平地
+				_generate_default_terrain(new_map_data.map_size)
 	else:
+		# 没有场景，尝试从已有节点获取
 		tilemap = get_node_or_null("TerrainTileMap") as TileMapLayer
 		if tilemap:
 			used_rect = tilemap.get_used_rect()
@@ -381,9 +386,8 @@ func load_map(new_map_data: MapData):
 			TerrainManager.grid_size = map_grid_size
 			TerrainManager.load_from_tilemap(tilemap, map_grid_size)
 		else:
-			push_warning("没有地形数据，所有格子视为平地")
-			map_grid_size = new_map_data.map_size
-			TerrainManager.grid_size = map_grid_size
+			# 无地形，生成默认平地
+			_generate_default_terrain(new_map_data.map_size)
 
 	_clear_units()
 
@@ -422,6 +426,32 @@ func load_map(new_map_data: MapData):
 	_center_camera_on_player()
 	TurnManager.map_functions = map_functions
 	print("地图加载完成：", new_map_data.map_name)
+
+# ---- 辅助函数：生成默认地形 ----
+func _generate_default_terrain(map_size: Vector2i):
+	map_grid_size = map_size
+	TerrainManager.grid_size = map_size
+	var grid = []
+	for y in range(map_size.y):
+		var row = []
+		for x in range(map_size.x):
+			row.append(TerrainManager.TerrainType.PLAIN)
+		grid.append(row)
+	TerrainManager.terrain_grid = grid
+	print("生成默认平地地形，尺寸：", map_size)
+
+# ---- 辅助函数：创建全平地 ----
+func _create_flat_terrain(size: Vector2i):
+	push_warning("没有地形数据，所有格子视为平地")
+	map_grid_size = size
+	TerrainManager.grid_size = size
+	var grid = []
+	for y in range(size.y):
+		var row = []
+		for x in range(size.x):
+			row.append(TerrainManager.TerrainType.PLAIN)
+		grid.append(row)
+	TerrainManager.terrain_grid = grid
 
 func _extract_map_unit_placers(node: Node):
 	map_functions.clear()
@@ -732,6 +762,27 @@ func _on_request_show_victory(winning_team: int):
 
 	var is_win = (winning_team == 0)
 	var is_last = LevelManager.is_last_level()
+	
+	# ===== 地图模式判断 =====
+	if Globals.is_map_mode:
+		# 战斗结束，通知地图更新
+		SignalBus.battle_completed.emit(winning_team)
+		if is_win:
+			# 播放胜利音乐（可选）
+			if is_last:
+				MusicManager.play_win_game_music()
+			else:
+				MusicManager.play_victory_music()
+			await get_tree().create_timer(1.0).timeout
+			get_tree().change_scene_to_file("res://content/scenes/ui/MapScene.tscn")
+		else:
+			MusicManager.play_defeat_music()
+			await get_tree().create_timer(1.5).timeout
+			# 失败后返回地图（可重新尝试）
+			get_tree().change_scene_to_file("res://content/scenes/ui/MapScene.tscn")
+		return
+	# ===== 非地图模式（原有逻辑） =====
+
 	if is_win and is_last:
 		MusicManager.play_win_game_music()
 	elif is_win:

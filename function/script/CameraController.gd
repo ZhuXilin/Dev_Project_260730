@@ -64,7 +64,7 @@ func _process(_delta):
 	var target_pos = global_position   # 使用局部变量，避免遮蔽类成员
 
 	if move_vector.length() > 0.0:
-		var max_offset = grid_size * 2.0
+		var max_offset = grid_size * 1.0
 		var move_offset = move_vector.normalized() * max_offset
 		var target_world = global_position + move_offset
 		target_world = _clamp_camera(target_world)

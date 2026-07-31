@@ -40,6 +40,7 @@ var is_equip_menu_active : bool = false
 var is_weapon_select_active : bool = false
 var is_item_action_panel_open: bool = false
 var suppress_sound: bool = false
+var is_map_mode: bool = false
 
 # ---- 默认道具（游戏启动时加载） ----
 var default_items = {
@@ -48,8 +49,6 @@ var default_items = {
 	"bomb": 1,
 	"wooden_shield": 1,
 }
-
-# ... 其余原有代码 ...
 
 # ============================================================
 #  生命周期
