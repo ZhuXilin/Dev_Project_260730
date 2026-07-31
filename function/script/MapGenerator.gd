@@ -1,8 +1,9 @@
 extends Node
 class_name MapGenerator
 
-# 将参数 level_list 改为 _level_list（有意忽略）
 static func generate_day(day: int, _level_list: Array[MapData] = []) -> MapLevelData:
+	randomize()
+	
 	var data = MapLevelData.new()
 	data.day = day
 	var nodes: Array[MapNode] = []
@@ -10,7 +11,6 @@ static func generate_day(day: int, _level_list: Array[MapData] = []) -> MapLevel
 
 	match day:
 		1, 2, 3:
-			# 定义层索引
 			const LAYER_START = 0
 			const LAYER_BRANCH1 = 1
 			const LAYER_JUNCTION1 = 2
@@ -24,22 +24,17 @@ static func generate_day(day: int, _level_list: Array[MapData] = []) -> MapLevel
 			var y_branch2 = 90
 			var y_junction2 = 50
 			var y_boss = 20
-			var x_positions = [80, 130, 190, 240]
+			var x_positions = [120, 200]
 
 			# 起点
 			root = _create_node(MapNode.NodeType.START, Vector2(160, y_start), LAYER_START)
 			nodes.append(root)
 
-			# 第一层分支
-			var layer1_types = [
-				MapNode.NodeType.ELITE,
-				MapNode.NodeType.NORMAL,
-				MapNode.NodeType.SHOP,
-				MapNode.NodeType.EVENT
-			]
+			# 第一层分支：2个不重复类型
+			var layer1_types = _random_unique_types(2)
 			var layer1_nodes = _create_nodes(nodes, layer1_types, x_positions, y_branch1, LAYER_BRANCH1)
 
-			# ---- 汇合节点①：CAMPFIRE ----
+			# 汇合点①（CAMPFIRE）
 			var junction1 = _create_node(MapNode.NodeType.CAMPFIRE, Vector2(160, y_junction1), LAYER_JUNCTION1)
 			nodes.append(junction1)
 
@@ -49,16 +44,11 @@ static func generate_day(day: int, _level_list: Array[MapData] = []) -> MapLevel
 			for node in layer1_nodes:
 				node.connected_nodes.append(junction1)
 
-			# 第二层分支
-			var layer2_types = [
-				MapNode.NodeType.ELITE,
-				MapNode.NodeType.NORMAL,
-				MapNode.NodeType.SHOP,
-				MapNode.NodeType.EVENT
-			]
+			# 第二层分支：2个不重复类型
+			var layer2_types = _random_unique_types(2)
 			var layer2_nodes = _create_nodes(nodes, layer2_types, x_positions, y_branch2, LAYER_BRANCH2)
 
-			# ---- 汇合节点②：FINAL_PREP ----
+			# 汇合点②（FINAL_PREP）
 			var junction2 = _create_node(MapNode.NodeType.FINAL_PREP, Vector2(160, y_junction2), LAYER_JUNCTION2)
 			nodes.append(junction2)
 
@@ -86,7 +76,7 @@ static func generate_day(day: int, _level_list: Array[MapData] = []) -> MapLevel
 			node1.connected_nodes.append(boss)
 			node2.connected_nodes.append(boss)
 
-	# 为所有节点分配地图数据（由 LevelManager 按类型提供）
+	# 为所有节点分配地图数据
 	_assign_map_data_to_all_nodes(nodes)
 
 	data.nodes = nodes
@@ -94,7 +84,23 @@ static func generate_day(day: int, _level_list: Array[MapData] = []) -> MapLevel
 	data.map_name = "第%d天" % day
 	return data
 
-# ---- 辅助函数：创建节点列表 ----
+# ---- 生成不重复的类型数组（从 ELITE, NORMAL, EVENT 中选 count 个不同元素） ----
+static func _random_unique_types(count: int) -> Array:
+	var pool = [MapNode.NodeType.ELITE, MapNode.NodeType.NORMAL, MapNode.NodeType.EVENT]
+	
+	# 如果请求数量大于池大小，则允许重复（但这种情况很少）
+	if count > pool.size():
+		var result = []
+		for i in range(count):
+			result.append(pool[randi() % pool.size()])
+		return result
+	
+	# 否则，打乱池并取前 count 个
+	var shuffled = pool.duplicate()
+	shuffled.shuffle()
+	return shuffled.slice(0, count)
+
+# ---- 创建节点列表 ----
 static func _create_nodes(nodes: Array, types: Array, x_positions: Array, y: float, layer: int) -> Array[MapNode]:
 	var result: Array[MapNode] = []
 	for i in range(types.size()):

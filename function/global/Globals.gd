@@ -45,6 +45,10 @@ var current_map_node_id: String = ""
 var map_node_states: Dictionary = {}  # key: node_id, value: { "visited": bool, "completed": bool }
 var visited_nodes: Dictionary = {}  # key: "x_y", value: true
 
+# 地图缓存
+var current_map_level_data: MapLevelData = null
+var current_map_day: int = -1
+
 # ---- 默认道具（游戏启动时加载） ----
 var default_items = {
 	"potion": 3,

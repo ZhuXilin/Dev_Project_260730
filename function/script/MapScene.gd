@@ -15,7 +15,7 @@ var level_list: Array[MapData] = []
 @onready var line_container = $NodeContainer/LineContainer
 
 func _ready():
-	# 确保容器节点存在（若场景缺失则动态创建）
+	# 确保容器节点存在...
 	if not node_container:
 		node_container = Node2D.new()
 		node_container.name = "NodeContainer"
@@ -32,7 +32,6 @@ func _ready():
 		info_label.name = "InfoLabel"
 		info_panel.add_child(info_label)
 	
-	# 获取当前天数和关卡列表
 	current_day = LevelManager.current_level_index + 1
 	level_list = LevelManager.get_levels_for_day(current_day)
 	
@@ -42,7 +41,26 @@ func _ready():
 		default_map.map_name = "默认战斗"
 		level_list.append(default_map)
 	
-	generate_map(current_day)
+	# ---- 检查是否有缓存 ----
+	if Globals.current_map_day == current_day and Globals.current_map_level_data != null:
+		print("使用缓存地图，第 ", current_day, " 天")
+		map_data = Globals.current_map_level_data
+		# 恢复已访问状态（从 Globals.visited_nodes 读取）
+		for node in map_data.nodes:
+			var key = "%d_%d" % [node.position.x, node.position.y]
+			if Globals.visited_nodes.has(key):
+				node.is_visited = true
+				node.is_available = false
+		# 重新绘制连接线和按钮
+		_draw_connections()
+		_create_node_buttons()
+		_update_availability(map_data.root_node)
+	else:
+		print("生成新地图，第 ", current_day, " 天")
+		generate_map(current_day)
+		# 缓存地图数据
+		Globals.current_map_level_data = map_data
+		Globals.current_map_day = current_day
 	
 	info_panel.visible = false
 	day_label.text = "第 %d 天" % current_day
@@ -52,7 +70,6 @@ func _ready():
 	if not SignalBus.battle_completed.is_connected(_on_battle_completed):
 		SignalBus.battle_completed.connect(_on_battle_completed)
 	
-	# 播放地图音乐
 	if MusicManager.config and MusicManager.config.map_music:
 		MusicManager.play_music(MusicManager.config.map_music)
 
@@ -203,8 +220,10 @@ func _create_default_map() -> MapData:
 
 # ---- 返回主菜单 ----
 func _on_back_pressed():
-	print("返回主菜单，清空地图进度")
+	print("返回主菜单，清空地图缓存")
 	Globals.visited_nodes.clear()
+	Globals.current_map_level_data = null
+	Globals.current_map_day = -1
 	MusicManager.stop_music()
 	get_tree().change_scene_to_file("res://content/scenes/ui/MainMenu.tscn")
 

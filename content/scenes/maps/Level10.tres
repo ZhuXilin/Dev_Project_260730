@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="MapData" format=3 uid="uid://pfhlxasotv0o"]
+
+[ext_resource type="PackedScene" uid="uid://bfy0dqro1ivad" path="res://content/scenes/maps/Level10.tscn" id="1_efy8n"]
+[ext_resource type="Script" uid="uid://ljo1eo241sn4" path="res://function/resource/MapData.gd" id="2_3db4b"]
+
+[resource]
+script = ExtResource("2_3db4b")
+map_name = "城寨"
+scene = ExtResource("1_efy8n")
+node_type = 2
+metadata/_custom_type_script = "uid://ljo1eo241sn4"
