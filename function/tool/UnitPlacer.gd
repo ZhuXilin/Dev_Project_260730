@@ -80,6 +80,19 @@ func _ready():
 func _get_configuration_warnings() -> PackedStringArray:
 	var warnings = PackedStringArray()
 	if Engine.is_editor_hint():
+		# ---- 检查网格对齐（要求位置在网格顶点，即 16 的整数倍） ----
+		var pos = position
+		var cell_size = CELL_SIZE
+		
+		var x_mod = fmod(pos.x, cell_size)
+		var y_mod = fmod(pos.y, cell_size)
+		# 只检查余数是否接近 0（顶点坐标应为 cell_size 的整数倍）
+		var x_aligned = abs(x_mod) < 0.01
+		var y_aligned = abs(y_mod) < 0.01
+		
+		if not x_aligned or not y_aligned:
+			warnings.append("节点位置未对齐到网格顶点（应位于格子角点，坐标应为 16 的整数倍）。建议使用网格吸附功能。")
+		
 		if placement_mode == PlacementMode.FIXED_UNIT:
 			if initial_items.size() > 5:
 				warnings.append("初始道具数量超过5个，将只保留前5个")

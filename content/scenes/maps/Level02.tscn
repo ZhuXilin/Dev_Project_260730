@@ -48,7 +48,7 @@ team = 1
 metadata/_custom_type_script = "uid://cjvddjaj43chx"
 
 [node name="Enemy06" type="Node2D" parent="." unique_id=1128483700]
-position = Vector2(210, 112)
+position = Vector2(208, 112)
 script = ExtResource("2_660gu")
 unit_type = 4
 team = 1
@@ -81,3 +81,23 @@ position = Vector2(288, 128)
 script = ExtResource("5_auwcq")
 event_id = "village_gossip_event"
 metadata/_custom_type_script = "uid://d4b5iewm1v2pe"
+
+[node name="SpawnPoint_0" type="Node2D" parent="." unique_id=1977183684]
+position = Vector2(320, 144)
+script = ExtResource("2_660gu")
+placement_mode = 1
+metadata/_custom_type_script = "uid://cjvddjaj43chx"
+
+[node name="SpawnPoint_1" type="Node2D" parent="." unique_id=996225655]
+position = Vector2(320, 128)
+script = ExtResource("2_660gu")
+placement_mode = 1
+spawn_index = 1
+metadata/_custom_type_script = "uid://cjvddjaj43chx"
+
+[node name="SpawnPoint_2" type="Node2D" parent="." unique_id=411067025]
+position = Vector2(320, 160)
+script = ExtResource("2_660gu")
+placement_mode = 1
+spawn_index = 2
+metadata/_custom_type_script = "uid://cjvddjaj43chx"

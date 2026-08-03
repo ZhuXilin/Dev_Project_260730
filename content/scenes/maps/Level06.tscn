@@ -59,3 +59,23 @@ position = Vector2(352, 176)
 script = ExtResource("6_nea3d")
 event_id = "healer_advice_event"
 metadata/_custom_type_script = "uid://d4b5iewm1v2pe"
+
+[node name="SpawnPoint_0" type="Node2D" parent="." unique_id=726752117]
+position = Vector2(320, 144)
+script = ExtResource("2_eff5s")
+placement_mode = 1
+metadata/_custom_type_script = "uid://cjvddjaj43chx"
+
+[node name="SpawnPoint_1" type="Node2D" parent="." unique_id=832667986]
+position = Vector2(320, 128)
+script = ExtResource("2_eff5s")
+placement_mode = 1
+spawn_index = 1
+metadata/_custom_type_script = "uid://cjvddjaj43chx"
+
+[node name="SpawnPoint_2" type="Node2D" parent="." unique_id=585736027]
+position = Vector2(320, 160)
+script = ExtResource("2_eff5s")
+placement_mode = 1
+spawn_index = 2
+metadata/_custom_type_script = "uid://cjvddjaj43chx"

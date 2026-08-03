@@ -40,9 +40,23 @@ func _update_preview():
 	add_child(label)
 
 func _get_configuration_warnings():
+	var warnings = PackedStringArray()
+	
 	if hp_amount == 0:
-		return ["hp_amount 为 0 无效果"]
-	return []
+		warnings.append("hp_amount 为 0 无效果")
+	
+	# ---- 网格顶点对齐检查 ----
+	var pos = position
+	var cell_size = CELL_SIZE
+	var x_mod = fmod(pos.x, cell_size)
+	var y_mod = fmod(pos.y, cell_size)
+	var x_aligned = abs(x_mod) < 0.01
+	var y_aligned = abs(y_mod) < 0.01
+	
+	if not x_aligned or not y_aligned:
+		warnings.append("节点位置未对齐到网格顶点（应位于格子角点，坐标应为 16 的整数倍）。建议使用网格吸附功能。")
+	
+	return warnings
 
 func export_config() -> Dictionary:
 	return {

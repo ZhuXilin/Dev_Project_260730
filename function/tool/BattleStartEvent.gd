@@ -23,7 +23,7 @@ func _update_preview():
 	var rect = ColorRect.new()
 	rect.size = Vector2(CELL_SIZE, CELL_SIZE)
 	rect.position = Vector2(CELL_SIZE/2.0, CELL_SIZE/2.0) - rect.size / 2
-	rect.color = Color(0.7, 0.3, 0.9, 0.3)  # 紫色
+	rect.color = Color(0.7, 0.3, 0.9, 0.3)
 	rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	rect.z_index = -1
 	add_child(rect)
@@ -39,9 +39,23 @@ func _update_preview():
 	add_child(label)
 
 func _get_configuration_warnings():
+	var warnings = PackedStringArray()
+	
 	if event_id.is_empty():
-		return ["Event ID 不能为空"]
-	return []
+		warnings.append("Event ID 不能为空")
+	
+	# ---- 网格顶点对齐检查 ----
+	var pos = position
+	var cell_size = CELL_SIZE
+	var x_mod = fmod(pos.x, cell_size)
+	var y_mod = fmod(pos.y, cell_size)
+	var x_aligned = abs(x_mod) < 0.01
+	var y_aligned = abs(y_mod) < 0.01
+	
+	if not x_aligned or not y_aligned:
+		warnings.append("节点位置未对齐到网格顶点（应位于格子角点，坐标应为 16 的整数倍）。建议使用网格吸附功能。")
+	
+	return warnings
 
 func export_config() -> Dictionary:
 	return {
