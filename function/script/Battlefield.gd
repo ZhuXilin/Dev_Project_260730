@@ -922,7 +922,7 @@ func _on_request_show_victory(winning_team: int):
 		else:
 			MusicManager.play_defeat_music()
 			label_text = "战斗失败"
-			button_text = "返回主菜单"
+			button_text = "重新选择队伍"
 			callback = Callable(self, "_on_map_defeat_gameover")
 
 		# ---- 显示胜利/失败面板 ----
@@ -934,7 +934,7 @@ func _on_request_show_victory(winning_team: int):
 				tree.change_scene_to_file("res://content/scenes/ui/MapScene.tscn")
 			else:
 				GameState.reset_all()
-				tree.change_scene_to_file("res://content/scenes/ui/MainMenu.tscn")
+				tree.change_scene_to_file("res://content/scenes/ui/UnitSelectUI.tscn")
 		return
 
 	# =====================================================
@@ -1855,13 +1855,13 @@ func _on_map_victory_continue():
 	if tree:
 		tree.change_scene_to_file("res://content/scenes/ui/MapScene.tscn")
 
-# ---- 地图模式：失败返回主菜单 ----
+# ---- 地图模式：失败返回单位选择界面 ----
 func _on_map_defeat_gameover():
-	print("地图模式：战斗失败，返回主菜单")
+	print("地图模式：战斗失败，返回单位选择界面")
 	GameState.reset_all()
 	var tree = get_tree()
 	if tree:
-		tree.change_scene_to_file("res://content/scenes/ui/MainMenu.tscn")
+		tree.change_scene_to_file("res://content/scenes/ui/UnitSelectUI.tscn")
 
 # ===================== 非战斗模式 =====================
 func _setup_non_combat_mode():
