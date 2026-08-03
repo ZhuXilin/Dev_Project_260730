@@ -122,8 +122,9 @@ static func _create_node(type: MapNode.NodeType, pos: Vector2, layer: int) -> Ma
 
 # ---- 为所有节点分配地图 ----
 static func _assign_map_data_to_all_nodes(nodes: Array):
+	var main_unit = GameState.main_unit_name
 	for node in nodes:
-		var map = LevelManager.get_map_for_node_type(node.node_type)
+		var map = LevelManager.get_map_for_node_type(node.node_type, main_unit)
 		if map:
 			node.map_data = map
 		else:

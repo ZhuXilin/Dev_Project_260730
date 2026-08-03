@@ -62,3 +62,15 @@ static func spawn_test_units(parent: Node, grid_to_world_func: Callable):
 	configs.append(e2)
 	
 	spawn_units_from_configs(parent, configs, grid_to_world_func)
+
+static func spawn_party_from_gamestate(parent: Node, grid_to_world_func: Callable, spawn_points: Array[Vector2i]):
+	var party = GameState.get_party_units()
+	var count = min(party.size(), spawn_points.size())
+	for i in range(count):
+		var unit_data = party[i]
+		var spawn_cell = spawn_points[i]
+		var unit = load(UNIT_PATH).instantiate()
+		unit.restore_from_unit_data(unit_data, spawn_cell)
+		parent.add_child(unit)
+		unit.position = grid_to_world_func.call(spawn_cell)
+		UnitManager.register_unit(unit)

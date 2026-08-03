@@ -183,9 +183,6 @@ func drop_item(item_id: String) -> bool:
 		return remove_instance(inst)
 	return false
 
-func get_equipped_weapon_id() -> String:
-	return equipped_weapon_instance.item_id if equipped_weapon_instance else ""
-
 # ---- 装备系统 ----
 func get_weapon_data() -> ItemData:
 	if not equipped_weapon_instance:
@@ -453,3 +450,41 @@ func can_use_weapon(item_id: String) -> bool:
 		return true
 	# 检查 category 是否在允许列表中
 	return data.category in allowed
+
+# 从 UnitData 恢复单位状态
+func restore_from_unit_data(data: UnitData, cell: Vector2i):
+	unit_stats = data
+	grid_cell = cell
+	previous_grid_cell = cell
+	hit_points = data.hit_points
+	remaining_move = data.move_range
+	can_act_this_turn = true
+	has_moved = false
+	has_attacked = false
+	has_acted = false
+	
+	inventory.clear()
+	for inst in data.inventory:
+		var new_inst = ItemInstance.new()
+		new_inst.item_id = inst.item_id
+		new_inst.count = inst.count
+		inventory.append(new_inst)
+	
+	if data.equipped_weapon != "":
+		for inst in inventory:
+			if inst.item_id == data.equipped_weapon:
+				equipped_weapon_instance = inst
+				break
+	# 加载外观、动画等（原有逻辑）
+
+func serialize_inventory() -> Array[Dictionary]:
+	var result = []
+	for inst in inventory:
+		result.append({
+			"item_id": inst.item_id,
+			"count": inst.count
+		})
+	return result
+
+func get_equipped_weapon_id() -> String:
+	return equipped_weapon_instance.item_id if equipped_weapon_instance else ""

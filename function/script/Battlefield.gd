@@ -152,7 +152,7 @@ func _ready():
 	if Globals.current_map_data:
 		var map_to_load = Globals.current_map_data
 		# 检查地图数据是否有效
-		if not map_to_load.scene and map_to_load.unit_configs.is_empty():
+		if not map_to_load.scene:
 			print("警告：当前地图数据无效，使用默认地图")
 			_load_default_map()
 		else:
@@ -419,7 +419,7 @@ func load_map(new_map_data: MapData):
 		_load_default_map()
 		return
 	
-	# ---- 声明变量（只一次） ----
+	# ---- 声明变量 ----
 	var map_pixel_rect: Rect2
 	var tilemap: TileMapLayer = null
 	var main_scene_instance: Node = null
@@ -436,7 +436,6 @@ func load_map(new_map_data: MapData):
 			if main_scene_instance:
 				tilemap = _find_tilemap(main_scene_instance)
 				if tilemap:
-					# 成功找到 TileMapLayer
 					var old_tilemap = get_node_or_null("TerrainTileMap")
 					if old_tilemap:
 						old_tilemap.queue_free()
@@ -470,7 +469,6 @@ func load_map(new_map_data: MapData):
 		menu_blocker.size = new_map_data.map_size * CELL_SIZE
 		menu_blocker.position = Vector2.ZERO
 	else:
-		# 从 TileMap 获取边界
 		map_pixel_rect = Rect2(
 			used_rect.position * CELL_SIZE,
 			used_rect.size * CELL_SIZE
@@ -481,17 +479,19 @@ func load_map(new_map_data: MapData):
 	# ---- 清除旧单位 ----
 	_clear_units()
 
-	# ---- 生成单位 ----
-	var configs: Array[UnitConfig] = []
-	if main_scene_instance:
-		configs = UnitSpawner.extract_configs_from_node(main_scene_instance)
-
-	if configs.is_empty():
-		print("警告：场景中没有 UnitPlacer 节点，使用测试单位")
-		UnitSpawner.spawn_test_units(self, grid_to_world)
+	# ---- 生成单位（地图模式使用队伍） ----
+	if GameState.party.size() > 0 and new_map_data.spawn_points.size() > 0:
+		# 使用队伍数据 + 出生点
+		UnitSpawner.spawn_party_from_gamestate(self, grid_to_world, new_map_data.spawn_points)
 	else:
-		print("从场景提取到 ", configs.size(), " 个单位配置")
-		UnitSpawner.spawn_units_from_configs(self, configs, grid_to_world)
+		# 原有逻辑：从场景提取 UnitPlacer
+		var configs: Array[UnitConfig] = []
+		if main_scene_instance:
+			configs = UnitSpawner.extract_configs_from_node(main_scene_instance)
+		if configs.size() > 0:
+			UnitSpawner.spawn_units_from_configs(self, configs, grid_to_world)
+		else:
+			UnitSpawner.spawn_test_units(self, grid_to_world)
 
 	# 确保所有单位位置正确
 	for unit in UnitManager.unit_list:
@@ -833,12 +833,7 @@ func _on_request_show_victory(winning_team: int):
 		print("错误：无法获取场景树，无法处理胜利")
 		return
 
-	# ---- 声明变量（只声明一次） ----
-	var label_text = ""
-	var button_text = ""
-	var callback = Callable()
-
-	# ---- 清理 ----
+	# ---- 清理动画和UI ----
 	if is_instance_valid(movement_animator):
 		movement_animator.cancel_movement()
 	if is_instance_valid(camera_controller):
@@ -874,10 +869,23 @@ func _on_request_show_victory(winning_team: int):
 	var is_win = (winning_team == 0)
 	var is_last = LevelManager.is_last_level()
 
+	# ---- 同步玩家单位状态到 GameState（无论胜败） ----
+	var player_units = []
+	for unit in UnitManager.unit_list:
+		if unit.unit_stats.team_id == 0:
+			player_units.append(unit)
+	GameState.sync_units_from_battlefield(player_units)
+
+	# ---- 声明UI变量 ----
+	var label_text = ""
+	var button_text = ""
+	var callback = Callable()
+
 	# =====================================================
 	#  地图模式（从地图进入的战斗）
 	# =====================================================
 	if Globals.is_map_mode:
+		# ---- 播放音乐 ----
 		if is_win:
 			if is_last:
 				MusicManager.play_win_game_music()
@@ -889,17 +897,23 @@ func _on_request_show_victory(winning_team: int):
 		else:
 			MusicManager.play_defeat_music()
 			label_text = "战斗失败"
-			button_text = "重新挑战"
-			callback = Callable(self, "_on_map_defeat_retry")
+			button_text = "返回主菜单"
+			callback = Callable(self, "_on_map_defeat_gameover")
 
+		# ---- 显示胜利/失败面板 ----
 		if is_instance_valid(ui_manager):
 			ui_manager.show_victory(label_text, button_text, callback)
 		else:
-			tree.change_scene_to_file("res://content/scenes/ui/MapScene.tscn")
+			# 备用：直接跳转
+			if is_win:
+				tree.change_scene_to_file("res://content/scenes/ui/MapScene.tscn")
+			else:
+				GameState.reset_all()
+				tree.change_scene_to_file("res://content/scenes/ui/MainMenu.tscn")
 		return
 
 	# =====================================================
-	#  非地图模式（原有旧版流程）
+	#  非地图模式（原有旧版流程，兼容调试）
 	# =====================================================
 	if is_win and is_last:
 		MusicManager.play_win_game_music()
@@ -1802,18 +1816,18 @@ func _create_scroll_container(child: Control, parent: Node, container_name: Stri
 
 	return scroll
 
-# ---- 地图模式胜利继续 ----
+# ---- 地图模式：胜利继续 ----
 func _on_map_victory_continue():
 	print("地图模式：战斗胜利，继续旅程")
-	# 通知地图更新
 	SignalBus.battle_completed.emit(0)
 	var tree = get_tree()
 	if tree:
 		tree.change_scene_to_file("res://content/scenes/ui/MapScene.tscn")
 
-# ---- 地图模式失败重试 ----
-func _on_map_defeat_retry():
-	print("地图模式：战斗失败，重新挑战")
+# ---- 地图模式：失败返回主菜单 ----
+func _on_map_defeat_gameover():
+	print("地图模式：战斗失败，返回主菜单")
+	GameState.reset_all()
 	var tree = get_tree()
 	if tree:
-		tree.change_scene_to_file("res://content/scenes/ui/MapScene.tscn")
+		tree.change_scene_to_file("res://content/scenes/ui/MainMenu.tscn")

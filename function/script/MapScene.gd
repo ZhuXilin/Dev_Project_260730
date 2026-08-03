@@ -15,7 +15,6 @@ var level_list: Array[MapData] = []
 @onready var line_container = $NodeContainer/LineContainer
 
 func _ready():
-	# 确保容器节点存在...
 	if not node_container:
 		node_container = Node2D.new()
 		node_container.name = "NodeContainer"
@@ -41,26 +40,7 @@ func _ready():
 		default_map.map_name = "默认战斗"
 		level_list.append(default_map)
 	
-	# ---- 检查是否有缓存 ----
-	if Globals.current_map_day == current_day and Globals.current_map_level_data != null:
-		print("使用缓存地图，第 ", current_day, " 天")
-		map_data = Globals.current_map_level_data
-		# 恢复已访问状态（从 Globals.visited_nodes 读取）
-		for node in map_data.nodes:
-			var key = "%d_%d" % [node.position.x, node.position.y]
-			if Globals.visited_nodes.has(key):
-				node.is_visited = true
-				node.is_available = false
-		# 重新绘制连接线和按钮
-		_draw_connections()
-		_create_node_buttons()
-		_update_availability(map_data.root_node)
-	else:
-		print("生成新地图，第 ", current_day, " 天")
-		generate_map(current_day)
-		# 缓存地图数据
-		Globals.current_map_level_data = map_data
-		Globals.current_map_day = current_day
+	generate_map(current_day)
 	
 	info_panel.visible = false
 	day_label.text = "第 %d 天" % current_day
@@ -73,13 +53,11 @@ func _ready():
 	if MusicManager.config and MusicManager.config.map_music:
 		MusicManager.play_music(MusicManager.config.map_music)
 
-# ---- 安全连接（避免重复连接） ----
 func _safe_connect(source: Object, signal_name: String, target_callable: Callable):
 	if source.is_connected(signal_name, target_callable):
 		source.disconnect(signal_name, target_callable)
 	source.connect(signal_name, target_callable)
 
-# ---- 生成地图 ----
 func generate_map(day: int):
 	print("=== 生成地图，关卡数量：", level_list.size())
 	for i in range(level_list.size()):
@@ -90,10 +68,10 @@ func generate_map(day: int):
 	for node in map_data.nodes:
 		print("  节点类型:", node.node_type, " 位置:", node.position)
 	
-	# 恢复已访问状态（从 Globals 读取）
+	# 恢复已访问状态（从 GameState 读取）
 	for node in map_data.nodes:
 		var key = "%d_%d" % [node.position.x, node.position.y]
-		if Globals.visited_nodes.has(key):
+		if GameState.visited_nodes.has(key):
 			node.is_visited = true
 			node.is_available = false
 			print("恢复已访问节点:", node.node_type, " 位置:", node.position)
@@ -102,7 +80,6 @@ func generate_map(day: int):
 	_create_node_buttons()
 	_update_availability(map_data.root_node)
 
-# ---- 绘制连接线 ----
 func _draw_connections():
 	for child in line_container.get_children():
 		child.queue_free()
@@ -115,7 +92,6 @@ func _draw_connections():
 			line.default_color = Color(0.5, 0.5, 0.5, 0.6)
 			line_container.add_child(line)
 
-# ---- 创建节点按钮 ----
 func _create_node_buttons():
 	for child in node_container.get_children():
 		if child is MapNodeButton:
@@ -125,7 +101,6 @@ func _create_node_buttons():
 		btn.setup(node, self)
 		node_container.add_child(btn)
 
-# ---- 更新节点可用性（核心解锁逻辑） ----
 func _update_availability(start_node: MapNode):
 	# 1. 计算当前最大已访问层
 	var max_visited_layer = -1
@@ -152,13 +127,11 @@ func _update_availability(start_node: MapNode):
 	# 4. 刷新按钮
 	_update_buttons()
 
-# ---- 刷新所有按钮状态 ----
 func _update_buttons():
 	for child in node_container.get_children():
 		if child is MapNodeButton:
 			child.setup(child.map_node, self)
 
-# ---- 玩家点击节点（由 MapNodeButton 触发） ----
 func on_node_selected(node: MapNode):
 	if not node.is_available or node.is_visited:
 		print("节点不可选或已访问")
@@ -166,16 +139,22 @@ func on_node_selected(node: MapNode):
 	
 	print("选择节点：", node.node_type, " 位置：", node.position)
 	
-	# 标记为已访问并保存到全局
+	# 标记为已访问并保存到 GameState
 	var key = "%d_%d" % [node.position.x, node.position.y]
-	Globals.visited_nodes[key] = true
+	GameState.visited_nodes[key] = true
 	node.is_visited = true
 	node.is_available = false
 	
-	# 进入战斗
-	_load_combat_for_node(node)
+	# ---- 根据节点类型决定行为 ----
+	match node.node_type:
+		MapNode.NodeType.NORMAL, MapNode.NodeType.ELITE, MapNode.NodeType.BOSS:
+			# 战斗节点：进入战斗
+			_load_combat_for_node(node)
+		_:
+			# 非战斗节点（起点、汇合点、商店、事件等）：直接解锁下一层，不进入战斗
+			print("非战斗节点，跳过战斗，直接解锁下一层")
+			_update_availability(map_data.root_node)
 
-# ---- 加载节点对应的战斗 ----
 func _load_combat_for_node(node: MapNode):
 	var map_to_load = node.map_data
 	if not map_to_load:
@@ -188,13 +167,12 @@ func _load_combat_for_node(node: MapNode):
 			return
 	_load_combat(map_to_load)
 
-# ---- 真正切换到战斗场景（通过 Loading 过渡） ----
 func _load_combat(map_data_arg: MapData):
 	if not map_data_arg:
 		print("错误：地图数据为空，使用备用地图")
 		map_data_arg = _create_default_map()
 	elif not map_data_arg.scene:
-		print("警告：地图数据缺少场景文件，使用备用地图")
+		print("警告：地图数据缺少场景，使用备用地图")
 		map_data_arg = _create_default_map()
 	
 	print("加载战斗场景: ", map_data_arg.map_name)
@@ -202,32 +180,18 @@ func _load_combat(map_data_arg: MapData):
 	Globals.reset_all_game_state()
 	get_tree().change_scene_to_file("res://content/scenes/ui/Loading.tscn")
 
-# ---- 创建备用地图（当原始数据无效时使用） ----
 func _create_default_map() -> MapData:
 	var map = MapData.new()
 	map.map_name = "备用地图"
-	var cfg = UnitConfig.new()
-	cfg.unit_name = "剑士"
-	cfg.team_id = 0
-	cfg.position = Vector2i(10, 10)
-	map.unit_configs.append(cfg)
-	var enemy_cfg = UnitConfig.new()
-	enemy_cfg.unit_name = "斧兵"
-	enemy_cfg.team_id = 1
-	enemy_cfg.position = Vector2i(5, 5)
-	map.unit_configs.append(enemy_cfg)
+	map.map_size = Vector2i(20, 15)
 	return map
 
-# ---- 返回主菜单 ----
 func _on_back_pressed():
-	print("返回主菜单，清空地图缓存")
-	Globals.visited_nodes.clear()
-	Globals.current_map_level_data = null
-	Globals.current_map_day = -1
+	print("返回主菜单，清空地图进度")
+	GameState.visited_nodes.clear()
 	MusicManager.stop_music()
 	get_tree().change_scene_to_file("res://content/scenes/ui/MainMenu.tscn")
 
-# ---- 战斗结束回调（由 SignalBus 触发） ----
 func _on_battle_completed(winning_team: int):
 	if winning_team == 0:
 		print("战斗胜利，重新计算地图可用性")
@@ -235,4 +199,3 @@ func _on_battle_completed(winning_team: int):
 			_update_availability(map_data.root_node)
 	else:
 		print("战斗失败，可重新尝试")
-		# 失败时不更新状态，玩家可重试

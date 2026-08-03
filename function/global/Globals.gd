@@ -43,7 +43,6 @@ var suppress_sound: bool = false
 var is_map_mode: bool = false
 var current_map_node_id: String = ""
 var map_node_states: Dictionary = {}  # key: node_id, value: { "visited": bool, "completed": bool }
-var visited_nodes: Dictionary = {}  # key: "x_y", value: true
 
 # 地图缓存
 var current_map_level_data: MapLevelData = null
