@@ -23,43 +23,6 @@ script = ExtResource("3_5fxkr")
 item_id = "javelin"
 metadata/_custom_type_script = "uid://2m8vla0xoar"
 
-[sub_resource type="Resource" id="Resource_2r70a"]
-script = ExtResource("3_5fxkr")
-item_id = "javelin"
-metadata/_custom_type_script = "uid://2m8vla0xoar"
-
-[sub_resource type="Resource" id="Resource_c18at"]
-script = ExtResource("3_5fxkr")
-item_id = "potion"
-count = 3
-metadata/_custom_type_script = "uid://2m8vla0xoar"
-
-[sub_resource type="Resource" id="Resource_aui3h"]
-script = ExtResource("3_5fxkr")
-item_id = "iron_sword"
-metadata/_custom_type_script = "uid://2m8vla0xoar"
-
-[sub_resource type="Resource" id="Resource_660gu"]
-script = ExtResource("3_5fxkr")
-item_id = "potion"
-count = 2
-metadata/_custom_type_script = "uid://2m8vla0xoar"
-
-[sub_resource type="Resource" id="Resource_ovmel"]
-script = ExtResource("3_5fxkr")
-item_id = "bomb"
-metadata/_custom_type_script = "uid://2m8vla0xoar"
-
-[sub_resource type="Resource" id="Resource_oil6l"]
-script = ExtResource("3_5fxkr")
-item_id = "fire_dragonstone"
-metadata/_custom_type_script = "uid://2m8vla0xoar"
-
-[sub_resource type="Resource" id="Resource_oays5"]
-script = ExtResource("3_5fxkr")
-item_id = "javelin"
-metadata/_custom_type_script = "uid://2m8vla0xoar"
-
 [node name="Level01" type="Node2D" unique_id=1730342054]
 
 [node name="TileMapLayer" type="TileMapLayer" parent="." unique_id=1295328814]
@@ -103,38 +66,6 @@ script = ExtResource("2_v07jm")
 unit_type = 8
 team = 1
 initial_items = Array[ExtResource("3_5fxkr")]([SubResource("Resource_auwcq")])
-metadata/_custom_type_script = "uid://cjvddjaj43chx"
-
-[node name="Unit01" type="Node2D" parent="." unique_id=1172041731]
-position = Vector2(32, 160)
-script = ExtResource("2_v07jm")
-unit_type = 4
-initial_items = Array[ExtResource("3_5fxkr")]([SubResource("Resource_2r70a"), SubResource("Resource_c18at")])
-metadata/_custom_type_script = "uid://cjvddjaj43chx"
-
-[node name="Unit02" type="Node2D" parent="." unique_id=150806711]
-position = Vector2(208, 112)
-script = ExtResource("2_v07jm")
-unit_type = 1
-initial_items = Array[ExtResource("3_5fxkr")]([SubResource("Resource_aui3h")])
-metadata/_custom_type_script = "uid://cjvddjaj43chx"
-
-[node name="Unit03" type="Node2D" parent="." unique_id=1831133507]
-position = Vector2(192, 128)
-script = ExtResource("2_v07jm")
-metadata/_custom_type_script = "uid://cjvddjaj43chx"
-
-[node name="Unit04" type="Node2D" parent="." unique_id=2102952676]
-position = Vector2(208, 144)
-script = ExtResource("2_v07jm")
-unit_type = 5
-initial_items = Array[ExtResource("3_5fxkr")]([SubResource("Resource_660gu"), SubResource("Resource_ovmel"), SubResource("Resource_oil6l"), SubResource("Resource_oays5")])
-metadata/_custom_type_script = "uid://cjvddjaj43chx"
-
-[node name="Unit05" type="Node2D" parent="." unique_id=680229663]
-position = Vector2(192, 160)
-script = ExtResource("2_v07jm")
-unit_type = 6
 metadata/_custom_type_script = "uid://cjvddjaj43chx"
 
 [node name="BattleStartEvent" type="Node2D" parent="." unique_id=1446685659]

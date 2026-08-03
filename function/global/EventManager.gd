@@ -81,7 +81,7 @@ func trigger_event(event_id: String, unit: Unit = null, default_music: AudioStre
 				var count = action.get("count", 1)
 				if item_id != "":
 					if unit.add_item(item_id, count):
-						show_item_get_popup(item_id, count)
+						await show_item_get_popup(item_id, count)   # 添加 await
 					else:
 						print("道具获得失败，背包已满，弹出丢弃界面")
 						var ui_mgr = _get_ui_manager()
@@ -142,7 +142,7 @@ func show_item_get_popup(item_id: String, count: int):
 	var popup = ItemGetPopupScene.instantiate()
 	root.add_child(popup)
 	popup.show_item(item_id, count)
-	await get_tree().create_timer(2.0).timeout
+	await get_tree().create_timer(2.0).timeout   # 等待2秒
 	Globals.is_item_get_popup_active = false
 	MusicManager.resume_saved()
 

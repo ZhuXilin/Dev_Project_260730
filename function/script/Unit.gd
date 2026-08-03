@@ -463,6 +463,7 @@ func restore_from_unit_data(data: UnitData, cell: Vector2i):
 	has_attacked = false
 	has_acted = false
 	
+	# ---- 恢复库存 ----
 	inventory.clear()
 	for inst in data.inventory:
 		var new_inst = ItemInstance.new()
@@ -475,10 +476,49 @@ func restore_from_unit_data(data: UnitData, cell: Vector2i):
 			if inst.item_id == data.equipped_weapon:
 				equipped_weapon_instance = inst
 				break
-	# 加载外观、动画等（原有逻辑）
+	
+	# ---- 加载 SpriteFrames（参考 setup_unit） ----
+	if not animated_sprite:
+		animated_sprite = $Sprite as AnimatedSprite2D
+	if animated_sprite:
+		var frames_path = UnitDataManagerClass.get_sprite_frames_path(unit_stats.unit_name)
+		var loaded_ok = false
+		if frames_path != "" and ResourceLoader.exists(frames_path):
+			var frames = load(frames_path) as SpriteFrames
+			if frames:
+				animated_sprite.sprite_frames = frames
+				if animated_sprite.sprite_frames.has_animation("idle"):
+					animated_sprite.play("idle")
+				else:
+					var anims = animated_sprite.sprite_frames.get_animation_names()
+					if anims.size() > 0:
+						animated_sprite.play(anims[0])
+				animated_sprite.visible = true
+				animated_sprite.z_index = 2
+				loaded_ok = true
+		if not loaded_ok:
+			# 占位纹理
+			var image = Image.create(CELL_SIZE, CELL_SIZE, false, Image.FORMAT_RGBA8)
+			image.fill(Color.MAGENTA)
+			var placeholder = ImageTexture.create_from_image(image)
+			var frames = SpriteFrames.new()
+			frames.add_animation("idle")
+			frames.add_frame("idle", placeholder)
+			animated_sprite.sprite_frames = frames
+			animated_sprite.play("idle")
+			animated_sprite.visible = true
+			animated_sprite.z_index = 2
+	
+	# ---- 更新颜色 ----
+	update_color()
+	
+	# ---- 更新UI ----
+	update_hp_label()
+	update_name_label()
+	update_terrain_info()
 
 func serialize_inventory() -> Array[Dictionary]:
-	var result = []
+	var result: Array[Dictionary] = []   # 显式类型
 	for inst in inventory:
 		result.append({
 			"item_id": inst.item_id,

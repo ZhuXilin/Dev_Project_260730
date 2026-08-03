@@ -61,47 +61,6 @@ unit_type = 5
 team = 1
 metadata/_custom_type_script = "uid://cjvddjaj43chx"
 
-[node name="Unit01" type="Node2D" parent="." unique_id=150806711]
-position = Vector2(304, 176)
-script = ExtResource("2_660gu")
-unit_type = 1
-metadata/_custom_type_script = "uid://cjvddjaj43chx"
-
-[node name="Unit02" type="Node2D" parent="." unique_id=1172041731]
-position = Vector2(256, 176)
-script = ExtResource("2_660gu")
-unit_type = 2
-metadata/_custom_type_script = "uid://cjvddjaj43chx"
-
-[node name="Unit03" type="Node2D" parent="." unique_id=1831133507]
-position = Vector2(304, 144)
-script = ExtResource("2_660gu")
-metadata/_custom_type_script = "uid://cjvddjaj43chx"
-
-[node name="Unit04" type="Node2D" parent="." unique_id=565454009]
-position = Vector2(304, 160)
-script = ExtResource("2_660gu")
-unit_type = 3
-metadata/_custom_type_script = "uid://cjvddjaj43chx"
-
-[node name="Unit05" type="Node2D" parent="." unique_id=1872257413]
-position = Vector2(320, 112)
-script = ExtResource("2_660gu")
-unit_type = 4
-metadata/_custom_type_script = "uid://cjvddjaj43chx"
-
-[node name="Unit06" type="Node2D" parent="." unique_id=292741028]
-position = Vector2(304, 192)
-script = ExtResource("2_660gu")
-unit_type = 5
-metadata/_custom_type_script = "uid://cjvddjaj43chx"
-
-[node name="Unit07" type="Node2D" parent="." unique_id=1280236112]
-position = Vector2(320, 176)
-script = ExtResource("2_660gu")
-unit_type = 6
-metadata/_custom_type_script = "uid://cjvddjaj43chx"
-
 [node name="BattleStartEvent" type="Node2D" parent="." unique_id=32031953]
 script = ExtResource("3_660gu")
 event_id = "battle_intro_2"

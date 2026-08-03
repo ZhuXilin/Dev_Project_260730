@@ -11,7 +11,10 @@ static func extract_configs_from_node(node: Node) -> Array[UnitConfig]:
 
 static func _find_unit_placers(node: Node, configs: Array[UnitConfig]):
 	if node is UnitPlacerTool:
-		configs.append(node.export_config())
+		# 只收集固定单位模式，忽略出生点
+		if node.placement_mode == UnitPlacerTool.PlacementMode.FIXED_UNIT:
+			configs.append(node.export_config())
+	# 递归遍历子节点
 	for child in node.get_children():
 		_find_unit_placers(child, configs)
 

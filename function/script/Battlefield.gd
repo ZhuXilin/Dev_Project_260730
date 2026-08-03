@@ -55,6 +55,8 @@ var _battle_start_event_id : String = ""
 var _attack_indicator : TextureRect = null
 var map_functions : Dictionary = {}
 var _turn_changed_locked : bool = false
+var is_non_combat_mode: bool = false
+var non_combat_back_button: Button = null
 
 # ===================== 生命周期 =====================
 func _ready():
@@ -211,7 +213,19 @@ func _ready():
 		menu_blocker.position = Vector2.ZERO
 		menu_blocker.z_index = 10
 
-	# ---- 战斗开始事件 ----
+	# ---- 判断是否为非战斗模式 ----
+	var is_non_combat = Globals.current_map_data and Globals.current_map_data.node_type in [
+		MapNode.NodeType.CAMPFIRE,
+		MapNode.NodeType.SHOP,
+		MapNode.NodeType.EVENT,
+		MapNode.NodeType.FINAL_PREP
+	]
+
+	if is_non_combat:
+		_setup_non_combat_mode()
+		return   # 不执行后续战斗逻辑
+
+	# ---- 战斗模式：触发战斗开始事件 ----
 	if _battle_start_event_id != "":
 		print("检测到战斗开始事件：", _battle_start_event_id)
 		var music = MusicManager.config.battle_start_dialogue_music if MusicManager.config else null
@@ -265,7 +279,8 @@ func _process(_delta):
 		Globals.is_performing_action or
 		Globals.is_dialogue_active or
 		Globals.is_item_get_popup_active or
-		camera_controller._is_smooth_moving
+		camera_controller._is_smooth_moving or
+		is_non_combat_mode   # 新增：非战斗模式也暂停摄像机
 	)
 	camera_controller.set_paused(should_pause)
 
@@ -424,6 +439,7 @@ func load_map(new_map_data: MapData):
 	var tilemap: TileMapLayer = null
 	var main_scene_instance: Node = null
 	var used_rect: Rect2i = Rect2i()
+	var spawn_points: Array[Vector2i] = []
 
 	# ---- 尝试加载场景 ----
 	if new_map_data.scene:
@@ -436,6 +452,7 @@ func load_map(new_map_data: MapData):
 			if main_scene_instance:
 				tilemap = _find_tilemap(main_scene_instance)
 				if tilemap:
+					# 替换旧的地形
 					var old_tilemap = get_node_or_null("TerrainTileMap")
 					if old_tilemap:
 						old_tilemap.queue_free()
@@ -451,6 +468,11 @@ func load_map(new_map_data: MapData):
 					TerrainManager.grid_size = map_grid_size
 					TerrainManager.load_from_tilemap(tilemap, map_grid_size)
 					_extract_map_unit_placers(main_scene_instance)
+					
+					# ---- 提取出生点 ----
+					spawn_points = _extract_spawn_points(main_scene_instance)
+					if spawn_points.size() > 0:
+						print("提取到出生点：", spawn_points)
 				else:
 					print("错误：场景中未找到 TileMapLayer，使用默认地形")
 					if main_scene_instance:
@@ -479,19 +501,32 @@ func load_map(new_map_data: MapData):
 	# ---- 清除旧单位 ----
 	_clear_units()
 
-	# ---- 生成单位（地图模式使用队伍） ----
-	if GameState.party.size() > 0 and new_map_data.spawn_points.size() > 0:
-		# 使用队伍数据 + 出生点
-		UnitSpawner.spawn_party_from_gamestate(self, grid_to_world, new_map_data.spawn_points)
+	# ---- 第一步：从场景提取固定单位配置（包括敌方和我方固定单位） ----
+	var configs: Array[UnitConfig] = []
+	if main_scene_instance:
+		configs = UnitSpawner.extract_configs_from_node(main_scene_instance)
+
+	# ---- 第二步：生成固定单位（敌方单位通常在这里） ----
+	if configs.size() > 0:
+		print("从场景提取到 ", configs.size(), " 个固定单位")
+		UnitSpawner.spawn_units_from_configs(self, configs, grid_to_world)
 	else:
-		# 原有逻辑：从场景提取 UnitPlacer
-		var configs: Array[UnitConfig] = []
-		if main_scene_instance:
-			configs = UnitSpawner.extract_configs_from_node(main_scene_instance)
-		if configs.size() > 0:
-			UnitSpawner.spawn_units_from_configs(self, configs, grid_to_world)
-		else:
-			UnitSpawner.spawn_test_units(self, grid_to_world)
+		print("场景中没有固定单位配置")
+
+	# ---- 第三步：生成队伍单位（我方，通过出生点） ----
+	if GameState.party.size() > 0 and spawn_points.size() > 0:
+		print("使用队伍数据生成单位，队伍大小：", GameState.party.size(), "，出生点数：", spawn_points.size())
+		UnitSpawner.spawn_party_from_gamestate(self, grid_to_world, spawn_points)
+	else:
+		if GameState.party.size() == 0:
+			print("队伍为空")
+		if spawn_points.size() == 0:
+			print("没有出生点")
+
+	# ---- 第四步：如果没有任何单位，生成测试单位 ----
+	if UnitManager.unit_list.is_empty():
+		print("没有任何单位，生成测试单位")
+		UnitSpawner.spawn_test_units(self, grid_to_world)
 
 	# 确保所有单位位置正确
 	for unit in UnitManager.unit_list:
@@ -506,19 +541,6 @@ func load_map(new_map_data: MapData):
 	_center_camera_on_player()
 	TurnManager.map_functions = map_functions
 	print("地图加载完成：", new_map_data.map_name)
-
-# ---- 生成默认地形 ----
-func _generate_default_terrain(map_size: Vector2i):
-	map_grid_size = map_size
-	TerrainManager.grid_size = map_size
-	var grid = []
-	for y in range(map_size.y):
-		var row = []
-		for x in range(map_size.x):
-			row.append(TerrainManager.TerrainType.PLAIN)
-		grid.append(row)
-	TerrainManager.terrain_grid = grid
-	print("生成默认平地地形，尺寸：", map_size)
 
 # ---- 辅助函数：生成备用地图 ----
 func _create_fallback_map_data() -> MapData:
@@ -803,12 +825,14 @@ func _on_wait_btn_pressed():
 		return
 
 	var cell = unit.grid_cell
-	# 检查功能格（非 HP 事件）
 	if map_functions.has(cell):
 		var func_config = map_functions[cell]
 		var event_id = func_config.get("event_id", "")
 		if event_id != "" and not event_id.begins_with("hp_") and not EventManager.is_event_completed(event_id):
-			# 触发事件
+			# ---- 隐藏菜单 ----
+			if action_menu:
+				action_menu.visible = false
+			
 			SoundManager.play_select_sound()
 			func_config["triggered"] = true
 			func_config["triggered_by_unit"] = unit
@@ -818,7 +842,8 @@ func _on_wait_btn_pressed():
 			else:
 				func_config["triggered"] = false
 				func_config["triggered_by_unit"] = null
-			# 无论成功与否，执行待机
+			
+			# ---- 执行待机（此时菜单已隐藏） ----
 			unit.can_act_this_turn = false
 			unit.set_gray(true)
 			TurnManager.finish_unit_action(unit)
@@ -1031,6 +1056,8 @@ func _on_clear_highlight_unit():
 
 # ===================== 输入处理 =====================
 func _input(event: InputEvent):
+	if is_non_combat_mode:
+		return
 	if Globals.is_item_action_panel_open and event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT:
 		print("_input 捕获到 ItemActionPanel 右键")
 		get_viewport().set_input_as_handled()
@@ -1155,6 +1182,10 @@ func _input(event: InputEvent):
 
 # ===================== UI回调 =====================
 func _on_request_show_menu(unit: Unit):
+	# ---- 非战斗模式禁止显示菜单 ----
+	if is_non_combat_mode:
+		print("非战斗模式，忽略显示菜单请求")
+		return
 	if TurnManager.is_game_over or TurnManager.current_turn_team != 0 or TurnManager.all_acted:
 		return
 	if unit.unit_stats.team_id != 0:
@@ -1831,3 +1862,88 @@ func _on_map_defeat_gameover():
 	var tree = get_tree()
 	if tree:
 		tree.change_scene_to_file("res://content/scenes/ui/MainMenu.tscn")
+
+# ===================== 非战斗模式 =====================
+func _setup_non_combat_mode():
+	print("进入非战斗模式：", Globals.current_map_data.map_name)
+	is_non_combat_mode = true
+	
+	# ---- 隐藏战斗相关UI ----
+	if action_menu:
+		action_menu.visible = false
+	if move_btn:
+		move_btn.disabled = true
+	if attack_btn:
+		attack_btn.disabled = true
+	if wait_btn:
+		wait_btn.disabled = true
+	if equip_btn:
+		equip_btn.disabled = true
+	if setting_panel:
+		setting_panel.visible = false
+	
+	# ---- 禁用回合系统 ----
+	TurnManager.is_game_over = true   # 阻止战斗逻辑运行
+	
+	# ---- 添加“返回地图”按钮 ----
+	_add_non_combat_back_button()
+	
+func _add_non_combat_back_button():
+	if non_combat_back_button:
+		return
+	non_combat_back_button = Button.new()
+	non_combat_back_button.text = "返回地图"
+	non_combat_back_button.add_theme_font_size_override("font_size", 10)
+	non_combat_back_button.anchors_preset = Control.PRESET_BOTTOM_RIGHT
+	non_combat_back_button.offset_left = -120
+	non_combat_back_button.offset_top = -40
+	non_combat_back_button.offset_right = -16
+	non_combat_back_button.offset_bottom = -8
+	non_combat_back_button.pressed.connect(_on_non_combat_complete)
+	add_child(non_combat_back_button)
+
+func _on_non_combat_complete():
+	print("非战斗节点完成，返回地图")
+	# 清理按钮
+	if non_combat_back_button:
+		non_combat_back_button.queue_free()
+		non_combat_back_button = null
+	is_non_combat_mode = false
+	# 发出战斗完成信号（标记节点完成）
+	SignalBus.battle_completed.emit(0)
+	get_tree().change_scene_to_file("res://content/scenes/ui/MapScene.tscn")
+
+# ---- 提取出生点 ----
+func _extract_spawn_points(node: Node) -> Array[Vector2i]:
+	var points = []
+	_find_spawn_points(node, points)
+	# 按 spawn_index 排序
+	points.sort_custom(func(a, b): return a["index"] < b["index"])
+	var result: Array[Vector2i] = []
+	for p in points:
+		result.append(p["position"])
+	return result
+
+func _find_spawn_points(node: Node, result: Array):
+	if node is UnitPlacerTool:
+		var cfg = node.export_config()
+		if cfg is Dictionary and cfg.get("type") == "spawn_point":
+			result.append({
+				"position": cfg["position"],
+				"index": cfg["spawn_index"]
+			})
+	for child in node.get_children():
+		_find_spawn_points(child, result)
+
+# ---- 生成默认地形 ----
+func _generate_default_terrain(map_size: Vector2i):
+	map_grid_size = map_size
+	TerrainManager.grid_size = map_size
+	var grid = []
+	for y in range(map_size.y):
+		var row = []
+		for x in range(map_size.x):
+			row.append(TerrainManager.TerrainType.PLAIN)
+		grid.append(row)
+	TerrainManager.terrain_grid = grid
+	print("生成默认平地地形，尺寸：", map_size)

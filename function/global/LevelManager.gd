@@ -47,15 +47,22 @@ func _group_levels_by_type():
 	_levels_by_type.clear()
 	_type_index.clear()
 	
-	# 初始化所有类型（MapNode.NodeType 枚举值 0~7）
-	for type in range(8):
+	# 显式列出所有枚举值，提高可读性
+	for type in [
+		MapNode.NodeType.START,
+		MapNode.NodeType.CAMPFIRE,
+		MapNode.NodeType.NORMAL,
+		MapNode.NodeType.ELITE,
+		MapNode.NodeType.SHOP,
+		MapNode.NodeType.EVENT,
+		MapNode.NodeType.BOSS,
+		MapNode.NodeType.FINAL_PREP
+	]:
 		_levels_by_type[type] = []
 		_type_index[type] = 0
 	
 	for map_res in _levels:
-		var type: MapNode.NodeType = MapNode.NodeType.NORMAL
-		if map_res.node_type != null:
-			type = map_res.node_type as MapNode.NodeType   # 关键修正
+		var type = map_res.node_type if map_res.node_type != null else MapNode.NodeType.NORMAL
 		if not _levels_by_type.has(type):
 			_levels_by_type[type] = []
 		_levels_by_type[type].append(map_res)
@@ -86,7 +93,7 @@ func get_levels_for_day(day: int) -> Array:
 		return _days_levels[day-1]
 	return []
 
-func get_map_for_node_type(node_type: int, main_unit: String = "") -> MapData:
+func get_map_for_node_type(node_type: MapNode.NodeType, main_unit: String = "") -> MapData:
 	var all_maps = _levels_by_type.get(node_type, [])
 	var filtered = all_maps.filter(func(m): return m.required_unit == "" or m.required_unit == main_unit)
 	if filtered.is_empty():

@@ -134,26 +134,16 @@ func _update_buttons():
 
 func on_node_selected(node: MapNode):
 	if not node.is_available or node.is_visited:
-		print("节点不可选或已访问")
 		return
-	
-	print("选择节点：", node.node_type, " 位置：", node.position)
-	
-	# 标记为已访问并保存到 GameState
 	var key = "%d_%d" % [node.position.x, node.position.y]
 	GameState.visited_nodes[key] = true
 	node.is_visited = true
 	node.is_available = false
-	
-	# ---- 根据节点类型决定行为 ----
-	match node.node_type:
-		MapNode.NodeType.NORMAL, MapNode.NodeType.ELITE, MapNode.NodeType.BOSS:
-			# 战斗节点：进入战斗
-			_load_combat_for_node(node)
-		_:
-			# 非战斗节点（起点、汇合点、商店、事件等）：直接解锁下一层，不进入战斗
-			print("非战斗节点，跳过战斗，直接解锁下一层")
-			_update_availability(map_data.root_node)
+	# 所有节点都加载地图
+	if node.map_data:
+		_load_combat_for_node(node)
+	else:
+		_update_availability(map_data.root_node)
 
 func _load_combat_for_node(node: MapNode):
 	var map_to_load = node.map_data

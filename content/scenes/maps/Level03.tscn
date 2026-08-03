@@ -20,29 +20,6 @@ unit_type = 7
 team = 1
 metadata/_custom_type_script = "uid://cjvddjaj43chx"
 
-[node name="Unit01" type="Node2D" parent="." unique_id=150806711]
-position = Vector2(304, 176)
-script = ExtResource("2_o8s20")
-unit_type = 1
-metadata/_custom_type_script = "uid://cjvddjaj43chx"
-
-[node name="Unit02" type="Node2D" parent="." unique_id=1172041731]
-position = Vector2(256, 176)
-script = ExtResource("2_o8s20")
-unit_type = 4
-metadata/_custom_type_script = "uid://cjvddjaj43chx"
-
-[node name="Unit03" type="Node2D" parent="." unique_id=1831133507]
-position = Vector2(304, 144)
-script = ExtResource("2_o8s20")
-metadata/_custom_type_script = "uid://cjvddjaj43chx"
-
-[node name="Unit04" type="Node2D" parent="." unique_id=565454009]
-position = Vector2(304, 160)
-script = ExtResource("2_o8s20")
-unit_type = 8
-metadata/_custom_type_script = "uid://cjvddjaj43chx"
-
 [node name="BattleStartEvent" type="Node2D" parent="." unique_id=32031953]
 script = ExtResource("3_s3d1k")
 event_id = "battle_intro_2"
