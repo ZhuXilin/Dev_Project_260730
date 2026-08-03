@@ -10,6 +10,7 @@
 [ext_resource type="AudioStream" uid="uid://b5twx1x7sm7gd" path="res://content/music/29 Story 6 - Marth and Sheeda's Conversation.mp3" id="6_ncngl"]
 [ext_resource type="AudioStream" uid="uid://xmc6l17m6moc" path="res://content/music/18 Victory Obtained.mp3" id="6_xqkk7"]
 [ext_resource type="AudioStream" uid="uid://cqhy1c7d5n7ru" path="res://content/music/31 Ending (Parade).mp3" id="7_g5mal"]
+[ext_resource type="AudioStream" uid="uid://c1jei0hu4cdeg" path="res://content/music/15 Battle Map 3 - Victory Nears (Player).mp3" id="7_xqkk7"]
 
 [resource]
 script = ExtResource("5_ncngl")
@@ -23,5 +24,5 @@ dialogue_music = ExtResource("2_qt4sp")
 battle_start_dialogue_music = ExtResource("1_f1kg3")
 map_music = ExtResource("6_ncngl")
 unit_select_music = ExtResource("6_ncngl")
-non_combat_music = ExtResource("6_xqkk7")
+non_combat_music = ExtResource("7_xqkk7")
 metadata/_custom_type_script = "uid://ccysv3ra5kmq6"
