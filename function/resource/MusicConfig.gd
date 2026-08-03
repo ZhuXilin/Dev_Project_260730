@@ -11,3 +11,4 @@ class_name MusicConfig
 @export var dialogue_music : AudioStream
 @export var battle_start_dialogue_music : AudioStream
 @export var map_music : AudioStream
+@export var unit_select_music : AudioStream

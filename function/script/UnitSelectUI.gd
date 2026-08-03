@@ -8,10 +8,14 @@ var max_selection: int = 3
 @onready var main_label = $MainUnitLabel
 @onready var slot1_label = $Slot1Label
 @onready var slot2_label = $Slot2Label
-@onready var confirm_btn = $BottomBar/ConfirmButton   # 修正路径
-@onready var back_btn = $BottomBar/BackButton         # 修正路径
+@onready var confirm_btn = $BottomBar/ConfirmButton
+@onready var back_btn = $BottomBar/BackButton
 
 func _ready():
+	# ---- 播放单位选择界面音乐 ----
+	if MusicManager.config and MusicManager.config.unit_select_music:
+		MusicManager.play_music(MusicManager.config.unit_select_music)
+	
 	_setup_unit_buttons()
 	_update_labels()
 
@@ -49,4 +53,5 @@ func _on_confirm_pressed():
 	LevelManager.start_game()
 
 func _on_back_pressed():
+	MusicManager.stop_music()   # 返回主菜单前停止音乐（可选，切换场景会自动停止）
 	get_tree().change_scene_to_file("res://content/scenes/ui/MainMenu.tscn")
