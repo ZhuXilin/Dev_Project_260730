@@ -120,6 +120,7 @@ func _ready():
 	equip_btn.pressed.connect(_on_equip_btn_pressed)
 	item_list_btn.pressed.connect(_on_item_list_btn_pressed)
 	setting_end_turn_btn.pressed.connect(_end_player_turn)
+	SignalBus.non_combat_complete.connect(_on_non_combat_complete)
 	
 	if end_turn_button:
 		end_turn_button.text = "F 结束回合"
@@ -229,7 +230,10 @@ func _ready():
 
 	if is_non_combat:
 		_setup_non_combat_mode()
-		return   # 不执行后续战斗逻辑
+		# 非战斗模式也要启动回合系统（用于移动单位）
+		await get_tree().process_frame
+		TurnManager.start_turn(0)
+		return   # 不执行战斗开始事件
 
 	# ---- 战斗模式：触发战斗开始事件 ----
 	if _battle_start_event_id != "":
@@ -286,8 +290,7 @@ func _process(_delta):
 		Globals.is_performing_action or
 		Globals.is_dialogue_active or
 		Globals.is_item_get_popup_active or
-		camera_controller._is_smooth_moving or
-		is_non_combat_mode   # 新增：非战斗模式也暂停摄像机
+		camera_controller._is_smooth_moving
 	)
 	camera_controller.set_paused(should_pause)
 
@@ -751,7 +754,6 @@ func _connect_signals():
 
 # ===================== 信号回调 =====================
 func _on_highlight_request(cells: Dictionary):
-	print("_on_highlight_request 收到, interaction_phase=", InputManager.interaction_phase, " cells.size=", cells.size())
 	match InputManager.interaction_phase:
 		"moving":
 			if cells == InputManager.current_highlight_cells:
@@ -1022,19 +1024,39 @@ func _on_turn_changed(team: int):
 		if fallback_pos:
 			camera_controller.smooth_move_to(fallback_pos, turnlayer_manager.transition_duration, true)
 
-	if team == 0:
-		print("播放玩家回合音乐")
-		MusicManager.play_player_turn_music()
+	# ---- 音乐控制 ----
+	if not is_non_combat_mode:
+		if team == 0:
+			print("播放玩家回合音乐")
+			MusicManager.play_player_turn_music()
+		else:
+			print("播放敌人回合音乐")
+			MusicManager.play_enemy_turn_music()
 	else:
-		print("播放敌人回合音乐")
-		MusicManager.play_enemy_turn_music()
+		# ---- 非战斗模式：确保非战斗音乐持续播放 ----
+		var music_stream = null
+		if MusicManager.config and MusicManager.config.non_combat_music:
+			music_stream = MusicManager.config.non_combat_music
+		elif MusicManager.config and MusicManager.config.map_music:
+			music_stream = MusicManager.config.map_music
+		
+		if music_stream:
+			# 检查当前播放状态：如果未播放或播放的不是目标音乐，则重新播放
+			var player = MusicManager.player
+			if not player.playing or player.stream != music_stream:
+				MusicManager.play_music(music_stream)
+				print("非战斗模式，重新播放非战斗音乐")
+			else:
+				print("非战斗模式，音乐播放中，保持")
+		else:
+			print("非战斗模式，未配置非战斗音乐")
 
 	await apply_map_functions(team)
 
 	Globals.is_transitioning = false
 	_turn_changed_locked = false
 
-	if team == 1:
+	if team == 1 and not is_non_combat_mode:
 		print("准备启动 AI，时间: ", Time.get_ticks_msec())
 		TurnManager.run_enemy_ai()
 
@@ -1062,11 +1084,18 @@ func _on_clear_highlight_unit():
 
 # ===================== 输入处理 =====================
 func _input(event: InputEvent):
-	# ---- 非战斗模式：只响应 F 键，其他全部忽略 ----
+	# ---- 非战斗模式：只拦截 F 键和 0 键，其他事件正常传递 ----
 	if is_non_combat_mode:
-		if event is InputEventKey and event.pressed and event.keycode == KEY_F:
-			_on_non_combat_complete()
-		return
+		if event is InputEventKey and event.pressed:
+			if event.keycode == KEY_F:
+				_end_player_turn()
+				return
+			if event.keycode == KEY_0 or event.keycode == KEY_KP_0:
+				print("GM命令：强制完成非战斗地图")
+				_on_non_combat_complete()
+				return
+		# 其他事件继续传递，不拦截（允许滚轮、鼠标移动等）
+		# 不要 return
 
 	# ---- 以下为战斗模式的输入处理 ----
 	if Globals.is_item_action_panel_open and event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT:
@@ -1102,13 +1131,14 @@ func _input(event: InputEvent):
 		return
 
 	if event is InputEventKey and event.pressed:
-		# ---- F 键结束回合 ----
+		# ---- F 键结束回合（战斗模式） ----
 		if event.keycode == KEY_F:
 			if TurnManager.current_turn_team == 0 and not Globals.is_fading:
 				_end_player_turn()
 				return
 
 		if TurnManager.current_turn_team == 0 and not Globals.is_fading:
+			# 调试按键
 			if event.keycode == KEY_0 or event.keycode == KEY_KP_0:
 				print("调试：杀死所有敌方单位")
 				var enemies = []
@@ -1190,10 +1220,6 @@ func _input(event: InputEvent):
 
 # ===================== UI回调 =====================
 func _on_request_show_menu(unit: Unit):
-	# ---- 非战斗模式禁止显示菜单 ----
-	if is_non_combat_mode:
-		print("非战斗模式，忽略显示菜单请求")
-		return
 	if TurnManager.is_game_over or TurnManager.current_turn_team != 0 or TurnManager.all_acted:
 		return
 	if unit.unit_stats.team_id != 0:
@@ -1855,33 +1881,42 @@ func _on_map_defeat_gameover():
 func _setup_non_combat_mode():
 	print("进入非战斗模式：", Globals.current_map_data.map_name if Globals.current_map_data else "未知地图")
 	is_non_combat_mode = true
+	Globals.is_non_combat_mode = true
 	
 	# ---- 恢复鼠标可见 ----
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	cursor.visible = false
 	
-	# ---- 隐藏战斗相关UI ----
-	if action_menu:
-		action_menu.visible = false
-	if move_btn:
-		move_btn.disabled = true
+	# ---- 播放非战斗地图音乐 ----
+	var music_stream = null
+	if MusicManager.config and MusicManager.config.non_combat_music:
+		music_stream = MusicManager.config.non_combat_music
+	elif MusicManager.config and MusicManager.config.map_music:
+		music_stream = MusicManager.config.map_music
+	if music_stream:
+		MusicManager.play_music(music_stream)
+	
+	# ---- UI 设置：禁用攻击，保留其他 ----
 	if attack_btn:
-		attack_btn.disabled = true
+		attack_btn.disabled = true      # 非战斗不能攻击
+	if move_btn:
+		move_btn.disabled = false
 	if wait_btn:
-		wait_btn.disabled = true
+		wait_btn.disabled = false
 	if equip_btn:
-		equip_btn.disabled = true
+		equip_btn.disabled = false      # 允许装备调整
+	if action_menu:
+		action_menu.visible = true
 	if setting_panel:
-		setting_panel.visible = false
+		setting_panel.visible = false   # 默认隐藏，通过设置按钮打开
 	
-	# ---- 禁用回合系统 ----
-	TurnManager.is_game_over = true
-	
-	# ---- 复用 EndTurnButton 作为非战斗完成按钮 ----
+	# ---- EndTurnButton 保持正常 ----
 	if end_turn_button:
-		end_turn_button.text = "F 进入下一关"
+		end_turn_button.text = "F 结束回合"
 		end_turn_button.visible = true
-		# 不修改颜色，保持默认白色
+		end_turn_button.modulate = Color.WHITE
+	
+	# ---- 不设置 TurnManager.is_game_over，让回合系统正常运行 ----
 	
 	# ---- 触发地图开始事件（如果有） ----
 	if _battle_start_event_id != "":
@@ -1897,19 +1932,12 @@ func _setup_non_combat_mode():
 				print("警告：非战斗地图事件/对话不存在: ", _battle_start_event_id)
 		print("非战斗地图事件结束")
 	
-	print("非战斗模式设置完成，等待玩家交互")
+	print("非战斗模式设置完成，回合系统已启动，等待玩家操作")
 
 func _on_non_combat_complete():
 	print("非战斗节点完成，返回地图")
-	
-	# 恢复 EndTurnButton 为战斗模式
-	if end_turn_button:
-		end_turn_button.text = "F 结束回合"
-		# 颜色保持默认白色（无需显式设置）
-		_update_end_turn_button_visibility()
-	
 	is_non_combat_mode = false
-	TurnManager.is_game_over = false
+	Globals.is_non_combat_mode = false
 	SignalBus.battle_completed.emit(0)
 	get_tree().change_scene_to_file("res://content/scenes/ui/MapScene.tscn")
 
@@ -1970,9 +1998,7 @@ func _end_player_turn():
 	if Globals.is_transitioning or Globals.is_fading:
 		print("正在过渡中，无法结束回合")
 		return
-	if is_non_combat_mode:
-		print("非战斗模式，无法结束回合")
-		return
+	# 移除对 is_non_combat_mode 的检查，允许非战斗模式结束回合
 
 	# ---- 隐藏所有菜单和信息 ----
 	SignalBus.request_hide_info.emit()
@@ -1994,5 +2020,5 @@ func _end_player_turn():
 	InputManager.current_highlight_cells = {}
 	InputManager.attackable_targets = []
 
-	print("玩家回合强制结束，切换到敌方回合")
-	TurnManager.start_turn(1)
+	print("玩家回合结束，切换到敌方回合")
+	TurnManager.start_turn(1)   # 敌方回合会被 TurnManager 跳过（非战斗模式）

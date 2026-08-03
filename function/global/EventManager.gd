@@ -61,6 +61,10 @@ func trigger_event(event_id: String, unit: Unit = null, default_music: AudioStre
 	for action in actions:
 		var action_type = action.get("type", "")
 		match action_type:
+			"complete":
+				print("非战斗地图完成事件触发")
+				SignalBus.non_combat_complete.emit()
+				await get_tree().process_frame
 			"dialog":
 				var dialog_id = action.get("dialog_id", "")
 				var music_stream = action.get("music", default_music)

@@ -21,7 +21,6 @@ func _add_highlight_cells(cells: Dictionary, color: Color, z_index: int):
 	if not highlight_container:
 		print("错误：highlight_container 为 null")
 		return
-	print("添加高亮，格子数：", cells.size(), " z_index:", z_index)
 	for cell in cells.keys():
 		var rect = ColorRect.new()
 		rect.color = color
@@ -31,7 +30,6 @@ func _add_highlight_cells(cells: Dictionary, color: Color, z_index: int):
 		rect.z_index = z_index
 		rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		highlight_container.add_child(rect)
-		print("  添加高亮在 ", cell, " 位置 ", rect.position)
 
 # ---- 己方高亮（移动范围 / 攻击范围） ----
 func show_move_highlight(reachable_dict: Dictionary, color: Color = Color(0, 1, 0, 0.4), z_index: int = 0, clear: bool = true):

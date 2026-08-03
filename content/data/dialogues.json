@@ -69,12 +69,15 @@
 	{ "speaker": "盗贼", "text": "我已经挖到入口了！" },
 	{ "speaker": "指挥官", "text": "……你什么时候挖的？！" }
   ],
-	"battle_start_1": [
+  "battle_start_1": [
 	{ "speaker": "指挥官", "text": "前方有敌人！" },
 	{ "speaker": "指挥官", "text": "全体注意！" }
-	],
-	"battle_start_2": [
+  ],
+  "battle_start_2": [
 	{ "speaker": "指挥官", "text": "等等，前面有动静！" },
 	{ "speaker": "指挥官", "text": "全员，列阵！" }
-	]
+  ],
+  "complete_dialog": [
+	{ "speaker": "系统", "text": "恭喜你完成了这个区域！可以继续前进了。" }
+  ]
 }

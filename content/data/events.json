@@ -24,28 +24,35 @@
 	],
 	"once": false
   },
-	"battle_intro_1": {
-	  "actions": [
-		{ "type": "dialog", "dialog_id": "battle_start_1" },
-	  ],
-	  "once": true
-	},
-	"battle_intro_2": {
-	  "actions": [
-		{ "type": "dialog", "dialog_id": "battle_start_2" }
-	  ],
-	  "once": true
-	},
-	"healer_advice_event": {
-		"actions": [
-		{ "type": "dialog", "dialog_id": "healer_advice" }
+  "battle_intro_1": {
+	"actions": [
+	  { "type": "dialog", "dialog_id": "battle_start_1" }
 	],
 	"once": true
   },
-	"village_gossip_event": {
-		"actions": [
-		{ "type": "dialog", "dialog_id": "village_gossip" }
+  "battle_intro_2": {
+	"actions": [
+	  { "type": "dialog", "dialog_id": "battle_start_2" }
 	],
 	"once": true
+  },
+  "healer_advice_event": {
+	"actions": [
+	  { "type": "dialog", "dialog_id": "healer_advice" }
+	],
+	"once": true
+  },
+  "village_gossip_event": {
+	"actions": [
+	  { "type": "dialog", "dialog_id": "village_gossip" }
+	],
+	"once": true
+  },
+  "complete_node": {
+	"once": false,
+	"actions": [
+	  { "type": "dialog", "dialog_id": "complete_dialog" },
+	  { "type": "complete" }
+	]
   }
 }

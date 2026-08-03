@@ -13,23 +13,10 @@ tile_map_data = PackedByteArray("AAASAAYAAQAAAAAAAAARAAYAAQAAAAAAAAARAAcAAQAIAAk
 tile_set = ExtResource("1_8kxmb")
 collision_enabled = false
 
-[node name="Enemy01" type="Node2D" parent="." unique_id=718192537]
-position = Vector2(112, 112)
-script = ExtResource("2_ehes6")
-unit_type = 6
-team = 1
-immobile = true
-metadata/_custom_type_script = "uid://cjvddjaj43chx"
-
 [node name="BattleStartEvent" type="Node2D" parent="." unique_id=1446685659]
 script = ExtResource("4_0fbie")
 event_id = "battle_start_1"
 metadata/_custom_type_script = "uid://coxiwl5phg87a"
-
-[node name="HpFunction" type="Node2D" parent="." unique_id=1782810974]
-position = Vector2(48, 96)
-script = ExtResource("5_6k1jt")
-metadata/_custom_type_script = "uid://bwbaxyrughsfk"
 
 [node name="HpFunction2" type="Node2D" parent="." unique_id=1143951319]
 position = Vector2(224, 128)
@@ -79,3 +66,9 @@ script = ExtResource("2_ehes6")
 placement_mode = 1
 spawn_index = 2
 metadata/_custom_type_script = "uid://cjvddjaj43chx"
+
+[node name="EventTrigger5" type="Node2D" parent="." unique_id=1557480810]
+position = Vector2(48, 96)
+script = ExtResource("6_oyes2")
+event_id = "complete_node"
+metadata/_custom_type_script = "uid://d4b5iewm1v2pe"

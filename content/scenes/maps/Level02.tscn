@@ -66,11 +66,6 @@ script = ExtResource("3_660gu")
 event_id = "battle_intro_2"
 metadata/_custom_type_script = "uid://coxiwl5phg87a"
 
-[node name="HpFunction" type="Node2D" parent="." unique_id=85655960]
-position = Vector2(112, 112)
-script = ExtResource("4_2r70a")
-metadata/_custom_type_script = "uid://bwbaxyrughsfk"
-
 [node name="HpFunction2" type="Node2D" parent="." unique_id=561272170]
 position = Vector2(304, 160)
 script = ExtResource("4_2r70a")
@@ -101,3 +96,8 @@ script = ExtResource("2_660gu")
 placement_mode = 1
 spawn_index = 2
 metadata/_custom_type_script = "uid://cjvddjaj43chx"
+
+[node name="HpFunction" type="Node2D" parent="." unique_id=1081611832]
+position = Vector2(112, 112)
+script = ExtResource("4_2r70a")
+metadata/_custom_type_script = "uid://bwbaxyrughsfk"

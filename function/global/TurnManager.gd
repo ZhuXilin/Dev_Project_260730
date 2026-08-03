@@ -100,6 +100,14 @@ func start_turn(team: int):
 	if is_game_over or is_moving:
 		print("跳过 start_turn")
 		return
+	
+	# ---- 非战斗模式：跳过敌方回合 ----
+	if Globals.is_non_combat_mode and team == 1:
+		print("非战斗模式：跳过敌方回合，立即回到玩家回合")
+		# 敌方回合直接跳过，重置为玩家回合
+		start_turn(0)
+		return
+
 	current_turn_team = team
 	all_acted = false
 	is_moving = false
