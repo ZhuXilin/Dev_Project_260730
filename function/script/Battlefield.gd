@@ -1062,8 +1062,13 @@ func _on_clear_highlight_unit():
 
 # ===================== 输入处理 =====================
 func _input(event: InputEvent):
+	# ---- 非战斗模式：只响应 F 键，其他全部忽略 ----
 	if is_non_combat_mode:
+		if event is InputEventKey and event.pressed and event.keycode == KEY_F:
+			_on_non_combat_complete()
 		return
+
+	# ---- 以下为战斗模式的输入处理 ----
 	if Globals.is_item_action_panel_open and event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT:
 		print("_input 捕获到 ItemActionPanel 右键")
 		get_viewport().set_input_as_handled()
@@ -1097,6 +1102,12 @@ func _input(event: InputEvent):
 		return
 
 	if event is InputEventKey and event.pressed:
+		# ---- F 键结束回合 ----
+		if event.keycode == KEY_F:
+			if TurnManager.current_turn_team == 0 and not Globals.is_fading:
+				_end_player_turn()
+				return
+
 		if TurnManager.current_turn_team == 0 and not Globals.is_fading:
 			if event.keycode == KEY_0 or event.keycode == KEY_KP_0:
 				print("调试：杀死所有敌方单位")
@@ -1146,12 +1157,6 @@ func _input(event: InputEvent):
 		return
 	if TurnManager.all_acted:
 		return
-
-	# ---- 处理结束回合按键 F ----
-	if event is InputEventKey and event.pressed and event.keycode == KEY_F:
-		if TurnManager.current_turn_team == 0 and not Globals.is_fading and not is_non_combat_mode:
-			_end_player_turn()
-			return
 
 	if event is InputEventKey and event.pressed:
 		if event.keycode == KEY_1:
@@ -1851,6 +1856,10 @@ func _setup_non_combat_mode():
 	print("进入非战斗模式：", Globals.current_map_data.map_name if Globals.current_map_data else "未知地图")
 	is_non_combat_mode = true
 	
+	# ---- 恢复鼠标可见 ----
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	cursor.visible = false
+	
 	# ---- 隐藏战斗相关UI ----
 	if action_menu:
 		action_menu.visible = false
@@ -1864,18 +1873,15 @@ func _setup_non_combat_mode():
 		equip_btn.disabled = true
 	if setting_panel:
 		setting_panel.visible = false
-	if end_turn_button:
-		end_turn_button.visible = false
 	
 	# ---- 禁用回合系统 ----
-	TurnManager.is_game_over = true   # 阻止战斗逻辑运行
+	TurnManager.is_game_over = true
 	
-	# ---- 添加“返回地图”按钮（预设UI方式） ----
-	# 如果场景中已有返回按钮，显示它；否则动态创建
-	if non_combat_back_button:
-		non_combat_back_button.visible = true
-	else:
-		_add_non_combat_back_button()
+	# ---- 复用 EndTurnButton 作为非战斗完成按钮 ----
+	if end_turn_button:
+		end_turn_button.text = "F 进入下一关"
+		end_turn_button.visible = true
+		# 不修改颜色，保持默认白色
 	
 	# ---- 触发地图开始事件（如果有） ----
 	if _battle_start_event_id != "":
@@ -1893,29 +1899,17 @@ func _setup_non_combat_mode():
 	
 	print("非战斗模式设置完成，等待玩家交互")
 
-func _add_non_combat_back_button():
-	if non_combat_back_button:
-		return
-	non_combat_back_button = Button.new()
-	non_combat_back_button.text = "返回地图"
-	non_combat_back_button.add_theme_font_size_override("font_size", 10)
-	non_combat_back_button.anchors_preset = Control.PRESET_BOTTOM_RIGHT
-	non_combat_back_button.offset_left = -120
-	non_combat_back_button.offset_top = -40
-	non_combat_back_button.offset_right = -16
-	non_combat_back_button.offset_bottom = -8
-	non_combat_back_button.pressed.connect(_on_non_combat_complete)
-	add_child(non_combat_back_button)
-
 func _on_non_combat_complete():
 	print("非战斗节点完成，返回地图")
-	# 隐藏返回按钮
-	if non_combat_back_button:
-		non_combat_back_button.visible = false
+	
+	# 恢复 EndTurnButton 为战斗模式
+	if end_turn_button:
+		end_turn_button.text = "F 结束回合"
+		# 颜色保持默认白色（无需显式设置）
+		_update_end_turn_button_visibility()
+	
 	is_non_combat_mode = false
-	# 恢复回合系统
 	TurnManager.is_game_over = false
-	# 发出战斗完成信号（标记节点完成）
 	SignalBus.battle_completed.emit(0)
 	get_tree().change_scene_to_file("res://content/scenes/ui/MapScene.tscn")
 
@@ -1957,8 +1951,16 @@ func _generate_default_terrain(map_size: Vector2i):
 func _update_end_turn_button_visibility():
 	if not end_turn_button:
 		return
-	var should_hide = is_non_combat_mode or (setting_panel and setting_panel.visible)
+	
+	# 非战斗模式下，按钮由 _setup_non_combat_mode 控制，此处不干预
+	if is_non_combat_mode:
+		return
+	
+	# 战斗模式下，根据设置菜单状态控制可见性
+	var should_hide = setting_panel and setting_panel.visible
 	end_turn_button.visible = not should_hide
+	if end_turn_button.visible:
+		end_turn_button.mouse_filter = Control.MOUSE_FILTER_STOP
 
 func _end_player_turn():
 	# ---- 检查条件 ----
