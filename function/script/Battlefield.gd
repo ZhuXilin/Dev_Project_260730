@@ -41,6 +41,7 @@ const UnitDataManagerClass = preload("res://function/script/UnitDataManager.gd")
 @onready var item_list_panel : PanelContainer = $SettingLayer/ItemListPanel
 @onready var item_list_container : VBoxContainer = $SettingLayer/ItemListPanel/ItemListContainer
 @onready var item_action_panel : CanvasLayer = $ItemActionPanel
+@onready var end_turn_button: Label = $EndTurnLayer/EndTurnButton
 
 # ---- 常量 ----
 const CELL_SIZE : int = 16
@@ -118,7 +119,12 @@ func _ready():
 	setting_btn.pressed.connect(_on_setting_btn_pressed)
 	equip_btn.pressed.connect(_on_equip_btn_pressed)
 	item_list_btn.pressed.connect(_on_item_list_btn_pressed)
-
+	setting_end_turn_btn.pressed.connect(_end_player_turn)
+	
+	if end_turn_button:
+		end_turn_button.text = "F 结束回合"
+		end_turn_button.visible = not is_non_combat_mode
+		
 	if _initialized:
 		return
 	_initialized = true
@@ -250,6 +256,7 @@ func _ready():
 	print("=== 准备启动玩家回合 ===")
 	TurnManager.start_turn(0)
 	print("=== TurnManager.start_turn(0) 调用完成 ===")
+	_update_end_turn_button_visibility()
 
 func _exit_tree():
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
@@ -717,7 +724,6 @@ func _connect_signals():
 	move_btn.pressed.connect(_on_move_btn_pressed)
 	attack_btn.pressed.connect(_on_attack_btn_pressed)
 	wait_btn.pressed.connect(_on_wait_btn_pressed)
-	setting_end_turn_btn.pressed.connect(_on_setting_end_turn_pressed)
 
 	SignalBus.request_highlight.connect(_on_highlight_request)
 	SignalBus.request_clear_highlight.connect(highlight_manager.clear_highlight)
@@ -922,7 +928,7 @@ func _on_request_show_victory(winning_team: int):
 		else:
 			MusicManager.play_defeat_music()
 			label_text = "战斗失败"
-			button_text = "重新选择队伍"
+			button_text = "重启旅程"
 			callback = Callable(self, "_on_map_defeat_gameover")
 
 		# ---- 显示胜利/失败面板 ----
@@ -1104,15 +1110,6 @@ func _input(event: InputEvent):
 					enemy.queue_free()
 				TurnManager.check_victory()
 				return
-			elif event.keycode == KEY_8 or event.keycode == KEY_KP_8:
-				print("调试：所有己方单位执行待机")
-				var allies = []
-				for unit in UnitManager.unit_list:
-					if unit.unit_stats.team_id == 0 and unit.hit_points > 0:
-						allies.append(unit)
-				for ally in allies:
-					TurnManager.finish_unit_action(ally)
-				return
 			elif event.keycode == KEY_9 or event.keycode == KEY_KP_9:
 				print("调试：杀死所有我方单位")
 				var allies = []
@@ -1149,6 +1146,12 @@ func _input(event: InputEvent):
 		return
 	if TurnManager.all_acted:
 		return
+
+	# ---- 处理结束回合按键 F ----
+	if event is InputEventKey and event.pressed and event.keycode == KEY_F:
+		if TurnManager.current_turn_team == 0 and not Globals.is_fading and not is_non_combat_mode:
+			_end_player_turn()
+			return
 
 	if event is InputEventKey and event.pressed:
 		if event.keycode == KEY_1:
@@ -1426,34 +1429,14 @@ func _on_request_hide_info():
 
 func _on_request_show_setting():
 	setting_panel.visible = true
+	_update_end_turn_button_visibility()
 
 func _on_request_hide_setting():
 	setting_panel.visible = false
 	team_view_panel.visible = false
 	item_list_panel.visible = false
 	setting_menu_panel.visible = false
-
-func _on_setting_end_turn_pressed():
-	SignalBus.request_hide_info.emit()
-	SignalBus.request_hide_setting.emit()
-
-	var allies = []
-	for unit in UnitManager.unit_list:
-		if unit.unit_stats.team_id == 0 and unit.hit_points > 0:
-			allies.append(unit)
-
-	for ally in allies:
-		ally.can_act_this_turn = false
-		ally.set_gray(true)
-
-	InputManager.selected_unit = null
-	InputManager.interaction_phase = "idle"
-	InputManager.current_highlight_cells = {}
-	InputManager.attackable_targets = []
-	SignalBus.request_hide_menu.emit()
-	SignalBus.request_clear_highlight.emit()
-
-	TurnManager.start_turn(1)
+	_update_end_turn_button_visibility()
 
 func _on_team_view_btn_pressed():
 	if setting_menu_panel.visible:
@@ -1865,7 +1848,7 @@ func _on_map_defeat_gameover():
 
 # ===================== 非战斗模式 =====================
 func _setup_non_combat_mode():
-	print("进入非战斗模式：", Globals.current_map_data.map_name)
+	print("进入非战斗模式：", Globals.current_map_data.map_name if Globals.current_map_data else "未知地图")
 	is_non_combat_mode = true
 	
 	# ---- 隐藏战斗相关UI ----
@@ -1881,13 +1864,35 @@ func _setup_non_combat_mode():
 		equip_btn.disabled = true
 	if setting_panel:
 		setting_panel.visible = false
+	if end_turn_button:
+		end_turn_button.visible = false
 	
 	# ---- 禁用回合系统 ----
 	TurnManager.is_game_over = true   # 阻止战斗逻辑运行
 	
-	# ---- 添加“返回地图”按钮 ----
-	_add_non_combat_back_button()
+	# ---- 添加“返回地图”按钮（预设UI方式） ----
+	# 如果场景中已有返回按钮，显示它；否则动态创建
+	if non_combat_back_button:
+		non_combat_back_button.visible = true
+	else:
+		_add_non_combat_back_button()
 	
+	# ---- 触发地图开始事件（如果有） ----
+	if _battle_start_event_id != "":
+		print("检测到非战斗地图事件：", _battle_start_event_id)
+		var music = MusicManager.config.battle_start_dialogue_music if MusicManager.config else null
+		if EventManager and EventManager.has_event(_battle_start_event_id):
+			await EventManager.trigger_event(_battle_start_event_id, null, music)
+		else:
+			if DialogueManager.has_dialogue(_battle_start_event_id):
+				DialogueManager.start_dialogue(_battle_start_event_id, music)
+				await DialogueManager.dialogue_finished
+			else:
+				print("警告：非战斗地图事件/对话不存在: ", _battle_start_event_id)
+		print("非战斗地图事件结束")
+	
+	print("非战斗模式设置完成，等待玩家交互")
+
 func _add_non_combat_back_button():
 	if non_combat_back_button:
 		return
@@ -1904,11 +1909,12 @@ func _add_non_combat_back_button():
 
 func _on_non_combat_complete():
 	print("非战斗节点完成，返回地图")
-	# 清理按钮
+	# 隐藏返回按钮
 	if non_combat_back_button:
-		non_combat_back_button.queue_free()
-		non_combat_back_button = null
+		non_combat_back_button.visible = false
 	is_non_combat_mode = false
+	# 恢复回合系统
+	TurnManager.is_game_over = false
 	# 发出战斗完成信号（标记节点完成）
 	SignalBus.battle_completed.emit(0)
 	get_tree().change_scene_to_file("res://content/scenes/ui/MapScene.tscn")
@@ -1947,3 +1953,44 @@ func _generate_default_terrain(map_size: Vector2i):
 		grid.append(row)
 	TerrainManager.terrain_grid = grid
 	print("生成默认平地地形，尺寸：", map_size)
+
+func _update_end_turn_button_visibility():
+	if not end_turn_button:
+		return
+	var should_hide = is_non_combat_mode or (setting_panel and setting_panel.visible)
+	end_turn_button.visible = not should_hide
+
+func _end_player_turn():
+	# ---- 检查条件 ----
+	if TurnManager.current_turn_team != 0:
+		print("当前不是玩家回合，无法结束")
+		return
+	if Globals.is_transitioning or Globals.is_fading:
+		print("正在过渡中，无法结束回合")
+		return
+	if is_non_combat_mode:
+		print("非战斗模式，无法结束回合")
+		return
+
+	# ---- 隐藏所有菜单和信息 ----
+	SignalBus.request_hide_info.emit()
+	SignalBus.request_hide_setting.emit()
+	SignalBus.request_hide_menu.emit()
+	SignalBus.request_clear_highlight.emit()
+
+	# ---- 将所有己方单位标记为已行动 ----
+	var allies = []
+	for unit in UnitManager.unit_list:
+		if unit.unit_stats.team_id == 0 and unit.hit_points > 0:
+			allies.append(unit)
+	for ally in allies:
+		ally.can_act_this_turn = false
+		ally.set_gray(true)
+
+	InputManager.selected_unit = null
+	InputManager.interaction_phase = "idle"
+	InputManager.current_highlight_cells = {}
+	InputManager.attackable_targets = []
+
+	print("玩家回合强制结束，切换到敌方回合")
+	TurnManager.start_turn(1)

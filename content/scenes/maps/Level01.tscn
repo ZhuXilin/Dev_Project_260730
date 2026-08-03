@@ -121,7 +121,7 @@ spawn_index = 1
 metadata/_custom_type_script = "uid://cjvddjaj43chx"
 
 [node name="SpawnPoint_2" type="Node2D" parent="." unique_id=648614962]
-position = Vector2(303, 144)
+position = Vector2(304, 144)
 script = ExtResource("2_660gu")
 placement_mode = 1
 spawn_index = 2

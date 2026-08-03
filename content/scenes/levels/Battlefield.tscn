@@ -63,9 +63,8 @@ anchors_preset = -1
 anchor_right = 1.0
 anchor_bottom = 1.0
 offset_left = 368.0
-offset_top = 208.0
+offset_top = 224.0
 offset_right = -16.0
-offset_bottom = -16.0
 theme_override_font_sizes/font_size = 8
 
 [node name="ActionMenu" type="CanvasLayer" parent="." unique_id=1162718456]
@@ -339,6 +338,17 @@ theme_override_font_sizes/font_size = 6
 layout_mode = 2
 theme_override_font_sizes/font_size = 8
 text = "回到主界面"
+
+[node name="EndTurnLayer" type="CanvasLayer" parent="." unique_id=723450893]
+layer = 20
+
+[node name="EndTurnButton" type="Label" parent="EndTurnLayer" unique_id=1136768032]
+offset_left = 320.0
+offset_top = 224.0
+offset_right = 352.0
+offset_bottom = 240.0
+theme_override_font_sizes/font_size = 8
+text = "结束"
 
 [node name="TurnLayer" type="CanvasLayer" parent="." unique_id=414127022]
 
