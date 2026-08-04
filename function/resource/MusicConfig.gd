@@ -13,3 +13,5 @@ class_name MusicConfig
 @export var map_music : AudioStream
 @export var unit_select_music : AudioStream
 @export var non_combat_music : AudioStream
+@export var boss_player_turn_music : AudioStream
+@export var boss_enemy_turn_music : AudioStream

@@ -1,0 +1,19 @@
+[remap]
+
+importer="mp3"
+type="AudioStreamMP3"
+uid="uid://gqnuv4mjkr21"
+path="res://.godot/imported/04 Battle Map 1 - Fight Map 1-1 (Alm 1).mp3-1db5e32e5695a5fb8f3f2578c42fb65c.mp3str"
+
+[deps]
+
+source_file="res://content/music/04 Battle Map 1 - Fight Map 1-1 (Alm 1).mp3"
+dest_files=["res://.godot/imported/04 Battle Map 1 - Fight Map 1-1 (Alm 1).mp3-1db5e32e5695a5fb8f3f2578c42fb65c.mp3str"]
+
+[params]
+
+loop=true
+loop_offset=0.0
+bpm=0.0
+beat_count=0
+bar_beats=4

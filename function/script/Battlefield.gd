@@ -1026,30 +1026,41 @@ func _on_turn_changed(team: int):
 
 	# ---- 音乐控制 ----
 	if not is_non_combat_mode:
-		if team == 0:
-			print("播放玩家回合音乐")
-			MusicManager.play_player_turn_music()
+		var is_boss = Globals.current_map_data and Globals.current_map_data.node_type == MapNode.NodeType.BOSS
+		if is_boss:
+			# Boss 模式：使用 Boss 专用回合音乐
+			if team == 0:
+				if MusicManager.config and MusicManager.config.boss_player_turn_music:
+					MusicManager.play_music(MusicManager.config.boss_player_turn_music)
+					print("播放 Boss 玩家回合音乐")
+				else:
+					MusicManager.play_player_turn_music()  # 备选
+			else:
+				if MusicManager.config and MusicManager.config.boss_enemy_turn_music:
+					MusicManager.play_music(MusicManager.config.boss_enemy_turn_music)
+					print("播放 Boss 敌人回合音乐")
+				else:
+					MusicManager.play_enemy_turn_music()
 		else:
-			print("播放敌人回合音乐")
-			MusicManager.play_enemy_turn_music()
+			# 普通战斗模式
+			if team == 0:
+				print("播放玩家回合音乐")
+				MusicManager.play_player_turn_music()
+			else:
+				print("播放敌人回合音乐")
+				MusicManager.play_enemy_turn_music()
 	else:
-		# ---- 非战斗模式：确保非战斗音乐持续播放 ----
+		# 非战斗模式音乐（保持不变）
 		var music_stream = null
 		if MusicManager.config and MusicManager.config.non_combat_music:
 			music_stream = MusicManager.config.non_combat_music
 		elif MusicManager.config and MusicManager.config.map_music:
 			music_stream = MusicManager.config.map_music
-		
 		if music_stream:
-			# 检查当前播放状态：如果未播放或播放的不是目标音乐，则重新播放
 			var player = MusicManager.player
 			if not player.playing or player.stream != music_stream:
 				MusicManager.play_music(music_stream)
 				print("非战斗模式，重新播放非战斗音乐")
-			else:
-				print("非战斗模式，音乐播放中，保持")
-		else:
-			print("非战斗模式，未配置非战斗音乐")
 
 	await apply_map_functions(team)
 

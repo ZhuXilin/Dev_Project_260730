@@ -1,0 +1,19 @@
+[remap]
+
+importer="mp3"
+type="AudioStreamMP3"
+uid="uid://dbfscj7dsdve3"
+path="res://.godot/imported/11 Battle Map 7 - Fight Map BGM 2 (CP).mp3-a5bd8bdc547e74464317fb5b4f5a15bb.mp3str"
+
+[deps]
+
+source_file="res://content/music/11 Battle Map 7 - Fight Map BGM 2 (CP).mp3"
+dest_files=["res://.godot/imported/11 Battle Map 7 - Fight Map BGM 2 (CP).mp3-a5bd8bdc547e74464317fb5b4f5a15bb.mp3str"]
+
+[params]
+
+loop=true
+loop_offset=0.0
+bpm=0.0
+beat_count=0
+bar_beats=4
