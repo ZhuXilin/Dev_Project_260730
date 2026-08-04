@@ -120,7 +120,9 @@ func _ready():
 	equip_btn.pressed.connect(_on_equip_btn_pressed)
 	item_list_btn.pressed.connect(_on_item_list_btn_pressed)
 	setting_end_turn_btn.pressed.connect(_end_player_turn)
-	SignalBus.non_combat_complete.connect(_on_non_combat_complete)
+	
+	if not SignalBus.non_combat_complete.is_connected(_on_non_combat_complete):
+		SignalBus.non_combat_complete.connect(_on_non_combat_complete)
 	
 	if end_turn_button:
 		end_turn_button.text = "F 结束回合"
@@ -229,11 +231,11 @@ func _ready():
 	]
 
 	if is_non_combat:
-		_setup_non_combat_mode()
-		# 非战斗模式也要启动回合系统（用于移动单位）
+		await _setup_non_combat_mode()
+		# 启动回合系统（必须）
 		await get_tree().process_frame
 		TurnManager.start_turn(0)
-		return   # 不执行战斗开始事件
+		return
 
 	# ---- 战斗模式：触发战斗开始事件 ----
 	if _battle_start_event_id != "":
@@ -972,6 +974,9 @@ func _on_request_show_victory(winning_team: int):
 		ui_manager.show_victory(label_text, button_text, callback)
 
 func _on_turn_changed(team: int):
+	if TurnManager.is_game_over:
+		print("游戏已结束，忽略回合切换")
+		return
 	print("_on_turn_changed 被调用，team:", team)
 	if _turn_changed_locked:
 		print("_turn_changed_locked 为 true，跳过")
@@ -1096,17 +1101,18 @@ func _on_clear_highlight_unit():
 # ===================== 输入处理 =====================
 func _input(event: InputEvent):
 	# ---- 非战斗模式：只拦截 F 键和 0 键，其他事件正常传递 ----
-	if is_non_combat_mode:
-		if event is InputEventKey and event.pressed:
-			if event.keycode == KEY_F:
-				_end_player_turn()
-				return
-			if event.keycode == KEY_0 or event.keycode == KEY_KP_0:
-				print("GM命令：强制完成非战斗地图")
-				_on_non_combat_complete()
-				return
-		# 其他事件继续传递，不拦截（允许滚轮、鼠标移动等）
-		# 不要 return
+	if is_non_combat_mode and event is InputEventKey and event.pressed:
+		if Globals.is_fading or Globals.is_transitioning or Globals.is_dialogue_active:
+			return
+		if TurnManager.is_game_over:
+			return   # 胜利后忽略所有按键
+		if event.keycode == KEY_F:
+			_end_player_turn()
+			return
+		elif event.keycode == KEY_0 or event.keycode == KEY_KP_0:
+			print("GM命令：强制完成非战斗地图")
+			_on_non_combat_complete()
+			return
 
 	# ---- 以下为战斗模式的输入处理 ----
 	if Globals.is_item_action_panel_open and event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT:
@@ -1148,8 +1154,7 @@ func _input(event: InputEvent):
 				_end_player_turn()
 				return
 
-		if TurnManager.current_turn_team == 0 and not Globals.is_fading:
-			# 调试按键
+		if TurnManager.current_turn_team == 0 and not Globals.is_fading and not Globals.is_transitioning:
 			if event.keycode == KEY_0 or event.keycode == KEY_KP_0:
 				print("调试：杀死所有敌方单位")
 				var enemies = []
@@ -1188,6 +1193,8 @@ func _input(event: InputEvent):
 				team_view_panel.visible or 
 				item_list_panel.visible or
 				InputManager.interaction_phase in ["moving", "attacking", "item_target", "give"]):
+				return
+			if TurnManager.is_game_over:
 				return
 			if TurnManager.current_turn_team == 0 and not TurnManager.is_moving and not TurnManager.is_ai_moving and not Globals.is_performing_action:
 				var direction = -1 if event.button_index == MOUSE_BUTTON_WHEEL_UP else 1
@@ -1916,8 +1923,6 @@ func _setup_non_combat_mode():
 		wait_btn.disabled = false
 	if equip_btn:
 		equip_btn.disabled = false      # 允许装备调整
-	if action_menu:
-		action_menu.visible = true
 	if setting_panel:
 		setting_panel.visible = false   # 默认隐藏，通过设置按钮打开
 	
@@ -1946,11 +1951,12 @@ func _setup_non_combat_mode():
 	print("非战斗模式设置完成，回合系统已启动，等待玩家操作")
 
 func _on_non_combat_complete():
-	print("非战斗节点完成，返回地图")
-	is_non_combat_mode = false
-	Globals.is_non_combat_mode = false
-	SignalBus.battle_completed.emit(0)
-	get_tree().change_scene_to_file("res://content/scenes/ui/MapScene.tscn")
+	print("非战斗节点完成，显示胜利面板")
+	# ---- 清除可能保存的音乐，防止恢复覆盖胜利音乐 ----
+	MusicManager._saved_stream = null
+	MusicManager._saved_position = 0.0
+	TurnManager.is_game_over = true   # 立即停止回合系统
+	_on_request_show_victory(0)
 
 # ---- 提取出生点 ----
 func _extract_spawn_points(node: Node) -> Array[Vector2i]:
@@ -2002,6 +2008,9 @@ func _update_end_turn_button_visibility():
 		end_turn_button.mouse_filter = Control.MOUSE_FILTER_STOP
 
 func _end_player_turn():
+	if TurnManager.is_game_over:
+		print("游戏已结束，无法结束回合")
+		return
 	# ---- 检查条件 ----
 	if TurnManager.current_turn_team != 0:
 		print("当前不是玩家回合，无法结束")

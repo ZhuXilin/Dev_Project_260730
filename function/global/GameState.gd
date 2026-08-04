@@ -54,11 +54,7 @@ func sync_units_from_battlefield(battle_units: Array):
 	for i in range(min(party.size(), battle_units.size())):
 		var battle_unit = battle_units[i]
 		var party_unit = party[i]
-		# 更新HP，如果阵法则复活至满血
-		if battle_unit.hit_points <= 0:
-			party_unit.hit_points = party_unit.max_hp
-		else:
-			party_unit.hit_points = battle_unit.hit_points
+		# ... 同步 HP ...
 		# 同步库存
 		var inv = battle_unit.serialize_inventory()
 		party_unit.inventory.clear()
@@ -68,8 +64,10 @@ func sync_units_from_battlefield(battle_units: Array):
 			inst.count = entry["count"]
 			party_unit.inventory.append(inst)
 		party_unit.equipped_weapon = battle_unit.get_equipped_weapon_id()
+		# 在 sync_units_from_battlefield 中
+		print("战斗单位 ", battle_unit.unit_stats.unit_name, " 库存: ", inv)
+		print("同步后队伍单位库存: ", party_unit.inventory)
 
-# 重置（返回主菜单时）
 func reset_all():
 	party.clear()
 	main_unit_name = ""

@@ -518,7 +518,7 @@ func restore_from_unit_data(data: UnitData, cell: Vector2i):
 	update_terrain_info()
 
 func serialize_inventory() -> Array[Dictionary]:
-	var result: Array[Dictionary] = []   # 显式类型
+	var result: Array[Dictionary] = []   # 显式类型声明
 	for inst in inventory:
 		result.append({
 			"item_id": inst.item_id,
