@@ -61,6 +61,7 @@ var non_combat_back_button: Button = null
 
 # ===================== 生命周期 =====================
 func _ready():
+	Globals.is_non_combat_mode = false   # 重置非战斗模式标志
 	print("=== Battlefield _ready 开始 ===")
 	
 	# ---- 手动获取所有节点 ----
