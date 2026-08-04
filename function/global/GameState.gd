@@ -11,6 +11,9 @@ var current_day: int = 1
 var current_map_index: int = 0
 var visited_nodes: Dictionary = {}       # 地图节点访问记录（可由 MapScene 迁移到此处）
 var is_map_mode: bool = false
+var cached_map_level_data: MapLevelData = null
+var cached_day: int = -1
+var last_selected_node_type: int = -1
 
 # 初始化队伍
 func initialize_party(selected_units: Array[String], main_index: int):

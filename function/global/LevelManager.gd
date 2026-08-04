@@ -106,20 +106,19 @@ func _create_fallback_map_data() -> MapData:
 	m.node_type = MapNode.NodeType.NORMAL
 	return m
 
-# ---- 新增：获取当前天的关卡列表 ----
 func get_current_day_levels() -> Array:
 	return get_levels_for_day(current_day + 1)
 
-# ---- 新增：推进到下一天 ----
 func advance_day() -> bool:
 	current_day += 1
 	if current_day >= 3:
 		all_days_completed.emit()
 		return false
 	GameState.visited_nodes.clear()
+	GameState.cached_map_level_data = null
+	GameState.cached_day = -1
 	return true
-
-# ---- 游戏启动 ----
+	
 func start_game():
 	if _days_levels.is_empty() or _days_levels[0].is_empty():
 		push_error("没有可用的关卡！")

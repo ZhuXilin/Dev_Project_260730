@@ -41,8 +41,24 @@ func _ready():
 		default_map.map_name = "默认战斗"
 		level_list.append(default_map)
 	
-	generate_map(current_day)
+	# 检查缓存，避免重复生成地图
+	if GameState.cached_day == current_day and GameState.cached_map_level_data != null:
+		print("使用缓存地图，天数：", current_day)
+		map_data = GameState.cached_map_level_data
+		# 恢复已访问状态
+		for node in map_data.nodes:
+			var key = "%d_%d" % [node.position.x, node.position.y]
+			if GameState.visited_nodes.has(key):
+				node.is_visited = true
+				node.is_available = false
+		_draw_connections()
+		_create_node_buttons()
+		_update_availability(map_data.root_node)
+	else:
+		print("生成新地图，天数：", current_day)
+		generate_map(current_day)   # generate_map 内部会缓存
 	
+	# UI 设置
 	info_panel.visible = false
 	day_label.text = "第 %d 天" % current_day
 	
@@ -61,26 +77,21 @@ func _safe_connect(source: Object, signal_name: String, target_callable: Callabl
 	source.connect(signal_name, target_callable)
 
 func generate_map(day: int):
-	print("=== 生成地图，天数：", day, "，关卡数量：", level_list.size())
-	for i in range(level_list.size()):
-		print("  地图 ", i, "：", level_list[i].map_name)
-	
+	print("=== 生成地图，天数：", day)
 	map_data = MapGenerator.generate_day(day, level_list)
-	print("总节点数：", map_data.nodes.size())
-	for node in map_data.nodes:
-		print("  节点类型:", node.node_type, " 位置:", node.position, " is_available:", node.is_available)
-	
-	# 恢复已访问状态（从 GameState 读取）
+	# 缓存
+	GameState.cached_map_level_data = map_data
+	GameState.cached_day = day
+	# 恢复访问状态
 	for node in map_data.nodes:
 		var key = "%d_%d" % [node.position.x, node.position.y]
 		if GameState.visited_nodes.has(key):
 			node.is_visited = true
 			node.is_available = false
-			print("恢复已访问节点:", node.node_type, " 位置:", node.position)
-	
 	_draw_connections()
 	_create_node_buttons()
 	_update_availability(map_data.root_node)
+	day_label.text = "第 %d 天" % day
 
 func _draw_connections():
 	for child in line_container.get_children():
@@ -137,40 +148,33 @@ func _update_buttons():
 
 func on_node_selected(node: MapNode):
 	if not node.is_available or node.is_visited:
-		print("节点不可选或已访问")
 		return
 	var key = "%d_%d" % [node.position.x, node.position.y]
 	GameState.visited_nodes[key] = true
 	node.is_visited = true
 	node.is_available = false
-	selected_node = node
-
-	# 所有节点（包括 FINAL_PREP）都进入地图
+	GameState.last_selected_node_type = node.node_type
 	_load_combat_for_node(node)
 
 func _on_battle_completed(winning_team: int):
 	if winning_team == 0:
-		print("战斗胜利，selected_node: ", selected_node)
-		if selected_node and selected_node.node_type == MapNode.NodeType.BOSS:
+		var last_type = GameState.last_selected_node_type
+		if last_type == MapNode.NodeType.BOSS:
 			print("Boss 战胜利，进入下一天")
 			var has_next = LevelManager.advance_day()
-			print("advance_day 返回: ", has_next, " current_day: ", LevelManager.current_day)
 			if not has_next:
-				# 所有天完成，返回单位选择界面
 				get_tree().change_scene_to_file("res://content/scenes/ui/UnitSelectUI.tscn")
 				return
-			# 重新生成下一天的地图
-			var new_day = LevelManager.current_day + 1
-			print("新天数: ", new_day)
-			current_day = new_day
+			current_day = LevelManager.current_day + 1
 			level_list = LevelManager.get_current_day_levels()
-			generate_map(current_day)
+			generate_map(current_day)  # 生成新地图并缓存
+			GameState.last_selected_node_type = -1
 			return
-		# 普通战斗（包括非战斗完成）更新可用性
 		if map_data and map_data.root_node:
 			_update_availability(map_data.root_node)
 	else:
 		print("战斗失败，可重新尝试")
+	GameState.last_selected_node_type = -1
 
 func _load_combat_for_node(node: MapNode):
 	var map_to_load = node.map_data
