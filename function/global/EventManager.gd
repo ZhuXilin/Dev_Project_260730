@@ -11,7 +11,7 @@ func _ready():
 	load_events()
 
 func load_events():
-	var path = "res://content/data/events.json"
+	var path = Config.PATHS.EVENT_DATA
 	if not FileAccess.file_exists(path):
 		print("事件文件不存在: ", path)
 		return

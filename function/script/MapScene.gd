@@ -165,7 +165,7 @@ func on_node_selected(node: MapNode):
 func _on_battle_completed(winning_team: int):
 	if winning_team == 0:
 		# 从全局数据中获取当前地图的节点类型
-		var node_type = Globals.current_map_data.node_type if Globals.current_map_data else -1
+		var node_type = GameState.current_map_data.node_type if GameState.current_map_data else -1
 		print("战斗胜利，当前地图节点类型: ", node_type)
 		if node_type == MapNode.NodeType.BOSS:
 			print("Boss 战胜利，进入下一天")
@@ -204,7 +204,7 @@ func _load_combat(map_data_arg: MapData):
 		map_data_arg = _create_default_map()
 	
 	print("加载战斗场景: ", map_data_arg.map_name)
-	Globals.current_map_data = map_data_arg
+	GameState.current_map_data = map_data_arg
 	Globals.reset_all_game_state()
 	get_tree().change_scene_to_file("res://content/scenes/ui/Loading.tscn")
 

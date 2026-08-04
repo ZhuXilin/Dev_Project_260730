@@ -5,7 +5,7 @@ var player : AudioStreamPlayer
 var _saved_stream : AudioStream = null
 var _saved_position : float = 0.0
 
-const CONFIG_PATH : String = "res://content/scenes/levels/MusicConfig.tres"
+const CONFIG_PATH : String = Config.PATHS.MUSIC_CONFIG
 
 func _ready():
 	_load_config()

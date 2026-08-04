@@ -14,6 +14,7 @@ var is_map_mode: bool = false
 var cached_map_level_data: MapLevelData = null
 var cached_day: int = -1
 var last_selected_node_type: int = -1
+var current_map_data: MapData = null
 
 # 初始化队伍
 func initialize_party(selected_units: Array[String], main_index: int):

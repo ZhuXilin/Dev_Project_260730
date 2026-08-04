@@ -71,11 +71,23 @@ enum Team {
 			call_deferred("_build_preview")
 
 const CELL_SIZE : int = 16
-const UNIT_SCENE_PATH = "res://content/scenes/units/Unit.tscn"
+const UNIT_SCENE_PATH = Config.PATHS.UNIT_SCENE
 
 func _ready():
 	if Engine.is_editor_hint():
 		_build_preview()
+		return
+
+func _build_preview():
+	if not Engine.is_editor_hint():
+		return
+		
+	_clear_all_children()
+
+	if placement_mode == PlacementMode.SPAWN_POINT:
+		_build_spawn_point_preview()
+	else:
+		_build_unit_preview()
 
 func _get_configuration_warnings() -> PackedStringArray:
 	var warnings = PackedStringArray()
@@ -109,14 +121,6 @@ func _get_configuration_warnings() -> PackedStringArray:
 			if spawn_index < 0 or spawn_index > 5:
 				warnings.append("spawn_index 应在 0~5 范围内（通常对应队伍人数）")
 	return warnings
-
-func _build_preview():
-	_clear_all_children()
-
-	if placement_mode == PlacementMode.SPAWN_POINT:
-		_build_spawn_point_preview()
-	else:
-		_build_unit_preview()
 
 func _build_spawn_point_preview():
 	# 显示一个带编号的标记

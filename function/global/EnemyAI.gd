@@ -16,15 +16,11 @@ func initialize(turn_manager: TurnManager):
 		_turn_manager.move_completed.connect(_on_move_completed)
 
 func run_enemy_ai():
-	print("EnemyAI.run_enemy_ai 被调用")
 	if _turn_manager == null:
-		print("错误：_turn_manager 为 null")
 		return
 	if _turn_manager.is_game_over or _turn_manager.is_moving:
-		print("跳过：is_game_over=", _turn_manager.is_game_over, " is_moving=", _turn_manager.is_moving)
 		return
 	if _processing:
-		print("AI 已在运行，跳过")
 		return
 	_processing = true
 
@@ -37,14 +33,26 @@ func run_enemy_ai():
 
 	ai_queue.clear()
 
+	# ---- 新增：检查是否有任何敌人能产生非待机动作 ----
+	var can_act = false
 	for enemy in enemies:
-		if not is_instance_valid(enemy):
-			continue
+		var action = _decide_action(enemy)
+		if action and action["type"] != "wait":
+			can_act = true
+			break
+
+	if not can_act:
+		print("所有敌方单位无法行动，强制结束 AI")
+		_processing = false
+		ai_queue_finished.emit()   # 发射信号，而不是调用 _on_ai_queue_finished
+		return
+
+	# 原有填充队列逻辑
+	for enemy in enemies:
 		var action = _decide_action(enemy)
 		if action:
 			ai_queue.append(action)
 
-	print("AI 队列任务数：", ai_queue.size())
 	_process_ai_queue()
 
 # ============================================================

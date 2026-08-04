@@ -3,7 +3,7 @@ extends Node
 signal all_levels_completed()
 signal all_days_completed()
 
-const LEVEL_LIST_PATH : String = "res://content/scenes/levels/LevelList.tres"
+const LEVEL_LIST_PATH : String = Config.PATHS.LEVEL_LIST
 
 var current_level_index : int = 0
 var _levels : Array[MapData] = []
@@ -136,7 +136,7 @@ func load_map(map_data: MapData):
 		push_error("尝试加载空地图数据")
 		return
 	Globals.reset_all_game_state()
-	Globals.current_map_data = map_data
+	GameState.current_map_data = map_data
 	Globals.is_map_mode = true
 	get_tree().change_scene_to_file("res://content/scenes/levels/Battlefield.tscn")
 
@@ -162,7 +162,7 @@ func is_last_level() -> bool:
 func load_current_level():
 	if current_level_index < _levels.size():
 		Globals.reset_all_game_state()
-		Globals.current_map_data = _levels[current_level_index]
+		GameState.current_map_data = _levels[current_level_index]
 		get_tree().change_scene_to_file("res://content/scenes/ui/Loading.tscn")
 	else:
 		emit_signal("all_levels_completed")

@@ -160,9 +160,9 @@ func _ready():
 		turn_overlay.modulate = Color(1, 1, 1, 0)
 		Globals.is_fading = false
 
-	# ---- 加载地图（关键：从 Globals.current_map_data 读取） ----
-	if Globals.current_map_data:
-		var map_to_load = Globals.current_map_data
+	# ---- 加载地图（关键：从 GameState.current_map_data 读取） ----
+	if GameState.current_map_data:
+		var map_to_load = GameState.current_map_data
 		# 检查地图数据是否有效
 		if not map_to_load.scene:
 			print("警告：当前地图数据无效，使用默认地图")
@@ -224,7 +224,7 @@ func _ready():
 		menu_blocker.z_index = 10
 
 	# ---- 判断是否为非战斗模式 ----
-	var is_non_combat = Globals.current_map_data and Globals.current_map_data.node_type in [
+	var is_non_combat = GameState.current_map_data and GameState.current_map_data.node_type in [
 		MapNode.NodeType.CAMPFIRE,
 		MapNode.NodeType.SHOP,
 		MapNode.NodeType.EVENT,
@@ -279,7 +279,6 @@ func _exit_tree():
 
 # ===================== 主循环 =====================
 func _process(_delta):
-	# ---- 摄像机暂停条件 ----
 	var should_pause = (
 		action_menu.visible or 
 		victory_panel.visible or 
@@ -295,131 +294,17 @@ func _process(_delta):
 		camera_controller._is_smooth_moving
 	)
 	camera_controller.set_paused(should_pause)
+	# 光标更新移至 _physics_process
 
-	# ---- 强制隐藏光标条件（UI/对话框/敌人回合等） ----
-	var force_hide_cursor = (
-		Globals.is_dialogue_active or
-		Globals.is_performing_action or
-		Globals.is_item_get_popup_active or
-		Globals.is_item_action_panel_open or
-		Globals.is_equip_menu_active or
-		Globals.is_weapon_select_active or
-		victory_panel.visible or
-		setting_panel.visible or
-		team_view_panel.visible or
-		item_list_panel.visible or
-		setting_menu_panel.visible or
-		TurnManager.current_turn_team == 1 or
-		TurnManager.is_ai_moving or
-		TurnManager.is_moving or
-		Globals.is_fading or
-		Globals.is_transitioning or
-		camera_controller._is_smooth_moving
-	)
-
-	if force_hide_cursor:
-		cursor.visible = false
-		if Input.mouse_mode != Input.MOUSE_MODE_VISIBLE:
-			Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
-		return
-
-	# ---- 初始化光标状态 ----
-	var show_cursor = false
-	var cursor_world_pos = Vector2.ZERO
-	var show_system_mouse = false
-
-	# ---- 优先判断“锁定模式”：行动菜单或信息面板打开且选中单位有效 ----
-	if (action_menu.visible or info_panel.visible) and InputManager.selected_unit != null and is_instance_valid(InputManager.selected_unit):
-		show_cursor = true
-		cursor_world_pos = grid_to_world(InputManager.selected_unit.grid_cell)
-		show_system_mouse = true   # 允许操作菜单按钮
-	else:
-		# ---- 正常光标跟随鼠标逻辑 ----
-		if info_panel.visible:
-			var unit = InputManager.selected_unit
-			if unit != null and is_instance_valid(unit):
-				show_cursor = true
-				cursor_world_pos = grid_to_world(unit.grid_cell)
-			else:
-				var empty_cell = InputManager.current_empty_cell
-				if empty_cell != Vector2i(-1, -1):
-					show_cursor = true
-					cursor_world_pos = grid_to_world(empty_cell)
-				else:
-					show_cursor = true
-					var world_mouse = get_global_mouse_position()
-					var grid_pos = world_to_grid(world_mouse)
-					cursor_world_pos = grid_to_world(grid_pos)
-		else:
-			if not should_pause:
-				show_cursor = true
-				var world_mouse = get_global_mouse_position()
-				var grid_pos = world_to_grid(world_mouse)
-				cursor_world_pos = grid_to_world(grid_pos)
-
-		show_system_mouse = not show_cursor
-
-	# ---- 更新光标位置（关键：像素对齐） ----
-	if show_cursor:
-		# 限制地图范围（仅在非锁定模式）
-		if not (action_menu.visible or info_panel.visible):
-			var world_mouse = get_global_mouse_position()
-			var grid_pos = world_to_grid(world_mouse)
-			grid_pos.x = clamp(grid_pos.x, 0, map_grid_size.x - 1)
-			grid_pos.y = clamp(grid_pos.y, 0, map_grid_size.y - 1)
-			cursor_world_pos = grid_to_world(grid_pos)
-
-		# 计算屏幕坐标并强制对齐整数像素
-		var canvas_transform = get_viewport().get_canvas_transform()
-		var screen_pos = canvas_transform * cursor_world_pos
-		screen_pos = screen_pos.round()                     # 像素对齐
-		var size = cursor.size.round()                      # 尺寸对齐
-		cursor.position = screen_pos - size / 2
-		cursor.visible = true
-	else:
-		cursor.visible = false
-
-	# ---- 设置鼠标模式 ----
-	if show_system_mouse:
-		if Input.mouse_mode != Input.MOUSE_MODE_VISIBLE:
-			Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
-	else:
-		if Input.mouse_mode != Input.MOUSE_MODE_HIDDEN:
-			Input.mouse_mode = Input.MOUSE_MODE_HIDDEN
-
-	# ---- 光标缩放更新（尺寸保持整数） ----
-	if cursor.visible:
-		var new_scale = _get_viewport_scale()
-		if new_scale != _viewport_scale:
-			_viewport_scale = new_scale
-			var target_size = round(CELL_SIZE * _viewport_scale)
-			cursor.size = Vector2(target_size, target_size)
-			if _attack_indicator:
-				_attack_indicator.size = Vector2(target_size, target_size)
-
-	# ---- 光标颜色（粉色标识选中状态） ----
-	var should_be_pink = false
-	if Globals.is_item_action_panel_open:
-		should_be_pink = true
-	elif Globals.is_equip_menu_active:
-		should_be_pink = true
-	elif action_menu.visible or info_panel.visible:
-		should_be_pink = true
-	elif InputManager.selected_unit != null and InputManager.selected_unit.unit_stats.team_id == 0:
-		var phase = InputManager.interaction_phase
-		if phase in ["menu", "moving", "attacking", "item_target"]:
-			should_be_pink = true
-
-	var target_color = Color.FUCHSIA if should_be_pink else Color.WHITE
-	if cursor.modulate != target_color:
-		cursor.modulate = target_color
+func _physics_process(_delta):
+	_update_cursor_and_mouse()
 
 # ===================== 光标初始化 =====================
 func _init_cursor():
 	Input.mouse_mode = Input.MOUSE_MODE_HIDDEN
 	cursor.visible = true
 	if cursor.texture == null:
-		var path = "res://content/images/system/选择框.png"
+		var path = Config.PATHS.CURSOR_TEXTURE
 		if ResourceLoader.exists(path):
 			cursor.texture = load(path)
 		else:
@@ -447,7 +332,7 @@ func load_map(new_map_data: MapData):
 		return
 	
 	# ---- 再次赋值全局变量，确保其有效 ----
-	Globals.current_map_data = new_map_data   # ← 关键：确保战斗结束时仍可访问
+	GameState.current_map_data = new_map_data   # ← 关键：确保战斗结束时仍可访问
 	
 	# ---- 声明变量 ----
 	var map_pixel_rect: Rect2
@@ -861,7 +746,7 @@ func _on_wait_btn_pressed():
 
 func _on_request_show_victory(winning_team: int):
 	if Globals.is_map_mode:
-		var is_boss = Globals.current_map_data and Globals.current_map_data.node_type == MapNode.NodeType.BOSS
+		var is_boss = GameState.current_map_data and GameState.current_map_data.node_type == MapNode.NodeType.BOSS
 		SignalBus.battle_completed.emit(winning_team, is_boss)   # 新增参数
 	var tree = get_tree()
 	if not tree:
@@ -973,17 +858,20 @@ func _on_request_show_victory(winning_team: int):
 	if is_instance_valid(ui_manager):
 		ui_manager.show_victory(label_text, button_text, callback)
 
+# 原 _on_turn_changed 改为启动异步处理
 func _on_turn_changed(team: int):
+	_handle_turn_change_async(team)
+
+# 新增异步处理函数（将原 _on_turn_changed 的全部逻辑移入）
+func _handle_turn_change_async(team: int):
 	if TurnManager.is_game_over:
-		print("游戏已结束，忽略回合切换")
 		return
-	print("_on_turn_changed 被调用，team:", team)
 	if _turn_changed_locked:
-		print("_turn_changed_locked 为 true，跳过")
 		return
 	_turn_changed_locked = true
 	Globals.is_transitioning = true
 
+	# ---- 隐藏所有UI ----
 	if is_instance_valid(action_menu):
 		action_menu.visible = false
 	if is_instance_valid(ui_manager):
@@ -1029,33 +917,26 @@ func _on_turn_changed(team: int):
 		if fallback_pos:
 			camera_controller.smooth_move_to(fallback_pos, turnlayer_manager.transition_duration, true)
 
-	# ---- 音乐控制 ----
+	# ---- 音乐控制（原逻辑不变） ----
 	if not is_non_combat_mode:
-		var is_boss = Globals.current_map_data and Globals.current_map_data.node_type == MapNode.NodeType.BOSS
+		var is_boss = GameState.current_map_data and GameState.current_map_data.node_type == MapNode.NodeType.BOSS
 		if is_boss:
-			# Boss 模式：使用 Boss 专用回合音乐
 			if team == 0:
 				if MusicManager.config and MusicManager.config.boss_player_turn_music:
 					MusicManager.play_music(MusicManager.config.boss_player_turn_music)
-					print("播放 Boss 玩家回合音乐")
 				else:
-					MusicManager.play_player_turn_music()  # 备选
+					MusicManager.play_player_turn_music()
 			else:
 				if MusicManager.config and MusicManager.config.boss_enemy_turn_music:
 					MusicManager.play_music(MusicManager.config.boss_enemy_turn_music)
-					print("播放 Boss 敌人回合音乐")
 				else:
 					MusicManager.play_enemy_turn_music()
 		else:
-			# 普通战斗模式
 			if team == 0:
-				print("播放玩家回合音乐")
 				MusicManager.play_player_turn_music()
 			else:
-				print("播放敌人回合音乐")
 				MusicManager.play_enemy_turn_music()
 	else:
-		# 非战斗模式音乐（保持不变）
 		var music_stream = null
 		if MusicManager.config and MusicManager.config.non_combat_music:
 			music_stream = MusicManager.config.non_combat_music
@@ -1065,7 +946,6 @@ func _on_turn_changed(team: int):
 			var player = MusicManager.player
 			if not player.playing or player.stream != music_stream:
 				MusicManager.play_music(music_stream)
-				print("非战斗模式，重新播放非战斗音乐")
 
 	await apply_map_functions(team)
 
@@ -1073,7 +953,6 @@ func _on_turn_changed(team: int):
 	_turn_changed_locked = false
 
 	if team == 1 and not is_non_combat_mode:
-		print("准备启动 AI，时间: ", Time.get_ticks_msec())
 		TurnManager.run_enemy_ai()
 
 func _get_center_position() -> Vector2:
@@ -1897,7 +1776,7 @@ func _on_map_defeat_gameover():
 
 # ===================== 非战斗模式 =====================
 func _setup_non_combat_mode():
-	print("进入非战斗模式：", Globals.current_map_data.map_name if Globals.current_map_data else "未知地图")
+	print("进入非战斗模式：", GameState.current_map_data.map_name if GameState.current_map_data else "未知地图")
 	is_non_combat_mode = true
 	Globals.is_non_combat_mode = true
 	
@@ -2042,3 +1921,112 @@ func _end_player_turn():
 
 	print("玩家回合结束，切换到敌方回合")
 	TurnManager.start_turn(1)   # 敌方回合会被 TurnManager 跳过（非战斗模式）
+
+func _update_cursor_and_mouse():
+	var force_hide_cursor = (
+		Globals.is_dialogue_active or
+		Globals.is_performing_action or
+		Globals.is_item_get_popup_active or
+		Globals.is_item_action_panel_open or
+		Globals.is_equip_menu_active or
+		Globals.is_weapon_select_active or
+		victory_panel.visible or
+		setting_panel.visible or
+		team_view_panel.visible or
+		item_list_panel.visible or
+		setting_menu_panel.visible or
+		TurnManager.current_turn_team == 1 or
+		TurnManager.is_ai_moving or
+		TurnManager.is_moving or
+		Globals.is_fading or
+		Globals.is_transitioning or
+		camera_controller._is_smooth_moving
+	)
+
+	if force_hide_cursor:
+		cursor.visible = false
+		if Input.mouse_mode != Input.MOUSE_MODE_VISIBLE:
+			Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+		return
+
+	var show_cursor = false
+	var cursor_world_pos = Vector2.ZERO
+	var show_system_mouse = false
+
+	if (action_menu.visible or info_panel.visible) and InputManager.selected_unit != null and is_instance_valid(InputManager.selected_unit):
+		show_cursor = true
+		cursor_world_pos = grid_to_world(InputManager.selected_unit.grid_cell)
+		show_system_mouse = true
+	else:
+		if info_panel.visible:
+			var unit = InputManager.selected_unit
+			if unit != null and is_instance_valid(unit):
+				show_cursor = true
+				cursor_world_pos = grid_to_world(unit.grid_cell)
+			else:
+				var empty_cell = InputManager.current_empty_cell
+				if empty_cell != Vector2i(-1, -1):
+					show_cursor = true
+					cursor_world_pos = grid_to_world(empty_cell)
+				else:
+					show_cursor = true
+					var world_mouse = get_global_mouse_position()
+					var grid_pos = world_to_grid(world_mouse)
+					cursor_world_pos = grid_to_world(grid_pos)
+		else:
+			if not force_hide_cursor:
+				show_cursor = true
+				var world_mouse = get_global_mouse_position()
+				var grid_pos = world_to_grid(world_mouse)
+				cursor_world_pos = grid_to_world(grid_pos)
+
+		show_system_mouse = not show_cursor
+
+	if show_cursor:
+		if not (action_menu.visible or info_panel.visible):
+			var world_mouse = get_global_mouse_position()
+			var grid_pos = world_to_grid(world_mouse)
+			grid_pos.x = clamp(grid_pos.x, 0, map_grid_size.x - 1)
+			grid_pos.y = clamp(grid_pos.y, 0, map_grid_size.y - 1)
+			cursor_world_pos = grid_to_world(grid_pos)
+
+		var canvas_transform = get_viewport().get_canvas_transform()
+		var screen_pos = canvas_transform * cursor_world_pos
+		screen_pos = screen_pos.round()
+		var size = cursor.size.round()
+		cursor.position = screen_pos - size / 2
+		cursor.visible = true
+	else:
+		cursor.visible = false
+
+	if show_system_mouse:
+		if Input.mouse_mode != Input.MOUSE_MODE_VISIBLE:
+			Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	else:
+		if Input.mouse_mode != Input.MOUSE_MODE_HIDDEN:
+			Input.mouse_mode = Input.MOUSE_MODE_HIDDEN
+
+	if cursor.visible:
+		var new_scale = _get_viewport_scale()
+		if new_scale != _viewport_scale:
+			_viewport_scale = new_scale
+			var target_size = round(CELL_SIZE * _viewport_scale)
+			cursor.size = Vector2(target_size, target_size)
+			if _attack_indicator:
+				_attack_indicator.size = Vector2(target_size, target_size)
+
+	var should_be_pink = false
+	if Globals.is_item_action_panel_open:
+		should_be_pink = true
+	elif Globals.is_equip_menu_active:
+		should_be_pink = true
+	elif action_menu.visible or info_panel.visible:
+		should_be_pink = true
+	elif InputManager.selected_unit != null and InputManager.selected_unit.unit_stats.team_id == 0:
+		var phase = InputManager.interaction_phase
+		if phase in ["menu", "moving", "attacking", "item_target"]:
+			should_be_pink = true
+
+	var target_color = Color.FUCHSIA if should_be_pink else Color.WHITE
+	if cursor.modulate != target_color:
+		cursor.modulate = target_color

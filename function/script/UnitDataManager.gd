@@ -132,7 +132,7 @@ static func _load_unit_data():
 	if _data_loaded:
 		return
 	_data_loaded = true
-	var path = "res://content/data/unit_data.json"
+	var path = Config.PATHS.UNIT_DATA
 	if not FileAccess.file_exists(path):
 		push_error("单位数据 JSON 文件不存在: ", path)
 		_unit_data_cache = {}

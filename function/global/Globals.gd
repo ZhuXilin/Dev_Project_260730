@@ -29,7 +29,6 @@ var sound_volume : float = 0.2
 var game_speed : int = 0
 
 # ---- 游戏状态标志 ----
-var current_map_data : MapData = null
 var is_fading : bool = false
 var is_performing_action : bool = false
 var is_transitioning : bool = false

@@ -5,8 +5,8 @@ extends Control
 
 func _ready():
 	MusicManager.stop_music()
-	if Globals.current_map_data:
-		map_name_label.text = Globals.current_map_data.map_name
+	if GameState.current_map_data:
+		map_name_label.text = GameState.current_map_data.map_name
 	else:
 		map_name_label.text = "未命名地图"
 	timer.start(2.0)

@@ -1,7 +1,7 @@
 extends Node
 
 @export var music_transition_delay : float = 0.5
-@export var json_path : String = "res://content/data/dialogues.json"
+@export var json_path : String = Config.PATHS.DIALOGUE_DATA
 
 var dialogue_ui : CanvasLayer = null
 var name_label : Label = null

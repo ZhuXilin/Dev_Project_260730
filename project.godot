@@ -18,6 +18,7 @@ config/features=PackedStringArray("4.7", "Forward Plus")
 
 Globals="*uid://desbxe15ptc48"
 SignalBus="*uid://dfecwvpce8ifx"
+Config="*uid://dwcatygm82dp4"
 GameState="*uid://dqpkw41hvdoy2"
 InputManager="*uid://oqx10w687a2n"
 EventManager="*uid://36prv21qq35c"

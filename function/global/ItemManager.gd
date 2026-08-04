@@ -17,7 +17,7 @@ func _ready():
 		print("已从默认配置加载道具")
 
 func load_items():
-	var path = "res://content/data/items.json"
+	var path = Config.PATHS.ITEM_DATA
 	if not FileAccess.file_exists(path):
 		push_error("道具数据文件不存在: ", path)
 		return

@@ -4,7 +4,7 @@ var config : SoundConfig
 var player : AudioStreamPlayer
 var looping_player : AudioStreamPlayer
 
-const CONFIG_PATH : String = "res://content/scenes/levels/SoundConfig.tres"
+const CONFIG_PATH : String = Config.PATHS.SOUND_CONFIG
 
 func _ready():
 	_load_config()
