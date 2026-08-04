@@ -58,6 +58,7 @@ var map_functions : Dictionary = {}
 var _turn_changed_locked : bool = false
 var is_non_combat_mode: bool = false
 var non_combat_back_button: Button = null
+var current_node_type: int = MapNode.NodeType.NORMAL   # 当前地图的节点类型
 
 # ===================== 生命周期 =====================
 func _ready():
@@ -324,16 +325,14 @@ func _get_viewport_scale() -> float:
 # ===================== 地图加载 =====================
 func load_map(new_map_data: MapData):
 	print("=== load_map 被调用 ===")
-	print("地图数据：", new_map_data)
-	print("地图名称：", new_map_data.map_name if new_map_data else "null")
-
 	if not new_map_data:
 		print("地图数据为空，加载默认地图")
 		_load_default_map()
 		return
 	
-	# ---- 再次赋值全局变量，确保其有效 ----
-	GameState.current_map_data = new_map_data   # ← 关键：确保战斗结束时仍可访问
+	print("地图名称：", new_map_data.map_name)
+	GameState.current_map_data = new_map_data
+	current_node_type = new_map_data.node_type   # 安全
 	
 	# ---- 声明变量 ----
 	var map_pixel_rect: Rect2
@@ -746,9 +745,6 @@ func _on_wait_btn_pressed():
 	InputManager.on_wait_button_pressed()
 
 func _on_request_show_victory(winning_team: int):
-	if Globals.is_map_mode:
-		var is_boss = GameState.current_map_data and GameState.current_map_data.node_type == MapNode.NodeType.BOSS
-		SignalBus.battle_completed.emit(winning_team, is_boss)   # 新增参数
 	var tree = get_tree()
 	if not tree:
 		print("错误：无法获取场景树，无法处理胜利")
@@ -790,7 +786,7 @@ func _on_request_show_victory(winning_team: int):
 	var is_win = (winning_team == 0)
 	var is_last = LevelManager.is_last_level()
 
-	# ---- 同步玩家单位状态到 GameState（无论胜败） ----
+	# ---- 同步玩家单位状态到 GameState ----
 	var player_units = []
 	for unit in UnitManager.unit_list:
 		if unit.unit_stats.team_id == 0:
@@ -806,7 +802,16 @@ func _on_request_show_victory(winning_team: int):
 	#  地图模式（从地图进入的战斗）
 	# =====================================================
 	if Globals.is_map_mode:
-		# ---- 播放音乐 ----
+		var is_boss = (current_node_type == MapNode.NodeType.BOSS)
+		print("当前地图节点类型: ", current_node_type, " 是否为BOSS: ", is_boss)
+
+		# ---- 若为 Boss 胜利，设置推进天数标记 ----
+		if is_win and is_boss:
+			GameState.should_advance_day = true
+
+		# ---- 仍然发射信号（供其他监听者使用） ----
+		SignalBus.battle_completed.emit(winning_team, is_boss)
+
 		if is_win:
 			if is_last:
 				MusicManager.play_win_game_music()
@@ -831,7 +836,7 @@ func _on_request_show_victory(winning_team: int):
 			else:
 				GameState.reset_all()
 				tree.change_scene_to_file("res://content/scenes/ui/UnitSelectUI.tscn")
-		return
+		return   # 地图模式处理完毕
 
 	# =====================================================
 	#  非地图模式（原有旧版流程，兼容调试）
@@ -1762,11 +1767,10 @@ func _create_scroll_container(child: Control, parent: Node, container_name: Stri
 # ---- 地图模式：胜利继续 ----
 func _on_map_victory_continue():
 	print("地图模式：战斗胜利，继续旅程")
-	SignalBus.battle_completed.emit(0)
 	var tree = get_tree()
 	if tree:
 		tree.change_scene_to_file("res://content/scenes/ui/MapScene.tscn")
-
+		
 # ---- 地图模式：失败返回单位选择界面 ----
 func _on_map_defeat_gameover():
 	print("地图模式：战斗失败，返回单位选择界面")

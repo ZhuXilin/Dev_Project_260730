@@ -15,6 +15,7 @@ var cached_map_level_data: MapLevelData = null
 var cached_day: int = -1
 var last_selected_node_type: int = -1
 var current_map_data: MapData = null
+var should_advance_day: bool = false
 
 # 初始化队伍
 func initialize_party(selected_units: Array[String], main_index: int):
@@ -79,3 +80,4 @@ func reset_all():
 	current_day = 1
 	current_map_index = 0
 	is_map_mode = false
+	should_advance_day = false

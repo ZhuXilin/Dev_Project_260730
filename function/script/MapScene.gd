@@ -15,6 +15,22 @@ var level_list: Array[MapData] = []
 @onready var line_container = $NodeContainer/LineContainer
 
 func _ready():
+	# ---- 检查是否需要推进天数（Boss 战胜利触发） ----
+	if GameState.should_advance_day:
+		GameState.should_advance_day = false
+		print("检测到 Boss 胜利，推进天数")
+		var has_next = LevelManager.advance_day()
+		if not has_next:
+			get_tree().change_scene_to_file("res://content/scenes/ui/UnitSelectUI.tscn")
+			return
+		current_day = LevelManager.current_day + 1
+		level_list = LevelManager.get_current_day_levels()
+		generate_map(current_day)
+		# ---- 播放地图音乐（新增） ----
+		if MusicManager.config and MusicManager.config.map_music:
+			MusicManager.play_music(MusicManager.config.map_music)
+		return
+
 	# 确保容器节点存在
 	if not node_container:
 		node_container = Node2D.new()
@@ -66,7 +82,7 @@ func _ready():
 	
 	if not SignalBus.battle_completed.is_connected(_on_battle_completed):
 		SignalBus.battle_completed.connect(_on_battle_completed)
-	
+		
 	# 播放地图音乐
 	if MusicManager.config and MusicManager.config.map_music:
 		MusicManager.play_music(MusicManager.config.map_music)
@@ -162,12 +178,14 @@ func on_node_selected(node: MapNode):
 	# 所有节点都进入地图
 	_load_combat_for_node(node)
 
-func _on_battle_completed(winning_team: int):
+func _on_battle_completed(winning_team: int, is_boss: bool = false):
+	# 备选：如果信号参数未正确传递，则从 GameState 读取
+	if not is_boss and GameState.current_map_data:
+		is_boss = (GameState.current_map_data.node_type == MapNode.NodeType.BOSS)
+		print("从 GameState 读取的节点类型: ", GameState.current_map_data.node_type, " 是否为BOSS: ", is_boss)
+	
 	if winning_team == 0:
-		# 从全局数据中获取当前地图的节点类型
-		var node_type = GameState.current_map_data.node_type if GameState.current_map_data else -1
-		print("战斗胜利，当前地图节点类型: ", node_type)
-		if node_type == MapNode.NodeType.BOSS:
+		if is_boss:
 			print("Boss 战胜利，进入下一天")
 			var has_next = LevelManager.advance_day()
 			if not has_next:
@@ -177,7 +195,7 @@ func _on_battle_completed(winning_team: int):
 			level_list = LevelManager.get_current_day_levels()
 			generate_map(current_day)
 			return
-		# 普通战斗更新可用性
+		# 普通战斗胜利更新可用性
 		if map_data and map_data.root_node:
 			_update_availability(map_data.root_node)
 	else:
@@ -197,14 +215,12 @@ func _load_combat_for_node(node: MapNode):
 
 func _load_combat(map_data_arg: MapData):
 	if not map_data_arg:
-		print("错误：地图数据为空，使用备用地图")
 		map_data_arg = _create_default_map()
 	elif not map_data_arg.scene:
-		print("警告：地图数据缺少场景，使用备用地图")
 		map_data_arg = _create_default_map()
 	
 	print("加载战斗场景: ", map_data_arg.map_name)
-	GameState.current_map_data = map_data_arg
+	GameState.current_map_data = map_data_arg   # 改为 GameState
 	Globals.reset_all_game_state()
 	get_tree().change_scene_to_file("res://content/scenes/ui/Loading.tscn")
 
