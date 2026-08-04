@@ -1952,10 +1952,10 @@ func _setup_non_combat_mode():
 
 func _on_non_combat_complete():
 	print("非战斗节点完成，显示胜利面板")
-	# ---- 清除可能保存的音乐，防止恢复覆盖胜利音乐 ----
+	TurnManager.is_game_over = true
+	# 清除保存的音乐状态，防止覆盖胜利音乐
 	MusicManager._saved_stream = null
 	MusicManager._saved_position = 0.0
-	TurnManager.is_game_over = true   # 立即停止回合系统
 	_on_request_show_victory(0)
 
 # ---- 提取出生点 ----

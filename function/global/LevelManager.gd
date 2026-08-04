@@ -1,6 +1,7 @@
 extends Node
 
 signal all_levels_completed()
+signal all_days_completed()
 
 const LEVEL_LIST_PATH : String = "res://content/scenes/levels/LevelList.tres"
 
@@ -10,6 +11,7 @@ var _days_levels: Array = []
 var _levels_by_type: Dictionary = {}
 var _type_index: Dictionary = {}
 var is_map_mode: bool = false
+var current_day: int = 0   # 0表示第1天，内部从0开始
 
 func _ready():
 	_load_level_list()
@@ -47,22 +49,14 @@ func _group_levels_by_type():
 	_levels_by_type.clear()
 	_type_index.clear()
 	
-	# 显式列出所有枚举值，提高可读性
-	for type in [
-		MapNode.NodeType.START,
-		MapNode.NodeType.CAMPFIRE,
-		MapNode.NodeType.NORMAL,
-		MapNode.NodeType.ELITE,
-		MapNode.NodeType.SHOP,
-		MapNode.NodeType.EVENT,
-		MapNode.NodeType.BOSS,
-		MapNode.NodeType.FINAL_PREP
-	]:
+	for type in range(8):
 		_levels_by_type[type] = []
 		_type_index[type] = 0
 	
 	for map_res in _levels:
-		var type = map_res.node_type if map_res.node_type != null else MapNode.NodeType.NORMAL
+		var type = MapNode.NodeType.NORMAL
+		if map_res.node_type != null:
+			type = map_res.node_type as MapNode.NodeType
 		if not _levels_by_type.has(type):
 			_levels_by_type[type] = []
 		_levels_by_type[type].append(map_res)
@@ -93,7 +87,7 @@ func get_levels_for_day(day: int) -> Array:
 		return _days_levels[day-1]
 	return []
 
-func get_map_for_node_type(node_type: MapNode.NodeType, main_unit: String = "") -> MapData:
+func get_map_for_node_type(node_type: int, main_unit: String = "") -> MapData:
 	var all_maps = _levels_by_type.get(node_type, [])
 	var filtered = all_maps.filter(func(m): return m.required_unit == "" or m.required_unit == main_unit)
 	if filtered.is_empty():
@@ -112,13 +106,29 @@ func _create_fallback_map_data() -> MapData:
 	m.node_type = MapNode.NodeType.NORMAL
 	return m
 
+# ---- 新增：获取当前天的关卡列表 ----
+func get_current_day_levels() -> Array:
+	return get_levels_for_day(current_day + 1)
+
+# ---- 新增：推进到下一天 ----
+func advance_day() -> bool:
+	current_day += 1
+	if current_day >= 3:
+		all_days_completed.emit()
+		return false
+	GameState.visited_nodes.clear()
+	return true
+
+# ---- 游戏启动 ----
 func start_game():
 	if _days_levels.is_empty() or _days_levels[0].is_empty():
 		push_error("没有可用的关卡！")
 		return
 	current_level_index = 0
+	current_day = 0
 	is_map_mode = true
 	Globals.is_map_mode = true
+	GameState.visited_nodes.clear()
 	get_tree().change_scene_to_file("res://content/scenes/ui/MapScene.tscn")
 
 func load_map(map_data: MapData):

@@ -3,14 +3,14 @@ class_name MapGenerator
 
 static func generate_day(day: int, _level_list: Array[MapData] = []) -> MapLevelData:
 	randomize()
-	
 	var data = MapLevelData.new()
 	data.day = day
 	var nodes: Array[MapNode] = []
 	var root: MapNode = null
 
 	match day:
-		1, 2, 3:
+		1, 2:
+			# 第1、2天：起点 → 分支(2) → 汇合点 → 分支(2) → 汇合点 → Boss
 			const LAYER_START = 0
 			const LAYER_BRANCH1 = 1
 			const LAYER_JUNCTION1 = 2
@@ -24,7 +24,7 @@ static func generate_day(day: int, _level_list: Array[MapData] = []) -> MapLevel
 			var y_branch2 = 90
 			var y_junction2 = 50
 			var y_boss = 20
-			var x_positions = [120, 200]
+			var x_positions = [120, 200]  # 2个分支
 
 			# 起点
 			root = _create_node(MapNode.NodeType.START, Vector2(160, y_start), LAYER_START)
@@ -63,8 +63,20 @@ static func generate_day(day: int, _level_list: Array[MapData] = []) -> MapLevel
 			nodes.append(boss)
 			junction2.connected_nodes.append(boss)
 
+		3:
+			# 第3天：简化路线：战前整备 → Boss
+			root = _create_node(MapNode.NodeType.FINAL_PREP, Vector2(160, 150), 0)
+			root.custom_label = "战前整备"
+			var boss = _create_node(MapNode.NodeType.BOSS, Vector2(160, 60), 1)
+			boss.custom_label = "Boss"
+			nodes.append(root)
+			nodes.append(boss)
+			root.connected_nodes.append(boss)
+			# 根节点初始可用（由 _update_availability 处理）
+			root.is_available = true
+
 		_:
-			# 默认测试地图
+			# 默认测试地图（以防万一）
 			root = _create_node(MapNode.NodeType.START, Vector2(160, 210), 0)
 			var node1 = _create_node(MapNode.NodeType.NORMAL, Vector2(120, 165), 1)
 			var node2 = _create_node(MapNode.NodeType.ELITE, Vector2(200, 165), 1)
@@ -84,23 +96,17 @@ static func generate_day(day: int, _level_list: Array[MapData] = []) -> MapLevel
 	data.map_name = "第%d天" % day
 	return data
 
-# ---- 生成不重复的类型数组（从 ELITE, NORMAL, EVENT 中选 count 个不同元素） ----
 static func _random_unique_types(count: int) -> Array:
 	var pool = [MapNode.NodeType.ELITE, MapNode.NodeType.NORMAL, MapNode.NodeType.EVENT]
-	
-	# 如果请求数量大于池大小，则允许重复（但这种情况很少）
 	if count > pool.size():
 		var result = []
 		for i in range(count):
 			result.append(pool[randi() % pool.size()])
 		return result
-	
-	# 否则，打乱池并取前 count 个
 	var shuffled = pool.duplicate()
 	shuffled.shuffle()
 	return shuffled.slice(0, count)
 
-# ---- 创建节点列表 ----
 static func _create_nodes(nodes: Array, types: Array, x_positions: Array, y: float, layer: int) -> Array[MapNode]:
 	var result: Array[MapNode] = []
 	for i in range(types.size()):
@@ -110,7 +116,6 @@ static func _create_nodes(nodes: Array, types: Array, x_positions: Array, y: flo
 		result.append(node)
 	return result
 
-# ---- 创建单个节点 ----
 static func _create_node(type: MapNode.NodeType, pos: Vector2, layer: int) -> MapNode:
 	var node = MapNode.new()
 	node.node_type = type
@@ -120,7 +125,6 @@ static func _create_node(type: MapNode.NodeType, pos: Vector2, layer: int) -> Ma
 	node.is_visited = false
 	return node
 
-# ---- 为所有节点分配地图 ----
 static func _assign_map_data_to_all_nodes(nodes: Array):
 	var main_unit = GameState.main_unit_name
 	for node in nodes:
@@ -130,7 +134,6 @@ static func _assign_map_data_to_all_nodes(nodes: Array):
 		else:
 			node.map_data = _create_fallback_map_data(node.node_type)
 
-# ---- 创建备用地图 ----
 static func _create_fallback_map_data(_type: MapNode.NodeType) -> MapData:
 	var map = MapData.new()
 	map.map_name = "备用地图"
