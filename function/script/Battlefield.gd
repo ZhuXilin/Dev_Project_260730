@@ -63,7 +63,7 @@ var non_combat_back_button: Button = null
 func _ready():
 	print("=== Battlefield _ready 开始 ===")
 	
-	# ---- 手动获取所有节点（替代 @onready） ----
+	# ---- 手动获取所有节点 ----
 	action_menu = get_node("ActionMenu")
 	attack_btn = get_node("ActionMenu/ActionPanel/ButtonContainer/AttackBtn")
 	move_btn = get_node("ActionMenu/ActionPanel/ButtonContainer/MoveBtn")
@@ -96,7 +96,7 @@ func _ready():
 	item_list_container = $SettingLayer/ItemListPanel/ItemListContainer
 	item_action_panel = $ItemActionPanel
 
-	# ---- 检查关键节点，打印缺失警告 ----
+	# ---- 检查关键节点 ----
 	var node_list = {
 		"action_menu": action_menu,
 		"attack_btn": attack_btn,
@@ -115,11 +115,12 @@ func _ready():
 		if not node_list[node_name]:
 			print("警告：节点 '", node_name, "' 未找到！")
 
-	# ---- 原有逻辑开始 ----
+	# ---- 连接信号 ----
 	setting_btn.pressed.connect(_on_setting_btn_pressed)
 	equip_btn.pressed.connect(_on_equip_btn_pressed)
 	item_list_btn.pressed.connect(_on_item_list_btn_pressed)
 	setting_end_turn_btn.pressed.connect(_end_player_turn)
+	SignalBus.non_combat_complete.connect(_on_non_combat_complete)
 	
 	if not SignalBus.non_combat_complete.is_connected(_on_non_combat_complete):
 		SignalBus.non_combat_complete.connect(_on_non_combat_complete)
@@ -159,7 +160,7 @@ func _ready():
 		turn_overlay.modulate = Color(1, 1, 1, 0)
 		Globals.is_fading = false
 
-	# ---- 加载地图（增加健壮性） ----
+	# ---- 加载地图（关键：从 Globals.current_map_data 读取） ----
 	if Globals.current_map_data:
 		var map_to_load = Globals.current_map_data
 		# 检查地图数据是否有效
@@ -232,7 +233,6 @@ func _ready():
 
 	if is_non_combat:
 		await _setup_non_combat_mode()
-		# 启动回合系统（必须）
 		await get_tree().process_frame
 		TurnManager.start_turn(0)
 		return
@@ -446,6 +446,9 @@ func load_map(new_map_data: MapData):
 		_load_default_map()
 		return
 	
+	# ---- 再次赋值全局变量，确保其有效 ----
+	Globals.current_map_data = new_map_data   # ← 关键：确保战斗结束时仍可访问
+	
 	# ---- 声明变量 ----
 	var map_pixel_rect: Rect2
 	var tilemap: TileMapLayer = null
@@ -464,7 +467,6 @@ func load_map(new_map_data: MapData):
 			if main_scene_instance:
 				tilemap = _find_tilemap(main_scene_instance)
 				if tilemap:
-					# 替换旧的地形
 					var old_tilemap = get_node_or_null("TerrainTileMap")
 					if old_tilemap:
 						old_tilemap.queue_free()
@@ -513,19 +515,16 @@ func load_map(new_map_data: MapData):
 	# ---- 清除旧单位 ----
 	_clear_units()
 
-	# ---- 第一步：从场景提取固定单位配置（包括敌方和我方固定单位） ----
+	# ---- 生成单位 ----
 	var configs: Array[UnitConfig] = []
 	if main_scene_instance:
 		configs = UnitSpawner.extract_configs_from_node(main_scene_instance)
-
-	# ---- 第二步：生成固定单位（敌方单位通常在这里） ----
 	if configs.size() > 0:
 		print("从场景提取到 ", configs.size(), " 个固定单位")
 		UnitSpawner.spawn_units_from_configs(self, configs, grid_to_world)
 	else:
 		print("场景中没有固定单位配置")
 
-	# ---- 第三步：生成队伍单位（我方，通过出生点） ----
 	if GameState.party.size() > 0 and spawn_points.size() > 0:
 		print("使用队伍数据生成单位，队伍大小：", GameState.party.size(), "，出生点数：", spawn_points.size())
 		UnitSpawner.spawn_party_from_gamestate(self, grid_to_world, spawn_points)
@@ -535,12 +534,10 @@ func load_map(new_map_data: MapData):
 		if spawn_points.size() == 0:
 			print("没有出生点")
 
-	# ---- 第四步：如果没有任何单位，生成测试单位 ----
 	if UnitManager.unit_list.is_empty():
 		print("没有任何单位，生成测试单位")
 		UnitSpawner.spawn_test_units(self, grid_to_world)
 
-	# 确保所有单位位置正确
 	for unit in UnitManager.unit_list:
 		unit.position = grid_to_world(unit.grid_cell)
 		unit.z_index = 1
@@ -863,6 +860,9 @@ func _on_wait_btn_pressed():
 	InputManager.on_wait_button_pressed()
 
 func _on_request_show_victory(winning_team: int):
+	if Globals.is_map_mode:
+		var is_boss = Globals.current_map_data and Globals.current_map_data.node_type == MapNode.NodeType.BOSS
+		SignalBus.battle_completed.emit(winning_team, is_boss)   # 新增参数
 	var tree = get_tree()
 	if not tree:
 		print("错误：无法获取场景树，无法处理胜利")

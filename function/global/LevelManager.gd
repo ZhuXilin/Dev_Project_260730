@@ -111,6 +111,7 @@ func get_current_day_levels() -> Array:
 
 func advance_day() -> bool:
 	current_day += 1
+	print("advance_day: current_day=", current_day)
 	if current_day >= 3:
 		all_days_completed.emit()
 		return false

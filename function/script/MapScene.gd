@@ -148,18 +148,26 @@ func _update_buttons():
 
 func on_node_selected(node: MapNode):
 	if not node.is_available or node.is_visited:
+		print("节点不可选或已访问")
 		return
 	var key = "%d_%d" % [node.position.x, node.position.y]
 	GameState.visited_nodes[key] = true
 	node.is_visited = true
 	node.is_available = false
+
+	# 保存节点类型
 	GameState.last_selected_node_type = node.node_type
+	print("保存节点类型: ", node.node_type, " (BOSS=", MapNode.NodeType.BOSS, ")")
+
+	# 所有节点都进入地图
 	_load_combat_for_node(node)
 
 func _on_battle_completed(winning_team: int):
 	if winning_team == 0:
-		var last_type = GameState.last_selected_node_type
-		if last_type == MapNode.NodeType.BOSS:
+		# 从全局数据中获取当前地图的节点类型
+		var node_type = Globals.current_map_data.node_type if Globals.current_map_data else -1
+		print("战斗胜利，当前地图节点类型: ", node_type)
+		if node_type == MapNode.NodeType.BOSS:
 			print("Boss 战胜利，进入下一天")
 			var has_next = LevelManager.advance_day()
 			if not has_next:
@@ -167,14 +175,13 @@ func _on_battle_completed(winning_team: int):
 				return
 			current_day = LevelManager.current_day + 1
 			level_list = LevelManager.get_current_day_levels()
-			generate_map(current_day)  # 生成新地图并缓存
-			GameState.last_selected_node_type = -1
+			generate_map(current_day)
 			return
+		# 普通战斗更新可用性
 		if map_data and map_data.root_node:
 			_update_availability(map_data.root_node)
 	else:
 		print("战斗失败，可重新尝试")
-	GameState.last_selected_node_type = -1
 
 func _load_combat_for_node(node: MapNode):
 	var map_to_load = node.map_data
