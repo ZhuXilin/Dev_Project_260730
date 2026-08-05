@@ -18,6 +18,7 @@ func _ready():
 	# ---- 检查是否需要推进天数（Boss 战胜利触发） ----
 	if GameState.should_advance_day:
 		GameState.should_advance_day = false
+		Globals.reset_battle_turn()
 		print("检测到 Boss 胜利，推进天数")
 		var has_next = LevelManager.advance_day()
 		if not has_next:

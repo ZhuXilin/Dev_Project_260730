@@ -42,6 +42,7 @@ const UnitDataManagerClass = preload("res://function/script/UnitDataManager.gd")
 @onready var item_list_container : VBoxContainer = $SettingLayer/ItemListPanel/ItemListContainer
 @onready var item_action_panel : CanvasLayer = $ItemActionPanel
 @onready var end_turn_button: Label = $EndTurnLayer/EndTurnButton
+@onready var turn_count_label: Label = $TurnCountLayer/TurnCountIndicator
 
 # ---- 常量 ----
 const CELL_SIZE : int = 16
@@ -62,6 +63,7 @@ var current_node_type: int = MapNode.NodeType.NORMAL   # 当前地图的节点�
 
 # ===================== 生命周期 =====================
 func _ready():
+	turn_count_label.text = "第 0 回合"
 	Globals.is_non_combat_mode = false   # 重置非战斗模式标志
 	print("=== Battlefield _ready 开始 ===")
 	
@@ -612,28 +614,93 @@ func _connect_signals():
 	attack_btn.pressed.connect(_on_attack_btn_pressed)
 	wait_btn.pressed.connect(_on_wait_btn_pressed)
 
+	# 先断开再连接所有 SignalBus 信号，避免重复
+	if SignalBus.request_highlight.is_connected(_on_highlight_request):
+		SignalBus.request_highlight.disconnect(_on_highlight_request)
 	SignalBus.request_highlight.connect(_on_highlight_request)
+
+	if SignalBus.request_clear_highlight.is_connected(highlight_manager.clear_highlight):
+		SignalBus.request_clear_highlight.disconnect(highlight_manager.clear_highlight)
 	SignalBus.request_clear_highlight.connect(highlight_manager.clear_highlight)
+
+	if SignalBus.request_move_unit.is_connected(_on_instant_move):
+		SignalBus.request_move_unit.disconnect(_on_instant_move)
 	SignalBus.request_move_unit.connect(_on_instant_move)
+
+	if SignalBus.request_move_along_path.is_connected(_on_request_move_along_path):
+		SignalBus.request_move_along_path.disconnect(_on_request_move_along_path)
 	SignalBus.request_move_along_path.connect(_on_request_move_along_path)
+
+	if SignalBus.request_ai_move_along_path.is_connected(_on_ai_move_along_path):
+		SignalBus.request_ai_move_along_path.disconnect(_on_ai_move_along_path)
 	SignalBus.request_ai_move_along_path.connect(_on_ai_move_along_path)
+
+	if SignalBus.request_show_menu.is_connected(_on_request_show_menu):
+		SignalBus.request_show_menu.disconnect(_on_request_show_menu)
 	SignalBus.request_show_menu.connect(_on_request_show_menu)
+
+	if SignalBus.request_hide_menu.is_connected(ui_manager.hide_menu):
+		SignalBus.request_hide_menu.disconnect(ui_manager.hide_menu)
 	SignalBus.request_hide_menu.connect(ui_manager.hide_menu)
+
+	if SignalBus.request_show_victory.is_connected(_on_request_show_victory):
+		SignalBus.request_show_victory.disconnect(_on_request_show_victory)
 	SignalBus.request_show_victory.connect(_on_request_show_victory)
+
+	# 关键：turn_changed 只连接一次，先断开再连接
+	if SignalBus.turn_changed.is_connected(_on_turn_changed):
+		SignalBus.turn_changed.disconnect(_on_turn_changed)
 	SignalBus.turn_changed.connect(_on_turn_changed)
+
+	if SignalBus.request_highlight_unit.is_connected(_on_highlight_unit):
+		SignalBus.request_highlight_unit.disconnect(_on_highlight_unit)
 	SignalBus.request_highlight_unit.connect(_on_highlight_unit)
+
+	if SignalBus.request_clear_highlight_unit.is_connected(_on_clear_highlight_unit):
+		SignalBus.request_clear_highlight_unit.disconnect(_on_clear_highlight_unit)
 	SignalBus.request_clear_highlight_unit.connect(_on_clear_highlight_unit)
+
+	if SignalBus.request_screen_shake.is_connected(_on_request_screen_shake):
+		SignalBus.request_screen_shake.disconnect(_on_request_screen_shake)
 	SignalBus.request_screen_shake.connect(_on_request_screen_shake)
+
+	if SignalBus.request_damage_popup.is_connected(_on_request_damage_popup):
+		SignalBus.request_damage_popup.disconnect(_on_request_damage_popup)
 	SignalBus.request_damage_popup.connect(_on_request_damage_popup)
+
+	if SignalBus.request_show_info.is_connected(_on_request_show_info):
+		SignalBus.request_show_info.disconnect(_on_request_show_info)
 	SignalBus.request_show_info.connect(_on_request_show_info)
+
+	if SignalBus.request_hide_info.is_connected(_on_request_hide_info):
+		SignalBus.request_hide_info.disconnect(_on_request_hide_info)
 	SignalBus.request_hide_info.connect(_on_request_hide_info)
+
+	if SignalBus.request_show_setting.is_connected(_on_request_show_setting):
+		SignalBus.request_show_setting.disconnect(_on_request_show_setting)
 	SignalBus.request_show_setting.connect(_on_request_show_setting)
+
+	if SignalBus.request_hide_setting.is_connected(_on_request_hide_setting):
+		SignalBus.request_hide_setting.disconnect(_on_request_hide_setting)
 	SignalBus.request_hide_setting.connect(_on_request_hide_setting)
+
+	if SignalBus.speed_changed.is_connected(_on_speed_changed):
+		SignalBus.speed_changed.disconnect(_on_speed_changed)
 	SignalBus.speed_changed.connect(_on_speed_changed)
+
+	if SignalBus.request_show_enemy_preview.is_connected(_on_show_enemy_preview):
+		SignalBus.request_show_enemy_preview.disconnect(_on_show_enemy_preview)
 	SignalBus.request_show_enemy_preview.connect(_on_show_enemy_preview)
+
 	_on_speed_changed(Globals.game_speed)
 
+	# MovementAnimator 信号
+	if movement_animator.movement_finished.is_connected(_on_player_movement_finished):
+		movement_animator.movement_finished.disconnect(_on_player_movement_finished)
 	movement_animator.movement_finished.connect(_on_player_movement_finished)
+
+	if movement_animator.ai_movement_finished.is_connected(_on_ai_movement_finished):
+		movement_animator.ai_movement_finished.disconnect(_on_ai_movement_finished)
 	movement_animator.ai_movement_finished.connect(_on_ai_movement_finished)
 
 # ===================== 信号回调 =====================
@@ -866,10 +933,16 @@ func _on_request_show_victory(winning_team: int):
 
 # 原 _on_turn_changed 改为启动异步处理
 func _on_turn_changed(team: int):
+	print("连接数: ", SignalBus.turn_changed.get_connections().size())
 	_handle_turn_change_async(team)
 
 # 新增异步处理函数（将原 _on_turn_changed 的全部逻辑移入）
 func _handle_turn_change_async(team: int):
+	if team == 0:
+		print("玩家回合开始，递增前计数: ", Globals.current_battle_turn)
+		Globals.increment_battle_turn()
+		turn_count_label.text = "第 " + str(Globals.current_battle_turn) + " 回合"
+		print("玩家回合开始，递增后计数: ", Globals.current_battle_turn)
 	if TurnManager.is_game_over:
 		return
 	if _turn_changed_locked:
@@ -899,7 +972,10 @@ func _handle_turn_change_async(team: int):
 	InputManager.attackable_targets = []
 
 	MusicManager.stop_music()
-
+	
+	if team == 0:
+		Globals.increment_battle_turn()
+		
 	await get_tree().create_timer(transition_delay_before_fade).timeout
 	await turnlayer_manager.play_transition(team)
 	await get_tree().create_timer(transition_delay_after_fade).timeout
@@ -1767,6 +1843,7 @@ func _create_scroll_container(child: Control, parent: Node, container_name: Stri
 # ---- 地图模式：胜利继续 ----
 func _on_map_victory_continue():
 	print("地图模式：战斗胜利，继续旅程")
+	Globals.reset_battle_turn()   # 返回地图前清零
 	var tree = get_tree()
 	if tree:
 		tree.change_scene_to_file("res://content/scenes/ui/MapScene.tscn")
@@ -1774,6 +1851,7 @@ func _on_map_victory_continue():
 # ---- 地图模式：失败返回单位选择界面 ----
 func _on_map_defeat_gameover():
 	print("地图模式：战斗失败，返回单位选择界面")
+	Globals.reset_battle_turn()   # 返回单位选择前清零
 	GameState.reset_all()
 	var tree = get_tree()
 	if tree:
@@ -1880,16 +1958,10 @@ func _generate_default_terrain(map_size: Vector2i):
 func _update_end_turn_button_visibility():
 	if not end_turn_button:
 		return
-	
-	# 非战斗模式下，按钮由 _setup_non_combat_mode 控制，此处不干预
 	if is_non_combat_mode:
 		return
-	
-	# 战斗模式下，根据设置菜单状态控制可见性
-	var should_hide = setting_panel and setting_panel.visible
-	end_turn_button.visible = not should_hide
-	if end_turn_button.visible:
-		end_turn_button.mouse_filter = Control.MOUSE_FILTER_STOP
+	end_turn_button.visible = true
+	end_turn_button.mouse_filter = Control.MOUSE_FILTER_STOP
 
 func _end_player_turn():
 	if TurnManager.is_game_over:

@@ -32,7 +32,12 @@ func play_transition(team: int, callback: Callable = Callable()):
 	
 	turn_overlay.modulate.a = 1.0
 	if _text_label:
-		_text_label.text = "玩家回合" if team == 0 else "敌人回合"
+		# 修改：根据队伍显示带回合数的文字
+		var turn_num = Globals.current_battle_turn
+		if team == 0:
+			_text_label.text = "我方第 " + str(turn_num) + " 回合"
+		else:
+			_text_label.text = "敌方第 " + str(turn_num) + " 回合"
 		_text_label.visible = true
 		_text_label.modulate.a = 1.0
 	

@@ -43,6 +43,8 @@ var is_map_mode: bool = false
 var current_map_node_id: String = ""
 var map_node_states: Dictionary = {}  # key: node_id, value: { "visited": bool, "completed": bool }
 var is_non_combat_mode: bool = false
+var current_battle_turn: int = 0   # 单局战斗回合计数
+var _last_increment_time: float = 0.0   # 上次递增时间戳（秒）
 
 # 地图缓存
 var current_map_level_data: MapLevelData = null
@@ -138,3 +140,15 @@ func get_team_color(team_id: int, primary: bool = true) -> Color:
 
 func get_gray_color(primary: bool = true) -> Color:
 	return GRAY_COLORS["primary"] if primary else GRAY_COLORS["secondary"]
+
+func reset_battle_turn():
+	current_battle_turn = 0
+
+func increment_battle_turn():
+	var now = Time.get_ticks_msec() / 1000.0
+	if now - _last_increment_time < 0.05:   # 50ms 内的重复调用视为无效
+		print("忽略重复回合递增")
+		return
+	_last_increment_time = now
+	current_battle_turn += 1
+	print("回合计数递增: ", current_battle_turn)
