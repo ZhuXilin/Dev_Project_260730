@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="MapData" format=3 uid="uid://ddqn55nx08x0n"]
+
+[ext_resource type="PackedScene" uid="uid://kc23e3by5n2q" path="res://content/scenes/maps/type001/day2/map_normal02.tscn" id="1_2p1gd"]
+[ext_resource type="Script" uid="uid://ljo1eo241sn4" path="res://function/resource/MapData.gd" id="2_kyqoj"]
+
+[resource]
+script = ExtResource("2_kyqoj")
+map_name = "孤岛"
+scene = ExtResource("1_2p1gd")
+metadata/_custom_type_script = "uid://ljo1eo241sn4"

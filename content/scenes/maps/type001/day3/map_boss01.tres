@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="MapData" format=3 uid="uid://bxplqoihvysde"]
+
+[ext_resource type="PackedScene" uid="uid://caihbv1uqwq1j" path="res://content/scenes/maps/type001/day3/map_boss01.tscn" id="1_jn6lx"]
+[ext_resource type="Script" uid="uid://ljo1eo241sn4" path="res://function/resource/MapData.gd" id="2_medsx"]
+
+[resource]
+script = ExtResource("2_medsx")
+map_name = "决战"
+scene = ExtResource("1_jn6lx")
+node_type = 6
+metadata/_custom_type_script = "uid://ljo1eo241sn4"

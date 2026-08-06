@@ -1,6 +1,6 @@
 [gd_resource type="Resource" script_class="MapData" format=3 uid="uid://b5b2ag6a3xlb"]
 
-[ext_resource type="PackedScene" uid="uid://v8otwk7dvbmf" path="res://content/scenes/maps/Level07.tscn" id="1_m0c3b"]
+[ext_resource type="PackedScene" uid="uid://v8otwk7dvbmf" path="res://content/scenes/maps/type001/common/map_finalprep.tscn" id="1_m0c3b"]
 [ext_resource type="Script" uid="uid://ljo1eo241sn4" path="res://function/resource/MapData.gd" id="2_4ud86"]
 
 [resource]

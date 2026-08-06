@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="MapData" format=3 uid="uid://dr30nhn7q6p4x"]
+
+[ext_resource type="PackedScene" uid="uid://dxgf5hh4ubrlb" path="res://content/scenes/maps/type001/day2/map_normal01.tscn" id="1_s1g2b"]
+[ext_resource type="Script" uid="uid://ljo1eo241sn4" path="res://function/resource/MapData.gd" id="2_dymbh"]
+
+[resource]
+script = ExtResource("2_dymbh")
+map_name = "城寨"
+scene = ExtResource("1_s1g2b")
+metadata/_custom_type_script = "uid://ljo1eo241sn4"

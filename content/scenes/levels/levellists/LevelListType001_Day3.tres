@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="LevelListResource" format=3 uid="uid://n221j2sdn3nl"]
+
+[ext_resource type="Script" uid="uid://ljo1eo241sn4" path="res://function/resource/MapData.gd" id="1_i6nv4"]
+[ext_resource type="Resource" uid="uid://bxplqoihvysde" path="res://content/scenes/maps/type001/day3/map_boss01.tres" id="3_7dhli"]
+[ext_resource type="Resource" uid="uid://b5b2ag6a3xlb" path="res://content/scenes/maps/type001/common/map_finalprep.tres" id="10_8xwdi"]
+[ext_resource type="Script" uid="uid://bdgijrg1hdj6f" path="res://function/resource/LevelList.gd" id="12_78feu"]
+
+[resource]
+script = ExtResource("12_78feu")
+levels = Array[ExtResource("1_i6nv4")]([ExtResource("10_8xwdi"), ExtResource("3_7dhli")])
+metadata/_custom_type_script = "uid://bdgijrg1hdj6f"

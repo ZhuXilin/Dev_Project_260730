@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="MapData" format=3 uid="uid://rb3o4gfgj6e3"]
+
+[ext_resource type="PackedScene" uid="uid://b5fc3n7jg8eiq" path="res://content/scenes/maps/type001/day2/map_normal03.tscn" id="1_tt3y7"]
+[ext_resource type="Script" uid="uid://ljo1eo241sn4" path="res://function/resource/MapData.gd" id="2_ecf1c"]
+
+[resource]
+script = ExtResource("2_ecf1c")
+map_name = "白崖"
+scene = ExtResource("1_tt3y7")
+metadata/_custom_type_script = "uid://ljo1eo241sn4"

@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="UnitLevelMapEntry" format=3 uid="uid://6b5tvqtfhjd5"]
+
+[ext_resource type="Resource" uid="uid://cvavysat5tfmo" path="res://content/scenes/levels/levellists/LevelListType001_Day1.tres" id="1_sidox"]
+[ext_resource type="Script" uid="uid://c8x3p1n87hrdv" path="res://function/resource/UnitLevelMapEntry.gd" id="1_xm7n3"]
+[ext_resource type="Resource" uid="uid://c8fm3tgsvq7l3" path="res://content/scenes/levels/levellists/LevelListType001_Day2.tres" id="2_chsxt"]
+[ext_resource type="Resource" uid="uid://n221j2sdn3nl" path="res://content/scenes/levels/levellists/LevelListType001_Day3.tres" id="3_p2id8"]
+
+[resource]
+script = ExtResource("1_xm7n3")
+unit_name = "剑士"
+day1 = ExtResource("1_sidox")
+day2 = ExtResource("2_chsxt")
+day3 = ExtResource("3_p2id8")
+metadata/_custom_type_script = "uid://c8x3p1n87hrdv"

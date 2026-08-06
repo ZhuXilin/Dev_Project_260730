@@ -1,4 +1,4 @@
 extends Resource
 class_name LevelListResource
 
-@export var levels : Array[MapData] = []
+@export var levels: Array[MapData] = []
