@@ -1,7 +1,7 @@
 [gd_resource type="Resource" script_class="UnitLevelMapConfig" format=3 uid="uid://cqhaf06akyk80"]
 
 [ext_resource type="Script" uid="uid://ccvitfeaytlvk" path="res://function/resource/UnitLevelMapConfig.gd" id="1_qd7h8"]
-[ext_resource type="Resource" uid="uid://6b5tvqtfhjd5" path="res://content/scenes/levels/levellists/UnitMapEntry_Swordsmen.tres" id="1_rx0gl"]
+[ext_resource type="Resource" uid="uid://6b5tvqtfhjd5" path="res://content/scenes/levels/unitmapentry/UnitMapEntry_Swordsmen.tres" id="1_rx0gl"]
 [ext_resource type="Script" uid="uid://c8x3p1n87hrdv" path="res://function/resource/UnitLevelMapEntry.gd" id="1_suoue"]
 
 [resource]
