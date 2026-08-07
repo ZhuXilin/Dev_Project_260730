@@ -107,16 +107,22 @@ func get_levels_for_day(day: int) -> Array:
 func get_map_for_node_type(node_type: int, main_unit: String = "") -> MapData:
 	var day_levels = get_current_day_levels()
 	if day_levels.is_empty():
-		return _create_fallback_map_data()
+		var fallback = _create_fallback_map_data()
+		fallback.node_type = node_type
+		return fallback
 
+	# 按 required_unit 过滤
 	var filtered = day_levels.filter(func(m):
 		return m.required_unit == "" or m.required_unit == main_unit
 	)
 	if filtered.is_empty():
 		filtered = day_levels.filter(func(m): return m.required_unit == "")
 	if filtered.is_empty():
-		return _create_fallback_map_data()
+		var fallback = _create_fallback_map_data()
+		fallback.node_type = node_type
+		return fallback
 
+	# 按 node_type 过滤
 	var type_filtered = filtered.filter(func(m):
 		return m.node_type == node_type
 	)
@@ -125,7 +131,10 @@ func get_map_for_node_type(node_type: int, main_unit: String = "") -> MapData:
 			return m.node_type == MapNode.NodeType.NORMAL
 		)
 	if type_filtered.is_empty():
-		return filtered[0]
+		# 返回第一个并设置类型
+		var result = filtered[0]
+		result.node_type = node_type
+		return result
 	return type_filtered[0]
 
 # 推进天数
@@ -141,15 +150,14 @@ func advance_day() -> bool:
 	return true
 
 # ===================== 游戏流程控制 =====================
+# LevelManager.gd
 func start_game():
-	if _day_levels.is_empty() or _day_levels[0].is_empty():
-		push_error("没有可用的关卡！")
-		return
+	# 重置进度（保留队伍，队伍已由 UnitSelectUI 初始化）
+	GameState.reset_progress()
 	current_level_index = 0
 	current_day = 0
 	is_map_mode = true
 	Globals.is_map_mode = true
-	GameState.visited_nodes.clear()
 	get_tree().change_scene_to_file("res://content/scenes/ui/MapScene.tscn")
 
 func load_map(map_data: MapData):
@@ -174,6 +182,7 @@ func on_victory():
 		get_tree().change_scene_to_file("res://content/scenes/ui/MainMenu.tscn")
 
 func on_defeat():
+	GameState.reset_all()
 	get_tree().change_scene_to_file("res://content/scenes/ui/MainMenu.tscn")
 
 func is_last_level() -> bool:
@@ -197,3 +206,8 @@ func _create_fallback_map_data() -> MapData:
 	m.map_size = Vector2i(20, 15)
 	m.node_type = MapNode.NodeType.NORMAL
 	return m
+
+func reset():
+	current_day = 0
+	current_level_index = 0
+	is_map_mode = false

@@ -130,10 +130,11 @@ static func _assign_map_data_to_all_nodes(nodes: Array):
 	for node in nodes:
 		var map = LevelManager.get_map_for_node_type(node.node_type, main_unit)
 		if map:
-			map.node_type = node.node_type   # 关键：同步类型
+			map.node_type = node.node_type   # 确保地图类型与节点类型一致
 			node.map_data = map
 		else:
 			node.map_data = _create_fallback_map_data(node.node_type)
+			node.map_data.node_type = node.node_type
 
 static func _create_fallback_map_data(_type: MapNode.NodeType) -> MapData:
 	var map = MapData.new()

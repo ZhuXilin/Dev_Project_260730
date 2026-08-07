@@ -47,12 +47,37 @@ func _update_labels():
 	confirm_btn.disabled = selected_units.size() < 3
 
 func _on_confirm_pressed():
+	var target_slot = -1
+
+	# 1. 如果当前有正在使用的存档槽（从存档加载而来），复用该槽
+	if SaveManager.current_slot != -1:
+		target_slot = SaveManager.current_slot
+		print("复用当前存档槽: ", target_slot)
+
+	# 2. 否则，如果已有预设槽（来自“新建存档”流程）
+	elif Globals.pending_save_slot != -1:
+		target_slot = Globals.pending_save_slot
+		print("使用预设存档槽: ", target_slot)
+
+	# 3. 否则，查找第一个空槽（主菜单“开始游戏”）
+	else:
+		target_slot = SaveManager.find_empty_slot()
+		if target_slot == -1:
+			var dialog = AcceptDialog.new()
+			dialog.dialog_text = "所有存档槽已满，请先删除一个存档。"
+			dialog.popup_centered()
+			add_child(dialog)
+			return
+		print("找到空槽: ", target_slot)
+
+	# 设置全局标记
+	Globals.pending_save_slot = target_slot
+
+	# 初始化队伍
 	GameState.initialize_party(selected_units, 0)
+
+	# 启动游戏（进入地图）
 	LevelManager.start_game()
-	# 如果有待保存的存档槽（来自新建存档），则保存
-	if Globals.pending_save_slot != -1:
-		SaveManager.save_game(Globals.pending_save_slot)
-		Globals.pending_save_slot = -1
 
 func _on_back_pressed():
 	MusicManager.stop_music()

@@ -536,35 +536,8 @@ func _load_default_map():
 	print("加载默认测试地图")
 	var default_map = MapData.new()
 	default_map.map_name = "默认地图"
-	default_map.scene = null  # 无场景
+	default_map.scene = null
 	default_map.map_size = Vector2i(20, 15)
-	
-	# 添加一些单位
-	var p1 = UnitConfig.new()
-	p1.unit_name = "剑士"
-	p1.team_id = 0
-	p1.position = Vector2i(15, 10)
-	default_map.unit_configs.append(p1)
-
-	var p2 = UnitConfig.new()
-	p2.unit_name = "枪兵"
-	p2.team_id = 0
-	p2.position = Vector2i(15, 11)
-	default_map.unit_configs.append(p2)
-
-	var e1 = UnitConfig.new()
-	e1.unit_name = "枪兵"
-	e1.team_id = 1
-	e1.position = Vector2i(3, 3)
-	default_map.unit_configs.append(e1)
-
-	var e2 = UnitConfig.new()
-	e2.unit_name = "斧兵"
-	e2.team_id = 1
-	e2.position = Vector2i(3, 4)
-	default_map.unit_configs.append(e2)
-
-	# 调用 load_map 加载这个地图
 	load_map(default_map)
 
 func _clear_units():
@@ -1852,8 +1825,15 @@ func _on_map_victory_continue():
 # ---- 地图模式：失败返回单位选择界面 ----
 func _on_map_defeat_gameover():
 	print("地图模式：战斗失败，返回单位选择界面")
-	Globals.reset_battle_turn()   # 返回单位选择前清零
-	GameState.reset_all()
+	Globals.reset_battle_turn()          # 回合数清零
+	GameState.reset_all()                # 清空队伍、缓存、天数等
+
+	# ---- 保存重置后的状态到当前存档（覆盖） ----
+	var current_slot = SaveManager.current_slot
+	if current_slot != -1:
+		SaveManager.save_game(current_slot, false)   # 手动保存，非自动
+		print("已重置并覆盖存档槽 ", current_slot)
+
 	var tree = get_tree()
 	if tree:
 		tree.change_scene_to_file("res://content/scenes/ui/UnitSelectUI.tscn")
