@@ -78,8 +78,9 @@ func reset_all():
 	party.clear()
 	main_unit_name = ""
 	visited_nodes.clear()
-	resume_node_id = ""
-	current_day = 1
+	# current_day 保持不变
 	current_map_index = 0
 	is_map_mode = false
 	should_advance_day = false
+	resume_node_id = ""
+	# 不重置 current_day

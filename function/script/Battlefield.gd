@@ -2,6 +2,7 @@ extends Node2D
 class_name Battlefield
 
 const UnitDataManagerClass = preload("res://function/script/UnitDataManager.gd")
+const BOSS_NODE_TYPE = 6
 
 # ---- 导出变量 ----
 @export var map_data : MapData = null
