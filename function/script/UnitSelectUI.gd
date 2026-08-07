@@ -12,10 +12,8 @@ var max_selection: int = 3
 @onready var back_btn = $BottomBar/BackButton
 
 func _ready():
-	# ---- 播放单位选择界面音乐 ----
 	if MusicManager.config and MusicManager.config.unit_select_music:
 		MusicManager.play_music(MusicManager.config.unit_select_music)
-	
 	_setup_unit_buttons()
 	_update_labels()
 
@@ -51,7 +49,11 @@ func _update_labels():
 func _on_confirm_pressed():
 	GameState.initialize_party(selected_units, 0)
 	LevelManager.start_game()
+	# 如果有待保存的存档槽（来自新建存档），则保存
+	if Globals.pending_save_slot != -1:
+		SaveManager.save_game(Globals.pending_save_slot)
+		Globals.pending_save_slot = -1
 
 func _on_back_pressed():
-	MusicManager.stop_music()   # 返回主菜单前停止音乐（可选，切换场景会自动停止）
+	MusicManager.stop_music()
 	get_tree().change_scene_to_file("res://content/scenes/ui/MainMenu.tscn")

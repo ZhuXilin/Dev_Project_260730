@@ -16,6 +16,7 @@ var cached_day: int = -1
 var last_selected_node_type: int = -1
 var current_map_data: MapData = null
 var should_advance_day: bool = false
+var resume_node_id: String = ""   # 用于加载存档后定位到特定节点
 
 # 初始化队伍
 func initialize_party(selected_units: Array[String], main_index: int):
@@ -77,6 +78,7 @@ func reset_all():
 	party.clear()
 	main_unit_name = ""
 	visited_nodes.clear()
+	resume_node_id = ""
 	current_day = 1
 	current_map_index = 0
 	is_map_mode = false

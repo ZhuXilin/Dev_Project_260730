@@ -17,6 +17,7 @@ config/features=PackedStringArray("4.7", "Forward Plus")
 [autoload]
 
 Globals="*uid://desbxe15ptc48"
+SaveManager="*uid://dqtwjmo52q2bp"
 SignalBus="*uid://dfecwvpce8ifx"
 Config="*uid://dwcatygm82dp4"
 GameState="*uid://dqpkw41hvdoy2"

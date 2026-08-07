@@ -1843,7 +1843,7 @@ func _create_scroll_container(child: Control, parent: Node, container_name: Stri
 # ---- 地图模式：胜利继续 ----
 func _on_map_victory_continue():
 	print("地图模式：战斗胜利，继续旅程")
-	Globals.reset_battle_turn()   # 返回地图前清零
+	SaveManager.auto_save()   # 自动存档
 	var tree = get_tree()
 	if tree:
 		tree.change_scene_to_file("res://content/scenes/ui/MapScene.tscn")

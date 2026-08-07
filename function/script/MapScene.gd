@@ -15,41 +15,50 @@ var level_list: Array[MapData] = []
 @onready var line_container = $NodeContainer/LineContainer
 
 func _ready():
-	# ---- 检查是否需要推进天数（Boss 战胜利触发） ----
-	if GameState.should_advance_day:
-		GameState.should_advance_day = false
-		Globals.reset_battle_turn()
-		print("检测到 Boss 胜利，推进天数")
-		var has_next = LevelManager.advance_day()
-		if not has_next:
-			get_tree().change_scene_to_file("res://content/scenes/ui/UnitSelectUI.tscn")
+	# ---- 检查是否从存档恢复 ----
+	if GameState.cached_map_level_data and GameState.cached_day == GameState.current_day:
+		print("使用缓存地图数据恢复，天数：", GameState.current_day)
+		current_day = GameState.current_day
+		map_data = GameState.cached_map_level_data
+		
+		# 检查是否所有节点都已访问（即当前天已通关）
+		var all_visited = true
+		for node in map_data.nodes:
+			if not node.is_visited:
+				all_visited = false
+				break
+		
+		if all_visited:
+			# 当前天已通关，推进到第二天
+			print("当前天已通关，自动推进天数")
+			var has_next = LevelManager.advance_day()
+			if not has_next:
+				get_tree().change_scene_to_file("res://content/scenes/ui/UnitSelectUI.tscn")
+				return
+			current_day = LevelManager.current_day + 1
+			GameState.current_day = current_day
+			level_list = LevelManager.get_current_day_levels()
+			generate_map(current_day)
+			SaveManager.auto_save()
+			_setup_ui()
 			return
-		current_day = LevelManager.current_day + 1
-		level_list = LevelManager.get_current_day_levels()
-		generate_map(current_day)
-		# ---- 播放地图音乐（新增） ----
-		if MusicManager.config and MusicManager.config.map_music:
-			MusicManager.play_music(MusicManager.config.map_music)
+		
+		# 否则正常恢复地图
+		_draw_connections()
+		_create_node_buttons()
+		if map_data and map_data.root_node:
+			_update_availability(map_data.root_node)
+		else:
+			_update_buttons()
+		
+		if GameState.resume_node_id != "":
+			_select_node_by_id(GameState.resume_node_id)
+		
+		SaveManager.auto_save()
+		_setup_ui()
 		return
 
-	# 确保容器节点存在
-	if not node_container:
-		node_container = Node2D.new()
-		node_container.name = "NodeContainer"
-		add_child(node_container)
-	if not line_container:
-		line_container = Node2D.new()
-		line_container.name = "LineContainer"
-		node_container.add_child(line_container)
-	if not info_panel:
-		info_panel = Panel.new()
-		info_panel.name = "InfoPanel"
-		add_child(info_panel)
-		info_label = Label.new()
-		info_label.name = "InfoLabel"
-		info_panel.add_child(info_label)
-	
-	# 获取当前天数和关卡列表
+	# ---- 正常生成地图 ----
 	current_day = LevelManager.current_day + 1
 	level_list = LevelManager.get_current_day_levels()
 	if level_list.is_empty():
@@ -58,35 +67,45 @@ func _ready():
 		default_map.map_name = "默认战斗"
 		level_list.append(default_map)
 	
-	# 检查缓存，避免重复生成地图
-	if GameState.cached_day == current_day and GameState.cached_map_level_data != null:
-		print("使用缓存地图，天数：", current_day)
+	if GameState.cached_map_level_data and GameState.cached_day == GameState.current_day:
+		print("使用缓存地图数据恢复，天数：", GameState.current_day)
+		current_day = GameState.current_day
 		map_data = GameState.cached_map_level_data
-		# 恢复已访问状态
-		for node in map_data.nodes:
-			var key = "%d_%d" % [node.position.x, node.position.y]
-			if GameState.visited_nodes.has(key):
-				node.is_visited = true
-				node.is_available = false
 		_draw_connections()
 		_create_node_buttons()
-		_update_availability(map_data.root_node)
+		if map_data and map_data.root_node:
+			_update_availability(map_data.root_node)
+		else:
+			_update_buttons()
+		if GameState.resume_node_id != "":
+			_select_node_by_id(GameState.resume_node_id)
+		SaveManager.auto_save()
+		_setup_ui()
+		return
 	else:
 		print("生成新地图，天数：", current_day)
-		generate_map(current_day)   # generate_map 内部会缓存
+		generate_map(current_day)
+		# 生成后自动存档（初始存档）
+		SaveManager.auto_save()
 	
-	# UI 设置
+	_setup_ui()
+
+# ---- 辅助函数 ----
+func _setup_ui():
 	info_panel.visible = false
 	day_label.text = "第 %d 天" % current_day
-	
 	_safe_connect(back_button, "pressed", Callable(self, "_on_back_pressed"))
-	
 	if not SignalBus.battle_completed.is_connected(_on_battle_completed):
 		SignalBus.battle_completed.connect(_on_battle_completed)
-		
-	# 播放地图音乐
 	if MusicManager.config and MusicManager.config.map_music:
 		MusicManager.play_music(MusicManager.config.map_music)
+
+# ---- 根据 ID 选择节点 ----
+func _select_node_by_id(node_id: String):
+	for child in node_container.get_children():
+		if child is MapNodeButton and child.map_node and child.map_node.node_id == node_id:
+			on_node_selected(child.map_node)
+			break
 
 func _safe_connect(source: Object, signal_name: String, target_callable: Callable):
 	if source.is_connected(signal_name, target_callable):
@@ -184,7 +203,7 @@ func _on_battle_completed(winning_team: int, is_boss: bool = false):
 	if not is_boss and GameState.current_map_data:
 		is_boss = (GameState.current_map_data.node_type == MapNode.NodeType.BOSS)
 		print("从 GameState 读取的节点类型: ", GameState.current_map_data.node_type, " 是否为BOSS: ", is_boss)
-	
+
 	if winning_team == 0:
 		if is_boss:
 			print("Boss 战胜利，进入下一天")
@@ -192,13 +211,18 @@ func _on_battle_completed(winning_team: int, is_boss: bool = false):
 			if not has_next:
 				get_tree().change_scene_to_file("res://content/scenes/ui/UnitSelectUI.tscn")
 				return
-			current_day = LevelManager.current_day + 1
+			# 更新显示天数和全局状态
+			var new_day = LevelManager.current_day + 1
+			current_day = new_day
+			GameState.current_day = new_day
 			level_list = LevelManager.get_current_day_levels()
-			generate_map(current_day)
+			generate_map(new_day)
+			SaveManager.auto_save()
 			return
-		# 普通战斗胜利更新可用性
 		if map_data and map_data.root_node:
 			_update_availability(map_data.root_node)
+			# 普通战斗后自动存档
+			SaveManager.auto_save()
 	else:
 		print("战斗失败，可重新尝试")
 
@@ -236,3 +260,8 @@ func _on_back_pressed():
 	GameState.visited_nodes.clear()
 	MusicManager.stop_music()
 	get_tree().change_scene_to_file("res://content/scenes/ui/MainMenu.tscn")
+
+func get_selected_node_id() -> String:
+	if selected_node:
+		return selected_node.node_id
+	return ""

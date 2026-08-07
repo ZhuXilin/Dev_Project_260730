@@ -6,5 +6,10 @@ func _ready():
 func _on_start_pressed():
 	get_tree().change_scene_to_file("res://content/scenes/ui/UnitSelectUI.tscn")
 
+func _on_load_pressed():
+	# 加载存档选择界面
+	var save_ui = load("res://content/scenes/ui/SaveSelectUI.tscn").instantiate()
+	add_child(save_ui)
+
 func _on_quit_pressed():
 	get_tree().quit()

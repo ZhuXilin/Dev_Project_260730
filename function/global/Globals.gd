@@ -46,6 +46,8 @@ var is_non_combat_mode: bool = false
 var current_battle_turn: int = 0   # 单局战斗回合计数
 var _last_increment_time: float = 0.0   # 上次递增时间戳（秒）
 
+var pending_save_slot: int = -1   # 用于新建存档时记录槽位
+
 # 地图缓存
 var current_map_level_data: MapLevelData = null
 var current_map_day: int = -1

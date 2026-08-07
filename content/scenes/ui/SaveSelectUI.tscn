@@ -1,0 +1,108 @@
+[gd_scene format=3 uid="uid://oggu87qyp5g4"]
+
+[ext_resource type="Script" uid="uid://cacjmfvvoyoq5" path="res://function/script/SaveSelectUI.gd" id="1_1bulp"]
+[ext_resource type="StyleBox" uid="uid://6qbsaxkfwg3o" path="res://content/resource/stylebox/8bit_style_box_flat.tres" id="2"]
+
+[node name="SaveSelectUI" type="CanvasLayer" unique_id=119837041]
+layer = 20
+script = ExtResource("1_1bulp")
+
+[node name="Background" type="ColorRect" parent="." unique_id=1464144066]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+color = Color(0, 0, 0, 1)
+
+[node name="Panel" type="Panel" parent="." unique_id=998100023]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_styles/panel = ExtResource("2")
+
+[node name="TitleLabel" type="Label" parent="Panel" unique_id=2130945640]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_top = 32.0
+offset_bottom = -176.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_font_sizes/font_size = 12
+text = "选择存档"
+horizontal_alignment = 1
+
+[node name="SlotContainer" type="VBoxContainer" parent="Panel" unique_id=904561005]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 80.0
+offset_top = 64.0
+offset_right = -80.0
+offset_bottom = -48.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 4
+
+[node name="BackButton" type="Button" parent="Panel" unique_id=1317041276]
+layout_mode = 1
+anchors_preset = 9
+anchor_bottom = 1.0
+offset_left = 144.0
+offset_top = 192.0
+offset_right = 256.0
+offset_bottom = -28.0
+grow_vertical = 2
+theme_override_font_sizes/font_size = 8
+theme_override_styles/normal = ExtResource("2")
+theme_override_styles/pressed = ExtResource("2")
+theme_override_styles/hover = ExtResource("2")
+theme_override_styles/disabled = ExtResource("2")
+theme_override_styles/focus = ExtResource("2")
+text = "返回"
+
+[node name="DeleteConfirm" type="Panel" parent="." unique_id=2108895399]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_styles/panel = ExtResource("2")
+
+[node name="Label" type="Label" parent="DeleteConfirm" unique_id=1963342214]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_top = 80.0
+offset_bottom = -128.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_font_sizes/font_size = 8
+text = "确定删除？"
+horizontal_alignment = 1
+
+[node name="HBoxContainer" type="HBoxContainer" parent="DeleteConfirm" unique_id=764950321]
+layout_mode = 1
+anchors_preset = 14
+anchor_top = 0.5
+anchor_right = 1.0
+anchor_bottom = 0.5
+offset_top = -8.0
+offset_bottom = 40.0
+grow_horizontal = 2
+grow_vertical = 2
+alignment = 1
+
+[node name="ConfirmButton" type="Button" parent="DeleteConfirm/HBoxContainer" unique_id=1854137636]
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+text = "确定"
+
+[node name="CanclButton" type="Button" parent="DeleteConfirm/HBoxContainer" unique_id=1933836674]
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+text = "取消"
