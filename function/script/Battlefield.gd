@@ -468,28 +468,41 @@ func _create_flat_terrain(size: Vector2i):
 		grid.append(row)
 	TerrainManager.terrain_grid = grid
 
+# Battlefield.gd
+# 提取场景中的功能格配置，并在运行时移除工具节点
 func _extract_map_unit_placers(node: Node):
 	map_functions.clear()
 	var battle_start_event = ""
+	var tool_nodes: Array[Node] = []   # 收集所有工具节点
 
-	var tools = []
-	_find_tools(node, tools)
+	# 递归收集工具节点（EventTrigger, HpFunction, BattleStartEvent）
+	_find_tools(node, tool_nodes)
 
-	for tool in tools:
+	for tool in tool_nodes:
 		var cfg = tool.export_config()
-		var cell = cfg["position"]
+		# 对于 UnitPlacerTool，cfg 可能是 UnitConfig 对象；但工具节点都返回字典
+		var cell: Vector2i
+		if cfg is Dictionary:
+			if cfg.has("position"):
+				cell = cfg["position"]
+			else:
+				continue
+		else:
+			# 若不是字典，可能是其他类型，跳过
+			continue
+
 		var entry = {"triggered": false}
 
-		match cfg["type"]:
+		match cfg.get("type", ""):
 			"event_trigger":
-				var event_id = cfg["event_id"]
+				var event_id = cfg.get("event_id", "")
 				if event_id != "":
 					entry["event_id"] = event_id
 					map_functions[cell] = entry
 					print("功能格: 位置 ", cell, " 事件ID: ", event_id)
 
 			"hp_function":
-				var amount = cfg["hp_amount"]
+				var amount = cfg.get("hp_amount", 0)
 				if amount != 0:
 					var generated_id = "hp_%d_%d" % [cell.x, cell.y]
 					var action_type = "heal" if amount > 0 else "damage"
@@ -500,13 +513,22 @@ func _extract_map_unit_placers(node: Node):
 					print("功能格: 位置 ", cell, " HP事件: ", generated_id)
 
 			"battle_start":
-				var event_id = cfg["event_id"]
+				var event_id = cfg.get("event_id", "")
 				if event_id != "":
 					battle_start_event = event_id
 					print("战斗开始事件: ", event_id)
 
+			_:
+				# 忽略其他类型
+				pass
+
 	_battle_start_event_id = battle_start_event
 	print("共提取 ", map_functions.size(), " 个功能格，战斗开始事件: ", battle_start_event)
+
+	# ---- 删除所有工具节点（运行时不再需要） ----
+	for tool in tool_nodes:
+		if is_instance_valid(tool):
+			tool.queue_free()
 
 func _find_tools(node: Node, result: Array):
 	if node is EventTrigger or node is HpFunction or node is BattleStartEvent:

@@ -250,14 +250,14 @@ func export_config() -> Variant:
 	var grid_pos = Vector2i(floor(position.x / CELL_SIZE), floor(position.y / CELL_SIZE))
 	
 	if placement_mode == PlacementMode.SPAWN_POINT:
-		# 返回出生点配置（字典）
+		# 出生点配置
 		return {
 			"type": "spawn_point",
 			"position": grid_pos,
 			"spawn_index": spawn_index
 		}
 	else:
-		# 返回单位配置
+		# 固定单位配置
 		var cfg = UnitConfig.new()
 		cfg.unit_name = _get_unit_name()
 		cfg.team_id = 0 if team == Team.玩家 else 1
@@ -278,9 +278,18 @@ func export_config() -> Variant:
 				weapon_entry.count = 1
 				items_to_export.insert(0, weapon_entry)
 		
+		# ---- 截断并警告（超过5种道具） ----
 		if items_to_export.size() > 5:
+			var dropped = items_to_export.slice(5)   # 被丢弃的部分
+			var dropped_names = []
+			for entry in dropped:
+				var data = ItemManager.get_item_data(entry.item_id)
+				dropped_names.append(data.name if data else entry.item_id)
+			# 在编辑器模式下输出警告（也可使用 push_warning）
+			if Engine.is_editor_hint():
+				push_warning("UnitPlacer: 初始道具（含默认武器）超过5种，丢弃了：%s" % ", ".join(dropped_names))
 			items_to_export = items_to_export.slice(0, 5)
-			push_warning("UnitPlacer: 初始道具（含默认武器）超过5个，已截断至前5个")
+		
 		cfg.initial_items = items_to_export
 		cfg.position = grid_pos
 		return cfg

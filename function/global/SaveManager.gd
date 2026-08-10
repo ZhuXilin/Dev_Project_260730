@@ -52,6 +52,17 @@ func load_game(slot: int) -> bool:
 		push_error("无法加载存档: ", path)
 		return false
 
+	# ---- 版本迁移（若存档版本低于当前版本） ----
+	if save.save_version < SaveData.CURRENT_VERSION:
+		print("存档版本 %d 低于当前版本 %d，执行迁移" % [save.save_version, SaveData.CURRENT_VERSION])
+		save = _migrate_save_data(save, save.save_version)
+		# 迁移后立即保存回文件
+		var err = ResourceSaver.save(save, path, ResourceSaver.FLAG_COMPRESS)
+		if err != OK:
+			push_error("迁移后保存失败：", err)
+			return false
+		print("存档已迁移至版本 %d" % SaveData.CURRENT_VERSION)
+
 	# ---- 校验（含兼容旧存档） ----
 	if not _validate_save(save):
 		print("校验失败，尝试兼容旧存档...")
@@ -274,3 +285,16 @@ func find_empty_slot() -> int:
 
 func reset_current_slot():
 	current_slot = -1
+
+func _migrate_save_data(save: SaveData, from_version: int) -> SaveData:
+	var migrated = save
+	# 从旧版本逐级升级
+	if from_version < 1:
+		# 示例：若曾在版本1中添加新字段，此处处理旧数据转换
+		# 但当前版本为1，无需额外转换
+		pass
+
+	# 更新版本号并重新计算校验和
+	migrated.save_version = SaveData.CURRENT_VERSION
+	migrated.checksum = migrated.compute_checksum()
+	return migrated

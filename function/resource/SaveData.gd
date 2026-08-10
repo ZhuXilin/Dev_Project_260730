@@ -1,5 +1,10 @@
 extends Resource
+# SaveData.gd
 class_name SaveData
+
+const CURRENT_VERSION = 1
+
+@export var save_version: int = CURRENT_VERSION
 
 # 玩家设置
 @export var music_volume: float = 0.2
