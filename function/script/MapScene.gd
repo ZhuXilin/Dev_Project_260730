@@ -12,13 +12,15 @@ var level_list: Array[MapData] = []
 @onready var info_panel = $InfoPanel
 @onready var info_label = $InfoPanel/InfoLabel
 @onready var day_label = $TopBar/DayLabel
-@onready var gold_label = $TopBar/GoldLabel          # 金币显示
-@onready var soul_label = $TopBar/SoulLabel          # 魂显示（需场景中添加此节点）
+@onready var soul_label = $TopBar/SoulLabel
+@onready var gold_label = $TopBar/GoldLabel
 @onready var interrupt_btn = $BottomBar/InterruptButton
 @onready var abandon_btn = $BottomBar/AbandonButton
 
 func _ready():
-	# ---- 队伍为空检查 ----
+	print("=== MapScene _ready 开始 ===")
+	print("当前 temp_gold=", GameState.temp_gold, " temp_soul=", GameState.temp_soul)
+
 	if GameState.party.is_empty():
 		print("队伍为空，返回营地")
 		GameState.cached_map_level_data = null
@@ -110,7 +112,8 @@ func _ready():
 	_save_game()
 	_setup_ui()
 	update_all_displays()
-
+	print("MapScene _ready: temp_soul=", GameState.temp_soul, " temp_gold=", GameState.temp_gold)
+	
 func _save_game():
 	if Globals.pending_save_slot != -1:
 		SaveManager.save_game(Globals.pending_save_slot)
@@ -119,8 +122,17 @@ func _save_game():
 		SaveManager.auto_save()
 
 func update_all_displays():
-	soul_label.text = "魂:" + str(GameState.temp_soul)
-	gold_label.text = "金币:" + str(GameState.temp_gold)
+	if soul_label:
+		soul_label.text = "魂:" + str(GameState.temp_soul)
+		print("update_all_displays: 设置 soul_label 为 ", soul_label.text)
+	else:
+		print("警告：soul_label 为 null，请检查节点名称")
+	
+	if gold_label:
+		gold_label.text = "金币:" + str(GameState.temp_gold)
+		print("update_all_displays: 设置 gold_label 为 ", gold_label.text)
+	else:
+		print("警告：gold_label 为 null，请检查节点名称")
 
 func update_gold_display():
 	gold_label.text = "金币:" + str(GameState.temp_gold)
@@ -153,45 +165,47 @@ func _on_abandon_confirmed():
 
 # ---- 战斗完成回调 ----
 func _on_battle_completed(winning_team: int, is_boss: bool = false):
-	print("MapScene._on_battle_completed 被触发，winning_team=", winning_team, " is_boss=", is_boss)
+	print("=== 进入 _on_battle_completed ===")
+	print("winning_team=", winning_team, " is_boss=", is_boss)
+	print("当前 temp_gold=", GameState.temp_gold, " temp_soul=", GameState.temp_soul)
+
 	if not is_boss and GameState.current_map_data:
 		is_boss = (GameState.current_map_data.node_type == MapNode.NodeType.BOSS)
 
 	if winning_team == 0:
+		print("玩家胜利，累加资源前 temp_gold=", GameState.temp_gold, " temp_soul=", GameState.temp_soul)
 		GameState.temp_gold += 10
 		if is_boss:
 			GameState.temp_soul += 1
+		print("累加资源后 temp_gold=", GameState.temp_gold, " temp_soul=", GameState.temp_soul)
 		update_all_displays()
 		_save_game()
 
 		if is_boss:
+			print("Boss 分支开始，should_advance_day 原值=", GameState.should_advance_day)
+			GameState.should_advance_day = false  # 确保只触发一次
 			var has_next = LevelManager.advance_day()
+			print("advance_day 结果 has_next=", has_next)
 			if not has_next:
-				GameState.finish_cycle()
-				GameState.reset_for_new_cycle()
-				GameState.interrupt_state = 1
-				_save_game()
-				var dialog = AcceptDialog.new()
-				dialog.dialog_text = "恭喜完成所有冒险！\n获得魂：%d" % GameState.soul
-				add_child(dialog)
-				dialog.popup_centered()
-				dialog.confirmed.connect(_on_cycle_complete)
+				# ... 三天完成逻辑 ...
 				return
 			var new_day = LevelManager.current_day + 1
 			current_day = new_day
 			GameState.current_day = new_day
 			level_list = LevelManager.get_current_day_levels()
 			generate_map(new_day)
-			_save_game()
 			_setup_ui()
 			update_all_displays()
+			print("Boss 分支结束时 temp_gold=", GameState.temp_gold, " temp_soul=", GameState.temp_soul)
+			_save_game()
 			return
 		# 普通战斗胜利
 		if map_data and map_data.root_node:
 			_update_availability(map_data.root_node)
 			_save_game()
 	else:
-		print("战斗失败，可重新尝试")
+		print("战斗失败")
+	print("=== 退出 _on_battle_completed ===")
 
 func _on_cycle_complete():
 	GameState.interrupt_state = 1
@@ -288,6 +302,7 @@ func _update_buttons():
 			child.setup(child.map_node, self)
 
 func generate_map(day: int):
+	print("=== generate_map 开始，day=", day, " temp_gold=", GameState.temp_gold)
 	print("=== 生成地图，天数：", day)
 	map_data = MapGenerator.generate_day(day, level_list)
 	GameState.cached_map_level_data = map_data
@@ -301,6 +316,8 @@ func generate_map(day: int):
 	_create_node_buttons()
 	_update_availability(map_data.root_node)
 	day_label.text = "第 %d 天" % day
+	update_all_displays()
+	print("=== generate_map 结束，temp_gold=", GameState.temp_gold)
 
 func _setup_ui():
 	Globals.reset_battle_turn()

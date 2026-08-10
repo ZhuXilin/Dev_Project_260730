@@ -807,7 +807,15 @@ func _on_wait_btn_pressed():
 	# 否则普通待机
 	InputManager.on_wait_button_pressed()
 
+# Battlefield.gd
+var _victory_processed: bool = false   # 防止重复处理胜利
+
 func _on_request_show_victory(winning_team: int):
+	if _victory_processed:
+		print("胜利已处理，跳过重复调用")
+		return
+	_victory_processed = true   # 立即锁定
+
 	var tree = get_tree()
 	if not tree:
 		print("错误：无法获取场景树，无法处理胜利")
@@ -848,6 +856,7 @@ func _on_request_show_victory(winning_team: int):
 
 	var is_win = (winning_team == 0)
 	var is_last = LevelManager.is_last_level()
+	var is_boss = (current_node_type == MapNode.NodeType.BOSS)
 
 	# ---- 同步玩家单位状态到 GameState ----
 	var player_units = []
@@ -865,14 +874,24 @@ func _on_request_show_victory(winning_team: int):
 	#  地图模式（从地图进入的战斗）
 	# =====================================================
 	if Globals.is_map_mode:
-		var is_boss = (current_node_type == MapNode.NodeType.BOSS)
 		print("当前地图节点类型: ", current_node_type, " 是否为BOSS: ", is_boss)
+
+		# ---- ★★★ 资源累加（仅当胜利时） ★★★ ----
+		if is_win:
+			# 只有战斗关卡（非非战斗）才加资源
+			if not Globals.is_non_combat_mode:
+				GameState.temp_gold += 10
+				if is_boss:
+					GameState.temp_soul += 1
+				print("Battlefield 累加资源：temp_gold=", GameState.temp_gold, " temp_soul=", GameState.temp_soul)
+			else:
+				print("非战斗模式，不累加资源")
 
 		# ---- 若为 Boss 胜利，设置推进天数标记 ----
 		if is_win and is_boss:
 			GameState.should_advance_day = true
 
-		# ---- 仍然发射信号（供其他监听者使用） ----
+		# ---- 发射信号（供其他监听者使用） ----
 		SignalBus.battle_completed.emit(winning_team, is_boss)
 
 		if is_win:
@@ -927,7 +946,9 @@ func _on_request_show_victory(winning_team: int):
 	if is_instance_valid(ui_manager):
 		ui_manager.show_victory(label_text, button_text, callback)
 
-# 原 _on_turn_changed 改为启动异步处理
+	# 重置锁定标志（用于下一次战斗）
+	_victory_processed = false
+
 func _on_turn_changed(team: int):
 	print("连接数: ", SignalBus.turn_changed.get_connections().size())
 	_handle_turn_change_async(team)

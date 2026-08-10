@@ -89,10 +89,14 @@ func load_game(slot: int) -> bool:
 	return true
 
 # ===== 构建存档数据 =====
+# SaveManager.gd
 func _build_save_data() -> SaveData:
 	var save = SaveData.new()
 	
-	# 设置
+	# ---- 版本号 ----
+	save.save_version = SaveData.CURRENT_VERSION
+	
+	# ---- 玩家设置 ----
 	save.music_volume = Globals.music_volume
 	save.sound_volume = Globals.sound_volume
 	save.game_speed = Globals.game_speed
@@ -100,25 +104,30 @@ func _build_save_data() -> SaveData:
 	save.window_mode = 1 if mode == DisplayServer.WINDOW_MODE_FULLSCREEN else 0
 	save.window_size = DisplayServer.window_get_size()
 	
-	# 进度
+	# ---- 游戏进度（包含资源） ----
 	save.current_day = GameState.current_day
 	save.main_unit_name = GameState.main_unit_name
+	save.soul = GameState.soul               # 永久魂
+	save.temp_soul = GameState.temp_soul     # 本轮临时魂
+	save.temp_gold = GameState.temp_gold     # 本轮临时金币
+	save.interrupt_state = GameState.interrupt_state
+	save.battlefield_data = GameState.battlefield_data   # 预留战场数据
 	
-	# 将 visited_nodes 字典转换为排序数组
+	# ---- 地图进度（visited_nodes 转为排序数组） ----
 	var sorted_visited = []
 	for key in GameState.visited_nodes.keys():
 		sorted_visited.append([key, GameState.visited_nodes[key]])
 	sorted_visited.sort()
 	save.visited_nodes = sorted_visited
 	
-	# 获取当前选中的节点
+	# ---- 选中节点ID ----
 	var map_scene = _get_map_scene()
 	if map_scene and map_scene.has_method("get_selected_node_id"):
 		save.selected_node_id = map_scene.get_selected_node_id()
 	else:
 		save.selected_node_id = GameState.resume_node_id
 	
-	# 队伍
+	# ---- 队伍数据 ----
 	save.party_data = []
 	for unit_data in GameState.party:
 		var dict = {
@@ -130,9 +139,17 @@ func _build_save_data() -> SaveData:
 			dict["inventory"].append(inst.item_id)
 		save.party_data.append(dict)
 	
+	# ---- 元数据 ----
+	save.save_time = Time.get_unix_time_from_system()
+	save.checksum = save.compute_checksum()
+	
+	# ---- 调试打印 ----
+	print("存档构建完成：temp_gold=", save.temp_gold, " temp_soul=", save.temp_soul)
+	
 	return save
 
 # ===== 应用存档数据 =====
+# SaveManager.gd - _apply_save_data()
 func _apply_save_data(save: SaveData):
 	# ---- 恢复玩家设置 ----
 	Globals.music_volume = save.music_volume
@@ -144,25 +161,29 @@ func _apply_save_data(save: SaveData):
 		DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED)
 		DisplayServer.window_set_size(save.window_size)
 
-	# ---- 恢复游戏进度 ----
-	# 显示天数（1-based）
+	# ---- 恢复游戏进度（包含资源） ----
 	GameState.current_day = save.current_day
-	# 同步 LevelManager 的内部天数索引（0-based）
 	LevelManager.current_day = save.current_day - 1
 	GameState.main_unit_name = save.main_unit_name
 	GameState.resume_node_id = save.selected_node_id
 
-	# ---- 恢复 visited_nodes（从 Array 转为 Dictionary） ----
+	# ★★★ 关键：恢复资源 ★★★
+	GameState.soul = save.soul
+	GameState.temp_soul = save.temp_soul
+	GameState.temp_gold = save.temp_gold
+	GameState.interrupt_state = save.interrupt_state
+	GameState.battlefield_data = save.battlefield_data
+
+	# ---- 恢复 visited_nodes ----
 	GameState.visited_nodes.clear()
 	if save.visited_nodes is Array:
 		for pair in save.visited_nodes:
 			if pair is Array and pair.size() == 2:
 				GameState.visited_nodes[pair[0]] = pair[1]
-	# 如果是空数组或旧版字典，则保持空
 
-	# ---- 清除地图缓存（强制重新生成） ----
+	# ---- 清除地图缓存 ----
 	GameState.cached_map_level_data = null
-	GameState.cached_day = save.current_day   # 保留天数，供 MapScene 判断
+	GameState.cached_day = save.current_day
 
 	# ---- 恢复队伍 ----
 	GameState.party.clear()
@@ -170,7 +191,6 @@ func _apply_save_data(save: SaveData):
 		var data = UnitData.new()
 		data.unit_name = dict["unit_name"]
 		data.hit_points = dict["hp"]
-		# 获取基础属性
 		var stats = UnitDataManager.get_default_stats(data.unit_name)
 		data.max_hp = stats.max_hp
 		data.defense = stats.defense
@@ -180,26 +200,22 @@ func _apply_save_data(save: SaveData):
 		data.luck = stats.luck
 		data.move_range = stats.move_range
 		data.ignore_terrain_cost = stats.ignore_terrain_cost
-		# 恢复库存
 		for item_id in dict["inventory"]:
 			var inst = ItemInstance.new()
 			inst.item_id = item_id
 			inst.count = 1
 			data.inventory.append(inst)
-		# 默认装备第一把武器
 		if data.inventory.size() > 0:
 			data.equipped_weapon = data.inventory[0].item_id
 		GameState.party.append(data)
 
-	# ---- 重置关卡索引（避免旧索引残留） ----
 	LevelManager.current_level_index = 0
 	LevelManager.is_map_mode = true
 
-	# ---- 如果队伍为空，清除当前地图数据，确保下次进入 MapScene 跳转 ----
 	if GameState.party.is_empty():
 		GameState.current_map_data = null
 
-	print("存档数据已恢复: 第", save.current_day, "天, 队伍", GameState.party.size(), "人")
+	print("存档数据已恢复：temp_gold=", GameState.temp_gold, " temp_soul=", GameState.temp_soul)
 
 # ===== 校验 =====
 func _validate_save(save: SaveData) -> bool:
@@ -267,7 +283,8 @@ func get_save_info(slot: int) -> Dictionary:
 		"time": save.save_time,
 		"day": save.current_day,
 		"main_unit": save.main_unit_name,
-		"party": save.party_data.size()
+		"party": save.party_data.size(),
+		"soul": save.soul   # 新增：返回永久魂
 	}
 
 func delete_save(slot: int):

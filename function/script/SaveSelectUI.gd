@@ -49,12 +49,20 @@ func _refresh_slots():
 		
 		slot_container.add_child(hbox)
 
+# SaveSelectUI.gd
 func _get_slot_display_text(slot: int) -> String:
 	var info = SaveManager.get_save_info(slot)
 	if info.is_empty():
 		return "空存档"
 	var time_str = Time.get_datetime_string_from_unix_time(info["time"])
-	return "存档%d: %s (%d人) 第%d天 %s" % [slot + 1, info["main_unit"], info["party"], info["day"], time_str]
+	return "存档%d: %s (%d人) 魂:%d 第%d天 %s" % [
+		slot + 1,
+		info["main_unit"],
+		info["party"],
+		info["soul"],
+		info["day"],
+		time_str
+	]
 
 func _on_load_pressed(slot: int):
 	var success = SaveManager.load_game(slot)

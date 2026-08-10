@@ -1,38 +1,39 @@
 extends Resource
-# SaveData.gd
-class_name SaveData
 
+class_name SaveData
 const CURRENT_VERSION = 1
 
+# ---- 版本 ----
 @export var save_version: int = CURRENT_VERSION
 
-# 玩家设置
+# ---- 玩家设置 ----
 @export var music_volume: float = 0.2
 @export var sound_volume: float = 0.2
 @export var game_speed: int = 0
 @export var window_mode: int = 0          # 0=窗口, 1=全屏
 @export var window_size: Vector2i = Vector2i(640, 480)
 
-# 游戏进度
+# ---- 游戏进度 ----
 @export var current_day: int = 1
 @export var visited_nodes: Array = []     # 排序后的键值对
 @export var selected_node_id: String = ""
 @export var main_unit_name: String = ""
 
-@export var soul: int = 0
-@export var temp_soul: int = 0
-@export var temp_gold: int = 0
+@export var soul: int = 0          # 永久魂
+@export var temp_soul: int = 0     # 本轮临时魂
+@export var temp_gold: int = 0     # 本轮临时金币
 
 @export var interrupt_state: int = 0
 @export var battlefield_data: Dictionary = {}
 
-# 队伍状态
+# ---- 队伍状态 ----
 @export var party_data: Array = []
 
-# 元数据
+# ---- 元数据 ----
 @export var save_time: int = 0
 @export var checksum: String = ""
 
+# ---- 校验和计算 ----
 func compute_checksum() -> String:
 	var data = {
 		"music_volume": music_volume,
@@ -44,11 +45,11 @@ func compute_checksum() -> String:
 		"visited_nodes": visited_nodes,
 		"selected_node_id": selected_node_id,
 		"main_unit_name": main_unit_name,
-		"party_data": party_data,
 		"soul": soul,
 		"temp_soul": temp_soul,
 		"temp_gold": temp_gold,
 		"interrupt_state": interrupt_state,
-		"battlefield_data": battlefield_data
+		"battlefield_data": battlefield_data,
+		"party_data": party_data
 	}
 	return JSON.stringify(data, "  ").sha256_text()
