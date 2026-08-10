@@ -11,7 +11,6 @@ var level_list: Array[MapData] = []
 @onready var line_container = $NodeContainer/LineContainer
 @onready var info_panel = $InfoPanel
 @onready var info_label = $InfoPanel/InfoLabel
-@onready var back_button = $BottomBar/BackButton
 @onready var day_label = $TopBar/DayLabel
 @onready var gold_label = $TopBar/GoldLabel          # 金币显示
 @onready var soul_label = $TopBar/SoulLabel          # 魂显示（需场景中添加此节点）
@@ -130,6 +129,7 @@ func _on_interrupt_pressed():
 	_save_game()
 	get_tree().change_scene_to_file("res://content/scenes/ui/MainMenu.tscn")
 
+# AbandonButton 逻辑不变
 func _on_abandon_pressed():
 	var confirm = ConfirmationDialog.new()
 	confirm.dialog_text = "确定放弃本局游戏吗？进度将丢失，已获得的临时资源将丢弃。"
@@ -145,13 +145,6 @@ func _on_abandon_confirmed():
 	GameState.interrupt_state = 1
 	_save_game()
 	get_tree().change_scene_to_file("res://content/scenes/ui/Camp.tscn")
-
-func _on_back_pressed():
-	GameState.abandon_cycle()
-	GameState.reset_all()
-	GameState.interrupt_state = 1
-	_save_game()
-	get_tree().change_scene_to_file("res://content/scenes/ui/MainMenu.tscn")
 
 # ---- 战斗完成回调 ----
 func _on_battle_completed(winning_team: int, is_boss: bool = false):
@@ -336,8 +329,10 @@ func _load_combat_for_node(node: MapNode):
 			map_to_load = level_list[0]
 			print("使用备用地图：", map_to_load.map_name)
 		else:
-			print("错误：没有可用的地图数据")
-			_on_back_pressed()
+			print("错误：没有可用的地图数据，回到营地")
+			GameState.interrupt_state = 1
+			_save_game()
+			get_tree().change_scene_to_file("res://content/scenes/ui/Camp.tscn")
 			return
 	_load_combat(map_to_load)
 

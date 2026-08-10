@@ -19,7 +19,6 @@ var should_advance_day: bool = false     # Boss胜利后推进天数的标志
 var resume_node_id: String = ""          # 加载存档后要定位的节点ID
 
 var soul: int = 0          # 永久魂
-var gold: int = 0          # 永久金币
 var temp_soul: int = 0     # 本轮临时魂
 var temp_gold: int = 0     # 本轮临时金币
 var interrupt_state: int = 0   # 0=无, 1=营地, 2=地图, 3=战场
