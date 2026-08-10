@@ -1824,19 +1824,18 @@ func _on_map_victory_continue():
 		
 # ---- 地图模式：失败返回单位选择界面 ----
 func _on_map_defeat_gameover():
-	print("地图模式：战斗失败，返回单位选择界面")
-	Globals.reset_battle_turn()          # 回合数清零
-	GameState.reset_all()                # 清空队伍、缓存、天数等
+	Globals.reset_battle_turn()
+	var confirm = ConfirmationDialog.new()
+	confirm.dialog_text = "战斗失败，是否重新挑战？\n（选择“取消”将放弃本局并回到营地）"
+	confirm.ok_button_text = "重试"
+	confirm.cancel_button_text = "放弃"
+	add_child(confirm)
+	confirm.popup_centered()
+	confirm.confirmed.connect(_on_retry_battle)
+	confirm.canceled.connect(_on_abandon_battle_confirmed)
 
-	# ---- 保存重置后的状态到当前存档（覆盖） ----
-	var current_slot = SaveManager.current_slot
-	if current_slot != -1:
-		SaveManager.save_game(current_slot, false)   # 手动保存，非自动
-		print("已重置并覆盖存档槽 ", current_slot)
-
-	var tree = get_tree()
-	if tree:
-		tree.change_scene_to_file("res://content/scenes/ui/UnitSelectUI.tscn")
+func _on_retry_battle():
+	get_tree().change_scene_to_file("res://content/scenes/ui/MapScene.tscn")
 
 # ===================== 非战斗模式 =====================
 func _setup_non_combat_mode():
@@ -2088,3 +2087,21 @@ func _update_cursor_and_mouse():
 	var target_color = Color.FUCHSIA if should_be_pink else Color.WHITE
 	if cursor.modulate != target_color:
 		cursor.modulate = target_color
+
+func _on_abandon_battle_pressed():
+	var confirm = ConfirmationDialog.new()
+	confirm.dialog_text = "确定放弃当前战斗吗？将回到营地，本轮进度将丢失。"
+	confirm.ok_button_text = "放弃"
+	confirm.cancel_button_text = "取消"
+	add_child(confirm)
+	confirm.popup_centered()
+	confirm.confirmed.connect(_on_abandon_battle_confirmed)
+
+func _on_abandon_battle_confirmed():
+	Globals.is_performing_action = false
+	TurnManager.is_game_over = true
+	GameState.abandon_cycle()
+	GameState.reset_all()
+	GameState.interrupt_state = 1
+	SaveManager.save_game(SaveManager.current_slot, false)
+	get_tree().change_scene_to_file("res://content/scenes/ui/Camp.tscn")

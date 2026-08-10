@@ -16,21 +16,34 @@ grow_vertical = 2
 color = Color(0.20511743, 0.20511743, 0.20511743, 1)
 
 [node name="TopBar" type="HBoxContainer" parent="." unique_id=535210726]
-anchors_preset = 10
-anchor_right = 1.0
-offset_left = 4.0
-offset_top = 4.0
-offset_right = -4.0
-offset_bottom = 28.0
-grow_horizontal = 2
-grow_vertical = 0
+offset_left = 16.0
+offset_top = 16.0
+offset_right = 96.0
+offset_bottom = 38.0
+size_flags_horizontal = 0
+size_flags_vertical = 0
 alignment = 1
 
 [node name="DayLabel" type="Label" parent="TopBar" unique_id=442510576]
 layout_mode = 2
-size_flags_horizontal = 3
+size_flags_horizontal = 2
+size_flags_vertical = 0
 theme_override_font_sizes/font_size = 10
 text = "第 1 天"
+
+[node name="SoulLabel" type="Label" parent="TopBar" unique_id=1539311515]
+layout_mode = 2
+size_flags_horizontal = 0
+size_flags_vertical = 0
+theme_override_font_sizes/font_size = 10
+text = "Soul"
+
+[node name="GoldLabel" type="Label" parent="TopBar" unique_id=42540598]
+layout_mode = 2
+size_flags_horizontal = 0
+size_flags_vertical = 0
+theme_override_font_sizes/font_size = 10
+text = "Gold"
 
 [node name="NodeContainer" type="Node2D" parent="." unique_id=1041771305]
 position = Vector2(40, 0)
@@ -50,15 +63,14 @@ grow_horizontal = 0
 theme_override_styles/panel = ExtResource("2")
 
 [node name="InfoLabel" type="Label" parent="InfoPanel" unique_id=1109839495]
-layout_mode = 0
+layout_mode = 1
+anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 offset_left = 6.0
 offset_top = 6.0
 offset_right = -6.0
 offset_bottom = -6.0
-grow_horizontal = 2
-grow_vertical = 2
 theme_override_font_sizes/font_size = 7
 text = "节点描述"
 autowrap_mode = 3
@@ -66,17 +78,41 @@ autowrap_mode = 3
 [node name="BottomBar" type="HBoxContainer" parent="." unique_id=478632141]
 anchors_preset = 9
 anchor_bottom = 1.0
-offset_left = 362.0
+offset_left = 272.0
 offset_top = 16.0
-offset_right = 384.0
-offset_bottom = -205.0
+offset_right = 388.0
+offset_bottom = -202.0
 grow_vertical = 2
 theme_override_constants/separation = 16
 alignment = 1
 
+[node name="AbandonButton" type="Button" parent="BottomBar" unique_id=820577566]
+layout_mode = 2
+size_flags_horizontal = 0
+size_flags_vertical = 0
+theme_override_font_sizes/font_size = 10
+theme_override_styles/normal = ExtResource("2")
+theme_override_styles/pressed = ExtResource("2")
+theme_override_styles/hover = ExtResource("2")
+theme_override_styles/disabled = ExtResource("2")
+theme_override_styles/focus = ExtResource("2")
+text = "放弃"
+
+[node name="InterruptButton" type="Button" parent="BottomBar" unique_id=691765922]
+layout_mode = 2
+size_flags_horizontal = 0
+size_flags_vertical = 0
+theme_override_font_sizes/font_size = 10
+theme_override_styles/normal = ExtResource("2")
+theme_override_styles/pressed = ExtResource("2")
+theme_override_styles/hover = ExtResource("2")
+theme_override_styles/disabled = ExtResource("2")
+theme_override_styles/focus = ExtResource("2")
+text = "中断"
+
 [node name="BackButton" type="Button" parent="BottomBar" unique_id=1307797170]
 layout_mode = 2
-theme_override_font_sizes/font_size = 7
+theme_override_font_sizes/font_size = 10
 theme_override_styles/normal = ExtResource("2")
 theme_override_styles/pressed = ExtResource("2")
 theme_override_styles/hover = ExtResource("2")
@@ -84,4 +120,6 @@ theme_override_styles/disabled = ExtResource("2")
 theme_override_styles/focus = ExtResource("2")
 text = "返回"
 
+[connection signal="pressed" from="BottomBar/AbandonButton" to="." method="_on_abandon_pressed"]
+[connection signal="pressed" from="BottomBar/InterruptButton" to="." method="_on_interrupt_pressed"]
 [connection signal="pressed" from="BottomBar/BackButton" to="." method="_on_back_pressed"]

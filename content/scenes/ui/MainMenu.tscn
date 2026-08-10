@@ -59,6 +59,16 @@ text = "游 戏 开 发 中"
 horizontal_alignment = 1
 vertical_alignment = 1
 
+[node name="LoadButton" type="Button" parent="CenterContainer/VBoxContainer" unique_id=2090007701]
+layout_mode = 2
+theme_override_font_sizes/font_size = 8
+theme_override_styles/normal = ExtResource("3_06ybj")
+theme_override_styles/pressed = ExtResource("3_06ybj")
+theme_override_styles/hover = ExtResource("3_06ybj")
+theme_override_styles/disabled = ExtResource("3_06ybj")
+theme_override_styles/focus = ExtResource("3_06ybj")
+text = "继续游戏"
+
 [node name="StartButton" type="Button" parent="CenterContainer/VBoxContainer" unique_id=880886941]
 layout_mode = 2
 theme_override_font_sizes/font_size = 8
@@ -68,16 +78,6 @@ theme_override_styles/hover = ExtResource("3_06ybj")
 theme_override_styles/disabled = ExtResource("3_06ybj")
 theme_override_styles/focus = ExtResource("3_06ybj")
 text = "新建游戏"
-
-[node name="LoadButton" type="Button" parent="CenterContainer/VBoxContainer" unique_id=2090007701]
-layout_mode = 2
-theme_override_font_sizes/font_size = 8
-theme_override_styles/normal = ExtResource("3_06ybj")
-theme_override_styles/pressed = ExtResource("3_06ybj")
-theme_override_styles/hover = ExtResource("3_06ybj")
-theme_override_styles/disabled = ExtResource("3_06ybj")
-theme_override_styles/focus = ExtResource("3_06ybj")
-text = "游戏存档"
 
 [node name="QuitButton" type="Button" parent="CenterContainer/VBoxContainer" unique_id=1366490189]
 layout_mode = 2
@@ -89,6 +89,6 @@ theme_override_styles/disabled = ExtResource("3_06ybj")
 theme_override_styles/focus = ExtResource("3_06ybj")
 text = "退出游戏"
 
-[connection signal="pressed" from="CenterContainer/VBoxContainer/StartButton" to="." method="_on_start_pressed"]
 [connection signal="pressed" from="CenterContainer/VBoxContainer/LoadButton" to="." method="_on_load_pressed"]
+[connection signal="pressed" from="CenterContainer/VBoxContainer/StartButton" to="." method="_on_start_pressed"]
 [connection signal="pressed" from="CenterContainer/VBoxContainer/QuitButton" to="." method="_on_quit_pressed"]

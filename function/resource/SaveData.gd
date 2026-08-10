@@ -8,6 +8,12 @@ class_name SaveData
 @export var window_mode: int = 0          # 0=窗口, 1=全屏
 @export var window_size: Vector2i = Vector2i(640, 480)
 
+@export var soul: int = 0
+@export var temp_soul: int = 0
+@export var temp_gold: int = 0
+@export var interrupt_state: int = 0
+@export var battlefield_data: Dictionary = {}
+
 # 游戏进度（不再存储 map_level_data）
 @export var current_day: int = 1
 @export var visited_nodes: Array = []     # 存储为排序后的键值对数组 [ [key, value], ... ]

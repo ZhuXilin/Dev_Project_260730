@@ -197,6 +197,32 @@ func _validate_save(save: SaveData) -> bool:
 	var computed = save.compute_checksum()
 	return computed == save.checksum
 
+func load_save_data(slot: int) -> SaveData:
+	var path = _get_slot_path(slot)
+	if not ResourceLoader.exists(path):
+		return null
+	return load(path) as SaveData
+
+func apply_save_data(save: SaveData):
+	_apply_save_data(save)
+
+func is_map_data_valid(save: SaveData) -> bool:
+	return not save.party_data.is_empty()
+
+func clean_invalid_progress(slot: int):
+	var save = load_save_data(slot)
+	if not save:
+		return
+	save.visited_nodes = []
+	save.current_day = 1
+	save.selected_node_id = ""
+	save.interrupt_state = 1
+	save.temp_soul = 0
+	save.temp_gold = 0
+	save.checksum = save.compute_checksum()
+	var path = _get_slot_path(slot)
+	ResourceSaver.save(save, path, ResourceSaver.FLAG_COMPRESS)
+
 # ===== 路径 =====
 func _get_slot_path(slot: int) -> String:
 	return SAVE_DIR + "slot_%d.tres" % slot

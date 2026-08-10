@@ -18,6 +18,13 @@ var current_map_data: MapData = null     # 当前正在战斗的地图数据
 var should_advance_day: bool = false     # Boss胜利后推进天数的标志
 var resume_node_id: String = ""          # 加载存档后要定位的节点ID
 
+var soul: int = 0          # 永久魂
+var gold: int = 0          # 永久金币
+var temp_soul: int = 0     # 本轮临时魂
+var temp_gold: int = 0     # 本轮临时金币
+var interrupt_state: int = 0   # 0=无, 1=营地, 2=地图, 3=战场
+var battlefield_data: Dictionary = {}   # 预留战场数据
+
 # ---- 存档辅助 ----
 var pending_save_slot: int = -1          # 用于新建存档时记录槽位（实际已移至Globals，但保留）
 
@@ -84,9 +91,49 @@ func sync_units_from_battlefield(battle_units: Array):
 		print("战斗单位 ", battle_unit.unit_stats.unit_name, " 库存: ", inv)
 		print("同步后队伍单位库存: ", party_unit.inventory)
 
-# ============================================================
-#  游戏进度重置（用于失败重试或完全重置）
-# ============================================================
+
+func reset_progress():
+	visited_nodes.clear()
+	current_day = 1
+	cached_map_level_data = null
+	cached_day = -1
+	resume_node_id = ""
+	should_advance_day = false
+	current_map_data = null
+	last_selected_node_type = -1
+	# 保留 party 不变（由 initialize_party 重新设置）
+
+func start_new_cycle():
+	temp_soul = 0
+	temp_gold = 0
+
+func finish_cycle():
+	soul += temp_soul
+	temp_soul = 0
+	temp_gold = 0
+
+func abandon_cycle():
+	temp_soul = 0
+	temp_gold = 0
+
+func reset_for_new_cycle():
+	party.clear()
+	main_unit_name = ""
+	visited_nodes.clear()
+	current_day = 1
+	cached_map_level_data = null
+	cached_day = -1
+	resume_node_id = ""
+	should_advance_day = false
+	current_map_data = null
+	last_selected_node_type = -1
+	LevelManager.current_day = 0
+	LevelManager.current_level_index = 0
+	# 保留 soul, gold
+	temp_soul = 0
+	temp_gold = 0
+	interrupt_state = 0
+
 func reset_all():
 	party.clear()
 	main_unit_name = ""
@@ -100,16 +147,8 @@ func reset_all():
 	cached_day = -1
 	current_map_data = null
 	last_selected_node_type = -1
-	# 重置 LevelManager 天数索引
 	LevelManager.reset()
-
-func reset_progress():
-	visited_nodes.clear()
-	current_day = 1
-	cached_map_level_data = null
-	cached_day = -1
-	resume_node_id = ""
-	should_advance_day = false
-	current_map_data = null
-	last_selected_node_type = -1
-	# 保留 party 不变（由 initialize_party 重新设置）
+	# 保留 soul, gold
+	temp_soul = 0
+	temp_gold = 0
+	interrupt_state = 0
