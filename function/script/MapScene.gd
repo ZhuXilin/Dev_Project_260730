@@ -27,6 +27,11 @@ func _ready():
 		SaveManager.save_game(SaveManager.current_slot, false)
 		get_tree().change_scene_to_file("res://content/scenes/ui/Camp.tscn")
 		return
+
+	# ---- 确保信号连接（关键） ----
+	if not SignalBus.battle_completed.is_connected(_on_battle_completed):
+		SignalBus.battle_completed.connect(_on_battle_completed)
+		print("MapScene 已连接 battle_completed 信号")
 	
 	# 同步天数
 	LevelManager.current_day = GameState.current_day - 1
@@ -44,7 +49,7 @@ func _ready():
 			GameState.interrupt_state = 1
 			_save_game()
 			var dialog = AcceptDialog.new()
-			dialog.dialog_text = "恭喜完成所有冒险！\n获得魂：%d，金币：%d" % [GameState.soul, GameState.gold]
+			dialog.dialog_text = "恭喜完成所有冒险！\n获得魂：%d" % GameState.soul
 			add_child(dialog)
 			dialog.popup_centered()
 			dialog.confirmed.connect(_on_cycle_complete)
@@ -148,6 +153,7 @@ func _on_abandon_confirmed():
 
 # ---- 战斗完成回调 ----
 func _on_battle_completed(winning_team: int, is_boss: bool = false):
+	print("MapScene._on_battle_completed 被触发，winning_team=", winning_team, " is_boss=", is_boss)
 	if not is_boss and GameState.current_map_data:
 		is_boss = (GameState.current_map_data.node_type == MapNode.NodeType.BOSS)
 
