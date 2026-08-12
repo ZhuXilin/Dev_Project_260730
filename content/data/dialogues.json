@@ -79,5 +79,9 @@
   ],
   "complete_dialog": [
 	{ "speaker": "系统", "text": "恭喜你完成了这个区域！可以继续前进了。" }
+  ],
+	"village_encounter_dlg": [
+	  { "speaker": "村民", "text": "欢迎来到村庄！" },
+	  { "speaker": "村民", "text": "送你一把斧头吧！" }
   ]
 }

@@ -5,6 +5,7 @@ const CURRENT_VERSION = 1
 
 # ---- 版本 ----
 @export var save_version: int = CURRENT_VERSION
+@export var unlocked_units: Array[String] = []
 
 # ---- 玩家设置 ----
 @export var music_volume: float = 0.2
@@ -50,6 +51,7 @@ func compute_checksum() -> String:
 		"temp_gold": temp_gold,
 		"interrupt_state": interrupt_state,
 		"battlefield_data": battlefield_data,
-		"party_data": party_data
+		"party_data": party_data,
+		"unlocked_units": unlocked_units
 	}
 	return JSON.stringify(data, "  ").sha256_text()

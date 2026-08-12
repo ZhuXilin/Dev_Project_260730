@@ -27,7 +27,18 @@ func _confirm_deploy():
 	get_tree().change_scene_to_file("res://content/scenes/ui/UnitSelectUI.tscn")
 
 func _on_unit_pressed():
-	print("单位图鉴")
+	var existing = get_node_or_null("UnitInfoUI")
+	if existing:
+		existing.visible = !existing.visible
+		if existing.visible:
+			existing.populate_list()
+		return
+	var panel_scene = load("res://content/scenes/ui/UnitInfoUI.tscn")
+	if panel_scene:
+		var panel = panel_scene.instantiate()
+		add_child(panel)
+		panel.name = "UnitInfoUI"
+		panel.populate_list()
 
 func _on_item_pressed():
 	print("道具图鉴")

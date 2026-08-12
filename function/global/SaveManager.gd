@@ -145,11 +145,11 @@ func _build_save_data() -> SaveData:
 	
 	# ---- 调试打印 ----
 	print("存档构建完成：temp_gold=", save.temp_gold, " temp_soul=", save.temp_soul)
-	
+	save.unlocked_units = Globals.unlocked_units.duplicate()
 	return save
 
 # ===== 应用存档数据 =====
-# SaveManager.gd - _apply_save_data()
+# SaveManager.gd
 func _apply_save_data(save: SaveData):
 	# ---- 恢复玩家设置 ----
 	Globals.music_volume = save.music_volume
@@ -161,18 +161,22 @@ func _apply_save_data(save: SaveData):
 		DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED)
 		DisplayServer.window_set_size(save.window_size)
 
-	# ---- 恢复游戏进度（包含资源） ----
+	# ---- 恢复游戏进度 ----
 	GameState.current_day = save.current_day
 	LevelManager.current_day = save.current_day - 1
 	GameState.main_unit_name = save.main_unit_name
 	GameState.resume_node_id = save.selected_node_id
 
-	# ★★★ 关键：恢复资源 ★★★
+	# ---- 恢复资源 ----
 	GameState.soul = save.soul
 	GameState.temp_soul = save.temp_soul
 	GameState.temp_gold = save.temp_gold
 	GameState.interrupt_state = save.interrupt_state
 	GameState.battlefield_data = save.battlefield_data
+
+	# ---- 恢复单位解锁状态 ----
+	Globals.unlocked_units = save.unlocked_units.duplicate()
+	print("单位解锁状态已恢复：", Globals.unlocked_units)
 
 	# ---- 恢复 visited_nodes ----
 	GameState.visited_nodes.clear()
@@ -214,7 +218,15 @@ func _apply_save_data(save: SaveData):
 
 	if GameState.party.is_empty():
 		GameState.current_map_data = null
-
+		
+	# ---- 恢复单位解锁状态，并与默认值合并 ----
+	var defaults = Globals.unlock_config.get("default_unlocked", ["剑士", "枪兵", "斧兵"])
+	var combined = save.unlocked_units.duplicate()
+	for u in defaults:
+		if u not in combined:
+			combined.append(u)
+	Globals.unlocked_units = combined
+	print("单位解锁状态已恢复（合并默认值）：", Globals.unlocked_units)
 	print("存档数据已恢复：temp_gold=", GameState.temp_gold, " temp_soul=", GameState.temp_soul)
 
 # ===== 校验 =====
@@ -229,9 +241,6 @@ func load_save_data(slot: int) -> SaveData:
 	if not ResourceLoader.exists(path):
 		return null
 	return load(path) as SaveData
-
-func apply_save_data(save: SaveData):
-	_apply_save_data(save)
 
 func is_map_data_valid(save: SaveData) -> bool:
 	return not save.party_data.is_empty()

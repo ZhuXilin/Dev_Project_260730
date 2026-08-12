@@ -28,6 +28,10 @@ var sound_volume : float = 0.2
 # ---- 游戏速度偏移量（-2 ~ 4，0 为 1 倍速） ----
 var game_speed : int = 0
 
+# ---- 单位解锁系统 ----
+var unlocked_units: Array[String] = []
+var unlock_config: Dictionary = {}
+
 # ---- 游戏状态标志 ----
 var is_fading : bool = false
 var is_performing_action : bool = false
@@ -66,7 +70,8 @@ var default_items = {
 func _ready():
 	_set_default_window()
 	_apply_game_speed()
-
+	_load_unlock_config()
+	
 # ============================================================
 #  窗口管理
 # ============================================================
@@ -154,3 +159,46 @@ func increment_battle_turn():
 	_last_increment_time = now
 	current_battle_turn += 1
 	print("回合计数递增: ", current_battle_turn)
+
+# Globals.gd
+func _load_unlock_config():
+	var path = "res://content/data/unit_unlock.json"
+	if not FileAccess.file_exists(path):
+		unlock_config = { "default_unlocked": ["剑士", "枪兵"] }
+		# 显式构建 Array[String]
+		var arr: Array[String] = []
+		for item in unlock_config["default_unlocked"]:
+			if item is String:
+				arr.append(item)
+		unlocked_units = arr
+		return
+
+	var file = FileAccess.open(path, FileAccess.READ)
+	var content = file.get_as_text()
+	file.close()
+	var data = JSON.parse_string(content)
+
+	if data and data is Dictionary:
+		unlock_config = data
+		var raw = data.get("default_unlocked", ["剑士", "枪兵"])
+		# 转换为 Array[String]
+		var arr: Array[String] = []
+		for item in raw:
+			if item is String:
+				arr.append(item)
+		unlocked_units = arr
+	else:
+		# 回退默认值
+		var arr: Array[String] = ["剑士", "枪兵"]
+		unlocked_units = arr
+
+func is_unit_unlocked(unit_name: String) -> bool:
+	return unit_name in unlocked_units
+
+func unlock_unit(unit_name: String):
+	if unit_name not in unlocked_units:
+		unlocked_units.append(unit_name)
+		print("单位解锁：", unit_name)
+
+func get_unlocked_units() -> Array[String]:
+	return unlocked_units.duplicate()

@@ -164,48 +164,64 @@ func _on_abandon_confirmed():
 	get_tree().change_scene_to_file("res://content/scenes/ui/Camp.tscn")
 
 # ---- 战斗完成回调 ----
+# MapScene.gd
 func _on_battle_completed(winning_team: int, is_boss: bool = false):
-	print("=== 进入 _on_battle_completed ===")
+	print("=== MapScene._on_battle_completed 被触发 ===")
 	print("winning_team=", winning_team, " is_boss=", is_boss)
-	print("当前 temp_gold=", GameState.temp_gold, " temp_soul=", GameState.temp_soul)
 
 	if not is_boss and GameState.current_map_data:
 		is_boss = (GameState.current_map_data.node_type == MapNode.NodeType.BOSS)
 
 	if winning_team == 0:
-		print("玩家胜利，累加资源前 temp_gold=", GameState.temp_gold, " temp_soul=", GameState.temp_soul)
-		GameState.temp_gold += 10
-		if is_boss:
-			GameState.temp_soul += 1
-		print("累加资源后 temp_gold=", GameState.temp_gold, " temp_soul=", GameState.temp_soul)
+		# ---- 玩家胜利 ----
+		# 资源已在 Battlefield 中累加，此处只需更新显示和保存
 		update_all_displays()
 		_save_game()
 
 		if is_boss:
-			print("Boss 分支开始，should_advance_day 原值=", GameState.should_advance_day)
-			GameState.should_advance_day = false  # 确保只触发一次
+			# =========================================================
+			# ★★★ Boss 胜利分支 ★★★
+			# =========================================================
+			print("检测到 Boss 胜利，推进天数")
+			# 清除推进标记，防止重复触发
+			GameState.should_advance_day = false
+
 			var has_next = LevelManager.advance_day()
-			print("advance_day 结果 has_next=", has_next)
 			if not has_next:
-				# ... 三天完成逻辑 ...
+				# ---- 三天全部完成 ----
+				GameState.finish_cycle()          # 将临时资源转入永久
+				GameState.reset_for_new_cycle()   # 重置进度（保留永久资源）
+				GameState.interrupt_state = 1
+				_save_game()
+				var dialog = AcceptDialog.new()
+				dialog.dialog_text = "恭喜完成所有冒险！\n获得魂：%d" % GameState.soul
+				add_child(dialog)
+				dialog.popup_centered()
+				dialog.confirmed.connect(_on_cycle_complete)
 				return
+
+			# ---- 还有下一天 ----
 			var new_day = LevelManager.current_day + 1
 			current_day = new_day
 			GameState.current_day = new_day
 			level_list = LevelManager.get_current_day_levels()
+
+			# ★ 单位解锁由事件驱动，不再在这里调用 Globals.apply_day_unlocks ★
+
+			# 生成新地图
 			generate_map(new_day)
 			_setup_ui()
-			update_all_displays()
-			print("Boss 分支结束时 temp_gold=", GameState.temp_gold, " temp_soul=", GameState.temp_soul)
-			_save_game()
+			update_all_displays()      # 刷新资源显示
+			_save_game()               # 保存进度（含解锁状态）
+			print("Boss 胜利：进入第 ", new_day, " 天")
 			return
-		# 普通战斗胜利
+
+		# ---- 普通战斗胜利 ----
 		if map_data and map_data.root_node:
 			_update_availability(map_data.root_node)
 			_save_game()
 	else:
-		print("战斗失败")
-	print("=== 退出 _on_battle_completed ===")
+		print("战斗失败，可重新尝试")
 
 func _on_cycle_complete():
 	GameState.interrupt_state = 1

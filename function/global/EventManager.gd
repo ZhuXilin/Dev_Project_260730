@@ -46,6 +46,7 @@ func register_event(event_id: String, event_def: Dictionary):
 	else:
 		print("事件已存在，跳过注册: ", event_id)
 
+# EventManager.gd
 func trigger_event(event_id: String, unit: Unit = null, default_music: AudioStream = null):
 	if not _events.has(event_id):
 		push_error("未知事件: ", event_id)
@@ -65,11 +66,11 @@ func trigger_event(event_id: String, unit: Unit = null, default_music: AudioStre
 				print("非战斗地图完成事件触发")
 				SignalBus.non_combat_complete.emit()
 				await get_tree().process_frame
+
 			"dialog":
 				var dialog_id = action.get("dialog_id", "")
 				var music_stream = action.get("music", default_music)
 				if dialog_id != "":
-					# 如果对话已经激活，则跳过等待
 					if DialogueManager.is_active:
 						print("对话已激活，跳过: ", dialog_id)
 					else:
@@ -77,6 +78,7 @@ func trigger_event(event_id: String, unit: Unit = null, default_music: AudioStre
 						await DialogueManager.dialogue_finished
 				else:
 					push_error("对话动作缺少 dialog_id")
+
 			"give_item":
 				if unit == null:
 					print("警告: 无单位，跳过 give_item")
@@ -85,7 +87,7 @@ func trigger_event(event_id: String, unit: Unit = null, default_music: AudioStre
 				var count = action.get("count", 1)
 				if item_id != "":
 					if unit.add_item(item_id, count):
-						await show_item_get_popup(item_id, count)   # 添加 await
+						await show_item_get_popup(item_id, count)
 					else:
 						print("道具获得失败，背包已满，弹出丢弃界面")
 						var ui_mgr = _get_ui_manager()
@@ -101,6 +103,7 @@ func trigger_event(event_id: String, unit: Unit = null, default_music: AudioStre
 							print("无法获取 UIManager，放弃获得道具")
 				else:
 					push_error("give_item 动作缺少 item_id")
+
 			"heal":
 				if unit == null:
 					print("警告: 无单位，跳过 heal")
@@ -112,6 +115,7 @@ func trigger_event(event_id: String, unit: Unit = null, default_music: AudioStre
 					SignalBus.request_damage_popup.emit(unit.global_position, amount, false, false, true)
 					SoundManager.play_heal_sound()
 					await get_tree().create_timer(0.3).timeout
+
 			"damage":
 				if unit == null:
 					print("警告: 无单位，跳过 damage")
@@ -127,15 +131,27 @@ func trigger_event(event_id: String, unit: Unit = null, default_music: AudioStre
 						UnitManager.unregister_unit(unit)
 						unit.queue_free()
 						TurnManager.check_victory()
+
 			"wait":
 				var seconds = action.get("seconds", 0.5)
 				await get_tree().create_timer(seconds).timeout
+
+			"unlock_unit":
+				var units = action.get("units", [])
+				if units is String:
+					units = [units]
+				for u in units:
+					if u != "" and u != null:
+						Globals.unlock_unit(u)
+						print("事件解锁单位：", u)
+
 			_:
 				push_error("未知动作类型: ", action_type)
 
 	if event_def.get("once", true):
 		mark_event_completed(event_id)
 
+# EventManager.gd
 func show_item_get_popup(item_id: String, count: int):
 	var root = get_tree().current_scene
 	if not root:
@@ -146,7 +162,7 @@ func show_item_get_popup(item_id: String, count: int):
 	var popup = ItemGetPopupScene.instantiate()
 	root.add_child(popup)
 	popup.show_item(item_id, count)
-	await get_tree().create_timer(2.0).timeout   # 等待2秒
+	await get_tree().create_timer(2.0).timeout
 	Globals.is_item_get_popup_active = false
 	MusicManager.resume_saved()
 

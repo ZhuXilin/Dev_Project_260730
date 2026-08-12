@@ -49,11 +49,11 @@ func _on_continue_pressed():
 		SaveManager.clean_invalid_progress(slot)
 		save = SaveManager.load_save_data(slot)
 		_show_continue_error("存档数据异常，已重置地图进度，临时资源已丢弃。")
-		SaveManager.apply_save_data(save)
+		SaveManager._apply_save_data(save)
 		get_tree().change_scene_to_file("res://content/scenes/ui/Camp.tscn")
 		return
 
-	SaveManager.apply_save_data(save)
+	SaveManager._apply_save_data(save)
 	match save.interrupt_state:
 		2:
 			get_tree().change_scene_to_file("res://content/scenes/ui/MapScene.tscn")

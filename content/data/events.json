@@ -1,11 +1,4 @@
 {
-  "village_encounter": {
-	"actions": [
-	  { "type": "dialog", "dialog_id": "treasure_hunt" },
-	  { "type": "give_item", "item_id": "potion", "count": 3 }
-	],
-	"once": true
-  },
   "obtain_longbow": {
 	"actions": [
 	  { "type": "give_item", "item_id": "longbow", "count": 1 }
@@ -53,6 +46,21 @@
 	"actions": [
 	  { "type": "dialog", "dialog_id": "complete_dialog" },
 	  { "type": "complete" }
+	]
+  },
+  "village_encounter": {
+	"once": true,
+	"actions": [
+	  { "type": "dialog", "dialog_id": "village_encounter_dlg" },
+	  { "type": "unlock_unit", "units": ["飞马"] }
+	],
+	"once": true
+  },
+  "boss_defeated": {
+	"once": true,
+	"actions": [
+	  { "type": "dialog", "dialog_id": "boss_defeat_dlg" },
+	  { "type": "unlock_unit", "units": ["弓兵", "飞马"] }
 	]
   }
 }

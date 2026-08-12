@@ -14,8 +14,22 @@ var max_selection: int = 3
 func _ready():
 	if MusicManager.config and MusicManager.config.unit_select_music:
 		MusicManager.play_music(MusicManager.config.unit_select_music)
+	
+	# 让标签可点击（用于移除单位）
+	_make_label_clickable(main_label, 0)
+	_make_label_clickable(slot1_label, 1)
+	_make_label_clickable(slot2_label, 2)
+	
 	_setup_unit_buttons()
 	_update_labels()
+
+func _make_label_clickable(label: Label, index: int):
+	label.mouse_filter = Control.MOUSE_FILTER_STOP
+	label.gui_input.connect(func(event):
+		if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+			_on_slot_clicked(index)
+	)
+	label.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 
 func _setup_unit_buttons():
 	for child in unit_buttons.get_children():
@@ -25,26 +39,35 @@ func _setup_unit_buttons():
 		btn.text = unit_name
 		btn.add_theme_font_size_override("font_size", 8)
 		btn.size = Vector2(100, 30)
-		btn.pressed.connect(_on_unit_selected.bind(unit_name, btn))
+		var unlocked = Globals.is_unit_unlocked(unit_name)
+		btn.disabled = not unlocked
+		if not unlocked:
+			btn.modulate = Color(0.5, 0.5, 0.5)
+			btn.tooltip_text = "未解锁"
+		btn.pressed.connect(_on_unit_selected.bind(unit_name))
 		unit_buttons.add_child(btn)
 
-func _on_unit_selected(unit_name: String, btn: Button):
-	if unit_name in selected_units:
-		selected_units.erase(unit_name)
-		btn.modulate = Color.WHITE
-		_update_labels()
-		return
+func _on_unit_selected(unit_name: String):
 	if selected_units.size() >= max_selection:
 		return
 	selected_units.append(unit_name)
-	btn.modulate = Color.GREEN
 	_update_labels()
 
+func _on_slot_clicked(index: int):
+	if index < selected_units.size():
+		selected_units.remove_at(index)
+		_update_labels()
+		SoundManager.play_cancel_sound()
+
 func _update_labels():
-	main_label.text = "主单位: " + (selected_units[0] if selected_units.size() >= 1 else "(未选择)")
-	slot1_label.text = "辅助1: " + (selected_units[1] if selected_units.size() >= 2 else "(未选择)")
-	slot2_label.text = "辅助2: " + (selected_units[2] if selected_units.size() >= 3 else "(未选择)")
-	confirm_btn.disabled = selected_units.size() < 3
+	var slots = ["主单位", "辅助1", "辅助2"]
+	var labels = [main_label, slot1_label, slot2_label]
+	for i in range(max_selection):
+		if i < selected_units.size():
+			labels[i].text = slots[i] + ": " + selected_units[i]
+		else:
+			labels[i].text = slots[i] + ": (未选择)"
+	confirm_btn.disabled = selected_units.size() < max_selection
 
 func _on_confirm_pressed():
 	var target_slot = -1
