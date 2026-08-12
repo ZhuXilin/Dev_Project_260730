@@ -107,9 +107,7 @@ func start_new_cycle():
 	temp_gold = 0
 
 func finish_cycle():
-	soul += temp_soul
-	temp_soul = 0
-	temp_gold = 0
+	finish_day()          # 合并魂并清零
 
 func abandon_cycle():
 	temp_soul = 0
@@ -151,3 +149,8 @@ func reset_all():
 	temp_soul = 0
 	temp_gold = 0
 	interrupt_state = 0
+
+func finish_day():
+	soul += temp_soul
+	temp_soul = 0
+	print("每天结束：soul=", soul, " temp_soul 已清零")

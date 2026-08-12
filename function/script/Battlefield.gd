@@ -2141,6 +2141,7 @@ func _on_abandon_battle_pressed():
 	confirm.confirmed.connect(_on_abandon_battle_confirmed)
 
 func _on_abandon_battle_confirmed():
+	GameState.finish_day()
 	Globals.is_performing_action = false
 	TurnManager.is_game_over = true
 	GameState.abandon_cycle()

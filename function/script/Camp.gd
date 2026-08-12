@@ -6,7 +6,7 @@ func _ready():
 	update_display()
 
 func update_display():
-	soul_label.text = str(GameState.soul)
+	soul_label.text = str(GameState.soul + GameState.temp_soul)
 
 func _on_deploy_pressed():
 	if GameState.cached_map_level_data != null and not GameState.party.is_empty():
