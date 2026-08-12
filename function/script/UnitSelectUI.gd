@@ -34,16 +34,16 @@ func _make_label_clickable(label: Label, index: int):
 func _setup_unit_buttons():
 	for child in unit_buttons.get_children():
 		child.queue_free()
-	for unit_name in all_unit_names:
+
+	# 获取已解锁单位列表（按名称排序）
+	var unlocked = Globals.get_unlocked_units()
+	unlocked.sort()
+
+	for unit_name in unlocked:
 		var btn = Button.new()
 		btn.text = unit_name
 		btn.add_theme_font_size_override("font_size", 8)
 		btn.size = Vector2(100, 30)
-		var unlocked = Globals.is_unit_unlocked(unit_name)
-		btn.disabled = not unlocked
-		if not unlocked:
-			btn.modulate = Color(0.5, 0.5, 0.5)
-			btn.tooltip_text = "未解锁"
 		btn.pressed.connect(_on_unit_selected.bind(unit_name))
 		unit_buttons.add_child(btn)
 

@@ -8,7 +8,8 @@
 	"speed": 6,
 	"luck": 5,
 	"ignore_terrain_cost": false,
-	"sprite_frames_path": "res://content/images/characters/unit_swordsmen_frames.tres"
+	"sprite_frames_path": "res://content/images/characters/unit_swordsmen_frames.tres",
+	"description": "平衡型近战单位，擅长剑术，攻守兼备。"
   },
   "枪兵": {
 	"max_hp": 27,
@@ -19,7 +20,8 @@
 	"speed": 3,
 	"luck": 2,
 	"ignore_terrain_cost": false,
-	"sprite_frames_path": "res://content/images/characters/unit_knight_frames.tres"
+	"sprite_frames_path": "res://content/images/characters/unit_knight_frames.tres",
+	"description": "长枪兵，攻击力高，移动距离远，克制骑兵。"
   },
   "斧兵": {
 	"max_hp": 17,
@@ -30,7 +32,8 @@
 	"speed": 2,
 	"luck": 1,
 	"ignore_terrain_cost": false,
-	"sprite_frames_path": "res://content/images/characters/unit_axeman_frames.tres"
+	"sprite_frames_path": "res://content/images/characters/unit_axeman_frames.tres",
+	"description": "狂战士，高攻击力但命中率低，适合破甲。"
   },
   "弓兵": {
 	"max_hp": 14,
@@ -41,7 +44,8 @@
 	"speed": 3,
 	"luck": 2,
 	"ignore_terrain_cost": false,
-	"sprite_frames_path": "res://content/images/characters/unit_archer_frames.tres"
+	"sprite_frames_path": "res://content/images/characters/unit_archer_frames.tres",
+	"description": "远程物理单位，可攻击远处敌人，克制飞行单位。"
   },
   "飞马": {
 	"max_hp": 24,
@@ -52,7 +56,8 @@
 	"speed": 3,
 	"luck": 4,
 	"ignore_terrain_cost": true,
-	"sprite_frames_path": "res://content/images/characters/unit_pegasus_frames.tres"
+	"sprite_frames_path": "res://content/images/characters/unit_pegasus_frames.tres",
+	"description": "飞行骑兵，无视地形移动，机动性极强。"
   },
   "法师": {
 	"max_hp": 18,
@@ -63,7 +68,8 @@
 	"speed": 4,
 	"luck": 2,
 	"ignore_terrain_cost": false,
-	"sprite_frames_path": "res://content/images/characters/unit_mage_frames.tres"
+	"sprite_frames_path": "res://content/images/characters/unit_mage_frames.tres",
+	"description": "魔法攻击单位，拥有魔法防御力，攻击力较高。"
   },
   "修女": {
 	"max_hp": 14,
@@ -74,28 +80,31 @@
 	"speed": 4,
 	"luck": 4,
 	"ignore_terrain_cost": false,
-	"sprite_frames_path": "res://content/images/characters/unit_cleric_frames.tres"
+	"sprite_frames_path": "res://content/images/characters/unit_cleric_frames.tres",
+	"description": "治疗单位，可恢复队友生命值，魔法防御高。"
   },
-	"龙人": {
-	  "max_hp": 30,
-	  "defense": 5,
-	  "magic_defense": 5,
-	  "move_range": 3,
-	  "skill": 2,
-	  "speed": 2,
-	  "luck": 3,
-	  "ignore_terrain_cost": false,
-	  "sprite_frames_path": "res://content/images/characters/unit_dragonborn.tres"
-	},
-	"重甲兵": {
-	  "max_hp": 30,
-	  "defense": 4,
-	  "magic_defense": 0,
-	  "move_range": 3,
-	  "skill": 2,
-	  "speed": 2,
-	  "luck": 2,
-	  "ignore_terrain_cost": false,
-	  "sprite_frames_path": "res://content/images/characters/unit_heavyarmored.tres"
-	}
+  "龙人": {
+	"max_hp": 30,
+	"defense": 5,
+	"magic_defense": 5,
+	"move_range": 3,
+	"skill": 2,
+	"speed": 2,
+	"luck": 3,
+	"ignore_terrain_cost": false,
+	"sprite_frames_path": "res://content/images/characters/unit_dragonborn.tres",
+	"description": "龙族后裔，拥有极高防御和魔法防御，移动缓慢但顽强。"
+  },
+  "重甲兵": {
+	"max_hp": 30,
+	"defense": 4,
+	"magic_defense": 0,
+	"move_range": 3,
+	"skill": 2,
+	"speed": 2,
+	"luck": 2,
+	"ignore_terrain_cost": false,
+	"sprite_frames_path": "res://content/images/characters/unit_heavyarmored.tres",
+	"description": "重装步兵，高物理防御和生命值，移动力较低。"
+  }
 }

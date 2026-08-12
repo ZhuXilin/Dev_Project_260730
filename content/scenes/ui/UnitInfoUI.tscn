@@ -1,0 +1,59 @@
+[gd_scene format=3 uid="uid://rp3d3uu5hjgq"]
+
+[ext_resource type="Script" uid="uid://d1b3lwij3hsde" path="res://function/script/UnitInfoUI.gd" id="1"]
+[ext_resource type="StyleBox" uid="uid://6qbsaxkfwg3o" path="res://content/resource/stylebox/8bit_style_box_flat.tres" id="1_ks8yl"]
+
+[node name="UnitInfoUI" type="PanelContainer" unique_id=123456789]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+theme_override_styles/panel = ExtResource("1_ks8yl")
+script = ExtResource("1")
+
+[node name="VBoxContainer" type="VBoxContainer" parent="." unique_id=2144589503]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+
+[node name="Title" type="Label" parent="VBoxContainer" unique_id=1100851483]
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+text = "单位图鉴"
+horizontal_alignment = 1
+
+[node name="HBoxContainer" type="HBoxContainer" parent="VBoxContainer" unique_id=726945370]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="ScrollContainer" type="ScrollContainer" parent="VBoxContainer/HBoxContainer" unique_id=271467124]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+
+[node name="UnitList" type="VBoxContainer" parent="VBoxContainer/HBoxContainer/ScrollContainer" unique_id=2056534670]
+layout_mode = 2
+
+[node name="InfoPanel" type="VBoxContainer" parent="VBoxContainer/HBoxContainer" unique_id=123456788]
+layout_mode = 2
+size_flags_horizontal = 2
+size_flags_vertical = 3
+
+[node name="SpriteContainer" type="Panel" parent="VBoxContainer/HBoxContainer/InfoPanel" unique_id=567890123]
+layout_mode = 2
+theme_override_styles/panel = ExtResource("1_ks8yl")
+
+[node name="UnitSprite" type="AnimatedSprite2D" parent="VBoxContainer/HBoxContainer/InfoPanel/SpriteContainer" unique_id=408936956]
+position = Vector2(0, -4)
+
+[node name="DetailLabel" type="Label" parent="VBoxContainer/HBoxContainer/InfoPanel" unique_id=953684023]
+layout_mode = 2
+size_flags_vertical = 1
+theme_override_font_sizes/font_size = 8
+
+[node name="BackButton" type="Button" parent="VBoxContainer" unique_id=209989787]
+layout_mode = 2
+theme_override_font_sizes/font_size = 8
+text = "返回营地"
+
+[connection signal="pressed" from="VBoxContainer/BackButton" to="." method="_on_back_button_pressed"]

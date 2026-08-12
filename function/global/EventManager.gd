@@ -140,11 +140,13 @@ func trigger_event(event_id: String, unit: Unit = null, default_music: AudioStre
 				var units = action.get("units", [])
 				if units is String:
 					units = [units]
+				var unlocked = []
 				for u in units:
 					if u != "" and u != null:
 						Globals.unlock_unit(u)
-						print("事件解锁单位：", u)
-
+						unlocked.append(u)
+				if unlocked.size() > 0:
+					show_unit_unlock_popup(unlocked)
 			_:
 				push_error("未知动作类型: ", action_type)
 
@@ -188,3 +190,43 @@ func _on_give_item_drop_success(unit: Unit, item_id: String, count: int):
 
 func _on_give_item_drop_cancel():
 	print("用户取消获得道具")
+
+func show_unit_unlock_popup(units: Array):
+	var root = get_tree().current_scene
+	if not root:
+		return
+	# 防止多个弹窗重叠
+	if Globals.is_item_get_popup_active:
+		return
+	Globals.is_item_get_popup_active = true
+	MusicManager.pause_and_save()
+	SoundManager.play_get_item_sound()
+
+	var popup = CanvasLayer.new()
+	popup.layer = 30
+	root.add_child(popup)
+
+	var panel = Panel.new()
+	panel.size = Vector2(200, 100)
+	var viewport_size = root.get_viewport().get_visible_rect().size
+	panel.position = viewport_size / 2 - panel.size / 2
+	var stylebox = load("res://content/resource/stylebox/8bit_style_box_flat.tres")
+	if stylebox:
+		panel.add_theme_stylebox_override("panel", stylebox)
+	popup.add_child(panel)
+
+	var label = Label.new()
+	var text = "解锁单位：\n" + ", ".join(units)
+	label.text = text
+	label.add_theme_font_size_override("font_size", 10)
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	label.size = panel.size - Vector2(20, 20)
+	label.position = Vector2(10, 10)
+	panel.add_child(label)
+
+	await get_tree().create_timer(2.0).timeout
+
+	Globals.is_item_get_popup_active = false
+	MusicManager.resume_saved()
+	popup.queue_free()

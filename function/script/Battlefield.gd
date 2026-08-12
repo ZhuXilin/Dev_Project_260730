@@ -131,7 +131,7 @@ func _ready():
 		SignalBus.non_combat_complete.connect(_on_non_combat_complete)
 	
 	if end_turn_button:
-		end_turn_button.text = "F 结束回合"
+		end_turn_button.text = "鼠标中键结束回合"
 		end_turn_button.visible = not is_non_combat_mode
 		
 	if _initialized:
@@ -1077,22 +1077,9 @@ func _on_clear_highlight_unit():
 		_attack_indicator.visible = false
 
 # ===================== 输入处理 =====================
+# Battlefield.gd
 func _input(event: InputEvent):
-	# ---- 非战斗模式：只拦截 F 键和 0 键，其他事件正常传递 ----
-	if is_non_combat_mode and event is InputEventKey and event.pressed:
-		if Globals.is_fading or Globals.is_transitioning or Globals.is_dialogue_active:
-			return
-		if TurnManager.is_game_over:
-			return   # 胜利后忽略所有按键
-		if event.keycode == KEY_F:
-			_end_player_turn()
-			return
-		elif event.keycode == KEY_0 or event.keycode == KEY_KP_0:
-			print("GM命令：强制完成非战斗地图")
-			_on_non_combat_complete()
-			return
-
-	# ---- 以下为战斗模式的输入处理 ----
+	# ---- 道具操作面板右键关闭 ----
 	if Globals.is_item_action_panel_open and event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT:
 		print("_input 捕获到 ItemActionPanel 右键")
 		get_viewport().set_input_as_handled()
@@ -1106,12 +1093,14 @@ func _input(event: InputEvent):
 		ui_manager.panel_unit = null
 		return
 
+	# ---- 武器选择菜单右键关闭 ----
 	if Globals.is_weapon_select_active:
 		if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT:
 			ui_manager.hide_weapon_select_menu()
 			get_viewport().set_input_as_handled()
 		return
 
+	# ---- 装备菜单右键关闭 ----
 	if Globals.is_equip_menu_active:
 		if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT:
 			Globals.suppress_sound = true
@@ -1122,45 +1111,50 @@ func _input(event: InputEvent):
 				SignalBus.request_show_menu.emit(InputManager.selected_unit)
 		return
 
+	# ---- 对话或道具弹出时屏蔽所有输入 ----
 	if Globals.is_dialogue_active or Globals.is_item_menu_active or Globals.is_item_get_popup_active:
 		return
 
+	# ---- 鼠标中键结束回合（替代原 F 键） ----
+	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_MIDDLE:
+		if TurnManager.current_turn_team == 0 and not Globals.is_fading and not Globals.is_transitioning and not Globals.is_dialogue_active:
+			_end_player_turn()
+			return
+
+	# ---- 键盘事件（调试快捷键等，已移除 F 键） ----
 	if event is InputEventKey and event.pressed:
-		# ---- F 键结束回合（战斗模式） ----
-		if event.keycode == KEY_F:
-			if TurnManager.current_turn_team == 0 and not Globals.is_fading:
-				_end_player_turn()
-				return
+		# 调试：杀死所有敌方单位 (0 键)
+		if event.keycode == KEY_0 or event.keycode == KEY_KP_0:
+			print("调试：杀死所有敌方单位")
+			var enemies = []
+			for unit in UnitManager.unit_list:
+				if unit.unit_stats.team_id == 1 and unit.hit_points > 0:
+					enemies.append(unit)
+			for enemy in enemies:
+				enemy.apply_damage(enemy.hit_points)
+				UnitManager.unregister_unit(enemy)
+				enemy.queue_free()
+			TurnManager.check_victory()
+			return
+		# 调试：杀死所有我方单位 (9 键)
+		elif event.keycode == KEY_9 or event.keycode == KEY_KP_9:
+			print("调试：杀死所有我方单位")
+			var allies = []
+			for unit in UnitManager.unit_list:
+				if unit.unit_stats.team_id == 0 and unit.hit_points > 0:
+					allies.append(unit)
+			for ally in allies:
+				ally.apply_damage(ally.hit_points)
+				UnitManager.unregister_unit(ally)
+				ally.queue_free()
+			TurnManager.check_victory()
+			return
 
-		if TurnManager.current_turn_team == 0 and not Globals.is_fading and not Globals.is_transitioning:
-			if event.keycode == KEY_0 or event.keycode == KEY_KP_0:
-				print("调试：杀死所有敌方单位")
-				var enemies = []
-				for unit in UnitManager.unit_list:
-					if unit.unit_stats.team_id == 1 and unit.hit_points > 0:
-						enemies.append(unit)
-				for enemy in enemies:
-					enemy.apply_damage(enemy.hit_points)
-					UnitManager.unregister_unit(enemy)
-					enemy.queue_free()
-				TurnManager.check_victory()
-				return
-			elif event.keycode == KEY_9 or event.keycode == KEY_KP_9:
-				print("调试：杀死所有我方单位")
-				var allies = []
-				for unit in UnitManager.unit_list:
-					if unit.unit_stats.team_id == 0 and unit.hit_points > 0:
-						allies.append(unit)
-				for ally in allies:
-					ally.apply_damage(ally.hit_points)
-					UnitManager.unregister_unit(ally)
-					ally.queue_free()
-				TurnManager.check_victory()
-				return
-
+	# ---- 过渡或锁定状态时屏蔽输入 ----
 	if Globals.is_transitioning or Globals.is_fading:
 		return
 
+	# ---- 鼠标滚轮切换单位 ----
 	if event is InputEventMouseButton and event.pressed:
 		if event.button_index == MOUSE_BUTTON_WHEEL_UP or event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
 			if (Globals.is_equip_menu_active or 
@@ -1179,11 +1173,13 @@ func _input(event: InputEvent):
 				InputManager.handle_wheel(direction)
 			return
 
+	# ---- 敌方回合或游戏结束屏蔽 ----
 	if TurnManager.current_turn_team != 0:
 		return
 	if TurnManager.all_acted:
 		return
 
+	# ---- 键盘 1/2/3 模拟移动/攻击/待机（仅调试） ----
 	if event is InputEventKey and event.pressed:
 		if event.keycode == KEY_1:
 			print("键盘 1 按下 - 模拟移动")
@@ -1195,22 +1191,27 @@ func _input(event: InputEvent):
 			print("键盘 3 按下 - 模拟待机")
 			_on_wait_btn_pressed()
 
+	# ---- 移动动画中屏蔽鼠标操作 ----
 	if TurnManager.is_moving:
 		return
 
+	# ---- 鼠标事件（左键点击 / 右键取消） ----
 	if event is InputEventMouseButton and event.pressed:
 		if event.button_index == MOUSE_BUTTON_RIGHT:
 			InputManager.handle_input(event, map_grid_size, CELL_SIZE)
 			return
 		if event.button_index == MOUSE_BUTTON_LEFT:
+			# 如果菜单打开且不是给予模式，则忽略左键点击（由菜单按钮处理）
 			if action_menu.visible and InputManager.interaction_phase != "give":
 				return
 			var mouse_pos = get_global_mouse_position()
 			var clicked_cell = world_to_grid(mouse_pos)
 			InputManager.handle_click(clicked_cell)
 	else:
+		# 其他输入（如鼠标移动）交给 InputManager
 		InputManager.handle_input(event, map_grid_size, CELL_SIZE)
 
+	# ---- 装备菜单激活时阻止后续操作 ----
 	if Globals.is_equip_menu_active:
 		return
 
@@ -1913,7 +1914,7 @@ func _setup_non_combat_mode():
 	
 	# ---- EndTurnButton 保持正常 ----
 	if end_turn_button:
-		end_turn_button.text = "F 结束回合"
+		end_turn_button.text = "鼠标中键结束回合"
 		end_turn_button.visible = true
 		end_turn_button.modulate = Color.WHITE
 	
