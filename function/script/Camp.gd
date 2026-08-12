@@ -4,6 +4,13 @@ extends CanvasLayer
 
 func _ready():
 	update_display()
+	_play_camp_music()
+
+func _play_camp_music():
+	if MusicManager.config and MusicManager.config.camp_music:
+		MusicManager.play_music(MusicManager.config.camp_music)
+	else:
+		pass
 
 func update_display():
 	soul_label.text = str(GameState.soul + GameState.temp_soul)

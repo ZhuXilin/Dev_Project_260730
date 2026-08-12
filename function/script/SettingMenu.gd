@@ -105,17 +105,13 @@ func _apply_window_size(index: int):
 		var height = BASE_HEIGHT * multiplier
 		DisplayServer.window_set_size(Vector2i(width, height))
 
-# ---- 回到营地（取代原回到主菜单） ----
 func _on_back_to_camp_pressed():
 	var current_scene = get_tree().current_scene
 	var scene_path = current_scene.scene_file_path if current_scene else ""
-	# 判断当前场景是否为 MapScene 或 Battlefield
 	var is_map_or_battle = scene_path.ends_with("MapScene.tscn") or scene_path.ends_with("Battlefield.tscn")
 
 	if is_map_or_battle:
-		# 放弃本局，回到营地（与 MapScene 放弃按钮逻辑一致）
-		GameState.abandon_and_return_to_camp()
+		GameState.show_abandon_confirmation(self)
 	else:
-		# 营地中则直接保存并刷新营地
 		SaveManager.save_game(SaveManager.current_slot, false)
 		get_tree().change_scene_to_file("res://content/scenes/ui/Camp.tscn")

@@ -157,8 +157,23 @@ func finish_day():
 
 func abandon_and_return_to_camp():
 	finish_day()                     # 合并当天魂到永久
-	abandon_cycle()                  # 丢弃临时资源（temp_soul/temp_gold清零）
+	abandon_cycle()                  # 丢弃临时资源
 	reset_all()                      # 重置进度（保留永久魂和已解锁单位）
 	interrupt_state = 1
 	SaveManager.save_game(SaveManager.current_slot, false)
 	get_tree().change_scene_to_file("res://content/scenes/ui/Camp.tscn")
+
+func show_abandon_confirmation(parent: Node):
+	var dialog = ConfirmationDialog.new()
+	dialog.dialog_text = "确定放弃本局游戏吗？进度将丢失，已获得的临时资源将丢弃。"
+	dialog.ok_button_text = "放弃"
+	dialog.cancel_button_text = "取消"
+	parent.add_child(dialog)
+	dialog.popup_centered()
+	dialog.confirmed.connect(func():
+		abandon_and_return_to_camp()
+		dialog.queue_free()
+	)
+	dialog.canceled.connect(func():
+		dialog.queue_free()
+	)

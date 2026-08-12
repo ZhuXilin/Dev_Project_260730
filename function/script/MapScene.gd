@@ -140,15 +140,8 @@ func _on_interrupt_pressed():
 	_save_game()
 	get_tree().change_scene_to_file("res://content/scenes/ui/MainMenu.tscn")
 
-# AbandonButton 逻辑不变
 func _on_abandon_pressed():
-	var confirm = ConfirmationDialog.new()
-	confirm.dialog_text = "确定回到营地吗？进度将丢失，已获得的临时资源将丢弃。"
-	confirm.ok_button_text = "放弃"
-	confirm.cancel_button_text = "取消"
-	add_child(confirm)
-	confirm.popup_centered()
-	confirm.confirmed.connect(_on_abandon_confirmed)
+	GameState.show_abandon_confirmation(self)
 
 func _on_abandon_confirmed():
 	GameState.abandon_and_return_to_camp()
