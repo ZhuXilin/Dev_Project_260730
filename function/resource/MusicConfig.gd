@@ -1,4 +1,3 @@
-# MusicConfig.gd
 extends Resource
 class_name MusicConfig
 
