@@ -3,9 +3,9 @@ extends Resource
 class_name MusicConfig
 
 @export var main_menu_music : AudioStream
-@export var camp_music : AudioStream 
-@export var map_music : AudioStream
+@export var camp_music : AudioStream
 @export var unit_select_music : AudioStream
+@export var map_music : AudioStream
 @export var non_combat_music : AudioStream
 @export var player_turn_music : AudioStream
 @export var enemy_turn_music : AudioStream
