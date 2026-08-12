@@ -1870,7 +1870,7 @@ func _on_map_victory_continue():
 func _on_map_defeat_gameover():
 	Globals.reset_battle_turn()
 	var confirm = ConfirmationDialog.new()
-	confirm.dialog_text = "战斗失败，是否重新挑战？\n（选择“取消”将放弃本局并回到营地）"
+	confirm.dialog_text = "战斗失败，是否重新挑战？\n（选择“取消”将回到营地）"
 	confirm.ok_button_text = "重试"
 	confirm.cancel_button_text = "放弃"
 	add_child(confirm)

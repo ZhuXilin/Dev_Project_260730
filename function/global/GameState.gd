@@ -154,3 +154,11 @@ func finish_day():
 	soul += temp_soul
 	temp_soul = 0
 	print("每天结束：soul=", soul, " temp_soul 已清零")
+
+func abandon_and_return_to_camp():
+	finish_day()                     # 合并当天魂到永久
+	abandon_cycle()                  # 丢弃临时资源（temp_soul/temp_gold清零）
+	reset_all()                      # 重置进度（保留永久魂和已解锁单位）
+	interrupt_state = 1
+	SaveManager.save_game(SaveManager.current_slot, false)
+	get_tree().change_scene_to_file("res://content/scenes/ui/Camp.tscn")

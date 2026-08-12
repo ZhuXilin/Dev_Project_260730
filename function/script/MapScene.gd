@@ -143,7 +143,7 @@ func _on_interrupt_pressed():
 # AbandonButton 逻辑不变
 func _on_abandon_pressed():
 	var confirm = ConfirmationDialog.new()
-	confirm.dialog_text = "确定放弃本局游戏吗？进度将丢失，已获得的临时资源将丢弃。"
+	confirm.dialog_text = "确定回到营地吗？进度将丢失，已获得的临时资源将丢弃。"
 	confirm.ok_button_text = "放弃"
 	confirm.cancel_button_text = "取消"
 	add_child(confirm)
@@ -151,15 +151,9 @@ func _on_abandon_pressed():
 	confirm.confirmed.connect(_on_abandon_confirmed)
 
 func _on_abandon_confirmed():
-	GameState.finish_day()
-	GameState.abandon_cycle()
-	GameState.reset_all()
-	GameState.interrupt_state = 1
-	_save_game()
-	get_tree().change_scene_to_file("res://content/scenes/ui/Camp.tscn")
+	GameState.abandon_and_return_to_camp()
 
 # ---- 战斗完成回调 ----
-# MapScene.gd
 func _on_battle_completed(winning_team: int, is_boss: bool = false):
 	print("=== MapScene._on_battle_completed 被触发 ===")
 	print("winning_team=", winning_team, " is_boss=", is_boss)

@@ -98,7 +98,7 @@ theme_override_styles/pressed = ExtResource("2")
 theme_override_styles/hover = ExtResource("2")
 theme_override_styles/disabled = ExtResource("2")
 theme_override_styles/focus = ExtResource("2")
-text = "放弃本局"
+text = "回到营地"
 
 [node name="InterruptButton" type="Button" parent="BottomBar" unique_id=691765922]
 layout_mode = 2
