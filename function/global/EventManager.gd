@@ -153,20 +153,15 @@ func trigger_event(event_id: String, unit: Unit = null, default_music: AudioStre
 	if event_def.get("once", true):
 		mark_event_completed(event_id)
 
-# EventManager.gd
 func show_item_get_popup(item_id: String, count: int):
 	var root = get_tree().current_scene
 	if not root:
 		return
-	Globals.is_item_get_popup_active = true
-	MusicManager.pause_and_save()
-	SoundManager.play_get_item_sound()
+	if Globals.is_item_get_popup_active:
+		return
 	var popup = ItemGetPopupScene.instantiate()
 	root.add_child(popup)
-	popup.show_item(item_id, count)
-	await get_tree().create_timer(2.0).timeout
-	Globals.is_item_get_popup_active = false
-	MusicManager.resume_saved()
+	popup.show_item(item_id, count)   # 内部自动处理音效和锁定
 
 func clear_completed():
 	_completed.clear()
@@ -195,38 +190,8 @@ func show_unit_unlock_popup(units: Array):
 	var root = get_tree().current_scene
 	if not root:
 		return
-	# 防止多个弹窗重叠
 	if Globals.is_item_get_popup_active:
 		return
-	Globals.is_item_get_popup_active = true
-	MusicManager.pause_and_save()
-	SoundManager.play_get_item_sound()
-
-	var popup = CanvasLayer.new()
-	popup.layer = 30
+	var popup = ItemGetPopupScene.instantiate()
 	root.add_child(popup)
-
-	var panel = Panel.new()
-	panel.size = Vector2(200, 100)
-	var viewport_size = root.get_viewport().get_visible_rect().size
-	panel.position = viewport_size / 2 - panel.size / 2
-	var stylebox = load("res://content/resource/stylebox/8bit_style_box_flat.tres")
-	if stylebox:
-		panel.add_theme_stylebox_override("panel", stylebox)
-	popup.add_child(panel)
-
-	var label = Label.new()
-	var text = "解锁单位：\n" + ", ".join(units)
-	label.text = text
-	label.add_theme_font_size_override("font_size", 10)
-	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	label.size = panel.size - Vector2(20, 20)
-	label.position = Vector2(10, 10)
-	panel.add_child(label)
-
-	await get_tree().create_timer(2.0).timeout
-
-	Globals.is_item_get_popup_active = false
-	MusicManager.resume_saved()
-	popup.queue_free()
+	popup.show_unit_unlock(units)   # 内部自动处理音效和锁定

@@ -11,28 +11,30 @@ func show_item(item_id: String, count: int):
 		queue_free()
 		return
 
-	# ---- 锁定操作 ----
-	Globals.is_item_get_popup_active = true
-
-	# ---- 暂停背景音乐 ----
-	MusicManager.pause_and_save()
-
-	# ---- 播放获得道具音效 ----
-	SoundManager.play_get_item_sound()
-
-	# ---- 设置 UI ----
+	_setup_popup()
+	icon.visible = true
+	count_label.visible = true
 	icon.texture = data.icon
 	name_label.text = data.name
 	count_label.text = "x" + str(count)
 	panel.visible = true
+	_auto_close()
 
-	# ---- 2 秒后自动关闭 ----
+func show_unit_unlock(units: Array):
+	_setup_popup()
+	icon.visible = false
+	count_label.visible = false
+	name_label.text = "解锁单位：\n" + ", ".join(units)
+	panel.visible = true
+	_auto_close()
+
+func _setup_popup():
+	Globals.is_item_get_popup_active = true
+	MusicManager.pause_and_save()
+	SoundManager.play_get_item_sound()
+
+func _auto_close():
 	await get_tree().create_timer(2.0).timeout
-
-	# ---- 解除锁定 ----
 	Globals.is_item_get_popup_active = false
-
-	# ---- 恢复背景音乐 ----
 	MusicManager.resume_saved()
-
 	queue_free()
