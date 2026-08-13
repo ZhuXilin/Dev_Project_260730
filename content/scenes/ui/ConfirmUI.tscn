@@ -1,0 +1,56 @@
+[gd_scene format=3 uid="uid://dxarudp4psg6b"]
+
+[ext_resource type="StyleBox" uid="uid://6qbsaxkfwg3o" path="res://content/resource/stylebox/8bit_style_box_flat.tres" id="1_fg5bo"]
+[ext_resource type="Script" uid="uid://cnpydxvklmlne" path="res://function/script/ConfirmUI.gd" id="2_c2j6i"]
+
+[node name="ConfirmUI" type="CanvasLayer" unique_id=271728603]
+layer = 99
+script = ExtResource("2_c2j6i")
+
+[node name="Panel" type="Panel" parent="." unique_id=2011622307]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_styles/panel = ExtResource("1_fg5bo")
+
+[node name="Message" type="Label" parent="Panel" unique_id=2046469776]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 96.0
+offset_top = 64.0
+offset_right = -96.0
+offset_bottom = -80.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_font_sizes/font_size = 12
+text = "确定删除？"
+horizontal_alignment = 1
+autowrap_mode = 3
+
+[node name="HBoxContainer" type="HBoxContainer" parent="Panel" unique_id=28983053]
+layout_mode = 1
+anchors_preset = -1
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_top = 160.0
+offset_bottom = -48.0
+grow_horizontal = 2
+grow_vertical = 2
+alignment = 1
+
+[node name="ConfirmButton" type="Button" parent="Panel/HBoxContainer" unique_id=1088194302]
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+text = "确定"
+
+[node name="CancelButton" type="Button" parent="Panel/HBoxContainer" unique_id=1869161643]
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+text = "取消"
+
+[connection signal="pressed" from="Panel/HBoxContainer/ConfirmButton" to="." method="_on_confirm_button_pressed"]
+[connection signal="pressed" from="Panel/HBoxContainer/CancelButton" to="." method="_on_cancel_button_pressed"]

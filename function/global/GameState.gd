@@ -163,17 +163,13 @@ func abandon_and_return_to_camp():
 	SaveManager.save_game(SaveManager.current_slot, false)
 	get_tree().change_scene_to_file("res://content/scenes/ui/Camp.tscn")
 
+# GameState.gd
 func show_abandon_confirmation(parent: Node):
-	var dialog = ConfirmationDialog.new()
-	dialog.dialog_text = "确定放弃本局游戏吗？进度将丢失，已获得的临时资源将丢弃。"
-	dialog.ok_button_text = "放弃"
-	dialog.cancel_button_text = "取消"
-	parent.add_child(dialog)
-	dialog.popup_centered()
-	dialog.confirmed.connect(func():
-		abandon_and_return_to_camp()
-		dialog.queue_free()
-	)
-	dialog.canceled.connect(func():
-		dialog.queue_free()
+	Globals.show_confirm(
+		parent,
+		"确定放弃本局游戏吗？进度将丢失，已获得的临时资源将丢弃。",
+		"放弃",
+		"取消",
+		abandon_and_return_to_camp,
+		func(): pass   # 取消不执行任何操作
 	)

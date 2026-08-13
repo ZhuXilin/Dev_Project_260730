@@ -2133,13 +2133,14 @@ func _update_cursor_and_mouse():
 		cursor.modulate = target_color
 
 func _on_abandon_battle_pressed():
-	var confirm = ConfirmationDialog.new()
-	confirm.dialog_text = "确定放弃当前战斗吗？将回到营地，本轮进度将丢失。"
-	confirm.ok_button_text = "放弃"
-	confirm.cancel_button_text = "取消"
-	add_child(confirm)
-	confirm.popup_centered()
-	confirm.confirmed.connect(_on_abandon_battle_confirmed)
+	Globals.show_confirm(
+		self,
+		"确定放弃当前战斗吗？将回到营地，本轮进度将丢失。",
+		"放弃",
+		"取消",
+		_on_abandon_battle_confirmed,
+		func(): pass
+	)
 
 func _on_abandon_battle_confirmed():
 	GameState.finish_day()

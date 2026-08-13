@@ -106,11 +106,8 @@ func _apply_window_size(index: int):
 		DisplayServer.window_set_size(Vector2i(width, height))
 
 func _on_back_to_camp_pressed():
-	var current_scene = get_tree().current_scene
-	var scene_path = current_scene.scene_file_path if current_scene else ""
-	var is_map_or_battle = scene_path.ends_with("MapScene.tscn") or scene_path.ends_with("Battlefield.tscn")
-
-	if is_map_or_battle:
+	var scene_path = get_tree().current_scene.scene_file_path
+	if scene_path.ends_with("MapScene.tscn") or scene_path.ends_with("Battlefield.tscn"):
 		GameState.show_abandon_confirmation(self)
 	else:
 		SaveManager.save_game(SaveManager.current_slot, false)
