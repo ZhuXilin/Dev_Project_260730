@@ -53,3 +53,6 @@ text = "确定"
 layout_mode = 2
 theme_override_font_sizes/font_size = 12
 text = "取消"
+
+[connection signal="pressed" from="Panel/HBoxContainer/ConfirmButton" to="." method="_on_confirm_button_pressed"]
+[connection signal="pressed" from="Panel/HBoxContainer/CancelButton" to="." method="_on_cancel_button_pressed"]
