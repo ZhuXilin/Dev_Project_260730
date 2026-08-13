@@ -262,13 +262,15 @@ func _ready():
 	print("=== TurnManager.start_turn(0) 调用完成 ===")
 	_update_end_turn_button_visibility()
 
-	# ---- 新增：改造 EndTurnBtn 为“回到营地” ----
+	# ---- 改造 BackCampBtn ----
+	print("back_camp_btn: ", back_camp_btn)
 	if back_camp_btn:
-		back_camp_btn.text = "回到营地"
-		# 断开原有连接（如果存在）
-		if back_camp_btn.pressed.is_connected(_end_player_turn):
-			back_camp_btn.pressed.disconnect(_end_player_turn)
+		print("back_camp_btn 已获取")
+		for conn in back_camp_btn.pressed.get_connections():
+			back_camp_btn.pressed.disconnect(conn.callable)
 		back_camp_btn.pressed.connect(_on_back_camp_pressed)
+		back_camp_btn.text = "回到营地"
+		print("BackCampBtn 已连接")
 
 func _exit_tree():
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
@@ -887,6 +889,9 @@ func _on_request_show_victory(winning_team: int):
 				print("Battlefield 累加资源：temp_gold=", GameState.temp_gold, " temp_soul=", GameState.temp_soul)
 			else:
 				print("非战斗模式，不累加资源")
+				
+			# ★★★ 战斗胜利后清空当前节点 key，避免中断时错误恢复 ★★★
+			GameState.current_node_key = ""
 
 		# ---- 若为 Boss 胜利，设置推进天数标记 ----
 		if is_win and is_boss:
@@ -2144,6 +2149,7 @@ func _on_abandon_battle_pressed():
 	)
 
 func _on_abandon_battle_confirmed():
+	GameState.current_node_key = ""   # 清空，放弃战斗
 	GameState.finish_day()
 	Globals.is_performing_action = false
 	TurnManager.is_game_over = true
@@ -2154,4 +2160,11 @@ func _on_abandon_battle_confirmed():
 	get_tree().change_scene_to_file("res://content/scenes/ui/Camp.tscn")
 
 func _on_back_camp_pressed():
-	GameState.show_abandon_confirmation(self)   # 统一确认框
+	Globals.show_confirm(
+		self,
+		"确定放弃本局游戏吗？进度将丢失，已获得的临时资源将丢弃。",
+		"放弃",
+		"取消",
+		GameState.abandon_and_return_to_camp,
+		func(): pass
+	)

@@ -105,6 +105,16 @@ func _apply_window_size(index: int):
 		DisplayServer.window_set_size(Vector2i(width, height))
 
 func _on_interrupt_pressed():
-	# 保存进度，回到主菜单（不放弃）
+	var current_scene = get_tree().current_scene
+	var scene_path = current_scene.scene_file_path if current_scene else ""
+	
+	if scene_path.ends_with("Battlefield.tscn"):
+		# 撤销当前战斗的节点访问标记，避免地图进度错误推进
+		GameState.undo_battle_entry()
+		GameState.interrupt_state = 2   # 回到地图（因为还在同一地图进度）
+	elif scene_path.ends_with("MapScene.tscn"):
+		GameState.interrupt_state = 2   # 地图中断
+	# 其他场景（如营地）不修改状态
+	
 	SaveManager.save_game(SaveManager.current_slot, false)
 	get_tree().change_scene_to_file("res://content/scenes/ui/MainMenu.tscn")

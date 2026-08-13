@@ -349,7 +349,7 @@ theme_override_font_sizes/font_size = 6
 [node name="BackToMenuBtn" type="Button" parent="SettingLayer/SettingMenuPanel/SettingMenuContainer" unique_id=1112390997]
 layout_mode = 2
 theme_override_font_sizes/font_size = 8
-text = "回到营地"
+text = "中断游戏"
 
 [node name="EndTurnLayer" type="CanvasLayer" parent="." unique_id=723450893]
 layer = 20

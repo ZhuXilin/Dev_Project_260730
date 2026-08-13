@@ -334,14 +334,13 @@ func _select_node_by_id(node_id: String):
 
 func on_node_selected(node: MapNode):
 	if not node.is_available or node.is_visited:
-		print("节点不可选或已访问")
 		return
 	var key = "%d_%d" % [node.position.x, node.position.y]
 	GameState.visited_nodes[key] = true
+	GameState.current_node_key = key   # 新增：记录当前节点
 	node.is_visited = true
 	node.is_available = false
 	GameState.last_selected_node_type = node.node_type
-	print("保存节点类型: ", node.node_type, " (BOSS=", MapNode.NodeType.BOSS, ")")
 	_load_combat_for_node(node)
 
 func _load_combat_for_node(node: MapNode):

@@ -10,6 +10,7 @@ var main_unit_index: int = 0
 var current_day: int = 1                 # 当前天数（1、2、3）
 var current_map_index: int = 0
 var visited_nodes: Dictionary = {}       # 记录已访问节点，key: "x_y", value: true
+var current_node_key: String = ""   # 记录当前进入战斗的节点 key，用于中断时撤销访问
 var is_map_mode: bool = false
 var cached_map_level_data: MapLevelData = null   # 当前天的地图缓存
 var cached_day: int = -1                 # 缓存对应的天数
@@ -172,3 +173,9 @@ func show_abandon_confirmation(parent: Node):
 		abandon_and_return_to_camp,
 		func(): pass
 	)
+
+func undo_battle_entry():
+	if current_node_key != "" and visited_nodes.has(current_node_key):
+		visited_nodes.erase(current_node_key)
+		current_node_key = ""
+	should_advance_day = false   # 防止错误推进天数
