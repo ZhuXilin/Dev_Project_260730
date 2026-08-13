@@ -31,7 +31,7 @@ const BOSS_NODE_TYPE = 6
 @onready var info_panel : PanelContainer = $Info/InfoPanel
 @onready var info_text_label : Label = $Info/InfoPanel/InfoTextLabel
 @onready var setting_panel : PanelContainer = $SettingLayer/SettingPanel
-@onready var setting_end_turn_btn : Button = $SettingLayer/SettingPanel/SettingContainer/EndTurnBtn
+@onready var back_camp_btn: Button = $SettingLayer/SettingPanel/SettingContainer/BackCampBtn
 @onready var setting_btn : Button = $SettingLayer/SettingPanel/SettingContainer/SettingBtn
 @onready var setting_menu_panel : Panel = $SettingLayer/SettingMenuPanel
 @onready var team_view_btn : Button = $SettingLayer/SettingPanel/SettingContainer/TeamViewBtn
@@ -64,11 +64,7 @@ var current_node_type: int = MapNode.NodeType.NORMAL   # 当前地图的节点�
 
 # ===================== 生命周期 =====================
 func _ready():
-	turn_count_label.text = "第 0 回合"
-	Globals.is_non_combat_mode = false   # 重置非战斗模式标志
-	print("=== Battlefield _ready 开始 ===")
-	
-	# ---- 手动获取所有节点 ----
+	# ---- 手动获取所有节点（原有） ----
 	action_menu = get_node("ActionMenu")
 	attack_btn = get_node("ActionMenu/ActionPanel/ButtonContainer/AttackBtn")
 	move_btn = get_node("ActionMenu/ActionPanel/ButtonContainer/MoveBtn")
@@ -89,7 +85,6 @@ func _ready():
 	info_panel = $Info/InfoPanel
 	info_text_label = $Info/InfoPanel/InfoTextLabel
 	setting_panel = $SettingLayer/SettingPanel
-	setting_end_turn_btn = $SettingLayer/SettingPanel/SettingContainer/EndTurnBtn
 	setting_btn = $SettingLayer/SettingPanel/SettingContainer/SettingBtn
 	setting_menu_panel = $SettingLayer/SettingMenuPanel
 	team_view_btn = $SettingLayer/SettingPanel/SettingContainer/TeamViewBtn
@@ -101,7 +96,7 @@ func _ready():
 	item_list_container = $SettingLayer/ItemListPanel/ItemListContainer
 	item_action_panel = $ItemActionPanel
 
-	# ---- 检查关键节点 ----
+	# ---- 检查关键节点（原有） ----
 	var node_list = {
 		"action_menu": action_menu,
 		"attack_btn": attack_btn,
@@ -120,11 +115,10 @@ func _ready():
 		if not node_list[node_name]:
 			print("警告：节点 '", node_name, "' 未找到！")
 
-	# ---- 连接信号 ----
+	# ---- 原有信号连接 ----
 	setting_btn.pressed.connect(_on_setting_btn_pressed)
 	equip_btn.pressed.connect(_on_equip_btn_pressed)
 	item_list_btn.pressed.connect(_on_item_list_btn_pressed)
-	setting_end_turn_btn.pressed.connect(_end_player_turn)
 	SignalBus.non_combat_complete.connect(_on_non_combat_complete)
 	
 	if not SignalBus.non_combat_complete.is_connected(_on_non_combat_complete):
@@ -165,10 +159,9 @@ func _ready():
 		turn_overlay.modulate = Color(1, 1, 1, 0)
 		Globals.is_fading = false
 
-	# ---- 加载地图（关键：从 GameState.current_map_data 读取） ----
+	# ---- 加载地图（关键） ----
 	if GameState.current_map_data:
 		var map_to_load = GameState.current_map_data
-		# 检查地图数据是否有效
 		if not map_to_load.scene:
 			print("警告：当前地图数据无效，使用默认地图")
 			_load_default_map()
@@ -268,6 +261,14 @@ func _ready():
 	TurnManager.start_turn(0)
 	print("=== TurnManager.start_turn(0) 调用完成 ===")
 	_update_end_turn_button_visibility()
+
+	# ---- 新增：改造 EndTurnBtn 为“回到营地” ----
+	if back_camp_btn:
+		back_camp_btn.text = "回到营地"
+		# 断开原有连接（如果存在）
+		if back_camp_btn.pressed.is_connected(_end_player_turn):
+			back_camp_btn.pressed.disconnect(_end_player_turn)
+		back_camp_btn.pressed.connect(_on_back_camp_pressed)
 
 func _exit_tree():
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
@@ -2151,3 +2152,6 @@ func _on_abandon_battle_confirmed():
 	GameState.interrupt_state = 1
 	SaveManager.save_game(SaveManager.current_slot, false)
 	get_tree().change_scene_to_file("res://content/scenes/ui/Camp.tscn")
+
+func _on_back_camp_pressed():
+	GameState.show_abandon_confirmation(self)   # 统一确认框

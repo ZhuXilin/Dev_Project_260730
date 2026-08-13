@@ -8,6 +8,7 @@ var confirm_callback: Callable
 var cancel_callback: Callable
 
 func _ready():
+	# 断开已有信号，防止重复连接
 	for conn in confirm_button.pressed.get_connections():
 		confirm_button.pressed.disconnect(conn.callable)
 	for conn in cancel_button.pressed.get_connections():
@@ -24,10 +25,13 @@ func show_confirm(message: String, confirm_text: String = "确定", cancel_text:
 	cancel_callback = cancel_cb
 	
 	cancel_button.visible = show_cancel
-	if not show_cancel:
+	
+	# 两个按钮都居中，不扩展，保持内容宽度
+	if show_cancel:
 		confirm_button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		cancel_button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	else:
-		confirm_button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER | Control.SIZE_EXPAND
+		confirm_button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 
 func _on_confirm_button_pressed() -> void:
 	if confirm_callback.is_valid():

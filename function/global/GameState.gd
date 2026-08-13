@@ -163,7 +163,6 @@ func abandon_and_return_to_camp():
 	SaveManager.save_game(SaveManager.current_slot, false)
 	get_tree().change_scene_to_file("res://content/scenes/ui/Camp.tscn")
 
-# GameState.gd
 func show_abandon_confirmation(parent: Node):
 	Globals.show_confirm(
 		parent,
@@ -171,5 +170,5 @@ func show_abandon_confirmation(parent: Node):
 		"放弃",
 		"取消",
 		abandon_and_return_to_camp,
-		func(): pass   # 取消不执行任何操作
+		func(): pass
 	)

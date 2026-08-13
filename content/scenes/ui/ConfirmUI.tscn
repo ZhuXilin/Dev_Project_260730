@@ -34,13 +34,15 @@ autowrap_mode = 3
 [node name="HBoxContainer" type="HBoxContainer" parent="Panel" unique_id=28983053]
 layout_mode = 1
 anchors_preset = -1
-anchor_right = 1.0
-anchor_bottom = 1.0
-offset_top = 160.0
-offset_bottom = -48.0
+anchor_left = 0.085
+anchor_right = 0.915
+offset_left = -34.0
+offset_top = 192.0
+offset_right = 34.0
+offset_bottom = 224.0
 grow_horizontal = 2
-grow_vertical = 2
 alignment = 1
+metadata/_edit_use_anchors_ = true
 
 [node name="ConfirmButton" type="Button" parent="Panel/HBoxContainer" unique_id=1088194302]
 layout_mode = 2

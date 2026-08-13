@@ -238,7 +238,7 @@ theme_override_styles/disabled = ExtResource("3_c18at")
 theme_override_styles/focus = ExtResource("3_c18at")
 text = "设置游戏"
 
-[node name="EndTurnBtn" type="Button" parent="SettingLayer/SettingPanel/SettingContainer" unique_id=1079716132]
+[node name="BackCampBtn" type="Button" parent="SettingLayer/SettingPanel/SettingContainer" unique_id=1079716132]
 layout_mode = 2
 theme_override_font_sizes/font_size = 8
 theme_override_styles/normal = ExtResource("3_c18at")
@@ -246,7 +246,7 @@ theme_override_styles/pressed = ExtResource("3_c18at")
 theme_override_styles/hover = ExtResource("3_c18at")
 theme_override_styles/disabled = ExtResource("3_c18at")
 theme_override_styles/focus = ExtResource("3_c18at")
-text = "结束回合"
+text = "回到营地"
 
 [node name="TeamViewPanel" type="PanelContainer" parent="SettingLayer" unique_id=1161687182]
 anchors_preset = -1

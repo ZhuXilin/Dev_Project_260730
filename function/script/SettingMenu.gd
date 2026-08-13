@@ -60,12 +60,11 @@ func _ready():
 	speed_slider.value_changed.connect(_on_speed_changed)
 	screen_size_option.item_selected.connect(_on_screen_size_selected)
 
-	# ---- 修改返回按钮：文本改为“回到营地”，并重新连接信号 ----
-	back_to_menu_btn.text = "回到营地"
-	# 断开所有已连接的信号（避免重复连接）
+	# ---- 修改返回按钮为“中断并回到主界面” ----
+	back_to_menu_btn.text = "中断并回到主界面"
 	for conn in back_to_menu_btn.pressed.get_connections():
 		back_to_menu_btn.pressed.disconnect(conn.callable)
-	back_to_menu_btn.pressed.connect(_on_back_to_camp_pressed)
+	back_to_menu_btn.pressed.connect(_on_interrupt_pressed)
 
 	SignalBus.speed_changed.connect(_on_speed_changed_from_global)
 
@@ -105,10 +104,7 @@ func _apply_window_size(index: int):
 		var height = BASE_HEIGHT * multiplier
 		DisplayServer.window_set_size(Vector2i(width, height))
 
-func _on_back_to_camp_pressed():
-	var scene_path = get_tree().current_scene.scene_file_path
-	if scene_path.ends_with("MapScene.tscn") or scene_path.ends_with("Battlefield.tscn"):
-		GameState.show_abandon_confirmation(self)
-	else:
-		SaveManager.save_game(SaveManager.current_slot, false)
-		get_tree().change_scene_to_file("res://content/scenes/ui/Camp.tscn")
+func _on_interrupt_pressed():
+	# 保存进度，回到主菜单（不放弃）
+	SaveManager.save_game(SaveManager.current_slot, false)
+	get_tree().change_scene_to_file("res://content/scenes/ui/MainMenu.tscn")
