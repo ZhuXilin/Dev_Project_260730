@@ -8,10 +8,15 @@ func _on_start_pressed():
 	Globals.pending_save_slot = -1
 	var slot = SaveManager.find_empty_slot()
 	if slot == -1:
-		var dialog = AcceptDialog.new()
-		dialog.dialog_text = "所有存档槽已满，请先删除一个存档。"
-		add_child(dialog)
-		dialog.popup_centered()
+		Globals.show_confirm(
+			self,
+			"所有存档槽已满，请先删除一个存档。",
+			"确定",
+			"",
+			func(): pass,
+			func(): pass,
+			false   # 不显示取消按钮
+		)
 		return
 	Globals.pending_save_slot = slot
 	GameState.reset_all()
@@ -64,7 +69,12 @@ func _on_continue_pressed():
 			get_tree().change_scene_to_file("res://content/scenes/ui/Camp.tscn")
 
 func _show_continue_error(message: String):
-	var dialog = AcceptDialog.new()
-	dialog.dialog_text = message
-	add_child(dialog)
-	dialog.popup_centered()
+	Globals.show_confirm(
+		self,
+		message,
+		"确定",
+		"",
+		func(): pass,
+		func(): pass,
+		false
+	)

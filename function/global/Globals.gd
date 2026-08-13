@@ -203,7 +203,7 @@ func unlock_unit(unit_name: String):
 func get_unlocked_units() -> Array[String]:
 	return unlocked_units.duplicate()
 
-func show_confirm(parent: Node, message: String, confirm_text: String = "确定", cancel_text: String = "取消", confirm_cb: Callable = Callable(), cancel_cb: Callable = Callable()):
+func show_confirm(parent: Node, message: String, confirm_text: String = "确定", cancel_text: String = "取消", confirm_cb: Callable = Callable(), cancel_cb: Callable = Callable(), show_cancel: bool = true):
 	var ui = load("res://content/scenes/ui/ConfirmUI.tscn").instantiate()
 	parent.add_child(ui)
-	ui.show_confirm(message, confirm_text, cancel_text, confirm_cb, cancel_cb)
+	ui.show_confirm(message, confirm_text, cancel_text, confirm_cb, cancel_cb, show_cancel)
