@@ -94,7 +94,7 @@ func _build_save_data() -> SaveData:
 	var save = SaveData.new()
 	
 	# ---- 版本号 ----
-	save.save_version = SaveData.CURRENT_VERSION
+	save.map_level_data = GameState.cached_map_level_data
 	
 	# ---- 玩家设置 ----
 	save.music_volume = Globals.music_volume
@@ -186,7 +186,7 @@ func _apply_save_data(save: SaveData):
 				GameState.visited_nodes[pair[0]] = pair[1]
 
 	# ---- 清除地图缓存 ----
-	GameState.cached_map_level_data = null
+	GameState.cached_map_level_data = save.map_level_data
 	GameState.cached_day = save.current_day
 
 	# ---- 恢复队伍 ----

@@ -20,6 +20,9 @@ const CURRENT_VERSION = 1
 @export var selected_node_id: String = ""
 @export var main_unit_name: String = ""
 
+# ---- 保存完整地图数据 ----
+@export var map_level_data: MapLevelData
+
 @export var soul: int = 0          # 永久魂
 @export var temp_soul: int = 0     # 本轮临时魂
 @export var temp_gold: int = 0     # 本轮临时金币

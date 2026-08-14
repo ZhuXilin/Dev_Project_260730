@@ -82,8 +82,7 @@ func _ready():
 	if GameState.cached_map_level_data and GameState.cached_day == GameState.current_day:
 		print("使用缓存地图数据恢复，天数：", GameState.current_day)
 		map_data = GameState.cached_map_level_data
-
-		# 检测连接是否丢失
+		# 检测连接是否丢失（原有逻辑）
 		var need_rebuild = false
 		for node in map_data.nodes:
 			if node.connected_nodes.is_empty() and map_data.nodes.size() > 1:
@@ -93,6 +92,7 @@ func _ready():
 			print("检测到连接丢失，根据层数重建连接")
 			_rebuild_connections_by_layer(map_data)
 
+		_apply_visited_state()   # ★ 新增：应用访问状态
 		_draw_connections()
 		_create_node_buttons()
 		if map_data and map_data.root_node:
@@ -302,15 +302,10 @@ func _update_buttons():
 
 func generate_map(day: int):
 	print("=== generate_map 开始，day=", day, " temp_gold=", GameState.temp_gold)
-	print("=== 生成地图，天数：", day)
 	map_data = MapGenerator.generate_day(day, level_list)
 	GameState.cached_map_level_data = map_data
 	GameState.cached_day = day
-	for node in map_data.nodes:
-		var key = "%d_%d" % [node.position.x, node.position.y]
-		if GameState.visited_nodes.has(key):
-			node.is_visited = true
-			node.is_available = false
+	_apply_visited_state()   # 替换原来的循环
 	_draw_connections()
 	_create_node_buttons()
 	_update_availability(map_data.root_node)
@@ -378,3 +373,15 @@ func get_selected_node_id() -> String:
 	if selected_node:
 		return selected_node.node_id
 	return ""
+
+func _apply_visited_state():
+	if not map_data:
+		return
+	for node in map_data.nodes:
+		var key = "%d_%d" % [node.position.x, node.position.y]
+		if GameState.visited_nodes.has(key):
+			node.is_visited = true
+			node.is_available = false
+		else:
+			node.is_visited = false
+			node.is_available = false  # 由 _update_availability 随后设置
