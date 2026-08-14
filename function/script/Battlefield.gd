@@ -232,6 +232,14 @@ func _ready():
 	if is_non_combat:
 		await _setup_non_combat_mode()
 		await get_tree().process_frame
+		
+		if back_camp_btn:
+			for conn in back_camp_btn.pressed.get_connections():
+				back_camp_btn.pressed.disconnect(conn.callable)
+			back_camp_btn.pressed.connect(_on_back_camp_pressed)
+			back_camp_btn.text = "回到营地"
+			print("BackCampBtn 已连接（非战斗）")
+		
 		TurnManager.start_turn(0)
 		return
 
