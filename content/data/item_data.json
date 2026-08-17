@@ -136,7 +136,7 @@
   "wooden_shield": {
 	"id": "wooden_shield",
 	"name": "木盾",
-	"type": "weapon",
+	"type": "armor",
 	"use_type": "infinite",
 	"icon": "res://content/images/items/shield.png",
 	"effect": {},

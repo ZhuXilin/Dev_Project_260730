@@ -29,7 +29,6 @@ size_flags_vertical = 3
 
 [node name="LeftPanel" type="VBoxContainer" parent="VBoxContainer/HBoxContainer" unique_id=1347318244]
 layout_mode = 2
-size_flags_horizontal = 3
 
 [node name="ScrollContainer" type="ScrollContainer" parent="VBoxContainer/HBoxContainer/LeftPanel" unique_id=1023858505]
 layout_mode = 2
@@ -38,6 +37,10 @@ horizontal_scroll_mode = 0
 
 [node name="CategoryContainer" type="VBoxContainer" parent="VBoxContainer/HBoxContainer/LeftPanel/ScrollContainer" unique_id=86866633]
 layout_mode = 2
+
+[node name="SpaceLabel" type="Label" parent="VBoxContainer/HBoxContainer" unique_id=1712196693]
+layout_mode = 2
+text = "          "
 
 [node name="RightPanel" type="VBoxContainer" parent="VBoxContainer/HBoxContainer" unique_id=1506831668]
 layout_mode = 2

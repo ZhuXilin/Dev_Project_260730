@@ -20,47 +20,48 @@ func _refresh_list():
 		if data:
 			all_items.append(data)
 	
-	if all_items.is_empty():
-		var label = Label.new()
-		label.text = "暂无已解锁的道具"
-		label.add_theme_font_size_override("font_size", 8)
-		category_container.add_child(label)
-		return
-	
-	# 按类型分组
+	# 按类型分组，合并 armor 和 accessory 为 "armor_accessory"
 	var groups = {}
 	for data in all_items:
 		var type_key = data.type
+		if type_key in ["armor", "accessory"]:
+			type_key = "armor_accessory"
 		if not groups.has(type_key):
 			groups[type_key] = []
 		groups[type_key].append(data)
 	
-	# 定义分类显示名称
+	# 定义分类显示名称（中文）和顺序
 	var type_names = {
 		"weapon": "武器",
-		"armor": "防具",
-		"accessory": "饰品",
+		"armor_accessory": "防具/饰品",
 		"relic": "遗物",
-		# 可扩展其他类型
 	}
+	var order = ["weapon", "armor_accessory", "relic"]
 	
-	# 按固定顺序显示分类
-	var order = ["weapon", "armor", "accessory", "relic"]
+	# 始终显示三个分类
 	for type_key in order:
-		if groups.has(type_key):
-			var group_data = groups[type_key]
-			# 添加分类标题
-			var title_label = Label.new()
-			title_label.text = type_names.get(type_key, type_key)
-			title_label.add_theme_font_size_override("font_size", 9)
-			category_container.add_child(title_label)
-			
-			# 添加该分类下的道具按钮
+		# 添加分类标题
+		var title_label = Label.new()
+		title_label.text = type_names.get(type_key, type_key)
+		title_label.add_theme_font_size_override("font_size", 9)
+		category_container.add_child(title_label)
+		
+		# 获取该分类下的道具
+		var group_data = groups.get(type_key, [])
+		if group_data.is_empty():
+			# 没有道具，显示灰色提示
+			var empty_label = Label.new()
+			empty_label.text = "（暂无）"
+			empty_label.add_theme_font_size_override("font_size", 7)
+			empty_label.modulate = Color(0.5, 0.5, 0.5)
+			category_container.add_child(empty_label)
+		else:
 			for data in group_data:
 				var btn = Button.new()
 				btn.text = data.name
 				btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 				btn.add_theme_font_size_override("font_size", 8)
+				btn.alignment = HORIZONTAL_ALIGNMENT_LEFT   # 左对齐
 				btn.pressed.connect(_show_item_detail.bind(data))
 				category_container.add_child(btn)
 
@@ -72,13 +73,8 @@ func _show_item_detail(data: ItemData):
 		item_icon.visible = false
 	
 	item_name.text = data.name
-	var detail = ""
-	if data.description:
-		detail += data.description + "\n"
-	if data.stats:
-		for key in data.stats:
-			detail += "%s: %s\n" % [key.capitalize(), str(data.stats[key])]
-	item_detail.text = detail
+	# 只显示 description，不再重复显示英文 stats
+	item_detail.text = data.description if data.description else "无描述"
 
 func _on_back_button_pressed():
 	queue_free()
