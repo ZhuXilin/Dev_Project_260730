@@ -1,0 +1,11 @@
+{
+  "default_unlocked": [
+	"iron_sword",
+	"steel_spear",
+	"battle_axe",
+	"longbow",
+	"healing_staff",
+	"fire_spellbook",
+    "wooden_shield"
+  ]
+}

@@ -44,7 +44,6 @@ func initialize_party(selected_units: Array[String], main_index: int):
 		var data = UnitData.new()
 		var stats = UnitDataManager.get_default_stats(unit_name)
 		data.unit_name = unit_name
-		# 从 unit_data.json 读取 display_name 和 faction
 		var unit_dict = UnitDataManager.get_unit_data(unit_name)
 		data.display_name = unit_dict.get("display_name", unit_name)
 		data.faction = unit_dict.get("faction", "")
@@ -67,7 +66,9 @@ func initialize_party(selected_units: Array[String], main_index: int):
 			data.inventory.append(inst)
 			data.weapon_slot = inst
 		# 初始化防具/饰品槽（2个空位）
-		data.armor_slots = [null, null]
+		data.armor_slots.clear()          # 先清空
+		data.armor_slots.append(null)     # 添加空位1
+		data.armor_slots.append(null)     # 添加空位2
 		data.max_armor_slots = 2
 		party.append(data)
 	main_unit_index = main_index

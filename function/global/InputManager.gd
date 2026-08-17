@@ -741,19 +741,29 @@ func _print_unit_info(unit: Unit):
 	print("阵营: ", unit.unit_stats.faction if unit.unit_stats.faction != "" else "无")
 	print("队伍: ", "玩家" if unit.unit_stats.team_id == 0 else "敌人")
 	print("HP: ", unit.hit_points, "/", unit.unit_stats.max_hp)
-	var weapon_stats = unit.get_weapon_stats()
-	print("攻击: ", weapon_stats["attack"], " (魔法: ", weapon_stats["magic_attack"], ")")
+	
+	# 获取武器数据（用于范围和属性）
+	var weapon_data = unit.get_weapon_data()
+	var weapon_stats = unit.get_weapon_stats()   # 只包含 stats 字典
+	
+	# 攻击力（从 stats 中读取）
+	var attack = weapon_stats.get("attack", 0)
+	var magic_attack = weapon_stats.get("magic_attack", 0)
+	print("攻击: ", attack, " (魔法: ", magic_attack, ")")
+	
 	print("防御: ", unit.unit_stats.defense)
 	print("魔防: ", unit.unit_stats.magic_defense)
 	print("技巧: ", unit.unit_stats.skill)
 	print("速度: ", unit.unit_stats.speed)
 	print("幸运: ", unit.unit_stats.luck)
 	print("移动力: ", unit.unit_stats.move_range)
-	var weapon_data = unit.get_weapon_data()
+	
+	# 攻击范围（从 weapon_data 读取）
 	if weapon_data:
 		print("攻击范围: ", weapon_data.min_attack_range, "~", weapon_data.attack_range)
 	else:
 		print("攻击范围: 0~0")
+	
 	print("当前格子: ", unit.grid_cell)
 	print("已行动: ", unit.has_moved)
 	print("可行动: ", unit.can_act_this_turn)

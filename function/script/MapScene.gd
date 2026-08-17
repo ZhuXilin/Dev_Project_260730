@@ -92,7 +92,7 @@ func _ready():
 			print("检测到连接丢失，根据层数重建连接")
 			_rebuild_connections_by_layer(map_data)
 
-		_apply_visited_state()   # ★ 新增：应用访问状态
+		_apply_visited_state()
 		_draw_connections()
 		_create_node_buttons()
 		if map_data and map_data.root_node:
@@ -375,7 +375,9 @@ func get_selected_node_id() -> String:
 	return ""
 
 func _apply_visited_state():
+	print("_apply_visited_state 被调用，visited_nodes 大小：", GameState.visited_nodes.size())
 	if not map_data:
+		print("map_data 为空")
 		return
 	for node in map_data.nodes:
 		var key = "%d_%d" % [node.position.x, node.position.y]
@@ -384,4 +386,4 @@ func _apply_visited_state():
 			node.is_available = false
 		else:
 			node.is_visited = false
-			node.is_available = false  # 由 _update_availability 随后设置
+			node.is_available = false  # 由 _update_availability 设置

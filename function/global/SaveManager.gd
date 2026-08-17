@@ -264,7 +264,11 @@ func _apply_save_data(save: SaveData):
 	# ---- 解锁数据 ----
 	Globals.unlocked_units = save.unlocked_units.duplicate()
 	Globals.unlocked_items = save.unlocked_items.duplicate()
-
+	
+	# 如果存档中没有任何解锁道具，补充默认
+	if Globals.unlocked_items.is_empty():
+		Globals.unlocked_items = Globals.item_unlocked_items.duplicate()
+		
 	LevelManager.current_level_index = 0
 	LevelManager.is_map_mode = true
 

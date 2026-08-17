@@ -437,7 +437,7 @@ func get_usable_targets(unit: Unit, use_effect: Dictionary) -> Array:
 # ============================================================
 #  道具操作面板
 # ============================================================
-func _show_item_action_panel(unit: Unit, inst: ItemInstance):
+func _show_item_action_panel(unit: Unit, inst: ItemInstance, _slot_index: int = -1):
 	print("=== _show_item_action_panel 被调用 ===")
 	if not item_action_panel or not _buttons_container:
 		print("面板或容器为空")

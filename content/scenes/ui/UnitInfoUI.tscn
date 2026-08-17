@@ -17,7 +17,7 @@ size_flags_vertical = 3
 
 [node name="Title" type="Label" parent="VBoxContainer" unique_id=1100851483]
 layout_mode = 2
-theme_override_font_sizes/font_size = 12
+theme_override_font_sizes/font_size = 10
 text = "单位图鉴"
 horizontal_alignment = 1
 
@@ -43,15 +43,32 @@ size_flags_vertical = 3
 layout_mode = 2
 size_flags_vertical = 0
 mouse_filter = 2
+theme_override_styles/panel = ExtResource("1_ks8yl")
 
 [node name="UnitSprite" type="AnimatedSprite2D" parent="VBoxContainer/HBoxContainer/InfoPanel/SpriteContainer" unique_id=987654321]
 centered = false
 
-[node name="DetailLabel" type="Label" parent="VBoxContainer/HBoxContainer/InfoPanel" unique_id=1284426676]
+[node name="InfoHBox" type="HBoxContainer" parent="VBoxContainer/HBoxContainer/InfoPanel" unique_id=1836212551]
+custom_minimum_size = Vector2(120, 0)
+layout_mode = 2
+
+[node name="DetailLabel" type="Label" parent="VBoxContainer/HBoxContainer/InfoPanel/InfoHBox" unique_id=1284426676]
 layout_mode = 2
 size_flags_vertical = 0
-theme_override_font_sizes/font_size = 10
+theme_override_font_sizes/font_size = 8
 text = "选择单位查看详情"
+
+[node name="SpaceLabel" type="Label" parent="VBoxContainer/HBoxContainer/InfoPanel/InfoHBox" unique_id=1569838707]
+layout_mode = 2
+text = "     "
+
+[node name="DescLabel" type="Label" parent="VBoxContainer/HBoxContainer/InfoPanel/InfoHBox" unique_id=36537628]
+custom_minimum_size = Vector2(120, 0)
+layout_mode = 2
+size_flags_vertical = 0
+theme_override_font_sizes/font_size = 8
+text = "              "
+autowrap_mode = 3
 
 [node name="BackButton" type="Button" parent="VBoxContainer" unique_id=999999999]
 layout_mode = 2

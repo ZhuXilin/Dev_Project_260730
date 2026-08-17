@@ -1,11 +1,26 @@
 [gd_resource type="Resource" script_class="UnitLevelMapConfig" format=3 uid="uid://cqhaf06akyk80"]
 
 [ext_resource type="Script" uid="uid://ccvitfeaytlvk" path="res://function/resource/UnitLevelMapConfig.gd" id="1_qd7h8"]
-[ext_resource type="Resource" uid="uid://6b5tvqtfhjd5" path="res://content/scenes/levels/unitmapentry/UnitMapEntry_Swordsmen.tres" id="1_rx0gl"]
+[ext_resource type="Resource" uid="uid://cvavysat5tfmo" path="res://content/scenes/levels/levellists/LevelListType001_Day1.tres" id="1_rx0gl"]
 [ext_resource type="Script" uid="uid://c8x3p1n87hrdv" path="res://function/resource/UnitLevelMapEntry.gd" id="1_suoue"]
+
+[sub_resource type="Resource" id="Resource_eompo"]
+script = ExtResource("1_suoue")
+day1 = ExtResource("1_rx0gl")
+day2 = ExtResource("1_rx0gl")
+day3 = ExtResource("1_rx0gl")
+metadata/_custom_type_script = "uid://c8x3p1n87hrdv"
+
+[sub_resource type="Resource" id="Resource_ks8yl"]
+script = ExtResource("1_suoue")
+faction = "王国"
+day1 = ExtResource("1_rx0gl")
+day2 = ExtResource("1_rx0gl")
+day3 = ExtResource("1_rx0gl")
+metadata/_custom_type_script = "uid://c8x3p1n87hrdv"
 
 [resource]
 script = ExtResource("1_qd7h8")
-default_entry = ExtResource("1_rx0gl")
-entries = Array[ExtResource("1_suoue")]([ExtResource("1_rx0gl")])
+default_entry = SubResource("Resource_eompo")
+entries = Array[ExtResource("1_suoue")]([SubResource("Resource_ks8yl")])
 metadata/_custom_type_script = "uid://ccvitfeaytlvk"

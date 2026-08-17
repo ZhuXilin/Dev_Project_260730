@@ -33,6 +33,10 @@ var unlocked_units: Array[String] = []
 var unlock_config: Dictionary = {}
 
 # ---- 道具解锁系统 ----
+var item_unlock_config: Dictionary = {}
+var item_unlocked_items: Array[String] = []
+
+# ---- 已解锁道具列表（与存档同步） ----
 var unlocked_items: Array[String] = []
 
 # ---- 游戏状态标志 ----
@@ -74,7 +78,8 @@ func _ready():
 	_set_default_window()
 	_apply_game_speed()
 	_load_unlock_config()
-	
+	_load_item_unlock_config()
+
 # ============================================================
 #  窗口管理
 # ============================================================
@@ -163,12 +168,13 @@ func increment_battle_turn():
 	current_battle_turn += 1
 	print("回合计数递增: ", current_battle_turn)
 
-# Globals.gd
+# ============================================================
+#  单位解锁系统
+# ============================================================
 func _load_unlock_config():
 	var path = "res://content/data/unit_unlock.json"
 	if not FileAccess.file_exists(path):
 		unlock_config = { "default_unlocked": ["剑士", "枪兵"] }
-		# 显式构建 Array[String]
 		var arr: Array[String] = []
 		for item in unlock_config["default_unlocked"]:
 			if item is String:
@@ -184,14 +190,12 @@ func _load_unlock_config():
 	if data and data is Dictionary:
 		unlock_config = data
 		var raw = data.get("default_unlocked", ["剑士", "枪兵"])
-		# 转换为 Array[String]
 		var arr: Array[String] = []
 		for item in raw:
 			if item is String:
 				arr.append(item)
 		unlocked_units = arr
 	else:
-		# 回退默认值
 		var arr: Array[String] = ["剑士", "枪兵"]
 		unlocked_units = arr
 
@@ -206,17 +210,36 @@ func unlock_unit(unit_name: String):
 func get_unlocked_units() -> Array[String]:
 	return unlocked_units.duplicate()
 
-func show_confirm(parent: Node, message: String, confirm_text: String = "确定", cancel_text: String = "取消", confirm_cb: Callable = Callable(), cancel_cb: Callable = Callable(), show_cancel: bool = true):
-	print("show_confirm 被调用，加载 ConfirmUI")
-	var ui = load("res://content/scenes/ui/ConfirmUI.tscn")
-	if not ui:
-		print("错误：ConfirmUI.tscn 未找到")
-		return
-	var instance = ui.instantiate()
-	print("ConfirmUI 实例化成功")
-	parent.add_child(instance)
-	instance.show_confirm(message, confirm_text, cancel_text, confirm_cb, cancel_cb, show_cancel)
-	print("show_confirm 完成")
+# ============================================================
+#  道具解锁系统
+# ============================================================
+func _load_item_unlock_config():
+	var path = "res://content/data/item_unlock.json"
+	var raw_items = []  # 用于存储默认解锁道具ID的原始数组
+	if not FileAccess.file_exists(path):
+		raw_items = ["iron_sword", "steel_spear", "battle_axe", "longbow", "healing_staff", "fire_spellbook", "wooden_shield"]
+	else:
+		var file = FileAccess.open(path, FileAccess.READ)
+		var content = file.get_as_text()
+		file.close()
+		var data = JSON.parse_string(content)
+		if data and data is Dictionary:
+			raw_items = data.get("default_unlocked", [])
+		else:
+			raw_items = ["iron_sword", "steel_spear", "battle_axe", "longbow", "healing_staff", "fire_spellbook", "wooden_shield"]
+	
+	# 显式转换为 Array[String]
+	var arr: Array[String] = []
+	for item in raw_items:
+		if item is String:
+			arr.append(item)
+	item_unlocked_items = arr
+	
+	# 将默认解锁道具加入全局解锁列表
+	for item_id in item_unlocked_items:
+		if item_id not in unlocked_items:
+			unlocked_items.append(item_id)
+	print("默认解锁道具已加载：", item_unlocked_items)
 
 func is_item_unlocked(item_id: String) -> bool:
 	return item_id in unlocked_items
@@ -228,3 +251,18 @@ func unlock_item(item_id: String):
 
 func get_unlocked_items() -> Array[String]:
 	return unlocked_items.duplicate()
+
+# ============================================================
+#  确认对话框
+# ============================================================
+func show_confirm(parent: Node, message: String, confirm_text: String = "确定", cancel_text: String = "取消", confirm_cb: Callable = Callable(), cancel_cb: Callable = Callable(), show_cancel: bool = true):
+	print("show_confirm 被调用，加载 ConfirmUI")
+	var ui = load("res://content/scenes/ui/ConfirmUI.tscn")
+	if not ui:
+		print("错误：ConfirmUI.tscn 未找到")
+		return
+	var instance = ui.instantiate()
+	print("ConfirmUI 实例化成功")
+	parent.add_child(instance)
+	instance.show_confirm(message, confirm_text, cancel_text, confirm_cb, cancel_cb, show_cancel)
+	print("show_confirm 完成")
