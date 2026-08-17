@@ -94,9 +94,9 @@ func _decide_action(unit: Unit):
 #  治疗者决策（法杖治疗）
 # ============================================================
 func _decide_healer_action(unit: Unit):
-	var weapon_stats = unit.get_weapon_stats()
-	var heal_range = weapon_stats["attack_range"]
-	var min_heal_range = weapon_stats["min_attack_range"]
+	var weapon_data = unit.get_weapon_data()
+	var heal_range = weapon_data.attack_range if weapon_data else 0
+	var min_heal_range = weapon_data.min_attack_range if weapon_data else 0
 
 	var best_ally = null
 	var max_hp_loss = 0
@@ -158,8 +158,8 @@ func _evaluate_attack(unit: Unit):
 			if not data or data.type != "weapon":
 				continue
 
-			var max_range = data.weapon_attack_range
-			var min_range = data.weapon_min_attack_range
+			var max_range = data.attack_range
+			var min_range = data.min_attack_range
 			var dist = abs(unit.grid_cell.x - enemy.grid_cell.x) + abs(unit.grid_cell.y - enemy.grid_cell.y)
 			if dist < min_range or dist > max_range:
 				continue
@@ -177,9 +177,9 @@ func _evaluate_attack(unit: Unit):
 			var can_counter = false
 			var enemy_weapon_type = enemy.get_weapon_type()
 			if enemy_weapon_type != -1 and enemy_weapon_type != UnitDataManagerClass.WEAPON_HEAL:
-				var enemy_stats = enemy.get_weapon_stats()
-				var enemy_min = enemy_stats["min_attack_range"]
-				var enemy_max = enemy_stats["attack_range"]
+				var enemy_weapon_data = enemy.get_weapon_data()
+				var enemy_min = enemy_weapon_data.min_attack_range if enemy_weapon_data else 0
+				var enemy_max = enemy_weapon_data.attack_range if enemy_weapon_data else 0
 				var dist_to_attacker = abs(enemy.grid_cell.x - unit.grid_cell.x) + abs(enemy.grid_cell.y - unit.grid_cell.y)
 				if dist_to_attacker >= enemy_min and dist_to_attacker <= enemy_max:
 					can_counter = true

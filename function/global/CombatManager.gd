@@ -210,9 +210,9 @@ func execute_attack(attacker: Unit, defender: Unit) -> bool:
 	# ---- 反击判定 ----
 	var def_weapon_type = defender.get_weapon_type()
 	if def_weapon_type != UnitDataManagerClass.WEAPON_HEAL:
-		var defender_stats = defender.get_weapon_stats()
-		var def_min_range = defender_stats["min_attack_range"]
-		var def_max_range = defender_stats["attack_range"]
+		var defender_weapon = defender.get_weapon_data()
+		var def_min_range = defender_weapon.min_attack_range if defender_weapon else 0
+		var def_max_range = defender_weapon.attack_range if defender_weapon else 0
 		var dist = abs(defender.grid_cell.x - attacker.grid_cell.x) + abs(defender.grid_cell.y - attacker.grid_cell.y)
 		if dist >= def_min_range and dist <= def_max_range:
 			print(defender.unit_stats.unit_name + " 反击!")
@@ -292,14 +292,13 @@ func get_unit_attack_stats(unit: Unit) -> Dictionary:
 	var weapon = unit.get_weapon_data()
 	if weapon and weapon.type == "weapon":
 		return {
-			"attack": weapon.weapon_attack,
-			"magic_attack": weapon.weapon_magic_attack,
-			"heal_amount": weapon.weapon_heal_amount,
-			"attack_range": weapon.weapon_attack_range,
-			"min_attack_range": weapon.weapon_min_attack_range
+			"attack": weapon.stats.get("attack", 0),
+			"magic_attack": weapon.stats.get("magic_attack", 0),
+			"heal_amount": weapon.stats.get("heal_amount", 0),
+			"attack_range": weapon.attack_range,
+			"min_attack_range": weapon.min_attack_range
 		}
 	else:
-		# 无武器，所有攻击力为0，范围0~0（无法攻击）
 		return {
 			"attack": 0,
 			"magic_attack": 0,

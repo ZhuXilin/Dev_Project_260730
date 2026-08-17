@@ -78,7 +78,6 @@ func _show_item_detail(data: ItemData):
 	if data.stats:
 		for key in data.stats:
 			detail += "%s: %s\n" % [key.capitalize(), str(data.stats[key])]
-	# 不再单独显示 weapon_attack 等
 	item_detail.text = detail
 
 func _on_back_button_pressed():

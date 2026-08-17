@@ -239,9 +239,9 @@ func has_attack_target_with_weapon(weapon_id: String) -> bool:
 	var data = ItemManager.get_item_data(weapon_id)
 	if not data or data.type != "weapon":
 		return false
-	var max_range = data.weapon_attack_range
-	var min_range = data.weapon_min_attack_range
-	var is_healer = (data.weapon_heal_amount > 0)
+	var max_range = data.attack_range
+	var min_range = data.min_attack_range
+	var is_healer = (data.stats.get("heal_amount", 0) > 0)
 	for target in UnitManager.unit_list:
 		if target.hit_points <= 0:
 			continue
@@ -462,11 +462,22 @@ func restore_from_unit_data(data: UnitData, cell: Vector2i):
 		new_inst.count = inst.count
 		inventory.append(new_inst)
 	
-	if data.equipped_weapon != "":
-		for inst in inventory:
-			if inst.item_id == data.equipped_weapon:
-				equipped_weapon_instance = inst
-				break
+	# ---- 恢复装备 ----
+	# 武器
+	weapon_slot = data.weapon_slot
+	equipped_weapon_instance = weapon_slot   # 保持与旧代码兼容（get_weapon_data 等使用该变量）
+	
+	# 防具/饰品
+	armor_slots.clear()
+	for slot in data.armor_slots:
+		if slot:
+			var new_inst = ItemInstance.new()
+			new_inst.item_id = slot.item_id
+			new_inst.count = slot.count
+			armor_slots.append(new_inst)
+		else:
+			armor_slots.append(null)
+	max_armor_slots = data.max_armor_slots
 	
 	# ---- 加载 SpriteFrames（参考 setup_unit） ----
 	if not animated_sprite:
@@ -500,10 +511,8 @@ func restore_from_unit_data(data: UnitData, cell: Vector2i):
 			animated_sprite.visible = true
 			animated_sprite.z_index = 2
 	
-	# ---- 更新颜色 ----
+	# ---- 更新颜色与UI ----
 	update_color()
-	
-	# ---- 更新UI ----
 	update_hp_label()
 	update_name_label()
 	update_terrain_info()

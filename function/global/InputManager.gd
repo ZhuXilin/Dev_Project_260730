@@ -71,9 +71,9 @@ func handle_click(clicked_cell: Vector2i):
 						selected_unit.unit_stats.move_range,
 						selected_unit
 					)
-					var weapon_stats = selected_unit.get_weapon_stats()
-					var max_range = weapon_stats["attack_range"]
-					var min_range = weapon_stats["min_attack_range"]
+					var weapon_data = selected_unit.get_weapon_data()
+					var max_range = weapon_data.attack_range if weapon_data else 0
+					var min_range = weapon_data.min_attack_range if weapon_data else 0
 					var is_healer = (selected_unit.get_weapon_type() == UnitDataManagerClass.WEAPON_HEAL)
 					var attack_preview = {}
 					for move_cell in reachable.keys():
@@ -154,7 +154,7 @@ func handle_click(clicked_cell: Vector2i):
 					var is_healer = false
 					if pending_attack_weapon_id != "":
 						var data = ItemManager.get_item_data(pending_attack_weapon_id)
-						if data and data.type == "weapon" and data.weapon_heal_amount > 0:
+						if data and data.type == "weapon" and data.stats.get("heal_amount", 0) > 0:
 							is_healer = true
 					var is_valid_target = false
 					if is_healer:
@@ -536,10 +536,9 @@ func _start_attack_target_selection(unit: Unit, weapon_id: String):
 		return
 
 	print("武器名称: ", data.name)
-	print("攻击范围: ", data.weapon_min_attack_range, " ~ ", data.weapon_attack_range)
-
-	var max_range = data.weapon_attack_range
-	var min_range = data.weapon_min_attack_range
+	print("攻击范围: ", data.min_attack_range, " ~ ", data.attack_range)
+	var max_range = data.attack_range
+	var min_range = data.min_attack_range
 	if max_range == 0 and min_range == 0:
 		print("警告：武器射程为0，无法攻击")
 		pending_attack_weapon_id = ""
@@ -599,9 +598,9 @@ func on_move_button_pressed():
 			SignalBus.request_show_menu.emit(selected_unit)
 			return
 		var attack_targets = {}
-		var weapon_stats = selected_unit.get_weapon_stats()
-		var max_range = weapon_stats["attack_range"]
-		var min_range = weapon_stats["min_attack_range"]
+		var weapon_data = selected_unit.get_weapon_data()
+		var max_range = weapon_data.attack_range if weapon_data else 0
+		var min_range = weapon_data.min_attack_range if weapon_data else 0
 		var is_healer = (selected_unit.get_weapon_type() == UnitDataManagerClass.WEAPON_HEAL)
 		for unit in UnitManager.unit_list:
 			if unit.hit_points <= 0:
@@ -750,7 +749,11 @@ func _print_unit_info(unit: Unit):
 	print("速度: ", unit.unit_stats.speed)
 	print("幸运: ", unit.unit_stats.luck)
 	print("移动力: ", unit.unit_stats.move_range)
-	print("攻击范围: ", weapon_stats["min_attack_range"], "~", weapon_stats["attack_range"])
+	var weapon_data = unit.get_weapon_data()
+	if weapon_data:
+		print("攻击范围: ", weapon_data.min_attack_range, "~", weapon_data.attack_range)
+	else:
+		print("攻击范围: 0~0")
 	print("当前格子: ", unit.grid_cell)
 	print("已行动: ", unit.has_moved)
 	print("可行动: ", unit.can_act_this_turn)
