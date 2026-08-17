@@ -1,8 +1,10 @@
 extends Resource
 class_name UnitConfig
 
-@export var unit_name : String = "剑士"
-@export var team_id : int = 0
+@export var unit_name: String = "剑士"
+@export var display_name: String = ""
+@export var faction: String = ""
+@export var team_id: int = 0
 @export var position : Vector2i = Vector2i.ZERO
 @export var override_stats : Dictionary = {}
 @export var immobile : bool = false   # 新增：是否不可移动（仅对敌方有效）

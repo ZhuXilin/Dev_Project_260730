@@ -30,9 +30,10 @@ static func spawn_units_from_configs(parent: Node, configs: Array[UnitConfig], g
 static func _create_unit_stats(cfg: UnitConfig) -> UnitData:
 	var stats = UnitDataManager.get_default_stats(cfg.unit_name)
 	stats.unit_name = cfg.unit_name
+	stats.display_name = cfg.display_name if cfg.display_name != "" else cfg.unit_name
+	stats.faction = cfg.faction
 	cfg.apply_override(stats)
 	stats.team_id = cfg.team_id
-	# 如果单位是敌方且设置为不可移动，则将移动力置为0
 	if cfg.immobile and cfg.team_id == 1:
 		stats.move_range = 0
 	return stats

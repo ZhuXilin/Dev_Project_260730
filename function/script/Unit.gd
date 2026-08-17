@@ -28,6 +28,11 @@ var moves_since_act: int = 0   # 自从执行行动后移动的次数
 var inventory: Array[ItemInstance] = []
 var equipped_weapon_instance: ItemInstance = null   # 存储当前装备的武器实例
 
+# ---- 装备 ----
+var weapon_slot: ItemInstance = null
+var armor_slots: Array[ItemInstance] = []
+var max_armor_slots: int = 2
+
 # ---- 动画与材质 ----
 var animated_sprite : AnimatedSprite2D
 var current_anim : String = "idle"
@@ -190,36 +195,22 @@ func get_weapon_data() -> ItemData:
 	return ItemManager.get_item_data(equipped_weapon_instance.item_id)
 
 func get_weapon_stats() -> Dictionary:
-	var weapon = get_weapon_data()
-	if weapon:
-		return {
-			"attack": weapon.weapon_attack,
-			"magic_attack": weapon.weapon_magic_attack,
-			"heal_amount": weapon.weapon_heal_amount,
-			"attack_range": weapon.weapon_attack_range,
-			"min_attack_range": weapon.weapon_min_attack_range
-		}
-	return {
-		"attack": 0,
-		"magic_attack": 0,
-		"heal_amount": 0,
-		"attack_range": 0,
-		"min_attack_range": 0
-	}
+	var data = get_weapon_data()
+	return data.stats if data else {}
 
 func get_weapon_type() -> int:
-	var weapon = get_weapon_data()
-	return weapon.weapon_type if weapon else -1
-
-func equip_weapon(item_id: String) -> bool:
-	var inst = find_first_instance(item_id)
-	if not inst:
-		return false
-	var data = ItemManager.get_item_data(item_id)
-	if data and data.type == "weapon" and can_use_weapon(item_id):
-		equipped_weapon_instance = inst
-		return true
-	return false
+	var data = get_weapon_data()
+	if not data:
+		return -1
+	match data.category:
+		"sword": return UnitDataManagerClass.WEAPON_SWORD
+		"spear": return UnitDataManagerClass.WEAPON_SPEAR
+		"axe": return UnitDataManagerClass.WEAPON_AXE
+		"bow": return UnitDataManagerClass.WEAPON_BOW
+		"staff": return UnitDataManagerClass.WEAPON_HEAL
+		"spellbook": return UnitDataManagerClass.WEAPON_MAGIC
+		"dragonstone": return UnitDataManagerClass.WEAPON_DRAGONSTONE
+		_: return -1
 
 func equip_weapon_instance(inst: ItemInstance) -> bool:
 	if inst and inst in inventory:
@@ -528,3 +519,81 @@ func serialize_inventory() -> Array[Dictionary]:
 
 func get_equipped_weapon_id() -> String:
 	return equipped_weapon_instance.item_id if equipped_weapon_instance else ""
+
+# 获取武器
+func get_weapon() -> ItemInstance:
+	return weapon_slot
+
+# 装备武器（替换旧武器并返回旧武器）
+func equip_weapon(weapon: ItemInstance) -> ItemInstance:
+	var old = weapon_slot
+	weapon_slot = weapon
+	return old
+
+# 卸下武器
+func unequip_weapon() -> ItemInstance:
+	var old = weapon_slot
+	weapon_slot = null
+	return old
+
+# 获取防具/饰品槽位列表
+func get_armor_slots() -> Array[ItemInstance]:
+	return armor_slots
+
+# 在指定索引装备防具/饰品（替换原有物品）
+func equip_armor(index: int, item: ItemInstance) -> ItemInstance:
+	if index < 0 or index >= armor_slots.size():
+		return null
+	var old = armor_slots[index]
+	armor_slots[index] = item
+	return old
+
+# 卸下指定槽位的防具/饰品
+func unequip_armor(index: int) -> ItemInstance:
+	if index < 0 or index >= armor_slots.size():
+		return null
+	var old = armor_slots[index]
+	armor_slots[index] = null
+	return old
+
+# 增加防具/饰品槽位（每天调用）
+func add_armor_slot():
+	armor_slots.append(null)
+	max_armor_slots += 1
+
+func get_total_stats() -> Dictionary:
+	# 基础属性作为字典
+	var total = {
+		"max_hp": unit_stats.max_hp,
+		"attack": 0,
+		"magic_attack": 0,
+		"defense": unit_stats.defense,
+		"magic_defense": unit_stats.magic_defense,
+		"skill": unit_stats.skill,
+		"speed": unit_stats.speed,
+		"luck": unit_stats.luck,
+		"move_range": unit_stats.move_range,
+		"heal_amount": 0
+	}
+
+	# 武器加成
+	if weapon_slot and weapon_slot.item_id:
+		var data = ItemManager.get_item_data(weapon_slot.item_id)
+		if data and data.stats:
+			for key in data.stats:
+				total[key] = total.get(key, 0) + data.stats[key]
+
+	# 防具/饰品加成
+	for slot in armor_slots:
+		if slot and slot.item_id:
+			var data = ItemManager.get_item_data(slot.item_id)
+			if data and data.stats:
+				for key in data.stats:
+					total[key] = total.get(key, 0) + data.stats[key]
+
+	# 全局遗物加成（从 GameState 获取）
+	var relic_bonus = GameState.get_global_relic_stats()
+	for key in relic_bonus:
+		total[key] = total.get(key, 0) + relic_bonus[key]
+
+	return total

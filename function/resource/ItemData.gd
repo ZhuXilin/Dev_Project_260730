@@ -1,20 +1,21 @@
 extends Resource
 class_name ItemData
 
-@export var id : String
-@export var name : String
-@export var type : String
-@export var use_type : String
-@export var icon : Texture2D
-@export var effect : Dictionary
-@export var description : String
-@export var category : String = ""
-@export var use_effect : Dictionary = {}   # 使用效果配置
+@export var id: String
+@export var name: String
+@export var type: String          # "weapon", "armor", "accessory", "relic", "heal", "cure", "buff", "attack"
+@export var use_type: String      # "consumable", "equipment", "relic", "infinite"
+@export var icon: Texture2D
+@export var description: String
+@export var category: String = "" # "sword", "spear", "axe", "bow", "staff", "shield", etc.
 
-# 武器专用字段
-@export var weapon_attack : int = 0
-@export var weapon_magic_attack : int = 0
-@export var weapon_heal_amount : int = 0
-@export var weapon_attack_range : int = 1
-@export var weapon_min_attack_range : int = 1
-@export var weapon_type : int = -1
+# 装备专用
+@export var equipment_slot: String = ""   # "weapon", "armor", "accessory", "relic"
+@export var stats: Dictionary = {}        # 属性加成 { "attack": 2, "defense": 1, "magic_attack": 5, "heal_amount": 10, "move_range": 1 }
+
+# 武器范围（仅当 equipment_slot == "weapon" 时有效）
+@export var attack_range: int = 1
+@export var min_attack_range: int = 1
+
+# 消耗品效果
+@export var use_effect: Dictionary = {}   # 用于消耗品

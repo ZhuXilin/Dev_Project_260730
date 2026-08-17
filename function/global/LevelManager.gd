@@ -4,21 +4,19 @@ signal all_levels_completed()
 signal all_days_completed()
 
 const UNIT_LEVEL_MAP_PATH = "res://content/scenes/levels/UnitLevelMap.tres"
-const DEFAULT_UNIT = "枪兵"
+const DEFAULT_FACTION = "王国"
 
 var _config: UnitLevelMapConfig = null
 var _current_entry: UnitLevelMapEntry = null
 var _day_levels: Array = []   # 三天的关卡列表，每个元素是 Array[MapData]
 var current_level_index: int = 0
 var is_map_mode: bool = false
-var current_day: int = 0   # 0 表示第一天
+var current_day: int = 0   # 0-based
 
-# ===================== 生命周期 =====================
 func _ready():
 	_load_config()
 	_reload_all_levels()
 
-# ===================== 加载配置文件 =====================
 func _load_config():
 	if ResourceLoader.exists(UNIT_LEVEL_MAP_PATH):
 		_config = load(UNIT_LEVEL_MAP_PATH)
@@ -31,24 +29,13 @@ func _load_config():
 
 func _create_default_config():
 	_config = UnitLevelMapConfig.new()
-	
-	# 默认条目
 	var default_entry = UnitLevelMapEntry.new()
-	default_entry.unit_name = "默认"
+	default_entry.faction = DEFAULT_FACTION
 	default_entry.day1 = _create_empty_level_list()
 	default_entry.day2 = _create_empty_level_list()
 	default_entry.day3 = _create_empty_level_list()
 	_config.default_entry = default_entry
-	
-	# 枪兵条目（示例）
-	var gun_entry = UnitLevelMapEntry.new()
-	gun_entry.unit_name = "枪兵"
-	gun_entry.day1 = _create_empty_level_list()
-	gun_entry.day2 = _create_empty_level_list()
-	gun_entry.day3 = _create_empty_level_list()
-	_config.entries.append(gun_entry)
-	
-	# 保存到文件
+	_config.entries = [default_entry]
 	ResourceSaver.save(_config, UNIT_LEVEL_MAP_PATH)
 	print("已创建默认 UnitLevelMap.tres，请编辑后重新运行。")
 
@@ -57,27 +44,23 @@ func _create_empty_level_list() -> LevelListResource:
 	list.levels = []
 	return list
 
-# ===================== 根据单位获取条目 =====================
-func _get_entry_for_unit(unit_name: String) -> UnitLevelMapEntry:
+func _get_entry_for_faction(faction: String) -> UnitLevelMapEntry:
 	if not _config:
 		return null
 	for entry in _config.entries:
-		if entry.unit_name == unit_name:
+		if entry.faction == faction:
 			return entry
 	return _config.default_entry
 
-# ===================== 重新加载所有天的关卡 =====================
 func _reload_all_levels():
-	var unit_name = GameState.main_unit_name
-	if unit_name == "":
-		unit_name = DEFAULT_UNIT
-
-	_current_entry = _get_entry_for_unit(unit_name)
+	var faction = GameState.current_faction
+	if faction == "":
+		faction = DEFAULT_FACTION
+	_current_entry = _get_entry_for_faction(faction)
 	if not _current_entry:
-		push_error("未找到单位 %s 的关卡配置，使用默认条目" % unit_name)
 		_current_entry = _config.default_entry if _config else null
 	if not _current_entry:
-		push_error("默认条目也为空，创建临时条目")
+		push_error("没有找到阵营 %s 的关卡配置，创建临时条目" % faction)
 		_current_entry = UnitLevelMapEntry.new()
 		_current_entry.day1 = _create_empty_level_list()
 		_current_entry.day2 = _create_empty_level_list()
@@ -90,9 +73,8 @@ func _reload_all_levels():
 			_day_levels.append(res.levels.duplicate())
 		else:
 			_day_levels.append([])
-	print("已加载三天关卡，每天关卡数: ", _day_levels.map(func(arr): return arr.size()))
+	print("已加载阵营 %s 的关卡，每天关卡数: %s" % [faction, _day_levels.map(func(arr): return arr.size())])
 
-# ===================== 对外接口 =====================
 func get_current_day_levels() -> Array[MapData]:
 	if current_day < 0 or current_day >= _day_levels.size():
 		return []
@@ -103,7 +85,6 @@ func get_levels_for_day(day: int) -> Array:
 		return []
 	return _day_levels[day - 1]
 
-# 按类型获取地图（用于 MapGenerator）
 func get_map_for_node_type(node_type: int, main_unit: String = "") -> MapData:
 	var day_levels = get_current_day_levels()
 	if day_levels.is_empty():
@@ -111,7 +92,7 @@ func get_map_for_node_type(node_type: int, main_unit: String = "") -> MapData:
 		fallback.node_type = node_type
 		return fallback
 
-	# 按 required_unit 过滤
+	# 按 required_unit 过滤（可选）
 	var filtered = day_levels.filter(func(m):
 		return m.required_unit == "" or m.required_unit == main_unit
 	)
@@ -122,7 +103,6 @@ func get_map_for_node_type(node_type: int, main_unit: String = "") -> MapData:
 		fallback.node_type = node_type
 		return fallback
 
-	# 按 node_type 过滤
 	var type_filtered = filtered.filter(func(m):
 		return m.node_type == node_type
 	)
@@ -131,13 +111,11 @@ func get_map_for_node_type(node_type: int, main_unit: String = "") -> MapData:
 			return m.node_type == MapNode.NodeType.NORMAL
 		)
 	if type_filtered.is_empty():
-		# 返回第一个并设置类型
 		var result = filtered[0]
 		result.node_type = node_type
 		return result
 	return type_filtered[0]
 
-# 推进天数
 func advance_day() -> bool:
 	current_day += 1
 	print("advance_day: current_day=", current_day)
@@ -149,10 +127,7 @@ func advance_day() -> bool:
 	GameState.cached_day = -1
 	return true
 
-# ===================== 游戏流程控制 =====================
-# LevelManager.gd
 func start_game():
-	# 重置进度（保留队伍，队伍已由 UnitSelectUI 初始化）
 	GameState.reset_progress()
 	current_level_index = 0
 	current_day = 0
@@ -199,7 +174,6 @@ func load_current_level():
 		emit_signal("all_levels_completed")
 		get_tree().change_scene_to_file("res://content/scenes/ui/MainMenu.tscn")
 
-# ===================== 辅助 =====================
 func _create_fallback_map_data() -> MapData:
 	var m = MapData.new()
 	m.map_name = "备用地图"

@@ -1,7 +1,7 @@
 extends Node
 
 const PATHS = {
-	"ITEM_DATA": "res://content/data/items.json",
+	"ITEM_DATA": "res://content/data/item_data.json",
 	"UNIT_DATA": "res://content/data/unit_data.json",
 	"DIALOGUE_DATA": "res://content/data/dialogues.json",
 	"EVENT_DATA": "res://content/data/events.json",

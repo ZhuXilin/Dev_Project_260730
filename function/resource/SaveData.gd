@@ -6,6 +6,7 @@ const CURRENT_VERSION = 1
 # ---- 版本 ----
 @export var save_version: int = CURRENT_VERSION
 @export var unlocked_units: Array[String] = []
+@export var unlocked_items: Array[String] = []
 
 # ---- 玩家设置 ----
 @export var music_volume: float = 0.2
@@ -32,10 +33,14 @@ const CURRENT_VERSION = 1
 
 # ---- 队伍状态 ----
 @export var party_data: Array = []
+@export var current_faction: String = ""
 
 # ---- 元数据 ----
 @export var save_time: int = 0
 @export var checksum: String = ""
+
+@export var party_equipment: Array = []   # 每个单位装备数据
+@export var global_relics: Array = []     # 全局遗物序列化
 
 # ---- 校验和计算 ----
 func compute_checksum() -> String:
@@ -55,6 +60,11 @@ func compute_checksum() -> String:
 		"interrupt_state": interrupt_state,
 		"battlefield_data": battlefield_data,
 		"party_data": party_data,
-		"unlocked_units": unlocked_units
+		"unlocked_units": unlocked_units,
+		"unlocked_items": unlocked_items,
+		"current_faction": current_faction,
+		"party_equipment": party_equipment,
+		"global_relics": global_relics,
+		"map_level_data": map_level_data.resource_path if map_level_data else ""
 	}
 	return JSON.stringify(data, "  ").sha256_text()

@@ -9,7 +9,9 @@
 	"luck": 5,
 	"ignore_terrain_cost": false,
 	"sprite_frames_path": "res://content/images/characters/unit_swordsmen_frames.tres",
-	"description": "平衡型近战单位，擅长剑术，攻守兼备。"
+	"description": "平衡型近战单位，擅长剑术，攻守兼备。",
+	"display_name": "艾琳",
+	"faction": "王国"
   },
   "枪兵": {
 	"max_hp": 27,
@@ -21,7 +23,9 @@
 	"luck": 2,
 	"ignore_terrain_cost": false,
 	"sprite_frames_path": "res://content/images/characters/unit_knight_frames.tres",
-	"description": "长枪兵，攻击力高，移动距离远，克制骑兵。"
+	"description": "长枪兵，攻击力高，移动距离远，克制骑兵。",
+	"display_name": "罗兰",
+	"faction": "王国"
   },
   "斧兵": {
 	"max_hp": 17,
@@ -33,7 +37,9 @@
 	"luck": 1,
 	"ignore_terrain_cost": false,
 	"sprite_frames_path": "res://content/images/characters/unit_axeman_frames.tres",
-	"description": "狂战士，高攻击力但命中率低，适合破甲。"
+	"description": "狂战士，高攻击力但命中率低，适合破甲。",
+	"display_name": "格伦",
+	"faction": "海盗"
   },
   "弓兵": {
 	"max_hp": 14,
@@ -45,7 +51,9 @@
 	"luck": 2,
 	"ignore_terrain_cost": false,
 	"sprite_frames_path": "res://content/images/characters/unit_archer_frames.tres",
-	"description": "远程物理单位，可攻击远处敌人，克制飞行单位。"
+	"description": "远程物理单位，可攻击远处敌人，克制飞行单位。",
+	"display_name": "莉安娜",
+	"faction": "王国"
   },
   "飞马": {
 	"max_hp": 24,
@@ -57,7 +65,9 @@
 	"luck": 4,
 	"ignore_terrain_cost": true,
 	"sprite_frames_path": "res://content/images/characters/unit_pegasus_frames.tres",
-	"description": "飞行骑兵，无视地形移动，机动性极强。"
+	"description": "飞行骑兵，无视地形移动，机动性极强。",
+	"display_name": "塞拉",
+	"faction": "海盗"
   },
   "法师": {
 	"max_hp": 18,
@@ -69,7 +79,9 @@
 	"luck": 2,
 	"ignore_terrain_cost": false,
 	"sprite_frames_path": "res://content/images/characters/unit_mage_frames.tres",
-	"description": "魔法攻击单位，拥有魔法防御力，攻击力较高。"
+	"description": "魔法攻击单位，拥有魔法防御力，攻击力较高。",
+	"display_name": "梅林",
+	"faction": "王国"
   },
   "修女": {
 	"max_hp": 14,
@@ -81,7 +93,9 @@
 	"luck": 4,
 	"ignore_terrain_cost": false,
 	"sprite_frames_path": "res://content/images/characters/unit_cleric_frames.tres",
-	"description": "治疗单位，可恢复队友生命值，魔法防御高。"
+	"description": "治疗单位，可恢复队友生命值，魔法防御高。",
+	"display_name": "菲奥娜",
+	"faction": "王国"
   },
   "龙人": {
 	"max_hp": 30,
@@ -93,7 +107,9 @@
 	"luck": 3,
 	"ignore_terrain_cost": false,
 	"sprite_frames_path": "res://content/images/characters/unit_dragonborn.tres",
-	"description": "龙族后裔，拥有极高防御和魔法防御，移动缓慢但顽强。"
+	"description": "龙族后裔，拥有极高防御和魔法防御，移动缓慢但顽强。",
+	"display_name": "拉兹",
+	"faction": "龙族"
   },
   "重甲兵": {
 	"max_hp": 30,
@@ -105,6 +121,8 @@
 	"luck": 2,
 	"ignore_terrain_cost": false,
 	"sprite_frames_path": "res://content/images/characters/unit_heavyarmored.tres",
-	"description": "重装步兵，高物理防御和生命值，移动力较低。"
+	"description": "重装步兵，高物理防御和生命值，移动力较低。",
+	"display_name": "巴尔",
+	"faction": "王国"
   }
 }

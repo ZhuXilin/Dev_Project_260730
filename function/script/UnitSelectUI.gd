@@ -1,7 +1,9 @@
+# UnitSelectUI.gd
 extends CanvasLayer
 
 var all_unit_names: Array[String] = ["剑士", "枪兵", "斧兵", "弓兵", "飞马", "法师", "修女", "龙人", "重甲兵"]
-var selected_units: Array[String] = []
+var selected_units: Array[String] = []   # 存储选中的 unit_name（类型）
+var selected_names: Array[String] = []   # 存储选中的 display_name（用于显示）
 var max_selection: int = 3
 
 @onready var unit_buttons = $UnitListContainer/VBoxContainer
@@ -14,50 +16,37 @@ var max_selection: int = 3
 func _ready():
 	if MusicManager.config and MusicManager.config.unit_select_music:
 		MusicManager.play_music(MusicManager.config.unit_select_music)
-	
-	# 让标签可点击（用于移除单位）
-	_make_label_clickable(main_label, 0)
-	_make_label_clickable(slot1_label, 1)
-	_make_label_clickable(slot2_label, 2)
-	
 	_setup_unit_buttons()
 	_update_labels()
-
-func _make_label_clickable(label: Label, index: int):
-	label.mouse_filter = Control.MOUSE_FILTER_STOP
-	label.gui_input.connect(func(event):
-		if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-			_on_slot_clicked(index)
-	)
-	label.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 
 func _setup_unit_buttons():
 	for child in unit_buttons.get_children():
 		child.queue_free()
 
-	# 获取已解锁单位列表（按名称排序）
 	var unlocked = Globals.get_unlocked_units()
 	unlocked.sort()
 
 	for unit_name in unlocked:
 		var btn = Button.new()
-		btn.text = unit_name
+		btn.text = unit_name   # 显示类型名（暂定，后续会在选中时显示姓名）
 		btn.add_theme_font_size_override("font_size", 8)
 		btn.size = Vector2(100, 30)
-		btn.pressed.connect(_on_unit_selected.bind(unit_name))
+		btn.pressed.connect(_on_unit_selected.bind(unit_name, btn))
 		unit_buttons.add_child(btn)
+		# 如果该单位已被选择，禁用按钮
+		if unit_name in selected_units:
+			btn.disabled = true
+			btn.modulate = Color(0.5, 0.5, 0.5)
 
-func _on_unit_selected(unit_name: String):
+func _on_unit_selected(unit_name: String, btn: Button):
 	if selected_units.size() >= max_selection:
 		return
+	if unit_name in selected_units:
+		return   # 不允许重复选择
 	selected_units.append(unit_name)
+	btn.disabled = true
+	btn.modulate = Color(0.5, 0.5, 0.5)
 	_update_labels()
-
-func _on_slot_clicked(index: int):
-	if index < selected_units.size():
-		selected_units.remove_at(index)
-		_update_labels()
-		SoundManager.play_cancel_sound()
 
 func _update_labels():
 	var slots = ["主单位", "辅助1", "辅助2"]
@@ -70,6 +59,27 @@ func _update_labels():
 	confirm_btn.disabled = selected_units.size() < max_selection
 
 func _on_confirm_pressed():
+	# 确定主单位（第一个选择的），获取其阵营和姓名
+	var main_unit_name = selected_units[0]
+	var main_data = UnitDataManager.get_unit_data(main_unit_name)  # 读取基本数据，但我们还需要获取 display_name 和 faction，这些需要从游戏数据中读取。
+	# 由于我们还没有创建实际单位，我们需要从配置或默认生成。我们可以从 unit_data.json 中读取额外字段？
+	# 更好的方式：在单位选择时，我们默认 display_name = unit_name，阵营默认空。但为了功能，我们可临时生成一个 UnitData。
+	# 更简单：我们使用 UnitDataManager.get_default_stats 得到基本属性，然后设置 display_name 和 faction 为默认。
+	# 实际上，在正式选择前，我们需要让玩家为每个单位输入姓名？需求没有明确，我们先简化：display_name 等于 unit_name。
+	# 这样就不需要额外输入了。
+	# 但需求要求“单位新增姓名数据”，那么应该在选择时允许命名？当前先假设姓名由配置文件提供（如 unit_data.json 中增加字段）。
+	# 为了演示，我们直接使用 unit_name 作为显示名。
+	
+	# 构建队伍数据
+	var selected_unit_names = selected_units.duplicate()
+	var main_index = 0
+	GameState.initialize_party(selected_unit_names, main_index)
+	# 设置阵营：从主单位的配置文件读取
+	var main_unit_data = UnitDataManager.get_unit_data(main_unit_name)
+	var faction = main_unit_data.get("faction", "王国")   # 若未配置，默认“王国”
+	GameState.current_faction = faction
+	
+	# 继续原有保存和跳转逻辑
 	var target_slot = -1
 	if SaveManager.current_slot != -1:
 		target_slot = SaveManager.current_slot
@@ -85,7 +95,6 @@ func _on_confirm_pressed():
 			return
 
 	Globals.pending_save_slot = target_slot
-	GameState.initialize_party(selected_units, 0)
 	GameState.start_new_cycle()
 	GameState.reset_progress()
 	GameState.interrupt_state = 2

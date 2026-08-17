@@ -114,6 +114,8 @@ func hide_menu():
 # ============================================================
 #  装备菜单（含给予/丢弃）
 # ============================================================
+# 以下是 show_equip_menu 的完整实现，其他函数不变
+
 func show_equip_menu(unit: Unit):
 	if not equip_menu or not equip_container:
 		return
@@ -123,107 +125,130 @@ func show_equip_menu(unit: Unit):
 	for child in equip_container.get_children():
 		child.queue_free()
 
-	equip_menu.size.x = 120
-	equip_container.size.x = 100
+	equip_menu.size.x = 180
+	equip_container.size.x = 160
 
 	var can_act = unit.can_act_this_turn and not unit.has_acted
 
-	if unit.inventory.is_empty():
-		var label = Label.new()
-		label.text = "没有道具"
-		label.add_theme_font_size_override("font_size", 6)
-		equip_container.add_child(label)
+	# ---- 武器槽 ----
+	var weapon_label = Label.new()
+	weapon_label.text = "武器"
+	weapon_label.add_theme_font_size_override("font_size", 8)
+	equip_container.add_child(weapon_label)
+
+	var weapon_inst = unit.get_weapon()
+	if weapon_inst:
+		var btn = _create_item_button(weapon_inst, unit, can_act, -1, true)
+		equip_container.add_child(btn)
 	else:
-		unit.inventory.sort_custom(func(a, b):
-			var data_a = ItemManager.get_item_data(a.item_id)
-			var data_b = ItemManager.get_item_data(b.item_id)
-			if not data_a or not data_b:
-				return data_a != null
+		var empty_label = Label.new()
+		empty_label.text = "（空）"
+		empty_label.add_theme_font_size_override("font_size", 6)
+		equip_container.add_child(empty_label)
 
-			var a_is_weapon = (data_a.type == "weapon")
-			var b_is_weapon = (data_b.type == "weapon")
+	# ---- 防具/饰品槽 ----
+	var armor_label = Label.new()
+	armor_label.text = "防具/饰品"
+	armor_label.add_theme_font_size_override("font_size", 8)
+	equip_container.add_child(armor_label)
 
-			if a_is_weapon and not b_is_weapon:
-				return true
-			if not a_is_weapon and b_is_weapon:
-				return false
+	var armor_slots = unit.get_armor_slots()
+	for i in range(armor_slots.size()):
+		var hbox = HBoxContainer.new()
+		var slot_label = Label.new()
+		slot_label.text = "槽" + str(i+1) + ":"
+		slot_label.add_theme_font_size_override("font_size", 6)
+		slot_label.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		hbox.add_child(slot_label)
 
-			if a_is_weapon and b_is_weapon:
-				var a_equipped = (a == unit.equipped_weapon_instance)
-				var b_equipped = (b == unit.equipped_weapon_instance)
-				if a_equipped and not b_equipped:
-					return true
-				if not a_equipped and b_equipped:
-					return false
-
-			return data_a.name < data_b.name
-		)
-
-		for inst in unit.inventory:
-			var item_id = inst.item_id
-			var data = ItemManager.get_item_data(item_id)
-			if not data:
-				continue
-
-			var is_weapon = (data.type == "weapon")
-			var is_equipped = (is_weapon and inst == unit.equipped_weapon_instance)
-			var can_use_weapon = is_weapon and unit.can_use_weapon(item_id)
-
-			var type_display = ""
-			if is_weapon and data.category != "":
-				type_display = UnitDataManager.get_weapon_category_display(data.category)
-			elif data.type != "":
-				type_display = _get_type_display_name(data.type)
-			var type_str = " [" + type_display + "]" if type_display != "" else ""
-
-			var btn = Button.new()
+		var inst = armor_slots[i]
+		if inst:
+			var btn = _create_item_button(inst, unit, can_act, i, false)
 			btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-			btn.add_theme_font_size_override("font_size", 6)
-			btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
-			btn.clip_text = true
-			btn.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+			hbox.add_child(btn)
+			if can_act:
+				var unequip_btn = Button.new()
+				unequip_btn.text = "×"
+				unequip_btn.add_theme_font_size_override("font_size", 6)
+				unequip_btn.pressed.connect(_on_unequip_armor_pressed.bind(unit, i))
+				unequip_btn.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+				hbox.add_child(unequip_btn)
+		else:
+			var empty_label = Label.new()
+			empty_label.text = "（空）"
+			empty_label.add_theme_font_size_override("font_size", 6)
+			empty_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			hbox.add_child(empty_label)
 
-			if data.icon:
-				btn.icon = data.icon
+		equip_container.add_child(hbox)
 
-			var text = data.name + type_str
+	# ---- 背包道具（排除已装备的） ----
+	var backpack_label = Label.new()
+	backpack_label.text = "背包"
+	backpack_label.add_theme_font_size_override("font_size", 8)
+	equip_container.add_child(backpack_label)
 
-			if is_equipped:
-				btn.disabled = true
-				text += " (已装备)"
-				btn.text = text
-				equip_container.add_child(btn)
-				continue
+	var equipped_insts = []
+	if unit.get_weapon():
+		equipped_insts.append(unit.get_weapon())
+	for slot in unit.get_armor_slots():
+		if slot:
+			equipped_insts.append(slot)
 
-			if not can_act:
-				btn.disabled = true
-				text += " (已行动)"
-				btn.text = text
-				equip_container.add_child(btn)
-				continue
+	var has_backpack_item = false
+	for inst in unit.inventory:
+		if inst in equipped_insts:
+			continue
+		has_backpack_item = true
+		var btn = _create_item_button(inst, unit, can_act, -1, false)
+		equip_container.add_child(btn)
 
-			if not is_weapon:
-				text += " x" + str(inst.count)
+	if not has_backpack_item:
+		var empty_label = Label.new()
+		empty_label.text = "（空）"
+		empty_label.add_theme_font_size_override("font_size", 6)
+		equip_container.add_child(empty_label)
 
-			if is_weapon and not can_use_weapon:
-				text += " 不可用"
-
-			btn.text = text
-			btn.pressed.connect(_show_item_action_panel.bind(unit, inst))
-			equip_container.add_child(btn)
-
+	# 调整面板高度
 	await get_tree().process_frame
 	var container_min_height = equip_container.get_minimum_size().y
-
 	var style = equip_menu.get_theme_stylebox("panel")
 	var margin_top = style.get_margin(SIDE_TOP) if style else 0.0
 	var margin_bottom = style.get_margin(SIDE_BOTTOM) if style else 0.0
-
 	var panel_height = container_min_height + margin_top + margin_bottom
 	equip_menu.size.y = panel_height
 
 	_show_submenu(equip_menu)
 	Globals.is_equip_menu_active = true
+
+func _create_item_button(inst: ItemInstance, unit: Unit, can_act: bool, slot_index: int = -1, _is_weapon: bool = false) -> Button:
+	var data = ItemManager.get_item_data(inst.item_id)
+	var btn = Button.new()
+	btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	btn.add_theme_font_size_override("font_size", 6)
+	btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	btn.clip_text = true
+	btn.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	if data.icon:
+		btn.icon = data.icon
+	btn.text = data.name
+	if not can_act:
+		btn.disabled = true
+	else:
+		btn.pressed.connect(_show_item_action_panel.bind(unit, inst, slot_index))
+	return btn
+
+func _on_unequip_armor_pressed(unit: Unit, slot_index: int):
+	if not unit.can_act_this_turn or unit.has_acted:
+		return
+	var removed = unit.unequip_armor(slot_index)
+	if removed:
+		if unit.add_item(removed.item_id, removed.count):
+			print("卸下装备到背包")
+		else:
+			print("背包已满，装备已丢弃")
+		unit.mark_non_attack_action()
+		show_equip_menu(unit)
 
 func hide_equip_menu():
 	_hide_submenu(equip_menu)
@@ -260,12 +285,12 @@ func show_weapon_select_menu(unit: Unit, weapons: Array):
 		else:
 			type_display = _get_type_display_name(data.type)
 		var attack_str = ""
-		if data.weapon_attack > 0:
-			attack_str += "物理+" + str(data.weapon_attack)
-		if data.weapon_magic_attack > 0:
-			attack_str += "魔法+" + str(data.weapon_magic_attack)
-		if data.weapon_heal_amount > 0:
-			attack_str += "治疗+" + str(data.weapon_heal_amount)
+		if data.stats.has("attack"):
+			attack_str += "物理+" + str(data.stats["attack"])
+		if data.stats.has("magic_attack"):
+			attack_str += "魔法+" + str(data.stats["magic_attack"])
+		if data.stats.has("heal_amount"):
+			attack_str += "治疗+" + str(data.stats["heal_amount"])
 		btn.text = data.name + " [" + type_display + "] " + attack_str
 		btn.add_theme_font_size_override("font_size", 6)
 		btn.pressed.connect(_on_weapon_selected.bind(unit, weapon_id))
@@ -298,7 +323,8 @@ func _hide_submenu(menu: Control):
 # ============================================================
 func _on_equip_weapon_pressed(unit: Unit, item_id: String):
 	hide_item_action_panel()
-	if unit.equip_weapon(item_id):
+	var inst = unit.find_first_instance(item_id)
+	if inst and unit.equip_weapon(inst):
 		InputManager.selected_unit = unit
 		InputManager.interaction_phase = "menu"
 		SignalBus.request_show_menu.emit(unit)

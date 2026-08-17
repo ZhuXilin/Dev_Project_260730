@@ -736,7 +736,10 @@ func handle_input(event: InputEvent, _map_grid_size: Vector2i, _cell_size: int):
 # ============================================================
 func _print_unit_info(unit: Unit):
 	print("===== 单位信息 =====")
-	print("名称: ", unit.unit_stats.unit_name)
+	var display_name = unit.unit_stats.display_name if unit.unit_stats.display_name != "" else unit.unit_stats.unit_name
+	print("姓名: ", display_name)
+	print("类型: ", unit.unit_stats.unit_name)
+	print("阵营: ", unit.unit_stats.faction if unit.unit_stats.faction != "" else "无")
 	print("队伍: ", "玩家" if unit.unit_stats.team_id == 0 else "敌人")
 	print("HP: ", unit.hit_points, "/", unit.unit_stats.max_hp)
 	var weapon_stats = unit.get_weapon_stats()

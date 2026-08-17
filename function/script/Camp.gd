@@ -48,7 +48,17 @@ func _on_unit_pressed():
 		panel.populate_list()
 
 func _on_item_pressed():
-	print("道具图鉴")
+	var existing = get_node_or_null("ItemInfoUI")
+	if existing:
+		existing.visible = !existing.visible
+		if existing.visible:
+			existing._refresh_list()
+		return
+	var panel_scene = load("res://content/scenes/ui/ItemInfoUI.tscn")
+	if panel_scene:
+		var panel = panel_scene.instantiate()
+		add_child(panel)
+		panel.name = "ItemInfoUI"
 
 func _on_back_pressed():
 	GameState.interrupt_state = 1

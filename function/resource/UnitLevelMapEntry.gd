@@ -1,7 +1,9 @@
-extends Resource
+# UnitLevelMapEntry.gd
 class_name UnitLevelMapEntry
+extends Resource
 
-@export var unit_name: String = ""                 # 单位名称，如“枪兵”
-@export var day1: LevelListResource               # 第一天的关卡列表
-@export var day2: LevelListResource               # 第二天的关卡列表
-@export var day3: LevelListResource               # 第三天的关卡列表
+@export var faction: String = ""       # 阵营名（取代 unit_name）
+@export var unit_name: String = ""     # 保留但不再用于查找（仅作注释）
+@export var day1: LevelListResource
+@export var day2: LevelListResource
+@export var day3: LevelListResource

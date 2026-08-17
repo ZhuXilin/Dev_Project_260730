@@ -4,17 +4,11 @@ signal item_acquired(item_id, count)
 signal item_used(item_id, unit)
 
 var _item_db : Dictionary = {}   # id -> ItemData
-var _inventory : Dictionary = {} # id -> count (仅消耗品计数，无限型为1表示拥有)
+var _inventory : Dictionary = {} # id -> count (仅消耗品)
 
 func _ready():
 	load_items()
 	load_inventory()
-	# ---- 若库存为空，从 Globals 加载默认道具 ----
-	if _inventory.is_empty() and Globals.default_items:
-		var defaults = Globals.default_items
-		for item_id in defaults:
-			add_item(item_id, defaults[item_id])
-		print("已从默认配置加载道具")
 
 func load_items():
 	var path = Config.PATHS.ITEM_DATA
@@ -32,28 +26,24 @@ func load_items():
 	for key in data:
 		var dict = data[key]
 		var item = ItemData.new()
-		item.id = dict.get("id", key)  # 如果id缺失，用key代替
+		item.id = dict.get("id", key)
 		item.name = dict.get("name", "")
 		item.type = dict.get("type", "")
 		item.use_type = dict.get("use_type", "consumable")
-		item.use_effect = dict.get("use_effect", {})
 		if dict.has("icon") and ResourceLoader.exists(dict.icon):
 			item.icon = load(dict.icon)
 		else:
 			item.icon = null
-		item.effect = dict.get("effect", {})
 		item.description = dict.get("description", "")
 		item.category = dict.get("category", "")
-		# 武器专用字段
-		item.weapon_attack = dict.get("weapon_attack", 0)
-		item.weapon_magic_attack = dict.get("weapon_magic_attack", 0)
-		item.weapon_heal_amount = dict.get("weapon_heal_amount", 0)
-		item.weapon_attack_range = dict.get("weapon_attack_range", 1)
-		item.weapon_min_attack_range = dict.get("weapon_min_attack_range", 1)
-		item.weapon_type = dict.get("weapon_type", -1)
+		item.equipment_slot = dict.get("equipment_slot", "")
+		item.stats = dict.get("stats", {})
+		item.attack_range = dict.get("attack_range", 1)
+		item.min_attack_range = dict.get("min_attack_range", 1)
+		item.use_effect = dict.get("use_effect", {})
 		_item_db[item.id] = item
 	print("成功加载 ", _item_db.size(), " 个道具")
-
+	
 func get_item_data(item_id: String) -> ItemData:
 	return _item_db.get(item_id)
 
@@ -61,8 +51,8 @@ func add_item(item_id: String, count: int = 1):
 	if not _item_db.has(item_id):
 		return
 	var data = _item_db[item_id]
-	if data.use_type == "infinite":
-		_inventory[item_id] = 1
+	if data.use_type == "infinite" or data.use_type == "relic":
+		_inventory[item_id] = 1   # 无限装备视为拥有
 	else:
 		_inventory[item_id] = _inventory.get(item_id, 0) + count
 	item_acquired.emit(item_id, count)
@@ -170,3 +160,21 @@ func save_inventory():
 	pass
 func load_inventory():
 	pass
+
+# ---- 分类获取（用于道具图鉴） ----
+func get_items_by_type(item_type: String) -> Array[ItemData]:
+	var result = []
+	for item_id in _item_db:
+		var data = _item_db[item_id]
+		if data.type == item_type and Globals.is_item_unlocked(item_id):
+			result.append(data)
+	return result
+
+func get_weapons() -> Array[ItemData]:
+	return get_items_by_type("weapon")
+
+func get_armors() -> Array[ItemData]:
+	return get_items_by_type("armor") + get_items_by_type("accessory")
+
+func get_relics() -> Array[ItemData]:
+	return get_items_by_type("relic")

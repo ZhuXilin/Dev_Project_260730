@@ -72,12 +72,24 @@
 	"effect": {},
 	"description": "装备后攻击+6，射程1",
 	"category": "sword",
-	"weapon_attack": 6,
-	"weapon_magic_attack": 0,
-	"weapon_heal_amount": 0,
-	"weapon_attack_range": 1,
-	"weapon_min_attack_range": 1,
-	"weapon_type": 0
+	"equipment_slot": "weapon",
+	"stats": {"attack": 6},
+	"attack_range": 1,
+	"min_attack_range": 1
+  },
+  "steel_sword": {
+	"id": "steel_sword",
+	"name": "钢剑",
+	"type": "weapon",
+	"use_type": "infinite",
+	"icon": "res://content/images/items/sword.png",
+	"effect": {},
+	"description": "装备后攻击+8，射程1",
+	"category": "sword",
+	"equipment_slot": "weapon",
+	"stats": {"attack": 8},
+	"attack_range": 1,
+	"min_attack_range": 1
   },
   "steel_spear": {
 	"id": "steel_spear",
@@ -88,12 +100,10 @@
 	"effect": {},
 	"description": "装备后攻击+8，射程1",
 	"category": "spear",
-	"weapon_attack": 8,
-	"weapon_magic_attack": 0,
-	"weapon_heal_amount": 0,
-	"weapon_attack_range": 1,
-	"weapon_min_attack_range": 1,
-	"weapon_type": 1
+	"equipment_slot": "weapon",
+	"stats": {"attack": 8},
+	"attack_range": 1,
+	"min_attack_range": 1
   },
   "battle_axe": {
 	"id": "battle_axe",
@@ -104,12 +114,10 @@
 	"effect": {},
 	"description": "装备后攻击+10，射程2",
 	"category": "axe",
-	"weapon_attack": 10,
-	"weapon_magic_attack": 0,
-	"weapon_heal_amount": 0,
-	"weapon_attack_range": 2,
-	"weapon_min_attack_range": 1,
-	"weapon_type": 2
+	"equipment_slot": "weapon",
+	"stats": {"attack": 10},
+	"attack_range": 2,
+	"min_attack_range": 1
   },
   "longbow": {
 	"id": "longbow",
@@ -120,12 +128,10 @@
 	"effect": {},
 	"description": "装备后攻击+6，射程2-3",
 	"category": "bow",
-	"weapon_attack": 6,
-	"weapon_magic_attack": 0,
-	"weapon_heal_amount": 0,
-	"weapon_attack_range": 3,
-	"weapon_min_attack_range": 2,
-	"weapon_type": 3
+	"equipment_slot": "weapon",
+	"stats": {"attack": 6},
+	"attack_range": 3,
+	"min_attack_range": 2
   },
   "wooden_shield": {
 	"id": "wooden_shield",
@@ -136,12 +142,10 @@
 	"effect": {},
 	"description": "装备后防御+2",
 	"category": "shield",
-	"weapon_attack": 0,
-	"weapon_magic_attack": 0,
-	"weapon_heal_amount": 0,
-	"weapon_attack_range": 0,
-	"weapon_min_attack_range": 0,
-	"weapon_type": -1
+	"equipment_slot": "weapon",
+	"stats": {"defense": 2},
+	"attack_range": 0,
+	"min_attack_range": 0
   },
   "light_crossbow": {
 	"id": "light_crossbow",
@@ -152,12 +156,10 @@
 	"effect": {},
 	"description": "装备后攻击+5，射程2-3",
 	"category": "crossbow",
-	"weapon_attack": 5,
-	"weapon_magic_attack": 0,
-	"weapon_heal_amount": 0,
-	"weapon_attack_range": 3,
-	"weapon_min_attack_range": 2,
-	"weapon_type": 3
+	"equipment_slot": "weapon",
+	"stats": {"attack": 5},
+	"attack_range": 3,
+	"min_attack_range": 2
   },
   "healing_staff": {
 	"id": "healing_staff",
@@ -168,12 +170,10 @@
 	"effect": {},
 	"description": "装备后治疗+10，范围4",
 	"category": "staff",
-	"weapon_attack": 0,
-	"weapon_magic_attack": 0,
-	"weapon_heal_amount": 10,
-	"weapon_attack_range": 3,
-	"weapon_min_attack_range": 0,
-	"weapon_type": 5
+	"equipment_slot": "weapon",
+	"stats": {"heal_amount": 10},
+	"attack_range": 3,
+	"min_attack_range": 0
   },
   "fire_spellbook": {
 	"id": "fire_spellbook",
@@ -184,12 +184,10 @@
 	"effect": {},
 	"description": "装备后魔法攻击+11，射程2",
 	"category": "spellbook",
-	"weapon_attack": 0,
-	"weapon_magic_attack": 11,
-	"weapon_heal_amount": 0,
-	"weapon_attack_range": 2,
-	"weapon_min_attack_range": 1,
-	"weapon_type": 4
+	"equipment_slot": "weapon",
+	"stats": {"magic_attack": 11},
+	"attack_range": 2,
+	"min_attack_range": 1
   },
   "master_sword": {
 	"id": "master_sword",
@@ -200,12 +198,10 @@
 	"effect": {},
 	"description": "装备后攻击+12，射程1",
 	"category": "sword",
-	"weapon_attack": 12,
-	"weapon_magic_attack": 0,
-	"weapon_heal_amount": 0,
-	"weapon_attack_range": 1,
-	"weapon_min_attack_range": 1,
-	"weapon_type": 0
+	"equipment_slot": "weapon",
+	"stats": {"attack": 12},
+	"attack_range": 1,
+	"min_attack_range": 1
   },
   "javelin": {
 	"id": "javelin",
@@ -216,27 +212,103 @@
 	"effect": {},
 	"description": "装备后攻击+6，射程2",
 	"category": "spear",
-	"weapon_attack": 6,
-	"weapon_magic_attack": 0,
-	"weapon_heal_amount": 0,
-	"weapon_attack_range": 2,
-	"weapon_min_attack_range": 1,
-	"weapon_type": 1
+	"equipment_slot": "weapon",
+	"stats": {"attack": 6},
+	"attack_range": 2,
+	"min_attack_range": 1
   },
-	"fire_dragonstone": {
-	  "id": "fire_dragonstone",
-	  "name": "火龙石",
-	  "type": "weapon",
-	  "use_type": "infinite",
-	  "icon": "res://content/images/items/fire_dragonstone.png",
-	  "effect": {},
-	  "description": "龙人专用，高魔法伤害，射程远",
-	  "category": "dragonstone",
-	  "weapon_attack": 13,
-	  "weapon_magic_attack": 13,
-	  "weapon_heal_amount": 0,
-	  "weapon_attack_range": 4,
-	  "weapon_min_attack_range": 1,
-	  "weapon_type": 6
-	}
+  "fire_dragonstone": {
+	"id": "fire_dragonstone",
+	"name": "火龙石",
+	"type": "weapon",
+	"use_type": "infinite",
+	"icon": "res://content/images/items/fire_dragonstone.png",
+	"effect": {},
+	"description": "龙人专用，高魔法伤害，射程远",
+	"category": "dragonstone",
+	"equipment_slot": "weapon",
+	"stats": {"attack": 13, "magic_attack": 13},
+	"attack_range": 4,
+	"min_attack_range": 1
+  },
+  "iron_armor": {
+	"id": "iron_armor",
+	"name": "铁甲",
+	"type": "armor",
+	"use_type": "equipment",
+	"icon": "res://content/images/items/armor.png",
+	"description": "防御+2",
+	"equipment_slot": "armor",
+	"stats": {"defense": 2}
+  },
+  "steel_armor": {
+	"id": "steel_armor",
+	"name": "钢甲",
+	"type": "armor",
+	"use_type": "equipment",
+	"icon": "res://content/images/items/armor.png",
+	"description": "防御+4",
+	"equipment_slot": "armor",
+	"stats": {"defense": 4}
+  },
+  "knight_armor": {
+	"id": "knight_armor",
+	"name": "骑士甲",
+	"type": "armor",
+	"use_type": "equipment",
+	"icon": "res://content/images/items/armor.png",
+	"description": "防御+3，魔防+1",
+	"equipment_slot": "armor",
+	"stats": {"defense": 3, "magic_defense": 1}
+  },
+  "power_ring": {
+	"id": "power_ring",
+	"name": "力量戒指",
+	"type": "accessory",
+	"use_type": "equipment",
+	"icon": "res://content/images/items/ring.png",
+	"description": "攻击+2",
+	"equipment_slot": "accessory",
+	"stats": {"attack": 2}
+  },
+  "guard_ring": {
+	"id": "guard_ring",
+	"name": "守护戒指",
+	"type": "accessory",
+	"use_type": "equipment",
+	"icon": "res://content/images/items/ring.png",
+	"description": "防御+2",
+	"equipment_slot": "accessory",
+	"stats": {"defense": 2}
+  },
+  "speed_boots": {
+	"id": "speed_boots",
+	"name": "疾风靴",
+	"type": "accessory",
+	"use_type": "equipment",
+	"icon": "res://content/images/items/boots.png",
+	"description": "移动力+1",
+	"equipment_slot": "accessory",
+	"stats": {"move_range": 1}
+  },
+  "relic_attack": {
+	"id": "relic_attack",
+	"name": "力量遗物",
+	"type": "relic",
+	"use_type": "relic",
+	"icon": "res://content/images/items/relic.png",
+	"description": "全队攻击+2",
+	"equipment_slot": "relic",
+	"stats": {"attack": 2}
+  },
+  "relic_defense": {
+	"id": "relic_defense",
+	"name": "守护遗物",
+	"type": "relic",
+	"use_type": "relic",
+	"icon": "res://content/images/items/relic.png",
+	"description": "全队防御+2",
+	"equipment_slot": "relic",
+	"stats": {"defense": 2}
+  }
 }

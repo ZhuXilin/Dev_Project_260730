@@ -166,7 +166,9 @@ func _evaluate_attack(unit: Unit):
 
 			# 临时切换武器（保存当前装备实例）
 			var old_inst = unit.equipped_weapon_instance
-			unit.equip_weapon(w_id)
+			var weapon_inst = unit.find_first_instance(w_id)
+			if weapon_inst:
+				unit.equip_weapon(weapon_inst)
 
 			var hit_rate = CombatManager.calculate_hit_rate(unit, enemy)
 			var damage = CombatManager.calculate_damage(unit, enemy)

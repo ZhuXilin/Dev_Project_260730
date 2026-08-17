@@ -24,7 +24,6 @@ func populate_list():
 		unit_list.add_child(btn)
 
 func _on_unit_selected(unit_name: String):
-	# 更新精灵
 	var frames_path = UnitDataManager.get_sprite_frames_path(unit_name)
 	if frames_path != "" and ResourceLoader.exists(frames_path):
 		var frames = load(frames_path) as SpriteFrames
@@ -54,16 +53,21 @@ func _on_unit_selected(unit_name: String):
 		sprite_container.custom_minimum_size = Vector2.ZERO
 
 	# 更新文本
-	var stats = UnitDataManager.get_unit_data(unit_name)
-	var desc = stats.get("description", "暂无描述")
-	var text = "名称：%s\n" % unit_name
-	text += "HP：%d\n" % stats.get("max_hp", 0)
-	text += "防御：%d\n" % stats.get("defense", 0)
-	text += "魔防：%d\n" % stats.get("magic_defense", 0)
-	text += "技能：%d\n" % stats.get("skill", 0)
-	text += "速度：%d\n" % stats.get("speed", 0)
-	text += "幸运：%d\n" % stats.get("luck", 0)
-	text += "移动力：%d\n" % stats.get("move_range", 0)
+	var unit_data = UnitDataManager.get_unit_data(unit_name)
+	var display_name = unit_data.get("display_name", unit_name)
+	var faction = unit_data.get("faction", "")
+	var desc = unit_data.get("description", "暂无描述")
+	var text = "姓名：%s\n" % display_name
+	text += "类型：%s\n" % unit_name
+	if faction != "":
+		text += "阵营：%s\n" % faction
+	text += "HP：%d\n" % unit_data.get("max_hp", 0)
+	text += "防御：%d\n" % unit_data.get("defense", 0)
+	text += "魔防：%d\n" % unit_data.get("magic_defense", 0)
+	text += "技能：%d\n" % unit_data.get("skill", 0)
+	text += "速度：%d\n" % unit_data.get("speed", 0)
+	text += "幸运：%d\n" % unit_data.get("luck", 0)
+	text += "移动力：%d\n" % unit_data.get("move_range", 0)
 	text += "描述：%s" % desc
 	detail_label.text = text
 

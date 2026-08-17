@@ -32,6 +32,9 @@ var game_speed : int = 0
 var unlocked_units: Array[String] = []
 var unlock_config: Dictionary = {}
 
+# ---- 道具解锁系统 ----
+var unlocked_items: Array[String] = []
+
 # ---- 游戏状态标志 ----
 var is_fading : bool = false
 var is_performing_action : bool = false
@@ -214,3 +217,14 @@ func show_confirm(parent: Node, message: String, confirm_text: String = "确定"
 	parent.add_child(instance)
 	instance.show_confirm(message, confirm_text, cancel_text, confirm_cb, cancel_cb, show_cancel)
 	print("show_confirm 完成")
+
+func is_item_unlocked(item_id: String) -> bool:
+	return item_id in unlocked_items
+
+func unlock_item(item_id: String):
+	if item_id not in unlocked_items:
+		unlocked_items.append(item_id)
+		print("道具解锁：", item_id)
+
+func get_unlocked_items() -> Array[String]:
+	return unlocked_items.duplicate()

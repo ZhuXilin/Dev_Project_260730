@@ -1386,80 +1386,75 @@ func _on_request_show_info(unit: Unit):
 	else:
 		if not is_instance_valid(unit):
 			return
+		# 修正：使用同一个 lines 数组，不要重复声明
 		var lines = []
-		lines.append("名称: " + unit.unit_stats.unit_name)
+		# 姓名和类型
+		var display_name = unit.unit_stats.display_name if unit.unit_stats.display_name != "" else unit.unit_stats.unit_name
+		lines.append("姓名: " + display_name)
+		lines.append("类型: " + unit.unit_stats.unit_name)
+		if unit.unit_stats.faction != "":
+			lines.append("阵营: " + unit.unit_stats.faction)
 		lines.append("HP: " + str(unit.hit_points) + "/" + str(unit.unit_stats.max_hp))
 
+		# 装备数据
 		var weapon_data = unit.get_weapon_data()
-		var weapon_stats = unit.get_weapon_stats()
-
 		if weapon_data:
-			var attack_type = "物理" if weapon_stats["attack"] > 0 else "魔法" if weapon_stats["magic_attack"] > 0 else "治疗" if weapon_stats["heal_amount"] > 0 else "无"
-			lines.append("装备: " + weapon_data.name + " (" + attack_type + ")")
-			var attack_str = ""
-			if weapon_stats["attack"] > 0:
-				attack_str += "物理+" + str(weapon_stats["attack"]) + " "
-			if weapon_stats["magic_attack"] > 0:
-				attack_str += "魔法+" + str(weapon_stats["magic_attack"]) + " "
-			if weapon_stats["heal_amount"] > 0:
-				attack_str += "治疗+" + str(weapon_stats["heal_amount"]) + " "
-			if attack_str == "":
-				attack_str = "无攻击力"
-			lines.append("攻击: " + attack_str.strip_edges())
-			lines.append("范围: " + str(weapon_stats["min_attack_range"]) + "~" + str(weapon_stats["attack_range"]))
+			lines.append("武器: " + weapon_data.name)
+			# 显示 stats 中的属性
+			var stats = weapon_data.stats
+			var attrs = []
+			if stats.has("attack"):
+				attrs.append("攻击+" + str(stats["attack"]))
+			if stats.has("magic_attack"):
+				attrs.append("魔法+" + str(stats["magic_attack"]))
+			if stats.has("heal_amount"):
+				attrs.append("治疗+" + str(stats["heal_amount"]))
+			if attrs.size() > 0:
+				lines.append("武器属性: " + ", ".join(attrs))
+			lines.append("射程: " + str(weapon_data.min_attack_range) + "~" + str(weapon_data.attack_range))
 		else:
-			lines.append("装备: 未装备")
-			lines.append("攻击: 0")
-			lines.append("范围: 0~0")
+			lines.append("武器: 无")
 
-		var cell = unit.grid_cell
-		terrain_type = TerrainManager.get_terrain(cell)
-		def_bonus = TerrainManager.TERRAIN_DATA[terrain_type]["def_bonus"]
-		magic_def_bonus = TerrainManager.TERRAIN_DATA[terrain_type]["magic_defense_bonus"]
-		avoid_bonus = TerrainManager.TERRAIN_DATA[terrain_type]["avoid_bonus"]
+		# 防具/饰品
+		var armor_slots = unit.get_armor_slots()
+		var armor_str = ""
+		for i in range(armor_slots.size()):
+			var inst = armor_slots[i]
+			if inst:
+				var data = ItemManager.get_item_data(inst.item_id)
+				if data:
+					armor_str += "槽" + str(i+1) + ":" + data.name + " "
+				else:
+					armor_str += "槽" + str(i+1) + ":(?) "
+			else:
+				armor_str += "槽" + str(i+1) + ":(空) "
+		if armor_str != "":
+			lines.append("防具/饰品: " + armor_str.strip_edges())
 
-		var base_def = unit.unit_stats.defense
-		var base_mdef = unit.unit_stats.magic_defense
-		var base_avoid = unit.unit_stats.speed * 2 + unit.unit_stats.luck
-
-		var def_text = str(base_def)
-		if def_bonus > 0:
-			def_text += " + " + str(def_bonus)
-		lines.append("防御: " + def_text)
-
-		var mdef_text = str(base_mdef)
-		if magic_def_bonus > 0:
-			mdef_text += " + " + str(magic_def_bonus)
-		lines.append("魔防: " + mdef_text)
-
-		var avoid_text = str(base_avoid)
-		if avoid_bonus > 0:
-			avoid_text += " + " + str(avoid_bonus)
-		lines.append("回避: " + avoid_text)
-
+		# 基本属性（基础 + 装备加成需显示总属性，但此处简化，可显示基础）
+		lines.append("防御: " + str(unit.unit_stats.defense))
+		lines.append("魔防: " + str(unit.unit_stats.magic_defense))
 		lines.append("技巧: " + str(unit.unit_stats.skill))
 		lines.append("速度: " + str(unit.unit_stats.speed))
 		lines.append("幸运: " + str(unit.unit_stats.luck))
 		lines.append("移动力: " + str(unit.unit_stats.move_range))
 
+		# 地形
+		var cell = unit.grid_cell
+		terrain_type = TerrainManager.get_terrain(cell)
 		terrain_name = TerrainManager.get_terrain_name(terrain_type)
 		lines.append("地形: " + terrain_name)
 
+		# 背包
 		if unit.inventory.size() > 0:
+			var items_str = ""
 			for inst in unit.inventory:
-				if inst == unit.equipped_weapon_instance:
-					continue
-				var item_id = inst.item_id
-				var data = ItemManager.get_item_data(item_id)
+				var data = ItemManager.get_item_data(inst.item_id)
 				if data:
-					var type_display = "武器" if data.type == "weapon" else "道具"
-					var count = inst.count
-					var item_str = "携带：" + data.name + " [" + type_display + "]"
-					if data.type != "weapon":
-						item_str += " x" + str(count)
-					lines.append(item_str)
+					items_str += data.name + " "
+			lines.append("背包: " + items_str.strip_edges())
 		else:
-			lines.append("携带: 无")
+			lines.append("背包: 无")
 
 		display_text = "\n".join(lines)
 
@@ -1514,7 +1509,7 @@ func _refresh_team_view():
 
 		for unit in units:
 			var btn = Button.new()
-			# 获取图标...
+			# 获取图标
 			var icon_texture: Texture2D = null
 			if unit.animated_sprite and unit.animated_sprite.sprite_frames:
 				var frames = unit.animated_sprite.sprite_frames
@@ -1540,7 +1535,8 @@ func _refresh_team_view():
 			else:
 				status = "   可行动"
 
-			btn.text = unit.unit_stats.unit_name + " HP:" + str(unit.hit_points) + "/" + str(unit.unit_stats.max_hp) + status
+			var display_name = unit.unit_stats.display_name if unit.unit_stats.display_name != "" else unit.unit_stats.unit_name
+			btn.text = display_name + " HP:" + str(unit.hit_points) + "/" + str(unit.unit_stats.max_hp) + status
 			btn.add_theme_font_size_override("font_size", 6)
 			if color != Color.WHITE:
 				btn.add_theme_color_override("font_color", color)

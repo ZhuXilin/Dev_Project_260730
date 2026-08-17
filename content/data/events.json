@@ -53,14 +53,27 @@
 	"actions": [
 	  { "type": "dialog", "dialog_id": "village_encounter_dlg" },
 	  { "type": "unlock_unit", "units": ["飞马"] }
-	],
-	"once": true
+	]
   },
   "boss_defeated": {
 	"once": true,
 	"actions": [
 	  { "type": "dialog", "dialog_id": "boss_defeat_dlg" },
 	  { "type": "unlock_unit", "units": ["弓兵", "飞马"] }
+	]
+  },
+  "obtain_steel_sword": {
+	"once": true,
+	"actions": [
+	  { "type": "dialog", "dialog_id": "blacksmith_dialog" },
+	  { "type": "give_item", "item_id": "steel_sword", "count": 1, "equip": true },
+	  { "type": "unlock_equipment", "item_id": "iron_armor" }
+	]
+  },
+  "unlock_iron_armor": {
+	"once": true,
+	"actions": [
+	  { "type": "unlock_equipment", "item_id": "iron_armor" }
 	]
   }
 }

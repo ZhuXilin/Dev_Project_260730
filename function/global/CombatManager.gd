@@ -5,11 +5,11 @@ const UnitDataManagerClass = preload("res://function/script/UnitDataManager.gd")
 const PERFORMANCE_DURATION : float = 0.5
 
 func get_attackable_targets(unit: Unit) -> Array:
-	var stats = unit.get_weapon_stats()
-	var max_range = stats["attack_range"]
-	var min_range = stats["min_attack_range"]
-	var is_healer = (stats["heal_amount"] > 0)   # 若治疗量>0，视为治疗单位
-	print("武器数据: ", stats)
+	var weapon_data = unit.get_weapon_data()
+	if not weapon_data: return []
+	var max_range = weapon_data.attack_range
+	var min_range = weapon_data.min_attack_range
+	var is_healer = weapon_data.stats.get("heal_amount", 0) > 0
 	
 	var targets = []
 	for x in range(-max_range, max_range+1):
@@ -309,15 +309,20 @@ func get_unit_attack_stats(unit: Unit) -> Dictionary:
 		}
 
 func execute_attack_with_weapon(attacker: Unit, defender: Unit, weapon_id: String) -> bool:
-	# 保存当前装备实例
+	# 查找武器实例
+	var weapon_inst = attacker.find_first_instance(weapon_id)
+	if not weapon_inst:
+		print("错误：单位没有武器 ", weapon_id)
+		return false
+	# 保存当前装备
 	var old_inst = attacker.equipped_weapon_instance
-	# 临时装备指定武器
-	attacker.equip_weapon(weapon_id)
-	# 执行攻击（异步）
+	# 临时装备
+	attacker.equip_weapon(weapon_inst)
+	# 执行攻击
 	var result = await execute_attack(attacker, defender)
 	# 恢复原装备
 	if old_inst:
-		attacker.equip_weapon_instance(old_inst)
+		attacker.equip_weapon(old_inst)
 	else:
-		attacker.equipped_weapon_instance = null
+		attacker.unequip_weapon()
 	return result

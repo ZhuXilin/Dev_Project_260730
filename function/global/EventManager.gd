@@ -85,24 +85,33 @@ func trigger_event(event_id: String, unit: Unit = null, default_music: AudioStre
 					continue
 				var item_id = action.get("item_id", "")
 				var count = action.get("count", 1)
+				var equip = action.get("equip", false)
 				if item_id != "":
 					if unit.add_item(item_id, count):
 						await show_item_get_popup(item_id, count)
+						if equip:
+							var data = ItemManager.get_item_data(item_id)
+							if data:
+								var inst = unit.find_first_instance(item_id)
+								if data.equipment_slot == "weapon":
+									unit.equip_weapon(inst)
+								elif data.equipment_slot in ["armor", "accessory"]:
+									for i in range(unit.armor_slots.size()):
+										if unit.armor_slots[i] == null:
+											unit.equip_armor(i, inst)
+											break
+								elif data.equipment_slot == "relic":
+									GameState.add_global_relic(inst)
+									unit.remove_instance(inst)  # 从单位背包移除
 					else:
-						print("道具获得失败，背包已满，弹出丢弃界面")
-						var ui_mgr = _get_ui_manager()
-						if ui_mgr:
-							ui_mgr.show_drop_menu_with_choice(
-								unit,
-								item_id,
-								count,
-								Callable(self, "_on_give_item_drop_success").bind(unit, item_id, count),
-								Callable(self, "_on_give_item_drop_cancel")
-							)
-						else:
-							print("无法获取 UIManager，放弃获得道具")
+						print("无法获取 UIManager，放弃获得道具")
 				else:
 					push_error("give_item 动作缺少 item_id")
+
+			"unlock_equipment":
+				var item_id = action.get("item_id", "")
+				if item_id != "":
+					Globals.unlock_item(item_id)
 
 			"heal":
 				if unit == null:
