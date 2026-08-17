@@ -17,8 +17,13 @@ func populate_list():
 	unlocked.sort()
 
 	for unit_name in unlocked:
+		var data = UnitDataManager.get_unit_data(unit_name)
+		var display_name = data.get("display_name", unit_name)
+		var faction = data.get("faction", "")
+		var text = "%s | %s | %s" % [unit_name, faction, display_name]
+		
 		var btn = Button.new()
-		btn.text = unit_name
+		btn.text = text   # 改为组合格式
 		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		btn.add_theme_font_size_override("font_size", 8)
 		btn.pressed.connect(_on_unit_selected.bind(unit_name))
@@ -55,12 +60,7 @@ func _on_unit_selected(unit_name: String):
 
 	# ---- 更新详情标签（属性信息） ----
 	var unit_data = UnitDataManager.get_unit_data(unit_name)
-	var display_name = unit_data.get("display_name", unit_name)
-	var faction = unit_data.get("faction", "")
-	var text = "姓名：%s\n" % display_name
-	text += "类型：%s\n" % unit_name
-	if faction != "":
-		text += "阵营：%s\n" % faction
+	var text = ""
 	text += "HP：%d\n" % unit_data.get("max_hp", 0)
 	text += "防御：%d\n" % unit_data.get("defense", 0)
 	text += "魔防：%d\n" % unit_data.get("magic_defense", 0)
