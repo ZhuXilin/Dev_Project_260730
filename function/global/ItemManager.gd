@@ -174,7 +174,7 @@ func get_weapons() -> Array[ItemData]:
 	return get_items_by_type("weapon")
 
 func get_armors() -> Array[ItemData]:
-	return get_items_by_type("armor") + get_items_by_type("accessory")
+	return get_items_by_type("armor")
 
 func get_relics() -> Array[ItemData]:
 	return get_items_by_type("relic")

@@ -57,18 +57,19 @@ func initialize_party(selected_units: Array[String], main_index: int):
 		data.luck = stats.luck
 		data.move_range = stats.move_range
 		data.ignore_terrain_cost = stats.ignore_terrain_cost
-		# 默认武器
+		
+		# 默认武器（直接装备，不使用 inventory）
 		var default_weapon = UnitDataManager.get_default_weapon_id(unit_name)
 		if default_weapon != "":
 			var inst = ItemInstance.new()
 			inst.item_id = default_weapon
 			inst.count = 1
-			data.inventory.append(inst)
 			data.weapon_slot = inst
-		# 初始化防具/饰品槽（2个空位）
-		data.armor_slots.clear()          # 先清空
-		data.armor_slots.append(null)     # 添加空位1
-		data.armor_slots.append(null)     # 添加空位2
+		
+		# 初始化防具槽（2个空位）
+		data.armor_slots.clear()
+		data.armor_slots.append(null)
+		data.armor_slots.append(null)
 		data.max_armor_slots = 2
 		party.append(data)
 	main_unit_index = main_index
@@ -92,32 +93,10 @@ func sync_units_from_battlefield(battle_units: Array):
 	for i in range(min(party.size(), battle_units.size())):
 		var battle_unit = battle_units[i]
 		var party_unit = party[i]
-		# 同步 HP
 		party_unit.hit_points = battle_unit.hit_points
-		# 同步库存
-		var inv = battle_unit.serialize_inventory()
-		party_unit.inventory.clear()
-		for entry in inv:
-			var inst = ItemInstance.new()
-			inst.item_id = entry["item_id"]
-			inst.count = entry["count"]
-			party_unit.inventory.append(inst)
-		# 同步装备（武器）
-		var weapon_inst = battle_unit.get_weapon()
-		if weapon_inst:
-			party_unit.weapon_slot = weapon_inst
-		else:
-			party_unit.weapon_slot = null
-		# 同步防具/饰品
-		party_unit.armor_slots.clear()
-		for slot in battle_unit.get_armor_slots():
-			if slot:
-				var new_inst = ItemInstance.new()
-				new_inst.item_id = slot.item_id
-				new_inst.count = 1
-				party_unit.armor_slots.append(new_inst)
-			else:
-				party_unit.armor_slots.append(null)
+		# 同步武器和防具
+		party_unit.weapon_slot = battle_unit.weapon_slot
+		party_unit.armor_slots = battle_unit.armor_slots.duplicate()
 		party_unit.max_armor_slots = battle_unit.max_armor_slots
 
 # ============================================================
@@ -137,17 +116,19 @@ func reset_progress():
 func start_new_cycle():
 	temp_soul = 0
 	temp_gold = 0
-	# 重置装备（清空防具/饰品和遗物，武器由 initialize_party 重新赋予默认）
+	# 重置装备（清空防具和遗物，武器重置为默认）
 	for unit_data in party:
 		unit_data.armor_slots.clear()
 		unit_data.max_armor_slots = 2
-		unit_data.weapon_slot = null
-		# 重新赋予默认武器（从 inventory 中找第一个武器）
-		for inst in unit_data.inventory:
-			var item_data = ItemManager.get_item_data(inst.item_id)
-			if item_data and item_data.equipment_slot == "weapon":
-				unit_data.weapon_slot = inst
-				break
+		# 重置为默认武器
+		var default_weapon = UnitDataManager.get_default_weapon_id(unit_data.unit_name)
+		if default_weapon != "":
+			var inst = ItemInstance.new()
+			inst.item_id = default_weapon
+			inst.count = 1
+			unit_data.weapon_slot = inst
+		else:
+			unit_data.weapon_slot = null
 	global_relics.clear()
 
 func finish_cycle():
@@ -202,7 +183,7 @@ func reset_all():
 func finish_day():
 	soul += temp_soul
 	temp_soul = 0
-	# 为所有单位增加一个防具/饰品槽
+	# 为所有单位增加一个防具槽
 	for unit_data in party:
 		unit_data.armor_slots.append(null)
 		unit_data.max_armor_slots += 1

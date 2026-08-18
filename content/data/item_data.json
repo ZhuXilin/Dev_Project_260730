@@ -264,31 +264,31 @@
   "power_ring": {
 	"id": "power_ring",
 	"name": "力量戒指",
-	"type": "accessory",
+	"type": "armor",
 	"use_type": "equipment",
 	"icon": "res://content/images/items/ring.png",
 	"description": "攻击+2",
-	"equipment_slot": "accessory",
+	"equipment_slot": "armor",
 	"stats": {"attack": 2}
   },
   "guard_ring": {
 	"id": "guard_ring",
 	"name": "守护戒指",
-	"type": "accessory",
+	"type": "armor",
 	"use_type": "equipment",
 	"icon": "res://content/images/items/ring.png",
 	"description": "防御+2",
-	"equipment_slot": "accessory",
+	"equipment_slot": "armor",
 	"stats": {"defense": 2}
   },
   "speed_boots": {
 	"id": "speed_boots",
 	"name": "疾风靴",
-	"type": "accessory",
+	"type": "armor",
 	"use_type": "equipment",
 	"icon": "res://content/images/items/boots.png",
 	"description": "移动力+1",
-	"equipment_slot": "accessory",
+	"equipment_slot": "armor",
 	"stats": {"move_range": 1}
   },
   "relic_attack": {

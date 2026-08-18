@@ -24,13 +24,9 @@ var previous_flip_h : bool = false
 var used_non_attack_item_this_turn : bool = false
 var moves_since_act: int = 0   # 自从执行行动后移动的次数
 
-# ---- 库存与装备（列表化，实例引用） ----
-var inventory: Array[ItemInstance] = []
-var equipped_weapon_instance: ItemInstance = null   # 存储当前装备的武器实例
-
 # ---- 装备 ----
-var weapon_slot: ItemInstance = null
-var armor_slots: Array[ItemInstance] = []
+var weapon_slot: ItemInstance = null          # 武器实例
+var armor_slots: Array[ItemInstance] = []    # 防具/饰品槽
 var max_armor_slots: int = 2
 
 # ---- 动画与材质 ----
@@ -39,6 +35,9 @@ var current_anim : String = "idle"
 var facing_flip_h : bool = false
 var _color_material : ShaderMaterial = null
 
+# ============================================================
+#  初始化
+# ============================================================
 func _ready():
 	pass
 
@@ -61,20 +60,33 @@ func setup_unit(stats_data : UnitData, start_cell : Vector2i, initial_items : Ar
 	previous_remaining_move = unit_stats.move_range
 	is_gray = false
 
-	inventory.clear()
-	equipped_weapon_instance = null
+	# ---- 清空并装备初始物品 ----
+	weapon_slot = null
+	armor_slots.clear()
+	for _i in range(max_armor_slots):
+		armor_slots.append(null)
+
 	for entry in initial_items:
 		if entry and entry.item_id != "":
-			add_item(entry.item_id, entry.count)
-
-	# 自动装备第一把武器
-	if not equipped_weapon_instance and inventory.size() > 0:
-		for inst in inventory:
-			var data = ItemManager.get_item_data(inst.item_id)
-			if data and data.type == "weapon":
-				equipped_weapon_instance = inst
-				print("单位 %s 自动装备武器: %s" % [unit_stats.unit_name, inst.item_id])
-				break
+			var data = ItemManager.get_item_data(entry.item_id)
+			if not data:
+				continue
+			# 根据类型装备
+			if data.equipment_slot == "weapon":
+				var inst = ItemInstance.new()
+				inst.item_id = entry.item_id
+				inst.count = 1
+				weapon_slot = inst
+				print("单位 %s 装备武器: %s" % [unit_stats.unit_name, data.name])
+			elif data.equipment_slot in ["armor"]:
+				for i in range(armor_slots.size()):
+					if armor_slots[i] == null:
+						var inst = ItemInstance.new()
+						inst.item_id = entry.item_id
+						inst.count = 1
+						armor_slots[i] = inst
+						print("单位 %s 装备防具: %s (槽 %d)" % [unit_stats.unit_name, data.name, i+1])
+						break
 
 	# ---- 加载 SpriteFrames ----
 	var frames_path = UnitDataManagerClass.get_sprite_frames_path(unit_stats.unit_name)
@@ -115,84 +127,19 @@ func setup_unit(stats_data : UnitData, start_cell : Vector2i, initial_items : Ar
 	update_name_label()
 	update_color()
 
-# ---- 库存辅助方法 ----
-func get_inventory_summary() -> Dictionary:
-	var summary = {}
-	for inst in inventory:
-		summary[inst.item_id] = summary.get(inst.item_id, 0) + inst.count
-	return summary
+# ============================================================
+#  装备系统
+# ============================================================
+func get_weapon() -> ItemInstance:
+	return weapon_slot
 
-func get_instances_by_id(item_id: String) -> Array[ItemInstance]:
-	var result = []
-	for inst in inventory:
-		if inst.item_id == item_id:
-			result.append(inst)
-	return result
+func get_equipped_weapon_id() -> String:
+	return weapon_slot.item_id if weapon_slot else ""
 
-func find_first_instance(item_id: String) -> ItemInstance:
-	for inst in inventory:
-		if inst.item_id == item_id:
-			return inst
-	return null
-
-func has_item(item_id: String) -> bool:
-	return find_first_instance(item_id) != null
-
-func get_item_total_count(item_id: String) -> int:
-	var total = 0
-	for inst in inventory:
-		if inst.item_id == item_id:
-			total += inst.count
-	return total
-
-func is_inventory_full() -> bool:
-	var unique_ids = {}
-	for inst in inventory:
-		unique_ids[inst.item_id] = true
-	return unique_ids.size() >= 5
-
-func add_item(item_id: String, count: int = 1) -> bool:
-	if is_inventory_full() and not has_item(item_id):
-		return false
-	var data = ItemManager.get_item_data(item_id)
-	if data and data.type == "weapon":
-		for _i in range(count):
-			var inst = ItemInstance.new()
-			inst.item_id = item_id
-			inst.count = 1
-			inventory.append(inst)
-		return true
-	else:
-		for inst in inventory:
-			if inst.item_id == item_id:
-				inst.count += count
-				return true
-		var inst = ItemInstance.new()
-		inst.item_id = item_id
-		inst.count = count
-		inventory.append(inst)
-		return true
-
-func remove_instance(instance: ItemInstance) -> bool:
-	var idx = inventory.find(instance)
-	if idx != -1:
-		if instance == equipped_weapon_instance:
-			equipped_weapon_instance = null
-		inventory.remove_at(idx)
-		return true
-	return false
-
-func drop_item(item_id: String) -> bool:
-	var inst = find_first_instance(item_id)
-	if inst:
-		return remove_instance(inst)
-	return false
-
-# ---- 装备系统 ----
 func get_weapon_data() -> ItemData:
-	if not equipped_weapon_instance:
+	if not weapon_slot:
 		return null
-	return ItemManager.get_item_data(equipped_weapon_instance.item_id)
+	return ItemManager.get_item_data(weapon_slot.item_id)
 
 func get_weapon_stats() -> Dictionary:
 	var data = get_weapon_data()
@@ -212,59 +159,161 @@ func get_weapon_type() -> int:
 		"dragonstone": return UnitDataManagerClass.WEAPON_DRAGONSTONE
 		_: return -1
 
-func equip_weapon_instance(inst: ItemInstance) -> bool:
-	if inst and inst in inventory:
-		var data = ItemManager.get_item_data(inst.item_id)
-		if data and data.type == "weapon":
-			equipped_weapon_instance = inst
-			return true
-	return false
-
-func get_weapon_ids() -> Array[String]:
-	var ids: Array[String] = []
-	for inst in inventory:
-		var data = ItemManager.get_item_data(inst.item_id)
-		if data and data.type == "weapon" and not ids.has(inst.item_id):
-			ids.append(inst.item_id)
-	return ids
-
-func has_any_weapon() -> bool:
-	for inst in inventory:
-		var data = ItemManager.get_item_data(inst.item_id)
-		if data and data.type == "weapon":
-			return true
-	return false
-
-func has_attack_target_with_weapon(weapon_id: String) -> bool:
-	var data = ItemManager.get_item_data(weapon_id)
+func can_use_weapon(item_id: String) -> bool:
+	if item_id == "":
+		return false
+	var data = ItemManager.get_item_data(item_id)
 	if not data or data.type != "weapon":
 		return false
-	var max_range = data.attack_range
-	var min_range = data.min_attack_range
-	var is_healer = (data.stats.get("heal_amount", 0) > 0)
-	for target in UnitManager.unit_list:
-		if target.hit_points <= 0:
-			continue
-		if is_healer:
-			if target.unit_stats.team_id != unit_stats.team_id:
-				continue
-			if target == self:
-				continue
+	var allowed = UnitDataManagerClass.get_allowed_weapon_categories(unit_stats.unit_name)
+	if allowed.is_empty():
+		return true
+	return data.category in allowed
+
+func equip_weapon(weapon: ItemInstance) -> ItemInstance:
+	var old = weapon_slot
+	weapon_slot = weapon
+	return old
+
+func unequip_weapon() -> ItemInstance:
+	var old = weapon_slot
+	weapon_slot = null
+	return old
+
+func get_armor_slots() -> Array[ItemInstance]:
+	return armor_slots
+
+func equip_armor(index: int, item: ItemInstance) -> ItemInstance:
+	if index < 0 or index >= armor_slots.size():
+		return null
+	var old = armor_slots[index]
+	armor_slots[index] = item
+	return old
+
+func unequip_armor(index: int) -> ItemInstance:
+	if index < 0 or index >= armor_slots.size():
+		return null
+	var old = armor_slots[index]
+	armor_slots[index] = null
+	return old
+
+func add_armor_slot():
+	armor_slots.append(null)
+	max_armor_slots += 1
+
+func get_total_stats() -> Dictionary:
+	var total = {
+		"max_hp": unit_stats.max_hp,
+		"attack": 0,
+		"magic_attack": 0,
+		"defense": unit_stats.defense,
+		"magic_defense": unit_stats.magic_defense,
+		"skill": unit_stats.skill,
+		"speed": unit_stats.speed,
+		"luck": unit_stats.luck,
+		"move_range": unit_stats.move_range,
+		"heal_amount": 0
+	}
+	if weapon_slot:
+		var data = ItemManager.get_item_data(weapon_slot.item_id)
+		if data and data.stats:
+			for key in data.stats:
+				total[key] = total.get(key, 0) + data.stats[key]
+	for slot in armor_slots:
+		if slot:
+			var data = ItemManager.get_item_data(slot.item_id)
+			if data and data.stats:
+				for key in data.stats:
+					total[key] = total.get(key, 0) + data.stats[key]
+	var relic_bonus = GameState.get_global_relic_stats()
+	for key in relic_bonus:
+		total[key] = total.get(key, 0) + relic_bonus[key]
+	return total
+
+# ---- 序列化（用于存档） ----
+func serialize_inventory() -> Array[Dictionary]:
+	var result: Array[Dictionary] = []
+	if weapon_slot:
+		result.append({
+			"item_id": weapon_slot.item_id,
+			"count": 1,
+			"slot": "weapon"
+		})
+	for i in range(armor_slots.size()):
+		var slot = armor_slots[i]
+		if slot:
+			result.append({
+				"item_id": slot.item_id,
+				"count": 1,
+				"slot": "armor",
+				"index": i
+			})
+	return result
+
+# ---- 从存档恢复 ----
+func restore_from_unit_data(data: UnitData, cell: Vector2i):
+	unit_stats = data
+	grid_cell = cell
+	previous_grid_cell = cell
+	hit_points = data.hit_points
+	remaining_move = data.move_range
+	can_act_this_turn = true
+	has_moved = false
+	has_attacked = false
+	has_acted = false
+
+	# ---- 恢复装备 ----
+	weapon_slot = data.weapon_slot
+	armor_slots.clear()
+	for slot in data.armor_slots:
+		if slot:
+			var new_inst = ItemInstance.new()
+			new_inst.item_id = slot.item_id
+			new_inst.count = 1
+			armor_slots.append(new_inst)
 		else:
-			if target.unit_stats.team_id == unit_stats.team_id:
-				continue
-		var dist = abs(grid_cell.x - target.grid_cell.x) + abs(grid_cell.y - target.grid_cell.y)
-		if dist >= min_range and dist <= max_range:
-			return true
-	return false
+			armor_slots.append(null)
+	max_armor_slots = data.max_armor_slots
 
-func has_any_attack_target() -> bool:
-	for inst in inventory:
-		if has_attack_target_with_weapon(inst.item_id):
-			return true
-	return false
+	# ---- 加载 SpriteFrames ----
+	if not animated_sprite:
+		animated_sprite = $Sprite as AnimatedSprite2D
+	if animated_sprite:
+		var frames_path = UnitDataManagerClass.get_sprite_frames_path(unit_stats.unit_name)
+		var loaded_ok = false
+		if frames_path != "" and ResourceLoader.exists(frames_path):
+			var frames = load(frames_path) as SpriteFrames
+			if frames:
+				animated_sprite.sprite_frames = frames
+				if animated_sprite.sprite_frames.has_animation("idle"):
+					animated_sprite.play("idle")
+				else:
+					var anims = animated_sprite.sprite_frames.get_animation_names()
+					if anims.size() > 0:
+						animated_sprite.play(anims[0])
+				animated_sprite.visible = true
+				animated_sprite.z_index = 2
+				loaded_ok = true
+		if not loaded_ok:
+			var image = Image.create(CELL_SIZE, CELL_SIZE, false, Image.FORMAT_RGBA8)
+			image.fill(Color.MAGENTA)
+			var placeholder = ImageTexture.create_from_image(image)
+			var frames = SpriteFrames.new()
+			frames.add_animation("idle")
+			frames.add_frame("idle", placeholder)
+			animated_sprite.sprite_frames = frames
+			animated_sprite.play("idle")
+			animated_sprite.visible = true
+			animated_sprite.z_index = 2
 
-# ---- 行动标记 ----
+	update_color()
+	update_hp_label()
+	update_name_label()
+	update_terrain_info()
+
+# ============================================================
+#  状态与行动
+# ============================================================
 func mark_attacked():
 	has_attacked = true
 	has_acted = true
@@ -287,7 +336,53 @@ func reset_turn():
 	set_gray(false)
 	play_animation("idle")
 
-# ---- 动画控制 ----
+func consume_move(cost: int):
+	remaining_move -= cost
+	if remaining_move < 0:
+		remaining_move = 0
+	used_move = unit_stats.move_range - remaining_move
+	has_moved = true
+	if has_attacked:
+		movement_after_attack = true
+
+func can_move() -> bool:
+	return can_act_this_turn and remaining_move > 0 and not has_attacked
+
+func save_previous_position():
+	previous_grid_cell = grid_cell
+	previous_remaining_move = remaining_move
+	if animated_sprite:
+		previous_flip_h = animated_sprite.flip_h
+
+func revert_to_previous_position():
+	grid_cell = previous_grid_cell
+	update_position(grid_cell)
+	remaining_move = previous_remaining_move
+	used_move = 0
+	has_moved = false
+	can_act_this_turn = true
+	movement_after_attack = false
+	if animated_sprite:
+		animated_sprite.flip_h = previous_flip_h
+		facing_flip_h = previous_flip_h
+	play_animation("idle")
+
+func update_position(new_cell: Vector2i):
+	grid_cell = new_cell
+	update_terrain_info()
+
+# ============================================================
+#  战斗
+# ============================================================
+func apply_damage(damage_amount : int) -> bool:
+	hit_points -= damage_amount
+	if hit_points < 0: hit_points = 0
+	update_hp_label()
+	return hit_points <= 0
+
+# ============================================================
+#  动画
+# ============================================================
 func play_animation(anim_name: String, force: bool = false):
 	if not animated_sprite or not animated_sprite.sprite_frames:
 		return
@@ -310,72 +405,9 @@ func set_facing_direction(dir: Vector2):
 		animated_sprite.flip_h = (dir.x > 0)
 		facing_flip_h = animated_sprite.flip_h
 
-# ---- 位置与状态保存/恢复 ----
-func save_previous_position():
-	previous_grid_cell = grid_cell
-	previous_remaining_move = remaining_move
-	if animated_sprite:
-		previous_flip_h = animated_sprite.flip_h
-
-func revert_to_previous_position():
-	grid_cell = previous_grid_cell
-	update_position(grid_cell)
-	remaining_move = previous_remaining_move
-	used_move = 0
-	has_moved = false
-	can_act_this_turn = true
-	movement_after_attack = false
-	if animated_sprite:
-		animated_sprite.flip_h = previous_flip_h
-		facing_flip_h = previous_flip_h
-	play_animation("idle")
-
-# ---- UI 更新 ----
-func update_hp_label():
-	var hp_label = $HPLabel
-	if hp_label:
-		hp_label.text = str(hit_points) + "/" + str(unit_stats.max_hp)
-
-func update_name_label():
-	var na_label = $NameLabel
-	if na_label:
-		na_label.text = unit_stats.unit_name
-
-func update_terrain_info():
-	var terrain_label = $TerrainInfoLabel
-	if not terrain_label:
-		return
-	var terrain_type = TerrainManager.get_terrain(grid_cell)
-	var terrain_name = TerrainManager.get_terrain_name(terrain_type)
-	var def_bonus = TerrainManager.TERRAIN_DATA[terrain_type]["def_bonus"]
-	var avoid_bonus = TerrainManager.TERRAIN_DATA[terrain_type]["avoid_bonus"]
-	terrain_label.text = terrain_name + "\n防御+" + str(def_bonus) + " 回避+" + str(avoid_bonus)
-
-# ---- 战斗伤害 ----
-func apply_damage(damage_amount : int) -> bool:
-	hit_points -= damage_amount
-	if hit_points < 0: hit_points = 0
-	update_hp_label()
-	return hit_points <= 0
-
-func update_position(new_cell: Vector2i):
-	grid_cell = new_cell
-	update_terrain_info()
-
-# ---- 移动与行动 ----
-func consume_move(cost: int):
-	remaining_move -= cost
-	if remaining_move < 0:
-		remaining_move = 0
-	used_move = unit_stats.move_range - remaining_move
-	has_moved = true
-	if has_attacked:
-		movement_after_attack = true
-
-func can_move() -> bool:
-	return can_act_this_turn and remaining_move > 0 and not has_attacked
-
-# ---- 颜色与着色器（包含受击效果） ----
+# ============================================================
+#  颜色与着色器
+# ============================================================
 func set_gray(gray: bool):
 	is_gray = gray
 	update_color()
@@ -428,181 +460,25 @@ func play_hit_effect(direction: Vector2, is_hit: bool):
 			_color_material.set_shader_parameter("hit_elapsed", 0.0)
 	)
 
-# Unit.gd 添加方法
-func can_use_weapon(item_id: String) -> bool:
-	if item_id == "":
-		return false
-	var data = ItemManager.get_item_data(item_id)
-	if not data or data.type != "weapon":
-		return false
-	var allowed = UnitDataManagerClass.get_allowed_weapon_categories(unit_stats.unit_name)
-	# 如果单位没有限制（如其他自定义单位），默认允许所有武器
-	if allowed.is_empty():
-		return true
-	# 检查 category 是否在允许列表中
-	return data.category in allowed
+# ============================================================
+#  UI 更新
+# ============================================================
+func update_hp_label():
+	var hp_label = $HPLabel
+	if hp_label:
+		hp_label.text = str(hit_points) + "/" + str(unit_stats.max_hp)
 
-# 从 UnitData 恢复单位状态
-func restore_from_unit_data(data: UnitData, cell: Vector2i):
-	unit_stats = data
-	grid_cell = cell
-	previous_grid_cell = cell
-	hit_points = data.hit_points
-	remaining_move = data.move_range
-	can_act_this_turn = true
-	has_moved = false
-	has_attacked = false
-	has_acted = false
-	
-	# ---- 恢复库存 ----
-	inventory.clear()
-	for inst in data.inventory:
-		var new_inst = ItemInstance.new()
-		new_inst.item_id = inst.item_id
-		new_inst.count = inst.count
-		inventory.append(new_inst)
-	
-	# ---- 恢复装备 ----
-	# 武器
-	weapon_slot = data.weapon_slot
-	equipped_weapon_instance = weapon_slot   # 保持与旧代码兼容（get_weapon_data 等使用该变量）
-	
-	# 防具/饰品
-	armor_slots.clear()
-	for slot in data.armor_slots:
-		if slot:
-			var new_inst = ItemInstance.new()
-			new_inst.item_id = slot.item_id
-			new_inst.count = slot.count
-			armor_slots.append(new_inst)
-		else:
-			armor_slots.append(null)
-	max_armor_slots = data.max_armor_slots
-	
-	# ---- 加载 SpriteFrames（参考 setup_unit） ----
-	if not animated_sprite:
-		animated_sprite = $Sprite as AnimatedSprite2D
-	if animated_sprite:
-		var frames_path = UnitDataManagerClass.get_sprite_frames_path(unit_stats.unit_name)
-		var loaded_ok = false
-		if frames_path != "" and ResourceLoader.exists(frames_path):
-			var frames = load(frames_path) as SpriteFrames
-			if frames:
-				animated_sprite.sprite_frames = frames
-				if animated_sprite.sprite_frames.has_animation("idle"):
-					animated_sprite.play("idle")
-				else:
-					var anims = animated_sprite.sprite_frames.get_animation_names()
-					if anims.size() > 0:
-						animated_sprite.play(anims[0])
-				animated_sprite.visible = true
-				animated_sprite.z_index = 2
-				loaded_ok = true
-		if not loaded_ok:
-			# 占位纹理
-			var image = Image.create(CELL_SIZE, CELL_SIZE, false, Image.FORMAT_RGBA8)
-			image.fill(Color.MAGENTA)
-			var placeholder = ImageTexture.create_from_image(image)
-			var frames = SpriteFrames.new()
-			frames.add_animation("idle")
-			frames.add_frame("idle", placeholder)
-			animated_sprite.sprite_frames = frames
-			animated_sprite.play("idle")
-			animated_sprite.visible = true
-			animated_sprite.z_index = 2
-	
-	# ---- 更新颜色与UI ----
-	update_color()
-	update_hp_label()
-	update_name_label()
-	update_terrain_info()
+func update_name_label():
+	var na_label = $NameLabel
+	if na_label:
+		na_label.text = unit_stats.unit_name
 
-func serialize_inventory() -> Array[Dictionary]:
-	var result: Array[Dictionary] = []   # 显式类型声明
-	for inst in inventory:
-		result.append({
-			"item_id": inst.item_id,
-			"count": inst.count
-		})
-	return result
-
-func get_equipped_weapon_id() -> String:
-	return equipped_weapon_instance.item_id if equipped_weapon_instance else ""
-
-# 获取武器
-func get_weapon() -> ItemInstance:
-	return weapon_slot
-
-# 装备武器（替换旧武器并返回旧武器）
-func equip_weapon(weapon: ItemInstance) -> ItemInstance:
-	var old = weapon_slot
-	weapon_slot = weapon
-	return old
-
-# 卸下武器
-func unequip_weapon() -> ItemInstance:
-	var old = weapon_slot
-	weapon_slot = null
-	return old
-
-# 获取防具/饰品槽位列表
-func get_armor_slots() -> Array[ItemInstance]:
-	return armor_slots
-
-# 在指定索引装备防具/饰品（替换原有物品）
-func equip_armor(index: int, item: ItemInstance) -> ItemInstance:
-	if index < 0 or index >= armor_slots.size():
-		return null
-	var old = armor_slots[index]
-	armor_slots[index] = item
-	return old
-
-# 卸下指定槽位的防具/饰品
-func unequip_armor(index: int) -> ItemInstance:
-	if index < 0 or index >= armor_slots.size():
-		return null
-	var old = armor_slots[index]
-	armor_slots[index] = null
-	return old
-
-# 增加防具/饰品槽位（每天调用）
-func add_armor_slot():
-	armor_slots.append(null)
-	max_armor_slots += 1
-
-func get_total_stats() -> Dictionary:
-	# 基础属性作为字典
-	var total = {
-		"max_hp": unit_stats.max_hp,
-		"attack": 0,
-		"magic_attack": 0,
-		"defense": unit_stats.defense,
-		"magic_defense": unit_stats.magic_defense,
-		"skill": unit_stats.skill,
-		"speed": unit_stats.speed,
-		"luck": unit_stats.luck,
-		"move_range": unit_stats.move_range,
-		"heal_amount": 0
-	}
-
-	# 武器加成
-	if weapon_slot and weapon_slot.item_id:
-		var data = ItemManager.get_item_data(weapon_slot.item_id)
-		if data and data.stats:
-			for key in data.stats:
-				total[key] = total.get(key, 0) + data.stats[key]
-
-	# 防具/饰品加成
-	for slot in armor_slots:
-		if slot and slot.item_id:
-			var data = ItemManager.get_item_data(slot.item_id)
-			if data and data.stats:
-				for key in data.stats:
-					total[key] = total.get(key, 0) + data.stats[key]
-
-	# 全局遗物加成（从 GameState 获取）
-	var relic_bonus = GameState.get_global_relic_stats()
-	for key in relic_bonus:
-		total[key] = total.get(key, 0) + relic_bonus[key]
-
-	return total
+func update_terrain_info():
+	var terrain_label = $TerrainInfoLabel
+	if not terrain_label:
+		return
+	var terrain_type = TerrainManager.get_terrain(grid_cell)
+	var terrain_name = TerrainManager.get_terrain_name(terrain_type)
+	var def_bonus = TerrainManager.TERRAIN_DATA[terrain_type]["def_bonus"]
+	var avoid_bonus = TerrainManager.TERRAIN_DATA[terrain_type]["avoid_bonus"]
+	terrain_label.text = terrain_name + "\n防御+" + str(def_bonus) + " 回避+" + str(avoid_bonus)

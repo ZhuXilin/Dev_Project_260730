@@ -126,19 +126,17 @@ func _build_save_data() -> SaveData:
 	save.party_data = []
 	save.party_equipment = []
 	for unit_data in GameState.party:
-		# 基础数据
+		# 基础数据（移除 inventory）
 		var dict = {
 			"unit_name": unit_data.unit_name,
 			"display_name": unit_data.display_name,
 			"faction": unit_data.faction,
-			"hp": unit_data.hit_points,
-			"inventory": []
+			"hp": unit_data.hit_points
+			# "inventory": []   # 已删除
 		}
-		for inst in unit_data.inventory:
-			dict["inventory"].append(inst.item_id)
 		save.party_data.append(dict)
 		
-		# 装备数据
+		# 装备数据（保持不变）
 		var equip_dict = {
 			"weapon": unit_data.weapon_slot.item_id if unit_data.weapon_slot else "",
 			"armor_slots": [],
@@ -216,12 +214,10 @@ func _apply_save_data(save: SaveData):
 		data.luck = stats.luck
 		data.move_range = stats.move_range
 		data.ignore_terrain_cost = stats.ignore_terrain_cost
-		# 恢复背包
-		for item_id in dict["inventory"]:
-			var inst = ItemInstance.new()
-			inst.item_id = item_id
-			inst.count = 1
-			data.inventory.append(inst)
+		
+		# 不再恢复背包
+		# for item_id in dict["inventory"]: ...  # 已删除
+		
 		# 恢复装备（若存在）
 		if i < save.party_equipment.size():
 			var equip_dict = save.party_equipment[i]
@@ -233,7 +229,7 @@ func _apply_save_data(save: SaveData):
 				data.weapon_slot = inst
 			else:
 				data.weapon_slot = null
-			# 防具/饰品
+			# 防具
 			data.armor_slots.clear()
 			for slot_id in equip_dict["armor_slots"]:
 				if slot_id != "":
@@ -244,13 +240,18 @@ func _apply_save_data(save: SaveData):
 				else:
 					data.armor_slots.append(null)
 			data.max_armor_slots = equip_dict.get("max_armor_slots", 2)
-		# 若没有装备武器但背包中有武器，自动装备第一把
-		if not data.weapon_slot and data.inventory.size() > 0:
-			for inst in data.inventory:
-				var item_data = ItemManager.get_item_data(inst.item_id)
+		
+		# 如果存档中没有武器（旧存档），尝试从背包恢复（兼容旧存档）
+		if not data.weapon_slot and dict.has("inventory"):
+			for item_id in dict["inventory"]:
+				var item_data = ItemManager.get_item_data(item_id)
 				if item_data and item_data.equipment_slot == "weapon":
+					var inst = ItemInstance.new()
+					inst.item_id = item_id
+					inst.count = 1
 					data.weapon_slot = inst
 					break
+		
 		GameState.party.append(data)
 
 	# ---- 恢复全局遗物 ----
@@ -359,13 +360,14 @@ func reset_current_slot():
 
 func _migrate_save_data(save: SaveData, from_version: int) -> SaveData:
 	var migrated = save
-	# 从旧版本逐级升级
 	if from_version < 1:
-		# 示例：若曾在版本1中添加新字段，此处处理旧数据转换
-		# 但当前版本为1，无需额外转换
-		pass
-
-	# 更新版本号并重新计算校验和
+		# 清理旧版本的 inventory 数据（如果有）
+		for i in range(migrated.party_data.size()):
+			var dict = migrated.party_data[i]
+			if dict.has("inventory"):
+				dict.erase("inventory")
+		# 重新计算校验和
+		migrated.checksum = migrated.compute_checksum()
+	
 	migrated.save_version = SaveData.CURRENT_VERSION
-	migrated.checksum = migrated.compute_checksum()
 	return migrated

@@ -26,11 +26,6 @@ var pending_attack_cells : Dictionary = {}
 # ---- UI管理器引用 ----
 var ui_manager : UIManager = null
 
-# ---- 给予功能相关 ----
-var give_targets: Array = []
-var pending_give_inst: ItemInstance = null
-var pending_give_unit: Unit = null
-
 # ============================================================
 #  点击处理（主要输入路由）
 # ============================================================
@@ -63,7 +58,7 @@ func handle_click(clicked_cell: Vector2i):
 						interaction_phase = "idle"
 						SignalBus.request_clear_highlight.emit()
 				else:
-					# 敌方单位预览
+					# ---- 敌方单位预览 ----
 					selected_unit = clicked_unit
 					interaction_phase = "idle"
 					var reachable = UnitManager.get_reachable_cells(
@@ -76,9 +71,11 @@ func handle_click(clicked_cell: Vector2i):
 					var min_range = weapon_data.min_attack_range if weapon_data else 0
 					var is_healer = (selected_unit.get_weapon_type() == UnitDataManagerClass.WEAPON_HEAL)
 					var attack_preview = {}
+
+					# 计算敌方单位移动到每个可达格后能攻击的范围
 					for move_cell in reachable.keys():
-						for x in range(-max_range, max_range+1):
-							for y in range(-max_range, max_range+1):
+						for x in range(-max_range, max_range + 1):
+							for y in range(-max_range, max_range + 1):
 								var dist = abs(x) + abs(y)
 								if dist < min_range or dist > max_range:
 									continue
@@ -93,15 +90,12 @@ func handle_click(clicked_cell: Vector2i):
 									var target = UnitManager.get_unit_at_cell(cell)
 									if target and target.unit_stats.team_id == 0 and target.hit_points > 0:
 										attack_preview[cell] = true
-					for cell in reachable.keys():
-						if attack_preview.has(cell):
-							attack_preview.erase(cell)
+
 					current_highlight_cells = reachable
 					current_move_attack_targets = attack_preview
 					var attack_color = Color(0.2, 0.5, 0.4, 0.7) if is_healer else Color(0.7, 0.1, 0.2, 0.7)
 					SignalBus.request_show_enemy_preview.emit(reachable, attack_preview, attack_color)
 					SoundManager.play_select_sound()
-					print("点击敌方单位，显示移动和", "治疗" if is_healer else "攻击", "预览")
 			else:
 				# 点击空地
 				if selected_unit == null:
@@ -121,7 +115,6 @@ func handle_click(clicked_cell: Vector2i):
 					current_move_attack_targets = {}
 					current_empty_cell = clicked_cell
 					SoundManager.play_select_sound()
-					print("点击空地，保留选中单位")
 
 		"menu":
 			return
@@ -145,10 +138,7 @@ func handle_click(clicked_cell: Vector2i):
 				SoundManager.play_invalid_sound()
 
 		"attacking":
-			print("=== 攻击目标选择，点击格子: ", clicked_cell)
-			print("当前 pending_attack_cells keys: ", pending_attack_cells.keys())
 			if pending_attack_cells.has(clicked_cell):
-				print("点击在攻击范围内")
 				var target_unit = UnitManager.get_unit_at_cell(clicked_cell)
 				if target_unit:
 					var is_healer = false
@@ -164,22 +154,18 @@ func handle_click(clicked_cell: Vector2i):
 						if target_unit.unit_stats.team_id != selected_unit.unit_stats.team_id:
 							is_valid_target = true
 					if is_valid_target:
-						print("执行攻击...")
 						SignalBus.request_clear_highlight.emit()
 						pending_attack_cells = {}
 						current_highlight_cells = {}
 						await CombatManager.execute_attack_with_weapon(selected_unit, target_unit, pending_attack_weapon_id)
 						_clear_attack_state()
 						return
-					else:
-						print("目标类型不合法")
-				else:
-					print("点击位置没有单位")
+				SoundManager.play_invalid_sound()
 			else:
-				print("点击不在攻击范围内")
-			SoundManager.play_invalid_sound()
+				SoundManager.play_invalid_sound()
 
 		"item_target":
+			# 道具使用仍保留（但单位已无消耗品，所以不会触发）
 			if clicked_unit:
 				var targets = []
 				if ui_manager:
@@ -192,7 +178,6 @@ func handle_click(clicked_cell: Vector2i):
 					Globals.is_performing_action = true
 					var success = ItemManager.use_item_on_target(pending_item_id, unit, clicked_unit)
 					if success:
-						print("道具使用成功")
 						SignalBus.request_clear_highlight.emit()
 						if pending_is_attack_item:
 							unit.mark_attacked()
@@ -214,14 +199,6 @@ func handle_click(clicked_cell: Vector2i):
 
 		"setting":
 			return
-
-		"give":
-			if clicked_unit and clicked_unit in give_targets:
-				_execute_give(pending_give_unit, clicked_unit, pending_give_inst)
-				return
-			else:
-				_cancel_give()
-				SoundManager.play_invalid_sound()
 
 		_:
 			pass
@@ -278,7 +255,6 @@ func _handle_right_click():
 
 		"attacking":
 			if selected_unit == null or not is_instance_valid(selected_unit):
-				print("攻击状态下 selected_unit 无效")
 				SignalBus.request_clear_highlight.emit()
 				attackable_targets = []
 				current_highlight_cells = {}
@@ -302,7 +278,6 @@ func _handle_right_click():
 
 		"moving":
 			if selected_unit == null or not is_instance_valid(selected_unit):
-				print("移动状态下 selected_unit 无效")
 				SignalBus.request_clear_highlight.emit()
 				current_highlight_cells = {}
 				current_move_attack_targets = {}
@@ -341,7 +316,6 @@ func _handle_right_click():
 
 		"item_target":
 			if selected_unit == null or not is_instance_valid(selected_unit):
-				print("道具目标选择状态下 selected_unit 无效")
 				pending_item_id = ""
 				pending_item_effect = {}
 				pending_is_attack_item = false
@@ -356,14 +330,6 @@ func _handle_right_click():
 			interaction_phase = "menu"
 			SignalBus.request_clear_highlight.emit()
 			SignalBus.request_show_menu.emit(selected_unit)
-
-		"give":
-			if selected_unit == null or not is_instance_valid(selected_unit):
-				print("给予模式下 selected_unit 无效")
-				_cancel_give()
-				return
-			Globals.suppress_sound = true
-			_cancel_give()
 
 		_:
 			if selected_unit != null:
@@ -387,7 +353,7 @@ func handle_wheel(delta: int):
 		return
 	if Globals.is_performing_action:
 		return
-	if interaction_phase in ["moving", "attacking", "give"]:
+	if interaction_phase in ["moving", "attacking"]:
 		return
 
 	if interaction_phase == "setting":
@@ -451,76 +417,6 @@ func handle_wheel(delta: int):
 	else:
 		if camera and camera.has_method("force_position"):
 			camera.force_position(new_unit.global_position)
-
-# ============================================================
-#  给予功能
-# ============================================================
-func on_give_button_pressed(unit: Unit, inst: ItemInstance) -> bool:
-	print("给予按钮被点击: ", inst.item_id)
-	if unit == null or not unit.can_act_this_turn or unit.has_acted:
-		return false
-	if inst == unit.equipped_weapon_instance:
-		return false
-
-	give_targets.clear()
-
-	for dir in [Vector2i(1,0), Vector2i(-1,0), Vector2i(0,1), Vector2i(0,-1)]:
-		var neighbor = unit.grid_cell + dir
-		var target = UnitManager.get_unit_at_cell(neighbor)
-		if target and target.unit_stats.team_id == unit.unit_stats.team_id and target.hit_points > 0 and target != unit:
-			give_targets.append(target)
-
-	if give_targets.is_empty():
-		SoundManager.play_invalid_sound()
-		return false
-
-	pending_give_inst = inst
-	pending_give_unit = unit
-	interaction_phase = "give"
-	var cells = {}
-	for t in give_targets:
-		cells[t.grid_cell] = true
-	SignalBus.request_highlight.emit(cells)
-	SignalBus.request_hide_menu.emit()
-	SignalBus.request_hide_info.emit()
-	print("进入给予模式，可给予目标数：", give_targets.size())
-	return true
-
-func _execute_give(unit_a: Unit, unit_b: Unit, inst: ItemInstance):
-	if unit_a.has_acted:
-		_cancel_give()
-		return
-
-	# 检查接收方背包是否已满（且没有相同道具）
-	if unit_b.is_inventory_full() and not unit_b.has_item(inst.item_id):
-		SoundManager.play_invalid_sound()
-		var ui_mgr = get_ui_manager()
-		if ui_mgr:
-			ui_mgr.show_message("目标背包已满，无法给予")
-		_cancel_give()
-		return
-
-	# 正常给予
-	if not unit_a.remove_instance(inst):
-		_cancel_give()
-		return
-	unit_b.add_item(inst.item_id, inst.count)
-	unit_a.mark_non_attack_action()
-	_cancel_give()
-	selected_unit = unit_a
-	interaction_phase = "menu"
-	SignalBus.request_show_menu.emit(unit_a)
-	SignalBus.request_show_info.emit(unit_a)
-	SoundManager.play_select_sound()
-
-func _cancel_give():
-	interaction_phase = "idle"
-	give_targets.clear()
-	pending_give_inst = null
-	pending_give_unit = null
-	SignalBus.request_clear_highlight.emit()
-	if selected_unit:
-		SignalBus.request_show_info.emit(selected_unit)
 
 # ============================================================
 #  攻击辅助
@@ -634,49 +530,21 @@ func on_move_button_pressed():
 		print("移动条件不满足")
 
 func on_attack_button_pressed():
-	print("=== InputManager: 攻击按钮处理 ===")
-	if selected_unit == null:
-		print("攻击按钮：selected_unit 为空")
-		return
-	if interaction_phase != "menu":
-		print("当前状态不允许攻击")
+	# 强制使用当前装备武器，不弹出武器选择
+	if selected_unit == null or interaction_phase != "menu":
 		return
 	if selected_unit.has_attacked or not selected_unit.can_act_this_turn or selected_unit.has_acted:
-		print("单位已攻击或不可行动或已行动")
 		return
 
-	var all_weapons = selected_unit.get_weapon_ids()
-	if all_weapons.is_empty():
-		print("没有武器，无法攻击")
+	var weapon_id = selected_unit.get_equipped_weapon_id()
+	if weapon_id == "":
+		print("没有装备武器，无法攻击")
 		return
-
-	var usable_weapons = []
-	for w in all_weapons:
-		if selected_unit.can_use_weapon(w):
-			usable_weapons.append(w)
-
-	if usable_weapons.is_empty():
-		print("没有可用武器（职业限制）")
+	if not selected_unit.can_use_weapon(weapon_id):
+		print("当前武器不可用（职业限制）")
 		return
-
-	var default_weapon = selected_unit.get_equipped_weapon_id()
-	if default_weapon == "" or not selected_unit.can_use_weapon(default_weapon):
-		default_weapon = usable_weapons[0]
-		print("自动选择可用武器: ", default_weapon)
-	else:
-		print("当前装备武器可用: ", default_weapon)
-
-	if usable_weapons.size() == 1:
-		_start_attack_target_selection(selected_unit, default_weapon)
-	else:
-		var battlefield = get_node("/root/Battlefield")
-		if battlefield and battlefield.ui_manager:
-			if battlefield.ui_manager.weapon_select_menu == null:
-				_start_attack_target_selection(selected_unit, default_weapon)
-			else:
-				battlefield.ui_manager.show_weapon_select_menu(selected_unit, usable_weapons)
-		else:
-			_start_attack_target_selection(selected_unit, default_weapon)
+	# 直接进入攻击目标选择
+	_start_attack_target_selection(selected_unit, weapon_id)
 
 func on_attack_weapon_selected(unit: Unit, weapon_id: String):
 	_start_attack_target_selection(unit, weapon_id)
@@ -699,18 +567,8 @@ func on_wait_button_pressed():
 		print("待机条件不满足")
 
 func on_equip_button_pressed():
-	print("装备按钮被点击")
-	if selected_unit == null:
-		print("selected_unit 为空")
-		return
-	if interaction_phase != "menu":
-		print("当前状态不允许打开装备菜单")
-		return
-	var ui_mgr = get_ui_manager()
-	if ui_mgr:
-		ui_mgr.show_equip_menu(selected_unit)
-	else:
-		print("无法获取 UIManager 实例")
+	if selected_unit and ui_manager:
+		ui_manager.show_equip_menu(selected_unit)
 
 func get_ui_manager() -> UIManager:
 	if ui_manager:

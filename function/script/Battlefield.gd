@@ -279,6 +279,7 @@ func _ready():
 		back_camp_btn.pressed.connect(_on_back_camp_pressed)
 		back_camp_btn.text = "回到营地"
 		print("BackCampBtn 已连接")
+	InputManager.ui_manager = ui_manager
 
 func _exit_tree():
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
@@ -458,12 +459,10 @@ func _create_fallback_map_data() -> MapData:
 	cfg.unit_name = "剑士"
 	cfg.team_id = 0
 	cfg.position = Vector2i(10, 10)
-	map.unit_configs.append(cfg)
 	var enemy_cfg = UnitConfig.new()
 	enemy_cfg.unit_name = "斧兵"
 	enemy_cfg.team_id = 1
 	enemy_cfg.position = Vector2i(5, 5)
-	map.unit_configs.append(enemy_cfg)
 	return map
 
 # ---- 辅助函数：创建全平地 ----
@@ -608,6 +607,7 @@ func _initialize_managers():
 	})
 	highlight_manager.initialize(self)
 	turnlayer_manager.initialize(turn_overlay)
+	InputManager.ui_manager = ui_manager
 
 func _connect_signals():
 	if move_btn.pressed.is_connected(_on_move_btn_pressed):
@@ -738,8 +738,6 @@ func _on_highlight_request(cells: Dictionary):
 				elif eff_type == "cure" or eff_type == "buff":
 					color = Color(0.2, 0.5, 0.8, 0.7)
 			highlight_manager.show_move_highlight(cells, color, 1, true)
-		"give":
-			highlight_manager.show_move_highlight(cells, Color(1, 0.6, 0, 0.7), 0, true)
 		_:
 			highlight_manager.clear_highlight()
 
@@ -1178,7 +1176,7 @@ func _input(event: InputEvent):
 				setting_menu_panel.visible or 
 				team_view_panel.visible or 
 				item_list_panel.visible or
-				InputManager.interaction_phase in ["moving", "attacking", "item_target", "give"]):
+				InputManager.interaction_phase in ["moving", "attacking", "item_target"]):
 				return
 			if TurnManager.is_game_over:
 				return
@@ -1216,7 +1214,7 @@ func _input(event: InputEvent):
 			return
 		if event.button_index == MOUSE_BUTTON_LEFT:
 			# 如果菜单打开且不是给予模式，则忽略左键点击（由菜单按钮处理）
-			if action_menu.visible and InputManager.interaction_phase != "give":
+			if action_menu.visible:
 				return
 			var mouse_pos = get_global_mouse_position()
 			var clicked_cell = world_to_grid(mouse_pos)
@@ -1375,6 +1373,7 @@ func _on_request_show_info(unit: Unit):
 	var display_text: String
 
 	if unit == null:
+		# 地形信息（不变）
 		var mouse_pos = get_global_mouse_position()
 		var cell = world_to_grid(mouse_pos)
 		terrain_type = TerrainManager.get_terrain(cell)
@@ -1386,9 +1385,7 @@ func _on_request_show_info(unit: Unit):
 	else:
 		if not is_instance_valid(unit):
 			return
-		# 修正：使用同一个 lines 数组，不要重复声明
 		var lines = []
-		# 姓名和类型
 		var display_name = unit.unit_stats.display_name if unit.unit_stats.display_name != "" else unit.unit_stats.unit_name
 		lines.append("姓名: " + display_name)
 		lines.append("类型: " + unit.unit_stats.unit_name)
@@ -1396,11 +1393,10 @@ func _on_request_show_info(unit: Unit):
 			lines.append("阵营: " + unit.unit_stats.faction)
 		lines.append("HP: " + str(unit.hit_points) + "/" + str(unit.unit_stats.max_hp))
 
-		# 装备数据
+		# ---- 武器 ----
 		var weapon_data = unit.get_weapon_data()
 		if weapon_data:
 			lines.append("武器: " + weapon_data.name)
-			# 显示 stats 中的属性
 			var stats = weapon_data.stats
 			var attrs = []
 			if stats.has("attack"):
@@ -1415,7 +1411,7 @@ func _on_request_show_info(unit: Unit):
 		else:
 			lines.append("武器: 无")
 
-		# 防具/饰品
+		# ---- 防具槽 ----
 		var armor_slots = unit.get_armor_slots()
 		var armor_str = ""
 		for i in range(armor_slots.size()):
@@ -1429,9 +1425,9 @@ func _on_request_show_info(unit: Unit):
 			else:
 				armor_str += "槽" + str(i+1) + ":(空) "
 		if armor_str != "":
-			lines.append("防具/饰品: " + armor_str.strip_edges())
+			lines.append("防具: " + armor_str.strip_edges())
 
-		# 基本属性（基础 + 装备加成需显示总属性，但此处简化，可显示基础）
+		# ---- 基本属性 ----
 		lines.append("防御: " + str(unit.unit_stats.defense))
 		lines.append("魔防: " + str(unit.unit_stats.magic_defense))
 		lines.append("技巧: " + str(unit.unit_stats.skill))
@@ -1439,23 +1435,11 @@ func _on_request_show_info(unit: Unit):
 		lines.append("幸运: " + str(unit.unit_stats.luck))
 		lines.append("移动力: " + str(unit.unit_stats.move_range))
 
-		# 地形
+		# ---- 地形 ----
 		var cell = unit.grid_cell
 		terrain_type = TerrainManager.get_terrain(cell)
 		terrain_name = TerrainManager.get_terrain_name(terrain_type)
 		lines.append("地形: " + terrain_name)
-
-		# 背包
-		if unit.inventory.size() > 0:
-			var items_str = ""
-			for inst in unit.inventory:
-				var data = ItemManager.get_item_data(inst.item_id)
-				if data:
-					items_str += data.name + " "
-			lines.append("背包: " + items_str.strip_edges())
-		else:
-			lines.append("背包: 无")
-
 		display_text = "\n".join(lines)
 
 	info_text_label.text = display_text
@@ -1675,109 +1659,89 @@ func _refresh_item_list():
 	scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
 
 	var entries = []
-	var global_items = ItemManager.get_all_items()
-	for item_id in global_items:
-		var data = ItemManager.get_item_data(item_id)
-		if data:
-			entries.append({
-				"item_id": item_id,
-				"source": "仓库",
-				"count": global_items[item_id],
-				"is_weapon": (data.type == "weapon"),
-				"is_equipped": false
-			})
 
+	# ---- 只显示单位装备，不显示仓库 ----
 	for unit in UnitManager.unit_list:
 		if unit.unit_stats.team_id == 0 and unit.hit_points > 0:
-			var unit_name = unit.unit_stats.unit_name
-			var item_counts = {}
-			var weapon_entries = []
-			for inst in unit.inventory:
-				var data = ItemManager.get_item_data(inst.item_id)
-				if not data:
-					continue
-				var is_equipped = (inst == unit.equipped_weapon_instance)
-				if data.type == "weapon":
-					weapon_entries.append({
-						"item_id": inst.item_id,
-						"source": unit_name,
-						"count": 1,
-						"is_weapon": true,
-						"is_equipped": is_equipped
-					})
-				else:
-					if inst.item_id in item_counts:
-						item_counts[inst.item_id] += inst.count
+			var unit_name = unit.unit_stats.display_name if unit.unit_stats.display_name != "" else unit.unit_stats.unit_name
+			
+			# 武器
+			var weapon = unit.get_weapon()
+			if weapon:
+				var data = ItemManager.get_item_data(weapon.item_id)
+				if data:
+					var type_display = ""
+					if data.category != "":
+						type_display = UnitDataManager.get_weapon_category_display(data.category)
 					else:
-						item_counts[inst.item_id] = inst.count
-			for item_id in item_counts:
-				entries.append({
-					"item_id": item_id,
-					"source": unit_name,
-					"count": item_counts[item_id],
-					"is_weapon": false,
-					"is_equipped": false
-				})
-			entries.append_array(weapon_entries)
+						type_display = _get_type_display_name(data.type)
+					entries.append({
+						"item_name": data.name,
+						"type_display": type_display,
+						"source": unit_name,
+						"slot": "武器",
+						"is_equipped": true,
+						"data": data
+					})
+			
+			# 防具/饰品槽
+			var armor_slots = unit.get_armor_slots()
+			for i in range(armor_slots.size()):
+				var inst = armor_slots[i]
+				if inst:
+					var data = ItemManager.get_item_data(inst.item_id)
+					if data:
+						entries.append({
+							"item_name": data.name,
+							"type_display": "",
+							"source": unit_name,
+							"slot": "防具槽" + str(i+1),
+							"is_equipped": true,
+							"data": data
+						})
 
 	if entries.is_empty():
 		var label = Label.new()
-		label.text = "没有道具"
+		label.text = "没有装备"
 		label.add_theme_font_size_override("font_size", 6)
 		item_list_container.add_child(label)
 	else:
 		entries.sort_custom(func(a, b):
 			if a["source"] != b["source"]:
 				return a["source"] < b["source"]
-			if a["is_weapon"] != b["is_weapon"]:
-				return a["is_weapon"] and not b["is_weapon"]
-			return a["item_id"] < b["item_id"]
+			return a["slot"] < b["slot"]
 		)
 
 		for entry in entries:
-			var item_id = entry["item_id"]
-			var source = entry["source"]
-			var count = entry["count"]
-			var is_equipped = entry["is_equipped"]
-			var data = ItemManager.get_item_data(item_id)
-			if not data:
-				continue
-
 			var btn = Button.new()
-			btn.icon = data.icon
-			var type_display = ""
-			if data.type == "weapon" and data.category != "":
-				type_display = UnitDataManager.get_weapon_category_display(data.category)   # ← 修正处
-			elif data.type != "":
-				type_display = _get_type_display_name(data.type)
-			var type_str = "[" + type_display + "]" if type_display != "" else ""
-			var equipped_str = " [已装备]" if is_equipped else ""
-			btn.text = data.name + " " + type_str + equipped_str + " x" + str(count) + " (" + source + ")"
+			var data = entry["data"]
+			if data.icon:
+				btn.icon = data.icon
+			
+			var equipped_str = " [已装备]" if entry["is_equipped"] else ""
+			var type_str = "[" + entry["type_display"] + "]" if entry["type_display"] != "" else ""
+			btn.text = entry["item_name"] + " " + type_str + equipped_str + " (" + entry["source"] + " " + entry["slot"] + ")"
 			btn.add_theme_font_size_override("font_size", 6)
 			btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 			btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
 			btn.clip_text = true
 			btn.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-
-			if source != "仓库":
-				var unit = null
-				for u in UnitManager.unit_list:
-					if u.unit_stats.team_id == 0 and u.hit_points > 0 and u.unit_stats.unit_name == source:
-						unit = u
-						break
-				if unit:
-					btn.pressed.connect(_on_item_list_unit_selected.bind(unit))
-				else:
-					btn.pressed.connect(_on_item_list_warehouse_selected)
+			
+			# 点击弹出详情面板
+			var unit = _find_unit_by_name(entry["source"])
+			if unit:
+				var inst = ItemInstance.new()
+				inst.item_id = entry["data"].id
+				inst.count = 1
+				btn.pressed.connect(_on_item_list_equipment_selected.bind(inst, unit))
 			else:
-				btn.pressed.connect(_on_item_list_warehouse_selected)
+				btn.disabled = true
 
 			item_list_container.add_child(btn)
 
 	await get_tree().process_frame
 
 	var viewport_size = get_viewport().get_visible_rect().size
-
 	var max_panel_width = viewport_size.x * 0.4
 	var min_panel_width = 120
 	var content_width = min_panel_width
@@ -1798,17 +1762,33 @@ func _refresh_item_list():
 	scroll.size = item_list_panel.size
 	item_list_container.size = scroll.size
 
+func _find_unit_by_name(display_name: String) -> Unit:
+	for unit in UnitManager.unit_list:
+		var unit_name = unit.unit_stats.display_name if unit.unit_stats.display_name != "" else unit.unit_stats.unit_name
+		if unit_name == display_name:
+			return unit
+	return null
+
+func _on_item_list_equipment_selected(inst: ItemInstance, unit: Unit):
+	item_list_panel.visible = false
+	_on_team_member_selected(unit)
+	# 弹出详情面板
+	var popup_scene = load("res://content/scenes/ui/ItemDetailPopup.tscn")
+	if popup_scene:
+		var popup = popup_scene.instantiate()
+		add_child(popup)
+		popup.show_item(inst.item_id, unit)
+
 func _on_equip_btn_pressed():
 	InputManager.on_equip_button_pressed()
 
 func _get_type_display_name(type: String) -> String:
 	match type:
 		"weapon": return "武器"
-		"heal": return "回复"
-		"cure": return "治愈"
-		"buff": return "增益"
-		"attack": return "攻击"
-		_: return type
+		"armor": return "防具"
+		"relic": return "遗物"
+		_:
+			return type
 
 func _on_item_list_unit_selected(unit: Unit):
 	item_list_panel.visible = false

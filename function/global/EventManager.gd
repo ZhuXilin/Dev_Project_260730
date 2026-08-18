@@ -86,27 +86,59 @@ func trigger_event(event_id: String, unit: Unit = null, default_music: AudioStre
 				var item_id = action.get("item_id", "")
 				var count = action.get("count", 1)
 				var equip = action.get("equip", false)
-				if item_id != "":
-					if unit.add_item(item_id, count):
-						await show_item_get_popup(item_id, count)
-						if equip:
-							var data = ItemManager.get_item_data(item_id)
-							if data:
-								var inst = unit.find_first_instance(item_id)
-								if data.equipment_slot == "weapon":
-									unit.equip_weapon(inst)
-								elif data.equipment_slot in ["armor", "accessory"]:
-									for i in range(unit.armor_slots.size()):
-										if unit.armor_slots[i] == null:
-											unit.equip_armor(i, inst)
-											break
-								elif data.equipment_slot == "relic":
-									GameState.add_global_relic(inst)
-									unit.remove_instance(inst)  # 从单位背包移除
-					else:
-						print("无法获取 UIManager，放弃获得道具")
-				else:
+				if item_id == "":
 					push_error("give_item 动作缺少 item_id")
+					continue
+
+				var item_data = ItemManager.get_item_data(item_id)
+				if not item_data:
+					print("警告：道具数据不存在: ", item_id)
+					continue
+
+				# 检查是否为消耗品，若是则忽略
+				if item_data.type in ["heal", "cure", "buff", "attack"]:
+					print("警告：消耗品 %s 已被禁用，忽略给予" % item_id)
+					continue
+
+				# 直接装备
+				if equip:
+					# 根据装备槽位装备
+					var inst = ItemInstance.new()
+					inst.item_id = item_id
+					inst.count = 1
+					if item_data.equipment_slot == "weapon":
+						# 替换武器
+						unit.weapon_slot = inst
+						print("单位 %s 装备了武器: %s" % [unit.unit_stats.unit_name, item_data.name])
+					elif item_data.equipment_slot in ["armor"]:
+						# 装备到第一个空防具槽
+						var equipped = false
+						for i in range(unit.armor_slots.size()):
+							if unit.armor_slots[i] == null:
+								unit.armor_slots[i] = inst
+								equipped = true
+								print("单位 %s 装备了防具: %s (槽 %d)" % [unit.unit_stats.unit_name, item_data.name, i+1])
+								break
+						if not equipped:
+							print("警告：单位 %s 防具槽已满，无法装备 %s" % [unit.unit_stats.unit_name, item_data.name])
+					elif item_data.equipment_slot == "relic":
+						GameState.add_global_relic(inst)
+						print("获得遗物: %s" % item_data.name)
+					else:
+						print("警告：未知装备槽位: %s" % item_data.equipment_slot)
+				else:
+					# 如果不是装备，且不是消耗品，可能为其他类型（如遗物直接添加）
+					if item_data.equipment_slot == "relic":
+						var inst = ItemInstance.new()
+						inst.item_id = item_id
+						inst.count = 1
+						GameState.add_global_relic(inst)
+						print("获得遗物: %s" % item_data.name)
+					else:
+						print("警告：未指定 equip 且非消耗品/遗物，忽略道具: %s" % item_id)
+
+				# 显示获得弹窗（简单显示）
+				await show_item_get_popup(item_id, count)
 
 			"unlock_equipment":
 				var item_id = action.get("item_id", "")
@@ -184,16 +216,6 @@ func _get_ui_manager() -> UIManager:
 	if battlefield and battlefield.ui_manager:
 		return battlefield.ui_manager
 	return null
-
-func _on_give_item_drop_success(unit: Unit, item_id: String, count: int):
-	if unit.add_item(item_id, count):
-		show_item_get_popup(item_id, count)
-		print("丢弃后成功获得道具: ", item_id)
-	else:
-		print("丢弃后仍然无法获得道具，放弃获得: ", item_id)
-
-func _on_give_item_drop_cancel():
-	print("用户取消获得道具")
 
 func show_unit_unlock_popup(units: Array):
 	var root = get_tree().current_scene

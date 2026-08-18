@@ -19,24 +19,21 @@ func _refresh_list():
 		var data = ItemManager.get_item_data(item_id)
 		if data:
 			all_items.append(data)
-	
-	# 按类型分组，合并 armor 和 accessory 为 "armor_accessory"
+
 	var groups = {}
 	for data in all_items:
 		var type_key = data.type
-		if type_key in ["armor", "accessory"]:
-			type_key = "armor_accessory"
 		if not groups.has(type_key):
 			groups[type_key] = []
 		groups[type_key].append(data)
-	
+
 	# 定义分类显示名称（中文）和顺序
 	var type_names = {
 		"weapon": "武器",
-		"armor_accessory": "防具/饰品",
+		"armor": "防具",
 		"relic": "遗物",
 	}
-	var order = ["weapon", "armor_accessory", "relic"]
+	var order = ["weapon", "armor", "relic"]
 	
 	# 始终显示三个分类
 	for type_key in order:
