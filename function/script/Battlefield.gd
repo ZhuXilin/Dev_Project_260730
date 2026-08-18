@@ -63,6 +63,7 @@ var _turn_changed_locked : bool = false
 var is_non_combat_mode: bool = false
 var non_combat_back_button: Button = null
 var current_node_type: int = MapNode.NodeType.NORMAL   # 当前地图的节点类型
+var _victory_processed: bool = false   # 防止重复处理胜利
 
 # ===================== 生命周期 =====================
 func _ready():
@@ -97,6 +98,8 @@ func _ready():
 	item_list_panel = $SettingLayer/ItemListPanel
 	item_list_container = $SettingLayer/ItemListPanel/ItemListContainer
 	item_action_panel = $ItemActionPanel
+	relic_layer = $RelicLayer
+	relic_icon_container = $RelicLayer/RelicIconContainer
 
 	# ---- 检查关键节点（原有） ----
 	var node_list = {
@@ -239,6 +242,8 @@ func _ready():
 	]
 
 	if is_non_combat:
+		# 非战斗模式：设置标志
+		Globals.is_non_combat_mode = true
 		await _setup_non_combat_mode()
 		await get_tree().process_frame
 		
@@ -251,6 +256,9 @@ func _ready():
 		
 		TurnManager.start_turn(0)
 		return
+
+	# ---- 战斗模式：重置非战斗标志 ----
+	Globals.is_non_combat_mode = false
 
 	# ---- 战斗模式：触发战斗开始事件 ----
 	if _battle_start_event_id != "":
@@ -825,14 +833,11 @@ func _on_wait_btn_pressed():
 	# 否则普通待机
 	InputManager.on_wait_button_pressed()
 
-# Battlefield.gd
-var _victory_processed: bool = false   # 防止重复处理胜利
-
 func _on_request_show_victory(winning_team: int):
 	if _victory_processed:
 		print("胜利已处理，跳过重复调用")
 		return
-	_victory_processed = true   # 立即锁定
+	_victory_processed = true
 
 	var tree = get_tree()
 	if not tree:
@@ -874,7 +879,12 @@ func _on_request_show_victory(winning_team: int):
 
 	var is_win = (winning_team == 0)
 	var is_last = LevelManager.is_last_level()
+	
+	# ---- 增强 is_boss 判断（支持备选数据源） ----
 	var is_boss = (current_node_type == MapNode.NodeType.BOSS)
+	if not is_boss and GameState.current_map_data:
+		is_boss = (GameState.current_map_data.node_type == MapNode.NodeType.BOSS)
+	print("is_boss 判断结果：", is_boss, " current_node_type=", current_node_type)
 
 	# ---- 同步玩家单位状态到 GameState ----
 	var player_units = []
@@ -882,11 +892,6 @@ func _on_request_show_victory(winning_team: int):
 		if unit.unit_stats.team_id == 0:
 			player_units.append(unit)
 	GameState.sync_units_from_battlefield(player_units)
-
-	# ---- 声明UI变量 ----
-	var label_text = ""
-	var button_text = ""
-	var callback = Callable()
 
 	# =====================================================
 	#  地图模式（从地图进入的战斗）
@@ -896,41 +901,48 @@ func _on_request_show_victory(winning_team: int):
 
 		# ---- ★★★ 资源累加（仅当胜利时） ★★★ ----
 		if is_win:
-			# 只有战斗关卡（非非战斗）才加资源
-			if not Globals.is_non_combat_mode:
+			# 使用节点类型直接判断，不依赖可能被错误设置的全局标志
+			var is_non_combat_node = current_node_type in [
+				MapNode.NodeType.CAMPFIRE,
+				MapNode.NodeType.SHOP,
+				MapNode.NodeType.EVENT,
+				MapNode.NodeType.FINAL_PREP
+			]
+			if not is_non_combat_node:
 				GameState.temp_gold += 10
 				if is_boss:
 					GameState.temp_soul += 1
 				print("Battlefield 累加资源：temp_gold=", GameState.temp_gold, " temp_soul=", GameState.temp_soul)
 			else:
-				print("非战斗模式，不累加资源")
-				
-			# ★★★ 战斗胜利后清空当前节点 key，避免中断时错误恢复 ★★★
+				print("非战斗地图，不累加资源")
 			GameState.current_node_key = ""
 
 		# ---- 若为 Boss 胜利，设置推进天数标记 ----
 		if is_win and is_boss:
 			GameState.should_advance_day = true
+			print("Boss 胜利，设置 should_advance_day = true")
 
 		# ---- 发射信号（供其他监听者使用） ----
 		SignalBus.battle_completed.emit(winning_team, is_boss)
 
+		# ---- 播放音乐 ----
 		if is_win:
 			if is_last:
-				label_text = "全部胜利"
-				button_text = "回到营地"
+				MusicManager.play_win_game_music()
 			else:
-				label_text = "战斗胜利"
-				button_text = "下一关"
-			callback = Callable(LevelManager, "on_victory")
+				MusicManager.play_victory_music()
 		else:
-			label_text = "战斗失败"
-			button_text = "回到营地"
-			callback = Callable(self, "_on_non_map_defeat")
+			MusicManager.play_defeat_music()
 
-		# ---- 显示胜利/失败面板 ----
+		# ---- 显示胜利/失败面板（直接传字符串，避免空值） ----
 		if is_instance_valid(ui_manager):
-			ui_manager.show_victory(label_text, button_text, callback)
+			if is_win:
+				if is_last:
+					ui_manager.show_victory("全部胜利！", "回到营地", Callable(self, "_on_map_victory_continue"))
+				else:
+					ui_manager.show_victory("战斗胜利！", "继续旅程", Callable(self, "_on_map_victory_continue"))
+			else:
+				ui_manager.show_victory("战斗失败", "重启旅程", Callable(self, "_on_map_defeat_gameover"))
 		else:
 			# 备用：直接跳转
 			if is_win:
@@ -952,21 +964,13 @@ func _on_request_show_victory(winning_team: int):
 
 	if is_win:
 		if is_last:
-			label_text = "全部胜利"
-			button_text = "回到营地"
+			ui_manager.show_victory("全部胜利", "回到营地", Callable(LevelManager, "on_victory"))
 		else:
-			label_text = "战斗胜利"
-			button_text = "下一关"
-		callback = Callable(LevelManager, "on_victory")
+			ui_manager.show_victory("战斗胜利", "下一关", Callable(LevelManager, "on_victory"))
 	else:
-		label_text = "战斗失败"
-		button_text = "回到营地"
-		callback = Callable(self, "_on_non_map_defeat")   # 修改此处
+		ui_manager.show_victory("战斗失败", "回到营地", Callable(self, "_on_non_map_defeat"))
 
-	if is_instance_valid(ui_manager):
-		ui_manager.show_victory(label_text, button_text, callback)
-
-	# 重置锁定标志（用于下一次战斗）
+	# ---- 重置锁定标志（用于下一次战斗） ----
 	_victory_processed = false
 
 func _on_turn_changed(team: int):
@@ -1145,6 +1149,8 @@ func _input(event: InputEvent):
 	if event is InputEventKey and event.pressed:
 		# 调试：杀死所有敌方单位 (0 键)
 		if event.keycode == KEY_0 or event.keycode == KEY_KP_0:
+			if Globals.is_transitioning:
+				return  # 回合动画期间禁止
 			print("调试：杀死所有敌方单位")
 			var enemies = []
 			for unit in UnitManager.unit_list:
@@ -1158,6 +1164,8 @@ func _input(event: InputEvent):
 			return
 		# 调试：杀死所有我方单位 (9 键)
 		elif event.keycode == KEY_9 or event.keycode == KEY_KP_9:
+			if Globals.is_transitioning:
+				return  # 回合动画期间禁止
 			print("调试：杀死所有我方单位")
 			var allies = []
 			for unit in UnitManager.unit_list:
@@ -1859,22 +1867,48 @@ func _create_scroll_container(child: Control, parent: Node, container_name: Stri
 # ---- 地图模式：胜利继续 ----
 func _on_map_victory_continue():
 	print("地图模式：战斗胜利，继续旅程")
-	SaveManager.auto_save()   # 自动存档
-	var tree = get_tree()
-	if tree:
-		tree.change_scene_to_file("res://content/scenes/ui/MapScene.tscn")
+	# 确保 Boss 胜利时推进天数
+	if not GameState.should_advance_day and current_node_type == MapNode.NodeType.BOSS:
+		print("强制设置 should_advance_day = true")
+		GameState.should_advance_day = true
+	SaveManager.auto_save()
+	get_tree().change_scene_to_file("res://content/scenes/ui/MapScene.tscn")
 		
-# ---- 地图模式：失败返回单位选择界面 ----
+# ---- 统一的放弃战斗逻辑 ----
+func _execute_abandon_battle():
+	GameState.current_node_key = ""
+	Globals.is_performing_action = false
+	TurnManager.is_game_over = true
+
+	GameState.abandon_cycle()
+	GameState.reset_progress()
+
+	# ---- 清空队伍 ----
+	GameState.party.clear()
+	GameState.main_unit_name = ""
+	GameState.main_unit_index = 0
+	GameState.current_faction = ""
+	GameState.global_relics.clear()
+
+	GameState.interrupt_state = 1
+
+	var slot = SaveManager.current_slot
+	if slot == -1:
+		slot = SaveManager.find_empty_slot()
+		if slot == -1:
+			slot = 0
+	SaveManager.save_game(slot, false)
+	SaveManager.current_slot = slot
+
+	get_tree().change_scene_to_file("res://content/scenes/ui/Camp.tscn")
+
+# ---- 地图模式失败处理（直接放弃，无确认框） ----
 func _on_map_defeat_gameover():
-	Globals.reset_battle_turn()
-	var confirm = ConfirmationDialog.new()
-	confirm.dialog_text = "战斗失败，是否重新挑战？\n（选择“取消”将回到营地）"
-	confirm.ok_button_text = "重试"
-	confirm.cancel_button_text = "放弃"
-	add_child(confirm)
-	confirm.popup_centered()
-	confirm.confirmed.connect(_on_retry_battle)
-	confirm.canceled.connect(_on_abandon_battle_confirmed)
+	_execute_abandon_battle()
+
+# ---- 非地图模式失败处理（直接放弃，无确认框） ----
+func _on_non_map_defeat():
+	_execute_abandon_battle()
 
 func _on_retry_battle():
 	if GameState.current_node_key != "":
@@ -2133,42 +2167,6 @@ func _update_cursor_and_mouse():
 	if cursor.modulate != target_color:
 		cursor.modulate = target_color
 
-func _on_abandon_battle_pressed():
-	Globals.show_confirm(
-		self,
-		"确定放弃当前战斗吗？将回到营地，本轮进度将丢失。",
-		"放弃",
-		"取消",
-		_on_abandon_battle_confirmed,
-		func(): pass
-	)
-
-func _on_abandon_battle_confirmed():
-	GameState.current_node_key = ""
-	Globals.is_performing_action = false
-	TurnManager.is_game_over = true
-	GameState.abandon_cycle()
-	GameState.reset_progress()
-	GameState.party.clear()
-	GameState.main_unit_name = ""
-	GameState.main_unit_index = 0
-	GameState.current_faction = ""
-	GameState.global_relics.clear()
-	GameState.interrupt_state = 1
-
-	# 确保存档槽有效
-	var slot = SaveManager.current_slot
-	if slot == -1:
-		slot = SaveManager.find_empty_slot()
-		if slot == -1:
-			# 如果没有空槽，使用槽0覆盖
-			slot = 0
-	# 保存
-	SaveManager.save_game(slot, false)
-	SaveManager.current_slot = slot
-
-	get_tree().change_scene_to_file("res://content/scenes/ui/Camp.tscn")
-
 func _on_back_camp_pressed():
 	Globals.show_confirm(
 		self,
@@ -2179,25 +2177,56 @@ func _on_back_camp_pressed():
 		func(): pass
 	)
 
+func _ensure_default_relics():
+	if GameState.global_relics.is_empty() and not Globals.unlocked_relics.is_empty():
+		print("兜底：遗物为空，根据 unlocked_relics 重新填充")
+		for relic_id in Globals.unlocked_relics:
+			var inst = ItemInstance.new()
+			inst.item_id = relic_id
+			inst.count = 1
+			GameState.global_relics.append(inst)
+			print("自动添加遗物：", relic_id)
+
 # ---- 更新遗物图标 ----
 func _update_relic_icons():
-	# 清空容器中的子节点
+	# 兜底：确保遗物存在
+	if GameState.global_relics.is_empty() and not Globals.unlocked_relics.is_empty():
+		print("Battlefield 兜底：遗物为空，重新填充默认遗物")
+		for relic_id in Globals.unlocked_relics:
+			var inst = ItemInstance.new()
+			inst.item_id = relic_id
+			inst.count = 1
+			GameState.global_relics.append(inst)
+			print("自动添加遗物：", relic_id)
+	
+	print("更新遗物图标，当前遗物数量：", GameState.get_global_relics().size())
+	
+	# 清空容器
 	for child in relic_icon_container.get_children():
 		child.queue_free()
 	
 	var relics = GameState.get_global_relics()
 	if relics.is_empty():
-		# 不显示任何内容（或显示一个空状态标记）
+		var label = Label.new()
+		label.text = "无遗物"
+		label.add_theme_font_size_override("font_size", 8)
+		relic_icon_container.add_child(label)
 		return
 	
 	for relic in relics:
 		var data = ItemManager.get_item_data(relic.item_id)
 		if not data:
 			continue
-		var btn = TextureButton.new()
-		if data.icon:
-			btn.texture_normal = data.icon
-		btn.custom_minimum_size = Vector2(16, 16)
+		# 使用文字标签显示遗物名称
+		var label = Label.new()
+		label.text = data.name
+		label.add_theme_font_size_override("font_size", 6)
+		label.tooltip_text = data.description
+		# 设置点击显示详情（如果想让文字可点击，可用 Button 或 TextureButton，但这里直接用 Label 并添加点击检测）
+		# 为了交互方便，使用 Button 样式更简单，但要求是文字，我们可以用 Button 设置文本。
+		var btn = Button.new()
+		btn.text = data.name
+		btn.add_theme_font_size_override("font_size", 6)
 		btn.tooltip_text = data.name + "\n" + data.description
 		btn.pressed.connect(_on_relic_icon_clicked.bind(relic))
 		relic_icon_container.add_child(btn)
@@ -2213,35 +2242,3 @@ func _on_relic_icon_clicked(relic: ItemInstance):
 # ---- 战斗结束后更新遗物（因为可能获得新遗物） ----
 func _on_battle_completed_relic_update(_winning_team: int, _is_boss: bool):
 	_update_relic_icons()
-
-func _on_non_map_defeat():
-	# 清空当前节点标记
-	GameState.current_node_key = ""
-	Globals.is_performing_action = false
-	TurnManager.is_game_over = true
-
-	# 清空临时资源
-	GameState.abandon_cycle()
-
-	# 重置地图进度
-	GameState.reset_progress()
-
-	# ---- 清空队伍 ----
-	GameState.party.clear()
-	GameState.main_unit_name = ""
-	GameState.main_unit_index = 0
-	GameState.current_faction = ""
-	GameState.global_relics.clear()
-
-	GameState.interrupt_state = 1   # 回到营地
-
-	# 保存存档
-	var slot = SaveManager.current_slot
-	if slot == -1:
-		slot = SaveManager.find_empty_slot()
-		if slot == -1:
-			slot = 0
-	SaveManager.save_game(slot, false)
-	SaveManager.current_slot = slot
-
-	get_tree().change_scene_to_file("res://content/scenes/ui/Camp.tscn")

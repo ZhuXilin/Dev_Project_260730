@@ -53,18 +53,20 @@ func play_music(stream: AudioStream):
 		push_error("音乐配置未加载，无法播放")
 		return
 	if stream == null:
-		push_error("尝试播放空音乐流，请检查 MusicConfig 资源")
+		push_error("尝试播放空音乐流")
 		return
-	
+	print("播放音乐：", stream.resource_path if stream.resource_path else "未命名流")
 	if player.stream == stream and player.playing:
+		print("音乐已在播放中，跳过")
 		return
 	player.stop()
 	player.stream = stream
 	player.play()
-	
+	# 确保音量设置
 	var vol = Globals.music_volume
 	var db = linear_to_db(vol) if vol > 0 else -80.0
 	player.volume_db = db
+	print("音乐音量：", db, " dB")
 
 func stop_music():
 	if player and player.playing:

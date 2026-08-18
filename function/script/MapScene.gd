@@ -27,7 +27,7 @@ func _ready():
 		GameState.cached_map_level_data = null
 		GameState.current_map_data = null
 		GameState.interrupt_state = 1
-		SaveManager.save_game(SaveManager.current_slot, false)
+		_save_game()
 		get_tree().change_scene_to_file("res://content/scenes/ui/Camp.tscn")
 		return
 
@@ -45,6 +45,7 @@ func _ready():
 		GameState.resume_node_id = ""
 		print("检测到 Boss 胜利，推进天数")
 		var has_next = LevelManager.advance_day()
+		print("advance_day 返回：", has_next)
 		if not has_next:
 			# 三天完成，合并资源并重置
 			GameState.finish_cycle()
@@ -60,6 +61,7 @@ func _ready():
 		current_day = LevelManager.current_day + 1
 		GameState.current_day = current_day
 		level_list = LevelManager.get_current_day_levels()
+		print("新的一天，当前 day=", current_day, " 关卡数：", level_list.size())
 		generate_map(current_day)
 		_save_game()
 		_setup_ui()
@@ -129,8 +131,21 @@ func update_all_displays():
 		gold_label.text = "金币:" + str(GameState.temp_gold)
 	_update_relic_display()
 
+# ---- 兜底：确保默认遗物存在 ----
+func _ensure_default_relics():
+	if GameState.global_relics.is_empty() and not Globals.unlocked_relics.is_empty():
+		print("MapScene 兜底：遗物为空，重新填充默认遗物")
+		for relic_id in Globals.unlocked_relics:
+			var inst = ItemInstance.new()
+			inst.item_id = relic_id
+			inst.count = 1
+			GameState.global_relics.append(inst)
+			print("自动添加遗物：", relic_id)
+
 func _update_relic_display():
-	# 清空容器中的子节点（按钮由代码生成）
+	_ensure_default_relics()
+	print("MapScene 更新遗物显示，当前遗物数量：", GameState.get_global_relics().size())
+	
 	for child in relic_container.get_children():
 		child.queue_free()
 	
@@ -138,7 +153,7 @@ func _update_relic_display():
 	if relics.is_empty():
 		var label = Label.new()
 		label.text = "无遗物"
-		label.add_theme_font_size_override("font_size", 8)
+		label.add_theme_font_size_override("font_size", 6)
 		relic_container.add_child(label)
 		return
 	
@@ -146,10 +161,9 @@ func _update_relic_display():
 		var data = ItemManager.get_item_data(relic.item_id)
 		if not data:
 			continue
-		var btn = TextureButton.new()
-		if data.icon:
-			btn.texture_normal = data.icon
-		btn.custom_minimum_size = Vector2(16, 16)
+		var btn = Button.new()
+		btn.text = data.name
+		btn.add_theme_font_size_override("font_size", 6)
 		btn.tooltip_text = data.name + "\n" + data.description
 		btn.pressed.connect(_on_relic_clicked.bind(relic))
 		relic_container.add_child(btn)
@@ -203,8 +217,8 @@ func _on_battle_completed(winning_team: int, is_boss: bool = false):
 			var has_next = LevelManager.advance_day()
 			if not has_next:
 				# ---- 三天全部完成 ----
-				GameState.finish_cycle()          # 调用 finish_day() 合并魂，然后重置
-				GameState.reset_for_new_cycle()   # 重置进度（保留永久资源）
+				GameState.finish_cycle()
+				GameState.reset_for_new_cycle()
 				GameState.interrupt_state = 1
 				_save_game()
 				var dialog = AcceptDialog.new()
@@ -221,8 +235,6 @@ func _on_battle_completed(winning_team: int, is_boss: bool = false):
 
 			# ★ 每天结束后立即合并魂到永久资源池 ★
 			GameState.finish_day()
-
-			# 单位解锁由事件驱动，不再调用 Globals.apply_day_unlocks
 
 			level_list = LevelManager.get_current_day_levels()
 			generate_map(new_day)
@@ -338,7 +350,7 @@ func generate_map(day: int):
 	map_data = MapGenerator.generate_day(day, level_list)
 	GameState.cached_map_level_data = map_data
 	GameState.cached_day = day
-	_apply_visited_state()   # 替换原来的循环
+	_apply_visited_state()
 	_draw_connections()
 	_create_node_buttons()
 	_update_availability(map_data.root_node)
@@ -365,7 +377,7 @@ func on_node_selected(node: MapNode):
 		return
 	var key = "%d_%d" % [node.position.x, node.position.y]
 	GameState.visited_nodes[key] = true
-	GameState.current_node_key = key   # 新增：记录当前节点
+	GameState.current_node_key = key
 	node.is_visited = true
 	node.is_available = false
 	GameState.last_selected_node_type = node.node_type
@@ -412,11 +424,20 @@ func _apply_visited_state():
 	if not map_data:
 		print("map_data 为空")
 		return
+	var visited_keys = GameState.visited_nodes.keys()
+	print("visited_keys: ", visited_keys)
 	for node in map_data.nodes:
 		var key = "%d_%d" % [node.position.x, node.position.y]
 		if GameState.visited_nodes.has(key):
 			node.is_visited = true
 			node.is_available = false
+			print("标记节点", key, "为已访问")
 		else:
 			node.is_visited = false
-			node.is_available = false  # 由 _update_availability 设置
+			node.is_available = false
+	# 可选：统计已访问节点数
+	var visited_count = 0
+	for node in map_data.nodes:
+		if node.is_visited:
+			visited_count += 1
+	print("实际已访问节点数：", visited_count)

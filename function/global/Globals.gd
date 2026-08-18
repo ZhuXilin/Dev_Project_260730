@@ -274,6 +274,7 @@ func show_confirm(parent: Node, message: String, confirm_text: String = "确定"
 func _load_relic_unlock_config():
 	var path = "res://content/data/relic_unlock.json"
 	if not FileAccess.file_exists(path):
+		print("遗物解锁文件不存在，使用空列表")
 		unlocked_relics = []
 		return
 	var file = FileAccess.open(path, FileAccess.READ)
@@ -287,6 +288,7 @@ func _load_relic_unlock_config():
 			if item is String:
 				arr.append(item)
 		unlocked_relics = arr
+		print("加载遗物解锁配置，数量：", unlocked_relics.size())
 	else:
 		unlocked_relics = []
 

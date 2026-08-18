@@ -116,7 +116,6 @@ func reset_progress():
 func start_new_cycle():
 	temp_soul = 0
 	temp_gold = 0
-	# 重置装备（清空防具，武器重置为默认）
 	for unit_data in party:
 		unit_data.armor_slots.clear()
 		unit_data.max_armor_slots = 2
@@ -129,7 +128,7 @@ func start_new_cycle():
 		else:
 			unit_data.weapon_slot = null
 	
-	# ---- 清空并添加默认遗物 ----
+	# ---- 填充遗物 ----
 	global_relics.clear()
 	for relic_id in Globals.unlocked_relics:
 		var inst = ItemInstance.new()

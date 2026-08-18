@@ -304,19 +304,31 @@ func _execute_use_item(_unit: Unit, _item_id: String):
 #  胜利面板
 # ============================================================
 func show_victory(label_text: String, button_text: String, callback: Callable):
-	if not victory_label or not victory_button:
+	if not victory_label or not victory_button or not victory_panel:
+		print("错误：胜利面板节点未初始化，无法显示")
 		return
+	
 	victory_label.text = label_text
 	victory_button.text = button_text
+	
+	# 断开旧连接，避免重复
 	if victory_button.pressed.is_connected(_on_victory_button_pressed):
 		victory_button.pressed.disconnect(_on_victory_button_pressed)
 	victory_button.pressed.connect(_on_victory_button_pressed.bind(callback))
+	
 	victory_panel.visible = true
+	# 强制提升到顶层
+	victory_panel.z_index = 100
+	victory_panel.mouse_filter = Control.MOUSE_FILTER_STOP  # 阻止点击穿透
+	
+	# 禁用其他按钮（可选）
 	move_btn.disabled = true
 	attack_btn.disabled = true
 	wait_btn.disabled = true
 	if item_btn:
 		item_btn.disabled = true
+	
+	print("胜利面板显示成功：", label_text, " / ", button_text)
 
 func _on_victory_button_pressed(callback: Callable):
 	victory_panel.visible = false

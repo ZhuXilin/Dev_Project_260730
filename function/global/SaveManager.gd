@@ -252,11 +252,20 @@ func _apply_save_data(save: SaveData):
 
 	# ---- 恢复全局遗物 ----
 	GameState.global_relics.clear()
-	for relic_id in save.global_relics:
-		var inst = ItemInstance.new()
-		inst.item_id = relic_id
-		inst.count = 1
-		GameState.global_relics.append(inst)
+	if save.global_relics.is_empty():
+		# 如果存档没有遗物，根据已解锁列表自动添加
+		for relic_id in Globals.unlocked_relics:
+			var inst = ItemInstance.new()
+			inst.item_id = relic_id
+			inst.count = 1
+			GameState.global_relics.append(inst)
+			print("存档恢复后添加遗物：", relic_id)
+	else:
+		for relic_id in save.global_relics:
+			var inst = ItemInstance.new()
+			inst.item_id = relic_id
+			inst.count = 1
+			GameState.global_relics.append(inst)
 
 	# ---- 解锁数据 ----
 	Globals.unlocked_units = save.unlocked_units.duplicate()
