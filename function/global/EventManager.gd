@@ -143,7 +143,23 @@ func trigger_event(event_id: String, unit: Unit = null, default_music: AudioStre
 			"unlock_equipment":
 				var item_id = action.get("item_id", "")
 				if item_id != "":
+					var item_data = ItemManager.get_item_data(item_id)
+					# 解锁道具
 					Globals.unlock_item(item_id)
+					# 如果是遗物，立即获得
+					if item_data and item_data.type == "relic":
+						# 检查是否已经拥有
+						var already_has = false
+						for relic in GameState.get_global_relics():
+							if relic.item_id == item_id:
+								already_has = true
+								break
+						if not already_has:
+							var inst = ItemInstance.new()
+							inst.item_id = item_id
+							inst.count = 1
+							GameState.add_global_relic(inst)
+							print("事件解锁并获得遗物：", item_data.name)
 
 			"heal":
 				if unit == null:

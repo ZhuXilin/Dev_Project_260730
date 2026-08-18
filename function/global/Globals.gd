@@ -63,6 +63,9 @@ var pending_save_slot: int = -1   # 用于新建存档时记录槽位
 var current_map_level_data: MapLevelData = null
 var current_map_day: int = -1
 
+# ---- 遗物解锁系统 ----
+var unlocked_relics: Array[String] = []
+
 # ---- 默认道具（游戏启动时加载） ----
 var default_items = {
 	"potion": 3,
@@ -79,6 +82,7 @@ func _ready():
 	_apply_game_speed()
 	_load_unlock_config()
 	_load_item_unlock_config()
+	_load_relic_unlock_config()
 
 # ============================================================
 #  窗口管理
@@ -266,3 +270,30 @@ func show_confirm(parent: Node, message: String, confirm_text: String = "确定"
 	parent.add_child(instance)
 	instance.show_confirm(message, confirm_text, cancel_text, confirm_cb, cancel_cb, show_cancel)
 	print("show_confirm 完成")
+
+func _load_relic_unlock_config():
+	var path = "res://content/data/relic_unlock.json"
+	if not FileAccess.file_exists(path):
+		unlocked_relics = []
+		return
+	var file = FileAccess.open(path, FileAccess.READ)
+	var content = file.get_as_text()
+	file.close()
+	var data = JSON.parse_string(content)
+	if data and data is Dictionary:
+		var raw = data.get("default_unlocked", [])
+		var arr: Array[String] = []
+		for item in raw:
+			if item is String:
+				arr.append(item)
+		unlocked_relics = arr
+	else:
+		unlocked_relics = []
+
+func is_relic_unlocked(relic_id: String) -> bool:
+	return relic_id in unlocked_relics
+
+func unlock_relic(relic_id: String):
+	if relic_id not in unlocked_relics:
+		unlocked_relics.append(relic_id)
+		print("遗物解锁：", relic_id)

@@ -94,6 +94,7 @@ func _build_save_data() -> SaveData:
 	# ---- 版本 ----
 	save.save_version = SaveData.CURRENT_VERSION
 	save.unlocked_items = Globals.unlocked_items.duplicate()
+	save.unlocked_relics = Globals.unlocked_relics.duplicate()
 	
 	# ---- 玩家设置 ----
 	save.music_volume = Globals.music_volume
@@ -122,21 +123,18 @@ func _build_save_data() -> SaveData:
 	save.selected_node_id = GameState.resume_node_id
 	save.map_level_data = GameState.cached_map_level_data
 	
-	# ---- 队伍数据 ----
+	# ---- 队伍数据（不再包含 inventory） ----
 	save.party_data = []
 	save.party_equipment = []
 	for unit_data in GameState.party:
-		# 基础数据（移除 inventory）
 		var dict = {
 			"unit_name": unit_data.unit_name,
 			"display_name": unit_data.display_name,
 			"faction": unit_data.faction,
 			"hp": unit_data.hit_points
-			# "inventory": []   # 已删除
 		}
 		save.party_data.append(dict)
 		
-		# 装备数据（保持不变）
 		var equip_dict = {
 			"weapon": unit_data.weapon_slot.item_id if unit_data.weapon_slot else "",
 			"armor_slots": [],
@@ -155,6 +153,7 @@ func _build_save_data() -> SaveData:
 	# ---- 解锁数据 ----
 	save.unlocked_units = Globals.unlocked_units.duplicate()
 	save.unlocked_items = Globals.unlocked_items.duplicate()
+	save.unlocked_relics = Globals.unlocked_relics.duplicate()
 	
 	# ---- 元数据 ----
 	save.save_time = Time.get_unix_time_from_system()
@@ -196,7 +195,7 @@ func _apply_save_data(save: SaveData):
 	GameState.cached_map_level_data = save.map_level_data
 	GameState.cached_day = save.current_day
 
-	# ---- 恢复队伍 ----
+	# ---- 恢复队伍（不再恢复 inventory） ----
 	GameState.party.clear()
 	for i in range(save.party_data.size()):
 		var dict = save.party_data[i]
@@ -214,9 +213,6 @@ func _apply_save_data(save: SaveData):
 		data.luck = stats.luck
 		data.move_range = stats.move_range
 		data.ignore_terrain_cost = stats.ignore_terrain_cost
-		
-		# 不再恢复背包
-		# for item_id in dict["inventory"]: ...  # 已删除
 		
 		# 恢复装备（若存在）
 		if i < save.party_equipment.size():
@@ -241,7 +237,7 @@ func _apply_save_data(save: SaveData):
 					data.armor_slots.append(null)
 			data.max_armor_slots = equip_dict.get("max_armor_slots", 2)
 		
-		# 如果存档中没有武器（旧存档），尝试从背包恢复（兼容旧存档）
+		# 兼容旧存档：如果存档有 inventory 且没有武器，尝试从 inventory 恢复武器
 		if not data.weapon_slot and dict.has("inventory"):
 			for item_id in dict["inventory"]:
 				var item_data = ItemManager.get_item_data(item_id)
@@ -265,6 +261,7 @@ func _apply_save_data(save: SaveData):
 	# ---- 解锁数据 ----
 	Globals.unlocked_units = save.unlocked_units.duplicate()
 	Globals.unlocked_items = save.unlocked_items.duplicate()
+	Globals.unlocked_relics = save.unlocked_relics.duplicate()
 	
 	# 如果存档中没有任何解锁道具，补充默认
 	if Globals.unlocked_items.is_empty():
@@ -361,11 +358,12 @@ func reset_current_slot():
 func _migrate_save_data(save: SaveData, from_version: int) -> SaveData:
 	var migrated = save
 	if from_version < 1:
-		# 清理旧版本的 inventory 数据（如果有）
+		# 清理旧存档中的 inventory 数据（如果有）
 		for i in range(migrated.party_data.size()):
 			var dict = migrated.party_data[i]
 			if dict.has("inventory"):
 				dict.erase("inventory")
+		# 如果有 unlocked_relics 字段不存在，添加空数组（但旧版本可能没有，我们不管）
 		# 重新计算校验和
 		migrated.checksum = migrated.compute_checksum()
 	

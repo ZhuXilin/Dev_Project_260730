@@ -76,19 +76,23 @@ func calculate_damage(attacker: Unit, defender: Unit) -> int:
 	var atk = 0
 	var def = 0
 	
+	# 安全获取攻击属性
+	var attack_val = weapon_stats.get("attack", 0)
+	var magic_attack_val = weapon_stats.get("magic_attack", 0)
+	
 	# 判断攻击类型
-	if weapon_stats["magic_attack"] > 0:
-		atk = weapon_stats["attack"] + weapon_stats["magic_attack"]
+	if magic_attack_val > 0:
+		atk = attack_val + magic_attack_val
 		var def_terrain = TerrainManager.get_terrain(defender.grid_cell)
 		var def_bonus = TerrainManager.TERRAIN_DATA[def_terrain]["def_bonus"]
 		def = defender.unit_stats.magic_defense + def_bonus
 	else:
-		atk = weapon_stats["attack"]
+		atk = attack_val
 		var def_terrain = TerrainManager.get_terrain(defender.grid_cell)
 		var def_bonus = TerrainManager.TERRAIN_DATA[def_terrain]["def_bonus"]
 		def = defender.unit_stats.defense + def_bonus
 
-	# 武器相克
+	# 武器相克（保持不变）
 	var aw = attacker.get_weapon_type()
 	var dw = defender.get_weapon_type()
 	var bonus = 0
@@ -109,8 +113,7 @@ func calculate_damage(attacker: Unit, defender: Unit) -> int:
 	var damage = (atk + bonus) * effective - def
 	if damage < 0: damage = 0
 	return damage
-	
-# 核心攻击函数
+
 # 核心攻击函数
 func execute_attack(attacker: Unit, defender: Unit) -> bool:
 	# 检查攻击者当前装备武器是否可用
@@ -306,22 +309,3 @@ func get_unit_attack_stats(unit: Unit) -> Dictionary:
 			"attack_range": 0,
 			"min_attack_range": 0
 		}
-
-func execute_attack_with_weapon(attacker: Unit, defender: Unit, weapon_id: String) -> bool:
-	# 查找武器实例
-	var weapon_inst = attacker.find_first_instance(weapon_id)
-	if not weapon_inst:
-		print("错误：单位没有武器 ", weapon_id)
-		return false
-	# 保存当前装备
-	var old_inst = attacker.equipped_weapon_instance
-	# 临时装备
-	attacker.equip_weapon(weapon_inst)
-	# 执行攻击
-	var result = await execute_attack(attacker, defender)
-	# 恢复原装备
-	if old_inst:
-		attacker.equip_weapon(old_inst)
-	else:
-		attacker.unequip_weapon()
-	return result

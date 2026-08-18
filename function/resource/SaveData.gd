@@ -7,6 +7,7 @@ const CURRENT_VERSION = 1
 @export var save_version: int = CURRENT_VERSION
 @export var unlocked_units: Array[String] = []
 @export var unlocked_items: Array[String] = []
+@export var unlocked_relics: Array[String] = []
 
 # ---- 玩家设置 ----
 @export var music_volume: float = 0.2
@@ -62,6 +63,7 @@ func compute_checksum() -> String:
 		"party_data": party_data,
 		"unlocked_units": unlocked_units,
 		"unlocked_items": unlocked_items,
+		"unlocked_relics": unlocked_relics,
 		"current_faction": current_faction,
 		"party_equipment": party_equipment,
 		"global_relics": global_relics,

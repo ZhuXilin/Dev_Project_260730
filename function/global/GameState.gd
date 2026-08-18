@@ -116,11 +116,10 @@ func reset_progress():
 func start_new_cycle():
 	temp_soul = 0
 	temp_gold = 0
-	# 重置装备（清空防具和遗物，武器重置为默认）
+	# 重置装备（清空防具，武器重置为默认）
 	for unit_data in party:
 		unit_data.armor_slots.clear()
 		unit_data.max_armor_slots = 2
-		# 重置为默认武器
 		var default_weapon = UnitDataManager.get_default_weapon_id(unit_data.unit_name)
 		if default_weapon != "":
 			var inst = ItemInstance.new()
@@ -129,7 +128,15 @@ func start_new_cycle():
 			unit_data.weapon_slot = inst
 		else:
 			unit_data.weapon_slot = null
+	
+	# ---- 清空并添加默认遗物 ----
 	global_relics.clear()
+	for relic_id in Globals.unlocked_relics:
+		var inst = ItemInstance.new()
+		inst.item_id = relic_id
+		inst.count = 1
+		global_relics.append(inst)
+		print("添加默认遗物：", relic_id)
 
 func finish_cycle():
 	finish_day()          # 合并魂并清零

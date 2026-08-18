@@ -15,11 +15,11 @@ grow_horizontal = 2
 grow_vertical = 2
 color = Color(0.20511743, 0.20511743, 0.20511743, 1)
 
-[node name="TopBar" type="HBoxContainer" parent="." unique_id=535210726]
+[node name="TopBar" type="VBoxContainer" parent="." unique_id=876039964]
 offset_left = 16.0
 offset_top = 16.0
-offset_right = 96.0
-offset_bottom = 38.0
+offset_right = 103.0
+offset_bottom = 70.0
 size_flags_horizontal = 0
 size_flags_vertical = 0
 alignment = 1
@@ -31,19 +31,25 @@ size_flags_vertical = 0
 theme_override_font_sizes/font_size = 10
 text = "第 1 天"
 
-[node name="SoulLabel" type="Label" parent="TopBar" unique_id=1539311515]
+[node name="HBoxContainer" type="HBoxContainer" parent="TopBar" unique_id=1691652634]
+layout_mode = 2
+
+[node name="SoulLabel" type="Label" parent="TopBar/HBoxContainer" unique_id=1539311515]
 layout_mode = 2
 size_flags_horizontal = 0
 size_flags_vertical = 0
 theme_override_font_sizes/font_size = 10
 text = "Soul"
 
-[node name="GoldLabel" type="Label" parent="TopBar" unique_id=42540598]
+[node name="GoldLabel" type="Label" parent="TopBar/HBoxContainer" unique_id=42540598]
 layout_mode = 2
 size_flags_horizontal = 0
 size_flags_vertical = 0
 theme_override_font_sizes/font_size = 10
 text = "Gold"
+
+[node name="RelicContainer" type="HBoxContainer" parent="TopBar" unique_id=1650518971]
+layout_mode = 2
 
 [node name="NodeContainer" type="Node2D" parent="." unique_id=1041771305]
 position = Vector2(40, 0)

@@ -12,10 +12,11 @@ var level_list: Array[MapData] = []
 @onready var info_panel = $InfoPanel
 @onready var info_label = $InfoPanel/InfoLabel
 @onready var day_label = $TopBar/DayLabel
-@onready var soul_label = $TopBar/SoulLabel
-@onready var gold_label = $TopBar/GoldLabel
+@onready var soul_label = $TopBar/HBoxContainer/SoulLabel
+@onready var gold_label = $TopBar/HBoxContainer/GoldLabel
 @onready var interrupt_btn = $BottomBar/InterruptButton
 @onready var abandon_btn = $BottomBar/AbandonButton
+@onready var relic_container = $TopBar/RelicContainer
 
 func _ready():
 	print("=== MapScene _ready 开始 ===")
@@ -121,12 +122,44 @@ func _save_game():
 	else:
 		SaveManager.auto_save()
 
-# MapScene.gd
 func update_all_displays():
 	if soul_label:
 		soul_label.text = "魂:" + str(GameState.soul + GameState.temp_soul)
 	if gold_label:
 		gold_label.text = "金币:" + str(GameState.temp_gold)
+	_update_relic_display()
+
+func _update_relic_display():
+	# 清空容器中的子节点（按钮由代码生成）
+	for child in relic_container.get_children():
+		child.queue_free()
+	
+	var relics = GameState.get_global_relics()
+	if relics.is_empty():
+		var label = Label.new()
+		label.text = "无遗物"
+		label.add_theme_font_size_override("font_size", 8)
+		relic_container.add_child(label)
+		return
+	
+	for relic in relics:
+		var data = ItemManager.get_item_data(relic.item_id)
+		if not data:
+			continue
+		var btn = TextureButton.new()
+		if data.icon:
+			btn.texture_normal = data.icon
+		btn.custom_minimum_size = Vector2(16, 16)
+		btn.tooltip_text = data.name + "\n" + data.description
+		btn.pressed.connect(_on_relic_clicked.bind(relic))
+		relic_container.add_child(btn)
+
+func _on_relic_clicked(relic: ItemInstance):
+	var popup_scene = load("res://content/scenes/ui/ItemDetailPopup.tscn")
+	if popup_scene:
+		var popup = popup_scene.instantiate()
+		add_child(popup)
+		popup.show_item(relic.item_id)
 
 func update_gold_display():
 	gold_label.text = "金币:" + str(GameState.temp_gold)

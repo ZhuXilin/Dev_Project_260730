@@ -157,7 +157,7 @@ func handle_click(clicked_cell: Vector2i):
 						SignalBus.request_clear_highlight.emit()
 						pending_attack_cells = {}
 						current_highlight_cells = {}
-						await CombatManager.execute_attack_with_weapon(selected_unit, target_unit, pending_attack_weapon_id)
+						await CombatManager.execute_attack(selected_unit, target_unit)
 						_clear_attack_state()
 						return
 				SoundManager.play_invalid_sound()
@@ -545,9 +545,6 @@ func on_attack_button_pressed():
 		return
 	# 直接进入攻击目标选择
 	_start_attack_target_selection(selected_unit, weapon_id)
-
-func on_attack_weapon_selected(unit: Unit, weapon_id: String):
-	_start_attack_target_selection(unit, weapon_id)
 
 func on_wait_button_pressed():
 	print("待机按钮被点击")
