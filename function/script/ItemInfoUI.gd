@@ -11,13 +11,20 @@ extends PanelContainer
 @onready var item_detail = $VBoxContainer/HBoxContainer/RightPanel/ItemDetail
 
 func _ready():
+	# 强制铺满父容器
+	anchors_preset = Control.PRESET_FULL_RECT
+	offset_left = 0
+	offset_top = 0
+	offset_right = 0
+	offset_bottom = 0
 	_refresh_list()
 
 func _refresh_list():
 	# 清空所有列表
 	for list in [weapon_list, armor_list, relic_list]:
-		for child in list.get_children():
-			child.queue_free()
+		if list:
+			for child in list.get_children():
+				child.queue_free()
 	
 	# ---- 武器列：所有已解锁武器 ----
 	_fill_weapon_column()
@@ -25,7 +32,7 @@ func _refresh_list():
 	# ---- 防具列：所有已解锁防具 ----
 	_fill_armor_column()
 	
-	# ---- 遗物列：所有已解锁遗物（含未获得） ----
+	# ---- 遗物列：所有已解锁遗物（不显示状态，与武器一样） ----
 	_fill_relic_column()
 
 func _fill_weapon_column():
@@ -62,7 +69,7 @@ func _fill_armor_column():
 	var armor_items = []
 	for item_id in Globals.unlocked_items:
 		var data = ItemManager.get_item_data(item_id)
-		if data and data.type in ["armor", "accessory"]:
+		if data and data.type == "armor":
 			armor_items.append(data)
 	
 	if armor_items.is_empty():
@@ -84,26 +91,18 @@ func _fill_relic_column():
 	title.add_theme_font_size_override("font_size", 9)
 	relic_list.add_child(title)
 	
-	# 获取所有已解锁遗物 ID
 	var unlocked_ids = RelicManager.get_unlocked_relics()
 	if unlocked_ids.is_empty():
 		_add_empty_label(relic_list)
 		return
 	
-	# 获取已获得的遗物 ID 列表
-	var owned_ids = []
-	for relic in GameState.get_global_relics():
-		owned_ids.append(relic.item_id)
-	
+	# 不再检查 owned_ids，不显示状态标记
 	for relic_id in unlocked_ids:
 		var data = RelicManager.get_relic_data(relic_id)
 		if data.is_empty():
 			continue
 		var btn = Button.new()
-		btn.text = data.name
-		if relic_id in owned_ids:
-			btn.text += " ✅"
-			btn.modulate = Color(0.7, 1.0, 0.7)
+		btn.text = data.name   # 只显示名称，无 ✅ 无颜色
 		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		btn.add_theme_font_size_override("font_size", 8)
 		btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
@@ -126,7 +125,7 @@ func _show_item_detail(data: ItemData):
 	item_name.text = data.name
 	item_detail.text = data.description if data.description else "无描述"
 
-func _show_relic_detail(data: Dictionary, relic_id: String):
+func _show_relic_detail(data: Dictionary, _relic_id: String):
 	item_icon.visible = false
 	item_name.text = data.get("name", "")
 	var detail = data.get("description", "无描述")
@@ -135,16 +134,7 @@ func _show_relic_detail(data: Dictionary, relic_id: String):
 		detail += "\n\n属性加成："
 		for key in stats:
 			detail += "\n" + _get_stat_display_name(key) + ": +" + str(stats[key])
-	# 检查是否已获得
-	var has_relic = false
-	for relic in GameState.get_global_relics():
-		if relic.item_id == relic_id:
-			has_relic = true
-			break
-	if has_relic:
-		detail += "\n\n状态：已获得 ✅"
-	else:
-		detail += "\n\n状态：未获得"
+	# 不显示状态信息（已获得/未获得）
 	item_detail.text = detail
 
 func _get_stat_display_name(key: String) -> String:
