@@ -45,6 +45,9 @@ const WEAPON_CATEGORY_DISPLAY = {
 	"dragonstone": "龙石"
 }
 
+# ---- 显示格式常量 ----
+const DISPLAY_SEPARATOR = "|"
+
 # ---- 单位职业枚举 ----
 enum UnitClass {
 	SWORDSMAN,
@@ -194,3 +197,18 @@ static func get_allowed_weapon_categories(unit_name: String) -> Array[String]:
 # ---- 检查单位是否拥有某职业 ----
 static func is_unit_class(unit_name: String, target_class: int) -> bool:
 	return get_unit_class(unit_name) == target_class
+
+# ---- 获取单位显示名称（统一格式：姓名|阵营|职业）
+static func get_display_name(unit_name: String) -> String:
+	var data = get_unit_data(unit_name)
+	var display_name = data.get("display_name", unit_name)
+	var faction = data.get("faction", "")
+	if faction == "":
+		faction = "无"
+	return "%s%s%s%s%s" % [display_name, DISPLAY_SEPARATOR, faction, DISPLAY_SEPARATOR, unit_name]
+
+# ---- 获取单位显示名称（统一格式：姓名|阵营|职业）- 用于已实例化的 Unit ----
+static func get_display_name_from_unit(unit: Unit) -> String:
+	var display_name = unit.unit_stats.display_name if unit.unit_stats.display_name != "" else unit.unit_stats.unit_name
+	var faction = unit.unit_stats.faction if unit.unit_stats.faction != "" else "无"
+	return "%s%s%s%s%s" % [display_name, DISPLAY_SEPARATOR, faction, DISPLAY_SEPARATOR, unit.unit_stats.unit_name]

@@ -292,10 +292,12 @@ func _load_relic_unlock_config():
 	else:
 		unlocked_relics = []
 
+# ---- 遗物解锁系统（委托给 RelicManager） ----
 func is_relic_unlocked(relic_id: String) -> bool:
-	return relic_id in unlocked_relics
+	return RelicManager.is_relic_unlocked(relic_id)
 
 func unlock_relic(relic_id: String):
-	if relic_id not in unlocked_relics:
-		unlocked_relics.append(relic_id)
-		print("遗物解锁：", relic_id)
+	RelicManager.unlock_relic(relic_id)
+
+func get_unlocked_relics() -> Array:
+	return RelicManager.get_unlocked_relics()

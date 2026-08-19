@@ -46,7 +46,6 @@ func register_event(event_id: String, event_def: Dictionary):
 	else:
 		print("事件已存在，跳过注册: ", event_id)
 
-# EventManager.gd
 func trigger_event(event_id: String, unit: Unit = null, default_music: AudioStream = null):
 	if not _events.has(event_id):
 		push_error("未知事件: ", event_id)
@@ -90,28 +89,38 @@ func trigger_event(event_id: String, unit: Unit = null, default_music: AudioStre
 					push_error("give_item 动作缺少 item_id")
 					continue
 
+				# ---- 先检查是否为遗物 ----
+				var relic_data = RelicManager.get_relic_data(item_id)
+				if not relic_data.is_empty():
+					# 遗物流程：解锁（如果未解锁）→ 给予实例
+					Globals.unlock_relic(item_id)
+					var inst = ItemInstance.new()
+					inst.item_id = item_id
+					inst.count = 1
+					GameState.add_global_relic(inst)
+					await show_item_get_popup(item_id, count)
+					continue
+
+				# ---- 非遗物：使用 ItemManager 处理 ----
 				var item_data = ItemManager.get_item_data(item_id)
 				if not item_data:
 					print("警告：道具数据不存在: ", item_id)
 					continue
 
-				# 检查是否为消耗品，若是则忽略
+				# 消耗品禁用
 				if item_data.type in ["heal", "cure", "buff", "attack"]:
 					print("警告：消耗品 %s 已被禁用，忽略给予" % item_id)
 					continue
 
-				# 直接装备
+				# 装备型道具（武器/防具）
 				if equip:
-					# 根据装备槽位装备
 					var inst = ItemInstance.new()
 					inst.item_id = item_id
 					inst.count = 1
 					if item_data.equipment_slot == "weapon":
-						# 替换武器
 						unit.weapon_slot = inst
 						print("单位 %s 装备了武器: %s" % [unit.unit_stats.unit_name, item_data.name])
-					elif item_data.equipment_slot in ["armor"]:
-						# 装备到第一个空防具槽
+					elif item_data.equipment_slot == "armor":
 						var equipped = false
 						for i in range(unit.armor_slots.size()):
 							if unit.armor_slots[i] == null:
@@ -121,45 +130,28 @@ func trigger_event(event_id: String, unit: Unit = null, default_music: AudioStre
 								break
 						if not equipped:
 							print("警告：单位 %s 防具槽已满，无法装备 %s" % [unit.unit_stats.unit_name, item_data.name])
-					elif item_data.equipment_slot == "relic":
-						GameState.add_global_relic(inst)
-						print("获得遗物: %s" % item_data.name)
 					else:
 						print("警告：未知装备槽位: %s" % item_data.equipment_slot)
 				else:
-					# 如果不是装备，且不是消耗品，可能为其他类型（如遗物直接添加）
-					if item_data.equipment_slot == "relic":
-						var inst = ItemInstance.new()
-						inst.item_id = item_id
-						inst.count = 1
-						GameState.add_global_relic(inst)
-						print("获得遗物: %s" % item_data.name)
+					# 未指定 equip 的非遗物道具，只解锁（如果是武器/防具则加入图鉴，但不装备）
+					# 实际游戏设计中，可能需要添加到背包，但背包已取消，此处仅解锁。
+					# 如果道具是武器/防具，则解锁到 Globals.unlocked_items
+					if item_data.type in ["weapon", "armor", "accessory"]:
+						Globals.unlock_item(item_id)
+						print("道具已解锁（未装备）: %s" % item_data.name)
 					else:
-						print("警告：未指定 equip 且非消耗品/遗物，忽略道具: %s" % item_id)
-
-				# 显示获得弹窗（简单显示）
+						print("警告：未知道具类型，忽略: %s" % item_id)
 				await show_item_get_popup(item_id, count)
 
 			"unlock_equipment":
 				var item_id = action.get("item_id", "")
 				if item_id != "":
-					var item_data = ItemManager.get_item_data(item_id)
-					# 解锁道具
-					Globals.unlock_item(item_id)
-					# 如果是遗物，立即获得
-					if item_data and item_data.type == "relic":
-						# 检查是否已经拥有
-						var already_has = false
-						for relic in GameState.get_global_relics():
-							if relic.item_id == item_id:
-								already_has = true
-								break
-						if not already_has:
-							var inst = ItemInstance.new()
-							inst.item_id = item_id
-							inst.count = 1
-							GameState.add_global_relic(inst)
-							print("事件解锁并获得遗物：", item_data.name)
+					# 检查是否为遗物
+					var relic_data = RelicManager.get_relic_data(item_id)
+					if not relic_data.is_empty():
+						Globals.unlock_relic(item_id)
+					else:
+						Globals.unlock_item(item_id)
 
 			"heal":
 				if unit == null:

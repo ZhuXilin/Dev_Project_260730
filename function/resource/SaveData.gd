@@ -7,7 +7,7 @@ const CURRENT_VERSION = 1
 @export var save_version: int = CURRENT_VERSION
 @export var unlocked_units: Array[String] = []
 @export var unlocked_items: Array[String] = []
-@export var unlocked_relics: Array[String] = []
+@export var unlocked_relics: Array = []
 
 # ---- 玩家设置 ----
 @export var music_volume: float = 0.2

@@ -94,7 +94,7 @@ func _build_save_data() -> SaveData:
 	# ---- 版本 ----
 	save.save_version = SaveData.CURRENT_VERSION
 	save.unlocked_items = Globals.unlocked_items.duplicate()
-	save.unlocked_relics = Globals.unlocked_relics.duplicate()
+	save.unlocked_relics = RelicManager.get_unlocked_relics()
 	
 	# ---- 玩家设置 ----
 	save.music_volume = Globals.music_volume
@@ -123,7 +123,7 @@ func _build_save_data() -> SaveData:
 	save.selected_node_id = GameState.resume_node_id
 	save.map_level_data = GameState.cached_map_level_data
 	
-	# ---- 队伍数据（不再包含 inventory） ----
+	# ---- 队伍数据（移除 inventory） ----
 	save.party_data = []
 	save.party_equipment = []
 	for unit_data in GameState.party:
@@ -144,7 +144,7 @@ func _build_save_data() -> SaveData:
 			equip_dict["armor_slots"].append(slot.item_id if slot else "")
 		save.party_equipment.append(equip_dict)
 	
-	# ---- 全局遗物 ----
+	# ---- 全局遗物（获得列表） ----
 	var relics = []
 	for relic in GameState.global_relics:
 		relics.append(relic.item_id)
@@ -153,7 +153,7 @@ func _build_save_data() -> SaveData:
 	# ---- 解锁数据 ----
 	save.unlocked_units = Globals.unlocked_units.duplicate()
 	save.unlocked_items = Globals.unlocked_items.duplicate()
-	save.unlocked_relics = Globals.unlocked_relics.duplicate()
+	save.unlocked_relics = RelicManager.get_unlocked_relics()   # 再次确保保存
 	
 	# ---- 元数据 ----
 	save.save_time = Time.get_unix_time_from_system()
@@ -195,7 +195,7 @@ func _apply_save_data(save: SaveData):
 	GameState.cached_map_level_data = save.map_level_data
 	GameState.cached_day = save.current_day
 
-	# ---- 恢复队伍（不再恢复 inventory） ----
+	# ---- 恢复队伍 ----
 	GameState.party.clear()
 	for i in range(save.party_data.size()):
 		var dict = save.party_data[i]
@@ -250,29 +250,21 @@ func _apply_save_data(save: SaveData):
 		
 		GameState.party.append(data)
 
-	# ---- 恢复全局遗物 ----
+	# ---- 恢复全局遗物（获得列表） ----
 	GameState.global_relics.clear()
-	if save.global_relics.is_empty():
-		# 如果存档没有遗物，根据已解锁列表自动添加
-		for relic_id in Globals.unlocked_relics:
-			var inst = ItemInstance.new()
-			inst.item_id = relic_id
-			inst.count = 1
-			GameState.global_relics.append(inst)
-			print("存档恢复后添加遗物：", relic_id)
-	else:
-		for relic_id in save.global_relics:
-			var inst = ItemInstance.new()
-			inst.item_id = relic_id
-			inst.count = 1
-			GameState.global_relics.append(inst)
+	for relic_id in save.global_relics:
+		var inst = ItemInstance.new()
+		inst.item_id = relic_id
+		inst.count = 1
+		GameState.global_relics.append(inst)
 
-	# ---- 解锁数据 ----
+	# ---- 恢复遗物解锁（直接访问，SaveData 已定义该字段） ----
+	RelicManager.set_unlocked_relics(save.unlocked_relics)
+
+	# ---- 恢复其他解锁数据 ----
 	Globals.unlocked_units = save.unlocked_units.duplicate()
 	Globals.unlocked_items = save.unlocked_items.duplicate()
-	Globals.unlocked_relics = save.unlocked_relics.duplicate()
 	
-	# 如果存档中没有任何解锁道具，补充默认
 	if Globals.unlocked_items.is_empty():
 		Globals.unlocked_items = Globals.item_unlocked_items.duplicate()
 		

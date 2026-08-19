@@ -1,0 +1,30 @@
+{
+  "relic_attack": {
+	"id": "relic_attack",
+	"name": "力量遗物",
+	"icon": "res://content/images/items/relic.png",
+	"description": "全队攻击+2",
+	"stats": {"attack": 2}
+  },
+  "relic_defense": {
+	"id": "relic_defense",
+	"name": "守护遗物",
+	"icon": "res://content/images/items/relic.png",
+	"description": "全队防御+2",
+	"stats": {"defense": 2}
+  },
+  "relic_speed": {
+	"id": "relic_speed",
+	"name": "疾风遗物",
+	"icon": "res://content/images/items/relic.png",
+	"description": "全队移动+1",
+	"stats": {"move_range": 1}
+  },
+  "relic_magic": {
+	"id": "relic_magic",
+	"name": "魔力遗物",
+	"icon": "res://content/images/items/relic.png",
+	"description": "全队魔法攻击+3",
+	"stats": {"magic_attack": 3}
+  }
+}

@@ -15,6 +15,7 @@ const BOSS_NODE_TYPE = 6
 @onready var attack_btn : Button = $ActionMenu/ActionPanel/ButtonContainer/AttackBtn
 @onready var move_btn : Button = $ActionMenu/ActionPanel/ButtonContainer/MoveBtn
 @onready var equip_btn : Button = $ActionMenu/ActionPanel/ButtonContainer/EquipBtn
+@onready var relic_view_btn: Button = $SettingLayer/SettingPanel/SettingContainer/RelicViewBtn
 @onready var wait_btn : Button = $ActionMenu/ActionPanel/ButtonContainer/WaitBtn
 @onready var victory_panel : Panel = $VictoryLayer/VictoryPanel
 @onready var victory_label : Label = $VictoryLayer/VictoryPanel/VictoryLabel
@@ -44,8 +45,7 @@ const BOSS_NODE_TYPE = 6
 @onready var item_action_panel : CanvasLayer = $ItemActionPanel
 @onready var end_turn_button: Label = $EndTurnLayer/EndTurnButton
 @onready var turn_count_label: Label = $TurnCountLayer/TurnCountIndicator
-@onready var relic_layer: CanvasLayer = $RelicLayer
-@onready var relic_icon_container: HBoxContainer = $RelicLayer/RelicIconContainer
+@onready var relic_icon_container = $RelicLayer/RelicIconContainer
 
 # ---- 常量 ----
 const CELL_SIZE : int = 16
@@ -65,9 +65,8 @@ var non_combat_back_button: Button = null
 var current_node_type: int = MapNode.NodeType.NORMAL   # 当前地图的节点类型
 var _victory_processed: bool = false   # 防止重复处理胜利
 
-# ===================== 生命周期 =====================
 func _ready():
-	# ---- 手动获取所有节点（原有） ----
+	# ---- 手动获取所有节点 ----
 	action_menu = get_node("ActionMenu")
 	attack_btn = get_node("ActionMenu/ActionPanel/ButtonContainer/AttackBtn")
 	move_btn = get_node("ActionMenu/ActionPanel/ButtonContainer/MoveBtn")
@@ -98,10 +97,14 @@ func _ready():
 	item_list_panel = $SettingLayer/ItemListPanel
 	item_list_container = $SettingLayer/ItemListPanel/ItemListContainer
 	item_action_panel = $ItemActionPanel
-	relic_layer = $RelicLayer
+	end_turn_button = $EndTurnLayer/EndTurnButton
+	turn_count_label = $TurnCountLayer/TurnCountIndicator
+	
+	# ---- 新增遗物节点 ----
+	relic_view_btn = $SettingLayer/SettingPanel/SettingContainer/RelicViewBtn
 	relic_icon_container = $RelicLayer/RelicIconContainer
 
-	# ---- 检查关键节点（原有） ----
+	# ---- 检查关键节点 ----
 	var node_list = {
 		"action_menu": action_menu,
 		"attack_btn": attack_btn,
@@ -114,7 +117,9 @@ func _ready():
 		"menu_blocker": menu_blocker,
 		"info_panel": info_panel,
 		"setting_panel": setting_panel,
-		"item_action_panel": item_action_panel
+		"item_action_panel": item_action_panel,
+		"relic_view_btn": relic_view_btn,
+		"relic_icon_container": relic_icon_container
 	}
 	for node_name in node_list:
 		if not node_list[node_name]:
@@ -126,12 +131,13 @@ func _ready():
 	item_list_btn.pressed.connect(_on_item_list_btn_pressed)
 	SignalBus.non_combat_complete.connect(_on_non_combat_complete)
 	
-	if not SignalBus.non_combat_complete.is_connected(_on_non_combat_complete):
-		SignalBus.non_combat_complete.connect(_on_non_combat_complete)
-	
 	if end_turn_button:
 		end_turn_button.text = "鼠标中键结束回合"
 		end_turn_button.visible = not is_non_combat_mode
+		
+	# ---- 遗物查看按钮 ----
+	if relic_view_btn:
+		relic_view_btn.pressed.connect(_on_relic_view_btn_pressed)
 		
 	if _initialized:
 		return
@@ -164,7 +170,7 @@ func _ready():
 		turn_overlay.modulate = Color(1, 1, 1, 0)
 		Globals.is_fading = false
 
-	# ---- 加载地图（关键） ----
+	# ---- 加载地图 ----
 	if GameState.current_map_data:
 		var map_to_load = GameState.current_map_data
 		if not map_to_load.scene:
@@ -226,13 +232,6 @@ func _ready():
 		menu_blocker.position = Vector2.ZERO
 		menu_blocker.z_index = 10
 
-	# ============================================================
-	#  ★★★ 遗物系统初始化（移到非战斗模式判断之前） ★★★
-	# ============================================================
-	_update_relic_icons()
-	if not SignalBus.battle_completed.is_connected(_on_battle_completed_relic_update):
-		SignalBus.battle_completed.connect(_on_battle_completed_relic_update)
-
 	# ---- 判断是否为非战斗模式 ----
 	var is_non_combat = GameState.current_map_data and GameState.current_map_data.node_type in [
 		MapNode.NodeType.CAMPFIRE,
@@ -242,8 +241,6 @@ func _ready():
 	]
 
 	if is_non_combat:
-		# 非战斗模式：设置标志
-		Globals.is_non_combat_mode = true
 		await _setup_non_combat_mode()
 		await get_tree().process_frame
 		
@@ -255,10 +252,9 @@ func _ready():
 			print("BackCampBtn 已连接（非战斗）")
 		
 		TurnManager.start_turn(0)
+		# ---- 更新遗物显示 ----
+		_update_relic_icons()
 		return
-
-	# ---- 战斗模式：重置非战斗标志 ----
-	Globals.is_non_combat_mode = false
 
 	# ---- 战斗模式：触发战斗开始事件 ----
 	if _battle_start_event_id != "":
@@ -297,6 +293,10 @@ func _ready():
 		back_camp_btn.text = "回到营地"
 		print("BackCampBtn 已连接")
 	InputManager.ui_manager = ui_manager
+	
+	# ---- 更新遗物常驻显示 ----
+	_update_relic_icons()
+	print("Battlefield _ready 完成")
 
 func _exit_tree():
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
@@ -1389,7 +1389,6 @@ func _on_request_show_info(unit: Unit):
 	var display_text: String
 
 	if unit == null:
-		# 地形信息（不变）
 		var mouse_pos = get_global_mouse_position()
 		var cell = world_to_grid(mouse_pos)
 		terrain_type = TerrainManager.get_terrain(cell)
@@ -1402,14 +1401,13 @@ func _on_request_show_info(unit: Unit):
 		if not is_instance_valid(unit):
 			return
 		var lines = []
-		var display_name = unit.unit_stats.display_name if unit.unit_stats.display_name != "" else unit.unit_stats.unit_name
-		lines.append("姓名: " + display_name)
-		lines.append("类型: " + unit.unit_stats.unit_name)
-		if unit.unit_stats.faction != "":
-			lines.append("阵营: " + unit.unit_stats.faction)
+		
+		# ---- 统一显示格式：姓名|阵营|职业 ----
+		lines.append(UnitDataManager.get_display_name_from_unit(unit))
+
 		lines.append("HP: " + str(unit.hit_points) + "/" + str(unit.unit_stats.max_hp))
 
-		# ---- 武器 ----
+		# ---- 装备数据 ----
 		var weapon_data = unit.get_weapon_data()
 		if weapon_data:
 			lines.append("武器: " + weapon_data.name)
@@ -1456,6 +1454,7 @@ func _on_request_show_info(unit: Unit):
 		terrain_type = TerrainManager.get_terrain(cell)
 		terrain_name = TerrainManager.get_terrain_name(terrain_type)
 		lines.append("地形: " + terrain_name)
+
 		display_text = "\n".join(lines)
 
 	info_text_label.text = display_text
@@ -1535,8 +1534,9 @@ func _refresh_team_view():
 			else:
 				status = "   可行动"
 
-			var display_name = unit.unit_stats.display_name if unit.unit_stats.display_name != "" else unit.unit_stats.unit_name
-			btn.text = display_name + " HP:" + str(unit.hit_points) + "/" + str(unit.unit_stats.max_hp) + status
+			# ---- 统一显示格式：姓名|阵营|职业 ----
+			var full_name = UnitDataManager.get_display_name_from_unit(unit)
+			btn.text = full_name + " HP:" + str(unit.hit_points) + "/" + str(unit.unit_stats.max_hp) + status
 			btn.add_theme_font_size_override("font_size", 6)
 			if color != Color.WHITE:
 				btn.add_theme_color_override("font_color", color)
@@ -1550,13 +1550,13 @@ func _refresh_team_view():
 		scroll = _create_scroll_container(team_view_container, parent, "TeamViewScroll")
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 
-	# 更新面板高度（宽度保持场景中的设置）
+	# 更新面板高度
 	await get_tree().process_frame
 	var content_height = team_view_container.get_minimum_size().y
 	var viewport_height = get_viewport().get_visible_rect().size.y
 	var max_height = viewport_height * 0.8
 	var panel_height = clamp(content_height + 16, 20, max_height)
-	team_view_panel.size.y = panel_height   # 只改高度，不改变位置
+	team_view_panel.size.y = panel_height
 
 func _on_team_member_selected(unit: Unit):
 	setting_menu_panel.visible = false
@@ -1649,15 +1649,6 @@ func _on_dialogue_check(unit: Unit):
 		func_config["triggered_by_unit"] = null
 
 # ===================== 道具列表 =====================
-func _on_item_list_btn_pressed():
-	if setting_menu_panel.visible:
-		setting_menu_panel.visible = false
-	if team_view_panel.visible:
-		team_view_panel.visible = false
-	item_list_panel.visible = not item_list_panel.visible
-	if item_list_panel.visible:
-		_refresh_item_list()
-
 func _refresh_item_list():
 	item_list_panel.size = Vector2(120, 20)
 	for child in item_list_container.get_children():
@@ -2187,21 +2178,89 @@ func _ensure_default_relics():
 			GameState.global_relics.append(inst)
 			print("自动添加遗物：", relic_id)
 
-# ---- 更新遗物图标 ----
+# ---- 遗物查看按钮回调（复用 ItemListPanel） ----
+func _on_relic_view_btn_pressed():
+	if setting_menu_panel.visible:
+		setting_menu_panel.visible = false
+	if team_view_panel.visible:
+		team_view_panel.visible = false
+	if item_list_panel.visible and _is_showing_relics:
+		item_list_panel.visible = false
+		_is_showing_relics = false
+		return
+	
+	item_list_panel.visible = true
+	_refresh_relic_list()
+	_is_showing_relics = true
+
+var _is_showing_relics: bool = false
+
+# ---- 刷新遗物列表 ----
+func _refresh_relic_list():
+	for child in item_list_container.get_children():
+		child.queue_free()
+	
+	var relics = GameState.get_global_relics()
+	if relics.is_empty():
+		var label = Label.new()
+		label.text = "暂无遗物"
+		label.add_theme_font_size_override("font_size", 6)
+		item_list_container.add_child(label)
+		return
+	
+	for relic in relics:
+		var data = ItemManager.get_item_data(relic.item_id)
+		if not data:
+			continue
+		var btn = Button.new()
+		btn.text = data.name
+		if data.icon:
+			btn.icon = data.icon
+		btn.add_theme_font_size_override("font_size", 6)
+		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		btn.pressed.connect(_on_relic_item_clicked.bind(relic))
+		item_list_container.add_child(btn)
+	
+	await get_tree().process_frame
+	var content_height = item_list_container.get_minimum_size().y
+	var viewport_size = get_viewport().get_visible_rect().size
+	var max_height = viewport_size.y * 0.9
+	var panel_height = clamp(content_height + 16, 20, max_height)
+	var panel_width = clamp(120, 80, viewport_size.x * 0.4)
+	item_list_panel.size = Vector2(panel_width, panel_height)
+	
+	var parent = item_list_container.get_parent()
+	var scroll = parent as ScrollContainer
+	if not scroll:
+		scroll = _create_scroll_container(item_list_container, parent, "ItemListScroll")
+	scroll.size = item_list_panel.size
+
+# ---- 点击遗物显示详情 ----
+func _on_relic_item_clicked(relic: ItemInstance):
+	var popup_scene = load("res://content/scenes/ui/ItemDetailPopup.tscn")
+	if popup_scene:
+		var popup = popup_scene.instantiate()
+		add_child(popup)
+		popup.show_item(relic.item_id)
+
+# ---- 修改道具列表按钮 ----
+func _on_item_list_btn_pressed():
+	if setting_menu_panel.visible:
+		setting_menu_panel.visible = false
+	if team_view_panel.visible:
+		team_view_panel.visible = false
+	if _is_showing_relics:
+		item_list_panel.visible = false
+		_is_showing_relics = false
+		return
+	item_list_panel.visible = not item_list_panel.visible
+	if item_list_panel.visible:
+		_refresh_item_list()
+		_is_showing_relics = false
+
+# ---- 更新常驻遗物显示 ----
 func _update_relic_icons():
-	# 兜底：确保遗物存在
-	if GameState.global_relics.is_empty() and not Globals.unlocked_relics.is_empty():
-		print("Battlefield 兜底：遗物为空，重新填充默认遗物")
-		for relic_id in Globals.unlocked_relics:
-			var inst = ItemInstance.new()
-			inst.item_id = relic_id
-			inst.count = 1
-			GameState.global_relics.append(inst)
-			print("自动添加遗物：", relic_id)
-	
-	print("更新遗物图标，当前遗物数量：", GameState.get_global_relics().size())
-	
-	# 清空容器
 	for child in relic_icon_container.get_children():
 		child.queue_free()
 	
@@ -2209,7 +2268,7 @@ func _update_relic_icons():
 	if relics.is_empty():
 		var label = Label.new()
 		label.text = "无遗物"
-		label.add_theme_font_size_override("font_size", 8)
+		label.add_theme_font_size_override("font_size", 6)
 		relic_icon_container.add_child(label)
 		return
 	
@@ -2217,28 +2276,7 @@ func _update_relic_icons():
 		var data = ItemManager.get_item_data(relic.item_id)
 		if not data:
 			continue
-		# 使用文字标签显示遗物名称
 		var label = Label.new()
 		label.text = data.name
 		label.add_theme_font_size_override("font_size", 6)
-		label.tooltip_text = data.description
-		# 设置点击显示详情（如果想让文字可点击，可用 Button 或 TextureButton，但这里直接用 Label 并添加点击检测）
-		# 为了交互方便，使用 Button 样式更简单，但要求是文字，我们可以用 Button 设置文本。
-		var btn = Button.new()
-		btn.text = data.name
-		btn.add_theme_font_size_override("font_size", 6)
-		btn.tooltip_text = data.name + "\n" + data.description
-		btn.pressed.connect(_on_relic_icon_clicked.bind(relic))
-		relic_icon_container.add_child(btn)
-
-# ---- 点击遗物图标 ----
-func _on_relic_icon_clicked(relic: ItemInstance):
-	var popup_scene = load("res://content/scenes/ui/ItemDetailPopup.tscn")
-	if popup_scene:
-		var popup = popup_scene.instantiate()
-		add_child(popup)
-		popup.show_item(relic.item_id)
-
-# ---- 战斗结束后更新遗物（因为可能获得新遗物） ----
-func _on_battle_completed_relic_update(_winning_team: int, _is_boss: bool):
-	_update_relic_icons()
+		relic_icon_container.add_child(label)

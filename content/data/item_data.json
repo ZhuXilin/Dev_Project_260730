@@ -290,25 +290,5 @@
 	"description": "移动力+1",
 	"equipment_slot": "armor",
 	"stats": {"move_range": 1}
-  },
-  "relic_attack": {
-	"id": "relic_attack",
-	"name": "力量遗物",
-	"type": "relic",
-	"use_type": "relic",
-	"icon": "res://content/images/items/relic.png",
-	"description": "全队攻击+2",
-	"equipment_slot": "relic",
-	"stats": {"attack": 2}
-  },
-  "relic_defense": {
-	"id": "relic_defense",
-	"name": "守护遗物",
-	"type": "relic",
-	"use_type": "relic",
-	"icon": "res://content/images/items/relic.png",
-	"description": "全队防御+2",
-	"equipment_slot": "relic",
-	"stats": {"defense": 2}
   }
 }

@@ -143,9 +143,6 @@ func _ensure_default_relics():
 			print("自动添加遗物：", relic_id)
 
 func _update_relic_display():
-	_ensure_default_relics()
-	print("MapScene 更新遗物显示，当前遗物数量：", GameState.get_global_relics().size())
-	
 	for child in relic_container.get_children():
 		child.queue_free()
 	
@@ -164,7 +161,6 @@ func _update_relic_display():
 		var btn = Button.new()
 		btn.text = data.name
 		btn.add_theme_font_size_override("font_size", 6)
-		btn.tooltip_text = data.name + "\n" + data.description
 		btn.pressed.connect(_on_relic_clicked.bind(relic))
 		relic_container.add_child(btn)
 

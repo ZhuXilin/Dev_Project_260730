@@ -30,16 +30,36 @@ size_flags_vertical = 3
 [node name="LeftPanel" type="VBoxContainer" parent="VBoxContainer/HBoxContainer" unique_id=1347318244]
 layout_mode = 2
 
-[node name="ScrollContainer" type="ScrollContainer" parent="VBoxContainer/HBoxContainer/LeftPanel" unique_id=1023858505]
+[node name="HBoxContainer" type="HBoxContainer" parent="VBoxContainer/HBoxContainer/LeftPanel" unique_id=458227031]
+layout_mode = 2
+
+[node name="WeaponScroll" type="ScrollContainer" parent="VBoxContainer/HBoxContainer/LeftPanel/HBoxContainer" unique_id=1023858505]
 layout_mode = 2
 size_flags_vertical = 3
 horizontal_scroll_mode = 0
 
-[node name="CategoryContainer" type="VBoxContainer" parent="VBoxContainer/HBoxContainer/LeftPanel/ScrollContainer" unique_id=86866633]
+[node name="WeaponList" type="VBoxContainer" parent="VBoxContainer/HBoxContainer/LeftPanel/HBoxContainer/WeaponScroll" unique_id=86866633]
+layout_mode = 2
+
+[node name="ArmorScroll" type="ScrollContainer" parent="VBoxContainer/HBoxContainer/LeftPanel/HBoxContainer" unique_id=1701990918]
+layout_mode = 2
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+
+[node name="ArmorList" type="VBoxContainer" parent="VBoxContainer/HBoxContainer/LeftPanel/HBoxContainer/ArmorScroll" unique_id=2121980983]
+layout_mode = 2
+
+[node name="RelicScroll" type="ScrollContainer" parent="VBoxContainer/HBoxContainer/LeftPanel/HBoxContainer" unique_id=1714346633]
+layout_mode = 2
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+
+[node name="RelicList" type="VBoxContainer" parent="VBoxContainer/HBoxContainer/LeftPanel/HBoxContainer/RelicScroll" unique_id=930984989]
 layout_mode = 2
 
 [node name="SpaceLabel" type="Label" parent="VBoxContainer/HBoxContainer" unique_id=1712196693]
 layout_mode = 2
+size_flags_vertical = 0
 text = "          "
 
 [node name="RightPanel" type="VBoxContainer" parent="VBoxContainer/HBoxContainer" unique_id=1506831668]

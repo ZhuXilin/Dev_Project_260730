@@ -1,7 +1,6 @@
 # UnitSelectUI.gd
 extends CanvasLayer
 
-var all_unit_names: Array[String] = ["剑士", "枪兵", "斧兵", "弓兵", "飞马", "法师", "修女", "龙人", "重甲兵"]
 var selected_units: Array[String] = []   # 存储选中的 unit_name（类型）
 var max_selection: int = 3
 
@@ -32,34 +31,6 @@ func _make_label_clickable(label: Label, index: int):
 	)
 	label.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 
-func _on_unit_selected(unit_name: String, btn: Button):
-	# 如果单位已选 → 取消选择
-	if unit_name in selected_units:
-		selected_units.erase(unit_name)
-		btn.disabled = false
-		btn.modulate = Color.WHITE
-		_update_labels()
-		return
-
-	# 队伍已满 → 不能添加
-	if selected_units.size() >= max_selection:
-		return
-
-	# 添加新单位
-	selected_units.append(unit_name)
-	btn.disabled = true
-	btn.modulate = Color(0.5, 0.5, 0.5)
-	_update_labels()
-
-func _get_unit_display_name(unit_name: String) -> String:
-	var data = UnitDataManager.get_unit_data(unit_name)
-	var display_name = data.get("display_name", unit_name)
-	var faction = data.get("faction", "")
-	if faction == "":
-		faction = "无"
-	return "%s | %s | %s" % [unit_name, faction, display_name]
-
-# 在 _setup_unit_buttons() 中为按钮添加 meta
 func _setup_unit_buttons():
 	for child in unit_buttons.get_children():
 		child.queue_free()
@@ -69,8 +40,8 @@ func _setup_unit_buttons():
 
 	for unit_name in unlocked:
 		var btn = Button.new()
-		btn.text = _get_unit_display_name(unit_name)
-		btn.set_meta("unit_name", unit_name)   # 👈 存储单位类型名
+		btn.text = UnitDataManager.get_display_name(unit_name)
+		btn.set_meta("unit_name", unit_name)
 		btn.add_theme_font_size_override("font_size", 8)
 		btn.size = Vector2(100, 30)
 		var selected = unit_name in selected_units
@@ -79,19 +50,39 @@ func _setup_unit_buttons():
 		btn.pressed.connect(_on_unit_selected.bind(unit_name, btn))
 		unit_buttons.add_child(btn)
 
-# 修改 _on_slot_clicked()，通过 meta 查找按钮
+func _on_unit_selected(unit_name: String, btn: Button):
+	# 如果单位已选 → 取消选择
+	if unit_name in selected_units:
+		selected_units.erase(unit_name)
+		btn.disabled = false
+		btn.modulate = Color.WHITE
+		_update_labels()
+		SoundManager.play_cancel_sound()
+		return
+
+	# 队伍已满 → 不能添加
+	if selected_units.size() >= max_selection:
+		SoundManager.play_invalid_sound()  # 播放无效音效
+		return
+
+	# 添加新单位 → 播放选中音效
+	selected_units.append(unit_name)
+	btn.disabled = true
+	btn.modulate = Color(0.5, 0.5, 0.5)
+	_update_labels()
+	SoundManager.play_select_sound()   # 新增：选中音效
+
 func _on_slot_clicked(index: int):
 	if index < selected_units.size():
 		var unit_name = selected_units[index]
 		selected_units.remove_at(index)
-		# 通过 meta 查找对应的按钮并启用
 		for child in unit_buttons.get_children():
 			if child is Button and child.get_meta("unit_name") == unit_name:
 				child.disabled = false
 				child.modulate = Color.WHITE
 				break
 		_update_labels()
-		SoundManager.play_cancel_sound()
+		SoundManager.play_cancel_sound()   # 已有取消音效
 
 func _update_labels():
 	var slots = ["主单位", "辅助1", "辅助2"]
@@ -99,7 +90,7 @@ func _update_labels():
 	for i in range(max_selection):
 		if i < selected_units.size():
 			var unit_name = selected_units[i]
-			labels[i].text = slots[i] + ": " + _get_unit_display_name(unit_name)
+			labels[i].text = slots[i] + ": " + UnitDataManager.get_display_name(unit_name)
 		else:
 			labels[i].text = slots[i] + ": (未选择)"
 	confirm_btn.disabled = selected_units.size() < max_selection

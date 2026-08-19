@@ -17,13 +17,8 @@ func populate_list():
 	unlocked.sort()
 
 	for unit_name in unlocked:
-		var data = UnitDataManager.get_unit_data(unit_name)
-		var display_name = data.get("display_name", unit_name)
-		var faction = data.get("faction", "")
-		var text = "%s | %s | %s" % [unit_name, faction, display_name]
-		
 		var btn = Button.new()
-		btn.text = text   # 改为组合格式
+		btn.text = UnitDataManager.get_display_name(unit_name)   # 统一格式
 		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		btn.add_theme_font_size_override("font_size", 8)
 		btn.pressed.connect(_on_unit_selected.bind(unit_name))
@@ -58,7 +53,7 @@ func _on_unit_selected(unit_name: String):
 		unit_sprite.visible = false
 		sprite_container.custom_minimum_size = Vector2.ZERO
 
-	# ---- 更新详情标签（属性信息） ----
+	# ---- 更新详情标签 ----
 	var unit_data = UnitDataManager.get_unit_data(unit_name)
 	var text = ""
 	text += "HP：%d\n" % unit_data.get("max_hp", 0)
