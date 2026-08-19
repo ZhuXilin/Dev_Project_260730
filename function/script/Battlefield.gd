@@ -616,7 +616,7 @@ func _initialize_managers():
 		"wait_btn": wait_btn,
 		"equip_btn": equip_btn,
 		"equip_menu": $ActionMenu/EquipMenu,
-		"weapon_select_menu": $ActionMenu/WeaponSelectMenu,
+		# "weapon_select_menu": $ActionMenu/WeaponSelectMenu,   # 已删除
 		"victory_panel": victory_panel,
 		"victory_label": victory_label,
 		"victory_button": victory_button,
@@ -1101,7 +1101,6 @@ func _on_clear_highlight_unit():
 		_attack_indicator.visible = false
 
 # ===================== 输入处理 =====================
-# Battlefield.gd
 func _input(event: InputEvent):
 	# ---- 道具操作面板右键关闭 ----
 	if Globals.is_item_action_panel_open and event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT:
@@ -1115,13 +1114,6 @@ func _input(event: InputEvent):
 			InputManager.interaction_phase = "menu"
 			SignalBus.request_show_info.emit(panel_unit)
 		ui_manager.panel_unit = null
-		return
-
-	# ---- 武器选择菜单右键关闭 ----
-	if Globals.is_weapon_select_active:
-		if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT:
-			ui_manager.hide_weapon_select_menu()
-			get_viewport().set_input_as_handled()
 		return
 
 	# ---- 装备菜单右键关闭 ----
@@ -2209,13 +2201,15 @@ func _refresh_relic_list():
 		return
 	
 	for relic in relics:
-		var data = ItemManager.get_item_data(relic.item_id)
-		if not data:
+		# 修复：使用 RelicManager 而不是 ItemManager
+		var data = RelicManager.get_relic_data(relic.item_id)
+		if data.is_empty():
 			continue
 		var btn = Button.new()
-		btn.text = data.name
-		if data.icon:
-			btn.icon = data.icon
+		btn.text = data.get("name", "未知遗物")
+		var icon_path = data.get("icon", "")
+		if icon_path != "" and ResourceLoader.exists(icon_path):
+			btn.icon = load(icon_path)
 		btn.add_theme_font_size_override("font_size", 6)
 		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
@@ -2261,10 +2255,12 @@ func _on_item_list_btn_pressed():
 
 # ---- 更新常驻遗物显示 ----
 func _update_relic_icons():
+	print("_update_relic_icons 被调用")
 	for child in relic_icon_container.get_children():
 		child.queue_free()
 	
 	var relics = GameState.get_global_relics()
+	print("当前遗物数量：", relics.size())
 	if relics.is_empty():
 		var label = Label.new()
 		label.text = "无遗物"
@@ -2273,10 +2269,12 @@ func _update_relic_icons():
 		return
 	
 	for relic in relics:
-		var data = ItemManager.get_item_data(relic.item_id)
-		if not data:
+		# 修复：使用 RelicManager 而不是 ItemManager
+		var data = RelicManager.get_relic_data(relic.item_id)
+		if data.is_empty():
 			continue
 		var label = Label.new()
-		label.text = data.name
+		label.text = data.get("name", "未知遗物")
 		label.add_theme_font_size_override("font_size", 6)
 		relic_icon_container.add_child(label)
+	print("遗物显示更新完成，共显示 ", relics.size(), " 个")

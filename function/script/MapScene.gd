@@ -155,11 +155,12 @@ func _update_relic_display():
 		return
 	
 	for relic in relics:
-		var data = ItemManager.get_item_data(relic.item_id)
-		if not data:
+		# 修复：使用 RelicManager 而不是 ItemManager
+		var data = RelicManager.get_relic_data(relic.item_id)
+		if data.is_empty():
 			continue
 		var btn = Button.new()
-		btn.text = data.name
+		btn.text = data.get("name", "未知遗物")
 		btn.add_theme_font_size_override("font_size", 6)
 		btn.pressed.connect(_on_relic_clicked.bind(relic))
 		relic_container.add_child(btn)
@@ -351,9 +352,9 @@ func generate_map(day: int):
 	_create_node_buttons()
 	_update_availability(map_data.root_node)
 	day_label.text = "第 %d 天" % day
-	update_all_displays()
+	update_all_displays()   # ← 确保调用
 	print("=== generate_map 结束，temp_gold=", GameState.temp_gold)
-
+	
 func _setup_ui():
 	Globals.reset_battle_turn()
 	info_panel.visible = false

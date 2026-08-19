@@ -16,17 +16,13 @@ var victory_button : Button
 var equip_menu : PanelContainer
 var equip_container : VBoxContainer
 var equip_btn : Button
-var weapon_select_menu : PanelContainer = null
-var weapon_select_container : VBoxContainer = null
 var item_action_panel: CanvasLayer
 var panel_unit: Unit = null
 var _panel_container: Control
 var _buttons_container: VBoxContainer
 var _panel_background: ColorRect = null
 
-# ============================================================
-#  初始化
-# ============================================================
+# ---- 初始化 ----
 func initialize(ui_nodes: Dictionary):
 	action_menu = ui_nodes.get("action_menu")
 	action_panel = ui_nodes.get("action_panel")
@@ -41,22 +37,16 @@ func initialize(ui_nodes: Dictionary):
 	if equip_menu:
 		equip_container = equip_menu.get_node("ItemsContainer") as VBoxContainer
 	equip_btn = ui_nodes.get("equip_btn")
-	weapon_select_menu = ui_nodes.get("weapon_select_menu")
-	if weapon_select_menu:
-		weapon_select_container = weapon_select_menu.get_node("WeaponSelectContainer") as VBoxContainer
-		weapon_select_menu.visible = false
-
+	# weapon_select_menu 已删除
 	item_action_panel = ui_nodes.get("ItemActionPanel")
 	if item_action_panel:
 		_panel_container = item_action_panel.get_node("Panel")
 		_buttons_container = _panel_container.get_node("ActionButtons")
-		
-# ============================================================
-#  行动菜单
-# ============================================================
+
+# ---- 行动菜单 ----
 func show_menu(unit: Unit):
 	hide_equip_menu()
-	hide_weapon_select_menu()
+	# hide_weapon_select_menu() 已删除
 	if TurnManager.current_turn_team != 0 or TurnManager.is_game_over or TurnManager.all_acted:
 		return
 	if not action_menu or not unit:
@@ -109,11 +99,9 @@ func hide_menu():
 	if action_menu:
 		action_menu.visible = false
 	hide_equip_menu()
-	hide_weapon_select_menu()
+	# hide_weapon_select_menu() 已删除
 
-# ============================================================
-#  装备菜单（含给予/丢弃）
-# ============================================================
+# ---- 装备菜单（仅查看，无操作） ----
 func show_equip_menu(unit: Unit):
 	if not equip_menu or not equip_container:
 		return
@@ -123,8 +111,8 @@ func show_equip_menu(unit: Unit):
 	for child in equip_container.get_children():
 		child.queue_free()
 
-	equip_menu.size.x = 180
-	equip_container.size.x = 160
+	equip_menu.size.x = 60
+	equip_container.size.x = 80
 
 	# ---- 武器槽 ----
 	var weapon_label = Label.new()
@@ -194,16 +182,12 @@ func _create_item_button(inst: ItemInstance, unit: Unit, _can_act: bool) -> Butt
 	if data.icon:
 		btn.icon = data.icon
 	btn.text = data.name
-	# 点击后弹出详情面板
 	btn.pressed.connect(_show_item_detail_panel.bind(inst, unit))
 	return btn
 
 func _show_item_detail_panel(inst: ItemInstance, unit: Unit):
-	# 关闭当前菜单
 	hide_equip_menu()
 	hide_menu()
-	
-	# 实例化详情面板
 	var popup_scene = load("res://content/scenes/ui/ItemDetailPopup.tscn")
 	if not popup_scene:
 		print("错误：无法加载 ItemDetailPopup.tscn")
@@ -212,74 +196,11 @@ func _show_item_detail_panel(inst: ItemInstance, unit: Unit):
 	get_tree().current_scene.add_child(popup)
 	popup.show_item(inst.item_id, unit)
 
-func _on_unequip_armor_pressed(unit: Unit, slot_index: int):
-	if not unit.can_act_this_turn or unit.has_acted:
-		return
-	var removed = unit.unequip_armor(slot_index)
-	if removed:
-		if unit.add_item(removed.item_id, removed.count):
-			print("卸下装备到背包")
-		else:
-			print("背包已满，装备已丢弃")
-		unit.mark_non_attack_action()
-		show_equip_menu(unit)
-
 func hide_equip_menu():
 	_hide_submenu(equip_menu)
 	Globals.is_equip_menu_active = false
 
-# ============================================================
-#  武器选择菜单
-# ============================================================
-func show_weapon_select_menu(unit: Unit, weapons: Array):
-	if not weapon_select_menu or not weapon_select_container:
-		print("武器选择菜单未初始化")
-		return
-	for child in weapon_select_container.get_children():
-		child.queue_free()
-
-	weapons.sort_custom(func(a, b):
-		var a_equipped = (a == unit.get_equipped_weapon_id())
-		var b_equipped = (b == unit.get_equipped_weapon_id())
-		if a_equipped and not b_equipped:
-			return true
-		if not a_equipped and b_equipped:
-			return false
-		return a < b
-	)
-
-	for weapon_id in weapons:
-		var data = ItemManager.get_item_data(weapon_id)
-		if not data:
-			continue
-		var btn = Button.new()
-		var type_display = ""
-		if data.category != "":
-			type_display = UnitDataManager.get_weapon_category_display(data.category)
-		else:
-			type_display = _get_type_display_name(data.type)
-		var attack_str = ""
-		if data.stats.has("attack"):
-			attack_str += "物理+" + str(data.stats["attack"])
-		if data.stats.has("magic_attack"):
-			attack_str += "魔法+" + str(data.stats["magic_attack"])
-		if data.stats.has("heal_amount"):
-			attack_str += "治疗+" + str(data.stats["heal_amount"])
-		btn.text = data.name + " [" + type_display + "] " + attack_str
-		btn.add_theme_font_size_override("font_size", 6)
-		btn.pressed.connect(_on_weapon_selected.bind(unit, weapon_id))
-		weapon_select_container.add_child(btn)
-
-	_show_submenu(weapon_select_menu)
-	Globals.is_weapon_select_active = true
-
-func hide_weapon_select_menu():
-	_hide_submenu(weapon_select_menu)
-	Globals.is_weapon_select_active = false
-
-# ============================================================
-#  子菜单辅助
-# ============================================================
+# ---- 子菜单辅助 ----
 func _show_submenu(menu: Control):
 	if action_panel:
 		action_panel.visible = false
@@ -292,52 +213,28 @@ func _hide_submenu(menu: Control):
 	if action_panel:
 		action_panel.visible = true
 
-func _on_weapon_selected(unit: Unit, weapon_id: String):
-	hide_weapon_select_menu()
-	InputManager.on_attack_weapon_selected(unit, weapon_id)
-
-func _execute_use_item(_unit: Unit, _item_id: String):
-	print("警告：_execute_use_item 已被禁用")
-	return
-
-# ============================================================
-#  胜利面板
-# ============================================================
+# ---- 胜利面板 ----
 func show_victory(label_text: String, button_text: String, callback: Callable):
-	if not victory_label or not victory_button or not victory_panel:
-		print("错误：胜利面板节点未初始化，无法显示")
+	if not victory_label or not victory_button:
 		return
-	
 	victory_label.text = label_text
 	victory_button.text = button_text
-	
-	# 断开旧连接，避免重复
 	if victory_button.pressed.is_connected(_on_victory_button_pressed):
 		victory_button.pressed.disconnect(_on_victory_button_pressed)
 	victory_button.pressed.connect(_on_victory_button_pressed.bind(callback))
-	
 	victory_panel.visible = true
-	# 强制提升到顶层
-	victory_panel.z_index = 100
-	victory_panel.mouse_filter = Control.MOUSE_FILTER_STOP  # 阻止点击穿透
-	
-	# 禁用其他按钮（可选）
 	move_btn.disabled = true
 	attack_btn.disabled = true
 	wait_btn.disabled = true
 	if item_btn:
 		item_btn.disabled = true
-	
-	print("胜利面板显示成功：", label_text, " / ", button_text)
 
 func _on_victory_button_pressed(callback: Callable):
 	victory_panel.visible = false
 	if callback.is_valid():
 		callback.call()
 
-# ============================================================
-#  辅助函数（道具类型显示等）
-# ============================================================
+# ---- 辅助函数（道具类型显示等） ----
 func _get_type_display_name(type: String) -> String:
 	match type:
 		"weapon": return "武器"
@@ -345,7 +242,8 @@ func _get_type_display_name(type: String) -> String:
 		"cure": return "治愈"
 		"buff": return "增益"
 		"attack": return "攻击"
-		_: return type
+		_:
+			return type
 
 func get_effect_cells(unit: Unit, use_effect: Dictionary) -> Dictionary:
 	var min_range = use_effect.get("min_range", 0)
@@ -392,11 +290,8 @@ func hide_item_action_panel():
 		_panel_background.queue_free()
 		_panel_background = null
 
-# ============================================================
-#  模态消息提示（给予道具失败）
-# ============================================================
+# ---- 模态消息提示 ----
 func show_modal_message(text: String, callback_after: Callable = Callable()):
-	# 模态弹窗，带“确定”按钮
 	var popup = CanvasLayer.new()
 	popup.layer = 40
 	get_tree().current_scene.add_child(popup)
@@ -435,19 +330,16 @@ func show_modal_message(text: String, callback_after: Callable = Callable()):
 	Globals.is_item_get_popup_active = true
 
 func show_message(text: String):
-	# 创建弹出层（含全屏透明遮罩）
 	var popup = CanvasLayer.new()
 	popup.layer = 40
 	get_tree().current_scene.add_child(popup)
 
-	# 透明遮罩，拦截鼠标点击
 	var bg = ColorRect.new()
-	bg.color = Color(0, 0, 0, 0)  # 完全透明
+	bg.color = Color(0, 0, 0, 0)
 	bg.size = get_viewport().get_visible_rect().size
 	bg.mouse_filter = Control.MOUSE_FILTER_STOP
 	popup.add_child(bg)
 
-	# 主面板
 	var panel = Panel.new()
 	panel.size = Vector2(180, 60)
 	var viewport_size = get_viewport().get_visible_rect().size
@@ -466,11 +358,14 @@ func show_message(text: String):
 	label.size = panel.size
 	panel.add_child(label)
 
-	# 阻塞游戏操作（设置标志）
-	Globals.is_item_get_popup_active = true  # 复用这个标志
+	Globals.is_item_get_popup_active = true
 
 	await get_tree().create_timer(1.5).timeout
 
-	# 解除阻塞
 	Globals.is_item_get_popup_active = false
 	popup.queue_free()
+
+# ---- 使用道具（内部） ----
+func _execute_use_item(_unit: Unit, _item_id: String):
+	print("警告：_execute_use_item 已被禁用")
+	return
