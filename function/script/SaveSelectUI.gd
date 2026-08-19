@@ -18,39 +18,58 @@ func _refresh_slots():
 		hbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		
 		var info_label = Label.new()
-		info_label.text = _get_slot_display_text(i)
+		var has_save = SaveManager.has_save(i)
+		
+		if has_save:
+			var info = SaveManager.get_save_info(i)
+			var time_str = Time.get_datetime_string_from_unix_time(info["time"])
+			info_label.text = "存档%d: %s (%d人) 第%d天 %s" % [i + 1, info["main_unit"], info["party"], info["day"], time_str]
+		else:
+			info_label.text = "存档%d: 空" % (i + 1)
+		
 		info_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		info_label.add_theme_font_size_override("font_size", 8)
 		hbox.add_child(info_label)
 		
+		# ---- 加载/新游戏按钮 ----
 		var load_btn = Button.new()
-		load_btn.text = "加载" if SaveManager.has_save(i) else "空"
 		load_btn.add_theme_font_size_override("font_size", 8)
-		load_btn.disabled = not SaveManager.has_save(i)
-		load_btn.pressed.connect(_on_load_pressed.bind(i))
+		load_btn.alignment = HORIZONTAL_ALIGNMENT_LEFT   # 左对齐
+		
+		if has_save:
+			load_btn.text = "加载"
+			load_btn.pressed.connect(_on_load_pressed.bind(i))
+		else:
+			load_btn.text = "新游戏"
+			load_btn.pressed.connect(_on_new_game_pressed.bind(i))
+		
 		hbox.add_child(load_btn)
 		
+		# ---- 删除按钮 ----
 		var delete_btn = Button.new()
 		delete_btn.text = "删除"
 		delete_btn.add_theme_font_size_override("font_size", 8)
-		delete_btn.visible = SaveManager.has_save(i)
-		delete_btn.disabled = not SaveManager.has_save(i)
-		delete_btn.pressed.connect(_on_delete_pressed.bind(i))
+		delete_btn.visible = has_save
+		delete_btn.disabled = not has_save
+		if has_save:
+			delete_btn.pressed.connect(_on_delete_pressed.bind(i))
 		hbox.add_child(delete_btn)
 		
 		slot_container.add_child(hbox)
-
-func _get_slot_display_text(slot: int) -> String:
-	var info = SaveManager.get_save_info(slot)
-	if info.is_empty():
-		return "空存档"
-	var time_str = Time.get_datetime_string_from_unix_time(info["time"])
-	return "存档%d: %s (%d人) 第%d天 %s" % [slot + 1, info["main_unit"], info["party"], info["day"], time_str]
 
 func _on_load_pressed(slot: int):
 	var success = SaveManager.load_game(slot)
 	if success:
 		get_tree().change_scene_to_file("res://content/scenes/ui/MapScene.tscn")
+
+func _on_new_game_pressed(slot: int):
+	GameState.reset_all()
+	GameState.start_new_cycle()
+	GameState.interrupt_state = 1
+	Globals.pending_save_slot = slot
+	SaveManager.save_game(slot, false)
+	SaveManager.current_slot = slot
+	get_tree().change_scene_to_file("res://content/scenes/ui/Camp.tscn")
 
 func _on_delete_pressed(slot: int):
 	_pending_delete_slot = slot
