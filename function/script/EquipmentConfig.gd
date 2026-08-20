@@ -17,7 +17,6 @@ var party: Array = []
 
 func init(units: Array[String], slot: int, mode: Mode):
 	print("EquipmentConfig.init 被调用")
-	# 确保 CanvasLayer 层级足够高
 	var canvas_layer = get_parent()
 	if canvas_layer is CanvasLayer:
 		canvas_layer.layer = 20
@@ -85,10 +84,9 @@ func _build_ui():
 		_build_relics()
 		relic_container.visible = true
 
-	discard_zone.visible = true
-	call_deferred("_setup_all_drag_forwarding")
+	discard_zone.visible = (current_mode == Mode.MAP)
+	_setup_all_drag_forwarding()
 	
-	# 确保面板可见
 	visible = true
 	print("_build_ui 完成，面板可见：", visible)
 
@@ -134,6 +132,9 @@ func _create_item_button(inst: ItemInstance, slot_type: String, unit_idx: int, s
 	btn.set_meta("unit_idx", unit_idx)
 	btn.set_meta("slot_idx", slot_idx)
 	btn.set_meta("item_id", inst.item_id if inst else "")
+	# 使用 set 方法设置拖拽阈值，避免直接赋值报错
+	btn.set("drag_threshold", 0.0)
+	btn.focus_mode = Control.FOCUS_NONE
 	return btn
 
 func _build_library():
@@ -153,6 +154,8 @@ func _build_library():
 			btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 			btn.set_meta("slot_type", "library_weapon")
 			btn.set_meta("item_id", item_id)
+			btn.set("drag_threshold", 0.0)
+			btn.focus_mode = Control.FOCUS_NONE
 			grid.add_child(btn)
 	library_container.add_child(grid)
 
@@ -182,6 +185,8 @@ func _build_relics():
 			btn.disabled = true
 		btn.add_theme_font_size_override("font_size", 6)
 		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		btn.set("drag_threshold", 0.0)
+		btn.focus_mode = Control.FOCUS_NONE
 		grid.add_child(btn)
 	relic_container.add_child(grid)
 
@@ -212,14 +217,19 @@ func _get_item_name(inst: ItemInstance) -> String:
 	return data.name if data else inst.item_id
 
 # ========== 拖拽系统 ==========
-func _get_drag_data(at_position: Vector2) -> Variant:
-	var from = _find_control_at_position(at_position)
+func _get_drag_data(_at_position: Vector2) -> Variant:
+	var global_pos = get_global_mouse_position()
+	var from = _find_control_at_position(global_pos)
 	if not from:
 		return null
 	
-	# 获取元数据
+	var slot_type = from.get_meta("slot_type", "")
+	if current_mode == Mode.DEPLOY:
+		if slot_type == "armor" or slot_type == "relic":
+			return null
+	
 	var meta = {
-		"slot_type": from.get_meta("slot_type", ""),
+		"slot_type": slot_type,
 		"unit_idx": from.get_meta("unit_idx", -1),
 		"slot_idx": from.get_meta("slot_idx", -1),
 		"item_id": from.get_meta("item_id", ""),
@@ -227,11 +237,9 @@ func _get_drag_data(at_position: Vector2) -> Variant:
 		"source_control": from
 	}
 	
-	# 空槽位或武器库空按钮不可拖拽
 	if meta["item_id"] == "" and meta["slot_type"] != "library_weapon":
 		return null
 	
-	# 创建拖拽预览
 	var preview = Label.new()
 	preview.text = from.text
 	preview.add_theme_font_size_override("font_size", 8)
@@ -248,17 +256,17 @@ func _get_drag_data(at_position: Vector2) -> Variant:
 		style.border_color = Color(0.5, 0.5, 0.5, 0.8)
 	preview.size = Vector2(40, 16)
 	from.set_drag_preview(preview)
-	
 	return meta
 
 func _find_control_at_position(pos: Vector2) -> Control:
-	# 检查单位容器中的按钮
 	for col in unit_container.get_children():
 		for child in col.get_children():
-			if child is Button and child.get_global_rect().has_point(pos):
-				return child
+			if child is Button:
+				if current_mode == Mode.DEPLOY and child.get_meta("slot_type", "") == "armor":
+					continue
+				if child.get_global_rect().has_point(pos):
+					return child
 	
-	# 检查武器库（出战前模式）
 	if current_mode == Mode.DEPLOY:
 		for grid in library_container.get_children():
 			if grid is GridContainer:
@@ -266,7 +274,6 @@ func _find_control_at_position(pos: Vector2) -> Control:
 					if btn is Button and btn.get_global_rect().has_point(pos):
 						return btn
 	
-	# 检查遗物（地图模式）
 	if current_mode == Mode.MAP:
 		for grid in relic_container.get_children():
 			if grid is GridContainer:
@@ -293,17 +300,14 @@ func _drop_data(_at_position: Vector2, data: Variant) -> void:
 	_execute_drop(data, target)
 
 func _get_target_from_position(global_pos: Vector2) -> Control:
-	# 检查丢弃区
-	if discard_zone.get_global_rect().has_point(global_pos):
+	if discard_zone.visible and discard_zone.get_global_rect().has_point(global_pos):
 		return discard_zone
 
-	# 检查单位列按钮
 	for col in unit_container.get_children():
 		for child in col.get_children():
 			if child is Button and child.get_global_rect().has_point(global_pos):
 				return child
 
-	# 检查武器库（出战前模式）
 	if current_mode == Mode.DEPLOY:
 		for grid in library_container.get_children():
 			if grid is GridContainer:
@@ -311,7 +315,6 @@ func _get_target_from_position(global_pos: Vector2) -> Control:
 					if btn is Button and btn.get_global_rect().has_point(global_pos):
 						return btn
 
-	# 检查遗物（地图模式）
 	if current_mode == Mode.MAP:
 		for grid in relic_container.get_children():
 			if grid is GridContainer:
@@ -326,17 +329,23 @@ func _is_valid_drop(data: Dictionary, target: Control) -> bool:
 	var target_type = target.get_meta("slot_type", "")
 	var discard = target == discard_zone
 
-	# 丢弃区只能接收装备，且不能是武器库物品
-	if discard:
+	if current_mode == Mode.DEPLOY:
+		if discard:
+			return false
 		if source_type == "library_weapon":
+			return target_type == "weapon"
+		if source_type == "weapon" and target_type == "weapon":
+			return true
+		return false
+
+	if discard:
+		if source_type == "weapon":
 			return false
 		return true
 
-	# 武器库 -> 武器格
 	if source_type == "library_weapon":
 		return target_type == "weapon"
 
-	# 同类型交换
 	if source_type == "weapon" and target_type == "weapon":
 		return true
 	if source_type == "armor" and target_type == "armor":
@@ -368,13 +377,11 @@ func _execute_drop(data: Dictionary, target: Control):
 
 func _discard_item(data: Dictionary):
 	var source_type = data["slot_type"]
-	if source_type == "library_weapon":
+	if source_type == "library_weapon" or source_type == "weapon":
 		return
 	var unit_idx = data["unit_idx"]
 	var slot_idx = data["slot_idx"]
-	if source_type == "weapon":
-		party[unit_idx].weapon_slot = null
-	elif source_type == "armor":
+	if source_type == "armor":
 		party[unit_idx].armor_slots[slot_idx] = null
 	elif source_type == "relic":
 		var idx = data["relic_index"]
