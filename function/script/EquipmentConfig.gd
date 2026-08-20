@@ -13,6 +13,7 @@ var _drag_source: Button = null
 var _drag_meta: Dictionary = {}
 var _drag_preview: Control = null
 var _drag_grab_offset: Vector2 = Vector2.ZERO
+var _target_states: Dictionary = {}
 
 @onready var mode_label = $VBoxContainer/TopBar/ModeLabel
 @onready var close_btn = $VBoxContainer/HBoxContainer/CloseBtn
@@ -531,6 +532,9 @@ func _begin_dragging():
 		add_child(preview)
 	_drag_preview = preview
 	_update_drag_preview()
+	
+	# ---- 新增：更新所有目标控件的视觉效果 ----
+	_update_targets_visuals()
 
 func _update_drag_preview():
 	if not _drag_preview:
@@ -551,6 +555,10 @@ func _end_drag():
 			_drag_preview.queue_free()
 			_drag_preview = null
 		_is_dragging = false
+		
+		# ---- 新增：恢复所有目标控件的颜色 ----
+		_reset_targets_visuals()
+		
 	_drag_source = null
 	_drag_meta = {}
 
@@ -648,3 +656,55 @@ func _on_confirm_pressed():
 		canvas_layer.queue_free()
 	else:
 		queue_free()
+
+func _get_all_target_controls() -> Array[Control]:
+	var targets: Array[Control] = []
+	
+	# 1. 单位槽位（武器槽 + 防具槽）
+	for col in unit_container.get_children():
+		for child in col.get_children():
+			if child is Button:
+				targets.append(child)
+	
+	# 2. 武器库（DEPLOY 模式下可见）
+	if current_mode == Mode.DEPLOY and library_container.visible:
+		for grid in library_container.get_children():
+			if grid is GridContainer:
+				for btn in grid.get_children():
+					if btn is Button:
+						targets.append(btn)
+	
+	# 3. 遗物槽（仅在 MAP 模式下可见）
+	if current_mode == Mode.MAP and relic_container.visible:
+		for grid in relic_container.get_children():
+			if grid is GridContainer:
+				for btn in grid.get_children():
+					if btn is Button and not btn.disabled:
+						targets.append(btn)
+	
+	# 4. 丢弃区（仅在 MAP 模式下可见）
+	if current_mode == Mode.MAP and discard_zone.visible:
+		targets.append(discard_zone)
+	
+	return targets
+
+func _update_targets_visuals():
+	var targets = _get_all_target_controls()
+	_target_states.clear()
+	
+	for target in targets:
+		# 保存原始 modulate（如果未保存过）
+		if not _target_states.has(target):
+			_target_states[target] = target.modulate
+		
+		var is_valid = _is_valid_drop(_drag_meta, target)
+		if is_valid:
+			target.modulate = Color.WHITE
+		else:
+			target.modulate = Color(0.4, 0.4, 0.4, 1.0)   # 灰色
+
+func _reset_targets_visuals():
+	for target in _target_states.keys():
+		if is_instance_valid(target):
+			target.modulate = _target_states[target]
+	_target_states.clear()
