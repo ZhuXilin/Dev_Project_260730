@@ -109,10 +109,10 @@ func _on_confirm_pressed():
 			dialog.popup_centered()
 			return
 
-	# 打开装备配置面板
 	var config = load("res://content/scenes/ui/EquipmentConfig.tscn").instantiate()
 	add_child(config)
-	config.init(selected_units, target_slot, EquipmentConfig.Mode.DEPLOY)
+	var panel = config.get_node("MainPanel")
+	panel.init(selected_units, target_slot, EquipmentConfig.Mode.DEPLOY)
 
 func _on_back_pressed():
 	MusicManager.stop_music()

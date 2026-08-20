@@ -442,12 +442,17 @@ func _apply_visited_state():
 	print("实际已访问节点数：", visited_count)
 
 func _on_config_btn_pressed():
+	print("_on_config_btn_pressed 被调用")
 	var config = load("res://content/scenes/ui/EquipmentConfig.tscn").instantiate()
 	add_child(config)
-	var units: Array[String] = []
+	var panel = config.get_node("MainPanel")
+	
+	var unit_names: Array[String] = []
 	for unit_data in GameState.party:
-		units.append(unit_data.unit_name)
+		unit_names.append(unit_data.unit_name)
+	
 	var slot = SaveManager.current_slot
 	if slot == -1:
 		slot = SaveManager.find_empty_slot()
-	config.init(units, slot, EquipmentConfig.Mode.MAP)
+	
+	panel.init(unit_names, slot, EquipmentConfig.Mode.MAP)

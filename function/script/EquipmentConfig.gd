@@ -5,9 +5,8 @@ enum Mode { DEPLOY, MAP }
 var current_mode: Mode = Mode.DEPLOY
 var selected_units: Array[String] = []
 var target_slot: int = -1
-var party: Array = []  # 本地副本
+var party: Array = []
 
-# ---- 更新后的节点路径 ----
 @onready var mode_label = $VBoxContainer/TopBar/ModeLabel
 @onready var close_btn = $VBoxContainer/HBoxContainer/CloseBtn
 @onready var confirm_btn = $VBoxContainer/HBoxContainer/ConfirmBtn
@@ -17,6 +16,12 @@ var party: Array = []  # 本地副本
 @onready var discard_zone = $VBoxContainer/MainHBox/DiscardZone
 
 func init(units: Array[String], slot: int, mode: Mode):
+	print("EquipmentConfig.init 被调用")
+	# 确保 CanvasLayer 层级足够高
+	var canvas_layer = get_parent()
+	if canvas_layer is CanvasLayer:
+		canvas_layer.layer = 20
+		print("CanvasLayer layer 设置为 20")
 	selected_units = units
 	target_slot = slot
 	current_mode = mode
@@ -56,6 +61,11 @@ func _create_party_from_units(units: Array[String]) -> Array:
 	return copy
 
 func _build_ui():
+	print("_build_ui 被调用")
+	if not mode_label:
+		print("错误：mode_label 为 null")
+		return
+	
 	mode_label.text = "装备配置 - " + ("出战准备" if current_mode == Mode.DEPLOY else "队伍管理")
 	close_btn.text = "返回"
 	close_btn.add_theme_font_size_override("font_size", 8)
@@ -77,6 +87,10 @@ func _build_ui():
 
 	discard_zone.visible = true
 	call_deferred("_setup_all_drag_forwarding")
+	
+	# 确保面板可见
+	visible = true
+	print("_build_ui 完成，面板可见：", visible)
 
 func _clear_containers():
 	for child in unit_container.get_children():
@@ -199,7 +213,14 @@ func _get_item_name(inst: ItemInstance) -> String:
 
 # ========== 拖拽系统 ==========
 func _get_drag_data(_at_position: Vector2) -> Variant:
-	var selection = get_viewport().gui.drag_selection
+	# 获取 Viewport 的安全方式
+	var viewport = get_window().get_viewport() if get_window() else get_viewport()
+	if not viewport:
+		return null
+	var gui = viewport.gui
+	if not gui:
+		return null
+	var selection = gui.drag_selection
 	if selection.is_empty():
 		return null
 	var from = selection[0]
@@ -307,7 +328,6 @@ func _execute_drop(data: Dictionary, target: Control):
 	elif source_type == "relic" and target_type == "relic":
 		_swap_relics(data, target)
 
-# ---------- 操作函数 ----------
 func _discard_item(data: Dictionary):
 	var source_type = data["slot_type"]
 	if source_type == "library_weapon":
@@ -376,7 +396,6 @@ func _swap_relics(data: Dictionary, target: Control):
 	_sync_all()
 	_build_ui()
 
-# ---------- 数据同步 ----------
 func _sync_all():
 	for i in range(party.size()):
 		if i < GameState.party.size():
@@ -388,11 +407,8 @@ func _sync_all():
 func _sync_relics():
 	SaveManager.auto_save()
 
-# ---------- 按钮回调 ----------
 func _on_confirm_pressed():
-	# 初始化 GameState 队伍
 	GameState.initialize_party(selected_units, 0)
-	# 应用本地装备
 	for i in range(min(party.size(), GameState.party.size())):
 		var local_unit = party[i]
 		var state_unit = GameState.party[i]
@@ -400,9 +416,7 @@ func _on_confirm_pressed():
 		state_unit.armor_slots = local_unit.armor_slots.duplicate()
 		state_unit.max_armor_slots = local_unit.max_armor_slots
 		state_unit.hit_points = local_unit.hit_points
-	# 清空遗物（出战前没有遗物操作）
 	GameState.global_relics.clear()
-	# 设置资源
 	GameState.temp_soul = 0
 	GameState.temp_gold = 0
 	if selected_units.size() > 0:
@@ -412,14 +426,11 @@ func _on_confirm_pressed():
 		GameState.current_faction = "王国"
 	GameState.interrupt_state = 2
 	GameState.reset_progress()
-	# 保存存档
 	SaveManager.save_game(target_slot, false)
-	# 进入地图
 	LevelManager.start_game()
 	queue_free()
 
 func _on_close_pressed():
 	if current_mode == Mode.MAP:
 		_sync_all()
-	# 出战前直接关闭面板，不保存，返回 UnitSelectUI（自动显示）
 	queue_free()
