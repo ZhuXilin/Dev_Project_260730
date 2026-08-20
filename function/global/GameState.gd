@@ -231,7 +231,7 @@ func get_global_relic_stats() -> Dictionary:
 #  中断战斗撤销
 # ============================================================
 func undo_battle_entry():
-	if current_node_key != "" and visited_nodes.has(current_node_key):
-		visited_nodes.erase(current_node_key)
-		current_node_key = ""
+	# 只清除当前节点键，但保留访问标记，以保持地图进度
+	current_node_key = ""
+	# 不要删除 visited_nodes 中的条目
 	should_advance_day = false

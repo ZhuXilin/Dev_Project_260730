@@ -52,11 +52,10 @@ func load_game(slot: int) -> bool:
 		push_error("无法加载存档: ", path)
 		return false
 
-	# ---- 版本迁移（若存档版本低于当前版本） ----
+	# ---- 版本迁移 ----
 	if save.save_version < SaveData.CURRENT_VERSION:
 		print("存档版本 %d 低于当前版本 %d，执行迁移" % [save.save_version, SaveData.CURRENT_VERSION])
 		save = _migrate_save_data(save, save.save_version)
-		# 迁移后立即保存回文件
 		var err = ResourceSaver.save(save, path, ResourceSaver.FLAG_COMPRESS)
 		if err != OK:
 			push_error("迁移后保存失败：", err)
@@ -67,12 +66,16 @@ func load_game(slot: int) -> bool:
 	if not _validate_save(save):
 		print("校验失败，尝试兼容旧存档...")
 		if save.get("map_level_data") != null:
-			# 旧存档迁移：清空 visited_nodes（用空数组）
-			save.visited_nodes = []
+			# ---- 修复：保留 visited_nodes，不清空 ----
+			# save.visited_nodes = []   # ← 删除这一行
+			
+			# 重新计算校验和
 			save.checksum = save.compute_checksum()
+			
+			# 再次校验，如果仍然失败则警告但继续（保留数据）
 			if not _validate_save(save):
-				push_error("迁移后仍校验失败，存档可能已损坏")
-				return false
+				push_error("迁移后仍校验失败，存档可能已损坏，但尝试继续加载（保留数据）")
+				# 不返回 false，继续加载
 		else:
 			push_error("无法兼容的旧存档，请删除")
 			return false
