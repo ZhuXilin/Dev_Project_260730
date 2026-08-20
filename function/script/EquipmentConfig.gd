@@ -7,11 +7,13 @@ var selected_units: Array[String] = []
 var target_slot: int = -1
 var party: Array = []
 
-# 长按拖拽相关
-var _long_press_timer: Timer = null
-var _long_press_button: Button = null
-var _long_press_pos: Vector2 = Vector2.ZERO
+# ---- 手动拖拽状态 ----
 var _is_dragging: bool = false
+var _drag_source: Button = null
+var _drag_meta: Dictionary = {}
+var _drag_preview: Control = null
+var _drag_start_mouse_pos: Vector2 = Vector2.ZERO
+var _drag_start_button_pos: Vector2 = Vector2.ZERO
 
 @onready var mode_label = $VBoxContainer/TopBar/ModeLabel
 @onready var close_btn = $VBoxContainer/HBoxContainer/CloseBtn
@@ -91,8 +93,6 @@ func _build_ui():
 		relic_container.visible = true
 
 	discard_zone.visible = (current_mode == Mode.MAP)
-	_setup_all_drag_forwarding()
-	
 	visible = true
 	print("_build_ui 完成，面板可见：", visible)
 
@@ -195,91 +195,13 @@ func _build_relics():
 		grid.add_child(btn)
 	relic_container.add_child(grid)
 
-func _setup_all_drag_forwarding():
-	if not is_inside_tree():
-		return
-	_set_drag_forwarding_for_children(unit_container)
-	_set_drag_forwarding_for_children(library_container)
-	_set_drag_forwarding_for_children(relic_container)
-
-func _set_drag_forwarding_for_children(parent: Node):
-	if not parent:
-		return
-	for child in parent.get_children():
-		if child is Button:
-			child.set_drag_forwarding(
-				Callable(self, "_get_drag_data"),
-				Callable(self, "_can_drop_data"),
-				Callable(self, "_drop_data")
-			)
-		elif child is Container or child is GridContainer or child is HBoxContainer or child is VBoxContainer:
-			_set_drag_forwarding_for_children(child)
-
 func _get_item_name(inst: ItemInstance) -> String:
 	if not inst:
 		return ""
 	var data = ItemManager.get_item_data(inst.item_id)
 	return data.name if data else inst.item_id
 
-# ========== 拖拽系统 ==========
-func _get_drag_data(_at_position: Vector2) -> Variant:
-	var from = _find_control_at_position(get_global_mouse_position())
-	if not from:
-		return null
-	
-	var slot_type = from.get_meta("slot_type", "")
-	if current_mode == Mode.DEPLOY and (slot_type == "armor" or slot_type == "relic"):
-		return null
-	
-	var meta = {
-		"slot_type": slot_type,
-		"unit_idx": from.get_meta("unit_idx", -1),
-		"slot_idx": from.get_meta("slot_idx", -1),
-		"item_id": from.get_meta("item_id", ""),
-		"relic_index": from.get_meta("relic_index", -1),
-		"source_control": from
-	}
-	
-	if meta["item_id"] == "" and meta["slot_type"] != "library_weapon":
-		return null
-	
-	var source_size = from.size
-	var preview = Label.new()
-	preview.text = from.text
-	preview.add_theme_font_size_override("font_size", 8)
-	preview.modulate = Color(0.8, 0.8, 0.8, 0.9)
-	preview.add_theme_color_override("font_color", Color.WHITE)
-	preview.add_theme_stylebox_override("normal", StyleBoxFlat.new())
-	var style = preview.get_theme_stylebox("normal") as StyleBoxFlat
-	if style:
-		style.bg_color = Color(0.1, 0.1, 0.1, 0.8)
-		style.border_width_left = 1
-		style.border_width_right = 1
-		style.border_width_top = 1
-		style.border_width_bottom = 1
-		style.border_color = Color(0.5, 0.5, 0.5, 0.8)
-	preview.size = source_size
-	preview.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	
-	from.set_drag_preview(preview)
-	_is_dragging = true
-	# 初始位置对齐中心（使用视口坐标）
-	var mouse_pos = get_viewport().get_mouse_position()
-	preview.position = mouse_pos - source_size / 2
-	return meta
-
-func _process(_delta):
-	if not _is_dragging:
-		return
-	# 获取当前拖拽预览
-	var drag_preview = get_viewport().gui.drag_preview
-	if not drag_preview:
-		_is_dragging = false
-		return
-	var mouse_pos = get_viewport().get_mouse_position()
-	var preview_size = drag_preview.size
-	drag_preview.position = mouse_pos - preview_size / 2
-
+# ========== 辅助检测 ==========
 func _find_control_at_position(pos: Vector2) -> Control:
 	const BUFFER = 4
 	for col in unit_container.get_children():
@@ -310,24 +232,6 @@ func _find_control_at_position(pos: Vector2) -> Control:
 							return btn
 	
 	return null
-
-func _can_drop_data(_at_position: Vector2, data: Variant) -> bool:
-	_is_dragging = false
-	if not data is Dictionary:
-		return false
-	var target = _get_target_from_position(get_viewport().get_mouse_position())
-	if target == null:
-		return false
-	return _is_valid_drop(data, target)
-
-func _drop_data(_at_position: Vector2, data: Variant) -> void:
-	_is_dragging = false
-	var target = _get_target_from_position(get_viewport().get_mouse_position())
-	if target == null:
-		return
-	if not _is_valid_drop(data, target):
-		return
-	_execute_drop(data, target)
 
 func _get_target_from_position(global_pos: Vector2) -> Control:
 	if discard_zone.visible and discard_zone.get_global_rect().has_point(global_pos):
@@ -482,6 +386,103 @@ func _sync_all():
 func _sync_relics():
 	SaveManager.auto_save()
 
+# ========== 手动拖拽（按下即拖拽，无延迟） ==========
+func _input(event: InputEvent):
+	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+		var mouse_pos = get_global_mouse_position()
+		var btn = _find_control_at_position(mouse_pos)
+		if btn:
+			_start_drag(btn)
+	elif event is InputEventMouseButton and not event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+		_end_drag()
+	elif event is InputEventMouseMotion:
+		if _is_dragging:
+			_update_drag_preview()
+		else:
+			# 如果鼠标移动过且拖拽尚未开始，允许拖拽（但此时没有按下）
+			pass
+
+func _start_drag(btn: Button):
+	var slot_type = btn.get_meta("slot_type", "")
+	if current_mode == Mode.DEPLOY and (slot_type == "armor" or slot_type == "relic"):
+		return
+	var item_id = btn.get_meta("item_id", "")
+	if item_id == "" and slot_type != "library_weapon":
+		return
+	
+	_drag_source = btn
+	_drag_meta = {
+		"slot_type": slot_type,
+		"unit_idx": btn.get_meta("unit_idx", -1),
+		"slot_idx": btn.get_meta("slot_idx", -1),
+		"item_id": item_id,
+		"relic_index": btn.get_meta("relic_index", -1),
+		"source_control": btn
+	}
+	_drag_start_mouse_pos = get_global_mouse_position()
+	_drag_start_button_pos = btn.get_global_rect().position
+	# 立即进入拖拽状态，无需等待
+	_begin_dragging()
+
+func _begin_dragging():
+	if _is_dragging:
+		return
+	_is_dragging = true
+	var btn = _drag_source
+	var source_size = btn.size
+	var preview = Label.new()
+	preview.text = btn.text
+	preview.add_theme_font_size_override("font_size", 8)
+	preview.modulate = Color(0.8, 0.8, 0.8, 0.9)
+	preview.add_theme_color_override("font_color", Color.WHITE)
+	preview.add_theme_stylebox_override("normal", StyleBoxFlat.new())
+	var style = preview.get_theme_stylebox("normal") as StyleBoxFlat
+	if style:
+		style.bg_color = Color(0.1, 0.1, 0.1, 0.8)
+		style.border_width_left = 1
+		style.border_width_right = 1
+		style.border_width_top = 1
+		style.border_width_bottom = 1
+		style.border_color = Color(0.5, 0.5, 0.5, 0.8)
+	preview.size = source_size
+	# 文字居中
+	preview.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	preview.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	preview.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var canvas = get_parent()
+	if canvas and canvas is CanvasLayer:
+		canvas.add_child(preview)
+	else:
+		add_child(preview)
+	_drag_preview = preview
+	_update_drag_preview()
+
+func _update_drag_preview():
+	if not _drag_preview:
+		return
+	var mouse_pos = get_viewport().get_mouse_position()
+	var preview_size = _drag_preview.size
+	_drag_preview.position = mouse_pos - preview_size / 2
+	_drag_preview.z_index = 100
+
+func _end_drag():
+	if _is_dragging:
+		var mouse_pos = get_global_mouse_position()
+		var target = _get_target_from_position(mouse_pos)
+		if target and _is_valid_drop(_drag_meta, target):
+			_execute_drop(_drag_meta, target)
+		if _drag_preview:
+			_drag_preview.queue_free()
+			_drag_preview = null
+		_is_dragging = false
+	_drag_source = null
+	_drag_meta = {}
+
+func _process(_delta):
+	if _is_dragging:
+		_update_drag_preview()
+
+# ========== 按钮回调 ==========
 func _on_close_pressed():
 	print("_on_close_pressed 被调用")
 	if current_mode == Mode.MAP:
@@ -519,54 +520,3 @@ func _on_confirm_pressed():
 		canvas_layer.queue_free()
 	else:
 		queue_free()
-
-# ---------- 长按拖拽支持 ----------
-func _input(event: InputEvent):
-	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-		var mouse_pos = get_global_mouse_position()
-		var target = _find_control_at_position(mouse_pos)
-		if target:
-			_long_press_button = target
-			_long_press_pos = mouse_pos
-			_start_long_press_timer()
-	elif event is InputEventMouseButton and not event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-		_cancel_long_press_timer()
-		_is_dragging = false
-	elif event is InputEventMouseMotion:
-		# 鼠标移动超过5px取消长按
-		if _long_press_button and get_global_mouse_position().distance_to(_long_press_pos) > 5:
-			_cancel_long_press_timer()
-
-func _start_long_press_timer():
-	_cancel_long_press_timer()
-	_long_press_timer = Timer.new()
-	_long_press_timer.wait_time = 0.3
-	_long_press_timer.one_shot = true
-	add_child(_long_press_timer)
-	_long_press_timer.timeout.connect(_on_long_press_timeout)
-	_long_press_timer.start()
-
-func _cancel_long_press_timer():
-	if _long_press_timer:
-		_long_press_timer.queue_free()
-		_long_press_timer = null
-	_long_press_button = null
-
-func _on_long_press_timeout():
-	if _long_press_button and is_instance_valid(_long_press_button):
-		var mouse_pos = get_global_mouse_position()
-		if _find_control_at_position(mouse_pos) == _long_press_button:
-			# 模拟鼠标移动 10px 触发拖拽
-			var viewport = get_viewport()
-			var current_pos = viewport.get_mouse_position()
-			var new_pos = current_pos + Vector2(10, 0)
-			var mock_event = InputEventMouseMotion.new()
-			mock_event.position = new_pos
-			Input.parse_input_event(mock_event)
-			# 延迟一帧后恢复鼠标位置到原始位置，防止实际鼠标偏移
-			await get_tree().process_frame
-			var restore_event = InputEventMouseMotion.new()
-			restore_event.position = current_pos
-			Input.parse_input_event(restore_event)
-	_long_press_button = null
-	_long_press_timer = null
