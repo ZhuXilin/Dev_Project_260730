@@ -444,4 +444,10 @@ func _apply_visited_state():
 func _on_config_btn_pressed():
 	var config = load("res://content/scenes/ui/EquipmentConfig.tscn").instantiate()
 	add_child(config)
-	config.init(EquipmentConfig.Mode.MAP)
+	var units: Array[String] = []
+	for unit_data in GameState.party:
+		units.append(unit_data.unit_name)
+	var slot = SaveManager.current_slot
+	if slot == -1:
+		slot = SaveManager.find_empty_slot()
+	config.init(units, slot, EquipmentConfig.Mode.MAP)

@@ -3,63 +3,64 @@ extends Panel
 enum Mode { DEPLOY, MAP }
 
 var current_mode: Mode = Mode.DEPLOY
-var party: Array = []
+var selected_units: Array[String] = []
+var target_slot: int = -1
+var party: Array = []  # 本地副本
 
+# ---- 更新后的节点路径 ----
 @onready var mode_label = $VBoxContainer/TopBar/ModeLabel
-@onready var close_btn = $VBoxContainer/TopBar/CloseBtn
-@onready var unit_container = $VBoxContainer/MainHBox/UnitContainer
-@onready var library_container = $VBoxContainer/MainHBox/LibraryContainer
-@onready var relic_container = $VBoxContainer/MainHBox/RelicContainer
+@onready var close_btn = $VBoxContainer/HBoxContainer/CloseBtn
+@onready var confirm_btn = $VBoxContainer/HBoxContainer/ConfirmBtn
+@onready var unit_container = $VBoxContainer/MainHBox/VBoxContainer/UnitContainer
+@onready var library_container = $VBoxContainer/MainHBox/VBoxContainer/LibraryContainer
+@onready var relic_container = $VBoxContainer/MainHBox/VBoxContainer/RelicContainer
 @onready var discard_zone = $VBoxContainer/MainHBox/DiscardZone
-@onready var confirm_btn = $VBoxContainer/ConfirmBtn
 
-func init(mode: Mode):
+func init(units: Array[String], slot: int, mode: Mode):
+	selected_units = units
+	target_slot = slot
 	current_mode = mode
-	party = _deep_copy_party()
+	party = _create_party_from_units(selected_units)
 	_build_ui()
 
-func _deep_copy_party() -> Array:
+func _create_party_from_units(units: Array[String]) -> Array:
 	var copy = []
-	for data in GameState.party:
-		var new_data = UnitData.new()
-		new_data.unit_name = data.unit_name
-		new_data.display_name = data.display_name
-		new_data.faction = data.faction
-		new_data.team_id = data.team_id
-		new_data.max_hp = data.max_hp
-		new_data.hit_points = data.hit_points
-		new_data.defense = data.defense
-		new_data.magic_defense = data.magic_defense
-		new_data.skill = data.skill
-		new_data.speed = data.speed
-		new_data.luck = data.luck
-		new_data.move_range = data.move_range
-		new_data.ignore_terrain_cost = data.ignore_terrain_cost
-		new_data.max_armor_slots = data.max_armor_slots
-		if data.weapon_slot:
+	for unit_name in units:
+		var data = UnitData.new()
+		var stats = UnitDataManager.get_default_stats(unit_name)
+		var unit_dict = UnitDataManager.get_unit_data(unit_name)
+		data.unit_name = unit_name
+		data.display_name = unit_dict.get("display_name", unit_name)
+		data.faction = unit_dict.get("faction", "")
+		data.team_id = 0
+		data.max_hp = stats.max_hp
+		data.hit_points = stats.max_hp
+		data.defense = stats.defense
+		data.magic_defense = stats.magic_defense
+		data.skill = stats.skill
+		data.speed = stats.speed
+		data.luck = stats.luck
+		data.move_range = stats.move_range
+		data.ignore_terrain_cost = stats.ignore_terrain_cost
+		var default_weapon = UnitDataManager.get_default_weapon_id(unit_name)
+		if default_weapon != "":
 			var inst = ItemInstance.new()
-			inst.item_id = data.weapon_slot.item_id
-			inst.count = data.weapon_slot.count
-			new_data.weapon_slot = inst
-		else:
-			new_data.weapon_slot = null
-		new_data.armor_slots.clear()
-		for slot in data.armor_slots:
-			if slot:
-				var inst = ItemInstance.new()
-				inst.item_id = slot.item_id
-				inst.count = slot.count
-				new_data.armor_slots.append(inst)
-			else:
-				new_data.armor_slots.append(null)
-		copy.append(new_data)
+			inst.item_id = default_weapon
+			inst.count = 1
+			data.weapon_slot = inst
+		data.armor_slots.clear()
+		data.armor_slots.append(null)
+		data.armor_slots.append(null)
+		data.max_armor_slots = 2
+		copy.append(data)
 	return copy
 
 func _build_ui():
 	mode_label.text = "装备配置 - " + ("出战准备" if current_mode == Mode.DEPLOY else "队伍管理")
 	close_btn.text = "返回"
-	close_btn.add_theme_font_size_override("font_size", 6)
+	close_btn.add_theme_font_size_override("font_size", 8)
 	confirm_btn.visible = (current_mode == Mode.DEPLOY)
+	confirm_btn.text = "出发"
 	confirm_btn.add_theme_font_size_override("font_size", 8)
 
 	_clear_containers()
@@ -371,15 +372,17 @@ func _swap_relics(data: Dictionary, target: Control):
 		var temp = relics[src_idx]
 		relics[src_idx] = relics[tgt_idx]
 		relics[tgt_idx] = temp
-		_sync_relics()
-		_sync_all()
-		_build_ui()
+	_sync_relics()
+	_sync_all()
+	_build_ui()
 
 # ---------- 数据同步 ----------
 func _sync_all():
 	for i in range(party.size()):
-		GameState.party[i].weapon_slot = party[i].weapon_slot
-		GameState.party[i].armor_slots = party[i].armor_slots.duplicate()
+		if i < GameState.party.size():
+			GameState.party[i].weapon_slot = party[i].weapon_slot
+			GameState.party[i].armor_slots = party[i].armor_slots.duplicate()
+			GameState.party[i].max_armor_slots = party[i].max_armor_slots
 	SaveManager.auto_save()
 
 func _sync_relics():
@@ -387,16 +390,36 @@ func _sync_relics():
 
 # ---------- 按钮回调 ----------
 func _on_confirm_pressed():
-	_sync_all()
-	SaveManager.auto_save()
-	if current_mode == Mode.DEPLOY:
-		GameState.interrupt_state = 2
-		Globals.reset_battle_turn()
-		GameState.current_map_data = null
-		LevelManager.start_game()
-		queue_free()
+	# 初始化 GameState 队伍
+	GameState.initialize_party(selected_units, 0)
+	# 应用本地装备
+	for i in range(min(party.size(), GameState.party.size())):
+		var local_unit = party[i]
+		var state_unit = GameState.party[i]
+		state_unit.weapon_slot = local_unit.weapon_slot
+		state_unit.armor_slots = local_unit.armor_slots.duplicate()
+		state_unit.max_armor_slots = local_unit.max_armor_slots
+		state_unit.hit_points = local_unit.hit_points
+	# 清空遗物（出战前没有遗物操作）
+	GameState.global_relics.clear()
+	# 设置资源
+	GameState.temp_soul = 0
+	GameState.temp_gold = 0
+	if selected_units.size() > 0:
+		var main_data = UnitDataManager.get_unit_data(selected_units[0])
+		GameState.current_faction = main_data.get("faction", "王国")
+	else:
+		GameState.current_faction = "王国"
+	GameState.interrupt_state = 2
+	GameState.reset_progress()
+	# 保存存档
+	SaveManager.save_game(target_slot, false)
+	# 进入地图
+	LevelManager.start_game()
+	queue_free()
 
 func _on_close_pressed():
 	if current_mode == Mode.MAP:
 		_sync_all()
+	# 出战前直接关闭面板，不保存，返回 UnitSelectUI（自动显示）
 	queue_free()

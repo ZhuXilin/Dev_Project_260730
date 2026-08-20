@@ -3,8 +3,4 @@
 	"relic_attack",
     "relic_defense"
   ],
-  "default_granted": [
-	"relic_attack",
-    "relic_defense"
-  ]
 }

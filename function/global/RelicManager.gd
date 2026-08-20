@@ -4,11 +4,8 @@ signal relic_unlocked(relic_id: String)
 
 var _relic_db: Dictionary = {}      # relic_id -> Dictionary
 var _unlocked_relics: Array = []    # 已解锁的 relic_id 列表
-var _default_granted: Array = []    # 开局默认获得的遗物列表
+# 删除 _default_granted 变量
 
-# ============================================================
-#  加载 & 初始化
-# ============================================================
 func _ready():
 	load_relics()
 	load_unlock_config()
@@ -32,32 +29,21 @@ func load_unlock_config():
 	var path = "res://content/data/relic_unlock.json"
 	if not FileAccess.file_exists(path):
 		_unlocked_relics = ["relic_attack", "relic_defense"]
-		_default_granted = ["relic_attack", "relic_defense"]
 		return
 	var file = FileAccess.open(path, FileAccess.READ)
 	var content = file.get_as_text()
 	file.close()
 	var data = JSON.parse_string(content)
 	if data and data is Dictionary:
-		# 默认解锁
 		var raw = data.get("default_unlocked", [])
 		_unlocked_relics = []
 		for item in raw:
 			if item is String:
 				_unlocked_relics.append(item)
-		# 默认获得（开局自动给予）
-		var raw_granted = data.get("default_granted", [])
-		_default_granted = []
-		for item in raw_granted:
-			if item is String:
-				_default_granted.append(item)
+		# 不再读取 default_granted
 	else:
 		_unlocked_relics = ["relic_attack", "relic_defense"]
-		_default_granted = ["relic_attack", "relic_defense"]
 
-# ============================================================
-#  查询
-# ============================================================
 func get_relic_data(relic_id: String) -> Dictionary:
 	return _relic_db.get(relic_id, {})
 
@@ -76,12 +62,8 @@ func get_all_relic_ids() -> Array:
 		ids.append(key)
 	return ids
 
-func get_default_granted_relics() -> Array:
-	return _default_granted.duplicate()
+# 删除 get_default_granted_relics() 方法
 
-# ============================================================
-#  解锁
-# ============================================================
 func unlock_relic(relic_id: String):
 	if relic_id in _unlocked_relics:
 		return

@@ -29,45 +29,39 @@ layout_mode = 2
 size_flags_horizontal = 3
 theme_override_font_sizes/font_size = 10
 text = "装备配置 - 出战准备"
-
-[node name="CloseBtn" type="Button" parent="VBoxContainer/TopBar" unique_id=2139001780]
-layout_mode = 2
-size_flags_horizontal = 0
-theme_override_font_sizes/font_size = 6
-theme_override_styles/normal = ExtResource("2")
-theme_override_styles/pressed = ExtResource("2")
-theme_override_styles/hover = ExtResource("2")
-theme_override_styles/disabled = ExtResource("2")
-theme_override_styles/focus = ExtResource("2")
-text = "返回"
+horizontal_alignment = 1
 
 [node name="MainHBox" type="HBoxContainer" parent="VBoxContainer" unique_id=545920473]
 layout_mode = 2
 size_flags_vertical = 3
 theme_override_constants/separation = 8
+alignment = 1
 
-[node name="UnitContainer" type="HBoxContainer" parent="VBoxContainer/MainHBox" unique_id=1198897334]
+[node name="VBoxContainer" type="VBoxContainer" parent="VBoxContainer/MainHBox" unique_id=1242726377]
+layout_mode = 2
+
+[node name="UnitContainer" type="HBoxContainer" parent="VBoxContainer/MainHBox/VBoxContainer" unique_id=1198897334]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 
-[node name="LibraryContainer" type="VBoxContainer" parent="VBoxContainer/MainHBox" unique_id=1317854053]
-visible = false
-layout_mode = 2
-size_flags_horizontal = 2
-size_flags_vertical = 3
-
-[node name="RelicContainer" type="VBoxContainer" parent="VBoxContainer/MainHBox" unique_id=117055348]
+[node name="RelicContainer" type="VBoxContainer" parent="VBoxContainer/MainHBox/VBoxContainer" unique_id=117055348]
 visible = false
 custom_minimum_size = Vector2(120, 0)
 layout_mode = 2
 size_flags_horizontal = 0
 size_flags_vertical = 3
 
+[node name="LibraryContainer" type="VBoxContainer" parent="VBoxContainer/MainHBox/VBoxContainer" unique_id=1317854053]
+visible = false
+layout_mode = 2
+size_flags_horizontal = 2
+size_flags_vertical = 3
+
 [node name="DiscardZone" type="Panel" parent="VBoxContainer/MainHBox" unique_id=737869972]
 custom_minimum_size = Vector2(80, 0)
 layout_mode = 2
-size_flags_horizontal = 0
+size_flags_horizontal = 8
 size_flags_vertical = 3
 mouse_filter = 2
 theme_override_styles/panel = ExtResource("2")
@@ -82,8 +76,22 @@ text = "丢弃区
 horizontal_alignment = 1
 vertical_alignment = 1
 
-[node name="ConfirmBtn" type="Button" parent="VBoxContainer" unique_id=1829794630]
-visible = false
+[node name="HBoxContainer" type="HBoxContainer" parent="VBoxContainer" unique_id=879035883]
+layout_mode = 2
+alignment = 1
+
+[node name="CloseBtn" type="Button" parent="VBoxContainer/HBoxContainer" unique_id=2139001780]
+layout_mode = 2
+size_flags_horizontal = 0
+theme_override_font_sizes/font_size = 8
+theme_override_styles/normal = ExtResource("2")
+theme_override_styles/pressed = ExtResource("2")
+theme_override_styles/hover = ExtResource("2")
+theme_override_styles/disabled = ExtResource("2")
+theme_override_styles/focus = ExtResource("2")
+text = "返回"
+
+[node name="ConfirmBtn" type="Button" parent="VBoxContainer/HBoxContainer" unique_id=1829794630]
 layout_mode = 2
 size_flags_vertical = 0
 theme_override_font_sizes/font_size = 8
@@ -92,7 +100,7 @@ theme_override_styles/pressed = ExtResource("2")
 theme_override_styles/hover = ExtResource("2")
 theme_override_styles/disabled = ExtResource("2")
 theme_override_styles/focus = ExtResource("2")
-text = "确认出发"
+text = "出发"
 
-[connection signal="pressed" from="VBoxContainer/TopBar/CloseBtn" to="." method="_on_close_pressed"]
-[connection signal="pressed" from="VBoxContainer/ConfirmBtn" to="." method="_on_confirm_pressed"]
+[connection signal="pressed" from="VBoxContainer/HBoxContainer/CloseBtn" to="." method="_on_close_pressed"]
+[connection signal="pressed" from="VBoxContainer/HBoxContainer/ConfirmBtn" to="." method="_on_confirm_pressed"]

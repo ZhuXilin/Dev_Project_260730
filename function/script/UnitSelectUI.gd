@@ -17,7 +17,6 @@ func _ready():
 	if MusicManager.config and MusicManager.config.unit_select_music:
 		MusicManager.play_music(MusicManager.config.unit_select_music)
 	
-	# 使槽位标签可点击（用于移除单位）
 	_make_label_clickable(main_label, 0)
 	_make_label_clickable(slot1_label, 1)
 	_make_label_clickable(slot2_label, 2)
@@ -53,7 +52,6 @@ func _setup_unit_buttons():
 		unit_buttons.add_child(btn)
 
 func _on_unit_selected(unit_name: String, btn: Button):
-	# 如果单位已选 → 取消选择
 	if unit_name in selected_units:
 		selected_units.erase(unit_name)
 		btn.disabled = false
@@ -62,17 +60,15 @@ func _on_unit_selected(unit_name: String, btn: Button):
 		SoundManager.play_cancel_sound()
 		return
 
-	# 队伍已满 → 不能添加
 	if selected_units.size() >= max_selection:
-		SoundManager.play_invalid_sound()  # 播放无效音效
+		SoundManager.play_invalid_sound()
 		return
 
-	# 添加新单位 → 播放选中音效
 	selected_units.append(unit_name)
 	btn.disabled = true
 	btn.modulate = Color(0.5, 0.5, 0.5)
 	_update_labels()
-	SoundManager.play_select_sound()   # 新增：选中音效
+	SoundManager.play_select_sound()
 
 func _on_slot_clicked(index: int):
 	if index < selected_units.size():
@@ -84,7 +80,7 @@ func _on_slot_clicked(index: int):
 				child.modulate = Color.WHITE
 				break
 		_update_labels()
-		SoundManager.play_cancel_sound()   # 已有取消音效
+		SoundManager.play_cancel_sound()
 
 func _update_labels():
 	var slots = ["主单位", "辅助1", "辅助2"]
@@ -98,14 +94,7 @@ func _update_labels():
 	confirm_btn.disabled = selected_units.size() < max_selection
 
 func _on_confirm_pressed():
-	var main_unit_name = selected_units[0]
-	var selected_unit_names = selected_units.duplicate()
-	var main_index = 0
-	GameState.initialize_party(selected_unit_names, main_index)
-	var main_unit_data = UnitDataManager.get_unit_data(main_unit_name)
-	var faction = main_unit_data.get("faction", "王国")
-	GameState.current_faction = faction
-	
+	# 检查是否有空存档槽
 	var target_slot = -1
 	if SaveManager.current_slot != -1:
 		target_slot = SaveManager.current_slot
@@ -120,18 +109,11 @@ func _on_confirm_pressed():
 			dialog.popup_centered()
 			return
 
-	Globals.pending_save_slot = target_slot
-	GameState.start_new_cycle()
-	GameState.reset_progress()
-	GameState.interrupt_state = 2
-	SaveManager.save_game(target_slot, false)
-	
+	# 打开装备配置面板
 	var config = load("res://content/scenes/ui/EquipmentConfig.tscn").instantiate()
 	add_child(config)
-	config.init(EquipmentConfig.Mode.DEPLOY)
+	config.init(selected_units, target_slot, EquipmentConfig.Mode.DEPLOY)
 
 func _on_back_pressed():
 	MusicManager.stop_music()
-	GameState.interrupt_state = 1
-	SaveManager.save_game(SaveManager.current_slot, false)
 	get_tree().change_scene_to_file("res://content/scenes/ui/Camp.tscn")
