@@ -212,20 +212,12 @@ func _get_item_name(inst: ItemInstance) -> String:
 	return data.name if data else inst.item_id
 
 # ========== 拖拽系统 ==========
-func _get_drag_data(_at_position: Vector2) -> Variant:
-	# 获取 Viewport 的安全方式
-	var viewport = get_window().get_viewport() if get_window() else get_viewport()
-	if not viewport:
+func _get_drag_data(at_position: Vector2) -> Variant:
+	var from = _find_control_at_position(at_position)
+	if not from:
 		return null
-	var gui = viewport.gui
-	if not gui:
-		return null
-	var selection = gui.drag_selection
-	if selection.is_empty():
-		return null
-	var from = selection[0]
-	if not (from is Button):
-		return null
+	
+	# 获取元数据
 	var meta = {
 		"slot_type": from.get_meta("slot_type", ""),
 		"unit_idx": from.get_meta("unit_idx", -1),
@@ -234,15 +226,55 @@ func _get_drag_data(_at_position: Vector2) -> Variant:
 		"relic_index": from.get_meta("relic_index", -1),
 		"source_control": from
 	}
+	
+	# 空槽位或武器库空按钮不可拖拽
 	if meta["item_id"] == "" and meta["slot_type"] != "library_weapon":
 		return null
-
+	
+	# 创建拖拽预览
 	var preview = Label.new()
 	preview.text = from.text
 	preview.add_theme_font_size_override("font_size", 8)
-	preview.modulate = Color(0.5, 0.5, 0.5, 0.7)
+	preview.modulate = Color(0.8, 0.8, 0.8, 0.9)
+	preview.add_theme_color_override("font_color", Color.WHITE)
+	preview.add_theme_stylebox_override("normal", StyleBoxFlat.new())
+	var style = preview.get_theme_stylebox("normal") as StyleBoxFlat
+	if style:
+		style.bg_color = Color(0.1, 0.1, 0.1, 0.8)
+		style.border_width_left = 1
+		style.border_width_right = 1
+		style.border_width_top = 1
+		style.border_width_bottom = 1
+		style.border_color = Color(0.5, 0.5, 0.5, 0.8)
+	preview.size = Vector2(40, 16)
 	from.set_drag_preview(preview)
+	
 	return meta
+
+func _find_control_at_position(pos: Vector2) -> Control:
+	# 检查单位容器中的按钮
+	for col in unit_container.get_children():
+		for child in col.get_children():
+			if child is Button and child.get_global_rect().has_point(pos):
+				return child
+	
+	# 检查武器库（出战前模式）
+	if current_mode == Mode.DEPLOY:
+		for grid in library_container.get_children():
+			if grid is GridContainer:
+				for btn in grid.get_children():
+					if btn is Button and btn.get_global_rect().has_point(pos):
+						return btn
+	
+	# 检查遗物（地图模式）
+	if current_mode == Mode.MAP:
+		for grid in relic_container.get_children():
+			if grid is GridContainer:
+				for btn in grid.get_children():
+					if btn is Button and btn.get_global_rect().has_point(pos):
+						return btn
+	
+	return null
 
 func _can_drop_data(_at_position: Vector2, data: Variant) -> bool:
 	if not data is Dictionary:
@@ -261,15 +293,17 @@ func _drop_data(_at_position: Vector2, data: Variant) -> void:
 	_execute_drop(data, target)
 
 func _get_target_from_position(global_pos: Vector2) -> Control:
-	var discard = discard_zone
-	if discard.get_global_rect().has_point(global_pos):
-		return discard
+	# 检查丢弃区
+	if discard_zone.get_global_rect().has_point(global_pos):
+		return discard_zone
 
+	# 检查单位列按钮
 	for col in unit_container.get_children():
 		for child in col.get_children():
 			if child is Button and child.get_global_rect().has_point(global_pos):
 				return child
 
+	# 检查武器库（出战前模式）
 	if current_mode == Mode.DEPLOY:
 		for grid in library_container.get_children():
 			if grid is GridContainer:
@@ -277,6 +311,7 @@ func _get_target_from_position(global_pos: Vector2) -> Control:
 					if btn is Button and btn.get_global_rect().has_point(global_pos):
 						return btn
 
+	# 检查遗物（地图模式）
 	if current_mode == Mode.MAP:
 		for grid in relic_container.get_children():
 			if grid is GridContainer:
@@ -291,14 +326,17 @@ func _is_valid_drop(data: Dictionary, target: Control) -> bool:
 	var target_type = target.get_meta("slot_type", "")
 	var discard = target == discard_zone
 
+	# 丢弃区只能接收装备，且不能是武器库物品
 	if discard:
 		if source_type == "library_weapon":
 			return false
 		return true
 
+	# 武器库 -> 武器格
 	if source_type == "library_weapon":
 		return target_type == "weapon"
 
+	# 同类型交换
 	if source_type == "weapon" and target_type == "weapon":
 		return true
 	if source_type == "armor" and target_type == "armor":
@@ -344,7 +382,7 @@ func _discard_item(data: Dictionary):
 			GameState.global_relics.remove_at(idx)
 			_sync_relics()
 	_sync_all()
-	_build_ui()
+	call_deferred("_build_ui")
 
 func _library_to_weapon(data: Dictionary, target: Control):
 	var item_id = data["item_id"]
@@ -356,7 +394,7 @@ func _library_to_weapon(data: Dictionary, target: Control):
 	inst.count = 1
 	party[unit_idx].weapon_slot = inst
 	_sync_all()
-	_build_ui()
+	call_deferred("_build_ui")
 
 func _swap_weapons(data: Dictionary, target: Control):
 	var src_unit = data["unit_idx"]
@@ -367,7 +405,7 @@ func _swap_weapons(data: Dictionary, target: Control):
 	party[src_unit].weapon_slot = party[tgt_unit].weapon_slot
 	party[tgt_unit].weapon_slot = temp
 	_sync_all()
-	_build_ui()
+	call_deferred("_build_ui")
 
 func _swap_armor(data: Dictionary, target: Control):
 	var src_unit = data["unit_idx"]
@@ -380,7 +418,7 @@ func _swap_armor(data: Dictionary, target: Control):
 	party[src_unit].armor_slots[src_slot] = party[tgt_unit].armor_slots[tgt_slot]
 	party[tgt_unit].armor_slots[tgt_slot] = temp
 	_sync_all()
-	_build_ui()
+	call_deferred("_build_ui")
 
 func _swap_relics(data: Dictionary, target: Control):
 	var src_idx = data["relic_index"]
@@ -394,7 +432,7 @@ func _swap_relics(data: Dictionary, target: Control):
 		relics[tgt_idx] = temp
 	_sync_relics()
 	_sync_all()
-	_build_ui()
+	call_deferred("_build_ui")
 
 func _sync_all():
 	for i in range(party.size()):
@@ -407,7 +445,18 @@ func _sync_all():
 func _sync_relics():
 	SaveManager.auto_save()
 
+func _on_close_pressed():
+	print("_on_close_pressed 被调用")
+	if current_mode == Mode.MAP:
+		_sync_all()
+	var canvas_layer = get_parent()
+	if canvas_layer:
+		canvas_layer.queue_free()
+	else:
+		queue_free()
+
 func _on_confirm_pressed():
+	print("_on_confirm_pressed 被调用")
 	GameState.initialize_party(selected_units, 0)
 	for i in range(min(party.size(), GameState.party.size())):
 		var local_unit = party[i]
@@ -428,9 +477,8 @@ func _on_confirm_pressed():
 	GameState.reset_progress()
 	SaveManager.save_game(target_slot, false)
 	LevelManager.start_game()
-	queue_free()
-
-func _on_close_pressed():
-	if current_mode == Mode.MAP:
-		_sync_all()
-	queue_free()
+	var canvas_layer = get_parent()
+	if canvas_layer:
+		canvas_layer.queue_free()
+	else:
+		queue_free()

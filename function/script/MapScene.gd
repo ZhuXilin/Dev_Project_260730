@@ -5,8 +5,9 @@ var current_day: int = 1
 var map_data: MapLevelData
 var selected_node: MapNode = null
 var level_list: Array[MapData] = []
+var _equipment_config_instance = null   # 防止重复实例化
 
-# ---- 节点引用（与场景结构严格对应） ----
+# ---- 节点引用 ----
 @onready var node_container = $NodeContainer
 @onready var line_container = $NodeContainer/LineContainer
 @onready var info_panel = $InfoPanel
@@ -442,9 +443,15 @@ func _apply_visited_state():
 	print("实际已访问节点数：", visited_count)
 
 func _on_config_btn_pressed():
-	print("_on_config_btn_pressed 被调用")
+	# ---- 防止重复实例化 ----
+	if _equipment_config_instance != null:
+		_equipment_config_instance.show()
+		_equipment_config_instance.move_to_front()
+		return
+	
 	var config = load("res://content/scenes/ui/EquipmentConfig.tscn").instantiate()
 	add_child(config)
+	_equipment_config_instance = config
 	var panel = config.get_node("MainPanel")
 	
 	var unit_names: Array[String] = []
@@ -456,3 +463,8 @@ func _on_config_btn_pressed():
 		slot = SaveManager.find_empty_slot()
 	
 	panel.init(unit_names, slot, EquipmentConfig.Mode.MAP)
+	
+	# 面板销毁时清除引用
+	config.tree_exited.connect(func():
+		_equipment_config_instance = null
+	)

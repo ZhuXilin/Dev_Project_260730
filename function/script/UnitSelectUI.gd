@@ -1,8 +1,8 @@
-# UnitSelectUI.gd
 extends CanvasLayer
 
-var selected_units: Array[String] = []   # 存储选中的 unit_name（类型）
+var selected_units: Array[String] = []
 var max_selection: int = 3
+var _equipment_config_instance = null   # 防止重复实例化
 
 @onready var unit_buttons = $UnitListContainer/VBoxContainer
 @onready var main_label = $MainUnitLabel
@@ -94,7 +94,14 @@ func _update_labels():
 	confirm_btn.disabled = selected_units.size() < max_selection
 
 func _on_confirm_pressed():
-	# 检查是否有空存档槽
+	var main_unit_name = selected_units[0]
+	var selected_unit_names = selected_units.duplicate()
+	var main_index = 0
+	GameState.initialize_party(selected_unit_names, main_index)
+	var main_unit_data = UnitDataManager.get_unit_data(main_unit_name)
+	var faction = main_unit_data.get("faction", "王国")
+	GameState.current_faction = faction
+	
 	var target_slot = -1
 	if SaveManager.current_slot != -1:
 		target_slot = SaveManager.current_slot
@@ -109,10 +116,29 @@ func _on_confirm_pressed():
 			dialog.popup_centered()
 			return
 
+	# ---- 防止重复实例化 ----
+	if _equipment_config_instance != null:
+		# 面板已存在，将其显示并置于最前
+		_equipment_config_instance.show()
+		_equipment_config_instance.move_to_front()
+		return
+
+	Globals.pending_save_slot = target_slot
+	GameState.start_new_cycle()
+	GameState.reset_progress()
+	GameState.interrupt_state = 2
+	SaveManager.save_game(target_slot, false)
+	
+	# ---- 创建面板 ----
 	var config = load("res://content/scenes/ui/EquipmentConfig.tscn").instantiate()
 	add_child(config)
+	_equipment_config_instance = config
 	var panel = config.get_node("MainPanel")
 	panel.init(selected_units, target_slot, EquipmentConfig.Mode.DEPLOY)
+	
+	config.tree_exited.connect(func():
+		_equipment_config_instance = null
+	)
 
 func _on_back_pressed():
 	MusicManager.stop_music()
