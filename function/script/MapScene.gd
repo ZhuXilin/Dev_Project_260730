@@ -23,6 +23,19 @@ const EquipmentConfig = preload("res://function/script/EquipmentConfig.gd")
 
 func _ready():
 	print("=== MapScene _ready 开始 ===")
+	
+	# ---- 调试：打印 GameState.party 装备状态 ----
+	print("=== MapScene: GameState.party 装备状态 ===")
+	for i in range(GameState.party.size()):
+		var u = GameState.party[i]
+		var weapon_id = u.weapon_slot.item_id if u.weapon_slot else "无"
+		print("单位 ", i, ": ", u.unit_name, " 武器: ", weapon_id)
+		for j in range(u.armor_slots.size()):
+			var slot = u.armor_slots[j]
+			var slot_id = slot.item_id if slot else "空"
+			print("  防具槽", j, ": ", slot_id)
+	print("==========================================")
+	
 	print("当前 temp_gold=", GameState.temp_gold, " temp_soul=", GameState.temp_soul)
 
 	if GameState.party.is_empty():

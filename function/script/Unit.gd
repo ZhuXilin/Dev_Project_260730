@@ -35,14 +35,38 @@ var current_anim : String = "idle"
 var facing_flip_h : bool = false
 var _color_material : ShaderMaterial = null
 
+var _is_initialized: bool = false
+var _initialized: bool = false
+
 # ============================================================
 #  初始化
 # ============================================================
 func _ready():
-	pass
+	# 如果已经通过 restore 或 setup 初始化，跳过 _ready 的默认初始化
+	if _initialized:
+		print("Unit._ready 跳过，已初始化")
+		return
+	
+	# 如果场景中已有 animated_sprite 但尚未设置，进行最小初始化
+	if not animated_sprite:
+		animated_sprite = $Sprite as AnimatedSprite2D
+	
+	# 如果还没有精灵帧，使用占位纹理
+	if animated_sprite and not animated_sprite.sprite_frames:
+		var image = Image.create(CELL_SIZE, CELL_SIZE, false, Image.FORMAT_RGBA8)
+		image.fill(Color.MAGENTA)
+		var placeholder = ImageTexture.create_from_image(image)
+		var frames = SpriteFrames.new()
+		frames.add_animation("idle")
+		frames.add_frame("idle", placeholder)
+		animated_sprite.sprite_frames = frames
+		animated_sprite.play("idle")
+		animated_sprite.visible = true
+		animated_sprite.z_index = 2
 
-func setup_unit(stats_data : UnitData, start_cell : Vector2i, initial_items : Array[ItemEntry] = []):
-	animated_sprite = $Sprite as AnimatedSprite2D
+func setup_unit(stats_data: UnitData, start_cell: Vector2i, initial_items: Array[ItemEntry] = []):
+	if not animated_sprite:
+		animated_sprite = $Sprite as AnimatedSprite2D
 	if not animated_sprite:
 		push_error("Unit %s: 缺少 AnimatedSprite2D 节点！" % stats_data.unit_name)
 		return
@@ -71,7 +95,6 @@ func setup_unit(stats_data : UnitData, start_cell : Vector2i, initial_items : Ar
 			var data = ItemManager.get_item_data(entry.item_id)
 			if not data:
 				continue
-			# 根据类型装备
 			if data.equipment_slot == "weapon":
 				var inst = ItemInstance.new()
 				inst.item_id = entry.item_id
@@ -126,6 +149,9 @@ func setup_unit(stats_data : UnitData, start_cell : Vector2i, initial_items : Ar
 	update_hp_label()
 	update_name_label()
 	update_color()
+	
+	# ---- 标记已初始化，防止 _ready() 覆盖 ----
+	_initialized = true
 
 # ============================================================
 #  装备系统
@@ -252,6 +278,8 @@ func serialize_inventory() -> Array[Dictionary]:
 
 # ---- 从存档恢复 ----
 func restore_from_unit_data(data: UnitData, cell: Vector2i):
+	print("restore_from_unit_data: 单位 ", data.unit_name, " 武器: ", data.weapon_slot.item_id if data.weapon_slot else "无")
+	
 	unit_stats = data
 	grid_cell = cell
 	previous_grid_cell = cell
@@ -262,15 +290,22 @@ func restore_from_unit_data(data: UnitData, cell: Vector2i):
 	has_attacked = false
 	has_acted = false
 
-	# ---- 恢复装备 ----
-	weapon_slot = data.weapon_slot
+	# ---- 恢复装备（创建新实例，避免引用问题） ----
+	if data.weapon_slot:
+		var inst = ItemInstance.new()
+		inst.item_id = data.weapon_slot.item_id
+		inst.count = data.weapon_slot.count
+		weapon_slot = inst
+	else:
+		weapon_slot = null
+	
 	armor_slots.clear()
 	for slot in data.armor_slots:
 		if slot:
-			var new_inst = ItemInstance.new()
-			new_inst.item_id = slot.item_id
-			new_inst.count = 1
-			armor_slots.append(new_inst)
+			var inst = ItemInstance.new()
+			inst.item_id = slot.item_id
+			inst.count = slot.count
+			armor_slots.append(inst)
 		else:
 			armor_slots.append(null)
 	max_armor_slots = data.max_armor_slots
@@ -278,6 +313,7 @@ func restore_from_unit_data(data: UnitData, cell: Vector2i):
 	# ---- 加载 SpriteFrames ----
 	if not animated_sprite:
 		animated_sprite = $Sprite as AnimatedSprite2D
+	
 	if animated_sprite:
 		var frames_path = UnitDataManagerClass.get_sprite_frames_path(unit_stats.unit_name)
 		var loaded_ok = false
@@ -305,11 +341,20 @@ func restore_from_unit_data(data: UnitData, cell: Vector2i):
 			animated_sprite.play("idle")
 			animated_sprite.visible = true
 			animated_sprite.z_index = 2
+			print("Warning: 单位 %s 的 SpriteFrames 加载失败，使用占位纹理" % unit_stats.unit_name)
+
+	animated_sprite.flip_h = (unit_stats.team_id == 1)
+	facing_flip_h = animated_sprite.flip_h
+	previous_flip_h = facing_flip_h
 
 	update_color()
 	update_hp_label()
 	update_name_label()
 	update_terrain_info()
+	
+	# ---- 标记已初始化，防止 _ready() 覆盖 ----
+	_initialized = true
+	print("restore_from_unit_data 完成，weapon_slot: ", weapon_slot.item_id if weapon_slot else "无")
 
 # ============================================================
 #  状态与行动

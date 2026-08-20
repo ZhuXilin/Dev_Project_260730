@@ -70,11 +70,25 @@ static func spawn_test_units(parent: Node, grid_to_world_func: Callable):
 static func spawn_party_from_gamestate(parent: Node, grid_to_world_func: Callable, spawn_points: Array[Vector2i]):
 	var party = GameState.get_party_units()
 	var count = min(party.size(), spawn_points.size())
+	
+	# ---- 调试：打印队伍装备 ----
+	print("=== UnitSpawner: 队伍装备状态 ===")
+	for i in range(party.size()):
+		var u = party[i]
+		var weapon_id = u.weapon_slot.item_id if u.weapon_slot else "无"
+		print("单位 ", i, ": ", u.unit_name, " 武器: ", weapon_id)
+	print("================================")
+	
 	for i in range(count):
 		var unit_data = party[i]
 		var spawn_cell = spawn_points[i]
 		var unit = load(UNIT_PATH).instantiate()
 		unit.restore_from_unit_data(unit_data, spawn_cell)
+		
+		# ---- 调试：验证恢复后的装备 ----
+		var weapon_id = unit.weapon_slot.item_id if unit.weapon_slot else "无"
+		print("恢复后单位 ", i, ": ", unit.unit_stats.unit_name, " 武器: ", weapon_id)
+		
 		parent.add_child(unit)
 		unit.position = grid_to_world_func.call(spawn_cell)
 		UnitManager.register_unit(unit)

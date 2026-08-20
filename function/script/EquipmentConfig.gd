@@ -32,7 +32,79 @@ func init(units: Array[String], slot: int, mode: Mode):
 	selected_units = units
 	target_slot = slot
 	current_mode = mode
-	party = _create_party_from_units(selected_units)
+	# ---- 从 GameState.party 复制现有装备数据，而不是创建默认 ----
+	party.clear()
+	for unit_name in units:
+		# 在 GameState.party 中查找同名单位
+		var existing = null
+		for u in GameState.party:
+			if u.unit_name == unit_name:
+				existing = u
+				break
+		if existing:
+			# 复制现有 UnitData
+			var data = UnitData.new()
+			data.unit_name = existing.unit_name
+			data.display_name = existing.display_name
+			data.faction = existing.faction
+			data.team_id = existing.team_id
+			data.max_hp = existing.max_hp
+			data.hit_points = existing.hit_points
+			data.defense = existing.defense
+			data.magic_defense = existing.magic_defense
+			data.skill = existing.skill
+			data.speed = existing.speed
+			data.luck = existing.luck
+			data.move_range = existing.move_range
+			data.ignore_terrain_cost = existing.ignore_terrain_cost
+			data.experience = existing.experience
+			data.level = existing.level
+			# 复制装备
+			if existing.weapon_slot:
+				var inst = ItemInstance.new()
+				inst.item_id = existing.weapon_slot.item_id
+				inst.count = existing.weapon_slot.count
+				data.weapon_slot = inst
+			else:
+				data.weapon_slot = null
+			data.armor_slots.clear()
+			for slot_inst in existing.armor_slots:
+				if slot_inst:
+					var new_inst = ItemInstance.new()
+					new_inst.item_id = slot_inst.item_id
+					new_inst.count = slot_inst.count
+					data.armor_slots.append(new_inst)
+				else:
+					data.armor_slots.append(null)
+			data.max_armor_slots = existing.max_armor_slots
+			party.append(data)
+		else:
+			# 如果不存在，使用默认创建（向后兼容）
+			var data = UnitData.new()
+			var stats = UnitDataManager.get_default_stats(unit_name)
+			var unit_dict = UnitDataManager.get_unit_data(unit_name)
+			data.unit_name = unit_name
+			data.display_name = unit_dict.get("display_name", unit_name)
+			data.faction = unit_dict.get("faction", "")
+			data.team_id = 0
+			data.max_hp = stats.max_hp
+			data.hit_points = stats.max_hp
+			data.defense = stats.defense
+			data.magic_defense = stats.magic_defense
+			data.skill = stats.skill
+			data.speed = stats.speed
+			data.luck = stats.luck
+			data.move_range = stats.move_range
+			data.ignore_terrain_cost = stats.ignore_terrain_cost
+			var default_weapon = UnitDataManager.get_default_weapon_id(unit_name)
+			if default_weapon != "":
+				var inst = ItemInstance.new()
+				inst.item_id = default_weapon
+				inst.count = 1
+				data.weapon_slot = inst
+			data.armor_slots = [null, null]
+			data.max_armor_slots = 2
+			party.append(data)
 	_build_ui()
 
 func _create_party_from_units(units: Array[String]) -> Array:
@@ -82,16 +154,17 @@ func _build_ui():
 
 	_clear_containers()
 	_build_unit_columns()
-
+	
 	if current_mode == Mode.DEPLOY:
 		_build_library()
 		library_container.visible = true
-		relic_container.visible = false
 	else:
 		library_container.visible = false
-		_build_relics()
-		relic_container.visible = true
-
+	
+	# 遗物始终显示，允许编辑
+	_build_relics()
+	relic_container.visible = true
+	
 	discard_zone.visible = (current_mode == Mode.MAP)
 	visible = true
 	print("_build_ui 完成，面板可见：", visible)
@@ -495,26 +568,78 @@ func _on_close_pressed():
 
 func _on_confirm_pressed():
 	print("_on_confirm_pressed 被调用")
-	GameState.initialize_party(selected_units, 0)
-	for i in range(min(party.size(), GameState.party.size())):
-		var local_unit = party[i]
-		var state_unit = GameState.party[i]
-		state_unit.weapon_slot = local_unit.weapon_slot
-		state_unit.armor_slots = local_unit.armor_slots.duplicate()
-		state_unit.max_armor_slots = local_unit.max_armor_slots
-		state_unit.hit_points = local_unit.hit_points
-	GameState.global_relics.clear()
+	
+	# ---- 调试打印 ----
+	print("=== 当前 party 装备状态 ===")
+	for i in range(party.size()):
+		var u = party[i]
+		var weapon_id = u.weapon_slot.item_id if u.weapon_slot else "无"
+		print("单位 ", i, ": ", u.unit_name, " 武器: ", weapon_id)
+		for j in range(u.armor_slots.size()):
+			var slot = u.armor_slots[j]
+			var slot_id = slot.item_id if slot else "空"
+			print("  防具槽", j, ": ", slot_id)
+	print("============================")
+	
+	# ---- 直接用本地 party 数据覆盖 GameState.party ----
+	GameState.party.clear()
+	for local_unit in party:
+		var data = UnitData.new()
+		data.unit_name = local_unit.unit_name
+		data.display_name = local_unit.display_name
+		data.faction = local_unit.faction
+		data.team_id = 0
+		data.max_hp = local_unit.max_hp
+		data.hit_points = local_unit.hit_points
+		data.defense = local_unit.defense
+		data.magic_defense = local_unit.magic_defense
+		data.skill = local_unit.skill
+		data.speed = local_unit.speed
+		data.luck = local_unit.luck
+		data.move_range = local_unit.move_range
+		data.ignore_terrain_cost = local_unit.ignore_terrain_cost
+		data.experience = local_unit.experience
+		data.level = local_unit.level
+		
+		# 复制装备
+		if local_unit.weapon_slot:
+			var inst = ItemInstance.new()
+			inst.item_id = local_unit.weapon_slot.item_id
+			inst.count = local_unit.weapon_slot.count
+			data.weapon_slot = inst
+		else:
+			data.weapon_slot = null
+		data.armor_slots.clear()
+		for slot_inst in local_unit.armor_slots:
+			if slot_inst:
+				var inst = ItemInstance.new()
+				inst.item_id = slot_inst.item_id
+				inst.count = slot_inst.count
+				data.armor_slots.append(inst)
+			else:
+				data.armor_slots.append(null)
+		data.max_armor_slots = local_unit.max_armor_slots
+		
+		GameState.party.append(data)
+	
+	# ---- 遗物数据已经在 GameState.global_relics 中，不需要清除 ----
+	# 注意：不要调用 GameState.global_relics.clear()
+	
+	# ---- 其他状态 ----
 	GameState.temp_soul = 0
 	GameState.temp_gold = 0
+	
 	if selected_units.size() > 0:
 		var main_data = UnitDataManager.get_unit_data(selected_units[0])
 		GameState.current_faction = main_data.get("faction", "王国")
 	else:
 		GameState.current_faction = "王国"
+	
 	GameState.interrupt_state = 2
 	GameState.reset_progress()
 	SaveManager.save_game(target_slot, false)
 	LevelManager.start_game()
+	
 	var canvas_layer = get_parent()
 	if canvas_layer:
 		canvas_layer.queue_free()
