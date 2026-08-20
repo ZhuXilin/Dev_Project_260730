@@ -509,7 +509,7 @@ func _begin_dragging():
 	preview.text = btn.text
 	preview.add_theme_font_size_override("font_size", 8)
 	preview.modulate = Color(0.8, 0.8, 0.8, 0.9)
-	preview.add_theme_color_override("font_color", Color.WHITE)
+	preview.add_theme_color_override("font_color", btn.get_theme_color("font_color"))
 	preview.add_theme_stylebox_override("normal", StyleBoxFlat.new())
 	var style = preview.get_theme_stylebox("normal") as StyleBoxFlat
 	if style:
@@ -520,7 +520,7 @@ func _begin_dragging():
 		style.border_width_bottom = 1
 		style.border_color = Color(0.5, 0.5, 0.5, 0.8)
 	preview.size = source_size
-	preview.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	preview.horizontal_alignment = btn.alignment
 	preview.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	preview.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	
