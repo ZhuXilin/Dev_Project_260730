@@ -16,11 +16,6 @@ var victory_button : Button
 var equip_menu : PanelContainer
 var equip_container : VBoxContainer
 var equip_btn : Button
-var item_action_panel: CanvasLayer
-var panel_unit: Unit = null
-var _panel_container: Control
-var _buttons_container: VBoxContainer
-var _panel_background: ColorRect = null
 
 # ---- 初始化 ----
 func initialize(ui_nodes: Dictionary):
@@ -37,11 +32,6 @@ func initialize(ui_nodes: Dictionary):
 	if equip_menu:
 		equip_container = equip_menu.get_node("ItemsContainer") as VBoxContainer
 	equip_btn = ui_nodes.get("equip_btn")
-	# weapon_select_menu 已删除
-	item_action_panel = ui_nodes.get("ItemActionPanel")
-	if item_action_panel:
-		_panel_container = item_action_panel.get_node("Panel")
-		_buttons_container = _panel_container.get_node("ActionButtons")
 
 # ---- 行动菜单 ----
 func show_menu(unit: Unit):
@@ -280,15 +270,6 @@ func get_usable_targets(unit: Unit, use_effect: Dictionary) -> Array:
 		else:
 			targets.append(u)
 	return targets
-
-func hide_item_action_panel():
-	print("hide_item_action_panel 被调用")
-	Globals.is_item_action_panel_open = false
-	if item_action_panel:
-		item_action_panel.visible = false
-	if _panel_background:
-		_panel_background.queue_free()
-		_panel_background = null
 
 # ---- 模态消息提示 ----
 func show_modal_message(text: String, callback_after: Callable = Callable()):

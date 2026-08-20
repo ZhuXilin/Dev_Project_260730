@@ -42,7 +42,6 @@ const BOSS_NODE_TYPE = 6
 @onready var item_list_btn : Button = $SettingLayer/SettingPanel/SettingContainer/ItemListBtn
 @onready var item_list_panel : PanelContainer = $SettingLayer/ItemListPanel
 @onready var item_list_container : VBoxContainer = $SettingLayer/ItemListPanel/ItemListContainer
-@onready var item_action_panel : CanvasLayer = $ItemActionPanel
 @onready var end_turn_button: Label = $EndTurnLayer/EndTurnButton
 @onready var turn_count_label: Label = $TurnCountLayer/TurnCountIndicator
 @onready var relic_icon_container = $RelicLayer/RelicIconContainer
@@ -96,7 +95,6 @@ func _ready():
 	item_list_btn = $SettingLayer/SettingPanel/SettingContainer/ItemListBtn
 	item_list_panel = $SettingLayer/ItemListPanel
 	item_list_container = $SettingLayer/ItemListPanel/ItemListContainer
-	item_action_panel = $ItemActionPanel
 	end_turn_button = $EndTurnLayer/EndTurnButton
 	turn_count_label = $TurnCountLayer/TurnCountIndicator
 	
@@ -117,7 +115,6 @@ func _ready():
 		"menu_blocker": menu_blocker,
 		"info_panel": info_panel,
 		"setting_panel": setting_panel,
-		"item_action_panel": item_action_panel,
 		"relic_view_btn": relic_view_btn,
 		"relic_icon_container": relic_icon_container
 	}
@@ -205,8 +202,6 @@ func _ready():
 		info_panel.visible = false
 	if setting_panel:
 		setting_panel.visible = false
-	if item_action_panel:
-		item_action_panel.visible = false
 
 	InputManager.selected_unit = null
 	InputManager.interaction_phase = "idle"
@@ -620,7 +615,6 @@ func _initialize_managers():
 		"victory_panel": victory_panel,
 		"victory_label": victory_label,
 		"victory_button": victory_button,
-		"ItemActionPanel": item_action_panel,
 	})
 	highlight_manager.initialize(self)
 	turnlayer_manager.initialize(turn_overlay)
@@ -1102,20 +1096,6 @@ func _on_clear_highlight_unit():
 
 # ===================== 输入处理 =====================
 func _input(event: InputEvent):
-	# ---- 道具操作面板右键关闭 ----
-	if Globals.is_item_action_panel_open and event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT:
-		print("_input 捕获到 ItemActionPanel 右键")
-		get_viewport().set_input_as_handled()
-		var panel_unit = ui_manager.panel_unit
-		ui_manager.hide_item_action_panel()
-		if panel_unit and is_instance_valid(panel_unit):
-			ui_manager.show_equip_menu(panel_unit)
-			InputManager.selected_unit = panel_unit
-			InputManager.interaction_phase = "menu"
-			SignalBus.request_show_info.emit(panel_unit)
-		ui_manager.panel_unit = null
-		return
-
 	# ---- 装备菜单右键关闭 ----
 	if Globals.is_equip_menu_active:
 		if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT:
@@ -1128,7 +1108,7 @@ func _input(event: InputEvent):
 		return
 
 	# ---- 对话或道具弹出时屏蔽所有输入 ----
-	if Globals.is_dialogue_active or Globals.is_item_menu_active or Globals.is_item_get_popup_active:
+	if Globals.is_dialogue_active or Globals.is_item_get_popup_active:
 		return
 
 	# ---- 鼠标中键结束回合（替代原 F 键） ----
@@ -1178,8 +1158,6 @@ func _input(event: InputEvent):
 	if event is InputEventMouseButton and event.pressed:
 		if event.button_index == MOUSE_BUTTON_WHEEL_UP or event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
 			if (Globals.is_equip_menu_active or 
-				Globals.is_item_action_panel_open or 
-				Globals.is_weapon_select_active or
 				setting_panel.visible or 
 				setting_menu_panel.visible or 
 				team_view_panel.visible or 
@@ -2046,9 +2024,7 @@ func _update_cursor_and_mouse():
 		Globals.is_dialogue_active or
 		Globals.is_performing_action or
 		Globals.is_item_get_popup_active or
-		Globals.is_item_action_panel_open or
 		Globals.is_equip_menu_active or
-		Globals.is_weapon_select_active or
 		victory_panel.visible or
 		setting_panel.visible or
 		team_view_panel.visible or
@@ -2135,9 +2111,7 @@ func _update_cursor_and_mouse():
 				_attack_indicator.size = Vector2(target_size, target_size)
 
 	var should_be_pink = false
-	if Globals.is_item_action_panel_open:
-		should_be_pink = true
-	elif Globals.is_equip_menu_active:
+	if Globals.is_equip_menu_active:
 		should_be_pink = true
 	elif action_menu.visible or info_panel.visible:
 		should_be_pink = true

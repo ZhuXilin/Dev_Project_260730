@@ -44,19 +44,14 @@ var is_fading : bool = false
 var is_performing_action : bool = false
 var is_transitioning : bool = false
 var is_dialogue_active : bool = false
-var is_item_menu_active : bool = false
 var is_item_get_popup_active : bool = false
 var is_equip_menu_active : bool = false
-var is_weapon_select_active : bool = false
-var is_item_action_panel_open: bool = false
 var suppress_sound: bool = false
 var is_map_mode: bool = false
-var current_map_node_id: String = ""
-var map_node_states: Dictionary = {}  # key: node_id, value: { "visited": bool, "completed": bool }
 var is_non_combat_mode: bool = false
-var current_battle_turn: int = 0   # 单局战斗回合计数
-var _last_increment_time: float = 0.0   # 上次递增时间戳（秒）
+var current_battle_turn: int = 0
 
+var _last_increment_time: float = 0.0   # 上次递增时间戳（秒）
 var pending_save_slot: int = -1   # 用于新建存档时记录槽位
 
 # 地图缓存
@@ -65,14 +60,6 @@ var current_map_day: int = -1
 
 # ---- 遗物解锁系统 ----
 var unlocked_relics: Array[String] = []
-
-# ---- 默认道具（游戏启动时加载） ----
-var default_items = {
-	"potion": 3,
-	"antidote": 2,
-	"bomb": 1,
-	"wooden_shield": 1,
-}
 
 # ============================================================
 #  生命周期
