@@ -111,9 +111,9 @@ const UNIT_CLASS_DATA = {
 }
 
 # ---- 静态数据缓存 ----
-static var _unit_data_cache : Dictionary = {}
-static var _data_loaded : bool = false
-static var _default_data : Dictionary = {
+static var _unit_data_cache: Dictionary = {}
+static var _data_loaded: bool = false
+static var _default_data: Dictionary = {
 	"max_hp": 20,
 	"strength": 5,
 	"magic_attack": 0,
@@ -130,7 +130,9 @@ static var _default_data : Dictionary = {
 	"sprite_frames_path": ""
 }
 
-# ---- 加载 JSON 数据 ----
+# ============================================================
+#  JSON 加载
+# ============================================================
 static func _load_unit_data():
 	if _data_loaded:
 		return
@@ -150,16 +152,16 @@ static func _load_unit_data():
 		return
 	_unit_data_cache = data
 
-# ---- 获取单位数据 ----
+# ============================================================
+#  数据查询
+# ============================================================
 static func get_unit_data(unit_name: String) -> Dictionary:
 	_load_unit_data()
 	return _unit_data_cache.get(unit_name, _default_data.duplicate())
 
-# ---- 获取 SpriteFrames 路径 ----
 static func get_sprite_frames_path(unit_name: String) -> String:
 	return get_unit_data(unit_name).get("sprite_frames_path", "")
 
-# ---- 获取默认统计数据（用于创建 UnitData 资源） ----
 static func get_default_stats(unit_name: String) -> UnitData:
 	var data = UnitData.new()
 	var dict = get_unit_data(unit_name)
@@ -173,32 +175,32 @@ static func get_default_stats(unit_name: String) -> UnitData:
 	data.ignore_terrain_cost = dict.get("ignore_terrain_cost", false)
 	return data
 
-# ---- 获取武器类别显示名称 ----
 static func get_weapon_category_display(category: String) -> String:
 	return WEAPON_CATEGORY_DISPLAY.get(category, category)
 
-# ---- 获取单位职业枚举 ----
+# ============================================================
+#  职业相关（用于特殊攻击识别）
+# ============================================================
 static func get_unit_class(unit_name: String) -> int:
 	var data = UNIT_CLASS_DATA.get(unit_name)
 	return data.class_enum if data else -1
 
-# ---- 获取默认武器 ----
 static func get_default_weapon_id(unit_name: String) -> String:
 	var data = UNIT_CLASS_DATA.get(unit_name)
 	return data.default_weapon if data else ""
 
-# ---- 获取职业可用武器类别 ----
 static func get_allowed_weapon_categories(unit_name: String) -> Array[String]:
 	var data = UNIT_CLASS_DATA.get(unit_name)
 	if data:
 		return data.allowed_categories.duplicate() as Array[String]
 	return [] as Array[String]
 
-# ---- 检查单位是否拥有某职业 ----
 static func is_unit_class(unit_name: String, target_class: int) -> bool:
 	return get_unit_class(unit_name) == target_class
 
-# ---- 获取单位显示名称（统一格式：姓名|阵营|职业）
+# ============================================================
+#  显示名称
+# ============================================================
 static func get_display_name(unit_name: String) -> String:
 	var data = get_unit_data(unit_name)
 	var display_name = data.get("display_name", unit_name)
@@ -207,7 +209,6 @@ static func get_display_name(unit_name: String) -> String:
 		faction = "无"
 	return "%s%s%s%s%s" % [display_name, DISPLAY_SEPARATOR, faction, DISPLAY_SEPARATOR, unit_name]
 
-# ---- 获取单位显示名称（统一格式：姓名|阵营|职业）- 用于已实例化的 Unit ----
 static func get_display_name_from_unit(unit: Unit) -> String:
 	var display_name = unit.unit_stats.display_name if unit.unit_stats.display_name != "" else unit.unit_stats.unit_name
 	var faction = unit.unit_stats.faction if unit.unit_stats.faction != "" else "无"

@@ -117,8 +117,8 @@ func calculate_damage(attacker: Unit, defender: Unit) -> int:
 # 核心攻击函数
 func execute_attack(attacker: Unit, defender: Unit) -> bool:
 	# 检查攻击者当前装备武器是否可用
-	if not attacker.can_use_weapon(attacker.get_equipped_weapon_id()):
-		print("错误：攻击者装备了不可用的武器")
+	if attacker.get_equipped_weapon_id() == "":
+		print("错误：攻击者没有装备武器")
 		Globals.is_performing_action = false
 		return false
 		

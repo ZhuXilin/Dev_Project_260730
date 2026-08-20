@@ -35,7 +35,6 @@ var current_anim : String = "idle"
 var facing_flip_h : bool = false
 var _color_material : ShaderMaterial = null
 
-var _is_initialized: bool = false
 var _initialized: bool = false
 
 # ============================================================
@@ -185,16 +184,8 @@ func get_weapon_type() -> int:
 		"dragonstone": return UnitDataManagerClass.WEAPON_DRAGONSTONE
 		_: return -1
 
-func can_use_weapon(item_id: String) -> bool:
-	if item_id == "":
-		return false
-	var data = ItemManager.get_item_data(item_id)
-	if not data or data.type != "weapon":
-		return false
-	var allowed = UnitDataManagerClass.get_allowed_weapon_categories(unit_stats.unit_name)
-	if allowed.is_empty():
-		return true
-	return data.category in allowed
+func can_use_weapon(_item_id: String) -> bool:
+	return true
 
 func equip_weapon(weapon: ItemInstance) -> ItemInstance:
 	var old = weapon_slot

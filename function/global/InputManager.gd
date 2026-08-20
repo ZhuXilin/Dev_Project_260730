@@ -540,8 +540,8 @@ func on_attack_button_pressed():
 	if weapon_id == "":
 		print("没有装备武器，无法攻击")
 		return
-	if not selected_unit.can_use_weapon(weapon_id):
-		print("当前武器不可用（职业限制）")
+	if weapon_id == "":
+		print("没有装备武器")
 		return
 	# 直接进入攻击目标选择
 	_start_attack_target_selection(selected_unit, weapon_id)
