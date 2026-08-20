@@ -12,8 +12,7 @@ var _is_dragging: bool = false
 var _drag_source: Button = null
 var _drag_meta: Dictionary = {}
 var _drag_preview: Control = null
-var _drag_start_mouse_pos: Vector2 = Vector2.ZERO
-var _drag_start_button_pos: Vector2 = Vector2.ZERO
+var _drag_grab_offset: Vector2 = Vector2.ZERO
 
 @onready var mode_label = $VBoxContainer/TopBar/ModeLabel
 @onready var close_btn = $VBoxContainer/HBoxContainer/CloseBtn
@@ -492,9 +491,12 @@ func _start_drag(btn: Button):
 		"relic_index": btn.get_meta("relic_index", -1),
 		"source_control": btn
 	}
-	_drag_start_mouse_pos = get_global_mouse_position()
-	_drag_start_button_pos = btn.get_global_rect().position
-	# 立即进入拖拽状态，无需等待
+	
+	# ---- 计算鼠标相对于按钮中心的偏移 ----
+	var btn_rect = btn.get_global_rect()
+	var btn_center = btn_rect.position + btn_rect.size / 2
+	_drag_grab_offset = get_global_mouse_position() - btn_center
+	
 	_begin_dragging()
 
 func _begin_dragging():
@@ -518,10 +520,10 @@ func _begin_dragging():
 		style.border_width_bottom = 1
 		style.border_color = Color(0.5, 0.5, 0.5, 0.8)
 	preview.size = source_size
-	# 文字居中
 	preview.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	preview.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	preview.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	
 	var canvas = get_parent()
 	if canvas and canvas is CanvasLayer:
 		canvas.add_child(preview)
@@ -533,9 +535,10 @@ func _begin_dragging():
 func _update_drag_preview():
 	if not _drag_preview:
 		return
-	var mouse_pos = get_viewport().get_mouse_position()
-	var preview_size = _drag_preview.size
-	_drag_preview.position = mouse_pos - preview_size / 2
+	var mouse_pos = get_global_mouse_position()
+	# 预览中心 = 鼠标位置 - 抓取偏移
+	var preview_center = mouse_pos - _drag_grab_offset
+	_drag_preview.position = preview_center - _drag_preview.size / 2
 	_drag_preview.z_index = 100
 
 func _end_drag():
