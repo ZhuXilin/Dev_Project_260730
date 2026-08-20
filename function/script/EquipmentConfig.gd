@@ -7,6 +7,12 @@ var selected_units: Array[String] = []
 var target_slot: int = -1
 var party: Array = []
 
+# 长按拖拽相关
+var _long_press_timer: Timer = null
+var _long_press_button: Button = null
+var _long_press_pos: Vector2 = Vector2.ZERO
+var _is_dragging: bool = false
+
 @onready var mode_label = $VBoxContainer/TopBar/ModeLabel
 @onready var close_btn = $VBoxContainer/HBoxContainer/CloseBtn
 @onready var confirm_btn = $VBoxContainer/HBoxContainer/ConfirmBtn
@@ -238,8 +244,6 @@ func _get_drag_data(_at_position: Vector2) -> Variant:
 		return null
 	
 	var source_size = from.size
-	var mouse_pos = get_global_mouse_position()
-	
 	var preview = Label.new()
 	preview.text = from.text
 	preview.add_theme_font_size_override("font_size", 8)
@@ -255,26 +259,35 @@ func _get_drag_data(_at_position: Vector2) -> Variant:
 		style.border_width_bottom = 1
 		style.border_color = Color(0.5, 0.5, 0.5, 0.8)
 	preview.size = source_size
+	preview.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	
 	from.set_drag_preview(preview)
-	# 立即设置位置，不使用 call_deferred
-	var viewport = get_viewport()
-	var viewport_mouse = viewport.get_mouse_position()
-	preview.position = viewport_mouse - source_size / 2
-	preview.z_index = 100
-	
+	_is_dragging = true
+	# 初始位置对齐中心（使用视口坐标）
+	var mouse_pos = get_viewport().get_mouse_position()
+	preview.position = mouse_pos - source_size / 2
 	return meta
 
+func _process(_delta):
+	if not _is_dragging:
+		return
+	# 获取当前拖拽预览
+	var drag_preview = get_viewport().gui.drag_preview
+	if not drag_preview:
+		_is_dragging = false
+		return
+	var mouse_pos = get_viewport().get_mouse_position()
+	var preview_size = drag_preview.size
+	drag_preview.position = mouse_pos - preview_size / 2
+
 func _find_control_at_position(pos: Vector2) -> Control:
-	# 扩展检测范围：给按钮增加 4px 的缓冲区，让边沿更容易触发
 	const BUFFER = 4
 	for col in unit_container.get_children():
 		for child in col.get_children():
 			if child is Button:
 				if current_mode == Mode.DEPLOY and child.get_meta("slot_type", "") == "armor":
 					continue
-				var rect = child.get_global_rect()
-				rect = rect.grow(BUFFER)
+				var rect = child.get_global_rect().grow(BUFFER)
 				if rect.has_point(pos):
 					return child
 	
@@ -299,6 +312,7 @@ func _find_control_at_position(pos: Vector2) -> Control:
 	return null
 
 func _can_drop_data(_at_position: Vector2, data: Variant) -> bool:
+	_is_dragging = false
 	if not data is Dictionary:
 		return false
 	var target = _get_target_from_position(get_viewport().get_mouse_position())
@@ -307,6 +321,7 @@ func _can_drop_data(_at_position: Vector2, data: Variant) -> bool:
 	return _is_valid_drop(data, target)
 
 func _drop_data(_at_position: Vector2, data: Variant) -> void:
+	_is_dragging = false
 	var target = _get_target_from_position(get_viewport().get_mouse_position())
 	if target == null:
 		return
@@ -505,19 +520,53 @@ func _on_confirm_pressed():
 	else:
 		queue_free()
 
+# ---------- 长按拖拽支持 ----------
 func _input(event: InputEvent):
-	# 处理长按拖拽：当鼠标在按钮上按下并停留超过 0.3 秒时，触发拖拽
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
 		var mouse_pos = get_global_mouse_position()
 		var target = _find_control_at_position(mouse_pos)
 		if target:
-			# 设置一个延迟，模拟长按
-			var timer = get_tree().create_timer(0.3)
-			timer.timeout.connect(func():
-				# 检查鼠标是否还在按钮上
-				if _find_control_at_position(get_global_mouse_position()) == target:
-					# 模拟一次最小移动来触发拖拽
-					var mock_event = InputEventMouseMotion.new()
-					mock_event.position = get_viewport().get_mouse_position() + Vector2(1, 1)
-					Input.parse_input_event(mock_event)
-			)
+			_long_press_button = target
+			_long_press_pos = mouse_pos
+			_start_long_press_timer()
+	elif event is InputEventMouseButton and not event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+		_cancel_long_press_timer()
+		_is_dragging = false
+	elif event is InputEventMouseMotion:
+		# 鼠标移动超过5px取消长按
+		if _long_press_button and get_global_mouse_position().distance_to(_long_press_pos) > 5:
+			_cancel_long_press_timer()
+
+func _start_long_press_timer():
+	_cancel_long_press_timer()
+	_long_press_timer = Timer.new()
+	_long_press_timer.wait_time = 0.3
+	_long_press_timer.one_shot = true
+	add_child(_long_press_timer)
+	_long_press_timer.timeout.connect(_on_long_press_timeout)
+	_long_press_timer.start()
+
+func _cancel_long_press_timer():
+	if _long_press_timer:
+		_long_press_timer.queue_free()
+		_long_press_timer = null
+	_long_press_button = null
+
+func _on_long_press_timeout():
+	if _long_press_button and is_instance_valid(_long_press_button):
+		var mouse_pos = get_global_mouse_position()
+		if _find_control_at_position(mouse_pos) == _long_press_button:
+			# 模拟鼠标移动 10px 触发拖拽
+			var viewport = get_viewport()
+			var current_pos = viewport.get_mouse_position()
+			var new_pos = current_pos + Vector2(10, 0)
+			var mock_event = InputEventMouseMotion.new()
+			mock_event.position = new_pos
+			Input.parse_input_event(mock_event)
+			# 延迟一帧后恢复鼠标位置到原始位置，防止实际鼠标偏移
+			await get_tree().process_frame
+			var restore_event = InputEventMouseMotion.new()
+			restore_event.position = current_pos
+			Input.parse_input_event(restore_event)
+	_long_press_button = null
+	_long_press_timer = null
