@@ -132,9 +132,8 @@ func _create_item_button(inst: ItemInstance, slot_type: String, unit_idx: int, s
 	btn.set_meta("unit_idx", unit_idx)
 	btn.set_meta("slot_idx", slot_idx)
 	btn.set_meta("item_id", inst.item_id if inst else "")
-	# 使用 set 方法设置拖拽阈值，避免直接赋值报错
-	btn.set("drag_threshold", 0.0)
 	btn.focus_mode = Control.FOCUS_NONE
+	btn.mouse_filter = Control.MOUSE_FILTER_STOP
 	return btn
 
 func _build_library():
@@ -154,8 +153,8 @@ func _build_library():
 			btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 			btn.set_meta("slot_type", "library_weapon")
 			btn.set_meta("item_id", item_id)
-			btn.set("drag_threshold", 0.0)
 			btn.focus_mode = Control.FOCUS_NONE
+			btn.mouse_filter = Control.MOUSE_FILTER_STOP
 			grid.add_child(btn)
 	library_container.add_child(grid)
 
@@ -185,8 +184,8 @@ func _build_relics():
 			btn.disabled = true
 		btn.add_theme_font_size_override("font_size", 6)
 		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		btn.set("drag_threshold", 0.0)
 		btn.focus_mode = Control.FOCUS_NONE
+		btn.mouse_filter = Control.MOUSE_FILTER_STOP
 		grid.add_child(btn)
 	relic_container.add_child(grid)
 
@@ -218,15 +217,13 @@ func _get_item_name(inst: ItemInstance) -> String:
 
 # ========== 拖拽系统 ==========
 func _get_drag_data(_at_position: Vector2) -> Variant:
-	var global_pos = get_global_mouse_position()
-	var from = _find_control_at_position(global_pos)
+	var from = _find_control_at_position(get_global_mouse_position())
 	if not from:
 		return null
 	
 	var slot_type = from.get_meta("slot_type", "")
-	if current_mode == Mode.DEPLOY:
-		if slot_type == "armor" or slot_type == "relic":
-			return null
+	if current_mode == Mode.DEPLOY and (slot_type == "armor" or slot_type == "relic"):
+		return null
 	
 	var meta = {
 		"slot_type": slot_type,
@@ -239,6 +236,9 @@ func _get_drag_data(_at_position: Vector2) -> Variant:
 	
 	if meta["item_id"] == "" and meta["slot_type"] != "library_weapon":
 		return null
+	
+	var source_size = from.size
+	var mouse_pos = get_global_mouse_position()
 	
 	var preview = Label.new()
 	preview.text = from.text
@@ -254,32 +254,47 @@ func _get_drag_data(_at_position: Vector2) -> Variant:
 		style.border_width_top = 1
 		style.border_width_bottom = 1
 		style.border_color = Color(0.5, 0.5, 0.5, 0.8)
-	preview.size = Vector2(40, 16)
+	preview.size = source_size
+	
 	from.set_drag_preview(preview)
+	# 立即设置位置，不使用 call_deferred
+	var viewport = get_viewport()
+	var viewport_mouse = viewport.get_mouse_position()
+	preview.position = viewport_mouse - source_size / 2
+	preview.z_index = 100
+	
 	return meta
 
 func _find_control_at_position(pos: Vector2) -> Control:
+	# 扩展检测范围：给按钮增加 4px 的缓冲区，让边沿更容易触发
+	const BUFFER = 4
 	for col in unit_container.get_children():
 		for child in col.get_children():
 			if child is Button:
 				if current_mode == Mode.DEPLOY and child.get_meta("slot_type", "") == "armor":
 					continue
-				if child.get_global_rect().has_point(pos):
+				var rect = child.get_global_rect()
+				rect = rect.grow(BUFFER)
+				if rect.has_point(pos):
 					return child
 	
 	if current_mode == Mode.DEPLOY:
 		for grid in library_container.get_children():
 			if grid is GridContainer:
 				for btn in grid.get_children():
-					if btn is Button and btn.get_global_rect().has_point(pos):
-						return btn
+					if btn is Button:
+						var rect = btn.get_global_rect().grow(BUFFER)
+						if rect.has_point(pos):
+							return btn
 	
 	if current_mode == Mode.MAP:
 		for grid in relic_container.get_children():
 			if grid is GridContainer:
 				for btn in grid.get_children():
-					if btn is Button and btn.get_global_rect().has_point(pos):
-						return btn
+					if btn is Button:
+						var rect = btn.get_global_rect().grow(BUFFER)
+						if rect.has_point(pos):
+							return btn
 	
 	return null
 
@@ -489,3 +504,20 @@ func _on_confirm_pressed():
 		canvas_layer.queue_free()
 	else:
 		queue_free()
+
+func _input(event: InputEvent):
+	# 处理长按拖拽：当鼠标在按钮上按下并停留超过 0.3 秒时，触发拖拽
+	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+		var mouse_pos = get_global_mouse_position()
+		var target = _find_control_at_position(mouse_pos)
+		if target:
+			# 设置一个延迟，模拟长按
+			var timer = get_tree().create_timer(0.3)
+			timer.timeout.connect(func():
+				# 检查鼠标是否还在按钮上
+				if _find_control_at_position(get_global_mouse_position()) == target:
+					# 模拟一次最小移动来触发拖拽
+					var mock_event = InputEventMouseMotion.new()
+					mock_event.position = get_viewport().get_mouse_position() + Vector2(1, 1)
+					Input.parse_input_event(mock_event)
+			)
