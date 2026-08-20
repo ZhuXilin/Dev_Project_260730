@@ -18,6 +18,8 @@ var level_list: Array[MapData] = []
 @onready var abandon_btn = $BottomBar/AbandonButton
 @onready var relic_container = $TopBar/RelicContainer
 
+const EquipmentConfig = preload("res://function/script/EquipmentConfig.gd")
+
 func _ready():
 	print("=== MapScene _ready 开始 ===")
 	print("当前 temp_gold=", GameState.temp_gold, " temp_soul=", GameState.temp_soul)
@@ -438,3 +440,8 @@ func _apply_visited_state():
 		if node.is_visited:
 			visited_count += 1
 	print("实际已访问节点数：", visited_count)
+
+func _on_config_btn_pressed():
+	var config = load("res://content/scenes/ui/EquipmentConfig.tscn").instantiate()
+	add_child(config)
+	config.init(EquipmentConfig.Mode.MAP)

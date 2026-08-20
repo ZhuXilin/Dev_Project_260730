@@ -11,6 +11,8 @@ var max_selection: int = 3
 @onready var confirm_btn = $BottomBar/ConfirmButton
 @onready var back_btn = $BottomBar/BackButton
 
+const EquipmentConfig = preload("res://function/script/EquipmentConfig.gd")
+
 func _ready():
 	if MusicManager.config and MusicManager.config.unit_select_music:
 		MusicManager.play_music(MusicManager.config.unit_select_music)
@@ -123,7 +125,10 @@ func _on_confirm_pressed():
 	GameState.reset_progress()
 	GameState.interrupt_state = 2
 	SaveManager.save_game(target_slot, false)
-	LevelManager.start_game()
+	
+	var config = load("res://content/scenes/ui/EquipmentConfig.tscn").instantiate()
+	add_child(config)
+	config.init(EquipmentConfig.Mode.DEPLOY)
 
 func _on_back_pressed():
 	MusicManager.stop_music()
