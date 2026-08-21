@@ -66,7 +66,7 @@
 	"once": true,
 	"actions": [
 	  { "type": "dialog", "dialog_id": "blacksmith_dialog" },
-	  { "type": "give_item", "item_id": "steel_sword", "count": 1, "equip": true },
+	  { "type": "give_item", "item_id": "steel_sword", "count": 1 },
 	  { "type": "unlock_equipment", "item_id": "iron_armor" }
 	]
   },
@@ -100,31 +100,31 @@
   "direct_get_steel_armor": {
 	"once": true,
 	"actions": [
-	  { "type": "give_item", "item_id": "steel_armor", "count": 1, "equip": true }
+	  { "type": "give_item", "item_id": "steel_armor", "count": 1 }
 	]
   },
   "direct_get_knight_armor": {
 	"once": true,
 	"actions": [
-	  { "type": "give_item", "item_id": "knight_armor", "count": 1, "equip": true }
+	  { "type": "give_item", "item_id": "knight_armor", "count": 1 }
 	]
   },
   "direct_get_power_ring": {
 	"once": true,
 	"actions": [
-	  { "type": "give_item", "item_id": "power_ring", "count": 1, "equip": true }
+	  { "type": "give_item", "item_id": "power_ring", "count": 1 }
 	]
   },
   "direct_get_speed_boots": {
 	"once": true,
 	"actions": [
-	  { "type": "give_item", "item_id": "speed_boots", "count": 1, "equip": true }
+	  { "type": "give_item", "item_id": "speed_boots", "count": 1 }
 	]
   },
   "direct_get_master_sword": {
 	"once": true,
 	"actions": [
-	  { "type": "give_item", "item_id": "master_sword", "count": 1, "equip": true }
+	  { "type": "give_item", "item_id": "master_sword", "count": 1 }
 	]
   }
 }
