@@ -13,7 +13,8 @@
 	  "min_range": 0,
 	  "max_range": 1,
 	  "target": "ally"
-	}
+	},
+	"price": 20
   },
   "antidote": {
 	"id": "antidote",
@@ -29,7 +30,8 @@
 	  "min_range": 0,
 	  "max_range": 1,
 	  "target": "ally"
-	}
+	},
+	"price": 15
   },
   "energy_drink": {
 	"id": "energy_drink",
@@ -45,7 +47,8 @@
 	  "min_range": 0,
 	  "max_range": 0,
 	  "target": "self"
-	}
+	},
+	"price": 25
   },
   "bomb": {
 	"id": "bomb",
@@ -61,7 +64,8 @@
 	  "min_range": 1,
 	  "max_range": 2,
 	  "target": "enemy"
-	}
+	},
+	"price": 30
   },
   "iron_sword": {
 	"id": "iron_sword",
@@ -75,7 +79,8 @@
 	"equipment_slot": "weapon",
 	"stats": {"attack": 6},
 	"attack_range": 1,
-	"min_attack_range": 1
+	"min_attack_range": 1,
+	"price": 40
   },
   "steel_sword": {
 	"id": "steel_sword",
@@ -89,7 +94,8 @@
 	"equipment_slot": "weapon",
 	"stats": {"attack": 8},
 	"attack_range": 1,
-	"min_attack_range": 1
+	"min_attack_range": 1,
+	"price": 80
   },
   "steel_spear": {
 	"id": "steel_spear",
@@ -103,7 +109,8 @@
 	"equipment_slot": "weapon",
 	"stats": {"attack": 8},
 	"attack_range": 1,
-	"min_attack_range": 1
+	"min_attack_range": 1,
+	"price": 80
   },
   "battle_axe": {
 	"id": "battle_axe",
@@ -117,7 +124,8 @@
 	"equipment_slot": "weapon",
 	"stats": {"attack": 10},
 	"attack_range": 2,
-	"min_attack_range": 1
+	"min_attack_range": 1,
+	"price": 100
   },
   "longbow": {
 	"id": "longbow",
@@ -131,7 +139,8 @@
 	"equipment_slot": "weapon",
 	"stats": {"attack": 6},
 	"attack_range": 3,
-	"min_attack_range": 2
+	"min_attack_range": 2,
+	"price": 70
   },
   "wooden_shield": {
 	"id": "wooden_shield",
@@ -142,10 +151,11 @@
 	"effect": {},
 	"description": "装备后防御+2",
 	"category": "shield",
-	"equipment_slot": "weapon",
+	"equipment_slot": "armor",
 	"stats": {"defense": 2},
 	"attack_range": 0,
-	"min_attack_range": 0
+	"min_attack_range": 0,
+	"price": 30
   },
   "light_crossbow": {
 	"id": "light_crossbow",
@@ -159,7 +169,8 @@
 	"equipment_slot": "weapon",
 	"stats": {"attack": 5},
 	"attack_range": 3,
-	"min_attack_range": 2
+	"min_attack_range": 2,
+	"price": 60
   },
   "healing_staff": {
 	"id": "healing_staff",
@@ -173,7 +184,8 @@
 	"equipment_slot": "weapon",
 	"stats": {"heal_amount": 10},
 	"attack_range": 3,
-	"min_attack_range": 0
+	"min_attack_range": 0,
+	"price": 120
   },
   "fire_spellbook": {
 	"id": "fire_spellbook",
@@ -187,7 +199,8 @@
 	"equipment_slot": "weapon",
 	"stats": {"magic_attack": 11},
 	"attack_range": 2,
-	"min_attack_range": 1
+	"min_attack_range": 1,
+	"price": 130
   },
   "master_sword": {
 	"id": "master_sword",
@@ -201,7 +214,8 @@
 	"equipment_slot": "weapon",
 	"stats": {"attack": 12},
 	"attack_range": 1,
-	"min_attack_range": 1
+	"min_attack_range": 1,
+	"price": 200
   },
   "javelin": {
 	"id": "javelin",
@@ -215,7 +229,8 @@
 	"equipment_slot": "weapon",
 	"stats": {"attack": 6},
 	"attack_range": 2,
-	"min_attack_range": 1
+	"min_attack_range": 1,
+	"price": 50
   },
   "fire_dragonstone": {
 	"id": "fire_dragonstone",
@@ -229,7 +244,8 @@
 	"equipment_slot": "weapon",
 	"stats": {"attack": 13, "magic_attack": 13},
 	"attack_range": 4,
-	"min_attack_range": 1
+	"min_attack_range": 1,
+	"price": 250
   },
   "iron_armor": {
 	"id": "iron_armor",
@@ -239,7 +255,8 @@
 	"icon": "res://content/images/items/armor.png",
 	"description": "防御+2",
 	"equipment_slot": "armor",
-	"stats": {"defense": 2}
+	"stats": {"defense": 2},
+	"price": 60
   },
   "steel_armor": {
 	"id": "steel_armor",
@@ -249,7 +266,8 @@
 	"icon": "res://content/images/items/armor.png",
 	"description": "防御+4",
 	"equipment_slot": "armor",
-	"stats": {"defense": 4}
+	"stats": {"defense": 4},
+	"price": 120
   },
   "knight_armor": {
 	"id": "knight_armor",
@@ -259,7 +277,8 @@
 	"icon": "res://content/images/items/armor.png",
 	"description": "防御+3，魔防+1",
 	"equipment_slot": "armor",
-	"stats": {"defense": 3, "magic_defense": 1}
+	"stats": {"defense": 3, "magic_defense": 1},
+	"price": 100
   },
   "power_ring": {
 	"id": "power_ring",
@@ -269,7 +288,8 @@
 	"icon": "res://content/images/items/ring.png",
 	"description": "攻击+2",
 	"equipment_slot": "armor",
-	"stats": {"attack": 2}
+	"stats": {"attack": 2},
+	"price": 80
   },
   "guard_ring": {
 	"id": "guard_ring",
@@ -279,7 +299,8 @@
 	"icon": "res://content/images/items/ring.png",
 	"description": "防御+2",
 	"equipment_slot": "armor",
-	"stats": {"defense": 2}
+	"stats": {"defense": 2},
+	"price": 80
   },
   "speed_boots": {
 	"id": "speed_boots",
@@ -289,6 +310,7 @@
 	"icon": "res://content/images/items/boots.png",
 	"description": "移动力+1",
 	"equipment_slot": "armor",
-	"stats": {"move_range": 1}
+	"stats": {"move_range": 1},
+	"price": 100
   }
 }

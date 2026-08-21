@@ -42,9 +42,12 @@ theme_override_font_sizes/font_size = 10
 text = "装备配置 - 出战准备"
 horizontal_alignment = 1
 
-[node name="RewardItemBar" type="HSeparator" parent="MainPanel/VBoxContainer" unique_id=66676104]
+[node name="GoldLabel" type="Label" parent="MainPanel/VBoxContainer" unique_id=888888888]
 layout_mode = 2
-size_flags_vertical = 4
+size_flags_vertical = 0
+theme_override_font_sizes/font_size = 8
+text = "金币: 0"
+horizontal_alignment = 1
 
 [node name="MainHBox" type="HBoxContainer" parent="MainPanel/VBoxContainer" unique_id=196389867]
 layout_mode = 2
@@ -66,6 +69,13 @@ layout_mode = 2
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
+
+[node name="ShopContainer" type="GridContainer" parent="MainPanel/VBoxContainer/MainHBox/VBoxContainer" unique_id=999999001]
+visible = false
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 2
+columns = 3
 
 [node name="LibraryContainer" type="VBoxContainer" parent="MainPanel/VBoxContainer/MainHBox/VBoxContainer" unique_id=2105529160]
 visible = false
@@ -116,6 +126,18 @@ theme_override_styles/disabled = ExtResource("2")
 theme_override_styles/focus = ExtResource("2")
 text = "返回"
 
+[node name="ResetBtn" type="Button" parent="MainPanel/VBoxContainer/HBoxContainer" unique_id=999999002]
+visible = false
+layout_mode = 2
+size_flags_horizontal = 0
+theme_override_font_sizes/font_size = 8
+theme_override_styles/normal = ExtResource("2")
+theme_override_styles/pressed = ExtResource("2")
+theme_override_styles/hover = ExtResource("2")
+theme_override_styles/disabled = ExtResource("2")
+theme_override_styles/focus = ExtResource("2")
+text = "重置商店"
+
 [node name="ConfirmBtn" type="Button" parent="MainPanel/VBoxContainer/HBoxContainer" unique_id=2052340703]
 layout_mode = 2
 size_flags_vertical = 0
@@ -128,4 +150,5 @@ theme_override_styles/focus = ExtResource("2")
 text = "出发"
 
 [connection signal="pressed" from="MainPanel/VBoxContainer/HBoxContainer/CloseBtn" to="MainPanel" method="_on_close_pressed"]
+[connection signal="pressed" from="MainPanel/VBoxContainer/HBoxContainer/ResetBtn" to="MainPanel" method="_on_reset_shop_pressed"]
 [connection signal="pressed" from="MainPanel/VBoxContainer/HBoxContainer/ConfirmBtn" to="MainPanel" method="_on_confirm_pressed"]
