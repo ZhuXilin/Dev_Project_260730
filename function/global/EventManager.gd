@@ -89,10 +89,9 @@ func trigger_event(event_id: String, unit: Unit = null, default_music: AudioStre
 					push_error("give_item 动作缺少 item_id")
 					continue
 
-				# ---- 先检查是否为遗物 ----
+				# ---- 1. 检查是否为遗物 ----
 				var relic_data = RelicManager.get_relic_data(item_id)
 				if not relic_data.is_empty():
-					# 遗物流程：解锁（如果未解锁）→ 给予实例
 					Globals.unlock_relic(item_id)
 					var inst = ItemInstance.new()
 					inst.item_id = item_id
@@ -101,18 +100,22 @@ func trigger_event(event_id: String, unit: Unit = null, default_music: AudioStre
 					await show_item_get_popup(item_id, count)
 					continue
 
-				# ---- 非遗物：使用 ItemManager 处理 ----
+				# ---- 2. 非遗物：使用 ItemManager 获取数据 ----
 				var item_data = ItemManager.get_item_data(item_id)
 				if not item_data:
 					print("警告：道具数据不存在: ", item_id)
 					continue
 
-				# 消耗品禁用
+				# ---- 3. 消耗品禁用 ----
 				if item_data.type in ["heal", "cure", "buff", "attack"]:
 					print("警告：消耗品 %s 已被禁用，忽略给予" % item_id)
 					continue
 
-				# 装备型道具（武器/防具）
+				# ---- 4. 武器/防具解锁（仅当是武器或防具时） ----
+				if item_data.type in ["weapon", "armor"]:
+					Globals.unlock_item(item_id)
+
+				# ---- 5. 装备型道具（武器/防具），且 equip 为 true ----
 				if equip:
 					var inst = ItemInstance.new()
 					inst.item_id = item_id
@@ -133,14 +136,9 @@ func trigger_event(event_id: String, unit: Unit = null, default_music: AudioStre
 					else:
 						print("警告：未知装备槽位: %s" % item_data.equipment_slot)
 				else:
-					# 未指定 equip 的非遗物道具，只解锁（如果是武器/防具则加入图鉴，但不装备）
-					# 实际游戏设计中，可能需要添加到背包，但背包已取消，此处仅解锁。
-					# 如果道具是武器/防具，则解锁到 Globals.unlocked_items
-					if item_data.type in ["weapon", "armor", "accessory"]:
-						Globals.unlock_item(item_id)
-						print("道具已解锁（未装备）: %s" % item_data.name)
-					else:
-						print("警告：未知道具类型，忽略: %s" % item_id)
+					# 未指定 equip，只解锁（已在上一步处理），这里仅记录
+					print("道具已解锁（未装备）: %s" % item_data.name)
+
 				await show_item_get_popup(item_id, count)
 
 			"unlock_equipment":

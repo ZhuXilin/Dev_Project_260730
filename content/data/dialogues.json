@@ -83,5 +83,20 @@
 	"village_encounter_dlg": [
 	  { "speaker": "村民", "text": "欢迎来到村庄！" },
 	  { "speaker": "村民", "text": "送你一把斧头吧！" }
+  ],
+  "relic_attack_dialog": [
+	{ "speaker": "神秘商人", "text": "年轻人，你看起来很有潜力。" },
+	{ "speaker": "神秘商人", "text": "这是力量遗物，它能增强你全队的战斗力。" },
+	{ "speaker": "指挥官", "text": "多谢！这份恩情我会记住的。" }
+  ],
+  "relic_defense_dialog": [
+	{ "speaker": "老铁匠", "text": "你身上的铠甲太破了。" },
+	{ "speaker": "老铁匠", "text": "拿着这个守护遗物吧，它能保护你的战友。" },
+	{ "speaker": "指挥官", "text": "老先生，这份大礼我受之有愧……" }
+  ],
+  "relic_magic_dialog": [
+	{ "speaker": "法师", "text": "我在遗迹中找到了这个。" },
+	{ "speaker": "法师", "text": "魔力遗物能增强魔法攻击，对法师们会有帮助。" },
+	{ "speaker": "指挥官", "text": "这正是我们需要的！" }
   ]
 }

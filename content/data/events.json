@@ -75,5 +75,56 @@
 	"actions": [
 	  { "type": "unlock_equipment", "item_id": "iron_armor" }
 	]
+  },
+  "dialogue_then_relic_attack": {
+	"once": true,
+	"actions": [
+	  { "type": "dialog", "dialog_id": "relic_attack_dialog" },
+	  { "type": "give_item", "item_id": "relic_attack", "count": 1 }
+	]
+  },
+  "dialogue_then_relic_defense": {
+	"once": true,
+	"actions": [
+	  { "type": "dialog", "dialog_id": "relic_defense_dialog" },
+	  { "type": "give_item", "item_id": "relic_defense", "count": 1 }
+	]
+  },
+  "dialogue_then_relic_magic": {
+	"once": true,
+	"actions": [
+	  { "type": "dialog", "dialog_id": "relic_magic_dialog" },
+	  { "type": "give_item", "item_id": "relic_magic", "count": 1 }
+	]
+  },
+  "direct_get_steel_armor": {
+	"once": true,
+	"actions": [
+	  { "type": "give_item", "item_id": "steel_armor", "count": 1, "equip": true }
+	]
+  },
+  "direct_get_knight_armor": {
+	"once": true,
+	"actions": [
+	  { "type": "give_item", "item_id": "knight_armor", "count": 1, "equip": true }
+	]
+  },
+  "direct_get_power_ring": {
+	"once": true,
+	"actions": [
+	  { "type": "give_item", "item_id": "power_ring", "count": 1, "equip": true }
+	]
+  },
+  "direct_get_speed_boots": {
+	"once": true,
+	"actions": [
+	  { "type": "give_item", "item_id": "speed_boots", "count": 1, "equip": true }
+	]
+  },
+  "direct_get_master_sword": {
+	"once": true,
+	"actions": [
+	  { "type": "give_item", "item_id": "master_sword", "count": 1, "equip": true }
+	]
   }
 }

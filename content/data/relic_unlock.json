@@ -1,6 +1,7 @@
 {
   "default_unlocked": [
 	"relic_attack",
-    "relic_defense"
-  ],
+	"relic_defense",
+    "relic_magic"
+  ]
 }
