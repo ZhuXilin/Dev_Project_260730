@@ -576,14 +576,17 @@ func _end_drag():
 	if _is_dragging:
 		var mouse_pos = get_global_mouse_position()
 		var target = _get_target_from_position(mouse_pos)
+		
 		if target and _is_valid_drop(_drag_meta, target):
 			_execute_drop(_drag_meta, target)
+			SoundManager.play_select_sound()   # 成功 → 点击音效
+		else:
+			SoundManager.play_cancel_sound()   # 失败 → 取消音效
+			
 		if _drag_preview:
 			_drag_preview.queue_free()
 			_drag_preview = null
 		_is_dragging = false
-		
-		# ---- 新增：恢复所有目标控件的颜色 ----
 		_reset_targets_visuals()
 		
 	_drag_source = null
