@@ -25,6 +25,10 @@ var temp_soul: int = 0     # 本轮临时魂
 var temp_gold: int = 0     # 本轮临时金币
 var reward_items: Array = []
 
+# ---- 单次奖励（用于结算界面） ----
+var current_reward_gold: int = 0
+var current_reward_soul: int = 0
+
 # ---- 游戏状态 ----
 var interrupt_state: int = 0   # 0=无, 1=营地, 2=地图, 3=战场
 var battlefield_data: Dictionary = {}   # 预留战场数据
@@ -35,6 +39,11 @@ var current_faction: String = ""              # 当前阵营
 
 # ---- 存档辅助 ----
 var pending_save_slot: int = -1
+
+# ---- 清空单次奖励 ----
+func clear_current_reward():
+	current_reward_gold = 0
+	current_reward_soul = 0
 
 # ============================================================
 #  队伍初始化

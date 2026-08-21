@@ -66,6 +66,7 @@ var non_combat_back_button: Button = null
 var current_node_type: int = MapNode.NodeType.NORMAL   # 当前地图的节点类型
 var _victory_processed: bool = false   # 防止重复处理胜利
 var _detail_popup = null
+var _is_reward_ui_active: bool = false   # 结算界面是否激活
 
 func _ready():
 	# ---- 手动获取所有节点 ----
@@ -899,6 +900,7 @@ func _on_request_show_victory(winning_team: int):
 	if Globals.is_map_mode:
 		print("当前地图节点类型: ", current_node_type, " 是否为BOSS: ", is_boss)
 
+		# 在地图模式分支内，累加资源部分
 		if is_win:
 			var is_non_combat_node = current_node_type in [
 				MapNode.NodeType.CAMPFIRE,
@@ -907,12 +909,26 @@ func _on_request_show_victory(winning_team: int):
 				MapNode.NodeType.FINAL_PREP
 			]
 			if not is_non_combat_node:
-				GameState.temp_gold += 10
+				# ---- 计算本次增量 ----
+				var gold_gain = 10
+				var soul_gain = 0
 				if is_boss:
-					GameState.temp_soul += 1
+					soul_gain = 1
+				
+				# ---- 存储增量用于结算界面 ----
+				GameState.current_reward_gold = gold_gain
+				GameState.current_reward_soul = soul_gain
+				
+				# ---- 累加到总临时资源 ----
+				GameState.temp_gold += gold_gain
+				GameState.temp_soul += soul_gain
+				
 				print("Battlefield 累加资源：temp_gold=", GameState.temp_gold, " temp_soul=", GameState.temp_soul)
+				print("本次增量：gold=", gold_gain, " soul=", soul_gain)
 			else:
 				print("非战斗地图，不累加资源")
+				GameState.current_reward_gold = 0
+				GameState.current_reward_soul = 0
 			GameState.current_node_key = ""
 
 		if is_win and is_boss:
@@ -1819,8 +1835,8 @@ func _on_map_victory_continue():
 	
 	# ---- 打印关键数据 ----
 	print("GameState.reward_items: ", GameState.reward_items)
-	print("GameState.temp_gold: ", GameState.temp_gold)
-	print("GameState.temp_soul: ", GameState.temp_soul)
+	print("GameState.current_reward_gold: ", GameState.current_reward_gold)
+	print("GameState.current_reward_soul: ", GameState.current_reward_soul)
 	
 	# ---- 构建奖励数据 ----
 	var reward_items: Array = []
@@ -1831,8 +1847,9 @@ func _on_map_victory_continue():
 		else:
 			print("警告：无法获取物品数据，ID: ", item_id)
 	
-	var reward_gold = GameState.temp_gold
-	var reward_soul = GameState.temp_soul
+	# ---- 使用增量变量作为奖励 ----
+	var reward_gold = GameState.current_reward_gold
+	var reward_soul = GameState.current_reward_soul
 	
 	print("reward_items.size(): ", reward_items.size())
 	print("reward_gold: ", reward_gold)
@@ -1841,6 +1858,9 @@ func _on_map_victory_continue():
 	# ---- 如果有奖励，弹出结算界面；否则直接返回地图 ----
 	if reward_items.size() > 0 or reward_gold > 0 or reward_soul > 0:
 		print("条件满足，准备弹出结算界面")
+		
+		# ---- 设置结算界面激活标志，阻止光标覆盖 ----
+		_is_reward_ui_active = true
 		
 		# ---- 切换鼠标模式：隐藏自定义光标，显示系统鼠标 ----
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
@@ -1866,7 +1886,8 @@ func _on_map_victory_continue():
 		await panel.reward_confirmed
 		print("结算确认，准备返回地图")
 		
-		# ---- 恢复自定义光标 ----
+		# ---- 恢复光标控制权 ----
+		_is_reward_ui_active = false
 		Input.mouse_mode = Input.MOUSE_MODE_HIDDEN
 		cursor.visible = true
 	else:
@@ -1875,16 +1896,16 @@ func _on_map_victory_continue():
 	# ---- 清空奖励物品列表（已处理） ----
 	GameState.reward_items.clear()
 	
-	# ---- ★★★ 关键：不要清空 temp_gold 和 temp_soul ★★★ ----
-	# 保留 temp_gold 和 temp_soul，因为它们是累积的，并且 MapScene 会显示它们
-	# 在 Boss 胜利后，MapScene._on_battle_completed 会调用 finish_day() 将 temp_soul 合并到 soul 并清零
-	# 所以这里不清空，让 MapScene 处理
+	# ---- 清空单次奖励增量（已使用） ----
+	GameState.clear_current_reward()
 	
-	# ---- 保存存档（包含 temp_gold 和 temp_soul） ----
+	# ---- 保留 temp_gold 和 temp_soul（累积资源） ----
+	# 不要清空它们，由 MapScene 管理
+	
+	# ---- 保存存档（包含累积资源） ----
 	SaveManager.auto_save()
 	
 	# ---- 返回地图场景 ----
-	# MapScene 已经通过 SignalBus.battle_completed 更新了地图状态（推进天数、解锁节点等）
 	get_tree().change_scene_to_file("res://content/scenes/ui/MapScene.tscn")
 
 # ---- 统一的放弃战斗逻辑 ----
@@ -2076,6 +2097,14 @@ func _end_player_turn():
 	TurnManager.start_turn(1)   # 敌方回合会被 TurnManager 跳过（非战斗模式）
 
 func _update_cursor_and_mouse():
+	# ---- 如果结算界面激活，则保持系统鼠标可见，不进行任何控制 ----
+	if _is_reward_ui_active:
+		# 确保系统鼠标可见
+		if Input.mouse_mode != Input.MOUSE_MODE_VISIBLE:
+			Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+		cursor.visible = false
+		return
+	
 	var force_hide_cursor = (
 		Globals.is_dialogue_active or
 		Globals.is_performing_action or
