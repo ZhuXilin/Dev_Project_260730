@@ -6,6 +6,7 @@ var map_data: MapLevelData
 var selected_node: MapNode = null
 var level_list: Array[MapData] = []
 var _equipment_config_instance = null   # 防止重复实例化
+var _detail_popup = null
 
 # ---- 节点引用 ----
 @onready var node_container = $NodeContainer
@@ -133,6 +134,11 @@ func _ready():
 	update_all_displays()
 	print("MapScene _ready: temp_soul=", GameState.temp_soul, " temp_gold=", GameState.temp_gold)
 	
+	# ---- 创建详情弹窗（隐藏） ----
+	_detail_popup = load("res://content/scenes/ui/ItemDetailPopup.tscn").instantiate()
+	add_child(_detail_popup)
+	_detail_popup.visible = false
+	
 func _save_game():
 	if Globals.pending_save_slot != -1:
 		SaveManager.save_game(Globals.pending_save_slot)
@@ -171,22 +177,25 @@ func _update_relic_display():
 		return
 	
 	for relic in relics:
-		# 修复：使用 RelicManager 而不是 ItemManager
 		var data = RelicManager.get_relic_data(relic.item_id)
 		if data.is_empty():
 			continue
 		var btn = Button.new()
 		btn.text = data.get("name", "未知遗物")
 		btn.add_theme_font_size_override("font_size", 6)
-		btn.pressed.connect(_on_relic_clicked.bind(relic))
+		
+		# ---- 悬停显示详情 ----
+		var item_id = relic.item_id
+		btn.mouse_entered.connect(_on_relic_hover_entered.bind(item_id))
+		btn.mouse_exited.connect(_on_relic_hover_exited)
+		
 		relic_container.add_child(btn)
 
-func _on_relic_clicked(relic: ItemInstance):
-	var popup_scene = load("res://content/scenes/ui/ItemDetailPopup.tscn")
-	if popup_scene:
-		var popup = popup_scene.instantiate()
-		add_child(popup)
-		popup.show_item(relic.item_id)
+func _on_relic_hover_entered(item_id: String):
+	show_item_detail(item_id)
+
+func _on_relic_hover_exited():
+	hide_item_detail()
 
 func update_gold_display():
 	gold_label.text = "金币:" + str(GameState.temp_gold)
@@ -481,3 +490,12 @@ func _on_config_btn_pressed():
 	config.tree_exited.connect(func():
 		_equipment_config_instance = null
 	)
+
+func show_item_detail(item_id: String):
+	if _detail_popup:
+		_detail_popup.show_item(item_id)
+		_detail_popup.visible = true
+
+func hide_item_detail():
+	if _detail_popup:
+		_detail_popup.visible = false

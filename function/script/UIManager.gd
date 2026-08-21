@@ -112,7 +112,7 @@ func show_equip_menu(unit: Unit):
 
 	var weapon_inst = unit.get_weapon()
 	if weapon_inst:
-		var btn = _create_item_button(weapon_inst, unit, true)
+		var btn = _create_item_button(weapon_inst, unit)   # 2个参数
 		equip_container.add_child(btn)
 	else:
 		var empty_label = Label.new()
@@ -137,7 +137,7 @@ func show_equip_menu(unit: Unit):
 
 		var inst = armor_slots[i]
 		if inst:
-			var btn = _create_item_button(inst, unit, true)
+			var btn = _create_item_button(inst, unit)   # 2个参数
 			btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 			hbox.add_child(btn)
 		else:
@@ -161,7 +161,7 @@ func show_equip_menu(unit: Unit):
 	_show_submenu(equip_menu)
 	Globals.is_equip_menu_active = true
 
-func _create_item_button(inst: ItemInstance, unit: Unit, _can_act: bool) -> Button:
+func _create_item_button(inst: ItemInstance, unit: Unit) -> Button:
 	var data = ItemManager.get_item_data(inst.item_id)
 	var btn = Button.new()
 	btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -172,19 +172,24 @@ func _create_item_button(inst: ItemInstance, unit: Unit, _can_act: bool) -> Butt
 	if data.icon:
 		btn.icon = data.icon
 	btn.text = data.name
-	btn.pressed.connect(_show_item_detail_panel.bind(inst, unit))
+	btn.disabled = true   # 禁用点击
+
+	# ---- 悬停显示详情 ----
+	var item_id = inst.item_id
+	btn.mouse_entered.connect(_on_equip_item_hover_entered.bind(item_id, unit))
+	btn.mouse_exited.connect(_on_equip_item_hover_exited)
+
 	return btn
 
-func _show_item_detail_panel(inst: ItemInstance, unit: Unit):
-	hide_equip_menu()
-	hide_menu()
-	var popup_scene = load("res://content/scenes/ui/ItemDetailPopup.tscn")
-	if not popup_scene:
-		print("错误：无法加载 ItemDetailPopup.tscn")
-		return
-	var popup = popup_scene.instantiate()
-	get_tree().current_scene.add_child(popup)
-	popup.show_item(inst.item_id, unit)
+func _on_equip_item_hover_entered(item_id: String, _unit: Unit):
+	var battlefield = get_parent()
+	if battlefield and battlefield.has_method("show_item_detail"):
+		battlefield.show_item_detail(item_id)
+
+func _on_equip_item_hover_exited():
+	var battlefield = get_parent()
+	if battlefield and battlefield.has_method("hide_item_detail"):
+		battlefield.hide_item_detail()
 
 func hide_equip_menu():
 	_hide_submenu(equip_menu)

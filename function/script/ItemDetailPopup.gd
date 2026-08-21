@@ -4,10 +4,6 @@ extends CanvasLayer
 @onready var name_label = $Panel/VBox/IconNameHBox/Name
 @onready var desc_label = $Panel/VBox/Description
 @onready var stats_label = $Panel/VBox/Stats
-@onready var close_btn = $Panel/VBox/CloseButton
-
-func _ready():
-	close_btn.pressed.connect(_on_close)
 
 func show_item(item_id: String, _unit: Unit = null):
 	# ---- 先检查是否为遗物 ----
@@ -19,7 +15,7 @@ func show_item(item_id: String, _unit: Unit = null):
 	# ---- 非遗物：使用 ItemManager ----
 	var data = ItemManager.get_item_data(item_id)
 	if not data:
-		_on_close()
+		visible = false
 		return
 	
 	if data.icon:
@@ -67,6 +63,3 @@ func _show_relic_detail(data: Dictionary):
 	
 	stats_label.text = stats_text
 	visible = true
-
-func _on_close():
-	queue_free()

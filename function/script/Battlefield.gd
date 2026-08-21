@@ -63,6 +63,7 @@ var is_non_combat_mode: bool = false
 var non_combat_back_button: Button = null
 var current_node_type: int = MapNode.NodeType.NORMAL   # 当前地图的节点类型
 var _victory_processed: bool = false   # 防止重复处理胜利
+var _detail_popup = null
 
 func _ready():
 	# ---- 手动获取所有节点 ----
@@ -127,6 +128,11 @@ func _ready():
 	equip_btn.pressed.connect(_on_equip_btn_pressed)
 	item_list_btn.pressed.connect(_on_item_list_btn_pressed)
 	SignalBus.non_combat_complete.connect(_on_non_combat_complete)
+	
+	# ---- 创建详情弹窗（隐藏） ----
+	_detail_popup = load("res://content/scenes/ui/ItemDetailPopup.tscn").instantiate()
+	add_child(_detail_popup)
+	_detail_popup.visible = false
 	
 	if end_turn_button:
 		end_turn_button.text = "鼠标中键结束回合"
@@ -1703,16 +1709,11 @@ func _refresh_item_list():
 			btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
 			btn.clip_text = true
 			btn.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+			btn.disabled = true   # 禁用点击
 			
-			# 点击弹出详情面板
-			var unit = _find_unit_by_name(entry["source"])
-			if unit:
-				var inst = ItemInstance.new()
-				inst.item_id = entry["data"].id
-				inst.count = 1
-				btn.pressed.connect(_on_item_list_equipment_selected.bind(inst, unit))
-			else:
-				btn.disabled = true
+			# ---- 悬停显示详情 ----
+			btn.mouse_entered.connect(_on_item_hover_entered.bind(entry["data"].id))
+			btn.mouse_exited.connect(_on_item_hover_exited)
 
 			item_list_container.add_child(btn)
 
@@ -1739,22 +1740,18 @@ func _refresh_item_list():
 	scroll.size = item_list_panel.size
 	item_list_container.size = scroll.size
 
+func _on_item_hover_entered(item_id: String):
+	show_item_detail(item_id)
+
+func _on_item_hover_exited():
+	hide_item_detail()
+
 func _find_unit_by_name(display_name: String) -> Unit:
 	for unit in UnitManager.unit_list:
 		var unit_name = unit.unit_stats.display_name if unit.unit_stats.display_name != "" else unit.unit_stats.unit_name
 		if unit_name == display_name:
 			return unit
 	return null
-
-func _on_item_list_equipment_selected(inst: ItemInstance, unit: Unit):
-	item_list_panel.visible = false
-	_on_team_member_selected(unit)
-	# 弹出详情面板
-	var popup_scene = load("res://content/scenes/ui/ItemDetailPopup.tscn")
-	if popup_scene:
-		var popup = popup_scene.instantiate()
-		add_child(popup)
-		popup.show_item(inst.item_id, unit)
 
 func _on_equip_btn_pressed():
 	InputManager.on_equip_button_pressed()
@@ -1766,13 +1763,6 @@ func _get_type_display_name(type: String) -> String:
 		"relic": return "遗物"
 		_:
 			return type
-
-func _on_item_list_unit_selected(unit: Unit):
-	item_list_panel.visible = false
-	_on_team_member_selected(unit)
-
-func _on_item_list_warehouse_selected():
-	print("点击了仓库道具，暂无操作")
 
 func _show_attack_highlight(cells: Dictionary, unit: Unit):
 	var color = Color(0.7, 0.1, 0.2, 0.7)
@@ -2175,7 +2165,6 @@ func _refresh_relic_list():
 		return
 	
 	for relic in relics:
-		# 修复：使用 RelicManager 而不是 ItemManager
 		var data = RelicManager.get_relic_data(relic.item_id)
 		if data.is_empty():
 			continue
@@ -2187,7 +2176,13 @@ func _refresh_relic_list():
 		btn.add_theme_font_size_override("font_size", 6)
 		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
-		btn.pressed.connect(_on_relic_item_clicked.bind(relic))
+		btn.disabled = true   # 禁用点击
+		
+		# ---- 悬停显示详情 ----
+		var item_id = relic.item_id
+		btn.mouse_entered.connect(_on_relic_hover_entered.bind(item_id))
+		btn.mouse_exited.connect(_on_relic_hover_exited)
+		
 		item_list_container.add_child(btn)
 	
 	await get_tree().process_frame
@@ -2204,13 +2199,11 @@ func _refresh_relic_list():
 		scroll = _create_scroll_container(item_list_container, parent, "ItemListScroll")
 	scroll.size = item_list_panel.size
 
-# ---- 点击遗物显示详情 ----
-func _on_relic_item_clicked(relic: ItemInstance):
-	var popup_scene = load("res://content/scenes/ui/ItemDetailPopup.tscn")
-	if popup_scene:
-		var popup = popup_scene.instantiate()
-		add_child(popup)
-		popup.show_item(relic.item_id)
+func _on_relic_hover_entered(item_id: String):
+	show_item_detail(item_id)
+
+func _on_relic_hover_exited():
+	hide_item_detail()
 
 # ---- 修改道具列表按钮 ----
 func _on_item_list_btn_pressed():
@@ -2252,3 +2245,12 @@ func _update_relic_icons():
 		label.add_theme_font_size_override("font_size", 6)
 		relic_icon_container.add_child(label)
 	print("遗物显示更新完成，共显示 ", relics.size(), " 个")
+
+func show_item_detail(item_id: String):
+	if _detail_popup:
+		_detail_popup.show_item(item_id)
+		_detail_popup.visible = true
+
+func hide_item_detail():
+	if _detail_popup:
+		_detail_popup.visible = false
