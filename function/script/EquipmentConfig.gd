@@ -28,11 +28,6 @@ var _detail_popup = null
 @onready var relic_container = $VBoxContainer/MainHBox/VBoxContainer/RelicContainer
 @onready var discard_zone = $VBoxContainer/MainHBox/DiscardZone
 
-# ---- 以下节点在场景中存在但本脚本不再使用，保留引用以防止报错 ----
-@onready var _reward_resource_label = $VBoxContainer/RewardResourceBar/RewardResourceLabel
-@onready var _reward_item_bar = $VBoxContainer/RewardItemBar
-
-
 # ============================================================
 #  初始化
 # ============================================================
