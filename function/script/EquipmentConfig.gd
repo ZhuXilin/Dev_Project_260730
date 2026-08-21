@@ -14,6 +14,7 @@ var _drag_meta: Dictionary = {}
 var _drag_preview: Control = null
 var _drag_grab_offset: Vector2 = Vector2.ZERO
 var _target_states: Dictionary = {}
+var _detail_popup = null   # 详情弹窗
 
 @onready var mode_label = $VBoxContainer/TopBar/ModeLabel
 @onready var close_btn = $VBoxContainer/HBoxContainer/CloseBtn
@@ -106,6 +107,17 @@ func init(units: Array[String], slot: int, mode: Mode):
 			data.max_armor_slots = 2
 			party.append(data)
 	_build_ui()
+
+	# ---- 创建详情弹窗（隐藏） ----
+	if not _detail_popup:
+		_detail_popup = load("res://content/scenes/ui/ItemDetailPopup.tscn").instantiate()
+		var canvas = get_parent()
+		if canvas and canvas is CanvasLayer:
+			canvas.add_child(_detail_popup)
+			_detail_popup.layer = 30   # 确保在拖拽预览之上
+		else:
+			add_child(_detail_popup)
+		_detail_popup.visible = false
 
 func _create_party_from_units(units: Array[String]) -> Array:
 	var copy = []
@@ -213,6 +225,13 @@ func _create_item_button(inst: ItemInstance, slot_type: String, unit_idx: int, s
 	btn.set_meta("item_id", inst.item_id if inst else "")
 	btn.focus_mode = Control.FOCUS_NONE
 	btn.mouse_filter = Control.MOUSE_FILTER_STOP
+	
+	# ---- 悬停显示详情 ----
+	if inst and inst.item_id != "":
+		var item_id = inst.item_id
+		btn.mouse_entered.connect(_on_button_hover_entered.bind(item_id))
+		btn.mouse_exited.connect(_on_button_hover_exited)
+	
 	return btn
 
 func _build_library():
@@ -234,6 +253,11 @@ func _build_library():
 			btn.set_meta("item_id", item_id)
 			btn.focus_mode = Control.FOCUS_NONE
 			btn.mouse_filter = Control.MOUSE_FILTER_STOP
+			
+			# ---- 悬停显示详情 ----
+			btn.mouse_entered.connect(_on_button_hover_entered.bind(item_id))
+			btn.mouse_exited.connect(_on_button_hover_exited)
+			
 			grid.add_child(btn)
 	library_container.add_child(grid)
 
@@ -257,6 +281,9 @@ func _build_relics():
 			btn.set_meta("slot_type", "relic")
 			btn.set_meta("relic_index", i)
 			btn.set_meta("item_id", relic.item_id)
+			# ---- 悬停显示详情 ----
+			btn.mouse_entered.connect(_on_button_hover_entered.bind(relic.item_id))
+			btn.mouse_exited.connect(_on_button_hover_exited)
 		else:
 			btn.text = "空"
 			btn.modulate = Color.GRAY
@@ -708,3 +735,18 @@ func _reset_targets_visuals():
 		if is_instance_valid(target):
 			target.modulate = _target_states[target]
 	_target_states.clear()
+
+func show_item_detail(item_id: String):
+	if _detail_popup:
+		_detail_popup.show_item(item_id)
+		_detail_popup.visible = true
+
+func hide_item_detail():
+	if _detail_popup:
+		_detail_popup.visible = false
+
+func _on_button_hover_entered(item_id: String):
+	show_item_detail(item_id)
+
+func _on_button_hover_exited():
+	hide_item_detail()

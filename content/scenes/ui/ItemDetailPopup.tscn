@@ -13,15 +13,14 @@ anchor_left = 0.5
 anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
-offset_left = -184.0
+offset_left = -192.0
 offset_top = -104.0
-offset_right = -104.0
+offset_right = -112.0
 offset_bottom = 56.0
 grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
 theme_override_styles/panel = ExtResource("2")
-metadata/_edit_use_anchors_ = true
 
 [node name="VBox" type="VBoxContainer" parent="Panel" unique_id=954819096]
 layout_mode = 0
@@ -46,18 +45,18 @@ stretch_mode = 4
 [node name="Name" type="Label" parent="Panel/VBox/IconNameHBox" unique_id=415620968]
 layout_mode = 2
 size_flags_horizontal = 3
-theme_override_font_sizes/font_size = 10
+theme_override_font_sizes/font_size = 8
 text = "道具名"
 vertical_alignment = 1
 
 [node name="Description" type="Label" parent="Panel/VBox" unique_id=1247098674]
 layout_mode = 2
-theme_override_font_sizes/font_size = 8
+theme_override_font_sizes/font_size = 6
 text = "描述"
 autowrap_mode = 3
 
 [node name="Stats" type="Label" parent="Panel/VBox" unique_id=1740367381]
 layout_mode = 2
-theme_override_font_sizes/font_size = 8
+theme_override_font_sizes/font_size = 6
 text = "属性"
 autowrap_mode = 3
