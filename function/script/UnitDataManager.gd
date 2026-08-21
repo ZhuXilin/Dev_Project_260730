@@ -213,3 +213,42 @@ static func get_display_name_from_unit(unit: Unit) -> String:
 	var display_name = unit.unit_stats.display_name if unit.unit_stats.display_name != "" else unit.unit_stats.unit_name
 	var faction = unit.unit_stats.faction if unit.unit_stats.faction != "" else "无"
 	return "%s%s%s%s%s" % [display_name, DISPLAY_SEPARATOR, faction, DISPLAY_SEPARATOR, unit.unit_stats.unit_name]
+
+static func create_unit_data(unit_name: String) -> UnitData:
+	var data = UnitData.new()
+	var dict = get_unit_data(unit_name)
+	var stats = get_default_stats(unit_name)
+	
+	data.unit_name = unit_name
+	data.display_name = dict.get("display_name", unit_name)
+	data.faction = dict.get("faction", "")
+	data.team_id = 0
+	data.max_hp = stats.max_hp
+	data.hit_points = stats.max_hp
+	data.defense = stats.defense
+	data.magic_defense = stats.magic_defense
+	data.skill = stats.skill
+	data.speed = stats.speed
+	data.luck = stats.luck
+	data.move_range = stats.move_range
+	data.ignore_terrain_cost = stats.ignore_terrain_cost
+	data.experience = 0
+	data.level = 1
+	
+	# 默认武器
+	var default_weapon = get_default_weapon_id(unit_name)
+	if default_weapon != "":
+		var inst = ItemInstance.new()
+		inst.item_id = default_weapon
+		inst.count = 1
+		data.weapon_slot = inst
+	else:
+		data.weapon_slot = null
+	
+	# 防具槽初始为 2 个空位
+	data.armor_slots.clear()
+	data.armor_slots.append(null)
+	data.armor_slots.append(null)
+	data.max_armor_slots = 2
+	
+	return data

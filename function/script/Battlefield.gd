@@ -50,6 +50,8 @@ const BOSS_NODE_TYPE = 6
 const CELL_SIZE : int = 16
 const PERFORMANCE_DURATION : float = 0.5
 const ItemGetPopupScene = preload("res://content/scenes/ui/ItemGetPopup.tscn")
+const EquipmentConfigScene = preload("res://content/scenes/ui/EquipmentConfig.tscn")
+const EquipmentConfigScript = preload("res://function/script/EquipmentConfig.gd")
 
 # ---- 普通变量（运行时可修改） ----
 var map_grid_size : Vector2i = Vector2i(20, 15)
@@ -1813,14 +1815,78 @@ func _create_scroll_container(child: Control, parent: Node, container_name: Stri
 
 # ---- 地图模式：胜利继续 ----
 func _on_map_victory_continue():
-	print("地图模式：战斗胜利，继续旅程")
-	# 确保 Boss 胜利时推进天数
-	if not GameState.should_advance_day and current_node_type == MapNode.NodeType.BOSS:
-		print("强制设置 should_advance_day = true")
-		GameState.should_advance_day = true
-	SaveManager.auto_save()
-	get_tree().change_scene_to_file("res://content/scenes/ui/MapScene.tscn")
+	print("=== 进入 _on_map_victory_continue ===")
+	
+	# ---- 打印关键数据 ----
+	print("GameState.reward_items: ", GameState.reward_items)
+	print("GameState.temp_gold: ", GameState.temp_gold)
+	print("GameState.temp_soul: ", GameState.temp_soul)
+	
+	# ---- 构建奖励数据 ----
+	var reward_items: Array = []
+	for item_id in GameState.reward_items:
+		var data = ItemManager.get_item_data(item_id)
+		if data:
+			reward_items.append(data)
+		else:
+			print("警告：无法获取物品数据，ID: ", item_id)
+	
+	var reward_gold = GameState.temp_gold
+	var reward_soul = GameState.temp_soul
+	
+	print("reward_items.size(): ", reward_items.size())
+	print("reward_gold: ", reward_gold)
+	print("reward_soul: ", reward_soul)
+	
+	# ---- 如果有奖励，弹出结算界面；否则直接返回地图 ----
+	if reward_items.size() > 0 or reward_gold > 0 or reward_soul > 0:
+		print("条件满足，准备弹出结算界面")
 		
+		# ---- 切换鼠标模式：隐藏自定义光标，显示系统鼠标 ----
+		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+		cursor.visible = false
+		
+		var config_instance = EquipmentConfigScene.instantiate()
+		add_child(config_instance)
+		var panel = config_instance.get_node("MainPanel")
+		
+		# 获取队伍单位名称列表
+		var unit_names: Array[String] = []
+		for unit_data in GameState.party:
+			unit_names.append(unit_data.unit_name)
+		
+		print("unit_names: ", unit_names)
+		print("当前存档槽: ", SaveManager.current_slot)
+		
+		# 初始化结算模式
+		panel.init(unit_names, SaveManager.current_slot, EquipmentConfigScript.Mode.REWARD)
+		panel.init_reward(reward_items, reward_gold, reward_soul, SaveManager.current_slot)
+		
+		# ---- 等待确认信号 ----
+		await panel.reward_confirmed
+		print("结算确认，准备返回地图")
+		
+		# ---- 恢复自定义光标 ----
+		Input.mouse_mode = Input.MOUSE_MODE_HIDDEN
+		cursor.visible = true
+	else:
+		print("无奖励，直接返回地图")
+	
+	# ---- 清空奖励物品列表（已处理） ----
+	GameState.reward_items.clear()
+	
+	# ---- ★★★ 关键：不要清空 temp_gold 和 temp_soul ★★★ ----
+	# 保留 temp_gold 和 temp_soul，因为它们是累积的，并且 MapScene 会显示它们
+	# 在 Boss 胜利后，MapScene._on_battle_completed 会调用 finish_day() 将 temp_soul 合并到 soul 并清零
+	# 所以这里不清空，让 MapScene 处理
+	
+	# ---- 保存存档（包含 temp_gold 和 temp_soul） ----
+	SaveManager.auto_save()
+	
+	# ---- 返回地图场景 ----
+	# MapScene 已经通过 SignalBus.battle_completed 更新了地图状态（推进天数、解锁节点等）
+	get_tree().change_scene_to_file("res://content/scenes/ui/MapScene.tscn")
+
 # ---- 统一的放弃战斗逻辑 ----
 func _execute_abandon_battle():
 	GameState.current_node_key = ""

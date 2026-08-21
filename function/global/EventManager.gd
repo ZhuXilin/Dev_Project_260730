@@ -93,6 +93,7 @@ func trigger_event(event_id: String, unit: Unit = null, default_music: AudioStre
 				var relic_data = RelicManager.get_relic_data(item_id)
 				if not relic_data.is_empty():
 					Globals.unlock_relic(item_id)
+					GameState.add_reward_item(item_id)
 					var inst = ItemInstance.new()
 					inst.item_id = item_id
 					inst.count = 1
@@ -114,6 +115,7 @@ func trigger_event(event_id: String, unit: Unit = null, default_music: AudioStre
 				# ---- 4. 武器/防具解锁（仅当是武器或防具时） ----
 				if item_data.type in ["weapon", "armor"]:
 					Globals.unlock_item(item_id)
+					GameState.add_reward_item(item_id)
 
 				# ---- 5. 装备型道具（武器/防具），且 equip 为 true ----
 				if equip:

@@ -23,6 +23,7 @@ var resume_node_id: String = ""          # 加载存档后要定位的节点ID
 var soul: int = 0          # 永久魂
 var temp_soul: int = 0     # 本轮临时魂
 var temp_gold: int = 0     # 本轮临时金币
+var reward_items: Array = []
 
 # ---- 游戏状态 ----
 var interrupt_state: int = 0   # 0=无, 1=营地, 2=地图, 3=战场
@@ -41,36 +42,7 @@ var pending_save_slot: int = -1
 func initialize_party(selected_units: Array[String], main_index: int):
 	party.clear()
 	for unit_name in selected_units:
-		var data = UnitData.new()
-		var stats = UnitDataManager.get_default_stats(unit_name)
-		data.unit_name = unit_name
-		var unit_dict = UnitDataManager.get_unit_data(unit_name)
-		data.display_name = unit_dict.get("display_name", unit_name)
-		data.faction = unit_dict.get("faction", "")
-		data.team_id = 0
-		data.max_hp = stats.max_hp
-		data.hit_points = stats.max_hp
-		data.defense = stats.defense
-		data.magic_defense = stats.magic_defense
-		data.skill = stats.skill
-		data.speed = stats.speed
-		data.luck = stats.luck
-		data.move_range = stats.move_range
-		data.ignore_terrain_cost = stats.ignore_terrain_cost
-		
-		# 默认武器（直接装备，不使用 inventory）
-		var default_weapon = UnitDataManager.get_default_weapon_id(unit_name)
-		if default_weapon != "":
-			var inst = ItemInstance.new()
-			inst.item_id = default_weapon
-			inst.count = 1
-			data.weapon_slot = inst
-		
-		# 初始化防具槽（2个空位）
-		data.armor_slots.clear()
-		data.armor_slots.append(null)
-		data.armor_slots.append(null)
-		data.max_armor_slots = 2
+		var data = UnitDataManager.create_unit_data(unit_name)
 		party.append(data)
 	main_unit_index = main_index
 	main_unit_name = selected_units[main_index] if selected_units.size() > main_index else ""
@@ -235,3 +207,10 @@ func undo_battle_entry():
 	current_node_key = ""
 	# 不要删除 visited_nodes 中的条目
 	should_advance_day = false
+
+func add_reward_item(item_id: String):
+	if item_id not in reward_items:
+		reward_items.append(item_id)
+
+func clear_reward_items():
+	reward_items.clear()
