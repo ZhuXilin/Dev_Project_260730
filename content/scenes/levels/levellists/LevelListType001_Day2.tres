@@ -8,12 +8,11 @@
 [ext_resource type="Resource" uid="uid://rb3o4gfgj6e3" path="res://content/scenes/maps/type001/day2/map_normal03.tres" id="6_vawey"]
 [ext_resource type="Resource" uid="uid://b6rfb0bgk5vkc" path="res://content/scenes/maps/type001/day2/map_elite01.tres" id="7_k32rj"]
 [ext_resource type="Resource" uid="uid://cawfvk4evgngk" path="res://content/scenes/maps/type001/day2/map_boss01.tres" id="8_ath0d"]
-[ext_resource type="Resource" uid="uid://7o7gmv081dob" path="res://content/scenes/maps/type001/common/map_shop.tres" id="9_xk6cl"]
 [ext_resource type="Resource" uid="uid://b5b2ag6a3xlb" path="res://content/scenes/maps/type001/common/map_finalprep.tres" id="10_tlmn2"]
 [ext_resource type="Resource" uid="uid://bv47ksslcit63" path="res://content/scenes/maps/type001/common/map_campfire.tres" id="11_iqfmk"]
 [ext_resource type="Script" uid="uid://bdgijrg1hdj6f" path="res://function/resource/LevelList.gd" id="12_0p0uy"]
 
 [resource]
 script = ExtResource("12_0p0uy")
-levels = Array[ExtResource("1_ath0d")]([ExtResource("2_ath0d"), ExtResource("3_52acj"), ExtResource("4_erph8"), ExtResource("5_gtm4u"), ExtResource("6_vawey"), ExtResource("7_k32rj"), ExtResource("8_ath0d"), ExtResource("9_xk6cl"), ExtResource("10_tlmn2"), ExtResource("11_iqfmk")])
+levels = Array[ExtResource("1_ath0d")]([ExtResource("2_ath0d"), ExtResource("3_52acj"), ExtResource("4_erph8"), ExtResource("5_gtm4u"), ExtResource("6_vawey"), ExtResource("7_k32rj"), ExtResource("8_ath0d"), ExtResource("10_tlmn2"), ExtResource("11_iqfmk")])
 metadata/_custom_type_script = "uid://bdgijrg1hdj6f"

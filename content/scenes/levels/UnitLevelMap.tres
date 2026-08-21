@@ -3,6 +3,8 @@
 [ext_resource type="Script" uid="uid://ccvitfeaytlvk" path="res://function/resource/UnitLevelMapConfig.gd" id="1_qd7h8"]
 [ext_resource type="Resource" uid="uid://cvavysat5tfmo" path="res://content/scenes/levels/levellists/LevelListType001_Day1.tres" id="1_rx0gl"]
 [ext_resource type="Script" uid="uid://c8x3p1n87hrdv" path="res://function/resource/UnitLevelMapEntry.gd" id="1_suoue"]
+[ext_resource type="Resource" uid="uid://c8fm3tgsvq7l3" path="res://content/scenes/levels/levellists/LevelListType001_Day2.tres" id="3_xrfrr"]
+[ext_resource type="Resource" uid="uid://n221j2sdn3nl" path="res://content/scenes/levels/levellists/LevelListType001_Day3.tres" id="4_xj16i"]
 
 [sub_resource type="Resource" id="Resource_eompo"]
 script = ExtResource("1_suoue")
@@ -15,8 +17,8 @@ metadata/_custom_type_script = "uid://c8x3p1n87hrdv"
 script = ExtResource("1_suoue")
 faction = "王国"
 day1 = ExtResource("1_rx0gl")
-day2 = ExtResource("1_rx0gl")
-day3 = ExtResource("1_rx0gl")
+day2 = ExtResource("3_xrfrr")
+day3 = ExtResource("4_xj16i")
 metadata/_custom_type_script = "uid://c8x3p1n87hrdv"
 
 [resource]

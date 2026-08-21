@@ -52,30 +52,42 @@ func load_game(slot: int) -> bool:
 		push_error("无法加载存档: ", path)
 		return false
 
-	# ---- 版本迁移 ----
+	# ---- 类型转换与迁移 ----
+	# 将可能为 TypedArray 的字段转为普通 Array
+	var need_save = false
+	if save.unlocked_units is Array:
+		save.unlocked_units = Array(save.unlocked_units)
+	if save.unlocked_items is Array:
+		save.unlocked_items = Array(save.unlocked_items)
+	# 其他数组字段（如 visited_nodes, party_equipment 等）无需转换，它们已是 Array
+
+	# 如果存档版本低于当前版本，执行迁移并保存
 	if save.save_version < SaveData.CURRENT_VERSION:
 		print("存档版本 %d 低于当前版本 %d，执行迁移" % [save.save_version, SaveData.CURRENT_VERSION])
-		save = _migrate_save_data(save, save.save_version)
+		save.save_version = SaveData.CURRENT_VERSION
+		# 重新计算校验和
+		save.checksum = save.compute_checksum()
 		var err = ResourceSaver.save(save, path, ResourceSaver.FLAG_COMPRESS)
 		if err != OK:
 			push_error("迁移后保存失败：", err)
 			return false
 		print("存档已迁移至版本 %d" % SaveData.CURRENT_VERSION)
+		need_save = false  # 已保存
 
-	# ---- 校验（含兼容旧存档） ----
+	# 如果未迁移但需要保存（例如转换类型），则保存
+	if need_save:
+		var err = ResourceSaver.save(save, path, ResourceSaver.FLAG_COMPRESS)
+		if err != OK:
+			push_error("类型转换后保存失败：", err)
+
+	# ---- 校验（兼容旧存档） ----
 	if not _validate_save(save):
 		print("校验失败，尝试兼容旧存档...")
 		if save.get("map_level_data") != null:
-			# ---- 修复：保留 visited_nodes，不清空 ----
-			# save.visited_nodes = []   # ← 删除这一行
-			
-			# 重新计算校验和
+			# 兼容旧存档（保留 visited_nodes）
 			save.checksum = save.compute_checksum()
-			
-			# 再次校验，如果仍然失败则警告但继续（保留数据）
 			if not _validate_save(save):
 				push_error("迁移后仍校验失败，存档可能已损坏，但尝试继续加载（保留数据）")
-				# 不返回 false，继续加载
 		else:
 			push_error("无法兼容的旧存档，请删除")
 			return false
@@ -83,7 +95,6 @@ func load_game(slot: int) -> bool:
 	# ---- 应用数据 ----
 	_apply_save_data(save)
 
-	# ---- 更新当前槽 ----
 	current_slot = slot
 	Globals.pending_save_slot = -1
 
@@ -267,6 +278,7 @@ func _apply_save_data(save: SaveData):
 	# ---- 恢复其他解锁数据 ----
 	Globals.unlocked_units = save.unlocked_units.duplicate()
 	Globals.unlocked_items = save.unlocked_items.duplicate()
+	RelicManager.set_unlocked_relics(save.unlocked_relics.duplicate())
 	
 	if Globals.unlocked_items.is_empty():
 		Globals.unlocked_items = Globals.item_unlocked_items.duplicate()
@@ -335,12 +347,19 @@ func get_save_info(slot: int) -> Dictionary:
 	var save = load(path) as SaveData
 	if not save:
 		return {}
+	
+	# 类型转换（避免加载时错误）
+	if save.unlocked_units is Array:
+		save.unlocked_units = Array(save.unlocked_units)
+	if save.unlocked_items is Array:
+		save.unlocked_items = Array(save.unlocked_items)
+	
 	return {
 		"time": save.save_time,
 		"day": save.current_day,
 		"main_unit": save.main_unit_name,
 		"party": save.party_data.size(),
-		"soul": save.soul   # 新增：返回永久魂
+		"soul": save.soul
 	}
 
 func delete_save(slot: int):

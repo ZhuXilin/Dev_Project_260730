@@ -1,5 +1,5 @@
-extends Node
 class_name MapGenerator
+extends Node
 
 static func generate_day(day: int, _level_list: Array[MapData] = []) -> MapLevelData:
 	randomize()
@@ -24,27 +24,26 @@ static func generate_day(day: int, _level_list: Array[MapData] = []) -> MapLevel
 			var y_branch2 = 90
 			var y_junction2 = 50
 			var y_boss = 20
-			var x_positions = [120, 200]  # 2个分支
+			var x_positions = [120, 200]
 
 			# 起点
 			root = _create_node(MapNode.NodeType.START, Vector2(160, y_start), LAYER_START)
 			nodes.append(root)
 
-			# 第一层分支：2个不重复类型
+			# 第一层分支：2个节点（可能包含SHOP）
 			var layer1_types = _random_unique_types(2)
 			var layer1_nodes = _create_nodes(nodes, layer1_types, x_positions, y_branch1, LAYER_BRANCH1)
 
 			# 汇合点①（CAMPFIRE）
-			var junction1 = _create_node(MapNode.NodeType.CAMPFIRE, Vector2(160, y_junction1), LAYER_JUNCTION1)
+			var junction1 = _create_node(MapNode.NodeType.SHOP, Vector2(160, y_junction1), LAYER_JUNCTION1)
 			nodes.append(junction1)
 
-			# 连接
 			for node in layer1_nodes:
 				root.connected_nodes.append(node)
 			for node in layer1_nodes:
 				node.connected_nodes.append(junction1)
 
-			# 第二层分支：2个不重复类型
+			# 第二层分支：2个节点
 			var layer2_types = _random_unique_types(2)
 			var layer2_nodes = _create_nodes(nodes, layer2_types, x_positions, y_branch2, LAYER_BRANCH2)
 
@@ -52,7 +51,6 @@ static func generate_day(day: int, _level_list: Array[MapData] = []) -> MapLevel
 			var junction2 = _create_node(MapNode.NodeType.FINAL_PREP, Vector2(160, y_junction2), LAYER_JUNCTION2)
 			nodes.append(junction2)
 
-			# 连接
 			for node in layer2_nodes:
 				junction1.connected_nodes.append(node)
 			for node in layer2_nodes:
@@ -64,7 +62,7 @@ static func generate_day(day: int, _level_list: Array[MapData] = []) -> MapLevel
 			junction2.connected_nodes.append(boss)
 
 		3:
-			# 第3天：简化路线：战前整备 → Boss
+			# 第3天：战前整备 → Boss
 			root = _create_node(MapNode.NodeType.FINAL_PREP, Vector2(160, 150), 0)
 			root.custom_label = "战前整备"
 			var boss = _create_node(MapNode.NodeType.BOSS, Vector2(160, 60), 1)
@@ -72,11 +70,10 @@ static func generate_day(day: int, _level_list: Array[MapData] = []) -> MapLevel
 			nodes.append(root)
 			nodes.append(boss)
 			root.connected_nodes.append(boss)
-			# 根节点初始可用（由 _update_availability 处理）
 			root.is_available = true
 
 		_:
-			# 默认测试地图（以防万一）
+			# 默认测试地图
 			root = _create_node(MapNode.NodeType.START, Vector2(160, 210), 0)
 			var node1 = _create_node(MapNode.NodeType.NORMAL, Vector2(120, 165), 1)
 			var node2 = _create_node(MapNode.NodeType.ELITE, Vector2(200, 165), 1)
@@ -88,7 +85,6 @@ static func generate_day(day: int, _level_list: Array[MapData] = []) -> MapLevel
 			node1.connected_nodes.append(boss)
 			node2.connected_nodes.append(boss)
 
-	# 为所有节点分配地图数据
 	_assign_map_data_to_all_nodes(nodes)
 
 	data.nodes = nodes
@@ -96,6 +92,7 @@ static func generate_day(day: int, _level_list: Array[MapData] = []) -> MapLevel
 	data.map_name = "第%d天" % day
 	return data
 
+# ---- 随机类型（含SHOP） ----
 static func _random_unique_types(count: int) -> Array:
 	var pool = [MapNode.NodeType.ELITE, MapNode.NodeType.NORMAL, MapNode.NodeType.EVENT]
 	if count > pool.size():
@@ -123,14 +120,25 @@ static func _create_node(type: MapNode.NodeType, pos: Vector2, layer: int) -> Ma
 	node.layer = layer
 	node.is_available = false
 	node.is_visited = false
+	# 如果是商店，设置自定义标签
+	if type == MapNode.NodeType.SHOP:
+		node.custom_label = "商店"
 	return node
 
 static func _assign_map_data_to_all_nodes(nodes: Array):
-	var main_unit = GameState.main_unit_name
+	# 移除未使用的 main_unit 变量
 	for node in nodes:
-		var map = LevelManager.get_map_for_node_type(node.node_type, main_unit)
+		if node.node_type == MapNode.NodeType.SHOP:
+			# 商店节点不需要地图，但可分配一个空 MapData 防止错误
+			var shop_map = MapData.new()   # 改名避免与父块冲突
+			shop_map.map_name = "商店"
+			shop_map.node_type = MapNode.NodeType.SHOP
+			node.map_data = shop_map
+			continue
+
+		var map = LevelManager.get_map_for_node_type(node.node_type, GameState.main_unit_name)
 		if map:
-			map.node_type = node.node_type   # 确保地图类型与节点类型一致
+			map.node_type = node.node_type
 			node.map_data = map
 		else:
 			node.map_data = _create_fallback_map_data(node.node_type)

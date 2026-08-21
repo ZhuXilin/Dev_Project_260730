@@ -29,15 +29,13 @@ var sound_volume : float = 0.2
 var game_speed : int = 0
 
 # ---- 单位解锁系统 ----
-var unlocked_units: Array[String] = []
+var unlocked_units: Array = []          # 改为无类型
 var unlock_config: Dictionary = {}
 
 # ---- 道具解锁系统 ----
 var item_unlock_config: Dictionary = {}
-var item_unlocked_items: Array[String] = []
-
-# ---- 已解锁道具列表（与存档同步） ----
-var unlocked_items: Array[String] = []
+var item_unlocked_items: Array = []     # 改为无类型
+var unlocked_items: Array = []          # 改为无类型
 
 # ---- 游戏状态标志 ----
 var is_fading : bool = false
@@ -51,15 +49,15 @@ var is_map_mode: bool = false
 var is_non_combat_mode: bool = false
 var current_battle_turn: int = 0
 
-var _last_increment_time: float = 0.0   # 上次递增时间戳（秒）
-var pending_save_slot: int = -1   # 用于新建存档时记录槽位
+var _last_increment_time: float = 0.0
+var pending_save_slot: int = -1
 
 # 地图缓存
 var current_map_level_data: MapLevelData = null
 var current_map_day: int = -1
 
 # ---- 遗物解锁系统 ----
-var unlocked_relics: Array[String] = []
+# 遗物解锁由 RelicManager 管理，Globals 不再单独存储
 
 # ============================================================
 #  生命周期
@@ -86,7 +84,7 @@ func _set_default_window():
 	print("默认窗口尺寸已设置为: ", width, "x", height, " (", DEFAULT_SCALE, "倍)")
 
 # ============================================================
-#  游戏速度控制（全局键盘上下键调节）
+#  游戏速度控制
 # ============================================================
 func _input(event: InputEvent):
 	if event is InputEventKey and event.pressed:
@@ -99,12 +97,11 @@ func _input(event: InputEvent):
 			set_game_speed(game_speed + step)
 			get_viewport().set_input_as_handled()
 
-# 将速度偏移量 (-2..4) 转换为实际 Engine.time_scale
 func get_time_scale(speed_val: int) -> float:
 	if speed_val >= 0:
-		return 1.0 + float(speed_val)          # 0->1, 1->2, 2->3, 3->4, 4->5
+		return 1.0 + float(speed_val)
 	else:
-		return 1.0 / (1.0 - float(speed_val))  # -1->0.5, -2->0.333
+		return 1.0 / (1.0 - float(speed_val))
 
 func _apply_game_speed():
 	Engine.time_scale = get_time_scale(game_speed)
@@ -119,7 +116,7 @@ func set_game_speed(new_val: int):
 	SignalBus.speed_changed.emit(game_speed)
 
 # ============================================================
-#  游戏状态重置（供关卡切换调用）
+#  游戏状态重置
 # ============================================================
 func reset_all_game_state():
 	InputManager.selected_unit = null
@@ -139,7 +136,6 @@ func reset_all_game_state():
 	
 	print("所有游戏状态已重置（保留地图进度）")
 
-# 实例方法（非静态），可直接通过 Globals.get_team_color() 调用
 func get_team_color(team_id: int, primary: bool = true) -> Color:
 	var colors = TEAM_COLORS.get(team_id, TEAM_COLORS[0])
 	return colors["primary"] if primary else colors["secondary"]
@@ -152,7 +148,7 @@ func reset_battle_turn():
 
 func increment_battle_turn():
 	var now = Time.get_ticks_msec() / 1000.0
-	if now - _last_increment_time < 0.05:   # 50ms 内的重复调用视为无效
+	if now - _last_increment_time < 0.05:
 		print("忽略重复回合递增")
 		return
 	_last_increment_time = now
@@ -166,7 +162,7 @@ func _load_unlock_config():
 	var path = "res://content/data/unit_unlock.json"
 	if not FileAccess.file_exists(path):
 		unlock_config = { "default_unlocked": ["剑士", "枪兵"] }
-		var arr: Array[String] = []
+		var arr: Array = []
 		for item in unlock_config["default_unlocked"]:
 			if item is String:
 				arr.append(item)
@@ -181,14 +177,13 @@ func _load_unlock_config():
 	if data and data is Dictionary:
 		unlock_config = data
 		var raw = data.get("default_unlocked", ["剑士", "枪兵"])
-		var arr: Array[String] = []
+		var arr: Array = []
 		for item in raw:
 			if item is String:
 				arr.append(item)
 		unlocked_units = arr
 	else:
-		var arr: Array[String] = ["剑士", "枪兵"]
-		unlocked_units = arr
+		unlocked_units = ["剑士", "枪兵"]
 
 func is_unit_unlocked(unit_name: String) -> bool:
 	return unit_name in unlocked_units
@@ -198,7 +193,7 @@ func unlock_unit(unit_name: String):
 		unlocked_units.append(unit_name)
 		print("单位解锁：", unit_name)
 
-func get_unlocked_units() -> Array[String]:
+func get_unlocked_units() -> Array:
 	return unlocked_units.duplicate()
 
 # ============================================================
@@ -206,7 +201,7 @@ func get_unlocked_units() -> Array[String]:
 # ============================================================
 func _load_item_unlock_config():
 	var path = "res://content/data/item_unlock.json"
-	var raw_items = []  # 用于存储默认解锁道具ID的原始数组
+	var raw_items = []
 	if not FileAccess.file_exists(path):
 		raw_items = ["iron_sword", "steel_spear", "battle_axe", "longbow", "healing_staff", "fire_spellbook", "wooden_shield"]
 	else:
@@ -219,14 +214,12 @@ func _load_item_unlock_config():
 		else:
 			raw_items = ["iron_sword", "steel_spear", "battle_axe", "longbow", "healing_staff", "fire_spellbook", "wooden_shield"]
 	
-	# 显式转换为 Array[String]
-	var arr: Array[String] = []
+	var arr: Array = []
 	for item in raw_items:
 		if item is String:
 			arr.append(item)
 	item_unlocked_items = arr
 	
-	# 将默认解锁道具加入全局解锁列表
 	for item_id in item_unlocked_items:
 		if item_id not in unlocked_items:
 			unlocked_items.append(item_id)
@@ -240,7 +233,7 @@ func unlock_item(item_id: String):
 		unlocked_items.append(item_id)
 		print("道具解锁：", item_id)
 
-func get_unlocked_items() -> Array[String]:
+func get_unlocked_items() -> Array:
 	return unlocked_items.duplicate()
 
 # ============================================================
@@ -258,28 +251,13 @@ func show_confirm(parent: Node, message: String, confirm_text: String = "确定"
 	instance.show_confirm(message, confirm_text, cancel_text, confirm_cb, cancel_cb, show_cancel)
 	print("show_confirm 完成")
 
+# ============================================================
+#  遗物解锁（委托给 RelicManager）
+# ============================================================
 func _load_relic_unlock_config():
-	var path = "res://content/data/relic_unlock.json"
-	if not FileAccess.file_exists(path):
-		print("遗物解锁文件不存在，使用空列表")
-		unlocked_relics = []
-		return
-	var file = FileAccess.open(path, FileAccess.READ)
-	var content = file.get_as_text()
-	file.close()
-	var data = JSON.parse_string(content)
-	if data and data is Dictionary:
-		var raw = data.get("default_unlocked", [])
-		var arr: Array[String] = []
-		for item in raw:
-			if item is String:
-				arr.append(item)
-		unlocked_relics = arr
-		print("加载遗物解锁配置，数量：", unlocked_relics.size())
-	else:
-		unlocked_relics = []
+	# RelicManager 自行加载
+	pass
 
-# ---- 遗物解锁系统（委托给 RelicManager） ----
 func is_relic_unlocked(relic_id: String) -> bool:
 	return RelicManager.is_relic_unlocked(relic_id)
 

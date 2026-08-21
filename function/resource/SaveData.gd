@@ -5,8 +5,8 @@ const CURRENT_VERSION = 1
 
 # ---- 版本 ----
 @export var save_version: int = CURRENT_VERSION
-@export var unlocked_units: Array[String] = []
-@export var unlocked_items: Array[String] = []
+@export var unlocked_units: Array = []      # 改为无类型 Array
+@export var unlocked_items: Array = []      # 改为无类型 Array
 @export var unlocked_relics: Array = []
 
 # ---- 玩家设置 ----

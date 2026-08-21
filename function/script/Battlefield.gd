@@ -909,25 +909,17 @@ func _on_request_show_victory(winning_team: int):
 			]
 
 			if not is_non_combat_node:
-				var gold_gain = 10
-				var soul_gain = 0
-				if is_boss:
-					soul_gain = 1
+				var reward = EconomyManager.get_battle_reward(current_node_type, is_boss)
+				var gold_gain = reward.gold
+				var soul_gain = reward.soul
+
+				GameState.current_reward_gold = gold_gain
+				GameState.current_reward_soul = soul_gain
+				EconomyManager.add_temp_gold(gold_gain)
+				EconomyManager.add_temp_soul(soul_gain)
 				
 				print("--- 资源累加前 ---")
 				print("gold_gain: ", gold_gain, " soul_gain: ", soul_gain)
-				print("temp_gold(前): ", GameState.temp_gold, " temp_soul(前): ", GameState.temp_soul)
-				
-				GameState.current_reward_gold = gold_gain
-				GameState.current_reward_soul = soul_gain
-				GameState.temp_gold += gold_gain
-				GameState.temp_soul += soul_gain
-				
-				print("--- 资源累加后 ---")
-				print("current_reward_gold: ", GameState.current_reward_gold)
-				print("current_reward_soul: ", GameState.current_reward_soul)
-				print("temp_gold(后): ", GameState.temp_gold, " temp_soul(后): ", GameState.temp_soul)
-				
 				print("Battlefield 累加资源：temp_gold=", GameState.temp_gold, " temp_soul=", GameState.temp_soul)
 				print("本次增量：gold=", gold_gain, " soul=", soul_gain)
 			else:

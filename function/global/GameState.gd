@@ -23,7 +23,7 @@ var resume_node_id: String = ""          # 加载存档后要定位的节点ID
 var soul: int = 0          # 永久魂
 var temp_soul: int = 0     # 本轮临时魂
 var temp_gold: int = 0     # 本轮临时金币
-var reward_items: Array = []
+var reward_items: Array = []             # 获得物品 ID 列表（用于结算）
 
 # ---- 单次奖励（用于结算界面） ----
 var current_reward_gold: int = 0
@@ -39,11 +39,6 @@ var current_faction: String = ""              # 当前阵营
 
 # ---- 存档辅助 ----
 var pending_save_slot: int = -1
-
-# ---- 清空单次奖励 ----
-func clear_current_reward():
-	current_reward_gold = 0
-	current_reward_soul = 0
 
 # ============================================================
 #  队伍初始化
@@ -217,9 +212,19 @@ func undo_battle_entry():
 	# 不要删除 visited_nodes 中的条目
 	should_advance_day = false
 
+# ============================================================
+#  奖励物品记录（用于结算界面）
+# ============================================================
 func add_reward_item(item_id: String):
 	if item_id not in reward_items:
 		reward_items.append(item_id)
 
 func clear_reward_items():
 	reward_items.clear()
+
+# ============================================================
+#  单次奖励记录（用于结算界面）
+# ============================================================
+func clear_current_reward():
+	current_reward_gold = 0
+	current_reward_soul = 0

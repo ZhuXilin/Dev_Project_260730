@@ -70,13 +70,6 @@ layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 
-[node name="ShopContainer" type="GridContainer" parent="MainPanel/VBoxContainer/MainHBox/VBoxContainer" unique_id=999999001]
-visible = false
-layout_mode = 2
-size_flags_horizontal = 3
-size_flags_vertical = 2
-columns = 3
-
 [node name="LibraryContainer" type="VBoxContainer" parent="MainPanel/VBoxContainer/MainHBox/VBoxContainer" unique_id=2105529160]
 visible = false
 layout_mode = 2
@@ -90,15 +83,35 @@ layout_mode = 2
 size_flags_horizontal = 0
 size_flags_vertical = 3
 
-[node name="DiscardZone" type="Panel" parent="MainPanel/VBoxContainer/MainHBox" unique_id=408397185]
-custom_minimum_size = Vector2(120, 0)
+[node name="RightContainer" type="VBoxContainer" parent="MainPanel/VBoxContainer/MainHBox" unique_id=2140759823]
+layout_mode = 2
+
+[node name="ShopContainer" type="GridContainer" parent="MainPanel/VBoxContainer/MainHBox/RightContainer" unique_id=999999001]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 2
+columns = 3
+
+[node name="ResetBtn" type="Button" parent="MainPanel/VBoxContainer/MainHBox/RightContainer" unique_id=999999002]
+layout_mode = 2
+size_flags_horizontal = 4
+theme_override_font_sizes/font_size = 8
+theme_override_styles/normal = ExtResource("2")
+theme_override_styles/pressed = ExtResource("2")
+theme_override_styles/hover = ExtResource("2")
+theme_override_styles/disabled = ExtResource("2")
+theme_override_styles/focus = ExtResource("2")
+text = "重置商店"
+
+[node name="DiscardZone" type="Panel" parent="MainPanel/VBoxContainer/MainHBox/RightContainer" unique_id=408397185]
+custom_minimum_size = Vector2(120, 40)
 layout_mode = 2
 size_flags_horizontal = 8
 size_flags_vertical = 3
 mouse_filter = 2
 theme_override_styles/panel = ExtResource("2")
 
-[node name="DiscardLabel" type="Label" parent="MainPanel/VBoxContainer/MainHBox/DiscardZone" unique_id=448389672]
+[node name="DiscardLabel" type="Label" parent="MainPanel/VBoxContainer/MainHBox/RightContainer/DiscardZone" unique_id=448389672]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -126,18 +139,6 @@ theme_override_styles/disabled = ExtResource("2")
 theme_override_styles/focus = ExtResource("2")
 text = "返回"
 
-[node name="ResetBtn" type="Button" parent="MainPanel/VBoxContainer/HBoxContainer" unique_id=999999002]
-visible = false
-layout_mode = 2
-size_flags_horizontal = 0
-theme_override_font_sizes/font_size = 8
-theme_override_styles/normal = ExtResource("2")
-theme_override_styles/pressed = ExtResource("2")
-theme_override_styles/hover = ExtResource("2")
-theme_override_styles/disabled = ExtResource("2")
-theme_override_styles/focus = ExtResource("2")
-text = "重置商店"
-
 [node name="ConfirmBtn" type="Button" parent="MainPanel/VBoxContainer/HBoxContainer" unique_id=2052340703]
 layout_mode = 2
 size_flags_vertical = 0
@@ -149,6 +150,6 @@ theme_override_styles/disabled = ExtResource("2")
 theme_override_styles/focus = ExtResource("2")
 text = "出发"
 
+[connection signal="pressed" from="MainPanel/VBoxContainer/MainHBox/RightContainer/ResetBtn" to="MainPanel" method="_on_reset_shop_pressed"]
 [connection signal="pressed" from="MainPanel/VBoxContainer/HBoxContainer/CloseBtn" to="MainPanel" method="_on_close_pressed"]
-[connection signal="pressed" from="MainPanel/VBoxContainer/HBoxContainer/ResetBtn" to="MainPanel" method="_on_reset_shop_pressed"]
 [connection signal="pressed" from="MainPanel/VBoxContainer/HBoxContainer/ConfirmBtn" to="MainPanel" method="_on_confirm_pressed"]

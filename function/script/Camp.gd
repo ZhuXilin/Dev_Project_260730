@@ -13,7 +13,7 @@ func _play_camp_music():
 		pass
 
 func update_display():
-	soul_label.text = str(GameState.soul + GameState.temp_soul)
+	soul_label.text = str(EconomyManager.get_soul() + EconomyManager.get_temp_soul())
 	
 func _on_deploy_pressed():
 	if GameState.cached_map_level_data != null and not GameState.party.is_empty():

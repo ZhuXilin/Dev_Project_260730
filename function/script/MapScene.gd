@@ -151,9 +151,9 @@ func _save_game():
 
 func update_all_displays():
 	if soul_label:
-		soul_label.text = "魂:" + str(GameState.soul + GameState.temp_soul)
+		soul_label.text = "魂:" + str(EconomyManager.get_soul() + EconomyManager.get_temp_soul())
 	if gold_label:
-		gold_label.text = "金币:" + str(GameState.temp_gold)
+		gold_label.text = "金币:" + str(EconomyManager.get_temp_gold())
 	_update_relic_display()
 
 # ---- 兜底：确保默认遗物存在 ----
@@ -201,10 +201,10 @@ func _on_relic_hover_exited():
 	hide_item_detail()
 
 func update_gold_display():
-	gold_label.text = "金币:" + str(GameState.temp_gold)
+	gold_label.text = "金币:" + str(EconomyManager.get_temp_gold())
 
 func update_soul_display():
-	soul_label.text = "魂:" + str(GameState.soul)
+	soul_label.text = "魂:" + str(EconomyManager.get_soul())
 
 # ---- 按钮回调 ----
 func _on_interrupt_pressed():
@@ -409,6 +409,10 @@ func on_node_selected(node: MapNode):
 	_load_combat_for_node(node)
 
 func _load_combat_for_node(node: MapNode):
+	if node.node_type == MapNode.NodeType.SHOP:
+		_open_shop(node)
+		return
+	
 	var map_to_load = node.map_data
 	if not map_to_load:
 		if not level_list.is_empty():
@@ -502,3 +506,42 @@ func show_item_detail(item_id: String):
 func hide_item_detail():
 	if _detail_popup:
 		_detail_popup.visible = false
+
+func _open_shop(node: MapNode):
+	print("=== 打开商店 ===")
+	
+	# ---- 标记节点已访问 ----
+	var key = "%d_%d" % [node.position.x, node.position.y]
+	GameState.visited_nodes[key] = true
+	GameState.current_node_key = key
+	node.is_visited = true
+	node.is_available = false
+	
+	# ---- 关闭地图交互 ----
+	info_panel.visible = false
+	_update_availability(map_data.root_node)
+	_save_game()
+	
+	# ---- 弹出商店界面 ----
+	var config = load("res://content/scenes/ui/EquipmentConfig.tscn").instantiate()
+	add_child(config)
+	var panel = config.get_node("MainPanel")
+	
+	var unit_names: Array[String] = []
+	for unit_data in GameState.party:
+		unit_names.append(unit_data.unit_name)
+	
+	var slot = SaveManager.current_slot
+	if slot == -1:
+		slot = SaveManager.find_empty_slot()
+	
+	panel.init(unit_names, slot, EquipmentConfig.Mode.SHOP)
+	
+	# ---- 等待商店关闭 ----
+	await panel.tree_exited
+	
+	# ---- 商店关闭后刷新 ----
+	print("商店已关闭")
+	_save_game()
+	update_all_displays()
+	_update_availability(map_data.root_node)

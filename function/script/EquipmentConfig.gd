@@ -23,13 +23,15 @@ var _detail_popup = null
 @onready var mode_label = $VBoxContainer/TopBar/ModeLabel
 @onready var gold_label = $VBoxContainer/GoldLabel
 @onready var close_btn = $VBoxContainer/HBoxContainer/CloseBtn
-@onready var reset_btn = $VBoxContainer/HBoxContainer/ResetBtn
 @onready var confirm_btn = $VBoxContainer/HBoxContainer/ConfirmBtn
 @onready var unit_container = $VBoxContainer/MainHBox/VBoxContainer/UnitContainer
-@onready var shop_container = $VBoxContainer/MainHBox/VBoxContainer/ShopContainer
 @onready var library_container = $VBoxContainer/MainHBox/VBoxContainer/LibraryContainer
 @onready var relic_container = $VBoxContainer/MainHBox/VBoxContainer/RelicContainer
-@onready var discard_zone = $VBoxContainer/MainHBox/DiscardZone
+@onready var right_container = $VBoxContainer/MainHBox/RightContainer
+@onready var shop_container = $VBoxContainer/MainHBox/RightContainer/ShopContainer
+@onready var reset_btn = $VBoxContainer/MainHBox/RightContainer/ResetBtn
+@onready var discard_zone = $VBoxContainer/MainHBox/RightContainer/DiscardZone
+
 
 # ============================================================
 #  初始化
@@ -49,7 +51,7 @@ func init(units: Array[String], slot: int, mode: Mode):
 	# ---- SHOP 模式特殊处理 ----
 	if mode == Mode.SHOP:
 		if ShopManager.get_shop_items().is_empty():
-			ShopManager.generate_shop_items()   # ← 改为公共方法
+			ShopManager.generate_shop_items()
 			ShopManager.reset_count = 0
 			ShopManager.shop_updated.connect(_on_shop_updated)
 	
@@ -79,7 +81,6 @@ func _copy_party_data():
 				break
 		
 		if existing:
-			# 深度复制现有 UnitData
 			var data = UnitData.new()
 			data.unit_name = existing.unit_name
 			data.display_name = existing.display_name
@@ -122,13 +123,6 @@ func _copy_party_data():
 			party.append(data)
 
 
-func _create_party_from_units(units: Array[String]) -> Array:
-	var copy = []
-	for unit_name in units:
-		copy.append(UnitDataManager.create_unit_data(unit_name))
-	return copy
-
-
 # ============================================================
 #  UI 构建
 # ============================================================
@@ -139,12 +133,12 @@ func _build_ui():
 		print("错误：mode_label 为 null")
 		return
 	
-	# ---- 更新金币显示 ----
 	_update_gold_display()
 	
-	# ---- 默认隐藏所有动态容器 ----
+	# 默认隐藏所有容器
 	library_container.visible = false
 	relic_container.visible = false
+	right_container.visible = false
 	shop_container.visible = false
 	discard_zone.visible = false
 	reset_btn.visible = false
@@ -157,23 +151,34 @@ func _build_ui():
 			confirm_btn.visible = true
 			confirm_btn.text = "出发"
 			library_container.visible = true
+			right_container.visible = false
 			discard_zone.visible = false
-		
+			shop_container.visible = false
+			reset_btn.visible = false
+
 		Mode.MAP:
 			mode_label.text = "装备配置 - 队伍管理"
 			close_btn.text = "返回"
 			confirm_btn.visible = false
 			library_container.visible = false
 			relic_container.visible = true
+			right_container.visible = true
+			right_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			right_container.size_flags_vertical = Control.SIZE_EXPAND_FILL
 			discard_zone.visible = true
-		
+			shop_container.visible = false
+			reset_btn.visible = false
+
 		Mode.SHOP:
 			mode_label.text = "商店"
 			close_btn.text = "关闭"
 			confirm_btn.visible = false
 			library_container.visible = false
-			relic_container.visible = true      # 显示当前遗物（只读参考）
-			discard_zone.visible = false        # 商店不显示丢弃区
+			relic_container.visible = true
+			right_container.visible = true
+			right_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			right_container.size_flags_vertical = Control.SIZE_EXPAND_FILL
+			discard_zone.visible = true          # 改为显示丢弃区
 			shop_container.visible = true
 			reset_btn.visible = true
 			reset_btn.text = "重置商店 (" + str(ShopManager.get_reset_cost()) + "G)"
@@ -188,10 +193,8 @@ func _build_ui():
 	
 	if current_mode == Mode.DEPLOY:
 		_build_library()
-	elif current_mode == Mode.MAP:
+	elif current_mode == Mode.MAP or current_mode == Mode.SHOP:
 		_build_relics()
-	elif current_mode == Mode.SHOP:
-		_build_relics()    # 显示当前遗物供参考
 	
 	visible = true
 	print("_build_ui 完成，面板可见：", visible)
@@ -199,7 +202,7 @@ func _build_ui():
 
 func _update_gold_display():
 	if gold_label:
-		gold_label.text = "金币: " + str(GameState.temp_gold)
+		gold_label.text = "金币: " + str(EconomyManager.get_temp_gold())
 
 
 func _clear_containers():
@@ -393,13 +396,11 @@ func _on_button_hover_exited():
 func _get_all_target_controls() -> Array[Control]:
 	var targets: Array[Control] = []
 	
-	# 单位槽位（武器槽 + 防具槽）
 	for col in unit_container.get_children():
 		for child in col.get_children():
 			if child is Button:
 				targets.append(child)
 	
-	# 武器库（DEPLOY 模式下）
 	if current_mode == Mode.DEPLOY and library_container.visible:
 		for grid in library_container.get_children():
 			if grid is GridContainer:
@@ -407,7 +408,6 @@ func _get_all_target_controls() -> Array[Control]:
 					if btn is Button:
 						targets.append(btn)
 	
-	# 遗物槽（MAP 模式下）
 	if current_mode == Mode.MAP and relic_container.visible:
 		for grid in relic_container.get_children():
 			if grid is GridContainer:
@@ -415,9 +415,6 @@ func _get_all_target_controls() -> Array[Control]:
 					if btn is Button and not btn.disabled:
 						targets.append(btn)
 	
-	# 遗物槽（SHOP 模式下只读，不参与高亮）
-	
-	# 丢弃区
 	if discard_zone.visible:
 		targets.append(discard_zone)
 	
@@ -453,7 +450,6 @@ func _reset_targets_visuals():
 func _find_control_at_position(pos: Vector2) -> Control:
 	const BUFFER = 4
 	
-	# 单位槽位
 	for col in unit_container.get_children():
 		for child in col.get_children():
 			if child is Button:
@@ -463,7 +459,6 @@ func _find_control_at_position(pos: Vector2) -> Control:
 				if rect.has_point(pos):
 					return child
 	
-	# 武器库（DEPLOY 模式）
 	if current_mode == Mode.DEPLOY:
 		for grid in library_container.get_children():
 			if grid is GridContainer:
@@ -473,7 +468,6 @@ func _find_control_at_position(pos: Vector2) -> Control:
 						if rect.has_point(pos):
 							return btn
 	
-	# 商店商品（SHOP 模式）
 	if current_mode == Mode.SHOP and shop_container.visible:
 		for btn in shop_container.get_children():
 			if btn is Button and not btn.disabled:
@@ -481,7 +475,6 @@ func _find_control_at_position(pos: Vector2) -> Control:
 				if rect.has_point(pos):
 					return btn
 	
-	# 遗物槽（MAP 模式）
 	if current_mode == Mode.MAP:
 		for grid in relic_container.get_children():
 			if grid is GridContainer:
@@ -498,13 +491,11 @@ func _get_target_from_position(global_pos: Vector2) -> Control:
 	if discard_zone.visible and discard_zone.get_global_rect().has_point(global_pos):
 		return discard_zone
 
-	# 单位槽位
 	for col in unit_container.get_children():
 		for child in col.get_children():
 			if child is Button and child.get_global_rect().has_point(global_pos):
 				return child
 
-	# 武器库（DEPLOY 模式）
 	if current_mode == Mode.DEPLOY:
 		for grid in library_container.get_children():
 			if grid is GridContainer:
@@ -512,13 +503,11 @@ func _get_target_from_position(global_pos: Vector2) -> Control:
 					if btn is Button and btn.get_global_rect().has_point(global_pos):
 						return btn
 
-	# 商店商品（SHOP 模式）
 	if current_mode == Mode.SHOP and shop_container.visible:
 		for btn in shop_container.get_children():
 			if btn is Button and not btn.disabled and btn.get_global_rect().has_point(global_pos):
 				return btn
 
-	# 遗物槽（MAP 模式）
 	if current_mode == Mode.MAP:
 		for grid in relic_container.get_children():
 			if grid is GridContainer:
@@ -534,7 +523,6 @@ func _is_valid_drop(data: Dictionary, target: Control) -> bool:
 	var target_type = target.get_meta("slot_type", "")
 	var discard = target == discard_zone
 
-	# ---- DEPLOY 模式 ----
 	if current_mode == Mode.DEPLOY:
 		if discard:
 			return false
@@ -544,7 +532,6 @@ func _is_valid_drop(data: Dictionary, target: Control) -> bool:
 			return true
 		return false
 
-	# ---- MAP 模式 ----
 	if current_mode == Mode.MAP:
 		if discard:
 			if source_type == "weapon":
@@ -561,13 +548,10 @@ func _is_valid_drop(data: Dictionary, target: Control) -> bool:
 			return true
 		return false
 
-	# ---- SHOP 模式 ----
 	if current_mode == Mode.SHOP:
-		# 丢弃区不可用
 		if discard:
 			return false
 		
-		# 只能从商店拖拽
 		if source_type != "shop_item":
 			return false
 		
@@ -575,7 +559,6 @@ func _is_valid_drop(data: Dictionary, target: Control) -> bool:
 		if not item_data:
 			return false
 		
-		# 检查目标类型匹配
 		if item_data.type == "weapon":
 			return target_type == "weapon"
 		elif item_data.type == "armor":
@@ -649,19 +632,16 @@ func _buy_shop_item(data: Dictionary, target: Control):
 	var target_unit_idx = target.get_meta("unit_idx", -1)
 	var target_slot_idx = target.get_meta("slot_idx", -1)
 	
-	# 购买商品
 	var result = ShopManager.buy_shop_item(shop_index)
 	if not result["success"]:
 		print("购买失败: ", result.get("reason", "unknown"))
 		return
 	
-	# 装备到单位或遗物
 	var inst = ItemInstance.new()
 	inst.item_id = item_data.id
 	inst.count = 1
 	
 	if item_data.type == "relic":
-		# 遗物直接获得
 		GameState.add_global_relic(inst)
 		Globals.unlock_relic(item_data.id)
 		print("购买了遗物: ", item_data.name)
@@ -670,7 +650,6 @@ func _buy_shop_item(data: Dictionary, target: Control):
 			party[target_unit_idx].weapon_slot = inst
 			print("购买了武器并装备到单位: ", item_data.name)
 		else:
-			# 没有指定单位，只解锁
 			Globals.unlock_item(item_data.id)
 			print("购买了武器: ", item_data.name)
 	elif item_data.type == "armor":
@@ -795,7 +774,6 @@ func _start_drag(btn: Button):
 		"shop_index": btn.get_meta("shop_index", -1)
 	}
 	
-	# 如果是商店物品，额外保存 item_data
 	if slot_type == "shop_item":
 		_drag_meta["item_data"] = btn.get_meta("item_data", null)
 	
@@ -895,7 +873,6 @@ func _on_close_pressed():
 	if current_mode == Mode.MAP:
 		_sync_all()
 	elif current_mode == Mode.SHOP:
-		# 关闭商店，断开信号
 		if ShopManager.shop_updated.is_connected(_on_shop_updated):
 			ShopManager.shop_updated.disconnect(_on_shop_updated)
 	var canvas_layer = get_parent()
@@ -909,11 +886,10 @@ func _on_reset_shop_pressed():
 	print("_on_reset_shop_pressed 被调用")
 	var cost = ShopManager.get_reset_cost()
 	
-	if GameState.temp_gold < cost:
-		# 显示金币不足提示
+	if EconomyManager.get_temp_gold() < cost:
 		Globals.show_confirm(
 			self,
-			"金币不足！需要 " + str(cost) + " 金币，当前 " + str(GameState.temp_gold),
+			"金币不足！需要 " + str(cost) + " 金币，当前 " + str(EconomyManager.get_temp_gold()),
 			"确定",
 			"",
 			func(): pass,
@@ -927,20 +903,10 @@ func _on_reset_shop_pressed():
 		_update_gold_display()
 		reset_btn.text = "重置商店 (" + str(ShopManager.get_reset_cost()) + "G)"
 		_build_shop_items()
-		# 显示消耗提示
-		Globals.show_confirm(
-			self,
-			"商店已重置！花费 " + str(spent) + " 金币",
-			"确定",
-			"",
-			func(): pass,
-			func(): pass,
-			false
-		)
 	else:
 		Globals.show_confirm(
 			self,
-			"金币不足！需要 " + str(cost) + " 金币，当前 " + str(GameState.temp_gold),
+			"金币不足！需要 " + str(cost) + " 金币，当前 " + str(EconomyManager.get_temp_gold()),
 			"确定",
 			"",
 			func(): pass,
@@ -951,7 +917,6 @@ func _on_reset_shop_pressed():
 
 func _on_confirm_pressed():
 	print("_on_confirm_pressed 被调用")
-	# 只有 DEPLOY 模式下确认按钮可用
 	GameState.party.clear()
 	for local_unit in party:
 		var data = UnitData.new()
@@ -991,8 +956,7 @@ func _on_confirm_pressed():
 		
 		GameState.party.append(data)
 	
-	GameState.temp_soul = 0
-	GameState.temp_gold = 0
+	EconomyManager.reset_temp_resources()
 	
 	if selected_units.size() > 0:
 		var main_data = UnitDataManager.get_unit_data(selected_units[0])
