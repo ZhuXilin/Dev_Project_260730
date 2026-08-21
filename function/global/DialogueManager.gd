@@ -56,7 +56,6 @@ func start_dialogue(dialogues_id: String, music_stream: AudioStream = null):
 			push_error("Dialogue UI 未加载，无法启动对话")
 			return
 	
-	# 获取对话条目（可能为默认）
 	var entries = _get_dialogue_entries(dialogues_id)
 	if entries.is_empty():
 		print("警告：对话 ", dialogues_id, " 无条目，跳过")
@@ -65,6 +64,14 @@ func start_dialogue(dialogues_id: String, music_stream: AudioStream = null):
 
 	if is_active:
 		return
+
+	# ---- 隐藏行动菜单 ----
+	SignalBus.request_hide_menu.emit()
+	
+	# ---- 隐藏其他可能干扰的 UI ----
+	SignalBus.request_hide_info.emit()
+	SignalBus.request_clear_highlight.emit()
+	SignalBus.request_clear_highlight_unit.emit()
 
 	is_active = true
 	can_interact = false
