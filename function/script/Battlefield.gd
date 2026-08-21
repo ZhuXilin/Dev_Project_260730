@@ -50,8 +50,7 @@ const BOSS_NODE_TYPE = 6
 const CELL_SIZE : int = 16
 const PERFORMANCE_DURATION : float = 0.5
 const ItemGetPopupScene = preload("res://content/scenes/ui/ItemGetPopup.tscn")
-const EquipmentConfigScene = preload("res://content/scenes/ui/EquipmentConfig.tscn")
-const EquipmentConfigScript = preload("res://function/script/EquipmentConfig.gd")
+const RewardSummaryUI = preload("res://content/scenes/ui/RewardSummaryUI.tscn")
 
 # ---- 普通变量（运行时可修改） ----
 var map_grid_size : Vector2i = Vector2i(20, 15)
@@ -908,20 +907,26 @@ func _on_request_show_victory(winning_team: int):
 				MapNode.NodeType.EVENT,
 				MapNode.NodeType.FINAL_PREP
 			]
+
 			if not is_non_combat_node:
-				# ---- 计算本次增量 ----
 				var gold_gain = 10
 				var soul_gain = 0
 				if is_boss:
 					soul_gain = 1
 				
-				# ---- 存储增量用于结算界面 ----
+				print("--- 资源累加前 ---")
+				print("gold_gain: ", gold_gain, " soul_gain: ", soul_gain)
+				print("temp_gold(前): ", GameState.temp_gold, " temp_soul(前): ", GameState.temp_soul)
+				
 				GameState.current_reward_gold = gold_gain
 				GameState.current_reward_soul = soul_gain
-				
-				# ---- 累加到总临时资源 ----
 				GameState.temp_gold += gold_gain
 				GameState.temp_soul += soul_gain
+				
+				print("--- 资源累加后 ---")
+				print("current_reward_gold: ", GameState.current_reward_gold)
+				print("current_reward_soul: ", GameState.current_reward_soul)
+				print("temp_gold(后): ", GameState.temp_gold, " temp_soul(后): ", GameState.temp_soul)
 				
 				print("Battlefield 累加资源：temp_gold=", GameState.temp_gold, " temp_soul=", GameState.temp_soul)
 				print("本次增量：gold=", gold_gain, " soul=", soul_gain)
@@ -1831,81 +1836,66 @@ func _create_scroll_container(child: Control, parent: Node, container_name: Stri
 
 # ---- 地图模式：胜利继续 ----
 func _on_map_victory_continue():
+	print("=== _on_map_victory_continue ===")
+	print("reward_gold: ", GameState.current_reward_gold)
+	print("reward_soul: ", GameState.current_reward_soul)
+	print("reward_items: ", GameState.reward_items)
 	print("=== 进入 _on_map_victory_continue ===")
 	
-	# ---- 打印关键数据 ----
-	print("GameState.reward_items: ", GameState.reward_items)
-	print("GameState.current_reward_gold: ", GameState.current_reward_gold)
-	print("GameState.current_reward_soul: ", GameState.current_reward_soul)
-	
-	# ---- 构建奖励数据 ----
-	var reward_items: Array = []
-	for item_id in GameState.reward_items:
-		var data = ItemManager.get_item_data(item_id)
-		if data:
-			reward_items.append(data)
-		else:
-			print("警告：无法获取物品数据，ID: ", item_id)
-	
-	# ---- 使用增量变量作为奖励 ----
 	var reward_gold = GameState.current_reward_gold
 	var reward_soul = GameState.current_reward_soul
 	
-	print("reward_items.size(): ", reward_items.size())
-	print("reward_gold: ", reward_gold)
-	print("reward_soul: ", reward_soul)
+	# ---- 收集物品数据（从 reward_items 中获取 ItemData） ----
+	var reward_item_datas: Array = []
+	for item_id in GameState.reward_items:
+		var data = ItemManager.get_item_data(item_id)
+		if data:
+			reward_item_datas.append(data)
+		else:
+			# 可能是遗物，尝试从 RelicManager 获取
+			var relic_data = RelicManager.get_relic_data(item_id)
+			if not relic_data.is_empty():
+				# 构建虚拟 ItemData 用于显示
+				var virtual_data = ItemData.new()
+				virtual_data.id = item_id
+				virtual_data.name = relic_data.get("name", "未知遗物")
+				var icon_path = relic_data.get("icon", "")
+				if icon_path != "" and ResourceLoader.exists(icon_path):
+					virtual_data.icon = load(icon_path)
+				reward_item_datas.append(virtual_data)
 	
-	# ---- 如果有奖励，弹出结算界面；否则直接返回地图 ----
-	if reward_items.size() > 0 or reward_gold > 0 or reward_soul > 0:
-		print("条件满足，准备弹出结算界面")
+	# ---- 是否有奖励？ ----
+	var has_reward = (reward_gold > 0 or reward_soul > 0 or not reward_item_datas.is_empty())
+	
+	if has_reward:
+		print("有奖励，弹出结算界面")
 		
-		# ---- 设置结算界面激活标志，阻止光标覆盖 ----
+		# ---- 设置光标 ----
 		_is_reward_ui_active = true
-		
-		# ---- 切换鼠标模式：隐藏自定义光标，显示系统鼠标 ----
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 		cursor.visible = false
 		
-		var config_instance = EquipmentConfigScene.instantiate()
-		add_child(config_instance)
-		var panel = config_instance.get_node("MainPanel")
+		# ---- 实例化结算 UI ----
+		var summary = RewardSummaryUI.instantiate()
+		add_child(summary)
+		summary.setup_reward(reward_gold, reward_soul, reward_item_datas)
 		
-		# 获取队伍单位名称列表
-		var unit_names: Array[String] = []
-		for unit_data in GameState.party:
-			unit_names.append(unit_data.unit_name)
+		# ---- 等待确认 ----
+		await summary.confirmed
 		
-		print("unit_names: ", unit_names)
-		print("当前存档槽: ", SaveManager.current_slot)
-		
-		# 初始化结算模式
-		panel.init(unit_names, SaveManager.current_slot, EquipmentConfigScript.Mode.REWARD)
-		panel.init_reward(reward_items, reward_gold, reward_soul, SaveManager.current_slot)
-		
-		# ---- 等待确认信号 ----
-		await panel.reward_confirmed
-		print("结算确认，准备返回地图")
-		
-		# ---- 恢复光标控制权 ----
+		# ---- 恢复光标 ----
 		_is_reward_ui_active = false
 		Input.mouse_mode = Input.MOUSE_MODE_HIDDEN
 		cursor.visible = true
 	else:
 		print("无奖励，直接返回地图")
 	
-	# ---- 清空奖励物品列表（已处理） ----
+	# ---- 清理 ----
 	GameState.reward_items.clear()
-	
-	# ---- 清空单次奖励增量（已使用） ----
 	GameState.clear_current_reward()
-	
-	# ---- 保留 temp_gold 和 temp_soul（累积资源） ----
-	# 不要清空它们，由 MapScene 管理
-	
-	# ---- 保存存档（包含累积资源） ----
 	SaveManager.auto_save()
 	
-	# ---- 返回地图场景 ----
+	# ---- 返回地图 ----
 	get_tree().change_scene_to_file("res://content/scenes/ui/MapScene.tscn")
 
 # ---- 统一的放弃战斗逻辑 ----
