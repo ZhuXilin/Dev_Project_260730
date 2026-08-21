@@ -217,8 +217,14 @@ func _on_abandon_confirmed():
 
 # ---- 战斗完成回调 ----
 func _on_battle_completed(winning_team: int, is_boss: bool = false):
+	# ============================================================
+	# 调试日志 1：函数入口
+	# ============================================================
 	print("=== MapScene._on_battle_completed 被触发 ===")
 	print("winning_team=", winning_team, " is_boss=", is_boss)
+	print("temp_gold(前)=", GameState.temp_gold, " temp_soul(前)=", GameState.temp_soul)
+	print("soul=", GameState.soul, " temp_soul=", GameState.temp_soul)
+	# ============================================================
 
 	if not is_boss and GameState.current_map_data:
 		is_boss = (GameState.current_map_data.node_type == MapNode.NodeType.BOSS)
@@ -226,19 +232,38 @@ func _on_battle_completed(winning_team: int, is_boss: bool = false):
 	if winning_team == 0:
 		# ---- 玩家胜利 ----
 		# 资源已在 Battlefield 中累加，此处更新显示并保存
+		
+		# ============================================================
+		# 调试日志 2：胜利后资源状态
+		# ============================================================
+		print("=== 玩家胜利，资源状态 ===")
+		print("temp_gold=", GameState.temp_gold, " temp_soul=", GameState.temp_soul)
+		# ============================================================
+		
 		update_all_displays()
 		_save_game()
+		
+		# ============================================================
+		# 调试日志 3：保存后验证
+		# ============================================================
+		print("保存后资源：temp_gold=", GameState.temp_gold, " temp_soul=", GameState.temp_soul)
+		# ============================================================
 
 		if is_boss:
-			# =========================================================
-			# ★★★ Boss 胜利分支 ★★★
-			# =========================================================
+			# ============================================================
+			# 调试日志 4：Boss 胜利分支
+			# ============================================================
 			print("检测到 Boss 胜利，推进天数")
+			print("should_advance_day 设为 false")
+			# ============================================================
 			GameState.should_advance_day = false
 
 			var has_next = LevelManager.advance_day()
+			print("advance_day 返回：", has_next)
+			
 			if not has_next:
 				# ---- 三天全部完成 ----
+				print("=== 三天全部完成 ===")
 				GameState.finish_cycle()
 				GameState.reset_for_new_cycle()
 				GameState.interrupt_state = 1
@@ -256,22 +281,62 @@ func _on_battle_completed(winning_team: int, is_boss: bool = false):
 			GameState.current_day = new_day
 
 			# ★ 每天结束后立即合并魂到永久资源池 ★
+			# ============================================================
+			# 调试日志 5：finish_day 前后
+			# ============================================================
+			print("=== finish_day 前 ===")
+			print("soul=", GameState.soul, " temp_soul=", GameState.temp_soul)
+			# ============================================================
+			
 			GameState.finish_day()
+			
+			# ============================================================
+			# 调试日志 6：finish_day 后
+			# ============================================================
+			print("=== finish_day 后 ===")
+			print("soul=", GameState.soul, " temp_soul=", GameState.temp_soul)
+			# ============================================================
 
 			level_list = LevelManager.get_current_day_levels()
 			generate_map(new_day)
 			_setup_ui()
 			update_all_displays()
 			_save_game()
+			
+			# ============================================================
+			# 调试日志 7：Boss 胜利完成
+			# ============================================================
 			print("Boss 胜利：进入第 ", new_day, " 天，当前永久魂：", GameState.soul)
+			print("temp_gold=", GameState.temp_gold, " temp_soul=", GameState.temp_soul)
+			# ============================================================
 			return
 
 		# ---- 普通战斗胜利 ----
+		# ============================================================
+		# 调试日志 8：普通战斗胜利
+		# ============================================================
+		print("普通战斗胜利，更新地图节点可用性")
+		# ============================================================
+		
 		if map_data and map_data.root_node:
 			_update_availability(map_data.root_node)
 			_save_game()
+		
+		# ============================================================
+		# 调试日志 9：普通战斗胜利完成
+		# ============================================================
+		print("普通战斗完成，temp_gold=", GameState.temp_gold, " temp_soul=", GameState.temp_soul)
+		# ============================================================
+			
 	else:
 		print("战斗失败，可重新尝试")
+	
+	# ============================================================
+	# 调试日志 10：函数退出
+	# ============================================================
+	print("=== MapScene._on_battle_completed 退出 ===")
+	print("最终资源：soul=", GameState.soul, " temp_gold=", GameState.temp_gold, " temp_soul=", GameState.temp_soul)
+	# ============================================================
 
 func _on_cycle_complete():
 	GameState.interrupt_state = 1

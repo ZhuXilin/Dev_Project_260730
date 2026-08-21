@@ -44,9 +44,16 @@ horizontal_alignment = 1
 
 [node name="MainHBox" type="HBoxContainer" parent="MainPanel/VBoxContainer" unique_id=196389867]
 layout_mode = 2
-size_flags_horizontal = 4
 size_flags_vertical = 3
 theme_override_constants/separation = 8
+
+[node name="DetailZone" type="Panel" parent="MainPanel/VBoxContainer/MainHBox" unique_id=1607857108]
+custom_minimum_size = Vector2(120, 0)
+layout_mode = 2
+size_flags_horizontal = 0
+size_flags_vertical = 3
+mouse_filter = 2
+theme_override_styles/panel = ExtResource("2")
 
 [node name="VBoxContainer" type="VBoxContainer" parent="MainPanel/VBoxContainer/MainHBox" unique_id=1358744358]
 layout_mode = 2
@@ -70,7 +77,7 @@ size_flags_horizontal = 0
 size_flags_vertical = 3
 
 [node name="DiscardZone" type="Panel" parent="MainPanel/VBoxContainer/MainHBox" unique_id=408397185]
-custom_minimum_size = Vector2(80, 0)
+custom_minimum_size = Vector2(120, 0)
 layout_mode = 2
 size_flags_horizontal = 8
 size_flags_vertical = 3
@@ -78,7 +85,8 @@ mouse_filter = 2
 theme_override_styles/panel = ExtResource("2")
 
 [node name="DiscardLabel" type="Label" parent="MainPanel/VBoxContainer/MainHBox/DiscardZone" unique_id=448389672]
-layout_mode = 0
+layout_mode = 1
+anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 theme_override_font_sizes/font_size = 6

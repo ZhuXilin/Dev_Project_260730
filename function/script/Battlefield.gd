@@ -834,6 +834,17 @@ func _on_wait_btn_pressed():
 	InputManager.on_wait_button_pressed()
 
 func _on_request_show_victory(winning_team: int):
+	# ============================================================
+	# 调试日志 1：函数入口
+	# ============================================================
+	print("=== _on_request_show_victory 被调用 ===")
+	print("winning_team=", winning_team, " _victory_processed=", _victory_processed)
+	print("is_map_mode=", Globals.is_map_mode)
+	print("current_node_type=", current_node_type)
+	print("GameState.current_map_data.node_type=", GameState.current_map_data.node_type if GameState.current_map_data else "无")
+	print("temp_gold(前)=", GameState.temp_gold, " temp_soul(前)=", GameState.temp_soul)
+	# ============================================================
+	
 	if _victory_processed:
 		print("胜利已处理，跳过重复调用")
 		return
@@ -880,7 +891,7 @@ func _on_request_show_victory(winning_team: int):
 	var is_win = (winning_team == 0)
 	var is_last = LevelManager.is_last_level()
 	
-	# ---- 增强 is_boss 判断（支持备选数据源） ----
+	# ---- 增强 is_boss 判断 ----
 	var is_boss = (current_node_type == MapNode.NodeType.BOSS)
 	if not is_boss and GameState.current_map_data:
 		is_boss = (GameState.current_map_data.node_type == MapNode.NodeType.BOSS)
@@ -893,25 +904,46 @@ func _on_request_show_victory(winning_team: int):
 			player_units.append(unit)
 	GameState.sync_units_from_battlefield(player_units)
 
-	# =====================================================
-	#  地图模式（从地图进入的战斗）
-	# =====================================================
+	# ============================================================
+	# 地图模式（从地图进入的战斗）
+	# ============================================================
 	if Globals.is_map_mode:
 		print("当前地图节点类型: ", current_node_type, " 是否为BOSS: ", is_boss)
 
 		# ---- ★★★ 资源累加（仅当胜利时） ★★★ ----
 		if is_win:
-			# 使用节点类型直接判断，不依赖可能被错误设置的全局标志
 			var is_non_combat_node = current_node_type in [
 				MapNode.NodeType.CAMPFIRE,
 				MapNode.NodeType.SHOP,
 				MapNode.NodeType.EVENT,
 				MapNode.NodeType.FINAL_PREP
 			]
+			
+			# ============================================================
+			# 调试日志 2：资源累加条件判断
+			# ============================================================
+			print("=== 资源累加条件 ===")
+			print("is_win=", is_win)
+			print("is_non_combat_node=", is_non_combat_node)
+			print("is_boss=", is_boss)
+			# ============================================================
+			
 			if not is_non_combat_node:
+				# ============================================================
+				# 调试日志 3：累加金币
+				# ============================================================
+				print("累加金币：temp_gold 从 ", GameState.temp_gold, " 变为 ", GameState.temp_gold + 10)
+				# ============================================================
 				GameState.temp_gold += 10
+				
 				if is_boss:
+					# ============================================================
+					# 调试日志 4：累加魂
+					# ============================================================
+					print("累加魂：temp_soul 从 ", GameState.temp_soul, " 变为 ", GameState.temp_soul + 1)
+					# ============================================================
 					GameState.temp_soul += 1
+				
 				print("Battlefield 累加资源：temp_gold=", GameState.temp_gold, " temp_soul=", GameState.temp_soul)
 			else:
 				print("非战斗地图，不累加资源")
@@ -919,10 +951,14 @@ func _on_request_show_victory(winning_team: int):
 
 		# ---- 若为 Boss 胜利，设置推进天数标记 ----
 		if is_win and is_boss:
-			GameState.should_advance_day = true
+			# ============================================================
+			# 调试日志 5：Boss胜利标记
+			# ============================================================
 			print("Boss 胜利，设置 should_advance_day = true")
+			# ============================================================
+			GameState.should_advance_day = true
 
-		# ---- 发射信号（供其他监听者使用） ----
+		# ---- 发射信号 ----
 		SignalBus.battle_completed.emit(winning_team, is_boss)
 
 		# ---- 播放音乐 ----
@@ -934,7 +970,7 @@ func _on_request_show_victory(winning_team: int):
 		else:
 			MusicManager.play_defeat_music()
 
-		# ---- 显示胜利/失败面板（直接传字符串，避免空值） ----
+		# ---- 显示胜利/失败面板 ----
 		if is_instance_valid(ui_manager):
 			if is_win:
 				if is_last:
@@ -950,11 +986,19 @@ func _on_request_show_victory(winning_team: int):
 			else:
 				GameState.reset_all()
 				tree.change_scene_to_file("res://content/scenes/ui/UnitSelectUI.tscn")
-		return   # 地图模式处理完毕
+		
+		# ============================================================
+		# 调试日志 6：函数退出
+		# ============================================================
+		print("=== _on_request_show_victory 退出（地图模式） ===")
+		print("temp_gold(后)=", GameState.temp_gold, " temp_soul(后)=", GameState.temp_soul)
+		# ============================================================
+		return
 
-	# =====================================================
-	#  非地图模式（原有旧版流程，兼容调试）
-	# =====================================================
+	# ============================================================
+	# 非地图模式（原有旧版流程，兼容调试）
+	# ============================================================
+	print("非地图模式（旧版流程）")
 	if is_win and is_last:
 		MusicManager.play_win_game_music()
 	elif is_win:
@@ -970,8 +1014,14 @@ func _on_request_show_victory(winning_team: int):
 	else:
 		ui_manager.show_victory("战斗失败", "回到营地", Callable(self, "_on_non_map_defeat"))
 
-	# ---- 重置锁定标志（用于下一次战斗） ----
 	_victory_processed = false
+	
+	# ============================================================
+	# 调试日志 7：函数退出
+	# ============================================================
+	print("=== _on_request_show_victory 退出（非地图模式） ===")
+	print("temp_gold=", GameState.temp_gold, " temp_soul=", GameState.temp_soul)
+	# ============================================================
 
 func _on_turn_changed(team: int):
 	print("连接数: ", SignalBus.turn_changed.get_connections().size())
