@@ -8,14 +8,14 @@ func _on_start_pressed():
 	Globals.pending_save_slot = -1
 	var slot = SaveManager.find_empty_slot()
 	if slot == -1:
-		Globals.show_confirm(
+		Globals.show_confirm(  # ← 这里已经用了 show_confirm，没有问题
 			self,
 			"所有存档槽已满，请先删除一个存档。",
 			"确定",
 			"",
 			func(): pass,
 			func(): pass,
-			false   # 不显示取消按钮
+			false
 		)
 		return
 	Globals.pending_save_slot = slot

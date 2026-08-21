@@ -110,10 +110,15 @@ func _on_confirm_pressed():
 	else:
 		target_slot = SaveManager.find_empty_slot()
 		if target_slot == -1:
-			var dialog = AcceptDialog.new()
-			dialog.dialog_text = "所有存档槽已满，请先删除一个存档。"
-			add_child(dialog)
-			dialog.popup_centered()
+			Globals.show_confirm(
+				self,
+				"所有存档槽已满，请先删除一个存档。",
+				"确定",
+				"",
+				func(): pass,
+				func(): pass,
+				false
+			)
 			return
 
 	# ---- 防止重复实例化 ----

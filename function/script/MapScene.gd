@@ -64,16 +64,19 @@ func _ready():
 		var has_next = LevelManager.advance_day()
 		print("advance_day 返回：", has_next)
 		if not has_next:
-			# 三天完成，合并资源并重置
 			GameState.finish_cycle()
 			GameState.reset_for_new_cycle()
 			GameState.interrupt_state = 1
 			_save_game()
-			var dialog = AcceptDialog.new()
-			dialog.dialog_text = "恭喜完成所有冒险！\n获得魂：%d" % GameState.soul
-			add_child(dialog)
-			dialog.popup_centered()
-			dialog.confirmed.connect(_on_cycle_complete)
+			Globals.show_confirm(
+				self,
+				"恭喜完成所有冒险！\n获得魂：%d" % GameState.soul,
+				"确定",
+				"",
+				_on_cycle_complete,
+				func(): pass,
+				false
+			)
 			return
 		current_day = LevelManager.current_day + 1
 		GameState.current_day = current_day
@@ -234,27 +237,24 @@ func _on_battle_completed(winning_team: int, is_boss: bool = false):
 			var has_next = LevelManager.advance_day()
 			print("advance_day 返回：", has_next)
 			if not has_next:
-				# ---- 三天全部完成 ----
-				print("=== 三天全部完成 ===")
 				GameState.finish_cycle()
 				GameState.reset_for_new_cycle()
 				GameState.interrupt_state = 1
 				_save_game()
 				
-				# ============================================================
-				# 修复2：使用通用 ConfirmUI 替代 AcceptDialog
-				# ============================================================
+				# ---- 使用 ConfirmUI 替换 AcceptDialog ----
 				Globals.show_confirm(
 					self,
 					"恭喜完成所有冒险！\n获得魂：%d" % GameState.soul,
 					"确定",
-					"",  # 取消按钮文本（此处不使用）
+					"",
 					_on_cycle_complete,
-					func(): pass,  # 取消回调（但不会调用）
-					false  # show_cancel = false
+					func(): pass,
+					false
 				)
 				return
 
+			# ---- 还有下一天 ----
 			var new_day = LevelManager.current_day + 1
 			current_day = new_day
 			GameState.current_day = new_day

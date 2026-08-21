@@ -14,16 +14,18 @@ func _play_camp_music():
 
 func update_display():
 	soul_label.text = str(GameState.soul + GameState.temp_soul)
-
+	
 func _on_deploy_pressed():
 	if GameState.cached_map_level_data != null and not GameState.party.is_empty():
-		var confirm = ConfirmationDialog.new()
-		confirm.dialog_text = "当前有未完成的冒险，确定重新开始吗？"
-		confirm.ok_button_text = "重新开始"
-		confirm.cancel_button_text = "取消"
-		add_child(confirm)
-		confirm.popup_centered()
-		confirm.confirmed.connect(_confirm_deploy)
+		Globals.show_confirm(
+			self,
+			"当前有未完成的冒险，确定重新开始吗？",
+			"重新开始",
+			"取消",
+			_confirm_deploy,
+			func(): pass,
+			true
+		)
 		return
 	_confirm_deploy()
 
