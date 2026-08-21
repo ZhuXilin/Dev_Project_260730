@@ -35,6 +35,10 @@ func generate_shop_items():
 	# 1. 收集武器和防具
 	for item_id in Globals.unlocked_items:
 		var data = ItemManager.get_item_data(item_id)
+		if data:
+			print("检查物品: ", data.name, " type=", data.type, " price=", data.price)
+		else:
+			print("物品数据为空: ", item_id)
 		if data and data.type in ["weapon", "armor"] and data.price > 0:
 			pool.append({
 				"item_data": data,
@@ -72,6 +76,11 @@ func generate_shop_items():
 		selected.append(null)
 	
 	shop_items = selected
+	
+	print("生成商店：pool size = ", pool.size())
+	for entry in pool:
+		print("  ", entry["item_data"].name, " (", entry["item_data"].type, ")")
+	print("选中商品：", shop_items.size())
 
 # ---- 购买商品 ----
 func buy_shop_item(index: int) -> Dictionary:

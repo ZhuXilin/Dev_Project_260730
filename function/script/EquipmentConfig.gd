@@ -70,7 +70,6 @@ func init(units: Array[String], slot: int, mode: Mode):
 	
 	_build_ui()
 
-
 func _copy_party_data():
 	party.clear()
 	for unit_name in selected_units:
@@ -117,11 +116,16 @@ func _copy_party_data():
 					data.armor_slots.append(null)
 			data.max_armor_slots = existing.max_armor_slots
 			
+			# ---- 补全防具槽（确保至少两个） ----
+			while data.armor_slots.size() < 2:
+				data.armor_slots.append(null)
+			if data.max_armor_slots < 2:
+				data.max_armor_slots = 2
+			
 			party.append(data)
 		else:
 			var data = UnitDataManager.create_unit_data(unit_name)
 			party.append(data)
-
 
 # ============================================================
 #  UI 构建
@@ -152,10 +156,7 @@ func _build_ui():
 			confirm_btn.text = "出发"
 			library_container.visible = true
 			right_container.visible = false
-			discard_zone.visible = false
-			shop_container.visible = false
-			reset_btn.visible = false
-
+		
 		Mode.MAP:
 			mode_label.text = "装备配置 - 队伍管理"
 			close_btn.text = "返回"
@@ -163,12 +164,8 @@ func _build_ui():
 			library_container.visible = false
 			relic_container.visible = true
 			right_container.visible = true
-			right_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-			right_container.size_flags_vertical = Control.SIZE_EXPAND_FILL
 			discard_zone.visible = true
-			shop_container.visible = false
-			reset_btn.visible = false
-
+		
 		Mode.SHOP:
 			mode_label.text = "商店"
 			close_btn.text = "关闭"
@@ -176,9 +173,7 @@ func _build_ui():
 			library_container.visible = false
 			relic_container.visible = true
 			right_container.visible = true
-			right_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-			right_container.size_flags_vertical = Control.SIZE_EXPAND_FILL
-			discard_zone.visible = true          # 改为显示丢弃区
+			discard_zone.visible = true
 			shop_container.visible = true
 			reset_btn.visible = true
 			reset_btn.text = "重置商店 (" + str(ShopManager.get_reset_cost()) + "G)"
@@ -214,7 +209,6 @@ func _clear_containers():
 		child.queue_free()
 	# ShopContainer 在 _build_shop_items 中手动清空
 
-
 func _build_unit_columns():
 	for i in range(party.size()):
 		var col = VBoxContainer.new()
@@ -223,15 +217,35 @@ func _build_unit_columns():
 		col.add_theme_constant_override("separation", 2)
 		var unit = party[i]
 
+		# ---- 单位名称 ----
 		var name_label = Label.new()
 		name_label.text = unit.display_name + "(" + unit.unit_name + ")"
 		name_label.add_theme_font_size_override("font_size", 6)
 		name_label.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		col.add_child(name_label)
 
+		# ---- 武器标题（居中） ----
+		var weapon_title = Label.new()
+		weapon_title.text = "——————"
+		weapon_title.add_theme_font_size_override("font_size", 6)
+		weapon_title.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		weapon_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		col.add_child(weapon_title)
+
+		# ---- 武器按钮 ----
 		var weapon_btn = _create_item_button(unit.weapon_slot, "weapon", i, -1)
 		col.add_child(weapon_btn)
 
+		# ---- 防具标题（居中） ----
+		var armor_title = Label.new()
+		armor_title.text = "——————"
+		armor_title.add_theme_font_size_override("font_size", 6)
+		armor_title.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		armor_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		col.add_child(armor_title)
+
+		# ---- 防具按钮（循环生成） ----
 		for slot_idx in range(unit.armor_slots.size()):
 			var armor_btn = _create_item_button(unit.armor_slots[slot_idx], "armor", i, slot_idx)
 			if current_mode == Mode.DEPLOY:
@@ -239,7 +253,6 @@ func _build_unit_columns():
 			col.add_child(armor_btn)
 
 		unit_container.add_child(col)
-
 
 func _create_item_button(inst: ItemInstance, slot_type: String, unit_idx: int, slot_idx: int) -> Button:
 	var btn = Button.new()
@@ -291,7 +304,8 @@ func _build_library():
 func _build_relics():
 	var title = Label.new()
 	title.text = "遗物"
-	title.add_theme_font_size_override("font_size", 8)
+	title.add_theme_font_size_override("font_size", 6)
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	relic_container.add_child(title)
 
 	var grid = GridContainer.new()
@@ -313,9 +327,13 @@ func _build_relics():
 			btn.mouse_entered.connect(_on_button_hover_entered.bind(relic.item_id))
 			btn.mouse_exited.connect(_on_button_hover_exited)
 		else:
+			# 空槽：在 SHOP 模式下可交互（作为遗物拖拽目标），其他模式禁用
 			btn.text = "空"
 			btn.modulate = Color.GRAY
-			btn.disabled = true
+			btn.disabled = (current_mode != Mode.SHOP)
+			btn.set_meta("slot_type", "relic")
+			btn.set_meta("relic_index", i)
+			btn.set_meta("item_id", "")
 		
 		btn.add_theme_font_size_override("font_size", 6)
 		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -396,11 +414,13 @@ func _on_button_hover_exited():
 func _get_all_target_controls() -> Array[Control]:
 	var targets: Array[Control] = []
 	
+	# 单位槽位（武器 + 防具）
 	for col in unit_container.get_children():
 		for child in col.get_children():
 			if child is Button:
 				targets.append(child)
 	
+	# 武器库（DEPLOY 模式）
 	if current_mode == Mode.DEPLOY and library_container.visible:
 		for grid in library_container.get_children():
 			if grid is GridContainer:
@@ -408,14 +428,16 @@ func _get_all_target_controls() -> Array[Control]:
 					if btn is Button:
 						targets.append(btn)
 	
-	if current_mode == Mode.MAP and relic_container.visible:
+	# 遗物槽（MAP 或 SHOP 模式，SHOP 模式下空位可交互）
+	if (current_mode == Mode.MAP or current_mode == Mode.SHOP) and relic_container.visible:
 		for grid in relic_container.get_children():
 			if grid is GridContainer:
 				for btn in grid.get_children():
 					if btn is Button and not btn.disabled:
 						targets.append(btn)
 	
-	if discard_zone.visible:
+	# 丢弃区（MAP 或 SHOP 模式）
+	if discard_zone.visible and current_mode != Mode.DEPLOY:
 		targets.append(discard_zone)
 	
 	return targets
@@ -450,6 +472,7 @@ func _reset_targets_visuals():
 func _find_control_at_position(pos: Vector2) -> Control:
 	const BUFFER = 4
 	
+	# 单位槽位
 	for col in unit_container.get_children():
 		for child in col.get_children():
 			if child is Button:
@@ -459,6 +482,7 @@ func _find_control_at_position(pos: Vector2) -> Control:
 				if rect.has_point(pos):
 					return child
 	
+	# 武器库（DEPLOY 模式）
 	if current_mode == Mode.DEPLOY:
 		for grid in library_container.get_children():
 			if grid is GridContainer:
@@ -468,6 +492,7 @@ func _find_control_at_position(pos: Vector2) -> Control:
 						if rect.has_point(pos):
 							return btn
 	
+	# 商店商品（SHOP 模式）
 	if current_mode == Mode.SHOP and shop_container.visible:
 		for btn in shop_container.get_children():
 			if btn is Button and not btn.disabled:
@@ -475,7 +500,8 @@ func _find_control_at_position(pos: Vector2) -> Control:
 				if rect.has_point(pos):
 					return btn
 	
-	if current_mode == Mode.MAP:
+	# 遗物槽（MAP 或 SHOP 模式）
+	if (current_mode == Mode.MAP or current_mode == Mode.SHOP) and relic_container.visible:
 		for grid in relic_container.get_children():
 			if grid is GridContainer:
 				for btn in grid.get_children():
@@ -491,11 +517,13 @@ func _get_target_from_position(global_pos: Vector2) -> Control:
 	if discard_zone.visible and discard_zone.get_global_rect().has_point(global_pos):
 		return discard_zone
 
+	# 单位槽位
 	for col in unit_container.get_children():
 		for child in col.get_children():
 			if child is Button and child.get_global_rect().has_point(global_pos):
 				return child
 
+	# 武器库（DEPLOY 模式）
 	if current_mode == Mode.DEPLOY:
 		for grid in library_container.get_children():
 			if grid is GridContainer:
@@ -503,12 +531,14 @@ func _get_target_from_position(global_pos: Vector2) -> Control:
 					if btn is Button and btn.get_global_rect().has_point(global_pos):
 						return btn
 
+	# 商店商品（SHOP 模式）
 	if current_mode == Mode.SHOP and shop_container.visible:
 		for btn in shop_container.get_children():
 			if btn is Button and not btn.disabled and btn.get_global_rect().has_point(global_pos):
 				return btn
 
-	if current_mode == Mode.MAP:
+	# 遗物槽（MAP 或 SHOP 模式）
+	if (current_mode == Mode.MAP or current_mode == Mode.SHOP) and relic_container.visible:
 		for grid in relic_container.get_children():
 			if grid is GridContainer:
 				for btn in grid.get_children():
@@ -550,23 +580,32 @@ func _is_valid_drop(data: Dictionary, target: Control) -> bool:
 
 	if current_mode == Mode.SHOP:
 		if discard:
-			return false
-		
-		if source_type != "shop_item":
-			return false
-		
-		var item_data = data.get("item_data")
-		if not item_data:
-			return false
-		
-		if item_data.type == "weapon":
-			return target_type == "weapon"
-		elif item_data.type == "armor":
-			return target_type == "armor"
-		elif item_data.type == "relic":
-			return target_type == "relic"
-		
-		return false
+			# 只有单位装备（非商店商品）可以丢弃
+			if source_type == "shop_item" or source_type == "weapon":
+				return false
+			return true
+		else:
+			# 商店商品 → 购买到槽位
+			if source_type == "shop_item":
+				var item_data = data.get("item_data")
+				if not item_data:
+					return false
+				if item_data.type == "weapon":
+					return target_type == "weapon"
+				elif item_data.type == "armor":
+					return target_type == "armor"
+				elif item_data.type == "relic":
+					return target_type == "relic"
+				return false
+			else:
+				# 单位装备之间的交换（武器、防具、遗物）
+				if source_type == "weapon" and target_type == "weapon":
+					return true
+				if source_type == "armor" and target_type == "armor":
+					return true
+				if source_type == "relic" and target_type == "relic":
+					return true
+				return false
 
 	return false
 
@@ -629,37 +668,61 @@ func _buy_shop_item(data: Dictionary, target: Control):
 	if not item_data:
 		return
 	
+	# 获取目标槽位信息（用于武器和防具）
 	var target_unit_idx = target.get_meta("unit_idx", -1)
 	var target_slot_idx = target.get_meta("slot_idx", -1)
 	
+	# 执行购买（扣除金币，从商店移除）
 	var result = ShopManager.buy_shop_item(shop_index)
 	if not result["success"]:
 		print("购买失败: ", result.get("reason", "unknown"))
 		return
 	
+	# 实例化物品
 	var inst = ItemInstance.new()
 	inst.item_id = item_data.id
 	inst.count = 1
 	
+	# 根据类型处理
 	if item_data.type == "relic":
+		# 遗物直接全局生效
 		GameState.add_global_relic(inst)
 		Globals.unlock_relic(item_data.id)
 		print("购买了遗物: ", item_data.name)
+		
 	elif item_data.type == "weapon":
 		if target_unit_idx != -1:
+			# 装备到武器槽
 			party[target_unit_idx].weapon_slot = inst
 			print("购买了武器并装备到单位: ", item_data.name)
 		else:
+			# 没有有效单位槽位，仅解锁
 			Globals.unlock_item(item_data.id)
-			print("购买了武器: ", item_data.name)
+			print("购买了武器（未装备）: ", item_data.name)
+			
 	elif item_data.type == "armor":
 		if target_unit_idx != -1 and target_slot_idx != -1:
+			# 装备到指定防具槽
 			party[target_unit_idx].armor_slots[target_slot_idx] = inst
 			print("购买了防具并装备到单位: ", item_data.name)
 		else:
-			Globals.unlock_item(item_data.id)
-			print("购买了防具: ", item_data.name)
+			# 自动填充第一个空槽
+			var equipped = false
+			if target_unit_idx != -1:
+				for i in range(party[target_unit_idx].armor_slots.size()):
+					if party[target_unit_idx].armor_slots[i] == null:
+						party[target_unit_idx].armor_slots[i] = inst
+						equipped = true
+						break
+				if not equipped:
+					# 所有槽已满，替换最后一个
+					party[target_unit_idx].armor_slots[party[target_unit_idx].armor_slots.size() - 1] = inst
+					print("防具槽已满，替换最后一个槽位")
+			else:
+				Globals.unlock_item(item_data.id)
+				print("购买了防具（未装备）: ", item_data.name)
 	
+	# 同步数据并刷新UI
 	_sync_all()
 	_update_gold_display()
 	call_deferred("_build_ui")
@@ -756,6 +819,7 @@ func _input(event: InputEvent):
 func _start_drag(btn: Button):
 	var slot_type = btn.get_meta("slot_type", "")
 	
+	# DEPLOY 模式下防具和遗物不可拖拽
 	if current_mode == Mode.DEPLOY and (slot_type == "armor" or slot_type == "relic"):
 		return
 	
@@ -848,7 +912,6 @@ func _end_drag():
 		
 	_drag_source = null
 	_drag_meta = {}
-
 
 func _process(_delta):
 	if _is_dragging:

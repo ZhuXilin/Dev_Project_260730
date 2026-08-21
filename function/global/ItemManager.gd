@@ -29,6 +29,7 @@ func load_items():
 		item.id = dict.get("id", key)
 		item.name = dict.get("name", "")
 		item.type = dict.get("type", "")
+		item.price = dict.get("price", 0)
 		item.use_type = dict.get("use_type", "consumable")
 		if dict.has("icon") and ResourceLoader.exists(dict.icon):
 			item.icon = load(dict.icon)
