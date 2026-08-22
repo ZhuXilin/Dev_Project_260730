@@ -64,6 +64,7 @@ func _ready():
 		var has_next = LevelManager.advance_day()
 		print("advance_day 返回：", has_next)
 		if not has_next:
+			# 三天完成，合并资源并重置
 			GameState.finish_cycle()
 			GameState.reset_for_new_cycle()
 			GameState.interrupt_state = 1
@@ -80,6 +81,10 @@ func _ready():
 			return
 		current_day = LevelManager.current_day + 1
 		GameState.current_day = current_day
+
+		# ---- ★★★ 关键修复：调用 finish_day() 增加防具槽并合并魂 ★★★ ----
+		GameState.finish_day()
+
 		level_list = LevelManager.get_current_day_levels()
 		print("新的一天，当前 day=", current_day, " 关卡数：", level_list.size())
 		generate_map(current_day)
@@ -141,7 +146,7 @@ func _ready():
 	_detail_popup = load("res://content/scenes/ui/ItemDetailPopup.tscn").instantiate()
 	add_child(_detail_popup)
 	_detail_popup.visible = false
-	
+
 func _save_game():
 	if Globals.pending_save_slot != -1:
 		SaveManager.save_game(Globals.pending_save_slot)

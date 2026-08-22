@@ -48,12 +48,12 @@ func init(units: Array[String], slot: int, mode: Mode):
 	target_slot = slot
 	current_mode = mode
 	
-	# ---- SHOP 模式特殊处理 ----
+	# ---- SHOP 模式特殊处理：强制刷新商品 ----
 	if mode == Mode.SHOP:
-		if ShopManager.get_shop_items().is_empty():
-			ShopManager.generate_shop_items()
-			ShopManager.reset_count = 0
-			ShopManager.shop_updated.connect(_on_shop_updated)
+		# 强制生成新商品，重置重置计数
+		ShopManager.generate_shop_items()
+		ShopManager.reset_count = 0
+		ShopManager.shop_updated.connect(_on_shop_updated)
 	
 	_copy_party_data()
 	
@@ -136,6 +136,7 @@ func _build_ui():
 		print("错误：mode_label 为 null")
 		return
 	
+	# ---- 更新金币显示（但仅当 visible 为 true 时生效） ----
 	_update_gold_display()
 	
 	# 默认隐藏所有容器
@@ -160,6 +161,7 @@ func _build_ui():
 			confirm_btn.text = "出发"
 			library_container.visible = true
 			right_container.visible = false
+			gold_label.visible = false   # 隐藏金币
 		
 		Mode.MAP:
 			mode_label.text = "装备配置 - 队伍管理"
@@ -169,8 +171,9 @@ func _build_ui():
 			relic_container.visible = true
 			right_container.visible = true
 			discard_zone.visible = true
+			gold_label.visible = false   # 隐藏金币
 			if left_column:
-				left_column.size_flags_vertical = Control.SIZE_EXPAND_FILL   # 关键：左列填充高度
+				left_column.size_flags_vertical = Control.SIZE_EXPAND_FILL
 		
 		Mode.SHOP:
 			mode_label.text = "商店"
@@ -184,8 +187,9 @@ func _build_ui():
 			reset_btn.visible = true
 			reset_btn.text = "重置商店 (" + str(ShopManager.get_reset_cost()) + "G)"
 			_build_shop_items()
+			gold_label.visible = true    # 显示金币（商店需要）
 			if left_column:
-				left_column.size_flags_vertical = Control.SIZE_EXPAND_FILL   # 关键：左列填充高度
+				left_column.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	
 	close_btn.add_theme_font_size_override("font_size", 8)
 	confirm_btn.add_theme_font_size_override("font_size", 8)
@@ -221,7 +225,7 @@ func _build_unit_columns():
 		var col = VBoxContainer.new()
 		col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		col.size_flags_vertical = Control.SIZE_EXPAND_FILL
-		col.add_theme_constant_override("separation", 2)
+		col.add_theme_constant_override("separation", 1)
 		var unit = party[i]
 
 		# ---- 单位名称 ----
@@ -265,7 +269,7 @@ func _create_item_button(inst: ItemInstance, slot_type: String, unit_idx: int, s
 	var btn = Button.new()
 	btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	btn.add_theme_font_size_override("font_size", 6)
-	btn.custom_minimum_size = Vector2(30, 20)
+	btn.custom_minimum_size = Vector2(30, 14)
 	
 	if inst:
 		btn.text = _get_item_name(inst)
@@ -336,7 +340,7 @@ func _build_relics():
 	for i in range(4):
 		var relic = relics[i]
 		var btn = Button.new()
-		btn.custom_minimum_size = Vector2(30, 20)
+		btn.custom_minimum_size = Vector2(30, 14)
 		btn.add_theme_font_size_override("font_size", 6)
 		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		btn.focus_mode = Control.FOCUS_NONE

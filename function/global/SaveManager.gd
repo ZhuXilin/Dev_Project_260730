@@ -156,6 +156,8 @@ func _build_save_data() -> SaveData:
 		}
 		for slot in unit_data.armor_slots:
 			equip_dict["armor_slots"].append(slot.item_id if slot else "")
+		# ---- 打印验证 ----
+		print("保存存档: 单位 ", unit_data.unit_name, " armor_slots 数量: ", unit_data.armor_slots.size(), " max_armor_slots: ", unit_data.max_armor_slots)
 		save.party_equipment.append(equip_dict)
 	
 	# ---- 全局遗物（获得列表） ----
@@ -250,6 +252,8 @@ func _apply_save_data(save: SaveData):
 				else:
 					data.armor_slots.append(null)
 			data.max_armor_slots = equip_dict.get("max_armor_slots", 2)
+			# ---- 打印验证 ----
+			print("加载存档: 单位 ", data.unit_name, " armor_slots 数量: ", data.armor_slots.size(), " max_armor_slots: ", data.max_armor_slots)
 		
 		# 兼容旧存档：如果存档有 inventory 且没有武器，尝试从 inventory 恢复武器
 		if not data.weapon_slot and dict.has("inventory"):

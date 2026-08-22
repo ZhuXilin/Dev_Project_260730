@@ -161,7 +161,9 @@ func finish_day():
 	for unit_data in party:
 		unit_data.armor_slots.append(null)
 		unit_data.max_armor_slots += 1
-	print("每天结束：soul=", soul, " temp_soul 已清零，槽位增加")
+		# ---- 打印验证 ----
+		print("finish_day: 单位 ", unit_data.unit_name, " 当前槽位数: ", unit_data.armor_slots.size(), " max_armor_slots: ", unit_data.max_armor_slots)
+	print("每天结束：soul=", soul, " temp_soul 已清零")
 
 func abandon_and_return_to_camp():
 	finish_day()
