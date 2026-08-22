@@ -55,7 +55,7 @@ size_flags_vertical = 3
 theme_override_constants/separation = 8
 
 [node name="DetailZone" type="Panel" parent="MainPanel/VBoxContainer/MainHBox" unique_id=1607857108]
-custom_minimum_size = Vector2(120, 0)
+custom_minimum_size = Vector2(100, 0)
 layout_mode = 2
 size_flags_horizontal = 0
 size_flags_vertical = 3

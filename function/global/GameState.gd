@@ -158,7 +158,6 @@ func reset_all():
 func finish_day():
 	soul += temp_soul
 	temp_soul = 0
-	# 为所有单位增加一个防具槽
 	for unit_data in party:
 		unit_data.armor_slots.append(null)
 		unit_data.max_armor_slots += 1

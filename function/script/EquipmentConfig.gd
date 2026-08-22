@@ -130,7 +130,6 @@ func _copy_party_data():
 # ============================================================
 #  UI 构建
 # ============================================================
-
 func _build_ui():
 	print("_build_ui 被调用")
 	if not mode_label:
@@ -147,6 +146,11 @@ func _build_ui():
 	discard_zone.visible = false
 	reset_btn.visible = false
 	confirm_btn.visible = false
+	
+	# ---- 获取左列容器（单位+遗物所在列） ----
+	var left_column = $VBoxContainer/MainHBox/VBoxContainer
+	if left_column:
+		left_column.size_flags_vertical = Control.SIZE_SHRINK_CENTER   # 默认重置
 	
 	match current_mode:
 		Mode.DEPLOY:
@@ -165,6 +169,8 @@ func _build_ui():
 			relic_container.visible = true
 			right_container.visible = true
 			discard_zone.visible = true
+			if left_column:
+				left_column.size_flags_vertical = Control.SIZE_EXPAND_FILL   # 关键：左列填充高度
 		
 		Mode.SHOP:
 			mode_label.text = "商店"
@@ -178,6 +184,8 @@ func _build_ui():
 			reset_btn.visible = true
 			reset_btn.text = "重置商店 (" + str(ShopManager.get_reset_cost()) + "G)"
 			_build_shop_items()
+			if left_column:
+				left_column.size_flags_vertical = Control.SIZE_EXPAND_FILL   # 关键：左列填充高度
 	
 	close_btn.add_theme_font_size_override("font_size", 8)
 	confirm_btn.add_theme_font_size_override("font_size", 8)
@@ -193,7 +201,6 @@ func _build_ui():
 	
 	visible = true
 	print("_build_ui 完成，面板可见：", visible)
-
 
 func _update_gold_display():
 	if gold_label:
@@ -258,7 +265,13 @@ func _create_item_button(inst: ItemInstance, slot_type: String, unit_idx: int, s
 	var btn = Button.new()
 	btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	btn.add_theme_font_size_override("font_size", 6)
-	btn.text = _get_item_name(inst) if inst else ("空" if slot_type == "armor" else "无")
+	btn.custom_minimum_size = Vector2(30, 20)
+	
+	if inst:
+		btn.text = _get_item_name(inst)
+	else:
+		btn.text = "空"   # 改为显示“空”
+	
 	btn.set_meta("slot_type", slot_type)
 	btn.set_meta("unit_idx", unit_idx)
 	btn.set_meta("slot_idx", slot_idx)
@@ -272,7 +285,6 @@ func _create_item_button(inst: ItemInstance, slot_type: String, unit_idx: int, s
 		btn.mouse_exited.connect(_on_button_hover_exited)
 	
 	return btn
-
 
 func _build_library():
 	var title = Label.new()
@@ -300,8 +312,10 @@ func _build_library():
 			grid.add_child(btn)
 	library_container.add_child(grid)
 
-
 func _build_relics():
+	for child in relic_container.get_children():
+		child.queue_free()
+	
 	var title = Label.new()
 	title.text = "遗物"
 	title.add_theme_font_size_override("font_size", 6)
@@ -309,15 +323,25 @@ func _build_relics():
 	relic_container.add_child(title)
 
 	var grid = GridContainer.new()
-	grid.columns = 3
+	grid.columns = 4
+	grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	grid.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	grid.add_theme_constant_override("hseparation", 4)
+	grid.add_theme_constant_override("vseparation", 4)
 	
 	var relics = GameState.global_relics.duplicate()
-	while relics.size() < 3:
+	while relics.size() < 4:
 		relics.append(null)
 	
-	for i in range(3):
+	for i in range(4):
 		var relic = relics[i]
 		var btn = Button.new()
+		btn.custom_minimum_size = Vector2(30, 20)
+		btn.add_theme_font_size_override("font_size", 6)
+		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		btn.focus_mode = Control.FOCUS_NONE
+		btn.mouse_filter = Control.MOUSE_FILTER_STOP
+		
 		if relic:
 			var data = RelicManager.get_relic_data(relic.item_id)
 			btn.text = data.get("name", "?") if not data.is_empty() else "?"
@@ -327,21 +351,20 @@ func _build_relics():
 			btn.mouse_entered.connect(_on_button_hover_entered.bind(relic.item_id))
 			btn.mouse_exited.connect(_on_button_hover_exited)
 		else:
-			# 空槽：在 SHOP 模式下可交互（作为遗物拖拽目标），其他模式禁用
+			# ---- 与防具/武器空槽完全一致 ----
 			btn.text = "空"
-			btn.modulate = Color.GRAY
-			btn.disabled = (current_mode != Mode.SHOP)
+			btn.modulate = Color.WHITE   # 改为白色，与空槽统一
+			btn.disabled = false         # 可交互（与防具一致）
 			btn.set_meta("slot_type", "relic")
 			btn.set_meta("relic_index", i)
 			btn.set_meta("item_id", "")
 		
-		btn.add_theme_font_size_override("font_size", 6)
-		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		btn.focus_mode = Control.FOCUS_NONE
-		btn.mouse_filter = Control.MOUSE_FILTER_STOP
 		grid.add_child(btn)
+	
 	relic_container.add_child(grid)
-
+	relic_container.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	relic_container.custom_minimum_size = Vector2(0, 50)
+	relic_container.visible = true
 
 func _build_shop_items():
 	for child in shop_container.get_children():
@@ -547,7 +570,6 @@ func _get_target_from_position(global_pos: Vector2) -> Control:
 
 	return null
 
-
 func _is_valid_drop(data: Dictionary, target: Control) -> bool:
 	var source_type = data["slot_type"]
 	var target_type = target.get_meta("slot_type", "")
@@ -567,25 +589,25 @@ func _is_valid_drop(data: Dictionary, target: Control) -> bool:
 			if source_type == "weapon":
 				return false
 			return true
-		
 		if source_type == "library_weapon":
 			return target_type == "weapon"
 		if source_type == "weapon" and target_type == "weapon":
 			return true
 		if source_type == "armor" and target_type == "armor":
 			return true
+		# 禁止遗物交换
 		if source_type == "relic" and target_type == "relic":
-			return true
+			return false
 		return false
 
 	if current_mode == Mode.SHOP:
 		if discard:
-			# 只有单位装备（非商店商品）可以丢弃
+			# 商店商品和武器不能丢弃
 			if source_type == "shop_item" or source_type == "weapon":
 				return false
 			return true
 		else:
-			# 商店商品 → 购买到槽位
+			# 商店商品 → 购买
 			if source_type == "shop_item":
 				var item_data = data.get("item_data")
 				if not item_data:
@@ -595,6 +617,7 @@ func _is_valid_drop(data: Dictionary, target: Control) -> bool:
 				elif item_data.type == "armor":
 					return target_type == "armor"
 				elif item_data.type == "relic":
+					# 允许遗物商品拖拽到遗物槽（购买）
 					return target_type == "relic"
 				return false
 			else:
@@ -603,12 +626,12 @@ func _is_valid_drop(data: Dictionary, target: Control) -> bool:
 					return true
 				if source_type == "armor" and target_type == "armor":
 					return true
+				# 禁止遗物交换（包括空槽）
 				if source_type == "relic" and target_type == "relic":
-					return true
+					return false
 				return false
 
 	return false
-
 
 # ============================================================
 #  拖拽执行
@@ -847,27 +870,48 @@ func _start_drag(btn: Button):
 	
 	_begin_dragging()
 
-
 func _begin_dragging():
 	if _is_dragging:
 		return
 	_is_dragging = true
 	var btn = _drag_source
+	if not btn:
+		print("_begin_dragging: 源按钮为空")
+		return
+	
+	# ---- 保存原始状态 ----
+	btn.set_meta("_original_disabled", btn.disabled)
+	btn.set_meta("_original_modulate", btn.modulate)
+	btn.set_meta("_original_text", btn.text)
+	btn.set_meta("_original_custom_minimum_size", btn.custom_minimum_size)
+	
+	# ---- 锁定当前尺寸防止高度塌陷 ----
+	var current_size = btn.get_rect().size
+	if current_size.y < 10:
+		current_size.y = 16
+	btn.custom_minimum_size = current_size
+	
+	# ---- 置灰禁用，并显示灰色“空”字 ----
+	btn.disabled = true
+	btn.modulate = Color(0.3, 0.3, 0.3, 1.0)
+	btn.text = "空"   # 显示灰色占位文字，而非空白
+	
+	# ---- 创建拖拽预览 ----
 	var source_size = btn.size
 	var preview = Label.new()
-	preview.text = btn.text
-	preview.add_theme_font_size_override("font_size", 8)
-	preview.modulate = Color(0.8, 0.8, 0.8, 0.9)
+	preview.text = btn.get_meta("_original_text")
+	preview.add_theme_font_size_override("font_size", 6)
+	preview.modulate = Color.WHITE
 	preview.add_theme_color_override("font_color", btn.get_theme_color("font_color"))
 	preview.add_theme_stylebox_override("normal", StyleBoxFlat.new())
 	var style = preview.get_theme_stylebox("normal") as StyleBoxFlat
 	if style:
-		style.bg_color = Color(0.1, 0.1, 0.1, 0.8)
+		style.bg_color = Color(0.1, 0.1, 0.1, 1.0)
 		style.border_width_left = 1
 		style.border_width_right = 1
 		style.border_width_top = 1
 		style.border_width_bottom = 1
-		style.border_color = Color(0.5, 0.5, 0.5, 0.8)
+		style.border_color = Color(0.5, 0.5, 0.5, 1.0)
 	preview.size = source_size
 	preview.horizontal_alignment = btn.alignment
 	preview.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
@@ -883,7 +927,6 @@ func _begin_dragging():
 	
 	_update_targets_visuals()
 
-
 func _update_drag_preview():
 	if not _drag_preview:
 		return
@@ -892,18 +935,37 @@ func _update_drag_preview():
 	_drag_preview.position = preview_center - _drag_preview.size / 2
 	_drag_preview.z_index = 100
 
-
 func _end_drag():
 	if _is_dragging:
 		var mouse_pos = get_global_mouse_position()
 		var target = _get_target_from_position(mouse_pos)
 		
-		if target and _is_valid_drop(_drag_meta, target):
+		var valid = target and _is_valid_drop(_drag_meta, target)
+		if valid:
 			_execute_drop(_drag_meta, target)
 			SoundManager.play_select_sound()
+			# _execute_drop 内部会调用 call_deferred("_build_ui") 重建 UI
 		else:
 			SoundManager.play_cancel_sound()
-			
+			# 无效拖拽：恢复源按钮（为保持一致性，也重建 UI）
+			if is_instance_valid(_drag_source):
+				var original_disabled = _drag_source.get_meta("_original_disabled", false)
+				var original_modulate = _drag_source.get_meta("_original_modulate", Color.WHITE)
+				var original_text = _drag_source.get_meta("_original_text", "")
+				var original_min_size = _drag_source.get_meta("_original_custom_minimum_size", Vector2.ZERO)
+				_drag_source.disabled = original_disabled
+				_drag_source.modulate = original_modulate
+				_drag_source.text = original_text
+				_drag_source.custom_minimum_size = original_min_size
+				# 清除元数据
+				_drag_source.remove_meta("_original_disabled")
+				_drag_source.remove_meta("_original_modulate")
+				_drag_source.remove_meta("_original_text")
+				_drag_source.remove_meta("_original_custom_minimum_size")
+			# ---- 强制重建 UI，彻底恢复所有按钮状态 ----
+			call_deferred("_build_ui")
+		
+		# 清理预览
 		if _drag_preview:
 			_drag_preview.queue_free()
 			_drag_preview = null
@@ -917,19 +979,9 @@ func _process(_delta):
 	if _is_dragging:
 		_update_drag_preview()
 
-
-# ============================================================
-#  商店信号处理
-# ============================================================
-
 func _on_shop_updated():
 	_update_gold_display()
 	call_deferred("_build_ui")
-
-
-# ============================================================
-#  按钮回调
-# ============================================================
 
 func _on_close_pressed():
 	print("_on_close_pressed 被调用")
