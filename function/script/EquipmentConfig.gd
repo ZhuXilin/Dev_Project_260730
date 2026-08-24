@@ -7,6 +7,9 @@ var selected_units: Array[String] = []
 var target_slot: int = -1
 var party: Array = []
 
+# ---- 预加载 ShopManager 脚本 ----
+const ShopManagerScript = preload("res://function/script/ShopManager.gd")
+
 # ---- 手动拖拽状态 ----
 var _is_dragging: bool = false
 var _drag_source: Button = null
@@ -19,6 +22,8 @@ var _target_states: Dictionary = {}
 
 # ---- 详情弹窗 ----
 var _detail_popup = null
+
+var shop_manager = null
 
 @onready var mode_label = $VBoxContainer/TopBar/ModeLabel
 @onready var gold_label = $VBoxContainer/GoldLabel
@@ -36,7 +41,6 @@ var _detail_popup = null
 # ============================================================
 #  初始化
 # ============================================================
-
 func init(units: Array[String], slot: int, mode: Mode):
 	print("EquipmentConfig.init 被调用，模式: ", mode)
 	var canvas_layer = get_parent()
@@ -48,14 +52,17 @@ func init(units: Array[String], slot: int, mode: Mode):
 	target_slot = slot
 	current_mode = mode
 	
-	# ---- SHOP 模式特殊处理：强制刷新商品 ----
+	# ---- SHOP 模式特殊处理 ----
 	if mode == Mode.SHOP:
-		# 强制生成新商品，重置重置计数
-		ShopManager.generate_shop_items()
-		ShopManager.reset_count = 0
-		ShopManager.shop_updated.connect(_on_shop_updated)
+		if not shop_manager:
+			shop_manager = ShopManagerScript.new()
+			add_child(shop_manager)
+			shop_manager.shop_updated.connect(_on_shop_updated)
+		shop_manager.generate_shop_items()
+		shop_manager.reset_count = 0
 	
-	_copy_party_data()
+	# ---- ★★★ 关键修复：复制队伍数据 ★★★ ----
+	_copy_party_data()   # <-- 添加这一行
 	
 	# ---- 创建详情弹窗（隐藏） ----
 	if not _detail_popup:
@@ -70,62 +77,23 @@ func init(units: Array[String], slot: int, mode: Mode):
 	
 	_build_ui()
 
-func _copy_party_data():
-	party.clear()
-	for unit_name in selected_units:
-		var existing = null
-		for u in GameState.party:
-			if u.unit_name == unit_name:
-				existing = u
-				break
-		
-		if existing:
-			var data = UnitData.new()
-			data.unit_name = existing.unit_name
-			data.display_name = existing.display_name
-			data.faction = existing.faction
-			data.team_id = existing.team_id
-			data.max_hp = existing.max_hp
-			data.hit_points = existing.hit_points
-			data.defense = existing.defense
-			data.magic_defense = existing.magic_defense
-			data.skill = existing.skill
-			data.speed = existing.speed
-			data.luck = existing.luck
-			data.move_range = existing.move_range
-			data.ignore_terrain_cost = existing.ignore_terrain_cost
-			data.experience = existing.experience
-			data.level = existing.level
-			
-			if existing.weapon_slot:
-				var inst = ItemInstance.new()
-				inst.item_id = existing.weapon_slot.item_id
-				inst.count = existing.weapon_slot.count
-				data.weapon_slot = inst
-			else:
-				data.weapon_slot = null
-			
-			data.armor_slots.clear()
-			for slot_inst in existing.armor_slots:
-				if slot_inst:
-					var new_inst = ItemInstance.new()
-					new_inst.item_id = slot_inst.item_id
-					new_inst.count = slot_inst.count
-					data.armor_slots.append(new_inst)
-				else:
-					data.armor_slots.append(null)
-			data.max_armor_slots = existing.max_armor_slots
-			
-			# ---- 补全防具槽（确保至少两个） ----
-			while data.armor_slots.size() < 2:
-				data.armor_slots.append(null)
-			if data.max_armor_slots < 2:
-				data.max_armor_slots = 2
-			
-			party.append(data)
-		else:
-			var data = UnitDataManager.create_unit_data(unit_name)
-			party.append(data)
+# ---- 商店信号处理 ----
+func _on_shop_updated():
+	_update_gold_display()
+	call_deferred("_build_ui")
+
+# ---- 按钮回调 ----
+func _on_close_pressed():
+	if current_mode == Mode.SHOP and shop_manager:
+		if shop_manager.shop_updated.is_connected(_on_shop_updated):
+			shop_manager.shop_updated.disconnect(_on_shop_updated)
+		shop_manager.queue_free()
+		shop_manager = null
+	var canvas_layer = get_parent()
+	if canvas_layer:
+		canvas_layer.queue_free()
+	else:
+		queue_free()
 
 # ============================================================
 #  UI 构建
@@ -162,6 +130,7 @@ func _build_ui():
 			library_container.visible = true
 			right_container.visible = false
 			gold_label.visible = false   # 隐藏金币
+			confirm_btn.disabled = false
 		
 		Mode.MAP:
 			mode_label.text = "装备配置 - 队伍管理"
@@ -185,9 +154,9 @@ func _build_ui():
 			discard_zone.visible = true
 			shop_container.visible = true
 			reset_btn.visible = true
-			reset_btn.text = "重置商店 (" + str(ShopManager.get_reset_cost()) + "G)"
+			reset_btn.text = "重置商店 (" + str(shop_manager.get_reset_cost()) + "G)"   # 已修正
 			_build_shop_items()
-			gold_label.visible = true    # 显示金币（商店需要）
+			gold_label.visible = true
 			if left_column:
 				left_column.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	
@@ -371,12 +340,14 @@ func _build_relics():
 	relic_container.visible = true
 
 func _build_shop_items():
+	if not shop_manager:
+		return
 	for child in shop_container.get_children():
 		child.queue_free()
 	
 	shop_container.columns = 3
 	
-	var items = ShopManager.get_shop_items()
+	var items = shop_manager.get_shop_items()
 	for i in range(items.size()):
 		var entry = items[i]
 		var btn = Button.new()
@@ -403,13 +374,11 @@ func _build_shop_items():
 		
 		shop_container.add_child(btn)
 
-
 func _get_item_name(inst: ItemInstance) -> String:
 	if not inst:
 		return ""
 	var data = ItemManager.get_item_data(inst.item_id)
 	return data.name if data else inst.item_id
-
 
 # ============================================================
 #  详情弹窗（悬停显示）
@@ -685,8 +654,10 @@ func _discard_item(data: Dictionary):
 	_sync_all()
 	call_deferred("_build_ui")
 
-
 func _buy_shop_item(data: Dictionary, target: Control):
+	if not shop_manager:
+		return
+	
 	var shop_index = data.get("shop_index", -1)
 	if shop_index == -1:
 		return
@@ -700,7 +671,7 @@ func _buy_shop_item(data: Dictionary, target: Control):
 	var target_slot_idx = target.get_meta("slot_idx", -1)
 	
 	# 执行购买（扣除金币，从商店移除）
-	var result = ShopManager.buy_shop_item(shop_index)
+	var result = shop_manager.buy_shop_item(shop_index)
 	if not result["success"]:
 		print("购买失败: ", result.get("reason", "unknown"))
 		return
@@ -753,7 +724,6 @@ func _buy_shop_item(data: Dictionary, target: Control):
 	_sync_all()
 	_update_gold_display()
 	call_deferred("_build_ui")
-
 
 func _library_to_weapon(data: Dictionary, target: Control):
 	var item_id = data["item_id"]
@@ -812,15 +782,19 @@ func _swap_relics(data: Dictionary, target: Control):
 # ============================================================
 #  同步保存
 # ============================================================
-
 func _sync_all():
 	for i in range(party.size()):
 		if i < GameState.party.size():
+			# 同步装备数据
 			GameState.party[i].weapon_slot = party[i].weapon_slot
 			GameState.party[i].armor_slots = party[i].armor_slots.duplicate()
 			GameState.party[i].max_armor_slots = party[i].max_armor_slots
+			
+			# ---- ★★★ 确保目标单位的 armor_slots 长度与 max_armor_slots 一致 ★★★ ----
+			while GameState.party[i].armor_slots.size() < GameState.party[i].max_armor_slots:
+				GameState.party[i].armor_slots.append(null)
+	
 	SaveManager.auto_save()
-
 
 func _sync_relics():
 	SaveManager.auto_save()
@@ -983,27 +957,13 @@ func _process(_delta):
 	if _is_dragging:
 		_update_drag_preview()
 
-func _on_shop_updated():
-	_update_gold_display()
-	call_deferred("_build_ui")
-
-func _on_close_pressed():
-	print("_on_close_pressed 被调用")
-	if current_mode == Mode.MAP:
-		_sync_all()
-	elif current_mode == Mode.SHOP:
-		if ShopManager.shop_updated.is_connected(_on_shop_updated):
-			ShopManager.shop_updated.disconnect(_on_shop_updated)
-	var canvas_layer = get_parent()
-	if canvas_layer:
-		canvas_layer.queue_free()
-	else:
-		queue_free()
-
-
 func _on_reset_shop_pressed():
 	print("_on_reset_shop_pressed 被调用")
-	var cost = ShopManager.get_reset_cost()
+	
+	if not shop_manager:
+		return
+	
+	var cost = shop_manager.get_reset_cost()
 	
 	if EconomyManager.get_temp_gold() < cost:
 		Globals.show_confirm(
@@ -1017,10 +977,10 @@ func _on_reset_shop_pressed():
 		)
 		return
 	
-	var spent = ShopManager.reset_shop()
+	var spent = shop_manager.reset_shop()
 	if spent >= 0:
 		_update_gold_display()
-		reset_btn.text = "重置商店 (" + str(ShopManager.get_reset_cost()) + "G)"
+		reset_btn.text = "重置商店 (" + str(shop_manager.get_reset_cost()) + "G)"
 		_build_shop_items()
 	else:
 		Globals.show_confirm(
@@ -1033,6 +993,59 @@ func _on_reset_shop_pressed():
 			false
 		)
 
+func _copy_party_data():
+	party.clear()
+	for unit_name in selected_units:
+		var existing = null
+		for u in GameState.party:
+			if u.unit_name == unit_name:
+				existing = u
+				break
+		
+		if existing:
+			var data = UnitData.new()
+			data.unit_name = existing.unit_name
+			data.display_name = existing.display_name
+			data.faction = existing.faction
+			data.team_id = existing.team_id
+			data.max_hp = existing.max_hp
+			data.hit_points = existing.hit_points
+			data.defense = existing.defense
+			data.magic_defense = existing.magic_defense
+			data.skill = existing.skill
+			data.speed = existing.speed
+			data.luck = existing.luck
+			data.move_range = existing.move_range
+			data.ignore_terrain_cost = existing.ignore_terrain_cost
+			data.experience = existing.experience
+			data.level = existing.level
+			
+			if existing.weapon_slot:
+				var inst = ItemInstance.new()
+				inst.item_id = existing.weapon_slot.item_id
+				inst.count = existing.weapon_slot.count
+				data.weapon_slot = inst
+			else:
+				data.weapon_slot = null
+			
+			data.armor_slots.clear()
+			for slot_inst in existing.armor_slots:
+				if slot_inst:
+					var new_inst = ItemInstance.new()
+					new_inst.item_id = slot_inst.item_id
+					new_inst.count = slot_inst.count
+					data.armor_slots.append(new_inst)
+				else:
+					data.armor_slots.append(null)
+			data.max_armor_slots = existing.max_armor_slots
+			
+			while data.armor_slots.size() < data.max_armor_slots:
+				data.armor_slots.append(null)
+			
+			party.append(data)
+		else:
+			var data = UnitDataManager.create_unit_data(unit_name)
+			party.append(data)
 
 func _on_confirm_pressed():
 	print("_on_confirm_pressed 被调用")
@@ -1074,8 +1087,6 @@ func _on_confirm_pressed():
 		data.max_armor_slots = local_unit.max_armor_slots
 		
 		GameState.party.append(data)
-	
-	EconomyManager.reset_temp_resources()
 	
 	if selected_units.size() > 0:
 		var main_data = UnitDataManager.get_unit_data(selected_units[0])

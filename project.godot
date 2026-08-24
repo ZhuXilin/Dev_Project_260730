@@ -34,7 +34,6 @@ SoundManager="*uid://q2rgim5dwebk"
 DialogueManager="*uid://dw5lgfphefd5x"
 ItemManager="*uid://b6reldtlje3ar"
 RelicManager="*uid://b3bqu2ahsvhlb"
-ShopManager="*uid://bsakowp7lx8iv"
 EconomyManager="*uid://4ltyukunbdkr"
 
 [display]
