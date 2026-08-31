@@ -524,7 +524,7 @@ func update_hp_label():
 func update_name_label():
 	var na_label = $NameLabel
 	if na_label:
-		na_label.text = unit_stats.unit_name
+		na_label.text = unit_stats.display_name if unit_stats.display_name != "" else unit_stats.unit_name
 
 func update_terrain_info():
 	var terrain_label = $TerrainInfoLabel

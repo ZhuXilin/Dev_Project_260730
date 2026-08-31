@@ -40,8 +40,9 @@ func _setup_unit_buttons():
 	unlocked.sort()
 
 	for unit_name in unlocked:
+		var display_name = UnitDataManager.get_display_name(unit_name)
 		var btn = Button.new()
-		btn.text = UnitDataManager.get_display_name(unit_name)
+		btn.text = display_name
 		btn.set_meta("unit_name", unit_name)
 		btn.add_theme_font_size_override("font_size", 8)
 		btn.size = Vector2(100, 30)

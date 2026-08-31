@@ -73,6 +73,19 @@ enum Team {
 const CELL_SIZE : int = 16
 const UNIT_SCENE_PATH = Config.PATHS.UNIT_SCENE
 
+# ---- 中文枚举 → 英文 JSON 键映射 ----
+const UNIT_TYPE_TO_JSON_KEY = {
+	UnitType.剑士: "swordsman",
+	UnitType.枪兵: "spearman",
+	UnitType.斧兵: "axeman",
+	UnitType.弓兵: "archer",
+	UnitType.飞马: "pegasus",
+	UnitType.法师: "mage",
+	UnitType.修女: "cleric",
+	UnitType.龙人: "dragonborn",
+	UnitType.重甲兵: "armored"
+}
+
 func _ready():
 	if Engine.is_editor_hint():
 		_build_preview()
@@ -92,13 +105,12 @@ func _build_preview():
 func _get_configuration_warnings() -> PackedStringArray:
 	var warnings = PackedStringArray()
 	if Engine.is_editor_hint():
-		# ---- 检查网格对齐（要求位置在网格顶点，即 16 的整数倍） ----
+		# ---- 检查网格对齐 ----
 		var pos = position
 		var cell_size = CELL_SIZE
 		
 		var x_mod = fmod(pos.x, cell_size)
 		var y_mod = fmod(pos.y, cell_size)
-		# 只检查余数是否接近 0（顶点坐标应为 cell_size 的整数倍）
 		var x_aligned = abs(x_mod) < 0.01
 		var y_aligned = abs(y_mod) < 0.01
 		
@@ -108,7 +120,7 @@ func _get_configuration_warnings() -> PackedStringArray:
 		if placement_mode == PlacementMode.FIXED_UNIT:
 			if initial_items.size() > 5:
 				warnings.append("初始道具数量超过5个，将只保留前5个")
-			var default_id = UnitDataManagerClass.get_default_weapon_id(_get_unit_name())
+			var default_id = UnitDataManagerClass.get_default_weapon_id(_get_json_key())
 			if default_id != "":
 				var has_default = false
 				for entry in initial_items:
@@ -123,13 +135,12 @@ func _get_configuration_warnings() -> PackedStringArray:
 	return warnings
 
 func _build_spawn_point_preview():
-	# 显示一个带编号的标记
 	var bg = ColorRect.new()
 	bg.size = Vector2(CELL_SIZE, CELL_SIZE)
 	bg.position = Vector2(CELL_SIZE/2.0, CELL_SIZE/2.0) - bg.size / 2
 	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	bg.z_index = -1
-	bg.color = Color(0.2, 0.6, 1.0, 0.4)   # 淡蓝色半透明
+	bg.color = Color(0.2, 0.6, 1.0, 0.4)
 	add_child(bg)
 
 	var label = Label.new()
@@ -163,9 +174,10 @@ func _build_unit_preview():
 	unit_instance.input_pickable = false
 	add_child(unit_instance)
 
-	var unit_name = _get_unit_name()
-	var team_id = 0 if team == Team.玩家 else 1
-	var data = UnitDataManagerClass.get_unit_data(unit_name)
+	# ---- 使用英文 JSON 键获取数据 ----
+	var json_key = _get_json_key()
+	var data = UnitDataManagerClass.get_unit_data(json_key)
+	var display_name = data.get("display_name", json_key)  # 用显示名作为标签
 
 	var anim_sprite = unit_instance.get_node("Sprite") as AnimatedSprite2D
 	if anim_sprite:
@@ -181,16 +193,16 @@ func _build_unit_preview():
 		if not loaded_ok:
 			anim_sprite.visible = false
 
+		var team_id = 0 if team == Team.玩家 else 1
 		_apply_shader_to_sprite(anim_sprite, team_id)
 		anim_sprite.flip_h = (team_id == 1)
 
 	var name_label = unit_instance.get_node("NameLabel") as Label
 	if name_label:
-		name_label.text = unit_name
+		name_label.text = display_name   # 显示中文名
 
 	var hp_label = unit_instance.get_node("HPLabel") as Label
 	if hp_label:
-		# ---- 修正：使用字典的 get 方法 ----
 		var max_hp = data.get("max_hp", 20)
 		hp_label.text = str(max_hp) + "/" + str(max_hp)
 
@@ -232,6 +244,7 @@ func _update_visibility():
 	for child in get_children():
 		child.visible = show_preview
 
+# ---- 获取中文名称（仅用于显示标签） ----
 func _get_unit_name() -> String:
 	match unit_type:
 		UnitType.剑士: return "剑士"
@@ -245,21 +258,23 @@ func _get_unit_name() -> String:
 		UnitType.重甲兵: return "重甲兵"
 		_: return "剑士"
 
+# ---- 获取英文 JSON 键 ----
+func _get_json_key() -> String:
+	return UNIT_TYPE_TO_JSON_KEY.get(unit_type, "swordsman")
+
 # ---- 导出配置（供 Battlefield 加载） ----
 func export_config() -> Variant:
 	var grid_pos = Vector2i(floor(position.x / CELL_SIZE), floor(position.y / CELL_SIZE))
 	
 	if placement_mode == PlacementMode.SPAWN_POINT:
-		# 出生点配置
 		return {
 			"type": "spawn_point",
 			"position": grid_pos,
 			"spawn_index": spawn_index
 		}
 	else:
-		# 固定单位配置
 		var cfg = UnitConfig.new()
-		cfg.unit_name = _get_unit_name()
+		cfg.unit_name = _get_json_key()   # 使用英文键
 		cfg.team_id = 0 if team == Team.玩家 else 1
 		cfg.override_stats = {}
 		cfg.immobile = (team == Team.敌人 and immobile)
@@ -278,14 +293,12 @@ func export_config() -> Variant:
 				weapon_entry.count = 1
 				items_to_export.insert(0, weapon_entry)
 		
-		# ---- 截断并警告（超过5种道具） ----
 		if items_to_export.size() > 5:
-			var dropped = items_to_export.slice(5)   # 被丢弃的部分
+			var dropped = items_to_export.slice(5)
 			var dropped_names = []
 			for entry in dropped:
 				var data = ItemManager.get_item_data(entry.item_id)
 				dropped_names.append(data.name if data else entry.item_id)
-			# 在编辑器模式下输出警告（也可使用 push_warning）
 			if Engine.is_editor_hint():
 				push_warning("UnitPlacer: 初始道具（含默认武器）超过5种，丢弃了：%s" % ", ".join(dropped_names))
 			items_to_export = items_to_export.slice(0, 5)

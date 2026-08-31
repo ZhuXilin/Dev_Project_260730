@@ -176,7 +176,7 @@ func _load_unlock_config():
 
 	if data and data is Dictionary:
 		unlock_config = data
-		var raw = data.get("default_unlocked", ["剑士", "枪兵"])
+		var raw = data.get("default_unlocked", ["swordsman", "spearman", "axeman"])
 		var arr: Array = []
 		for item in raw:
 			if item is String:
