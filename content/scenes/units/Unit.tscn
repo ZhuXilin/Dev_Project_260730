@@ -19,6 +19,8 @@ shader_parameter/hit_duration = 0.15
 shader_parameter/hit_elapsed = 0.0
 shader_parameter/hit_flash_color = Vector3(1, 1, 1)
 shader_parameter/hit_enable_flash = false
+shader_parameter/outline_color = Color(1, 1, 1, 1)
+shader_parameter/outline_width = 1.0
 
 [node name="Unit" type="Area2D" unique_id=721344515]
 script = ExtResource("1_owedm")

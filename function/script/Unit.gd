@@ -37,6 +37,9 @@ var _color_material : ShaderMaterial = null
 
 var _initialized: bool = false
 
+# ---- 词条 ----
+var _talent_instances: Dictionary = {}
+
 # ============================================================
 #  初始化
 # ============================================================
@@ -170,19 +173,11 @@ func get_weapon_stats() -> Dictionary:
 	var data = get_weapon_data()
 	return data.stats if data else {}
 
-func get_weapon_type() -> int:
+func get_weapon_type() -> String:
 	var data = get_weapon_data()
 	if not data:
-		return -1
-	match data.category:
-		"sword": return UnitDataManagerClass.WEAPON_SWORD
-		"spear": return UnitDataManagerClass.WEAPON_SPEAR
-		"axe": return UnitDataManagerClass.WEAPON_AXE
-		"bow": return UnitDataManagerClass.WEAPON_BOW
-		"staff": return UnitDataManagerClass.WEAPON_HEAL
-		"spellbook": return UnitDataManagerClass.WEAPON_MAGIC
-		"dragonstone": return UnitDataManagerClass.WEAPON_DRAGONSTONE
-		_: return -1
+		return ""
+	return data.category
 
 func can_use_weapon(_item_id: String) -> bool:
 	return true
@@ -221,30 +216,52 @@ func add_armor_slot():
 func get_total_stats() -> Dictionary:
 	var total = {
 		"max_hp": unit_stats.max_hp,
+		"strength": unit_stats.strength,
+		"dexterity": unit_stats.dexterity,
+		"intelligence": unit_stats.intelligence,
+		"faith": unit_stats.faith,
+		"arcane": unit_stats.arcane,
+		"move_range": unit_stats.move_range,
+		"defense": 0,
+		"magic_defense": 0,
 		"attack": 0,
 		"magic_attack": 0,
-		"defense": unit_stats.defense,
-		"magic_defense": unit_stats.magic_defense,
-		"skill": unit_stats.skill,
-		"speed": unit_stats.speed,
-		"luck": unit_stats.luck,
-		"move_range": unit_stats.move_range,
-		"heal_amount": 0
+		"heal_amount": 0,
+		"attack_range": 0,
+		"min_attack_range": 0,
+		"attack_style": "standard"
 	}
+	
+	# ---- 武器加成 ----
 	if weapon_slot:
 		var data = ItemManager.get_item_data(weapon_slot.item_id)
-		if data and data.stats:
-			for key in data.stats:
-				total[key] = total.get(key, 0) + data.stats[key]
+		if data:
+			total["attack"] = data.base_attack
+			total["attack_range"] = data.attack_range
+			total["min_attack_range"] = data.min_attack_range
+			total["attack_style"] = data.attack_style
+			
+			# 兼容旧 stats（如 magic_attack / heal_amount）
+			if data.stats:
+				if data.stats.has("magic_attack"):
+					total["magic_attack"] = data.stats["magic_attack"]
+				if data.stats.has("heal_amount"):
+					total["heal_amount"] = data.stats["heal_amount"]
+	
+	# ---- 防具加成 ----
 	for slot in armor_slots:
 		if slot:
 			var data = ItemManager.get_item_data(slot.item_id)
-			if data and data.stats:
-				for key in data.stats:
-					total[key] = total.get(key, 0) + data.stats[key]
+			if data:
+				# ✅ 直接访问属性，不使用 .get()
+				total["defense"] += data.defense
+	
+	# ---- 遗物加成 ----
 	var relic_bonus = GameState.get_global_relic_stats()
 	for key in relic_bonus:
-		total[key] = total.get(key, 0) + relic_bonus[key]
+		if key in total:
+			total[key] += relic_bonus[key]
+	
 	return total
 
 # ---- 序列化（用于存档） ----
@@ -518,3 +535,54 @@ func update_terrain_info():
 	var def_bonus = TerrainManager.TERRAIN_DATA[terrain_type]["def_bonus"]
 	var avoid_bonus = TerrainManager.TERRAIN_DATA[terrain_type]["avoid_bonus"]
 	terrain_label.text = terrain_name + "\n防御+" + str(def_bonus) + " 回避+" + str(avoid_bonus)
+
+# ---- 词条方法 ----
+func equip_talent(talent_id: String) -> bool:
+	var data = TalentManager.get_talent_data(talent_id)
+	if not data:
+		return false
+	if _talent_instances.has(talent_id):
+		return false  # 已装备
+	var inst = TalentInstance.new()
+	inst.talent_id = talent_id
+	_talent_instances[talent_id] = inst
+	return true
+
+func unequip_talent(talent_id: String):
+	if _talent_instances.has(talent_id):
+		_talent_instances.erase(talent_id)
+
+func get_talent_instance(talent_id: String) -> TalentInstance:
+	return _talent_instances.get(talent_id)
+
+func get_talent_threshold(talent_id: String) -> int:
+	var data = TalentManager.get_talent_data(talent_id)
+	return data.accumulation_threshold if data else 0
+
+func get_talents_by_school(school: String) -> Array:
+	var result = []
+	for talent_id in _talent_instances:
+		var data = TalentManager.get_talent_data(talent_id)
+		if data and data.school == school:
+			result.append(talent_id)
+	return result
+
+func reset_all_talents():
+	for inst in _talent_instances.values():
+		inst.reset()
+
+func get_talent_school_count(school: String) -> int:
+	var count = 0
+	for talent_id in _talent_instances:
+		var data = TalentManager.get_talent_data(talent_id)
+		if data and data.school == school and _talent_instances[talent_id].is_active:
+			count += 1
+	return count
+
+func accumulate_all_talents():
+	for inst in _talent_instances.values():
+		if inst and inst.is_active:
+			inst.current_stack += 1
+			var threshold = get_talent_threshold(inst.talent_id)
+			if inst.current_stack >= threshold:
+				inst.is_ready = true

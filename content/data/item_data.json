@@ -1,86 +1,23 @@
 {
-  "potion": {
-	"id": "potion",
-	"name": "回复药",
-	"type": "heal",
-	"use_type": "consumable",
-	"icon": "res://content/images/items/potion.png",
-	"effect": {"hp": 5},
-	"description": "对周围1格内我方回复5HP",
-	"use_effect": {
-	  "type": "heal",
-	  "value": 5,
-	  "min_range": 0,
-	  "max_range": 1,
-	  "target": "ally"
-	},
-	"price": 20
-  },
-  "antidote": {
-	"id": "antidote",
-	"name": "解毒草",
-	"type": "cure",
-	"use_type": "consumable",
-	"icon": "res://content/images/items/antidote.png",
-	"effect": {"status": "poison"},
-	"description": "解除中毒",
-	"use_effect": {
-	  "type": "cure",
-	  "status": "poison",
-	  "min_range": 0,
-	  "max_range": 1,
-	  "target": "ally"
-	},
-	"price": 15
-  },
-  "energy_drink": {
-	"id": "energy_drink",
-	"name": "能量饮料",
-	"type": "buff",
-	"use_type": "consumable",
-	"icon": "res://content/images/items/energy.png",
-	"effect": {"strength": 2, "duration": 3},
-	"description": "3回合内攻击+2",
-	"use_effect": {
-	  "type": "buff",
-	  "effect": {"strength": 2, "duration": 3},
-	  "min_range": 0,
-	  "max_range": 0,
-	  "target": "self"
-	},
-	"price": 25
-  },
-  "bomb": {
-	"id": "bomb",
-	"name": "炸弹",
-	"type": "attack",
-	"use_type": "consumable",
-	"icon": "res://content/images/items/bomb.png",
-	"effect": {"damage": 5, "range": 2},
-	"description": "对周围1-2格敌人造成5伤害",
-	"use_effect": {
-	  "type": "damage",
-	  "value": 5,
-	  "min_range": 1,
-	  "max_range": 2,
-	  "target": "enemy"
-	},
-	"price": 30
-  },
   "iron_sword": {
 	"id": "iron_sword",
 	"name": "铁剑",
 	"type": "weapon",
 	"use_type": "infinite",
 	"icon": "res://content/images/items/sword.png",
-	"effect": {},
 	"description": "装备后攻击+6，射程1",
 	"category": "sword",
 	"equipment_slot": "weapon",
-	"stats": {"attack": 6},
+	"price": 40,
+	"quality": "common",
+	"attack_style": "standard",
+	"base_attack": 6,
 	"attack_range": 1,
 	"min_attack_range": 1,
-	"price": 40
+	"modifier": {
+	  "strength": 0.6,
+	  "dexterity": 0.4
+	}
   },
   "steel_sword": {
 	"id": "steel_sword",
@@ -88,14 +25,19 @@
 	"type": "weapon",
 	"use_type": "infinite",
 	"icon": "res://content/images/items/sword.png",
-	"effect": {},
 	"description": "装备后攻击+8，射程1",
 	"category": "sword",
 	"equipment_slot": "weapon",
-	"stats": {"attack": 8},
+	"price": 80,
+	"quality": "rare",
+	"attack_style": "standard",
+	"base_attack": 8,
 	"attack_range": 1,
 	"min_attack_range": 1,
-	"price": 80
+	"modifier": {
+	  "strength": 0.7,
+	  "dexterity": 0.5
+	}
   },
   "steel_spear": {
 	"id": "steel_spear",
@@ -103,14 +45,19 @@
 	"type": "weapon",
 	"use_type": "infinite",
 	"icon": "res://content/images/items/spear.png",
-	"effect": {},
 	"description": "装备后攻击+8，射程1",
 	"category": "spear",
 	"equipment_slot": "weapon",
-	"stats": {"attack": 8},
+	"price": 80,
+	"quality": "rare",
+	"attack_style": "standard",
+	"base_attack": 8,
 	"attack_range": 1,
 	"min_attack_range": 1,
-	"price": 80
+	"modifier": {
+	  "strength": 0.7,
+	  "dexterity": 0.7
+	}
   },
   "battle_axe": {
 	"id": "battle_axe",
@@ -118,14 +65,22 @@
 	"type": "weapon",
 	"use_type": "infinite",
 	"icon": "res://content/images/items/axe.png",
-	"effect": {},
-	"description": "装备后攻击+10，射程2",
+	"description": "装备后攻击+10，射程2，可蓄力",
 	"category": "axe",
 	"equipment_slot": "weapon",
-	"stats": {"attack": 10},
+	"price": 100,
+	"quality": "rare",
+	"attack_style": "heavy",
+	"base_attack": 14,
 	"attack_range": 2,
 	"min_attack_range": 1,
-	"price": 100
+	"modifier": {
+	  "strength": 1.3
+	},
+	"heavy_attack": {
+	  "damage_multiplier": 1.4,
+	  "charge_multiplier": 2.0
+	}
   },
   "longbow": {
 	"id": "longbow",
@@ -133,29 +88,19 @@
 	"type": "weapon",
 	"use_type": "infinite",
 	"icon": "res://content/images/items/bow.png",
-	"effect": {},
 	"description": "装备后攻击+6，射程2-3",
 	"category": "bow",
 	"equipment_slot": "weapon",
-	"stats": {"attack": 6},
+	"price": 70,
+	"quality": "rare",
+	"attack_style": "ranged",
+	"base_attack": 6,
 	"attack_range": 3,
 	"min_attack_range": 2,
-	"price": 70
-  },
-  "wooden_shield": {
-	"id": "wooden_shield",
-	"name": "木盾",
-	"type": "armor",
-	"use_type": "infinite",
-	"icon": "res://content/images/items/shield.png",
-	"effect": {},
-	"description": "装备后防御+2",
-	"category": "shield",
-	"equipment_slot": "armor",
-	"stats": {"defense": 2},
-	"attack_range": 0,
-	"min_attack_range": 0,
-	"price": 30
+	"modifier": {
+	  "dexterity": 1.0,
+	  "arcane": 0.3
+	}
   },
   "light_crossbow": {
 	"id": "light_crossbow",
@@ -163,14 +108,19 @@
 	"type": "weapon",
 	"use_type": "infinite",
 	"icon": "res://content/images/items/crossbow.png",
-	"effect": {},
 	"description": "装备后攻击+5，射程2-3",
 	"category": "crossbow",
 	"equipment_slot": "weapon",
-	"stats": {"attack": 5},
+	"price": 60,
+	"quality": "rare",
+	"attack_style": "ranged",
+	"base_attack": 5,
 	"attack_range": 3,
 	"min_attack_range": 2,
-	"price": 60
+	"modifier": {
+	  "dexterity": 0.8,
+	  "arcane": 0.2
+	}
   },
   "healing_staff": {
 	"id": "healing_staff",
@@ -178,14 +128,23 @@
 	"type": "weapon",
 	"use_type": "infinite",
 	"icon": "res://content/images/items/staff.png",
-	"effect": {},
 	"description": "装备后治疗+10，范围4",
 	"category": "staff",
 	"equipment_slot": "weapon",
-	"stats": {"heal_amount": 10},
-	"attack_range": 3,
+	"price": 120,
+	"quality": "rare",
+	"attack_style": "heal",
+	"base_attack": 0,
+	"attack_range": 4,
 	"min_attack_range": 0,
-	"price": 120
+	"modifier": {
+	  "faith": 1.3,
+	  "intelligence": 0.3
+	},
+	"heal_effect": {
+	  "base_heal": 10,
+	  "faith_multiplier": 1.0
+	}
   },
   "fire_spellbook": {
 	"id": "fire_spellbook",
@@ -193,14 +152,22 @@
 	"type": "weapon",
 	"use_type": "infinite",
 	"icon": "res://content/images/items/spellbook.png",
-	"effect": {},
-	"description": "装备后魔法攻击+11，射程2",
+	"description": "装备后魔法攻击+11，射程2，无视防御",
 	"category": "spellbook",
 	"equipment_slot": "weapon",
-	"stats": {"magic_attack": 11},
+	"price": 130,
+	"quality": "epic",
+	"attack_style": "magic",
+	"base_attack": 11,
 	"attack_range": 2,
 	"min_attack_range": 1,
-	"price": 130
+	"modifier": {
+	  "intelligence": 1.4,
+	  "arcane": 0.3
+	},
+	"magic_attack": {
+	  "ignore_defense": true
+	}
   },
   "master_sword": {
 	"id": "master_sword",
@@ -208,14 +175,20 @@
 	"type": "weapon",
 	"use_type": "infinite",
 	"icon": "res://content/images/items/sword.png",
-	"effect": {},
 	"description": "装备后攻击+12，射程1",
 	"category": "sword",
 	"equipment_slot": "weapon",
-	"stats": {"attack": 12},
+	"price": 200,
+	"quality": "legendary",
+	"attack_style": "standard",
+	"base_attack": 12,
 	"attack_range": 1,
 	"min_attack_range": 1,
-	"price": 200
+	"modifier": {
+	  "strength": 0.3,
+	  "dexterity": 1.2
+	},
+	"legendary_effect": "居合斩冷却-1回合"
   },
   "javelin": {
 	"id": "javelin",
@@ -223,14 +196,19 @@
 	"type": "weapon",
 	"use_type": "infinite",
 	"icon": "res://content/images/items/javelin.png",
-	"effect": {},
 	"description": "装备后攻击+6，射程2",
 	"category": "spear",
 	"equipment_slot": "weapon",
-	"stats": {"attack": 6},
+	"price": 50,
+	"quality": "common",
+	"attack_style": "standard",
+	"base_attack": 6,
 	"attack_range": 2,
 	"min_attack_range": 1,
-	"price": 50
+	"modifier": {
+	  "strength": 0.5,
+	  "dexterity": 0.5
+	}
   },
   "fire_dragonstone": {
 	"id": "fire_dragonstone",
@@ -238,14 +216,45 @@
 	"type": "weapon",
 	"use_type": "infinite",
 	"icon": "res://content/images/items/fire_dragonstone.png",
-	"effect": {},
 	"description": "龙人专用，高魔法伤害，射程远",
 	"category": "dragonstone",
 	"equipment_slot": "weapon",
-	"stats": {"attack": 13, "magic_attack": 13},
+	"price": 250,
+	"quality": "legendary",
+	"attack_style": "magic",
+	"base_attack": 13,
 	"attack_range": 4,
 	"min_attack_range": 1,
-	"price": 250
+	"modifier": {
+	  "arcane": 1.3,
+	  "intelligence": 0.3
+	},
+	"magic_attack": {
+	  "ignore_defense": true
+	},
+	"legendary_effect": "龙息范围+1"
+  },
+
+  "wooden_shield": {
+	"id": "wooden_shield",
+	"name": "木盾",
+	"type": "armor",
+	"use_type": "equipment",
+	"icon": "res://content/images/items/shield.png",
+	"description": "装备后防御+2",
+	"equipment_slot": "armor",
+	"price": 30,
+	"quality": "common",
+	"armor_type": "medium",
+	"defense": 2,
+	"slot_count": 1,
+	"modifier": {
+	  "strength": 0.2
+	},
+	"unlock_cost": {
+	  "粗铁": 5
+	},
+	"craft_cost": 100
   },
   "iron_armor": {
 	"id": "iron_armor",
@@ -255,8 +264,18 @@
 	"icon": "res://content/images/items/armor.png",
 	"description": "防御+2",
 	"equipment_slot": "armor",
-	"stats": {"defense": 2},
-	"price": 60
+	"price": 60,
+	"quality": "common",
+	"armor_type": "medium",
+	"defense": 2,
+	"slot_count": 1,
+	"modifier": {
+	  "strength": 0.2
+	},
+	"unlock_cost": {
+	  "粗铁": 5
+	},
+	"craft_cost": 100
   },
   "steel_armor": {
 	"id": "steel_armor",
@@ -266,8 +285,18 @@
 	"icon": "res://content/images/items/armor.png",
 	"description": "防御+4",
 	"equipment_slot": "armor",
-	"stats": {"defense": 4},
-	"price": 120
+	"price": 120,
+	"quality": "rare",
+	"armor_type": "medium",
+	"defense": 4,
+	"slot_count": 1,
+	"modifier": {
+	  "strength": 0.3
+	},
+	"unlock_cost": {
+	  "精钢": 3
+	},
+	"craft_cost": 200
   },
   "knight_armor": {
 	"id": "knight_armor",
@@ -277,8 +306,19 @@
 	"icon": "res://content/images/items/armor.png",
 	"description": "防御+3，魔防+1",
 	"equipment_slot": "armor",
-	"stats": {"defense": 3, "magic_defense": 1},
-	"price": 100
+	"price": 100,
+	"quality": "epic",
+	"armor_type": "heavy",
+	"defense": 5,
+	"slot_count": 2,
+	"modifier": {
+	  "strength": 0.5,
+	  "faith": 0.2
+	},
+	"unlock_cost": {
+	  "秘银": 2
+	},
+	"craft_cost": 350
   },
   "power_ring": {
 	"id": "power_ring",
@@ -288,8 +328,18 @@
 	"icon": "res://content/images/items/ring.png",
 	"description": "攻击+2",
 	"equipment_slot": "armor",
-	"stats": {"attack": 2},
-	"price": 80
+	"price": 80,
+	"quality": "rare",
+	"armor_type": "light",
+	"defense": 0,
+	"slot_count": 1,
+	"modifier": {
+	  "strength": 2
+	},
+	"unlock_cost": {
+	  "精钢": 2
+	},
+	"craft_cost": 150
   },
   "guard_ring": {
 	"id": "guard_ring",
@@ -299,8 +349,18 @@
 	"icon": "res://content/images/items/ring.png",
 	"description": "防御+2",
 	"equipment_slot": "armor",
-	"stats": {"defense": 2},
-	"price": 80
+	"price": 80,
+	"quality": "rare",
+	"armor_type": "light",
+	"defense": 2,
+	"slot_count": 1,
+	"modifier": {
+	  "strength": 0.2
+	},
+	"unlock_cost": {
+	  "精钢": 2
+	},
+	"craft_cost": 150
   },
   "speed_boots": {
 	"id": "speed_boots",
@@ -310,7 +370,17 @@
 	"icon": "res://content/images/items/boots.png",
 	"description": "移动力+1",
 	"equipment_slot": "armor",
-	"stats": {"move_range": 1},
-	"price": 100
+	"price": 100,
+	"quality": "rare",
+	"armor_type": "light",
+	"defense": 0,
+	"slot_count": 1,
+	"modifier": {
+	  "dexterity": 1
+	},
+	"unlock_cost": {
+	  "精钢": 2
+	},
+	"craft_cost": 150
   }
 }

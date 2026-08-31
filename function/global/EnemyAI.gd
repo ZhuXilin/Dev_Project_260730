@@ -62,7 +62,7 @@ func _decide_action(unit: Unit):
 	var hp_ratio = float(unit.hit_points) / unit.unit_stats.max_hp
 
 	# 1. 治疗者优先治疗队友
-	if unit.get_weapon_type() == UnitDataManagerClass.WEAPON_HEAL:
+	if unit.get_weapon_type() == "staff":
 		var heal_action = _decide_healer_action(unit)
 		if heal_action:
 			return heal_action
@@ -131,7 +131,7 @@ func _decide_healer_action(unit: Unit):
 #  攻击评估（仅使用当前装备武器）
 # ============================================================
 func _evaluate_attack(unit: Unit):
-	var is_healer = (unit.get_weapon_type() == UnitDataManagerClass.WEAPON_HEAL)
+	var is_healer = (unit.get_weapon_type() == "staff")
 	if is_healer:
 		print("AI 治疗者不执行攻击")
 		return null
@@ -184,7 +184,7 @@ func _evaluate_attack(unit: Unit):
 		# 检查敌人能否反击
 		var can_counter = false
 		var enemy_weapon_type = enemy.get_weapon_type()
-		if enemy_weapon_type != -1 and enemy_weapon_type != UnitDataManagerClass.WEAPON_HEAL:
+		if enemy_weapon_type != -1 and enemy_weapon_type != "staff":
 			var enemy_weapon_data = enemy.get_weapon_data()
 			var enemy_min = enemy_weapon_data.min_attack_range if enemy_weapon_data else 0
 			var enemy_max = enemy_weapon_data.attack_range if enemy_weapon_data else 0
@@ -263,7 +263,7 @@ func _evaluate_move(unit: Unit):
 		var healers = []
 		for ally in UnitManager.unit_list:
 			if ally.unit_stats.team_id == unit.unit_stats.team_id and ally != unit and ally.hit_points > 0:
-				if ally.get_weapon_type() == UnitDataManagerClass.WEAPON_HEAL:
+				if ally.get_weapon_type() == "staff":
 					healers.append(ally)
 		if healers.size() > 0:
 			var nearest_healer = healers[0]
@@ -409,7 +409,7 @@ func _evaluate_survival_move(unit: Unit):
 	var healers = []
 	for ally in UnitManager.unit_list:
 		if ally.unit_stats.team_id == unit.unit_stats.team_id and ally != unit and ally.hit_points > 0:
-			if ally.get_weapon_type() == UnitDataManagerClass.WEAPON_HEAL:
+			if ally.get_weapon_type() == "staff":
 				healers.append(ally)
 	if healers.size() > 0:
 		var nearest_healer = healers[0]

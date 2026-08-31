@@ -59,13 +59,13 @@ func show_menu(unit: Unit):
 
 	move_btn.disabled = not (unit.can_move() and not unit.has_attacked and not unit.has_acted)
 
-	var weapon_type = unit.get_weapon_type()
-	if weapon_type == UnitDataManagerClass.WEAPON_HEAL:
+	var weapon_type = unit.get_weapon_type()  # 返回 category 字符串
+	if weapon_type == "staff":
 		attack_btn.text = "治疗"
-	elif weapon_type == UnitDataManagerClass.WEAPON_MAGIC:
-		attack_btn.text = "魔法"
-	elif weapon_type == UnitDataManagerClass.WEAPON_DRAGONSTONE:
+	elif weapon_type == "dragonstone":
 		attack_btn.text = "龙炎"
+	elif weapon_type == "spellbook":
+		attack_btn.text = "魔法"
 	else:
 		attack_btn.text = "攻击"
 

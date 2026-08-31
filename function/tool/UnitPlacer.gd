@@ -190,8 +190,8 @@ func _build_unit_preview():
 
 	var hp_label = unit_instance.get_node("HPLabel") as Label
 	if hp_label:
-		# ---- 修正：强制转换为整数，消除小数点 ----
-		var max_hp = int(data["max_hp"])
+		# ---- 修正：使用字典的 get 方法 ----
+		var max_hp = data.get("max_hp", 20)
 		hp_label.text = str(max_hp) + "/" + str(max_hp)
 
 	var terrain_label = unit_instance.get_node("TerrainInfoLabel") as Label

@@ -1010,16 +1010,19 @@ func _copy_party_data():
 			data.team_id = existing.team_id
 			data.max_hp = existing.max_hp
 			data.hit_points = existing.hit_points
-			data.defense = existing.defense
-			data.magic_defense = existing.magic_defense
-			data.skill = existing.skill
-			data.speed = existing.speed
-			data.luck = existing.luck
+			
+			# ---- 新属性 ----
+			data.strength = existing.strength
+			data.dexterity = existing.dexterity
+			data.intelligence = existing.intelligence
+			data.faith = existing.faith
+			data.arcane = existing.arcane
 			data.move_range = existing.move_range
 			data.ignore_terrain_cost = existing.ignore_terrain_cost
 			data.experience = existing.experience
 			data.level = existing.level
 			
+			# ---- 复制武器 ----
 			if existing.weapon_slot:
 				var inst = ItemInstance.new()
 				inst.item_id = existing.weapon_slot.item_id
@@ -1028,6 +1031,7 @@ func _copy_party_data():
 			else:
 				data.weapon_slot = null
 			
+			# ---- 复制防具槽 ----
 			data.armor_slots.clear()
 			for slot_inst in existing.armor_slots:
 				if slot_inst:
@@ -1039,11 +1043,13 @@ func _copy_party_data():
 					data.armor_slots.append(null)
 			data.max_armor_slots = existing.max_armor_slots
 			
+			# ---- 补全防具槽到 max_armor_slots ----
 			while data.armor_slots.size() < data.max_armor_slots:
 				data.armor_slots.append(null)
 			
 			party.append(data)
 		else:
+			# 如果不存在，使用工厂方法创建默认数据
 			var data = UnitDataManager.create_unit_data(unit_name)
 			party.append(data)
 
@@ -1058,16 +1064,17 @@ func _on_confirm_pressed():
 		data.team_id = 0
 		data.max_hp = local_unit.max_hp
 		data.hit_points = local_unit.hit_points
-		data.defense = local_unit.defense
-		data.magic_defense = local_unit.magic_defense
-		data.skill = local_unit.skill
-		data.speed = local_unit.speed
-		data.luck = local_unit.luck
+		data.strength = local_unit.strength
+		data.dexterity = local_unit.dexterity
+		data.intelligence = local_unit.intelligence
+		data.faith = local_unit.faith
+		data.arcane = local_unit.arcane
 		data.move_range = local_unit.move_range
 		data.ignore_terrain_cost = local_unit.ignore_terrain_cost
 		data.experience = local_unit.experience
 		data.level = local_unit.level
 		
+		# ---- 复制装备 ----
 		if local_unit.weapon_slot:
 			var inst = ItemInstance.new()
 			inst.item_id = local_unit.weapon_slot.item_id
@@ -1085,6 +1092,9 @@ func _on_confirm_pressed():
 			else:
 				data.armor_slots.append(null)
 		data.max_armor_slots = local_unit.max_armor_slots
+		# 补全槽位
+		while data.armor_slots.size() < data.max_armor_slots:
+			data.armor_slots.append(null)
 		
 		GameState.party.append(data)
 	

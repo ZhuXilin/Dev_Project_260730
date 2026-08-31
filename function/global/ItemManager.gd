@@ -29,19 +29,36 @@ func load_items():
 		item.id = dict.get("id", key)
 		item.name = dict.get("name", "")
 		item.type = dict.get("type", "")
-		item.price = dict.get("price", 0)
 		item.use_type = dict.get("use_type", "consumable")
+		# 图标处理
 		if dict.has("icon") and ResourceLoader.exists(dict.icon):
 			item.icon = load(dict.icon)
-		else:
-			item.icon = null
 		item.description = dict.get("description", "")
 		item.category = dict.get("category", "")
 		item.equipment_slot = dict.get("equipment_slot", "")
-		item.stats = dict.get("stats", {})
+		item.price = dict.get("price", 0)
+		
+		# 新字段
+		item.quality = dict.get("quality", "common")
+		item.attack_style = dict.get("attack_style", "standard")
+		item.base_attack = dict.get("base_attack", 0)
 		item.attack_range = dict.get("attack_range", 1)
 		item.min_attack_range = dict.get("min_attack_range", 1)
+		item.modifier = dict.get("modifier", {})
+		item.armor_type = dict.get("armor_type", "medium")
+		item.defense = dict.get("defense", 0)
+		item.slot_count = dict.get("slot_count", 1)
+		item.unlock_cost = dict.get("unlock_cost", {})
+		item.craft_cost = dict.get("craft_cost", 0)
+		item.heavy_attack = dict.get("heavy_attack", {})
+		item.magic_attack = dict.get("magic_attack", {})
+		item.heal_effect = dict.get("heal_effect", {})
+		item.legendary_effect = dict.get("legendary_effect", "")
+		
+		# 保留 stats 兼容
+		item.stats = dict.get("stats", {})
 		item.use_effect = dict.get("use_effect", {})
+		
 		_item_db[item.id] = item
 	print("成功加载 ", _item_db.size(), " 个道具")
 	

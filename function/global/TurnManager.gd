@@ -18,7 +18,6 @@ var map_functions: Dictionary = {}   # 由 Battlefield 设置
 
 func _ready():
 	UnitManager.unit_removed.connect(_on_unit_removed)
-	# 初始化 AI 处理器
 	enemy_ai = EnemyAI.new()
 	add_child(enemy_ai)
 	enemy_ai.initialize(self)
@@ -55,7 +54,6 @@ func start_movement(unit: Unit, path: Array):
 	unit.save_previous_position()
 	var move_cost = path.size()
 	unit.consume_move(move_cost)
-	# ---- 增加行动后移动计数 ----
 	unit.moves_since_act += 1
 	SignalBus.request_move_along_path.emit(unit, path)
 	is_moving = true
@@ -86,8 +84,7 @@ func on_ai_movement_finished(unit: Unit):
 	is_ai_moving = false
 	unit.has_moved = true
 	unit.can_act_this_turn = false
-	# ---- 标记已移动，即使未攻击也视为行动过 ----
-	unit.has_attacked = false   # 未攻击，但已行动，不应再攻击
+	unit.has_attacked = false
 	var targets = CombatManager.get_attackable_targets(unit)
 	if targets.size() > 0:
 		await CombatManager.execute_attack(unit, targets[0])
@@ -101,10 +98,8 @@ func start_turn(team: int):
 		print("跳过 start_turn")
 		return
 	
-	# ---- 非战斗模式：跳过敌方回合 ----
 	if Globals.is_non_combat_mode and team == 1:
 		print("非战斗模式：跳过敌方回合，立即回到玩家回合")
-		# 敌方回合直接跳过，重置为玩家回合
 		start_turn(0)
 		return
 
@@ -119,7 +114,6 @@ func start_turn(team: int):
 	SignalBus.request_hide_menu.emit()
 	SignalBus.request_clear_highlight.emit()
 
-	# ---- 强制所有单位恢复彩色 ----
 	for unit in UnitManager.unit_list:
 		if unit.hit_points > 0:
 			unit.is_gray = false
@@ -127,23 +121,25 @@ func start_turn(team: int):
 			if unit.animated_sprite:
 				unit.animated_sprite.queue_redraw()
 
-	# ---- 延迟一帧再次强制刷新（确保渲染完成） ----
 	call_deferred("_refresh_all_unit_colors")
 
-	# ---- 重置当前队伍行动状态 ----
+	# ---- 词条积累 ----
+	for unit in UnitManager.unit_list:
+		if unit.hit_points > 0 and unit.unit_stats.team_id == team:
+			unit.accumulate_all_talents()
+
+	# ---- 重置行动状态 ----
 	for unit in UnitManager.unit_list:
 		if unit.hit_points > 0 and unit.unit_stats.team_id == team:
 			unit.reset_turn()
 
 	SignalBus.turn_changed.emit(team)
 
-# ---- 辅助函数：二次刷新 ----
 func _refresh_all_unit_colors():
 	for unit in UnitManager.unit_list:
 		if unit.hit_points > 0 and unit.animated_sprite:
 			unit.animated_sprite.queue_redraw()
 
-# ---- AI 控制 ----
 func run_enemy_ai():
 	print("TurnManager.run_enemy_ai 被调用")
 	if is_game_over or is_moving:
@@ -156,11 +152,9 @@ func run_enemy_ai():
 		print("enemy_ai 为 null")
 
 func _on_ai_queue_finished():
-	# AI 队列完成，等待片刻后切回玩家回合
 	await get_tree().create_timer(1.5).timeout
-	start_turn(0)   # 改为直接调用
+	start_turn(0)
 
-# ---- 其他回合控制 ----
 func finish_unit_action(unit: Unit):
 	if is_game_over or is_moving:
 		return

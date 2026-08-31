@@ -211,30 +211,45 @@ func _apply_save_data(save: SaveData):
 	GameState.cached_map_level_data = save.map_level_data
 	GameState.cached_day = save.current_day
 
-	# ---- 恢复队伍 ----
+	# ---- 恢复队伍数据 ----
 	GameState.party.clear()
 	for i in range(save.party_data.size()):
 		var dict = save.party_data[i]
 		var data = UnitData.new()
-		data.unit_name = dict["unit_name"]
-		data.display_name = dict.get("display_name", dict["unit_name"])
-		data.faction = dict.get("faction", "")
-		data.hit_points = dict["hp"]
-		var stats = UnitDataManager.get_default_stats(data.unit_name)
-		data.max_hp = stats.max_hp
-		data.defense = stats.defense
-		data.magic_defense = stats.magic_defense
-		data.skill = stats.skill
-		data.speed = stats.speed
-		data.luck = stats.luck
-		data.move_range = stats.move_range
-		data.ignore_terrain_cost = stats.ignore_terrain_cost
 		
-		# 恢复装备（若存在）
+		# 基础信息
+		data.unit_name = dict.get("unit_name", "剑士")
+		data.display_name = dict.get("display_name", "")
+		data.faction = dict.get("faction", "")
+		data.team_id = 0
+		
+		# 新属性
+		data.strength = dict.get("strength", 5)
+		data.dexterity = dict.get("dexterity", 5)
+		data.intelligence = dict.get("intelligence", 3)
+		data.faith = dict.get("faith", 3)
+		data.arcane = dict.get("arcane", 3)
+		data.move_range = dict.get("move_range", 5)
+		data.ignore_terrain_cost = dict.get("ignore_terrain_cost", false)
+		
+		# HP
+		data.max_hp = dict.get("max_hp", 20)
+		# 兼容旧存档：优先取 "hp"，没有则取 "hit_points"，都没有则用 max_hp
+		var hp_val = dict.get("hp", dict.get("hit_points", data.max_hp))
+		if typeof(hp_val) == TYPE_INT:
+			data.hit_points = hp_val
+		else:
+			data.hit_points = data.max_hp
+		
+		# 其他
+		data.experience = dict.get("experience", 0)
+		data.level = dict.get("level", 1)
+		
+		# 装备恢复
 		if i < save.party_equipment.size():
 			var equip_dict = save.party_equipment[i]
 			# 武器
-			if equip_dict["weapon"] != "":
+			if equip_dict.get("weapon", "") != "":
 				var inst = ItemInstance.new()
 				inst.item_id = equip_dict["weapon"]
 				inst.count = 1
@@ -243,7 +258,7 @@ func _apply_save_data(save: SaveData):
 				data.weapon_slot = null
 			# 防具
 			data.armor_slots.clear()
-			for slot_id in equip_dict["armor_slots"]:
+			for slot_id in equip_dict.get("armor_slots", []):
 				if slot_id != "":
 					var inst = ItemInstance.new()
 					inst.item_id = slot_id
@@ -252,19 +267,15 @@ func _apply_save_data(save: SaveData):
 				else:
 					data.armor_slots.append(null)
 			data.max_armor_slots = equip_dict.get("max_armor_slots", 2)
-			# ---- 打印验证 ----
-			print("加载存档: 单位 ", data.unit_name, " armor_slots 数量: ", data.armor_slots.size(), " max_armor_slots: ", data.max_armor_slots)
+		else:
+			# 无装备数据，使用默认
+			data.weapon_slot = null
+			data.armor_slots = [null, null]
+			data.max_armor_slots = 2
 		
-		# 兼容旧存档：如果存档有 inventory 且没有武器，尝试从 inventory 恢复武器
-		if not data.weapon_slot and dict.has("inventory"):
-			for item_id in dict["inventory"]:
-				var item_data = ItemManager.get_item_data(item_id)
-				if item_data and item_data.equipment_slot == "weapon":
-					var inst = ItemInstance.new()
-					inst.item_id = item_id
-					inst.count = 1
-					data.weapon_slot = inst
-					break
+		# 补全防具槽
+		while data.armor_slots.size() < data.max_armor_slots:
+			data.armor_slots.append(null)
 		
 		GameState.party.append(data)
 

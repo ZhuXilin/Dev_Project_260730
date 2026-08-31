@@ -738,13 +738,13 @@ func _on_highlight_request(cells: Dictionary):
 			else:
 				var unit = InputManager.selected_unit
 				var preview_color = Color(0.7, 0.1, 0.2, 0.7)
-				if unit and unit.get_weapon_type() == UnitDataManagerClass.WEAPON_HEAL:
+				if unit and unit.get_weapon_type() == "staff":
 					preview_color = Color(0.2, 0.5, 0.8, 0.7)
 				highlight_manager.show_move_highlight(cells, preview_color, 1, false)
 		"attacking":
 			var unit = InputManager.selected_unit
 			var color = Color(0.7, 0.1, 0.2, 0.7)
-			if unit and unit.get_weapon_type() == UnitDataManagerClass.WEAPON_HEAL:
+			if unit and unit.get_weapon_type() == "staff":
 				color = Color(0.2, 0.5, 0.8, 0.7)
 			highlight_manager.show_move_highlight(cells, color, 1, true)
 		"item_target":
@@ -1429,12 +1429,11 @@ func _on_request_show_info(unit: Unit):
 			lines.append("防具: " + armor_str.strip_edges())
 
 		# ---- 基本属性 ----
-		lines.append("防御: " + str(unit.unit_stats.defense))
-		lines.append("魔防: " + str(unit.unit_stats.magic_defense))
-		lines.append("技巧: " + str(unit.unit_stats.skill))
-		lines.append("速度: " + str(unit.unit_stats.speed))
-		lines.append("幸运: " + str(unit.unit_stats.luck))
-		lines.append("移动力: " + str(unit.unit_stats.move_range))
+		lines.append("力量: " + str(unit.unit_stats.strength))
+		lines.append("敏捷: " + str(unit.unit_stats.dexterity))
+		lines.append("智力: " + str(unit.unit_stats.intelligence))
+		lines.append("信仰: " + str(unit.unit_stats.faith))
+		lines.append("感应: " + str(unit.unit_stats.arcane))
 
 		# ---- 地形 ----
 		var cell = unit.grid_cell
@@ -1777,7 +1776,7 @@ func _get_type_display_name(type: String) -> String:
 
 func _show_attack_highlight(cells: Dictionary, unit: Unit):
 	var color = Color(0.7, 0.1, 0.2, 0.7)
-	if unit and unit.get_weapon_type() == UnitDataManagerClass.WEAPON_HEAL:
+	if unit and unit.get_weapon_type() == "staff":
 		color = Color(0.2, 0.5, 0.8, 0.7)
 	highlight_manager.show_move_highlight(cells, color, 1, true)
 

@@ -1,128 +1,137 @@
 {
-  "剑士": {
+  "swordsman": {
 	"max_hp": 22,
-	"defense": 0,
-	"magic_defense": 0,
+	"strength": 5,
+	"dexterity": 8,
+	"intelligence": 3,
+	"faith": 3,
+	"arcane": 4,
 	"move_range": 5,
-	"skill": 5,
-	"speed": 6,
-	"luck": 5,
 	"ignore_terrain_cost": false,
 	"sprite_frames_path": "res://content/images/characters/unit_swordsmen_frames.tres",
 	"description": "平衡型近战单位，擅长剑术，攻守兼备。",
 	"display_name": "艾琳",
-	"faction": "王国"
+	"faction": "王国",
+	"default_weapon": "iron_sword"
   },
-  "枪兵": {
+  "spearman": {
 	"max_hp": 27,
-	"defense": 1,
-	"magic_defense": 0,
+	"strength": 8,
+	"dexterity": 5,
+	"intelligence": 2,
+	"faith": 2,
+	"arcane": 3,
 	"move_range": 7,
-	"skill": 3,
-	"speed": 3,
-	"luck": 2,
 	"ignore_terrain_cost": false,
 	"sprite_frames_path": "res://content/images/characters/unit_knight_frames.tres",
-	"description": "长枪兵，攻击力高，移动距离远，克制骑兵。",
+	"description": "长枪兵，攻击力高，移动距离远。",
 	"display_name": "罗兰",
-	"faction": "王国"
+	"faction": "王国",
+	"default_weapon": "steel_spear"
   },
-  "斧兵": {
+  "axeman": {
 	"max_hp": 17,
-	"defense": 0,
-	"magic_defense": 0,
+	"strength": 10,
+	"dexterity": 4,
+	"intelligence": 1,
+	"faith": 1,
+	"arcane": 2,
 	"move_range": 4,
-	"skill": 1,
-	"speed": 2,
-	"luck": 1,
 	"ignore_terrain_cost": false,
 	"sprite_frames_path": "res://content/images/characters/unit_axeman_frames.tres",
 	"description": "狂战士，高攻击力但命中率低，适合破甲。",
 	"display_name": "格伦",
-	"faction": "海盗"
+	"faction": "海盗",
+	"default_weapon": "battle_axe"
   },
-  "弓兵": {
+  "archer": {
 	"max_hp": 14,
-	"defense": 0,
-	"magic_defense": 0,
+	"strength": 4,
+	"dexterity": 9,
+	"intelligence": 2,
+	"faith": 2,
+	"arcane": 4,
 	"move_range": 5,
-	"skill": 4,
-	"speed": 3,
-	"luck": 2,
 	"ignore_terrain_cost": false,
 	"sprite_frames_path": "res://content/images/characters/unit_archer_frames.tres",
-	"description": "远程物理单位，可攻击远处敌人，克制飞行单位。",
+	"description": "远程物理单位，可攻击远处敌人。",
 	"display_name": "莉安娜",
-	"faction": "王国"
+	"faction": "王国",
+	"default_weapon": "longbow"
   },
-  "飞马": {
+  "pegasus": {
 	"max_hp": 24,
-	"defense": 1,
-	"magic_defense": 0,
+	"strength": 6,
+	"dexterity": 7,
+	"intelligence": 2,
+	"faith": 2,
+	"arcane": 5,
 	"move_range": 7,
-	"skill": 4,
-	"speed": 3,
-	"luck": 4,
 	"ignore_terrain_cost": true,
 	"sprite_frames_path": "res://content/images/characters/unit_pegasus_frames.tres",
 	"description": "飞行骑兵，无视地形移动，机动性极强。",
 	"display_name": "塞拉",
-	"faction": "海盗"
+	"faction": "海盗",
+	"default_weapon": "steel_spear"
   },
-  "法师": {
+  "mage": {
 	"max_hp": 18,
-	"defense": 0,
-	"magic_defense": 2,
+	"strength": 3,
+	"dexterity": 5,
+	"intelligence": 10,
+	"faith": 3,
+	"arcane": 6,
 	"move_range": 5,
-	"skill": 3,
-	"speed": 4,
-	"luck": 2,
 	"ignore_terrain_cost": false,
 	"sprite_frames_path": "res://content/images/characters/unit_mage_frames.tres",
 	"description": "魔法攻击单位，拥有魔法防御力，攻击力较高。",
 	"display_name": "梅林",
-	"faction": "王国"
+	"faction": "王国",
+	"default_weapon": "fire_spellbook"
   },
-  "修女": {
+  "cleric": {
 	"max_hp": 14,
-	"defense": 0,
-	"magic_defense": 3,
+	"strength": 2,
+	"dexterity": 4,
+	"intelligence": 5,
+	"faith": 10,
+	"arcane": 4,
 	"move_range": 4,
-	"skill": 3,
-	"speed": 4,
-	"luck": 4,
 	"ignore_terrain_cost": false,
 	"sprite_frames_path": "res://content/images/characters/unit_cleric_frames.tres",
 	"description": "治疗单位，可恢复队友生命值，魔法防御高。",
 	"display_name": "菲奥娜",
-	"faction": "王国"
+	"faction": "王国",
+	"default_weapon": "healing_staff"
   },
-  "龙人": {
+  "dragonborn": {
 	"max_hp": 30,
-	"defense": 5,
-	"magic_defense": 5,
+	"strength": 8,
+	"dexterity": 3,
+	"intelligence": 6,
+	"faith": 4,
+	"arcane": 9,
 	"move_range": 3,
-	"skill": 2,
-	"speed": 2,
-	"luck": 3,
 	"ignore_terrain_cost": false,
 	"sprite_frames_path": "res://content/images/characters/unit_dragonborn.tres",
 	"description": "龙族后裔，拥有极高防御和魔法防御，移动缓慢但顽强。",
 	"display_name": "拉兹",
-	"faction": "龙族"
+	"faction": "龙族",
+	"default_weapon": "fire_dragonstone"
   },
-  "重甲兵": {
+  "armored": {
 	"max_hp": 30,
-	"defense": 4,
-	"magic_defense": 0,
+	"strength": 9,
+	"dexterity": 3,
+	"intelligence": 2,
+	"faith": 4,
+	"arcane": 3,
 	"move_range": 3,
-	"skill": 2,
-	"speed": 2,
-	"luck": 2,
 	"ignore_terrain_cost": false,
 	"sprite_frames_path": "res://content/images/characters/unit_heavyarmored.tres",
 	"description": "重装步兵，高物理防御和生命值，移动力较低。",
 	"display_name": "巴尔",
-	"faction": "王国"
+	"faction": "王国",
+	"default_weapon": "iron_sword"
   }
 }

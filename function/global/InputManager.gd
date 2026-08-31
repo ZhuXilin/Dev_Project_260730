@@ -69,7 +69,7 @@ func handle_click(clicked_cell: Vector2i):
 					var weapon_data = selected_unit.get_weapon_data()
 					var max_range = weapon_data.attack_range if weapon_data else 0
 					var min_range = weapon_data.min_attack_range if weapon_data else 0
-					var is_healer = (selected_unit.get_weapon_type() == UnitDataManagerClass.WEAPON_HEAL)
+					var is_healer = (selected_unit.get_weapon_type() == "staff")
 					var attack_preview = {}
 
 					# 计算敌方单位移动到每个可达格后能攻击的范围
@@ -497,7 +497,7 @@ func on_move_button_pressed():
 		var weapon_data = selected_unit.get_weapon_data()
 		var max_range = weapon_data.attack_range if weapon_data else 0
 		var min_range = weapon_data.min_attack_range if weapon_data else 0
-		var is_healer = (selected_unit.get_weapon_type() == UnitDataManagerClass.WEAPON_HEAL)
+		var is_healer = (selected_unit.get_weapon_type() == "staff")
 		for unit in UnitManager.unit_list:
 			if unit.hit_points <= 0:
 				continue
@@ -597,23 +597,22 @@ func _print_unit_info(unit: Unit):
 	print("队伍: ", "玩家" if unit.unit_stats.team_id == 0 else "敌人")
 	print("HP: ", unit.hit_points, "/", unit.unit_stats.max_hp)
 	
-	# 获取武器数据（用于范围和属性）
+	# ---- 武器数据 ----
 	var weapon_data = unit.get_weapon_data()
-	var weapon_stats = unit.get_weapon_stats()   # 只包含 stats 字典
-	
-	# 攻击力（从 stats 中读取）
+	var weapon_stats = unit.get_weapon_stats()
 	var attack = weapon_stats.get("attack", 0)
 	var magic_attack = weapon_stats.get("magic_attack", 0)
 	print("攻击: ", attack, " (魔法: ", magic_attack, ")")
 	
-	print("防御: ", unit.unit_stats.defense)
-	print("魔防: ", unit.unit_stats.magic_defense)
-	print("技巧: ", unit.unit_stats.skill)
-	print("速度: ", unit.unit_stats.speed)
-	print("幸运: ", unit.unit_stats.luck)
+	# ---- 新属性 ----
+	print("力量: ", unit.unit_stats.strength)
+	print("敏捷: ", unit.unit_stats.dexterity)
+	print("智力: ", unit.unit_stats.intelligence)
+	print("信仰: ", unit.unit_stats.faith)
+	print("感应: ", unit.unit_stats.arcane)
 	print("移动力: ", unit.unit_stats.move_range)
 	
-	# 攻击范围（从 weapon_data 读取）
+	# ---- 攻击范围 ----
 	if weapon_data:
 		print("攻击范围: ", weapon_data.min_attack_range, "~", weapon_data.attack_range)
 	else:
@@ -627,7 +626,7 @@ func _print_unit_info(unit: Unit):
 	print("已主要行动: ", unit.has_acted)
 	print("地形: ", _get_terrain_name(TerrainManager.get_terrain(unit.grid_cell)))
 	print("==================")
-
+	
 func _get_terrain_name(type: int) -> String:
 	match type:
 		TerrainManager.TerrainType.PLAIN: return "平地"
