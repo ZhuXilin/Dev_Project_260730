@@ -160,13 +160,11 @@ func increment_battle_turn():
 # ============================================================
 func _load_unlock_config():
 	var path = "res://content/data/unit_unlock.json"
+	var default_units = ["swordsman", "spearman", "axeman"]
+	
 	if not FileAccess.file_exists(path):
-		unlock_config = { "default_unlocked": ["剑士", "枪兵"] }
-		var arr: Array = []
-		for item in unlock_config["default_unlocked"]:
-			if item is String:
-				arr.append(item)
-		unlocked_units = arr
+		unlock_config = { "default_unlocked": default_units }
+		unlocked_units = default_units.duplicate()
 		return
 
 	var file = FileAccess.open(path, FileAccess.READ)
@@ -176,15 +174,18 @@ func _load_unlock_config():
 
 	if data and data is Dictionary:
 		unlock_config = data
-		var raw = data.get("default_unlocked", ["swordsman", "spearman", "axeman"])
+		var raw = data.get("default_unlocked", default_units)
 		var arr: Array = []
 		for item in raw:
 			if item is String:
 				arr.append(item)
 		unlocked_units = arr
 	else:
-		unlocked_units = ["剑士", "枪兵"]
-
+		# 解析失败时使用英文默认值，并打印警告
+		push_warning("unit_unlock.json 解析失败，使用默认解锁单位: ", default_units)
+		unlock_config = { "default_unlocked": default_units }
+		unlocked_units = default_units.duplicate()
+		
 func is_unit_unlocked(unit_name: String) -> bool:
 	return unit_name in unlocked_units
 
