@@ -18,14 +18,14 @@ func populate_list():
 
 	for unit_name in unlocked:
 		var btn = Button.new()
-		btn.text = UnitDataManager.get_display_name(unit_name)   # 统一格式
+		btn.text = UnitDataManager.get_display_name_full(unit_name)
 		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		btn.add_theme_font_size_override("font_size", 8)
 		btn.pressed.connect(_on_unit_selected.bind(unit_name))
 		unit_list.add_child(btn)
 
 func _on_unit_selected(unit_name: String):
-	# ---- 更新精灵（不变） ----
+	# ---- 更新精灵 ----
 	var frames_path = UnitDataManager.get_sprite_frames_path(unit_name)
 	if frames_path != "" and ResourceLoader.exists(frames_path):
 		var frames = load(frames_path) as SpriteFrames
@@ -53,15 +53,15 @@ func _on_unit_selected(unit_name: String):
 		unit_sprite.visible = false
 		sprite_container.custom_minimum_size = Vector2.ZERO
 
-	# ---- 更新详情标签 ----
+	# ---- 更新详情标签（新5属性） ----
 	var unit_data = UnitDataManager.get_unit_data(unit_name)
 	var text = ""
 	text += "HP：%d\n" % unit_data.get("max_hp", 0)
-	text += "防御：%d\n" % unit_data.get("defense", 0)
-	text += "魔防：%d\n" % unit_data.get("magic_defense", 0)
-	text += "技能：%d\n" % unit_data.get("skill", 0)
-	text += "速度：%d\n" % unit_data.get("speed", 0)
-	text += "幸运：%d\n" % unit_data.get("luck", 0)
+	text += "力量：%d\n" % unit_data.get("strength", 0)
+	text += "敏捷：%d\n" % unit_data.get("dexterity", 0)
+	text += "智力：%d\n" % unit_data.get("intelligence", 0)
+	text += "信仰：%d\n" % unit_data.get("faith", 0)
+	text += "感应：%d\n" % unit_data.get("arcane", 0)
 	text += "移动力：%d\n" % unit_data.get("move_range", 0)
 	detail_label.text = text
 

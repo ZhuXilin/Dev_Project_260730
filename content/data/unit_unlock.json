@@ -1,7 +1,7 @@
 {
   "default_unlocked": [
-	"剑士", 
-	"枪兵", 
-	"斧兵"
-	]
+	"swordsman",
+	"spearman", 
+	"axeman"
+  ]
 }

@@ -40,7 +40,7 @@ func _setup_unit_buttons():
 	unlocked.sort()
 
 	for unit_name in unlocked:
-		var display_name = UnitDataManager.get_display_name(unit_name)
+		var display_name = UnitDataManager.get_display_name_full(unit_name)  # ← 改这里
 		var btn = Button.new()
 		btn.text = display_name
 		btn.set_meta("unit_name", unit_name)
