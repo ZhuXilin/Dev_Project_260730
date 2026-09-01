@@ -53,8 +53,8 @@ const CURRENT_VERSION = 2
 @export var total_attr_points_gained: int = 0
 @export var available_attr_points: int = 0
 
-# ---- ❌ 移除：单位加点（本次不需要） ----
-# @export var unit_advancement: Dictionary = {}
+# ---- 单位加点 ----
+@export var unit_advancement: Dictionary = {}    # {"剑士": {"hp": 2, "atk": 1}, ...}
 
 # ---- 游戏状态 ----
 @export var interrupt_state: int = 0
@@ -106,6 +106,7 @@ func compute_checksum() -> String:
 		"attribute_points": attribute_points,
 		"total_attr_points_gained": total_attr_points_gained,
 		"available_attr_points": available_attr_points,
+		"unit_advancement": unit_advancement,
 		"difficulty_level": difficulty_level,
 		"highest_cleared_difficulty": highest_cleared_difficulty
 	}

@@ -24,15 +24,12 @@ func get_attackable_targets(unit: Unit) -> Array:
 			if not target or target.hit_points <= 0:
 				continue
 			if is_healer:
-				# 治疗只能对己方单位
 				if target.unit_stats.team_id == unit.unit_stats.team_id:
 					targets.append(target)
 			else:
-				# 攻击只能对敌方单位
 				if target.unit_stats.team_id != unit.unit_stats.team_id:
 					targets.append(target)
 
-	# 排序：治疗按受伤程度降序，攻击按距离升序
 	if is_healer:
 		targets.sort_custom(func(a, b):
 			var loss_a = a.unit_stats.max_hp - a.hit_points
@@ -52,16 +49,12 @@ func attempt_attack_after_move(unit: Unit):
 	if targets.size() > 0:
 		await execute_attack(unit, targets[0])
 
-# ---- 伤害计算（含相克和特效） ----
 func calculate_damage(attacker: Unit, defender: Unit) -> int:
 	var weapon_data = attacker.get_weapon_data()
 	if not weapon_data:
 		return 0
 	
-	# 基础攻击
 	var base_attack = weapon_data.base_attack
-	
-	# 属性补正
 	var modifier = weapon_data.modifier
 	var atk_bonus = 0
 	for attr in modifier:
@@ -76,7 +69,6 @@ func calculate_damage(attacker: Unit, defender: Unit) -> int:
 	
 	var total_attack = base_attack + atk_bonus
 	
-	# 防御计算
 	var armor_defense = 0
 	for slot in defender.armor_slots:
 		if slot:
@@ -86,15 +78,9 @@ func calculate_damage(attacker: Unit, defender: Unit) -> int:
 	var def_value = defender.unit_stats.strength * 0.5 + armor_defense
 	
 	var damage = max(1, total_attack - def_value)
-	
-	# 词条效果（预留）
-	# 后续词条系统将在这里插入额外判断
-	
 	return damage
 
-# 核心攻击函数
 func execute_attack(attacker: Unit, defender: Unit) -> bool:
-	# ---- 检查武器 ----
 	if attacker.get_equipped_weapon_id() == "":
 		print("错误：攻击者没有装备武器")
 		Globals.is_performing_action = false
@@ -104,17 +90,14 @@ func execute_attack(attacker: Unit, defender: Unit) -> bool:
 	Globals.is_performing_action = true
 	print(attacker.unit_stats.unit_name + " 攻击 " + defender.unit_stats.unit_name)
 	
-	# ---- 治疗分支 ----
 	if attacker.get_weapon_type() == "staff":
-		await _execute_heal(attacker, defender)   # ← 添加 await
+		await _execute_heal(attacker, defender)
 		Globals.is_performing_action = false
 		return true
 	
-	# ---- 计算伤害（纯固定） ----
 	var damage = calculate_damage(attacker, defender)
 	print("造成伤害: ", damage)
 	
-	# ---- 应用伤害 ----
 	var defeated = _apply_damage_with_effects(defender, damage, attacker)
 	if defeated:
 		print(defender.unit_stats.unit_name + " 阵亡！")
@@ -124,16 +107,13 @@ func execute_attack(attacker: Unit, defender: Unit) -> bool:
 		Globals.is_performing_action = false
 		return true
 	
-	# ---- 反击判定 ----
 	if _can_counter_attack(attacker, defender):
-		await _execute_counter(attacker, defender)   # ← 添加 await
+		await _execute_counter(attacker, defender)
 	
-	# ---- 完成攻击 ----
 	_finish_attack(attacker, defender)
 	Globals.is_performing_action = false
 	return true
 
-# ---- 提取治疗逻辑 ----
 func _execute_heal(attacker: Unit, defender: Unit) -> bool:
 	if defender.unit_stats.team_id != attacker.unit_stats.team_id:
 		print("错误：治疗不能对敌方！")
@@ -159,7 +139,6 @@ func _execute_heal(attacker: Unit, defender: Unit) -> bool:
 	Globals.is_performing_action = false
 	return true
 
-# ---- 提取伤害应用 ----
 func _apply_damage_with_effects(defender: Unit, damage: int, attacker: Unit) -> bool:
 	# ---- 词条：盾反 ----
 	if TalentManager.is_talent_ready(defender, "parry"):
@@ -181,10 +160,8 @@ func _apply_damage_with_effects(defender: Unit, damage: int, attacker: Unit) -> 
 		print("暴击触发！伤害翻倍")
 		TalentManager.reset_talent(attacker, "crit")
 	
-	# ---- 词条：二次攻击（在 execute_attack 中处理） ----
 	return defender.apply_damage(damage)
 
-# ---- 提取反击判定 ----
 func _can_counter_attack(attacker: Unit, defender: Unit) -> bool:
 	var def_weapon_type = defender.get_weapon_type()
 	if def_weapon_type == "" or def_weapon_type == "staff":
@@ -200,7 +177,6 @@ func _can_counter_attack(attacker: Unit, defender: Unit) -> bool:
 	
 	return dist >= def_min_range and dist <= def_max_range
 
-# ---- 提取反击执行 ----
 func _execute_counter(attacker: Unit, defender: Unit) -> void:
 	print(defender.unit_stats.unit_name + " 反击!")
 	var counter_damage = calculate_damage(defender, attacker)
@@ -219,17 +195,13 @@ func _execute_counter(attacker: Unit, defender: Unit) -> void:
 		UnitManager.unregister_unit(attacker)
 		attacker.queue_free()
 
-
-# ---- 提取完成攻击 ----
 func _finish_attack(attacker: Unit, _defender: Unit) -> void:
 	attacker.mark_attacked()
 	_show_menu_after_action(attacker)
 	
-# ---- 行动后菜单 ----
 func _show_menu_after_action(unit: Unit):
 	if TurnManager.current_turn_team != 0:
 		return
-	# 只有玩家单位才能触发菜单（防止敌方异步调用）
 	if unit.unit_stats.team_id != 0:
 		return
 	print("行动后显示菜单: ", unit.unit_stats.unit_name)
@@ -240,17 +212,13 @@ func _show_menu_after_action(unit: Unit):
 	InputManager.interaction_phase = "menu"
 	SignalBus.request_show_menu.emit(unit)
 
-# ---- 新增：攻击双方互相面向 ----
 func _face_each_other(attacker: Unit, defender: Unit):
 	if not is_instance_valid(attacker) or not is_instance_valid(defender):
 		return
 	var dir = defender.grid_cell - attacker.grid_cell
 	if dir.x != 0:
-		# 攻击者面向目标方向（水平）
 		attacker.set_facing_direction(Vector2(sign(dir.x), 0))
-		# 防御者面向攻击者（反向）
 		defender.set_facing_direction(Vector2(-sign(dir.x), 0))
-	# 若水平方向为0（上下攻击），则不改变朝向（保持当前）
 
 func get_unit_attack_stats(unit: Unit) -> Dictionary:
 	var weapon = unit.get_weapon_data()
