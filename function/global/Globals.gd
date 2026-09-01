@@ -37,6 +37,9 @@ var item_unlock_config: Dictionary = {}
 var item_unlocked_items: Array = []     # 改为无类型
 var unlocked_items: Array = []          # 改为无类型
 
+# ---- 词条解锁系统 ----
+var unlocked_talents: Array = []
+
 # ---- 游戏状态标志 ----
 var is_fading : bool = false
 var is_performing_action : bool = false
@@ -267,3 +270,16 @@ func unlock_relic(relic_id: String):
 
 func get_unlocked_relics() -> Array:
 	return RelicManager.get_unlocked_relics()
+
+func _load_talent_unlock_config():
+	# 从存档加载，或在初始化时设置默认值
+	var default_talents = ["crit", "double_attack", "parry", "block"]
+	if unlocked_talents.is_empty():
+		unlocked_talents = default_talents.duplicate()
+
+func is_talent_unlocked(talent_id: String) -> bool:
+	return talent_id in unlocked_talents
+
+func unlock_talent(talent_id: String):
+	if talent_id not in unlocked_talents:
+		unlocked_talents.append(talent_id)

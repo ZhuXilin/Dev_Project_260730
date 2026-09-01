@@ -75,6 +75,7 @@ const CURRENT_VERSION = 2
 # ---- 终局数据 ----
 @export var difficulty_level: int = 0
 @export var highest_cleared_difficulty: int = 0
+@export var unlocked_talents: Array = []   # 已解锁词条ID列表
 
 func compute_checksum() -> String:
 	var data = {

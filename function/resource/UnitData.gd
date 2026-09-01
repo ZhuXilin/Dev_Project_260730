@@ -26,6 +26,10 @@ class_name UnitData
 @export var armor_slots: Array = []      # 改为无类型 Array，可存储 null
 @export var max_armor_slots: int = 2
 
+# ---- 词条系统 ----
+@export var talent_slots: Array = []        # 词条实例（ItemInstance 或 TalentInstance）
+@export var max_talent_slots: int = 2
+
 # ---- 新字段：职业成长（魂加点） ----
 @export var advancement: Dictionary = {
 	"hp_bonus": 0,

@@ -29,6 +29,10 @@ var weapon_slot: ItemInstance = null          # 武器实例
 var armor_slots: Array[ItemInstance] = []    # 防具/饰品槽
 var max_armor_slots: int = 2
 
+# ---- 词条 ----
+var talent_slots: Array[TalentInstance] = []
+var max_talent_slots: int = 2
+
 # ---- 动画与材质 ----
 var animated_sprite : AnimatedSprite2D
 var current_anim : String = "idle"
@@ -586,3 +590,20 @@ func accumulate_all_talents():
 			var threshold = get_talent_threshold(inst.talent_id)
 			if inst.current_stack >= threshold:
 				inst.is_ready = true
+
+func equip_talent_to_slot(slot_index: int, talent_id: String) -> bool:
+	if slot_index < 0 or slot_index >= talent_slots.size():
+		return false
+	var data = TalentManager.get_talent_data(talent_id)
+	if not data:
+		return false
+	var inst = TalentInstance.new()
+	inst.talent_id = talent_id
+	inst.current_stack = 0
+	inst.is_ready = false
+	inst.is_active = true
+	talent_slots[slot_index] = inst
+	return true
+
+func get_talent_slots() -> Array[TalentInstance]:
+	return talent_slots
