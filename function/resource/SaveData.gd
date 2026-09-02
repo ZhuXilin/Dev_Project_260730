@@ -76,6 +76,7 @@ const CURRENT_VERSION = 2
 @export var difficulty_level: int = 0
 @export var highest_cleared_difficulty: int = 0
 @export var unlocked_talents: Array = []   # 已解锁词条ID列表
+@export var party_talents: Array = []      # 单位词条装备 [{"unit_name": "剑士", "talents": ["crit"]}]
 
 func compute_checksum() -> String:
 	var data = {

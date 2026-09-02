@@ -85,6 +85,7 @@ size_flags_vertical = 3
 
 [node name="RightContainer" type="VBoxContainer" parent="MainPanel/VBoxContainer/MainHBox" unique_id=2140759823]
 layout_mode = 2
+size_flags_horizontal = 3
 
 [node name="ShopContainer" type="GridContainer" parent="MainPanel/VBoxContainer/MainHBox/RightContainer" unique_id=999999001]
 layout_mode = 2
@@ -140,8 +141,10 @@ theme_override_styles/focus = ExtResource("2")
 text = "返回"
 
 [node name="ConfirmBtn" type="Button" parent="MainPanel/VBoxContainer/HBoxContainer" unique_id=2052340703]
+custom_minimum_size = Vector2(120, 0)
 layout_mode = 2
-size_flags_vertical = 0
+size_flags_horizontal = 0
+size_flags_vertical = 3
 theme_override_font_sizes/font_size = 8
 theme_override_styles/normal = ExtResource("2")
 theme_override_styles/pressed = ExtResource("2")

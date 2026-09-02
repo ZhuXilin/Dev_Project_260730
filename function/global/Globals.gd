@@ -59,9 +59,6 @@ var pending_save_slot: int = -1
 var current_map_level_data: MapLevelData = null
 var current_map_day: int = -1
 
-# ---- 遗物解锁系统 ----
-# 遗物解锁由 RelicManager 管理，Globals 不再单独存储
-
 # ============================================================
 #  生命周期
 # ============================================================
@@ -71,6 +68,7 @@ func _ready():
 	_load_unlock_config()
 	_load_item_unlock_config()
 	_load_relic_unlock_config()
+	_load_talent_unlock_config()
 
 # ============================================================
 #  窗口管理
@@ -272,7 +270,6 @@ func get_unlocked_relics() -> Array:
 	return RelicManager.get_unlocked_relics()
 
 func _load_talent_unlock_config():
-	# 从存档加载，或在初始化时设置默认值
 	var default_talents = ["crit", "double_attack", "parry", "block"]
 	if unlocked_talents.is_empty():
 		unlocked_talents = default_talents.duplicate()
@@ -283,3 +280,7 @@ func is_talent_unlocked(talent_id: String) -> bool:
 func unlock_talent(talent_id: String):
 	if talent_id not in unlocked_talents:
 		unlocked_talents.append(talent_id)
+		print("词条解锁：", talent_id)
+
+func get_unlocked_talents() -> Array:
+	return unlocked_talents.duplicate()

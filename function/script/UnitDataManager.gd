@@ -183,3 +183,8 @@ static func get_display_name_from_unit(unit: Unit) -> String:
 	var display_name = unit.unit_stats.display_name if unit.unit_stats.display_name != "" else unit.unit_stats.unit_name
 	var faction = unit.unit_stats.faction if unit.unit_stats.faction != "" else "无"
 	return "%s|%s|%s" % [display_name, faction, unit.unit_stats.unit_name]
+
+# ---- 获取单位类型中文名（用于UI显示，如"剑士"） ----
+static func get_unit_type_display_name(unit_name: String) -> String:
+	var key = _normalize_unit_key(unit_name)
+	return _unit_display_name.get(key, key)
