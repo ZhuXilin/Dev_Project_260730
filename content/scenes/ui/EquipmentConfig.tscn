@@ -62,6 +62,21 @@ size_flags_vertical = 3
 mouse_filter = 2
 theme_override_styles/panel = ExtResource("2")
 
+[node name="DetailLabel" type="Label" parent="MainPanel/VBoxContainer/MainHBox/DetailZone" unique_id=999999010]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 4.0
+offset_top = 4.0
+offset_right = -4.0
+offset_bottom = -4.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_font_sizes/font_size = 6
+text = "选中物品详情"
+autowrap_mode = 3
+
 [node name="VBoxContainer" type="VBoxContainer" parent="MainPanel/VBoxContainer/MainHBox" unique_id=1358744358]
 layout_mode = 2
 

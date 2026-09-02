@@ -28,7 +28,7 @@ class_name UnitData
 
 # ---- 词条系统 ----
 @export var talent_slots: Array = []        # 词条实例（ItemInstance 或 TalentInstance）
-@export var max_talent_slots: int = 2
+@export var max_talent_slots: int = 1
 
 # ---- 新字段：职业成长（魂加点） ----
 @export var advancement: Dictionary = {

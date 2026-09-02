@@ -28,6 +28,12 @@ var talent_container: VBoxContainer = null
 var talent_grid: GridContainer = null
 var _talent_library_items: Array = []
 
+# ---- 标签栏 ----
+var tab_container: HBoxContainer = null
+var weapon_tab_btn: Button = null
+var talent_tab_btn: Button = null
+var current_tab: String = "weapon"   # "weapon" 或 "talent"
+
 var shop_manager = null
 
 @onready var mode_label = $VBoxContainer/TopBar/ModeLabel
@@ -128,16 +134,23 @@ func _build_ui():
 			close_btn.text = "返回"
 			confirm_btn.visible = true
 			confirm_btn.text = "出发"
-			library_container.visible = true
 			right_container.visible = false
 			gold_label.visible = false
 			confirm_btn.disabled = false
 			
-			# ---- 创建词条库 ----
+			# ---- 创建标签栏 ----
+			_ensure_tabs()
+			
+			# ---- 创建特技库 ----
 			_ensure_talent_container()
-			if talent_container:
-				talent_container.visible = true
 			_build_talent_library()
+			
+			# ---- 构建武器库 ----
+			_build_library()
+			
+			# ---- 根据当前标签控制可见性 ----
+			_update_tab_visibility()
+			_update_tab_style()
 		
 		Mode.MAP:
 			mode_label.text = "装备配置 - 队伍管理"
@@ -175,10 +188,11 @@ func _build_ui():
 	_build_unit_columns()
 	
 	if current_mode == Mode.DEPLOY:
-		_build_library()
-		# 词条库已在上面创建并显示
+		# 武器库和特技库已在上面通过标签控制，这里不需要额外操作
+		pass
 	elif current_mode == Mode.MAP or current_mode == Mode.SHOP:
 		_build_relics()
+		# 隐藏特技库（非DEPLOY模式）
 		if talent_container:
 			talent_container.visible = false
 	
@@ -1328,3 +1342,81 @@ func _on_confirm_pressed():
 		canvas_layer.queue_free()
 	else:
 		queue_free()
+
+func _on_weapon_tab_pressed():
+	if current_tab == "weapon":
+		return
+	current_tab = "weapon"
+	_update_tab_style()
+	_update_tab_visibility()
+
+func _on_talent_tab_pressed():
+	if current_tab == "talent":
+		return
+	current_tab = "talent"
+	_update_tab_style()
+	_update_tab_visibility()
+
+func _update_tab_style():
+	if not weapon_tab_btn or not talent_tab_btn:
+		return
+	# 选中的标签高亮
+	if current_tab == "weapon":
+		weapon_tab_btn.modulate = Color.WHITE
+		talent_tab_btn.modulate = Color(0.5, 0.5, 0.5)
+	else:
+		weapon_tab_btn.modulate = Color(0.5, 0.5, 0.5)
+		talent_tab_btn.modulate = Color.WHITE
+
+func _update_tab_visibility():
+	if current_tab == "weapon":
+		library_container.visible = true
+		if talent_container:
+			talent_container.visible = false
+	else:
+		library_container.visible = false
+		if talent_container:
+			talent_container.visible = true
+
+func _ensure_tabs():
+	if tab_container != null:
+		return
+	
+	# 获取左列容器（武器库和特技库的父容器）
+	var left_vbox = $VBoxContainer/MainHBox/VBoxContainer
+	if not left_vbox:
+		return
+	
+	# 获取 LibraryContainer 的索引位置，在其上方插入标签栏
+	var lib_idx = left_vbox.get_children().find(library_container)
+	if lib_idx == -1:
+		lib_idx = 0
+	
+	tab_container = HBoxContainer.new()
+	tab_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	tab_container.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	tab_container.add_theme_constant_override("separation", 4)
+	left_vbox.add_child(tab_container)
+	left_vbox.move_child(tab_container, lib_idx)
+	
+	# 创建"武器库"标签按钮
+	weapon_tab_btn = Button.new()
+	weapon_tab_btn.text = "武器库"
+	weapon_tab_btn.add_theme_font_size_override("font_size", 8)
+	weapon_tab_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	weapon_tab_btn.focus_mode = Control.FOCUS_NONE
+	weapon_tab_btn.pressed.connect(_on_weapon_tab_pressed)
+	tab_container.add_child(weapon_tab_btn)
+	
+	# 创建"特技库"标签按钮
+	talent_tab_btn = Button.new()
+	talent_tab_btn.text = "特技库"
+	talent_tab_btn.add_theme_font_size_override("font_size", 8)
+	talent_tab_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	talent_tab_btn.focus_mode = Control.FOCUS_NONE
+	talent_tab_btn.pressed.connect(_on_talent_tab_pressed)
+	tab_container.add_child(talent_tab_btn)
+	
+	# 默认选中武器库
+	current_tab = "weapon"
+	_update_tab_style()

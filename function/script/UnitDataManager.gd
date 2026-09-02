@@ -149,7 +149,6 @@ static func get_weapon_category_display(category: String) -> String:
 # ============================================================
 #  单位数据创建
 # ============================================================
-
 static func create_unit_data(unit_name: String) -> UnitData:
 	var key = _normalize_unit_key(unit_name)
 	var dict = get_unit_data(key)
@@ -163,6 +162,7 @@ static func create_unit_data(unit_name: String) -> UnitData:
 	data.experience = 0
 	data.level = 1
 	
+	# ---- 默认武器 ----
 	var default_weapon = get_default_weapon_id(key)
 	if default_weapon != "":
 		var inst = ItemInstance.new()
@@ -170,10 +170,24 @@ static func create_unit_data(unit_name: String) -> UnitData:
 		inst.count = 1
 		data.weapon_slot = inst
 	
+	# ---- 默认特技（新增） ----
+	data.talent_slots.clear()
+	var default_talents = dict.get("default_talents", [])
+	for talent_id in default_talents:
+		var talent_inst = TalentInstance.new()
+		talent_inst.talent_id = talent_id
+		talent_inst.current_stack = 0
+		talent_inst.is_ready = false
+		talent_inst.is_active = true
+		data.talent_slots.append(talent_inst)
+	# 确保至少有一个槽位
+	while data.talent_slots.size() < 1:
+		data.talent_slots.append(null)
+	
 	data.armor_slots = [null, null]
 	data.max_armor_slots = 2
+	data.max_talent_slots = 1
 	return data
-
 
 # ============================================================
 #  从Unit实例获取显示信息
