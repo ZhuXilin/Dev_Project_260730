@@ -23,34 +23,42 @@ var _target_states: Dictionary = {}
 # ---- 详情弹窗 ----
 var _detail_popup = null
 
-# ---- 词条库动态容器 ----
-var talent_container: VBoxContainer = null
-var talent_grid: GridContainer = null
-var _talent_library_items: Array = []
-
-# ---- 标签栏 ----
-var tab_container: HBoxContainer = null
-var weapon_tab_btn: Button = null
-var talent_tab_btn: Button = null
+# ---- 标签栏（右侧） ----
 var current_tab: String = "weapon"   # "weapon" 或 "talent"
 
 var shop_manager = null
 
+# ---- 右侧标签栏（场景中有） ----
 @onready var mode_label = $VBoxContainer/TopBar/ModeLabel
 @onready var gold_label = $VBoxContainer/GoldLabel
-@onready var close_btn = $VBoxContainer/HBoxContainer/CloseBtn
-@onready var confirm_btn = $VBoxContainer/HBoxContainer/ConfirmBtn
-@onready var unit_container = $VBoxContainer/MainHBox/VBoxContainer/UnitContainer
-@onready var library_container = $VBoxContainer/MainHBox/VBoxContainer/LibraryContainer
-@onready var relic_container = $VBoxContainer/MainHBox/VBoxContainer/RelicContainer
+@onready var close_btn = $VBoxContainer/BottomHBox/CloseBtn          # ✅ 路径修正
+@onready var confirm_btn = $VBoxContainer/BottomHBox/ConfirmBtn      # ✅ 路径修正
+@onready var unit_container = $VBoxContainer/MainHBox/LeftVBox/UnitContainer
 @onready var right_container = $VBoxContainer/MainHBox/RightContainer
 @onready var shop_container = $VBoxContainer/MainHBox/RightContainer/ShopContainer
 @onready var reset_btn = $VBoxContainer/MainHBox/RightContainer/ResetBtn
 @onready var discard_zone = $VBoxContainer/MainHBox/RightContainer/DiscardZone
+@onready var tab_bar = $VBoxContainer/MainHBox/RightContainer/TabBar
+@onready var weapon_tab_btn = $VBoxContainer/MainHBox/RightContainer/TabBar/WeaponTabBtn
+@onready var talent_tab_btn = $VBoxContainer/MainHBox/RightContainer/TabBar/TalentTabBtn
 
 # ============================================================
 #  初始化
 # ============================================================
+
+func _ready():
+	# 连接标签按钮信号
+	if weapon_tab_btn:
+		weapon_tab_btn.pressed.connect(_on_weapon_tab_pressed)
+	if talent_tab_btn:
+		talent_tab_btn.pressed.connect(_on_talent_tab_pressed)
+
+func _on_weapon_tab_pressed():
+	_switch_tab("weapon")
+
+func _on_talent_tab_pressed():
+	_switch_tab("talent")
+
 func init(units: Array[String], slot: int, mode: Mode):
 	print("EquipmentConfig.init 被调用，模式: ", mode)
 	var canvas_layer = get_parent()
@@ -116,15 +124,13 @@ func _build_ui():
 	_update_gold_display()
 	
 	# 默认隐藏所有容器
-	library_container.visible = false
-	relic_container.visible = false
-	right_container.visible = false
 	shop_container.visible = false
 	discard_zone.visible = false
 	reset_btn.visible = false
-	confirm_btn.visible = false
+	tab_bar.visible = false
+	right_container.visible = true   # 右侧区域始终可见
 	
-	var left_column = $VBoxContainer/MainHBox/VBoxContainer
+	var left_column = $VBoxContainer/MainHBox/LeftVBox
 	if left_column:
 		left_column.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	
@@ -134,33 +140,46 @@ func _build_ui():
 			close_btn.text = "返回"
 			confirm_btn.visible = true
 			confirm_btn.text = "出发"
-			right_container.visible = false
 			gold_label.visible = false
 			confirm_btn.disabled = false
 			
-			# ---- 创建标签栏 ----
-			_ensure_tabs()
+			# ---- 显示标签栏 ----
+			tab_bar.visible = true
+			weapon_tab_btn.visible = true
+			talent_tab_btn.visible = true
 			
-			# ---- 创建特技库 ----
-			_ensure_talent_container()
-			_build_talent_library()
-			
-			# ---- 构建武器库 ----
-			_build_library()
-			
-			# ---- 根据当前标签控制可见性 ----
-			_update_tab_visibility()
+			# ---- 默认选中武器库 ----
+			current_tab = "weapon"
 			_update_tab_style()
+			
+			# ---- 清空并填充内容 ----
+			_clear_container(shop_container)
+			_build_weapon_grid(shop_container)
+			
+			# ---- 隐藏商店相关 ----
+			reset_btn.visible = false
+			discard_zone.visible = false
+			
+			if left_column:
+				left_column.size_flags_vertical = Control.SIZE_EXPAND_FILL
 		
 		Mode.MAP:
 			mode_label.text = "装备配置 - 队伍管理"
 			close_btn.text = "返回"
 			confirm_btn.visible = false
-			library_container.visible = false
-			relic_container.visible = true
-			right_container.visible = true
-			discard_zone.visible = true
 			gold_label.visible = false
+			
+			# ---- 只显示特技库（无标签切换） ----
+			tab_bar.visible = false
+			
+			# ---- 清空并填充特技库 ----
+			_clear_container(shop_container)
+			_build_talent_grid(shop_container)
+			
+			# ---- 显示丢弃区 ----
+			discard_zone.visible = true
+			reset_btn.visible = false
+			
 			if left_column:
 				left_column.size_flags_vertical = Control.SIZE_EXPAND_FILL
 		
@@ -168,15 +187,20 @@ func _build_ui():
 			mode_label.text = "商店"
 			close_btn.text = "关闭"
 			confirm_btn.visible = false
-			library_container.visible = false
-			relic_container.visible = true
-			right_container.visible = true
-			discard_zone.visible = true
-			shop_container.visible = true
+			gold_label.visible = true
+			
+			# ---- 隐藏标签栏 ----
+			tab_bar.visible = false
+			
+			# ---- 清空并填充商店 ----
+			_clear_container(shop_container)
+			_build_shop_items()
+			
+			# ---- 显示商店相关 ----
 			reset_btn.visible = true
 			reset_btn.text = "重置商店 (" + str(shop_manager.get_reset_cost()) + "G)"
-			_build_shop_items()
-			gold_label.visible = true
+			discard_zone.visible = true
+			
 			if left_column:
 				left_column.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	
@@ -184,17 +208,9 @@ func _build_ui():
 	confirm_btn.add_theme_font_size_override("font_size", 8)
 	reset_btn.add_theme_font_size_override("font_size", 8)
 	
-	_clear_containers()
+	# ---- 构建单位列 ----
+	_clear_container(unit_container)
 	_build_unit_columns()
-	
-	if current_mode == Mode.DEPLOY:
-		# 武器库和特技库已在上面通过标签控制，这里不需要额外操作
-		pass
-	elif current_mode == Mode.MAP or current_mode == Mode.SHOP:
-		_build_relics()
-		# 隐藏特技库（非DEPLOY模式）
-		if talent_container:
-			talent_container.visible = false
 	
 	visible = true
 	print("_build_ui 完成，面板可见：", visible)
@@ -202,87 +218,6 @@ func _build_ui():
 func _update_gold_display():
 	if gold_label:
 		gold_label.text = "金币: " + str(EconomyManager.get_temp_gold())
-
-func _clear_containers():
-	for child in unit_container.get_children():
-		child.queue_free()
-	for child in library_container.get_children():
-		child.queue_free()
-	for child in relic_container.get_children():
-		child.queue_free()
-
-# ============================================================
-#  词条库动态创建
-# ============================================================
-func _ensure_talent_container():
-	if talent_container != null:
-		return
-	
-	var left_vbox = $VBoxContainer/MainHBox/VBoxContainer
-	if not left_vbox:
-		print("错误：无法找到左列容器")
-		return
-	
-	talent_container = VBoxContainer.new()
-	talent_container.visible = false
-	talent_container.custom_minimum_size = Vector2(120, 0)
-	talent_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	talent_container.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	left_vbox.add_child(talent_container)
-	
-	var title = Label.new()
-	title.text = "特技库"
-	title.add_theme_font_size_override("font_size", 8)
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	talent_container.add_child(title)
-	
-	talent_grid = GridContainer.new()
-	talent_grid.columns = 2
-	talent_grid.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	talent_grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	talent_container.add_child(talent_grid)
-
-func _build_talent_library():
-	if not talent_grid:
-		print("警告：talent_grid 未创建，跳过词条库构建")
-		return
-	
-	for child in talent_grid.get_children():
-		child.queue_free()
-	_talent_library_items.clear()
-	
-	var unlocked = Globals.get_unlocked_talents()
-	if unlocked.is_empty():
-		var label = Label.new()
-		label.text = "暂无解锁特技"
-		label.add_theme_font_size_override("font_size", 6)
-		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		talent_grid.add_child(label)
-		return
-	
-	for talent_id in unlocked:
-		var data = TalentManager.get_talent_data(talent_id)
-		if not data:
-			continue
-		var btn = Button.new()
-		btn.text = _get_talent_display_name(data)
-		btn.add_theme_font_size_override("font_size", 6)
-		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		btn.custom_minimum_size = Vector2(30, 14)
-		btn.set_meta("talent_id", talent_id)
-		btn.set_meta("slot_type", "library_talent")
-		btn.focus_mode = Control.FOCUS_NONE
-		btn.mouse_filter = Control.MOUSE_FILTER_STOP
-		
-		var rarity_color = _get_rarity_color(data.rarity)
-		btn.add_theme_color_override("font_color", rarity_color)
-		
-		btn.mouse_entered.connect(_on_talent_hover_entered.bind(talent_id))
-		btn.mouse_exited.connect(_on_talent_hover_exited)
-		
-		talent_grid.add_child(btn)
-		_talent_library_items.append(btn)
 
 # ============================================================
 #  单位列构建（纯动态创建）
@@ -334,7 +269,7 @@ func _build_unit_columns():
 				armor_btn.disabled = true
 			col.add_child(armor_btn)
 		
-		# ---- 词条分隔线 ----
+		# ---- 特技分隔线 ----
 		var talent_separator = Label.new()
 		talent_separator.text = "──────"
 		talent_separator.add_theme_font_size_override("font_size", 6)
@@ -342,7 +277,7 @@ func _build_unit_columns():
 		talent_separator.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		col.add_child(talent_separator)
 		
-		# ---- 词条标题 ----
+		# ---- 特技标题 ----
 		var talent_title = Label.new()
 		talent_title.text = "特技"
 		talent_title.add_theme_font_size_override("font_size", 6)
@@ -350,7 +285,7 @@ func _build_unit_columns():
 		talent_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		col.add_child(talent_title)
 		
-		# ---- 词条槽（每个单位1个） ----
+		# ---- 特技槽（每个单位1个） ----
 		var talent_inst = unit.talent_slots[0] if unit.talent_slots.size() > 0 else null
 		var talent_btn = _create_talent_button(talent_inst, i, 0)
 		col.add_child(talent_btn)
@@ -415,93 +350,13 @@ func _create_talent_button(inst: TalentInstance, unit_idx: int, slot_idx: int) -
 	return btn
 
 # ============================================================
-#  武器库/遗物/商店
+#  武器库 / 特技库 / 商店（统一使用 ShopContainer）
 # ============================================================
-func _build_library():
-	var title = Label.new()
-	title.text = "武器库"
-	title.add_theme_font_size_override("font_size", 8)
-	library_container.add_child(title)
-
-	var grid = GridContainer.new()
-	grid.columns = 3
-	for item_id in Globals.unlocked_items:
-		var data = ItemManager.get_item_data(item_id)
-		if data and data.type == "weapon":
-			var btn = Button.new()
-			btn.text = data.name
-			btn.add_theme_font_size_override("font_size", 6)
-			btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-			btn.set_meta("slot_type", "library_weapon")
-			btn.set_meta("item_id", item_id)
-			btn.focus_mode = Control.FOCUS_NONE
-			btn.mouse_filter = Control.MOUSE_FILTER_STOP
-			
-			btn.mouse_entered.connect(_on_button_hover_entered.bind(item_id))
-			btn.mouse_exited.connect(_on_button_hover_exited)
-			
-			grid.add_child(btn)
-	library_container.add_child(grid)
-
-func _build_relics():
-	for child in relic_container.get_children():
-		child.queue_free()
-	
-	var title = Label.new()
-	title.text = "遗物"
-	title.add_theme_font_size_override("font_size", 6)
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	relic_container.add_child(title)
-
-	var grid = GridContainer.new()
-	grid.columns = 4
-	grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	grid.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	grid.add_theme_constant_override("hseparation", 4)
-	grid.add_theme_constant_override("vseparation", 4)
-	
-	var relics = GameState.global_relics.duplicate()
-	while relics.size() < 4:
-		relics.append(null)
-	
-	for i in range(4):
-		var relic = relics[i]
-		var btn = Button.new()
-		btn.custom_minimum_size = Vector2(30, 14)
-		btn.add_theme_font_size_override("font_size", 6)
-		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		btn.focus_mode = Control.FOCUS_NONE
-		btn.mouse_filter = Control.MOUSE_FILTER_STOP
-		
-		if relic:
-			var data = RelicManager.get_relic_data(relic.item_id)
-			btn.text = data.get("name", "?") if not data.is_empty() else "?"
-			btn.set_meta("slot_type", "relic")
-			btn.set_meta("relic_index", i)
-			btn.set_meta("item_id", relic.item_id)
-			btn.mouse_entered.connect(_on_button_hover_entered.bind(relic.item_id))
-			btn.mouse_exited.connect(_on_button_hover_exited)
-		else:
-			btn.text = "空"
-			btn.modulate = Color.WHITE
-			btn.disabled = false
-			btn.set_meta("slot_type", "relic")
-			btn.set_meta("relic_index", i)
-			btn.set_meta("item_id", "")
-		
-		grid.add_child(btn)
-	
-	relic_container.add_child(grid)
-	relic_container.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	relic_container.custom_minimum_size = Vector2(0, 50)
-	relic_container.visible = true
 
 func _build_shop_items():
 	if not shop_manager:
 		return
-	for child in shop_container.get_children():
-		child.queue_free()
-	
+	_clear_container(shop_container)
 	shop_container.columns = 3
 	
 	var items = shop_manager.get_shop_items()
@@ -531,6 +386,56 @@ func _build_shop_items():
 		
 		shop_container.add_child(btn)
 
+func _build_weapon_grid(container: GridContainer):
+	container.columns = 3
+	for item_id in Globals.unlocked_items:
+		var data = ItemManager.get_item_data(item_id)
+		if data and data.type == "weapon":
+			var btn = Button.new()
+			btn.text = data.name
+			btn.add_theme_font_size_override("font_size", 6)
+			btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			btn.set_meta("slot_type", "library_weapon")
+			btn.set_meta("item_id", item_id)
+			btn.focus_mode = Control.FOCUS_NONE
+			btn.mouse_filter = Control.MOUSE_FILTER_STOP
+			btn.mouse_entered.connect(_on_button_hover_entered.bind(item_id))
+			btn.mouse_exited.connect(_on_button_hover_exited)
+			container.add_child(btn)
+
+func _build_talent_grid(container: GridContainer):
+	container.columns = 2
+	var unlocked = Globals.get_unlocked_talents()
+	if unlocked.is_empty():
+		var label = Label.new()
+		label.text = "暂无解锁特技"
+		label.add_theme_font_size_override("font_size", 6)
+		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		container.add_child(label)
+		return
+	
+	for talent_id in unlocked:
+		var data = TalentManager.get_talent_data(talent_id)
+		if not data:
+			continue
+		var btn = Button.new()
+		btn.text = _get_talent_display_name(data)
+		btn.add_theme_font_size_override("font_size", 6)
+		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		btn.custom_minimum_size = Vector2(30, 14)
+		btn.set_meta("talent_id", talent_id)
+		btn.set_meta("slot_type", "library_talent")
+		btn.focus_mode = Control.FOCUS_NONE
+		btn.mouse_filter = Control.MOUSE_FILTER_STOP
+		
+		var rarity_color = _get_rarity_color(data.rarity)
+		btn.add_theme_color_override("font_color", rarity_color)
+		
+		btn.mouse_entered.connect(_on_talent_hover_entered.bind(talent_id))
+		btn.mouse_exited.connect(_on_talent_hover_exited)
+		
+		container.add_child(btn)
+
 func _get_item_name(inst: ItemInstance) -> String:
 	if not inst:
 		return ""
@@ -556,7 +461,7 @@ func _on_button_hover_exited():
 	hide_item_detail()
 
 # ============================================================
-#  词条悬停详情
+#  特技悬停详情
 # ============================================================
 func _on_talent_hover_entered(talent_id: String):
 	var data = TalentManager.get_talent_data(talent_id)
@@ -581,7 +486,7 @@ func _hide_talent_detail():
 		detail_label.text = "选中物品详情"
 
 func _get_talent_display_name(data) -> String:
-	var talent_name = data.display_name   # ✅ 改名避免与 Node.name 冲突
+	var talent_name = data.display_name
 	var rarity_icon = ""
 	match data.rarity:
 		"common": rarity_icon = ""
@@ -599,6 +504,31 @@ func _get_rarity_color(rarity: String) -> Color:
 		_: return Color.WHITE
 
 # ============================================================
+#  标签切换（右侧）
+# ============================================================
+func _switch_tab(tab: String):
+	if current_tab == tab:
+		return
+	current_tab = tab
+	_update_tab_style()
+	
+	_clear_container(shop_container)
+	if tab == "weapon":
+		_build_weapon_grid(shop_container)
+	else:
+		_build_talent_grid(shop_container)
+
+func _update_tab_style():
+	if not weapon_tab_btn or not talent_tab_btn:
+		return
+	if current_tab == "weapon":
+		weapon_tab_btn.modulate = Color.WHITE
+		talent_tab_btn.modulate = Color(0.5, 0.5, 0.5)
+	else:
+		weapon_tab_btn.modulate = Color(0.5, 0.5, 0.5)
+		talent_tab_btn.modulate = Color.WHITE
+
+# ============================================================
 #  目标控件高亮（拖拽时变灰）
 # ============================================================
 func _get_all_target_controls() -> Array[Control]:
@@ -609,20 +539,13 @@ func _get_all_target_controls() -> Array[Control]:
 			if child is Button:
 				targets.append(child)
 	
-	if current_mode == Mode.DEPLOY and library_container.visible:
-		for grid in library_container.get_children():
-			if grid is GridContainer:
-				for btn in grid.get_children():
-					if btn is Button:
-						targets.append(btn)
+	# DEPLOY 模式：检查右侧 ShopContainer 中的武器库/特技库按钮
+	if current_mode == Mode.DEPLOY and shop_container.visible:
+		for btn in shop_container.get_children():
+			if btn is Button and not btn.disabled:
+				targets.append(btn)
 	
-	if (current_mode == Mode.MAP or current_mode == Mode.SHOP) and relic_container.visible:
-		for grid in relic_container.get_children():
-			if grid is GridContainer:
-				for btn in grid.get_children():
-					if btn is Button and not btn.disabled:
-						targets.append(btn)
-	
+	# MAP/SHOP 模式：丢弃区
 	if discard_zone.visible and current_mode != Mode.DEPLOY:
 		targets.append(discard_zone)
 	
@@ -663,30 +586,21 @@ func _find_control_at_position(pos: Vector2) -> Control:
 				if rect.has_point(pos):
 					return child
 	
-	if current_mode == Mode.DEPLOY:
-		for grid in library_container.get_children():
-			if grid is GridContainer:
-				for btn in grid.get_children():
-					if btn is Button:
-						var rect = btn.get_global_rect().grow(BUFFER)
-						if rect.has_point(pos):
-							return btn
-	
-	if current_mode == Mode.SHOP and shop_container.visible:
+	# DEPLOY 模式：右侧 ShopContainer
+	if current_mode == Mode.DEPLOY and shop_container.visible:
 		for btn in shop_container.get_children():
 			if btn is Button and not btn.disabled:
 				var rect = btn.get_global_rect().grow(BUFFER)
 				if rect.has_point(pos):
 					return btn
 	
-	if (current_mode == Mode.MAP or current_mode == Mode.SHOP) and relic_container.visible:
-		for grid in relic_container.get_children():
-			if grid is GridContainer:
-				for btn in grid.get_children():
-					if btn is Button:
-						var rect = btn.get_global_rect().grow(BUFFER)
-						if rect.has_point(pos):
-							return btn
+	# SHOP 模式：商店商品
+	if current_mode == Mode.SHOP and shop_container.visible:
+		for btn in shop_container.get_children():
+			if btn is Button and not btn.disabled:
+				var rect = btn.get_global_rect().grow(BUFFER)
+				if rect.has_point(pos):
+					return btn
 	
 	return null
 
@@ -699,24 +613,17 @@ func _get_target_from_position(global_pos: Vector2) -> Control:
 			if child is Button and child.get_global_rect().has_point(global_pos):
 				return child
 
-	if current_mode == Mode.DEPLOY:
-		for grid in library_container.get_children():
-			if grid is GridContainer:
-				for btn in grid.get_children():
-					if btn is Button and btn.get_global_rect().has_point(global_pos):
-						return btn
-
-	if current_mode == Mode.SHOP and shop_container.visible:
+	# DEPLOY 模式：右侧 ShopContainer
+	if current_mode == Mode.DEPLOY and shop_container.visible:
 		for btn in shop_container.get_children():
 			if btn is Button and not btn.disabled and btn.get_global_rect().has_point(global_pos):
 				return btn
 
-	if (current_mode == Mode.MAP or current_mode == Mode.SHOP) and relic_container.visible:
-		for grid in relic_container.get_children():
-			if grid is GridContainer:
-				for btn in grid.get_children():
-					if btn is Button and btn.get_global_rect().has_point(global_pos):
-						return btn
+	# SHOP 模式：商店商品
+	if current_mode == Mode.SHOP and shop_container.visible:
+		for btn in shop_container.get_children():
+			if btn is Button and not btn.disabled and btn.get_global_rect().has_point(global_pos):
+				return btn
 
 	return null
 
@@ -747,8 +654,6 @@ func _is_valid_drop(data: Dictionary, target: Control) -> bool:
 			return true
 		if source_type == "armor" and target_type == "armor":
 			return true
-		if source_type == "relic" and target_type == "relic":
-			return false
 		return false
 
 	if current_mode == Mode.SHOP:
@@ -765,16 +670,12 @@ func _is_valid_drop(data: Dictionary, target: Control) -> bool:
 					return target_type == "weapon"
 				elif item_data.type == "armor":
 					return target_type == "armor"
-				elif item_data.type == "relic":
-					return target_type == "relic"
 				return false
 			else:
 				if source_type == "weapon" and target_type == "weapon":
 					return true
 				if source_type == "armor" and target_type == "armor":
 					return true
-				if source_type == "relic" and target_type == "relic":
-					return false
 				return false
 
 	return false
@@ -811,8 +712,6 @@ func _execute_drop(data: Dictionary, target: Control):
 		_swap_weapons(data, target)
 	elif source_type == "armor" and target_type == "armor":
 		_swap_armor(data, target)
-	elif source_type == "relic" and target_type == "relic":
-		_swap_relics(data, target)
 
 func _discard_item(data: Dictionary):
 	var source_type = data["slot_type"]
@@ -824,11 +723,6 @@ func _discard_item(data: Dictionary):
 	
 	if source_type == "armor":
 		party[unit_idx].armor_slots[slot_idx] = null
-	elif source_type == "relic":
-		var idx = data["relic_index"]
-		if idx < GameState.global_relics.size():
-			GameState.global_relics.remove_at(idx)
-			_sync_relics()
 	elif source_type == "talent":
 		_discard_talent(data)
 	
@@ -836,7 +730,7 @@ func _discard_item(data: Dictionary):
 	call_deferred("_build_ui")
 
 # ============================================================
-#  词条拖拽逻辑
+#  特技拖拽逻辑
 # ============================================================
 func _execute_talent_drop(data: Dictionary, target: Control):
 	var source_type = data.get("slot_type", "")
@@ -914,12 +808,7 @@ func _buy_shop_item(data: Dictionary, target: Control):
 	inst.item_id = item_data.id
 	inst.count = 1
 	
-	if item_data.type == "relic":
-		GameState.add_global_relic(inst)
-		Globals.unlock_relic(item_data.id)
-		print("购买了遗物: ", item_data.name)
-		
-	elif item_data.type == "weapon":
+	if item_data.type == "weapon":
 		if target_unit_idx != -1:
 			party[target_unit_idx].weapon_slot = inst
 			print("购买了武器并装备到单位: ", item_data.name)
@@ -986,20 +875,6 @@ func _swap_armor(data: Dictionary, target: Control):
 	_sync_all()
 	call_deferred("_build_ui")
 
-func _swap_relics(data: Dictionary, target: Control):
-	var src_idx = data["relic_index"]
-	var tgt_idx = target.get_meta("relic_index", -1)
-	if tgt_idx == -1:
-		return
-	var relics = GameState.global_relics
-	if src_idx < relics.size() and tgt_idx < relics.size():
-		var temp = relics[src_idx]
-		relics[src_idx] = relics[tgt_idx]
-		relics[tgt_idx] = temp
-	_sync_relics()
-	_sync_all()
-	call_deferred("_build_ui")
-
 # ============================================================
 #  同步保存
 # ============================================================
@@ -1014,9 +889,6 @@ func _sync_all():
 				GameState.party[i].armor_slots.append(null)
 			while GameState.party[i].talent_slots.size() < 1:
 				GameState.party[i].talent_slots.append(null)
-	SaveManager.auto_save()
-
-func _sync_relics():
 	SaveManager.auto_save()
 
 # ============================================================
@@ -1037,7 +909,7 @@ func _input(event: InputEvent):
 func _start_drag(btn: Button):
 	var slot_type = btn.get_meta("slot_type", "")
 	
-	if current_mode == Mode.DEPLOY and (slot_type == "armor" or slot_type == "relic"):
+	if current_mode == Mode.DEPLOY and slot_type == "armor":
 		return
 	
 	var item_id = btn.get_meta("item_id", "")
@@ -1050,7 +922,6 @@ func _start_drag(btn: Button):
 		"unit_idx": btn.get_meta("unit_idx", -1),
 		"slot_idx": btn.get_meta("slot_idx", -1),
 		"item_id": item_id,
-		"relic_index": btn.get_meta("relic_index", -1),
 		"source_control": btn,
 		"shop_index": btn.get_meta("shop_index", -1),
 		"talent_id": btn.get_meta("talent_id", "")
@@ -1343,80 +1214,6 @@ func _on_confirm_pressed():
 	else:
 		queue_free()
 
-func _on_weapon_tab_pressed():
-	if current_tab == "weapon":
-		return
-	current_tab = "weapon"
-	_update_tab_style()
-	_update_tab_visibility()
-
-func _on_talent_tab_pressed():
-	if current_tab == "talent":
-		return
-	current_tab = "talent"
-	_update_tab_style()
-	_update_tab_visibility()
-
-func _update_tab_style():
-	if not weapon_tab_btn or not talent_tab_btn:
-		return
-	# 选中的标签高亮
-	if current_tab == "weapon":
-		weapon_tab_btn.modulate = Color.WHITE
-		talent_tab_btn.modulate = Color(0.5, 0.5, 0.5)
-	else:
-		weapon_tab_btn.modulate = Color(0.5, 0.5, 0.5)
-		talent_tab_btn.modulate = Color.WHITE
-
-func _update_tab_visibility():
-	if current_tab == "weapon":
-		library_container.visible = true
-		if talent_container:
-			talent_container.visible = false
-	else:
-		library_container.visible = false
-		if talent_container:
-			talent_container.visible = true
-
-func _ensure_tabs():
-	if tab_container != null:
-		return
-	
-	# 获取左列容器（武器库和特技库的父容器）
-	var left_vbox = $VBoxContainer/MainHBox/VBoxContainer
-	if not left_vbox:
-		return
-	
-	# 获取 LibraryContainer 的索引位置，在其上方插入标签栏
-	var lib_idx = left_vbox.get_children().find(library_container)
-	if lib_idx == -1:
-		lib_idx = 0
-	
-	tab_container = HBoxContainer.new()
-	tab_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	tab_container.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	tab_container.add_theme_constant_override("separation", 4)
-	left_vbox.add_child(tab_container)
-	left_vbox.move_child(tab_container, lib_idx)
-	
-	# 创建"武器库"标签按钮
-	weapon_tab_btn = Button.new()
-	weapon_tab_btn.text = "武器库"
-	weapon_tab_btn.add_theme_font_size_override("font_size", 8)
-	weapon_tab_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	weapon_tab_btn.focus_mode = Control.FOCUS_NONE
-	weapon_tab_btn.pressed.connect(_on_weapon_tab_pressed)
-	tab_container.add_child(weapon_tab_btn)
-	
-	# 创建"特技库"标签按钮
-	talent_tab_btn = Button.new()
-	talent_tab_btn.text = "特技库"
-	talent_tab_btn.add_theme_font_size_override("font_size", 8)
-	talent_tab_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	talent_tab_btn.focus_mode = Control.FOCUS_NONE
-	talent_tab_btn.pressed.connect(_on_talent_tab_pressed)
-	tab_container.add_child(talent_tab_btn)
-	
-	# 默认选中武器库
-	current_tab = "weapon"
-	_update_tab_style()
+func _clear_container(container: Node):
+	for child in container.get_children():
+		child.queue_free()

@@ -23,6 +23,7 @@ grow_vertical = 2
 color = Color(0, 0, 0, 1)
 
 [node name="BackgroundTexture" type="TextureRect" parent="." unique_id=660272735]
+visible = false
 layout_mode = 1
 anchors_preset = 8
 anchor_left = 0.5
@@ -54,6 +55,7 @@ grow_vertical = 2
 layout_mode = 2
 
 [node name="TitleLabel" type="Label" parent="CenterContainer/VBoxContainer" unique_id=378818790]
+visible = false
 layout_mode = 2
 text = "游 戏 开 发 中"
 horizontal_alignment = 1
