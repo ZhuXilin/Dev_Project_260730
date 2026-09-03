@@ -467,6 +467,9 @@ func set_facing_direction(dir: Vector2):
 # ============================================================
 func set_gray(gray: bool):
 	is_gray = gray
+	# ---- 如果单位已死亡，强制灰色 ----
+	if hit_points <= 0:
+		is_gray = true
 	update_color()
 
 func update_color():

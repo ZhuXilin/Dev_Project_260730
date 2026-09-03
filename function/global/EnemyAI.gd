@@ -136,7 +136,6 @@ func _evaluate_attack(unit: Unit):
 		print("AI 治疗者不执行攻击")
 		return null
 
-	# ---- 获取当前装备武器 ----
 	var weapon_id = unit.get_equipped_weapon_id()
 	print("AI 单位 %s 当前武器 ID: %s" % [unit.unit_stats.unit_name, weapon_id])
 	if weapon_id == "":
@@ -148,7 +147,6 @@ func _evaluate_attack(unit: Unit):
 		print("错误：武器数据不存在，ID: %s" % weapon_id)
 		return null
 
-	# 获取攻击范围
 	var max_range = data.attack_range
 	var min_range = data.min_attack_range
 	print("武器 %s 范围: %d~%d" % [data.name, min_range, max_range])
@@ -156,27 +154,22 @@ func _evaluate_attack(unit: Unit):
 	var best_target = null
 	var best_score = -999
 
-	# 遍历所有敌人
 	for enemy in UnitManager.unit_list:
 		if enemy.unit_stats.team_id == unit.unit_stats.team_id or enemy.hit_points <= 0:
 			continue
 
-		# 计算距离
 		var dist = abs(unit.grid_cell.x - enemy.grid_cell.x) + abs(unit.grid_cell.y - enemy.grid_cell.y)
 		print("  检查目标 %s，距离 %d" % [enemy.unit_stats.unit_name, dist])
 		if dist < min_range or dist > max_range:
 			print("    距离不在攻击范围内")
 			continue
 
-		# 计算命中率和伤害（直接使用当前武器）
-		var hit_rate = CombatManager.calculate_hit_rate(unit, enemy)
 		var damage = CombatManager.calculate_damage(unit, enemy)
-		print("    命中率 %d%%，伤害 %d" % [hit_rate, damage])
+		print("    伤害 %d" % [damage])
 		if damage <= 0:
 			print("    伤害为0，跳过")
 			continue
 
-		# 评分
 		var score = damage * 2
 		if damage >= enemy.hit_points:
 			score += 50
@@ -184,18 +177,18 @@ func _evaluate_attack(unit: Unit):
 		# 检查敌人能否反击
 		var can_counter = false
 		var enemy_weapon_type = enemy.get_weapon_type()
-		if enemy_weapon_type != -1 and enemy_weapon_type != "staff":
+		if enemy_weapon_type != "" and enemy_weapon_type != "staff":
 			var enemy_weapon_data = enemy.get_weapon_data()
-			var enemy_min = enemy_weapon_data.min_attack_range if enemy_weapon_data else 0
-			var enemy_max = enemy_weapon_data.attack_range if enemy_weapon_data else 0
-			var dist_to_attacker = abs(enemy.grid_cell.x - unit.grid_cell.x) + abs(enemy.grid_cell.y - unit.grid_cell.y)
-			if dist_to_attacker >= enemy_min and dist_to_attacker <= enemy_max:
-				can_counter = true
+			if enemy_weapon_data:
+				var enemy_min = enemy_weapon_data.min_attack_range
+				var enemy_max = enemy_weapon_data.attack_range
+				var dist_to_attacker = abs(enemy.grid_cell.x - unit.grid_cell.x) + abs(enemy.grid_cell.y - unit.grid_cell.y)
+				if dist_to_attacker >= enemy_min and dist_to_attacker <= enemy_max:
+					can_counter = true
 
 		if not can_counter:
 			score += 30
-		if hit_rate > 70:
-			score += 10
+		# 攻击必定命中，不再有命中率加分
 		if can_counter and unit.hit_points < unit.unit_stats.max_hp * 0.3:
 			var counter_dmg = CombatManager.calculate_damage(enemy, unit)
 			if counter_dmg >= unit.hit_points:

@@ -1234,6 +1234,10 @@ func _input(event: InputEvent):
 func _on_request_show_menu(unit: Unit):
 	if TurnManager.is_game_over or TurnManager.current_turn_team != 0 or TurnManager.all_acted:
 		return
+	# ---- 检查单位是否存活 ----
+	if not unit or not is_instance_valid(unit) or unit.hit_points <= 0:
+		print("单位已死亡，不显示菜单")
+		return
 	if unit.unit_stats.team_id != 0:
 		print("警告：试图为敌方单位显示菜单，已阻止")
 		return
@@ -1283,10 +1287,8 @@ func _on_request_show_menu(unit: Unit):
 		else:
 			ui_manager.wait_btn.text = "待机"
 
-	# ---- 移动按钮状态 ----
 	if is_instance_valid(move_btn):
 		var can_move = false
-		# 只有未攻击、未行动、可行动且未游戏结束时才能移动
 		if not unit.has_attacked and not unit.has_acted and unit.can_act_this_turn and not TurnManager.is_game_over:
 			var reachable = UnitManager.get_reachable_cells(unit.grid_cell, unit.remaining_move, unit)
 			for c in reachable.keys():

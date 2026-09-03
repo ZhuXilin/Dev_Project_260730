@@ -44,6 +44,10 @@ func handle_click(clicked_cell: Vector2i):
 				return
 
 			if clicked_unit:
+				# ---- 检查单位是否存活 ----
+				if clicked_unit.hit_points <= 0:
+					return
+				
 				SignalBus.request_show_info.emit(clicked_unit)
 				current_empty_cell = Vector2i(-1, -1)
 
@@ -72,7 +76,6 @@ func handle_click(clicked_cell: Vector2i):
 					var is_healer = (selected_unit.get_weapon_type() == "staff")
 					var attack_preview = {}
 
-					# 计算敌方单位移动到每个可达格后能攻击的范围
 					for move_cell in reachable.keys():
 						for x in range(-max_range, max_range + 1):
 							for y in range(-max_range, max_range + 1):
@@ -165,7 +168,6 @@ func handle_click(clicked_cell: Vector2i):
 				SoundManager.play_invalid_sound()
 
 		"item_target":
-			# 道具使用仍保留（但单位已无消耗品，所以不会触发）
 			if clicked_unit:
 				var targets = []
 				if ui_manager:
