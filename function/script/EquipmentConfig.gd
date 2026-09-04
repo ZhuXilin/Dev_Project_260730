@@ -328,10 +328,13 @@ func _create_item_button(inst: ItemInstance, slot_type: String, unit_idx: int, s
 func _create_talent_button(inst: TalentInstance, unit_idx: int, slot_idx: int) -> Button:
 	var btn = Button.new()
 	btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	btn.add_theme_font_size_override("font_size", 6)
-	btn.custom_minimum_size = Vector2(30, 14)
+	btn.add_theme_font_size_override("font_size", 5)
+	btn.custom_minimum_size = Vector2(30, 22)
 	btn.focus_mode = Control.FOCUS_NONE
 	btn.mouse_filter = Control.MOUSE_FILTER_STOP
+	
+	# ---- 多行支持 ----
+	btn.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	
 	btn.set_meta("slot_type", "talent")
 	btn.set_meta("unit_idx", unit_idx)
@@ -340,7 +343,7 @@ func _create_talent_button(inst: TalentInstance, unit_idx: int, slot_idx: int) -
 	if inst and inst.is_active:
 		var data = TalentManager.get_talent_data(inst.talent_id)
 		if data:
-			btn.text = data.display_name
+			btn.text = _get_talent_display_name(data)
 			btn.modulate = _get_rarity_color(data.rarity)
 			btn.set_meta("talent_id", inst.talent_id)
 			btn.mouse_entered.connect(_on_talent_hover_entered.bind(inst.talent_id))
@@ -411,6 +414,7 @@ func _build_weapon_grid(container: GridContainer):
 			btn.mouse_exited.connect(_on_button_hover_exited)
 			container.add_child(btn)
 
+# ---- 构建特技库 ----
 func _build_talent_grid(container: GridContainer):
 	container.columns = 2
 	var unlocked = Globals.get_unlocked_talents()
@@ -428,13 +432,16 @@ func _build_talent_grid(container: GridContainer):
 			continue
 		var btn = Button.new()
 		btn.text = _get_talent_display_name(data)
-		btn.add_theme_font_size_override("font_size", 6)
+		btn.add_theme_font_size_override("font_size", 5)
 		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		btn.custom_minimum_size = Vector2(30, 14)
+		btn.custom_minimum_size = Vector2(30, 22)
 		btn.set_meta("talent_id", talent_id)
 		btn.set_meta("slot_type", "library_talent")
 		btn.focus_mode = Control.FOCUS_NONE
 		btn.mouse_filter = Control.MOUSE_FILTER_STOP
+		
+		# ---- 多行支持（不设置垂直对齐，默认居中） ----
+		btn.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		
 		var rarity_color = _get_rarity_color(data.rarity)
 		btn.add_theme_color_override("font_color", rarity_color)
@@ -493,15 +500,24 @@ func _hide_talent_detail():
 	if detail_label:
 		detail_label.text = "选中物品详情"
 
+# ---- 获取特技显示名称（含可装备单位） ----
 func _get_talent_display_name(data) -> String:
-	var talent_name = data.display_name
 	var rarity_icon = ""
 	match data.rarity:
 		"common": rarity_icon = ""
 		"rare": rarity_icon = "★"
 		"epic": rarity_icon = "★★"
 		"legendary": rarity_icon = "★★★"
-	return rarity_icon + talent_name
+	
+	var compatible_units = data.compatible_units if data.compatible_units != null else []
+	var unit_names = []
+	for unit_key in compatible_units:
+		var display = UnitDataManager.get_unit_type_display_name(unit_key)
+		if display != "":
+			unit_names.append(display)
+	var compat_str = "/".join(unit_names) if not unit_names.is_empty() else "全部"
+	
+	return rarity_icon + data.display_name + "\n" + compat_str
 
 func _get_rarity_color(rarity: String) -> Color:
 	match rarity:
@@ -543,19 +559,26 @@ func _update_tab_style():
 func _get_all_target_controls() -> Array[Control]:
 	var targets: Array[Control] = []
 	
+	# 单位列中的所有按钮（武器、防具、特技）
 	for col in unit_container.get_children():
 		for child in col.get_children():
 			if child is Button:
 				targets.append(child)
 	
-	# DEPLOY 模式：检查右侧 ShopContainer 中的武器库/特技库按钮
+	# DEPLOY 模式：右侧 ShopContainer 中的武器库/特技库按钮
 	if current_mode == Mode.DEPLOY and shop_container.visible:
 		for btn in shop_container.get_children():
 			if btn is Button and not btn.disabled:
 				targets.append(btn)
 	
-	# MAP/SHOP 模式：丢弃区
-	if discard_zone.visible and current_mode != Mode.DEPLOY:
+	# MAP 模式：右侧 ShopContainer 中的特技库按钮
+	if current_mode == Mode.MAP and shop_container.visible:
+		for btn in shop_container.get_children():
+			if btn is Button and not btn.disabled:
+				targets.append(btn)
+	
+	# 丢弃区（DEPLOY 模式下特技不可丢弃，但仍可高亮指示）
+	if discard_zone.visible:
 		targets.append(discard_zone)
 	
 	return targets
@@ -569,10 +592,19 @@ func _update_targets_visuals():
 			_target_states[target] = target.modulate
 		
 		var is_valid = _is_valid_drop(_drag_meta, target)
-		if is_valid:
-			target.modulate = Color.WHITE
+		
+		# 如果拖拽的是特技，且目标无效，显示红色提示
+		if _drag_meta.has("talent_id") and _drag_meta["talent_id"] != "":
+			if target.get_meta("slot_type", "") == "talent":
+				if not is_valid:
+					target.modulate = Color(1.0, 0.3, 0.3, 1.0)   # 红色表示不可用
+				else:
+					target.modulate = Color(0.3, 1.0, 0.3, 1.0)   # 绿色表示可用
 		else:
-			target.modulate = Color(0.4, 0.4, 0.4, 1.0)
+			if is_valid:
+				target.modulate = Color.WHITE
+			else:
+				target.modulate = Color(0.4, 0.4, 0.4, 1.0)
 
 func _reset_targets_visuals():
 	for target in _target_states.keys():
@@ -586,6 +618,7 @@ func _reset_targets_visuals():
 func _find_control_at_position(pos: Vector2) -> Control:
 	const BUFFER = 4
 	
+	# 单位槽位
 	for col in unit_container.get_children():
 		for child in col.get_children():
 			if child is Button:
@@ -603,7 +636,15 @@ func _find_control_at_position(pos: Vector2) -> Control:
 				if rect.has_point(pos):
 					return btn
 	
-	# SHOP 模式：商店商品
+	# MAP 模式：右侧 ShopContainer（特技库）
+	if current_mode == Mode.MAP and shop_container.visible:
+		for btn in shop_container.get_children():
+			if btn is Button and not btn.disabled:
+				var rect = btn.get_global_rect().grow(BUFFER)
+				if rect.has_point(pos):
+					return btn
+	
+	# SHOP 模式
 	if current_mode == Mode.SHOP and shop_container.visible:
 		for btn in shop_container.get_children():
 			if btn is Button and not btn.disabled:
@@ -617,6 +658,7 @@ func _get_target_from_position(global_pos: Vector2) -> Control:
 	if discard_zone.visible and discard_zone.get_global_rect().has_point(global_pos):
 		return discard_zone
 
+	# 单位槽位
 	for col in unit_container.get_children():
 		for child in col.get_children():
 			if child is Button and child.get_global_rect().has_point(global_pos):
@@ -628,7 +670,13 @@ func _get_target_from_position(global_pos: Vector2) -> Control:
 			if btn is Button and not btn.disabled and btn.get_global_rect().has_point(global_pos):
 				return btn
 
-	# SHOP 模式：商店商品
+	# MAP 模式：右侧 ShopContainer（特技库）
+	if current_mode == Mode.MAP and shop_container.visible:
+		for btn in shop_container.get_children():
+			if btn is Button and not btn.disabled and btn.get_global_rect().has_point(global_pos):
+				return btn
+
+	# SHOP 模式
 	if current_mode == Mode.SHOP and shop_container.visible:
 		for btn in shop_container.get_children():
 			if btn is Button and not btn.disabled and btn.get_global_rect().has_point(global_pos):
@@ -641,42 +689,54 @@ func _is_valid_drop(data: Dictionary, target: Control) -> bool:
 	var target_type = target.get_meta("slot_type", "")
 	var discard = target == discard_zone
 
+	# ===== 统一规则：特技不可丢弃 =====
+	if discard and source_type in ["library_talent", "talent"]:
+		return false
+
 	if current_mode == Mode.DEPLOY:
 		if discard:
 			return false
+		# ---- 武器相关 ----
 		if source_type == "library_weapon":
 			return target_type == "weapon"
 		if source_type == "weapon" and target_type == "weapon":
 			return true
+		# ---- 特技相关 ----
 		if source_type == "library_talent" and target_type == "talent":
-			return true
+			return _check_talent_compatibility(data, target)
+		if source_type == "talent" and target_type == "talent":
+			return _check_talent_compatibility(data, target)
 		return false
 
 	if current_mode == Mode.MAP:
 		if discard:
+			if source_type in ["library_talent", "talent"]:
+				return false   # 特技不可丢弃
 			if source_type == "weapon":
 				return false
 			return true
-		# ---- 武器库 → 武器槽 ----
+		
+		# ---- 武器相关 ----
 		if source_type == "library_weapon":
 			return target_type == "weapon"
-		# ---- 武器槽 ↔ 武器槽（交换） ----
 		if source_type == "weapon" and target_type == "weapon":
 			return true
-		# ---- 防具槽 ↔ 防具槽（交换） ----
+		
+		# ---- 防具相关 ----
 		if source_type == "armor" and target_type == "armor":
 			return true
-		# ---- ✨新增：特技库 → 特技槽 ----
+		
+		# ---- 特技相关（必须检查兼容性） ----
 		if source_type == "library_talent" and target_type == "talent":
-			return true
-		# ---- ✨新增：特技槽 ↔ 特技槽（交换） ----
+			return _check_talent_compatibility(data, target)
 		if source_type == "talent" and target_type == "talent":
-			return true
+			return _check_talent_compatibility(data, target)
+		
 		return false
 
 	if current_mode == Mode.SHOP:
 		if discard:
-			if source_type == "shop_item" or source_type == "weapon":
+			if source_type in ["shop_item", "weapon", "library_talent", "talent"]:
 				return false
 			return true
 		else:
@@ -768,12 +828,26 @@ func _execute_talent_drop(data: Dictionary, target: Control):
 			return
 		if not Globals.is_talent_unlocked(talent_id):
 			return
+		
+		# ---- 检查唯一性 ----
+		if _is_talent_already_equipped(talent_id, unit_idx, slot_idx):
+			var equipped_unit = _get_unit_with_talent(talent_id)
+			Globals.show_confirm(
+				self,
+				"特技已被 %s 装备，不可重复装备" % equipped_unit,
+				"确定",
+				"",
+				func(): pass,
+				func(): pass,
+				false
+			)
+			return
+		
 		var inst = TalentInstance.new()
 		inst.talent_id = talent_id
 		inst.is_active = true
 		party[unit_idx].talent_slots[slot_idx] = inst
 		_sync_all()
-		# ---- 不重建整个UI，只刷新单位列和当前库 ----
 		_refresh_after_talent_change()
 		return
 	
@@ -784,9 +858,37 @@ func _execute_talent_drop(data: Dictionary, target: Control):
 		var tgt_slot = target.get_meta("slot_idx", -1)
 		if src_unit == -1 or tgt_unit == -1:
 			return
-		var temp = party[src_unit].talent_slots[src_slot]
+		
+		var src_talent_id = party[src_unit].talent_slots[src_slot].talent_id if party[src_unit].talent_slots[src_slot] else ""
+		
+		var tgt_inst = party[tgt_unit].talent_slots[tgt_slot]
+		if tgt_inst and tgt_inst.is_active and tgt_inst.talent_id == src_talent_id:
+			# 只声明一次 temp_talent
+			var temp_talent = party[src_unit].talent_slots[src_slot]
+			party[src_unit].talent_slots[src_slot] = party[tgt_unit].talent_slots[tgt_slot]
+			party[tgt_unit].talent_slots[tgt_slot] = temp_talent
+			_sync_all()
+			_refresh_after_talent_change()
+			return
+		
+		if src_talent_id != "":
+			if _is_talent_already_equipped(src_talent_id, tgt_unit, tgt_slot):
+				var equipped_unit = _get_unit_with_talent(src_talent_id)
+				Globals.show_confirm(
+					self,
+					"特技已被 %s 装备，不可重复装备" % equipped_unit,
+					"确定",
+					"",
+					func(): pass,
+					func(): pass,
+					false
+				)
+				return
+		
+		# 这里只使用一个 temp_talent，不要重复声明
+		var temp_talent = party[src_unit].talent_slots[src_slot]
 		party[src_unit].talent_slots[src_slot] = party[tgt_unit].talent_slots[tgt_slot]
-		party[tgt_unit].talent_slots[tgt_slot] = temp
+		party[tgt_unit].talent_slots[tgt_slot] = temp_talent
 		_sync_all()
 		_refresh_after_talent_change()
 		return
@@ -952,7 +1054,18 @@ func _start_drag(btn: Button):
 		return
 	
 	var item_id = btn.get_meta("item_id", "")
-	if item_id == "" and slot_type != "library_weapon" and slot_type != "shop_item" and slot_type != "library_talent":
+	var talent_id = btn.get_meta("talent_id", "")
+	
+	# 特技库和特技槽使用 talent_id 作为标识
+	if slot_type in ["library_talent", "talent"] and talent_id == "":
+		return
+	
+	# 武器库和武器槽使用 item_id
+	if slot_type in ["library_weapon", "weapon"] and item_id == "":
+		return
+	
+	# 商店商品
+	if slot_type == "shop_item" and item_id == "":
 		return
 	
 	_drag_source = btn
@@ -963,7 +1076,7 @@ func _start_drag(btn: Button):
 		"item_id": item_id,
 		"source_control": btn,
 		"shop_index": btn.get_meta("shop_index", -1),
-		"talent_id": btn.get_meta("talent_id", "")
+		"talent_id": talent_id
 	}
 	
 	if slot_type == "shop_item":
@@ -1256,3 +1369,51 @@ func _on_confirm_pressed():
 func _clear_container(container: Node):
 	for child in container.get_children():
 		child.queue_free()
+
+func _check_talent_compatibility(data: Dictionary, target: Control) -> bool:
+	var talent_id = data.get("talent_id", "")
+	if talent_id == "":
+		return false
+	
+	var target_unit_idx = target.get_meta("unit_idx", -1)
+	if target_unit_idx == -1:
+		return false
+	
+	var target_unit = party[target_unit_idx]
+	var unit_name = target_unit.unit_name
+	
+	# 1. 检查单位类型兼容性
+	if not TalentManager.is_talent_compatible_with_unit(talent_id, unit_name):
+		return false
+	
+	# 2. 检查词条唯一性（是否已被其他单位装备）
+	var target_slot_idx = target.get_meta("slot_idx", -1)
+	if _is_talent_already_equipped(talent_id, target_unit_idx, target_slot_idx):
+		var equipped_unit = _get_unit_with_talent(talent_id)
+		print("词条已被 %s 装备，不可重复装备" % equipped_unit)
+		return false
+	
+	return true
+
+# ---- 检查词条是否已被其他单位装备（除了当前槽位） ----
+func _is_talent_already_equipped(talent_id: String, exclude_unit_idx: int = -1, exclude_slot_idx: int = -1) -> bool:
+	for i in range(party.size()):
+		if i == exclude_unit_idx:
+			continue
+		var unit = party[i]
+		for slot_idx in range(unit.talent_slots.size()):
+			if slot_idx == exclude_slot_idx and i == exclude_unit_idx:
+				continue
+			var inst = unit.talent_slots[slot_idx]
+			if inst and inst.is_active and inst.talent_id == talent_id:
+				return true
+	return false
+
+# ---- 获取装备了某词条的单位名称（用于提示） ----
+func _get_unit_with_talent(talent_id: String) -> String:
+	for i in range(party.size()):
+		var unit = party[i]
+		for inst in unit.talent_slots:
+			if inst and inst.is_active and inst.talent_id == talent_id:
+				return unit.display_name
+	return ""

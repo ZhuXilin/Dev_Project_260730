@@ -531,7 +531,10 @@ func update_hp_label():
 func update_name_label():
 	var na_label = $NameLabel
 	if na_label:
-		na_label.text = unit_stats.display_name if unit_stats.display_name != "" else unit_stats.unit_name
+		# ---- 获取中文显示名 ----
+		var display = unit_stats.display_name if unit_stats.display_name != "" else unit_stats.unit_name
+		var type_name = UnitDataManager.get_unit_type_display_name(unit_stats.unit_name)
+		na_label.text = display + "|" + unit_stats.faction + "|" + type_name
 
 func update_terrain_info():
 	var terrain_label = $TerrainInfoLabel
