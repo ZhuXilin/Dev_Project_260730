@@ -23,9 +23,11 @@ func _refresh_slots():
 		if has_save:
 			var info = SaveManager.get_save_info(i)
 			var time_str = Time.get_datetime_string_from_unix_time(info["time"])
-			info_label.text = "存档%d: %s (%d人) 第%d天 %s" % [i + 1, info["main_unit"], info["party"], info["day"], time_str]
+			# ---- 修改：将英文单位名转换为中文显示名 ----
+			var main_unit_display = UnitDataManager.get_display_name(info["main_unit"])
+			info_label.text = "存档%d：%s（%d人）第%d天 %s" % [i + 1, main_unit_display, info["party"], info["day"], time_str]
 		else:
-			info_label.text = "存档%d: 空" % (i + 1)
+			info_label.text = "存档%d：空" % (i + 1)
 		
 		info_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		info_label.add_theme_font_size_override("font_size", 8)
@@ -34,7 +36,7 @@ func _refresh_slots():
 		# ---- 加载/新游戏按钮 ----
 		var load_btn = Button.new()
 		load_btn.add_theme_font_size_override("font_size", 8)
-		load_btn.alignment = HORIZONTAL_ALIGNMENT_LEFT   # 左对齐
+		load_btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
 		
 		if has_save:
 			load_btn.text = "加载"

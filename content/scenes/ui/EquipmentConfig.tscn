@@ -3,23 +3,23 @@
 [ext_resource type="Script" uid="uid://d31iuj7lsa4c6" path="res://function/script/EquipmentConfig.gd" id="1"]
 [ext_resource type="StyleBox" uid="uid://6qbsaxkfwg3o" path="res://content/resource/stylebox/8bit_style_box_flat.tres" id="2"]
 
-[node name="EquipmentConfig" type="CanvasLayer" unique_id=677661755]
+[node name="EquipmentConfig" type="CanvasLayer"]
 layer = 10
 
-[node name="Background" type="ColorRect" parent="." unique_id=2928864]
+[node name="Background" type="ColorRect" parent="."]
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 color = Color(0, 0, 0, 1)
 
-[node name="MainPanel" type="Panel" parent="." unique_id=292400712]
+[node name="MainPanel" type="Panel" parent="."]
 self_modulate = Color(1, 1, 1, 0)
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 script = ExtResource("1")
 
-[node name="VBoxContainer" type="VBoxContainer" parent="MainPanel" unique_id=1828966037]
+[node name="VBoxContainer" type="VBoxContainer" parent="MainPanel"]
 layout_mode = 0
 anchor_right = 1.0
 anchor_bottom = 1.0
@@ -29,19 +29,19 @@ offset_right = -8.0
 offset_bottom = -8.0
 theme_override_constants/separation = 4
 
-[node name="TopBar" type="HBoxContainer" parent="MainPanel/VBoxContainer" unique_id=1198930339]
+[node name="TopBar" type="HBoxContainer" parent="MainPanel/VBoxContainer"]
 custom_minimum_size = Vector2(0, 24)
 layout_mode = 2
 size_flags_vertical = 0
 
-[node name="ModeLabel" type="Label" parent="MainPanel/VBoxContainer/TopBar" unique_id=1124121273]
+[node name="ModeLabel" type="Label" parent="MainPanel/VBoxContainer/TopBar"]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_font_sizes/font_size = 10
 text = "装备配置 - 出战准备"
 horizontal_alignment = 1
 
-[node name="GoldLabel" type="Label" parent="MainPanel/VBoxContainer" unique_id=608586946]
+[node name="GoldLabel" type="Label" parent="MainPanel/VBoxContainer"]
 custom_minimum_size = Vector2(0, 16)
 layout_mode = 2
 size_flags_vertical = 0
@@ -49,12 +49,12 @@ theme_override_font_sizes/font_size = 8
 text = "金币: 0"
 horizontal_alignment = 1
 
-[node name="MainHBox" type="HBoxContainer" parent="MainPanel/VBoxContainer" unique_id=760568343]
+[node name="MainHBox" type="HBoxContainer" parent="MainPanel/VBoxContainer"]
 layout_mode = 2
 size_flags_vertical = 3
 theme_override_constants/separation = 8
 
-[node name="DetailZone" type="Panel" parent="MainPanel/VBoxContainer/MainHBox" unique_id=362162117]
+[node name="DetailZone" type="Panel" parent="MainPanel/VBoxContainer/MainHBox"]
 custom_minimum_size = Vector2(100, 0)
 layout_mode = 2
 size_flags_horizontal = 0
@@ -62,7 +62,7 @@ size_flags_vertical = 3
 mouse_filter = 2
 theme_override_styles/panel = ExtResource("2")
 
-[node name="DetailLabel" type="Label" parent="MainPanel/VBoxContainer/MainHBox/DetailZone" unique_id=2062503525]
+[node name="DetailLabel" type="Label" parent="MainPanel/VBoxContainer/MainHBox/DetailZone"]
 layout_mode = 0
 anchor_right = 1.0
 anchor_bottom = 1.0
@@ -74,28 +74,28 @@ theme_override_font_sizes/font_size = 6
 text = "选中物品详情"
 autowrap_mode = 3
 
-[node name="LeftVBox" type="VBoxContainer" parent="MainPanel/VBoxContainer/MainHBox" unique_id=997803612]
+[node name="LeftVBox" type="VBoxContainer" parent="MainPanel/VBoxContainer/MainHBox"]
 custom_minimum_size = Vector2(140, 0)
 layout_mode = 2
 
-[node name="UnitContainer" type="HBoxContainer" parent="MainPanel/VBoxContainer/MainHBox/LeftVBox" unique_id=1747498196]
+[node name="UnitContainer" type="HBoxContainer" parent="MainPanel/VBoxContainer/MainHBox/LeftVBox"]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 
-[node name="RightContainer" type="VBoxContainer" parent="MainPanel/VBoxContainer/MainHBox" unique_id=1444992568]
+[node name="RightContainer" type="VBoxContainer" parent="MainPanel/VBoxContainer/MainHBox"]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 alignment = 1
 
-[node name="TabBar" type="HBoxContainer" parent="MainPanel/VBoxContainer/MainHBox/RightContainer" unique_id=1336081588]
+[node name="TabBar" type="HBoxContainer" parent="MainPanel/VBoxContainer/MainHBox/RightContainer"]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 0
 theme_override_constants/separation = 4
 
-[node name="WeaponTabBtn" type="Button" parent="MainPanel/VBoxContainer/MainHBox/RightContainer/TabBar" unique_id=1573243697]
+[node name="WeaponTabBtn" type="Button" parent="MainPanel/VBoxContainer/MainHBox/RightContainer/TabBar"]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_font_sizes/font_size = 8
@@ -106,7 +106,7 @@ theme_override_styles/disabled = ExtResource("2")
 theme_override_styles/focus = ExtResource("2")
 text = "武器库"
 
-[node name="TalentTabBtn" type="Button" parent="MainPanel/VBoxContainer/MainHBox/RightContainer/TabBar" unique_id=1058577603]
+[node name="TalentTabBtn" type="Button" parent="MainPanel/VBoxContainer/MainHBox/RightContainer/TabBar"]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_font_sizes/font_size = 8
@@ -117,13 +117,20 @@ theme_override_styles/disabled = ExtResource("2")
 theme_override_styles/focus = ExtResource("2")
 text = "特技库"
 
-[node name="ShopContainer" type="GridContainer" parent="MainPanel/VBoxContainer/MainHBox/RightContainer" unique_id=1883120185]
+[node name="ShopScroll" type="ScrollContainer" parent="MainPanel/VBoxContainer/MainHBox/RightContainer"]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
+horizontal_scroll_mode = 0
+vertical_scroll_mode = 1
+
+[node name="ShopContainer" type="GridContainer" parent="MainPanel/VBoxContainer/MainHBox/RightContainer/ShopScroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 0
 columns = 3
 
-[node name="ResetBtn" type="Button" parent="MainPanel/VBoxContainer/MainHBox/RightContainer" unique_id=728825686]
+[node name="ResetBtn" type="Button" parent="MainPanel/VBoxContainer/MainHBox/RightContainer"]
 layout_mode = 2
 size_flags_horizontal = 4
 theme_override_font_sizes/font_size = 8
@@ -134,29 +141,28 @@ theme_override_styles/disabled = ExtResource("2")
 theme_override_styles/focus = ExtResource("2")
 text = "重置商店"
 
-[node name="DiscardZone" type="Panel" parent="MainPanel/VBoxContainer/MainHBox/RightContainer" unique_id=1057552994]
+[node name="DiscardZone" type="Panel" parent="MainPanel/VBoxContainer/MainHBox/RightContainer"]
 custom_minimum_size = Vector2(120, 40)
 layout_mode = 2
 size_flags_vertical = 3
 mouse_filter = 2
 theme_override_styles/panel = ExtResource("2")
 
-[node name="DiscardLabel" type="Label" parent="MainPanel/VBoxContainer/MainHBox/RightContainer/DiscardZone" unique_id=1656683798]
+[node name="DiscardLabel" type="Label" parent="MainPanel/VBoxContainer/MainHBox/RightContainer/DiscardZone"]
 layout_mode = 0
 anchor_right = 1.0
 anchor_bottom = 1.0
 theme_override_font_sizes/font_size = 6
-text = "丢弃区
-拖拽装备到此"
+text = "丢弃区\n拖拽装备到此"
 horizontal_alignment = 1
 vertical_alignment = 1
 
-[node name="BottomHBox" type="HBoxContainer" parent="MainPanel/VBoxContainer" unique_id=784265117]
+[node name="BottomHBox" type="HBoxContainer" parent="MainPanel/VBoxContainer"]
 custom_minimum_size = Vector2(0, 20)
 layout_mode = 2
 alignment = 1
 
-[node name="CloseBtn" type="Button" parent="MainPanel/VBoxContainer/BottomHBox" unique_id=192576876]
+[node name="CloseBtn" type="Button" parent="MainPanel/VBoxContainer/BottomHBox"]
 layout_mode = 2
 size_flags_horizontal = 0
 theme_override_font_sizes/font_size = 8
@@ -167,7 +173,7 @@ theme_override_styles/disabled = ExtResource("2")
 theme_override_styles/focus = ExtResource("2")
 text = "返回"
 
-[node name="ConfirmBtn" type="Button" parent="MainPanel/VBoxContainer/BottomHBox" unique_id=190253921]
+[node name="ConfirmBtn" type="Button" parent="MainPanel/VBoxContainer/BottomHBox"]
 layout_mode = 2
 size_flags_horizontal = 0
 size_flags_vertical = 3

@@ -35,7 +35,8 @@ var shop_manager = null
 @onready var confirm_btn = $VBoxContainer/BottomHBox/ConfirmBtn      # ✅ 路径修正
 @onready var unit_container = $VBoxContainer/MainHBox/LeftVBox/UnitContainer
 @onready var right_container = $VBoxContainer/MainHBox/RightContainer
-@onready var shop_container = $VBoxContainer/MainHBox/RightContainer/ShopContainer
+@onready var shop_scroll: ScrollContainer = $VBoxContainer/MainHBox/RightContainer/ShopScroll
+@onready var shop_container: GridContainer = $VBoxContainer/MainHBox/RightContainer/ShopScroll/ShopContainer
 @onready var reset_btn = $VBoxContainer/MainHBox/RightContainer/ResetBtn
 @onready var discard_zone = $VBoxContainer/MainHBox/RightContainer/DiscardZone
 @onready var tab_bar = $VBoxContainer/MainHBox/RightContainer/TabBar
@@ -128,7 +129,7 @@ func _build_ui():
 	discard_zone.visible = false
 	reset_btn.visible = false
 	tab_bar.visible = false
-	right_container.visible = true   # 右侧区域始终可见
+	right_container.visible = true
 	
 	var left_column = $VBoxContainer/MainHBox/LeftVBox
 	if left_column:
@@ -143,20 +144,24 @@ func _build_ui():
 			gold_label.visible = false
 			confirm_btn.disabled = false
 			
-			# ---- 显示标签栏 ----
 			tab_bar.visible = true
 			weapon_tab_btn.visible = true
 			talent_tab_btn.visible = true
 			
-			# ---- 默认选中武器库 ----
-			current_tab = "weapon"
+			# ---- 保留当前标签页（不重置为 weapon） ----
+			# 如果 current_tab 为空，默认设为 weapon
+			if current_tab == "":
+				current_tab = "weapon"
 			_update_tab_style()
 			
-			# ---- 清空并填充内容 ----
+			# ---- 根据当前标签页填充内容 ----
 			_clear_container(shop_container)
-			_build_weapon_grid(shop_container)
+			if current_tab == "weapon":
+				_build_weapon_grid(shop_container)
+			else:
+				_build_talent_grid(shop_container)
+			shop_container.visible = true
 			
-			# ---- 隐藏商店相关 ----
 			reset_btn.visible = false
 			discard_zone.visible = false
 			
@@ -175,6 +180,7 @@ func _build_ui():
 			# ---- 清空并填充特技库 ----
 			_clear_container(shop_container)
 			_build_talent_grid(shop_container)
+			shop_container.visible = true
 			
 			# ---- 显示丢弃区 ----
 			discard_zone.visible = true
@@ -195,6 +201,7 @@ func _build_ui():
 			# ---- 清空并填充商店 ----
 			_clear_container(shop_container)
 			_build_shop_items()
+			shop_container.visible = true
 			
 			# ---- 显示商店相关 ----
 			reset_btn.visible = true
@@ -358,6 +365,7 @@ func _build_shop_items():
 		return
 	_clear_container(shop_container)
 	shop_container.columns = 3
+	shop_container.visible = true
 	
 	var items = shop_manager.get_shop_items()
 	for i in range(items.size()):
@@ -517,6 +525,7 @@ func _switch_tab(tab: String):
 		_build_weapon_grid(shop_container)
 	else:
 		_build_talent_grid(shop_container)
+	shop_container.visible = true
 
 func _update_tab_style():
 	if not weapon_tab_btn or not talent_tab_btn:
@@ -648,11 +657,20 @@ func _is_valid_drop(data: Dictionary, target: Control) -> bool:
 			if source_type == "weapon":
 				return false
 			return true
+		# ---- 武器库 → 武器槽 ----
 		if source_type == "library_weapon":
 			return target_type == "weapon"
+		# ---- 武器槽 ↔ 武器槽（交换） ----
 		if source_type == "weapon" and target_type == "weapon":
 			return true
+		# ---- 防具槽 ↔ 防具槽（交换） ----
 		if source_type == "armor" and target_type == "armor":
+			return true
+		# ---- ✨新增：特技库 → 特技槽 ----
+		if source_type == "library_talent" and target_type == "talent":
+			return true
+		# ---- ✨新增：特技槽 ↔ 特技槽（交换） ----
+		if source_type == "talent" and target_type == "talent":
 			return true
 		return false
 
@@ -755,7 +773,8 @@ func _execute_talent_drop(data: Dictionary, target: Control):
 		inst.is_active = true
 		party[unit_idx].talent_slots[slot_idx] = inst
 		_sync_all()
-		call_deferred("_build_ui")
+		# ---- 不重建整个UI，只刷新单位列和当前库 ----
+		_refresh_after_talent_change()
 		return
 	
 	if source_type == "talent" and target_type == "talent":
@@ -769,7 +788,27 @@ func _execute_talent_drop(data: Dictionary, target: Control):
 		party[src_unit].talent_slots[src_slot] = party[tgt_unit].talent_slots[tgt_slot]
 		party[tgt_unit].talent_slots[tgt_slot] = temp
 		_sync_all()
-		call_deferred("_build_ui")
+		_refresh_after_talent_change()
+		return
+
+# ---- 新增：刷新特技变更后的界面 ----
+func _refresh_after_talent_change():
+	# 只刷新单位列（更新特技槽显示）
+	_clear_container(unit_container)
+	_build_unit_columns()
+	
+	# 刷新当前标签页内容（武器库或特技库）
+	if current_mode == Mode.DEPLOY:
+		_clear_container(shop_container)
+		if current_tab == "weapon":
+			_build_weapon_grid(shop_container)
+		else:
+			_build_talent_grid(shop_container)
+		shop_container.visible = true
+	elif current_mode == Mode.MAP:
+		_clear_container(shop_container)
+		_build_talent_grid(shop_container)
+		shop_container.visible = true
 
 func _discard_talent(data: Dictionary):
 	var source_type = data.get("slot_type", "")
@@ -782,7 +821,7 @@ func _discard_talent(data: Dictionary):
 			return
 		party[unit_idx].talent_slots[slot_idx] = null
 		_sync_all()
-		call_deferred("_build_ui")
+		_refresh_after_talent_change()
 
 func _buy_shop_item(data: Dictionary, target: Control):
 	if not shop_manager:
