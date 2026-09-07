@@ -1388,9 +1388,6 @@ func _on_request_damage_popup(world_pos: Vector2, damage: int, is_crit: bool, is
 func _on_request_show_info(unit: Unit):
 	var terrain_type: int
 	var terrain_name: String
-	var def_bonus: int
-	var magic_def_bonus: int
-	var avoid_bonus: int
 	var display_text: String
 
 	if unit == null:
