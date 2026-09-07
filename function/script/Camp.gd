@@ -1,6 +1,7 @@
 extends CanvasLayer
 
 @onready var soul_label = $ResourcePanel/SoulLabel
+@onready var materials_container = $ResourcePanel/MaterialsContainer
 
 func _ready():
 	update_display()
@@ -9,11 +10,50 @@ func _ready():
 func _play_camp_music():
 	if MusicManager.config and MusicManager.config.camp_music:
 		MusicManager.play_music(MusicManager.config.camp_music)
-	else:
-		pass
 
 func update_display():
-	soul_label.text = str(EconomyManager.get_soul() + EconomyManager.get_temp_soul())
+	# ---- 更新魂 ----
+	soul_label.text = "魂:" + str(EconomyManager.get_soul() + EconomyManager.get_temp_soul())
+	
+	# ---- 更新材料 ----
+	_update_materials_display()
+
+func _update_materials_display():
+	# 清空旧显示
+	for child in materials_container.get_children():
+		child.queue_free()
+	
+	var materials = GameState.get_all_materials()
+	var has_material = false
+	
+	for material_name in materials:
+		var count = materials[material_name]
+		if count > 0:
+			has_material = true
+			var label = Label.new()
+			label.text = material_name + ":" + str(count)
+			label.add_theme_font_size_override("font_size", 8)
+			# ---- 添加材料颜色 ----
+			var color = _get_material_color(material_name)
+			if color:
+				label.add_theme_color_override("font_color", color)
+			materials_container.add_child(label)
+	
+	# 如果没有材料，显示提示
+	if not has_material:
+		var label = Label.new()
+		label.text = "无材料"
+		label.add_theme_font_size_override("font_size", 8)
+		label.modulate = Color(0.5, 0.5, 0.5)
+		materials_container.add_child(label)
+
+func _get_material_color(material_name: String) -> Color:
+	match material_name:
+		"粗铁": return Color(0.7, 0.6, 0.5)
+		"精钢": return Color(0.5, 0.7, 0.8)
+		"秘银": return Color(0.3, 0.8, 0.7)
+		"龙鳞": return Color(0.8, 0.6, 0.1)
+		_: return Color.WHITE
 	
 func _on_deploy_pressed():
 	if GameState.cached_map_level_data != null and not GameState.party.is_empty():

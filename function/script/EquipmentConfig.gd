@@ -829,7 +829,7 @@ func _execute_talent_drop(data: Dictionary, target: Control):
 		if not Globals.is_talent_unlocked(talent_id):
 			return
 		
-		# ---- 检查唯一性 ----
+		# 唯一性检查
 		if _is_talent_already_equipped(talent_id, unit_idx, slot_idx):
 			var equipped_unit = _get_unit_with_talent(talent_id)
 			Globals.show_confirm(
@@ -859,18 +859,12 @@ func _execute_talent_drop(data: Dictionary, target: Control):
 		if src_unit == -1 or tgt_unit == -1:
 			return
 		
-		var src_talent_id = party[src_unit].talent_slots[src_slot].talent_id if party[src_unit].talent_slots[src_slot] else ""
+		# ---- 获取源特技ID ----
+		var src_talent_id = ""
+		if party[src_unit].talent_slots[src_slot]:
+			src_talent_id = party[src_unit].talent_slots[src_slot].talent_id
 		
-		var tgt_inst = party[tgt_unit].talent_slots[tgt_slot]
-		if tgt_inst and tgt_inst.is_active and tgt_inst.talent_id == src_talent_id:
-			# 只声明一次 temp_talent
-			var temp_talent = party[src_unit].talent_slots[src_slot]
-			party[src_unit].talent_slots[src_slot] = party[tgt_unit].talent_slots[tgt_slot]
-			party[tgt_unit].talent_slots[tgt_slot] = temp_talent
-			_sync_all()
-			_refresh_after_talent_change()
-			return
-		
+		# ---- 检查目标特技是否已被其他单位装备（源单位要移除，但目标单位要装备） ----
 		if src_talent_id != "":
 			if _is_talent_already_equipped(src_talent_id, tgt_unit, tgt_slot):
 				var equipped_unit = _get_unit_with_talent(src_talent_id)
@@ -885,7 +879,7 @@ func _execute_talent_drop(data: Dictionary, target: Control):
 				)
 				return
 		
-		# 这里只使用一个 temp_talent，不要重复声明
+		# ---- 执行交换（只声明一次 temp_talent） ----
 		var temp_talent = party[src_unit].talent_slots[src_slot]
 		party[src_unit].talent_slots[src_slot] = party[tgt_unit].talent_slots[tgt_slot]
 		party[tgt_unit].talent_slots[tgt_slot] = temp_talent

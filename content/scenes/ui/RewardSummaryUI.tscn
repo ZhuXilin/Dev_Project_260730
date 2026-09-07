@@ -74,7 +74,7 @@ horizontal_alignment = 1
 [node name="Separator2" type="HSeparator" parent="Panel/VBoxContainer" unique_id=1126779819]
 layout_mode = 2
 
-[node name="ItemListContainer" type="VBoxContainer" parent="Panel/VBoxContainer" unique_id=1833214504]
+[node name="MaterialListContainer" type="VBoxContainer" parent="Panel/VBoxContainer" unique_id=1833214504]
 layout_mode = 2
 size_flags_vertical = 3
 theme_override_constants/separation = 2

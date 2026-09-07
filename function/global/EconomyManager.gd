@@ -7,17 +7,38 @@ const REWARD_GOLD = {
 	MapNode.NodeType.ELITE: 1000,
 	MapNode.NodeType.BOSS: 2000,
 }
+
+# ---- 材料奖励配置 ----
+const REWARD_MATERIALS = {
+	MapNode.NodeType.NORMAL: { "粗铁": 2 },
+	MapNode.NodeType.ELITE: { "精钢": 1 },
+	MapNode.NodeType.BOSS: { "秘银": 1 },
+	MapNode.NodeType.START: {},      # 无材料
+}
+
+# ---- Boss奖励 ----
 const REWARD_SOUL_BOSS = 1   # Boss 额外奖励魂
 
+# ---- 龙族Boss材料 ----
+const DRAGON_MATERIAL = { "龙鳞": 1 }
+
 # ---- 获取战斗奖励 ----
-func get_battle_reward(node_type: int, is_boss: bool) -> Dictionary:
+func get_battle_reward(node_type: int, is_boss: bool, is_dragon_boss: bool = false) -> Dictionary:
 	var gold = REWARD_GOLD.get(node_type, 0)
-	var soul = 0
-	if is_boss:
-		soul = REWARD_SOUL_BOSS
+	var soul = REWARD_SOUL_BOSS if is_boss else 0
+	var materials = REWARD_MATERIALS.get(node_type, {}).duplicate()
+	
+	# 如果是龙族Boss，替换为龙鳞
+	if is_dragon_boss and is_boss:
+		materials = DRAGON_MATERIAL.duplicate()
+	elif is_boss and node_type == MapNode.NodeType.BOSS:
+		# 普通Boss掉秘银（已有）
+		pass
+	
 	return {
 		"gold": gold,
-		"soul": soul
+		"soul": soul,
+		"materials": materials
 	}
 
 # ---- 临时资源操作 ----
@@ -55,3 +76,20 @@ func reset_temp_resources():
 func reset_all():
 	reset_temp_resources()
 	GameState.soul = 0
+
+# ---- 应用材料奖励 ----
+func apply_material_reward(materials: Dictionary):
+	for material_name in materials:
+		var amount = materials[material_name]
+		if amount > 0:
+			GameState.add_material(material_name, amount)
+
+# ---- 获取材料 ----
+func get_material(material_name: String) -> int:
+	return GameState.get_material(material_name)
+
+func get_all_materials() -> Dictionary:
+	return GameState.get_all_materials()
+
+func reset_materials():
+	GameState.reset_materials()

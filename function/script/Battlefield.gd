@@ -909,24 +909,40 @@ func _on_request_show_victory(winning_team: int):
 			]
 
 			if not is_non_combat_node:
-				var reward = EconomyManager.get_battle_reward(current_node_type, is_boss)
+				# ---- 检查是否为龙族Boss ----
+				var is_dragon_boss = false
+				if is_boss:
+					for unit in UnitManager.unit_list:
+						if unit.unit_stats.team_id == 1 and unit.hit_points > 0:
+							if unit.unit_stats.unit_name == "dragonborn":
+								is_dragon_boss = true
+								break
+				
+				# ---- 获取完整奖励（含材料） ----
+				var reward = EconomyManager.get_battle_reward(current_node_type, is_boss, is_dragon_boss)
 				var gold_gain = reward.gold
 				var soul_gain = reward.soul
+				var materials = reward.materials
 
 				GameState.current_reward_gold = gold_gain
 				GameState.current_reward_soul = soul_gain
+				GameState.current_reward_materials = materials
+
 				EconomyManager.add_temp_gold(gold_gain)
 				EconomyManager.add_temp_soul(soul_gain)
 				
-				print("--- 资源累加前 ---")
-				print("gold_gain: ", gold_gain, " soul_gain: ", soul_gain)
-				print("Battlefield 累加资源：temp_gold=", GameState.temp_gold, " temp_soul=", GameState.temp_soul)
-				print("本次增量：gold=", gold_gain, " soul=", soul_gain)
+				# ---- 应用材料奖励 ----
+				EconomyManager.apply_material_reward(materials)
+				
+				print("--- 奖励 ---")
+				print("金币: +", gold_gain)
+				print("魂: +", soul_gain)
+				print("材料: ", materials)
 			else:
 				print("非战斗地图，不累加资源")
 				GameState.current_reward_gold = 0
 				GameState.current_reward_soul = 0
-			GameState.current_node_key = ""
+				GameState.current_reward_materials = {}
 
 		if is_win and is_boss:
 			GameState.should_advance_day = true
@@ -1828,11 +1844,12 @@ func _on_map_victory_continue():
 	print("=== _on_map_victory_continue ===")
 	print("reward_gold: ", GameState.current_reward_gold)
 	print("reward_soul: ", GameState.current_reward_soul)
+	print("reward_materials: ", GameState.current_reward_materials)
 	print("reward_items: ", GameState.reward_items)
-	print("=== 进入 _on_map_victory_continue ===")
 	
 	var reward_gold = GameState.current_reward_gold
 	var reward_soul = GameState.current_reward_soul
+	var reward_materials = GameState.current_reward_materials
 	
 	# ---- 收集物品数据（从 reward_items 中获取 ItemData） ----
 	var reward_item_datas: Array = []
@@ -1841,10 +1858,8 @@ func _on_map_victory_continue():
 		if data:
 			reward_item_datas.append(data)
 		else:
-			# 可能是遗物，尝试从 RelicManager 获取
 			var relic_data = RelicManager.get_relic_data(item_id)
 			if not relic_data.is_empty():
-				# 构建虚拟 ItemData 用于显示
 				var virtual_data = ItemData.new()
 				virtual_data.id = item_id
 				virtual_data.name = relic_data.get("name", "未知遗物")
@@ -1853,38 +1868,40 @@ func _on_map_victory_continue():
 					virtual_data.icon = load(icon_path)
 				reward_item_datas.append(virtual_data)
 	
-	# ---- 是否有奖励？ ----
+	# ---- 将材料转换为显示数据 ----
+	if reward_materials and not reward_materials.is_empty():
+		for material_name in reward_materials:
+			var amount = reward_materials[material_name]
+			if amount > 0:
+				var data = ItemData.new()
+				data.id = "material_" + material_name
+				data.name = material_name
+				data.description = "材料 x" + str(amount)
+				reward_item_datas.append(data)
+	
 	var has_reward = (reward_gold > 0 or reward_soul > 0 or not reward_item_datas.is_empty())
 	
 	if has_reward:
 		print("有奖励，弹出结算界面")
-		
-		# ---- 设置光标 ----
 		_is_reward_ui_active = true
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 		cursor.visible = false
 		
-		# ---- 实例化结算 UI ----
 		var summary = RewardSummaryUI.instantiate()
 		add_child(summary)
 		summary.setup_reward(reward_gold, reward_soul, reward_item_datas)
-		
-		# ---- 等待确认 ----
 		await summary.confirmed
 		
-		# ---- 恢复光标 ----
 		_is_reward_ui_active = false
 		Input.mouse_mode = Input.MOUSE_MODE_HIDDEN
 		cursor.visible = true
 	else:
 		print("无奖励，直接返回地图")
 	
-	# ---- 清理 ----
 	GameState.reward_items.clear()
 	GameState.clear_current_reward()
 	SaveManager.auto_save()
 	
-	# ---- 返回地图 ----
 	get_tree().change_scene_to_file("res://content/scenes/ui/MapScene.tscn")
 
 # ---- 统一的放弃战斗逻辑 ----

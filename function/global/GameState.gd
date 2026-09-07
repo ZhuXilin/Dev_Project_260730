@@ -25,9 +25,18 @@ var temp_soul: int = 0     # 本轮临时魂
 var temp_gold: int = 0     # 本轮临时金币
 var reward_items: Array = []             # 获得物品 ID 列表（用于结算）
 
+# ---- 材料库存 ----
+var materials: Dictionary = {
+	"粗铁": 0,
+	"精钢": 0,
+	"秘银": 0,
+	"龙鳞": 0
+}
+
 # ---- 单次奖励（用于结算界面） ----
 var current_reward_gold: int = 0
 var current_reward_soul: int = 0
+var current_reward_materials: Dictionary = {}
 
 # ---- 游戏状态 ----
 var interrupt_state: int = 0   # 0=无, 1=营地, 2=地图, 3=战场
@@ -229,3 +238,21 @@ func clear_reward_items():
 func clear_current_reward():
 	current_reward_gold = 0
 	current_reward_soul = 0
+	current_reward_materials = {}
+
+func add_material(material_name: String, amount: int):
+	if materials.has(material_name):
+		materials[material_name] += amount
+	else:
+		materials[material_name] = amount
+	print("材料增加: ", material_name, " +", amount, " (当前: ", materials[material_name], ")")
+
+func get_material(material_name: String) -> int:
+	return materials.get(material_name, 0)
+
+func get_all_materials() -> Dictionary:
+	return materials.duplicate()
+
+func reset_materials():
+	for key in materials.keys():
+		materials[key] = 0
