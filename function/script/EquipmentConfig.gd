@@ -1175,46 +1175,34 @@ func _begin_dragging():
 		print("_begin_dragging: 源按钮为空")
 		return
 	
+	# ---- 保存原始状态 ----
 	btn.set_meta("_original_disabled", btn.disabled)
 	btn.set_meta("_original_modulate", btn.modulate)
 	btn.set_meta("_original_text", btn.text)
 	btn.set_meta("_original_custom_minimum_size", btn.custom_minimum_size)
 	
-	var current_size = btn.get_rect().size
+	# ---- 锁定当前尺寸防止高度塌陷 ----
+	var current_size = btn.custom_minimum_size
+	if current_size == Vector2.ZERO or current_size.y < 10:
+		current_size = btn.size
 	if current_size.y < 10:
 		current_size.y = 16
 	btn.custom_minimum_size = current_size
 	
+	# ---- 置灰禁用 ----
 	btn.disabled = true
 	btn.modulate = Color(0.3, 0.3, 0.3, 1.0)
 	btn.text = "空"
 	
-	var source_size = btn.size
-	var preview = Label.new()
-	preview.text = btn.get_meta("_original_text")
-	preview.add_theme_font_size_override("font_size", 6)
-	preview.modulate = Color.WHITE
-	preview.add_theme_color_override("font_color", btn.get_theme_color("font_color"))
-	preview.add_theme_stylebox_override("normal", StyleBoxFlat.new())
-	var style = preview.get_theme_stylebox("normal") as StyleBoxFlat
-	if style:
-		style.bg_color = Color(0.1, 0.1, 0.1, 1.0)
-		style.border_width_left = 1
-		style.border_width_right = 1
-		style.border_width_top = 1
-		style.border_width_bottom = 1
-		style.border_color = Color(0.5, 0.5, 0.5, 1.0)
-	preview.size = source_size
-	preview.horizontal_alignment = btn.alignment
-	preview.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	preview.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	# ---- 创建拖拽预览（使用独立函数） ----
+	_drag_preview = _create_drag_preview(btn)
 	
+	# ---- 添加到画布 ----
 	var canvas = get_parent()
 	if canvas and canvas is CanvasLayer:
-		canvas.add_child(preview)
+		canvas.add_child(_drag_preview)
 	else:
-		add_child(preview)
-	_drag_preview = preview
+		add_child(_drag_preview)
 	_update_drag_preview()
 	
 	_update_targets_visuals()
@@ -1528,3 +1516,73 @@ func _is_talent_equipped_anywhere(talent_id: String) -> bool:
 			if inst and inst.is_active and inst.talent_id == talent_id:
 				return true
 	return false
+
+# ---- 创建拖拽预览（从原按钮同步所有样式） ----
+func _create_drag_preview(btn: Button) -> Label:
+	var preview = Label.new()
+	
+	# ---- 1. 同步文本 ----
+	preview.text = btn.get_meta("_original_text")
+	
+	# ---- 2. 同步字体大小 ----
+	var font_size = btn.get_theme_font_size("font_size")
+	if font_size > 0:
+		preview.add_theme_font_size_override("font_size", font_size)
+	
+	# ---- 3. 同步自动换行 ----
+	preview.autowrap_mode = btn.autowrap_mode
+	
+	# ---- 4. 同步对齐方式 ----
+	preview.horizontal_alignment = btn.alignment
+	preview.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	
+	# ---- 5. 同步颜色 ----
+	var font_color = btn.get_theme_color("font_color")
+	if font_color:
+		preview.add_theme_color_override("font_color", font_color)
+	preview.modulate = btn.modulate
+	
+	# ---- 6. 同步尺寸 ----
+	var preview_size = btn.custom_minimum_size
+	if preview_size == Vector2.ZERO or preview_size.y < 10:
+		preview_size = btn.size
+	if preview_size.y < 14:
+		preview_size.y = 14
+	preview.size = preview_size
+	
+	# ---- 7. 同步样式 ----
+	var original_style = btn.get_theme_stylebox("normal")
+	if original_style:
+		var new_style = StyleBoxFlat.new()
+		if original_style is StyleBoxFlat:
+			var flat_style = original_style as StyleBoxFlat
+			new_style.bg_color = flat_style.bg_color
+			new_style.border_width_left = flat_style.border_width_left
+			new_style.border_width_right = flat_style.border_width_right
+			new_style.border_width_top = flat_style.border_width_top
+			new_style.border_width_bottom = flat_style.border_width_bottom
+			new_style.border_color = flat_style.border_color
+		else:
+			new_style.bg_color = Color(0.1, 0.1, 0.1, 1.0)
+			new_style.border_width_left = 1
+			new_style.border_width_right = 1
+			new_style.border_width_top = 1
+			new_style.border_width_bottom = 1
+			new_style.border_color = Color(0.5, 0.5, 0.5, 1.0)
+		preview.add_theme_stylebox_override("normal", new_style)
+	else:
+		var default_style = StyleBoxFlat.new()
+		default_style.bg_color = Color(0.1, 0.1, 0.1, 1.0)
+		default_style.border_width_left = 1
+		default_style.border_width_right = 1
+		default_style.border_width_top = 1
+		default_style.border_width_bottom = 1
+		default_style.border_color = Color(0.5, 0.5, 0.5, 1.0)
+		preview.add_theme_stylebox_override("normal", default_style)
+	
+	# ---- 8. 同步文本裁剪 ----
+	preview.text_overrun_behavior = btn.text_overrun_behavior
+	preview.clip_text = btn.clip_text
+	
+	preview.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	return preview
