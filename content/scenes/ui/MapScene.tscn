@@ -51,6 +51,10 @@ text = "Gold"
 [node name="RelicContainer" type="HBoxContainer" parent="TopBar" unique_id=1650518971]
 layout_mode = 2
 
+[node name="MaterialsContainer" type="HBoxContainer" parent="TopBar" unique_id=999999999]
+layout_mode = 2
+theme_override_constants/separation = 8
+
 [node name="NodeContainer" type="Node2D" parent="." unique_id=1041771305]
 position = Vector2(40, 0)
 

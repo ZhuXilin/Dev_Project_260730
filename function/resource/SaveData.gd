@@ -77,6 +77,8 @@ const CURRENT_VERSION = 2
 @export var highest_cleared_difficulty: int = 0
 @export var unlocked_talents: Array = []   # 已解锁词条ID列表
 @export var party_talents: Array = []      # 单位词条装备 [{"unit_name": "剑士", "talents": ["crit"]}]
+@export var should_advance_day: bool = false
+@export var current_node_type: int = 0   # 当前地图节点类型
 
 func compute_checksum() -> String:
 	var data = {

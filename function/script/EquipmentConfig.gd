@@ -587,24 +587,23 @@ func _update_targets_visuals():
 	var targets = _get_all_target_controls()
 	_target_states.clear()
 	
+	var is_talent_drag = _drag_meta.has("talent_id") and _drag_meta["talent_id"] != ""
+	var is_talent_library_drag = _drag_meta.get("slot_type", "") == "library_talent"
+	
 	for target in targets:
 		if not _target_states.has(target):
 			_target_states[target] = target.modulate
 		
-		var is_valid = _is_valid_drop(_drag_meta, target)
+		# ---- 如果是特技拖拽，丢弃区始终不可用 ----
+		if (is_talent_drag or is_talent_library_drag) and target == discard_zone:
+			target.modulate = Color(0.4, 0.4, 0.4, 0.5)
+			continue
 		
-		# 如果拖拽的是特技，且目标无效，显示红色提示
-		if _drag_meta.has("talent_id") and _drag_meta["talent_id"] != "":
-			if target.get_meta("slot_type", "") == "talent":
-				if not is_valid:
-					target.modulate = Color(1.0, 0.3, 0.3, 1.0)   # 红色表示不可用
-				else:
-					target.modulate = Color(0.3, 1.0, 0.3, 1.0)   # 绿色表示可用
+		var is_valid = _is_valid_drop(_drag_meta, target)
+		if is_valid:
+			target.modulate = Color.WHITE
 		else:
-			if is_valid:
-				target.modulate = Color.WHITE
-			else:
-				target.modulate = Color(0.4, 0.4, 0.4, 1.0)
+			target.modulate = Color(0.4, 0.4, 0.4, 1.0)
 
 func _reset_targets_visuals():
 	for target in _target_states.keys():
@@ -829,7 +828,7 @@ func _execute_talent_drop(data: Dictionary, target: Control):
 		if not Globals.is_talent_unlocked(talent_id):
 			return
 		
-		# 唯一性检查
+		# ---- 唯一性检查 ----
 		if _is_talent_already_equipped(talent_id, unit_idx, slot_idx):
 			var equipped_unit = _get_unit_with_talent(talent_id)
 			Globals.show_confirm(
@@ -851,6 +850,7 @@ func _execute_talent_drop(data: Dictionary, target: Control):
 		_refresh_after_talent_change()
 		return
 	
+	# ===== 特技互换（修复核心） =====
 	if source_type == "talent" and target_type == "talent":
 		var src_unit = data.get("unit_idx", -1)
 		var src_slot = data.get("slot_idx", -1)
@@ -859,13 +859,20 @@ func _execute_talent_drop(data: Dictionary, target: Control):
 		if src_unit == -1 or tgt_unit == -1:
 			return
 		
-		# ---- 获取源特技ID ----
-		var src_talent_id = ""
-		if party[src_unit].talent_slots[src_slot]:
-			src_talent_id = party[src_unit].talent_slots[src_slot].talent_id
+		# ---- 获取源特技和目标特技 ----
+		var src_inst = party[src_unit].talent_slots[src_slot]
+		var tgt_inst = party[tgt_unit].talent_slots[tgt_slot]
 		
-		# ---- 检查目标特技是否已被其他单位装备（源单位要移除，但目标单位要装备） ----
-		if src_talent_id != "":
+		var src_talent_id = src_inst.talent_id if src_inst and src_inst.is_active else ""
+		var tgt_talent_id = tgt_inst.talent_id if tgt_inst and tgt_inst.is_active else ""
+		
+		# ---- 如果两个都是空，不做任何事 ----
+		if src_talent_id == "" and tgt_talent_id == "":
+			return
+		
+		# ---- 如果目标为空（单向移动） ----
+		if tgt_talent_id == "":
+			# 检查源特技是否已被其他单位装备（排除目标单位）
 			if _is_talent_already_equipped(src_talent_id, tgt_unit, tgt_slot):
 				var equipped_unit = _get_unit_with_talent(src_talent_id)
 				Globals.show_confirm(
@@ -878,11 +885,68 @@ func _execute_talent_drop(data: Dictionary, target: Control):
 					false
 				)
 				return
+			# 执行移动
+			party[tgt_unit].talent_slots[tgt_slot] = src_inst
+			party[src_unit].talent_slots[src_slot] = null
+			_sync_all()
+			_refresh_after_talent_change()
+			return
 		
-		# ---- 执行交换（只声明一次 temp_talent） ----
-		var temp_talent = party[src_unit].talent_slots[src_slot]
+		# ---- 如果源为空（目标有特技，源为空）----
+		if src_talent_id == "" and tgt_talent_id != "":
+			# 检查目标特技是否已被其他单位装备（排除源单位）
+			if _is_talent_already_equipped(tgt_talent_id, src_unit, src_slot):
+				var equipped_unit = _get_unit_with_talent(tgt_talent_id)
+				Globals.show_confirm(
+					self,
+					"特技已被 %s 装备，不可重复装备" % equipped_unit,
+					"确定",
+					"",
+					func(): pass,
+					func(): pass,
+					false
+				)
+				return
+			# 执行移动
+			party[src_unit].talent_slots[src_slot] = tgt_inst
+			party[tgt_unit].talent_slots[tgt_slot] = null
+			_sync_all()
+			_refresh_after_talent_change()
+			return
+		
+		# ---- 互换（双方都有特技） ----
+		# 检查目标特技是否已被其他单位装备（排除源单位）
+		if _is_talent_already_equipped(tgt_talent_id, src_unit, src_slot):
+			var equipped_unit = _get_unit_with_talent(tgt_talent_id)
+			Globals.show_confirm(
+				self,
+				"特技已被 %s 装备，不可重复装备" % equipped_unit,
+				"确定",
+				"",
+				func(): pass,
+				func(): pass,
+				false
+			)
+			return
+		
+		# 检查源特技是否已被其他单位装备（排除目标单位）
+		if _is_talent_already_equipped(src_talent_id, tgt_unit, tgt_slot):
+			var equipped_unit = _get_unit_with_talent(src_talent_id)
+			Globals.show_confirm(
+				self,
+				"特技已被 %s 装备，不可重复装备" % equipped_unit,
+				"确定",
+				"",
+				func(): pass,
+				func(): pass,
+				false
+			)
+			return
+		
+		# ---- 执行互换 ----
+		var temp_talent_swap = party[src_unit].talent_slots[src_slot]
 		party[src_unit].talent_slots[src_slot] = party[tgt_unit].talent_slots[tgt_slot]
-		party[tgt_unit].talent_slots[tgt_slot] = temp_talent
+		party[tgt_unit].talent_slots[tgt_slot] = temp_talent_swap
 		_sync_all()
 		_refresh_after_talent_change()
 		return
@@ -1365,27 +1429,51 @@ func _clear_container(container: Node):
 		child.queue_free()
 
 func _check_talent_compatibility(data: Dictionary, target: Control) -> bool:
+	var source_type = data.get("slot_type", "")
 	var talent_id = data.get("talent_id", "")
 	if talent_id == "":
 		return false
 	
 	var target_unit_idx = target.get_meta("unit_idx", -1)
+	var target_slot_idx = target.get_meta("slot_idx", -1)
 	if target_unit_idx == -1:
 		return false
 	
 	var target_unit = party[target_unit_idx]
 	var unit_name = target_unit.unit_name
 	
-	# 1. 检查单位类型兼容性
+	# ---- 1. 检查单位类型兼容性 ----
 	if not TalentManager.is_talent_compatible_with_unit(talent_id, unit_name):
 		return false
 	
-	# 2. 检查词条唯一性（是否已被其他单位装备）
-	var target_slot_idx = target.get_meta("slot_idx", -1)
-	if _is_talent_already_equipped(talent_id, target_unit_idx, target_slot_idx):
-		var equipped_unit = _get_unit_with_talent(talent_id)
-		print("词条已被 %s 装备，不可重复装备" % equipped_unit)
-		return false
+	# ---- 2. 唯一性检查 ----
+	# 如果是从特技库拖拽到槽位（单向装备）
+	if source_type == "library_talent":
+		# 检查该特技是否已被任何单位装备
+		if _is_talent_already_equipped(talent_id, -1, -1):
+			return false
+	
+	# 如果是从特技槽拖拽到特技槽（互换或移动）
+	elif source_type == "talent":
+		# 获取源单位信息
+		var src_unit_idx = data.get("unit_idx", -1)
+		var src_slot_idx = data.get("slot_idx", -1)
+		
+		# 获取目标槽已有的特技
+		var tgt_inst = party[target_unit_idx].talent_slots[target_slot_idx]
+		var tgt_talent_id = tgt_inst.talent_id if tgt_inst and tgt_inst.is_active else ""
+		
+		# 如果目标槽为空（单向移动）：检查源特技是否已被其他单位装备（排除目标单位）
+		if tgt_talent_id == "":
+			if _is_talent_already_equipped(talent_id, target_unit_idx, target_slot_idx):
+				return false
+		else:
+			# 互换场景：检查目标特技是否唯一（排除源单位）
+			if _is_talent_already_equipped(tgt_talent_id, src_unit_idx, src_slot_idx):
+				return false
+			# 检查源特技是否唯一（排除目标单位）
+			if _is_talent_already_equipped(talent_id, target_unit_idx, target_slot_idx):
+				return false
 	
 	return true
 

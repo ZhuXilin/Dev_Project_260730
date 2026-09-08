@@ -20,7 +20,7 @@ func setup_reward(gold: int, soul: int, items: Array):
 	# ---- 如果没有获得任何物品 ----
 	if items.is_empty():
 		var label = Label.new()
-		label.text = "没有获得物品"
+		label.text = "没有获得材料"
 		label.add_theme_font_size_override("font_size", 8)
 		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		material_list_container.add_child(label)

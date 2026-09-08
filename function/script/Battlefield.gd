@@ -299,6 +299,7 @@ func _ready():
 	
 	# ---- 更新遗物常驻显示 ----
 	_update_relic_icons()
+	_victory_processed = false
 	print("Battlefield _ready 完成")
 
 func _exit_tree():
@@ -1388,17 +1389,27 @@ func _on_request_damage_popup(world_pos: Vector2, damage: int, is_crit: bool, is
 func _on_request_show_info(unit: Unit):
 	var terrain_type: int
 	var terrain_name: String
+	var def_bonus: int
+	var magic_def_bonus: int
+	var avoid_bonus: int
 	var display_text: String
 
 	if unit == null:
-		# ... 地形显示保持不变 ...
-		pass
+		# ---- 地形信息显示 ----
+		var mouse_pos = get_global_mouse_position()
+		var cell = world_to_grid(mouse_pos)
+		terrain_type = TerrainManager.get_terrain(cell)
+		terrain_name = TerrainManager.get_terrain_name(terrain_type)
+		def_bonus = TerrainManager.TERRAIN_DATA[terrain_type]["def_bonus"]
+		magic_def_bonus = TerrainManager.TERRAIN_DATA[terrain_type]["magic_defense_bonus"]
+		avoid_bonus = TerrainManager.TERRAIN_DATA[terrain_type]["avoid_bonus"]
+		display_text = "地形: " + terrain_name + "\n防御+" + str(def_bonus) + " 魔防+" + str(magic_def_bonus) + " 回避+" + str(avoid_bonus)
 	else:
 		if not is_instance_valid(unit):
 			return
 		var lines = []
 		
-		# ---- 修改：显示中文单位类型 ----
+		# ---- 显示中文单位类型 ----
 		var display_name = unit.unit_stats.display_name if unit.unit_stats.display_name != "" else unit.unit_stats.unit_name
 		var type_name = UnitDataManager.get_unit_type_display_name(unit.unit_stats.unit_name)
 		lines.append(display_name + "|" + unit.unit_stats.faction + "|" + type_name)

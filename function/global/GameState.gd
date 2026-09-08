@@ -96,7 +96,7 @@ func reset_progress():
 	should_advance_day = false
 	current_map_data = null
 	last_selected_node_type = -1
-	# 保留 party 不变（由 initialize_party 重新设置）
+	should_advance_day = false
 
 func start_new_cycle():
 	temp_soul = 0

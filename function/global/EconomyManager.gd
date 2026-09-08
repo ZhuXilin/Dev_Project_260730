@@ -10,10 +10,10 @@ const REWARD_GOLD = {
 
 # ---- 材料奖励配置 ----
 const REWARD_MATERIALS = {
+	MapNode.NodeType.START: { "粗铁": 1 }, 
 	MapNode.NodeType.NORMAL: { "粗铁": 2 },
 	MapNode.NodeType.ELITE: { "精钢": 1 },
 	MapNode.NodeType.BOSS: { "秘银": 1 },
-	MapNode.NodeType.START: {},      # 无材料
 }
 
 # ---- Boss奖励 ----

@@ -175,6 +175,9 @@ func _build_save_data() -> SaveData:
 	save.save_time = Time.get_unix_time_from_system()
 	save.checksum = save.compute_checksum()
 	
+	save.should_advance_day = GameState.should_advance_day
+	save.current_node_type = GameState.current_map_data.node_type if GameState.current_map_data else 0
+	
 	print("存档构建完成")
 	return save
 
@@ -201,6 +204,7 @@ func _apply_save_data(save: SaveData):
 	GameState.interrupt_state = save.interrupt_state
 	GameState.battlefield_data = save.battlefield_data
 	GameState.current_faction = save.current_faction
+	GameState.should_advance_day = save.should_advance_day
 
 	# ---- 地图进度 ----
 	GameState.visited_nodes.clear()
