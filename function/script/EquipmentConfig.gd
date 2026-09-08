@@ -129,7 +129,7 @@ func _build_ui():
 	discard_zone.visible = false
 	reset_btn.visible = false
 	tab_bar.visible = false
-	right_container.visible = true
+	right_container.visible = true   # 右侧区域始终可见
 	
 	var left_column = $VBoxContainer/MainHBox/LeftVBox
 	if left_column:
@@ -144,24 +144,25 @@ func _build_ui():
 			gold_label.visible = false
 			confirm_btn.disabled = false
 			
+			# ---- 显示标签栏（武器库/特技库切换） ----
 			tab_bar.visible = true
 			weapon_tab_btn.visible = true
 			talent_tab_btn.visible = true
 			
-			# ---- 保留当前标签页（不重置为 weapon） ----
-			# 如果 current_tab 为空，默认设为 weapon
+			# ---- 默认选中武器库 ----
 			if current_tab == "":
 				current_tab = "weapon"
 			_update_tab_style()
 			
-			# ---- 根据当前标签页填充内容 ----
+			# ---- 清空并填充内容（不含标题） ----
 			_clear_container(shop_container)
 			if current_tab == "weapon":
 				_build_weapon_grid(shop_container)
 			else:
-				_build_talent_grid(shop_container)
+				_build_talent_grid(shop_container)   # 不创建标题，由标签按钮提供
 			shop_container.visible = true
 			
+			# ---- 隐藏商店相关 ----
 			reset_btn.visible = false
 			discard_zone.visible = false
 			
@@ -174,12 +175,17 @@ func _build_ui():
 			confirm_btn.visible = false
 			gold_label.visible = false
 			
-			# ---- 只显示特技库（无标签切换） ----
-			tab_bar.visible = false
+			# ---- 显示标签栏（仅显示特技库标题，不显示切换按钮） ----
+			tab_bar.visible = true
+			weapon_tab_btn.visible = false
+			talent_tab_btn.visible = true
+			talent_tab_btn.disabled = true
+			talent_tab_btn.text = "特技库"
+			talent_tab_btn.modulate = Color.WHITE   # 确保标题颜色正常
 			
-			# ---- 清空并填充特技库 ----
+			# ---- 清空并填充特技库（不带标题，由标签栏提供） ----
 			_clear_container(shop_container)
-			_build_talent_grid(shop_container)
+			_build_talent_grid(shop_container)   # 使用无标题版本
 			shop_container.visible = true
 			
 			# ---- 显示丢弃区 ----
@@ -414,9 +420,13 @@ func _build_weapon_grid(container: GridContainer):
 			btn.mouse_exited.connect(_on_button_hover_exited)
 			container.add_child(btn)
 
-# ---- 构建特技库 ----
+# ---- 构建特技库网格 ----
 func _build_talent_grid(container: GridContainer):
-	container.columns = 2
+	# ---- 清空容器 ----
+	for child in container.get_children():
+		child.queue_free()
+	
+	# ---- DEPLOY 模式：不创建标题，由 TabBar 标签按钮提供 ----
 	var unlocked = Globals.get_unlocked_talents()
 	if unlocked.is_empty():
 		var label = Label.new()
@@ -430,6 +440,9 @@ func _build_talent_grid(container: GridContainer):
 		var data = TalentManager.get_talent_data(talent_id)
 		if not data:
 			continue
+		
+		var is_equipped = _is_talent_equipped_anywhere(talent_id)
+		
 		var btn = Button.new()
 		btn.text = _get_talent_display_name(data)
 		btn.add_theme_font_size_override("font_size", 5)
@@ -439,12 +452,19 @@ func _build_talent_grid(container: GridContainer):
 		btn.set_meta("slot_type", "library_talent")
 		btn.focus_mode = Control.FOCUS_NONE
 		btn.mouse_filter = Control.MOUSE_FILTER_STOP
-		
-		# ---- 多行支持（不设置垂直对齐，默认居中） ----
 		btn.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		
 		var rarity_color = _get_rarity_color(data.rarity)
-		btn.add_theme_color_override("font_color", rarity_color)
+		
+		if is_equipped:
+			btn.modulate = Color(0.4, 0.4, 0.4, 1.0)
+			btn.add_theme_color_override("font_color", Color(0.4, 0.4, 0.4))
+			btn.disabled = true
+			btn.tooltip_text = "该特技已被其他单位装备"
+		else:
+			btn.modulate = Color.WHITE
+			btn.add_theme_color_override("font_color", rarity_color)
+			btn.disabled = false
 		
 		btn.mouse_entered.connect(_on_talent_hover_entered.bind(talent_id))
 		btn.mouse_exited.connect(_on_talent_hover_exited)
@@ -1499,3 +1519,12 @@ func _get_unit_with_talent(talent_id: String) -> String:
 			if inst and inst.is_active and inst.talent_id == talent_id:
 				return unit.display_name
 	return ""
+
+# ---- 检查词条是否已被任意单位装备 ----
+func _is_talent_equipped_anywhere(talent_id: String) -> bool:
+	for i in range(party.size()):
+		var unit = party[i]
+		for inst in unit.talent_slots:
+			if inst and inst.is_active and inst.talent_id == talent_id:
+				return true
+	return false

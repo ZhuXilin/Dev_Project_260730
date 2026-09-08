@@ -246,6 +246,9 @@ func add_material(material_name: String, amount: int):
 	else:
 		materials[material_name] = amount
 	print("材料增加: ", material_name, " +", amount, " (当前: ", materials[material_name], ")")
+	
+	# ---- 材料变化后自动保存 ----
+	SaveManager.auto_save()
 
 func get_material(material_name: String) -> int:
 	return materials.get(material_name, 0)
