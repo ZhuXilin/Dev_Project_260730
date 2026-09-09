@@ -109,12 +109,17 @@ func _on_interrupt_pressed():
 	var scene_path = current_scene.scene_file_path if current_scene else ""
 	
 	if scene_path.ends_with("Battlefield.tscn"):
-		# 撤销当前战斗的节点访问标记，避免地图进度错误推进
 		GameState.undo_battle_entry()
-		GameState.interrupt_state = 2   # 回到地图（因为还在同一地图进度）
+		GameState.interrupt_state = 2
 	elif scene_path.ends_with("MapScene.tscn"):
-		GameState.interrupt_state = 2   # 地图中断
-	# 其他场景（如营地）不修改状态
+		GameState.interrupt_state = 2
+	elif scene_path.ends_with("UnitSelectUI.tscn") or scene_path.ends_with("Camp.tscn"):
+		# ---- 在配置界面中断，不保存任何进度 ----
+		GameState.interrupt_state = 1
+		GameState.party.clear()
+		GameState.main_unit_name = ""
+		GameState.current_faction = ""
+		GameState.global_relics.clear()
 	
 	SaveManager.save_game(SaveManager.current_slot, false)
 	get_tree().change_scene_to_file("res://content/scenes/ui/MainMenu.tscn")

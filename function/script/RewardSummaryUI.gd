@@ -50,6 +50,7 @@ func setup_reward(gold: int, soul: int, items: Array):
 		var hbox = HBoxContainer.new()
 		hbox.add_theme_constant_override("separation", 4)
 		hbox.alignment = BoxContainer.ALIGNMENT_CENTER
+		hbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL   # ← 关键：让 hbox 水平填满父容器
 		
 		# 图标
 		var icon = TextureRect.new()
@@ -66,7 +67,9 @@ func setup_reward(gold: int, soul: int, items: Array):
 		var name_label = Label.new()
 		name_label.text = data.name
 		name_label.add_theme_font_size_override("font_size", 8)
+		# ---- 让名称也居中，并填满剩余空间 ----
 		name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER   # ← 文本居中
 		
 		# 材料颜色
 		if data.id and data.id.begins_with("material_"):

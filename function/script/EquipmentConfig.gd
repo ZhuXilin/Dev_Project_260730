@@ -368,12 +368,20 @@ func _create_talent_button(inst: TalentInstance, unit_idx: int, slot_idx: int) -
 # ============================================================
 #  武器库 / 特技库 / 商店（统一使用 ShopContainer）
 # ============================================================
-
 func _build_shop_items():
 	if not shop_manager:
 		return
 	_clear_container(shop_container)
-	shop_container.columns = 3
+	
+	# ---- 根据屏幕宽度动态调整列数 ----
+	var viewport_width = get_viewport().get_visible_rect().size.x
+	if viewport_width < 600:
+		shop_container.columns = 2
+	elif viewport_width < 900:
+		shop_container.columns = 3
+	else:
+		shop_container.columns = 4
+	
 	shop_container.visible = true
 	
 	var items = shop_manager.get_shop_items()
@@ -382,8 +390,14 @@ func _build_shop_items():
 		var btn = Button.new()
 		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		btn.add_theme_font_size_override("font_size", 6)
+		btn.custom_minimum_size = Vector2(40, 18)
 		btn.focus_mode = Control.FOCUS_NONE
 		btn.mouse_filter = Control.MOUSE_FILTER_STOP
+		
+		# ---- 文本裁剪和换行 ----
+		btn.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		btn.clip_text = true
+		btn.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 		
 		if entry != null:
 			var item_data = entry["item_data"]
@@ -395,6 +409,7 @@ func _build_shop_items():
 			btn.set_meta("slot_type", "shop_item")
 			btn.set_meta("item_data", item_data)
 			btn.set_meta("item_price", price)
+			btn.set_meta("item_id", item_data.id)
 			btn.mouse_entered.connect(_on_button_hover_entered.bind(item_data.id))
 			btn.mouse_exited.connect(_on_button_hover_exited)
 		else:
@@ -715,12 +730,10 @@ func _is_valid_drop(data: Dictionary, target: Control) -> bool:
 	if current_mode == Mode.DEPLOY:
 		if discard:
 			return false
-		# ---- 武器相关 ----
 		if source_type == "library_weapon":
 			return target_type == "weapon"
 		if source_type == "weapon" and target_type == "weapon":
 			return true
-		# ---- 特技相关 ----
 		if source_type == "library_talent" and target_type == "talent":
 			return _check_talent_compatibility(data, target)
 		if source_type == "talent" and target_type == "talent":
@@ -730,50 +743,51 @@ func _is_valid_drop(data: Dictionary, target: Control) -> bool:
 	if current_mode == Mode.MAP:
 		if discard:
 			if source_type in ["library_talent", "talent"]:
-				return false   # 特技不可丢弃
+				return false
 			if source_type == "weapon":
 				return false
 			return true
-		
-		# ---- 武器相关 ----
 		if source_type == "library_weapon":
 			return target_type == "weapon"
 		if source_type == "weapon" and target_type == "weapon":
 			return true
-		
-		# ---- 防具相关 ----
 		if source_type == "armor" and target_type == "armor":
 			return true
-		
-		# ---- 特技相关（必须检查兼容性） ----
 		if source_type == "library_talent" and target_type == "talent":
 			return _check_talent_compatibility(data, target)
 		if source_type == "talent" and target_type == "talent":
 			return _check_talent_compatibility(data, target)
-		
 		return false
 
 	if current_mode == Mode.SHOP:
+		# ---- 丢弃区 ----
 		if discard:
 			if source_type in ["shop_item", "weapon", "library_talent", "talent"]:
 				return false
 			return true
-		else:
-			if source_type == "shop_item":
-				var item_data = data.get("item_data")
-				if not item_data:
-					return false
-				if item_data.type == "weapon":
-					return target_type == "weapon"
-				elif item_data.type == "armor":
-					return target_type == "armor"
+		
+		# ---- 商店商品拖拽 ----
+		if source_type == "shop_item":
+			var item_data = data.get("item_data")
+			if not item_data:
 				return false
-			else:
-				if source_type == "weapon" and target_type == "weapon":
-					return true
-				if source_type == "armor" and target_type == "armor":
-					return true
-				return false
+			# 武器 → 武器槽
+			if item_data.type == "weapon":
+				return target_type == "weapon"
+			# 防具 → 防具槽
+			elif item_data.type == "armor":
+				return target_type == "armor"
+			# 遗物 → 遗物槽（如果有）
+			elif item_data.type == "relic":
+				return target_type == "relic"
+			return false
+		
+		# ---- 单位装备之间交换 ----
+		if source_type == "weapon" and target_type == "weapon":
+			return true
+		if source_type == "armor" and target_type == "armor":
+			return true
+		return false
 
 	return false
 
@@ -1423,7 +1437,6 @@ func _on_confirm_pressed():
 	
 	GameState.interrupt_state = 2
 	GameState.reset_progress()
-	SaveManager.save_game(target_slot, false)
 	LevelManager.start_game()
 	
 	var canvas_layer = get_parent()
@@ -1546,6 +1559,8 @@ func _create_drag_preview(btn: Button) -> Label:
 	var preview_size = btn.custom_minimum_size
 	if preview_size == Vector2.ZERO or preview_size.y < 10:
 		preview_size = btn.size
+	if preview_size == Vector2.ZERO or preview_size.y < 10:
+		preview_size = Vector2(50, 20)   # 兜底值
 	if preview_size.y < 14:
 		preview_size.y = 14
 	preview.size = preview_size

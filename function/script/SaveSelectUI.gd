@@ -21,11 +21,23 @@ func _refresh_slots():
 		var has_save = SaveManager.has_save(i)
 		
 		if has_save:
-			var info = SaveManager.get_save_info(i)
-			var time_str = Time.get_datetime_string_from_unix_time(info["time"])
-			# ---- 修改：将英文单位名转换为中文显示名 ----
-			var main_unit_display = UnitDataManager.get_display_name(info["main_unit"])
-			info_label.text = "存档%d：%s（%d人）第%d天 %s" % [i + 1, main_unit_display, info["party"], info["day"], time_str]
+			var save_data = SaveManager.load_save_data(i)
+			var time_str = Time.get_datetime_string_from_unix_time(save_data.save_time)
+			
+			# ---- 判断是否为有效存档 ----
+			if save_data and not save_data.party_data.is_empty() and save_data.current_day > 0:
+				# 有队伍和天数 → 显示队伍
+				var unit_names = []
+				for j in range(save_data.party_data.size()):
+					var party_info = save_data.party_data[j]
+					var unit_name = party_info.get("display_name", party_info.get("unit_name", "未知"))
+					unit_names.append(unit_name)
+				var unit_list_str = "、".join(unit_names)
+				var day_str = "第" + str(save_data.current_day) + "天"
+				info_label.text = "存档%d：%s %s  %s" % [i + 1, unit_list_str, day_str, time_str]
+			else:
+				# 无队伍或天数为0 → 营地休息中
+				info_label.text = "存档%d：营地休息中  %s" % [i + 1, time_str]
 		else:
 			info_label.text = "存档%d：空" % (i + 1)
 		

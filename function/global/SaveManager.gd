@@ -105,12 +105,10 @@ func load_game(slot: int) -> bool:
 # ===== 构建存档数据 =====
 func _build_save_data() -> SaveData:
 	var save = SaveData.new()
-	# ---- 版本 ----
 	save.save_version = SaveData.CURRENT_VERSION
 	save.unlocked_items = Globals.unlocked_items.duplicate()
 	save.unlocked_relics = RelicManager.get_unlocked_relics()
 	
-	# ---- 玩家设置 ----
 	save.music_volume = Globals.music_volume
 	save.sound_volume = Globals.sound_volume
 	save.game_speed = Globals.game_speed
@@ -118,28 +116,27 @@ func _build_save_data() -> SaveData:
 	save.window_mode = 1 if mode == DisplayServer.WINDOW_MODE_FULLSCREEN else 0
 	save.window_size = DisplayServer.window_get_size()
 	
-	# ---- 游戏进度 ----
 	save.current_day = GameState.current_day
 	save.main_unit_name = GameState.main_unit_name
 	save.soul = GameState.soul
 	save.temp_soul = GameState.temp_soul
 	save.temp_gold = GameState.temp_gold
+	save.materials = GameState.materials.duplicate()
 	save.interrupt_state = GameState.interrupt_state
 	save.battlefield_data = GameState.battlefield_data
 	save.current_faction = GameState.current_faction
 	
-	# ---- 地图进度 ----
 	var sorted_visited = []
 	for key in GameState.visited_nodes.keys():
 		sorted_visited.append([key, GameState.visited_nodes[key]])
 	sorted_visited.sort()
 	save.visited_nodes = sorted_visited
 	save.selected_node_id = GameState.resume_node_id
-	save.map_level_data = GameState.cached_map_level_data
 	
-	# ---- 队伍数据（移除 inventory） ----
+	# ---- 队伍数据 ----
 	save.party_data = []
 	save.party_equipment = []
+	save.party_talents = []
 	for unit_data in GameState.party:
 		var dict = {
 			"unit_name": unit_data.unit_name,
@@ -156,11 +153,18 @@ func _build_save_data() -> SaveData:
 		}
 		for slot in unit_data.armor_slots:
 			equip_dict["armor_slots"].append(slot.item_id if slot else "")
-		# ---- 打印验证 ----
-		print("保存存档: 单位 ", unit_data.unit_name, " armor_slots 数量: ", unit_data.armor_slots.size(), " max_armor_slots: ", unit_data.max_armor_slots)
 		save.party_equipment.append(equip_dict)
+		
+		# ---- 保存词条 ----
+		var talent_ids = []
+		for slot in unit_data.talent_slots:
+			if slot and slot.is_active:
+				talent_ids.append(slot.talent_id)
+			else:
+				talent_ids.append("")
+		save.party_talents.append(talent_ids)
 	
-	# ---- 全局遗物（获得列表） ----
+	# ---- 全局遗物 ----
 	var relics = []
 	for relic in GameState.global_relics:
 		relics.append(relic.item_id)
@@ -169,21 +173,15 @@ func _build_save_data() -> SaveData:
 	# ---- 解锁数据 ----
 	save.unlocked_units = Globals.unlocked_units.duplicate()
 	save.unlocked_items = Globals.unlocked_items.duplicate()
-	save.unlocked_relics = RelicManager.get_unlocked_relics()   # 再次确保保存
+	save.unlocked_relics = RelicManager.get_unlocked_relics()
+	save.unlocked_talents = Globals.unlocked_talents.duplicate()
 	
-	# ---- 元数据 ----
 	save.save_time = Time.get_unix_time_from_system()
 	save.checksum = save.compute_checksum()
-	
-	save.should_advance_day = GameState.should_advance_day
-	save.current_node_type = GameState.current_map_data.node_type if GameState.current_map_data else 0
-	
-	print("存档构建完成")
 	return save
 
 # ===== 应用存档数据 =====
 func _apply_save_data(save: SaveData):
-	# ---- 玩家设置 ----
 	Globals.music_volume = save.music_volume
 	Globals.sound_volume = save.sound_volume
 	Globals.set_game_speed(save.game_speed)
@@ -192,8 +190,7 @@ func _apply_save_data(save: SaveData):
 	else:
 		DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED)
 		DisplayServer.window_set_size(save.window_size)
-
-	# ---- 游戏进度 ----
+	
 	GameState.current_day = save.current_day
 	LevelManager.current_day = save.current_day - 1
 	GameState.main_unit_name = save.main_unit_name
@@ -201,33 +198,27 @@ func _apply_save_data(save: SaveData):
 	GameState.soul = save.soul
 	GameState.temp_soul = save.temp_soul
 	GameState.temp_gold = save.temp_gold
+	GameState.materials = save.materials.duplicate()
 	GameState.interrupt_state = save.interrupt_state
 	GameState.battlefield_data = save.battlefield_data
 	GameState.current_faction = save.current_faction
-	GameState.should_advance_day = save.should_advance_day
-
-	# ---- 地图进度 ----
+	
+	# ---- 恢复 visited_nodes ----
 	GameState.visited_nodes.clear()
 	if save.visited_nodes is Array:
 		for pair in save.visited_nodes:
 			if pair is Array and pair.size() == 2:
 				GameState.visited_nodes[pair[0]] = pair[1]
-	GameState.cached_map_level_data = save.map_level_data
-	GameState.cached_day = save.current_day
-
+	
 	# ---- 恢复队伍数据 ----
 	GameState.party.clear()
 	for i in range(save.party_data.size()):
 		var dict = save.party_data[i]
 		var data = UnitData.new()
-		
-		# 基础信息
-		data.unit_name = dict.get("unit_name", "剑士")
+		data.unit_name = dict.get("unit_name", "swordsman")
 		data.display_name = dict.get("display_name", "")
 		data.faction = dict.get("faction", "")
 		data.team_id = 0
-		
-		# 新属性
 		data.strength = dict.get("strength", 5)
 		data.dexterity = dict.get("dexterity", 5)
 		data.intelligence = dict.get("intelligence", 3)
@@ -235,24 +226,18 @@ func _apply_save_data(save: SaveData):
 		data.arcane = dict.get("arcane", 3)
 		data.move_range = dict.get("move_range", 5)
 		data.ignore_terrain_cost = dict.get("ignore_terrain_cost", false)
-		
-		# HP
 		data.max_hp = dict.get("max_hp", 20)
-		# 兼容旧存档：优先取 "hp"，没有则取 "hit_points"，都没有则用 max_hp
 		var hp_val = dict.get("hp", dict.get("hit_points", data.max_hp))
 		if typeof(hp_val) == TYPE_INT:
 			data.hit_points = hp_val
 		else:
 			data.hit_points = data.max_hp
-		
-		# 其他
 		data.experience = dict.get("experience", 0)
 		data.level = dict.get("level", 1)
 		
-		# 装备恢复
+		# 装备
 		if i < save.party_equipment.size():
 			var equip_dict = save.party_equipment[i]
-			# 武器
 			if equip_dict.get("weapon", "") != "":
 				var inst = ItemInstance.new()
 				inst.item_id = equip_dict["weapon"]
@@ -260,7 +245,6 @@ func _apply_save_data(save: SaveData):
 				data.weapon_slot = inst
 			else:
 				data.weapon_slot = null
-			# 防具
 			data.armor_slots.clear()
 			for slot_id in equip_dict.get("armor_slots", []):
 				if slot_id != "":
@@ -272,40 +256,47 @@ func _apply_save_data(save: SaveData):
 					data.armor_slots.append(null)
 			data.max_armor_slots = equip_dict.get("max_armor_slots", 2)
 		else:
-			# 无装备数据，使用默认
 			data.weapon_slot = null
 			data.armor_slots = [null, null]
 			data.max_armor_slots = 2
 		
-		# 补全防具槽
-		while data.armor_slots.size() < data.max_armor_slots:
-			data.armor_slots.append(null)
+		# ---- 恢复词条 ----
+		data.talent_slots.clear()
+		if i < save.party_talents.size():
+			var talent_ids = save.party_talents[i]
+			for talent_id in talent_ids:
+				if talent_id != "":
+					var inst = TalentInstance.new()
+					inst.talent_id = talent_id
+					inst.is_active = true
+					data.talent_slots.append(inst)
+				else:
+					data.talent_slots.append(null)
+		else:
+			data.talent_slots = [null]
+		while data.talent_slots.size() < 1:
+			data.talent_slots.append(null)
 		
 		GameState.party.append(data)
-
-	# ---- 恢复全局遗物（获得列表） ----
+	
+	# ---- 恢复遗物 ----
 	GameState.global_relics.clear()
 	for relic_id in save.global_relics:
 		var inst = ItemInstance.new()
 		inst.item_id = relic_id
 		inst.count = 1
 		GameState.global_relics.append(inst)
-
-	# ---- 恢复遗物解锁（直接访问，SaveData 已定义该字段） ----
+	
 	RelicManager.set_unlocked_relics(save.unlocked_relics)
-
-	# ---- 恢复其他解锁数据 ----
 	Globals.unlocked_units = save.unlocked_units.duplicate()
 	Globals.unlocked_items = save.unlocked_items.duplicate()
-	RelicManager.set_unlocked_relics(save.unlocked_relics.duplicate())
+	Globals.unlocked_talents = save.unlocked_talents.duplicate()
 	
 	if Globals.unlocked_items.is_empty():
 		Globals.unlocked_items = Globals.item_unlocked_items.duplicate()
-		
+	
 	LevelManager.current_level_index = 0
 	LevelManager.is_map_mode = true
-
-	print("存档数据已恢复")
 
 # ===== 校验 =====
 func _validate_save(save: SaveData) -> bool:
@@ -353,7 +344,7 @@ func auto_save():
 	if current_slot == -1:
 		save_game(0, true)
 	else:
-		save_game(current_slot, true)
+		save_game(current_slot, true)	
 
 # ===== 辅助函数 =====
 func has_save(slot: int) -> bool:

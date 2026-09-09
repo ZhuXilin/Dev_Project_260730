@@ -133,7 +133,6 @@ func _on_confirm_pressed():
 	GameState.start_new_cycle()
 	GameState.reset_progress()
 	GameState.interrupt_state = 2
-	SaveManager.save_game(target_slot, false)
 	
 	# ---- 创建面板 ----
 	var config = load("res://content/scenes/ui/EquipmentConfig.tscn").instantiate()

@@ -68,6 +68,10 @@ var _detail_popup = null
 var _is_reward_ui_active: bool = false   # 结算界面是否激活
 
 func _ready():
+	# ---- 在 _ready() 开头添加 ----
+	_victory_processed = false
+	_is_reward_ui_active = false
+	
 	# ---- 手动获取所有节点 ----
 	action_menu = get_node("ActionMenu")
 	attack_btn = get_node("ActionMenu/ActionPanel/ButtonContainer/AttackBtn")
@@ -255,7 +259,6 @@ func _ready():
 			print("BackCampBtn 已连接（非战斗）")
 		
 		TurnManager.start_turn(0)
-		# ---- 更新遗物显示 ----
 		_update_relic_icons()
 		return
 
@@ -286,7 +289,6 @@ func _ready():
 	print("=== TurnManager.start_turn(0) 调用完成 ===")
 	_update_end_turn_button_visibility()
 
-	# ---- 改造 BackCampBtn ----
 	print("back_camp_btn: ", back_camp_btn)
 	if back_camp_btn:
 		print("back_camp_btn 已获取")
@@ -297,9 +299,12 @@ func _ready():
 		print("BackCampBtn 已连接")
 	InputManager.ui_manager = ui_manager
 	
-	# ---- 更新遗物常驻显示 ----
 	_update_relic_icons()
+	
+	# ---- 在 _ready() 末尾也重置一次（兜底） ----
 	_victory_processed = false
+	_is_reward_ui_active = false
+	
 	print("Battlefield _ready 完成")
 
 func _exit_tree():
@@ -835,16 +840,18 @@ func _on_request_show_victory(winning_team: int):
 	# ---- 等待所有 UI 结束 ----
 	while _is_any_ui_active():
 		await get_tree().process_frame
-	# ============================================================
 	
+	# ---- 防止重复调用 ----
 	if _victory_processed:
 		print("胜利已处理，跳过重复调用")
 		return
-	_victory_processed = true
+	_victory_processed = true   # ← 立即锁定
 
 	var tree = get_tree()
 	if not tree:
 		print("错误：无法获取场景树，无法处理胜利")
+		# 如果出错，也要释放锁定
+		_victory_processed = false
 		return
 
 	# ---- 清理动画和UI ----
@@ -900,7 +907,6 @@ func _on_request_show_victory(winning_team: int):
 	if Globals.is_map_mode:
 		print("当前地图节点类型: ", current_node_type, " 是否为BOSS: ", is_boss)
 
-		# 在地图模式分支内，累加资源部分
 		if is_win:
 			var is_non_combat_node = current_node_type in [
 				MapNode.NodeType.CAMPFIRE,
@@ -919,11 +925,16 @@ func _on_request_show_victory(winning_team: int):
 								is_dragon_boss = true
 								break
 				
-				# ---- 获取完整奖励（含材料） ----
+				# ---- 获取完整奖励 ----
 				var reward = EconomyManager.get_battle_reward(current_node_type, is_boss, is_dragon_boss)
 				var gold_gain = reward.gold
 				var soul_gain = reward.soul
 				var materials = reward.materials
+
+				print("--- 奖励配置 ---")
+				print("gold_gain: ", gold_gain)
+				print("soul_gain: ", soul_gain)
+				print("materials: ", materials)
 
 				GameState.current_reward_gold = gold_gain
 				GameState.current_reward_soul = soul_gain
@@ -931,14 +942,12 @@ func _on_request_show_victory(winning_team: int):
 
 				EconomyManager.add_temp_gold(gold_gain)
 				EconomyManager.add_temp_soul(soul_gain)
-				
-				# ---- 应用材料奖励 ----
 				EconomyManager.apply_material_reward(materials)
 				
-				print("--- 奖励 ---")
-				print("金币: +", gold_gain)
-				print("魂: +", soul_gain)
-				print("材料: ", materials)
+				print("--- 资源累加完成 ---")
+				print("temp_gold: ", GameState.temp_gold)
+				print("temp_soul: ", GameState.temp_soul)
+				print("materials: ", GameState.materials)
 			else:
 				print("非战斗地图，不累加资源")
 				GameState.current_reward_gold = 0
@@ -961,9 +970,6 @@ func _on_request_show_victory(winning_team: int):
 		if is_instance_valid(ui_manager):
 			if is_win:
 				if is_last:
-					# ============================================================
-					# 修复1：直接使用方法引用，避免三目运算符类型错误
-					# ============================================================
 					ui_manager.show_victory("全部胜利！", "回到营地", self._on_map_victory_continue)
 				else:
 					ui_manager.show_victory("战斗胜利！", "继续旅程", self._on_map_victory_continue)
@@ -995,8 +1001,6 @@ func _on_request_show_victory(winning_team: int):
 			ui_manager.show_victory("战斗胜利", "下一关", LevelManager.on_victory)
 	else:
 		ui_manager.show_victory("战斗失败", "回到营地", self._on_non_map_defeat)
-
-	_victory_processed = false
 
 func _on_turn_changed(team: int):
 	print("连接数: ", SignalBus.turn_changed.get_connections().size())
@@ -1859,7 +1863,7 @@ func _on_map_victory_continue():
 	var reward_soul = GameState.current_reward_soul
 	var reward_materials = GameState.current_reward_materials
 	
-	# ---- 收集物品数据（从 reward_items 中获取 ItemData） ----
+	# ---- 收集物品数据 ----
 	var reward_item_datas: Array = []
 	for item_id in GameState.reward_items:
 		var data = ItemManager.get_item_data(item_id)
@@ -1883,9 +1887,10 @@ func _on_map_victory_continue():
 			if amount > 0:
 				var data = ItemData.new()
 				data.id = "material_" + material_name
-				data.name = material_name
+				data.name = material_name + " x" + str(amount)
 				data.description = "材料 x" + str(amount)
 				reward_item_datas.append(data)
+				print("添加材料显示: ", data.name)
 	
 	var has_reward = (reward_gold > 0 or reward_soul > 0 or not reward_item_datas.is_empty())
 	
@@ -1906,10 +1911,15 @@ func _on_map_victory_continue():
 	else:
 		print("无奖励，直接返回地图")
 	
+	# ---- 清理临时数据 ----
 	GameState.reward_items.clear()
 	GameState.clear_current_reward()
 	SaveManager.auto_save()
 	
+	# ---- ★ 在跳转前重置胜利标志 ----
+	_victory_processed = false
+	
+	# ---- 返回地图 ----
 	get_tree().change_scene_to_file("res://content/scenes/ui/MapScene.tscn")
 
 # ---- 统一的放弃战斗逻辑 ----

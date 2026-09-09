@@ -82,10 +82,7 @@ func _ready():
 			return
 		current_day = LevelManager.current_day + 1
 		GameState.current_day = current_day
-
-		# ---- ★★★ 关键修复：调用 finish_day() 增加防具槽并合并魂 ★★★ ----
 		GameState.finish_day()
-
 		level_list = LevelManager.get_current_day_levels()
 		print("新的一天，当前 day=", current_day, " 关卡数：", level_list.size())
 		generate_map(current_day)
@@ -107,34 +104,22 @@ func _ready():
 		default_map.map_name = "默认战斗"
 		level_list.append(default_map)
 
-	# 检查缓存地图
-	if GameState.cached_map_level_data and GameState.cached_day == GameState.current_day:
-		print("使用缓存地图数据恢复，天数：", GameState.current_day)
-		map_data = GameState.cached_map_level_data
-		# 检测连接是否丢失（原有逻辑）
-		var need_rebuild = false
-		for node in map_data.nodes:
-			if node.connected_nodes.is_empty() and map_data.nodes.size() > 1:
-				need_rebuild = true
-				break
-		if need_rebuild:
-			print("检测到连接丢失，根据层数重建连接")
-			_rebuild_connections_by_layer(map_data)
-
-		_apply_visited_state()
-		_draw_connections()
-		_create_node_buttons()
-		if map_data and map_data.root_node:
-			_update_availability(map_data.root_node)
-		else:
-			_update_buttons()
-
-		if GameState.resume_node_id != "":
-			_select_node_by_id(GameState.resume_node_id)
-			GameState.resume_node_id = ""
+	# ---- 强制重新生成地图（不再使用缓存） ----
+	print("重新生成地图，天数：", current_day)
+	generate_map(current_day)
+	
+	# ---- 应用已访问状态 ----
+	_apply_visited_state()
+	_draw_connections()
+	_create_node_buttons()
+	if map_data and map_data.root_node:
+		_update_availability(map_data.root_node)
 	else:
-		print("生成新地图，天数：", current_day)
-		generate_map(current_day)
+		_update_buttons()
+	
+	if GameState.resume_node_id != "":
+		_select_node_by_id(GameState.resume_node_id)
+		GameState.resume_node_id = ""
 
 	# 中断状态设为地图
 	GameState.interrupt_state = 2
@@ -248,6 +233,11 @@ func update_soul_display():
 
 # ---- 按钮回调 ----
 func _on_interrupt_pressed():
+	# ---- 额外保存地图数据到独立文件（兜底） ----
+	if GameState.cached_map_level_data:
+		var err = ResourceSaver.save(GameState.cached_map_level_data, "user://map_cache.tres")
+		print("保存地图缓存: ", "成功" if err == OK else "失败")
+	
 	GameState.interrupt_state = 2
 	_save_game()
 	get_tree().change_scene_to_file("res://content/scenes/ui/MainMenu.tscn")
@@ -420,7 +410,8 @@ func generate_map(day: int):
 	_create_node_buttons()
 	_update_availability(map_data.root_node)
 	day_label.text = "第 %d 天" % day
-	update_all_displays()   # ← 确保调用
+	update_all_displays()
+	_save_game()
 	print("=== generate_map 结束，temp_gold=", GameState.temp_gold)
 	
 func _setup_ui():
