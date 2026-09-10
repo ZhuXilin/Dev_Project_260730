@@ -112,6 +112,7 @@ func _build_save_data() -> SaveData:
 	save.music_volume = Globals.music_volume
 	save.sound_volume = Globals.sound_volume
 	save.game_speed = Globals.game_speed
+	
 	var mode = DisplayServer.window_get_mode()
 	save.window_mode = 1 if mode == DisplayServer.WINDOW_MODE_FULLSCREEN else 0
 	save.window_size = DisplayServer.window_get_size()
@@ -125,6 +126,7 @@ func _build_save_data() -> SaveData:
 	save.interrupt_state = GameState.interrupt_state
 	save.battlefield_data = GameState.battlefield_data
 	save.current_faction = GameState.current_faction
+	save.current_node_key = GameState.current_node_key
 	
 	var sorted_visited = []
 	for key in GameState.visited_nodes.keys():
@@ -202,6 +204,7 @@ func _apply_save_data(save: SaveData):
 	GameState.interrupt_state = save.interrupt_state
 	GameState.battlefield_data = save.battlefield_data
 	GameState.current_faction = save.current_faction
+	GameState.current_node_key = save.current_node_key
 	
 	# ---- 恢复 visited_nodes ----
 	GameState.visited_nodes.clear()

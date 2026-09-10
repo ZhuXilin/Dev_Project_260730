@@ -15,10 +15,12 @@ const CURRENT_VERSION = 2
 @export var window_mode: int = 0
 @export var window_size: Vector2i = Vector2i(640, 480)
 
+# ---- 游戏进度 ----
 @export var current_day: int = 1
 @export var visited_nodes: Array = []
 @export var selected_node_id: String = ""
 @export var main_unit_name: String = ""
+@export var current_node_key: String = ""
 
 @export var soul: int = 0
 @export var temp_soul: int = 0
@@ -98,6 +100,7 @@ func compute_checksum() -> String:
 		"difficulty_level": difficulty_level,
 		"highest_cleared_difficulty": highest_cleared_difficulty,
 		"unlocked_talents": unlocked_talents,
-		"party_talents": party_talents
+		"party_talents": party_talents,
+		"current_node_key": current_node_key,
 	}
 	return JSON.stringify(data, "  ").sha256_text()

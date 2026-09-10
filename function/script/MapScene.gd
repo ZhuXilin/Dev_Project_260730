@@ -26,10 +26,7 @@ var _detail_popup = null
 
 func _ready():
 	print("=== MapScene _ready 开始 ===")
-
-	# ---- 统一所有资源字体大小 ----
-	_apply_unified_font_size()
-
+	
 	# ---- 调试：打印 GameState.party 装备状态 ----
 	print("=== MapScene: GameState.party 装备状态 ===")
 	for i in range(GameState.party.size()):
@@ -60,6 +57,13 @@ func _ready():
 	
 	# 同步天数
 	LevelManager.current_day = GameState.current_day - 1
+
+	# ---- ✨ 检测上次战斗是否未完成（读档时） ----
+	# 如果 current_node_key 非空，说明玩家在战斗中强制退出，节点应可重新进入
+	if GameState.current_node_key != "":
+		print("检测到上次战斗未完成，节点可重新进入: ", GameState.current_node_key)
+		GameState.visited_nodes.erase(GameState.current_node_key)
+		GameState.current_node_key = ""
 
 	# ---- 1. 优先处理 Boss 胜利后的天数推进 ----
 	if GameState.should_advance_day:
@@ -459,11 +463,12 @@ func on_node_selected(node: MapNode):
 	if not node.is_available or node.is_visited:
 		return
 	var key = "%d_%d" % [node.position.x, node.position.y]
-	GameState.visited_nodes[key] = true
+	
+	# ---- 只记录当前节点，不标记为已访问 ----
 	GameState.current_node_key = key
-	node.is_visited = true
-	node.is_available = false
 	GameState.last_selected_node_type = node.node_type
+	
+	print("进入节点: ", key, " 类型: ", node.node_type)
 	_load_combat_for_node(node)
 
 func _load_combat_for_node(node: MapNode):

@@ -1858,6 +1858,7 @@ func _on_map_victory_continue():
 	print("reward_soul: ", GameState.current_reward_soul)
 	print("reward_materials: ", GameState.current_reward_materials)
 	print("reward_items: ", GameState.reward_items)
+	print("current_node_key: ", GameState.current_node_key)
 	
 	var reward_gold = GameState.current_reward_gold
 	var reward_soul = GameState.current_reward_soul
@@ -1911,15 +1912,16 @@ func _on_map_victory_continue():
 	else:
 		print("无奖励，直接返回地图")
 	
-	# ---- 清理临时数据 ----
+	# ---- ✨ 结算确认后，把当前节点标记为已访问 ----
+	if GameState.current_node_key != "":
+		GameState.visited_nodes[GameState.current_node_key] = true
+		print("节点已完成: ", GameState.current_node_key)
+		GameState.current_node_key = ""
+	
 	GameState.reward_items.clear()
 	GameState.clear_current_reward()
 	SaveManager.auto_save()
 	
-	# ---- ★ 在跳转前重置胜利标志 ----
-	_victory_processed = false
-	
-	# ---- 返回地图 ----
 	get_tree().change_scene_to_file("res://content/scenes/ui/MapScene.tscn")
 
 # ---- 统一的放弃战斗逻辑 ----
