@@ -2,6 +2,28 @@ extends Panel
 
 enum Mode { DEPLOY, MAP, SHOP }
 
+# ============================================================
+#  样式常量（统一管理所有按钮和标签的大小/字体）
+# ============================================================
+class Style:
+	# ---- 字体大小 ----
+	const FONT_TINY = 4       # 特技按钮（含可装备单位）
+	const FONT_SMALL = 6      # 武器/防具/商店按钮、标签
+	const FONT_NORMAL = 6     # 标题
+	const FONT_LARGE = 6      # 底部按钮（关闭/确认/重置）
+	
+	# ---- 按钮尺寸 ----
+	const BTN_ITEM_SIZE = Vector2(20, 10)      # 武器/防具
+	const BTN_TALENT_SIZE = Vector2(20, 15)    # 特技槽
+	const BTN_SHOP_SIZE = Vector2(24, 10)      # 商店物品
+	const BTN_LIBRARY_SIZE = Vector2(20, 10)   # 武器库
+	
+	# ---- 图标尺寸 ----
+	const ICON_SIZE = Vector2(11, 11)
+	
+	# ---- 分隔线 ----
+	const SEPARATOR_TEXT = "──────"
+
 var current_mode: Mode = Mode.DEPLOY
 var selected_units: Array[String] = []
 var target_slot: int = -1
@@ -19,9 +41,6 @@ var _drag_grab_offset: Vector2 = Vector2.ZERO
 
 # ---- 目标控件高亮 ----
 var _target_states: Dictionary = {}
-
-# ---- 详情弹窗 ----
-var _detail_popup = null
 
 # ---- 标签栏（右侧） ----
 var current_tab: String = "weapon"   # "weapon" 或 "talent"
@@ -82,16 +101,8 @@ func init(units: Array[String], slot: int, mode: Mode):
 	
 	_copy_party_data()
 	
-	# ---- 创建详情弹窗（隐藏） ----
-	if not _detail_popup:
-		_detail_popup = load("res://content/scenes/ui/ItemDetailPopup.tscn").instantiate()
-		var canvas = get_parent()
-		if canvas and canvas is CanvasLayer:
-			canvas.add_child(_detail_popup)
-			_detail_popup.layer = 30
-		else:
-			add_child(_detail_popup)
-		_detail_popup.visible = false
+	# ---- 详情弹窗已废弃，改用 DetailZone 显示 ----
+	# （原 _detail_popup 创建代码已删除）
 	
 	_build_ui()
 
@@ -217,9 +228,9 @@ func _build_ui():
 			if left_column:
 				left_column.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	
-	close_btn.add_theme_font_size_override("font_size", 8)
-	confirm_btn.add_theme_font_size_override("font_size", 8)
-	reset_btn.add_theme_font_size_override("font_size", 8)
+	close_btn.add_theme_font_size_override("font_size", Style.FONT_LARGE)
+	confirm_btn.add_theme_font_size_override("font_size", Style.FONT_LARGE)
+	reset_btn.add_theme_font_size_override("font_size", Style.FONT_LARGE)
 	
 	# ---- 构建单位列 ----
 	_clear_container(unit_container)
@@ -248,81 +259,42 @@ func _build_unit_columns():
 		unit_container.add_child(col)
 		
 		# ---- 单位名称 ----
-		var name_label = Label.new()
-		name_label.text = unit.display_name + "(" + UnitDataManager.get_unit_type_display_name(unit.unit_name) + ")"
-		name_label.add_theme_font_size_override("font_size", 6)
-		name_label.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-		name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		var name_label = _create_label(
+			unit.display_name + "(" + UnitDataManager.get_unit_type_display_name(unit.unit_name) + ")",
+			Style.FONT_SMALL
+		)
 		col.add_child(name_label)
 		
-		# ---- 武器标题 ----
-		var weapon_title = Label.new()
-		weapon_title.text = "──────"
-		weapon_title.add_theme_font_size_override("font_size", 6)
-		weapon_title.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-		weapon_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		col.add_child(weapon_title)
+		# ---- 武器 ----
+		col.add_child(_create_label(Style.SEPARATOR_TEXT, Style.FONT_SMALL))
+		col.add_child(_create_item_button(unit.weapon_slot, "weapon", i, -1))
 		
-		# ---- 武器按钮 ----
-		var weapon_btn = _create_item_button(unit.weapon_slot, "weapon", i, -1)
-		col.add_child(weapon_btn)
-		
-		# ---- 防具标题 ----
-		var armor_title = Label.new()
-		armor_title.text = "──────"
-		armor_title.add_theme_font_size_override("font_size", 6)
-		armor_title.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-		armor_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		col.add_child(armor_title)
-		
-		# ---- 防具按钮 ----
+		# ---- 防具 ----
+		col.add_child(_create_label(Style.SEPARATOR_TEXT, Style.FONT_SMALL))
 		for slot_idx in range(unit.armor_slots.size()):
 			var armor_btn = _create_item_button(unit.armor_slots[slot_idx], "armor", i, slot_idx)
 			if current_mode == Mode.DEPLOY:
 				armor_btn.disabled = true
 			col.add_child(armor_btn)
 		
-		# ---- 特技分隔线 ----
-		var talent_separator = Label.new()
-		talent_separator.text = "──────"
-		talent_separator.add_theme_font_size_override("font_size", 6)
-		talent_separator.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-		talent_separator.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		col.add_child(talent_separator)
-		
-		# ---- 特技标题 ----
-		var talent_title = Label.new()
-		talent_title.text = "特技"
-		talent_title.add_theme_font_size_override("font_size", 6)
-		talent_title.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-		talent_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		col.add_child(talent_title)
-		
-		# ---- 特技槽（每个单位1个） ----
+		# ---- 特技 ----
+		col.add_child(_create_label(Style.SEPARATOR_TEXT, Style.FONT_SMALL))
+		col.add_child(_create_label("特技", Style.FONT_SMALL))
 		var talent_inst = unit.talent_slots[0] if unit.talent_slots.size() > 0 else null
-		var talent_btn = _create_talent_button(talent_inst, i, 0)
-		col.add_child(talent_btn)
+		col.add_child(_create_talent_button(talent_inst, i, 0))
 
 # ============================================================
 #  创建按钮
 # ============================================================
 func _create_item_button(inst: ItemInstance, slot_type: String, unit_idx: int, slot_idx: int) -> Button:
-	var btn = Button.new()
-	btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	btn.add_theme_font_size_override("font_size", 6)
-	btn.custom_minimum_size = Vector2(30, 14)
+	var btn = _create_styled_button(Style.FONT_SMALL, Style.BTN_ITEM_SIZE)
 	
-	if inst:
-		btn.text = _get_item_name(inst)
-	else:
-		btn.text = "空"
+	btn.text = _get_item_name(inst) if inst else "空"
 	
 	btn.set_meta("slot_type", slot_type)
 	btn.set_meta("unit_idx", unit_idx)
 	btn.set_meta("slot_idx", slot_idx)
 	btn.set_meta("item_id", inst.item_id if inst else "")
-	btn.focus_mode = Control.FOCUS_NONE
-	btn.mouse_filter = Control.MOUSE_FILTER_STOP
 	
 	if inst and inst.item_id != "":
 		var item_id = inst.item_id
@@ -332,14 +304,7 @@ func _create_item_button(inst: ItemInstance, slot_type: String, unit_idx: int, s
 	return btn
 
 func _create_talent_button(inst: TalentInstance, unit_idx: int, slot_idx: int) -> Button:
-	var btn = Button.new()
-	btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	btn.add_theme_font_size_override("font_size", 5)
-	btn.custom_minimum_size = Vector2(30, 22)
-	btn.focus_mode = Control.FOCUS_NONE
-	btn.mouse_filter = Control.MOUSE_FILTER_STOP
-	
-	# ---- 多行支持 ----
+	var btn = _create_styled_button(Style.FONT_TINY, Style.BTN_TALENT_SIZE)
 	btn.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	
 	btn.set_meta("slot_type", "talent")
@@ -373,28 +338,15 @@ func _build_shop_items():
 		return
 	_clear_container(shop_container)
 	
-	# ---- 根据屏幕宽度动态调整列数 ----
-	var viewport_width = get_viewport().get_visible_rect().size.x
-	if viewport_width < 600:
-		shop_container.columns = 2
-	elif viewport_width < 900:
-		shop_container.columns = 3
-	else:
-		shop_container.columns = 4
-	
+	# ---- 固定 3 列（6 个商品正好 2 行显示，无需滚动） ----
+	# 未来 SHOP_SIZE 增加时再改为动态列数
+	shop_container.columns = 3
 	shop_container.visible = true
 	
 	var items = shop_manager.get_shop_items()
 	for i in range(items.size()):
 		var entry = items[i]
-		var btn = Button.new()
-		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		btn.add_theme_font_size_override("font_size", 6)
-		btn.custom_minimum_size = Vector2(40, 18)
-		btn.focus_mode = Control.FOCUS_NONE
-		btn.mouse_filter = Control.MOUSE_FILTER_STOP
-		
-		# ---- 文本裁剪和换行 ----
+		var btn = _create_styled_button(Style.FONT_SMALL, Style.BTN_SHOP_SIZE)
 		btn.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		btn.clip_text = true
 		btn.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
@@ -423,32 +375,22 @@ func _build_weapon_grid(container: GridContainer):
 	for item_id in Globals.unlocked_items:
 		var data = ItemManager.get_item_data(item_id)
 		if data and data.type == "weapon":
-			var btn = Button.new()
+			var btn = _create_styled_button(Style.FONT_SMALL, Style.BTN_LIBRARY_SIZE)
 			btn.text = data.name
-			btn.add_theme_font_size_override("font_size", 6)
-			btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 			btn.set_meta("slot_type", "library_weapon")
 			btn.set_meta("item_id", item_id)
-			btn.focus_mode = Control.FOCUS_NONE
-			btn.mouse_filter = Control.MOUSE_FILTER_STOP
 			btn.mouse_entered.connect(_on_button_hover_entered.bind(item_id))
 			btn.mouse_exited.connect(_on_button_hover_exited)
 			container.add_child(btn)
 
 # ---- 构建特技库网格 ----
 func _build_talent_grid(container: GridContainer):
-	# ---- 清空容器 ----
 	for child in container.get_children():
 		child.queue_free()
 	
-	# ---- DEPLOY 模式：不创建标题，由 TabBar 标签按钮提供 ----
 	var unlocked = Globals.get_unlocked_talents()
 	if unlocked.is_empty():
-		var label = Label.new()
-		label.text = "暂无解锁特技"
-		label.add_theme_font_size_override("font_size", 6)
-		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		container.add_child(label)
+		container.add_child(_create_label("暂无解锁特技", Style.FONT_SMALL))
 		return
 	
 	for talent_id in unlocked:
@@ -458,16 +400,11 @@ func _build_talent_grid(container: GridContainer):
 		
 		var is_equipped = _is_talent_equipped_anywhere(talent_id)
 		
-		var btn = Button.new()
+		var btn = _create_styled_button(Style.FONT_TINY, Style.BTN_TALENT_SIZE)
 		btn.text = _get_talent_display_name(data)
-		btn.add_theme_font_size_override("font_size", 5)
-		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		btn.custom_minimum_size = Vector2(30, 22)
+		btn.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		btn.set_meta("talent_id", talent_id)
 		btn.set_meta("slot_type", "library_talent")
-		btn.focus_mode = Control.FOCUS_NONE
-		btn.mouse_filter = Control.MOUSE_FILTER_STOP
-		btn.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		
 		var rarity_color = _get_rarity_color(data.rarity)
 		
@@ -492,17 +429,84 @@ func _get_item_name(inst: ItemInstance) -> String:
 	var data = ItemManager.get_item_data(inst.item_id)
 	return data.name if data else inst.item_id
 
-# ============================================================
-#  详情弹窗
-# ============================================================
 func show_item_detail(item_id: String):
-	if _detail_popup:
-		_detail_popup.show_item(item_id)
-		_detail_popup.visible = true
+	# ---- 遗物优先 ----
+	var relic_data = RelicManager.get_relic_data(item_id)
+	if not relic_data.is_empty():
+		_show_relic_detail_in_zone(relic_data)
+		return
+	
+	# ---- 物品 ----
+	var data = ItemManager.get_item_data(item_id)
+	if not data:
+		return
+	
+	var lines = []
+	lines.append(data.name)
+	
+	if data.quality and data.quality != "":
+		lines.append("品质: " + _get_quality_display_name(data.quality))
+	
+	if data.description and data.description != "":
+		lines.append(data.description)
+	
+	if data.type == "weapon":
+		lines.append("基础攻击: " + str(data.base_attack))
+		lines.append("射程: " + str(data.min_attack_range) + "~" + str(data.attack_range))
+		if data.modifier and not data.modifier.is_empty():
+			var mod_str = ""
+			for key in data.modifier:
+				mod_str += _get_attr_display_name(key) + "+" + str(data.modifier[key]) + " "
+			lines.append("补正: " + mod_str.strip_edges())
+	elif data.type == "armor":
+		if data.defense > 0:
+			lines.append("防御: +" + str(data.defense))
+		if data.slot_count > 0:
+			lines.append("占用槽位: " + str(data.slot_count))
+	
+	if data.price > 0:
+		lines.append("价格: " + str(data.price) + "G")
+	
+	_show_detail_in_zone("\n".join(lines))
+
+func _show_relic_detail_in_zone(data: Dictionary):
+	var lines = []
+	lines.append(data.get("name", "未知遗物"))
+	lines.append(data.get("description", ""))
+	
+	var stats = data.get("stats", {})
+	if not stats.is_empty():
+		lines.append("")
+		lines.append("— 属性加成 —")
+		for key in stats:
+			var stat_name = _get_attr_display_name(key)
+			lines.append(stat_name + ": +" + str(stats[key]))
+	
+	_show_detail_in_zone("\n".join(lines))
+
+func _get_quality_display_name(quality: String) -> String:
+	match quality:
+		"common": return "普通"
+		"rare": return "稀有"
+		"epic": return "史诗"
+		"legendary": return "传说"
+		_: return quality
+
+func _get_attr_display_name(attr: String) -> String:
+	match attr:
+		"strength": return "力量"
+		"dexterity": return "敏捷"
+		"intelligence": return "智力"
+		"faith": return "信仰"
+		"arcane": return "感应"
+		"attack": return "攻击"
+		"defense": return "防御"
+		"magic_attack": return "魔法攻击"
+		"move_range": return "移动力"
+		_: return attr
 
 func hide_item_detail():
-	if _detail_popup:
-		_detail_popup.visible = false
+	_clear_detail_zone()
 
 func _on_button_hover_entered(item_id: String):
 	show_item_detail(item_id)
@@ -522,18 +526,29 @@ func _on_talent_hover_exited():
 	_hide_talent_detail()
 
 func _show_talent_detail(data):
-	var detail_label = $VBoxContainer/MainHBox/DetailZone/DetailLabel
-	if detail_label:
-		var text = data.display_name + "\n" + data.description
-		text += "\n稀有度: " + data.rarity
-		text += "\n流派: " + data.school
-		text += "\n积累: " + str(data.accumulation_threshold) + "回合"
-		detail_label.text = text
+	var lines = []
+	lines.append(data.display_name)
+	lines.append(data.description)
+	lines.append("稀有度: " + data.rarity)
+	lines.append("流派: " + data.school)
+	lines.append("积累: " + str(data.accumulation_threshold) + "回合")
+	
+	# 可装备单位
+	var compatible_units = data.compatible_units if data.compatible_units != null else []
+	if not compatible_units.is_empty():
+		var unit_names = []
+		for unit_key in compatible_units:
+			var display = UnitDataManager.get_unit_type_display_name(unit_key)
+			if display != "":
+				unit_names.append(display)
+		lines.append("可装备: " + "/".join(unit_names))
+	else:
+		lines.append("可装备: 全部")
+	
+	_show_detail_in_zone("\n".join(lines))
 
 func _hide_talent_detail():
-	var detail_label = $VBoxContainer/MainHBox/DetailZone/DetailLabel
-	if detail_label:
-		detail_label.text = "选中物品详情"
+	_clear_detail_zone()
 
 # ---- 获取特技显示名称（含可装备单位） ----
 func _get_talent_display_name(data) -> String:
@@ -629,8 +644,13 @@ func _update_targets_visuals():
 		if not _target_states.has(target):
 			_target_states[target] = target.modulate
 		
-		# ---- 如果是特技拖拽，丢弃区始终不可用 ----
-		if (is_talent_drag or is_talent_library_drag) and target == discard_zone:
+		# ---- 特技从槽位拖拽（非库）：丢弃区可用 ----
+		if is_talent_drag and not is_talent_library_drag and target == discard_zone:
+			target.modulate = Color.WHITE   # 可用（亮起）
+			continue
+		
+		# ---- 特技从库拖拽：丢弃区不可用 ----
+		if is_talent_library_drag and target == discard_zone:
 			target.modulate = Color(0.4, 0.4, 0.4, 0.5)
 			continue
 		
@@ -723,9 +743,13 @@ func _is_valid_drop(data: Dictionary, target: Control) -> bool:
 	var target_type = target.get_meta("slot_type", "")
 	var discard = target == discard_zone
 
-	# ===== 统一规则：特技不可丢弃 =====
+	# ===== 特技拖到丢弃区 → 允许（用于移除） =====
 	if discard and source_type in ["library_talent", "talent"]:
-		return false
+		# 库中的特技不能丢弃（只能从槽位移除）
+		if source_type == "library_talent":
+			return false
+		# 槽位中的特技可以拖到丢弃区移除
+		return true
 
 	if current_mode == Mode.DEPLOY:
 		if discard:
@@ -742,11 +766,11 @@ func _is_valid_drop(data: Dictionary, target: Control) -> bool:
 
 	if current_mode == Mode.MAP:
 		if discard:
-			if source_type in ["library_talent", "talent"]:
-				return false
+			if source_type == "library_talent":
+				return false   # 库中特技不可丢弃
 			if source_type == "weapon":
 				return false
-			return true
+			return true   # 其他装备可丢弃
 		if source_type == "library_weapon":
 			return target_type == "weapon"
 		if source_type == "weapon" and target_type == "weapon":
@@ -760,29 +784,23 @@ func _is_valid_drop(data: Dictionary, target: Control) -> bool:
 		return false
 
 	if current_mode == Mode.SHOP:
-		# ---- 丢弃区 ----
 		if discard:
 			if source_type in ["shop_item", "weapon", "library_talent", "talent"]:
 				return false
 			return true
 		
-		# ---- 商店商品拖拽 ----
 		if source_type == "shop_item":
 			var item_data = data.get("item_data")
 			if not item_data:
 				return false
-			# 武器 → 武器槽
 			if item_data.type == "weapon":
 				return target_type == "weapon"
-			# 防具 → 防具槽
 			elif item_data.type == "armor":
 				return target_type == "armor"
-			# 遗物 → 遗物槽（如果有）
 			elif item_data.type == "relic":
 				return target_type == "relic"
 			return false
 		
-		# ---- 单位装备之间交换 ----
 		if source_type == "weapon" and target_type == "weapon":
 			return true
 		if source_type == "armor" and target_type == "armor":
@@ -798,6 +816,11 @@ func _execute_drop(data: Dictionary, target: Control):
 	var discard = target == discard_zone
 	var source_type = data["slot_type"]
 	var target_type = target.get_meta("slot_type", "")
+
+	# ---- ✨ 特技拖到丢弃区 → 移除 ----
+	if discard and source_type == "talent":
+		_execute_talent_remove(data)
+		return
 
 	if discard:
 		_discard_item(data)
@@ -1047,12 +1070,10 @@ func _buy_shop_item(data: Dictionary, target: Control):
 			print("购买了武器并装备到单位: ", item_data.name)
 		else:
 			Globals.unlock_item(item_data.id)
-			print("购买了武器（未装备）: ", item_data.name)
 			
 	elif item_data.type == "armor":
 		if target_unit_idx != -1 and target_slot_idx != -1:
 			party[target_unit_idx].armor_slots[target_slot_idx] = inst
-			print("购买了防具并装备到单位: ", item_data.name)
 		else:
 			var equipped = false
 			if target_unit_idx != -1:
@@ -1063,14 +1084,9 @@ func _buy_shop_item(data: Dictionary, target: Control):
 						break
 				if not equipped:
 					party[target_unit_idx].armor_slots[party[target_unit_idx].armor_slots.size() - 1] = inst
-					print("防具槽已满，替换最后一个槽位")
-			else:
-				Globals.unlock_item(item_data.id)
-				print("购买了防具（未装备）: ", item_data.name)
 	
 	_sync_all()
 	_update_gold_display()
-	call_deferred("_build_ui")
 
 func _library_to_weapon(data: Dictionary, target: Control):
 	var item_id = data["item_id"]
@@ -1122,7 +1138,13 @@ func _sync_all():
 				GameState.party[i].armor_slots.append(null)
 			while GameState.party[i].talent_slots.size() < 1:
 				GameState.party[i].talent_slots.append(null)
+	# ---- 延迟保存，避免拖拽结束时同帧触发存档 ----
+	call_deferred("_deferred_auto_save")
+
+func _deferred_auto_save():
+	print("_deferred_auto_save 开始")
 	SaveManager.auto_save()
+	print("_deferred_auto_save 完成")
 
 # ============================================================
 #  手动拖拽
@@ -1239,21 +1261,28 @@ func _end_drag():
 			_execute_drop(_drag_meta, target)
 			SoundManager.play_select_sound()
 		else:
-			SoundManager.play_cancel_sound()
-			if is_instance_valid(_drag_source):
-				var original_disabled = _drag_source.get_meta("_original_disabled", false)
-				var original_modulate = _drag_source.get_meta("_original_modulate", Color.WHITE)
-				var original_text = _drag_source.get_meta("_original_text", "")
-				var original_min_size = _drag_source.get_meta("_original_custom_minimum_size", Vector2.ZERO)
-				_drag_source.disabled = original_disabled
-				_drag_source.modulate = original_modulate
-				_drag_source.text = original_text
-				_drag_source.custom_minimum_size = original_min_size
-				_drag_source.remove_meta("_original_disabled")
-				_drag_source.remove_meta("_original_modulate")
-				_drag_source.remove_meta("_original_text")
-				_drag_source.remove_meta("_original_custom_minimum_size")
-			call_deferred("_build_ui")
+			# ---- ✨ 特技从槽位拖拽：拖到空地 → 移除 ----
+			var source_type = _drag_meta.get("slot_type", "")
+			if source_type == "talent" and target == null:
+				_execute_talent_remove(_drag_meta)
+				SoundManager.play_select_sound()
+			else:
+				# 其他情况：取消操作，恢复源按钮
+				SoundManager.play_cancel_sound()
+				if is_instance_valid(_drag_source):
+					var original_disabled = _drag_source.get_meta("_original_disabled", false)
+					var original_modulate = _drag_source.get_meta("_original_modulate", Color.WHITE)
+					var original_text = _drag_source.get_meta("_original_text", "")
+					var original_min_size = _drag_source.get_meta("_original_custom_minimum_size", Vector2.ZERO)
+					_drag_source.disabled = original_disabled
+					_drag_source.modulate = original_modulate
+					_drag_source.text = original_text
+					_drag_source.custom_minimum_size = original_min_size
+					_drag_source.remove_meta("_original_disabled")
+					_drag_source.remove_meta("_original_modulate")
+					_drag_source.remove_meta("_original_text")
+					_drag_source.remove_meta("_original_custom_minimum_size")
+				call_deferred("_build_ui")
 		
 		if _drag_preview:
 			_drag_preview.queue_free()
@@ -1290,6 +1319,8 @@ func _on_reset_shop_pressed():
 	
 	var spent = shop_manager.reset_shop()
 	if spent >= 0:
+		# ---- ✨ 重置成功后播放音效 ----
+		SoundManager.play_select_sound()
 		_update_gold_display()
 		reset_btn.text = "重置商店 (" + str(shop_manager.get_reset_cost()) + "G)"
 		_build_shop_items()
@@ -1601,3 +1632,55 @@ func _create_drag_preview(btn: Button) -> Label:
 	
 	preview.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	return preview
+
+# ============================================================
+#  样式应用函数
+# ============================================================
+
+# ---- 创建标准按钮（统一尺寸和字体） ----
+func _create_styled_button(font_size: int, min_size: Vector2) -> Button:
+	var btn = Button.new()
+	btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	btn.add_theme_font_size_override("font_size", font_size)
+	btn.custom_minimum_size = min_size
+	btn.focus_mode = Control.FOCUS_NONE
+	btn.mouse_filter = Control.MOUSE_FILTER_STOP
+	return btn
+
+# ---- 创建标签（统一字体） ----
+func _create_label(text: String, font_size: int, center: bool = true) -> Label:
+	var label = Label.new()
+	label.text = text
+	label.add_theme_font_size_override("font_size", font_size)
+	if center:
+		label.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	return label
+
+# ============================================================
+#  详情显示（统一入口）
+# ============================================================
+func _show_detail_in_zone(text: String):
+	var detail_label = $VBoxContainer/MainHBox/DetailZone/DetailLabel
+	if detail_label:
+		detail_label.text = text
+
+func _clear_detail_zone():
+	var detail_label = $VBoxContainer/MainHBox/DetailZone/DetailLabel
+	if detail_label:
+		detail_label.text = "选中物品详情"
+
+# ============================================================
+#  移除特技（从槽位拖拽到非目标位置时调用）
+# ============================================================
+func _execute_talent_remove(data: Dictionary):
+	var unit_idx = data.get("unit_idx", -1)
+	var slot_idx = data.get("slot_idx", -1)
+	if unit_idx == -1 or slot_idx == -1:
+		return
+	
+	# ---- 清空源槽位 ----
+	party[unit_idx].talent_slots[slot_idx] = null
+	_sync_all()
+	_refresh_after_talent_change()
+	print("特技已移除（单位 %d 槽位 %d）" % [unit_idx, slot_idx])

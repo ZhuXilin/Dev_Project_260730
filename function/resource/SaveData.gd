@@ -20,9 +20,6 @@ const CURRENT_VERSION = 2
 @export var selected_node_id: String = ""
 @export var main_unit_name: String = ""
 
-# ---- ❌ 不再保存地图数据 ----
-# @export var map_level_data: MapLevelData
-
 @export var soul: int = 0
 @export var temp_soul: int = 0
 @export var temp_gold: int = 0

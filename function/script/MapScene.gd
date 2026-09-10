@@ -1,5 +1,8 @@
 extends CanvasLayer
 
+const FONT_SIZE = 8
+const EquipmentConfig = preload("res://function/script/EquipmentConfig.gd")
+
 # ---- 变量声明 ----
 var current_day: int = 1
 var map_data: MapLevelData
@@ -13,19 +16,20 @@ var _detail_popup = null
 @onready var line_container = $NodeContainer/LineContainer
 @onready var info_panel = $InfoPanel
 @onready var info_label = $InfoPanel/InfoLabel
-@onready var day_label = $TopBar/DayLabel
-@onready var soul_label = $TopBar/HBoxContainer/SoulLabel
-@onready var gold_label = $TopBar/HBoxContainer/GoldLabel
 @onready var interrupt_btn = $BottomBar/InterruptButton
 @onready var abandon_btn = $BottomBar/AbandonButton
+@onready var day_label = $TopBar/DayLabel
+@onready var soul_label = $TopBar/SoulLabel
+@onready var gold_label = $TopBar/GoldLabel
 @onready var relic_container = $TopBar/RelicContainer
 @onready var materials_container = $TopBar/MaterialsContainer
 
-const EquipmentConfig = preload("res://function/script/EquipmentConfig.gd")
-
 func _ready():
 	print("=== MapScene _ready 开始 ===")
-	
+
+	# ---- 统一所有资源字体大小 ----
+	_apply_unified_font_size()
+
 	# ---- 调试：打印 GameState.party 装备状态 ----
 	print("=== MapScene: GameState.party 装备状态 ===")
 	for i in range(GameState.party.size()):
@@ -141,11 +145,34 @@ func _save_game():
 		SaveManager.auto_save()
 
 func update_all_displays():
+	# ---- 统一字体大小 ----
+	if day_label:
+		day_label.add_theme_font_size_override("font_size", FONT_SIZE)
 	if soul_label:
-		soul_label.text = "魂:" + str(EconomyManager.get_soul() + EconomyManager.get_temp_soul())
+		soul_label.add_theme_font_size_override("font_size", FONT_SIZE)
 	if gold_label:
-		gold_label.text = "金币:" + str(EconomyManager.get_temp_gold())
+		gold_label.add_theme_font_size_override("font_size", FONT_SIZE)
+	
+	# 分区标题也统一
+	var local_label = $TopBar/LocalResourcesLabel
+	if local_label:
+		local_label.add_theme_font_size_override("font_size", FONT_SIZE)
+	var perm_label = $TopBar/PermanentResourcesLabel
+	if perm_label:
+		perm_label.add_theme_font_size_override("font_size", FONT_SIZE)
+	
+	# ---- 更新金币 ----
+	if gold_label:
+		gold_label.text = "金币: " + str(EconomyManager.get_temp_gold())
+	
+	# ---- 更新魂 ----
+	if soul_label:
+		soul_label.text = "魂: " + str(EconomyManager.get_soul() + EconomyManager.get_temp_soul())
+	
+	# ---- 更新遗物（局内资源） ----
 	_update_relic_display()
+	
+	# ---- 更新材料（永久资源） ----
 	_update_materials_display()
 
 func _update_materials_display():
@@ -154,13 +181,15 @@ func _update_materials_display():
 	
 	var materials = GameState.get_all_materials()
 	var has_material = false
-	for material_name in materials:
-		var count = materials[material_name]
+	
+	var order = ["粗铁", "精钢", "秘银", "龙鳞"]
+	for material_name in order:
+		var count = materials.get(material_name, 0)
 		if count > 0:
 			has_material = true
 			var label = Label.new()
-			label.text = material_name + ":" + str(count)
-			label.add_theme_font_size_override("font_size", 8)
+			label.text = material_name + ": " + str(count)
+			label.add_theme_font_size_override("font_size", FONT_SIZE)
 			var color = _get_material_color(material_name)
 			if color:
 				label.add_theme_color_override("font_color", color)
@@ -168,9 +197,9 @@ func _update_materials_display():
 	
 	if not has_material:
 		var label = Label.new()
-		label.text = "无材料"
-		label.add_theme_font_size_override("font_size", 8)
-		label.modulate = Color(0.5, 0.5, 0.5)
+		label.text = "材料: 无"
+		label.add_theme_font_size_override("font_size", FONT_SIZE)
+		label.modulate = Color(0.6, 0.6, 0.6)
 		materials_container.add_child(label)
 
 func _get_material_color(material_name: String) -> Color:
@@ -199,8 +228,9 @@ func _update_relic_display():
 	var relics = GameState.get_global_relics()
 	if relics.is_empty():
 		var label = Label.new()
-		label.text = "无遗物"
-		label.add_theme_font_size_override("font_size", 6)
+		label.text = "遗物: 无"
+		label.add_theme_font_size_override("font_size", FONT_SIZE)
+		label.modulate = Color(0.6, 0.6, 0.6)
 		relic_container.add_child(label)
 		return
 	
@@ -208,16 +238,13 @@ func _update_relic_display():
 		var data = RelicManager.get_relic_data(relic.item_id)
 		if data.is_empty():
 			continue
-		var btn = Button.new()
-		btn.text = data.get("name", "未知遗物")
-		btn.add_theme_font_size_override("font_size", 6)
-		
-		# ---- 悬停显示详情 ----
-		var item_id = relic.item_id
-		btn.mouse_entered.connect(_on_relic_hover_entered.bind(item_id))
-		btn.mouse_exited.connect(_on_relic_hover_exited)
-		
-		relic_container.add_child(btn)
+		var label = Label.new()
+		label.text = "遗物: " + data.get("name", "未知遗物")
+		label.add_theme_font_size_override("font_size", FONT_SIZE)
+		label.mouse_filter = Control.MOUSE_FILTER_STOP
+		label.mouse_entered.connect(_on_relic_hover_entered.bind(relic.item_id))
+		label.mouse_exited.connect(_on_relic_hover_exited)
+		relic_container.add_child(label)
 
 func _on_relic_hover_entered(item_id: String):
 	show_item_detail(item_id)
@@ -576,3 +603,18 @@ func _open_shop(node: MapNode):
 	_save_game()
 	update_all_displays()
 	_update_availability(map_data.root_node)
+
+# ---- 统一字体大小 ----
+func _apply_unified_font_size():
+	if day_label:
+		day_label.add_theme_font_size_override("font_size", FONT_SIZE)
+	var local_label = $TopBar/LocalResourcesLabel
+	if local_label:
+		local_label.add_theme_font_size_override("font_size", FONT_SIZE)
+	var perm_label = $TopBar/PermanentResourcesLabel
+	if perm_label:
+		perm_label.add_theme_font_size_override("font_size", FONT_SIZE)
+	if soul_label:
+		soul_label.add_theme_font_size_override("font_size", FONT_SIZE)
+	if gold_label:
+		gold_label.add_theme_font_size_override("font_size", FONT_SIZE)
