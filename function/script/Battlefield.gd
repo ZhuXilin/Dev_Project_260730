@@ -1914,7 +1914,7 @@ func _on_map_victory_continue():
 		GameState.should_advance_day = true
 		print("Boss 胜利，设置 should_advance_day = true")
 		
-		# ---- ✨ 检查是否为最后一天（第三天最终Boss） ----
+		# ---- ✨ 检查是否为最后一天 ----
 		var is_last_day = (GameState.current_day >= 3)
 		
 		if is_last_day:
@@ -1937,18 +1937,8 @@ func _on_map_victory_continue():
 			
 			relic_select.setup_options(owned_ids)
 			
-			var chosen_relic_id = await relic_select.relic_selected
-			
-			if chosen_relic_id != "":
-				var inst = ItemInstance.new()
-				inst.item_id = chosen_relic_id
-				inst.count = 1
-				var success = GameState.add_global_relic(inst)
-				if success:
-					Globals.unlock_relic(chosen_relic_id)
-					print("获得遗物: ", chosen_relic_id)
-				else:
-					print("遗物槽已满，未获得: ", chosen_relic_id)
+			# ---- 只等待信号，遗物添加/替换由 RelicSelectUI 内部处理 ----
+			await relic_select.relic_selected
 			
 			_is_reward_ui_active = false
 			Input.mouse_mode = Input.MOUSE_MODE_HIDDEN

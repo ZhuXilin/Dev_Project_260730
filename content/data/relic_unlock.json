@@ -4,6 +4,9 @@
 	"relic_defense",
 	"relic_magic",
 	"relic_health",
-    "relic_speed"
+	"relic_speed",
+	"relic_strength",
+	"relic_dexterity",
+    "relic_faith"
   ]
 }
