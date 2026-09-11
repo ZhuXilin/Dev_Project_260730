@@ -1914,40 +1914,45 @@ func _on_map_victory_continue():
 		GameState.should_advance_day = true
 		print("Boss 胜利，设置 should_advance_day = true")
 		
-		# ---- 弹出遗物三选一 ----
-		_is_reward_ui_active = true
-		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
-		cursor.visible = false
+		# ---- ✨ 检查是否为最后一天（第三天最终Boss） ----
+		var is_last_day = (GameState.current_day >= 3)
 		
-		var relic_select_scene = load("res://content/scenes/ui/RelicSelectUI.tscn")
-		var relic_select = relic_select_scene.instantiate()
-		add_child(relic_select)
-		
-		# 排除已拥有的遗物（跳过 null）
-		var owned_ids = []
-		for relic in GameState.global_relics:
-			if relic != null:
-				owned_ids.append(relic.item_id)
-		
-		relic_select.setup_options(owned_ids)
-		
-		var chosen_relic_id = await relic_select.relic_selected
-		
-		if chosen_relic_id != "":
-			var inst = ItemInstance.new()
-			inst.item_id = chosen_relic_id
-			inst.count = 1
-			var success = GameState.add_global_relic(inst)   # 找第一个空槽
-			if success:
-				Globals.unlock_relic(chosen_relic_id)
-				print("获得遗物: ", chosen_relic_id)
-			else:
-				print("遗物槽已满，未获得: ", chosen_relic_id)
-				# 可选：显示提示
-		
-		_is_reward_ui_active = false
-		Input.mouse_mode = Input.MOUSE_MODE_HIDDEN
-		cursor.visible = true
+		if is_last_day:
+			print("第三天最终Boss，跳过遗物三选一")
+		else:
+			# ---- 弹出遗物三选一 ----
+			_is_reward_ui_active = true
+			Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+			cursor.visible = false
+			
+			var relic_select_scene = load("res://content/scenes/ui/RelicSelectUI.tscn")
+			var relic_select = relic_select_scene.instantiate()
+			add_child(relic_select)
+			
+			# 排除已拥有的遗物（跳过 null）
+			var owned_ids = []
+			for relic in GameState.global_relics:
+				if relic != null:
+					owned_ids.append(relic.item_id)
+			
+			relic_select.setup_options(owned_ids)
+			
+			var chosen_relic_id = await relic_select.relic_selected
+			
+			if chosen_relic_id != "":
+				var inst = ItemInstance.new()
+				inst.item_id = chosen_relic_id
+				inst.count = 1
+				var success = GameState.add_global_relic(inst)
+				if success:
+					Globals.unlock_relic(chosen_relic_id)
+					print("获得遗物: ", chosen_relic_id)
+				else:
+					print("遗物槽已满，未获得: ", chosen_relic_id)
+			
+			_is_reward_ui_active = false
+			Input.mouse_mode = Input.MOUSE_MODE_HIDDEN
+			cursor.visible = true
 	
 	# ---- 标记节点已完成 ----
 	if GameState.current_node_key != "":
