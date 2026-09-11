@@ -19,8 +19,10 @@ shader_parameter/hit_duration = 0.15
 shader_parameter/hit_elapsed = 0.0
 shader_parameter/hit_flash_color = Vector3(1, 1, 1)
 shader_parameter/hit_enable_flash = false
+shader_parameter/outline_enabled = false
 shader_parameter/outline_color = Color(1, 1, 1, 1)
 shader_parameter/outline_width = 1.0
+shader_parameter/outline_direction = 0
 
 [node name="Unit" type="Area2D" unique_id=721344515]
 script = ExtResource("1_owedm")
@@ -30,8 +32,7 @@ shape = SubResource("RectangleShape2D_v5vfr")
 
 [node name="Sprite" type="AnimatedSprite2D" parent="." unique_id=348919109]
 material = SubResource("ShaderMaterial_hkxco")
-position = Vector2(-3.5762787e-07, -8.000001)
-scale = Vector2(1, 0.99999994)
+position = Vector2(0, -8)
 sprite_frames = ExtResource("4_qkgtl")
 animation = &"idle"
 autoplay = "idle"
