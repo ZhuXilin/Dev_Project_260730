@@ -30,5 +30,37 @@
 	"description": "全队魔法攻击+3",
 	"stats": {"magic_attack": 3},
 	"price": 150
+  },
+  "relic_health": {
+	"id": "relic_health",
+	"name": "生命遗物",
+	"icon": "res://content/images/items/relic.png",
+	"description": "全队最大生命+5",
+	"stats": {"max_hp": 5},
+	"price": 200
+  },
+  "relic_strength": {
+	"id": "relic_strength",
+	"name": "巨力遗物",
+	"icon": "res://content/images/items/relic.png",
+	"description": "全队力量+2",
+	"stats": {"strength": 2},
+	"price": 200
+  },
+  "relic_dexterity": {
+	"id": "relic_dexterity",
+	"name": "迅捷遗物",
+	"icon": "res://content/images/items/relic.png",
+	"description": "全队敏捷+2",
+	"stats": {"dexterity": 2},
+	"price": 200
+  },
+  "relic_faith": {
+	"id": "relic_faith",
+	"name": "信仰遗物",
+	"icon": "res://content/images/items/relic.png",
+	"description": "全队信仰+2",
+	"stats": {"faith": 2},
+	"price": 200
   }
 }

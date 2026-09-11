@@ -232,7 +232,14 @@ func _update_relic_display():
 		child.queue_free()
 	
 	var relics = GameState.get_global_relics()
-	if relics.is_empty():
+	
+	# ---- 统计非空遗物 ----
+	var active_relics = []
+	for relic in relics:
+		if relic != null:   # ← 跳过 null
+			active_relics.append(relic)
+	
+	if active_relics.is_empty():
 		var label = Label.new()
 		label.text = "遗物: 无"
 		label.add_theme_font_size_override("font_size", FONT_SIZE)
@@ -240,7 +247,7 @@ func _update_relic_display():
 		relic_container.add_child(label)
 		return
 	
-	for relic in relics:
+	for relic in active_relics:
 		var data = RelicManager.get_relic_data(relic.item_id)
 		if data.is_empty():
 			continue

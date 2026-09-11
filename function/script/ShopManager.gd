@@ -30,32 +30,31 @@ func reset_shop() -> int:
 func generate_shop_items():
 	shop_items.clear()
 	var pool = []
+	
+	# ---- 仅从已解锁的武器和防具中选取 ----
 	for item_id in Globals.unlocked_items:
 		var data = ItemManager.get_item_data(item_id)
-		if data:
-			print("商店池: ", item_id, " type=", data.type, " price=", data.price)
-			if data.type in ["weapon", "armor"] and data.price > 0:
-				pool.append({"item_data": data, "price": data.price})
-
-	for relic_id in RelicManager.get_unlocked_relics():
-		var relic_dict = RelicManager.get_relic_data(relic_id)
-		if not relic_dict.is_empty() and relic_dict.has("price"):
-			var price = relic_dict.get("price", 0)
-			if price > 0:
-				var wrapper = ItemData.new()
-				wrapper.id = relic_id
-				wrapper.name = relic_dict.get("name", "未知遗物")
-				wrapper.type = "relic"
-				wrapper.price = price
-				var icon_path = relic_dict.get("icon", "")
-				if icon_path != "" and ResourceLoader.exists(icon_path):
-					wrapper.icon = load(icon_path)
-				pool.append({"item_data": wrapper, "price": price})
+		if data and data.type in ["weapon", "armor"] and data.price > 0:
+			pool.append({"item_data": data, "price": data.price})
+	
+	# ---- 打乱后取前 SHOP_SIZE 个 ----
 	pool.shuffle()
 	var selected = pool.slice(0, SHOP_SIZE)
+	
+	# ---- 不足则用 null 补位 ----
 	while selected.size() < SHOP_SIZE:
 		selected.append(null)
+	
 	shop_items = selected
+	
+	# ---- 调试日志 ----
+	print("生成商店物品：池大小=", pool.size(), " 选中=", selected.size())
+	for i in range(shop_items.size()):
+		var entry = shop_items[i]
+		if entry != null:
+			print("  槽", i, ": ", entry["item_data"].name, " ", entry["price"], "G")
+		else:
+			print("  槽", i, ": 空位")
 
 # ---- 购买商品 ----
 func buy_shop_item(index: int) -> Dictionary:

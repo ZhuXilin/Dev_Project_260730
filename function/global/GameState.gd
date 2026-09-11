@@ -19,6 +19,8 @@ var current_map_data: MapData = null     # 当前正在战斗的地图数据
 var should_advance_day: bool = false     # Boss胜利后推进天数的标志
 var resume_node_id: String = ""          # 加载存档后要定位的节点ID
 
+const MAX_RELIC_SLOTS = 3
+
 # ---- 地图快照（当前天的地图骨架） ----
 var map_snapshot: Dictionary = {}
 
@@ -117,7 +119,7 @@ func start_new_cycle():
 			unit_data.weapon_slot = inst
 		else:
 			unit_data.weapon_slot = null
-	global_relics.clear()
+	init_relic_slots()
 
 func finish_cycle():
 	finish_day()          # 合并魂并清零
@@ -142,7 +144,7 @@ func reset_for_new_cycle():
 	temp_soul = 0
 	temp_gold = 0
 	interrupt_state = 0
-	global_relics.clear()
+	init_relic_slots()
 	current_faction = ""
 	map_snapshot.clear()
 
@@ -163,7 +165,7 @@ func reset_all():
 	temp_soul = 0
 	temp_gold = 0
 	interrupt_state = 0
-	global_relics.clear()
+	init_relic_slots()
 	current_faction = ""
 	map_snapshot.clear()
 
@@ -201,23 +203,43 @@ func show_abandon_confirmation(parent: Node):
 # ============================================================
 #  遗物管理
 # ============================================================
-func add_global_relic(instance: ItemInstance):
-	global_relics.append(instance)
+# 初始化为 [null, null, null]
+func init_relic_slots():
+	global_relics.clear()
+	for i in range(MAX_RELIC_SLOTS):
+		global_relics.append(null)
 
-func remove_global_relic(instance: ItemInstance):
-	global_relics.erase(instance)
+# 添加到第一个空槽，返回是否成功
+func add_global_relic(instance: ItemInstance) -> bool:
+	# 确保槽位存在
+	while global_relics.size() < MAX_RELIC_SLOTS:
+		global_relics.append(null)
+	
+	for i in range(MAX_RELIC_SLOTS):
+		if global_relics[i] == null:
+			global_relics[i] = instance
+			print("遗物放入槽 ", i, ": ", instance.item_id)
+			return true
+	
+	print("遗物槽已满，无法添加: ", instance.item_id)
+	return false
 
+# 按槽位移除，保留空位
+func remove_global_relic_at_slot(slot_idx: int):
+	if slot_idx >= 0 and slot_idx < global_relics.size():
+		global_relics[slot_idx] = null
+
+# 获取全部（含 null）
 func get_global_relics() -> Array[ItemInstance]:
 	return global_relics.duplicate()
 
-func get_global_relic_stats() -> Dictionary:
-	var bonus = {}
-	for relic in global_relics:
-		var data = ItemManager.get_item_data(relic.item_id)
-		if data and data.stats:
-			for key in data.stats:
-				bonus[key] = bonus.get(key, 0) + data.stats[key]
-	return bonus
+# 获取非空遗物（用于战斗加成计算）
+func get_active_relics() -> Array:
+	var result = []
+	for r in global_relics:
+		if r != null:
+			result.append(r)
+	return result
 
 # ============================================================
 #  中断战斗撤销
@@ -265,3 +287,16 @@ func get_all_materials() -> Dictionary:
 func reset_materials():
 	for key in materials.keys():
 		materials[key] = 0
+
+func get_global_relic_stats() -> Dictionary:
+	var bonus = {}
+	for relic in global_relics:
+		if relic == null:   # ← 跳过 null
+			continue
+		var data = RelicManager.get_relic_data(relic.item_id)
+		if data.is_empty():
+			continue
+		var stats = data.get("stats", {})
+		for key in stats:
+			bonus[key] = bonus.get(key, 0) + stats[key]
+	return bonus

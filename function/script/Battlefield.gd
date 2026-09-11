@@ -1889,6 +1889,7 @@ func _on_map_victory_continue():
 	
 	var has_reward = (reward_gold > 0 or reward_soul > 0 or not reward_item_datas.is_empty())
 	
+	# ---- 显示结算界面 ----
 	if has_reward:
 		print("有奖励，弹出结算界面")
 		_is_reward_ui_active = true
@@ -1903,10 +1904,8 @@ func _on_map_victory_continue():
 		_is_reward_ui_active = false
 		Input.mouse_mode = Input.MOUSE_MODE_HIDDEN
 		cursor.visible = true
-	else:
-		print("无奖励，直接返回地图")
 	
-	# ---- ✨ 结算确认后，判断是否为 Boss，设置 should_advance_day ----
+	# ---- Boss 战后：弹出遗物三选一 ----
 	var is_boss = (current_node_type == MapNode.NodeType.BOSS)
 	if not is_boss and GameState.current_map_data:
 		is_boss = (GameState.current_map_data.node_type == MapNode.NodeType.BOSS)
@@ -1914,11 +1913,45 @@ func _on_map_victory_continue():
 	if is_boss:
 		GameState.should_advance_day = true
 		print("Boss 胜利，设置 should_advance_day = true")
+		
+		# ---- 弹出遗物三选一 ----
+		_is_reward_ui_active = true
+		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+		cursor.visible = false
+		
+		var relic_select_scene = load("res://content/scenes/ui/RelicSelectUI.tscn")
+		var relic_select = relic_select_scene.instantiate()
+		add_child(relic_select)
+		
+		# 排除已拥有的遗物（跳过 null）
+		var owned_ids = []
+		for relic in GameState.global_relics:
+			if relic != null:
+				owned_ids.append(relic.item_id)
+		
+		relic_select.setup_options(owned_ids)
+		
+		var chosen_relic_id = await relic_select.relic_selected
+		
+		if chosen_relic_id != "":
+			var inst = ItemInstance.new()
+			inst.item_id = chosen_relic_id
+			inst.count = 1
+			var success = GameState.add_global_relic(inst)   # 找第一个空槽
+			if success:
+				Globals.unlock_relic(chosen_relic_id)
+				print("获得遗物: ", chosen_relic_id)
+			else:
+				print("遗物槽已满，未获得: ", chosen_relic_id)
+				# 可选：显示提示
+		
+		_is_reward_ui_active = false
+		Input.mouse_mode = Input.MOUSE_MODE_HIDDEN
+		cursor.visible = true
 	
-	# ---- ✨ 结算确认后，把当前节点标记为已访问 ----
+	# ---- 标记节点已完成 ----
 	if GameState.current_node_key != "":
 		GameState.visited_nodes[GameState.current_node_key] = true
-		print("节点已完成: ", GameState.current_node_key)
 		GameState.current_node_key = ""
 	
 	GameState.reward_items.clear()
@@ -2341,16 +2374,23 @@ func _update_relic_icons():
 		child.queue_free()
 	
 	var relics = GameState.get_global_relics()
-	print("当前遗物数量：", relics.size())
-	if relics.is_empty():
+	
+	# ---- 统计非空遗物 ----
+	var active_relics = []
+	for relic in relics:
+		if relic != null:
+			active_relics.append(relic)
+	
+	print("当前遗物数量：", active_relics.size())
+	
+	if active_relics.is_empty():
 		var label = Label.new()
 		label.text = "无遗物"
 		label.add_theme_font_size_override("font_size", 6)
 		relic_icon_container.add_child(label)
 		return
 	
-	for relic in relics:
-		# 修复：使用 RelicManager 而不是 ItemManager
+	for relic in active_relics:
 		var data = RelicManager.get_relic_data(relic.item_id)
 		if data.is_empty():
 			continue
@@ -2358,7 +2398,7 @@ func _update_relic_icons():
 		label.text = data.get("name", "未知遗物")
 		label.add_theme_font_size_override("font_size", 6)
 		relic_icon_container.add_child(label)
-	print("遗物显示更新完成，共显示 ", relics.size(), " 个")
+	print("遗物显示更新完成，共显示 ", active_relics.size(), " 个")
 
 func show_item_detail(item_id: String):
 	if _detail_popup:

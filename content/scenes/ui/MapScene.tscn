@@ -36,7 +36,7 @@ layout_mode = 2
 theme_override_font_sizes/font_size = 8
 text = "金币: 0"
 
-[node name="RelicContainer" type="VBoxContainer" parent="TopBar" unique_id=677027614]
+[node name="RelicContainer" type="HBoxContainer" parent="TopBar" unique_id=438618297]
 layout_mode = 2
 theme_override_constants/separation = 2
 

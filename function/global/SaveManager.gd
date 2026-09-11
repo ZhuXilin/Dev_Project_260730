@@ -167,10 +167,13 @@ func _build_save_data() -> SaveData:
 				talent_ids.append("")
 		save.party_talents.append(talent_ids)
 	
-	# ---- 全局遗物 ----
+	# ---- 全局遗物（保留空槽为 ""） ----
 	var relics = []
 	for relic in GameState.global_relics:
-		relics.append(relic.item_id)
+		if relic != null:
+			relics.append(relic.item_id)
+		else:
+			relics.append("")   # 空槽
 	save.global_relics = relics
 	
 	# ---- 解锁数据 ----
@@ -284,13 +287,20 @@ func _apply_save_data(save: SaveData):
 		
 		GameState.party.append(data)
 	
-	# ---- 恢复遗物 ----
+	# ---- 恢复遗物（还原 null 空槽） ----
 	GameState.global_relics.clear()
 	for relic_id in save.global_relics:
-		var inst = ItemInstance.new()
-		inst.item_id = relic_id
-		inst.count = 1
-		GameState.global_relics.append(inst)
+		if relic_id != "":
+			var inst = ItemInstance.new()
+			inst.item_id = relic_id
+			inst.count = 1
+			GameState.global_relics.append(inst)
+		else:
+			GameState.global_relics.append(null)
+	
+	# 补全到 MAX_RELIC_SLOTS
+	while GameState.global_relics.size() < 3:
+		GameState.global_relics.append(null)
 	
 	RelicManager.set_unlocked_relics(save.unlocked_relics)
 	Globals.unlocked_units = save.unlocked_units.duplicate()
@@ -304,7 +314,7 @@ func _apply_save_data(save: SaveData):
 	LevelManager.is_map_mode = true
 	Globals.is_map_mode = true
 
-	# ---- ✨ 读档时检测未完成的战斗 ----
+	# ---- 读档时检测未完成的战斗 ----
 	if GameState.current_node_key != "":
 		print("读档：检测到未完成的战斗节点 ", GameState.current_node_key, "，节点可重新进入")
 		GameState.visited_nodes.erase(GameState.current_node_key)

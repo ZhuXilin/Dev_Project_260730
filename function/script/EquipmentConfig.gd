@@ -6,28 +6,26 @@ enum Mode { DEPLOY, MAP, SHOP }
 #  样式常量（统一管理所有按钮和标签的大小/字体）
 # ============================================================
 class Style:
-	# ---- 字体大小 ----
-	const FONT_TINY = 4       # 特技按钮（含可装备单位）
-	const FONT_SMALL = 6      # 武器/防具/商店按钮、标签
-	const FONT_NORMAL = 6     # 标题
-	const FONT_LARGE = 6      # 底部按钮（关闭/确认/重置）
+	const FONT_TINY = 4
+	const FONT_SMALL = 6
+	const FONT_NORMAL = 6
+	const FONT_LARGE = 6
 	
-	# ---- 按钮尺寸 ----
-	const BTN_ITEM_SIZE = Vector2(20, 10)      # 武器/防具
-	const BTN_TALENT_SIZE = Vector2(20, 15)    # 特技槽
-	const BTN_SHOP_SIZE = Vector2(24, 10)      # 商店物品
-	const BTN_LIBRARY_SIZE = Vector2(20, 10)   # 武器库
+	const BTN_ITEM_SIZE = Vector2(20, 10)
+	const BTN_TALENT_SIZE = Vector2(20, 15)
+	const BTN_SHOP_SIZE = Vector2(24, 10)
+	const BTN_LIBRARY_SIZE = Vector2(20, 10)
+	const BTN_RELIC_SIZE = Vector2(24, 12)
 	
-	# ---- 图标尺寸 ----
 	const ICON_SIZE = Vector2(11, 11)
-	
-	# ---- 分隔线 ----
 	const SEPARATOR_TEXT = "──────"
 
 var current_mode: Mode = Mode.DEPLOY
 var selected_units: Array[String] = []
 var target_slot: int = -1
 var party: Array = []
+
+const MAX_RELIC_SLOTS = 3
 
 # ---- 预加载 ShopManager 脚本 ----
 const ShopManagerScript = preload("res://function/script/ShopManager.gd")
@@ -61,6 +59,8 @@ var shop_manager = null
 @onready var tab_bar = $VBoxContainer/MainHBox/RightContainer/TabBar
 @onready var weapon_tab_btn = $VBoxContainer/MainHBox/RightContainer/TabBar/WeaponTabBtn
 @onready var talent_tab_btn = $VBoxContainer/MainHBox/RightContainer/TabBar/TalentTabBtn
+@onready var relic_section: VBoxContainer = $VBoxContainer/MainHBox/LeftInfoColumn/RelicSection
+@onready var relic_container: HBoxContainer = $VBoxContainer/MainHBox/LeftInfoColumn/RelicSection/RelicContainer
 
 # ============================================================
 #  初始化
@@ -129,6 +129,8 @@ func _on_close_pressed():
 # ============================================================
 func _build_ui():
 	print("_build_ui 被调用")
+	# ---- 遗物槽始终显示 ----
+	_build_relic_slots()
 	if not mode_label:
 		print("错误：mode_label 为 null")
 		return
@@ -608,7 +610,12 @@ func _update_tab_style():
 # ============================================================
 func _get_all_target_controls() -> Array[Control]:
 	var targets: Array[Control] = []
-	
+
+	# 遗物槽（所有模式）
+	for btn in relic_container.get_children():
+		if btn is Button:
+			targets.append(btn)
+
 	# 单位列中的所有按钮（武器、防具、特技）
 	for col in unit_container.get_children():
 		for child in col.get_children():
@@ -672,6 +679,13 @@ func _reset_targets_visuals():
 func _find_control_at_position(pos: Vector2) -> Control:
 	const BUFFER = 4
 	
+	# 遗物槽
+	for btn in relic_container.get_children():
+		if btn is Button:
+			var rect = btn.get_global_rect().grow(BUFFER)
+			if rect.has_point(pos):
+				return btn
+				
 	# 单位槽位
 	for col in unit_container.get_children():
 		for child in col.get_children():
@@ -712,6 +726,11 @@ func _get_target_from_position(global_pos: Vector2) -> Control:
 	if discard_zone.visible and discard_zone.get_global_rect().has_point(global_pos):
 		return discard_zone
 
+	# 遗物槽
+	for btn in relic_container.get_children():
+		if btn is Button and btn.get_global_rect().has_point(global_pos):
+			return btn
+
 	# 单位槽位
 	for col in unit_container.get_children():
 		for child in col.get_children():
@@ -742,6 +761,19 @@ func _is_valid_drop(data: Dictionary, target: Control) -> bool:
 	var source_type = data["slot_type"]
 	var target_type = target.get_meta("slot_type", "")
 	var discard = target == discard_zone
+
+	# ===== 遗物槽规则（所有模式） =====
+	if source_type == "relic_slot":
+		# 拖到遗物槽 → 交换
+		if target_type == "relic_slot":
+			return true
+		# 拖到丢弃区 → 丢弃
+		if discard:
+			return true
+		return false
+	# 其他物品拖到遗物槽 → 不允许
+	if target_type == "relic_slot":
+		return false
 
 	# ===== 特技拖到丢弃区 → 允许（用于移除） =====
 	if discard and source_type in ["library_talent", "talent"]:
@@ -816,8 +848,17 @@ func _execute_drop(data: Dictionary, target: Control):
 	var discard = target == discard_zone
 	var source_type = data["slot_type"]
 	var target_type = target.get_meta("slot_type", "")
+	
+	# ===== 遗物槽 =====
+	if source_type == "relic_slot":
+		if discard:
+			_discard_relic(data)
+			return
+		if target_type == "relic_slot":
+			_swap_relics(data, target)
+			return
 
-	# ---- ✨ 特技拖到丢弃区 → 移除 ----
+	# ---- 特技拖到丢弃区 → 移除 ----
 	if discard and source_type == "talent":
 		_execute_talent_remove(data)
 		return
@@ -1170,15 +1211,19 @@ func _start_drag(btn: Button):
 	var item_id = btn.get_meta("item_id", "")
 	var talent_id = btn.get_meta("talent_id", "")
 	
+	# 遗物槽
+	if slot_type == "relic_slot":
+		if item_id == "":
+			return  # 空槽不可拖拽
+		# 继续流程
+	
 	# 特技库和特技槽使用 talent_id 作为标识
 	if slot_type in ["library_talent", "talent"] and talent_id == "":
 		return
 	
-	# 武器库和武器槽使用 item_id
 	if slot_type in ["library_weapon", "weapon"] and item_id == "":
 		return
 	
-	# 商店商品
 	if slot_type == "shop_item" and item_id == "":
 		return
 	
@@ -1190,7 +1235,8 @@ func _start_drag(btn: Button):
 		"item_id": item_id,
 		"source_control": btn,
 		"shop_index": btn.get_meta("shop_index", -1),
-		"talent_id": talent_id
+		"talent_id": talent_id,
+		"relic_index": btn.get_meta("relic_index", -1)
 	}
 	
 	if slot_type == "shop_item":
@@ -1661,12 +1707,12 @@ func _create_label(text: String, font_size: int, center: bool = true) -> Label:
 #  详情显示（统一入口）
 # ============================================================
 func _show_detail_in_zone(text: String):
-	var detail_label = $VBoxContainer/MainHBox/DetailZone/DetailLabel
+	var detail_label = $VBoxContainer/MainHBox/LeftInfoColumn/DetailZone/DetailLabel
 	if detail_label:
 		detail_label.text = text
 
 func _clear_detail_zone():
-	var detail_label = $VBoxContainer/MainHBox/DetailZone/DetailLabel
+	var detail_label = $VBoxContainer/MainHBox/LeftInfoColumn/DetailZone/DetailLabel
 	if detail_label:
 		detail_label.text = "选中物品详情"
 
@@ -1684,3 +1730,110 @@ func _execute_talent_remove(data: Dictionary):
 	_sync_all()
 	_refresh_after_talent_change()
 	print("特技已移除（单位 %d 槽位 %d）" % [unit_idx, slot_idx])
+
+# ============================================================
+#  遗物槽构建（所有模式都显示）
+# ============================================================
+func _build_relic_slots():
+	for child in relic_container.get_children():
+		child.queue_free()
+	
+	var relics = GameState.get_global_relics()
+	
+	for i in range(MAX_RELIC_SLOTS):
+		var inst = relics[i] if i < relics.size() else null
+		var btn = _create_relic_button(inst, i)
+		relic_container.add_child(btn)
+
+func _create_relic_button(inst: ItemInstance, slot_index: int) -> Button:
+	var btn = _create_styled_button(Style.FONT_SMALL, Style.BTN_RELIC_SIZE)
+	btn.clip_text = true
+	btn.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	
+	btn.set_meta("slot_type", "relic_slot")
+	btn.set_meta("relic_index", slot_index)
+	
+	# ---- 处理 null（空槽）：显示"空"，白色（与其他槽位一致） ----
+	if inst != null:
+		var data = RelicManager.get_relic_data(inst.item_id)
+		if not data.is_empty():
+			btn.text = data.get("name", "?")
+			btn.set_meta("item_id", inst.item_id)
+			btn.mouse_entered.connect(_on_relic_hover_entered.bind(inst.item_id))
+			btn.mouse_exited.connect(_on_relic_hover_exited)
+		else:
+			btn.text = "?"
+			btn.set_meta("item_id", "")
+	else:
+		btn.text = "空"
+		# ❌ 删除 modulate = Color(0.5, 0.5, 0.5, 1)，保持默认白色
+		btn.set_meta("item_id", "")
+	
+	return btn
+
+# ============================================================
+#  遗物操作
+# ============================================================
+func _swap_relics(data: Dictionary, target: Control):
+	var src_idx = data.get("relic_index", -1)
+	var tgt_idx = target.get_meta("relic_index", -1)
+	if src_idx == -1 or tgt_idx == -1 or src_idx == tgt_idx:
+		return
+	
+	var relics = GameState.global_relics
+	if src_idx >= relics.size() or tgt_idx >= relics.size():
+		return
+	
+	# ---- 直接交换（含 null） ----
+	var temp = relics[src_idx]
+	relics[src_idx] = relics[tgt_idx]
+	relics[tgt_idx] = temp
+	
+	_sync_all()
+	_refresh_after_relic_change()
+	print("遗物交换: ", src_idx, " <-> ", tgt_idx)
+
+func _discard_relic(data: Dictionary):
+	var idx = data.get("relic_index", -1)
+	if idx == -1:
+		return
+	
+	var relics = GameState.global_relics
+	if idx >= relics.size():
+		return
+	
+	# ---- 置 null，不缩容 ----
+	relics[idx] = null
+	
+	_sync_all()
+	_refresh_after_relic_change()
+	print("遗物槽 ", idx, " 已清空")
+
+func _refresh_after_relic_change():
+	# 刷新遗物槽
+	_build_relic_slots()
+	# 刷新单位列
+	_clear_container(unit_container)
+	_build_unit_columns()
+	# 刷新右侧内容
+	if current_mode == Mode.DEPLOY:
+		_clear_container(shop_container)
+		if current_tab == "weapon":
+			_build_weapon_grid(shop_container)
+		else:
+			_build_talent_grid(shop_container)
+		shop_container.visible = true
+	elif current_mode == Mode.MAP:
+		_clear_container(shop_container)
+		_build_talent_grid(shop_container)
+		shop_container.visible = true
+	elif current_mode == Mode.SHOP:
+		_build_shop_items()
+
+func _on_relic_hover_entered(relic_id: String):
+	var data = RelicManager.get_relic_data(relic_id)
+	if not data.is_empty():
+		_show_relic_detail_in_zone(data)
+
+func _on_relic_hover_exited():
+	_clear_detail_zone()
