@@ -27,6 +27,9 @@ var _detail_popup = null
 func _ready():
 	print("=== MapScene _ready 开始 ===")
 	
+	# ---- ✨ 确保地图模式标志为 true ----
+	Globals.is_map_mode = true
+	
 	# ---- 调试：打印 GameState.party 装备状态 ----
 	print("=== MapScene: GameState.party 装备状态 ===")
 	for i in range(GameState.party.size()):
@@ -40,11 +43,15 @@ func _ready():
 	print("==========================================")
 	
 	print("当前 temp_gold=", GameState.temp_gold, " temp_soul=", GameState.temp_soul)
+	print("visited_nodes: ", GameState.visited_nodes)
+	print("current_node_key: ", GameState.current_node_key)
+	print("map_snapshot 节点数: ", GameState.map_snapshot.get("nodes", []).size() if not GameState.map_snapshot.is_empty() else 0)
 
 	if GameState.party.is_empty():
 		print("队伍为空，返回营地")
 		GameState.cached_map_level_data = null
 		GameState.current_map_data = null
+		GameState.map_snapshot.clear()
 		GameState.interrupt_state = 1
 		_save_game()
 		get_tree().change_scene_to_file("res://content/scenes/ui/Camp.tscn")
@@ -58,13 +65,6 @@ func _ready():
 	# 同步天数
 	LevelManager.current_day = GameState.current_day - 1
 
-	# ---- ✨ 检测上次战斗是否未完成（读档时） ----
-	# 如果 current_node_key 非空，说明玩家在战斗中强制退出，节点应可重新进入
-	if GameState.current_node_key != "":
-		print("检测到上次战斗未完成，节点可重新进入: ", GameState.current_node_key)
-		GameState.visited_nodes.erase(GameState.current_node_key)
-		GameState.current_node_key = ""
-
 	# ---- 1. 优先处理 Boss 胜利后的天数推进 ----
 	if GameState.should_advance_day:
 		GameState.should_advance_day = false
@@ -76,6 +76,7 @@ func _ready():
 			# 三天完成，合并资源并重置
 			GameState.finish_cycle()
 			GameState.reset_for_new_cycle()
+			GameState.map_snapshot.clear()
 			GameState.interrupt_state = 1
 			_save_game()
 			Globals.show_confirm(
@@ -88,11 +89,20 @@ func _ready():
 				false
 			)
 			return
+		
+		# ---- 进入新的一天 ----
 		current_day = LevelManager.current_day + 1
 		GameState.current_day = current_day
 		GameState.finish_day()
+		
+		# ---- ✨ 新的一天，清空旧的地图快照 ----
+		GameState.map_snapshot.clear()
+		print("新的一天，清空地图快照")
+		
 		level_list = LevelManager.get_current_day_levels()
 		print("新的一天，当前 day=", current_day, " 关卡数：", level_list.size())
+		
+		# ---- 生成新一天的地图（会同时保存新的快照） ----
 		generate_map(current_day)
 		_save_game()
 		_setup_ui()
@@ -112,22 +122,14 @@ func _ready():
 		default_map.map_name = "默认战斗"
 		level_list.append(default_map)
 
-	# ---- 强制重新生成地图（不再使用缓存） ----
-	print("重新生成地图，天数：", current_day)
-	generate_map(current_day)
-	
-	# ---- 应用已访问状态 ----
-	_apply_visited_state()
-	_draw_connections()
-	_create_node_buttons()
-	if map_data and map_data.root_node:
-		_update_availability(map_data.root_node)
+	# ---- ✨ 优先从快照恢复地图，否则生成新地图 ----
+	if not GameState.map_snapshot.is_empty() \
+			and GameState.map_snapshot.get("day", -1) == current_day:
+		print("从快照恢复地图，天数：", current_day)
+		_restore_map_from_snapshot()
 	else:
-		_update_buttons()
-	
-	if GameState.resume_node_id != "":
-		_select_node_by_id(GameState.resume_node_id)
-		GameState.resume_node_id = ""
+		print("生成新地图，天数：", current_day)
+		generate_map(current_day)
 
 	# 中断状态设为地图
 	GameState.interrupt_state = 2
@@ -283,13 +285,14 @@ func _on_abandon_confirmed():
 func _on_battle_completed(winning_team: int, is_boss: bool = false):
 	print("=== MapScene._on_battle_completed 被触发 ===")
 	print("winning_team=", winning_team, " is_boss=", is_boss)
-
+	
 	if not is_boss and GameState.current_map_data:
 		is_boss = (GameState.current_map_data.node_type == MapNode.NodeType.BOSS)
 
 	if winning_team == 0:
 		update_all_displays()
 		_save_game()
+		print("MapScene._on_battle_completed: 数据已保存")
 
 		if is_boss:
 			print("检测到 Boss 胜利，推进天数")
@@ -335,7 +338,7 @@ func _on_battle_completed(winning_team: int, is_boss: bool = false):
 			_update_availability(map_data.root_node)
 			_save_game()
 	else:
-		print("战斗失败，可重新尝试")
+		print("战斗失败")
 
 func _on_cycle_complete():
 	GameState.interrupt_state = 1
@@ -436,6 +439,11 @@ func generate_map(day: int):
 	map_data = MapGenerator.generate_day(day, level_list)
 	GameState.cached_map_level_data = map_data
 	GameState.cached_day = day
+	
+	# ---- ✨ 生成后立即保存快照 ----
+	GameState.map_snapshot = MapSnapshot.serialize(map_data)
+	print("地图快照已保存，节点数：", GameState.map_snapshot.get("nodes", []).size())
+	
 	_apply_visited_state()
 	_draw_connections()
 	_create_node_buttons()
@@ -444,7 +452,7 @@ func generate_map(day: int):
 	update_all_displays()
 	_save_game()
 	print("=== generate_map 结束，temp_gold=", GameState.temp_gold)
-	
+
 func _setup_ui():
 	Globals.reset_battle_turn()
 	info_panel.visible = false
@@ -623,3 +631,28 @@ func _apply_unified_font_size():
 		soul_label.add_theme_font_size_override("font_size", FONT_SIZE)
 	if gold_label:
 		gold_label.add_theme_font_size_override("font_size", FONT_SIZE)
+
+func _restore_map_from_snapshot():
+	map_data = MapSnapshot.deserialize(GameState.map_snapshot)
+	if not map_data:
+		print("快照恢复失败，生成新地图")
+		generate_map(current_day)
+		return
+	
+	GameState.cached_map_level_data = map_data
+	GameState.cached_day = current_day
+	_apply_visited_state()
+	_draw_connections()
+	_create_node_buttons()
+	if map_data and map_data.root_node:
+		_update_availability(map_data.root_node)
+	else:
+		_update_buttons()
+	
+	if GameState.resume_node_id != "":
+		_select_node_by_id(GameState.resume_node_id)
+		GameState.resume_node_id = ""
+	
+	day_label.text = "第 %d 天" % current_day
+	update_all_displays()
+	_save_game()

@@ -19,6 +19,9 @@ var current_map_data: MapData = null     # 当前正在战斗的地图数据
 var should_advance_day: bool = false     # Boss胜利后推进天数的标志
 var resume_node_id: String = ""          # 加载存档后要定位的节点ID
 
+# ---- 地图快照（当前天的地图骨架） ----
+var map_snapshot: Dictionary = {}
+
 # ---- 资源 ----
 var soul: int = 0          # 永久魂
 var temp_soul: int = 0     # 本轮临时魂
@@ -97,6 +100,7 @@ func reset_progress():
 	current_map_data = null
 	last_selected_node_type = -1
 	should_advance_day = false
+	map_snapshot.clear()
 
 func start_new_cycle():
 	temp_soul = 0
@@ -140,6 +144,7 @@ func reset_for_new_cycle():
 	interrupt_state = 0
 	global_relics.clear()
 	current_faction = ""
+	map_snapshot.clear()
 
 func reset_all():
 	party.clear()
@@ -160,6 +165,7 @@ func reset_all():
 	interrupt_state = 0
 	global_relics.clear()
 	current_faction = ""
+	map_snapshot.clear()
 
 # ============================================================
 #  魂与装备

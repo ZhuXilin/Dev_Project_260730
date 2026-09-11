@@ -118,11 +118,10 @@ func get_map_for_node_type(node_type: int, main_unit: String = "") -> MapData:
 
 func advance_day() -> bool:
 	current_day += 1
-	print("advance_day: current_day=", current_day)
 	if current_day >= 3:
 		all_days_completed.emit()
 		return false
-	GameState.visited_nodes.clear()
+	GameState.visited_nodes.clear()   # ← 清空，正确
 	GameState.cached_map_level_data = null
 	GameState.cached_day = -1
 	return true

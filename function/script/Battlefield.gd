@@ -837,15 +837,17 @@ func _on_wait_btn_pressed():
 	InputManager.on_wait_button_pressed()
 
 func _on_request_show_victory(winning_team: int):
+	print("=== _on_request_show_victory 被调用, _victory_processed: ", _victory_processed)
 	# ---- 等待所有 UI 结束 ----
 	while _is_any_ui_active():
 		await get_tree().process_frame
-	
+
 	# ---- 防止重复调用 ----
 	if _victory_processed:
 		print("胜利已处理，跳过重复调用")
 		return
-	_victory_processed = true   # ← 立即锁定
+	_victory_processed = true
+	print("胜利处理开始")
 
 	var tree = get_tree()
 	if not tree:
@@ -916,17 +918,8 @@ func _on_request_show_victory(winning_team: int):
 			]
 
 			if not is_non_combat_node:
-				# ---- 检查是否为龙族Boss ----
-				var is_dragon_boss = false
-				if is_boss:
-					for unit in UnitManager.unit_list:
-						if unit.unit_stats.team_id == 1 and unit.hit_points > 0:
-							if unit.unit_stats.unit_name == "dragonborn":
-								is_dragon_boss = true
-								break
-				
 				# ---- 获取完整奖励 ----
-				var reward = EconomyManager.get_battle_reward(current_node_type, is_boss, is_dragon_boss)
+				var reward = EconomyManager.get_battle_reward(current_node_type, is_boss)
 				var gold_gain = reward.gold
 				var soul_gain = reward.soul
 				var materials = reward.materials
@@ -1859,6 +1852,7 @@ func _on_map_victory_continue():
 	print("reward_materials: ", GameState.current_reward_materials)
 	print("reward_items: ", GameState.reward_items)
 	print("current_node_key: ", GameState.current_node_key)
+	print("current_node_type: ", current_node_type)
 	
 	var reward_gold = GameState.current_reward_gold
 	var reward_soul = GameState.current_reward_soul
@@ -1911,6 +1905,15 @@ func _on_map_victory_continue():
 		cursor.visible = true
 	else:
 		print("无奖励，直接返回地图")
+	
+	# ---- ✨ 结算确认后，判断是否为 Boss，设置 should_advance_day ----
+	var is_boss = (current_node_type == MapNode.NodeType.BOSS)
+	if not is_boss and GameState.current_map_data:
+		is_boss = (GameState.current_map_data.node_type == MapNode.NodeType.BOSS)
+	
+	if is_boss:
+		GameState.should_advance_day = true
+		print("Boss 胜利，设置 should_advance_day = true")
 	
 	# ---- ✨ 结算确认后，把当前节点标记为已访问 ----
 	if GameState.current_node_key != "":

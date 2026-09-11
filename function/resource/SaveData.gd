@@ -67,6 +67,9 @@ const CURRENT_VERSION = 2
 @export var unlocked_talents: Array = []
 @export var party_talents: Array = []
 
+# ---- 地图快照（保存节点布局，不含循环引用） ----
+@export var map_snapshot: Dictionary = {}
+
 func compute_checksum() -> String:
 	var data = {
 		"music_volume": music_volume,
@@ -102,5 +105,6 @@ func compute_checksum() -> String:
 		"unlocked_talents": unlocked_talents,
 		"party_talents": party_talents,
 		"current_node_key": current_node_key,
+		"map_snapshot": map_snapshot,
 	}
 	return JSON.stringify(data, "  ").sha256_text()

@@ -32,8 +32,11 @@ func generate_shop_items():
 	var pool = []
 	for item_id in Globals.unlocked_items:
 		var data = ItemManager.get_item_data(item_id)
-		if data and data.type in ["weapon", "armor"] and data.price > 0:
-			pool.append({"item_data": data, "price": data.price})
+		if data:
+			print("商店池: ", item_id, " type=", data.type, " price=", data.price)
+			if data.type in ["weapon", "armor"] and data.price > 0:
+				pool.append({"item_data": data, "price": data.price})
+
 	for relic_id in RelicManager.get_unlocked_relics():
 		var relic_dict = RelicManager.get_relic_data(relic_id)
 		if not relic_dict.is_empty() and relic_dict.has("price"):

@@ -127,6 +127,7 @@ func _build_save_data() -> SaveData:
 	save.battlefield_data = GameState.battlefield_data
 	save.current_faction = GameState.current_faction
 	save.current_node_key = GameState.current_node_key
+	save.map_snapshot = GameState.map_snapshot.duplicate(true)
 	
 	var sorted_visited = []
 	for key in GameState.visited_nodes.keys():
@@ -205,6 +206,7 @@ func _apply_save_data(save: SaveData):
 	GameState.battlefield_data = save.battlefield_data
 	GameState.current_faction = save.current_faction
 	GameState.current_node_key = save.current_node_key
+	GameState.map_snapshot = save.map_snapshot.duplicate(true)
 	
 	# ---- 恢复 visited_nodes ----
 	GameState.visited_nodes.clear()
@@ -300,6 +302,13 @@ func _apply_save_data(save: SaveData):
 	
 	LevelManager.current_level_index = 0
 	LevelManager.is_map_mode = true
+	Globals.is_map_mode = true
+
+	# ---- ✨ 读档时检测未完成的战斗 ----
+	if GameState.current_node_key != "":
+		print("读档：检测到未完成的战斗节点 ", GameState.current_node_key, "，节点可重新进入")
+		GameState.visited_nodes.erase(GameState.current_node_key)
+		GameState.current_node_key = ""
 
 # ===== 校验 =====
 func _validate_save(save: SaveData) -> bool:

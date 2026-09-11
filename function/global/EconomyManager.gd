@@ -2,15 +2,15 @@ extends Node
 
 # ---- 战斗奖励配置 ----
 const REWARD_GOLD = {
-	MapNode.NodeType.START: 500,
-	MapNode.NodeType.NORMAL: 500,
-	MapNode.NodeType.ELITE: 1000,
-	MapNode.NodeType.BOSS: 2000,
+	MapNode.NodeType.START: 100,
+	MapNode.NodeType.NORMAL: 200,
+	MapNode.NodeType.ELITE: 400,
+	MapNode.NodeType.BOSS: 1000,
 }
 
 # ---- 材料奖励配置 ----
 const REWARD_MATERIALS = {
-	MapNode.NodeType.START: { "粗铁": 1 }, 
+	MapNode.NodeType.START: { "粗铁": 1 },
 	MapNode.NodeType.NORMAL: { "粗铁": 1 },
 	MapNode.NodeType.ELITE: { "精钢": 1 },
 	MapNode.NodeType.BOSS: { "秘银": 1 },
@@ -19,21 +19,11 @@ const REWARD_MATERIALS = {
 # ---- Boss奖励 ----
 const REWARD_SOUL_BOSS = 1   # Boss 额外奖励魂
 
-# ---- 龙族Boss材料 ----
-const DRAGON_MATERIAL = { "龙鳞": 1 }
-
-# ---- 获取战斗奖励 ----
-func get_battle_reward(node_type: int, is_boss: bool, is_dragon_boss: bool = false) -> Dictionary:
+# ---- 获取战斗奖励（已移除龙族Boss参数） ----
+func get_battle_reward(node_type: int, is_boss: bool) -> Dictionary:
 	var gold = REWARD_GOLD.get(node_type, 0)
 	var soul = REWARD_SOUL_BOSS if is_boss else 0
 	var materials = REWARD_MATERIALS.get(node_type, {}).duplicate()
-	
-	# 如果是龙族Boss，替换为龙鳞
-	if is_dragon_boss and is_boss:
-		materials = DRAGON_MATERIAL.duplicate()
-	elif is_boss and node_type == MapNode.NodeType.BOSS:
-		# 普通Boss掉秘银（已有）
-		pass
 	
 	return {
 		"gold": gold,
