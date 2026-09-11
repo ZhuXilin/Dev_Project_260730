@@ -723,37 +723,49 @@ func _find_control_at_position(pos: Vector2) -> Control:
 	return null
 
 func _get_target_from_position(global_pos: Vector2) -> Control:
+	const BUFFER = 4   # ← 新增容差
+	
 	if discard_zone.visible and discard_zone.get_global_rect().has_point(global_pos):
 		return discard_zone
 
-	# 遗物槽
-	for btn in relic_container.get_children():
-		if btn is Button and btn.get_global_rect().has_point(global_pos):
-			return btn
-
-	# 单位槽位
+	# 单位槽位（加容差）
 	for col in unit_container.get_children():
 		for child in col.get_children():
-			if child is Button and child.get_global_rect().has_point(global_pos):
-				return child
+			if child is Button:
+				var rect = child.get_global_rect().grow(BUFFER)
+				if rect.has_point(global_pos):
+					return child
 
-	# DEPLOY 模式：右侧 ShopContainer
+	# 遗物槽
+	for btn in relic_container.get_children():
+		if btn is Button:
+			var rect = btn.get_global_rect().grow(BUFFER)
+			if rect.has_point(global_pos):
+				return btn
+
+	# DEPLOY 模式
 	if current_mode == Mode.DEPLOY and shop_container.visible:
 		for btn in shop_container.get_children():
-			if btn is Button and not btn.disabled and btn.get_global_rect().has_point(global_pos):
-				return btn
+			if btn is Button and not btn.disabled:
+				var rect = btn.get_global_rect().grow(BUFFER)
+				if rect.has_point(global_pos):
+					return btn
 
-	# MAP 模式：右侧 ShopContainer（特技库）
+	# MAP 模式
 	if current_mode == Mode.MAP and shop_container.visible:
 		for btn in shop_container.get_children():
-			if btn is Button and not btn.disabled and btn.get_global_rect().has_point(global_pos):
-				return btn
+			if btn is Button and not btn.disabled:
+				var rect = btn.get_global_rect().grow(BUFFER)
+				if rect.has_point(global_pos):
+					return btn
 
 	# SHOP 模式
 	if current_mode == Mode.SHOP and shop_container.visible:
 		for btn in shop_container.get_children():
-			if btn is Button and not btn.disabled and btn.get_global_rect().has_point(global_pos):
-				return btn
+			if btn is Button and not btn.disabled:
+				var rect = btn.get_global_rect().grow(BUFFER)
+				if rect.has_point(global_pos):
+					return btn
 
 	return null
 
@@ -1082,23 +1094,43 @@ func _discard_talent(data: Dictionary):
 		_refresh_after_talent_change()
 
 func _buy_shop_item(data: Dictionary, target: Control):
+	print("=== _buy_shop_item 开始 ===")
+	print("  data.slot_type: ", data.get("slot_type", ""))
+	print("  data.shop_index: ", data.get("shop_index", -1))
+	print("  data.item_id: ", data.get("item_id", ""))
+	
+	if target == null:
+		print("  失败：target 为 null")
+		return
+	
+	print("  target.name: ", target.name)
+	print("  target.slot_type: ", target.get_meta("slot_type", ""))
+	print("  target.unit_idx: ", target.get_meta("unit_idx", -1))
+	print("  target.slot_idx: ", target.get_meta("slot_idx", -1))
+	print("  target.item_id: ", target.get_meta("item_id", ""))
+	
 	if not shop_manager:
+		print("  失败：shop_manager 为空")
 		return
 	
 	var shop_index = data.get("shop_index", -1)
 	if shop_index == -1:
+		print("  失败：shop_index == -1")
 		return
 	
 	var item_data = data.get("item_data")
 	if not item_data:
+		print("  失败：item_data 为空")
 		return
+	print("  item_data.id: ", item_data.id, " type: ", item_data.type)
 	
 	var target_unit_idx = target.get_meta("unit_idx", -1)
 	var target_slot_idx = target.get_meta("slot_idx", -1)
 	
 	var result = shop_manager.buy_shop_item(shop_index)
+	print("  购买结果: ", result)
 	if not result["success"]:
-		print("购买失败: ", result.get("reason", "unknown"))
+		print("  失败：", result.get("reason", "unknown"))
 		return
 	
 	var inst = ItemInstance.new()
@@ -1108,26 +1140,22 @@ func _buy_shop_item(data: Dictionary, target: Control):
 	if item_data.type == "weapon":
 		if target_unit_idx != -1:
 			party[target_unit_idx].weapon_slot = inst
-			print("购买了武器并装备到单位: ", item_data.name)
+			print("  成功：武器装备到单位 ", target_unit_idx, "：", item_data.name)
 		else:
 			Globals.unlock_item(item_data.id)
-			
+			print("  警告：target_unit_idx 为 -1，只解锁未装备")
 	elif item_data.type == "armor":
 		if target_unit_idx != -1 and target_slot_idx != -1:
 			party[target_unit_idx].armor_slots[target_slot_idx] = inst
+			print("  成功：防具装备到单位 ", target_unit_idx, " 槽 ", target_slot_idx)
 		else:
-			var equipped = false
-			if target_unit_idx != -1:
-				for i in range(party[target_unit_idx].armor_slots.size()):
-					if party[target_unit_idx].armor_slots[i] == null:
-						party[target_unit_idx].armor_slots[i] = inst
-						equipped = true
-						break
-				if not equipped:
-					party[target_unit_idx].armor_slots[party[target_unit_idx].armor_slots.size() - 1] = inst
+			print("  警告：target_unit_idx 或 target_slot_idx 为 -1")
 	
 	_sync_all()
 	_update_gold_display()
+	
+	# ---- 确保 UI 重建 ----
+	call_deferred("_build_ui")
 
 func _library_to_weapon(data: Dictionary, target: Control):
 	var item_id = data["item_id"]
