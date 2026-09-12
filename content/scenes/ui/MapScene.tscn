@@ -36,10 +36,6 @@ layout_mode = 2
 theme_override_font_sizes/font_size = 8
 text = "金币: 0"
 
-[node name="RelicContainer" type="HBoxContainer" parent="TopBar" unique_id=438618297]
-layout_mode = 2
-theme_override_constants/separation = 2
-
 [node name="PermanentResourcesLabel" type="Label" parent="TopBar" unique_id=2046018790]
 modulate = Color(0.7, 0.7, 0.7, 1)
 layout_mode = 2

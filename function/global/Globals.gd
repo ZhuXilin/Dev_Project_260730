@@ -242,6 +242,14 @@ func get_unlocked_items() -> Array:
 #  确认对话框
 # ============================================================
 func show_confirm(parent: Node, message: String, confirm_text: String = "确定", cancel_text: String = "取消", confirm_cb: Callable = Callable(), cancel_cb: Callable = Callable(), show_cancel: bool = true):
+	# ---- 防重复：parent 下已有 ConfirmUI 则忽略 ----
+	for child in parent.get_children():
+		if child is CanvasLayer:
+			var script = child.get_script()
+			if script and script.resource_path.ends_with("ConfirmUI.gd"):
+				print("show_confirm: 已存在 ConfirmUI，忽略重复请求")
+				return
+
 	print("show_confirm 被调用，加载 ConfirmUI")
 	var ui = load("res://content/scenes/ui/ConfirmUI.tscn")
 	if not ui:

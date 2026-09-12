@@ -21,7 +21,6 @@ var _detail_popup = null
 @onready var day_label = $TopBar/DayLabel
 @onready var soul_label = $TopBar/SoulLabel
 @onready var gold_label = $TopBar/GoldLabel
-@onready var relic_container = $TopBar/RelicContainer
 @onready var materials_container = $TopBar/MaterialsContainer
 
 func _ready():
@@ -143,6 +142,15 @@ func _ready():
 	add_child(_detail_popup)
 	_detail_popup.visible = false
 
+func _input(event: InputEvent):
+	if event is InputEventKey and event.pressed:
+		# 调试：+1000 金币
+		if event.keycode == KEY_5:
+			EconomyManager.add_temp_gold(1000)
+			update_all_displays()
+			print("调试：+1000 金币，当前 ", GameState.temp_gold)
+			return
+
 func _save_game():
 	if Globals.pending_save_slot != -1:
 		SaveManager.save_game(Globals.pending_save_slot)
@@ -174,9 +182,6 @@ func update_all_displays():
 	# ---- 更新魂 ----
 	if soul_label:
 		soul_label.text = "魂: " + str(EconomyManager.get_soul() + EconomyManager.get_temp_soul())
-	
-	# ---- 更新遗物（局内资源） ----
-	_update_relic_display()
 	
 	# ---- 更新材料（永久资源） ----
 	_update_materials_display()
@@ -215,55 +220,6 @@ func _get_material_color(material_name: String) -> Color:
 		"秘银": return Color(0.3, 0.8, 0.7)
 		"龙鳞": return Color(0.8, 0.6, 0.1)
 		_: return Color.WHITE
-
-# ---- 兜底：确保默认遗物存在 ----
-func _ensure_default_relics():
-	if GameState.global_relics.is_empty() and not Globals.unlocked_relics.is_empty():
-		print("MapScene 兜底：遗物为空，重新填充默认遗物")
-		for relic_id in Globals.unlocked_relics:
-			var inst = ItemInstance.new()
-			inst.item_id = relic_id
-			inst.count = 1
-			GameState.global_relics.append(inst)
-			print("自动添加遗物：", relic_id)
-
-func _update_relic_display():
-	for child in relic_container.get_children():
-		child.queue_free()
-	
-	var relics = GameState.get_global_relics()
-	
-	# ---- 统计非空遗物 ----
-	var active_relics = []
-	for relic in relics:
-		if relic != null:   # ← 跳过 null
-			active_relics.append(relic)
-	
-	if active_relics.is_empty():
-		var label = Label.new()
-		label.text = "遗物: 无"
-		label.add_theme_font_size_override("font_size", FONT_SIZE)
-		label.modulate = Color(0.6, 0.6, 0.6)
-		relic_container.add_child(label)
-		return
-	
-	for relic in active_relics:
-		var data = RelicManager.get_relic_data(relic.item_id)
-		if data.is_empty():
-			continue
-		var label = Label.new()
-		label.text = "遗物: " + data.get("name", "未知遗物")
-		label.add_theme_font_size_override("font_size", FONT_SIZE)
-		label.mouse_filter = Control.MOUSE_FILTER_STOP
-		label.mouse_entered.connect(_on_relic_hover_entered.bind(relic.item_id))
-		label.mouse_exited.connect(_on_relic_hover_exited)
-		relic_container.add_child(label)
-
-func _on_relic_hover_entered(item_id: String):
-	show_item_detail(item_id)
-
-func _on_relic_hover_exited():
-	hide_item_detail()
 
 func update_gold_display():
 	gold_label.text = "金币:" + str(EconomyManager.get_temp_gold())

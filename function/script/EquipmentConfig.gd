@@ -24,6 +24,8 @@ var current_mode: Mode = Mode.DEPLOY
 var selected_units: Array[String] = []
 var target_slot: int = -1
 var party: Array = []
+var _is_building_ui: bool = false
+var _build_ui_pending: bool = false
 
 const MAX_RELIC_SLOTS = 3
 
@@ -109,7 +111,7 @@ func init(units: Array[String], slot: int, mode: Mode):
 # ---- 商店信号处理 ----
 func _on_shop_updated():
 	_update_gold_display()
-	call_deferred("_build_ui")
+	_schedule_build_ui()
 
 # ---- 按钮回调 ----
 func _on_close_pressed():
@@ -128,118 +130,119 @@ func _on_close_pressed():
 #  UI 构建
 # ============================================================
 func _build_ui():
-	print("_build_ui 被调用")
-	# ---- 遗物槽始终显示 ----
+	if _is_building_ui:
+		print("_build_ui 被跳过（重入保护）")
+		return
+	_is_building_ui = true
+	_build_ui_inner()
+	_is_building_ui = false
+
+func _build_ui_inner():
+	print("[A] 开始")
+	
 	_build_relic_slots()
+	print("[B] _build_relic_slots 完成")
+	
 	if not mode_label:
-		print("错误：mode_label 为 null")
+		print("[X] mode_label 为 null")
 		return
 	
 	_update_gold_display()
+	print("[C] _update_gold_display 完成")
 	
-	# 默认隐藏所有容器
 	shop_container.visible = false
 	discard_zone.visible = false
 	reset_btn.visible = false
 	tab_bar.visible = false
-	right_container.visible = true   # 右侧区域始终可见
+	right_container.visible = true
 	
 	var left_column = $VBoxContainer/MainHBox/LeftVBox
 	if left_column:
 		left_column.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	
+	print("[D] 进入 match，current_mode = ", current_mode)
+	
 	match current_mode:
 		Mode.DEPLOY:
+			print("[E1] DEPLOY 开始")
 			mode_label.text = "装备配置 - 出战准备"
 			close_btn.text = "返回"
 			confirm_btn.visible = true
 			confirm_btn.text = "出发"
 			gold_label.visible = false
 			confirm_btn.disabled = false
-			
-			# ---- 显示标签栏（武器库/特技库切换） ----
 			tab_bar.visible = true
 			weapon_tab_btn.visible = true
 			talent_tab_btn.visible = true
-			
-			# ---- 默认选中武器库 ----
+			talent_tab_btn.disabled = false
+			talent_tab_btn.text = "特技库"
 			if current_tab == "":
 				current_tab = "weapon"
 			_update_tab_style()
-			
-			# ---- 清空并填充内容（不含标题） ----
-			_clear_container(shop_container)
 			if current_tab == "weapon":
 				_build_weapon_grid(shop_container)
 			else:
-				_build_talent_grid(shop_container)   # 不创建标题，由标签按钮提供
+				_build_talent_grid(shop_container)
 			shop_container.visible = true
-			
-			# ---- 隐藏商店相关 ----
 			reset_btn.visible = false
 			discard_zone.visible = false
-			
 			if left_column:
 				left_column.size_flags_vertical = Control.SIZE_EXPAND_FILL
+			print("[E1] DEPLOY 完成")
 		
 		Mode.MAP:
+			print("[E2] MAP 开始")
 			mode_label.text = "装备配置 - 队伍管理"
 			close_btn.text = "返回"
 			confirm_btn.visible = false
 			gold_label.visible = false
-			
-			# ---- 显示标签栏（仅显示特技库标题，不显示切换按钮） ----
 			tab_bar.visible = true
 			weapon_tab_btn.visible = false
 			talent_tab_btn.visible = true
 			talent_tab_btn.disabled = true
 			talent_tab_btn.text = "特技库"
-			talent_tab_btn.modulate = Color.WHITE   # 确保标题颜色正常
-			
-			# ---- 清空并填充特技库（不带标题，由标签栏提供） ----
-			_clear_container(shop_container)
-			_build_talent_grid(shop_container)   # 使用无标题版本
+			talent_tab_btn.modulate = Color.WHITE
+			_build_talent_grid(shop_container)
 			shop_container.visible = true
-			
-			# ---- 显示丢弃区 ----
 			discard_zone.visible = true
 			reset_btn.visible = false
-			
 			if left_column:
 				left_column.size_flags_vertical = Control.SIZE_EXPAND_FILL
+			print("[E2] MAP 完成")
 		
 		Mode.SHOP:
+			print("[E3] SHOP 开始")
 			mode_label.text = "商店"
 			close_btn.text = "关闭"
 			confirm_btn.visible = false
 			gold_label.visible = true
-			
-			# ---- 隐藏标签栏 ----
 			tab_bar.visible = false
 			
-			# ---- 清空并填充商店 ----
-			_clear_container(shop_container)
+			print("[E3.1] 准备 _build_shop_items")
 			_build_shop_items()
+			print("[E3.2] _build_shop_items 完成")
+			
 			shop_container.visible = true
-			
-			# ---- 显示商店相关 ----
 			reset_btn.visible = true
-			reset_btn.text = "重置商店 (" + str(shop_manager.get_reset_cost()) + "G)"
+			if shop_manager:
+				reset_btn.text = "重置商店 (" + str(shop_manager.get_reset_cost()) + "G)"
 			discard_zone.visible = true
-			
 			if left_column:
 				left_column.size_flags_vertical = Control.SIZE_EXPAND_FILL
+			print("[E3.3] SHOP 完成")
 	
+	print("[F] 字体设置开始")
 	close_btn.add_theme_font_size_override("font_size", Style.FONT_LARGE)
 	confirm_btn.add_theme_font_size_override("font_size", Style.FONT_LARGE)
 	reset_btn.add_theme_font_size_override("font_size", Style.FONT_LARGE)
+	print("[F] 字体设置完成")
 	
-	# ---- 构建单位列 ----
-	_clear_container(unit_container)
+	print("[G] _build_unit_columns 开始")
 	_build_unit_columns()
+	print("[H] _build_unit_columns 完成")
 	
 	visible = true
-	print("_build_ui 完成，面板可见：", visible)
+	print("[I] 全部完成")
 
 func _update_gold_display():
 	if gold_label:
@@ -250,40 +253,50 @@ func _update_gold_display():
 # ============================================================
 func _build_unit_columns():
 	for child in unit_container.get_children():
+		unit_container.remove_child(child)
 		child.queue_free()
 	
 	for i in range(party.size()):
 		var unit = party[i]
+		print("  [U", i, "] START")
+		
 		var col = VBoxContainer.new()
 		col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		col.size_flags_vertical = Control.SIZE_EXPAND_FILL
 		col.add_theme_constant_override("separation", 1)
 		unit_container.add_child(col)
+		print("  [U", i, ".1] col added")
 		
-		# ---- 单位名称 ----
 		var name_label = _create_label(
 			unit.display_name + "(" + UnitDataManager.get_unit_type_display_name(unit.unit_name) + ")",
 			Style.FONT_SMALL
 		)
 		col.add_child(name_label)
+		print("  [U", i, ".2] name added")
 		
-		# ---- 武器 ----
 		col.add_child(_create_label(Style.SEPARATOR_TEXT, Style.FONT_SMALL))
+		print("  [U", i, ".3] sep1 added")
+		
 		col.add_child(_create_item_button(unit.weapon_slot, "weapon", i, -1))
+		print("  [U", i, ".4] weapon added")
 		
-		# ---- 防具 ----
 		col.add_child(_create_label(Style.SEPARATOR_TEXT, Style.FONT_SMALL))
+		print("  [U", i, ".5] sep2 added")
+		
 		for slot_idx in range(unit.armor_slots.size()):
 			var armor_btn = _create_item_button(unit.armor_slots[slot_idx], "armor", i, slot_idx)
 			if current_mode == Mode.DEPLOY:
 				armor_btn.disabled = true
 			col.add_child(armor_btn)
+			print("  [U", i, ".6.", slot_idx, "] armor added")
 		
-		# ---- 特技 ----
 		col.add_child(_create_label(Style.SEPARATOR_TEXT, Style.FONT_SMALL))
 		col.add_child(_create_label("特技", Style.FONT_SMALL))
+		print("  [U", i, ".7] labels added")
+		
 		var talent_inst = unit.talent_slots[0] if unit.talent_slots.size() > 0 else null
 		col.add_child(_create_talent_button(talent_inst, i, 0))
+		print("  [U", i, ".8] talent button added")
 
 # ============================================================
 #  创建按钮
@@ -361,7 +374,6 @@ func _build_shop_items():
 				btn.icon = item_data.icon
 			btn.set_meta("shop_index", i)
 			btn.set_meta("slot_type", "shop_item")
-			btn.set_meta("item_data", item_data)
 			btn.set_meta("item_price", price)
 			btn.set_meta("item_id", item_data.id)
 			btn.mouse_entered.connect(_on_button_hover_entered.bind(item_data.id))
@@ -373,6 +385,9 @@ func _build_shop_items():
 		shop_container.add_child(btn)
 
 func _build_weapon_grid(container: GridContainer):
+	# ---- 清空旧内容 ----
+	for child in container.get_children():
+		child.queue_free()
 	container.columns = 3
 	for item_id in Globals.unlocked_items:
 		var data = ItemManager.get_item_data(item_id)
@@ -641,6 +656,10 @@ func _get_all_target_controls() -> Array[Control]:
 	return targets
 
 func _update_targets_visuals():
+	if _drag_meta.is_empty():
+		_reset_targets_visuals()
+		return
+	
 	var targets = _get_all_target_controls()
 	_target_states.clear()
 	
@@ -651,12 +670,10 @@ func _update_targets_visuals():
 		if not _target_states.has(target):
 			_target_states[target] = target.modulate
 		
-		# ---- 特技从槽位拖拽（非库）：丢弃区可用 ----
 		if is_talent_drag and not is_talent_library_drag and target == discard_zone:
-			target.modulate = Color.WHITE   # 可用（亮起）
+			target.modulate = Color.WHITE
 			continue
 		
-		# ---- 特技从库拖拽：丢弃区不可用 ----
 		if is_talent_library_drag and target == discard_zone:
 			target.modulate = Color(0.4, 0.4, 0.4, 0.5)
 			continue
@@ -914,7 +931,7 @@ func _discard_item(data: Dictionary):
 		_discard_talent(data)
 	
 	_sync_all()
-	call_deferred("_build_ui")
+	_schedule_build_ui()
 
 # ============================================================
 #  特技拖拽逻辑
@@ -1061,24 +1078,8 @@ func _execute_talent_drop(data: Dictionary, target: Control):
 		_refresh_after_talent_change()
 		return
 
-# ---- 新增：刷新特技变更后的界面 ----
 func _refresh_after_talent_change():
-	# 只刷新单位列（更新特技槽显示）
-	_clear_container(unit_container)
-	_build_unit_columns()
-	
-	# 刷新当前标签页内容（武器库或特技库）
-	if current_mode == Mode.DEPLOY:
-		_clear_container(shop_container)
-		if current_tab == "weapon":
-			_build_weapon_grid(shop_container)
-		else:
-			_build_talent_grid(shop_container)
-		shop_container.visible = true
-	elif current_mode == Mode.MAP:
-		_clear_container(shop_container)
-		_build_talent_grid(shop_container)
-		shop_container.visible = true
+	_schedule_build_ui()
 
 func _discard_talent(data: Dictionary):
 	var source_type = data.get("slot_type", "")
@@ -1098,45 +1099,58 @@ func _buy_shop_item(data: Dictionary, target: Control):
 	print("  data.slot_type: ", data.get("slot_type", ""))
 	print("  data.shop_index: ", data.get("shop_index", -1))
 	print("  data.item_id: ", data.get("item_id", ""))
-	
+
 	if target == null:
 		print("  失败：target 为 null")
 		return
-	
+
 	print("  target.name: ", target.name)
 	print("  target.slot_type: ", target.get_meta("slot_type", ""))
 	print("  target.unit_idx: ", target.get_meta("unit_idx", -1))
 	print("  target.slot_idx: ", target.get_meta("slot_idx", -1))
 	print("  target.item_id: ", target.get_meta("item_id", ""))
-	
+
 	if not shop_manager:
 		print("  失败：shop_manager 为空")
 		return
-	
+
 	var shop_index = data.get("shop_index", -1)
 	if shop_index == -1:
 		print("  失败：shop_index == -1")
 		return
-	
-	var item_data = data.get("item_data")
+
+	# ---- 从 shop_manager 重新拿 item_data（不依赖 data["item_data"]） ----
+	var items = shop_manager.get_shop_items()
+	if shop_index < 0 or shop_index >= items.size():
+		print("  失败：shop_index 越界 ", shop_index, "/", items.size())
+		return
+	var entry = items[shop_index]
+	if entry == null:
+		print("  失败：商店槽位为空")
+		return
+	var item_data = entry["item_data"]
 	if not item_data:
 		print("  失败：item_data 为空")
 		return
 	print("  item_data.id: ", item_data.id, " type: ", item_data.type)
-	
+
 	var target_unit_idx = target.get_meta("unit_idx", -1)
 	var target_slot_idx = target.get_meta("slot_idx", -1)
-	
+
+	# ---- 调用 shop_manager 购买 ----
 	var result = shop_manager.buy_shop_item(shop_index)
 	print("  购买结果: ", result)
 	if not result["success"]:
-		print("  失败：", result.get("reason", "unknown"))
+		var reason = result.get("reason", "unknown")
+		print("  失败：", reason)
+		_show_buy_failure_message(reason)
 		return
-	
+
+	# ---- 装备到目标单位 ----
 	var inst = ItemInstance.new()
 	inst.item_id = item_data.id
 	inst.count = 1
-	
+
 	if item_data.type == "weapon":
 		if target_unit_idx != -1:
 			party[target_unit_idx].weapon_slot = inst
@@ -1150,12 +1164,9 @@ func _buy_shop_item(data: Dictionary, target: Control):
 			print("  成功：防具装备到单位 ", target_unit_idx, " 槽 ", target_slot_idx)
 		else:
 			print("  警告：target_unit_idx 或 target_slot_idx 为 -1")
-	
+
 	_sync_all()
 	_update_gold_display()
-	
-	# ---- 确保 UI 重建 ----
-	call_deferred("_build_ui")
 
 func _library_to_weapon(data: Dictionary, target: Control):
 	var item_id = data["item_id"]
@@ -1167,7 +1178,7 @@ func _library_to_weapon(data: Dictionary, target: Control):
 	inst.count = 1
 	party[unit_idx].weapon_slot = inst
 	_sync_all()
-	call_deferred("_build_ui")
+	_schedule_build_ui()
 
 func _swap_weapons(data: Dictionary, target: Control):
 	var src_unit = data["unit_idx"]
@@ -1178,7 +1189,7 @@ func _swap_weapons(data: Dictionary, target: Control):
 	party[src_unit].weapon_slot = party[tgt_unit].weapon_slot
 	party[tgt_unit].weapon_slot = temp
 	_sync_all()
-	call_deferred("_build_ui")
+	_schedule_build_ui()
 
 func _swap_armor(data: Dictionary, target: Control):
 	var src_unit = data["unit_idx"]
@@ -1191,7 +1202,7 @@ func _swap_armor(data: Dictionary, target: Control):
 	party[src_unit].armor_slots[src_slot] = party[tgt_unit].armor_slots[tgt_slot]
 	party[tgt_unit].armor_slots[tgt_slot] = temp
 	_sync_all()
-	call_deferred("_build_ui")
+	_schedule_build_ui()
 
 # ============================================================
 #  同步保存
@@ -1203,11 +1214,11 @@ func _sync_all():
 			GameState.party[i].armor_slots = party[i].armor_slots.duplicate()
 			GameState.party[i].max_armor_slots = party[i].max_armor_slots
 			GameState.party[i].talent_slots = party[i].talent_slots.duplicate()
-			while GameState.party[i].armor_slots.size() < GameState.party[i].max_armor_slots:
+			var armor_target = min(GameState.party[i].max_armor_slots, 10)  # ← 加保护
+			while GameState.party[i].armor_slots.size() < armor_target:
 				GameState.party[i].armor_slots.append(null)
 			while GameState.party[i].talent_slots.size() < 1:
 				GameState.party[i].talent_slots.append(null)
-	# ---- 延迟保存，避免拖拽结束时同帧触发存档 ----
 	call_deferred("_deferred_auto_save")
 
 func _deferred_auto_save():
@@ -1219,6 +1230,10 @@ func _deferred_auto_save():
 #  手动拖拽
 # ============================================================
 func _input(event: InputEvent):
+	# ---- ConfirmUI 弹出时屏蔽拖拽 ----
+	if _has_active_confirm_ui():
+		return
+
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
 		var mouse_pos = get_global_mouse_position()
 		var btn = _find_control_at_position(mouse_pos)
@@ -1242,8 +1257,7 @@ func _start_drag(btn: Button):
 	# 遗物槽
 	if slot_type == "relic_slot":
 		if item_id == "":
-			return  # 空槽不可拖拽
-		# 继续流程
+			return
 	
 	# 特技库和特技槽使用 talent_id 作为标识
 	if slot_type in ["library_talent", "talent"] and talent_id == "":
@@ -1264,11 +1278,18 @@ func _start_drag(btn: Button):
 		"source_control": btn,
 		"shop_index": btn.get_meta("shop_index", -1),
 		"talent_id": talent_id,
-		"relic_index": btn.get_meta("relic_index", -1)
+		"relic_index": btn.get_meta("relic_index", -1),
+		"item_price": btn.get_meta("item_price", 0),
 	}
 	
+	# ---- 商店商品：从 shop_manager 实时取 item_data ----
 	if slot_type == "shop_item":
-		_drag_meta["item_data"] = btn.get_meta("item_data", null)
+		var shop_idx = _drag_meta["shop_index"]
+		if shop_idx != -1 and shop_manager:
+			var items = shop_manager.get_shop_items()
+			if shop_idx >= 0 and shop_idx < items.size() and items[shop_idx] != null:
+				_drag_meta["item_data"] = items[shop_idx]["item_data"]
+				_drag_meta["item_price"] = items[shop_idx]["price"]
 	
 	var btn_rect = btn.get_global_rect()
 	var btn_center = btn_rect.position + btn_rect.size / 2
@@ -1326,44 +1347,57 @@ func _update_drag_preview():
 	_drag_preview.z_index = 100
 
 func _end_drag():
-	if _is_dragging:
-		var mouse_pos = get_global_mouse_position()
-		var target = _get_target_from_position(mouse_pos)
-		
-		var valid = target and _is_valid_drop(_drag_meta, target)
-		if valid:
-			_execute_drop(_drag_meta, target)
-			SoundManager.play_select_sound()
-		else:
-			# ---- ✨ 特技从槽位拖拽：拖到空地 → 移除 ----
-			var source_type = _drag_meta.get("slot_type", "")
-			if source_type == "talent" and target == null:
-				_execute_talent_remove(_drag_meta)
-				SoundManager.play_select_sound()
-			else:
-				# 其他情况：取消操作，恢复源按钮
-				SoundManager.play_cancel_sound()
-				if is_instance_valid(_drag_source):
-					var original_disabled = _drag_source.get_meta("_original_disabled", false)
-					var original_modulate = _drag_source.get_meta("_original_modulate", Color.WHITE)
-					var original_text = _drag_source.get_meta("_original_text", "")
-					var original_min_size = _drag_source.get_meta("_original_custom_minimum_size", Vector2.ZERO)
-					_drag_source.disabled = original_disabled
-					_drag_source.modulate = original_modulate
-					_drag_source.text = original_text
-					_drag_source.custom_minimum_size = original_min_size
-					_drag_source.remove_meta("_original_disabled")
-					_drag_source.remove_meta("_original_modulate")
-					_drag_source.remove_meta("_original_text")
-					_drag_source.remove_meta("_original_custom_minimum_size")
-				call_deferred("_build_ui")
-		
+	if not _is_dragging:
+		return
+	
+	# ---- ConfirmUI 弹出时强制取消拖拽 ----
+	if _has_active_confirm_ui():
 		if _drag_preview:
 			_drag_preview.queue_free()
 			_drag_preview = null
 		_is_dragging = false
 		_reset_targets_visuals()
-		
+		_drag_source = null
+		_drag_meta = {}
+		return
+	
+	var mouse_pos = get_global_mouse_position()
+	var target = _get_target_from_position(mouse_pos)
+	var valid = target and _is_valid_drop(_drag_meta, target)
+	var drop_data = _drag_meta.duplicate()
+	var source_type = drop_data.get("slot_type", "")
+	
+	# ---- 先清拖拽视觉状态 ----
+	if _drag_preview:
+		_drag_preview.queue_free()
+		_drag_preview = null
+	_is_dragging = false
+	_reset_targets_visuals()
+	
+	if valid:
+		_execute_drop.call_deferred(drop_data, target)
+		SoundManager.play_select_sound()
+	else:
+		if source_type == "talent" and target == null:
+			_execute_talent_remove.call_deferred(drop_data)
+			SoundManager.play_select_sound()
+		else:
+			SoundManager.play_cancel_sound()
+			if is_instance_valid(_drag_source):
+				var original_disabled = _drag_source.get_meta("_original_disabled", false)
+				var original_modulate = _drag_source.get_meta("_original_modulate", Color.WHITE)
+				var original_text = _drag_source.get_meta("_original_text", "")
+				var original_min_size = _drag_source.get_meta("_original_custom_minimum_size", Vector2.ZERO)
+				_drag_source.disabled = original_disabled
+				_drag_source.modulate = original_modulate
+				_drag_source.text = original_text
+				_drag_source.custom_minimum_size = original_min_size
+				_drag_source.remove_meta("_original_disabled")
+				_drag_source.remove_meta("_original_modulate")
+				_drag_source.remove_meta("_original_text")
+				_drag_source.remove_meta("_original_custom_minimum_size")
+			_schedule_build_ui()
+	
 	_drag_source = null
 	_drag_meta = {}
 
@@ -1393,11 +1427,9 @@ func _on_reset_shop_pressed():
 	
 	var spent = shop_manager.reset_shop()
 	if spent >= 0:
-		# ---- ✨ 重置成功后播放音效 ----
 		SoundManager.play_select_sound()
 		_update_gold_display()
 		reset_btn.text = "重置商店 (" + str(shop_manager.get_reset_cost()) + "G)"
-		_build_shop_items()
 	else:
 		Globals.show_confirm(
 			self,
@@ -1551,8 +1583,11 @@ func _on_confirm_pressed():
 		queue_free()
 
 func _clear_container(container: Node):
+	if not container:
+		return
 	for child in container.get_children():
-		child.queue_free()
+		container.remove_child(child)
+		child.free()
 
 func _check_talent_compatibility(data: Dictionary, target: Control) -> bool:
 	var source_type = data.get("slot_type", "")
@@ -1763,7 +1798,10 @@ func _execute_talent_remove(data: Dictionary):
 #  遗物槽构建（所有模式都显示）
 # ============================================================
 func _build_relic_slots():
+	if not relic_container:
+		return
 	for child in relic_container.get_children():
+		relic_container.remove_child(child)
 		child.queue_free()
 	
 	var relics = GameState.get_global_relics()
@@ -1838,25 +1876,7 @@ func _discard_relic(data: Dictionary):
 	print("遗物槽 ", idx, " 已清空")
 
 func _refresh_after_relic_change():
-	# 刷新遗物槽
-	_build_relic_slots()
-	# 刷新单位列
-	_clear_container(unit_container)
-	_build_unit_columns()
-	# 刷新右侧内容
-	if current_mode == Mode.DEPLOY:
-		_clear_container(shop_container)
-		if current_tab == "weapon":
-			_build_weapon_grid(shop_container)
-		else:
-			_build_talent_grid(shop_container)
-		shop_container.visible = true
-	elif current_mode == Mode.MAP:
-		_clear_container(shop_container)
-		_build_talent_grid(shop_container)
-		shop_container.visible = true
-	elif current_mode == Mode.SHOP:
-		_build_shop_items()
+	_schedule_build_ui()
 
 func _on_relic_hover_entered(relic_id: String):
 	var data = RelicManager.get_relic_data(relic_id)
@@ -1865,3 +1885,48 @@ func _on_relic_hover_entered(relic_id: String):
 
 func _on_relic_hover_exited():
 	_clear_detail_zone()
+
+func _show_buy_failure_message(reason: String):
+	var msg = ""
+	match reason:
+		"not_enough_gold":
+			msg = "金币不足！当前 " + str(EconomyManager.get_temp_gold()) + "G"
+		"empty_slot":
+			msg = "该商品已被购买"
+		"invalid_index":
+			msg = "无效的商品位置"
+		_:
+			msg = "购买失败：" + reason
+	Globals.show_confirm(
+		self,
+		msg,
+		"确定",
+		"",
+		func(): pass,
+		func(): pass,
+		false
+	)
+
+func _schedule_build_ui():
+	if _build_ui_pending:
+		return
+	_build_ui_pending = true
+	call_deferred("_do_build_ui")
+
+func _do_build_ui():
+	_build_ui_pending = false
+	var before = get_tree().get_node_count()
+	_build_ui()
+	var after = get_tree().get_node_count()
+	print("[NODE] 节点数: ", before, " -> ", after)
+	# 延迟一帧再数，让 queue_free 生效
+	await get_tree().process_frame
+	print("[NODE] 下一帧后节点数: ", get_tree().get_node_count())
+
+func _has_active_confirm_ui() -> bool:
+	for child in get_children():
+		if child is CanvasLayer:
+			var script = child.get_script()
+			if script and script.resource_path.ends_with("ConfirmUI.gd"):
+				return true
+	return false
