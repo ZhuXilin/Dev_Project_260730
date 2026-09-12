@@ -96,6 +96,8 @@ func _build_save_data() -> SaveData:
 	save.current_day = GameState.current_day
 	save.main_unit_name = GameState.main_unit_name
 	save.soul = GameState.soul
+	save.cycle_start_soul = GameState.cycle_start_soul
+	save.cycle_start_materials = GameState.cycle_start_materials.duplicate()
 	save.temp_soul = GameState.temp_soul
 	save.temp_gold = GameState.temp_gold
 	save.materials = GameState.materials.duplicate()
@@ -157,6 +159,8 @@ func _apply_save_data(save: SaveData):
 	GameState.main_unit_name = save.main_unit_name
 	GameState.resume_node_id = save.selected_node_id
 	GameState.soul = save.soul
+	GameState.cycle_start_soul = save.cycle_start_soul
+	GameState.cycle_start_materials = save.cycle_start_materials.duplicate()
 	GameState.temp_soul = save.temp_soul
 	GameState.temp_gold = save.temp_gold
 	GameState.materials = save.materials.duplicate()

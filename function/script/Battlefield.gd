@@ -1889,17 +1889,20 @@ func _on_map_victory_continue():
 	
 	var has_reward = (reward_gold > 0 or reward_soul > 0 or not reward_item_datas.is_empty())
 	
-	# ---- 显示结算界面 ----
+	# ---- 显示结算界面（复用全局实例） ----
 	if has_reward:
 		print("有奖励，弹出结算界面")
 		_is_reward_ui_active = true
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 		cursor.visible = false
 		
-		var summary = RewardSummaryUI.instantiate()
-		add_child(summary)
-		summary.setup_reward(reward_gold, reward_soul, reward_item_datas)
-		await summary.confirmed
+		var summary = Globals.get_reward_summary()
+		if summary:
+			summary.setup_reward(reward_gold, reward_soul, reward_item_datas)
+			summary.open()
+			await summary.confirmed
+		else:
+			push_error("Battlefield: 无法获取 RewardSummaryUI 实例")
 		
 		_is_reward_ui_active = false
 		Input.mouse_mode = Input.MOUSE_MODE_HIDDEN

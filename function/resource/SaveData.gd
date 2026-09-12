@@ -23,6 +23,8 @@ const CURRENT_VERSION = 3
 @export var current_node_key: String = ""
 
 @export var soul: int = 0
+@export var cycle_start_soul: int = 0
+@export var cycle_start_materials: Dictionary = {}
 @export var temp_soul: int = 0
 @export var temp_gold: int = 0
 
@@ -80,6 +82,8 @@ func compute_checksum() -> String:
 		"selected_node_id": selected_node_id,
 		"main_unit_name": main_unit_name,
 		"soul": soul,
+		"cycle_start_soul": cycle_start_soul,
+		"cycle_start_materials": cycle_start_materials,
 		"temp_soul": temp_soul,
 		"temp_gold": temp_gold,
 		"interrupt_state": interrupt_state,

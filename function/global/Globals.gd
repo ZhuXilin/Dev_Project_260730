@@ -40,6 +40,11 @@ var unlocked_items: Array = []          # 改为无类型
 # ---- 词条解锁系统 ----
 var unlocked_talents: Array = []
 
+# ---- 结算面板全局实例（跨场景复用） ----
+const REWARD_SUMMARY_PATH = "res://content/scenes/ui/RewardSummaryUI.tscn"
+const REWARD_SUMMARY_NODE_NAME = "RewardSummaryUI_Instance"
+var _reward_summary_instance: CanvasLayer = null
+
 # ---- 游戏状态标志 ----
 var is_fading : bool = false
 var is_performing_action : bool = false
@@ -260,6 +265,33 @@ func show_confirm(parent: Node, message: String, confirm_text: String = "确定"
 	parent.add_child(instance)
 	instance.show_confirm(message, confirm_text, cancel_text, confirm_cb, cancel_cb, show_cancel)
 	print("show_confirm 完成")
+
+# ============================================================
+#  结算面板（跨场景复用）
+# ============================================================
+func get_reward_summary() -> CanvasLayer:
+	# ---- 已有有效实例，直接返回 ----
+	if _reward_summary_instance != null and is_instance_valid(_reward_summary_instance):
+		return _reward_summary_instance
+	
+	# ---- 查找 root 下是否已存在（处理重载场景/热重载的情况） ----
+	var root = get_tree().root
+	var existing = root.get_node_or_null(REWARD_SUMMARY_NODE_NAME)
+	if existing:
+		_reward_summary_instance = existing
+		return existing
+	
+	# ---- 创建新实例，挂到 root 下 ----
+	var scene = load(REWARD_SUMMARY_PATH)
+	if not scene:
+		push_error("RewardSummaryUI.tscn 加载失败: " + REWARD_SUMMARY_PATH)
+		return null
+	var inst = scene.instantiate()
+	inst.name = REWARD_SUMMARY_NODE_NAME
+	root.add_child(inst)
+	_reward_summary_instance = inst
+	print("Globals: 创建结算面板实例（挂到 root 下）")
+	return inst
 
 # ============================================================
 #  遗物解锁（委托给 RelicManager）

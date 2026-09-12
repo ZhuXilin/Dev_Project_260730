@@ -24,6 +24,10 @@ const MAX_RELIC_SLOTS = 3
 # ---- 地图快照（当前天的地图骨架） ----
 var map_snapshot: Dictionary = {}
 
+# ---- 本轮三天基线（用于结算显示） ----
+var cycle_start_soul: int = 0
+var cycle_start_materials: Dictionary = {}
+
 # ---- 资源 ----
 var soul: int = 0          # 永久魂
 var temp_soul: int = 0     # 本轮临时魂
@@ -107,6 +111,8 @@ func reset_progress():
 func start_new_cycle():
 	temp_soul = 0
 	temp_gold = 0
+	cycle_start_soul = soul
+	cycle_start_materials = materials.duplicate()
 	
 	for unit_data in party:
 		unit_data.armor_slots.clear()
@@ -147,6 +153,8 @@ func reset_for_new_cycle():
 	init_relic_slots()
 	current_faction = ""
 	map_snapshot.clear()
+	cycle_start_soul = 0
+	cycle_start_materials.clear()
 
 func reset_all():
 	party.clear()
@@ -168,7 +176,9 @@ func reset_all():
 	init_relic_slots()
 	current_faction = ""
 	map_snapshot.clear()
-
+	cycle_start_soul = 0
+	cycle_start_materials.clear()
+	
 # ============================================================
 #  魂与装备
 # ============================================================

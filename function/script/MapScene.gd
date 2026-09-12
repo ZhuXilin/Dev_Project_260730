@@ -2,6 +2,7 @@ extends CanvasLayer
 
 const FONT_SIZE = 8
 const EquipmentConfig = preload("res://function/script/EquipmentConfig.gd")
+const RewardSummaryUI = preload("res://content/scenes/ui/RewardSummaryUI.tscn")
 
 # ---- 变量声明 ----
 var current_day: int = 1
@@ -26,7 +27,7 @@ var _detail_popup = null
 func _ready():
 	print("=== MapScene _ready 开始 ===")
 	
-	# ---- ✨ 确保地图模式标志为 true ----
+	# ---- 确保地图模式标志为 true ----
 	Globals.is_map_mode = true
 	
 	# ---- 调试：打印 GameState.party 装备状态 ----
@@ -72,21 +73,26 @@ func _ready():
 		var has_next = LevelManager.advance_day()
 		print("advance_day 返回：", has_next)
 		if not has_next:
-			# 三天完成，合并资源并重置
+			# ---- 合并本轮资源 ----
 			GameState.finish_cycle()
+			
+			# ---- 计算本三天累计获得（在 reset_for_new_cycle 前） ----
+			var earned_soul = max(0, GameState.soul - GameState.cycle_start_soul)
+			var earned_materials = {}
+			for key in GameState.materials:
+				var before = GameState.cycle_start_materials.get(key, 0)
+				var earned = GameState.materials[key] - before
+				if earned > 0:
+					earned_materials[key] = earned
+			
+			# ---- 重置本轮数据 ----
 			GameState.reset_for_new_cycle()
 			GameState.map_snapshot.clear()
 			GameState.interrupt_state = 1
 			_save_game()
-			Globals.show_confirm(
-				self,
-				"恭喜完成所有冒险！\n获得魂：%d" % GameState.soul,
-				"确定",
-				"",
-				_on_cycle_complete,
-				func(): pass,
-				false
-			)
+			
+			# ---- 弹出三天结算界面 ----
+			_show_cycle_reward(earned_soul, earned_materials)
 			return
 		
 		# ---- 进入新的一天 ----
@@ -121,7 +127,7 @@ func _ready():
 		default_map.map_name = "默认战斗"
 		level_list.append(default_map)
 
-	# ---- ✨ 优先从快照恢复地图，否则生成新地图 ----
+	# ---- 优先从快照恢复地图，否则生成新地图 ----
 	if not GameState.map_snapshot.is_empty() \
 			and GameState.map_snapshot.get("day", -1) == current_day:
 		print("从快照恢复地图，天数：", current_day)
@@ -265,20 +271,20 @@ func _on_battle_completed(winning_team: int, is_boss: bool = false):
 			print("advance_day 返回：", has_next)
 			if not has_next:
 				GameState.finish_cycle()
+				
+				var earned_soul = max(0, GameState.soul - GameState.cycle_start_soul)
+				var earned_materials = {}
+				for key in GameState.materials:
+					var before = GameState.cycle_start_materials.get(key, 0)
+					var earned = GameState.materials[key] - before
+					if earned > 0:
+						earned_materials[key] = earned
+				
 				GameState.reset_for_new_cycle()
 				GameState.interrupt_state = 1
 				_save_game()
 				
-				# ---- 使用 ConfirmUI 替换 AcceptDialog ----
-				Globals.show_confirm(
-					self,
-					"恭喜完成所有冒险！\n获得魂：%d" % GameState.soul,
-					"确定",
-					"",
-					_on_cycle_complete,
-					func(): pass,
-					false
-				)
+				_show_cycle_reward(earned_soul, earned_materials)
 				return
 
 			# ---- 还有下一天 ----
@@ -619,3 +625,35 @@ func _restore_map_from_snapshot():
 	day_label.text = "第 %d 天" % current_day
 	update_all_displays()
 	_save_game()
+
+# ---- 三天结算（复用全局 RewardSummaryUI） ----
+func _show_cycle_reward(earned_soul: int, earned_materials: Dictionary):
+	# ---- 材料转 ItemData（每项 name 带数量，id 用于颜色提取） ----
+	var reward_items: Array = []
+	var order = ["粗铁", "精钢", "秘银", "龙鳞"]
+	for mat_name in order:
+		if not earned_materials.has(mat_name):
+			continue
+		var count = earned_materials[mat_name]
+		if count <= 0:
+			continue
+		var data = ItemData.new()
+		data.id = "material_" + mat_name
+		data.name = mat_name + " x" + str(count)
+		data.description = ""
+		reward_items.append(data)
+	
+	# ---- 复用全局实例 ----
+	var summary = Globals.get_reward_summary()
+	if not summary:
+		push_error("MapScene: 无法获取 RewardSummaryUI 实例，直接进营地")
+		_on_cycle_complete()
+		return
+	
+	# ---- 刷新内容为"本轮结算" ----
+	summary.setup_reward(0, earned_soul, reward_items, true, "本轮结算")
+	summary.open()
+	await summary.confirmed
+	
+	# ---- 结算完成，进营地 ----
+	_on_cycle_complete()
