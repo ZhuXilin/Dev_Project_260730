@@ -26,6 +26,7 @@ var target_slot: int = -1
 var party: Array = []
 var _is_building_ui: bool = false
 var _build_ui_pending: bool = false
+var _is_closing: bool = false
 
 const MAX_RELIC_SLOTS = 3
 
@@ -115,6 +116,7 @@ func _on_shop_updated():
 
 # ---- 按钮回调 ----
 func _on_close_pressed():
+	_is_closing = true
 	if current_mode == Mode.SHOP and shop_manager:
 		if shop_manager.shop_updated.is_connected(_on_shop_updated):
 			shop_manager.shop_updated.disconnect(_on_shop_updated)
@@ -130,6 +132,8 @@ func _on_close_pressed():
 #  UI 构建
 # ============================================================
 func _build_ui():
+	if _is_closing:
+		return
 	if _is_building_ui:
 		print("_build_ui 被跳过（重入保护）")
 		return
@@ -254,7 +258,7 @@ func _update_gold_display():
 func _build_unit_columns():
 	for child in unit_container.get_children():
 		unit_container.remove_child(child)
-		child.queue_free()
+		child.free()
 	
 	for i in range(party.size()):
 		var unit = party[i]
@@ -385,9 +389,9 @@ func _build_shop_items():
 		shop_container.add_child(btn)
 
 func _build_weapon_grid(container: GridContainer):
-	# ---- 清空旧内容 ----
 	for child in container.get_children():
-		child.queue_free()
+		container.remove_child(child)
+		child.free()
 	container.columns = 3
 	for item_id in Globals.unlocked_items:
 		var data = ItemManager.get_item_data(item_id)
@@ -403,7 +407,8 @@ func _build_weapon_grid(container: GridContainer):
 # ---- 构建特技库网格 ----
 func _build_talent_grid(container: GridContainer):
 	for child in container.get_children():
-		child.queue_free()
+		container.remove_child(child)
+		child.free()
 	
 	var unlocked = Globals.get_unlocked_talents()
 	if unlocked.is_empty():
@@ -1451,59 +1456,8 @@ func _copy_party_data():
 				break
 		
 		if existing:
-			var data = UnitData.new()
-			data.unit_name = existing.unit_name
-			data.display_name = existing.display_name
-			data.faction = existing.faction
-			data.team_id = existing.team_id
-			data.max_hp = existing.max_hp
-			data.hit_points = existing.hit_points
-			data.strength = existing.strength
-			data.dexterity = existing.dexterity
-			data.intelligence = existing.intelligence
-			data.faith = existing.faith
-			data.arcane = existing.arcane
-			data.move_range = existing.move_range
-			data.ignore_terrain_cost = existing.ignore_terrain_cost
-			data.experience = existing.experience
-			data.level = existing.level
-			
-			if existing.weapon_slot:
-				var inst = ItemInstance.new()
-				inst.item_id = existing.weapon_slot.item_id
-				inst.count = existing.weapon_slot.count
-				data.weapon_slot = inst
-			else:
-				data.weapon_slot = null
-			
-			data.armor_slots.clear()
-			for slot_inst in existing.armor_slots:
-				if slot_inst:
-					var new_inst = ItemInstance.new()
-					new_inst.item_id = slot_inst.item_id
-					new_inst.count = slot_inst.count
-					data.armor_slots.append(new_inst)
-				else:
-					data.armor_slots.append(null)
-			data.max_armor_slots = existing.max_armor_slots
-			
-			data.talent_slots.clear()
-			for slot_inst in existing.talent_slots:
-				if slot_inst:
-					var new_inst = TalentInstance.new()
-					new_inst.talent_id = slot_inst.talent_id
-					new_inst.current_stack = slot_inst.current_stack
-					new_inst.is_ready = slot_inst.is_ready
-					new_inst.is_active = slot_inst.is_active
-					data.talent_slots.append(new_inst)
-				else:
-					data.talent_slots.append(null)
-			while data.talent_slots.size() < 1:
-				data.talent_slots.append(null)
-			
-			while data.armor_slots.size() < data.max_armor_slots:
-				data.armor_slots.append(null)
-			
+			# 通过 to_dict/from_dict 深拷贝，自动同步所有字段
+			var data = UnitData.from_dict(existing.to_dict())
 			party.append(data)
 		else:
 			var data = UnitDataManager.create_unit_data(unit_name)
@@ -1513,57 +1467,8 @@ func _on_confirm_pressed():
 	print("_on_confirm_pressed 被调用")
 	GameState.party.clear()
 	for local_unit in party:
-		var data = UnitData.new()
-		data.unit_name = local_unit.unit_name
-		data.display_name = local_unit.display_name
-		data.faction = local_unit.faction
-		data.team_id = 0
-		data.max_hp = local_unit.max_hp
-		data.hit_points = local_unit.hit_points
-		data.strength = local_unit.strength
-		data.dexterity = local_unit.dexterity
-		data.intelligence = local_unit.intelligence
-		data.faith = local_unit.faith
-		data.arcane = local_unit.arcane
-		data.move_range = local_unit.move_range
-		data.ignore_terrain_cost = local_unit.ignore_terrain_cost
-		data.experience = local_unit.experience
-		data.level = local_unit.level
-		
-		if local_unit.weapon_slot:
-			var inst = ItemInstance.new()
-			inst.item_id = local_unit.weapon_slot.item_id
-			inst.count = local_unit.weapon_slot.count
-			data.weapon_slot = inst
-		else:
-			data.weapon_slot = null
-		data.armor_slots.clear()
-		for slot_inst in local_unit.armor_slots:
-			if slot_inst:
-				var inst = ItemInstance.new()
-				inst.item_id = slot_inst.item_id
-				inst.count = slot_inst.count
-				data.armor_slots.append(inst)
-			else:
-				data.armor_slots.append(null)
-		data.max_armor_slots = local_unit.max_armor_slots
-		while data.armor_slots.size() < data.max_armor_slots:
-			data.armor_slots.append(null)
-		
-		data.talent_slots.clear()
-		for slot_inst in local_unit.talent_slots:
-			if slot_inst:
-				var inst = TalentInstance.new()
-				inst.talent_id = slot_inst.talent_id
-				inst.current_stack = slot_inst.current_stack
-				inst.is_ready = slot_inst.is_ready
-				inst.is_active = slot_inst.is_active
-				data.talent_slots.append(inst)
-			else:
-				data.talent_slots.append(null)
-		while data.talent_slots.size() < 1:
-			data.talent_slots.append(null)
-		
+		# 通过 to_dict/from_dict 深拷贝，自动同步所有字段
+		var data = UnitData.from_dict(local_unit.to_dict())
 		GameState.party.append(data)
 	
 	if selected_units.size() > 0:
@@ -1802,7 +1707,7 @@ func _build_relic_slots():
 		return
 	for child in relic_container.get_children():
 		relic_container.remove_child(child)
-		child.queue_free()
+		child.free()
 	
 	var relics = GameState.get_global_relics()
 	
@@ -1915,6 +1820,8 @@ func _schedule_build_ui():
 
 func _do_build_ui():
 	_build_ui_pending = false
+	if _is_closing:
+		return
 	var before = get_tree().get_node_count()
 	_build_ui()
 	var after = get_tree().get_node_count()

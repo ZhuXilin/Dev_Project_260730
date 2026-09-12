@@ -1,7 +1,7 @@
 extends Node
 
 # ---- 基准分辨率 ----
-const BASE_WIDTH : int = 320
+const BASE_WIDTH : int = 400
 const BASE_HEIGHT : int = 240
 const DEFAULT_SCALE : int = 2
 

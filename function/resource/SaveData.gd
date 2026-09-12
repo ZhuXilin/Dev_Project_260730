@@ -54,7 +54,6 @@ const CURRENT_VERSION = 3
 @export var party_data: Array = []
 @export var current_faction: String = ""
 
-@export var party_equipment: Array = []
 @export var global_relics: Array = []
 
 @export var save_time: int = 0
@@ -65,7 +64,6 @@ const CURRENT_VERSION = 3
 
 # ---- 新增词条存档 ----
 @export var unlocked_talents: Array = []
-@export var party_talents: Array = []
 
 # ---- 地图快照（保存节点布局，不含循环引用） ----
 @export var map_snapshot: Dictionary = {}
@@ -91,7 +89,6 @@ func compute_checksum() -> String:
 		"unlocked_items": unlocked_items,
 		"unlocked_relics": unlocked_relics,
 		"current_faction": current_faction,
-		"party_equipment": party_equipment,
 		"global_relics": global_relics,
 		"materials": materials,
 		"unlocked_armors": unlocked_armors,
@@ -103,7 +100,6 @@ func compute_checksum() -> String:
 		"difficulty_level": difficulty_level,
 		"highest_cleared_difficulty": highest_cleared_difficulty,
 		"unlocked_talents": unlocked_talents,
-		"party_talents": party_talents,
 		"current_node_key": current_node_key,
 		"map_snapshot": map_snapshot,
 	}

@@ -276,12 +276,6 @@ func get_save_info(slot: int) -> Dictionary:
 	if not save:
 		return {}
 	
-	# 类型转换（避免加载时错误）
-	if save.unlocked_units is Array:
-		save.unlocked_units = Array(save.unlocked_units)
-	if save.unlocked_items is Array:
-		save.unlocked_items = Array(save.unlocked_items)
-	
 	return {
 		"time": save.save_time,
 		"day": save.current_day,
