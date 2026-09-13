@@ -10,12 +10,13 @@ config_version=5
 
 [application]
 
-config/name="Dev_Project_260730"
-run/main_scene="uid://bwmyhb2qc6n21"
-config/features=PackedStringArray("4.7", "Forward Plus")
+config/name="Dev Project 260730"
+config/version="0.1.0"
+config/features=PackedStringArray("4.7", "GL Compatibility")
 
 [autoload]
 
+LoggerGlobal="*uid://cy3qhyu3m5n3"
 Config="*res://function/global/Config.gd"
 Globals="*res://function/global/Globals.gd"
 SignalBus="*res://function/global/SignalBus.gd"
