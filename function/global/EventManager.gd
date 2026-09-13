@@ -203,14 +203,15 @@ func trigger_event(event_id: String, unit: Unit = null, default_music: AudioStre
 		mark_event_completed(event_id)
 
 func show_item_get_popup(item_id: String, count: int):
-	var root = get_tree().current_scene
-	if not root:
-		return
 	if Globals.is_item_get_popup_active:
+		return
+	# ---- 挂到 root 下（不随场景切换销毁） ----
+	var root = get_tree().root
+	if not root:
 		return
 	var popup = ItemGetPopupScene.instantiate()
 	root.add_child(popup)
-	popup.show_item(item_id, count)   # 内部自动处理音效和锁定
+	popup.show_item(item_id, count)
 
 func clear_completed():
 	_completed.clear()
@@ -226,11 +227,12 @@ func _get_ui_manager() -> UIManager:
 	return null
 
 func show_unit_unlock_popup(units: Array):
-	var root = get_tree().current_scene
-	if not root:
-		return
 	if Globals.is_item_get_popup_active:
+		return
+	# ---- 挂到 root 下 ----
+	var root = get_tree().root
+	if not root:
 		return
 	var popup = ItemGetPopupScene.instantiate()
 	root.add_child(popup)
-	popup.show_unit_unlock(units)   # 内部自动处理音效和锁定
+	popup.show_unit_unlock(units)

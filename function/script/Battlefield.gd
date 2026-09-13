@@ -317,6 +317,16 @@ func _exit_tree():
 		attack_btn.pressed.disconnect(_on_attack_btn_pressed)
 	if wait_btn.pressed.is_connected(_on_wait_btn_pressed):
 		wait_btn.pressed.disconnect(_on_wait_btn_pressed)
+	
+	# ---- 清理 InputManager 里对本场景节点的引用（避免持旧引用） ----
+	if InputManager.ui_manager == ui_manager:
+		InputManager.ui_manager = null
+	if InputManager.selected_unit != null:
+		InputManager.selected_unit = null
+	InputManager.interaction_phase = "idle"
+	InputManager.current_highlight_cells = {}
+	InputManager.pending_attack_cells = {}
+	InputManager.current_move_attack_targets = {}
 
 # ===================== 主循环 =====================
 func _process(_delta):
@@ -1987,37 +1997,22 @@ func _on_map_victory_continue():
 
 # ---- 统一的放弃战斗逻辑 ----
 func _execute_abandon_battle():
+	# ---- 阻止 _physics_process 在切场景期间覆盖鼠标状态 ----
+	Globals.is_transitioning = true
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	if cursor:
+		cursor.visible = false
+	
 	GameState.current_node_key = ""
 	Globals.is_performing_action = false
 	TurnManager.is_game_over = true
+	GameState.abandon_and_return_to_camp()
 
-	GameState.abandon_cycle()
-	GameState.reset_progress()
-
-	# ---- 清空队伍 ----
-	GameState.party.clear()
-	GameState.main_unit_name = ""
-	GameState.main_unit_index = 0
-	GameState.current_faction = ""
-	GameState.global_relics.clear()
-
-	GameState.interrupt_state = 1
-
-	var slot = SaveManager.current_slot
-	if slot == -1:
-		slot = SaveManager.find_empty_slot()
-		if slot == -1:
-			slot = 0
-	SaveManager.save_game(slot, false)
-	SaveManager.current_slot = slot
-
-	get_tree().change_scene_to_file("res://content/scenes/ui/Camp.tscn")
-
-# ---- 地图模式失败处理（直接放弃，无确认框） ----
+# ---- 地图模式失败处理（弹结算 → 放弃） ----
 func _on_map_defeat_gameover():
 	_execute_abandon_battle()
 
-# ---- 非地图模式失败处理（直接放弃，无确认框） ----
+# ---- 非地图模式失败处理（弹结算 → 放弃） ----
 func _on_non_map_defeat():
 	_execute_abandon_battle()
 
@@ -2285,15 +2280,9 @@ func _update_cursor_and_mouse():
 	if cursor.modulate != target_color:
 		cursor.modulate = target_color
 
-func _on_back_camp_pressed():
-	Globals.show_confirm(
-		self,
-		"确定放弃本局游戏吗？进度将丢失，已获得的临时资源将丢弃。",
-		"放弃",
-		"取消",
-		GameState.abandon_and_return_to_camp,
-		func(): pass
-	)
+# ---- 放弃战斗确认后：先弹结算 → 再回营地 ----
+func _on_abandon_confirmed_in_battle():
+	_execute_abandon_battle()
 
 func _ensure_default_relics():
 	if GameState.global_relics.is_empty() and not Globals.unlocked_relics.is_empty():
@@ -2442,3 +2431,6 @@ func _is_any_ui_active() -> bool:
 		Globals.is_transitioning or
 		Globals.is_performing_action
 	)
+
+func _on_back_camp_pressed():
+	GameState.show_abandon_confirmation(self)

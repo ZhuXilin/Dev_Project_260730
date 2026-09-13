@@ -4,6 +4,10 @@ extends CanvasLayer
 @onready var materials_container = $ResourcePanel/MaterialsContainer
 
 func _ready():
+	# ---- 恢复鼠标状态（防止从 Battlefield 切过来时被锁成 HIDDEN） ----
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	Globals.is_transitioning = false
+	
 	update_display()
 	_play_camp_music()
 

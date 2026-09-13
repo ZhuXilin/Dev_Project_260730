@@ -50,9 +50,10 @@ func has_dialogue(dialogues_id: String) -> bool:
 
 # ---- 启动对话 ----
 func start_dialogue(dialogues_id: String, music_stream: AudioStream = null):
-	if not dialogue_ui:
+	# ---- 确保 UI 有效 ----
+	if not dialogue_ui or not is_instance_valid(dialogue_ui):
 		_load_ui()
-		if not dialogue_ui:
+		if not dialogue_ui or not is_instance_valid(dialogue_ui):
 			push_error("Dialogue UI 未加载，无法启动对话")
 			return
 	
@@ -121,7 +122,7 @@ func _close_dialogue():
 	is_active = false
 	can_interact = false
 	Globals.is_dialogue_active = false
-	if dialogue_ui:
+	if dialogue_ui and is_instance_valid(dialogue_ui):
 		dialogue_ui.visible = false
 	MusicManager.stop_music()
 	dialogue_finished.emit()
@@ -136,30 +137,49 @@ func reset():
 	Globals.is_dialogue_active = false
 	current_dialogue_id = ""
 	current_index = 0
-	if dialogue_ui:
+	if dialogue_ui and is_instance_valid(dialogue_ui):
 		dialogue_ui.visible = false
 	print("DialogueManager 已重置")
 
 # ---- 延迟加载 UI ----
 func _load_ui():
-	if dialogue_ui != null:
+	# ---- 已有有效实例，直接返回 ----
+	if dialogue_ui != null and is_instance_valid(dialogue_ui):
 		return
+	
+	# ---- 查找 root 下是否已存在（处理热重载/残留） ----
+	var root = get_tree().root
+	var existing = root.get_node_or_null("DialogueUI_Instance")
+	if existing:
+		dialogue_ui = existing
+		name_label = dialogue_ui.get_node("DialoguePanel/NameLabel") as Label
+		text_label = dialogue_ui.get_node("DialoguePanel/TextLabel") as Label
+		if name_label and text_label:
+			dialogue_ui.visible = false
+			print("DialogueManager: 复用已存在的 DialogueUI")
+			return
+		# 残缺节点，删掉重建
+		existing.queue_free()
+		dialogue_ui = null
+	
+	# ---- 创建新实例，挂到 root 下（不随场景切换销毁） ----
 	var ui_scene = load("res://content/scenes/ui/DialogueUI.tscn")
-	if ui_scene:
-		dialogue_ui = ui_scene.instantiate()
-		var root = get_tree().current_scene
-		if root:
-			root.add_child(dialogue_ui)
-			dialogue_ui.layer = 100
-			name_label = dialogue_ui.get_node("DialoguePanel/NameLabel") as Label
-			text_label = dialogue_ui.get_node("DialoguePanel/TextLabel") as Label
-			if not name_label or not text_label:
-				push_error("DialogueUI 缺少 NameLabel 或 TextLabel 节点")
-				dialogue_ui.queue_free()
-				dialogue_ui = null
-			else:
-				dialogue_ui.visible = false
-		else:
-			push_error("无法获取当前场景根节点，请确保 DialogueManager 在场景树中")
-	else:
+	if not ui_scene:
 		push_error("无法加载 DialogueUI.tscn，请确保路径正确")
+		return
+	
+	dialogue_ui = ui_scene.instantiate()
+	dialogue_ui.name = "DialogueUI_Instance"
+	dialogue_ui.layer = 100
+	root.add_child(dialogue_ui)
+	
+	name_label = dialogue_ui.get_node("DialoguePanel/NameLabel") as Label
+	text_label = dialogue_ui.get_node("DialoguePanel/TextLabel") as Label
+	if not name_label or not text_label:
+		push_error("DialogueUI 缺少 NameLabel 或 TextLabel 节点")
+		dialogue_ui.queue_free()
+		dialogue_ui = null
+		return
+	
+	dialogue_ui.visible = false
+	print("DialogueManager: 创建 DialogueUI 实例（挂到 root 下）")

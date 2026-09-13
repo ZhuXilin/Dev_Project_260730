@@ -323,3 +323,51 @@ func unlock_talent(talent_id: String):
 
 func get_unlocked_talents() -> Array:
 	return unlocked_talents.duplicate()
+
+# ---- 显示"本轮结算"（放弃/失败时调用） ----
+func show_cycle_reward() -> void:
+	print("=== 显示本轮结算 ===")
+	
+	# ---- 计算本轮累计收益 ----
+	var effective_soul = GameState.soul + GameState.temp_soul
+	var earned_soul = max(0, effective_soul - GameState.cycle_start_soul)
+	
+	var earned_materials = {}
+	var order = ["粗铁", "精钢", "秘银", "龙鳞"]
+	for key in order:
+		var before = GameState.cycle_start_materials.get(key, 0)
+		var now = GameState.materials.get(key, 0)
+		var earned = now - before
+		if earned > 0:
+			earned_materials[key] = earned
+	
+	print("  earned_soul = ", earned_soul, " earned_materials = ", earned_materials)
+	
+	# ---- 材料转 ItemData ----
+	var reward_items: Array = []
+	for mat_name in order:
+		if not earned_materials.has(mat_name):
+			continue
+		var count = earned_materials[mat_name]
+		if count <= 0:
+			continue
+		var data = ItemData.new()
+		data.id = "material_" + mat_name
+		data.name = mat_name + " x" + str(count)
+		data.description = ""
+		reward_items.append(data)
+	
+	# ---- 弹出结算面板（复用全局实例） ----
+	var summary = get_reward_summary()
+	if not summary:
+		push_error("Globals.show_cycle_reward: 无法获取 RewardSummaryUI 实例")
+		return
+	
+	# 鼠标可见
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	
+	summary.setup_reward(0, earned_soul, reward_items, true, "本轮结算")
+	summary.open()
+	await summary.confirmed
+	summary.close()
+	print("本轮结算界面已关闭")

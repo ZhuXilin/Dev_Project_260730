@@ -193,6 +193,10 @@ func finish_day():
 	print("每天结束：soul=", soul, " temp_soul 已清零")
 
 func abandon_and_return_to_camp():
+	# ---- 先弹结算 ----
+	await Globals.show_cycle_reward()
+	
+	# ---- 执行放弃逻辑 ----
 	finish_day()
 	abandon_cycle()
 	reset_all()
