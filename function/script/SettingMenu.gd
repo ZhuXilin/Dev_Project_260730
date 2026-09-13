@@ -30,11 +30,11 @@ func _ready():
 
 	# ---- 分辨率选项 ----
 	screen_size_option.clear()
-	screen_size_option.add_item("1倍 (320x240)")
-	screen_size_option.add_item("2倍 (640x480)")
-	screen_size_option.add_item("3倍 (960x720)")
-	screen_size_option.add_item("4倍 (1280x960)")
-	screen_size_option.add_item("5倍 (1600x1200)")
+	screen_size_option.add_item("1倍 (%dx%d)" % [BASE_WIDTH * 1, BASE_HEIGHT * 1])
+	screen_size_option.add_item("2倍 (%dx%d)" % [BASE_WIDTH * 2, BASE_HEIGHT * 2])
+	screen_size_option.add_item("3倍 (%dx%d)" % [BASE_WIDTH * 3, BASE_HEIGHT * 3])
+	screen_size_option.add_item("4倍 (%dx%d)" % [BASE_WIDTH * 4, BASE_HEIGHT * 4])
+	screen_size_option.add_item("5倍 (%dx%d)" % [BASE_WIDTH * 5, BASE_HEIGHT * 5])
 	screen_size_option.add_item("全屏")
 
 	var current_mode = DisplayServer.window_get_mode()
