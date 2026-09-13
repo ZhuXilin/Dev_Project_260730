@@ -2280,10 +2280,6 @@ func _update_cursor_and_mouse():
 	if cursor.modulate != target_color:
 		cursor.modulate = target_color
 
-# ---- 放弃战斗确认后：先弹结算 → 再回营地 ----
-func _on_abandon_confirmed_in_battle():
-	_execute_abandon_battle()
-
 func _ensure_default_relics():
 	if GameState.global_relics.is_empty() and not Globals.unlocked_relics.is_empty():
 		print("兜底：遗物为空，根据 unlocked_relics 重新填充")

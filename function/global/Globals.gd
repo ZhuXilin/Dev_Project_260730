@@ -328,6 +328,9 @@ func get_unlocked_talents() -> Array:
 func show_cycle_reward() -> void:
 	print("=== 显示本轮结算 ===")
 	
+	# ---- 播放失败音乐（若已在播则不会重播） ----
+	MusicManager.play_defeat_music()
+	
 	# ---- 计算本轮累计收益 ----
 	var effective_soul = GameState.soul + GameState.temp_soul
 	var earned_soul = max(0, effective_soul - GameState.cycle_start_soul)
