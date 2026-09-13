@@ -175,7 +175,22 @@ func get_weapon_data() -> ItemData:
 
 func get_weapon_stats() -> Dictionary:
 	var data = get_weapon_data()
-	return data.stats if data else {}
+	if not data:
+		return {}
+	var stats = {
+		"attack": data.base_attack,
+		"attack_range": data.attack_range,
+		"min_attack_range": data.min_attack_range,
+		"attack_style": data.attack_style,
+	}
+	if data.magic_attack and data.magic_attack.get("ignore_defense", false):
+		stats["magic_attack"] = data.base_attack
+	if data.heal_effect and not data.heal_effect.is_empty():
+		stats["heal_amount"] = data.heal_effect.get("base_heal", 0)
+	for key in data.stats:
+		if key not in stats:
+			stats[key] = data.stats[key]
+	return stats
 
 func get_weapon_type() -> String:
 	var data = get_weapon_data()

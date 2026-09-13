@@ -752,16 +752,6 @@ func _on_highlight_request(cells: Dictionary):
 			if unit and unit.get_weapon_type() == "staff":
 				color = Color(0.2, 0.5, 0.8, 0.7)
 			highlight_manager.show_move_highlight(cells, color, 1, true)
-		"item_target":
-			var color = Color(0.7, 0.1, 0.2, 0.7)
-			var effect = InputManager.pending_item_effect
-			if effect and effect.has("type"):
-				var eff_type = effect["type"]
-				if eff_type == "heal":
-					color = Color(0.2, 0.5, 0.8, 0.7)
-				elif eff_type == "cure" or eff_type == "buff":
-					color = Color(0.2, 0.5, 0.8, 0.7)
-			highlight_manager.show_move_highlight(cells, color, 1, true)
 		_:
 			highlight_manager.clear_highlight()
 
@@ -1192,7 +1182,7 @@ func _input(event: InputEvent):
 				setting_menu_panel.visible or 
 				team_view_panel.visible or 
 				item_list_panel.visible or
-				InputManager.interaction_phase in ["moving", "attacking", "item_target"]):
+				InputManager.interaction_phase in ["moving", "attacking"]):
 				return
 			if TurnManager.is_game_over:
 				return
@@ -2281,7 +2271,7 @@ func _update_cursor_and_mouse():
 		should_be_pink = true
 	elif InputManager.selected_unit != null and InputManager.selected_unit.unit_stats.team_id == 0:
 		var phase = InputManager.interaction_phase
-		if phase in ["menu", "moving", "attacking", "item_target"]:
+		if phase in ["menu", "moving", "attacking"]:
 			should_be_pink = true
 
 	var target_color = Color.FUCHSIA if should_be_pink else Color.WHITE

@@ -9,7 +9,6 @@ var action_panel : PanelContainer
 var move_btn : Button
 var attack_btn : Button
 var wait_btn : Button
-var item_btn : Button
 var victory_panel : Panel
 var victory_label : Label
 var victory_button : Button
@@ -24,7 +23,6 @@ func initialize(ui_nodes: Dictionary):
 	move_btn = ui_nodes.get("move_btn")
 	attack_btn = ui_nodes.get("attack_btn")
 	wait_btn = ui_nodes.get("wait_btn")
-	item_btn = ui_nodes.get("item_btn")
 	victory_panel = ui_nodes.get("victory_panel")
 	victory_label = ui_nodes.get("victory_label")
 	victory_button = ui_nodes.get("victory_button")
@@ -80,10 +78,6 @@ func show_menu(unit: Unit):
 
 	if equip_btn:
 		equip_btn.disabled = false
-
-	if item_btn:
-		var has_items = ItemManager.has_any_item()
-		item_btn.disabled = not has_items or unit.has_attacked or not unit.can_act_this_turn
 
 func hide_menu():
 	if action_menu:
@@ -221,8 +215,6 @@ func show_victory(label_text: String, button_text: String, callback: Callable):
 	move_btn.disabled = true
 	attack_btn.disabled = true
 	wait_btn.disabled = true
-	if item_btn:
-		item_btn.disabled = true
 
 func _on_victory_button_pressed(callback: Callable):
 	victory_panel.visible = false
@@ -239,42 +231,6 @@ func _get_type_display_name(type: String) -> String:
 		"attack": return "攻击"
 		_:
 			return type
-
-func get_effect_cells(unit: Unit, use_effect: Dictionary) -> Dictionary:
-	var min_range = use_effect.get("min_range", 0)
-	var max_range = use_effect.get("max_range", 0)
-	var cells = {}
-	for x in range(-max_range, max_range+1):
-		for y in range(-max_range, max_range+1):
-			var dist = abs(x) + abs(y)
-			if dist < min_range or dist > max_range:
-				continue
-			var cell = unit.grid_cell + Vector2i(x, y)
-			if cell.x < 0 or cell.x >= TerrainManager.grid_size.x or cell.y < 0 or cell.y >= TerrainManager.grid_size.y:
-				continue
-			cells[cell] = true
-	return cells
-
-func get_usable_targets(unit: Unit, use_effect: Dictionary) -> Array:
-	var min_range = use_effect.get("min_range", 0)
-	var max_range = use_effect.get("max_range", 0)
-	var target_type = use_effect.get("target", "self")
-	var targets = []
-	for u in UnitManager.unit_list:
-		if u.hit_points <= 0:
-			continue
-		var dist = abs(u.grid_cell.x - unit.grid_cell.x) + abs(u.grid_cell.y - unit.grid_cell.y)
-		if dist < min_range or dist > max_range:
-			continue
-		if target_type == "ally":
-			if u.unit_stats.team_id == unit.unit_stats.team_id:
-				targets.append(u)
-		elif target_type == "enemy":
-			if u.unit_stats.team_id != unit.unit_stats.team_id:
-				targets.append(u)
-		else:
-			targets.append(u)
-	return targets
 
 # ---- 模态消息提示 ----
 func show_modal_message(text: String, callback_after: Callable = Callable()):
@@ -350,8 +306,3 @@ func show_message(text: String):
 
 	Globals.is_item_get_popup_active = false
 	popup.queue_free()
-
-# ---- 使用道具（内部） ----
-func _execute_use_item(_unit: Unit, _item_id: String):
-	print("警告：_execute_use_item 已被禁用")
-	return
