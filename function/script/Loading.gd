@@ -14,4 +14,4 @@ func _ready():
 
 func _on_timer_timeout():
 	MusicManager.stop_music()
-	get_tree().change_scene_to_file("res://content/scenes/levels/Battlefield.tscn")
+	get_tree().change_scene_to_file(Config.PATHS.BATTLEFIELD_SCENE)

@@ -1,7 +1,6 @@
 extends Area2D
 class_name Unit
 
-const CELL_SIZE = 16
 const UnitDataManagerClass = preload("res://function/script/UnitDataManager.gd")
 
 @export var unit_stats : UnitData
@@ -56,7 +55,7 @@ func _ready():
 	
 	# 如果还没有精灵帧，使用占位纹理
 	if animated_sprite and not animated_sprite.sprite_frames:
-		var image = Image.create(CELL_SIZE, CELL_SIZE, false, Image.FORMAT_RGBA8)
+		var image = Image.create(MapConst.CELL_SIZE, MapConst.CELL_SIZE, false, Image.FORMAT_RGBA8)
 		image.fill(Color.MAGENTA)
 		var placeholder = ImageTexture.create_from_image(image)
 		var frames = SpriteFrames.new()
@@ -135,7 +134,7 @@ func setup_unit(stats_data: UnitData, start_cell: Vector2i, initial_items: Array
 			loaded_ok = true
 
 	if not loaded_ok:
-		var image = Image.create(CELL_SIZE, CELL_SIZE, false, Image.FORMAT_RGBA8)
+		var image = Image.create(MapConst.CELL_SIZE, MapConst.CELL_SIZE, false, Image.FORMAT_RGBA8)
 		image.fill(Color.MAGENTA)
 		var placeholder = ImageTexture.create_from_image(image)
 		var frames = SpriteFrames.new()
@@ -361,7 +360,7 @@ func restore_from_unit_data(data: UnitData, cell: Vector2i):
 				animated_sprite.z_index = 2
 				loaded_ok = true
 		if not loaded_ok:
-			var image = Image.create(CELL_SIZE, CELL_SIZE, false, Image.FORMAT_RGBA8)
+			var image = Image.create(MapConst.CELL_SIZE, MapConst.CELL_SIZE, false, Image.FORMAT_RGBA8)
 			image.fill(Color.MAGENTA)
 			var placeholder = ImageTexture.create_from_image(image)
 			var frames = SpriteFrames.new()

@@ -47,7 +47,6 @@ const BOSS_NODE_TYPE = 6
 @onready var relic_icon_container = $RelicLayer/RelicIconContainer
 
 # ---- 常量 ----
-const CELL_SIZE : int = 16
 const PERFORMANCE_DURATION : float = 0.5
 const ItemGetPopupScene = preload("res://content/scenes/ui/ItemGetPopup.tscn")
 
@@ -135,7 +134,7 @@ func _ready():
 	SignalBus.non_combat_complete.connect(_on_non_combat_complete)
 	
 	# ---- 创建详情弹窗（隐藏） ----
-	_detail_popup = load("res://content/scenes/ui/ItemDetailPopup.tscn").instantiate()
+	_detail_popup = load(Config.PATHS.ITEM_DETAIL_POPUP).instantiate()
 	add_child(_detail_popup)
 	_detail_popup.visible = false
 	
@@ -162,7 +161,7 @@ func _ready():
 		_attack_indicator.texture = cursor.texture
 	else:
 		print("警告：cursor.texture 无效，使用默认纹理")
-	_attack_indicator.size = Vector2(CELL_SIZE, CELL_SIZE)
+	_attack_indicator.size = Vector2(MapConst.CELL_SIZE, MapConst.CELL_SIZE)
 	_attack_indicator.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_attack_indicator.z_index = 5
 	_attack_indicator.visible = false
@@ -192,12 +191,12 @@ func _ready():
 		_load_default_map()
 
 	if not map_data:
-		var map_pixel_size = Vector2(map_grid_size.x * CELL_SIZE, map_grid_size.y * CELL_SIZE)
+		var map_pixel_size = Vector2(map_grid_size.x * MapConst.CELL_SIZE, map_grid_size.y * MapConst.CELL_SIZE)
 		if camera_controller:
 			camera_controller.set_map_boundary(Rect2(Vector2.ZERO, map_pixel_size))
 
 	if camera_controller:
-		camera_controller.set_grid_size(CELL_SIZE)
+		camera_controller.set_grid_size(MapConst.CELL_SIZE)
 		var viewport_size = get_viewport().get_visible_rect().size
 		camera_controller.set_edge_scroll_margin(viewport_size.x * 0.16)
 
@@ -233,7 +232,7 @@ func _ready():
 		menu_blocker.mouse_filter = Control.MOUSE_FILTER_STOP
 		menu_blocker.visible = false
 		menu_blocker.gui_input.connect(_on_menu_blocker_clicked)
-		menu_blocker.size = Vector2(map_grid_size.x * CELL_SIZE, map_grid_size.y * CELL_SIZE)
+		menu_blocker.size = Vector2(map_grid_size.x * MapConst.CELL_SIZE, map_grid_size.y * MapConst.CELL_SIZE)
 		menu_blocker.position = Vector2.ZERO
 		menu_blocker.z_index = 10
 
@@ -361,7 +360,7 @@ func _init_cursor():
 		else:
 			push_error("光标图片不存在：", path)
 	_viewport_scale = _get_viewport_scale()
-	var target_size = round(CELL_SIZE * _viewport_scale)
+	var target_size = round(MapConst.CELL_SIZE * _viewport_scale)
 	cursor.size = Vector2(target_size, target_size)
 	cursor.mouse_filter = Control.MOUSE_FILTER_IGNORE
 
@@ -438,16 +437,16 @@ func load_map(new_map_data: MapData):
 		
 		_generate_default_terrain(new_map_data.map_size)
 		used_rect = Rect2i(Vector2i.ZERO, map_grid_size)
-		map_pixel_rect = Rect2(Vector2.ZERO, new_map_data.map_size * CELL_SIZE)
-		menu_blocker.size = new_map_data.map_size * CELL_SIZE
+		map_pixel_rect = Rect2(Vector2.ZERO, new_map_data.map_size * MapConst.CELL_SIZE)
+		menu_blocker.size = new_map_data.map_size * MapConst.CELL_SIZE
 		menu_blocker.position = Vector2.ZERO
 	else:
 		map_pixel_rect = Rect2(
-			used_rect.position * CELL_SIZE,
-			used_rect.size * CELL_SIZE
+			used_rect.position * MapConst.CELL_SIZE,
+			used_rect.size * MapConst.CELL_SIZE
 		)
-		menu_blocker.size = used_rect.size * CELL_SIZE
-		menu_blocker.position = used_rect.position * CELL_SIZE
+		menu_blocker.size = used_rect.size * MapConst.CELL_SIZE
+		menu_blocker.position = used_rect.position * MapConst.CELL_SIZE
 
 	# ---- 清除旧单位 ----
 	_clear_units()
@@ -977,10 +976,10 @@ func _on_request_show_victory(winning_team: int):
 				ui_manager.show_victory("战斗失败", "重启旅程", self._on_map_defeat_gameover)
 		else:
 			if is_win:
-				tree.change_scene_to_file("res://content/scenes/ui/MapScene.tscn")
+				tree.change_scene_to_file(Config.PATHS.MAP_SCENE)
 			else:
 				GameState.reset_all()
-				tree.change_scene_to_file("res://content/scenes/ui/UnitSelectUI.tscn")
+				tree.change_scene_to_file(Config.PATHS.UNIT_SELECT_UI)
 		return
 
 	# ============================================================
@@ -1121,7 +1120,7 @@ func _on_highlight_unit(unit: Unit):
 	if not is_instance_valid(unit) or not _attack_indicator:
 		return
 	_on_clear_highlight_unit()
-	var target_size = CELL_SIZE * _viewport_scale
+	var target_size = MapConst.CELL_SIZE * _viewport_scale
 	_attack_indicator.size = Vector2(target_size, target_size)
 	var world_pos = grid_to_world(unit.grid_cell)
 	_attack_indicator.position = world_pos - _attack_indicator.size / 2
@@ -1233,7 +1232,7 @@ func _input(event: InputEvent):
 	# ---- 鼠标事件（左键点击 / 右键取消） ----
 	if event is InputEventMouseButton and event.pressed:
 		if event.button_index == MOUSE_BUTTON_RIGHT:
-			InputManager.handle_input(event, map_grid_size, CELL_SIZE)
+			InputManager.handle_input(event, map_grid_size, MapConst.CELL_SIZE)
 			return
 		if event.button_index == MOUSE_BUTTON_LEFT:
 			# 如果菜单打开且不是给予模式，则忽略左键点击（由菜单按钮处理）
@@ -1244,7 +1243,7 @@ func _input(event: InputEvent):
 			InputManager.handle_click(clicked_cell)
 	else:
 		# 其他输入（如鼠标移动）交给 InputManager
-		InputManager.handle_input(event, map_grid_size, CELL_SIZE)
+		InputManager.handle_input(event, map_grid_size, MapConst.CELL_SIZE)
 
 	# ---- 装备菜单激活时阻止后续操作 ----
 	if Globals.is_equip_menu_active:
@@ -1373,10 +1372,10 @@ func apply_map_functions(team: int):
 	print("=== 应用功能格效果完成 ===")
 
 func grid_to_world(cell: Vector2i) -> Vector2:
-	return Vector2(cell.x * CELL_SIZE + CELL_SIZE / 2.0, cell.y * CELL_SIZE + CELL_SIZE / 2.0)
+	return Vector2(cell.x * MapConst.CELL_SIZE + MapConst.CELL_SIZE / 2.0, cell.y * MapConst.CELL_SIZE + MapConst.CELL_SIZE / 2.0)
 
 func world_to_grid(world_pos: Vector2) -> Vector2i:
-	return Vector2i(floor(world_pos.x / CELL_SIZE), floor(world_pos.y / CELL_SIZE))
+	return Vector2i(floor(world_pos.x / MapConst.CELL_SIZE), floor(world_pos.y / MapConst.CELL_SIZE))
 
 # ===================== 其他信号 =====================
 func _on_request_screen_shake(duration: float, intensity: float, direction: Vector2 = Vector2.ZERO):
@@ -1945,7 +1944,7 @@ func _on_map_victory_continue():
 			
 			# ★ summary 保持可见，RelicSelectUI 直接叠加上去（layer 21 > 20）
 			print("弹出遗物三选一，叠加在结算之上")
-			var relic_select_scene = load("res://content/scenes/ui/RelicSelectUI.tscn")
+			var relic_select_scene = load(Config.PATHS.RELIC_SELECT_UI)
 			var relic_select = relic_select_scene.instantiate()
 			add_child(relic_select)
 			
@@ -1992,7 +1991,7 @@ func _on_map_victory_continue():
 	SaveManager.auto_save()
 	
 	print("切换场景到 MapScene")
-	get_tree().change_scene_to_file("res://content/scenes/ui/MapScene.tscn")
+	get_tree().change_scene_to_file(Config.PATHS.MAP_SCENE)
 
 # ---- 统一的放弃战斗逻辑 ----
 func _execute_abandon_battle():
@@ -2019,7 +2018,7 @@ func _on_retry_battle():
 	if GameState.current_node_key != "":
 		GameState.visited_nodes.erase(GameState.current_node_key)
 		GameState.current_node_key = ""
-	get_tree().change_scene_to_file("res://content/scenes/ui/MapScene.tscn")
+	get_tree().change_scene_to_file(Config.PATHS.MAP_SCENE)
 
 # ===================== 非战斗模式 =====================
 func _setup_non_combat_mode():
@@ -2260,7 +2259,7 @@ func _update_cursor_and_mouse():
 		var new_scale = _get_viewport_scale()
 		if new_scale != _viewport_scale:
 			_viewport_scale = new_scale
-			var target_size = round(CELL_SIZE * _viewport_scale)
+			var target_size = round(MapConst.CELL_SIZE * _viewport_scale)
 			cursor.size = Vector2(target_size, target_size)
 			if _attack_indicator:
 				_attack_indicator.size = Vector2(target_size, target_size)

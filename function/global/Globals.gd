@@ -41,7 +41,7 @@ var unlocked_items: Array = []          # 改为无类型
 var unlocked_talents: Array = []
 
 # ---- 结算面板全局实例（跨场景复用） ----
-const REWARD_SUMMARY_PATH = "res://content/scenes/ui/RewardSummaryUI.tscn"
+const REWARD_SUMMARY_PATH = Config.PATHS.REWARD_SUMMARY_UI
 const REWARD_SUMMARY_NODE_NAME = "RewardSummaryUI_Instance"
 var _reward_summary_instance: CanvasLayer = null
 
@@ -255,7 +255,7 @@ func show_confirm(parent: Node, message: String, confirm_text: String = "确定"
 				return
 
 	print("show_confirm 被调用，加载 ConfirmUI")
-	var ui = load("res://content/scenes/ui/ConfirmUI.tscn")
+	var ui = load(Config.PATHS.CONFIRM_UI)
 	if not ui:
 		print("错误：ConfirmUI.tscn 未找到")
 		return

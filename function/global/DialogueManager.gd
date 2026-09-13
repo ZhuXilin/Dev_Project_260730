@@ -163,7 +163,7 @@ func _load_ui():
 		dialogue_ui = null
 	
 	# ---- 创建新实例，挂到 root 下（不随场景切换销毁） ----
-	var ui_scene = load("res://content/scenes/ui/DialogueUI.tscn")
+	var ui_scene = load(Config.PATHS.DIALOGUE_UI)
 	if not ui_scene:
 		push_error("无法加载 DialogueUI.tscn，请确保路径正确")
 		return

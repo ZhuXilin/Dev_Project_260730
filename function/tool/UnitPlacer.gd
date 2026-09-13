@@ -70,7 +70,6 @@ enum Team {
 		if Engine.is_editor_hint():
 			call_deferred("_build_preview")
 
-const CELL_SIZE : int = 16
 const UNIT_SCENE_PATH = Config.PATHS.UNIT_SCENE
 
 # ---- 中文枚举 → 英文 JSON 键映射 ----
@@ -107,7 +106,7 @@ func _get_configuration_warnings() -> PackedStringArray:
 	if Engine.is_editor_hint():
 		# ---- 检查网格对齐 ----
 		var pos = position
-		var cell_size = CELL_SIZE
+		var cell_size = MapConst.CELL_SIZE
 		
 		var x_mod = fmod(pos.x, cell_size)
 		var y_mod = fmod(pos.y, cell_size)
@@ -136,8 +135,8 @@ func _get_configuration_warnings() -> PackedStringArray:
 
 func _build_spawn_point_preview():
 	var bg = ColorRect.new()
-	bg.size = Vector2(CELL_SIZE, CELL_SIZE)
-	bg.position = Vector2(CELL_SIZE/2.0, CELL_SIZE/2.0) - bg.size / 2
+	bg.size = Vector2(MapConst.CELL_SIZE, MapConst.CELL_SIZE)
+	bg.position = Vector2(MapConst.CELL_SIZE/2.0, MapConst.CELL_SIZE/2.0) - bg.size / 2
 	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	bg.z_index = -1
 	bg.color = Color(0.2, 0.6, 1.0, 0.4)
@@ -148,15 +147,15 @@ func _build_spawn_point_preview():
 	label.add_theme_font_size_override("font_size", 10)
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	label.size = Vector2(CELL_SIZE, CELL_SIZE)
-	label.position = Vector2(CELL_SIZE/2.0, CELL_SIZE/2.0) - label.size / 2
+	label.size = Vector2(MapConst.CELL_SIZE, MapConst.CELL_SIZE)
+	label.position = Vector2(MapConst.CELL_SIZE/2.0, MapConst.CELL_SIZE/2.0) - label.size / 2
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(label)
 
 func _build_unit_preview():
 	var bg = ColorRect.new()
-	bg.size = Vector2(CELL_SIZE, CELL_SIZE)
-	bg.position = Vector2(CELL_SIZE/2.0, CELL_SIZE/2.0) - bg.size / 2
+	bg.size = Vector2(MapConst.CELL_SIZE, MapConst.CELL_SIZE)
+	bg.position = Vector2(MapConst.CELL_SIZE/2.0, MapConst.CELL_SIZE/2.0) - bg.size / 2
 	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	bg.z_index = -1
 	add_child(bg)
@@ -169,7 +168,7 @@ func _build_unit_preview():
 	if not unit_instance:
 		return
 
-	unit_instance.position = Vector2(CELL_SIZE/2.0, CELL_SIZE/2.0)
+	unit_instance.position = Vector2(MapConst.CELL_SIZE/2.0, MapConst.CELL_SIZE/2.0)
 	unit_instance.process_mode = PROCESS_MODE_DISABLED
 	unit_instance.input_pickable = false
 	add_child(unit_instance)
@@ -264,7 +263,7 @@ func _get_json_key() -> String:
 
 # ---- 导出配置（供 Battlefield 加载） ----
 func export_config() -> Variant:
-	var grid_pos = Vector2i(floor(position.x / CELL_SIZE), floor(position.y / CELL_SIZE))
+	var grid_pos = Vector2i(floor(position.x / MapConst.CELL_SIZE), floor(position.y / MapConst.CELL_SIZE))
 	
 	if placement_mode == PlacementMode.SPAWN_POINT:
 		return {

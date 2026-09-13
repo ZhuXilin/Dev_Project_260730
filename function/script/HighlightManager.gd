@@ -1,7 +1,6 @@
 extends Node
 class_name HighlightManager
 
-const CELL_SIZE : int = 16
 var highlight_container : Node2D
 
 func initialize(container: Node2D):
@@ -24,8 +23,8 @@ func _add_highlight_cells(cells: Dictionary, color: Color, z_index: int):
 	for cell in cells.keys():
 		var rect = ColorRect.new()
 		rect.color = color
-		rect.size = Vector2(CELL_SIZE, CELL_SIZE)
-		rect.position = Vector2(cell.x * CELL_SIZE, cell.y * CELL_SIZE)
+		rect.size = Vector2(MapConst.CELL_SIZE, MapConst.CELL_SIZE)
+		rect.position = Vector2(cell.x * MapConst.CELL_SIZE, cell.y * MapConst.CELL_SIZE)
 		rect.name = "Highlight_" + str(cell.x) + "_" + str(cell.y)
 		rect.z_index = z_index
 		rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
