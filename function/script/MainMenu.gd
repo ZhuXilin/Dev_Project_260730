@@ -34,40 +34,6 @@ func _on_load_pressed():
 func _on_quit_pressed():
 	get_tree().quit()
 
-func _on_continue_pressed():
-	var slot = SaveManager.current_slot
-	if slot == -1:
-		for i in range(SaveManager.SLOT_COUNT):
-			if SaveManager.has_save(i):
-				slot = i
-				break
-	if slot == -1:
-		_show_continue_error("没有可继续的游戏进度。")
-		return
-
-	var save = SaveManager.load_save_data(slot)
-	if not save:
-		_show_continue_error("无法读取存档，可能已损坏。")
-		return
-
-	if not SaveManager.is_map_data_valid(save):
-		SaveManager.clean_invalid_progress(slot)
-		save = SaveManager.load_save_data(slot)
-		_show_continue_error("存档数据异常，已重置地图进度，临时资源已丢弃。")
-		SaveManager._apply_save_data(save)
-		get_tree().change_scene_to_file(Config.PATHS.CAMP)
-		return
-
-	SaveManager._apply_save_data(save)
-	match save.interrupt_state as GameState.InterruptState:
-		GameState.InterruptState.MAP:
-			get_tree().change_scene_to_file(Config.PATHS.MAP_SCENE)
-		GameState.InterruptState.BATTLEFIELD:
-			print("战场中断恢复功能开发中，直接进入营地")
-			get_tree().change_scene_to_file(Config.PATHS.CAMP)
-		_:
-			get_tree().change_scene_to_file(Config.PATHS.CAMP)
-
 func _show_continue_error(message: String):
 	Globals.show_confirm(
 		self,

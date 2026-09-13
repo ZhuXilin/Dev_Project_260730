@@ -5,18 +5,22 @@ enum NodeType {
 	START, CAMPFIRE, NORMAL, ELITE, SHOP, EVENT, BOSS, FINAL_PREP
 }
 
-@export var node_type: MapNode.NodeType = MapNode.NodeType.NORMAL   # 默认普通
+# ---- 静态计数器（同帧批量创建时保证唯一） ----
+static var _node_counter : int = 0
+
+@export var node_type: MapNode.NodeType = MapNode.NodeType.NORMAL
 @export var position: Vector2
 @export var map_data: MapData
 @export var node_id: String = ""
 @export var is_visited: bool = false
 @export var is_available: bool = false
 @export var custom_label: String = ""
-@export var layer: int = 0           # 新增：层索引
+@export var layer: int = 0
 
 var connected_nodes: Array[MapNode] = []
 var is_completed: bool = false
 
 func _init():
 	if node_id.is_empty():
-		node_id = "node_%d_%d" % [Time.get_ticks_msec(), randi()]
+		_node_counter += 1
+		node_id = "node_%d_%d" % [Time.get_ticks_msec(), _node_counter]

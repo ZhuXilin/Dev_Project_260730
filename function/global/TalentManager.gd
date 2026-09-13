@@ -81,20 +81,5 @@ static func is_talent_compatible_with_unit(talent_id: String, unit_name: String)
 	var compatible = get_talent_compatible_units(talent_id)
 	if compatible.is_empty():
 		return true
-	var key = _normalize_unit_key(unit_name)
+	var key = UnitDataManager.normalize_unit_key(unit_name)
 	return key in compatible
-
-# ---- 规范化单位键名（中文→英文） ----
-static func _normalize_unit_key(unit_name: String) -> String:
-	var cn_to_en = {
-		"剑士": "swordsman",
-		"枪兵": "spearman",
-		"斧兵": "axeman",
-		"弓兵": "archer",
-		"飞马": "pegasus",
-		"法师": "mage",
-		"修女": "cleric",
-		"龙人": "dragonborn",
-		"重甲兵": "armored"
-	}
-	return cn_to_en.get(unit_name, unit_name)

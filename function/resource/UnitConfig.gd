@@ -1,7 +1,7 @@
 extends Resource
 class_name UnitConfig
 
-@export var unit_name: String = "剑士"
+@export var unit_name: String = "swordsman"
 @export var display_name: String = ""
 @export var faction: String = ""
 @export var team_id: int = 0

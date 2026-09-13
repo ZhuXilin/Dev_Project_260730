@@ -1,6 +1,10 @@
 class_name UnitDataManager
 extends RefCounted
 
+# ============================================================
+#  静态映射表
+# ============================================================
+
 # ---- 武器类别显示名称映射 ----
 static var _weapon_category_display: Dictionary = {
 	"sword": "剑",
@@ -40,6 +44,7 @@ static var _cn_to_en_unit: Dictionary = {
 	"重甲兵": "armored"
 }
 
+# ---- 单位数据缓存 ----
 static var _unit_data_cache: Dictionary = {}
 static var _data_loaded: bool = false
 
@@ -70,9 +75,17 @@ static func _load_unit_data():
 #  核心数据查询
 # ============================================================
 
-# ---- 规范化单位键名（中文→英文） ----
+# ---- 规范化单位键名（中文→英文，内部使用） ----
 static func _normalize_unit_key(unit_name: String) -> String:
 	return _cn_to_en_unit.get(unit_name, unit_name)
+
+
+# ---- 规范化单位键名（公开版本，供 TalentManager 等外部调用） ----
+## 说明：输入可以是英文 key 或中文名，统一返回英文 key
+## 例：normalize_unit_key("剑士") → "swordsman"
+##     normalize_unit_key("swordsman") → "swordsman"
+static func normalize_unit_key(unit_name: String) -> String:
+	return _normalize_unit_key(unit_name)
 
 
 static func get_unit_data(unit_name: String) -> Dictionary:
@@ -123,14 +136,14 @@ static func get_display_name_full(unit_name: String) -> String:
 	var data = get_unit_data(key)
 	if data.is_empty():
 		return unit_name + "|未知|未知"
-	
+
 	var display = data.get("display_name", "")
 	if display == "":
 		display = _unit_display_name.get(key, key)
-	
+
 	var faction = data.get("faction", "无")
 	var type_name = _unit_display_name.get(key, key)
-	
+
 	return "%s|%s|%s" % [display, faction, type_name]
 
 
@@ -149,6 +162,7 @@ static func get_weapon_category_display(category: String) -> String:
 # ============================================================
 #  单位数据创建
 # ============================================================
+
 static func create_unit_data(unit_name: String) -> UnitData:
 	var key = _normalize_unit_key(unit_name)
 	var dict = get_unit_data(key)
@@ -161,7 +175,7 @@ static func create_unit_data(unit_name: String) -> UnitData:
 	data.team_id = 0
 	data.experience = 0
 	data.level = 1
-	
+
 	# ---- 默认武器 ----
 	var default_weapon = get_default_weapon_id(key)
 	if default_weapon != "":
@@ -169,8 +183,8 @@ static func create_unit_data(unit_name: String) -> UnitData:
 		inst.item_id = default_weapon
 		inst.count = 1
 		data.weapon_slot = inst
-	
-	# ---- 默认特技（新增） ----
+
+	# ---- 默认特技 ----
 	data.talent_slots.clear()
 	var default_talents = dict.get("default_talents", [])
 	for talent_id in default_talents:
@@ -183,11 +197,12 @@ static func create_unit_data(unit_name: String) -> UnitData:
 	# 确保至少有一个槽位
 	while data.talent_slots.size() < 1:
 		data.talent_slots.append(null)
-	
+
 	data.armor_slots = [null, null]
 	data.max_armor_slots = 2
 	data.max_talent_slots = 1
 	return data
+
 
 # ============================================================
 #  从Unit实例获取显示信息
@@ -197,6 +212,7 @@ static func get_display_name_from_unit(unit: Unit) -> String:
 	var display_name = unit.unit_stats.display_name if unit.unit_stats.display_name != "" else unit.unit_stats.unit_name
 	var faction = unit.unit_stats.faction if unit.unit_stats.faction != "" else "无"
 	return "%s|%s|%s" % [display_name, faction, unit.unit_stats.unit_name]
+
 
 # ---- 获取单位类型中文名（用于UI显示，如"剑士"） ----
 static func get_unit_type_display_name(unit_name: String) -> String:
