@@ -847,9 +847,8 @@ func _on_wait_btn_pressed():
 
 func _on_request_show_victory(winning_team: int):
 	print("=== _on_request_show_victory 被调用, _victory_processed: ", _victory_processed)
-	# ---- 等待所有 UI 结束 ----
-	while _is_any_ui_active():
-		await get_tree().process_frame
+	# ---- 等待所有 UI 结束（带超时保护） ----
+	await _wait_for_ui_clear()
 
 	# ---- 防止重复调用 ----
 	if _victory_processed:
@@ -1005,9 +1004,8 @@ func _on_request_show_victory(winning_team: int):
 
 func _on_turn_changed(team: int):
 	print("连接数: ", SignalBus.turn_changed.get_connections().size())
-	# ---- 等待 UI 结束 ----
-	while _is_any_ui_active():
-		await get_tree().process_frame
+	# ---- 等待 UI 结束（带超时保护） ----
+	await _wait_for_ui_clear()
 	_handle_turn_change_async(team)
 
 # 新增异步处理函数（将原 _on_turn_changed 的全部逻辑移入）
@@ -1049,9 +1047,10 @@ func _handle_turn_change_async(team: int):
 	if team == 0:
 		Globals.increment_battle_turn()
 		
-	await get_tree().create_timer(transition_delay_before_fade).timeout
+	# UI 过渡计时：忽略 time_scale，避免高倍速下过渡一闪而过
+	await get_tree().create_timer(transition_delay_before_fade, true, false, true).timeout
 	await turnlayer_manager.play_transition(team)
-	await get_tree().create_timer(transition_delay_after_fade).timeout
+	await get_tree().create_timer(transition_delay_after_fade, true, false, true).timeout
 
 	print("回合切换：", "玩家" if team == 0 else "敌人")
 
@@ -2417,6 +2416,15 @@ func show_item_detail(item_id: String):
 func hide_item_detail():
 	if _detail_popup:
 		_detail_popup.visible = false
+
+# ---- 等待所有 UI 结束（带 5 秒超时保护，避免死循环） ----
+func _wait_for_ui_clear(timeout_ms: int = 5000) -> void:
+	var start = Time.get_ticks_msec()
+	while _is_any_ui_active():
+		if Time.get_ticks_msec() - start > timeout_ms:
+			push_warning("Battlefield: 等待 UI 结束超时（%d ms），强制继续" % timeout_ms)
+			return
+		await get_tree().process_frame
 
 func _is_any_ui_active() -> bool:
 	return (

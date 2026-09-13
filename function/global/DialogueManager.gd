@@ -80,7 +80,7 @@ func start_dialogue(dialogues_id: String, music_stream: AudioStream = null):
 	dialogue_ui.visible = true
 
 	MusicManager.pause_and_save()
-	await get_tree().create_timer(music_transition_delay).timeout
+	await get_tree().create_timer(music_transition_delay, true, false, true).timeout
 	if music_stream != null:
 		MusicManager.play_music(music_stream)
 	else:
@@ -126,7 +126,7 @@ func _close_dialogue():
 		dialogue_ui.visible = false
 	MusicManager.stop_music()
 	dialogue_finished.emit()
-	await get_tree().create_timer(music_transition_delay).timeout
+	await get_tree().create_timer(music_transition_delay, true, false, true).timeout
 	MusicManager.resume_saved()
 
 func reset():

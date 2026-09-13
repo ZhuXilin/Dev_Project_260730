@@ -41,7 +41,8 @@ func play_transition(team: int, callback: Callable = Callable()):
 		_text_label.visible = true
 		_text_label.modulate.a = 1.0
 	
-	await get_tree().create_timer(transition_duration).timeout
+	# 回合遮罩持续时间：忽略 time_scale，避免高倍速下看不清回合数
+	await get_tree().create_timer(transition_duration, true, false, true).timeout
 	
 	if callback.is_valid():
 		callback.call()
