@@ -391,9 +391,9 @@ func load_map(new_map_data: MapData):
 			if main_scene_instance:
 				tilemap = _find_tilemap(main_scene_instance)
 				if tilemap:
-					var old_tilemap = get_node_or_null("TerrainTileMap")
-					if old_tilemap:
-						old_tilemap.queue_free()
+					# ---- 立即移除并释放旧地形（避免 Godot 节点重名 / 编辑器残留） ----
+					_remove_old_terrain()
+					
 					main_scene_instance.name = "TerrainTileMap"
 					add_child(main_scene_instance)
 					move_child(main_scene_instance, 0)
@@ -423,6 +423,9 @@ func load_map(new_map_data: MapData):
 	
 	# ---- 如果未找到地形，生成默认 ----
 	if not tilemap:
+		# ---- 同样需要清理旧地形（编辑器预置的 TerrainTileMap） ----
+		_remove_old_terrain()
+		
 		_generate_default_terrain(new_map_data.map_size)
 		used_rect = Rect2i(Vector2i.ZERO, map_grid_size)
 		map_pixel_rect = Rect2(Vector2.ZERO, new_map_data.map_size * CELL_SIZE)
@@ -601,6 +604,14 @@ func _clear_units():
 		if child is Unit:
 			UnitManager.unregister_unit(child)
 			child.queue_free()
+
+# ---- 立即移除并释放旧地形节点（避免延迟释放导致的节点重名/残留） ----
+func _remove_old_terrain():
+	var old = get_node_or_null("TerrainTileMap")
+	if old:
+		remove_child(old)       # 立即从树里移除
+		old.free()              # 同步释放
+		print("已清理旧地形节点")
 
 func _find_tilemap(node: Node) -> TileMapLayer:
 	if not node:
