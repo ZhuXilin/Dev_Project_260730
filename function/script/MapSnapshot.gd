@@ -104,8 +104,8 @@ static func _deserialize_map_data(data: Dictionary) -> MapData:
 	var map = MapData.new()
 	map.map_name = data.get("map_name", "")
 	map.map_size = Vector2i(
-		data.get("map_size_x", 20),
-		data.get("map_size_y", 15)
+		data.get("map_size_x", MapConst.DEFAULT_MAP_SIZE.x),
+		data.get("map_size_y", MapConst.DEFAULT_MAP_SIZE.y)
 	)
 	map.node_type = data.get("node_type", MapNode.NodeType.NORMAL)
 	map.required_unit = data.get("required_unit", "")

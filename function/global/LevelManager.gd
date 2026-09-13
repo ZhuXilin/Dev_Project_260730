@@ -176,7 +176,7 @@ func load_current_level():
 func _create_fallback_map_data() -> MapData:
 	var m = MapData.new()
 	m.map_name = "备用地图"
-	m.map_size = Vector2i(20, 15)
+	m.map_size = MapConst.DEFAULT_MAP_SIZE
 	m.node_type = MapNode.NodeType.NORMAL
 	return m
 

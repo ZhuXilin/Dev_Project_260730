@@ -414,7 +414,7 @@ func _load_combat(map_data_arg: MapData):
 func _create_default_map() -> MapData:
 	var map = MapData.new()
 	map.map_name = "备用地图"
-	map.map_size = Vector2i(20, 15)
+	map.map_size = MapConst.DEFAULT_MAP_SIZE
 	return map
 
 # ---- 获取选中节点ID（用于存档） ----

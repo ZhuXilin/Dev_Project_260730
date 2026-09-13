@@ -6,9 +6,9 @@ enum FollowMode { MOUSE, UNIT }
 var follow_mode : FollowMode = FollowMode.MOUSE
 var target_unit : Unit = null
 var target_position : Vector2 = Vector2.ZERO   # 类成员变量
-var map_rect : Rect2 = Rect2(0, 0, 640, 480)
+var map_rect : Rect2 = Rect2(0, 0, 0, 0)
 var paused : bool = false
-var grid_size : int = 16
+var grid_size : int = MapConst.CELL_SIZE
 var edge_scroll_margin : int = 80
 var scroll_speed : float = 5.0
 var smooth_tween : Tween

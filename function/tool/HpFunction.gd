@@ -52,7 +52,7 @@ func _get_configuration_warnings():
 	var y_aligned = abs(y_mod) < 0.01
 	
 	if not x_aligned or not y_aligned:
-		warnings.append("节点位置未对齐到网格顶点（应位于格子角点，坐标应为 16 的整数倍）。建议使用网格吸附功能。")
+		warnings.append("节点位置未对齐到网格顶点（应位于格子角点，坐标应为 %d 的整数倍）。建议使用网格吸附功能。" % MapConst.CELL_SIZE)
 	
 	return warnings
 

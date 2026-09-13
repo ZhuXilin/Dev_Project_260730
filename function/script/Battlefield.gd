@@ -50,7 +50,7 @@ const PERFORMANCE_DURATION : float = 0.5
 const ItemGetPopupScene = preload(Config.PATHS.ITEM_GET_POPUP)
 
 # ---- 普通变量（运行时可修改） ----
-var map_grid_size : Vector2i = Vector2i(20, 15)
+var map_grid_size : Vector2i = MapConst.DEFAULT_MAP_SIZE
 var _initialized : bool = false
 var _viewport_scale : float = 1.0
 var _battle_start_event_id : String = ""
@@ -490,6 +490,7 @@ func load_map(new_map_data: MapData):
 func _create_fallback_map_data() -> MapData:
 	var map = MapData.new()
 	map.map_name = "备用地图"
+	map.map_size = MapConst.DEFAULT_MAP_SIZE
 	var cfg = UnitConfig.new()
 	cfg.unit_name = "剑士"
 	cfg.team_id = 0
@@ -604,7 +605,7 @@ func _load_default_map():
 	var default_map = MapData.new()
 	default_map.map_name = "默认地图"
 	default_map.scene = null
-	default_map.map_size = Vector2i(20, 15)
+	default_map.map_size = MapConst.DEFAULT_MAP_SIZE
 	load_map(default_map)
 
 func _clear_units():
