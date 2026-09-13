@@ -92,7 +92,7 @@ func trigger_event(event_id: String, unit: Unit = null, default_music: AudioStre
 				# ---- 1. 检查是否为遗物 ----
 				var relic_data = RelicManager.get_relic_data(item_id)
 				if not relic_data.is_empty():
-					Globals.unlock_relic(item_id)
+					RelicManager.unlock_relic(item_id)
 					GameState.add_reward_item(item_id)
 					var inst = ItemInstance.new()
 					inst.item_id = item_id
@@ -149,7 +149,7 @@ func trigger_event(event_id: String, unit: Unit = null, default_music: AudioStre
 					# 检查是否为遗物
 					var relic_data = RelicManager.get_relic_data(item_id)
 					if not relic_data.is_empty():
-						Globals.unlock_relic(item_id)
+						RelicManager.unlock_relic(item_id)
 					else:
 						Globals.unlock_item(item_id)
 

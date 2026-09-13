@@ -162,7 +162,7 @@ func _on_existing_relic_clicked(slot_idx: int):
 	
 	# ---- 直接替换槽位中的遗物 ----
 	GameState.global_relics[slot_idx] = inst
-	Globals.unlock_relic(_selected_candidate)
+	RelicManager.unlock_relic(_selected_candidate)
 	
 	relic_selected.emit(_selected_candidate)
 	queue_free()
@@ -174,7 +174,7 @@ func _confirm_selection(relic_id: String):
 	inst.count = 1
 	var success = GameState.add_global_relic(inst)
 	if success:
-		Globals.unlock_relic(relic_id)
+		RelicManager.unlock_relic(relic_id)
 		print("获得遗物: ", relic_id)
 	else:
 		print("遗物槽异常，未获得: ", relic_id)

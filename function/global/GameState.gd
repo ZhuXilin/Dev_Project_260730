@@ -1,5 +1,8 @@
 extends Node
 
+# ============================================================
+#  中断状态枚举（保留在 GameState，逻辑定义）
+# ============================================================
 enum InterruptState {
 	NONE,
 	CAMP,
@@ -7,120 +10,227 @@ enum InterruptState {
 	BATTLEFIELD,
 }
 
-# ---- 队伍数据 ----
-var party: Array[UnitData] = []
-var max_party_size: int = 3
-var main_unit_name: String = ""          # 记录主单位类型名称
-var main_unit_index: int = 0
-
-# ---- 地图进度 ----
-var current_day: int = 1                 # 当前天数（1、2、3）
-var current_map_index: int = 0
-var visited_nodes: Dictionary = {}       # 记录已访问节点，key: "x_y", value: true
-var current_node_key: String = ""        # 记录当前进入战斗的节点 key，用于中断时撤销访问
-var is_map_mode: bool = false
-var cached_map_level_data: MapLevelData = null   # 当前天的地图缓存
-var cached_day: int = -1                 # 缓存对应的天数
-var last_selected_node_type: int = -1
-var current_map_data: MapData = null     # 当前正在战斗的地图数据
-var should_advance_day: bool = false     # Boss胜利后推进天数的标志
-var resume_node_id: String = ""          # 加载存档后要定位的节点ID
-
-const MAX_RELIC_SLOTS = 3
-
-# ---- 地图快照（当前天的地图骨架） ----
-var map_snapshot: Dictionary = {}
-
-# ---- 本轮三天基线（用于结算显示） ----
-var cycle_start_soul: int = 0
-var cycle_start_materials: Dictionary = {}
-
-# ---- 资源 ----
-var soul: int = 0          # 永久魂
-var temp_soul: int = 0     # 本轮临时魂
-var temp_gold: int = 0     # 本轮临时金币
-var reward_items: Array = []             # 获得物品 ID 列表（用于结算）
-
-# ---- 材料库存 ----
-var materials: Dictionary = {
-	"粗铁": 0,
-	"精钢": 0,
-	"秘银": 0,
-	"龙鳞": 0
-}
-
-# ---- 单次奖励（用于结算界面） ----
-var current_reward_gold: int = 0
-var current_reward_soul: int = 0
-var current_reward_materials: Dictionary = {}
-
-# ---- 游戏状态 ----
-var interrupt_state: InterruptState = InterruptState.NONE
-var battlefield_data: Dictionary = {}   # 预留战场数据
-
-# ---- 装备系统 ----
-var global_relics: Array[ItemInstance] = []   # 全局遗物
-var current_faction: String = ""              # 当前阵营
-
-# ---- 存档辅助 ----
-var pending_save_slot: int = -1
+# ============================================================
+#  三个状态对象
+# ============================================================
+var party_state : PartyState = PartyState.new()
+var progress_state : ProgressState = ProgressState.new()
+var resource_state : ResourceState = ResourceState.new()
 
 # ============================================================
-#  队伍初始化
+#  属性转发：PartyState（零破坏）
+# ============================================================
+var party : Array[UnitData]:
+	get: return party_state.party
+	set(value): party_state.party = value
+
+var max_party_size : int:
+	get: return party_state.max_party_size
+	set(value): party_state.max_party_size = value
+
+var main_unit_name : String:
+	get: return party_state.main_unit_name
+	set(value): party_state.main_unit_name = value
+
+var main_unit_index : int:
+	get: return party_state.main_unit_index
+	set(value): party_state.main_unit_index = value
+
+var current_faction : String:
+	get: return party_state.current_faction
+	set(value): party_state.current_faction = value
+
+var global_relics : Array:
+	get: return party_state.global_relics
+	set(value): party_state.global_relics = value
+
+const MAX_RELIC_SLOTS : int = 3
+
+# ============================================================
+#  属性转发：ProgressState
+# ============================================================
+var current_day : int:
+	get: return progress_state.current_day
+	set(value): progress_state.current_day = value
+
+var current_map_index : int:
+	get: return progress_state.current_map_index
+	set(value): progress_state.current_map_index = value
+
+var visited_nodes : Dictionary:
+	get: return progress_state.visited_nodes
+	set(value): progress_state.visited_nodes = value
+
+var current_node_key : String:
+	get: return progress_state.current_node_key
+	set(value): progress_state.current_node_key = value
+
+var is_map_mode : bool:
+	get: return progress_state.is_map_mode
+	set(value): progress_state.is_map_mode = value
+
+var resume_node_id : String:
+	get: return progress_state.resume_node_id
+	set(value): progress_state.resume_node_id = value
+
+var last_selected_node_type : int:
+	get: return progress_state.last_selected_node_type
+	set(value): progress_state.last_selected_node_type = value
+
+var should_advance_day : bool:
+	get: return progress_state.should_advance_day
+	set(value): progress_state.should_advance_day = value
+
+var cached_map_level_data : MapLevelData:
+	get: return progress_state.cached_map_level_data
+	set(value): progress_state.cached_map_level_data = value
+
+var cached_day : int:
+	get: return progress_state.cached_day
+	set(value): progress_state.cached_day = value
+
+var current_map_data : MapData:
+	get: return progress_state.current_map_data
+	set(value): progress_state.current_map_data = value
+
+var map_snapshot : Dictionary:
+	get: return progress_state.map_snapshot
+	set(value): progress_state.map_snapshot = value
+
+var interrupt_state : InterruptState:
+	get: return progress_state.interrupt_state as InterruptState
+	set(value): progress_state.interrupt_state = value
+
+var battlefield_data : Dictionary:
+	get: return progress_state.battlefield_data
+	set(value): progress_state.battlefield_data = value
+
+# ============================================================
+#  属性转发：ResourceState
+# ============================================================
+var soul : int:
+	get: return resource_state.soul
+	set(value): resource_state.soul = value
+
+var temp_soul : int:
+	get: return resource_state.temp_soul
+	set(value): resource_state.temp_soul = value
+
+var temp_gold : int:
+	get: return resource_state.temp_gold
+	set(value): resource_state.temp_gold = value
+
+var materials : Dictionary:
+	get: return resource_state.materials
+	set(value): resource_state.materials = value
+
+var cycle_start_soul : int:
+	get: return resource_state.cycle_start_soul
+	set(value): resource_state.cycle_start_soul = value
+
+var cycle_start_materials : Dictionary:
+	get: return resource_state.cycle_start_materials
+	set(value): resource_state.cycle_start_materials = value
+
+var reward_items : Array:
+	get: return resource_state.reward_items
+	set(value): resource_state.reward_items = value
+
+var current_reward_gold : int:
+	get: return resource_state.current_reward_gold
+	set(value): resource_state.current_reward_gold = value
+
+var current_reward_soul : int:
+	get: return resource_state.current_reward_soul
+	set(value): resource_state.current_reward_soul = value
+
+var current_reward_materials : Dictionary:
+	get: return resource_state.current_reward_materials
+	set(value): resource_state.current_reward_materials = value
+
+# ============================================================
+#  非转发字段（不属于任何 state）
+# ============================================================
+var pending_save_slot : int = -1
+
+# ============================================================
+#  队伍相关（转发到 party_state 方法）
 # ============================================================
 func initialize_party(selected_units: Array[String], main_index: int):
-	party.clear()
-	for unit_name in selected_units:
-		var data = UnitDataManager.create_unit_data(unit_name)
-		party.append(data)
-	main_unit_index = main_index
-	main_unit_name = selected_units[main_index] if selected_units.size() > main_index else ""
+	party_state.initialize_party(selected_units, main_index)
 
-# ============================================================
-#  队伍查询
-# ============================================================
 func get_party_units() -> Array[UnitData]:
-	return party
+	return party_state.get_party_units()
 
 func get_main_unit() -> UnitData:
-	if party.size() > main_unit_index:
-		return party[main_unit_index]
-	return null
+	return party_state.get_main_unit()
 
-# ============================================================
-#  战斗后同步单位状态
-# ============================================================
 func sync_units_from_battlefield(battle_units: Array):
-	for i in range(min(party.size(), battle_units.size())):
-		var battle_unit = battle_units[i]
-		var party_unit = party[i]
-		party_unit.hit_points = battle_unit.hit_points
-		# 同步武器和防具
-		party_unit.weapon_slot = battle_unit.weapon_slot
-		party_unit.armor_slots = battle_unit.armor_slots.duplicate()
-		party_unit.max_armor_slots = battle_unit.max_armor_slots
+	party_state.sync_units_from_battlefield(battle_units)
 
 # ============================================================
-#  进度重置
+#  遗物相关（转发到 party_state 方法）
+# ============================================================
+func init_relic_slots():
+	party_state.init_relic_slots()
+
+func add_global_relic(instance: ItemInstance) -> bool:
+	return party_state.add_global_relic(instance)
+
+func remove_global_relic_at_slot(slot_idx: int):
+	party_state.remove_global_relic_at_slot(slot_idx)
+
+func get_global_relics() -> Array:
+	return party_state.get_global_relics()
+
+func get_active_relics() -> Array:
+	return party_state.get_active_relics()
+
+func get_global_relic_stats() -> Dictionary:
+	return party_state.get_global_relic_stats()
+
+# ============================================================
+#  进度相关
 # ============================================================
 func reset_progress():
-	visited_nodes.clear()
-	current_day = 1
-	cached_map_level_data = null
-	cached_day = -1
-	resume_node_id = ""
-	should_advance_day = false
-	current_map_data = null
-	last_selected_node_type = -1
-	should_advance_day = false
-	map_snapshot.clear()
+	progress_state.reset_progress()
 
+func undo_battle_entry():
+	progress_state.undo_battle_entry()
+
+# ============================================================
+#  资源相关
+# ============================================================
+func add_material(material_name: String, amount: int):
+	resource_state.add_material(material_name, amount)
+
+func get_material(material_name: String) -> int:
+	return resource_state.get_material(material_name)
+
+func get_all_materials() -> Dictionary:
+	return resource_state.get_all_materials()
+
+func reset_materials():
+	resource_state.reset_materials()
+
+func add_reward_item(item_id: String):
+	resource_state.add_reward_item(item_id)
+
+func clear_reward_items():
+	resource_state.clear_reward_items()
+
+func clear_current_reward():
+	resource_state.clear_current_reward()
+
+# ============================================================
+#  编排方法（跨 state，保留在 GameState）
+# ============================================================
 func start_new_cycle():
 	temp_soul = 0
 	temp_gold = 0
 	cycle_start_soul = soul
 	cycle_start_materials = materials.duplicate()
-	
+
 	for unit_data in party:
 		unit_data.armor_slots.clear()
 		unit_data.max_armor_slots = 2
@@ -134,8 +244,16 @@ func start_new_cycle():
 			unit_data.weapon_slot = null
 	init_relic_slots()
 
+func finish_day():
+	soul += temp_soul
+	temp_soul = 0
+	for unit_data in party:
+		unit_data.armor_slots.append(null)
+		unit_data.max_armor_slots += 1
+	print("每天结束：soul=", soul, " temp_soul 已清零")
+
 func finish_cycle():
-	finish_day()          # 合并魂并清零
+	finish_day()
 
 func abandon_cycle():
 	temp_soul = 0
@@ -185,25 +303,9 @@ func reset_all():
 	map_snapshot.clear()
 	cycle_start_soul = 0
 	cycle_start_materials.clear()
-	
-# ============================================================
-#  魂与装备
-# ============================================================
-func finish_day():
-	soul += temp_soul
-	temp_soul = 0
-	for unit_data in party:
-		unit_data.armor_slots.append(null)
-		unit_data.max_armor_slots += 1
-		# ---- 打印验证 ----
-		print("finish_day: 单位 ", unit_data.unit_name, " 当前槽位数: ", unit_data.armor_slots.size(), " max_armor_slots: ", unit_data.max_armor_slots)
-	print("每天结束：soul=", soul, " temp_soul 已清零")
 
 func abandon_and_return_to_camp():
-	# ---- 先弹结算 ----
 	await Globals.show_cycle_reward()
-	
-	# ---- 执行放弃逻辑 ----
 	finish_day()
 	abandon_cycle()
 	reset_all()
@@ -220,104 +322,3 @@ func show_abandon_confirmation(parent: Node):
 		abandon_and_return_to_camp,
 		func(): pass
 	)
-
-# ============================================================
-#  遗物管理
-# ============================================================
-# 初始化为 [null, null, null]
-func init_relic_slots():
-	global_relics.clear()
-	for i in range(MAX_RELIC_SLOTS):
-		global_relics.append(null)
-
-# 添加到第一个空槽，返回是否成功
-func add_global_relic(instance: ItemInstance) -> bool:
-	# 确保槽位存在
-	while global_relics.size() < MAX_RELIC_SLOTS:
-		global_relics.append(null)
-	
-	for i in range(MAX_RELIC_SLOTS):
-		if global_relics[i] == null:
-			global_relics[i] = instance
-			print("遗物放入槽 ", i, ": ", instance.item_id)
-			return true
-	
-	print("遗物槽已满，无法添加: ", instance.item_id)
-	return false
-
-# 按槽位移除，保留空位
-func remove_global_relic_at_slot(slot_idx: int):
-	if slot_idx >= 0 and slot_idx < global_relics.size():
-		global_relics[slot_idx] = null
-
-# 获取全部（含 null）
-func get_global_relics() -> Array[ItemInstance]:
-	return global_relics.duplicate()
-
-# 获取非空遗物（用于战斗加成计算）
-func get_active_relics() -> Array:
-	var result = []
-	for r in global_relics:
-		if r != null:
-			result.append(r)
-	return result
-
-# ============================================================
-#  中断战斗撤销
-# ============================================================
-func undo_battle_entry():
-	# 只清除当前节点键，但保留访问标记，以保持地图进度
-	current_node_key = ""
-	# 不要删除 visited_nodes 中的条目
-	should_advance_day = false
-
-# ============================================================
-#  奖励物品记录（用于结算界面）
-# ============================================================
-func add_reward_item(item_id: String):
-	if item_id not in reward_items:
-		reward_items.append(item_id)
-
-func clear_reward_items():
-	reward_items.clear()
-
-# ============================================================
-#  单次奖励记录（用于结算界面）
-# ============================================================
-func clear_current_reward():
-	current_reward_gold = 0
-	current_reward_soul = 0
-	current_reward_materials = {}
-
-func add_material(material_name: String, amount: int):
-	if materials.has(material_name):
-		materials[material_name] += amount
-	else:
-		materials[material_name] = amount
-	print("材料增加: ", material_name, " +", amount, " (当前: ", materials[material_name], ")")
-	
-	# ---- 材料变化后自动保存 ----
-	SaveManager.auto_save()
-
-func get_material(material_name: String) -> int:
-	return materials.get(material_name, 0)
-
-func get_all_materials() -> Dictionary:
-	return materials.duplicate()
-
-func reset_materials():
-	for key in materials.keys():
-		materials[key] = 0
-
-func get_global_relic_stats() -> Dictionary:
-	var bonus = {}
-	for relic in global_relics:
-		if relic == null:   # ← 跳过 null
-			continue
-		var data = RelicManager.get_relic_data(relic.item_id)
-		if data.is_empty():
-			continue
-		var stats = data.get("stats", {})
-		for key in stats:
-			bonus[key] = bonus.get(key, 0) + stats[key]
-	return bonus

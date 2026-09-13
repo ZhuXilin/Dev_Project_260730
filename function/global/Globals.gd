@@ -72,7 +72,6 @@ func _ready():
 	_apply_game_speed()
 	_load_unlock_config()
 	_load_item_unlock_config()
-	_load_relic_unlock_config()
 	_load_talent_unlock_config()
 
 # ============================================================
@@ -291,22 +290,6 @@ func get_reward_summary() -> CanvasLayer:
 	_reward_summary_instance = inst
 	print("Globals: 创建结算面板实例（挂到 root 下）")
 	return inst
-
-# ============================================================
-#  遗物解锁（委托给 RelicManager）
-# ============================================================
-func _load_relic_unlock_config():
-	# RelicManager 自行加载
-	pass
-
-func is_relic_unlocked(relic_id: String) -> bool:
-	return RelicManager.is_relic_unlocked(relic_id)
-
-func unlock_relic(relic_id: String):
-	RelicManager.unlock_relic(relic_id)
-
-func get_unlocked_relics() -> Array:
-	return RelicManager.get_unlocked_relics()
 
 func _load_talent_unlock_config():
 	var default_talents = ["crit", "double_attack", "parry", "block"]
