@@ -217,7 +217,6 @@ func _ready():
 	InputManager.selected_unit = null
 	InputManager.interaction_phase = "idle"
 	InputManager.current_highlight_cells = {}
-	InputManager.attackable_targets = []
 
 	TurnManager.all_acted = false
 	TurnManager.is_moving = false
@@ -876,7 +875,6 @@ func _on_request_show_victory(winning_team: int):
 	InputManager.interaction_phase = "idle"
 	InputManager.current_highlight_cells = {}
 	InputManager.current_move_attack_targets = {}
-	InputManager.attackable_targets = []
 
 	var is_win = (winning_team == 0)
 	var is_last = LevelManager.is_last_level()
@@ -1024,7 +1022,6 @@ func _handle_turn_change_async(team: int):
 	InputManager.selected_unit = null
 	InputManager.interaction_phase = "idle"
 	InputManager.current_highlight_cells = {}
-	InputManager.attackable_targets = []
 
 	MusicManager.stop_music()
 	
@@ -2160,7 +2157,6 @@ func _end_player_turn():
 	InputManager.selected_unit = null
 	InputManager.interaction_phase = "idle"
 	InputManager.current_highlight_cells = {}
-	InputManager.attackable_targets = []
 
 	print("玩家回合结束，切换到敌方回合")
 	TurnManager.start_turn(1)   # 敌方回合会被 TurnManager 跳过（非战斗模式）

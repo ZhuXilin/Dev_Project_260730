@@ -110,7 +110,6 @@ func start_turn(team: int):
 	InputManager.selected_unit = null
 	InputManager.interaction_phase = "idle"
 	InputManager.current_highlight_cells = {}
-	InputManager.attackable_targets = []
 	SignalBus.request_hide_menu.emit()
 	SignalBus.request_clear_highlight.emit()
 
@@ -167,7 +166,6 @@ func finish_unit_action(unit: Unit):
 	InputManager.selected_unit = null
 	InputManager.interaction_phase = "idle"
 	InputManager.current_highlight_cells = {}
-	InputManager.attackable_targets = []
 	check_all_acted()
 
 func cancel_movement(unit: Unit):

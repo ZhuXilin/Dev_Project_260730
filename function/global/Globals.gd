@@ -128,7 +128,6 @@ func reset_all_game_state():
 	InputManager.selected_unit = null
 	InputManager.interaction_phase = "idle"
 	InputManager.current_highlight_cells = {}
-	InputManager.attackable_targets = []
 	
 	TurnManager.all_acted = false
 	TurnManager.is_moving = false
