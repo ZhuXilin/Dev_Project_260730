@@ -77,7 +77,7 @@ func _confirm_deploy():
 	GameState.reset_all()
 	GameState.start_new_cycle()
 	SaveManager.save_game(SaveManager.current_slot, false)
-	get_tree().change_scene_to_file("res://content/scenes/ui/UnitSelectUI.tscn")
+	get_tree().change_scene_to_file(Config.PATHS.UNIT_SELECT_UI)
 
 func _on_unit_pressed():
 	var existing = get_node_or_null("UnitInfoUI")
@@ -86,7 +86,7 @@ func _on_unit_pressed():
 		if existing.visible:
 			existing.populate_list()
 		return
-	var panel_scene = load("res://content/scenes/ui/UnitInfoUI.tscn")
+	var panel_scene = load(Config.PATHS.UNIT_INFO_UI)
 	if panel_scene:
 		var panel = panel_scene.instantiate()
 		add_child(panel)
@@ -100,7 +100,7 @@ func _on_item_pressed():
 		if existing.visible:
 			existing._refresh_list()
 		return
-	var panel_scene = load("res://content/scenes/ui/ItemInfoUI.tscn")
+	var panel_scene = load(Config.PATHS.ITEM_INFO_UI)
 	if panel_scene:
 		var panel = panel_scene.instantiate()
 		add_child(panel)
@@ -109,4 +109,4 @@ func _on_item_pressed():
 func _on_back_pressed():
 	GameState.interrupt_state = GameState.InterruptState.CAMP
 	SaveManager.save_game(SaveManager.current_slot, false)
-	get_tree().change_scene_to_file("res://content/scenes/ui/MainMenu.tscn")
+	get_tree().change_scene_to_file(Config.PATHS.MAIN_MENU)

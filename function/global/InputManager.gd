@@ -1,7 +1,5 @@
 extends Node
 
-const UnitDataManagerClass = preload("res://function/script/UnitDataManager.gd")
-
 # ---- 交互阶段枚举 ----
 enum Phase {
 	IDLE,

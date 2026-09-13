@@ -24,7 +24,7 @@ func setup(node_data: MapNode, map_scene: CanvasLayer):
 	add_theme_color_override("font_color_pressed", Color.WHITE)
 	
 	# ---- 使用 8bit_style_box_flat 样式（不透明） ----
-	var stylebox = load("res://content/resource/stylebox/8bit_style_box_flat.tres")
+	var stylebox = load(Config.PATHS.STYLEBOX_8BIT)
 	if stylebox:
 		add_theme_stylebox_override("normal", stylebox)
 		add_theme_stylebox_override("pressed", stylebox)

@@ -2,8 +2,6 @@
 extends Node2D
 class_name UnitPlacerTool
 
-const UnitDataManagerClass = preload("res://function/script/UnitDataManager.gd")
-
 # ---- 放置模式 ----
 enum PlacementMode {
 	FIXED_UNIT,    # 固定单位（原有模式）
@@ -119,7 +117,7 @@ func _get_configuration_warnings() -> PackedStringArray:
 		if placement_mode == PlacementMode.FIXED_UNIT:
 			if initial_items.size() > 5:
 				warnings.append("初始道具数量超过5个，将只保留前5个")
-			var default_id = UnitDataManagerClass.get_default_weapon_id(_get_json_key())
+			var default_id = UnitDataManager.get_default_weapon_id(_get_json_key())
 			if default_id != "":
 				var has_default = false
 				for entry in initial_items:
@@ -175,7 +173,7 @@ func _build_unit_preview():
 
 	# ---- 使用英文 JSON 键获取数据 ----
 	var json_key = _get_json_key()
-	var data = UnitDataManagerClass.get_unit_data(json_key)
+	var data = UnitDataManager.get_unit_data(json_key)
 	var display_name = data.get("display_name", json_key)  # 用显示名作为标签
 
 	var anim_sprite = unit_instance.get_node("Sprite") as AnimatedSprite2D
@@ -219,7 +217,7 @@ func _apply_shader_to_sprite(sprite: CanvasItem, team_id: int):
 		team_id = 0
 	if not sprite:
 		return
-	var shader = preload("res://content/resource/shader/replace_color.gdshader") as Shader
+	var shader = preload(Config.PATHS.SHADER_REPLACE_COLOR) as Shader
 	if not shader:
 		var color = Color(0.1216, 0.2196, 0.9373) if team_id == 0 else Color(0.8784, 0.0, 0.3725)
 		sprite.modulate = color
@@ -279,7 +277,7 @@ func export_config() -> Variant:
 		cfg.immobile = (team == Team.敌人 and immobile)
 		
 		var items_to_export = initial_items.duplicate()
-		var default_id = UnitDataManagerClass.get_default_weapon_id(cfg.unit_name)
+		var default_id = UnitDataManager.get_default_weapon_id(cfg.unit_name)
 		if default_id != "":
 			var already_has = false
 			for entry in items_to_export:

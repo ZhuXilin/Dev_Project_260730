@@ -24,11 +24,11 @@ func _on_start_pressed():
 	GameState.interrupt_state = GameState.InterruptState.CAMP
 	SaveManager.save_game(slot, false)
 	SaveManager.current_slot = slot
-	get_tree().change_scene_to_file("res://content/scenes/ui/Camp.tscn")
+	get_tree().change_scene_to_file(Config.PATHS.CAMP)
 
 func _on_load_pressed():
 	# 加载存档选择界面
-	var save_ui = load("res://content/scenes/ui/SaveSelectUI.tscn").instantiate()
+	var save_ui = load(Config.PATHS.SAVE_SELECT_UI).instantiate()
 	add_child(save_ui)
 
 func _on_quit_pressed():
@@ -55,18 +55,18 @@ func _on_continue_pressed():
 		save = SaveManager.load_save_data(slot)
 		_show_continue_error("存档数据异常，已重置地图进度，临时资源已丢弃。")
 		SaveManager._apply_save_data(save)
-		get_tree().change_scene_to_file("res://content/scenes/ui/Camp.tscn")
+		get_tree().change_scene_to_file(Config.PATHS.CAMP)
 		return
 
 	SaveManager._apply_save_data(save)
 	match save.interrupt_state as GameState.InterruptState:
 		GameState.InterruptState.MAP:
-			get_tree().change_scene_to_file("res://content/scenes/ui/MapScene.tscn")
+			get_tree().change_scene_to_file(Config.PATHS.MAP_SCENE)
 		GameState.InterruptState.BATTLEFIELD:
 			print("战场中断恢复功能开发中，直接进入营地")
-			get_tree().change_scene_to_file("res://content/scenes/ui/Camp.tscn")
+			get_tree().change_scene_to_file(Config.PATHS.CAMP)
 		_:
-			get_tree().change_scene_to_file("res://content/scenes/ui/Camp.tscn")
+			get_tree().change_scene_to_file(Config.PATHS.CAMP)
 
 func _show_continue_error(message: String):
 	Globals.show_confirm(

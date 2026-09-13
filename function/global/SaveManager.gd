@@ -2,7 +2,7 @@ extends Node
 
 const SAVE_DIR = "user://saves/"
 const SLOT_COUNT = 5
-const MapSceneClass = preload("res://function/script/MapScene.gd")
+const MapSceneClass = preload(Config.PATHS.MAP_SCENE_SCRIPT)
 
 signal save_completed(slot: int)
 signal load_completed(slot: int, success: bool)

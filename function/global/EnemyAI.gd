@@ -3,8 +3,6 @@ class_name EnemyAI
 
 signal ai_queue_finished
 
-const UnitDataManagerClass = preload("res://function/script/UnitDataManager.gd")
-
 var ai_queue : Array = []
 var _processing : bool = false
 var _turn_manager : TurnManager = null

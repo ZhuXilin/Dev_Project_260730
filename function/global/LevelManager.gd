@@ -3,7 +3,7 @@ extends Node
 signal all_levels_completed()
 signal all_days_completed()
 
-const UNIT_LEVEL_MAP_PATH = "res://content/scenes/levels/UnitLevelMap.tres"
+const UNIT_LEVEL_MAP_PATH = Config.PATHS.UNIT_LEVEL_MAP
 const DEFAULT_FACTION = "王国"
 
 var _config: UnitLevelMapConfig = null
@@ -132,7 +132,7 @@ func start_game():
 	current_day = 0
 	is_map_mode = true
 	Globals.is_map_mode = true
-	get_tree().change_scene_to_file("res://content/scenes/ui/MapScene.tscn")
+	get_tree().change_scene_to_file(Config.PATHS.MAP_SCENE)
 
 func load_map(map_data: MapData):
 	if not map_data:
@@ -141,23 +141,23 @@ func load_map(map_data: MapData):
 	Globals.reset_all_game_state()
 	GameState.current_map_data = map_data
 	Globals.is_map_mode = true
-	get_tree().change_scene_to_file("res://content/scenes/levels/Battlefield.tscn")
+	get_tree().change_scene_to_file(Config.PATHS.BATTLEFIELD_SCENE)
 
 func on_victory():
 	current_level_index += 1
 	var levels = get_current_day_levels()
 	if current_level_index < levels.size():
 		if is_map_mode:
-			get_tree().change_scene_to_file("res://content/scenes/ui/MapScene.tscn")
+			get_tree().change_scene_to_file(Config.PATHS.MAP_SCENE)
 		else:
 			load_current_level()
 	else:
 		emit_signal("all_levels_completed")
-		get_tree().change_scene_to_file("res://content/scenes/ui/MainMenu.tscn")
-
+		get_tree().change_scene_to_file(Config.PATHS.MAIN_MENU)
+		
 func on_defeat():
 	GameState.reset_all()
-	get_tree().change_scene_to_file("res://content/scenes/ui/MainMenu.tscn")
+	get_tree().change_scene_to_file(Config.PATHS.MAIN_MENU)
 
 func is_last_level() -> bool:
 	var levels = get_current_day_levels()
@@ -168,10 +168,10 @@ func load_current_level():
 	if current_level_index < levels.size():
 		Globals.reset_all_game_state()
 		GameState.current_map_data = levels[current_level_index]
-		get_tree().change_scene_to_file("res://content/scenes/ui/Loading.tscn")
+		get_tree().change_scene_to_file(Config.PATHS.LOADING)
 	else:
 		emit_signal("all_levels_completed")
-		get_tree().change_scene_to_file("res://content/scenes/ui/MainMenu.tscn")
+		get_tree().change_scene_to_file(Config.PATHS.MAIN_MENU)
 
 func _create_fallback_map_data() -> MapData:
 	var m = MapData.new()

@@ -1,8 +1,6 @@
 extends Area2D
 class_name Unit
 
-const UnitDataManagerClass = preload("res://function/script/UnitDataManager.gd")
-
 @export var unit_stats : UnitData
 @export var hit_offset_distance: float = 8.0
 
@@ -117,7 +115,7 @@ func setup_unit(stats_data: UnitData, start_cell: Vector2i, initial_items: Array
 	_init_talent_slots_from_data(stats_data)
 
 	# ---- 加载 SpriteFrames ----
-	var frames_path = UnitDataManagerClass.get_sprite_frames_path(unit_stats.unit_name)
+	var frames_path = UnitDataManager.get_sprite_frames_path(unit_stats.unit_name)
 	var loaded_ok = false
 	if frames_path != "" and ResourceLoader.exists(frames_path):
 		var frames = load(frames_path) as SpriteFrames
@@ -344,7 +342,7 @@ func restore_from_unit_data(data: UnitData, cell: Vector2i):
 		animated_sprite = $Sprite as AnimatedSprite2D
 	
 	if animated_sprite:
-		var frames_path = UnitDataManagerClass.get_sprite_frames_path(unit_stats.unit_name)
+		var frames_path = UnitDataManager.get_sprite_frames_path(unit_stats.unit_name)
 		var loaded_ok = false
 		if frames_path != "" and ResourceLoader.exists(frames_path):
 			var frames = load(frames_path) as SpriteFrames
@@ -492,7 +490,7 @@ func set_gray(gray: bool):
 func update_color():
 	if not animated_sprite:
 		return
-	var shader = preload("res://content/resource/shader/replace_color.gdshader")
+	var shader = preload(Config.PATHS.SHADER_REPLACE_COLOR)
 	if not shader:
 		push_error("无法加载替换 Shader")
 		return

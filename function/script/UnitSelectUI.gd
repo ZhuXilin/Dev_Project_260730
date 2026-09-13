@@ -11,7 +11,7 @@ var _equipment_config_instance = null   # 防止重复实例化
 @onready var confirm_btn = $BottomBar/ConfirmButton
 @onready var back_btn = $BottomBar/BackButton
 
-const EquipmentConfig = preload("res://function/script/EquipmentConfig.gd")
+const EquipmentConfig = preload(Config.PATHS.EQUIPMENT_CONFIG_SCRIPT)
 
 func _ready():
 	if MusicManager.config and MusicManager.config.unit_select_music:
@@ -135,7 +135,7 @@ func _on_confirm_pressed():
 	GameState.interrupt_state = GameState.InterruptState.MAP
 	
 	# ---- 创建面板 ----
-	var config = load("res://content/scenes/ui/EquipmentConfig.tscn").instantiate()
+	var config = load(Config.PATHS.EQUIPMENT_CONFIG).instantiate()
 	add_child(config)
 	_equipment_config_instance = config
 	var panel = config.get_node("MainPanel")
@@ -147,4 +147,4 @@ func _on_confirm_pressed():
 
 func _on_back_pressed():
 	MusicManager.stop_music()
-	get_tree().change_scene_to_file("res://content/scenes/ui/Camp.tscn")
+	get_tree().change_scene_to_file(Config.PATHS.CAMP)

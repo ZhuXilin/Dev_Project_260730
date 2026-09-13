@@ -74,7 +74,7 @@ func _refresh_slots():
 func _on_load_pressed(slot: int):
 	var success = SaveManager.load_game(slot)
 	if success:
-		get_tree().change_scene_to_file("res://content/scenes/ui/MapScene.tscn")
+		get_tree().change_scene_to_file(Config.PATHS.MAP_SCENE)
 
 func _on_new_game_pressed(slot: int):
 	GameState.reset_all()
@@ -83,7 +83,7 @@ func _on_new_game_pressed(slot: int):
 	Globals.pending_save_slot = slot
 	SaveManager.save_game(slot, false)
 	SaveManager.current_slot = slot
-	get_tree().change_scene_to_file("res://content/scenes/ui/Camp.tscn")
+	get_tree().change_scene_to_file(Config.PATHS.CAMP)
 
 func _on_delete_pressed(slot: int):
 	_pending_delete_slot = slot

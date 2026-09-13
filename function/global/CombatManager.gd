@@ -1,7 +1,5 @@
 extends Node
 
-const UnitDataManagerClass = preload("res://function/script/UnitDataManager.gd")
-
 const PERFORMANCE_DURATION : float = 0.5
 
 func get_attackable_targets(unit: Unit) -> Array:

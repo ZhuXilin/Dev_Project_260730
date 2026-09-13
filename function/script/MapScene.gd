@@ -1,7 +1,7 @@
 extends CanvasLayer
 
 const FONT_SIZE = 8
-const EquipmentConfig = preload("res://function/script/EquipmentConfig.gd")
+const EquipmentConfig = preload(Config.PATHS.EQUIPMENT_CONFIG_SCRIPT)
 
 # ---- 变量声明 ----
 var current_day: int = 1
@@ -53,7 +53,7 @@ func _ready():
 		GameState.map_snapshot.clear()
 		GameState.interrupt_state = GameState.InterruptState.CAMP
 		_save_game()
-		get_tree().change_scene_to_file("res://content/scenes/ui/Camp.tscn")
+		get_tree().change_scene_to_file(Config.PATHS.CAMP)
 		return
 	
 	# 同步天数
@@ -138,7 +138,7 @@ func _ready():
 	print("MapScene _ready: temp_soul=", GameState.temp_soul, " temp_gold=", GameState.temp_gold)
 	
 	# ---- 创建详情弹窗（隐藏） ----
-	_detail_popup = load("res://content/scenes/ui/ItemDetailPopup.tscn").instantiate()
+	_detail_popup = load(Config.PATHS.ITEM_DETAIL_POPUP).instantiate()
 	add_child(_detail_popup)
 	_detail_popup.visible = false
 
@@ -236,7 +236,7 @@ func _on_interrupt_pressed():
 	
 	GameState.interrupt_state = GameState.InterruptState.MAP
 	_save_game()
-	get_tree().change_scene_to_file("res://content/scenes/ui/MainMenu.tscn")
+	get_tree().change_scene_to_file(Config.PATHS.MAIN_MENU)
 
 func _on_abandon_pressed():
 	GameState.show_abandon_confirmation(self)
@@ -247,7 +247,7 @@ func _on_abandon_confirmed():
 func _on_cycle_complete():
 	GameState.interrupt_state = GameState.InterruptState.CAMP
 	_save_game()
-	get_tree().change_scene_to_file("res://content/scenes/ui/Camp.tscn")
+	get_tree().change_scene_to_file(Config.PATHS.CAMP)
 
 # ---- 地图绘制与节点管理 ----
 func _rebuild_connections_by_layer(map_level_data: MapLevelData):
@@ -397,7 +397,7 @@ func _load_combat_for_node(node: MapNode):
 			print("错误：没有可用的地图数据，回到营地")
 			GameState.interrupt_state = GameState.InterruptState.CAMP
 			_save_game()
-			get_tree().change_scene_to_file("res://content/scenes/ui/Camp.tscn")
+			get_tree().change_scene_to_file(Config.PATHS.CAMP)
 			return
 	_load_combat(map_to_load)
 
@@ -409,7 +409,7 @@ func _load_combat(map_data_arg: MapData):
 	print("加载战斗场景: ", map_data_arg.map_name)
 	GameState.current_map_data = map_data_arg
 	Globals.reset_all_game_state()
-	get_tree().change_scene_to_file("res://content/scenes/ui/Loading.tscn")
+	get_tree().change_scene_to_file(Config.PATHS.LOADING)
 
 func _create_default_map() -> MapData:
 	var map = MapData.new()
@@ -453,7 +453,7 @@ func _on_config_btn_pressed():
 		_equipment_config_instance.move_to_front()
 		return
 	
-	var config = load("res://content/scenes/ui/EquipmentConfig.tscn").instantiate()
+	var config = load(Config.PATHS.EQUIPMENT_CONFIG).instantiate()
 	add_child(config)
 	_equipment_config_instance = config
 	var panel = config.get_node("MainPanel")
@@ -498,7 +498,7 @@ func _open_shop(node: MapNode):
 	_save_game()
 	
 	# ---- 弹出商店界面 ----
-	var config = load("res://content/scenes/ui/EquipmentConfig.tscn").instantiate()
+	var config = load(Config.PATHS.EQUIPMENT_CONFIG).instantiate()
 	add_child(config)
 	var panel = config.get_node("MainPanel")
 	

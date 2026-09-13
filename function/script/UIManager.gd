@@ -1,8 +1,6 @@
 extends Node
 class_name UIManager
 
-const UnitDataManagerClass = preload("res://function/script/UnitDataManager.gd")
-
 # ---- UI 节点引用 ----
 var action_menu : CanvasLayer
 var action_panel : PanelContainer
@@ -243,7 +241,7 @@ func show_modal_message(text: String, callback_after: Callable = Callable()):
 	var viewport_size = get_viewport().get_visible_rect().size
 	panel.position = viewport_size / 2 - panel.size / 2
 
-	var stylebox = load("res://content/resource/stylebox/8bit_style_box_flat.tres")
+	var stylebox = load(Config.PATHS.STYLEBOX_8BIT)
 	if stylebox:
 		panel.add_theme_stylebox_override("panel", stylebox)
 	popup.add_child(panel)
@@ -287,7 +285,7 @@ func show_message(text: String):
 	var viewport_size = get_viewport().get_visible_rect().size
 	panel.position = viewport_size / 2 - panel.size / 2
 
-	var stylebox = load("res://content/resource/stylebox/8bit_style_box_flat.tres")
+	var stylebox = load(Config.PATHS.STYLEBOX_8BIT)
 	if stylebox:
 		panel.add_theme_stylebox_override("panel", stylebox)
 	popup.add_child(panel)

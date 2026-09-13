@@ -1,7 +1,6 @@
 extends Node2D
 class_name Battlefield
 
-const UnitDataManagerClass = preload("res://function/script/UnitDataManager.gd")
 const BOSS_NODE_TYPE = 6
 
 # ---- 导出变量 ----
@@ -48,7 +47,7 @@ const BOSS_NODE_TYPE = 6
 
 # ---- 常量 ----
 const PERFORMANCE_DURATION : float = 0.5
-const ItemGetPopupScene = preload("res://content/scenes/ui/ItemGetPopup.tscn")
+const ItemGetPopupScene = preload(Config.PATHS.ITEM_GET_POPUP)
 
 # ---- 普通变量（运行时可修改） ----
 var map_grid_size : Vector2i = Vector2i(20, 15)
@@ -1384,7 +1383,7 @@ func _on_request_screen_shake(duration: float, intensity: float, direction: Vect
 		shake_node.shake(duration, intensity, direction)
 
 func _on_request_damage_popup(world_pos: Vector2, damage: int, is_crit: bool, is_miss: bool, is_heal: bool):
-	var popup = preload("res://function/script/DamagePopup.gd").new()
+	var popup = preload(Config.PATHS.DAMAGE_POPUP_SCRIPT).new()
 	add_child(popup)
 	popup.setup(world_pos, damage, is_crit, is_miss, is_heal)
 

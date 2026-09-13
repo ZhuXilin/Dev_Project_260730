@@ -10,7 +10,7 @@ static func load_talent_data():
 	if _talent_data_loaded:
 		return
 	_talent_data_loaded = true
-	var path = "res://content/data/talents.json"
+	var path = Config.PATHS.TALENT_DATA
 	if not FileAccess.file_exists(path):
 		print("词条数据文件不存在: ", path)
 		return

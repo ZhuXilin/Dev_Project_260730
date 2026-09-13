@@ -164,7 +164,7 @@ func increment_battle_turn():
 #  单位解锁系统
 # ============================================================
 func _load_unlock_config():
-	var path = "res://content/data/unit_unlock.json"
+	var path = Config.PATHS.UNIT_UNLOCK
 	var default_units = ["swordsman", "spearman", "axeman"]
 	
 	if not FileAccess.file_exists(path):
@@ -206,7 +206,7 @@ func get_unlocked_units() -> Array:
 #  道具解锁系统
 # ============================================================
 func _load_item_unlock_config():
-	var path = "res://content/data/item_unlock.json"
+	var path = Config.PATHS.ITEM_UNLOCK
 	var raw_items = []
 	if not FileAccess.file_exists(path):
 		raw_items = ["iron_sword", "steel_spear", "battle_axe", "longbow", "healing_staff", "fire_spellbook", "wooden_shield"]

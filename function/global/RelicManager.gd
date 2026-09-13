@@ -11,7 +11,7 @@ func _ready():
 	load_unlock_config()
 
 func load_relics():
-	var path = "res://content/data/relic_data.json"
+	var path = Config.PATHS.RELIC_DATA
 	if not FileAccess.file_exists(path):
 		push_error("遗物数据文件不存在: ", path)
 		return
@@ -26,7 +26,7 @@ func load_relics():
 	print("成功加载 ", _relic_db.size(), " 个遗物")
 
 func load_unlock_config():
-	var path = "res://content/data/relic_unlock.json"
+	var path = Config.PATHS.RELIC_UNLOCK
 	if not FileAccess.file_exists(path):
 		_unlocked_relics = ["relic_attack", "relic_defense"]
 		return

@@ -1,7 +1,6 @@
 extends Node
 class_name UnitSpawner
 
-const UnitDataManagerClass = preload("res://function/script/UnitDataManager.gd")
 const UNIT_PATH = Config.PATHS.UNIT_SCENE
 
 static func extract_configs_from_node(node: Node) -> Array[UnitConfig]:

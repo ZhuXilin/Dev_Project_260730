@@ -209,7 +209,7 @@ func abandon_and_return_to_camp():
 	reset_all()
 	interrupt_state = InterruptState.CAMP
 	SaveManager.save_game(SaveManager.current_slot, false)
-	get_tree().change_scene_to_file("res://content/scenes/ui/Camp.tscn")
+	get_tree().change_scene_to_file(Config.PATHS.CAMP)
 
 func show_abandon_confirmation(parent: Node):
 	Globals.show_confirm(

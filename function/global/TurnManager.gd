@@ -6,9 +6,6 @@ enum Team {
 	ENEMY = 1,
 }
 
-# ---- 预加载 UnitDataManager ----
-const UnitDataManagerClass = preload("res://function/script/UnitDataManager.gd")
-
 signal move_completed
 
 var current_turn_team : Team = Team.PLAYER
