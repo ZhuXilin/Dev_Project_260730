@@ -2,7 +2,6 @@ extends CanvasLayer
 
 const FONT_SIZE = 8
 const EquipmentConfig = preload("res://function/script/EquipmentConfig.gd")
-const RewardSummaryUI = preload("res://content/scenes/ui/RewardSummaryUI.tscn")
 
 # ---- 变量声明 ----
 var current_day: int = 1
@@ -56,11 +55,6 @@ func _ready():
 		_save_game()
 		get_tree().change_scene_to_file("res://content/scenes/ui/Camp.tscn")
 		return
-
-	# ---- 确保信号连接（关键） ----
-	if not SignalBus.battle_completed.is_connected(_on_battle_completed):
-		SignalBus.battle_completed.connect(_on_battle_completed)
-		print("MapScene 已连接 battle_completed 信号")
 	
 	# 同步天数
 	LevelManager.current_day = GameState.current_day - 1
@@ -92,7 +86,7 @@ func _ready():
 			_save_game()
 			
 			# ---- 弹出三天结算界面 ----
-			_show_cycle_reward(earned_soul, earned_materials)
+			await _show_cycle_reward(earned_soul, earned_materials)
 			return
 		
 		# ---- 进入新的一天 ----
@@ -100,7 +94,7 @@ func _ready():
 		GameState.current_day = current_day
 		GameState.finish_day()
 		
-		# ---- ✨ 新的一天，清空旧的地图快照 ----
+		# ---- 新的一天，清空旧的地图快照 ----
 		GameState.map_snapshot.clear()
 		print("新的一天，清空地图快照")
 		
@@ -249,65 +243,6 @@ func _on_abandon_pressed():
 
 func _on_abandon_confirmed():
 	GameState.abandon_and_return_to_camp()
-
-# ---- 战斗完成回调 ----
-func _on_battle_completed(winning_team: int, is_boss: bool = false):
-	print("=== MapScene._on_battle_completed 被触发 ===")
-	print("winning_team=", winning_team, " is_boss=", is_boss)
-	
-	if not is_boss and GameState.current_map_data:
-		is_boss = (GameState.current_map_data.node_type == MapNode.NodeType.BOSS)
-
-	if winning_team == 0:
-		update_all_displays()
-		_save_game()
-		print("MapScene._on_battle_completed: 数据已保存")
-
-		if is_boss:
-			print("检测到 Boss 胜利，推进天数")
-			GameState.should_advance_day = false
-
-			var has_next = LevelManager.advance_day()
-			print("advance_day 返回：", has_next)
-			if not has_next:
-				GameState.finish_cycle()
-				
-				var earned_soul = max(0, GameState.soul - GameState.cycle_start_soul)
-				var earned_materials = {}
-				for key in GameState.materials:
-					var before = GameState.cycle_start_materials.get(key, 0)
-					var earned = GameState.materials[key] - before
-					if earned > 0:
-						earned_materials[key] = earned
-				
-				GameState.reset_for_new_cycle()
-				GameState.interrupt_state = 1
-				_save_game()
-				
-				_show_cycle_reward(earned_soul, earned_materials)
-				return
-
-			# ---- 还有下一天 ----
-			var new_day = LevelManager.current_day + 1
-			current_day = new_day
-			GameState.current_day = new_day
-
-			GameState.finish_day()
-
-			level_list = LevelManager.get_current_day_levels()
-			generate_map(new_day)
-			_setup_ui()
-			update_all_displays()
-			_save_game()
-			print("Boss 胜利：进入第 ", new_day, " 天，当前永久魂：", GameState.soul)
-			return
-
-		# ---- 普通战斗胜利 ----
-		if map_data and map_data.root_node:
-			_update_availability(map_data.root_node)
-			_save_game()
-	else:
-		print("战斗失败")
 
 func _on_cycle_complete():
 	GameState.interrupt_state = 1
@@ -654,6 +589,7 @@ func _show_cycle_reward(earned_soul: int, earned_materials: Dictionary):
 	summary.setup_reward(0, earned_soul, reward_items, true, "本轮结算")
 	summary.open()
 	await summary.confirmed
+	summary.close()
 	
 	# ---- 结算完成，进营地 ----
 	_on_cycle_complete()

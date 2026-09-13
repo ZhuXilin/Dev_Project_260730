@@ -50,7 +50,6 @@ const BOSS_NODE_TYPE = 6
 const CELL_SIZE : int = 16
 const PERFORMANCE_DURATION : float = 0.5
 const ItemGetPopupScene = preload("res://content/scenes/ui/ItemGetPopup.tscn")
-const RewardSummaryUI = preload("res://content/scenes/ui/RewardSummaryUI.tscn")
 
 # ---- 普通变量（运行时可修改） ----
 var map_grid_size : Vector2i = Vector2i(20, 15)
@@ -1889,45 +1888,56 @@ func _on_map_victory_continue():
 	
 	var has_reward = (reward_gold > 0 or reward_soul > 0 or not reward_item_datas.is_empty())
 	
-	# ---- 显示结算界面（复用全局实例） ----
-	if has_reward:
-		print("有奖励，弹出结算界面")
-		_is_reward_ui_active = true
-		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
-		cursor.visible = false
-		
-		var summary = Globals.get_reward_summary()
-		if summary:
-			summary.setup_reward(reward_gold, reward_soul, reward_item_datas)
-			summary.open()
-			await summary.confirmed
-		else:
-			push_error("Battlefield: 无法获取 RewardSummaryUI 实例")
-		
-		_is_reward_ui_active = false
-		Input.mouse_mode = Input.MOUSE_MODE_HIDDEN
-		cursor.visible = true
-	
-	# ---- Boss 战后：弹出遗物三选一 ----
+	# ---- 前置判断：Boss / 最后一天 ----
 	var is_boss = (current_node_type == MapNode.NodeType.BOSS)
 	if not is_boss and GameState.current_map_data:
 		is_boss = (GameState.current_map_data.node_type == MapNode.NodeType.BOSS)
 	
+	var is_last_day = (GameState.current_day >= 3)
+	
+	print("is_boss=", is_boss, " is_last_day=", is_last_day, " has_reward=", has_reward)
+	
+	# ============================================================
+	#  全局 UI 状态：整个流程只设一次，结束时统一复位
+	# ============================================================
+	var need_ui_block = has_reward or is_boss
+	if need_ui_block:
+		_is_reward_ui_active = true
+		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+		cursor.visible = false
+	
+	# ============================================================
+	#  1. 显示结算界面（如果有奖励）
+	# ============================================================
+	var summary = null
+	if has_reward:
+		print("有奖励，弹出结算界面")
+		summary = Globals.get_reward_summary()
+		if summary:
+			summary.setup_reward(reward_gold, reward_soul, reward_item_datas, false, "关卡结算")
+			summary.open()
+			await summary.confirmed
+			# ★ 不 close，保持可见
+			print("结算界面已确认，summary 保持可见")
+		else:
+			push_error("Battlefield: 无法获取 RewardSummaryUI 实例")
+	
+	# ============================================================
+	#  2. Boss 战后：遗物三选一叠加在结算之上
+	# ============================================================
 	if is_boss:
 		GameState.should_advance_day = true
 		print("Boss 胜利，设置 should_advance_day = true")
 		
-		# ---- ✨ 检查是否为最后一天 ----
-		var is_last_day = (GameState.current_day >= 3)
-		
 		if is_last_day:
 			print("第三天最终Boss，跳过遗物三选一")
 		else:
-			# ---- 弹出遗物三选一 ----
-			_is_reward_ui_active = true
-			Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
-			cursor.visible = false
+			# ★ 禁用 summary 确认按钮，防止误点
+			if summary:
+				summary.set_interactable(false)
 			
+			# ★ summary 保持可见，RelicSelectUI 直接叠加上去（layer 21 > 20）
+			print("弹出遗物三选一，叠加在结算之上")
 			var relic_select_scene = load("res://content/scenes/ui/RelicSelectUI.tscn")
 			var relic_select = relic_select_scene.instantiate()
 			add_child(relic_select)
@@ -1942,12 +1952,30 @@ func _on_map_victory_continue():
 			
 			# ---- 只等待信号，遗物添加/替换由 RelicSelectUI 内部处理 ----
 			await relic_select.relic_selected
+			print("遗物选择完成")
 			
-			_is_reward_ui_active = false
-			Input.mouse_mode = Input.MOUSE_MODE_HIDDEN
-			cursor.visible = true
+			# ---- 恢复 summary 可交互 ----
+			if summary:
+				summary.set_interactable(true)
 	
-	# ---- 标记节点已完成 ----
+	# ============================================================
+	#  3. 关闭结算界面（所有分支统一在此处 close）
+	# ============================================================
+	if summary:
+		summary.close()
+		print("结算界面已关闭")
+	
+	# ============================================================
+	#  4. 复位全局 UI 状态
+	# ============================================================
+	if need_ui_block:
+		_is_reward_ui_active = false
+		Input.mouse_mode = Input.MOUSE_MODE_HIDDEN
+		cursor.visible = true
+	
+	# ============================================================
+	#  5. 标记节点已完成
+	# ============================================================
 	if GameState.current_node_key != "":
 		GameState.visited_nodes[GameState.current_node_key] = true
 		GameState.current_node_key = ""
@@ -1956,6 +1984,7 @@ func _on_map_victory_continue():
 	GameState.clear_current_reward()
 	SaveManager.auto_save()
 	
+	print("切换场景到 MapScene")
 	get_tree().change_scene_to_file("res://content/scenes/ui/MapScene.tscn")
 
 # ---- 统一的放弃战斗逻辑 ----

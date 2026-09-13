@@ -152,7 +152,6 @@ func _build_existing_relics():
 		
 		existing_container.add_child(btn)
 
-
 # ---- 已有遗物被点击（替换） ----
 func _on_existing_relic_clicked(slot_idx: int):
 	print("替换槽 ", slot_idx, " -> ", _selected_candidate)
@@ -168,7 +167,6 @@ func _on_existing_relic_clicked(slot_idx: int):
 	relic_selected.emit(_selected_candidate)
 	queue_free()
 
-
 # ---- 未满槽：直接确认选择 ----
 func _confirm_selection(relic_id: String):
 	var inst = ItemInstance.new()
@@ -182,7 +180,6 @@ func _confirm_selection(relic_id: String):
 		print("遗物槽异常，未获得: ", relic_id)
 	relic_selected.emit(relic_id)
 	queue_free()
-
 
 # ---- 放弃选择 ----
 func _on_cancel_pressed():

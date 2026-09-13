@@ -120,5 +120,11 @@ func _get_material_color(material_name: String) -> Color:
 
 # ---- 确认按钮：只隐藏，不销毁（可复用） ----
 func _on_confirm_pressed():
-	visible = false
 	confirmed.emit()
+
+# ---- 供外部关闭 ----
+func close():
+	visible = false
+
+func set_interactable(enabled: bool):
+	confirm_button.disabled = not enabled

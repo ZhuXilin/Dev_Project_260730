@@ -4,7 +4,7 @@
 [ext_resource type="StyleBox" uid="uid://6qbsaxkfwg3o" path="res://content/resource/stylebox/8bit_style_box_flat.tres" id="2"]
 
 [node name="RelicSelectUI" type="CanvasLayer" unique_id=2025224505]
-layer = 20
+layer = 21
 script = ExtResource("1")
 
 [node name="Background" type="ColorRect" parent="." unique_id=897920115]
