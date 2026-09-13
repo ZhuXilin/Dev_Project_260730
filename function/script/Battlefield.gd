@@ -162,7 +162,7 @@ func _ready():
 		print("警告：cursor.texture 无效，使用默认纹理")
 	_attack_indicator.size = Vector2(MapConst.CELL_SIZE, MapConst.CELL_SIZE)
 	_attack_indicator.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_attack_indicator.z_index = 5
+	_attack_indicator.z_index = UIConst.ATTACK_INDICATOR_Z_INDEX
 	_attack_indicator.visible = false
 	add_child(_attack_indicator)
 
@@ -233,7 +233,7 @@ func _ready():
 		menu_blocker.gui_input.connect(_on_menu_blocker_clicked)
 		menu_blocker.size = Vector2(map_grid_size.x * MapConst.CELL_SIZE, map_grid_size.y * MapConst.CELL_SIZE)
 		menu_blocker.position = Vector2.ZERO
-		menu_blocker.z_index = 10
+		menu_blocker.z_index = UIConst.MENU_BLOCKER_Z_INDEX
 
 	# ---- 判断是否为非战斗模式 ----
 	var is_non_combat = GameState.current_map_data and GameState.current_map_data.node_type in [
@@ -758,18 +758,18 @@ func _on_highlight_request(cells: Dictionary):
 	match InputManager.interaction_phase:
 		InputManager.Phase.MOVING:
 			if cells == InputManager.current_highlight_cells:
-				highlight_manager.show_move_highlight(cells, Color(1, 1, 1, 0.3), 0, true)
+				highlight_manager.show_move_highlight(cells, MapConst.HIGHLIGHT_MOVE, 0, true)
 			else:
 				var unit = InputManager.selected_unit
-				var preview_color = Color(0.7, 0.1, 0.2, 0.7)
+				var preview_color = MapConst.HIGHLIGHT_ATTACK
 				if unit and unit.get_weapon_type() == "staff":
-					preview_color = Color(0.2, 0.5, 0.8, 0.7)
+					preview_color = MapConst.HIGHLIGHT_HEAL
 				highlight_manager.show_move_highlight(cells, preview_color, 1, false)
 		InputManager.Phase.ATTACKING:
 			var unit = InputManager.selected_unit
-			var color = Color(0.7, 0.1, 0.2, 0.7)
+			var color = MapConst.HIGHLIGHT_ATTACK
 			if unit and unit.get_weapon_type() == "staff":
-				color = Color(0.2, 0.5, 0.8, 0.7)
+				color = MapConst.HIGHLIGHT_HEAL
 			highlight_manager.show_move_highlight(cells, color, 1, true)
 		_:
 			highlight_manager.clear_highlight()
@@ -1275,7 +1275,7 @@ func _on_request_show_menu(unit: Unit):
 
 	if is_instance_valid(menu_blocker):
 		menu_blocker.visible = true
-		menu_blocker.z_index = 10
+		menu_blocker.z_index = UIConst.MENU_BLOCKER_Z_INDEX
 
 	if is_instance_valid(move_btn):
 		var can_move = false
@@ -1799,9 +1799,9 @@ func _get_type_display_name(type: String) -> String:
 			return type
 
 func _show_attack_highlight(cells: Dictionary, unit: Unit):
-	var color = Color(0.7, 0.1, 0.2, 0.7)
+	var color = MapConst.HIGHLIGHT_ATTACK
 	if unit and unit.get_weapon_type() == "staff":
-		color = Color(0.2, 0.5, 0.8, 0.7)
+		color = MapConst.HIGHLIGHT_HEAL
 	highlight_manager.show_move_highlight(cells, color, 1, true)
 
 func _adjust_info_panel(label: Label, panel: PanelContainer):

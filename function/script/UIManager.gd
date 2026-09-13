@@ -93,8 +93,8 @@ func show_equip_menu(unit: Unit):
 	for child in equip_container.get_children():
 		child.queue_free()
 
-	equip_menu.size.x = 60
-	equip_container.size.x = 80
+	equip_menu.size.x = UIConst.EQUIP_MENU_MIN_WIDTH
+	equip_container.size.x = UIConst.EQUIP_CONTAINER_MIN_WIDTH
 
 	# ---- 武器槽 ----
 	var weapon_label = Label.new()
@@ -236,8 +236,9 @@ func show_modal_message(text: String, callback_after: Callable = Callable()):
 	popup.layer = 40
 	get_tree().current_scene.add_child(popup)
 
+	# ---- 面板：居中显示，尺寸取自 UIConst ----
 	var panel = Panel.new()
-	panel.size = Vector2(160, 80)
+	panel.size = UIConst.MODAL_PANEL_SIZE
 	var viewport_size = get_viewport().get_visible_rect().size
 	panel.position = viewport_size / 2 - panel.size / 2
 
@@ -246,19 +247,25 @@ func show_modal_message(text: String, callback_after: Callable = Callable()):
 		panel.add_theme_stylebox_override("panel", stylebox)
 	popup.add_child(panel)
 
+	# ---- 文本标签：左右留 10px 边距，顶部留 10px ----
 	var label = Label.new()
 	label.text = text
-	label.add_theme_font_size_override("font_size", 8)
+	label.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_NORMAL)
 	label.position = Vector2(10, 10)
-	label.size = Vector2(140, 30)
+	label.size = Vector2(UIConst.MODAL_PANEL_SIZE.x - 20, 30)
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	panel.add_child(label)
 
+	# ---- 确认按钮：底部居中，距底 10px ----
+	var btn_size = Vector2(50, 20)
 	var btn = Button.new()
 	btn.text = "确定"
-	btn.add_theme_font_size_override("font_size", 6)
-	btn.position = Vector2(55, 50)
-	btn.size = Vector2(50, 20)
+	btn.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_SMALL)
+	btn.size = btn_size
+	btn.position = Vector2(
+		(UIConst.MODAL_PANEL_SIZE.x - btn_size.x) / 2,
+		UIConst.MODAL_PANEL_SIZE.y - btn_size.y - 10
+	)
 	btn.pressed.connect(func():
 		popup.queue_free()
 		Globals.is_item_get_popup_active = false
@@ -281,7 +288,7 @@ func show_message(text: String):
 	popup.add_child(bg)
 
 	var panel = Panel.new()
-	panel.size = Vector2(180, 60)
+	panel.size = UIConst.MSG_PANEL_SIZE
 	var viewport_size = get_viewport().get_visible_rect().size
 	panel.position = viewport_size / 2 - panel.size / 2
 
@@ -292,7 +299,7 @@ func show_message(text: String):
 
 	var label = Label.new()
 	label.text = text
-	label.add_theme_font_size_override("font_size", 8)
+	label.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_NORMAL)
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	label.size = panel.size

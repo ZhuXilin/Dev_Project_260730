@@ -96,7 +96,7 @@ func handle_click(clicked_cell: Vector2i):
 
 					current_highlight_cells = reachable
 					current_move_attack_targets = attack_preview
-					var attack_color = Color(0.2, 0.5, 0.4, 0.7) if is_healer else Color(0.7, 0.1, 0.2, 0.7)
+					var attack_color = MapConst.HIGHLIGHT_ENEMY_HEAL if is_healer else MapConst.HIGHLIGHT_ATTACK
 					SignalBus.request_show_enemy_preview.emit(reachable, attack_preview, attack_color)
 					SoundManager.play_select_sound()
 			else:

@@ -1,7 +1,5 @@
 extends Node
 
-const PERFORMANCE_DURATION : float = 0.5
-
 func get_attackable_targets(unit: Unit) -> Array:
 	var weapon_data = unit.get_weapon_data()
 	if not weapon_data: return []
@@ -132,7 +130,7 @@ func _execute_heal(attacker: Unit, defender: Unit) -> bool:
 	SignalBus.request_damage_popup.emit(defender.global_position, actual_heal, false, false, true)
 	SoundManager.play_heal_sound()
 	
-	await get_tree().create_timer(PERFORMANCE_DURATION).timeout
+	await get_tree().create_timer(MapConst.PERFORMANCE_DURATION).timeout
 	_finish_attack(attacker, defender)
 	Globals.is_performing_action = false
 	return true
@@ -185,7 +183,7 @@ func _execute_counter(attacker: Unit, defender: Unit) -> void:
 	SignalBus.request_damage_popup.emit(attacker.global_position, counter_damage, false, false, false)
 	SignalBus.request_screen_shake.emit(0.15, 4.0, counter_hit_dir)
 	
-	await get_tree().create_timer(PERFORMANCE_DURATION).timeout
+	await get_tree().create_timer(MapConst.PERFORMANCE_DURATION).timeout
 	
 	var attacker_dead = attacker.apply_damage(counter_damage)
 	if attacker_dead:

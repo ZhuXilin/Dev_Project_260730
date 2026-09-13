@@ -9,12 +9,12 @@ func setup(node_data: MapNode, map_scene: CanvasLayer):
 	map_scene_ref = map_scene
 	text = _get_node_label(node_data)
 	
-	size = Vector2(40, 20)
+	size = MapConst.MAP_NODE_SIZE
 	position = node_data.position - size / 2
 	disabled = not node_data.is_available
 	modulate = _get_color(node_data)
 	visible = true
-	add_theme_font_size_override("font_size", 5)
+	add_theme_font_size_override("font_size", MapConst.MAP_NODE_FONT_SIZE)
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	
 	# ---- 强制所有状态下的字体颜色为白色 ----
@@ -60,10 +60,10 @@ func _get_node_label(node: MapNode) -> String:
 
 func _get_color(node: MapNode) -> Color:
 	if node.is_visited:
-		return Color(0.4, 0.4, 0.4)      # 深灰色（已走过，不可交互）
+		return MapConst.MAP_NODE_VISITED      # 深灰色（已走过，不可交互）
 	if node.is_available:
-		return Color.WHITE
-	return Color(0.3, 0.3, 0.3)
+		return MapConst.MAP_NODE_AVAILABLE
+	return MapConst.MAP_NODE_UNAVAILABLE
 
 func _on_clicked():
 	if map_node.is_visited or not map_node.is_available:

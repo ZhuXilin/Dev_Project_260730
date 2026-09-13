@@ -2,7 +2,7 @@ extends Area2D
 class_name Unit
 
 @export var unit_stats : UnitData
-@export var hit_offset_distance: float = 8.0
+@export var hit_offset_distance: float = MapConst.HIT_OFFSET_DISTANCE
 
 # ---- 状态变量 ----
 var hit_points : int
@@ -519,7 +519,7 @@ func play_hit_effect(direction: Vector2, is_hit: bool):
 	var dir_norm = direction.normalized()
 	var offset = dir_norm * hit_offset_distance
 	_color_material.set_shader_parameter("hit_offset_amount", offset)
-	_color_material.set_shader_parameter("hit_duration", 0.15)
+	_color_material.set_shader_parameter("hit_duration", MapConst.HIT_FLASH_DURATION)
 	_color_material.set_shader_parameter("hit_elapsed", 0.0)
 	_color_material.set_shader_parameter("hit_flash_color", Color.RED if is_hit else Color.WHITE)
 	_color_material.set_shader_parameter("hit_enable_flash", true)
@@ -527,7 +527,7 @@ func play_hit_effect(direction: Vector2, is_hit: bool):
 	var tween = create_tween()
 	tween.tween_method(
 		func(val): _color_material.set_shader_parameter("hit_elapsed", val),
-		0.0, 0.15, 0.15
+		0.0, MapConst.HIT_FLASH_DURATION, MapConst.HIT_FLASH_DURATION
 	)
 	tween.tween_callback(func():
 		if is_instance_valid(_color_material):

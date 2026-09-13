@@ -1,6 +1,6 @@
 extends Node
 
-@export var music_transition_delay : float = 0.5
+@export var music_transition_delay : float = UIConst.DIALOGUE_MUSIC_DELAY
 @export var json_path : String = Config.PATHS.DIALOGUE_DATA
 
 var dialogue_ui : CanvasLayer = null

@@ -137,7 +137,7 @@ func _build_spawn_point_preview():
 	bg.position = Vector2(MapConst.CELL_SIZE/2.0, MapConst.CELL_SIZE/2.0) - bg.size / 2
 	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	bg.z_index = -1
-	bg.color = Color(0.2, 0.6, 1.0, 0.4)
+	bg.color = MapConst.HIGHLIGHT_SPAWN
 	add_child(bg)
 
 	var label = Label.new()

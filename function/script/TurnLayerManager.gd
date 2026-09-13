@@ -1,7 +1,7 @@
 extends Node
 class_name TurnLayerManager
 
-@export var transition_duration : float = 1.0
+@export var transition_duration : float = UIConst.TURN_TRANSITION_DURATION
 
 var turn_overlay : ColorRect
 var _text_label : Label = null
@@ -35,9 +35,9 @@ func play_transition(team: int, callback: Callable = Callable()):
 		# 修改：根据队伍显示带回合数的文字
 		var turn_num = Globals.current_battle_turn
 		if team == 0:
-			_text_label.text = "我方第 " + str(turn_num) + " 回合"
+			_text_label.text = UIConst.TURN_TEXT_PLAYER % turn_num
 		else:
-			_text_label.text = "敌方第 " + str(turn_num) + " 回合"
+			_text_label.text = UIConst.TURN_TEXT_ENEMY % turn_num
 		_text_label.visible = true
 		_text_label.modulate.a = 1.0
 	

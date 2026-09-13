@@ -299,8 +299,8 @@ func _draw_connections():
 			var line = Line2D.new()
 			line.add_point(node.position)
 			line.add_point(conn.position)
-			line.width = 2
-			line.default_color = Color(0.5, 0.5, 0.5, 0.6)
+			line.width = MapConst.MAP_LINE_WIDTH
+			line.default_color = MapConst.MAP_LINE_COLOR
 			line_container.add_child(line)
 
 func _create_node_buttons():

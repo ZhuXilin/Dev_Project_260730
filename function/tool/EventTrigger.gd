@@ -21,7 +21,7 @@ func _update_preview():
 	var rect = ColorRect.new()
 	rect.size = Vector2(MapConst.CELL_SIZE, MapConst.CELL_SIZE)
 	rect.position = Vector2(MapConst.CELL_SIZE/2.0, MapConst.CELL_SIZE/2.0) - rect.size / 2
-	rect.color = Color(0.3, 0.6, 1.0, 0.3)
+	rect.color = MapConst.HIGHLIGHT_EVENT
 	rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	rect.z_index = -1
 	add_child(rect)

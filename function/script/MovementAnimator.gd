@@ -36,7 +36,7 @@ func play_movement(unit: Unit, path: Array, grid_to_world_func: Callable):
 	for cell in path:
 		positions.append(grid_to_world_func.call(cell))
 
-	var step_duration = 0.15
+	var step_duration = MapConst.STEP_DURATION_PLAYER
 	for i in range(positions.size()):
 		var target_pos = positions[i]
 		var is_last = (i == positions.size() - 1)
@@ -77,7 +77,7 @@ func play_ai_movement(unit: Unit, path: Array, grid_to_world_func: Callable, on_
 	for cell in path:
 		positions.append(grid_to_world_func.call(cell))
 
-	var step_duration = 0.12
+	var step_duration = MapConst.STEP_DURATION_AI
 	for i in range(positions.size()):
 		var target_pos = positions[i]
 		var is_last = (i == positions.size() - 1)

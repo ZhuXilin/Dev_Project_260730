@@ -6,10 +6,10 @@ enum Mode { DEPLOY, MAP, SHOP }
 #  样式常量（统一管理所有按钮和标签的大小/字体）
 # ============================================================
 class Style:
-	const FONT_TINY = 4
-	const FONT_SMALL = 6
-	const FONT_NORMAL = 6
-	const FONT_LARGE = 6
+	const FONT_TINY = UIConst.FONT_SIZE_TINY
+	const FONT_SMALL = UIConst.FONT_SIZE_SMALL
+	const FONT_NORMAL = UIConst.FONT_SIZE_SMALL
+	const FONT_LARGE = UIConst.FONT_SIZE_SMALL
 	
 	const BTN_ITEM_SIZE = Vector2(20, 10)
 	const BTN_TALENT_SIZE = Vector2(20, 15)
@@ -1349,7 +1349,7 @@ func _update_drag_preview():
 	var mouse_pos = get_global_mouse_position()
 	var preview_center = mouse_pos - _drag_grab_offset
 	_drag_preview.position = preview_center - _drag_preview.size / 2
-	_drag_preview.z_index = 100
+	_drag_preview.z_index = UIConst.DRAG_PREVIEW_Z_INDEX
 
 func _end_drag():
 	if not _is_dragging:
