@@ -29,9 +29,9 @@ var weapon_slot: ItemInstance = null          # 武器实例
 var armor_slots: Array[ItemInstance] = []    # 防具/饰品槽
 var max_armor_slots: int = 2
 
-# ---- 词条 ----
+# ---- 词条（唯一数据源：talent_slots） ----
 var talent_slots: Array[TalentInstance] = []
-var max_talent_slots: int = 2
+var max_talent_slots: int = 1
 
 # ---- 动画与材质 ----
 var animated_sprite : AnimatedSprite2D
@@ -40,9 +40,6 @@ var facing_flip_h : bool = false
 var _color_material : ShaderMaterial = null
 
 var _initialized: bool = false
-
-# ---- 词条 ----
-var _talent_instances: Dictionary = {}
 
 # ============================================================
 #  初始化
@@ -116,6 +113,9 @@ func setup_unit(stats_data: UnitData, start_cell: Vector2i, initial_items: Array
 						armor_slots[i] = inst
 						print("单位 %s 装备防具: %s (槽 %d)" % [unit_stats.unit_name, data.name, i+1])
 						break
+
+	# ---- 初始化词条槽（从 stats_data 复制，重置积累状态） ----
+	_init_talent_slots_from_data(stats_data)
 
 	# ---- 加载 SpriteFrames ----
 	var frames_path = UnitDataManagerClass.get_sprite_frames_path(unit_stats.unit_name)
@@ -321,6 +321,9 @@ func restore_from_unit_data(data: UnitData, cell: Vector2i):
 		else:
 			armor_slots.append(null)
 	max_armor_slots = data.max_armor_slots
+
+	# ---- 恢复词条（保留 talent_id，重置积累状态） ----
+	_init_talent_slots_from_data(data)
 
 	# ---- 加载 SpriteFrames ----
 	if not animated_sprite:
@@ -546,24 +549,76 @@ func update_terrain_info():
 	var avoid_bonus = TerrainManager.TERRAIN_DATA[terrain_type]["avoid_bonus"]
 	terrain_label.text = terrain_name + "\n防御+" + str(def_bonus) + " 回避+" + str(avoid_bonus)
 
-# ---- 词条方法 ----
+# ============================================================
+#  词条方法（统一走 talent_slots，无独立字典）
+# ============================================================
+
+# ---- 从 UnitData 初始化词条槽（统一入口） ----
+func _init_talent_slots_from_data(data: UnitData):
+	talent_slots.clear()
+	
+	# 使用 UnitData 的槽位数（兜底 1）
+	var target_max = data.max_talent_slots
+	if target_max <= 0:
+		target_max = 1
+	max_talent_slots = target_max
+	
+	# 从 data.talent_slots 复制（只保留 talent_id 和 is_active，重置积累）
+	if data.talent_slots is Array:
+		for slot_data in data.talent_slots:
+			if slot_data and slot_data is TalentInstance and slot_data.is_active:
+				var new_inst = TalentInstance.new()
+				new_inst.talent_id = slot_data.talent_id
+				new_inst.current_stack = 0      # 每场战斗从 0 开始累积
+				new_inst.is_ready = false
+				new_inst.is_active = true
+				talent_slots.append(new_inst)
+			else:
+				talent_slots.append(null)
+	
+	# 补齐到 max_talent_slots
+	while talent_slots.size() < max_talent_slots:
+		talent_slots.append(null)
+
+# ---- 按 talent_id 在 talent_slots 中查找 ----
+func get_talent_instance(talent_id: String) -> TalentInstance:
+	for inst in talent_slots:
+		if inst and inst.talent_id == talent_id and inst.is_active:
+			return inst
+	return null
+
+# ---- 装备词条（找一个空槽放入） ----
 func equip_talent(talent_id: String) -> bool:
 	var data = TalentManager.get_talent_data(talent_id)
 	if not data:
 		return false
-	if _talent_instances.has(talent_id):
-		return false  # 已装备
-	var inst = TalentInstance.new()
-	inst.talent_id = talent_id
-	_talent_instances[talent_id] = inst
-	return true
+	# 已装备则不重复
+	if get_talent_instance(talent_id) != null:
+		return false
+	# 找空槽
+	for i in range(talent_slots.size()):
+		if talent_slots[i] == null:
+			var inst = TalentInstance.new()
+			inst.talent_id = talent_id
+			inst.is_active = true
+			talent_slots[i] = inst
+			return true
+	# 无空槽，尝试扩展
+	if talent_slots.size() < max_talent_slots:
+		var inst = TalentInstance.new()
+		inst.talent_id = talent_id
+		inst.is_active = true
+		talent_slots.append(inst)
+		return true
+	return false
 
+# ---- 卸下词条（按 talent_id 清空对应槽位） ----
 func unequip_talent(talent_id: String):
-	if _talent_instances.has(talent_id):
-		_talent_instances.erase(talent_id)
-
-func get_talent_instance(talent_id: String) -> TalentInstance:
-	return _talent_instances.get(talent_id)
+	for i in range(talent_slots.size()):
+		var inst = talent_slots[i]
+		if inst and inst.talent_id == talent_id:
+			talent_slots[i] = null
+			return
 
 func get_talent_threshold(talent_id: String) -> int:
 	var data = TalentManager.get_talent_data(talent_id)
@@ -571,26 +626,29 @@ func get_talent_threshold(talent_id: String) -> int:
 
 func get_talents_by_school(school: String) -> Array:
 	var result = []
-	for talent_id in _talent_instances:
-		var data = TalentManager.get_talent_data(talent_id)
-		if data and data.school == school:
-			result.append(talent_id)
+	for inst in talent_slots:
+		if inst and inst.is_active:
+			var data = TalentManager.get_talent_data(inst.talent_id)
+			if data and data.school == school:
+				result.append(inst.talent_id)
 	return result
 
 func reset_all_talents():
-	for inst in _talent_instances.values():
-		inst.reset()
+	for inst in talent_slots:
+		if inst:
+			inst.reset()
 
 func get_talent_school_count(school: String) -> int:
 	var count = 0
-	for talent_id in _talent_instances:
-		var data = TalentManager.get_talent_data(talent_id)
-		if data and data.school == school and _talent_instances[talent_id].is_active:
-			count += 1
+	for inst in talent_slots:
+		if inst and inst.is_active:
+			var data = TalentManager.get_talent_data(inst.talent_id)
+			if data and data.school == school:
+				count += 1
 	return count
 
 func accumulate_all_talents():
-	for inst in _talent_instances.values():
+	for inst in talent_slots:
 		if inst and inst.is_active:
 			inst.current_stack += 1
 			var threshold = get_talent_threshold(inst.talent_id)
