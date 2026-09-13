@@ -107,6 +107,6 @@ func _on_item_pressed():
 		panel.name = "ItemInfoUI"
 
 func _on_back_pressed():
-	GameState.interrupt_state = 1
+	GameState.interrupt_state = GameState.InterruptState.CAMP
 	SaveManager.save_game(SaveManager.current_slot, false)
 	get_tree().change_scene_to_file("res://content/scenes/ui/MainMenu.tscn")

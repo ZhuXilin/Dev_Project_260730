@@ -164,7 +164,7 @@ func _apply_save_data(save: SaveData):
 	GameState.temp_soul = save.temp_soul
 	GameState.temp_gold = save.temp_gold
 	GameState.materials = save.materials.duplicate()
-	GameState.interrupt_state = save.interrupt_state
+	GameState.interrupt_state = save.interrupt_state as GameState.InterruptState
 	GameState.battlefield_data = save.battlefield_data
 	GameState.current_faction = save.current_faction
 	GameState.current_node_key = save.current_node_key

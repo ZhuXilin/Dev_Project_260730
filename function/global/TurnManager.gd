@@ -1,11 +1,17 @@
 extends Node
 
+# ---- 队伍枚举 ----
+enum Team {
+	PLAYER = 0,
+	ENEMY = 1,
+}
+
 # ---- 预加载 UnitDataManager ----
 const UnitDataManagerClass = preload("res://function/script/UnitDataManager.gd")
 
 signal move_completed
 
-var current_turn_team : int = 0
+var current_turn_team : Team = Team.PLAYER
 var is_game_over : bool = false
 var is_moving : bool = false
 var is_ai_moving : bool = false
@@ -76,7 +82,7 @@ func on_movement_finished(unit: Unit):
 	unit.has_moved = true
 	unit.can_act_this_turn = true
 	InputManager.selected_unit = unit
-	InputManager.interaction_phase = "menu"
+	InputManager.interaction_phase = InputManager.Phase.MENU
 	SignalBus.request_show_menu.emit(unit)
 	SignalBus.request_clear_highlight.emit()
 
@@ -92,15 +98,15 @@ func on_ai_movement_finished(unit: Unit):
 	await get_tree().create_timer(1.0).timeout
 	move_completed.emit()
 
-func start_turn(team: int):
+func start_turn(team: Team):
 	print("TurnManager.start_turn 被调用，team:", team, " is_game_over:", is_game_over, " is_moving:", is_moving)
 	if is_game_over or is_moving:
 		print("跳过 start_turn")
 		return
 	
-	if Globals.is_non_combat_mode and team == 1:
+	if Globals.is_non_combat_mode and team == Team.ENEMY:
 		print("非战斗模式：跳过敌方回合，立即回到玩家回合")
-		start_turn(0)
+		start_turn(Team.PLAYER)
 		return
 
 	current_turn_team = team
@@ -108,7 +114,7 @@ func start_turn(team: int):
 	is_moving = false
 	is_ai_moving = false
 	InputManager.selected_unit = null
-	InputManager.interaction_phase = "idle"
+	InputManager.interaction_phase = InputManager.Phase.IDLE
 	InputManager.current_highlight_cells = {}
 	SignalBus.request_hide_menu.emit()
 	SignalBus.request_clear_highlight.emit()
@@ -152,7 +158,7 @@ func run_enemy_ai():
 
 func _on_ai_queue_finished():
 	await get_tree().create_timer(1.5).timeout
-	start_turn(0)
+	start_turn(Team.PLAYER)
 
 func finish_unit_action(unit: Unit):
 	if is_game_over or is_moving:
@@ -164,7 +170,7 @@ func finish_unit_action(unit: Unit):
 	SignalBus.request_hide_menu.emit()
 	SignalBus.request_clear_highlight.emit()
 	InputManager.selected_unit = null
-	InputManager.interaction_phase = "idle"
+	InputManager.interaction_phase = InputManager.Phase.IDLE
 	InputManager.current_highlight_cells = {}
 	check_all_acted()
 
@@ -181,7 +187,7 @@ func cancel_movement(unit: Unit):
 	SignalBus.request_hide_menu.emit()
 	SignalBus.request_clear_highlight.emit()
 	InputManager.selected_unit = null
-	InputManager.interaction_phase = "idle"
+	InputManager.interaction_phase = InputManager.Phase.IDLE
 
 func check_all_acted():
 	var all_acted_local = true
@@ -191,14 +197,14 @@ func check_all_acted():
 				all_acted_local = false
 				break
 	all_acted = all_acted_local
-	if all_acted_local and current_turn_team == 0:
+	if all_acted_local and current_turn_team == Team.PLAYER:
 		auto_end_turn()
 
 func auto_end_turn():
 	if is_game_over or is_moving:
 		return
-	if current_turn_team == 0:
-		start_turn(1)
+	if current_turn_team == Team.PLAYER:
+		start_turn(Team.ENEMY)
 
 func clear_ai_state():
 	if enemy_ai:

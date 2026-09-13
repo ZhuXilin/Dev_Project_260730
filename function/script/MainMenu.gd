@@ -21,7 +21,7 @@ func _on_start_pressed():
 	Globals.pending_save_slot = slot
 	GameState.reset_all()
 	GameState.start_new_cycle()
-	GameState.interrupt_state = 1
+	GameState.interrupt_state = GameState.InterruptState.CAMP
 	SaveManager.save_game(slot, false)
 	SaveManager.current_slot = slot
 	get_tree().change_scene_to_file("res://content/scenes/ui/Camp.tscn")
@@ -59,11 +59,11 @@ func _on_continue_pressed():
 		return
 
 	SaveManager._apply_save_data(save)
-	match save.interrupt_state:
-		2:
+	match save.interrupt_state as GameState.InterruptState:
+		GameState.InterruptState.MAP:
 			get_tree().change_scene_to_file("res://content/scenes/ui/MapScene.tscn")
-		3:
-			_show_continue_error("战场中断恢复功能开发中，将进入营地。")
+		GameState.InterruptState.BATTLEFIELD:
+			print("战场中断恢复功能开发中，直接进入营地")
 			get_tree().change_scene_to_file("res://content/scenes/ui/Camp.tscn")
 		_:
 			get_tree().change_scene_to_file("res://content/scenes/ui/Camp.tscn")

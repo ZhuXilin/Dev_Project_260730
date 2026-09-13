@@ -126,7 +126,7 @@ func set_game_speed(new_val: int):
 # ============================================================
 func reset_all_game_state():
 	InputManager.selected_unit = null
-	InputManager.interaction_phase = "idle"
+	InputManager.interaction_phase = InputManager.Phase.IDLE
 	InputManager.current_highlight_cells = {}
 	
 	TurnManager.all_acted = false
@@ -134,7 +134,7 @@ func reset_all_game_state():
 	TurnManager.is_ai_moving = false
 	TurnManager.clear_ai_state()
 	TurnManager.last_player_unit = null
-	TurnManager.current_turn_team = 0
+	TurnManager.current_turn_team = TurnManager.Team.PLAYER
 	TurnManager.is_game_over = false
 	
 	UnitManager.clear_all_units()

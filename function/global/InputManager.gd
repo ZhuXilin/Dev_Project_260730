@@ -2,9 +2,18 @@ extends Node
 
 const UnitDataManagerClass = preload("res://function/script/UnitDataManager.gd")
 
+# ---- 交互阶段枚举 ----
+enum Phase {
+	IDLE,
+	MENU,
+	MOVING,
+	ATTACKING,
+	SETTING,
+}
+
 # ---- 核心状态 ----
 var selected_unit : Unit = null
-var interaction_phase : String = "idle"
+var interaction_phase : Phase = Phase.IDLE
 
 # ---- 高亮与目标 ----
 var current_highlight_cells : Dictionary = {}
@@ -25,15 +34,15 @@ var ui_manager : UIManager = null
 func handle_click(clicked_cell: Vector2i):
 	if TurnManager.is_game_over or TurnManager.is_moving:
 		return
-	if TurnManager.current_turn_team != 0:
+	if TurnManager.current_turn_team != TurnManager.Team.PLAYER:
 		print("敌人回合，禁止操作")
 		return
 
 	var clicked_unit = UnitManager.get_unit_at_cell(clicked_cell)
 
 	match interaction_phase:
-		"idle":
-			if selected_unit != null and selected_unit.unit_stats.team_id == 1 and interaction_phase == "idle":
+		Phase.IDLE:
+			if selected_unit != null and selected_unit.unit_stats.team_id == 1:
 				return
 
 			if clicked_unit:
@@ -47,17 +56,17 @@ func handle_click(clicked_cell: Vector2i):
 				if clicked_unit.unit_stats.team_id == 0:
 					selected_unit = clicked_unit
 					if clicked_unit.hit_points > 0 and clicked_unit.can_act_this_turn:
-						interaction_phase = "menu"
+						interaction_phase = Phase.MENU
 						_print_unit_info(selected_unit)
 						SignalBus.request_show_menu.emit(selected_unit)
 						SignalBus.request_clear_highlight.emit()
 					else:
-						interaction_phase = "idle"
+						interaction_phase = Phase.IDLE
 						SignalBus.request_clear_highlight.emit()
 				else:
 					# ---- 敌方单位预览 ----
 					selected_unit = clicked_unit
-					interaction_phase = "idle"
+					interaction_phase = Phase.IDLE
 					var reachable = UnitManager.get_reachable_cells(
 						selected_unit.grid_cell,
 						selected_unit.unit_stats.move_range,
@@ -98,13 +107,13 @@ func handle_click(clicked_cell: Vector2i):
 					SignalBus.request_show_info.emit(null)
 					SignalBus.request_show_setting.emit()
 					SoundManager.play_select_sound()
-					interaction_phase = "setting"
+					interaction_phase = Phase.SETTING
 					SignalBus.request_clear_highlight.emit()
 					current_empty_cell = clicked_cell
 				else:
-					if interaction_phase == "menu":
+					if interaction_phase == Phase.MENU:
 						SignalBus.request_hide_menu.emit()
-						interaction_phase = "idle"
+						interaction_phase = Phase.IDLE
 					SignalBus.request_show_info.emit(null)
 					SignalBus.request_clear_highlight.emit()
 					current_highlight_cells = {}
@@ -112,10 +121,10 @@ func handle_click(clicked_cell: Vector2i):
 					current_empty_cell = clicked_cell
 					SoundManager.play_select_sound()
 
-		"menu":
+		Phase.MENU:
 			return
 
-		"moving":
+		Phase.MOVING:
 			if current_highlight_cells.has(clicked_cell):
 				if selected_unit and selected_unit.can_move() and not UnitManager.is_cell_occupied(clicked_cell):
 					var path = UnitManager.calculate_path(selected_unit.grid_cell, clicked_cell, selected_unit)
@@ -124,7 +133,7 @@ func handle_click(clicked_cell: Vector2i):
 						SignalBus.request_clear_highlight.emit()
 						current_highlight_cells = {}
 						current_move_attack_targets = {}
-						interaction_phase = "idle"
+						interaction_phase = Phase.IDLE
 						selected_unit = null
 						SignalBus.request_hide_info.emit()
 						current_empty_cell = Vector2i(-1, -1)
@@ -133,7 +142,7 @@ func handle_click(clicked_cell: Vector2i):
 			else:
 				SoundManager.play_invalid_sound()
 
-		"attacking":
+		Phase.ATTACKING:
 			if pending_attack_cells.has(clicked_cell):
 				var target_unit = UnitManager.get_unit_at_cell(clicked_cell)
 				if target_unit and selected_unit:
@@ -156,8 +165,8 @@ func handle_click(clicked_cell: Vector2i):
 				SoundManager.play_invalid_sound()
 			else:
 				SoundManager.play_invalid_sound()
-				
-		"setting":
+
+		Phase.SETTING:
 			return
 
 		_:
@@ -168,13 +177,13 @@ func handle_click(clicked_cell: Vector2i):
 # ============================================================
 func _handle_right_click():
 	match interaction_phase:
-		"menu":
+		Phase.MENU:
 			if selected_unit == null or not is_instance_valid(selected_unit):
 				SignalBus.request_hide_menu.emit()
 				SignalBus.request_clear_highlight.emit()
 				SignalBus.request_clear_highlight_unit.emit()
 				SignalBus.request_hide_info.emit()
-				interaction_phase = "idle"
+				interaction_phase = Phase.IDLE
 				selected_unit = null
 				current_empty_cell = Vector2i(-1, -1)
 				return
@@ -201,7 +210,7 @@ func _handle_right_click():
 				SignalBus.request_clear_highlight_unit.emit()
 				SignalBus.request_hide_info.emit()
 				selected_unit = null
-				interaction_phase = "idle"
+				interaction_phase = Phase.IDLE
 				current_empty_cell = Vector2i(-1, -1)
 			else:
 				print("右键：取消菜单")
@@ -210,15 +219,15 @@ func _handle_right_click():
 				SignalBus.request_clear_highlight_unit.emit()
 				SignalBus.request_hide_info.emit()
 				selected_unit = null
-				interaction_phase = "idle"
+				interaction_phase = Phase.IDLE
 				current_empty_cell = Vector2i(-1, -1)
 
-		"attacking":
+		Phase.ATTACKING:
 			if selected_unit == null or not is_instance_valid(selected_unit):
 				SignalBus.request_clear_highlight.emit()
 				current_highlight_cells = {}
 				pending_attack_cells = {}
-				interaction_phase = "idle"
+				interaction_phase = Phase.IDLE
 				current_empty_cell = Vector2i(-1, -1)
 				return
 			print("右键：取消攻击/治疗选择")
@@ -228,17 +237,17 @@ func _handle_right_click():
 			current_highlight_cells = {}
 			pending_attack_cells = {}
 			SignalBus.request_show_info.emit(selected_unit)
-			interaction_phase = "menu"
+			interaction_phase = Phase.MENU
 			SignalBus.request_show_menu.emit(selected_unit)
 			current_empty_cell = Vector2i(-1, -1)
 
-		"moving":
+		Phase.MOVING:
 			if selected_unit == null or not is_instance_valid(selected_unit):
 				SignalBus.request_clear_highlight.emit()
 				current_highlight_cells = {}
 				current_move_attack_targets = {}
 				SignalBus.request_hide_info.emit()
-				interaction_phase = "idle"
+				interaction_phase = Phase.IDLE
 				current_empty_cell = Vector2i(-1, -1)
 				return
 			print("右键：取消移动选择，回到菜单")
@@ -248,11 +257,11 @@ func _handle_right_click():
 			current_highlight_cells = {}
 			current_move_attack_targets = {}
 			SignalBus.request_show_info.emit(selected_unit)
-			interaction_phase = "menu"
+			interaction_phase = Phase.MENU
 			SignalBus.request_show_menu.emit(selected_unit)
 			current_empty_cell = Vector2i(-1, -1)
 
-		"setting":
+		Phase.SETTING:
 			var battlefield = get_node("/root/Battlefield")
 			if battlefield:
 				if battlefield.team_view_panel.visible:
@@ -267,7 +276,7 @@ func _handle_right_click():
 
 			SignalBus.request_hide_setting.emit()
 			SignalBus.request_hide_info.emit()
-			interaction_phase = "idle"
+			interaction_phase = Phase.IDLE
 			current_empty_cell = Vector2i(-1, -1)
 
 		_:
@@ -275,7 +284,7 @@ func _handle_right_click():
 				SignalBus.request_hide_info.emit()
 				SignalBus.request_clear_highlight.emit()
 				selected_unit = null
-				interaction_phase = "idle"
+				interaction_phase = Phase.IDLE
 				current_highlight_cells = {}
 				current_move_attack_targets = {}
 				current_empty_cell = Vector2i(-1, -1)
@@ -286,19 +295,19 @@ func _handle_right_click():
 func handle_wheel(delta: int):
 	if Globals.is_transitioning or Globals.is_fading:
 		return
-	if TurnManager.current_turn_team != 0:
+	if TurnManager.current_turn_team != TurnManager.Team.PLAYER:
 		return
 	if TurnManager.is_moving or TurnManager.is_ai_moving:
 		return
 	if Globals.is_performing_action:
 		return
-	if interaction_phase in ["moving", "attacking"]:
+	if interaction_phase in [Phase.MOVING, Phase.ATTACKING]:
 		return
 
-	if interaction_phase == "setting":
+	if interaction_phase == Phase.SETTING:
 		SignalBus.request_hide_setting.emit()
 		SignalBus.request_hide_info.emit()
-		interaction_phase = "idle"
+		interaction_phase = Phase.IDLE
 		current_empty_cell = Vector2i(-1, -1)
 
 	var units = UnitManager.unit_list.filter(func(u):
@@ -328,23 +337,23 @@ func handle_wheel(delta: int):
 
 	var new_unit = units[new_idx]
 
-	if interaction_phase == "menu":
+	if interaction_phase == Phase.MENU:
 		SignalBus.request_hide_menu.emit()
 	SignalBus.request_clear_highlight.emit()
 	current_highlight_cells = {}
 	current_move_attack_targets = {}
-	interaction_phase = "idle"
+	interaction_phase = Phase.IDLE
 	current_empty_cell = Vector2i(-1, -1)
 
 	selected_unit = new_unit
 	SignalBus.request_show_info.emit(new_unit)
 
 	if new_unit.hit_points > 0 and new_unit.can_act_this_turn:
-		interaction_phase = "menu"
+		interaction_phase = Phase.MENU
 		_print_unit_info(new_unit)
 		SignalBus.request_show_menu.emit(new_unit)
 	else:
-		interaction_phase = "idle"
+		interaction_phase = Phase.IDLE
 
 	SoundManager.play_select_sound()
 
@@ -400,7 +409,7 @@ func _start_attack_target_selection(unit: Unit):
 
 	pending_attack_cells = attack_range_dict
 	current_highlight_cells = attack_range_dict
-	interaction_phase = "attacking"
+	interaction_phase = Phase.ATTACKING
 
 	var battlefield = get_node("/root/Battlefield")
 	if battlefield and battlefield.has_method("_show_attack_highlight"):
@@ -425,7 +434,7 @@ func on_move_button_pressed():
 	if selected_unit == null:
 		print("移动按钮：selected_unit 为空")
 		return
-	if interaction_phase == "menu" and selected_unit.can_move():
+	if interaction_phase == Phase.MENU and selected_unit.can_move():
 		SignalBus.request_hide_info.emit()
 		var reachable = UnitManager.get_reachable_cells(selected_unit.grid_cell, selected_unit.remaining_move, selected_unit)
 		if reachable.size() <= 1:
@@ -461,7 +470,7 @@ func on_move_button_pressed():
 				attack_targets[unit.grid_cell] = true
 		current_highlight_cells = reachable
 		current_move_attack_targets = attack_targets
-		interaction_phase = "moving"
+		interaction_phase = Phase.MOVING
 		SignalBus.request_highlight.emit(reachable)
 		if attack_targets.size() > 0:
 			SignalBus.request_highlight.emit(attack_targets)
@@ -470,7 +479,7 @@ func on_move_button_pressed():
 		print("移动条件不满足")
 
 func on_attack_button_pressed():
-	if selected_unit == null or interaction_phase != "menu":
+	if selected_unit == null or interaction_phase != Phase.MENU:
 		return
 	if selected_unit.has_attacked or not selected_unit.can_act_this_turn or selected_unit.has_acted:
 		return
@@ -481,7 +490,7 @@ func on_wait_button_pressed():
 	if selected_unit == null:
 		print("待机按钮：selected_unit 为空")
 		return
-	if interaction_phase == "menu" and selected_unit.can_act_this_turn:
+	if interaction_phase == Phase.MENU and selected_unit.can_act_this_turn:
 		SignalBus.request_hide_info.emit()
 		SoundManager.play_wait_sound()
 		var unit = selected_unit
@@ -489,7 +498,7 @@ func on_wait_button_pressed():
 		TurnManager.finish_unit_action(unit)
 		SignalBus.request_dialogue_check.emit(unit)
 		selected_unit = null
-		interaction_phase = "idle"
+		interaction_phase = Phase.IDLE
 	else:
 		print("待机条件不满足")
 

@@ -132,7 +132,7 @@ func _on_confirm_pressed():
 	Globals.pending_save_slot = target_slot
 	GameState.start_new_cycle()
 	GameState.reset_progress()
-	GameState.interrupt_state = 2
+	GameState.interrupt_state = GameState.InterruptState.MAP
 	
 	# ---- 创建面板 ----
 	var config = load("res://content/scenes/ui/EquipmentConfig.tscn").instantiate()

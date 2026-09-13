@@ -16,7 +16,7 @@ func unregister_unit(unit: Unit):
 		unit_removed.emit(unit, team)
 		if InputManager.selected_unit == unit:
 			InputManager.selected_unit = null
-			InputManager.interaction_phase = "idle"
+			InputManager.interaction_phase = InputManager.Phase.IDLE
 			InputManager.current_highlight_cells = {}
 			InputManager.attackable_targets = []
 			SignalBus.request_hide_menu.emit()

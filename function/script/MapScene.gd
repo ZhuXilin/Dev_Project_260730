@@ -51,7 +51,7 @@ func _ready():
 		GameState.cached_map_level_data = null
 		GameState.current_map_data = null
 		GameState.map_snapshot.clear()
-		GameState.interrupt_state = 1
+		GameState.interrupt_state = GameState.InterruptState.CAMP
 		_save_game()
 		get_tree().change_scene_to_file("res://content/scenes/ui/Camp.tscn")
 		return
@@ -82,7 +82,7 @@ func _ready():
 			# ---- 重置本轮数据 ----
 			GameState.reset_for_new_cycle()
 			GameState.map_snapshot.clear()
-			GameState.interrupt_state = 1
+			GameState.interrupt_state = GameState.InterruptState.CAMP
 			_save_game()
 			
 			# ---- 弹出三天结算界面 ----
@@ -131,7 +131,7 @@ func _ready():
 		generate_map(current_day)
 
 	# 中断状态设为地图
-	GameState.interrupt_state = 2
+	GameState.interrupt_state = GameState.InterruptState.MAP
 	_save_game()
 	_setup_ui()
 	update_all_displays()
@@ -234,7 +234,7 @@ func _on_interrupt_pressed():
 		var err = ResourceSaver.save(GameState.cached_map_level_data, "user://map_cache.tres")
 		print("保存地图缓存: ", "成功" if err == OK else "失败")
 	
-	GameState.interrupt_state = 2
+	GameState.interrupt_state = GameState.InterruptState.MAP
 	_save_game()
 	get_tree().change_scene_to_file("res://content/scenes/ui/MainMenu.tscn")
 
@@ -245,7 +245,7 @@ func _on_abandon_confirmed():
 	GameState.abandon_and_return_to_camp()
 
 func _on_cycle_complete():
-	GameState.interrupt_state = 1
+	GameState.interrupt_state = GameState.InterruptState.CAMP
 	_save_game()
 	get_tree().change_scene_to_file("res://content/scenes/ui/Camp.tscn")
 
@@ -395,7 +395,7 @@ func _load_combat_for_node(node: MapNode):
 			print("使用备用地图：", map_to_load.map_name)
 		else:
 			print("错误：没有可用的地图数据，回到营地")
-			GameState.interrupt_state = 1
+			GameState.interrupt_state = GameState.InterruptState.CAMP
 			_save_game()
 			get_tree().change_scene_to_file("res://content/scenes/ui/Camp.tscn")
 			return

@@ -110,12 +110,12 @@ func _on_interrupt_pressed():
 	
 	if scene_path.ends_with("Battlefield.tscn"):
 		GameState.undo_battle_entry()
-		GameState.interrupt_state = 2
+		GameState.interrupt_state = GameState.InterruptState.MAP
 	elif scene_path.ends_with("MapScene.tscn"):
-		GameState.interrupt_state = 2
+		GameState.interrupt_state = GameState.InterruptState.MAP
 	elif scene_path.ends_with("UnitSelectUI.tscn") or scene_path.ends_with("Camp.tscn"):
 		# ---- 在配置界面中断，不保存任何进度 ----
-		GameState.interrupt_state = 1
+		GameState.interrupt_state = GameState.InterruptState.CAMP
 		GameState.party.clear()
 		GameState.main_unit_name = ""
 		GameState.current_faction = ""

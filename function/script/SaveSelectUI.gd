@@ -79,7 +79,7 @@ func _on_load_pressed(slot: int):
 func _on_new_game_pressed(slot: int):
 	GameState.reset_all()
 	GameState.start_new_cycle()
-	GameState.interrupt_state = 1
+	GameState.interrupt_state = GameState.InterruptState.CAMP
 	Globals.pending_save_slot = slot
 	SaveManager.save_game(slot, false)
 	SaveManager.current_slot = slot

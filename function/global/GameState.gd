@@ -1,5 +1,12 @@
 extends Node
 
+enum InterruptState {
+	NONE,
+	CAMP,
+	MAP,
+	BATTLEFIELD,
+}
+
 # ---- 队伍数据 ----
 var party: Array[UnitData] = []
 var max_party_size: int = 3
@@ -48,7 +55,7 @@ var current_reward_soul: int = 0
 var current_reward_materials: Dictionary = {}
 
 # ---- 游戏状态 ----
-var interrupt_state: int = 0   # 0=无, 1=营地, 2=地图, 3=战场
+var interrupt_state: InterruptState = InterruptState.NONE
 var battlefield_data: Dictionary = {}   # 预留战场数据
 
 # ---- 装备系统 ----
@@ -149,7 +156,7 @@ func reset_for_new_cycle():
 	LevelManager.current_level_index = 0
 	temp_soul = 0
 	temp_gold = 0
-	interrupt_state = 0
+	interrupt_state = InterruptState.NONE
 	init_relic_slots()
 	current_faction = ""
 	map_snapshot.clear()
@@ -172,7 +179,7 @@ func reset_all():
 	LevelManager.reset()
 	temp_soul = 0
 	temp_gold = 0
-	interrupt_state = 0
+	interrupt_state = InterruptState.NONE
 	init_relic_slots()
 	current_faction = ""
 	map_snapshot.clear()
@@ -200,7 +207,7 @@ func abandon_and_return_to_camp():
 	finish_day()
 	abandon_cycle()
 	reset_all()
-	interrupt_state = 1
+	interrupt_state = InterruptState.CAMP
 	SaveManager.save_game(SaveManager.current_slot, false)
 	get_tree().change_scene_to_file("res://content/scenes/ui/Camp.tscn")
 

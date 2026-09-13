@@ -200,7 +200,7 @@ func _finish_attack(attacker: Unit, _defender: Unit) -> void:
 	_show_menu_after_action(attacker)
 	
 func _show_menu_after_action(unit: Unit):
-	if TurnManager.current_turn_team != 0:
+	if TurnManager.current_turn_team != TurnManager.Team.PLAYER:
 		return
 	if unit.unit_stats.team_id != 0:
 		return
@@ -209,7 +209,7 @@ func _show_menu_after_action(unit: Unit):
 	if unit.remaining_move < 0:
 		unit.remaining_move = 0
 	InputManager.selected_unit = unit
-	InputManager.interaction_phase = "menu"
+	InputManager.interaction_phase = InputManager.Phase.MENU
 	SignalBus.request_show_menu.emit(unit)
 
 func _face_each_other(attacker: Unit, defender: Unit):

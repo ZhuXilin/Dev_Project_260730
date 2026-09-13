@@ -215,7 +215,7 @@ func _ready():
 		setting_panel.visible = false
 
 	InputManager.selected_unit = null
-	InputManager.interaction_phase = "idle"
+	InputManager.interaction_phase = InputManager.Phase.IDLE
 	InputManager.current_highlight_cells = {}
 
 	TurnManager.all_acted = false
@@ -223,7 +223,7 @@ func _ready():
 	TurnManager.is_ai_moving = false
 	TurnManager.clear_ai_state()
 	TurnManager.last_player_unit = null
-	TurnManager.current_turn_team = 0
+	TurnManager.current_turn_team = TurnManager.Team.PLAYER
 
 	if highlight_manager:
 		highlight_manager.clear_highlight()
@@ -256,7 +256,7 @@ func _ready():
 			back_camp_btn.text = "回到营地"
 			print("BackCampBtn 已连接（非战斗）")
 		
-		TurnManager.start_turn(0)
+		TurnManager.start_turn(TurnManager.Team.PLAYER)
 		_update_relic_icons()
 		return
 
@@ -283,7 +283,7 @@ func _ready():
 
 	await get_tree().process_frame
 	print("=== 准备启动玩家回合 ===")
-	TurnManager.start_turn(0)
+	TurnManager.start_turn(TurnManager.Team.PLAYER)
 	print("=== TurnManager.start_turn(0) 调用完成 ===")
 	_update_end_turn_button_visibility()
 
@@ -323,7 +323,7 @@ func _exit_tree():
 		InputManager.ui_manager = null
 	if InputManager.selected_unit != null:
 		InputManager.selected_unit = null
-	InputManager.interaction_phase = "idle"
+	InputManager.interaction_phase = InputManager.Phase.IDLE
 	InputManager.current_highlight_cells = {}
 	InputManager.pending_attack_cells = {}
 	InputManager.current_move_attack_targets = {}
@@ -336,7 +336,7 @@ func _process(_delta):
 		info_panel.visible or 
 		TurnManager.is_moving or 
 		TurnManager.is_ai_moving or 
-		TurnManager.current_turn_team == 1 or 
+		TurnManager.current_turn_team == TurnManager.Team.ENEMY or 
 		Globals.is_fading or 
 		Globals.is_transitioning or
 		Globals.is_performing_action or
@@ -757,7 +757,7 @@ func _connect_signals():
 # ===================== 信号回调 =====================
 func _on_highlight_request(cells: Dictionary):
 	match InputManager.interaction_phase:
-		"moving":
+		InputManager.Phase.MOVING:
 			if cells == InputManager.current_highlight_cells:
 				highlight_manager.show_move_highlight(cells, Color(1, 1, 1, 0.3), 0, true)
 			else:
@@ -766,7 +766,7 @@ func _on_highlight_request(cells: Dictionary):
 				if unit and unit.get_weapon_type() == "staff":
 					preview_color = Color(0.2, 0.5, 0.8, 0.7)
 				highlight_manager.show_move_highlight(cells, preview_color, 1, false)
-		"attacking":
+		InputManager.Phase.ATTACKING:
 			var unit = InputManager.selected_unit
 			var color = Color(0.7, 0.1, 0.2, 0.7)
 			if unit and unit.get_weapon_type() == "staff":
@@ -892,7 +892,7 @@ func _on_request_show_victory(winning_team: int):
 		item_list_panel.visible = false
 
 	InputManager.selected_unit = null
-	InputManager.interaction_phase = "idle"
+	InputManager.interaction_phase = InputManager.Phase.IDLE
 	InputManager.current_highlight_cells = {}
 	InputManager.current_move_attack_targets = {}
 
@@ -1010,7 +1010,7 @@ func _on_turn_changed(team: int):
 
 # 新增异步处理函数（将原 _on_turn_changed 的全部逻辑移入）
 func _handle_turn_change_async(team: int):
-	if team == 0:
+	if team == TurnManager.Team.PLAYER:
 		print("玩家回合开始，递增前计数: ", Globals.current_battle_turn)
 		Globals.increment_battle_turn()
 		turn_count_label.text = "第 " + str(Globals.current_battle_turn) + " 回合"
@@ -1039,23 +1039,23 @@ func _handle_turn_change_async(team: int):
 		setting_menu_panel.visible = false
 
 	InputManager.selected_unit = null
-	InputManager.interaction_phase = "idle"
+	InputManager.interaction_phase = InputManager.Phase.IDLE
 	InputManager.current_highlight_cells = {}
 
 	MusicManager.stop_music()
 	
-	if team == 0:
+	if team == TurnManager.Team.PLAYER:
 		Globals.increment_battle_turn()
 		
-	# UI 过渡计时：忽略 time_scale，避免高倍速下过渡一闪而过
+	# UI 过渡计时：忽略 time_scale
 	await get_tree().create_timer(transition_delay_before_fade, true, false, true).timeout
 	await turnlayer_manager.play_transition(team)
 	await get_tree().create_timer(transition_delay_after_fade, true, false, true).timeout
 
-	print("回合切换：", "玩家" if team == 0 else "敌人")
+	print("回合切换：", "玩家" if team == TurnManager.Team.PLAYER else "敌人")
 
 	var target_pos = null
-	if team == 0:
+	if team == TurnManager.Team.PLAYER:
 		var last_unit = TurnManager.get_last_player_unit()
 		if is_instance_valid(last_unit):
 			target_pos = grid_to_world(last_unit.grid_cell)
@@ -1071,11 +1071,11 @@ func _handle_turn_change_async(team: int):
 		if fallback_pos:
 			camera_controller.smooth_move_to(fallback_pos, turnlayer_manager.transition_duration, true)
 
-	# ---- 音乐控制（原逻辑不变） ----
+	# ---- 音乐控制 ----
 	if not is_non_combat_mode:
 		var is_boss = GameState.current_map_data and GameState.current_map_data.node_type == MapNode.NodeType.BOSS
 		if is_boss:
-			if team == 0:
+			if team == TurnManager.Team.PLAYER:
 				if MusicManager.config and MusicManager.config.boss_player_turn_music:
 					MusicManager.play_music(MusicManager.config.boss_player_turn_music)
 				else:
@@ -1086,7 +1086,7 @@ func _handle_turn_change_async(team: int):
 				else:
 					MusicManager.play_enemy_turn_music()
 		else:
-			if team == 0:
+			if team == TurnManager.Team.PLAYER:
 				MusicManager.play_player_turn_music()
 			else:
 				MusicManager.play_enemy_turn_music()
@@ -1106,7 +1106,7 @@ func _handle_turn_change_async(team: int):
 	Globals.is_transitioning = false
 	_turn_changed_locked = false
 
-	if team == 1 and not is_non_combat_mode:
+	if team == TurnManager.Team.ENEMY and not is_non_combat_mode:
 		TurnManager.run_enemy_ai()
 
 func _get_center_position() -> Vector2:
@@ -1140,7 +1140,7 @@ func _input(event: InputEvent):
 			ui_manager.hide_equip_menu()
 			get_viewport().set_input_as_handled()
 			if InputManager.selected_unit:
-				InputManager.interaction_phase = "menu"
+				InputManager.interaction_phase = InputManager.Phase.MENU
 				SignalBus.request_show_menu.emit(InputManager.selected_unit)
 		return
 
@@ -1150,7 +1150,7 @@ func _input(event: InputEvent):
 
 	# ---- 鼠标中键结束回合（替代原 F 键） ----
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_MIDDLE:
-		if TurnManager.current_turn_team == 0 and not Globals.is_fading and not Globals.is_transitioning and not Globals.is_dialogue_active:
+		if TurnManager.current_turn_team == TurnManager.Team.PLAYER and not Globals.is_fading and not Globals.is_transitioning and not Globals.is_dialogue_active:
 			_end_player_turn()
 			return
 
@@ -1199,17 +1199,17 @@ func _input(event: InputEvent):
 				setting_menu_panel.visible or 
 				team_view_panel.visible or 
 				item_list_panel.visible or
-				InputManager.interaction_phase in ["moving", "attacking"]):
+				InputManager.interaction_phase in [InputManager.Phase.MOVING, InputManager.Phase.ATTACKING]):
 				return
 			if TurnManager.is_game_over:
 				return
-			if TurnManager.current_turn_team == 0 and not TurnManager.is_moving and not TurnManager.is_ai_moving and not Globals.is_performing_action:
+			if TurnManager.current_turn_team == TurnManager.Team.PLAYER and not TurnManager.is_moving and not TurnManager.is_ai_moving and not Globals.is_performing_action:
 				var direction = -1 if event.button_index == MOUSE_BUTTON_WHEEL_UP else 1
 				InputManager.handle_wheel(direction)
 			return
 
-	# ---- 敌方回合或游戏结束屏蔽 ----
-	if TurnManager.current_turn_team != 0:
+	# 敌方回合屏蔽
+	if TurnManager.current_turn_team != TurnManager.Team.PLAYER:
 		return
 	if TurnManager.all_acted:
 		return
@@ -1252,7 +1252,7 @@ func _input(event: InputEvent):
 
 # ===================== UI回调 =====================
 func _on_request_show_menu(unit: Unit):
-	if TurnManager.is_game_over or TurnManager.current_turn_team != 0 or TurnManager.all_acted:
+	if TurnManager.is_game_over or TurnManager.current_turn_team != TurnManager.Team.PLAYER or TurnManager.all_acted:
 		return
 	# ---- 检查单位是否存活 ----
 	if not unit or not is_instance_valid(unit) or unit.hit_points <= 0:
@@ -1270,7 +1270,7 @@ func _on_request_show_menu(unit: Unit):
 	print("显示菜单，单位：", unit.unit_stats.unit_name)
 
 	InputManager.selected_unit = unit
-	InputManager.interaction_phase = "menu"
+	InputManager.interaction_phase = InputManager.Phase.MENU
 
 	ui_manager.show_menu(unit)
 
@@ -1330,7 +1330,7 @@ func _on_menu_blocker_clicked(event: InputEvent):
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
 		SignalBus.request_hide_menu.emit()
 		InputManager.selected_unit = null
-		InputManager.interaction_phase = "idle"
+		InputManager.interaction_phase = InputManager.Phase.IDLE
 
 # ===================== 功能格系统 =====================
 func apply_map_functions(team: int):
@@ -1577,10 +1577,10 @@ func _on_team_member_selected(unit: Unit):
 
 	InputManager.selected_unit = unit
 	if unit.can_act_this_turn and unit.hit_points > 0:
-		InputManager.interaction_phase = "menu"
+		InputManager.interaction_phase = InputManager.Phase.MENU
 		SignalBus.request_show_menu.emit(unit)
 	else:
-		InputManager.interaction_phase = "idle"
+		InputManager.interaction_phase = InputManager.Phase.IDLE
 
 	SignalBus.request_show_info.emit(unit)
 	SoundManager.play_select_sound()
@@ -2131,7 +2131,7 @@ func _end_player_turn():
 	if TurnManager.is_game_over:
 		print("游戏已结束，无法结束回合")
 		return
-	if TurnManager.current_turn_team != 0:
+	if TurnManager.current_turn_team != TurnManager.Team.PLAYER:
 		print("当前不是玩家回合，无法结束")
 		return
 	if Globals.is_transitioning or Globals.is_fading:
@@ -2160,11 +2160,11 @@ func _end_player_turn():
 		ally.set_gray(true)
 
 	InputManager.selected_unit = null
-	InputManager.interaction_phase = "idle"
+	InputManager.interaction_phase = InputManager.Phase.IDLE
 	InputManager.current_highlight_cells = {}
 
 	print("玩家回合结束，切换到敌方回合")
-	TurnManager.start_turn(1)   # 敌方回合会被 TurnManager 跳过（非战斗模式）
+	TurnManager.start_turn(TurnManager.Team.ENEMY)
 
 func _update_cursor_and_mouse():
 	# ---- 如果结算界面激活，则保持系统鼠标可见，不进行任何控制 ----
@@ -2185,7 +2185,7 @@ func _update_cursor_and_mouse():
 		team_view_panel.visible or
 		item_list_panel.visible or
 		setting_menu_panel.visible or
-		TurnManager.current_turn_team == 1 or
+		TurnManager.current_turn_team == TurnManager.Team.ENEMY or
 		TurnManager.is_ai_moving or
 		TurnManager.is_moving or
 		Globals.is_fading or
@@ -2272,7 +2272,7 @@ func _update_cursor_and_mouse():
 		should_be_pink = true
 	elif InputManager.selected_unit != null and InputManager.selected_unit.unit_stats.team_id == 0:
 		var phase = InputManager.interaction_phase
-		if phase in ["menu", "moving", "attacking"]:
+		if phase in [InputManager.Phase.MENU, InputManager.Phase.MOVING, InputManager.Phase.ATTACKING]:
 			should_be_pink = true
 
 	var target_color = Color.FUCHSIA if should_be_pink else Color.WHITE

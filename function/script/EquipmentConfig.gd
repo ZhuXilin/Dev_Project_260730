@@ -1477,7 +1477,7 @@ func _on_confirm_pressed():
 	else:
 		GameState.current_faction = "王国"
 	
-	GameState.interrupt_state = 2
+	GameState.interrupt_state = GameState.InterruptState.MAP
 	GameState.reset_progress()
 	LevelManager.start_game()
 	
