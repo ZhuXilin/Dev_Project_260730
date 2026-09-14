@@ -98,8 +98,9 @@ static func _create_node(type: MapNode.NodeType, pos: Vector2, layer: int) -> Ma
 
 static func _assign_map_data_to_all_nodes(nodes: Array):
 	var combat_nodes_by_type : Dictionary = {}
-
+	print("=== _assign_map_data_to_all_nodes 开始 ===")
 	for node in nodes:
+		print("  节点: type=%d, layer=%d" % [node.node_type, node.layer])
 		if node.node_type in [
 			MapNode.NodeType.SHOP,
 			MapNode.NodeType.FORGE,
@@ -119,6 +120,7 @@ static func _assign_map_data_to_all_nodes(nodes: Array):
 		var maps : Array = LevelManager.get_random_maps_for_node_type(
 			node_type, group.size(), GameState.main_unit_name
 		)
+		print("类型 %d 组大小 %d → 拿到 %d 张地图:" % [node_type, group.size(), maps.size()])
 		for i in range(group.size()):
 			if i < maps.size():
 				group[i].map_data = maps[i]

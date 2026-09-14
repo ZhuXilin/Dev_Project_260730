@@ -610,7 +610,10 @@ func _restore_map_from_snapshot():
 		print("快照恢复失败，生成新地图")
 		generate_map(current_day)
 		return
-	
+
+	# ---- 新增：恢复后重新随机分配地图（丢弃快照里的旧 map_data） ----
+	MapGenerator._assign_map_data_to_all_nodes(map_data.nodes)
+
 	GameState.cached_map_level_data = map_data
 	GameState.cached_day = current_day
 	_apply_visited_state()
