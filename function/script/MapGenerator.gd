@@ -15,33 +15,21 @@ static func generate_day(day: int, _level_list: Array[MapData] = []) -> MapLevel
 			var x_right  = 210
 			var x_center = 160
 
-			var y_start   = 215
-			var y_normal  = 165
-			var y_shop    = 115
-			var y_mid     = 65
-			var y_forge   = 40    # 铁匠铺不再单独占一层，放在 mid 之上
-			var y_boss    = 15
-
-			# 重新规划 y 坐标（5 层 + boss）：
-			# Layer 0: START         y=220
-			# Layer 1: NORMAL ×2     y=175
-			# Layer 2: SHOP          y=130
-			# Layer 3: ELITE + EVENT y=85
-			# Layer 4: FORGE         y=45
-			# Layer 5: BOSS          y=15
-
+			# Layer 0: START
 			root = _create_node(MapNode.NodeType.START, Vector2(x_center, 220), 0)
 			nodes.append(root)
 
+			# Layer 1: NORMAL ×2（固定类型，地图随机）
 			var n1 = _create_node(MapNode.NodeType.NORMAL, Vector2(x_left,  175), 1)
 			var n2 = _create_node(MapNode.NodeType.NORMAL, Vector2(x_right, 175), 1)
 			nodes.append(n1)
 			nodes.append(n2)
 
+			# Layer 2: SHOP
 			var shop = _create_node(MapNode.NodeType.SHOP, Vector2(x_center, 130), 2)
 			nodes.append(shop)
 
-			# ELITE / EVENT 左右随机
+			# Layer 3: ELITE + EVENT（左右随机）
 			var elite_left = (randi() % 2 == 0)
 			var e1 = _create_node(
 				MapNode.NodeType.ELITE if elite_left else MapNode.NodeType.EVENT,
@@ -52,9 +40,11 @@ static func generate_day(day: int, _level_list: Array[MapData] = []) -> MapLevel
 			nodes.append(e1)
 			nodes.append(e2)
 
+			# Layer 4: FORGE
 			var forge = _create_node(MapNode.NodeType.FORGE, Vector2(x_center, 45), 4)
 			nodes.append(forge)
 
+			# Layer 5: BOSS
 			var boss = _create_node(MapNode.NodeType.BOSS, Vector2(x_center, 15), 5)
 			nodes.append(boss)
 
@@ -121,10 +111,9 @@ static func _create_node(type: MapNode.NodeType, pos: Vector2, layer: int) -> Ma
 		MapNode.NodeType.EVENT: node.custom_label = "宝箱"
 	return node
 
-
 static func _assign_map_data_to_all_nodes(nodes: Array):
 	for node in nodes:
-		# ---- 非战斗节点：占位 MapData，不读 LevelList ----
+		# ---- 非战斗节点：占位 MapData ----
 		if node.node_type in [
 			MapNode.NodeType.SHOP,
 			MapNode.NodeType.FORGE,
@@ -139,21 +128,14 @@ static func _assign_map_data_to_all_nodes(nodes: Array):
 			node.map_data = placeholder
 			continue
 
-		# ---- 战斗节点：从 LevelList 拿地图 ----
-		var map = LevelManager.get_map_for_node_type(node.node_type, GameState.main_unit_name)
+		# ---- 战斗节点：从对应类型的池子里随机 ----
+		var map = LevelManager.get_random_map_for_node_type(
+			node.node_type, GameState.main_unit_name
+		)
 		if map:
-			# 不修改原资源！副本一份
-			var copy = MapData.new()
-			copy.map_name = map.map_name
-			copy.scene = map.scene
-			copy.map_size = map.map_size
-			copy.node_type = node.node_type
-			copy.spawn_points = map.spawn_points.duplicate()
-			copy.required_unit = map.required_unit
-			node.map_data = copy
+			node.map_data = map
 		else:
 			node.map_data = _create_fallback_map_data(node.node_type)
-
 
 static func _create_fallback_map_data(_type: MapNode.NodeType) -> MapData:
 	var map = MapData.new()

@@ -113,6 +113,40 @@ func get_map_for_node_type(node_type: int, main_unit: String = "") -> MapData:
 		return filtered[0]
 	return type_filtered[0]
 
+## 从指定类型的池子中随机选一个 MapData（返回副本，不污染原资源）
+## 若池子为空返回 null
+func get_random_map_for_node_type(node_type: int, main_unit: String = "") -> MapData:
+	var day_levels = get_current_day_levels()
+	if day_levels.is_empty():
+		return null
+
+	var filtered = day_levels.filter(func(m):
+		return m.required_unit == "" or m.required_unit == main_unit
+	)
+	if filtered.is_empty():
+		return null
+
+	var type_filtered = filtered.filter(func(m):
+		return m.node_type == node_type
+	)
+	if type_filtered.is_empty():
+		return null
+
+	var picked = type_filtered[randi() % type_filtered.size()]
+	return _clone_map_data(picked, node_type)
+
+
+## 克隆 MapData（避免共享引用被运行时修改）
+func _clone_map_data(src: MapData, node_type: int) -> MapData:
+	var copy = MapData.new()
+	copy.map_name = src.map_name
+	copy.scene = src.scene
+	copy.map_size = src.map_size
+	copy.node_type = node_type
+	copy.spawn_points = src.spawn_points.duplicate()
+	copy.required_unit = src.required_unit
+	return copy
+
 func advance_day() -> bool:
 	current_day += 1
 	if current_day >= 3:
