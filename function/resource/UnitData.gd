@@ -115,12 +115,14 @@ static func from_dict(d: Dictionary) -> UnitData:
 # ============================================================
 #  内部辅助：ItemInstance ↔ Dictionary
 # ============================================================
-
 static func _item_instance_to_dict(inst: ItemInstance) -> Dictionary:
 	if not inst:
 		return {}
-	return {"item_id": inst.item_id, "count": inst.count}
-
+	return {
+		"item_id": inst.item_id,
+		"count": inst.count,
+		"upgrade_level": inst.upgrade_level,   # ← 新增
+	}
 
 static func _dict_to_item_instance(d: Dictionary) -> ItemInstance:
 	if not d or d.is_empty():
@@ -131,8 +133,8 @@ static func _dict_to_item_instance(d: Dictionary) -> ItemInstance:
 	var inst = ItemInstance.new()
 	inst.item_id = item_id
 	inst.count = d.get("count", 1)
+	inst.upgrade_level = d.get("upgrade_level", 0)   # ← 新增
 	return inst
-
 
 static func _item_instance_array_to_array(arr: Array) -> Array:
 	var result: Array = []

@@ -53,12 +53,11 @@ func _clear_content():
 func _refresh_materials():
 	var mats = GameState.get_all_materials()
 	var parts = []
-	for name in ["粗铁", "精钢", "秘银", "龙鳞"]:
-		var count = mats.get(name, 0)
+	for mat_name in ["粗铁", "精钢", "秘银", "龙鳞"]:
+		var count = mats.get(mat_name, 0)
 		if count > 0:
-			parts.append("%s:%d" % [name, count])
+			parts.append("%s:%d" % [mat_name, count])
 	materials_label.text = "材料: " + (" ".join(parts) if not parts.is_empty() else "无")
-
 
 # ============================================================
 #  Tab 1: 配方

@@ -1,5 +1,18 @@
 extends Node
 
+# ============================================================
+#  品质 → 攻击/防御乘数
+# ============================================================
+const QUALITY_MULT = {
+	"common": 1.0,
+	"rare": 1.25,
+	"epic": 1.5,
+	"legendary": 1.8,
+}
+
+## 力量 → 防御减免系数
+const STRENGTH_DEF_FACTOR : float = 0.3
+
 func get_attackable_targets(unit: Unit) -> Array:
 	var weapon_data = unit.get_weapon_data()
 	if not weapon_data: return []
@@ -49,10 +62,17 @@ func calculate_damage(attacker: Unit, defender: Unit) -> int:
 	var weapon_data = attacker.get_weapon_data()
 	if not weapon_data:
 		return 0
-	
-	var base_attack = weapon_data.base_attack
+
+	# ---- 武器基础攻击（品质乘数 + 升级加成） ----
+	var quality_mult = QUALITY_MULT.get(weapon_data.quality, 1.0)
+	var upgrade_bonus = 0
+	if attacker.weapon_slot:
+		upgrade_bonus = attacker.weapon_slot.upgrade_level
+	var base_attack = (weapon_data.base_attack + upgrade_bonus) * quality_mult
+
+	# ---- 属性补正 ----
 	var modifier = weapon_data.modifier
-	var atk_bonus = 0
+	var atk_bonus = 0.0
 	for attr in modifier:
 		var val = 0
 		match attr:
@@ -62,18 +82,20 @@ func calculate_damage(attacker: Unit, defender: Unit) -> int:
 			"faith": val = attacker.unit_stats.faith
 			"arcane": val = attacker.unit_stats.arcane
 		atk_bonus += val * modifier[attr]
-	
+
 	var total_attack = base_attack + atk_bonus
-	
+
+	# ---- 防御（防具防御 + 品质乘数 + 力量减免） ----
 	var armor_defense = 0
 	for slot in defender.armor_slots:
 		if slot:
 			var item_data = ItemManager.get_item_data(slot.item_id)
 			if item_data:
-				armor_defense += item_data.defense
-	var def_value = defender.unit_stats.strength * 0.5 + armor_defense
-	
-	var damage = max(1, total_attack - def_value)
+				var armor_quality_mult = QUALITY_MULT.get(item_data.quality, 1.0)
+				armor_defense += item_data.defense * armor_quality_mult
+	var def_value = defender.unit_stats.strength * STRENGTH_DEF_FACTOR + armor_defense
+
+	var damage = max(1, int(total_attack - def_value))
 	return damage
 
 func execute_attack(attacker: Unit, defender: Unit) -> bool:

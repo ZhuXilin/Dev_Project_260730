@@ -171,22 +171,33 @@ func get_weapon_data() -> ItemData:
 	return ItemManager.get_item_data(weapon_slot.item_id)
 
 func get_weapon_stats() -> Dictionary:
+	var default_stats := {
+		"attack": 0, "magic_attack": 0, "heal_amount": 0,
+		"attack_range": 0, "min_attack_range": 0, "attack_style": "standard",
+	}
 	var data = get_weapon_data()
 	if not data:
-		return {}
-	var stats = {
-		"attack": data.base_attack,
-		"attack_range": data.attack_range,
-		"min_attack_range": data.min_attack_range,
-		"attack_style": data.attack_style,
-	}
-	if data.magic_attack and data.magic_attack.get("ignore_defense", false):
-		stats["magic_attack"] = data.base_attack
-	if data.heal_effect and not data.heal_effect.is_empty():
+		return default_stats
+
+	var quality_mult := 1.0
+	match data.quality:
+		"rare": quality_mult = 1.25
+		"epic": quality_mult = 1.5
+		"legendary": quality_mult = 1.8
+
+	var upgrade_bonus = weapon_slot.upgrade_level if weapon_slot else 0   # ← 新增
+
+	var stats := default_stats.duplicate()
+	stats["attack"] = int((data.base_attack + upgrade_bonus) * quality_mult)   # ← 改
+	stats["attack_range"] = data.attack_range
+	stats["min_attack_range"] = data.min_attack_range
+	stats["attack_style"] = data.attack_style
+
+	if data.magic_attack.get("ignore_defense", false):
+		stats["magic_attack"] = int((data.base_attack + upgrade_bonus) * quality_mult)   # ← 改
+	if not data.heal_effect.is_empty():
 		stats["heal_amount"] = data.heal_effect.get("base_heal", 0)
-	for key in data.stats:
-		if key not in stats:
-			stats[key] = data.stats[key]
+
 	return stats
 
 func get_weapon_type() -> String:
@@ -252,17 +263,20 @@ func get_total_stats() -> Dictionary:
 	if weapon_slot:
 		var data = ItemManager.get_item_data(weapon_slot.item_id)
 		if data:
-			total["attack"] = data.base_attack
+			var quality_mult := 1.0
+			match data.quality:
+				"rare": quality_mult = 1.25
+				"epic": quality_mult = 1.5
+				"legendary": quality_mult = 1.8
+			var upgrade_bonus = weapon_slot.upgrade_level
+			total["attack"] = int((data.base_attack + upgrade_bonus) * quality_mult)
 			total["attack_range"] = data.attack_range
 			total["min_attack_range"] = data.min_attack_range
 			total["attack_style"] = data.attack_style
-			
-			# 兼容旧 stats（如 magic_attack / heal_amount）
-			if data.stats:
-				if data.stats.has("magic_attack"):
-					total["magic_attack"] = data.stats["magic_attack"]
-				if data.stats.has("heal_amount"):
-					total["heal_amount"] = data.stats["heal_amount"]
+			if data.magic_attack.get("ignore_defense", false):
+				total["magic_attack"] = int((data.base_attack + upgrade_bonus) * quality_mult)
+			if not data.heal_effect.is_empty():
+				total["heal_amount"] = data.heal_effect.get("base_heal", 0)
 	
 	# ---- 防具加成 ----
 	for slot in armor_slots:

@@ -375,12 +375,16 @@ func on_node_selected(node: MapNode):
 	if not node.is_available or node.is_visited:
 		return
 	var key = "%d_%d" % [node.position.x, node.position.y]
-	
-	# ---- 只记录当前节点，不标记为已访问 ----
-	GameState.current_node_key = key
 	GameState.last_selected_node_type = node.node_type
-	
 	print("进入节点: ", key, " 类型: ", node.node_type)
+	# ---- 只有战斗节点才记 current_node_key（用于中途退出撤销） ----
+	if node.node_type in [
+		MapNode.NodeType.START,
+		MapNode.NodeType.NORMAL,
+		MapNode.NodeType.ELITE,
+		MapNode.NodeType.BOSS,
+	]:
+		GameState.current_node_key = key
 	_load_combat_for_node(node)
 
 func _load_combat_for_node(node: MapNode):
@@ -418,7 +422,6 @@ func _open_forge(node: MapNode):
 
 	var key = "%d_%d" % [node.position.x, node.position.y]
 	GameState.visited_nodes[key] = true
-	GameState.current_node_key = key
 	node.is_visited = true
 	node.is_available = false
 
@@ -443,6 +446,7 @@ func _open_forge(node: MapNode):
 	await panel.tree_exited
 
 	print("铁匠铺已关闭")
+	GameState.current_node_key = ""
 	_save_game()
 	update_all_displays()
 	_update_availability(map_data.root_node)
@@ -455,7 +459,6 @@ func _open_treasure(node: MapNode):
 
 	var key = "%d_%d" % [node.position.x, node.position.y]
 	GameState.visited_nodes[key] = true
-	GameState.current_node_key = key
 	node.is_visited = true
 	node.is_available = false
 
@@ -472,6 +475,7 @@ func _open_treasure(node: MapNode):
 	await treasure.closed
 
 	print("宝箱/事件已关闭")
+	GameState.current_node_key = ""
 	_save_game()
 	update_all_displays()
 	_update_availability(map_data.root_node)
@@ -563,7 +567,6 @@ func _open_shop(node: MapNode):
 	# ---- 标记节点已访问 ----
 	var key = "%d_%d" % [node.position.x, node.position.y]
 	GameState.visited_nodes[key] = true
-	GameState.current_node_key = key
 	node.is_visited = true
 	node.is_available = false
 	

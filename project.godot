@@ -17,13 +17,14 @@ config/features=PackedStringArray("4.7", "GL Compatibility")
 
 [autoload]
 
-LoggerGlobal="*uid://cy3qhyu3m5n3"
+Logger="*res://function/global/Logger.gd"
 Config="*res://function/global/Config.gd"
 Globals="*res://function/global/Globals.gd"
 SignalBus="*res://function/global/SignalBus.gd"
 ItemManager="*res://function/global/ItemManager.gd"
 RelicManager="*res://function/global/RelicManager.gd"
 TerrainManager="*res://function/global/TerrainManager.gd"
+RecipeManager="*res://function/global/RecipeManager.gd"
 UnitManager="*res://function/global/UnitManager.gd"
 TurnManager="*res://function/global/TurnManager.gd"
 CombatManager="*res://function/global/CombatManager.gd"
@@ -34,7 +35,6 @@ MusicManager="*res://function/global/MusicManager.gd"
 SoundManager="*res://function/global/SoundManager.gd"
 SaveManager="*res://function/global/SaveManager.gd"
 GameState="*res://function/global/GameState.gd"
-RecipeManager="*uid://dlvtitnh6vche"
 LevelManager="*res://function/global/LevelManager.gd"
 InputManager="*res://function/global/InputManager.gd"
 
