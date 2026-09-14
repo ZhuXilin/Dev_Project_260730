@@ -13,7 +13,7 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-color = Color(0, 0, 0, 0.9)
+color = Color(0.10980392, 0.10980392, 0.10980392, 1)
 
 [node name="Panel" type="Panel" parent="." unique_id=579447741]
 anchors_preset = 15
@@ -58,6 +58,17 @@ text = "材料: -"
 layout_mode = 2
 theme_override_constants/separation = 4
 
+[node name="StoryTabBtn" type="Button" parent="Panel/VBox/TabBar" unique_id=1503140784]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 8
+theme_override_styles/normal = ExtResource("2")
+theme_override_styles/pressed = ExtResource("2")
+theme_override_styles/hover = ExtResource("2")
+theme_override_styles/disabled = ExtResource("2")
+theme_override_styles/focus = ExtResource("2")
+text = "酒馆"
+
 [node name="RecipeTabBtn" type="Button" parent="Panel/VBox/TabBar" unique_id=900341542]
 layout_mode = 2
 size_flags_horizontal = 3
@@ -101,6 +112,7 @@ theme_override_styles/disabled = ExtResource("2")
 theme_override_styles/focus = ExtResource("2")
 text = "返回"
 
+[connection signal="pressed" from="Panel/VBox/TabBar/StoryTabBtn" to="." method="_on_story_tab_pressed"]
 [connection signal="pressed" from="Panel/VBox/TabBar/RecipeTabBtn" to="." method="_on_recipe_tab_pressed"]
 [connection signal="pressed" from="Panel/VBox/TabBar/CodexTabBtn" to="." method="_on_codex_tab_pressed"]
 [connection signal="pressed" from="Panel/VBox/BackButton" to="." method="_on_back_pressed"]

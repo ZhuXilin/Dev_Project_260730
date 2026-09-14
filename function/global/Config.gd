@@ -12,6 +12,7 @@ const PATHS : Dictionary = {
 	"DIALOGUE_DATA":    "res://content/data/dialogues.json",
 	"EVENT_DATA":       "res://content/data/events.json",
 	"RECIPE_DATA":      "res://content/data/recipes.json",
+	"STORY_DATA":       "res://content/data/stories.json",
 
 	# 配置资源
 	"MUSIC_CONFIG":     "res://content/scenes/levels/MusicConfig.tres",

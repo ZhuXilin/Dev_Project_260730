@@ -151,6 +151,10 @@ var current_reward_materials : Dictionary:
 var unlocked_recipes : Array:
 	get: return resource_state.unlocked_recipes
 	set(value): resource_state.unlocked_recipes = value
+	
+var unlocked_stories : Array:
+	get: return resource_state.unlocked_stories
+	set(value): resource_state.unlocked_stories = value
 
 # ============================================================
 #  非转发字段（不属于任何 state）

@@ -1,6 +1,6 @@
 extends Node
 
-@export var music_transition_delay : float = UIConst.DIALOGUE_MUSIC_DELAY
+@export var music_transition_delay : float = 0.5
 @export var json_path : String = Config.PATHS.DIALOGUE_DATA
 
 var dialogue_ui : CanvasLayer = null
@@ -87,6 +87,46 @@ func start_dialogue(dialogues_id: String, music_stream: AudioStream = null):
 		MusicManager.play_dialogue_music()
 
 	current_dialogue_id = dialogues_id
+	current_index = 0
+	_show_entry(0)
+	can_interact = true
+
+# ---- 启动内联对话（stories.json 里的 lines 数组） ----
+func start_inline_dialogue(entries: Array, music_stream: AudioStream = null):
+	if entries.is_empty():
+		dialogue_finished.emit()
+		return
+
+	# ---- 确保 UI 有效 ----
+	if not dialogue_ui or not is_instance_valid(dialogue_ui):
+		_load_ui()
+		if not dialogue_ui or not is_instance_valid(dialogue_ui):
+			push_error("Dialogue UI 未加载，无法启动对话")
+			return
+
+	if is_active:
+		return
+
+	SignalBus.request_hide_menu.emit()
+	SignalBus.request_hide_info.emit()
+	SignalBus.request_clear_highlight.emit()
+	SignalBus.request_clear_highlight_unit.emit()
+
+	is_active = true
+	can_interact = false
+	Globals.is_dialogue_active = true
+	dialogue_ui.visible = true
+
+	MusicManager.pause_and_save()
+	await get_tree().create_timer(music_transition_delay, true, false, true).timeout
+	if music_stream != null:
+		MusicManager.play_music(music_stream)
+	else:
+		MusicManager.play_dialogue_music()
+
+	# ---- 把 entries 缓存到 _dialogues 里，复用现有 _show_entry ----
+	current_dialogue_id = "__inline__"
+	_dialogues["__inline__"] = entries
 	current_index = 0
 	_show_entry(0)
 	can_interact = true

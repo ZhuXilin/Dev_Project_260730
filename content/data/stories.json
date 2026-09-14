@@ -1,0 +1,99 @@
+{
+  "barkeep": {
+	"name": "酒馆老板",
+	"topics": [
+	  {
+		"id": "barkeep_greeting",
+		"title": "打个招呼",
+		"condition": "",
+		"lines": [
+		  { "speaker": "酒馆老板", "text": "哟，旅行者！想喝点什么？" },
+		  { "speaker": "指挥官", "text": "来杯麦酒，顺便打听点消息。" },
+		  { "speaker": "酒馆老板", "text": "消息管够，只要你有金币。" }
+		]
+	  },
+	  {
+		"id": "barkeep_world",
+		"title": "世界的传闻",
+		"condition": "",
+		"lines": [
+		  { "speaker": "酒馆老板", "text": "这片大陆叫艾尔登，曾经很繁荣。" },
+		  { "speaker": "酒馆老板", "text": "直到三年前那场灾变……" },
+		  { "speaker": "酒馆老板", "text": "现在处处是荒野和盗匪，出门都得带着武器。" }
+		]
+	  },
+	  {
+		"id": "barkeep_boss",
+		"title": "关于 Boss",
+		"condition": "day>=2",
+		"lines": [
+		  { "speaker": "酒馆老板", "text": "你打到 Boss 了？厉害啊！" },
+		  { "speaker": "酒馆老板", "text": "那家伙是这片地界最凶狠的领主，手下一群亡命徒。" },
+		  { "speaker": "指挥官", "text": "多谢提醒，我会当心的。" }
+		]
+	  }
+	]
+  },
+  "veteran": {
+	"name": "退休老兵",
+	"topics": [
+	  {
+		"id": "veteran_greeting",
+		"title": "打个招呼",
+		"condition": "",
+		"lines": [
+		  { "speaker": "退休老兵", "text": "年轻人，看你这身行头，是去打仗的？" },
+		  { "speaker": "指挥官", "text": "算是吧，讨伐盗匪。" },
+		  { "speaker": "退休老兵", "text": "好，好。我年轻时也这么热血。" }
+		]
+	  },
+	  {
+		"id": "veteran_tactics",
+		"title": "战术建议",
+		"condition": "",
+		"lines": [
+		  { "speaker": "退休老兵", "text": "听我一句：打不过就撤，别硬拼。" },
+		  { "speaker": "退休老兵", "text": "战场上一个失误，可能全队覆没。" },
+		  { "speaker": "指挥官", "text": "我会记住的。" }
+		]
+	  },
+	  {
+		"id": "veteran_elite",
+		"title": "精英战心得",
+		"condition": "day>=2",
+		"lines": [
+		  { "speaker": "退休老兵", "text": "精英战士都是身经百战的老手。" },
+		  { "speaker": "退休老兵", "text": "他们比普通小兵更聪明，会利用地形。" },
+		  { "speaker": "退休老兵", "text": "别让他们占据高地。" }
+		]
+	  }
+	]
+  },
+  "stranger": {
+	"name": "神秘旅人",
+	"topics": [
+	  {
+		"id": "stranger_rumor",
+		"title": "旅行见闻",
+		"condition": "",
+		"lines": [
+		  { "speaker": "神秘旅人", "text": "我来自很远的地方。" },
+		  { "speaker": "神秘旅人", "text": "那里的人说，这片大陆的下方沉睡着一头巨龙。" },
+		  { "speaker": "指挥官", "text": "巨龙？" },
+		  { "speaker": "神秘旅人", "text": "只是传说。也许吧。" }
+		]
+	  },
+	  {
+		"id": "stranger_legend",
+		"title": "古老的传说",
+		"condition": "day>=3",
+		"lines": [
+		  { "speaker": "神秘旅人", "text": "你听说过'三个太阳'的传说吗？" },
+		  { "speaker": "神秘旅人", "text": "据说当三个太阳同时升起，世界将迎来剧变。" },
+		  { "speaker": "神秘旅人", "text": "有人说那意味着毁灭，也有人说那意味着新生。" },
+		  { "speaker": "指挥官", "text": "……有意思。" }
+		]
+	  }
+	]
+  }
+}
