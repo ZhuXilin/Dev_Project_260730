@@ -245,16 +245,11 @@
 	"equipment_slot": "armor",
 	"price": 30,
 	"quality": "common",
-	"armor_type": "medium",
 	"defense": 2,
 	"slot_count": 1,
 	"modifier": {
 	  "strength": 0.2
-	},
-	"unlock_cost": {
-	  "粗铁": 5
-	},
-	"craft_cost": 100
+	}
   },
   "iron_armor": {
 	"id": "iron_armor",
@@ -266,16 +261,11 @@
 	"equipment_slot": "armor",
 	"price": 60,
 	"quality": "common",
-	"armor_type": "medium",
 	"defense": 2,
 	"slot_count": 1,
 	"modifier": {
 	  "strength": 0.2
-	},
-	"unlock_cost": {
-	  "粗铁": 5
-	},
-	"craft_cost": 100
+	}
   },
   "steel_armor": {
 	"id": "steel_armor",
@@ -287,16 +277,11 @@
 	"equipment_slot": "armor",
 	"price": 120,
 	"quality": "rare",
-	"armor_type": "medium",
 	"defense": 4,
 	"slot_count": 1,
 	"modifier": {
 	  "strength": 0.3
-	},
-	"unlock_cost": {
-	  "精钢": 3
-	},
-	"craft_cost": 200
+	}
   },
   "knight_armor": {
 	"id": "knight_armor",
@@ -304,21 +289,16 @@
 	"type": "armor",
 	"use_type": "equipment",
 	"icon": "res://content/images/items/armor.png",
-	"description": "防御+3，魔防+1",
+	"description": "防御+5，魔防+1",
 	"equipment_slot": "armor",
 	"price": 100,
 	"quality": "epic",
-	"armor_type": "heavy",
 	"defense": 5,
 	"slot_count": 2,
 	"modifier": {
 	  "strength": 0.5,
 	  "faith": 0.2
-	},
-	"unlock_cost": {
-	  "秘银": 2
-	},
-	"craft_cost": 350
+	}
   },
   "power_ring": {
 	"id": "power_ring",
@@ -330,16 +310,11 @@
 	"equipment_slot": "armor",
 	"price": 80,
 	"quality": "rare",
-	"armor_type": "light",
 	"defense": 0,
 	"slot_count": 1,
 	"modifier": {
 	  "strength": 2
-	},
-	"unlock_cost": {
-	  "精钢": 2
-	},
-	"craft_cost": 150
+	}
   },
   "guard_ring": {
 	"id": "guard_ring",
@@ -351,16 +326,11 @@
 	"equipment_slot": "armor",
 	"price": 80,
 	"quality": "rare",
-	"armor_type": "light",
 	"defense": 2,
 	"slot_count": 1,
 	"modifier": {
 	  "strength": 0.2
-	},
-	"unlock_cost": {
-	  "精钢": 2
-	},
-	"craft_cost": 150
+	}
   },
   "speed_boots": {
 	"id": "speed_boots",
@@ -372,15 +342,10 @@
 	"equipment_slot": "armor",
 	"price": 100,
 	"quality": "rare",
-	"armor_type": "light",
 	"defense": 0,
 	"slot_count": 1,
 	"modifier": {
 	  "dexterity": 1
-	},
-	"unlock_cost": {
-	  "精钢": 2
-	},
-	"craft_cost": 150
+	}
   }
 }

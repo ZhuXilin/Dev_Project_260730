@@ -1,0 +1,22 @@
+{
+  "steel_armor": {
+	"inputs": ["iron_armor", "wooden_shield"],
+	"unlock_cost": { "粗铁": 3, "精钢": 1 }
+  },
+  "knight_armor": {
+	"inputs": ["iron_armor", "steel_armor"],
+	"unlock_cost": { "精钢": 3, "秘银": 1 }
+  },
+  "power_ring": {
+	"inputs": ["wooden_shield", "steel_armor"],
+	"unlock_cost": { "粗铁": 5 }
+  },
+  "guard_ring": {
+	"inputs": ["iron_armor", "power_ring"],
+	"unlock_cost": { "粗铁": 4 }
+  },
+  "speed_boots": {
+	"inputs": ["wooden_shield", "power_ring"],
+	"unlock_cost": { "精钢": 2 }
+  }
+}

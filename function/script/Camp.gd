@@ -8,11 +8,8 @@ func _ready():
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	Globals.is_transitioning = false
 
-	# ---- 文本设置（本地化预留） ----
-	#item_btn.text = tr("ui_anvil_tavern")   # 找不到翻译时 tr() 返回 key 本身
-	# 临时方案：还没做翻译文件时，直接用中文：
-	item_btn.text = "铁砧酒馆"
-
+	if item_btn:
+		item_btn.text = "铁砧酒馆"
 	update_display()
 	_play_camp_music()
 

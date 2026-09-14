@@ -11,6 +11,7 @@ const PATHS : Dictionary = {
 	"TALENT_DATA":      "res://content/data/talents.json",
 	"DIALOGUE_DATA":    "res://content/data/dialogues.json",
 	"EVENT_DATA":       "res://content/data/events.json",
+	"RECIPE_DATA":      "res://content/data/recipes.json",
 
 	# 配置资源
 	"MUSIC_CONFIG":     "res://content/scenes/levels/MusicConfig.tres",
@@ -43,9 +44,8 @@ const PATHS : Dictionary = {
 	"ITEM_DETAIL_POPUP":    "res://content/scenes/ui/ItemDetailPopup.tscn",
 	"RELIC_SELECT_UI":      "res://content/scenes/ui/RelicSelectUI.tscn",
 	"REWARD_SUMMARY_UI":    "res://content/scenes/ui/RewardSummaryUI.tscn",
-	"FORGE_UI":             "res://content/scenes/ui/Forge.tscn",
 	"TREASURE_UI":          "res://content/scenes/ui/Treasure.tscn",
-	"ANVIL_TAVERN_UI": "res://content/scenes/ui/AnvilTavern.tscn",
+	"ANVIL_TAVERN_UI":      "res://content/scenes/ui/AnvilTavern.tscn",
 
 	# 脚本
 	"DAMAGE_POPUP_SCRIPT":      "res://function/script/DamagePopup.gd",

@@ -1,15 +1,15 @@
 extends Panel
 
-enum Mode { DEPLOY, MAP, SHOP }
+enum Mode { DEPLOY, MAP, SHOP, FORGE }
 
 # ============================================================
-#  样式常量（统一管理所有按钮和标签的大小/字体）
+#  样式常量
 # ============================================================
 class Style:
-	const FONT_TINY = UIConst.FONT_SIZE_TINY
-	const FONT_SMALL = UIConst.FONT_SIZE_SMALL
-	const FONT_NORMAL = UIConst.FONT_SIZE_SMALL
-	const FONT_LARGE = UIConst.FONT_SIZE_SMALL
+	const FONT_TINY = 4
+	const FONT_SMALL = 6
+	const FONT_NORMAL = 6
+	const FONT_LARGE = 6
 	
 	const BTN_ITEM_SIZE = Vector2(20, 10)
 	const BTN_TALENT_SIZE = Vector2(20, 15)
@@ -30,8 +30,18 @@ var _is_closing: bool = false
 
 const MAX_RELIC_SLOTS = 3
 
+# ---- 硬性上限（防止异常存档注入超大值） ----
+const MAX_ARMOR_SLOTS_HARD_LIMIT : int = 10
+const MIN_TALENT_SLOTS : int = 1
+
+# ---- FORGE 模式 ----
+const FORGE_MAX_SLOTS : int = 3
+var _forge_slots : Array = []
+var _forge_matched_recipe : String = ""
+var forge_result_label : Label = null
+
 # ---- 预加载 ShopManager 脚本 ----
-const ShopManagerScript = preload("res://function/script/ShopManager.gd")
+const ShopManagerScript = preload(Config.PATHS.SHOP_MANAGER_SCRIPT)
 
 # ---- 手动拖拽状态 ----
 var _is_dragging: bool = false
@@ -44,15 +54,15 @@ var _drag_grab_offset: Vector2 = Vector2.ZERO
 var _target_states: Dictionary = {}
 
 # ---- 标签栏（右侧） ----
-var current_tab: String = "weapon"   # "weapon" 或 "talent"
+var current_tab: String = "weapon"
 
 var shop_manager = null
 
-# ---- 右侧标签栏（场景中有） ----
+# ---- 右侧标签栏 ----
 @onready var mode_label = $VBoxContainer/TopBar/ModeLabel
 @onready var gold_label = $VBoxContainer/GoldLabel
-@onready var close_btn = $VBoxContainer/BottomHBox/CloseBtn          # ✅ 路径修正
-@onready var confirm_btn = $VBoxContainer/BottomHBox/ConfirmBtn      # ✅ 路径修正
+@onready var close_btn = $VBoxContainer/BottomHBox/CloseBtn
+@onready var confirm_btn = $VBoxContainer/BottomHBox/ConfirmBtn
 @onready var unit_container = $VBoxContainer/MainHBox/LeftVBox/UnitContainer
 @onready var right_container = $VBoxContainer/MainHBox/RightContainer
 @onready var shop_scroll: ScrollContainer = $VBoxContainer/MainHBox/RightContainer/ShopScroll
@@ -68,9 +78,7 @@ var shop_manager = null
 # ============================================================
 #  初始化
 # ============================================================
-
 func _ready():
-	# 连接标签按钮信号
 	if weapon_tab_btn:
 		weapon_tab_btn.pressed.connect(_on_weapon_tab_pressed)
 	if talent_tab_btn:
@@ -102,19 +110,20 @@ func init(units: Array[String], slot: int, mode: Mode):
 		shop_manager.generate_shop_items()
 		shop_manager.reset_count = 0
 	
+	# ---- FORGE 模式：初始化插槽 ----
+	if mode == Mode.FORGE:
+		_forge_slots.clear()
+		for i in range(FORGE_MAX_SLOTS):
+			_forge_slots.append(null)
+		_forge_matched_recipe = ""
+	
 	_copy_party_data()
-	
-	# ---- 详情弹窗已废弃，改用 DetailZone 显示 ----
-	# （原 _detail_popup 创建代码已删除）
-	
 	_build_ui()
 
-# ---- 商店信号处理 ----
 func _on_shop_updated():
 	_update_gold_display()
 	_schedule_build_ui()
 
-# ---- 按钮回调 ----
 func _on_close_pressed():
 	_is_closing = true
 	if current_mode == Mode.SHOP and shop_manager:
@@ -173,8 +182,8 @@ func _build_ui_inner():
 			close_btn.text = "返回"
 			confirm_btn.visible = true
 			confirm_btn.text = "出发"
-			gold_label.visible = false
 			confirm_btn.disabled = false
+			gold_label.visible = false
 			tab_bar.visible = true
 			weapon_tab_btn.visible = true
 			talent_tab_btn.visible = true
@@ -234,6 +243,29 @@ func _build_ui_inner():
 			if left_column:
 				left_column.size_flags_vertical = Control.SIZE_EXPAND_FILL
 			print("[E3.3] SHOP 完成")
+		
+		Mode.FORGE:
+			print("[E4] FORGE 开始")
+			mode_label.text = "铁匠铺 - 防具合成"
+			close_btn.text = "关闭"
+			confirm_btn.visible = true
+			confirm_btn.text = "合成"
+			confirm_btn.disabled = (_forge_matched_recipe == "")
+			gold_label.visible = false
+			tab_bar.visible = false
+			
+			_build_forge_slots()
+			shop_container.visible = true
+			
+			reset_btn.visible = true
+			reset_btn.text = "清空插槽"
+			
+			discard_zone.visible = false
+			if left_column:
+				left_column.size_flags_vertical = Control.SIZE_EXPAND_FILL
+			
+			_display_forge_recipe_info()
+			print("[E4] FORGE 完成")
 	
 	print("[F] 字体设置开始")
 	close_btn.add_theme_font_size_override("font_size", Style.FONT_LARGE)
@@ -253,7 +285,7 @@ func _update_gold_display():
 		gold_label.text = "金币: " + str(EconomyManager.get_temp_gold())
 
 # ============================================================
-#  单位列构建（纯动态创建）
+#  单位列构建
 # ============================================================
 func _build_unit_columns():
 	for child in unit_container.get_children():
@@ -269,38 +301,30 @@ func _build_unit_columns():
 		col.size_flags_vertical = Control.SIZE_EXPAND_FILL
 		col.add_theme_constant_override("separation", 1)
 		unit_container.add_child(col)
-		print("  [U", i, ".1] col added")
 		
 		var name_label = _create_label(
 			unit.display_name + "(" + UnitDataManager.get_unit_type_display_name(unit.unit_name) + ")",
 			Style.FONT_SMALL
 		)
 		col.add_child(name_label)
-		print("  [U", i, ".2] name added")
 		
 		col.add_child(_create_label(Style.SEPARATOR_TEXT, Style.FONT_SMALL))
-		print("  [U", i, ".3] sep1 added")
 		
 		col.add_child(_create_item_button(unit.weapon_slot, "weapon", i, -1))
-		print("  [U", i, ".4] weapon added")
 		
 		col.add_child(_create_label(Style.SEPARATOR_TEXT, Style.FONT_SMALL))
-		print("  [U", i, ".5] sep2 added")
 		
 		for slot_idx in range(unit.armor_slots.size()):
 			var armor_btn = _create_item_button(unit.armor_slots[slot_idx], "armor", i, slot_idx)
 			if current_mode == Mode.DEPLOY:
 				armor_btn.disabled = true
 			col.add_child(armor_btn)
-			print("  [U", i, ".6.", slot_idx, "] armor added")
 		
 		col.add_child(_create_label(Style.SEPARATOR_TEXT, Style.FONT_SMALL))
 		col.add_child(_create_label("特技", Style.FONT_SMALL))
-		print("  [U", i, ".7] labels added")
 		
 		var talent_inst = unit.talent_slots[0] if unit.talent_slots.size() > 0 else null
 		col.add_child(_create_talent_button(talent_inst, i, 0))
-		print("  [U", i, ".8] talent button added")
 
 # ============================================================
 #  创建按钮
@@ -350,15 +374,13 @@ func _create_talent_button(inst: TalentInstance, unit_idx: int, slot_idx: int) -
 	return btn
 
 # ============================================================
-#  武器库 / 特技库 / 商店（统一使用 ShopContainer）
+#  商店 / 武器库 / 特技库
 # ============================================================
 func _build_shop_items():
 	if not shop_manager:
 		return
 	_clear_container(shop_container)
 	
-	# ---- 固定 3 列（6 个商品正好 2 行显示，无需滚动） ----
-	# 未来 SHOP_SIZE 增加时再改为动态列数
 	shop_container.columns = 3
 	shop_container.visible = true
 	
@@ -404,7 +426,6 @@ func _build_weapon_grid(container: GridContainer):
 			btn.mouse_exited.connect(_on_button_hover_exited)
 			container.add_child(btn)
 
-# ---- 构建特技库网格 ----
 func _build_talent_grid(container: GridContainer):
 	for child in container.get_children():
 		container.remove_child(child)
@@ -451,14 +472,174 @@ func _get_item_name(inst: ItemInstance) -> String:
 	var data = ItemManager.get_item_data(inst.item_id)
 	return data.name if data else inst.item_id
 
+# ============================================================
+#  FORGE 模式专用
+# ============================================================
+func _build_forge_slots():
+	_clear_container(shop_container)
+	shop_container.columns = FORGE_MAX_SLOTS
+	shop_container.visible = true
+
+	# 确保 result label 存在
+	_ensure_forge_result_label()
+
+	for i in range(FORGE_MAX_SLOTS):
+		var slot_btn = _create_styled_button(Style.FONT_SMALL, Style.BTN_ITEM_SIZE)   # ← 统一
+		slot_btn.set_meta("slot_type", "forge_slot")
+		slot_btn.set_meta("forge_slot_index", i)
+
+		var inst = _forge_slots[i] if i < _forge_slots.size() else null
+		if inst:
+			var data = ItemManager.get_item_data(inst.item_id)
+			slot_btn.text = data.name if data else inst.item_id
+			slot_btn.set_meta("item_id", inst.item_id)
+			if data:
+				slot_btn.modulate = UIConst.QUALITY_COLORS.get(data.quality, Color.WHITE)
+			slot_btn.mouse_entered.connect(_on_button_hover_entered.bind(inst.item_id))
+			slot_btn.mouse_exited.connect(_on_button_hover_exited)
+		else:
+			slot_btn.text = "空"                          # ← 简化为"空"，去掉换行
+			slot_btn.set_meta("item_id", "")
+			slot_btn.modulate = Color(0.5, 0.5, 0.5)
+
+		shop_container.add_child(slot_btn)
+
+	# 刷新合成结果
+	_update_forge_result_label()
+
+func _display_forge_recipe_info():
+	var input_ids : Array = []
+	for inst in _forge_slots:
+		if inst:
+			input_ids.append(inst.item_id)
+
+	if input_ids.is_empty():
+		_show_detail_in_zone("将防具拖入插槽以匹配配方")
+		_forge_matched_recipe = ""
+		_update_forge_result_label()   # ← 新增
+		return
+
+	_forge_matched_recipe = RecipeManager.match_recipe(input_ids)
+
+	if _forge_matched_recipe == "":
+		var names = []
+		for id in input_ids:
+			var d = ItemManager.get_item_data(id)
+			names.append(d.name if d else id)
+		_show_detail_in_zone("无匹配配方\n\n已放: " + ", ".join(names))
+		_update_forge_result_label()   # ← 新增
+		return
+
+	var recipe = RecipeManager.get_recipe(_forge_matched_recipe)
+	var out_data = ItemManager.get_item_data(_forge_matched_recipe)
+	var lines = []
+	lines.append("匹配配方: " + (out_data.name if out_data else _forge_matched_recipe))
+	lines.append("")
+	lines.append("消耗:")
+	for id in recipe.inputs:
+		var d = ItemManager.get_item_data(id)
+		lines.append("  " + (d.name if d else id))
+	lines.append("")
+	lines.append("→ 产物: " + (out_data.name if out_data else _forge_matched_recipe))
+	_show_detail_in_zone("\n".join(lines))
+
+	_update_forge_result_label()   # ← 新增
+
+func _execute_forge_drop(data: Dictionary, target: Control):
+	var slot_idx = target.get_meta("forge_slot_index", -1)
+	if slot_idx < 0 or slot_idx >= _forge_slots.size():
+		return
+
+	var src_type = data.get("slot_type", "")
+
+	# ---- forge_slot → forge_slot 互换 ----
+	if src_type == "forge_slot":
+		var from_idx = data.get("forge_slot_index", -1)
+		if from_idx >= 0 and from_idx < _forge_slots.size() and from_idx != slot_idx:
+			var temp = _forge_slots[from_idx]
+			_forge_slots[from_idx] = _forge_slots[slot_idx]
+			_forge_slots[slot_idx] = temp
+		_display_forge_recipe_info()
+		_schedule_build_ui()
+		return
+
+	# ---- armor → forge_slot ----
+	if src_type == "armor":
+		var unit_idx = data.get("unit_idx", -1)
+		var src_slot = data.get("slot_idx", -1)
+		if unit_idx < 0 or src_slot < 0:
+			return
+		var inst = party[unit_idx].armor_slots[src_slot]
+		if inst == null:
+			return
+		_forge_slots[slot_idx] = inst
+		_display_forge_recipe_info()
+		_schedule_build_ui()
+		return
+
+func _on_forge_clear_pressed():
+	_forge_slots.clear()
+	for i in range(FORGE_MAX_SLOTS):
+		_forge_slots.append(null)
+	_forge_matched_recipe = ""
+	_display_forge_recipe_info()
+	_schedule_build_ui()
+
+func _on_forge_craft_pressed():
+	if _forge_matched_recipe == "":
+		return
+	var recipe = RecipeManager.get_recipe(_forge_matched_recipe)
+	if not recipe:
+		return
+
+	# 1. 收集所有输入防具在队伍里的位置
+	var positions : Array = []
+	for inst in _forge_slots:
+		if inst == null:
+			continue
+		var found = false
+		for ui in range(party.size()):
+			for si in range(party[ui].armor_slots.size()):
+				if party[ui].armor_slots[si] == inst:
+					positions.append({"unit_idx": ui, "slot_idx": si})
+					found = true
+					break
+			if found:
+				break
+
+	if positions.size() != recipe.inputs.size():
+		print("FORGE 合成失败：输入不完整，positions=", positions.size(), " inputs=", recipe.inputs.size())
+		return
+
+	# 2. 第一个位置放产物，其余清空
+	var first = positions[0]
+	for i in range(1, positions.size()):
+		var p = positions[i]
+		party[p.unit_idx].armor_slots[p.slot_idx] = null
+
+	var out_inst = ItemInstance.new()
+	out_inst.item_id = _forge_matched_recipe
+	out_inst.count = 1
+	party[first.unit_idx].armor_slots[first.slot_idx] = out_inst
+
+	# 3. 清空 forge 状态
+	_forge_slots.clear()
+	for i in range(FORGE_MAX_SLOTS):
+		_forge_slots.append(null)
+	_forge_matched_recipe = ""
+
+	_sync_all()
+	_schedule_build_ui()
+
+# ============================================================
+#  详情显示
+# ============================================================
 func show_item_detail(item_id: String):
-	# ---- 遗物优先 ----
 	var relic_data = RelicManager.get_relic_data(item_id)
 	if not relic_data.is_empty():
 		_show_relic_detail_in_zone(relic_data)
 		return
 	
-	# ---- 物品 ----
 	var data = ItemManager.get_item_data(item_id)
 	if not data:
 		return
@@ -555,7 +736,6 @@ func _show_talent_detail(data):
 	lines.append("流派: " + data.school)
 	lines.append("积累: " + str(data.accumulation_threshold) + "回合")
 	
-	# 可装备单位
 	var compatible_units = data.compatible_units if data.compatible_units != null else []
 	if not compatible_units.is_empty():
 		var unit_names = []
@@ -572,7 +752,6 @@ func _show_talent_detail(data):
 func _hide_talent_detail():
 	_clear_detail_zone()
 
-# ---- 获取特技显示名称（含可装备单位） ----
 func _get_talent_display_name(data) -> String:
 	var rarity_icon = ""
 	match data.rarity:
@@ -600,7 +779,7 @@ func _get_rarity_color(rarity: String) -> Color:
 		_: return Color.WHITE
 
 # ============================================================
-#  标签切换（右侧）
+#  标签切换
 # ============================================================
 func _switch_tab(tab: String):
 	if current_tab == tab:
@@ -626,35 +805,38 @@ func _update_tab_style():
 		talent_tab_btn.modulate = Color.WHITE
 
 # ============================================================
-#  目标控件高亮（拖拽时变灰）
+#  目标控件高亮
 # ============================================================
 func _get_all_target_controls() -> Array[Control]:
 	var targets: Array[Control] = []
 
-	# 遗物槽（所有模式）
 	for btn in relic_container.get_children():
 		if btn is Button:
 			targets.append(btn)
 
-	# 单位列中的所有按钮（武器、防具、特技）
 	for col in unit_container.get_children():
 		for child in col.get_children():
 			if child is Button:
 				targets.append(child)
 	
-	# DEPLOY 模式：右侧 ShopContainer 中的武器库/特技库按钮
+	# DEPLOY 模式
 	if current_mode == Mode.DEPLOY and shop_container.visible:
 		for btn in shop_container.get_children():
 			if btn is Button and not btn.disabled:
 				targets.append(btn)
 	
-	# MAP 模式：右侧 ShopContainer 中的特技库按钮
+	# MAP 模式
 	if current_mode == Mode.MAP and shop_container.visible:
 		for btn in shop_container.get_children():
 			if btn is Button and not btn.disabled:
 				targets.append(btn)
 	
-	# 丢弃区（DEPLOY 模式下特技不可丢弃，但仍可高亮指示）
+	# FORGE 模式：合成插槽
+	if current_mode == Mode.FORGE and shop_container.visible:
+		for btn in shop_container.get_children():
+			if btn is Button and btn.get_meta("slot_type", "") == "forge_slot":
+				targets.append(btn)
+	
 	if discard_zone.visible:
 		targets.append(discard_zone)
 	
@@ -701,14 +883,12 @@ func _reset_targets_visuals():
 func _find_control_at_position(pos: Vector2) -> Control:
 	const BUFFER = 4
 	
-	# 遗物槽
 	for btn in relic_container.get_children():
 		if btn is Button:
 			var rect = btn.get_global_rect().grow(BUFFER)
 			if rect.has_point(pos):
 				return btn
 				
-	# 单位槽位
 	for col in unit_container.get_children():
 		for child in col.get_children():
 			if child is Button:
@@ -718,7 +898,6 @@ func _find_control_at_position(pos: Vector2) -> Control:
 				if rect.has_point(pos):
 					return child
 	
-	# DEPLOY 模式：右侧 ShopContainer
 	if current_mode == Mode.DEPLOY and shop_container.visible:
 		for btn in shop_container.get_children():
 			if btn is Button and not btn.disabled:
@@ -726,7 +905,6 @@ func _find_control_at_position(pos: Vector2) -> Control:
 				if rect.has_point(pos):
 					return btn
 	
-	# MAP 模式：右侧 ShopContainer（特技库）
 	if current_mode == Mode.MAP and shop_container.visible:
 		for btn in shop_container.get_children():
 			if btn is Button and not btn.disabled:
@@ -734,10 +912,16 @@ func _find_control_at_position(pos: Vector2) -> Control:
 				if rect.has_point(pos):
 					return btn
 	
-	# SHOP 模式
 	if current_mode == Mode.SHOP and shop_container.visible:
 		for btn in shop_container.get_children():
 			if btn is Button and not btn.disabled:
+				var rect = btn.get_global_rect().grow(BUFFER)
+				if rect.has_point(pos):
+					return btn
+	
+	if current_mode == Mode.FORGE and shop_container.visible:
+		for btn in shop_container.get_children():
+			if btn is Button and btn.get_meta("slot_type", "") == "forge_slot":
 				var rect = btn.get_global_rect().grow(BUFFER)
 				if rect.has_point(pos):
 					return btn
@@ -745,12 +929,11 @@ func _find_control_at_position(pos: Vector2) -> Control:
 	return null
 
 func _get_target_from_position(global_pos: Vector2) -> Control:
-	const BUFFER = 4   # ← 新增容差
+	const BUFFER = 4
 	
 	if discard_zone.visible and discard_zone.get_global_rect().has_point(global_pos):
 		return discard_zone
 
-	# 单位槽位（加容差）
 	for col in unit_container.get_children():
 		for child in col.get_children():
 			if child is Button:
@@ -758,14 +941,12 @@ func _get_target_from_position(global_pos: Vector2) -> Control:
 				if rect.has_point(global_pos):
 					return child
 
-	# 遗物槽
 	for btn in relic_container.get_children():
 		if btn is Button:
 			var rect = btn.get_global_rect().grow(BUFFER)
 			if rect.has_point(global_pos):
 				return btn
 
-	# DEPLOY 模式
 	if current_mode == Mode.DEPLOY and shop_container.visible:
 		for btn in shop_container.get_children():
 			if btn is Button and not btn.disabled:
@@ -773,7 +954,6 @@ func _get_target_from_position(global_pos: Vector2) -> Control:
 				if rect.has_point(global_pos):
 					return btn
 
-	# MAP 模式
 	if current_mode == Mode.MAP and shop_container.visible:
 		for btn in shop_container.get_children():
 			if btn is Button and not btn.disabled:
@@ -781,10 +961,16 @@ func _get_target_from_position(global_pos: Vector2) -> Control:
 				if rect.has_point(global_pos):
 					return btn
 
-	# SHOP 模式
 	if current_mode == Mode.SHOP and shop_container.visible:
 		for btn in shop_container.get_children():
 			if btn is Button and not btn.disabled:
+				var rect = btn.get_global_rect().grow(BUFFER)
+				if rect.has_point(global_pos):
+					return btn
+
+	if current_mode == Mode.FORGE and shop_container.visible:
+		for btn in shop_container.get_children():
+			if btn is Button and btn.get_meta("slot_type", "") == "forge_slot":
 				var rect = btn.get_global_rect().grow(BUFFER)
 				if rect.has_point(global_pos):
 					return btn
@@ -796,25 +982,24 @@ func _is_valid_drop(data: Dictionary, target: Control) -> bool:
 	var target_type = target.get_meta("slot_type", "")
 	var discard = target == discard_zone
 
+	# ===== FORGE 模式优先判断 =====
+	if current_mode == Mode.FORGE:
+		return _is_valid_forge_drop(data, target)
+
 	# ===== 遗物槽规则（所有模式） =====
 	if source_type == "relic_slot":
-		# 拖到遗物槽 → 交换
 		if target_type == "relic_slot":
 			return true
-		# 拖到丢弃区 → 丢弃
 		if discard:
 			return true
 		return false
-	# 其他物品拖到遗物槽 → 不允许
 	if target_type == "relic_slot":
 		return false
 
-	# ===== 特技拖到丢弃区 → 允许（用于移除） =====
+	# ===== 特技拖到丢弃区 =====
 	if discard and source_type in ["library_talent", "talent"]:
-		# 库中的特技不能丢弃（只能从槽位移除）
 		if source_type == "library_talent":
 			return false
-		# 槽位中的特技可以拖到丢弃区移除
 		return true
 
 	if current_mode == Mode.DEPLOY:
@@ -833,10 +1018,10 @@ func _is_valid_drop(data: Dictionary, target: Control) -> bool:
 	if current_mode == Mode.MAP:
 		if discard:
 			if source_type == "library_talent":
-				return false   # 库中特技不可丢弃
+				return false
 			if source_type == "weapon":
 				return false
-			return true   # 其他装备可丢弃
+			return true
 		if source_type == "library_weapon":
 			return target_type == "weapon"
 		if source_type == "weapon" and target_type == "weapon":
@@ -875,15 +1060,49 @@ func _is_valid_drop(data: Dictionary, target: Control) -> bool:
 
 	return false
 
+func _is_valid_forge_drop(data: Dictionary, target: Control) -> bool:
+	var src_type = data.get("slot_type", "")
+	var tgt_type = target.get_meta("slot_type", "")
+
+	if tgt_type != "forge_slot":
+		return false
+
+	var slot_idx = target.get_meta("forge_slot_index", -1)
+
+	# forge_slot → forge_slot（互换）
+	if src_type == "forge_slot":
+		return true
+
+	# armor → forge_slot
+	if src_type == "armor":
+		var unit_idx = data.get("unit_idx", -1)
+		var src_slot = data.get("slot_idx", -1)
+		if unit_idx < 0 or src_slot < 0:
+			return false
+		var inst = party[unit_idx].armor_slots[src_slot]
+		if inst == null:
+			return false
+		# 已在其他 forge_slot 里
+		for i in range(_forge_slots.size()):
+			if _forge_slots[i] == inst and i != slot_idx:
+				return false
+		return true
+
+	return false
+
 # ============================================================
 #  拖拽执行
 # ============================================================
 func _execute_drop(data: Dictionary, target: Control):
+	# ---- FORGE 模式 ----
+	if current_mode == Mode.FORGE:
+		_execute_forge_drop(data, target)
+		return
+
 	var discard = target == discard_zone
 	var source_type = data["slot_type"]
 	var target_type = target.get_meta("slot_type", "")
 	
-	# ===== 遗物槽 =====
 	if source_type == "relic_slot":
 		if discard:
 			_discard_relic(data)
@@ -892,7 +1111,6 @@ func _execute_drop(data: Dictionary, target: Control):
 			_swap_relics(data, target)
 			return
 
-	# ---- 特技拖到丢弃区 → 移除 ----
 	if discard and source_type == "talent":
 		_execute_talent_remove(data)
 		return
@@ -960,17 +1178,12 @@ func _execute_talent_drop(data: Dictionary, target: Control):
 		if not Globals.is_talent_unlocked(talent_id):
 			return
 		
-		# ---- 唯一性检查 ----
 		if _is_talent_already_equipped(talent_id, unit_idx, slot_idx):
 			var equipped_unit = _get_unit_with_talent(talent_id)
 			Globals.show_confirm(
 				self,
 				"特技已被 %s 装备，不可重复装备" % equipped_unit,
-				"确定",
-				"",
-				func(): pass,
-				func(): pass,
-				false
+				"确定", "", func(): pass, func(): pass, false
 			)
 			return
 		
@@ -982,7 +1195,6 @@ func _execute_talent_drop(data: Dictionary, target: Control):
 		_refresh_after_talent_change()
 		return
 	
-	# ===== 特技互换（修复核心） =====
 	if source_type == "talent" and target_type == "talent":
 		var src_unit = data.get("unit_idx", -1)
 		var src_slot = data.get("slot_idx", -1)
@@ -991,94 +1203,50 @@ func _execute_talent_drop(data: Dictionary, target: Control):
 		if src_unit == -1 or tgt_unit == -1:
 			return
 		
-		# ---- 获取源特技和目标特技 ----
 		var src_inst = party[src_unit].talent_slots[src_slot]
 		var tgt_inst = party[tgt_unit].talent_slots[tgt_slot]
 		
 		var src_talent_id = src_inst.talent_id if src_inst and src_inst.is_active else ""
 		var tgt_talent_id = tgt_inst.talent_id if tgt_inst and tgt_inst.is_active else ""
 		
-		# ---- 如果两个都是空，不做任何事 ----
 		if src_talent_id == "" and tgt_talent_id == "":
 			return
 		
-		# ---- 如果目标为空（单向移动） ----
 		if tgt_talent_id == "":
-			# 检查源特技是否已被其他单位装备（排除目标单位）
 			if _is_talent_already_equipped(src_talent_id, tgt_unit, tgt_slot):
 				var equipped_unit = _get_unit_with_talent(src_talent_id)
-				Globals.show_confirm(
-					self,
-					"特技已被 %s 装备，不可重复装备" % equipped_unit,
-					"确定",
-					"",
-					func(): pass,
-					func(): pass,
-					false
-				)
+				Globals.show_confirm(self, "特技已被 %s 装备，不可重复装备" % equipped_unit, "确定", "", func(): pass, func(): pass, false)
 				return
-			# 执行移动
 			party[tgt_unit].talent_slots[tgt_slot] = src_inst
 			party[src_unit].talent_slots[src_slot] = null
 			_sync_all()
 			_refresh_after_talent_change()
 			return
 		
-		# ---- 如果源为空（目标有特技，源为空）----
 		if src_talent_id == "" and tgt_talent_id != "":
-			# 检查目标特技是否已被其他单位装备（排除源单位）
 			if _is_talent_already_equipped(tgt_talent_id, src_unit, src_slot):
 				var equipped_unit = _get_unit_with_talent(tgt_talent_id)
-				Globals.show_confirm(
-					self,
-					"特技已被 %s 装备，不可重复装备" % equipped_unit,
-					"确定",
-					"",
-					func(): pass,
-					func(): pass,
-					false
-				)
+				Globals.show_confirm(self, "特技已被 %s 装备，不可重复装备" % equipped_unit, "确定", "", func(): pass, func(): pass, false)
 				return
-			# 执行移动
 			party[src_unit].talent_slots[src_slot] = tgt_inst
 			party[tgt_unit].talent_slots[tgt_slot] = null
 			_sync_all()
 			_refresh_after_talent_change()
 			return
 		
-		# ---- 互换（双方都有特技） ----
-		# 检查目标特技是否已被其他单位装备（排除源单位）
 		if _is_talent_already_equipped(tgt_talent_id, src_unit, src_slot):
 			var equipped_unit = _get_unit_with_talent(tgt_talent_id)
-			Globals.show_confirm(
-				self,
-				"特技已被 %s 装备，不可重复装备" % equipped_unit,
-				"确定",
-				"",
-				func(): pass,
-				func(): pass,
-				false
-			)
+			Globals.show_confirm(self, "特技已被 %s 装备，不可重复装备" % equipped_unit, "确定", "", func(): pass, func(): pass, false)
 			return
 		
-		# 检查源特技是否已被其他单位装备（排除目标单位）
 		if _is_talent_already_equipped(src_talent_id, tgt_unit, tgt_slot):
 			var equipped_unit = _get_unit_with_talent(src_talent_id)
-			Globals.show_confirm(
-				self,
-				"特技已被 %s 装备，不可重复装备" % equipped_unit,
-				"确定",
-				"",
-				func(): pass,
-				func(): pass,
-				false
-			)
+			Globals.show_confirm(self, "特技已被 %s 装备，不可重复装备" % equipped_unit, "确定", "", func(): pass, func(): pass, false)
 			return
 		
-		# ---- 执行互换 ----
-		var temp_talent_swap = party[src_unit].talent_slots[src_slot]
+		var temp = party[src_unit].talent_slots[src_slot]
 		party[src_unit].talent_slots[src_slot] = party[tgt_unit].talent_slots[tgt_slot]
-		party[tgt_unit].talent_slots[tgt_slot] = temp_talent_swap
+		party[tgt_unit].talent_slots[tgt_slot] = temp
 		_sync_all()
 		_refresh_after_talent_change()
 		return
@@ -1101,57 +1269,33 @@ func _discard_talent(data: Dictionary):
 
 func _buy_shop_item(data: Dictionary, target: Control):
 	print("=== _buy_shop_item 开始 ===")
-	print("  data.slot_type: ", data.get("slot_type", ""))
-	print("  data.shop_index: ", data.get("shop_index", -1))
-	print("  data.item_id: ", data.get("item_id", ""))
-
 	if target == null:
-		print("  失败：target 为 null")
 		return
-
-	print("  target.name: ", target.name)
-	print("  target.slot_type: ", target.get_meta("slot_type", ""))
-	print("  target.unit_idx: ", target.get_meta("unit_idx", -1))
-	print("  target.slot_idx: ", target.get_meta("slot_idx", -1))
-	print("  target.item_id: ", target.get_meta("item_id", ""))
-
 	if not shop_manager:
-		print("  失败：shop_manager 为空")
 		return
 
 	var shop_index = data.get("shop_index", -1)
 	if shop_index == -1:
-		print("  失败：shop_index == -1")
 		return
 
-	# ---- 从 shop_manager 重新拿 item_data（不依赖 data["item_data"]） ----
 	var items = shop_manager.get_shop_items()
 	if shop_index < 0 or shop_index >= items.size():
-		print("  失败：shop_index 越界 ", shop_index, "/", items.size())
 		return
 	var entry = items[shop_index]
 	if entry == null:
-		print("  失败：商店槽位为空")
 		return
 	var item_data = entry["item_data"]
 	if not item_data:
-		print("  失败：item_data 为空")
 		return
-	print("  item_data.id: ", item_data.id, " type: ", item_data.type)
 
 	var target_unit_idx = target.get_meta("unit_idx", -1)
 	var target_slot_idx = target.get_meta("slot_idx", -1)
 
-	# ---- 调用 shop_manager 购买 ----
 	var result = shop_manager.buy_shop_item(shop_index)
-	print("  购买结果: ", result)
 	if not result["success"]:
-		var reason = result.get("reason", "unknown")
-		print("  失败：", reason)
-		_show_buy_failure_message(reason)
+		_show_buy_failure_message(result.get("reason", "unknown"))
 		return
 
-	# ---- 装备到目标单位 ----
 	var inst = ItemInstance.new()
 	inst.item_id = item_data.id
 	inst.count = 1
@@ -1159,16 +1303,11 @@ func _buy_shop_item(data: Dictionary, target: Control):
 	if item_data.type == "weapon":
 		if target_unit_idx != -1:
 			party[target_unit_idx].weapon_slot = inst
-			print("  成功：武器装备到单位 ", target_unit_idx, "：", item_data.name)
 		else:
 			Globals.unlock_item(item_data.id)
-			print("  警告：target_unit_idx 为 -1，只解锁未装备")
 	elif item_data.type == "armor":
 		if target_unit_idx != -1 and target_slot_idx != -1:
 			party[target_unit_idx].armor_slots[target_slot_idx] = inst
-			print("  成功：防具装备到单位 ", target_unit_idx, " 槽 ", target_slot_idx)
-		else:
-			print("  警告：target_unit_idx 或 target_slot_idx 为 -1")
 
 	_sync_all()
 	_update_gold_display()
@@ -1219,11 +1358,22 @@ func _sync_all():
 			GameState.party[i].armor_slots = party[i].armor_slots.duplicate()
 			GameState.party[i].max_armor_slots = party[i].max_armor_slots
 			GameState.party[i].talent_slots = party[i].talent_slots.duplicate()
-			var armor_target = min(GameState.party[i].max_armor_slots, 10)  # ← 加保护
-			while GameState.party[i].armor_slots.size() < armor_target:
-				GameState.party[i].armor_slots.append(null)
-			while GameState.party[i].talent_slots.size() < 1:
-				GameState.party[i].talent_slots.append(null)
+
+			# ---- 防具槽补齐 ----
+			var armor_target = clampi(
+				GameState.party[i].max_armor_slots,
+				0,
+				MAX_ARMOR_SLOTS_HARD_LIMIT
+			)
+			GameState.party[i].max_armor_slots = armor_target
+			GameState.party[i].armor_slots.resize(armor_target)
+
+			# ---- 词条槽补齐 ----
+			var talent_target = maxi(
+				GameState.party[i].talent_slots.size(),
+				MIN_TALENT_SLOTS
+			)
+			GameState.party[i].talent_slots.resize(talent_target)
 	call_deferred("_deferred_auto_save")
 
 func _deferred_auto_save():
@@ -1235,7 +1385,6 @@ func _deferred_auto_save():
 #  手动拖拽
 # ============================================================
 func _input(event: InputEvent):
-	# ---- ConfirmUI 弹出时屏蔽拖拽 ----
 	if _has_active_confirm_ui():
 		return
 
@@ -1259,12 +1408,10 @@ func _start_drag(btn: Button):
 	var item_id = btn.get_meta("item_id", "")
 	var talent_id = btn.get_meta("talent_id", "")
 	
-	# 遗物槽
 	if slot_type == "relic_slot":
 		if item_id == "":
 			return
 	
-	# 特技库和特技槽使用 talent_id 作为标识
 	if slot_type in ["library_talent", "talent"] and talent_id == "":
 		return
 	
@@ -1272,6 +1419,10 @@ func _start_drag(btn: Button):
 		return
 	
 	if slot_type == "shop_item" and item_id == "":
+		return
+	
+	# FORGE 空槽不可拖
+	if slot_type == "forge_slot" and item_id == "":
 		return
 	
 	_drag_source = btn
@@ -1285,9 +1436,9 @@ func _start_drag(btn: Button):
 		"talent_id": talent_id,
 		"relic_index": btn.get_meta("relic_index", -1),
 		"item_price": btn.get_meta("item_price", 0),
+		"forge_slot_index": btn.get_meta("forge_slot_index", -1),
 	}
 	
-	# ---- 商店商品：从 shop_manager 实时取 item_data ----
 	if slot_type == "shop_item":
 		var shop_idx = _drag_meta["shop_index"]
 		if shop_idx != -1 and shop_manager:
@@ -1308,16 +1459,13 @@ func _begin_dragging():
 	_is_dragging = true
 	var btn = _drag_source
 	if not btn:
-		print("_begin_dragging: 源按钮为空")
 		return
 	
-	# ---- 保存原始状态 ----
 	btn.set_meta("_original_disabled", btn.disabled)
 	btn.set_meta("_original_modulate", btn.modulate)
 	btn.set_meta("_original_text", btn.text)
 	btn.set_meta("_original_custom_minimum_size", btn.custom_minimum_size)
 	
-	# ---- 锁定当前尺寸防止高度塌陷 ----
 	var current_size = btn.custom_minimum_size
 	if current_size == Vector2.ZERO or current_size.y < 10:
 		current_size = btn.size
@@ -1325,15 +1473,12 @@ func _begin_dragging():
 		current_size.y = 16
 	btn.custom_minimum_size = current_size
 	
-	# ---- 置灰禁用 ----
 	btn.disabled = true
 	btn.modulate = Color(0.3, 0.3, 0.3, 1.0)
 	btn.text = "空"
 	
-	# ---- 创建拖拽预览（使用独立函数） ----
 	_drag_preview = _create_drag_preview(btn)
 	
-	# ---- 添加到画布 ----
 	var canvas = get_parent()
 	if canvas and canvas is CanvasLayer:
 		canvas.add_child(_drag_preview)
@@ -1355,7 +1500,6 @@ func _end_drag():
 	if not _is_dragging:
 		return
 	
-	# ---- ConfirmUI 弹出时强制取消拖拽 ----
 	if _has_active_confirm_ui():
 		if _drag_preview:
 			_drag_preview.queue_free()
@@ -1372,7 +1516,6 @@ func _end_drag():
 	var drop_data = _drag_meta.duplicate()
 	var source_type = drop_data.get("slot_type", "")
 	
-	# ---- 先清拖拽视觉状态 ----
 	if _drag_preview:
 		_drag_preview.queue_free()
 		_drag_preview = null
@@ -1410,24 +1553,25 @@ func _process(_delta):
 	if _is_dragging:
 		_update_drag_preview()
 
+# ============================================================
+#  底部按钮（多模式分发）
+# ============================================================
 func _on_reset_shop_pressed():
-	print("_on_reset_shop_pressed 被调用")
+	# FORGE 模式：清空插槽
+	if current_mode == Mode.FORGE:
+		_on_forge_clear_pressed()
+		return
 	
+	# SHOP 模式：重置商店
+	if current_mode != Mode.SHOP:
+		return
 	if not shop_manager:
 		return
 	
 	var cost = shop_manager.get_reset_cost()
 	
 	if EconomyManager.get_temp_gold() < cost:
-		Globals.show_confirm(
-			self,
-			"金币不足！需要 " + str(cost) + " 金币，当前 " + str(EconomyManager.get_temp_gold()),
-			"确定",
-			"",
-			func(): pass,
-			func(): pass,
-			false
-		)
+		Globals.show_confirm(self, "金币不足！需要 " + str(cost) + " 金币，当前 " + str(EconomyManager.get_temp_gold()), "确定", "", func(): pass, func(): pass, false)
 		return
 	
 	var spent = shop_manager.reset_shop()
@@ -1436,38 +1580,18 @@ func _on_reset_shop_pressed():
 		_update_gold_display()
 		reset_btn.text = "重置商店 (" + str(shop_manager.get_reset_cost()) + "G)"
 	else:
-		Globals.show_confirm(
-			self,
-			"金币不足！需要 " + str(cost) + " 金币，当前 " + str(EconomyManager.get_temp_gold()),
-			"确定",
-			"",
-			func(): pass,
-			func(): pass,
-			false
-		)
-
-func _copy_party_data():
-	party.clear()
-	for unit_name in selected_units:
-		var existing = null
-		for u in GameState.party:
-			if u.unit_name == unit_name:
-				existing = u
-				break
-		
-		if existing:
-			# 通过 to_dict/from_dict 深拷贝，自动同步所有字段
-			var data = UnitData.from_dict(existing.to_dict())
-			party.append(data)
-		else:
-			var data = UnitDataManager.create_unit_data(unit_name)
-			party.append(data)
+		Globals.show_confirm(self, "金币不足！需要 " + str(cost) + " 金币，当前 " + str(EconomyManager.get_temp_gold()), "确定", "", func(): pass, func(): pass, false)
 
 func _on_confirm_pressed():
+	# FORGE 模式：合成
+	if current_mode == Mode.FORGE:
+		_on_forge_craft_pressed()
+		return
+	
+	# DEPLOY 模式：出发
 	print("_on_confirm_pressed 被调用")
 	GameState.party.clear()
 	for local_unit in party:
-		# 通过 to_dict/from_dict 深拷贝，自动同步所有字段
 		var data = UnitData.from_dict(local_unit.to_dict())
 		GameState.party.append(data)
 	
@@ -1487,6 +1611,25 @@ func _on_confirm_pressed():
 	else:
 		queue_free()
 
+# ============================================================
+#  数据拷贝
+# ============================================================
+func _copy_party_data():
+	party.clear()
+	for unit_name in selected_units:
+		var existing = null
+		for u in GameState.party:
+			if u.unit_name == unit_name:
+				existing = u
+				break
+		
+		if existing:
+			var data = UnitData.from_dict(existing.to_dict())
+			party.append(data)
+		else:
+			var data = UnitDataManager.create_unit_data(unit_name)
+			party.append(data)
+
 func _clear_container(container: Node):
 	if not container:
 		return
@@ -1494,6 +1637,9 @@ func _clear_container(container: Node):
 		container.remove_child(child)
 		child.free()
 
+# ============================================================
+#  特技兼容性
+# ============================================================
 func _check_talent_compatibility(data: Dictionary, target: Control) -> bool:
 	var source_type = data.get("slot_type", "")
 	var talent_id = data.get("talent_id", "")
@@ -1508,42 +1654,30 @@ func _check_talent_compatibility(data: Dictionary, target: Control) -> bool:
 	var target_unit = party[target_unit_idx]
 	var unit_name = target_unit.unit_name
 	
-	# ---- 1. 检查单位类型兼容性 ----
 	if not TalentManager.is_talent_compatible_with_unit(talent_id, unit_name):
 		return false
 	
-	# ---- 2. 唯一性检查 ----
-	# 如果是从特技库拖拽到槽位（单向装备）
 	if source_type == "library_talent":
-		# 检查该特技是否已被任何单位装备
 		if _is_talent_already_equipped(talent_id, -1, -1):
 			return false
-	
-	# 如果是从特技槽拖拽到特技槽（互换或移动）
 	elif source_type == "talent":
-		# 获取源单位信息
 		var src_unit_idx = data.get("unit_idx", -1)
 		var src_slot_idx = data.get("slot_idx", -1)
 		
-		# 获取目标槽已有的特技
 		var tgt_inst = party[target_unit_idx].talent_slots[target_slot_idx]
 		var tgt_talent_id = tgt_inst.talent_id if tgt_inst and tgt_inst.is_active else ""
 		
-		# 如果目标槽为空（单向移动）：检查源特技是否已被其他单位装备（排除目标单位）
 		if tgt_talent_id == "":
 			if _is_talent_already_equipped(talent_id, target_unit_idx, target_slot_idx):
 				return false
 		else:
-			# 互换场景：检查目标特技是否唯一（排除源单位）
 			if _is_talent_already_equipped(tgt_talent_id, src_unit_idx, src_slot_idx):
 				return false
-			# 检查源特技是否唯一（排除目标单位）
 			if _is_talent_already_equipped(talent_id, target_unit_idx, target_slot_idx):
 				return false
 	
 	return true
 
-# ---- 检查词条是否已被其他单位装备（除了当前槽位） ----
 func _is_talent_already_equipped(talent_id: String, exclude_unit_idx: int = -1, exclude_slot_idx: int = -1) -> bool:
 	for i in range(party.size()):
 		if i == exclude_unit_idx:
@@ -1557,7 +1691,6 @@ func _is_talent_already_equipped(talent_id: String, exclude_unit_idx: int = -1, 
 				return true
 	return false
 
-# ---- 获取装备了某词条的单位名称（用于提示） ----
 func _get_unit_with_talent(talent_id: String) -> String:
 	for i in range(party.size()):
 		var unit = party[i]
@@ -1566,7 +1699,6 @@ func _get_unit_with_talent(talent_id: String) -> String:
 				return unit.display_name
 	return ""
 
-# ---- 检查词条是否已被任意单位装备 ----
 func _is_talent_equipped_anywhere(talent_id: String) -> bool:
 	for i in range(party.size()):
 		var unit = party[i]
@@ -1575,42 +1707,36 @@ func _is_talent_equipped_anywhere(talent_id: String) -> bool:
 				return true
 	return false
 
-# ---- 创建拖拽预览（从原按钮同步所有样式） ----
+# ============================================================
+#  拖拽预览
+# ============================================================
 func _create_drag_preview(btn: Button) -> Label:
 	var preview = Label.new()
 	
-	# ---- 1. 同步文本 ----
 	preview.text = btn.get_meta("_original_text")
 	
-	# ---- 2. 同步字体大小 ----
 	var font_size = btn.get_theme_font_size("font_size")
 	if font_size > 0:
 		preview.add_theme_font_size_override("font_size", font_size)
 	
-	# ---- 3. 同步自动换行 ----
 	preview.autowrap_mode = btn.autowrap_mode
-	
-	# ---- 4. 同步对齐方式 ----
 	preview.horizontal_alignment = btn.alignment
 	preview.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	
-	# ---- 5. 同步颜色 ----
 	var font_color = btn.get_theme_color("font_color")
 	if font_color:
 		preview.add_theme_color_override("font_color", font_color)
 	preview.modulate = btn.modulate
 	
-	# ---- 6. 同步尺寸 ----
 	var preview_size = btn.custom_minimum_size
 	if preview_size == Vector2.ZERO or preview_size.y < 10:
 		preview_size = btn.size
 	if preview_size == Vector2.ZERO or preview_size.y < 10:
-		preview_size = Vector2(50, 20)   # 兜底值
+		preview_size = Vector2(50, 20)
 	if preview_size.y < 14:
 		preview_size.y = 14
 	preview.size = preview_size
 	
-	# ---- 7. 同步样式 ----
 	var original_style = btn.get_theme_stylebox("normal")
 	if original_style:
 		var new_style = StyleBoxFlat.new()
@@ -1640,7 +1766,6 @@ func _create_drag_preview(btn: Button) -> Label:
 		default_style.border_color = Color(0.5, 0.5, 0.5, 1.0)
 		preview.add_theme_stylebox_override("normal", default_style)
 	
-	# ---- 8. 同步文本裁剪 ----
 	preview.text_overrun_behavior = btn.text_overrun_behavior
 	preview.clip_text = btn.clip_text
 	
@@ -1648,10 +1773,8 @@ func _create_drag_preview(btn: Button) -> Label:
 	return preview
 
 # ============================================================
-#  样式应用函数
+#  样式应用
 # ============================================================
-
-# ---- 创建标准按钮（统一尺寸和字体） ----
 func _create_styled_button(font_size: int, min_size: Vector2) -> Button:
 	var btn = Button.new()
 	btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -1661,7 +1784,6 @@ func _create_styled_button(font_size: int, min_size: Vector2) -> Button:
 	btn.mouse_filter = Control.MOUSE_FILTER_STOP
 	return btn
 
-# ---- 创建标签（统一字体） ----
 func _create_label(text: String, font_size: int, center: bool = true) -> Label:
 	var label = Label.new()
 	label.text = text
@@ -1672,7 +1794,7 @@ func _create_label(text: String, font_size: int, center: bool = true) -> Label:
 	return label
 
 # ============================================================
-#  详情显示（统一入口）
+#  详情显示
 # ============================================================
 func _show_detail_in_zone(text: String):
 	var detail_label = $VBoxContainer/MainHBox/LeftInfoColumn/DetailZone/DetailLabel
@@ -1685,22 +1807,19 @@ func _clear_detail_zone():
 		detail_label.text = "选中物品详情"
 
 # ============================================================
-#  移除特技（从槽位拖拽到非目标位置时调用）
+#  移除特技
 # ============================================================
 func _execute_talent_remove(data: Dictionary):
 	var unit_idx = data.get("unit_idx", -1)
 	var slot_idx = data.get("slot_idx", -1)
 	if unit_idx == -1 or slot_idx == -1:
 		return
-	
-	# ---- 清空源槽位 ----
 	party[unit_idx].talent_slots[slot_idx] = null
 	_sync_all()
 	_refresh_after_talent_change()
-	print("特技已移除（单位 %d 槽位 %d）" % [unit_idx, slot_idx])
 
 # ============================================================
-#  遗物槽构建（所有模式都显示）
+#  遗物槽
 # ============================================================
 func _build_relic_slots():
 	if not relic_container:
@@ -1724,7 +1843,6 @@ func _create_relic_button(inst: ItemInstance, slot_index: int) -> Button:
 	btn.set_meta("slot_type", "relic_slot")
 	btn.set_meta("relic_index", slot_index)
 	
-	# ---- 处理 null（空槽）：显示"空"，白色（与其他槽位一致） ----
 	if inst != null:
 		var data = RelicManager.get_relic_data(inst.item_id)
 		if not data.is_empty():
@@ -1737,7 +1855,6 @@ func _create_relic_button(inst: ItemInstance, slot_index: int) -> Button:
 			btn.set_meta("item_id", "")
 	else:
 		btn.text = "空"
-		# ❌ 删除 modulate = Color(0.5, 0.5, 0.5, 1)，保持默认白色
 		btn.set_meta("item_id", "")
 	
 	return btn
@@ -1755,14 +1872,12 @@ func _swap_relics(data: Dictionary, target: Control):
 	if src_idx >= relics.size() or tgt_idx >= relics.size():
 		return
 	
-	# ---- 直接交换（含 null） ----
 	var temp = relics[src_idx]
 	relics[src_idx] = relics[tgt_idx]
 	relics[tgt_idx] = temp
 	
 	_sync_all()
 	_refresh_after_relic_change()
-	print("遗物交换: ", src_idx, " <-> ", tgt_idx)
 
 func _discard_relic(data: Dictionary):
 	var idx = data.get("relic_index", -1)
@@ -1773,12 +1888,10 @@ func _discard_relic(data: Dictionary):
 	if idx >= relics.size():
 		return
 	
-	# ---- 置 null，不缩容 ----
 	relics[idx] = null
 	
 	_sync_all()
 	_refresh_after_relic_change()
-	print("遗物槽 ", idx, " 已清空")
 
 func _refresh_after_relic_change():
 	_schedule_build_ui()
@@ -1802,16 +1915,11 @@ func _show_buy_failure_message(reason: String):
 			msg = "无效的商品位置"
 		_:
 			msg = "购买失败：" + reason
-	Globals.show_confirm(
-		self,
-		msg,
-		"确定",
-		"",
-		func(): pass,
-		func(): pass,
-		false
-	)
+	Globals.show_confirm(self, msg, "确定", "", func(): pass, func(): pass, false)
 
+# ============================================================
+#  重建调度
+# ============================================================
 func _schedule_build_ui():
 	if _build_ui_pending:
 		return
@@ -1822,13 +1930,7 @@ func _do_build_ui():
 	_build_ui_pending = false
 	if _is_closing:
 		return
-	var before = get_tree().get_node_count()
 	_build_ui()
-	var after = get_tree().get_node_count()
-	print("[NODE] 节点数: ", before, " -> ", after)
-	# 延迟一帧再数，让 queue_free 生效
-	await get_tree().process_frame
-	print("[NODE] 下一帧后节点数: ", get_tree().get_node_count())
 
 func _has_active_confirm_ui() -> bool:
 	for child in get_children():
@@ -1837,3 +1939,33 @@ func _has_active_confirm_ui() -> bool:
 			if script and script.resource_path.ends_with("ConfirmUI.gd"):
 				return true
 	return false
+
+func _ensure_forge_result_label():
+	if forge_result_label and is_instance_valid(forge_result_label):
+		return
+
+	forge_result_label = Label.new()
+	forge_result_label.add_theme_font_size_override("font_size", Style.FONT_SMALL)
+	forge_result_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	forge_result_label.modulate = Color(0.5, 0.5, 0.5)
+	forge_result_label.text = "合成结果：—"
+
+	right_container.add_child(forge_result_label)
+	# 移动到 ShopScroll 之后
+	var scroll_idx = shop_scroll.get_index()
+	right_container.move_child(forge_result_label, scroll_idx + 1)
+
+func _update_forge_result_label():
+	if not forge_result_label or not is_instance_valid(forge_result_label):
+		return
+	if _forge_matched_recipe == "":
+		forge_result_label.text = "合成结果：—"
+		forge_result_label.modulate = Color(0.5, 0.5, 0.5)
+	else:
+		var out_data = ItemManager.get_item_data(_forge_matched_recipe)
+		var out_name = out_data.name if out_data else _forge_matched_recipe
+		forge_result_label.text = "合成结果：" + out_name
+		if out_data:
+			forge_result_label.modulate = UIConst.QUALITY_COLORS.get(out_data.quality, Color.WHITE)
+		else:
+			forge_result_label.modulate = Color.WHITE

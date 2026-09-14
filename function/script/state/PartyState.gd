@@ -65,16 +65,3 @@ func get_active_relics() -> Array:
 		if r != null:
 			result.append(r)
 	return result
-
-func get_global_relic_stats() -> Dictionary:
-	var bonus = {}
-	for relic in global_relics:
-		if relic == null:
-			continue
-		var data = RelicManager.get_relic_data(relic.item_id)
-		if data.is_empty():
-			continue
-		var stats = data.get("stats", {})
-		for key in stats:
-			bonus[key] = bonus.get(key, 0) + stats[key]
-	return bonus

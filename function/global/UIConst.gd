@@ -82,3 +82,11 @@ const REWARD_PANEL_MAX_WIDTH_RATIO : float = 0.4
 # ============================================================
 const TURN_TEXT_PLAYER : String = "我方第 %d 回合"
 const TURN_TEXT_ENEMY : String = "敌方第 %d 回合"
+
+## 品质颜色（统一来源）
+const QUALITY_COLORS : Dictionary = {
+	"common":    Color(1.0, 1.0, 1.0),
+	"rare":      Color(0.3, 0.6, 1.0),
+	"epic":      Color(0.7, 0.3, 1.0),
+	"legendary": Color(1.0, 0.7, 0.0),
+}

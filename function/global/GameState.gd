@@ -191,7 +191,17 @@ func get_active_relics() -> Array:
 	return party_state.get_active_relics()
 
 func get_global_relic_stats() -> Dictionary:
-	return party_state.get_global_relic_stats()
+	var bonus = {}
+	for relic in global_relics:
+		if relic == null:
+			continue
+		var data = RelicManager.get_relic_data(relic.item_id)
+		if data.is_empty():
+			continue
+		var stats = data.get("stats", {})
+		for key in stats:
+			bonus[key] = bonus.get(key, 0) + stats[key]
+	return bonus
 
 # ============================================================
 #  进度相关
@@ -207,6 +217,7 @@ func undo_battle_entry():
 # ============================================================
 func add_material(material_name: String, amount: int):
 	resource_state.add_material(material_name, amount)
+	SaveManager.auto_save()
 
 func get_material(material_name: String) -> int:
 	return resource_state.get_material(material_name)

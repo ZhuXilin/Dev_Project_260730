@@ -34,6 +34,7 @@ MusicManager="*res://function/global/MusicManager.gd"
 SoundManager="*res://function/global/SoundManager.gd"
 SaveManager="*res://function/global/SaveManager.gd"
 GameState="*res://function/global/GameState.gd"
+RecipeManager="*uid://dlvtitnh6vche"
 LevelManager="*res://function/global/LevelManager.gd"
 InputManager="*res://function/global/InputManager.gd"
 

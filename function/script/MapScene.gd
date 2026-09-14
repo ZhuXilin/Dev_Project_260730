@@ -426,19 +426,26 @@ func _open_forge(node: MapNode):
 	_update_availability(map_data.root_node)
 	_save_game()
 
-	var forge_scene = load(Config.PATHS.FORGE_UI)
-	if not forge_scene:
-		push_error("Forge UI 未找到: " + Config.PATHS.FORGE_UI)
-		return
-	var forge = forge_scene.instantiate()
-	add_child(forge)
-	await forge.closed
+	var config = load(Config.PATHS.EQUIPMENT_CONFIG).instantiate()
+	add_child(config)
+	var panel = config.get_node("MainPanel")
+
+	var unit_names: Array[String] = []
+	for unit_data in GameState.party:
+		unit_names.append(unit_data.unit_name)
+
+	var slot = SaveManager.current_slot
+	if slot == -1:
+		slot = SaveManager.find_empty_slot()
+
+	panel.init(unit_names, slot, EquipmentConfig.Mode.FORGE)
+
+	await panel.tree_exited
 
 	print("铁匠铺已关闭")
 	_save_game()
 	update_all_displays()
 	_update_availability(map_data.root_node)
-
 
 # ============================================================
 #  宝箱 / 事件节点
