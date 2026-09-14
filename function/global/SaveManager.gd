@@ -137,6 +137,7 @@ func _build_save_data() -> SaveData:
 	save.unlocked_talents = Globals.unlocked_talents.duplicate()
 	save.unlocked_recipes = GameState.unlocked_recipes.duplicate()
 	save.unlocked_stories = GameState.unlocked_stories.duplicate()
+	save.unit_growth = GameState.unit_growth.duplicate(true)
 
 	save.save_time = Time.get_unix_time_from_system()
 	save.checksum = save.compute_checksum()
@@ -208,6 +209,7 @@ func _apply_save_data(save: SaveData):
 	Globals.unlocked_talents = save.unlocked_talents.duplicate()
 	GameState.unlocked_recipes = save.unlocked_recipes.duplicate()
 	GameState.unlocked_stories = save.unlocked_stories.duplicate()
+	GameState.unit_growth = save.unit_growth.duplicate(true)
 
 	if Globals.unlocked_items.is_empty():
 		Globals.unlocked_items = Globals.item_unlocked_items.duplicate()

@@ -156,6 +156,10 @@ var unlocked_stories : Array:
 	get: return resource_state.unlocked_stories
 	set(value): resource_state.unlocked_stories = value
 
+var unit_growth : Dictionary:
+	get: return resource_state.unit_growth
+	set(value): resource_state.unit_growth = value
+
 # ============================================================
 #  非转发字段（不属于任何 state）
 # ============================================================

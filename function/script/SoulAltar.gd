@@ -1,0 +1,262 @@
+extends CanvasLayer
+
+signal closed
+
+# ============================================================
+#  常量
+# ============================================================
+const SOUL_PER_POINT : int = 3      # 加 1 点属性消耗 3 魂
+const SOUL_RESET_COST : int = 20    # 洗点消耗 20 魂
+const GROWTH_TOTAL_CAP : int = 12   # 每个单位最多 +12 点
+
+const ATTR_KEYS : Array = ["vitality", "strength", "dexterity", "intelligence", "faith", "arcane"]
+const ATTR_NAMES : Dictionary = {
+	"vitality":     "生命力",
+	"strength":     "力量",
+	"dexterity":    "灵巧",
+	"intelligence": "智力",
+	"faith":        "信仰",
+	"arcane":       "感应",
+}
+
+# ============================================================
+#  节点引用
+# ============================================================
+@onready var soul_label : Label = $Panel/VBox/TitleBar/SoulLabel
+@onready var unit_list : VBoxContainer = $Panel/VBox/MainHBox/UnitListScroll/UnitList
+@onready var unit_sprite : AnimatedSprite2D = $Panel/VBox/MainHBox/InfoPanel/UnitHeader/SpriteContainer/UnitSprite
+@onready var unit_name_label : Label = $Panel/VBox/MainHBox/InfoPanel/UnitHeader/HeaderInfo/UnitNameLabel
+@onready var unit_desc_label : Label = $Panel/VBox/MainHBox/InfoPanel/UnitHeader/HeaderInfo/UnitDescLabel
+@onready var attr_container : VBoxContainer = $Panel/VBox/MainHBox/InfoPanel/AttrScroll/AttrContainer
+@onready var point_label : Label = $Panel/VBox/MainHBox/InfoPanel/BottomBar/PointLabel
+@onready var reset_btn : Button = $Panel/VBox/MainHBox/InfoPanel/BottomBar/ResetBtn
+
+# ============================================================
+#  状态
+# ============================================================
+var _current_unit_type : String = ""
+
+# ============================================================
+#  生命周期
+# ============================================================
+func _ready():
+	_build_unit_list()
+	_refresh_soul()
+	_refresh_reset_btn()
+
+# ============================================================
+#  信号
+# ============================================================
+func _on_back_pressed():
+	closed.emit()
+	queue_free()
+
+func _on_reset_pressed():
+	if _current_unit_type == "":
+		return
+
+	var growth = _get_growth(_current_unit_type)
+	var total = _sum_growth(growth)
+	if total <= 0:
+		_show_msg("该单位尚未分配任何点数")
+		return
+
+	if GameState.soul < SOUL_RESET_COST:
+		_show_msg("魂不足！需要 %d，当前 %d" % [SOUL_RESET_COST, GameState.soul])
+		return
+
+	# ---- 扣魂 + 清空该单位的成长 ----
+	GameState.soul -= SOUL_RESET_COST
+	GameState.unit_growth.erase(_current_unit_type)
+	SaveManager.auto_save()
+
+	_refresh_soul()
+	_refresh_all()
+
+# ============================================================
+#  左侧：单位列表
+# ============================================================
+func _build_unit_list():
+	for child in unit_list.get_children():
+		unit_list.remove_child(child)
+		child.queue_free()
+
+	var unlocked = Globals.get_unlocked_units()
+	unlocked.sort()
+
+	for unit_type in unlocked:
+		var btn = Button.new()
+		var display = UnitDataManager.get_unit_type_display_name(unit_type)
+		btn.text = display
+		btn.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_NORMAL)
+		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		btn.pressed.connect(_on_unit_selected.bind(unit_type))
+		unit_list.add_child(btn)
+
+	# ---- 默认选第一个 ----
+	if unlocked.size() > 0:
+		_on_unit_selected(unlocked[0])
+
+func _on_unit_selected(unit_type: String):
+	_current_unit_type = unit_type
+	_refresh_all()
+
+# ============================================================
+#  右侧：属性面板
+# ============================================================
+func _refresh_all():
+	if _current_unit_type == "":
+		unit_name_label.text = "（未选择单位）"
+		unit_desc_label.text = ""
+		unit_sprite.visible = false
+		_clear_attr_container()
+		point_label.text = "已分配: 0 / %d" % GROWTH_TOTAL_CAP
+		_refresh_reset_btn()
+		return
+
+	# ---- 头部：名字 + 描述 + 精灵图 ----
+	var display = UnitDataManager.get_unit_type_display_name(_current_unit_type)
+	unit_name_label.text = display
+
+	var unit_dict = UnitDataManager.get_unit_data(_current_unit_type)
+	unit_desc_label.text = unit_dict.get("description", "")
+	_load_unit_sprite(_current_unit_type)
+
+	var growth = _get_growth(_current_unit_type)
+	var total = _sum_growth(growth)
+	var at_cap = (total >= GROWTH_TOTAL_CAP)
+
+	# ---- 六项属性行 ----
+	_clear_attr_container()
+	for key in ATTR_KEYS:
+		attr_container.add_child(_build_attr_row(key, growth.get(key, 0), at_cap))
+
+	point_label.text = "已分配: %d / %d" % [total, GROWTH_TOTAL_CAP]
+	_refresh_reset_btn()
+
+func _load_unit_sprite(unit_type: String):
+	var path = UnitDataManager.get_sprite_frames_path(unit_type)
+	if path != "" and ResourceLoader.exists(path):
+		var frames = load(path) as SpriteFrames
+		if frames:
+			unit_sprite.sprite_frames = frames
+			if frames.has_animation("idle"):
+				unit_sprite.play("idle")
+			else:
+				var anims = frames.get_animation_names()
+				if anims.size() > 0:
+					unit_sprite.play(anims[0])
+			unit_sprite.visible = true
+			unit_sprite.position = Vector2(8, 8)
+			return
+	unit_sprite.visible = false
+
+func _clear_attr_container():
+	for child in attr_container.get_children():
+		attr_container.remove_child(child)
+		child.queue_free()
+
+func _build_attr_row(attr_key: String, current_points: int, at_cap: bool) -> HBoxContainer:
+	var row = HBoxContainer.new()
+	row.add_theme_constant_override("separation", 8)
+
+	# ---- 属性名 ----
+	var name_label = Label.new()
+	name_label.text = ATTR_NAMES[attr_key]
+	name_label.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_NORMAL)
+	name_label.custom_minimum_size = Vector2(50, 0)
+	row.add_child(name_label)
+
+	# ---- 基础值 → 最终值 ----
+	var base_dict = UnitDataManager.get_unit_data(_current_unit_type)
+	var base_val = 0
+	match attr_key:
+		"vitality":     base_val = base_dict.get("max_hp", 0)
+		"strength":     base_val = base_dict.get("strength", 0)
+		"dexterity":    base_val = base_dict.get("dexterity", 0)
+		"intelligence": base_val = base_dict.get("intelligence", 0)
+		"faith":        base_val = base_dict.get("faith", 0)
+		"arcane":       base_val = base_dict.get("arcane", 0)
+
+	var bonus_val = current_points
+	if attr_key == "vitality":
+		bonus_val = current_points * UnitDataManager.GROWTH_HP_PER_POINT
+	var final_val = base_val + bonus_val
+
+	var value_label = Label.new()
+	value_label.text = "%d  (+%d) → %d" % [base_val, bonus_val, final_val]
+	value_label.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_NORMAL)
+	value_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(value_label)
+
+	# ---- 加号按钮 ----
+	var add_btn = Button.new()
+	add_btn.text = "+  (3魂)"
+	add_btn.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_SMALL)
+	var can_add = (not at_cap) and GameState.soul >= SOUL_PER_POINT
+	add_btn.disabled = not can_add
+	add_btn.pressed.connect(_on_add_pressed.bind(attr_key))
+	row.add_child(add_btn)
+
+	return row
+
+func _on_add_pressed(attr_key: String):
+	if _current_unit_type == "":
+		return
+
+	var growth = _get_growth(_current_unit_type)
+	var total = _sum_growth(growth)
+
+	if total >= GROWTH_TOTAL_CAP:
+		_show_msg("该单位已达成长上限")
+		return
+
+	if GameState.soul < SOUL_PER_POINT:
+		_show_msg("魂不足！需要 %d" % SOUL_PER_POINT)
+		return
+
+	# ---- 扣魂 + 加点 ----
+	GameState.soul -= SOUL_PER_POINT
+	if not GameState.unit_growth.has(_current_unit_type):
+		GameState.unit_growth[_current_unit_type] = {}
+	GameState.unit_growth[_current_unit_type][attr_key] = growth.get(attr_key, 0) + 1
+	SaveManager.auto_save()
+
+	_refresh_soul()
+	_refresh_all()
+
+# ============================================================
+#  辅助
+# ============================================================
+func _get_growth(unit_type: String) -> Dictionary:
+	if not GameState.unit_growth.has(unit_type):
+		return {}
+	return GameState.unit_growth[unit_type]
+
+func _sum_growth(growth: Dictionary) -> int:
+	var total = 0
+	for k in growth:
+		total += int(growth[k])
+	return total
+
+func _refresh_soul():
+	soul_label.text = "魂: " + str(GameState.soul)
+
+func _refresh_reset_btn():
+	if _current_unit_type == "":
+		reset_btn.disabled = true
+		return
+	var growth = _get_growth(_current_unit_type)
+	var total = _sum_growth(growth)
+	if total <= 0 or GameState.soul < SOUL_RESET_COST:
+		reset_btn.disabled = true
+	else:
+		reset_btn.disabled = false
+
+func _show_msg(msg: String):
+	var original = point_label.text
+	point_label.text = msg
+	await get_tree().create_timer(1.5, true, false, true).timeout
+	if is_instance_valid(point_label):
+		point_label.text = original

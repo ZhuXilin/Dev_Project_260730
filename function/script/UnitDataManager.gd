@@ -1,9 +1,8 @@
 class_name UnitDataManager
 extends RefCounted
 
-# ============================================================
-#  静态映射表
-# ============================================================
+## 生命力每点 +3 HP
+const GROWTH_HP_PER_POINT : int = 3
 
 # ---- 武器类别显示名称映射 ----
 static var _weapon_category_display: Dictionary = {
@@ -201,8 +200,8 @@ static func create_unit_data(unit_name: String) -> UnitData:
 	data.armor_slots = [null, null]
 	data.max_armor_slots = 2
 	data.max_talent_slots = 1
+	apply_growth(data, key)
 	return data
-
 
 # ============================================================
 #  从Unit实例获取显示信息
@@ -218,3 +217,17 @@ static func get_display_name_from_unit(unit: Unit) -> String:
 static func get_unit_type_display_name(unit_name: String) -> String:
 	var key = _normalize_unit_key(unit_name)
 	return _unit_display_name.get(key, key)
+
+## 把魂之祭坛的成长应用到 UnitData
+static func apply_growth(stats: UnitData, unit_type: String) -> void:
+	if GameState.unit_growth.is_empty():
+		return
+	if not GameState.unit_growth.has(unit_type):
+		return
+	var g = GameState.unit_growth[unit_type]
+	stats.max_hp += int(g.get("vitality", 0)) * GROWTH_HP_PER_POINT
+	stats.strength += int(g.get("strength", 0))
+	stats.dexterity += int(g.get("dexterity", 0))
+	stats.intelligence += int(g.get("intelligence", 0))
+	stats.faith += int(g.get("faith", 0))
+	stats.arcane += int(g.get("arcane", 0))

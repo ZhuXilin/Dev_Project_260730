@@ -28,6 +28,9 @@ const CURRENT_VERSION = 3
 @export var temp_soul: int = 0
 @export var temp_gold: int = 0
 
+# ---- 单位属性成长（魂之祭坛） ----
+@export var unit_growth: Dictionary = {}
+
 @export var materials: Dictionary = {
 	"粗铁": 0,
 	"精钢": 0,
@@ -98,6 +101,7 @@ func compute_checksum() -> String:
 		"current_faction": current_faction,
 		"global_relics": global_relics,
 		"materials": materials,
+		"unit_growth": unit_growth,
 		"unlocked_armors": unlocked_armors,
 		"unlocked_stories": unlocked_stories,
 		"attribute_points": attribute_points,
