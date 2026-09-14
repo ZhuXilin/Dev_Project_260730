@@ -14,6 +14,9 @@ var materials : Dictionary = {
 	"龙鳞": 0
 }
 
+# ---- 防具配方解锁（铁砧酒馆） ----
+var unlocked_recipes : Array = []
+
 # ---- 本轮基线（用于结算显示） ----
 var cycle_start_soul : int = 0
 var cycle_start_materials : Dictionary = {}

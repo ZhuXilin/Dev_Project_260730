@@ -66,17 +66,14 @@ func _refresh_gold():
 #  Tab 1：防具合成
 # ============================================================
 func _build_craft_tab():
-	var unlocked = GameState.unlocked_recipes if "unlocked_recipes" in GameState else []
-
+	var unlocked = GameState.unlocked_recipes   # ← 已存在
 	if unlocked.is_empty():
-		content_container.add_child(_make_hint("暂无已解锁配方"))
+		content_container.add_child(_make_hint("暂无已解锁配方\n（前往铁砧酒馆解锁）"))
 		return
-
 	for recipe_id in unlocked:
 		var data = ItemManager.get_item_data(recipe_id)
 		if data:
 			content_container.add_child(_build_craft_row(data))
-
 
 func _build_craft_row(data: ItemData) -> HBoxContainer:
 	var row = HBoxContainer.new()

@@ -2,12 +2,17 @@ extends CanvasLayer
 
 @onready var soul_label = $ResourcePanel/SoulLabel
 @onready var materials_container = $ResourcePanel/MaterialsContainer
+@onready var item_btn : Button = $ButtonPanel/ItemButton
 
 func _ready():
-	# ---- 恢复鼠标状态（防止从 Battlefield 切过来时被锁成 HIDDEN） ----
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	Globals.is_transitioning = false
-	
+
+	# ---- 文本设置（本地化预留） ----
+	#item_btn.text = tr("ui_anvil_tavern")   # 找不到翻译时 tr() 返回 key 本身
+	# 临时方案：还没做翻译文件时，直接用中文：
+	item_btn.text = "铁砧酒馆"
+
 	update_display()
 	_play_camp_music()
 
@@ -94,17 +99,17 @@ func _on_unit_pressed():
 		panel.populate_list()
 
 func _on_item_pressed():
-	var existing = get_node_or_null("ItemInfoUI")
+	var existing = get_node_or_null("AnvilTavern")
 	if existing:
-		existing.visible = !existing.visible
-		if existing.visible:
-			existing._refresh_list()
 		return
-	var panel_scene = load(Config.PATHS.ITEM_INFO_UI)
-	if panel_scene:
-		var panel = panel_scene.instantiate()
-		add_child(panel)
-		panel.name = "ItemInfoUI"
+	var scene = load(Config.PATHS.ANVIL_TAVERN_UI)
+	if not scene:
+		push_error("AnvilTavern 场景未找到")
+		return
+	var tavern = scene.instantiate()
+	tavern.name = "AnvilTavern"
+	add_child(tavern)
+	await tavern.closed
 
 func _on_back_pressed():
 	GameState.interrupt_state = GameState.InterruptState.CAMP

@@ -67,6 +67,9 @@ const CURRENT_VERSION = 3
 # ---- 新增词条存档 ----
 @export var unlocked_talents: Array = []
 
+# ---- 防具配方解锁（铁砧酒馆） ----
+@export var unlocked_recipes: Array = []
+
 # ---- 地图快照（保存节点布局，不含循环引用） ----
 @export var map_snapshot: Dictionary = {}
 
@@ -104,6 +107,7 @@ func compute_checksum() -> String:
 		"difficulty_level": difficulty_level,
 		"highest_cleared_difficulty": highest_cleared_difficulty,
 		"unlocked_talents": unlocked_talents,
+		"unlocked_recipes": unlocked_recipes,
 		"current_node_key": current_node_key,
 		"map_snapshot": map_snapshot,
 	}

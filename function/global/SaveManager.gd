@@ -135,6 +135,7 @@ func _build_save_data() -> SaveData:
 	save.unlocked_items = Globals.unlocked_items.duplicate()
 	save.unlocked_relics = RelicManager.get_unlocked_relics()
 	save.unlocked_talents = Globals.unlocked_talents.duplicate()
+	save.unlocked_recipes = GameState.unlocked_recipes.duplicate()
 
 	save.save_time = Time.get_unix_time_from_system()
 	save.checksum = save.compute_checksum()
@@ -204,6 +205,7 @@ func _apply_save_data(save: SaveData):
 	Globals.unlocked_units = save.unlocked_units.duplicate()
 	Globals.unlocked_items = save.unlocked_items.duplicate()
 	Globals.unlocked_talents = save.unlocked_talents.duplicate()
+	GameState.unlocked_recipes = save.unlocked_recipes.duplicate()
 
 	if Globals.unlocked_items.is_empty():
 		Globals.unlocked_items = Globals.item_unlocked_items.duplicate()
