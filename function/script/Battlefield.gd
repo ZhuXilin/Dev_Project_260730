@@ -237,10 +237,9 @@ func _ready():
 
 	# ---- 判断是否为非战斗模式 ----
 	var is_non_combat = GameState.current_map_data and GameState.current_map_data.node_type in [
-		MapNode.NodeType.CAMPFIRE,
 		MapNode.NodeType.SHOP,
 		MapNode.NodeType.EVENT,
-		MapNode.NodeType.FINAL_PREP
+		MapNode.NodeType.FORGE,
 	]
 
 	if is_non_combat:
@@ -917,10 +916,9 @@ func _on_request_show_victory(winning_team: int):
 
 		if is_win:
 			var is_non_combat_node = current_node_type in [
-				MapNode.NodeType.CAMPFIRE,
 				MapNode.NodeType.SHOP,
 				MapNode.NodeType.EVENT,
-				MapNode.NodeType.FINAL_PREP
+				MapNode.NodeType.FORGE,
 			]
 
 			if not is_non_combat_node:

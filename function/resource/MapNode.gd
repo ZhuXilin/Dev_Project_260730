@@ -2,7 +2,13 @@ extends Resource
 class_name MapNode
 
 enum NodeType {
-	START, CAMPFIRE, NORMAL, ELITE, SHOP, EVENT, BOSS, FINAL_PREP
+	START,
+	NORMAL,
+	ELITE,
+	SHOP,
+	EVENT,
+	BOSS,
+	FORGE,
 }
 
 # ---- 静态计数器（同帧批量创建时保证唯一） ----
@@ -17,7 +23,7 @@ static var _node_counter : int = 0
 @export var custom_label: String = ""
 @export var layer: int = 0
 
-var connected_nodes: Array[MapNode] = []
+var connected_nodes: Array = []
 var is_completed: bool = false
 
 func _init():

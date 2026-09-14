@@ -92,7 +92,6 @@ func get_map_for_node_type(node_type: int, main_unit: String = "") -> MapData:
 		fallback.node_type = node_type
 		return fallback
 
-	# 按 required_unit 过滤（可选）
 	var filtered = day_levels.filter(func(m):
 		return m.required_unit == "" or m.required_unit == main_unit
 	)
@@ -111,9 +110,7 @@ func get_map_for_node_type(node_type: int, main_unit: String = "") -> MapData:
 			return m.node_type == MapNode.NodeType.NORMAL
 		)
 	if type_filtered.is_empty():
-		var result = filtered[0]
-		result.node_type = node_type
-		return result
+		return filtered[0]
 	return type_filtered[0]
 
 func advance_day() -> bool:

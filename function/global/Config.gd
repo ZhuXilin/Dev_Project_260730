@@ -43,6 +43,8 @@ const PATHS : Dictionary = {
 	"ITEM_DETAIL_POPUP":    "res://content/scenes/ui/ItemDetailPopup.tscn",
 	"RELIC_SELECT_UI":      "res://content/scenes/ui/RelicSelectUI.tscn",
 	"REWARD_SUMMARY_UI":    "res://content/scenes/ui/RewardSummaryUI.tscn",
+	"FORGE_UI":             "res://content/scenes/ui/Forge.tscn",
+	"TREASURE_UI":          "res://content/scenes/ui/Treasure.tscn",
 
 	# 脚本
 	"DAMAGE_POPUP_SCRIPT":      "res://function/script/DamagePopup.gd",

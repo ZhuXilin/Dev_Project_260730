@@ -384,10 +384,18 @@ func on_node_selected(node: MapNode):
 	_load_combat_for_node(node)
 
 func _load_combat_for_node(node: MapNode):
-	if node.node_type == MapNode.NodeType.SHOP:
-		_open_shop(node)
-		return
-	
+	match node.node_type:
+		MapNode.NodeType.SHOP:
+			_open_shop(node)
+			return
+		MapNode.NodeType.FORGE:
+			_open_forge(node)
+			return
+		MapNode.NodeType.EVENT:
+			_open_treasure(node)
+			return
+
+	# 战斗节点：走原流程
 	var map_to_load = node.map_data
 	if not map_to_load:
 		if not level_list.is_empty():
@@ -400,6 +408,66 @@ func _load_combat_for_node(node: MapNode):
 			get_tree().change_scene_to_file(Config.PATHS.CAMP)
 			return
 	_load_combat(map_to_load)
+
+
+# ============================================================
+#  铁匠铺节点
+# ============================================================
+func _open_forge(node: MapNode):
+	print("=== 打开铁匠铺 ===")
+
+	var key = "%d_%d" % [node.position.x, node.position.y]
+	GameState.visited_nodes[key] = true
+	GameState.current_node_key = key
+	node.is_visited = true
+	node.is_available = false
+
+	info_panel.visible = false
+	_update_availability(map_data.root_node)
+	_save_game()
+
+	var forge_scene = load(Config.PATHS.FORGE_UI)
+	if not forge_scene:
+		push_error("Forge UI 未找到: " + Config.PATHS.FORGE_UI)
+		return
+	var forge = forge_scene.instantiate()
+	add_child(forge)
+	await forge.closed
+
+	print("铁匠铺已关闭")
+	_save_game()
+	update_all_displays()
+	_update_availability(map_data.root_node)
+
+
+# ============================================================
+#  宝箱 / 事件节点
+# ============================================================
+func _open_treasure(node: MapNode):
+	print("=== 打开宝箱/事件 ===")
+
+	var key = "%d_%d" % [node.position.x, node.position.y]
+	GameState.visited_nodes[key] = true
+	GameState.current_node_key = key
+	node.is_visited = true
+	node.is_available = false
+
+	info_panel.visible = false
+	_update_availability(map_data.root_node)
+	_save_game()
+
+	var treasure_scene = load(Config.PATHS.TREASURE_UI)
+	if not treasure_scene:
+		push_error("Treasure UI 未找到: " + Config.PATHS.TREASURE_UI)
+		return
+	var treasure = treasure_scene.instantiate()
+	add_child(treasure)
+	await treasure.closed
+
+	print("宝箱/事件已关闭")
+	_save_game()
+	update_all_displays()
+	_update_availability(map_data.root_node)
 
 func _load_combat(map_data_arg: MapData):
 	if not map_data_arg:
