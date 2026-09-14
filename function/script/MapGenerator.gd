@@ -58,23 +58,12 @@ static func generate_day(day: int, _level_list: Array[MapData] = []) -> MapLevel
 			forge.connected_nodes = [boss]
 
 		3:
-			# 串联：START → ELITE → SHOP → FORGE → BOSS
-			root = _create_node(MapNode.NodeType.START, Vector2(160, 220), 0)
-			var elite = _create_node(MapNode.NodeType.ELITE, Vector2(160, 175), 1)
-			var shop  = _create_node(MapNode.NodeType.SHOP,  Vector2(160, 130), 2)
-			var forge = _create_node(MapNode.NodeType.FORGE, Vector2(160, 85),  3)
-			var boss  = _create_node(MapNode.NodeType.BOSS,  Vector2(160, 40),  4)
-
+			# Day3：铁匠铺（整备）→ BOSS
+			root = _create_node(MapNode.NodeType.FORGE, Vector2(160, 150), 0)
+			var boss = _create_node(MapNode.NodeType.BOSS, Vector2(160, 60), 1)
 			nodes.append(root)
-			nodes.append(elite)
-			nodes.append(shop)
-			nodes.append(forge)
 			nodes.append(boss)
-
-			root.connected_nodes  = [elite]
-			elite.connected_nodes = [shop]
-			shop.connected_nodes  = [forge]
-			forge.connected_nodes = [boss]
+			root.connected_nodes = [boss]
 			root.is_available = true
 
 		_:
@@ -105,37 +94,36 @@ static func _create_node(type: MapNode.NodeType, pos: Vector2, layer: int) -> Ma
 	node.layer = layer
 	node.is_available = false
 	node.is_visited = false
-	match type:
-		MapNode.NodeType.SHOP:  node.custom_label = "商店"
-		MapNode.NodeType.FORGE: node.custom_label = "铁匠铺"
-		MapNode.NodeType.EVENT: node.custom_label = "宝箱"
 	return node
 
 static func _assign_map_data_to_all_nodes(nodes: Array):
+	var combat_nodes_by_type : Dictionary = {}
+
 	for node in nodes:
-		# ---- 非战斗节点：占位 MapData ----
 		if node.node_type in [
 			MapNode.NodeType.SHOP,
 			MapNode.NodeType.FORGE,
 			MapNode.NodeType.EVENT,
 		]:
 			var placeholder = MapData.new()
-			match node.node_type:
-				MapNode.NodeType.SHOP:  placeholder.map_name = "商店"
-				MapNode.NodeType.FORGE: placeholder.map_name = "铁匠铺"
-				MapNode.NodeType.EVENT: placeholder.map_name = "宝箱"
 			placeholder.node_type = node.node_type
 			node.map_data = placeholder
 			continue
 
-		# ---- 战斗节点：从对应类型的池子里随机 ----
-		var map = LevelManager.get_random_map_for_node_type(
-			node.node_type, GameState.main_unit_name
+		if not combat_nodes_by_type.has(node.node_type):
+			combat_nodes_by_type[node.node_type] = []
+		combat_nodes_by_type[node.node_type].append(node)
+
+	for node_type in combat_nodes_by_type:
+		var group : Array = combat_nodes_by_type[node_type]
+		var maps : Array = LevelManager.get_random_maps_for_node_type(
+			node_type, group.size(), GameState.main_unit_name
 		)
-		if map:
-			node.map_data = map
-		else:
-			node.map_data = _create_fallback_map_data(node.node_type)
+		for i in range(group.size()):
+			if i < maps.size():
+				group[i].map_data = maps[i]
+			else:
+				group[i].map_data = _create_fallback_map_data(node_type)
 
 static func _create_fallback_map_data(_type: MapNode.NodeType) -> MapData:
 	var map = MapData.new()

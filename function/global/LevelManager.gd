@@ -3,7 +3,7 @@ extends Node
 signal all_levels_completed()
 signal all_days_completed()
 
-const UNIT_LEVEL_MAP_PATH = Config.PATHS.UNIT_LEVEL_MAP
+const UNIT_LEVEL_MAP_PATH = "res://content/scenes/levels/UnitLevelMap.tres"
 const DEFAULT_FACTION = "王国"
 
 var _config: UnitLevelMapConfig = null
@@ -85,6 +85,12 @@ func get_levels_for_day(day: int) -> Array:
 		return []
 	return _day_levels[day - 1]
 
+
+# ============================================================
+#  地图查询（按类型）
+# ============================================================
+
+## 从指定类型的池子中取 1 个（优先用批量版本）
 func get_map_for_node_type(node_type: int, main_unit: String = "") -> MapData:
 	var day_levels = get_current_day_levels()
 	if day_levels.is_empty():
@@ -92,6 +98,7 @@ func get_map_for_node_type(node_type: int, main_unit: String = "") -> MapData:
 		fallback.node_type = node_type
 		return fallback
 
+	# 按 required_unit 过滤（可选）
 	var filtered = day_levels.filter(func(m):
 		return m.required_unit == "" or m.required_unit == main_unit
 	)
@@ -110,30 +117,57 @@ func get_map_for_node_type(node_type: int, main_unit: String = "") -> MapData:
 			return m.node_type == MapNode.NodeType.NORMAL
 		)
 	if type_filtered.is_empty():
-		return filtered[0]
-	return type_filtered[0]
+		# 不再修改原资源，直接克隆返回
+		return _clone_map_data(filtered[0], node_type)
+	return _clone_map_data(type_filtered[0], node_type)
 
-## 从指定类型的池子中随机选一个 MapData（返回副本，不污染原资源）
-## 若池子为空返回 null
+
+## 从指定类型的池子中随机取 1 个（返回副本）
 func get_random_map_for_node_type(node_type: int, main_unit: String = "") -> MapData:
+	var maps = get_random_maps_for_node_type(node_type, 1, main_unit)
+	if maps.is_empty():
+		return null
+	return maps[0]
+
+
+## 从指定类型的池子中取 count 个【不重复】的 MapData（返回副本）
+## 池子不够时允许重复填充
+func get_random_maps_for_node_type(node_type: int, count: int, main_unit: String = "") -> Array:
+	var result : Array = []
+	if count <= 0:
+		return result
+
 	var day_levels = get_current_day_levels()
 	if day_levels.is_empty():
-		return null
+		return result
 
 	var filtered = day_levels.filter(func(m):
 		return m.required_unit == "" or m.required_unit == main_unit
 	)
 	if filtered.is_empty():
-		return null
+		filtered = day_levels.filter(func(m): return m.required_unit == "")
+	if filtered.is_empty():
+		return result
 
 	var type_filtered = filtered.filter(func(m):
 		return m.node_type == node_type
 	)
 	if type_filtered.is_empty():
-		return null
+		return result
 
-	var picked = type_filtered[randi() % type_filtered.size()]
-	return _clone_map_data(picked, node_type)
+	# ---- 打乱池子，逐个取，不重复 ----
+	var pool = type_filtered.duplicate()
+	pool.shuffle()
+
+	for i in range(count):
+		if i < pool.size():
+			result.append(_clone_map_data(pool[i], node_type))
+		else:
+			# 池子不够 → 重新打乱再取（允许重复）
+			pool.shuffle()
+			result.append(_clone_map_data(pool[i % pool.size()], node_type))
+
+	return result
 
 
 ## 克隆 MapData（避免共享引用被运行时修改）
@@ -147,12 +181,17 @@ func _clone_map_data(src: MapData, node_type: int) -> MapData:
 	copy.required_unit = src.required_unit
 	return copy
 
+
+# ============================================================
+#  流程控制
+# ============================================================
+
 func advance_day() -> bool:
 	current_day += 1
 	if current_day >= 3:
 		all_days_completed.emit()
 		return false
-	GameState.visited_nodes.clear()   # ← 清空，正确
+	GameState.visited_nodes.clear()
 	GameState.cached_map_level_data = null
 	GameState.cached_day = -1
 	return true
@@ -163,7 +202,7 @@ func start_game():
 	current_day = 0
 	is_map_mode = true
 	Globals.is_map_mode = true
-	get_tree().change_scene_to_file(Config.PATHS.MAP_SCENE)
+	get_tree().change_scene_to_file("res://content/scenes/ui/MapScene.tscn")
 
 func load_map(map_data: MapData):
 	if not map_data:
@@ -172,23 +211,23 @@ func load_map(map_data: MapData):
 	Globals.reset_all_game_state()
 	GameState.current_map_data = map_data
 	Globals.is_map_mode = true
-	get_tree().change_scene_to_file(Config.PATHS.BATTLEFIELD_SCENE)
+	get_tree().change_scene_to_file("res://content/scenes/levels/Battlefield.tscn")
 
 func on_victory():
 	current_level_index += 1
 	var levels = get_current_day_levels()
 	if current_level_index < levels.size():
 		if is_map_mode:
-			get_tree().change_scene_to_file(Config.PATHS.MAP_SCENE)
+			get_tree().change_scene_to_file("res://content/scenes/ui/MapScene.tscn")
 		else:
 			load_current_level()
 	else:
 		emit_signal("all_levels_completed")
-		get_tree().change_scene_to_file(Config.PATHS.MAIN_MENU)
-		
+		get_tree().change_scene_to_file("res://content/scenes/ui/MainMenu.tscn")
+
 func on_defeat():
 	GameState.reset_all()
-	get_tree().change_scene_to_file(Config.PATHS.MAIN_MENU)
+	get_tree().change_scene_to_file("res://content/scenes/ui/MainMenu.tscn")
 
 func is_last_level() -> bool:
 	var levels = get_current_day_levels()
@@ -199,15 +238,15 @@ func load_current_level():
 	if current_level_index < levels.size():
 		Globals.reset_all_game_state()
 		GameState.current_map_data = levels[current_level_index]
-		get_tree().change_scene_to_file(Config.PATHS.LOADING)
+		get_tree().change_scene_to_file("res://content/scenes/ui/Loading.tscn")
 	else:
 		emit_signal("all_levels_completed")
-		get_tree().change_scene_to_file(Config.PATHS.MAIN_MENU)
+		get_tree().change_scene_to_file("res://content/scenes/ui/MainMenu.tscn")
 
 func _create_fallback_map_data() -> MapData:
 	var m = MapData.new()
 	m.map_name = "备用地图"
-	m.map_size = MapConst.DEFAULT_MAP_SIZE
+	m.map_size = Vector2i(20, 15)
 	m.node_type = MapNode.NodeType.NORMAL
 	return m
 
