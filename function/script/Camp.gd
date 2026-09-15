@@ -13,7 +13,7 @@ func _ready():
 
 	# ---- 按钮文本（避免在 .tscn 里硬编码） ----
 	if unit_btn:
-		unit_btn.text = "魂之祭坛"
+		unit_btn.text = "魂铸圣所"
 	if item_btn:
 		item_btn.text = "铁砧酒馆"
 

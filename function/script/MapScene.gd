@@ -461,6 +461,7 @@ func _open_treasure(node: MapNode):
 	GameState.visited_nodes[key] = true
 	node.is_visited = true
 	node.is_available = false
+	# 注意：不设 GameState.current_node_key（非战斗节点，关闭后不可重进）
 
 	info_panel.visible = false
 	_update_availability(map_data.root_node)
@@ -472,10 +473,10 @@ func _open_treasure(node: MapNode):
 		return
 	var treasure = treasure_scene.instantiate()
 	add_child(treasure)
+	treasure.setup(node.reward)
 	await treasure.closed
 
 	print("宝箱/事件已关闭")
-	GameState.current_node_key = ""
 	_save_game()
 	update_all_displays()
 	_update_availability(map_data.root_node)

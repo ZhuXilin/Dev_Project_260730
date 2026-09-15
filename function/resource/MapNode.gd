@@ -11,7 +11,6 @@ enum NodeType {
 	FORGE,
 }
 
-# ---- 静态计数器（同帧批量创建时保证唯一） ----
 static var _node_counter : int = 0
 
 @export var node_type: MapNode.NodeType = MapNode.NodeType.NORMAL
@@ -22,6 +21,7 @@ static var _node_counter : int = 0
 @export var is_available: bool = false
 @export var custom_label: String = ""
 @export var layer: int = 0
+@export var reward: Dictionary = {}    # ← 新增
 
 var connected_nodes: Array = []
 var is_completed: bool = false

@@ -31,7 +31,7 @@ func setup(world_pos: Vector2, damage: int, is_crit: bool, is_miss: bool, is_hea
 	global_position = world_pos - Vector2(0, 14) - size / 2
 	
 	var tween = create_tween()
-	tween.set_ignore_time_scale(true)   # ← 新增
+	tween.set_ignore_time_scale(true)
 	tween.tween_property(self, "modulate:a", 0.0, 0.15).set_delay(duration - 0.15)
 	await get_tree().create_timer(duration, true, false, true).timeout
 	queue_free()

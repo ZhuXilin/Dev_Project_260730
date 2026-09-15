@@ -19,7 +19,7 @@ static func generate_day(day: int, _level_list: Array[MapData] = []) -> MapLevel
 			root = _create_node(MapNode.NodeType.START, Vector2(x_center, 220), 0)
 			nodes.append(root)
 
-			# Layer 1: NORMAL ×2（固定类型，地图随机）
+			# Layer 1: NORMAL ×2
 			var n1 = _create_node(MapNode.NodeType.NORMAL, Vector2(x_left,  175), 1)
 			var n2 = _create_node(MapNode.NodeType.NORMAL, Vector2(x_right, 175), 1)
 			nodes.append(n1)
@@ -37,6 +37,13 @@ static func generate_day(day: int, _level_list: Array[MapData] = []) -> MapLevel
 			var e2 = _create_node(
 				MapNode.NodeType.EVENT if elite_left else MapNode.NodeType.ELITE,
 				Vector2(x_right, 85), 3)
+
+			# ---- 宝箱节点：随机奖励 ----
+			if e1.node_type == MapNode.NodeType.EVENT:
+				e1.reward = TreasureRewardManager.roll_reward(day)
+			if e2.node_type == MapNode.NodeType.EVENT:
+				e2.reward = TreasureRewardManager.roll_reward(day)
+
 			nodes.append(e1)
 			nodes.append(e2)
 

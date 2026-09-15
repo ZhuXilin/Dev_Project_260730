@@ -1,0 +1,18 @@
+{
+  "day1": [
+	{ "gold": 50, "materials": { "粗铁": 2 } },
+	{ "gold": 30, "materials": { "粗铁": 3 } },
+	{ "materials": { "精钢": 1 } },
+	{ "gold": 80 },
+	{ "soul": 1 },
+	{ "gold": 40, "items": ["wooden_shield"] }
+  ],
+  "day2": [
+	{ "gold": 80, "materials": { "精钢": 1 } },
+	{ "gold": 50, "materials": { "粗铁": 5 } },
+	{ "materials": { "秘银": 1 } },
+	{ "gold": 120 },
+	{ "soul": 1 },
+	{ "gold": 60, "items": ["iron_armor"] }
+  ]
+}
