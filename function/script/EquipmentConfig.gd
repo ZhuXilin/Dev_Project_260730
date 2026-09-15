@@ -321,6 +321,10 @@ func _build_unit_columns():
 			unit.display_name + "(" + UnitDataManager.get_unit_type_display_name(unit.unit_name) + ")",
 			Style.FONT_SMALL
 		)
+		# ---- 悬停显示单位详情 ----
+		name_label.mouse_filter = Control.MOUSE_FILTER_STOP
+		name_label.mouse_entered.connect(_on_unit_hover_entered.bind(unit))
+		name_label.mouse_exited.connect(_on_unit_hover_exited)
 		col.add_child(name_label)
 		
 		col.add_child(_create_label(Style.SEPARATOR_TEXT, Style.FONT_SMALL))
@@ -338,7 +342,6 @@ func _build_unit_columns():
 			if current_mode == Mode.DEPLOY:
 				armor_btn.disabled = true
 			elif current_mode == Mode.FORGE:
-				# 已在合成槽的防具置灰
 				var is_in_forge = false
 				for entry in _forge_slots:
 					if entry != null and entry["inst"] == unit.armor_slots[slot_idx]:
@@ -2226,3 +2229,47 @@ func _restore_drag_source():
 	_drag_source.remove_meta("_original_modulate")
 	_drag_source.remove_meta("_original_text")
 	_drag_source.remove_meta("_original_custom_minimum_size")
+
+# ============================================================
+#  单位悬停详情
+# ============================================================
+func _on_unit_hover_entered(unit_data):
+	_show_unit_detail_in_zone(unit_data)
+
+func _on_unit_hover_exited():
+	_clear_detail_zone()
+
+func _show_unit_detail_in_zone(unit_data):
+	var lines = []
+	
+	# ---- 头部：姓名 | 阵营 | 职业 ----
+	var display = unit_data.display_name if unit_data.display_name != "" else unit_data.unit_name
+	var type_name = UnitDataManager.get_unit_type_display_name(unit_data.unit_name)
+	var faction = unit_data.faction if unit_data.faction != "" else "无"
+	lines.append("%s | %s | %s" % [display, faction, type_name])
+	lines.append("")
+	
+	# ---- 描述 ----
+	var unit_dict = UnitDataManager.get_unit_data(unit_data.unit_name)
+	var desc = unit_dict.get("description", "")
+	if desc != "":
+		lines.append(desc)
+		lines.append("")
+	
+	# ---- 属性 ----
+	lines.append("HP: %d" % unit_data.max_hp)
+	lines.append("力量: %d  灵巧: %d" % [unit_data.strength, unit_data.dexterity])
+	lines.append("智力: %d  信仰: %d" % [unit_data.intelligence, unit_data.faith])
+	lines.append("感应: %d" % unit_data.arcane)
+	lines.append("移动力: %d" % unit_data.move_range)
+	
+	# ---- 成长加成（如存在） ----
+	var growth = GameState.unit_growth.get(unit_data.unit_name, {})
+	var total_growth = 0
+	for k in growth:
+		total_growth += int(growth[k])
+	if total_growth > 0:
+		lines.append("")
+		lines.append("魂铸成长: +%d 点" % total_growth)
+	
+	_show_detail_in_zone("\n".join(lines))
