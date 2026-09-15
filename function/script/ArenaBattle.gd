@@ -175,15 +175,17 @@ func _run_battle():
 		else:
 			result_label.text = "胜利"
 		result_label.add_theme_color_override("font_color", Color(0.3, 1.0, 0.3, 1))
+		MusicManager.play_victory_music()
 	elif _enemy_hp > 0 and _player_hp <= 0:
 		winner_team = 1
 		result_label.text = "失败"
+		MusicManager.play_defeat_music()
 	else:
 		winner_team = 0 if _player_hp >= _enemy_hp else 1
 		result_label.text = "平局判定"
+		MusicManager.play_defeat_music()       # ← 平局按失败处理
 
 	close_btn.visible = true
-
 
 func _do_attack(attacker: UnitData, defender: UnitData):
 	if _player_hp <= 0 or _enemy_hp <= 0:
@@ -203,13 +205,15 @@ func _do_attack(attacker: UnitData, defender: UnitData):
 		_play_hit_effect(player_sprite, _player_material, Vector2(1, 0))
 		_shake_panel(Vector2(1, 0))
 
+	# ---- 受击音效（与战场一致） ----
+	SoundManager.play_hit_sound()
+
 	var atk_name = attacker.display_name if attacker.display_name != "" else attacker.unit_name
 	var def_name = defender.display_name if defender.display_name != "" else defender.unit_name
 	log_label.text = "%s 攻击 %s，造成 %d 伤害" % [atk_name, def_name, damage]
 
 	_refresh_hp_labels()
 	await get_tree().create_timer(0.6, true, false, true).timeout
-
 
 # ============================================================
 #  受击效果
@@ -312,7 +316,6 @@ func _refresh_hp_labels():
 #  关闭
 # ============================================================
 func _on_close_pressed():
-	# ---- 恢复备战音乐 ----
 	MusicManager.play_arena_music()
 	closed.emit()
 	queue_free()
