@@ -81,18 +81,29 @@ func _fill_weapon_column():
 	title.add_theme_font_size_override("font_size", 9)
 	weapon_list.add_child(title)
 
-	var item_ids = []
+	# ---- 收集并按解锁分区 ----
+	var unlocked_ids : Array = []
+	var locked_ids : Array = []
 	for item_id in ItemManager._item_db.keys():
 		var data = ItemManager.get_item_data(item_id)
-		if data and data.type == "weapon":
-			item_ids.append(item_id)
-
-	for item_id in item_ids:
-		var data = ItemManager.get_item_data(item_id)
+		if not data or data.type != "weapon":
+			continue
 		if not _matches_filter(data):
 			continue
-		var unlocked = Globals.is_item_unlocked(item_id)
-		weapon_list.add_child(_make_item_button(data, unlocked))
+		if Globals.is_item_unlocked(item_id):
+			unlocked_ids.append(item_id)
+		else:
+			locked_ids.append(item_id)
+
+	# ---- 已解锁在前 ----
+	for item_id in unlocked_ids:
+		var data = ItemManager.get_item_data(item_id)
+		weapon_list.add_child(_make_item_button(data, true))
+
+	# ---- 未解锁在后 ----
+	for item_id in locked_ids:
+		var data = ItemManager.get_item_data(item_id)
+		weapon_list.add_child(_make_item_button(data, false))
 
 func _fill_armor_column():
 	var title = Label.new()
@@ -100,18 +111,26 @@ func _fill_armor_column():
 	title.add_theme_font_size_override("font_size", 9)
 	armor_list.add_child(title)
 
-	var item_ids = []
+	var unlocked_ids : Array = []
+	var locked_ids : Array = []
 	for item_id in ItemManager._item_db.keys():
 		var data = ItemManager.get_item_data(item_id)
-		if data and data.type == "armor":
-			item_ids.append(item_id)
-
-	for item_id in item_ids:
-		var data = ItemManager.get_item_data(item_id)
+		if not data or data.type != "armor":
+			continue
 		if not _matches_filter(data):
 			continue
-		var unlocked = Globals.is_item_unlocked(item_id)
-		armor_list.add_child(_make_item_button(data, unlocked))
+		if Globals.is_item_unlocked(item_id):
+			unlocked_ids.append(item_id)
+		else:
+			locked_ids.append(item_id)
+
+	for item_id in unlocked_ids:
+		var data = ItemManager.get_item_data(item_id)
+		armor_list.add_child(_make_item_button(data, true))
+
+	for item_id in locked_ids:
+		var data = ItemManager.get_item_data(item_id)
+		armor_list.add_child(_make_item_button(data, false))
 
 func _fill_relic_column():
 	var title = Label.new()
@@ -119,6 +138,8 @@ func _fill_relic_column():
 	title.add_theme_font_size_override("font_size", 9)
 	relic_list.add_child(title)
 
+	var unlocked_ids : Array = []
+	var locked_ids : Array = []
 	var all_ids = RelicManager.get_all_relic_ids()
 	for relic_id in all_ids:
 		var data = RelicManager.get_relic_data(relic_id)
@@ -126,8 +147,18 @@ func _fill_relic_column():
 			continue
 		if not _matches_filter(data):
 			continue
-		var unlocked = RelicManager.is_relic_unlocked(relic_id)
-		relic_list.add_child(_make_relic_button(relic_id, data, unlocked))
+		if RelicManager.is_relic_unlocked(relic_id):
+			unlocked_ids.append(relic_id)
+		else:
+			locked_ids.append(relic_id)
+
+	for relic_id in unlocked_ids:
+		var data = RelicManager.get_relic_data(relic_id)
+		relic_list.add_child(_make_relic_button(relic_id, data, true))
+
+	for relic_id in locked_ids:
+		var data = RelicManager.get_relic_data(relic_id)
+		relic_list.add_child(_make_relic_button(relic_id, data, false))
 
 # ============================================================
 #  按钮构建

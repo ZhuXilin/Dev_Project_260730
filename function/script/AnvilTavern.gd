@@ -86,52 +86,72 @@ func _build_recipe_tab():
 		content_container.add_child(_make_hint("暂无配方数据"))
 		return
 
-	var locked : Array = []
-	var done : Array = []
+	# ---- 分区：已解锁 / 未解锁 ----
+	var unlocked_list : Array = []
+	var locked_list : Array = []
 	for r in all_recipes:
 		if r.id in GameState.unlocked_recipes:
-			done.append(r)
+			unlocked_list.append(r)
 		else:
-			locked.append(r)
+			locked_list.append(r)
 
-	for r in locked:
-		content_container.add_child(_build_recipe_row(r, false))
-	for r in done:
+	# ---- 先渲染已解锁 ----
+	for r in unlocked_list:
 		content_container.add_child(_build_recipe_row(r, true))
 
+	# ---- 再渲染未解锁 ----
+	for r in locked_list:
+		content_container.add_child(_build_recipe_row(r, false))
 
 func _build_recipe_row(recipe: RecipeData, unlocked: bool) -> VBoxContainer:
 	var box = VBoxContainer.new()
 	box.add_theme_constant_override("separation", 2)
 
+	# ---- 第一行：产物名称 ----
 	var header = HBoxContainer.new()
 	header.add_theme_constant_override("separation", 8)
 
 	var output_data = ItemManager.get_item_data(recipe.id)
 	var name_label = Label.new()
-	name_label.text = output_data.name if output_data else recipe.id
 	name_label.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_LARGE)
-	if output_data:
-		var color = UIConst.QUALITY_COLORS.get(output_data.quality, Color.WHITE)
-		name_label.add_theme_color_override("font_color", color)
+
+	if unlocked:
+		name_label.text = output_data.name if output_data else recipe.id
+		if output_data:
+			var color = UIConst.QUALITY_COLORS.get(output_data.quality, Color.WHITE)
+			name_label.add_theme_color_override("font_color", color)
+	else:
+		name_label.text = "？？？"
+		name_label.modulate = Color(0.4, 0.4, 0.4, 1)
 	header.add_child(name_label)
 
-	var quality_label = Label.new()
-	quality_label.text = "[" + _quality_display(output_data.quality if output_data else "common") + "]"
-	quality_label.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_SMALL)
-	header.add_child(quality_label)
+	# ---- 品质标签（仅已解锁） ----
+	if unlocked and output_data:
+		var quality_label = Label.new()
+		quality_label.text = "[" + _quality_display(output_data.quality) + "]"
+		quality_label.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_SMALL)
+		header.add_child(quality_label)
 
 	box.add_child(header)
 
-	var input_names = []
-	for input_id in recipe.inputs:
-		var d = ItemManager.get_item_data(input_id)
-		input_names.append(d.name if d else input_id)
-	var input_label = Label.new()
-	input_label.text = "  合成: " + " + ".join(input_names)
-	input_label.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_SMALL)
-	box.add_child(input_label)
+	# ---- 第二行：合成输入（仅已解锁） ----
+	if unlocked:
+		var input_names = []
+		for input_id in recipe.inputs:
+			var d = ItemManager.get_item_data(input_id)
+			input_names.append(d.name if d else input_id)
+		var input_label = Label.new()
+		input_label.text = "  合成: " + " + ".join(input_names)
+		input_label.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_SMALL)
+		box.add_child(input_label)
+	else:
+		var hint = Label.new()
+		hint.text = "  未知配方"
+		hint.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_SMALL)
+		hint.modulate = Color(0.5, 0.5, 0.5, 1)
+		box.add_child(hint)
 
+	# ---- 第三行：解锁材料 + 按钮 ----
 	var cost_row = HBoxContainer.new()
 	cost_row.add_theme_constant_override("separation", 8)
 
@@ -163,7 +183,6 @@ func _build_recipe_row(recipe: RecipeData, unlocked: bool) -> VBoxContainer:
 
 	box.add_child(cost_row)
 	return box
-
 
 func _quality_display(quality: String) -> String:
 	match quality:

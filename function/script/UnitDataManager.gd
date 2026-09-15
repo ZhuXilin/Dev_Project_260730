@@ -157,6 +157,14 @@ static func get_description(unit_name: String) -> String:
 static func get_weapon_category_display(category: String) -> String:
 	return _weapon_category_display.get(category, category)
 
+## 获取所有单位 ID（用于魂铸圣所显示未解锁项）
+static func get_all_unit_ids() -> Array:
+	_load_unit_data()
+	var ids : Array = []
+	for key in _unit_data_cache.keys():
+		ids.append(key)
+	ids.sort()
+	return ids
 
 # ============================================================
 #  单位数据创建

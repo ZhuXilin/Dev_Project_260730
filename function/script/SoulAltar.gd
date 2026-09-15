@@ -84,22 +84,47 @@ func _build_unit_list():
 		unit_list.remove_child(child)
 		child.queue_free()
 
-	var unlocked = Globals.get_unlocked_units()
-	unlocked.sort()
+	var all_units = UnitDataManager.get_all_unit_ids()
 
-	for unit_type in unlocked:
+	# ---- 分区：已解锁 / 未解锁 ----
+	var unlocked_list : Array = []
+	var locked_list : Array = []
+	for unit_type in all_units:
+		if Globals.is_unit_unlocked(unit_type):
+			unlocked_list.append(unit_type)
+		else:
+			locked_list.append(unit_type)
+
+	# ---- 先渲染已解锁 ----
+	for unit_type in unlocked_list:
 		var btn = Button.new()
-		var display = UnitDataManager.get_unit_type_display_name(unit_type)
-		btn.text = display
+		btn.text = UnitDataManager.get_unit_type_display_name(unit_type)
 		btn.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_NORMAL)
 		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		btn.set_meta("unit_type", unit_type)
+		btn.modulate = Color.WHITE
 		btn.pressed.connect(_on_unit_selected.bind(unit_type))
 		unit_list.add_child(btn)
 
-	# ---- 默认选第一个 ----
-	if unlocked.size() > 0:
-		_on_unit_selected(unlocked[0])
+	# ---- 再渲染未解锁 ----
+	for unit_type in locked_list:
+		var btn = Button.new()
+		btn.text = "？？？"
+		btn.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_NORMAL)
+		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		btn.set_meta("unit_type", unit_type)
+		btn.modulate = Color(0.4, 0.4, 0.4, 1)
+		btn.disabled = true
+		unit_list.add_child(btn)
+
+	# ---- 默认选中第一个已解锁单位 ----
+	if unlocked_list.size() > 0:
+		_on_unit_selected(unlocked_list[0])
+	else:
+		_current_unit_type = ""
+		_refresh_all()
 
 func _on_unit_selected(unit_type: String):
 	_current_unit_type = unit_type
