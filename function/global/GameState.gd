@@ -164,6 +164,10 @@ var talent_usage : Dictionary:
 	get: return resource_state.talent_usage
 	set(value): resource_state.talent_usage = value
 
+var arena_target_talents : Dictionary:
+	get: return resource_state.arena_target_talents
+	set(value): resource_state.arena_target_talents = value
+
 # ============================================================
 #  非转发字段（不属于任何 state）
 # ============================================================

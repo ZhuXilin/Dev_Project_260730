@@ -5,7 +5,7 @@ uniform vec3 target_color_1 : source_color = vec3(0.1216, 0.2196, 0.9373);
 uniform vec3 target_color_2 : source_color = vec3(1.0, 0.7490, 0.6863);
 uniform vec3 assign_color_1 : source_color = vec3(0.8784, 0.0, 0.3725);
 uniform vec3 assign_color_2 : source_color = vec3(1.0, 0.6549, 0.7529);
-uniform float tolerance : hint_range(0.0, 0.5) = 0.01;
+uniform float tolerance : hint_range(0.0, 0.5) = 0.05;
 
 // ---- 受击效果 ----
 uniform vec2 hit_offset_amount = vec2(0.0);
