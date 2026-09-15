@@ -70,6 +70,7 @@ const CURRENT_VERSION = 3
 @export var highest_cleared_difficulty: int = 0
 
 @export var arena_target_talents: Dictionary = {}
+@export var arena_best_streak: int = 0
 
 # ---- 新增词条存档 ----
 @export var unlocked_talents: Array = []
@@ -120,5 +121,6 @@ func compute_checksum() -> String:
 		"map_snapshot": map_snapshot,
 		"arena_target_talents": arena_target_talents,
 		"talent_exp": talent_exp,
+		"arena_best_streak": arena_best_streak,
 	}
 	return JSON.stringify(data, "  ").sha256_text()

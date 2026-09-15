@@ -139,6 +139,7 @@ func _build_save_data() -> SaveData:
 	save.unlocked_stories = GameState.unlocked_stories.duplicate()
 	save.unit_growth = GameState.unit_growth.duplicate(true)
 	save.arena_target_talents = GameState.arena_target_talents.duplicate(true)
+	save.arena_best_streak = GameState.arena_best_streak
 	save.talent_exp = GameState.talent_exp.duplicate(true)
 
 	save.save_time = Time.get_unix_time_from_system()
@@ -175,6 +176,7 @@ func _apply_save_data(save: SaveData):
 	GameState.current_node_key = save.current_node_key
 	GameState.map_snapshot = save.map_snapshot.duplicate(true)
 	GameState.arena_target_talents = save.arena_target_talents.duplicate(true)
+	GameState.arena_best_streak = save.arena_best_streak
 	GameState.talent_exp = save.talent_exp.duplicate(true)
 
 	# ---- 恢复 visited_nodes ----

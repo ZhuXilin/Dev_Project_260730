@@ -8,8 +8,9 @@ const HIT_OFFSET_DISTANCE : float = 8.0
 const SHAKE_INTENSITY : float = 4.0
 const SHAKE_DURATION : float = 0.15
 
-var winner_team : int = -1   # 0 = 玩家胜，1 = 敌人胜
+var winner_team : int = -1
 var _exp_reward : int = 0
+var _battle_index : int = 1
 
 var _player : UnitData
 var _enemy : UnitData
@@ -48,15 +49,15 @@ func _ready():
 # ============================================================
 #  外部入口
 # ============================================================
-func setup(player_data: UnitData, enemy_data: UnitData, exp_reward: int = 0):
+func setup(player_data: UnitData, enemy_data: UnitData, exp_reward: int = 0, battle_index: int = 1):
 	_player = player_data
 	_enemy = enemy_data
 	_exp_reward = exp_reward
+	_battle_index = battle_index
 
-	# ---- 战斗音乐 ----
 	MusicManager.play_arena_battle_music()
 
-	_player_hp = player_data.hit_points   # 可能残血
+	_player_hp = player_data.hit_points
 	_enemy_hp = enemy_data.max_hp
 
 	var p_display = player_data.display_name if player_data.display_name != "" else player_data.unit_name
@@ -73,6 +74,9 @@ func setup(player_data: UnitData, enemy_data: UnitData, exp_reward: int = 0):
 	player_hp_bar.value = _player_hp
 	enemy_hp_bar.max_value = enemy_data.max_hp
 	enemy_hp_bar.value = _enemy_hp
+
+	# ---- 日志初始文本（显示第 N 场） ----
+	log_label.text = "第 %d 场战斗开始！" % _battle_index
 
 	_refresh_hp_labels()
 	_run_battle()
@@ -112,6 +116,7 @@ func _setup_unit_sprite(sprite: AnimatedSprite2D, unit_data: UnitData, team_id: 
 
 	return mat
 
+
 func _apply_team_shader(sprite: AnimatedSprite2D, team_id: int) -> ShaderMaterial:
 	var path = Config.PATHS.SHADER_REPLACE_COLOR
 	if not ResourceLoader.exists(path):
@@ -141,6 +146,7 @@ func _apply_team_shader(sprite: AnimatedSprite2D, team_id: int) -> ShaderMateria
 	sprite.modulate = Color.WHITE
 	return mat
 
+
 # ============================================================
 #  战斗
 # ============================================================
@@ -149,7 +155,6 @@ func _run_battle():
 		return
 	_battle_running = true
 
-	log_label.text = "战斗开始！"
 	await get_tree().create_timer(0.5, true, false, true).timeout
 
 	var player_first = _player.dexterity >= _enemy.dexterity
@@ -210,7 +215,6 @@ func _do_attack(attacker: UnitData, defender: UnitData):
 		_play_hit_effect(player_sprite, _player_material, Vector2(1, 0))
 		_shake_panel(Vector2(1, 0))
 
-	# ---- 受击音效 ----
 	SoundManager.play_hit_sound()
 
 	var atk_name = attacker.display_name if attacker.display_name != "" else attacker.unit_name
@@ -263,7 +267,7 @@ func _simple_shake(sprite: AnimatedSprite2D):
 
 
 # ============================================================
-#  屏幕晃动（Panel 偏移）
+#  屏幕晃动
 # ============================================================
 func _shake_panel(direction: Vector2, intensity: float = SHAKE_INTENSITY, duration: float = SHAKE_DURATION):
 	if not is_instance_valid(panel):
@@ -315,9 +319,11 @@ func _calc_damage(attacker: UnitData, defender: UnitData) -> int:
 
 	return max(1, int(total_attack - def_value))
 
+
 func _refresh_hp_labels():
 	player_hp_label.text = "%d/%d" % [_player_hp, _player.max_hp]
 	enemy_hp_label.text = "%d/%d" % [_enemy_hp, _enemy.max_hp]
+
 
 # ============================================================
 #  结算
@@ -330,6 +336,7 @@ func _emit_result(continue_requested: bool):
 		"continue_requested": continue_requested,
 	})
 	queue_free()
+
 
 func _on_continue_pressed():
 	_emit_result(true)

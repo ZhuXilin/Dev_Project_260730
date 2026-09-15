@@ -17,8 +17,8 @@ const EXP_MULT_PER_STREAK : float = 0.2
 var _current_unit_type : String = ""
 var _streak : int = 0
 var _current_player_data : UnitData = null
-var _locked_talent_id : String = ""   # 连胜期间锁定的目标词条
-var _streak_active : bool = false     # 是否处于连胜中
+var _locked_talent_id : String = ""
+var _streak_active : bool = false
 
 # ---- 手动拖拽状态 ----
 var _is_dragging : bool = false
@@ -45,6 +45,7 @@ func _ready():
 	_refresh_center_panel()
 	_refresh_talent_library()
 	_refresh_streak_label()
+
 
 # ============================================================
 #  信号
@@ -137,7 +138,7 @@ func _refresh_center_panel():
 	var display = UnitDataManager.get_unit_type_display_name(_current_unit_type)
 	var talent_id = GameState.arena_target_talents.get(_current_unit_type, "")
 
-	# ---- 显示当前 HP（连胜时可能残血） ----
+	# ---- 显示当前 HP ----
 	if _current_player_data and _current_player_data.max_hp > 0:
 		var hp = _current_player_data.hit_points
 		var max_hp = _current_player_data.max_hp
@@ -171,11 +172,14 @@ func _refresh_center_panel():
 
 
 func _refresh_streak_label():
+	var best = GameState.arena_best_streak
 	if _streak <= 0:
-		streak_label.text = "连胜：0"
+		# ---- 未在连胜中：只显示历史最高 ----
+		streak_label.text = "最高连胜：%d" % best
 		streak_label.modulate = Color(0.6, 0.6, 0.6, 1)
 	else:
-		streak_label.text = "连胜：%d" % _streak
+		# ---- 连胜中：显示当前 + 最高 ----
+		streak_label.text = "当前连胜：%d  |  最高：%d" % [_streak, best]
 		streak_label.modulate = Color(1.0, 0.8, 0.2, 1)
 
 
@@ -231,7 +235,6 @@ func _make_talent_button(talent_id: String, data, current_target: String) -> But
 
 	var label_text = "Lv.%d %s" % [lv, data.display_name]
 
-	# ---- 连胜中禁用整个词条库 ----
 	if _streak_active:
 		btn.text = label_text
 		btn.modulate = Color(0.35, 0.35, 0.35, 1)
@@ -259,11 +262,11 @@ func _on_talent_clicked(talent_id: String):
 
 
 # ============================================================
-#  拖拽逻辑（保持原样）
+#  拖拽逻辑
 # ============================================================
 func _input(event: InputEvent):
 	if _streak_active:
-		return   # 连胜中禁止拖拽
+		return
 
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
 		var mouse_pos = _viewport_mouse_pos()
@@ -523,7 +526,7 @@ func _start_battle():
 		return
 	var battle = scene.instantiate()
 	add_child(battle)
-	battle.setup(_current_player_data, enemy_data, exp_gain)
+	battle.setup(_current_player_data, enemy_data, exp_gain, _streak + 1)
 	var result = await battle.closed
 
 	# ---- 处理战斗结果 ----
@@ -534,7 +537,6 @@ func _start_battle():
 	if winner_team == 0:
 		# ---- 胜利 ----
 		if not _streak_active:
-			# 首次胜利：锁定词条
 			_locked_talent_id = talent_id
 			_streak_active = true
 
@@ -543,13 +545,23 @@ func _start_battle():
 		# ---- 加经验 ----
 		var old_level = TalentManager.get_talent_level(_current_unit_type, _locked_talent_id)
 		var actual_gain = TalentManager.add_talent_exp(_current_unit_type, _locked_talent_id, exp_gain)
-		SaveManager.auto_save()
 		var new_level = TalentManager.get_talent_level(_current_unit_type, _locked_talent_id)
 
+		# ---- 更新最高连胜 ----
+		var is_new_record = false
+		if _streak > GameState.arena_best_streak:
+			GameState.arena_best_streak = _streak
+			is_new_record = true
+
+		SaveManager.auto_save()
+
+		# ---- 提示（升级 > 新纪录 > 普通胜利） ----
 		if new_level > old_level:
 			var data = TalentManager.get_talent_data(_locked_talent_id)
 			var display_name = data.display_name if data else _locked_talent_id
-			_show_hint("词条升级！%s → Lv.%d（+%d 经验）" % [display_name, new_level, actual_gain])
+			_show_hint("词条升级！%s → Lv.%d" % [display_name, new_level])
+		elif is_new_record:
+			_show_hint("新纪录！最高连胜 %d" % _streak)
 		elif actual_gain > 0:
 			_show_hint("胜利 +%d 经验" % actual_gain)
 
@@ -558,14 +570,13 @@ func _start_battle():
 			_current_player_data.hit_points = remaining_hp
 			_refresh_center_panel()
 			_refresh_streak_label()
-			# 递归继续（延迟一帧避免栈溢出）
 			await get_tree().process_frame
 			_start_battle()
 		else:
 			# ---- 玩家选择返回 ----
 			_reset_streak()
 	else:
-		# ---- 失败：重置连胜 ----
+		# ---- 失败 ----
 		_show_hint("失败，连胜终止")
 		_reset_streak()
 

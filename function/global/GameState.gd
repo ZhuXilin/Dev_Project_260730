@@ -168,6 +168,10 @@ var arena_target_talents : Dictionary:
 	get: return resource_state.arena_target_talents
 	set(value): resource_state.arena_target_talents = value
 
+var arena_best_streak : int:
+	get: return resource_state.arena_best_streak
+	set(value): resource_state.arena_best_streak = value
+
 # ============================================================
 #  非转发字段（不属于任何 state）
 # ============================================================
