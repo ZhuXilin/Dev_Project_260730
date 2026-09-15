@@ -1,30 +1,80 @@
 extends CanvasLayer
 
+# ============================================================
+#  节点引用
+# ============================================================
 @onready var soul_label = $ResourcePanel/SoulLabel
 @onready var materials_container = $ResourcePanel/MaterialsContainer
 
 # ---- 按钮引用 ----
+@onready var deploy_btn : Button = $ButtonPanel/DeployButton
 @onready var unit_btn : Button = $ButtonPanel/UnitButton
 @onready var item_btn : Button = $ButtonPanel/ItemButton
+@onready var arena_btn : Button = $ButtonPanel/ArenaButton
+@onready var back_btn : Button = $ButtonPanel/BackButton
 
+
+# ============================================================
+#  生命周期
+# ============================================================
 func _ready():
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	Globals.is_transitioning = false
 
-	# ---- 按钮文本（避免在 .tscn 里硬编码） ----
+	# ---- 按钮文本（全部在代码里设置，不在 .tscn 里硬编码） ----
+	if deploy_btn:
+		deploy_btn.text = "出战"
 	if unit_btn:
 		unit_btn.text = "魂铸圣所"
 	if item_btn:
 		item_btn.text = "铁砧酒馆"
+	if arena_btn:
+		arena_btn.text = "斗技场"
+	if back_btn:
+		back_btn.text = "返回"
+
+	# ---- 信号连接（不依赖 .tscn 的 [connection]） ----
+	_connect_buttons()
 
 	update_display()
 	_play_camp_music()
 
+
+# ============================================================
+#  信号连接
+# ============================================================
+func _connect_buttons():
+	# 先断开已有连接，防止重复
+	for btn in [deploy_btn, unit_btn, item_btn, arena_btn, back_btn]:
+		if not btn:
+			continue
+		for conn in btn.pressed.get_connections():
+			btn.pressed.disconnect(conn.callable)
+
+	# 重新连接
+	if deploy_btn:
+		deploy_btn.pressed.connect(_on_deploy_pressed)
+	if unit_btn:
+		unit_btn.pressed.connect(_on_unit_pressed)
+	if item_btn:
+		item_btn.pressed.connect(_on_item_pressed)
+	if arena_btn:
+		arena_btn.pressed.connect(_on_arena_pressed)
+	if back_btn:
+		back_btn.pressed.connect(_on_back_pressed)
+
+
+# ============================================================
+#  音乐
+# ============================================================
 func _play_camp_music():
 	if MusicManager.config and MusicManager.config.camp_music:
 		MusicManager.play_music(MusicManager.config.camp_music)
 
 
+# ============================================================
+#  显示刷新
+# ============================================================
 func update_display():
 	soul_label.text = "魂:" + str(EconomyManager.get_soul() + EconomyManager.get_temp_soul())
 	_update_materials_display()
@@ -91,7 +141,7 @@ func _confirm_deploy():
 	get_tree().change_scene_to_file("res://content/scenes/ui/UnitSelectUI.tscn")
 
 
-# ---- 魂之祭坛入口 ----
+# ---- 魂铸圣所入口 ----
 func _on_unit_pressed():
 	var existing = get_node_or_null("SoulAltar")
 	if existing:
@@ -123,6 +173,23 @@ func _on_item_pressed():
 	update_display()
 
 
+# ---- 斗技场入口 ----
+func _on_arena_pressed():
+	var existing = get_node_or_null("Arena")
+	if existing:
+		return
+	var scene = load(Config.PATHS.ARENA_UI)
+	if not scene:
+		push_error("Arena 场景未找到: " + Config.PATHS.ARENA_UI)
+		return
+	var arena = scene.instantiate()
+	arena.name = "Arena"
+	add_child(arena)
+	await arena.closed
+	update_display()
+
+
+# ---- 返回主菜单 ----
 func _on_back_pressed():
 	GameState.interrupt_state = GameState.InterruptState.CAMP
 	SaveManager.save_game(SaveManager.current_slot, false)

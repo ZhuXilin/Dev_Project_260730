@@ -1,0 +1,172 @@
+[gd_scene format=3 uid="uid://barena001"]
+
+[ext_resource type="Script" uid="uid://ch06ikl42g0ou" path="res://function/script/Arena.gd" id="1_script"]
+[ext_resource type="StyleBox" uid="uid://6qbsaxkfwg3o" path="res://content/resource/stylebox/8bit_style_box_flat.tres" id="2_style"]
+
+[node name="Arena" type="CanvasLayer" unique_id=227657380]
+layer = 20
+script = ExtResource("1_script")
+
+[node name="Background" type="ColorRect" parent="." unique_id=1184475460]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.10980392, 0.10980392, 0.10980392, 1)
+
+[node name="Panel" type="Panel" parent="." unique_id=1054073139]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 24.0
+offset_top = 16.0
+offset_right = -24.0
+offset_bottom = -16.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_styles/panel = ExtResource("2_style")
+
+[node name="VBox" type="VBoxContainer" parent="Panel" unique_id=1725631105]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 12.0
+offset_top = 12.0
+offset_right = -12.0
+offset_bottom = -12.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 8
+
+[node name="TitleBar" type="HBoxContainer" parent="Panel/VBox" unique_id=610692387]
+layout_mode = 2
+
+[node name="TitleLabel" type="Label" parent="Panel/VBox/TitleBar" unique_id=2106979977]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 12
+text = "斗技场"
+
+[node name="HintLabel" type="Label" parent="Panel/VBox/TitleBar" unique_id=577528506]
+modulate = Color(0.7, 0.7, 0.7, 1)
+layout_mode = 2
+theme_override_font_sizes/font_size = 6
+text = "1v1 自动战斗 · 验证 Build · 升级词条"
+
+[node name="MainHBox" type="HBoxContainer" parent="Panel/VBox" unique_id=576239522]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 8
+
+[node name="UnitListScroll" type="ScrollContainer" parent="Panel/VBox/MainHBox" unique_id=1650265676]
+custom_minimum_size = Vector2(100, 0)
+layout_mode = 2
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+
+[node name="UnitList" type="VBoxContainer" parent="Panel/VBox/MainHBox/UnitListScroll" unique_id=1699952005]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 2
+
+[node name="RightPanel" type="VBoxContainer" parent="Panel/VBox/MainHBox" unique_id=1122704275]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/separation = 4
+
+[node name="SelectedUnitLabel" type="Label" parent="Panel/VBox/MainHBox/RightPanel" unique_id=1699173361]
+layout_mode = 2
+theme_override_font_sizes/font_size = 10
+text = "选择单位"
+
+[node name="TalentHintLabel" type="Label" parent="Panel/VBox/MainHBox/RightPanel" unique_id=1042428913]
+modulate = Color(0.7, 0.7, 0.7, 1)
+layout_mode = 2
+theme_override_font_sizes/font_size = 6
+text = "选择目标词条（胜利后使用次数 +1）"
+
+[node name="TalentScroll" type="ScrollContainer" parent="Panel/VBox/MainHBox/RightPanel" unique_id=974593594]
+layout_mode = 2
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+
+[node name="TalentList" type="VBoxContainer" parent="Panel/VBox/MainHBox/RightPanel/TalentScroll" unique_id=431840624]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 4
+
+[node name="DifficultyBar" type="HBoxContainer" parent="Panel/VBox/MainHBox/RightPanel" unique_id=1551809513]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="DifficultyLabel" type="Label" parent="Panel/VBox/MainHBox/RightPanel/DifficultyBar" unique_id=1095243003]
+layout_mode = 2
+theme_override_font_sizes/font_size = 8
+text = "难度："
+
+[node name="EasyBtn" type="Button" parent="Panel/VBox/MainHBox/RightPanel/DifficultyBar" unique_id=457747523]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 8
+theme_override_styles/normal = ExtResource("2_style")
+theme_override_styles/pressed = ExtResource("2_style")
+theme_override_styles/hover = ExtResource("2_style")
+theme_override_styles/disabled = ExtResource("2_style")
+theme_override_styles/focus = ExtResource("2_style")
+text = "简单"
+
+[node name="NormalBtn" type="Button" parent="Panel/VBox/MainHBox/RightPanel/DifficultyBar" unique_id=1933691560]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 8
+theme_override_styles/normal = ExtResource("2_style")
+theme_override_styles/pressed = ExtResource("2_style")
+theme_override_styles/hover = ExtResource("2_style")
+theme_override_styles/disabled = ExtResource("2_style")
+theme_override_styles/focus = ExtResource("2_style")
+text = "普通"
+
+[node name="HardBtn" type="Button" parent="Panel/VBox/MainHBox/RightPanel/DifficultyBar" unique_id=1937520675]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 8
+theme_override_styles/normal = ExtResource("2_style")
+theme_override_styles/pressed = ExtResource("2_style")
+theme_override_styles/hover = ExtResource("2_style")
+theme_override_styles/disabled = ExtResource("2_style")
+theme_override_styles/focus = ExtResource("2_style")
+text = "困难"
+
+[node name="BottomBar" type="HBoxContainer" parent="Panel/VBox" unique_id=963297354]
+layout_mode = 2
+theme_override_constants/separation = 8
+alignment = 1
+
+[node name="StartBtn" type="Button" parent="Panel/VBox/BottomBar" unique_id=1685713552]
+layout_mode = 2
+theme_override_font_sizes/font_size = 10
+theme_override_styles/normal = ExtResource("2_style")
+theme_override_styles/pressed = ExtResource("2_style")
+theme_override_styles/hover = ExtResource("2_style")
+theme_override_styles/disabled = ExtResource("2_style")
+theme_override_styles/focus = ExtResource("2_style")
+text = "开始战斗"
+
+[node name="BackButton" type="Button" parent="Panel/VBox/BottomBar" unique_id=939384001]
+layout_mode = 2
+theme_override_font_sizes/font_size = 10
+theme_override_styles/normal = ExtResource("2_style")
+theme_override_styles/pressed = ExtResource("2_style")
+theme_override_styles/hover = ExtResource("2_style")
+theme_override_styles/disabled = ExtResource("2_style")
+theme_override_styles/focus = ExtResource("2_style")
+text = "返回"
+
+[connection signal="pressed" from="Panel/VBox/MainHBox/RightPanel/DifficultyBar/EasyBtn" to="." method="_on_easy_pressed"]
+[connection signal="pressed" from="Panel/VBox/MainHBox/RightPanel/DifficultyBar/NormalBtn" to="." method="_on_normal_pressed"]
+[connection signal="pressed" from="Panel/VBox/MainHBox/RightPanel/DifficultyBar/HardBtn" to="." method="_on_hard_pressed"]
+[connection signal="pressed" from="Panel/VBox/BottomBar/StartBtn" to="." method="_on_start_pressed"]
+[connection signal="pressed" from="Panel/VBox/BottomBar/BackButton" to="." method="_on_back_pressed"]

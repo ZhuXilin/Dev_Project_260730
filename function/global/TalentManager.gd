@@ -1,6 +1,12 @@
 extends Node
 class_name TalentManager
 
+# ============================================================
+#  斗技场：词条等级
+# ============================================================
+const TALENT_LEVEL_2_THRESHOLD : int = 5
+const TALENT_LEVEL_3_THRESHOLD : int = 15
+
 # ---- 词条数据缓存 ----
 static var _talent_db: Dictionary = {}
 static var _talent_data_loaded: bool = false
@@ -83,3 +89,34 @@ static func is_talent_compatible_with_unit(talent_id: String, unit_name: String)
 		return true
 	var key = UnitDataManager.normalize_unit_key(unit_name)
 	return key in compatible
+
+## 获取某单位某词条的当前使用次数
+static func get_talent_usage(unit_type: String, talent_id: String) -> int:
+	var unit_dict = GameState.talent_usage.get(unit_type, {})
+	return int(unit_dict.get(talent_id, 0))
+
+## 根据使用次数推导等级（1-3）
+static func get_talent_level(unit_type: String, talent_id: String) -> int:
+	var usage = get_talent_usage(unit_type, talent_id)
+	if usage >= TALENT_LEVEL_3_THRESHOLD:
+		return 3
+	if usage >= TALENT_LEVEL_2_THRESHOLD:
+		return 2
+	return 1
+
+## 记录一次胜利（某单位某词条 usage +1）
+static func record_arena_win(unit_type: String, talent_id: String):
+	if not GameState.talent_usage.has(unit_type):
+		GameState.talent_usage[unit_type] = {}
+	var unit_dict = GameState.talent_usage[unit_type]
+	unit_dict[talent_id] = int(unit_dict.get(talent_id, 0)) + 1
+	GameState.talent_usage[unit_type] = unit_dict
+
+## 获取下一级所需的 usage 阈值（已满级返回 -1）
+static func get_next_level_threshold(unit_type: String, talent_id: String) -> int:
+	var usage = get_talent_usage(unit_type, talent_id)
+	if usage < TALENT_LEVEL_2_THRESHOLD:
+		return TALENT_LEVEL_2_THRESHOLD
+	if usage < TALENT_LEVEL_3_THRESHOLD:
+		return TALENT_LEVEL_3_THRESHOLD
+	return -1

@@ -160,6 +160,10 @@ var unit_growth : Dictionary:
 	get: return resource_state.unit_growth
 	set(value): resource_state.unit_growth = value
 
+var talent_usage : Dictionary:
+	get: return resource_state.talent_usage
+	set(value): resource_state.talent_usage = value
+
 # ============================================================
 #  非转发字段（不属于任何 state）
 # ============================================================

@@ -138,6 +138,7 @@ func _build_save_data() -> SaveData:
 	save.unlocked_recipes = GameState.unlocked_recipes.duplicate()
 	save.unlocked_stories = GameState.unlocked_stories.duplicate()
 	save.unit_growth = GameState.unit_growth.duplicate(true)
+	save.talent_usage = GameState.talent_usage.duplicate(true)
 
 	save.save_time = Time.get_unix_time_from_system()
 	save.checksum = save.compute_checksum()
@@ -172,6 +173,7 @@ func _apply_save_data(save: SaveData):
 	GameState.current_faction = save.current_faction
 	GameState.current_node_key = save.current_node_key
 	GameState.map_snapshot = save.map_snapshot.duplicate(true)
+	GameState.talent_usage = save.talent_usage.duplicate(true)
 
 	# ---- 恢复 visited_nodes ----
 	GameState.visited_nodes.clear()

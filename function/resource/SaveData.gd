@@ -67,6 +67,8 @@ const CURRENT_VERSION = 3
 @export var difficulty_level: int = 0
 @export var highest_cleared_difficulty: int = 0
 
+@export var talent_usage: Dictionary = {}
+
 # ---- 新增词条存档 ----
 @export var unlocked_talents: Array = []
 
@@ -114,5 +116,6 @@ func compute_checksum() -> String:
 		"unlocked_recipes": unlocked_recipes,
 		"current_node_key": current_node_key,
 		"map_snapshot": map_snapshot,
+		"talent_usage": talent_usage,
 	}
 	return JSON.stringify(data, "  ").sha256_text()
