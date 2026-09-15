@@ -16,6 +16,7 @@ var has_acted : bool = false
 var remaining_move : int = 0
 var used_move : int = 0
 var is_gray : bool = false
+var bleed_stacks : int = 0
 var movement_after_attack : bool = false
 var previous_flip_h : bool = false
 var used_non_attack_item_this_turn : bool = false
