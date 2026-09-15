@@ -113,6 +113,21 @@ func play_arena_battle_music():
 	else:
 		push_warning("未设置斗技场战斗音乐")
 
+func play_soul_altar_music():
+	if config and config.soul_altar_music:
+		play_music(config.soul_altar_music)
+	else:
+		# 降级：播放营地音乐
+		if config and config.camp_music:
+			play_music(config.camp_music)
+
+func play_anvil_tavern_music():
+	if config and config.anvil_tavern_music:
+		play_music(config.anvil_tavern_music)
+	else:
+		if config and config.camp_music:
+			play_music(config.camp_music)
+
 # 暂停当前音乐并保存状态
 func pause_and_save() -> bool:
 	if player and player.playing:

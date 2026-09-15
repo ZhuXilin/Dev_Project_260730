@@ -15,16 +15,15 @@ var _story_topic_list : VBoxContainer = null
 @onready var story_tab_btn : Button = $Panel/VBox/TabBar/StoryTabBtn
 @onready var content_container : VBoxContainer = $Panel/VBox/ContentScroll/ContentContainer
 
-
 func _ready():
-	# ---- Tab 文本（集中设置，避免 .tscn 重复改） ----
 	recipe_tab_btn.text = "工坊"
 	codex_tab_btn.text  = "武备库"
 	story_tab_btn.text  = "酒馆"
 
+	MusicManager.play_anvil_tavern_music()   # ← 新增
+
 	_refresh_materials()
 	_switch_tab(Tab.RECIPE)
-
 
 # ============================================================
 #  信号
@@ -34,10 +33,11 @@ func _on_codex_tab_pressed():  _switch_tab(Tab.CODEX)
 func _on_story_tab_pressed():  _switch_tab(Tab.STORY)
 
 func _on_back_pressed():
+	if MusicManager.config and MusicManager.config.camp_music:
+		MusicManager.play_music(MusicManager.config.camp_music)
 	closed.emit()
 	queue_free()
-
-
+	
 # ============================================================
 #  Tab 切换
 # ============================================================

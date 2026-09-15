@@ -17,7 +17,9 @@ class_name MusicConfig
 @export var defeat_music : AudioStream
 @export var win_game_music : AudioStream
 
-# ---- 斗技场音乐 ----
+# ---- 营地子界面音乐 ----
+@export var soul_altar_music : AudioStream
+@export var anvil_tavern_music : AudioStream
 @export var arena_music : AudioStream
 @export var arena_battle_music : AudioStream
 

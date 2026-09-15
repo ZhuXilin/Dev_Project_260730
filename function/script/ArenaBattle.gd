@@ -1,6 +1,6 @@
 extends CanvasLayer
 
-signal closed
+signal closed(result: Dictionary)
 
 # ---- 受击参数（与战场一致） ----
 const HIT_DURATION : float = 0.15
@@ -9,7 +9,7 @@ const SHAKE_INTENSITY : float = 4.0
 const SHAKE_DURATION : float = 0.15
 
 var winner_team : int = -1   # 0 = 玩家胜，1 = 敌人胜
-var _exp_reward : int = 0    # 本场可获得的经验（胜利时显示）
+var _exp_reward : int = 0
 
 var _player : UnitData
 var _enemy : UnitData
@@ -35,7 +35,8 @@ var _panel_base_pos : Vector2 = Vector2.ZERO
 @onready var player_hp_label : Label = $Panel/PlayerHpLabel
 @onready var log_label : Label = $Panel/LogLabel
 @onready var result_label : Label = $Panel/ResultLabel
-@onready var close_btn : Button = $Panel/CloseButton
+@onready var continue_btn : Button = $Panel/BottomBar/ContinueButton
+@onready var return_btn : Button = $Panel/BottomBar/ReturnButton
 
 
 func _ready():
@@ -55,7 +56,7 @@ func setup(player_data: UnitData, enemy_data: UnitData, exp_reward: int = 0):
 	# ---- 战斗音乐 ----
 	MusicManager.play_arena_battle_music()
 
-	_player_hp = player_data.max_hp
+	_player_hp = player_data.hit_points   # 可能残血
 	_enemy_hp = enemy_data.max_hp
 
 	var p_display = player_data.display_name if player_data.display_name != "" else player_data.unit_name
@@ -111,7 +112,6 @@ func _setup_unit_sprite(sprite: AnimatedSprite2D, unit_data: UnitData, team_id: 
 
 	return mat
 
-
 func _apply_team_shader(sprite: AnimatedSprite2D, team_id: int) -> ShaderMaterial:
 	var path = Config.PATHS.SHADER_REPLACE_COLOR
 	if not ResourceLoader.exists(path):
@@ -140,7 +140,6 @@ func _apply_team_shader(sprite: AnimatedSprite2D, team_id: int) -> ShaderMateria
 	sprite.material = mat
 	sprite.modulate = Color.WHITE
 	return mat
-
 
 # ============================================================
 #  战斗
@@ -176,16 +175,22 @@ func _run_battle():
 			result_label.text = "胜利"
 		result_label.add_theme_color_override("font_color", Color(0.3, 1.0, 0.3, 1))
 		MusicManager.play_victory_music()
+		continue_btn.visible = true
+		return_btn.visible = true
 	elif _enemy_hp > 0 and _player_hp <= 0:
 		winner_team = 1
 		result_label.text = "失败"
+		result_label.add_theme_color_override("font_color", Color(1.0, 0.4, 0.4, 1))
 		MusicManager.play_defeat_music()
+		continue_btn.visible = false
+		return_btn.visible = true
 	else:
 		winner_team = 0 if _player_hp >= _enemy_hp else 1
 		result_label.text = "平局判定"
-		MusicManager.play_defeat_music()       # ← 平局按失败处理
+		MusicManager.play_defeat_music()
+		continue_btn.visible = false
+		return_btn.visible = true
 
-	close_btn.visible = true
 
 func _do_attack(attacker: UnitData, defender: UnitData):
 	if _player_hp <= 0 or _enemy_hp <= 0:
@@ -205,7 +210,7 @@ func _do_attack(attacker: UnitData, defender: UnitData):
 		_play_hit_effect(player_sprite, _player_material, Vector2(1, 0))
 		_shake_panel(Vector2(1, 0))
 
-	# ---- 受击音效（与战场一致） ----
+	# ---- 受击音效 ----
 	SoundManager.play_hit_sound()
 
 	var atk_name = attacker.display_name if attacker.display_name != "" else attacker.unit_name
@@ -215,8 +220,9 @@ func _do_attack(attacker: UnitData, defender: UnitData):
 	_refresh_hp_labels()
 	await get_tree().create_timer(0.6, true, false, true).timeout
 
+
 # ============================================================
-#  受击效果
+#  受击效果：晃动 + 变色
 # ============================================================
 func _play_hit_effect(sprite: AnimatedSprite2D, material: ShaderMaterial, direction: Vector2):
 	if not is_instance_valid(sprite):
@@ -256,6 +262,9 @@ func _simple_shake(sprite: AnimatedSprite2D):
 	tween.tween_property(sprite, "scale", base_scale, 0.12)
 
 
+# ============================================================
+#  屏幕晃动（Panel 偏移）
+# ============================================================
 func _shake_panel(direction: Vector2, intensity: float = SHAKE_INTENSITY, duration: float = SHAKE_DURATION):
 	if not is_instance_valid(panel):
 		return
@@ -306,16 +315,25 @@ func _calc_damage(attacker: UnitData, defender: UnitData) -> int:
 
 	return max(1, int(total_attack - def_value))
 
-
 func _refresh_hp_labels():
 	player_hp_label.text = "%d/%d" % [_player_hp, _player.max_hp]
 	enemy_hp_label.text = "%d/%d" % [_enemy_hp, _enemy.max_hp]
 
-
 # ============================================================
-#  关闭
+#  结算
 # ============================================================
-func _on_close_pressed():
+func _emit_result(continue_requested: bool):
 	MusicManager.play_arena_music()
-	closed.emit()
+	closed.emit({
+		"winner_team": winner_team,
+		"remaining_hp": _player_hp,
+		"continue_requested": continue_requested,
+	})
 	queue_free()
+
+func _on_continue_pressed():
+	_emit_result(true)
+
+
+func _on_return_pressed():
+	_emit_result(false)

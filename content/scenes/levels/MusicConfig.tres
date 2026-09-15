@@ -3,6 +3,7 @@
 [ext_resource type="AudioStream" uid="uid://ci2kcr510d7pr" path="res://content/music/20 Game Over.mp3" id="1_21sig"]
 [ext_resource type="AudioStream" uid="uid://c627kmpao0s0s" path="res://content/music/12 Battle 1 - Player Attack.mp3" id="1_eelyb"]
 [ext_resource type="AudioStream" uid="uid://cyex5hba8f867" path="res://content/music/03 Story 2 - Beginning of Each Map.mp3" id="1_f1kg3"]
+[ext_resource type="AudioStream" uid="uid://cd5kde6rtvb43" path="res://content/music/23 Shop 2 - Magic Shop.mp3" id="1_w40kv"]
 [ext_resource type="AudioStream" uid="uid://c0534f8g1252l" path="res://content/music/04 Battle Map 2 - CP Attack.mp3" id="2_g5mal"]
 [ext_resource type="AudioStream" uid="uid://dbfscj7dsdve3" path="res://content/music/11 Battle Map 7 - Fight Map BGM 2 (CP).mp3" id="2_isu17"]
 [ext_resource type="AudioStream" uid="uid://ckpnkklynn1if" path="res://content/music/07 Story 1 - Village.mp3" id="2_qt4sp"]
@@ -15,6 +16,7 @@
 [ext_resource type="AudioStream" uid="uid://xmc6l17m6moc" path="res://content/music/18 Victory Obtained.mp3" id="6_xqkk7"]
 [ext_resource type="AudioStream" uid="uid://cqhy1c7d5n7ru" path="res://content/music/31 Ending (Parade).mp3" id="7_g5mal"]
 [ext_resource type="AudioStream" uid="uid://c1jei0hu4cdeg" path="res://content/music/15 Battle Map 3 - Victory Nears (Player).mp3" id="7_xqkk7"]
+[ext_resource type="AudioStream" uid="uid://cyuaacekbee34" path="res://content/music/22 Story 3 - Conversation.mp3" id="16_7bx0x"]
 
 [resource]
 script = ExtResource("5_ncngl")
@@ -30,6 +32,8 @@ boss_enemy_turn_music = ExtResource("2_isu17")
 victory_music = ExtResource("6_xqkk7")
 defeat_music = ExtResource("1_21sig")
 win_game_music = ExtResource("7_g5mal")
+soul_altar_music = ExtResource("16_7bx0x")
+anvil_tavern_music = ExtResource("1_w40kv")
 arena_music = ExtResource("2_wof56")
 arena_battle_music = ExtResource("1_eelyb")
 dialogue_music = ExtResource("2_qt4sp")

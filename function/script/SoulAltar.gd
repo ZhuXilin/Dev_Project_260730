@@ -40,6 +40,7 @@ var _current_unit_type : String = ""
 #  生命周期
 # ============================================================
 func _ready():
+	MusicManager.play_soul_altar_music()
 	_build_unit_list()
 	_refresh_soul()
 	_refresh_reset_btn()
@@ -48,6 +49,8 @@ func _ready():
 #  信号
 # ============================================================
 func _on_back_pressed():
+	if MusicManager.config and MusicManager.config.camp_music:
+		MusicManager.play_music(MusicManager.config.camp_music)
 	closed.emit()
 	queue_free()
 
