@@ -158,27 +158,42 @@ func _execute_heal(attacker: Unit, defender: Unit) -> bool:
 	return true
 
 func _apply_damage_with_effects(defender: Unit, damage: int, attacker: Unit) -> bool:
-	# ---- 词条：盾反 ----
+	# ---- 词条：盾反（等级越高反弹越多） ----
 	if TalentManager.is_talent_ready(defender, "parry"):
-		var parry_damage = int(damage * 0.5)
+		var level = _get_effective_talent_level(defender, "parry")
+		var reflect_mult = 0.5 + (level - 1) * 0.15   # Lv1=50% / Lv2=65% / Lv3=80%
+		var parry_damage = int(damage * reflect_mult)
 		attacker.apply_damage(parry_damage)
 		SignalBus.request_damage_popup.emit(attacker.global_position, parry_damage, false, false, false)
-		print("盾反触发！反弹 ", parry_damage, " 伤害")
+		print("盾反触发！Lv.%d 反弹 %d 伤害" % [level, parry_damage])
 		TalentManager.reset_talent(defender, "parry")
 	
-	# ---- 词条：格挡 ----
+	# ---- 词条：格挡（等级越高减伤越多） ----
 	if TalentManager.is_talent_ready(defender, "block"):
-		damage = int(damage * 0.5)
-		print("格挡触发！伤害减半")
+		var level = _get_effective_talent_level(defender, "block")
+		var reduction = 0.5 + (level - 1) * 0.1       # Lv1=50% / Lv2=60% / Lv3=70%
+		damage = int(damage * (1.0 - reduction))
+		print("格挡触发！Lv.%d 减伤 %d%%" % [level, int(reduction * 100)])
 		TalentManager.reset_talent(defender, "block")
 	
-	# ---- 词条：暴击 ----
+	# ---- 词条：暴击（等级越高倍率越高） ----
 	if TalentManager.is_talent_ready(attacker, "crit"):
-		damage *= 2
-		print("暴击触发！伤害翻倍")
+		var level = _get_effective_talent_level(attacker, "crit")
+		var crit_mult = 2.0 + (level - 1) * 0.5       # Lv1=2.0 / Lv2=2.5 / Lv3=3.0
+		damage = int(damage * crit_mult)
+		print("暴击触发！Lv.%d 倍率 %.1f" % [level, crit_mult])
 		TalentManager.reset_talent(attacker, "crit")
 	
 	return defender.apply_damage(damage)
+
+
+# ============================================================
+#  词条等级：仅玩家单位享受等级加成
+# ============================================================
+func _get_effective_talent_level(unit: Unit, talent_id: String) -> int:
+	if unit.unit_stats.team_id != 0:
+		return 1   # 敌人不享受等级加成
+	return TalentManager.get_talent_level(unit.unit_stats.unit_name, talent_id)
 
 func _can_counter_attack(attacker: Unit, defender: Unit) -> bool:
 	var def_weapon_type = defender.get_weapon_type()

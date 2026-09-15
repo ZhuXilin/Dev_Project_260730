@@ -3,12 +3,21 @@ extends CanvasLayer
 signal closed
 
 # ============================================================
+#  难度 → 经验倍率
+# ============================================================
+const DIFFICULTY_EXP_MULTIPLIER : Dictionary = {
+	"easy":   1.0,
+	"normal": 1.5,
+	"hard":   2.0,
+}
+
+# ============================================================
 #  状态
 # ============================================================
 var _current_unit_type : String = ""
 var _difficulty : String = "easy"
 
-# ---- 手动拖拽状态（与 EquipmentConfig 一致） ----
+# ---- 手动拖拽状态 ----
 var _is_dragging : bool = false
 var _drag_source : Button = null
 var _drag_meta : Dictionary = {}
@@ -125,7 +134,15 @@ func _refresh_center_panel():
 		var data = TalentManager.get_talent_data(talent_id)
 		if data:
 			var lv = TalentManager.get_talent_level(_current_unit_type, talent_id)
-			slot_btn.text = "Lv.%d %s" % [lv, data.display_name]
+			var exp_in_lv = TalentManager.get_talent_exp_in_level(_current_unit_type, talent_id)
+			var required = TalentManager.get_level_required_exp(_current_unit_type, talent_id)
+			var is_max = TalentManager.is_talent_max_level(_current_unit_type, talent_id)
+
+			if is_max:
+				slot_btn.text = "Lv.%d %s  MAX" % [lv, data.display_name]
+			else:
+				slot_btn.text = "Lv.%d %s  %d/%d" % [lv, data.display_name, exp_in_lv, required]
+
 			slot_btn.modulate = _get_talent_color(data.rarity)
 		else:
 			slot_btn.text = talent_id
@@ -180,16 +197,19 @@ func _make_talent_button(talent_id: String, data, current_target: String) -> But
 
 	var is_current = (current_target == talent_id)
 	var compatible = TalentManager.is_talent_compatible_with_unit(talent_id, _current_unit_type)
+	var lv = TalentManager.get_talent_level(_current_unit_type, talent_id)
+
+	var label_text = "Lv.%d %s" % [lv, data.display_name]
 
 	if not compatible:
-		btn.text = data.display_name
+		btn.text = label_text
 		btn.modulate = Color(0.35, 0.35, 0.35, 1)
 		btn.disabled = true
 	elif is_current:
-		btn.text = data.display_name + "  (已选)"
+		btn.text = label_text + "  (已选)"
 		btn.modulate = Color(0.5, 0.8, 1.0, 1)
 	else:
-		btn.text = data.display_name
+		btn.text = label_text
 		btn.modulate = _get_talent_color(data.rarity)
 		btn.pressed.connect(_on_talent_clicked.bind(talent_id))
 
@@ -201,39 +221,33 @@ func _on_talent_clicked(talent_id: String):
 
 
 # ============================================================
-#  手动拖拽（与 EquipmentConfig 完全一致的方式）
+#  拖拽逻辑
 # ============================================================
 func _input(event: InputEvent):
-	# ---- 鼠标按下：检测源 ----
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
 		var mouse_pos = _viewport_mouse_pos()
 		var btn = _find_control_at_position(mouse_pos)
 		if btn:
 			_start_drag(btn)
 
-	# ---- 鼠标释放：结束拖拽 ----
 	elif event is InputEventMouseButton and not event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
 		_end_drag()
 
-	# ---- 右键：清空槽位 ----
 	elif event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT:
 		if _current_unit_type != "":
 			var pos = _viewport_mouse_pos()
 			if slot_btn.get_global_rect().has_point(pos):
 				_set_target_talent("")
 
-	# ---- 鼠标移动：更新预览 ----
 	elif event is InputEventMouseMotion:
 		if _is_dragging:
 			_update_drag_preview()
 
 
-# ---- CanvasLayer 专用：获取视口鼠标位置 ----
 func _viewport_mouse_pos() -> Vector2:
 	return get_viewport().get_mouse_position()
 
 
-# ---- 查找拖拽源（词条库里的按钮） ----
 func _find_control_at_position(pos: Vector2) -> Control:
 	const BUFFER = 4
 
@@ -248,7 +262,6 @@ func _find_control_at_position(pos: Vector2) -> Control:
 	return null
 
 
-# ---- 从落点找目标控件 ----
 func _get_target_from_position(global_pos: Vector2) -> Control:
 	const BUFFER = 4
 
@@ -258,12 +271,10 @@ func _get_target_from_position(global_pos: Vector2) -> Control:
 	return null
 
 
-# ---- 开始拖拽 ----
 func _start_drag(btn: Button):
 	var slot_type = btn.get_meta("slot_type", "")
 	var talent_id = btn.get_meta("talent_id", "")
 
-	# ---- 只允许从词条库拖出 ----
 	if slot_type != "library_talent":
 		return
 	if talent_id == "":
@@ -276,7 +287,6 @@ func _start_drag(btn: Button):
 		"source_control": btn,
 	}
 
-	# ---- 计算抓取偏移 ----
 	var btn_rect = btn.get_global_rect()
 	var btn_center = btn_rect.position + btn_rect.size / 2
 	_drag_grab_offset = _viewport_mouse_pos() - btn_center
@@ -284,7 +294,6 @@ func _start_drag(btn: Button):
 	_begin_dragging()
 
 
-# ---- 进入拖拽状态 ----
 func _begin_dragging():
 	if _is_dragging:
 		return
@@ -294,13 +303,11 @@ func _begin_dragging():
 	if not btn:
 		return
 
-	# ---- 保存原始状态 ----
 	btn.set_meta("_original_disabled", btn.disabled)
 	btn.set_meta("_original_modulate", btn.modulate)
 	btn.set_meta("_original_text", btn.text)
 	btn.set_meta("_original_custom_minimum_size", btn.custom_minimum_size)
 
-	# ---- 锁定尺寸防塌陷 ----
 	var current_size = btn.custom_minimum_size
 	if current_size == Vector2.ZERO or current_size.y < 10:
 		current_size = btn.size
@@ -308,20 +315,16 @@ func _begin_dragging():
 		current_size.y = 16
 	btn.custom_minimum_size = current_size
 
-	# ---- 置灰 ----
 	btn.disabled = true
 	btn.modulate = Color(0.3, 0.3, 0.3, 1)
 	btn.text = "空"
 
-	# ---- 创建拖拽预览 ----
 	_drag_preview = _create_drag_preview(btn)
 
-	# ---- 挂到 CanvasLayer 下 ----
 	add_child(_drag_preview)
 	_update_drag_preview()
 
 
-# ---- 创建拖拽预览（复制按钮样式） ----
 func _create_drag_preview(btn: Button) -> Label:
 	var preview = Label.new()
 
@@ -349,7 +352,6 @@ func _create_drag_preview(btn: Button) -> Label:
 		preview_size.y = 14
 	preview.size = preview_size
 
-	# ---- 复制样式 ----
 	var original_style = btn.get_theme_stylebox("normal")
 	if original_style:
 		var new_style = StyleBoxFlat.new()
@@ -374,7 +376,6 @@ func _create_drag_preview(btn: Button) -> Label:
 	return preview
 
 
-# ---- 更新拖拽预览位置 ----
 func _update_drag_preview():
 	if not _drag_preview:
 		return
@@ -384,7 +385,6 @@ func _update_drag_preview():
 	_drag_preview.z_index = 100
 
 
-# ---- 结束拖拽 ----
 func _end_drag():
 	if not _is_dragging:
 		return
@@ -394,7 +394,6 @@ func _end_drag():
 	var valid = target and _is_valid_drop(_drag_meta, target)
 	var drop_data = _drag_meta.duplicate()
 
-	# ---- 清预览 ----
 	if _drag_preview:
 		_drag_preview.queue_free()
 		_drag_preview = null
@@ -405,7 +404,6 @@ func _end_drag():
 		SoundManager.play_select_sound()
 	else:
 		SoundManager.play_cancel_sound()
-		# ---- 恢复源按钮 ----
 		if is_instance_valid(_drag_source):
 			var original_disabled = _drag_source.get_meta("_original_disabled", false)
 			var original_modulate = _drag_source.get_meta("_original_modulate", Color.WHITE)
@@ -430,7 +428,6 @@ func _process(_delta):
 		_update_drag_preview()
 
 
-# ---- 合法性判定 ----
 func _is_valid_drop(data: Dictionary, target: Control) -> bool:
 	var src_type = data.get("slot_type", "")
 	var talent_id = data.get("talent_id", "")
@@ -442,14 +439,12 @@ func _is_valid_drop(data: Dictionary, target: Control) -> bool:
 	if target != slot_btn:
 		return false
 
-	# ---- 兼容性检查 ----
 	if not TalentManager.is_talent_compatible_with_unit(talent_id, _current_unit_type):
 		return false
 
 	return true
 
 
-# ---- 执行落点 ----
 func _execute_drop(data: Dictionary, _target: Control):
 	var talent_id = data.get("talent_id", "")
 	if talent_id == "":
@@ -513,11 +508,22 @@ func _start_battle():
 	await battle.closed
 
 	if battle.winner_team == 0:
-		TalentManager.record_arena_win(_current_unit_type, talent_id)
+		# ---- 胜利：获得经验 ----
+		var base_exp = _get_enemy_arena_exp(enemy_type)
+		var multiplier = DIFFICULTY_EXP_MULTIPLIER.get(_difficulty, 1.0)
+		var exp_gain = int(round(base_exp * multiplier))
+
+		var actual_gain = TalentManager.add_talent_exp(_current_unit_type, talent_id, exp_gain)
 		SaveManager.auto_save()
-		_show_hint("胜利！词条使用次数 +1")
+
+		if actual_gain > 0:
+			var data = TalentManager.get_talent_data(talent_id)
+			var display_name = data.display_name if data else talent_id
+			_show_hint("胜利！%s +%d 经验" % [display_name, actual_gain])
+		else:
+			_show_hint("胜利！（词条已满级）")
 	else:
-		_show_hint("失败，无奖励")
+		_show_hint("失败，无经验")
 
 	_refresh_center_panel()
 	_refresh_talent_library()
@@ -537,6 +543,11 @@ func _roll_enemy(difficulty: String) -> String:
 	if pool.is_empty():
 		return ""
 	return pool[randi() % pool.size()]
+
+
+func _get_enemy_arena_exp(enemy_type: String) -> int:
+	var unit_dict = UnitDataManager.get_unit_data(enemy_type)
+	return int(unit_dict.get("arena_exp", 30))   # 默认 30
 
 
 # ============================================================

@@ -28,8 +28,8 @@ var unlocked_recipes : Array = []
 # ---- 已阅故事（酒馆） ----
 var unlocked_stories : Array = []
 
-# ---- 斗技场词条使用次数 ----
-var talent_usage : Dictionary = {}
+# ---- 斗技场词条经验（每个单位独立） ----
+var talent_exp : Dictionary = {}
 
 # ---- 斗技场目标词条（每个单位一个） ----
 var arena_target_talents : Dictionary = {}

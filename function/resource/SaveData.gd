@@ -31,6 +31,8 @@ const CURRENT_VERSION = 3
 # ---- 单位属性成长（魂之祭坛） ----
 @export var unit_growth: Dictionary = {}
 
+@export var talent_exp: Dictionary = {}
+
 @export var materials: Dictionary = {
 	"粗铁": 0,
 	"精钢": 0,
@@ -67,7 +69,6 @@ const CURRENT_VERSION = 3
 @export var difficulty_level: int = 0
 @export var highest_cleared_difficulty: int = 0
 
-@export var talent_usage: Dictionary = {}
 @export var arena_target_talents: Dictionary = {}
 
 # ---- 新增词条存档 ----
@@ -117,7 +118,7 @@ func compute_checksum() -> String:
 		"unlocked_recipes": unlocked_recipes,
 		"current_node_key": current_node_key,
 		"map_snapshot": map_snapshot,
-		"talent_usage": talent_usage,
 		"arena_target_talents": arena_target_talents,
+		"talent_exp": talent_exp,
 	}
 	return JSON.stringify(data, "  ").sha256_text()

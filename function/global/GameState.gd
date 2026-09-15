@@ -160,9 +160,9 @@ var unit_growth : Dictionary:
 	get: return resource_state.unit_growth
 	set(value): resource_state.unit_growth = value
 
-var talent_usage : Dictionary:
-	get: return resource_state.talent_usage
-	set(value): resource_state.talent_usage = value
+var talent_exp : Dictionary:
+	get: return resource_state.talent_exp
+	set(value): resource_state.talent_exp = value
 
 var arena_target_talents : Dictionary:
 	get: return resource_state.arena_target_talents

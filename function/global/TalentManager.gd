@@ -2,25 +2,24 @@ extends Node
 class_name TalentManager
 
 # ============================================================
-#  斗技场：词条等级
+#  词条数据缓存
 # ============================================================
-const TALENT_LEVEL_2_THRESHOLD : int = 5
-const TALENT_LEVEL_3_THRESHOLD : int = 15
-
-# ---- 词条数据缓存 ----
 static var _talent_db: Dictionary = {}
 static var _talent_data_loaded: bool = false
 
-# TalentManager.gd
+
+# ============================================================
+#  数据加载
+# ============================================================
 static func load_talent_data():
 	if _talent_data_loaded:
 		return
 	_talent_data_loaded = true
-	var path = Config.PATHS.TALENT_DATA
+	var path = "res://content/data/talents.json"
 	if not FileAccess.file_exists(path):
 		print("词条数据文件不存在: ", path)
 		return
-	
+
 	var file = FileAccess.open(path, FileAccess.READ)
 	var content = file.get_as_text()
 	file.close()
@@ -28,7 +27,7 @@ static func load_talent_data():
 	if data == null or not data is Dictionary:
 		push_error("词条 JSON 解析失败")
 		return
-	
+
 	for key in data:
 		var dict = data[key]
 		var talent = TalentData.new()
@@ -41,13 +40,11 @@ static func load_talent_data():
 		talent.effect_type = dict.get("effect_type", "attack")
 		talent.effect_params = dict.get("effect_params", {})
 		talent.icon_path = dict.get("icon", "")
-		
-		# ---- ✨新增：读取兼容单位列表 ----
 		talent.compatible_units = dict.get("compatible_units", [])
-		
 		_talent_db[talent.id] = talent
-	
+
 	print("成功加载 ", _talent_db.size(), " 个词条")
+
 
 static func get_talent_data(talent_id: String) -> TalentData:
 	load_talent_data()
@@ -63,26 +60,31 @@ static func get_talents_by_school(school: String) -> Array[TalentData]:
 	return result
 
 
-# ---- 新增：词条触发状态检查 ----
+# ============================================================
+#  词条触发状态（战斗中）
+# ============================================================
 static func is_talent_ready(unit: Unit, talent_id: String) -> bool:
 	var inst = unit.get_talent_instance(talent_id)
 	return inst and inst.is_ready and inst.is_active
 
 
-# ---- 新增：重置词条积累 ----
 static func reset_talent(unit: Unit, talent_id: String):
 	var inst = unit.get_talent_instance(talent_id)
 	if inst:
 		inst.reset()
 
-# ---- 获取词条可装备的单位类型列表 ----
+
+# ============================================================
+#  兼容性
+# ============================================================
 static func get_talent_compatible_units(talent_id: String) -> Array:
+	load_talent_data()
 	var data = _talent_db.get(talent_id)
 	if not data:
 		return []
 	return data.compatible_units if data.compatible_units != null else []
 
-# ---- 检查单位是否可以装备该词条 ----
+
 static func is_talent_compatible_with_unit(talent_id: String, unit_name: String) -> bool:
 	var compatible = get_talent_compatible_units(talent_id)
 	if compatible.is_empty():
@@ -90,33 +92,76 @@ static func is_talent_compatible_with_unit(talent_id: String, unit_name: String)
 	var key = UnitDataManager.normalize_unit_key(unit_name)
 	return key in compatible
 
-## 获取某单位某词条的当前使用次数
-static func get_talent_usage(unit_type: String, talent_id: String) -> int:
-	var unit_dict = GameState.talent_usage.get(unit_type, {})
+
+# ============================================================
+#  斗技场：词条经验 / 等级（阶梯升级）
+# ============================================================
+## 累计经验阈值：索引 = 等级-1，值 = 该等级起始经验
+##   Lv1: [0, 100)      → 0-99
+##   Lv2: [100, 300)    → 100-299
+##   Lv3: [300, 600)    → 300-599
+##   MAX: [600, ∞)      → 600+
+const EXP_THRESHOLDS : Array = [0, 100, 300, 600]
+
+const MAX_TALENT_LEVEL : int = 3
+const MAX_TALENT_EXP : int = 600
+
+
+## 获取某单位某词条的当前累计经验
+static func get_talent_exp(unit_type: String, talent_id: String) -> int:
+	var unit_dict = GameState.talent_exp.get(unit_type, {})
 	return int(unit_dict.get(talent_id, 0))
 
-## 根据使用次数推导等级（1-3）
+
+## 根据累计经验推导等级（1-3）
 static func get_talent_level(unit_type: String, talent_id: String) -> int:
-	var usage = get_talent_usage(unit_type, talent_id)
-	if usage >= TALENT_LEVEL_3_THRESHOLD:
+	var exp = get_talent_exp(unit_type, talent_id)
+	if exp >= 300:
 		return 3
-	if usage >= TALENT_LEVEL_2_THRESHOLD:
+	if exp >= 100:
 		return 2
 	return 1
 
-## 记录一次胜利（某单位某词条 usage +1）
-static func record_arena_win(unit_type: String, talent_id: String):
-	if not GameState.talent_usage.has(unit_type):
-		GameState.talent_usage[unit_type] = {}
-	var unit_dict = GameState.talent_usage[unit_type]
-	unit_dict[talent_id] = int(unit_dict.get(talent_id, 0)) + 1
-	GameState.talent_usage[unit_type] = unit_dict
 
-## 获取下一级所需的 usage 阈值（已满级返回 -1）
-static func get_next_level_threshold(unit_type: String, talent_id: String) -> int:
-	var usage = get_talent_usage(unit_type, talent_id)
-	if usage < TALENT_LEVEL_2_THRESHOLD:
-		return TALENT_LEVEL_2_THRESHOLD
-	if usage < TALENT_LEVEL_3_THRESHOLD:
-		return TALENT_LEVEL_3_THRESHOLD
-	return -1
+## 当前等级内的经验进度
+static func get_talent_exp_in_level(unit_type: String, talent_id: String) -> int:
+	var exp = get_talent_exp(unit_type, talent_id)
+	if exp >= 600:
+		return 300
+	if exp >= 300:
+		return exp - 300
+	if exp >= 100:
+		return exp - 100
+	return exp
+
+
+## 当前等级升下一级所需经验
+static func get_level_required_exp(unit_type: String, talent_id: String) -> int:
+	var exp = get_talent_exp(unit_type, talent_id)
+	if exp >= 300:
+		return 300
+	if exp >= 100:
+		return 200
+	return 100
+
+
+## 是否满级
+static func is_talent_max_level(unit_type: String, talent_id: String) -> bool:
+	return get_talent_exp(unit_type, talent_id) >= MAX_TALENT_EXP
+
+
+## 增加经验（返回实际增加量）
+static func add_talent_exp(unit_type: String, talent_id: String, amount: int) -> int:
+	if amount <= 0:
+		return 0
+	var old_exp = get_talent_exp(unit_type, talent_id)
+	var new_exp = mini(old_exp + amount, MAX_TALENT_EXP)
+	var actual = new_exp - old_exp
+
+	if actual <= 0:
+		return 0
+
+	if not GameState.talent_exp.has(unit_type):
+		GameState.talent_exp[unit_type] = {}
+	GameState.talent_exp[unit_type][talent_id] = new_exp
+	return actual
