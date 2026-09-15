@@ -17,6 +17,10 @@ class_name MusicConfig
 @export var defeat_music : AudioStream
 @export var win_game_music : AudioStream
 
+# ---- 斗技场音乐 ----
+@export var arena_music : AudioStream
+@export var arena_battle_music : AudioStream
+
 # ---- 对话音乐 ----
 @export var dialogue_music : AudioStream
 @export var battle_start_dialogue_music : AudioStream

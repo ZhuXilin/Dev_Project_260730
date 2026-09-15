@@ -8,7 +8,8 @@ const HIT_OFFSET_DISTANCE : float = 8.0
 const SHAKE_INTENSITY : float = 4.0
 const SHAKE_DURATION : float = 0.15
 
-var winner_team : int = -1
+var winner_team : int = -1   # 0 = 玩家胜，1 = 敌人胜
+var _exp_reward : int = 0    # 本场可获得的经验（胜利时显示）
 
 var _player : UnitData
 var _enemy : UnitData
@@ -38,7 +39,6 @@ var _panel_base_pos : Vector2 = Vector2.ZERO
 
 
 func _ready():
-	# ---- 记录面板基准位置（延迟一帧确保 layout 完成） ----
 	await get_tree().process_frame
 	if is_instance_valid(panel):
 		_panel_base_pos = panel.position
@@ -47,9 +47,14 @@ func _ready():
 # ============================================================
 #  外部入口
 # ============================================================
-func setup(player_data: UnitData, enemy_data: UnitData):
+func setup(player_data: UnitData, enemy_data: UnitData, exp_reward: int = 0):
 	_player = player_data
 	_enemy = enemy_data
+	_exp_reward = exp_reward
+
+	# ---- 战斗音乐 ----
+	MusicManager.play_arena_battle_music()
+
 	_player_hp = player_data.max_hp
 	_enemy_hp = enemy_data.max_hp
 
@@ -76,7 +81,6 @@ func setup(player_data: UnitData, enemy_data: UnitData):
 #  精灵图 + 队伍颜色
 # ============================================================
 func _setup_unit_sprite(sprite: AnimatedSprite2D, unit_data: UnitData, team_id: int) -> ShaderMaterial:
-	# ---- 加载 SpriteFrames ----
 	var frames_path = UnitDataManager.get_sprite_frames_path(unit_data.unit_name)
 	var loaded_ok = false
 	if frames_path != "" and ResourceLoader.exists(frames_path):
@@ -101,13 +105,12 @@ func _setup_unit_sprite(sprite: AnimatedSprite2D, unit_data: UnitData, team_id: 
 		sprite.sprite_frames = placeholder_frames
 		sprite.play("idle")
 
-	# ---- 队伍颜色 shader ----
 	var mat = _apply_team_shader(sprite, team_id)
 
-	# ---- 朝向：玩家不翻转，敌人翻转 ----
 	sprite.flip_h = (team_id == 1)
 
 	return mat
+
 
 func _apply_team_shader(sprite: AnimatedSprite2D, team_id: int) -> ShaderMaterial:
 	var path = Config.PATHS.SHADER_REPLACE_COLOR
@@ -138,6 +141,7 @@ func _apply_team_shader(sprite: AnimatedSprite2D, team_id: int) -> ShaderMateria
 	sprite.modulate = Color.WHITE
 	return mat
 
+
 # ============================================================
 #  战斗
 # ============================================================
@@ -163,9 +167,13 @@ func _run_battle():
 			break
 		turn += 1
 
+	# ---- 结算 ----
 	if _player_hp > 0 and _enemy_hp <= 0:
 		winner_team = 0
-		result_label.text = "胜利"
+		if _exp_reward > 0:
+			result_label.text = "胜利  +%d 经验" % _exp_reward
+		else:
+			result_label.text = "胜利"
 		result_label.add_theme_color_override("font_color", Color(0.3, 1.0, 0.3, 1))
 	elif _enemy_hp > 0 and _player_hp <= 0:
 		winner_team = 1
@@ -185,13 +193,11 @@ func _do_attack(attacker: UnitData, defender: UnitData):
 
 	var is_player_attacker = (attacker == _player)
 	if is_player_attacker:
-		# 玩家攻击 → 敌人受击（敌人向左偏移，屏幕向右晃）
 		_enemy_hp = max(0, _enemy_hp - damage)
 		enemy_hp_bar.value = _enemy_hp
 		_play_hit_effect(enemy_sprite, _enemy_material, Vector2(-1, 0))
 		_shake_panel(Vector2(-1, 0))
 	else:
-		# 敌人攻击 → 玩家受击（玩家向右偏移，屏幕向左晃）
 		_player_hp = max(0, _player_hp - damage)
 		player_hp_bar.value = _player_hp
 		_play_hit_effect(player_sprite, _player_material, Vector2(1, 0))
@@ -206,7 +212,7 @@ func _do_attack(attacker: UnitData, defender: UnitData):
 
 
 # ============================================================
-#  受击效果：晃动 + 变色（与战场一致）
+#  受击效果
 # ============================================================
 func _play_hit_effect(sprite: AnimatedSprite2D, material: ShaderMaterial, direction: Vector2):
 	if not is_instance_valid(sprite):
@@ -246,9 +252,6 @@ func _simple_shake(sprite: AnimatedSprite2D):
 	tween.tween_property(sprite, "scale", base_scale, 0.12)
 
 
-# ============================================================
-#  屏幕晃动（Panel 偏移）
-# ============================================================
 func _shake_panel(direction: Vector2, intensity: float = SHAKE_INTENSITY, duration: float = SHAKE_DURATION):
 	if not is_instance_valid(panel):
 		return
@@ -305,6 +308,11 @@ func _refresh_hp_labels():
 	enemy_hp_label.text = "%d/%d" % [_enemy_hp, _enemy.max_hp]
 
 
+# ============================================================
+#  关闭
+# ============================================================
 func _on_close_pressed():
+	# ---- 恢复备战音乐 ----
+	MusicManager.play_arena_music()
 	closed.emit()
 	queue_free()

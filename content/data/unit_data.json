@@ -12,7 +12,9 @@
 	"description": "平衡型近战单位，擅长剑术，攻守兼备。",
 	"display_name": "艾琳",
 	"faction": "王国",
-	"default_weapon": "iron_sword"
+	"default_weapon": "iron_sword",
+	"default_talents": ["crit", "parry"],
+	"arena_exp": 30
   },
   "spearman": {
 	"max_hp": 27,
@@ -27,7 +29,9 @@
 	"description": "长枪兵，攻击力高，移动距离远。",
 	"display_name": "罗兰",
 	"faction": "王国",
-	"default_weapon": "steel_spear"
+	"default_weapon": "steel_spear",
+	"default_talents": ["counter_boost"],
+	"arena_exp": 35
   },
   "axeman": {
 	"max_hp": 17,
@@ -42,7 +46,9 @@
 	"description": "狂战士，高攻击力但命中率低，适合破甲。",
 	"display_name": "格伦",
 	"faction": "海盗",
-	"default_weapon": "battle_axe"
+	"default_weapon": "battle_axe",
+	"default_talents": ["block", "bleed"],
+	"arena_exp": 25
   },
   "archer": {
 	"max_hp": 14,
@@ -57,7 +63,9 @@
 	"description": "远程物理单位，可攻击远处敌人。",
 	"display_name": "莉安娜",
 	"faction": "王国",
-	"default_weapon": "longbow"
+	"default_weapon": "longbow",
+	"default_talents": ["crit", "double_attack"],
+	"arena_exp": 30
   },
   "pegasus": {
 	"max_hp": 24,
@@ -72,7 +80,9 @@
 	"description": "飞行骑兵，无视地形移动，机动性极强。",
 	"display_name": "塞拉",
 	"faction": "海盗",
-	"default_weapon": "steel_spear"
+	"default_weapon": "steel_spear",
+	"default_talents": ["crit"],
+	"arena_exp": 40
   },
   "mage": {
 	"max_hp": 18,
@@ -87,7 +97,9 @@
 	"description": "魔法攻击单位，拥有魔法防御力，攻击力较高。",
 	"display_name": "梅林",
 	"faction": "王国",
-	"default_weapon": "fire_spellbook"
+	"default_weapon": "fire_spellbook",
+	"default_talents": ["spell_chain"],
+	"arena_exp": 35
   },
   "cleric": {
 	"max_hp": 14,
@@ -102,7 +114,9 @@
 	"description": "治疗单位，可恢复队友生命值，魔法防御高。",
 	"display_name": "菲奥娜",
 	"faction": "王国",
-	"default_weapon": "healing_staff"
+	"default_weapon": "healing_staff",
+	"default_talents": ["heal_boost"],
+	"arena_exp": 30
   },
   "dragonborn": {
 	"max_hp": 30,
@@ -117,7 +131,9 @@
 	"description": "龙族后裔，拥有极高防御和魔法防御，移动缓慢但顽强。",
 	"display_name": "拉兹",
 	"faction": "龙族",
-	"default_weapon": "fire_dragonstone"
+	"default_weapon": "fire_dragonstone",
+	"default_talents": ["parry", "block"],
+	"arena_exp": 60
   },
   "armored": {
 	"max_hp": 30,
@@ -132,6 +148,8 @@
 	"description": "重装步兵，高物理防御和生命值，移动力较低。",
 	"display_name": "巴尔",
 	"faction": "王国",
-	"default_weapon": "iron_sword"
+	"default_weapon": "iron_sword",
+	"default_talents": ["block", "counter_boost"],
+	"arena_exp": 55
   }
 }

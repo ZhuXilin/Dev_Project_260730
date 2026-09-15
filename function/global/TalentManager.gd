@@ -115,32 +115,32 @@ static func get_talent_exp(unit_type: String, talent_id: String) -> int:
 
 ## 根据累计经验推导等级（1-3）
 static func get_talent_level(unit_type: String, talent_id: String) -> int:
-	var exp = get_talent_exp(unit_type, talent_id)
-	if exp >= 300:
+	var cur_exp = get_talent_exp(unit_type, talent_id)
+	if cur_exp >= 300:
 		return 3
-	if exp >= 100:
+	if cur_exp >= 100:
 		return 2
 	return 1
 
 
 ## 当前等级内的经验进度
 static func get_talent_exp_in_level(unit_type: String, talent_id: String) -> int:
-	var exp = get_talent_exp(unit_type, talent_id)
-	if exp >= 600:
+	var cur_exp = get_talent_exp(unit_type, talent_id)
+	if cur_exp >= 600:
 		return 300
-	if exp >= 300:
-		return exp - 300
-	if exp >= 100:
-		return exp - 100
-	return exp
+	if cur_exp >= 300:
+		return cur_exp - 300
+	if cur_exp >= 100:
+		return cur_exp - 100
+	return cur_exp
 
 
 ## 当前等级升下一级所需经验
 static func get_level_required_exp(unit_type: String, talent_id: String) -> int:
-	var exp = get_talent_exp(unit_type, talent_id)
-	if exp >= 300:
+	var cur_exp = get_talent_exp(unit_type, talent_id)
+	if cur_exp >= 300:
 		return 300
-	if exp >= 100:
+	if cur_exp >= 100:
 		return 200
 	return 100
 

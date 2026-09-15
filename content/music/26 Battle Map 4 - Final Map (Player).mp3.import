@@ -1,0 +1,19 @@
+[remap]
+
+importer="mp3"
+type="AudioStreamMP3"
+uid="uid://oqhyxl704eco"
+path="res://.godot/imported/26 Battle Map 4 - Final Map (Player).mp3-1f8b2eff51b1a284a32fdc3ccefbad6c.mp3str"
+
+[deps]
+
+source_file="res://content/music/26 Battle Map 4 - Final Map (Player).mp3"
+dest_files=["res://.godot/imported/26 Battle Map 4 - Final Map (Player).mp3-1f8b2eff51b1a284a32fdc3ccefbad6c.mp3str"]
+
+[params]
+
+loop=true
+loop_offset=0.0
+bpm=0.0
+beat_count=0
+bar_beats=4

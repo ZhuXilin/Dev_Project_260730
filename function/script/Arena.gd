@@ -39,6 +39,7 @@ var _drag_grab_offset : Vector2 = Vector2.ZERO
 #  生命周期
 # ============================================================
 func _ready():
+	MusicManager.play_arena_music()
 	_build_unit_list()
 	_refresh_center_panel()
 	_refresh_talent_library()
@@ -71,6 +72,9 @@ func _on_start_pressed():
 	_start_battle()
 
 func _on_back_pressed():
+	# ---- 恢复营地音乐 ----
+	if MusicManager.config and MusicManager.config.camp_music:
+		MusicManager.play_music(MusicManager.config.camp_music)
 	closed.emit()
 	queue_free()
 
@@ -498,32 +502,35 @@ func _start_battle():
 		return
 	var enemy_data = UnitDataManager.create_unit_data(enemy_type)
 
+	# ---- 提前计算经验 ----
+	var base_exp = _get_enemy_arena_exp(enemy_type)
+	var multiplier = DIFFICULTY_EXP_MULTIPLIER.get(_difficulty, 1.0)
+	var exp_gain = int(round(base_exp * multiplier))
+
+	# ---- 打开战斗 ----
 	var scene = load(Config.PATHS.ARENA_BATTLE_UI)
 	if not scene:
 		push_error("ArenaBattle 场景未找到")
 		return
 	var battle = scene.instantiate()
 	add_child(battle)
-	battle.setup(player_data, enemy_data)
+	battle.setup(player_data, enemy_data, exp_gain)
 	await battle.closed
 
+	# ---- 结算 ----
 	if battle.winner_team == 0:
-		# ---- 胜利：获得经验 ----
-		var base_exp = _get_enemy_arena_exp(enemy_type)
-		var multiplier = DIFFICULTY_EXP_MULTIPLIER.get(_difficulty, 1.0)
-		var exp_gain = int(round(base_exp * multiplier))
+		var old_level = TalentManager.get_talent_level(_current_unit_type, talent_id)
 
 		var actual_gain = TalentManager.add_talent_exp(_current_unit_type, talent_id, exp_gain)
 		SaveManager.auto_save()
 
-		if actual_gain > 0:
+		var new_level = TalentManager.get_talent_level(_current_unit_type, talent_id)
+		if new_level > old_level:
 			var data = TalentManager.get_talent_data(talent_id)
 			var display_name = data.display_name if data else talent_id
-			_show_hint("胜利！%s +%d 经验" % [display_name, actual_gain])
-		else:
-			_show_hint("胜利！（词条已满级）")
-	else:
-		_show_hint("失败，无经验")
+			_show_hint("词条升级！%s → Lv.%d（+%d 经验）" % [display_name, new_level, actual_gain])
+		elif actual_gain > 0:
+			_show_hint("胜利 +%d 经验" % actual_gain)
 
 	_refresh_center_panel()
 	_refresh_talent_library()
@@ -547,7 +554,7 @@ func _roll_enemy(difficulty: String) -> String:
 
 func _get_enemy_arena_exp(enemy_type: String) -> int:
 	var unit_dict = UnitDataManager.get_unit_data(enemy_type)
-	return int(unit_dict.get("arena_exp", 30))   # 默认 30
+	return int(unit_dict.get("arena_exp", 30))
 
 
 # ============================================================

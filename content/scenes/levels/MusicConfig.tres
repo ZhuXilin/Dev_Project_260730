@@ -1,10 +1,12 @@
 [gd_resource type="Resource" script_class="MusicConfig" format=3 uid="uid://b1p4ixo4l7vwa"]
 
 [ext_resource type="AudioStream" uid="uid://ci2kcr510d7pr" path="res://content/music/20 Game Over.mp3" id="1_21sig"]
+[ext_resource type="AudioStream" uid="uid://c627kmpao0s0s" path="res://content/music/12 Battle 1 - Player Attack.mp3" id="1_eelyb"]
 [ext_resource type="AudioStream" uid="uid://cyex5hba8f867" path="res://content/music/03 Story 2 - Beginning of Each Map.mp3" id="1_f1kg3"]
 [ext_resource type="AudioStream" uid="uid://c0534f8g1252l" path="res://content/music/04 Battle Map 2 - CP Attack.mp3" id="2_g5mal"]
 [ext_resource type="AudioStream" uid="uid://dbfscj7dsdve3" path="res://content/music/11 Battle Map 7 - Fight Map BGM 2 (CP).mp3" id="2_isu17"]
 [ext_resource type="AudioStream" uid="uid://ckpnkklynn1if" path="res://content/music/07 Story 1 - Village.mp3" id="2_qt4sp"]
+[ext_resource type="AudioStream" uid="uid://oqhyxl704eco" path="res://content/music/26 Battle Map 4 - Final Map (Player).mp3" id="2_wof56"]
 [ext_resource type="AudioStream" uid="uid://dpnecb55hjeuj" path="res://content/music/01 Opening Title ~ Demo.mp3" id="3_qt4sp"]
 [ext_resource type="AudioStream" uid="uid://gqnuv4mjkr21" path="res://content/music/04 Battle Map 1 - Fight Map 1-1 (Alm 1).mp3" id="3_xadn6"]
 [ext_resource type="AudioStream" uid="uid://utqa34gfei2h" path="res://content/music/05 Battle Map 1 - Player Attack.mp3" id="4_f1kg3"]
@@ -18,8 +20,8 @@
 script = ExtResource("5_ncngl")
 main_menu_music = ExtResource("3_qt4sp")
 camp_music = ExtResource("7_g5mal")
-map_music = ExtResource("6_ncngl")
 unit_select_music = ExtResource("6_ncngl")
+map_music = ExtResource("6_ncngl")
 non_combat_music = ExtResource("7_xqkk7")
 player_turn_music = ExtResource("4_f1kg3")
 enemy_turn_music = ExtResource("2_g5mal")
@@ -28,6 +30,8 @@ boss_enemy_turn_music = ExtResource("2_isu17")
 victory_music = ExtResource("6_xqkk7")
 defeat_music = ExtResource("1_21sig")
 win_game_music = ExtResource("7_g5mal")
+arena_music = ExtResource("2_wof56")
+arena_battle_music = ExtResource("1_eelyb")
 dialogue_music = ExtResource("2_qt4sp")
 battle_start_dialogue_music = ExtResource("1_f1kg3")
 metadata/_custom_type_script = "uid://ccysv3ra5kmq6"

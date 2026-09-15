@@ -101,6 +101,18 @@ func set_master_volume_db(volume: float):
 	if player:
 		player.volume_db = volume
 
+func play_arena_music():
+	if config and config.arena_music:
+		play_music(config.arena_music)
+	else:
+		push_warning("未设置斗技场音乐")
+
+func play_arena_battle_music():
+	if config and config.arena_battle_music:
+		play_music(config.arena_battle_music)
+	else:
+		push_warning("未设置斗技场战斗音乐")
+
 # 暂停当前音乐并保存状态
 func pause_and_save() -> bool:
 	if player and player.playing:
