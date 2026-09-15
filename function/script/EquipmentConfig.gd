@@ -749,7 +749,11 @@ func _execute_forge_drop(data: Dictionary, target: Control):
 	if src_type == "forge_slot" and tgt_type == "forge_slot":
 		var from_idx = data.get("forge_slot_index", -1)
 		var to_idx = target.get_meta("forge_slot_index", -1)
-		if from_idx < 0 or to_idx < 0 or from_idx == to_idx:
+		if from_idx < 0 or to_idx < 0:
+			return
+		if from_idx == to_idx:
+			# 源和目标相同 → 什么都不做，但刷新 UI 以恢复按钮状态
+			_schedule_build_ui()
 			return
 		var temp = _forge_slots[from_idx]
 		_forge_slots[from_idx] = _forge_slots[to_idx]
@@ -1074,6 +1078,8 @@ func _update_targets_visuals():
 	var is_talent_library_drag = _drag_meta.get("slot_type", "") == "library_talent"
 	
 	for target in targets:
+		if target == _drag_source:       # ← 新增：跳过源按钮
+			continue
 		if not _target_states.has(target):
 			_target_states[target] = target.modulate
 		
@@ -1779,6 +1785,7 @@ func _end_drag():
 			_drag_preview = null
 		_is_dragging = false
 		_reset_targets_visuals()
+		_restore_drag_source()          # ← 恢复源按钮
 		_drag_source = null
 		_drag_meta = {}
 		return
@@ -1794,12 +1801,12 @@ func _end_drag():
 		_drag_preview = null
 	_is_dragging = false
 	_reset_targets_visuals()
+	_restore_drag_source()              # ← 先恢复源按钮（关键）
 	
 	if valid:
 		_execute_drop.call_deferred(drop_data, target)
 		SoundManager.play_select_sound()
 	else:
-		# ---- FORGE 模式：forge_slot 拖到空白 → 回原位 ----
 		if current_mode == Mode.FORGE and source_type == "forge_slot" and target == null:
 			_execute_forge_slot_return.call_deferred(drop_data)
 			SoundManager.play_select_sound()
@@ -1808,19 +1815,6 @@ func _end_drag():
 			SoundManager.play_select_sound()
 		else:
 			SoundManager.play_cancel_sound()
-			if is_instance_valid(_drag_source):
-				var original_disabled = _drag_source.get_meta("_original_disabled", false)
-				var original_modulate = _drag_source.get_meta("_original_modulate", Color.WHITE)
-				var original_text = _drag_source.get_meta("_original_text", "")
-				var original_min_size = _drag_source.get_meta("_original_custom_minimum_size", Vector2.ZERO)
-				_drag_source.disabled = original_disabled
-				_drag_source.modulate = original_modulate
-				_drag_source.text = original_text
-				_drag_source.custom_minimum_size = original_min_size
-				_drag_source.remove_meta("_original_disabled")
-				_drag_source.remove_meta("_original_modulate")
-				_drag_source.remove_meta("_original_text")
-				_drag_source.remove_meta("_original_custom_minimum_size")
 			_schedule_build_ui()
 	
 	_drag_source = null
@@ -2216,3 +2210,19 @@ func _has_active_confirm_ui() -> bool:
 			if script and script.resource_path.ends_with("ConfirmUI.gd"):
 				return true
 	return false
+
+func _restore_drag_source():
+	if not is_instance_valid(_drag_source):
+		return
+	var original_disabled = _drag_source.get_meta("_original_disabled", false)
+	var original_modulate = _drag_source.get_meta("_original_modulate", Color.WHITE)
+	var original_text = _drag_source.get_meta("_original_text", "")
+	var original_min_size = _drag_source.get_meta("_original_custom_minimum_size", Vector2.ZERO)
+	_drag_source.disabled = original_disabled
+	_drag_source.modulate = original_modulate
+	_drag_source.text = original_text
+	_drag_source.custom_minimum_size = original_min_size
+	_drag_source.remove_meta("_original_disabled")
+	_drag_source.remove_meta("_original_modulate")
+	_drag_source.remove_meta("_original_text")
+	_drag_source.remove_meta("_original_custom_minimum_size")
