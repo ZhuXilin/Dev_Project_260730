@@ -29,7 +29,7 @@ func _ready():
 	if item_btn:
 		item_btn.text = "铁砧酒馆"
 	if arena_btn:
-		arena_btn.text = "斗技场"
+		arena_btn.text = "魂之竞技场"
 	if back_btn:
 		back_btn.text = "返回"
 
@@ -39,6 +39,16 @@ func _ready():
 	update_display()
 	_play_camp_music()
 
+
+func _input(event: InputEvent):
+	if event is InputEventKey and event.pressed:
+		# 调试：+50 魂
+		if event.keycode == KEY_6:
+			GameState.soul += 50
+			SaveManager.auto_save()
+			update_display()
+			print("调试：+50 魂，当前 ", GameState.soul)
+			get_viewport().set_input_as_handled()
 
 # ============================================================
 #  信号连接
@@ -154,8 +164,9 @@ func _on_unit_pressed():
 	altar.name = "SoulAltar"
 	add_child(altar)
 	await altar.closed
+	if MusicManager.config and MusicManager.config.camp_music:
+		MusicManager.play_music(MusicManager.config.camp_music)
 	update_display()
-
 
 # ---- 铁砧酒馆入口 ----
 func _on_item_pressed():
@@ -170,6 +181,8 @@ func _on_item_pressed():
 	tavern.name = "AnvilTavern"
 	add_child(tavern)
 	await tavern.closed
+	if MusicManager.config and MusicManager.config.camp_music:
+		MusicManager.play_music(MusicManager.config.camp_music)
 	update_display()
 
 
@@ -186,8 +199,12 @@ func _on_arena_pressed():
 	arena.name = "Arena"
 	add_child(arena)
 	await arena.closed
-	update_display()
 
+	# ---- 切回营地音乐 ----
+	if MusicManager.config and MusicManager.config.camp_music:
+		MusicManager.play_music(MusicManager.config.camp_music)
+
+	update_display()
 
 # ---- 返回主菜单 ----
 func _on_back_pressed():

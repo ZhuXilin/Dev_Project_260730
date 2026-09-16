@@ -22,6 +22,12 @@ var previous_flip_h : bool = false
 var used_non_attack_item_this_turn : bool = false
 var moves_since_act: int = 0   # 自从执行行动后移动的次数
 
+# ---- 战斗 Buff（从装备被动读取） ----
+var buff_attack_percent : float = 0.0
+var buff_crit_damage_bonus : float = 0.0
+var buff_defense_flat : int = 0
+var buff_damage_reduction : float = 0.0
+
 # ---- 装备 ----
 var weapon_slot: ItemInstance = null          # 武器实例
 var armor_slots: Array[ItemInstance] = []    # 防具/饰品槽

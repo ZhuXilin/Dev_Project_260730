@@ -1,0 +1,67 @@
+{
+  "iron_oil": {
+	"id": "iron_oil",
+	"name": "铁制武器油",
+	"description": "下一场战斗，全队攻击 +20%",
+	"icon": "",
+	"craft_cost": { "粗铁": 2 },
+	"unlock_cost": { "粗铁": 3 },
+	"effect": {
+	  "type": "attack_percent",
+	  "value": 0.2,
+	  "battles": 1
+	}
+  },
+  "steel_whetstone": {
+	"id": "steel_whetstone",
+	"name": "精钢磨刀石",
+	"description": "下一场战斗，全队暴击伤害 +30%",
+	"icon": "",
+	"craft_cost": { "精钢": 1 },
+	"unlock_cost": { "精钢": 2 },
+	"effect": {
+	  "type": "crit_damage_bonus",
+	  "value": 0.3,
+	  "battles": 1
+	}
+  },
+  "mithril_amulet": {
+	"id": "mithril_amulet",
+	"name": "秘银护符",
+	"description": "下一场战斗，全队防御 +3",
+	"icon": "",
+	"craft_cost": { "秘银": 1 },
+	"unlock_cost": { "秘银": 1 },
+	"effect": {
+	  "type": "defense_flat",
+	  "value": 3,
+	  "battles": 1
+	}
+  },
+  "dragon_elixir": {
+	"id": "dragon_elixir",
+	"name": "龙血药剂",
+	"description": "立即回满全队 HP",
+	"icon": "",
+	"craft_cost": { "龙鳞": 1 },
+	"unlock_cost": { "龙鳞": 1 },
+	"effect": {
+	  "type": "heal_full",
+	  "value": 0,
+	  "battles": 0
+	}
+  },
+  "iron_wall_potion": {
+	"id": "iron_wall_potion",
+	"name": "铁壁药剂",
+	"description": "下一场战斗，全队减伤 30%",
+	"icon": "",
+	"craft_cost": { "粗铁": 5 },
+	"unlock_cost": { "粗铁": 10 },
+	"effect": {
+	  "type": "damage_reduction",
+	  "value": 0.3,
+	  "battles": 1
+	}
+  }
+}

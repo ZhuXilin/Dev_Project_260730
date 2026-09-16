@@ -299,7 +299,7 @@ func _ready():
 	# ---- 在 _ready() 末尾也重置一次（兜底） ----
 	_victory_processed = false
 	_is_reward_ui_active = false
-	
+	_apply_team_buffs()
 	print("Battlefield _ready 完成")
 
 func _exit_tree():
@@ -2435,3 +2435,42 @@ func _is_any_ui_active() -> bool:
 
 func _on_back_camp_pressed():
 	GameState.show_abandon_confirmation(self)
+
+func _apply_team_buffs():
+	var passives = GameState.get_passives()
+	var attack_pct := 0.0
+	var crit_bonus := 0.0
+	var defense_flat := 0
+	var dmg_reduction := 0.0
+
+	for p in passives:
+		if p == null or not (p is Dictionary):
+			continue
+		var refine_id = p.get("refine_id", "")
+		if refine_id == "":
+			continue
+		var effect = RefineManager.get_effect(refine_id)
+		if effect.is_empty():
+			continue
+		match effect.get("type", ""):
+			"attack_percent":
+				attack_pct += effect.get("value", 0.0)
+			"crit_damage_bonus":
+				crit_bonus += effect.get("value", 0.0)
+			"defense_flat":
+				defense_flat += int(effect.get("value", 0))
+			"damage_reduction":
+				dmg_reduction += effect.get("value", 0.0)
+			"heal_full":
+				for unit in UnitManager.unit_list:
+					if unit.unit_stats.team_id == 0:
+						unit.hit_points = unit.unit_stats.max_hp
+						unit.update_hp_label()
+
+	for unit in UnitManager.unit_list:
+		if unit.unit_stats.team_id != 0:
+			continue
+		unit.buff_attack_percent = attack_pct
+		unit.buff_crit_damage_bonus = crit_bonus
+		unit.buff_defense_flat = defense_flat
+		unit.buff_damage_reduction = dmg_reduction

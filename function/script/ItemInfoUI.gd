@@ -1,27 +1,24 @@
 extends PanelContainer
 
-# ---- 三列容器 ----
 @onready var weapon_list = $VBoxContainer/HBoxContainer/LeftPanel/HBoxContainer/WeaponScroll/WeaponList
 @onready var armor_list = $VBoxContainer/HBoxContainer/LeftPanel/HBoxContainer/ArmorScroll/ArmorList
 @onready var relic_list = $VBoxContainer/HBoxContainer/LeftPanel/HBoxContainer/RelicScroll/RelicList
 
-# ---- 右侧详情 ----
 @onready var item_icon = $VBoxContainer/HBoxContainer/RightPanel/ItemIcon
 @onready var item_name = $VBoxContainer/HBoxContainer/RightPanel/ItemName
 @onready var item_detail = $VBoxContainer/HBoxContainer/RightPanel/ItemDetail
 
-# ---- 筛选 ----
-var _current_filter : String = ""   # ""=全部 / common / rare / epic / legendary
+var _current_filter : String = ""
 
 func _ready():
 	_build_filter_bar()
 	_refresh_list()
 
+
 # ============================================================
 #  筛选栏
 # ============================================================
 func _build_filter_bar():
-	# 避免重复创建
 	if $VBoxContainer.has_node("FilterBar"):
 		return
 
@@ -43,14 +40,15 @@ func _build_filter_bar():
 		btn.pressed.connect(_on_filter_pressed.bind(opt[1]))
 		filter_bar.add_child(btn)
 
-	# 插到 Title 之后
 	var vbox = $VBoxContainer
 	vbox.add_child(filter_bar)
 	vbox.move_child(filter_bar, 1)
 
+
 func _on_filter_pressed(quality: String):
 	_current_filter = quality
 	_refresh_list()
+
 
 func _matches_filter(data) -> bool:
 	if _current_filter == "":
@@ -61,6 +59,7 @@ func _matches_filter(data) -> bool:
 	else:
 		q = data.quality if "quality" in data else ""
 	return q == _current_filter
+
 
 # ============================================================
 #  列表刷新
@@ -75,13 +74,13 @@ func _refresh_list():
 	_fill_armor_column()
 	_fill_relic_column()
 
+
 func _fill_weapon_column():
 	var title = Label.new()
 	title.text = "武器"
 	title.add_theme_font_size_override("font_size", 9)
 	weapon_list.add_child(title)
 
-	# ---- 收集并按解锁分区 ----
 	var unlocked_ids : Array = []
 	var locked_ids : Array = []
 	for item_id in ItemManager._item_db.keys():
@@ -95,15 +94,14 @@ func _fill_weapon_column():
 		else:
 			locked_ids.append(item_id)
 
-	# ---- 已解锁在前 ----
 	for item_id in unlocked_ids:
 		var data = ItemManager.get_item_data(item_id)
 		weapon_list.add_child(_make_item_button(data, true))
 
-	# ---- 未解锁在后 ----
 	for item_id in locked_ids:
 		var data = ItemManager.get_item_data(item_id)
 		weapon_list.add_child(_make_item_button(data, false))
+
 
 func _fill_armor_column():
 	var title = Label.new()
@@ -119,7 +117,7 @@ func _fill_armor_column():
 			continue
 		if not _matches_filter(data):
 			continue
-		if Globals.is_item_unlocked(item_id):
+		if item_id in GameState.unlocked_recipes:
 			unlocked_ids.append(item_id)
 		else:
 			locked_ids.append(item_id)
@@ -131,6 +129,7 @@ func _fill_armor_column():
 	for item_id in locked_ids:
 		var data = ItemManager.get_item_data(item_id)
 		armor_list.add_child(_make_item_button(data, false))
+
 
 func _fill_relic_column():
 	var title = Label.new()
@@ -160,8 +159,9 @@ func _fill_relic_column():
 		var data = RelicManager.get_relic_data(relic_id)
 		relic_list.add_child(_make_relic_button(relic_id, data, false))
 
+
 # ============================================================
-#  按钮构建
+#  按钮
 # ============================================================
 func _make_item_button(data, unlocked: bool) -> Button:
 	var btn = Button.new()
@@ -169,15 +169,15 @@ func _make_item_button(data, unlocked: bool) -> Button:
 	btn.add_theme_font_size_override("font_size", 8)
 	btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
 
+	btn.text = data.name
 	if unlocked:
-		btn.text = data.name
 		btn.pressed.connect(_show_item_detail.bind(data))
 	else:
-		btn.text = "？？？"
-		btn.modulate = Color(0.4, 0.4, 0.4)
+		btn.modulate = Color(0.4, 0.4, 0.4, 1)
 		btn.disabled = true
 
 	return btn
+
 
 func _make_relic_button(relic_id: String, data: Dictionary, unlocked: bool) -> Button:
 	var btn = Button.new()
@@ -185,33 +185,30 @@ func _make_relic_button(relic_id: String, data: Dictionary, unlocked: bool) -> B
 	btn.add_theme_font_size_override("font_size", 8)
 	btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
 
+	btn.text = data.get("name", relic_id)
 	if unlocked:
-		btn.text = data.get("name", relic_id)
 		btn.pressed.connect(_show_relic_detail.bind(data, relic_id))
 	else:
-		btn.text = "？？？"
-		btn.modulate = Color(0.4, 0.4, 0.4)
+		btn.modulate = Color(0.4, 0.4, 0.4, 1)
 		btn.disabled = true
 
 	return btn
 
+
 # ============================================================
-#  详情显示（增强）
+#  详情
 # ============================================================
 func _show_item_detail(data):
-	# ---- 图标 ----
 	if data.icon:
 		item_icon.texture = data.icon
 		item_icon.visible = true
 	else:
 		item_icon.visible = false
 
-	# ---- 名称 + 品质颜色 ----
 	item_name.text = data.name
 	var q_color = UIConst.QUALITY_COLORS.get(data.quality, Color.WHITE)
 	item_name.add_theme_color_override("font_color", q_color)
 
-	# ---- 详情 ----
 	var lines = []
 	lines.append("品质: " + _quality_display(data.quality))
 	if data.description:
@@ -231,6 +228,7 @@ func _show_item_detail(data):
 
 	item_detail.text = "\n".join(lines)
 
+
 func _show_relic_detail(data: Dictionary, _relic_id: String):
 	item_icon.visible = false
 	item_name.text = data.get("name", "")
@@ -246,6 +244,7 @@ func _show_relic_detail(data: Dictionary, _relic_id: String):
 			lines.append("  " + _attr_display(key) + " +" + str(stats[key]))
 	item_detail.text = "\n".join(lines)
 
+
 # ============================================================
 #  辅助
 # ============================================================
@@ -257,6 +256,7 @@ func _quality_display(q: String) -> String:
 		"legendary": return "传说"
 		_: return q
 
+
 func _attr_display(key: String) -> String:
 	var names = {
 		"strength": "力量", "dexterity": "灵巧", "intelligence": "智力",
@@ -265,6 +265,7 @@ func _attr_display(key: String) -> String:
 		"move_range": "移动力",
 	}
 	return names.get(key, key)
+
 
 func _on_back_button_pressed():
 	queue_free()

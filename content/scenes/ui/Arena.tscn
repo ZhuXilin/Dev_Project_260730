@@ -3,11 +3,11 @@
 [ext_resource type="Script" uid="uid://ch06ikl42g0ou" path="res://function/script/Arena.gd" id="1_script"]
 [ext_resource type="StyleBox" uid="uid://6qbsaxkfwg3o" path="res://content/resource/stylebox/8bit_style_box_flat.tres" id="2_style"]
 
-[node name="Arena" type="CanvasLayer" unique_id=305840277]
+[node name="Arena" type="CanvasLayer" unique_id=938146822]
 layer = 20
 script = ExtResource("1_script")
 
-[node name="Background" type="ColorRect" parent="." unique_id=343181163]
+[node name="Background" type="ColorRect" parent="." unique_id=2046438125]
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
@@ -15,7 +15,7 @@ grow_horizontal = 2
 grow_vertical = 2
 color = Color(0.10980392, 0.10980392, 0.10980392, 1)
 
-[node name="Panel" type="Panel" parent="." unique_id=1387368409]
+[node name="Panel" type="Panel" parent="." unique_id=1243405303]
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
@@ -27,7 +27,7 @@ grow_horizontal = 2
 grow_vertical = 2
 theme_override_styles/panel = ExtResource("2_style")
 
-[node name="VBox" type="VBoxContainer" parent="Panel" unique_id=17713361]
+[node name="VBox" type="VBoxContainer" parent="Panel" unique_id=185697285]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -40,117 +40,67 @@ grow_horizontal = 2
 grow_vertical = 2
 theme_override_constants/separation = 8
 
-[node name="TitleBar" type="HBoxContainer" parent="Panel/VBox" unique_id=1505027459]
+[node name="TitleBar" type="HBoxContainer" parent="Panel/VBox" unique_id=1365273357]
 layout_mode = 2
 
-[node name="TitleLabel" type="Label" parent="Panel/VBox/TitleBar" unique_id=371571287]
+[node name="TitleLabel" type="Label" parent="Panel/VBox/TitleBar" unique_id=1182047216]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_font_sizes/font_size = 12
-text = "斗技场"
+text = "魂之竞技场"
 
-[node name="HintLabel" type="Label" parent="Panel/VBox/TitleBar" unique_id=1364090185]
+[node name="HintLabel" type="Label" parent="Panel/VBox/TitleBar" unique_id=1121858861]
 modulate = Color(0.7, 0.7, 0.7, 1)
 layout_mode = 2
 theme_override_font_sizes/font_size = 6
-text = "连胜挑战 · 验证 Build · 升级词条"
+text = "2 魂入场 · 10 胜通关 · 生存 3 连战"
 
-[node name="MainHBox" type="HBoxContainer" parent="Panel/VBox" unique_id=1370933325]
+[node name="MainHBox" type="HBoxContainer" parent="Panel/VBox" unique_id=779494358]
 layout_mode = 2
 size_flags_vertical = 3
 theme_override_constants/separation = 12
 
-[node name="UnitListScroll" type="ScrollContainer" parent="Panel/VBox/MainHBox" unique_id=1161144996]
-custom_minimum_size = Vector2(80, 0)
+[node name="UnitListScroll" type="ScrollContainer" parent="Panel/VBox/MainHBox" unique_id=1641902938]
+custom_minimum_size = Vector2(100, 0)
 layout_mode = 2
 size_flags_vertical = 3
 horizontal_scroll_mode = 0
 
-[node name="UnitList" type="VBoxContainer" parent="Panel/VBox/MainHBox/UnitListScroll" unique_id=1077188440]
+[node name="UnitList" type="VBoxContainer" parent="Panel/VBox/MainHBox/UnitListScroll" unique_id=585669592]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 2
 
-[node name="CenterPanel" type="VBoxContainer" parent="Panel/VBox/MainHBox" unique_id=214127677]
+[node name="CenterPanel" type="VBoxContainer" parent="Panel/VBox/MainHBox" unique_id=1149372142]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
-theme_override_constants/separation = 8
+theme_override_constants/separation = 12
 
-[node name="SelectedUnitLabel" type="Label" parent="Panel/VBox/MainHBox/CenterPanel" unique_id=483253666]
+[node name="SelectedUnitLabel" type="Label" parent="Panel/VBox/MainHBox/CenterPanel" unique_id=1148970143]
 layout_mode = 2
 theme_override_font_sizes/font_size = 10
 text = "选择单位"
 horizontal_alignment = 1
 
-[node name="SlotHintLabel" type="Label" parent="Panel/VBox/MainHBox/CenterPanel" unique_id=404993558]
-modulate = Color(0.7, 0.7, 0.7, 1)
+[node name="InfoLabel" type="Label" parent="Panel/VBox/MainHBox/CenterPanel" unique_id=576548730]
 layout_mode = 2
-theme_override_font_sizes/font_size = 6
-text = "目标词条（拖拽或点击右侧词条库选择）"
+theme_override_font_sizes/font_size = 9
 horizontal_alignment = 1
 
-[node name="SlotContainer" type="Panel" parent="Panel/VBox/MainHBox/CenterPanel" unique_id=272979844]
-custom_minimum_size = Vector2(80, 24)
-layout_mode = 2
-size_flags_horizontal = 4
-mouse_filter = 2
-theme_override_styles/panel = ExtResource("2_style")
-
-[node name="TalentSlotBtn" type="Button" parent="Panel/VBox/MainHBox/CenterPanel/SlotContainer" unique_id=531338158]
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-offset_left = 2.0
-offset_top = 2.0
-offset_right = -2.0
-offset_bottom = -2.0
-grow_horizontal = 2
-grow_vertical = 2
-theme_override_font_sizes/font_size = 8
-theme_override_styles/normal = ExtResource("2_style")
-theme_override_styles/pressed = ExtResource("2_style")
-theme_override_styles/hover = ExtResource("2_style")
-theme_override_styles/disabled = ExtResource("2_style")
-theme_override_styles/focus = ExtResource("2_style")
-text = "空"
-
-[node name="StreakLabel" type="Label" parent="Panel/VBox/MainHBox/CenterPanel" unique_id=1169434591]
+[node name="StreakLabel" type="Label" parent="Panel/VBox/MainHBox/CenterPanel" unique_id=1561900263]
 layout_mode = 2
 theme_override_font_sizes/font_size = 10
-text = "连胜：0"
+text = "最高连胜：0"
 horizontal_alignment = 1
 
-[node name="RightColumn" type="VBoxContainer" parent="Panel/VBox/MainHBox" unique_id=2100000001]
-custom_minimum_size = Vector2(140, 0)
-layout_mode = 2
-size_flags_vertical = 3
-theme_override_constants/separation = 4
-
-[node name="TalentLibraryLabel" type="Label" parent="Panel/VBox/MainHBox/RightColumn" unique_id=1810688861]
-layout_mode = 2
-theme_override_font_sizes/font_size = 8
-text = "词条库"
-horizontal_alignment = 1
-
-[node name="TalentLibraryScroll" type="ScrollContainer" parent="Panel/VBox/MainHBox/RightColumn" unique_id=343276097]
-layout_mode = 2
-size_flags_vertical = 3
-horizontal_scroll_mode = 0
-
-[node name="TalentLibrary" type="VBoxContainer" parent="Panel/VBox/MainHBox/RightColumn/TalentLibraryScroll" unique_id=96764152]
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_constants/separation = 2
-
-[node name="BottomBar" type="HBoxContainer" parent="Panel/VBox" unique_id=290196604]
+[node name="BottomBar" type="HBoxContainer" parent="Panel/VBox" unique_id=1795169802]
 layout_mode = 2
 size_flags_horizontal = 4
 theme_override_constants/separation = 8
 alignment = 1
 
-[node name="StartBtn" type="Button" parent="Panel/VBox/BottomBar" unique_id=2089599722]
+[node name="StartBtn" type="Button" parent="Panel/VBox/BottomBar" unique_id=354568327]
 layout_mode = 2
 size_flags_horizontal = 4
 theme_override_font_sizes/font_size = 10
@@ -159,9 +109,9 @@ theme_override_styles/pressed = ExtResource("2_style")
 theme_override_styles/hover = ExtResource("2_style")
 theme_override_styles/disabled = ExtResource("2_style")
 theme_override_styles/focus = ExtResource("2_style")
-text = "开始战斗"
+text = "开始挑战"
 
-[node name="BackButton" type="Button" parent="Panel/VBox/BottomBar" unique_id=2064521209]
+[node name="BackButton" type="Button" parent="Panel/VBox/BottomBar" unique_id=664638350]
 layout_mode = 2
 size_flags_horizontal = 4
 theme_override_font_sizes/font_size = 10

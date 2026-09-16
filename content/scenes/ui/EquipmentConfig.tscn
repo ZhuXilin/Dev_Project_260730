@@ -116,6 +116,12 @@ layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 4
 
+[node name="RefineTabBtn" type="Button" parent="MainPanel/VBoxContainer/MainHBox/RightContainer/TabBar" unique_id=1672096031]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 8
+text = "精炼库"
+
 [node name="WeaponTabBtn" type="Button" parent="MainPanel/VBoxContainer/MainHBox/RightContainer/TabBar" unique_id=2012573030]
 layout_mode = 2
 size_flags_horizontal = 3

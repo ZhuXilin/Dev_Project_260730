@@ -15,6 +15,7 @@ const PATHS : Dictionary = {
 	"STORY_DATA":       "res://content/data/stories.json",
 	"TREASURE_REWARDS":     "res://content/data/treasure_rewards.json",
 	"ARENA_ENEMIES":   "res://content/data/arena_enemies.json",
+	"REFINE_RECIPES":    "res://content/data/refine_recipes.json",
 
 	# 配置资源
 	"MUSIC_CONFIG":     "res://content/scenes/levels/MusicConfig.tres",
@@ -50,8 +51,11 @@ const PATHS : Dictionary = {
 	"TREASURE_UI":          "res://content/scenes/ui/Treasure.tscn",
 	"ANVIL_TAVERN_UI":      "res://content/scenes/ui/AnvilTavern.tscn",
 	"SOUL_ALTAR_UI":        "res://content/scenes/ui/SoulAltar.tscn",
-	"ARENA_UI":        "res://content/scenes/ui/Arena.tscn",
-	"ARENA_BATTLE_UI": "res://content/scenes/ui/ArenaBattle.tscn",
+	"ARENA_UI":          "res://content/scenes/ui/Arena.tscn",
+	"ARENA_BATTLE_UI":   "res://content/scenes/ui/ArenaBattle.tscn",
+	"ARENA_RETREAT_UI":  "res://content/scenes/ui/ArenaRetreat.tscn",
+	"ARENA_SUMMARY_UI":  "res://content/scenes/ui/ArenaSummary.tscn",
+	"ARENA_SHOP_UI":     "res://content/scenes/ui/ArenaShop.tscn",
 
 	# 脚本
 	"DAMAGE_POPUP_SCRIPT":      "res://function/script/DamagePopup.gd",

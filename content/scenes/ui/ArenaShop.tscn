@@ -1,0 +1,214 @@
+[gd_scene format=3 uid="uid://dtq0vmu56e7vu"]
+
+[ext_resource type="Script" uid="uid://dcmwylbpqokmq" path="res://function/script/ArenaShop.gd" id="1_script"]
+[ext_resource type="StyleBox" uid="uid://6qbsaxkfwg3o" path="res://content/resource/stylebox/8bit_style_box_flat.tres" id="2_style"]
+
+[node name="ArenaShop" type="CanvasLayer" unique_id=864695926]
+layer = 28
+script = ExtResource("1_script")
+
+[node name="Background" type="ColorRect" parent="." unique_id=1426793687]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+color = Color(0, 0, 0, 1)
+
+[node name="MainPanel" type="Panel" parent="." unique_id=682568814]
+self_modulate = Color(1, 1, 1, 0)
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+
+[node name="VBoxContainer" type="VBoxContainer" parent="MainPanel" unique_id=953362371]
+layout_mode = 0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 8.0
+offset_top = 8.0
+offset_right = -8.0
+offset_bottom = -8.0
+theme_override_constants/separation = 4
+
+[node name="TopBar" type="HBoxContainer" parent="MainPanel/VBoxContainer" unique_id=114893310]
+custom_minimum_size = Vector2(0, 24)
+layout_mode = 2
+
+[node name="ModeLabel" type="Label" parent="MainPanel/VBoxContainer/TopBar" unique_id=1585049935]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 10
+text = "?????"
+horizontal_alignment = 1
+
+[node name="GoldLabel" type="Label" parent="MainPanel/VBoxContainer/TopBar" unique_id=1410467269]
+custom_minimum_size = Vector2(0, 16)
+layout_mode = 2
+theme_override_font_sizes/font_size = 8
+text = "??:0"
+horizontal_alignment = 1
+
+[node name="CrystalLabel" type="Label" parent="MainPanel/VBoxContainer/TopBar" unique_id=444432350]
+custom_minimum_size = Vector2(0, 16)
+layout_mode = 2
+theme_override_font_sizes/font_size = 8
+text = "??:0"
+horizontal_alignment = 1
+
+[node name="MainHBox" type="HBoxContainer" parent="MainPanel/VBoxContainer" unique_id=1461848155]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 8
+
+[node name="LeftInfoColumn" type="VBoxContainer" parent="MainPanel/VBoxContainer/MainHBox" unique_id=2065566236]
+custom_minimum_size = Vector2(100, 0)
+layout_mode = 2
+size_flags_horizontal = 0
+size_flags_vertical = 3
+theme_override_constants/separation = 4
+
+[node name="PassiveSection" type="VBoxContainer" parent="MainPanel/VBoxContainer/MainHBox/LeftInfoColumn" unique_id=1484596283]
+layout_mode = 2
+size_flags_vertical = 0
+theme_override_constants/separation = 2
+
+[node name="PassiveTitle" type="Label" parent="MainPanel/VBoxContainer/MainHBox/LeftInfoColumn/PassiveSection" unique_id=684037810]
+layout_mode = 2
+theme_override_font_sizes/font_size = 6
+text = "��� ?? / ?? ���"
+horizontal_alignment = 1
+
+[node name="PassiveContainer" type="HBoxContainer" parent="MainPanel/VBoxContainer/MainHBox/LeftInfoColumn/PassiveSection" unique_id=2002450114]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 2
+
+[node name="DetailZone" type="Panel" parent="MainPanel/VBoxContainer/MainHBox/LeftInfoColumn" unique_id=1377609420]
+layout_mode = 2
+size_flags_vertical = 3
+mouse_filter = 2
+theme_override_styles/panel = ExtResource("2_style")
+
+[node name="DetailLabel" type="Label" parent="MainPanel/VBoxContainer/MainHBox/LeftInfoColumn/DetailZone" unique_id=783217309]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 8.0
+offset_top = 8.0
+offset_right = -8.0
+offset_bottom = -7.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_font_sizes/font_size = 6
+text = "??????"
+autowrap_mode = 3
+
+[node name="LeftVBox" type="VBoxContainer" parent="MainPanel/VBoxContainer/MainHBox" unique_id=251519762]
+custom_minimum_size = Vector2(140, 0)
+layout_mode = 2
+
+[node name="UnitContainer" type="HBoxContainer" parent="MainPanel/VBoxContainer/MainHBox/LeftVBox" unique_id=1465748685]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+
+[node name="RightContainer" type="VBoxContainer" parent="MainPanel/VBoxContainer/MainHBox" unique_id=339004117]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+alignment = 1
+
+[node name="TabBar" type="HBoxContainer" parent="MainPanel/VBoxContainer/MainHBox/RightContainer" unique_id=576487732]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 4
+
+[node name="ShopTabBtn" type="Button" parent="MainPanel/VBoxContainer/MainHBox/RightContainer/TabBar" unique_id=2013764868]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 8
+theme_override_styles/normal = ExtResource("2_style")
+theme_override_styles/pressed = ExtResource("2_style")
+theme_override_styles/hover = ExtResource("2_style")
+theme_override_styles/disabled = ExtResource("2_style")
+theme_override_styles/focus = ExtResource("2_style")
+
+[node name="ForgeTabBtn" type="Button" parent="MainPanel/VBoxContainer/MainHBox/RightContainer/TabBar" unique_id=1271997823]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 8
+theme_override_styles/normal = ExtResource("2_style")
+theme_override_styles/pressed = ExtResource("2_style")
+theme_override_styles/hover = ExtResource("2_style")
+theme_override_styles/disabled = ExtResource("2_style")
+theme_override_styles/focus = ExtResource("2_style")
+
+[node name="TalentTabBtn" type="Button" parent="MainPanel/VBoxContainer/MainHBox/RightContainer/TabBar" unique_id=1270600155]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 8
+theme_override_styles/normal = ExtResource("2_style")
+theme_override_styles/pressed = ExtResource("2_style")
+theme_override_styles/hover = ExtResource("2_style")
+theme_override_styles/disabled = ExtResource("2_style")
+theme_override_styles/focus = ExtResource("2_style")
+
+[node name="ShopScroll" type="ScrollContainer" parent="MainPanel/VBoxContainer/MainHBox/RightContainer" unique_id=1663835012]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+
+[node name="ShopContainer" type="GridContainer" parent="MainPanel/VBoxContainer/MainHBox/RightContainer/ShopScroll" unique_id=200616226]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 0
+columns = 3
+
+[node name="BottomHBox" type="HBoxContainer" parent="MainPanel/VBoxContainer" unique_id=1413365279]
+custom_minimum_size = Vector2(0, 20)
+layout_mode = 2
+alignment = 1
+
+[node name="NextBattleLabel" type="Label" parent="MainPanel/VBoxContainer/BottomHBox" unique_id=1451444247]
+layout_mode = 2
+theme_override_font_sizes/font_size = 8
+text = "???:? 1 ?"
+
+[node name="Spacer" type="Control" parent="MainPanel/VBoxContainer/BottomHBox" unique_id=1416750483]
+custom_minimum_size = Vector2(16, 0)
+layout_mode = 2
+
+[node name="GoBtn" type="Button" parent="MainPanel/VBoxContainer/BottomHBox" unique_id=1232571689]
+layout_mode = 2
+theme_override_font_sizes/font_size = 8
+theme_override_styles/normal = ExtResource("2_style")
+theme_override_styles/pressed = ExtResource("2_style")
+theme_override_styles/hover = ExtResource("2_style")
+theme_override_styles/disabled = ExtResource("2_style")
+theme_override_styles/focus = ExtResource("2_style")
+
+[node name="RetreatBtn" type="Button" parent="MainPanel/VBoxContainer/BottomHBox" unique_id=1455067765]
+layout_mode = 2
+theme_override_font_sizes/font_size = 8
+theme_override_styles/normal = ExtResource("2_style")
+theme_override_styles/pressed = ExtResource("2_style")
+theme_override_styles/hover = ExtResource("2_style")
+theme_override_styles/disabled = ExtResource("2_style")
+theme_override_styles/focus = ExtResource("2_style")
+
+[node name="QuitBtn" type="Button" parent="MainPanel/VBoxContainer/BottomHBox" unique_id=1707670939]
+layout_mode = 2
+theme_override_font_sizes/font_size = 8
+theme_override_styles/normal = ExtResource("2_style")
+theme_override_styles/pressed = ExtResource("2_style")
+theme_override_styles/hover = ExtResource("2_style")
+theme_override_styles/disabled = ExtResource("2_style")
+theme_override_styles/focus = ExtResource("2_style")
+
+[connection signal="pressed" from="MainPanel/VBoxContainer/MainHBox/RightContainer/TabBar/ShopTabBtn" to="." method="_on_shop_tab_pressed"]
+[connection signal="pressed" from="MainPanel/VBoxContainer/MainHBox/RightContainer/TabBar/ForgeTabBtn" to="." method="_on_forge_tab_pressed"]
+[connection signal="pressed" from="MainPanel/VBoxContainer/MainHBox/RightContainer/TabBar/TalentTabBtn" to="." method="_on_talent_tab_pressed"]
+[connection signal="pressed" from="MainPanel/VBoxContainer/BottomHBox/GoBtn" to="." method="_on_go_pressed"]
+[connection signal="pressed" from="MainPanel/VBoxContainer/BottomHBox/RetreatBtn" to="." method="_on_retreat_pressed"]
+[connection signal="pressed" from="MainPanel/VBoxContainer/BottomHBox/QuitBtn" to="." method="_on_quit_pressed"]

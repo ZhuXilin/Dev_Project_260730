@@ -196,6 +196,11 @@ func trigger_event(event_id: String, unit: Unit = null, default_music: AudioStre
 						unlocked.append(u)
 				if unlocked.size() > 0:
 					show_unit_unlock_popup(unlocked)
+
+			"unlock_talent":
+				var talent_id = action.get("talent_id", "")
+				if talent_id != "":
+					Globals.unlock_talent(talent_id)
 			_:
 				push_error("未知动作类型: ", action_type)
 

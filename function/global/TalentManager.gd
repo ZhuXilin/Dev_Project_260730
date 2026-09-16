@@ -8,16 +8,13 @@ static var _talent_db: Dictionary = {}
 static var _talent_data_loaded: bool = false
 
 
-# ============================================================
-#  数据加载
-# ============================================================
 static func load_talent_data():
 	if _talent_data_loaded:
 		return
 	_talent_data_loaded = true
-	var path = "res://content/data/talents.json"
+	var path = Config.PATHS.TALENT_DATA
 	if not FileAccess.file_exists(path):
-		print("词条数据文件不存在: ", path)
+		push_error("词条数据文件不存在: ", path)
 		return
 
 	var file = FileAccess.open(path, FileAccess.READ)
@@ -41,6 +38,8 @@ static func load_talent_data():
 		talent.effect_params = dict.get("effect_params", {})
 		talent.icon_path = dict.get("icon", "")
 		talent.compatible_units = dict.get("compatible_units", [])
+		talent.unlock_type = dict.get("unlock_type", "default")
+		talent.soul_cost = int(dict.get("soul_cost", 0))
 		_talent_db[talent.id] = talent
 
 	print("成功加载 ", _talent_db.size(), " 个词条")
@@ -60,8 +59,57 @@ static func get_talents_by_school(school: String) -> Array[TalentData]:
 	return result
 
 
+static func get_all_talent_ids() -> Array:
+	load_talent_data()
+	var ids : Array = []
+	for key in _talent_db:
+		ids.append(key)
+	ids.sort()
+	return ids
+
+
 # ============================================================
-#  词条触发状态（战斗中）
+#  解锁查询
+# ============================================================
+static func get_default_unlocked_talents() -> Array:
+	load_talent_data()
+	var result : Array = []
+	for tid in _talent_db:
+		if _talent_db[tid].unlock_type == "default":
+			result.append(tid)
+	return result
+
+
+static func get_soul_unlockable_talents() -> Dictionary:
+	# 返回 { talent_id: soul_cost }
+	load_talent_data()
+	var result : Dictionary = {}
+	for tid in _talent_db:
+		if _talent_db[tid].unlock_type == "soul":
+			result[tid] = _talent_db[tid].soul_cost
+	return result
+
+
+static func get_story_locked_talents() -> Array:
+	load_talent_data()
+	var result : Array = []
+	for tid in _talent_db:
+		if _talent_db[tid].unlock_type == "story":
+			result.append(tid)
+	return result
+
+
+static func get_soul_cost(talent_id: String) -> int:
+	var data = get_talent_data(talent_id)
+	if not data:
+		return -1
+	if data.unlock_type != "soul":
+		return -1
+	return data.soul_cost
+
+
+# ============================================================
+#  战斗触发
 # ============================================================
 static func is_talent_ready(unit: Unit, talent_id: String) -> bool:
 	var inst = unit.get_talent_instance(talent_id)
@@ -94,26 +142,18 @@ static func is_talent_compatible_with_unit(talent_id: String, unit_name: String)
 
 
 # ============================================================
-#  斗技场：词条经验 / 等级（阶梯升级）
+#  斗技场：经验 / 等级（阶梯升级）
 # ============================================================
-## 累计经验阈值：索引 = 等级-1，值 = 该等级起始经验
-##   Lv1: [0, 100)      → 0-99
-##   Lv2: [100, 300)    → 100-299
-##   Lv3: [300, 600)    → 300-599
-##   MAX: [600, ∞)      → 600+
 const EXP_THRESHOLDS : Array = [0, 100, 300, 600]
-
 const MAX_TALENT_LEVEL : int = 3
 const MAX_TALENT_EXP : int = 600
 
 
-## 获取某单位某词条的当前累计经验
 static func get_talent_exp(unit_type: String, talent_id: String) -> int:
 	var unit_dict = GameState.talent_exp.get(unit_type, {})
 	return int(unit_dict.get(talent_id, 0))
 
 
-## 根据累计经验推导等级（1-3）
 static func get_talent_level(unit_type: String, talent_id: String) -> int:
 	var cur_exp = get_talent_exp(unit_type, talent_id)
 	if cur_exp >= 300:
@@ -123,7 +163,6 @@ static func get_talent_level(unit_type: String, talent_id: String) -> int:
 	return 1
 
 
-## 当前等级内的经验进度
 static func get_talent_exp_in_level(unit_type: String, talent_id: String) -> int:
 	var cur_exp = get_talent_exp(unit_type, talent_id)
 	if cur_exp >= 600:
@@ -135,7 +174,6 @@ static func get_talent_exp_in_level(unit_type: String, talent_id: String) -> int
 	return cur_exp
 
 
-## 当前等级升下一级所需经验
 static func get_level_required_exp(unit_type: String, talent_id: String) -> int:
 	var cur_exp = get_talent_exp(unit_type, talent_id)
 	if cur_exp >= 300:
@@ -145,22 +183,18 @@ static func get_level_required_exp(unit_type: String, talent_id: String) -> int:
 	return 100
 
 
-## 是否满级
 static func is_talent_max_level(unit_type: String, talent_id: String) -> bool:
 	return get_talent_exp(unit_type, talent_id) >= MAX_TALENT_EXP
 
 
-## 增加经验（返回实际增加量）
 static func add_talent_exp(unit_type: String, talent_id: String, amount: int) -> int:
 	if amount <= 0:
 		return 0
 	var old_exp = get_talent_exp(unit_type, talent_id)
 	var new_exp = mini(old_exp + amount, MAX_TALENT_EXP)
 	var actual = new_exp - old_exp
-
 	if actual <= 0:
 		return 0
-
 	if not GameState.talent_exp.has(unit_type):
 		GameState.talent_exp[unit_type] = {}
 	GameState.talent_exp[unit_type][talent_id] = new_exp

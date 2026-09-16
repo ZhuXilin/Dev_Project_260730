@@ -1,0 +1,94 @@
+[gd_scene format=3 uid="uid://6ti4qtv6s0sh"]
+
+[ext_resource type="Script" uid="uid://dxfygw0mmu8xi" path="res://function/script/ArenaRetreat.gd" id="1_script"]
+[ext_resource type="StyleBox" uid="uid://6qbsaxkfwg3o" path="res://content/resource/stylebox/8bit_style_box_flat.tres" id="2_style"]
+
+[node name="ArenaRetreat" type="CanvasLayer"]
+layer = 30
+script = ExtResource("1_script")
+
+[node name="Background" type="ColorRect" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.10980392, 0.10980392, 0.10980392, 1)
+
+[node name="Panel" type="Panel" parent="."]
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -184.0
+offset_top = -104.0
+offset_right = 184.0
+offset_bottom = 104.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_styles/panel = ExtResource("2_style")
+
+[node name="TitleLabel" type="Label" parent="Panel"]
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -60.0
+offset_top = 12.0
+offset_right = 60.0
+offset_bottom = 32.0
+grow_horizontal = 2
+theme_override_font_sizes/font_size = 12
+text = "撤离点"
+horizontal_alignment = 1
+
+[node name="InfoLabel" type="Label" parent="Panel"]
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -160.0
+offset_top = 44.0
+offset_right = 160.0
+offset_bottom = 118.0
+grow_horizontal = 2
+theme_override_font_sizes/font_size = 8
+horizontal_alignment = 1
+autowrap_mode = 3
+
+[node name="ButtonBar" type="HBoxContainer" parent="Panel"]
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -100.0
+offset_top = -80.0
+offset_right = 100.0
+offset_bottom = -56.0
+grow_horizontal = 2
+grow_vertical = 0
+theme_override_constants/separation = 40
+alignment = 1
+
+[node name="RetreatBtn" type="Button" parent="Panel/ButtonBar"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 10
+theme_override_styles/normal = ExtResource("2_style")
+theme_override_styles/pressed = ExtResource("2_style")
+theme_override_styles/hover = ExtResource("2_style")
+theme_override_styles/disabled = ExtResource("2_style")
+theme_override_styles/focus = ExtResource("2_style")
+text = "安全撤离"
+
+[node name="ChallengeBtn" type="Button" parent="Panel/ButtonBar"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 10
+theme_override_styles/normal = ExtResource("2_style")
+theme_override_styles/pressed = ExtResource("2_style")
+theme_override_styles/hover = ExtResource("2_style")
+theme_override_styles/disabled = ExtResource("2_style")
+theme_override_styles/focus = ExtResource("2_style")
+text = "挑战"
+
+[connection signal="pressed" from="Panel/ButtonBar/RetreatBtn" to="." method="_on_retreat_pressed"]
+[connection signal="pressed" from="Panel/ButtonBar/ChallengeBtn" to="." method="_on_challenge_pressed"]

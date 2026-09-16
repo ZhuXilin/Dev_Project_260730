@@ -2,6 +2,12 @@
 extends Resource
 class_name UnitData
 
+# ---- 战斗 Buff（临时，不入档） ----
+var buff_attack_percent : float = 0.0
+var buff_crit_damage_bonus : float = 0.0
+var buff_defense_flat : int = 0
+var buff_damage_reduction : float = 0.0
+
 @export var unit_name: String = "战士"
 @export var display_name: String = ""
 @export var faction: String = ""

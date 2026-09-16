@@ -8,7 +8,8 @@
 	"accumulation_threshold": 3,
 	"effect_type": "attack",
 	"effect_params": { "damage_multiplier": 2.0 },
-	"compatible_units": ["swordsman", "archer", "pegasus", "axeman"]
+	"compatible_units": ["swordsman", "archer", "pegasus", "axeman"],
+	"unlock_type": "default"
   },
   "double_attack": {
 	"id": "double_attack",
@@ -19,7 +20,8 @@
 	"accumulation_threshold": 2,
 	"effect_type": "attack",
 	"effect_params": { "extra_attack_multiplier": 0.8 },
-	"compatible_units": ["swordsman", "archer", "pegasus", "spearman"]
+	"compatible_units": ["swordsman", "archer", "pegasus", "spearman"],
+	"unlock_type": "default"
   },
   "parry": {
 	"id": "parry",
@@ -30,7 +32,8 @@
 	"accumulation_threshold": 2,
 	"effect_type": "defense",
 	"effect_params": { "reflect_multiplier": 0.5 },
-	"compatible_units": ["swordsman", "dragonborn", "armored"]
+	"compatible_units": ["swordsman", "dragonborn", "armored"],
+	"unlock_type": "default"
   },
   "block": {
 	"id": "block",
@@ -41,7 +44,8 @@
 	"accumulation_threshold": 2,
 	"effect_type": "defense",
 	"effect_params": { "damage_reduction": 0.5 },
-	"compatible_units": ["axeman", "dragonborn", "armored"]
+	"compatible_units": ["axeman", "dragonborn", "armored"],
+	"unlock_type": "default"
   },
   "bleed": {
 	"id": "bleed",
@@ -52,7 +56,9 @@
 	"accumulation_threshold": 1,
 	"effect_type": "attack",
 	"effect_params": { "max_stacks": 5, "damage_percent": 0.15 },
-	"compatible_units": ["swordsman", "axeman", "archer"]
+	"compatible_units": ["swordsman", "axeman", "archer"],
+	"unlock_type": "soul",
+	"soul_cost": 30
   },
   "spell_chain": {
 	"id": "spell_chain",
@@ -63,7 +69,8 @@
 	"accumulation_threshold": 3,
 	"effect_type": "magic",
 	"effect_params": { "extra_cast_multiplier": 0.8 },
-	"compatible_units": ["mage", "cleric"]
+	"compatible_units": ["mage", "cleric"],
+	"unlock_type": "story"
   },
   "heal_boost": {
 	"id": "heal_boost",
@@ -74,7 +81,9 @@
 	"accumulation_threshold": 2,
 	"effect_type": "heal",
 	"effect_params": { "heal_multiplier": 1.3 },
-	"compatible_units": ["cleric"]
+	"compatible_units": ["cleric"],
+	"unlock_type": "soul",
+	"soul_cost": 30
   },
   "counter_boost": {
 	"id": "counter_boost",
@@ -85,6 +94,8 @@
 	"accumulation_threshold": 2,
 	"effect_type": "defense",
 	"effect_params": { "counter_multiplier": 1.5 },
-	"compatible_units": ["spearman", "dragonborn", "armored"]
+	"compatible_units": ["spearman", "dragonborn", "armored"],
+	"unlock_type": "soul",
+	"soul_cost": 30
   }
 }

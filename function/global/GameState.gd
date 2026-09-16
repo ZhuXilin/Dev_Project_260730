@@ -168,9 +168,32 @@ var arena_target_talents : Dictionary:
 	get: return resource_state.arena_target_talents
 	set(value): resource_state.arena_target_talents = value
 
+# ============================================================
+#  斗技场统计
+# ============================================================
 var arena_best_streak : int:
 	get: return resource_state.arena_best_streak
 	set(value): resource_state.arena_best_streak = value
+
+var arena_clear_count : int:
+	get: return resource_state.arena_clear_count
+	set(value): resource_state.arena_clear_count = value
+
+var arena_survival_clear : int:
+	get: return resource_state.arena_survival_clear
+	set(value): resource_state.arena_survival_clear = value
+
+var arena_survival_best : int:
+	get: return resource_state.arena_survival_best
+	set(value): resource_state.arena_survival_best = value
+
+var arena_total_crystals : int:
+	get: return resource_state.arena_total_crystals
+	set(value): resource_state.arena_total_crystals = value
+
+var arena_total_runs : int:
+	get: return resource_state.arena_total_runs
+	set(value): resource_state.arena_total_runs = value
 
 # ============================================================
 #  非转发字段（不属于任何 state）

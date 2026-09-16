@@ -1,4 +1,3 @@
-# TalentData.gd
 extends Resource
 class_name TalentData
 
@@ -12,3 +11,7 @@ class_name TalentData
 @export var effect_params: Dictionary = {}
 @export var icon_path: String = ""
 @export var compatible_units: Array = []
+
+# ---- 解锁信息 ----
+@export var unlock_type: String = "default"   # default / soul / story
+@export var soul_cost: int = 0                # 仅 unlock_type=soul 时有效

@@ -34,8 +34,15 @@ var talent_exp : Dictionary = {}
 # ---- 斗技场目标词条（每个单位一个） ----
 var arena_target_talents : Dictionary = {}
 
-# ---- 斗技场最高连胜 ----
+# ============================================================
+#  斗技场统计
+# ============================================================
 var arena_best_streak : int = 0
+var arena_clear_count : int = 0
+var arena_survival_clear : int = 0
+var arena_survival_best : int = 0
+var arena_total_crystals : int = 0
+var arena_total_runs : int = 0
 
 # ============================================================
 #  本轮基线（用于结算显示）

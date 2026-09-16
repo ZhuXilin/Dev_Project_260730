@@ -8,6 +8,10 @@
 
 config_version=5
 
+[gui]
+
+theme/custom_font="res://content/resource/font/game_font.ttf"
+
 [application]
 
 config/name="Dev Project 260730"
@@ -17,15 +21,15 @@ config/features=PackedStringArray("4.7", "GL Compatibility")
 
 [autoload]
 
-Logger="*res://function/global/Logger.gd"
 Config="*res://function/global/Config.gd"
 Globals="*res://function/global/Globals.gd"
 SignalBus="*res://function/global/SignalBus.gd"
 ItemManager="*res://function/global/ItemManager.gd"
 RelicManager="*res://function/global/RelicManager.gd"
-TerrainManager="*res://function/global/TerrainManager.gd"
+RefineManager="*res://function/global/RefineManager.gd"
 RecipeManager="*res://function/global/RecipeManager.gd"
-StoryManager="*uid://dy8wbj1wdbrvb"
+StoryManager="*res://function/global/StoryManager.gd"
+TerrainManager="*res://function/global/TerrainManager.gd"
 UnitManager="*res://function/global/UnitManager.gd"
 TurnManager="*res://function/global/TurnManager.gd"
 CombatManager="*res://function/global/CombatManager.gd"

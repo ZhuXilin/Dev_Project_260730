@@ -54,6 +54,22 @@ layout_mode = 2
 theme_override_font_sizes/font_size = 10
 text = "魂: 0"
 
+[node name="TabBar" type="HBoxContainer" parent="Panel/VBox" unique_id=1536596371]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="AttrTabBtn" type="Button" parent="Panel/VBox/TabBar" unique_id=1256886633]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 8
+text = "加点"
+
+[node name="TalentTabBtn" type="Button" parent="Panel/VBox/TabBar" unique_id=922914872]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 8
+text = "特技"
+
 [node name="MainHBox" type="HBoxContainer" parent="Panel/VBox" unique_id=1885705594]
 layout_mode = 2
 size_flags_vertical = 3
@@ -146,5 +162,7 @@ theme_override_styles/disabled = ExtResource("2")
 theme_override_styles/focus = ExtResource("2")
 text = "返回"
 
+[connection signal="pressed" from="Panel/VBox/TabBar/AttrTabBtn" to="." method="_on_attr_tab_pressed"]
+[connection signal="pressed" from="Panel/VBox/TabBar/TalentTabBtn" to="." method="_on_talent_tab_pressed"]
 [connection signal="pressed" from="Panel/VBox/MainHBox/InfoPanel/BottomBar/ResetBtn" to="." method="_on_reset_pressed"]
 [connection signal="pressed" from="Panel/VBox/BackButton" to="." method="_on_back_pressed"]
