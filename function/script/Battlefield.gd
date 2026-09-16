@@ -2436,41 +2436,83 @@ func _is_any_ui_active() -> bool:
 func _on_back_camp_pressed():
 	GameState.show_abandon_confirmation(self)
 
+# ============================================================
+#  战斗开始：精炼品消耗 + 遗物属性应用
+#  调用时机：_ready() 末尾（单位已全部生成）
+# ============================================================
 func _apply_team_buffs():
-	var passives = GameState.get_passives()
-	var attack_pct := 0.0
-	var crit_bonus := 0.0
-	var defense_flat := 0
-	var dmg_reduction := 0.0
-
-	for p in passives:
-		if p == null or not (p is Dictionary):
-			continue
-		var refine_id = p.get("refine_id", "")
-		if refine_id == "":
+	# ---- 1. 汇总精炼品 buff ----
+	var buffs = {
+		"attack_percent": 0.0,
+		"crit_damage_bonus": 0.0,
+		"defense_flat": 0,
+		"damage_reduction": 0.0,
+		"heal_full": false,
+	}
+	for refine_id in GameState.refined_items.keys():
+		var count = int(GameState.refined_items[refine_id])
+		if count <= 0:
 			continue
 		var effect = RefineManager.get_effect(refine_id)
 		if effect.is_empty():
 			continue
+		var value = effect.get("value", 0)
 		match effect.get("type", ""):
 			"attack_percent":
-				attack_pct += effect.get("value", 0.0)
+				buffs["attack_percent"] += value * count
 			"crit_damage_bonus":
-				crit_bonus += effect.get("value", 0.0)
+				buffs["crit_damage_bonus"] += value * count
 			"defense_flat":
-				defense_flat += int(effect.get("value", 0))
+				buffs["defense_flat"] += int(value) * count
 			"damage_reduction":
-				dmg_reduction += effect.get("value", 0.0)
+				buffs["damage_reduction"] += value * count
 			"heal_full":
-				for unit in UnitManager.unit_list:
-					if unit.unit_stats.team_id == 0:
-						unit.hit_points = unit.unit_stats.max_hp
-						unit.update_hp_label()
+				buffs["heal_full"] = true
 
+	# ---- 2. 清空精炼品（本场消耗） ----
+	GameState.refined_items.clear()
+
+	# ---- 3. 遗物全队加成 ----
+	var relic_stats = GameState.get_global_relic_stats()
+
+	# ---- 4. 应用到所有玩家单位 ----
 	for unit in UnitManager.unit_list:
 		if unit.unit_stats.team_id != 0:
 			continue
-		unit.buff_attack_percent = attack_pct
-		unit.buff_crit_damage_bonus = crit_bonus
-		unit.buff_defense_flat = defense_flat
-		unit.buff_damage_reduction = dmg_reduction
+		var s = unit.unit_stats
+
+		# 精炼品 buff（战斗临时，入 unit_stats）
+		s.buff_attack_percent += buffs["attack_percent"]
+		s.buff_crit_damage_bonus += buffs["crit_damage_bonus"]
+		s.buff_defense_flat += int(buffs["defense_flat"])
+		s.buff_damage_reduction += buffs["damage_reduction"]
+
+		# 遗物属性（数值型加成直接叠到基础属性）
+		var old_max = s.max_hp
+		s.max_hp       += int(relic_stats.get("max_hp", 0))
+		s.strength     += int(relic_stats.get("strength", 0))
+		s.dexterity    += int(relic_stats.get("dexterity", 0))
+		s.intelligence += int(relic_stats.get("intelligence", 0))
+		s.faith        += int(relic_stats.get("faith", 0))
+		s.arcane       += int(relic_stats.get("arcane", 0))
+		s.move_range   += int(relic_stats.get("move_range", 0))
+		# 遗物的"攻击/防御"直接记 flat buff，避免和武器防御混淆
+		s.buff_attack_flat += int(relic_stats.get("attack", 0))
+		s.buff_defense_flat += int(relic_stats.get("defense", 0))
+
+		# max_hp 提升 → 当前 HP 同步补上（相当于永久 +max_hp 也加当前值）
+		var hp_delta = s.max_hp - old_max
+		if hp_delta > 0:
+			unit.hit_points += hp_delta
+		if unit.hit_points > s.max_hp:
+			unit.hit_points = s.max_hp
+		SignalBus.request_show_info.emit(unit)
+
+	# ---- 5. 龙血药剂：立即回满全队 ----
+	if buffs["heal_full"]:
+		for unit in UnitManager.unit_list:
+			if unit.unit_stats.team_id == 0:
+				unit.hit_points = unit.unit_stats.max_hp
+				SignalBus.request_show_info.emit(unit)
+
+	print("[Battlefield] 战斗 buff 已应用 | 精炼：", buffs, " 遗物：", relic_stats)

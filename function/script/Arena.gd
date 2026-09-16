@@ -539,18 +539,6 @@ func _show_summary(success: bool, reason: String):
 	# ---- 不再 queue_free，回到初始界面 ----
 	_return_to_idle()
 
-
-# ============================================================
-#  返回初始界面（不退出竞技场）
-# ============================================================
-func _return_to_idle():
-	_phase = Phase.IDLE
-	_current_player_data = null
-	MusicManager.play_arena_music()
-	_build_unit_list()          # 内部会默认选第一个单位
-	_refresh_center_panel()
-	_refresh_streak_label()
-
 # ============================================================
 #  返回初始界面（不退出竞技场）
 # ============================================================

@@ -41,7 +41,7 @@ func _ready():
 	if go_btn:         go_btn.text = "出发"
 	if retreat_btn:    retreat_btn.text = "撤离"
 	if quit_btn:       quit_btn.text = "放弃"
-	detail_label.text = "选中物品详情"        # ← 新增
+	detail_label.text = "选中物品详情"
 
 func setup(state: Dictionary):
 	_state = state
@@ -392,8 +392,22 @@ func _add_shop_label(text: String):
 # ============================================================
 func _roll_shop_items():
 	_shop_items.clear()
+
+	# ---- 收集已拥有的装备 ----
+	var owned := {}
+	if _state.player_data.weapon_slot:
+		owned[_state.player_data.weapon_slot.item_id] = true
+	for slot in _state.player_data.armor_slots:
+		if slot:
+			owned[slot.item_id] = true
+	for inst in _state.armory:
+		if inst:
+			owned[inst.item_id] = true
+
 	var pool : Array = []
-	for item_id in ItemManager.get_all_item_ids():
+	for item_id in Globals.unlocked_items:
+		if owned.has(item_id):
+			continue
 		var data = ItemManager.get_item_data(item_id)
 		if data and data.type in ["weapon", "armor"] and data.price > 0:
 			pool.append({"item_data": data, "price": data.price})
@@ -402,7 +416,6 @@ func _roll_shop_items():
 		_shop_items.append(pool[i])
 	while _shop_items.size() < SHOP_SIZE:
 		_shop_items.append(null)
-
 
 func _on_refresh_shop():
 	var cost = 0 if not _shop_refreshed else REFRESH_COST

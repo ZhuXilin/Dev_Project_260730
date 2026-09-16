@@ -4,6 +4,7 @@ class_name UnitData
 
 # ---- 战斗 Buff（临时，不入档） ----
 var buff_attack_percent : float = 0.0
+var buff_attack_flat : int = 0
 var buff_crit_damage_bonus : float = 0.0
 var buff_defense_flat : int = 0
 var buff_damage_reduction : float = 0.0

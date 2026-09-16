@@ -388,6 +388,57 @@ func get_passives() -> Array:
 			result.append({"refine_id": refine_id})
 	return result
 
+# ============================================================
+#  精炼品：战斗开始消耗并返回 buff 值
+# ============================================================
+func consume_refined_buffs_for_battle() -> Dictionary:
+	var result = {
+		"attack_percent": 0.0,
+		"crit_damage_bonus": 0.0,
+		"defense_flat": 0,
+		"damage_reduction": 0.0,
+	}
+	for refine_id in refined_items.keys():
+		var count = int(refined_items[refine_id])
+		if count <= 0:
+			continue
+		var recipe = RefineManager.get_recipe(refine_id)
+		var effect = recipe.get("effect", {})
+		var etype = effect.get("type", "")
+		var value = effect.get("value", 0)
+		if etype == "heal_full":
+			continue          # 立即恢复，由调用方处理
+		if result.has(etype):
+			result[etype] += value * count
+	refined_items.clear()
+	return result
+
+
+# ---- 把精炼 buff 应用到战斗单位 ----
+func apply_refined_buffs_to_unit(unit_data: UnitData, buffs: Dictionary):
+	unit_data.buff_attack_percent += buffs.get("attack_percent", 0.0)
+	unit_data.buff_crit_damage_bonus += buffs.get("crit_damage_bonus", 0.0)
+	unit_data.buff_defense_flat += int(buffs.get("defense_flat", 0))
+	unit_data.buff_damage_reduction += buffs.get("damage_reduction", 0.0)
+
+# ============================================================
+#  遗物：把全队加成应用到单个战斗单位
+# ============================================================
+func apply_relic_stats_to_unit(unit_data: UnitData):
+	var stats = get_global_relic_stats()
+	if stats.is_empty():
+		return
+	unit_data.max_hp += int(stats.get("max_hp", 0))
+	unit_data.strength += int(stats.get("strength", 0))
+	unit_data.dexterity += int(stats.get("dexterity", 0))
+	unit_data.intelligence += int(stats.get("intelligence", 0))
+	unit_data.faith += int(stats.get("faith", 0))
+	unit_data.arcane += int(stats.get("arcane", 0))
+	unit_data.move_range += int(stats.get("move_range", 0))
+	# 战斗临时字段
+	unit_data.buff_attack_flat += int(stats.get("attack", 0))
+	unit_data.buff_defense_flat += int(stats.get("defense", 0))
+
 func abandon_and_return_to_camp():
 	await Globals.show_cycle_reward()
 	finish_day()
