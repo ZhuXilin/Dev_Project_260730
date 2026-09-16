@@ -48,6 +48,7 @@ var _locked_talent_id : String = ""
 var _streak_active : bool = false
 var _run_best_streak : int = 0
 var _run_total_crystals : int = 0
+var _active_refines : Array = []
 
 # ============================================================
 #  节点引用
@@ -59,13 +60,11 @@ var _run_total_crystals : int = 0
 @onready var start_btn : Button = $Panel/VBox/BottomBar/StartBtn
 @onready var back_btn : Button = $Panel/VBox/BottomBar/BackButton
 
-
 func _ready():
 	MusicManager.play_arena_music()
 	_build_unit_list()
 	_refresh_center_panel()
 	_refresh_streak_label()
-
 
 # ============================================================
 #  单位选择
@@ -108,7 +107,6 @@ func _build_unit_list():
 	if unlocked_list.size() > 0:
 		_on_unit_selected(unlocked_list[0])
 
-
 func _on_unit_selected(unit_type: String):
 	if _phase != Phase.IDLE:
 		return
@@ -122,7 +120,6 @@ func _on_unit_selected(unit_type: String):
 			child.modulate = Color.WHITE if ut == unit_type else Color(0.6, 0.6, 0.6, 1)
 
 	_refresh_center_panel()
-
 
 # ============================================================
 #  显示刷新
@@ -149,7 +146,6 @@ func _refresh_center_panel():
 	else:
 		info_label.text = "目标词条：未设置（可在商店配置）"
 
-
 func _refresh_streak_label():
 	var best = GameState.arena_best_streak
 	if _phase == Phase.IDLE:
@@ -158,7 +154,6 @@ func _refresh_streak_label():
 		streak_label.text = "生存：%d / %d" % [_survival_round, SURVIVAL_ROUNDS]
 	else:
 		streak_label.text = "进度：%d / %d" % [_streak, CLEAR_TARGET]
-
 
 # ============================================================
 #  开始
@@ -180,7 +175,6 @@ func _on_start_pressed():
 	_init_arena_state()
 	_run_battle_loop()
 
-
 func _on_back_pressed():
 	if _phase != Phase.IDLE:
 		_show_hint("挑战中无法退出")
@@ -189,7 +183,6 @@ func _on_back_pressed():
 		MusicManager.play_music(MusicManager.config.camp_music)
 	closed.emit()
 	queue_free()
-
 
 func _init_arena_state():
 	_phase = Phase.NORMAL
@@ -203,13 +196,18 @@ func _init_arena_state():
 	_streak_active = false
 	_run_best_streak = 0
 	_run_total_crystals = 0
+	_active_refines.clear()
 
+	_current_player_data.reset_combat_buffs()
 	_current_player_data.hit_points = _current_player_data.max_hp
 	_current_player_data.max_armor_slots = _arena_armor_slots
 	_current_player_data.armor_slots = []
 	for i in range(_arena_armor_slots):
 		_current_player_data.armor_slots.append(null)
 
+	# 遗物属性只应用一次
+	GameState.apply_relic_stats_to_unit(_current_player_data)
+	_current_player_data.hit_points = _current_player_data.max_hp
 
 # ============================================================
 #  主循环
@@ -226,7 +224,6 @@ func _run_battle_loop():
 			_show_summary(true, "撤离")
 			return
 
-		# 战斗
 		var winner = await _do_one_battle()
 		if winner != 0:
 			_show_summary(false, "失败")
@@ -258,7 +255,6 @@ func _run_battle_loop():
 
 		SaveManager.auto_save()
 
-
 # ============================================================
 #  商店
 # ============================================================
@@ -289,6 +285,7 @@ func _show_shop() -> String:
 		"can_retreat": can_retreat,
 		"next_battle_index": _streak + 1,
 		"is_survival": _phase == Phase.SURVIVAL,
+		"active_refines": _active_refines.duplicate(),
 	})
 
 	var result = await shop.closed
@@ -298,6 +295,7 @@ func _show_shop() -> String:
 	_arena_armory = result.get("armory", _arena_armory)
 	_arena_weapon_upgrade_tokens = result.get("weapon_upgrade_tokens", _arena_weapon_upgrade_tokens)
 	_locked_talent_id = result.get("locked_talent_id", _locked_talent_id)
+	_active_refines = result.get("active_refines", _active_refines)
 
 	if _locked_talent_id != "" and _current_player_data:
 		GameState.arena_target_talents[_current_player_data.unit_name] = _locked_talent_id
@@ -305,11 +303,13 @@ func _show_shop() -> String:
 	shop.queue_free()
 	return result.get("action", "quit")
 
-
 # ============================================================
 #  单场战斗
 # ============================================================
 func _do_one_battle() -> int:
+	# 消耗精炼品
+	_consume_refines_for_battle()
+
 	var enemy_type = _roll_enemy()
 	if enemy_type == "":
 		push_error("敌人池为空")
@@ -344,13 +344,50 @@ func _do_one_battle() -> int:
 			TalentManager.add_talent_exp(_current_player_data.unit_name, _locked_talent_id, exp_gain)
 
 		_current_player_data.hit_points = result.get("remaining_hp", _current_player_data.hit_points)
+		_streak_active = true
 		SaveManager.auto_save()
 		return 0
 	else:
 		_arena_crystals = int(_arena_crystals * _get_failure_retention())
 		return 1
 
+# ============================================================
+#  精炼品消耗
+# ============================================================
+func _consume_refines_for_battle():
+	if _active_refines.is_empty() or not _current_player_data:
+		return
 
+	var consumed : Array = []
+	for refine_id in _active_refines:
+		var stock = int(GameState.refined_items.get(refine_id, 0))
+		if stock <= 0:
+			continue
+		var effect = RefineManager.get_effect(refine_id)
+		if effect.is_empty():
+			continue
+		var value = effect.get("value", 0)
+		match effect.get("type", ""):
+			"attack_percent":
+				_current_player_data.buff_attack_percent += value
+			"crit_damage_bonus":
+				_current_player_data.buff_crit_damage_bonus += value
+			"defense_flat":
+				_current_player_data.buff_defense_flat += int(value)
+			"damage_reduction":
+				_current_player_data.buff_damage_reduction += value
+			"heal_full":
+				_current_player_data.hit_points = _current_player_data.max_hp
+		GameState.refined_items[refine_id] = stock - 1
+		consumed.append(refine_id)
+		print("[Arena] 消耗精炼品: ", refine_id)
+
+	_active_refines.clear()
+	SaveManager.auto_save()
+
+# ============================================================
+#  奖励 / 进度
+# ============================================================
 func _grant_progress_rewards():
 	if _phase != Phase.NORMAL:
 		return
@@ -369,7 +406,6 @@ func _grant_progress_rewards():
 	elif _streak == 10:
 		_arena_weapon_upgrade_tokens += 1
 
-
 func _get_failure_retention() -> float:
 	if _phase == Phase.SURVIVAL:
 		return RETENTION_SURVIVAL
@@ -381,13 +417,11 @@ func _get_failure_retention() -> float:
 		return RETENTION_6_9
 	return RETENTION_10
 
-
 func _is_elite_battle() -> bool:
 	return _phase == Phase.NORMAL and _streak == 4
 
 func _is_boss_battle() -> bool:
 	return _phase == Phase.NORMAL and _streak == 9
-
 
 func _calc_battle_rewards() -> Dictionary:
 	if _phase == Phase.SURVIVAL:
@@ -399,7 +433,6 @@ func _calc_battle_rewards() -> Dictionary:
 		return {"crystal": CRYSTAL_BOSS, "gold": GOLD_BOSS}
 	return {"crystal": CRYSTAL_NORMAL, "gold": GOLD_NORMAL}
 
-
 func _calc_exp_gain(enemy_type: String) -> int:
 	var base = _get_enemy_arena_exp(enemy_type)
 	if _phase == Phase.SURVIVAL:
@@ -409,7 +442,6 @@ func _calc_exp_gain(enemy_type: String) -> int:
 	if _is_boss_battle():
 		return int(base * 2.0)
 	return base
-
 
 # ============================================================
 #  敌人
@@ -440,7 +472,6 @@ func _roll_enemy() -> String:
 		return ""
 	return pool[randi() % pool.size()]
 
-
 func _apply_enemy_scaling(enemy_data: UnitData):
 	var mult = 1.0
 	if _phase == Phase.SURVIVAL:
@@ -453,11 +484,9 @@ func _apply_enemy_scaling(enemy_data: UnitData):
 	enemy_data.strength = int(enemy_data.strength * mult)
 	enemy_data.dexterity = int(enemy_data.dexterity * mult)
 
-
 func _get_enemy_arena_exp(enemy_type: String) -> int:
 	var unit_dict = UnitDataManager.get_unit_data(enemy_type)
 	return int(unit_dict.get("arena_exp", 30))
-
 
 # ============================================================
 #  通关面板
@@ -487,18 +516,10 @@ func _show_clear_panel() -> String:
 	await get_tree().process_frame
 	return holder["value"]
 
-
-# ============================================================
-#  结算
-# ============================================================
-# ============================================================
-#  结算
-# ============================================================
 # ============================================================
 #  结算
 # ============================================================
 func _show_summary(success: bool, reason: String):
-	# ---- 结算音乐（撤离/放弃场景也覆盖） ----
 	if success:
 		MusicManager.play_victory_music()
 	else:
@@ -536,17 +557,14 @@ func _show_summary(success: bool, reason: String):
 	})
 	await summary.closed
 
-	# ---- 不再 queue_free，回到初始界面 ----
 	_return_to_idle()
 
-# ============================================================
-#  返回初始界面（不退出竞技场）
-# ============================================================
 func _return_to_idle():
 	_phase = Phase.IDLE
 	_current_player_data = null
+	_active_refines.clear()
 	MusicManager.play_arena_music()
-	_build_unit_list()          # 内部会默认选第一个单位
+	_build_unit_list()
 	_refresh_center_panel()
 	_refresh_streak_label()
 

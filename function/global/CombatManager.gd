@@ -111,8 +111,9 @@ func calculate_damage(attacker: Unit, defender: Unit) -> int:
 			"arcane": val = attacker.unit_stats.arcane
 		atk_bonus += val * modifier[attr]
 
-	var total_attack = base_attack + atk_bonus + attacker.unit_stats.buff_attack_flat
-	total_attack *= (1.0 + attacker.unit_stats.buff_attack_percent)   # ← 加这行
+	# ★ 读 Unit 上的 buff
+	var total_attack = base_attack + atk_bonus + attacker.buff_attack_flat
+	total_attack *= (1.0 + attacker.buff_attack_percent)
 
 	var armor_defense = 0
 	for slot in defender.armor_slots:
@@ -122,12 +123,12 @@ func calculate_damage(attacker: Unit, defender: Unit) -> int:
 				var armor_quality_mult = QUALITY_MULT.get(item_data.quality, 1.0)
 				armor_defense += item_data.defense * armor_quality_mult
 	var def_value = defender.unit_stats.strength * STRENGTH_DEF_FACTOR + armor_defense
-	def_value += defender.unit_stats.buff_defense_flat                      # ← 加这行
+	def_value += defender.buff_defense_flat              # ★ 读 Unit
 
 	var damage = max(1, int(total_attack - def_value))
 
-	if defender.unit_stats.buff_damage_reduction > 0:                       # ← 加这 2 行
-		damage = max(1, int(damage * (1.0 - defender.unit_stats.buff_damage_reduction)))
+	if defender.buff_damage_reduction > 0:               # ★ 读 Unit
+		damage = max(1, int(damage * (1.0 - defender.buff_damage_reduction)))
 
 	return damage
 
@@ -291,7 +292,7 @@ func _apply_damage_with_effects(defender: Unit, damage: int, attacker: Unit) -> 
 	if TalentManager.is_talent_ready(attacker, "crit"):
 		var level = _get_effective_talent_level(attacker, "crit")
 		var crit_mult = 2.0 + (level - 1) * 0.5
-		crit_mult += attacker.unit_stats.buff_crit_damage_bonus   # ← 加这行
+		crit_mult += attacker.buff_crit_damage_bonus        # ★ 读 Unit
 		damage = int(damage * crit_mult)
 		print("暴击触发！Lv.%d 倍率 %.1f" % [level, crit_mult])
 		TalentManager.reset_talent(attacker, "crit")

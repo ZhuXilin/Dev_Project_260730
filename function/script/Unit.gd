@@ -27,6 +27,7 @@ var buff_attack_percent : float = 0.0
 var buff_crit_damage_bonus : float = 0.0
 var buff_defense_flat : int = 0
 var buff_damage_reduction : float = 0.0
+var buff_attack_flat : int = 0
 
 # ---- 装备 ----
 var weapon_slot: ItemInstance = null          # 武器实例
@@ -77,6 +78,8 @@ func setup_unit(stats_data: UnitData, start_cell: Vector2i, initial_items: Array
 	if not animated_sprite:
 		push_error("Unit %s: 缺少 AnimatedSprite2D 节点！" % stats_data.unit_name)
 		return
+
+	reset_combat_buffs()
 
 	unit_stats = stats_data
 	grid_cell = start_cell
@@ -325,6 +328,8 @@ func serialize_inventory() -> Array[Dictionary]:
 func restore_from_unit_data(data: UnitData, cell: Vector2i):
 	print("restore_from_unit_data: 单位 ", data.unit_name, " 武器: ", data.weapon_slot.item_id if data.weapon_slot else "无")
 	
+	reset_combat_buffs()
+
 	unit_stats = data
 	grid_cell = cell
 	previous_grid_cell = cell
@@ -565,7 +570,7 @@ func update_hp_label():
 		hp_label.text = str(hit_points) + "/" + str(unit_stats.max_hp)
 
 func update_name_label():
-	var na_label = $NameLabel
+	var na_label = $name_label
 	if na_label:
 		# ---- 获取中文显示名 ----
 		var display = unit_stats.display_name if unit_stats.display_name != "" else unit_stats.unit_name
@@ -704,3 +709,10 @@ func equip_talent_to_slot(slot_index: int, talent_id: String) -> bool:
 
 func get_talent_slots() -> Array[TalentInstance]:
 	return talent_slots
+
+func reset_combat_buffs():
+	buff_attack_percent = 0.0
+	buff_crit_damage_bonus = 0.0
+	buff_defense_flat = 0
+	buff_damage_reduction = 0.0
+	buff_attack_flat = 0

@@ -2469,25 +2469,25 @@ func _apply_team_buffs():
 			"heal_full":
 				buffs["heal_full"] = true
 
-	# ---- 2. 清空精炼品（本场消耗） ----
+	# ---- 2. 消耗精炼品 ----
 	GameState.refined_items.clear()
 
-	# ---- 3. 遗物全队加成 ----
+	# ---- 3. 遗物加成 ----
 	var relic_stats = GameState.get_global_relic_stats()
 
-	# ---- 4. 应用到所有玩家单位 ----
+	# ---- 4. 应用到玩家单位 ----
 	for unit in UnitManager.unit_list:
 		if unit.unit_stats.team_id != 0:
 			continue
+
+		# ★ 精炼 buff 写 Unit
+		unit.buff_attack_percent += buffs["attack_percent"]
+		unit.buff_crit_damage_bonus += buffs["crit_damage_bonus"]
+		unit.buff_defense_flat += int(buffs["defense_flat"])
+		unit.buff_damage_reduction += buffs["damage_reduction"]
+
+		# 遗物属性：基础属性叠到 unit_stats，数值型 buff 走 Unit
 		var s = unit.unit_stats
-
-		# 精炼品 buff（战斗临时，入 unit_stats）
-		s.buff_attack_percent += buffs["attack_percent"]
-		s.buff_crit_damage_bonus += buffs["crit_damage_bonus"]
-		s.buff_defense_flat += int(buffs["defense_flat"])
-		s.buff_damage_reduction += buffs["damage_reduction"]
-
-		# 遗物属性（数值型加成直接叠到基础属性）
 		var old_max = s.max_hp
 		s.max_hp       += int(relic_stats.get("max_hp", 0))
 		s.strength     += int(relic_stats.get("strength", 0))
@@ -2496,23 +2496,23 @@ func _apply_team_buffs():
 		s.faith        += int(relic_stats.get("faith", 0))
 		s.arcane       += int(relic_stats.get("arcane", 0))
 		s.move_range   += int(relic_stats.get("move_range", 0))
-		# 遗物的"攻击/防御"直接记 flat buff，避免和武器防御混淆
-		s.buff_attack_flat += int(relic_stats.get("attack", 0))
-		s.buff_defense_flat += int(relic_stats.get("defense", 0))
+		# ★ 遗物的攻击/防御走 Unit buff
+		unit.buff_attack_flat += int(relic_stats.get("attack", 0))
+		unit.buff_defense_flat += int(relic_stats.get("defense", 0))
 
-		# max_hp 提升 → 当前 HP 同步补上（相当于永久 +max_hp 也加当前值）
+		# max_hp 提升 → 当前 HP 同步补
 		var hp_delta = s.max_hp - old_max
 		if hp_delta > 0:
 			unit.hit_points += hp_delta
 		if unit.hit_points > s.max_hp:
 			unit.hit_points = s.max_hp
-		SignalBus.request_show_info.emit(unit)
+		unit.update_hp_label()
 
-	# ---- 5. 龙血药剂：立即回满全队 ----
+	# ---- 5. 龙血药剂 ----
 	if buffs["heal_full"]:
 		for unit in UnitManager.unit_list:
 			if unit.unit_stats.team_id == 0:
 				unit.hit_points = unit.unit_stats.max_hp
-				SignalBus.request_show_info.emit(unit)
+				unit.update_hp_label()
 
 	print("[Battlefield] 战斗 buff 已应用 | 精炼：", buffs, " 遗物：", relic_stats)

@@ -1,13 +1,5 @@
-# UnitData.gd
 extends Resource
 class_name UnitData
-
-# ---- 战斗 Buff（临时，不入档） ----
-var buff_attack_percent : float = 0.0
-var buff_attack_flat : int = 0
-var buff_crit_damage_bonus : float = 0.0
-var buff_defense_flat : int = 0
-var buff_damage_reduction : float = 0.0
 
 @export var unit_name: String = "战士"
 @export var display_name: String = ""
@@ -24,6 +16,20 @@ var buff_damage_reduction : float = 0.0
 @export var arcane: int = 3
 @export var move_range: int = 5
 @export var ignore_terrain_cost: bool = false
+
+# ---- 战斗 Buff（临时，不入档） ----
+var buff_attack_percent : float = 0.0
+var buff_crit_damage_bonus : float = 0.0
+var buff_defense_flat : int = 0
+var buff_damage_reduction : float = 0.0
+var buff_attack_flat : int = 0
+
+func reset_combat_buffs():
+	buff_attack_percent = 0.0
+	buff_crit_damage_bonus = 0.0
+	buff_defense_flat = 0
+	buff_damage_reduction = 0.0
+	buff_attack_flat = 0
 
 @export var experience: int = 0
 @export var level: int = 1
