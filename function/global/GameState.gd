@@ -156,6 +156,14 @@ var unlocked_stories : Array:
 	get: return resource_state.unlocked_stories
 	set(value): resource_state.unlocked_stories = value
 
+var unlocked_refine_recipes : Array:
+	get: return resource_state.unlocked_refine_recipes
+	set(value): resource_state.unlocked_refine_recipes = value
+
+var refined_items : Dictionary:
+	get: return resource_state.refined_items
+	set(value): resource_state.refined_items = value
+
 var unit_growth : Dictionary:
 	get: return resource_state.unit_growth
 	set(value): resource_state.unit_growth = value
@@ -338,6 +346,7 @@ func reset_for_new_cycle():
 	map_snapshot.clear()
 	cycle_start_soul = 0
 	cycle_start_materials.clear()
+	refined_items.clear()
 
 func reset_all():
 	party.clear()
@@ -361,6 +370,23 @@ func reset_all():
 	map_snapshot.clear()
 	cycle_start_soul = 0
 	cycle_start_materials.clear()
+	refined_items.clear()
+
+# ============================================================
+#  被动列表（遗物 + 精炼品），供斗技场商店展示
+# ============================================================
+func get_passives() -> Array:
+	var result : Array = []
+	# 遗物（ItemInstance）
+	for relic in global_relics:
+		if relic != null:
+			result.append(relic)
+	# 精炼品（每份占一格，Dictionary）
+	for refine_id in refined_items:
+		var count = int(refined_items[refine_id])
+		for _i in range(count):
+			result.append({"refine_id": refine_id})
+	return result
 
 func abandon_and_return_to_camp():
 	await Globals.show_cycle_reward()

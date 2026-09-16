@@ -78,6 +78,10 @@ const CURRENT_VERSION = 3
 # ---- 防具配方解锁（铁砧酒馆） ----
 @export var unlocked_recipes: Array = []
 
+# ---- 精炼配方解锁（炼金坊） ----
+@export var unlocked_refine_recipes: Array = []
+@export var refined_items: Dictionary = {}
+
 # ---- 地图快照（保存节点布局，不含循环引用） ----
 @export var map_snapshot: Dictionary = {}
 
@@ -122,5 +126,7 @@ func compute_checksum() -> String:
 		"arena_target_talents": arena_target_talents,
 		"talent_exp": talent_exp,
 		"arena_best_streak": arena_best_streak,
+		"unlocked_refine_recipes": unlocked_refine_recipes,
+		"refined_items": refined_items,
 	}
 	return JSON.stringify(data, "  ").sha256_text()

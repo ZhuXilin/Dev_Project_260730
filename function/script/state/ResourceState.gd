@@ -59,6 +59,12 @@ var current_reward_soul : int = 0
 var current_reward_materials : Dictionary = {}
 
 # ============================================================
+#  精炼配方（炼金坊）
+# ============================================================
+var unlocked_refine_recipes : Array = []   # 已解锁的精炼配方 ID
+var refined_items : Dictionary = {}         # { refine_id: count }
+
+# ============================================================
 #  方法（纯数据操作，不调用任何 autoload）
 # ============================================================
 func add_material(material_name: String, amount: int):

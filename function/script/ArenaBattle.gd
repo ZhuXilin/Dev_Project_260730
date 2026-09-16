@@ -288,7 +288,6 @@ func _refresh_hp_labels():
 
 
 func _emit_result(continue_requested: bool):
-	MusicManager.play_arena_music()
 	closed.emit({
 		"winner_team": winner_team,
 		"remaining_hp": _player_hp,

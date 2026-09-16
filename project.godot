@@ -8,10 +8,6 @@
 
 config_version=5
 
-[gui]
-
-theme/custom_font="res://content/resource/font/game_font.ttf"
-
 [application]
 
 config/name="Dev Project 260730"

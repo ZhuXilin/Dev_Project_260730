@@ -504,3 +504,28 @@ func _show_message(msg: String):
 	await get_tree().create_timer(1.5, true, false, true).timeout
 	if is_instance_valid(label):
 		label.queue_free()
+
+# ============================================================
+#  Debug：按 7 加材料（每种 +10）
+# ============================================================
+const DEBUG_MAT_AMOUNT : int = 10
+const DEBUG_MATERIALS : Array = ["粗铁", "精钢", "秘银", "龙鳞"]
+
+func _input(event: InputEvent):
+	if not (event is InputEventKey and event.pressed and not event.echo):
+		return
+	if event.keycode != KEY_7:
+		return
+	# 对话进行中不响应，避免误触
+	if DialogueManager.is_active:
+		return
+	_debug_add_materials()
+	get_viewport().set_input_as_handled()
+
+
+func _debug_add_materials():
+	for mat_name in DEBUG_MATERIALS:
+		GameState.materials[mat_name] = GameState.materials.get(mat_name, 0) + DEBUG_MAT_AMOUNT
+	SaveManager.auto_save()          # 只存一次
+	_refresh_materials()             # 刷新顶部材料标签
+	print("[DEBUG] 材料 +%d（每种）" % DEBUG_MAT_AMOUNT)

@@ -80,3 +80,6 @@ func get_armors() -> Array[ItemData]:
 
 func get_relics() -> Array[ItemData]:
 	return get_items_by_type("relic")
+
+func get_all_item_ids() -> Array:
+	return _item_db.keys()

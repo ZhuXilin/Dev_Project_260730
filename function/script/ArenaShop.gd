@@ -13,13 +13,6 @@ var _current_tab : Tab = Tab.SHOP
 var _shop_items : Array = []
 var _shop_refreshed : bool = false
 
-# 拖拽状态
-var _is_dragging: bool = false
-var _drag_source: Button = null
-var _drag_meta: Dictionary = {}
-var _drag_preview: Control = null
-var _drag_grab_offset: Vector2 = Vector2.ZERO
-
 # ============================================================
 #  节点引用
 # ============================================================
@@ -38,10 +31,9 @@ var _drag_grab_offset: Vector2 = Vector2.ZERO
 @onready var go_btn : Button = $MainPanel/VBoxContainer/BottomHBox/GoBtn
 @onready var retreat_btn : Button = $MainPanel/VBoxContainer/BottomHBox/RetreatBtn
 @onready var quit_btn : Button = $MainPanel/VBoxContainer/BottomHBox/QuitBtn
-
+@onready var passive_title : Label = $MainPanel/VBoxContainer/MainHBox/LeftInfoColumn/PassiveSection/PassiveTitle
 
 func _ready():
-	# ---- 强制设置所有文本 ----
 	mode_label.text = "魂之竞技场"
 	if shop_tab_btn:   shop_tab_btn.text = "商店"
 	if forge_tab_btn:  forge_tab_btn.text = "铁匠铺"
@@ -49,7 +41,7 @@ func _ready():
 	if go_btn:         go_btn.text = "出发"
 	if retreat_btn:    retreat_btn.text = "撤离"
 	if quit_btn:       quit_btn.text = "放弃"
-
+	detail_label.text = "选中物品详情"        # ← 新增
 
 func setup(state: Dictionary):
 	_state = state
@@ -207,8 +199,11 @@ func _refresh_passive_slots():
 		child.queue_free()
 
 	var passives = GameState.get_passives()
+	passive_title.text = "── 被动 %d/%d ──" % [passives.size(), MAX_PASSIVE_SLOTS]
+
 	for i in range(MAX_PASSIVE_SLOTS):
 		var inst = passives[i] if i < passives.size() else null
+		# ... 后面保持不变 ...
 		var btn = _make_slot_button("passive_slot", "空")
 		btn.custom_minimum_size = Vector2(24, 12)
 		btn.set_meta("passive_index", i)
@@ -235,9 +230,7 @@ func _refresh_passive_slots():
 # ---- 右侧内容 ----
 func _refresh_content():
 	for child in shop_container.get_children():
-		shop_container.remove_child(child)
-		child.free()
-
+		child.queue_free()    # queue_free 会自动从父节点脱离，不用手动 remove_child
 	match _current_tab:
 		Tab.SHOP: _build_shop_tab()
 		Tab.FORGE: _build_forge_tab()
@@ -400,7 +393,7 @@ func _add_shop_label(text: String):
 func _roll_shop_items():
 	_shop_items.clear()
 	var pool : Array = []
-	for item_id in Globals.unlocked_items:
+	for item_id in ItemManager.get_all_item_ids():
 		var data = ItemManager.get_item_data(item_id)
 		if data and data.type in ["weapon", "armor"] and data.price > 0:
 			pool.append({"item_data": data, "price": data.price})

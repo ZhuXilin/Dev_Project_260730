@@ -344,7 +344,6 @@ func _do_one_battle() -> int:
 			TalentManager.add_talent_exp(_current_player_data.unit_name, _locked_talent_id, exp_gain)
 
 		_current_player_data.hit_points = result.get("remaining_hp", _current_player_data.hit_points)
-		_streak_active = true
 		SaveManager.auto_save()
 		return 0
 	else:
@@ -492,7 +491,19 @@ func _show_clear_panel() -> String:
 # ============================================================
 #  结算
 # ============================================================
+# ============================================================
+#  结算
+# ============================================================
+# ============================================================
+#  结算
+# ============================================================
 func _show_summary(success: bool, reason: String):
+	# ---- 结算音乐（撤离/放弃场景也覆盖） ----
+	if success:
+		MusicManager.play_victory_music()
+	else:
+		MusicManager.play_defeat_music()
+
 	var soul_gain = floori(float(_arena_crystals) / CRYSTAL_PER_SOUL)
 
 	GameState.soul += soul_gain
@@ -510,8 +521,7 @@ func _show_summary(success: bool, reason: String):
 
 	var scene = load(Config.PATHS.ARENA_SUMMARY_UI)
 	if not scene:
-		closed.emit()
-		queue_free()
+		_return_to_idle()
 		return
 
 	var summary = scene.instantiate()
@@ -526,10 +536,31 @@ func _show_summary(success: bool, reason: String):
 	})
 	await summary.closed
 
-	_phase = Phase.END
-	closed.emit()
-	queue_free()
+	# ---- 不再 queue_free，回到初始界面 ----
+	_return_to_idle()
 
+
+# ============================================================
+#  返回初始界面（不退出竞技场）
+# ============================================================
+func _return_to_idle():
+	_phase = Phase.IDLE
+	_current_player_data = null
+	MusicManager.play_arena_music()
+	_build_unit_list()          # 内部会默认选第一个单位
+	_refresh_center_panel()
+	_refresh_streak_label()
+
+# ============================================================
+#  返回初始界面（不退出竞技场）
+# ============================================================
+func _return_to_idle():
+	_phase = Phase.IDLE
+	_current_player_data = null
+	MusicManager.play_arena_music()
+	_build_unit_list()          # 内部会默认选第一个单位
+	_refresh_center_panel()
+	_refresh_streak_label()
 
 func _show_hint(text: String):
 	info_label.text = text
