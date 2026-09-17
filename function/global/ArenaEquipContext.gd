@@ -2,11 +2,13 @@
 class_name ArenaEquipContext
 extends EquipContext
 
-var arena_gold : int = 100
+var arena_gold : int = 0
 var player_data : UnitData = null
 var passives : Array = [null, null, null, null]
 var locked_talent_id : String = ""
-var talent_swap_chances : int = 1   # 剩余可换特技次数（开局给 1）
+
+# 特技切换成本（ARENA_REST 模式使用；DEPLOY 免费）
+var talent_swap_cost : int = 100
 
 func get_context_id() -> String: return "arena"
 func get_title() -> String: return "魂之竞技场"
@@ -33,22 +35,25 @@ func remove_passive_at_slot(idx: int) -> void:
 	if idx < 0 or idx >= passives.size(): return
 	passives[idx] = null
 
-# ---- 铁匠铺（竞技场有，消耗金币） ----
+# ---- 铁匠铺 ----
 func has_forge() -> bool: return true
 
-# ---- 特技（有限次数可换） ----
-func is_talent_locked() -> bool: return talent_swap_chances <= 0
+# ---- 特技（消耗金币，不限次数） ----
+func is_talent_locked() -> bool: return false
 
 func lock_talent(talent_id: String) -> void:
 	locked_talent_id = talent_id
 
+func can_swap_talent() -> bool:
+	return arena_gold >= talent_swap_cost
+
 func consume_talent_swap() -> bool:
-	if talent_swap_chances <= 0: return false
-	talent_swap_chances -= 1
+	if arena_gold < talent_swap_cost: return false
+	arena_gold -= talent_swap_cost
 	return true
 
-func grant_talent_swap(count: int = 1) -> void:
-	talent_swap_chances += count
+func get_talent_swap_cost() -> int:
+	return talent_swap_cost
 
 # ---- 确认 ----
 func on_confirm() -> void:

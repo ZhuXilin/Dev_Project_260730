@@ -1198,9 +1198,7 @@ func _is_valid_drop(data: Dictionary, target: Control) -> bool:
 		if source_type == "library_weapon": return target_type == "weapon"
 		if source_type == "weapon" and target_type == "weapon": return true
 		if source_type == "library_talent" and target_type == "talent":
-			# ★ 竞技场特技锁
-			if _context.get_context_id() == "arena" and _context.is_talent_locked():
-				return false
+			# 竞技场 DEPLOY 模式免费，不限次数
 			return _check_talent_compatibility(data, target)
 		if source_type == "talent" and target_type == "talent": return _check_talent_compatibility(data, target)
 		return false
@@ -1214,7 +1212,8 @@ func _is_valid_drop(data: Dictionary, target: Control) -> bool:
 		if source_type == "weapon" and target_type == "weapon": return true
 		if source_type == "armor" and target_type == "armor": return true
 		if source_type == "library_talent" and target_type == "talent":
-			if _context.get_context_id() == "arena" and _context.is_talent_locked():
+			# ★ 竞技场 ARENA_REST 需要金币
+			if _context.get_context_id() == "arena" and not _context.can_swap_talent():
 				return false
 			return _check_talent_compatibility(data, target)
 		if source_type == "talent" and target_type == "talent": return _check_talent_compatibility(data, target)
@@ -1463,11 +1462,18 @@ func _execute_talent_drop(data: Dictionary, target: Control):
 			Globals.show_confirm(self, "特技已被 %s 装备" % equipped_unit, "确定", "", func(): pass, func(): pass, false)
 			return
 
-		# ★ 竞技场：消耗一次换特技机会
-		if _context.get_context_id() == "arena":
-			if not _context.consume_talent_swap():
-				Globals.show_confirm(self, "本局已无更换特技机会", "确定", "", func(): pass, func(): pass, false)
+		# ★ 竞技场 ARENA_REST 模式：扣金币
+		if _context.get_context_id() == "arena" and current_mode != Mode.DEPLOY:
+			var cost = _context.get_talent_swap_cost()
+			if not _context.can_swap_talent():
+				Globals.show_confirm(self, "金币不足（需要 %d）" % cost, "确定", "", func(): pass, func(): pass, false)
 				return
+			if not _context.consume_talent_swap():
+				return
+			_context.lock_talent(talent_id)
+			_update_gold_display()
+		elif _context.get_context_id() == "arena":
+			# DEPLOY 模式：免费，但仍记录锁定
 			_context.lock_talent(talent_id)
 
 		var inst = TalentInstance.new()
