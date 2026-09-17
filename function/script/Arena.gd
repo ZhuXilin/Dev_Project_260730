@@ -19,11 +19,11 @@ const RETREAT_FEE_AFTER_STREAK_4 : int = 1
 const GOLD_BY_STREAK : Array = [100, 150, 350, 600]
 
 # ---- 战 1-4 魂奖励 ----
-const SOUL_BY_STREAK : Array = [0, 0, 2, 3]
+const SOUL_BY_STREAK : Array = [0, 0, 1, 1]
 
 # ---- 生存模式奖励（3 战） ----
 const GOLD_SURVIVAL : Array = [800, 1200, 2000]
-const SOUL_SURVIVAL : Array = [4, 6, 10]
+const SOUL_SURVIVAL : Array = [2, 3, 5]
 
 # ---- 敌人倍率 ----
 const ENEMY_SCALE_BY_STREAK : Array = [1.0, 1.2, 1.6, 1.9]
