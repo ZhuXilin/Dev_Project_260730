@@ -9,9 +9,18 @@ var _context : EquipContext = null
 const SHOP_SIZE = 6
 const BASE_RESET_COST = 100
 const RESET_STEP = 5
+const LEGENDARY_CHANCE : float = 0.05
 
 func set_context(ctx: EquipContext):
 	_context = ctx
+
+# ---- 池子来源 ----
+# 竞技场：全道具池（含未解锁，可提前体验）
+# 主游戏：已解锁池
+func _get_pool_ids() -> Array:
+	if _context and _context.get_context_id() == "arena":
+		return ItemManager.get_all_item_ids()
+	return Globals.unlocked_items
 
 func _get_gold() -> int:
 	if _context:
@@ -43,15 +52,28 @@ func reset_shop() -> int:
 func generate_shop_items():
 	shop_items.clear()
 	var pool = []
-	for item_id in Globals.unlocked_items:
+	for item_id in _get_pool_ids():
 		var data = ItemManager.get_item_data(item_id)
 		if data and data.type in ["weapon", "armor"] and data.price > 0:
 			pool.append({"item_data": data, "price": data.price})
 	pool.shuffle()
 	var selected = pool.slice(0, SHOP_SIZE)
+
+	# ★ 5% 概率出 legendary
+	if randf() < LEGENDARY_CHANCE:
+		var legendary_pool : Array = []
+		for item_id in ItemManager.get_all_item_ids():
+			var data = ItemManager.get_item_data(item_id)
+			if data and data.type in ["weapon", "armor"] and data.quality == "legendary" and data.price > 0:
+				legendary_pool.append({"item_data": data, "price": data.price})
+		if legendary_pool.size() > 0:
+			var pick = legendary_pool[randi() % legendary_pool.size()]
+			selected.insert(0, pick)
+			print("[Shop] ★ 稀有上架：", pick["item_data"].name)
+
 	while selected.size() < SHOP_SIZE:
 		selected.append(null)
-	shop_items = selected
+	shop_items = selected.slice(0, SHOP_SIZE)
 
 func buy_shop_item(index: int) -> Dictionary:
 	if index < 0 or index >= shop_items.size():
