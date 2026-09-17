@@ -50,11 +50,13 @@ var _arena_passives : Array = [null, null, null, null]
 @onready var start_btn : Button = $Panel/VBox/BottomBar/StartBtn
 @onready var back_btn : Button = $Panel/VBox/BottomBar/BackButton
 
+
 func _ready():
 	MusicManager.play_arena_music()
 	_build_unit_list()
 	_refresh_center_panel()
 	_refresh_streak_label()
+
 
 # ============================================================
 #  单位选择
@@ -97,6 +99,7 @@ func _build_unit_list():
 	if unlocked_list.size() > 0:
 		_on_unit_selected(unlocked_list[0])
 
+
 func _on_unit_selected(unit_type: String):
 	if _phase != Phase.IDLE:
 		return
@@ -111,6 +114,7 @@ func _on_unit_selected(unit_type: String):
 
 	_refresh_center_panel()
 
+
 # ============================================================
 #  显示刷新
 # ============================================================
@@ -121,8 +125,9 @@ func _refresh_center_panel():
 		return
 
 	var display : String = UnitDataManager.get_unit_type_display_name(_current_player_data.unit_name)
-	selected_unit_label.text = "单位：%s  HP %d/%d" % [
-		display, _current_player_data.hit_points, _current_player_data.max_hp
+	var slots : int = _current_player_data.max_armor_slots
+	selected_unit_label.text = "单位：%s  HP %d/%d  防具槽 %d" % [
+		display, _current_player_data.hit_points, _current_player_data.max_hp, slots
 	]
 
 	var talent_id : String = GameState.arena_target_talents.get(_current_player_data.unit_name, "")
@@ -136,6 +141,7 @@ func _refresh_center_panel():
 			info_label.text = ""
 	else:
 		info_label.text = "目标词条：未设置（可在商店配置）"
+
 
 func _refresh_streak_label():
 	if _phase == Phase.IDLE:
@@ -156,8 +162,10 @@ func _refresh_streak_label():
 			_streak, CLEAR_TARGET, next_type, _get_net_gain()
 		]
 
+
 func _get_net_gain() -> int:
 	return _earned_soul - _total_paid - _retreat_fee
+
 
 # ============================================================
 #  音乐辅助
@@ -165,6 +173,7 @@ func _get_net_gain() -> int:
 func _restore_arena_music():
 	if MusicManager.config and MusicManager.config.arena_music:
 		MusicManager.play_arena_music()
+
 
 # ============================================================
 #  开始
@@ -182,6 +191,7 @@ func _on_start_pressed():
 	_init_arena_state()
 	_run_battle_loop()
 
+
 func _on_back_pressed():
 	if _phase != Phase.IDLE:
 		_show_hint("挑战中无法退出")
@@ -190,6 +200,7 @@ func _on_back_pressed():
 		MusicManager.play_music(MusicManager.config.camp_music)
 	closed.emit()
 	queue_free()
+
 
 func _init_arena_state():
 	_phase = Phase.NORMAL
@@ -213,6 +224,17 @@ func _init_arena_state():
 		_locked_talent_id = saved_talent
 
 	_current_player_data.hit_points = _current_player_data.max_hp
+
+
+# ★ 新增：支付参与费后立即 +1 防具槽
+func _grant_armor_slot_for_entry() -> void:
+	if _current_player_data == null: return
+	if _current_player_data.max_armor_slots >= 3: return
+	_current_player_data.max_armor_slots = 3
+	while _current_player_data.armor_slots.size() < 3:
+		_current_player_data.armor_slots.append(null)
+	print("[Arena] 支付参与费：防具槽 2 → 3")
+
 
 # ============================================================
 #  主循环
@@ -240,13 +262,11 @@ func _run_battle_loop():
 		if not is_inside_tree():
 			return
 
-		# ★ 失败路径：不切回 arena 音乐（保留 ArenaBattle 的 defeat 音乐），
-		#          并让 _show_summary 跳过再次播放
+		# 失败路径：保留 ArenaBattle 的 defeat 音乐，不再重播
 		if winner != 0:
 			_show_summary(false, "失败", true)
 			return
 
-		# 胜利：切回 arena 音乐
 		_restore_arena_music()
 
 		if _phase == Phase.NORMAL:
@@ -269,11 +289,12 @@ func _run_battle_loop():
 		elif _phase == Phase.SURVIVAL:
 			_survival_round += 1
 			if _survival_round >= SURVIVAL_ROUNDS:
-				_show_summary(true, "生存通过", true)   # ★ 已由 ArenaBattle 播过 victory
+				_show_summary(true, "生存通过", true)
 				return
 
 		SaveManager.auto_save()
-		
+
+
 func _apply_retreat_fee(fee: int):
 	if fee <= 0:
 		return
@@ -284,11 +305,13 @@ func _apply_retreat_fee(fee: int):
 		_retreat_fee += GameState.soul
 		GameState.soul = 0
 
+
 # ============================================================
 #  魂支付
 # ============================================================
 func _can_pay_soul(cost: int) -> bool:
 	return GameState.soul >= cost
+
 
 func _pay_soul(cost: int) -> bool:
 	if GameState.soul < cost:
@@ -296,6 +319,7 @@ func _pay_soul(cost: int) -> bool:
 	GameState.soul -= cost
 	_total_paid += cost
 	return true
+
 
 # ============================================================
 #  关键节点参与费
@@ -316,8 +340,13 @@ func _check_entry_fee() -> String:
 
 	if not _pay_soul(cost):
 		return "decline"
+
+	# ★ 支付成功 → 立刻 +1 防具槽（进商店前）
+	_grant_armor_slot_for_entry()
+
 	SaveManager.auto_save()
 	return "accept"
+
 
 func _show_entry_fee_panel(cost: int) -> String:
 	var scene = load(Config.PATHS.CONFIRM_UI)
@@ -334,21 +363,22 @@ func _show_entry_fee_panel(cost: int) -> String:
 	var msg : String = ""
 	msg += "关键节点 · 小Boss\n"
 	msg += "下一战难度提升\n\n"
-	msg += "奖励：+%d 魂 + 金币 + 防具槽+1\n" % reward_soul
+	msg += "支付即得：+1 防具槽（可立即购物）\n"
+	msg += "胜利奖励：+%d 魂 + 金币\n" % reward_soul
 	msg += "参与费：%d 魂\n" % cost
-	msg += "当前魂：%d   金币：%d\n" % [soul_now, _arena_gold]    # ★ 补金币
+	msg += "当前魂：%d   金币：%d\n" % [soul_now, _arena_gold]
 
 	var holder := {"value": ""}
 
 	if can_afford:
-		msg += "\n确定支付？"
+		msg += "\n是否支付并继续？"
 		ui.show_confirm(
 			msg,
 			"支付 %d 魂" % cost,
-			"",
+			"撤退",
 			func(): holder["value"] = "accept",
-			func(): pass,
-			false,
+			func(): holder["value"] = "decline",
+			true,
 			8
 		)
 	else:
@@ -367,6 +397,7 @@ func _show_entry_fee_panel(cost: int) -> String:
 		await get_tree().process_frame
 	await get_tree().process_frame
 	return holder["value"]
+
 
 # ============================================================
 #  商店
@@ -413,11 +444,11 @@ func _show_shop() -> String:
 	if _locked_talent_id != "" and _current_player_data:
 		GameState.arena_target_talents[_current_player_data.unit_name] = _locked_talent_id
 
-	# ★ 用户点了"返回" → 中断本局
 	if ctx.was_cancelled():
 		return "quit"
 
 	return "go"
+
 
 # ============================================================
 #  单场战斗
@@ -489,6 +520,7 @@ func _do_one_battle() -> int:
 	else:
 		return 1
 
+
 # ============================================================
 #  奖励查表
 # ============================================================
@@ -499,12 +531,14 @@ func _calc_gold_reward() -> int:
 	var i : int = mini(_streak, GOLD_BY_STREAK.size() - 1)
 	return GOLD_BY_STREAK[i]
 
+
 func _calc_soul_reward() -> int:
 	if _phase == Phase.SURVIVAL:
 		var idx : int = mini(_survival_round, 2)
 		return SOUL_SURVIVAL[idx]
 	var i : int = mini(_streak, SOUL_BY_STREAK.size() - 1)
 	return SOUL_BY_STREAK[i]
+
 
 func _calc_exp_gain(enemy_type: String) -> int:
 	var base : int = _get_enemy_arena_exp(enemy_type)
@@ -515,6 +549,7 @@ func _calc_exp_gain(enemy_type: String) -> int:
 	if _is_elite_battle():
 		return int(base * 2.5)
 	return base
+
 
 # ============================================================
 #  战斗奖励弹窗
@@ -549,28 +584,28 @@ func _show_battle_rewards(gold_gain: int, soul_gain: int,
 	await summary.confirmed
 	summary.close()
 
+
 # ============================================================
-#  进度奖励
+#  进度奖励（精英后再 +1）
 # ============================================================
 func _grant_progress_rewards():
 	if _phase != Phase.NORMAL:
 		return
-	if _streak == 3:
-		_current_player_data.max_armor_slots = 3
-		while _current_player_data.armor_slots.size() < 3:
-			_current_player_data.armor_slots.append(null)
-		print("[Arena] 小 Boss 胜利：防具槽 2 → 3")
-	elif _streak == 4:
+	# ★ 小 Boss 的 +1 槽已在支付参与费时发放
+	if _streak == 4:
 		_current_player_data.max_armor_slots = 4
 		while _current_player_data.armor_slots.size() < 4:
 			_current_player_data.armor_slots.append(null)
 		print("[Arena] 精英胜利：防具槽 3 → 4")
 
+
 func _is_elite_battle() -> bool:
 	return _phase == Phase.NORMAL and _streak == 3
 
+
 func _is_mini_boss_battle() -> bool:
 	return _phase == Phase.NORMAL and _streak == 2
+
 
 # ============================================================
 #  敌人
@@ -611,6 +646,7 @@ func _roll_enemy() -> String:
 			return ""
 	return pool[randi() % pool.size()]
 
+
 func _apply_enemy_scaling(enemy_data: UnitData):
 	var mult : float = 1.0
 	if _phase == Phase.SURVIVAL:
@@ -625,9 +661,11 @@ func _apply_enemy_scaling(enemy_data: UnitData):
 	enemy_data.strength = int(enemy_data.strength * mult)
 	enemy_data.dexterity = int(enemy_data.dexterity * mult)
 
+
 func _get_enemy_arena_exp(enemy_type: String) -> int:
 	var unit_dict : Dictionary = UnitDataManager.get_unit_data(enemy_type)
 	return int(unit_dict.get("arena_exp", 30))
+
 
 # ============================================================
 #  通关面板
@@ -645,7 +683,6 @@ func _show_clear_panel() -> String:
 	var survival_soul_total : int = SOUL_SURVIVAL[0] + SOUL_SURVIVAL[1] + SOUL_SURVIVAL[2]
 	var retreat_fee : int = RETREAT_FEE_AFTER_STREAK_4
 
-	# ★ 精简消息
 	var msg : String = ""
 	msg += "4 连胜达成！\n\n"
 	msg += "已赚：+%d 魂  已付：-%d 魂\n" % [_earned_soul, _total_paid]
@@ -687,6 +724,7 @@ func _show_clear_panel() -> String:
 		SaveManager.auto_save()
 
 	return holder["value"]
+
 
 # ============================================================
 #  结算
@@ -764,6 +802,7 @@ func _show_summary(success: bool, reason: String, skip_music: bool = false):
 
 	_return_to_idle()
 
+
 func _return_to_idle():
 	if not is_inside_tree():
 		return
@@ -777,6 +816,7 @@ func _return_to_idle():
 	_build_unit_list()
 	_refresh_center_panel()
 	_refresh_streak_label()
+
 
 func _show_hint(text: String):
 	info_label.text = text

@@ -285,12 +285,12 @@
 	"type": "armor",
 	"use_type": "equipment",
 	"icon": "res://content/images/items/armor.png",
-	"description": "防御+5，魔防+1，占用 2 格",
+	"description": "防御+5，魔防+1",
 	"equipment_slot": "armor",
 	"price": 100,
 	"quality": "epic",
 	"defense": 5,
-	"slot_count": 2,
+	"slot_count": 1,
 	"modifier": {
 	  "strength": 1,
 	  "faith": 1
