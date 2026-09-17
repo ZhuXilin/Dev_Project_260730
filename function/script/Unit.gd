@@ -20,9 +20,9 @@ var bleed_stacks : int = 0
 var movement_after_attack : bool = false
 var previous_flip_h : bool = false
 var used_non_attack_item_this_turn : bool = false
-var moves_since_act: int = 0   # 自从执行行动后移动的次数
+var moves_since_act: int = 0
 
-# ---- 战斗 Buff（从装备被动读取） ----
+# ---- 战斗 Buff ----
 var buff_attack_percent : float = 0.0
 var buff_crit_damage_bonus : float = 0.0
 var buff_defense_flat : int = 0
@@ -30,11 +30,11 @@ var buff_damage_reduction : float = 0.0
 var buff_attack_flat : int = 0
 
 # ---- 装备 ----
-var weapon_slot: ItemInstance = null          # 武器实例
-var armor_slots: Array[ItemInstance] = []    # 防具/饰品槽
+var weapon_slot: ItemInstance = null
+var armor_slots: Array[ItemInstance] = []
 var max_armor_slots: int = 2
 
-# ---- 词条（唯一数据源：talent_slots） ----
+# ---- 词条 ----
 var talent_slots: Array[TalentInstance] = []
 var max_talent_slots: int = 1
 
@@ -50,16 +50,13 @@ var _initialized: bool = false
 #  初始化
 # ============================================================
 func _ready():
-	# 如果已经通过 restore 或 setup 初始化，跳过 _ready 的默认初始化
 	if _initialized:
 		print("Unit._ready 跳过，已初始化")
 		return
-	
-	# 如果场景中已有 animated_sprite 但尚未设置，进行最小初始化
+
 	if not animated_sprite:
 		animated_sprite = $Sprite as AnimatedSprite2D
-	
-	# 如果还没有精灵帧，使用占位纹理
+
 	if animated_sprite and not animated_sprite.sprite_frames:
 		var image = Image.create(MapConst.CELL_SIZE, MapConst.CELL_SIZE, false, Image.FORMAT_RGBA8)
 		image.fill(Color.MAGENTA)
@@ -71,6 +68,7 @@ func _ready():
 		animated_sprite.play("idle")
 		animated_sprite.visible = true
 		animated_sprite.z_index = 2
+
 
 func setup_unit(stats_data: UnitData, start_cell: Vector2i, initial_items: Array[ItemEntry] = []):
 	if not animated_sprite:
@@ -96,6 +94,7 @@ func setup_unit(stats_data: UnitData, start_cell: Vector2i, initial_items: Array
 
 	# ---- 清空并装备初始物品 ----
 	weapon_slot = null
+	max_armor_slots = stats_data.max_armor_slots        # ★ 改：读 UnitData
 	armor_slots.clear()
 	for _i in range(max_armor_slots):
 		armor_slots.append(null)
@@ -112,6 +111,10 @@ func setup_unit(stats_data: UnitData, start_cell: Vector2i, initial_items: Array
 				weapon_slot = inst
 				print("单位 %s 装备武器: %s" % [unit_stats.unit_name, data.name])
 			elif data.equipment_slot in ["armor"]:
+				# ★ 新增：检查 slot_count 预算
+				if not can_equip_armor(entry.item_id):
+					print("单位 %s 无法装备 %s（防具格数不足）" % [unit_stats.unit_name, data.name])
+					continue
 				for i in range(armor_slots.size()):
 					if armor_slots[i] == null:
 						var inst = ItemInstance.new()
@@ -121,7 +124,7 @@ func setup_unit(stats_data: UnitData, start_cell: Vector2i, initial_items: Array
 						print("单位 %s 装备防具: %s (槽 %d)" % [unit_stats.unit_name, data.name, i+1])
 						break
 
-	# ---- 初始化词条槽（从 stats_data 复制，重置积累状态） ----
+	# ---- 初始化词条槽 ----
 	_init_talent_slots_from_data(stats_data)
 
 	# ---- 加载 SpriteFrames ----
@@ -162,8 +165,7 @@ func setup_unit(stats_data: UnitData, start_cell: Vector2i, initial_items: Array
 	update_hp_label()
 	update_name_label()
 	update_color()
-	
-	# ---- 标记已初始化，防止 _ready() 覆盖 ----
+
 	_initialized = true
 
 # ============================================================
@@ -195,16 +197,16 @@ func get_weapon_stats() -> Dictionary:
 		"epic": quality_mult = 1.5
 		"legendary": quality_mult = 1.8
 
-	var upgrade_bonus = weapon_slot.upgrade_level if weapon_slot else 0   # ← 新增
+	var upgrade_bonus = weapon_slot.upgrade_level if weapon_slot else 0
 
 	var stats := default_stats.duplicate()
-	stats["attack"] = int((data.base_attack + upgrade_bonus) * quality_mult)   # ← 改
+	stats["attack"] = int((data.base_attack + upgrade_bonus) * quality_mult)
 	stats["attack_range"] = data.attack_range
 	stats["min_attack_range"] = data.min_attack_range
 	stats["attack_style"] = data.attack_style
 
 	if data.magic_attack.get("ignore_defense", false):
-		stats["magic_attack"] = int((data.base_attack + upgrade_bonus) * quality_mult)   # ← 改
+		stats["magic_attack"] = int((data.base_attack + upgrade_bonus) * quality_mult)
 	if not data.heal_effect.is_empty():
 		stats["heal_amount"] = data.heal_effect.get("base_heal", 0)
 
@@ -250,6 +252,13 @@ func add_armor_slot():
 	armor_slots.append(null)
 	max_armor_slots += 1
 
+## ★ 新增：转发到 UnitData 的格数检查
+func count_used_armor_slots() -> int:
+	return unit_stats.count_used_armor_slots()
+
+func can_equip_armor(item_id: String, exclude_slot_idx: int = -1) -> bool:
+	return unit_stats.can_equip_armor(item_id, exclude_slot_idx)
+
 func get_total_stats() -> Dictionary:
 	var total = {
 		"max_hp": unit_stats.max_hp,
@@ -268,7 +277,7 @@ func get_total_stats() -> Dictionary:
 		"min_attack_range": 0,
 		"attack_style": "standard"
 	}
-	
+
 	# ---- 武器加成 ----
 	if weapon_slot:
 		var data = ItemManager.get_item_data(weapon_slot.item_id)
@@ -287,21 +296,26 @@ func get_total_stats() -> Dictionary:
 				total["magic_attack"] = int((data.base_attack + upgrade_bonus) * quality_mult)
 			if not data.heal_effect.is_empty():
 				total["heal_amount"] = data.heal_effect.get("base_heal", 0)
-	
+
 	# ---- 防具加成 ----
 	for slot in armor_slots:
 		if slot:
 			var data = ItemManager.get_item_data(slot.item_id)
 			if data:
-				# ✅ 直接访问属性，不使用 .get()
 				total["defense"] += data.defense
-	
+
+	# ★ 新增：防具 modifier 加成
+	var armor_mod := unit_stats.get_armor_modifier_bonus()
+	for key in armor_mod:
+		if key in total:
+			total[key] += int(armor_mod[key])
+
 	# ---- 遗物加成 ----
 	var relic_bonus = GameState.get_global_relic_stats()
 	for key in relic_bonus:
 		if key in total:
 			total[key] += relic_bonus[key]
-	
+
 	return total
 
 # ---- 序列化（用于存档） ----
@@ -327,7 +341,7 @@ func serialize_inventory() -> Array[Dictionary]:
 # ---- 从存档恢复 ----
 func restore_from_unit_data(data: UnitData, cell: Vector2i):
 	print("restore_from_unit_data: 单位 ", data.unit_name, " 武器: ", data.weapon_slot.item_id if data.weapon_slot else "无")
-	
+
 	reset_combat_buffs()
 
 	unit_stats = data
@@ -340,7 +354,6 @@ func restore_from_unit_data(data: UnitData, cell: Vector2i):
 	has_attacked = false
 	has_acted = false
 
-	# ---- 恢复装备（创建新实例，避免引用问题） ----
 	if data.weapon_slot:
 		var inst = ItemInstance.new()
 		inst.item_id = data.weapon_slot.item_id
@@ -348,7 +361,7 @@ func restore_from_unit_data(data: UnitData, cell: Vector2i):
 		weapon_slot = inst
 	else:
 		weapon_slot = null
-	
+
 	armor_slots.clear()
 	for slot in data.armor_slots:
 		if slot:
@@ -360,13 +373,11 @@ func restore_from_unit_data(data: UnitData, cell: Vector2i):
 			armor_slots.append(null)
 	max_armor_slots = data.max_armor_slots
 
-	# ---- 恢复词条（保留 talent_id，重置积累状态） ----
 	_init_talent_slots_from_data(data)
 
-	# ---- 加载 SpriteFrames ----
 	if not animated_sprite:
 		animated_sprite = $Sprite as AnimatedSprite2D
-	
+
 	if animated_sprite:
 		var frames_path = UnitDataManager.get_sprite_frames_path(unit_stats.unit_name)
 		var loaded_ok = false
@@ -404,8 +415,7 @@ func restore_from_unit_data(data: UnitData, cell: Vector2i):
 	update_hp_label()
 	update_name_label()
 	update_terrain_info()
-	
-	# ---- 标记已初始化，防止 _ready() 覆盖 ----
+
 	_initialized = true
 	print("restore_from_unit_data 完成，weapon_slot: ", weapon_slot.item_id if weapon_slot else "无")
 
@@ -508,7 +518,6 @@ func set_facing_direction(dir: Vector2):
 # ============================================================
 func set_gray(gray: bool):
 	is_gray = gray
-	# ---- 如果单位已死亡，强制灰色 ----
 	if hit_points <= 0:
 		is_gray = true
 	update_color()
@@ -524,7 +533,7 @@ func update_color():
 	mat.shader = shader
 	mat.set_shader_parameter("target_color_1", Globals.TARGET_COLOR_1)
 	mat.set_shader_parameter("target_color_2", Globals.TARGET_COLOR_2)
-	
+
 	var color1: Color
 	var color2: Color
 	if is_gray:
@@ -572,7 +581,6 @@ func update_hp_label():
 func update_name_label():
 	var na_label = $NameLabel
 	if na_label:
-		# ---- 获取中文显示名 ----
 		var display = unit_stats.display_name if unit_stats.display_name != "" else unit_stats.unit_name
 		var type_name = UnitDataManager.get_unit_type_display_name(unit_stats.unit_name)
 		na_label.text = display + "|" + unit_stats.faction + "|" + type_name
@@ -588,52 +596,43 @@ func update_terrain_info():
 	terrain_label.text = terrain_name + "\n防御+" + str(def_bonus) + " 回避+" + str(avoid_bonus)
 
 # ============================================================
-#  词条方法（统一走 talent_slots，无独立字典）
+#  词条方法
 # ============================================================
-
-# ---- 从 UnitData 初始化词条槽（统一入口） ----
 func _init_talent_slots_from_data(data: UnitData):
 	talent_slots.clear()
-	
-	# 使用 UnitData 的槽位数（兜底 1）
+
 	var target_max = data.max_talent_slots
 	if target_max <= 0:
 		target_max = 1
 	max_talent_slots = target_max
-	
-	# 从 data.talent_slots 复制（只保留 talent_id 和 is_active，重置积累）
+
 	if data.talent_slots is Array:
 		for slot_data in data.talent_slots:
 			if slot_data and slot_data is TalentInstance and slot_data.is_active:
 				var new_inst = TalentInstance.new()
 				new_inst.talent_id = slot_data.talent_id
-				new_inst.current_stack = 0      # 每场战斗从 0 开始累积
+				new_inst.current_stack = 0
 				new_inst.is_ready = false
 				new_inst.is_active = true
 				talent_slots.append(new_inst)
 			else:
 				talent_slots.append(null)
-	
-	# 补齐到 max_talent_slots
+
 	while talent_slots.size() < max_talent_slots:
 		talent_slots.append(null)
 
-# ---- 按 talent_id 在 talent_slots 中查找 ----
 func get_talent_instance(talent_id: String) -> TalentInstance:
 	for inst in talent_slots:
 		if inst and inst.talent_id == talent_id and inst.is_active:
 			return inst
 	return null
 
-# ---- 装备词条（找一个空槽放入） ----
 func equip_talent(talent_id: String) -> bool:
 	var data = TalentManager.get_talent_data(talent_id)
 	if not data:
 		return false
-	# 已装备则不重复
 	if get_talent_instance(talent_id) != null:
 		return false
-	# 找空槽
 	for i in range(talent_slots.size()):
 		if talent_slots[i] == null:
 			var inst = TalentInstance.new()
@@ -641,7 +640,6 @@ func equip_talent(talent_id: String) -> bool:
 			inst.is_active = true
 			talent_slots[i] = inst
 			return true
-	# 无空槽，尝试扩展
 	if talent_slots.size() < max_talent_slots:
 		var inst = TalentInstance.new()
 		inst.talent_id = talent_id
@@ -650,7 +648,6 @@ func equip_talent(talent_id: String) -> bool:
 		return true
 	return false
 
-# ---- 卸下词条（按 talent_id 清空对应槽位） ----
 func unequip_talent(talent_id: String):
 	for i in range(talent_slots.size()):
 		var inst = talent_slots[i]

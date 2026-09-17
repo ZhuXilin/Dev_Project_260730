@@ -58,14 +58,12 @@
   "boss_defeated": {
 	"once": true,
 	"actions": [
-	  { "type": "dialog", "dialog_id": "boss_defeat_dlg" },
 	  { "type": "unlock_unit", "units": ["弓兵", "飞马"] }
 	]
   },
   "obtain_steel_sword": {
 	"once": true,
 	"actions": [
-	  { "type": "dialog", "dialog_id": "blacksmith_dialog" },
 	  { "type": "give_item", "item_id": "steel_sword", "count": 1 },
 	  { "type": "unlock_equipment", "item_id": "iron_armor" }
 	]

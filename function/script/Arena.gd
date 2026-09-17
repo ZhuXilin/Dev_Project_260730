@@ -8,24 +8,16 @@ signal closed
 const CLEAR_TARGET : int = 4
 const SURVIVAL_ROUNDS : int = 3
 
-# ---- 关键节点参与费（只扣魂） ----
 const ENTRY_COST_MINI_BOSS : int = 1
 const ENTRY_COST_SURVIVAL : int = 3
-
-# ---- 撤离手续费 ----
 const RETREAT_FEE_AFTER_STREAK_4 : int = 1
 
-# ---- 战 1-4 金币奖励 ----
 const GOLD_BY_STREAK : Array = [200, 300, 500, 800]
-
-# ---- 战 1-4 魂奖励 ----
 const SOUL_BY_STREAK : Array = [0, 0, 1, 1]
 
-# ---- 生存模式奖励（3 战） ----
 const GOLD_SURVIVAL : Array = [1200, 1800, 3000]
 const SOUL_SURVIVAL : Array = [2, 3, 5]
 
-# ---- 敌人倍率 ----
 const ENEMY_SCALE_BY_STREAK : Array = [1.0, 1.2, 1.6, 1.9]
 const ENEMY_SCALE_SURVIVAL : Array = [2.2, 2.8, 3.5]
 
@@ -72,7 +64,7 @@ func _build_unit_list():
 		unit_list.remove_child(child)
 		child.queue_free()
 
-	var all_units = UnitDataManager.get_all_unit_ids()
+	var all_units : Array = UnitDataManager.get_all_unit_ids()
 	var unlocked_list : Array = []
 	var locked_list : Array = []
 	for unit_type in all_units:
@@ -82,7 +74,7 @@ func _build_unit_list():
 			locked_list.append(unit_type)
 
 	for unit_type in unlocked_list:
-		var btn = Button.new()
+		var btn := Button.new()
 		btn.text = UnitDataManager.get_unit_type_display_name(unit_type)
 		btn.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_NORMAL)
 		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -93,7 +85,7 @@ func _build_unit_list():
 		unit_list.add_child(btn)
 
 	for _u in locked_list:
-		var btn = Button.new()
+		var btn := Button.new()
 		btn.text = "？？？"
 		btn.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_NORMAL)
 		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -114,7 +106,7 @@ func _on_unit_selected(unit_type: String):
 
 	for child in unit_list.get_children():
 		if child is Button:
-			var ut = child.get_meta("unit_type", "")
+			var ut : String = child.get_meta("unit_type", "")
 			child.modulate = Color.WHITE if ut == unit_type else Color(0.6, 0.6, 0.6, 1)
 
 	_refresh_center_panel()
@@ -128,17 +120,17 @@ func _refresh_center_panel():
 		info_label.text = ""
 		return
 
-	var display = UnitDataManager.get_unit_type_display_name(_current_player_data.unit_name)
+	var display : String = UnitDataManager.get_unit_type_display_name(_current_player_data.unit_name)
 	selected_unit_label.text = "单位：%s  HP %d/%d" % [
 		display, _current_player_data.hit_points, _current_player_data.max_hp
 	]
 
-	var talent_id = GameState.arena_target_talents.get(_current_player_data.unit_name, "")
+	var talent_id : String = GameState.arena_target_talents.get(_current_player_data.unit_name, "")
 	if talent_id != "":
-		var data = TalentManager.get_talent_data(talent_id)
+		var data : TalentData = TalentManager.get_talent_data(talent_id)
 		if data:
-			var lv = TalentManager.get_talent_level(_current_player_data.unit_name, talent_id)
-			var talent_exp_val = TalentManager.get_talent_exp(_current_player_data.unit_name, talent_id)
+			var lv : int = TalentManager.get_talent_level(_current_player_data.unit_name, talent_id)
+			var talent_exp_val : int = TalentManager.get_talent_exp(_current_player_data.unit_name, talent_id)
 			info_label.text = "目标词条：Lv.%d %s（经验 %d/600）" % [lv, data.display_name, talent_exp_val]
 		else:
 			info_label.text = ""
@@ -155,7 +147,7 @@ func _refresh_streak_label():
 			_survival_round, SURVIVAL_ROUNDS, _get_net_gain()
 		]
 	else:
-		var next_type = "普通"
+		var next_type : String = "普通"
 		if _streak == 2:
 			next_type = "★ 小Boss（付 %d 魂）" % ENTRY_COST_MINI_BOSS
 		elif _streak == 3:
@@ -168,7 +160,14 @@ func _get_net_gain() -> int:
 	return _earned_soul - _total_paid - _retreat_fee
 
 # ============================================================
-#  开始（免费入场）
+#  音乐辅助
+# ============================================================
+func _restore_arena_music():
+	if MusicManager.config and MusicManager.config.arena_music:
+		MusicManager.play_arena_music()
+
+# ============================================================
+#  开始
 # ============================================================
 func _on_start_pressed():
 	if _phase != Phase.IDLE:
@@ -209,77 +208,60 @@ func _init_arena_state():
 	_current_player_data.max_armor_slots = 2
 	_current_player_data.armor_slots = [null, null]
 
-	var saved_talent = GameState.arena_target_talents.get(_current_player_data.unit_name, "")
+	var saved_talent : String = GameState.arena_target_talents.get(_current_player_data.unit_name, "")
 	if saved_talent != "":
 		_locked_talent_id = saved_talent
 
-	_apply_arena_relics_to_player()
 	_current_player_data.hit_points = _current_player_data.max_hp
-
-func _apply_arena_relics_to_player():
-	var relic_stats = {}
-	for p in _arena_passives:
-		if p is ItemInstance:
-			var data = RelicManager.get_relic_data(p.item_id)
-			if data.is_empty():
-				continue
-			var stats = data.get("stats", {})
-			for key in stats:
-				relic_stats[key] = relic_stats.get(key, 0) + stats[key]
-
-	var s = _current_player_data
-	s.max_hp       += int(relic_stats.get("max_hp", 0))
-	s.strength     += int(relic_stats.get("strength", 0))
-	s.dexterity    += int(relic_stats.get("dexterity", 0))
-	s.intelligence += int(relic_stats.get("intelligence", 0))
-	s.faith        += int(relic_stats.get("faith", 0))
-	s.arcane       += int(relic_stats.get("arcane", 0))
-	s.move_range   += int(relic_stats.get("move_range", 0))
 
 # ============================================================
 #  主循环
 # ============================================================
 func _run_battle_loop():
 	while _phase != Phase.END:
-		# 1. 关键节点参与费
-		var entry_choice = await _check_entry_fee()
+		var entry_choice : String = await _check_entry_fee()
 		if not is_inside_tree():
 			return
 		if entry_choice == "decline":
 			_show_summary(true, "及时止损")
 			return
 
-		# 2. 商店
-		var shop_action = await _show_shop()
+		var shop_action : String = await _show_shop()
 		if not is_inside_tree():
 			return
 		if shop_action == "quit":
-			_show_summary(true, "放弃")
+			if _streak == 0:
+				_return_to_idle()
+			else:
+				_show_summary(true, "放弃")
 			return
 
-		# 3. 战斗
-		var winner = await _do_one_battle()
+		var winner : int = await _do_one_battle()
 		if not is_inside_tree():
 			return
+
+		# ★ 失败路径：不切回 arena 音乐（保留 ArenaBattle 的 defeat 音乐），
+		#          并让 _show_summary 跳过再次播放
 		if winner != 0:
-			_show_summary(false, "失败")
+			_show_summary(false, "失败", true)
 			return
 
-		# 4. 胜利后处理
+		# 胜利：切回 arena 音乐
+		_restore_arena_music()
+
 		if _phase == Phase.NORMAL:
 			_streak += 1
 			_grant_progress_rewards()
 
 			if _streak >= CLEAR_TARGET:
 				_phase = Phase.CLEAR
-				var choice = await _show_clear_panel()
+				var choice : String = await _show_clear_panel()
 				if not is_inside_tree():
 					return
 				if choice == "survival":
 					_phase = Phase.SURVIVAL
 					_survival_round = 0
 				else:
-					# ★ 战 4 后撤离：扣 1 魂手续费
 					_apply_retreat_fee(RETREAT_FEE_AFTER_STREAK_4)
 					_show_summary(true, "撤离")
 					return
@@ -287,11 +269,11 @@ func _run_battle_loop():
 		elif _phase == Phase.SURVIVAL:
 			_survival_round += 1
 			if _survival_round >= SURVIVAL_ROUNDS:
-				_show_summary(true, "生存通过")
+				_show_summary(true, "生存通过", true)   # ★ 已由 ArenaBattle 播过 victory
 				return
 
 		SaveManager.auto_save()
-
+		
 func _apply_retreat_fee(fee: int):
 	if fee <= 0:
 		return
@@ -299,7 +281,6 @@ func _apply_retreat_fee(fee: int):
 		GameState.soul -= fee
 		_retreat_fee += fee
 	else:
-		# 魂不够就扣到 0
 		_retreat_fee += GameState.soul
 		GameState.soul = 0
 
@@ -323,13 +304,13 @@ func _check_entry_fee() -> String:
 	if _phase != Phase.NORMAL:
 		return "accept"
 
-	var cost = 0
+	var cost : int = 0
 	if _streak == 2:
 		cost = ENTRY_COST_MINI_BOSS
 	else:
 		return "accept"
 
-	var choice = await _show_entry_fee_panel(cost)
+	var choice : String = await _show_entry_fee_panel(cost)
 	if choice != "accept":
 		return "decline"
 
@@ -346,38 +327,40 @@ func _show_entry_fee_panel(cost: int) -> String:
 	var ui = scene.instantiate()
 	add_child(ui)
 
-	var soul_now = GameState.soul
-	var can_afford = soul_now >= cost
-	var reward_soul = SOUL_BY_STREAK[2]
+	var soul_now : int = GameState.soul
+	var can_afford : bool = soul_now >= cost
+	var reward_soul : int = SOUL_BY_STREAK[2]
 
-	var msg = ""
-	msg += "【关键节点 · 小 Boss】\n\n"
-	msg += "下一战难度显著提升。\n"
-	msg += "胜利奖励：+%d 魂 + 大量金币 + 防具槽 +1\n\n" % reward_soul
+	var msg : String = ""
+	msg += "关键节点 · 小Boss\n"
+	msg += "下一战难度提升\n\n"
+	msg += "奖励：+%d 魂 + 金币 + 防具槽+1\n" % reward_soul
 	msg += "参与费：%d 魂\n" % cost
-	msg += "当前魂：%d\n\n" % soul_now
-	if not can_afford:
-		msg += "⚠ 魂不足，只能放弃\n"
-	msg += "是否支付参与费继续挑战？"
+	msg += "当前魂：%d   金币：%d\n" % [soul_now, _arena_gold]    # ★ 补金币
 
-	var holder = {"value": ""}
+	var holder := {"value": ""}
+
 	if can_afford:
+		msg += "\n确定支付？"
 		ui.show_confirm(
 			msg,
-			"支付继续",
-			"及时止损",
+			"支付 %d 魂" % cost,
+			"",
 			func(): holder["value"] = "accept",
-			func(): holder["value"] = "decline",
-			true
+			func(): pass,
+			false,
+			8
 		)
 	else:
+		msg += "\n\n⚠ 魂不足，本局结束"
 		ui.show_confirm(
 			msg,
-			"及时止损",
+			"放弃",
 			"",
 			func(): holder["value"] = "decline",
 			func(): pass,
-			false
+			false,
+			8
 		)
 
 	while is_instance_valid(ui) and holder["value"] == "":
@@ -389,7 +372,9 @@ func _show_entry_fee_panel(cost: int) -> String:
 #  商店
 # ============================================================
 func _show_shop() -> String:
-	var ctx = ArenaEquipContext.new()
+	_restore_arena_music()
+
+	var ctx := ArenaEquipContext.new()
 	ctx.arena_gold = _arena_gold
 	ctx.player_data = _current_player_data
 	ctx.passives = _arena_passives.duplicate()
@@ -428,6 +413,10 @@ func _show_shop() -> String:
 	if _locked_talent_id != "" and _current_player_data:
 		GameState.arena_target_talents[_current_player_data.unit_name] = _locked_talent_id
 
+	# ★ 用户点了"返回" → 中断本局
+	if ctx.was_cancelled():
+		return "quit"
+
 	return "go"
 
 # ============================================================
@@ -440,19 +429,19 @@ func _do_one_battle() -> int:
 	if not is_inside_tree():
 		return 1
 
-	var enemy_type = _roll_enemy()
+	var enemy_type : String = _roll_enemy()
 	if enemy_type == "":
 		push_error("敌人池为空")
 		return 1
 
-	var enemy_data = UnitDataManager.create_unit_data(enemy_type)
+	var enemy_data : UnitData = UnitDataManager.create_unit_data(enemy_type)
 	_apply_enemy_scaling(enemy_data)
 
-	var gold_gain = _calc_gold_reward()
-	var soul_gain = _calc_soul_reward()
-	var exp_gain = _calc_exp_gain(enemy_type)
+	var gold_gain : int = _calc_gold_reward()
+	var soul_gain : int = _calc_soul_reward()
+	var exp_gain : int = _calc_exp_gain(enemy_type)
 
-	var battle_index = _streak + 1
+	var battle_index : int = _streak + 1
 	if _phase == Phase.SURVIVAL:
 		battle_index = 100 + _survival_round + 1
 
@@ -469,21 +458,17 @@ func _do_one_battle() -> int:
 	if not is_inside_tree():
 		return 1
 	battle.setup(_current_player_data, enemy_data, 0, battle_index)
-	var result = await battle.closed
+	var result : Dictionary = await battle.closed
 
 	if not is_inside_tree():
 		return 1
 
 	if result.get("winner_team", 1) == 0:
-		# 金币（局内）
 		_arena_gold += gold_gain
-
-		# 魂（永久，直接入账）
 		if soul_gain > 0:
 			GameState.soul += soul_gain
 			_earned_soul += soul_gain
 
-		# 词条经验
 		var exp_actual : int = 0
 		var old_level : int = 0
 		var new_level : int = 0
@@ -492,7 +477,6 @@ func _do_one_battle() -> int:
 			exp_actual = TalentManager.add_talent_exp(_current_player_data.unit_name, _locked_talent_id, exp_gain)
 			new_level = TalentManager.get_talent_level(_current_player_data.unit_name, _locked_talent_id)
 
-		# 每战回满 HP
 		_current_player_data.hit_points = _current_player_data.max_hp
 		_streak_active = true
 		SaveManager.auto_save()
@@ -510,20 +494,20 @@ func _do_one_battle() -> int:
 # ============================================================
 func _calc_gold_reward() -> int:
 	if _phase == Phase.SURVIVAL:
-		var idx = mini(_survival_round, 2)
+		var idx : int = mini(_survival_round, 2)
 		return GOLD_SURVIVAL[idx]
-	var i = mini(_streak, GOLD_BY_STREAK.size() - 1)
+	var i : int = mini(_streak, GOLD_BY_STREAK.size() - 1)
 	return GOLD_BY_STREAK[i]
 
 func _calc_soul_reward() -> int:
 	if _phase == Phase.SURVIVAL:
-		var idx = mini(_survival_round, 2)
+		var idx : int = mini(_survival_round, 2)
 		return SOUL_SURVIVAL[idx]
-	var i = mini(_streak, SOUL_BY_STREAK.size() - 1)
+	var i : int = mini(_streak, SOUL_BY_STREAK.size() - 1)
 	return SOUL_BY_STREAK[i]
 
 func _calc_exp_gain(enemy_type: String) -> int:
-	var base = _get_enemy_arena_exp(enemy_type)
+	var base : int = _get_enemy_arena_exp(enemy_type)
 	if _phase == Phase.SURVIVAL:
 		return int(base * 2.5)
 	if _is_mini_boss_battle():
@@ -544,9 +528,9 @@ func _show_battle_rewards(gold_gain: int, soul_gain: int,
 	var items : Array = []
 
 	if exp_gain > 0 and _locked_talent_id != "":
-		var talent_data = TalentManager.get_talent_data(_locked_talent_id)
-		var talent_name = talent_data.display_name if talent_data else _locked_talent_id
-		var exp_item = ItemData.new()
+		var talent_data : TalentData = TalentManager.get_talent_data(_locked_talent_id)
+		var talent_name : String = talent_data.display_name if talent_data else _locked_talent_id
+		var exp_item := ItemData.new()
 		exp_item.id = "arena_exp"
 		if new_level > old_level:
 			exp_item.name = "★ %s 升级 Lv.%d → Lv.%d" % [talent_name, old_level, new_level]
@@ -556,7 +540,7 @@ func _show_battle_rewards(gold_gain: int, soul_gain: int,
 			exp_item.description = talent_data.description
 		items.append(exp_item)
 
-	var title = "第 %d 战胜利" % battle_index
+	var title : String = "第 %d 战胜利" % battle_index
 	if _phase == Phase.SURVIVAL:
 		title = "生存 %d / %d 胜利" % [_survival_round + 1, SURVIVAL_ROUNDS]
 
@@ -566,7 +550,7 @@ func _show_battle_rewards(gold_gain: int, soul_gain: int,
 	summary.close()
 
 # ============================================================
-#  进度奖励（防具槽 +1）
+#  进度奖励
 # ============================================================
 func _grant_progress_rewards():
 	if _phase != Phase.NORMAL:
@@ -592,17 +576,17 @@ func _is_mini_boss_battle() -> bool:
 #  敌人
 # ============================================================
 func _roll_enemy() -> String:
-	var path = Config.PATHS.ARENA_ENEMIES
+	var path : String = Config.PATHS.ARENA_ENEMIES
 	if not FileAccess.file_exists(path):
 		return ""
 	var file = FileAccess.open(path, FileAccess.READ)
-	var content = file.get_as_text()
+	var content : String = file.get_as_text()
 	file.close()
-	var data = JSON.parse_string(content)
-	if data == null or not data is Dictionary:
+	var data : Variant = JSON.parse_string(content)
+	if data == null or not (data is Dictionary):
 		return ""
 
-	var pool_key = "easy"
+	var pool_key : String = "easy"
 	if _phase == Phase.SURVIVAL:
 		if _survival_round == 0:
 			pool_key = "elite"
@@ -612,24 +596,29 @@ func _roll_enemy() -> String:
 		pool_key = "easy"
 	elif _streak == 1:
 		pool_key = "normal"
+	elif _streak == 2:
+		pool_key = "hard"
 	else:
 		pool_key = "elite"
 
-	var pool = data.get(pool_key, [])
+	var data_dict : Dictionary = data
+	var pool : Array = data_dict.get(pool_key, [])
 	if pool.is_empty():
-		pool = data.get("normal", [])
+		pool = data_dict.get("normal", [])
 		if pool.is_empty():
-			pool = data.get("easy", [])
+			pool = data_dict.get("easy", [])
 		if pool.is_empty():
 			return ""
 	return pool[randi() % pool.size()]
 
 func _apply_enemy_scaling(enemy_data: UnitData):
-	var mult = 1.0
+	var mult : float = 1.0
 	if _phase == Phase.SURVIVAL:
-		mult = ENEMY_SCALE_SURVIVAL[mini(_survival_round, ENEMY_SCALE_SURVIVAL.size() - 1)]
+		var idx : int = mini(_survival_round, ENEMY_SCALE_SURVIVAL.size() - 1)
+		mult = ENEMY_SCALE_SURVIVAL[idx]
 	else:
-		mult = ENEMY_SCALE_BY_STREAK[mini(_streak, ENEMY_SCALE_BY_STREAK.size() - 1)]
+		var idx2 : int = mini(_streak, ENEMY_SCALE_BY_STREAK.size() - 1)
+		mult = ENEMY_SCALE_BY_STREAK[idx2]
 
 	enemy_data.max_hp = int(enemy_data.max_hp * mult)
 	enemy_data.hit_points = enemy_data.max_hp
@@ -637,11 +626,11 @@ func _apply_enemy_scaling(enemy_data: UnitData):
 	enemy_data.dexterity = int(enemy_data.dexterity * mult)
 
 func _get_enemy_arena_exp(enemy_type: String) -> int:
-	var unit_dict = UnitDataManager.get_unit_data(enemy_type)
+	var unit_dict : Dictionary = UnitDataManager.get_unit_data(enemy_type)
 	return int(unit_dict.get("arena_exp", 30))
 
 # ============================================================
-#  通关面板（进入生存）
+#  通关面板
 # ============================================================
 func _show_clear_panel() -> String:
 	var scene = load(Config.PATHS.CONFIRM_UI)
@@ -651,32 +640,32 @@ func _show_clear_panel() -> String:
 	var ui = scene.instantiate()
 	add_child(ui)
 
-	var soul_now = GameState.soul
-	var can_afford = soul_now >= ENTRY_COST_SURVIVAL
-	var survival_soul_total = SOUL_SURVIVAL[0] + SOUL_SURVIVAL[1] + SOUL_SURVIVAL[2]
-	var retreat_fee = RETREAT_FEE_AFTER_STREAK_4
+	var soul_now : int = GameState.soul
+	var can_afford : bool = soul_now >= ENTRY_COST_SURVIVAL
+	var survival_soul_total : int = SOUL_SURVIVAL[0] + SOUL_SURVIVAL[1] + SOUL_SURVIVAL[2]
+	var retreat_fee : int = RETREAT_FEE_AFTER_STREAK_4
 
-	var msg = ""
-	msg += "【4 连胜达成】\n\n"
-	msg += "当前魂：%d\n" % soul_now
-	msg += "本局已赚：+%d 魂  |  已支付：-%d 魂\n\n" % [_earned_soul, _total_paid]
-	msg += "选择：\n"
-	msg += "· 撤离：结算（手续费 %d 魂）\n" % retreat_fee
-	msg += "· 生存：支付 %d 魂，3 连 Boss 战\n" % ENTRY_COST_SURVIVAL
-	msg += "  通过：总魂 +%d（本局）\n" % survival_soul_total
-
+	# ★ 精简消息
+	var msg : String = ""
+	msg += "4 连胜达成！\n\n"
+	msg += "已赚：+%d 魂  已付：-%d 魂\n" % [_earned_soul, _total_paid]
+	msg += "当前魂：%d\n\n" % soul_now
+	msg += "撤离：结算（-%d 魂手续费）\n" % retreat_fee
+	msg += "生存：付 %d 魂，3 连 Boss\n" % ENTRY_COST_SURVIVAL
+	msg += "通过后本局再 +%d 魂\n" % survival_soul_total
 	if not can_afford:
-		msg += "\n⚠ 魂不足（需要 %d）\n" % ENTRY_COST_SURVIVAL
+		msg += "\n⚠ 魂不足（需 %d）" % ENTRY_COST_SURVIVAL
 
-	var holder = {"value": ""}
+	var holder := {"value": ""}
 	if can_afford:
 		ui.show_confirm(
 			msg,
-			"支付 %d 魂进入" % ENTRY_COST_SURVIVAL,
+			"付 %d 魂进入" % ENTRY_COST_SURVIVAL,
 			"撤离（-%d 魂）" % retreat_fee,
 			func(): holder["value"] = "survival",
 			func(): holder["value"] = "settle",
-			true
+			true,
+			8
 		)
 	else:
 		ui.show_confirm(
@@ -685,7 +674,8 @@ func _show_clear_panel() -> String:
 			"",
 			func(): holder["value"] = "settle",
 			func(): pass,
-			false
+			false,
+			8
 		)
 
 	while is_instance_valid(ui) and holder["value"] == "":
@@ -701,11 +691,12 @@ func _show_clear_panel() -> String:
 # ============================================================
 #  结算
 # ============================================================
-func _show_summary(success: bool, reason: String):
-	if success:
-		MusicManager.play_victory_music()
-	else:
-		MusicManager.play_defeat_music()
+func _show_summary(success: bool, reason: String, skip_music: bool = false):
+	if not skip_music:
+		if success:
+			MusicManager.play_victory_music()
+		else:
+			MusicManager.play_defeat_music()
 
 	if success and (reason == "通关" or reason == "生存通过"):
 		GameState.arena_clear_count += 1
@@ -721,36 +712,34 @@ func _show_summary(success: bool, reason: String):
 		_return_to_idle()
 		return
 
-	var net_gain = _get_net_gain()
+	var net_gain : int = _get_net_gain()
 
-	# ---- 构建明细 items ----
 	var items : Array = []
 
 	if _earned_soul > 0:
-		var i1 = ItemData.new()
+		var i1 := ItemData.new()
 		i1.id = "arena_earned"
 		i1.name = "本局已赚 +%d 魂" % _earned_soul
 		items.append(i1)
 
 	if _total_paid > 0:
-		var i2 = ItemData.new()
+		var i2 := ItemData.new()
 		i2.id = "arena_paid"
 		i2.name = "参与费 -%d 魂" % _total_paid
 		items.append(i2)
 
 	if _retreat_fee > 0:
-		var i3 = ItemData.new()
+		var i3 := ItemData.new()
 		i3.id = "arena_fee"
 		i3.name = "撤离手续费 -%d 魂" % _retreat_fee
 		items.append(i3)
 
-	# ---- 收尾提示 ----
-	var tail_hint = ""
+	var tail_hint : String = ""
 	match reason:
 		"及时止损":
-			tail_hint = "✅ 明智撤退，未支付参与费，零损失"
+			tail_hint = "✅ 明智撤退，零损失"
 		"撤离":
-			tail_hint = "已提前离场，扣除手续费 %d 魂" % _retreat_fee
+			tail_hint = "已提前离场，扣手续费 %d 魂" % _retreat_fee
 		"生存通过":
 			tail_hint = "★ 生存全通，硬核 Build 验证成功"
 		"失败":
@@ -758,13 +747,12 @@ func _show_summary(success: bool, reason: String):
 		"放弃":
 			tail_hint = "已放弃本局，本局收益保留"
 	if tail_hint != "":
-		var hint_item = ItemData.new()
+		var hint_item := ItemData.new()
 		hint_item.id = "arena_hint"
 		hint_item.name = tail_hint
 		items.append(hint_item)
 
-	# ---- 标题 ----
-	var title = "斗技场 · %s（净收益 %+d 魂）" % [reason, net_gain]
+	var title : String = "斗技场 · %s（净 %+d 魂）" % [reason, net_gain]
 
 	summary.setup_reward(0, net_gain, items, true, title)
 	summary.open()
@@ -785,7 +773,7 @@ func _return_to_idle():
 	_earned_soul = 0
 	_total_paid = 0
 	_retreat_fee = 0
-	MusicManager.play_arena_music()
+	_restore_arena_music()
 	_build_unit_list()
 	_refresh_center_panel()
 	_refresh_streak_label()

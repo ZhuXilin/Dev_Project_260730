@@ -247,9 +247,7 @@
 	"quality": "common",
 	"defense": 2,
 	"slot_count": 1,
-	"modifier": {
-	  "strength": 0.2
-	}
+	"modifier": {}
   },
   "iron_armor": {
 	"id": "iron_armor",
@@ -263,9 +261,7 @@
 	"quality": "common",
 	"defense": 2,
 	"slot_count": 1,
-	"modifier": {
-	  "strength": 0.2
-	}
+	"modifier": {}
   },
   "steel_armor": {
 	"id": "steel_armor",
@@ -280,7 +276,7 @@
 	"defense": 4,
 	"slot_count": 1,
 	"modifier": {
-	  "strength": 0.3
+	  "strength": 1
 	}
   },
   "knight_armor": {
@@ -289,15 +285,15 @@
 	"type": "armor",
 	"use_type": "equipment",
 	"icon": "res://content/images/items/armor.png",
-	"description": "防御+5，魔防+1",
+	"description": "防御+5，魔防+1，占用 2 格",
 	"equipment_slot": "armor",
 	"price": 100,
 	"quality": "epic",
 	"defense": 5,
 	"slot_count": 2,
 	"modifier": {
-	  "strength": 0.5,
-	  "faith": 0.2
+	  "strength": 1,
+	  "faith": 1
 	}
   },
   "power_ring": {
@@ -306,7 +302,7 @@
 	"type": "armor",
 	"use_type": "equipment",
 	"icon": "res://content/images/items/ring.png",
-	"description": "攻击+2",
+	"description": "力量+2",
 	"equipment_slot": "armor",
 	"price": 80,
 	"quality": "rare",
@@ -322,14 +318,14 @@
 	"type": "armor",
 	"use_type": "equipment",
 	"icon": "res://content/images/items/ring.png",
-	"description": "防御+2",
+	"description": "防御+2，力量+1",
 	"equipment_slot": "armor",
 	"price": 80,
 	"quality": "rare",
 	"defense": 2,
 	"slot_count": 1,
 	"modifier": {
-	  "strength": 0.2
+	  "strength": 1
 	}
   },
   "speed_boots": {
@@ -338,7 +334,7 @@
 	"type": "armor",
 	"use_type": "equipment",
 	"icon": "res://content/images/items/boots.png",
-	"description": "移动力+1",
+	"description": "敏捷+1",
 	"equipment_slot": "armor",
 	"price": 100,
 	"quality": "rare",

@@ -153,7 +153,7 @@ func _run_battle():
 
 	if _player_hp > 0 and _enemy_hp <= 0:
 		winner_team = 0
-		result_label.text = "胜利  +%d 结晶" % _crystal_reward
+		result_label.text = "胜利"                                    # ★ 移除 "+%d 结晶"
 		result_label.add_theme_color_override("font_color", Color(0.3, 1.0, 0.3, 1))
 		MusicManager.play_victory_music()
 		continue_btn.visible = true
@@ -252,13 +252,8 @@ func _calc_damage(attacker: UnitData, defender: UnitData) -> int:
 
 	var atk_bonus = 0.0
 	for attr in weapon_data.modifier:
-		var val = 0
-		match attr:
-			"strength": val = attacker.strength
-			"dexterity": val = attacker.dexterity
-			"intelligence": val = attacker.intelligence
-			"faith": val = attacker.faith
-			"arcane": val = attacker.arcane
+		# ★ 读含防具 modifier 加成的有效属性
+		var val = attacker.get_effective_attr(attr)
 		atk_bonus += val * weapon_data.modifier[attr]
 
 	var total_attack = base_attack + atk_bonus
@@ -271,7 +266,8 @@ func _calc_damage(attacker: UnitData, defender: UnitData) -> int:
 			if item_data:
 				var armor_quality_mult = CombatManager.QUALITY_MULT.get(item_data.quality, 1.0)
 				armor_defense += item_data.defense * armor_quality_mult
-	var def_value = defender.strength * CombatManager.STRENGTH_DEF_FACTOR + armor_defense
+	# ★ 防御方力量也走 get_effective_attr
+	var def_value = defender.get_effective_attr("strength") * CombatManager.STRENGTH_DEF_FACTOR + armor_defense
 	def_value += defender.buff_defense_flat
 
 	var damage = max(1, int(total_attack - def_value))

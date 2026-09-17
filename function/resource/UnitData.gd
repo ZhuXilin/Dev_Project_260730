@@ -36,14 +36,14 @@ func reset_combat_buffs():
 
 # ---- 装备系统 ----
 @export var weapon_slot: ItemInstance = null
-@export var armor_slots: Array = []      # 改为无类型 Array，可存储 null
+@export var armor_slots: Array = []
 @export var max_armor_slots: int = 2
 
 # ---- 词条系统 ----
-@export var talent_slots: Array = []        # 词条实例（ItemInstance 或 TalentInstance）
+@export var talent_slots: Array = []
 @export var max_talent_slots: int = 1
 
-# ---- 新字段：职业成长（魂加点） ----
+# ---- 职业成长（魂加点） ----
 @export var advancement: Dictionary = {
 	"hp_bonus": 0,
 	"atk_bonus": 0,
@@ -52,12 +52,92 @@ func reset_combat_buffs():
 }
 
 # ============================================================
+#  装备 modifier 汇总
+# ============================================================
+
+## 汇总所有防具的 modifier 加成
+## 返回 { "strength": 2, "dexterity": 1, ... }
+func get_armor_modifier_bonus() -> Dictionary:
+	var bonus : Dictionary = {}
+	for slot_v in armor_slots:
+		if slot_v == null:
+			continue
+		var slot : ItemInstance = slot_v
+		var data : ItemData = ItemManager.get_item_data(slot.item_id)
+		if not data:
+			continue
+		for key in data.modifier:
+			var cur : int = int(bonus.get(key, 0))
+			var add : int = int(data.modifier[key])
+			bonus[key] = cur + add
+	return bonus
+
+
+## 计算已占用的防具格数（考虑 slot_count）
+func count_used_armor_slots() -> int:
+	var used : int = 0
+	for slot_v in armor_slots:
+		if slot_v == null:
+			continue
+		var slot : ItemInstance = slot_v
+		var data : ItemData = ItemManager.get_item_data(slot.item_id)
+		if data:
+			var sc : int = data.slot_count
+			used += max(1, sc)
+		else:
+			used += 1
+	return used
+
+
+## 是否还能装下指定防具（不考虑卸下已有装备）
+## 传 exclude_slot_idx 可模拟"先卸下某一格再装"
+func can_equip_armor(item_id: String, exclude_slot_idx: int = -1) -> bool:
+	var data : ItemData = ItemManager.get_item_data(item_id)
+	if not data:
+		return false
+	var sc : int = data.slot_count
+	var need : int = max(1, sc)
+	var used : int = 0
+	for i in range(armor_slots.size()):
+		if i == exclude_slot_idx:
+			continue
+		var slot_v : Variant = armor_slots[i]
+		if slot_v == null:
+			continue
+		var slot : ItemInstance = slot_v
+		var sdata : ItemData = ItemManager.get_item_data(slot.item_id)
+		if sdata:
+			var ssc : int = sdata.slot_count
+			used += max(1, ssc)
+		else:
+			used += 1
+	return used + need <= max_armor_slots
+
+
+## 返回含防具 modifier 加成的最终属性（取整）
+## attr_name ∈ {strength, dexterity, intelligence, faith, arcane, move_range, max_hp}
+func get_effective_attr(attr_name: String) -> int:
+	var base : int = 0
+	match attr_name:
+		"strength":     base = strength
+		"dexterity":    base = dexterity
+		"intelligence": base = intelligence
+		"faith":        base = faith
+		"arcane":       base = arcane
+		"move_range":   base = move_range
+		"max_hp":       base = max_hp
+		_:              return 0
+	var bonus : Dictionary = get_armor_modifier_bonus()
+	var bonus_val : int = int(bonus.get(attr_name, 0))
+	return base + bonus_val
+
+
+# ============================================================
 #  序列化 / 反序列化（v3）
 # ============================================================
 
 func to_dict() -> Dictionary:
 	return {
-		# ---- 基础属性 ----
 		"unit_name": unit_name,
 		"display_name": display_name,
 		"faction": faction,
@@ -76,10 +156,8 @@ func to_dict() -> Dictionary:
 		"max_armor_slots": max_armor_slots,
 		"max_talent_slots": max_talent_slots,
 		"advancement": advancement.duplicate(),
-		# ---- 装备（打包进 party_data） ----
 		"weapon_slot": _item_instance_to_dict(weapon_slot),
 		"armor_slots": _item_instance_array_to_array(armor_slots),
-		# ---- 词条 ----
 		"talent_slots": _talent_instance_array_to_array(talent_slots),
 	}
 
@@ -87,7 +165,6 @@ func to_dict() -> Dictionary:
 static func from_dict(d: Dictionary) -> UnitData:
 	var data := UnitData.new()
 
-	# ---- 基础属性 ----
 	data.unit_name = d.get("unit_name", "swordsman")
 	data.display_name = d.get("display_name", "")
 	data.faction = d.get("faction", "")
@@ -106,17 +183,32 @@ static func from_dict(d: Dictionary) -> UnitData:
 	data.max_armor_slots = d.get("max_armor_slots", 2)
 	data.max_talent_slots = d.get("max_talent_slots", 1)
 
-	if d.has("advancement") and d["advancement"] is Dictionary:
-		data.advancement = d["advancement"].duplicate()
+	if d.has("advancement"):
+		var adv_v : Variant = d["advancement"]
+		if adv_v is Dictionary:
+			data.advancement = (adv_v as Dictionary).duplicate()
 
-	# ---- 装备 ----
-	data.weapon_slot = _dict_to_item_instance(d.get("weapon_slot", {}))
-	data.armor_slots = _array_to_item_instance_array(d.get("armor_slots", []))
+	var weapon_dict : Dictionary = {}
+	if d.has("weapon_slot"):
+		var w_v : Variant = d["weapon_slot"]
+		if w_v is Dictionary:
+			weapon_dict = w_v
+	data.weapon_slot = _dict_to_item_instance(weapon_dict)
 
-	# ---- 词条 ----
-	data.talent_slots = _array_to_talent_instance_array(d.get("talent_slots", []))
+	var armor_arr : Array = []
+	if d.has("armor_slots"):
+		var a_v : Variant = d["armor_slots"]
+		if a_v is Array:
+			armor_arr = a_v
+	data.armor_slots = _array_to_item_instance_array(armor_arr)
 
-	# ---- 补齐槽位数量 ----
+	var talent_arr : Array = []
+	if d.has("talent_slots"):
+		var t_v : Variant = d["talent_slots"]
+		if t_v is Array:
+			talent_arr = t_v
+	data.talent_slots = _array_to_talent_instance_array(talent_arr)
+
 	while data.armor_slots.size() < data.max_armor_slots:
 		data.armor_slots.append(null)
 	while data.talent_slots.size() < 1:
@@ -126,7 +218,7 @@ static func from_dict(d: Dictionary) -> UnitData:
 
 
 # ============================================================
-#  内部辅助：ItemInstance ↔ Dictionary
+#  内部辅助
 # ============================================================
 static func _item_instance_to_dict(inst: ItemInstance) -> Dictionary:
 	if not inst:
@@ -134,62 +226,60 @@ static func _item_instance_to_dict(inst: ItemInstance) -> Dictionary:
 	return {
 		"item_id": inst.item_id,
 		"count": inst.count,
-		"upgrade_level": inst.upgrade_level,   # ← 新增
+		"upgrade_level": inst.upgrade_level,
 	}
 
 static func _dict_to_item_instance(d: Dictionary) -> ItemInstance:
-	if not d or d.is_empty():
+	if d.is_empty():
 		return null
-	var item_id = d.get("item_id", "")
+	var item_id : String = d.get("item_id", "")
 	if item_id == "":
 		return null
-	var inst = ItemInstance.new()
+	var inst := ItemInstance.new()
 	inst.item_id = item_id
 	inst.count = d.get("count", 1)
-	inst.upgrade_level = d.get("upgrade_level", 0)   # ← 新增
+	inst.upgrade_level = d.get("upgrade_level", 0)
 	return inst
 
 static func _item_instance_array_to_array(arr: Array) -> Array:
-	var result: Array = []
+	var result : Array = []
 	for inst in arr:
 		result.append(_item_instance_to_dict(inst))
 	return result
 
 
 static func _array_to_item_instance_array(arr: Array) -> Array:
-	var result: Array = []
-	for slot_dict in arr:
-		if slot_dict is Dictionary and not slot_dict.is_empty():
+	var result : Array = []
+	for slot_dict_v in arr:
+		var slot_dict : Variant = slot_dict_v
+		if slot_dict is Dictionary and not (slot_dict as Dictionary).is_empty():
 			result.append(_dict_to_item_instance(slot_dict))
 		else:
 			result.append(null)
 	return result
 
 
-# ============================================================
-#  内部辅助：TalentInstance ↔ Dictionary
-# ============================================================
-
 static func _talent_instance_to_dict(inst) -> Dictionary:
 	if not inst or not (inst is TalentInstance):
 		return {}
-	if not inst.is_active:
+	var t_inst : TalentInstance = inst
+	if not t_inst.is_active:
 		return {}
 	return {
-		"talent_id": inst.talent_id,
-		"current_stack": inst.current_stack,
-		"is_ready": inst.is_ready,
-		"is_active": inst.is_active,
+		"talent_id": t_inst.talent_id,
+		"current_stack": t_inst.current_stack,
+		"is_ready": t_inst.is_ready,
+		"is_active": t_inst.is_active,
 	}
 
 
 static func _dict_to_talent_instance(d: Dictionary) -> TalentInstance:
-	if not d or d.is_empty():
+	if d.is_empty():
 		return null
-	var talent_id = d.get("talent_id", "")
+	var talent_id : String = d.get("talent_id", "")
 	if talent_id == "":
 		return null
-	var inst = TalentInstance.new()
+	var inst := TalentInstance.new()
 	inst.talent_id = talent_id
 	inst.current_stack = d.get("current_stack", 0)
 	inst.is_ready = d.get("is_ready", false)
@@ -198,16 +288,17 @@ static func _dict_to_talent_instance(d: Dictionary) -> TalentInstance:
 
 
 static func _talent_instance_array_to_array(arr: Array) -> Array:
-	var result: Array = []
+	var result : Array = []
 	for inst in arr:
 		result.append(_talent_instance_to_dict(inst))
 	return result
 
 
 static func _array_to_talent_instance_array(arr: Array) -> Array:
-	var result: Array = []
-	for slot_dict in arr:
-		if slot_dict is Dictionary and not slot_dict.is_empty():
+	var result : Array = []
+	for slot_dict_v in arr:
+		var slot_dict : Variant = slot_dict_v
+		if slot_dict is Dictionary and not (slot_dict as Dictionary).is_empty():
 			result.append(_dict_to_talent_instance(slot_dict))
 		else:
 			result.append(null)

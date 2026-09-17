@@ -102,16 +102,10 @@ func calculate_damage(attacker: Unit, defender: Unit) -> int:
 	var modifier = weapon_data.modifier
 	var atk_bonus = 0.0
 	for attr in modifier:
-		var val = 0
-		match attr:
-			"strength": val = attacker.unit_stats.strength
-			"dexterity": val = attacker.unit_stats.dexterity
-			"intelligence": val = attacker.unit_stats.intelligence
-			"faith": val = attacker.unit_stats.faith
-			"arcane": val = attacker.unit_stats.arcane
+		# ★ 读含防具 modifier 加成的有效属性
+		var val = attacker.unit_stats.get_effective_attr(attr)
 		atk_bonus += val * modifier[attr]
 
-	# ★ 读 Unit 上的 buff
 	var total_attack = base_attack + atk_bonus + attacker.buff_attack_flat
 	total_attack *= (1.0 + attacker.buff_attack_percent)
 
@@ -122,12 +116,13 @@ func calculate_damage(attacker: Unit, defender: Unit) -> int:
 			if item_data:
 				var armor_quality_mult = QUALITY_MULT.get(item_data.quality, 1.0)
 				armor_defense += item_data.defense * armor_quality_mult
-	var def_value = defender.unit_stats.strength * STRENGTH_DEF_FACTOR + armor_defense
-	def_value += defender.buff_defense_flat              # ★ 读 Unit
+	# ★ 防御方力量也走 get_effective_attr
+	var def_value = defender.unit_stats.get_effective_attr("strength") * STRENGTH_DEF_FACTOR + armor_defense
+	def_value += defender.buff_defense_flat
 
 	var damage = max(1, int(total_attack - def_value))
 
-	if defender.buff_damage_reduction > 0:               # ★ 读 Unit
+	if defender.buff_damage_reduction > 0:
 		damage = max(1, int(damage * (1.0 - defender.buff_damage_reduction)))
 
 	return damage

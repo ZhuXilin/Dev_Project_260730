@@ -53,8 +53,6 @@ const PATHS : Dictionary = {
 	"SOUL_ALTAR_UI":        "res://content/scenes/ui/SoulAltar.tscn",
 	"ARENA_UI":          "res://content/scenes/ui/Arena.tscn",
 	"ARENA_BATTLE_UI":   "res://content/scenes/ui/ArenaBattle.tscn",
-	"ARENA_RETREAT_UI":  "res://content/scenes/ui/ArenaRetreat.tscn",
-	"ARENA_SUMMARY_UI":  "res://content/scenes/ui/ArenaSummary.tscn",
 	"ARENA_SHOP_UI":     "res://content/scenes/ui/ArenaShop.tscn",
 
 	# 脚本

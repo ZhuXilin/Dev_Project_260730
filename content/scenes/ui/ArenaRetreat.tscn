@@ -3,11 +3,11 @@
 [ext_resource type="Script" uid="uid://dxfygw0mmu8xi" path="res://function/script/ArenaRetreat.gd" id="1_script"]
 [ext_resource type="StyleBox" uid="uid://6qbsaxkfwg3o" path="res://content/resource/stylebox/8bit_style_box_flat.tres" id="2_style"]
 
-[node name="ArenaRetreat" type="CanvasLayer"]
+[node name="ArenaRetreat" type="CanvasLayer" unique_id=464998103]
 layer = 30
 script = ExtResource("1_script")
 
-[node name="Background" type="ColorRect" parent="."]
+[node name="Background" type="ColorRect" parent="." unique_id=1683921104]
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
@@ -15,7 +15,7 @@ grow_horizontal = 2
 grow_vertical = 2
 color = Color(0.10980392, 0.10980392, 0.10980392, 1)
 
-[node name="Panel" type="Panel" parent="."]
+[node name="Panel" type="Panel" parent="." unique_id=1884692841]
 anchors_preset = 8
 anchor_left = 0.5
 anchor_top = 0.5
@@ -29,8 +29,8 @@ grow_horizontal = 2
 grow_vertical = 2
 theme_override_styles/panel = ExtResource("2_style")
 
-[node name="TitleLabel" type="Label" parent="Panel"]
-anchors_preset = 5
+[node name="TitleLabel" type="Label" parent="Panel" unique_id=98994435]
+layout_mode = 0
 anchor_left = 0.5
 anchor_right = 0.5
 offset_left = -60.0
@@ -42,8 +42,8 @@ theme_override_font_sizes/font_size = 12
 text = "撤离点"
 horizontal_alignment = 1
 
-[node name="InfoLabel" type="Label" parent="Panel"]
-anchors_preset = 5
+[node name="InfoLabel" type="Label" parent="Panel" unique_id=2042105657]
+layout_mode = 0
 anchor_left = 0.5
 anchor_right = 0.5
 offset_left = -160.0
@@ -55,8 +55,8 @@ theme_override_font_sizes/font_size = 8
 horizontal_alignment = 1
 autowrap_mode = 3
 
-[node name="ButtonBar" type="HBoxContainer" parent="Panel"]
-anchors_preset = 7
+[node name="ButtonBar" type="HBoxContainer" parent="Panel" unique_id=1255310323]
+layout_mode = 0
 anchor_left = 0.5
 anchor_top = 1.0
 anchor_right = 0.5
@@ -70,17 +70,7 @@ grow_vertical = 0
 theme_override_constants/separation = 40
 alignment = 1
 
-[node name="RetreatBtn" type="Button" parent="Panel/ButtonBar"]
-layout_mode = 2
-theme_override_font_sizes/font_size = 10
-theme_override_styles/normal = ExtResource("2_style")
-theme_override_styles/pressed = ExtResource("2_style")
-theme_override_styles/hover = ExtResource("2_style")
-theme_override_styles/disabled = ExtResource("2_style")
-theme_override_styles/focus = ExtResource("2_style")
-text = "安全撤离"
-
-[node name="ChallengeBtn" type="Button" parent="Panel/ButtonBar"]
+[node name="ChallengeBtn" type="Button" parent="Panel/ButtonBar" unique_id=1982301234]
 layout_mode = 2
 theme_override_font_sizes/font_size = 10
 theme_override_styles/normal = ExtResource("2_style")
@@ -90,5 +80,15 @@ theme_override_styles/disabled = ExtResource("2_style")
 theme_override_styles/focus = ExtResource("2_style")
 text = "挑战"
 
-[connection signal="pressed" from="Panel/ButtonBar/RetreatBtn" to="." method="_on_retreat_pressed"]
+[node name="RetreatBtn" type="Button" parent="Panel/ButtonBar" unique_id=739536499]
+layout_mode = 2
+theme_override_font_sizes/font_size = 10
+theme_override_styles/normal = ExtResource("2_style")
+theme_override_styles/pressed = ExtResource("2_style")
+theme_override_styles/hover = ExtResource("2_style")
+theme_override_styles/disabled = ExtResource("2_style")
+theme_override_styles/focus = ExtResource("2_style")
+text = "安全撤离"
+
 [connection signal="pressed" from="Panel/ButtonBar/ChallengeBtn" to="." method="_on_challenge_pressed"]
+[connection signal="pressed" from="Panel/ButtonBar/RetreatBtn" to="." method="_on_retreat_pressed"]

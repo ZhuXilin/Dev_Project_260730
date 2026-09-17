@@ -53,7 +53,7 @@ text = "魂之竞技场"
 modulate = Color(0.7, 0.7, 0.7, 1)
 layout_mode = 2
 theme_override_font_sizes/font_size = 6
-text = "2 魂入场 · 10 胜通关 · 生存 3 连战"
+text = "免费入场 · 4 胜通关 · 生存 3 魂入场"
 
 [node name="MainHBox" type="HBoxContainer" parent="Panel/VBox" unique_id=779494358]
 layout_mode = 2

@@ -2,6 +2,15 @@
 class_name EquipContext
 extends RefCounted
 
+# ---- 关闭状态（Arena 用来区分 返回/出发） ----
+var _cancelled : bool = false
+
+func mark_cancelled() -> void:
+	_cancelled = true
+
+func was_cancelled() -> bool:
+	return _cancelled
+
 # ---- 标识 ----
 func get_context_id() -> String: return "generic"
 
