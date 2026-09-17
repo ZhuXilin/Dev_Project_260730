@@ -16,13 +16,13 @@ const ENTRY_COST_SURVIVAL : int = 3
 const RETREAT_FEE_AFTER_STREAK_4 : int = 1
 
 # ---- 战 1-4 金币奖励 ----
-const GOLD_BY_STREAK : Array = [100, 150, 350, 600]
+const GOLD_BY_STREAK : Array = [200, 300, 500, 800]
 
 # ---- 战 1-4 魂奖励 ----
 const SOUL_BY_STREAK : Array = [0, 0, 1, 1]
 
 # ---- 生存模式奖励（3 战） ----
-const GOLD_SURVIVAL : Array = [800, 1200, 2000]
+const GOLD_SURVIVAL : Array = [1200, 1800, 3000]
 const SOUL_SURVIVAL : Array = [2, 3, 5]
 
 # ---- 敌人倍率 ----
@@ -43,7 +43,6 @@ var _survival_round : int = 0
 var _current_player_data : UnitData = null
 var _locked_talent_id : String = ""
 var _streak_active : bool = false
-var _run_best_streak : int = 0
 var _earned_soul : int = 0
 var _total_paid : int = 0
 var _retreat_fee : int = 0
@@ -148,8 +147,8 @@ func _refresh_center_panel():
 
 func _refresh_streak_label():
 	if _phase == Phase.IDLE:
-		streak_label.text = "最高连胜：%d  |  通关：%d 次  |  当前魂：%d" % [
-			GameState.arena_best_streak, GameState.arena_clear_count, GameState.soul
+		streak_label.text = "通关：%d 次  |  当前魂：%d" % [
+			GameState.arena_clear_count, GameState.soul
 		]
 	elif _phase == Phase.SURVIVAL:
 		streak_label.text = "生存：%d / %d（不可撤离）  |  本局净：%+d 魂" % [
@@ -199,7 +198,6 @@ func _init_arena_state():
 	_streak = 0
 	_survival_round = 0
 	_streak_active = false
-	_run_best_streak = 0
 	_earned_soul = 0
 	_total_paid = 0
 	_retreat_fee = 0
@@ -270,9 +268,6 @@ func _run_battle_loop():
 		# 4. 胜利后处理
 		if _phase == Phase.NORMAL:
 			_streak += 1
-			_run_best_streak = maxi(_run_best_streak, _streak)
-			if _streak > GameState.arena_best_streak:
-				GameState.arena_best_streak = _streak
 			_grant_progress_rewards()
 
 			if _streak >= CLEAR_TARGET:
