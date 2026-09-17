@@ -8,8 +8,7 @@ const BOSS_NODE_TYPE = 6
 @export var transition_delay_before_fade : float = 1.0
 @export var transition_delay_after_fade : float = 1.0
 
-# ---- 节点引用（方式一：使用 @onready 自动获取） ----
-# 如果您仍在使用 @onready，保留以下代码；如果已改为手动获取，请注释或删除
+# ---- 节点引用 ----
 @onready var action_menu : CanvasLayer = $ActionMenu
 @onready var attack_btn : Button = $ActionMenu/ActionPanel/ButtonContainer/AttackBtn
 @onready var move_btn : Button = $ActionMenu/ActionPanel/ButtonContainer/MoveBtn
@@ -45,11 +44,9 @@ const BOSS_NODE_TYPE = 6
 @onready var turn_count_label: Label = $TurnCountLayer/TurnCountIndicator
 @onready var relic_icon_container = $RelicLayer/RelicIconContainer
 
-# ---- 常量 ----
 const PERFORMANCE_DURATION : float = 0.5
 const ItemGetPopupScene = preload(Config.PATHS.ITEM_GET_POPUP)
 
-# ---- 普通变量（运行时可修改） ----
 var map_grid_size : Vector2i = MapConst.DEFAULT_MAP_SIZE
 var _initialized : bool = false
 var _viewport_scale : float = 1.0
@@ -59,17 +56,16 @@ var map_functions : Dictionary = {}
 var _turn_changed_locked : bool = false
 var is_non_combat_mode: bool = false
 var non_combat_back_button: Button = null
-var current_node_type: int = MapNode.NodeType.NORMAL   # 当前地图的节点类型
-var _victory_processed: bool = false   # 防止重复处理胜利
+var current_node_type: int = MapNode.NodeType.NORMAL
+var _victory_processed: bool = false
 var _detail_popup = null
-var _is_reward_ui_active: bool = false   # 结算界面是否激活
+var _is_reward_ui_active: bool = false
+var _is_showing_relics: bool = false
 
 func _ready():
-	# ---- 在 _ready() 开头添加 ----
 	_victory_processed = false
 	_is_reward_ui_active = false
-	
-	# ---- 手动获取所有节点 ----
+
 	action_menu = get_node("ActionMenu")
 	attack_btn = get_node("ActionMenu/ActionPanel/ButtonContainer/AttackBtn")
 	move_btn = get_node("ActionMenu/ActionPanel/ButtonContainer/MoveBtn")
@@ -101,12 +97,9 @@ func _ready():
 	item_list_container = $SettingLayer/ItemListPanel/ItemListContainer
 	end_turn_button = $EndTurnLayer/EndTurnButton
 	turn_count_label = $TurnCountLayer/TurnCountIndicator
-	
-	# ---- 新增遗物节点 ----
 	relic_view_btn = $SettingLayer/SettingPanel/SettingContainer/RelicViewBtn
 	relic_icon_container = $RelicLayer/RelicIconContainer
 
-	# ---- 检查关键节点 ----
 	var node_list = {
 		"action_menu": action_menu,
 		"attack_btn": attack_btn,
@@ -126,25 +119,22 @@ func _ready():
 		if not node_list[node_name]:
 			print("警告：节点 '", node_name, "' 未找到！")
 
-	# ---- 原有信号连接 ----
 	setting_btn.pressed.connect(_on_setting_btn_pressed)
 	equip_btn.pressed.connect(_on_equip_btn_pressed)
 	item_list_btn.pressed.connect(_on_item_list_btn_pressed)
 	SignalBus.non_combat_complete.connect(_on_non_combat_complete)
-	
-	# ---- 创建详情弹窗（隐藏） ----
+
 	_detail_popup = load(Config.PATHS.ITEM_DETAIL_POPUP).instantiate()
 	add_child(_detail_popup)
 	_detail_popup.visible = false
-	
+
 	if end_turn_button:
 		end_turn_button.text = "鼠标中键结束回合"
 		end_turn_button.visible = not is_non_combat_mode
-		
-	# ---- 遗物查看按钮 ----
+
 	if relic_view_btn:
 		relic_view_btn.pressed.connect(_on_relic_view_btn_pressed)
-		
+
 	if _initialized:
 		return
 	_initialized = true
@@ -176,7 +166,6 @@ func _ready():
 		turn_overlay.modulate = Color(1, 1, 1, 0)
 		Globals.is_fading = false
 
-	# ---- 加载地图 ----
 	if GameState.current_map_data:
 		var map_to_load = GameState.current_map_data
 		if not map_to_load.scene:
@@ -235,7 +224,6 @@ func _ready():
 		menu_blocker.position = Vector2.ZERO
 		menu_blocker.z_index = UIConst.MENU_BLOCKER_Z_INDEX
 
-	# ---- 判断是否为非战斗模式 ----
 	var is_non_combat = GameState.current_map_data and GameState.current_map_data.node_type in [
 		MapNode.NodeType.SHOP,
 		MapNode.NodeType.EVENT,
@@ -245,19 +233,18 @@ func _ready():
 	if is_non_combat:
 		await _setup_non_combat_mode()
 		await get_tree().process_frame
-		
+
 		if back_camp_btn:
 			for conn in back_camp_btn.pressed.get_connections():
 				back_camp_btn.pressed.disconnect(conn.callable)
 			back_camp_btn.pressed.connect(_on_back_camp_pressed)
 			back_camp_btn.text = "回到营地"
 			print("BackCampBtn 已连接（非战斗）")
-		
+
 		TurnManager.start_turn(TurnManager.Team.PLAYER)
 		_update_relic_icons()
 		return
 
-	# ---- 战斗模式：触发战斗开始事件 ----
 	if _battle_start_event_id != "":
 		print("检测到战斗开始事件：", _battle_start_event_id)
 		var music = MusicManager.config.battle_start_dialogue_music if MusicManager.config else null
@@ -293,10 +280,9 @@ func _ready():
 		back_camp_btn.text = "回到营地"
 		print("BackCampBtn 已连接")
 	InputManager.ui_manager = ui_manager
-	
+
 	_update_relic_icons()
-	
-	# ---- 在 _ready() 末尾也重置一次（兜底） ----
+
 	_victory_processed = false
 	_is_reward_ui_active = false
 	_apply_team_buffs()
@@ -314,8 +300,7 @@ func _exit_tree():
 		attack_btn.pressed.disconnect(_on_attack_btn_pressed)
 	if wait_btn.pressed.is_connected(_on_wait_btn_pressed):
 		wait_btn.pressed.disconnect(_on_wait_btn_pressed)
-	
-	# ---- 清理 InputManager 里对本场景节点的引用（避免持旧引用） ----
+
 	if InputManager.ui_manager == ui_manager:
 		InputManager.ui_manager = null
 	if InputManager.selected_unit != null:
@@ -328,13 +313,13 @@ func _exit_tree():
 # ===================== 主循环 =====================
 func _process(_delta):
 	var should_pause = (
-		action_menu.visible or 
-		victory_panel.visible or 
-		info_panel.visible or 
-		TurnManager.is_moving or 
-		TurnManager.is_ai_moving or 
-		TurnManager.current_turn_team == TurnManager.Team.ENEMY or 
-		Globals.is_fading or 
+		action_menu.visible or
+		victory_panel.visible or
+		info_panel.visible or
+		TurnManager.is_moving or
+		TurnManager.is_ai_moving or
+		TurnManager.current_turn_team == TurnManager.Team.ENEMY or
+		Globals.is_fading or
 		Globals.is_transitioning or
 		Globals.is_performing_action or
 		Globals.is_dialogue_active or
@@ -342,7 +327,6 @@ func _process(_delta):
 		camera_controller._is_smooth_moving
 	)
 	camera_controller.set_paused(should_pause)
-	# 光标更新移至 _physics_process
 
 func _physics_process(_delta):
 	_update_cursor_and_mouse()
@@ -375,32 +359,29 @@ func load_map(new_map_data: MapData):
 		print("地图数据为空，加载默认地图")
 		_load_default_map()
 		return
-	
+
 	print("地图名称：", new_map_data.map_name)
 	GameState.current_map_data = new_map_data
-	current_node_type = new_map_data.node_type   # 安全
-	
-	# ---- 声明变量 ----
+	current_node_type = new_map_data.node_type
+
 	var map_pixel_rect: Rect2
 	var tilemap: TileMapLayer = null
 	var main_scene_instance: Node = null
 	var used_rect: Rect2i = Rect2i()
 	var spawn_points: Array[Vector2i] = []
 
-	# ---- 尝试加载场景 ----
 	if new_map_data.scene:
 		var scene_path = new_map_data.scene.resource_path
 		print("加载场景：", scene_path)
-		
+
 		var scene = load(scene_path) as PackedScene
 		if scene:
 			main_scene_instance = scene.instantiate()
 			if main_scene_instance:
 				tilemap = _find_tilemap(main_scene_instance)
 				if tilemap:
-					# ---- 立即移除并释放旧地形（避免 Godot 节点重名 / 编辑器残留） ----
 					_remove_old_terrain()
-					
+
 					main_scene_instance.name = "TerrainTileMap"
 					add_child(main_scene_instance)
 					move_child(main_scene_instance, 0)
@@ -413,8 +394,7 @@ func load_map(new_map_data: MapData):
 					TerrainManager.grid_size = map_grid_size
 					TerrainManager.load_from_tilemap(tilemap, map_grid_size)
 					_extract_map_unit_placers(main_scene_instance)
-					
-					# ---- 提取出生点 ----
+
 					spawn_points = _extract_spawn_points(main_scene_instance)
 					if spawn_points.size() > 0:
 						print("提取到出生点：", spawn_points)
@@ -427,12 +407,10 @@ func load_map(new_map_data: MapData):
 				print("错误：无法实例化场景：", scene_path)
 		else:
 			print("错误：无法加载场景文件：", scene_path)
-	
-	# ---- 如果未找到地形，生成默认 ----
+
 	if not tilemap:
-		# ---- 同样需要清理旧地形（编辑器预置的 TerrainTileMap） ----
 		_remove_old_terrain()
-		
+
 		_generate_default_terrain(new_map_data.map_size)
 		used_rect = Rect2i(Vector2i.ZERO, map_grid_size)
 		map_pixel_rect = Rect2(Vector2.ZERO, new_map_data.map_size * MapConst.CELL_SIZE)
@@ -446,10 +424,8 @@ func load_map(new_map_data: MapData):
 		menu_blocker.size = used_rect.size * MapConst.CELL_SIZE
 		menu_blocker.position = used_rect.position * MapConst.CELL_SIZE
 
-	# ---- 清除旧单位 ----
 	_clear_units()
 
-	# ---- 生成单位 ----
 	var configs: Array[UnitConfig] = []
 	if main_scene_instance:
 		configs = UnitSpawner.extract_configs_from_node(main_scene_instance)
@@ -476,7 +452,6 @@ func load_map(new_map_data: MapData):
 		unit.position = grid_to_world(unit.grid_cell)
 		unit.z_index = 1
 
-	# ---- 设置摄像机边界 ----
 	menu_blocker.z_index = 2
 	camera_controller.set_map_boundary(map_pixel_rect)
 	print("地图边界（像素）:", map_pixel_rect)
@@ -485,7 +460,6 @@ func load_map(new_map_data: MapData):
 	TurnManager.map_functions = map_functions
 	print("地图加载完成：", new_map_data.map_name)
 
-# ---- 辅助函数：生成备用地图 ----
 func _create_fallback_map_data() -> MapData:
 	var map = MapData.new()
 	map.map_name = "备用地图"
@@ -500,7 +474,6 @@ func _create_fallback_map_data() -> MapData:
 	enemy_cfg.position = Vector2i(5, 5)
 	return map
 
-# ---- 辅助函数：创建全平地 ----
 func _create_flat_terrain(size: Vector2i):
 	push_warning("没有地形数据，所有格子视为平地")
 	map_grid_size = size
@@ -513,19 +486,15 @@ func _create_flat_terrain(size: Vector2i):
 		grid.append(row)
 	TerrainManager.terrain_grid = grid
 
-# Battlefield.gd
-# 提取场景中的功能格配置，并在运行时移除工具节点
 func _extract_map_unit_placers(node: Node):
 	map_functions.clear()
 	var battle_start_event = ""
-	var tool_nodes: Array[Node] = []   # 收集所有工具节点
+	var tool_nodes: Array[Node] = []
 
-	# 递归收集工具节点（EventTrigger, HpFunction, BattleStartEvent）
 	_find_tools(node, tool_nodes)
 
 	for tool in tool_nodes:
 		var cfg = tool.export_config()
-		# 对于 UnitPlacerTool，cfg 可能是 UnitConfig 对象；但工具节点都返回字典
 		var cell: Vector2i
 		if cfg is Dictionary:
 			if cfg.has("position"):
@@ -533,7 +502,6 @@ func _extract_map_unit_placers(node: Node):
 			else:
 				continue
 		else:
-			# 若不是字典，可能是其他类型，跳过
 			continue
 
 		var entry = {"triggered": false}
@@ -564,13 +532,11 @@ func _extract_map_unit_placers(node: Node):
 					print("战斗开始事件: ", event_id)
 
 			_:
-				# 忽略其他类型
 				pass
 
 	_battle_start_event_id = battle_start_event
 	print("共提取 ", map_functions.size(), " 个功能格，战斗开始事件: ", battle_start_event)
 
-	# ---- 删除所有工具节点（运行时不再需要） ----
 	for tool in tool_nodes:
 		if is_instance_valid(tool):
 			tool.queue_free()
@@ -590,7 +556,6 @@ func _center_camera_on_player():
 		var target_unit = player_units[0]
 		var target_pos = grid_to_world(target_unit.grid_cell)
 		target_pos = camera_controller.clamp_position(target_pos)
-		# 使用平滑移动，duration=0 立即跳转，但避免半格偏移
 		camera_controller.smooth_move_to(target_pos, 0.0, true)
 	else:
 		var viewport_size = get_viewport().get_visible_rect().size
@@ -613,12 +578,11 @@ func _clear_units():
 			UnitManager.unregister_unit(child)
 			child.queue_free()
 
-# ---- 立即移除并释放旧地形节点（避免延迟释放导致的节点重名/残留） ----
 func _remove_old_terrain():
 	var old = get_node_or_null("TerrainTileMap")
 	if old:
-		remove_child(old)       # 立即从树里移除
-		old.free()              # 同步释放
+		remove_child(old)
+		old.free()
 		print("已清理旧地形节点")
 
 func _find_tilemap(node: Node) -> TileMapLayer:
@@ -642,7 +606,6 @@ func _initialize_managers():
 		"wait_btn": wait_btn,
 		"equip_btn": equip_btn,
 		"equip_menu": $ActionMenu/EquipMenu,
-		# "weapon_select_menu": $ActionMenu/WeaponSelectMenu,   # 已删除
 		"victory_panel": victory_panel,
 		"victory_label": victory_label,
 		"victory_button": victory_button,
@@ -663,7 +626,6 @@ func _connect_signals():
 	attack_btn.pressed.connect(_on_attack_btn_pressed)
 	wait_btn.pressed.connect(_on_wait_btn_pressed)
 
-	# 先断开再连接所有 SignalBus 信号，避免重复
 	if SignalBus.request_highlight.is_connected(_on_highlight_request):
 		SignalBus.request_highlight.disconnect(_on_highlight_request)
 	SignalBus.request_highlight.connect(_on_highlight_request)
@@ -696,7 +658,6 @@ func _connect_signals():
 		SignalBus.request_show_victory.disconnect(_on_request_show_victory)
 	SignalBus.request_show_victory.connect(_on_request_show_victory)
 
-	# 关键：turn_changed 只连接一次，先断开再连接
 	if SignalBus.turn_changed.is_connected(_on_turn_changed):
 		SignalBus.turn_changed.disconnect(_on_turn_changed)
 	SignalBus.turn_changed.connect(_on_turn_changed)
@@ -743,7 +704,6 @@ func _connect_signals():
 
 	_on_speed_changed(Globals.game_speed)
 
-	# MovementAnimator 信号
 	if movement_animator.movement_finished.is_connected(_on_player_movement_finished):
 		movement_animator.movement_finished.disconnect(_on_player_movement_finished)
 	movement_animator.movement_finished.connect(_on_player_movement_finished)
@@ -828,27 +788,23 @@ func _on_wait_btn_pressed():
 			SoundManager.play_select_sound()
 			func_config["triggered"] = true
 			func_config["triggered_by_unit"] = unit
-			await EventManager.trigger_event(event_id, unit)   # 等待事件完成（含 UI）
+			await EventManager.trigger_event(event_id, unit)
 			if EventManager.is_event_completed(event_id):
 				func_config["triggered"] = true
 			else:
 				func_config["triggered"] = false
 				func_config["triggered_by_unit"] = null
-			# 事件完成后才执行待机
 			unit.can_act_this_turn = false
 			unit.set_gray(true)
 			TurnManager.finish_unit_action(unit)
 			return
 
-	# 普通待机
 	InputManager.on_wait_button_pressed()
 
 func _on_request_show_victory(winning_team: int):
 	print("=== _on_request_show_victory 被调用, _victory_processed: ", _victory_processed)
-	# ---- 等待所有 UI 结束（带超时保护） ----
 	await _wait_for_ui_clear()
 
-	# ---- 防止重复调用 ----
 	if _victory_processed:
 		print("胜利已处理，跳过重复调用")
 		return
@@ -858,11 +814,9 @@ func _on_request_show_victory(winning_team: int):
 	var tree = get_tree()
 	if not tree:
 		print("错误：无法获取场景树，无法处理胜利")
-		# 如果出错，也要释放锁定
 		_victory_processed = false
 		return
 
-	# ---- 清理动画和UI ----
 	if is_instance_valid(movement_animator):
 		movement_animator.cancel_movement()
 	if is_instance_valid(camera_controller):
@@ -896,7 +850,7 @@ func _on_request_show_victory(winning_team: int):
 
 	var is_win = (winning_team == 0)
 	var is_last = LevelManager.is_last_level()
-	
+
 	var is_boss = (current_node_type == MapNode.NodeType.BOSS)
 	if not is_boss and GameState.current_map_data:
 		is_boss = (GameState.current_map_data.node_type == MapNode.NodeType.BOSS)
@@ -922,7 +876,6 @@ func _on_request_show_victory(winning_team: int):
 			]
 
 			if not is_non_combat_node:
-				# ---- 获取完整奖励 ----
 				var reward = EconomyManager.get_battle_reward(current_node_type, is_boss)
 				var gold_gain = reward.gold
 				var soul_gain = reward.soul
@@ -940,7 +893,7 @@ func _on_request_show_victory(winning_team: int):
 				EconomyManager.add_temp_gold(gold_gain)
 				EconomyManager.add_temp_soul(soul_gain)
 				EconomyManager.apply_material_reward(materials)
-				
+
 				print("--- 资源累加完成 ---")
 				print("temp_gold: ", GameState.temp_gold)
 				print("temp_soul: ", GameState.temp_soul)
@@ -981,7 +934,7 @@ func _on_request_show_victory(winning_team: int):
 		return
 
 	# ============================================================
-	# 非地图模式（旧版流程）
+	# 非地图模式
 	# ============================================================
 	print("非地图模式（旧版流程）")
 	if is_win and is_last:
@@ -1001,11 +954,9 @@ func _on_request_show_victory(winning_team: int):
 
 func _on_turn_changed(team: int):
 	print("连接数: ", SignalBus.turn_changed.get_connections().size())
-	# ---- 等待 UI 结束（带超时保护） ----
 	await _wait_for_ui_clear()
 	_handle_turn_change_async(team)
 
-# 新增异步处理函数（将原 _on_turn_changed 的全部逻辑移入）
 func _handle_turn_change_async(team: int):
 	if team == TurnManager.Team.PLAYER:
 		print("玩家回合开始，递增前计数: ", Globals.current_battle_turn)
@@ -1019,7 +970,6 @@ func _handle_turn_change_async(team: int):
 	_turn_changed_locked = true
 	Globals.is_transitioning = true
 
-	# ---- 隐藏所有UI ----
 	if is_instance_valid(action_menu):
 		action_menu.visible = false
 	if is_instance_valid(ui_manager):
@@ -1040,11 +990,10 @@ func _handle_turn_change_async(team: int):
 	InputManager.current_highlight_cells = {}
 
 	MusicManager.stop_music()
-	
+
 	if team == TurnManager.Team.PLAYER:
 		Globals.increment_battle_turn()
-		
-	# UI 过渡计时：忽略 time_scale
+
 	await get_tree().create_timer(transition_delay_before_fade, true, false, true).timeout
 	await turnlayer_manager.play_transition(team)
 	await get_tree().create_timer(transition_delay_after_fade, true, false, true).timeout
@@ -1068,7 +1017,6 @@ func _handle_turn_change_async(team: int):
 		if fallback_pos:
 			camera_controller.smooth_move_to(fallback_pos, turnlayer_manager.transition_duration, true)
 
-	# ---- 音乐控制 ----
 	if not is_non_combat_mode:
 		var is_boss = GameState.current_map_data and GameState.current_map_data.node_type == MapNode.NodeType.BOSS
 		if is_boss:
@@ -1130,7 +1078,6 @@ func _on_clear_highlight_unit():
 
 # ===================== 输入处理 =====================
 func _input(event: InputEvent):
-	# ---- 装备菜单右键关闭 ----
 	if Globals.is_equip_menu_active:
 		if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT:
 			Globals.suppress_sound = true
@@ -1141,22 +1088,18 @@ func _input(event: InputEvent):
 				SignalBus.request_show_menu.emit(InputManager.selected_unit)
 		return
 
-	# ---- 对话或道具弹出时屏蔽所有输入 ----
 	if Globals.is_dialogue_active or Globals.is_item_get_popup_active:
 		return
 
-	# ---- 鼠标中键结束回合（替代原 F 键） ----
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_MIDDLE:
 		if TurnManager.current_turn_team == TurnManager.Team.PLAYER and not Globals.is_fading and not Globals.is_transitioning and not Globals.is_dialogue_active:
 			_end_player_turn()
 			return
 
-	# ---- 键盘事件（调试快捷键等，已移除 F 键） ----
 	if event is InputEventKey and event.pressed:
-		# 调试：杀死所有敌方单位 (0 键)
 		if event.keycode == KEY_0 or event.keycode == KEY_KP_0:
 			if Globals.is_transitioning:
-				return  # 回合动画期间禁止
+				return
 			print("调试：杀死所有敌方单位")
 			var enemies = []
 			for unit in UnitManager.unit_list:
@@ -1168,10 +1111,9 @@ func _input(event: InputEvent):
 				enemy.queue_free()
 			TurnManager.check_victory()
 			return
-		# 调试：杀死所有我方单位 (9 键)
 		elif event.keycode == KEY_9 or event.keycode == KEY_KP_9:
 			if Globals.is_transitioning:
-				return  # 回合动画期间禁止
+				return
 			print("调试：杀死所有我方单位")
 			var allies = []
 			for unit in UnitManager.unit_list:
@@ -1184,17 +1126,15 @@ func _input(event: InputEvent):
 			TurnManager.check_victory()
 			return
 
-	# ---- 过渡或锁定状态时屏蔽输入 ----
 	if Globals.is_transitioning or Globals.is_fading:
 		return
 
-	# ---- 鼠标滚轮切换单位 ----
 	if event is InputEventMouseButton and event.pressed:
 		if event.button_index == MOUSE_BUTTON_WHEEL_UP or event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
-			if (Globals.is_equip_menu_active or 
-				setting_panel.visible or 
-				setting_menu_panel.visible or 
-				team_view_panel.visible or 
+			if (Globals.is_equip_menu_active or
+				setting_panel.visible or
+				setting_menu_panel.visible or
+				team_view_panel.visible or
 				item_list_panel.visible or
 				InputManager.interaction_phase in [InputManager.Phase.MOVING, InputManager.Phase.ATTACKING]):
 				return
@@ -1205,13 +1145,11 @@ func _input(event: InputEvent):
 				InputManager.handle_wheel(direction)
 			return
 
-	# 敌方回合屏蔽
 	if TurnManager.current_turn_team != TurnManager.Team.PLAYER:
 		return
 	if TurnManager.all_acted:
 		return
 
-	# ---- 键盘 1/2/3 模拟移动/攻击/待机（仅调试） ----
 	if event is InputEventKey and event.pressed:
 		if event.keycode == KEY_1:
 			print("键盘 1 按下 - 模拟移动")
@@ -1223,27 +1161,22 @@ func _input(event: InputEvent):
 			print("键盘 3 按下 - 模拟待机")
 			_on_wait_btn_pressed()
 
-	# ---- 移动动画中屏蔽鼠标操作 ----
 	if TurnManager.is_moving:
 		return
 
-	# ---- 鼠标事件（左键点击 / 右键取消） ----
 	if event is InputEventMouseButton and event.pressed:
 		if event.button_index == MOUSE_BUTTON_RIGHT:
 			InputManager.handle_input(event, map_grid_size, MapConst.CELL_SIZE)
 			return
 		if event.button_index == MOUSE_BUTTON_LEFT:
-			# 如果菜单打开且不是给予模式，则忽略左键点击（由菜单按钮处理）
 			if action_menu.visible:
 				return
 			var mouse_pos = get_global_mouse_position()
 			var clicked_cell = world_to_grid(mouse_pos)
 			InputManager.handle_click(clicked_cell)
 	else:
-		# 其他输入（如鼠标移动）交给 InputManager
 		InputManager.handle_input(event, map_grid_size, MapConst.CELL_SIZE)
 
-	# ---- 装备菜单激活时阻止后续操作 ----
 	if Globals.is_equip_menu_active:
 		return
 
@@ -1251,7 +1184,6 @@ func _input(event: InputEvent):
 func _on_request_show_menu(unit: Unit):
 	if TurnManager.is_game_over or TurnManager.current_turn_team != TurnManager.Team.PLAYER or TurnManager.all_acted:
 		return
-	# ---- 检查单位是否存活 ----
 	if not unit or not is_instance_valid(unit) or unit.hit_points <= 0:
 		print("单位已死亡，不显示菜单")
 		return
@@ -1340,7 +1272,6 @@ func apply_map_functions(team: int):
 				var event_id = func_config.get("event_id", "")
 				if event_id == "":
 					continue
-				# 只处理 HP 事件（以 "hp_" 开头）
 				if not event_id.begins_with("hp_"):
 					continue
 				if EventManager.is_event_completed(event_id):
@@ -1395,7 +1326,6 @@ func _on_request_show_info(unit: Unit):
 	var display_text: String
 
 	if unit == null:
-		# ---- 地形信息显示 ----
 		var mouse_pos = get_global_mouse_position()
 		var cell = world_to_grid(mouse_pos)
 		terrain_type = TerrainManager.get_terrain(cell)
@@ -1408,15 +1338,13 @@ func _on_request_show_info(unit: Unit):
 		if not is_instance_valid(unit):
 			return
 		var lines = []
-		
-		# ---- 显示中文单位类型 ----
+
 		var display_name = unit.unit_stats.display_name if unit.unit_stats.display_name != "" else unit.unit_stats.unit_name
 		var type_name = UnitDataManager.get_unit_type_display_name(unit.unit_stats.unit_name)
 		lines.append(display_name + "|" + unit.unit_stats.faction + "|" + type_name)
 
 		lines.append("HP: " + str(unit.hit_points) + "/" + str(unit.unit_stats.max_hp))
 
-		# ---- 装备数据 ----
 		var weapon_data = unit.get_weapon_data()
 		if weapon_data:
 			lines.append("武器: " + weapon_data.name)
@@ -1434,7 +1362,6 @@ func _on_request_show_info(unit: Unit):
 		else:
 			lines.append("武器: 无")
 
-		# ---- 防具槽 ----
 		var armor_slots = unit.get_armor_slots()
 		var armor_str = ""
 		for i in range(armor_slots.size()):
@@ -1450,14 +1377,12 @@ func _on_request_show_info(unit: Unit):
 		if armor_str != "":
 			lines.append("防具: " + armor_str.strip_edges())
 
-		# ---- 基本属性 ----
 		lines.append("力量: " + str(unit.unit_stats.strength))
 		lines.append("敏捷: " + str(unit.unit_stats.dexterity))
 		lines.append("智力: " + str(unit.unit_stats.intelligence))
 		lines.append("信仰: " + str(unit.unit_stats.faith))
 		lines.append("感应: " + str(unit.unit_stats.arcane))
 
-		# ---- 地形 ----
 		var cell = unit.grid_cell
 		terrain_type = TerrainManager.get_terrain(cell)
 		terrain_name = TerrainManager.get_terrain_name(terrain_type)
@@ -1492,11 +1417,9 @@ func _on_team_view_btn_pressed():
 		_refresh_team_view()
 
 func _refresh_team_view():
-	# 清空容器
 	for child in team_view_container.get_children():
 		child.queue_free()
 
-	# 收集我方单位
 	var units = []
 	for unit in UnitManager.unit_list:
 		if unit.unit_stats.team_id == 0 and unit.hit_points > 0:
@@ -1516,7 +1439,6 @@ func _refresh_team_view():
 
 		for unit in units:
 			var btn = Button.new()
-			# 获取图标
 			var icon_texture: Texture2D = null
 			if unit.animated_sprite and unit.animated_sprite.sprite_frames:
 				var frames = unit.animated_sprite.sprite_frames
@@ -1542,7 +1464,6 @@ func _refresh_team_view():
 			else:
 				status = "   可行动"
 
-			# ---- 统一显示格式：姓名|阵营|职业 ----
 			var full_name = UnitDataManager.get_display_name_from_unit(unit)
 			btn.text = full_name + " HP:" + str(unit.hit_points) + "/" + str(unit.unit_stats.max_hp) + status
 			btn.add_theme_font_size_override("font_size", 6)
@@ -1551,14 +1472,12 @@ func _refresh_team_view():
 			btn.pressed.connect(_on_team_member_selected.bind(unit))
 			team_view_container.add_child(btn)
 
-	# ---- 确保 ScrollContainer 存在 ----
 	var parent = team_view_container.get_parent()
 	var scroll = parent as ScrollContainer
 	if not scroll:
 		scroll = _create_scroll_container(team_view_container, parent, "TeamViewScroll")
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 
-	# 更新面板高度
 	await get_tree().process_frame
 	var content_height = team_view_container.get_minimum_size().y
 	var viewport_height = get_viewport().get_visible_rect().size.y
@@ -1675,12 +1594,10 @@ func _refresh_item_list():
 
 	var entries = []
 
-	# ---- 只显示单位装备，不显示仓库 ----
 	for unit in UnitManager.unit_list:
 		if unit.unit_stats.team_id == 0 and unit.hit_points > 0:
 			var unit_name = unit.unit_stats.display_name if unit.unit_stats.display_name != "" else unit.unit_stats.unit_name
-			
-			# 武器
+
 			var weapon = unit.get_weapon()
 			if weapon:
 				var data = ItemManager.get_item_data(weapon.item_id)
@@ -1698,8 +1615,7 @@ func _refresh_item_list():
 						"is_equipped": true,
 						"data": data
 					})
-			
-			# 防具/饰品槽
+
 			var armor_slots = unit.get_armor_slots()
 			for i in range(armor_slots.size()):
 				var inst = armor_slots[i]
@@ -1732,7 +1648,7 @@ func _refresh_item_list():
 			var data = entry["data"]
 			if data.icon:
 				btn.icon = data.icon
-			
+
 			var equipped_str = " [已装备]" if entry["is_equipped"] else ""
 			var type_str = "[" + entry["type_display"] + "]" if entry["type_display"] != "" else ""
 			btn.text = entry["item_name"] + " " + type_str + equipped_str + " (" + entry["source"] + " " + entry["slot"] + ")"
@@ -1741,9 +1657,8 @@ func _refresh_item_list():
 			btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
 			btn.clip_text = true
 			btn.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-			btn.disabled = true   # 禁用点击
-			
-			# ---- 悬停显示详情 ----
+			btn.disabled = true
+
 			btn.mouse_entered.connect(_on_item_hover_entered.bind(entry["data"].id))
 			btn.mouse_exited.connect(_on_item_hover_exited)
 
@@ -1856,12 +1771,11 @@ func _on_map_victory_continue():
 	print("reward_items: ", GameState.reward_items)
 	print("current_node_key: ", GameState.current_node_key)
 	print("current_node_type: ", current_node_type)
-	
+
 	var reward_gold = GameState.current_reward_gold
 	var reward_soul = GameState.current_reward_soul
 	var reward_materials = GameState.current_reward_materials
-	
-	# ---- 收集物品数据 ----
+
 	var reward_item_datas: Array = []
 	for item_id in GameState.reward_items:
 		var data = ItemManager.get_item_data(item_id)
@@ -1877,8 +1791,7 @@ func _on_map_victory_continue():
 				if icon_path != "" and ResourceLoader.exists(icon_path):
 					virtual_data.icon = load(icon_path)
 				reward_item_datas.append(virtual_data)
-	
-	# ---- 将材料转换为显示数据 ----
+
 	if reward_materials and not reward_materials.is_empty():
 		for material_name in reward_materials:
 			var amount = reward_materials[material_name]
@@ -1889,30 +1802,23 @@ func _on_map_victory_continue():
 				data.description = "材料 x" + str(amount)
 				reward_item_datas.append(data)
 				print("添加材料显示: ", data.name)
-	
+
 	var has_reward = (reward_gold > 0 or reward_soul > 0 or not reward_item_datas.is_empty())
-	
-	# ---- 前置判断：Boss / 最后一天 ----
+
 	var is_boss = (current_node_type == MapNode.NodeType.BOSS)
 	if not is_boss and GameState.current_map_data:
 		is_boss = (GameState.current_map_data.node_type == MapNode.NodeType.BOSS)
-	
+
 	var is_last_day = (GameState.current_day >= 3)
-	
+
 	print("is_boss=", is_boss, " is_last_day=", is_last_day, " has_reward=", has_reward)
-	
-	# ============================================================
-	#  全局 UI 状态：整个流程只设一次，结束时统一复位
-	# ============================================================
+
 	var need_ui_block = has_reward or is_boss
 	if need_ui_block:
 		_is_reward_ui_active = true
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 		cursor.visible = false
-	
-	# ============================================================
-	#  1. 显示结算界面（如果有奖励）
-	# ============================================================
+
 	var summary = null
 	if has_reward:
 		print("有奖励，弹出结算界面")
@@ -1921,94 +1827,73 @@ func _on_map_victory_continue():
 			summary.setup_reward(reward_gold, reward_soul, reward_item_datas, false, "关卡结算")
 			summary.open()
 			await summary.confirmed
-			# ★ 不 close，保持可见
 			print("结算界面已确认，summary 保持可见")
 		else:
 			push_error("Battlefield: 无法获取 RewardSummaryUI 实例")
-	
-	# ============================================================
-	#  2. Boss 战后：遗物三选一叠加在结算之上
-	# ============================================================
+
 	if is_boss:
 		GameState.should_advance_day = true
 		print("Boss 胜利，设置 should_advance_day = true")
-		
+
 		if is_last_day:
 			print("第三天最终Boss，跳过遗物三选一")
 		else:
-			# ★ 禁用 summary 确认按钮，防止误点
 			if summary:
 				summary.set_interactable(false)
-			
-			# ★ summary 保持可见，RelicSelectUI 直接叠加上去（layer 21 > 20）
+
 			print("弹出遗物三选一，叠加在结算之上")
 			var relic_select_scene = load(Config.PATHS.RELIC_SELECT_UI)
 			var relic_select = relic_select_scene.instantiate()
 			add_child(relic_select)
-			
-			# 排除已拥有的遗物（跳过 null）
+
+			# ★ 使用 get_relics_from_passives 过滤已拥有
 			var owned_ids = []
-			for relic in GameState.global_relics:
-				if relic != null:
-					owned_ids.append(relic.item_id)
-			
+			for relic in GameState.get_relics_from_passives():
+				owned_ids.append(relic.item_id)
+
 			relic_select.setup_options(owned_ids)
-			
-			# ---- 只等待信号，遗物添加/替换由 RelicSelectUI 内部处理 ----
+
 			await relic_select.relic_selected
 			print("遗物选择完成")
-			
-			# ---- 恢复 summary 可交互 ----
+
 			if summary:
 				summary.set_interactable(true)
-	
-	# ============================================================
-	#  3. 关闭结算界面（所有分支统一在此处 close）
-	# ============================================================
+
 	if summary:
 		summary.close()
 		print("结算界面已关闭")
-	
-	# ============================================================
-	#  4. 复位全局 UI 状态
-	# ============================================================
+
 	if need_ui_block:
 		_is_reward_ui_active = false
 		Input.mouse_mode = Input.MOUSE_MODE_HIDDEN
 		cursor.visible = true
-	
-	# ============================================================
-	#  5. 标记节点已完成
-	# ============================================================
+
 	if GameState.current_node_key != "":
 		GameState.visited_nodes[GameState.current_node_key] = true
 		GameState.current_node_key = ""
-	
+
 	GameState.reward_items.clear()
 	GameState.clear_current_reward()
 	SaveManager.auto_save()
-	
+
 	print("切换场景到 MapScene")
 	get_tree().change_scene_to_file(Config.PATHS.MAP_SCENE)
 
 # ---- 统一的放弃战斗逻辑 ----
 func _execute_abandon_battle():
-	# ---- 阻止 _physics_process 在切场景期间覆盖鼠标状态 ----
 	Globals.is_transitioning = true
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	if cursor:
 		cursor.visible = false
-	
+
 	GameState.current_node_key = ""
 	Globals.is_performing_action = false
 	TurnManager.is_game_over = true
 	GameState.abandon_and_return_to_camp()
 
-# ---- 地图模式失败处理（弹结算 → 放弃） ----
 func _on_map_defeat_gameover():
 	_execute_abandon_battle()
 
-# ---- 非地图模式失败处理（弹结算 → 放弃） ----
 func _on_non_map_defeat():
 	_execute_abandon_battle()
 
@@ -2023,12 +1908,10 @@ func _setup_non_combat_mode():
 	print("进入非战斗模式：", GameState.current_map_data.map_name if GameState.current_map_data else "未知地图")
 	is_non_combat_mode = true
 	Globals.is_non_combat_mode = true
-	
-	# ---- 恢复鼠标可见 ----
+
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	cursor.visible = false
-	
-	# ---- 播放非战斗地图音乐 ----
+
 	var music_stream = null
 	if MusicManager.config and MusicManager.config.non_combat_music:
 		music_stream = MusicManager.config.non_combat_music
@@ -2036,28 +1919,23 @@ func _setup_non_combat_mode():
 		music_stream = MusicManager.config.map_music
 	if music_stream:
 		MusicManager.play_music(music_stream)
-	
-	# ---- UI 设置：禁用攻击，保留其他 ----
+
 	if attack_btn:
-		attack_btn.disabled = true      # 非战斗不能攻击
+		attack_btn.disabled = true
 	if move_btn:
 		move_btn.disabled = false
 	if wait_btn:
 		wait_btn.disabled = false
 	if equip_btn:
-		equip_btn.disabled = false      # 允许装备调整
+		equip_btn.disabled = false
 	if setting_panel:
-		setting_panel.visible = false   # 默认隐藏，通过设置按钮打开
-	
-	# ---- EndTurnButton 保持正常 ----
+		setting_panel.visible = false
+
 	if end_turn_button:
 		end_turn_button.text = "鼠标中键结束回合"
 		end_turn_button.visible = true
 		end_turn_button.modulate = Color.WHITE
-	
-	# ---- 不设置 TurnManager.is_game_over，让回合系统正常运行 ----
-	
-	# ---- 触发地图开始事件（如果有） ----
+
 	if _battle_start_event_id != "":
 		print("检测到非战斗地图事件：", _battle_start_event_id)
 		var music = MusicManager.config.battle_start_dialogue_music if MusicManager.config else null
@@ -2070,13 +1948,12 @@ func _setup_non_combat_mode():
 			else:
 				print("警告：非战斗地图事件/对话不存在: ", _battle_start_event_id)
 		print("非战斗地图事件结束")
-	
+
 	print("非战斗模式设置完成，回合系统已启动，等待玩家操作")
 
 func _on_non_combat_complete():
 	print("非战斗节点完成，显示胜利面板")
 	TurnManager.is_game_over = true
-	# 清除保存的音乐状态，防止覆盖胜利音乐
 	MusicManager._saved_stream = null
 	MusicManager._saved_position = 0.0
 	_on_request_show_victory(0)
@@ -2085,7 +1962,6 @@ func _on_non_combat_complete():
 func _extract_spawn_points(node: Node) -> Array[Vector2i]:
 	var points = []
 	_find_spawn_points(node, points)
-	# 按 spawn_index 排序
 	points.sort_custom(func(a, b): return a["index"] < b["index"])
 	var result: Array[Vector2i] = []
 	for p in points:
@@ -2103,7 +1979,6 @@ func _find_spawn_points(node: Node, result: Array):
 	for child in node.get_children():
 		_find_spawn_points(child, result)
 
-# ---- 生成默认地形 ----
 func _generate_default_terrain(map_size: Vector2i):
 	map_grid_size = map_size
 	TerrainManager.grid_size = map_size
@@ -2134,20 +2009,16 @@ func _end_player_turn():
 	if Globals.is_transitioning or Globals.is_fading:
 		print("正在过渡中，无法结束回合")
 		return
-	
-	# ---- 检查是否有 UI 活跃 ----
+
 	if _is_any_ui_active():
 		print("有 UI 活跃，稍后重试结束回合")
-		# 可选：显示提示，或等待后自动重试
 		return
 
-	# ---- 隐藏所有菜单和信息 ----
 	SignalBus.request_hide_info.emit()
 	SignalBus.request_hide_setting.emit()
 	SignalBus.request_hide_menu.emit()
 	SignalBus.request_clear_highlight.emit()
 
-	# ---- 将所有己方单位标记为已行动 ----
 	var allies = []
 	for unit in UnitManager.unit_list:
 		if unit.unit_stats.team_id == 0 and unit.hit_points > 0:
@@ -2164,14 +2035,12 @@ func _end_player_turn():
 	TurnManager.start_turn(TurnManager.Team.ENEMY)
 
 func _update_cursor_and_mouse():
-	# ---- 如果结算界面激活，则保持系统鼠标可见，不进行任何控制 ----
 	if _is_reward_ui_active:
-		# 确保系统鼠标可见
 		if Input.mouse_mode != Input.MOUSE_MODE_VISIBLE:
 			Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 		cursor.visible = false
 		return
-	
+
 	var force_hide_cursor = (
 		Globals.is_dialogue_active or
 		Globals.is_performing_action or
@@ -2276,16 +2145,6 @@ func _update_cursor_and_mouse():
 	if cursor.modulate != target_color:
 		cursor.modulate = target_color
 
-func _ensure_default_relics():
-	if GameState.global_relics.is_empty() and not Globals.unlocked_relics.is_empty():
-		print("兜底：遗物为空，根据 unlocked_relics 重新填充")
-		for relic_id in Globals.unlocked_relics:
-			var inst = ItemInstance.new()
-			inst.item_id = relic_id
-			inst.count = 1
-			GameState.global_relics.append(inst)
-			print("自动添加遗物：", relic_id)
-
 # ---- 遗物查看按钮回调（复用 ItemListPanel） ----
 func _on_relic_view_btn_pressed():
 	if setting_menu_panel.visible:
@@ -2296,26 +2155,24 @@ func _on_relic_view_btn_pressed():
 		item_list_panel.visible = false
 		_is_showing_relics = false
 		return
-	
+
 	item_list_panel.visible = true
 	_refresh_relic_list()
 	_is_showing_relics = true
 
-var _is_showing_relics: bool = false
-
-# ---- 刷新遗物列表 ----
+# ---- 刷新遗物列表（只显示被动槽里的遗物） ----
 func _refresh_relic_list():
 	for child in item_list_container.get_children():
 		child.queue_free()
-	
-	var relics = GameState.get_global_relics()
+
+	var relics = GameState.get_relics_from_passives()
 	if relics.is_empty():
 		var label = Label.new()
 		label.text = "暂无遗物"
 		label.add_theme_font_size_override("font_size", 6)
 		item_list_container.add_child(label)
 		return
-	
+
 	for relic in relics:
 		var data = RelicManager.get_relic_data(relic.item_id)
 		if data.is_empty():
@@ -2328,15 +2185,14 @@ func _refresh_relic_list():
 		btn.add_theme_font_size_override("font_size", 6)
 		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
-		btn.disabled = true   # 禁用点击
-		
-		# ---- 悬停显示详情 ----
+		btn.disabled = true
+
 		var item_id = relic.item_id
 		btn.mouse_entered.connect(_on_relic_hover_entered.bind(item_id))
 		btn.mouse_exited.connect(_on_relic_hover_exited)
-		
+
 		item_list_container.add_child(btn)
-	
+
 	await get_tree().process_frame
 	var content_height = item_list_container.get_minimum_size().y
 	var viewport_size = get_viewport().get_visible_rect().size
@@ -2344,7 +2200,7 @@ func _refresh_relic_list():
 	var panel_height = clamp(content_height + 16, 20, max_height)
 	var panel_width = clamp(120, 80, viewport_size.x * 0.4)
 	item_list_panel.size = Vector2(panel_width, panel_height)
-	
+
 	var parent = item_list_container.get_parent()
 	var scroll = parent as ScrollContainer
 	if not scroll:
@@ -2357,7 +2213,6 @@ func _on_relic_hover_entered(item_id: String):
 func _on_relic_hover_exited():
 	hide_item_detail()
 
-# ---- 修改道具列表按钮 ----
 func _on_item_list_btn_pressed():
 	if setting_menu_panel.visible:
 		setting_menu_panel.visible = false
@@ -2372,30 +2227,21 @@ func _on_item_list_btn_pressed():
 		_refresh_item_list()
 		_is_showing_relics = false
 
-# ---- 更新常驻遗物显示 ----
+# ---- 更新常驻遗物显示（从被动槽过滤遗物） ----
 func _update_relic_icons():
-	print("_update_relic_icons 被调用")
 	for child in relic_icon_container.get_children():
 		child.queue_free()
-	
-	var relics = GameState.get_global_relics()
-	
-	# ---- 统计非空遗物 ----
-	var active_relics = []
-	for relic in relics:
-		if relic != null:
-			active_relics.append(relic)
-	
-	print("当前遗物数量：", active_relics.size())
-	
-	if active_relics.is_empty():
+
+	var relics = GameState.get_relics_from_passives()
+
+	if relics.is_empty():
 		var label = Label.new()
 		label.text = "无遗物"
 		label.add_theme_font_size_override("font_size", 6)
 		relic_icon_container.add_child(label)
 		return
-	
-	for relic in active_relics:
+
+	for relic in relics:
 		var data = RelicManager.get_relic_data(relic.item_id)
 		if data.is_empty():
 			continue
@@ -2403,7 +2249,6 @@ func _update_relic_icons():
 		label.text = data.get("name", "未知遗物")
 		label.add_theme_font_size_override("font_size", 6)
 		relic_icon_container.add_child(label)
-	print("遗物显示更新完成，共显示 ", active_relics.size(), " 个")
 
 func show_item_detail(item_id: String):
 	if _detail_popup:
@@ -2414,7 +2259,6 @@ func hide_item_detail():
 	if _detail_popup:
 		_detail_popup.visible = false
 
-# ---- 等待所有 UI 结束（带 5 秒超时保护，避免死循环） ----
 func _wait_for_ui_clear(timeout_ms: int = 5000) -> void:
 	var start = Time.get_ticks_msec()
 	while _is_any_ui_active():
@@ -2437,11 +2281,10 @@ func _on_back_camp_pressed():
 	GameState.show_abandon_confirmation(self)
 
 # ============================================================
-#  战斗开始：精炼品消耗 + 遗物属性应用
-#  调用时机：_ready() 末尾（单位已全部生成）
+#  战斗开始：精炼品消耗（从被动槽读） + 遗物属性应用
 # ============================================================
 func _apply_team_buffs():
-	# ---- 1. 汇总精炼品 buff ----
+	# ---- 1. 汇总被动槽里的精炼 buff ----
 	var buffs = {
 		"attack_percent": 0.0,
 		"crit_damage_bonus": 0.0,
@@ -2449,30 +2292,25 @@ func _apply_team_buffs():
 		"damage_reduction": 0.0,
 		"heal_full": false,
 	}
-	for refine_id in GameState.refined_items.keys():
-		var count = int(GameState.refined_items[refine_id])
-		if count <= 0:
+	for entry in GameState.get_refines_from_passives():
+		var refine_id = entry.get("refine_id", "")
+		if refine_id == "":
 			continue
 		var effect = RefineManager.get_effect(refine_id)
 		if effect.is_empty():
 			continue
 		var value = effect.get("value", 0)
 		match effect.get("type", ""):
-			"attack_percent":
-				buffs["attack_percent"] += value * count
-			"crit_damage_bonus":
-				buffs["crit_damage_bonus"] += value * count
-			"defense_flat":
-				buffs["defense_flat"] += int(value) * count
-			"damage_reduction":
-				buffs["damage_reduction"] += value * count
-			"heal_full":
-				buffs["heal_full"] = true
+			"attack_percent":     buffs["attack_percent"] += value
+			"crit_damage_bonus":  buffs["crit_damage_bonus"] += value
+			"defense_flat":       buffs["defense_flat"] += int(value)
+			"damage_reduction":   buffs["damage_reduction"] += value
+			"heal_full":          buffs["heal_full"] = true
 
-	# ---- 2. 消耗精炼品 ----
-	GameState.refined_items.clear()
+	# ---- 2. 清空被动槽里的精炼（已消耗） ----
+	GameState.clear_refine_passives()
 
-	# ---- 3. 遗物加成 ----
+	# ---- 3. 遗物加成（从被动槽里提取） ----
 	var relic_stats = GameState.get_global_relic_stats()
 
 	# ---- 4. 应用到玩家单位 ----
@@ -2480,13 +2318,11 @@ func _apply_team_buffs():
 		if unit.unit_stats.team_id != 0:
 			continue
 
-		# ★ 精炼 buff 写 Unit
 		unit.buff_attack_percent += buffs["attack_percent"]
 		unit.buff_crit_damage_bonus += buffs["crit_damage_bonus"]
 		unit.buff_defense_flat += int(buffs["defense_flat"])
 		unit.buff_damage_reduction += buffs["damage_reduction"]
 
-		# 遗物属性：基础属性叠到 unit_stats，数值型 buff 走 Unit
 		var s = unit.unit_stats
 		var old_max = s.max_hp
 		s.max_hp       += int(relic_stats.get("max_hp", 0))
@@ -2496,11 +2332,9 @@ func _apply_team_buffs():
 		s.faith        += int(relic_stats.get("faith", 0))
 		s.arcane       += int(relic_stats.get("arcane", 0))
 		s.move_range   += int(relic_stats.get("move_range", 0))
-		# ★ 遗物的攻击/防御走 Unit buff
 		unit.buff_attack_flat += int(relic_stats.get("attack", 0))
 		unit.buff_defense_flat += int(relic_stats.get("defense", 0))
 
-		# max_hp 提升 → 当前 HP 同步补
 		var hp_delta = s.max_hp - old_max
 		if hp_delta > 0:
 			unit.hit_points += hp_delta
@@ -2508,7 +2342,6 @@ func _apply_team_buffs():
 			unit.hit_points = s.max_hp
 		unit.update_hp_label()
 
-	# ---- 5. 龙血药剂 ----
 	if buffs["heal_full"]:
 		for unit in UnitManager.unit_list:
 			if unit.unit_stats.team_id == 0:

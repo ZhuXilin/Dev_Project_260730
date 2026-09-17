@@ -97,7 +97,8 @@ func trigger_event(event_id: String, unit: Unit = null, default_music: AudioStre
 					var inst = ItemInstance.new()
 					inst.item_id = item_id
 					inst.count = 1
-					GameState.add_global_relic(inst)
+					if not GameState.add_relic_to_passive_slot(inst):
+						print("被动槽已满，遗物 %s 未能装备（已解锁）" % item_id)
 					await show_item_get_popup(item_id, count)
 					continue
 

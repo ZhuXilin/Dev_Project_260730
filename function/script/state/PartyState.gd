@@ -1,7 +1,7 @@
 class_name PartyState
 extends RefCounted
 
-const MAX_RELIC_SLOTS : int = 3
+const MAX_PASSIVE_SLOTS : int = 4
 
 # ---- 队伍 ----
 var party : Array[UnitData] = []
@@ -10,8 +10,9 @@ var main_unit_name : String = ""
 var main_unit_index : int = 0
 var current_faction : String = ""
 
-# ---- 遗物槽 ----
-var global_relics : Array = []   # Array[ItemInstance] / null
+# ---- 被动槽（遗物 + 精炼，共 4 格） ----
+# 元素：null / ItemInstance（遗物）/ Dictionary {"refine_id": "xxx", "count": 1}
+var equipped_passives : Array = []
 
 func initialize_party(selected_units: Array[String], main_index: int):
 	party.clear()
@@ -37,31 +38,77 @@ func sync_units_from_battlefield(battle_units: Array):
 		party_unit.armor_slots = battle_unit.armor_slots.duplicate()
 		party_unit.max_armor_slots = battle_unit.max_armor_slots
 
-# ---- 遗物 ----
-func init_relic_slots():
-	global_relics.clear()
-	for i in range(MAX_RELIC_SLOTS):
-		global_relics.append(null)
+# ============================================================
+#  被动槽
+# ============================================================
+func init_passive_slots():
+	equipped_passives.clear()
+	for i in range(MAX_PASSIVE_SLOTS):
+		equipped_passives.append(null)
 
-func add_global_relic(instance: ItemInstance) -> bool:
-	while global_relics.size() < MAX_RELIC_SLOTS:
-		global_relics.append(null)
-	for i in range(MAX_RELIC_SLOTS):
-		if global_relics[i] == null:
-			global_relics[i] = instance
+func _ensure_passive_size():
+	while equipped_passives.size() < MAX_PASSIVE_SLOTS:
+		equipped_passives.append(null)
+	while equipped_passives.size() > MAX_PASSIVE_SLOTS:
+		equipped_passives.pop_back()
+
+func get_passives() -> Array:
+	_ensure_passive_size()
+	return equipped_passives
+
+func set_passive_at_slot(idx: int, value):
+	if idx < 0 or idx >= MAX_PASSIVE_SLOTS:
+		return
+	_ensure_passive_size()
+	equipped_passives[idx] = value
+
+func remove_passive_at_slot(idx: int):
+	set_passive_at_slot(idx, null)
+
+func is_passive_full() -> bool:
+	for p in get_passives():
+		if p == null:
+			return false
+	return true
+
+# ---- 加遗物（找第一个空槽） ----
+func add_relic_to_passive_slot(inst: ItemInstance) -> bool:
+	_ensure_passive_size()
+	for i in range(MAX_PASSIVE_SLOTS):
+		if equipped_passives[i] == null:
+			equipped_passives[i] = inst
 			return true
 	return false
 
-func remove_global_relic_at_slot(slot_idx: int):
-	if slot_idx >= 0 and slot_idx < global_relics.size():
-		global_relics[slot_idx] = null
+# ---- 加精炼（找第一个空槽） ----
+func add_refine_to_passive_slot(refine_id: String) -> bool:
+	_ensure_passive_size()
+	for i in range(MAX_PASSIVE_SLOTS):
+		if equipped_passives[i] == null:
+			equipped_passives[i] = {"refine_id": refine_id, "count": 1}
+			return true
+	return false
 
-func get_global_relics() -> Array:
-	return global_relics.duplicate()
-
-func get_active_relics() -> Array:
+# ---- 过滤：只取遗物 ----
+func get_relics_from_passives() -> Array:
 	var result = []
-	for r in global_relics:
-		if r != null:
-			result.append(r)
+	for p in get_passives():
+		if p is ItemInstance:
+			result.append(p)
 	return result
+
+# ---- 过滤：只取精炼 ----
+func get_refines_from_passives() -> Array:
+	var result = []
+	for p in get_passives():
+		if p is Dictionary and p.has("refine_id"):
+			result.append(p)
+	return result
+
+# ---- 清空所有精炼（战斗后调用） ----
+func clear_refine_passives():
+	_ensure_passive_size()
+	for i in range(MAX_PASSIVE_SLOTS):
+		var p = equipped_passives[i]
+		if p is Dictionary and p.has("refine_id"):
+			equipped_passives[i] = null

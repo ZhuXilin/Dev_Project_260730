@@ -20,7 +20,6 @@ func load_stories():
 	_stories = data
 	print("成功加载 ", _stories.size(), " 个酒馆 NPC")
 
-## 返回所有 NPC 列表
 func get_npcs() -> Array:
 	var result : Array = []
 	for npc_id in _stories:
@@ -35,7 +34,6 @@ func get_npcs() -> Array:
 func get_npc(npc_id: String) -> Dictionary:
 	return _stories.get(npc_id, {})
 
-## 判断话题的可见条件
 func check_condition(condition: String) -> bool:
 	if condition == "" or condition == "always":
 		return true
@@ -45,5 +43,4 @@ func check_condition(condition: String) -> bool:
 	if condition.begins_with("day=="):
 		var n = int(condition.substr(5))
 		return GameState.current_day == n
-	# 未知条件默认可见（保守策略）
 	return true

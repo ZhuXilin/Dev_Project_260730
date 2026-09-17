@@ -264,9 +264,8 @@ func _refresh_passive_slots():
 			_slot_buttons.erase(key)
 
 	var display_list : Array = []
-	for relic in GameState.global_relics:
-		if relic != null:
-			display_list.append({"kind": "relic", "relic": relic})
+	for relic in GameState.get_relics_from_passives():
+		display_list.append({"kind": "relic", "relic": relic})
 
 	var active_refines : Array = _state.get("active_refines", [])
 	for refine_id in active_refines:
@@ -528,10 +527,7 @@ func _on_refine_click(refine_id: String):
 	if refine_id in arr:
 		arr.erase(refine_id)
 	else:
-		var relic_count = 0
-		for relic in GameState.global_relics:
-			if relic != null:
-				relic_count += 1
+		var relic_count = GameState.get_relics_from_passives().size()
 		if relic_count + arr.size() + 1 > MAX_PASSIVE_SLOTS:
 			return
 		arr.append(refine_id)

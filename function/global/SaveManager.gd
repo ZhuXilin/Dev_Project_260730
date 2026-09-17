@@ -7,7 +7,7 @@ const MapSceneClass = preload(Config.PATHS.MAP_SCENE_SCRIPT)
 signal save_completed(slot: int)
 signal load_completed(slot: int, success: bool)
 
-var current_slot: int = -1   # 当前使用的存档槽，-1 表示无
+var current_slot: int = -1
 
 func _ready():
 	DirAccess.make_dir_recursive_absolute(SAVE_DIR)
@@ -52,8 +52,6 @@ func load_game(slot: int) -> bool:
 		push_error("无法加载存档: ", path)
 		return false
 
-	# ---- 版本检查：低于当前版本直接升级版本号 ----
-	# 注意：v3 起不再提供 v2 数据迁移，只更新版本号让后续保存用新格式
 	if save.save_version < SaveData.CURRENT_VERSION:
 		print("存档版本 %d 低于当前版本 %d，更新版本号" % [save.save_version, SaveData.CURRENT_VERSION])
 		save.save_version = SaveData.CURRENT_VERSION
@@ -63,12 +61,10 @@ func load_game(slot: int) -> bool:
 			push_error("版本更新后保存失败：", err)
 			return false
 
-	# ---- checksum 校验 ----
 	if not _validate_save(save):
 		push_error("存档校验失败，可能已损坏: ", path)
 		return false
 
-	# ---- 应用数据 ----
 	_apply_save_data(save)
 
 	current_slot = slot
@@ -83,7 +79,6 @@ func _build_save_data() -> SaveData:
 	var save = SaveData.new()
 	save.save_version = SaveData.CURRENT_VERSION
 
-	# ---- 音量 / 窗口 ----
 	save.music_volume = Globals.music_volume
 	save.sound_volume = Globals.sound_volume
 	save.game_speed = Globals.game_speed
@@ -92,7 +87,6 @@ func _build_save_data() -> SaveData:
 	save.window_mode = 1 if mode == DisplayServer.WINDOW_MODE_FULLSCREEN else 0
 	save.window_size = DisplayServer.window_get_size()
 
-	# ---- 游戏进度 ----
 	save.current_day = GameState.current_day
 	save.main_unit_name = GameState.main_unit_name
 	save.soul = GameState.soul
@@ -107,7 +101,6 @@ func _build_save_data() -> SaveData:
 	save.current_node_key = GameState.current_node_key
 	save.map_snapshot = GameState.map_snapshot.duplicate(true)
 
-	# ---- visited_nodes 排序后存为二维数组 ----
 	var sorted_visited = []
 	for key in GameState.visited_nodes.keys():
 		sorted_visited.append([key, GameState.visited_nodes[key]])
@@ -116,41 +109,34 @@ func _build_save_data() -> SaveData:
 
 	save.selected_node_id = GameState.resume_node_id
 
-	# ---- 队伍数据（v3：整个 UnitData.to_dict 打包） ----
 	save.party_data = []
 	for unit_data in GameState.party:
 		save.party_data.append(unit_data.to_dict())
 
-	# ---- 全局遗物（空槽保留为 ""） ----
-	var relics = []
-	for relic in GameState.global_relics:
-		if relic != null:
-			relics.append(relic.item_id)
-		else:
-			relics.append("")
-	save.global_relics = relics
+	# ---- 被动槽（遗物 + 精炼） ----
+	save.equipped_passives = []
+	for p in GameState.get_passives():
+		save.equipped_passives.append(_serialize_passive(p))
 
-	# ---- 解锁数据 ----
 	save.unlocked_units = Globals.unlocked_units.duplicate()
 	save.unlocked_items = Globals.unlocked_items.duplicate()
 	save.unlocked_relics = RelicManager.get_unlocked_relics()
 	save.unlocked_talents = Globals.unlocked_talents.duplicate()
 	save.unlocked_recipes = GameState.unlocked_recipes.duplicate()
 	save.unlocked_stories = GameState.unlocked_stories.duplicate()
+	save.unlocked_refine_recipes = GameState.unlocked_refine_recipes.duplicate()
+	save.refined_items = GameState.refined_items.duplicate()
 	save.unit_growth = GameState.unit_growth.duplicate(true)
 	save.arena_target_talents = GameState.arena_target_talents.duplicate(true)
 	save.arena_best_streak = GameState.arena_best_streak
 	save.talent_exp = GameState.talent_exp.duplicate(true)
-	save.unlocked_refine_recipes = GameState.unlocked_refine_recipes.duplicate()
-	save.refined_items = GameState.refined_items.duplicate()
-	
+
 	save.save_time = Time.get_unix_time_from_system()
 	save.checksum = save.compute_checksum()
 	return save
 
 # ===== 应用存档数据 =====
 func _apply_save_data(save: SaveData):
-	# ---- 音量 / 速度 / 窗口 ----
 	Globals.music_volume = save.music_volume
 	Globals.sound_volume = save.sound_volume
 	Globals.set_game_speed(save.game_speed)
@@ -161,7 +147,6 @@ func _apply_save_data(save: SaveData):
 		DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED)
 		DisplayServer.window_set_size(save.window_size)
 
-	# ---- 游戏进度 ----
 	GameState.current_day = save.current_day
 	LevelManager.current_day = save.current_day - 1
 	GameState.main_unit_name = save.main_unit_name
@@ -181,59 +166,75 @@ func _apply_save_data(save: SaveData):
 	GameState.arena_best_streak = save.arena_best_streak
 	GameState.talent_exp = save.talent_exp.duplicate(true)
 
-	# ---- 恢复 visited_nodes ----
 	GameState.visited_nodes.clear()
 	if save.visited_nodes is Array:
 		for pair in save.visited_nodes:
 			if pair is Array and pair.size() == 2:
 				GameState.visited_nodes[pair[0]] = pair[1]
 
-	# ---- 恢复队伍数据（v3：直接 from_dict） ----
 	GameState.party.clear()
 	for d in save.party_data:
 		if d is Dictionary:
 			var data = UnitData.from_dict(d)
 			GameState.party.append(data)
 
-	# ---- 恢复全局遗物（还原 null 空槽） ----
-	GameState.global_relics.clear()
-	for relic_id in save.global_relics:
-		if relic_id != "":
-			var inst = ItemInstance.new()
-			inst.item_id = relic_id
-			inst.count = 1
-			GameState.global_relics.append(inst)
-		else:
-			GameState.global_relics.append(null)
+	# ---- 被动槽（遗物 + 精炼） ----
+	GameState.init_passive_slots()
+	var arr = save.equipped_passives
+	if arr is Array:
+		for i in range(min(arr.size(), 4)):
+			GameState.set_passive_at_slot(i, _deserialize_passive(arr[i]))
 
-	# 补全到 MAX_RELIC_SLOTS
-	while GameState.global_relics.size() < 3:
-		GameState.global_relics.append(null)
-
-	# ---- 解锁数据 ----
 	RelicManager.set_unlocked_relics(save.unlocked_relics)
 	Globals.unlocked_units = save.unlocked_units.duplicate()
 	Globals.unlocked_items = save.unlocked_items.duplicate()
 	Globals.unlocked_talents = save.unlocked_talents.duplicate()
 	GameState.unlocked_recipes = save.unlocked_recipes.duplicate()
 	GameState.unlocked_stories = save.unlocked_stories.duplicate()
-	GameState.unit_growth = save.unit_growth.duplicate(true)
 	GameState.unlocked_refine_recipes = save.unlocked_refine_recipes.duplicate()
 	GameState.refined_items = save.refined_items.duplicate()
+	GameState.unit_growth = save.unit_growth.duplicate(true)
 
 	if Globals.unlocked_items.is_empty():
 		Globals.unlocked_items = Globals.item_unlocked_items.duplicate()
 
-	# ---- 关卡管理器状态 ----
 	LevelManager.current_level_index = 0
 	LevelManager.is_map_mode = true
 	Globals.is_map_mode = true
 
-	# ---- 未完成战斗：撤销节点访问标记，让玩家可重新进入 ----
 	if GameState.current_node_key != "":
 		print("读档：检测到未完成的战斗节点 ", GameState.current_node_key, "，节点可重新进入")
 		GameState.visited_nodes.erase(GameState.current_node_key)
 		GameState.current_node_key = ""
+
+# ===== 被动槽序列化 =====
+func _serialize_passive(entry) -> Dictionary:
+	if entry == null:
+		return {"type": "empty"}
+	if entry is ItemInstance:
+		return {"type": "relic", "item_id": entry.item_id}
+	if entry is Dictionary and entry.has("refine_id"):
+		return {"type": "refine", "refine_id": entry.get("refine_id", "")}
+	return {"type": "empty"}
+
+func _deserialize_passive(d) -> Variant:
+	if not (d is Dictionary):
+		return null
+	var t = d.get("type", "empty")
+	if t == "relic":
+		var item_id = d.get("item_id", "")
+		if item_id == "":
+			return null
+		var inst = ItemInstance.new()
+		inst.item_id = item_id
+		inst.count = 1
+		return inst
+	elif t == "refine":
+		var refine_id = d.get("refine_id", "")
+		if refine_id == "":
+			return null
+		return {"refine_id": refine_id, "count": 1}
+	return null
 
 # ===== 校验 =====
 func _validate_save(save: SaveData) -> bool:
@@ -270,7 +271,6 @@ func clean_invalid_progress(slot: int):
 func _get_slot_path(slot: int) -> String:
 	return SAVE_DIR + "slot_%d.tres" % slot
 
-# ===== 获取 MapScene =====
 func _get_map_scene():
 	var scene = get_tree().current_scene
 	if scene and scene is MapSceneClass:
@@ -282,9 +282,9 @@ func auto_save():
 	if current_slot == -1:
 		save_game(0, true)
 	else:
-		save_game(current_slot, true)	
+		save_game(current_slot, true)
 
-# ===== 辅助函数 =====
+# ===== 辅助 =====
 func has_save(slot: int) -> bool:
 	return ResourceLoader.exists(_get_slot_path(slot))
 
@@ -295,7 +295,7 @@ func get_save_info(slot: int) -> Dictionary:
 	var save = load(path) as SaveData
 	if not save:
 		return {}
-	
+
 	return {
 		"time": save.save_time,
 		"day": save.current_day,

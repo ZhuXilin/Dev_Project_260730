@@ -1,7 +1,7 @@
 extends Node
 
 # ============================================================
-#  中断状态枚举（保留在 GameState，逻辑定义）
+#  中断状态枚举
 # ============================================================
 enum InterruptState {
 	NONE,
@@ -18,7 +18,7 @@ var progress_state : ProgressState = ProgressState.new()
 var resource_state : ResourceState = ResourceState.new()
 
 # ============================================================
-#  属性转发：PartyState（零破坏）
+#  属性转发：PartyState
 # ============================================================
 var party : Array[UnitData]:
 	get: return party_state.party
@@ -40,11 +40,40 @@ var current_faction : String:
 	get: return party_state.current_faction
 	set(value): party_state.current_faction = value
 
-var global_relics : Array:
-	get: return party_state.global_relics
-	set(value): party_state.global_relics = value
+# ---- 被动槽（遗物 + 精炼，4 格） ----
+var equipped_passives : Array:
+	get: return party_state.equipped_passives
+	set(value): party_state.equipped_passives = value
 
-const MAX_RELIC_SLOTS : int = 3
+func init_passive_slots():
+	party_state.init_passive_slots()
+
+func get_passives() -> Array:
+	return party_state.get_passives()
+
+func set_passive_at_slot(idx: int, value):
+	party_state.set_passive_at_slot(idx, value)
+
+func remove_passive_at_slot(idx: int):
+	party_state.remove_passive_at_slot(idx)
+
+func is_passive_full() -> bool:
+	return party_state.is_passive_full()
+
+func add_relic_to_passive_slot(inst: ItemInstance) -> bool:
+	return party_state.add_relic_to_passive_slot(inst)
+
+func add_refine_to_passive_slot(refine_id: String) -> bool:
+	return party_state.add_refine_to_passive_slot(refine_id)
+
+func get_relics_from_passives() -> Array:
+	return party_state.get_relics_from_passives()
+
+func get_refines_from_passives() -> Array:
+	return party_state.get_refines_from_passives()
+
+func clear_refine_passives():
+	party_state.clear_refine_passives()
 
 # ============================================================
 #  属性转发：ProgressState
@@ -151,18 +180,10 @@ var current_reward_materials : Dictionary:
 var unlocked_recipes : Array:
 	get: return resource_state.unlocked_recipes
 	set(value): resource_state.unlocked_recipes = value
-	
+
 var unlocked_stories : Array:
 	get: return resource_state.unlocked_stories
 	set(value): resource_state.unlocked_stories = value
-
-var unlocked_refine_recipes : Array:
-	get: return resource_state.unlocked_refine_recipes
-	set(value): resource_state.unlocked_refine_recipes = value
-
-var refined_items : Dictionary:
-	get: return resource_state.refined_items
-	set(value): resource_state.refined_items = value
 
 var unit_growth : Dictionary:
 	get: return resource_state.unit_growth
@@ -175,6 +196,14 @@ var talent_exp : Dictionary:
 var arena_target_talents : Dictionary:
 	get: return resource_state.arena_target_talents
 	set(value): resource_state.arena_target_talents = value
+
+var unlocked_refine_recipes : Array:
+	get: return resource_state.unlocked_refine_recipes
+	set(value): resource_state.unlocked_refine_recipes = value
+
+var refined_items : Dictionary:
+	get: return resource_state.refined_items
+	set(value): resource_state.refined_items = value
 
 # ============================================================
 #  斗技场统计
@@ -204,12 +233,12 @@ var arena_total_runs : int:
 	set(value): resource_state.arena_total_runs = value
 
 # ============================================================
-#  非转发字段（不属于任何 state）
+#  非转发字段
 # ============================================================
 var pending_save_slot : int = -1
 
 # ============================================================
-#  队伍相关（转发到 party_state 方法）
+#  队伍相关
 # ============================================================
 func initialize_party(selected_units: Array[String], main_index: int):
 	party_state.initialize_party(selected_units, main_index)
@@ -224,28 +253,11 @@ func sync_units_from_battlefield(battle_units: Array):
 	party_state.sync_units_from_battlefield(battle_units)
 
 # ============================================================
-#  遗物相关（转发到 party_state 方法）
+#  遗物/被动统计
 # ============================================================
-func init_relic_slots():
-	party_state.init_relic_slots()
-
-func add_global_relic(instance: ItemInstance) -> bool:
-	return party_state.add_global_relic(instance)
-
-func remove_global_relic_at_slot(slot_idx: int):
-	party_state.remove_global_relic_at_slot(slot_idx)
-
-func get_global_relics() -> Array:
-	return party_state.get_global_relics()
-
-func get_active_relics() -> Array:
-	return party_state.get_active_relics()
-
 func get_global_relic_stats() -> Dictionary:
 	var bonus = {}
-	for relic in global_relics:
-		if relic == null:
-			continue
+	for relic in get_relics_from_passives():
 		var data = RelicManager.get_relic_data(relic.item_id)
 		if data.is_empty():
 			continue
@@ -289,7 +301,7 @@ func clear_current_reward():
 	resource_state.clear_current_reward()
 
 # ============================================================
-#  编排方法（跨 state，保留在 GameState）
+#  编排方法
 # ============================================================
 func start_new_cycle():
 	temp_soul = 0
@@ -308,7 +320,7 @@ func start_new_cycle():
 			unit_data.weapon_slot = inst
 		else:
 			unit_data.weapon_slot = null
-	init_relic_slots()
+	init_passive_slots()
 
 func finish_day():
 	soul += temp_soul
@@ -341,7 +353,7 @@ func reset_for_new_cycle():
 	temp_soul = 0
 	temp_gold = 0
 	interrupt_state = InterruptState.NONE
-	init_relic_slots()
+	init_passive_slots()
 	current_faction = ""
 	map_snapshot.clear()
 	cycle_start_soul = 0
@@ -365,79 +377,12 @@ func reset_all():
 	temp_soul = 0
 	temp_gold = 0
 	interrupt_state = InterruptState.NONE
-	init_relic_slots()
+	init_passive_slots()
 	current_faction = ""
 	map_snapshot.clear()
 	cycle_start_soul = 0
 	cycle_start_materials.clear()
 	refined_items.clear()
-
-# ============================================================
-#  被动列表（遗物 + 精炼品），供斗技场商店展示
-# ============================================================
-func get_passives() -> Array:
-	var result : Array = []
-	# 遗物（ItemInstance）
-	for relic in global_relics:
-		if relic != null:
-			result.append(relic)
-	# 精炼品（每份占一格，Dictionary）
-	for refine_id in refined_items:
-		var count = int(refined_items[refine_id])
-		for _i in range(count):
-			result.append({"refine_id": refine_id})
-	return result
-
-# ============================================================
-#  精炼品：战斗开始消耗并返回 buff 值
-# ============================================================
-func consume_refined_buffs_for_battle() -> Dictionary:
-	var result = {
-		"attack_percent": 0.0,
-		"crit_damage_bonus": 0.0,
-		"defense_flat": 0,
-		"damage_reduction": 0.0,
-	}
-	for refine_id in refined_items.keys():
-		var count = int(refined_items[refine_id])
-		if count <= 0:
-			continue
-		var recipe = RefineManager.get_recipe(refine_id)
-		var effect = recipe.get("effect", {})
-		var etype = effect.get("type", "")
-		var value = effect.get("value", 0)
-		if etype == "heal_full":
-			continue          # 立即恢复，由调用方处理
-		if result.has(etype):
-			result[etype] += value * count
-	refined_items.clear()
-	return result
-
-
-# ---- 把精炼 buff 应用到战斗单位 ----
-func apply_refined_buffs_to_unit(unit_data: UnitData, buffs: Dictionary):
-	unit_data.buff_attack_percent += buffs.get("attack_percent", 0.0)
-	unit_data.buff_crit_damage_bonus += buffs.get("crit_damage_bonus", 0.0)
-	unit_data.buff_defense_flat += int(buffs.get("defense_flat", 0))
-	unit_data.buff_damage_reduction += buffs.get("damage_reduction", 0.0)
-
-# ============================================================
-#  遗物：把全队加成应用到单个战斗单位
-# ============================================================
-func apply_relic_stats_to_unit(unit_data: UnitData):
-	var stats = get_global_relic_stats()
-	if stats.is_empty():
-		return
-	unit_data.max_hp += int(stats.get("max_hp", 0))
-	unit_data.strength += int(stats.get("strength", 0))
-	unit_data.dexterity += int(stats.get("dexterity", 0))
-	unit_data.intelligence += int(stats.get("intelligence", 0))
-	unit_data.faith += int(stats.get("faith", 0))
-	unit_data.arcane += int(stats.get("arcane", 0))
-	unit_data.move_range += int(stats.get("move_range", 0))
-	# 战斗临时字段
-	unit_data.buff_attack_flat += int(stats.get("attack", 0))
-	unit_data.buff_defense_flat += int(stats.get("defense", 0))
 
 func abandon_and_return_to_camp():
 	await Globals.show_cycle_reward()
@@ -457,3 +402,20 @@ func show_abandon_confirmation(parent: Node):
 		abandon_and_return_to_camp,
 		func(): pass
 	)
+
+# ============================================================
+#  被动列表（供旧版 EquipmentConfig / 兼容接口调用）
+# ============================================================
+func apply_relic_stats_to_unit(unit_data: UnitData):
+	var stats = get_global_relic_stats()
+	if stats.is_empty():
+		return
+	unit_data.max_hp += int(stats.get("max_hp", 0))
+	unit_data.strength += int(stats.get("strength", 0))
+	unit_data.dexterity += int(stats.get("dexterity", 0))
+	unit_data.intelligence += int(stats.get("intelligence", 0))
+	unit_data.faith += int(stats.get("faith", 0))
+	unit_data.arcane += int(stats.get("arcane", 0))
+	unit_data.move_range += int(stats.get("move_range", 0))
+	unit_data.buff_attack_flat += int(stats.get("attack", 0))
+	unit_data.buff_defense_flat += int(stats.get("defense", 0))

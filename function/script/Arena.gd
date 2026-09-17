@@ -32,14 +32,14 @@ const ENEMY_SCALE_SURVIVAL : Array = [2.5, 2.8, 3.2]
 
 enum Phase { IDLE, NORMAL, CLEAR, SURVIVAL, END }
 
+const EquipmentConfigClass = preload(Config.PATHS.EQUIPMENT_CONFIG_SCRIPT)
+
 # ============================================================
 #  局内状态
 # ============================================================
 var _phase : Phase = Phase.IDLE
 var _arena_gold : int = 100
 var _arena_crystals : int = 0
-var _arena_armory : Array = []
-var _arena_armor_slots : int = 2
 var _arena_weapon_upgrade_tokens : int = 0
 var _streak : int = 0
 var _survival_round : int = 0
@@ -48,7 +48,7 @@ var _locked_talent_id : String = ""
 var _streak_active : bool = false
 var _run_best_streak : int = 0
 var _run_total_crystals : int = 0
-var _active_refines : Array = []
+var _arena_passives : Array = [null, null, null, null]
 
 # ============================================================
 #  节点引用
@@ -188,26 +188,43 @@ func _init_arena_state():
 	_phase = Phase.NORMAL
 	_arena_gold = 100
 	_arena_crystals = 0
-	_arena_armory.clear()
-	_arena_armor_slots = 2
 	_arena_weapon_upgrade_tokens = 0
 	_streak = 0
 	_survival_round = 0
 	_streak_active = false
 	_run_best_streak = 0
 	_run_total_crystals = 0
-	_active_refines.clear()
+	_arena_passives = [null, null, null, null]
 
 	_current_player_data.reset_combat_buffs()
 	_current_player_data.hit_points = _current_player_data.max_hp
-	_current_player_data.max_armor_slots = _arena_armor_slots
-	_current_player_data.armor_slots = []
-	for i in range(_arena_armor_slots):
-		_current_player_data.armor_slots.append(null)
+	_current_player_data.max_armor_slots = 2
+	_current_player_data.armor_slots = [null, null]
 
-	# 遗物属性只应用一次
-	GameState.apply_relic_stats_to_unit(_current_player_data)
+	_apply_arena_relics_to_player()
 	_current_player_data.hit_points = _current_player_data.max_hp
+
+func _apply_arena_relics_to_player():
+	var relic_stats = {}
+	for p in _arena_passives:
+		if p is ItemInstance:
+			var data = RelicManager.get_relic_data(p.item_id)
+			if data.is_empty():
+				continue
+			var stats = data.get("stats", {})
+			for key in stats:
+				relic_stats[key] = relic_stats.get(key, 0) + stats[key]
+
+	var s = _current_player_data
+	s.max_hp       += int(relic_stats.get("max_hp", 0))
+	s.strength     += int(relic_stats.get("strength", 0))
+	s.dexterity    += int(relic_stats.get("dexterity", 0))
+	s.intelligence += int(relic_stats.get("intelligence", 0))
+	s.faith        += int(relic_stats.get("faith", 0))
+	s.arcane       += int(relic_stats.get("arcane", 0))
+	s.move_range   += int(relic_stats.get("move_range", 0))
+	s.buff_attack_flat += int(relic_stats.get("attack", 0))
+	s.buff_defense_flat += int(relic_stats.get("defense", 0))
 
 # ============================================================
 #  主循环
@@ -215,6 +232,10 @@ func _init_arena_state():
 func _run_battle_loop():
 	while _phase != Phase.END:
 		var shop_action = await _show_shop()
+
+		# ★ 商店关闭后如果 Arena 已被销毁，直接中止
+		if not is_inside_tree():
+			return
 
 		if shop_action == "quit":
 			_show_summary(false, "放弃")
@@ -225,6 +246,10 @@ func _run_battle_loop():
 			return
 
 		var winner = await _do_one_battle()
+
+		if not is_inside_tree():
+			return
+
 		if winner != 0:
 			_show_summary(false, "失败")
 			return
@@ -239,6 +264,8 @@ func _run_battle_loop():
 			if _streak >= CLEAR_TARGET:
 				_phase = Phase.CLEAR
 				var choice = await _show_clear_panel()
+				if not is_inside_tree():
+					return
 				if choice == "survival":
 					_phase = Phase.SURVIVAL
 					_survival_round = 0
@@ -256,58 +283,69 @@ func _run_battle_loop():
 		SaveManager.auto_save()
 
 # ============================================================
-#  商店
+#  商店（复用 EquipmentConfig + ArenaEquipContext）
 # ============================================================
 func _show_shop() -> String:
-	var scene = load(Config.PATHS.ARENA_SHOP_UI)
+	var ctx = ArenaEquipContext.new()
+	ctx.arena_gold = _arena_gold
+	ctx.player_data = _current_player_data
+	ctx.passives = _arena_passives.duplicate()
+	ctx.weapon_tokens = _arena_weapon_upgrade_tokens
+	ctx.locked_talent_id = _locked_talent_id
+
+	var scene = load(Config.PATHS.EQUIPMENT_CONFIG)
 	if not scene:
-		push_error("ArenaShop 未找到")
+		push_error("EquipmentConfig 未找到")
 		return "quit"
 
-	var shop = scene.instantiate()
-	add_child(shop)
+	var config = scene.instantiate()
+	add_child(config)
+	var panel = config.get_node("MainPanel")
 
-	var is_elite = (_phase == Phase.NORMAL and _streak == 4)
-	var is_boss = (_phase == Phase.NORMAL and _streak == 9)
-	var can_retreat = (is_elite or is_boss)
+	# ★ 第一次：完整配装（DEPLOY）；之后：商店 + 铁匠铺（ARENA_REST）
+	var mode : int
+	if _streak == 0:
+		mode = EquipmentConfigClass.Mode.DEPLOY
+	else:
+		mode = EquipmentConfigClass.Mode.ARENA_REST
 
-	shop.setup({
-		"player_data": _current_player_data,
-		"gold": _arena_gold,
-		"crystals": _arena_crystals,
-		"armory": _arena_armory,
-		"armor_slots": _arena_armor_slots,
-		"weapon_upgrade_tokens": _arena_weapon_upgrade_tokens,
-		"locked_talent_id": _locked_talent_id,
-		"streak_locked": _streak_active,
-		"next_is_elite": is_elite,
-		"next_is_boss": is_boss,
-		"can_retreat": can_retreat,
-		"next_battle_index": _streak + 1,
-		"is_survival": _phase == Phase.SURVIVAL,
-		"active_refines": _active_refines.duplicate(),
-	})
+	panel.init(
+		[_current_player_data.unit_name],
+		-1,
+		mode,
+		ctx
+	)
 
-	var result = await shop.closed
+	await panel.tree_exited
 
-	_arena_gold = result.get("gold", _arena_gold)
-	_arena_crystals = result.get("crystals", _arena_crystals)
-	_arena_armory = result.get("armory", _arena_armory)
-	_arena_weapon_upgrade_tokens = result.get("weapon_upgrade_tokens", _arena_weapon_upgrade_tokens)
-	_locked_talent_id = result.get("locked_talent_id", _locked_talent_id)
-	_active_refines = result.get("active_refines", _active_refines)
+	# ★ 玩家关闭游戏时 Arena 已被销毁，不再回收状态
+	if not is_inside_tree():
+		return "quit"
+
+	# 回收状态
+	_arena_gold = ctx.arena_gold
+	_arena_passives = ctx.passives.duplicate()
+	_arena_weapon_upgrade_tokens = ctx.weapon_tokens
+	_locked_talent_id = ctx.locked_talent_id
 
 	if _locked_talent_id != "" and _current_player_data:
 		GameState.arena_target_talents[_current_player_data.unit_name] = _locked_talent_id
 
-	shop.queue_free()
-	return result.get("action", "quit")
+	# 竞技场里"出发"和"撤离/放弃"的选择，改由 EquipmentConfig 底部的确认/关闭按钮处理。
+	# 简化：只要关闭就出发。
+	return "go"
 
 # ============================================================
 #  单场战斗
 # ============================================================
 func _do_one_battle() -> int:
-	# 消耗精炼品
+	# ★ 等一帧，确保父节点空闲（先检查是否还在树里）
+	if not is_inside_tree():
+		return 1
+	await get_tree().process_frame
+	if not is_inside_tree():
+		return 1
+
 	_consume_refines_for_battle()
 
 	var enemy_type = _roll_enemy()
@@ -331,9 +369,17 @@ func _do_one_battle() -> int:
 		return 1
 
 	var battle = scene.instantiate()
-	add_child(battle)
+	add_child.call_deferred(battle)
+	if not is_inside_tree():
+		return 1
+	await get_tree().process_frame
+	if not is_inside_tree():
+		return 1
 	battle.setup(_current_player_data, enemy_data, rewards.crystal, battle_index)
 	var result = await battle.closed
+
+	if not is_inside_tree():
+		return 1
 
 	if result.get("winner_team", 1) == 0:
 		_arena_gold += rewards.gold
@@ -351,39 +397,42 @@ func _do_one_battle() -> int:
 		_arena_crystals = int(_arena_crystals * _get_failure_retention())
 		return 1
 
-# ============================================================
-#  精炼品消耗
-# ============================================================
 func _consume_refines_for_battle():
-	if _active_refines.is_empty() or not _current_player_data:
+	if _current_player_data == null:
 		return
-
-	var consumed : Array = []
-	for refine_id in _active_refines:
-		var stock = int(GameState.refined_items.get(refine_id, 0))
-		if stock <= 0:
+	var buffs = {
+		"attack_percent": 0.0,
+		"crit_damage_bonus": 0.0,
+		"defense_flat": 0,
+		"damage_reduction": 0.0,
+		"heal_full": false,
+	}
+	for i in range(_arena_passives.size()):
+		var p = _arena_passives[i]
+		if p == null or not (p is Dictionary):
+			continue
+		var refine_id = p.get("refine_id", "")
+		if refine_id == "":
 			continue
 		var effect = RefineManager.get_effect(refine_id)
 		if effect.is_empty():
 			continue
 		var value = effect.get("value", 0)
 		match effect.get("type", ""):
-			"attack_percent":
-				_current_player_data.buff_attack_percent += value
-			"crit_damage_bonus":
-				_current_player_data.buff_crit_damage_bonus += value
-			"defense_flat":
-				_current_player_data.buff_defense_flat += int(value)
-			"damage_reduction":
-				_current_player_data.buff_damage_reduction += value
-			"heal_full":
-				_current_player_data.hit_points = _current_player_data.max_hp
-		GameState.refined_items[refine_id] = stock - 1
-		consumed.append(refine_id)
-		print("[Arena] 消耗精炼品: ", refine_id)
+			"attack_percent":     buffs["attack_percent"] += value
+			"crit_damage_bonus":  buffs["crit_damage_bonus"] += value
+			"defense_flat":       buffs["defense_flat"] += int(value)
+			"damage_reduction":   buffs["damage_reduction"] += value
+			"heal_full":          buffs["heal_full"] = true
+		_arena_passives[i] = null
 
-	_active_refines.clear()
-	SaveManager.auto_save()
+	_current_player_data.buff_attack_percent += buffs["attack_percent"]
+	_current_player_data.buff_crit_damage_bonus += buffs["crit_damage_bonus"]
+	_current_player_data.buff_defense_flat += int(buffs["defense_flat"])
+	_current_player_data.buff_damage_reduction += buffs["damage_reduction"]
+
+	if buffs["heal_full"]:
+		_current_player_data.hit_points = _current_player_data.max_hp
 
 # ============================================================
 #  奖励 / 进度
@@ -392,13 +441,11 @@ func _grant_progress_rewards():
 	if _phase != Phase.NORMAL:
 		return
 	if _streak == 3:
-		_arena_armor_slots = 3
 		_current_player_data.max_armor_slots = 3
 		while _current_player_data.armor_slots.size() < 3:
 			_current_player_data.armor_slots.append(null)
 		_arena_weapon_upgrade_tokens += 1
 	elif _streak == 5:
-		_arena_armor_slots = 4
 		_current_player_data.max_armor_slots = 4
 		while _current_player_data.armor_slots.size() < 4:
 			_current_player_data.armor_slots.append(null)
@@ -557,12 +604,17 @@ func _show_summary(success: bool, reason: String):
 	})
 	await summary.closed
 
+	if not is_inside_tree():
+		return
+
 	_return_to_idle()
 
 func _return_to_idle():
+	if not is_inside_tree():
+		return
 	_phase = Phase.IDLE
 	_current_player_data = null
-	_active_refines.clear()
+	_arena_passives = [null, null, null, null]
 	MusicManager.play_arena_music()
 	_build_unit_list()
 	_refresh_center_panel()
@@ -571,5 +623,5 @@ func _return_to_idle():
 func _show_hint(text: String):
 	info_label.text = text
 	await get_tree().create_timer(1.5, true, false, true).timeout
-	if is_instance_valid(info_label):
+	if is_instance_valid(info_label) and is_inside_tree():
 		_refresh_center_panel()

@@ -1,7 +1,7 @@
 extends Resource
 class_name SaveData
 
-const CURRENT_VERSION = 4
+const CURRENT_VERSION = 5
 
 @export var save_version: int = CURRENT_VERSION
 
@@ -61,7 +61,9 @@ const CURRENT_VERSION = 4
 @export var party_data: Array = []
 @export var current_faction: String = ""
 
-@export var global_relics: Array = []
+# ---- 被动槽（遗物 + 精炼，4 格） ----
+# 元素：{"type":"empty"} / {"type":"relic","item_id":"xxx"} / {"type":"refine","refine_id":"xxx"}
+@export var equipped_passives: Array = []
 
 @export var save_time: int = 0
 @export var checksum: String = ""
@@ -72,7 +74,6 @@ const CURRENT_VERSION = 4
 @export var arena_target_talents: Dictionary = {}
 @export var arena_best_streak: int = 0
 
-# ---- 新增词条存档 ----
 @export var unlocked_talents: Array = []
 
 # ---- 防具配方解锁（铁砧酒馆） ----
@@ -82,7 +83,7 @@ const CURRENT_VERSION = 4
 @export var unlocked_refine_recipes: Array = []
 @export var refined_items: Dictionary = {}
 
-# ---- 地图快照（保存节点布局，不含循环引用） ----
+# ---- 地图快照 ----
 @export var map_snapshot: Dictionary = {}
 
 func compute_checksum() -> String:
@@ -108,7 +109,7 @@ func compute_checksum() -> String:
 		"unlocked_items": unlocked_items,
 		"unlocked_relics": unlocked_relics,
 		"current_faction": current_faction,
-		"global_relics": global_relics,
+		"equipped_passives": equipped_passives,
 		"materials": materials,
 		"unit_growth": unit_growth,
 		"unlocked_armors": unlocked_armors,
@@ -121,12 +122,12 @@ func compute_checksum() -> String:
 		"highest_cleared_difficulty": highest_cleared_difficulty,
 		"unlocked_talents": unlocked_talents,
 		"unlocked_recipes": unlocked_recipes,
+		"unlocked_refine_recipes": unlocked_refine_recipes,
+		"refined_items": refined_items,
 		"current_node_key": current_node_key,
 		"map_snapshot": map_snapshot,
 		"arena_target_talents": arena_target_talents,
 		"talent_exp": talent_exp,
 		"arena_best_streak": arena_best_streak,
-		"unlocked_refine_recipes": unlocked_refine_recipes,
-		"refined_items": refined_items,
 	}
 	return JSON.stringify(data, "  ").sha256_text()

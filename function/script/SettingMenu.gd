@@ -119,7 +119,7 @@ func _on_interrupt_pressed():
 		GameState.party.clear()
 		GameState.main_unit_name = ""
 		GameState.current_faction = ""
-		GameState.global_relics.clear()
+		GameState.init_passive_slots()
 	
 	SaveManager.save_game(SaveManager.current_slot, false)
 	get_tree().change_scene_to_file("res://content/scenes/ui/MainMenu.tscn")

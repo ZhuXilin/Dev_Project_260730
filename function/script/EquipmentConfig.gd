@@ -1,35 +1,30 @@
 extends Panel
 
-enum Mode { DEPLOY, MAP, SHOP, FORGE }
+enum Mode { DEPLOY, MAP, SHOP, FORGE, ARENA_REST }
 
-# ============================================================
-#  样式
-# ============================================================
 class Style:
 	const FONT_TINY = 4
 	const FONT_SMALL = 6
 	const FONT_NORMAL = 6
 	const FONT_LARGE = 6
-
 	const BTN_ITEM_SIZE = Vector2(20, 10)
 	const BTN_TALENT_SIZE = Vector2(20, 15)
 	const BTN_SHOP_SIZE = Vector2(24, 10)
 	const BTN_LIBRARY_SIZE = Vector2(20, 10)
 	const BTN_RELIC_SIZE = Vector2(24, 12)
-
 	const SEPARATOR_TEXT = "──────"
 
 var current_mode: Mode = Mode.DEPLOY
-var selected_units: Array[String] = []
+var selected_units: Array = []
 var target_slot: int = -1
 var party: Array = []
 var _is_building_ui: bool = false
 var _build_ui_pending: bool = false
 var _is_closing: bool = false
+var _context : EquipContext = null
 
 const MAX_PASSIVE_SLOTS : int = 4
 
-# ---- FORGE 模式 ----
 const FORGE_MAX_SLOTS : int = 3
 const FORGE_WEAPON_UPGRADE_MAX : int = 3
 var _forge_slots : Array = []
@@ -39,10 +34,8 @@ var forge_upgrade_label : Label = null
 var forge_upgrade_btn : Button = null
 var _forge_weapon_upgrade_remaining : int = 0
 
-# ---- 预加载 ----
 const ShopManagerScript = preload(Config.PATHS.SHOP_MANAGER_SCRIPT)
 
-# ---- 拖拽 ----
 var _is_dragging: bool = false
 var _drag_source: Button = null
 var _drag_meta: Dictionary = {}
@@ -53,7 +46,6 @@ var _target_states: Dictionary = {}
 var current_tab: String = "weapon"
 var shop_manager = null
 
-# ---- 节点引用 ----
 @onready var mode_label = $VBoxContainer/TopBar/ModeLabel
 @onready var gold_label = $VBoxContainer/GoldLabel
 @onready var close_btn = $VBoxContainer/BottomHBox/CloseBtn
@@ -79,50 +71,62 @@ func _ready():
 	if refine_tab_btn:
 		refine_tab_btn.pressed.connect(_on_refine_tab_pressed)
 	if refine_tab_btn:
-		refine_tab_btn.visible = false   # 默认隐藏，DEPLOY 模式才显示
+		refine_tab_btn.visible = false
 
 func _on_refine_tab_pressed():
 	_switch_tab("refine")
 
 func _on_weapon_tab_pressed():
-	_switch_tab("weapon")
+	if current_mode == Mode.ARENA_REST:
+		_switch_tab("arena_shop")
+	else:
+		_switch_tab("weapon")
 
 func _on_talent_tab_pressed():
-	_switch_tab("talent")
+	if current_mode == Mode.ARENA_REST:
+		_switch_tab("arena_forge")
+	else:
+		_switch_tab("talent")
 
-
-func init(units: Array[String], slot: int, mode: Mode):
+func init(units: Array, slot: int, mode: Mode, context: EquipContext = null):
 	var canvas_layer = get_parent()
 	if canvas_layer is CanvasLayer:
-		canvas_layer.layer = 20
+		if context != null and context.get_context_id() == "arena":
+			canvas_layer.layer = 30
+		else:
+			canvas_layer.layer = 20
 
 	selected_units = units
 	target_slot = slot
 	current_mode = mode
+	_context = context if context else MainGameEquipContext.new()
 
-	if mode == Mode.SHOP:
+	# ★ SHOP 和 ARENA_REST 都初始化 shop_manager（注入 context）
+	if mode == Mode.SHOP or mode == Mode.ARENA_REST:
 		if not shop_manager:
 			shop_manager = ShopManagerScript.new()
 			add_child(shop_manager)
 			shop_manager.shop_updated.connect(_on_shop_updated)
+		shop_manager.set_context(_context)
 		shop_manager.generate_shop_items()
 		shop_manager.reset_count = 0
 
-	if mode == Mode.FORGE:
+	if mode == Mode.FORGE or mode == Mode.ARENA_REST:
 		_forge_slots.clear()
 		for i in range(FORGE_MAX_SLOTS):
 			_forge_slots.append(null)
 		_forge_matched_recipe = ""
 		_forge_weapon_upgrade_remaining = 1
 
+	if mode == Mode.ARENA_REST:
+		current_tab = "arena_shop"
+
 	_copy_party_data()
 	_build_ui()
-
 
 func _on_shop_updated():
 	_update_gold_display()
 	_schedule_build_ui()
-
 
 func _on_close_pressed():
 	if current_mode == Mode.FORGE and _has_forge_pending():
@@ -133,36 +137,42 @@ func _on_close_pressed():
 		)
 		return
 
+	_sync_all()
+
 	_is_closing = true
-	if current_mode == Mode.SHOP and shop_manager:
+	if shop_manager:
 		if shop_manager.shop_updated.is_connected(_on_shop_updated):
 			shop_manager.shop_updated.disconnect(_on_shop_updated)
 		shop_manager.queue_free()
 		shop_manager = null
+	_context.on_close()
 	var canvas_layer = get_parent()
 	if canvas_layer:
 		canvas_layer.queue_free()
 	else:
 		queue_free()
 
-
 # ============================================================
 #  UI 构建
 # ============================================================
 func _build_ui():
-	if _is_closing:
-		return
-	if _is_building_ui:
-		return
+	if _is_closing: return
+	if _is_building_ui: return
 	_is_building_ui = true
 	_build_ui_inner()
 	_is_building_ui = false
 
-
 func _build_ui_inner():
-	_build_passive_slots()
-	if not mode_label:
-		return
+	# ★ 竞技场不显示被动槽
+	var show_passive = (_context.get_context_id() != "arena")
+	if relic_section:
+		relic_section.visible = show_passive
+	if relic_container:
+		relic_container.visible = show_passive
+	if show_passive:
+		_build_passive_slots()
+
+	if not mode_label: return
 
 	_update_gold_display()
 
@@ -178,18 +188,22 @@ func _build_ui_inner():
 
 	match current_mode:
 		Mode.DEPLOY:
-			mode_label.text = "装备配置 - 出战准备"
+			mode_label.text = "装备配置 - 出战准备" if _context.get_title() == "" else _context.get_title()
 			close_btn.text = "返回"
 			confirm_btn.visible = true
 			confirm_btn.text = "出发"
 			confirm_btn.disabled = false
-			gold_label.visible = false
+			gold_label.visible = _context.show_gold()
 			tab_bar.visible = true
 			weapon_tab_btn.visible = true
+			weapon_tab_btn.text = "武器库"
 			talent_tab_btn.visible = true
 			talent_tab_btn.disabled = false
 			talent_tab_btn.text = "特技库"
-			if current_tab == "":
+			if refine_tab_btn:
+				# ★ 只有主游戏显示精炼库
+				refine_tab_btn.visible = (_context.get_context_id() == "main_game")
+			if current_tab == "" or current_tab.begins_with("arena_"):
 				current_tab = "weapon"
 			_update_tab_style()
 			if current_tab == "weapon":
@@ -213,6 +227,8 @@ func _build_ui_inner():
 			talent_tab_btn.disabled = true
 			talent_tab_btn.text = "特技库"
 			talent_tab_btn.modulate = Color.WHITE
+			if refine_tab_btn:
+				refine_tab_btn.visible = false
 			_build_talent_grid(shop_container)
 			shop_container.visible = true
 			discard_zone.visible = true
@@ -250,7 +266,44 @@ func _build_ui_inner():
 			if left_column:
 				left_column.size_flags_vertical = Control.SIZE_EXPAND_FILL
 			_display_forge_recipe_info()
-			_ensure_forge_upgrade_ui()
+
+		Mode.ARENA_REST:
+			mode_label.text = "魂之竞技场 · 备战"
+			close_btn.text = "放弃"
+			confirm_btn.visible = true
+			confirm_btn.text = "出发"
+			confirm_btn.disabled = false
+			gold_label.visible = true
+			tab_bar.visible = true
+			weapon_tab_btn.visible = true
+			weapon_tab_btn.text = "商店"
+			talent_tab_btn.visible = true
+			talent_tab_btn.disabled = false
+			talent_tab_btn.text = "铁匠铺"
+			if refine_tab_btn:
+				refine_tab_btn.visible = false
+			if current_tab == "" or not current_tab.begins_with("arena_"):
+				current_tab = "arena_shop"
+			_update_tab_style()
+
+			if current_tab == "arena_shop":
+				# ★ 复用主游戏商店（走 shop_manager）
+				_build_shop_items()
+				shop_container.visible = true
+				reset_btn.visible = true
+				if shop_manager:
+					reset_btn.text = "刷新商店 (" + str(shop_manager.get_reset_cost()) + "G)"
+			else:
+				# 铁匠铺
+				_build_forge_slots()
+				shop_container.visible = true
+				reset_btn.visible = true
+				reset_btn.text = "清空插槽"
+				_display_forge_recipe_info()
+
+			discard_zone.visible = true
+			if left_column:
+				left_column.size_flags_vertical = Control.SIZE_EXPAND_FILL
 
 	close_btn.add_theme_font_size_override("font_size", Style.FONT_LARGE)
 	confirm_btn.add_theme_font_size_override("font_size", Style.FONT_LARGE)
@@ -259,11 +312,9 @@ func _build_ui_inner():
 	_build_unit_columns()
 	visible = true
 
-
 func _update_gold_display():
 	if gold_label:
-		gold_label.text = "金币: " + str(EconomyManager.get_temp_gold())
-
+		gold_label.text = "金币: " + str(_context.get_gold())
 
 # ============================================================
 #  单位列
@@ -290,14 +341,12 @@ func _build_unit_columns():
 
 		col.add_child(_create_label(Style.SEPARATOR_TEXT, Style.FONT_SMALL))
 
-		# 武器
 		var weapon_inst = unit.weapon_slot
 		var weapon_btn = _create_item_button(weapon_inst, "weapon", i, -1)
 		col.add_child(weapon_btn)
 
 		col.add_child(_create_label(Style.SEPARATOR_TEXT, Style.FONT_SMALL))
 
-		# 防具
 		for slot_idx in range(unit.armor_slots.size()):
 			var armor_btn = _create_item_button(unit.armor_slots[slot_idx], "armor", i, slot_idx)
 			if current_mode == Mode.DEPLOY:
@@ -309,7 +358,6 @@ func _build_unit_columns():
 
 		var talent_inst = unit.talent_slots[0] if unit.talent_slots.size() > 0 else null
 		col.add_child(_create_talent_button(talent_inst, i, 0))
-
 
 func _create_item_button(inst: ItemInstance, slot_type: String, unit_idx: int, slot_idx: int) -> Button:
 	var btn = _create_styled_button(Style.FONT_SMALL, Style.BTN_ITEM_SIZE)
@@ -334,7 +382,6 @@ func _create_item_button(inst: ItemInstance, slot_type: String, unit_idx: int, s
 		btn.mouse_exited.connect(_on_button_hover_exited)
 
 	return btn
-
 
 func _create_talent_button(inst: TalentInstance, unit_idx: int, slot_idx: int) -> Button:
 	var btn = _create_styled_button(Style.FONT_TINY, Style.BTN_TALENT_SIZE)
@@ -363,15 +410,13 @@ func _create_talent_button(inst: TalentInstance, unit_idx: int, slot_idx: int) -
 
 	return btn
 
-
 # ============================================================
-#  商店
+#  商店（主游戏 + 竞技场共用，走 shop_manager + context）
 # ============================================================
 func _build_shop_items():
 	if not shop_manager:
 		return
 	_clear_container(shop_container)
-
 	shop_container.columns = 3
 	shop_container.visible = true
 
@@ -401,11 +446,9 @@ func _build_shop_items():
 
 		shop_container.add_child(btn)
 
-
 func _build_weapon_grid(container: GridContainer):
 	for child in container.get_children():
-		container.remove_child(child)
-		child.free()
+		container.remove_child(child); child.free()
 	container.columns = 3
 	for item_id in Globals.unlocked_items:
 		var data = ItemManager.get_item_data(item_id)
@@ -418,11 +461,9 @@ func _build_weapon_grid(container: GridContainer):
 			btn.mouse_exited.connect(_on_button_hover_exited)
 			container.add_child(btn)
 
-
 func _build_talent_grid(container: GridContainer):
 	for child in container.get_children():
-		container.remove_child(child)
-		child.free()
+		container.remove_child(child); child.free()
 
 	var unlocked = Globals.get_unlocked_talents()
 	if unlocked.is_empty():
@@ -431,11 +472,9 @@ func _build_talent_grid(container: GridContainer):
 
 	for talent_id in unlocked:
 		var data = TalentManager.get_talent_data(talent_id)
-		if not data:
-			continue
+		if not data: continue
 
 		var is_equipped = _is_talent_equipped_anywhere(talent_id)
-
 		var btn = _create_styled_button(Style.FONT_TINY, Style.BTN_TALENT_SIZE)
 		btn.text = data.display_name
 		btn.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -443,7 +482,6 @@ func _build_talent_grid(container: GridContainer):
 		btn.set_meta("slot_type", "library_talent")
 
 		var rarity_color = _get_rarity_color(data.rarity)
-
 		if is_equipped:
 			btn.modulate = Color(0.4, 0.4, 0.4, 1.0)
 			btn.disabled = true
@@ -456,21 +494,17 @@ func _build_talent_grid(container: GridContainer):
 		btn.mouse_exited.connect(_on_talent_hover_exited)
 		container.add_child(btn)
 
-
 func _build_refine_grid(container: GridContainer):
 	for child in container.get_children():
-		container.remove_child(child)
-		child.free()
+		container.remove_child(child); child.free()
 	container.columns = 3
 
 	var all_ids = RefineManager.get_all_ids()
 	var has_any = false
 	for refine_id in all_ids:
-		if not RefineManager.is_recipe_unlocked(refine_id):
-			continue
+		if not RefineManager.is_recipe_unlocked(refine_id): continue
 		var count = RefineManager.get_count(refine_id)
-		if count <= 0:
-			continue
+		if count <= 0: continue
 		has_any = true
 
 		var recipe = RefineManager.get_recipe(refine_id)
@@ -486,26 +520,20 @@ func _build_refine_grid(container: GridContainer):
 	if not has_any:
 		container.add_child(_create_label("暂无精炼道具", Style.FONT_SMALL))
 
-
 func _get_item_name(inst: ItemInstance) -> String:
-	if not inst:
-		return ""
+	if not inst: return ""
 	var data = ItemManager.get_item_data(inst.item_id)
 	return data.name if data else inst.item_id
 
-
 # ============================================================
-#  被动槽（遗物 + 精炼）
+#  被动槽（仅主游戏）
 # ============================================================
 func _build_passive_slots():
-	if not relic_container:
-		return
+	if not relic_container: return
 	for child in relic_container.get_children():
-		relic_container.remove_child(child)
-		child.free()
+		relic_container.remove_child(child); child.free()
 
-	var passives = GameState.get_passives()
-
+	var passives = _context.get_passives()
 	for i in range(MAX_PASSIVE_SLOTS):
 		var inst = passives[i] if i < passives.size() else null
 		var btn = _create_passive_button(inst, i)
@@ -552,7 +580,7 @@ func _create_passive_button(inst, slot_index: int) -> Button:
 	return btn
 
 # ============================================================
-#  FORGE 模式
+#  FORGE（主游戏 + 竞技场共用）
 # ============================================================
 func _build_forge_slots():
 	_clear_container(shop_container)
@@ -585,7 +613,7 @@ func _build_forge_slots():
 		shop_container.add_child(slot_btn)
 
 	_update_forge_result_label()
-
+	_ensure_forge_upgrade_ui()
 
 func _ensure_forge_result_label():
 	if forge_result_label and is_instance_valid(forge_result_label) and forge_result_label.is_inside_tree():
@@ -601,7 +629,6 @@ func _ensure_forge_result_label():
 	right_container.add_child(forge_result_label)
 	var scroll_idx = shop_scroll.get_index()
 	right_container.move_child(forge_result_label, scroll_idx + 1)
-
 
 func _display_forge_recipe_info():
 	var input_ids : Array = []
@@ -641,10 +668,8 @@ func _display_forge_recipe_info():
 
 	_update_forge_result_label()
 
-
 func _update_forge_result_label():
-	if not forge_result_label or not is_instance_valid(forge_result_label):
-		return
+	if not forge_result_label or not is_instance_valid(forge_result_label): return
 	if _forge_matched_recipe == "":
 		forge_result_label.text = "合成结果：—"
 		forge_result_label.modulate = Color(0.5, 0.5, 0.5)
@@ -656,7 +681,6 @@ func _update_forge_result_label():
 			forge_result_label.modulate = UIConst.QUALITY_COLORS.get(out_data.quality, Color.WHITE)
 		else:
 			forge_result_label.modulate = Color.WHITE
-
 
 func _ensure_forge_upgrade_ui():
 	if forge_upgrade_btn and is_instance_valid(forge_upgrade_btn) and forge_upgrade_btn.is_inside_tree():
@@ -694,46 +718,35 @@ func _ensure_forge_upgrade_ui():
 
 	_refresh_forge_upgrade_ui()
 
-
 func _refresh_forge_upgrade_ui():
-	if not forge_upgrade_btn or not is_instance_valid(forge_upgrade_btn):
-		return
-	forge_upgrade_btn.text = "武器升级 %d" % _forge_weapon_upgrade_remaining
-	if _forge_weapon_upgrade_remaining <= 0:
+	if not forge_upgrade_btn or not is_instance_valid(forge_upgrade_btn): return
+	var tokens = _context.get_weapon_upgrade_tokens()
+	forge_upgrade_btn.text = "武器升级 %d" % tokens
+	if tokens <= 0:
 		forge_upgrade_btn.disabled = true
 		forge_upgrade_btn.modulate = Color(0.4, 0.4, 0.4)
 	else:
 		forge_upgrade_btn.disabled = false
 		forge_upgrade_btn.modulate = Color.WHITE
 
-
-# ============================================================
-#  FORGE 操作
-# ============================================================
 func _execute_forge_drop(data: Dictionary, target: Control):
 	if data.get("slot_type", "") == "weapon" and target.get_meta("slot_type", "") == "forge_upgrade_slot":
-		if _forge_weapon_upgrade_remaining <= 0:
-			return
 		var uidx = data.get("unit_idx", -1)
-		if uidx < 0:
-			return
+		if uidx < 0: return
 		var weapon_inst = party[uidx].weapon_slot
-		if weapon_inst == null or weapon_inst.upgrade_level >= FORGE_WEAPON_UPGRADE_MAX:
-			return
+		if weapon_inst == null or weapon_inst.upgrade_level >= FORGE_WEAPON_UPGRADE_MAX: return
+		if not _context.consume_weapon_upgrade_token(): return
 		weapon_inst.upgrade_level += 1
-		_forge_weapon_upgrade_remaining -= 1
 		_refresh_forge_upgrade_ui()
 		_sync_all()
 		_schedule_build_ui()
 		return
 
 	if data.get("slot_type", "") == "weapon" and target.get_meta("slot_type", "") == "weapon":
-		_swap_weapons(data, target)
-		return
+		_swap_weapons(data, target); return
 
 	if data.get("slot_type", "") == "armor" and target.get_meta("slot_type", "") == "armor":
-		_swap_armor(data, target)
-		return
+		_swap_armor(data, target); return
 
 	if target == discard_zone:
 		var st = data.get("slot_type", "")
@@ -741,17 +754,13 @@ func _execute_forge_drop(data: Dictionary, target: Control):
 			var src_idx = data.get("forge_slot_index", -1)
 			if src_idx >= 0 and src_idx < _forge_slots.size():
 				_forge_slots[src_idx] = null
-			_display_forge_recipe_info()
-			_schedule_build_ui()
-			return
+			_display_forge_recipe_info(); _schedule_build_ui(); return
 		if st == "armor":
 			var uidx = data.get("unit_idx", -1)
 			var sidx = data.get("slot_idx", -1)
 			if uidx >= 0 and sidx >= 0:
 				party[uidx].armor_slots[sidx] = null
-			_sync_all()
-			_schedule_build_ui()
-			return
+			_sync_all(); _schedule_build_ui(); return
 		return
 
 	var tgt_type = target.get_meta("slot_type", "")
@@ -759,15 +768,12 @@ func _execute_forge_drop(data: Dictionary, target: Control):
 
 	if src_type == "forge_slot" and tgt_type == "armor":
 		var from_idx = data.get("forge_slot_index", -1)
-		if from_idx < 0 or from_idx >= _forge_slots.size():
-			return
+		if from_idx < 0 or from_idx >= _forge_slots.size(): return
 		var entry = _forge_slots[from_idx]
-		if entry == null:
-			return
+		if entry == null: return
 		var tgt_unit = target.get_meta("unit_idx", -1)
 		var tgt_slot = target.get_meta("slot_idx", -1)
-		if tgt_unit < 0 or tgt_slot < 0:
-			return
+		if tgt_unit < 0 or tgt_slot < 0: return
 		var tgt_existing = party[tgt_unit].armor_slots[tgt_slot]
 		if tgt_existing != null:
 			party[entry["origin_unit"]].armor_slots[entry["origin_slot"]] = tgt_existing
@@ -775,51 +781,38 @@ func _execute_forge_drop(data: Dictionary, target: Control):
 		else:
 			party[tgt_unit].armor_slots[tgt_slot] = entry["inst"]
 		_forge_slots[from_idx] = null
-		_display_forge_recipe_info()
-		_schedule_build_ui()
-		return
+		_display_forge_recipe_info(); _schedule_build_ui(); return
 
 	if src_type == "forge_slot" and tgt_type == "forge_slot":
 		var from_idx = data.get("forge_slot_index", -1)
 		var to_idx = target.get_meta("forge_slot_index", -1)
-		if from_idx < 0 or to_idx < 0 or from_idx == to_idx:
-			return
+		if from_idx < 0 or to_idx < 0 or from_idx == to_idx: return
 		var temp = _forge_slots[from_idx]
 		_forge_slots[from_idx] = _forge_slots[to_idx]
 		_forge_slots[to_idx] = temp
-		_display_forge_recipe_info()
-		_schedule_build_ui()
-		return
+		_display_forge_recipe_info(); _schedule_build_ui(); return
 
 	if src_type == "armor" and tgt_type == "forge_slot":
 		var slot_idx = target.get_meta("forge_slot_index", -1)
-		if slot_idx < 0 or slot_idx >= _forge_slots.size() or _forge_slots[slot_idx] != null:
-			return
+		if slot_idx < 0 or slot_idx >= _forge_slots.size() or _forge_slots[slot_idx] != null: return
 		var uidx = data.get("unit_idx", -1)
 		var src_slot = data.get("slot_idx", -1)
-		if uidx < 0 or src_slot < 0:
-			return
+		if uidx < 0 or src_slot < 0: return
 		var inst = party[uidx].armor_slots[src_slot]
-		if inst == null:
-			return
+		if inst == null: return
 		_forge_slots[slot_idx] = {
 			"inst": inst,
 			"origin_unit": uidx,
 			"origin_slot": src_slot,
 		}
-		_display_forge_recipe_info()
-		_schedule_build_ui()
-		return
-
+		_display_forge_recipe_info(); _schedule_build_ui(); return
 
 func _execute_forge_slot_return(data: Dictionary):
 	var idx = data.get("forge_slot_index", -1)
-	if idx < 0 or idx >= _forge_slots.size():
-		return
+	if idx < 0 or idx >= _forge_slots.size(): return
 	_forge_slots[idx] = null
 	_display_forge_recipe_info()
 	_schedule_build_ui()
-
 
 func _on_forge_clear_pressed():
 	for i in range(_forge_slots.size()):
@@ -828,21 +821,17 @@ func _on_forge_clear_pressed():
 	_display_forge_recipe_info()
 	_schedule_build_ui()
 
-
 func _on_forge_craft_pressed():
-	if _forge_matched_recipe == "":
-		return
+	if _forge_matched_recipe == "": return
 	var recipe = RecipeManager.get_recipe(_forge_matched_recipe)
-	if not recipe:
-		return
+	if not recipe: return
 
 	var entries : Array = []
 	for entry in _forge_slots:
 		if entry != null:
 			entries.append(entry)
 
-	if entries.size() != recipe.inputs.size():
-		return
+	if entries.size() != recipe.inputs.size(): return
 
 	var first = entries[0]
 	var out_inst = ItemInstance.new()
@@ -862,13 +851,11 @@ func _on_forge_craft_pressed():
 	_sync_all()
 	_schedule_build_ui()
 
-
 func _has_forge_pending() -> bool:
 	for entry in _forge_slots:
 		if entry != null:
 			return true
 	return false
-
 
 # ============================================================
 #  详情
@@ -876,12 +863,10 @@ func _has_forge_pending() -> bool:
 func show_item_detail(item_id: String):
 	var relic_data = RelicManager.get_relic_data(item_id)
 	if not relic_data.is_empty():
-		_show_relic_detail_in_zone(relic_data)
-		return
+		_show_relic_detail_in_zone(relic_data); return
 
 	var data = ItemManager.get_item_data(item_id)
-	if not data:
-		return
+	if not data: return
 
 	var lines = []
 	lines.append(data.name)
@@ -909,21 +894,17 @@ func show_item_detail(item_id: String):
 
 	_show_detail_in_zone("\n".join(lines))
 
-
 func _show_relic_detail_in_zone(data: Dictionary):
 	var lines = []
 	lines.append(data.get("name", "未知遗物"))
 	lines.append(data.get("description", ""))
-
 	var stats = data.get("stats", {})
 	if not stats.is_empty():
 		lines.append("")
 		lines.append("— 属性加成 —")
 		for key in stats:
 			lines.append(_get_attr_display_name(key) + ": +" + str(stats[key]))
-
 	_show_detail_in_zone("\n".join(lines))
-
 
 func _get_quality_display_name(quality: String) -> String:
 	match quality:
@@ -932,7 +913,6 @@ func _get_quality_display_name(quality: String) -> String:
 		"epic": return "史诗"
 		"legendary": return "传说"
 		_: return quality
-
 
 func _get_attr_display_name(attr: String) -> String:
 	match attr:
@@ -947,7 +927,6 @@ func _get_attr_display_name(attr: String) -> String:
 		"move_range": return "移动力"
 		_: return attr
 
-
 func hide_item_detail():
 	_clear_detail_zone()
 
@@ -957,8 +936,6 @@ func _on_button_hover_entered(item_id: String):
 func _on_button_hover_exited():
 	hide_item_detail()
 
-
-# ---- 特技悬停 ----
 func _on_talent_hover_entered(talent_id: String):
 	var data = TalentManager.get_talent_data(talent_id)
 	if data:
@@ -974,18 +951,15 @@ func _show_talent_detail(data):
 	lines.append("稀有度: " + data.rarity)
 	lines.append("流派: " + data.school)
 	lines.append("积累: " + str(data.accumulation_threshold) + "回合")
-
 	var compatible_units = data.compatible_units if data.compatible_units != null else []
 	if not compatible_units.is_empty():
 		var unit_names = []
 		for unit_key in compatible_units:
 			var display = UnitDataManager.get_unit_type_display_name(unit_key)
-			if display != "":
-				unit_names.append(display)
+			if display != "": unit_names.append(display)
 		lines.append("可装备: " + "/".join(unit_names))
 	else:
 		lines.append("可装备: 全部")
-
 	_show_detail_in_zone("\n".join(lines))
 
 func _get_rarity_color(rarity: String) -> Color:
@@ -996,27 +970,38 @@ func _get_rarity_color(rarity: String) -> Color:
 		"legendary": return Color(1.0, 0.7, 0.0, 1.0)
 		_: return Color.WHITE
 
-
 # ============================================================
 #  Tab 切换
 # ============================================================
 func _switch_tab(tab: String):
-	if current_tab == tab:
-		return
+	if current_tab == tab: return
 	current_tab = tab
 	_update_tab_style()
-
 	_clear_container(shop_container)
 	match tab:
 		"weapon": _build_weapon_grid(shop_container)
 		"talent": _build_talent_grid(shop_container)
 		"refine": _build_refine_grid(shop_container)
+		"arena_shop":
+			_build_shop_items()
+			if reset_btn and shop_manager:
+				reset_btn.text = "刷新商店 (" + str(shop_manager.get_reset_cost()) + "G)"
+		"arena_forge":
+			_build_forge_slots()
+			if reset_btn:
+				reset_btn.text = "清空插槽"
 	shop_container.visible = true
 
-
 func _update_tab_style():
-	if not weapon_tab_btn or not talent_tab_btn:
+	if not weapon_tab_btn or not talent_tab_btn: return
+
+	if current_mode == Mode.ARENA_REST:
+		weapon_tab_btn.modulate = Color.WHITE if current_tab == "arena_shop" else Color(0.5, 0.5, 0.5)
+		talent_tab_btn.modulate = Color.WHITE if current_tab == "arena_forge" else Color(0.5, 0.5, 0.5)
+		if refine_tab_btn:
+			refine_tab_btn.visible = false
 		return
+
 	weapon_tab_btn.modulate = Color.WHITE if current_tab == "weapon" else Color(0.5, 0.5, 0.5)
 	talent_tab_btn.modulate = Color.WHITE if current_tab == "talent" else Color(0.5, 0.5, 0.5)
 	if refine_tab_btn:
@@ -1027,60 +1012,42 @@ func _update_tab_style():
 # ============================================================
 func _get_all_target_controls() -> Array[Control]:
 	var targets: Array[Control] = []
-
 	for btn in relic_container.get_children():
-		if btn is Button:
-			targets.append(btn)
-
+		if btn is Button: targets.append(btn)
 	for col in unit_container.get_children():
 		for child in col.get_children():
-			if child is Button:
-				targets.append(child)
-
-	if current_mode == Mode.DEPLOY and shop_container.visible:
+			if child is Button: targets.append(child)
+	if (current_mode == Mode.DEPLOY or current_mode == Mode.MAP) and shop_container.visible:
 		for btn in shop_container.get_children():
-			if btn is Button and not btn.disabled:
-				targets.append(btn)
-
-	if current_mode == Mode.MAP and shop_container.visible:
+			if btn is Button and not btn.disabled: targets.append(btn)
+	if current_mode == Mode.SHOP and shop_container.visible:
 		for btn in shop_container.get_children():
-			if btn is Button and not btn.disabled:
-				targets.append(btn)
-
-	if current_mode == Mode.FORGE and shop_container.visible:
+			if btn is Button and not btn.disabled: targets.append(btn)
+	if current_mode == Mode.ARENA_REST and current_tab == "arena_shop" and shop_container.visible:
+		for btn in shop_container.get_children():
+			if btn is Button and not btn.disabled: targets.append(btn)
+	if (current_mode == Mode.FORGE or (current_mode == Mode.ARENA_REST and current_tab == "arena_forge")) and shop_container.visible:
 		for btn in shop_container.get_children():
 			if btn is Button and btn.get_meta("slot_type", "") == "forge_slot":
 				targets.append(btn)
-	if current_mode == Mode.FORGE and forge_upgrade_btn and is_instance_valid(forge_upgrade_btn):
-		if not forge_upgrade_btn.disabled:
-			targets.append(forge_upgrade_btn)
-
-	if discard_zone.visible:
-		targets.append(discard_zone)
-
+	if (current_mode == Mode.FORGE or (current_mode == Mode.ARENA_REST and current_tab == "arena_forge")) \
+			and forge_upgrade_btn and is_instance_valid(forge_upgrade_btn):
+		if not forge_upgrade_btn.disabled: targets.append(forge_upgrade_btn)
+	if discard_zone.visible: targets.append(discard_zone)
 	return targets
-
 
 func _update_targets_visuals():
 	if _drag_meta.is_empty():
-		_reset_targets_visuals()
-		return
-
+		_reset_targets_visuals(); return
 	var targets = _get_all_target_controls()
 	_target_states.clear()
-
 	for target in targets:
-		if target == _drag_source:
-			continue
+		if target == _drag_source: continue
 		if not _target_states.has(target):
 			_target_states[target] = target.modulate
-
 		var is_valid = _is_valid_drop(_drag_meta, target)
-		if is_valid:
-			target.modulate = Color.WHITE
-		else:
-			target.modulate = Color(0.4, 0.4, 0.4, 1.0)
-
+		if is_valid: target.modulate = Color.WHITE
+		else: target.modulate = Color(0.4, 0.4, 0.4, 1.0)
 
 func _reset_targets_visuals():
 	for target in _target_states.keys():
@@ -1088,110 +1055,64 @@ func _reset_targets_visuals():
 			target.modulate = _target_states[target]
 	_target_states.clear()
 
-
 func _find_control_at_position(pos: Vector2) -> Control:
 	const BUFFER = 4
-
 	for btn in relic_container.get_children():
 		if btn is Button:
-			var rect = btn.get_global_rect().grow(BUFFER)
-			if rect.has_point(pos):
-				return btn
-
+			if btn.get_global_rect().grow(BUFFER).has_point(pos): return btn
 	for col in unit_container.get_children():
 		for child in col.get_children():
 			if child is Button:
-				if current_mode == Mode.DEPLOY and child.get_meta("slot_type", "") == "armor":
-					continue
-				var rect = child.get_global_rect().grow(BUFFER)
-				if rect.has_point(pos):
-					return child
-
-	if current_mode == Mode.DEPLOY and shop_container.visible:
+				if current_mode == Mode.DEPLOY and child.get_meta("slot_type", "") == "armor": continue
+				if child.get_global_rect().grow(BUFFER).has_point(pos): return child
+	if (current_mode == Mode.DEPLOY or current_mode == Mode.MAP) and shop_container.visible:
 		for btn in shop_container.get_children():
 			if btn is Button and not btn.disabled:
-				var rect = btn.get_global_rect().grow(BUFFER)
-				if rect.has_point(pos):
-					return btn
-
-	if current_mode == Mode.MAP and shop_container.visible:
-		for btn in shop_container.get_children():
-			if btn is Button and not btn.disabled:
-				var rect = btn.get_global_rect().grow(BUFFER)
-				if rect.has_point(pos):
-					return btn
-
+				if btn.get_global_rect().grow(BUFFER).has_point(pos): return btn
 	if current_mode == Mode.SHOP and shop_container.visible:
 		for btn in shop_container.get_children():
 			if btn is Button and not btn.disabled:
-				var rect = btn.get_global_rect().grow(BUFFER)
-				if rect.has_point(pos):
-					return btn
-
-	if current_mode == Mode.FORGE and shop_container.visible:
+				if btn.get_global_rect().grow(BUFFER).has_point(pos): return btn
+	if current_mode == Mode.ARENA_REST and current_tab == "arena_shop" and shop_container.visible:
+		for btn in shop_container.get_children():
+			if btn is Button and not btn.disabled:
+				if btn.get_global_rect().grow(BUFFER).has_point(pos): return btn
+	if (current_mode == Mode.FORGE or (current_mode == Mode.ARENA_REST and current_tab == "arena_forge")) and shop_container.visible:
 		for btn in shop_container.get_children():
 			if btn is Button and btn.get_meta("slot_type", "") == "forge_slot":
-				var rect = btn.get_global_rect().grow(BUFFER)
-				if rect.has_point(pos):
-					return btn
-
+				if btn.get_global_rect().grow(BUFFER).has_point(pos): return btn
 	return null
-
 
 func _get_target_from_position(global_pos: Vector2) -> Control:
 	const BUFFER = 4
-
-	if discard_zone.visible and discard_zone.get_global_rect().has_point(global_pos):
-		return discard_zone
-
+	if discard_zone.visible and discard_zone.get_global_rect().has_point(global_pos): return discard_zone
 	for col in unit_container.get_children():
 		for child in col.get_children():
 			if child is Button:
-				var rect = child.get_global_rect().grow(BUFFER)
-				if rect.has_point(global_pos):
-					return child
-
+				if child.get_global_rect().grow(BUFFER).has_point(global_pos): return child
 	for btn in relic_container.get_children():
 		if btn is Button:
-			var rect = btn.get_global_rect().grow(BUFFER)
-			if rect.has_point(global_pos):
-				return btn
-
-	if current_mode == Mode.DEPLOY and shop_container.visible:
+			if btn.get_global_rect().grow(BUFFER).has_point(global_pos): return btn
+	if (current_mode == Mode.DEPLOY or current_mode == Mode.MAP) and shop_container.visible:
 		for btn in shop_container.get_children():
 			if btn is Button and not btn.disabled:
-				var rect = btn.get_global_rect().grow(BUFFER)
-				if rect.has_point(global_pos):
-					return btn
-
-	if current_mode == Mode.MAP and shop_container.visible:
-		for btn in shop_container.get_children():
-			if btn is Button and not btn.disabled:
-				var rect = btn.get_global_rect().grow(BUFFER)
-				if rect.has_point(global_pos):
-					return btn
-
+				if btn.get_global_rect().grow(BUFFER).has_point(global_pos): return btn
 	if current_mode == Mode.SHOP and shop_container.visible:
 		for btn in shop_container.get_children():
 			if btn is Button and not btn.disabled:
-				var rect = btn.get_global_rect().grow(BUFFER)
-				if rect.has_point(global_pos):
-					return btn
-
-	if current_mode == Mode.FORGE and shop_container.visible:
+				if btn.get_global_rect().grow(BUFFER).has_point(global_pos): return btn
+	if current_mode == Mode.ARENA_REST and current_tab == "arena_shop" and shop_container.visible:
+		for btn in shop_container.get_children():
+			if btn is Button and not btn.disabled:
+				if btn.get_global_rect().grow(BUFFER).has_point(global_pos): return btn
+	if (current_mode == Mode.FORGE or (current_mode == Mode.ARENA_REST and current_tab == "arena_forge")) and shop_container.visible:
 		for btn in shop_container.get_children():
 			if btn is Button and btn.get_meta("slot_type", "") == "forge_slot":
-				var rect = btn.get_global_rect().grow(BUFFER)
-				if rect.has_point(global_pos):
-					return btn
-
-	if current_mode == Mode.FORGE and forge_upgrade_btn and is_instance_valid(forge_upgrade_btn) and not forge_upgrade_btn.disabled:
-		var rect = forge_upgrade_btn.get_global_rect().grow(BUFFER)
-		if rect.has_point(global_pos):
-			return forge_upgrade_btn
-
+				if btn.get_global_rect().grow(BUFFER).has_point(global_pos): return btn
+	if (current_mode == Mode.FORGE or (current_mode == Mode.ARENA_REST and current_tab == "arena_forge")) \
+			and forge_upgrade_btn and is_instance_valid(forge_upgrade_btn) and not forge_upgrade_btn.disabled:
+		if forge_upgrade_btn.get_global_rect().grow(BUFFER).has_point(global_pos): return forge_upgrade_btn
 	return null
-
 
 # ============================================================
 #  合法性
@@ -1201,97 +1122,71 @@ func _is_valid_drop(data: Dictionary, target: Control) -> bool:
 	var target_type = target.get_meta("slot_type", "")
 	var discard = target == discard_zone
 
-	# ---- 被动槽（遗物 + 精炼） ----
+	# 被动槽
 	if source_type == "passive_slot":
-		if target_type == "passive_slot":
-			return true
-		if discard:
-			return true
+		if target_type == "passive_slot": return true
+		if discard: return true
 		return false
 	if target_type == "passive_slot":
-		if source_type == "library_refine":
-			return true
+		if source_type == "library_refine": return true
 		return false
 
-	# ---- FORGE ----
+	# FORGE（主游戏 or 竞技场铁匠铺）
 	if current_mode == Mode.FORGE:
 		return _is_valid_forge_drop(data, target)
+	if current_mode == Mode.ARENA_REST and current_tab == "arena_forge":
+		return _is_valid_forge_drop(data, target)
 
-	# ---- 特技丢弃 ----
+	# 特技丢弃
 	if discard and source_type in ["library_talent", "talent"]:
-		if source_type == "library_talent":
-			return false
+		if source_type == "library_talent": return false
 		return true
 
 	if current_mode == Mode.DEPLOY:
-		if discard:
-			return false
-		if source_type == "library_weapon":
-			return target_type == "weapon"
-		if source_type == "weapon" and target_type == "weapon":
-			return true
-		if source_type == "library_talent" and target_type == "talent":
-			return _check_talent_compatibility(data, target)
-		if source_type == "talent" and target_type == "talent":
-			return _check_talent_compatibility(data, target)
+		if discard: return false
+		if source_type == "library_weapon": return target_type == "weapon"
+		if source_type == "weapon" and target_type == "weapon": return true
+		if source_type == "library_talent" and target_type == "talent": return _check_talent_compatibility(data, target)
+		if source_type == "talent" and target_type == "talent": return _check_talent_compatibility(data, target)
 		return false
 
 	if current_mode == Mode.MAP:
 		if discard:
-			if source_type == "library_talent":
-				return false
-			if source_type == "weapon":
-				return false
+			if source_type == "library_talent": return false
+			if source_type == "weapon": return false
 			return true
-		if source_type == "library_weapon":
-			return target_type == "weapon"
-		if source_type == "weapon" and target_type == "weapon":
-			return true
-		if source_type == "armor" and target_type == "armor":
-			return true
-		if source_type == "library_talent" and target_type == "talent":
-			return _check_talent_compatibility(data, target)
-		if source_type == "talent" and target_type == "talent":
-			return _check_talent_compatibility(data, target)
+		if source_type == "library_weapon": return target_type == "weapon"
+		if source_type == "weapon" and target_type == "weapon": return true
+		if source_type == "armor" and target_type == "armor": return true
+		if source_type == "library_talent" and target_type == "talent": return _check_talent_compatibility(data, target)
+		if source_type == "talent" and target_type == "talent": return _check_talent_compatibility(data, target)
 		return false
 
-	if current_mode == Mode.SHOP:
+	if current_mode == Mode.SHOP or (current_mode == Mode.ARENA_REST and current_tab == "arena_shop"):
 		if discard:
-			if source_type in ["shop_item", "weapon", "library_talent", "talent"]:
-				return false
+			if source_type in ["shop_item", "weapon", "library_talent", "talent"]: return false
 			return true
 		if source_type == "shop_item":
 			var item_data = data.get("item_data")
-			if not item_data:
-				return false
-			if item_data.type == "weapon":
-				return target_type == "weapon"
-			elif item_data.type == "armor":
-				return target_type == "armor"
+			if not item_data: return false
+			if item_data.type == "weapon": return target_type == "weapon"
+			elif item_data.type == "armor": return target_type == "armor"
 			return false
-		if source_type == "weapon" and target_type == "weapon":
-			return true
-		if source_type == "armor" and target_type == "armor":
-			return true
+		if source_type == "weapon" and target_type == "weapon": return true
+		if source_type == "armor" and target_type == "armor": return true
 		return false
-
 	return false
-
 
 func _is_valid_forge_drop(data: Dictionary, target: Control) -> bool:
 	var src_type = data.get("slot_type", "")
 	var tgt_type = target.get_meta("slot_type", "")
 
-	# weapon → 升级槽
 	if src_type == "weapon" and tgt_type == "forge_upgrade_slot":
-		if _forge_weapon_upgrade_remaining <= 0:
-			return false
+		if _context.get_weapon_upgrade_tokens() <= 0: return false
 		var uidx = data.get("unit_idx", -1)
-		if uidx < 0:
-			return false
+		if uidx < 0: return false
 		var weapon_inst = party[uidx].weapon_slot
-		if weapon_inst == null or weapon_inst.upgrade_level >= FORGE_WEAPON_UPGRADE_MAX:
-			return false
+		if weapon_inst == null or weapon_inst.upgrade_level >= FORGE_WEAPON_UPGRADE_MAX: return false
 		return true
 
 	if src_type == "weapon" and tgt_type == "weapon":
@@ -1299,17 +1194,14 @@ func _is_valid_forge_drop(data: Dictionary, target: Control) -> bool:
 		var tgt_unit = target.get_meta("unit_idx", -1)
 		return src_unit >= 0 and tgt_unit >= 0 and src_unit != tgt_unit
 
-	if src_type == "weapon" and target == discard_zone:
-		return false
+	if src_type == "weapon" and target == discard_zone: return false
 
 	if src_type == "armor" and tgt_type == "forge_slot":
 		var slot_idx = target.get_meta("forge_slot_index", -1)
-		if slot_idx < 0 or _forge_slots[slot_idx] != null:
-			return false
+		if slot_idx < 0 or _forge_slots[slot_idx] != null: return false
 		var uidx2 = data.get("unit_idx", -1)
 		var src_slot = data.get("slot_idx", -1)
-		if uidx2 < 0 or src_slot < 0:
-			return false
+		if uidx2 < 0 or src_slot < 0: return false
 		return party[uidx2].armor_slots[src_slot] != null
 
 	if src_type == "armor" and tgt_type == "armor":
@@ -1317,252 +1209,123 @@ func _is_valid_forge_drop(data: Dictionary, target: Control) -> bool:
 		var ss = data.get("slot_idx", -1)
 		var tu = target.get_meta("unit_idx", -1)
 		var ts = target.get_meta("slot_idx", -1)
-		if su < 0 or ss < 0 or tu < 0 or ts < 0:
-			return false
+		if su < 0 or ss < 0 or tu < 0 or ts < 0: return false
 		return not (su == tu and ss == ts)
 
-	if src_type == "armor" and target == discard_zone:
-		return true
+	if src_type == "armor" and target == discard_zone: return true
 
 	if src_type == "forge_slot":
-		if tgt_type == "armor":
-			return true
-		if tgt_type == "forge_slot":
-			return true
-		if target == discard_zone:
-			return true
+		if tgt_type == "armor": return true
+		if tgt_type == "forge_slot": return true
+		if target == discard_zone: return true
 		return false
-
 	return false
-
 
 # ============================================================
 #  执行 drop
 # ============================================================
 func _execute_drop(data: Dictionary, target: Control):
-	# ---- 被动槽 ----
 	if data.get("slot_type", "") == "passive_slot":
 		if target == discard_zone:
-			_discard_passive(data)
-			return
+			_discard_passive(data); return
 		if target.get_meta("slot_type", "") == "passive_slot":
-			_swap_passives(data, target)
-			return
+			_swap_passives(data, target); return
 
-	# ---- 精炼道具 → 被动槽 ----
 	if data.get("slot_type", "") == "library_refine" and target.get_meta("slot_type", "") == "passive_slot":
-		_equip_refine_to_slot(data, target)
-		return
+		_equip_refine_to_slot(data, target); return
 
-	# ---- FORGE ----
+	# FORGE 类
 	if current_mode == Mode.FORGE:
-		_execute_forge_drop(data, target)
-		return
+		_execute_forge_drop(data, target); return
+	if current_mode == Mode.ARENA_REST and current_tab == "arena_forge":
+		_execute_forge_drop(data, target); return
 
 	var discard = target == discard_zone
 	var source_type = data["slot_type"]
 	var target_type = target.get_meta("slot_type", "")
 
 	if discard and source_type == "talent":
-		_execute_talent_remove(data)
-		return
-
+		_execute_talent_remove(data); return
 	if discard:
-		_discard_item(data)
-		return
-
+		_discard_item(data); return
 	if source_type == "shop_item":
-		_buy_shop_item(data, target)
-		return
-
+		_buy_shop_item(data, target); return
 	if source_type == "library_weapon":
-		_library_to_weapon(data, target)
-		return
-
+		_library_to_weapon(data, target); return
 	if source_type == "library_talent" and target_type == "talent":
-		_execute_talent_drop(data, target)
-		return
-
+		_execute_talent_drop(data, target); return
 	if source_type == "talent" and target_type == "talent":
-		_execute_talent_drop(data, target)
-		return
-
+		_execute_talent_drop(data, target); return
 	if source_type == "weapon" and target_type == "weapon":
 		_swap_weapons(data, target)
 	elif source_type == "armor" and target_type == "armor":
 		_swap_armor(data, target)
 
-
 func _discard_passive(data: Dictionary):
 	var idx = data.get("passive_index", -1)
-	if idx < 0:
-		return
-	GameState.remove_passive_at_slot(idx)
+	if idx < 0: return
+	_context.remove_passive_at_slot(idx)
 	_sync_all()
 	_schedule_build_ui()
-
 
 func _swap_passives(data: Dictionary, target: Control):
 	var src_idx = data.get("passive_index", -1)
 	var tgt_idx = target.get_meta("passive_index", -1)
-	if src_idx < 0 or tgt_idx < 0 or src_idx == tgt_idx:
-		return
-	var temp = GameState.equipped_passives[src_idx]
-	GameState.equipped_passives[src_idx] = GameState.equipped_passives[tgt_idx]
-	GameState.equipped_passives[tgt_idx] = temp
+	if src_idx < 0 or tgt_idx < 0 or src_idx == tgt_idx: return
+	var passives = _context.get_passives()
+	var temp = passives[src_idx]
+	_context.set_passive_at_slot(src_idx, passives[tgt_idx])
+	_context.set_passive_at_slot(tgt_idx, temp)
 	_sync_all()
 	_schedule_build_ui()
-
 
 func _equip_refine_to_slot(data: Dictionary, target: Control):
 	var refine_id = data.get("refine_id", "")
 	var slot_idx = target.get_meta("passive_index", -1)
-	if refine_id == "" or slot_idx < 0:
-		return
-	if RefineManager.get_count(refine_id) <= 0:
-		return
+	if refine_id == "" or slot_idx < 0: return
+	if RefineManager.get_count(refine_id) <= 0: return
 
-	# 检查是否已有该精炼道具装备
-	for p in GameState.equipped_passives:
+	var passives = _context.get_passives()
+	for p in passives:
 		if p != null and p is Dictionary and p.get("refine_id", "") == refine_id:
 			return
 
 	GameState.refined_items[refine_id] -= 1
-	GameState.equipped_passives[slot_idx] = {
+	_context.set_passive_at_slot(slot_idx, {
 		"refine_id": refine_id,
 		"count": 1,
-	}
+	})
 	_sync_all()
 	_schedule_build_ui()
 
-
 func _discard_item(data: Dictionary):
 	var source_type = data["slot_type"]
-	if source_type == "library_weapon" or source_type == "weapon":
-		return
-
+	if source_type == "library_weapon" or source_type == "weapon": return
 	var unit_idx = data["unit_idx"]
 	var slot_idx = data["slot_idx"]
-
 	if source_type == "armor":
 		party[unit_idx].armor_slots[slot_idx] = null
 	elif source_type == "talent":
 		_discard_talent(data)
-
 	_sync_all()
 	_schedule_build_ui()
 
-
 # ============================================================
-#  特技
+#  商店购买（走 shop_manager，context 已注入）
 # ============================================================
-func _execute_talent_drop(data: Dictionary, target: Control):
-	var source_type = data.get("slot_type", "")
-	var target_type = target.get_meta("slot_type", "")
-
-	if target == discard_zone:
-		_discard_talent(data)
-		return
-
-	if source_type == "library_talent" and target_type == "talent":
-		var talent_id = data.get("talent_id", "")
-		if talent_id == "":
-			return
-		var unit_idx = target.get_meta("unit_idx", -1)
-		var slot_idx = target.get_meta("slot_idx", -1)
-		if unit_idx == -1 or slot_idx == -1:
-			return
-		if not Globals.is_talent_unlocked(talent_id):
-			return
-
-		if _is_talent_already_equipped(talent_id, unit_idx, slot_idx):
-			var equipped_unit = _get_unit_with_talent(talent_id)
-			Globals.show_confirm(self, "特技已被 %s 装备" % equipped_unit, "确定", "", func(): pass, func(): pass, false)
-			return
-
-		var inst = TalentInstance.new()
-		inst.talent_id = talent_id
-		inst.is_active = true
-		party[unit_idx].talent_slots[slot_idx] = inst
-		_sync_all()
-		_refresh_after_talent_change()
-		return
-
-	if source_type == "talent" and target_type == "talent":
-		var src_unit = data.get("unit_idx", -1)
-		var src_slot = data.get("slot_idx", -1)
-		var tgt_unit = target.get_meta("unit_idx", -1)
-		var tgt_slot = target.get_meta("slot_idx", -1)
-		if src_unit == -1 or tgt_unit == -1:
-			return
-
-		var src_inst = party[src_unit].talent_slots[src_slot]
-		var tgt_inst = party[tgt_unit].talent_slots[tgt_slot]
-
-		var src_tid = src_inst.talent_id if src_inst and src_inst.is_active else ""
-		var tgt_tid = tgt_inst.talent_id if tgt_inst and tgt_inst.is_active else ""
-
-		if src_tid == "" and tgt_tid == "":
-			return
-
-		if tgt_tid == "":
-			if _is_talent_already_equipped(src_tid, tgt_unit, tgt_slot):
-				return
-			party[tgt_unit].talent_slots[tgt_slot] = src_inst
-			party[src_unit].talent_slots[src_slot] = null
-		elif src_tid == "":
-			if _is_talent_already_equipped(tgt_tid, src_unit, src_slot):
-				return
-			party[src_unit].talent_slots[src_slot] = tgt_inst
-			party[tgt_unit].talent_slots[tgt_slot] = null
-		else:
-			if _is_talent_already_equipped(tgt_tid, src_unit, src_slot):
-				return
-			if _is_talent_already_equipped(src_tid, tgt_unit, tgt_slot):
-				return
-			var temp = party[src_unit].talent_slots[src_slot]
-			party[src_unit].talent_slots[src_slot] = party[tgt_unit].talent_slots[tgt_slot]
-			party[tgt_unit].talent_slots[tgt_slot] = temp
-
-		_sync_all()
-		_refresh_after_talent_change()
-		return
-
-
-func _refresh_after_talent_change():
-	_schedule_build_ui()
-
-
-func _discard_talent(data: Dictionary):
-	var source_type = data.get("slot_type", "")
-	if source_type == "library_talent":
-		return
-	if source_type == "talent":
-		var unit_idx = data.get("unit_idx", -1)
-		var slot_idx = data.get("slot_idx", -1)
-		if unit_idx == -1 or slot_idx == -1:
-			return
-		party[unit_idx].talent_slots[slot_idx] = null
-		_sync_all()
-		_refresh_after_talent_change()
-
-
 func _buy_shop_item(data: Dictionary, target: Control):
-	if target == null or not shop_manager:
-		return
+	if target == null: return
+	if not shop_manager: return
+
 	var shop_index = data.get("shop_index", -1)
-	if shop_index == -1:
-		return
+	if shop_index == -1: return
 
 	var items = shop_manager.get_shop_items()
-	if shop_index < 0 or shop_index >= items.size():
-		return
+	if shop_index < 0 or shop_index >= items.size(): return
 	var entry = items[shop_index]
-	if entry == null:
-		return
+	if entry == null: return
 	var item_data = entry["item_data"]
-	if not item_data:
-		return
+	if not item_data: return
 
 	var target_unit_idx = target.get_meta("unit_idx", -1)
 	var target_slot_idx = target.get_meta("slot_idx", -1)
@@ -1580,20 +1343,19 @@ func _buy_shop_item(data: Dictionary, target: Control):
 		if target_unit_idx != -1:
 			party[target_unit_idx].weapon_slot = inst
 		else:
-			Globals.unlock_item(item_data.id)
+			_context.unlock_item(item_data.id)
 	elif item_data.type == "armor":
 		if target_unit_idx != -1 and target_slot_idx != -1:
 			party[target_unit_idx].armor_slots[target_slot_idx] = inst
 
 	_sync_all()
 	_update_gold_display()
-
+	_schedule_build_ui()
 
 func _library_to_weapon(data: Dictionary, target: Control):
 	var item_id = data["item_id"]
 	var unit_idx = target.get_meta("unit_idx", -1)
-	if unit_idx == -1:
-		return
+	if unit_idx == -1: return
 	var inst = ItemInstance.new()
 	inst.item_id = item_id
 	inst.count = 1
@@ -1601,98 +1363,150 @@ func _library_to_weapon(data: Dictionary, target: Control):
 	_sync_all()
 	_schedule_build_ui()
 
-
 func _swap_weapons(data: Dictionary, target: Control):
 	var src_unit = data["unit_idx"]
 	var tgt_unit = target.get_meta("unit_idx", -1)
-	if tgt_unit == -1:
-		return
+	if tgt_unit == -1: return
 	var temp = party[src_unit].weapon_slot
 	party[src_unit].weapon_slot = party[tgt_unit].weapon_slot
 	party[tgt_unit].weapon_slot = temp
 	_sync_all()
 	_schedule_build_ui()
 
-
 func _swap_armor(data: Dictionary, target: Control):
 	var src_unit = data["unit_idx"]
 	var src_slot = data["slot_idx"]
 	var tgt_unit = target.get_meta("unit_idx", -1)
 	var tgt_slot = target.get_meta("slot_idx", -1)
-	if tgt_unit == -1 or tgt_slot == -1:
-		return
+	if tgt_unit == -1 or tgt_slot == -1: return
 	var temp = party[src_unit].armor_slots[src_slot]
 	party[src_unit].armor_slots[src_slot] = party[tgt_unit].armor_slots[tgt_slot]
 	party[tgt_unit].armor_slots[tgt_slot] = temp
 	_sync_all()
 	_schedule_build_ui()
 
+# ============================================================
+#  特技
+# ============================================================
+func _execute_talent_drop(data: Dictionary, target: Control):
+	var source_type = data.get("slot_type", "")
+	var target_type = target.get_meta("slot_type", "")
+
+	if target == discard_zone:
+		_discard_talent(data); return
+
+	if source_type == "library_talent" and target_type == "talent":
+		var talent_id = data.get("talent_id", "")
+		if talent_id == "": return
+		var unit_idx = target.get_meta("unit_idx", -1)
+		var slot_idx = target.get_meta("slot_idx", -1)
+		if unit_idx == -1 or slot_idx == -1: return
+		if not Globals.is_talent_unlocked(talent_id): return
+		if _is_talent_already_equipped(talent_id, unit_idx, slot_idx):
+			var equipped_unit = _get_unit_with_talent(talent_id)
+			Globals.show_confirm(self, "特技已被 %s 装备" % equipped_unit, "确定", "", func(): pass, func(): pass, false)
+			return
+		var inst = TalentInstance.new()
+		inst.talent_id = talent_id
+		inst.is_active = true
+		party[unit_idx].talent_slots[slot_idx] = inst
+		_sync_all()
+		_refresh_after_talent_change()
+		return
+
+	if source_type == "talent" and target_type == "talent":
+		var src_unit = data.get("unit_idx", -1)
+		var src_slot = data.get("slot_idx", -1)
+		var tgt_unit = target.get_meta("unit_idx", -1)
+		var tgt_slot = target.get_meta("slot_idx", -1)
+		if src_unit == -1 or tgt_unit == -1: return
+
+		var src_inst = party[src_unit].talent_slots[src_slot]
+		var tgt_inst = party[tgt_unit].talent_slots[tgt_slot]
+		var src_tid = src_inst.talent_id if src_inst and src_inst.is_active else ""
+		var tgt_tid = tgt_inst.talent_id if tgt_inst and tgt_inst.is_active else ""
+
+		if src_tid == "" and tgt_tid == "": return
+
+		if tgt_tid == "":
+			if _is_talent_already_equipped(src_tid, tgt_unit, tgt_slot): return
+			party[tgt_unit].talent_slots[tgt_slot] = src_inst
+			party[src_unit].talent_slots[src_slot] = null
+		elif src_tid == "":
+			if _is_talent_already_equipped(tgt_tid, src_unit, src_slot): return
+			party[src_unit].talent_slots[src_slot] = tgt_inst
+			party[tgt_unit].talent_slots[tgt_slot] = null
+		else:
+			if _is_talent_already_equipped(tgt_tid, src_unit, src_slot): return
+			if _is_talent_already_equipped(src_tid, tgt_unit, tgt_slot): return
+			var temp = party[src_unit].talent_slots[src_slot]
+			party[src_unit].talent_slots[src_slot] = party[tgt_unit].talent_slots[tgt_slot]
+			party[tgt_unit].talent_slots[tgt_slot] = temp
+		_sync_all()
+		_refresh_after_talent_change()
+		return
+
+func _refresh_after_talent_change():
+	_schedule_build_ui()
+
+func _discard_talent(data: Dictionary):
+	var source_type = data.get("slot_type", "")
+	if source_type == "library_talent": return
+	if source_type == "talent":
+		var unit_idx = data.get("unit_idx", -1)
+		var slot_idx = data.get("slot_idx", -1)
+		if unit_idx == -1 or slot_idx == -1: return
+		party[unit_idx].talent_slots[slot_idx] = null
+		_sync_all()
+		_refresh_after_talent_change()
 
 # ============================================================
 #  同步
 # ============================================================
 func _sync_all():
+	var target_units = _context.get_units()
 	for i in range(party.size()):
-		if i < GameState.party.size():
-			GameState.party[i].weapon_slot = party[i].weapon_slot
-			GameState.party[i].armor_slots = party[i].armor_slots.duplicate()
-			GameState.party[i].max_armor_slots = party[i].max_armor_slots
-			GameState.party[i].talent_slots = party[i].talent_slots.duplicate()
+		var u = party[i]
+		var armor_target = clampi(u.max_armor_slots, 0, 10)
+		u.max_armor_slots = armor_target
+		u.armor_slots.resize(armor_target)
+		var talent_target = maxi(u.talent_slots.size(), 1)
+		u.talent_slots.resize(talent_target)
 
-			var armor_target = clampi(GameState.party[i].max_armor_slots, 0, 10)
-			GameState.party[i].max_armor_slots = armor_target
-			GameState.party[i].armor_slots.resize(armor_target)
-
-			var talent_target = maxi(GameState.party[i].talent_slots.size(), 1)
-			GameState.party[i].talent_slots.resize(talent_target)
-	call_deferred("_deferred_auto_save")
-
-
-func _deferred_auto_save():
-	SaveManager.auto_save()
-
+		if i < target_units.size():
+			target_units[i].weapon_slot = u.weapon_slot
+			target_units[i].armor_slots = u.armor_slots.duplicate()
+			target_units[i].max_armor_slots = u.max_armor_slots
+			target_units[i].talent_slots = u.talent_slots.duplicate()
 
 # ============================================================
 #  输入
 # ============================================================
 func _input(event: InputEvent):
-	if _has_active_confirm_ui():
-		return
-
+	if _has_active_confirm_ui(): return
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
 		var mouse_pos = get_global_mouse_position()
 		var btn = _find_control_at_position(mouse_pos)
-		if btn:
-			_start_drag(btn)
+		if btn: _start_drag(btn)
 	elif event is InputEventMouseButton and not event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
 		_end_drag()
 	elif event is InputEventMouseMotion:
-		if _is_dragging:
-			_update_drag_preview()
-
+		if _is_dragging: _update_drag_preview()
 
 func _start_drag(btn: Button):
 	var slot_type = btn.get_meta("slot_type", "")
-
-	if current_mode == Mode.DEPLOY and slot_type == "armor":
-		return
+	if current_mode == Mode.DEPLOY and slot_type == "armor": return
 
 	var item_id = btn.get_meta("item_id", "")
 	var talent_id = btn.get_meta("talent_id", "")
 	var refine_id = btn.get_meta("refine_id", "")
 
-	if slot_type == "passive_slot" and item_id == "" and refine_id == "":
-		return
-	if slot_type in ["library_talent", "talent"] and talent_id == "":
-		return
-	if slot_type in ["library_weapon", "weapon"] and item_id == "":
-		return
-	if slot_type == "shop_item" and item_id == "":
-		return
-	if slot_type == "forge_slot" and item_id == "":
-		return
-	if slot_type == "library_refine" and refine_id == "":
-		return
+	if slot_type == "passive_slot" and item_id == "" and refine_id == "": return
+	if slot_type in ["library_talent", "talent"] and talent_id == "": return
+	if slot_type in ["library_weapon", "weapon"] and item_id == "": return
+	if slot_type == "shop_item" and item_id == "": return
+	if slot_type == "forge_slot" and item_id == "": return
+	if slot_type == "library_refine" and refine_id == "": return
 
 	_drag_source = btn
 	_drag_meta = {
@@ -1709,9 +1523,9 @@ func _start_drag(btn: Button):
 		"refine_id": refine_id,
 	}
 
-	if slot_type == "shop_item":
+	if slot_type == "shop_item" and shop_manager:
 		var shop_idx = _drag_meta["shop_index"]
-		if shop_idx != -1 and shop_manager:
+		if shop_idx != -1:
 			var items = shop_manager.get_shop_items()
 			if shop_idx >= 0 and shop_idx < items.size() and items[shop_idx] != null:
 				_drag_meta["item_data"] = items[shop_idx]["item_data"]
@@ -1720,17 +1534,13 @@ func _start_drag(btn: Button):
 	var btn_rect = btn.get_global_rect()
 	var btn_center = btn_rect.position + btn_rect.size / 2
 	_drag_grab_offset = get_global_mouse_position() - btn_center
-
 	_begin_dragging()
 
-
 func _begin_dragging():
-	if _is_dragging:
-		return
+	if _is_dragging: return
 	_is_dragging = true
 	var btn = _drag_source
-	if not btn:
-		return
+	if not btn: return
 
 	btn.set_meta("_original_disabled", btn.disabled)
 	btn.set_meta("_original_modulate", btn.modulate)
@@ -1749,7 +1559,6 @@ func _begin_dragging():
 	btn.text = "空"
 
 	_drag_preview = _create_drag_preview(btn)
-
 	var canvas = get_parent()
 	if canvas and canvas is CanvasLayer:
 		canvas.add_child(_drag_preview)
@@ -1758,29 +1567,20 @@ func _begin_dragging():
 	_update_drag_preview()
 	_update_targets_visuals()
 
-
 func _update_drag_preview():
-	if not _drag_preview:
-		return
+	if not _drag_preview: return
 	var mouse_pos = get_global_mouse_position()
 	var preview_center = mouse_pos - _drag_grab_offset
 	_drag_preview.position = preview_center - _drag_preview.size / 2
 	_drag_preview.z_index = 100
 
-
 func _end_drag():
-	if not _is_dragging:
-		return
-
+	if not _is_dragging: return
 	if _has_active_confirm_ui():
-		if _drag_preview:
-			_drag_preview.queue_free()
-			_drag_preview = null
+		if _drag_preview: _drag_preview.queue_free(); _drag_preview = null
 		_is_dragging = false
-		_reset_targets_visuals()
-		_restore_drag_source()
-		_drag_source = null
-		_drag_meta = {}
+		_reset_targets_visuals(); _restore_drag_source()
+		_drag_source = null; _drag_meta = {}
 		return
 
 	var mouse_pos = get_global_mouse_position()
@@ -1789,9 +1589,7 @@ func _end_drag():
 	var drop_data = _drag_meta.duplicate()
 	var source_type = drop_data.get("slot_type", "")
 
-	if _drag_preview:
-		_drag_preview.queue_free()
-		_drag_preview = null
+	if _drag_preview: _drag_preview.queue_free(); _drag_preview = null
 	_is_dragging = false
 	_reset_targets_visuals()
 	_restore_drag_source()
@@ -1800,7 +1598,8 @@ func _end_drag():
 		_execute_drop.call_deferred(drop_data, target)
 		SoundManager.play_select_sound()
 	else:
-		if current_mode == Mode.FORGE and source_type == "forge_slot" and target == null:
+		if (current_mode == Mode.FORGE or (current_mode == Mode.ARENA_REST and current_tab == "arena_forge")) \
+				and source_type == "forge_slot" and target == null:
 			_execute_forge_slot_return.call_deferred(drop_data)
 			SoundManager.play_select_sound()
 		elif source_type == "talent" and target == null:
@@ -1813,10 +1612,8 @@ func _end_drag():
 	_drag_source = null
 	_drag_meta = {}
 
-
 func _restore_drag_source():
-	if not is_instance_valid(_drag_source):
-		return
+	if not is_instance_valid(_drag_source): return
 	_drag_source.disabled = _drag_source.get_meta("_original_disabled", false)
 	_drag_source.modulate = _drag_source.get_meta("_original_modulate", Color.WHITE)
 	_drag_source.text = _drag_source.get_meta("_original_text", "")
@@ -1826,11 +1623,8 @@ func _restore_drag_source():
 	_drag_source.remove_meta("_original_text")
 	_drag_source.remove_meta("_original_custom_minimum_size")
 
-
 func _process(_delta):
-	if _is_dragging:
-		_update_drag_preview()
-
+	if _is_dragging: _update_drag_preview()
 
 # ============================================================
 #  底部按钮
@@ -1839,40 +1633,44 @@ func _on_reset_shop_pressed():
 	if current_mode == Mode.FORGE:
 		_on_forge_clear_pressed()
 		return
-
-	if current_mode != Mode.SHOP or not shop_manager:
+	if current_mode == Mode.ARENA_REST:
+		if current_tab == "arena_forge":
+			_on_forge_clear_pressed()
+			return
+		# arena_shop → 跟主游戏 SHOP 一致
+	if current_mode != Mode.SHOP and not (current_mode == Mode.ARENA_REST and current_tab == "arena_shop"):
 		return
-
+	if not shop_manager:
+		return
 	var cost = shop_manager.get_reset_cost()
-	if EconomyManager.get_temp_gold() < cost:
+	if _context.get_gold() < cost:
 		Globals.show_confirm(self, "金币不足！", "确定", "", func(): pass, func(): pass, false)
 		return
-
 	var spent = shop_manager.reset_shop()
 	if spent >= 0:
 		SoundManager.play_select_sound()
 		_update_gold_display()
-		reset_btn.text = "重置商店 (" + str(shop_manager.get_reset_cost()) + "G)"
-
+		reset_btn.text = "刷新商店 (" + str(shop_manager.get_reset_cost()) + "G)"
 
 func _on_confirm_pressed():
 	if current_mode == Mode.FORGE:
-		_on_forge_craft_pressed()
-		return
+		_on_forge_craft_pressed(); return
+	if current_mode == Mode.ARENA_REST and current_tab == "arena_forge":
+		_on_forge_craft_pressed(); return
 
-	GameState.party.clear()
-	for local_unit in party:
-		GameState.party.append(UnitData.from_dict(local_unit.to_dict()))
+	var target_units = _context.get_units()
+	for i in range(min(party.size(), target_units.size())):
+		target_units[i].weapon_slot = party[i].weapon_slot
+		target_units[i].armor_slots = party[i].armor_slots.duplicate()
+		target_units[i].max_armor_slots = party[i].max_armor_slots
+		target_units[i].talent_slots = party[i].talent_slots.duplicate()
 
-	if selected_units.size() > 0:
+	if _context.get_context_id() == "main_game" and selected_units.size() > 0:
 		var main_data = UnitDataManager.get_unit_data(selected_units[0])
-		GameState.current_faction = main_data.get("faction", "王国")
-	else:
-		GameState.current_faction = "王国"
+		_context.set_pending_faction(main_data.get("faction", "王国"))
 
-	GameState.interrupt_state = GameState.InterruptState.MAP
-	GameState.reset_progress()
-	LevelManager.start_game()
+	_context.on_confirm()
+	_context.auto_save()
 
 	var canvas_layer = get_parent()
 	if canvas_layer:
@@ -1880,31 +1678,19 @@ func _on_confirm_pressed():
 	else:
 		queue_free()
 
-
 # ============================================================
 #  数据拷贝
 # ============================================================
 func _copy_party_data():
 	party.clear()
-	for unit_name in selected_units:
-		var existing = null
-		for u in GameState.party:
-			if u.unit_name == unit_name:
-				existing = u
-				break
-		if existing:
-			party.append(UnitData.from_dict(existing.to_dict()))
-		else:
-			party.append(UnitDataManager.create_unit_data(unit_name))
-
+	var units = _context.get_units()
+	for unit_data in units:
+		party.append(UnitData.from_dict(unit_data.to_dict()))
 
 func _clear_container(container: Node):
-	if not container:
-		return
+	if not container: return
 	for child in container.get_children():
-		container.remove_child(child)
-		child.free()
-
+		container.remove_child(child); child.free()
 
 # ============================================================
 #  特技兼容
@@ -1912,49 +1698,37 @@ func _clear_container(container: Node):
 func _check_talent_compatibility(data: Dictionary, target: Control) -> bool:
 	var source_type = data.get("slot_type", "")
 	var talent_id = data.get("talent_id", "")
-	if talent_id == "":
-		return false
+	if talent_id == "": return false
 
 	var target_unit_idx = target.get_meta("unit_idx", -1)
 	var target_slot_idx = target.get_meta("slot_idx", -1)
-	if target_unit_idx == -1:
-		return false
+	if target_unit_idx == -1: return false
 
 	var target_unit = party[target_unit_idx]
-	if not TalentManager.is_talent_compatible_with_unit(talent_id, target_unit.unit_name):
-		return false
+	if not TalentManager.is_talent_compatible_with_unit(talent_id, target_unit.unit_name): return false
 
 	if source_type == "library_talent":
-		if _is_talent_already_equipped(talent_id, -1, -1):
-			return false
+		if _is_talent_already_equipped(talent_id, -1, -1): return false
 	elif source_type == "talent":
 		var src_unit_idx = data.get("unit_idx", -1)
 		var src_slot_idx = data.get("slot_idx", -1)
 		var tgt_inst = party[target_unit_idx].talent_slots[target_slot_idx]
 		var tgt_tid = tgt_inst.talent_id if tgt_inst and tgt_inst.is_active else ""
 		if tgt_tid == "":
-			if _is_talent_already_equipped(talent_id, target_unit_idx, target_slot_idx):
-				return false
+			if _is_talent_already_equipped(talent_id, target_unit_idx, target_slot_idx): return false
 		else:
-			if _is_talent_already_equipped(tgt_tid, src_unit_idx, src_slot_idx):
-				return false
-			if _is_talent_already_equipped(talent_id, target_unit_idx, target_slot_idx):
-				return false
+			if _is_talent_already_equipped(tgt_tid, src_unit_idx, src_slot_idx): return false
+			if _is_talent_already_equipped(talent_id, target_unit_idx, target_slot_idx): return false
 	return true
-
 
 func _is_talent_already_equipped(talent_id: String, exclude_unit_idx: int = -1, exclude_slot_idx: int = -1) -> bool:
 	for i in range(party.size()):
-		if i == exclude_unit_idx:
-			continue
+		if i == exclude_unit_idx: continue
 		for slot_idx in range(party[i].talent_slots.size()):
-			if slot_idx == exclude_slot_idx and i == exclude_unit_idx:
-				continue
+			if slot_idx == exclude_slot_idx and i == exclude_unit_idx: continue
 			var inst = party[i].talent_slots[slot_idx]
-			if inst and inst.is_active and inst.talent_id == talent_id:
-				return true
+			if inst and inst.is_active and inst.talent_id == talent_id: return true
 	return false
-
 
 func _get_unit_with_talent(talent_id: String) -> String:
 	for i in range(party.size()):
@@ -1963,14 +1737,11 @@ func _get_unit_with_talent(talent_id: String) -> String:
 				return party[i].display_name
 	return ""
 
-
 func _is_talent_equipped_anywhere(talent_id: String) -> bool:
 	for i in range(party.size()):
 		for inst in party[i].talent_slots:
-			if inst and inst.is_active and inst.talent_id == talent_id:
-				return true
+			if inst and inst.is_active and inst.talent_id == talent_id: return true
 	return false
-
 
 # ============================================================
 #  样式
@@ -1978,15 +1749,12 @@ func _is_talent_equipped_anywhere(talent_id: String) -> bool:
 func _create_drag_preview(btn: Button) -> Label:
 	var preview = Label.new()
 	preview.text = btn.get_meta("_original_text", "")
-
 	var font_size = btn.get_theme_font_size("font_size")
 	if font_size > 0:
 		preview.add_theme_font_size_override("font_size", font_size)
-
 	preview.autowrap_mode = btn.autowrap_mode
 	preview.horizontal_alignment = btn.alignment
 	preview.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-
 	var font_color = btn.get_theme_color("font_color")
 	if font_color:
 		preview.add_theme_color_override("font_color", font_color)
@@ -2020,21 +1788,11 @@ func _create_drag_preview(btn: Button) -> Label:
 			new_style.border_width_bottom = 1
 			new_style.border_color = Color(0.5, 0.5, 0.5, 1.0)
 		preview.add_theme_stylebox_override("normal", new_style)
-	else:
-		var default_style = StyleBoxFlat.new()
-		default_style.bg_color = Color(0.1, 0.1, 0.1, 1.0)
-		default_style.border_width_left = 1
-		default_style.border_width_right = 1
-		default_style.border_width_top = 1
-		default_style.border_width_bottom = 1
-		default_style.border_color = Color(0.5, 0.5, 0.5, 1.0)
-		preview.add_theme_stylebox_override("normal", default_style)
 
 	preview.text_overrun_behavior = btn.text_overrun_behavior
 	preview.clip_text = btn.clip_text
 	preview.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	return preview
-
 
 func _create_styled_button(font_size: int, min_size: Vector2) -> Button:
 	var btn = Button.new()
@@ -2045,7 +1803,6 @@ func _create_styled_button(font_size: int, min_size: Vector2) -> Button:
 	btn.mouse_filter = Control.MOUSE_FILTER_STOP
 	return btn
 
-
 func _create_label(text: String, font_size: int, center: bool = true) -> Label:
 	var label = Label.new()
 	label.text = text
@@ -2055,28 +1812,23 @@ func _create_label(text: String, font_size: int, center: bool = true) -> Label:
 		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	return label
 
-
 func _show_detail_in_zone(text: String):
 	var detail_label = $VBoxContainer/MainHBox/LeftInfoColumn/DetailZone/DetailLabel
 	if detail_label:
 		detail_label.text = text
-
 
 func _clear_detail_zone():
 	var detail_label = $VBoxContainer/MainHBox/LeftInfoColumn/DetailZone/DetailLabel
 	if detail_label:
 		detail_label.text = "选中物品详情"
 
-
 func _execute_talent_remove(data: Dictionary):
 	var unit_idx = data.get("unit_idx", -1)
 	var slot_idx = data.get("slot_idx", -1)
-	if unit_idx == -1 or slot_idx == -1:
-		return
+	if unit_idx == -1 or slot_idx == -1: return
 	party[unit_idx].talent_slots[slot_idx] = null
 	_sync_all()
 	_refresh_after_talent_change()
-
 
 func _show_buy_failure_message(reason: String):
 	var msg = ""
@@ -2087,20 +1839,15 @@ func _show_buy_failure_message(reason: String):
 		_: msg = "购买失败：" + reason
 	Globals.show_confirm(self, msg, "确定", "", func(): pass, func(): pass, false)
 
-
 func _schedule_build_ui():
-	if _build_ui_pending:
-		return
+	if _build_ui_pending: return
 	_build_ui_pending = true
 	call_deferred("_do_build_ui")
 
-
 func _do_build_ui():
 	_build_ui_pending = false
-	if _is_closing:
-		return
+	if _is_closing: return
 	_build_ui()
-
 
 func _has_active_confirm_ui() -> bool:
 	for child in get_children():
@@ -2110,7 +1857,6 @@ func _has_active_confirm_ui() -> bool:
 				return true
 	return false
 
-# ---- 遗物悬停 ----
 func _on_relic_hover_entered(relic_id: String):
 	var data = RelicManager.get_relic_data(relic_id)
 	if not data.is_empty():
@@ -2119,11 +1865,9 @@ func _on_relic_hover_entered(relic_id: String):
 func _on_relic_hover_exited():
 	_clear_detail_zone()
 
-# ---- 精炼悬停 ----
 func _on_refine_hover_entered(refine_id: String):
 	var recipe = RefineManager.get_recipe(refine_id)
-	if recipe.is_empty():
-		return
+	if recipe.is_empty(): return
 	var lines = []
 	lines.append(recipe.get("name", refine_id))
 	lines.append(recipe.get("description", ""))

@@ -1,25 +1,25 @@
-[gd_scene load_steps=3 format=3 uid="uid://dtq0vmu56e7vu"]
+[gd_scene format=3 uid="uid://dtq0vmu56e7vu"]
 
 [ext_resource type="Script" uid="uid://dcmwylbpqokmq" path="res://function/script/ArenaShop.gd" id="1_script"]
 [ext_resource type="StyleBox" uid="uid://6qbsaxkfwg3o" path="res://content/resource/stylebox/8bit_style_box_flat.tres" id="2_style"]
 
-[node name="ArenaShop" type="CanvasLayer"]
+[node name="ArenaShop" type="CanvasLayer" unique_id=514209082]
 layer = 28
 script = ExtResource("1_script")
 
-[node name="Background" type="ColorRect" parent="."]
+[node name="Background" type="ColorRect" parent="." unique_id=452062597]
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 color = Color(0, 0, 0, 1)
 
-[node name="MainPanel" type="Panel" parent="."]
+[node name="MainPanel" type="Panel" parent="." unique_id=61755496]
 self_modulate = Color(1, 1, 1, 0)
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 
-[node name="VBoxContainer" type="VBoxContainer" parent="MainPanel"]
+[node name="VBoxContainer" type="VBoxContainer" parent="MainPanel" unique_id=1264828123]
 layout_mode = 0
 anchor_right = 1.0
 anchor_bottom = 1.0
@@ -29,66 +29,66 @@ offset_right = -8.0
 offset_bottom = -8.0
 theme_override_constants/separation = 4
 
-[node name="TopBar" type="HBoxContainer" parent="MainPanel/VBoxContainer"]
+[node name="TopBar" type="HBoxContainer" parent="MainPanel/VBoxContainer" unique_id=1995662109]
 custom_minimum_size = Vector2(0, 24)
 layout_mode = 2
 
-[node name="ModeLabel" type="Label" parent="MainPanel/VBoxContainer/TopBar"]
+[node name="ModeLabel" type="Label" parent="MainPanel/VBoxContainer/TopBar" unique_id=932996212]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_font_sizes/font_size = 10
 text = "魂之竞技场"
 horizontal_alignment = 1
 
-[node name="GoldLabel" type="Label" parent="MainPanel/VBoxContainer/TopBar"]
+[node name="GoldLabel" type="Label" parent="MainPanel/VBoxContainer/TopBar" unique_id=1660844380]
 custom_minimum_size = Vector2(0, 16)
 layout_mode = 2
 theme_override_font_sizes/font_size = 8
 text = "金币:0"
 horizontal_alignment = 1
 
-[node name="CrystalLabel" type="Label" parent="MainPanel/VBoxContainer/TopBar"]
+[node name="CrystalLabel" type="Label" parent="MainPanel/VBoxContainer/TopBar" unique_id=1025247637]
 custom_minimum_size = Vector2(0, 16)
 layout_mode = 2
 theme_override_font_sizes/font_size = 8
 text = "结晶:0"
 horizontal_alignment = 1
 
-[node name="MainHBox" type="HBoxContainer" parent="MainPanel/VBoxContainer"]
+[node name="MainHBox" type="HBoxContainer" parent="MainPanel/VBoxContainer" unique_id=1295449179]
 layout_mode = 2
 size_flags_vertical = 3
 theme_override_constants/separation = 8
 
-[node name="LeftInfoColumn" type="VBoxContainer" parent="MainPanel/VBoxContainer/MainHBox"]
+[node name="LeftInfoColumn" type="VBoxContainer" parent="MainPanel/VBoxContainer/MainHBox" unique_id=1330391965]
 custom_minimum_size = Vector2(100, 0)
 layout_mode = 2
 size_flags_horizontal = 0
 size_flags_vertical = 3
 theme_override_constants/separation = 4
 
-[node name="PassiveSection" type="VBoxContainer" parent="MainPanel/VBoxContainer/MainHBox/LeftInfoColumn"]
+[node name="PassiveSection" type="VBoxContainer" parent="MainPanel/VBoxContainer/MainHBox/LeftInfoColumn" unique_id=1859033225]
 layout_mode = 2
 size_flags_vertical = 0
 theme_override_constants/separation = 2
 
-[node name="PassiveTitle" type="Label" parent="MainPanel/VBoxContainer/MainHBox/LeftInfoColumn/PassiveSection"]
+[node name="PassiveTitle" type="Label" parent="MainPanel/VBoxContainer/MainHBox/LeftInfoColumn/PassiveSection" unique_id=421326975]
 layout_mode = 2
 theme_override_font_sizes/font_size = 6
 text = "── 被动 0/4 ──"
 horizontal_alignment = 1
 
-[node name="PassiveContainer" type="HBoxContainer" parent="MainPanel/VBoxContainer/MainHBox/LeftInfoColumn/PassiveSection"]
+[node name="PassiveContainer" type="HBoxContainer" parent="MainPanel/VBoxContainer/MainHBox/LeftInfoColumn/PassiveSection" unique_id=1197252173]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 2
 
-[node name="DetailZone" type="Panel" parent="MainPanel/VBoxContainer/MainHBox/LeftInfoColumn"]
+[node name="DetailZone" type="Panel" parent="MainPanel/VBoxContainer/MainHBox/LeftInfoColumn" unique_id=1765257856]
 layout_mode = 2
 size_flags_vertical = 3
 mouse_filter = 2
 theme_override_styles/panel = ExtResource("2_style")
 
-[node name="DetailLabel" type="Label" parent="MainPanel/VBoxContainer/MainHBox/LeftInfoColumn/DetailZone"]
+[node name="DetailLabel" type="Label" parent="MainPanel/VBoxContainer/MainHBox/LeftInfoColumn/DetailZone" unique_id=997724846]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -103,27 +103,27 @@ theme_override_font_sizes/font_size = 6
 text = "选中物品详情"
 autowrap_mode = 3
 
-[node name="LeftVBox" type="VBoxContainer" parent="MainPanel/VBoxContainer/MainHBox"]
+[node name="LeftVBox" type="VBoxContainer" parent="MainPanel/VBoxContainer/MainHBox" unique_id=1636499577]
 custom_minimum_size = Vector2(140, 0)
 layout_mode = 2
 
-[node name="UnitContainer" type="HBoxContainer" parent="MainPanel/VBoxContainer/MainHBox/LeftVBox"]
+[node name="UnitContainer" type="HBoxContainer" parent="MainPanel/VBoxContainer/MainHBox/LeftVBox" unique_id=2026723116]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 
-[node name="RightContainer" type="VBoxContainer" parent="MainPanel/VBoxContainer/MainHBox"]
+[node name="RightContainer" type="VBoxContainer" parent="MainPanel/VBoxContainer/MainHBox" unique_id=1251492975]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 alignment = 1
 
-[node name="TabBar" type="HBoxContainer" parent="MainPanel/VBoxContainer/MainHBox/RightContainer"]
+[node name="TabBar" type="HBoxContainer" parent="MainPanel/VBoxContainer/MainHBox/RightContainer" unique_id=1245009499]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 4
 
-[node name="ShopTabBtn" type="Button" parent="MainPanel/VBoxContainer/MainHBox/RightContainer/TabBar"]
+[node name="ShopTabBtn" type="Button" parent="MainPanel/VBoxContainer/MainHBox/RightContainer/TabBar" unique_id=618963017]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_font_sizes/font_size = 8
@@ -134,7 +134,7 @@ theme_override_styles/disabled = ExtResource("2_style")
 theme_override_styles/focus = ExtResource("2_style")
 text = "商店"
 
-[node name="ForgeTabBtn" type="Button" parent="MainPanel/VBoxContainer/MainHBox/RightContainer/TabBar"]
+[node name="ForgeTabBtn" type="Button" parent="MainPanel/VBoxContainer/MainHBox/RightContainer/TabBar" unique_id=2031059780]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_font_sizes/font_size = 8
@@ -145,7 +145,7 @@ theme_override_styles/disabled = ExtResource("2_style")
 theme_override_styles/focus = ExtResource("2_style")
 text = "铁匠铺"
 
-[node name="TalentTabBtn" type="Button" parent="MainPanel/VBoxContainer/MainHBox/RightContainer/TabBar"]
+[node name="TalentTabBtn" type="Button" parent="MainPanel/VBoxContainer/MainHBox/RightContainer/TabBar" unique_id=1502894732]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_font_sizes/font_size = 8
@@ -156,7 +156,7 @@ theme_override_styles/disabled = ExtResource("2_style")
 theme_override_styles/focus = ExtResource("2_style")
 text = "特技"
 
-[node name="RefineTabBtn" type="Button" parent="MainPanel/VBoxContainer/MainHBox/RightContainer/TabBar"]
+[node name="RefineTabBtn" type="Button" parent="MainPanel/VBoxContainer/MainHBox/RightContainer/TabBar" unique_id=1848033398]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_font_sizes/font_size = 8
@@ -167,26 +167,26 @@ theme_override_styles/disabled = ExtResource("2_style")
 theme_override_styles/focus = ExtResource("2_style")
 text = "精炼库"
 
-[node name="ShopScroll" type="ScrollContainer" parent="MainPanel/VBoxContainer/MainHBox/RightContainer"]
+[node name="ShopScroll" type="ScrollContainer" parent="MainPanel/VBoxContainer/MainHBox/RightContainer" unique_id=883971030]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 horizontal_scroll_mode = 0
 
-[node name="ShopContainer" type="GridContainer" parent="MainPanel/VBoxContainer/MainHBox/RightContainer/ShopScroll"]
+[node name="ShopContainer" type="GridContainer" parent="MainPanel/VBoxContainer/MainHBox/RightContainer/ShopScroll" unique_id=1890736813]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 0
 columns = 3
 
-[node name="DiscardZone" type="Panel" parent="MainPanel/VBoxContainer/MainHBox/RightContainer"]
+[node name="DiscardZone" type="Panel" parent="MainPanel/VBoxContainer/MainHBox/RightContainer" unique_id=764635143]
 custom_minimum_size = Vector2(120, 40)
 layout_mode = 2
 size_flags_vertical = 3
 mouse_filter = 2
 theme_override_styles/panel = ExtResource("2_style")
 
-[node name="DiscardLabel" type="Label" parent="MainPanel/VBoxContainer/MainHBox/RightContainer/DiscardZone"]
+[node name="DiscardLabel" type="Label" parent="MainPanel/VBoxContainer/MainHBox/RightContainer/DiscardZone" unique_id=985315882]
 layout_mode = 0
 anchor_right = 1.0
 anchor_bottom = 1.0
@@ -196,21 +196,21 @@ text = "丢弃区
 horizontal_alignment = 1
 vertical_alignment = 1
 
-[node name="BottomHBox" type="HBoxContainer" parent="MainPanel/VBoxContainer"]
+[node name="BottomHBox" type="HBoxContainer" parent="MainPanel/VBoxContainer" unique_id=646014263]
 custom_minimum_size = Vector2(0, 20)
 layout_mode = 2
 alignment = 1
 
-[node name="NextBattleLabel" type="Label" parent="MainPanel/VBoxContainer/BottomHBox"]
+[node name="NextBattleLabel" type="Label" parent="MainPanel/VBoxContainer/BottomHBox" unique_id=2094341097]
 layout_mode = 2
 theme_override_font_sizes/font_size = 8
 text = "下一战：第 1 场"
 
-[node name="Spacer" type="Control" parent="MainPanel/VBoxContainer/BottomHBox"]
+[node name="Spacer" type="Control" parent="MainPanel/VBoxContainer/BottomHBox" unique_id=1865778355]
 custom_minimum_size = Vector2(16, 0)
 layout_mode = 2
 
-[node name="GoBtn" type="Button" parent="MainPanel/VBoxContainer/BottomHBox"]
+[node name="GoBtn" type="Button" parent="MainPanel/VBoxContainer/BottomHBox" unique_id=1136614749]
 layout_mode = 2
 theme_override_font_sizes/font_size = 8
 theme_override_styles/normal = ExtResource("2_style")
@@ -220,7 +220,7 @@ theme_override_styles/disabled = ExtResource("2_style")
 theme_override_styles/focus = ExtResource("2_style")
 text = "出发"
 
-[node name="RetreatBtn" type="Button" parent="MainPanel/VBoxContainer/BottomHBox"]
+[node name="RetreatBtn" type="Button" parent="MainPanel/VBoxContainer/BottomHBox" unique_id=1155392720]
 layout_mode = 2
 theme_override_font_sizes/font_size = 8
 theme_override_styles/normal = ExtResource("2_style")
@@ -230,7 +230,7 @@ theme_override_styles/disabled = ExtResource("2_style")
 theme_override_styles/focus = ExtResource("2_style")
 text = "撤离"
 
-[node name="QuitBtn" type="Button" parent="MainPanel/VBoxContainer/BottomHBox"]
+[node name="QuitBtn" type="Button" parent="MainPanel/VBoxContainer/BottomHBox" unique_id=2086278430]
 layout_mode = 2
 theme_override_font_sizes/font_size = 8
 theme_override_styles/normal = ExtResource("2_style")

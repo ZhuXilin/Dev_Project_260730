@@ -570,7 +570,7 @@ func update_hp_label():
 		hp_label.text = str(hit_points) + "/" + str(unit_stats.max_hp)
 
 func update_name_label():
-	var na_label = $name_label
+	var na_label = $NameLabel
 	if na_label:
 		# ---- 获取中文显示名 ----
 		var display = unit_stats.display_name if unit_stats.display_name != "" else unit_stats.unit_name
