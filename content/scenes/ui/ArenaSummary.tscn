@@ -1,11 +1,60 @@
-[gd_scene format=3 uid="uid://cfdb63lwjd6i0"]
+[gd_scene format=3 uid="uid://d24kvhdgql35a"]
 
-[ext_resource type="Script" uid="uid://b6syi1iwukhf" path="res://function/script/ArenaSummary.gd" id="1_script"]
 [ext_resource type="StyleBox" uid="uid://6qbsaxkfwg3o" path="res://content/resource/stylebox/8bit_style_box_flat.tres" id="2_style"]
+
+[sub_resource type="GDScript" id="GDScript_wt4xg"]
+script/source = "extends CanvasLayer
+
+signal closed
+
+@onready var title_label : Label = $Panel/TitleLabel
+@onready var body_label : Label = $Panel/BodyLabel
+
+
+func setup(data: Dictionary):
+	var success = data.get(\"success\", false)
+	var reason = data.get(\"reason\", \"\")
+	var streak = data.get(\"streak\", 0)
+	var survival_round = data.get(\"survival_round\", 0)
+	var crystals = data.get(\"crystals\", 0)
+	var soul_gain = data.get(\"soul_gain\", 0)
+
+	title_label.text = (\"成功 · %s\" % reason) if success else (\"结束 · %s\" % reason)
+	title_label.add_theme_color_override(\"font_color\",
+		Color(0.3, 1.0, 0.3, 1) if success else Color(1.0, 0.4, 0.4, 1))
+
+	var lines = []
+	match reason:
+		\"生存通过\":
+			lines.append(\"普通阶段：%d 胜\" % streak)
+			lines.append(\"生存模式：%d 胜\" % survival_round)
+		\"通关\":
+			lines.append(\"普通阶段：%d 胜（通关）\" % streak)
+		\"撤离\":
+			lines.append(\"普通阶段：%d 胜\" % streak)
+			lines.append(\"主动撤离\")
+		\"失败\":
+			lines.append(\"普通阶段：%d 胜\" % streak)
+			lines.append(\"（失败）\")
+		\"放弃\":
+			lines.append(\"普通阶段：%d 胜\" % streak)
+			lines.append(\"（主动放弃）\")
+
+	lines.append(\"────────────\")
+	lines.append(\"结晶：%d\" % crystals)
+	lines.append(\"兑换魂：+%d\" % soul_gain)
+
+	body_label.text = \"\\n\".join(lines)
+
+
+func _on_confirm_pressed():
+	closed.emit()
+	queue_free()
+"
 
 [node name="ArenaSummary" type="CanvasLayer" unique_id=1592703153]
 layer = 30
-script = ExtResource("1_script")
+script = SubResource("GDScript_wt4xg")
 
 [node name="Background" type="ColorRect" parent="." unique_id=784596952]
 anchors_preset = 15

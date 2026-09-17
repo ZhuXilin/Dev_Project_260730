@@ -1,5 +1,7 @@
 {
   "easy":   ["axeman", "swordsman"],
   "normal": ["spearman", "archer", "mage"],
-  "hard":   ["dragonborn", "armored", "pegasus"]
+  "hard":   ["dragonborn", "armored", "pegasus"],
+  "elite":  ["armored", "dragonborn"],
+  "boss":   ["dragonborn"]
 }
