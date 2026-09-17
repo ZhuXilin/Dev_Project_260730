@@ -354,10 +354,12 @@ func restore_from_unit_data(data: UnitData, cell: Vector2i):
 	has_attacked = false
 	has_acted = false
 
+	# ---- 恢复装备（★ 保留 upgrade_level） ----
 	if data.weapon_slot:
-		var inst = ItemInstance.new()
+		var inst := ItemInstance.new()
 		inst.item_id = data.weapon_slot.item_id
 		inst.count = data.weapon_slot.count
+		inst.upgrade_level = data.weapon_slot.upgrade_level    # ★ 修复
 		weapon_slot = inst
 	else:
 		weapon_slot = null
@@ -365,9 +367,10 @@ func restore_from_unit_data(data: UnitData, cell: Vector2i):
 	armor_slots.clear()
 	for slot in data.armor_slots:
 		if slot:
-			var inst = ItemInstance.new()
+			var inst := ItemInstance.new()
 			inst.item_id = slot.item_id
 			inst.count = slot.count
+			inst.upgrade_level = slot.upgrade_level            # ★ 修复
 			armor_slots.append(inst)
 		else:
 			armor_slots.append(null)
@@ -417,7 +420,7 @@ func restore_from_unit_data(data: UnitData, cell: Vector2i):
 	update_terrain_info()
 
 	_initialized = true
-	print("restore_from_unit_data 完成，weapon_slot: ", weapon_slot.item_id if weapon_slot else "无")
+	print("restore_from_unit_data 完成，weapon_slot: ", weapon_slot.item_id if weapon_slot else "无", " lv=", weapon_slot.upgrade_level if weapon_slot else 0)
 
 # ============================================================
 #  状态与行动

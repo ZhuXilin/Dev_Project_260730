@@ -226,14 +226,13 @@ func _init_arena_state():
 	_current_player_data.hit_points = _current_player_data.max_hp
 
 
-# ★ 新增：支付参与费后立即 +1 防具槽
 func _grant_armor_slot_for_entry() -> void:
 	if _current_player_data == null: return
-	if _current_player_data.max_armor_slots >= 3: return
-	_current_player_data.max_armor_slots = 3
-	while _current_player_data.armor_slots.size() < 3:
+	if _current_player_data.max_armor_slots >= GameState.MAX_ARMOR_SLOTS_CAP: return
+	_current_player_data.max_armor_slots += 1
+	while _current_player_data.armor_slots.size() < _current_player_data.max_armor_slots:
 		_current_player_data.armor_slots.append(null)
-	print("[Arena] 支付参与费：防具槽 2 → 3")
+	print("[Arena] 支付参与费：防具槽 → %d" % _current_player_data.max_armor_slots)
 
 
 # ============================================================
@@ -591,12 +590,12 @@ func _show_battle_rewards(gold_gain: int, soul_gain: int,
 func _grant_progress_rewards():
 	if _phase != Phase.NORMAL:
 		return
-	# ★ 小 Boss 的 +1 槽已在支付参与费时发放
 	if _streak == 4:
-		_current_player_data.max_armor_slots = 4
-		while _current_player_data.armor_slots.size() < 4:
-			_current_player_data.armor_slots.append(null)
-		print("[Arena] 精英胜利：防具槽 3 → 4")
+		if _current_player_data.max_armor_slots < GameState.MAX_ARMOR_SLOTS_CAP:
+			_current_player_data.max_armor_slots += 1
+			while _current_player_data.armor_slots.size() < _current_player_data.max_armor_slots:
+				_current_player_data.armor_slots.append(null)
+			print("[Arena] 精英胜利：防具槽 → %d" % _current_player_data.max_armor_slots)
 
 
 func _is_elite_battle() -> bool:
@@ -749,6 +748,9 @@ func _show_summary(success: bool, reason: String, skip_music: bool = false):
 	if not summary:
 		_return_to_idle()
 		return
+
+	# ★ 强制恢复交互性（防御上次残留）
+	summary.set_interactable(true)
 
 	var net_gain : int = _get_net_gain()
 

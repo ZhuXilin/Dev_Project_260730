@@ -322,20 +322,45 @@ func start_new_cycle():
 			unit_data.weapon_slot = null
 	init_passive_slots()
 
-func finish_day():
+# ★ 单位防具槽位上限
+const MAX_ARMOR_SLOTS_CAP : int = 4
+
+func finish_day(grant_slot: bool = true):
 	soul += temp_soul
 	temp_soul = 0
-	for unit_data in party:
-		unit_data.armor_slots.append(null)
-		unit_data.max_armor_slots += 1
-	print("每天结束：soul=", soul, " temp_soul 已清零")
+	if grant_slot:
+		for unit_data in party:
+			if unit_data.max_armor_slots < MAX_ARMOR_SLOTS_CAP:
+				unit_data.armor_slots.append(null)
+				unit_data.max_armor_slots += 1
+	print("每天结束：soul=", soul, " 槽位上限=", MAX_ARMOR_SLOTS_CAP)
 
 func finish_cycle():
-	finish_day()
+	# ★ 三天完成：只合并资源，不 +1 槽
+	finish_day(false)
 
 func abandon_cycle():
 	temp_soul = 0
 	temp_gold = 0
+
+func abandon_and_return_to_camp():
+	await Globals.show_cycle_reward()
+	finish_day(false)   # ★ 撤退不 +1 槽
+	abandon_cycle()
+	reset_all()
+	interrupt_state = InterruptState.CAMP
+	SaveManager.save_game(SaveManager.current_slot, false)
+	get_tree().change_scene_to_file(Config.PATHS.CAMP)
+
+func show_abandon_confirmation(parent: Node):
+	Globals.show_confirm(
+		parent,
+		"确定放弃本局游戏吗？进度将丢失，已获得的临时资源将丢弃。",
+		"放弃",
+		"取消",
+		abandon_and_return_to_camp,
+		func(): pass
+	)
 
 func reset_for_new_cycle():
 	party.clear()
@@ -384,24 +409,6 @@ func reset_all():
 	cycle_start_materials.clear()
 	refined_items.clear()
 
-func abandon_and_return_to_camp():
-	await Globals.show_cycle_reward()
-	finish_day()
-	abandon_cycle()
-	reset_all()
-	interrupt_state = InterruptState.CAMP
-	SaveManager.save_game(SaveManager.current_slot, false)
-	get_tree().change_scene_to_file(Config.PATHS.CAMP)
-
-func show_abandon_confirmation(parent: Node):
-	Globals.show_confirm(
-		parent,
-		"确定放弃本局游戏吗？进度将丢失，已获得的临时资源将丢弃。",
-		"放弃",
-		"取消",
-		abandon_and_return_to_camp,
-		func(): pass
-	)
 
 # ============================================================
 #  被动列表（供旧版 EquipmentConfig / 兼容接口调用）

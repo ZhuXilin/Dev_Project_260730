@@ -4,7 +4,7 @@
 [ext_resource type="StyleBox" uid="uid://6qbsaxkfwg3o" path="res://content/resource/stylebox/8bit_style_box_flat.tres" id="2"]
 
 [node name="RewardSummaryUI" type="CanvasLayer" unique_id=1189025735]
-layer = 20
+layer = 30
 script = ExtResource("1")
 
 [node name="Background" type="ColorRect" parent="." unique_id=617199656]

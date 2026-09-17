@@ -1838,15 +1838,11 @@ func _on_map_victory_continue():
 		if is_last_day:
 			print("第三天最终Boss，跳过遗物三选一")
 		else:
-			if summary:
-				summary.set_interactable(false)
-
 			print("弹出遗物三选一，叠加在结算之上")
 			var relic_select_scene = load(Config.PATHS.RELIC_SELECT_UI)
 			var relic_select = relic_select_scene.instantiate()
 			add_child(relic_select)
 
-			# ★ 使用 get_relics_from_passives 过滤已拥有
 			var owned_ids = []
 			for relic in GameState.get_relics_from_passives():
 				owned_ids.append(relic.item_id)
@@ -1856,11 +1852,7 @@ func _on_map_victory_continue():
 			await relic_select.relic_selected
 			print("遗物选择完成")
 
-			if summary:
-				summary.set_interactable(true)
-
 	if summary:
-		summary.close()
 		print("结算界面已关闭")
 
 	if need_ui_block:

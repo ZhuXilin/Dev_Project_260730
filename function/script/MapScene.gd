@@ -10,6 +10,7 @@ var selected_node: MapNode = null
 var level_list: Array[MapData] = []
 var _equipment_config_instance = null   # 防止重复实例化
 var _detail_popup = null
+var _ready_guard : bool = false
 
 # ---- 节点引用 ----
 @onready var node_container = $NodeContainer
@@ -24,6 +25,11 @@ var _detail_popup = null
 @onready var materials_container = $TopBar/MaterialsContainer
 
 func _ready():
+	if _ready_guard:
+		print("警告：MapScene._ready 被重复调用，忽略")
+		return
+	_ready_guard = true
+
 	print("=== MapScene _ready 开始 ===")
 	
 	# ---- 确保地图模式标志为 true ----
@@ -441,7 +447,11 @@ func _open_forge(node: MapNode):
 	if slot == -1:
 		slot = SaveManager.find_empty_slot()
 
-	panel.init(unit_names, slot, EquipmentConfig.Mode.FORGE)
+	# ★ 区分：第 3 天用"铁匠商店"（商店+铁匠铺）；第 1/2 天用"铁匠铺"（仅合成）
+	if GameState.current_day >= 3:
+		panel.init(unit_names, slot, EquipmentConfig.Mode.MAP_SHOP_REST)
+	else:
+		panel.init(unit_names, slot, EquipmentConfig.Mode.FORGE)
 
 	await panel.tree_exited
 
