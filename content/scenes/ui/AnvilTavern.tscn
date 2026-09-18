@@ -55,6 +55,7 @@ theme_override_font_sizes/font_size = 8
 text = "材料: -"
 
 [node name="TabBar" type="HBoxContainer" parent="Panel/VBox" unique_id=1385775364]
+visible = false
 layout_mode = 2
 theme_override_constants/separation = 4
 

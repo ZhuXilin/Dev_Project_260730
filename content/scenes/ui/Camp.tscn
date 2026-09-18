@@ -17,8 +17,8 @@ color = Color(0, 0, 0, 1)
 [node name="Title" type="Label" parent="." unique_id=936389542]
 anchors_preset = 10
 anchor_right = 1.0
-offset_top = 30.0
-offset_bottom = 60.0
+offset_top = 16.0
+offset_bottom = 46.0
 grow_horizontal = 2
 theme_override_font_sizes/font_size = 20
 text = "营地"
@@ -48,9 +48,9 @@ theme_override_constants/separation = 8
 
 [node name="ButtonPanel" type="VBoxContainer" parent="." unique_id=1424369280]
 offset_left = 144.0
-offset_top = 96.0
+offset_top = 56.0
 offset_right = 256.0
-offset_bottom = 224.0
+offset_bottom = 240.0
 
 [node name="DeployButton" type="Button" parent="ButtonPanel" unique_id=1584325358]
 layout_mode = 2
@@ -60,7 +60,7 @@ theme_override_styles/pressed = ExtResource("2")
 theme_override_styles/hover = ExtResource("2")
 theme_override_styles/disabled = ExtResource("2")
 theme_override_styles/focus = ExtResource("2")
-text = "FUGHT"
+text = "出战"
 
 [node name="UnitButton" type="Button" parent="ButtonPanel" unique_id=982030472]
 layout_mode = 2
@@ -70,9 +70,9 @@ theme_override_styles/pressed = ExtResource("2")
 theme_override_styles/hover = ExtResource("2")
 theme_override_styles/disabled = ExtResource("2")
 theme_override_styles/focus = ExtResource("2")
-text = "SOUL"
+text = "魂铸圣所"
 
-[node name="ItemButton" type="Button" parent="ButtonPanel" unique_id=243680761]
+[node name="WeaponWorkshopButton" type="Button" parent="ButtonPanel" unique_id=243680761]
 layout_mode = 2
 theme_override_font_sizes/font_size = 10
 theme_override_styles/normal = ExtResource("2")
@@ -80,9 +80,9 @@ theme_override_styles/pressed = ExtResource("2")
 theme_override_styles/hover = ExtResource("2")
 theme_override_styles/disabled = ExtResource("2")
 theme_override_styles/focus = ExtResource("2")
-text = "ITEM"
+text = "武器作坊"
 
-[node name="ArenaButton" type="Button" parent="ButtonPanel" unique_id=2041650921]
+[node name="AlchemyButton" type="Button" parent="ButtonPanel" unique_id=2041650921]
 layout_mode = 2
 theme_override_font_sizes/font_size = 10
 theme_override_styles/normal = ExtResource("2")
@@ -90,9 +90,9 @@ theme_override_styles/pressed = ExtResource("2")
 theme_override_styles/hover = ExtResource("2")
 theme_override_styles/disabled = ExtResource("2")
 theme_override_styles/focus = ExtResource("2")
-text = "ARENA"
+text = "炼金坊"
 
-[node name="BackButton" type="Button" parent="ButtonPanel" unique_id=1775057047]
+[node name="TavernButton" type="Button" parent="ButtonPanel" unique_id=1775057047]
 layout_mode = 2
 theme_override_font_sizes/font_size = 10
 theme_override_styles/normal = ExtResource("2")
@@ -100,10 +100,32 @@ theme_override_styles/pressed = ExtResource("2")
 theme_override_styles/hover = ExtResource("2")
 theme_override_styles/disabled = ExtResource("2")
 theme_override_styles/focus = ExtResource("2")
-text = "BACK"
+text = "酒馆"
+
+[node name="ArenaButton" type="Button" parent="ButtonPanel" unique_id=2041650922]
+layout_mode = 2
+theme_override_font_sizes/font_size = 10
+theme_override_styles/normal = ExtResource("2")
+theme_override_styles/pressed = ExtResource("2")
+theme_override_styles/hover = ExtResource("2")
+theme_override_styles/disabled = ExtResource("2")
+theme_override_styles/focus = ExtResource("2")
+text = "魂之竞技场"
+
+[node name="BackButton" type="Button" parent="ButtonPanel" unique_id=1775057048]
+layout_mode = 2
+theme_override_font_sizes/font_size = 10
+theme_override_styles/normal = ExtResource("2")
+theme_override_styles/pressed = ExtResource("2")
+theme_override_styles/hover = ExtResource("2")
+theme_override_styles/disabled = ExtResource("2")
+theme_override_styles/focus = ExtResource("2")
+text = "返回"
 
 [connection signal="pressed" from="ButtonPanel/DeployButton" to="." method="_on_deploy_pressed"]
 [connection signal="pressed" from="ButtonPanel/UnitButton" to="." method="_on_unit_pressed"]
-[connection signal="pressed" from="ButtonPanel/ItemButton" to="." method="_on_item_pressed"]
+[connection signal="pressed" from="ButtonPanel/WeaponWorkshopButton" to="." method="_on_weapon_workshop_pressed"]
+[connection signal="pressed" from="ButtonPanel/AlchemyButton" to="." method="_on_alchemy_pressed"]
+[connection signal="pressed" from="ButtonPanel/TavernButton" to="." method="_on_tavern_pressed"]
 [connection signal="pressed" from="ButtonPanel/ArenaButton" to="." method="_on_arena_pressed"]
 [connection signal="pressed" from="ButtonPanel/BackButton" to="." method="_on_back_pressed"]

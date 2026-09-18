@@ -9,7 +9,9 @@ extends CanvasLayer
 # ---- 按钮引用 ----
 @onready var deploy_btn : Button = $ButtonPanel/DeployButton
 @onready var unit_btn : Button = $ButtonPanel/UnitButton
-@onready var item_btn : Button = $ButtonPanel/ItemButton
+@onready var weapon_workshop_btn : Button = $ButtonPanel/WeaponWorkshopButton
+@onready var alchemy_btn : Button = $ButtonPanel/AlchemyButton
+@onready var tavern_btn : Button = $ButtonPanel/TavernButton
 @onready var arena_btn : Button = $ButtonPanel/ArenaButton
 @onready var back_btn : Button = $ButtonPanel/BackButton
 
@@ -21,21 +23,16 @@ func _ready():
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	Globals.is_transitioning = false
 
-	# ---- 按钮文本（全部在代码里设置，不在 .tscn 里硬编码） ----
-	if deploy_btn:
-		deploy_btn.text = "出战"
-	if unit_btn:
-		unit_btn.text = "魂铸圣所"
-	if item_btn:
-		item_btn.text = "铁砧酒馆"
-	if arena_btn:
-		arena_btn.text = "魂之竞技场"
-	if back_btn:
-		back_btn.text = "返回"
+	# ---- 按钮文本（全部在代码里设置） ----
+	if deploy_btn: deploy_btn.text = "出战"
+	if unit_btn: unit_btn.text = "魂铸圣所"
+	if weapon_workshop_btn: weapon_workshop_btn.text = "武器作坊"
+	if alchemy_btn: alchemy_btn.text = "炼金坊"
+	if tavern_btn: tavern_btn.text = "酒馆"
+	if arena_btn: arena_btn.text = "魂之竞技场"
+	if back_btn: back_btn.text = "返回"
 
-	# ---- 信号连接（不依赖 .tscn 的 [connection]） ----
 	_connect_buttons()
-
 	update_display()
 	_play_camp_music()
 
@@ -50,24 +47,26 @@ func _input(event: InputEvent):
 			print("调试：+50 魂，当前 ", GameState.soul)
 			get_viewport().set_input_as_handled()
 
+
 # ============================================================
 #  信号连接
 # ============================================================
 func _connect_buttons():
-	# 先断开已有连接，防止重复
-	for btn in [deploy_btn, unit_btn, item_btn, arena_btn, back_btn]:
-		if not btn:
-			continue
+	for btn in [deploy_btn, unit_btn, weapon_workshop_btn, alchemy_btn, tavern_btn, arena_btn, back_btn]:
+		if not btn: continue
 		for conn in btn.pressed.get_connections():
 			btn.pressed.disconnect(conn.callable)
 
-	# 重新连接
 	if deploy_btn:
 		deploy_btn.pressed.connect(_on_deploy_pressed)
 	if unit_btn:
 		unit_btn.pressed.connect(_on_unit_pressed)
-	if item_btn:
-		item_btn.pressed.connect(_on_item_pressed)
+	if weapon_workshop_btn:
+		weapon_workshop_btn.pressed.connect(_on_weapon_workshop_pressed)
+	if alchemy_btn:
+		alchemy_btn.pressed.connect(_on_alchemy_pressed)
+	if tavern_btn:
+		tavern_btn.pressed.connect(_on_tavern_pressed)
 	if arena_btn:
 		arena_btn.pressed.connect(_on_arena_pressed)
 	if back_btn:
@@ -94,11 +93,11 @@ func _update_materials_display():
 	for child in materials_container.get_children():
 		child.queue_free()
 
-	var materials = GameState.get_all_materials()
-	var has_material = false
+	var materials : Dictionary = GameState.get_all_materials()
+	var has_material : bool = false
 
 	for material_name in materials:
-		var count = materials[material_name]
+		var count : int = materials[material_name]
 		if count > 0:
 			has_material = true
 			var label = Label.new()
@@ -151,7 +150,7 @@ func _confirm_deploy():
 	get_tree().change_scene_to_file("res://content/scenes/ui/UnitSelectUI.tscn")
 
 
-# ---- 魂铸圣所入口 ----
+# ---- 魂铸圣所 ----
 func _on_unit_pressed():
 	var existing = get_node_or_null("SoulAltar")
 	if existing:
@@ -168,8 +167,22 @@ func _on_unit_pressed():
 		MusicManager.play_music(MusicManager.config.camp_music)
 	update_display()
 
-# ---- 铁砧酒馆入口 ----
-func _on_item_pressed():
+
+# ---- 武器作坊 ----
+func _on_weapon_workshop_pressed():
+	_open_anvil_tavern(0)   # ARSENAL
+
+# ---- 炼金坊 ----
+func _on_alchemy_pressed():
+	_open_anvil_tavern(1)   # ALCHEMY
+
+# ---- 酒馆 ----
+func _on_tavern_pressed():
+	_open_anvil_tavern(2)   # TAVERN
+
+
+# ---- 通用：打开 AnvilTavern 到指定 tab ----
+func _open_anvil_tavern(tab: int):
 	var existing = get_node_or_null("AnvilTavern")
 	if existing:
 		return
@@ -179,6 +192,7 @@ func _on_item_pressed():
 		return
 	var tavern = scene.instantiate()
 	tavern.name = "AnvilTavern"
+	tavern.setup(tab)   # ★ 用 setup()，不用属性赋值
 	add_child(tavern)
 	await tavern.closed
 	if MusicManager.config and MusicManager.config.camp_music:
@@ -186,7 +200,7 @@ func _on_item_pressed():
 	update_display()
 
 
-# ---- 斗技场入口 ----
+# ---- 魂之竞技场 ----
 func _on_arena_pressed():
 	var existing = get_node_or_null("Arena")
 	if existing:
@@ -205,6 +219,7 @@ func _on_arena_pressed():
 		MusicManager.play_music(MusicManager.config.camp_music)
 
 	update_display()
+
 
 # ---- 返回主菜单 ----
 func _on_back_pressed():

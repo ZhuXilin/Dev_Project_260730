@@ -1,24 +1,36 @@
+class_name AnvilTavern
 extends CanvasLayer
 
 signal closed
 
 enum Tab { ARSENAL, ALCHEMY, TAVERN }
-var current_tab : Tab = Tab.ARSENAL
 
-enum ArsenalSub { WEAPON, ARMOR, RECIPE }
+# ★ 入口参数（普通 var，不走 @export）
+var _entry_tab : int = 0
+
+# ★ 由 Camp 在 add_child 前调用
+func setup(tab: int) -> void:
+	_entry_tab = tab
+
+enum ArsenalSub { WEAPON, ARMOR }
 var _arsenal_sub : ArsenalSub = ArsenalSub.WEAPON
 
-enum AlchemySub { REFINE, RELIC }
-var _alchemy_sub : AlchemySub = AlchemySub.REFINE
+enum AlchemySub { RECIPE, REFINE, RELIC }
+var _alchemy_sub : AlchemySub = AlchemySub.RECIPE
+
+var current_tab : Tab = Tab.ARSENAL
 
 var _current_npc : Dictionary = {}
 var _story_npc_list : VBoxContainer = null
 var _story_topic_list : VBoxContainer = null
 
-# ★ 次级标签栏（固定，不随滑块滚动）
+# 次级标签栏（固定，不随滑块滚动）
 var _sub_tab_bar : HBoxContainer = null
 
+# ★ 场景节点引用
+@onready var title_label : Label = $Panel/VBox/TitleBar/TitleLabel
 @onready var materials_label : Label = $Panel/VBox/TitleBar/MaterialsLabel
+@onready var top_tab_bar : HBoxContainer = $Panel/VBox/TabBar
 @onready var recipe_tab_btn : Button = $Panel/VBox/TabBar/RecipeTabBtn
 @onready var codex_tab_btn : Button = $Panel/VBox/TabBar/CodexTabBtn
 @onready var story_tab_btn : Button = $Panel/VBox/TabBar/StoryTabBtn
@@ -26,16 +38,25 @@ var _sub_tab_bar : HBoxContainer = null
 
 
 func _ready():
-	recipe_tab_btn.text = "武备库"
-	codex_tab_btn.text = "炼金坊"
-	story_tab_btn.text = "酒馆"
+	print("[AnvilTavern] _ready, _entry_tab =", _entry_tab)
+
+	if top_tab_bar:
+		top_tab_bar.visible = false
 
 	_ensure_sub_tab_bar()
-
 	MusicManager.play_anvil_tavern_music()
 
+	var entry_tab : Tab = _entry_tab as Tab
+	match entry_tab:
+		Tab.ARSENAL:
+			if title_label: title_label.text = "武器作坊"
+		Tab.ALCHEMY:
+			if title_label: title_label.text = "炼金坊"
+		Tab.TAVERN:
+			if title_label: title_label.text = "酒馆"
+
 	_refresh_materials()
-	_switch_tab(Tab.ARSENAL)
+	_switch_tab(entry_tab)
 
 
 # ============================================================
@@ -49,9 +70,7 @@ func _ensure_sub_tab_bar():
 	_sub_tab_bar.add_theme_constant_override("separation", 4)
 	var vbox : VBoxContainer = $Panel/VBox
 	vbox.add_child(_sub_tab_bar)
-	# 插到 TabBar 和 ContentScroll 之间
-	var tab_bar : Node = $Panel/VBox/TabBar
-	vbox.move_child(_sub_tab_bar, tab_bar.get_index() + 1)
+	vbox.move_child(_sub_tab_bar, top_tab_bar.get_index() + 1)
 
 
 func _clear_sub_tab_bar():
@@ -63,7 +82,7 @@ func _clear_sub_tab_bar():
 
 
 # ============================================================
-#  顶部标签切换
+#  Tab 切换
 # ============================================================
 func _on_recipe_tab_pressed(): _switch_tab(Tab.ARSENAL)
 func _on_codex_tab_pressed():  _switch_tab(Tab.ALCHEMY)
@@ -92,6 +111,7 @@ func _switch_tab(tab: Tab):
 
 
 func _update_tab_style():
+	if not recipe_tab_btn: return
 	recipe_tab_btn.modulate = Color.WHITE if current_tab == Tab.ARSENAL else Color(0.5, 0.5, 0.5, 1)
 	codex_tab_btn.modulate  = Color.WHITE if current_tab == Tab.ALCHEMY else Color(0.5, 0.5, 0.5, 1)
 	story_tab_btn.modulate  = Color.WHITE if current_tab == Tab.TAVERN  else Color(0.5, 0.5, 0.5, 1)
@@ -114,10 +134,9 @@ func _refresh_materials():
 
 
 # ============================================================
-#  Tab 1 · 武备库（武器 / 防具 / 合成配方）
+#  Tab 1 · 武器作坊（武器 / 防具）
 # ============================================================
 func _build_arsenal_tab():
-	# ★ 次级标签固定到 _sub_tab_bar
 	var weapon_btn = Button.new()
 	weapon_btn.text = "武器"
 	weapon_btn.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_NORMAL)
@@ -132,17 +151,9 @@ func _build_arsenal_tab():
 	armor_btn.modulate = Color.WHITE if _arsenal_sub == ArsenalSub.ARMOR else Color(0.5, 0.5, 0.5, 1)
 	_sub_tab_bar.add_child(armor_btn)
 
-	var recipe_btn = Button.new()
-	recipe_btn.text = "合成配方"
-	recipe_btn.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_NORMAL)
-	recipe_btn.pressed.connect(_on_arsenal_sub.bind(ArsenalSub.RECIPE))
-	recipe_btn.modulate = Color.WHITE if _arsenal_sub == ArsenalSub.RECIPE else Color(0.5, 0.5, 0.5, 1)
-	_sub_tab_bar.add_child(recipe_btn)
-
 	match _arsenal_sub:
 		ArsenalSub.WEAPON: _build_arsenal_list("weapon")
 		ArsenalSub.ARMOR:  _build_arsenal_list("armor")
-		ArsenalSub.RECIPE: _build_recipe_list()
 
 
 func _on_arsenal_sub(sub: ArsenalSub):
@@ -158,7 +169,7 @@ func _build_arsenal_list(item_type: String):
 		var data : ItemData = ItemManager.get_item_data(item_id)
 		if not data or data.type != item_type:
 			continue
-		# ★ 防具 tab 跳过配方产物
+		# 防具 tab 跳过配方产物
 		if item_type == "armor" and RecipeManager.get_recipe(item_id) != null:
 			continue
 		var is_unlocked : bool = _is_item_unlocked(item_id, item_type)
@@ -183,7 +194,6 @@ func _build_arsenal_row(item_id: String, unlocked: bool) -> HBoxContainer:
 
 	var data : ItemData = ItemManager.get_item_data(item_id)
 
-	# ---- 名称 ----
 	var name_label = Label.new()
 	name_label.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_LARGE)
 	name_label.custom_minimum_size = Vector2(90, 0)
@@ -196,7 +206,6 @@ func _build_arsenal_row(item_id: String, unlocked: bool) -> HBoxContainer:
 		name_label.modulate = Color(0.4, 0.4, 0.4, 1)
 	row.add_child(name_label)
 
-	# ---- 品质 ----
 	var quality_label = Label.new()
 	quality_label.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_SMALL)
 	quality_label.custom_minimum_size = Vector2(50, 0)
@@ -205,7 +214,6 @@ func _build_arsenal_row(item_id: String, unlocked: bool) -> HBoxContainer:
 		quality_label.modulate = Color(0.4, 0.4, 0.4, 1)
 	row.add_child(quality_label)
 
-	# ---- 解锁条件 ----
 	var cost_label = Label.new()
 	cost_label.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_SMALL)
 	cost_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -218,7 +226,6 @@ func _build_arsenal_row(item_id: String, unlocked: bool) -> HBoxContainer:
 		cost_label.text = " ".join(parts)
 	row.add_child(cost_label)
 
-	# ---- 按钮 ----
 	var btn = Button.new()
 	btn.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_SMALL)
 	btn.custom_minimum_size = Vector2(60, 0)
@@ -277,8 +284,42 @@ func _quality_display(quality: String) -> String:
 
 
 # ============================================================
-#  武备库 · 合成配方
+#  Tab 2 · 炼金坊（合成配方 / 精炼 / 遗物图鉴）
 # ============================================================
+func _build_alchemy_tab():
+	var recipe_btn = Button.new()
+	recipe_btn.text = "合成配方"
+	recipe_btn.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_NORMAL)
+	recipe_btn.pressed.connect(_on_alchemy_sub.bind(AlchemySub.RECIPE))
+	recipe_btn.modulate = Color.WHITE if _alchemy_sub == AlchemySub.RECIPE else Color(0.5, 0.5, 0.5, 1)
+	_sub_tab_bar.add_child(recipe_btn)
+
+	var refine_btn = Button.new()
+	refine_btn.text = "精炼"
+	refine_btn.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_NORMAL)
+	refine_btn.pressed.connect(_on_alchemy_sub.bind(AlchemySub.REFINE))
+	refine_btn.modulate = Color.WHITE if _alchemy_sub == AlchemySub.REFINE else Color(0.5, 0.5, 0.5, 1)
+	_sub_tab_bar.add_child(refine_btn)
+
+	var relic_btn = Button.new()
+	relic_btn.text = "遗物图鉴"
+	relic_btn.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_NORMAL)
+	relic_btn.pressed.connect(_on_alchemy_sub.bind(AlchemySub.RELIC))
+	relic_btn.modulate = Color.WHITE if _alchemy_sub == AlchemySub.RELIC else Color(0.5, 0.5, 0.5, 1)
+	_sub_tab_bar.add_child(relic_btn)
+
+	match _alchemy_sub:
+		AlchemySub.RECIPE: _build_recipe_list()
+		AlchemySub.REFINE: _build_refine_list()
+		AlchemySub.RELIC:  _build_relic_list()
+
+
+func _on_alchemy_sub(sub: AlchemySub):
+	_alchemy_sub = sub
+	_switch_tab(Tab.ALCHEMY)
+
+
+# ---- 合成配方 ----
 func _build_recipe_list():
 	var all_recipes : Array = RecipeManager.get_all_recipes()
 	if all_recipes.is_empty():
@@ -378,39 +419,10 @@ func _on_unlock_recipe(recipe_id: String):
 
 	SaveManager.auto_save()
 	_refresh_materials()
-	_switch_tab(Tab.ARSENAL)
-
-
-# ============================================================
-#  Tab 2 · 炼金坊（精炼 / 遗物图鉴）
-# ============================================================
-func _build_alchemy_tab():
-	# ★ 次级标签固定到 _sub_tab_bar
-	var refine_btn = Button.new()
-	refine_btn.text = "精炼"
-	refine_btn.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_NORMAL)
-	refine_btn.pressed.connect(_on_alchemy_sub.bind(AlchemySub.REFINE))
-	refine_btn.modulate = Color.WHITE if _alchemy_sub == AlchemySub.REFINE else Color(0.5, 0.5, 0.5, 1)
-	_sub_tab_bar.add_child(refine_btn)
-
-	var relic_btn = Button.new()
-	relic_btn.text = "遗物图鉴"
-	relic_btn.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_NORMAL)
-	relic_btn.pressed.connect(_on_alchemy_sub.bind(AlchemySub.RELIC))
-	relic_btn.modulate = Color.WHITE if _alchemy_sub == AlchemySub.RELIC else Color(0.5, 0.5, 0.5, 1)
-	_sub_tab_bar.add_child(relic_btn)
-
-	if _alchemy_sub == AlchemySub.REFINE:
-		_build_refine_list()
-	else:
-		_build_relic_list()
-
-
-func _on_alchemy_sub(sub: AlchemySub):
-	_alchemy_sub = sub
 	_switch_tab(Tab.ALCHEMY)
 
 
+# ---- 精炼 ----
 func _build_refine_list():
 	var all_ids : Array = RefineManager.get_all_ids()
 	var unlocked_list : Array = []
@@ -498,6 +510,7 @@ func _on_craft_refine(refine_id: String):
 		_switch_tab(Tab.ALCHEMY)
 
 
+# ---- 遗物图鉴 ----
 func _build_relic_list():
 	var all_ids : Array = RelicManager.get_all_relic_ids()
 	if all_ids.is_empty():
@@ -651,7 +664,7 @@ func _show_message(msg: String):
 
 
 # ============================================================
-#  Debug：按 7 加材料（每种 +10）
+#  Debug：按 7 加材料
 # ============================================================
 const DEBUG_MAT_AMOUNT : int = 10
 const DEBUG_MATERIALS : Array = ["粗铁", "精钢", "秘银", "龙鳞"]
