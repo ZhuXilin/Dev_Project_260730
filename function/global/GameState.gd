@@ -383,7 +383,6 @@ func reset_for_new_cycle():
 	map_snapshot.clear()
 	cycle_start_soul = 0
 	cycle_start_materials.clear()
-	refined_items.clear()
 
 func reset_all():
 	party.clear()
@@ -407,7 +406,6 @@ func reset_all():
 	map_snapshot.clear()
 	cycle_start_soul = 0
 	cycle_start_materials.clear()
-	refined_items.clear()
 
 
 # ============================================================

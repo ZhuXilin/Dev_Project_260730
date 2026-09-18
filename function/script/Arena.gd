@@ -104,7 +104,6 @@ func _on_unit_selected(unit_type: String):
 	if _phase != Phase.IDLE:
 		return
 	_current_player_data = UnitDataManager.create_unit_data(unit_type)
-	UnitDataManager.apply_growth(_current_player_data, unit_type)
 	_current_player_data.hit_points = _current_player_data.max_hp
 
 	for child in unit_list.get_children():

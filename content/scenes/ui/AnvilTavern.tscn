@@ -69,17 +69,6 @@ theme_override_styles/disabled = ExtResource("2")
 theme_override_styles/focus = ExtResource("2")
 text = "酒馆"
 
-[node name="CodexTabBtn" type="Button" parent="Panel/VBox/TabBar" unique_id=375073771]
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_font_sizes/font_size = 8
-theme_override_styles/normal = ExtResource("2")
-theme_override_styles/pressed = ExtResource("2")
-theme_override_styles/hover = ExtResource("2")
-theme_override_styles/disabled = ExtResource("2")
-theme_override_styles/focus = ExtResource("2")
-text = "图鉴"
-
 [node name="RecipeTabBtn" type="Button" parent="Panel/VBox/TabBar" unique_id=900341542]
 layout_mode = 2
 size_flags_horizontal = 3
@@ -89,7 +78,18 @@ theme_override_styles/pressed = ExtResource("2")
 theme_override_styles/hover = ExtResource("2")
 theme_override_styles/disabled = ExtResource("2")
 theme_override_styles/focus = ExtResource("2")
-text = "配方"
+text = "武备库"
+
+[node name="CodexTabBtn" type="Button" parent="Panel/VBox/TabBar" unique_id=375073771]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 8
+theme_override_styles/normal = ExtResource("2")
+theme_override_styles/pressed = ExtResource("2")
+theme_override_styles/hover = ExtResource("2")
+theme_override_styles/disabled = ExtResource("2")
+theme_override_styles/focus = ExtResource("2")
+text = "炼金坊"
 
 [node name="ContentScroll" type="ScrollContainer" parent="Panel/VBox" unique_id=604342529]
 layout_mode = 2
@@ -113,6 +113,6 @@ theme_override_styles/focus = ExtResource("2")
 text = "返回"
 
 [connection signal="pressed" from="Panel/VBox/TabBar/StoryTabBtn" to="." method="_on_story_tab_pressed"]
-[connection signal="pressed" from="Panel/VBox/TabBar/CodexTabBtn" to="." method="_on_codex_tab_pressed"]
 [connection signal="pressed" from="Panel/VBox/TabBar/RecipeTabBtn" to="." method="_on_recipe_tab_pressed"]
+[connection signal="pressed" from="Panel/VBox/TabBar/CodexTabBtn" to="." method="_on_codex_tab_pressed"]
 [connection signal="pressed" from="Panel/VBox/BackButton" to="." method="_on_back_pressed"]

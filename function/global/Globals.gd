@@ -361,3 +361,8 @@ func show_cycle_reward() -> void:
 	summary.open()
 	await summary.confirmed
 	summary.close()
+
+func get_unit_unlock_cost(unit_type: String) -> int:
+	var key : String = UnitDataManager.normalize_unit_key(unit_type)
+	var costs = unlock_config.get("unlock_costs", {})
+	return int(costs.get(key, 50))

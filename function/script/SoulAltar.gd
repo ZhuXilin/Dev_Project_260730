@@ -84,6 +84,7 @@ func _build_unit_list():
 		else:
 			locked_list.append(unit_type)
 
+	# ---- 已解锁：普通按钮 ----
 	for unit_type in unlocked_list:
 		var btn = Button.new()
 		btn.text = UnitDataManager.get_unit_type_display_name(unit_type)
@@ -95,20 +96,58 @@ func _build_unit_list():
 		btn.pressed.connect(_on_unit_selected.bind(unit_type))
 		unit_list.add_child(btn)
 
-	# ---- 未解锁：显示真名 + 灰色 ----
+	# ---- 未解锁：真名 + 解锁按钮 ----
 	for unit_type in locked_list:
-		var btn = Button.new()
-		btn.text = UnitDataManager.get_unit_type_display_name(unit_type)
-		btn.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_NORMAL)
-		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
-		btn.modulate = Color(0.4, 0.4, 0.4, 1)
-		btn.disabled = true
-		unit_list.add_child(btn)
+		var row = HBoxContainer.new()
+		row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+
+		var name_label = Label.new()
+		name_label.text = UnitDataManager.get_unit_type_display_name(unit_type)
+		name_label.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_NORMAL)
+		name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+		name_label.modulate = Color(0.5, 0.5, 0.5, 1)
+		row.add_child(name_label)
+
+		var cost : int = Globals.get_unit_unlock_cost(unit_type)
+		var unlock_btn = Button.new()
+		unlock_btn.text = "%d 魂" % cost
+		unlock_btn.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_SMALL)
+		unlock_btn.custom_minimum_size = Vector2(60, 0)
+		unlock_btn.disabled = GameState.soul < cost
+		unlock_btn.pressed.connect(_on_unlock_unit.bind(unit_type))
+		row.add_child(unlock_btn)
+
+		unit_list.add_child(row)
 
 	if unlocked_list.size() > 0:
 		_on_unit_selected(unlocked_list[0])
 
+
+func _on_unlock_unit(unit_type: String):
+	var cost : int = Globals.get_unit_unlock_cost(unit_type)
+	if GameState.soul < cost:
+		_show_msg("魂不足！需要 %d" % cost)
+		return
+	GameState.soul -= cost
+	Globals.unlock_unit(unit_type)
+	SaveManager.auto_save()
+	_refresh_soul()
+	_build_unit_list()
+	_show_msg("已解锁：%s" % UnitDataManager.get_unit_type_display_name(unit_type))
+
+# ★ 新增：解锁费用表
+const UNIT_UNLOCK_COSTS : Dictionary = {
+	"archer":     30,
+	"pegasus":    50,
+	"mage":       60,
+	"cleric":     40,
+	"dragonborn": 150,
+	"armored":    120,
+}
+
+func _get_unit_unlock_cost(unit_type: String) -> int:
+	return UNIT_UNLOCK_COSTS.get(unit_type, 50)
 
 func _on_unit_selected(unit_type: String):
 	_current_unit_type = unit_type
@@ -117,7 +156,6 @@ func _on_unit_selected(unit_type: String):
 			var ut = child.get_meta("unit_type", "")
 			child.modulate = Color.WHITE if ut == unit_type else Color(0.6, 0.6, 0.6, 1)
 	_refresh_all()
-
 
 # ============================================================
 #  Tab 1 · 加点
@@ -194,14 +232,13 @@ func _build_attr_row(attr_key: String, current_points: int, at_cap: bool) -> HBo
 		"vitality":     base_val = base_dict.get("max_hp", 0)
 		"strength":     base_val = base_dict.get("strength", 0)
 		"dexterity":    base_val = base_dict.get("dexterity", 0)
-		"intelligence": base_val = base_dict.get("intelligence", 0)
-		"faith":        base_val = base_dict.get("faith", 0)
-		"arcane":       base_val = base_dict.get("arcane", 0)
+		"intelligence": base_dict.get("intelligence", 0)
+		"faith":        base_dict.get("faith", 0)
+		"arcane":       base_dict.get("arcane", 0)
 
-	var bonus_val = current_points
-	if attr_key == "vitality":
-		bonus_val = current_points * UnitDataManager.GROWTH_HP_PER_POINT
-	var final_val = base_val + bonus_val
+	# ★ 1:1 —— 所有属性加成 = 点数
+	var bonus_val : int = current_points
+	var final_val : int = base_val + bonus_val
 
 	var value_label = Label.new()
 	value_label.text = "%d  (+%d) → %d" % [base_val, bonus_val, final_val]

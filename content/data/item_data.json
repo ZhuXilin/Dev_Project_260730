@@ -17,7 +17,8 @@
 	"modifier": {
 	  "strength": 0.6,
 	  "dexterity": 0.4
-	}
+	},
+	"unlock_cost": { "粗铁": 3 }
   },
   "steel_sword": {
 	"id": "steel_sword",
@@ -37,7 +38,8 @@
 	"modifier": {
 	  "strength": 0.7,
 	  "dexterity": 0.5
-	}
+	},
+	"unlock_cost": { "精钢": 3 }
   },
   "steel_spear": {
 	"id": "steel_spear",
@@ -57,7 +59,8 @@
 	"modifier": {
 	  "strength": 0.7,
 	  "dexterity": 0.7
-	}
+	},
+	"unlock_cost": { "精钢": 3 }
   },
   "battle_axe": {
 	"id": "battle_axe",
@@ -80,7 +83,8 @@
 	"heavy_attack": {
 	  "damage_multiplier": 1.4,
 	  "charge_multiplier": 2.0
-	}
+	},
+	"unlock_cost": { "精钢": 3 }
   },
   "longbow": {
 	"id": "longbow",
@@ -100,7 +104,8 @@
 	"modifier": {
 	  "dexterity": 1.0,
 	  "arcane": 0.3
-	}
+	},
+	"unlock_cost": { "精钢": 3 }
   },
   "light_crossbow": {
 	"id": "light_crossbow",
@@ -120,7 +125,8 @@
 	"modifier": {
 	  "dexterity": 0.8,
 	  "arcane": 0.2
-	}
+	},
+	"unlock_cost": { "精钢": 3 }
   },
   "healing_staff": {
 	"id": "healing_staff",
@@ -144,7 +150,8 @@
 	"heal_effect": {
 	  "base_heal": 10,
 	  "faith_multiplier": 1.0
-	}
+	},
+	"unlock_cost": { "精钢": 3 }
   },
   "fire_spellbook": {
 	"id": "fire_spellbook",
@@ -167,7 +174,8 @@
 	},
 	"magic_attack": {
 	  "ignore_defense": true
-	}
+	},
+	"unlock_cost": { "精钢": 5 }
   },
   "master_sword": {
 	"id": "master_sword",
@@ -188,7 +196,8 @@
 	  "strength": 0.3,
 	  "dexterity": 1.2
 	},
-	"legendary_effect": "居合斩冷却-1回合"
+	"legendary_effect": "居合斩冷却-1回合",
+	"unlock_cost": { "秘银": 3, "龙鳞": 1 }
   },
   "javelin": {
 	"id": "javelin",
@@ -208,7 +217,8 @@
 	"modifier": {
 	  "strength": 0.5,
 	  "dexterity": 0.5
-	}
+	},
+	"unlock_cost": { "粗铁": 5 }
   },
   "fire_dragonstone": {
 	"id": "fire_dragonstone",
@@ -232,7 +242,8 @@
 	"magic_attack": {
 	  "ignore_defense": true
 	},
-	"legendary_effect": "龙息范围+1"
+	"legendary_effect": "龙息范围+1",
+	"unlock_cost": { "秘银": 3, "龙鳞": 2 }
   },
 
   "wooden_shield": {

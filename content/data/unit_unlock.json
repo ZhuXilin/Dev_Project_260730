@@ -1,7 +1,15 @@
 {
   "default_unlocked": [
 	"swordsman",
-	"spearman", 
-	"axeman"
-  ]
+	"spearman",
+    "axeman"
+  ],
+  "unlock_costs": {
+	"archer": 30,
+	"cleric": 40,
+	"pegasus": 50,
+	"mage": 60,
+	"armored": 120,
+	"dragonborn": 150
+  }
 }

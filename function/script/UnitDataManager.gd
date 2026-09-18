@@ -1,8 +1,8 @@
 class_name UnitDataManager
 extends RefCounted
 
-## 生命力每点 +3 HP
-const GROWTH_HP_PER_POINT : int = 3
+## 生命力每点 +1 HP
+const GROWTH_HP_PER_POINT : int = 1
 
 # ---- 武器类别显示名称映射 ----
 static var _weapon_category_display: Dictionary = {

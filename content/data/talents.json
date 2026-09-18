@@ -70,7 +70,8 @@
 	"effect_type": "magic",
 	"effect_params": { "extra_cast_multiplier": 0.8 },
 	"compatible_units": ["mage", "cleric"],
-	"unlock_type": "story"
+	"unlock_type": "soul",
+	"soul_cost": 30
   },
   "heal_boost": {
 	"id": "heal_boost",
