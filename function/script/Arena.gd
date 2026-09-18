@@ -791,6 +791,9 @@ func _show_summary(success: bool, reason: String, skip_music: bool = false):
 	if _phase == Phase.SURVIVAL:
 		GameState.arena_survival_best = maxi(GameState.arena_survival_best, _survival_round)
 
+	# ★ 累计本局获得的魂（不论成败）
+	GameState.arena_total_crystals += _earned_soul
+
 	SaveManager.auto_save()
 
 	var summary = Globals.get_reward_summary()

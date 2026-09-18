@@ -13,6 +13,7 @@
 	{ "materials": { "秘银": 1 } },
 	{ "gold": 120 },
 	{ "soul": 1 },
-	{ "gold": 60, "items": ["iron_armor"] }
+	{ "gold": 60, "items": ["iron_armor"] },
+	{ "materials": { "龙鳞": 1 } }
   ]
 }
