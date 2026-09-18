@@ -62,6 +62,16 @@ theme_override_styles/disabled = ExtResource("2")
 theme_override_styles/focus = ExtResource("2")
 text = "出战"
 
+[node name="ArenaButton" type="Button" parent="ButtonPanel" unique_id=2041650922]
+layout_mode = 2
+theme_override_font_sizes/font_size = 10
+theme_override_styles/normal = ExtResource("2")
+theme_override_styles/pressed = ExtResource("2")
+theme_override_styles/hover = ExtResource("2")
+theme_override_styles/disabled = ExtResource("2")
+theme_override_styles/focus = ExtResource("2")
+text = "魂之竞技场"
+
 [node name="UnitButton" type="Button" parent="ButtonPanel" unique_id=982030472]
 layout_mode = 2
 theme_override_font_sizes/font_size = 10
@@ -102,16 +112,6 @@ theme_override_styles/disabled = ExtResource("2")
 theme_override_styles/focus = ExtResource("2")
 text = "酒馆"
 
-[node name="ArenaButton" type="Button" parent="ButtonPanel" unique_id=2041650922]
-layout_mode = 2
-theme_override_font_sizes/font_size = 10
-theme_override_styles/normal = ExtResource("2")
-theme_override_styles/pressed = ExtResource("2")
-theme_override_styles/hover = ExtResource("2")
-theme_override_styles/disabled = ExtResource("2")
-theme_override_styles/focus = ExtResource("2")
-text = "魂之竞技场"
-
 [node name="BackButton" type="Button" parent="ButtonPanel" unique_id=1775057048]
 layout_mode = 2
 theme_override_font_sizes/font_size = 10
@@ -123,9 +123,9 @@ theme_override_styles/focus = ExtResource("2")
 text = "返回"
 
 [connection signal="pressed" from="ButtonPanel/DeployButton" to="." method="_on_deploy_pressed"]
+[connection signal="pressed" from="ButtonPanel/ArenaButton" to="." method="_on_arena_pressed"]
 [connection signal="pressed" from="ButtonPanel/UnitButton" to="." method="_on_unit_pressed"]
 [connection signal="pressed" from="ButtonPanel/WeaponWorkshopButton" to="." method="_on_weapon_workshop_pressed"]
 [connection signal="pressed" from="ButtonPanel/AlchemyButton" to="." method="_on_alchemy_pressed"]
 [connection signal="pressed" from="ButtonPanel/TavernButton" to="." method="_on_tavern_pressed"]
-[connection signal="pressed" from="ButtonPanel/ArenaButton" to="." method="_on_arena_pressed"]
 [connection signal="pressed" from="ButtonPanel/BackButton" to="." method="_on_back_pressed"]

@@ -39,6 +39,10 @@ var max_armor_slots: int = 2
 var talent_slots: Array[TalentInstance] = []
 var max_talent_slots: int = 1
 
+# ★ 连击追踪
+var combo_last_target: String = ""
+var combo_count: int = 0
+
 # ---- 动画与材质 ----
 var animated_sprite : AnimatedSprite2D
 var current_anim : String = "idle"
@@ -166,6 +170,8 @@ func setup_unit(stats_data: UnitData, start_cell: Vector2i, initial_items: Array
 	update_hp_label()
 	update_name_label()
 	update_color()
+	combo_last_target = ""
+	combo_count = 0
 
 	_initialized = true
 
@@ -420,6 +426,9 @@ func restore_from_unit_data(data: UnitData, cell: Vector2i):
 	update_name_label()
 	update_terrain_info()
 
+	combo_last_target = ""
+	combo_count = 0
+
 	_initialized = true
 	print("restore_from_unit_data 完成，weapon_slot: ", weapon_slot.item_id if weapon_slot else "无", " lv=", weapon_slot.upgrade_level if weapon_slot else 0)
 
@@ -612,6 +621,9 @@ func _init_talent_slots_from_data(data: UnitData):
 
 	if data.talent_slots is Array:
 		for slot_data in data.talent_slots:
+			# ★ 超过 max_talent_slots 就截断
+			if talent_slots.size() >= max_talent_slots:
+				break
 			if slot_data and slot_data is TalentInstance and slot_data.is_active:
 				var new_inst = TalentInstance.new()
 				new_inst.talent_id = slot_data.talent_id
@@ -688,11 +700,18 @@ func get_talent_school_count(school: String) -> int:
 
 func accumulate_all_talents():
 	for inst in talent_slots:
-		if inst and inst.is_active:
-			inst.current_stack += 1
-			var threshold = get_talent_threshold(inst.talent_id)
-			if inst.current_stack >= threshold:
-				inst.is_ready = true
+		if not inst or not inst.is_active:
+			continue
+		# ★ R 词条（整场一次性）不参与冷却递减，触发一次后永不再就绪
+		if inst.cooldown_remaining >= 9999:
+			continue
+		if inst.cooldown_remaining > 0:
+			inst.cooldown_remaining -= 1
+			continue
+		inst.current_stack += 1
+		var threshold = get_talent_threshold(inst.talent_id)
+		if inst.current_stack >= threshold:
+			inst.is_ready = true
 
 func equip_talent_to_slot(slot_index: int, talent_id: String) -> bool:
 	if slot_index < 0 or slot_index >= talent_slots.size():

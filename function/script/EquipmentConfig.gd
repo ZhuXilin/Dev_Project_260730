@@ -493,7 +493,19 @@ func _create_talent_button(inst: TalentInstance, unit_idx: int, slot_idx: int) -
 	if inst and inst.is_active:
 		var data : TalentData = TalentManager.get_talent_data(inst.talent_id)
 		if data:
-			btn.text = data.display_name
+			var unit_name : String = ""
+			if unit_idx >= 0 and unit_idx < party.size():
+				unit_name = party[unit_idx].unit_name
+			if unit_name != "":
+				var lv : int = TalentManager.get_talent_level(unit_name, inst.talent_id)
+				if TalentManager.is_talent_max_level(unit_name, inst.talent_id):
+					btn.text = "%s Lv%d MAX" % [data.display_name, lv]
+				else:
+					var cur_exp : int = TalentManager.get_talent_exp_in_level(unit_name, inst.talent_id)
+					var need_exp : int = TalentManager.get_level_required_exp(unit_name, inst.talent_id)
+					btn.text = "%s Lv%d %d/%d" % [data.display_name, lv, cur_exp, need_exp]
+			else:
+				btn.text = data.display_name
 			btn.modulate = _get_rarity_color(data.rarity)
 			btn.set_meta("talent_id", inst.talent_id)
 			btn.mouse_entered.connect(_on_talent_hover_entered.bind(inst.talent_id))
@@ -564,23 +576,42 @@ func _build_weapon_grid(container: GridContainer):
 			container.add_child(btn)
 
 func _build_talent_grid(container: GridContainer):
-	for child in container.get_children(): container.remove_child(child); child.free()
+	for child in container.get_children():
+		container.remove_child(child)
+		child.free()
+	
+	var display_unit_type : String = _get_talent_display_unit_type()
+	
 	var unlocked : Array = Globals.get_unlocked_talents()
 	if unlocked.is_empty():
 		container.add_child(_create_label("暂无解锁特技", Style.FONT_SMALL))
 		return
 	for talent_id in unlocked:
 		var data : TalentData = TalentManager.get_talent_data(talent_id)
-		if not data: continue
+		if not data:
+			continue
 		var is_equipped : bool = _is_talent_equipped_anywhere(talent_id)
 		var btn : Button = _create_styled_button(Style.FONT_TINY, Style.BTN_TALENT_SIZE)
-		btn.text = data.display_name
+		
+		if display_unit_type != "":
+			var lv : int = TalentManager.get_talent_level(display_unit_type, talent_id)
+			if TalentManager.is_talent_max_level(display_unit_type, talent_id):
+				btn.text = "%s Lv%d MAX" % [data.display_name, lv]
+			else:
+				var cur_exp : int = TalentManager.get_talent_exp_in_level(display_unit_type, talent_id)
+				var need_exp : int = TalentManager.get_level_required_exp(display_unit_type, talent_id)
+				btn.text = "%s Lv%d %d/%d" % [data.display_name, lv, cur_exp, need_exp]
+		else:
+			btn.text = data.display_name
+		
 		btn.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		btn.set_meta("talent_id", talent_id)
 		btn.set_meta("slot_type", "library_talent")
 		var rarity_color : Color = _get_rarity_color(data.rarity)
 		if is_equipped:
-			btn.modulate = Color(0.4, 0.4, 0.4, 1.0); btn.disabled = true
+			btn.modulate = Color(0.65, 0.65, 0.65, 1.0)
+			btn.disabled = true
+			btn.add_theme_color_override("font_color", rarity_color)
 		else:
 			btn.modulate = Color.WHITE
 			btn.add_theme_color_override("font_color", rarity_color)
@@ -588,6 +619,18 @@ func _build_talent_grid(container: GridContainer):
 		btn.mouse_entered.connect(_on_talent_hover_entered.bind(talent_id))
 		btn.mouse_exited.connect(_on_talent_hover_exited)
 		container.add_child(btn)
+
+func _get_talent_display_unit_type() -> String:
+	var units : Array = _use_context_units()
+	if units.size() == 1:
+		return units[0].unit_name
+	return ""
+
+
+func _use_context_units() -> Array:
+	if _context:
+		return _context.get_units()
+	return []
 
 func _build_refine_grid(container: GridContainer):
 	for child in container.get_children(): container.remove_child(child); child.free()

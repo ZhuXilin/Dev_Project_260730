@@ -191,23 +191,25 @@ static func create_unit_data(unit_name: String) -> UnitData:
 		inst.count = 1
 		data.weapon_slot = inst
 
-	# ---- 默认特技 ----
+	# ---- 默认特技（每个单位只装 1 个，取 default_talents 的第一个） ----
 	data.talent_slots.clear()
 	var default_talents = dict.get("default_talents", [])
+	var talent_cap : int = 1
 	for talent_id in default_talents:
+		if data.talent_slots.size() >= talent_cap:
+			break
 		var talent_inst = TalentInstance.new()
 		talent_inst.talent_id = talent_id
 		talent_inst.current_stack = 0
 		talent_inst.is_ready = false
 		talent_inst.is_active = true
 		data.talent_slots.append(talent_inst)
-	# 确保至少有一个槽位
-	while data.talent_slots.size() < 1:
+	while data.talent_slots.size() < talent_cap:
 		data.talent_slots.append(null)
 
 	data.armor_slots = [null, null]
 	data.max_armor_slots = 2
-	data.max_talent_slots = 1
+	data.max_talent_slots = talent_cap
 	apply_growth(data, key)
 	return data
 

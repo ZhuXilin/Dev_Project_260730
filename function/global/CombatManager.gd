@@ -34,6 +34,11 @@ const COUNTER_BOOST_MULT : Array = [1.5, 1.75, 2.0]
 ## 治愈强化：治疗量倍率
 const HEAL_BOOST_MULT : Array = [1.3, 1.5, 1.7]
 
+## 吸血：攻击后恢复伤害比例 [Lv1, Lv2, Lv3]
+const LIFESTEAL_PERCENT : Array = [0.2, 0.3, 0.4]
+
+## 连击：连续攻击同一目标每次递增比例 [Lv1, Lv2, Lv3]
+const COMBO_MULT_PER_HIT : Array = [0.15, 0.25, 0.35]
 
 # ============================================================
 #  目标查询
@@ -152,6 +157,22 @@ func execute_attack(attacker: Unit, defender: Unit) -> bool:
 	var damage = calculate_damage(attacker, defender)
 	print("造成伤害: ", damage)
 
+	# ★ 词条：连击（连续攻击同一目标伤害递增）
+	var target_key = "%s_%d_%d" % [defender.unit_stats.unit_name, defender.grid_cell.x, defender.grid_cell.y]
+	if attacker.combo_last_target == target_key:
+		attacker.combo_count += 1
+	else:
+		attacker.combo_last_target = target_key
+		attacker.combo_count = 1
+
+	if attacker.combo_count > 1 and TalentManager.is_talent_ready(attacker, "combo"):
+		var lv_combo = _get_effective_talent_level(attacker, "combo")
+		var per_hit = COMBO_MULT_PER_HIT[clampi(lv_combo - 1, 0, COMBO_MULT_PER_HIT.size() - 1)]
+		var bonus = 1.0 + (attacker.combo_count - 1) * per_hit
+		damage = int(damage * bonus)
+		print("连击触发！Lv.%d 第 %d 次攻击 倍率×%.2f" % [lv_combo, attacker.combo_count, bonus])
+		TalentManager.reset_talent(attacker, "combo")
+
 	var defeated = _apply_damage_with_effects(defender, damage, attacker)
 	if defeated:
 		print(defender.unit_stats.unit_name + " 阵亡！")
@@ -160,6 +181,20 @@ func execute_attack(attacker: Unit, defender: Unit) -> bool:
 		_finish_attack(attacker, defender)
 		Globals.is_performing_action = false
 		return true
+
+	# ★ 词条：吸血（攻击后回血）
+	if TalentManager.is_talent_ready(attacker, "lifesteal"):
+		var lv_ls = _get_effective_talent_level(attacker, "lifesteal")
+		var pct = LIFESTEAL_PERCENT[clampi(lv_ls - 1, 0, LIFESTEAL_PERCENT.size() - 1)]
+		var heal = int(damage * pct)
+		var old_hp = attacker.hit_points
+		attacker.hit_points = mini(attacker.hit_points + heal, attacker.unit_stats.max_hp)
+		var actual = attacker.hit_points - old_hp
+		if actual > 0:
+			attacker.update_hp_label()
+			SignalBus.request_damage_popup.emit(attacker.global_position, actual, false, false, true)
+			print("吸血触发！Lv.%d 恢复 %d HP" % [lv_ls, actual])
+		TalentManager.reset_talent(attacker, "lifesteal")
 
 	# ---- 词条：二次攻击 ----
 	if TalentManager.is_talent_ready(attacker, "double_attack"):
@@ -170,7 +205,6 @@ func execute_attack(attacker: Unit, defender: Unit) -> bool:
 		TalentManager.reset_talent(attacker, "double_attack")
 
 		await get_tree().create_timer(PERFORMANCE_DURATION, true, false, true).timeout
-		# 二次攻击不再触发其他词条，直接造成伤害
 		var extra_dead = defender.apply_damage(extra_damage)
 		SignalBus.request_damage_popup.emit(defender.global_position, extra_damage, false, false, false)
 		if extra_dead:
@@ -187,12 +221,10 @@ func execute_attack(attacker: Unit, defender: Unit) -> bool:
 			var level = _get_effective_talent_level(attacker, "spell_chain")
 			var mult = SPELL_CHAIN_MULT[level - 1]
 
-			# ---- 治疗武器 → 额外治疗 ----
 			if attacker.get_weapon_type() == "staff":
 				print("法术连击触发！Lv.%d 额外治疗" % level)
 				TalentManager.reset_talent(attacker, "spell_chain")
 				await get_tree().create_timer(PERFORMANCE_DURATION, true, false, true).timeout
-				# 简化：额外治疗 = 治疗量 × mult（需要重算）
 				var weapon_data = attacker.get_weapon_data()
 				var base_heal = weapon_data.heal_effect.get("base_heal", 0)
 				var faith_bonus = attacker.unit_stats.faith * weapon_data.heal_effect.get("faith_multiplier", 1.0)
@@ -203,7 +235,6 @@ func execute_attack(attacker: Unit, defender: Unit) -> bool:
 				defender.update_hp_label()
 				SignalBus.request_damage_popup.emit(defender.global_position, actual, false, false, true)
 			else:
-				# ---- 法术攻击 → 额外伤害 ----
 				var extra_damage = int(damage * mult)
 				print("法术连击触发！Lv.%d 额外 %d 伤害" % [level, extra_damage])
 				TalentManager.reset_talent(attacker, "spell_chain")
@@ -290,7 +321,7 @@ func _apply_damage_with_effects(defender: Unit, damage: int, attacker: Unit) -> 
 	if TalentManager.is_talent_ready(attacker, "crit"):
 		var level = _get_effective_talent_level(attacker, "crit")
 		var crit_mult = 2.0 + (level - 1) * 0.5
-		crit_mult += attacker.buff_crit_damage_bonus        # ★ 读 Unit
+		crit_mult += attacker.buff_crit_damage_bonus
 		damage = int(damage * crit_mult)
 		print("暴击触发！Lv.%d 倍率 %.1f" % [level, crit_mult])
 		TalentManager.reset_talent(attacker, "crit")
@@ -311,9 +342,29 @@ func _apply_damage_with_effects(defender: Unit, damage: int, attacker: Unit) -> 
 				var bleed_dead = defender.apply_damage(bleed_damage)
 				defender.bleed_stacks = 0
 				if bleed_dead:
+					# ★ 出血致死也可能触发复活
+					if _try_revive(defender):
+						return false
 					return true
 
-	return defender.apply_damage(damage)
+	var defeated = defender.apply_damage(damage)
+
+	# ★ 词条：复活
+	if defeated and _try_revive(defender):
+		return false
+
+	return defeated
+
+
+func _try_revive(defender: Unit) -> bool:
+	if not TalentManager.is_talent_ready(defender, "revive"):
+		return false
+	defender.hit_points = defender.unit_stats.max_hp
+	defender.update_hp_label()
+	SignalBus.request_damage_popup.emit(defender.global_position, defender.hit_points, false, false, true)
+	print("复活触发！%s 满血复活" % defender.unit_stats.unit_name)
+	TalentManager.reset_talent(defender, "revive")
+	return true
 
 
 # ============================================================

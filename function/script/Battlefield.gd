@@ -1466,6 +1466,10 @@ func _refresh_team_view():
 
 			var full_name = UnitDataManager.get_display_name_from_unit(unit)
 			btn.text = full_name + " HP:" + str(unit.hit_points) + "/" + str(unit.unit_stats.max_hp) + status
+			# ★ 词条状态
+			var talent_line = _format_unit_talents(unit)
+			if talent_line != "":
+				btn.text += "  [ " + talent_line + " ]"
 			btn.add_theme_font_size_override("font_size", 6)
 			if color != Color.WHITE:
 				btn.add_theme_color_override("font_color", color)
@@ -1484,6 +1488,28 @@ func _refresh_team_view():
 	var max_height = viewport_height * 0.8
 	var panel_height = clamp(content_height + 16, 20, max_height)
 	team_view_panel.size.y = panel_height
+
+func _format_unit_talents(unit: Unit) -> String:
+	var parts: Array = []
+	for inst in unit.talent_slots:
+		if not inst or not inst.is_active:
+			continue
+		var data = TalentManager.get_talent_data(inst.talent_id)
+		if not data:
+			continue
+		var status := ""
+		if inst.cooldown_remaining >= 9999:
+			# 整场一次性词条（复活）
+			status = "(R)"
+		elif inst.cooldown_remaining > 0:
+			status = "(冷%d)" % inst.cooldown_remaining
+		elif inst.is_ready:
+			status = "(就绪)"
+		else:
+			var remain = max(0, data.accumulation_threshold - inst.current_stack)
+			status = "(%d)" % remain
+		parts.append(data.display_name + status)
+	return " ".join(parts)
 
 func _on_team_member_selected(unit: Unit):
 	setting_menu_panel.visible = false

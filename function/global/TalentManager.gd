@@ -34,6 +34,7 @@ static func load_talent_data():
 		talent.school = dict.get("school", "")
 		talent.rarity = dict.get("rarity", "common")
 		talent.accumulation_threshold = dict.get("accumulation_threshold", 3)
+		talent.cooldown_after_trigger = int(dict.get("cooldown_after_trigger", 0))
 		talent.effect_type = dict.get("effect_type", "attack")
 		talent.effect_params = dict.get("effect_params", {})
 		talent.icon_path = dict.get("icon", "")
@@ -115,12 +116,20 @@ static func is_talent_ready(unit: Unit, talent_id: String) -> bool:
 	var inst = unit.get_talent_instance(talent_id)
 	return inst and inst.is_ready and inst.is_active
 
-
 static func reset_talent(unit: Unit, talent_id: String):
 	var inst = unit.get_talent_instance(talent_id)
-	if inst:
-		inst.reset()
+	if not inst:
+		return
+	inst.reset()
+	var cd = get_cooldown_after_trigger(talent_id)
+	if cd > 0:
+		inst.cooldown_remaining = cd
 
+static func get_cooldown_after_trigger(talent_id: String) -> int:
+	var data = get_talent_data(talent_id)
+	if not data:
+		return 0
+	return data.cooldown_after_trigger
 
 # ============================================================
 #  兼容性

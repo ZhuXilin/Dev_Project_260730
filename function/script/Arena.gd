@@ -176,19 +176,22 @@ func _refresh_center_panel():
 	# 属性面板
 	_refresh_unit_stats(_current_player_data.unit_name)
 
-	# 目标词条信息
+	# 目标词条信息（★ 改为"当前级内经验/当前级所需"）
 	var talent_id : String = GameState.arena_target_talents.get(_current_player_data.unit_name, "")
 	if talent_id != "":
 		var data : TalentData = TalentManager.get_talent_data(talent_id)
 		if data:
 			var lv : int = TalentManager.get_talent_level(_current_player_data.unit_name, talent_id)
-			var talent_exp_val : int = TalentManager.get_talent_exp(_current_player_data.unit_name, talent_id)
-			info_label.text = "目标词条：Lv.%d %s（经验 %d/600）" % [lv, data.display_name, talent_exp_val]
+			if TalentManager.is_talent_max_level(_current_player_data.unit_name, talent_id):
+				info_label.text = "目标词条：Lv.%d %s（MAX）" % [lv, data.display_name]
+			else:
+				var cur_exp : int = TalentManager.get_talent_exp_in_level(_current_player_data.unit_name, talent_id)
+				var need_exp : int = TalentManager.get_level_required_exp(_current_player_data.unit_name, talent_id)
+				info_label.text = "目标词条：Lv.%d %s（%d/%d）" % [lv, data.display_name, cur_exp, need_exp]
 		else:
 			info_label.text = ""
 	else:
 		info_label.text = "目标词条：未设置（可在商店配置）"
-
 
 func _refresh_streak_label():
 	if _phase == Phase.IDLE:
@@ -544,19 +547,14 @@ func _do_one_battle() -> int:
 			GameState.soul += soul_gain
 			_earned_soul += soul_gain
 
-		var exp_actual : int = 0
-		var old_level : int = 0
-		var new_level : int = 0
-		if _locked_talent_id != "":
-			old_level = TalentManager.get_talent_level(_current_player_data.unit_name, _locked_talent_id)
-			exp_actual = TalentManager.add_talent_exp(_current_player_data.unit_name, _locked_talent_id, exp_gain)
-			new_level = TalentManager.get_talent_level(_current_player_data.unit_name, _locked_talent_id)
+		# ★ 所有已装备词条加经验
+		var talent_results : Array = _add_talent_exp_to_all(exp_gain)
 
 		_current_player_data.hit_points = _current_player_data.max_hp
 		_streak_active = true
 		SaveManager.auto_save()
 
-		await _show_battle_rewards(gold_gain, soul_gain, exp_actual, old_level, new_level, battle_index)
+		await _show_battle_rewards(gold_gain, soul_gain, talent_results, battle_index)
 		if not is_inside_tree():
 			return 1
 
@@ -599,24 +597,36 @@ func _calc_exp_gain(enemy_type: String) -> int:
 #  战斗奖励弹窗
 # ============================================================
 func _show_battle_rewards(gold_gain: int, soul_gain: int,
-		exp_gain: int, old_level: int, new_level: int, battle_index: int):
+		talent_results: Array, battle_index: int):
 	var summary = Globals.get_reward_summary()
 	if not summary:
 		return
 
 	var items : Array = []
 
-	if exp_gain > 0 and _locked_talent_id != "":
-		var talent_data : TalentData = TalentManager.get_talent_data(_locked_talent_id)
-		var talent_name : String = talent_data.display_name if talent_data else _locked_talent_id
+	for r in talent_results:
+		var tid : String = r["talent_id"]
+		var data : TalentData = TalentManager.get_talent_data(tid)
+		var tname : String = data.display_name if data else tid
+		var old_lv : int = r["old_level"]
+		var new_lv : int = r["new_level"]
+		var old_in : int = r["old_in"]
+		var old_need : int = r["old_need"]
+		var new_in : int = r["new_in"]
+		var new_need : int = r["new_need"]
+
 		var exp_item := ItemData.new()
-		exp_item.id = "arena_exp"
-		if new_level > old_level:
-			exp_item.name = "★ %s 升级 Lv.%d → Lv.%d" % [talent_name, old_level, new_level]
+		exp_item.id = "arena_exp_" + tid
+		if new_lv > old_lv:
+			# ★ 升级
+			exp_item.name = "★ %s 升级 Lv%d→Lv%d  (%d/%d → %d/%d)" % [
+				tname, old_lv, new_lv, old_in, old_need, new_in, new_need]
 		else:
-			exp_item.name = "%s 经验 +%d" % [talent_name, exp_gain]
-		if talent_data:
-			exp_item.description = talent_data.description
+			# ★ 未升级
+			exp_item.name = "%s Lv%d 经验 +%d  (%d/%d → %d/%d)" % [
+				tname, new_lv, r["exp_gain"], old_in, old_need, new_in, new_need]
+		if data:
+			exp_item.description = data.description
 		items.append(exp_item)
 
 	var title : String = "第 %d 战胜利" % battle_index
@@ -869,3 +879,34 @@ func _show_hint(text: String):
 	await get_tree().create_timer(1.5, true, false, true).timeout
 	if is_instance_valid(info_label) and is_inside_tree():
 		_refresh_center_panel()
+
+
+func _add_talent_exp_to_all(exp_gain: int) -> Array:
+	var results : Array = []
+	if not _current_player_data:
+		return results
+	var unit_name : String = _current_player_data.unit_name
+	for inst in _current_player_data.talent_slots:
+		if not inst or not inst.is_active:
+			continue
+		var tid : String = inst.talent_id
+		var old_lv : int = TalentManager.get_talent_level(unit_name, tid)
+		var old_in : int = TalentManager.get_talent_exp_in_level(unit_name, tid)
+		var old_need : int = TalentManager.get_level_required_exp(unit_name, tid)
+		var actual : int = TalentManager.add_talent_exp(unit_name, tid, exp_gain)
+		if actual <= 0:
+			continue
+		var new_lv : int = TalentManager.get_talent_level(unit_name, tid)
+		var new_in : int = TalentManager.get_talent_exp_in_level(unit_name, tid)
+		var new_need : int = TalentManager.get_level_required_exp(unit_name, tid)
+		results.append({
+			"talent_id": tid,
+			"exp_gain": actual,
+			"old_level": old_lv,
+			"old_in": old_in,
+			"old_need": old_need,
+			"new_level": new_lv,
+			"new_in": new_in,
+			"new_need": new_need,
+		})
+	return results
