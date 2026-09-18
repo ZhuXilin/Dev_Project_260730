@@ -1,6 +1,6 @@
 [gd_scene format=3 uid="uid://c8xq5y207f3g1"]
 
-[ext_resource type="Script" uid="uid://d31iuj7lsa4c6" path="res://function/script/EquipmentConfig.gd" id="1"]
+[ext_resource type="Script" uid="uid://d31iuj7lsa4c6" path="res://function/script/EquipmentConfig/EquipmentConfig.gd" id="1"]
 [ext_resource type="StyleBox" uid="uid://6qbsaxkfwg3o" path="res://content/resource/stylebox/8bit_style_box_flat.tres" id="2"]
 
 [node name="EquipmentConfig" type="CanvasLayer" unique_id=7633716]
