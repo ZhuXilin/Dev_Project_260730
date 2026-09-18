@@ -15,12 +15,18 @@ func set_context(ctx: EquipContext):
 	_context = ctx
 
 # ---- 池子来源 ----
-# 竞技场：全道具池（含未解锁，可提前体验）
-# 主游戏：已解锁池
 func _get_pool_ids() -> Array:
+	# ★ Arena：全池（含未解锁，可提前体验）
 	if _context and _context.get_context_id() == "arena":
 		return ItemManager.get_all_item_ids()
-	return Globals.unlocked_items
+
+	# ★ 主游戏：只卖已解锁
+	var pool : Array = Globals.unlocked_items.duplicate()
+	# 合并防具解锁（防具走 unlocked_recipes）
+	for recipe_id in GameState.unlocked_recipes:
+		if recipe_id not in pool:
+			pool.append(recipe_id)
+	return pool
 
 func _get_gold() -> int:
 	if _context:

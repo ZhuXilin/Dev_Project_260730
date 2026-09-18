@@ -5,7 +5,7 @@ signal closed
 enum Tab { ARSENAL, ALCHEMY, TAVERN }
 var current_tab : Tab = Tab.ARSENAL
 
-enum ArsenalSub { WEAPON, ARMOR }
+enum ArsenalSub { WEAPON, ARMOR, RECIPE }
 var _arsenal_sub : ArsenalSub = ArsenalSub.WEAPON
 
 enum AlchemySub { REFINE, RELIC }
@@ -14,6 +14,9 @@ var _alchemy_sub : AlchemySub = AlchemySub.REFINE
 var _current_npc : Dictionary = {}
 var _story_npc_list : VBoxContainer = null
 var _story_topic_list : VBoxContainer = null
+
+# ★ 次级标签栏（固定，不随滑块滚动）
+var _sub_tab_bar : HBoxContainer = null
 
 @onready var materials_label : Label = $Panel/VBox/TitleBar/MaterialsLabel
 @onready var recipe_tab_btn : Button = $Panel/VBox/TabBar/RecipeTabBtn
@@ -27,12 +30,41 @@ func _ready():
 	codex_tab_btn.text = "炼金坊"
 	story_tab_btn.text = "酒馆"
 
+	_ensure_sub_tab_bar()
+
 	MusicManager.play_anvil_tavern_music()
 
 	_refresh_materials()
 	_switch_tab(Tab.ARSENAL)
 
 
+# ============================================================
+#  次级标签栏（固定）
+# ============================================================
+func _ensure_sub_tab_bar():
+	if _sub_tab_bar and is_instance_valid(_sub_tab_bar):
+		return
+	_sub_tab_bar = HBoxContainer.new()
+	_sub_tab_bar.name = "SubTabBar"
+	_sub_tab_bar.add_theme_constant_override("separation", 4)
+	var vbox : VBoxContainer = $Panel/VBox
+	vbox.add_child(_sub_tab_bar)
+	# 插到 TabBar 和 ContentScroll 之间
+	var tab_bar : Node = $Panel/VBox/TabBar
+	vbox.move_child(_sub_tab_bar, tab_bar.get_index() + 1)
+
+
+func _clear_sub_tab_bar():
+	if not _sub_tab_bar or not is_instance_valid(_sub_tab_bar):
+		return
+	for child in _sub_tab_bar.get_children():
+		_sub_tab_bar.remove_child(child)
+		child.queue_free()
+
+
+# ============================================================
+#  顶部标签切换
+# ============================================================
 func _on_recipe_tab_pressed(): _switch_tab(Tab.ARSENAL)
 func _on_codex_tab_pressed():  _switch_tab(Tab.ALCHEMY)
 func _on_story_tab_pressed():  _switch_tab(Tab.TAVERN)
@@ -48,6 +80,7 @@ func _switch_tab(tab: Tab):
 	current_tab = tab
 	_update_tab_style()
 	_clear_content()
+	_clear_sub_tab_bar()
 	_story_npc_list = null
 	_story_topic_list = null
 	_current_npc = {}
@@ -71,39 +104,45 @@ func _clear_content():
 
 
 func _refresh_materials():
-	var mats = GameState.get_all_materials()
-	var parts = []
+	var mats : Dictionary = GameState.get_all_materials()
+	var parts : Array = []
 	for mat_name in ["粗铁", "精钢", "秘银", "龙鳞"]:
-		var count = mats.get(mat_name, 0)
+		var count : int = mats.get(mat_name, 0)
 		if count > 0:
 			parts.append("%s:%d" % [mat_name, count])
 	materials_label.text = "材料: " + (" ".join(parts) if not parts.is_empty() else "无")
 
 
 # ============================================================
-#  Tab 1 · 武备库
+#  Tab 1 · 武备库（武器 / 防具 / 合成配方）
 # ============================================================
 func _build_arsenal_tab():
-	var sub_bar = HBoxContainer.new()
-	sub_bar.add_theme_constant_override("separation", 4)
-	content_container.add_child(sub_bar)
-
+	# ★ 次级标签固定到 _sub_tab_bar
 	var weapon_btn = Button.new()
 	weapon_btn.text = "武器"
 	weapon_btn.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_NORMAL)
 	weapon_btn.pressed.connect(_on_arsenal_sub.bind(ArsenalSub.WEAPON))
 	weapon_btn.modulate = Color.WHITE if _arsenal_sub == ArsenalSub.WEAPON else Color(0.5, 0.5, 0.5, 1)
-	sub_bar.add_child(weapon_btn)
+	_sub_tab_bar.add_child(weapon_btn)
 
 	var armor_btn = Button.new()
 	armor_btn.text = "防具"
 	armor_btn.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_NORMAL)
 	armor_btn.pressed.connect(_on_arsenal_sub.bind(ArsenalSub.ARMOR))
 	armor_btn.modulate = Color.WHITE if _arsenal_sub == ArsenalSub.ARMOR else Color(0.5, 0.5, 0.5, 1)
-	sub_bar.add_child(armor_btn)
+	_sub_tab_bar.add_child(armor_btn)
 
-	var item_type = "weapon" if _arsenal_sub == ArsenalSub.WEAPON else "armor"
-	_build_arsenal_list(item_type)
+	var recipe_btn = Button.new()
+	recipe_btn.text = "合成配方"
+	recipe_btn.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_NORMAL)
+	recipe_btn.pressed.connect(_on_arsenal_sub.bind(ArsenalSub.RECIPE))
+	recipe_btn.modulate = Color.WHITE if _arsenal_sub == ArsenalSub.RECIPE else Color(0.5, 0.5, 0.5, 1)
+	_sub_tab_bar.add_child(recipe_btn)
+
+	match _arsenal_sub:
+		ArsenalSub.WEAPON: _build_arsenal_list("weapon")
+		ArsenalSub.ARMOR:  _build_arsenal_list("armor")
+		ArsenalSub.RECIPE: _build_recipe_list()
 
 
 func _on_arsenal_sub(sub: ArsenalSub):
@@ -116,10 +155,13 @@ func _build_arsenal_list(item_type: String):
 	var locked_list : Array = []
 
 	for item_id in ItemManager._item_db.keys():
-		var data = ItemManager.get_item_data(item_id)
+		var data : ItemData = ItemManager.get_item_data(item_id)
 		if not data or data.type != item_type:
 			continue
-		var is_unlocked = _is_item_unlocked(item_id, item_type)
+		# ★ 防具 tab 跳过配方产物
+		if item_type == "armor" and RecipeManager.get_recipe(item_id) != null:
+			continue
+		var is_unlocked : bool = _is_item_unlocked(item_id, item_type)
 		if is_unlocked:
 			unlocked_list.append(item_id)
 		else:
@@ -131,20 +173,17 @@ func _build_arsenal_list(item_type: String):
 		content_container.add_child(_build_arsenal_row(item_id, false))
 
 
-func _is_item_unlocked(item_id: String, item_type: String) -> bool:
-	if item_type == "weapon":
-		return Globals.is_item_unlocked(item_id)
-	# 防具：解锁配方 = 解锁商店
-	return item_id in GameState.unlocked_recipes
+func _is_item_unlocked(item_id: String, _item_type: String) -> bool:
+	return Globals.is_item_unlocked(item_id)
 
 
 func _build_arsenal_row(item_id: String, unlocked: bool) -> HBoxContainer:
 	var row = HBoxContainer.new()
 	row.add_theme_constant_override("separation", 8)
 
-	var data = ItemManager.get_item_data(item_id)
+	var data : ItemData = ItemManager.get_item_data(item_id)
 
-	# ---- 名称（未解锁也显示真名，灰色） ----
+	# ---- 名称 ----
 	var name_label = Label.new()
 	name_label.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_LARGE)
 	name_label.custom_minimum_size = Vector2(90, 0)
@@ -172,8 +211,8 @@ func _build_arsenal_row(item_id: String, unlocked: bool) -> HBoxContainer:
 	cost_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	cost_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	if not unlocked:
-		var unlock_cost = _get_unlock_cost(item_id)
-		var parts = []
+		var unlock_cost : Dictionary = _get_unlock_cost(item_id)
+		var parts : Array = []
 		for k in unlock_cost:
 			parts.append("%s×%d(%d)" % [k, unlock_cost[k], GameState.get_material(k)])
 		cost_label.text = " ".join(parts)
@@ -197,14 +236,17 @@ func _build_arsenal_row(item_id: String, unlocked: bool) -> HBoxContainer:
 
 
 func _get_unlock_cost(item_id: String) -> Dictionary:
-	var data = ItemManager.get_item_data(item_id)
+	var data : ItemData = ItemManager.get_item_data(item_id)
 	if data and not data.unlock_cost.is_empty():
 		return data.unlock_cost
+	var recipe : RecipeData = RecipeManager.get_recipe(item_id)
+	if recipe and not recipe.unlock_cost.is_empty():
+		return recipe.unlock_cost
 	return { "粗铁": 3 }
 
 
 func _can_unlock_item(item_id: String) -> bool:
-	var cost = _get_unlock_cost(item_id)
+	var cost : Dictionary = _get_unlock_cost(item_id)
 	for mat in cost:
 		if GameState.get_material(mat) < cost[mat]:
 			return false
@@ -212,7 +254,7 @@ func _can_unlock_item(item_id: String) -> bool:
 
 
 func _on_unlock_item(item_id: String):
-	var cost = _get_unlock_cost(item_id)
+	var cost : Dictionary = _get_unlock_cost(item_id)
 	for mat in cost:
 		GameState.materials[mat] -= cost[mat]
 
@@ -235,26 +277,128 @@ func _quality_display(quality: String) -> String:
 
 
 # ============================================================
-#  Tab 2 · 炼金坊
+#  武备库 · 合成配方
+# ============================================================
+func _build_recipe_list():
+	var all_recipes : Array = RecipeManager.get_all_recipes()
+	if all_recipes.is_empty():
+		content_container.add_child(_make_hint("（暂无合成配方）"))
+		return
+
+	var unlocked_list : Array = []
+	var locked_list : Array = []
+	for recipe in all_recipes:
+		if recipe.id in GameState.unlocked_recipes:
+			unlocked_list.append(recipe)
+		else:
+			locked_list.append(recipe)
+
+	for recipe in unlocked_list:
+		content_container.add_child(_build_recipe_row(recipe, true))
+	for recipe in locked_list:
+		content_container.add_child(_build_recipe_row(recipe, false))
+
+
+func _build_recipe_row(recipe: RecipeData, unlocked: bool) -> HBoxContainer:
+	var row = HBoxContainer.new()
+	row.add_theme_constant_override("separation", 8)
+
+	var out_data : ItemData = ItemManager.get_item_data(recipe.id)
+	var out_name : String = out_data.name if out_data else recipe.id
+
+	var name_label = Label.new()
+	name_label.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_LARGE)
+	name_label.custom_minimum_size = Vector2(70, 0)
+	name_label.clip_text = true
+	name_label.text = out_name
+	if unlocked:
+		var q : String = out_data.quality if out_data else "common"
+		name_label.add_theme_color_override("font_color",
+			UIConst.QUALITY_COLORS.get(q, Color.WHITE))
+	else:
+		name_label.modulate = Color(0.4, 0.4, 0.4, 1)
+	row.add_child(name_label)
+
+	var input_label = Label.new()
+	input_label.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_SMALL)
+	input_label.custom_minimum_size = Vector2(110, 0)
+	input_label.clip_text = true
+	var input_names : Array = []
+	for iid in recipe.inputs:
+		var d : ItemData = ItemManager.get_item_data(iid)
+		input_names.append(d.name if d else iid)
+	input_label.text = " + ".join(input_names)
+	if not unlocked:
+		input_label.modulate = Color(0.4, 0.4, 0.4, 1)
+	row.add_child(input_label)
+
+	var cost_label = Label.new()
+	cost_label.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_SMALL)
+	cost_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	cost_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	if not unlocked:
+		var parts : Array = []
+		for k in recipe.unlock_cost:
+			parts.append("%s×%d(%d)" % [k, recipe.unlock_cost[k], GameState.get_material(k)])
+		cost_label.text = " ".join(parts)
+	row.add_child(cost_label)
+
+	var btn = Button.new()
+	btn.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_SMALL)
+	btn.custom_minimum_size = Vector2(60, 0)
+	btn.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	if unlocked:
+		btn.text = "已解锁"
+		btn.disabled = true
+	else:
+		btn.text = "解锁"
+		btn.disabled = not _can_unlock_recipe(recipe)
+		btn.pressed.connect(_on_unlock_recipe.bind(recipe.id))
+	row.add_child(btn)
+
+	return row
+
+
+func _can_unlock_recipe(recipe: RecipeData) -> bool:
+	for mat in recipe.unlock_cost:
+		if GameState.get_material(mat) < recipe.unlock_cost[mat]:
+			return false
+	return true
+
+
+func _on_unlock_recipe(recipe_id: String):
+	var recipe : RecipeData = RecipeManager.get_recipe(recipe_id)
+	if not recipe: return
+	if recipe_id in GameState.unlocked_recipes: return
+
+	for mat in recipe.unlock_cost:
+		GameState.materials[mat] -= recipe.unlock_cost[mat]
+	GameState.unlocked_recipes.append(recipe_id)
+	Globals.unlock_item(recipe_id)
+
+	SaveManager.auto_save()
+	_refresh_materials()
+	_switch_tab(Tab.ARSENAL)
+
+
+# ============================================================
+#  Tab 2 · 炼金坊（精炼 / 遗物图鉴）
 # ============================================================
 func _build_alchemy_tab():
-	var sub_bar = HBoxContainer.new()
-	sub_bar.add_theme_constant_override("separation", 4)
-	content_container.add_child(sub_bar)
-
+	# ★ 次级标签固定到 _sub_tab_bar
 	var refine_btn = Button.new()
 	refine_btn.text = "精炼"
 	refine_btn.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_NORMAL)
 	refine_btn.pressed.connect(_on_alchemy_sub.bind(AlchemySub.REFINE))
 	refine_btn.modulate = Color.WHITE if _alchemy_sub == AlchemySub.REFINE else Color(0.5, 0.5, 0.5, 1)
-	sub_bar.add_child(refine_btn)
+	_sub_tab_bar.add_child(refine_btn)
 
 	var relic_btn = Button.new()
 	relic_btn.text = "遗物图鉴"
 	relic_btn.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_NORMAL)
 	relic_btn.pressed.connect(_on_alchemy_sub.bind(AlchemySub.RELIC))
 	relic_btn.modulate = Color.WHITE if _alchemy_sub == AlchemySub.RELIC else Color(0.5, 0.5, 0.5, 1)
-	sub_bar.add_child(relic_btn)
+	_sub_tab_bar.add_child(relic_btn)
 
 	if _alchemy_sub == AlchemySub.REFINE:
 		_build_refine_list()
@@ -268,7 +412,7 @@ func _on_alchemy_sub(sub: AlchemySub):
 
 
 func _build_refine_list():
-	var all_ids = RefineManager.get_all_ids()
+	var all_ids : Array = RefineManager.get_all_ids()
 	var unlocked_list : Array = []
 	var locked_list : Array = []
 	for refine_id in all_ids:
@@ -287,7 +431,7 @@ func _build_refine_row(refine_id: String, unlocked: bool) -> HBoxContainer:
 	var row = HBoxContainer.new()
 	row.add_theme_constant_override("separation", 8)
 
-	var recipe = RefineManager.get_recipe(refine_id)
+	var recipe : Dictionary = RefineManager.get_recipe(refine_id)
 
 	var name_label = Label.new()
 	name_label.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_LARGE)
@@ -312,14 +456,14 @@ func _build_refine_row(refine_id: String, unlocked: bool) -> HBoxContainer:
 	cost_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	cost_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	if unlocked:
-		var cost = recipe.get("craft_cost", {})
-		var parts = []
+		var cost : Dictionary = recipe.get("craft_cost", {})
+		var parts : Array = []
 		for k in cost:
 			parts.append("%s×%d(%d)" % [k, cost[k], GameState.get_material(k)])
 		cost_label.text = " ".join(parts)
 	else:
-		var unlock_cost = recipe.get("unlock_cost", {})
-		var parts = []
+		var unlock_cost : Dictionary = recipe.get("unlock_cost", {})
+		var parts : Array = []
 		for k in unlock_cost:
 			parts.append("%s×%d(%d)" % [k, unlock_cost[k], GameState.get_material(k)])
 		cost_label.text = "解锁: " + " ".join(parts)
@@ -355,16 +499,16 @@ func _on_craft_refine(refine_id: String):
 
 
 func _build_relic_list():
-	var all_ids = RelicManager.get_all_relic_ids()
+	var all_ids : Array = RelicManager.get_all_relic_ids()
 	if all_ids.is_empty():
 		content_container.add_child(_make_hint("（暂无遗物数据）"))
 		return
 
 	for relic_id in all_ids:
-		var data = RelicManager.get_relic_data(relic_id)
+		var data : Dictionary = RelicManager.get_relic_data(relic_id)
 		if data.is_empty():
 			continue
-		var is_unlocked = RelicManager.is_relic_unlocked(relic_id)
+		var is_unlocked : bool = RelicManager.is_relic_unlocked(relic_id)
 		content_container.add_child(_build_relic_row(relic_id, data, is_unlocked))
 
 
@@ -403,7 +547,7 @@ func _build_relic_row(relic_id: String, data: Dictionary, unlocked: bool) -> HBo
 #  Tab 3 · 酒馆
 # ============================================================
 func _build_story_tab():
-	var npcs = StoryManager.get_npcs()
+	var npcs : Array = StoryManager.get_npcs()
 	if npcs.is_empty():
 		content_container.add_child(_make_hint("暂无酒馆数据"))
 		return
@@ -446,14 +590,14 @@ func _refresh_topic_list():
 		_story_topic_list.remove_child(child)
 		child.queue_free()
 
-	var topics = _current_npc.get("topics", [])
-	var any_visible = false
+	var topics : Array = _current_npc.get("topics", [])
+	var any_visible : bool = false
 	for topic in topics:
 		if not StoryManager.check_condition(topic.get("condition", "")):
 			continue
 		any_visible = true
 
-		var seen = topic["id"] in GameState.unlocked_stories
+		var seen : bool = topic["id"] in GameState.unlocked_stories
 		var btn = Button.new()
 		btn.text = topic["title"] + ("（已阅）" if seen else "")
 		btn.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_NORMAL)
@@ -469,7 +613,7 @@ func _refresh_topic_list():
 
 
 func _on_topic_pressed(topic: Dictionary):
-	var lines = topic.get("lines", [])
+	var lines : Array = topic.get("lines", [])
 	if lines.is_empty():
 		_show_message("该话题暂无内容")
 		return
@@ -505,6 +649,7 @@ func _show_message(msg: String):
 	if is_instance_valid(label):
 		label.queue_free()
 
+
 # ============================================================
 #  Debug：按 7 加材料（每种 +10）
 # ============================================================
@@ -516,7 +661,6 @@ func _input(event: InputEvent):
 		return
 	if event.keycode != KEY_7:
 		return
-	# 对话进行中不响应，避免误触
 	if DialogueManager.is_active:
 		return
 	_debug_add_materials()
@@ -526,6 +670,6 @@ func _input(event: InputEvent):
 func _debug_add_materials():
 	for mat_name in DEBUG_MATERIALS:
 		GameState.materials[mat_name] = GameState.materials.get(mat_name, 0) + DEBUG_MAT_AMOUNT
-	SaveManager.auto_save()          # 只存一次
-	_refresh_materials()             # 刷新顶部材料标签
+	SaveManager.auto_save()
+	_refresh_materials()
 	print("[DEBUG] 材料 +%d（每种）" % DEBUG_MAT_AMOUNT)

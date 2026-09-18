@@ -60,9 +60,11 @@ func _switch_tab(tab: Tab):
 
 	if tab == Tab.ATTR:
 		unit_list_scroll.visible = true
+		reset_btn.visible = true        # ★ 加点 tab 显示
 		_refresh_all()
 	else:
 		unit_list_scroll.visible = false
+		reset_btn.visible = false       # ★ 特技 tab 隐藏
 		_build_talent_tab()
 
 

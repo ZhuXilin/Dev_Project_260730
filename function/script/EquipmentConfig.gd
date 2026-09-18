@@ -376,9 +376,15 @@ func _build_unit_columns():
 		col.add_theme_constant_override("separation", 1)
 		unit_container.add_child(col)
 
-		col.add_child(_create_label(
+		# ★ 单位名字：可 hover
+		var name_label : Label = _create_label(
 			unit.display_name + "(" + UnitDataManager.get_unit_type_display_name(unit.unit_name) + ")",
-			Style.FONT_SMALL))
+			Style.FONT_SMALL)
+		name_label.mouse_filter = Control.MOUSE_FILTER_STOP
+		name_label.mouse_entered.connect(_on_unit_hover_entered.bind(i))
+		name_label.mouse_exited.connect(_on_unit_hover_exited)
+		col.add_child(name_label)
+
 		col.add_child(_create_label(Style.SEPARATOR_TEXT, Style.FONT_SMALL))
 
 		var weapon_inst : ItemInstance = unit.weapon_slot
@@ -395,6 +401,68 @@ func _build_unit_columns():
 		col.add_child(_create_label("特技", Style.FONT_SMALL))
 		var talent_inst : TalentInstance = unit.talent_slots[0] if unit.talent_slots.size() > 0 else null
 		col.add_child(_create_talent_button(talent_inst, i, 0))
+
+
+# ★ 新增：单位 hover 显示详情
+func _on_unit_hover_entered(unit_idx: int) -> void:
+	if unit_idx < 0 or unit_idx >= party.size(): return
+	var unit : UnitData = party[unit_idx]
+
+	var display : String = unit.display_name if unit.display_name != "" else unit.unit_name
+	var type_name : String = UnitDataManager.get_unit_type_display_name(unit.unit_name)
+
+	var lines : Array = []
+	lines.append("%s（%s）" % [display, type_name])
+	lines.append("")
+
+	# 属性
+	lines.append("HP: %d / %d" % [unit.hit_points, unit.max_hp])
+	lines.append("力量: %d    灵巧: %d" % [unit.strength, unit.dexterity])
+	lines.append("智力: %d    信仰: %d" % [unit.intelligence, unit.faith])
+	lines.append("感应: %d    移动力: %d" % [unit.arcane, unit.move_range])
+
+	# 武器
+	lines.append("")
+	if unit.weapon_slot:
+		var wdata : ItemData = ItemManager.get_item_data(unit.weapon_slot.item_id)
+		if wdata:
+			var lv_txt : String = ""
+			if unit.weapon_slot.upgrade_level > 0:
+				lv_txt = "+%d" % unit.weapon_slot.upgrade_level
+			lines.append("武器: %s%s" % [wdata.name, lv_txt])
+			if wdata.type == "weapon":
+				lines.append("  攻击 %d  射程 %d~%d" % [
+					wdata.base_attack, wdata.min_attack_range, wdata.attack_range])
+	else:
+		lines.append("武器: 无")
+
+	# 防具
+	var armor_names : Array = []
+	for s in unit.armor_slots:
+		if s:
+			var adata : ItemData = ItemManager.get_item_data(s.item_id)
+			if adata:
+				armor_names.append(adata.name)
+	if armor_names.size() > 0:
+		lines.append("防具: " + ", ".join(armor_names))
+	else:
+		lines.append("防具: 无")
+
+	# 特技
+	var talent_names : Array = []
+	for t in unit.talent_slots:
+		if t and t.is_active:
+			var tdata : TalentData = TalentManager.get_talent_data(t.talent_id)
+			if tdata:
+				talent_names.append(tdata.display_name)
+	if talent_names.size() > 0:
+		lines.append("特技: " + ", ".join(talent_names))
+
+	_show_detail_in_zone("\n".join(lines))
+
+
+func _on_unit_hover_exited() -> void:
+	_clear_detail_zone()
 
 func _create_item_button(inst: ItemInstance, slot_type: String, unit_idx: int, slot_idx: int) -> Button:
 	var btn : Button = _create_styled_button(Style.FONT_SMALL, Style.BTN_ITEM_SIZE)
@@ -724,11 +792,16 @@ func _refresh_inline_craft_btn():
 		inline_craft_btn.text = "合成"
 		inline_craft_btn.disabled = true
 		inline_craft_btn.modulate = Color(0.5, 0.5, 0.5)
-	else:
-		inline_craft_btn.text = "合成 %dG" % FORGE_CRAFT_COST
-		var can_afford : bool = _context.get_gold() >= FORGE_CRAFT_COST
-		inline_craft_btn.disabled = not can_afford
-		inline_craft_btn.modulate = Color.WHITE if can_afford else Color(0.5, 0.5, 0.5)
+		return
+	if not _is_forge_recipe_available():
+		inline_craft_btn.text = "未解锁"
+		inline_craft_btn.disabled = true
+		inline_craft_btn.modulate = Color(0.5, 0.5, 0.5)
+		return
+	inline_craft_btn.text = "合成 %dG" % FORGE_CRAFT_COST
+	var can_afford : bool = _context.get_gold() >= FORGE_CRAFT_COST
+	inline_craft_btn.disabled = not can_afford
+	inline_craft_btn.modulate = Color.WHITE if can_afford else Color(0.5, 0.5, 0.5)
 
 
 func _ensure_forge_result_label():
@@ -765,10 +838,22 @@ func _display_forge_recipe_info():
 		_show_detail_in_zone("无匹配配方\n\n已放: " + ", ".join(names))
 		_update_forge_result_label()
 		return
+
 	var recipe : RecipeData = RecipeManager.get_recipe(_forge_matched_recipe)
 	var out_data : ItemData = ItemManager.get_item_data(_forge_matched_recipe)
 	var lines : Array = []
 	lines.append("匹配配方: " + (out_data.name if out_data else _forge_matched_recipe))
+
+	# ★ 主游戏未解锁提示
+	if not _is_forge_recipe_available():
+		lines.append("")
+		lines.append("⚠ 此配方未解锁")
+		lines.append("前往铁砧酒馆 → 武备库 → 防具")
+		lines.append("消耗材料解锁后可合成")
+		_show_detail_in_zone("\n".join(lines))
+		_update_forge_result_label()
+		return
+
 	lines.append("")
 	lines.append("消耗:")
 	for id in recipe.inputs:
@@ -788,11 +873,15 @@ func _update_forge_result_label():
 	else:
 		var out_data : ItemData = ItemManager.get_item_data(_forge_matched_recipe)
 		var out_name : String = out_data.name if out_data else _forge_matched_recipe
-		forge_result_label.text = "合成结果：" + out_name + "（%dG）" % FORGE_CRAFT_COST
-		if out_data:
-			forge_result_label.modulate = UIConst.QUALITY_COLORS.get(out_data.quality, Color.WHITE)
+		if not _is_forge_recipe_available():
+			forge_result_label.text = "合成结果：%s（未解锁）" % out_name
+			forge_result_label.modulate = Color(0.5, 0.5, 0.5)
 		else:
-			forge_result_label.modulate = Color.WHITE
+			forge_result_label.text = "合成结果：%s（%dG）" % [out_name, FORGE_CRAFT_COST]
+			if out_data:
+				forge_result_label.modulate = UIConst.QUALITY_COLORS.get(out_data.quality, Color.WHITE)
+			else:
+				forge_result_label.modulate = Color.WHITE
 	_refresh_inline_craft_btn()
 
 func _ensure_forge_upgrade_ui():
@@ -938,6 +1027,12 @@ func _on_forge_clear_pressed():
 
 func _on_forge_craft_pressed():
 	if _forge_matched_recipe == "": return
+
+	# ★ 主游戏需解锁
+	if not _is_forge_recipe_available():
+		Globals.show_confirm(self, "未解锁此配方\n请前往铁砧酒馆解锁", "确定", "", func(): pass, func(): pass, false)
+		return
+
 	var recipe : RecipeData = RecipeManager.get_recipe(_forge_matched_recipe)
 	if not recipe: return
 
@@ -2210,3 +2305,8 @@ func _cleanup_forge_ui():
 	forge_upgrade_btn = null
 	forge_upgrade_label = null
 	inline_craft_btn = null
+
+func _is_forge_recipe_available() -> bool:
+	if _forge_matched_recipe == "": return false
+	if _context.get_context_id() == "arena": return true
+	return _forge_matched_recipe in GameState.unlocked_recipes
