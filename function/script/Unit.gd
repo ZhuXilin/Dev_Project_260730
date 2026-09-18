@@ -28,6 +28,7 @@ var buff_crit_damage_bonus : float = 0.0
 var buff_defense_flat : int = 0
 var buff_damage_reduction : float = 0.0
 var buff_attack_flat : int = 0
+var buff_magic_attack_flat : int = 0
 
 # ---- 装备 ----
 var weapon_slot: ItemInstance = null
@@ -716,3 +717,4 @@ func reset_combat_buffs():
 	buff_defense_flat = 0
 	buff_damage_reduction = 0.0
 	buff_attack_flat = 0
+	buff_magic_attack_flat = 0

@@ -7,6 +7,10 @@
 	"healing_staff",
 	"fire_spellbook",
 	"wooden_shield",
-	"iron_armor"
+	"iron_armor",
+	"leather_armor",
+	"iron_helmet",
+	"mage_robe",
+	"traveler_boots"
   ]
 }

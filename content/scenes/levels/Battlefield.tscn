@@ -45,14 +45,14 @@ texture = ExtResource("8_i6ecf")
 layer = 5
 
 [node name="RelicIconContainer" type="HBoxContainer" parent="RelicLayer" unique_id=1716202639]
-anchors_preset = 15
+anchors_preset = -1
 anchor_right = 1.0
-anchor_bottom = 1.0
 offset_left = 16.0
 offset_top = 224.0
-offset_right = -288.0
+offset_right = -128.0
+offset_bottom = 240.0
 grow_horizontal = 2
-grow_vertical = 2
+theme_override_constants/separation = 6
 
 [node name="Info" type="CanvasLayer" parent="." unique_id=275462380]
 

@@ -32,10 +32,7 @@ layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = 12.0
-offset_top = 12.0
-offset_right = -12.0
-offset_bottom = -12.0
+offset_top = -1.0
 grow_horizontal = 2
 grow_vertical = 2
 theme_override_constants/separation = 8
@@ -75,24 +72,43 @@ theme_override_constants/separation = 2
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
-theme_override_constants/separation = 12
+theme_override_constants/separation = 8
 
 [node name="SelectedUnitLabel" type="Label" parent="Panel/VBox/MainHBox/CenterPanel" unique_id=1148970143]
 layout_mode = 2
+size_flags_vertical = 0
 theme_override_font_sizes/font_size = 10
 text = "选择单位"
 horizontal_alignment = 1
+autowrap_mode = 3
+
+[node name="UnitStatsPanel" type="PanelContainer" parent="Panel/VBox/MainHBox/CenterPanel" unique_id=1148970144]
+custom_minimum_size = Vector2(0, 80)
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_styles/panel = ExtResource("2_style")
+
+[node name="UnitStatsLabel" type="Label" parent="Panel/VBox/MainHBox/CenterPanel/UnitStatsPanel" unique_id=1148970145]
+layout_mode = 2
+theme_override_font_sizes/font_size = 8
+horizontal_alignment = 1
+vertical_alignment = 1
+autowrap_mode = 3
 
 [node name="InfoLabel" type="Label" parent="Panel/VBox/MainHBox/CenterPanel" unique_id=576548730]
 layout_mode = 2
+size_flags_vertical = 0
 theme_override_font_sizes/font_size = 9
 horizontal_alignment = 1
+autowrap_mode = 3
 
 [node name="StreakLabel" type="Label" parent="Panel/VBox/MainHBox/CenterPanel" unique_id=1561900263]
 layout_mode = 2
+size_flags_vertical = 0
 theme_override_font_sizes/font_size = 10
 text = "最高连胜：0"
 horizontal_alignment = 1
+autowrap_mode = 3
 
 [node name="BottomBar" type="HBoxContainer" parent="Panel/VBox" unique_id=1795169802]
 layout_mode = 2

@@ -15,8 +15,12 @@ func setup(tab: int) -> void:
 enum ArsenalSub { WEAPON, ARMOR }
 var _arsenal_sub : ArsenalSub = ArsenalSub.WEAPON
 
-enum AlchemySub { RECIPE, REFINE, RELIC }
+enum AlchemySub { RECIPE, REFINE }
 var _alchemy_sub : AlchemySub = AlchemySub.RECIPE
+
+# ★ 新增：酒馆子页
+enum TavernSub { STORY, RELIC }
+var _tavern_sub : TavernSub = TavernSub.STORY
 
 var current_tab : Tab = Tab.ARSENAL
 
@@ -284,7 +288,7 @@ func _quality_display(quality: String) -> String:
 
 
 # ============================================================
-#  Tab 2 · 炼金坊（合成配方 / 精炼 / 遗物图鉴）
+#  Tab 2 · 炼金坊（合成配方 / 精炼）
 # ============================================================
 func _build_alchemy_tab():
 	var recipe_btn = Button.new()
@@ -301,17 +305,9 @@ func _build_alchemy_tab():
 	refine_btn.modulate = Color.WHITE if _alchemy_sub == AlchemySub.REFINE else Color(0.5, 0.5, 0.5, 1)
 	_sub_tab_bar.add_child(refine_btn)
 
-	var relic_btn = Button.new()
-	relic_btn.text = "遗物图鉴"
-	relic_btn.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_NORMAL)
-	relic_btn.pressed.connect(_on_alchemy_sub.bind(AlchemySub.RELIC))
-	relic_btn.modulate = Color.WHITE if _alchemy_sub == AlchemySub.RELIC else Color(0.5, 0.5, 0.5, 1)
-	_sub_tab_bar.add_child(relic_btn)
-
 	match _alchemy_sub:
 		AlchemySub.RECIPE: _build_recipe_list()
 		AlchemySub.REFINE: _build_refine_list()
-		AlchemySub.RELIC:  _build_relic_list()
 
 
 func _on_alchemy_sub(sub: AlchemySub):
@@ -510,56 +506,37 @@ func _on_craft_refine(refine_id: String):
 		_switch_tab(Tab.ALCHEMY)
 
 
-# ---- 遗物图鉴 ----
-func _build_relic_list():
-	var all_ids : Array = RelicManager.get_all_relic_ids()
-	if all_ids.is_empty():
-		content_container.add_child(_make_hint("（暂无遗物数据）"))
-		return
-
-	for relic_id in all_ids:
-		var data : Dictionary = RelicManager.get_relic_data(relic_id)
-		if data.is_empty():
-			continue
-		var is_unlocked : bool = RelicManager.is_relic_unlocked(relic_id)
-		content_container.add_child(_build_relic_row(relic_id, data, is_unlocked))
-
-
-func _build_relic_row(relic_id: String, data: Dictionary, unlocked: bool) -> HBoxContainer:
-	var row = HBoxContainer.new()
-	row.add_theme_constant_override("separation", 8)
-
-	var name_label = Label.new()
-	name_label.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_LARGE)
-	name_label.custom_minimum_size = Vector2(90, 0)
-	name_label.text = data.get("name", relic_id)
-	if not unlocked:
-		name_label.modulate = Color(0.4, 0.4, 0.4, 1)
-	row.add_child(name_label)
-
-	var status_label = Label.new()
-	status_label.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_SMALL)
-	status_label.custom_minimum_size = Vector2(50, 0)
-	status_label.text = "已获得" if unlocked else "未获得"
-	status_label.modulate = Color.WHITE if unlocked else Color(0.5, 0.5, 0.5, 1)
-	row.add_child(status_label)
-
-	var desc_label = Label.new()
-	desc_label.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_SMALL)
-	desc_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	desc_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	desc_label.text = data.get("description", "")
-	if not unlocked:
-		desc_label.modulate = Color(0.4, 0.4, 0.4, 1)
-	row.add_child(desc_label)
-
-	return row
-
-
 # ============================================================
-#  Tab 3 · 酒馆
+#  Tab 3 · 酒馆（话题 / 遗物图鉴）
 # ============================================================
 func _build_story_tab():
+	# ---- 次级标签：酒馆话题 / 遗物图鉴 ----
+	var story_btn = Button.new()
+	story_btn.text = "酒馆话题"
+	story_btn.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_NORMAL)
+	story_btn.pressed.connect(_on_tavern_sub.bind(TavernSub.STORY))
+	story_btn.modulate = Color.WHITE if _tavern_sub == TavernSub.STORY else Color(0.5, 0.5, 0.5, 1)
+	_sub_tab_bar.add_child(story_btn)
+
+	var relic_btn = Button.new()
+	relic_btn.text = "遗物图鉴"
+	relic_btn.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_NORMAL)
+	relic_btn.pressed.connect(_on_tavern_sub.bind(TavernSub.RELIC))
+	relic_btn.modulate = Color.WHITE if _tavern_sub == TavernSub.RELIC else Color(0.5, 0.5, 0.5, 1)
+	_sub_tab_bar.add_child(relic_btn)
+
+	match _tavern_sub:
+		TavernSub.STORY: _build_story_topic_list()
+		TavernSub.RELIC: _build_relic_list()
+
+
+func _on_tavern_sub(sub: TavernSub):
+	_tavern_sub = sub
+	_switch_tab(Tab.TAVERN)
+
+
+# ---- 酒馆话题（原 _build_story_tab 内容） ----
+func _build_story_topic_list():
 	var npcs : Array = StoryManager.get_npcs()
 	if npcs.is_empty():
 		content_container.add_child(_make_hint("暂无酒馆数据"))
@@ -638,6 +615,52 @@ func _on_topic_pressed(topic: Dictionary):
 	DialogueManager.start_inline_dialogue(lines)
 	await DialogueManager.dialogue_finished
 	_refresh_topic_list()
+
+
+# ---- 遗物图鉴 ----
+func _build_relic_list():
+	var all_ids : Array = RelicManager.get_all_relic_ids()
+	if all_ids.is_empty():
+		content_container.add_child(_make_hint("（暂无遗物数据）"))
+		return
+
+	for relic_id in all_ids:
+		var data : Dictionary = RelicManager.get_relic_data(relic_id)
+		if data.is_empty():
+			continue
+		var is_unlocked : bool = RelicManager.is_relic_unlocked(relic_id)
+		content_container.add_child(_build_relic_row(relic_id, data, is_unlocked))
+
+
+func _build_relic_row(relic_id: String, data: Dictionary, unlocked: bool) -> HBoxContainer:
+	var row = HBoxContainer.new()
+	row.add_theme_constant_override("separation", 8)
+
+	var name_label = Label.new()
+	name_label.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_LARGE)
+	name_label.custom_minimum_size = Vector2(90, 0)
+	name_label.text = data.get("name", relic_id)
+	if not unlocked:
+		name_label.modulate = Color(0.4, 0.4, 0.4, 1)
+	row.add_child(name_label)
+
+	var status_label = Label.new()
+	status_label.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_SMALL)
+	status_label.custom_minimum_size = Vector2(50, 0)
+	status_label.text = "已获得" if unlocked else "未获得"
+	status_label.modulate = Color.WHITE if unlocked else Color(0.5, 0.5, 0.5, 1)
+	row.add_child(status_label)
+
+	var desc_label = Label.new()
+	desc_label.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_SMALL)
+	desc_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	desc_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	desc_label.text = data.get("description", "")
+	if not unlocked:
+		desc_label.modulate = Color(0.4, 0.4, 0.4, 1)
+	row.add_child(desc_label)
+
+	return row
 
 
 # ============================================================

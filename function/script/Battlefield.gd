@@ -2057,6 +2057,16 @@ func _update_cursor_and_mouse():
 			Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 		return
 
+	# ---- 鼠标进入遗物/精炼面板：切回系统鼠标，让 Button 可点 ----
+	if relic_icon_container and is_instance_valid(relic_icon_container):
+		var relic_rect = relic_icon_container.get_global_rect().grow(4.0)
+		var vp_mouse = get_viewport().get_mouse_position()
+		if relic_rect.has_point(vp_mouse):
+			cursor.visible = false
+			if Input.mouse_mode != Input.MOUSE_MODE_VISIBLE:
+				Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+			return
+
 	var show_cursor = false
 	var cursor_world_pos = Vector2.ZERO
 	var show_system_mouse = false
@@ -2224,23 +2234,87 @@ func _update_relic_icons():
 	for child in relic_icon_container.get_children():
 		child.queue_free()
 
-	var relics = GameState.get_relics_from_passives()
+	var passives = GameState.get_passives()
+	var has_any = false
 
-	if relics.is_empty():
-		var label = Label.new()
-		label.text = "无遗物"
+	for i in range(passives.size()):
+		var p = passives[i]
+		if p == null:
+			continue
+
+		var btn := Button.new()
+		btn.add_theme_font_size_override("font_size", 6)
+		btn.focus_mode = Control.FOCUS_NONE
+		btn.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		btn.custom_minimum_size = Vector2(0, 14)
+
+		if p is ItemInstance:
+			# ---- 遗物：只展示，点击无效果 ----
+			var data = RelicManager.get_relic_data(p.item_id)
+			if data.is_empty():
+				continue
+			btn.text = "◆ " + data.get("name", "?")
+			btn.disabled = true                     # 视觉上不可点击
+			btn.tooltip_text = data.get("description", "")
+			relic_icon_container.add_child(btn)
+			has_any = true
+
+		elif p is Dictionary and p.has("refine_id"):
+			# ---- 精炼：可点击使用 ----
+			var refine_id : String = p.get("refine_id", "")
+			var recipe : Dictionary = RefineManager.get_recipe(refine_id)
+			if recipe.is_empty():
+				continue
+			btn.text = "★ " + recipe.get("name", "?") + " ▶"
+			btn.tooltip_text = recipe.get("description", "")
+			btn.pressed.connect(_on_use_refine.bind(i))
+			relic_icon_container.add_child(btn)
+			has_any = true
+
+	if not has_any:
+		var label := Label.new()
+		label.text = "无遗物/精炼"
 		label.add_theme_font_size_override("font_size", 6)
 		relic_icon_container.add_child(label)
+
+
+func _on_use_refine(slot_idx: int) -> void:
+	var passives = GameState.get_passives()
+	if slot_idx < 0 or slot_idx >= passives.size():
+		return
+	var p = passives[slot_idx]
+	if not (p is Dictionary and p.has("refine_id")):
 		return
 
-	for relic in relics:
-		var data = RelicManager.get_relic_data(relic.item_id)
-		if data.is_empty():
+	var refine_id : String = p.get("refine_id", "")
+	var effect : Dictionary = RefineManager.get_effect(refine_id)
+	if effect.is_empty():
+		return
+
+	var effect_type : String = effect.get("type", "")
+	var value : Variant = effect.get("value", 0)
+
+	for unit in UnitManager.unit_list:
+		if unit.unit_stats.team_id != 0:
 			continue
-		var label = Label.new()
-		label.text = data.get("name", "未知遗物")
-		label.add_theme_font_size_override("font_size", 6)
-		relic_icon_container.add_child(label)
+		match effect_type:
+			"attack_percent":
+				unit.buff_attack_percent += value
+			"crit_damage_bonus":
+				unit.buff_crit_damage_bonus += value
+			"defense_flat":
+				unit.buff_defense_flat += int(value)
+			"damage_reduction":
+				unit.buff_damage_reduction += value
+			"heal_full":
+				unit.hit_points = unit.unit_stats.max_hp
+				unit.update_hp_label()
+
+	GameState.set_passive_at_slot(slot_idx, null)
+
+	_update_relic_icons()
+	SoundManager.play_heal_sound()
+	print("[Battlefield] 使用精炼：", refine_id, " 类型：", effect_type)
 
 func show_item_detail(item_id: String):
 	if _detail_popup:
@@ -2276,45 +2350,12 @@ func _on_back_camp_pressed():
 #  战斗开始：精炼品消耗（从被动槽读） + 遗物属性应用
 # ============================================================
 func _apply_team_buffs():
-	# ---- 1. 汇总被动槽里的精炼 buff ----
-	var buffs = {
-		"attack_percent": 0.0,
-		"crit_damage_bonus": 0.0,
-		"defense_flat": 0,
-		"damage_reduction": 0.0,
-		"heal_full": false,
-	}
-	for entry in GameState.get_refines_from_passives():
-		var refine_id = entry.get("refine_id", "")
-		if refine_id == "":
-			continue
-		var effect = RefineManager.get_effect(refine_id)
-		if effect.is_empty():
-			continue
-		var value = effect.get("value", 0)
-		match effect.get("type", ""):
-			"attack_percent":     buffs["attack_percent"] += value
-			"crit_damage_bonus":  buffs["crit_damage_bonus"] += value
-			"defense_flat":       buffs["defense_flat"] += int(value)
-			"damage_reduction":   buffs["damage_reduction"] += value
-			"heal_full":          buffs["heal_full"] = true
-
-	# ---- 2. 清空被动槽里的精炼（已消耗） ----
-	GameState.clear_refine_passives()
-
-	# ---- 3. 遗物加成（从被动槽里提取） ----
+	# ---- 只应用遗物加成（精炼改为战斗中主动使用） ----
 	var relic_stats = GameState.get_global_relic_stats()
 
-	# ---- 4. 应用到玩家单位 ----
 	for unit in UnitManager.unit_list:
 		if unit.unit_stats.team_id != 0:
 			continue
-
-		unit.buff_attack_percent += buffs["attack_percent"]
-		unit.buff_crit_damage_bonus += buffs["crit_damage_bonus"]
-		unit.buff_defense_flat += int(buffs["defense_flat"])
-		unit.buff_damage_reduction += buffs["damage_reduction"]
-
 		var s = unit.unit_stats
 		var old_max = s.max_hp
 		s.max_hp       += int(relic_stats.get("max_hp", 0))
@@ -2324,9 +2365,9 @@ func _apply_team_buffs():
 		s.faith        += int(relic_stats.get("faith", 0))
 		s.arcane       += int(relic_stats.get("arcane", 0))
 		s.move_range   += int(relic_stats.get("move_range", 0))
-		unit.buff_attack_flat += int(relic_stats.get("attack", 0))
-		unit.buff_defense_flat += int(relic_stats.get("defense", 0))
-		unit.buff_magic_attack_flat += int(relic_stats.get("magic_attack", 0)) 
+		unit.buff_attack_flat       += int(relic_stats.get("attack", 0))
+		unit.buff_defense_flat      += int(relic_stats.get("defense", 0))
+		unit.buff_magic_attack_flat += int(relic_stats.get("magic_attack", 0))
 
 		var hp_delta = s.max_hp - old_max
 		if hp_delta > 0:
@@ -2335,10 +2376,4 @@ func _apply_team_buffs():
 			unit.hit_points = s.max_hp
 		unit.update_hp_label()
 
-	if buffs["heal_full"]:
-		for unit in UnitManager.unit_list:
-			if unit.unit_stats.team_id == 0:
-				unit.hit_points = unit.unit_stats.max_hp
-				unit.update_hp_label()
-
-	print("[Battlefield] 战斗 buff 已应用 | 精炼：", buffs, " 遗物：", relic_stats)
+	print("[Battlefield] 遗物 buff 已应用 | 遗物：", relic_stats)

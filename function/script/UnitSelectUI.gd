@@ -11,6 +11,11 @@ var _equipment_config_instance = null   # 防止重复实例化
 @onready var confirm_btn = $BottomBar/ConfirmButton
 @onready var back_btn = $BottomBar/BackButton
 
+# ★ 新增：单位信息面板
+@onready var info_name  : Label = $InfoPanel/InfoVBox/InfoName
+@onready var info_stats : Label = $InfoPanel/InfoVBox/InfoStats
+@onready var info_desc  : Label = $InfoPanel/InfoVBox/InfoDesc
+
 const EquipmentConfig = preload(Config.PATHS.EQUIPMENT_CONFIG_SCRIPT)
 
 func _ready():
@@ -40,7 +45,7 @@ func _setup_unit_buttons():
 	unlocked.sort()
 
 	for unit_name in unlocked:
-		var display_name = UnitDataManager.get_display_name_full(unit_name)  # ← 改这里
+		var display_name = UnitDataManager.get_display_name_full(unit_name)
 		var btn = Button.new()
 		btn.text = display_name
 		btn.set_meta("unit_name", unit_name)
@@ -50,7 +55,43 @@ func _setup_unit_buttons():
 		btn.disabled = selected
 		btn.modulate = Color(0.5, 0.5, 0.5) if selected else Color.WHITE
 		btn.pressed.connect(_on_unit_selected.bind(unit_name, btn))
+		btn.mouse_entered.connect(_on_unit_hover.bind(unit_name))   # ★ 新增
+		btn.mouse_exited.connect(_on_unit_hover_exit)                # ★ 新增
 		unit_buttons.add_child(btn)
+
+
+# ★ 新增：悬停显示单位详情
+func _on_unit_hover(unit_name: String):
+	if not info_name: return
+	var unit_dict = UnitDataManager.get_unit_data(unit_name)
+	if unit_dict.is_empty():
+		return
+
+	var display = unit_dict.get("display_name", unit_name)
+	var faction = unit_dict.get("faction", "无")
+	var type_cn = UnitDataManager.get_unit_type_display_name(unit_name)
+
+	info_name.text = "%s\n（%s｜%s）" % [display, faction, type_cn]
+
+	var lines : Array = []
+	lines.append("HP      %d" % unit_dict.get("max_hp", 0))
+	lines.append("力量    %d" % unit_dict.get("strength", 0))
+	lines.append("灵巧    %d" % unit_dict.get("dexterity", 0))
+	lines.append("智力    %d" % unit_dict.get("intelligence", 0))
+	lines.append("信仰    %d" % unit_dict.get("faith", 0))
+	lines.append("感应    %d" % unit_dict.get("arcane", 0))
+	lines.append("移动力  %d" % unit_dict.get("move_range", 0))
+	info_stats.text = "\n".join(lines)
+
+	info_desc.text = unit_dict.get("description", "")
+
+
+func _on_unit_hover_exit():
+	if not info_name: return
+	info_name.text = "选择单位查看详情"
+	info_stats.text = ""
+	info_desc.text = ""
+
 
 func _on_unit_selected(unit_name: String, btn: Button):
 	if unit_name in selected_units:
@@ -124,7 +165,6 @@ func _on_confirm_pressed():
 
 	# ---- 防止重复实例化 ----
 	if _equipment_config_instance != null:
-		# 面板已存在，将其显示并置于最前
 		_equipment_config_instance.show()
 		_equipment_config_instance.move_to_front()
 		return

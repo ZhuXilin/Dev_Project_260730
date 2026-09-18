@@ -45,6 +45,7 @@ var _arena_passives : Array = [null, null, null, null]
 # ============================================================
 @onready var unit_list : VBoxContainer = $Panel/VBox/MainHBox/UnitListScroll/UnitList
 @onready var selected_unit_label : Label = $Panel/VBox/MainHBox/CenterPanel/SelectedUnitLabel
+@onready var unit_stats_label : Label = $Panel/VBox/MainHBox/CenterPanel/UnitStatsPanel/UnitStatsLabel
 @onready var info_label : Label = $Panel/VBox/MainHBox/CenterPanel/InfoLabel
 @onready var streak_label : Label = $Panel/VBox/MainHBox/CenterPanel/StreakLabel
 @onready var start_btn : Button = $Panel/VBox/BottomBar/StartBtn
@@ -68,12 +69,14 @@ func _build_unit_list():
 
 	var all_units : Array = UnitDataManager.get_all_unit_ids()
 	var unlocked_list : Array = []
-	var locked_list : Array = []
 	for unit_type in all_units:
 		if Globals.is_unit_unlocked(unit_type):
 			unlocked_list.append(unit_type)
-		else:
-			locked_list.append(unit_type)
+
+	# ★ Debug：确认当前已解锁列表（排查"未解锁单位也显示"的问题）
+	print("[Arena] 全部单位：", all_units)
+	print("[Arena] 已解锁单位：", unlocked_list)
+	print("[Arena] Globals.unlocked_units = ", Globals.unlocked_units)
 
 	for unit_type in unlocked_list:
 		var btn := Button.new()
@@ -84,20 +87,15 @@ func _build_unit_list():
 		btn.set_meta("unit_type", unit_type)
 		btn.modulate = Color.WHITE
 		btn.pressed.connect(_on_unit_selected.bind(unit_type))
-		unit_list.add_child(btn)
-
-	for _u in locked_list:
-		var btn := Button.new()
-		btn.text = "？？？"
-		btn.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_NORMAL)
-		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
-		btn.modulate = Color(0.4, 0.4, 0.4, 1)
-		btn.disabled = true
+		btn.mouse_entered.connect(_on_unit_hover.bind(unit_type))
+		btn.mouse_exited.connect(_on_unit_hover_exit)
 		unit_list.add_child(btn)
 
 	if unlocked_list.size() > 0:
 		_on_unit_selected(unlocked_list[0])
+	else:
+		_current_player_data = null
+		_refresh_center_panel()
 
 
 func _on_unit_selected(unit_type: String):
@@ -115,11 +113,57 @@ func _on_unit_selected(unit_type: String):
 
 
 # ============================================================
+#  悬停显示单位属性
+# ============================================================
+func _on_unit_hover(unit_type: String):
+	if _phase != Phase.IDLE:
+		return
+	_refresh_unit_stats(unit_type)
+
+
+func _on_unit_hover_exit():
+	if _current_player_data:
+		_refresh_unit_stats(_current_player_data.unit_name)
+	else:
+		if unit_stats_label:
+			unit_stats_label.text = ""
+
+
+func _refresh_unit_stats(unit_type: String):
+	if not unit_stats_label:
+		return
+	var dict : Dictionary = UnitDataManager.get_unit_data(unit_type)
+	if dict.is_empty():
+		unit_stats_label.text = ""
+		return
+
+	var display : String = dict.get("display_name", unit_type)
+	var type_cn : String = UnitDataManager.get_unit_type_display_name(unit_type)
+
+	var lines : Array = []
+	lines.append("【%s｜%s】" % [display, type_cn])
+	lines.append("")
+	lines.append("HP    %d        移动力  %d" % [
+		dict.get("max_hp", 0), dict.get("move_range", 0)])
+	lines.append("力量  %d        灵巧    %d" % [
+		dict.get("strength", 0), dict.get("dexterity", 0)])
+	lines.append("智力  %d        信仰    %d" % [
+		dict.get("intelligence", 0), dict.get("faith", 0)])
+	lines.append("感应  %d" % dict.get("arcane", 0))
+	lines.append("")
+	lines.append(dict.get("description", ""))
+
+	unit_stats_label.text = "\n".join(lines)
+
+
+# ============================================================
 #  显示刷新
 # ============================================================
 func _refresh_center_panel():
 	if not _current_player_data:
 		selected_unit_label.text = "（未选择单位）"
+		if unit_stats_label:
+			unit_stats_label.text = ""
 		info_label.text = ""
 		return
 
@@ -129,6 +173,10 @@ func _refresh_center_panel():
 		display, _current_player_data.hit_points, _current_player_data.max_hp, slots
 	]
 
+	# 属性面板
+	_refresh_unit_stats(_current_player_data.unit_name)
+
+	# 目标词条信息
 	var talent_id : String = GameState.arena_target_talents.get(_current_player_data.unit_name, "")
 	if talent_id != "":
 		var data : TalentData = TalentManager.get_talent_data(talent_id)
@@ -260,7 +308,6 @@ func _run_battle_loop():
 		if not is_inside_tree():
 			return
 
-		# 失败路径：保留 ArenaBattle 的 defeat 音乐，不再重播
 		if winner != 0:
 			_show_summary(false, "失败", true)
 			return
@@ -339,7 +386,6 @@ func _check_entry_fee() -> String:
 	if not _pay_soul(cost):
 		return "decline"
 
-	# ★ 支付成功 → 立刻 +1 防具槽（进商店前）
 	_grant_armor_slot_for_entry()
 
 	SaveManager.auto_save()
@@ -362,7 +408,7 @@ func _show_entry_fee_panel(cost: int) -> String:
 	msg += "关键节点 · 小Boss\n"
 	msg += "下一战难度提升\n\n"
 	msg += "支付即得：+1 防具槽（可立即购物）\n"
-	msg += "胜利奖励：+%d 魂 + 金币\n" % reward_soul
+	msg += "胜利奖励：+%d 魂 +金币\n" % reward_soul
 	msg += "参与费：%d 魂\n" % cost
 	msg += "当前魂：%d   金币：%d\n" % [soul_now, _arena_gold]
 
@@ -748,7 +794,6 @@ func _show_summary(success: bool, reason: String, skip_music: bool = false):
 		_return_to_idle()
 		return
 
-	# ★ 强制恢复交互性（防御上次残留）
 	summary.set_interactable(true)
 
 	var net_gain : int = _get_net_gain()

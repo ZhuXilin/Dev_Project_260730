@@ -354,5 +354,69 @@
 	"modifier": {
 	  "dexterity": 1
 	}
+  },
+  "leather_armor": {
+	"id": "leather_armor",
+	"name": "皮甲",
+	"type": "armor",
+	"use_type": "equipment",
+	"icon": "res://content/images/items/armor.png",
+	"description": "轻便的皮甲，防御+1，敏捷+1",
+	"equipment_slot": "armor",
+	"price": 25,
+	"quality": "common",
+	"defense": 1,
+	"slot_count": 1,
+	"modifier": {
+	  "dexterity": 1
+	}
+  },
+  "iron_helmet": {
+	"id": "iron_helmet",
+	"name": "铁盔",
+	"type": "armor",
+	"use_type": "equipment",
+	"icon": "res://content/images/items/armor.png",
+	"description": "防护头部的铁盔，防御+2",
+	"equipment_slot": "armor",
+	"price": 45,
+	"quality": "common",
+	"defense": 2,
+	"slot_count": 1,
+	"modifier": {}
+  },
+  "mage_robe": {
+	"id": "mage_robe",
+	"name": "法袍",
+	"type": "armor",
+	"use_type": "equipment",
+	"icon": "res://content/images/items/armor.png",
+	"description": "施法者长袍，智力+1，信仰+1",
+	"equipment_slot": "armor",
+	"price": 70,
+	"quality": "rare",
+	"defense": 0,
+	"slot_count": 1,
+	"modifier": {
+	  "intelligence": 1,
+	  "faith": 1
+	}
+  },
+  "traveler_boots": {
+	"id": "traveler_boots",
+	"name": "旅行靴",
+	"type": "armor",
+	"use_type": "equipment",
+	"icon": "res://content/images/items/boots.png",
+	"description": "轻便的旅行靴，敏捷+1，移动力+1",
+	"equipment_slot": "armor",
+	"price": 55,
+	"quality": "rare",
+	"defense": 0,
+	"slot_count": 1,
+	"modifier": {
+	  "dexterity": 1,
+	  "move_range": 1
+	}
   }
 }
