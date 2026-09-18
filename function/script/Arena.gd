@@ -142,15 +142,11 @@ func _refresh_unit_stats(unit_type: String):
 
 	var lines : Array = []
 	lines.append("【%s｜%s】" % [display, type_cn])
-	lines.append("")
-	lines.append("HP    %d        移动力  %d" % [
-		dict.get("max_hp", 0), dict.get("move_range", 0)])
-	lines.append("力量  %d        灵巧    %d" % [
+	lines.append("HP %d   移动 %d   力 %d   灵 %d" % [
+		dict.get("max_hp", 0), dict.get("move_range", 0),
 		dict.get("strength", 0), dict.get("dexterity", 0)])
-	lines.append("智力  %d        信仰    %d" % [
-		dict.get("intelligence", 0), dict.get("faith", 0)])
-	lines.append("感应  %d" % dict.get("arcane", 0))
-	lines.append("")
+	lines.append("智 %d   信 %d   感 %d" % [
+		dict.get("intelligence", 0), dict.get("faith", 0), dict.get("arcane", 0)])
 	lines.append(dict.get("description", ""))
 
 	unit_stats_label.text = "\n".join(lines)
@@ -169,14 +165,12 @@ func _refresh_center_panel():
 
 	var display : String = UnitDataManager.get_unit_type_display_name(_current_player_data.unit_name)
 	var slots : int = _current_player_data.max_armor_slots
-	selected_unit_label.text = "单位：%s  HP %d/%d  防具槽 %d" % [
+	selected_unit_label.text = "%s  HP %d/%d  防具槽 %d" % [
 		display, _current_player_data.hit_points, _current_player_data.max_hp, slots
 	]
 
-	# 属性面板
 	_refresh_unit_stats(_current_player_data.unit_name)
 
-	# 目标词条信息（★ 改为"当前级内经验/当前级所需"）
 	var talent_id : String = GameState.arena_target_talents.get(_current_player_data.unit_name, "")
 	if talent_id != "":
 		var data : TalentData = TalentManager.get_talent_data(talent_id)

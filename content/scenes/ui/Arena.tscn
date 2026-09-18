@@ -19,10 +19,10 @@ color = Color(0.10980392, 0.10980392, 0.10980392, 1)
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = 16.0
-offset_top = 16.0
-offset_right = -16.0
-offset_bottom = -16.0
+offset_left = 8.0
+offset_top = 6.0
+offset_right = -8.0
+offset_bottom = -6.0
 grow_horizontal = 2
 grow_vertical = 2
 theme_override_styles/panel = ExtResource("2_style")
@@ -32,10 +32,13 @@ layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_top = -1.0
+offset_left = 8.0
+offset_top = 6.0
+offset_right = -8.0
+offset_bottom = -6.0
 grow_horizontal = 2
 grow_vertical = 2
-theme_override_constants/separation = 8
+theme_override_constants/separation = 4
 
 [node name="TitleBar" type="HBoxContainer" parent="Panel/VBox" unique_id=1365273357]
 layout_mode = 2
@@ -43,22 +46,22 @@ layout_mode = 2
 [node name="TitleLabel" type="Label" parent="Panel/VBox/TitleBar" unique_id=1182047216]
 layout_mode = 2
 size_flags_horizontal = 3
-theme_override_font_sizes/font_size = 12
+theme_override_font_sizes/font_size = 10
 text = "魂之竞技场"
 
 [node name="HintLabel" type="Label" parent="Panel/VBox/TitleBar" unique_id=1121858861]
 modulate = Color(0.7, 0.7, 0.7, 1)
 layout_mode = 2
-theme_override_font_sizes/font_size = 6
+theme_override_font_sizes/font_size = 5
 text = "免费入场 · 4 胜通关 · 生存 3 魂入场"
 
 [node name="MainHBox" type="HBoxContainer" parent="Panel/VBox" unique_id=779494358]
 layout_mode = 2
 size_flags_vertical = 3
-theme_override_constants/separation = 12
+theme_override_constants/separation = 6
 
 [node name="UnitListScroll" type="ScrollContainer" parent="Panel/VBox/MainHBox" unique_id=1641902938]
-custom_minimum_size = Vector2(100, 0)
+custom_minimum_size = Vector2(70, 0)
 layout_mode = 2
 size_flags_vertical = 3
 horizontal_scroll_mode = 0
@@ -66,31 +69,31 @@ horizontal_scroll_mode = 0
 [node name="UnitList" type="VBoxContainer" parent="Panel/VBox/MainHBox/UnitListScroll" unique_id=585669592]
 layout_mode = 2
 size_flags_horizontal = 3
+size_flags_vertical = 0
 theme_override_constants/separation = 2
 
 [node name="CenterPanel" type="VBoxContainer" parent="Panel/VBox/MainHBox" unique_id=1149372142]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
-theme_override_constants/separation = 8
+theme_override_constants/separation = 3
 
 [node name="SelectedUnitLabel" type="Label" parent="Panel/VBox/MainHBox/CenterPanel" unique_id=1148970143]
 layout_mode = 2
 size_flags_vertical = 0
-theme_override_font_sizes/font_size = 10
+theme_override_font_sizes/font_size = 8
 text = "选择单位"
 horizontal_alignment = 1
 autowrap_mode = 3
 
 [node name="UnitStatsPanel" type="PanelContainer" parent="Panel/VBox/MainHBox/CenterPanel" unique_id=1148970144]
-custom_minimum_size = Vector2(0, 80)
 layout_mode = 2
 size_flags_vertical = 3
 theme_override_styles/panel = ExtResource("2_style")
 
 [node name="UnitStatsLabel" type="Label" parent="Panel/VBox/MainHBox/CenterPanel/UnitStatsPanel" unique_id=1148970145]
 layout_mode = 2
-theme_override_font_sizes/font_size = 8
+theme_override_font_sizes/font_size = 7
 horizontal_alignment = 1
 vertical_alignment = 1
 autowrap_mode = 3
@@ -98,14 +101,14 @@ autowrap_mode = 3
 [node name="InfoLabel" type="Label" parent="Panel/VBox/MainHBox/CenterPanel" unique_id=576548730]
 layout_mode = 2
 size_flags_vertical = 0
-theme_override_font_sizes/font_size = 9
+theme_override_font_sizes/font_size = 7
 horizontal_alignment = 1
 autowrap_mode = 3
 
 [node name="StreakLabel" type="Label" parent="Panel/VBox/MainHBox/CenterPanel" unique_id=1561900263]
 layout_mode = 2
 size_flags_vertical = 0
-theme_override_font_sizes/font_size = 10
+theme_override_font_sizes/font_size = 8
 text = "最高连胜：0"
 horizontal_alignment = 1
 autowrap_mode = 3
@@ -113,13 +116,13 @@ autowrap_mode = 3
 [node name="BottomBar" type="HBoxContainer" parent="Panel/VBox" unique_id=1795169802]
 layout_mode = 2
 size_flags_horizontal = 4
-theme_override_constants/separation = 8
+theme_override_constants/separation = 12
 alignment = 1
 
 [node name="StartBtn" type="Button" parent="Panel/VBox/BottomBar" unique_id=354568327]
 layout_mode = 2
 size_flags_horizontal = 4
-theme_override_font_sizes/font_size = 10
+theme_override_font_sizes/font_size = 8
 theme_override_styles/normal = ExtResource("2_style")
 theme_override_styles/pressed = ExtResource("2_style")
 theme_override_styles/hover = ExtResource("2_style")
@@ -130,7 +133,7 @@ text = "开始挑战"
 [node name="BackButton" type="Button" parent="Panel/VBox/BottomBar" unique_id=664638350]
 layout_mode = 2
 size_flags_horizontal = 4
-theme_override_font_sizes/font_size = 10
+theme_override_font_sizes/font_size = 8
 theme_override_styles/normal = ExtResource("2_style")
 theme_override_styles/pressed = ExtResource("2_style")
 theme_override_styles/hover = ExtResource("2_style")

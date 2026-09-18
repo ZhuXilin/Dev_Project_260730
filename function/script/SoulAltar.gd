@@ -19,27 +19,26 @@ const ATTR_NAMES : Dictionary = {
 enum Tab { ATTR, TALENT }
 var _current_tab : Tab = Tab.ATTR
 var _current_unit_type : String = ""
+var _current_talent_id : String = ""
 
 
 @onready var soul_label : Label = $Panel/VBox/TitleBar/SoulLabel
 @onready var attr_tab_btn : Button = $Panel/VBox/TabBar/AttrTabBtn
 @onready var talent_tab_btn : Button = $Panel/VBox/TabBar/TalentTabBtn
 
-@onready var unit_list_scroll : ScrollContainer = $Panel/VBox/MainHBox/LeftColumn/UnitListScroll
+@onready var left_title : Label = $Panel/VBox/MainHBox/LeftColumn/LeftTitle
 @onready var unit_list : VBoxContainer = $Panel/VBox/MainHBox/LeftColumn/UnitListScroll/UnitList
 @onready var unit_sprite : AnimatedSprite2D = $Panel/VBox/MainHBox/InfoPanel/UnitHeader/SpriteContainer/UnitSprite
 @onready var unit_name_label : Label = $Panel/VBox/MainHBox/InfoPanel/UnitHeader/HeaderInfo/UnitNameLabel
 @onready var unit_desc_label : Label = $Panel/VBox/MainHBox/InfoPanel/UnitHeader/HeaderInfo/UnitDescLabel
-@onready var attr_container : VBoxContainer = $Panel/VBox/MainHBox/InfoPanel/AttrScroll/AttrContainer
+@onready var attr_container : VBoxContainer = $Panel/VBox/MainHBox/InfoPanel/AttrContainer
 @onready var point_label : Label = $Panel/VBox/MainHBox/InfoPanel/BottomBar/PointLabel
 @onready var reset_btn : Button = $Panel/VBox/MainHBox/InfoPanel/BottomBar/ResetBtn
 
 
 func _ready():
 	MusicManager.play_soul_altar_music()
-	_build_unit_list()
 	_refresh_soul()
-	_refresh_reset_btn()
 	_switch_tab(Tab.ATTR)
 
 
@@ -58,19 +57,20 @@ func _switch_tab(tab: Tab):
 	attr_tab_btn.modulate = Color.WHITE if tab == Tab.ATTR else Color(0.5, 0.5, 0.5, 1)
 	talent_tab_btn.modulate = Color.WHITE if tab == Tab.TALENT else Color(0.5, 0.5, 0.5, 1)
 
-	unit_list_scroll.visible = true
-	_build_unit_list()
-
 	if tab == Tab.ATTR:
+		left_title.text = "— 单位 —"
 		reset_btn.visible = true
+		_build_unit_list()
 		_refresh_attr_tab()
 	else:
+		left_title.text = "— 特技 —"
 		reset_btn.visible = false
-		_build_talent_tab()
+		_build_talent_list()
+		_refresh_talent_detail()
 
 
 # ============================================================
-#  单位列表
+#  左列 · 单位（加点 tab）
 # ============================================================
 func _build_unit_list():
 	for child in unit_list.get_children():
@@ -78,7 +78,6 @@ func _build_unit_list():
 		child.queue_free()
 
 	var all_units = UnitDataManager.get_all_unit_ids()
-
 	var unlocked_list : Array = []
 	var locked_list : Array = []
 	for unit_type in all_units:
@@ -87,11 +86,10 @@ func _build_unit_list():
 		else:
 			locked_list.append(unit_type)
 
-	# ---- 已解锁 ----
 	for unit_type in unlocked_list:
 		var btn = Button.new()
 		btn.text = UnitDataManager.get_unit_type_display_name(unit_type)
-		btn.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_NORMAL)
+		btn.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_SMALL)
 		btn.add_theme_color_override("font_color", Color.WHITE)
 		btn.add_theme_color_override("font_color_hover", Color.WHITE)
 		btn.add_theme_color_override("font_color_pressed", Color.WHITE)
@@ -103,12 +101,10 @@ func _build_unit_list():
 		btn.pressed.connect(_on_unit_selected.bind(unit_type))
 		unit_list.add_child(btn)
 
-	# ---- 未解锁分隔标题 ----
 	if locked_list.size() > 0:
 		var sep = HSeparator.new()
 		sep.modulate = Color(0.4, 0.4, 0.4, 1)
 		unit_list.add_child(sep)
-
 		var lock_title = Label.new()
 		lock_title.text = "— 未解锁 —"
 		lock_title.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_SMALL)
@@ -116,7 +112,6 @@ func _build_unit_list():
 		lock_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		unit_list.add_child(lock_title)
 
-	# ---- 未解锁 ----
 	for unit_type in locked_list:
 		var row = HBoxContainer.new()
 		row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -124,7 +119,7 @@ func _build_unit_list():
 
 		var name_label = Label.new()
 		name_label.text = UnitDataManager.get_unit_type_display_name(unit_type)
-		name_label.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_NORMAL)
+		name_label.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_TINY)
 		name_label.add_theme_color_override("font_color", Color(0.55, 0.55, 0.55, 1))
 		name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
@@ -132,20 +127,19 @@ func _build_unit_list():
 
 		var cost : int = Globals.get_unit_unlock_cost(unit_type)
 		var unlock_btn = Button.new()
-		unlock_btn.text = "%d 魂" % cost
-		unlock_btn.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_SMALL)
+		unlock_btn.text = "%d魂" % cost
+		unlock_btn.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_TINY)
 		unlock_btn.add_theme_color_override("font_color", Color.WHITE)
 		unlock_btn.add_theme_color_override("font_color_hover", Color.WHITE)
 		unlock_btn.add_theme_color_override("font_color_pressed", Color.WHITE)
 		unlock_btn.add_theme_color_override("font_color_disabled", Color(0.5, 0.5, 0.5, 1))
-		unlock_btn.custom_minimum_size = Vector2(60, 0)
+		unlock_btn.custom_minimum_size = Vector2(34, 0)
 		unlock_btn.disabled = GameState.soul < cost
 		unlock_btn.pressed.connect(_on_unlock_unit.bind(unit_type))
 		row.add_child(unlock_btn)
 
 		unit_list.add_child(row)
 
-	# ---- 默认选中 ----
 	if _current_unit_type == "" and unlocked_list.size() > 0:
 		_current_unit_type = unlocked_list[0]
 
@@ -160,10 +154,7 @@ func _on_unlock_unit(unit_type: String):
 	SaveManager.auto_save()
 	_refresh_soul()
 	_build_unit_list()
-	if _current_tab == Tab.TALENT:
-		_build_talent_tab()
-	else:
-		_refresh_attr_tab()
+	_refresh_attr_tab()
 	_show_msg("已解锁：%s" % UnitDataManager.get_unit_type_display_name(unit_type))
 
 
@@ -172,19 +163,123 @@ func _on_unit_selected(unit_type: String):
 	for child in unit_list.get_children():
 		if child is Button:
 			var ut = child.get_meta("unit_type", "")
-			child.modulate = Color.WHITE if ut == unit_type else Color(0.7, 0.7, 0.7, 1)
-	if _current_tab == Tab.ATTR:
-		_refresh_attr_tab()
-	else:
-		_build_talent_tab()
+			if ut != "":
+				child.modulate = Color.WHITE if ut == unit_type else Color(0.7, 0.7, 0.7, 1)
+	_refresh_attr_tab()
 
 
 # ============================================================
-#  Tab 1 · 加点
+#  左列 · 特技（特技 tab）
+# ============================================================
+func _build_talent_list():
+	for child in unit_list.get_children():
+		unit_list.remove_child(child)
+		child.queue_free()
+
+	var all_ids = TalentManager.get_all_talent_ids()
+	var unlocked_list : Array = []
+	var locked_list : Array = []
+	for tid in all_ids:
+		if Globals.is_talent_unlocked(tid):
+			unlocked_list.append(tid)
+		else:
+			locked_list.append(tid)
+
+	# ---- 已解锁 ----
+	if unlocked_list.size() > 0:
+		var title1 = Label.new()
+		title1.text = "— 已解锁 —"
+		title1.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_TINY)
+		title1.add_theme_color_override("font_color", Color(0.6, 0.6, 0.6, 1))
+		title1.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		unit_list.add_child(title1)
+
+		for tid in unlocked_list:
+			var data : TalentData = TalentManager.get_talent_data(tid)
+			if not data:
+				continue
+			var btn = Button.new()
+			btn.text = data.display_name
+			btn.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_SMALL)
+			btn.add_theme_color_override("font_color", Color.WHITE)
+			btn.add_theme_color_override("font_color_hover", Color.WHITE)
+			btn.add_theme_color_override("font_color_pressed", Color.WHITE)
+			btn.add_theme_color_override("font_color_focus", Color.WHITE)
+			btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
+			btn.set_meta("talent_id", tid)
+			btn.modulate = Color.WHITE if tid == _current_talent_id else Color(0.7, 0.7, 0.7, 1)
+			btn.pressed.connect(_on_talent_selected.bind(tid))
+			unit_list.add_child(btn)
+
+	# ---- 未解锁 ----
+	if locked_list.size() > 0:
+		var sep = HSeparator.new()
+		sep.modulate = Color(0.4, 0.4, 0.4, 1)
+		unit_list.add_child(sep)
+
+		var title2 = Label.new()
+		title2.text = "— 未解锁 —"
+		title2.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_TINY)
+		title2.add_theme_color_override("font_color", Color(0.5, 0.5, 0.5, 1))
+		title2.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		unit_list.add_child(title2)
+
+		for tid in locked_list:
+			var data : TalentData = TalentManager.get_talent_data(tid)
+			if not data:
+				continue
+			var btn = Button.new()
+			btn.text = data.display_name
+			btn.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_SMALL)
+			btn.add_theme_color_override("font_color", Color(0.6, 0.6, 0.6, 1))
+			btn.add_theme_color_override("font_color_hover", Color(0.8, 0.8, 0.8, 1))
+			btn.add_theme_color_override("font_color_pressed", Color(0.9, 0.9, 0.9, 1))
+			btn.add_theme_color_override("font_color_focus", Color(0.6, 0.6, 0.6, 1))
+			btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
+			btn.set_meta("talent_id", tid)
+			if tid == _current_talent_id:
+				btn.modulate = Color(0.85, 0.85, 0.85, 1)
+			else:
+				btn.modulate = Color(0.5, 0.5, 0.5, 1)
+			btn.pressed.connect(_on_talent_selected.bind(tid))
+			unit_list.add_child(btn)
+
+	# ---- 默认选中：优先选已解锁的第一个 ----
+	if _current_talent_id == "":
+		if unlocked_list.size() > 0:
+			_current_talent_id = unlocked_list[0]
+		elif locked_list.size() > 0:
+			_current_talent_id = locked_list[0]
+
+func _on_talent_selected(talent_id: String):
+	_current_talent_id = talent_id
+	for child in unit_list.get_children():
+		if child is Button:
+			var tid : String = child.get_meta("talent_id", "")
+			if tid == "":
+				continue
+			var is_unlocked = Globals.is_talent_unlocked(tid)
+			if not is_unlocked:
+				if tid == talent_id:
+					child.modulate = Color(0.85, 0.85, 0.85, 1)
+				else:
+					child.modulate = Color(0.5, 0.5, 0.5, 1)
+			else:
+				child.modulate = Color.WHITE if tid == talent_id else Color(0.7, 0.7, 0.7, 1)
+	_refresh_talent_detail()
+
+
+# ============================================================
+#  右列 · 加点 tab
 # ============================================================
 func _refresh_attr_tab():
+	unit_sprite.visible = true
+
 	if _current_unit_type == "":
 		unit_name_label.text = "（未选择单位）"
+		unit_name_label.remove_theme_color_override("font_color")
 		unit_desc_label.text = ""
 		unit_sprite.visible = false
 		_clear_attr_container()
@@ -194,6 +289,7 @@ func _refresh_attr_tab():
 
 	var display = UnitDataManager.get_unit_type_display_name(_current_unit_type)
 	unit_name_label.text = display
+	unit_name_label.remove_theme_color_override("font_color")
 
 	var unit_dict = UnitDataManager.get_unit_data(_current_unit_type)
 	unit_desc_label.text = unit_dict.get("description", "")
@@ -211,38 +307,15 @@ func _refresh_attr_tab():
 	_refresh_reset_btn()
 
 
-func _load_unit_sprite(unit_type: String):
-	var path = UnitDataManager.get_sprite_frames_path(unit_type)
-	if path != "" and ResourceLoader.exists(path):
-		var frames = load(path) as SpriteFrames
-		if frames:
-			unit_sprite.sprite_frames = frames
-			if frames.has_animation("idle"):
-				unit_sprite.play("idle")
-			else:
-				var anims = frames.get_animation_names()
-				if anims.size() > 0:
-					unit_sprite.play(anims[0])
-			unit_sprite.visible = true
-			unit_sprite.position = Vector2(24, 24)
-			return
-	unit_sprite.visible = false
-
-
-func _clear_attr_container():
-	for child in attr_container.get_children():
-		attr_container.remove_child(child)
-		child.queue_free()
-
-
 func _build_attr_row(attr_key: String, current_points: int, at_cap: bool) -> HBoxContainer:
 	var row = HBoxContainer.new()
-	row.add_theme_constant_override("separation", 8)
+	row.add_theme_constant_override("separation", 3)
+	row.custom_minimum_size = Vector2(0, 11)
 
 	var name_label = Label.new()
 	name_label.text = ATTR_NAMES[attr_key]
-	name_label.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_NORMAL)
-	name_label.custom_minimum_size = Vector2(50, 0)
+	name_label.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_SMALL)
+	name_label.custom_minimum_size = Vector2(34, 0)
 	row.add_child(name_label)
 
 	var base_dict = UnitDataManager.get_unit_data(_current_unit_type)
@@ -251,22 +324,21 @@ func _build_attr_row(attr_key: String, current_points: int, at_cap: bool) -> HBo
 		"vitality":     base_val = base_dict.get("max_hp", 0)
 		"strength":     base_val = base_dict.get("strength", 0)
 		"dexterity":    base_val = base_dict.get("dexterity", 0)
-		"intelligence": base_val = base_dict.get("intelligence", 0)
+		"intelligence": base_dict.get("intelligence", 0)
 		"faith":        base_dict.get("faith", 0)
 		"arcane":       base_dict.get("arcane", 0)
 
-	var bonus_val : int = current_points
-	var final_val : int = base_val + bonus_val
-
 	var value_label = Label.new()
-	value_label.text = "%d  (+%d) → %d" % [base_val, bonus_val, final_val]
-	value_label.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_NORMAL)
+	value_label.text = "%d (+%d) → %d" % [base_val, current_points, base_val + current_points]
+	value_label.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_SMALL)
 	value_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	value_label.clip_text = true
 	row.add_child(value_label)
 
 	var add_btn = Button.new()
-	add_btn.text = "+  (3魂)"
+	add_btn.text = "+3"
 	add_btn.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_SMALL)
+	add_btn.custom_minimum_size = Vector2(28, 0)
 	var can_add = (not at_cap) and GameState.soul >= SOUL_PER_POINT
 	add_btn.disabled = not can_add
 	add_btn.pressed.connect(_on_add_pressed.bind(attr_key))
@@ -280,7 +352,6 @@ func _on_add_pressed(attr_key: String):
 		return
 	var growth = _get_growth(_current_unit_type)
 	var total = _sum_growth(growth)
-
 	if total >= GROWTH_TOTAL_CAP:
 		_show_msg("该单位已达成长上限")
 		return
@@ -331,6 +402,130 @@ func _sum_growth(growth: Dictionary) -> int:
 	return total
 
 
+# ============================================================
+#  右列 · 特技 tab
+# ============================================================
+func _refresh_talent_detail():
+	_clear_attr_container()
+	unit_sprite.visible = false
+
+	if _current_talent_id == "":
+		unit_name_label.text = "（未选择特技）"
+		unit_name_label.remove_theme_color_override("font_color")
+		unit_desc_label.text = ""
+		point_label.text = "魂：%d" % GameState.soul
+		return
+
+	var data : TalentData = TalentManager.get_talent_data(_current_talent_id)
+	if not data:
+		unit_name_label.text = "?"
+		unit_desc_label.text = ""
+		return
+
+	var is_unlocked = Globals.is_talent_unlocked(_current_talent_id)
+
+	unit_name_label.text = data.display_name
+	unit_name_label.add_theme_color_override("font_color", _rarity_color(data.rarity))
+
+	var desc_lines : Array = []
+	desc_lines.append(data.description)
+	desc_lines.append("稀有度: %s   流派: %s   积累: %d 回合" % [
+		data.rarity, data.school, data.accumulation_threshold])
+	var compatible : Array = data.compatible_units if data.compatible_units != null else []
+	if compatible.is_empty():
+		desc_lines.append("可装备: 全部单位")
+	else:
+		var names : Array = []
+		for key in compatible:
+			names.append(UnitDataManager.get_unit_type_display_name(key))
+		desc_lines.append("可装备: " + " / ".join(names))
+	unit_desc_label.text = "\n".join(desc_lines)
+
+	# ---- 未解锁：显示解锁按钮 ----
+	if not is_unlocked:
+		var unlock_btn = Button.new()
+		unlock_btn.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_NORMAL)
+		unlock_btn.custom_minimum_size = Vector2(0, 22)
+		var cost : int = Globals.get_talent_soul_cost(_current_talent_id)
+		if cost > 0:
+			unlock_btn.text = "解锁（%d 魂）" % cost
+			unlock_btn.disabled = not Globals.can_soul_unlock_talent(_current_talent_id)
+			unlock_btn.pressed.connect(_on_unlock_talent.bind(_current_talent_id))
+		else:
+			unlock_btn.text = "剧情获取 / 不可解锁"
+			unlock_btn.disabled = true
+		attr_container.add_child(unlock_btn)
+		point_label.text = "魂：%d" % GameState.soul
+		return
+
+	# ---- 已解锁：显示各单位经验 ----
+	var title = Label.new()
+	title.text = "—— 各单位经验 ——"
+	title.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_SMALL)
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.modulate = Color(0.7, 0.7, 0.7, 1)
+	attr_container.add_child(title)
+
+	var units_to_show : Array = []
+	if compatible.is_empty():
+		for ut in Globals.get_unlocked_units():
+			units_to_show.append(ut)
+	else:
+		for key in compatible:
+			if Globals.is_unit_unlocked(key):
+				units_to_show.append(key)
+
+	if units_to_show.is_empty():
+		var empty_lb = Label.new()
+		empty_lb.text = "（无已解锁的兼容单位）"
+		empty_lb.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_SMALL)
+		empty_lb.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		empty_lb.modulate = Color(0.6, 0.6, 0.6, 1)
+		attr_container.add_child(empty_lb)
+	else:
+		for ut in units_to_show:
+			attr_container.add_child(_build_talent_exp_row(ut))
+
+	point_label.text = "魂：%d" % GameState.soul
+
+
+func _build_talent_exp_row(unit_type: String) -> HBoxContainer:
+	var row = HBoxContainer.new()
+	row.add_theme_constant_override("separation", 6)
+	row.custom_minimum_size = Vector2(0, 11)
+
+	var name_lb = Label.new()
+	name_lb.text = UnitDataManager.get_unit_type_display_name(unit_type)
+	name_lb.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_SMALL)
+	name_lb.custom_minimum_size = Vector2(44, 0)
+	row.add_child(name_lb)
+
+	var exp_lb = Label.new()
+	exp_lb.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_SMALL)
+	exp_lb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	exp_lb.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	if TalentManager.is_talent_max_level(unit_type, _current_talent_id):
+		exp_lb.text = "Lv%d   MAX" % TalentManager.get_talent_level(unit_type, _current_talent_id)
+	else:
+		var lv = TalentManager.get_talent_level(unit_type, _current_talent_id)
+		var cur = TalentManager.get_talent_exp_in_level(unit_type, _current_talent_id)
+		var need = TalentManager.get_level_required_exp(unit_type, _current_talent_id)
+		exp_lb.text = "Lv%d   %d / %d" % [lv, cur, need]
+	row.add_child(exp_lb)
+
+	return row
+
+
+func _on_unlock_talent(talent_id: String):
+	if Globals.soul_unlock_talent(talent_id):
+		_refresh_soul()
+		_build_talent_list()
+		_refresh_talent_detail()
+
+
+# ============================================================
+#  通用辅助
+# ============================================================
 func _refresh_soul():
 	soul_label.text = "魂: " + str(GameState.soul)
 
@@ -341,114 +536,31 @@ func _refresh_reset_btn():
 		return
 	var growth = _get_growth(_current_unit_type)
 	var total = _sum_growth(growth)
-	if total <= 0 or GameState.soul < SOUL_RESET_COST:
-		reset_btn.disabled = true
-	else:
-		reset_btn.disabled = false
+	reset_btn.disabled = (total <= 0 or GameState.soul < SOUL_RESET_COST)
 
 
-# ============================================================
-#  Tab 2 · 特技
-# ============================================================
-func _build_talent_tab():
-	_clear_attr_container()
-	unit_name_label.text = "特技库"
-	if _current_unit_type == "":
-		unit_desc_label.text = "消耗魂解锁特技（未选择单位，无法显示经验）"
-	else:
-		var disp = UnitDataManager.get_unit_type_display_name(_current_unit_type)
-		unit_desc_label.text = "消耗魂解锁特技（经验显示：%s）" % disp
-	unit_sprite.visible = false
-	point_label.text = "魂：%d" % GameState.soul
-	reset_btn.disabled = true
-
-	var all_ids = TalentManager.get_all_talent_ids()
-	for talent_id in all_ids:
-		var data = TalentManager.get_talent_data(talent_id)
-		if not data:
-			continue
-		attr_container.add_child(_build_talent_row(talent_id, data))
+func _clear_attr_container():
+	for child in attr_container.get_children():
+		attr_container.remove_child(child)
+		child.queue_free()
 
 
-func _build_talent_row(talent_id: String, data) -> HBoxContainer:
-	var row = HBoxContainer.new()
-	row.add_theme_constant_override("separation", 8)
-
-	var unlocked = Globals.is_talent_unlocked(talent_id)
-	var story_locked = Globals.is_talent_story_locked(talent_id)
-	var soul_cost = Globals.get_talent_soul_cost(talent_id)
-	var is_soul_unlockable = (soul_cost > 0)
-
-	# ---- 名称 ----
-	var name_label = Label.new()
-	name_label.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_LARGE)
-	name_label.custom_minimum_size = Vector2(90, 0)
-	name_label.text = data.display_name
-	if unlocked:
-		name_label.add_theme_color_override("font_color", _rarity_color(data.rarity))
-	else:
-		name_label.modulate = Color(0.4, 0.4, 0.4, 1)
-	row.add_child(name_label)
-
-	# ---- 状态 / 等级 + 经验 ----
-	var status_label = Label.new()
-	status_label.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_SMALL)
-	status_label.custom_minimum_size = Vector2(110, 0)
-	status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	if unlocked:
-		if _current_unit_type == "":
-			status_label.text = "Lv.—  —/—"
-			status_label.modulate = Color(0.7, 0.7, 0.7, 1)
-		else:
-			var lv : int = TalentManager.get_talent_level(_current_unit_type, talent_id)
-			if TalentManager.is_talent_max_level(_current_unit_type, talent_id):
-				status_label.text = "Lv.%d  MAX" % lv
+func _load_unit_sprite(unit_type: String):
+	var path = UnitDataManager.get_sprite_frames_path(unit_type)
+	if path != "" and ResourceLoader.exists(path):
+		var frames = load(path) as SpriteFrames
+		if frames:
+			unit_sprite.sprite_frames = frames
+			if frames.has_animation("idle"):
+				unit_sprite.play("idle")
 			else:
-				var cur_exp : int = TalentManager.get_talent_exp_in_level(_current_unit_type, talent_id)
-				var need_exp : int = TalentManager.get_level_required_exp(_current_unit_type, talent_id)
-				status_label.text = "Lv.%d  %d/%d" % [lv, cur_exp, need_exp]
-			status_label.modulate = Color.WHITE
-	elif story_locked:
-		status_label.text = "剧情获取"
-		status_label.modulate = Color(0.7, 0.7, 0.5, 1)
-	elif is_soul_unlockable:
-		status_label.text = "%d 魂" % soul_cost
-		status_label.modulate = Color.WHITE if GameState.soul >= soul_cost else Color(1.0, 0.4, 0.4, 1)
-	else:
-		status_label.text = "—"
-	row.add_child(status_label)
-
-	# ---- 描述 ----
-	var desc_label = Label.new()
-	desc_label.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_SMALL)
-	desc_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	desc_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	desc_label.modulate = Color(0.7, 0.7, 0.7, 1)
-	desc_label.text = data.description
-	row.add_child(desc_label)
-
-	# ---- 按钮 ----
-	var btn = Button.new()
-	btn.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_SMALL)
-	btn.custom_minimum_size = Vector2(60, 0)
-	btn.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-
-	if unlocked:
-		btn.text = "已解锁"
-		btn.disabled = true
-	elif story_locked:
-		btn.text = "剧情获取"
-		btn.disabled = true
-	elif is_soul_unlockable:
-		btn.text = "解锁"
-		btn.disabled = not Globals.can_soul_unlock_talent(talent_id)
-		btn.pressed.connect(_on_unlock_talent.bind(talent_id))
-	else:
-		btn.text = "—"
-		btn.disabled = true
-	row.add_child(btn)
-
-	return row
+				var anims = frames.get_animation_names()
+				if anims.size() > 0:
+					unit_sprite.play(anims[0])
+			unit_sprite.visible = true
+			unit_sprite.position = Vector2(13, 4)
+			return
+	unit_sprite.visible = false
 
 
 func _rarity_color(rarity: String) -> Color:
@@ -459,15 +571,6 @@ func _rarity_color(rarity: String) -> Color:
 		_:           return Color.WHITE
 
 
-func _on_unlock_talent(talent_id: String):
-	if Globals.soul_unlock_talent(talent_id):
-		_refresh_soul()
-		_switch_tab(Tab.TALENT)
-
-
-# ============================================================
-#  辅助
-# ============================================================
 func _show_msg(msg: String):
 	var original = point_label.text
 	point_label.text = msg

@@ -173,19 +173,54 @@ func _build_arsenal_list(item_type: String):
 		var data : ItemData = ItemManager.get_item_data(item_id)
 		if not data or data.type != item_type:
 			continue
-		# 防具 tab 跳过配方产物
-		if item_type == "armor" and RecipeManager.get_recipe(item_id) != null:
-			continue
 		var is_unlocked : bool = _is_item_unlocked(item_id, item_type)
 		if is_unlocked:
 			unlocked_list.append(item_id)
 		else:
 			locked_list.append(item_id)
 
-	for item_id in unlocked_list:
-		content_container.add_child(_build_arsenal_row(item_id, true))
-	for item_id in locked_list:
-		content_container.add_child(_build_arsenal_row(item_id, false))
+	# ---- 排序：价格（越便宜越靠前），同价按 id 字母序 ----
+	unlocked_list.sort_custom(_sort_by_price)
+	locked_list.sort_custom(_sort_by_price)
+
+	# ---- 已解锁分组 ----
+	if unlocked_list.size() > 0:
+		content_container.add_child(_make_section_title("— 已解锁 —"))
+		for item_id in unlocked_list:
+			content_container.add_child(_build_arsenal_row(item_id, true))
+
+	# ---- 未解锁分组 ----
+	if locked_list.size() > 0:
+		if unlocked_list.size() > 0:
+			content_container.add_child(_make_separator())
+		content_container.add_child(_make_section_title("— 未解锁 —"))
+		for item_id in locked_list:
+			content_container.add_child(_build_arsenal_row(item_id, false))
+
+
+func _sort_by_price(a: String, b: String) -> bool:
+	var da : ItemData = ItemManager.get_item_data(a)
+	var db : ItemData = ItemManager.get_item_data(b)
+	if not da or not db:
+		return a < b
+	if da.price != db.price:
+		return da.price < db.price
+	return a < b
+
+
+func _make_section_title(text: String) -> Label:
+	var lb = Label.new()
+	lb.text = text
+	lb.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_SMALL)
+	lb.add_theme_color_override("font_color", Color(0.6, 0.6, 0.6, 1))
+	lb.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	return lb
+
+
+func _make_separator() -> HSeparator:
+	var sep = HSeparator.new()
+	sep.modulate = Color(0.4, 0.4, 0.4, 1)
+	return sep
 
 
 func _is_item_unlocked(item_id: String, _item_type: String) -> bool:
@@ -253,6 +288,7 @@ func _get_unlock_cost(item_id: String) -> Dictionary:
 	var recipe : RecipeData = RecipeManager.get_recipe(item_id)
 	if recipe and not recipe.unlock_cost.is_empty():
 		return recipe.unlock_cost
+	# 兜底：普通武器/防具无解锁成本（已经默认解锁，不该走到这）
 	return { "粗铁": 3 }
 
 
@@ -330,10 +366,32 @@ func _build_recipe_list():
 		else:
 			locked_list.append(recipe)
 
-	for recipe in unlocked_list:
-		content_container.add_child(_build_recipe_row(recipe, true))
-	for recipe in locked_list:
-		content_container.add_child(_build_recipe_row(recipe, false))
+	unlocked_list.sort_custom(_sort_recipe_by_cost)
+	locked_list.sort_custom(_sort_recipe_by_cost)
+
+	if unlocked_list.size() > 0:
+		content_container.add_child(_make_section_title("— 已解锁 —"))
+		for recipe in unlocked_list:
+			content_container.add_child(_build_recipe_row(recipe, true))
+
+	if locked_list.size() > 0:
+		if unlocked_list.size() > 0:
+			content_container.add_child(_make_separator())
+		content_container.add_child(_make_section_title("— 未解锁 —"))
+		for recipe in locked_list:
+			content_container.add_child(_build_recipe_row(recipe, false))
+
+
+func _sort_recipe_by_cost(a: RecipeData, b: RecipeData) -> bool:
+	var ca : int = 0
+	for v in a.unlock_cost.values():
+		ca += int(v)
+	var cb : int = 0
+	for v in b.unlock_cost.values():
+		cb += int(v)
+	if ca != cb:
+		return ca < cb
+	return a.id < b.id
 
 
 func _build_recipe_row(recipe: RecipeData, unlocked: bool) -> HBoxContainer:
@@ -429,10 +487,34 @@ func _build_refine_list():
 		else:
 			locked_list.append(refine_id)
 
-	for refine_id in unlocked_list:
-		content_container.add_child(_build_refine_row(refine_id, true))
-	for refine_id in locked_list:
-		content_container.add_child(_build_refine_row(refine_id, false))
+	unlocked_list.sort_custom(_sort_refine_by_cost)
+	locked_list.sort_custom(_sort_refine_by_cost)
+
+	if unlocked_list.size() > 0:
+		content_container.add_child(_make_section_title("— 已解锁 —"))
+		for refine_id in unlocked_list:
+			content_container.add_child(_build_refine_row(refine_id, true))
+
+	if locked_list.size() > 0:
+		if unlocked_list.size() > 0:
+			content_container.add_child(_make_separator())
+		content_container.add_child(_make_section_title("— 未解锁 —"))
+		for refine_id in locked_list:
+			content_container.add_child(_build_refine_row(refine_id, false))
+
+
+func _sort_refine_by_cost(a: String, b: String) -> bool:
+	var ra : Dictionary = RefineManager.get_recipe(a)
+	var rb : Dictionary = RefineManager.get_recipe(b)
+	var ca : int = 0
+	for v in ra.get("unlock_cost", {}).values():
+		ca += int(v)
+	var cb : int = 0
+	for v in rb.get("unlock_cost", {}).values():
+		cb += int(v)
+	if ca != cb:
+		return ca < cb
+	return a < b
 
 
 func _build_refine_row(refine_id: String, unlocked: bool) -> HBoxContainer:
