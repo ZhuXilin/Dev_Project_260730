@@ -36,6 +36,14 @@ func setup(node_data: MapNode, map_scene: CanvasLayer):
 		pressed.disconnect(_on_clicked)
 	pressed.connect(_on_clicked)
 	
+	# ---- 悬停显示节点描述（新增） ----
+	if mouse_entered.is_connected(_on_hover_enter):
+		mouse_entered.disconnect(_on_hover_enter)
+	if mouse_exited.is_connected(_on_hover_exit):
+		mouse_exited.disconnect(_on_hover_exit)
+	mouse_entered.connect(_on_hover_enter)
+	mouse_exited.connect(_on_hover_exit)
+	
 	for child in get_children():
 		if child.name == "CheckLabel":
 			remove_child(child)
@@ -70,3 +78,12 @@ func _on_clicked():
 	print("地图按钮被点击: ", text)
 	if map_scene_ref and map_scene_ref.has_method("on_node_selected"):
 		map_scene_ref.on_node_selected(map_node)
+
+func _on_hover_enter():
+	if map_scene_ref and map_scene_ref.has_method("show_node_info"):
+		map_scene_ref.show_node_info(map_node)
+
+
+func _on_hover_exit():
+	if map_scene_ref and map_scene_ref.has_method("hide_node_info"):
+		map_scene_ref.hide_node_info()

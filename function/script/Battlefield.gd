@@ -2326,6 +2326,7 @@ func _apply_team_buffs():
 		s.move_range   += int(relic_stats.get("move_range", 0))
 		unit.buff_attack_flat += int(relic_stats.get("attack", 0))
 		unit.buff_defense_flat += int(relic_stats.get("defense", 0))
+		unit.buff_magic_attack_flat += int(relic_stats.get("magic_attack", 0)) 
 
 		var hp_delta = s.max_hp - old_max
 		if hp_delta > 0:

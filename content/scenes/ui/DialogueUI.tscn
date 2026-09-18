@@ -2,7 +2,7 @@
 
 [ext_resource type="StyleBox" uid="uid://6qbsaxkfwg3o" path="res://content/resource/stylebox/8bit_style_box_flat.tres" id="1_q0had"]
 
-[node name="DialogueUi" type="CanvasLayer" unique_id=2135418119]
+[node name="DialogueUI" type="CanvasLayer" unique_id=2135418119]
 layer = 10
 
 [node name="DialoguePanel" type="Panel" parent="." unique_id=1612508632]

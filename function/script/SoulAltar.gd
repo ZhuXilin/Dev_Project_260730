@@ -138,19 +138,6 @@ func _on_unlock_unit(unit_type: String):
 	_build_unit_list()
 	_show_msg("已解锁：%s" % UnitDataManager.get_unit_type_display_name(unit_type))
 
-# ★ 新增：解锁费用表
-const UNIT_UNLOCK_COSTS : Dictionary = {
-	"archer":     30,
-	"pegasus":    50,
-	"mage":       60,
-	"cleric":     40,
-	"dragonborn": 150,
-	"armored":    120,
-}
-
-func _get_unit_unlock_cost(unit_type: String) -> int:
-	return UNIT_UNLOCK_COSTS.get(unit_type, 50)
-
 func _on_unit_selected(unit_type: String):
 	_current_unit_type = unit_type
 	for child in unit_list.get_children():

@@ -107,6 +107,9 @@ func calculate_damage(attacker: Unit, defender: Unit) -> int:
 		atk_bonus += val * modifier[attr]
 
 	var total_attack = base_attack + atk_bonus + attacker.buff_attack_flat
+	# ★ 新增：魔法武器额外吃 buff_magic_attack_flat
+	if weapon_data.magic_attack.get("ignore_defense", false):
+		total_attack += attacker.buff_magic_attack_flat
 	total_attack *= (1.0 + attacker.buff_attack_percent)
 
 	var armor_defense = 0

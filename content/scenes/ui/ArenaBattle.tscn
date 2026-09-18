@@ -41,7 +41,6 @@ horizontal_alignment = 1
 
 [node name="EnemyHpBar" type="ProgressBar" parent="Panel" unique_id=1917262129]
 custom_minimum_size = Vector2(0, 6)
-custom_maximum_size = Vector2(-1, 6)
 layout_mode = 0
 offset_left = 36.0
 offset_top = 34.0
@@ -95,7 +94,6 @@ horizontal_alignment = 1
 
 [node name="PlayerHpBar" type="ProgressBar" parent="Panel" unique_id=1057611866]
 custom_minimum_size = Vector2(0, 6)
-custom_maximum_size = Vector2(-1, 6)
 layout_mode = 0
 offset_left = 212.0
 offset_top = 34.0

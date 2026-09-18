@@ -163,11 +163,15 @@ func _load_unlock_config():
 		unlocked_units = default_units.duplicate()
 
 func is_unit_unlocked(unit_name: String) -> bool:
-	return unit_name in unlocked_units
+	var key : String = UnitDataManager.normalize_unit_key(unit_name)
+	return key in unlocked_units
+
 
 func unlock_unit(unit_name: String):
-	if unit_name not in unlocked_units:
-		unlocked_units.append(unit_name)
+	var key : String = UnitDataManager.normalize_unit_key(unit_name)
+	if key not in unlocked_units:
+		unlocked_units.append(key)
+
 
 func get_unlocked_units() -> Array:
 	return unlocked_units.duplicate()

@@ -685,3 +685,39 @@ func _show_cycle_reward(earned_soul: int, earned_materials: Dictionary):
 	
 	# ---- 结算完成，进营地 ----
 	_on_cycle_complete()
+
+# ============================================================
+#  节点信息悬浮显示（MapNodeButton 悬停时调用）
+# ============================================================
+func show_node_info(node: MapNode) -> void:
+	if not info_panel or not info_label:
+		return
+	if not node:
+		return
+	info_label.text = _get_node_description(node)
+	info_panel.visible = true
+
+
+func hide_node_info() -> void:
+	if info_panel:
+		info_panel.visible = false
+
+
+func _get_node_description(node: MapNode) -> String:
+	match node.node_type:
+		MapNode.NodeType.START:
+			return "起始点\n进入战斗"
+		MapNode.NodeType.NORMAL:
+			return "普通战斗"
+		MapNode.NodeType.ELITE:
+			return "精英战斗\n敌人更强，奖励更好"
+		MapNode.NodeType.SHOP:
+			return "商店\n可购买武器与防具"
+		MapNode.NodeType.FORGE:
+			return "铁匠铺\n合成防具 / 升级武器"
+		MapNode.NodeType.EVENT:
+			return "宝箱 / 事件"
+		MapNode.NodeType.BOSS:
+			return "首领战"
+		_:
+			return "未知节点"

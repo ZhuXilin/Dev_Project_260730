@@ -424,3 +424,4 @@ func apply_relic_stats_to_unit(unit_data: UnitData):
 	unit_data.move_range += int(stats.get("move_range", 0))
 	unit_data.buff_attack_flat += int(stats.get("attack", 0))
 	unit_data.buff_defense_flat += int(stats.get("defense", 0))
+	unit_data.buff_magic_attack_flat += int(stats.get("magic_attack", 0))
