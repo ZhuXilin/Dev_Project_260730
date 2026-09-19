@@ -93,6 +93,11 @@ static func get_unit_data(unit_name: String) -> Dictionary:
 	return _unit_data_cache.get(key, {})
 
 
+static func get_all_unit_data() -> Dictionary:
+	_load_unit_data()
+	return _unit_data_cache
+	
+
 static func get_sprite_frames_path(unit_name: String) -> String:
 	return get_unit_data(unit_name).get("sprite_frames_path", "")
 

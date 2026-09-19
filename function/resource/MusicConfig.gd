@@ -22,6 +22,8 @@ class_name MusicConfig
 @export var anvil_tavern_music : AudioStream
 @export var arena_music : AudioStream
 @export var arena_battle_music : AudioStream
+@export var hero_shrine_music : AudioStream            # ★ 英灵殿 BGM
+@export var hero_shrine_convert_music : AudioStream    # ★ 转职演出音乐
 
 # ---- 对话音乐 ----
 @export var dialogue_music : AudioStream

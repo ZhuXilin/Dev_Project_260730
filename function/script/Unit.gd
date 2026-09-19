@@ -39,7 +39,7 @@ var max_armor_slots: int = 2
 var talent_slots: Array[TalentInstance] = []
 var max_talent_slots: int = 1
 
-# ★ 连击追踪
+# ---- 连击追踪（转职词条用） ----
 var combo_last_target: String = ""
 var combo_count: int = 0
 
@@ -51,17 +51,12 @@ var _color_material : ShaderMaterial = null
 
 var _initialized: bool = false
 
-# ============================================================
-#  初始化
-# ============================================================
+
 func _ready():
 	if _initialized:
-		print("Unit._ready 跳过，已初始化")
 		return
-
 	if not animated_sprite:
 		animated_sprite = $Sprite as AnimatedSprite2D
-
 	if animated_sprite and not animated_sprite.sprite_frames:
 		var image = Image.create(MapConst.CELL_SIZE, MapConst.CELL_SIZE, false, Image.FORMAT_RGBA8)
 		image.fill(Color.MAGENTA)
@@ -73,6 +68,14 @@ func _ready():
 		animated_sprite.play("idle")
 		animated_sprite.visible = true
 		animated_sprite.z_index = 2
+
+
+# ★ 新增：转职精灵路径覆盖
+func _resolve_sprite_path() -> String:
+	if unit_stats and unit_stats.override_sprite_path != "":
+		if ResourceLoader.exists(unit_stats.override_sprite_path):
+			return unit_stats.override_sprite_path
+	return UnitDataManager.get_sprite_frames_path(unit_stats.unit_name)
 
 
 func setup_unit(stats_data: UnitData, start_cell: Vector2i, initial_items: Array[ItemEntry] = []):
@@ -97,9 +100,8 @@ func setup_unit(stats_data: UnitData, start_cell: Vector2i, initial_items: Array
 	previous_remaining_move = unit_stats.move_range
 	is_gray = false
 
-	# ---- 清空并装备初始物品 ----
 	weapon_slot = null
-	max_armor_slots = stats_data.max_armor_slots        # ★ 改：读 UnitData
+	max_armor_slots = stats_data.max_armor_slots
 	armor_slots.clear()
 	for _i in range(max_armor_slots):
 		armor_slots.append(null)
@@ -114,11 +116,8 @@ func setup_unit(stats_data: UnitData, start_cell: Vector2i, initial_items: Array
 				inst.item_id = entry.item_id
 				inst.count = 1
 				weapon_slot = inst
-				print("单位 %s 装备武器: %s" % [unit_stats.unit_name, data.name])
 			elif data.equipment_slot in ["armor"]:
-				# ★ 新增：检查 slot_count 预算
 				if not can_equip_armor(entry.item_id):
-					print("单位 %s 无法装备 %s（防具格数不足）" % [unit_stats.unit_name, data.name])
 					continue
 				for i in range(armor_slots.size()):
 					if armor_slots[i] == null:
@@ -126,14 +125,12 @@ func setup_unit(stats_data: UnitData, start_cell: Vector2i, initial_items: Array
 						inst.item_id = entry.item_id
 						inst.count = 1
 						armor_slots[i] = inst
-						print("单位 %s 装备防具: %s (槽 %d)" % [unit_stats.unit_name, data.name, i+1])
 						break
 
-	# ---- 初始化词条槽 ----
 	_init_talent_slots_from_data(stats_data)
 
-	# ---- 加载 SpriteFrames ----
-	var frames_path = UnitDataManager.get_sprite_frames_path(unit_stats.unit_name)
+	# ★ 用 _resolve_sprite_path 替代直接读
+	var frames_path = _resolve_sprite_path()
 	var loaded_ok = false
 	if frames_path != "" and ResourceLoader.exists(frames_path):
 		var frames = load(frames_path) as SpriteFrames
@@ -160,7 +157,6 @@ func setup_unit(stats_data: UnitData, start_cell: Vector2i, initial_items: Array
 		animated_sprite.play("idle")
 		animated_sprite.visible = true
 		animated_sprite.z_index = 2
-		print("Warning: 单位 %s 的 SpriteFrames 加载失败，使用占位纹理" % unit_stats.unit_name)
 
 	animated_sprite.flip_h = (unit_stats.team_id == 1)
 	facing_flip_h = animated_sprite.flip_h
@@ -170,14 +166,13 @@ func setup_unit(stats_data: UnitData, start_cell: Vector2i, initial_items: Array
 	update_hp_label()
 	update_name_label()
 	update_color()
+
 	combo_last_target = ""
 	combo_count = 0
 
 	_initialized = true
 
-# ============================================================
-#  装备系统
-# ============================================================
+
 func get_weapon() -> ItemInstance:
 	return weapon_slot
 
@@ -259,7 +254,6 @@ func add_armor_slot():
 	armor_slots.append(null)
 	max_armor_slots += 1
 
-## ★ 新增：转发到 UnitData 的格数检查
 func count_used_armor_slots() -> int:
 	return unit_stats.count_used_armor_slots()
 
@@ -285,7 +279,6 @@ func get_total_stats() -> Dictionary:
 		"attack_style": "standard"
 	}
 
-	# ---- 武器加成 ----
 	if weapon_slot:
 		var data = ItemManager.get_item_data(weapon_slot.item_id)
 		if data:
@@ -304,20 +297,17 @@ func get_total_stats() -> Dictionary:
 			if not data.heal_effect.is_empty():
 				total["heal_amount"] = data.heal_effect.get("base_heal", 0)
 
-	# ---- 防具加成 ----
 	for slot in armor_slots:
 		if slot:
 			var data = ItemManager.get_item_data(slot.item_id)
 			if data:
 				total["defense"] += data.defense
 
-	# ★ 新增：防具 modifier 加成
 	var armor_mod := unit_stats.get_armor_modifier_bonus()
 	for key in armor_mod:
 		if key in total:
 			total[key] += int(armor_mod[key])
 
-	# ---- 遗物加成 ----
 	var relic_bonus = GameState.get_global_relic_stats()
 	for key in relic_bonus:
 		if key in total:
@@ -325,7 +315,6 @@ func get_total_stats() -> Dictionary:
 
 	return total
 
-# ---- 序列化（用于存档） ----
 func serialize_inventory() -> Array[Dictionary]:
 	var result: Array[Dictionary] = []
 	if weapon_slot:
@@ -345,10 +334,7 @@ func serialize_inventory() -> Array[Dictionary]:
 			})
 	return result
 
-# ---- 从存档恢复 ----
 func restore_from_unit_data(data: UnitData, cell: Vector2i):
-	print("restore_from_unit_data: 单位 ", data.unit_name, " 武器: ", data.weapon_slot.item_id if data.weapon_slot else "无")
-
 	reset_combat_buffs()
 
 	unit_stats = data
@@ -361,12 +347,11 @@ func restore_from_unit_data(data: UnitData, cell: Vector2i):
 	has_attacked = false
 	has_acted = false
 
-	# ---- 恢复装备（★ 保留 upgrade_level） ----
 	if data.weapon_slot:
 		var inst := ItemInstance.new()
 		inst.item_id = data.weapon_slot.item_id
 		inst.count = data.weapon_slot.count
-		inst.upgrade_level = data.weapon_slot.upgrade_level    # ★ 修复
+		inst.upgrade_level = data.weapon_slot.upgrade_level
 		weapon_slot = inst
 	else:
 		weapon_slot = null
@@ -377,7 +362,7 @@ func restore_from_unit_data(data: UnitData, cell: Vector2i):
 			var inst := ItemInstance.new()
 			inst.item_id = slot.item_id
 			inst.count = slot.count
-			inst.upgrade_level = slot.upgrade_level            # ★ 修复
+			inst.upgrade_level = slot.upgrade_level
 			armor_slots.append(inst)
 		else:
 			armor_slots.append(null)
@@ -389,7 +374,8 @@ func restore_from_unit_data(data: UnitData, cell: Vector2i):
 		animated_sprite = $Sprite as AnimatedSprite2D
 
 	if animated_sprite:
-		var frames_path = UnitDataManager.get_sprite_frames_path(unit_stats.unit_name)
+		# ★ 用 _resolve_sprite_path 替代直接读
+		var frames_path = _resolve_sprite_path()
 		var loaded_ok = false
 		if frames_path != "" and ResourceLoader.exists(frames_path):
 			var frames = load(frames_path) as SpriteFrames
@@ -415,7 +401,6 @@ func restore_from_unit_data(data: UnitData, cell: Vector2i):
 			animated_sprite.play("idle")
 			animated_sprite.visible = true
 			animated_sprite.z_index = 2
-			print("Warning: 单位 %s 的 SpriteFrames 加载失败，使用占位纹理" % unit_stats.unit_name)
 
 	animated_sprite.flip_h = (unit_stats.team_id == 1)
 	facing_flip_h = animated_sprite.flip_h
@@ -430,11 +415,8 @@ func restore_from_unit_data(data: UnitData, cell: Vector2i):
 	combo_count = 0
 
 	_initialized = true
-	print("restore_from_unit_data 完成，weapon_slot: ", weapon_slot.item_id if weapon_slot else "无", " lv=", weapon_slot.upgrade_level if weapon_slot else 0)
 
-# ============================================================
-#  状态与行动
-# ============================================================
+
 func mark_attacked():
 	has_attacked = true
 	has_acted = true
@@ -492,18 +474,12 @@ func update_position(new_cell: Vector2i):
 	grid_cell = new_cell
 	update_terrain_info()
 
-# ============================================================
-#  战斗
-# ============================================================
 func apply_damage(damage_amount : int) -> bool:
 	hit_points -= damage_amount
 	if hit_points < 0: hit_points = 0
 	update_hp_label()
 	return hit_points <= 0
 
-# ============================================================
-#  动画
-# ============================================================
 func play_animation(anim_name: String, force: bool = false):
 	if not animated_sprite or not animated_sprite.sprite_frames:
 		return
@@ -526,9 +502,6 @@ func set_facing_direction(dir: Vector2):
 		animated_sprite.flip_h = (dir.x > 0)
 		facing_flip_h = animated_sprite.flip_h
 
-# ============================================================
-#  颜色与着色器
-# ============================================================
 func set_gray(gray: bool):
 	is_gray = gray
 	if hit_points <= 0:
@@ -583,20 +556,22 @@ func play_hit_effect(direction: Vector2, is_hit: bool):
 			_color_material.set_shader_parameter("hit_elapsed", 0.0)
 	)
 
-# ============================================================
-#  UI 更新
-# ============================================================
 func update_hp_label():
 	var hp_label = $HPLabel
 	if hp_label:
 		hp_label.text = str(hit_points) + "/" + str(unit_stats.max_hp)
 
+# ★ 替换：用 advanced_class 显示进阶名
 func update_name_label():
 	var na_label = $NameLabel
 	if na_label:
 		var display = unit_stats.display_name if unit_stats.display_name != "" else unit_stats.unit_name
 		var type_name = UnitDataManager.get_unit_type_display_name(unit_stats.unit_name)
-		na_label.text = display + "|" + unit_stats.faction + "|" + type_name
+		if unit_stats.advanced_class != "":
+			var adv_name : String = AdvancedClassManager.get_display_name(unit_stats.advanced_class)
+			na_label.text = display + "|" + unit_stats.faction + "|★" + adv_name
+		else:
+			na_label.text = display + "|" + unit_stats.faction + "|" + type_name
 
 func update_terrain_info():
 	var terrain_label = $TerrainInfoLabel
@@ -608,9 +583,6 @@ func update_terrain_info():
 	var avoid_bonus = TerrainManager.TERRAIN_DATA[terrain_type]["avoid_bonus"]
 	terrain_label.text = terrain_name + "\n防御+" + str(def_bonus) + " 回避+" + str(avoid_bonus)
 
-# ============================================================
-#  词条方法
-# ============================================================
 func _init_talent_slots_from_data(data: UnitData):
 	talent_slots.clear()
 
@@ -621,7 +593,6 @@ func _init_talent_slots_from_data(data: UnitData):
 
 	if data.talent_slots is Array:
 		for slot_data in data.talent_slots:
-			# ★ 超过 max_talent_slots 就截断
 			if talent_slots.size() >= max_talent_slots:
 				break
 			if slot_data and slot_data is TalentInstance and slot_data.is_active:
@@ -702,7 +673,7 @@ func accumulate_all_talents():
 	for inst in talent_slots:
 		if not inst or not inst.is_active:
 			continue
-		# ★ R 词条（整场一次性）不参与冷却递减，触发一次后永不再就绪
+		# ★ R 词条跳过冷却递减
 		if inst.cooldown_remaining >= 9999:
 			continue
 		if inst.cooldown_remaining > 0:

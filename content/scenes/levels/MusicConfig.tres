@@ -16,6 +16,8 @@
 [ext_resource type="AudioStream" uid="uid://xmc6l17m6moc" path="res://content/music/18 Victory Obtained.mp3" id="6_xqkk7"]
 [ext_resource type="AudioStream" uid="uid://cqhy1c7d5n7ru" path="res://content/music/31 Ending (Parade).mp3" id="7_g5mal"]
 [ext_resource type="AudioStream" uid="uid://c1jei0hu4cdeg" path="res://content/music/15 Battle Map 3 - Victory Nears (Player).mp3" id="7_xqkk7"]
+[ext_resource type="AudioStream" uid="uid://lnpidexicnb4" path="res://content/music/25 Unit Change.mp3" id="11_2hdij"]
+[ext_resource type="AudioStream" uid="uid://c0bl5cdk3atex" path="res://content/music/03. Story 5 - Village.mp3" id="12_hd217"]
 [ext_resource type="AudioStream" uid="uid://cyuaacekbee34" path="res://content/music/22 Story 3 - Conversation.mp3" id="16_7bx0x"]
 
 [resource]
@@ -36,6 +38,8 @@ soul_altar_music = ExtResource("16_7bx0x")
 anvil_tavern_music = ExtResource("1_w40kv")
 arena_music = ExtResource("2_wof56")
 arena_battle_music = ExtResource("1_eelyb")
+hero_shrine_music = ExtResource("12_hd217")
+hero_shrine_convert_music = ExtResource("11_2hdij")
 dialogue_music = ExtResource("2_qt4sp")
 battle_start_dialogue_music = ExtResource("1_f1kg3")
 metadata/_custom_type_script = "uid://ccysv3ra5kmq6"

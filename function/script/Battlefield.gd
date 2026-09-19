@@ -1862,8 +1862,9 @@ func _on_map_victory_continue():
 		print("Boss 胜利，设置 should_advance_day = true")
 
 		if is_last_day:
-			print("第三天最终Boss，跳过遗物三选一")
+			print("第三天最终Boss，跳过遗物三选一和英灵殿")
 		else:
+			# ---- 1. 遗物三选一 ----
 			print("弹出遗物三选一，叠加在结算之上")
 			var relic_select_scene = load(Config.PATHS.RELIC_SELECT_UI)
 			var relic_select = relic_select_scene.instantiate()
@@ -1877,6 +1878,17 @@ func _on_map_victory_continue():
 
 			await relic_select.relic_selected
 			print("遗物选择完成")
+
+			# ---- 2. 英灵殿 ----
+			print("弹出英灵殿")
+			var hero_shrine_scene = load(Config.PATHS.HERO_SHRINE_UI)
+			if hero_shrine_scene:
+				var hero_shrine = hero_shrine_scene.instantiate()
+				add_child(hero_shrine)
+				await hero_shrine.closed
+				print("英灵殿关闭")
+			else:
+				push_warning("HeroShrineUI 场景未找到")
 
 	if summary:
 		print("结算界面已关闭")

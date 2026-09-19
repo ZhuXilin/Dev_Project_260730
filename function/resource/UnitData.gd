@@ -25,6 +25,10 @@ var buff_damage_reduction : float = 0.0
 var buff_attack_flat : int = 0
 var buff_magic_attack_flat : int = 0
 
+# ---- 转职 ----
+@export var advanced_class: String = ""
+@export var override_sprite_path: String = ""
+
 func reset_combat_buffs():
 	buff_attack_percent = 0.0
 	buff_crit_damage_bonus = 0.0
@@ -161,6 +165,8 @@ func to_dict() -> Dictionary:
 		"weapon_slot": _item_instance_to_dict(weapon_slot),
 		"armor_slots": _item_instance_array_to_array(armor_slots),
 		"talent_slots": _talent_instance_array_to_array(talent_slots),
+		"advanced_class": advanced_class,
+		"override_sprite_path": override_sprite_path,
 	}
 
 
@@ -184,6 +190,8 @@ static func from_dict(d: Dictionary) -> UnitData:
 	data.level = d.get("level", 1)
 	data.max_armor_slots = d.get("max_armor_slots", 2)
 	data.max_talent_slots = d.get("max_talent_slots", 1)
+	data.advanced_class = d.get("advanced_class", "")
+	data.override_sprite_path = d.get("override_sprite_path", "")
 
 	if d.has("advancement"):
 		var adv_v : Variant = d["advancement"]

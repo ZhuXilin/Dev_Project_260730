@@ -357,9 +357,12 @@ func _build_unit_columns():
 		col.add_theme_constant_override("separation", 1)
 		unit_container.add_child(col)
 
-		var name_label : Label = Style.create_label(
-			unit.display_name + "(" + UnitDataManager.get_unit_type_display_name(unit.unit_name) + ")",
-			Style.FONT_SMALL)
+		var display_str : String
+		if unit.advanced_class != "":
+			display_str = unit.display_name + "(★" + AdvancedClassManager.get_display_name(unit.advanced_class) + ")"
+		else:
+			display_str = unit.display_name + "(" + UnitDataManager.get_unit_type_display_name(unit.unit_name) + ")"
+		var name_label : Label = Style.create_label(display_str, Style.FONT_SMALL)
 		name_label.mouse_filter = Control.MOUSE_FILTER_STOP
 		name_label.mouse_entered.connect(_on_unit_hover_entered.bind(i))
 		name_label.mouse_exited.connect(_on_unit_hover_exited)

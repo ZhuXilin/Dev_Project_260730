@@ -50,6 +50,7 @@ const PATHS : Dictionary = {
 	"REWARD_SUMMARY_UI":    "res://content/scenes/ui/RewardSummaryUI.tscn",
 	"TREASURE_UI":          "res://content/scenes/ui/Treasure.tscn",
 	"ANVIL_TAVERN_UI":      "res://content/scenes/ui/AnvilTavern.tscn",
+	"HERO_SHRINE_UI":       "res://content/scenes/ui/HeroShrineUI.tscn",
 	"SOUL_ALTAR_UI":        "res://content/scenes/ui/SoulAltar.tscn",
 	"ARENA_UI":          "res://content/scenes/ui/Arena.tscn",
 	"ARENA_BATTLE_UI":   "res://content/scenes/ui/ArenaBattle.tscn",
