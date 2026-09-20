@@ -232,12 +232,12 @@
 	"price": 250,
 	"quality": "legendary",
 	"attack_style": "magic",
-	"base_attack": 11,
+	"base_attack": 10,
 	"attack_range": 4,
 	"min_attack_range": 1,
 	"modifier": {
 	  "arcane": 1.1,
-	  "intelligence": 0.3
+	  "intelligence": 0.2
 	},
 	"magic_attack": {
 	  "ignore_defense": true
@@ -499,8 +499,8 @@
 	"description": "魂铸圣物，龙人的最终兵装",
 	"category": "dragonstone", "equipment_slot": "weapon",
 	"price": 0, "quality": "legendary", "attack_style": "magic",
-	"base_attack": 13, "attack_range": 4, "min_attack_range": 1,
-	"modifier": { "arcane": 1.2, "intelligence": 0.4 },
+	"base_attack": 11, "attack_range": 4, "min_attack_range": 1,
+	"modifier": { "arcane": 1.0, "intelligence": 0.2 },
 	"magic_attack": { "ignore_defense": true }
   },
   "soul_blade": {

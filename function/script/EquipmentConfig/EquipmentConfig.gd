@@ -643,8 +643,7 @@ func _is_valid_drop(data: Dictionary, target: Control) -> bool:
 			elif item_data.type == "armor":
 				if target_type != "armor": return false
 				if tu < 0 or ts < 0: return false
-				var tu_data : UnitData = party[tu]
-				if tu_data.armor_slots[ts] != null: return false
+				# ★ 允许覆盖已占用的防具槽（旧装备直接丢弃）
 				return _can_equip_armor_to(tu, item_data.id, ts)
 			return false
 		if source_type == "weapon" and target_type == "weapon": return true

@@ -19,8 +19,58 @@ const POST_SWITCH_DURATION : float = 0.8
 @onready var perf_label : Label = $PerformanceLayer/CenterBox/PerfLabel
 
 var _is_performing : bool = false
+var _mode : String = "map"
+var _arena_ref = null
+var _custom_party : Array = []
 
 
+# ============================================================
+#  上下文设置（可由外部在 add_child 前后调用）
+# ============================================================
+func setup_arena(arena_node, unit_data) -> void:
+	_mode = "arena"
+	_arena_ref = arena_node
+	_custom_party = [unit_data] if unit_data else []
+	# 如果节点已 ready，立即重建 UI
+	if is_node_ready():
+		_rebuild()
+
+
+func setup_map() -> void:
+	_mode = "map"
+	_arena_ref = null
+	_custom_party = []
+	if is_node_ready():
+		_rebuild()
+
+
+func _rebuild():
+	_refresh_gold_display()
+	_build_unit_row()
+
+
+func _get_party() -> Array:
+	if not _custom_party.is_empty():
+		return _custom_party
+	return GameState.party
+
+
+func _get_gold() -> int:
+	if _mode == "arena" and _arena_ref != null:
+		return _arena_ref._arena_gold
+	return GameState.temp_gold
+
+
+func _subtract_gold(amount: int) -> void:
+	if _mode == "arena" and _arena_ref != null:
+		_arena_ref._arena_gold -= amount
+	else:
+		GameState.temp_gold -= amount
+
+
+# ============================================================
+#  初始化
+# ============================================================
 func _ready():
 	performance_layer.visible = false
 	cost_label.text = "  |  转职: %dG" % COST_PER_CLASS
@@ -31,7 +81,7 @@ func _ready():
 
 func _refresh_gold_display():
 	if gold_label:
-		gold_label.text = "金币: %d" % GameState.temp_gold
+		gold_label.text = "金币: %d" % _get_gold()
 
 
 func _build_unit_row():
@@ -39,17 +89,25 @@ func _build_unit_row():
 		unit_row.remove_child(child)
 		child.queue_free()
 
-	for i in range(GameState.party.size()):
+	var party : Array = _get_party()
+	print("[HeroShrine] 构建单位列表：", party.size(), " 个，mode=", _mode)
+	for i in range(party.size()):
 		unit_row.add_child(_build_unit_card(i))
 
 
+# ============================================================
+#  单位卡片
+# ============================================================
 func _build_unit_card(unit_idx: int) -> PanelContainer:
-	var unit : UnitData = GameState.party[unit_idx]
+	var party : Array = _get_party()
+	if unit_idx < 0 or unit_idx >= party.size():
+		return PanelContainer.new()
+	var unit : UnitData = party[unit_idx]
 	var unit_display : String = unit.display_name if unit.display_name != "" else unit.unit_name
 	var type_cn : String = UnitDataManager.get_unit_type_display_name(unit.unit_name)
 
 	var card = PanelContainer.new()
-	card.custom_minimum_size = Vector2(110, 0)
+	card.custom_minimum_size = Vector2(130, 0)
 	card.mouse_filter = Control.MOUSE_FILTER_STOP
 
 	var vbox = VBoxContainer.new()
@@ -67,6 +125,7 @@ func _build_unit_card(unit_idx: int) -> PanelContainer:
 	status_lb.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	vbox.add_child(status_lb)
 
+	# ---- 已转职 ----
 	if unit.advanced_class != "":
 		var adv_name : String = AdvancedClassManager.get_display_name(unit.advanced_class)
 		name_lb.text = unit_display + "\n" + type_cn
@@ -76,6 +135,7 @@ func _build_unit_card(unit_idx: int) -> PanelContainer:
 		card.modulate = Color(0.7, 0.7, 0.7, 1)
 		return card
 
+	# ---- 无进阶定义 ----
 	var adv : AdvancedClassData = AdvancedClassManager.get_class_for_unit(unit.unit_name)
 	if adv == null:
 		name_lb.text = unit_display + "\n" + type_cn
@@ -84,6 +144,7 @@ func _build_unit_card(unit_idx: int) -> PanelContainer:
 		card.modulate = Color(0.7, 0.7, 0.7, 1)
 		return card
 
+	# ---- 可转职 ----
 	name_lb.text = unit_display + "\n" + type_cn
 
 	var stat_parts : Array = []
@@ -98,7 +159,7 @@ func _build_unit_card(unit_idx: int) -> PanelContainer:
 
 	status_lb.text = "→ ★ %s\n%s\n授予:%s" % [adv.name, stat_str, talent_str]
 
-	var can_afford : bool = GameState.temp_gold >= COST_PER_CLASS
+	var can_afford : bool = _get_gold() >= COST_PER_CLASS
 	if not can_afford:
 		status_lb.modulate = Color(0.55, 0.55, 0.55, 1)
 		card.modulate = Color(0.7, 0.7, 0.7, 1)
@@ -139,15 +200,19 @@ func _on_card_input(event: InputEvent, unit_idx: int):
 	_on_card_clicked(unit_idx)
 
 
+# ============================================================
+#  点击卡片 → 二次确认
+# ============================================================
 func _on_card_clicked(unit_idx: int):
 	if _is_performing:
 		return
-	if unit_idx < 0 or unit_idx >= GameState.party.size():
+	var party : Array = _get_party()
+	if unit_idx < 0 or unit_idx >= party.size():
 		return
-	if GameState.temp_gold < COST_PER_CLASS:
+	if _get_gold() < COST_PER_CLASS:
 		return
 
-	var unit : UnitData = GameState.party[unit_idx]
+	var unit : UnitData = party[unit_idx]
 	if unit.advanced_class != "":
 		return
 
@@ -167,16 +232,19 @@ func _on_card_clicked(unit_idx: int):
 	)
 
 
+# ============================================================
+#  转职流程
+# ============================================================
 func _begin_convert(unit : UnitData, adv : AdvancedClassData):
 	if _is_performing:
 		return
-	if GameState.temp_gold < COST_PER_CLASS:
+	if _get_gold() < COST_PER_CLASS:
 		return
 
 	_is_performing = true
 
-	# 1. 立即扣金币 + 记录（防止中途退出丢失）
-	GameState.temp_gold -= COST_PER_CLASS
+	# 1. 立即扣金币 + 记录
+	_subtract_gold(COST_PER_CLASS)
 	unit.advanced_class = adv.id
 
 	for key in adv.stat_bonus:
@@ -209,8 +277,9 @@ func _begin_convert(unit : UnitData, adv : AdvancedClassData):
 	if adv.sprite_frames_path != "":
 		unit.override_sprite_path = adv.sprite_frames_path
 
-	SaveManager.auto_save()
-	print("[HeroShrine] %s 转职为 %s（金币已扣）" % [unit.display_name, adv.name])
+	if _mode == "map":
+		SaveManager.auto_save()
+	print("[HeroShrine] %s 转职为 %s（%s 模式，金币已扣）" % [unit.display_name, adv.name, _mode])
 
 	# 2. 隐藏主界面，显示演出层
 	panel.visible = false
@@ -265,6 +334,9 @@ func _load_sprite_into(sprite: AnimatedSprite2D, path: String):
 			sprite.play(anims[0])
 
 
+# ============================================================
+#  关闭
+# ============================================================
 func _on_close_pressed():
 	if _is_performing:
 		return

@@ -151,8 +151,6 @@ func _hint_shop_purchase_failed(data: Dictionary, target: Control) -> void:
 		if tu < 0 or ts < 0:
 			panel._show_detail_in_zone("无法购买 %s\n目标槽无效" % item_name); return
 		var unit : UnitData = panel.party[tu]
-		if unit.armor_slots[ts] != null:
-			panel._show_detail_in_zone("无法购买 %s\n目标槽已有防具，请拖到空槽" % item_name); return
 		var need : int = panel._inst_slots_for_id(item_data.id)
 		var used : int = panel._used_slots_excluding(unit, [ts])
 		var free : int = unit.max_armor_slots - used

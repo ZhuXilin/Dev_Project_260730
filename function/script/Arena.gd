@@ -21,6 +21,9 @@ const SOUL_SURVIVAL : Array = [2, 3, 5]
 const ENEMY_SCALE_BY_STREAK : Array = [1.0, 1.2, 1.6, 1.9]
 const ENEMY_SCALE_SURVIVAL : Array = [2.2, 2.8, 3.5]
 
+const HERO_SHRINE_SCRIPT_PATH : String = "res://function/script/HeroShrineUI.gd"
+const HERO_SHRINE_FALLBACK_COST : int = 800
+
 enum Phase { IDLE, NORMAL, CLEAR, SURVIVAL, END }
 
 const EquipmentConfigClass = preload(Config.PATHS.EQUIPMENT_CONFIG_SCRIPT)
@@ -72,11 +75,6 @@ func _build_unit_list():
 	for unit_type in all_units:
 		if Globals.is_unit_unlocked(unit_type):
 			unlocked_list.append(unit_type)
-
-	# ★ Debug：确认当前已解锁列表（排查"未解锁单位也显示"的问题）
-	print("[Arena] 全部单位：", all_units)
-	print("[Arena] 已解锁单位：", unlocked_list)
-	print("[Arena] Globals.unlocked_units = ", Globals.unlocked_units)
 
 	for unit_type in unlocked_list:
 		var btn := Button.new()
@@ -186,6 +184,7 @@ func _refresh_center_panel():
 			info_label.text = ""
 	else:
 		info_label.text = "目标词条：未设置（可在商店配置）"
+
 
 func _refresh_streak_label():
 	if _phase == Phase.IDLE:
@@ -321,6 +320,10 @@ func _run_battle_loop():
 				if not is_inside_tree():
 					return
 				if choice == "survival":
+					# 付魂已确认，进生存前弹出英灵殿
+					await _open_hero_shrine()
+					if not is_inside_tree():
+						return
 					_phase = Phase.SURVIVAL
 					_survival_round = 0
 				else:
@@ -541,7 +544,7 @@ func _do_one_battle() -> int:
 			GameState.soul += soul_gain
 			_earned_soul += soul_gain
 
-		# ★ 所有已装备词条加经验
+		# 所有已装备词条加经验
 		var talent_results : Array = _add_talent_exp_to_all(exp_gain)
 
 		_current_player_data.hit_points = _current_player_data.max_hp
@@ -612,11 +615,9 @@ func _show_battle_rewards(gold_gain: int, soul_gain: int,
 		var exp_item := ItemData.new()
 		exp_item.id = "arena_exp_" + tid
 		if new_lv > old_lv:
-			# ★ 升级
 			exp_item.name = "★ %s 升级 Lv%d→Lv%d  (%d/%d → %d/%d)" % [
 				tname, old_lv, new_lv, old_in, old_need, new_in, new_need]
 		else:
-			# ★ 未升级
 			exp_item.name = "%s Lv%d 经验 +%d  (%d/%d → %d/%d)" % [
 				tname, new_lv, r["exp_gain"], old_in, old_need, new_in, new_need]
 		if data:
@@ -791,7 +792,7 @@ func _show_summary(success: bool, reason: String, skip_music: bool = false):
 	if _phase == Phase.SURVIVAL:
 		GameState.arena_survival_best = maxi(GameState.arena_survival_best, _survival_round)
 
-	# ★ 累计本局获得的魂（不论成败）
+	# 累计本局获得的魂（不论成败）
 	GameState.arena_total_crystals += _earned_soul
 
 	SaveManager.auto_save()
@@ -878,6 +879,9 @@ func _show_hint(text: String):
 		_refresh_center_panel()
 
 
+# ============================================================
+#  词条经验
+# ============================================================
 func _add_talent_exp_to_all(exp_gain: int) -> Array:
 	var results : Array = []
 	if not _current_player_data:
@@ -907,3 +911,32 @@ func _add_talent_exp_to_all(exp_gain: int) -> Array:
 			"new_need": new_need,
 		})
 	return results
+
+
+# ============================================================
+#  英灵殿（生存模式启动前触发）
+# ============================================================
+func _open_hero_shrine():
+	if not _current_player_data:
+		return
+	if _current_player_data.advanced_class != "":
+		return
+
+	var hero_shrine_cost : int = HERO_SHRINE_FALLBACK_COST
+	var hero_shrine_script : GDScript = load(HERO_SHRINE_SCRIPT_PATH)
+	if hero_shrine_script:
+		hero_shrine_cost = hero_shrine_script.COST_PER_CLASS
+	if _arena_gold < hero_shrine_cost:
+		print("[Arena] 英灵殿跳过：金币不足（%d/%d）" % [_arena_gold, hero_shrine_cost])
+		return
+
+	var hero_shrine_scene = load(Config.PATHS.HERO_SHRINE_UI)
+	if not hero_shrine_scene:
+		push_warning("HeroShrineUI 场景未找到")
+		return
+
+	var hero_shrine = hero_shrine_scene.instantiate()
+	add_child(hero_shrine)
+	hero_shrine.setup_arena(self, _current_player_data)
+	await hero_shrine.closed
+	print("[Arena] 英灵殿关闭")

@@ -126,10 +126,7 @@ func buy_shop_item(data: Dictionary, target: Control):
 		if target_unit_idx < 0: return
 	elif item_data.type == "armor":
 		if target_unit_idx < 0 or target_slot_idx < 0: return
-		var tu_data : UnitData = panel.party[target_unit_idx]
-		if tu_data.armor_slots[target_slot_idx] != null:
-			Globals.show_confirm(panel, "目标槽已有防具，请先清空", "确定", "", func(): pass, func(): pass, false)
-			return
+		# ★ 覆盖已有防具时只检查格数预算（旧装备视为丢弃）
 		if not panel._can_equip_armor_to(target_unit_idx, item_data.id, target_slot_idx):
 			Globals.show_confirm(panel, "防具格数不足！", "确定", "", func(): pass, func(): pass, false)
 			return
@@ -144,16 +141,15 @@ func buy_shop_item(data: Dictionary, target: Control):
 	inst.count = 1
 	if item_data.type == "weapon":
 		var tu : UnitData = panel.party[target_unit_idx]
-		tu.weapon_slot = inst
+		tu.weapon_slot = inst        # ★ 旧武器直接被覆盖（丢弃）
 	elif item_data.type == "armor":
 		var tu2 : UnitData = panel.party[target_unit_idx]
-		tu2.armor_slots[target_slot_idx] = inst
+		tu2.armor_slots[target_slot_idx] = inst   # ★ 旧防具直接被覆盖（丢弃）
 
 	panel._build_unit_columns()
 	panel._sync_all()
 	panel._update_gold_display()
 	panel._schedule_build_ui()
-
 
 # ============================================================
 #  武器库 → 武器槽
