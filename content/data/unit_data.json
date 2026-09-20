@@ -38,7 +38,7 @@
 	  "stat_bonus": { "max_hp": 4, "strength": 3, "dexterity": 2 },
 	  "granted_talent": "counter_boost",
 	  "flavor": "长枪所指，便是雷光落处。",
-	  "sprite_frames_path": ""
+	  "sprite_frames_path": "res://content/images/characters/unit_knight_upgrade_frames.tres"
 	}
   },
   "axeman": {
@@ -185,7 +185,7 @@
 	  "stat_bonus": { "max_hp": 12, "strength": 3, "faith": 2 },
 	  "granted_talent": "parry",
 	  "flavor": "我的盾，就是神的旨意。",
-	  "sprite_frames_path": ""
+	  "sprite_frames_path": "res://content/images/characters/unit_heavyarmored_upgrade_frames.tres"
 	}
   }
 }

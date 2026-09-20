@@ -147,5 +147,61 @@
 	"compatible_units": ["swordsman", "archer", "pegasus"],
 	"unlock_type": "soul",
 	"soul_cost": 40
+	},
+  "blood_rage": {
+	"id": "blood_rage",
+	"display_name": "血怒",
+	"description": "击杀敌人后回复 15/20/25% 最大 HP",
+	"school": "力量",
+	"rarity": "epic",
+	"accumulation_threshold": 3,
+	"cooldown_after_trigger": 2,
+	"effect_type": "attack",
+	"effect_params": { "heal_percent": 0.2 },
+	"compatible_units": ["swordsman", "axeman", "dragonborn"],
+	"unlock_type": "soul",
+	"soul_cost": 40
+  },
+  "cleave": {
+	"id": "cleave",
+	"display_name": "连斩",
+	"description": "击杀敌人后，本回合可再攻击一次（每回合限 1 次）",
+	"school": "敏捷",
+	"rarity": "epic",
+	"accumulation_threshold": 4,
+	"cooldown_after_trigger": 3,
+	"effect_type": "attack",
+	"effect_params": {},
+	"compatible_units": ["swordsman", "archer", "pegasus"],
+	"unlock_type": "soul",
+	"soul_cost": 60
+  },
+  "vengeance": {
+	"id": "vengeance",
+	"display_name": "复仇",
+	"description": "队友死亡时攻击 +30%（整场叠加）",
+	"school": "力量",
+	"rarity": "rare",
+	"accumulation_threshold": 9999,
+	"cooldown_after_trigger": 9999,
+	"effect_type": "attack",
+	"effect_params": { "attack_bonus_per_stack": 0.3 },
+	"compatible_units": ["axeman", "dragonborn", "armored"],
+	"unlock_type": "soul",
+	"soul_cost": 30
+  },
+  "zeal": {
+	"id": "zeal",
+	"display_name": "狂热",
+	"description": "连续攻击同一目标伤害递增，最多 +50%",
+	"school": "敏捷",
+	"rarity": "rare",
+	"accumulation_threshold": 2,
+	"cooldown_after_trigger": 0,
+	"effect_type": "attack",
+	"effect_params": { "per_stack": 0.1, "max_stacks": 5 },
+	"compatible_units": ["swordsman", "archer", "mage"],
+	"unlock_type": "soul",
+	"soul_cost": 30
   }
 }

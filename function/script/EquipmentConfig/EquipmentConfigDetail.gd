@@ -84,13 +84,6 @@ func show_relic(data: Dictionary):
 	var lines : Array = []
 	lines.append(data.get("name", "未知遗物"))
 	lines.append(data.get("description", ""))
-	var stats : Dictionary = data.get("stats", {})
-	if not stats.is_empty():
-		lines.append("")
-		lines.append("— 属性加成 —")
-		for key in stats:
-			var v : Variant = stats[key]
-			lines.append(Style.get_attr_display_name(key) + ": +" + str(v))
 	show_in_zone("\n".join(lines))
 
 

@@ -47,19 +47,5 @@ func _show_relic_detail(data: Dictionary):
 	icon.visible = false
 	name_label.text = data.get("name", "")
 	desc_label.text = data.get("description", "")
-	
-	var stats_text = ""
-	var stats = data.get("stats", {})
-	if not stats.is_empty():
-		var stat_names = {
-			"attack": "攻击",
-			"defense": "防御",
-			"magic_attack": "魔法攻击",
-			"move_range": "移动力"
-		}
-		for key in stats:
-			var chinese = stat_names.get(key, key.capitalize())
-			stats_text += chinese + ": +" + str(stats[key]) + "\n"
-	
-	stats_label.text = stats_text
+	stats_label.text = ""
 	visible = true

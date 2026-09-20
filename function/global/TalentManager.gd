@@ -1,9 +1,6 @@
 extends Node
 class_name TalentManager
 
-# ============================================================
-#  词条数据缓存
-# ============================================================
 static var _talent_db: Dictionary = {}
 static var _talent_data_loaded: bool = false
 
@@ -16,7 +13,6 @@ static func load_talent_data():
 	if not FileAccess.file_exists(path):
 		push_error("词条数据文件不存在: ", path)
 		return
-
 	var file = FileAccess.open(path, FileAccess.READ)
 	var content = file.get_as_text()
 	file.close()
@@ -24,7 +20,6 @@ static func load_talent_data():
 	if data == null or not data is Dictionary:
 		push_error("词条 JSON 解析失败")
 		return
-
 	for key in data:
 		var dict = data[key]
 		var talent = TalentData.new()
@@ -42,7 +37,6 @@ static func load_talent_data():
 		talent.unlock_type = dict.get("unlock_type", "default")
 		talent.soul_cost = int(dict.get("soul_cost", 0))
 		_talent_db[talent.id] = talent
-
 	print("成功加载 ", _talent_db.size(), " 个词条")
 
 
@@ -82,7 +76,6 @@ static func get_default_unlocked_talents() -> Array:
 
 
 static func get_soul_unlockable_talents() -> Dictionary:
-	# 返回 { talent_id: soul_cost }
 	load_talent_data()
 	var result : Dictionary = {}
 	for tid in _talent_db:
@@ -112,11 +105,16 @@ static func get_soul_cost(talent_id: String) -> int:
 # ============================================================
 #  战斗触发
 # ============================================================
-static func is_talent_ready(unit: Unit, talent_id: String) -> bool:
+static func is_talent_ready(unit, talent_id: String) -> bool:
+	if unit == null:
+		return false
 	var inst = unit.get_talent_instance(talent_id)
 	return inst and inst.is_ready and inst.is_active
 
-static func reset_talent(unit: Unit, talent_id: String):
+
+static func reset_talent(unit, talent_id: String):
+	if unit == null:
+		return
 	var inst = unit.get_talent_instance(talent_id)
 	if not inst:
 		return
@@ -125,11 +123,30 @@ static func reset_talent(unit: Unit, talent_id: String):
 	if cd > 0:
 		inst.cooldown_remaining = cd
 
+
 static func get_cooldown_after_trigger(talent_id: String) -> int:
 	var data = get_talent_data(talent_id)
 	if not data:
 		return 0
 	return data.cooldown_after_trigger
+
+
+## ★ 新增：纯静态积累方法（供 Unit 和 ArenaBattle 复用）
+static func accumulate_talents(talent_slots: Array) -> void:
+	for inst in talent_slots:
+		if not inst or not inst.is_active:
+			continue
+		# R 词条（9999）跳过冷却递减
+		if inst.cooldown_remaining >= 9999:
+			continue
+		if inst.cooldown_remaining > 0:
+			inst.cooldown_remaining -= 1
+			continue
+		inst.current_stack += 1
+		var data = get_talent_data(inst.talent_id)
+		if data and inst.current_stack >= data.accumulation_threshold:
+			inst.is_ready = true
+
 
 # ============================================================
 #  兼容性
@@ -151,7 +168,7 @@ static func is_talent_compatible_with_unit(talent_id: String, unit_name: String)
 
 
 # ============================================================
-#  斗技场：经验 / 等级（阶梯升级）
+#  斗技场：经验 / 等级
 # ============================================================
 const EXP_THRESHOLDS : Array = [0, 100, 300, 600]
 const MAX_TALENT_LEVEL : int = 3

@@ -270,6 +270,31 @@ func get_global_relic_stats() -> Dictionary:
 			bonus[key] = bonus.get(key, 0) + stats[key]
 	return bonus
 
+
+## 汇总遗物 effects（bool 取或，数值累加）
+func get_global_relic_effects() -> Dictionary:
+	var effects := {}
+	for relic in get_relics_from_passives():
+		var data = RelicManager.get_relic_data(relic.item_id)
+		if data.is_empty():
+			continue
+		var e : Dictionary = data.get("effects", {})
+		for key in e:
+			var add = e[key]
+			if not effects.has(key):
+				effects[key] = add
+			else:
+				var cur = effects[key]
+				if cur is bool and add is bool:
+					effects[key] = cur or add
+				elif cur is int and add is int:
+					effects[key] = cur + add
+				elif cur is float or add is float:
+					effects[key] = float(cur) + float(add)
+				else:
+					effects[key] = add
+	return effects
+
 # ============================================================
 #  进度相关
 # ============================================================
@@ -412,20 +437,7 @@ func reset_all():
 	cycle_start_materials.clear()
 
 
-# ============================================================
-#  被动列表（供旧版 EquipmentConfig / 兼容接口调用）
-# ============================================================
-func apply_relic_stats_to_unit(unit_data: UnitData):
-	var stats = get_global_relic_stats()
-	if stats.is_empty():
-		return
-	unit_data.max_hp += int(stats.get("max_hp", 0))
-	unit_data.strength += int(stats.get("strength", 0))
-	unit_data.dexterity += int(stats.get("dexterity", 0))
-	unit_data.intelligence += int(stats.get("intelligence", 0))
-	unit_data.faith += int(stats.get("faith", 0))
-	unit_data.arcane += int(stats.get("arcane", 0))
-	unit_data.move_range += int(stats.get("move_range", 0))
-	unit_data.buff_attack_flat += int(stats.get("attack", 0))
-	unit_data.buff_defense_flat += int(stats.get("defense", 0))
-	unit_data.buff_magic_attack_flat += int(stats.get("magic_attack", 0))
+func apply_relic_stats_to_unit(_unit_data: UnitData):
+	# 遗物已改为 effects 机制，不再提供固定属性加成
+	# 实际加成在 Battlefield._apply_team_buffs 里处理
+	pass

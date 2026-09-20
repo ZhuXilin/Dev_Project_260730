@@ -1,7 +1,5 @@
 extends Node
 
-const UnitDataManagerClass = preload("res://function/script/UnitDataManager.gd")
-
 const PERFORMANCE_DURATION : float = 0.5
 
 # ---- 品质 → 攻防乘数 ----
@@ -15,30 +13,34 @@ const QUALITY_MULT = {
 # ---- 力量 → 防御减免系数 ----
 const STRENGTH_DEF_FACTOR : float = 0.3
 
+# ---- 暴击系统 ----
+const CRIT_BASE_CHANCE : float = 0.05
+const CRIT_PER_DEXTERITY : float = 0.005
+const CRIT_CHANCE_BY_QUALITY : Dictionary = {
+	"common": 0.0,
+	"rare": 0.03,
+	"epic": 0.05,
+	"legendary": 0.08,
+}
+const CRIT_DAMAGE_MULT : float = 1.5
+
 # ============================================================
 #  词条等级参数
 # ============================================================
-## 二次攻击：额外攻击倍率 [Lv1, Lv2, Lv3]
 const DOUBLE_ATTACK_MULT : Array = [0.8, 0.9, 1.0]
-
-## 出血：触发伤害占 max_hp 比例
 const BLEED_DAMAGE_PERCENT : Array = [0.15, 0.20, 0.25]
 const BLEED_MAX_STACKS : int = 5
-
-## 法术连击：额外施法倍率
 const SPELL_CHAIN_MULT : Array = [0.8, 0.9, 1.0]
-
-## 反击强化：反击伤害倍率
 const COUNTER_BOOST_MULT : Array = [1.5, 1.75, 2.0]
-
-## 治愈强化：治疗量倍率
 const HEAL_BOOST_MULT : Array = [1.3, 1.5, 1.7]
-
-## 吸血：攻击后恢复伤害比例 [Lv1, Lv2, Lv3]
 const LIFESTEAL_PERCENT : Array = [0.2, 0.3, 0.4]
-
-## 连击：连续攻击同一目标每次递增比例 [Lv1, Lv2, Lv3]
 const COMBO_MULT_PER_HIT : Array = [0.15, 0.25, 0.35]
+
+# ---- 连锁词条参数 ----
+const BLOOD_RAGE_HEAL_PERCENT : Array = [0.15, 0.20, 0.25]
+const ZEAL_PER_STACK : Array = [0.10, 0.15, 0.20]
+const ZEAL_MAX_STACKS : int = 5
+
 
 # ============================================================
 #  目标查询
@@ -107,15 +109,19 @@ func calculate_damage(attacker: Unit, defender: Unit) -> int:
 	var modifier = weapon_data.modifier
 	var atk_bonus = 0.0
 	for attr in modifier:
-		# ★ 读含防具 modifier 加成的有效属性
 		var val = attacker.unit_stats.get_effective_attr(attr)
 		atk_bonus += val * modifier[attr]
 
 	var total_attack = base_attack + atk_bonus + attacker.buff_attack_flat
-	# ★ 新增：魔法武器额外吃 buff_magic_attack_flat
+	# 魔法武器额外吃 buff_magic_attack_flat
 	if weapon_data.magic_attack.get("ignore_defense", false):
 		total_attack += attacker.buff_magic_attack_flat
 	total_attack *= (1.0 + attacker.buff_attack_percent)
+
+	# ★ 巨力遗物：每 1 点力量额外 +N% 伤害
+	if attacker.relic_strength_scale_damage > 0.0:
+		var str_val = attacker.unit_stats.get_effective_attr("strength")
+		total_attack *= (1.0 + str_val * attacker.relic_strength_scale_damage)
 
 	var armor_defense = 0
 	for slot in defender.armor_slots:
@@ -124,7 +130,6 @@ func calculate_damage(attacker: Unit, defender: Unit) -> int:
 			if item_data:
 				var armor_quality_mult = QUALITY_MULT.get(item_data.quality, 1.0)
 				armor_defense += item_data.defense * armor_quality_mult
-	# ★ 防御方力量也走 get_effective_attr
 	var def_value = defender.unit_stats.get_effective_attr("strength") * STRENGTH_DEF_FACTOR + armor_defense
 	def_value += defender.buff_defense_flat
 
@@ -134,6 +139,19 @@ func calculate_damage(attacker: Unit, defender: Unit) -> int:
 		damage = max(1, int(damage * (1.0 - defender.buff_damage_reduction)))
 
 	return damage
+
+
+# ============================================================
+#  暴击判定
+# ============================================================
+func _roll_crit(attacker: Unit) -> bool:
+	var chance : float = CRIT_BASE_CHANCE
+	chance += attacker.unit_stats.get_effective_attr("dexterity") * CRIT_PER_DEXTERITY
+	var wdata = attacker.get_weapon_data()
+	if wdata:
+		chance += CRIT_CHANCE_BY_QUALITY.get(wdata.quality, 0.0)
+	return randf() < chance
+
 
 # ============================================================
 #  攻击主流程
@@ -155,10 +173,25 @@ func execute_attack(attacker: Unit, defender: Unit) -> bool:
 		return true
 
 	var damage = calculate_damage(attacker, defender)
-	print("造成伤害: ", damage)
 
-	# ★ 词条：连击（连续攻击同一目标伤害递增）
+	# ★ 狂热：连续攻击同一目标累积层数
 	var target_key = "%s_%d_%d" % [defender.unit_stats.unit_name, defender.grid_cell.x, defender.grid_cell.y]
+	if attacker.zeal_target == target_key:
+		attacker.zeal_stacks = mini(attacker.zeal_stacks + 1, ZEAL_MAX_STACKS)
+	else:
+		attacker.zeal_target = target_key
+		attacker.zeal_stacks = 1
+
+	# ★ 狂热触发（同一目标第 2 次起）
+	if attacker.zeal_stacks > 1 and TalentManager.is_talent_ready(attacker, "zeal"):
+		var lv_zeal = _get_effective_talent_level(attacker, "zeal")
+		var per = ZEAL_PER_STACK[clampi(lv_zeal - 1, 0, ZEAL_PER_STACK.size() - 1)]
+		var bonus = 1.0 + (attacker.zeal_stacks - 1) * per
+		damage = int(damage * bonus)
+		print("狂热触发！Lv.%d 第 %d 次攻击 倍率×%.2f" % [lv_zeal, attacker.zeal_stacks, bonus])
+		TalentManager.reset_talent(attacker, "zeal")
+
+	# ★ 连击（旧 combo）同机制保留
 	if attacker.combo_last_target == target_key:
 		attacker.combo_count += 1
 	else:
@@ -173,16 +206,45 @@ func execute_attack(attacker: Unit, defender: Unit) -> bool:
 		print("连击触发！Lv.%d 第 %d 次攻击 倍率×%.2f" % [lv_combo, attacker.combo_count, bonus])
 		TalentManager.reset_talent(attacker, "combo")
 
+	# ★ 暴击判定（三种来源）
+	var is_crit := false
+	var crit_mult : float = CRIT_DAMAGE_MULT
+
+	# 来源 1：词条"暴击"触发 → 强制暴击 + 词条倍率
+	if TalentManager.is_talent_ready(attacker, "crit"):
+		var lv_crit = _get_effective_talent_level(attacker, "crit")
+		crit_mult = 2.0 + (lv_crit - 1) * 0.5 + attacker.buff_crit_damage_bonus
+		is_crit = true
+		print("暴击词条触发！Lv.%d 倍率 %.1f" % [lv_crit, crit_mult])
+		TalentManager.reset_talent(attacker, "crit")
+	# 来源 2：力量遗物 → 每场第一次攻击必暴击
+	elif attacker.relic_first_attack_crit_available:
+		crit_mult += attacker.buff_crit_damage_bonus
+		is_crit = true
+		attacker.relic_first_attack_crit_available = false
+		print("力量遗物：首次攻击必暴击！")
+	# 来源 3：普通暴击 roll
+	elif _roll_crit(attacker):
+		crit_mult += attacker.buff_crit_damage_bonus
+		is_crit = true
+		print("暴击！倍率 %.2f" % crit_mult)
+
+	if is_crit:
+		damage = int(damage * crit_mult)
+
+	print("造成伤害: ", damage)
+
 	var defeated = _apply_damage_with_effects(defender, damage, attacker)
 	if defeated:
 		print(defender.unit_stats.unit_name + " 阵亡！")
+		_on_kill(attacker, defender)
 		UnitManager.unregister_unit(defender)
 		defender.queue_free()
 		_finish_attack(attacker, defender)
 		Globals.is_performing_action = false
 		return true
 
-	# ★ 词条：吸血（攻击后回血）
+	# ---- 词条：吸血 ----
 	if TalentManager.is_talent_ready(attacker, "lifesteal"):
 		var lv_ls = _get_effective_talent_level(attacker, "lifesteal")
 		var pct = LIFESTEAL_PERCENT[clampi(lv_ls - 1, 0, LIFESTEAL_PERCENT.size() - 1)]
@@ -209,13 +271,14 @@ func execute_attack(attacker: Unit, defender: Unit) -> bool:
 		SignalBus.request_damage_popup.emit(defender.global_position, extra_damage, false, false, false)
 		if extra_dead:
 			print(defender.unit_stats.unit_name + " 阵亡！")
+			_on_kill(attacker, defender)
 			UnitManager.unregister_unit(defender)
 			defender.queue_free()
 			_finish_attack(attacker, defender)
 			Globals.is_performing_action = false
 			return true
 
-	# ---- 词条：法术连击（法师额外施法） ----
+	# ---- 词条：法术连击 ----
 	if TalentManager.is_talent_ready(attacker, "spell_chain"):
 		if attacker.get_weapon_type() == "spellbook" or attacker.get_weapon_type() == "staff":
 			var level = _get_effective_talent_level(attacker, "spell_chain")
@@ -243,6 +306,7 @@ func execute_attack(attacker: Unit, defender: Unit) -> bool:
 				SignalBus.request_damage_popup.emit(defender.global_position, extra_damage, false, false, false)
 				if extra_dead:
 					print(defender.unit_stats.unit_name + " 阵亡！")
+					_on_kill(attacker, defender)
 					UnitManager.unregister_unit(defender)
 					defender.queue_free()
 					_finish_attack(attacker, defender)
@@ -259,6 +323,42 @@ func execute_attack(attacker: Unit, defender: Unit) -> bool:
 
 
 # ============================================================
+#  击杀连锁
+# ============================================================
+func _on_kill(attacker: Unit, _defender: Unit):
+	if not is_instance_valid(attacker):
+		return
+
+	# ---- 血怒：击杀回 HP ----
+	if TalentManager.is_talent_ready(attacker, "blood_rage"):
+		var lv = _get_effective_talent_level(attacker, "blood_rage")
+		var pct = BLOOD_RAGE_HEAL_PERCENT[clampi(lv - 1, 0, BLOOD_RAGE_HEAL_PERCENT.size() - 1)]
+		var heal = int(attacker.unit_stats.max_hp * pct)
+		var old_hp = attacker.hit_points
+		attacker.hit_points = mini(attacker.hit_points + heal, attacker.unit_stats.max_hp)
+		var actual = attacker.hit_points - old_hp
+		if actual > 0:
+			attacker.update_hp_label()
+			SignalBus.request_damage_popup.emit(attacker.global_position, actual, false, false, true)
+			print("血怒触发！Lv.%d 恢复 %d HP" % [lv, actual])
+		TalentManager.reset_talent(attacker, "blood_rage")
+
+	# ---- 连斩：击杀后本回合可再攻击一次 ----
+	if TalentManager.is_talent_ready(attacker, "cleave"):
+		attacker.has_attacked = false
+		attacker.has_acted = false
+		attacker.movement_after_attack = false
+		print("连斩触发！可再次行动")
+		TalentManager.reset_talent(attacker, "cleave")
+
+	# ---- 疾风遗物：击杀后再移动 ----
+	if attacker.relic_kill_grants_extra_move > 0:
+		attacker.remaining_move += attacker.relic_kill_grants_extra_move
+		attacker.has_moved = false
+		print("疾风遗物：额外移动 %d 格" % attacker.relic_kill_grants_extra_move)
+
+
+# ============================================================
 #  治疗
 # ============================================================
 func _execute_heal(attacker: Unit, defender: Unit) -> bool:
@@ -271,6 +371,10 @@ func _execute_heal(attacker: Unit, defender: Unit) -> bool:
 	var heal_amount = weapon_data.heal_effect.get("base_heal", 0)
 	var faith_bonus = attacker.unit_stats.faith * weapon_data.heal_effect.get("faith_multiplier", 1.0)
 	var total_heal = int(heal_amount + faith_bonus)
+
+	# ★ 信仰遗物：治疗 +N%
+	if attacker.relic_heal_bonus > 0.0:
+		total_heal = int(total_heal * (1.0 + attacker.relic_heal_bonus))
 
 	# ---- 词条：治愈强化 ----
 	if TalentManager.is_talent_ready(attacker, "heal_boost"):
@@ -317,15 +421,6 @@ func _apply_damage_with_effects(defender: Unit, damage: int, attacker: Unit) -> 
 		print("格挡触发！Lv.%d 减伤 %d%%" % [level, int(reduction * 100)])
 		TalentManager.reset_talent(defender, "block")
 
-	# ---- 词条：暴击 ----
-	if TalentManager.is_talent_ready(attacker, "crit"):
-		var level = _get_effective_talent_level(attacker, "crit")
-		var crit_mult = 2.0 + (level - 1) * 0.5
-		crit_mult += attacker.buff_crit_damage_bonus
-		damage = int(damage * crit_mult)
-		print("暴击触发！Lv.%d 倍率 %.1f" % [level, crit_mult])
-		TalentManager.reset_talent(attacker, "crit")
-
 	# ---- 词条：出血（给目标累积层数） ----
 	if TalentManager.is_talent_ready(attacker, "bleed"):
 		if defender.unit_stats.team_id != attacker.unit_stats.team_id:
@@ -342,14 +437,30 @@ func _apply_damage_with_effects(defender: Unit, damage: int, attacker: Unit) -> 
 				var bleed_dead = defender.apply_damage(bleed_damage)
 				defender.bleed_stacks = 0
 				if bleed_dead:
-					# ★ 出血致死也可能触发复活
 					if _try_revive(defender):
 						return false
 					return true
 
+	# ---- 守护遗物：HP < 30% 时，受到的伤害 -50% ----
+	if defender.relic_low_hp_damage_reduce > 0.0:
+		var hp_ratio = float(defender.hit_points) / float(defender.unit_stats.max_hp)
+		if hp_ratio < 0.3:
+			damage = max(1, int(damage * (1.0 - defender.relic_low_hp_damage_reduce)))
+			print("守护遗物：低血量减伤 %d%%" % int(defender.relic_low_hp_damage_reduce * 100))
+
 	var defeated = defender.apply_damage(damage)
 
-	# ★ 词条：复活
+	# ---- 生命遗物：每回合首次受伤回血 ----
+	if not defeated and defender.relic_turn_first_hit_regen > 0.0 and not defender.relic_turn_first_hit_regen_used:
+		var regen = int(damage * defender.relic_turn_first_hit_regen)
+		if regen > 0:
+			defender.hit_points = mini(defender.hit_points + regen, defender.unit_stats.max_hp)
+			defender.update_hp_label()
+			SignalBus.request_damage_popup.emit(defender.global_position, regen, false, false, true)
+			print("生命遗物：本回合首次受伤回复 %d HP" % regen)
+		defender.relic_turn_first_hit_regen_used = true
+
+	# ---- 词条：复活 ----
 	if defeated and _try_revive(defender):
 		return false
 
@@ -368,7 +479,7 @@ func _try_revive(defender: Unit) -> bool:
 
 
 # ============================================================
-#  等级读取（只有玩家单位享受等级加成）
+#  等级读取
 # ============================================================
 func _get_effective_talent_level(unit: Unit, talent_id: String) -> int:
 	if unit.unit_stats.team_id != 0:
@@ -399,6 +510,10 @@ func _execute_counter(attacker: Unit, defender: Unit) -> void:
 	print(defender.unit_stats.unit_name + " 反击!")
 	var counter_damage = calculate_damage(defender, attacker)
 
+	# ★ 迅捷遗物：反击伤害 +N%
+	if defender.relic_counter_damage_bonus > 0.0:
+		counter_damage = int(counter_damage * (1.0 + defender.relic_counter_damage_bonus))
+
 	# ---- 词条：反击强化 ----
 	if TalentManager.is_talent_ready(defender, "counter_boost"):
 		var level = _get_effective_talent_level(defender, "counter_boost")
@@ -419,6 +534,7 @@ func _execute_counter(attacker: Unit, defender: Unit) -> void:
 	var attacker_dead = attacker.apply_damage(counter_damage)
 	if attacker_dead:
 		print(attacker.unit_stats.unit_name + " 阵亡！")
+		_on_kill(defender, attacker)
 		UnitManager.unregister_unit(attacker)
 		attacker.queue_free()
 

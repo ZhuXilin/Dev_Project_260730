@@ -30,6 +30,22 @@ var buff_damage_reduction : float = 0.0
 var buff_attack_flat : int = 0
 var buff_magic_attack_flat : int = 0
 
+# ---- 遗物效果状态 ----
+var relic_first_attack_crit_available: bool = false
+var relic_low_hp_damage_reduce: float = 0.0
+var relic_kill_grants_extra_move: int = 0
+var relic_first_spell_free_available: bool = false
+var relic_turn_first_hit_regen: float = 0.0
+var relic_turn_first_hit_regen_used: bool = false
+var relic_strength_scale_damage: float = 0.0
+var relic_counter_damage_bonus: float = 0.0
+var relic_heal_bonus: float = 0.0
+
+# ---- 连锁词条状态 ----
+var vengeance_triggered: bool = false   # 复仇：本场是否已触发（只触发一次）
+var zeal_target: String = ""            # 狂热目标 key
+var zeal_stacks: int = 0                # 狂热层数
+
 # ---- 装备 ----
 var weapon_slot: ItemInstance = null
 var armor_slots: Array[ItemInstance] = []
@@ -39,7 +55,7 @@ var max_armor_slots: int = 2
 var talent_slots: Array[TalentInstance] = []
 var max_talent_slots: int = 1
 
-# ---- 连击追踪（转职词条用） ----
+# ---- 连击追踪 ----
 var combo_last_target: String = ""
 var combo_count: int = 0
 
@@ -70,7 +86,6 @@ func _ready():
 		animated_sprite.z_index = 2
 
 
-# ★ 新增：转职精灵路径覆盖
 func _resolve_sprite_path() -> String:
 	if unit_stats and unit_stats.override_sprite_path != "":
 		if ResourceLoader.exists(unit_stats.override_sprite_path):
@@ -86,6 +101,8 @@ func setup_unit(stats_data: UnitData, start_cell: Vector2i, initial_items: Array
 		return
 
 	reset_combat_buffs()
+	reset_relic_effects()
+	reset_chain_talents()
 
 	unit_stats = stats_data
 	grid_cell = start_cell
@@ -129,7 +146,6 @@ func setup_unit(stats_data: UnitData, start_cell: Vector2i, initial_items: Array
 
 	_init_talent_slots_from_data(stats_data)
 
-	# ★ 用 _resolve_sprite_path 替代直接读
 	var frames_path = _resolve_sprite_path()
 	var loaded_ok = false
 	if frames_path != "" and ResourceLoader.exists(frames_path):
@@ -171,6 +187,24 @@ func setup_unit(stats_data: UnitData, start_cell: Vector2i, initial_items: Array
 	combo_count = 0
 
 	_initialized = true
+
+
+func reset_relic_effects():
+	relic_first_attack_crit_available = false
+	relic_low_hp_damage_reduce = 0.0
+	relic_kill_grants_extra_move = 0
+	relic_first_spell_free_available = false
+	relic_turn_first_hit_regen = 0.0
+	relic_turn_first_hit_regen_used = false
+	relic_strength_scale_damage = 0.0
+	relic_counter_damage_bonus = 0.0
+	relic_heal_bonus = 0.0
+
+
+func reset_chain_talents():
+	vengeance_triggered = false
+	zeal_target = ""
+	zeal_stacks = 0
 
 
 func get_weapon() -> ItemInstance:
@@ -336,6 +370,8 @@ func serialize_inventory() -> Array[Dictionary]:
 
 func restore_from_unit_data(data: UnitData, cell: Vector2i):
 	reset_combat_buffs()
+	reset_relic_effects()
+	reset_chain_talents()
 
 	unit_stats = data
 	grid_cell = cell
@@ -374,7 +410,6 @@ func restore_from_unit_data(data: UnitData, cell: Vector2i):
 		animated_sprite = $Sprite as AnimatedSprite2D
 
 	if animated_sprite:
-		# ★ 用 _resolve_sprite_path 替代直接读
 		var frames_path = _resolve_sprite_path()
 		var loaded_ok = false
 		if frames_path != "" and ResourceLoader.exists(frames_path):
@@ -436,6 +471,7 @@ func reset_turn():
 	used_move = 0
 	moves_since_act = 0
 	previous_remaining_move = unit_stats.move_range
+	relic_turn_first_hit_regen_used = false   # ★ 每回合重置
 	set_gray(false)
 	play_animation("idle")
 
@@ -561,7 +597,6 @@ func update_hp_label():
 	if hp_label:
 		hp_label.text = str(hit_points) + "/" + str(unit_stats.max_hp)
 
-# ★ 替换：用 advanced_class 显示进阶名
 func update_name_label():
 	var na_label = $NameLabel
 	if na_label:
@@ -669,20 +704,9 @@ func get_talent_school_count(school: String) -> int:
 				count += 1
 	return count
 
+# ★ 改为调用 TalentManager 静态方法
 func accumulate_all_talents():
-	for inst in talent_slots:
-		if not inst or not inst.is_active:
-			continue
-		# ★ R 词条跳过冷却递减
-		if inst.cooldown_remaining >= 9999:
-			continue
-		if inst.cooldown_remaining > 0:
-			inst.cooldown_remaining -= 1
-			continue
-		inst.current_stack += 1
-		var threshold = get_talent_threshold(inst.talent_id)
-		if inst.current_stack >= threshold:
-			inst.is_ready = true
+	TalentManager.accumulate_talents(talent_slots)
 
 func equip_talent_to_slot(slot_index: int, talent_id: String) -> bool:
 	if slot_index < 0 or slot_index >= talent_slots.size():

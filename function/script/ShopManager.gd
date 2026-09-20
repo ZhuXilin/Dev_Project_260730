@@ -6,23 +6,18 @@ var shop_items: Array = []
 var reset_count: int = 0
 var _context : EquipContext = null
 
-const SHOP_SIZE = 6
+const SHOP_SIZE = 9
 const BASE_RESET_COST = 100
-const RESET_STEP = 5
+const RESET_STEP = 50
 const LEGENDARY_CHANCE : float = 0.05
 
 func set_context(ctx: EquipContext):
 	_context = ctx
 
-# ---- 池子来源 ----
 func _get_pool_ids() -> Array:
-	# ★ Arena：全池（含未解锁，可提前体验）
 	if _context and _context.get_context_id() == "arena":
 		return ItemManager.get_all_item_ids()
-
-	# ★ 主游戏：只卖已解锁
 	var pool : Array = Globals.unlocked_items.duplicate()
-	# 合并防具解锁（防具走 unlocked_recipes）
 	for recipe_id in GameState.unlocked_recipes:
 		if recipe_id not in pool:
 			pool.append(recipe_id)
@@ -65,7 +60,6 @@ func generate_shop_items():
 	pool.shuffle()
 	var selected = pool.slice(0, SHOP_SIZE)
 
-	# ★ 5% 概率出 legendary
 	if randf() < LEGENDARY_CHANCE:
 		var legendary_pool : Array = []
 		for item_id in ItemManager.get_all_item_ids():

@@ -3,64 +3,64 @@
 	"id": "relic_attack",
 	"name": "力量遗物",
 	"icon": "res://content/images/items/relic.png",
-	"description": "全队攻击+2",
-	"stats": {"attack": 2},
+	"description": "全队每场战斗第一次攻击必定暴击",
+	"effects": { "first_attack_crit": true },
 	"price": 150
   },
   "relic_defense": {
 	"id": "relic_defense",
 	"name": "守护遗物",
 	"icon": "res://content/images/items/relic.png",
-	"description": "全队防御+2",
-	"stats": {"defense": 2},
+	"description": "全队单位 HP<30% 时，受到伤害 -50%",
+	"effects": { "low_hp_damage_reduce": 0.5 },
 	"price": 150
   },
   "relic_speed": {
 	"id": "relic_speed",
 	"name": "疾风遗物",
 	"icon": "res://content/images/items/relic.png",
-	"description": "全队移动+1",
-	"stats": {"move_range": 1},
+	"description": "全队击杀敌人后，本回合可再移动 2 格",
+	"effects": { "kill_grants_extra_move": 2 },
 	"price": 150
   },
   "relic_magic": {
 	"id": "relic_magic",
 	"name": "魔力遗物",
 	"icon": "res://content/images/items/relic.png",
-	"description": "全队魔法攻击+3",
-	"stats": {"magic_attack": 3},
+	"description": "全队每场战斗第一次施法不消耗行动",
+	"effects": { "first_spell_free": true },
 	"price": 150
   },
   "relic_health": {
 	"id": "relic_health",
 	"name": "生命遗物",
 	"icon": "res://content/images/items/relic.png",
-	"description": "全队最大生命+5",
-	"stats": {"max_hp": 5},
+	"description": "全队每回合首次受伤，回复该伤害 30%",
+	"effects": { "turn_first_hit_regen": 0.3 },
 	"price": 200
   },
   "relic_strength": {
 	"id": "relic_strength",
 	"name": "巨力遗物",
 	"icon": "res://content/images/items/relic.png",
-	"description": "全队力量+2",
-	"stats": {"strength": 2},
+	"description": "全队攻击时，每 1 点力量额外 +2% 伤害",
+	"effects": { "strength_scale_damage": 0.02 },
 	"price": 200
   },
   "relic_dexterity": {
 	"id": "relic_dexterity",
 	"name": "迅捷遗物",
 	"icon": "res://content/images/items/relic.png",
-	"description": "全队敏捷+2",
-	"stats": {"dexterity": 2},
+	"description": "全队反击伤害 +50%",
+	"effects": { "counter_damage_bonus": 0.5 },
 	"price": 200
   },
   "relic_faith": {
 	"id": "relic_faith",
 	"name": "信仰遗物",
 	"icon": "res://content/images/items/relic.png",
-	"description": "全队信仰+2",
-	"stats": {"faith": 2},
+	"description": "全队治疗量 +50%",
+	"effects": { "heal_bonus": 0.5 },
 	"price": 200
   }
 }

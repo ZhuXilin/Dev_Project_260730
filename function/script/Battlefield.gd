@@ -123,6 +123,8 @@ func _ready():
 	equip_btn.pressed.connect(_on_equip_btn_pressed)
 	item_list_btn.pressed.connect(_on_item_list_btn_pressed)
 	SignalBus.non_combat_complete.connect(_on_non_combat_complete)
+	if not UnitManager.unit_removed.is_connected(_on_unit_removed_for_vengeance):
+		UnitManager.unit_removed.connect(_on_unit_removed_for_vengeance)
 
 	_detail_popup = load(Config.PATHS.ITEM_DETAIL_POPUP).instantiate()
 	add_child(_detail_popup)
@@ -287,6 +289,27 @@ func _ready():
 	_is_reward_ui_active = false
 	_apply_team_buffs()
 	print("Battlefield _ready 完成")
+
+func _on_unit_removed_for_vengeance(unit: Unit, team: int):
+	# 复仇：玩家单位死亡时，其他玩家单位攻击力 +30%（每单位每场只触发一次）
+	if team != 0:
+		return
+	if not is_instance_valid(unit):
+		return
+	for u in UnitManager.unit_list:
+		if not is_instance_valid(u):
+			continue
+		if u.unit_stats.team_id != 0:
+			continue
+		if u == unit:
+			continue
+		if u.vengeance_triggered:
+			continue
+		var inst = u.get_talent_instance("vengeance")
+		if inst and inst.is_active:
+			u.buff_attack_percent += 0.30
+			u.vengeance_triggered = true
+			print("[复仇] %s 攻击力 +30%%（本场只触发一次）" % u.unit_stats.unit_name)
 
 func _exit_tree():
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
@@ -1498,8 +1521,10 @@ func _format_unit_talents(unit: Unit) -> String:
 		if not data:
 			continue
 		var status := ""
-		if inst.cooldown_remaining >= 9999:
-			# 整场一次性词条（复活）
+		# 复仇是永久被动，不显示状态
+		if inst.talent_id == "vengeance":
+			status = ""
+		elif inst.cooldown_remaining >= 9999:
 			status = "(R)"
 		elif inst.cooldown_remaining > 0:
 			status = "(冷%d)" % inst.cooldown_remaining
@@ -1508,7 +1533,10 @@ func _format_unit_talents(unit: Unit) -> String:
 		else:
 			var remain = max(0, data.accumulation_threshold - inst.current_stack)
 			status = "(%d)" % remain
-		parts.append(data.display_name + status)
+		if status == "":
+			parts.append(data.display_name)
+		else:
+			parts.append(data.display_name + status)
 	return " ".join(parts)
 
 func _on_team_member_selected(unit: Unit):
@@ -2388,12 +2416,48 @@ func _on_back_camp_pressed():
 #  战斗开始：精炼品消耗（从被动槽读） + 遗物属性应用
 # ============================================================
 func _apply_team_buffs():
-	# ---- 只应用遗物加成（精炼改为战斗中主动使用） ----
-	var relic_stats = GameState.get_global_relic_stats()
+	# ---- 1. 汇总被动槽里的精炼 buff ----
+	var buffs = {
+		"attack_percent": 0.0,
+		"crit_damage_bonus": 0.0,
+		"defense_flat": 0,
+		"damage_reduction": 0.0,
+		"heal_full": false,
+	}
+	for entry in GameState.get_refines_from_passives():
+		var refine_id = entry.get("refine_id", "")
+		if refine_id == "":
+			continue
+		var effect = RefineManager.get_effect(refine_id)
+		if effect.is_empty():
+			continue
+		var value = effect.get("value", 0)
+		match effect.get("type", ""):
+			"attack_percent":     buffs["attack_percent"] += value
+			"crit_damage_bonus":  buffs["crit_damage_bonus"] += value
+			"defense_flat":       buffs["defense_flat"] += int(value)
+			"damage_reduction":   buffs["damage_reduction"] += value
+			"heal_full":          buffs["heal_full"] = true
 
+	GameState.clear_refine_passives()
+
+	# ---- 2. 遗物属性加成（保留旧接口） ----
+	var relic_stats = GameState.get_global_relic_stats()
+	# ---- 3. 遗物 effects ----
+	var relic_effects = GameState.get_global_relic_effects()
+
+	# ---- 4. 应用到玩家单位 ----
 	for unit in UnitManager.unit_list:
 		if unit.unit_stats.team_id != 0:
 			continue
+
+		# 精炼 buff
+		unit.buff_attack_percent += buffs["attack_percent"]
+		unit.buff_crit_damage_bonus += buffs["crit_damage_bonus"]
+		unit.buff_defense_flat += int(buffs["defense_flat"])
+		unit.buff_damage_reduction += buffs["damage_reduction"]
+
+		# 遗物属性
 		var s = unit.unit_stats
 		var old_max = s.max_hp
 		s.max_hp       += int(relic_stats.get("max_hp", 0))
@@ -2412,6 +2476,23 @@ func _apply_team_buffs():
 			unit.hit_points += hp_delta
 		if unit.hit_points > s.max_hp:
 			unit.hit_points = s.max_hp
+
+		# ★ 遗物 effects 应用到单位
+		unit.relic_first_attack_crit_available = bool(relic_effects.get("first_attack_crit", false))
+		unit.relic_low_hp_damage_reduce = float(relic_effects.get("low_hp_damage_reduce", 0.0))
+		unit.relic_kill_grants_extra_move = int(relic_effects.get("kill_grants_extra_move", 0))
+		unit.relic_first_spell_free_available = bool(relic_effects.get("first_spell_free", false))
+		unit.relic_turn_first_hit_regen = float(relic_effects.get("turn_first_hit_regen", 0.0))
+		unit.relic_strength_scale_damage = float(relic_effects.get("strength_scale_damage", 0.0))
+		unit.relic_counter_damage_bonus = float(relic_effects.get("counter_damage_bonus", 0.0))
+		unit.relic_heal_bonus = float(relic_effects.get("heal_bonus", 0.0))
+
 		unit.update_hp_label()
 
-	print("[Battlefield] 遗物 buff 已应用 | 遗物：", relic_stats)
+	if buffs["heal_full"]:
+		for unit in UnitManager.unit_list:
+			if unit.unit_stats.team_id == 0:
+				unit.hit_points = unit.unit_stats.max_hp
+				unit.update_hp_label()
+
+	print("[Battlefield] buff 已应用 | 精炼：", buffs, " 遗物属性：", relic_stats, " 遗物效果：", relic_effects)
