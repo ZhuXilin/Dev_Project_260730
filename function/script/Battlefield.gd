@@ -1521,9 +1521,17 @@ func _format_unit_talents(unit: Unit) -> String:
 		if not data:
 			continue
 		var status := ""
+
 		# 复仇是永久被动，不显示状态
 		if inst.talent_id == "vengeance":
 			status = ""
+		# 主动技能：CD 或就绪
+		elif data.is_active_skill:
+			if inst.is_ready:
+				status = "(就绪★)"
+			else:
+				status = "(冷%d)" % inst.cooldown_remaining
+		# R 词条
 		elif inst.cooldown_remaining >= 9999:
 			status = "(R)"
 		elif inst.cooldown_remaining > 0:
@@ -1533,6 +1541,7 @@ func _format_unit_talents(unit: Unit) -> String:
 		else:
 			var remain = max(0, data.accumulation_threshold - inst.current_stack)
 			status = "(%d)" % remain
+
 		if status == "":
 			parts.append(data.display_name)
 		else:

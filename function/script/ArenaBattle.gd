@@ -244,8 +244,24 @@ func _do_attack(attacker: UnitData, defender: UnitData):
 	# ---- 计算基础伤害 ----
 	var damage = _calc_damage(attacker, defender)
 
+	# ---- 主动技能（Arena 里变成被动：就绪时自动触发） ----
+	var ready_skills : Array = TalentManager.get_ready_active_skills(attacker)
+	if ready_skills.size() > 0:
+		var skill_id : String = ready_skills[0]
+		var skill_data = TalentManager.get_talent_data(skill_id)
+		if skill_data:
+			var ep : Dictionary = skill_data.effect_params
+			damage = int(damage * float(ep.get("damage_mult", 1.0)))
+			if bool(ep.get("force_crit", false)):
+				damage = int(damage * CRIT_DAMAGE_MULT)
+				print("[Arena] 主动技能 %s 触发：强制暴击" % skill_data.display_name)
+			else:
+				print("[Arena] 主动技能 %s 触发" % skill_data.display_name)
+			TalentManager.consume_active_skill(attacker, skill_id)
+
 	# ---- 狂热：连击同一目标累积 ----
 	var target_key = defender.unit_name
+	
 	var is_player_attacker = (attacker == _player)
 	var zeal_stacks : int = 0
 	if is_player_attacker:

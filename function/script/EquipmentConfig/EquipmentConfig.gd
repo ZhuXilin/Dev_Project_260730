@@ -957,3 +957,24 @@ func _on_refine_hover_entered(refine_id: String): _detail.on_refine_hover_entere
 func _on_refine_hover_exited(): _detail.on_refine_hover_exited()
 func _show_detail_in_zone(text: String): _detail.show_in_zone(text)
 func _clear_detail_zone(): _detail.clear_zone()
+
+func _show_craft_result(result : Dictionary):
+	var lines : Array = []
+	lines.append("=== 合成结果 ===")
+	for item_id in result["item_ids"]:
+		var data = ItemManager.get_item_data(item_id)
+		if data:
+			lines.append("★ " + data.name)
+	lines.append("品质：" + _quality_cn(result["quality"]))
+	if result["bonus_count"] > 0:
+		lines.append("🎲 额外产出 ×%d" % result["bonus_count"])
+	_show_detail_in_zone("\n".join(lines))
+
+
+func _quality_cn(q : String) -> String:
+	match q:
+		"common": return "普通"
+		"rare": return "稀有"
+		"epic": return "史诗"
+		"legendary": return "传说"
+		_: return q

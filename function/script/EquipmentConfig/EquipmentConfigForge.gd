@@ -3,7 +3,10 @@ extends RefCounted
 
 const Style = preload("res://function/script/EquipmentConfig/EquipmentConfigStyle.gd")
 
-const MAX_SLOTS : int = 3
+# 品质升级映射
+const QUALITY_ORDER : Array = ["common", "rare", "epic", "legendary"]
+
+const MAX_SLOTS : int = 9
 const WEAPON_UPGRADE_MAX : int = 3
 const UPGRADE_BASE_COST : int = 50
 const UPGRADE_GROWTH : float = 2.0
@@ -45,14 +48,14 @@ func build_forge_slots():
 	panel._clear_container(panel.shop_container)
 	inline_craft_btn = null
 
-	panel.shop_container.columns = MAX_SLOTS
+	panel.shop_container.columns = 3
 	panel.shop_container.visible = true
 	panel.shop_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	panel.shop_container.add_theme_constant_override("h_separation", 2)
 	panel.shop_container.add_theme_constant_override("v_separation", 2)
 
 	if panel.shop_scroll:
-		panel.shop_scroll.custom_minimum_size = Vector2(0, 22)
+		panel.shop_scroll.custom_minimum_size = Vector2(0, 60)
 		panel.shop_scroll.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 
 	_ensure_forge_result_label()
@@ -379,60 +382,147 @@ func on_forge_clear_pressed():
 #  合成
 # ============================================================
 func on_forge_craft_pressed():
-	if forge_matched_recipe == "": return
-
-	if not _is_forge_recipe_available():
-		Globals.show_confirm(panel, "未解锁此配方\n请前往铁砧酒馆解锁", "确定", "", func(): pass, func(): pass, false)
-		return
-
-	var recipe : RecipeData = RecipeManager.get_recipe(forge_matched_recipe)
-	if not recipe: return
-
-	var entries : Array = []
+	# 收集输入
+	var input_insts : Array = []
 	for entry in forge_slots:
-		if entry != null: entries.append(entry)
-	if entries.size() != recipe.inputs.size(): return
+		if entry != null:
+			var entry_dict : Dictionary = entry
+			input_insts.append(entry_dict["inst"])
 
-	var first_entry : Dictionary = entries[0]
-	var check_unit_idx : int = first_entry["origin_unit"]
-	var check_unit : UnitData = panel.party[check_unit_idx]
-
-	var input_slots_for_check : Array = []
-	for e in entries:
-		var e_dict : Dictionary = e
-		if e_dict["origin_unit"] == check_unit_idx:
-			input_slots_for_check.append(e_dict["origin_slot"])
-
-	var used_after : int = panel._used_slots_excluding(check_unit, input_slots_for_check)
-	var out_need : int = panel._inst_slots_for_id(forge_matched_recipe)
-	if used_after + out_need > check_unit.max_armor_slots:
-		Globals.show_confirm(panel, "合成后防具格数不足！", "确定", "", func(): pass, func(): pass, false)
+	if input_insts.size() == 0:
+		Globals.show_confirm(panel, "请先放入防具", "确定", "", func(): pass, func(): pass, false)
 		return
 
-	if panel._context.get_gold() < CRAFT_COST:
-		panel._show_buy_failure_message("not_enough_gold"); return
-	if not panel._context.subtract_gold(CRAFT_COST):
-		panel._show_buy_failure_message("not_enough_gold"); return
+	# 检查金币
+	var craft_cost : int = CRAFT_COST
+	if panel._context.get_gold() < craft_cost:
+		panel._show_buy_failure_message("not_enough_gold")
+		return
 
-	var out_inst := ItemInstance.new()
-	out_inst.item_id = forge_matched_recipe
-	out_inst.count = 1
-	var first_unit : UnitData = panel.party[first_entry["origin_unit"]]
-	first_unit.armor_slots[first_entry["origin_slot"]] = out_inst
+	# ---- 计算结果 ----
+	var result : Dictionary = _compute_craft_result(input_insts)
 
-	for i in range(1, entries.size()):
-		var e_dict : Dictionary = entries[i]
-		var eu : UnitData = panel.party[e_dict["origin_unit"]]
-		eu.armor_slots[e_dict["origin_slot"]] = null
+	# ---- 扣金币 ----
+	panel._context.subtract_gold(craft_cost)
 
-	forge_slots.clear()
-	for i in range(MAX_SLOTS): forge_slots.append(null)
+	# ---- 归还所有输入防具（清空插槽） ----
+	for i in range(forge_slots.size()):
+		var entry : Variant = forge_slots[i]
+		if entry != null:
+			var entry_dict : Dictionary = entry
+			var ou : UnitData = panel.party[entry_dict["origin_unit"]]
+			_force_return_armor_to_unit(ou, entry_dict["inst"], entry_dict["origin_slot"])
+			forge_slots[i] = null
+
+	# ---- 产出防具放到第一个单位（或让玩家选） ----
+	# 简化：放到第一个有空的单位
+	var out_ids : Array = result["item_ids"]
+	var target_unit_idx : int = -1
+	var target_slot : int = -1
+	for i in range(panel.party.size()):
+		var pu : UnitData = panel.party[i]
+		for s in range(pu.armor_slots.size()):
+			if pu.armor_slots[s] == null:
+				target_unit_idx = i
+				target_slot = s
+				break
+		if target_unit_idx >= 0:
+			break
+
+	if target_unit_idx < 0:
+		# 没有空槽，提示
+		Globals.show_confirm(panel, "所有单位防具槽已满，合成产物无处存放", "确定", "", func(): pass, func(): pass, false)
+		# 但仍然扣钱（因为已经扣了）
+		panel._build_unit_columns()
+		panel._update_gold_display()
+		panel._schedule_build_ui()
+		return
+
+	# 放产物
+	var out_unit : UnitData = panel.party[target_unit_idx]
+	for item_id in out_ids:
+		if target_slot >= out_unit.armor_slots.size():
+			break
+		var inst := ItemInstance.new()
+		inst.item_id = item_id
+		inst.count = 1
+		if out_unit.armor_slots[target_slot] == null:
+			out_unit.armor_slots[target_slot] = inst
+			target_slot += 1
+
 	forge_matched_recipe = ""
-
 	panel._sync_all()
 	panel._build_unit_columns()
 	panel._update_gold_display()
+	panel._show_craft_result(result)
 	panel._schedule_build_ui()
+
+
+## 计算合成结果
+func _compute_craft_result(input_insts : Array) -> Dictionary:
+	var count : int = input_insts.size()
+
+	# 输入平均品质
+	var quality_sum : int = 0
+	for inst in input_insts:
+		var data = ItemManager.get_item_data(inst.item_id)
+		if data:
+			quality_sum += QUALITY_ORDER.find(data.quality)
+	var avg_quality_idx : int = quality_sum / max(1, count)
+	avg_quality_idx = clampi(avg_quality_idx, 0, QUALITY_ORDER.size() - 1)
+
+	# 品质 +1 概率
+	var up_prob : float = 0.0
+	if count >= 9:
+		up_prob = 0.45
+	elif count >= 6:
+		up_prob = 0.30
+	elif count >= 3:
+		up_prob = 0.15
+
+	var final_quality_idx : int = avg_quality_idx
+	if randf() < up_prob:
+		final_quality_idx = mini(final_quality_idx + 1, QUALITY_ORDER.size() - 1)
+	var final_quality : String = QUALITY_ORDER[final_quality_idx]
+
+	# 选一件该品质的防具
+	var candidates : Array = []
+	for item_id in ItemManager.get_all_item_ids():
+		var data = ItemManager.get_item_data(item_id)
+		if not data or data.type != "armor":
+			continue
+		if data.quality == final_quality and data.price > 0:
+			candidates.append(item_id)
+
+	# 该品质没候选 → 降级
+	while candidates.is_empty() and final_quality_idx > 0:
+		final_quality_idx -= 1
+		final_quality = QUALITY_ORDER[final_quality_idx]
+		for item_id in ItemManager.get_all_item_ids():
+			var data = ItemManager.get_item_data(item_id)
+			if not data or data.type != "armor":
+				continue
+			if data.quality == final_quality and data.price > 0:
+				candidates.append(item_id)
+
+	if candidates.is_empty():
+		candidates = ["wooden_shield"]  # 兜底
+
+	var out_ids : Array = []
+	out_ids.append(candidates[randi() % candidates.size()])
+
+	# 9 件时 30% 概率额外产出
+	var bonus_count : int = 0
+	if count >= 9 and randf() < 0.30:
+		bonus_count = 1 + (randi() % 2)  # 1 或 2
+		for _i in range(bonus_count):
+			out_ids.append(candidates[randi() % candidates.size()])
+
+	return {
+		"item_ids": out_ids,
+		"quality": final_quality,
+		"bonus_count": bonus_count,
+	}
 
 
 func _get_weapon_upgrade_cost(level: int) -> int:
@@ -598,3 +688,17 @@ func execute_forge_drop(data: Dictionary, target: Control):
 		forge_slots[slot_idx] = {"inst": inst, "origin_unit": uidx, "origin_slot": src_slot}
 		panel._build_unit_columns()
 		display_recipe_info(); panel._schedule_build_ui(); return
+
+
+func _force_return_armor_to_unit(unit: UnitData, inst: ItemInstance, prefer_slot: int) -> bool:
+	# 先尝试原槽
+	if prefer_slot >= 0 and prefer_slot < unit.armor_slots.size() and unit.armor_slots[prefer_slot] == null:
+		unit.armor_slots[prefer_slot] = inst
+		return true
+	# 再找空槽
+	for i in range(unit.armor_slots.size()):
+		if unit.armor_slots[i] == null:
+			unit.armor_slots[i] = inst
+			return true
+	# 没地方放 → 丢弃（因为已经在合成时消耗了）
+	return false

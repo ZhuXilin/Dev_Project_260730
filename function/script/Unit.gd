@@ -30,6 +30,14 @@ var buff_damage_reduction : float = 0.0
 var buff_attack_flat : int = 0
 var buff_magic_attack_flat : int = 0
 
+# ---- 主动技能状态 ----
+var active_skill_ready_consumed: Dictionary = {}
+
+# ---- 嘲讽状态 ----
+var taunt_rounds: int = 0
+var taunt_by: Unit = null
+var taunt_rounds_left: int = 0
+
 # ---- 遗物效果状态 ----
 var relic_first_attack_crit_available: bool = false
 var relic_low_hp_damage_reduce: float = 0.0
@@ -185,6 +193,10 @@ func setup_unit(stats_data: UnitData, start_cell: Vector2i, initial_items: Array
 
 	combo_last_target = ""
 	combo_count = 0
+	active_skill_ready_consumed.clear()
+	taunt_rounds = 0
+	taunt_by = null
+	taunt_rounds_left = 0
 
 	_initialized = true
 
@@ -205,6 +217,9 @@ func reset_chain_talents():
 	vengeance_triggered = false
 	zeal_target = ""
 	zeal_stacks = 0
+	taunt_rounds = 0
+	taunt_by = null
+	taunt_rounds_left = 0
 
 
 func get_weapon() -> ItemInstance:
@@ -448,6 +463,10 @@ func restore_from_unit_data(data: UnitData, cell: Vector2i):
 
 	combo_last_target = ""
 	combo_count = 0
+	active_skill_ready_consumed.clear()
+	taunt_rounds = 0
+	taunt_by = null
+	taunt_rounds_left = 0
 
 	_initialized = true
 
@@ -634,8 +653,14 @@ func _init_talent_slots_from_data(data: UnitData):
 				var new_inst = TalentInstance.new()
 				new_inst.talent_id = slot_data.talent_id
 				new_inst.current_stack = 0
-				new_inst.is_ready = false
 				new_inst.is_active = true
+				# ★ 主动技能初始就绪
+				var tdata = TalentManager.get_talent_data(slot_data.talent_id)
+				if tdata and tdata.is_active_skill:
+					new_inst.is_ready = true
+					new_inst.cooldown_remaining = 0
+				else:
+					new_inst.is_ready = false
 				talent_slots.append(new_inst)
 			else:
 				talent_slots.append(null)
@@ -732,3 +757,16 @@ func reset_combat_buffs():
 	buff_damage_reduction = 0.0
 	buff_attack_flat = 0
 	buff_magic_attack_flat = 0
+
+func can_counter() -> bool:
+	# 词条
+	if get_talent_instance("counter_boost") != null:
+		return true
+	# 武器类型（长枪/盾）
+	var wdata = get_weapon_data()
+	if wdata and wdata.category in ["spear", "shield"]:
+		return true
+	# 遗物/协同 buff
+	if relic_counter_damage_bonus > 0.0:
+		return true
+	return false

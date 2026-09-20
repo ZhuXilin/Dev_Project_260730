@@ -36,6 +36,8 @@ static func load_talent_data():
 		talent.compatible_units = dict.get("compatible_units", [])
 		talent.unlock_type = dict.get("unlock_type", "default")
 		talent.soul_cost = int(dict.get("soul_cost", 0))
+		talent.is_active_skill = bool(dict.get("is_active_skill", false))
+		talent.skill_cooldown = int(dict.get("skill_cooldown", 0))
 		_talent_db[talent.id] = talent
 	print("成功加载 ", _talent_db.size(), " 个词条")
 
@@ -131,10 +133,21 @@ static func get_cooldown_after_trigger(talent_id: String) -> int:
 	return data.cooldown_after_trigger
 
 
-## ★ 新增：纯静态积累方法（供 Unit 和 ArenaBattle 复用）
 static func accumulate_talents(talent_slots: Array) -> void:
 	for inst in talent_slots:
 		if not inst or not inst.is_active:
+			continue
+		var data = get_talent_data(inst.talent_id)
+		if not data:
+			continue
+		# 主动技能：CD 递减到 0 就绪
+		if data.is_active_skill:
+			if inst.cooldown_remaining >= 9999:
+				continue
+			if inst.cooldown_remaining > 0:
+				inst.cooldown_remaining -= 1
+				if inst.cooldown_remaining == 0:
+					inst.is_ready = true
 			continue
 		# R 词条（9999）跳过冷却递减
 		if inst.cooldown_remaining >= 9999:
@@ -143,9 +156,42 @@ static func accumulate_talents(talent_slots: Array) -> void:
 			inst.cooldown_remaining -= 1
 			continue
 		inst.current_stack += 1
-		var data = get_talent_data(inst.talent_id)
-		if data and inst.current_stack >= data.accumulation_threshold:
+		if inst.current_stack >= data.accumulation_threshold:
 			inst.is_ready = true
+
+
+## ★ 主动技能就绪检查
+static func is_active_skill_ready(unit, talent_id: String) -> bool:
+	var data = get_talent_data(talent_id)
+	if not data or not data.is_active_skill:
+		return false
+	if unit == null:
+		return false
+	var inst = unit.get_talent_instance(talent_id)
+	if not inst or not inst.is_active:
+		return false
+	return inst.is_ready
+
+
+## ★ 消耗主动技能（触发后进入 CD）
+static func consume_active_skill(unit, talent_id: String) -> void:
+	reset_talent(unit, talent_id)
+
+
+## ★ 获取单位身上所有就绪的主动技能
+static func get_ready_active_skills(unit) -> Array:
+	var result : Array = []
+	if unit == null:
+		return result
+	for inst in unit.talent_slots:
+		if not inst or not inst.is_active:
+			continue
+		var data = get_talent_data(inst.talent_id)
+		if not data or not data.is_active_skill:
+			continue
+		if inst.is_ready:
+			result.append(inst.talent_id)
+	return result
 
 
 # ============================================================

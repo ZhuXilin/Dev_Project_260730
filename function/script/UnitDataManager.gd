@@ -206,11 +206,18 @@ static func create_unit_data(unit_name: String) -> UnitData:
 		var talent_inst = TalentInstance.new()
 		talent_inst.talent_id = talent_id
 		talent_inst.current_stack = 0
-		talent_inst.is_ready = false
 		talent_inst.is_active = true
+		# ★ 主动技能初始就绪
+		var tdata = TalentManager.get_talent_data(talent_id)
+		if tdata and tdata.is_active_skill:
+			talent_inst.is_ready = true
+			talent_inst.cooldown_remaining = 0
+		else:
+			talent_inst.is_ready = false
 		data.talent_slots.append(talent_inst)
 	while data.talent_slots.size() < talent_cap:
 		data.talent_slots.append(null)
+
 
 	data.armor_slots = [null, null]
 	data.max_armor_slots = 2
