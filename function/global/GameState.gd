@@ -189,6 +189,10 @@ var unit_growth : Dictionary:
 	get: return resource_state.unit_growth
 	set(value): resource_state.unit_growth = value
 
+var unit_blessings : Dictionary:
+	get: return resource_state.unit_blessings
+	set(value): resource_state.unit_blessings = value
+
 var talent_exp : Dictionary:
 	get: return resource_state.talent_exp
 	set(value): resource_state.talent_exp = value

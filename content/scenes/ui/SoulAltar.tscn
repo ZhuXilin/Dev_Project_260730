@@ -70,6 +70,12 @@ size_flags_horizontal = 3
 theme_override_font_sizes/font_size = 7
 text = "特技"
 
+[node name="SoulForgeTabBtn" type="Button" parent="Panel/VBox/TabBar" unique_id=922914873]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 8
+text = "魂铸"
+
 [node name="MainHBox" type="HBoxContainer" parent="Panel/VBox" unique_id=1885705594]
 layout_mode = 2
 size_flags_vertical = 3
@@ -177,5 +183,6 @@ text = "返回"
 
 [connection signal="pressed" from="Panel/VBox/TabBar/AttrTabBtn" to="." method="_on_attr_tab_pressed"]
 [connection signal="pressed" from="Panel/VBox/TabBar/TalentTabBtn" to="." method="_on_talent_tab_pressed"]
+[connection signal="pressed" from="Panel/VBox/TabBar/SoulForgeTabBtn" to="." method="_on_soul_forge_tab_pressed"]
 [connection signal="pressed" from="Panel/VBox/MainHBox/InfoPanel/BottomBar/ResetBtn" to="." method="_on_reset_pressed"]
 [connection signal="pressed" from="Panel/VBox/BackButton" to="." method="_on_back_pressed"]

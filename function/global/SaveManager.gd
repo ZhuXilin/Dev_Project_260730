@@ -127,6 +127,7 @@ func _build_save_data() -> SaveData:
 	save.unlocked_refine_recipes = GameState.unlocked_refine_recipes.duplicate()
 	save.refined_items = GameState.refined_items.duplicate()
 	save.unit_growth = GameState.unit_growth.duplicate(true)
+	save.unit_blessings = GameState.unit_blessings.duplicate(true)
 	save.arena_target_talents = GameState.arena_target_talents.duplicate(true)
 	save.arena_best_streak = GameState.arena_best_streak
 	save.talent_exp = GameState.talent_exp.duplicate(true)
@@ -194,6 +195,7 @@ func _apply_save_data(save: SaveData):
 	GameState.unlocked_refine_recipes = save.unlocked_refine_recipes.duplicate()
 	GameState.refined_items = save.refined_items.duplicate()
 	GameState.unit_growth = save.unit_growth.duplicate(true)
+	GameState.unit_blessings = save.unit_blessings.duplicate(true)
 
 	if Globals.unlocked_items.is_empty():
 		Globals.unlocked_items = Globals.item_unlocked_items.duplicate()

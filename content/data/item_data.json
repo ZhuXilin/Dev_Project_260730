@@ -418,5 +418,99 @@
 	  "dexterity": 1,
 	  "move_range": 1
 	}
+  },
+  "soul_sword": {
+	"id": "soul_sword", "name": "魂之剑",
+	"type": "weapon", "use_type": "infinite",
+	"icon": "res://content/images/items/sword.png",
+	"description": "魂铸圣物，剑士的最终兵装",
+	"category": "sword", "equipment_slot": "weapon",
+	"price": 0, "quality": "legendary", "attack_style": "standard",
+	"base_attack": 11, "attack_range": 1, "min_attack_range": 1,
+	"modifier": { "strength": 0.9, "dexterity": 0.7 }
+  },
+  "soul_lance": {
+	"id": "soul_lance", "name": "魂之枪",
+	"type": "weapon", "use_type": "infinite",
+	"icon": "res://content/images/items/spear.png",
+	"description": "魂铸圣物，枪兵的最终兵装",
+	"category": "spear", "equipment_slot": "weapon",
+	"price": 0, "quality": "legendary", "attack_style": "standard",
+	"base_attack": 11, "attack_range": 1, "min_attack_range": 1,
+	"modifier": { "strength": 0.8, "dexterity": 0.8 }
+  },
+  "soul_axe": {
+	"id": "soul_axe", "name": "魂之斧",
+	"type": "weapon", "use_type": "infinite",
+	"icon": "res://content/images/items/axe.png",
+	"description": "魂铸圣物，斧兵的最终兵装",
+	"category": "axe", "equipment_slot": "weapon",
+	"price": 0, "quality": "legendary", "attack_style": "heavy",
+	"base_attack": 14, "attack_range": 2, "min_attack_range": 1,
+	"modifier": { "strength": 1.3 },
+	"heavy_attack": { "damage_multiplier": 1.4, "charge_multiplier": 2.0 }
+  },
+  "soul_bow": {
+	"id": "soul_bow", "name": "魂之弓",
+	"type": "weapon", "use_type": "infinite",
+	"icon": "res://content/images/items/bow.png",
+	"description": "魂铸圣物，弓兵的最终兵装",
+	"category": "bow", "equipment_slot": "weapon",
+	"price": 0, "quality": "legendary", "attack_style": "ranged",
+	"base_attack": 9, "attack_range": 3, "min_attack_range": 2,
+	"modifier": { "dexterity": 1.1, "arcane": 0.4 }
+  },
+  "soul_javelin": {
+	"id": "soul_javelin", "name": "魂之骑枪",
+	"type": "weapon", "use_type": "infinite",
+	"icon": "res://content/images/items/javelin.png",
+	"description": "魂铸圣物，飞马的最终兵装",
+	"category": "spear", "equipment_slot": "weapon",
+	"price": 0, "quality": "legendary", "attack_style": "standard",
+	"base_attack": 10, "attack_range": 2, "min_attack_range": 1,
+	"modifier": { "dexterity": 1.0, "strength": 0.6 }
+  },
+  "soul_tome": {
+	"id": "soul_tome", "name": "魂之书",
+	"type": "weapon", "use_type": "infinite",
+	"icon": "res://content/images/items/spellbook.png",
+	"description": "魂铸圣物，法师的最终兵装",
+	"category": "spellbook", "equipment_slot": "weapon",
+	"price": 0, "quality": "legendary", "attack_style": "magic",
+	"base_attack": 12, "attack_range": 2, "min_attack_range": 1,
+	"modifier": { "intelligence": 1.4 },
+	"magic_attack": { "ignore_defense": true }
+  },
+  "soul_staff": {
+	"id": "soul_staff", "name": "魂之杖",
+	"type": "weapon", "use_type": "infinite",
+	"icon": "res://content/images/items/staff.png",
+	"description": "魂铸圣物，修女的最终兵装",
+	"category": "staff", "equipment_slot": "weapon",
+	"price": 0, "quality": "legendary", "attack_style": "heal",
+	"base_attack": 0, "attack_range": 4, "min_attack_range": 0,
+	"modifier": { "faith": 1.4 },
+	"heal_effect": { "base_heal": 12, "faith_multiplier": 1.0 }
+  },
+  "soul_dragonstone": {
+	"id": "soul_dragonstone", "name": "魂之龙石",
+	"type": "weapon", "use_type": "infinite",
+	"icon": "res://content/images/items/fire_dragonstone.png",
+	"description": "魂铸圣物，龙人的最终兵装",
+	"category": "dragonstone", "equipment_slot": "weapon",
+	"price": 0, "quality": "legendary", "attack_style": "magic",
+	"base_attack": 13, "attack_range": 4, "min_attack_range": 1,
+	"modifier": { "arcane": 1.2, "intelligence": 0.4 },
+	"magic_attack": { "ignore_defense": true }
+  },
+  "soul_blade": {
+	"id": "soul_blade", "name": "魂之重剑",
+	"type": "weapon", "use_type": "infinite",
+	"icon": "res://content/images/items/sword.png",
+	"description": "魂铸圣物，重甲兵的最终兵装",
+	"category": "sword", "equipment_slot": "weapon",
+	"price": 0, "quality": "legendary", "attack_style": "standard",
+	"base_attack": 12, "attack_range": 1, "min_attack_range": 1,
+	"modifier": { "strength": 1.1, "faith": 0.4 }
   }
 }

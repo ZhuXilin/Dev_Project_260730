@@ -215,7 +215,8 @@ static func create_unit_data(unit_name: String) -> UnitData:
 	data.armor_slots = [null, null]
 	data.max_armor_slots = 2
 	data.max_talent_slots = talent_cap
-	apply_growth(data, key)
+	# 旧加点已废弃，改用祝福
+	BlessingManager.apply_to_unit_data(key, data)
 	return data
 
 # ============================================================

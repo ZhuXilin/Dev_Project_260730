@@ -28,8 +28,11 @@ const CURRENT_VERSION = 5
 @export var temp_soul: int = 0
 @export var temp_gold: int = 0
 
-# ---- 单位属性成长（魂之祭坛） ----
+# ---- 单位属性成长（魂之祭坛，已废弃） ----
 @export var unit_growth: Dictionary = {}
+
+# ---- 魂之祝福 ----
+@export var unit_blessings: Dictionary = {}
 
 @export var talent_exp: Dictionary = {}
 
