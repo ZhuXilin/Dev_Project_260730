@@ -62,7 +62,7 @@ theme_override_constants/separation = 3
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_font_sizes/font_size = 7
-text = "加点"
+text = "祝福"
 
 [node name="TalentTabBtn" type="Button" parent="Panel/VBox/TabBar" unique_id=922914872]
 layout_mode = 2
@@ -73,7 +73,7 @@ text = "特技"
 [node name="SoulForgeTabBtn" type="Button" parent="Panel/VBox/TabBar" unique_id=922914873]
 layout_mode = 2
 size_flags_horizontal = 3
-theme_override_font_sizes/font_size = 8
+theme_override_font_sizes/font_size = 7
 text = "魂铸"
 
 [node name="MainHBox" type="HBoxContainer" parent="Panel/VBox" unique_id=1885705594]
@@ -143,10 +143,14 @@ theme_override_font_sizes/font_size = 5
 text = "描述"
 autowrap_mode = 3
 
-[node name="AttrContainer" type="VBoxContainer" parent="Panel/VBox/MainHBox/InfoPanel" unique_id=1477578068]
+[node name="AttrScroll" type="ScrollContainer" parent="Panel/VBox/MainHBox/InfoPanel" unique_id=1684243843]
+layout_mode = 2
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+
+[node name="AttrContainer" type="VBoxContainer" parent="Panel/VBox/MainHBox/InfoPanel/AttrScroll" unique_id=1477578068]
 layout_mode = 2
 size_flags_horizontal = 3
-size_flags_vertical = 3
 theme_override_constants/separation = 2
 
 [node name="BottomBar" type="HBoxContainer" parent="Panel/VBox/MainHBox/InfoPanel" unique_id=1446268992]
@@ -155,20 +159,16 @@ size_flags_vertical = 0
 theme_override_constants/separation = 6
 
 [node name="PointLabel" type="Label" parent="Panel/VBox/MainHBox/InfoPanel/BottomBar" unique_id=1543745625]
+visible = false
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_font_sizes/font_size = 6
-text = "已分配: 0 / 12"
 
 [node name="ResetBtn" type="Button" parent="Panel/VBox/MainHBox/InfoPanel/BottomBar" unique_id=421809626]
+visible = false
 layout_mode = 2
 theme_override_font_sizes/font_size = 6
-theme_override_styles/normal = ExtResource("2")
-theme_override_styles/pressed = ExtResource("2")
-theme_override_styles/hover = ExtResource("2")
-theme_override_styles/disabled = ExtResource("2")
-theme_override_styles/focus = ExtResource("2")
-text = "洗点(20魂)"
+text = "洗点"
 
 [node name="BackButton" type="Button" parent="Panel/VBox" unique_id=1091288172]
 layout_mode = 2
@@ -184,5 +184,4 @@ text = "返回"
 [connection signal="pressed" from="Panel/VBox/TabBar/AttrTabBtn" to="." method="_on_attr_tab_pressed"]
 [connection signal="pressed" from="Panel/VBox/TabBar/TalentTabBtn" to="." method="_on_talent_tab_pressed"]
 [connection signal="pressed" from="Panel/VBox/TabBar/SoulForgeTabBtn" to="." method="_on_soul_forge_tab_pressed"]
-[connection signal="pressed" from="Panel/VBox/MainHBox/InfoPanel/BottomBar/ResetBtn" to="." method="_on_reset_pressed"]
 [connection signal="pressed" from="Panel/VBox/BackButton" to="." method="_on_back_pressed"]

@@ -180,11 +180,11 @@ func _build_ui_inner():
 
 	match current_mode:
 		Mode.DEPLOY:
-			mode_label.text = "装备配置 - 出战准备" if _context.get_title() == "" else _context.get_title()
+			mode_label.text = "装备配置 - 战前准备" if _context.get_title() == "" else _context.get_title()
 			close_btn.visible = true
 			close_btn.text = "返回"
 			confirm_btn.visible = true
-			confirm_btn.text = "出发"
+			confirm_btn.text = "开始探索"
 			confirm_btn.disabled = false
 			confirm_btn.modulate = Color.WHITE
 			gold_label.visible = _context.show_gold()
@@ -268,7 +268,7 @@ func _build_ui_inner():
 		Mode.MAP_SHOP_REST:
 			mode_label.text = "铁匠商店"
 			close_btn.visible = true
-			close_btn.text = "出发"
+			close_btn.text = "继续探索"
 			confirm_btn.visible = false
 			gold_label.visible = true
 			tab_bar.visible = true
@@ -303,7 +303,7 @@ func _build_ui_inner():
 		Mode.SHOP:
 			mode_label.text = "商店"
 			close_btn.visible = true
-			close_btn.text = "出发"
+			close_btn.text = "继续探索"
 			confirm_btn.visible = false
 			gold_label.visible = true
 			tab_bar.visible = false
@@ -318,7 +318,7 @@ func _build_ui_inner():
 		Mode.FORGE:
 			mode_label.text = "铁匠铺"
 			close_btn.visible = true
-			close_btn.text = "出发"
+			close_btn.text = "继续探索"
 			confirm_btn.visible = false
 			gold_label.visible = true
 			tab_bar.visible = false

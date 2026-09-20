@@ -24,7 +24,7 @@ func _ready():
 	Globals.is_transitioning = false
 
 	# ---- 按钮文本（全部在代码里设置） ----
-	if deploy_btn: deploy_btn.text = "出战"
+	if deploy_btn: deploy_btn.text = "战场探索"
 	if unit_btn: unit_btn.text = "魂铸圣所"
 	if weapon_workshop_btn: weapon_workshop_btn.text = "武器作坊"
 	if alchemy_btn: alchemy_btn.text = "炼金坊"

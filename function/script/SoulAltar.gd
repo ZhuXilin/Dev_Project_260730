@@ -20,7 +20,7 @@ var _current_talent_id : String = ""
 @onready var unit_sprite : AnimatedSprite2D = $Panel/VBox/MainHBox/InfoPanel/UnitHeader/SpriteContainer/UnitSprite
 @onready var unit_name_label : Label = $Panel/VBox/MainHBox/InfoPanel/UnitHeader/HeaderInfo/UnitNameLabel
 @onready var unit_desc_label : Label = $Panel/VBox/MainHBox/InfoPanel/UnitHeader/HeaderInfo/UnitDescLabel
-@onready var attr_container : VBoxContainer = $Panel/VBox/MainHBox/InfoPanel/AttrContainer
+@onready var attr_container : VBoxContainer = $Panel/VBox/MainHBox/InfoPanel/AttrScroll/AttrContainer
 @onready var point_label : Label = $Panel/VBox/MainHBox/InfoPanel/BottomBar/PointLabel
 @onready var reset_btn : Button = $Panel/VBox/MainHBox/InfoPanel/BottomBar/ResetBtn
 
@@ -31,6 +31,8 @@ func _ready():
 		attr_tab_btn.text = "祝福"
 	if reset_btn:
 		reset_btn.visible = false
+	if point_label:
+		point_label.visible = false    # ★ 平时隐藏，仅消息提示时显示
 	if soul_forge_tab_btn and not soul_forge_tab_btn.pressed.is_connected(_on_soul_forge_tab_pressed):
 		soul_forge_tab_btn.pressed.connect(_on_soul_forge_tab_pressed)
 	_refresh_soul()
@@ -189,10 +191,76 @@ func _on_unit_selected(unit_type: String):
 
 
 # ============================================================
+#  右列 · 属性总览（新增）
+# ============================================================
+func _build_stats_overview(unit_type: String) -> VBoxContainer:
+	var box = VBoxContainer.new()
+	box.add_theme_constant_override("separation", 2)
+
+	var title = Label.new()
+	title.text = "—— 属性 ——"
+	title.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_TINY)
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.modulate = Color(0.6, 0.6, 0.6, 1)
+	box.add_child(title)
+
+	var dict : Dictionary = UnitDataManager.get_unit_data(unit_type)
+	var attrs : Array = [
+		{"key": "max_hp",       "display": "HP"},
+		{"key": "strength",     "display": "力量"},
+		{"key": "dexterity",    "display": "灵巧"},
+		{"key": "intelligence", "display": "智力"},
+		{"key": "faith",        "display": "信仰"},
+		{"key": "arcane",       "display": "感应"},
+		{"key": "move_range",   "display": "移动力"},
+	]
+	for a in attrs:
+		var base : int = int(dict.get(a["key"], 0))
+		var bonus : int = _get_blessing_bonus_for_attr(unit_type, a["key"])
+		box.add_child(_build_stat_line(a["display"], base, bonus))
+	return box
+
+
+func _get_blessing_bonus_for_attr(unit_type: String, attr_key: String) -> int:
+	var total : int = 0
+	for b in BlessingManager.get_all():
+		if b["attr"] == attr_key:
+			total += BlessingManager.get_bonus(unit_type, b["id"])
+	return total
+
+
+func _build_stat_line(display: String, base: int, bonus: int) -> HBoxContainer:
+	var row = HBoxContainer.new()
+	row.add_theme_constant_override("separation", 4)
+	row.custom_minimum_size = Vector2(0, 11)
+
+	var name_lb = Label.new()
+	name_lb.text = display
+	name_lb.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_SMALL)
+	name_lb.custom_minimum_size = Vector2(52, 0)
+	row.add_child(name_lb)
+
+	var val_lb = Label.new()
+	val_lb.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_SMALL)
+	val_lb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	val_lb.clip_text = true
+	if bonus > 0:
+		val_lb.text = "%d  +%d → %d" % [base, bonus, base + bonus]
+		val_lb.add_theme_color_override("font_color", Color(0.5, 1.0, 0.5, 1))
+	else:
+		val_lb.text = "%d" % base
+		val_lb.modulate = Color(0.75, 0.75, 0.75, 1)
+	row.add_child(val_lb)
+
+	return row
+
+
+# ============================================================
 #  右列 · 祝福面板
 # ============================================================
 func _refresh_blessing_panel():
 	_clear_attr_container()
+	point_label.visible = false
 	unit_sprite.visible = true
 
 	if _current_unit_type == "":
@@ -200,7 +268,6 @@ func _refresh_blessing_panel():
 		unit_name_label.remove_theme_color_override("font_color")
 		unit_desc_label.text = ""
 		unit_sprite.visible = false
-		point_label.text = "魂：%d" % GameState.soul
 		return
 
 	var display = UnitDataManager.get_unit_type_display_name(_current_unit_type)
@@ -213,6 +280,14 @@ func _refresh_blessing_panel():
 	unit_desc_label.text = unit_dict.get("description", "")
 	_load_unit_sprite(_current_unit_type)
 
+	# ★ 属性总览
+	attr_container.add_child(_build_stats_overview(_current_unit_type))
+
+	var sep0 = HSeparator.new()
+	sep0.modulate = Color(0.4, 0.4, 0.4, 1)
+	attr_container.add_child(sep0)
+
+	# 祝福列表
 	var available : Array = BlessingManager.get_available_for_unit(_current_unit_type)
 	for b in available:
 		attr_container.add_child(_build_blessing_row(b))
@@ -225,8 +300,6 @@ func _refresh_blessing_panel():
 		hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		hint.modulate = Color(0.5, 0.5, 0.5, 1)
 		attr_container.add_child(hint)
-
-	point_label.text = "魂：%d" % GameState.soul
 
 
 func _build_blessing_row(b : Dictionary) -> HBoxContainer:
@@ -250,6 +323,7 @@ func _build_blessing_row(b : Dictionary) -> HBoxContainer:
 	value_label.clip_text = true
 	if lv > 0:
 		value_label.text = "Lv%d  +%d" % [lv, bonus]
+		value_label.add_theme_color_override("font_color", Color(0.5, 1.0, 0.5, 1))
 	else:
 		value_label.text = "Lv0"
 		value_label.modulate = Color(0.6, 0.6, 0.6, 1)
@@ -288,6 +362,7 @@ func _on_blessing_upgrade(blessing_id: String):
 # ============================================================
 func _refresh_soul_forge_panel():
 	_clear_attr_container()
+	point_label.visible = false
 	unit_sprite.visible = true
 
 	if _current_unit_type == "":
@@ -295,7 +370,6 @@ func _refresh_soul_forge_panel():
 		unit_name_label.remove_theme_color_override("font_color")
 		unit_desc_label.text = ""
 		unit_sprite.visible = false
-		point_label.text = "魂：%d" % GameState.soul
 		return
 
 	var display = UnitDataManager.get_unit_type_display_name(_current_unit_type)
@@ -314,7 +388,6 @@ func _refresh_soul_forge_panel():
 		hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		hint.modulate = Color(0.6, 0.6, 0.6, 1)
 		attr_container.add_child(hint)
-		point_label.text = "魂：%d" % GameState.soul
 		return
 
 	var wdata : ItemData = ItemManager.get_item_data(soul_weapon_id)
@@ -324,10 +397,8 @@ func _refresh_soul_forge_panel():
 		hint.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_SMALL)
 		hint.modulate = Color(1.0, 0.4, 0.4, 1)
 		attr_container.add_child(hint)
-		point_label.text = "魂：%d" % GameState.soul
 		return
 
-	# ---- 武器信息卡 ----
 	var name_lb = Label.new()
 	name_lb.text = "★ " + wdata.name
 	name_lb.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_LARGE)
@@ -347,7 +418,6 @@ func _refresh_soul_forge_panel():
 	sep1.modulate = Color(0.4, 0.4, 0.4, 1)
 	attr_container.add_child(sep1)
 
-	# ---- 属性 ----
 	var stat_lines : Array = []
 	if wdata.type == "weapon":
 		if wdata.base_attack > 0:
@@ -374,7 +444,6 @@ func _refresh_soul_forge_panel():
 	sep2.modulate = Color(0.4, 0.4, 0.4, 1)
 	attr_container.add_child(sep2)
 
-	# ---- 解锁状态 ----
 	var unlocked : bool = Globals.is_item_unlocked(soul_weapon_id)
 
 	if unlocked:
@@ -403,8 +472,6 @@ func _refresh_soul_forge_panel():
 		else:
 			btn.pressed.connect(_on_forge_soul_weapon.bind(soul_weapon_id, wdata.name))
 		attr_container.add_child(btn)
-
-	point_label.text = "魂：%d" % GameState.soul
 
 
 func _on_forge_soul_weapon(item_id: String, weapon_name: String):
@@ -521,13 +588,13 @@ func _on_talent_selected(talent_id: String):
 # ============================================================
 func _refresh_talent_detail():
 	_clear_attr_container()
+	point_label.visible = false
 	unit_sprite.visible = false
 
 	if _current_talent_id == "":
 		unit_name_label.text = "（未选择特技）"
 		unit_name_label.remove_theme_color_override("font_color")
 		unit_desc_label.text = ""
-		point_label.text = "魂：%d" % GameState.soul
 		return
 
 	var data : TalentData = TalentManager.get_talent_data(_current_talent_id)
@@ -568,7 +635,6 @@ func _refresh_talent_detail():
 			unlock_btn.text = "剧情获取 / 不可解锁"
 			unlock_btn.disabled = true
 		attr_container.add_child(unlock_btn)
-		point_label.text = "魂：%d" % GameState.soul
 		return
 
 	var title = Label.new()
@@ -597,8 +663,6 @@ func _refresh_talent_detail():
 	else:
 		for ut in units_to_show:
 			attr_container.add_child(_build_talent_exp_row(ut))
-
-	point_label.text = "魂：%d" % GameState.soul
 
 
 func _build_talent_exp_row(unit_type: String) -> HBoxContainer:
@@ -661,7 +725,7 @@ func _load_unit_sprite(unit_type: String):
 				if anims.size() > 0:
 					unit_sprite.play(anims[0])
 			unit_sprite.visible = true
-			unit_sprite.position = Vector2(18, 18)
+			unit_sprite.position = Vector2(13, 8)
 			return
 	unit_sprite.visible = false
 
@@ -690,8 +754,11 @@ func _rarity_color(rarity: String) -> Color:
 
 
 func _show_msg(msg: String):
-	var original = point_label.text
+	if not point_label:
+		return
+	point_label.visible = true
 	point_label.text = msg
 	await get_tree().create_timer(1.5, true, false, true).timeout
 	if is_instance_valid(point_label):
-		point_label.text = original
+		point_label.visible = false
+		point_label.text = ""
