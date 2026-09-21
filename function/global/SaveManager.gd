@@ -131,6 +131,7 @@ func _build_save_data() -> SaveData:
 	save.arena_target_talents = GameState.arena_target_talents.duplicate(true)
 	save.arena_best_streak = GameState.arena_best_streak
 	save.talent_exp = GameState.talent_exp.duplicate(true)
+	save.tutorial_stage = GameState.tutorial_stage
 
 	save.save_time = Time.get_unix_time_from_system()
 	save.checksum = save.compute_checksum()
@@ -189,6 +190,7 @@ func _apply_save_data(save: SaveData):
 	RelicManager.set_unlocked_relics(save.unlocked_relics)
 	Globals.unlocked_units = save.unlocked_units.duplicate()
 	Globals.unlocked_items = save.unlocked_items.duplicate()
+	GameState.tutorial_stage = save.tutorial_stage
 	Globals.unlocked_talents = save.unlocked_talents.duplicate()
 	GameState.unlocked_recipes = save.unlocked_recipes.duplicate()
 	GameState.unlocked_stories = save.unlocked_stories.duplicate()

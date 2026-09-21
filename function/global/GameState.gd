@@ -45,6 +45,10 @@ var equipped_passives : Array:
 	get: return party_state.equipped_passives
 	set(value): party_state.equipped_passives = value
 
+var tutorial_stage : int:
+	get: return resource_state.tutorial_stage
+	set(value): resource_state.tutorial_stage = value
+
 func init_passive_slots():
 	party_state.init_passive_slots()
 
@@ -367,6 +371,11 @@ func finish_day(grant_slot: bool = true):
 func finish_cycle():
 	# ★ 三天完成：只合并资源，不 +1 槽
 	finish_day(false)
+	# ★ 推进新手阶段
+	if tutorial_stage < 3:
+		tutorial_stage += 1
+		Globals.reload_talent_unlock()
+		print("[Tutorial] 新手阶段 → %d（已重载词条解锁）" % tutorial_stage)
 
 func abandon_cycle():
 	temp_soul = 0

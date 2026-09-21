@@ -12,6 +12,7 @@ class_name TalentData
 @export var effect_params: Dictionary = {}
 @export var icon_path: String = ""
 @export var compatible_units: Array = []
+@export var tutorial_stage: int = 0
 
 # ---- 主动技能 ----
 @export var is_active_skill: bool = false

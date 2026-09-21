@@ -148,15 +148,6 @@ func _ready():
 	add_child(_detail_popup)
 	_detail_popup.visible = false
 
-func _input(event: InputEvent):
-	if event is InputEventKey and event.pressed:
-		# 调试：+1000 金币
-		if event.keycode == KEY_5:
-			EconomyManager.add_temp_gold(1000)
-			update_all_displays()
-			print("调试：+1000 金币，当前 ", GameState.temp_gold)
-			return
-
 func _save_game():
 	if Globals.pending_save_slot != -1:
 		SaveManager.save_game(Globals.pending_save_slot)

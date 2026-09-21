@@ -188,12 +188,12 @@ func _refresh_center_panel():
 
 func _refresh_streak_label():
 	if _phase == Phase.IDLE:
-		streak_label.text = "通关：%d 次  |  当前魂：%d" % [
-			GameState.arena_clear_count, GameState.soul
+		streak_label.text = "金币：%d   |   通关：%d 次   |   当前魂：%d" % [
+			_arena_gold, GameState.arena_clear_count, GameState.soul
 		]
 	elif _phase == Phase.SURVIVAL:
-		streak_label.text = "生存：%d / %d（不可撤离）  |  本局净：%+d 魂" % [
-			_survival_round, SURVIVAL_ROUNDS, _get_net_gain()
+		streak_label.text = "金币：%d   |   生存：%d / %d（不可撤离）   |   本局净：%+d 魂" % [
+			_arena_gold, _survival_round, SURVIVAL_ROUNDS, _get_net_gain()
 		]
 	else:
 		var next_type : String = "普通"
@@ -201,8 +201,8 @@ func _refresh_streak_label():
 			next_type = "★ 小Boss（付 %d 魂）" % ENTRY_COST_MINI_BOSS
 		elif _streak == 3:
 			next_type = "★ 精英"
-		streak_label.text = "进度：%d / %d  |  下一战：%s  |  本局净：%+d 魂" % [
-			_streak, CLEAR_TARGET, next_type, _get_net_gain()
+		streak_label.text = "金币：%d   |   进度：%d / %d   |   下一战：%s   |   本局净：%+d 魂" % [
+			_arena_gold, _streak, CLEAR_TARGET, next_type, _get_net_gain()
 		]
 
 
@@ -488,11 +488,13 @@ func _show_shop() -> String:
 	if _locked_talent_id != "" and _current_player_data:
 		GameState.arena_target_talents[_current_player_data.unit_name] = _locked_talent_id
 
+	# ★ 无条件刷新主界面（正常/取消都要更新金币显示）
+	_refresh_streak_label()
+
 	if ctx.was_cancelled():
 		return "quit"
 
 	return "go"
-
 
 # ============================================================
 #  单场战斗
@@ -940,3 +942,38 @@ func _open_hero_shrine():
 	hero_shrine.setup_arena(self, _current_player_data)
 	await hero_shrine.closed
 	print("[Arena] 英灵殿关闭")
+
+func _find_arena() -> Node:
+	var scene = get_tree().current_scene
+	if scene == null:
+		return null
+	if scene.name == "Arena":
+		return scene
+	for child in scene.get_children():
+		if child.name == "Arena":
+			return child
+	return null
+
+
+func _is_in_run() -> bool:
+	var scene = get_tree().current_scene
+	if scene == null:
+		return false
+	var path = scene.scene_file_path
+	if path == "":
+		return false
+	return path.contains("MapScene") or path.contains("Battlefield")
+
+
+func _find_node_by_name(node_name: String) -> Node:
+	return _recursive_find(get_tree().root, node_name)
+
+
+func _recursive_find(node: Node, target_name: String) -> Node:
+	if node.name == target_name:
+		return node
+	for child in node.get_children():
+		var found = _recursive_find(child, target_name)
+		if found != null:
+			return found
+	return null

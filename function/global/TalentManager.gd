@@ -38,6 +38,8 @@ static func load_talent_data():
 		talent.soul_cost = int(dict.get("soul_cost", 0))
 		talent.is_active_skill = bool(dict.get("is_active_skill", false))
 		talent.skill_cooldown = int(dict.get("skill_cooldown", 0))
+		# ★ 新手阶段（默认 3 = 视为全解锁，向后兼容旧数据）
+		talent.tutorial_stage = int(dict.get("tutorial_stage", 3))
 		_talent_db[talent.id] = talent
 	print("成功加载 ", _talent_db.size(), " 个词条")
 

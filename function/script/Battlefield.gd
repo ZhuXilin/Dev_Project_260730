@@ -1119,36 +1119,6 @@ func _input(event: InputEvent):
 			_end_player_turn()
 			return
 
-	if event is InputEventKey and event.pressed:
-		if event.keycode == KEY_0 or event.keycode == KEY_KP_0:
-			if Globals.is_transitioning:
-				return
-			print("调试：杀死所有敌方单位")
-			var enemies = []
-			for unit in UnitManager.unit_list:
-				if unit.unit_stats.team_id == 1 and unit.hit_points > 0:
-					enemies.append(unit)
-			for enemy in enemies:
-				enemy.apply_damage(enemy.hit_points)
-				UnitManager.unregister_unit(enemy)
-				enemy.queue_free()
-			TurnManager.check_victory()
-			return
-		elif event.keycode == KEY_9 or event.keycode == KEY_KP_9:
-			if Globals.is_transitioning:
-				return
-			print("调试：杀死所有我方单位")
-			var allies = []
-			for unit in UnitManager.unit_list:
-				if unit.unit_stats.team_id == 0 and unit.hit_points > 0:
-					allies.append(unit)
-			for ally in allies:
-				ally.apply_damage(ally.hit_points)
-				UnitManager.unregister_unit(ally)
-				ally.queue_free()
-			TurnManager.check_victory()
-			return
-
 	if Globals.is_transitioning or Globals.is_fading:
 		return
 
@@ -1172,17 +1142,6 @@ func _input(event: InputEvent):
 		return
 	if TurnManager.all_acted:
 		return
-
-	if event is InputEventKey and event.pressed:
-		if event.keycode == KEY_1:
-			print("键盘 1 按下 - 模拟移动")
-			_on_move_btn_pressed()
-		elif event.keycode == KEY_2:
-			print("键盘 2 按下 - 模拟攻击/治疗")
-			_on_attack_btn_pressed()
-		elif event.keycode == KEY_3:
-			print("键盘 3 按下 - 模拟待机")
-			_on_wait_btn_pressed()
 
 	if TurnManager.is_moving:
 		return

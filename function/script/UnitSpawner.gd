@@ -35,6 +35,16 @@ static func _create_unit_stats(cfg: UnitConfig) -> UnitData:
 	stats.team_id = cfg.team_id
 	if cfg.immobile and cfg.team_id == 1:
 		stats.move_range = 0
+
+	# ★ 敌方 HP 缩放
+	if cfg.team_id == 1 and GameState.current_map_data != null:
+		var mult := 1.0
+		match GameState.current_map_data.node_type:
+			MapNode.NodeType.ELITE: mult = 1.5
+			MapNode.NodeType.BOSS:  mult = 2.0
+			_: mult = 1.0
+		stats.max_hp = int(stats.max_hp * mult)
+
 	return stats
 
 static func spawn_test_units(parent: Node, grid_to_world_func: Callable):

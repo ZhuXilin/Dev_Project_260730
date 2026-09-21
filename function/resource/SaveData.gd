@@ -28,6 +28,8 @@ const CURRENT_VERSION = 5
 @export var temp_soul: int = 0
 @export var temp_gold: int = 0
 
+@export var tutorial_stage: int = 0
+
 # ---- 单位属性成长（魂之祭坛，已废弃） ----
 @export var unit_growth: Dictionary = {}
 
@@ -132,5 +134,6 @@ func compute_checksum() -> String:
 		"arena_target_talents": arena_target_talents,
 		"talent_exp": talent_exp,
 		"arena_best_streak": arena_best_streak,
+		"tutorial_stage": tutorial_stage,
 	}
 	return JSON.stringify(data, "  ").sha256_text()

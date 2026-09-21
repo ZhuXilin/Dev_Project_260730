@@ -36,18 +36,6 @@ func _ready():
 	update_display()
 	_play_camp_music()
 
-
-func _input(event: InputEvent):
-	if event is InputEventKey and event.pressed:
-		# 调试：+50 魂
-		if event.keycode == KEY_6:
-			GameState.soul += 50
-			SaveManager.auto_save()
-			update_display()
-			print("调试：+50 魂，当前 ", GameState.soul)
-			get_viewport().set_input_as_handled()
-
-
 # ============================================================
 #  信号连接
 # ============================================================

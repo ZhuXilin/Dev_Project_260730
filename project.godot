@@ -39,6 +39,7 @@ SaveManager="*res://function/global/SaveManager.gd"
 GameState="*res://function/global/GameState.gd"
 LevelManager="*res://function/global/LevelManager.gd"
 InputManager="*res://function/global/InputManager.gd"
+GmConsole="*uid://q5yaycxpkkua"
 
 [display]
 

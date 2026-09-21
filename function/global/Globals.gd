@@ -114,6 +114,8 @@ func reset_all_game_state():
 	TurnManager.is_game_over = false
 
 	UnitManager.clear_all_units()
+	
+	is_non_combat_mode = false
 
 func get_team_color(team_id: int, primary: bool = true) -> Color:
 	var colors = TEAM_COLORS.get(team_id, TEAM_COLORS[0])
@@ -220,9 +222,15 @@ func get_unlocked_items() -> Array:
 #  特技解锁（方案 B：从 TalentManager 读取）
 # ============================================================
 func _load_talent_unlock_config():
-	# 从 TalentManager 获取默认解锁列表
-	var default_talents = TalentManager.get_default_unlocked_talents()
-	unlocked_talents = default_talents.duplicate()
+	# 从 TalentManager 获取默认解锁列表，按 tutorial_stage 过滤
+	unlocked_talents.clear()
+	var stage : int = GameState.tutorial_stage
+	var default_talents : Array = TalentManager.get_default_unlocked_talents()
+	for tid in default_talents:
+		var data = TalentManager.get_talent_data(tid)
+		if data and data.tutorial_stage <= stage:
+			unlocked_talents.append(tid)
+	print("[Globals] 加载默认词条解锁：stage=%d，共 %d 个" % [stage, unlocked_talents.size()])
 
 
 func is_talent_unlocked(talent_id: String) -> bool:
@@ -370,3 +378,29 @@ func get_unit_unlock_cost(unit_type: String) -> int:
 	var key : String = UnitDataManager.normalize_unit_key(unit_type)
 	var costs = unlock_config.get("unlock_costs", {})
 	return int(costs.get(key, 50))
+
+## 重新计算 default 词条解锁（保留魂解锁/剧情解锁/GM 解锁的）
+func reload_talent_unlock():
+	var stage : int = GameState.tutorial_stage
+	var default_talents : Array = TalentManager.get_default_unlocked_talents()
+
+	# ---- 1. 保留非 default 的解锁（魂解锁、剧情、GM） ----
+	var preserved : Array = []
+	for tid in unlocked_talents:
+		var data = TalentManager.get_talent_data(tid)
+		if data and data.unlock_type != "default":
+			preserved.append(tid)
+
+	# ---- 2. 重建 default ----
+	unlocked_talents.clear()
+	for tid in default_talents:
+		var data = TalentManager.get_talent_data(tid)
+		if data and data.tutorial_stage <= stage:
+			unlocked_talents.append(tid)
+
+	# ---- 3. 恢复非 default ----
+	for tid in preserved:
+		if tid not in unlocked_talents:
+			unlocked_talents.append(tid)
+
+	print("[Globals] 词条解锁重载：stage=%d，共 %d 个" % [stage, unlocked_talents.size()])

@@ -8,6 +8,12 @@ var _processing : bool = false
 var _turn_manager : TurnManager = null
 var first_ai_unit : Unit = null
 
+# ---- AI 随机选择参数 ----
+## 评分相近的容差：低于最高分超过此值的候选被剔除
+const AI_SCORE_TOLERANCE : int = 15
+## 权重偏移：让负分候选仍有机会（避免权重为负导致 randi 异常）
+const AI_WEIGHT_OFFSET : int = 200
+
 func initialize(turn_manager: TurnManager):
 	_turn_manager = turn_manager
 	if _turn_manager:
@@ -149,8 +155,8 @@ func _evaluate_attack(unit: Unit):
 	var min_range = data.min_attack_range
 	print("武器 %s 范围: %d~%d" % [data.name, min_range, max_range])
 
-	var best_target = null
-	var best_score = -999
+	# ★ 收集所有候选，不边循环边取最优
+	var candidates : Array = []
 
 	for enemy in UnitManager.unit_list:
 		if enemy.unit_stats.team_id == unit.unit_stats.team_id or enemy.hit_points <= 0:
@@ -193,16 +199,18 @@ func _evaluate_attack(unit: Unit):
 				score -= 100
 
 		print("    最终评分: %d" % score)
-		if score > best_score:
-			best_score = score
-			best_target = enemy
+		candidates.append({"target": enemy, "score": score})
 
-	if best_target:
-		print("选择目标: %s，评分 %d" % [best_target.unit_stats.unit_name, best_score])
-		return {"type": "attack", "unit": unit, "target": best_target, "weapon_id": weapon_id}
-	else:
+	if candidates.is_empty():
 		print("没有合适的攻击目标")
 		return null
+
+	# ★ 从高分候选中加权随机
+	var picked : Dictionary = _pick_target_by_weight(candidates)
+	var best_target : Unit = picked["target"]
+	var best_score : int = picked["score"]
+	print("选择目标: %s，评分 %d" % [best_target.unit_stats.unit_name, best_score])
+	return {"type": "attack", "unit": unit, "target": best_target, "weapon_id": weapon_id}
 
 # ============================================================
 #  移动评估（含回血点检测）
@@ -571,3 +579,39 @@ func clear_state():
 	ai_queue.clear()
 	_processing = false
 	first_ai_unit = null
+
+# ============================================================
+#  加权随机选目标
+# ============================================================
+func _pick_target_by_weight(candidates: Array) -> Dictionary:
+	# 1. 找最高分
+	var top_score : int = -999999
+	for c in candidates:
+		if c["score"] > top_score:
+			top_score = c["score"]
+
+	# 2. 过滤相近评分
+	var finalists : Array = []
+	for c in candidates:
+		if c["score"] >= top_score - AI_SCORE_TOLERANCE:
+			finalists.append(c)
+
+	# 3. 单一候选直接返回
+	if finalists.size() == 1:
+		return finalists[0]
+
+	# 4. 计算总权重
+	var total_weight : int = 0
+	for f in finalists:
+		total_weight += maxi(1, f["score"] + AI_WEIGHT_OFFSET)
+
+	# 5. 加权随机
+	var roll : int = randi() % total_weight
+	var acc : int = 0
+	for f in finalists:
+		acc += maxi(1, f["score"] + AI_WEIGHT_OFFSET)
+		if acc > roll:
+			return f
+
+	# 兜底（理论上不会到这）
+	return finalists[0]

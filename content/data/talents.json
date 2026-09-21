@@ -10,7 +10,8 @@
 	"effect_type": "attack",
 	"effect_params": { "damage_multiplier": 2.0 },
 	"compatible_units": ["swordsman", "archer", "pegasus", "axeman"],
-	"unlock_type": "default"
+	"unlock_type": "default",
+	"tutorial_stage": 0
   },
   "double_attack": {
 	"id": "double_attack",
@@ -23,7 +24,8 @@
 	"effect_type": "attack",
 	"effect_params": { "extra_attack_multiplier": 0.8 },
 	"compatible_units": ["swordsman", "archer", "pegasus", "spearman"],
-	"unlock_type": "default"
+	"unlock_type": "default",
+	"tutorial_stage": 0
   },
   "parry": {
 	"id": "parry",
@@ -36,7 +38,8 @@
 	"effect_type": "defense",
 	"effect_params": { "reflect_multiplier": 0.5 },
 	"compatible_units": ["swordsman", "dragonborn", "armored"],
-	"unlock_type": "default"
+	"unlock_type": "default",
+	"tutorial_stage": 1
   },
   "block": {
 	"id": "block",
@@ -49,7 +52,8 @@
 	"effect_type": "defense",
 	"effect_params": { "damage_reduction": 0.5 },
 	"compatible_units": ["axeman", "dragonborn", "armored"],
-	"unlock_type": "default"
+	"unlock_type": "default",
+	"tutorial_stage": 0
   },
   "bleed": {
 	"id": "bleed",
@@ -63,7 +67,8 @@
 	"effect_params": { "max_stacks": 5, "damage_percent": 0.15 },
 	"compatible_units": ["swordsman", "axeman", "archer"],
 	"unlock_type": "soul",
-	"soul_cost": 30
+	"soul_cost": 30,
+	"tutorial_stage": 3
   },
   "spell_chain": {
 	"id": "spell_chain",
@@ -77,7 +82,8 @@
 	"effect_params": { "extra_cast_multiplier": 0.8 },
 	"compatible_units": ["mage", "cleric"],
 	"unlock_type": "soul",
-	"soul_cost": 30
+	"soul_cost": 30,
+	"tutorial_stage": 3
   },
   "heal_boost": {
 	"id": "heal_boost",
@@ -91,7 +97,8 @@
 	"effect_params": { "heal_multiplier": 1.3 },
 	"compatible_units": ["cleric"],
 	"unlock_type": "soul",
-	"soul_cost": 30
+	"soul_cost": 30,
+	"tutorial_stage": 3
   },
   "counter_boost": {
 	"id": "counter_boost",
@@ -105,7 +112,8 @@
 	"effect_params": { "counter_multiplier": 1.5 },
 	"compatible_units": ["spearman", "dragonborn", "armored"],
 	"unlock_type": "soul",
-	"soul_cost": 30
+	"soul_cost": 30,
+	"tutorial_stage": 3
   },
   "lifesteal": {
 	"id": "lifesteal",
@@ -118,7 +126,8 @@
 	"effect_type": "attack",
 	"effect_params": { "lifesteal_percent": 0.3 },
 	"compatible_units": ["swordsman", "spearman", "axeman", "dragonborn", "armored"],
-	"unlock_type": "default"
+	"unlock_type": "default",
+	"tutorial_stage": 1
   },
   "revive": {
 	"id": "revive",
@@ -132,7 +141,8 @@
 	"effect_params": {},
 	"compatible_units": ["armored", "dragonborn"],
 	"unlock_type": "soul",
-	"soul_cost": 60
+	"soul_cost": 60,
+	"tutorial_stage": 3
   },
   "combo": {
 	"id": "combo",
@@ -146,8 +156,9 @@
 	"effect_params": { "combo_multiplier": 0.15 },
 	"compatible_units": ["swordsman", "archer", "pegasus"],
 	"unlock_type": "soul",
-	"soul_cost": 40
-	},
+	"soul_cost": 40,
+	"tutorial_stage": 3
+  },
   "blood_rage": {
 	"id": "blood_rage",
 	"display_name": "血怒",
@@ -160,7 +171,8 @@
 	"effect_params": { "heal_percent": 0.2 },
 	"compatible_units": ["swordsman", "axeman", "dragonborn"],
 	"unlock_type": "soul",
-	"soul_cost": 40
+	"soul_cost": 40,
+	"tutorial_stage": 3
   },
   "cleave": {
 	"id": "cleave",
@@ -174,7 +186,8 @@
 	"effect_params": {},
 	"compatible_units": ["swordsman", "archer", "pegasus"],
 	"unlock_type": "soul",
-	"soul_cost": 60
+	"soul_cost": 60,
+	"tutorial_stage": 3
   },
   "vengeance": {
 	"id": "vengeance",
@@ -188,7 +201,8 @@
 	"effect_params": { "attack_bonus_per_stack": 0.3 },
 	"compatible_units": ["axeman", "dragonborn", "armored"],
 	"unlock_type": "soul",
-	"soul_cost": 30
+	"soul_cost": 30,
+	"tutorial_stage": 3
   },
   "zeal": {
 	"id": "zeal",
@@ -202,7 +216,8 @@
 	"effect_params": { "per_stack": 0.1, "max_stacks": 5 },
 	"compatible_units": ["swordsman", "archer", "mage"],
 	"unlock_type": "soul",
-	"soul_cost": 30
+	"soul_cost": 30,
+	"tutorial_stage": 3
   },
   "active_charge": {
 	"id": "active_charge",
@@ -218,7 +233,8 @@
 	"effect_params": { "damage_mult": 1.8 },
 	"compatible_units": ["swordsman", "spearman"],
 	"unlock_type": "soul",
-	"soul_cost": 50
+	"soul_cost": 50,
+	"tutorial_stage": 3
   },
   "active_pierce": {
 	"id": "active_pierce",
@@ -234,7 +250,8 @@
 	"effect_params": { "damage_mult": 1.2, "splash_percent": 0.5 },
 	"compatible_units": ["spearman", "dragonborn"],
 	"unlock_type": "soul",
-	"soul_cost": 60
+	"soul_cost": 60,
+	"tutorial_stage": 3
   },
   "active_heavy_slash": {
 	"id": "active_heavy_slash",
@@ -250,7 +267,8 @@
 	"effect_params": { "damage_mult": 2.5 },
 	"compatible_units": ["axeman", "armored"],
 	"unlock_type": "soul",
-	"soul_cost": 60
+	"soul_cost": 60,
+	"tutorial_stage": 3
   },
   "active_snipe": {
 	"id": "active_snipe",
@@ -266,7 +284,8 @@
 	"effect_params": { "force_crit": true, "ignore_defense": true },
 	"compatible_units": ["archer", "pegasus"],
 	"unlock_type": "soul",
-	"soul_cost": 60
+	"soul_cost": 60,
+	"tutorial_stage": 3
   },
   "active_dive": {
 	"id": "active_dive",
@@ -282,7 +301,8 @@
 	"effect_params": { "damage_mult": 1.6 },
 	"compatible_units": ["pegasus"],
 	"unlock_type": "soul",
-	"soul_cost": 60
+	"soul_cost": 60,
+	"tutorial_stage": 3
   },
   "active_fireball": {
 	"id": "active_fireball",
@@ -298,7 +318,8 @@
 	"effect_params": { "aoe_percent": 0.5 },
 	"compatible_units": ["mage", "dragonborn"],
 	"unlock_type": "soul",
-	"soul_cost": 70
+	"soul_cost": 70,
+	"tutorial_stage": 3
   },
   "active_mass_heal": {
 	"id": "active_mass_heal",
@@ -314,7 +335,8 @@
 	"effect_params": { "mass_heal_percent": 0.7 },
 	"compatible_units": ["cleric"],
 	"unlock_type": "soul",
-	"soul_cost": 70
+	"soul_cost": 70,
+	"tutorial_stage": 3
   },
   "active_dragon_breath": {
 	"id": "active_dragon_breath",
@@ -330,7 +352,8 @@
 	"effect_params": { "damage_mult": 1.5, "range_bonus": 1 },
 	"compatible_units": ["dragonborn"],
 	"unlock_type": "soul",
-	"soul_cost": 80
+	"soul_cost": 80,
+	"tutorial_stage": 3
   },
   "active_taunt": {
 	"id": "active_taunt",
@@ -346,7 +369,7 @@
 	"effect_params": { "taunt_rounds": 1 },
 	"compatible_units": ["armored", "axeman"],
 	"unlock_type": "soul",
-	"soul_cost": 50
+	"soul_cost": 50,
+	"tutorial_stage": 3
   }
-
 }

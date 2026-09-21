@@ -418,8 +418,16 @@ func restore_from_unit_data(data: UnitData, cell: Vector2i):
 		else:
 			armor_slots.append(null)
 	max_armor_slots = data.max_armor_slots
+	# ★ 补齐空槽
+	while armor_slots.size() < max_armor_slots:
+		armor_slots.append(null)
+	# ★ 截断溢出（防旧存档）
+	while armor_slots.size() > max_armor_slots:
+		armor_slots.pop_back()
 
 	_init_talent_slots_from_data(data)
+	while talent_slots.size() < max_talent_slots:
+		talent_slots.append(null)
 
 	if not animated_sprite:
 		animated_sprite = $Sprite as AnimatedSprite2D

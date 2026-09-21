@@ -21,6 +21,8 @@ var materials : Dictionary = {
 var unit_growth : Dictionary = {}
 var unit_blessings : Dictionary = {}
 
+var tutorial_stage : int = 0
+
 # ============================================================
 #  防具配方解锁（铁砧酒馆）
 # ============================================================

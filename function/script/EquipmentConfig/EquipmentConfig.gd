@@ -765,8 +765,8 @@ func _on_confirm_pressed():
 	for i in range(min(party.size(), target_units.size())):
 		var u : UnitData = party[i]
 		var tu : UnitData = target_units[i]
-		tu.weapon_slot = u.weapon_slot
-		tu.armor_slots = u.armor_slots.duplicate()
+		tu.weapon_slot = _clone_item_inst(u.weapon_slot)
+		tu.armor_slots = _clone_inst_array(u.armor_slots)
 		tu.max_armor_slots = u.max_armor_slots
 		tu.talent_slots = u.talent_slots.duplicate()
 
@@ -796,6 +796,7 @@ func _clear_container(container: Node):
 	if not container: return
 	for child in container.get_children(): container.remove_child(child); child.free()
 
+# 替换 _sync_all 里的赋值
 func _sync_all():
 	var target_units : Array = _context.get_units()
 	for i in range(party.size()):
@@ -808,8 +809,8 @@ func _sync_all():
 
 		if i < target_units.size():
 			var tu : UnitData = target_units[i]
-			tu.weapon_slot = u.weapon_slot
-			tu.armor_slots = u.armor_slots.duplicate()
+			tu.weapon_slot = _clone_item_inst(u.weapon_slot)
+			tu.armor_slots = _clone_inst_array(u.armor_slots)
 			tu.max_armor_slots = u.max_armor_slots
 			tu.talent_slots = u.talent_slots.duplicate()
 
@@ -978,3 +979,16 @@ func _quality_cn(q : String) -> String:
 		"epic": return "史诗"
 		"legendary": return "传说"
 		_: return q
+
+static func _clone_item_inst(src: ItemInstance) -> ItemInstance:
+	if src == null: return null
+	var inst = ItemInstance.new()
+	inst.item_id = src.item_id
+	inst.count = src.count
+	inst.upgrade_level = src.upgrade_level
+	return inst
+
+static func _clone_inst_array(src: Array) -> Array:
+	var out = []
+	for s in src: out.append(_clone_item_inst(s))
+	return out
