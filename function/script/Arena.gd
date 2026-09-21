@@ -28,6 +28,9 @@ enum Phase { IDLE, NORMAL, CLEAR, SURVIVAL, END }
 
 const EquipmentConfigClass = preload(Config.PATHS.EQUIPMENT_CONFIG_SCRIPT)
 
+# 竞技场敌人池缓存（一次性加载）
+static var _arena_enemy_cache : Dictionary = {}
+
 # ============================================================
 #  局内状态
 # ============================================================
@@ -662,14 +665,11 @@ func _is_mini_boss_battle() -> bool:
 #  敌人
 # ============================================================
 func _roll_enemy() -> String:
-	var path : String = Config.PATHS.ARENA_ENEMIES
-	if not FileAccess.file_exists(path):
-		return ""
-	var file = FileAccess.open(path, FileAccess.READ)
-	var content : String = file.get_as_text()
-	file.close()
-	var data : Variant = JSON.parse_string(content)
-	if data == null or not (data is Dictionary):
+	# ---- 懒加载缓存 ----
+	if _arena_enemy_cache.is_empty():
+		_load_arena_enemy_cache()
+
+	if _arena_enemy_cache.is_empty():
 		return ""
 
 	var pool_key : String = "easy"
@@ -687,15 +687,29 @@ func _roll_enemy() -> String:
 	else:
 		pool_key = "elite"
 
-	var data_dict : Dictionary = data
-	var pool : Array = data_dict.get(pool_key, [])
+	var pool : Array = _arena_enemy_cache.get(pool_key, [])
 	if pool.is_empty():
-		pool = data_dict.get("normal", [])
+		pool = _arena_enemy_cache.get("normal", [])
 		if pool.is_empty():
-			pool = data_dict.get("easy", [])
+			pool = _arena_enemy_cache.get("easy", [])
 		if pool.is_empty():
 			return ""
 	return pool[randi() % pool.size()]
+
+static func _load_arena_enemy_cache():
+	var path : String = Config.PATHS.ARENA_ENEMIES
+	if not FileAccess.file_exists(path):
+		push_error("Arena 敌人池不存在: " + path)
+		return
+	var file = FileAccess.open(path, FileAccess.READ)
+	var content : String = file.get_as_text()
+	file.close()
+	var data : Variant = JSON.parse_string(content)
+	if data == null or not (data is Dictionary):
+		push_error("Arena 敌人池解析失败")
+		return
+	_arena_enemy_cache = data
+	print("[Arena] 敌人池已加载：", _arena_enemy_cache.keys())
 
 
 func _apply_enemy_scaling(enemy_data: UnitData):

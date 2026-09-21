@@ -623,8 +623,8 @@ func _restore_map_from_snapshot():
 		generate_map(current_day)
 		return
 
-	# ---- 新增：恢复后重新随机分配地图（丢弃快照里的旧 map_data） ----
-	MapGenerator._assign_map_data_to_all_nodes(map_data.nodes)
+	# ★ 不再重抽，信任快照；仅修补 scene 丢失的节点
+	_validate_restored_map_data(map_data)
 
 	GameState.cached_map_level_data = map_data
 	GameState.cached_day = current_day
@@ -635,14 +635,68 @@ func _restore_map_from_snapshot():
 		_update_availability(map_data.root_node)
 	else:
 		_update_buttons()
-	
+
 	if GameState.resume_node_id != "":
 		_select_node_by_id(GameState.resume_node_id)
 		GameState.resume_node_id = ""
-	
+
 	day_label.text = "第 %d 天" % current_day
 	update_all_displays()
 	_save_game()
+
+
+## 校验快照恢复的地图数据：信任快照，只补 scene 缺失的节点
+## 不重抽、不替换已有 map_name 的数据
+func _validate_restored_map_data(md: MapLevelData):
+	if md == null:
+		return
+
+	# 建立 map_name → MapData 索引（当前天所有关卡）
+	var level_pool : Dictionary = {}
+	for m in LevelManager.get_current_day_levels():
+		if m and m.map_name != "":
+			level_pool[m.map_name] = m
+
+	for node in md.nodes:
+		# 非战斗节点跳过
+		if node.node_type in [
+			MapNode.NodeType.SHOP,
+			MapNode.NodeType.FORGE,
+			MapNode.NodeType.EVENT,
+		]:
+			continue
+
+		# 没有地图数据 → 从池里按类型随便给一个（罕见：老快照没存）
+		if node.map_data == null:
+			var fallback = _find_map_by_type(node.node_type)
+			if fallback:
+				node.map_data = fallback
+				print("[MapScene] 节点 %s 无地图，补默认：%s" % [node.node_id, fallback.map_name])
+			continue
+
+		# 已有 map_data 且 scene 完整 → 保留
+		if node.map_data.scene != null:
+			continue
+
+		# scene 丢失 → 按 map_name 从池里找回
+		var map_name : String = node.map_data.map_name
+		if map_name != "" and level_pool.has(map_name):
+			node.map_data = level_pool[map_name]
+			print("[MapScene] 节点 %s 补全地图：%s" % [node.node_id, map_name])
+		else:
+			print("[MapScene] 警告：节点 %s 地图缺失且无法找回（%s）" % [node.node_id, map_name])
+
+
+## 从当前天所有关卡里按 node_type 找一个
+func _find_map_by_type(node_type: int) -> MapData:
+	for m in LevelManager.get_current_day_levels():
+		if m and m.node_type == node_type:
+			return m
+	# 找不到精确匹配，用 NORMAL
+	for m in LevelManager.get_current_day_levels():
+		if m and m.node_type == MapNode.NodeType.NORMAL:
+			return m
+	return null
 
 # ---- 三天结算（复用全局 RewardSummaryUI） ----
 func _show_cycle_reward(earned_soul: int, earned_materials: Dictionary):
