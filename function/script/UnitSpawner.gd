@@ -44,6 +44,7 @@ static func _create_unit_stats(cfg: UnitConfig) -> UnitData:
 			MapNode.NodeType.BOSS:  mult = 2.0
 			_: mult = 1.0
 		stats.max_hp = int(stats.max_hp * mult)
+		stats.hit_points = stats.max_hp
 
 	return stats
 

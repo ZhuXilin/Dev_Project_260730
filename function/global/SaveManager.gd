@@ -52,8 +52,10 @@ func load_game(slot: int) -> bool:
 		push_error("无法加载存档: ", path)
 		return false
 
+	# ---- 版本迁移 ----
 	if save.save_version < SaveData.CURRENT_VERSION:
-		print("存档版本 %d 低于当前版本 %d，更新版本号" % [save.save_version, SaveData.CURRENT_VERSION])
+		print("存档版本 %d 低于当前版本 %d，开始迁移" % [save.save_version, SaveData.CURRENT_VERSION])
+		_migrate_save(save)
 		save.save_version = SaveData.CURRENT_VERSION
 		save.checksum = save.compute_checksum()
 		var err = ResourceSaver.save(save, path, ResourceSaver.FLAG_COMPRESS)
@@ -73,6 +75,22 @@ func load_game(slot: int) -> bool:
 	load_completed.emit(slot, true)
 	print("存档加载成功: 槽", slot)
 	return true
+
+
+# ===== 版本迁移（按版本号逐个向上补） =====
+func _migrate_save(save: SaveData):
+	var v : int = save.save_version
+
+	# v5 → v6：新增 tutorial_stage
+	# 老存档视为已完全解锁词条，避免玩家丢失已有解锁
+	if v < 6:
+		save.tutorial_stage = 3
+		print("  [迁移] v5 → v6：tutorial_stage 设为 3（老存档视为全解锁）")
+
+	# 未来版本迁移继续往这加
+	# if v < 7:
+	#     ...
+
 
 # ===== 构建存档数据 =====
 func _build_save_data() -> SaveData:
@@ -187,17 +205,26 @@ func _apply_save_data(save: SaveData):
 		for i in range(min(arr.size(), 4)):
 			GameState.set_passive_at_slot(i, _deserialize_passive(arr[i]))
 
-	RelicManager.set_unlocked_relics(save.unlocked_relics)
-	Globals.unlocked_units = save.unlocked_units.duplicate()
-	Globals.unlocked_items = save.unlocked_items.duplicate()
+	# ---- 各类解锁恢复 ----
+	RelicManager.set_unlocked_relics(save.unlocked_relics if save.unlocked_relics else [])
+	Globals.unlocked_units = (save.unlocked_units if save.unlocked_units else []).duplicate()
+	Globals.unlocked_items = (save.unlocked_items if save.unlocked_items else []).duplicate()
+
+	# ★ tutorial_stage + 词条解锁：先设 stage，再按需重建
 	GameState.tutorial_stage = save.tutorial_stage
-	Globals.unlocked_talents = save.unlocked_talents.duplicate()
-	GameState.unlocked_recipes = save.unlocked_recipes.duplicate()
-	GameState.unlocked_stories = save.unlocked_stories.duplicate()
-	GameState.unlocked_refine_recipes = save.unlocked_refine_recipes.duplicate()
-	GameState.refined_items = save.refined_items.duplicate()
-	GameState.unit_growth = save.unit_growth.duplicate(true)
-	GameState.unit_blessings = save.unit_blessings.duplicate(true)
+	if save.unlocked_talents.is_empty():
+		# 兜底：存档缺失词条解锁 → 按 stage 重算
+		Globals.reload_talent_unlock()
+		print("[SaveManager] 存档缺 unlocked_talents，按 stage=%d 重算" % GameState.tutorial_stage)
+	else:
+		Globals.unlocked_talents = save.unlocked_talents.duplicate()
+
+	GameState.unlocked_recipes = (save.unlocked_recipes if save.unlocked_recipes else []).duplicate()
+	GameState.unlocked_stories = (save.unlocked_stories if save.unlocked_stories else []).duplicate()
+	GameState.unlocked_refine_recipes = (save.unlocked_refine_recipes if save.unlocked_refine_recipes else []).duplicate()
+	GameState.refined_items = (save.refined_items if save.refined_items else {}).duplicate()
+	GameState.unit_growth = (save.unit_growth if save.unit_growth else {}).duplicate(true)
+	GameState.unit_blessings = (save.unit_blessings if save.unit_blessings else {}).duplicate(true)
 
 	if Globals.unlocked_items.is_empty():
 		Globals.unlocked_items = Globals.item_unlocked_items.duplicate()

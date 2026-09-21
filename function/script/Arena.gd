@@ -804,8 +804,6 @@ func _show_summary(success: bool, reason: String, skip_music: bool = false):
 		_return_to_idle()
 		return
 
-	summary.set_interactable(true)
-
 	var net_gain : int = _get_net_gain()
 
 	var items : Array = []

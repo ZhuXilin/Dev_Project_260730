@@ -19,6 +19,21 @@ const QUALITY_MULT = {
 }
 const STRENGTH_DEF_FACTOR : float = 0.3
 
+# ---- 新增词条参数 ----
+const BLEED_MAX_STACKS : int = 5
+const BLEED_BASE_PERCENT : float = 0.15
+const BLEED_PER_LEVEL : float = 0.05
+
+const COUNTER_BASE_PERCENT : float = 0.30
+const COUNTER_PER_LEVEL : float = 0.10
+
+const STAFF_SELF_HEAL_PERCENT : float = 0.10
+const HEAL_BOOST_BASE : float = 1.30
+const HEAL_BOOST_PER_LEVEL : float = 0.20
+
+const SPELL_CHAIN_BASE : float = 0.80
+const SPELL_CHAIN_PER_LEVEL : float = 0.10
+
 var winner_team : int = -1
 var _crystal_reward : int = 0
 var _battle_index : int = 1
@@ -38,6 +53,10 @@ var _player_zeal_target : String = ""
 var _player_zeal_stacks : int = 0
 var _enemy_zeal_target : String = ""
 var _enemy_zeal_stacks : int = 0
+
+# ---- 出血层数（本场累积）----
+var _player_bleed_stacks : int = 0
+var _enemy_bleed_stacks : int = 0
 
 @onready var panel : Panel = $Panel
 @onready var enemy_sprite : AnimatedSprite2D = $Panel/EnemySpriteContainer/EnemySprite
@@ -236,15 +255,16 @@ func _run_battle():
 		continue_btn.visible = false
 		return_btn.visible = true
 
-
 func _do_attack(attacker: UnitData, defender: UnitData):
 	if _player_hp <= 0 or _enemy_hp <= 0:
 		return
 
+	var is_player_attacker = (attacker == _player)
+
 	# ---- 计算基础伤害 ----
 	var damage = _calc_damage(attacker, defender)
 
-	# ---- 主动技能（Arena 里变成被动：就绪时自动触发） ----
+	# ---- 主动技能（就绪时自动触发）----
 	var ready_skills : Array = TalentManager.get_ready_active_skills(attacker)
 	if ready_skills.size() > 0:
 		var skill_id : String = ready_skills[0]
@@ -259,10 +279,8 @@ func _do_attack(attacker: UnitData, defender: UnitData):
 				print("[Arena] 主动技能 %s 触发" % skill_data.display_name)
 			TalentManager.consume_active_skill(attacker, skill_id)
 
-	# ---- 狂热：连击同一目标累积 ----
+	# ---- 狂热 ----
 	var target_key = defender.unit_name
-	
-	var is_player_attacker = (attacker == _player)
 	var zeal_stacks : int = 0
 	if is_player_attacker:
 		if _player_zeal_target == target_key:
@@ -301,7 +319,7 @@ func _do_attack(attacker: UnitData, defender: UnitData):
 	if is_crit:
 		damage = int(damage * crit_mult)
 
-	# ---- 盾反（受击方） ----
+	# ---- 盾反（parry）----
 	if _is_talent_ready(defender, "parry"):
 		var lv = _get_talent_level(defender, "parry")
 		var reflect = 0.5 + (lv - 1) * 0.15
@@ -314,7 +332,21 @@ func _do_attack(attacker: UnitData, defender: UnitData):
 			enemy_hp_bar.value = _enemy_hp
 		_reset_talent(defender, "parry")
 
-	# ---- 格挡（受击方） ----
+	# ★ ---- 反击强化（counter_boost）----
+	if _is_talent_ready(defender, "counter_boost"):
+		var lv = _get_talent_level(defender, "counter_boost")
+		var reflect_pct = COUNTER_BASE_PERCENT + (lv - 1) * COUNTER_PER_LEVEL
+		var reflect_dmg = maxi(1, int(damage * reflect_pct))
+		if is_player_attacker:
+			_player_hp = maxi(0, _player_hp - reflect_dmg)
+			player_hp_bar.value = _player_hp
+		else:
+			_enemy_hp = maxi(0, _enemy_hp - reflect_dmg)
+			enemy_hp_bar.value = _enemy_hp
+		_reset_talent(defender, "counter_boost")
+		print("[Arena] 反击强化触发：Lv.%d 反弹 %d" % [lv, reflect_dmg])
+
+	# ---- 格挡 ----
 	if _is_talent_ready(defender, "block"):
 		var lv = _get_talent_level(defender, "block")
 		var reduce = 0.5 + (lv - 1) * 0.1
@@ -364,7 +396,75 @@ func _do_attack(attacker: UnitData, defender: UnitData):
 	_refresh_hp_labels()
 	await get_tree().create_timer(0.6, true, false, true).timeout
 
-	# ---- 复活（死亡检查） ----
+	# ★ ---- 出血（bleed）：攻击方给防守方叠层 ----
+	if _is_talent_ready(attacker, "bleed"):
+		var lv = _get_talent_level(attacker, "bleed")
+		var pct = BLEED_BASE_PERCENT + (lv - 1) * BLEED_PER_LEVEL
+		if is_player_attacker:
+			_enemy_bleed_stacks += 1
+			if _enemy_bleed_stacks >= BLEED_MAX_STACKS:
+				var bleed_dmg = maxi(1, int(defender.max_hp * pct))
+				_enemy_hp = maxi(0, _enemy_hp - bleed_dmg)
+				enemy_hp_bar.value = _enemy_hp
+				_enemy_bleed_stacks = 0
+				log_label.text += "  [出血爆发 -%d]" % bleed_dmg
+		else:
+			_player_bleed_stacks += 1
+			if _player_bleed_stacks >= BLEED_MAX_STACKS:
+				var bleed_dmg = maxi(1, int(defender.max_hp * pct))
+				_player_hp = maxi(0, _player_hp - bleed_dmg)
+				player_hp_bar.value = _player_hp
+				_player_bleed_stacks = 0
+				log_label.text += "  [出血爆发 -%d]" % bleed_dmg
+		_reset_talent(attacker, "bleed")
+		_refresh_hp_labels()
+
+	# ★ ---- 治疗法杖自愈（heal_boost）----
+	var weapon_data = null
+	if attacker.weapon_slot:
+		weapon_data = ItemManager.get_item_data(attacker.weapon_slot.item_id)
+	if weapon_data and weapon_data.category == "staff":
+		var self_heal_pct = STAFF_SELF_HEAL_PERCENT
+		if _is_talent_ready(attacker, "heal_boost"):
+			var lv_hb = _get_talent_level(attacker, "heal_boost")
+			self_heal_pct *= (HEAL_BOOST_BASE + (lv_hb - 1) * HEAL_BOOST_PER_LEVEL)
+			_reset_talent(attacker, "heal_boost")
+			print("[Arena] 治愈强化：自愈倍率 %.2f" % self_heal_pct)
+		var heal = maxi(1, int(attacker.max_hp * self_heal_pct))
+		if is_player_attacker:
+			var old_hp = _player_hp
+			_player_hp = mini(_player_hp + heal, _player.max_hp)
+			var actual = _player_hp - old_hp
+			if actual > 0:
+				player_hp_bar.value = _player_hp
+				log_label.text += "  [自愈 +%d]" % actual
+		else:
+			var old_hp = _enemy_hp
+			_enemy_hp = mini(_enemy_hp + heal, _enemy.max_hp)
+			var actual = _enemy_hp - old_hp
+			if actual > 0:
+				enemy_hp_bar.value = _enemy_hp
+				log_label.text += "  [自愈 +%d]" % actual
+		_refresh_hp_labels()
+
+	# ★ ---- 法术连击（spell_chain）----
+	if _is_talent_ready(attacker, "spell_chain"):
+		if weapon_data and (weapon_data.category == "spellbook" or weapon_data.category == "staff"):
+			var lv_sc = _get_talent_level(attacker, "spell_chain")
+			var mult = SPELL_CHAIN_BASE + (lv_sc - 1) * SPELL_CHAIN_PER_LEVEL
+			var extra = maxi(1, int(damage * mult))
+			if is_player_attacker:
+				_enemy_hp = maxi(0, _enemy_hp - extra)
+				enemy_hp_bar.value = _enemy_hp
+			else:
+				_player_hp = maxi(0, _player_hp - extra)
+				player_hp_bar.value = _player_hp
+			_reset_talent(attacker, "spell_chain")
+			log_label.text += "  [法术连击 +%d]" % extra
+			_refresh_hp_labels()
+			await get_tree().create_timer(0.4, true, false, true).timeout
+
+	# ---- 复活（死亡检查）----
 	if _player_hp <= 0 and _is_talent_ready(_player, "revive"):
 		_player_hp = _player.max_hp
 		player_hp_bar.value = _player_hp
@@ -396,7 +496,6 @@ func _do_attack(attacker: UnitData, defender: UnitData):
 		log_label.text += "  [二次攻击 +%d]" % extra
 		_refresh_hp_labels()
 		await get_tree().create_timer(0.4, true, false, true).timeout
-
 
 func _calc_damage(attacker: UnitData, defender: UnitData) -> int:
 	var wdata = null

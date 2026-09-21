@@ -21,12 +21,6 @@ func _ready():
 	_confirmed_guard = false
 
 
-# ★ 兜底：面板可见时强制按钮可用
-func _process(_delta):
-	if visible and confirm_button.disabled:
-		confirm_button.disabled = false
-
-
 func setup_reward(gold: int, soul: int, items: Array, hide_gold: bool = false, title: String = "关卡结算"):
 	confirm_button.disabled = false
 	_confirmed_guard = false
@@ -108,6 +102,9 @@ func open():
 	confirm_button.disabled = false
 	_confirmed_guard = false
 	visible = true
+	# ---- 保护性断言：显示时按钮必须是可点的 ----
+	if confirm_button.disabled:
+		push_warning("[RewardSummaryUI] open() 后按钮仍 disabled，检查调用方")
 
 
 func close():
@@ -130,6 +127,10 @@ func _on_confirm_pressed():
 
 func set_interactable(enabled: bool):
 	confirm_button.disabled = not enabled
+	# ---- 记录调用来源，方便排查 ----
+	if not enabled:
+		print("[RewardSummaryUI] set_interactable(false) 被调用，堆栈：")
+		print_stack()
 
 
 func _get_material_color(material_name: String) -> Color:
