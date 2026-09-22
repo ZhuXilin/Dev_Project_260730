@@ -414,13 +414,13 @@ func on_forge_craft_pressed():
 			_force_return_armor_to_unit(ou, entry_dict["inst"], entry_dict["origin_slot"])
 			forge_slots[i] = null
 
-	# ---- 产出防具放到第一个单位（或让玩家选） ----
-	# 简化：放到第一个有空的单位
+	# ---- 产出防具：优先放单位空槽，其次放仓库 ----
 	var out_ids : Array = result["item_ids"]
 	var target_unit_idx : int = -1
 	var target_slot : int = -1
 	for i in range(panel.party.size()):
 		var pu : UnitData = panel.party[i]
+		if pu.is_dead: continue
 		for s in range(pu.armor_slots.size()):
 			if pu.armor_slots[s] == null:
 				target_unit_idx = i
@@ -429,26 +429,34 @@ func on_forge_craft_pressed():
 		if target_unit_idx >= 0:
 			break
 
-	if target_unit_idx < 0:
-		# 没有空槽，提示
-		Globals.show_confirm(panel, "所有单位防具槽已满，合成产物无处存放", "确定", "", func(): pass, func(): pass, false)
-		# 但仍然扣钱（因为已经扣了）
-		panel._build_unit_columns()
-		panel._update_gold_display()
-		panel._schedule_build_ui()
-		return
-
-	# 放产物
-	var out_unit : UnitData = panel.party[target_unit_idx]
-	for item_id in out_ids:
-		if target_slot >= out_unit.armor_slots.size():
-			break
-		var inst := ItemInstance.new()
-		inst.item_id = item_id
-		inst.count = 1
-		if out_unit.armor_slots[target_slot] == null:
-			out_unit.armor_slots[target_slot] = inst
-			target_slot += 1
+	if target_unit_idx >= 0:
+		# 放单位空槽
+		var out_unit : UnitData = panel.party[target_unit_idx]
+		for item_id in out_ids:
+			if target_slot >= out_unit.armor_slots.size():
+				break
+			var inst := ItemInstance.new()
+			inst.item_id = item_id
+			inst.count = 1
+			if out_unit.armor_slots[target_slot] == null:
+				out_unit.armor_slots[target_slot] = inst
+				target_slot += 1
+	else:
+		# 没空槽 → 尝试放仓库
+		var all_stored : bool = true
+		for item_id in out_ids:
+			var inst := ItemInstance.new()
+			inst.item_id = item_id
+			inst.count = 1
+			if not GameState.add_armor_to_storage(inst):
+				all_stored = false
+				break
+		if not all_stored:
+			Globals.show_confirm(
+				panel,
+				"所有单位防具槽已满，仓库也已满，合成产物无处存放",
+				"确定", "", func(): pass, func(): pass, false
+			)
 
 	forge_matched_recipe = ""
 	panel._sync_all()
