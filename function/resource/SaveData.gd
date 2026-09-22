@@ -1,7 +1,7 @@
 extends Resource
 class_name SaveData
 
-const CURRENT_VERSION = 6
+const CURRENT_VERSION = 7
 
 @export var save_version: int = CURRENT_VERSION
 
@@ -32,6 +32,8 @@ const CURRENT_VERSION = 6
 
 # ---- 单位属性成长（魂之祭坛，已废弃） ----
 @export var unit_growth: Dictionary = {}
+
+@export var armor_storage: Array = []
 
 # ---- 魂之祝福 ----
 @export var unit_blessings: Dictionary = {}
@@ -135,5 +137,6 @@ func compute_checksum() -> String:
 		"talent_exp": talent_exp,
 		"arena_best_streak": arena_best_streak,
 		"tutorial_stage": tutorial_stage,
+		"armor_storage": armor_storage,
 	}
 	return JSON.stringify(data, "  ").sha256_text()

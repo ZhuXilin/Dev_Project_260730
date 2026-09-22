@@ -18,6 +18,12 @@ var progress_state : ProgressState = ProgressState.new()
 var resource_state : ResourceState = ResourceState.new()
 
 # ============================================================
+#  常量
+# ============================================================
+const MAX_ARMOR_SLOTS_CAP : int = 4
+const ARMOR_STORAGE_SIZE : int = 6
+
+# ============================================================
 #  属性转发：PartyState
 # ============================================================
 var party : Array[UnitData]:
@@ -40,14 +46,9 @@ var current_faction : String:
 	get: return party_state.current_faction
 	set(value): party_state.current_faction = value
 
-# ---- 被动槽（遗物 + 精炼，4 格） ----
 var equipped_passives : Array:
 	get: return party_state.equipped_passives
 	set(value): party_state.equipped_passives = value
-
-var tutorial_stage : int:
-	get: return resource_state.tutorial_stage
-	set(value): resource_state.tutorial_stage = value
 
 func init_passive_slots():
 	party_state.init_passive_slots()
@@ -213,9 +214,15 @@ var refined_items : Dictionary:
 	get: return resource_state.refined_items
 	set(value): resource_state.refined_items = value
 
-# ============================================================
-#  斗技场统计
-# ============================================================
+var tutorial_stage : int:
+	get: return resource_state.tutorial_stage
+	set(value): resource_state.tutorial_stage = value
+
+var armor_storage : Array:
+	get: return resource_state.armor_storage
+	set(value): resource_state.armor_storage = value
+
+# ---- 斗技场统计 ----
 var arena_best_streak : int:
 	get: return resource_state.arena_best_streak
 	set(value): resource_state.arena_best_streak = value
@@ -261,6 +268,92 @@ func sync_units_from_battlefield(battle_units: Array):
 	party_state.sync_units_from_battlefield(battle_units)
 
 # ============================================================
+#  防具仓库
+# ============================================================
+func init_armor_storage():
+	resource_state.armor_storage.clear()
+	for i in range(ARMOR_STORAGE_SIZE):
+		resource_state.armor_storage.append(null)
+
+func add_armor_to_storage(inst: ItemInstance) -> bool:
+	if inst == null:
+		return false
+	if resource_state.armor_storage.size() < ARMOR_STORAGE_SIZE:
+		init_armor_storage()
+	for i in range(resource_state.armor_storage.size()):
+		if resource_state.armor_storage[i] == null:
+			resource_state.armor_storage[i] = inst
+			return true
+	return false
+
+func is_armor_storage_full() -> bool:
+	if resource_state.armor_storage.is_empty():
+		return false
+	for s in resource_state.armor_storage:
+		if s == null:
+			return false
+	return true
+
+func count_free_storage_slots() -> int:
+	var n : int = 0
+	for s in resource_state.armor_storage:
+		if s == null:
+			n += 1
+	return n
+
+func remove_armor_from_storage(idx: int):
+	if idx < 0 or idx >= resource_state.armor_storage.size():
+		return
+	resource_state.armor_storage[idx] = null
+
+# ============================================================
+#  永久死亡 / 复活
+# ============================================================
+func is_unit_dead(unit_name: String, display_name: String) -> bool:
+	for ud in party:
+		if ud.unit_name == unit_name and ud.display_name == display_name:
+			return ud.is_dead
+	return false
+
+func revive_unit(unit_name: String, display_name: String) -> bool:
+	for ud in party:
+		if ud.unit_name == unit_name and ud.display_name == display_name:
+			if not ud.is_dead:
+				return false
+			ud.is_dead = false
+			ud.hit_points = ud.max_hp
+			print("[复活] %s 满血复活" % ud.display_name)
+			return true
+	return false
+
+func revive_all_units():
+	for ud in party:
+		if ud.is_dead:
+			ud.is_dead = false
+			ud.hit_points = ud.max_hp
+			print("[复活] %s 满血复活" % ud.display_name)
+
+func get_alive_party() -> Array:
+	var result : Array = []
+	for ud in party:
+		if not ud.is_dead:
+			result.append(ud)
+	return result
+
+func get_dead_party() -> Array:
+	var result : Array = []
+	for ud in party:
+		if ud.is_dead:
+			result.append(ud)
+	return result
+
+func has_any_dead_unit() -> bool:
+	for ud in party:
+		if ud.is_dead:
+			return true
+	return false
+
+# ============================================================
 #  遗物/被动统计
 # ============================================================
 func get_global_relic_stats() -> Dictionary:
@@ -275,7 +368,6 @@ func get_global_relic_stats() -> Dictionary:
 	return bonus
 
 
-## 汇总遗物 effects（bool 取或，数值累加）
 func get_global_relic_effects() -> Dictionary:
 	var effects := {}
 	for relic in get_relics_from_passives():
@@ -345,6 +437,7 @@ func start_new_cycle():
 	for unit_data in party:
 		unit_data.armor_slots.clear()
 		unit_data.max_armor_slots = 2
+		unit_data.is_dead = false   # ★ 新循环，重置死亡状态
 		var default_weapon = UnitDataManager.get_default_weapon_id(unit_data.unit_name)
 		if default_weapon != "":
 			var inst = ItemInstance.new()
@@ -354,9 +447,8 @@ func start_new_cycle():
 		else:
 			unit_data.weapon_slot = null
 	init_passive_slots()
+	init_armor_storage()   # ★ 新循环，清空仓库
 
-# ★ 单位防具槽位上限
-const MAX_ARMOR_SLOTS_CAP : int = 4
 
 func finish_day(grant_slot: bool = true):
 	soul += temp_soul
@@ -368,27 +460,33 @@ func finish_day(grant_slot: bool = true):
 				unit_data.max_armor_slots += 1
 	print("每天结束：soul=", soul, " 槽位上限=", MAX_ARMOR_SLOTS_CAP)
 
+
 func finish_cycle():
 	# ★ 三天完成：只合并资源，不 +1 槽
 	finish_day(false)
+	# ★ 全员复活
+	revive_all_units()
 	# ★ 推进新手阶段
 	if tutorial_stage < 3:
 		tutorial_stage += 1
 		Globals.reload_talent_unlock()
 		print("[Tutorial] 新手阶段 → %d（已重载词条解锁）" % tutorial_stage)
 
+
 func abandon_cycle():
 	temp_soul = 0
 	temp_gold = 0
 
+
 func abandon_and_return_to_camp():
 	await Globals.show_cycle_reward()
-	finish_day(false)   # ★ 撤退不 +1 槽
+	finish_day(false)
 	abandon_cycle()
 	reset_all()
 	interrupt_state = InterruptState.CAMP
 	SaveManager.save_game(SaveManager.current_slot, false)
 	get_tree().change_scene_to_file(Config.PATHS.CAMP)
+
 
 func show_abandon_confirmation(parent: Node):
 	Globals.show_confirm(
@@ -399,6 +497,7 @@ func show_abandon_confirmation(parent: Node):
 		abandon_and_return_to_camp,
 		func(): pass
 	)
+
 
 func reset_for_new_cycle():
 	party.clear()
@@ -417,10 +516,12 @@ func reset_for_new_cycle():
 	temp_gold = 0
 	interrupt_state = InterruptState.NONE
 	init_passive_slots()
+	init_armor_storage()
 	current_faction = ""
 	map_snapshot.clear()
 	cycle_start_soul = 0
 	cycle_start_materials.clear()
+
 
 func reset_all():
 	party.clear()
@@ -440,6 +541,7 @@ func reset_all():
 	temp_gold = 0
 	interrupt_state = InterruptState.NONE
 	init_passive_slots()
+	init_armor_storage()
 	current_faction = ""
 	map_snapshot.clear()
 	cycle_start_soul = 0
@@ -447,6 +549,4 @@ func reset_all():
 
 
 func apply_relic_stats_to_unit(_unit_data: UnitData):
-	# 遗物已改为 effects 机制，不再提供固定属性加成
-	# 实际加成在 Battlefield._apply_team_buffs 里处理
 	pass

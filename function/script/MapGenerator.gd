@@ -10,7 +10,6 @@ static func generate_day(day: int, _level_list: Array[MapData] = []) -> MapLevel
 
 	match day:
 		1, 2:
-			# 5 层 8 节点
 			var x_left   = 110
 			var x_right  = 210
 			var x_center = 160
@@ -29,16 +28,17 @@ static func generate_day(day: int, _level_list: Array[MapData] = []) -> MapLevel
 			var shop = _create_node(MapNode.NodeType.SHOP, Vector2(x_center, 130), 2)
 			nodes.append(shop)
 
-			# Layer 3: ELITE + EVENT（左右随机）
+			# Layer 3: ELITE + (EVENT 或 CHAPEL 随机)
 			var elite_left = (randi() % 2 == 0)
+			var non_combat_type = _roll_layer3_non_combat()
 			var e1 = _create_node(
-				MapNode.NodeType.ELITE if elite_left else MapNode.NodeType.EVENT,
+				MapNode.NodeType.ELITE if elite_left else non_combat_type,
 				Vector2(x_left, 85), 3)
 			var e2 = _create_node(
-				MapNode.NodeType.EVENT if elite_left else MapNode.NodeType.ELITE,
+				non_combat_type if elite_left else MapNode.NodeType.ELITE,
 				Vector2(x_right, 85), 3)
 
-			# ---- 宝箱节点：随机奖励 ----
+			# 宝箱节点：随机奖励（只有 EVENT 才 roll reward）
 			if e1.node_type == MapNode.NodeType.EVENT:
 				e1.reward = TreasureRewardManager.roll_reward(day)
 			if e2.node_type == MapNode.NodeType.EVENT:
@@ -47,7 +47,7 @@ static func generate_day(day: int, _level_list: Array[MapData] = []) -> MapLevel
 			nodes.append(e1)
 			nodes.append(e2)
 
-			# Layer 4: FORGE
+			# Layer 4: FORGE（恢复单节点居中）
 			var forge = _create_node(MapNode.NodeType.FORGE, Vector2(x_center, 45), 4)
 			nodes.append(forge)
 
@@ -55,7 +55,7 @@ static func generate_day(day: int, _level_list: Array[MapData] = []) -> MapLevel
 			var boss = _create_node(MapNode.NodeType.BOSS, Vector2(x_center, 15), 5)
 			nodes.append(boss)
 
-			# 连接
+			# 连接（恢复原版结构）
 			root.connected_nodes = [n1, n2]
 			n1.connected_nodes = [shop]
 			n2.connected_nodes = [shop]
@@ -65,7 +65,7 @@ static func generate_day(day: int, _level_list: Array[MapData] = []) -> MapLevel
 			forge.connected_nodes = [boss]
 
 		3:
-			# Day3：铁匠铺（整备）→ BOSS
+			# Day3：铁匠铺（整备）→ BOSS（单 FORGE）
 			root = _create_node(MapNode.NodeType.FORGE, Vector2(160, 150), 0)
 			var boss = _create_node(MapNode.NodeType.BOSS, Vector2(160, 60), 1)
 			nodes.append(root)
@@ -103,15 +103,25 @@ static func _create_node(type: MapNode.NodeType, pos: Vector2, layer: int) -> Ma
 	node.is_visited = false
 	return node
 
+
+static func _roll_layer3_non_combat() -> MapNode.NodeType:
+	# 50% 宝箱，50% 圣坛
+	if randi() % 2 == 0:
+		return MapNode.NodeType.EVENT
+	return MapNode.NodeType.CHAPEL
+
+
 static func _assign_map_data_to_all_nodes(nodes: Array):
 	var combat_nodes_by_type : Dictionary = {}
 	print("=== _assign_map_data_to_all_nodes 开始 ===")
 	for node in nodes:
 		print("  节点: type=%d, layer=%d" % [node.node_type, node.layer])
+		# ★ 非战斗节点（含 CHAPEL）
 		if node.node_type in [
 			MapNode.NodeType.SHOP,
 			MapNode.NodeType.FORGE,
 			MapNode.NodeType.EVENT,
+			MapNode.NodeType.CHAPEL,
 		]:
 			var placeholder = MapData.new()
 			placeholder.node_type = node.node_type
@@ -133,6 +143,7 @@ static func _assign_map_data_to_all_nodes(nodes: Array):
 				group[i].map_data = maps[i]
 			else:
 				group[i].map_data = _create_fallback_map_data(node_type)
+
 
 static func _create_fallback_map_data(_type: MapNode.NodeType) -> MapData:
 	var map = MapData.new()

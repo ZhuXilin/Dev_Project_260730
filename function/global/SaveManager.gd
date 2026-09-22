@@ -52,7 +52,6 @@ func load_game(slot: int) -> bool:
 		push_error("无法加载存档: ", path)
 		return false
 
-	# ---- 版本迁移 ----
 	if save.save_version < SaveData.CURRENT_VERSION:
 		print("存档版本 %d 低于当前版本 %d，开始迁移" % [save.save_version, SaveData.CURRENT_VERSION])
 		_migrate_save(save)
@@ -77,19 +76,17 @@ func load_game(slot: int) -> bool:
 	return true
 
 
-# ===== 版本迁移（按版本号逐个向上补） =====
+# ===== 版本迁移 =====
 func _migrate_save(save: SaveData):
 	var v : int = save.save_version
 
-	# v5 → v6：新增 tutorial_stage
-	# 老存档视为已完全解锁词条，避免玩家丢失已有解锁
 	if v < 6:
 		save.tutorial_stage = 3
 		print("  [迁移] v5 → v6：tutorial_stage 设为 3（老存档视为全解锁）")
 
-	# 未来版本迁移继续往这加
-	# if v < 7:
-	#     ...
+	if v < 7:
+		save.armor_storage = []
+		print("  [迁移] v6 → v7：armor_storage 初始化为空")
 
 
 # ===== 构建存档数据 =====
@@ -131,10 +128,16 @@ func _build_save_data() -> SaveData:
 	for unit_data in GameState.party:
 		save.party_data.append(unit_data.to_dict())
 
-	# ---- 被动槽（遗物 + 精炼） ----
+	# ---- 被动槽 ----
 	save.equipped_passives = []
 	for p in GameState.get_passives():
 		save.equipped_passives.append(_serialize_passive(p))
+
+	# ---- 防具仓库 ----
+	save.armor_storage = []
+	for i in range(GameState.ARMOR_STORAGE_SIZE):
+		var inst = GameState.armor_storage[i] if i < GameState.armor_storage.size() else null
+		save.armor_storage.append(_serialize_item_instance(inst))
 
 	save.unlocked_units = Globals.unlocked_units.duplicate()
 	save.unlocked_items = Globals.unlocked_items.duplicate()
@@ -198,22 +201,26 @@ func _apply_save_data(save: SaveData):
 			var data = UnitData.from_dict(d)
 			GameState.party.append(data)
 
-	# ---- 被动槽（遗物 + 精炼） ----
+	# ---- 被动槽 ----
 	GameState.init_passive_slots()
 	var arr = save.equipped_passives
 	if arr is Array:
 		for i in range(min(arr.size(), 4)):
 			GameState.set_passive_at_slot(i, _deserialize_passive(arr[i]))
 
-	# ---- 各类解锁恢复 ----
+	# ---- 防具仓库 ----
+	GameState.init_armor_storage()
+	if save.armor_storage is Array:
+		for i in range(min(save.armor_storage.size(), GameState.ARMOR_STORAGE_SIZE)):
+			GameState.armor_storage[i] = _deserialize_item_instance(save.armor_storage[i])
+
+	# ---- 各类解锁 ----
 	RelicManager.set_unlocked_relics(save.unlocked_relics if save.unlocked_relics else [])
 	Globals.unlocked_units = (save.unlocked_units if save.unlocked_units else []).duplicate()
 	Globals.unlocked_items = (save.unlocked_items if save.unlocked_items else []).duplicate()
 
-	# ★ tutorial_stage + 词条解锁：先设 stage，再按需重建
 	GameState.tutorial_stage = save.tutorial_stage
 	if save.unlocked_talents.is_empty():
-		# 兜底：存档缺失词条解锁 → 按 stage 重算
 		Globals.reload_talent_unlock()
 		print("[SaveManager] 存档缺 unlocked_talents，按 stage=%d 重算" % GameState.tutorial_stage)
 	else:
@@ -238,7 +245,30 @@ func _apply_save_data(save: SaveData):
 		GameState.visited_nodes.erase(GameState.current_node_key)
 		GameState.current_node_key = ""
 
-# ===== 被动槽序列化 =====
+# ===== 序列化辅助 =====
+func _serialize_item_instance(inst) -> Dictionary:
+	if inst == null:
+		return {}
+	if inst is ItemInstance:
+		return {
+			"item_id": inst.item_id,
+			"count": inst.count,
+			"upgrade_level": inst.upgrade_level,
+		}
+	return {}
+
+func _deserialize_item_instance(d) -> Variant:
+	if not (d is Dictionary) or d.is_empty():
+		return null
+	var item_id : String = d.get("item_id", "")
+	if item_id == "":
+		return null
+	var inst = ItemInstance.new()
+	inst.item_id = item_id
+	inst.count = d.get("count", 1)
+	inst.upgrade_level = d.get("upgrade_level", 0)
+	return inst
+
 func _serialize_passive(entry) -> Dictionary:
 	if entry == null:
 		return {"type": "empty"}

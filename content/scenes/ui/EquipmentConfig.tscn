@@ -59,6 +59,9 @@ size_flags_horizontal = 0
 size_flags_vertical = 3
 theme_override_constants/separation = 4
 
+[node name="ArmorStorageSection" type="VBoxContainer" parent="MainPanel/VBoxContainer/MainHBox/LeftInfoColumn" unique_id=1579810350]
+layout_mode = 2
+
 [node name="RelicSection" type="VBoxContainer" parent="MainPanel/VBoxContainer/MainHBox/LeftInfoColumn" unique_id=818878612]
 layout_mode = 2
 size_flags_vertical = 0
@@ -209,6 +212,10 @@ theme_override_styles/hover = ExtResource("2")
 theme_override_styles/disabled = ExtResource("2")
 theme_override_styles/focus = ExtResource("2")
 text = "返回"
+
+[node name="___#StorageTitle" type="Label" parent="." unique_id=732215404]
+
+[node name="___#StorageContainer" type="GridContainer" parent="." unique_id=1196190435]
 
 [connection signal="pressed" from="MainPanel/VBoxContainer/MainHBox/RightContainer/ResetBtn" to="MainPanel" method="_on_reset_shop_pressed"]
 [connection signal="pressed" from="MainPanel/VBoxContainer/BottomHBox/ConfirmBtn" to="MainPanel" method="_on_confirm_pressed"]

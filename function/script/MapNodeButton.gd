@@ -53,15 +53,15 @@ func setup(node_data: MapNode, map_scene: CanvasLayer):
 func _get_node_label(node: MapNode) -> String:
 	# ---- 非战斗节点：固定类型名 ----
 	match node.node_type:
-		MapNode.NodeType.SHOP:  return "商店"
-		MapNode.NodeType.FORGE: return "铁匠铺"
-		MapNode.NodeType.EVENT: return "宝箱"
+		MapNode.NodeType.SHOP:   return "商店"
+		MapNode.NodeType.FORGE:  return "铁匠铺"
+		MapNode.NodeType.EVENT:  return "宝箱"
+		MapNode.NodeType.CHAPEL: return "圣坛"
 
-	# ---- 战斗节点（START / NORMAL / ELITE / BOSS）：显示地图名 ----
+	# ---- 战斗节点：显示地图名 ----
 	if node.map_data and node.map_data.map_name != "":
 		return node.map_data.map_name
 
-	# 兜底
 	return "?"
 
 func _get_color(node: MapNode) -> Color:

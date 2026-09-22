@@ -118,7 +118,10 @@ func _ready():
 	for node_name in node_list:
 		if not node_list[node_name]:
 			print("警告：节点 '", node_name, "' 未找到！")
-
+			
+	if not UnitManager.unit_removed.is_connected(_on_unit_removed_death):
+		UnitManager.unit_removed.connect(_on_unit_removed_death)
+		
 	setting_btn.pressed.connect(_on_setting_btn_pressed)
 	equip_btn.pressed.connect(_on_equip_btn_pressed)
 	item_list_btn.pressed.connect(_on_item_list_btn_pressed)
@@ -230,6 +233,7 @@ func _ready():
 		MapNode.NodeType.SHOP,
 		MapNode.NodeType.EVENT,
 		MapNode.NodeType.FORGE,
+		MapNode.NodeType.CHAPEL,
 	]
 
 	if is_non_combat:
@@ -287,8 +291,23 @@ func _ready():
 
 	_victory_processed = false
 	_is_reward_ui_active = false
+
+	# ★ 全队阵亡检测
+	if not is_non_combat_mode:
+		var alive_player : int = 0
+		for u in UnitManager.unit_list:
+			if u.unit_stats.team_id == 0 and u.hit_points > 0:
+				alive_player += 1
+		if alive_player == 0:
+			print("[Battlefield] 无存活玩家单位，判定失败")
+			TurnManager.is_game_over = true
+			await get_tree().process_frame
+			SignalBus.request_show_victory.emit(1)
+			return
+
 	_apply_team_buffs()
 	print("Battlefield _ready 完成")
+
 
 func _on_unit_removed_for_vengeance(unit: Unit, team: int):
 	# 复仇：玩家单位死亡时，其他玩家单位攻击力 +30%（每单位每场只触发一次）
@@ -378,6 +397,9 @@ func _get_viewport_scale() -> float:
 # ===================== 地图加载 =====================
 func load_map(new_map_data: MapData):
 	print("=== load_map 被调用 ===")
+	if UnitManager.unit_list.is_empty() and GameState.party.is_empty():
+		print("没有任何单位，生成测试单位")
+		UnitSpawner.spawn_test_units(self, grid_to_world)
 	if not new_map_data:
 		print("地图数据为空，加载默认地图")
 		_load_default_map()
@@ -881,7 +903,7 @@ func _on_request_show_victory(winning_team: int):
 
 	var player_units = []
 	for unit in UnitManager.unit_list:
-		if unit.unit_stats.team_id == 0:
+		if unit.unit_stats.team_id == 0 and unit.hit_points > 0:   # ← 加 hit_points 检查
 			player_units.append(unit)
 	GameState.sync_units_from_battlefield(player_units)
 
@@ -2311,7 +2333,6 @@ func _update_relic_icons():
 		label.add_theme_font_size_override("font_size", 6)
 		relic_icon_container.add_child(label)
 
-
 func _on_use_refine(slot_idx: int) -> void:
 	var passives = GameState.get_passives()
 	if slot_idx < 0 or slot_idx >= passives.size():
@@ -2329,6 +2350,8 @@ func _on_use_refine(slot_idx: int) -> void:
 	var value : Variant = effect.get("value", 0)
 
 	for unit in UnitManager.unit_list:
+		if not is_instance_valid(unit):
+			continue
 		if unit.unit_stats.team_id != 0:
 			continue
 		match effect_type:
@@ -2345,7 +2368,6 @@ func _on_use_refine(slot_idx: int) -> void:
 				unit.update_hp_label()
 
 	GameState.set_passive_at_slot(slot_idx, null)
-
 	_update_relic_icons()
 	SoundManager.play_heal_sound()
 	print("[Battlefield] 使用精炼：", refine_id, " 类型：", effect_type)
@@ -2454,6 +2476,7 @@ func _apply_team_buffs():
 		unit.relic_strength_scale_damage = float(relic_effects.get("strength_scale_damage", 0.0))
 		unit.relic_counter_damage_bonus = float(relic_effects.get("counter_damage_bonus", 0.0))
 		unit.relic_heal_bonus = float(relic_effects.get("heal_bonus", 0.0))
+		unit.relic_auto_revive_available = bool(relic_effects.get("auto_revive_once", false))
 
 		unit.update_hp_label()
 
@@ -2464,3 +2487,19 @@ func _apply_team_buffs():
 				unit.update_hp_label()
 
 	print("[Battlefield] buff 已应用 | 精炼：", buffs, " 遗物属性：", relic_stats, " 遗物效果：", relic_effects)
+
+func _on_unit_removed_death(unit: Unit, team: int):
+	if team != 0:
+		return   # 只处理玩家单位
+	if not is_instance_valid(unit):
+		return
+	if unit.hit_points > 0:
+		return   # 非死亡移除
+
+	# 同步到 GameState.party
+	for ud in GameState.party:
+		if ud.unit_name == unit.unit_stats.unit_name and ud.display_name == unit.unit_stats.display_name:
+			ud.is_dead = true
+			ud.hit_points = 0
+			print("[永久死亡] %s 阵亡" % ud.display_name)
+			break

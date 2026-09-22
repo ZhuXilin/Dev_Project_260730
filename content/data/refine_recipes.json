@@ -63,5 +63,18 @@
 	  "value": 0.3,
 	  "battles": 1
 	}
+  },
+"revive_potion": {
+	"id": "revive_potion",
+	"name": "复活药",
+	"description": "战斗中复活一个阵亡单位（HP 50%）",
+	"icon": "",
+	"craft_cost": { "秘银": 2, "龙鳞": 1 },
+	"unlock_cost": { "秘银": 1 },
+	"effect": {
+		"type": "revive_in_battle",
+		"value": 0.5,
+		"battles": 0
+	}
   }
 }

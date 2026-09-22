@@ -30,13 +30,27 @@ func get_main_unit() -> UnitData:
 	return null
 
 func sync_units_from_battlefield(battle_units: Array):
-	for i in range(min(party.size(), battle_units.size())):
-		var battle_unit = battle_units[i]
-		var party_unit = party[i]
-		party_unit.hit_points = battle_unit.hit_points
-		party_unit.weapon_slot = battle_unit.weapon_slot
-		party_unit.armor_slots = battle_unit.armor_slots.duplicate()
-		party_unit.max_armor_slots = battle_unit.max_armor_slots
+	# 用 unit_name + display_name 匹配，避免死亡单位打乱索引
+	var battle_map : Dictionary = {}
+	for bu in battle_units:
+		if bu == null or not is_instance_valid(bu):
+			continue
+		var key = "%s|%s" % [bu.unit_stats.unit_name, bu.unit_stats.display_name]
+		battle_map[key] = bu
+
+	for party_unit in party:
+		var key = "%s|%s" % [party_unit.unit_name, party_unit.display_name]
+		if battle_map.has(key):
+			var bu = battle_map[key]
+			party_unit.hit_points = bu.hit_points
+			party_unit.weapon_slot = bu.weapon_slot
+			party_unit.armor_slots = bu.armor_slots.duplicate()
+			party_unit.max_armor_slots = bu.max_armor_slots
+		else:
+			# 战斗中阵亡（或被移除）
+			party_unit.hit_points = 0
+			party_unit.is_dead = true
+			print("[永久死亡] %s 标记为阵亡" % party_unit.display_name)
 
 # ============================================================
 #  被动槽

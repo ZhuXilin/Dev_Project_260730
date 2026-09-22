@@ -9,6 +9,7 @@ enum NodeType {
 	EVENT,
 	BOSS,
 	FORGE,
+	CHAPEL,
 }
 
 static var _node_counter : int = 0

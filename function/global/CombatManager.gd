@@ -113,12 +113,10 @@ func calculate_damage(attacker: Unit, defender: Unit) -> int:
 		atk_bonus += val * modifier[attr]
 
 	var total_attack = base_attack + atk_bonus + attacker.buff_attack_flat
-	# 魔法武器额外吃 buff_magic_attack_flat
 	if weapon_data.magic_attack.get("ignore_defense", false):
 		total_attack += attacker.buff_magic_attack_flat
 	total_attack *= (1.0 + attacker.buff_attack_percent)
 
-	# ★ 巨力遗物：每 1 点力量额外 +N% 伤害
 	if attacker.relic_strength_scale_damage > 0.0:
 		var str_val = attacker.unit_stats.get_effective_attr("strength")
 		total_attack *= (1.0 + str_val * attacker.relic_strength_scale_damage)
@@ -174,7 +172,7 @@ func execute_attack(attacker: Unit, defender: Unit) -> bool:
 
 	var damage = calculate_damage(attacker, defender)
 
-	# ★★★ 主动技能触发 ★★★
+	# ★ 主动技能触发
 	var active_skill_id : String = ""
 	var active_skill_data = null
 	var ready_skills : Array = TalentManager.get_ready_active_skills(attacker)
@@ -231,7 +229,7 @@ func execute_attack(attacker: Unit, defender: Unit) -> bool:
 		print("连击触发！Lv.%d 第 %d 次攻击 倍率×%.2f" % [lv_combo, attacker.combo_count, bonus])
 		TalentManager.reset_talent(attacker, "combo")
 
-	# ★ 暴击判定（四种来源）
+	# 暴击判定
 	var is_crit := false
 	var crit_mult : float = CRIT_DAMAGE_MULT
 
@@ -283,7 +281,7 @@ func execute_attack(attacker: Unit, defender: Unit) -> bool:
 
 	var defeated = _apply_damage_with_effects(defender, damage, attacker)
 
-	# ★ 主动技能后效
+	# 主动技能后效
 	if active_skill_data:
 		if splash_percent > 0.0:
 			_apply_splash(attacker, defender, damage, splash_percent)
@@ -306,6 +304,13 @@ func execute_attack(attacker: Unit, defender: Unit) -> bool:
 		_on_kill(attacker, defender)
 		UnitManager.unregister_unit(defender)
 		defender.queue_free()
+
+		# ★ 检查 cleave 是否触发
+		if not attacker.has_attacked:
+			# cleave 已重置状态，跳过 _finish_attack
+			Globals.is_performing_action = false
+			return true
+
 		_finish_attack(attacker, defender)
 		Globals.is_performing_action = false
 		return true
@@ -341,6 +346,12 @@ func execute_attack(attacker: Unit, defender: Unit) -> bool:
 			_on_kill(attacker, defender)
 			UnitManager.unregister_unit(defender)
 			defender.queue_free()
+
+			# ★ 检查 cleave
+			if not attacker.has_attacked:
+				Globals.is_performing_action = false
+				return true
+
 			_finish_attack(attacker, defender)
 			Globals.is_performing_action = false
 			return true
@@ -376,6 +387,12 @@ func execute_attack(attacker: Unit, defender: Unit) -> bool:
 					_on_kill(attacker, defender)
 					UnitManager.unregister_unit(defender)
 					defender.queue_free()
+
+					# ★ 检查 cleave
+					if not attacker.has_attacked:
+						Globals.is_performing_action = false
+						return true
+
 					_finish_attack(attacker, defender)
 					Globals.is_performing_action = false
 					return true
@@ -460,6 +477,7 @@ func _apply_aoe(attacker: Unit, center: Unit, base_damage: int, percent: float):
 			UnitManager.unregister_unit(target)
 			target.queue_free()
 
+
 # ============================================================
 #  治疗
 # ============================================================
@@ -474,7 +492,6 @@ func _execute_heal(attacker: Unit, defender: Unit) -> bool:
 	var faith_bonus = attacker.unit_stats.faith * weapon_data.heal_effect.get("faith_multiplier", 1.0)
 	var total_heal = int(heal_amount + faith_bonus)
 
-	# ★ 信仰遗物：治疗 +N%
 	if attacker.relic_heal_bonus > 0.0:
 		total_heal = int(total_heal * (1.0 + attacker.relic_heal_bonus))
 
@@ -548,7 +565,7 @@ func _apply_damage_with_effects(defender: Unit, damage: int, attacker: Unit) -> 
 		print("格挡触发！Lv.%d 减伤 %d%%" % [level, int(reduction * 100)])
 		TalentManager.reset_talent(defender, "block")
 
-	# ---- 词条：出血（给目标累积层数） ----
+	# ---- 词条：出血 ----
 	if TalentManager.is_talent_ready(attacker, "bleed"):
 		if defender.unit_stats.team_id != attacker.unit_stats.team_id:
 			defender.bleed_stacks += 1
@@ -568,7 +585,7 @@ func _apply_damage_with_effects(defender: Unit, damage: int, attacker: Unit) -> 
 						return false
 					return true
 
-	# ---- 守护遗物：HP < 30% 时，受到的伤害 -50% ----
+	# ---- 守护遗物：HP < 30% 减伤 ----
 	if defender.relic_low_hp_damage_reduce > 0.0:
 		var hp_ratio = float(defender.hit_points) / float(defender.unit_stats.max_hp)
 		if hp_ratio < 0.3:
@@ -586,6 +603,15 @@ func _apply_damage_with_effects(defender: Unit, damage: int, attacker: Unit) -> 
 			SignalBus.request_damage_popup.emit(defender.global_position, regen, false, false, true)
 			print("生命遗物：本回合首次受伤回复 %d HP" % regen)
 		defender.relic_turn_first_hit_regen_used = true
+
+	# ★ ---- 凤凰之羽（遗物）：首次阵亡满血复活 ----
+	if defeated and defender.relic_auto_revive_available:
+		defender.hit_points = defender.unit_stats.max_hp
+		defender.update_hp_label()
+		SignalBus.request_damage_popup.emit(defender.global_position, defender.hit_points, false, false, true)
+		defender.relic_auto_revive_available = false
+		print("[凤凰之羽] %s 满血复活" % defender.unit_stats.unit_name)
+		return false
 
 	# ---- 词条：复活 ----
 	if defeated and _try_revive(defender):
@@ -618,7 +644,6 @@ func _get_effective_talent_level(unit: Unit, talent_id: String) -> int:
 #  反击
 # ============================================================
 func _can_counter_attack(attacker: Unit, defender: Unit) -> bool:
-	# ★ 反击能力检查
 	if not defender.can_counter():
 		return false
 
@@ -641,11 +666,9 @@ func _execute_counter(attacker: Unit, defender: Unit) -> void:
 	print(defender.unit_stats.unit_name + " 反击!")
 	var counter_damage = calculate_damage(defender, attacker)
 
-	# ★ 迅捷遗物：反击伤害 +N%
 	if defender.relic_counter_damage_bonus > 0.0:
 		counter_damage = int(counter_damage * (1.0 + defender.relic_counter_damage_bonus))
 
-	# ---- 词条：反击强化 ----
 	if TalentManager.is_talent_ready(defender, "counter_boost"):
 		var level = _get_effective_talent_level(defender, "counter_boost")
 		var mult = COUNTER_BOOST_MULT[level - 1]

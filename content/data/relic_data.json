@@ -62,5 +62,13 @@
 	"description": "全队治疗量 +50%",
 	"effects": { "heal_bonus": 0.5 },
 	"price": 200
+  },
+  "relic_phoenix": {
+	"id": "relic_phoenix",
+	"name": "凤凰之羽",
+	"icon": "res://content/images/items/relic.png",
+	"description": "每个单位每场战斗首次阵亡后，满血复活一次",
+	"effects": { "auto_revive_once": true },
+	"price": 200
   }
 }

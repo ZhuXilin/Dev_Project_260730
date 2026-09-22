@@ -48,6 +48,7 @@ var relic_turn_first_hit_regen_used: bool = false
 var relic_strength_scale_damage: float = 0.0
 var relic_counter_damage_bonus: float = 0.0
 var relic_heal_bonus: float = 0.0
+var relic_auto_revive_available: bool = false
 
 # ---- 连锁词条状态 ----
 var vengeance_triggered: bool = false   # 复仇：本场是否已触发（只触发一次）
@@ -211,6 +212,7 @@ func reset_relic_effects():
 	relic_strength_scale_damage = 0.0
 	relic_counter_damage_bonus = 0.0
 	relic_heal_bonus = 0.0
+	relic_auto_revive_available = false
 
 
 func reset_chain_talents():

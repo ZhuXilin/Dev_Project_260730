@@ -37,6 +37,9 @@ func reset_combat_buffs():
 	buff_attack_flat = 0
 	buff_magic_attack_flat = 0
 
+# ---- 死亡状态（本三天流程内）----
+@export var is_dead: bool = false
+
 @export var experience: int = 0
 @export var level: int = 1
 
@@ -167,6 +170,7 @@ func to_dict() -> Dictionary:
 		"talent_slots": _talent_instance_array_to_array(talent_slots),
 		"advanced_class": advanced_class,
 		"override_sprite_path": override_sprite_path,
+		"is_dead": is_dead,
 	}
 
 
@@ -192,6 +196,7 @@ static func from_dict(d: Dictionary) -> UnitData:
 	data.max_talent_slots = d.get("max_talent_slots", 1)
 	data.advanced_class = d.get("advanced_class", "")
 	data.override_sprite_path = d.get("override_sprite_path", "")
+	data.is_dead = d.get("is_dead", false) 
 
 	if d.has("advancement"):
 		var adv_v : Variant = d["advancement"]
