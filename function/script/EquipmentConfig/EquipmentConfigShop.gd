@@ -119,6 +119,30 @@ func buy_shop_item(data: Dictionary, target: Control):
 	if drag_item_id != "" and drag_item_id != item_data.id:
 		SoundManager.play_cancel_sound(); return
 
+	var target_type : String = target.get_meta("slot_type", "")
+
+	# ★ 拖拽到武器防具仓库
+	if target_type == "armor_storage":
+		var stg_idx : int = target.get_meta("storage_idx", -1)
+		if stg_idx < 0 or stg_idx >= GameState.armor_storage.size(): return
+		if GameState.armor_storage[stg_idx] != null: return
+
+		var buy_result : Dictionary = panel.shop_manager.buy_shop_item(shop_index)
+		if not buy_result["success"]:
+			panel._show_buy_failure_message(buy_result.get("reason", "unknown"))
+			return
+		var storage_inst := ItemInstance.new()
+		storage_inst.item_id = item_data.id
+		storage_inst.count = 1
+		GameState.armor_storage[stg_idx] = storage_inst
+		panel._build_storage_slots()
+		panel._sync_all()
+		panel._update_gold_display()
+		panel._schedule_build_ui()
+		SoundManager.play_select_sound()
+		return
+
+	# ---- 原有逻辑：拖到单位槽 ----
 	var target_unit_idx : int = target.get_meta("unit_idx", -1)
 	var target_slot_idx : int = target.get_meta("slot_idx", -1)
 
@@ -126,25 +150,24 @@ func buy_shop_item(data: Dictionary, target: Control):
 		if target_unit_idx < 0: return
 	elif item_data.type == "armor":
 		if target_unit_idx < 0 or target_slot_idx < 0: return
-		# ★ 覆盖已有防具时只检查格数预算（旧装备视为丢弃）
 		if not panel._can_equip_armor_to(target_unit_idx, item_data.id, target_slot_idx):
 			Globals.show_confirm(panel, "防具格数不足！", "确定", "", func(): pass, func(): pass, false)
 			return
 
-	var result : Dictionary = panel.shop_manager.buy_shop_item(shop_index)
-	if not result["success"]:
-		var reason : String = result.get("reason", "unknown")
+	var unit_buy_result : Dictionary = panel.shop_manager.buy_shop_item(shop_index)
+	if not unit_buy_result["success"]:
+		var reason : String = unit_buy_result.get("reason", "unknown")
 		panel._show_buy_failure_message(reason); return
 
-	var inst := ItemInstance.new()
-	inst.item_id = item_data.id
-	inst.count = 1
+	var unit_inst := ItemInstance.new()
+	unit_inst.item_id = item_data.id
+	unit_inst.count = 1
 	if item_data.type == "weapon":
 		var tu : UnitData = panel.party[target_unit_idx]
-		tu.weapon_slot = inst        # ★ 旧武器直接被覆盖（丢弃）
+		tu.weapon_slot = unit_inst
 	elif item_data.type == "armor":
 		var tu2 : UnitData = panel.party[target_unit_idx]
-		tu2.armor_slots[target_slot_idx] = inst   # ★ 旧防具直接被覆盖（丢弃）
+		tu2.armor_slots[target_slot_idx] = unit_inst
 
 	panel._build_unit_columns()
 	panel._sync_all()

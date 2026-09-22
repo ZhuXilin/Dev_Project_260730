@@ -47,6 +47,8 @@ text = "金币: 0"
 horizontal_alignment = 1
 
 [node name="MainHBox" type="HBoxContainer" parent="MainPanel/VBoxContainer" unique_id=547399459]
+custom_minimum_size = Vector2(0, 160)
+custom_maximum_size = Vector2(-1, 160)
 clip_contents = true
 layout_mode = 2
 size_flags_vertical = 3
@@ -117,6 +119,7 @@ alignment = 1
 [node name="TabBar" type="HBoxContainer" parent="MainPanel/VBoxContainer/MainHBox/RightContainer" unique_id=2064598299]
 layout_mode = 2
 size_flags_horizontal = 3
+size_flags_vertical = 0
 theme_override_constants/separation = 4
 
 [node name="WeaponTabBtn" type="Button" parent="MainPanel/VBoxContainer/MainHBox/RightContainer/TabBar" unique_id=2012573030]
@@ -189,6 +192,7 @@ vertical_alignment = 1
 
 [node name="BottomHBox" type="HBoxContainer" parent="MainPanel/VBoxContainer" unique_id=1024379042]
 custom_minimum_size = Vector2(0, 20)
+custom_maximum_size = Vector2(-1, 20)
 layout_mode = 2
 size_flags_vertical = 8
 alignment = 1

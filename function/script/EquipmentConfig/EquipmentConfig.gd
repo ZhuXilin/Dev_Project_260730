@@ -43,7 +43,7 @@ const ShopManagerScript = preload(Config.PATHS.SHOP_MANAGER_SCRIPT)
 @onready var relic_container: HBoxContainer = $VBoxContainer/MainHBox/LeftInfoColumn/RelicSection/RelicContainer
 @onready var refine_tab_btn : Button = $VBoxContainer/MainHBox/RightContainer/TabBar/RefineTabBtn
 
-# ---- 防具仓库 UI（动态创建） ----
+# ---- 武器防具仓库 UI（动态创建） ----
 var _storage_section : VBoxContainer = null
 var _storage_container : GridContainer = null
 var _revive_btn : Button = null
@@ -102,7 +102,6 @@ func init(units: Array, slot: int, mode: Mode, context: EquipContext = null):
 	current_mode = mode
 	_context = context if context else MainGameEquipContext.new()
 
-	# ★ FORGE 模式也需要 shop_manager（商店标签页）
 	if mode == Mode.SHOP or _is_shop_rest_mode() or mode == Mode.FORGE:
 		if not shop_manager:
 			shop_manager = ShopManagerScript.new()
@@ -169,10 +168,14 @@ func _build_ui():
 	_is_building_ui = false
 
 func _build_ui_inner():
-	# ★ 修复底部按钮被挤压（BottomHBox 默认高度太小）
+	var main_hbox = $VBoxContainer/MainHBox
 	var bottom_hbox = $VBoxContainer/BottomHBox
+	if main_hbox:
+		main_hbox.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	if bottom_hbox:
-		bottom_hbox.custom_minimum_size = Vector2(0, 30)
+		bottom_hbox.custom_minimum_size = Vector2(0, 40)
+		bottom_hbox.size_flags_vertical = Control.SIZE_FILL
+		bottom_hbox.alignment = BoxContainer.ALIGNMENT_CENTER
 
 	var show_passive : bool = (_context.get_context_id() != "arena")
 	if relic_section: relic_section.visible = show_passive
@@ -195,7 +198,6 @@ func _build_ui_inner():
 	tab_bar.visible = false
 	right_container.visible = true
 
-	# 隐藏所有按钮，下面各模式按需显示
 	weapon_tab_btn.visible = false
 	talent_tab_btn.visible = false
 	if refine_tab_btn: refine_tab_btn.visible = false
@@ -216,12 +218,16 @@ func _build_ui_inner():
 			confirm_btn.modulate = Color.WHITE
 			gold_label.visible = _context.show_gold()
 			tab_bar.visible = true
+			tab_bar.alignment = BoxContainer.ALIGNMENT_BEGIN
 			weapon_tab_btn.visible = true
+			weapon_tab_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 			weapon_tab_btn.text = "武器库"
 			talent_tab_btn.visible = true
+			talent_tab_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 			talent_tab_btn.disabled = false
 			talent_tab_btn.text = "特技库"
 			if refine_tab_btn:
+				refine_tab_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 				refine_tab_btn.visible = (_context.get_context_id() == "main_game")
 			if current_tab == "" or current_tab.begins_with("arena_") or current_tab == "sacrifice":
 				current_tab = "weapon"
@@ -239,12 +245,15 @@ func _build_ui_inner():
 			confirm_btn.visible = false
 			gold_label.visible = false
 			tab_bar.visible = true
+			tab_bar.alignment = BoxContainer.ALIGNMENT_BEGIN
 			weapon_tab_btn.visible = false
 			talent_tab_btn.visible = true
+			talent_tab_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 			talent_tab_btn.disabled = false
 			talent_tab_btn.text = "特技库"
 			if refine_tab_btn:
 				refine_tab_btn.visible = true
+				refine_tab_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 				refine_tab_btn.text = "精炼库"
 			current_tab = "talent"
 			_update_tab_style()
@@ -259,9 +268,12 @@ func _build_ui_inner():
 			mode_label.text = "魂之竞技场 · 备战"
 			gold_label.visible = true
 			tab_bar.visible = true
+			tab_bar.alignment = BoxContainer.ALIGNMENT_BEGIN
 			weapon_tab_btn.visible = true
+			weapon_tab_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 			weapon_tab_btn.text = "商店"
 			talent_tab_btn.visible = true
+			talent_tab_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 			talent_tab_btn.disabled = false
 			talent_tab_btn.text = "铁匠铺"
 			if refine_tab_btn: refine_tab_btn.visible = false
@@ -302,31 +314,45 @@ func _build_ui_inner():
 			confirm_btn.visible = false
 			gold_label.visible = true
 			tab_bar.visible = true
+			tab_bar.alignment = BoxContainer.ALIGNMENT_BEGIN
 			weapon_tab_btn.visible = true
+			weapon_tab_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 			weapon_tab_btn.text = "商店"
 			talent_tab_btn.visible = true
+			talent_tab_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 			talent_tab_btn.disabled = false
 			talent_tab_btn.text = "铁匠铺"
 			if refine_tab_btn: refine_tab_btn.visible = false
+			_ensure_sacrifice_tab_btn()
+			if _sacrifice_tab_btn:
+				_sacrifice_tab_btn.visible = true
+				_sacrifice_tab_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+
 			if current_tab == "" or (not current_tab.begins_with("arena_") and current_tab != "sacrifice"):
 				current_tab = "arena_shop"
 			_update_tab_style()
 			_forge.cleanup()
 
-			if current_tab == "arena_forge":
-				_forge.build_forge_slots()
-				shop_container.visible = true
-				reset_btn.visible = true
-				reset_btn.text = "清空插槽"
-				_forge.display_recipe_info()
-				discard_zone.visible = false
-			else:
-				_build_shop_items()
-				shop_container.visible = true
-				reset_btn.visible = true
-				if shop_manager:
-					reset_btn.text = "刷新商店 (" + str(shop_manager.get_reset_cost()) + "G)"
-				discard_zone.visible = true
+			match current_tab:
+				"arena_forge":
+					_forge.build_forge_slots()
+					shop_container.visible = true
+					reset_btn.visible = true
+					reset_btn.text = "清空插槽"
+					_forge.display_recipe_info()
+					discard_zone.visible = false
+				"sacrifice":
+					_build_sacrifice_panel()
+					shop_container.visible = true
+					reset_btn.visible = false
+					discard_zone.visible = false
+				_:
+					_build_shop_items()
+					shop_container.visible = true
+					reset_btn.visible = true
+					if shop_manager:
+						reset_btn.text = "刷新商店 (" + str(shop_manager.get_reset_cost()) + "G)"
+					discard_zone.visible = true
 
 			if left_column: left_column.size_flags_vertical = Control.SIZE_EXPAND_FILL
 
@@ -352,14 +378,18 @@ func _build_ui_inner():
 			confirm_btn.visible = false
 			gold_label.visible = true
 			tab_bar.visible = true
+			tab_bar.alignment = BoxContainer.ALIGNMENT_BEGIN
 			weapon_tab_btn.visible = true
+			weapon_tab_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 			weapon_tab_btn.text = "商店"
 			talent_tab_btn.visible = true
+			talent_tab_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 			talent_tab_btn.text = "铁匠铺"
 			if refine_tab_btn: refine_tab_btn.visible = false
 			_ensure_sacrifice_tab_btn()
 			if _sacrifice_tab_btn:
 				_sacrifice_tab_btn.visible = true
+				_sacrifice_tab_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 
 			if current_tab == "" or (not current_tab in ["arena_shop", "arena_forge", "sacrifice"]):
 				current_tab = "arena_forge"
@@ -403,11 +433,12 @@ func _update_gold_display():
 
 
 # ============================================================
-#  防具仓库（动态创建，不改 .tscn）
+#  武器防具仓库（动态创建，不改 .tscn）
 # ============================================================
 func _ensure_storage_section():
 	if _storage_container and is_instance_valid(_storage_container):
 		_storage_section.visible = true
+		_ensure_detail_clip()
 		return
 	var left_col : VBoxContainer = $VBoxContainer/MainHBox/LeftInfoColumn
 	if not left_col: return
@@ -419,7 +450,7 @@ func _ensure_storage_section():
 	left_col.add_child(_storage_section)
 
 	var title := Label.new()
-	title.text = "───── 防具仓库 ─────"
+	title.text = "───── 武器防具仓库 ─────"
 	title.add_theme_font_size_override("font_size", 6)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.modulate = Color(0.75, 0.75, 0.75)
@@ -432,11 +463,20 @@ func _ensure_storage_section():
 	_storage_container.add_theme_constant_override("v_separation", 2)
 	_storage_section.add_child(_storage_container)
 
-	# 让 DetailZone 不再抢占全部空间，保证仓库能显示完整
-	var detail = left_col.get_node_or_null("DetailZone")
-	if detail:
-		detail.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-		detail.custom_minimum_size = Vector2(0, 60)
+	var detail_panel = left_col.get_node_or_null("DetailZone")
+	if detail_panel:
+		detail_panel.custom_minimum_size = Vector2(0, 80)
+		detail_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
+
+	_ensure_detail_clip()
+
+
+func _ensure_detail_clip():
+	var left_col : VBoxContainer = $VBoxContainer/MainHBox/LeftInfoColumn
+	if not left_col: return
+	var detail_panel = left_col.get_node_or_null("DetailZone")
+	if not detail_panel: return
+	detail_panel.clip_contents = true
 
 
 func _build_storage_slots():
@@ -480,7 +520,6 @@ func _ensure_revive_button():
 		return
 	if current_mode != Mode.MAP and current_mode != Mode.DEPLOY:
 		return
-	# 确保 storage_section 先建好
 	_ensure_storage_section()
 	if not _storage_section or not is_instance_valid(_storage_section):
 		return
@@ -594,8 +633,10 @@ func _on_open_sacrifice_ui():
 	)
 
 
+# ============================================================
+#  熔铸核心逻辑
+# ============================================================
 func _do_sacrifice(u: UnitData, armors: Array, discard_count: int):
-	# 丢弃多余
 	if discard_count > 0:
 		var idx : int = GameState.armor_storage.size() - 1
 		var removed : int = 0
@@ -605,23 +646,23 @@ func _do_sacrifice(u: UnitData, armors: Array, discard_count: int):
 				removed += 1
 			idx -= 1
 
-	# 防具进仓库
 	for inst in armors:
 		GameState.add_armor_to_storage(inst)
 
-	# 清空单位防具槽
+	if u.weapon_slot != null:
+		_transfer_weapon_to_ally(u.weapon_slot)
+		u.weapon_slot = null
+
 	for i in range(u.armor_slots.size()):
 		u.armor_slots[i] = null
 
-	# 奖励
 	EconomyManager.add_temp_gold(500)
-	_grant_random_epic_equipment()
+	var epic_name : String = _grant_random_epic_equipment()
 
-	# 状态
 	u.is_dead = true
 	u.hit_points = 0
 
-	print("[献祭] %s 被熔炼，获得 500 金币 + 1 件史诗装备" % u.display_name)
+	print("[献祭] %s 被熔炼，获得 500 金币 + %s" % [u.display_name, epic_name])
 
 	SaveManager.auto_save()
 	_sync_all()
@@ -629,10 +670,41 @@ func _do_sacrifice(u: UnitData, armors: Array, discard_count: int):
 	_build_storage_slots()
 	_update_gold_display()
 	_refresh_revive_button()
-	_show_detail_in_zone("已熔炼：%s\n获得 500 金币 + 1 件史诗装备" % u.display_name)
+	_show_detail_in_zone("已熔铸：%s\n获得：500 金币 + %s" % [u.display_name, epic_name])
 
 
-func _grant_random_epic_equipment():
+func _transfer_weapon_to_ally(weapon_inst: ItemInstance):
+	if weapon_inst == null:
+		return
+	for other in party:
+		if other == null: continue
+		if other.is_dead: continue
+		if other.weapon_slot == null:
+			other.weapon_slot = weapon_inst
+			print("[献祭] 武器给 %s（空手）" % other.display_name)
+			return
+
+	var weakest : UnitData = null
+	var weakest_atk : int = 999999
+	for other in party:
+		if other == null: continue
+		if other.is_dead: continue
+		if other.weapon_slot == null: continue
+		var wdata = ItemManager.get_item_data(other.weapon_slot.item_id)
+		if not wdata: continue
+		var atk : int = wdata.base_attack
+		if atk < weakest_atk:
+			weakest_atk = atk
+			weakest = other
+
+	if weakest != null:
+		print("[献祭] 武器给 %s（替换攻击 %d 的旧武器）" % [weakest.display_name, weakest_atk])
+		weakest.weapon_slot = weapon_inst
+	else:
+		print("[献祭] 警告：无处可放武器，丢弃")
+
+
+func _grant_random_epic_equipment() -> String:
 	var candidates : Array = []
 	for item_id in ItemManager.get_all_item_ids():
 		var item_data = ItemManager.get_item_data(item_id)
@@ -640,46 +712,66 @@ func _grant_random_epic_equipment():
 		if item_data.type not in ["weapon", "armor"]: continue
 		if item_data.quality != "epic": continue
 		candidates.append(item_id)
+
 	if candidates.is_empty():
-		return
+		for item_id in ItemManager.get_all_item_ids():
+			var item_data = ItemManager.get_item_data(item_id)
+			if not item_data: continue
+			if item_data.type not in ["weapon", "armor"]: continue
+			if item_data.quality != "rare": continue
+			candidates.append(item_id)
+
+	if candidates.is_empty():
+		print("[献祭] 无可用装备池")
+		return "（无）"
+
 	var pick : String = candidates[randi() % candidates.size()]
 	var inst := ItemInstance.new()
 	inst.item_id = pick
 	inst.count = 1
 
 	var picked_data = ItemManager.get_item_data(pick)
+	if picked_data == null:
+		return "（未知）"
 
-	if picked_data.type == "armor":
-		# 优先放仓库
-		if not GameState.add_armor_to_storage(inst):
-			for u in party:
-				if u.is_dead: continue
-				for i in range(u.armor_slots.size()):
-					if u.armor_slots[i] == null:
-						u.armor_slots[i] = inst
-						print("[献祭] 史诗防具放入 %s 的防具槽" % u.display_name)
-						return
-	else:
-		# 武器 → 给第一个活着单位
+	# 武器 → 给空手队友，否则进仓库
+	if picked_data.type == "weapon":
 		for u in party:
 			if u.is_dead: continue
-			u.weapon_slot = inst
-			print("[献祭] 史诗武器给 %s" % u.display_name)
-			return
+			if u.weapon_slot == null:
+				u.weapon_slot = inst
+				print("[献祭] 史诗武器 %s 给 %s（空手）" % [picked_data.name, u.display_name])
+				return picked_data.name
+
+	# 防具或没空手单位 → 进仓库
+	if GameState.add_armor_to_storage(inst):
+		print("[献祭] 史诗装备 %s 已入仓库" % picked_data.name)
+		return picked_data.name
+
+	# 仓库满 → 找单位空槽
+	for u in party:
+		if u.is_dead: continue
+		for i in range(u.armor_slots.size()):
+			if u.armor_slots[i] == null:
+				u.armor_slots[i] = inst
+				print("[献祭] 仓库满，%s 放入 %s" % [picked_data.name, u.display_name])
+				return picked_data.name
+
+	print("[献祭] 警告：%s 无处存放" % picked_data.name)
+	return picked_data.name
 
 
+# ============================================================
+#  单位图标（含 idle 动画）
+# ============================================================
 func _create_unit_icon(unit: UnitData, unit_idx: int) -> Control:
 	var wrapper := VBoxContainer.new()
-	wrapper.add_theme_constant_override("separation", 1)
+	wrapper.add_theme_constant_override("separation", 0)
+	wrapper.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 	wrapper.mouse_filter = Control.MOUSE_FILTER_STOP
 
-	# ---- 图标 ----
-	var icon_panel := PanelContainer.new()
-	icon_panel.custom_minimum_size = Vector2(0, 30)
-	icon_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
-
 	var texture_rect := TextureRect.new()
-	texture_rect.custom_minimum_size = Vector2(24, 24)
+	texture_rect.custom_minimum_size = Vector2(0, 28)
 	texture_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	texture_rect.stretch_mode = TextureRect.STRETCH_KEEP_CENTERED
 	texture_rect.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
@@ -689,14 +781,11 @@ func _create_unit_icon(unit: UnitData, unit_idx: int) -> Control:
 		frames_path = unit.override_sprite_path
 	if frames_path != "" and ResourceLoader.exists(frames_path):
 		var frames = load(frames_path) as SpriteFrames
-		if frames and frames.has_animation("idle"):
-			var tex = frames.get_frame_texture("idle", 0)
-			if tex:
-				texture_rect.texture = tex
-	icon_panel.add_child(texture_rect)
-	wrapper.add_child(icon_panel)
+		if frames and frames.has_animation("idle") and frames.get_frame_count("idle") > 0:
+			texture_rect.texture = frames.get_frame_texture("idle", 0)
+			_attach_idle_animator(texture_rect, frames)
+	wrapper.add_child(texture_rect)
 
-	# ---- 名字（小字） ----
 	var name_label := Label.new()
 	name_label.text = unit.display_name
 	name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -705,11 +794,28 @@ func _create_unit_icon(unit: UnitData, unit_idx: int) -> Control:
 		name_label.modulate = Color(0.4, 0.4, 0.4, 1)
 	wrapper.add_child(name_label)
 
-	# ---- 悬停显示详情 ----
 	wrapper.mouse_entered.connect(_on_unit_hover_entered.bind(unit_idx))
 	wrapper.mouse_exited.connect(_on_unit_hover_exited)
 
 	return wrapper
+
+
+func _attach_idle_animator(tex_rect: TextureRect, frames: SpriteFrames):
+	var timer := Timer.new()
+	timer.wait_time = 0.25
+	timer.autostart = true
+	tex_rect.add_child(timer)
+
+	var frame_count := frames.get_frame_count("idle")
+	var idx := {"value": 0}
+	timer.timeout.connect(func():
+		if not is_instance_valid(tex_rect):
+			return
+		idx["value"] = (idx["value"] + 1) % frame_count
+		var t = frames.get_frame_texture("idle", idx["value"])
+		if t:
+			tex_rect.texture = t
+	)
 
 
 # ============================================================
@@ -727,7 +833,6 @@ func _build_unit_columns():
 		col.add_theme_constant_override("separation", 1)
 		unit_container.add_child(col)
 
-		# ★ 单位图标（替代名字文字）
 		var icon_ctrl : Control = _create_unit_icon(unit, i)
 		if unit.is_dead:
 			icon_ctrl.modulate = Color(0.4, 0.4, 0.4, 1)
@@ -972,7 +1077,6 @@ func _is_valid_drop(data: Dictionary, target: Control) -> bool:
 	var target_type : String = target.get_meta("slot_type", "")
 	var discard : bool = target == discard_zone
 
-	# ---- 死亡单位的槽位不可操作 ----
 	var tgt_uidx : int = target.get_meta("unit_idx", -1)
 	if tgt_uidx >= 0 and tgt_uidx < party.size():
 		if party[tgt_uidx].is_dead:
@@ -985,6 +1089,19 @@ func _is_valid_drop(data: Dictionary, target: Control) -> bool:
 	# ---- 仓库相关 ----
 	if source_type == "armor_storage":
 		if target_type == "armor_storage": return true
+		# 仓库 → 单位武器槽
+		if target_type == "weapon":
+			var tu_w : int = target.get_meta("unit_idx", -1)
+			if tu_w < 0 or tu_w >= party.size(): return false
+			if party[tu_w].is_dead: return false
+			var idx_w : int = data.get("storage_idx", -1)
+			if idx_w < 0 or idx_w >= GameState.armor_storage.size(): return false
+			var inst_w : ItemInstance = GameState.armor_storage[idx_w]
+			if inst_w == null: return false
+			var wdata = ItemManager.get_item_data(inst_w.item_id)
+			if not wdata or wdata.type != "weapon": return false
+			return true
+		# 仓库 → 单位防具槽
 		if target_type == "armor":
 			var tu : int = target.get_meta("unit_idx", -1)
 			var ts : int = target.get_meta("slot_idx", -1)
@@ -996,13 +1113,16 @@ func _is_valid_drop(data: Dictionary, target: Control) -> bool:
 			if idx < 0 or idx >= GameState.armor_storage.size(): return false
 			var inst : ItemInstance = GameState.armor_storage[idx]
 			if inst == null: return false
+			var idata = ItemManager.get_item_data(inst.item_id)
+			if not idata or idata.type != "armor": return false
 			var need : int = _inst_slots(inst)
 			var used : int = _used_slots_excluding(party[tu], [ts])
 			return used + need <= party[tu].max_armor_slots
 		if discard: return true
 		return false
 
-	if target_type == "armor_storage" and source_type == "armor":
+	# 单位 → 仓库（武器或防具）
+	if target_type == "armor_storage" and source_type in ["armor", "weapon"]:
 		var stg_idx : int = target.get_meta("storage_idx", -1)
 		if stg_idx < 0 or stg_idx >= GameState.armor_storage.size(): return false
 		return GameState.armor_storage[stg_idx] == null
@@ -1016,7 +1136,6 @@ func _is_valid_drop(data: Dictionary, target: Control) -> bool:
 		if source_type == "library_refine": return true
 		return false
 
-	# ★ FORGE 模式下，只有 arena_forge 标签才走 forge 逻辑
 	if current_mode == Mode.FORGE and current_tab != "arena_shop":
 		return _forge.is_valid_forge_drop(data, target)
 	if _is_shop_rest_mode() and current_tab == "arena_forge":
@@ -1043,7 +1162,6 @@ func _is_valid_drop(data: Dictionary, target: Control) -> bool:
 		if source_type == "talent" and target_type == "talent": return _talent.check_talent_compatibility(data, target)
 		return false
 
-	# ★ 商店逻辑：SHOP / FORGE+arena_shop / 竞技场 arena_shop
 	var is_shop_ctx = (
 		current_mode == Mode.SHOP
 		or (current_mode == Mode.FORGE and current_tab == "arena_shop")
@@ -1056,6 +1174,11 @@ func _is_valid_drop(data: Dictionary, target: Control) -> bool:
 		if source_type == "shop_item":
 			var item_data : ItemData = data.get("item_data")
 			if not item_data: return false
+			# ★ 商店物品可拖到仓库（空槽）
+			if target_type == "armor_storage":
+				var stg_idx : int = target.get_meta("storage_idx", -1)
+				if stg_idx < 0 or stg_idx >= GameState.armor_storage.size(): return false
+				return GameState.armor_storage[stg_idx] == null
 			var tu2 : int = target.get_meta("unit_idx", -1)
 			var ts2 : int = target.get_meta("slot_idx", -1)
 			if item_data.type == "weapon":
@@ -1110,28 +1233,29 @@ func _execute_drop(data: Dictionary, target: Control):
 	var source_type : String = data.get("slot_type", "")
 	var target_type : String = target.get_meta("slot_type", "")
 
-	# ---- 仓库相关 ----
+	# 仓库相关
+	if source_type == "armor_storage" and target_type == "weapon":
+		_equip_weapon_from_storage(data, target); return
 	if source_type == "armor_storage" and target_type == "armor":
 		_equip_from_storage(data, target); return
-	if source_type == "armor" and target_type == "armor_storage":
-		_store_armor_from_unit(data, target); return
+	if source_type in ["armor", "weapon"] and target_type == "armor_storage":
+		_store_to_storage(data, target); return
 	if source_type == "armor_storage" and target_type == "armor_storage":
 		_swap_storage_slots(data, target); return
 	if source_type == "armor_storage" and target == discard_zone:
 		_discard_storage_slot(data); return
 
-	# ---- 被动槽 ----
 	if source_type == "passive_slot":
 		if target == discard_zone: _discard_passive(data); return
 		if target_type == "passive_slot": _swap_passives(data, target); return
 	if source_type == "library_refine" and target_type == "passive_slot":
 		_equip_refine_to_slot(data, target); return
-		# ★ FORGE 模式下，只有 arena_forge 标签才走 forge 逻辑
+
 	if current_mode == Mode.FORGE and current_tab != "arena_shop":
 		_forge.execute_forge_drop(data, target); return
 	if _is_shop_rest_mode() and current_tab == "arena_forge":
 		_forge.execute_forge_drop(data, target); return
-		
+
 	var discard : bool = target == discard_zone
 
 	if discard and source_type == "talent": _talent.execute_talent_remove(data); return
@@ -1144,17 +1268,29 @@ func _execute_drop(data: Dictionary, target: Control):
 	elif source_type == "armor" and target_type == "armor": _shop.swap_armor(data, target)
 
 
-func _store_armor_from_unit(data: Dictionary, target: Control):
-	var unit_idx : int = data.get("unit_idx", -1)
-	var slot_idx : int = data.get("slot_idx", -1)
+func _store_to_storage(data: Dictionary, target: Control):
 	var stg_idx : int = target.get_meta("storage_idx", -1)
-	if unit_idx < 0 or slot_idx < 0 or stg_idx < 0: return
-	var u : UnitData = party[unit_idx]
-	var inst : ItemInstance = u.armor_slots[slot_idx]
-	if inst == null: return
+	if stg_idx < 0 or stg_idx >= GameState.armor_storage.size(): return
 	if GameState.armor_storage[stg_idx] != null: return
-	GameState.armor_storage[stg_idx] = inst
-	u.armor_slots[slot_idx] = null
+
+	var source_type : String = data.get("slot_type", "")
+	var unit_idx : int = data.get("unit_idx", -1)
+	if unit_idx < 0 or unit_idx >= party.size(): return
+	var u : UnitData = party[unit_idx]
+
+	if source_type == "weapon":
+		var inst : ItemInstance = u.weapon_slot
+		if inst == null: return
+		GameState.armor_storage[stg_idx] = inst
+		u.weapon_slot = null
+	elif source_type == "armor":
+		var slot_idx : int = data.get("slot_idx", -1)
+		if slot_idx < 0: return
+		var inst : ItemInstance = u.armor_slots[slot_idx]
+		if inst == null: return
+		GameState.armor_storage[stg_idx] = inst
+		u.armor_slots[slot_idx] = null
+
 	_build_unit_columns()
 	_build_storage_slots()
 	_sync_all(); _schedule_build_ui()
@@ -1170,6 +1306,21 @@ func _equip_from_storage(data: Dictionary, target: Control):
 	var u : UnitData = party[unit_idx]
 	if u.armor_slots[slot_idx] != null: return
 	u.armor_slots[slot_idx] = inst
+	GameState.armor_storage[stg_idx] = null
+	_build_unit_columns()
+	_build_storage_slots()
+	_sync_all(); _schedule_build_ui()
+
+
+func _equip_weapon_from_storage(data: Dictionary, target: Control):
+	var stg_idx : int = data.get("storage_idx", -1)
+	var unit_idx : int = target.get_meta("unit_idx", -1)
+	if stg_idx < 0 or unit_idx < 0: return
+	var inst : ItemInstance = GameState.armor_storage[stg_idx]
+	if inst == null: return
+	var u : UnitData = party[unit_idx]
+	# 武器槽是单个，覆盖
+	u.weapon_slot = inst
 	GameState.armor_storage[stg_idx] = null
 	_build_unit_columns()
 	_build_storage_slots()
@@ -1374,21 +1525,27 @@ func _refresh_bottom_buttons():
 		close_btn.visible = true
 		close_btn.text = "返回"
 		confirm_btn.visible = false
-		discard_zone.visible = (current_tab != "arena_forge")
+		discard_zone.visible = (current_tab != "arena_forge" and current_tab != "sacrifice")
 
 func _update_tab_style():
 	if not weapon_tab_btn or not talent_tab_btn:
 		return
 
-	# ---- 竞技场 / 铁匠商店模式 ----
-	if _is_shop_rest_mode():
+	if current_mode == Mode.ARENA_REST:
 		weapon_tab_btn.modulate = Color.WHITE if current_tab == "arena_shop" else Color(0.5, 0.5, 0.5)
 		talent_tab_btn.modulate = Color.WHITE if current_tab == "arena_forge" else Color(0.5, 0.5, 0.5)
 		if refine_tab_btn: refine_tab_btn.visible = false
 		if _sacrifice_tab_btn: _sacrifice_tab_btn.visible = false
 		return
 
-	# ---- FORGE 模式：三标签 ----
+	if current_mode == Mode.MAP_SHOP_REST:
+		weapon_tab_btn.modulate = Color.WHITE if current_tab == "arena_shop" else Color(0.5, 0.5, 0.5)
+		talent_tab_btn.modulate = Color.WHITE if current_tab == "arena_forge" else Color(0.5, 0.5, 0.5)
+		if _sacrifice_tab_btn:
+			_sacrifice_tab_btn.modulate = Color.WHITE if current_tab == "sacrifice" else Color(0.5, 0.5, 0.5)
+		if refine_tab_btn: refine_tab_btn.visible = false
+		return
+
 	if current_mode == Mode.FORGE:
 		weapon_tab_btn.modulate = Color.WHITE if current_tab == "arena_shop" else Color(0.5, 0.5, 0.5)
 		talent_tab_btn.modulate = Color.WHITE if current_tab == "arena_forge" else Color(0.5, 0.5, 0.5)
@@ -1397,7 +1554,6 @@ func _update_tab_style():
 		if refine_tab_btn: refine_tab_btn.visible = false
 		return
 
-	# ---- DEPLOY / MAP 模式 ----
 	weapon_tab_btn.modulate = Color.WHITE if current_tab == "weapon" else Color(0.5, 0.5, 0.5)
 	talent_tab_btn.modulate = Color.WHITE if current_tab == "talent" else Color(0.5, 0.5, 0.5)
 	if _sacrifice_tab_btn: _sacrifice_tab_btn.visible = false

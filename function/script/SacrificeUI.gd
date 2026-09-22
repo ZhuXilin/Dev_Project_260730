@@ -56,25 +56,35 @@ func _build_unit_card(u: UnitData) -> Control:
 	card.add_child(vbox)
 
 	# 图标
-	var icon_panel := PanelContainer.new()
-	icon_panel.custom_minimum_size = Vector2(0, 48)
-	icon_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var texture_rect := TextureRect.new()
 	texture_rect.custom_minimum_size = Vector2(48, 48)
 	texture_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	texture_rect.stretch_mode = TextureRect.STRETCH_KEEP_CENTERED
 	texture_rect.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+
 	var frames_path = UnitDataManager.get_sprite_frames_path(u.unit_name)
 	if u.override_sprite_path != "":
 		frames_path = u.override_sprite_path
 	if frames_path != "" and ResourceLoader.exists(frames_path):
 		var frames = load(frames_path) as SpriteFrames
-		if frames and frames.has_animation("idle"):
-			var tex = frames.get_frame_texture("idle", 0)
-			if tex:
-				texture_rect.texture = tex
-	icon_panel.add_child(texture_rect)
-	vbox.add_child(icon_panel)
+		if frames and frames.has_animation("idle") and frames.get_frame_count("idle") > 0:
+			texture_rect.texture = frames.get_frame_texture("idle", 0)
+			# 切帧
+			var timer := Timer.new()
+			timer.wait_time = 0.25
+			timer.autostart = true
+			texture_rect.add_child(timer)
+			var frame_count := frames.get_frame_count("idle")
+			var idx := {"value": 0}
+			timer.timeout.connect(func():
+				if not is_instance_valid(texture_rect):
+					return
+				idx["value"] = (idx["value"] + 1) % frame_count
+				var t = frames.get_frame_texture("idle", idx["value"])
+				if t:
+					texture_rect.texture = t
+			)
+	vbox.add_child(texture_rect)
 
 	# 名字
 	var name_lb := Label.new()
