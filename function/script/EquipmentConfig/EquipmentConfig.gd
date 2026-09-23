@@ -477,11 +477,11 @@ func _ensure_pending_section():
 
 	var title := Label.new()
 	title.name = "PendingTitle"
-	title.text = "───── 待领取 ─────"
+	title.text = "待领取"                              # ★ 短标题
 	title.add_theme_font_size_override("font_size", 6)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.autowrap_mode = TextServer.AUTOWRAP_OFF          # ★ 不换行
-	title.custom_minimum_size = Vector2(200, 0)            # ★ 强制宽度
+	title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART   # ★ 允许换行
+	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL  # ★ 撑满，不强制宽度
 	title.modulate = Color(1.0, 0.85, 0.3)
 	_pending_section.add_child(title)
 
@@ -514,7 +514,7 @@ func _build_pending_slots():
 
 	var title = _pending_section.get_node_or_null("PendingTitle")
 	if title:
-		title.text = "───── 待领取（%d）拖到左侧单位槽 ─────" % all_pending.size()
+		title.text = "待领取（%d）" % all_pending.size()
 
 	for entry in all_pending:
 		var btn := _create_pending_button(entry["inst"], entry["idx"], entry["src"])

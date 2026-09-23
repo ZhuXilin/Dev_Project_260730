@@ -1,11 +1,43 @@
-[gd_scene format=3 uid="uid://6ti4qtv6s0sh"]
+[gd_scene format=3 uid="uid://cf6vhquo22cwy"]
 
-[ext_resource type="Script" uid="uid://dxfygw0mmu8xi" path="res://function/script/ArenaRetreat.gd" id="1_script"]
 [ext_resource type="StyleBox" uid="uid://6qbsaxkfwg3o" path="res://content/resource/stylebox/8bit_style_box_flat.tres" id="2_style"]
+
+[sub_resource type="GDScript" id="GDScript_lahyt"]
+script/source = "extends CanvasLayer
+
+signal closed(choice: String)
+
+@onready var title_label : Label = $Panel/TitleLabel
+@onready var info_label : Label = $Panel/InfoLabel
+
+
+func setup(data: Dictionary):
+	var is_elite = data.get(\"is_elite\", false)
+	var next_battle_index = data.get(\"battle_index\", 5)
+	var crystals = data.get(\"crystals\", 0)
+	var gold = data.get(\"gold\", 0)
+	var streak = data.get(\"streak\", 0)
+	var retreat_gain = int(crystals * 0.8)
+
+	title_label.text = \"%s战 · 第 %d 战\" % [\"精英\" if is_elite else \"BOSS\", next_battle_index]
+	info_label.text = \"当前结晶：%d\\n当前金币：%d\\n连胜：%d\\n\\n撤离：+%d 结晶（80%%）\" % [
+		crystals, gold, streak, retreat_gain
+	]
+
+
+func _on_retreat_pressed():
+	closed.emit(\"retreat\")
+	queue_free()
+
+
+func _on_challenge_pressed():
+	closed.emit(\"challenge\")
+	queue_free()
+"
 
 [node name="ArenaRetreat" type="CanvasLayer" unique_id=464998103]
 layer = 30
-script = ExtResource("1_script")
+script = SubResource("GDScript_lahyt")
 
 [node name="Background" type="ColorRect" parent="." unique_id=1683921104]
 anchors_preset = 15

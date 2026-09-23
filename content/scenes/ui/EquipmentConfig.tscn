@@ -182,7 +182,7 @@ theme_override_styles/focus = ExtResource("2")
 text = "重置商店"
 
 [node name="DiscardZone" type="Panel" parent="MainPanel/VBoxContainer/MainHBox/RightContainer" unique_id=488561366]
-custom_minimum_size = Vector2(120, 40)
+custom_minimum_size = Vector2(0, 40)
 layout_mode = 2
 size_flags_vertical = 4
 mouse_filter = 2

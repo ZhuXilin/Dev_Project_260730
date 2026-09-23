@@ -45,8 +45,15 @@ func has_pending() -> bool:
 #  UI 构建
 # ============================================================
 func build_forge_slots():
-	# ★ 强制清理所有 forge UI 残留（同帧内多次 build 时，queue_free 还没生效）
-	_force_cleanup_forge_ui()
+	# ★ 强制清理所有 forge 相关子节点（含 Godot 自动改名的 @xxx@2 残留）
+	for child in panel.right_container.get_children():
+		if "Forge" in child.name:
+			panel.right_container.remove_child(child)
+			child.queue_free()
+	forge_result_label = null
+	forge_upgrade_btn = null
+	forge_upgrade_label = null
+	inline_craft_btn = null
 
 	panel._clear_container(panel.shop_container)
 	inline_craft_btn = null
@@ -269,12 +276,12 @@ func _ensure_forge_upgrade_ui():
 	spacer2.custom_minimum_size = Vector2(0, 12)
 	panel.right_container.add_child(spacer2)
 
-	if panel.reset_btn and is_instance_valid(panel.reset_btn):
-		var reset_idx : int = panel.reset_btn.get_index()
-		panel.right_container.move_child(spacer1, reset_idx + 1)
-		panel.right_container.move_child(forge_upgrade_label, reset_idx + 2)
-		panel.right_container.move_child(forge_upgrade_btn, reset_idx + 3)
-		panel.right_container.move_child(spacer2, reset_idx + 4)
+	if panel.tab_bar and is_instance_valid(panel.tab_bar):
+		var tab_idx : int = panel.tab_bar.get_index()
+		panel.right_container.move_child(spacer1, tab_idx + 1)
+		panel.right_container.move_child(forge_upgrade_label, tab_idx + 2)
+		panel.right_container.move_child(forge_upgrade_btn, tab_idx + 3)
+		panel.right_container.move_child(spacer2, tab_idx + 4)
 
 	refresh_forge_upgrade_ui()
 
@@ -795,21 +802,3 @@ func _try_upgrade_weapon(unit_idx: int):
 	panel._sync_all()
 	panel._update_gold_display()
 	panel._schedule_build_ui()
-
-## 强制清理 right_container 里所有 forge 相关子节点（含同名的延迟释放节点）
-func _force_cleanup_forge_ui():
-	var names : Array = [
-		"ForgeResultLabel", "ForgeCraftRow", "ForgeUpgradeLabel", "ForgeUpgradeBtn",
-		"ForgeUpgradeSpacer1", "ForgeUpgradeSpacer2", "ForgeBottomSpacer",
-	]
-	for n_name in names:
-		# while 循环：可能因为同帧多次 build 而残留多个同名节点
-		var old : Node = panel.right_container.get_node_or_null(n_name)
-		while old != null:
-			panel.right_container.remove_child(old)
-			old.queue_free()
-			old = panel.right_container.get_node_or_null(n_name)
-	forge_result_label = null
-	forge_upgrade_btn = null
-	forge_upgrade_label = null
-	inline_craft_btn = null

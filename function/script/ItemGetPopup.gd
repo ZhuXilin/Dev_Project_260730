@@ -28,6 +28,30 @@ func show_unit_unlock(units: Array):
 	panel.visible = true
 	_auto_close()
 
+func show_relic(relic_id: String, _count: int = 1):
+	var data = RelicManager.get_relic_data(relic_id)
+	if data.is_empty():
+		queue_free()
+		return
+	_setup_popup()
+	icon.visible = false
+	count_label.visible = false
+	name_label.text = data.get("name", relic_id)
+	panel.visible = true
+	_auto_close()
+
+func show_refine(refine_id: String, _count: int = 1):
+	var recipe : Dictionary = RefineManager.get_recipe(refine_id)
+	if recipe.is_empty():
+		queue_free()
+		return
+	_setup_popup()
+	icon.visible = false
+	count_label.visible = false
+	name_label.text = recipe.get("name", refine_id)
+	panel.visible = true
+	_auto_close()
+
 func _setup_popup():
 	Globals.is_item_get_popup_active = true
 	MusicManager.pause_and_save()
