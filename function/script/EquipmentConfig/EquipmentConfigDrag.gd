@@ -21,7 +21,6 @@ func _init(p):
 # ============================================================
 func start_drag(btn: Button):
 	var slot_type : String = btn.get_meta("slot_type", "")
-	# DEPLOY 模式不允许拖 armor
 	if panel.current_mode == panel.Mode.DEPLOY and slot_type == "armor": return
 	var item_id : String = btn.get_meta("item_id", "")
 	var talent_id : String = btn.get_meta("talent_id", "")
@@ -33,7 +32,7 @@ func start_drag(btn: Button):
 	if slot_type == "forge_slot" and item_id == "": return
 	if slot_type == "library_refine" and refine_id == "": return
 	if slot_type == "armor" and item_id == "": return
-	if slot_type == "armor_storage" and item_id == "": return   # ★ 新增
+	if slot_type == "pending_reward" and item_id == "": return
 
 	drag_source = btn
 	drag_meta = {
@@ -48,7 +47,8 @@ func start_drag(btn: Button):
 		"item_price": btn.get_meta("item_price", 0),
 		"forge_slot_index": btn.get_meta("forge_slot_index", -1),
 		"refine_id": refine_id,
-		"storage_idx": btn.get_meta("storage_idx", -1),   # ★ 新增
+		"pending_idx": btn.get_meta("pending_idx", -1),
+		"pending_src": btn.get_meta("pending_src", ""),
 	}
 	if slot_type == "shop_item" and panel.shop_manager:
 		var shop_idx : int = drag_meta["shop_index"]
@@ -185,33 +185,34 @@ func _restore_drag_source():
 # ============================================================
 func _get_all_target_controls() -> Array[Control]:
 	var targets : Array[Control] = []
-	# 单位列
 	for col in panel.unit_container.get_children():
 		for child in col.get_children():
 			if child is Button: targets.append(child)
-	# 被动槽
 	if panel.relic_container:
 		for btn in panel.relic_container.get_children():
 			if btn is Button: targets.append(btn)
-	# ★ 防具仓库
-	if panel._storage_container:
-		for btn in panel._storage_container.get_children():
+	# 待领取区作为丢弃目标
+	if panel._pending_container and panel._pending_section and panel._pending_section.visible:
+		for btn in panel._pending_container.get_children():
 			if btn is Button: targets.append(btn)
-	# 商店/武器库/特技库
+	# DEPLOY / MAP
 	if (panel.current_mode == panel.Mode.DEPLOY or panel.current_mode == panel.Mode.MAP) and panel.shop_container.visible:
 		for btn in panel.shop_container.get_children():
 			if btn is Button and not btn.disabled: targets.append(btn)
+	# SHOP 模式
 	if panel.current_mode == panel.Mode.SHOP and panel.shop_container.visible:
 		for btn in panel.shop_container.get_children():
 			if btn is Button and not btn.disabled: targets.append(btn)
+	# Arena shop
 	if panel._is_shop_rest_mode() and panel.current_tab == "arena_shop" and panel.shop_container.visible:
 		for btn in panel.shop_container.get_children():
 			if btn is Button and not btn.disabled: targets.append(btn)
-	# 铁匠铺
+	# FORGE / arena_forge
 	if (panel.current_mode == panel.Mode.FORGE or (panel._is_shop_rest_mode() and panel.current_tab == "arena_forge")) and panel.shop_container.visible:
 		for btn in panel.shop_container.get_children():
 			if btn is Button and btn.get_meta("slot_type", "") == "forge_slot":
 				targets.append(btn)
+	# 武器升级按钮
 	if (panel.current_mode == panel.Mode.FORGE or (panel._is_shop_rest_mode() and panel.current_tab == "arena_forge")) \
 			and panel._forge.forge_upgrade_btn and is_instance_valid(panel._forge.forge_upgrade_btn):
 		if not panel._forge.forge_upgrade_btn.disabled: targets.append(panel._forge.forge_upgrade_btn)
@@ -260,13 +261,14 @@ func _find_control_at_position(pos: Vector2) -> Control:
 				var b : Button = btn
 				if b.disabled: continue
 				if b.get_global_rect().grow(BUFFER).has_point(pos): return b
-	# 武器防具仓库
-	if panel._storage_container:
-		for btn in panel._storage_container.get_children():
+	# ★ 待领取区（拖拽起点）
+	if panel._pending_container and panel._pending_section and panel._pending_section.visible:
+		for btn in panel._pending_container.get_children():
 			if btn is Button:
-				var b3 : Button = btn
-				if b3.get_global_rect().grow(BUFFER).has_point(pos): return b3
-	# DEPLOY / MAP：商店/武器库
+				var bp : Button = btn
+				if bp.disabled: continue
+				if bp.get_global_rect().grow(BUFFER).has_point(pos): return bp
+	# DEPLOY / MAP 商店
 	if (panel.current_mode == panel.Mode.DEPLOY or panel.current_mode == panel.Mode.MAP) and panel.shop_container.visible:
 		for btn in panel.shop_container.get_children():
 			if btn is Button:
@@ -278,22 +280,20 @@ func _find_control_at_position(pos: Vector2) -> Control:
 			if btn is Button:
 				var b5 : Button = btn
 				if not b5.disabled and b5.get_global_rect().grow(BUFFER).has_point(pos): return b5
-	# 竞技场 / 铁匠商店的 arena_shop
+	# Arena shop
 	if panel._is_shop_rest_mode() and panel.current_tab == "arena_shop" and panel.shop_container.visible:
 		for btn in panel.shop_container.get_children():
 			if btn is Button:
 				var b6 : Button = btn
 				if not b6.disabled and b6.get_global_rect().grow(BUFFER).has_point(pos): return b6
-	# FORGE 模式
+	# FORGE 模式：商店标签识别 shop_item，铁匠铺标签识别 forge_slot
 	if panel.current_mode == panel.Mode.FORGE and panel.shop_container.visible:
 		for btn in panel.shop_container.get_children():
 			if btn is Button:
 				var b7 : Button = btn
 				var st : String = b7.get_meta("slot_type", "")
-				# ★ 商店标签：识别 shop_item
 				if panel.current_tab == "arena_shop" and st == "shop_item":
 					if not b7.disabled and b7.get_global_rect().grow(BUFFER).has_point(pos): return b7
-				# 铁匠铺标签：识别 forge_slot
 				elif st == "forge_slot":
 					if b7.get_global_rect().grow(BUFFER).has_point(pos): return b7
 	return null
@@ -317,12 +317,12 @@ func _get_target_from_position(global_pos: Vector2) -> Control:
 				var b2 : Button = btn
 				if b2.disabled: continue
 				if b2.get_global_rect().grow(BUFFER).has_point(global_pos): return b2
-	# 武器防具仓库
-	if panel._storage_container:
-		for btn in panel._storage_container.get_children():
+	# 待领取区（仅作为丢弃目标，不接收 pending 内部拖拽）
+	if panel._pending_container and panel._pending_section and panel._pending_section.visible:
+		for btn in panel._pending_container.get_children():
 			if btn is Button:
-				var b3 : Button = btn
-				if b3.get_global_rect().grow(BUFFER).has_point(global_pos): return b3
+				var bp : Button = btn
+				if bp.get_global_rect().grow(BUFFER).has_point(global_pos): return bp
 	# DEPLOY / MAP 商店
 	if (panel.current_mode == panel.Mode.DEPLOY or panel.current_mode == panel.Mode.MAP) and panel.shop_container.visible:
 		for btn in panel.shop_container.get_children():
@@ -335,7 +335,7 @@ func _get_target_from_position(global_pos: Vector2) -> Control:
 			if btn is Button:
 				var b5 : Button = btn
 				if not b5.disabled and b5.get_global_rect().grow(BUFFER).has_point(global_pos): return b5
-	# 竞技场 / 铁匠商店
+	# Arena shop
 	if panel._is_shop_rest_mode() and panel.current_tab == "arena_shop" and panel.shop_container.visible:
 		for btn in panel.shop_container.get_children():
 			if btn is Button:
@@ -347,10 +347,8 @@ func _get_target_from_position(global_pos: Vector2) -> Control:
 			if btn is Button:
 				var b7 : Button = btn
 				var st : String = b7.get_meta("slot_type", "")
-				# ★ 商店标签：识别 shop_item
 				if panel.current_tab == "arena_shop" and st == "shop_item":
 					if not b7.disabled and b7.get_global_rect().grow(BUFFER).has_point(global_pos): return b7
-				# 铁匠铺标签：识别 forge_slot
 				elif st == "forge_slot":
 					if b7.get_global_rect().grow(BUFFER).has_point(global_pos): return b7
 	# 武器升级按钮

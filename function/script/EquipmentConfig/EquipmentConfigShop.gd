@@ -15,22 +15,37 @@ func _init(p):
 # ============================================================
 func build_shop_items():
 	if not panel.shop_manager: return
+
+	# ---- 清理铁匠铺残留 ----
 	var row : Node = panel.right_container.get_node_or_null("ForgeCraftRow")
 	if row: row.queue_free()
 	var spacer : Node = panel.right_container.get_node_or_null("ForgeBottomSpacer")
 	if spacer: spacer.queue_free()
 	panel._forge.inline_craft_btn = null
 
+	# ---- 强制重置 ShopScroll 布局状态 ----
 	if panel.shop_scroll:
-		panel.shop_scroll.custom_minimum_size = Vector2(0, 0)
+		panel.shop_scroll.custom_minimum_size = Vector2.ZERO
+		panel.shop_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		panel.shop_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		panel.shop_scroll.scroll_vertical = 0
+		panel.shop_scroll.scroll_horizontal = 0
+		# 强制 Control 系统重排
+		panel.shop_scroll.visible = false
+		panel.shop_scroll.visible = true
 
+	# ---- 清空容器（用 queue_free 避免立即释放冲突） ----
 	panel._clear_container(panel.shop_container)
+
+	# ---- 重置容器属性 ----
 	panel.shop_container.columns = 3
 	panel.shop_container.add_theme_constant_override("h_separation", 2)
 	panel.shop_container.add_theme_constant_override("v_separation", 2)
+	panel.shop_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	panel.shop_container.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 	panel.shop_container.visible = true
 
+	# ---- 生成按钮 ----
 	var items : Array = panel.shop_manager.get_shop_items()
 	for i in range(items.size()):
 		var entry : Variant = items[i]
@@ -51,12 +66,23 @@ func build_shop_items():
 			btn.mouse_entered.connect(panel._on_button_hover_entered.bind(item_data.id))
 			btn.mouse_exited.connect(panel._on_button_hover_exited)
 		else:
-			btn.text = "空位"; btn.disabled = true
+			btn.text = "空位"
+			btn.disabled = true
 		panel.shop_container.add_child(btn)
+
+	# ---- 立即重排 ----
+	if panel.shop_container:
+		panel.shop_container.queue_sort()
+	if panel.shop_scroll:
+		panel.shop_scroll.queue_sort()
+		# 下一帧再排一次（应对布局延迟）
+		panel.shop_scroll.call_deferred("queue_sort")
+	if panel.shop_container:
+		panel.shop_container.call_deferred("queue_sort")
 
 
 # ============================================================
-#  武器库 / 精炼库网格（也归 shop）
+#  武器库 / 精炼库网格
 # ============================================================
 func build_weapon_grid(container: GridContainer):
 	for child in container.get_children(): container.remove_child(child); child.free()
@@ -120,59 +146,39 @@ func buy_shop_item(data: Dictionary, target: Control):
 		SoundManager.play_cancel_sound(); return
 
 	var target_type : String = target.get_meta("slot_type", "")
-
-	# ★ 拖拽到武器防具仓库
-	if target_type == "armor_storage":
-		var stg_idx : int = target.get_meta("storage_idx", -1)
-		if stg_idx < 0 or stg_idx >= GameState.armor_storage.size(): return
-		if GameState.armor_storage[stg_idx] != null: return
-
-		var buy_result : Dictionary = panel.shop_manager.buy_shop_item(shop_index)
-		if not buy_result["success"]:
-			panel._show_buy_failure_message(buy_result.get("reason", "unknown"))
-			return
-		var storage_inst := ItemInstance.new()
-		storage_inst.item_id = item_data.id
-		storage_inst.count = 1
-		GameState.armor_storage[stg_idx] = storage_inst
-		panel._build_storage_slots()
-		panel._sync_all()
-		panel._update_gold_display()
-		panel._schedule_build_ui()
-		SoundManager.play_select_sound()
-		return
-
-	# ---- 原有逻辑：拖到单位槽 ----
 	var target_unit_idx : int = target.get_meta("unit_idx", -1)
 	var target_slot_idx : int = target.get_meta("slot_idx", -1)
 
 	if item_data.type == "weapon":
+		if target_type != "weapon": return
 		if target_unit_idx < 0: return
 	elif item_data.type == "armor":
+		if target_type != "armor": return
 		if target_unit_idx < 0 or target_slot_idx < 0: return
 		if not panel._can_equip_armor_to(target_unit_idx, item_data.id, target_slot_idx):
 			Globals.show_confirm(panel, "防具格数不足！", "确定", "", func(): pass, func(): pass, false)
 			return
 
-	var unit_buy_result : Dictionary = panel.shop_manager.buy_shop_item(shop_index)
-	if not unit_buy_result["success"]:
-		var reason : String = unit_buy_result.get("reason", "unknown")
-		panel._show_buy_failure_message(reason); return
+	var buy_result : Dictionary = panel.shop_manager.buy_shop_item(shop_index)
+	if not buy_result["success"]:
+		panel._show_buy_failure_message(buy_result.get("reason", "unknown"))
+		return
 
-	var unit_inst := ItemInstance.new()
-	unit_inst.item_id = item_data.id
-	unit_inst.count = 1
+	var inst := ItemInstance.new()
+	inst.item_id = item_data.id
+	inst.count = 1
 	if item_data.type == "weapon":
 		var tu : UnitData = panel.party[target_unit_idx]
-		tu.weapon_slot = unit_inst
+		tu.weapon_slot = inst
 	elif item_data.type == "armor":
 		var tu2 : UnitData = panel.party[target_unit_idx]
-		tu2.armor_slots[target_slot_idx] = unit_inst
+		tu2.armor_slots[target_slot_idx] = inst
 
 	panel._build_unit_columns()
 	panel._sync_all()
 	panel._update_gold_display()
 	panel._schedule_build_ui()
+
 
 # ============================================================
 #  武器库 → 武器槽

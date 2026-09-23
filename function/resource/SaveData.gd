@@ -1,7 +1,7 @@
 extends Resource
 class_name SaveData
 
-const CURRENT_VERSION = 7
+const CURRENT_VERSION = 8
 
 @export var save_version: int = CURRENT_VERSION
 
@@ -15,7 +15,6 @@ const CURRENT_VERSION = 7
 @export var window_mode: int = 0
 @export var window_size: Vector2i = Vector2i(640, 480)
 
-# ---- 游戏进度 ----
 @export var current_day: int = 1
 @export var visited_nodes: Array = []
 @export var selected_node_id: String = ""
@@ -30,14 +29,8 @@ const CURRENT_VERSION = 7
 
 @export var tutorial_stage: int = 0
 
-# ---- 单位属性成长（魂之祭坛，已废弃） ----
 @export var unit_growth: Dictionary = {}
-
-@export var armor_storage: Array = []
-
-# ---- 魂之祝福 ----
 @export var unit_blessings: Dictionary = {}
-
 @export var talent_exp: Dictionary = {}
 
 @export var materials: Dictionary = {
@@ -68,8 +61,6 @@ const CURRENT_VERSION = 7
 @export var party_data: Array = []
 @export var current_faction: String = ""
 
-# ---- 被动槽（遗物 + 精炼，4 格） ----
-# 元素：{"type":"empty"} / {"type":"relic","item_id":"xxx"} / {"type":"refine","refine_id":"xxx"}
 @export var equipped_passives: Array = []
 
 @export var save_time: int = 0
@@ -82,16 +73,15 @@ const CURRENT_VERSION = 7
 @export var arena_best_streak: int = 0
 
 @export var unlocked_talents: Array = []
-
-# ---- 防具配方解锁（铁砧酒馆） ----
 @export var unlocked_recipes: Array = []
-
-# ---- 精炼配方解锁（炼金坊） ----
 @export var unlocked_refine_recipes: Array = []
 @export var refined_items: Dictionary = {}
 
-# ---- 地图快照 ----
 @export var map_snapshot: Dictionary = {}
+
+# ---- 待领取奖励（v8） ----
+@export var pending_sacrifice_rewards: Array = []
+@export var pending_forge_rewards: Array = []
 
 func compute_checksum() -> String:
 	var data = {
@@ -137,6 +127,7 @@ func compute_checksum() -> String:
 		"talent_exp": talent_exp,
 		"arena_best_streak": arena_best_streak,
 		"tutorial_stage": tutorial_stage,
-		"armor_storage": armor_storage,
+		"pending_sacrifice_rewards": pending_sacrifice_rewards,
+		"pending_forge_rewards": pending_forge_rewards,
 	}
 	return JSON.stringify(data, "  ").sha256_text()

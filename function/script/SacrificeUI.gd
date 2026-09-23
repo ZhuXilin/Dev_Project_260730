@@ -8,18 +8,22 @@ var _panel_ref = null   # EquipmentConfig 引用
 
 @onready var panel : Panel = $Panel
 @onready var title_label : Label = $Panel/VBox/Title
+@onready var hint_label : Label = $Panel/VBox/Hint
 @onready var unit_row : HBoxContainer = $Panel/VBox/UnitRow
 @onready var back_btn : Button = $Panel/VBox/BottomBar/BackBtn
 
 
 func _ready():
 	layer = 25
-	back_btn.pressed.connect(_on_back_pressed)
+	if back_btn:
+		back_btn.pressed.connect(_on_back_pressed)
 
 
 func setup(party_ref: Array, panel_ref) -> void:
 	_party = party_ref
 	_panel_ref = panel_ref
+	if hint_label:
+		hint_label.text = "选择一个单位熔铸：获得 1000 金币 + 3 件史诗防具\n熔铸后单位装备保留，可通过圣坛或复活圣油取回"
 	_build_cards()
 
 
@@ -48,14 +52,14 @@ func _build_cards():
 
 func _build_unit_card(u: UnitData) -> Control:
 	var card := PanelContainer.new()
-	card.custom_minimum_size = Vector2(90, 120)
+	card.custom_minimum_size = Vector2(100, 150)
 	card.mouse_filter = Control.MOUSE_FILTER_STOP
 
 	var vbox := VBoxContainer.new()
 	vbox.add_theme_constant_override("separation", 3)
 	card.add_child(vbox)
 
-	# 图标
+	# ---- 单位图标（含 idle 动画） ----
 	var texture_rect := TextureRect.new()
 	texture_rect.custom_minimum_size = Vector2(48, 48)
 	texture_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
@@ -69,31 +73,17 @@ func _build_unit_card(u: UnitData) -> Control:
 		var frames = load(frames_path) as SpriteFrames
 		if frames and frames.has_animation("idle") and frames.get_frame_count("idle") > 0:
 			texture_rect.texture = frames.get_frame_texture("idle", 0)
-			# 切帧
-			var timer := Timer.new()
-			timer.wait_time = 0.25
-			timer.autostart = true
-			texture_rect.add_child(timer)
-			var frame_count := frames.get_frame_count("idle")
-			var idx := {"value": 0}
-			timer.timeout.connect(func():
-				if not is_instance_valid(texture_rect):
-					return
-				idx["value"] = (idx["value"] + 1) % frame_count
-				var t = frames.get_frame_texture("idle", idx["value"])
-				if t:
-					texture_rect.texture = t
-			)
+			_attach_idle_animator(texture_rect, frames)
 	vbox.add_child(texture_rect)
 
-	# 名字
+	# ---- 名字 ----
 	var name_lb := Label.new()
 	name_lb.text = u.display_name
 	name_lb.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	name_lb.add_theme_font_size_override("font_size", 7)
+	name_lb.add_theme_font_size_override("font_size", 8)
 	vbox.add_child(name_lb)
 
-	# 类型
+	# ---- 类型 ----
 	var type_lb := Label.new()
 	type_lb.text = UnitDataManager.get_unit_type_display_name(u.unit_name)
 	type_lb.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -101,27 +91,74 @@ func _build_unit_card(u: UnitData) -> Control:
 	type_lb.modulate = Color(0.7, 0.7, 0.7)
 	vbox.add_child(type_lb)
 
-	# HP
+	# ---- HP ----
 	var hp_lb := Label.new()
-	hp_lb.text = "%d/%d" % [u.hit_points, u.max_hp]
+	hp_lb.text = "HP %d/%d" % [u.hit_points, u.max_hp]
 	hp_lb.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	hp_lb.add_theme_font_size_override("font_size", 6)
 	vbox.add_child(hp_lb)
 
-	# 熔铸按钮
+	# ---- 装备数（有装备时高亮） ----
+	var equip_count : int = 0
+	if u.weapon_slot != null: equip_count += 1
+	for s in u.armor_slots:
+		if s != null: equip_count += 1
+	var equip_lb := Label.new()
+	equip_lb.text = "装备 %d 件" % equip_count
+	equip_lb.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	equip_lb.add_theme_font_size_override("font_size", 6)
+	if equip_count > 0:
+		equip_lb.modulate = Color(1.0, 0.85, 0.3)
+	else:
+		equip_lb.modulate = Color(0.6, 0.6, 0.6)
+	vbox.add_child(equip_lb)
+
+	# ---- 熔铸按钮 ----
 	var btn := Button.new()
 	btn.text = "熔铸"
-	btn.add_theme_font_size_override("font_size", 7)
+	btn.add_theme_font_size_override("font_size", 8)
 	btn.pressed.connect(_on_sacrifice.bind(u))
 	vbox.add_child(btn)
 
 	return card
 
 
+func _attach_idle_animator(tex_rect: TextureRect, frames: SpriteFrames):
+	var timer := Timer.new()
+	timer.wait_time = 0.25
+	timer.autostart = true
+	tex_rect.add_child(timer)
+
+	var frame_count := frames.get_frame_count("idle")
+	var idx := {"value": 0}
+	timer.timeout.connect(func():
+		if not is_instance_valid(tex_rect):
+			return
+		idx["value"] = (idx["value"] + 1) % frame_count
+		var t = frames.get_frame_texture("idle", idx["value"])
+		if t:
+			tex_rect.texture = t
+	)
+
+
 func _on_sacrifice(u: UnitData):
+	if _panel_ref == null:
+		return
+
+	# 统计装备数，决定是否警告
+	var equip_count : int = 0
+	if u.weapon_slot != null: equip_count += 1
+	for s in u.armor_slots:
+		if s != null: equip_count += 1
+
+	var msg : String = ""
+	if equip_count > 0:
+		msg += "该单位仍有 %d 件装备，熔铸后将永久锁定（可通过圣坛或复活圣油取回）。\n\n" % equip_count
+	msg += "确定熔铸 %s？\n将获得 1000 金币 + 3 件史诗防具。" % u.display_name
+
 	Globals.show_confirm(
 		self,
-		"确定熔铸 %s？\n将获得 500 金币 + 1 件史诗装备。\n该单位进入阵亡状态，可通过圣坛或复活圣油复活。" % u.display_name,
+		msg,
 		"熔铸",
 		"取消",
 		func(): _do_sacrifice(u),
@@ -133,37 +170,12 @@ func _do_sacrifice(u: UnitData):
 	if _panel_ref == null:
 		return
 
-	# 收集防具
-	var armor_list : Array = []
-	for s in u.armor_slots:
-		if s != null:
-			armor_list.append(s)
+	# 调用主面板逻辑（内部会立即落盘，SL 防护）
+	_panel_ref._do_sacrifice(u, [], 0)
 
-	var free_slots : int = GameState.count_free_storage_slots()
-	if free_slots >= armor_list.size():
-		_panel_ref._do_sacrifice(u, armor_list, 0)
-		_rebuild_after_sacrifice()
-	else:
-		var need : int = armor_list.size() - free_slots
-		Globals.show_confirm(
-			self,
-			"仓库空位不足（需 %d，现有 %d）。\n将丢弃仓库末尾 %d 件防具，是否继续？" % [armor_list.size(), free_slots, need],
-			"继续熔铸",
-			"取消",
-			func():
-				_panel_ref._do_sacrifice(u, armor_list, need)
-				_rebuild_after_sacrifice(),
-			func(): pass
-		)
-
-
-func _rebuild_after_sacrifice():
-	_build_cards()
-	# 通知主面板刷新
-	if _panel_ref and is_instance_valid(_panel_ref):
-		_panel_ref._build_unit_columns()
-		_panel_ref._build_storage_slots()
-		_panel_ref._update_gold_display()
+	# 关闭 SacrificeUI
+	closed.emit()
+	queue_free()
 
 
 func _on_back_pressed():

@@ -21,7 +21,6 @@ var resource_state : ResourceState = ResourceState.new()
 #  常量
 # ============================================================
 const MAX_ARMOR_SLOTS_CAP : int = 4
-const ARMOR_STORAGE_SIZE : int = 6
 
 # ============================================================
 #  属性转发：PartyState
@@ -218,9 +217,14 @@ var tutorial_stage : int:
 	get: return resource_state.tutorial_stage
 	set(value): resource_state.tutorial_stage = value
 
-var armor_storage : Array:
-	get: return resource_state.armor_storage
-	set(value): resource_state.armor_storage = value
+# ---- 待领取奖励 ----
+var pending_sacrifice_rewards : Array:
+	get: return resource_state.pending_sacrifice_rewards
+	set(value): resource_state.pending_sacrifice_rewards = value
+
+var pending_forge_rewards : Array:
+	get: return resource_state.pending_forge_rewards
+	set(value): resource_state.pending_forge_rewards = value
 
 # ---- 斗技场统计 ----
 var arena_best_streak : int:
@@ -268,43 +272,26 @@ func sync_units_from_battlefield(battle_units: Array):
 	party_state.sync_units_from_battlefield(battle_units)
 
 # ============================================================
-#  防具仓库
+#  待领取奖励
 # ============================================================
-func init_armor_storage():
-	resource_state.armor_storage.clear()
-	for i in range(ARMOR_STORAGE_SIZE):
-		resource_state.armor_storage.append(null)
+func has_pending_sacrifice_rewards() -> bool:
+	return not resource_state.pending_sacrifice_rewards.is_empty()
 
-func add_armor_to_storage(inst: ItemInstance) -> bool:
-	if inst == null:
-		return false
-	if resource_state.armor_storage.size() < ARMOR_STORAGE_SIZE:
-		init_armor_storage()
-	for i in range(resource_state.armor_storage.size()):
-		if resource_state.armor_storage[i] == null:
-			resource_state.armor_storage[i] = inst
-			return true
-	return false
+func has_pending_forge_rewards() -> bool:
+	return not resource_state.pending_forge_rewards.is_empty()
 
-func is_armor_storage_full() -> bool:
-	if resource_state.armor_storage.is_empty():
-		return false
-	for s in resource_state.armor_storage:
-		if s == null:
-			return false
-	return true
+func has_any_pending_rewards() -> bool:
+	return has_pending_sacrifice_rewards() or has_pending_forge_rewards()
 
-func count_free_storage_slots() -> int:
-	var n : int = 0
-	for s in resource_state.armor_storage:
-		if s == null:
-			n += 1
-	return n
+func clear_pending_sacrifice_rewards():
+	resource_state.pending_sacrifice_rewards.clear()
 
-func remove_armor_from_storage(idx: int):
-	if idx < 0 or idx >= resource_state.armor_storage.size():
-		return
-	resource_state.armor_storage[idx] = null
+func clear_pending_forge_rewards():
+	resource_state.pending_forge_rewards.clear()
+
+func clear_all_pending_rewards():
+	resource_state.pending_sacrifice_rewards.clear()
+	resource_state.pending_forge_rewards.clear()
 
 # ============================================================
 #  永久死亡 / 复活
@@ -437,7 +424,7 @@ func start_new_cycle():
 	for unit_data in party:
 		unit_data.armor_slots.clear()
 		unit_data.max_armor_slots = 2
-		unit_data.is_dead = false   # ★ 新循环，重置死亡状态
+		unit_data.is_dead = false
 		var default_weapon = UnitDataManager.get_default_weapon_id(unit_data.unit_name)
 		if default_weapon != "":
 			var inst = ItemInstance.new()
@@ -447,7 +434,7 @@ func start_new_cycle():
 		else:
 			unit_data.weapon_slot = null
 	init_passive_slots()
-	init_armor_storage()   # ★ 新循环，清空仓库
+	clear_all_pending_rewards()
 
 
 func finish_day(grant_slot: bool = true):
@@ -462,11 +449,8 @@ func finish_day(grant_slot: bool = true):
 
 
 func finish_cycle():
-	# ★ 三天完成：只合并资源，不 +1 槽
 	finish_day(false)
-	# ★ 全员复活
 	revive_all_units()
-	# ★ 推进新手阶段
 	if tutorial_stage < 3:
 		tutorial_stage += 1
 		Globals.reload_talent_unlock()
@@ -516,7 +500,7 @@ func reset_for_new_cycle():
 	temp_gold = 0
 	interrupt_state = InterruptState.NONE
 	init_passive_slots()
-	init_armor_storage()
+	clear_all_pending_rewards()
 	current_faction = ""
 	map_snapshot.clear()
 	cycle_start_soul = 0
@@ -541,7 +525,7 @@ func reset_all():
 	temp_gold = 0
 	interrupt_state = InterruptState.NONE
 	init_passive_slots()
-	init_armor_storage()
+	clear_all_pending_rewards()
 	current_faction = ""
 	map_snapshot.clear()
 	cycle_start_soul = 0

@@ -8,9 +8,6 @@ var soul : int = 0
 var temp_soul : int = 0
 var temp_gold : int = 0
 
-# ---- 全队防具仓库 ----
-var armor_storage : Array = []
-
 # ============================================================
 #  材料
 # ============================================================
@@ -24,20 +21,12 @@ var materials : Dictionary = {
 var unit_growth : Dictionary = {}
 var unit_blessings : Dictionary = {}
 
-var tutorial_stage : int = 0
-
 # ============================================================
-#  防具配方解锁（铁砧酒馆）
+#  防具配方解锁
 # ============================================================
 var unlocked_recipes : Array = []
-
-# ---- 已阅故事（酒馆） ----
 var unlocked_stories : Array = []
-
-# ---- 斗技场词条经验（每个单位独立） ----
 var talent_exp : Dictionary = {}
-
-# ---- 斗技场目标词条（每个单位一个） ----
 var arena_target_talents : Dictionary = {}
 
 # ============================================================
@@ -51,13 +40,13 @@ var arena_total_crystals : int = 0
 var arena_total_runs : int = 0
 
 # ============================================================
-#  本轮基线（用于结算显示）
+#  本轮基线
 # ============================================================
 var cycle_start_soul : int = 0
 var cycle_start_materials : Dictionary = {}
 
 # ============================================================
-#  单次奖励记录（用于结算界面）
+#  单次奖励记录
 # ============================================================
 var reward_items : Array = []
 var current_reward_gold : int = 0
@@ -65,13 +54,24 @@ var current_reward_soul : int = 0
 var current_reward_materials : Dictionary = {}
 
 # ============================================================
-#  精炼配方（炼金坊）
+#  精炼配方
 # ============================================================
-var unlocked_refine_recipes : Array = []   # 已解锁的精炼配方 ID
-var refined_items : Dictionary = {}         # { refine_id: count }
+var unlocked_refine_recipes : Array = []
+var refined_items : Dictionary = {}
 
 # ============================================================
-#  方法（纯数据操作，不调用任何 autoload）
+#  新手阶段
+# ============================================================
+var tutorial_stage : int = 0
+
+# ============================================================
+#  待领取奖励（熔铸 / 合成）
+# ============================================================
+var pending_sacrifice_rewards : Array = []   # 元素：ItemInstance
+var pending_forge_rewards : Array = []       # 元素：ItemInstance
+
+# ============================================================
+#  方法
 # ============================================================
 func add_material(material_name: String, amount: int):
 	if materials.has(material_name):

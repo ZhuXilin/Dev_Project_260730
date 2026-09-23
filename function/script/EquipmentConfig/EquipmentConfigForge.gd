@@ -19,7 +19,7 @@ var forge_result_label : Label = null
 var forge_upgrade_label : Label = null
 var forge_upgrade_btn : Button = null
 var inline_craft_btn : Button = null
-
+var _last_drag_unit_idx : int = -1
 
 func _init(p):
 	panel = p
@@ -54,9 +54,11 @@ func build_forge_slots():
 	panel.shop_container.add_theme_constant_override("h_separation", 2)
 	panel.shop_container.add_theme_constant_override("v_separation", 2)
 
+	# ★ 铁匠铺：ShopScroll 恢复初始尺寸
 	if panel.shop_scroll:
 		panel.shop_scroll.custom_minimum_size = Vector2(0, 60)
 		panel.shop_scroll.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+		panel.shop_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 
 	_ensure_forge_result_label()
 
@@ -83,10 +85,15 @@ func build_forge_slots():
 
 	_update_forge_result_label()
 	_ensure_forge_craft_row()
+
+	# ★ 强制重建升级 UI（避免 cleanup 残留导致消失）
+	if not forge_upgrade_btn or not is_instance_valid(forge_upgrade_btn) or not forge_upgrade_btn.is_inside_tree():
+		forge_upgrade_btn = null
+		forge_upgrade_label = null
 	_ensure_forge_upgrade_ui()
+
 	_refresh_inline_craft_btn()
 	_ensure_forge_bottom_spacer()
-
 
 func _ensure_forge_craft_row():
 	var should_show : bool = panel._is_shop_rest_mode() or panel.is_forge_mode()
@@ -221,8 +228,24 @@ func _update_forge_result_label():
 
 
 func _ensure_forge_upgrade_ui():
+	# 存在且在树里 → refresh
 	if forge_upgrade_btn and is_instance_valid(forge_upgrade_btn) and forge_upgrade_btn.is_inside_tree():
-		refresh_forge_upgrade_ui(); return
+		refresh_forge_upgrade_ui()
+		return
+
+	# 引用存在但已失效 → 清空重来
+	if forge_upgrade_btn != null and not is_instance_valid(forge_upgrade_btn):
+		forge_upgrade_btn = null
+	if forge_upgrade_label != null and not is_instance_valid(forge_upgrade_label):
+		forge_upgrade_label = null
+
+	# 清理残留在 right_container 里的同名节点
+	for n_name in ["ForgeUpgradeLabel", "ForgeUpgradeBtn", "ForgeUpgradeSpacer1", "ForgeUpgradeSpacer2"]:
+		var old = panel.right_container.get_node_or_null(n_name)
+		if old:
+			panel.right_container.remove_child(old)
+			old.queue_free()
+
 	var spacer1 := Control.new()
 	spacer1.name = "ForgeUpgradeSpacer1"
 	spacer1.custom_minimum_size = Vector2(0, 12)
@@ -242,11 +265,14 @@ func _ensure_forge_upgrade_ui():
 	spacer2.name = "ForgeUpgradeSpacer2"
 	spacer2.custom_minimum_size = Vector2(0, 12)
 	panel.right_container.add_child(spacer2)
-	var reset_idx : int = panel.reset_btn.get_index()
-	panel.right_container.move_child(spacer1, reset_idx + 1)
-	panel.right_container.move_child(forge_upgrade_label, reset_idx + 2)
-	panel.right_container.move_child(forge_upgrade_btn, reset_idx + 3)
-	panel.right_container.move_child(spacer2, reset_idx + 4)
+
+	if panel.reset_btn and is_instance_valid(panel.reset_btn):
+		var reset_idx : int = panel.reset_btn.get_index()
+		panel.right_container.move_child(spacer1, reset_idx + 1)
+		panel.right_container.move_child(forge_upgrade_label, reset_idx + 2)
+		panel.right_container.move_child(forge_upgrade_btn, reset_idx + 3)
+		panel.right_container.move_child(spacer2, reset_idx + 4)
+
 	refresh_forge_upgrade_ui()
 
 
@@ -254,44 +280,49 @@ func refresh_forge_upgrade_ui():
 	if not forge_upgrade_btn or not is_instance_valid(forge_upgrade_btn): return
 	if panel.party.size() <= 0:
 		forge_upgrade_btn.text = "拖拽武器到此升级"
-		forge_upgrade_btn.disabled = false
-		forge_upgrade_btn.modulate = Color.WHITE
+		forge_upgrade_btn.disabled = true
+		forge_upgrade_btn.modulate = Color(0.5, 0.5, 0.5)
 		return
-	var u : UnitData = panel.party[0]
-	if u.weapon_slot == null:
+
+	# ★ 优先显示"最近拖拽的单位"的武器
+	var idx : int = _last_drag_unit_idx
+	if idx < 0 or idx >= panel.party.size():
+		idx = -1
+		for i in range(panel.party.size()):
+			if panel.party[i].weapon_slot != null and not panel.party[i].is_dead:
+				idx = i
+				break
+	if idx < 0:
 		forge_upgrade_btn.text = "拖拽武器到此升级"
-		forge_upgrade_btn.disabled = false
-		forge_upgrade_btn.modulate = Color.WHITE
+		forge_upgrade_btn.disabled = true
+		forge_upgrade_btn.modulate = Color(0.5, 0.5, 0.5)
 		return
+
+	var u : UnitData = panel.party[idx]
+	if u.weapon_slot == null or u.is_dead:
+		forge_upgrade_btn.text = "拖拽武器到此升级"
+		forge_upgrade_btn.disabled = true
+		forge_upgrade_btn.modulate = Color(0.5, 0.5, 0.5)
+		return
+
 	var wname : String = panel._get_item_name(u.weapon_slot)
 	var lv : int = u.weapon_slot.upgrade_level
 	if lv >= WEAPON_UPGRADE_MAX:
 		forge_upgrade_btn.text = "%s 已满级 +%d" % [wname, lv]
-		forge_upgrade_btn.disabled = false
+		forge_upgrade_btn.disabled = true
 		forge_upgrade_btn.modulate = Color(0.5, 0.5, 0.5)
 		return
+
 	var cost : int = _get_weapon_upgrade_cost(lv)
 	var afford : bool = panel._context.get_gold() >= cost
 	forge_upgrade_btn.text = "%s +%d→+%d（%dG）" % [wname, lv, lv + 1, cost]
-	forge_upgrade_btn.disabled = false
+	forge_upgrade_btn.disabled = not afford
 	forge_upgrade_btn.modulate = Color.WHITE if afford else Color(1.0, 0.6, 0.6)
 
 
 func update_upgrade_slot_for_drag(unit_idx: int) -> void:
-	if not forge_upgrade_btn or not is_instance_valid(forge_upgrade_btn): return
-	if unit_idx < 0 or unit_idx >= panel.party.size(): return
-	var u : UnitData = panel.party[unit_idx]
-	if u.weapon_slot == null: return
-	var wname : String = panel._get_item_name(u.weapon_slot)
-	var lv : int = u.weapon_slot.upgrade_level
-	if lv >= WEAPON_UPGRADE_MAX:
-		forge_upgrade_btn.text = "★ %s 已满级 +%d" % [wname, lv]
-		forge_upgrade_btn.modulate = Color(0.5, 0.5, 0.5)
-		return
-	var cost : int = _get_weapon_upgrade_cost(lv)
-	var afford : bool = panel._context.get_gold() >= cost
-	forge_upgrade_btn.text = "★ %s +%d→+%d（%dG）" % [wname, lv, lv + 1, cost]
-	forge_upgrade_btn.modulate = Color.WHITE if afford else Color(1.0, 0.6, 0.6)
+	_last_drag_unit_idx = unit_idx
+	refresh_forge_upgrade_ui()
 
 
 func _ensure_forge_bottom_spacer():
@@ -322,15 +353,15 @@ func cleanup():
 func _return_armor_to_unit(unit: UnitData, inst: ItemInstance, prefer_slot: int) -> bool:
 	var need : int = panel._inst_slots(inst)
 	var used : int = panel._used_slots_of(unit)
-	if used + need > unit.max_armor_slots: return false
+	if used + need > unit.max_armor_slots: return false      # ← 必须是 false
 	if prefer_slot >= 0 and prefer_slot < unit.armor_slots.size() and unit.armor_slots[prefer_slot] == null:
 		unit.armor_slots[prefer_slot] = inst
-		return true
+		return true                                          # ← 必须是 true
 	for i in range(unit.armor_slots.size()):
 		if unit.armor_slots[i] == null:
 			unit.armor_slots[i] = inst
-			return true
-	return false
+			return true                                      # ← 必须是 true
+	return false                                             # ← 必须有兜底
 
 
 func return_all_forge_slots() -> int:
@@ -414,8 +445,10 @@ func on_forge_craft_pressed():
 			_force_return_armor_to_unit(ou, entry_dict["inst"], entry_dict["origin_slot"])
 			forge_slots[i] = null
 
-	# ---- 产出防具：优先放单位空槽，其次放仓库 ----
+	# ---- 产出防具：优先放单位空槽，放不下则进待领取区 ----
 	var out_ids : Array = result["item_ids"]
+
+	# 找单位空槽
 	var target_unit_idx : int = -1
 	var target_slot : int = -1
 	for i in range(panel.party.size()):
@@ -429,12 +462,19 @@ func on_forge_craft_pressed():
 		if target_unit_idx >= 0:
 			break
 
+	# 计算单位还能放几件
+	var can_place_in_unit : int = 0
 	if target_unit_idx >= 0:
-		# 放单位空槽
+		var pu : UnitData = panel.party[target_unit_idx]
+		for s in range(target_slot, pu.armor_slots.size()):
+			if pu.armor_slots[s] == null:
+				can_place_in_unit += 1
+
+	if can_place_in_unit >= out_ids.size():
+		# 全部能放单位
 		var out_unit : UnitData = panel.party[target_unit_idx]
 		for item_id in out_ids:
-			if target_slot >= out_unit.armor_slots.size():
-				break
+			if target_slot >= out_unit.armor_slots.size(): break
 			var inst := ItemInstance.new()
 			inst.item_id = item_id
 			inst.count = 1
@@ -442,25 +482,18 @@ func on_forge_craft_pressed():
 				out_unit.armor_slots[target_slot] = inst
 				target_slot += 1
 	else:
-		# 没空槽 → 尝试放仓库
-		var all_stored : bool = true
+		# 全部进待领取区
 		for item_id in out_ids:
 			var inst := ItemInstance.new()
 			inst.item_id = item_id
 			inst.count = 1
-			if not GameState.add_armor_to_storage(inst):
-				all_stored = false
-				break
-		if not all_stored:
-			Globals.show_confirm(
-				panel,
-				"所有单位防具槽已满，仓库也已满，合成产物无处存放",
-				"确定", "", func(): pass, func(): pass, false
-			)
+			GameState.pending_forge_rewards.append(inst)
 
 	forge_matched_recipe = ""
+	SaveManager.auto_save()
 	panel._sync_all()
 	panel._build_unit_columns()
+	panel._build_pending_slots()
 	panel._update_gold_display()
 	panel._show_craft_result(result)
 	panel._schedule_build_ui()
@@ -550,62 +583,91 @@ func is_valid_forge_drop(data: Dictionary, target: Control) -> bool:
 	var src_type : String = data.get("slot_type", "")
 	var tgt_type : String = target.get_meta("slot_type", "")
 
+	# ---- 武器 → 升级槽 ----
 	if src_type == "weapon" and tgt_type == "forge_upgrade_slot":
 		var uidx : int = data.get("unit_idx", -1)
 		if uidx < 0: return false
+		if uidx >= panel.party.size(): return false
 		var u : UnitData = panel.party[uidx]
+		if u.is_dead: return false
 		var weapon_inst : ItemInstance = u.weapon_slot
 		if weapon_inst == null: return false
 		if weapon_inst.upgrade_level >= WEAPON_UPGRADE_MAX: return false
 		return true
 
+	# ---- 武器 ↔ 武器 ----
 	if src_type == "weapon" and tgt_type == "weapon":
 		var src_unit : int = data.get("unit_idx", -1)
 		var tgt_unit : int = target.get_meta("unit_idx", -1)
-		return src_unit >= 0 and tgt_unit >= 0 and src_unit != tgt_unit
+		if src_unit < 0 or tgt_unit < 0: return false
+		if src_unit == tgt_unit: return false
+		return true
 
-	if src_type == "weapon" and target == panel.discard_zone: return false
+	# ---- 武器 → 丢弃区 ----
+	if src_type == "weapon" and target == panel.discard_zone:
+		return false
 
+	# ---- 防具 → forge_slot ----
 	if src_type == "armor" and tgt_type == "forge_slot":
 		var slot_idx : int = target.get_meta("forge_slot_index", -1)
 		if slot_idx < 0: return false
 		var uidx2 : int = data.get("unit_idx", -1)
 		var src_slot : int = data.get("slot_idx", -1)
 		if uidx2 < 0 or src_slot < 0: return false
+		if uidx2 >= panel.party.size(): return false
 		var u2 : UnitData = panel.party[uidx2]
+		if u2.is_dead: return false
+		if src_slot >= u2.armor_slots.size(): return false
 		if u2.armor_slots[src_slot] == null: return false
+		# 检查被替换的防具能否归还
 		var existing : Variant = forge_slots[slot_idx]
 		if existing != null:
 			var existing_dict : Dictionary = existing
-			var old_ou : UnitData = panel.party[existing_dict["origin_unit"]]
+			var old_ou_idx : int = existing_dict.get("origin_unit", -1)
+			if old_ou_idx < 0 or old_ou_idx >= panel.party.size(): return false
+			var old_ou : UnitData = panel.party[old_ou_idx]
 			var old_inst : ItemInstance = existing_dict["inst"]
 			var need : int = panel._inst_slots(old_inst)
 			var used : int = panel._used_slots_of(old_ou)
 			if used + need > old_ou.max_armor_slots: return false
 		return true
 
+	# ---- 防具 ↔ 防具 ----
 	if src_type == "armor" and tgt_type == "armor":
 		return panel._check_armor_swap_budget(data, target)
 
-	if src_type == "armor" and target == panel.discard_zone: return true
+	# ---- 防具 → 丢弃区 ----
+	if src_type == "armor" and target == panel.discard_zone:
+		return true
 
+	# ---- forge_slot 作为拖拽源 ----
 	if src_type == "forge_slot":
+		# → 单位防具槽
 		if tgt_type == "armor":
 			var tu3 : int = target.get_meta("unit_idx", -1)
 			var ts3 : int = target.get_meta("slot_idx", -1)
 			if tu3 < 0 or ts3 < 0: return false
+			if tu3 >= panel.party.size(): return false
 			var unit3 : UnitData = panel.party[tu3]
+			if unit3.is_dead: return false
+			if ts3 >= unit3.armor_slots.size(): return false
 			if unit3.armor_slots[ts3] != null: return false
 			var idx : int = data.get("forge_slot_index", -1)
-			if idx < 0 or idx >= forge_slots.size() or forge_slots[idx] == null: return false
+			if idx < 0 or idx >= forge_slots.size(): return false
+			if forge_slots[idx] == null: return false
 			var entry_dict : Dictionary = forge_slots[idx]
 			var inst : ItemInstance = entry_dict["inst"]
 			var need : int = panel._inst_slots(inst)
 			var used : int = panel._used_slots_excluding(unit3, [ts3])
 			return used + need <= unit3.max_armor_slots
-		if tgt_type == "forge_slot": return true
-		if target == panel.discard_zone: return true
+		# → 另一个 forge_slot
+		if tgt_type == "forge_slot":
+			return true
+		# → 丢弃区
+		if target == panel.discard_zone:
+			return true
 		return false
+
 	return false
 
 
@@ -699,14 +761,34 @@ func execute_forge_drop(data: Dictionary, target: Control):
 
 
 func _force_return_armor_to_unit(unit: UnitData, inst: ItemInstance, prefer_slot: int) -> bool:
-	# 先尝试原槽
 	if prefer_slot >= 0 and prefer_slot < unit.armor_slots.size() and unit.armor_slots[prefer_slot] == null:
 		unit.armor_slots[prefer_slot] = inst
 		return true
-	# 再找空槽
 	for i in range(unit.armor_slots.size()):
 		if unit.armor_slots[i] == null:
 			unit.armor_slots[i] = inst
 			return true
-	# 没地方放 → 丢弃（因为已经在合成时消耗了）
 	return false
+
+func _try_upgrade_weapon(unit_idx: int):
+	if unit_idx < 0 or unit_idx >= panel.party.size(): return
+	var u : UnitData = panel.party[unit_idx]
+	if u.is_dead: return
+	if u.weapon_slot == null: return
+	if u.weapon_slot.upgrade_level >= WEAPON_UPGRADE_MAX: return
+
+	var lv : int = u.weapon_slot.upgrade_level
+	var cost : int = _get_weapon_upgrade_cost(lv)
+	if panel._context.get_gold() < cost:
+		panel._show_buy_failure_message("not_enough_gold"); return
+	if not panel._context.subtract_gold(cost):
+		panel._show_buy_failure_message("not_enough_gold"); return
+
+	u.weapon_slot.upgrade_level += 1
+	print("[铁匠铺] %s 升级 → +%d（花费 %dG）" % [panel._get_item_name(u.weapon_slot), u.weapon_slot.upgrade_level, cost])
+
+	refresh_forge_upgrade_ui()
+	panel._build_unit_columns()
+	panel._sync_all()
+	panel._update_gold_display()
+	panel._schedule_build_ui()

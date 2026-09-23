@@ -82,11 +82,15 @@ func _migrate_save(save: SaveData):
 
 	if v < 6:
 		save.tutorial_stage = 3
-		print("  [迁移] v5 → v6：tutorial_stage 设为 3（老存档视为全解锁）")
+		print("  [迁移] v5 → v6：tutorial_stage 设为 3")
 
 	if v < 7:
-		save.armor_storage = []
-		print("  [迁移] v6 → v7：armor_storage 初始化为空")
+		print("  [迁移] v6 → v7")
+
+	if v < 8:
+		save.pending_sacrifice_rewards = []
+		save.pending_forge_rewards = []
+		print("  [迁移] v7 → v8：移除 armor_storage，初始化待领取区")
 
 
 # ===== 构建存档数据 =====
@@ -128,16 +132,17 @@ func _build_save_data() -> SaveData:
 	for unit_data in GameState.party:
 		save.party_data.append(unit_data.to_dict())
 
-	# ---- 被动槽 ----
 	save.equipped_passives = []
 	for p in GameState.get_passives():
 		save.equipped_passives.append(_serialize_passive(p))
 
-	# ---- 防具仓库 ----
-	save.armor_storage = []
-	for i in range(GameState.ARMOR_STORAGE_SIZE):
-		var inst = GameState.armor_storage[i] if i < GameState.armor_storage.size() else null
-		save.armor_storage.append(_serialize_item_instance(inst))
+	save.pending_sacrifice_rewards = []
+	for inst in GameState.pending_sacrifice_rewards:
+		save.pending_sacrifice_rewards.append(_serialize_item_instance(inst))
+
+	save.pending_forge_rewards = []
+	for inst in GameState.pending_forge_rewards:
+		save.pending_forge_rewards.append(_serialize_item_instance(inst))
 
 	save.unlocked_units = Globals.unlocked_units.duplicate()
 	save.unlocked_items = Globals.unlocked_items.duplicate()
@@ -201,20 +206,27 @@ func _apply_save_data(save: SaveData):
 			var data = UnitData.from_dict(d)
 			GameState.party.append(data)
 
-	# ---- 被动槽 ----
 	GameState.init_passive_slots()
 	var arr = save.equipped_passives
 	if arr is Array:
 		for i in range(min(arr.size(), 4)):
 			GameState.set_passive_at_slot(i, _deserialize_passive(arr[i]))
 
-	# ---- 防具仓库 ----
-	GameState.init_armor_storage()
-	if save.armor_storage is Array:
-		for i in range(min(save.armor_storage.size(), GameState.ARMOR_STORAGE_SIZE)):
-			GameState.armor_storage[i] = _deserialize_item_instance(save.armor_storage[i])
+	# ★ 待领取奖励
+	GameState.pending_sacrifice_rewards.clear()
+	if save.pending_sacrifice_rewards is Array:
+		for d in save.pending_sacrifice_rewards:
+			var inst = _deserialize_item_instance(d)
+			if inst != null:
+				GameState.pending_sacrifice_rewards.append(inst)
 
-	# ---- 各类解锁 ----
+	GameState.pending_forge_rewards.clear()
+	if save.pending_forge_rewards is Array:
+		for d in save.pending_forge_rewards:
+			var inst = _deserialize_item_instance(d)
+			if inst != null:
+				GameState.pending_forge_rewards.append(inst)
+
 	RelicManager.set_unlocked_relics(save.unlocked_relics if save.unlocked_relics else [])
 	Globals.unlocked_units = (save.unlocked_units if save.unlocked_units else []).duplicate()
 	Globals.unlocked_items = (save.unlocked_items if save.unlocked_items else []).duplicate()

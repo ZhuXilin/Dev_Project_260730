@@ -485,41 +485,14 @@ func _open_chapel(node: MapNode):
 	_update_availability(map_data.root_node)
 	_save_game()
 
-	# ---- 1. 全队回满 HP ----
-	var healed_count : int = 0
-	for ud in GameState.party:
-		if ud.is_dead:
-			continue
-		if ud.hit_points < ud.max_hp:
-			ud.hit_points = ud.max_hp
-			healed_count += 1
-
-	# ---- 2. 检查阵亡单位 ----
-	var dead : Array = GameState.get_dead_party()
-
-	# ---- 3. 弹对话框 ----
-	if dead.is_empty() and healed_count == 0:
-		Globals.show_confirm(
-			self,
-			"圣坛的祝福笼罩着队伍。\n（全员满血，无阵亡单位）",
-			"离开",
-			"",
-			func(): pass,
-			func(): pass,
-			false
-		)
-	elif dead.is_empty():
-		Globals.show_confirm(
-			self,
-			"圣坛的祝福笼罩着队伍。\n全队 HP 已回满（%d 人受益）" % healed_count,
-			"确定",
-			"",
-			func(): pass,
-			func(): pass,
-			false
-		)
-	else:
-		_open_chapel_revive_dialog(dead, healed_count)
+	# 弹三选一
+	var scene = load(Config.PATHS.CHAPEL_UI)
+	if not scene:
+		push_error("ChapelUI 未找到")
+		return
+	var ui = scene.instantiate()
+	add_child(ui)
+	await ui.closed
 
 	_save_game()
 	update_all_displays()
