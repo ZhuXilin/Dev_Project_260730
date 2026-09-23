@@ -45,6 +45,9 @@ func has_pending() -> bool:
 #  UI 构建
 # ============================================================
 func build_forge_slots():
+	# ★ 强制清理所有 forge UI 残留（同帧内多次 build 时，queue_free 还没生效）
+	_force_cleanup_forge_ui()
+
 	panel._clear_container(panel.shop_container)
 	inline_craft_btn = null
 
@@ -792,3 +795,21 @@ func _try_upgrade_weapon(unit_idx: int):
 	panel._sync_all()
 	panel._update_gold_display()
 	panel._schedule_build_ui()
+
+## 强制清理 right_container 里所有 forge 相关子节点（含同名的延迟释放节点）
+func _force_cleanup_forge_ui():
+	var names : Array = [
+		"ForgeResultLabel", "ForgeCraftRow", "ForgeUpgradeLabel", "ForgeUpgradeBtn",
+		"ForgeUpgradeSpacer1", "ForgeUpgradeSpacer2", "ForgeBottomSpacer",
+	]
+	for n_name in names:
+		# while 循环：可能因为同帧多次 build 而残留多个同名节点
+		var old : Node = panel.right_container.get_node_or_null(n_name)
+		while old != null:
+			panel.right_container.remove_child(old)
+			old.queue_free()
+			old = panel.right_container.get_node_or_null(n_name)
+	forge_result_label = null
+	forge_upgrade_btn = null
+	forge_upgrade_label = null
+	inline_craft_btn = null

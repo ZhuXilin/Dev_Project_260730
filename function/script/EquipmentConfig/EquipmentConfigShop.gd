@@ -16,11 +16,15 @@ func _init(p):
 func build_shop_items():
 	if not panel.shop_manager: return
 
-	# ---- 清理铁匠铺残留 ----
+	# ---- 清理铁匠铺残留（必须先 remove_child 再 queue_free，避免延迟释放期间残留） ----
 	var row : Node = panel.right_container.get_node_or_null("ForgeCraftRow")
-	if row: row.queue_free()
+	if row:
+		panel.right_container.remove_child(row)
+		row.queue_free()
 	var spacer : Node = panel.right_container.get_node_or_null("ForgeBottomSpacer")
-	if spacer: spacer.queue_free()
+	if spacer:
+		panel.right_container.remove_child(spacer)
+		spacer.queue_free()
 	panel._forge.inline_craft_btn = null
 
 	# ---- 强制重置 ShopScroll 布局状态 ----
@@ -79,7 +83,7 @@ func build_shop_items():
 		panel.shop_scroll.call_deferred("queue_sort")
 	if panel.shop_container:
 		panel.shop_container.call_deferred("queue_sort")
-
+		
 
 # ============================================================
 #  武器库 / 精炼库网格
