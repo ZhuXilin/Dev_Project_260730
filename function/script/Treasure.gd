@@ -108,8 +108,36 @@ func _on_confirm_pressed():
 
 	# ---- 道具 ----
 	for item_id in _rewards.get("items", []):
-		Globals.unlock_item(item_id)
-		GameState.add_reward_item(item_id)
+		if item_id == "":
+			continue
+		# 1. 遗物
+		var relic_data : Dictionary = RelicManager.get_relic_data(item_id)
+		if not relic_data.is_empty():
+			RelicManager.unlock_relic(item_id)
+			var relic_inst := ItemInstance.new()
+			relic_inst.item_id = item_id
+			relic_inst.count = 1
+			if not GameState.add_relic_to_passive_slot(relic_inst):
+				print("[宝箱] 遗物 %s 解锁但未入槽（槽满）" % item_id)
+			GameState.add_reward_item(item_id)
+			continue
+
+		# 2. 武器 / 防具 → 进待领取区（玩家去装备配置里领取）
+		var data : ItemData = ItemManager.get_item_data(item_id)
+		if not data:
+			continue
+		if data.type in ["weapon", "armor"]:
+			Globals.unlock_item(item_id)
+			var inst := ItemInstance.new()
+			inst.item_id = item_id
+			inst.count = 1
+			GameState.pending_forge_rewards.append(inst)
+			GameState.add_reward_item(item_id)
+			print("[宝箱] 装备进待领取区: %s" % data.name)
+		else:
+			# 其他类型只解锁
+			Globals.unlock_item(item_id)
+			GameState.add_reward_item(item_id)
 
 	closed.emit()
 	queue_free()

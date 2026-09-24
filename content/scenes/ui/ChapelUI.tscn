@@ -19,10 +19,12 @@ anchor_left = 0.5
 anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
-offset_left = -200.0
-offset_top = -130.0
-offset_right = 200.0
-offset_bottom = 130.0
+offset_left = -188.0
+offset_top = -104.0
+offset_right = 184.0
+offset_bottom = 104.0
+grow_horizontal = 2
+grow_vertical = 2
 theme_override_styles/panel = ExtResource("2")
 
 [node name="VBox" type="VBoxContainer" parent="Panel" unique_id=588162855]

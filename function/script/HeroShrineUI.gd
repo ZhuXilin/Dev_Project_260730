@@ -106,7 +106,7 @@ func _build_unit_card(unit_idx: int) -> PanelContainer:
 	var type_cn : String = UnitDataManager.get_unit_type_display_name(unit.unit_name)
 
 	var card = PanelContainer.new()
-	card.custom_minimum_size = Vector2(130, 0)
+	card.custom_minimum_size = Vector2(110, 0)
 	card.mouse_filter = Control.MOUSE_FILTER_STOP
 
 	var vbox = VBoxContainer.new()
