@@ -71,6 +71,7 @@ func _on_choose_gold():
 	EconomyManager.add_temp_gold(600)
 	SaveManager.auto_save()
 	print("[圣坛] 获得 600 金币")
+	await _popup_text_and_wait("金币 +600")
 	_close()
 
 
@@ -89,6 +90,7 @@ func _on_choose_heal():
 		_show_revive_submenu()
 	else:
 		SaveManager.auto_save()
+		await _popup_text_and_wait("全队 HP 回满")
 		_close()
 
 
@@ -115,6 +117,7 @@ func _show_revive_submenu():
 	skip.add_theme_font_size_override("font_size", 8)
 	skip.pressed.connect(func():
 		SaveManager.auto_save()
+		await _popup_text_and_wait("全队 HP 回满")
 		_close()
 	)
 	option_row.add_child(skip)
@@ -124,7 +127,8 @@ func _on_revive_unit(unit_name: String, display_name: String):
 	if GameState.revive_unit(unit_name, display_name):
 		SaveManager.auto_save()
 		print("[圣坛] 复活 %s" % display_name)
-	_close()
+		await _popup_text_and_wait("复活：%s" % display_name)
+		_close()
 
 
 # ============================================================
@@ -136,10 +140,10 @@ func _on_choose_item():
 
 	var picked : Dictionary = _pre_roll_reward
 	if picked.is_empty():
-		# 无候选 → 补偿金币
 		EconomyManager.add_temp_gold(600)
 		SaveManager.auto_save()
 		print("[圣坛] 无可用道具，改为 600 金币")
+		await _popup_text_and_wait("金币 +600")
 		_close()
 		return
 
@@ -147,9 +151,9 @@ func _on_choose_item():
 	var slot_idx : int = _find_empty_passive_slot()
 	if slot_idx >= 0:
 		_place_reward_into_slot(picked, slot_idx)
-		_show_reward_popup(picked)
 		_pending_reward = {}
 		SaveManager.auto_save()
+		await _popup_and_wait(picked)
 		_close()
 	else:
 		_show_replace_slot_ui(picked)
@@ -277,8 +281,8 @@ func _on_replace_slot_picked(slot_idx : int):
 	var reward : Dictionary = _pending_reward
 	_pending_reward = {}
 	_place_reward_into_slot(reward, slot_idx)
-	_show_reward_popup(reward)
 	SaveManager.auto_save()
+	await _popup_and_wait(reward)
 	_close()
 
 
@@ -287,6 +291,7 @@ func _on_give_up_reward():
 	EconomyManager.add_temp_gold(600)
 	SaveManager.auto_save()
 	print("[圣坛] 放弃道具，+600 金币")
+	await _popup_text_and_wait("金币 +600")
 	_close()
 
 
@@ -315,15 +320,17 @@ func _get_reward_display_name(reward : Dictionary) -> String:
 	return rid
 
 
-# ============================================================
-#  弹窗
-# ============================================================
-func _show_reward_popup(reward : Dictionary):
+# ---- 弹窗并等待其消失（带全屏点击拦截） ----
+func _popup_and_wait(reward : Dictionary) -> void:
 	if Globals.is_item_get_popup_active:
 		return
 	var scene = load(Config.PATHS.ITEM_GET_POPUP)
 	if not scene:
 		return
+
+	# ★ 全屏遮挡：拦截一切鼠标点击
+	var blocker : ColorRect = _create_input_blocker()
+
 	var popup = scene.instantiate()
 	get_tree().root.add_child(popup)
 	var rtype : String = reward.get("type", "")
@@ -332,6 +339,48 @@ func _show_reward_popup(reward : Dictionary):
 		popup.show_relic(rid, 1)
 	elif rtype == "refine":
 		popup.show_refine(rid, 1)
+
+	if popup.has_signal("closed"):
+		await popup.closed
+	else:
+		await get_tree().create_timer(3.5, true, false, true).timeout
+
+	# ★ 移除遮挡
+	if is_instance_valid(blocker):
+		blocker.queue_free()
+
+
+func _popup_text_and_wait(text: String) -> void:
+	if Globals.is_item_get_popup_active:
+		return
+	var scene = load(Config.PATHS.ITEM_GET_POPUP)
+	if not scene:
+		return
+
+	var blocker : ColorRect = _create_input_blocker()
+
+	var popup = scene.instantiate()
+	get_tree().root.add_child(popup)
+	popup.show_text(text)
+
+	if popup.has_signal("closed"):
+		await popup.closed
+	else:
+		await get_tree().create_timer(3.5, true, false, true).timeout
+
+	if is_instance_valid(blocker):
+		blocker.queue_free()
+
+
+## 创建全屏透明遮挡层（拦截所有鼠标点击）
+func _create_input_blocker() -> ColorRect:
+	var blocker := ColorRect.new()
+	blocker.color = Color(0, 0, 0, 0)          # 完全透明，看不见
+	blocker.mouse_filter = Control.MOUSE_FILTER_STOP
+	blocker.set_anchors_preset(Control.PRESET_FULL_RECT)
+	blocker.z_index = 100                       # 盖在 ChapelUI 所有元素之上
+	add_child(blocker)
+	return blocker
 
 
 # ============================================================

@@ -173,27 +173,24 @@ func _apply_team_shader(sprite: AnimatedSprite2D, team_id: int) -> ShaderMateria
 #  词条运行时辅助
 # ============================================================
 func _is_talent_ready(data: UnitData, talent_id: String) -> bool:
-	if not data: return false
-	for inst in data.talent_slots:
-		if inst and inst.talent_id == talent_id and inst.is_active:
-			return inst.is_ready
-	return false
+	var inst = _get_talent_inst(data, talent_id)
+	return inst != null and inst.is_ready and inst.is_active
 
 
 func _reset_talent(data: UnitData, talent_id: String):
-	if not data: return
-	for inst in data.talent_slots:
-		if inst and inst.talent_id == talent_id:
-			inst.reset()
-			var cd = TalentManager.get_cooldown_after_trigger(talent_id)
-			if cd > 0:
-				inst.cooldown_remaining = cd
-			return
+	var inst = _get_talent_inst(data, talent_id)
+	if not inst: return
+	inst.reset()
+	var cd = TalentManager.get_cooldown_after_trigger(talent_id)
+	if cd > 0:
+		inst.cooldown_remaining = cd
 
 
 func _accumulate_talents(data: UnitData):
 	if not data: return
 	TalentManager.accumulate_talents(data.talent_slots)
+	if data.advanced_talent_inst:
+		TalentManager.accumulate_talents([data.advanced_talent_inst])
 
 
 func _get_talent_level(data: UnitData, talent_id: String) -> int:
@@ -584,6 +581,17 @@ func _shake_panel(direction: Vector2, intensity: float = SHAKE_INTENSITY, durati
 func _refresh_hp_labels():
 	player_hp_label.text = "%d/%d" % [_player_hp, _player.max_hp]
 	enemy_hp_label.text = "%d/%d" % [_enemy_hp, _enemy.max_hp]
+
+
+func _get_talent_inst(data: UnitData, talent_id: String) -> TalentInstance:
+	if not data: return null
+	for inst in data.talent_slots:
+		if inst and inst.talent_id == talent_id and inst.is_active:
+			return inst
+	# ★ 职业特技
+	if data.advanced_talent_inst and data.advanced_talent_inst.talent_id == talent_id:
+		return data.advanced_talent_inst
+	return null
 
 
 func _emit_result(continue_requested: bool):

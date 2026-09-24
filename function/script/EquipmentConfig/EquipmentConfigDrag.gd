@@ -20,6 +20,7 @@ func _init(p):
 #  启动拖拽
 # ============================================================
 func start_drag(btn: Button):
+	if btn.disabled: return
 	var slot_type : String = btn.get_meta("slot_type", "")
 	if panel.current_mode == panel.Mode.DEPLOY and slot_type == "armor": return
 	var item_id : String = btn.get_meta("item_id", "")
@@ -121,7 +122,11 @@ func end_drag():
 		panel._execute_drop.call_deferred(drop_data, target)
 		SoundManager.play_select_sound()
 	else:
-		if (panel.current_mode == panel.Mode.FORGE or (panel._is_shop_rest_mode() and panel.current_tab == "arena_forge")) \
+		# ★ 特技拖到空白区域 → 卸下
+		if source_type == "talent" and target == null:
+			panel._talent.execute_talent_remove.call_deferred(drop_data)
+			SoundManager.play_select_sound()
+		elif (panel.current_mode == panel.Mode.FORGE or (panel._is_shop_rest_mode() and panel.current_tab == "arena_forge")) \
 				and source_type == "forge_slot" and target == null:
 			panel._forge.execute_forge_slot_return.call_deferred(drop_data)
 			SoundManager.play_select_sound()
@@ -185,9 +190,14 @@ func _restore_drag_source():
 # ============================================================
 func _get_all_target_controls() -> Array[Control]:
 	var targets : Array[Control] = []
+	# ★ 单位列（含 armor_group 嵌套）
 	for col in panel.unit_container.get_children():
 		for child in col.get_children():
-			if child is Button: targets.append(child)
+			if child is Button:
+				targets.append(child)
+			elif child is VBoxContainer:
+				for sub in child.get_children():
+					if sub is Button: targets.append(sub)
 	if panel.relic_container:
 		for btn in panel.relic_container.get_children():
 			if btn is Button: targets.append(btn)
@@ -247,13 +257,19 @@ func _reset_targets_visuals():
 # ============================================================
 func _find_control_at_position(pos: Vector2) -> Control:
 	const BUFFER : int = 4
-	# 单位列
+	# ★ 单位列（含 armor_group 嵌套）
 	for col in panel.unit_container.get_children():
 		for child in col.get_children():
 			if child is Button:
 				var b2 : Button = child
 				if panel.current_mode == panel.Mode.DEPLOY and b2.get_meta("slot_type", "") == "armor": continue
 				if b2.get_global_rect().grow(BUFFER).has_point(pos): return b2
+			elif child is VBoxContainer:
+				for sub in child.get_children():
+					if sub is Button:
+						var b3 : Button = sub
+						if panel.current_mode == panel.Mode.DEPLOY and b3.get_meta("slot_type", "") == "armor": continue
+						if b3.get_global_rect().grow(BUFFER).has_point(pos): return b3
 	# 被动槽
 	if panel.relic_container:
 		for btn in panel.relic_container.get_children():
@@ -286,7 +302,7 @@ func _find_control_at_position(pos: Vector2) -> Control:
 			if btn is Button:
 				var b6 : Button = btn
 				if not b6.disabled and b6.get_global_rect().grow(BUFFER).has_point(pos): return b6
-	# ★ FORGE / ARENA_REST / MAP_SHOP_REST：统一处理
+	# FORGE / ARENA_REST / MAP_SHOP_REST
 	if panel.shop_container.visible:
 		for btn in panel.shop_container.get_children():
 			if btn is Button:
@@ -303,20 +319,26 @@ func _get_target_from_position(global_pos: Vector2) -> Control:
 	const BUFFER : int = 4
 	# 丢弃区优先
 	if panel.discard_zone.visible and panel.discard_zone.get_global_rect().has_point(global_pos): return panel.discard_zone
-	# 单位列
+	# ★ 单位列（含 armor_group 嵌套）
 	for col in panel.unit_container.get_children():
 		for child in col.get_children():
 			if child is Button:
 				var b : Button = child
 				if b.disabled: continue
 				if b.get_global_rect().grow(BUFFER).has_point(global_pos): return b
+			elif child is VBoxContainer:
+				for sub in child.get_children():
+					if sub is Button:
+						var b2 : Button = sub
+						if b2.disabled: continue
+						if b2.get_global_rect().grow(BUFFER).has_point(global_pos): return b2
 	# 被动槽
 	if panel.relic_container:
 		for btn in panel.relic_container.get_children():
 			if btn is Button:
-				var b2 : Button = btn
-				if b2.disabled: continue
-				if b2.get_global_rect().grow(BUFFER).has_point(global_pos): return b2
+				var b3 : Button = btn
+				if b3.disabled: continue
+				if b3.get_global_rect().grow(BUFFER).has_point(global_pos): return b3
 	# 待领取区
 	if panel._pending_container and panel._pending_section and panel._pending_section.visible:
 		for btn in panel._pending_container.get_children():
@@ -341,7 +363,7 @@ func _get_target_from_position(global_pos: Vector2) -> Control:
 			if btn is Button:
 				var b6 : Button = btn
 				if not b6.disabled and b6.get_global_rect().grow(BUFFER).has_point(global_pos): return b6
-	# ★ FORGE / ARENA_REST / MAP_SHOP_REST：统一处理
+	# FORGE / ARENA_REST / MAP_SHOP_REST
 	if panel.shop_container.visible:
 		for btn in panel.shop_container.get_children():
 			if btn is Button:

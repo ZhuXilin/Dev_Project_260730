@@ -5,6 +5,8 @@ extends CanvasLayer
 @onready var name_label = $ItemPanel/BoxContainer/Name
 @onready var count_label = $ItemPanel/BoxContainer/Count
 
+signal closed
+
 func show_item(item_id: String, count: int):
 	var data = ItemManager.get_item_data(item_id)
 	if not data:
@@ -25,6 +27,15 @@ func show_unit_unlock(units: Array):
 	icon.visible = false
 	count_label.visible = false
 	name_label.text = "解锁单位：\n" + ", ".join(units)
+	panel.visible = true
+	_auto_close()
+
+## 通用文本弹窗（无图标）
+func show_text(text: String):
+	_setup_popup()
+	icon.visible = false
+	count_label.visible = false
+	name_label.text = text
 	panel.visible = true
 	_auto_close()
 
@@ -61,4 +72,5 @@ func _auto_close():
 	await get_tree().create_timer(3.5, true, false, true).timeout
 	Globals.is_item_get_popup_active = false
 	MusicManager.resume_saved()
+	closed.emit()
 	queue_free()

@@ -52,6 +52,10 @@ func reset_combat_buffs():
 @export var talent_slots: Array = []
 @export var max_talent_slots: int = 1
 
+# ---- 职业特技（转职授予，不占普通词条槽） ----
+@export var advanced_talent_id : String = ""
+var advanced_talent_inst : TalentInstance = null
+
 # ---- 职业成长（魂加点） ----
 @export var advancement: Dictionary = {
 	"hp_bonus": 0,
@@ -145,6 +149,7 @@ func to_dict() -> Dictionary:
 		"armor_slots": _item_instance_array_to_array(armor_slots),
 		"talent_slots": _talent_instance_array_to_array(talent_slots),
 		"advanced_class": advanced_class,
+		"advanced_talent_id": advanced_talent_id,
 		"override_sprite_path": override_sprite_path,
 		"is_dead": is_dead,
 	}
@@ -171,6 +176,17 @@ static func from_dict(d: Dictionary) -> UnitData:
 	data.max_armor_slots = d.get("max_armor_slots", 2)
 	data.max_talent_slots = d.get("max_talent_slots", 1)
 	data.advanced_class = d.get("advanced_class", "")
+	data.advanced_talent_id = d.get("advanced_talent_id", "")
+	# 运行时实例
+	if data.advanced_talent_id != "":
+		var t_inst := TalentInstance.new()
+		t_inst.talent_id = data.advanced_talent_id
+		t_inst.is_active = true
+		var tdata = TalentManager.get_talent_data(data.advanced_talent_id)
+		if tdata and tdata.is_active_skill:
+			t_inst.is_ready = true
+			t_inst.cooldown_remaining = 0
+		data.advanced_talent_inst = t_inst
 	data.override_sprite_path = d.get("override_sprite_path", "")
 	data.is_dead = d.get("is_dead", false) 
 

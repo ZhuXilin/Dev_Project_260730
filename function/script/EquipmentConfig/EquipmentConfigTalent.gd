@@ -206,4 +206,7 @@ func is_talent_equipped_anywhere(talent_id: String) -> bool:
 		var u : UnitData = panel.party[i]
 		for inst in u.talent_slots:
 			if inst and inst.is_active and inst.talent_id == talent_id: return true
+		# ★ 也查职业特技
+		if u.advanced_talent_id == talent_id:
+			return true
 	return false

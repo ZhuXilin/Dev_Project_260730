@@ -17,8 +17,32 @@ func _ready():
 ## 外部传入奖励（MapScene 调用）
 func setup(rewards: Dictionary):
 	_rewards = rewards.duplicate(true)
+	# ★ 50% 概率额外给稀有掉落
+	if randf() < 0.5:
+		var rare_item : String = _roll_rare_drop()
+		if rare_item != "":
+			if not _rewards.has("items"):
+				_rewards["items"] = []
+			_rewards["items"].append(rare_item)
+			print("[宝箱] ★ 稀有掉落：%s" % rare_item)
 	_populate_rewards()
 
+
+## 稀有掉落池：epic/legendary 防具 + 精炼
+func _roll_rare_drop() -> String:
+	var pool : Array = []
+	# epic / legendary 防具
+	for iid in ItemManager.get_all_item_ids():
+		var d : ItemData = ItemManager.get_item_data(iid)
+		if not d: continue
+		if d.type != "armor": continue
+		if d.quality not in ["epic", "legendary"]: continue
+		if d.price <= 0: continue
+		pool.append(iid)
+	if pool.is_empty():
+		return ""
+	return pool[randi() % pool.size()]
+	
 
 func _populate_rewards():
 	for child in reward_container.get_children():

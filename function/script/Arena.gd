@@ -903,30 +903,37 @@ func _add_talent_exp_to_all(exp_gain: int) -> Array:
 	if not _current_player_data:
 		return results
 	var unit_name : String = _current_player_data.unit_name
+
+	# 普通词条
 	for inst in _current_player_data.talent_slots:
-		if not inst or not inst.is_active:
-			continue
-		var tid : String = inst.talent_id
-		var old_lv : int = TalentManager.get_talent_level(unit_name, tid)
-		var old_in : int = TalentManager.get_talent_exp_in_level(unit_name, tid)
-		var old_need : int = TalentManager.get_level_required_exp(unit_name, tid)
-		var actual : int = TalentManager.add_talent_exp(unit_name, tid, exp_gain)
-		if actual <= 0:
-			continue
-		var new_lv : int = TalentManager.get_talent_level(unit_name, tid)
-		var new_in : int = TalentManager.get_talent_exp_in_level(unit_name, tid)
-		var new_need : int = TalentManager.get_level_required_exp(unit_name, tid)
-		results.append({
-			"talent_id": tid,
-			"exp_gain": actual,
-			"old_level": old_lv,
-			"old_in": old_in,
-			"old_need": old_need,
-			"new_level": new_lv,
-			"new_in": new_in,
-			"new_need": new_need,
-		})
+		if not inst or not inst.is_active: continue
+		var r : Dictionary = _add_one_talent_exp(unit_name, inst.talent_id, exp_gain)
+		if not r.is_empty(): results.append(r)
+
+	# ★ 职业特技
+	if _current_player_data.advanced_talent_id != "":
+		var r2 : Dictionary = _add_one_talent_exp(unit_name, _current_player_data.advanced_talent_id, exp_gain)
+		if not r2.is_empty(): results.append(r2)
+
 	return results
+
+
+func _add_one_talent_exp(unit_name: String, tid: String, exp_gain: int) -> Dictionary:
+	var old_lv : int = TalentManager.get_talent_level(unit_name, tid)
+	var old_in : int = TalentManager.get_talent_exp_in_level(unit_name, tid)
+	var old_need : int = TalentManager.get_level_required_exp(unit_name, tid)
+	var actual : int = TalentManager.add_talent_exp(unit_name, tid, exp_gain)
+	if actual <= 0: return {}
+	return {
+		"talent_id": tid,
+		"exp_gain": actual,
+		"old_level": old_lv,
+		"old_in": old_in,
+		"old_need": old_need,
+		"new_level": TalentManager.get_talent_level(unit_name, tid),
+		"new_in": TalentManager.get_talent_exp_in_level(unit_name, tid),
+		"new_need": TalentManager.get_level_required_exp(unit_name, tid),
+	}
 
 
 # ============================================================

@@ -153,9 +153,18 @@ func _build_unit_card(unit_idx: int) -> PanelContainer:
 	var stat_str : String = " ".join(stat_parts)
 
 	var talent_str : String = ""
+	# ★ 职业特技：写入独立字段，不占普通词条槽
 	if adv.granted_talent != "":
-		var tdata : TalentData = TalentManager.get_talent_data(adv.granted_talent)
-		talent_str = tdata.display_name if tdata else adv.granted_talent
+		unit.advanced_talent_id = adv.granted_talent
+		# 运行时实例
+		var t_inst := TalentInstance.new()
+		t_inst.talent_id = adv.granted_talent
+		t_inst.is_active = true
+		var tdata = TalentManager.get_talent_data(adv.granted_talent)
+		if tdata and tdata.is_active_skill:
+			t_inst.is_ready = true
+			t_inst.cooldown_remaining = 0
+		unit.advanced_talent_inst = t_inst
 
 	status_lb.text = "→ ★ %s\n%s\n授予:%s" % [adv.name, stat_str, talent_str]
 
@@ -353,8 +362,10 @@ func _sync_advanced_class_to_gamestate(src_unit: UnitData):
 	for u in GameState.party:
 		if u.unit_name == src_unit.unit_name and u.display_name == src_unit.display_name:
 			u.advanced_class = src_unit.advanced_class
+			u.advanced_talent_id = src_unit.advanced_talent_id
+			u.advanced_talent_inst = src_unit.advanced_talent_inst
 			u.override_sprite_path = src_unit.override_sprite_path
-			# 同步加成（避免重复计算：只搬差值）
+			# 同步属性（只搬数值）
 			u.max_hp = src_unit.max_hp
 			u.strength = src_unit.strength
 			u.dexterity = src_unit.dexterity
@@ -362,16 +373,5 @@ func _sync_advanced_class_to_gamestate(src_unit: UnitData):
 			u.faith = src_unit.faith
 			u.arcane = src_unit.arcane
 			u.move_range = src_unit.move_range
-			# 同步授予词条
-			for t in src_unit.talent_slots:
-				if t and t.is_active:
-					var exists = false
-					for ut in u.talent_slots:
-						if ut and ut.talent_id == t.talent_id: exists = true; break
-					if not exists:
-						var ni = TalentInstance.new()
-						ni.talent_id = t.talent_id
-						ni.is_active = true
-						u.talent_slots.append(ni)
 			print("[HeroShrine] 已同步转职到 GameState：", u.display_name)
 			return

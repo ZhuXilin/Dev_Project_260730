@@ -1,19 +1,30 @@
 {
   "day1": [
-	{ "gold": 50, "materials": { "粗铁": 2 } },
-	{ "gold": 30, "materials": { "粗铁": 3 } },
+	{ "gold": 50,  "materials": { "粗铁": 2 } },
+	{ "gold": 30,  "materials": { "粗铁": 3 } },
 	{ "materials": { "精钢": 1 } },
-	{ "gold": 80 },
-	{ "soul": 1 },
-	{ "gold": 40, "items": ["wooden_shield"] }
+	{ "gold": 80,  "soul": 1 },
+	{ "gold": 60,  "items": ["iron_armor"] },
+	{ "gold": 50,  "items": ["steel_armor"] },
+	{ "gold": 40,  "items": ["knight_armor"] },
+	{ "gold": 100, "items": ["power_ring"], "soul": 2 },
+	{ "gold": 100, "items": ["guard_ring"] },
+	{ "gold": 80,  "items": ["speed_boots"], "materials": { "秘银": 1 } },
+	{ "soul": 3 },
+	{ "soul": 2,   "materials": { "龙鳞": 1 } }
   ],
   "day2": [
-	{ "gold": 80, "materials": { "精钢": 1 } },
-	{ "gold": 50, "materials": { "粗铁": 5 } },
-	{ "materials": { "秘银": 1 } },
-	{ "gold": 120 },
-	{ "soul": 1 },
-	{ "gold": 60, "items": ["iron_armor"] },
-	{ "materials": { "龙鳞": 1 } }
+	{ "gold": 120, "materials": { "精钢": 2 } },
+	{ "gold": 80,  "materials": { "粗铁": 5 }, "soul": 1 },
+	{ "gold": 150, "materials": { "秘银": 2 } },
+	{ "gold": 200 },
+	{ "soul": 3 },
+	{ "gold": 150, "soul": 2, "materials": { "龙鳞": 1 } },
+	{ "gold": 100, "items": ["knight_armor"], "soul": 2 },
+	{ "gold": 100, "items": ["knight_armor", "guard_ring"] },
+	{ "gold": 150, "items": ["soul_guardian_plate"], "materials": { "秘银": 1 } },
+	{ "gold": 150, "items": ["dragon_scale_armor"], "materials": { "龙鳞": 1 } },
+	{ "gold": 200, "items": ["phoenix_cloak", "arcane_crown"] },
+	{ "soul": 5,   "materials": { "秘银": 2, "龙鳞": 1 } }
   ]
 }

@@ -62,6 +62,7 @@ var max_armor_slots: int = 2
 
 # ---- 词条 ----
 var talent_slots: Array[TalentInstance] = []
+var advanced_talent_inst : TalentInstance = null   # 职业特技运行时实例
 var max_talent_slots: int = 1
 
 # ---- 连击追踪 ----
@@ -678,10 +679,28 @@ func _init_talent_slots_from_data(data: UnitData):
 	while talent_slots.size() < max_talent_slots:
 		talent_slots.append(null)
 
+	# ★ 职业特技（转职授予，不占普通词条槽）
+	advanced_talent_inst = null
+	if data.advanced_talent_id != "":
+		var new_adv := TalentInstance.new()
+		new_adv.talent_id = data.advanced_talent_id
+		new_adv.is_active = true
+		var tdata_adv = TalentManager.get_talent_data(data.advanced_talent_id)
+		if tdata_adv and tdata_adv.is_active_skill:
+			new_adv.is_ready = true
+			new_adv.cooldown_remaining = 0
+		else:
+			new_adv.is_ready = false
+		advanced_talent_inst = new_adv
+		
+
 func get_talent_instance(talent_id: String) -> TalentInstance:
 	for inst in talent_slots:
 		if inst and inst.talent_id == talent_id and inst.is_active:
 			return inst
+	# ★ 也查职业特技
+	if advanced_talent_inst and advanced_talent_inst.talent_id == talent_id and advanced_talent_inst.is_active:
+		return advanced_talent_inst
 	return null
 
 func equip_talent(talent_id: String) -> bool:
@@ -729,6 +748,9 @@ func reset_all_talents():
 	for inst in talent_slots:
 		if inst:
 			inst.reset()
+	# ★ 职业特技也重置
+	if advanced_talent_inst:
+		advanced_talent_inst.reset()
 
 func get_talent_school_count(school: String) -> int:
 	var count = 0
@@ -742,6 +764,9 @@ func get_talent_school_count(school: String) -> int:
 # ★ 改为调用 TalentManager 静态方法
 func accumulate_all_talents():
 	TalentManager.accumulate_talents(talent_slots)
+	# ★ 职业特技也积累
+	if advanced_talent_inst:
+		TalentManager.accumulate_talents([advanced_talent_inst])
 
 func equip_talent_to_slot(slot_index: int, talent_id: String) -> bool:
 	if slot_index < 0 or slot_index >= talent_slots.size():

@@ -205,7 +205,7 @@ func _build_ui_inner():
 	if main_hbox:
 		main_hbox.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	if bottom_hbox:
-		bottom_hbox.custom_minimum_size = Vector2(0, 40)
+		bottom_hbox.custom_minimum_size = Vector2(0, 24)
 		bottom_hbox.size_flags_vertical = Control.SIZE_FILL
 		bottom_hbox.alignment = BoxContainer.ALIGNMENT_CENTER
 
@@ -808,16 +808,31 @@ func _discard_pending_reward(data: Dictionary):
 #  单位图标（含 idle 动画）
 # ============================================================
 func _create_unit_icon(unit: UnitData, unit_idx: int) -> Control:
-	var wrapper := VBoxContainer.new()
-	wrapper.add_theme_constant_override("separation", 0)
+	# ★ 只需要调这两个数值
+	var icon_size : float = 32     # 图标大小
+	var y_offset : float = -8     # 垂直偏移（负 = 上移，正 = 下移）
+
+	var wrapper := Control.new()
+	wrapper.custom_minimum_size = Vector2(0, icon_size)
+	wrapper.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	wrapper.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 	wrapper.mouse_filter = Control.MOUSE_FILTER_STOP
 
 	var texture_rect := TextureRect.new()
-	texture_rect.custom_minimum_size = Vector2(0, 28)
+	# ---- 水平：自动居中（anchor=0.5，左右 offset 对称） ----
+	texture_rect.anchor_left = 0.5
+	texture_rect.anchor_right = 0.5
+	texture_rect.offset_left = -icon_size / 2.0
+	texture_rect.offset_right = icon_size / 2.0
+	# ---- 垂直：只由 y_offset 决定 ----
+	texture_rect.anchor_top = 0.0
+	texture_rect.anchor_bottom = 0.0
+	texture_rect.offset_top = y_offset
+	texture_rect.offset_bottom = y_offset + icon_size
+
 	texture_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	texture_rect.stretch_mode = TextureRect.STRETCH_KEEP_CENTERED
-	texture_rect.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	texture_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	texture_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
 
 	var frames_path = UnitDataManager.get_sprite_frames_path(unit.unit_name)
 	if unit.override_sprite_path != "":
@@ -828,14 +843,6 @@ func _create_unit_icon(unit: UnitData, unit_idx: int) -> Control:
 			texture_rect.texture = frames.get_frame_texture("idle", 0)
 			_attach_idle_animator(texture_rect, frames)
 	wrapper.add_child(texture_rect)
-
-	var name_label := Label.new()
-	name_label.text = unit.display_name
-	name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	name_label.add_theme_font_size_override("font_size", 5)
-	if unit.is_dead:
-		name_label.modulate = Color(0.4, 0.4, 0.4, 1)
-	wrapper.add_child(name_label)
 
 	wrapper.mouse_entered.connect(_on_unit_hover_entered.bind(unit_idx))
 	wrapper.mouse_exited.connect(_on_unit_hover_exited)
@@ -873,7 +880,7 @@ func _build_unit_columns():
 		var col := VBoxContainer.new()
 		col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		col.size_flags_vertical = Control.SIZE_EXPAND_FILL
-		col.add_theme_constant_override("separation", 1)
+		col.add_theme_constant_override("separation", 0)
 		unit_container.add_child(col)
 
 		var icon_ctrl : Control = _create_unit_icon(unit, i)
@@ -881,8 +888,7 @@ func _build_unit_columns():
 			icon_ctrl.modulate = Color(0.4, 0.4, 0.4, 1)
 		col.add_child(icon_ctrl)
 
-		col.add_child(Style.create_label(Style.SEPARATOR_TEXT, Style.FONT_SMALL))
-
+		# ---- 武器槽 ----
 		var weapon_inst : ItemInstance = unit.weapon_slot
 		var weapon_btn : Button = _create_item_button(weapon_inst, "weapon", i, -1)
 		if unit.is_dead: _disable_button(weapon_btn)
@@ -890,19 +896,29 @@ func _build_unit_columns():
 
 		col.add_child(Style.create_label(Style.SEPARATOR_TEXT, Style.FONT_SMALL))
 
+		# ---- 防具组 ----
+		var armor_group := VBoxContainer.new()
+		armor_group.add_theme_constant_override("separation", 2)
+		col.add_child(armor_group)
 		for slot_idx in range(unit.armor_slots.size()):
 			var armor_btn : Button = _create_item_button(unit.armor_slots[slot_idx], "armor", i, slot_idx)
 			if current_mode == Mode.DEPLOY: armor_btn.disabled = true
 			if unit.is_dead: _disable_button(armor_btn)
-			col.add_child(armor_btn)
+			armor_group.add_child(armor_btn)
 
-		col.add_child(Style.create_label(Style.SEPARATOR_TEXT, Style.FONT_SMALL))
-		col.add_child(Style.create_label("特技", Style.FONT_SMALL))
+		# ★ 去掉防具组后面的分隔线
+
+		# ---- 普通特技 ----
 		var talent_inst : TalentInstance = unit.talent_slots[0] if unit.talent_slots.size() > 0 else null
 		var talent_btn : Button = _create_talent_button(talent_inst, i, 0)
 		if unit.is_dead: _disable_button(talent_btn)
 		col.add_child(talent_btn)
 
+		# ---- 职业特技 ----
+		var adv_btn : Button = _create_advanced_talent_button(unit, i)
+		if unit.is_dead: _disable_button(adv_btn)
+		col.add_child(adv_btn)
+		
 
 func _disable_button(btn: Button):
 	btn.disabled = true
@@ -961,6 +977,16 @@ func _on_unit_hover_entered(unit_idx: int) -> void:
 	if talent_names.size() > 0:
 		lines.append("特技: " + ", ".join(talent_names))
 
+	# ★ 职业特技
+	if unit.advanced_talent_id != "":
+		var adv_data : TalentData = TalentManager.get_talent_data(unit.advanced_talent_id)
+		if adv_data:
+			var lv : int = TalentManager.get_talent_level(unit.unit_name, unit.advanced_talent_id)
+			if TalentManager.is_talent_max_level(unit.unit_name, unit.advanced_talent_id):
+				lines.append("职业: %s Lv%d MAX" % [adv_data.display_name, lv])
+			else:
+				lines.append("职业: %s Lv%d" % [adv_data.display_name, lv])
+
 	_show_detail_in_zone("\n".join(lines))
 
 
@@ -986,6 +1012,7 @@ func _create_item_button(inst: ItemInstance, slot_type: String, unit_idx: int, s
 		btn.mouse_entered.connect(_on_button_hover_entered.bind(item_id))
 		btn.mouse_exited.connect(_on_button_hover_exited)
 	return btn
+
 
 func _create_talent_button(inst: TalentInstance, unit_idx: int, slot_idx: int) -> Button:
 	var btn : Button = Style.create_styled_button(Style.FONT_TINY, Style.BTN_TALENT_SIZE)
@@ -1111,6 +1138,11 @@ func _is_valid_drop(data: Dictionary, target: Control) -> bool:
 	var source_type : String = data["slot_type"]
 	var target_type : String = target.get_meta("slot_type", "")
 	var discard : bool = target == discard_zone
+	# ★ 特技 → 特技库：任何模式都允许卸下
+	if source_type == "talent" and target_type == "library_talent":
+		return true
+	# ★ 特技 → 丢弃区：不允许（丢弃区灰色）
+	# （拖到空白区域由 end_drag 处理）
 
 	var tgt_uidx : int = target.get_meta("unit_idx", -1)
 	if tgt_uidx >= 0 and tgt_uidx < party.size():
@@ -1162,8 +1194,6 @@ func _is_valid_drop(data: Dictionary, target: Control) -> bool:
 		return _forge.is_valid_forge_drop(data, target)
 	if _is_shop_rest_mode() and current_tab == "arena_forge":
 		return _forge.is_valid_forge_drop(data, target)
-
-	if discard and source_type in ["library_talent", "talent"]: return false
 
 	if current_mode == Mode.DEPLOY:
 		if discard: return false
@@ -1220,27 +1250,7 @@ func _check_armor_swap_budget(data: Dictionary, target: Control) -> bool:
 	var ts : int = target.get_meta("slot_idx", -1)
 	if su < 0 or ss < 0 or tu < 0 or ts < 0: return false
 	if su == tu and ss == ts: return false
-
-	if su == tu:
-		var unit : UnitData = party[su]
-		var src_inst : ItemInstance = unit.armor_slots[ss]
-		var tgt_inst : ItemInstance = unit.armor_slots[ts]
-		var exclude : Array = [ss, ts]
-		var rest : int = _used_slots_excluding(unit, exclude)
-		var need : int = _inst_slots(src_inst) + _inst_slots(tgt_inst)
-		return rest + need <= unit.max_armor_slots
-	else:
-		var src_unit : UnitData = party[su]
-		var tgt_unit : UnitData = party[tu]
-		var src_inst : ItemInstance = src_unit.armor_slots[ss]
-		var tgt_inst : ItemInstance = tgt_unit.armor_slots[ts]
-		var su_used : int = _used_slots_excluding(src_unit, [ss])
-		var su_need : int = _inst_slots(tgt_inst)
-		if su_used + su_need > src_unit.max_armor_slots: return false
-		var tu_used : int = _used_slots_excluding(tgt_unit, [ts])
-		var tu_need : int = _inst_slots(src_inst)
-		if tu_used + tu_need > tgt_unit.max_armor_slots: return false
-		return true
+	return true   # 每个防具占 1 槽，交换永远合法
 
 
 # ============================================================
@@ -1269,6 +1279,8 @@ func _execute_drop(data: Dictionary, target: Control):
 	var discard : bool = target == discard_zone
 
 	if discard and source_type == "talent": _talent.execute_talent_remove(data); return
+	if source_type == "talent" and target_type == "library_talent":
+		_talent.execute_talent_remove(data); return
 	if discard: _discard_item(data); return
 	if source_type == "shop_item": _shop.buy_shop_item(data, target); return
 	if source_type == "library_weapon": _shop.library_to_weapon(data, target); return
@@ -1346,6 +1358,7 @@ func _on_confirm_pressed():
 		tu.max_armor_slots = u.max_armor_slots
 		tu.talent_slots = u.talent_slots.duplicate()
 		tu.is_dead = u.is_dead
+		tu.advanced_talent_id = u.advanced_talent_id
 
 	if _context.get_context_id() == "main_game" and selected_units.size() > 0:
 		var main_data : Dictionary = UnitDataManager.get_unit_data(selected_units[0])
@@ -1627,7 +1640,7 @@ func _show_craft_result(result : Dictionary):
 			lines.append("★ " + data.name)
 	lines.append("品质：" + _quality_cn(result["quality"]))
 	if result.get("bonus_count", 0) > 0:
-		lines.append("🎲 额外产出 ×%d" % result["bonus_count"])
+		lines.append("[额外] 产出 ×%d" % result["bonus_count"])
 	_show_detail_in_zone("\n".join(lines))
 
 
@@ -1694,3 +1707,36 @@ func _on_upgrade_shop_pressed():
 	SoundManager.play_select_sound()
 	_update_gold_display()
 	_schedule_build_ui()
+
+
+func _create_advanced_talent_button(unit: UnitData, unit_idx: int) -> Button:
+	var btn : Button = Style.create_styled_button(Style.FONT_TINY, Style.BTN_TALENT_SIZE)
+	btn.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	btn.set_meta("slot_type", "advanced_talent")
+	btn.set_meta("unit_idx", unit_idx)
+	btn.disabled = true
+
+	# ★ 只信 advanced_talent_id（转职时写入）
+	if unit.advanced_talent_id == "":
+		btn.text = "无"
+		btn.modulate = Color(0.5, 0.5, 0.5, 1)
+		return btn
+
+	var data : TalentData = TalentManager.get_talent_data(unit.advanced_talent_id)
+	if not data:
+		btn.text = "?"
+		btn.modulate = Color(0.5, 0.5, 0.5, 1)
+		return btn
+
+	var lv : int = TalentManager.get_talent_level(unit.unit_name, unit.advanced_talent_id)
+	if TalentManager.is_talent_max_level(unit.unit_name, unit.advanced_talent_id):
+		btn.text = "%s Lv%d MAX" % [data.display_name, lv]
+	else:
+		var cur_exp : int = TalentManager.get_talent_exp_in_level(unit.unit_name, unit.advanced_talent_id)
+		var need_exp : int = TalentManager.get_level_required_exp(unit.unit_name, unit.advanced_talent_id)
+		btn.text = "%s Lv%d %d/%d" % [data.display_name, lv, cur_exp, need_exp]
+	btn.modulate = Style.get_rarity_color(data.rarity)
+	btn.set_meta("talent_id", unit.advanced_talent_id)
+	btn.mouse_entered.connect(_on_talent_hover_entered.bind(unit.advanced_talent_id))
+	btn.mouse_exited.connect(_on_talent_hover_exited)
+	return btn
