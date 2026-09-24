@@ -70,6 +70,8 @@ var tutorial_stage : int = 0
 var pending_sacrifice_rewards : Array = []   # 元素：ItemInstance
 var pending_forge_rewards : Array = []       # 元素：ItemInstance
 
+var sacrifice_count : int = 0
+
 # ============================================================
 #  方法
 # ============================================================

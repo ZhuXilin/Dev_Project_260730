@@ -16,6 +16,7 @@ class_name UnitData
 @export var arcane: int = 3
 @export var move_range: int = 5
 @export var ignore_terrain_cost: bool = false
+@export var persistent_attack_bonus : float = 0.0   # ★ 熔铸累计攻击加成
 
 # ---- 战斗 Buff（临时，不入档） ----
 var buff_attack_percent : float = 0.0
@@ -152,6 +153,7 @@ func to_dict() -> Dictionary:
 		"advanced_talent_id": advanced_talent_id,
 		"override_sprite_path": override_sprite_path,
 		"is_dead": is_dead,
+		"persistent_attack_bonus": persistent_attack_bonus,
 	}
 
 
@@ -179,6 +181,7 @@ static func from_dict(d: Dictionary) -> UnitData:
 	data.advanced_talent_id = d.get("advanced_talent_id", "")     # ★ 新增
 	data.override_sprite_path = d.get("override_sprite_path", "")
 	data.is_dead = d.get("is_dead", false)
+	data.persistent_attack_bonus = d.get("persistent_attack_bonus", 0.0)
 
 	# ★ 自净：advanced_class 为空时，强制清空 advanced_talent_id（修旧档污染）
 	if data.advanced_class == "":

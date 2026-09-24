@@ -83,6 +83,8 @@ const CURRENT_VERSION = 8
 @export var pending_sacrifice_rewards: Array = []
 @export var pending_forge_rewards: Array = []
 
+@export var sacrifice_count: int = 0
+
 func compute_checksum() -> String:
 	var data = {
 		"music_volume": music_volume,
@@ -129,5 +131,6 @@ func compute_checksum() -> String:
 		"tutorial_stage": tutorial_stage,
 		"pending_sacrifice_rewards": pending_sacrifice_rewards,
 		"pending_forge_rewards": pending_forge_rewards,
+		"sacrifice_count": sacrifice_count,
 	}
 	return JSON.stringify(data, "  ").sha256_text()

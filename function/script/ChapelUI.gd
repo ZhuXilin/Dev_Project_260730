@@ -4,8 +4,6 @@ extends CanvasLayer
 signal closed
 
 var _chosen : bool = false
-var _pending_reward : Dictionary = {}
-var _pre_roll_reward : Dictionary = {}
 
 @onready var panel : Panel = $Panel
 @onready var title_label : Label = $Panel/VBox/Title
@@ -37,46 +35,22 @@ func _build_main_options():
 	if hint_label:
 		hint_label.text = "选择一项祝福"
 
-	# ★ 预抽一件，按钮上显示道具名
-	_pre_roll_reward = _roll_single_reward()
-	var item_label : String = "强力道具"
-	if not _pre_roll_reward.is_empty():
-		item_label = "强力道具：" + _get_reward_display_name(_pre_roll_reward)
-	else:
-		item_label = "强力道具\n（无可用，+600G）"
-
-	_add_option_button("金币 +600", _on_choose_gold)
-	_add_option_button(item_label, _on_choose_item)
-	_add_option_button(
-		"全队回满 HP" + ("\n+ 复活 1 名阵亡单位" if GameState.has_any_dead_unit() else ""),
-		_on_choose_heal
-	)
+	_add_option_button("回血", _on_choose_heal)
+	_add_option_button("复活", _on_choose_revive)
+	_add_option_button("熔铸单位", _on_choose_sacrifice)
 
 
 func _add_option_button(text: String, cb: Callable):
 	var btn := Button.new()
 	btn.text = text
-	btn.custom_minimum_size = Vector2(160, 60)
+	btn.custom_minimum_size = Vector2(120, 60)
 	btn.add_theme_font_size_override("font_size", 9)
 	btn.pressed.connect(cb)
 	option_row.add_child(btn)
 
 
 # ============================================================
-#  选项 1：金币
-# ============================================================
-func _on_choose_gold():
-	if _chosen: return
-	_chosen = true
-	EconomyManager.add_temp_gold(600)
-	SaveManager.auto_save()
-	print("[圣坛] 获得 600 金币")
-	await _popup_text_and_wait("金币 +600")
-	_close()
-
-
-# ============================================================
-#  选项 2：全队回满 + 复活
+#  选项 1：回血
 # ============================================================
 func _on_choose_heal():
 	if _chosen: return
@@ -84,14 +58,25 @@ func _on_choose_heal():
 	for ud in GameState.party:
 		if ud.is_dead: continue
 		ud.hit_points = ud.max_hp
-	print("[圣坛] 全队回满 HP")
+	SaveManager.auto_save()
+	print("[圣坛] 全队 HP 回满")
+	if hint_label:
+		hint_label.text = "全队 HP 已回满"
+	await get_tree().create_timer(0.8, true, false, true).timeout
+	_close()
 
-	if GameState.has_any_dead_unit():
-		_show_revive_submenu()
-	else:
-		SaveManager.auto_save()
-		await _popup_text_and_wait("全队 HP 回满")
-		_close()
+
+# ============================================================
+#  选项 2：复活
+# ============================================================
+func _on_choose_revive():
+	if _chosen: return
+	var dead : Array = GameState.get_dead_party()
+	if dead.is_empty():
+		if hint_label:
+			hint_label.text = "没有阵亡单位"
+		return
+	_show_revive_submenu()
 
 
 func _show_revive_submenu():
@@ -111,276 +96,99 @@ func _show_revive_submenu():
 		btn.pressed.connect(_on_revive_unit.bind(ud.unit_name, ud.display_name))
 		option_row.add_child(btn)
 
-	var skip := Button.new()
-	skip.text = "不复活"
-	skip.custom_minimum_size = Vector2(140, 40)
-	skip.add_theme_font_size_override("font_size", 8)
-	skip.pressed.connect(func():
-		SaveManager.auto_save()
-		await _popup_text_and_wait("全队 HP 回满")
-		_close()
-	)
-	option_row.add_child(skip)
+	var back := Button.new()
+	back.text = "返回"
+	back.custom_minimum_size = Vector2(100, 40)
+	back.add_theme_font_size_override("font_size", 8)
+	back.pressed.connect(func(): _build_main_options())
+	option_row.add_child(back)
 
 
 func _on_revive_unit(unit_name: String, display_name: String):
+	if _chosen: return
+	_chosen = true
 	if GameState.revive_unit(unit_name, display_name):
 		SaveManager.auto_save()
 		print("[圣坛] 复活 %s" % display_name)
-		await _popup_text_and_wait("复活：%s" % display_name)
-		_close()
+		if hint_label:
+			hint_label.text = "%s 已复活" % display_name
+		await get_tree().create_timer(0.8, true, false, true).timeout
+	_close()
 
 
 # ============================================================
-#  选项 3：强力道具（遗物 / 精炼）
+#  选项 3：熔铸
 # ============================================================
-func _on_choose_item():
+func _on_choose_sacrifice():
+	if _chosen: return
+	var alive : Array = []
+	for ud in GameState.party:
+		if not ud.is_dead:
+			alive.append(ud)
+	if alive.size() <= 1:
+		if hint_label:
+			hint_label.text = "至少保留 1 个存活单位，无法熔铸"
+		return
+	_show_sacrifice_submenu()
+
+
+func _show_sacrifice_submenu():
+	_clear_row(option_row)
+	var next_count : int = GameState.sacrifice_count + 1
+	var preview : Dictionary = SacrificeHelper.get_reward_preview(next_count)
+	var hint_text : String = "熔铸：获得 %d 金币 + %d 件史诗防具" % [
+		preview["gold"], preview["epic_count"]
+	]
+	if preview["relic"]:
+		hint_text += " + 1 遗物"
+	if hint_label:
+		hint_label.text = hint_text
+
+	for ud in GameState.party:
+		if ud.is_dead: continue
+		var btn := Button.new()
+		btn.text = ud.display_name
+		btn.custom_minimum_size = Vector2(110, 40)
+		btn.add_theme_font_size_override("font_size", 8)
+		btn.pressed.connect(_on_sacrifice_unit_picked.bind(ud))
+		option_row.add_child(btn)
+
+	var back := Button.new()
+	back.text = "返回"
+	back.custom_minimum_size = Vector2(100, 40)
+	back.add_theme_font_size_override("font_size", 8)
+	back.pressed.connect(func(): _build_main_options())
+	option_row.add_child(back)
+
+
+func _on_sacrifice_unit_picked(u: UnitData):
+	if _chosen: return
+	Globals.show_confirm(
+		self,
+		"确定熔铸 %s？\n该单位将被冻结，本局不可用。" % u.display_name,
+		"熔铸", "取消",
+		func(): _do_sacrifice_and_close(u),
+		func(): pass
+	)
+
+
+func _do_sacrifice_and_close(u: UnitData):
 	if _chosen: return
 	_chosen = true
 
-	var picked : Dictionary = _pre_roll_reward
-	if picked.is_empty():
-		EconomyManager.add_temp_gold(600)
-		SaveManager.auto_save()
-		print("[圣坛] 无可用道具，改为 600 金币")
-		await _popup_text_and_wait("金币 +600")
-		_close()
-		return
+	var result : Dictionary = SacrificeHelper.do_sacrifice(GameState.party, u)
+	print("[圣坛] 熔铸 %s：+%dG +%d 史诗" % [u.display_name, result["gold"], result["epic_count"]])
 
-	_pending_reward = picked
-	var slot_idx : int = _find_empty_passive_slot()
-	if slot_idx >= 0:
-		_place_reward_into_slot(picked, slot_idx)
-		_pending_reward = {}
-		SaveManager.auto_save()
-		await _popup_and_wait(picked)
-		_close()
-	else:
-		_show_replace_slot_ui(picked)
-
-
-## 抽取单件：遗物 / 精炼（均已排除已拥有的）
-func _roll_single_reward() -> Dictionary:
-	# 已拥有遗物
-	var owned_relics : Dictionary = {}
-	for p in GameState.get_relics_from_passives():
-		owned_relics[p.item_id] = true
-
-	# 已拥有精炼
-	var owned_refines : Dictionary = {}
-	for p in GameState.get_refines_from_passives():
-		var rid : String = p.get("refine_id", "")
-		if rid != "":
-			owned_refines[rid] = true
-
-	var pool : Array = []
-
-	# ---- 第一层：未拥有的遗物 + 未拥有的精炼 ----
-	for rid in RelicManager.get_unlocked_relics():
-		if not owned_relics.has(rid):
-			pool.append({"type": "relic", "id": rid})
-	for ref_id in RefineManager.get_all_ids():
-		if not RefineManager.is_recipe_unlocked(ref_id):
-			continue
-		if owned_refines.has(ref_id):
-			continue
-		pool.append({"type": "refine", "id": ref_id})
-
-	if not pool.is_empty():
-		pool.shuffle()
-		return pool[0]
-
-	# ---- 第二层：允许重复的精炼 ----
-	for ref_id in RefineManager.get_all_ids():
-		if not RefineManager.is_recipe_unlocked(ref_id):
-			continue
-		pool.append({"type": "refine", "id": ref_id})
-
-	if not pool.is_empty():
-		pool.shuffle()
-		return pool[0]
-
-	# ---- 第三层：允许重复的遗物 ----
-	for rid in RelicManager.get_unlocked_relics():
-		pool.append({"type": "relic", "id": rid})
-
-	if not pool.is_empty():
-		pool.shuffle()
-		return pool[0]
-
-	# 彻底没东西
-	return {}
-	
-
-func _find_empty_passive_slot() -> int:
-	var passives : Array = GameState.get_passives()
-	for i in range(passives.size()):
-		if passives[i] == null:
-			return i
-	return -1
-
-
-func _place_reward_into_slot(reward : Dictionary, slot_idx : int):
-	var rtype : String = reward.get("type", "")
-	var rid : String = reward.get("id", "")
-	if rid == "":
-		return
-	if rtype == "relic":
-		var inst := ItemInstance.new()
-		inst.item_id = rid
-		inst.count = 1
-		RelicManager.unlock_relic(rid)
-		GameState.set_passive_at_slot(slot_idx, inst)
-		print("[圣坛] 遗物 %s → 槽 %d" % [rid, slot_idx])
-	elif rtype == "refine":
-		GameState.set_passive_at_slot(slot_idx, {"refine_id": rid, "count": 1})
-		print("[圣坛] 精炼 %s → 槽 %d" % [rid, slot_idx])
-
-
-# ============================================================
-#  槽满：横排居中替换界面
-# ============================================================
-func _show_replace_slot_ui(reward : Dictionary):
-	var rname : String = _get_reward_display_name(reward)
-	if title_label:
-		title_label.text = "选择丢弃的槽位"
+	var msg : String = "已熔铸 %s\n+%d 金币 +%d 史诗防具（已进待领取）" % [
+		u.display_name, result["gold"], result["epic_count"]
+	]
+	if result["relic_id"] != "":
+		var rd : Dictionary = RelicManager.get_relic_data(result["relic_id"])
+		msg += "\n★ 遗物：" + rd.get("name", result["relic_id"])
 	if hint_label:
-		hint_label.text = "被动槽已满，点击一个槽位替换为「%s」" % rname
-
-	_clear_row(option_row)
-	_clear_row(item_row)
-	option_row.visible = true
-	item_row.visible = false
-	back_btn.visible = false   # 必须选一个（或放弃）
-
-	# option_row 是 HBox + alignment=1（居中），横排 4 个槽位按钮
-	var passives : Array = GameState.get_passives()
-	for i in range(passives.size()):
-		var btn := Button.new()
-		btn.text = _format_slot_display(passives[i], i)
-		btn.custom_minimum_size = Vector2(80, 40)
-		btn.add_theme_font_size_override("font_size", 7)
-		btn.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		btn.pressed.connect(_on_replace_slot_picked.bind(i))
-		option_row.add_child(btn)
-
-	# 放弃按钮（返还 600 金币）
-	var skip := Button.new()
-	skip.text = "放弃\n+600G"
-	skip.custom_minimum_size = Vector2(80, 40)
-	skip.add_theme_font_size_override("font_size", 7)
-	skip.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	skip.modulate = Color(0.7, 0.7, 0.7)
-	skip.pressed.connect(_on_give_up_reward)
-	option_row.add_child(skip)
-
-
-func _on_replace_slot_picked(slot_idx : int):
-	if _pending_reward.is_empty():
-		return
-	var reward : Dictionary = _pending_reward
-	_pending_reward = {}
-	_place_reward_into_slot(reward, slot_idx)
-	SaveManager.auto_save()
-	await _popup_and_wait(reward)
+		hint_label.text = msg
+	await get_tree().create_timer(1.2, true, false, true).timeout
 	_close()
-
-
-func _on_give_up_reward():
-	_pending_reward = {}
-	EconomyManager.add_temp_gold(600)
-	SaveManager.auto_save()
-	print("[圣坛] 放弃道具，+600 金币")
-	await _popup_text_and_wait("金币 +600")
-	_close()
-
-
-func _format_slot_display(p : Variant, idx : int) -> String:
-	var prefix : String = "槽%d：" % (idx + 1)
-	if p == null:
-		return prefix + "空"
-	if p is ItemInstance:
-		var rd : Dictionary = RelicManager.get_relic_data(p.item_id)
-		return prefix + rd.get("name", p.item_id)
-	if p is Dictionary and p.has("refine_id"):
-		var recipe : Dictionary = RefineManager.get_recipe(p.get("refine_id", ""))
-		return prefix + recipe.get("name", p.get("refine_id", ""))
-	return prefix + "?"
-
-
-func _get_reward_display_name(reward : Dictionary) -> String:
-	var rtype : String = reward.get("type", "")
-	var rid : String = reward.get("id", "")
-	if rtype == "relic":
-		var rd : Dictionary = RelicManager.get_relic_data(rid)
-		return rd.get("name", rid)
-	if rtype == "refine":
-		var recipe : Dictionary = RefineManager.get_recipe(rid)
-		return recipe.get("name", rid)
-	return rid
-
-
-# ---- 弹窗并等待其消失（带全屏点击拦截） ----
-func _popup_and_wait(reward : Dictionary) -> void:
-	if Globals.is_item_get_popup_active:
-		return
-	var scene = load(Config.PATHS.ITEM_GET_POPUP)
-	if not scene:
-		return
-
-	# ★ 全屏遮挡：拦截一切鼠标点击
-	var blocker : ColorRect = _create_input_blocker()
-
-	var popup = scene.instantiate()
-	get_tree().root.add_child(popup)
-	var rtype : String = reward.get("type", "")
-	var rid : String = reward.get("id", "")
-	if rtype == "relic":
-		popup.show_relic(rid, 1)
-	elif rtype == "refine":
-		popup.show_refine(rid, 1)
-
-	if popup.has_signal("closed"):
-		await popup.closed
-	else:
-		await get_tree().create_timer(3.5, true, false, true).timeout
-
-	# ★ 移除遮挡
-	if is_instance_valid(blocker):
-		blocker.queue_free()
-
-
-func _popup_text_and_wait(text: String) -> void:
-	if Globals.is_item_get_popup_active:
-		return
-	var scene = load(Config.PATHS.ITEM_GET_POPUP)
-	if not scene:
-		return
-
-	var blocker : ColorRect = _create_input_blocker()
-
-	var popup = scene.instantiate()
-	get_tree().root.add_child(popup)
-	popup.show_text(text)
-
-	if popup.has_signal("closed"):
-		await popup.closed
-	else:
-		await get_tree().create_timer(3.5, true, false, true).timeout
-
-	if is_instance_valid(blocker):
-		blocker.queue_free()
-
-
-## 创建全屏透明遮挡层（拦截所有鼠标点击）
-func _create_input_blocker() -> ColorRect:
-	var blocker := ColorRect.new()
-	blocker.color = Color(0, 0, 0, 0)          # 完全透明，看不见
-	blocker.mouse_filter = Control.MOUSE_FILTER_STOP
-	blocker.set_anchors_preset(Control.PRESET_FULL_RECT)
-	blocker.z_index = 100                       # 盖在 ChapelUI 所有元素之上
-	add_child(blocker)
-	return blocker
 
 
 # ============================================================
@@ -394,8 +202,7 @@ func _clear_row(row: Node):
 
 
 func _on_back_pressed():
-	if _chosen:
-		return
+	if _chosen: return
 	close_without_choice()
 
 
@@ -406,7 +213,6 @@ func close_without_choice():
 
 
 func _close():
-	if not is_inside_tree():
-		return
+	if not is_inside_tree(): return
 	closed.emit()
 	queue_free()

@@ -255,6 +255,10 @@ var arena_total_runs : int:
 	get: return resource_state.arena_total_runs
 	set(value): resource_state.arena_total_runs = value
 
+var sacrifice_count : int:
+	get: return resource_state.sacrifice_count
+	set(value): resource_state.sacrifice_count = value
+
 # ============================================================
 #  非转发字段
 # ============================================================
@@ -424,10 +428,12 @@ func start_new_cycle():
 	temp_soul = 0
 	temp_gold = 0
 	shop_level = 0
+	sacrifice_count = 0
 	cycle_start_soul = soul
 	cycle_start_materials = materials.duplicate()
 
 	for unit_data in party:
+		unit_data.persistent_attack_bonus = 0.0
 		unit_data.armor_slots.clear()
 		unit_data.max_armor_slots = 2
 		unit_data.is_dead = false
@@ -511,6 +517,7 @@ func reset_for_new_cycle():
 	map_snapshot.clear()
 	cycle_start_soul = 0
 	cycle_start_materials.clear()
+	sacrifice_count = 0
 
 
 func reset_all():
@@ -536,6 +543,7 @@ func reset_all():
 	map_snapshot.clear()
 	cycle_start_soul = 0
 	cycle_start_materials.clear()
+	sacrifice_count = 0
 
 
 func apply_relic_stats_to_unit(_unit_data: UnitData):

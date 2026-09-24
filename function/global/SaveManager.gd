@@ -156,6 +156,7 @@ func _build_save_data() -> SaveData:
 	save.unit_blessings = GameState.unit_blessings.duplicate(true)
 	save.arena_target_talents = GameState.arena_target_talents.duplicate(true)
 	save.arena_best_streak = GameState.arena_best_streak
+	save.sacrifice_count = GameState.sacrifice_count
 	save.talent_exp = GameState.talent_exp.duplicate(true)
 	save.tutorial_stage = GameState.tutorial_stage
 
@@ -192,6 +193,7 @@ func _apply_save_data(save: SaveData):
 	GameState.map_snapshot = save.map_snapshot.duplicate(true)
 	GameState.arena_target_talents = save.arena_target_talents.duplicate(true)
 	GameState.arena_best_streak = save.arena_best_streak
+	GameState.sacrifice_count = save.sacrifice_count
 	GameState.talent_exp = save.talent_exp.duplicate(true)
 
 	GameState.visited_nodes.clear()

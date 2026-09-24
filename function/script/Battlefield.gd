@@ -2417,36 +2417,16 @@ func _is_any_ui_active() -> bool:
 func _on_back_camp_pressed():
 	GameState.show_abandon_confirmation(self)
 
+
 # ============================================================
-#  战斗开始：精炼品消耗（从被动槽读） + 遗物属性应用
+#  战斗开始：精炼品消耗（从被动槽读） + 遗物属性应用 + 熔铸持久buff
 # ============================================================
 func _apply_team_buffs():
-	# ---- 1. 汇总被动槽里的精炼 buff ----
-	var buffs = {
-		"attack_percent": 0.0,
-		"crit_damage_bonus": 0.0,
-		"defense_flat": 0,
-		"damage_reduction": 0.0,
-		"heal_full": false,
-	}
-	for entry in GameState.get_refines_from_passives():
-		var refine_id = entry.get("refine_id", "")
-		if refine_id == "":
-			continue
-		var effect = RefineManager.get_effect(refine_id)
-		if effect.is_empty():
-			continue
-		var value = effect.get("value", 0)
-		match effect.get("type", ""):
-			"attack_percent":     buffs["attack_percent"] += value
-			"crit_damage_bonus":  buffs["crit_damage_bonus"] += value
-			"defense_flat":       buffs["defense_flat"] += int(value)
-			"damage_reduction":   buffs["damage_reduction"] += value
-			"heal_full":          buffs["heal_full"] = true
+	# ---- 1. 汇总被动槽里的精炼 buff（手动触发，不自动消耗）----
+	# 精炼现在由玩家在战斗中主动点击触发，见 _on_use_refine()
+	# _apply_team_buffs 不再读取 / 清空精炼槽
 
-	GameState.clear_refine_passives()
-
-	# ---- 2. 遗物属性加成（保留旧接口） ----
+	# ---- 2. 遗物属性加成 ----
 	var relic_stats = GameState.get_global_relic_stats()
 	# ---- 3. 遗物 effects ----
 	var relic_effects = GameState.get_global_relic_effects()
@@ -2456,11 +2436,12 @@ func _apply_team_buffs():
 		if unit.unit_stats.team_id != 0:
 			continue
 
-		# 精炼 buff
-		unit.buff_attack_percent += buffs["attack_percent"]
-		unit.buff_crit_damage_bonus += buffs["crit_damage_bonus"]
-		unit.buff_defense_flat += int(buffs["defense_flat"])
-		unit.buff_damage_reduction += buffs["damage_reduction"]
+		# ★ 熔铸持久攻击加成（本局累计，每次熔铸 +30%）
+		if unit.unit_stats.persistent_attack_bonus > 0.0:
+			unit.buff_attack_percent += unit.unit_stats.persistent_attack_bonus
+			print("[Battlefield] %s 熔铸攻击加成 +%.0f%%" % [
+				unit.unit_stats.display_name,
+				unit.unit_stats.persistent_attack_bonus * 100.0])
 
 		# 遗物属性
 		var s = unit.unit_stats
@@ -2495,13 +2476,8 @@ func _apply_team_buffs():
 
 		unit.update_hp_label()
 
-	if buffs["heal_full"]:
-		for unit in UnitManager.unit_list:
-			if unit.unit_stats.team_id == 0:
-				unit.hit_points = unit.unit_stats.max_hp
-				unit.update_hp_label()
+	print("[Battlefield] 遗物已应用 | 属性：", relic_stats, " 效果：", relic_effects)
 
-	print("[Battlefield] buff 已应用 | 精炼：", buffs, " 遗物属性：", relic_stats, " 遗物效果：", relic_effects)
 
 func _on_unit_removed_death(unit: Unit, team: int):
 	if team != 0:

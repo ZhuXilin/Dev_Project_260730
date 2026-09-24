@@ -642,7 +642,6 @@ func _build_sacrifice_panel():
 	shop_container.add_theme_constant_override("v_separation", 4)
 	shop_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 
-	# ★ 熔铸面板：ShopScroll 撑满，不让内容溢出
 	if shop_scroll:
 		shop_scroll.custom_minimum_size = Vector2(0, 0)
 		shop_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -659,9 +658,17 @@ func _build_sacrifice_panel():
 		shop_container.add_child(hint)
 		return
 
-	# ★ 标题：自动换行，不强制宽度
+	# ★ 用 SacrificeHelper 取预览
+	var next_count : int = GameState.sacrifice_count + 1
+	var preview : Dictionary = SacrificeHelper.get_reward_preview(next_count)
+	var preview_text : String = "熔铸一个单位（第 %d 次）\n获得 %d 金币 + %d 件史诗防具" % [
+		next_count, preview["gold"], preview["epic_count"]
+	]
+	if preview["relic"]:
+		preview_text += "\n★ 额外获得 1 件遗物"
+
 	var title := Label.new()
-	title.text = "熔铸一个单位\n获得 1000 金币 + 3 件史诗防具"
+	title.text = preview_text
 	title.add_theme_font_size_override("font_size", 8)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -699,54 +706,23 @@ func _on_open_sacrifice_ui():
 #  熔铸核心逻辑
 # ============================================================
 func _do_sacrifice(u: UnitData, _armors_ignored: Array, _discard_count: int):
-	u.is_dead = true
-	u.hit_points = 0
-
-	EconomyManager.add_temp_gold(1000)
-
-	var rewards : Array = _generate_sacrifice_rewards(3)
-	for inst in rewards:
-		GameState.pending_sacrifice_rewards.append(inst)
-
-	print("[熔铸] %s 被冻结，获得 1000 金币 + %d 件史诗防具" % [u.display_name, rewards.size()])
-
-	SaveManager.auto_save()
+	var result : Dictionary = SacrificeHelper.do_sacrifice(party, u)
 
 	_sync_all()
 	_build_unit_columns()
 	_build_pending_slots()
 	_update_gold_display()
-	_show_detail_in_zone("已熔铸：%s\n获得 1000 金币 + %d 件史诗防具\n请在上方领取" % [u.display_name, rewards.size()])
 
+	var msg : String = "已熔铸：%s\n获得 %d 金币 + %d 件史诗防具" % [
+		u.display_name, result["gold"], result["epic_count"]
+	]
+	if result["relic_id"] != "":
+		var rd : Dictionary = RelicManager.get_relic_data(result["relic_id"])
+		msg += "\n★ 额外遗物：%s" % rd.get("name", result["relic_id"])
+	msg += "\n请在上方领取"
+	_show_detail_in_zone(msg)
 
-func _generate_sacrifice_rewards(count: int) -> Array:
-	var result : Array = []
-	var candidates : Array = []
-	for item_id in ItemManager.get_all_item_ids():
-		var item_data = ItemManager.get_item_data(item_id)
-		if not item_data: continue
-		if item_data.type != "armor": continue
-		if item_data.quality != "epic": continue
-		candidates.append(item_id)
-
-	if candidates.is_empty():
-		for item_id in ItemManager.get_all_item_ids():
-			var item_data = ItemManager.get_item_data(item_id)
-			if not item_data: continue
-			if item_data.type != "armor": continue
-			if item_data.quality != "rare": continue
-			candidates.append(item_id)
-
-	if candidates.is_empty():
-		return result
-
-	for i in range(count):
-		var pick : String = candidates[randi() % candidates.size()]
-		var inst := ItemInstance.new()
-		inst.item_id = pick
-		inst.count = 1
-		result.append(inst)
-	return result
+	_schedule_build_ui()
 
 
 # ============================================================
@@ -790,6 +766,10 @@ func _equip_pending_reward(data: Dictionary, target: Control):
 	_sync_all()
 	_show_detail_in_zone("已装备：%s → %s" % [item_data.name, u.display_name])
 
+	# ★ 如果当前在熔铸标签，刷新面板（待领取清空后 → 显示熔铸按钮）
+	if current_tab == "sacrifice" and shop_container and shop_container.visible:
+		_build_sacrifice_panel()
+
 
 func _discard_pending_reward(data: Dictionary):
 	var pending_idx : int = data.get("pending_idx", -1)
@@ -802,6 +782,10 @@ func _discard_pending_reward(data: Dictionary):
 	list.erase(inst)
 	SaveManager.auto_save()
 	_build_pending_slots()
+
+	# ★ 如果当前在熔铸标签，刷新面板
+	if current_tab == "sacrifice" and shop_container and shop_container.visible:
+		_build_sacrifice_panel()
 
 
 # ============================================================
