@@ -939,6 +939,14 @@ func _on_request_show_victory(winning_team: int):
 				EconomyManager.add_temp_soul(soul_gain)
 				EconomyManager.apply_material_reward(materials)
 
+				# ★ 稀有掉落 roll
+				GameState.current_reward_rare_datas.clear()
+				var rare_drop : Dictionary = _roll_rare_drop_for_node(current_node_type)
+				if not rare_drop.is_empty():
+					var rare_data : ItemData = _apply_rare_drop(rare_drop)
+					if rare_data:
+						GameState.current_reward_rare_datas.append(rare_data)
+
 				print("--- 资源累加完成 ---")
 				print("temp_gold: ", GameState.temp_gold)
 				print("temp_soul: ", GameState.temp_soul)
@@ -1807,6 +1815,7 @@ func _create_scroll_container(child: Control, parent: Node, container_name: Stri
 	return scroll
 
 # ---- 地图模式：胜利继续 ----
+# ---- 地图模式：胜利继续 ----
 func _on_map_victory_continue():
 	print("=== _on_map_victory_continue ===")
 	print("reward_gold: ", GameState.current_reward_gold)
@@ -1846,6 +1855,12 @@ func _on_map_victory_continue():
 				data.description = "材料 x" + str(amount)
 				reward_item_datas.append(data)
 				print("添加材料显示: ", data.name)
+
+	# ★ 稀有掉落显示
+	for rare_data in GameState.current_reward_rare_datas:
+		if rare_data:
+			reward_item_datas.append(rare_data)
+			print("添加稀有掉落显示: ", rare_data.name)
 
 	var has_reward = (reward_gold > 0 or reward_soul > 0 or not reward_item_datas.is_empty())
 
@@ -2503,3 +2518,104 @@ func _on_unit_removed_death(unit: Unit, team: int):
 			ud.hit_points = 0
 			print("[永久死亡] %s 阵亡" % ud.display_name)
 			break
+
+# ============================================================
+#  稀有掉落
+# ============================================================
+const RARE_DROP_CHANCE : Dictionary = {
+	MapNode.NodeType.START: 0.05,
+	MapNode.NodeType.NORMAL: 0.05,
+	MapNode.NodeType.ELITE: 0.25,
+	MapNode.NodeType.BOSS: 0.80,
+}
+
+
+func _roll_rare_drop_for_node(node_type: int) -> Dictionary:
+	var chance : float = RARE_DROP_CHANCE.get(node_type, 0.0)
+	if randf() > chance:
+		return {}
+
+	# 池子：未拥有遗物 + 已解锁精炼 + epic/legendary 防具
+	var pool : Array = []
+
+	# 未拥有遗物
+	var owned_relics : Dictionary = {}
+	for relic in GameState.get_relics_from_passives():
+		owned_relics[relic.item_id] = true
+	for rid in RelicManager.get_unlocked_relics():
+		if not owned_relics.has(rid):
+			pool.append({"type": "relic", "id": rid})
+
+	# 已解锁精炼
+	for ref_id in RefineManager.get_all_ids():
+		if RefineManager.is_recipe_unlocked(ref_id):
+			pool.append({"type": "refine", "id": ref_id})
+
+	# epic/legendary 防具
+	for iid in ItemManager.get_all_item_ids():
+		var d : ItemData = ItemManager.get_item_data(iid)
+		if not d: continue
+		if d.type != "armor": continue
+		if d.quality not in ["epic", "legendary"]: continue
+		if d.price <= 0: continue
+		pool.append({"type": "armor", "id": iid})
+
+	if pool.is_empty():
+		return {}
+	pool.shuffle()
+	return pool[0]
+
+
+## 应用稀有掉落，返回用于显示的虚拟 ItemData
+func _apply_rare_drop(drop : Dictionary) -> ItemData:
+	var rtype : String = drop.get("type", "")
+	var rid : String = drop.get("id", "")
+	if rid == "":
+		return null
+	var virtual_data : ItemData = null
+
+	match rtype:
+		"relic":
+			var rd : Dictionary = RelicManager.get_relic_data(rid)
+			if rd.is_empty(): return null
+			RelicManager.unlock_relic(rid)
+			var inst := ItemInstance.new()
+			inst.item_id = rid
+			inst.count = 1
+			if not GameState.add_relic_to_passive_slot(inst):
+				print("[稀有掉落] 遗物 %s 解锁但未入槽（槽满）" % rid)
+			virtual_data = ItemData.new()
+			virtual_data.id = "rare_relic_" + rid
+			virtual_data.name = "★ 遗物：" + rd.get("name", rid)
+			virtual_data.description = rd.get("description", "")
+			var icon_path : String = rd.get("icon", "")
+			if icon_path != "" and ResourceLoader.exists(icon_path):
+				virtual_data.icon = load(icon_path)
+			print("[稀有掉落] 遗物 %s" % rid)
+
+		"refine":
+			var recipe : Dictionary = RefineManager.get_recipe(rid)
+			if recipe.is_empty(): return null
+			GameState.refined_items[rid] = GameState.refined_items.get(rid, 0) + 1
+			virtual_data = ItemData.new()
+			virtual_data.id = "rare_refine_" + rid
+			virtual_data.name = "★ 精炼：" + recipe.get("name", rid)
+			virtual_data.description = recipe.get("description", "")
+			print("[稀有掉落] 精炼 %s" % rid)
+
+		"armor":
+			var d : ItemData = ItemManager.get_item_data(rid)
+			if not d: return null
+			var inst2 := ItemInstance.new()
+			inst2.item_id = rid
+			inst2.count = 1
+			GameState.pending_forge_rewards.append(inst2)
+			virtual_data = ItemData.new()
+			virtual_data.id = "rare_armor_" + rid
+			virtual_data.name = "★ " + d.name
+			virtual_data.description = d.description
+			virtual_data.icon = d.icon
+			virtual_data.quality = d.quality
+			print("[稀有掉落] 防具 %s" % rid)
+
+	return virtual_data

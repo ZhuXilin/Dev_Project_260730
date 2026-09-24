@@ -183,6 +183,8 @@ var current_reward_materials : Dictionary:
 	get: return resource_state.current_reward_materials
 	set(value): resource_state.current_reward_materials = value
 
+var current_reward_rare_datas : Array = []   # ★ 稀有掉落显示数据
+
 var unlocked_recipes : Array:
 	get: return resource_state.unlocked_recipes
 	set(value): resource_state.unlocked_recipes = value
@@ -413,6 +415,7 @@ func clear_reward_items():
 
 func clear_current_reward():
 	resource_state.clear_current_reward()
+	current_reward_rare_datas.clear()
 
 # ============================================================
 #  编排方法

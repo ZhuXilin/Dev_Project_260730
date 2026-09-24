@@ -221,11 +221,10 @@ func _hotkey_lose():
 
 
 # ============================================================
-#  核心击杀逻辑（统一入口，带 is_instance_valid 保护）
+#  核心击杀逻辑
 # ============================================================
 ## team_id = 0 杀我方，team_id = 1 杀敌方
 func _do_kill_team(team_id: int) -> int:
-	# ---- 1. 收集有效目标 ----
 	var targets : Array = []
 	for u in UnitManager.unit_list:
 		if not is_instance_valid(u):
@@ -236,7 +235,6 @@ func _do_kill_team(team_id: int) -> int:
 			continue
 		targets.append(u)
 
-	# ---- 2. 逐个处理 ----
 	var n = 0
 	for u in targets:
 		if not is_instance_valid(u):
@@ -246,7 +244,6 @@ func _do_kill_team(team_id: int) -> int:
 		u.queue_free()
 		n += 1
 
-	# ---- 3. 胜负判定 ----
 	if n > 0:
 		TurnManager.check_victory()
 	return n
@@ -287,12 +284,16 @@ func _register_commands():
 
 	register("blessing", _cmd_blessing, "blessing <unit> <attr> <level>")
 	register("adv_class", _cmd_adv_class, "adv_class <unit_index>  给队伍成员转职")
+	register("clear_adv_class", _cmd_clear_adv_class, "clear_adv_class  清空所有单位转职状态")
 	register("max_armor", _cmd_max_armor, "max_armor <n>  全员防具槽 = n")
 
 	register("speed", _cmd_speed, "speed <-2..4>  设置游戏速度")
 	register("save", _cmd_save, "save  立即保存")
 	register("clear", _cmd_clear, "clear  清空输出", ["cls"])
-
+	
+	register("dump_units", _cmd_dump_units, "dump_units  打印队伍所有单位的转职字段")
+	
+	register("fix_adv_talent", _cmd_fix_adv_talent, "fix_adv_talent  清理不一致的职业特技")
 
 # ============================================================
 #  命令解析与执行
@@ -552,6 +553,9 @@ func _cmd_adv_class(args: Array):
 	if adv == null:
 		_out("该单位无转职", "red"); return
 	u.advanced_class = adv.id
+	# ★ 同步职业特技 id
+	if adv.granted_talent != "":
+		u.advanced_talent_id = adv.granted_talent
 	for k in adv.stat_bonus:
 		match k:
 			"max_hp":
@@ -567,6 +571,15 @@ func _cmd_adv_class(args: Array):
 		u.override_sprite_path = adv.sprite_frames_path
 	SaveManager.auto_save()
 	_out("%s → %s" % [u.display_name, adv.name], "green")
+
+
+func _cmd_clear_adv_class(_args: Array):
+	for u in GameState.party:
+		u.advanced_class = ""
+		u.advanced_talent_id = ""
+		u.advanced_talent_inst = null
+	SaveManager.auto_save()
+	_out("已清空所有单位的转职状态（%d 个）" % GameState.party.size(), "yellow")
 
 
 func _cmd_max_armor(args: Array):
@@ -661,14 +674,11 @@ func _is_in_run() -> bool:
 
 
 ## 是否处于"可判定胜负"的战斗中
-## Arena 战斗 或 战场战斗 → true
 func _is_in_combat() -> bool:
-	# Arena 战斗
 	var arena_battle = _find_node_by_name("ArenaBattle")
 	if arena_battle != null and is_instance_valid(arena_battle):
 		return true
 
-	# 战场：必须是 Battlefield 场景且非非战斗模式
 	var scene = get_tree().current_scene
 	if scene == null:
 		return false
@@ -716,3 +726,25 @@ func _parse_int(s: String) -> int:
 	s = s.strip_edges()
 	if s.begins_with("+"): s = s.substr(1)
 	return int(s) if s.is_valid_int() else 0
+
+func _cmd_dump_units(_args: Array):
+	_out("=== 队伍单位 ===", "yellow")
+	for i in range(GameState.party.size()):
+		var u : UnitData = GameState.party[i]
+		_out("[%d] %s/%s" % [i, u.unit_name, u.display_name], "cyan")
+		_out("    advanced_class = '%s'" % u.advanced_class, "white")
+		_out("    advanced_talent_id = '%s'" % u.advanced_talent_id, "white")
+		_out("    override_sprite_path = '%s'" % u.override_sprite_path, "white")
+	_out("=== 结束 ===", "yellow")
+
+
+func _cmd_fix_adv_talent(_args: Array):
+	var fixed : int = 0
+	for u in GameState.party:
+		if u.advanced_class == "" and u.advanced_talent_id != "":
+			u.advanced_talent_id = ""
+			u.advanced_talent_inst = null
+			fixed += 1
+			print("[GM] 清理 %s 的不一致职业特技" % u.display_name)
+	SaveManager.auto_save()
+	_out("已清理 %d 个不一致的职业特技" % fixed, "yellow")

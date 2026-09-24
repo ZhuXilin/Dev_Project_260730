@@ -86,6 +86,9 @@ func setup_reward(gold: int, soul: int, items: Array, hide_gold: bool = false, t
 			var color = _get_material_color(mat_name)
 			if color:
 				name_label.add_theme_color_override("font_color", color)
+		# ★ 稀有掉落 → 金色
+		elif data.name.begins_with("★ "):
+			name_label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.3))
 
 		hbox.add_child(name_label)
 

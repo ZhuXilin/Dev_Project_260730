@@ -176,19 +176,13 @@ static func from_dict(d: Dictionary) -> UnitData:
 	data.max_armor_slots = d.get("max_armor_slots", 2)
 	data.max_talent_slots = d.get("max_talent_slots", 1)
 	data.advanced_class = d.get("advanced_class", "")
-	data.advanced_talent_id = d.get("advanced_talent_id", "")
-	# 运行时实例
-	if data.advanced_talent_id != "":
-		var t_inst := TalentInstance.new()
-		t_inst.talent_id = data.advanced_talent_id
-		t_inst.is_active = true
-		var tdata = TalentManager.get_talent_data(data.advanced_talent_id)
-		if tdata and tdata.is_active_skill:
-			t_inst.is_ready = true
-			t_inst.cooldown_remaining = 0
-		data.advanced_talent_inst = t_inst
+	data.advanced_talent_id = d.get("advanced_talent_id", "")     # ★ 新增
 	data.override_sprite_path = d.get("override_sprite_path", "")
-	data.is_dead = d.get("is_dead", false) 
+	data.is_dead = d.get("is_dead", false)
+
+	# ★ 自净：advanced_class 为空时，强制清空 advanced_talent_id（修旧档污染）
+	if data.advanced_class == "":
+		data.advanced_talent_id = ""
 
 	if d.has("advancement"):
 		var adv_v : Variant = d["advancement"]
@@ -220,6 +214,18 @@ static func from_dict(d: Dictionary) -> UnitData:
 		data.armor_slots.append(null)
 	while data.talent_slots.size() < 1:
 		data.talent_slots.append(null)
+
+	# ★ 构造运行时职业特技实例
+	data.advanced_talent_inst = null
+	if data.advanced_talent_id != "":
+		var t_inst := TalentInstance.new()
+		t_inst.talent_id = data.advanced_talent_id
+		t_inst.is_active = true
+		var tdata = TalentManager.get_talent_data(data.advanced_talent_id)
+		if tdata and tdata.is_active_skill:
+			t_inst.is_ready = true
+			t_inst.cooldown_remaining = 0
+		data.advanced_talent_inst = t_inst
 
 	return data
 

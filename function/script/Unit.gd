@@ -648,6 +648,7 @@ func update_terrain_info():
 	var avoid_bonus = TerrainManager.TERRAIN_DATA[terrain_type]["avoid_bonus"]
 	terrain_label.text = terrain_name + "\n防御+" + str(def_bonus) + " 回避+" + str(avoid_bonus)
 
+
 func _init_talent_slots_from_data(data: UnitData):
 	talent_slots.clear()
 
@@ -680,6 +681,7 @@ func _init_talent_slots_from_data(data: UnitData):
 		talent_slots.append(null)
 
 	# ★ 职业特技（转职授予，不占普通词条槽）
+	# 只信 advanced_talent_id，不做 advanced_class 反查
 	advanced_talent_inst = null
 	if data.advanced_talent_id != "":
 		var new_adv := TalentInstance.new()
@@ -692,7 +694,7 @@ func _init_talent_slots_from_data(data: UnitData):
 		else:
 			new_adv.is_ready = false
 		advanced_talent_inst = new_adv
-		
+
 
 func get_talent_instance(talent_id: String) -> TalentInstance:
 	for inst in talent_slots:

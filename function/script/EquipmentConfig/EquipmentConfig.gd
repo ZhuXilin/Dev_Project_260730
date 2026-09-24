@@ -1714,9 +1714,9 @@ func _create_advanced_talent_button(unit: UnitData, unit_idx: int) -> Button:
 	btn.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	btn.set_meta("slot_type", "advanced_talent")
 	btn.set_meta("unit_idx", unit_idx)
-	btn.disabled = true
+	btn.disabled = true   # ★ 只展示
 
-	# ★ 只信 advanced_talent_id（转职时写入）
+	# ★ 只信 advanced_talent_id（转职时由 HeroShrineUI 写入）
 	if unit.advanced_talent_id == "":
 		btn.text = "无"
 		btn.modulate = Color(0.5, 0.5, 0.5, 1)

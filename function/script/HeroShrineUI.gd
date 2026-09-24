@@ -25,13 +25,12 @@ var _custom_party : Array = []
 
 
 # ============================================================
-#  上下文设置（可由外部在 add_child 前后调用）
+#  上下文设置
 # ============================================================
 func setup_arena(arena_node, unit_data) -> void:
 	_mode = "arena"
 	_arena_ref = arena_node
 	_custom_party = [unit_data] if unit_data else []
-	# 如果节点已 ready，立即重建 UI
 	if is_node_ready():
 		_rebuild()
 
@@ -153,18 +152,9 @@ func _build_unit_card(unit_idx: int) -> PanelContainer:
 	var stat_str : String = " ".join(stat_parts)
 
 	var talent_str : String = ""
-	# ★ 职业特技：写入独立字段，不占普通词条槽
 	if adv.granted_talent != "":
-		unit.advanced_talent_id = adv.granted_talent
-		# 运行时实例
-		var t_inst := TalentInstance.new()
-		t_inst.talent_id = adv.granted_talent
-		t_inst.is_active = true
-		var tdata = TalentManager.get_talent_data(adv.granted_talent)
-		if tdata and tdata.is_active_skill:
-			t_inst.is_ready = true
-			t_inst.cooldown_remaining = 0
-		unit.advanced_talent_inst = t_inst
+		var tdata : TalentData = TalentManager.get_talent_data(adv.granted_talent)
+		talent_str = tdata.display_name if tdata else adv.granted_talent
 
 	status_lb.text = "→ ★ %s\n%s\n授予:%s" % [adv.name, stat_str, talent_str]
 
@@ -252,6 +242,10 @@ func _begin_convert(unit : UnitData, adv : AdvancedClassData):
 
 	_is_performing = true
 
+	# ---- 0. 诊断日志 ----
+	print("[HeroShrine][DEBUG] _begin_convert unit=%s/%s adv=%s granted_talent=%s" % [
+		unit.unit_name, unit.display_name, adv.id, adv.granted_talent])
+
 	# 1. 立即扣金币 + 记录
 	_subtract_gold(COST_PER_CLASS)
 	unit.advanced_class = adv.id
@@ -269,19 +263,19 @@ func _begin_convert(unit : UnitData, adv : AdvancedClassData):
 			"arcane":       unit.arcane += val
 			"move_range":   unit.move_range += val
 
+	# ★ 职业特技：写入独立字段，不占普通词条槽
 	if adv.granted_talent != "":
+		unit.advanced_talent_id = adv.granted_talent
+		print("[HeroShrine][DEBUG]   → unit.advanced_talent_id = %s（对象 id=%d）" % [
+			unit.advanced_talent_id, unit.get_instance_id()])
 		var t_inst := TalentInstance.new()
 		t_inst.talent_id = adv.granted_talent
 		t_inst.is_active = true
-		var placed := false
-		for i in range(unit.talent_slots.size()):
-			if unit.talent_slots[i] == null:
-				unit.talent_slots[i] = t_inst
-				placed = true
-				break
-		if not placed:
-			unit.talent_slots.append(t_inst)
-			unit.max_talent_slots = unit.talent_slots.size()
+		var tdata = TalentManager.get_talent_data(adv.granted_talent)
+		if tdata and tdata.is_active_skill:
+			t_inst.is_ready = true
+			t_inst.cooldown_remaining = 0
+		unit.advanced_talent_inst = t_inst
 
 	if adv.sprite_frames_path != "":
 		unit.override_sprite_path = adv.sprite_frames_path
@@ -289,7 +283,6 @@ func _begin_convert(unit : UnitData, adv : AdvancedClassData):
 	if _mode == "map":
 		SaveManager.auto_save()
 	else:
-		# Arena 模式：同步到 GameState.party 里对应的单位
 		_sync_advanced_class_to_gamestate(unit)
 		SaveManager.auto_save()
 	print("[HeroShrine] %s 转职为 %s（%s 模式，金币已扣）" % [unit.display_name, adv.name, _mode])
@@ -357,15 +350,25 @@ func _on_close_pressed():
 	queue_free()
 
 
+# ============================================================
+#  竞技场模式：同步到 GameState.party
+# ============================================================
 func _sync_advanced_class_to_gamestate(src_unit: UnitData):
 	if src_unit == null: return
-	for u in GameState.party:
+	print("[HeroShrine][DEBUG] _sync_advanced_class_to_gamestate src=%s/%s class=%s talent=%s" % [
+		src_unit.unit_name, src_unit.display_name,
+		src_unit.advanced_class, src_unit.advanced_talent_id])
+	print("[HeroShrine][DEBUG]   队伍共 %d 个" % GameState.party.size())
+	for i in range(GameState.party.size()):
+		var u : UnitData = GameState.party[i]
+		var match_flag : String = "✅" if (u.unit_name == src_unit.unit_name and u.display_name == src_unit.display_name) else "❌"
+		print("[HeroShrine][DEBUG]   [%d] %s/%s %s" % [i, u.unit_name, u.display_name, match_flag])
 		if u.unit_name == src_unit.unit_name and u.display_name == src_unit.display_name:
+			print("[HeroShrine][DEBUG]     → 匹配，写入 party 单位")
 			u.advanced_class = src_unit.advanced_class
 			u.advanced_talent_id = src_unit.advanced_talent_id
 			u.advanced_talent_inst = src_unit.advanced_talent_inst
 			u.override_sprite_path = src_unit.override_sprite_path
-			# 同步属性（只搬数值）
 			u.max_hp = src_unit.max_hp
 			u.strength = src_unit.strength
 			u.dexterity = src_unit.dexterity
@@ -373,5 +376,5 @@ func _sync_advanced_class_to_gamestate(src_unit: UnitData):
 			u.faith = src_unit.faith
 			u.arcane = src_unit.arcane
 			u.move_range = src_unit.move_range
-			print("[HeroShrine] 已同步转职到 GameState：", u.display_name)
 			return
+	print("[HeroShrine][DEBUG]   → 未匹配到 party 单位")
