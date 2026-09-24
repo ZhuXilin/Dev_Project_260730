@@ -13,10 +13,11 @@ func _init(p):
 # ============================================================
 #  商店列表
 # ============================================================
+
 func build_shop_items():
 	if not panel.shop_manager: return
 
-	# ---- 清理铁匠铺残留（按名字精确清理） ----
+	# ---- 1. 清理铁匠铺残留（按名字精确清理） ----
 	var forge_nodes : Array = [
 		"ForgeCraftRow", "ForgeUpgradeLabel", "ForgeUpgradeBtn",
 		"ForgeUpgradeSpacer1", "ForgeUpgradeSpacer2",
@@ -29,20 +30,21 @@ func build_shop_items():
 			old.queue_free()
 	panel._forge.inline_craft_btn = null
 
-	# ---- 强制重置 ShopScroll 布局状态 ----
+	# ---- 2. 重置 ShopScroll ----
 	if panel.shop_scroll:
 		panel.shop_scroll.custom_minimum_size = Vector2.ZERO
 		panel.shop_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		panel.shop_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 		panel.shop_scroll.scroll_vertical = 0
 		panel.shop_scroll.scroll_horizontal = 0
-		panel.shop_scroll.visible = false
-		panel.shop_scroll.visible = true
 
-	# ---- 清空容器 ----
-	panel._clear_container(panel.shop_container)
+	# ---- 3. ★ 立即清空 shop_container（free 而非 queue_free） ----
+	if panel.shop_container:
+		for child in panel.shop_container.get_children():
+			panel.shop_container.remove_child(child)
+			child.free()
 
-	# ---- 重置容器属性 ----
+	# ---- 4. 重置容器属性 ----
 	panel.shop_container.columns = 3
 	panel.shop_container.add_theme_constant_override("h_separation", 2)
 	panel.shop_container.add_theme_constant_override("v_separation", 2)
@@ -50,7 +52,7 @@ func build_shop_items():
 	panel.shop_container.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 	panel.shop_container.visible = true
 
-	# ---- 生成按钮 ----
+	# ---- 5. 生成按钮 ----
 	var items : Array = panel.shop_manager.get_shop_items()
 	for i in range(items.size()):
 		var entry : Variant = items[i]
@@ -58,6 +60,8 @@ func build_shop_items():
 		btn.autowrap_mode = TextServer.AUTOWRAP_OFF
 		btn.clip_text = true
 		btn.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+		btn.disabled = false    # ★ 显式重置 disabled
+
 		if entry != null:
 			var entry_dict : Dictionary = entry
 			var item_data : ItemData = entry_dict["item_data"]
@@ -73,17 +77,17 @@ func build_shop_items():
 		else:
 			btn.text = "空位"
 			btn.disabled = true
+			btn.set_meta("slot_type", "")    # ★ 清空 meta，防止被拖拽源查找命中
+			btn.set_meta("shop_index", i)
 		panel.shop_container.add_child(btn)
 
-	# ---- 立即重排 ----
+	# ---- 6. 强制重排 ----
 	if panel.shop_container:
 		panel.shop_container.queue_sort()
+		panel.shop_container.call_deferred("queue_sort")
 	if panel.shop_scroll:
 		panel.shop_scroll.queue_sort()
 		panel.shop_scroll.call_deferred("queue_sort")
-	if panel.shop_container:
-		panel.shop_container.call_deferred("queue_sort")
-
 
 # ============================================================
 #  武器库 / 精炼库网格

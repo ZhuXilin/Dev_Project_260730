@@ -124,7 +124,19 @@ func init(units: Array, slot: int, mode: Mode, context: EquipContext = null):
 
 func _on_shop_updated():
 	_update_gold_display()
-	_schedule_build_ui()
+	# ★ 只重建商店列表，不重建整个 UI（避免 deferred 时序 + 累积状态）
+	var is_shop_view : bool = false
+	if current_mode == Mode.SHOP:
+		is_shop_view = true
+	elif current_tab == "arena_shop" and (current_mode == Mode.ARENA_REST
+			or current_mode == Mode.MAP_SHOP_REST
+			or current_mode == Mode.FORGE):
+		is_shop_view = true
+
+	if is_shop_view and shop_container and shop_container.visible:
+		_build_shop_items()
+	else:
+		_schedule_build_ui()
 
 func _on_close_pressed():
 	if not _check_pending_before_leave():
@@ -1050,43 +1062,35 @@ func _create_passive_button(inst: Variant, slot_index: int) -> Button:
 #  格数预算辅助
 # ============================================================
 func _inst_slots(inst: ItemInstance) -> int:
-	if inst == null: return 0
-	var data : ItemData = ItemManager.get_item_data(inst.item_id)
-	if not data: return 1
-	var sc : int = data.slot_count
-	return max(1, sc)
+	return 0 if inst == null else 1
 
 func _used_slots_of(unit: UnitData) -> int:
 	var used : int = 0
 	for slot in unit.armor_slots:
-		if slot == null: continue
-		used += _inst_slots(slot)
+		if slot != null: used += 1
 	return used
 
 func _used_slots_excluding(unit: UnitData, exclude_slots: Array) -> int:
 	var used : int = 0
 	for i in range(unit.armor_slots.size()):
 		if i in exclude_slots: continue
-		used += _inst_slots(unit.armor_slots[i])
+		if unit.armor_slots[i] != null: used += 1
 	return used
 
 func _can_equip_armor_to(unit_idx: int, item_id: String, exclude_slot_idx: int = -1) -> bool:
 	if unit_idx < 0 or unit_idx >= party.size(): return false
 	if item_id == "": return true
-	var data : ItemData = ItemManager.get_item_data(item_id)
-	if not data: return false
-	var need : int = _inst_slots_for_id(item_id)
 	var unit : UnitData = party[unit_idx]
-	var exclude : Array = []
-	if exclude_slot_idx >= 0: exclude.append(exclude_slot_idx)
-	var used : int = _used_slots_excluding(unit, exclude)
-	return used + need <= unit.max_armor_slots
+	# 拖到具体槽位 → 总是可以（覆盖 or 空槽）
+	if exclude_slot_idx >= 0 and exclude_slot_idx < unit.armor_slots.size():
+		return true
+	# 拖到"第一个空槽" → 找空槽
+	for s in unit.armor_slots:
+		if s == null: return true
+	return false
 
-func _inst_slots_for_id(item_id: String) -> int:
-	var data : ItemData = ItemManager.get_item_data(item_id)
-	if not data: return 1
-	var sc : int = data.slot_count
-	return max(1, sc)
+func _inst_slots_for_id(_item_id: String) -> int:
+	return 1
 
 func _get_item_name(inst: ItemInstance) -> String:
 	if not inst: return ""

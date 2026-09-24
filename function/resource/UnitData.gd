@@ -86,41 +86,17 @@ func get_armor_modifier_bonus() -> Dictionary:
 func count_used_armor_slots() -> int:
 	var used : int = 0
 	for slot_v in armor_slots:
-		if slot_v == null:
-			continue
-		var slot : ItemInstance = slot_v
-		var data : ItemData = ItemManager.get_item_data(slot.item_id)
-		if data:
-			var sc : int = data.slot_count
-			used += max(1, sc)
-		else:
-			used += 1
+		if slot_v != null: used += 1
 	return used
 
 
-## 是否还能装下指定防具（不考虑卸下已有装备）
-## 传 exclude_slot_idx 可模拟"先卸下某一格再装"
-func can_equip_armor(item_id: String, exclude_slot_idx: int = -1) -> bool:
-	var data : ItemData = ItemManager.get_item_data(item_id)
-	if not data:
-		return false
-	var sc : int = data.slot_count
-	var need : int = max(1, sc)
-	var used : int = 0
-	for i in range(armor_slots.size()):
-		if i == exclude_slot_idx:
-			continue
-		var slot_v : Variant = armor_slots[i]
-		if slot_v == null:
-			continue
-		var slot : ItemInstance = slot_v
-		var sdata : ItemData = ItemManager.get_item_data(slot.item_id)
-		if sdata:
-			var ssc : int = sdata.slot_count
-			used += max(1, ssc)
-		else:
-			used += 1
-	return used + need <= max_armor_slots
+## 是否还能装下指定防具
+func can_equip_armor(_item_id: String, exclude_slot_idx: int = -1) -> bool:
+	if exclude_slot_idx >= 0 and exclude_slot_idx < armor_slots.size():
+		return true
+	for slot_v in armor_slots:
+		if slot_v == null: return true
+	return false
 
 
 ## 返回含防具 modifier 加成的最终属性（取整）

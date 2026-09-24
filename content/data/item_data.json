@@ -538,7 +538,7 @@
 	"price": 360,
 	"quality": "legendary",
 	"defense": 8,
-	"slot_count": 2,
+	"slot_count": 1,
 	"modifier": { "strength": 2, "faith": 1 }
   },
   "phoenix_cloak": {

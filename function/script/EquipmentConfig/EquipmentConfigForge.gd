@@ -839,9 +839,9 @@ func _compute_random_craft(input_insts : Array) -> Dictionary:
 
 	var out_ids : Array = [candidates[randi() % candidates.size()]]
 
-	# 额外产出
+	# 额外产出：需要 ≥3 件输入 + 评分达标
 	var bonus_count : int = 0
-	if score >= BONUS_SCORE_THRESHOLD and randf() < BONUS_CHANCE:
+	if input_insts.size() >= 3 and score >= BONUS_SCORE_THRESHOLD and randf() < BONUS_CHANCE:
 		bonus_count = 1
 		out_ids.append(candidates[randi() % candidates.size()])
 
