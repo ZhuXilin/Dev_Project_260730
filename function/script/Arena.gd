@@ -19,7 +19,7 @@ const GOLD_SURVIVAL : Array = [1200, 1800, 3000]
 const SOUL_SURVIVAL : Array = [2, 3, 5]
 
 const ENEMY_SCALE_BY_STREAK : Array = [1.0, 1.2, 1.6, 1.9]
-const ENEMY_SCALE_SURVIVAL : Array = [2.2, 2.8, 3.5]
+const ENEMY_SCALE_SURVIVAL : Array = [1.8, 2.1, 2.4]
 
 const HERO_SHRINE_SCRIPT_PATH : String = "res://function/script/HeroShrineUI.gd"
 const HERO_SHRINE_FALLBACK_COST : int = 800
@@ -723,8 +723,10 @@ func _apply_enemy_scaling(enemy_data: UnitData):
 
 	enemy_data.max_hp = int(enemy_data.max_hp * mult)
 	enemy_data.hit_points = enemy_data.max_hp
-	enemy_data.strength = int(enemy_data.strength * mult)
-	enemy_data.dexterity = int(enemy_data.dexterity * mult)
+	# ★ 属性只缩放 40%，避免一击秒杀
+	var attr_mult : float = 1.0 + (mult - 1.0) * 0.4
+	enemy_data.strength = int(enemy_data.strength * attr_mult)
+	enemy_data.dexterity = int(enemy_data.dexterity * attr_mult)
 
 
 func _get_enemy_arena_exp(enemy_type: String) -> int:

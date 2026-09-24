@@ -58,8 +58,7 @@ func _setup_popup():
 	SoundManager.play_get_item_sound()
 
 func _auto_close():
-	# ---- 忽略游戏速度（第 4 参数为 true） ----
-	await get_tree().create_timer(2.0, true, false, true).timeout
+	await get_tree().create_timer(3.5, true, false, true).timeout
 	Globals.is_item_get_popup_active = false
 	MusicManager.resume_saved()
 	queue_free()

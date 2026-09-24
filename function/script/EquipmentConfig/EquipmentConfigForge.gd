@@ -10,7 +10,7 @@ const MAX_SLOTS : int = 9
 const WEAPON_UPGRADE_MAX : int = 3
 const UPGRADE_BASE_COST : int = 50
 const UPGRADE_GROWTH : float = 2.0
-const CRAFT_COST : int = 50
+const CRAFT_COST : int = 200
 
 
 # ---- 通用合成参数 ----

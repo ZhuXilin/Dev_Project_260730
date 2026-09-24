@@ -261,7 +261,7 @@ func _find_control_at_position(pos: Vector2) -> Control:
 				var b : Button = btn
 				if b.disabled: continue
 				if b.get_global_rect().grow(BUFFER).has_point(pos): return b
-	# ★ 待领取区（拖拽起点）
+	# 待领取区
 	if panel._pending_container and panel._pending_section and panel._pending_section.visible:
 		for btn in panel._pending_container.get_children():
 			if btn is Button:
@@ -286,9 +286,8 @@ func _find_control_at_position(pos: Vector2) -> Control:
 			if btn is Button:
 				var b6 : Button = btn
 				if not b6.disabled and b6.get_global_rect().grow(BUFFER).has_point(pos): return b6
-	# FORGE / arena_forge：识别 forge_slot；arena_shop：识别 shop_item
-	if (panel.current_mode == panel.Mode.FORGE or panel._is_shop_rest_mode()) \
-			and panel.shop_container.visible:
+	# ★ FORGE / ARENA_REST / MAP_SHOP_REST：统一处理
+	if panel.shop_container.visible:
 		for btn in panel.shop_container.get_children():
 			if btn is Button:
 				var b7 : Button = btn
@@ -318,7 +317,7 @@ func _get_target_from_position(global_pos: Vector2) -> Control:
 				var b2 : Button = btn
 				if b2.disabled: continue
 				if b2.get_global_rect().grow(BUFFER).has_point(global_pos): return b2
-	# 待领取区（仅作为丢弃目标，不接收 pending 内部拖拽）
+	# 待领取区
 	if panel._pending_container and panel._pending_section and panel._pending_section.visible:
 		for btn in panel._pending_container.get_children():
 			if btn is Button:
@@ -342,16 +341,16 @@ func _get_target_from_position(global_pos: Vector2) -> Control:
 			if btn is Button:
 				var b6 : Button = btn
 				if not b6.disabled and b6.get_global_rect().grow(BUFFER).has_point(global_pos): return b6
-	# FORGE 模式
-	if panel.current_mode == panel.Mode.FORGE and panel.shop_container.visible:
+	# ★ FORGE / ARENA_REST / MAP_SHOP_REST：统一处理
+	if panel.shop_container.visible:
 		for btn in panel.shop_container.get_children():
 			if btn is Button:
 				var b7 : Button = btn
 				var st : String = b7.get_meta("slot_type", "")
-				if panel.current_tab == "arena_shop" and st == "shop_item":
-					if not b7.disabled and b7.get_global_rect().grow(BUFFER).has_point(global_pos): return b7
-				elif st == "forge_slot":
+				if panel.current_tab == "arena_forge" and st == "forge_slot":
 					if b7.get_global_rect().grow(BUFFER).has_point(global_pos): return b7
+				elif panel.current_tab == "arena_shop" and st == "shop_item":
+					if not b7.disabled and b7.get_global_rect().grow(BUFFER).has_point(global_pos): return b7
 	# 武器升级按钮
 	if (panel.current_mode == panel.Mode.FORGE or (panel._is_shop_rest_mode() and panel.current_tab == "arena_forge")) \
 			and panel._forge.forge_upgrade_btn and is_instance_valid(panel._forge.forge_upgrade_btn) and not panel._forge.forge_upgrade_btn.disabled:

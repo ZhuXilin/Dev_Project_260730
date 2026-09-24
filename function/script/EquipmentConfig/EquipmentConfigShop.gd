@@ -16,7 +16,7 @@ func _init(p):
 func build_shop_items():
 	if not panel.shop_manager: return
 
-	# ---- 清理铁匠铺残留 ----
+	# ---- 清理铁匠铺残留（按名字精确清理） ----
 	var forge_nodes : Array = [
 		"ForgeCraftRow", "ForgeUpgradeLabel", "ForgeUpgradeBtn",
 		"ForgeUpgradeSpacer1", "ForgeUpgradeSpacer2",
@@ -36,11 +36,10 @@ func build_shop_items():
 		panel.shop_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 		panel.shop_scroll.scroll_vertical = 0
 		panel.shop_scroll.scroll_horizontal = 0
-		# 强制 Control 系统重排
 		panel.shop_scroll.visible = false
 		panel.shop_scroll.visible = true
 
-	# ---- 清空容器（用 queue_free 避免立即释放冲突） ----
+	# ---- 清空容器 ----
 	panel._clear_container(panel.shop_container)
 
 	# ---- 重置容器属性 ----
@@ -81,11 +80,10 @@ func build_shop_items():
 		panel.shop_container.queue_sort()
 	if panel.shop_scroll:
 		panel.shop_scroll.queue_sort()
-		# 下一帧再排一次（应对布局延迟）
 		panel.shop_scroll.call_deferred("queue_sort")
 	if panel.shop_container:
 		panel.shop_container.call_deferred("queue_sort")
-		
+
 
 # ============================================================
 #  武器库 / 精炼库网格
@@ -234,15 +232,20 @@ func swap_armor(data: Dictionary, target: Control):
 
 
 # ============================================================
-#  商店刷新
+#  商店刷新 / 清空插槽
 # ============================================================
 func on_reset_shop_pressed():
-	if panel.current_mode == panel.Mode.FORGE:
-		panel._forge.on_forge_clear_pressed(); return
-	if panel._is_shop_rest_mode():
-		if panel.current_tab == "arena_forge":
-			panel._forge.on_forge_clear_pressed(); return
-	if panel.current_mode != panel.Mode.SHOP and not (panel._is_shop_rest_mode() and panel.current_tab == "arena_shop"): return
+	# ★ 只有 forge tab 才走"清空插槽"
+	if panel.current_tab == "arena_forge":
+		if panel.current_mode == panel.Mode.FORGE or panel._is_shop_rest_mode():
+			panel._forge.on_forge_clear_pressed()
+			return
+
+	# 商店刷新：仅 SHOP / FORGE+arena_shop / MAP_SHOP_REST+arena_shop
+	if panel.current_mode != panel.Mode.SHOP \
+			and not (panel._is_shop_rest_mode() and panel.current_tab == "arena_shop") \
+			and not (panel.current_mode == panel.Mode.FORGE and panel.current_tab == "arena_shop"):
+		return
 	if not panel.shop_manager: return
 	var cost : int = panel.shop_manager.get_reset_cost()
 	if panel._context.get_gold() < cost:

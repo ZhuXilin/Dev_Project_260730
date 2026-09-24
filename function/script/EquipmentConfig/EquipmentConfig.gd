@@ -758,7 +758,6 @@ func _equip_pending_reward(data: Dictionary, target: Control):
 		if item_data.type != "armor": return
 		var slot_idx : int = target.get_meta("slot_idx", -1)
 		if slot_idx < 0 or slot_idx >= u.armor_slots.size(): return
-		if u.armor_slots[slot_idx] != null: return
 		u.armor_slots[slot_idx] = inst
 	else:
 		return
@@ -1135,7 +1134,6 @@ func _is_valid_drop(data: Dictionary, target: Control) -> bool:
 			if idata.type != "armor": return false
 			var ts_p : int = target.get_meta("slot_idx", -1)
 			if ts_p < 0 or ts_p >= party[tu_p].armor_slots.size(): return false
-			if party[tu_p].armor_slots[ts_p] != null: return false
 			var need_p : int = _inst_slots(inst)
 			var used_p : int = _used_slots_excluding(party[tu_p], [ts_p])
 			return used_p + need_p <= party[tu_p].max_armor_slots
@@ -1412,7 +1410,7 @@ func _switch_tab(tab: String):
 	if not _check_pending_before_leave():
 		return
 	if current_tab == tab: return
-	if _is_shop_rest_mode() and current_tab == "arena_forge":
+	if (current_mode == Mode.FORGE or _is_shop_rest_mode()) and current_tab == "arena_forge":
 		var unresolved : int = _forge.return_all_forge_slots()
 		_build_unit_columns()
 		if unresolved > 0:
