@@ -370,7 +370,7 @@ func _build_ui_inner():
 					if shop_manager:
 						reset_btn.text = "刷新商店 (" + str(shop_manager.get_reset_cost()) + "G)"
 					discard_zone.visible = true
-
+			_refresh_bottom_buttons()
 			if left_column: left_column.size_flags_vertical = Control.SIZE_EXPAND_FILL
 
 		Mode.SHOP:
@@ -1458,9 +1458,11 @@ func _force_relayout():
 		shop_container.queue_sort()
 
 func _refresh_bottom_buttons():
-	# ★ 熔铸标签下灰化"继续探索"
+	# ★ 熔铸 / 铁匠铺下灰化"继续探索"
 	var in_sacrifice : bool = (current_tab == "sacrifice")
-	if in_sacrifice:
+	var in_arena_forge : bool = (current_tab == "arena_forge")
+
+	if in_sacrifice or in_arena_forge:
 		close_btn.disabled = true
 		close_btn.modulate = Color(0.5, 0.5, 0.5)
 	else:
@@ -1599,15 +1601,23 @@ func _on_refine_hover_exited(): _detail.on_refine_hover_exited()
 func _show_detail_in_zone(text: String): _detail.show_in_zone(text)
 func _clear_detail_zone(): _detail.clear_zone()
 
+
 func _show_craft_result(result : Dictionary):
 	var lines : Array = []
-	lines.append("=== 合成结果 ===")
+	if result.get("is_recipe", false):
+		lines.append("=== 图纸合成 ===")
+	else:
+		var score : int = result.get("input_score", 0)
+		lines.append("=== 通用合成（评分 %d）===" % score)
+		if result.get("lucky", false):
+			lines.append("★ 幸运暴击！品质 +1")
+
 	for item_id in result["item_ids"]:
 		var data = ItemManager.get_item_data(item_id)
 		if data:
 			lines.append("★ " + data.name)
 	lines.append("品质：" + _quality_cn(result["quality"]))
-	if result["bonus_count"] > 0:
+	if result.get("bonus_count", 0) > 0:
 		lines.append("🎲 额外产出 ×%d" % result["bonus_count"])
 	_show_detail_in_zone("\n".join(lines))
 

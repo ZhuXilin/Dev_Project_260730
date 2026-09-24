@@ -286,16 +286,17 @@ func _find_control_at_position(pos: Vector2) -> Control:
 			if btn is Button:
 				var b6 : Button = btn
 				if not b6.disabled and b6.get_global_rect().grow(BUFFER).has_point(pos): return b6
-	# FORGE 模式：商店标签识别 shop_item，铁匠铺标签识别 forge_slot
-	if panel.current_mode == panel.Mode.FORGE and panel.shop_container.visible:
+	# FORGE / arena_forge：识别 forge_slot；arena_shop：识别 shop_item
+	if (panel.current_mode == panel.Mode.FORGE or panel._is_shop_rest_mode()) \
+			and panel.shop_container.visible:
 		for btn in panel.shop_container.get_children():
 			if btn is Button:
 				var b7 : Button = btn
 				var st : String = b7.get_meta("slot_type", "")
-				if panel.current_tab == "arena_shop" and st == "shop_item":
-					if not b7.disabled and b7.get_global_rect().grow(BUFFER).has_point(pos): return b7
-				elif st == "forge_slot":
+				if panel.current_tab == "arena_forge" and st == "forge_slot":
 					if b7.get_global_rect().grow(BUFFER).has_point(pos): return b7
+				elif panel.current_tab == "arena_shop" and st == "shop_item":
+					if not b7.disabled and b7.get_global_rect().grow(BUFFER).has_point(pos): return b7
 	return null
 
 

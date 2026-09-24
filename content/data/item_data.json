@@ -512,5 +512,61 @@
 	"price": 0, "quality": "legendary", "attack_style": "standard",
 	"base_attack": 12, "attack_range": 1, "min_attack_range": 1,
 	"modifier": { "strength": 1.1, "faith": 0.4 }
+  },
+  "soul_guardian_plate": {
+	"id": "soul_guardian_plate",
+	"name": "魂守铠",
+	"type": "armor",
+	"use_type": "equipment",
+	"icon": "res://content/images/items/armor.png",
+	"description": "以魂力浇筑的守护铠甲",
+	"equipment_slot": "armor",
+	"price": 320,
+	"quality": "legendary",
+	"defense": 7,
+	"slot_count": 1,
+	"modifier": { "strength": 2, "faith": 2 }
+  },
+  "dragon_scale_armor": {
+	"id": "dragon_scale_armor",
+	"name": "龙鳞甲",
+	"type": "armor",
+	"use_type": "equipment",
+	"icon": "res://content/images/items/armor.png",
+	"description": "以龙鳞打造的重甲，防御极高",
+	"equipment_slot": "armor",
+	"price": 360,
+	"quality": "legendary",
+	"defense": 8,
+	"slot_count": 2,
+	"modifier": { "strength": 2, "faith": 1 }
+  },
+  "phoenix_cloak": {
+	"id": "phoenix_cloak",
+	"name": "凤凰披风",
+	"type": "armor",
+	"use_type": "equipment",
+	"icon": "res://content/images/items/boots.png",
+	"description": "轻灵的披风，行动如风",
+	"equipment_slot": "armor",
+	"price": 280,
+	"quality": "legendary",
+	"defense": 4,
+	"slot_count": 1,
+	"modifier": { "dexterity": 2, "move_range": 1 }
+  },
+  "arcane_crown": {
+	"id": "arcane_crown",
+	"name": "奥术王冠",
+	"type": "armor",
+	"use_type": "equipment",
+	"icon": "res://content/images/items/ring.png",
+	"description": "蕴含奥术力量的王冠",
+	"equipment_slot": "armor",
+	"price": 300,
+	"quality": "legendary",
+	"defense": 3,
+	"slot_count": 1,
+	"modifier": { "intelligence": 2, "faith": 1, "arcane": 1 }
   }
 }

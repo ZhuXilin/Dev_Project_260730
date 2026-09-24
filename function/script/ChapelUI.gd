@@ -5,6 +5,7 @@ signal closed
 
 var _chosen : bool = false
 var _pending_reward : Dictionary = {}
+var _pre_roll_reward : Dictionary = {}
 
 @onready var panel : Panel = $Panel
 @onready var title_label : Label = $Panel/VBox/Title
@@ -36,8 +37,16 @@ func _build_main_options():
 	if hint_label:
 		hint_label.text = "选择一项祝福"
 
+	# ★ 预抽一件，按钮上显示道具名
+	_pre_roll_reward = _roll_single_reward()
+	var item_label : String = "强力道具"
+	if not _pre_roll_reward.is_empty():
+		item_label = "强力道具：" + _get_reward_display_name(_pre_roll_reward)
+	else:
+		item_label = "强力道具\n（无可用，+600G）"
+
 	_add_option_button("金币 +600", _on_choose_gold)
-	_add_option_button("强力道具", _on_choose_item)
+	_add_option_button(item_label, _on_choose_item)
 	_add_option_button(
 		"全队回满 HP" + ("\n+ 复活 1 名阵亡单位" if GameState.has_any_dead_unit() else ""),
 		_on_choose_heal
@@ -125,7 +134,7 @@ func _on_choose_item():
 	if _chosen: return
 	_chosen = true
 
-	var picked : Dictionary = _roll_single_reward()
+	var picked : Dictionary = _pre_roll_reward
 	if picked.is_empty():
 		# 无候选 → 补偿金币
 		EconomyManager.add_temp_gold(600)
@@ -137,14 +146,12 @@ func _on_choose_item():
 	_pending_reward = picked
 	var slot_idx : int = _find_empty_passive_slot()
 	if slot_idx >= 0:
-		# 有空格 → 直接放
 		_place_reward_into_slot(picked, slot_idx)
 		_show_reward_popup(picked)
 		_pending_reward = {}
 		SaveManager.auto_save()
 		_close()
 	else:
-		# 槽满 → 弹替换界面
 		_show_replace_slot_ui(picked)
 
 
@@ -163,6 +170,8 @@ func _roll_single_reward() -> Dictionary:
 			owned_refines[rid] = true
 
 	var pool : Array = []
+
+	# ---- 第一层：未拥有的遗物 + 未拥有的精炼 ----
 	for rid in RelicManager.get_unlocked_relics():
 		if not owned_relics.has(rid):
 			pool.append({"type": "relic", "id": rid})
@@ -173,11 +182,31 @@ func _roll_single_reward() -> Dictionary:
 			continue
 		pool.append({"type": "refine", "id": ref_id})
 
-	if pool.is_empty():
-		return {}
-	pool.shuffle()
-	return pool[0]
+	if not pool.is_empty():
+		pool.shuffle()
+		return pool[0]
 
+	# ---- 第二层：允许重复的精炼 ----
+	for ref_id in RefineManager.get_all_ids():
+		if not RefineManager.is_recipe_unlocked(ref_id):
+			continue
+		pool.append({"type": "refine", "id": ref_id})
+
+	if not pool.is_empty():
+		pool.shuffle()
+		return pool[0]
+
+	# ---- 第三层：允许重复的遗物 ----
+	for rid in RelicManager.get_unlocked_relics():
+		pool.append({"type": "relic", "id": rid})
+
+	if not pool.is_empty():
+		pool.shuffle()
+		return pool[0]
+
+	# 彻底没东西
+	return {}
+	
 
 func _find_empty_passive_slot() -> int:
 	var passives : Array = GameState.get_passives()

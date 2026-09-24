@@ -3,20 +3,50 @@
 	"inputs": ["iron_armor", "wooden_shield"],
 	"unlock_cost": { "粗铁": 3, "精钢": 1 }
   },
-  "knight_armor": {
-	"inputs": ["iron_armor", "steel_armor"],
-	"unlock_cost": { "精钢": 3, "秘银": 1 }
+  "iron_helmet": {
+	"inputs": ["leather_armor", "wooden_shield"],
+	"unlock_cost": { "粗铁": 2 }
   },
+  "mage_robe": {
+	"inputs": ["leather_armor", "iron_helmet"],
+	"unlock_cost": { "粗铁": 3, "精钢": 1 }
+  },
+  "traveler_boots": {
+	"inputs": ["iron_armor", "leather_armor"],
+	"unlock_cost": { "粗铁": 2, "精钢": 1 }
+  },
+
   "power_ring": {
 	"inputs": ["wooden_shield", "steel_armor"],
-	"unlock_cost": { "粗铁": 5 }
+	"unlock_cost": { "粗铁": 5, "精钢": 1 }
   },
   "guard_ring": {
 	"inputs": ["iron_armor", "power_ring"],
-	"unlock_cost": { "粗铁": 4 }
+	"unlock_cost": { "精钢": 3 }
   },
   "speed_boots": {
 	"inputs": ["wooden_shield", "power_ring"],
 	"unlock_cost": { "精钢": 2 }
+  },
+  "knight_armor": {
+	"inputs": ["steel_armor", "iron_armor"],
+	"unlock_cost": { "精钢": 4, "秘银": 1 }
+  },
+
+  "soul_guardian_plate": {
+	"inputs": ["knight_armor", "guard_ring"],
+	"unlock_cost": { "秘银": 3, "龙鳞": 1 }
+  },
+  "dragon_scale_armor": {
+	"inputs": ["knight_armor", "steel_armor"],
+	"unlock_cost": { "秘银": 4, "龙鳞": 2 }
+  },
+  "phoenix_cloak": {
+	"inputs": ["knight_armor", "speed_boots"],
+	"unlock_cost": { "秘银": 3, "龙鳞": 2 }
+  },
+  "arcane_crown": {
+	"inputs": ["knight_armor", "mage_robe"],
+	"unlock_cost": { "秘银": 5, "龙鳞": 2 }
   }
 }

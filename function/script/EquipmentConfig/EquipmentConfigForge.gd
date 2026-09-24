@@ -12,6 +12,26 @@ const UPGRADE_BASE_COST : int = 50
 const UPGRADE_GROWTH : float = 2.0
 const CRAFT_COST : int = 50
 
+
+# ---- 通用合成参数 ----
+const QUALITY_SCORE : Dictionary = {
+	"common": 1, "rare": 3, "epic": 6, "legendary": 10,
+}
+const LUCKY_CHANCE : float = 0.05        # 5% 跳一级
+const BONUS_SCORE_THRESHOLD : int = 10
+const BONUS_CHANCE : float = 0.15
+
+# 品质概率表：[min_score, [w_common, w_rare, w_epic, w_legendary]]
+const CRAFT_QUALITY_TABLE : Array = [
+	[0,  [90, 10,  0,  0]],
+	[3,  [65, 30,  4,  1]],
+	[6,  [40, 40, 15,  5]],
+	[10, [20, 40, 30, 10]],
+	[16, [10, 30, 40, 20]],
+	[25, [ 0, 15, 40, 45]],
+]
+
+
 var panel = null
 var forge_slots : Array = []
 var forge_matched_recipe : String = ""
@@ -137,24 +157,6 @@ func _ensure_forge_craft_row():
 	_refresh_inline_craft_btn()
 
 
-func _refresh_inline_craft_btn():
-	if not inline_craft_btn or not is_instance_valid(inline_craft_btn): return
-	if forge_matched_recipe == "":
-		inline_craft_btn.text = "合成"
-		inline_craft_btn.disabled = true
-		inline_craft_btn.modulate = Color(0.5, 0.5, 0.5)
-		return
-	if not _is_forge_recipe_available():
-		inline_craft_btn.text = "未解锁"
-		inline_craft_btn.disabled = true
-		inline_craft_btn.modulate = Color(0.5, 0.5, 0.5)
-		return
-	inline_craft_btn.text = "合成 %dG" % CRAFT_COST
-	var can_afford : bool = panel._context.get_gold() >= CRAFT_COST
-	inline_craft_btn.disabled = not can_afford
-	inline_craft_btn.modulate = Color.WHITE if can_afford else Color(0.5, 0.5, 0.5)
-
-
 func _ensure_forge_result_label():
 	if forge_result_label and is_instance_valid(forge_result_label) and forge_result_label.is_inside_tree():
 		return
@@ -171,69 +173,121 @@ func _ensure_forge_result_label():
 
 func display_recipe_info():
 	var input_ids : Array = []
+	var input_insts : Array = []
 	for entry in forge_slots:
 		if entry != null:
 			var entry_dict : Dictionary = entry
 			var inst : ItemInstance = entry_dict["inst"]
 			input_ids.append(inst.item_id)
+			input_insts.append(inst)
+
 	if input_ids.is_empty():
-		panel._show_detail_in_zone("将防具拖入插槽以匹配配方")
+		panel._show_detail_in_zone("将防具拖入插槽以匹配配方\n或放入任意防具进行通用合成")
 		forge_matched_recipe = ""
 		_update_forge_result_label()
 		return
+
 	forge_matched_recipe = RecipeManager.match_recipe(input_ids)
-	if forge_matched_recipe == "":
-		var names : Array = []
-		for id in input_ids:
-			var d : ItemData = ItemManager.get_item_data(id)
-			names.append(d.name if d else id)
-		panel._show_detail_in_zone("无匹配配方\n\n已放: " + ", ".join(names))
-		_update_forge_result_label()
-		return
 
-	var recipe : RecipeData = RecipeManager.get_recipe(forge_matched_recipe)
-	var out_data : ItemData = ItemManager.get_item_data(forge_matched_recipe)
-	var lines : Array = []
-	lines.append("匹配配方: " + (out_data.name if out_data else forge_matched_recipe))
-
-	if not _is_forge_recipe_available():
+	# ---- 图纸路径 ----
+	if forge_matched_recipe != "" and _is_forge_recipe_available():
+		var recipe : RecipeData = RecipeManager.get_recipe(forge_matched_recipe)
+		var out_data : ItemData = ItemManager.get_item_data(forge_matched_recipe)
+		var lines : Array = []
+		lines.append("★ 匹配图纸: " + (out_data.name if out_data else forge_matched_recipe))
 		lines.append("")
-		lines.append("⚠ 此配方未解锁")
-		lines.append("前往铁砧酒馆 → 武备库 → 防具")
-		lines.append("消耗材料解锁后可合成")
+		lines.append("消耗:")
+		for id in recipe.inputs:
+			var d : ItemData = ItemManager.get_item_data(id)
+			lines.append("  " + (d.name if d else id))
+		lines.append("")
+		lines.append("金币: %dG" % CRAFT_COST)
+		lines.append("→ 产物: " + (out_data.name if out_data else forge_matched_recipe) + "（固定）")
 		panel._show_detail_in_zone("\n".join(lines))
 		_update_forge_result_label()
 		return
 
-	lines.append("")
-	lines.append("消耗:")
-	for id in recipe.inputs:
-		var d : ItemData = ItemManager.get_item_data(id)
-		lines.append("  " + (d.name if d else id))
-	lines.append("")
-	lines.append("金币: %dG" % CRAFT_COST)
-	lines.append("→ 产物: " + (out_data.name if out_data else forge_matched_recipe))
-	panel._show_detail_in_zone("\n".join(lines))
+	# ---- 通用路径 ----
+	var score : int = _calc_input_score(input_insts)
+	var weights : Array = _get_quality_weights(score)
+	var names : Array = ["普通", "稀有", "史诗", "传说"]
+	var total : int = 0
+	for w in weights:
+		total += w
+
+	var lines2 : Array = []
+	lines2.append("通用合成（随机）")
+	lines2.append("")
+	lines2.append("输入评分: %d" % score)
+	lines2.append("")
+	lines2.append("产出概率:")
+	if total > 0:
+		for i in range(4):
+			var pct : int = int(weights[i] * 100.0 / total)
+			if pct > 0:
+				lines2.append("  %s: %d%%" % [names[i], pct])
+	lines2.append("")
+	if forge_matched_recipe != "" and not _is_forge_recipe_available():
+		lines2.append("⚠ 图纸未解锁，走通用合成")
+	lines2.append("金币: %dG" % CRAFT_COST)
+	panel._show_detail_in_zone("\n".join(lines2))
 	_update_forge_result_label()
+
+
+func _refresh_inline_craft_btn():
+	if not inline_craft_btn or not is_instance_valid(inline_craft_btn): return
+
+	var has_input : bool = false
+	for entry in forge_slots:
+		if entry != null:
+			has_input = true
+			break
+
+	if not has_input:
+		inline_craft_btn.text = "合成"
+		inline_craft_btn.disabled = true
+		inline_craft_btn.modulate = Color(0.5, 0.5, 0.5)
+		return
+
+	if forge_matched_recipe != "" and _is_forge_recipe_available():
+		inline_craft_btn.text = "合成 %dG" % CRAFT_COST
+	else:
+		inline_craft_btn.text = "通用合成 %dG" % CRAFT_COST
+
+	var can_afford : bool = panel._context.get_gold() >= CRAFT_COST
+	inline_craft_btn.disabled = not can_afford
+	inline_craft_btn.modulate = Color.WHITE if can_afford else Color(0.5, 0.5, 0.5)
 
 
 func _update_forge_result_label():
 	if not forge_result_label or not is_instance_valid(forge_result_label): return
-	if forge_matched_recipe == "":
-		forge_result_label.text = "合成结果：—"
-		forge_result_label.modulate = Color(0.5, 0.5, 0.5)
-	else:
+
+	if forge_matched_recipe != "" and _is_forge_recipe_available():
 		var out_data : ItemData = ItemManager.get_item_data(forge_matched_recipe)
 		var out_name : String = out_data.name if out_data else forge_matched_recipe
-		if not _is_forge_recipe_available():
-			forge_result_label.text = "合成结果：%s（未解锁）" % out_name
-			forge_result_label.modulate = Color(0.5, 0.5, 0.5)
+		forge_result_label.text = "合成结果：%s（%dG）" % [out_name, CRAFT_COST]
+		if out_data:
+			forge_result_label.modulate = UIConst.QUALITY_COLORS.get(out_data.quality, Color.WHITE)
 		else:
-			forge_result_label.text = "合成结果：%s（%dG）" % [out_name, CRAFT_COST]
-			if out_data:
-				forge_result_label.modulate = UIConst.QUALITY_COLORS.get(out_data.quality, Color.WHITE)
-			else:
-				forge_result_label.modulate = Color.WHITE
+			forge_result_label.modulate = Color.WHITE
+	else:
+		var has_input : bool = false
+		var score : int = 0
+		for entry in forge_slots:
+			if entry != null:
+				has_input = true
+				var entry_dict : Dictionary = entry
+				var inst : ItemInstance = entry_dict["inst"]
+				var d : ItemData = ItemManager.get_item_data(inst.item_id)
+				if d:
+					score += QUALITY_SCORE.get(d.quality, 1)
+		if has_input:
+			forge_result_label.text = "合成结果：随机（评分 %d，%dG）" % [score, CRAFT_COST]
+			forge_result_label.modulate = Color(1.0, 0.85, 0.3)
+		else:
+			forge_result_label.text = "合成结果：—"
+			forge_result_label.modulate = Color(0.5, 0.5, 0.5)
+
 	_refresh_inline_craft_btn()
 
 
@@ -423,7 +477,7 @@ func on_forge_clear_pressed():
 #  合成
 # ============================================================
 func on_forge_craft_pressed():
-	# 收集输入
+	# ---- 1. 收集输入 ----
 	var input_insts : Array = []
 	for entry in forge_slots:
 		if entry != null:
@@ -434,31 +488,40 @@ func on_forge_craft_pressed():
 		Globals.show_confirm(panel, "请先放入防具", "确定", "", func(): pass, func(): pass, false)
 		return
 
-	# 检查金币
-	var craft_cost : int = CRAFT_COST
-	if panel._context.get_gold() < craft_cost:
+	# ---- 2. 检查金币 ----
+	if panel._context.get_gold() < CRAFT_COST:
 		panel._show_buy_failure_message("not_enough_gold")
 		return
 
-	# ---- 计算结果 ----
-	var result : Dictionary = _compute_craft_result(input_insts)
+	# ---- 3. 判断走图纸还是通用 ----
+	var input_ids : Array = []
+	for inst in input_insts:
+		input_ids.append(inst.item_id)
 
-	# ---- 扣金币 ----
-	panel._context.subtract_gold(craft_cost)
+	var matched : String = RecipeManager.match_recipe(input_ids)
+	var use_recipe : bool = false
+	if matched != "":
+		if panel._context.get_context_id() == "arena" or matched in GameState.unlocked_recipes:
+			use_recipe = true
 
-	# ---- 归还所有输入防具（清空插槽） ----
+	# ---- 4. 计算结果（不扣资源）----
+	var result : Dictionary = {}
+	if use_recipe:
+		result = _compute_recipe_result(matched)
+	else:
+		result = _compute_random_craft(input_insts)
+
+	# ---- 5. 扣金币 ----
+	panel._context.subtract_gold(CRAFT_COST)
+
+	# ---- 6. 消耗所有输入防具（直接清空插槽，不归还）----
 	for i in range(forge_slots.size()):
-		var entry : Variant = forge_slots[i]
-		if entry != null:
-			var entry_dict : Dictionary = entry
-			var ou : UnitData = panel.party[entry_dict["origin_unit"]]
-			_force_return_armor_to_unit(ou, entry_dict["inst"], entry_dict["origin_slot"])
-			forge_slots[i] = null
+		forge_slots[i] = null
 
-	# ---- 产出防具：优先放单位空槽，放不下则进待领取区 ----
+	# ---- 7. 产出防具：优先放单位空槽，放不下则进待领取区 ----
 	var out_ids : Array = result["item_ids"]
 
-	# 找单位空槽
+	# 找第一个有空格且存活的单位
 	var target_unit_idx : int = -1
 	var target_slot : int = -1
 	for i in range(panel.party.size()):
@@ -472,7 +535,7 @@ func on_forge_craft_pressed():
 		if target_unit_idx >= 0:
 			break
 
-	# 计算单位还能放几件
+	# 计算该单位还能放几件
 	var can_place_in_unit : int = 0
 	if target_unit_idx >= 0:
 		var pu : UnitData = panel.party[target_unit_idx]
@@ -499,6 +562,7 @@ func on_forge_craft_pressed():
 			inst.count = 1
 			GameState.pending_forge_rewards.append(inst)
 
+	# ---- 8. 收尾 ----
 	forge_matched_recipe = ""
 	SaveManager.auto_save()
 	panel._sync_all()
@@ -509,73 +573,6 @@ func on_forge_craft_pressed():
 	panel._schedule_build_ui()
 
 
-## 计算合成结果
-func _compute_craft_result(input_insts : Array) -> Dictionary:
-	var count : int = input_insts.size()
-
-	# 输入平均品质
-	var quality_sum : int = 0
-	for inst in input_insts:
-		var data = ItemManager.get_item_data(inst.item_id)
-		if data:
-			quality_sum += QUALITY_ORDER.find(data.quality)
-	var avg_quality_idx : int = quality_sum / max(1, count)
-	avg_quality_idx = clampi(avg_quality_idx, 0, QUALITY_ORDER.size() - 1)
-
-	# 品质 +1 概率
-	var up_prob : float = 0.0
-	if count >= 9:
-		up_prob = 0.45
-	elif count >= 6:
-		up_prob = 0.30
-	elif count >= 3:
-		up_prob = 0.15
-
-	var final_quality_idx : int = avg_quality_idx
-	if randf() < up_prob:
-		final_quality_idx = mini(final_quality_idx + 1, QUALITY_ORDER.size() - 1)
-	var final_quality : String = QUALITY_ORDER[final_quality_idx]
-
-	# 选一件该品质的防具
-	var candidates : Array = []
-	for item_id in ItemManager.get_all_item_ids():
-		var data = ItemManager.get_item_data(item_id)
-		if not data or data.type != "armor":
-			continue
-		if data.quality == final_quality and data.price > 0:
-			candidates.append(item_id)
-
-	# 该品质没候选 → 降级
-	while candidates.is_empty() and final_quality_idx > 0:
-		final_quality_idx -= 1
-		final_quality = QUALITY_ORDER[final_quality_idx]
-		for item_id in ItemManager.get_all_item_ids():
-			var data = ItemManager.get_item_data(item_id)
-			if not data or data.type != "armor":
-				continue
-			if data.quality == final_quality and data.price > 0:
-				candidates.append(item_id)
-
-	if candidates.is_empty():
-		candidates = ["wooden_shield"]  # 兜底
-
-	var out_ids : Array = []
-	out_ids.append(candidates[randi() % candidates.size()])
-
-	# 9 件时 30% 概率额外产出
-	var bonus_count : int = 0
-	if count >= 9 and randf() < 0.30:
-		bonus_count = 1 + (randi() % 2)  # 1 或 2
-		for _i in range(bonus_count):
-			out_ids.append(candidates[randi() % candidates.size()])
-
-	return {
-		"item_ids": out_ids,
-		"quality": final_quality,
-		"bonus_count": bonus_count,
-	}
-
-
 func _get_weapon_upgrade_cost(level: int) -> int:
 	return int(UPGRADE_BASE_COST * pow(UPGRADE_GROWTH, level))
 
@@ -584,7 +581,6 @@ func _is_forge_recipe_available() -> bool:
 	if forge_matched_recipe == "": return false
 	if panel._context.get_context_id() == "arena": return true
 	return forge_matched_recipe in GameState.unlocked_recipes
-
 
 # ============================================================
 #  拖拽合法性 / 执行
@@ -661,7 +657,6 @@ func is_valid_forge_drop(data: Dictionary, target: Control) -> bool:
 			var unit3 : UnitData = panel.party[tu3]
 			if unit3.is_dead: return false
 			if ts3 >= unit3.armor_slots.size(): return false
-			if unit3.armor_slots[ts3] != null: return false
 			var idx : int = data.get("forge_slot_index", -1)
 			if idx < 0 or idx >= forge_slots.size(): return false
 			if forge_slots[idx] == null: return false
@@ -733,7 +728,6 @@ func execute_forge_drop(data: Dictionary, target: Control):
 		var tgt_slot : int = target.get_meta("slot_idx", -1)
 		if tgt_unit < 0 or tgt_slot < 0: return
 		var tgt_unit_data : UnitData = panel.party[tgt_unit]
-		if tgt_unit_data.armor_slots[tgt_slot] != null: return
 		tgt_unit_data.armor_slots[tgt_slot] = entry_dict["inst"]
 		forge_slots[from_idx] = null
 		panel._build_unit_columns()
@@ -802,3 +796,111 @@ func _try_upgrade_weapon(unit_idx: int):
 	panel._sync_all()
 	panel._update_gold_display()
 	panel._schedule_build_ui()
+
+
+# ============================================================
+#  合成计算：图纸路径
+# ============================================================
+func _compute_recipe_result(recipe_id: String) -> Dictionary:
+	var out_data : ItemData = ItemManager.get_item_data(recipe_id)
+	var quality : String = out_data.quality if out_data else "common"
+	return {
+		"item_ids": [recipe_id],
+		"quality": quality,
+		"bonus_count": 0,
+		"is_recipe": true,
+		"input_score": 0,
+		"lucky": false,
+	}
+
+
+# ============================================================
+#  合成计算：通用路径（随机）
+# ============================================================
+func _compute_random_craft(input_insts : Array) -> Dictionary:
+	var score : int = _calc_input_score(input_insts)
+	var quality : String = _roll_quality_by_score(score)
+
+	# 幸运暴击：跳一级
+	var lucky : bool = false
+	if randf() < LUCKY_CHANCE:
+		var qi : int = QUALITY_ORDER.find(quality)
+		quality = QUALITY_ORDER[mini(qi + 1, QUALITY_ORDER.size() - 1)]
+		lucky = true
+
+	# 从该品质防具里随机抽
+	var candidates : Array = []
+	_collect_armor_candidates(quality, candidates)
+	while candidates.is_empty() and QUALITY_ORDER.find(quality) > 0:
+		quality = QUALITY_ORDER[QUALITY_ORDER.find(quality) - 1]
+		_collect_armor_candidates(quality, candidates)
+	if candidates.is_empty():
+		candidates = ["wooden_shield"]
+
+	var out_ids : Array = [candidates[randi() % candidates.size()]]
+
+	# 额外产出
+	var bonus_count : int = 0
+	if score >= BONUS_SCORE_THRESHOLD and randf() < BONUS_CHANCE:
+		bonus_count = 1
+		out_ids.append(candidates[randi() % candidates.size()])
+
+	return {
+		"item_ids": out_ids,
+		"quality": quality,
+		"bonus_count": bonus_count,
+		"is_recipe": false,
+		"input_score": score,
+		"lucky": lucky,
+	}
+
+
+func _calc_input_score(input_insts : Array) -> int:
+	var score : int = 0
+	for inst in input_insts:
+		var data : ItemData = ItemManager.get_item_data(inst.item_id)
+		if data:
+			score += QUALITY_SCORE.get(data.quality, 1)
+	return score
+
+
+func _roll_quality_by_score(score: int) -> String:
+	var weights : Array = CRAFT_QUALITY_TABLE[0][1]
+	for row in CRAFT_QUALITY_TABLE:
+		if score >= row[0]:
+			weights = row[1]
+		else:
+			break
+
+	var total : int = 0
+	for w in weights:
+		total += w
+	if total <= 0:
+		return "common"
+	var roll : int = randi() % total
+	var acc : int = 0
+	for i in range(weights.size()):
+		acc += weights[i]
+		if roll < acc:
+			return QUALITY_ORDER[i]
+	return "common"
+
+
+func _collect_armor_candidates(quality: String, out: Array):
+	for iid in ItemManager.get_all_item_ids():
+		var d : ItemData = ItemManager.get_item_data(iid)
+		if not d: continue
+		if d.type != "armor": continue
+		if d.quality != quality: continue
+		if d.price <= 0: continue
+		out.append(iid)
+
+
+func _get_quality_weights(score: int) -> Array:
+	var weights : Array = CRAFT_QUALITY_TABLE[0][1]
+	for row in CRAFT_QUALITY_TABLE:
+		if score >= row[0]:
+			weights = row[1]
+		else:
+			break
+	return weights

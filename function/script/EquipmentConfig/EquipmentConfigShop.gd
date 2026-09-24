@@ -16,11 +16,17 @@ func _init(p):
 func build_shop_items():
 	if not panel.shop_manager: return
 
-	# ---- 清理铁匠铺残留（含 @xxx@2） ----
-	for child in panel.right_container.get_children():
-		if "Forge" in child.name:
-			panel.right_container.remove_child(child)
-			child.queue_free()
+	# ---- 清理铁匠铺残留 ----
+	var forge_nodes : Array = [
+		"ForgeCraftRow", "ForgeUpgradeLabel", "ForgeUpgradeBtn",
+		"ForgeUpgradeSpacer1", "ForgeUpgradeSpacer2",
+		"ForgeResultLabel", "ForgeBottomSpacer"
+	]
+	for n_name in forge_nodes:
+		var old : Node = panel.right_container.get_node_or_null(n_name)
+		if old:
+			panel.right_container.remove_child(old)
+			old.queue_free()
 	panel._forge.inline_craft_btn = null
 
 	# ---- 强制重置 ShopScroll 布局状态 ----
