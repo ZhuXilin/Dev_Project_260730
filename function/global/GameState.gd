@@ -518,7 +518,8 @@ func reset_for_new_cycle():
 	cycle_start_soul = 0
 	cycle_start_materials.clear()
 	sacrifice_count = 0
-
+	shop_level = 0
+	
 
 func reset_all():
 	party.clear()
@@ -544,7 +545,7 @@ func reset_all():
 	cycle_start_soul = 0
 	cycle_start_materials.clear()
 	sacrifice_count = 0
-
+	shop_level = 0
 
 func apply_relic_stats_to_unit(_unit_data: UnitData):
 	pass

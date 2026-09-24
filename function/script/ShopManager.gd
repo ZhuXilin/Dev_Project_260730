@@ -9,21 +9,28 @@ var _context : EquipContext = null
 const SHOP_SIZE = 9
 const BASE_RESET_COST = 100
 const RESET_STEP = 50
-const LEGENDARY_CHANCE : float = 0.05
 
-# ---- 商店升级 ----
-const SHOP_MAX_LEVEL : int = 3
-const SHOP_UPGRADE_COSTS : Array = [500, 1500, 4000]   # 0→1, 1→2, 2→3
+# ---- 商店升级（6 级：Lv0-Lv5）----
+const SHOP_MAX_LEVEL : int = 5
+const SHOP_UPGRADE_COSTS : Array = [200, 500, 1200, 2500, 5000]
+
 # 品质权重（按商店等级）：common / rare / epic / legendary
 const QUALITY_WEIGHTS : Array = [
 	{"common": 60, "rare": 30, "epic": 10, "legendary": 0},   # Lv0
-	{"common": 40, "rare": 40, "epic": 18, "legendary": 2},   # Lv1
-	{"common": 20, "rare": 40, "epic": 30, "legendary": 10},  # Lv2
-	{"common": 10, "rare": 30, "epic": 40, "legendary": 20},  # Lv3
+	{"common": 45, "rare": 35, "epic": 18, "legendary": 2},   # Lv1
+	{"common": 30, "rare": 40, "epic": 25, "legendary": 5},   # Lv2
+	{"common": 15, "rare": 35, "epic": 40, "legendary": 10},  # Lv3（保底 rare）
+	{"common": 5,  "rare": 25, "epic": 50, "legendary": 20},  # Lv4（保底 rare）
+	{"common": 0,  "rare": 15, "epic": 50, "legendary": 35},  # Lv5（保底 epic）
 ]
+
+const RARE_GUARANTEE_LEVEL : int = 3
+const EPIC_GUARANTEE_LEVEL : int = 5
+
 
 func set_context(ctx: EquipContext):
 	_context = ctx
+
 
 func _get_pool_ids() -> Array:
 	if _context and _context.get_context_id() == "arena":
@@ -34,10 +41,12 @@ func _get_pool_ids() -> Array:
 			pool.append(recipe_id)
 	return pool
 
+
 func _get_gold() -> int:
 	if _context:
 		return _context.get_gold()
 	return EconomyManager.get_temp_gold()
+
 
 func _subtract_gold(amount: int) -> bool:
 	if _context:
@@ -47,8 +56,10 @@ func _subtract_gold(amount: int) -> bool:
 	EconomyManager.subtract_temp_gold(amount)
 	return true
 
+
 func get_reset_cost() -> int:
 	return BASE_RESET_COST + reset_count * RESET_STEP
+
 
 func reset_shop() -> int:
 	var cost = get_reset_cost()
@@ -61,12 +72,13 @@ func reset_shop() -> int:
 	shop_updated.emit()
 	return cost
 
+
 func generate_shop_items():
 	shop_items.clear()
 	var lv : int = _get_shop_level()
 	var weights : Dictionary = QUALITY_WEIGHTS[clampi(lv, 0, SHOP_MAX_LEVEL)]
 
-	# 收集各品质防具池（只出防具）
+	# 收集各品质防具池
 	var pools : Dictionary = {"common": [], "rare": [], "epic": [], "legendary": []}
 	for item_id in _get_pool_ids():
 		var data : ItemData = ItemManager.get_item_data(item_id)
@@ -96,6 +108,12 @@ func generate_shop_items():
 				quality = q
 				break
 
+		# ★ 保底
+		if lv >= EPIC_GUARANTEE_LEVEL and quality == "common":
+			quality = "epic"
+		elif lv >= RARE_GUARANTEE_LEVEL and quality == "common":
+			quality = "rare"
+
 		# 池子空则降级
 		var target_idx : int = order.find(quality)
 		var pool : Array = pools.get(quality, [])
@@ -107,6 +125,7 @@ func generate_shop_items():
 			continue
 		var pick : ItemData = pool[randi() % pool.size()]
 		shop_items.append({"item_data": pick, "price": pick.price})
+
 
 func buy_shop_item(index: int) -> Dictionary:
 	if index < 0 or index >= shop_items.size():
@@ -124,8 +143,10 @@ func buy_shop_item(index: int) -> Dictionary:
 	shop_updated.emit()
 	return {"success": true, "item_data": item_data, "price": price, "index": index}
 
+
 func get_shop_items() -> Array:
 	return shop_items.duplicate()
+
 
 func is_shop_empty() -> bool:
 	for entry in shop_items:
@@ -133,8 +154,13 @@ func is_shop_empty() -> bool:
 			return false
 	return true
 
+
+# ============================================================
+#  商店升级
+# ============================================================
 func get_shop_level() -> int:
 	return _get_shop_level()
+
 
 func get_upgrade_cost() -> int:
 	var lv : int = _get_shop_level()
@@ -142,10 +168,12 @@ func get_upgrade_cost() -> int:
 		return -1
 	return SHOP_UPGRADE_COSTS[lv]
 
+
 func can_upgrade_shop() -> bool:
 	var cost : int = get_upgrade_cost()
 	if cost < 0: return false
 	return _get_gold() >= cost
+
 
 func upgrade_shop() -> bool:
 	if not can_upgrade_shop(): return false
@@ -156,10 +184,12 @@ func upgrade_shop() -> bool:
 	shop_updated.emit()
 	return true
 
+
 func _get_shop_level() -> int:
 	if _context:
 		return _context.get_shop_level()
 	return 0
+
 
 func _set_shop_level(level: int) -> void:
 	if _context:

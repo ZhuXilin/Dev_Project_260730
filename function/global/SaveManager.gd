@@ -119,6 +119,7 @@ func _build_save_data() -> SaveData:
 	save.current_faction = GameState.current_faction
 	save.current_node_key = GameState.current_node_key
 	save.map_snapshot = GameState.map_snapshot.duplicate(true)
+	save.shop_level = GameState.shop_level
 
 	var sorted_visited = []
 	for key in GameState.visited_nodes.keys():
@@ -195,6 +196,7 @@ func _apply_save_data(save: SaveData):
 	GameState.arena_best_streak = save.arena_best_streak
 	GameState.sacrifice_count = save.sacrifice_count
 	GameState.talent_exp = save.talent_exp.duplicate(true)
+	GameState.shop_level = save.shop_level
 
 	GameState.visited_nodes.clear()
 	if save.visited_nodes is Array:

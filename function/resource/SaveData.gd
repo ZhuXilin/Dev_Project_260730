@@ -28,6 +28,7 @@ const CURRENT_VERSION = 8
 @export var temp_gold: int = 0
 
 @export var tutorial_stage: int = 0
+@export var shop_level: int = 0
 
 @export var unit_growth: Dictionary = {}
 @export var unit_blessings: Dictionary = {}
@@ -132,5 +133,6 @@ func compute_checksum() -> String:
 		"pending_sacrifice_rewards": pending_sacrifice_rewards,
 		"pending_forge_rewards": pending_forge_rewards,
 		"sacrifice_count": sacrifice_count,
+		"shop_level": shop_level,
 	}
 	return JSON.stringify(data, "  ").sha256_text()
