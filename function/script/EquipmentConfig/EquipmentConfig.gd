@@ -24,6 +24,8 @@ var _detail : EquipmentConfigDetail = null
 var _shop : EquipmentConfigShop = null
 var _talent : EquipmentConfigTalent = null
 
+var _upgrade_shop_btn : Button = null
+
 const ShopManagerScript = preload(Config.PATHS.SHOP_MANAGER_SCRIPT)
 
 @onready var mode_label = $VBoxContainer/TopBar/ModeLabel
@@ -369,12 +371,12 @@ func _build_ui_inner():
 					reset_btn.visible = true
 					reset_btn.text = "清空插槽"
 					_forge.display_recipe_info()
-					discard_zone.visible = true          # ★ 铁匠铺也显示
+					discard_zone.visible = true
 				"sacrifice":
 					_build_sacrifice_panel()
 					shop_container.visible = true
 					reset_btn.visible = false
-					discard_zone.visible = true          # ★ 熔铸也显示
+					discard_zone.visible = true
 				_:
 					_build_shop_items()
 					shop_container.visible = true
@@ -382,7 +384,7 @@ func _build_ui_inner():
 					if shop_manager:
 						reset_btn.text = "刷新商店 (" + str(shop_manager.get_reset_cost()) + "G)"
 					discard_zone.visible = true
-			_refresh_bottom_buttons()
+
 			if left_column: left_column.size_flags_vertical = Control.SIZE_EXPAND_FILL
 
 		Mode.SHOP:
@@ -432,19 +434,19 @@ func _build_ui_inner():
 					reset_btn.visible = true
 					if shop_manager:
 						reset_btn.text = "刷新商店 (" + str(shop_manager.get_reset_cost()) + "G)"
-					discard_zone.visible = true          # ★ 铁匠铺商店也显示
+					discard_zone.visible = true
 				"arena_forge":
 					_forge.build_forge_slots()
 					shop_container.visible = true
 					reset_btn.visible = true
 					reset_btn.text = "清空插槽"
-					discard_zone.visible = true          # ★ 铁匠铺也显示
+					discard_zone.visible = true
 					_forge.display_recipe_info()
 				"sacrifice":
 					_build_sacrifice_panel()
 					shop_container.visible = true
 					reset_btn.visible = false
-					discard_zone.visible = true          # ★ 熔铸也显示
+					discard_zone.visible = true
 
 			if left_column: left_column.size_flags_vertical = Control.SIZE_EXPAND_FILL
 
@@ -452,10 +454,14 @@ func _build_ui_inner():
 	confirm_btn.add_theme_font_size_override("font_size", Style.FONT_LARGE)
 	reset_btn.add_theme_font_size_override("font_size", Style.FONT_LARGE)
 
+	# ★ 商店升级按钮（内部判断显示/隐藏）
+	_ensure_upgrade_shop_btn()
+	_refresh_upgrade_shop_btn()
+
 	_build_unit_columns()
 	visible = true
 
-	# ★ 强制重排（解决切换标签后按钮不显示）
+	# ★ 强制重排
 	if shop_container:
 		shop_container.queue_sort()
 	if right_container:
@@ -1447,6 +1453,7 @@ func _switch_tab(tab: String):
 	if _is_shop_rest_mode():
 		discard_zone.visible = true
 	_refresh_bottom_buttons()
+	_refresh_upgrade_shop_btn()
 
 
 func _force_relayout():
@@ -1631,3 +1638,59 @@ func _quality_cn(q : String) -> String:
 		"epic": return "史诗"
 		"legendary": return "传说"
 		_: return q
+
+# ============================================================
+#  商店升级
+# ============================================================
+func _ensure_upgrade_shop_btn():
+	if _upgrade_shop_btn and is_instance_valid(_upgrade_shop_btn):
+		return
+	if not reset_btn: return
+
+	_upgrade_shop_btn = Style.create_styled_button(Style.FONT_LARGE, Vector2(0, 16))
+	_upgrade_shop_btn.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	_upgrade_shop_btn.pressed.connect(_on_upgrade_shop_pressed)
+	right_container.add_child(_upgrade_shop_btn)
+	# 插在 ResetBtn 之前
+	var reset_idx : int = reset_btn.get_index()
+	right_container.move_child(_upgrade_shop_btn, reset_idx)
+
+
+func _refresh_upgrade_shop_btn():
+	if not _upgrade_shop_btn or not is_instance_valid(_upgrade_shop_btn):
+		return
+	if not shop_manager:
+		_upgrade_shop_btn.visible = false
+		return
+
+	var is_shop_tab : bool = (
+		current_mode == Mode.SHOP
+		or (current_mode == Mode.FORGE and current_tab == "arena_shop")
+		or (_is_shop_rest_mode() and current_tab == "arena_shop")
+	)
+	if not is_shop_tab:
+		_upgrade_shop_btn.visible = false
+		return
+
+	_upgrade_shop_btn.visible = true
+	var lv : int = shop_manager.get_shop_level()
+	var cost : int = shop_manager.get_upgrade_cost()
+	if cost < 0:
+		_upgrade_shop_btn.text = "商店 Lv%d（满级）" % lv
+		_upgrade_shop_btn.disabled = true
+		_upgrade_shop_btn.modulate = Color(0.5, 0.5, 0.5)
+	else:
+		_upgrade_shop_btn.text = "升级商店 Lv%d→%d（%dG）" % [lv, lv + 1, cost]
+		var afford : bool = _context.get_gold() >= cost
+		_upgrade_shop_btn.disabled = not afford
+		_upgrade_shop_btn.modulate = Color.WHITE if afford else Color(1.0, 0.6, 0.6)
+
+
+func _on_upgrade_shop_pressed():
+	if not shop_manager: return
+	if not shop_manager.upgrade_shop():
+		_show_buy_failure_message("not_enough_gold")
+		return
+	SoundManager.play_select_sound()
+	_update_gold_display()
+	_schedule_build_ui()

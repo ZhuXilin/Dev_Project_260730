@@ -63,6 +63,10 @@ var _pending_faction : String = ""
 func set_pending_faction(f: String):
 	_pending_faction = f
 
+# ---- 商店等级 ----
+func get_shop_level() -> int: return 0
+func set_shop_level(_level: int) -> void: pass
+
 # ---- 竞技场商店 ----
 func get_arena_shop_items() -> Array: return []
 func buy_arena_shop_item(_shop_index: int) -> Dictionary: return {"success": false, "reason": "not_supported"}

@@ -10,6 +10,8 @@ enum InterruptState {
 	BATTLEFIELD,
 }
 
+var shop_level : int = 0
+
 # ============================================================
 #  三个状态对象
 # ============================================================
@@ -418,6 +420,7 @@ func clear_current_reward():
 func start_new_cycle():
 	temp_soul = 0
 	temp_gold = 0
+	shop_level = 0
 	cycle_start_soul = soul
 	cycle_start_materials = materials.duplicate()
 

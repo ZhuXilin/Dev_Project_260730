@@ -342,13 +342,12 @@ func _ensure_forge_upgrade_ui():
 
 func refresh_forge_upgrade_ui():
 	if not forge_upgrade_btn or not is_instance_valid(forge_upgrade_btn): return
-	if panel.party.size() <= 0:
-		forge_upgrade_btn.text = "拖拽武器到此升级"
-		forge_upgrade_btn.disabled = true
-		forge_upgrade_btn.modulate = Color(0.5, 0.5, 0.5)
-		return
+	if not forge_upgrade_label or not is_instance_valid(forge_upgrade_label): return
 
-	# ★ 优先显示"最近拖拽的单位"的武器
+	# ★ 按钮文案固定
+	forge_upgrade_btn.text = "拖拽武器升级"
+
+	# ---- 找目标单位 ----
 	var idx : int = _last_drag_unit_idx
 	if idx < 0 or idx >= panel.party.size():
 		idx = -1
@@ -356,30 +355,33 @@ func refresh_forge_upgrade_ui():
 			if panel.party[i].weapon_slot != null and not panel.party[i].is_dead:
 				idx = i
 				break
+
 	if idx < 0:
-		forge_upgrade_btn.text = "拖拽武器到此升级"
+		forge_upgrade_label.text = "拖拽武器到此升级（上限 +3）"
 		forge_upgrade_btn.disabled = true
 		forge_upgrade_btn.modulate = Color(0.5, 0.5, 0.5)
 		return
 
 	var u : UnitData = panel.party[idx]
 	if u.weapon_slot == null or u.is_dead:
-		forge_upgrade_btn.text = "拖拽武器到此升级"
+		forge_upgrade_label.text = "拖拽武器到此升级（上限 +3）"
 		forge_upgrade_btn.disabled = true
 		forge_upgrade_btn.modulate = Color(0.5, 0.5, 0.5)
 		return
 
 	var wname : String = panel._get_item_name(u.weapon_slot)
 	var lv : int = u.weapon_slot.upgrade_level
+
 	if lv >= WEAPON_UPGRADE_MAX:
-		forge_upgrade_btn.text = "%s 已满级 +%d" % [wname, lv]
+		forge_upgrade_label.text = "%s 已满级 +%d" % [wname, lv]
 		forge_upgrade_btn.disabled = true
 		forge_upgrade_btn.modulate = Color(0.5, 0.5, 0.5)
 		return
 
+	# ★ Label 显示升级信息
 	var cost : int = _get_weapon_upgrade_cost(lv)
 	var afford : bool = panel._context.get_gold() >= cost
-	forge_upgrade_btn.text = "%s +%d→+%d（%dG）" % [wname, lv, lv + 1, cost]
+	forge_upgrade_label.text = "%s +%d→+%d（%dG）" % [wname, lv, lv + 1, cost]
 	forge_upgrade_btn.disabled = not afford
 	forge_upgrade_btn.modulate = Color.WHITE if afford else Color(1.0, 0.6, 0.6)
 
@@ -699,9 +701,9 @@ func execute_forge_drop(data: Dictionary, target: Control):
 		panel._sync_all(); panel._update_gold_display(); panel._schedule_build_ui(); return
 
 	if src_type == "weapon" and tgt_type == "weapon":
-		panel._swap_weapons(data, target); return
+		panel._shop.swap_weapons(data, target); return
 	if src_type == "armor" and tgt_type == "armor":
-		panel._swap_armor(data, target); return
+		panel._shop.swap_armor(data, target); return
 
 	if target == panel.discard_zone:
 		if src_type == "forge_slot":

@@ -58,3 +58,11 @@ func get_talent_swap_cost() -> int:
 # ---- 确认 ----
 func on_confirm() -> void:
 	pass
+
+var shop_level : int = 0   # ★ 新增字段
+
+func get_shop_level() -> int:
+	return shop_level
+
+func set_shop_level(level: int) -> void:
+	shop_level = level

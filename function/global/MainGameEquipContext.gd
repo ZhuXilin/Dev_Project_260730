@@ -72,3 +72,9 @@ func on_confirm() -> void:
 	GameState.interrupt_state = GameState.InterruptState.MAP
 	GameState.reset_progress()
 	LevelManager.start_game()
+
+func get_shop_level() -> int:
+	return GameState.shop_level
+
+func set_shop_level(level: int) -> void:
+	GameState.shop_level = level

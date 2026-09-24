@@ -4,6 +4,7 @@
 [ext_resource type="StyleBox" uid="uid://6qbsaxkfwg3o" path="res://content/resource/stylebox/8bit_style_box_flat.tres" id="2_xoyin"]
 
 [node name="ItemGetPopup" type="CanvasLayer" unique_id=372262229]
+layer = 100
 script = ExtResource("1_gysqd")
 
 [node name="ItemPanel" type="PanelContainer" parent="." unique_id=1888729527]
