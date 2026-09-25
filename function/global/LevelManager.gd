@@ -18,31 +18,12 @@ func _ready():
 	_reload_all_levels()
 
 func _load_config():
-	if ResourceLoader.exists(UNIT_LEVEL_MAP_PATH):
-		_config = load(UNIT_LEVEL_MAP_PATH)
-		if not _config:
-			push_error("UnitLevelMap 加载失败，创建默认配置")
-			_create_default_config()
-	else:
-		print("UnitLevelMap.tres 不存在，创建默认配置")
-		_create_default_config()
-
-func _create_default_config():
-	_config = UnitLevelMapConfig.new()
-	var default_entry = UnitLevelMapEntry.new()
-	default_entry.faction = DEFAULT_FACTION
-	default_entry.day1 = _create_empty_level_list()
-	default_entry.day2 = _create_empty_level_list()
-	default_entry.day3 = _create_empty_level_list()
-	_config.default_entry = default_entry
-	_config.entries = [default_entry]
-	ResourceSaver.save(_config, UNIT_LEVEL_MAP_PATH)
-	print("已创建默认 UnitLevelMap.tres，请编辑后重新运行。")
-
-func _create_empty_level_list() -> LevelListResource:
-	var list = LevelListResource.new()
-	list.levels = []
-	return list
+	if not ResourceLoader.exists(UNIT_LEVEL_MAP_PATH):
+		push_error("UnitLevelMap.tres 不存在！")
+		return
+	_config = load(UNIT_LEVEL_MAP_PATH)
+	if not _config:
+		push_error("UnitLevelMap.tres 加载失败！")
 
 func _get_entry_for_faction(faction: String) -> UnitLevelMapEntry:
 	if not _config:
@@ -58,13 +39,8 @@ func _reload_all_levels():
 		faction = DEFAULT_FACTION
 	_current_entry = _get_entry_for_faction(faction)
 	if not _current_entry:
-		_current_entry = _config.default_entry if _config else null
-	if not _current_entry:
-		push_error("没有找到阵营 %s 的关卡配置，创建临时条目" % faction)
-		_current_entry = UnitLevelMapEntry.new()
-		_current_entry.day1 = _create_empty_level_list()
-		_current_entry.day2 = _create_empty_level_list()
-		_current_entry.day3 = _create_empty_level_list()
+		push_error("[LevelManager] 没有找到阵营 %s 的关卡配置！" % faction)
+		return
 
 	_day_levels.clear()
 	var day_resources = [_current_entry.day1, _current_entry.day2, _current_entry.day3]
@@ -84,6 +60,12 @@ func get_levels_for_day(day: int) -> Array:
 	if day < 1 or day > 3:
 		return []
 	return _day_levels[day - 1]
+
+
+func get_current_layout() -> MapLayout:
+	if _current_entry == null:
+		return null
+	return _current_entry.layout
 
 
 # ============================================================

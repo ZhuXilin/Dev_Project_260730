@@ -324,7 +324,17 @@ func _update_buttons():
 
 func generate_map(day: int):
 	print("=== generate_map 开始，day=", day, " temp_gold=", GameState.temp_gold)
-	map_data = MapGenerator.generate_day(day, level_list)
+	var layout : MapLayout = LevelManager.get_current_layout()
+	map_data = MapGenerator.generate_day(day, layout, level_list)
+
+	# ★ 布局缺失 → 报错回营地
+	if map_data == null:
+		push_error("[MapScene] 地图布局缺失，返回营地")
+		GameState.interrupt_state = GameState.InterruptState.CAMP
+		_save_game()
+		get_tree().change_scene_to_file(Config.PATHS.CAMP)
+		return
+
 	GameState.cached_map_level_data = map_data
 	GameState.cached_day = day
 

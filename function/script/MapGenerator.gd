@@ -1,90 +1,59 @@
 class_name MapGenerator
 extends Node
 
-static func generate_day(day: int, _level_list: Array[MapData] = []) -> MapLevelData:
+# ============================================================
+#  入口：布局驱动
+# ============================================================
+static func generate_day(day: int, layout: MapLayout, _level_list: Array[MapData] = []) -> MapLevelData:
+	if layout == null:
+		push_error("[MapGenerator] layout 为空，请为 UnitLevelMapEntry 挂载 MapLayout")
+		return null
+	if not layout.has_day(day):
+		push_error("[MapGenerator] 布局缺少 day=%d" % day)
+		return null
+	return _generate_from_layout(day, layout.get_day(day))
+
+
+# ============================================================
+#  布局驱动
+# ============================================================
+static func _generate_from_layout(day: int, day_layout: MapLayoutDay) -> MapLevelData:
 	randomize()
 	var data = MapLevelData.new()
 	data.day = day
+
 	var nodes: Array[MapNode] = []
+
+	# ---- 第一遍：创建节点 ----
+	for layout_node in day_layout.nodes:
+		var n : MapNode = _create_node(layout_node.node_type, layout_node.position, layout_node.layer)
+		nodes.append(n)
+
+	# ---- 第二遍：建立连接 ----
+	for i in range(day_layout.nodes.size()):
+		var layout_node : MapLayoutNode = day_layout.nodes[i]
+		var from_node : MapNode = nodes[i]
+		for target_idx in layout_node.connects_to:
+			if target_idx < 0 or target_idx >= nodes.size():
+				push_warning("[MapGenerator] day=%d node[%d] 的 connects_to 越界: %d" % [day, i, target_idx])
+				continue
+			var to_node : MapNode = nodes[target_idx]
+			if not from_node.connected_nodes.has(to_node):
+				from_node.connected_nodes.append(to_node)
+
+	# ---- 找根节点：layer 0 的第一个 ----
 	var root: MapNode = null
+	for n in nodes:
+		if n.layer == 0:
+			root = n
+			break
+	if root == null and not nodes.is_empty():
+		root = nodes[0]
 
-	match day:
-		1, 2:
-			var x_left   = 110
-			var x_right  = 210
-			var x_center = 160
-
-			# Layer 0: START
-			root = _create_node(MapNode.NodeType.START, Vector2(x_center, 220), 0)
-			nodes.append(root)
-
-			# Layer 1: NORMAL ×2
-			var n1 = _create_node(MapNode.NodeType.NORMAL, Vector2(x_left,  175), 1)
-			var n2 = _create_node(MapNode.NodeType.NORMAL, Vector2(x_right, 175), 1)
-			nodes.append(n1)
-			nodes.append(n2)
-
-			# Layer 2: SHOP
-			var shop = _create_node(MapNode.NodeType.SHOP, Vector2(x_center, 130), 2)
-			nodes.append(shop)
-
-			# Layer 3: ELITE + (EVENT 或 CHAPEL 随机)
-			var elite_left = (randi() % 2 == 0)
-			var non_combat_type = _roll_layer3_non_combat()
-			var e1 = _create_node(
-				MapNode.NodeType.ELITE if elite_left else non_combat_type,
-				Vector2(x_left, 85), 3)
-			var e2 = _create_node(
-				non_combat_type if elite_left else MapNode.NodeType.ELITE,
-				Vector2(x_right, 85), 3)
-
-			# 宝箱节点：随机奖励（只有 EVENT 才 roll reward）
-			if e1.node_type == MapNode.NodeType.EVENT:
-				e1.reward = TreasureRewardManager.roll_reward(day)
-			if e2.node_type == MapNode.NodeType.EVENT:
-				e2.reward = TreasureRewardManager.roll_reward(day)
-
-			nodes.append(e1)
-			nodes.append(e2)
-
-			# Layer 4: FORGE（恢复单节点居中）
-			var forge = _create_node(MapNode.NodeType.FORGE, Vector2(x_center, 45), 4)
-			nodes.append(forge)
-
-			# Layer 5: BOSS
-			var boss = _create_node(MapNode.NodeType.BOSS, Vector2(x_center, 15), 5)
-			nodes.append(boss)
-
-			# 连接（恢复原版结构）
-			root.connected_nodes = [n1, n2]
-			n1.connected_nodes = [shop]
-			n2.connected_nodes = [shop]
-			shop.connected_nodes = [e1, e2]
-			e1.connected_nodes = [forge]
-			e2.connected_nodes = [forge]
-			forge.connected_nodes = [boss]
-
-		3:
-			# Day3：铁匠铺（整备）→ BOSS（单 FORGE）
-			root = _create_node(MapNode.NodeType.FORGE, Vector2(160, 150), 0)
-			var boss = _create_node(MapNode.NodeType.BOSS, Vector2(160, 60), 1)
-			nodes.append(root)
-			nodes.append(boss)
-			root.connected_nodes = [boss]
-			root.is_available = true
-
-		_:
-			# 兜底测试地图
-			root = _create_node(MapNode.NodeType.START, Vector2(160, 210), 0)
-			var node1 = _create_node(MapNode.NodeType.NORMAL, Vector2(120, 165), 1)
-			var node2 = _create_node(MapNode.NodeType.ELITE, Vector2(200, 165), 1)
-			nodes.append(node1)
-			nodes.append(node2)
-			root.connected_nodes = [node1, node2]
-			var boss = _create_node(MapNode.NodeType.BOSS, Vector2(160, 120), 2)
-			nodes.append(boss)
-			node1.connected_nodes.append(boss)
-			node2.connected_nodes.append(boss)
+	# ---- EVENT 节点：roll 奖励 ----
+	for n in nodes:
+		if n.node_type == MapNode.NodeType.EVENT:
+			n.reward = TreasureRewardManager.roll_reward(day)
 
 	_assign_map_data_to_all_nodes(nodes)
 
@@ -94,6 +63,9 @@ static func generate_day(day: int, _level_list: Array[MapData] = []) -> MapLevel
 	return data
 
 
+# ============================================================
+#  工具
+# ============================================================
 static func _create_node(type: MapNode.NodeType, pos: Vector2, layer: int) -> MapNode:
 	var node = MapNode.new()
 	node.node_type = type
@@ -104,19 +76,9 @@ static func _create_node(type: MapNode.NodeType, pos: Vector2, layer: int) -> Ma
 	return node
 
 
-static func _roll_layer3_non_combat() -> MapNode.NodeType:
-	# 50% 宝箱，50% 圣坛
-	if randi() % 2 == 0:
-		return MapNode.NodeType.EVENT
-	return MapNode.NodeType.CHAPEL
-
-
 static func _assign_map_data_to_all_nodes(nodes: Array):
 	var combat_nodes_by_type : Dictionary = {}
-	print("=== _assign_map_data_to_all_nodes 开始 ===")
 	for node in nodes:
-		print("  节点: type=%d, layer=%d" % [node.node_type, node.layer])
-		# ★ 非战斗节点（含 CHAPEL）
 		if node.node_type in [
 			MapNode.NodeType.SHOP,
 			MapNode.NodeType.FORGE,
@@ -137,7 +99,6 @@ static func _assign_map_data_to_all_nodes(nodes: Array):
 		var maps : Array = LevelManager.get_random_maps_for_node_type(
 			node_type, group.size(), GameState.main_unit_name
 		)
-		print("类型 %d 组大小 %d → 拿到 %d 张地图:" % [node_type, group.size(), maps.size()])
 		for i in range(group.size()):
 			if i < maps.size():
 				group[i].map_data = maps[i]
