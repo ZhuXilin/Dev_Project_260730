@@ -6,7 +6,7 @@ enum NodeType {
 	NORMAL,
 	ELITE,
 	SHOP,
-	EVENT,
+	TREASURE,
 	BOSS,
 	FORGE,
 	CHAPEL,
@@ -22,7 +22,7 @@ static var _node_counter : int = 0
 @export var is_available: bool = false
 @export var custom_label: String = ""
 @export var layer: int = 0
-@export var reward: Dictionary = {}    # ← 新增
+@export var reward: Dictionary = {}
 
 var connected_nodes: Array = []
 var is_completed: bool = false

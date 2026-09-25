@@ -124,6 +124,15 @@ func _build_unit_card(unit_idx: int) -> PanelContainer:
 	status_lb.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	vbox.add_child(status_lb)
 
+	# ---- 阵亡 / 已熔铸 ----
+	if unit.is_dead:
+		name_lb.text = unit_display + "\n" + type_cn
+		name_lb.modulate = Color(0.4, 0.4, 0.4, 1)
+		status_lb.text = "已阵亡 / 已熔铸"
+		status_lb.modulate = Color(0.4, 0.4, 0.4, 1)
+		card.modulate = Color(0.5, 0.5, 0.5, 1)
+		return card
+
 	# ---- 已转职 ----
 	if unit.advanced_class != "":
 		var adv_name : String = AdvancedClassManager.get_display_name(unit.advanced_class)
@@ -212,6 +221,8 @@ func _on_card_clicked(unit_idx: int):
 		return
 
 	var unit : UnitData = party[unit_idx]
+	if unit.is_dead:
+		return
 	if unit.advanced_class != "":
 		return
 

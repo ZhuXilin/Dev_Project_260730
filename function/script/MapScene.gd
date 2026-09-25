@@ -270,13 +270,15 @@ func _rebuild_connections_by_layer(map_level_data: MapLevelData):
 func _draw_connections():
 	for child in line_container.get_children():
 		child.queue_free()
-	if not map_data:
-		return
+	if not map_data: return
+	var pos_map : Dictionary = _compute_node_positions()
 	for node in map_data.nodes:
+		var from_pos : Vector2 = pos_map.get(node, node.position)
 		for conn in node.connected_nodes:
+			var to_pos : Vector2 = pos_map.get(conn, conn.position)
 			var line = Line2D.new()
-			line.add_point(node.position)
-			line.add_point(conn.position)
+			line.add_point(from_pos)
+			line.add_point(to_pos)
 			line.width = MapConst.MAP_LINE_WIDTH
 			line.default_color = MapConst.MAP_LINE_COLOR
 			line_container.add_child(line)
@@ -285,12 +287,17 @@ func _create_node_buttons():
 	for child in node_container.get_children():
 		if child is MapNodeButton:
 			child.queue_free()
-	if not map_data:
-		return
+	if not map_data: return
+	var pos_map : Dictionary = _compute_node_positions()
 	for node in map_data.nodes:
 		var btn = MapNodeButton.new()
-		btn.setup(node, self)
+		btn.setup(node, self, pos_map.get(node, node.position))
 		node_container.add_child(btn)
+
+func _get_node_layout_width() -> float:
+	# 用视口宽减去左右留白
+	var vp : Vector2 = get_viewport().get_visible_rect().size
+	return maxf(vp.x - 80.0, 200.0)
 
 func _update_availability(_start_node: MapNode):
 	var max_visited_layer = -1
@@ -318,9 +325,12 @@ func _update_availability(_start_node: MapNode):
 	_update_buttons()
 
 func _update_buttons():
+	if not map_data: return
+	var pos_map : Dictionary = _compute_node_positions()
 	for child in node_container.get_children():
 		if child is MapNodeButton:
-			child.setup(child.map_node, self)
+			var btn : MapNodeButton = child
+			btn.setup(btn.map_node, self, pos_map.get(btn.map_node, btn.map_node.position))
 
 func generate_map(day: int):
 	print("=== generate_map 开始，day=", day, " temp_gold=", GameState.temp_gold)
@@ -388,7 +398,7 @@ func _load_combat_for_node(node: MapNode):
 		MapNode.NodeType.FORGE:
 			_open_forge(node)
 			return
-		MapNode.NodeType.EVENT:
+		MapNode.NodeType.TREASURE:
 			_open_treasure(node)
 			return
 		MapNode.NodeType.CHAPEL:
@@ -738,7 +748,7 @@ func _validate_restored_map_data(md: MapLevelData):
 		if node.node_type in [
 			MapNode.NodeType.SHOP,
 			MapNode.NodeType.FORGE,
-			MapNode.NodeType.EVENT,
+			MapNode.NodeType.TREASURE,
 			MapNode.NodeType.CHAPEL,
 		]:
 			continue
@@ -832,11 +842,53 @@ func _get_node_description(node: MapNode) -> String:
 			return "商店\n可购买武器与防具"
 		MapNode.NodeType.FORGE:
 			return "铁匠铺\n合成防具 / 升级武器"
-		MapNode.NodeType.EVENT:
-			return "宝箱 / 事件"
+		MapNode.NodeType.TREASURE:
+			return "宝箱"
 		MapNode.NodeType.BOSS:
 			return "首领战"
 		MapNode.NodeType.CHAPEL:
 			return "圣坛\n全队回满 HP，复活一名阵亡单位"
 		_:
 			return "未知节点"
+
+func _compute_node_positions() -> Dictionary:
+	var pos_map : Dictionary = {}
+	if not map_data: return pos_map
+
+	var max_layer : int = 0
+	for n in map_data.nodes:
+		max_layer = maxi(max_layer, n.layer)
+
+	var vp : Vector2 = get_viewport().get_visible_rect().size
+	var canvas_width : float = _get_node_layout_width()
+	var layer_count : int = max_layer + 1
+
+	# 上下留白（底部留 50px 给按钮栏）
+	var top_margin : float = 40.0
+	var bottom_margin : float = 50.0
+	var available_h : float = vp.y - top_margin - bottom_margin
+
+	# 动态层间距
+	var layer_height : float = available_h / float(layer_count)
+	layer_height = clampf(layer_height, 40.0, 200.0)
+
+	# 垂直居中
+	var total_h : float = layer_count * layer_height
+	var top_offset : float = top_margin + (available_h - total_h) / 2.0
+
+	# 按层分组
+	var by_layer : Dictionary = {}
+	for n in map_data.nodes:
+		if not by_layer.has(n.layer):
+			by_layer[n.layer] = []
+		by_layer[n.layer].append(n)
+
+	for layer_key in by_layer:
+		var arr : Array = by_layer[layer_key]
+		for i in range(arr.size()):
+			var n : MapNode = arr[i]
+			var ratio : float = float(i + 1) / float(arr.size() + 1)
+			var px : float = canvas_width * ratio
+			var py : float = top_offset + (max_layer - n.layer + 0.5) * layer_height
+			pos_map[n] = Vector2(px, py)
+	return pos_map

@@ -1,160 +1,142 @@
-[gd_resource type="Resource" script_class="MapLayout" format=3 uid="uid://bh5pvgj0yvtf1"]
+[gd_resource type="Resource" script_class="MapLayout" format=3 uid="uid://cf33p2b3e0ep1"]
 
 [ext_resource type="Script" uid="uid://bxty2awrl8vnm" path="res://function/resource/MapLayout.gd" id="1_layout"]
 [ext_resource type="Script" uid="uid://4nvpnev86piy" path="res://function/resource/MapLayoutDay.gd" id="2_day"]
 [ext_resource type="Script" uid="uid://b6ykl5a7xtr3e" path="res://function/resource/MapLayoutNode.gd" id="3_node"]
 
-[sub_resource type="Resource" id="D1_N0"]
+[sub_resource type="Resource" id="D1N0"]
 script = ExtResource("3_node")
 node_type = 0
-position = Vector2(160, 220)
+position = Vector2(200, 174)
 connects_to = Array[int]([1, 2])
 
-[sub_resource type="Resource" id="D1_N1"]
+[sub_resource type="Resource" id="D1N1"]
 script = ExtResource("3_node")
-position = Vector2(110, 175)
+position = Vector2(133.33333, 146)
 layer = 1
 connects_to = Array[int]([3])
 
-[sub_resource type="Resource" id="D1_N2"]
+[sub_resource type="Resource" id="D1N2"]
 script = ExtResource("3_node")
-position = Vector2(210, 175)
+position = Vector2(266.66666, 146)
 layer = 1
 connects_to = Array[int]([3])
 
-[sub_resource type="Resource" id="D1_N3"]
+[sub_resource type="Resource" id="D1N3"]
 script = ExtResource("3_node")
 node_type = 3
-position = Vector2(160, 130)
+position = Vector2(200, 118)
 layer = 2
 connects_to = Array[int]([4, 5])
 
-[sub_resource type="Resource" id="D1_N4"]
+[sub_resource type="Resource" id="D1N4"]
 script = ExtResource("3_node")
 node_type = 2
-position = Vector2(110, 85)
+random_pool = Array[int]([2, 7])
+position = Vector2(133.33333, 90)
 layer = 3
-connects_to = Array[int]([6])
 
-[sub_resource type="Resource" id="D1_N5"]
+[sub_resource type="Resource" id="D1N5"]
 script = ExtResource("3_node")
-node_type = 7
-position = Vector2(210, 85)
+node_type = 2
+random_pool = Array[int]([2, 4])
+position = Vector2(266.66666, 90)
 layer = 3
 connects_to = Array[int]([6])
 
-[sub_resource type="Resource" id="D1_N6"]
+[sub_resource type="Resource" id="D1N6"]
 script = ExtResource("3_node")
 node_type = 6
-position = Vector2(160, 45)
+position = Vector2(200, 62)
+layer = 4
+connects_to = Array[int]([4, 7])
+
+[sub_resource type="Resource" id="D1N7"]
+script = ExtResource("3_node")
+node_type = 5
+position = Vector2(200, 34)
+layer = 5
+
+[sub_resource type="Resource" id="D1V1"]
+script = ExtResource("2_day")
+nodes = Array[ExtResource("3_node")]([SubResource("D1N0"), SubResource("D1N1"), SubResource("D1N2"), SubResource("D1N3"), SubResource("D1N4"), SubResource("D1N5"), SubResource("D1N6"), SubResource("D1N7")])
+
+[sub_resource type="Resource" id="D2N0"]
+script = ExtResource("3_node")
+node_type = 0
+position = Vector2(200, 174)
+connects_to = Array[int]([1])
+
+[sub_resource type="Resource" id="D2N2"]
+script = ExtResource("3_node")
+position = Vector2(200, 146)
+layer = 1
+connects_to = Array[int]([2, 3])
+
+[sub_resource type="Resource" id="D2N4"]
+script = ExtResource("3_node")
+node_type = 3
+random_pool = Array[int]([3, 7])
+position = Vector2(133.33333, 118)
+layer = 2
+connects_to = Array[int]([4])
+
+[sub_resource type="Resource" id="D2N5"]
+script = ExtResource("3_node")
+node_type = 3
+random_pool = Array[int]([3, 4])
+position = Vector2(266.66666, 118)
+layer = 2
+
+[sub_resource type="Resource" id="Resource_6xn0r"]
+script = ExtResource("3_node")
+node_type = 2
+position = Vector2(133.33333, 90)
+layer = 3
+connects_to = Array[int]([5])
+
+[sub_resource type="Resource" id="Resource_fhvae"]
+script = ExtResource("3_node")
+node_type = 6
+position = Vector2(200, 62)
 layer = 4
 connects_to = Array[int]([7])
 
-[sub_resource type="Resource" id="D1_N7"]
-script = ExtResource("3_node")
-node_type = 5
-position = Vector2(160, 15)
-layer = 5
-
-[sub_resource type="Resource" id="DAY1"]
-script = ExtResource("2_day")
-nodes = Array[ExtResource("3_node")]([SubResource("D1_N0"), SubResource("D1_N1"), SubResource("D1_N2"), SubResource("D1_N3"), SubResource("D1_N4"), SubResource("D1_N5"), SubResource("D1_N6"), SubResource("D1_N7")])
-
-[sub_resource type="Resource" id="D2_N0"]
-script = ExtResource("3_node")
-node_type = 0
-position = Vector2(160, 220)
-connects_to = Array[int]([1, 2, 3])
-
-[sub_resource type="Resource" id="D2_N1"]
-script = ExtResource("3_node")
-position = Vector2(90, 175)
-layer = 1
-connects_to = Array[int]([4, 5])
-
-[sub_resource type="Resource" id="D2_N2"]
-script = ExtResource("3_node")
-position = Vector2(160, 175)
-layer = 1
-connects_to = Array[int]([4, 5])
-
-[sub_resource type="Resource" id="D2_N3"]
-script = ExtResource("3_node")
-position = Vector2(230, 175)
-layer = 1
-connects_to = Array[int]([4, 5])
-
-[sub_resource type="Resource" id="D2_N4"]
-script = ExtResource("3_node")
-node_type = 3
-position = Vector2(120, 130)
-layer = 2
-connects_to = Array[int]([6, 7, 8])
-
-[sub_resource type="Resource" id="D2_N5"]
-script = ExtResource("3_node")
-node_type = 4
-position = Vector2(210, 130)
-layer = 2
-connects_to = Array[int]([6, 7, 8])
-
-[sub_resource type="Resource" id="D2_N6"]
+[sub_resource type="Resource" id="Resource_ou5fc"]
 script = ExtResource("3_node")
 node_type = 2
-position = Vector2(90, 85)
+position = Vector2(266.66666, 90)
 layer = 3
-connects_to = Array[int]([9])
+connects_to = Array[int]([3, 5])
 
-[sub_resource type="Resource" id="D2_N7"]
-script = ExtResource("3_node")
-node_type = 7
-position = Vector2(160, 85)
-layer = 3
-connects_to = Array[int]([9])
-
-[sub_resource type="Resource" id="D2_N8"]
-script = ExtResource("3_node")
-node_type = 4
-position = Vector2(230, 85)
-layer = 3
-connects_to = Array[int]([9])
-
-[sub_resource type="Resource" id="D2_N9"]
-script = ExtResource("3_node")
-node_type = 6
-position = Vector2(160, 45)
-layer = 4
-connects_to = Array[int]([10])
-
-[sub_resource type="Resource" id="D2_N10"]
+[sub_resource type="Resource" id="Resource_0wb03"]
 script = ExtResource("3_node")
 node_type = 5
-position = Vector2(160, 15)
+position = Vector2(200, 34)
 layer = 5
 
-[sub_resource type="Resource" id="DAY2"]
+[sub_resource type="Resource" id="D2V1"]
 script = ExtResource("2_day")
-nodes = Array[ExtResource("3_node")]([SubResource("D2_N0"), SubResource("D2_N1"), SubResource("D2_N2"), SubResource("D2_N3"), SubResource("D2_N4"), SubResource("D2_N5"), SubResource("D2_N6"), SubResource("D2_N7"), SubResource("D2_N8"), SubResource("D2_N9"), SubResource("D2_N10")])
+nodes = Array[ExtResource("3_node")]([SubResource("D2N0"), SubResource("D2N2"), SubResource("D2N4"), SubResource("D2N5"), SubResource("Resource_6xn0r"), SubResource("Resource_fhvae"), SubResource("Resource_ou5fc"), SubResource("Resource_0wb03")])
 
-[sub_resource type="Resource" id="D3_N0"]
+[sub_resource type="Resource" id="D3N0"]
 script = ExtResource("3_node")
 node_type = 6
-position = Vector2(160, 150)
+position = Vector2(200, 62)
 connects_to = Array[int]([1])
 
-[sub_resource type="Resource" id="D3_N1"]
+[sub_resource type="Resource" id="D3N1"]
 script = ExtResource("3_node")
 node_type = 5
-position = Vector2(160, 60)
+position = Vector2(200, 34)
 layer = 1
 
-[sub_resource type="Resource" id="DAY3"]
+[sub_resource type="Resource" id="D3V1"]
 script = ExtResource("2_day")
-nodes = Array[ExtResource("3_node")]([SubResource("D3_N0"), SubResource("D3_N1")])
+nodes = Array[ExtResource("3_node")]([SubResource("D3N0"), SubResource("D3N1")])
 
 [resource]
 script = ExtResource("1_layout")
-day1 = SubResource("DAY1")
-day2 = SubResource("DAY2")
-day3 = SubResource("DAY3")
-metadata/_custom_type_script = "uid://bxty2awrl8vnm"
+day1_variants = Array[ExtResource("2_day")]([SubResource("D1V1")])
+day2_variants = Array[ExtResource("2_day")]([SubResource("D2V1")])
+day3_variants = Array[ExtResource("2_day")]([SubResource("D3V1")])

@@ -231,7 +231,7 @@ func _ready():
 
 	var is_non_combat = GameState.current_map_data and GameState.current_map_data.node_type in [
 		MapNode.NodeType.SHOP,
-		MapNode.NodeType.EVENT,
+		MapNode.NodeType.TREASURE,
 		MapNode.NodeType.FORGE,
 		MapNode.NodeType.CHAPEL,
 	]
@@ -916,7 +916,7 @@ func _on_request_show_victory(winning_team: int):
 		if is_win:
 			var is_non_combat_node = current_node_type in [
 				MapNode.NodeType.SHOP,
-				MapNode.NodeType.EVENT,
+				MapNode.NodeType.TREASURE,
 				MapNode.NodeType.FORGE,
 			]
 

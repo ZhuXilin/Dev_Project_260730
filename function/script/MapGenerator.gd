@@ -6,7 +6,7 @@ extends Node
 # ============================================================
 static func generate_day(day: int, layout: MapLayout, _level_list: Array[MapData] = []) -> MapLevelData:
 	if layout == null:
-		push_error("[MapGenerator] layout 为空，请为 UnitLevelMapEntry 挂载 MapLayout")
+		push_error("[MapGenerator] layout 为空")
 		return null
 	if not layout.has_day(day):
 		push_error("[MapGenerator] 布局缺少 day=%d" % day)
@@ -24,13 +24,63 @@ static func _generate_from_layout(day: int, day_layout: MapLayoutDay) -> MapLeve
 
 	var nodes: Array[MapNode] = []
 
-	# ---- 第一遍：创建节点（用随机池解析类型）----
-	for layout_node in day_layout.nodes:
-		var actual_type : MapNode.NodeType = layout_node.resolve_type()
-		var n : MapNode = _create_node(actual_type, layout_node.position, layout_node.layer)
+	# ---- 按层分组 ----
+	var by_layer : Dictionary = {}
+	for i in range(day_layout.nodes.size()):
+		var ln : MapLayoutNode = day_layout.nodes[i]
+		if not by_layer.has(ln.layer):
+			by_layer[ln.layer] = []
+		by_layer[ln.layer].append(i)
+
+	# ---- 逐层解析类型（同层不重复） ----
+	var resolved_types : Array = []
+	resolved_types.resize(day_layout.nodes.size())
+
+	for layer_key in by_layer:
+		var indices : Array = by_layer[layer_key]
+		
+		# ★ 按 pool 大小升序处理（pool 小的优先占坑）
+		indices.sort_custom(func(a, b):
+			var pa : Array = day_layout.nodes[a].random_pool
+			var pb : Array = day_layout.nodes[b].random_pool
+			var sa : int = pa.size() if not pa.is_empty() else 999
+			var sb : int = pb.size() if not pb.is_empty() else 999
+			return sa < sb
+		)
+		
+		# 1. 先收集本层已使用的类型（固定节点的类型优先占用）
+		var used_types : Dictionary = {}
+		for idx in indices:
+			var ln : MapLayoutNode = day_layout.nodes[idx]
+			if ln.random_pool.is_empty():
+				used_types[ln.node_type] = true
+
+		# 2. 逐个处理
+		for idx in indices:
+			var ln : MapLayoutNode = day_layout.nodes[idx]
+			if ln.random_pool.is_empty():
+				resolved_types[idx] = ln.node_type
+				continue
+			# 从 pool 中排除已用的类型
+			var available : Array = []
+			for t in ln.random_pool:
+				if not used_types.has(t):
+					available.append(t)
+			# 池子耗尽 → 允许重复
+			if available.is_empty():
+				available = ln.random_pool.duplicate()
+			var pick : int = available[randi() % available.size()]
+			resolved_types[idx] = pick
+			used_types[pick] = true
+
+	# ---- 创建节点 ----
+	for i in range(day_layout.nodes.size()):
+		var ln : MapLayoutNode = day_layout.nodes[i]
+		var actual_type : int = resolved_types[i]
+		var n : MapNode = _create_node(actual_type as MapNode.NodeType, ln.position, ln.layer)
 		nodes.append(n)
 
-	# ---- 第二遍：建立连接 ----
+	# ---- 建立连接 ----
 	for i in range(day_layout.nodes.size()):
 		var layout_node : MapLayoutNode = day_layout.nodes[i]
 		var from_node : MapNode = nodes[i]
@@ -42,7 +92,7 @@ static func _generate_from_layout(day: int, day_layout: MapLayoutDay) -> MapLeve
 			if not from_node.connected_nodes.has(to_node):
 				from_node.connected_nodes.append(to_node)
 
-	# ---- 找根节点：layer 0 的第一个 ----
+	# ---- 找根节点 ----
 	var root: MapNode = null
 	for n in nodes:
 		if n.layer == 0:
@@ -51,9 +101,9 @@ static func _generate_from_layout(day: int, day_layout: MapLayoutDay) -> MapLeve
 	if root == null and not nodes.is_empty():
 		root = nodes[0]
 
-	# ---- EVENT 节点：roll 奖励 ----
+	# ---- TREASURE 节点：roll 奖励 ----
 	for n in nodes:
-		if n.node_type == MapNode.NodeType.EVENT:
+		if n.node_type == MapNode.NodeType.TREASURE:
 			n.reward = TreasureRewardManager.roll_reward(day)
 
 	_assign_map_data_to_all_nodes(nodes)
@@ -83,7 +133,7 @@ static func _assign_map_data_to_all_nodes(nodes: Array):
 		if node.node_type in [
 			MapNode.NodeType.SHOP,
 			MapNode.NodeType.FORGE,
-			MapNode.NodeType.EVENT,
+			MapNode.NodeType.TREASURE,
 			MapNode.NodeType.CHAPEL,
 		]:
 			var placeholder = MapData.new()

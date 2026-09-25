@@ -1,11 +1,14 @@
 @tool
 extends Control
 
-const LAYER_HEIGHT : float = 46.0
-const NODE_W : float = 66.0
-const NODE_H : float = 22.0
-const CANVAS_PADDING_TOP : float = 26.0
-const CANVAS_PADDING_BOTTOM : float = 16.0
+const LAYER_HEIGHT : float = 28.0
+const NODE_W : float = 40.0
+const NODE_H : float = 14.0
+const NODE_FONT_SIZE : int = 6
+const CANVAS_PADDING_TOP : float = 20.0
+const CANVAS_PADDING_BOTTOM : float = 12.0
+const LAYOUT_DIR : String = "res://content/scenes/levels/maplayout/"
+const BAKE_WIDTH : float = 400.0
 
 enum Tool { EDIT, LINK }
 
@@ -21,29 +24,519 @@ var _mouse_pos : Vector2 = Vector2.ZERO
 
 var _canvas : Control = null
 var _scroll : ScrollContainer = null
+var _popup_layer : Control = null
 
 var _day_buttons : Array[Button] = []
 var _tool_buttons : Array[Button] = []
 var _variant_label : Label = null
-var _path_label : Label = null
 var _hint_label : Label = null
 
+var _popup_confirm_callback : Callable = Callable()
 
 # ============================================================
 #  生命周期
 # ============================================================
 func _ready():
+	_ensure_dir()
 	_build_ui()
-	_load_default_layout()
+	call_deferred("_show_startup_menu")
 
 
-func _make_btn(text: String, tooltip: String = "", width: float = 0.0) -> Button:
+func _ensure_dir():
+	if not DirAccess.dir_exists_absolute(LAYOUT_DIR):
+		DirAccess.make_dir_recursive_absolute(LAYOUT_DIR)
+
+
+# ============================================================
+#  启动菜单
+# ============================================================
+func _show_startup_menu():
+	var menu := PopupMenu.new()
+	menu.add_item("＋ 新建文件...", 0)
+	menu.add_separator()
+
+	var files : Array = _list_layout_files()
+	if files.is_empty():
+		menu.add_item("（目录为空）", -1)
+		menu.set_item_disabled(menu.item_count - 1, true)
+	else:
+		for i in range(files.size()):
+			menu.add_item(files[i], i + 1)
+
+	menu.max_size = Vector2i(220, 160)
+	add_child(menu)
+	menu.id_pressed.connect(func(id):
+		menu.queue_free()
+		if id == 0:
+			_prompt_new_file()
+		elif id >= 1:
+			var idx : int = id - 1
+			if idx >= 0 and idx < files.size():
+				_load_file(LAYOUT_DIR + files[idx])
+	)
+	menu.popup_centered()
+
+
+# ============================================================
+#  文件列表 / 加载 / 新建 / 保存
+# ============================================================
+func _list_layout_files() -> Array:
+	var files : Array = []
+	var dir := DirAccess.open(LAYOUT_DIR)
+	if dir == null: return files
+	dir.list_dir_begin()
+	var fname : String = dir.get_next()
+	while fname != "":
+		if not dir.current_is_dir() and fname.ends_with(".tres"):
+			files.append(fname)
+		fname = dir.get_next()
+	dir.list_dir_end()
+	files.sort()
+	return files
+
+
+func _load_file(path: String):
+	_layout = load(path)
+	if _layout == null:
+		push_error("加载失败: " + path)
+		return
+	_layout_path = path
+	_current_day = 1
+	_variant_idx = 0
+	_ensure_variant_exists()
+	_update_all_labels()
+	_refresh_canvas_size()
+	_canvas.queue_redraw()
+	print("[MapLayoutEditor] 已加载: ", path)
+
+
+func _prompt_new_file():
+	_show_text_input_popup("新建文件", "文件名（不含 .tres）:", "MapLayout_New", func(file_name):
+		if file_name == "":
+			return
+		if file_name.ends_with(".tres"):
+			file_name = file_name.substr(0, file_name.length() - 5)
+		var path : String = LAYOUT_DIR + file_name + ".tres"
+		if ResourceLoader.exists(path):
+			push_warning("文件已存在: " + path)
+			return
+		_layout = MapLayout.new()
+		_layout.day1_variants.append(MapLayoutDay.new())
+		_layout.day2_variants.append(MapLayoutDay.new())
+		_layout.day3_variants.append(MapLayoutDay.new())
+		_layout_path = path
+		_current_day = 1
+		_variant_idx = 0
+		_ensure_variant_exists()
+		_update_all_labels()
+		_refresh_canvas_size()
+		_canvas.queue_redraw()
+		_save_to(path)
+	)
+
+
+func _save_to(path: String):
+	_bake_positions()
+	var err := ResourceSaver.save(_layout, path)
+	if err == OK:
+		_layout_path = path
+		_update_all_labels()
+		print("[MapLayoutEditor] 已保存: ", path)
+	else:
+		push_error("保存失败: %d" % err)
+
+
+func _on_save():
+	if _layout == null:
+		push_warning("没有正在编辑的文件")
+		return
+	if _layout_path == "":
+		_prompt_new_file()
+		return
+	_bake_positions()
+	_save_to(_layout_path)
+
+
+func _on_new():
+	_prompt_new_file()
+
+
+func _on_open():
+	var fd := FileDialog.new()
+	fd.file_mode = FileDialog.FILE_MODE_OPEN_FILE
+	fd.access = FileDialog.ACCESS_RESOURCES
+	fd.add_filter("*.tres", "Tres 文件")
+	fd.use_native_dialog = true
+	fd.current_dir = LAYOUT_DIR
+	fd.title = "打开地图布局"
+
+	fd.file_selected.connect(func(path):
+		_load_file(path)
+		fd.queue_free()
+	)
+	fd.canceled.connect(func(): fd.queue_free())
+	add_child(fd)
+	fd.popup_centered(Vector2i(600, 400))
+
+
+# ============================================================
+#  嵌入式 Popup
+# ============================================================
+func _show_text_input_popup(title: String, label_text: String, default_text: String, on_ok: Callable):
+	_close_popup()
+	_popup_layer = Control.new()
+	_popup_layer.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_popup_layer.mouse_filter = Control.MOUSE_FILTER_STOP
+	add_child(_popup_layer)
+
+	var bg := ColorRect.new()
+	bg.color = Color(0, 0, 0, 0.6)
+	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_popup_layer.add_child(bg)
+
+	# 弹窗：左右居中，宽 200，上下留 40px
+	var panel := PanelContainer.new()
+	panel.set_anchors_preset(Control.PRESET_CENTER)
+	panel.anchor_top = 0.0
+	panel.anchor_bottom = 1.0
+	panel.offset_left = -100
+	panel.offset_right = 100
+	panel.offset_top = 40
+	panel.offset_bottom = -40
+	_popup_layer.add_child(panel)
+
+	var vbox := VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 3)
+	panel.add_child(vbox)
+
+	var title_lb := Label.new()
+	title_lb.text = title
+	title_lb.add_theme_font_size_override("font_size", 9)
+	title_lb.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vbox.add_child(title_lb)
+
+	var lb := Label.new()
+	lb.text = label_text
+	lb.add_theme_font_size_override("font_size", 8)
+	vbox.add_child(lb)
+
+	var le := LineEdit.new()
+	le.text = default_text
+	le.add_theme_font_size_override("font_size", 8)
+	le.custom_minimum_size = Vector2(0, 14)
+	le.select_all()
+	vbox.add_child(le)
+
+	# 撑高空间（输入框之后到按钮之间）
+	var spacer := Control.new()
+	spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	vbox.add_child(spacer)
+
+	var btns := HBoxContainer.new()
+	btns.alignment = BoxContainer.ALIGNMENT_CENTER
+	btns.add_theme_constant_override("separation", 8)
+	vbox.add_child(btns)
+
+	# 确认在左，取消在右
+	var ok := Button.new()
+	ok.text = "确定"
+	ok.add_theme_font_size_override("font_size", 8)
+	ok.custom_minimum_size = Vector2(50, 16)
+	btns.add_child(ok)
+
+	var cancel := Button.new()
+	cancel.text = "取消"
+	cancel.add_theme_font_size_override("font_size", 8)
+	cancel.custom_minimum_size = Vector2(50, 16)
+	cancel.pressed.connect(_close_popup)
+	btns.add_child(cancel)
+
+	# 确认回调
+	var confirm_action := func():
+		var t : String = le.text.strip_edges()
+		_close_popup()
+		on_ok.call(t)
+	ok.pressed.connect(confirm_action)
+	_popup_confirm_callback = confirm_action
+
+	# Enter 提交
+	le.text_submitted.connect(func(t):
+		_close_popup()
+		on_ok.call(t.strip_edges())
+	)
+
+	le.grab_focus()
+
+
+func _show_pool_picker_popup(node_idx: int):
+	_close_popup()
+	var day_layout : MapLayoutDay = _get_current_day_layout()
+	if day_layout == null: return
+	if node_idx < 0 or node_idx >= day_layout.nodes.size(): return
+
+	_popup_layer = Control.new()
+	_popup_layer.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_popup_layer.mouse_filter = Control.MOUSE_FILTER_STOP
+	add_child(_popup_layer)
+
+	var bg := ColorRect.new()
+	bg.color = Color(0, 0, 0, 0.6)
+	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_popup_layer.add_child(bg)
+
+	# 弹窗：左右居中，宽 200，上下留 40px
+	var panel := PanelContainer.new()
+	panel.set_anchors_preset(Control.PRESET_CENTER)
+	panel.anchor_top = 0.0
+	panel.anchor_bottom = 1.0
+	panel.offset_left = -100
+	panel.offset_right = 100
+	panel.offset_top = 40
+	panel.offset_bottom = -40
+	_popup_layer.add_child(panel)
+
+	var vbox := VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 3)
+	panel.add_child(vbox)
+
+	var title_lb := Label.new()
+	title_lb.text = "选择随机池"
+	title_lb.add_theme_font_size_override("font_size", 9)
+	title_lb.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vbox.add_child(title_lb)
+
+	# 滚动列表
+	var scroll := ScrollContainer.new()
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+	vbox.add_child(scroll)
+
+	var list_vbox := VBoxContainer.new()
+	list_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	list_vbox.add_theme_constant_override("separation", 0)
+	scroll.add_child(list_vbox)
+
+	var checks : Array[CheckBox] = []
+	var types := [
+		[MapNode.NodeType.NORMAL, "NORMAL"],
+		[MapNode.NodeType.ELITE, "ELITE"],
+		[MapNode.NodeType.SHOP, "SHOP"],
+		[MapNode.NodeType.TREASURE, "TREASURE"],
+		[MapNode.NodeType.FORGE, "FORGE"],
+		[MapNode.NodeType.CHAPEL, "CHAPEL"],
+	]
+	var current : MapLayoutNode = day_layout.nodes[node_idx]
+
+	# 压 padding
+	var empty := StyleBoxEmpty.new()
+	empty.content_margin_top = 0
+	empty.content_margin_bottom = 0
+	empty.content_margin_left = 0
+	empty.content_margin_right = 0
+
+	for t in types:
+		var cb := CheckBox.new()
+		cb.text = t[1]
+		cb.add_theme_font_size_override("font_size", 7)
+		cb.add_theme_constant_override("h_separation", 3)
+		cb.add_theme_stylebox_override("normal", empty)
+		cb.add_theme_stylebox_override("hover", empty)
+		cb.add_theme_stylebox_override("pressed", empty)
+		cb.add_theme_stylebox_override("focus", empty)
+		cb.add_theme_stylebox_override("disabled", empty)
+		cb.custom_minimum_size = Vector2(0, 8)
+		cb.set_meta("type", t[0])
+		cb.button_pressed = current.random_pool.has(t[0])
+		list_vbox.add_child(cb)
+		checks.append(cb)
+
+	# 底部按钮
+	var btns := HBoxContainer.new()
+	btns.alignment = BoxContainer.ALIGNMENT_CENTER
+	btns.add_theme_constant_override("separation", 8)
+	vbox.add_child(btns)
+
+	# 确认在左，取消在右
+	var ok := Button.new()
+	ok.text = "确定"
+	ok.add_theme_font_size_override("font_size", 8)
+	ok.custom_minimum_size = Vector2(50, 16)
+	btns.add_child(ok)
+
+	var cancel := Button.new()
+	cancel.text = "取消"
+	cancel.add_theme_font_size_override("font_size", 8)
+	cancel.custom_minimum_size = Vector2(50, 16)
+	cancel.pressed.connect(_close_popup)
+	btns.add_child(cancel)
+
+	# 确认回调
+	var confirm_action := func():
+		var pool : Array = []
+		for cb in checks:
+			if cb.button_pressed:
+				pool.append(cb.get_meta("type"))
+		var typed_pool : Array[MapNode.NodeType] = []
+		for p in pool:
+			typed_pool.append(p as MapNode.NodeType)
+		day_layout.nodes[node_idx].random_pool = typed_pool
+		if not typed_pool.is_empty():
+			day_layout.nodes[node_idx].node_type = typed_pool[0]
+		_canvas.queue_redraw()
+		_close_popup()
+	ok.pressed.connect(confirm_action)
+	_popup_confirm_callback = confirm_action
+
+
+func _show_type_picker_popup(node_idx: int):
+	_close_popup()
+	var day_layout : MapLayoutDay = _get_current_day_layout()
+	if day_layout == null: return
+	if node_idx < 0 or node_idx >= day_layout.nodes.size(): return
+
+	var node : MapLayoutNode = day_layout.nodes[node_idx]
+
+	_popup_layer = Control.new()
+	_popup_layer.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_popup_layer.mouse_filter = Control.MOUSE_FILTER_STOP
+	add_child(_popup_layer)
+
+	var bg := ColorRect.new()
+	bg.color = Color(0, 0, 0, 0.6)
+	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_popup_layer.add_child(bg)
+
+	# ★ 左右居中 + 上下贴边
+	var panel := PanelContainer.new()
+	panel.set_anchors_preset(Control.PRESET_CENTER)
+	panel.anchor_top = 0.0
+	panel.anchor_bottom = 1.0
+	panel.offset_left = -100
+	panel.offset_right = 100
+	panel.offset_top = 4
+	panel.offset_bottom = -4
+	_popup_layer.add_child(panel)
+
+	var vbox := VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 2)
+	panel.add_child(vbox)
+
+	var title_lb := Label.new()
+	title_lb.text = "节点类型（多选 = 随机池）"
+	title_lb.add_theme_font_size_override("font_size", 8)
+	title_lb.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vbox.add_child(title_lb)
+
+	var scroll := ScrollContainer.new()
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+	vbox.add_child(scroll)
+
+	var list := VBoxContainer.new()
+	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	list.add_theme_constant_override("separation", 0)
+	scroll.add_child(list)
+
+	var types := [
+		[MapNode.NodeType.START, "START"],
+		[MapNode.NodeType.NORMAL, "NORMAL"],
+		[MapNode.NodeType.ELITE, "ELITE"],
+		[MapNode.NodeType.SHOP, "SHOP"],
+		[MapNode.NodeType.TREASURE, "TREASURE"],
+		[MapNode.NodeType.BOSS, "BOSS"],
+		[MapNode.NodeType.FORGE, "FORGE"],
+		[MapNode.NodeType.CHAPEL, "CHAPEL"],
+	]
+
+	var is_in_pool : bool = not node.random_pool.is_empty()
+
+	var checks : Array[CheckBox] = []
+	for t in types:
+		var cb := CheckBox.new()
+		cb.text = t[1]
+		cb.add_theme_font_size_override("font_size", 7)
+		cb.add_theme_constant_override("h_separation", 3)
+		# ★ 用 StyleBoxEmpty 压掉上下 padding
+		var empty := StyleBoxEmpty.new()
+		empty.content_margin_top = 0
+		empty.content_margin_bottom = 0
+		empty.content_margin_left = 0
+		empty.content_margin_right = 0
+		cb.add_theme_stylebox_override("normal", empty)
+		cb.add_theme_stylebox_override("hover", empty)
+		cb.add_theme_stylebox_override("pressed", empty)
+		cb.add_theme_stylebox_override("focus", empty)
+		cb.add_theme_stylebox_override("disabled", empty)
+		cb.custom_minimum_size = Vector2(0, 8)   # ★ 极小高度
+		cb.set_meta("type", t[0])
+		if is_in_pool:
+			cb.button_pressed = node.random_pool.has(t[0])
+		else:
+			cb.button_pressed = (t[0] == node.node_type)
+		list.add_child(cb)
+		checks.append(cb)
+
+	var btns := HBoxContainer.new()
+	btns.alignment = BoxContainer.ALIGNMENT_CENTER
+	btns.add_theme_constant_override("separation", 8)
+	vbox.add_child(btns)
+
+	# ★ 确定在左，取消在右
+	var ok := Button.new()
+	ok.text = "确定"
+	ok.add_theme_font_size_override("font_size", 8)
+	ok.custom_minimum_size = Vector2(50, 16)
+	btns.add_child(ok)
+
+	var cancel := Button.new()
+	cancel.text = "取消"
+	cancel.add_theme_font_size_override("font_size", 8)
+	cancel.custom_minimum_size = Vector2(50, 16)
+	cancel.pressed.connect(_close_popup)
+	btns.add_child(cancel)
+
+	# ★ 保存确认回调（供 Enter 使用）
+	var confirm_action := func():
+		var selected : Array = []
+		for cb in checks:
+			if cb.button_pressed:
+				selected.append(cb.get_meta("type"))
+		if selected.size() == 1:
+			node.node_type = selected[0]
+			node.random_pool.clear()
+		elif selected.size() > 1:
+			var typed_pool : Array[MapNode.NodeType] = []
+			for p in selected:
+				typed_pool.append(p as MapNode.NodeType)
+			node.random_pool = typed_pool
+			node.node_type = typed_pool[0]
+		_canvas.queue_redraw()
+		_close_popup()
+
+	ok.pressed.connect(confirm_action)
+	_popup_confirm_callback = confirm_action
+
+
+func _close_popup():
+	if _popup_layer and is_instance_valid(_popup_layer):
+		_popup_layer.queue_free()
+		_popup_layer = null
+	_popup_confirm_callback = Callable()
+
+
+# ============================================================
+#  UI 构建
+# ============================================================
+func _make_btn(text: String, tooltip: String = "") -> Button:
 	var b := Button.new()
 	b.text = text
 	b.tooltip_text = tooltip
 	b.focus_mode = Control.FOCUS_NONE
-	b.add_theme_font_size_override("font_size", 10)
-	# 减小按钮内部 padding
+	b.add_theme_font_size_override("font_size", 9)
 	var empty := StyleBoxEmpty.new()
 	empty.content_margin_left = 4
 	empty.content_margin_right = 4
@@ -53,23 +546,19 @@ func _make_btn(text: String, tooltip: String = "", width: float = 0.0) -> Button
 	b.add_theme_stylebox_override("hover", empty)
 	b.add_theme_stylebox_override("pressed", empty)
 	b.add_theme_stylebox_override("focus", empty)
-	if width > 0:
-		b.custom_minimum_size = Vector2(width, 0)
 	return b
 
 
 func _build_ui():
-	# ---- 顶部工具栏（用 HBox，缩小 padding） ----
 	var top := HBoxContainer.new()
 	top.set_anchors_preset(Control.PRESET_TOP_WIDE)
 	top.offset_left = 2
 	top.offset_right = -2
 	top.offset_top = 2
-	top.offset_bottom = 24
+	top.offset_bottom = 22
 	top.add_theme_constant_override("separation", 1)
 	add_child(top)
 
-	# Day 按钮
 	for d in [1, 2, 3]:
 		var b := _make_btn("D%d" % d, "Day %d" % d)
 		b.toggle_mode = true
@@ -79,7 +568,6 @@ func _build_ui():
 
 	top.add_child(VSeparator.new())
 
-	# 变体
 	var prev_btn := _make_btn("◀", "上一个变体")
 	prev_btn.pressed.connect(_on_variant_prev)
 	top.add_child(prev_btn)
@@ -89,7 +577,7 @@ func _build_ui():
 	_variant_label.custom_minimum_size = Vector2(36, 0)
 	_variant_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_variant_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	_variant_label.add_theme_font_size_override("font_size", 10)
+	_variant_label.add_theme_font_size_override("font_size", 9)
 	top.add_child(_variant_label)
 
 	var next_btn := _make_btn("▶", "下一个变体")
@@ -106,7 +594,6 @@ func _build_ui():
 
 	top.add_child(VSeparator.new())
 
-	# 工具
 	var edit_btn := _make_btn("编辑", "编辑模式")
 	edit_btn.toggle_mode = true
 	edit_btn.pressed.connect(_on_tool_clicked.bind(Tool.EDIT))
@@ -127,36 +614,32 @@ func _build_ui():
 	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	top.add_child(spacer)
 
-	# 保存 / 加载（放最右，用最短文字）
-	var save_btn := _make_btn("存", "保存到 " + _layout_path)
+	var new_btn := _make_btn("新", "新建文件")
+	new_btn.pressed.connect(_on_new)
+	top.add_child(new_btn)
+
+	var open_btn := _make_btn("开", "打开文件")
+	open_btn.pressed.connect(_on_open)
+	top.add_child(open_btn)
+
+	var save_btn := _make_btn("存", "保存")
 	save_btn.pressed.connect(_on_save)
 	top.add_child(save_btn)
 
-	var load_btn := _make_btn("读", "加载其他 .tres")
-	load_btn.pressed.connect(_on_load)
-	top.add_child(load_btn)
-
-	# 路径 label 只作 tooltip，不占空间
-	_path_label = Label.new()
-	_path_label.visible = false
-	add_child(_path_label)
-
-	# ---- 底部提示 ----
 	_hint_label = Label.new()
 	_hint_label.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
-	_hint_label.offset_top = -18
+	_hint_label.offset_top = -14
 	_hint_label.offset_left = 6
-	_hint_label.add_theme_font_size_override("font_size", 9)
-	_hint_label.text = "左键空白=创建 | 拖动=改层 | 右键=菜单 | 滚轮=滚动 | 连线: 点两个节点"
+	_hint_label.add_theme_font_size_override("font_size", 6)
+	_hint_label.text = "左键=创建/拖动 | 中键=删节点/删连线 | 右键=菜单 | 滚轮=滚动"
 	add_child(_hint_label)
 
-	# ---- 滚动容器 + 画布 ----
 	_scroll = ScrollContainer.new()
 	_scroll.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_scroll.offset_left = 2
-	_scroll.offset_top = 26
+	_scroll.offset_top = 24
 	_scroll.offset_right = -2
-	_scroll.offset_bottom = -22
+	_scroll.offset_bottom = -16
 	_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
 	add_child(_scroll)
@@ -169,15 +652,27 @@ func _build_ui():
 	_canvas.mouse_filter = Control.MOUSE_FILTER_STOP
 	_scroll.add_child(_canvas)
 
-	# ★ gui_input 信号只传 1 个参数（event）
 	_canvas.gui_input.connect(_on_canvas_input)
+
+
+func _unhandled_input(event: InputEvent):
+	if not (event is InputEventKey and event.pressed and not event.echo):
+		return
+	if _popup_layer == null or not is_instance_valid(_popup_layer):
+		return
+	if event.keycode == KEY_ESCAPE:
+		_close_popup()
+		get_viewport().set_input_as_handled()
+	elif event.keycode == KEY_ENTER or event.keycode == KEY_KP_ENTER:
+		if _popup_confirm_callback.is_valid():
+			_popup_confirm_callback.call()
+		get_viewport().set_input_as_handled()
 
 
 # ============================================================
 #  画布输入
 # ============================================================
 func _on_canvas_input(event: InputEvent):
-	# ★ 局部坐标从 _canvas 获取
 	var local_pos : Vector2 = _canvas.get_local_mouse_position()
 	_mouse_pos = local_pos
 
@@ -201,9 +696,20 @@ func _handle_mouse_button(event: InputEventMouseButton, local: Vector2):
 				if _current_tool == Tool.EDIT:
 					_create_node_at(local)
 		elif event.button_index == MOUSE_BUTTON_RIGHT:
-			var idx : int = _node_at(local)
-			if idx >= 0:
-				_show_node_menu(idx)
+			# ★ 编辑模式：右键节点 → 直接弹类型选择
+			if _current_tool == Tool.EDIT:
+				var idx : int = _node_at(local)
+				if idx >= 0:
+					_show_type_picker_popup(idx)
+		elif event.button_index == MOUSE_BUTTON_MIDDLE:
+			if _current_tool == Tool.EDIT:
+				var idx2 : int = _node_at(local)
+				if idx2 >= 0:
+					_delete_node(idx2)
+			elif _current_tool == Tool.LINK:
+				var link : Array = _link_at(local)
+				if link.size() == 2:
+					_delete_link(link[0], link[1])
 	else:
 		if event.button_index == MOUSE_BUTTON_LEFT and _dragging_idx >= 0:
 			_end_drag(local)
@@ -212,29 +718,8 @@ func _handle_mouse_button(event: InputEventMouseButton, local: Vector2):
 # ============================================================
 #  布局管理
 # ============================================================
-func _load_default_layout():
-	var path := "res://content/scenes/levels/MapLayoutDefault.tres"
-	if ResourceLoader.exists(path):
-		_layout = load(path)
-		_layout_path = path
-	else:
-		_layout = MapLayout.new()
-	if _layout.day1_variants.is_empty():
-		_layout.day1_variants.append(MapLayoutDay.new())
-	if _layout.day2_variants.is_empty():
-		_layout.day2_variants.append(MapLayoutDay.new())
-	if _layout.day3_variants.is_empty():
-		_layout.day3_variants.append(MapLayoutDay.new())
-
-	_variant_idx = 0
-	_current_day = 1
-	_ensure_variant_exists()
-	_update_all_labels()
-	_refresh_canvas_size()
-	_canvas.queue_redraw()
-
-
 func _get_variant_array() -> Array:
+	if _layout == null: return []
 	match _current_day:
 		1: return _layout.day1_variants
 		2: return _layout.day2_variants
@@ -252,6 +737,7 @@ func _get_current_day_layout() -> MapLayoutDay:
 
 
 func _ensure_variant_exists():
+	if _layout == null: return
 	var arr : Array = _get_variant_array()
 	while arr.size() <= _variant_idx:
 		arr.append(MapLayoutDay.new())
@@ -279,10 +765,17 @@ func _refresh_canvas_size():
 	var max_layer : int = _get_max_layer()
 	var h : float = CANVAS_PADDING_TOP + (max_layer + 1) * LAYER_HEIGHT + CANVAS_PADDING_BOTTOM
 	_canvas.custom_minimum_size = Vector2(0, h)
+	# ★ 滚动到底部（L0 起点在画布底部）
+	call_deferred("_scroll_to_bottom")
+
+
+func _scroll_to_bottom():
+	if is_instance_valid(_scroll):
+		_scroll.scroll_vertical = 999999
 
 
 # ============================================================
-#  节点位置（Y 反向）
+#  节点位置（Y 反向：L0 在底部）
 # ============================================================
 func _canvas_width() -> float:
 	if _canvas == null: return 400.0
@@ -314,6 +807,40 @@ func _node_at(local: Vector2) -> int:
 		if local.distance_to(_node_pos(i)) < NODE_W * 0.6:
 			return i
 	return -1
+
+
+func _link_at(local: Vector2) -> Array:
+	var day_layout : MapLayoutDay = _get_current_day_layout()
+	if day_layout == null: return []
+	var tol : float = 4.0
+	for i in range(day_layout.nodes.size()):
+		var node : MapLayoutNode = day_layout.nodes[i]
+		var from_pos : Vector2 = _node_pos(i)
+		for target in node.connects_to:
+			if target < 0 or target >= day_layout.nodes.size(): continue
+			var to_pos : Vector2 = _node_pos(target)
+			if _point_near_segment(local, from_pos, to_pos, tol):
+				return [i, target]
+	return []
+
+
+func _point_near_segment(p: Vector2, a: Vector2, b: Vector2, tol: float) -> bool:
+	var ab : Vector2 = b - a
+	var ab_len_sq : float = ab.length_squared()
+	if ab_len_sq < 0.001:
+		return p.distance_to(a) <= tol
+	var t : float = (p - a).dot(ab) / ab_len_sq
+	t = clampf(t, 0.0, 1.0)
+	var closest : Vector2 = a + ab * t
+	return p.distance_to(closest) <= tol
+
+
+func _delete_link(from_idx: int, to_idx: int):
+	var day_layout : MapLayoutDay = _get_current_day_layout()
+	if day_layout == null: return
+	if from_idx < 0 or from_idx >= day_layout.nodes.size(): return
+	day_layout.nodes[from_idx].connects_to.erase(to_idx)
+	_canvas.queue_redraw()
 
 
 func _layer_at_y(y: float) -> int:
@@ -363,126 +890,33 @@ func _handle_link_click(idx: int):
 	_canvas.queue_redraw()
 
 
-# ============================================================
-#  右键菜单
-# ============================================================
-func _show_node_menu(idx: int):
-	var menu := PopupMenu.new()
-	menu.add_item("改类型...", 1)
-	menu.add_item("改随机池...", 2)
-	menu.add_item("删除节点", 3)
-	add_child(menu)
-	menu.id_pressed.connect(func(id):
-		_on_menu_selected(id, idx)
-		menu.queue_free()
-	)
-	menu.popup_on_parent(Rect2(get_global_mouse_position(), Vector2.ZERO))
-
-
-func _on_menu_selected(id: int, idx: int):
-	match id:
-		1: _show_type_picker(idx)
-		2: _show_pool_picker(idx)
-		3: _delete_node(idx)
-
-
 func _delete_node(idx: int):
 	var day_layout : MapLayoutDay = _get_current_day_layout()
 	if day_layout == null: return
+	if idx < 0 or idx >= day_layout.nodes.size(): return
+
+	var removed_layer : int = day_layout.nodes[idx].layer
 	day_layout.nodes.remove_at(idx)
+
 	for n in day_layout.nodes:
 		var new_list : Array[int] = []
 		for t in n.connects_to:
 			if t == idx: continue
 			new_list.append(t - 1 if t > idx else t)
 		n.connects_to = new_list
+
+	var has_in_layer : bool = false
+	for n in day_layout.nodes:
+		if n.layer == removed_layer:
+			has_in_layer = true
+			break
+	if not has_in_layer:
+		for n in day_layout.nodes:
+			if n.layer > removed_layer:
+				n.layer -= 1
+
 	_refresh_canvas_size()
 	_canvas.queue_redraw()
-
-
-func _show_type_picker(idx: int):
-	var day_layout : MapLayoutDay = _get_current_day_layout()
-	if day_layout == null: return
-	var menu := PopupMenu.new()
-	var types := [
-		[MapNode.NodeType.START, "START"],
-		[MapNode.NodeType.NORMAL, "NORMAL"],
-		[MapNode.NodeType.ELITE, "ELITE"],
-		[MapNode.NodeType.SHOP, "SHOP"],
-		[MapNode.NodeType.EVENT, "EVENT"],
-		[MapNode.NodeType.BOSS, "BOSS"],
-		[MapNode.NodeType.FORGE, "FORGE"],
-		[MapNode.NodeType.CHAPEL, "CHAPEL"],
-	]
-	for t in types:
-		# ★ id 用 index 而不是 enum（避免 cast 问题）
-		menu.add_item(t[1], menu.item_count)
-	add_child(menu)
-	menu.id_pressed.connect(func(item_idx):
-		var t : Array = types[item_idx]
-		day_layout.nodes[idx].node_type = t[0]
-		day_layout.nodes[idx].random_pool.clear()
-		_canvas.queue_redraw()
-		menu.queue_free()
-	)
-	menu.popup_on_parent(Rect2(get_global_mouse_position(), Vector2.ZERO))
-
-
-func _show_pool_picker(idx: int):
-	var day_layout : MapLayoutDay = _get_current_day_layout()
-	if day_layout == null: return
-
-	var dlg := AcceptDialog.new()
-	dlg.title = "选择随机池"
-	dlg.min_size = Vector2i(180, 240)
-	dlg.ok_button_text = "确定"
-	var cancel_btn := dlg.add_cancel_button("取消")
-
-	var scroll := ScrollContainer.new()
-	scroll.custom_minimum_size = Vector2(160, 180)
-	dlg.add_child(scroll)
-
-	var vbox := VBoxContainer.new()
-	vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	vbox.add_theme_constant_override("separation", 2)
-	scroll.add_child(vbox)
-
-	var checks : Array[CheckBox] = []
-	var types := [
-		[MapNode.NodeType.NORMAL, "NORMAL"],
-		[MapNode.NodeType.ELITE, "ELITE"],
-		[MapNode.NodeType.SHOP, "SHOP"],
-		[MapNode.NodeType.EVENT, "EVENT"],
-		[MapNode.NodeType.FORGE, "FORGE"],
-		[MapNode.NodeType.CHAPEL, "CHAPEL"],
-	]
-	var current : MapLayoutNode = day_layout.nodes[idx]
-	for t in types:
-		var cb := CheckBox.new()
-		cb.text = t[1]
-		cb.add_theme_font_size_override("font_size", 9)
-		cb.set_meta("type", t[0])
-		cb.button_pressed = current.random_pool.has(t[0])
-		vbox.add_child(cb)
-		checks.append(cb)
-
-	add_child(dlg)
-	dlg.confirmed.connect(func():
-		var pool : Array = []
-		for cb in checks:
-			if cb.button_pressed:
-				pool.append(cb.get_meta("type"))
-		var typed_pool : Array[MapNode.NodeType] = []
-		for p in pool:
-			typed_pool.append(p as MapNode.NodeType)
-		day_layout.nodes[idx].random_pool = typed_pool
-		if not typed_pool.is_empty():
-			day_layout.nodes[idx].node_type = typed_pool[0]
-		_canvas.queue_redraw()
-		dlg.queue_free()
-	)
-	dlg.canceled.connect(func(): dlg.queue_free())
-	dlg.popup_centered(Vector2i(180, 240))      # ★ 强制尺寸
 
 
 # ============================================================
@@ -529,7 +963,6 @@ func _on_variant_add():
 func _on_variant_delete():
 	var arr : Array = _get_variant_array()
 	if arr.size() <= 1:
-		push_warning("至少保留 1 个变体")
 		return
 	arr.remove_at(_variant_idx)
 	_variant_idx = clampi(_variant_idx, 0, arr.size() - 1)
@@ -565,42 +998,38 @@ func _update_all_labels():
 	for i in range(_tool_buttons.size()):
 		_tool_buttons[i].button_pressed = (i == _current_tool)
 	var arr : Array = _get_variant_array()
-	_variant_label.text = "%d/%d" % [_variant_idx + 1, arr.size()]
-	if _path_label:
-		_path_label.text = _layout_path if _layout_path != "" else "(未保存)"
+	if _variant_label:
+		_variant_label.text = "%d/%d" % [_variant_idx + 1, maxi(arr.size(), 1)]
+
+## 保存前：把所有节点的计算位置写入 position 字段
+func _bake_positions():
+	if _layout == null: return
+	for day_variants in [_layout.day1_variants, _layout.day2_variants, _layout.day3_variants]:
+		for day_layout in day_variants:
+			if day_layout == null: continue
+			for i in range(day_layout.nodes.size()):
+				var node : MapLayoutNode = day_layout.nodes[i]
+				node.position = _node_pos_for_variant(day_layout, i)
 
 
-# ============================================================
-#  保存 / 加载
-# ============================================================
-func _on_save():
-	if _layout_path == "":
-		_layout_path = "res://content/scenes/levels/MapLayoutDefault.tres"
-	var err := ResourceSaver.save(_layout, _layout_path)
-	if err == OK:
-		print("[MapLayoutEditor] 已保存: ", _layout_path)
-		_update_all_labels()
-	else:
-		push_error("保存失败: %d" % err)
+## 独立版本：给定 day_layout + idx，算出位置（不依赖当前 _canvas）
+func _node_pos_for_variant(day_layout: MapLayoutDay, idx: int) -> Vector2:
+	if day_layout == null: return Vector2.ZERO
+	if idx < 0 or idx >= day_layout.nodes.size(): return Vector2.ZERO
+	var node : MapLayoutNode = day_layout.nodes[idx]
 
+	var max_layer : int = 0
+	for n in day_layout.nodes:
+		max_layer = maxi(max_layer, n.layer)
 
-func _on_load():
-	var fd := FileDialog.new()
-	fd.file_mode = FileDialog.FILE_MODE_OPEN_FILE
-	fd.access = FileDialog.ACCESS_RESOURCES
-	fd.add_filter("*.tres", "Tres")
-	fd.min_size = Vector2i(320, 240)            # ★ 明确最小尺寸
-	fd.file_selected.connect(func(path):
-		_layout = load(path)
-		_layout_path = path
-		_current_day = 1
-		_variant_idx = 0
-		_ensure_variant_exists()
-		_update_all_labels()
-		_refresh_canvas_size()
-		_canvas.queue_redraw()
-		fd.queue_free()
-	)
-	fd.canceled.connect(func(): fd.queue_free())
-	add_child(fd)
-	fd.popup_centered(Vector2i(320, 240))       # ★ 强制尺寸
+	var same_layer : Array[int] = []
+	for i in range(day_layout.nodes.size()):
+		if day_layout.nodes[i].layer == node.layer:
+			same_layer.append(i)
+	var my_pos : int = same_layer.find(idx)
+	var count : int = same_layer.size()
+	var ratio : float = float(my_pos + 1) / float(count + 1)
+
+	var x : float = BAKE_WIDTH * ratio
+	var y : float = CANVAS_PADDING_TOP + (max_layer - node.layer + 0.5) * LAYER_HEIGHT
+	return Vector2(x, y)

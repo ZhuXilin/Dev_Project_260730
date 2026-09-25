@@ -4,26 +4,25 @@ class_name MapNodeButton
 @export var map_node: MapNode
 var map_scene_ref: CanvasLayer
 
-func setup(node_data: MapNode, map_scene: CanvasLayer):
+func setup(node_data: MapNode, map_scene: CanvasLayer, override_pos: Vector2 = Vector2.INF):
 	map_node = node_data
 	map_scene_ref = map_scene
 	text = _get_node_label(node_data)
 	
 	size = MapConst.MAP_NODE_SIZE
-	position = node_data.position - size / 2
+	var pos : Vector2 = override_pos if override_pos != Vector2.INF else node_data.position
+	position = pos - size / 2
 	disabled = not node_data.is_available
 	modulate = _get_color(node_data)
 	visible = true
 	add_theme_font_size_override("font_size", MapConst.MAP_NODE_FONT_SIZE)
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	
-	# ---- 强制所有状态下的字体颜色为白色 ----
 	add_theme_color_override("font_color", Color.WHITE)
 	add_theme_color_override("font_color_disabled", Color.WHITE)
 	add_theme_color_override("font_color_hover", Color.WHITE)
 	add_theme_color_override("font_color_pressed", Color.WHITE)
 	
-	# ---- 使用 8bit_style_box_flat 样式（不透明） ----
 	var stylebox = load(Config.PATHS.STYLEBOX_8BIT)
 	if stylebox:
 		add_theme_stylebox_override("normal", stylebox)
@@ -36,7 +35,6 @@ func setup(node_data: MapNode, map_scene: CanvasLayer):
 		pressed.disconnect(_on_clicked)
 	pressed.connect(_on_clicked)
 	
-	# ---- 悬停显示节点描述（新增） ----
 	if mouse_entered.is_connected(_on_hover_enter):
 		mouse_entered.disconnect(_on_hover_enter)
 	if mouse_exited.is_connected(_on_hover_exit):
@@ -51,14 +49,12 @@ func setup(node_data: MapNode, map_scene: CanvasLayer):
 			break
 
 func _get_node_label(node: MapNode) -> String:
-	# ---- 非战斗节点：固定类型名 ----
 	match node.node_type:
-		MapNode.NodeType.SHOP:   return "商店"
-		MapNode.NodeType.FORGE:  return "铁匠铺"
-		MapNode.NodeType.EVENT:  return "宝箱"
-		MapNode.NodeType.CHAPEL: return "圣坛"
+		MapNode.NodeType.SHOP:     return "商店"
+		MapNode.NodeType.FORGE:    return "铁匠铺"
+		MapNode.NodeType.TREASURE: return "宝箱"
+		MapNode.NodeType.CHAPEL:   return "圣坛"
 
-	# ---- 战斗节点：显示地图名 ----
 	if node.map_data and node.map_data.map_name != "":
 		return node.map_data.map_name
 
@@ -66,7 +62,7 @@ func _get_node_label(node: MapNode) -> String:
 
 func _get_color(node: MapNode) -> Color:
 	if node.is_visited:
-		return MapConst.MAP_NODE_VISITED      # 深灰色（已走过，不可交互）
+		return MapConst.MAP_NODE_VISITED
 	if node.is_available:
 		return MapConst.MAP_NODE_AVAILABLE
 	return MapConst.MAP_NODE_UNAVAILABLE
