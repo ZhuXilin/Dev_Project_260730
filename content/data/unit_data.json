@@ -11,6 +11,11 @@
 	"arena_exp": 30,
 	"available_blessings": ["strength", "dexterity"],
 	"soul_weapon": "soul_sword",
+	"sacrifice_buff": {
+	  "type": "attack_percent",
+	  "value": 0.15,
+	  "display": "全队攻击 +15%"
+	},
 	"advanced_class": {
 	  "id": "swordsman_hero", "name": "剑圣",
 	  "description": "疾风剑术，暴击强化",
@@ -32,6 +37,11 @@
 	"arena_exp": 35,
 	"available_blessings": ["strength", "dexterity", "vitality"],
 	"soul_weapon": "soul_lance",
+	"sacrifice_buff": {
+	  "type": "counter_damage_bonus",
+	  "value": 0.30,
+	  "display": "全队反击伤害 +30%"
+	},
 	"advanced_class": {
 	  "id": "spearman_dragoon", "name": "龙骑将",
 	  "description": "跃击破空，反击强化",
@@ -53,6 +63,11 @@
 	"arena_exp": 25,
 	"available_blessings": ["strength", "vitality"],
 	"soul_weapon": "soul_axe",
+	"sacrifice_buff": {
+	  "type": "crit_damage_bonus",
+	  "value": 0.30,
+	  "display": "全队暴击伤害 +30%"
+	},
 	"advanced_class": {
 	  "id": "axeman_berserker", "name": "狂战士",
 	  "description": "血战不休，攻击吸血",
@@ -74,6 +89,11 @@
 	"arena_exp": 30,
 	"available_blessings": ["dexterity", "arcane"],
 	"soul_weapon": "soul_bow",
+	"sacrifice_buff": {
+	  "type": "crit_damage_bonus",
+	  "value": 0.15,
+	  "display": "全队暴击伤害 +15%"
+	},
 	"advanced_class": {
 	  "id": "archer_sniper", "name": "神射手",
 	  "description": "一击必中，二次攻击",
@@ -95,6 +115,11 @@
 	"arena_exp": 40,
 	"available_blessings": ["dexterity", "arcane", "vitality"],
 	"soul_weapon": "soul_javelin",
+	"sacrifice_buff": {
+	  "type": "counter_damage_bonus",
+	  "value": 0.20,
+	  "display": "全队反击伤害 +20%"
+	},
 	"advanced_class": {
 	  "id": "pegasus_valkyrie", "name": "女武神",
 	  "description": "天空之主，暴击猎手",
@@ -116,6 +141,11 @@
 	"arena_exp": 35,
 	"available_blessings": ["intelligence", "faith"],
 	"soul_weapon": "soul_tome",
+	"sacrifice_buff": {
+	  "type": "attack_percent",
+	  "value": 0.20,
+	  "display": "全队攻击 +20%"
+	},
 	"advanced_class": {
 	  "id": "mage_archmage", "name": "大魔导",
 	  "description": "奥术极致，法术连击",
@@ -137,6 +167,11 @@
 	"arena_exp": 30,
 	"available_blessings": ["faith", "intelligence", "vitality"],
 	"soul_weapon": "soul_staff",
+	"sacrifice_buff": {
+	  "type": "heal_bonus",
+	  "value": 0.30,
+	  "display": "全队治疗量 +30%"
+	},
 	"advanced_class": {
 	  "id": "cleric_saint", "name": "圣者",
 	  "description": "神恩眷顾，治疗强化",
@@ -158,6 +193,11 @@
 	"arena_exp": 60,
 	"available_blessings": ["strength", "arcane", "intelligence"],
 	"soul_weapon": "soul_dragonstone",
+	"sacrifice_buff": {
+	  "type": "damage_reduction",
+	  "value": 0.10,
+	  "display": "全队减伤 +10%"
+	},
 	"advanced_class": {
 	  "id": "dragonborn_dragonlord", "name": "龙领主",
 	  "description": "龙威降临，铁壁坚守",
@@ -179,6 +219,11 @@
 	"arena_exp": 55,
 	"available_blessings": ["strength", "vitality", "faith"],
 	"soul_weapon": "soul_blade",
+	"sacrifice_buff": {
+	  "type": "defense_flat",
+	  "value": 2,
+	  "display": "全队防御 +2"
+	},
 	"advanced_class": {
 	  "id": "armored_paladin", "name": "圣骑士",
 	  "description": "神盾铁壁，反弹一切",

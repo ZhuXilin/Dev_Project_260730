@@ -2,7 +2,7 @@ extends CanvasLayer
 
 signal closed
 
-const COST_PER_CLASS : int = 800
+const COST_PER_CLASS : int = 0
 const PERFORMANCE_DURATION : float = 2.0
 const POST_SWITCH_DURATION : float = 0.8
 
@@ -23,6 +23,10 @@ var _mode : String = "map"
 var _arena_ref = null
 var _custom_party : Array = []
 
+# ★ 转职次数限制（-1 = 无限）
+var _max_conversions : int = 1
+var _converted_count : int = 0
+
 
 # ============================================================
 #  上下文设置
@@ -31,14 +35,18 @@ func setup_arena(arena_node, unit_data) -> void:
 	_mode = "arena"
 	_arena_ref = arena_node
 	_custom_party = [unit_data] if unit_data else []
+	_max_conversions = 1      # ★ Arena 只有 1 个单位，转职 1 次即可
+	_converted_count = 0
 	if is_node_ready():
 		_rebuild()
 
 
-func setup_map() -> void:
+func setup_map(max_conversions: int = 1) -> void:
 	_mode = "map"
 	_arena_ref = null
 	_custom_party = []
+	_max_conversions = max_conversions
+	_converted_count = 0
 	if is_node_ready():
 		_rebuild()
 
@@ -67,12 +75,16 @@ func _subtract_gold(amount: int) -> void:
 		GameState.temp_gold -= amount
 
 
+func _reached_limit() -> bool:
+	return _max_conversions >= 0 and _converted_count >= _max_conversions
+
+
 # ============================================================
 #  初始化
 # ============================================================
 func _ready():
 	performance_layer.visible = false
-	cost_label.text = "  |  转职: %dG" % COST_PER_CLASS
+	cost_label.text = "  |  转职：免费"
 	MusicManager.play_hero_shrine_music()
 	_refresh_gold_display()
 	_build_unit_row()
@@ -106,7 +118,7 @@ func _build_unit_card(unit_idx: int) -> PanelContainer:
 	var type_cn : String = UnitDataManager.get_unit_type_display_name(unit.unit_name)
 
 	var card = PanelContainer.new()
-	card.custom_minimum_size = Vector2(110, 0)
+	card.custom_minimum_size = Vector2(130, 0)
 	card.mouse_filter = Control.MOUSE_FILTER_STOP
 
 	var vbox = VBoxContainer.new()
@@ -124,23 +136,32 @@ func _build_unit_card(unit_idx: int) -> PanelContainer:
 	status_lb.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	vbox.add_child(status_lb)
 
-	# ---- 阵亡 / 已熔铸 ----
+	# ---- 已转职（阵亡状态叠加） ----
+	if unit.advanced_class != "":
+		var adv_name : String = AdvancedClassManager.get_display_name(unit.advanced_class)
+		name_lb.text = unit_display + "\n" + type_cn
+
+		var suffix : String = "（已转职）"
+		var dim_color : Color = Color(0.55, 0.55, 0.55, 1)
+		var card_color : Color = Color(0.7, 0.7, 0.7, 1)
+		if unit.is_dead:
+			suffix = "（已转职 · 已阵亡）"
+			dim_color = Color(0.4, 0.4, 0.4, 1)
+			card_color = Color(0.5, 0.5, 0.5, 1)
+
+		name_lb.modulate = dim_color
+		status_lb.text = "★ " + adv_name + "\n" + suffix
+		status_lb.modulate = dim_color
+		card.modulate = card_color
+		return card
+
+	# ---- 未转职 + 阵亡 / 已熔铸 ----
 	if unit.is_dead:
 		name_lb.text = unit_display + "\n" + type_cn
 		name_lb.modulate = Color(0.4, 0.4, 0.4, 1)
 		status_lb.text = "已阵亡 / 已熔铸"
 		status_lb.modulate = Color(0.4, 0.4, 0.4, 1)
 		card.modulate = Color(0.5, 0.5, 0.5, 1)
-		return card
-
-	# ---- 已转职 ----
-	if unit.advanced_class != "":
-		var adv_name : String = AdvancedClassManager.get_display_name(unit.advanced_class)
-		name_lb.text = unit_display + "\n" + type_cn
-		name_lb.modulate = Color(0.55, 0.55, 0.55, 1)
-		status_lb.text = "★ " + adv_name + "\n（已转职）"
-		status_lb.modulate = Color(0.55, 0.55, 0.55, 1)
-		card.modulate = Color(0.7, 0.7, 0.7, 1)
 		return card
 
 	# ---- 无进阶定义 ----
@@ -168,9 +189,13 @@ func _build_unit_card(unit_idx: int) -> PanelContainer:
 	status_lb.text = "→ ★ %s\n%s\n授予:%s" % [adv.name, stat_str, talent_str]
 
 	var can_afford : bool = _get_gold() >= COST_PER_CLASS
-	if not can_afford:
+	var reached : bool = _reached_limit()
+
+	if not can_afford or reached:
 		status_lb.modulate = Color(0.55, 0.55, 0.55, 1)
 		card.modulate = Color(0.7, 0.7, 0.7, 1)
+		if reached:
+			status_lb.text += "\n（本次已转职）"
 	else:
 		card.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 		card.gui_input.connect(_on_card_input.bind(unit_idx))
@@ -214,6 +239,8 @@ func _on_card_input(event: InputEvent, unit_idx: int):
 func _on_card_clicked(unit_idx: int):
 	if _is_performing:
 		return
+	if _reached_limit():
+		return
 	var party : Array = _get_party()
 	if unit_idx < 0 or unit_idx >= party.size():
 		return
@@ -221,8 +248,6 @@ func _on_card_clicked(unit_idx: int):
 		return
 
 	var unit : UnitData = party[unit_idx]
-	if unit.is_dead:
-		return
 	if unit.advanced_class != "":
 		return
 
@@ -233,7 +258,7 @@ func _on_card_clicked(unit_idx: int):
 	var unit_display : String = unit.display_name if unit.display_name != "" else unit.unit_name
 	Globals.show_confirm(
 		self,
-		"将 %s 转职为「%s」？\n消耗 %d 金币，不可撤销。" % [unit_display, adv.name, COST_PER_CLASS],
+		"将 %s 转职为「%s」？\n不可撤销。" % [unit_display, adv.name],
 		"确定转职",
 		"取消",
 		func(): _begin_convert(unit, adv),
@@ -250,10 +275,11 @@ func _begin_convert(unit : UnitData, adv : AdvancedClassData):
 		return
 	if _get_gold() < COST_PER_CLASS:
 		return
+	if _reached_limit():
+		return
 
 	_is_performing = true
 
-	# ---- 0. 诊断日志 ----
 	print("[HeroShrine][DEBUG] _begin_convert unit=%s/%s adv=%s granted_talent=%s" % [
 		unit.unit_name, unit.display_name, adv.id, adv.granted_talent])
 
@@ -274,7 +300,7 @@ func _begin_convert(unit : UnitData, adv : AdvancedClassData):
 			"arcane":       unit.arcane += val
 			"move_range":   unit.move_range += val
 
-	# ★ 职业特技：写入独立字段，不占普通词条槽
+	# 职业特技：写入独立字段
 	if adv.granted_talent != "":
 		unit.advanced_talent_id = adv.granted_talent
 		print("[HeroShrine][DEBUG]   → unit.advanced_talent_id = %s（对象 id=%d）" % [
@@ -291,37 +317,36 @@ func _begin_convert(unit : UnitData, adv : AdvancedClassData):
 	if adv.sprite_frames_path != "":
 		unit.override_sprite_path = adv.sprite_frames_path
 
+	# ★ 累加转职次数
+	_converted_count += 1
+
 	if _mode == "map":
 		SaveManager.auto_save()
 	else:
 		_sync_advanced_class_to_gamestate(unit)
 		SaveManager.auto_save()
-	print("[HeroShrine] %s 转职为 %s（%s 模式，金币已扣）" % [unit.display_name, adv.name, _mode])
+	print("[HeroShrine] %s 转职为 %s（%s 模式，金币已扣，本次已转 %d/%d）" % [
+		unit.display_name, adv.name, _mode, _converted_count, _max_conversions])
 
-	# 2. 隐藏主界面，显示演出层
+	# 2. 演出
 	panel.visible = false
 	performance_layer.visible = true
 	performance_layer.mouse_filter = Control.MOUSE_FILTER_STOP
 	perf_label.text = "英灵降临..."
 
-	# 3. 加载基础 sprite
 	var base_path : String = UnitDataManager.get_sprite_frames_path(unit.unit_name)
 	_load_sprite_into(perf_sprite, base_path)
 
-	# 4. 播放转职音乐
 	MusicManager.play_hero_shrine_convert_music()
-
-	# 5. 等待演出
 	await get_tree().create_timer(PERFORMANCE_DURATION, true, false, true).timeout
 
-	# 6. 切换进阶 sprite
 	var adv_path : String = adv.sprite_frames_path if adv.sprite_frames_path != "" else base_path
 	_load_sprite_into(perf_sprite, adv_path)
 	perf_label.text = "★ " + adv.name
 
 	await get_tree().create_timer(POST_SWITCH_DURATION, true, false, true).timeout
 
-	# 7. 恢复界面
+	# 3. 恢复界面
 	performance_layer.visible = false
 	performance_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	panel.visible = true
@@ -329,6 +354,13 @@ func _begin_convert(unit : UnitData, adv : AdvancedClassData):
 
 	_refresh_gold_display()
 	_build_unit_row()
+
+	# ★ 达到上限 → 更新提示 + 关闭按钮文字
+	if _reached_limit():
+		if hint_label:
+			hint_label.text = "本次转职已完成"
+		if close_btn:
+			close_btn.text = "完成"
 
 	_is_performing = false
 

@@ -295,8 +295,10 @@ func _create_node_buttons():
 		node_container.add_child(btn)
 
 func _get_node_layout_width() -> float:
-	# 用视口宽减去左右留白
-	var vp : Vector2 = get_viewport().get_visible_rect().size
+	if not is_inside_tree(): return 400.0
+	var vp_node : Viewport = get_viewport()
+	if vp_node == null: return 400.0
+	var vp : Vector2 = vp_node.get_visible_rect().size
 	return maxf(vp.x - 80.0, 200.0)
 
 func _update_availability(_start_node: MapNode):
@@ -326,7 +328,9 @@ func _update_availability(_start_node: MapNode):
 
 func _update_buttons():
 	if not map_data: return
+	if not is_inside_tree(): return
 	var pos_map : Dictionary = _compute_node_positions()
+	if pos_map.is_empty(): return
 	for child in node_container.get_children():
 		if child is MapNodeButton:
 			var btn : MapNodeButton = child
@@ -367,6 +371,18 @@ func _setup_ui():
 	if MusicManager.config and MusicManager.config.map_music:
 		MusicManager.play_music(MusicManager.config.map_music)
 
+func _restore_map_music():
+	if not is_inside_tree(): return
+	if MusicManager == null: return
+	if MusicManager.config == null: return
+	var mm : AudioStream = MusicManager.config.map_music
+	if mm == null: return
+	var player : AudioStreamPlayer = MusicManager.player
+	if player == null: return
+	if not player.is_inside_tree(): return
+	if player.playing and player.stream == mm:
+		return
+	MusicManager.play_music(mm)
 
 # ---- 节点选择与战斗加载 ----
 func _select_node_by_id(node_id: String):
@@ -453,7 +469,11 @@ func _open_forge(node: MapNode):
 
 	await panel.tree_exited
 
+	if not is_inside_tree():
+		return
+
 	print("铁匠铺已关闭")
+	_restore_map_music()
 	GameState.current_node_key = ""
 	_save_game()
 	update_all_displays()
@@ -484,7 +504,11 @@ func _open_treasure(node: MapNode):
 	treasure.setup(node.reward)
 	await treasure.closed
 
-	print("宝箱/事件已关闭")
+	if not is_inside_tree():
+		return
+
+	print("宝箱已关闭")
+	_restore_map_music()
 	_save_game()
 	update_all_displays()
 	_update_availability(map_data.root_node)
@@ -514,6 +538,10 @@ func _open_chapel(node: MapNode):
 	add_child(ui)
 	await ui.closed
 
+	if not is_inside_tree():
+		return
+
+	_restore_map_music()
 	_save_game()
 	update_all_displays()
 	_update_availability(map_data.root_node)
@@ -679,7 +707,11 @@ func _open_shop(node: MapNode):
 
 	await panel.tree_exited
 
+	if not is_inside_tree():
+		return
+
 	print("商店已关闭")
+	_restore_map_music()
 	_save_game()
 	update_all_displays()
 	_update_availability(map_data.root_node)
@@ -854,29 +886,28 @@ func _get_node_description(node: MapNode) -> String:
 func _compute_node_positions() -> Dictionary:
 	var pos_map : Dictionary = {}
 	if not map_data: return pos_map
+	if not is_inside_tree(): return pos_map
+	var vp_node : Viewport = get_viewport()
+	if vp_node == null: return pos_map
 
 	var max_layer : int = 0
 	for n in map_data.nodes:
 		max_layer = maxi(max_layer, n.layer)
 
-	var vp : Vector2 = get_viewport().get_visible_rect().size
+	var vp : Vector2 = vp_node.get_visible_rect().size
 	var canvas_width : float = _get_node_layout_width()
 	var layer_count : int = max_layer + 1
 
-	# 上下留白（底部留 50px 给按钮栏）
 	var top_margin : float = 40.0
 	var bottom_margin : float = 50.0
 	var available_h : float = vp.y - top_margin - bottom_margin
 
-	# 动态层间距
 	var layer_height : float = available_h / float(layer_count)
 	layer_height = clampf(layer_height, 40.0, 200.0)
 
-	# 垂直居中
 	var total_h : float = layer_count * layer_height
 	var top_offset : float = top_margin + (available_h - total_h) / 2.0
 
-	# 按层分组
 	var by_layer : Dictionary = {}
 	for n in map_data.nodes:
 		if not by_layer.has(n.layer):

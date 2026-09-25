@@ -311,13 +311,23 @@ func is_unit_dead(unit_name: String, display_name: String) -> bool:
 	return false
 
 func revive_unit(unit_name: String, display_name: String) -> bool:
+	var key : String = "%s|%s" % [unit_name, display_name]
 	for ud in party:
 		if ud.unit_name == unit_name and ud.display_name == display_name:
 			if not ud.is_dead:
 				return false
 			ud.is_dead = false
 			ud.hit_points = ud.max_hp
-			print("[复活] %s 满血复活" % ud.display_name)
+			# ★ 清理该单位提供的熔铸 buff
+			var removed : int = 0
+			for m in party:
+				if m.sacrifice_buff_sources.has(key):
+					m.sacrifice_buff_sources.erase(key)
+					removed += 1
+			if removed > 0:
+				print("[复活] %s 满血复活（清理 %d 个单位的熔铸 buff）" % [ud.display_name, removed])
+			else:
+				print("[复活] %s 满血复活" % ud.display_name)
 			return true
 	return false
 
@@ -326,7 +336,9 @@ func revive_all_units():
 		if ud.is_dead:
 			ud.is_dead = false
 			ud.hit_points = ud.max_hp
-			print("[复活] %s 满血复活" % ud.display_name)
+	# ★ 全员复活 → 清空所有 buff 来源
+	for m in party:
+		m.sacrifice_buff_sources.clear()
 
 func get_alive_party() -> Array:
 	var result : Array = []
@@ -433,7 +445,7 @@ func start_new_cycle():
 	cycle_start_materials = materials.duplicate()
 
 	for unit_data in party:
-		unit_data.persistent_attack_bonus = 0.0
+		unit_data.sacrifice_buff_sources.clear()
 		unit_data.armor_slots.clear()
 		unit_data.max_armor_slots = 2
 		unit_data.is_dead = false

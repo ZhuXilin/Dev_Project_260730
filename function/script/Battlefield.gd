@@ -1918,6 +1918,7 @@ func _on_map_victory_continue():
 			if hero_shrine_scene:
 				var hero_shrine = hero_shrine_scene.instantiate()
 				add_child(hero_shrine)
+				hero_shrine.setup_map(1) 
 				await hero_shrine.closed
 				print("英灵殿关闭")
 			else:
@@ -2436,12 +2437,28 @@ func _apply_team_buffs():
 		if unit.unit_stats.team_id != 0:
 			continue
 
-		# ★ 熔铸持久攻击加成（本局累计，每次熔铸 +30%）
-		if unit.unit_stats.persistent_attack_bonus > 0.0:
-			unit.buff_attack_percent += unit.unit_stats.persistent_attack_bonus
-			print("[Battlefield] %s 熔铸攻击加成 +%.0f%%" % [
-				unit.unit_stats.display_name,
-				unit.unit_stats.persistent_attack_bonus * 100.0])
+		# ★ 熔铸 buff（按类型分发）
+		var sac_buffs : Dictionary = unit.unit_stats.get_sacrifice_buffs()
+		for btype in sac_buffs:
+			var bvalue : float = sac_buffs[btype]
+			match btype:
+				"attack_percent":
+					unit.buff_attack_percent += bvalue
+				"crit_damage_bonus":
+					unit.buff_crit_damage_bonus += bvalue
+				"defense_flat":
+					unit.buff_defense_flat += int(bvalue)
+				"damage_reduction":
+					unit.buff_damage_reduction += bvalue
+				"heal_bonus":
+					unit.relic_heal_bonus += bvalue
+				"counter_damage_bonus":
+					unit.relic_counter_damage_bonus += bvalue
+				_:
+					pass
+		if not sac_buffs.is_empty():
+			print("[Battlefield] %s 熔铸 buff: %s" % [
+				unit.unit_stats.display_name, sac_buffs])
 
 		# 遗物属性
 		var s = unit.unit_stats

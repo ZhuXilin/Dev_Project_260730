@@ -716,6 +716,8 @@ func _do_sacrifice(u: UnitData, _armors_ignored: Array, _discard_count: int):
 	var msg : String = "已熔铸：%s\n获得 %d 金币 + %d 件史诗防具" % [
 		u.display_name, result["gold"], result["epic_count"]
 	]
+	if result["buff_display"] != "":
+		msg += "\n★ 全队获得：" + result["buff_display"]
 	if result["relic_id"] != "":
 		var rd : Dictionary = RelicManager.get_relic_data(result["relic_id"])
 		msg += "\n★ 额外遗物：%s" % rd.get("name", result["relic_id"])

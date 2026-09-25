@@ -120,6 +120,17 @@ static func get_default_weapon_id(unit_name: String) -> String:
 	return get_unit_data(unit_name).get("default_weapon", "")
 
 
+static func get_sacrifice_buff(unit_name: String) -> Dictionary:
+	return get_unit_data(unit_name).get("sacrifice_buff", {})
+
+
+static func get_sacrifice_buff_display(unit_name: String) -> String:
+	var buff : Dictionary = get_sacrifice_buff(unit_name)
+	if buff.is_empty():
+		return ""
+	return buff.get("display", "")
+
+
 # ============================================================
 #  显示名称（用于UI）
 # ============================================================

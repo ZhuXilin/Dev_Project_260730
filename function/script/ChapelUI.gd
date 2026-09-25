@@ -37,7 +37,7 @@ func _build_main_options():
 
 	_add_option_button("回血", _on_choose_heal)
 	_add_option_button("复活", _on_choose_revive)
-	_add_option_button("熔铸单位", _on_choose_sacrifice)
+	_add_option_button("转职", _on_choose_convert)
 
 
 func _add_option_button(text: String, cb: Callable):
@@ -117,77 +117,36 @@ func _on_revive_unit(unit_name: String, display_name: String):
 
 
 # ============================================================
-#  选项 3：熔铸
+#  选项 3：转职（弹英灵殿，限 1 次）
 # ============================================================
-func _on_choose_sacrifice():
+func _on_choose_convert():
 	if _chosen: return
-	var alive : Array = []
-	for ud in GameState.party:
-		if not ud.is_dead:
-			alive.append(ud)
-	if alive.size() <= 1:
-		if hint_label:
-			hint_label.text = "至少保留 1 个存活单位，无法熔铸"
-		return
-	_show_sacrifice_submenu()
 
-
-func _show_sacrifice_submenu():
-	_clear_row(option_row)
-	var next_count : int = GameState.sacrifice_count + 1
-	var preview : Dictionary = SacrificeHelper.get_reward_preview(next_count)
-	var hint_text : String = "熔铸：获得 %d 金币 + %d 件史诗防具" % [
-		preview["gold"], preview["epic_count"]
-	]
-	if preview["relic"]:
-		hint_text += " + 1 遗物"
-	if hint_label:
-		hint_label.text = hint_text
-
+	# 过滤阵亡 / 已转职
+	var convertible : int = 0
 	for ud in GameState.party:
 		if ud.is_dead: continue
-		var btn := Button.new()
-		btn.text = ud.display_name
-		btn.custom_minimum_size = Vector2(110, 40)
-		btn.add_theme_font_size_override("font_size", 8)
-		btn.pressed.connect(_on_sacrifice_unit_picked.bind(ud))
-		option_row.add_child(btn)
+		if ud.advanced_class != "": continue
+		if AdvancedClassManager.get_class_for_unit(ud.unit_name) != null:
+			convertible += 1
+	if convertible == 0:
+		if hint_label:
+			hint_label.text = "没有可转职的单位"
+		return
 
-	var back := Button.new()
-	back.text = "返回"
-	back.custom_minimum_size = Vector2(100, 40)
-	back.add_theme_font_size_override("font_size", 8)
-	back.pressed.connect(func(): _build_main_options())
-	option_row.add_child(back)
-
-
-func _on_sacrifice_unit_picked(u: UnitData):
-	if _chosen: return
-	Globals.show_confirm(
-		self,
-		"确定熔铸 %s？\n该单位将被冻结，本局不可用。" % u.display_name,
-		"熔铸", "取消",
-		func(): _do_sacrifice_and_close(u),
-		func(): pass
-	)
-
-
-func _do_sacrifice_and_close(u: UnitData):
-	if _chosen: return
 	_chosen = true
 
-	var result : Dictionary = SacrificeHelper.do_sacrifice(GameState.party, u)
-	print("[圣坛] 熔铸 %s：+%dG +%d 史诗" % [u.display_name, result["gold"], result["epic_count"]])
+	var scene = load(Config.PATHS.HERO_SHRINE_UI)
+	if not scene:
+		push_error("HeroShrineUI 未找到")
+		_close()
+		return
+	var shrine = scene.instantiate()
+	shrine.layer = 25
+	add_child(shrine)
+	shrine.setup_map(1)
+	await shrine.closed
 
-	var msg : String = "已熔铸 %s\n+%d 金币 +%d 史诗防具（已进待领取）" % [
-		u.display_name, result["gold"], result["epic_count"]
-	]
-	if result["relic_id"] != "":
-		var rd : Dictionary = RelicManager.get_relic_data(result["relic_id"])
-		msg += "\n★ 遗物：" + rd.get("name", result["relic_id"])
-	if hint_label:
-		hint_label.text = msg
-	await get_tree().create_timer(1.2, true, false, true).timeout
 	_close()
 
 

@@ -3,13 +3,15 @@
 [ext_resource type="Script" uid="uid://ccvitfeaytlvk" path="res://function/resource/UnitLevelMapConfig.gd" id="1_qd7h8"]
 [ext_resource type="Resource" uid="uid://cvavysat5tfmo" path="res://content/scenes/levels/levellists/LevelListType001_Day1.tres" id="1_rx0gl"]
 [ext_resource type="Script" uid="uid://c8x3p1n87hrdv" path="res://function/resource/UnitLevelMapEntry.gd" id="1_suoue"]
-[ext_resource type="Resource" uid="uid://d4b2nu3ipgysp" path="res://content/scenes/levels/maplayout/MapLayoutDefault.tres" id="2_8ouck"]
+[ext_resource type="Resource" uid="uid://cf33p2b3e0ep1" path="res://content/scenes/levels/maplayout/MapLayoutDefault.tres" id="2_8ouck"]
+[ext_resource type="Resource" uid="uid://c8fm3tgsvq7l3" path="res://content/scenes/levels/levellists/LevelListType001_Day2.tres" id="2_xj16i"]
+[ext_resource type="Resource" uid="uid://n221j2sdn3nl" path="res://content/scenes/levels/levellists/LevelListType001_Day3.tres" id="3_eigbw"]
 
 [sub_resource type="Resource" id="Resource_eompo"]
 script = ExtResource("1_suoue")
 day1 = ExtResource("1_rx0gl")
-day2 = ExtResource("1_rx0gl")
-day3 = ExtResource("1_rx0gl")
+day2 = ExtResource("2_xj16i")
+day3 = ExtResource("3_eigbw")
 layout = ExtResource("2_8ouck")
 metadata/_custom_type_script = "uid://c8x3p1n87hrdv"
 

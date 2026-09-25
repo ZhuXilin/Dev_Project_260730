@@ -34,9 +34,15 @@ static func do_sacrifice(party: Array, unit: UnitData) -> Dictionary:
 	if reward["relic"]:
 		relic_id = _grant_random_relic()
 
+	# ★ 记录 buff 来源
+	var source_key : String = UnitData.make_sacrifice_key(unit)
 	for member in party:
-		if member.is_dead: continue
-		member.persistent_attack_bonus += 0.30
+		if member == unit: continue
+		if not member.sacrifice_buff_sources.has(source_key):
+			member.sacrifice_buff_sources.append(source_key)
+
+	# ★ 该单位提供的 buff 描述
+	var buff_display : String = UnitDataManager.get_sacrifice_buff_display(unit.unit_name)
 
 	SaveManager.auto_save()
 
@@ -44,6 +50,8 @@ static func do_sacrifice(party: Array, unit: UnitData) -> Dictionary:
 		"gold": reward["gold"],
 		"epic_count": epic_rewards.size(),
 		"relic_id": relic_id,
+		"source_key": source_key,
+		"buff_display": buff_display,
 	}
 
 
