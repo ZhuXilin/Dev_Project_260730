@@ -24,9 +24,10 @@ static func _generate_from_layout(day: int, day_layout: MapLayoutDay) -> MapLeve
 
 	var nodes: Array[MapNode] = []
 
-	# ---- 第一遍：创建节点 ----
+	# ---- 第一遍：创建节点（用随机池解析类型）----
 	for layout_node in day_layout.nodes:
-		var n : MapNode = _create_node(layout_node.node_type, layout_node.position, layout_node.layer)
+		var actual_type : MapNode.NodeType = layout_node.resolve_type()
+		var n : MapNode = _create_node(actual_type, layout_node.position, layout_node.layer)
 		nodes.append(n)
 
 	# ---- 第二遍：建立连接 ----
