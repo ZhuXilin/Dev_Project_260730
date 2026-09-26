@@ -26,6 +26,13 @@ var _canvas : Control = null
 var _scroll : ScrollContainer = null
 var _popup_layer : Control = null
 
+var _levellist : LevelListResource = null
+var _levellist_path : String = ""
+var _in_test_mode : bool = false
+var _test_map_assignment : Dictionary = {}   # MapLayoutNode -> 地图名
+var _levellist_btn : Button = null
+var _test_btn : Button = null
+
 var _day_buttons : Array[Button] = []
 var _tool_buttons : Array[Button] = []
 var _variant_label : Label = null
@@ -178,6 +185,116 @@ func _on_open():
 	add_child(fd)
 	fd.popup_centered(Vector2i(600, 400))
 
+# ============================================================
+#  LevelList + 测试
+# ============================================================
+func _on_pick_levellist():
+	var fd := FileDialog.new()
+	fd.file_mode = FileDialog.FILE_MODE_OPEN_FILE
+	fd.access = FileDialog.ACCESS_RESOURCES
+	fd.add_filter("*.tres", "Tres 文件")
+	fd.use_native_dialog = true
+	fd.current_dir = "res://content/scenes/levels/"
+	fd.title = "选择 LevelList 文件"
+	fd.file_selected.connect(func(path):
+		var ll = load(path)
+		if ll == null:
+			push_warning("加载失败: " + path)
+			fd.queue_free()
+			return
+		_levellist = ll
+		_levellist_path = path
+		_update_all_labels()
+		print("[MapLayoutEditor] 已加载 LevelList: ", path)
+		fd.queue_free()
+	)
+	fd.canceled.connect(func(): fd.queue_free())
+	add_child(fd)
+	fd.popup_centered(Vector2i(500, 400))
+
+
+func _on_test_toggle():
+	_in_test_mode = not _in_test_mode
+	_test_btn.button_pressed = _in_test_mode
+
+	if _in_test_mode:
+		if _levellist == null:
+			push_warning("请先选择 LevelList 文件")
+			_in_test_mode = false
+			_test_btn.button_pressed = false
+			return
+		_generate_test_map()
+	else:
+		_test_map_assignment.clear()
+
+	_update_all_labels()
+	_canvas.queue_redraw()
+
+
+func _generate_test_map():
+	_test_map_assignment.clear()
+	var day_layout : MapLayoutDay = _get_current_day_layout()
+	if day_layout == null: return
+
+	# ---- 收集每个类型的候选地图 ----
+	var pools : Dictionary = {}
+	if _levellist and _levellist.levels:
+		for m in _levellist.levels:
+			if m == null: continue
+			var t : int = m.node_type
+			if not pools.has(t):
+				pools[t] = []
+			pools[t].append(m)
+
+	# ---- 逐层解析（同层去重，和 MapGenerator 一致） ----
+	var by_layer : Dictionary = {}
+	for i in range(day_layout.nodes.size()):
+		var ln : MapLayoutNode = day_layout.nodes[i]
+		if not by_layer.has(ln.layer):
+			by_layer[ln.layer] = []
+		by_layer[ln.layer].append(i)
+
+	for layer_key in by_layer:
+		var indices : Array = by_layer[layer_key]
+
+		# 先处理固定节点占位
+		var used_types : Dictionary = {}
+		for idx in indices:
+			var ln : MapLayoutNode = day_layout.nodes[idx]
+			if ln.random_pool.is_empty():
+				used_types[ln.node_type] = true
+
+		# 再处理随机节点
+		for idx in indices:
+			var ln : MapLayoutNode = day_layout.nodes[idx]
+			var resolved : int = ln.node_type
+			if not ln.random_pool.is_empty():
+				var available : Array = []
+				for t in ln.random_pool:
+					if not used_types.has(t):
+						available.append(t)
+				if available.is_empty():
+					available = ln.random_pool.duplicate()
+				resolved = available[randi() % available.size()]
+				used_types[resolved] = true
+
+			# 非战斗节点 → 空
+			if resolved in [
+				MapNode.NodeType.SHOP,
+				MapNode.NodeType.FORGE,
+				MapNode.NodeType.TREASURE,
+				MapNode.NodeType.CHAPEL,
+			]:
+				_test_map_assignment[ln] = _node_type_short(resolved)
+				continue
+
+			# 战斗节点 → 从池里抽
+			var pool : Array = pools.get(resolved, [])
+			if pool.is_empty():
+				_test_map_assignment[ln] = "?"
+			else:
+				var pick : MapData = pool[randi() % pool.size()]
+				_test_map_assignment[ln] = pick.map_name
 
 # ============================================================
 #  嵌入式 Popup
@@ -614,6 +731,19 @@ func _build_ui():
 	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	top.add_child(spacer)
 
+	# ★ LevelList 选择
+	_levellist_btn = _make_btn("关卡池", "选择 LevelList 文件")
+	_levellist_btn.pressed.connect(_on_pick_levellist)
+	top.add_child(_levellist_btn)
+
+	# ★ 测试
+	_test_btn = _make_btn("测试", "预览节点（按当前布局 + 关卡池）")
+	_test_btn.toggle_mode = true
+	_test_btn.pressed.connect(_on_test_toggle)
+	top.add_child(_test_btn)
+
+	top.add_child(VSeparator.new())
+
 	var new_btn := _make_btn("新", "新建文件")
 	new_btn.pressed.connect(_on_new)
 	top.add_child(new_btn)
@@ -631,7 +761,7 @@ func _build_ui():
 	_hint_label.offset_top = -14
 	_hint_label.offset_left = 6
 	_hint_label.add_theme_font_size_override("font_size", 6)
-	_hint_label.text = "左键=创建/拖动 | 中键=删节点/删连线 | 右键=菜单 | 滚轮=滚动"
+	_hint_label.text = "左键=创建/拖动 | 中键=删节点/删连线 | 右键=改类型 | 滚轮=滚动"
 	add_child(_hint_label)
 
 	_scroll = ScrollContainer.new()
@@ -684,6 +814,10 @@ func _on_canvas_input(event: InputEvent):
 
 
 func _handle_mouse_button(event: InputEventMouseButton, local: Vector2):
+	# ★ 测试模式禁用所有编辑操作
+	if _in_test_mode:
+		return
+
 	if event.pressed:
 		if event.button_index == MOUSE_BUTTON_LEFT:
 			var idx : int = _node_at(local)
@@ -1001,6 +1135,26 @@ func _update_all_labels():
 	if _variant_label:
 		_variant_label.text = "%d/%d" % [_variant_idx + 1, maxi(arr.size(), 1)]
 
+	# ★ LevelList 按钮文字
+	if _levellist_btn:
+		if _levellist_path != "":
+			var fname : String = _levellist_path.get_file()
+			if fname.ends_with(".tres"):
+				fname = fname.substr(0, fname.length() - 5)
+			if fname.length() > 8:
+				fname = fname.substr(0, 7) + "…"
+			_levellist_btn.text = fname
+			_levellist_btn.tooltip_text = _levellist_path
+		else:
+			_levellist_btn.text = "关卡池"
+			_levellist_btn.tooltip_text = "选择 LevelList 文件"
+
+	# ★ 测试按钮
+	if _test_btn:
+		_test_btn.button_pressed = _in_test_mode
+		_test_btn.text = "退出" if _in_test_mode else "测试"
+		
+
 ## 保存前：把所有节点的计算位置写入 position 字段
 func _bake_positions():
 	if _layout == null: return
@@ -1033,3 +1187,16 @@ func _node_pos_for_variant(day_layout: MapLayoutDay, idx: int) -> Vector2:
 	var x : float = BAKE_WIDTH * ratio
 	var y : float = CANVAS_PADDING_TOP + (max_layer - node.layer + 0.5) * LAYER_HEIGHT
 	return Vector2(x, y)
+
+
+func _node_type_short(t: int) -> String:
+	match t:
+		MapNode.NodeType.START: return "START"
+		MapNode.NodeType.NORMAL: return "NORMAL"
+		MapNode.NodeType.ELITE: return "ELITE"
+		MapNode.NodeType.SHOP: return "SHOP"
+		MapNode.NodeType.TREASURE: return "TREASURE"
+		MapNode.NodeType.BOSS: return "BOSS"
+		MapNode.NodeType.FORGE: return "FORGE"
+		MapNode.NodeType.CHAPEL: return "CHAPEL"
+	return "?"
