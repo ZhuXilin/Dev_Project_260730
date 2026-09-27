@@ -185,6 +185,7 @@ static func get_ready_active_skills(unit) -> Array:
 	var result : Array = []
 	if unit == null:
 		return result
+	# 普通词条槽
 	for inst in unit.talent_slots:
 		if not inst or not inst.is_active:
 			continue
@@ -193,6 +194,12 @@ static func get_ready_active_skills(unit) -> Array:
 			continue
 		if inst.is_ready:
 			result.append(inst.talent_id)
+	# ★ 职业特技（advanced_talent_inst）
+	var adv = unit.advanced_talent_inst
+	if adv and adv.is_active:
+		var data_adv = get_talent_data(adv.talent_id)
+		if data_adv and data_adv.is_active_skill and adv.is_ready:
+			result.append(adv.talent_id)
 	return result
 
 

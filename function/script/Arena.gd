@@ -198,13 +198,14 @@ func _refresh_center_panel():
 
 
 func _refresh_streak_label():
+	var gold_hint : String = "（退出失效）"
 	if _phase == Phase.IDLE:
-		streak_label.text = "金币：%d   |   通关：%d 次   |   当前魂：%d" % [
-			_arena_gold, GameState.arena_clear_count, GameState.soul
+		streak_label.text = "金币：%d %s   |   通关：%d 次   |   当前魂：%d" % [
+			_arena_gold, gold_hint, GameState.arena_clear_count, GameState.soul
 		]
 	elif _phase == Phase.SURVIVAL:
-		streak_label.text = "金币：%d   |   生存：%d / %d（不可撤离）   |   本局净：%+d 魂" % [
-			_arena_gold, _survival_round, SURVIVAL_ROUNDS, _get_net_gain()
+		streak_label.text = "金币：%d %s   |   生存：%d / %d（不可撤离）   |   本局净：%+d 魂" % [
+			_arena_gold, gold_hint, _survival_round, SURVIVAL_ROUNDS, _get_net_gain()
 		]
 	else:
 		var next_type : String = "普通"
@@ -212,8 +213,8 @@ func _refresh_streak_label():
 			next_type = "★ 小Boss（付 %d 魂）" % ENTRY_COST_MINI_BOSS
 		elif _streak == 3:
 			next_type = "★ 精英"
-		streak_label.text = "金币：%d   |   进度：%d / %d   |   下一战：%s   |   本局净：%+d 魂" % [
-			_arena_gold, _streak, CLEAR_TARGET, next_type, _get_net_gain()
+		streak_label.text = "金币：%d %s   |   进度：%d / %d   |   下一战：%s   |   本局净：%+d 魂" % [
+			_arena_gold, gold_hint, _streak, CLEAR_TARGET, next_type, _get_net_gain()
 		]
 
 

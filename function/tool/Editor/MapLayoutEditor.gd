@@ -803,7 +803,7 @@ func _build_ui():
 	_hint_label.offset_top = -14
 	_hint_label.offset_left = 6
 	_hint_label.add_theme_font_size_override("font_size", 6)
-	_hint_label.text = "左键=创建/拖动 | 中键=删节点/删连线 | 右键=改类型 | 滚轮=滚动"
+	_hint_label.text = "左键=创建/拖动 | 中键=删节点/删连线 | 右键=改类型/空白处=插入层 | 滚轮=滚动"
 	add_child(_hint_label)
 
 	# ========== 画布 ==========
@@ -873,11 +873,13 @@ func _handle_mouse_button(event: InputEventMouseButton, local: Vector2):
 				if _current_tool == Tool.EDIT:
 					_create_node_at(local)
 		elif event.button_index == MOUSE_BUTTON_RIGHT:
-			# ★ 编辑模式：右键节点 → 直接弹类型选择
+			# ★ 编辑模式：右键节点 → 弹类型选择；右键空白/间隙 → 插入层
 			if _current_tool == Tool.EDIT:
 				var idx : int = _node_at(local)
 				if idx >= 0:
 					_show_type_picker_popup(idx)
+				else:
+					_try_insert_layer_at_mouse(local)
 		elif event.button_index == MOUSE_BUTTON_MIDDLE:
 			if _current_tool == Tool.EDIT:
 				var idx2 : int = _node_at(local)
@@ -1038,6 +1040,62 @@ func _create_node_at(local: Vector2):
 	_refresh_canvas_size()
 	_canvas.queue_redraw()
 
+# ============================================================
+#  插入层
+# ============================================================
+## 判断鼠标位置是否落在"层间隙"，若落则返回插入位置（层号），否则返回 -1
+func _compute_insert_layer_at_y(y: float) -> int:
+	var max_layer : int = _get_max_layer()
+	# 画布范围检查
+	if y < CANVAS_PADDING_TOP - LAYER_HEIGHT * 0.5:
+		return max_layer + 1   # 在最高层之上
+	var bottom_y : float = CANVAS_PADDING_TOP + (max_layer + 1) * LAYER_HEIGHT + LAYER_HEIGHT * 0.5
+	if y > bottom_y:
+		return 0               # 在最低层之下
+
+	var layer_idx : int = _layer_at_y(y)
+	var center_y : float = CANVAS_PADDING_TOP + (max_layer - layer_idx + 0.5) * LAYER_HEIGHT
+	var dist : float = abs(y - center_y)
+
+	# 太靠近节点中心 → 视为点节点，不插入
+	if dist < NODE_H / 2.0 + 2.0:
+		return -1
+
+	# 鼠标在中心上方 → 插到 layer_idx + 1 之上；否则插到 layer_idx 之上
+	if y < center_y:
+		return layer_idx + 1
+	return layer_idx
+
+
+func _try_insert_layer_at_mouse(local: Vector2):
+	var day_layout : MapLayoutDay = _get_current_day_layout()
+	if day_layout == null: return
+
+	var insert_at : int = _compute_insert_layer_at_y(local.y)
+	if insert_at < 0:
+		return  # 点节点上，不插入
+
+	_insert_layer(insert_at)
+
+
+func _insert_layer(insert_at: int):
+	var day_layout : MapLayoutDay = _get_current_day_layout()
+	if day_layout == null: return
+
+	# 所有 layer >= insert_at 的节点，layer += 1
+	for n in day_layout.nodes:
+		if n.layer >= insert_at:
+			n.layer += 1
+
+	# 新建一个 NORMAL 节点，layer = insert_at
+	var n := MapLayoutNode.new()
+	n.node_type = MapNode.NodeType.NORMAL
+	n.layer = insert_at
+	day_layout.nodes.append(n)
+
+	_refresh_canvas_size()
+	_canvas.queue_redraw()
+	print("[MapLayoutEditor] 在 L%d 处插入新层" % insert_at)
 
 func _end_drag(local: Vector2):
 	var day_layout : MapLayoutDay = _get_current_day_layout()
