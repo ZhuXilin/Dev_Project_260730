@@ -18,6 +18,7 @@ config/features=PackedStringArray("4.7", "GL Compatibility")
 [autoload]
 
 Config="*res://function/global/Config.gd"
+GameState="*res://function/global/GameState.gd"
 Globals="*res://function/global/Globals.gd"
 SignalBus="*res://function/global/SignalBus.gd"
 ItemManager="*res://function/global/ItemManager.gd"
@@ -36,7 +37,6 @@ DialogueManager="*res://function/global/DialogueManager.gd"
 MusicManager="*res://function/global/MusicManager.gd"
 SoundManager="*res://function/global/SoundManager.gd"
 SaveManager="*res://function/global/SaveManager.gd"
-GameState="*res://function/global/GameState.gd"
 LevelManager="*res://function/global/LevelManager.gd"
 InputManager="*res://function/global/InputManager.gd"
 GmConsole="*uid://q5yaycxpkkua"

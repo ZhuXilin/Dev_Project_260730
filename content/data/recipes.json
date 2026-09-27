@@ -3,10 +3,6 @@
 	"inputs": ["iron_armor", "wooden_shield"],
 	"unlock_cost": { "粗铁": 3, "精钢": 1 }
   },
-  "iron_helmet": {
-	"inputs": ["leather_armor", "wooden_shield"],
-	"unlock_cost": { "粗铁": 2 }
-  },
   "mage_robe": {
 	"inputs": ["leather_armor", "iron_helmet"],
 	"unlock_cost": { "粗铁": 3, "精钢": 1 }

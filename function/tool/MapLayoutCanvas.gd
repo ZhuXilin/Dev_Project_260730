@@ -3,6 +3,11 @@ class_name MapLayoutCanvas
 
 var editor : Node = null
 
+# ---- 箭头参数 ----
+const ARROW_LENGTH : float = 5.0     # 箭头三角长度
+const ARROW_WIDTH  : float = 3.5     # 箭头三角底边宽
+const NODE_GAP     : float = 12.0    # 线段终点距离目标节点中心的间隔
+
 
 func _draw():
 	if editor == null: return
@@ -23,15 +28,15 @@ func _draw():
 			draw_string(font, Vector2(2, y - 2), "L%d" % i,
 				HORIZONTAL_ALIGNMENT_LEFT, -1, 7, Color(0.5, 0.5, 0.5, 0.7))
 
-	# ---- 连线 ----
+	# ---- 连线（带方向箭头） ----
+	var link_color : Color = Color(0.35, 0.35, 0.35, 0.9) if in_test else Color(0.6, 0.6, 0.6, 0.9)
 	for i in range(day_layout.nodes.size()):
 		var node : MapLayoutNode = day_layout.nodes[i]
 		for target in node.connects_to:
 			if target < 0 or target >= day_layout.nodes.size(): continue
 			var from_pos : Vector2 = editor._node_pos(i)
 			var to_pos : Vector2 = editor._node_pos(target)
-			var lc : Color = Color(0.35, 0.35, 0.35, 0.9) if in_test else Color(0.6, 0.6, 0.6, 0.9)
-			draw_line(from_pos, to_pos, lc, 1)
+			_draw_directed_line(from_pos, to_pos, link_color, 1.0)
 
 	# ---- 节点 ----
 	for i in range(day_layout.nodes.size()):
@@ -43,13 +48,11 @@ func _draw():
 		)
 
 		if in_test:
-			# ★ 测试模式：黑底 + 白字（模拟游戏地图节点）
 			draw_rect(rect, Color(0.1, 0.1, 0.1, 1), true)
 			draw_rect(rect, Color(0.4, 0.4, 0.4, 1), false, 1)
 			var label : String = editor._test_map_assignment.get(node, "")
 			if label == "":
 				label = _node_type_short(node.node_type)
-			# 截断
 			if label.length() > 6:
 				label = label.substr(0, 5) + "…"
 			var font : Font = ThemeDB.fallback_font
@@ -62,7 +65,6 @@ func _draw():
 				Vector2(pos.x - text_size.x / 2.0, baseline_y),
 				label, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, Color(0.85, 0.85, 0.85))
 		else:
-			# 编辑模式：彩色
 			var color : Color = _node_color(node)
 			draw_rect(rect, color, true)
 			var label2 : String = _node_label(node)
@@ -91,6 +93,34 @@ func _draw():
 		var preview_y : float = editor.CANVAS_PADDING_TOP + (max_layer - new_layer + 0.5) * editor.LAYER_HEIGHT
 		draw_line(Vector2(0, preview_y), Vector2(canvas_w, preview_y),
 			Color(1, 1, 0, 0.5), 1)
+
+
+# ============================================================
+#  带方向箭头的线段
+# ============================================================
+func _draw_directed_line(from_pos: Vector2, to_pos: Vector2, color: Color, width: float = 1.0):
+	var dir : Vector2 = to_pos - from_pos
+	var dist : float = dir.length()
+	if dist < 1.0:
+		return
+	dir = dir / dist
+	var perp : Vector2 = Vector2(-dir.y, dir.x)
+
+	# 线段终点：距离目标中心 NODE_GAP 处，避免穿过节点方块
+	var line_end : Vector2 = to_pos - dir * NODE_GAP
+	# 若线段被压得过短，退化为直接连到中点
+	if (line_end - from_pos).dot(dir) <= 0.0:
+		line_end = from_pos + dir * (dist * 0.5)
+
+	draw_line(from_pos, line_end, color, width)
+
+	# 箭头三角：尖端在 line_end，底边在 line_end - dir * ARROW_LENGTH
+	var tip : Vector2 = line_end
+	var base_center : Vector2 = line_end - dir * ARROW_LENGTH
+	var left : Vector2 = base_center + perp * ARROW_WIDTH * 0.5
+	var right : Vector2 = base_center - perp * ARROW_WIDTH * 0.5
+
+	draw_colored_polygon(PackedVector2Array([tip, left, right]), color)
 
 
 func _node_color(node: MapLayoutNode) -> Color:

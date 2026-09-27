@@ -188,9 +188,21 @@ static func from_dict(d: Dictionary) -> UnitData:
 	else:
 		data.sacrifice_buff_sources = []
 
-	# ★ 自净：advanced_class 为空时，强制清空 advanced_talent_id（修旧档污染）
+	# ★ 自净 / 反查：
+	#   - advanced_class 为空 → 清空 advanced_talent_id
+	#   - advanced_class 非空但 advanced_talent_id 为空 → 从 unit_data.json 反查 granted_talent
 	if data.advanced_class == "":
 		data.advanced_talent_id = ""
+	elif data.advanced_talent_id == "":
+		var unit_dict : Dictionary = UnitDataManager.get_unit_data(data.unit_name)
+		var adv_dict : Variant = unit_dict.get("advanced_class", {})
+		if adv_dict is Dictionary and not (adv_dict as Dictionary).is_empty():
+			var adv_id : String = (adv_dict as Dictionary).get("id", "")
+			if adv_id == data.advanced_class:
+				var granted : String = (adv_dict as Dictionary).get("granted_talent", "")
+				if granted != "":
+					data.advanced_talent_id = granted
+					print("[UnitData] 从 advanced_class=%s 反查 talent=%s" % [data.advanced_class, granted])
 
 	if d.has("advancement"):
 		var adv_v : Variant = d["advancement"]

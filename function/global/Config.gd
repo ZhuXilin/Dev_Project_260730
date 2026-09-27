@@ -13,9 +13,9 @@ const PATHS : Dictionary = {
 	"EVENT_DATA":       "res://content/data/events.json",
 	"RECIPE_DATA":      "res://content/data/recipes.json",
 	"STORY_DATA":       "res://content/data/stories.json",
-	"TREASURE_REWARDS":     "res://content/data/treasure_rewards.json",
-	"ARENA_ENEMIES":   "res://content/data/arena_enemies.json",
-	"REFINE_RECIPES":    "res://content/data/refine_recipes.json",
+	"TREASURE_REWARDS": "res://content/data/treasure_rewards.json",
+	"ARENA_ENEMIES":    "res://content/data/arena_enemies.json",
+	"REFINE_RECIPES":   "res://content/data/refine_recipes.json",
 
 	# 配置资源
 	"MUSIC_CONFIG":     "res://content/scenes/levels/MusicConfig.tres",
@@ -52,11 +52,10 @@ const PATHS : Dictionary = {
 	"ANVIL_TAVERN_UI":      "res://content/scenes/ui/AnvilTavern.tscn",
 	"HERO_SHRINE_UI":       "res://content/scenes/ui/HeroShrineUI.tscn",
 	"SOUL_ALTAR_UI":        "res://content/scenes/ui/SoulAltar.tscn",
-	"ARENA_UI":          "res://content/scenes/ui/Arena.tscn",
-	"ARENA_BATTLE_UI":   "res://content/scenes/ui/ArenaBattle.tscn",
-	"ARENA_SHOP_UI":     "res://content/scenes/ui/ArenaShop.tscn",
-	"SACRIFICE_UI":   "res://content/scenes/ui/SacrificeUI.tscn",
-	"CHAPEL_UI":   "res://content/scenes/ui/ChapelUI.tscn",
+	"ARENA_UI":             "res://content/scenes/ui/Arena.tscn",
+	"ARENA_BATTLE_UI":      "res://content/scenes/ui/ArenaBattle.tscn",
+	"SACRIFICE_UI":         "res://content/scenes/ui/SacrificeUI.tscn",
+	"CHAPEL_UI":            "res://content/scenes/ui/ChapelUI.tscn",
 
 	# 脚本
 	"DAMAGE_POPUP_SCRIPT":      "res://function/script/DamagePopup.gd",

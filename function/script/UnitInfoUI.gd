@@ -38,14 +38,17 @@ func _on_unit_selected(unit_name: String):
 				var anims = frames.get_animation_names()
 				if anims.size() > 0:
 					unit_sprite.play(anims[0])
-			unit_sprite.position = Vector2(0, 0)
 
 			var frame = unit_sprite.sprite_frames.get_frame_texture("idle", 0)
 			if frame:
 				var sprite_size = frame.get_size()
-				sprite_container.custom_minimum_size = Vector2(0, sprite_size.y)
+				# ★ 用 sprite 尺寸撑开面板，并让 sprite 居中
+				sprite_container.custom_minimum_size = sprite_size
+				unit_sprite.centered = true
+				unit_sprite.position = sprite_size / 2.0
 			else:
 				sprite_container.custom_minimum_size = Vector2.ZERO
+				unit_sprite.position = Vector2.ZERO
 		else:
 			unit_sprite.visible = false
 			sprite_container.custom_minimum_size = Vector2.ZERO

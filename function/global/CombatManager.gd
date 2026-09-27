@@ -43,6 +43,22 @@ const ZEAL_MAX_STACKS : int = 5
 
 
 # ============================================================
+#  主动技能射程加成（供 InputManager 复用）
+# ============================================================
+## 返回单位当前所有就绪主动技能里最大的 range_bonus（如龙息 = 1）
+func get_active_skill_range_bonus(unit: Unit) -> int:
+	if unit == null:
+		return 0
+	var ready_skills : Array = TalentManager.get_ready_active_skills(unit)
+	var bonus : int = 0
+	for skill_id in ready_skills:
+		var data = TalentManager.get_talent_data(skill_id)
+		if data:
+			bonus = maxi(bonus, int(data.effect_params.get("range_bonus", 0)))
+	return bonus
+
+
+# ============================================================
 #  目标查询
 # ============================================================
 func get_attackable_targets(unit: Unit) -> Array:
@@ -50,6 +66,10 @@ func get_attackable_targets(unit: Unit) -> Array:
 	if not weapon_data: return []
 	var max_range = weapon_data.attack_range
 	var min_range = weapon_data.min_attack_range
+
+	# ★ 主动技能射程加成（如龙息 range_bonus: 1）
+	max_range += get_active_skill_range_bonus(unit)
+
 	var is_healer = (weapon_data.category == "staff" or weapon_data.attack_style == "heal")
 
 	var targets = []
@@ -307,7 +327,8 @@ func execute_attack(attacker: Unit, defender: Unit) -> bool:
 
 		# ★ 检查 cleave 是否触发
 		if not attacker.has_attacked:
-			# cleave 已重置状态，跳过 _finish_attack
+			# cleave 已重置状态：不 mark_attacked，但刷新菜单
+			_show_menu_after_action(attacker)
 			Globals.is_performing_action = false
 			return true
 
@@ -347,8 +368,10 @@ func execute_attack(attacker: Unit, defender: Unit) -> bool:
 			UnitManager.unregister_unit(defender)
 			defender.queue_free()
 
-			# ★ 检查 cleave
+			# ★ 检查 cleave 是否触发
 			if not attacker.has_attacked:
+				# cleave 已重置状态：不 mark_attacked，但刷新菜单
+				_show_menu_after_action(attacker)
 				Globals.is_performing_action = false
 				return true
 
@@ -388,8 +411,10 @@ func execute_attack(attacker: Unit, defender: Unit) -> bool:
 					UnitManager.unregister_unit(defender)
 					defender.queue_free()
 
-					# ★ 检查 cleave
+					# ★ 检查 cleave 是否触发
 					if not attacker.has_attacked:
+						# cleave 已重置状态：不 mark_attacked，但刷新菜单
+						_show_menu_after_action(attacker)
 						Globals.is_performing_action = false
 						return true
 
@@ -401,7 +426,10 @@ func execute_attack(attacker: Unit, defender: Unit) -> bool:
 	if _can_counter_attack(attacker, defender):
 		await _execute_counter(attacker, defender)
 
-	_finish_attack(attacker, defender)
+	# ★ 首次施法免费（魔力遗物）
+	var free_action : bool = _consume_first_spell_free(attacker)
+
+	_finish_attack(attacker, defender, free_action)
 	Globals.is_performing_action = false
 	return true
 
@@ -538,7 +566,10 @@ func _execute_heal(attacker: Unit, defender: Unit) -> bool:
 		break
 
 	await get_tree().create_timer(PERFORMANCE_DURATION, true, false, true).timeout
-	_finish_attack(attacker, defender)
+
+	# ★ 首次施法免费（魔力遗物）—— 治疗也走这个判定
+	var free_action : bool = _consume_first_spell_free(attacker)
+	_finish_attack(attacker, defender, free_action)
 	Globals.is_performing_action = false
 	return true
 
@@ -694,10 +725,33 @@ func _execute_counter(attacker: Unit, defender: Unit) -> void:
 
 
 # ============================================================
+#  首次施法免费（魔力遗物）
+# ============================================================
+## 若首次施法免费可用且本次为施法 → 消耗标记并返回 true
+func _consume_first_spell_free(attacker: Unit) -> bool:
+	if attacker == null:
+		return false
+	if not attacker.relic_first_spell_free_available:
+		return false
+	var wt : String = attacker.get_weapon_type()
+	if wt != "spellbook" and wt != "staff":
+		return false
+	attacker.relic_first_spell_free_available = false
+	print("[魔力遗物] %s 首次施法免费" % attacker.unit_stats.unit_name)
+	return true
+
+
+# ============================================================
 #  辅助
 # ============================================================
-func _finish_attack(attacker: Unit, _defender: Unit) -> void:
-	attacker.mark_attacked()
+func _finish_attack(attacker: Unit, _defender: Unit, free_action: bool = false) -> void:
+	if free_action:
+		# 首次施法免费：不消耗行动，但标记已攻击防止二次攻击
+		attacker.has_attacked = true
+		attacker.has_acted = false
+		attacker.movement_after_attack = true
+	else:
+		attacker.mark_attacked()
 	_show_menu_after_action(attacker)
 
 

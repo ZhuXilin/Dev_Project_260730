@@ -4,6 +4,7 @@ signal closed
 
 var _reward_options : Array = []
 var _applied : bool = false
+var _day : int = 1
 
 @onready var title_label : Label = $Panel/VBoxContainer/TitleLabel
 @onready var reward_container : VBoxContainer = $Panel/VBoxContainer/RewardContainer
@@ -13,51 +14,26 @@ func _ready():
 	title_label.text = "选择奖励"
 
 
-func setup(_rewards: Dictionary):
-	_reward_options = _roll_three_options()
+## 兼容两种调用：
+##   setup(day: int)      — 推荐：按天数抽 3 条
+##   setup(legacy: Dictionary) — 旧调用，用字典里的 day 字段（无则 1）
+func setup(arg = 1):
+	if arg is int:
+		_day = int(arg)
+	elif arg is Dictionary:
+		_day = int((arg as Dictionary).get("day", 1))
+
+	_reward_options = TreasureRewardManager.roll_n_rewards(_day, 3)
+
+	# 池子彻底空 → 保底金币
+	if _reward_options.is_empty():
+		_reward_options = [
+			{ "gold": 300 },
+			{ "gold": 400 },
+			{ "gold": 500 },
+		]
+
 	_build_options()
-
-
-func _roll_three_options() -> Array:
-	var result : Array = []
-
-	# ---- 选项 1：金币 ----
-	result.append({
-		"type": "gold",
-		"amount": 200 + randi() % 300,  # 200-500
-	})
-
-	# ---- 选项 2：遗物 ----
-	var relic_pool : Array = []
-	var owned : Dictionary = {}
-	for p in GameState.get_relics_from_passives():
-		owned[p.item_id] = true
-	for rid in RelicManager.get_unlocked_relics():
-		if not owned.has(rid):
-			relic_pool.append(rid)
-	if not relic_pool.is_empty():
-		relic_pool.shuffle()
-		result.append({"type": "relic", "id": relic_pool[0]})
-	else:
-		# 池子空 → 给金币
-		result.append({"type": "gold", "amount": 400})
-
-	# ---- 选项 3：高级装备 ----
-	var armor_pool : Array = []
-	for iid in ItemManager.get_all_item_ids():
-		var d : ItemData = ItemManager.get_item_data(iid)
-		if not d: continue
-		if d.type != "armor": continue
-		if d.quality not in ["epic", "legendary"]: continue
-		if d.price <= 0: continue
-		armor_pool.append(iid)
-	if not armor_pool.is_empty():
-		armor_pool.shuffle()
-		result.append({"type": "armor", "id": armor_pool[0]})
-	else:
-		result.append({"type": "gold", "amount": 300})
-
-	return result
 
 
 func _build_options():
@@ -82,17 +58,32 @@ func _build_options():
 
 
 func _format_option_text(option : Dictionary) -> String:
-	var t : String = option.get("type", "")
-	match t:
-		"gold":
-			return "金币\n+%d" % option["amount"]
-		"relic":
-			var rd : Dictionary = RelicManager.get_relic_data(option["id"])
-			return "★ 遗物\n%s" % rd.get("name", "?")
-		"armor":
-			var d : ItemData = ItemManager.get_item_data(option["id"])
-			return "★ 装备\n%s" % (d.name if d else "?")
-	return "?"
+	var lines : Array = []
+	var gold = int(option.get("gold", 0))
+	var soul = int(option.get("soul", 0))
+	var materials : Dictionary = option.get("materials", {})
+	var items : Array = option.get("items", [])
+
+	if gold > 0:
+		lines.append("金币 +%d" % gold)
+	if soul > 0:
+		lines.append("魂 +%d" % soul)
+	for mat in materials:
+		lines.append("%s ×%d" % [mat, materials[mat]])
+	for item_id in items:
+		var d : ItemData = ItemManager.get_item_data(item_id)
+		if d:
+			lines.append("★ " + d.name)
+		else:
+			var rd : Dictionary = RelicManager.get_relic_data(item_id)
+			if not rd.is_empty():
+				lines.append("★ 遗物：" + rd.get("name", item_id))
+			else:
+				lines.append("★ " + item_id)
+
+	if lines.is_empty():
+		return "?"
+	return "\n".join(lines)
 
 
 func _on_option_selected(idx : int):
@@ -113,46 +104,71 @@ func _on_option_selected(idx : int):
 
 
 func _apply_reward(option : Dictionary):
-	var t : String = option.get("type", "")
-	match t:
-		"gold":
-			EconomyManager.add_temp_gold(option["amount"])
-			print("[宝箱] 金币 +%d" % option["amount"])
-		"relic":
-			var rid : String = option["id"]
-			RelicManager.unlock_relic(rid)
-			var inst := ItemInstance.new()
-			inst.item_id = rid
-			inst.count = 1
-			if not GameState.add_relic_to_passive_slot(inst):
-				print("[宝箱] 遗物 %s 解锁但未入槽（槽满）" % rid)
-			print("[宝箱] 遗物 %s" % rid)
-		"armor":
-			var iid : String = option["id"]
-			var d : ItemData = ItemManager.get_item_data(iid)
-			if d:
-				Globals.unlock_item(iid)
-				var inst2 := ItemInstance.new()
-				inst2.item_id = iid
-				inst2.count = 1
-				GameState.pending_forge_rewards.append(inst2)
-				print("[宝箱] 装备进待领取区: %s" % d.name)
+	# ---- 金币 ----
+	var gold : int = int(option.get("gold", 0))
+	if gold > 0:
+		EconomyManager.add_temp_gold(gold)
+		print("[宝箱] 金币 +%d" % gold)
+
+	# ---- 魂 ----
+	var soul : int = int(option.get("soul", 0))
+	if soul > 0:
+		EconomyManager.add_temp_soul(soul)
+		print("[宝箱] 魂 +%d" % soul)
+
+	# ---- 材料 ----
+	var materials : Dictionary = option.get("materials", {})
+	for mat_name in materials:
+		var amount : int = int(materials[mat_name])
+		if amount > 0:
+			EconomyManager.apply_material_reward({ mat_name: amount })
+			print("[宝箱] 材料 %s ×%d" % [mat_name, amount])
+
+	# ---- 装备 / 遗物 ----
+	var items : Array = option.get("items", [])
+	for item_id in items:
+		_grant_item(item_id)
+
+
+func _grant_item(item_id: String):
+	if item_id == "":
+		return
+
+	# 遗物
+	var relic_data : Dictionary = RelicManager.get_relic_data(item_id)
+	if not relic_data.is_empty():
+		RelicManager.unlock_relic(item_id)
+		var inst := ItemInstance.new()
+		inst.item_id = item_id
+		inst.count = 1
+		if not GameState.add_relic_to_passive_slot(inst):
+			print("[宝箱] 遗物 %s 解锁但未入槽（槽满）" % item_id)
+		print("[宝箱] 遗物 %s" % item_id)
+		return
+
+	# 普通装备
+	var item_data : ItemData = ItemManager.get_item_data(item_id)
+	if not item_data:
+		print("[宝箱] 警告：道具不存在 %s" % item_id)
+		return
+
+	Globals.unlock_item(item_id)
+	var inst2 := ItemInstance.new()
+	inst2.item_id = item_id
+	inst2.count = 1
+	GameState.pending_forge_rewards.append(inst2)
+	print("[宝箱] 装备进待领取区: %s" % item_data.name)
 
 
 func _show_popup(option : Dictionary):
-	if Globals.is_item_get_popup_active: return
+	if Globals.is_item_get_popup_active:
+		return
 	var scene = load(Config.PATHS.ITEM_GET_POPUP)
-	if not scene: return
+	if not scene:
+		return
 	var popup = scene.instantiate()
 	get_tree().root.add_child(popup)
-	var t : String = option.get("type", "")
-	match t:
-		"gold":
-			popup.show_text("金币 +%d" % option["amount"])
-		"relic":
-			popup.show_relic(option["id"], 1)
-		"armor":
-			popup.show_item(option["id"], 1)
+	popup.show_text(_format_option_text(option))
 	if popup.has_signal("closed"):
 		await popup.closed
 	else:

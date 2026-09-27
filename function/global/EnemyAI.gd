@@ -212,6 +212,7 @@ func _evaluate_attack(unit: Unit):
 	print("选择目标: %s，评分 %d" % [best_target.unit_stats.unit_name, best_score])
 	return {"type": "attack", "unit": unit, "target": best_target, "weapon_id": weapon_id}
 
+
 # ============================================================
 #  移动评估（含回血点检测）
 # ============================================================
@@ -220,7 +221,7 @@ func _evaluate_move(unit: Unit):
 	if reachable.is_empty():
 		return null
 
-	var hp_ratio = float(unit.hit_points) / unit.unit_stats.max_hp
+	var hp_ratio = float(unit.hit_points) / float(unit.unit_stats.max_hp)
 	var best_cell = unit.grid_cell   # 统一在开头声明
 	var best_score = -999           # 统一在开头声明
 
@@ -363,6 +364,10 @@ func _evaluate_move(unit: Unit):
 					dist_to_player = d
 		score += (10 - dist_to_player) * 0.5
 
+		# ★ 移动后能攻击目标 → 大幅加分（鼓励 AI 主动贴近可攻击位置）
+		if _can_attack_from_cell(unit, cell):
+			score += 50
+
 		if score > best_score:
 			best_score = score
 			best_cell = cell
@@ -373,6 +378,25 @@ func _evaluate_move(unit: Unit):
 			return {"type": "move", "unit": unit, "path": path}
 
 	return null
+
+
+## 判断从指定格移动后，是否能攻击到任一敌方单位
+func _can_attack_from_cell(unit: Unit, cell: Vector2i) -> bool:
+	var weapon_data = unit.get_weapon_data()
+	if not weapon_data:
+		return false
+	var max_range : int = weapon_data.attack_range
+	var min_range : int = weapon_data.min_attack_range
+	for enemy in UnitManager.unit_list:
+		if enemy.unit_stats.team_id == unit.unit_stats.team_id:
+			continue
+		if enemy.hit_points <= 0:
+			continue
+		var dist = abs(cell.x - enemy.grid_cell.x) + abs(cell.y - enemy.grid_cell.y)
+		if dist >= min_range and dist <= max_range:
+			return true
+	return false
+
 
 # ---- 低血量生存移动 ----
 func _evaluate_survival_move(unit: Unit):
@@ -579,6 +603,7 @@ func clear_state():
 	ai_queue.clear()
 	_processing = false
 	first_ai_unit = null
+
 
 # ============================================================
 #  加权随机选目标

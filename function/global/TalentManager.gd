@@ -1,4 +1,4 @@
-extends Node
+extends RefCounted
 class_name TalentManager
 
 static var _talent_db: Dictionary = {}

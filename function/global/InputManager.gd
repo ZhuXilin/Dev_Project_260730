@@ -386,6 +386,13 @@ func _start_attack_target_selection(unit: Unit):
 	print("攻击范围: ", data.min_attack_range, " ~ ", data.attack_range)
 	var max_range = data.attack_range
 	var min_range = data.min_attack_range
+
+	# ★ 主动技能射程加成（如龙息 range_bonus: 1）
+	var range_bonus : int = CombatManager.get_active_skill_range_bonus(unit)
+	if range_bonus > 0:
+		max_range += range_bonus
+		print("[主动技能] 射程 +%d → %d" % [range_bonus, max_range])
+
 	if max_range == 0 and min_range == 0:
 		print("警告：武器射程为0，无法攻击")
 		return

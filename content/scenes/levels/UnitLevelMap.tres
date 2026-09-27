@@ -19,8 +19,8 @@ metadata/_custom_type_script = "uid://c8x3p1n87hrdv"
 script = ExtResource("1_suoue")
 faction = "王国"
 day1 = ExtResource("1_rx0gl")
-day2 = ExtResource("1_rx0gl")
-day3 = ExtResource("1_rx0gl")
+day2 = ExtResource("2_xj16i")
+day3 = ExtResource("3_eigbw")
 layout = ExtResource("2_8ouck")
 metadata/_custom_type_script = "uid://c8x3p1n87hrdv"
 

@@ -78,19 +78,11 @@ func load_game(slot: int) -> bool:
 
 # ===== 版本迁移 =====
 func _migrate_save(save: SaveData):
-	var v : int = save.save_version
+	var _v : int = save.save_version
 
-	if v < 6:
-		save.tutorial_stage = 3
-		print("  [迁移] v5 → v6：tutorial_stage 设为 3")
-
-	if v < 7:
-		print("  [迁移] v6 → v7")
-
-	if v < 8:
-		save.pending_sacrifice_rewards = []
-		save.pending_forge_rewards = []
-		print("  [迁移] v7 → v8：移除 armor_storage，初始化待领取区")
+	# 未来需要时在这里按 _v 分版本处理
+	# if _v < 9:
+	#     ...
 
 
 # ===== 构建存档数据 =====
@@ -157,6 +149,11 @@ func _build_save_data() -> SaveData:
 	save.unit_blessings = GameState.unit_blessings.duplicate(true)
 	save.arena_target_talents = GameState.arena_target_talents.duplicate(true)
 	save.arena_best_streak = GameState.arena_best_streak
+	save.arena_clear_count = GameState.arena_clear_count
+	save.arena_survival_clear = GameState.arena_survival_clear
+	save.arena_survival_best = GameState.arena_survival_best
+	save.arena_total_crystals = GameState.arena_total_crystals
+	save.arena_total_runs = GameState.arena_total_runs
 	save.sacrifice_count = GameState.sacrifice_count
 	save.talent_exp = GameState.talent_exp.duplicate(true)
 	save.tutorial_stage = GameState.tutorial_stage
@@ -194,6 +191,11 @@ func _apply_save_data(save: SaveData):
 	GameState.map_snapshot = save.map_snapshot.duplicate(true)
 	GameState.arena_target_talents = save.arena_target_talents.duplicate(true)
 	GameState.arena_best_streak = save.arena_best_streak
+	GameState.arena_clear_count = save.arena_clear_count
+	GameState.arena_survival_clear = save.arena_survival_clear
+	GameState.arena_survival_best = save.arena_survival_best
+	GameState.arena_total_crystals = save.arena_total_crystals
+	GameState.arena_total_runs = save.arena_total_runs
 	GameState.sacrifice_count = save.sacrifice_count
 	GameState.talent_exp = save.talent_exp.duplicate(true)
 	GameState.shop_level = save.shop_level

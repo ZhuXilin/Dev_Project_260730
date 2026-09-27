@@ -227,46 +227,6 @@ func _on_cycle_complete():
 	get_tree().change_scene_to_file(Config.PATHS.CAMP)
 
 
-# ---- 地图绘制与节点管理 ----
-func _rebuild_connections_by_layer(map_level_data: MapLevelData):
-	if not map_level_data or map_level_data.nodes.is_empty():
-		return
-	for node in map_level_data.nodes:
-		node.connected_nodes.clear()
-
-	var layer_nodes = {}
-	for node in map_level_data.nodes:
-		if not layer_nodes.has(node.layer):
-			layer_nodes[node.layer] = []
-		layer_nodes[node.layer].append(node)
-
-	var day = map_level_data.day
-	if day == 1 or day == 2:
-		for i in range(0, 5):
-			if layer_nodes.has(i) and layer_nodes.has(i+1):
-				for node_a in layer_nodes[i]:
-					for node_b in layer_nodes[i+1]:
-						if not node_a.connected_nodes.has(node_b) and not node_b.connected_nodes.has(node_a):
-							node_a.connected_nodes.append(node_b)
-							node_b.connected_nodes.append(node_a)
-	elif day == 3:
-		if layer_nodes.has(0) and layer_nodes.has(1):
-			for node_a in layer_nodes[0]:
-				for node_b in layer_nodes[1]:
-					if not node_a.connected_nodes.has(node_b) and not node_b.connected_nodes.has(node_a):
-						node_a.connected_nodes.append(node_b)
-						node_b.connected_nodes.append(node_a)
-	else:
-		var sorted_layers = layer_nodes.keys()
-		sorted_layers.sort()
-		for i in range(sorted_layers.size() - 1):
-			for node_a in layer_nodes[sorted_layers[i]]:
-				for node_b in layer_nodes[sorted_layers[i+1]]:
-					if not node_a.connected_nodes.has(node_b) and not node_b.connected_nodes.has(node_a):
-						node_a.connected_nodes.append(node_b)
-						node_b.connected_nodes.append(node_a)
-	print("重建连接完成，节点数：", map_level_data.nodes.size())
-
 func _draw_connections():
 	for child in line_container.get_children():
 		child.queue_free()
@@ -276,12 +236,45 @@ func _draw_connections():
 		var from_pos : Vector2 = pos_map.get(node, node.position)
 		for conn in node.connected_nodes:
 			var to_pos : Vector2 = pos_map.get(conn, conn.position)
-			var line = Line2D.new()
-			line.add_point(from_pos)
-			line.add_point(to_pos)
-			line.width = MapConst.MAP_LINE_WIDTH
-			line.default_color = MapConst.MAP_LINE_COLOR
-			line_container.add_child(line)
+			_create_directed_line(from_pos, to_pos)
+
+
+## 创建带箭头的连线：Line2D 线段 + Polygon2D 三角箭头
+func _create_directed_line(from_pos: Vector2, to_pos: Vector2):
+	var dir : Vector2 = to_pos - from_pos
+	var dist : float = dir.length()
+	if dist < 1.0:
+		return
+	dir = dir / dist
+	var perp : Vector2 = Vector2(-dir.y, dir.x)
+
+	# 线段终点：距离目标节点中心一定间隔，避免箭头压在节点按钮上
+	var node_gap : float = MapConst.MAP_NODE_SIZE.x * 0.5 + 2.0
+	var line_end : Vector2 = to_pos - dir * node_gap
+	if (line_end - from_pos).dot(dir) <= 0.0:
+		line_end = from_pos + dir * (dist * 0.5)
+
+	# ---- 主线段 ----
+	var line := Line2D.new()
+	line.add_point(from_pos)
+	line.add_point(line_end)
+	line.width = MapConst.MAP_LINE_WIDTH
+	line.default_color = MapConst.MAP_LINE_COLOR
+	line_container.add_child(line)
+
+	# ---- 箭头三角 ----
+	var arrow_length : float = 6.0
+	var arrow_width  : float = 4.5
+	var tip : Vector2 = line_end
+	var base_center : Vector2 = line_end - dir * arrow_length
+	var left : Vector2 = base_center + perp * arrow_width * 0.5
+	var right : Vector2 = base_center - perp * arrow_width * 0.5
+
+	var arrow := Polygon2D.new()
+	arrow.polygon = PackedVector2Array([tip, left, right])
+	arrow.color = MapConst.MAP_LINE_COLOR
+	line_container.add_child(arrow)
+
 
 func _create_node_buttons():
 	for child in node_container.get_children():
@@ -501,7 +494,7 @@ func _open_treasure(node: MapNode):
 		return
 	var treasure = treasure_scene.instantiate()
 	add_child(treasure)
-	treasure.setup(node.reward)
+	treasure.setup(GameState.current_day)
 	await treasure.closed
 
 	if not is_inside_tree():

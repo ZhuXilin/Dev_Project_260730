@@ -194,15 +194,25 @@ func _on_pick_levellist():
 	fd.access = FileDialog.ACCESS_RESOURCES
 	fd.add_filter("*.tres", "Tres 文件")
 	fd.use_native_dialog = true
-	fd.current_dir = "res://content/scenes/levels/"
+	fd.current_dir = "res://content/scenes/levels/levellists/"
 	fd.title = "选择 LevelList 文件"
 	fd.file_selected.connect(func(path):
-		var ll = load(path)
-		if ll == null:
+		var res = load(path)
+		if res == null:
 			push_warning("加载失败: " + path)
 			fd.queue_free()
 			return
-		_levellist = ll
+		# ★ 类型校验：必须是 LevelListResource
+		if not (res is LevelListResource):
+			push_warning("选中的不是 LevelList 资源: " + path)
+			Globals.show_confirm(
+				self,
+				"选中的文件不是关卡池（LevelList）\n请选择 levellists/ 目录下的 .tres 文件",
+				"确定", "", func(): pass, func(): pass, false
+			)
+			fd.queue_free()
+			return
+		_levellist = res
 		_levellist_path = path
 		_update_all_labels()
 		print("[MapLayoutEditor] 已加载 LevelList: ", path)

@@ -56,13 +56,21 @@ var _arena_passives : Array = [null, null, null, null]
 @onready var streak_label : Label = $Panel/VBox/MainHBox/CenterPanel/StreakLabel
 @onready var start_btn : Button = $Panel/VBox/BottomBar/StartBtn
 @onready var back_btn : Button = $Panel/VBox/BottomBar/BackButton
-
+@onready var hint_label : Label = $Panel/VBox/TitleBar/HintLabel
 
 func _ready():
 	MusicManager.play_arena_music()
+	_refresh_hint_label()
 	_build_unit_list()
 	_refresh_center_panel()
 	_refresh_streak_label()
+
+
+func _refresh_hint_label():
+	if hint_label:
+		hint_label.text = "免费入场 · %d 胜通关 · 生存 %d 魂入场" % [
+			CLEAR_TARGET, ENTRY_COST_SURVIVAL
+		]
 
 
 # ============================================================
@@ -803,7 +811,8 @@ func _show_summary(success: bool, reason: String, skip_music: bool = false):
 		else:
 			MusicManager.play_defeat_music()
 
-	if success and (reason == "通关" or reason == "生存通过"):
+	# ★ "撤离" = 4 连胜后主动撤离，也算通关
+	if success and reason in ["撤离", "生存通过"]:
 		GameState.arena_clear_count += 1
 	if success and reason == "生存通过":
 		GameState.arena_survival_clear += 1
@@ -963,38 +972,4 @@ func _open_hero_shrine():
 	hero_shrine.setup_arena(self, _current_player_data)
 	await hero_shrine.closed
 	print("[Arena] 英灵殿关闭")
-
-func _find_arena() -> Node:
-	var scene = get_tree().current_scene
-	if scene == null:
-		return null
-	if scene.name == "Arena":
-		return scene
-	for child in scene.get_children():
-		if child.name == "Arena":
-			return child
-	return null
-
-
-func _is_in_run() -> bool:
-	var scene = get_tree().current_scene
-	if scene == null:
-		return false
-	var path = scene.scene_file_path
-	if path == "":
-		return false
-	return path.contains("MapScene") or path.contains("Battlefield")
-
-
-func _find_node_by_name(node_name: String) -> Node:
-	return _recursive_find(get_tree().root, node_name)
-
-
-func _recursive_find(node: Node, target_name: String) -> Node:
-	if node.name == target_name:
-		return node
-	for child in node.get_children():
-		var found = _recursive_find(child, target_name)
-		if found != null:
-			return found
-	return null
+	

@@ -165,9 +165,10 @@ func _close_dialogue():
 	if dialogue_ui and is_instance_valid(dialogue_ui):
 		dialogue_ui.visible = false
 	MusicManager.stop_music()
-	dialogue_finished.emit()
 	await get_tree().create_timer(music_transition_delay, true, false, true).timeout
+	# ★ 先恢复原音乐，再 emit 信号（避免监听者启动的音乐被覆盖）
 	MusicManager.resume_saved()
+	dialogue_finished.emit()
 
 func reset():
 	if is_active:

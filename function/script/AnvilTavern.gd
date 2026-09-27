@@ -18,7 +18,7 @@ var _arsenal_sub : ArsenalSub = ArsenalSub.WEAPON
 enum AlchemySub { RECIPE, REFINE }
 var _alchemy_sub : AlchemySub = AlchemySub.RECIPE
 
-# ★ 新增：酒馆子页
+# ★ 酒馆子页
 enum TavernSub { STORY, RELIC }
 var _tavern_sub : TavernSub = TavernSub.STORY
 
@@ -31,21 +31,14 @@ var _story_topic_list : VBoxContainer = null
 # 次级标签栏（固定，不随滑块滚动）
 var _sub_tab_bar : HBoxContainer = null
 
-# ★ 场景节点引用
+# ★ 场景节点引用（TabBar 已废弃，只保留 Title / Materials / Content）
 @onready var title_label : Label = $Panel/VBox/TitleBar/TitleLabel
 @onready var materials_label : Label = $Panel/VBox/TitleBar/MaterialsLabel
-@onready var top_tab_bar : HBoxContainer = $Panel/VBox/TabBar
-@onready var recipe_tab_btn : Button = $Panel/VBox/TabBar/RecipeTabBtn
-@onready var codex_tab_btn : Button = $Panel/VBox/TabBar/CodexTabBtn
-@onready var story_tab_btn : Button = $Panel/VBox/TabBar/StoryTabBtn
 @onready var content_container : VBoxContainer = $Panel/VBox/ContentScroll/ContentContainer
 
 
 func _ready():
 	print("[AnvilTavern] _ready, _entry_tab =", _entry_tab)
-
-	if top_tab_bar:
-		top_tab_bar.visible = false
 
 	_ensure_sub_tab_bar()
 	MusicManager.play_anvil_tavern_music()
@@ -74,7 +67,8 @@ func _ensure_sub_tab_bar():
 	_sub_tab_bar.add_theme_constant_override("separation", 4)
 	var vbox : VBoxContainer = $Panel/VBox
 	vbox.add_child(_sub_tab_bar)
-	vbox.move_child(_sub_tab_bar, top_tab_bar.get_index() + 1)
+	# ★ 插到 TitleBar（索引 0）之后
+	vbox.move_child(_sub_tab_bar, 1)
 
 
 func _clear_sub_tab_bar():
@@ -88,10 +82,6 @@ func _clear_sub_tab_bar():
 # ============================================================
 #  Tab 切换
 # ============================================================
-func _on_recipe_tab_pressed(): _switch_tab(Tab.ARSENAL)
-func _on_codex_tab_pressed():  _switch_tab(Tab.ALCHEMY)
-func _on_story_tab_pressed():  _switch_tab(Tab.TAVERN)
-
 func _on_back_pressed():
 	if MusicManager.config and MusicManager.config.camp_music:
 		MusicManager.play_music(MusicManager.config.camp_music)
@@ -101,7 +91,6 @@ func _on_back_pressed():
 
 func _switch_tab(tab: Tab):
 	current_tab = tab
-	_update_tab_style()
 	_clear_content()
 	_clear_sub_tab_bar()
 	_story_npc_list = null
@@ -112,13 +101,6 @@ func _switch_tab(tab: Tab):
 		Tab.ARSENAL: _build_arsenal_tab()
 		Tab.ALCHEMY: _build_alchemy_tab()
 		Tab.TAVERN:  _build_story_tab()
-
-
-func _update_tab_style():
-	if not recipe_tab_btn: return
-	recipe_tab_btn.modulate = Color.WHITE if current_tab == Tab.ARSENAL else Color(0.5, 0.5, 0.5, 1)
-	codex_tab_btn.modulate  = Color.WHITE if current_tab == Tab.ALCHEMY else Color(0.5, 0.5, 0.5, 1)
-	story_tab_btn.modulate  = Color.WHITE if current_tab == Tab.TAVERN  else Color(0.5, 0.5, 0.5, 1)
 
 
 func _clear_content():
@@ -179,17 +161,14 @@ func _build_arsenal_list(item_type: String):
 		else:
 			locked_list.append(item_id)
 
-	# ---- 排序：价格（越便宜越靠前），同价按 id 字母序 ----
 	unlocked_list.sort_custom(_sort_by_price)
 	locked_list.sort_custom(_sort_by_price)
 
-	# ---- 已解锁分组 ----
 	if unlocked_list.size() > 0:
 		content_container.add_child(_make_section_title("— 已解锁 —"))
 		for item_id in unlocked_list:
 			content_container.add_child(_build_arsenal_row(item_id, true))
 
-	# ---- 未解锁分组 ----
 	if locked_list.size() > 0:
 		if unlocked_list.size() > 0:
 			content_container.add_child(_make_separator())
@@ -288,7 +267,6 @@ func _get_unlock_cost(item_id: String) -> Dictionary:
 	var recipe : RecipeData = RecipeManager.get_recipe(item_id)
 	if recipe and not recipe.unlock_cost.is_empty():
 		return recipe.unlock_cost
-	# 兜底：普通武器/防具无解锁成本（已经默认解锁，不该走到这）
 	return { "粗铁": 3 }
 
 
@@ -592,7 +570,6 @@ func _on_craft_refine(refine_id: String):
 #  Tab 3 · 酒馆（话题 / 遗物图鉴）
 # ============================================================
 func _build_story_tab():
-	# ---- 次级标签：酒馆话题 / 遗物图鉴 ----
 	var story_btn = Button.new()
 	story_btn.text = "酒馆话题"
 	story_btn.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_NORMAL)
@@ -617,7 +594,7 @@ func _on_tavern_sub(sub: TavernSub):
 	_switch_tab(Tab.TAVERN)
 
 
-# ---- 酒馆话题（原 _build_story_tab 内容） ----
+# ---- 酒馆话题 ----
 func _build_story_topic_list():
 	var npcs : Array = StoryManager.get_npcs()
 	if npcs.is_empty():
@@ -769,5 +746,4 @@ func _show_message(msg: String):
 
 
 func _input(_event: InputEvent):
-	# 保留占位：以后可加 Esc 关闭、Tab 切换等
 	pass

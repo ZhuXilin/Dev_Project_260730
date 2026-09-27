@@ -41,7 +41,6 @@ const CURRENT_VERSION = 8
 	"龙鳞": 0
 }
 
-@export var unlocked_armors: Array = []
 @export var unlocked_stories: Array = []
 
 @export var attribute_points: Dictionary = {
@@ -67,11 +66,15 @@ const CURRENT_VERSION = 8
 @export var save_time: int = 0
 @export var checksum: String = ""
 
-@export var difficulty_level: int = 0
-@export var highest_cleared_difficulty: int = 0
-
 @export var arena_target_talents: Dictionary = {}
 @export var arena_best_streak: int = 0
+
+# ---- 斗技场统计 ----
+@export var arena_clear_count: int = 0
+@export var arena_survival_clear: int = 0
+@export var arena_survival_best: int = 0
+@export var arena_total_crystals: int = 0
+@export var arena_total_runs: int = 0
 
 @export var unlocked_talents: Array = []
 @export var unlocked_recipes: Array = []
@@ -112,14 +115,11 @@ func compute_checksum() -> String:
 		"equipped_passives": equipped_passives,
 		"materials": materials,
 		"unit_growth": unit_growth,
-		"unlocked_armors": unlocked_armors,
 		"unlocked_stories": unlocked_stories,
 		"attribute_points": attribute_points,
 		"total_attr_points_gained": total_attr_points_gained,
 		"available_attr_points": available_attr_points,
 		"unit_advancement": unit_advancement,
-		"difficulty_level": difficulty_level,
-		"highest_cleared_difficulty": highest_cleared_difficulty,
 		"unlocked_talents": unlocked_talents,
 		"unlocked_recipes": unlocked_recipes,
 		"unlocked_refine_recipes": unlocked_refine_recipes,
@@ -129,6 +129,11 @@ func compute_checksum() -> String:
 		"arena_target_talents": arena_target_talents,
 		"talent_exp": talent_exp,
 		"arena_best_streak": arena_best_streak,
+		"arena_clear_count": arena_clear_count,
+		"arena_survival_clear": arena_survival_clear,
+		"arena_survival_best": arena_survival_best,
+		"arena_total_crystals": arena_total_crystals,
+		"arena_total_runs": arena_total_runs,
 		"tutorial_stage": tutorial_stage,
 		"pending_sacrifice_rewards": pending_sacrifice_rewards,
 		"pending_forge_rewards": pending_forge_rewards,

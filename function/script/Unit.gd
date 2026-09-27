@@ -372,7 +372,8 @@ func serialize_inventory() -> Array[Dictionary]:
 	if weapon_slot:
 		result.append({
 			"item_id": weapon_slot.item_id,
-			"count": 1,
+			"count": weapon_slot.count,
+			"upgrade_level": weapon_slot.upgrade_level,
 			"slot": "weapon"
 		})
 	for i in range(armor_slots.size()):
@@ -380,7 +381,8 @@ func serialize_inventory() -> Array[Dictionary]:
 		if slot:
 			result.append({
 				"item_id": slot.item_id,
-				"count": 1,
+				"count": slot.count,
+				"upgrade_level": slot.upgrade_level,
 				"slot": "armor",
 				"index": i
 			})

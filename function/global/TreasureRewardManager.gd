@@ -34,3 +34,27 @@ static func roll_reward(day: int) -> Dictionary:
 		return {}
 	var idx = randi() % pool.size()
 	return pool[idx].duplicate(true)
+
+
+## 随机滚 N 条【尽量不重复】奖励（返回深拷贝数组）
+## 池子不够时允许重复填充
+static func roll_n_rewards(day: int, count: int = 3) -> Array:
+	_load()
+	var key = "day1" if day <= 1 else "day2"
+	var pool : Array = _data.get(key, [])
+	var result : Array = []
+	if pool.is_empty():
+		return result
+
+	var shuffled = pool.duplicate()
+	shuffled.shuffle()
+
+	for i in range(count):
+		if i < shuffled.size():
+			result.append(shuffled[i].duplicate(true))
+		else:
+			# 池子不足 → 重复抽
+			var idx = randi() % pool.size()
+			result.append(pool[idx].duplicate(true))
+
+	return result
