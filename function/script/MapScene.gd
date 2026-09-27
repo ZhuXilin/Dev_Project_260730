@@ -248,13 +248,14 @@ func _create_directed_line(from_pos: Vector2, to_pos: Vector2):
 	dir = dir / dist
 	var perp : Vector2 = Vector2(-dir.y, dir.x)
 
-	# 线段终点：距离目标节点中心一定间隔，避免箭头压在节点按钮上
-	var node_gap : float = MapConst.MAP_NODE_SIZE.x * 0.5 + 2.0
-	var line_end : Vector2 = to_pos - dir * node_gap
+	var hw : float = MapConst.MAP_NODE_SIZE.x * 0.5
+	var hh : float = MapConst.MAP_NODE_SIZE.y * 0.5
+	var gap : float = _exit_gap_distance(dir, hw, hh) + 2.0
+	var line_end : Vector2 = to_pos - dir * gap
 	if (line_end - from_pos).dot(dir) <= 0.0:
 		line_end = from_pos + dir * (dist * 0.5)
 
-	# ---- 主线段 ----
+	# 主线段
 	var line := Line2D.new()
 	line.add_point(from_pos)
 	line.add_point(line_end)
@@ -262,9 +263,9 @@ func _create_directed_line(from_pos: Vector2, to_pos: Vector2):
 	line.default_color = MapConst.MAP_LINE_COLOR
 	line_container.add_child(line)
 
-	# ---- 箭头三角 ----
-	var arrow_length : float = 6.0
-	var arrow_width  : float = 4.5
+	# 箭头
+	var arrow_length : float = 5.0
+	var arrow_width  : float = 3.5
 	var tip : Vector2 = line_end
 	var base_center : Vector2 = line_end - dir * arrow_length
 	var left : Vector2 = base_center + perp * arrow_width * 0.5
@@ -272,8 +273,18 @@ func _create_directed_line(from_pos: Vector2, to_pos: Vector2):
 
 	var arrow := Polygon2D.new()
 	arrow.polygon = PackedVector2Array([tip, left, right])
-	arrow.color = MapConst.MAP_LINE_COLOR
+	arrow.color = MapConst.MAP_LINE_COLOR.lightened(0.3)
 	line_container.add_child(arrow)
+
+
+func _exit_gap_distance(dir: Vector2, hw: float, hh: float) -> float:
+	var ax : float = abs(dir.x)
+	var ay : float = abs(dir.y)
+	if ax < 0.001:
+		return hh
+	if ay < 0.001:
+		return hw
+	return min(hw / ax, hh / ay)
 
 
 func _create_node_buttons():

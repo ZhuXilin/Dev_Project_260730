@@ -45,6 +45,7 @@ var _popup_confirm_callback : Callable = Callable()
 # ============================================================
 func _ready():
 	_ensure_dir()
+	_apply_tooltip_theme()
 	_build_ui()
 	call_deferred("_show_startup_menu")
 
@@ -267,14 +268,12 @@ func _generate_test_map():
 	for layer_key in by_layer:
 		var indices : Array = by_layer[layer_key]
 
-		# 先处理固定节点占位
 		var used_types : Dictionary = {}
 		for idx in indices:
 			var ln : MapLayoutNode = day_layout.nodes[idx]
 			if ln.random_pool.is_empty():
 				used_types[ln.node_type] = true
 
-		# 再处理随机节点
 		for idx in indices:
 			var ln : MapLayoutNode = day_layout.nodes[idx]
 			var resolved : int = ln.node_type
@@ -288,23 +287,17 @@ func _generate_test_map():
 				resolved = available[randi() % available.size()]
 				used_types[resolved] = true
 
-			# 非战斗节点 → 空
-			if resolved in [
-				MapNode.NodeType.SHOP,
-				MapNode.NodeType.FORGE,
-				MapNode.NodeType.TREASURE,
-				MapNode.NodeType.CHAPEL,
-			]:
-				_test_map_assignment[ln] = _node_type_short(resolved)
-				continue
-
-			# 战斗节点 → 从池里抽
+			# ★ 优先从 LevelList 抽地图名
 			var pool : Array = pools.get(resolved, [])
-			if pool.is_empty():
-				_test_map_assignment[ln] = "?"
-			else:
+			if not pool.is_empty():
 				var pick : MapData = pool[randi() % pool.size()]
-				_test_map_assignment[ln] = pick.map_name
+				if pick.map_name != "":
+					_test_map_assignment[ln] = pick.map_name
+					continue
+
+			# ★ 池子空 / map_name 空 → 用 MapConst 统一的中文类型名
+			_test_map_assignment[ln] = MapConst.get_node_display_name(resolved)
+
 
 # ============================================================
 #  嵌入式 Popup
@@ -326,10 +319,10 @@ func _show_text_input_popup(title: String, label_text: String, default_text: Str
 	panel.set_anchors_preset(Control.PRESET_CENTER)
 	panel.anchor_top = 0.0
 	panel.anchor_bottom = 1.0
-	panel.offset_left = -100
-	panel.offset_right = 100
-	panel.offset_top = 40
-	panel.offset_bottom = -40
+	panel.offset_left = -60
+	panel.offset_right = 60
+	panel.offset_top = 4
+	panel.offset_bottom = -4
 	_popup_layer.add_child(panel)
 
 	var vbox := VBoxContainer.new()
@@ -533,40 +526,47 @@ func _show_type_picker_popup(node_idx: int):
 	var bg := ColorRect.new()
 	bg.color = Color(0, 0, 0, 0.6)
 	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
+	bg.mouse_filter = Control.MOUSE_FILTER_STOP
+	bg.gui_input.connect(func(event):
+		if not (event is InputEventMouseButton and event.pressed):
+			return
+		if event.button_index == MOUSE_BUTTON_RIGHT:
+			_close_popup()
+		elif event.button_index == MOUSE_BUTTON_LEFT:
+			if _popup_confirm_callback.is_valid():
+				_popup_confirm_callback.call()
+			else:
+				_close_popup()
+	)
 	_popup_layer.add_child(bg)
 
-	# ★ 左右居中 + 上下贴边
+	# 紧凑居中弹窗
 	var panel := PanelContainer.new()
 	panel.set_anchors_preset(Control.PRESET_CENTER)
 	panel.anchor_top = 0.0
 	panel.anchor_bottom = 1.0
-	panel.offset_left = -100
-	panel.offset_right = 100
-	panel.offset_top = 4
-	panel.offset_bottom = -4
+	panel.offset_left = -55
+	panel.offset_right = 55
+	panel.offset_top = 8
+	panel.offset_bottom = -8
 	_popup_layer.add_child(panel)
 
 	var vbox := VBoxContainer.new()
-	vbox.add_theme_constant_override("separation", 2)
+	vbox.add_theme_constant_override("separation", 3)
 	panel.add_child(vbox)
 
 	var title_lb := Label.new()
 	title_lb.text = "节点类型（多选 = 随机池）"
 	title_lb.add_theme_font_size_override("font_size", 8)
 	title_lb.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title_lb.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	vbox.add_child(title_lb)
-
-	var scroll := ScrollContainer.new()
-	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
-	vbox.add_child(scroll)
 
 	var list := VBoxContainer.new()
 	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	list.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	list.add_theme_constant_override("separation", 0)
-	scroll.add_child(list)
+	vbox.add_child(list)
 
 	var types := [
 		[MapNode.NodeType.START, "START"],
@@ -581,57 +581,64 @@ func _show_type_picker_popup(node_idx: int):
 
 	var is_in_pool : bool = not node.random_pool.is_empty()
 
-	var checks : Array[CheckBox] = []
+	var empty := StyleBoxEmpty.new()
+	empty.content_margin_top = 0
+	empty.content_margin_bottom = 0
+	empty.content_margin_left = 0
+	empty.content_margin_right = 0
+
+	var checks : Array[Button] = []
 	for t in types:
-		var cb := CheckBox.new()
-		cb.text = t[1]
-		cb.add_theme_font_size_override("font_size", 7)
-		cb.add_theme_constant_override("h_separation", 3)
-		# ★ 用 StyleBoxEmpty 压掉上下 padding
-		var empty := StyleBoxEmpty.new()
-		empty.content_margin_top = 0
-		empty.content_margin_bottom = 0
-		empty.content_margin_left = 0
-		empty.content_margin_right = 0
-		cb.add_theme_stylebox_override("normal", empty)
-		cb.add_theme_stylebox_override("hover", empty)
-		cb.add_theme_stylebox_override("pressed", empty)
-		cb.add_theme_stylebox_override("focus", empty)
-		cb.add_theme_stylebox_override("disabled", empty)
-		cb.custom_minimum_size = Vector2(0, 8)   # ★ 极小高度
-		cb.set_meta("type", t[0])
+		var initial_pressed : bool = false
 		if is_in_pool:
-			cb.button_pressed = node.random_pool.has(t[0])
+			initial_pressed = node.random_pool.has(t[0])
 		else:
-			cb.button_pressed = (t[0] == node.node_type)
-		list.add_child(cb)
-		checks.append(cb)
+			initial_pressed = (t[0] == node.node_type)
+
+		var btn := Button.new()
+		btn.toggle_mode = true
+		btn.button_pressed = initial_pressed
+		btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		btn.text = ("☑ " if initial_pressed else "☐ ") + t[1]
+		btn.add_theme_font_size_override("font_size", 9)
+		btn.add_theme_stylebox_override("normal", empty)
+		btn.add_theme_stylebox_override("hover", empty)
+		btn.add_theme_stylebox_override("pressed", empty)
+		btn.add_theme_stylebox_override("focus", empty)
+		btn.add_theme_stylebox_override("disabled", empty)
+		btn.custom_minimum_size = Vector2(0, 12)
+		btn.size_flags_horizontal = Control.SIZE_FILL
+		btn.set_meta("type", t[0])
+		var label_text : String = t[1]
+		btn.toggled.connect(func(pressed: bool):
+			btn.text = ("☑ " if pressed else "☐ ") + label_text
+		)
+		list.add_child(btn)
+		checks.append(btn)
 
 	var btns := HBoxContainer.new()
 	btns.alignment = BoxContainer.ALIGNMENT_CENTER
 	btns.add_theme_constant_override("separation", 8)
 	vbox.add_child(btns)
 
-	# ★ 确定在左，取消在右
 	var ok := Button.new()
 	ok.text = "确定"
-	ok.add_theme_font_size_override("font_size", 8)
-	ok.custom_minimum_size = Vector2(50, 16)
+	ok.add_theme_font_size_override("font_size", 9)
+	ok.custom_minimum_size = Vector2(50, 18)
 	btns.add_child(ok)
 
 	var cancel := Button.new()
 	cancel.text = "取消"
-	cancel.add_theme_font_size_override("font_size", 8)
-	cancel.custom_minimum_size = Vector2(50, 16)
+	cancel.add_theme_font_size_override("font_size", 9)
+	cancel.custom_minimum_size = Vector2(50, 18)
 	cancel.pressed.connect(_close_popup)
 	btns.add_child(cancel)
 
-	# ★ 保存确认回调（供 Enter 使用）
 	var confirm_action := func():
 		var selected : Array = []
-		for cb in checks:
-			if cb.button_pressed:
-				selected.append(cb.get_meta("type"))
+		for btn in checks:
+			if btn.button_pressed:
+				selected.append(btn.get_meta("type"))
 		if selected.size() == 1:
 			node.node_type = selected[0]
 			node.random_pool.clear()
@@ -677,6 +684,7 @@ func _make_btn(text: String, tooltip: String = "") -> Button:
 
 
 func _build_ui():
+	# ========== 单行工具栏 ==========
 	var top := HBoxContainer.new()
 	top.set_anchors_preset(Control.PRESET_TOP_WIDE)
 	top.offset_left = 2
@@ -686,8 +694,10 @@ func _build_ui():
 	top.add_theme_constant_override("separation", 1)
 	add_child(top)
 
+	# ---- D1 / D2 / D3 ----
 	for d in [1, 2, 3]:
 		var b := _make_btn("D%d" % d, "Day %d" % d)
+		b.add_theme_font_size_override("font_size", 7)
 		b.toggle_mode = true
 		b.pressed.connect(_on_day_clicked.bind(d))
 		top.add_child(b)
@@ -695,77 +705,99 @@ func _build_ui():
 
 	top.add_child(VSeparator.new())
 
+	# ---- 变体 ----
 	var prev_btn := _make_btn("◀", "上一个变体")
+	prev_btn.add_theme_font_size_override("font_size", 7)
 	prev_btn.pressed.connect(_on_variant_prev)
 	top.add_child(prev_btn)
 
 	_variant_label = Label.new()
 	_variant_label.text = "1/1"
-	_variant_label.custom_minimum_size = Vector2(36, 0)
+	_variant_label.custom_minimum_size = Vector2(24, 0)
 	_variant_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_variant_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	_variant_label.add_theme_font_size_override("font_size", 9)
+	_variant_label.add_theme_font_size_override("font_size", 7)
 	top.add_child(_variant_label)
 
 	var next_btn := _make_btn("▶", "下一个变体")
+	next_btn.add_theme_font_size_override("font_size", 7)
 	next_btn.pressed.connect(_on_variant_next)
 	top.add_child(next_btn)
 
 	var add_var_btn := _make_btn("+", "新建变体")
+	add_var_btn.add_theme_font_size_override("font_size", 7)
 	add_var_btn.pressed.connect(_on_variant_add)
 	top.add_child(add_var_btn)
 
 	var del_var_btn := _make_btn("×", "删除当前变体")
+	del_var_btn.add_theme_font_size_override("font_size", 7)
 	del_var_btn.pressed.connect(_on_variant_delete)
 	top.add_child(del_var_btn)
 
 	top.add_child(VSeparator.new())
 
+	# ---- 工具 ----
 	var edit_btn := _make_btn("编辑", "编辑模式")
+	edit_btn.add_theme_font_size_override("font_size", 6)
 	edit_btn.toggle_mode = true
 	edit_btn.pressed.connect(_on_tool_clicked.bind(Tool.EDIT))
 	top.add_child(edit_btn)
 	_tool_buttons.append(edit_btn)
 
 	var link_btn := _make_btn("连线", "连线模式")
+	link_btn.add_theme_font_size_override("font_size", 6)
 	link_btn.toggle_mode = true
 	link_btn.pressed.connect(_on_tool_clicked.bind(Tool.LINK))
 	top.add_child(link_btn)
 	_tool_buttons.append(link_btn)
 
 	var add_layer_btn := _make_btn("+层", "新增一层")
+	add_layer_btn.add_theme_font_size_override("font_size", 6)
 	add_layer_btn.pressed.connect(_on_add_layer)
 	top.add_child(add_layer_btn)
 
+	top.add_child(VSeparator.new())
+
+	# ---- ★ 弹性间隔（把关卡池 / 测试 / 退出 / 新开存全部推到右边） ----
 	var spacer := Control.new()
 	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	top.add_child(spacer)
 
-	# ★ LevelList 选择
+	# ---- 关卡池 / 测试 ----
 	_levellist_btn = _make_btn("关卡池", "选择 LevelList 文件")
+	_levellist_btn.add_theme_font_size_override("font_size", 4)
 	_levellist_btn.pressed.connect(_on_pick_levellist)
 	top.add_child(_levellist_btn)
 
-	# ★ 测试
 	_test_btn = _make_btn("测试", "预览节点（按当前布局 + 关卡池）")
+	_test_btn.add_theme_font_size_override("font_size", 6)
 	_test_btn.toggle_mode = true
 	_test_btn.pressed.connect(_on_test_toggle)
 	top.add_child(_test_btn)
 
-	top.add_child(VSeparator.new())
-
+	# ---- 新 / 开 / 存 ----
 	var new_btn := _make_btn("新", "新建文件")
+	new_btn.add_theme_font_size_override("font_size", 6)
 	new_btn.pressed.connect(_on_new)
 	top.add_child(new_btn)
 
 	var open_btn := _make_btn("开", "打开文件")
+	open_btn.add_theme_font_size_override("font_size", 6)
 	open_btn.pressed.connect(_on_open)
 	top.add_child(open_btn)
 
 	var save_btn := _make_btn("存", "保存")
+	save_btn.add_theme_font_size_override("font_size", 6)
 	save_btn.pressed.connect(_on_save)
 	top.add_child(save_btn)
 
+	# ---- ★ 退出（最右） ----
+	var quit_btn := _make_btn("退出", "关闭编辑器")
+	quit_btn.add_theme_font_size_override("font_size", 6)
+	quit_btn.pressed.connect(func(): get_tree().quit())
+	top.add_child(quit_btn)
+
+	# ========== Hint ==========
 	_hint_label = Label.new()
 	_hint_label.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
 	_hint_label.offset_top = -14
@@ -774,10 +806,11 @@ func _build_ui():
 	_hint_label.text = "左键=创建/拖动 | 中键=删节点/删连线 | 右键=改类型 | 滚轮=滚动"
 	add_child(_hint_label)
 
+	# ========== 画布 ==========
 	_scroll = ScrollContainer.new()
 	_scroll.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_scroll.offset_left = 2
-	_scroll.offset_top = 24
+	_scroll.offset_top = 24       # ★ 回到单行高度
 	_scroll.offset_right = -2
 	_scroll.offset_bottom = -16
 	_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
@@ -1151,8 +1184,7 @@ func _update_all_labels():
 			var fname : String = _levellist_path.get_file()
 			if fname.ends_with(".tres"):
 				fname = fname.substr(0, fname.length() - 5)
-			if fname.length() > 8:
-				fname = fname.substr(0, 7) + "…"
+			# ★ 不截断，完整显示
 			_levellist_btn.text = fname
 			_levellist_btn.tooltip_text = _levellist_path
 		else:
@@ -1210,3 +1242,28 @@ func _node_type_short(t: int) -> String:
 		MapNode.NodeType.FORGE: return "FORGE"
 		MapNode.NodeType.CHAPEL: return "CHAPEL"
 	return "?"
+
+## 统一 tooltip 字号（Godot 默认 16，这里缩到 8）
+func _apply_tooltip_theme():
+	var t := Theme.new()
+	t.set_font_size("font_size", "TooltipLabel", 8)
+	t.set_font_size("font_size", "TooltipPanel", 8)
+
+	# ★ 无边框 tooltip
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(0.15, 0.15, 0.15, 0.9)
+	sb.border_width_left = 0
+	sb.border_width_right = 0
+	sb.border_width_top = 0
+	sb.border_width_bottom = 0
+	sb.corner_radius_top_left = 0
+	sb.corner_radius_top_right = 0
+	sb.corner_radius_bottom_left = 0
+	sb.corner_radius_bottom_right = 0
+	sb.content_margin_left = 4
+	sb.content_margin_right = 4
+	sb.content_margin_top = 2
+	sb.content_margin_bottom = 2
+	t.set_stylebox("panel", "TooltipPanel", sb)
+
+	theme = t

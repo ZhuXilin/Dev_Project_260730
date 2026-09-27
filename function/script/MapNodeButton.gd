@@ -8,7 +8,7 @@ func setup(node_data: MapNode, map_scene: CanvasLayer, override_pos: Vector2 = V
 	map_node = node_data
 	map_scene_ref = map_scene
 	text = _get_node_label(node_data)
-	
+
 	size = MapConst.MAP_NODE_SIZE
 	var pos : Vector2 = override_pos if override_pos != Vector2.INF else node_data.position
 	position = pos - size / 2
@@ -17,12 +17,12 @@ func setup(node_data: MapNode, map_scene: CanvasLayer, override_pos: Vector2 = V
 	visible = true
 	add_theme_font_size_override("font_size", MapConst.MAP_NODE_FONT_SIZE)
 	mouse_filter = Control.MOUSE_FILTER_STOP
-	
+
 	add_theme_color_override("font_color", Color.WHITE)
 	add_theme_color_override("font_color_disabled", Color.WHITE)
 	add_theme_color_override("font_color_hover", Color.WHITE)
 	add_theme_color_override("font_color_pressed", Color.WHITE)
-	
+
 	var stylebox = load(Config.PATHS.STYLEBOX_8BIT)
 	if stylebox:
 		add_theme_stylebox_override("normal", stylebox)
@@ -30,35 +30,40 @@ func setup(node_data: MapNode, map_scene: CanvasLayer, override_pos: Vector2 = V
 		add_theme_stylebox_override("hover", stylebox)
 		add_theme_stylebox_override("disabled", stylebox)
 		add_theme_stylebox_override("focus", stylebox)
-	
+
 	if pressed.is_connected(_on_clicked):
 		pressed.disconnect(_on_clicked)
 	pressed.connect(_on_clicked)
-	
+
 	if mouse_entered.is_connected(_on_hover_enter):
 		mouse_entered.disconnect(_on_hover_enter)
 	if mouse_exited.is_connected(_on_hover_exit):
 		mouse_exited.disconnect(_on_hover_exit)
 	mouse_entered.connect(_on_hover_enter)
 	mouse_exited.connect(_on_hover_exit)
-	
+
 	for child in get_children():
 		if child.name == "CheckLabel":
 			remove_child(child)
 			child.queue_free()
 			break
 
-func _get_node_label(node: MapNode) -> String:
-	match node.node_type:
-		MapNode.NodeType.SHOP:     return "商店"
-		MapNode.NodeType.FORGE:    return "铁匠铺"
-		MapNode.NodeType.TREASURE: return "宝箱"
-		MapNode.NodeType.CHAPEL:   return "圣坛"
 
+func _get_node_label(node: MapNode) -> String:
+	# 非战斗节点 → 直接中文类型名（商店 / 铁匠铺 / 宝箱 / 圣坛）
+	if node.node_type in [
+		MapNode.NodeType.SHOP,
+		MapNode.NodeType.FORGE,
+		MapNode.NodeType.TREASURE,
+		MapNode.NodeType.CHAPEL,
+	]:
+		return MapConst.get_node_display_name(node.node_type)
+	# 战斗节点 → 关卡名
 	if node.map_data and node.map_data.map_name != "":
 		return node.map_data.map_name
+	# 兜底 → 中文类型名
+	return MapConst.get_node_display_name(node.node_type)
 
-	return "?"
 
 func _get_color(node: MapNode) -> Color:
 	if node.is_visited:
@@ -67,6 +72,7 @@ func _get_color(node: MapNode) -> Color:
 		return MapConst.MAP_NODE_AVAILABLE
 	return MapConst.MAP_NODE_UNAVAILABLE
 
+
 func _on_clicked():
 	if map_node.is_visited or not map_node.is_available:
 		print("节点已访问或不可用，忽略点击")
@@ -74,6 +80,7 @@ func _on_clicked():
 	print("地图按钮被点击: ", text)
 	if map_scene_ref and map_scene_ref.has_method("on_node_selected"):
 		map_scene_ref.on_node_selected(map_node)
+
 
 func _on_hover_enter():
 	if map_scene_ref and map_scene_ref.has_method("show_node_info"):
