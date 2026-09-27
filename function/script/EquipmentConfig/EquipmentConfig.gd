@@ -93,7 +93,7 @@ func _on_talent_tab_pressed():
 func _on_sacrifice_tab_pressed(): _switch_tab("sacrifice")
 
 
-func init(units: Array, slot: int, mode: Mode, context: EquipContext = null):
+func init(units: Array, slot: int, mode: int, context: EquipContext = null):
 	var canvas_layer : Node = get_parent()
 	if canvas_layer is CanvasLayer:
 		if context != null and context.get_context_id() == "arena":
@@ -103,7 +103,7 @@ func init(units: Array, slot: int, mode: Mode, context: EquipContext = null):
 
 	selected_units = units
 	target_slot = slot
-	current_mode = mode
+	current_mode = mode as Mode
 	_context = context if context else MainGameEquipContext.new()
 
 	if mode == Mode.SHOP or _is_shop_rest_mode() or mode == Mode.FORGE:

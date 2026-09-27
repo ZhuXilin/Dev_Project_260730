@@ -40,6 +40,7 @@ SaveManager="*res://function/global/SaveManager.gd"
 LevelManager="*res://function/global/LevelManager.gd"
 InputManager="*res://function/global/InputManager.gd"
 GmConsole="*uid://q5yaycxpkkua"
+NodeTestHarness="*res://function/tool/Checker/NodeTestHarness.tscn"
 
 [display]
 

@@ -9,11 +9,19 @@ signal load_completed(slot: int, success: bool)
 
 var current_slot: int = -1
 
+## ★ 测试模式：为 true 时所有存档写盘被拦截
+var suppress_save : bool = false
+
 func _ready():
 	DirAccess.make_dir_recursive_absolute(SAVE_DIR)
 
 # ===== 保存 =====
+# ===== 保存 =====
 func save_game(slot: int, auto: bool = false) -> bool:
+	if suppress_save:
+		print("[SaveManager] suppress_save = true，跳过存档（slot=%d auto=%s）" % [slot, auto])
+		return false
+
 	if slot < 0 or slot >= SLOT_COUNT:
 		push_error("无效存档槽: ", slot)
 		return false
@@ -35,6 +43,16 @@ func save_game(slot: int, auto: bool = false) -> bool:
 	print("存档已保存 (槽", slot, ", ", "自动" if auto else "手动", ")")
 	save_completed.emit(slot)
 	return true
+
+
+# ===== 自动存档 =====
+func auto_save():
+	if suppress_save:
+		return
+	if current_slot == -1:
+		save_game(0, true)
+	else:
+		save_game(current_slot, true)
 
 # ===== 加载 =====
 func load_game(slot: int) -> bool:
@@ -355,13 +373,6 @@ func _get_map_scene():
 	if scene and scene is MapSceneClass:
 		return scene
 	return null
-
-# ===== 自动存档 =====
-func auto_save():
-	if current_slot == -1:
-		save_game(0, true)
-	else:
-		save_game(current_slot, true)
 
 # ===== 辅助 =====
 func has_save(slot: int) -> bool:
