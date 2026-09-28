@@ -13,28 +13,28 @@
   "pad": {
    "wave": "pulse_12",
    "env": {
-    "attack": 0.02,
-    "decay": 0.1,
-    "sustain": 0.5,
-    "release": 0.15
+	"attack": 0.02,
+	"decay": 0.1,
+	"sustain": 0.5,
+	"release": 0.15
    }
   },
   "lead": {
    "wave": "pulse_25",
    "env": {
-    "attack": 0.005,
-    "decay": 0.05,
-    "sustain": 0.7,
-    "release": 0.05
+	"attack": 0.005,
+	"decay": 0.05,
+	"sustain": 0.7,
+	"release": 0.05
    }
   },
   "drum": {
    "wave": "noise",
    "env": {
-    "attack": 0.001,
-    "decay": 0.05,
-    "sustain": 0.0,
-    "release": 0.02
+	"attack": 0.001,
+	"decay": 0.05,
+	"sustain": 0.0,
+	"release": 0.02
    }
   }
  },
