@@ -76,3 +76,69 @@ func unlock_relic(relic_id: String):
 
 func set_unlocked_relics(list: Array):
 	_unlocked_relics = list.duplicate()
+
+# ============================================================
+#  遗物解锁来源
+# ============================================================
+func get_unlock_source(relic_id: String) -> String:
+	var d : Dictionary = get_relic_data(relic_id)
+	return d.get("unlock_source", "default")
+
+
+func get_soul_cost(relic_id: String) -> int:
+	var d : Dictionary = get_relic_data(relic_id)
+	return int(d.get("soul_cost", 0))
+
+
+## 按来源批量解锁（返回新解锁的遗物 id 列表）
+func unlock_relics_by_source(source: String) -> Array:
+	var new_unlocked : Array = []
+	for rid in _relic_db:
+		if get_unlock_source(rid) != source:
+			continue
+		if rid in _unlocked_relics:
+			continue
+		_unlocked_relics.append(rid)
+		new_unlocked.append(rid)
+	if not new_unlocked.is_empty():
+		print("[RelicManager] Boss 解锁遗物（%s）：%s" % [source, new_unlocked])
+	return new_unlocked
+
+
+# ============================================================
+#  魂解锁
+# ============================================================
+func can_soul_unlock_relic(relic_id: String) -> bool:
+	if is_relic_unlocked(relic_id):
+		return false
+	if get_unlock_source(relic_id) != "soul":
+		return false
+	var cost : int = get_soul_cost(relic_id)
+	if cost <= 0:
+		return false
+	return GameState.soul >= cost
+
+
+func soul_unlock_relic(relic_id: String) -> bool:
+	if not can_soul_unlock_relic(relic_id):
+		return false
+	var cost : int = get_soul_cost(relic_id)
+	GameState.soul -= cost
+	unlock_relic(relic_id)
+	SaveManager.auto_save()
+	print("[RelicManager] 魂解锁遗物：%s（花费 %d 魂）" % [relic_id, cost])
+	return true
+
+
+## 用于 UI 显示解锁条件
+func get_unlock_hint(relic_id: String) -> String:
+	if is_relic_unlocked(relic_id):
+		return "已获得"
+	var src : String = get_unlock_source(relic_id)
+	match src:
+		"default":   return "默认解锁"
+		"boss_day1": return "通关 Day1 Boss 解锁"
+		"boss_day2": return "通关 Day2 Boss 解锁"
+		"boss_day3": return "通关 Day3 Boss 解锁"
+		"soul":      return "%d 魂解锁" % get_soul_cost(relic_id)
+	return "?"

@@ -1894,6 +1894,23 @@ func _on_map_victory_continue():
 		GameState.should_advance_day = true
 		print("Boss 胜利，设置 should_advance_day = true")
 
+		# ★ Boss 解锁遗物
+		var day : int = GameState.current_day
+		var source : String = "boss_day%d" % day
+		var new_relics : Array = RelicManager.unlock_relics_by_source(source)
+		for rid in new_relics:
+			var rd : Dictionary = RelicManager.get_relic_data(rid)
+			var virtual_data := ItemData.new()
+			virtual_data.id = "unlock_relic_" + rid
+			virtual_data.name = "★ 新遗物：" + rd.get("name", rid)
+			virtual_data.description = rd.get("description", "")
+			var icon_path : String = rd.get("icon", "")
+			if icon_path != "" and ResourceLoader.exists(icon_path):
+				virtual_data.icon = load(icon_path)
+			reward_item_datas.append(virtual_data)
+		if not new_relics.is_empty():
+			print("[Battlefield] Day%d Boss 解锁 %d 个遗物" % [day, new_relics.size()])
+
 		if is_last_day:
 			print("第三天最终Boss，跳过遗物三选一和英灵殿")
 		else:

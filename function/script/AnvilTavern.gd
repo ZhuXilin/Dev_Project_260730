@@ -693,33 +693,51 @@ func _build_relic_list():
 
 func _build_relic_row(relic_id: String, data: Dictionary, unlocked: bool) -> HBoxContainer:
 	var row = HBoxContainer.new()
-	row.add_theme_constant_override("separation", 8)
+	row.add_theme_constant_override("separation", 6)
 
 	var name_label = Label.new()
 	name_label.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_LARGE)
-	name_label.custom_minimum_size = Vector2(90, 0)
+	name_label.custom_minimum_size = Vector2(80, 0)
+	name_label.clip_text = true
 	name_label.text = data.get("name", relic_id)
 	if not unlocked:
 		name_label.modulate = Color(0.4, 0.4, 0.4, 1)
 	row.add_child(name_label)
 
-	var status_label = Label.new()
-	status_label.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_SMALL)
-	status_label.custom_minimum_size = Vector2(50, 0)
-	status_label.text = "已获得" if unlocked else "未获得"
-	status_label.modulate = Color.WHITE if unlocked else Color(0.5, 0.5, 0.5, 1)
-	row.add_child(status_label)
-
-	var desc_label = Label.new()
-	desc_label.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_SMALL)
-	desc_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	desc_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	desc_label.text = data.get("description", "")
+	var hint_label = Label.new()
+	hint_label.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_SMALL)
+	hint_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	hint_label.clip_text = true
+	hint_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	hint_label.text = RelicManager.get_unlock_hint(relic_id)
 	if not unlocked:
-		desc_label.modulate = Color(0.4, 0.4, 0.4, 1)
-	row.add_child(desc_label)
+		hint_label.modulate = Color(0.6, 0.6, 0.6, 1)
+	row.add_child(hint_label)
+
+	# 魂解锁按钮
+	var btn = Button.new()
+	btn.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_SMALL)
+	btn.custom_minimum_size = Vector2(60, 0)
+
+	if unlocked:
+		btn.text = "已获得"
+		btn.disabled = true
+	elif RelicManager.get_unlock_source(relic_id) == "soul":
+		var cost : int = RelicManager.get_soul_cost(relic_id)
+		btn.text = "%d 魂" % cost
+		btn.disabled = not RelicManager.can_soul_unlock_relic(relic_id)
+		btn.pressed.connect(_on_unlock_relic.bind(relic_id))
+	else:
+		btn.text = "未解锁"
+		btn.disabled = true
+	row.add_child(btn)
 
 	return row
+
+
+func _on_unlock_relic(relic_id: String):
+	if RelicManager.soul_unlock_relic(relic_id):
+		_switch_tab(Tab.TAVERN)
 
 
 # ============================================================

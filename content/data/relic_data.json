@@ -5,7 +5,9 @@
 	"icon": "res://content/images/items/relic.png",
 	"description": "全队每场战斗第一次攻击必定暴击",
 	"effects": { "first_attack_crit": true },
-	"price": 150
+	"price": 150,
+	"unlock_source": "boss_day3",
+	"soul_cost": 0
   },
   "relic_defense": {
 	"id": "relic_defense",
@@ -13,7 +15,9 @@
 	"icon": "res://content/images/items/relic.png",
 	"description": "全队单位 HP<30% 时，受到伤害 -50%",
 	"effects": { "low_hp_damage_reduce": 0.5 },
-	"price": 150
+	"price": 150,
+	"unlock_source": "boss_day1",
+	"soul_cost": 0
   },
   "relic_speed": {
 	"id": "relic_speed",
@@ -21,7 +25,9 @@
 	"icon": "res://content/images/items/relic.png",
 	"description": "全队击杀敌人后，本回合可再移动 2 格",
 	"effects": { "kill_grants_extra_move": 2 },
-	"price": 150
+	"price": 150,
+	"unlock_source": "default",
+	"soul_cost": 0
   },
   "relic_magic": {
 	"id": "relic_magic",
@@ -29,7 +35,9 @@
 	"icon": "res://content/images/items/relic.png",
 	"description": "全队每场战斗第一次施法不消耗行动",
 	"effects": { "first_spell_free": true },
-	"price": 150
+	"price": 150,
+	"unlock_source": "default",
+	"soul_cost": 0
   },
   "relic_health": {
 	"id": "relic_health",
@@ -37,7 +45,9 @@
 	"icon": "res://content/images/items/relic.png",
 	"description": "全队每回合首次受伤，回复该伤害 30%",
 	"effects": { "turn_first_hit_regen": 0.3 },
-	"price": 200
+	"price": 200,
+	"unlock_source": "boss_day2",
+	"soul_cost": 0
   },
   "relic_strength": {
 	"id": "relic_strength",
@@ -45,7 +55,9 @@
 	"icon": "res://content/images/items/relic.png",
 	"description": "全队攻击时，每 1 点力量额外 +2% 伤害",
 	"effects": { "strength_scale_damage": 0.02 },
-	"price": 200
+	"price": 200,
+	"unlock_source": "boss_day2",
+	"soul_cost": 0
   },
   "relic_dexterity": {
 	"id": "relic_dexterity",
@@ -53,7 +65,9 @@
 	"icon": "res://content/images/items/relic.png",
 	"description": "全队反击伤害 +50%",
 	"effects": { "counter_damage_bonus": 0.5 },
-	"price": 200
+	"price": 200,
+	"unlock_source": "default",
+	"soul_cost": 0
   },
   "relic_faith": {
 	"id": "relic_faith",
@@ -61,7 +75,9 @@
 	"icon": "res://content/images/items/relic.png",
 	"description": "全队治疗量 +50%",
 	"effects": { "heal_bonus": 0.5 },
-	"price": 200
+	"price": 200,
+	"unlock_source": "boss_day1",
+	"soul_cost": 0
   },
   "relic_phoenix": {
 	"id": "relic_phoenix",
@@ -69,6 +85,8 @@
 	"icon": "res://content/images/items/relic.png",
 	"description": "每个单位每场战斗首次阵亡后，满血复活一次",
 	"effects": { "auto_revive_once": true },
-	"price": 200
+	"price": 200,
+	"unlock_source": "soul",
+	"soul_cost": 80
   }
 }
