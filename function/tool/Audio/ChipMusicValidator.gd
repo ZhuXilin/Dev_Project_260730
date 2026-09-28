@@ -12,7 +12,6 @@ const SFX_DIR : String = "res://content/sound/"
 
 var _report_rtl: RichTextLabel = null
 var _summary_label: Label = null
-var _files_scroll: VBoxContainer = null
 
 
 func _ready():
