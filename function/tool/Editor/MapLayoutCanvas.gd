@@ -69,8 +69,22 @@ func _draw():
 			var ascent2 : float = font2.get_ascent(font_size2)
 			var descent2 : float = font2.get_descent(font_size2)
 			var baseline_y2 : float = pos.y + (ascent2 - descent2) / 2.0
-			draw_string(font2, Vector2(pos.x - text_size2.x / 2.0, baseline_y2),
+			draw_string(font2,
+				Vector2(pos.x - text_size2.x / 2.0, baseline_y2),
 				label2, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size2, Color.BLACK)
+
+			# ★ 节点下方绘制遗物名（4号字）
+			if not node.unlock_relics.is_empty():
+				var relic_line : String = _format_relic_line(node.unlock_relics)
+				if relic_line != "":
+					var font_r : Font = ThemeDB.fallback_font
+					var font_size_r : int = 4
+					var ts_r : Vector2 = font_r.get_string_size(relic_line, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size_r)
+					var rel_y : float = pos.y + editor.NODE_H / 2.0 + 6.0
+					draw_string(font_r,
+						Vector2(pos.x - ts_r.x / 2.0, rel_y),
+						relic_line, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size_r,
+						Color(1.0, 0.82, 0.3, 1.0))
 
 	if not in_test and editor._selected_link >= 0:
 		var p : Vector2 = editor._node_pos(editor._selected_link)
@@ -168,3 +182,24 @@ func _node_type_short(t: int) -> String:
 		MapNode.NodeType.FORGE: return "FG"
 		MapNode.NodeType.CHAPEL: return "CH"
 	return "?"
+
+
+## 把遗物 id 列表格式化为一行显示文本（用 editor 的显示名）
+func _format_relic_line(relics: Array) -> String:
+	var names : Array = []
+	for rid in relics:
+		if not (rid is String) or rid == "":
+			continue
+		var n : String = ""
+		if editor and editor.has_method("_relic_display_name"):
+			n = editor._relic_display_name(rid)
+		else:
+			n = rid
+		names.append(n)
+		# 最多显示 2 个，超出加 "…"
+		if names.size() >= 2:
+			break
+	var line : String = " ".join(names)
+	if relics.size() > 2:
+		line += "…"
+	return line

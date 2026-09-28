@@ -408,6 +408,8 @@ func on_node_selected(node: MapNode):
 		MapNode.NodeType.BOSS,
 	]:
 		GameState.current_node_key = key
+	# ★ 保存节点的遗物解锁配置
+	GameState.current_node_unlock_relics = node.unlock_relics.duplicate()
 	_load_combat_for_node(node)
 
 func _load_combat_for_node(node: MapNode):

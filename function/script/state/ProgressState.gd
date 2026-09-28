@@ -10,6 +10,7 @@ var is_map_mode : bool = false
 var resume_node_id : String = ""
 var last_selected_node_type : int = -1
 var should_advance_day : bool = false
+var current_node_unlock_relics : Array[String] = []
 
 # ---- 地图缓存 / 快照 ----
 var cached_map_level_data : MapLevelData = null
@@ -31,6 +32,7 @@ func reset_progress():
 	current_map_data = null
 	last_selected_node_type = -1
 	map_snapshot.clear()
+	current_node_unlock_relics.clear()
 
 func undo_battle_entry():
 	current_node_key = ""

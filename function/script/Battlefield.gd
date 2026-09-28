@@ -554,10 +554,21 @@ func _extract_map_unit_placers(node: Node):
 		match cfg.get("type", ""):
 			"event_trigger":
 				var event_id = cfg.get("event_id", "")
+				var relics : Array = cfg.get("unlock_relics", [])
+
 				if event_id != "":
+					# 有事件 ID → 走事件系统
 					entry["event_id"] = event_id
 					map_functions[cell] = entry
 					print("功能格: 位置 ", cell, " 事件ID: ", event_id)
+				elif not relics.is_empty():
+					# 无事件 ID 但有遗物配置 → 自动注册一个解锁事件
+					var generated_id = "unlock_%d_%d" % [cell.x, cell.y]
+					var actions = [{ "type": "unlock_relics", "relic_ids": relics }]
+					EventManager.register_event(generated_id, { "actions": actions, "once": true })
+					entry["event_id"] = generated_id
+					map_functions[cell] = entry
+					print("功能格: 位置 ", cell, " 自动解锁遗物: ", relics)
 
 			"hp_function":
 				var amount = cfg.get("hp_amount", 0)
@@ -1862,6 +1873,52 @@ func _on_map_victory_continue():
 			reward_item_datas.append(rare_data)
 			print("添加稀有掉落显示: ", rare_data.name)
 
+	# ============================================================
+	#  ★ 遗物解锁（MapData + Node 合并，去重，只显示新解锁的）
+	# ============================================================
+	var all_relic_ids : Array = []
+	if GameState.current_map_data and GameState.current_map_data.unlock_relics:
+		all_relic_ids.append_array(GameState.current_map_data.unlock_relics)
+	if GameState.current_node_unlock_relics:
+		all_relic_ids.append_array(GameState.current_node_unlock_relics)
+
+	if not all_relic_ids.is_empty():
+		# 去重
+		var seen : Dictionary = {}
+		var unique_relics : Array = []
+		for rid in all_relic_ids:
+			if rid is String and rid != "" and not seen.has(rid):
+				seen[rid] = true
+				unique_relics.append(rid)
+
+		# 先判断哪些是"本次新解锁"的
+		var newly : Array = []
+		for rid in unique_relics:
+			if not RelicManager.is_relic_unlocked(rid):
+				newly.append(rid)
+
+		# 批量解锁（内部会跳过已解锁）
+		RelicManager.unlock_relics_by_ids(unique_relics)
+
+		# 加入结算面板（只显示新解锁的）
+		for rid in newly:
+			var rd : Dictionary = RelicManager.get_relic_data(rid)
+			var virtual_data := ItemData.new()
+			virtual_data.id = "unlock_relic_" + rid
+			virtual_data.name = "★ 新遗物：" + rd.get("name", rid)
+			virtual_data.description = rd.get("description", "")
+			var icon_path : String = rd.get("icon", "")
+			if icon_path != "" and ResourceLoader.exists(icon_path):
+				virtual_data.icon = load(icon_path)
+			reward_item_datas.append(virtual_data)
+		if not newly.is_empty():
+			print("[Battlefield] 本节点解锁 %d 个遗物" % newly.size())
+
+	# 清空本节点 tags（防止下次战斗重复使用）
+	GameState.current_node_unlock_relics.clear()
+
+	# ============================================================
+
 	var has_reward = (reward_gold > 0 or reward_soul > 0 or not reward_item_datas.is_empty())
 
 	var is_boss = (current_node_type == MapNode.NodeType.BOSS)
@@ -1894,23 +1951,6 @@ func _on_map_victory_continue():
 		GameState.should_advance_day = true
 		print("Boss 胜利，设置 should_advance_day = true")
 
-		# ★ Boss 解锁遗物
-		var day : int = GameState.current_day
-		var source : String = "boss_day%d" % day
-		var new_relics : Array = RelicManager.unlock_relics_by_source(source)
-		for rid in new_relics:
-			var rd : Dictionary = RelicManager.get_relic_data(rid)
-			var virtual_data := ItemData.new()
-			virtual_data.id = "unlock_relic_" + rid
-			virtual_data.name = "★ 新遗物：" + rd.get("name", rid)
-			virtual_data.description = rd.get("description", "")
-			var icon_path : String = rd.get("icon", "")
-			if icon_path != "" and ResourceLoader.exists(icon_path):
-				virtual_data.icon = load(icon_path)
-			reward_item_datas.append(virtual_data)
-		if not new_relics.is_empty():
-			print("[Battlefield] Day%d Boss 解锁 %d 个遗物" % [day, new_relics.size()])
-
 		if is_last_day:
 			print("第三天最终Boss，跳过遗物三选一和英灵殿")
 		else:
@@ -1935,7 +1975,7 @@ func _on_map_victory_continue():
 			if hero_shrine_scene:
 				var hero_shrine = hero_shrine_scene.instantiate()
 				add_child(hero_shrine)
-				hero_shrine.setup_map(1) 
+				hero_shrine.setup_map(1)
 				await hero_shrine.closed
 				print("英灵殿关闭")
 			else:

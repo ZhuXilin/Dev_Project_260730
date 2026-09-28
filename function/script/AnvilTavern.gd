@@ -116,7 +116,9 @@ func _refresh_materials():
 		var count : int = mats.get(mat_name, 0)
 		if count > 0:
 			parts.append("%s:%d" % [mat_name, count])
-	materials_label.text = "材料: " + (" ".join(parts) if not parts.is_empty() else "无")
+	# ★ 加魂显示
+	var soul_str : String = "  魂:%d" % GameState.soul
+	materials_label.text = "材料: " + (" ".join(parts) if not parts.is_empty() else "无") + soul_str
 
 
 # ============================================================
@@ -709,12 +711,19 @@ func _build_relic_row(relic_id: String, data: Dictionary, unlocked: bool) -> HBo
 	hint_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	hint_label.clip_text = true
 	hint_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-	hint_label.text = RelicManager.get_unlock_hint(relic_id)
-	if not unlocked:
-		hint_label.modulate = Color(0.6, 0.6, 0.6, 1)
+
+	var soul_cost : int = RelicManager.get_soul_cost(relic_id)
+	if unlocked:
+		hint_label.text = data.get("description", "")
+		hint_label.modulate = Color(0.75, 0.75, 0.75, 1)
+	elif soul_cost > 0:
+		hint_label.text = data.get("description", "")
+		hint_label.modulate = Color(0.55, 0.55, 0.55, 1)
+	else:
+		hint_label.text = "（通过关卡解锁）"
+		hint_label.modulate = Color(0.5, 0.5, 0.5, 1)
 	row.add_child(hint_label)
 
-	# 魂解锁按钮
 	var btn = Button.new()
 	btn.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_SMALL)
 	btn.custom_minimum_size = Vector2(60, 0)
@@ -722,9 +731,8 @@ func _build_relic_row(relic_id: String, data: Dictionary, unlocked: bool) -> HBo
 	if unlocked:
 		btn.text = "已获得"
 		btn.disabled = true
-	elif RelicManager.get_unlock_source(relic_id) == "soul":
-		var cost : int = RelicManager.get_soul_cost(relic_id)
-		btn.text = "%d 魂" % cost
+	elif soul_cost > 0:
+		btn.text = "%d 魂" % soul_cost
 		btn.disabled = not RelicManager.can_soul_unlock_relic(relic_id)
 		btn.pressed.connect(_on_unlock_relic.bind(relic_id))
 	else:

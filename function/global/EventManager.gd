@@ -70,11 +70,9 @@ func trigger_event(event_id: String, unit: Unit = null, default_music: AudioStre
 				var dialog_id = action.get("dialog_id", "")
 				var music_stream = action.get("music", default_music)
 				if dialog_id != "":
-					# 如果有对话正在播放，等待它结束
 					if DialogueManager.is_active:
 						print("对话已激活，等待结束后再播放新对话: ", dialog_id)
 						await DialogueManager.dialogue_finished
-					# 现在可以安全播放新对话
 					DialogueManager.start_dialogue(dialog_id, music_stream)
 					await DialogueManager.dialogue_finished
 
@@ -139,7 +137,6 @@ func trigger_event(event_id: String, unit: Unit = null, default_music: AudioStre
 					else:
 						print("警告：未知装备槽位: %s" % item_data.equipment_slot)
 				else:
-					# 未指定 equip，只解锁（已在上一步处理），这里仅记录
 					print("道具已解锁（未装备）: %s" % item_data.name)
 
 				await show_item_get_popup(item_id, count)
@@ -147,12 +144,34 @@ func trigger_event(event_id: String, unit: Unit = null, default_music: AudioStre
 			"unlock_equipment":
 				var item_id = action.get("item_id", "")
 				if item_id != "":
-					# 检查是否为遗物
 					var relic_data = RelicManager.get_relic_data(item_id)
 					if not relic_data.is_empty():
 						RelicManager.unlock_relic(item_id)
 					else:
 						Globals.unlock_item(item_id)
+
+			# ============================================================
+			#  ★ 遗物解锁 action
+			# ============================================================
+			"unlock_relics":
+				var ids = action.get("relic_ids", [])
+				var single_id = action.get("relic_id", "")
+				var collected : Array = []
+				if single_id is String and single_id != "":
+					collected.append(single_id)
+				if ids is Array:
+					for rid in ids:
+						if rid is String and rid != "":
+							collected.append(rid)
+				if not collected.is_empty():
+					var new_relics : Array = RelicManager.unlock_relics_by_ids(collected)
+					print("[事件] 解锁 %d 个遗物: %s" % [new_relics.size(), new_relics])
+					# 顺便给个弹窗提示
+					for rid in new_relics:
+						var rd : Dictionary = RelicManager.get_relic_data(rid)
+						if not rd.is_empty():
+							await show_relic_get_popup(rid)
+			# ============================================================
 
 			"heal":
 				if unit == null:
@@ -208,16 +227,28 @@ func trigger_event(event_id: String, unit: Unit = null, default_music: AudioStre
 	if event_def.get("once", true):
 		mark_event_completed(event_id)
 
+
 func show_item_get_popup(item_id: String, count: int):
 	if Globals.is_item_get_popup_active:
 		return
-	# ---- 挂到 root 下（不随场景切换销毁） ----
 	var root = get_tree().root
 	if not root:
 		return
 	var popup = ItemGetPopupScene.instantiate()
 	root.add_child(popup)
 	popup.show_item(item_id, count)
+
+
+func show_relic_get_popup(relic_id: String):
+	if Globals.is_item_get_popup_active:
+		return
+	var root = get_tree().root
+	if not root:
+		return
+	var popup = ItemGetPopupScene.instantiate()
+	root.add_child(popup)
+	popup.show_relic(relic_id, 1)
+
 
 func clear_completed():
 	_completed.clear()
@@ -235,7 +266,6 @@ func _get_ui_manager() -> UIManager:
 func show_unit_unlock_popup(units: Array):
 	if Globals.is_item_get_popup_active:
 		return
-	# ---- 挂到 root 下 ----
 	var root = get_tree().root
 	if not root:
 		return

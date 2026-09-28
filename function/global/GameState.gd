@@ -259,6 +259,10 @@ var sacrifice_count : int:
 	get: return resource_state.sacrifice_count
 	set(value): resource_state.sacrifice_count = value
 
+var current_node_unlock_relics : Array:
+	get: return progress_state.current_node_unlock_relics
+	set(value): progress_state.current_node_unlock_relics = value
+
 # ============================================================
 #  非转发字段
 # ============================================================

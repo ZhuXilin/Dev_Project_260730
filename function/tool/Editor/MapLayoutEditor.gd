@@ -1,6 +1,10 @@
 @tool
 extends Control
 
+# ============================================================
+#  MapLayoutEditor — 地图布局可视化编辑器
+# ============================================================
+
 const LAYER_HEIGHT : float = 28.0
 const NODE_W : float = 40.0
 const NODE_H : float = 14.0
@@ -9,9 +13,21 @@ const CANVAS_PADDING_TOP : float = 20.0
 const CANVAS_PADDING_BOTTOM : float = 12.0
 const LAYOUT_DIR : String = "res://content/scenes/levels/maplayout/"
 const BAKE_WIDTH : float = 400.0
+const RELIC_DATA_PATH : String = "res://content/data/relic_data.json"
+
+## ★ 只有战斗节点允许配遗物解锁
+const COMBAT_NODE_TYPES : Array = [
+	MapNode.NodeType.START,
+	MapNode.NodeType.NORMAL,
+	MapNode.NodeType.ELITE,
+	MapNode.NodeType.BOSS,
+]
 
 enum Tool { EDIT, LINK }
 
+# ============================================================
+#  状态
+# ============================================================
 var _layout : MapLayout = null
 var _current_day : int = 1
 var _variant_idx : int = 0
@@ -29,7 +45,7 @@ var _popup_layer : Control = null
 var _levellist : LevelListResource = null
 var _levellist_path : String = ""
 var _in_test_mode : bool = false
-var _test_map_assignment : Dictionary = {}   # MapLayoutNode -> 地图名
+var _test_map_assignment : Dictionary = {}
 var _levellist_btn : Button = null
 var _test_btn : Button = null
 
@@ -39,6 +55,10 @@ var _variant_label : Label = null
 var _hint_label : Label = null
 
 var _popup_confirm_callback : Callable = Callable()
+
+## ★ 遗物数据缓存（编辑器读一次就够）
+var _relic_data_cache : Dictionary = {}
+
 
 # ============================================================
 #  生命周期
@@ -53,6 +73,32 @@ func _ready():
 func _ensure_dir():
 	if not DirAccess.dir_exists_absolute(LAYOUT_DIR):
 		DirAccess.make_dir_recursive_absolute(LAYOUT_DIR)
+
+
+## 统一 tooltip 字号（Godot 默认 16，缩到 8）+ 无边框
+func _apply_tooltip_theme():
+	var t := Theme.new()
+	t.set_font_size("font_size", "TooltipLabel", 8)
+	t.set_font_size("font_size", "TooltipPanel", 8)
+
+	# ★ 无边框 tooltip
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(0.15, 0.15, 0.15, 0.9)
+	sb.border_width_left = 0
+	sb.border_width_right = 0
+	sb.border_width_top = 0
+	sb.border_width_bottom = 0
+	sb.corner_radius_top_left = 0
+	sb.corner_radius_top_right = 0
+	sb.corner_radius_bottom_left = 0
+	sb.corner_radius_bottom_right = 0
+	sb.content_margin_left = 4
+	sb.content_margin_right = 4
+	sb.content_margin_top = 2
+	sb.content_margin_bottom = 2
+	t.set_stylebox("panel", "TooltipPanel", sb)
+
+	theme = t
 
 
 # ============================================================
@@ -186,6 +232,7 @@ func _on_open():
 	add_child(fd)
 	fd.popup_centered(Vector2i(600, 400))
 
+
 # ============================================================
 #  LevelList + 测试
 # ============================================================
@@ -203,7 +250,6 @@ func _on_pick_levellist():
 			push_warning("加载失败: " + path)
 			fd.queue_free()
 			return
-		# ★ 类型校验：必须是 LevelListResource
 		if not (res is LevelListResource):
 			push_warning("选中的不是 LevelList 资源: " + path)
 			Globals.show_confirm(
@@ -300,7 +346,49 @@ func _generate_test_map():
 
 
 # ============================================================
-#  嵌入式 Popup
+#  遗物数据（供弹窗 + 画布使用）
+# ============================================================
+func _load_relic_data_for_editor() -> Dictionary:
+	if not FileAccess.file_exists(RELIC_DATA_PATH):
+		push_warning("[MapLayoutEditor] 遗物数据文件不存在: " + RELIC_DATA_PATH)
+		return {}
+	var file := FileAccess.open(RELIC_DATA_PATH, FileAccess.READ)
+	if file == null:
+		return {}
+	var text := file.get_as_text()
+	file.close()
+	var data = JSON.parse_string(text)
+	if not (data is Dictionary):
+		return {}
+	return data
+
+
+func _get_relic_data_cached() -> Dictionary:
+	if _relic_data_cache.is_empty():
+		_relic_data_cache = _load_relic_data_for_editor()
+	return _relic_data_cache
+
+
+## 供 MapLayoutCanvas 调用：返回遗物显示名
+func _relic_display_name(relic_id: String) -> String:
+	var d : Dictionary = _get_relic_data_cached()
+	if d.has(relic_id):
+		return d[relic_id].get("name", relic_id)
+	return relic_id
+
+
+## 节点能否配遗物解锁（非战斗节点禁用）
+func _node_can_unlock_relics(node: MapLayoutNode) -> bool:
+	if not node.random_pool.is_empty():
+		for t in node.random_pool:
+			if t in COMBAT_NODE_TYPES:
+				return true
+		return false
+	return node.node_type in COMBAT_NODE_TYPES
+
+
+# ============================================================
+#  嵌入式 Popup — 文本输入
 # ============================================================
 func _show_text_input_popup(title: String, label_text: String, default_text: String, on_ok: Callable):
 	_close_popup()
@@ -314,15 +402,14 @@ func _show_text_input_popup(title: String, label_text: String, default_text: Str
 	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_popup_layer.add_child(bg)
 
-	# 弹窗：左右居中，宽 200，上下留 40px
 	var panel := PanelContainer.new()
 	panel.set_anchors_preset(Control.PRESET_CENTER)
 	panel.anchor_top = 0.0
 	panel.anchor_bottom = 1.0
-	panel.offset_left = -60
-	panel.offset_right = 60
-	panel.offset_top = 4
-	panel.offset_bottom = -4
+	panel.offset_left = -100
+	panel.offset_right = 100
+	panel.offset_top = 40
+	panel.offset_bottom = -40
 	_popup_layer.add_child(panel)
 
 	var vbox := VBoxContainer.new()
@@ -347,7 +434,6 @@ func _show_text_input_popup(title: String, label_text: String, default_text: Str
 	le.select_all()
 	vbox.add_child(le)
 
-	# 撑高空间（输入框之后到按钮之间）
 	var spacer := Control.new()
 	spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	vbox.add_child(spacer)
@@ -357,7 +443,6 @@ func _show_text_input_popup(title: String, label_text: String, default_text: Str
 	btns.add_theme_constant_override("separation", 8)
 	vbox.add_child(btns)
 
-	# 确认在左，取消在右
 	var ok := Button.new()
 	ok.text = "确定"
 	ok.add_theme_font_size_override("font_size", 8)
@@ -371,7 +456,6 @@ func _show_text_input_popup(title: String, label_text: String, default_text: Str
 	cancel.pressed.connect(_close_popup)
 	btns.add_child(cancel)
 
-	# 确认回调
 	var confirm_action := func():
 		var t : String = le.text.strip_edges()
 		_close_popup()
@@ -379,7 +463,6 @@ func _show_text_input_popup(title: String, label_text: String, default_text: Str
 	ok.pressed.connect(confirm_action)
 	_popup_confirm_callback = confirm_action
 
-	# Enter 提交
 	le.text_submitted.connect(func(t):
 		_close_popup()
 		on_ok.call(t.strip_edges())
@@ -388,128 +471,9 @@ func _show_text_input_popup(title: String, label_text: String, default_text: Str
 	le.grab_focus()
 
 
-func _show_pool_picker_popup(node_idx: int):
-	_close_popup()
-	var day_layout : MapLayoutDay = _get_current_day_layout()
-	if day_layout == null: return
-	if node_idx < 0 or node_idx >= day_layout.nodes.size(): return
-
-	_popup_layer = Control.new()
-	_popup_layer.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_popup_layer.mouse_filter = Control.MOUSE_FILTER_STOP
-	add_child(_popup_layer)
-
-	var bg := ColorRect.new()
-	bg.color = Color(0, 0, 0, 0.6)
-	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_popup_layer.add_child(bg)
-
-	# 弹窗：左右居中，宽 200，上下留 40px
-	var panel := PanelContainer.new()
-	panel.set_anchors_preset(Control.PRESET_CENTER)
-	panel.anchor_top = 0.0
-	panel.anchor_bottom = 1.0
-	panel.offset_left = -100
-	panel.offset_right = 100
-	panel.offset_top = 40
-	panel.offset_bottom = -40
-	_popup_layer.add_child(panel)
-
-	var vbox := VBoxContainer.new()
-	vbox.add_theme_constant_override("separation", 3)
-	panel.add_child(vbox)
-
-	var title_lb := Label.new()
-	title_lb.text = "选择随机池"
-	title_lb.add_theme_font_size_override("font_size", 9)
-	title_lb.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	vbox.add_child(title_lb)
-
-	# 滚动列表
-	var scroll := ScrollContainer.new()
-	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
-	vbox.add_child(scroll)
-
-	var list_vbox := VBoxContainer.new()
-	list_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	list_vbox.add_theme_constant_override("separation", 0)
-	scroll.add_child(list_vbox)
-
-	var checks : Array[CheckBox] = []
-	var types := [
-		[MapNode.NodeType.NORMAL, "NORMAL"],
-		[MapNode.NodeType.ELITE, "ELITE"],
-		[MapNode.NodeType.SHOP, "SHOP"],
-		[MapNode.NodeType.TREASURE, "TREASURE"],
-		[MapNode.NodeType.FORGE, "FORGE"],
-		[MapNode.NodeType.CHAPEL, "CHAPEL"],
-	]
-	var current : MapLayoutNode = day_layout.nodes[node_idx]
-
-	# 压 padding
-	var empty := StyleBoxEmpty.new()
-	empty.content_margin_top = 0
-	empty.content_margin_bottom = 0
-	empty.content_margin_left = 0
-	empty.content_margin_right = 0
-
-	for t in types:
-		var cb := CheckBox.new()
-		cb.text = t[1]
-		cb.add_theme_font_size_override("font_size", 7)
-		cb.add_theme_constant_override("h_separation", 3)
-		cb.add_theme_stylebox_override("normal", empty)
-		cb.add_theme_stylebox_override("hover", empty)
-		cb.add_theme_stylebox_override("pressed", empty)
-		cb.add_theme_stylebox_override("focus", empty)
-		cb.add_theme_stylebox_override("disabled", empty)
-		cb.custom_minimum_size = Vector2(0, 8)
-		cb.set_meta("type", t[0])
-		cb.button_pressed = current.random_pool.has(t[0])
-		list_vbox.add_child(cb)
-		checks.append(cb)
-
-	# 底部按钮
-	var btns := HBoxContainer.new()
-	btns.alignment = BoxContainer.ALIGNMENT_CENTER
-	btns.add_theme_constant_override("separation", 8)
-	vbox.add_child(btns)
-
-	# 确认在左，取消在右
-	var ok := Button.new()
-	ok.text = "确定"
-	ok.add_theme_font_size_override("font_size", 8)
-	ok.custom_minimum_size = Vector2(50, 16)
-	btns.add_child(ok)
-
-	var cancel := Button.new()
-	cancel.text = "取消"
-	cancel.add_theme_font_size_override("font_size", 8)
-	cancel.custom_minimum_size = Vector2(50, 16)
-	cancel.pressed.connect(_close_popup)
-	btns.add_child(cancel)
-
-	# 确认回调
-	var confirm_action := func():
-		var pool : Array = []
-		for cb in checks:
-			if cb.button_pressed:
-				pool.append(cb.get_meta("type"))
-		var typed_pool : Array[MapNode.NodeType] = []
-		for p in pool:
-			typed_pool.append(p as MapNode.NodeType)
-		day_layout.nodes[node_idx].random_pool = typed_pool
-		if not typed_pool.is_empty():
-			day_layout.nodes[node_idx].node_type = typed_pool[0]
-		_canvas.queue_redraw()
-		_close_popup()
-	ok.pressed.connect(confirm_action)
-	_popup_confirm_callback = confirm_action
-
-
+# ============================================================
+#  嵌入式 Popup — 节点配置（类型 + 遗物解锁）
+# ============================================================
 func _show_type_picker_popup(node_idx: int):
 	_close_popup()
 	var day_layout : MapLayoutDay = _get_current_day_layout()
@@ -540,13 +504,13 @@ func _show_type_picker_popup(node_idx: int):
 	)
 	_popup_layer.add_child(bg)
 
-	# 紧凑居中弹窗
+	# ---------- 面板（居中） ----------
 	var panel := PanelContainer.new()
 	panel.set_anchors_preset(Control.PRESET_CENTER)
 	panel.anchor_top = 0.0
 	panel.anchor_bottom = 1.0
-	panel.offset_left = -55
-	panel.offset_right = 55
+	panel.offset_left = -110
+	panel.offset_right = 110
 	panel.offset_top = 8
 	panel.offset_bottom = -8
 	_popup_layer.add_child(panel)
@@ -556,17 +520,40 @@ func _show_type_picker_popup(node_idx: int):
 	panel.add_child(vbox)
 
 	var title_lb := Label.new()
-	title_lb.text = "节点类型（多选 = 随机池）"
+	title_lb.text = "节点配置"
 	title_lb.add_theme_font_size_override("font_size", 8)
 	title_lb.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title_lb.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	vbox.add_child(title_lb)
 
-	var list := VBoxContainer.new()
-	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	list.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	list.add_theme_constant_override("separation", 0)
-	vbox.add_child(list)
+	# ---------- 主体：左右两列 ----------
+	var main := HBoxContainer.new()
+	main.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	main.alignment = BoxContainer.ALIGNMENT_CENTER
+	main.add_theme_constant_override("separation", 8)
+	vbox.add_child(main)
+
+	# ================= 左列：节点类型 =================
+	var left_box := VBoxContainer.new()
+	left_box.custom_minimum_size = Vector2(90, 0)
+	left_box.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	left_box.add_theme_constant_override("separation", 2)
+
+	var left_title := Label.new()
+	left_title.text = "类型"
+	left_title.add_theme_font_size_override("font_size", 7)
+	left_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	left_box.add_child(left_title)
+
+	var type_scroll := ScrollContainer.new()
+	type_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	type_scroll.custom_minimum_size = Vector2(0, 120)
+	type_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	left_box.add_child(type_scroll)
+
+	var type_list := VBoxContainer.new()
+	type_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	type_list.add_theme_constant_override("separation", 0)
+	type_scroll.add_child(type_list)
 
 	var types := [
 		[MapNode.NodeType.START, "START"],
@@ -580,7 +567,6 @@ func _show_type_picker_popup(node_idx: int):
 	]
 
 	var is_in_pool : bool = not node.random_pool.is_empty()
-
 	var empty := StyleBoxEmpty.new()
 	empty.content_margin_top = 0
 	empty.content_margin_bottom = 0
@@ -600,22 +586,101 @@ func _show_type_picker_popup(node_idx: int):
 		btn.button_pressed = initial_pressed
 		btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
 		btn.text = ("☑ " if initial_pressed else "☐ ") + t[1]
-		btn.add_theme_font_size_override("font_size", 9)
+		btn.add_theme_font_size_override("font_size", 7)
 		btn.add_theme_stylebox_override("normal", empty)
 		btn.add_theme_stylebox_override("hover", empty)
 		btn.add_theme_stylebox_override("pressed", empty)
 		btn.add_theme_stylebox_override("focus", empty)
 		btn.add_theme_stylebox_override("disabled", empty)
-		btn.custom_minimum_size = Vector2(0, 12)
-		btn.size_flags_horizontal = Control.SIZE_FILL
+		btn.custom_minimum_size = Vector2(0, 10)
+		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		btn.set_meta("type", t[0])
 		var label_text : String = t[1]
 		btn.toggled.connect(func(pressed: bool):
 			btn.text = ("☑ " if pressed else "☐ ") + label_text
 		)
-		list.add_child(btn)
+		type_list.add_child(btn)
 		checks.append(btn)
 
+	main.add_child(left_box)
+
+	# ================= 右列：解锁遗物 =================
+	var can_unlock : bool = _node_can_unlock_relics(node)
+
+	var right_box := VBoxContainer.new()
+	right_box.custom_minimum_size = Vector2(90, 0)
+	right_box.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	right_box.add_theme_constant_override("separation", 2)
+
+	var right_title := Label.new()
+	right_title.text = "解锁遗物"
+	right_title.add_theme_font_size_override("font_size", 7)
+	right_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	right_box.add_child(right_title)
+
+	var relic_checks : Array[Button] = []
+
+	if not can_unlock:
+		var disabled_hint := Label.new()
+		disabled_hint.text = "（非战斗节点\n不支持）"
+		disabled_hint.add_theme_font_size_override("font_size", 7)
+		disabled_hint.modulate = Color(0.6, 0.6, 0.6)
+		disabled_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		disabled_hint.custom_minimum_size = Vector2(0, 60)
+		disabled_hint.vertical_alignment = VERTICAL_ALIGNMENT_TOP
+		right_box.add_child(disabled_hint)
+	else:
+		var relic_scroll := ScrollContainer.new()
+		relic_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		relic_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		relic_scroll.custom_minimum_size = Vector2(0, 120)
+		relic_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+		right_box.add_child(relic_scroll)
+
+		var relic_list := VBoxContainer.new()
+		relic_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		relic_list.add_theme_constant_override("separation", 0)
+		relic_scroll.add_child(relic_list)
+
+		var all_relics : Dictionary = _get_relic_data_cached()
+		var current_relics : Array = node.unlock_relics
+
+		for rid in all_relics:
+			var rd : Dictionary = all_relics[rid]
+			var rname : String = rd.get("name", rid)
+			var is_checked : bool = rid in current_relics
+
+			var btn := Button.new()
+			btn.toggle_mode = true
+			btn.button_pressed = is_checked
+			btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
+			btn.text = ("☑ " if is_checked else "☐ ") + rname
+			btn.add_theme_font_size_override("font_size", 7)
+			btn.add_theme_stylebox_override("normal", empty)
+			btn.add_theme_stylebox_override("hover", empty)
+			btn.add_theme_stylebox_override("pressed", empty)
+			btn.add_theme_stylebox_override("focus", empty)
+			btn.add_theme_stylebox_override("disabled", empty)
+			btn.custom_minimum_size = Vector2(0, 10)
+			btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			btn.set_meta("relic_id", rid)
+			var relic_label : String = rname
+			btn.toggled.connect(func(pressed: bool):
+				btn.text = ("☑ " if pressed else "☐ ") + relic_label
+			)
+			relic_list.add_child(btn)
+			relic_checks.append(btn)
+
+		if relic_checks.is_empty():
+			var hint := Label.new()
+			hint.text = "（无遗物）"
+			hint.add_theme_font_size_override("font_size", 7)
+			hint.modulate = Color(0.6, 0.6, 0.6)
+			relic_list.add_child(hint)
+
+	main.add_child(right_box)
+
+	# ---------- 底部按钮 ----------
 	var btns := HBoxContainer.new()
 	btns.alignment = BoxContainer.ALIGNMENT_CENTER
 	btns.add_theme_constant_override("separation", 8)
@@ -623,18 +688,20 @@ func _show_type_picker_popup(node_idx: int):
 
 	var ok := Button.new()
 	ok.text = "确定"
-	ok.add_theme_font_size_override("font_size", 9)
-	ok.custom_minimum_size = Vector2(50, 18)
+	ok.add_theme_font_size_override("font_size", 8)
+	ok.custom_minimum_size = Vector2(50, 16)
 	btns.add_child(ok)
 
 	var cancel := Button.new()
 	cancel.text = "取消"
-	cancel.add_theme_font_size_override("font_size", 9)
-	cancel.custom_minimum_size = Vector2(50, 18)
+	cancel.add_theme_font_size_override("font_size", 8)
+	cancel.custom_minimum_size = Vector2(50, 16)
 	cancel.pressed.connect(_close_popup)
 	btns.add_child(cancel)
 
+	# ---------- 确认回调 ----------
 	var confirm_action := func():
+		# 节点类型
 		var selected : Array = []
 		for btn in checks:
 			if btn.button_pressed:
@@ -648,6 +715,19 @@ func _show_type_picker_popup(node_idx: int):
 				typed_pool.append(p as MapNode.NodeType)
 			node.random_pool = typed_pool
 			node.node_type = typed_pool[0]
+
+		# ★ 遗物解锁（仅战斗节点）
+		if can_unlock:
+			var new_relics : Array[String] = []
+			for btn in relic_checks:
+				if btn.button_pressed:
+					var rid : String = btn.get_meta("relic_id", "")
+					if rid != "":
+						new_relics.append(rid)
+			node.unlock_relics = new_relics
+		else:
+			node.unlock_relics.clear()
+
 		_canvas.queue_redraw()
 		_close_popup()
 
@@ -670,7 +750,7 @@ func _make_btn(text: String, tooltip: String = "") -> Button:
 	b.text = text
 	b.tooltip_text = tooltip
 	b.focus_mode = Control.FOCUS_NONE
-	b.add_theme_font_size_override("font_size", 9)
+	b.add_theme_font_size_override("font_size", 6)
 	var empty := StyleBoxEmpty.new()
 	empty.content_margin_left = 4
 	empty.content_margin_right = 4
@@ -684,7 +764,7 @@ func _make_btn(text: String, tooltip: String = "") -> Button:
 
 
 func _build_ui():
-	# ========== 单行工具栏 ==========
+	# ---------- 单行工具栏 ----------
 	var top := HBoxContainer.new()
 	top.set_anchors_preset(Control.PRESET_TOP_WIDE)
 	top.offset_left = 2
@@ -694,7 +774,7 @@ func _build_ui():
 	top.add_theme_constant_override("separation", 1)
 	add_child(top)
 
-	# ---- D1 / D2 / D3 ----
+	# D1 / D2 / D3
 	for d in [1, 2, 3]:
 		var b := _make_btn("D%d" % d, "Day %d" % d)
 		b.add_theme_font_size_override("font_size", 7)
@@ -705,7 +785,7 @@ func _build_ui():
 
 	top.add_child(VSeparator.new())
 
-	# ---- 变体 ----
+	# 变体
 	var prev_btn := _make_btn("◀", "上一个变体")
 	prev_btn.add_theme_font_size_override("font_size", 7)
 	prev_btn.pressed.connect(_on_variant_prev)
@@ -736,7 +816,7 @@ func _build_ui():
 
 	top.add_child(VSeparator.new())
 
-	# ---- 工具 ----
+	# 工具
 	var edit_btn := _make_btn("编辑", "编辑模式")
 	edit_btn.add_theme_font_size_override("font_size", 6)
 	edit_btn.toggle_mode = true
@@ -758,12 +838,12 @@ func _build_ui():
 
 	top.add_child(VSeparator.new())
 
-	# ---- ★ 弹性间隔（把关卡池 / 测试 / 退出 / 新开存全部推到右边） ----
+	# ★ 弹性间隔，把右侧按钮推到底
 	var spacer := Control.new()
 	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	top.add_child(spacer)
 
-	# ---- 关卡池 / 测试 ----
+	# 关卡池 / 测试
 	_levellist_btn = _make_btn("关卡池", "选择 LevelList 文件")
 	_levellist_btn.add_theme_font_size_override("font_size", 4)
 	_levellist_btn.pressed.connect(_on_pick_levellist)
@@ -775,7 +855,7 @@ func _build_ui():
 	_test_btn.pressed.connect(_on_test_toggle)
 	top.add_child(_test_btn)
 
-	# ---- 新 / 开 / 存 ----
+	# 新 / 开 / 存
 	var new_btn := _make_btn("新", "新建文件")
 	new_btn.add_theme_font_size_override("font_size", 6)
 	new_btn.pressed.connect(_on_new)
@@ -791,13 +871,13 @@ func _build_ui():
 	save_btn.pressed.connect(_on_save)
 	top.add_child(save_btn)
 
-	# ---- ★ 退出（最右） ----
+	# ★ 退出（最右）
 	var quit_btn := _make_btn("退出", "关闭编辑器")
 	quit_btn.add_theme_font_size_override("font_size", 6)
 	quit_btn.pressed.connect(func(): get_tree().quit())
 	top.add_child(quit_btn)
 
-	# ========== Hint ==========
+	# ---------- Hint ----------
 	_hint_label = Label.new()
 	_hint_label.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
 	_hint_label.offset_top = -14
@@ -806,11 +886,11 @@ func _build_ui():
 	_hint_label.text = "左键=创建/拖动 | 中键=删节点/删连线 | 右键=改类型/空白处=插入层 | 滚轮=滚动"
 	add_child(_hint_label)
 
-	# ========== 画布 ==========
+	# ---------- 画布 ----------
 	_scroll = ScrollContainer.new()
 	_scroll.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_scroll.offset_left = 2
-	_scroll.offset_top = 24       # ★ 回到单行高度
+	_scroll.offset_top = 24
 	_scroll.offset_right = -2
 	_scroll.offset_bottom = -16
 	_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
@@ -857,7 +937,6 @@ func _on_canvas_input(event: InputEvent):
 
 
 func _handle_mouse_button(event: InputEventMouseButton, local: Vector2):
-	# ★ 测试模式禁用所有编辑操作
 	if _in_test_mode:
 		return
 
@@ -873,7 +952,7 @@ func _handle_mouse_button(event: InputEventMouseButton, local: Vector2):
 				if _current_tool == Tool.EDIT:
 					_create_node_at(local)
 		elif event.button_index == MOUSE_BUTTON_RIGHT:
-			# ★ 编辑模式：右键节点 → 弹类型选择；右键空白/间隙 → 插入层
+			# ★ 编辑模式：右键节点 → 弹配置；右键空白/间隙 → 插入层
 			if _current_tool == Tool.EDIT:
 				var idx : int = _node_at(local)
 				if idx >= 0:
@@ -892,6 +971,61 @@ func _handle_mouse_button(event: InputEventMouseButton, local: Vector2):
 	else:
 		if event.button_index == MOUSE_BUTTON_LEFT and _dragging_idx >= 0:
 			_end_drag(local)
+
+
+# ============================================================
+#  插入层
+# ============================================================
+## 判断鼠标 y 落在"层间隙"时返回插入位置；落在节点上返回 -1
+func _compute_insert_layer_at_y(y: float) -> int:
+	var max_layer : int = _get_max_layer()
+	# 画布范围检查
+	if y < CANVAS_PADDING_TOP - LAYER_HEIGHT * 0.5:
+		return max_layer + 1
+	var bottom_y : float = CANVAS_PADDING_TOP + (max_layer + 1) * LAYER_HEIGHT + LAYER_HEIGHT * 0.5
+	if y > bottom_y:
+		return 0
+
+	var layer_idx : int = _layer_at_y(y)
+	var center_y : float = CANVAS_PADDING_TOP + (max_layer - layer_idx + 0.5) * LAYER_HEIGHT
+	var dist : float = abs(y - center_y)
+
+	# 太靠近节点中心 → 视为点节点，不插入
+	if dist < NODE_H / 2.0 + 2.0:
+		return -1
+
+	if y < center_y:
+		return layer_idx + 1
+	return layer_idx
+
+
+func _try_insert_layer_at_mouse(local: Vector2):
+	var day_layout : MapLayoutDay = _get_current_day_layout()
+	if day_layout == null: return
+	var insert_at : int = _compute_insert_layer_at_y(local.y)
+	if insert_at < 0:
+		return
+	_insert_layer(insert_at)
+
+
+func _insert_layer(insert_at: int):
+	var day_layout : MapLayoutDay = _get_current_day_layout()
+	if day_layout == null: return
+
+	# 所有 layer >= insert_at 的节点，layer += 1
+	for n in day_layout.nodes:
+		if n.layer >= insert_at:
+			n.layer += 1
+
+	# 新建一个 NORMAL 节点
+	var n := MapLayoutNode.new()
+	n.node_type = MapNode.NodeType.NORMAL
+	n.layer = insert_at
+	day_layout.nodes.append(n)
+
+	_refresh_canvas_size()
+	_canvas.queue_redraw()
+	print("[MapLayoutEditor] 在 L%d 处插入新层" % insert_at)
 
 
 # ============================================================
@@ -944,7 +1078,6 @@ func _refresh_canvas_size():
 	var max_layer : int = _get_max_layer()
 	var h : float = CANVAS_PADDING_TOP + (max_layer + 1) * LAYER_HEIGHT + CANVAS_PADDING_BOTTOM
 	_canvas.custom_minimum_size = Vector2(0, h)
-	# ★ 滚动到底部（L0 起点在画布底部）
 	call_deferred("_scroll_to_bottom")
 
 
@@ -1040,62 +1173,6 @@ func _create_node_at(local: Vector2):
 	_refresh_canvas_size()
 	_canvas.queue_redraw()
 
-# ============================================================
-#  插入层
-# ============================================================
-## 判断鼠标位置是否落在"层间隙"，若落则返回插入位置（层号），否则返回 -1
-func _compute_insert_layer_at_y(y: float) -> int:
-	var max_layer : int = _get_max_layer()
-	# 画布范围检查
-	if y < CANVAS_PADDING_TOP - LAYER_HEIGHT * 0.5:
-		return max_layer + 1   # 在最高层之上
-	var bottom_y : float = CANVAS_PADDING_TOP + (max_layer + 1) * LAYER_HEIGHT + LAYER_HEIGHT * 0.5
-	if y > bottom_y:
-		return 0               # 在最低层之下
-
-	var layer_idx : int = _layer_at_y(y)
-	var center_y : float = CANVAS_PADDING_TOP + (max_layer - layer_idx + 0.5) * LAYER_HEIGHT
-	var dist : float = abs(y - center_y)
-
-	# 太靠近节点中心 → 视为点节点，不插入
-	if dist < NODE_H / 2.0 + 2.0:
-		return -1
-
-	# 鼠标在中心上方 → 插到 layer_idx + 1 之上；否则插到 layer_idx 之上
-	if y < center_y:
-		return layer_idx + 1
-	return layer_idx
-
-
-func _try_insert_layer_at_mouse(local: Vector2):
-	var day_layout : MapLayoutDay = _get_current_day_layout()
-	if day_layout == null: return
-
-	var insert_at : int = _compute_insert_layer_at_y(local.y)
-	if insert_at < 0:
-		return  # 点节点上，不插入
-
-	_insert_layer(insert_at)
-
-
-func _insert_layer(insert_at: int):
-	var day_layout : MapLayoutDay = _get_current_day_layout()
-	if day_layout == null: return
-
-	# 所有 layer >= insert_at 的节点，layer += 1
-	for n in day_layout.nodes:
-		if n.layer >= insert_at:
-			n.layer += 1
-
-	# 新建一个 NORMAL 节点，layer = insert_at
-	var n := MapLayoutNode.new()
-	n.node_type = MapNode.NodeType.NORMAL
-	n.layer = insert_at
-	day_layout.nodes.append(n)
-
-	_refresh_canvas_size()
-	_canvas.queue_redraw()
-	print("[MapLayoutEditor] 在 L%d 处插入新层" % insert_at)
 
 func _end_drag(local: Vector2):
 	var day_layout : MapLayoutDay = _get_current_day_layout()
@@ -1236,26 +1313,27 @@ func _update_all_labels():
 	if _variant_label:
 		_variant_label.text = "%d/%d" % [_variant_idx + 1, maxi(arr.size(), 1)]
 
-	# ★ LevelList 按钮文字
+	# LevelList 按钮
 	if _levellist_btn:
 		if _levellist_path != "":
 			var fname : String = _levellist_path.get_file()
 			if fname.ends_with(".tres"):
 				fname = fname.substr(0, fname.length() - 5)
-			# ★ 不截断，完整显示
 			_levellist_btn.text = fname
 			_levellist_btn.tooltip_text = _levellist_path
 		else:
 			_levellist_btn.text = "关卡池"
 			_levellist_btn.tooltip_text = "选择 LevelList 文件"
 
-	# ★ 测试按钮
+	# 测试按钮
 	if _test_btn:
 		_test_btn.button_pressed = _in_test_mode
 		_test_btn.text = "退出" if _in_test_mode else "测试"
-		
 
-## 保存前：把所有节点的计算位置写入 position 字段
+
+# ============================================================
+#  保存前烘焙位置
+# ============================================================
 func _bake_positions():
 	if _layout == null: return
 	for day_variants in [_layout.day1_variants, _layout.day2_variants, _layout.day3_variants]:
@@ -1266,7 +1344,6 @@ func _bake_positions():
 				node.position = _node_pos_for_variant(day_layout, i)
 
 
-## 独立版本：给定 day_layout + idx，算出位置（不依赖当前 _canvas）
 func _node_pos_for_variant(day_layout: MapLayoutDay, idx: int) -> Vector2:
 	if day_layout == null: return Vector2.ZERO
 	if idx < 0 or idx >= day_layout.nodes.size(): return Vector2.ZERO
@@ -1289,6 +1366,9 @@ func _node_pos_for_variant(day_layout: MapLayoutDay, idx: int) -> Vector2:
 	return Vector2(x, y)
 
 
+# ============================================================
+#  节点类型短名
+# ============================================================
 func _node_type_short(t: int) -> String:
 	match t:
 		MapNode.NodeType.START: return "START"
@@ -1300,28 +1380,3 @@ func _node_type_short(t: int) -> String:
 		MapNode.NodeType.FORGE: return "FORGE"
 		MapNode.NodeType.CHAPEL: return "CHAPEL"
 	return "?"
-
-## 统一 tooltip 字号（Godot 默认 16，这里缩到 8）
-func _apply_tooltip_theme():
-	var t := Theme.new()
-	t.set_font_size("font_size", "TooltipLabel", 8)
-	t.set_font_size("font_size", "TooltipPanel", 8)
-
-	# ★ 无边框 tooltip
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = Color(0.15, 0.15, 0.15, 0.9)
-	sb.border_width_left = 0
-	sb.border_width_right = 0
-	sb.border_width_top = 0
-	sb.border_width_bottom = 0
-	sb.corner_radius_top_left = 0
-	sb.corner_radius_top_right = 0
-	sb.corner_radius_bottom_left = 0
-	sb.corner_radius_bottom_right = 0
-	sb.content_margin_left = 4
-	sb.content_margin_right = 4
-	sb.content_margin_top = 2
-	sb.content_margin_bottom = 2
-	t.set_stylebox("panel", "TooltipPanel", sb)
-
-	theme = t

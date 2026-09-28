@@ -1,8 +1,8 @@
-[gd_resource type="Resource" script_class="MapLayout" format=3 uid="uid://odj5ank17k2w"]
+[gd_resource type="Resource" script_class="MapLayout" format=3]
 
-[ext_resource type="Script" uid="uid://bxty2awrl8vnm" path="res://function/resource/MapLayout.gd" id="1_layout"]
-[ext_resource type="Script" uid="uid://4nvpnev86piy" path="res://function/resource/MapLayoutDay.gd" id="2_day"]
-[ext_resource type="Script" uid="uid://b6ykl5a7xtr3e" path="res://function/resource/MapLayoutNode.gd" id="3_node"]
+[ext_resource type="Script" path="res://function/resource/MapLayout.gd" id="1_layout"]
+[ext_resource type="Script" path="res://function/resource/MapLayoutDay.gd" id="2_day"]
+[ext_resource type="Script" path="res://function/resource/MapLayoutNode.gd" id="3_node"]
 
 [sub_resource type="Resource" id="D1N0"]
 script = ExtResource("3_node")
@@ -57,6 +57,7 @@ script = ExtResource("3_node")
 node_type = 5
 position = Vector2(200, 34)
 layer = 5
+unlock_relics = Array[String](["relic_defense"])
 
 [sub_resource type="Resource" id="D1V1"]
 script = ExtResource("2_day")
@@ -116,6 +117,7 @@ script = ExtResource("3_node")
 node_type = 5
 position = Vector2(200, 34)
 layer = 5
+unlock_relics = Array[String](["relic_dexterity"])
 
 [sub_resource type="Resource" id="D2V1"]
 script = ExtResource("2_day")
@@ -139,6 +141,7 @@ script = ExtResource("3_node")
 node_type = 5
 position = Vector2(200, 34)
 layer = 2
+unlock_relics = Array[String](["relic_strength"])
 
 [sub_resource type="Resource" id="D3V1"]
 script = ExtResource("2_day")

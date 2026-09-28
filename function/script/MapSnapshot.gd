@@ -22,6 +22,7 @@ static func serialize(map_data: MapLevelData) -> Dictionary:
 			"layer": node.layer,
 			"custom_label": node.custom_label,
 			"reward": node.reward,
+			"unlock_relics": node.unlock_relics.duplicate(),
 			"map_data": _serialize_map_data(node.map_data),
 			"connected_node_ids": []
 		}
@@ -75,7 +76,12 @@ static func deserialize(snapshot: Dictionary) -> MapLevelData:
 		)
 		node.layer = node_dict.get("layer", 0)
 		node.custom_label = node_dict.get("custom_label", "")
-		node.reward = node_dict.get("reward", {}) 
+		node.reward = node_dict.get("reward", {})
+		# ★ 恢复 unlock_relics
+		node.unlock_relics = []
+		for rid in node_dict.get("unlock_relics", []):
+			if rid is String:
+				node.unlock_relics.append(rid)
 		node.is_visited = false
 		node.is_available = false
 		node.map_data = _deserialize_map_data(node_dict.get("map_data", {}))

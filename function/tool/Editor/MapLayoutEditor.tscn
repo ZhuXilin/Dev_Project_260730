@@ -2,17 +2,17 @@
 
 [ext_resource type="Script" uid="uid://hcaqv6rm26cw" path="res://function/tool/Editor/MapLayoutEditor.gd" id="1_ocpk3"]
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_ygeyp"]
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_ocpk3"]
 content_margin_left = 4.0
 content_margin_top = 2.0
 content_margin_right = 4.0
 content_margin_bottom = 2.0
 bg_color = Color(0.15, 0.15, 0.15, 0.9)
 
-[sub_resource type="Theme" id="Theme_p8idw"]
+[sub_resource type="Theme" id="Theme_ygeyp"]
 TooltipLabel/font_sizes/font_size = 8
 TooltipPanel/font_sizes/font_size = 8
-TooltipPanel/styles/panel = SubResource("StyleBoxFlat_ygeyp")
+TooltipPanel/styles/panel = SubResource("StyleBoxFlat_ocpk3")
 
 [node name="MapLayoutEditor" type="Control" unique_id=2072347888]
 layout_mode = 3
@@ -21,5 +21,5 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-theme = SubResource("Theme_p8idw")
+theme = SubResource("Theme_ygeyp")
 script = ExtResource("1_ocpk3")
