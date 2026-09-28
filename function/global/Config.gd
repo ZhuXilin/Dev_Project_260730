@@ -61,7 +61,7 @@ const PATHS : Dictionary = {
 	"DAMAGE_POPUP_SCRIPT":      "res://function/script/DamagePopup.gd",
 	"SHOP_MANAGER_SCRIPT":      "res://function/script/ShopManager.gd",
 	"MAP_SCENE_SCRIPT":         "res://function/script/MapScene.gd",
-	"EQUIPMENT_CONFIG_SCRIPT":  "res://function/script/EquipmentConfig/EquipmentConfig.gd",
+	"EQUIPMENT_CONFIG_SCRIPT":  "res://function/script/equipmentconfig/EquipmentConfig.gd",
 
 	# 图片 / 纹理
 	"CURSOR_TEXTURE":       "res://content/images/system/选择框.png",

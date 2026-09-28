@@ -1,7 +1,7 @@
 class_name EquipmentConfigShop
 extends RefCounted
 
-const Style = preload("res://function/script/EquipmentConfig/EquipmentConfigStyle.gd")
+const Style = preload("res://function/script/equipmentconfig/EquipmentConfigStyle.gd")
 
 var panel = null
 

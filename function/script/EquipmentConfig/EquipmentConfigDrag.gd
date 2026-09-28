@@ -1,7 +1,7 @@
 class_name EquipmentConfigDrag
 extends RefCounted
 
-const Style = preload("res://function/script/EquipmentConfig/EquipmentConfigStyle.gd")
+const Style = preload("res://function/script/equipmentconfig/EquipmentConfigStyle.gd")
 
 var panel = null
 var is_dragging : bool = false

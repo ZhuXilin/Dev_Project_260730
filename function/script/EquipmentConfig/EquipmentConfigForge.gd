@@ -1,7 +1,7 @@
 class_name EquipmentConfigForge
 extends RefCounted
 
-const Style = preload("res://function/script/EquipmentConfig/EquipmentConfigStyle.gd")
+const Style = preload("res://function/script/equipmentconfig/EquipmentConfigStyle.gd")
 
 # 品质升级映射
 const QUALITY_ORDER : Array = ["common", "rare", "epic", "legendary"]

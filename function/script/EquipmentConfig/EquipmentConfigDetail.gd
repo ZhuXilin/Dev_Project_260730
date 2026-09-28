@@ -1,7 +1,7 @@
 class_name EquipmentConfigDetail
 extends RefCounted
 
-const Style = preload("res://function/script/EquipmentConfig/EquipmentConfigStyle.gd")
+const Style = preload("res://function/script/equipmentconfig/EquipmentConfigStyle.gd")
 
 const DETAIL_LABEL_PATH = "VBoxContainer/MainHBox/LeftInfoColumn/DetailZone/DetailLabel"
 

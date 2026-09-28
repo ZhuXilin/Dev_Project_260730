@@ -2,7 +2,7 @@ extends Panel
 
 enum Mode { DEPLOY, MAP, SHOP, FORGE, ARENA_REST, MAP_SHOP_REST }
 
-const Style = preload("res://function/script/EquipmentConfig/EquipmentConfigStyle.gd")
+const Style = preload("res://function/script/equipmentconfig/EquipmentConfigStyle.gd")
 
 var current_mode: Mode = Mode.DEPLOY
 var selected_units: Array = []
