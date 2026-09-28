@@ -1,0 +1,159 @@
+class_name ChipSong
+extends RefCounted
+
+# ============================================================
+#  ChipSong — chip_music_v1 JSON 的数据容器
+# ============================================================
+
+var title: String = ""
+var bpm: float = 120.0
+var beats_per_bar: int = 4
+var ticks_per_beat: int = 4
+var total_ticks: int = 0
+var loop_start: int = -1
+var loop_end: int = 0
+
+var channels: Array = []   # [{ preset, volume, pan }]
+var events: Array = []     # 已解析 + 排序
+
+## 原始 JSON 字典（用于保存回文件）
+var _raw_data: Dictionary = {}
+
+
+# ============================================================
+#  加载
+# ============================================================
+static func from_json(path: String) -> ChipSong:
+	if not FileAccess.file_exists(path):
+		push_error("ChipSong: 文件不存在 " + path)
+		return null
+	var f := FileAccess.open(path, FileAccess.READ)
+	if f == null:
+		push_error("ChipSong: 打开失败 " + path)
+		return null
+	var text := f.get_as_text()
+	f.close()
+	var data = JSON.parse_string(text)
+	if data == null or not (data is Dictionary):
+		push_error("ChipSong: JSON 解析失败 " + path)
+		return null
+	return from_dict(data)
+
+
+static func from_dict(data: Dictionary) -> ChipSong:
+	var song := ChipSong.new()
+	# ★ 保存原始字典
+	song._raw_data = data.duplicate(true)
+
+	# ---- meta ----
+	var meta: Dictionary = data.get("meta", {})
+	song.title = meta.get("title", "")
+	song.bpm = float(meta.get("bpm", 120.0))
+	song.beats_per_bar = int(meta.get("beats_per_bar", 4))
+	song.ticks_per_beat = int(meta.get("ticks_per_beat", 4))
+	song.total_ticks = int(meta.get("total_ticks", 0))
+	song.loop_start = int(meta.get("loop_start", -1))
+	song.loop_end = int(meta.get("loop_end", 0))
+
+	# ---- channels ----
+	song.channels = data.get("channels", [])
+	var presets: Dictionary = data.get("presets", {})
+
+	# ---- events（解析 preset → wave + env） ----
+	var raw_events: Array = data.get("events", [])
+	var resolved: Array = []
+	for ev in raw_events:
+		if not (ev is Dictionary):
+			continue
+		var ch: int = int(ev.get("ch", 0))
+		if ch < 0 or ch >= song.channels.size():
+			continue
+		var ch_cfg: Dictionary = song.channels[ch]
+		var preset: Dictionary = presets.get(ch_cfg.get("preset", ""), {})
+		resolved.append({
+			"ch": ch,
+			"tick": int(ev.get("tick", 0)),
+			"note": int(ev.get("note", 60)),
+			"vel": int(ev.get("vel", 100)),
+			"dur": int(ev.get("dur", 1)),
+			"wave": _wave_from_string(preset.get("wave", "pulse_50")),
+			"env": preset.get("env", {}),
+		})
+
+	# 按 tick 排序，同 tick 按 ch
+	resolved.sort_custom(func(a, b):
+		if a["tick"] != b["tick"]:
+			return a["tick"] < b["tick"]
+		return a["ch"] < b["ch"]
+	)
+	song.events = resolved
+	return song
+
+
+# ============================================================
+#  保存
+# ============================================================
+## 导出为字典（用于保存回 JSON）
+func to_dict() -> Dictionary:
+	var out: Dictionary = _raw_data.duplicate(true)
+	if not out.has("meta"):
+		out["meta"] = {}
+	out["meta"]["title"] = title
+	out["meta"]["bpm"] = bpm
+	out["meta"]["beats_per_bar"] = beats_per_bar
+	out["meta"]["ticks_per_beat"] = ticks_per_beat
+	out["meta"]["total_ticks"] = total_ticks
+	out["meta"]["loop_start"] = loop_start
+	out["meta"]["loop_end"] = loop_end
+	return out
+
+
+## 直接保存到文件
+func save_to_json(path: String) -> bool:
+	var f := FileAccess.open(path, FileAccess.WRITE)
+	if f == null:
+		push_error("ChipSong: 无法写入 " + path)
+		return false
+	f.store_string(JSON.stringify(to_dict(), " "))
+	f.close()
+	return true
+
+
+# ============================================================
+#  波形转换
+# ============================================================
+static func _wave_from_string(s: String) -> int:
+	match s:
+		"pulse_12": return ChipSynth.Wave.PULSE_12
+		"pulse_25": return ChipSynth.Wave.PULSE_25
+		"pulse_50": return ChipSynth.Wave.PULSE_50
+		"pulse_75": return ChipSynth.Wave.PULSE_75
+		"triangle": return ChipSynth.Wave.TRIANGLE
+		"noise":    return ChipSynth.Wave.NOISE
+		"saw":      return ChipSynth.Wave.SAW
+	return ChipSynth.Wave.PULSE_50
+
+
+# ============================================================
+#  查询
+# ============================================================
+func get_channel_count() -> int:
+	return channels.size()
+
+
+func get_channel_volume(ch: int) -> float:
+	if ch < 0 or ch >= channels.size():
+		return 1.0
+	return float(channels[ch].get("volume", 1.0))
+
+
+func get_channel_pan(ch: int) -> float:
+	if ch < 0 or ch >= channels.size():
+		return 0.0
+	return float(channels[ch].get("pan", 0.0))
+
+
+func get_duration_seconds() -> float:
+	if bpm <= 0:
+		return 0.0
+	return total_ticks / float(ticks_per_beat) / bpm * 60.0

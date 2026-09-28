@@ -3,7 +3,7 @@
 [ext_resource type="Script" uid="uid://ccvitfeaytlvk" path="res://function/resource/UnitLevelMapConfig.gd" id="1_qd7h8"]
 [ext_resource type="Resource" uid="uid://cvavysat5tfmo" path="res://content/scenes/levels/levellists/LevelListType001_Day1.tres" id="1_rx0gl"]
 [ext_resource type="Script" uid="uid://c8x3p1n87hrdv" path="res://function/resource/UnitLevelMapEntry.gd" id="1_suoue"]
-[ext_resource type="Resource" uid="uid://odj5ank17k2w" path="res://content/scenes/levels/maplayout/MapLayoutDefault.tres" id="2_8ouck"]
+[ext_resource type="Resource" uid="uid://bx3cqa3cwt05x" path="res://content/scenes/levels/maplayout/MapLayoutDefault.tres" id="2_8ouck"]
 [ext_resource type="Resource" uid="uid://c8fm3tgsvq7l3" path="res://content/scenes/levels/levellists/LevelListType001_Day2.tres" id="2_xj16i"]
 [ext_resource type="Resource" uid="uid://n221j2sdn3nl" path="res://content/scenes/levels/levellists/LevelListType001_Day3.tres" id="3_eigbw"]
 

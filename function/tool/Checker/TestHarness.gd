@@ -63,6 +63,10 @@ func _toggle(force = null):
 			_built = true
 		_refresh_category_list()
 		_refresh_protect_hint()
+	else:
+		# ★ 关闭时通知当前插件
+		if _current_plugin:
+			_current_plugin.on_deactivate()
 	visible = target
 
 
@@ -152,6 +156,10 @@ func _refresh_category_list():
 
 
 func _on_plugin_selected(plugin: TestPlugin):
+	# ★ 切换插件时，先通知旧插件停止
+	if _current_plugin and _current_plugin != plugin:
+		_current_plugin.on_deactivate()
+
 	_current_plugin = plugin
 
 	for key in _plugin_buttons:

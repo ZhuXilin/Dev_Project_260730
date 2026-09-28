@@ -13,6 +13,11 @@ func get_key() -> String: return ""
 func get_category() -> String: return "未分类"
 func get_display_name() -> String: return get_key()
 
+## 当前插件被切换 / TestHarness 关闭时调用
+## 子类覆写，用于清理资源（如停止音乐）
+func on_deactivate():
+	pass
+
 ## 构建参数控件
 func build_params(_container: VBoxContainer, _on_ready: Callable) -> void:
 	pass
