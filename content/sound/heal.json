@@ -1,0 +1,60 @@
+{
+ "format": "chip_music_v1",
+ "meta": {
+  "title": "Heal",
+  "bpm": 180,
+  "beats_per_bar": 4,
+  "ticks_per_beat": 4,
+  "total_ticks": 6,
+  "loop_start": -1,
+  "loop_end": 0
+ },
+ "presets": {
+  "sfx": {
+   "wave": "triangle",
+   "env": {
+	"attack": 0.005,
+	"decay": 0.05,
+	"sustain": 0.6,
+	"release": 0.05
+   }
+  }
+ },
+ "channels": [
+  {
+   "preset": "sfx",
+   "volume": 0.5,
+   "pan": 0.0
+  }
+ ],
+ "events": [
+  {
+   "ch": 0,
+   "tick": 0,
+   "note": 72,
+   "vel": 100,
+   "dur": 1
+  },
+  {
+   "ch": 0,
+   "tick": 1,
+   "note": 76,
+   "vel": 100,
+   "dur": 1
+  },
+  {
+   "ch": 0,
+   "tick": 2,
+   "note": 79,
+   "vel": 100,
+   "dur": 1
+  },
+  {
+   "ch": 0,
+   "tick": 3,
+   "note": 84,
+   "vel": 100,
+   "dur": 3
+  }
+ ]
+}

@@ -21,7 +21,6 @@ func _register_all():
 		preload("res://function/tool/Checker/plugins/RewardSummaryTestPlugin.gd"),
 		preload("res://function/tool/Checker/plugins/DialogueTestPlugin.gd"),
 		preload("res://function/tool/Checker/plugins/HeroShrineTestPlugin.gd"),
-		preload("res://function/tool/Checker/plugins/ChipMusicTestPlugin.gd"),
 	]
 	for s in plugin_scripts:
 		var p = s.new()

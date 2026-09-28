@@ -1,0 +1,46 @@
+{
+ "format": "chip_music_v1",
+ "meta": {
+  "title": "Cancel",
+  "bpm": 240,
+  "beats_per_bar": 4,
+  "ticks_per_beat": 4,
+  "total_ticks": 2,
+  "loop_start": -1,
+  "loop_end": 0
+ },
+ "presets": {
+  "sfx": {
+   "wave": "pulse_25",
+   "env": {
+    "attack": 0.001,
+    "decay": 0.03,
+    "sustain": 0.2,
+    "release": 0.02
+   }
+  }
+ },
+ "channels": [
+  {
+   "preset": "sfx",
+   "volume": 0.5,
+   "pan": 0.0
+  }
+ ],
+ "events": [
+  {
+   "ch": 0,
+   "tick": 0,
+   "note": 72,
+   "vel": 100,
+   "dur": 1
+  },
+  {
+   "ch": 0,
+   "tick": 1,
+   "note": 65,
+   "vel": 100,
+   "dur": 1
+  }
+ ]
+}
