@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://85155q3n8nup"]
+
+[ext_resource type="Script" uid="uid://bdx3at8httd24" path="res://function/tool/AudioTransfer/ChipMusicValidator.gd" id="1"]
+
+[node name="ChipMusicValidator" type="Control" unique_id=1605895016]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1")

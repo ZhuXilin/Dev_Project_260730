@@ -87,6 +87,15 @@ static func from_dict(data: Dictionary) -> ChipSong:
 		return a["ch"] < b["ch"]
 	)
 	song.events = resolved
+
+	# ★ 加载时校验 8bit 风格
+	var report := song.validate_chip_style()
+	if not report["ok"]:
+		var t := song.title if song.title != "" else "(未命名)"
+		push_warning("[ChipSong] '%s' 有 %d 条 8bit 风格警告：" % [t, report["warnings"].size()])
+		for w in report["warnings"]:
+			push_warning("  - " + w)
+
 	return song
 
 
@@ -114,7 +123,8 @@ func save_to_json(path: String) -> bool:
 	if f == null:
 		push_error("ChipSong: 无法写入 " + path)
 		return false
-	f.store_string(JSON.stringify(to_dict(), " "))
+	# ★ 第三个参数 sort_keys = false，保持键顺序
+	f.store_string(JSON.stringify(to_dict(), " ", false))
 	f.close()
 	return true
 
@@ -157,3 +167,88 @@ func get_duration_seconds() -> float:
 	if bpm <= 0:
 		return 0.0
 	return total_ticks / float(ticks_per_beat) / bpm * 60.0
+
+# ============================================================
+#  8bit 风格校验
+# ============================================================
+## 返回 { "ok": bool, "warnings": [String], "stats": { ... } }
+func validate_chip_style() -> Dictionary:
+	var result := {
+		"ok": true,
+		"warnings": [] as Array[String],
+		"stats": {
+			"channel_count": channels.size(),
+			"event_count": events.size(),
+			"duration": get_duration_seconds(),
+			"bpm": bpm,
+			"total_ticks": total_ticks,
+		},
+	}
+	var warnings: Array[String] = []
+
+	# ---- 1. 通道数 ≤ 4（NES 硬件限制）----
+	if channels.size() > 4:
+		warnings.append("通道数 %d > 4（NES 只有 4-5 声道）" % channels.size())
+
+	# ---- 2. 单音化检查（同 ch 同 tick 多音）----
+	var multi_count := 0
+	var seen: Dictionary = {}
+	for ev in events:
+		var key := "%d_%d" % [ev["ch"], ev["tick"]]
+		if seen.has(key):
+			multi_count += 1
+		seen[key] = true
+	if multi_count > 0:
+		warnings.append("有 %d 处同通道同 tick 多音（8bit 单声道）" % multi_count)
+
+	# ---- 3. 音域检查（MIDI 24-96，即 C1-C7）----
+	var range_low := 0
+	var range_high := 0
+	for ev in events:
+		var note: int = ev["note"]
+		if note < 24:
+			range_low += 1
+		elif note > 96:
+			range_high += 1
+	if range_low > 0:
+		warnings.append("有 %d 个音符低于 MIDI 24（C1）" % range_low)
+	if range_high > 0:
+		warnings.append("有 %d 个音符高于 MIDI 96（C7）" % range_high)
+
+	# ---- 4. 单音时长（> 8 拍 = 32 tick 过长）----
+	var dur_long := 0
+	for ev in events:
+		if ev["dur"] > 32:
+			dur_long += 1
+	if dur_long > 0:
+		warnings.append("有 %d 个音符时长 > 32 tick（> 8 拍）" % dur_long)
+
+	# ---- 5. 通道预设检查 ----
+	var valid_waves := ["pulse_12", "pulse_25", "pulse_50", "pulse_75",
+						"triangle", "noise", "saw"]
+	for i in range(channels.size()):
+		var preset_name: String = channels[i].get("preset", "")
+		# 从 _raw_data 里找 preset 定义
+		var presets: Dictionary = _raw_data.get("presets", {})
+		if preset_name != "" and presets.has(preset_name):
+			var w: String = presets[preset_name].get("wave", "")
+			if w != "" and w not in valid_waves:
+				warnings.append("通道 %d 使用了未知波形 '%s'" % [i, w])
+
+	result["warnings"] = warnings
+	result["ok"] = warnings.is_empty()
+	return result
+
+
+## 打印校验报告
+func print_validation_report() -> void:
+	var r := validate_chip_style()
+	var display_title := title if title != "" else "(未命名)"
+	if r["ok"]:
+		print("[ChipSong] ✓ %s — 通过（%d 通道 / %d 事件 / %.1fs）" % [
+			display_title, r["stats"]["channel_count"], r["stats"]["event_count"],
+			r["stats"]["duration"]])
+	else:
+		print("[ChipSong] ⚠ %s — %d 条警告：" % [display_title, r["warnings"].size()])
+		for w in r["warnings"]:
+			print("  - " + w)

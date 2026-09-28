@@ -3,6 +3,9 @@
 """
 MP3/WAV → chip_music JSON 转换器（GUI 版）
 
+★ 8bit 风格自动过滤：
+  - 音域归一化（超 [24, 96] 平移八度到范围内）
+
 注意：只能提取"主旋律"（单声部），复调混音会丢失伴奏信息。
 完整还原建议找现成 MIDI 用 midi_to_chip_gui.py。
 
@@ -38,13 +41,15 @@ TICKS_PER_BEAT = 4
 DEFAULT_BPM = 120.0
 DEFAULT_BEATS_PER_BAR = 4
 
-# 音高检测范围
 FMIN = "C2"
 FMAX = "C7"
 
-# 归并阈值
-MIN_NOTE_DUR_FRAMES = 4      # 短于这个的噪声帧丢弃
-PITCH_MERGE_TOLERANCE = 0.6  # 半音容差（避免抖动）
+MIN_NOTE_DUR_FRAMES = 4
+PITCH_MERGE_TOLERANCE = 0.6
+
+# ★ 8bit 音域
+NOTE_LOW = 24    # C1
+NOTE_HIGH = 96   # C7
 
 
 # ============================================================
@@ -52,17 +57,14 @@ PITCH_MERGE_TOLERANCE = 0.6  # 半音容差（避免抖动）
 # ============================================================
 def mp3_to_events(mp3_path, bpm, fmin_note=FMIN, fmax_note=FMAX,
                   progress_cb=None):
-    """加载 MP3，用 pyin 提取单声部音高，归并成音符事件"""
     if progress_cb:
         progress_cb("加载音频...")
 
-    # librosa 自动处理 mp3（需系统有 ffmpeg 或 audioread）
     y, sr = librosa.load(mp3_path, sr=22050, mono=True)
 
     if progress_cb:
         progress_cb(f"提取音高（时长 {len(y)/sr:.1f}s）...")
 
-    # pyin 单声部音高检测
     hop_length = 512
     f0, voiced_flag, voiced_prob = librosa.pyin(
         y,
@@ -76,12 +78,10 @@ def mp3_to_events(mp3_path, bpm, fmin_note=FMIN, fmax_note=FMAX,
     if progress_cb:
         progress_cb("归并音符...")
 
-    # 帧 → 秒 → tick
     frame_time = hop_length / sr
     tick_per_sec = bpm / 60.0 * TICKS_PER_BEAT
 
-    # 归并连续相同音符
-    raw = []   # [(start_frame, end_frame, midi_note)]
+    raw = []
     cur_note = None
     cur_start = 0
 
@@ -103,12 +103,10 @@ def mp3_to_events(mp3_path, bpm, fmin_note=FMIN, fmax_note=FMAX,
             cur_note = note
             cur_start = i
 
-    # 收尾
     if cur_note is not None:
         if len(f0) - cur_start >= MIN_NOTE_DUR_FRAMES:
             raw.append((cur_start, len(f0), cur_note))
 
-    # 转事件
     events = []
     for start_frame, end_frame, note in raw:
         start_tick = int(round(start_frame * frame_time * tick_per_sec))
@@ -123,12 +121,27 @@ def mp3_to_events(mp3_path, bpm, fmin_note=FMIN, fmax_note=FMAX,
         })
 
     total_ticks = max((e["tick"] + e["dur"] for e in events), default=0)
-
-    # 向上取整到小节
     bar_ticks = TICKS_PER_BEAT * DEFAULT_BEATS_PER_BAR
     total_ticks = ((total_ticks + bar_ticks - 1) // bar_ticks) * bar_ticks
 
     return events, total_ticks, sr
+
+
+# ============================================================
+#  ★ 8bit 音域归一化
+# ============================================================
+def normalize_note_range(events, low=NOTE_LOW, high=NOTE_HIGH):
+    """把超出 [low, high] 的音符平移八度"""
+    shifted = 0
+    for e in events:
+        orig = e["note"]
+        while e["note"] < low:
+            e["note"] += 12
+        while e["note"] > high:
+            e["note"] -= 12
+        if e["note"] != orig:
+            shifted += 1
+    return events, shifted
 
 
 def convert(mp3_path, output_path, bpm, loop, wave, progress_cb=None):
@@ -136,6 +149,12 @@ def convert(mp3_path, output_path, bpm, loop, wave, progress_cb=None):
 
     if not events:
         return None, "未检测到音符（可能纯伴奏/鼓点，或音量太低）"
+
+    # ★ 音域归一化
+    events, shifted = normalize_note_range(events, low=NOTE_LOW, high=NOTE_HIGH)
+    if shifted > 0:
+        if progress_cb:
+            progress_cb(f"音域归一化：平移 {shifted} 个音符到 [{NOTE_LOW}, {NOTE_HIGH}]")
 
     presets = {
         "lead": {
@@ -173,6 +192,7 @@ def convert(mp3_path, output_path, bpm, loop, wave, progress_cb=None):
         "total_ticks": total_ticks,
         "duration": duration,
         "bpm": bpm,
+        "shifted": shifted,
     }, None
 
 
@@ -183,7 +203,7 @@ class App(tk.Tk):
     def __init__(self):
         super().__init__()
         self.title("MP3/WAV → 8-bit Chip Music")
-        self.geometry("600x500")
+        self.geometry("620x560")
         self.resizable(False, False)
 
         self.input_files = []
@@ -197,15 +217,18 @@ class App(tk.Tk):
         tk.Label(self, text="MP3 → 8-bit Chip Music（主旋律提取）",
                  font=("Microsoft YaHei", 12, "bold")).pack(**pad)
 
-        # 警告
         warn = tk.Label(self,
                         text="⚠ 仅提取主旋律，复调混音会丢失伴奏\n完整还原请用现成 MIDI",
                         font=("Microsoft YaHei", 8), fg="#cc6600")
         warn.pack(**pad)
 
+        tk.Label(self,
+                 text="★ 自动音域归一化：超出 [24, 96] 平移八度",
+                 font=("Microsoft YaHei", 8), fg="#0066cc").pack(**pad)
+
         # ---- 输入 ----
         input_frame = tk.LabelFrame(self, text="1. 选择 MP3/WAV 文件",
-                                    font=("Microsoft YaHei", 9))
+                                     font=("Microsoft YaHei", 9))
         input_frame.pack(fill="x", **pad)
 
         btn_row = tk.Frame(input_frame)
@@ -222,7 +245,7 @@ class App(tk.Tk):
 
         # ---- 输出 ----
         output_frame = tk.LabelFrame(self, text="2. 输出目录",
-                                     font=("Microsoft YaHei", 9))
+                                      font=("Microsoft YaHei", 9))
         output_frame.pack(fill="x", **pad)
         out_row = tk.Frame(output_frame)
         out_row.pack(fill="x", padx=6, pady=4)
@@ -234,20 +257,19 @@ class App(tk.Tk):
 
         # ---- 选项 ----
         opt_frame = tk.LabelFrame(self, text="3. 选项",
-                                  font=("Microsoft YaHei", 9))
+                                   font=("Microsoft YaHei", 9))
         opt_frame.pack(fill="x", **pad)
 
-        # BPM
         bpm_row = tk.Frame(opt_frame)
         bpm_row.pack(fill="x", padx=6, pady=4)
-        tk.Label(bpm_row, text="BPM:", font=("Microsoft YaHei", 9)).pack(side="left")
+        tk.Label(bpm_row, text="BPM:",
+                 font=("Microsoft YaHei", 9)).pack(side="left")
         self.bpm_var = tk.StringVar(value="120")
         tk.Entry(bpm_row, textvariable=self.bpm_var, width=8,
                  font=("Consolas", 9)).pack(side="left", padx=4)
         tk.Label(bpm_row, text="（重要！影响音符时长换算）",
                  font=("Microsoft YaHei", 8), fg="gray").pack(side="left")
 
-        # 波形
         wave_row = tk.Frame(opt_frame)
         wave_row.pack(fill="x", padx=6, pady=4)
         tk.Label(wave_row, text="主旋律波形:",
@@ -258,7 +280,6 @@ class App(tk.Tk):
                              "pulse_75", "triangle", "saw"],
                      state="readonly", width=12).pack(side="left", padx=4)
 
-        # 循环
         self.loop_var = tk.BooleanVar(value=True)
         tk.Checkbutton(opt_frame, text="循环播放",
                        variable=self.loop_var,
@@ -273,9 +294,9 @@ class App(tk.Tk):
 
         # ---- 日志 ----
         log_frame = tk.LabelFrame(self, text="日志",
-                                  font=("Microsoft YaHei", 9))
+                                   font=("Microsoft YaHei", 9))
         log_frame.pack(fill="both", expand=True, **pad)
-        self.log = tk.Text(log_frame, height=6, font=("Consolas", 8),
+        self.log = tk.Text(log_frame, height=8, font=("Consolas", 8),
                            bg="#1e1e1e", fg="#d4d4d4")
         self.log.pack(fill="both", expand=True, padx=4, pady=4)
 
@@ -360,7 +381,7 @@ class App(tk.Tk):
                     self._log(f"  ✗ {err}\n")
                     fail += 1
                 else:
-                    self._log(f"  ✓ → {out_path}\n")
+                    self._log(f"  ✓ → {out_path.name}\n")
                     self._log(f"     事件数: {info['events']}  "
                               f"时长: {info['duration']:.1f}s\n")
                     ok += 1
