@@ -7,40 +7,23 @@
 [ext_resource type="Script" uid="uid://dkx4dwgqjke08" path="res://function/script/MovementAnimator.gd" id="5_gf547"]
 [ext_resource type="Script" uid="uid://bo74kd1bl2qfb" path="res://function/script/UIManager.gd" id="6_i6ecf"]
 [ext_resource type="Script" uid="uid://sv7rgtcqa6h6" path="res://function/script/TurnLayerManager.gd" id="7_dhh02"]
-[ext_resource type="Script" uid="uid://8vqqoaotr8t3" path="res://function/script/CameraController.gd" id="8_gf547"]
-[ext_resource type="Texture2D" uid="uid://6hj46po8h6vj" path="res://content/images/system/选择框.png" id="8_i6ecf"]
-[ext_resource type="Script" uid="uid://bd13doudeawex" path="res://function/script/ScreenShake.gd" id="10_c18at"]
+[ext_resource type="PackedScene" uid="uid://battlefieldcamera01" path="res://content/scenes/ui/camera/BattlefieldCamera.tscn" id="20_bcam"]
+[ext_resource type="PackedScene" uid="uid://cursorlayer0001" path="res://content/scenes/ui/camera/CursorLayer.tscn" id="21_cursor"]
+[ext_resource type="PackedScene" uid="uid://menublocker0001" path="res://content/scenes/ui/battlefield/MenuBlocker.tscn" id="22_menublk"]
 
-[node name="Battlefield" type="Node2D" unique_id=1410978002]
+[node name="Battlefield" type="Node2D"]
 script = ExtResource("1_s4k4j")
 
-[node name="MenuBlocker" type="ColorRect" parent="." unique_id=597440125]
-z_index = 1
-offset_right = 40.0
-offset_bottom = 40.0
-color = Color(0, 0, 0, 0)
+[node name="Camera2D" parent="." instance=ExtResource("20_bcam")]
 
-[node name="CursorLayer" type="CanvasLayer" parent="." unique_id=470026378]
+[node name="CursorLayer" parent="." instance=ExtResource("21_cursor")]
 
-[node name="Cursor" type="TextureRect" parent="CursorLayer" unique_id=2125940558]
-anchors_preset = 8
-anchor_left = 0.5
-anchor_top = 0.5
-anchor_right = 0.5
-anchor_bottom = 0.5
-offset_left = -20.0
-offset_top = -20.0
-offset_right = 20.0
-offset_bottom = 20.0
-grow_horizontal = 2
-grow_vertical = 2
-mouse_filter = 2
-texture = ExtResource("8_i6ecf")
+[node name="MenuBlocker" parent="." instance=ExtResource("22_menublk")]
 
-[node name="RelicLayer" type="CanvasLayer" parent="." unique_id=17747607]
+[node name="RelicLayer" type="CanvasLayer" parent="."]
 layer = 5
 
-[node name="RelicIconContainer" type="HBoxContainer" parent="RelicLayer" unique_id=1716202639]
+[node name="RelicIconContainer" type="HBoxContainer" parent="RelicLayer"]
 anchors_preset = -1
 anchor_right = 1.0
 offset_left = 16.0
@@ -50,25 +33,25 @@ offset_bottom = 240.0
 grow_horizontal = 2
 theme_override_constants/separation = 6
 
-[node name="Info" type="CanvasLayer" parent="." unique_id=275462380]
+[node name="Info" type="CanvasLayer" parent="."]
 
-[node name="InfoPanel" type="PanelContainer" parent="Info" unique_id=1342182379]
+[node name="InfoPanel" type="PanelContainer" parent="Info"]
 offset_left = 320.0
 offset_top = 16.0
 offset_right = 392.0
 offset_bottom = 33.0
 theme_override_styles/panel = ExtResource("3_c18at")
 
-[node name="InfoTextLabel" type="Label" parent="Info/InfoPanel" unique_id=202131540]
+[node name="InfoTextLabel" type="Label" parent="Info/InfoPanel"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 6
 text = "NAME"
 autowrap_mode = 3
 
-[node name="SpeedLayer" type="CanvasLayer" parent="." unique_id=1918455937]
+[node name="SpeedLayer" type="CanvasLayer" parent="."]
 layer = 5
 
-[node name="SpeedIndicator" type="Label" parent="SpeedLayer" unique_id=630422109]
+[node name="SpeedIndicator" type="Label" parent="SpeedLayer"]
 anchors_preset = -1
 anchor_right = 1.0
 anchor_bottom = 1.0
@@ -77,10 +60,10 @@ offset_top = 224.0
 offset_right = -16.0
 theme_override_font_sizes/font_size = 8
 
-[node name="TurnCountLayer" type="CanvasLayer" parent="." unique_id=2005747560]
+[node name="TurnCountLayer" type="CanvasLayer" parent="."]
 layer = 5
 
-[node name="TurnCountIndicator" type="Label" parent="TurnCountLayer" unique_id=1602463363]
+[node name="TurnCountIndicator" type="Label" parent="TurnCountLayer"]
 anchors_preset = -1
 anchor_right = 1.0
 anchor_bottom = 1.0
@@ -90,9 +73,9 @@ offset_right = -128.0
 theme_override_font_sizes/font_size = 8
 text = "第N回合"
 
-[node name="ActionMenu" type="CanvasLayer" parent="." unique_id=1162718456]
+[node name="ActionMenu" type="CanvasLayer" parent="."]
 
-[node name="ActionPanel" type="PanelContainer" parent="ActionMenu" unique_id=1450980122]
+[node name="ActionPanel" type="PanelContainer" parent="ActionMenu"]
 anchors_preset = 8
 anchor_left = 0.5
 anchor_top = 0.5
@@ -106,11 +89,11 @@ grow_horizontal = 2
 grow_vertical = 2
 theme_override_styles/panel = ExtResource("3_c18at")
 
-[node name="ButtonContainer" type="VBoxContainer" parent="ActionMenu/ActionPanel" unique_id=704040574]
+[node name="ButtonContainer" type="VBoxContainer" parent="ActionMenu/ActionPanel"]
 layout_mode = 2
 theme_override_constants/separation = 0
 
-[node name="AttackBtn" type="Button" parent="ActionMenu/ActionPanel/ButtonContainer" unique_id=1664198106]
+[node name="AttackBtn" type="Button" parent="ActionMenu/ActionPanel/ButtonContainer"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 8
 theme_override_styles/normal = ExtResource("3_c18at")
@@ -120,7 +103,7 @@ theme_override_styles/disabled = ExtResource("3_c18at")
 theme_override_styles/focus = ExtResource("3_c18at")
 text = "攻击"
 
-[node name="MoveBtn" type="Button" parent="ActionMenu/ActionPanel/ButtonContainer" unique_id=747800672]
+[node name="MoveBtn" type="Button" parent="ActionMenu/ActionPanel/ButtonContainer"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 8
 theme_override_styles/normal = ExtResource("3_c18at")
@@ -130,7 +113,7 @@ theme_override_styles/disabled = ExtResource("3_c18at")
 theme_override_styles/focus = ExtResource("3_c18at")
 text = "移动"
 
-[node name="EquipBtn" type="Button" parent="ActionMenu/ActionPanel/ButtonContainer" unique_id=1608030349]
+[node name="EquipBtn" type="Button" parent="ActionMenu/ActionPanel/ButtonContainer"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 8
 theme_override_styles/normal = ExtResource("3_c18at")
@@ -140,7 +123,7 @@ theme_override_styles/disabled = ExtResource("3_c18at")
 theme_override_styles/focus = ExtResource("3_c18at")
 text = "装备"
 
-[node name="WaitBtn" type="Button" parent="ActionMenu/ActionPanel/ButtonContainer" unique_id=1935134990]
+[node name="WaitBtn" type="Button" parent="ActionMenu/ActionPanel/ButtonContainer"]
 layout_mode = 2
 theme_override_constants/h_separation = 4
 theme_override_font_sizes/font_size = 8
@@ -151,7 +134,7 @@ theme_override_styles/disabled = ExtResource("3_c18at")
 theme_override_styles/focus = ExtResource("3_c18at")
 text = "待机"
 
-[node name="EquipMenu" type="PanelContainer" parent="ActionMenu" unique_id=84468921]
+[node name="EquipMenu" type="PanelContainer" parent="ActionMenu"]
 anchors_preset = -1
 anchor_right = 1.0
 anchor_bottom = 1.0
@@ -163,12 +146,12 @@ grow_horizontal = 2
 grow_vertical = 2
 theme_override_styles/panel = ExtResource("3_c18at")
 
-[node name="ItemsContainer" type="VBoxContainer" parent="ActionMenu/EquipMenu" unique_id=881337097]
+[node name="ItemsContainer" type="VBoxContainer" parent="ActionMenu/EquipMenu"]
 layout_mode = 2
 
-[node name="SettingLayer" type="CanvasLayer" parent="." unique_id=138782969]
+[node name="SettingLayer" type="CanvasLayer" parent="."]
 
-[node name="SettingPanel" type="PanelContainer" parent="SettingLayer" unique_id=1617936835]
+[node name="SettingPanel" type="PanelContainer" parent="SettingLayer"]
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
@@ -180,10 +163,10 @@ grow_horizontal = 2
 grow_vertical = 2
 theme_override_styles/panel = ExtResource("3_c18at")
 
-[node name="SettingContainer" type="VBoxContainer" parent="SettingLayer/SettingPanel" unique_id=1979279131]
+[node name="SettingContainer" type="VBoxContainer" parent="SettingLayer/SettingPanel"]
 layout_mode = 2
 
-[node name="TeamViewBtn" type="Button" parent="SettingLayer/SettingPanel/SettingContainer" unique_id=1311855183]
+[node name="TeamViewBtn" type="Button" parent="SettingLayer/SettingPanel/SettingContainer"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 8
 theme_override_styles/normal = ExtResource("3_c18at")
@@ -193,7 +176,7 @@ theme_override_styles/disabled = ExtResource("3_c18at")
 theme_override_styles/focus = ExtResource("3_c18at")
 text = "队伍查看"
 
-[node name="ItemListBtn" type="Button" parent="SettingLayer/SettingPanel/SettingContainer" unique_id=323998068]
+[node name="ItemListBtn" type="Button" parent="SettingLayer/SettingPanel/SettingContainer"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 8
 theme_override_styles/normal = ExtResource("3_c18at")
@@ -203,7 +186,7 @@ theme_override_styles/disabled = ExtResource("3_c18at")
 theme_override_styles/focus = ExtResource("3_c18at")
 text = "道具装备"
 
-[node name="RelicViewBtn" type="Button" parent="SettingLayer/SettingPanel/SettingContainer" unique_id=1427684187]
+[node name="RelicViewBtn" type="Button" parent="SettingLayer/SettingPanel/SettingContainer"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 8
 theme_override_styles/normal = ExtResource("3_c18at")
@@ -213,7 +196,7 @@ theme_override_styles/disabled = ExtResource("3_c18at")
 theme_override_styles/focus = ExtResource("3_c18at")
 text = "遗物查看"
 
-[node name="SettingBtn" type="Button" parent="SettingLayer/SettingPanel/SettingContainer" unique_id=1102200501]
+[node name="SettingBtn" type="Button" parent="SettingLayer/SettingPanel/SettingContainer"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 8
 theme_override_styles/normal = ExtResource("3_c18at")
@@ -223,7 +206,7 @@ theme_override_styles/disabled = ExtResource("3_c18at")
 theme_override_styles/focus = ExtResource("3_c18at")
 text = "设置游戏"
 
-[node name="BackCampBtn" type="Button" parent="SettingLayer/SettingPanel/SettingContainer" unique_id=1079716132]
+[node name="BackCampBtn" type="Button" parent="SettingLayer/SettingPanel/SettingContainer"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 8
 theme_override_styles/normal = ExtResource("3_c18at")
@@ -233,7 +216,7 @@ theme_override_styles/disabled = ExtResource("3_c18at")
 theme_override_styles/focus = ExtResource("3_c18at")
 text = "回到营地"
 
-[node name="TeamViewPanel" type="PanelContainer" parent="SettingLayer" unique_id=1161687182]
+[node name="TeamViewPanel" type="PanelContainer" parent="SettingLayer"]
 anchors_preset = -1
 offset_left = 112.0
 offset_top = 16.0
@@ -243,10 +226,10 @@ grow_horizontal = 2
 grow_vertical = 2
 theme_override_styles/panel = ExtResource("3_c18at")
 
-[node name="TeamViewContainer" type="VBoxContainer" parent="SettingLayer/TeamViewPanel" unique_id=1677190111]
+[node name="TeamViewContainer" type="VBoxContainer" parent="SettingLayer/TeamViewPanel"]
 layout_mode = 2
 
-[node name="ItemListPanel" type="PanelContainer" parent="SettingLayer" unique_id=896402523]
+[node name="ItemListPanel" type="PanelContainer" parent="SettingLayer"]
 anchors_preset = -1
 anchor_left = 1.0
 anchor_right = 1.0
@@ -258,10 +241,10 @@ grow_horizontal = 2
 grow_vertical = 2
 theme_override_styles/panel = ExtResource("3_c18at")
 
-[node name="ItemListContainer" type="VBoxContainer" parent="SettingLayer/ItemListPanel" unique_id=1536718804]
+[node name="ItemListContainer" type="VBoxContainer" parent="SettingLayer/ItemListPanel"]
 layout_mode = 2
 
-[node name="SettingMenuPanel" type="Panel" parent="SettingLayer" unique_id=344392250]
+[node name="SettingMenuPanel" type="Panel" parent="SettingLayer"]
 anchors_preset = -1
 anchor_right = 1.0
 anchor_bottom = 1.0
@@ -274,7 +257,7 @@ grow_vertical = 2
 theme_override_styles/panel = ExtResource("3_c18at")
 script = ExtResource("4_m45wx")
 
-[node name="SettingMenuContainer" type="VBoxContainer" parent="SettingLayer/SettingMenuPanel" unique_id=114738690]
+[node name="SettingMenuContainer" type="VBoxContainer" parent="SettingLayer/SettingMenuPanel"]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -285,61 +268,61 @@ offset_right = -8.0
 grow_horizontal = 2
 grow_vertical = 2
 
-[node name="MusicVolumeLabel" type="Label" parent="SettingLayer/SettingMenuPanel/SettingMenuContainer" unique_id=1239605071]
+[node name="MusicVolumeLabel" type="Label" parent="SettingLayer/SettingMenuPanel/SettingMenuContainer"]
 layout_mode = 2
 size_flags_vertical = 1
 theme_override_font_sizes/font_size = 8
 text = "音乐音量"
 
-[node name="MusicVolumeSlider" type="HSlider" parent="SettingLayer/SettingMenuPanel/SettingMenuContainer" unique_id=1068991147]
+[node name="MusicVolumeSlider" type="HSlider" parent="SettingLayer/SettingMenuPanel/SettingMenuContainer"]
 layout_mode = 2
 size_flags_vertical = 1
 max_value = 1.0
 step = 0.1
 
-[node name="SoundVolumeLabel" type="Label" parent="SettingLayer/SettingMenuPanel/SettingMenuContainer" unique_id=1643999609]
+[node name="SoundVolumeLabel" type="Label" parent="SettingLayer/SettingMenuPanel/SettingMenuContainer"]
 layout_mode = 2
 size_flags_vertical = 1
 theme_override_font_sizes/font_size = 8
 text = "音效音量"
 
-[node name="SoundVolumeSlider" type="HSlider" parent="SettingLayer/SettingMenuPanel/SettingMenuContainer" unique_id=1105468646]
+[node name="SoundVolumeSlider" type="HSlider" parent="SettingLayer/SettingMenuPanel/SettingMenuContainer"]
 layout_mode = 2
 size_flags_vertical = 1
 max_value = 1.0
 step = 0.1
 
-[node name="SpeedLabel" type="Label" parent="SettingLayer/SettingMenuPanel/SettingMenuContainer" unique_id=218354135]
+[node name="SpeedLabel" type="Label" parent="SettingLayer/SettingMenuPanel/SettingMenuContainer"]
 layout_mode = 2
 size_flags_vertical = 1
 theme_override_font_sizes/font_size = 8
 text = "游戏速度"
 
-[node name="SpeedSlider" type="HSlider" parent="SettingLayer/SettingMenuPanel/SettingMenuContainer" unique_id=1339747011]
+[node name="SpeedSlider" type="HSlider" parent="SettingLayer/SettingMenuPanel/SettingMenuContainer"]
 layout_mode = 2
 size_flags_vertical = 1
 min_value = -2.0
 max_value = 4.0
 
-[node name="ScreenSizeLabel" type="Label" parent="SettingLayer/SettingMenuPanel/SettingMenuContainer" unique_id=1786097234]
+[node name="ScreenSizeLabel" type="Label" parent="SettingLayer/SettingMenuPanel/SettingMenuContainer"]
 layout_mode = 2
 size_flags_vertical = 1
 theme_override_font_sizes/font_size = 8
 text = "画面尺寸"
 
-[node name="ScreenSizeOption" type="OptionButton" parent="SettingLayer/SettingMenuPanel/SettingMenuContainer" unique_id=241637333]
+[node name="ScreenSizeOption" type="OptionButton" parent="SettingLayer/SettingMenuPanel/SettingMenuContainer"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 6
 
-[node name="BackToMenuBtn" type="Button" parent="SettingLayer/SettingMenuPanel/SettingMenuContainer" unique_id=1112390997]
+[node name="BackToMenuBtn" type="Button" parent="SettingLayer/SettingMenuPanel/SettingMenuContainer"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 8
 text = "中断游戏"
 
-[node name="EndTurnLayer" type="CanvasLayer" parent="." unique_id=723450893]
+[node name="EndTurnLayer" type="CanvasLayer" parent="."]
 layer = 5
 
-[node name="EndTurnButton" type="Label" parent="EndTurnLayer" unique_id=1136768032]
+[node name="EndTurnButton" type="Label" parent="EndTurnLayer"]
 offset_left = 288.0
 offset_top = 224.0
 offset_right = 352.0
@@ -347,9 +330,9 @@ offset_bottom = 240.0
 theme_override_font_sizes/font_size = 8
 text = "鼠标中键结束回合"
 
-[node name="TurnLayer" type="CanvasLayer" parent="." unique_id=414127022]
+[node name="TurnLayer" type="CanvasLayer" parent="."]
 
-[node name="TurnRect" type="ColorRect" parent="TurnLayer" unique_id=1849213825]
+[node name="TurnRect" type="ColorRect" parent="TurnLayer"]
 z_index = 99
 anchors_preset = -1
 anchor_right = 1.0
@@ -364,7 +347,7 @@ mouse_filter = 2
 color = Color(0.19099915, 0.25266767, 0.5266893, 1)
 metadata/_edit_use_anchors_ = true
 
-[node name="Text" type="Label" parent="TurnLayer/TurnRect" unique_id=2086374932]
+[node name="Text" type="Label" parent="TurnLayer/TurnRect"]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -376,9 +359,9 @@ text = "PLAYER TURN"
 horizontal_alignment = 1
 vertical_alignment = 1
 
-[node name="VictoryLayer" type="CanvasLayer" parent="." unique_id=488133483]
+[node name="VictoryLayer" type="CanvasLayer" parent="."]
 
-[node name="VictoryPanel" type="Panel" parent="VictoryLayer" unique_id=866701975]
+[node name="VictoryPanel" type="Panel" parent="VictoryLayer"]
 anchors_preset = 8
 anchor_left = 0.5
 anchor_top = 0.5
@@ -393,7 +376,7 @@ grow_vertical = 2
 mouse_filter = 2
 theme_override_styles/panel = ExtResource("3_c18at")
 
-[node name="VictoryButton" type="Button" parent="VictoryLayer/VictoryPanel" unique_id=546599419]
+[node name="VictoryButton" type="Button" parent="VictoryLayer/VictoryPanel"]
 layout_mode = 1
 anchors_preset = -1
 anchor_right = 1.0
@@ -411,7 +394,7 @@ theme_override_styles/disabled = ExtResource("3_c18at")
 theme_override_styles/focus = ExtResource("3_c18at")
 text = "NEXT LEVEL"
 
-[node name="VictoryLabel" type="Label" parent="VictoryLayer/VictoryPanel" unique_id=710091341]
+[node name="VictoryLabel" type="Label" parent="VictoryLayer/VictoryPanel"]
 layout_mode = 1
 anchors_preset = -1
 anchor_right = 1.0
@@ -426,28 +409,18 @@ text = "GAME OVER"
 horizontal_alignment = 1
 vertical_alignment = 1
 
-[node name="HighlightManager" type="Node" parent="." unique_id=199388453]
+[node name="HighlightManager" type="Node" parent="."]
 script = ExtResource("4_dhh02")
 metadata/_custom_type_script = "uid://dcg863hvroiae"
 
-[node name="MovementAnimator" type="Node" parent="." unique_id=299645693]
+[node name="MovementAnimator" type="Node" parent="."]
 script = ExtResource("5_gf547")
 metadata/_custom_type_script = "uid://dkx4dwgqjke08"
 
-[node name="TurnLayerManager" type="Node" parent="." unique_id=701527561]
+[node name="TurnLayerManager" type="Node" parent="."]
 script = ExtResource("7_dhh02")
 metadata/_custom_type_script = "uid://sv7rgtcqa6h6"
 
-[node name="UIManager" type="Node" parent="." unique_id=102037515]
+[node name="UIManager" type="Node" parent="."]
 script = ExtResource("6_i6ecf")
 metadata/_custom_type_script = "uid://bo74kd1bl2qfb"
-
-[node name="Camera2D" type="Camera2D" parent="." unique_id=393975185]
-process_mode = 3
-process_callback = 0
-limit_smoothed = true
-script = ExtResource("8_gf547")
-
-[node name="ScreenShake" type="Node" parent="Camera2D" unique_id=1889820920]
-script = ExtResource("10_c18at")
-metadata/_custom_type_script = "uid://bd13doudeawex"

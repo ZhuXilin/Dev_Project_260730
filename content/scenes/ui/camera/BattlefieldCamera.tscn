@@ -1,0 +1,13 @@
+[gd_scene format=3 uid="uid://bnxmm7b5pnr2c"]
+
+[ext_resource type="Script" uid="uid://8vqqoaotr8t3" path="res://function/script/camera/CameraController.gd" id="1_y8upa"]
+[ext_resource type="Script" uid="uid://bd13doudeawex" path="res://function/script/camera/ScreenShake.gd" id="2_shake"]
+
+[node name="Camera2D" type="Camera2D" unique_id=1406447519]
+process_mode = 3
+process_callback = 0
+limit_smoothed = true
+script = ExtResource("1_y8upa")
+
+[node name="ScreenShake" type="Node" parent="." unique_id=557554179]
+script = ExtResource("2_shake")
