@@ -71,15 +71,28 @@ func _set_default_window():
 	DisplayServer.window_set_size(Vector2i(BASE_WIDTH * DEFAULT_SCALE, BASE_HEIGHT * DEFAULT_SCALE))
 
 func _input(event: InputEvent):
-	if event is InputEventKey and event.pressed:
-		var step = 0
-		if event.keycode == KEY_UP:
-			step = 1
-		elif event.keycode == KEY_DOWN:
-			step = -1
-		if step != 0:
-			set_game_speed(game_speed + step)
-			get_viewport().set_input_as_handled()
+	# 只处理"首次按下"的按键事件
+	if not (event is InputEventKey and event.pressed and not event.echo):
+		return
+
+	# 方向键只在没有输入框获得焦点时接管
+	# 覆盖：LineEdit / TextEdit / SpinBox 内部 LineEdit / OptionButton 弹出
+	var vp := get_viewport()
+	if vp == null:
+		return
+	var focus := vp.gui_get_focus_owner()
+	if focus is LineEdit or focus is TextEdit:
+		return
+
+	var step := 0
+	if event.keycode == KEY_UP:
+		step = 1
+	elif event.keycode == KEY_DOWN:
+		step = -1
+
+	if step != 0:
+		set_game_speed(game_speed + step)
+		vp.set_input_as_handled()
 
 func get_time_scale(speed_val: int) -> float:
 	if speed_val >= 0:

@@ -70,15 +70,24 @@ func load_game(slot: int) -> bool:
 		push_error("无法加载存档: ", path)
 		return false
 
+	# ---- 版本迁移 ----
 	if save.save_version < SaveData.CURRENT_VERSION:
-		print("存档版本 %d 低于当前版本 %d，开始迁移" % [save.save_version, SaveData.CURRENT_VERSION])
+		print("存档版本 %d 低于当前版本 %d，开始迁移" % [
+			save.save_version, SaveData.CURRENT_VERSION
+		])
 		_migrate_save(save)
-		save.save_version = SaveData.CURRENT_VERSION
 		save.checksum = save.compute_checksum()
-		var err = ResourceSaver.save(save, path, ResourceSaver.FLAG_COMPRESS)
-		if err != OK:
-			push_error("版本更新后保存失败：", err)
-			return false
+
+		# ★ 尊重 suppress_save：测试模式下不写盘
+		if suppress_save:
+			print("[SaveManager] suppress_save = true，跳过迁移写盘（内存中已迁移）")
+		else:
+			# .tres 是文本资源，FLAG_COMPRESS 对它无效，直接存
+			# 如果将来改为 .res 二进制，再加 ResourceSaver.FLAG_COMPRESS
+			var err = ResourceSaver.save(save, path)
+			if err != OK:
+				push_error("版本更新后保存失败：", err)
+				return false
 
 	if not _validate_save(save):
 		push_error("存档校验失败，可能已损坏: ", path)
@@ -93,14 +102,44 @@ func load_game(slot: int) -> bool:
 	print("存档加载成功: 槽", slot)
 	return true
 
-
 # ===== 版本迁移 =====
+## 把旧版本存档升级到当前版本。
+## 约定：
+##   1. 每个 if 分支做"从 N 到 N+1"的迁移
+##   2. 只补 / 转换数据，不删除已有字段（防回滚）
+##   3. 迁移函数内部不写盘（写盘由 load_game 决定）
 func _migrate_save(save: SaveData):
-	var _v : int = save.save_version
+	var v : int = save.save_version
 
-	# 未来需要时在这里按 _v 分版本处理
-	# if _v < 9:
-	#     ...
+	if v < 8:
+		_migrate_v7_to_v8(save)
+		v = 8
+
+	if v < 9:
+		_migrate_v8_to_v9(save)
+		v = 9
+
+	save.save_version = v
+
+
+## v7 → v8：新增 pending_sacrifice_rewards / pending_forge_rewards / sacrifice_count
+## @export 默认值已给 [] / [] / 0，这里做防御性清理（防止手改存档 / 旧代码写入非预期值）
+func _migrate_v7_to_v8(save: SaveData):
+	if not (save.pending_sacrifice_rewards is Array):
+		save.pending_sacrifice_rewards = []
+	if not (save.pending_forge_rewards is Array):
+		save.pending_forge_rewards = []
+	if save.sacrifice_count < 0:
+		save.sacrifice_count = 0
+
+
+## v8 → v9：占位，未来加字段时在这里处理
+## 示例：
+##   if not ("new_field" in save):
+##       save.new_field = 默认值
+##   或者直接依赖 @export 默认值
+func _migrate_v8_to_v9(_save: SaveData):
+	pass
 
 
 # ===== 构建存档数据 =====

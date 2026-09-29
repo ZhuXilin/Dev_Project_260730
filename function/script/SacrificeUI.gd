@@ -15,9 +15,6 @@ var _panel_ref = null   # EquipmentConfig 引用
 
 func _ready():
 	layer = 25
-	if back_btn:
-		back_btn.pressed.connect(_on_back_pressed)
-
 
 func setup(party_ref: Array, panel_ref) -> void:
 	_party = party_ref

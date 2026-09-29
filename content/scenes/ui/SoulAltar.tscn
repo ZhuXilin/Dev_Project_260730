@@ -158,17 +158,10 @@ layout_mode = 2
 size_flags_vertical = 0
 theme_override_constants/separation = 6
 
-[node name="PointLabel" type="Label" parent="Panel/VBox/MainHBox/InfoPanel/BottomBar" unique_id=1543745625]
-visible = false
+[node name="HintLabel" type="Label" parent="Panel/VBox/MainHBox/InfoPanel/BottomBar" unique_id=1543745625]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_font_sizes/font_size = 6
-
-[node name="ResetBtn" type="Button" parent="Panel/VBox/MainHBox/InfoPanel/BottomBar" unique_id=421809626]
-visible = false
-layout_mode = 2
-theme_override_font_sizes/font_size = 6
-text = "洗点"
 
 [node name="BackButton" type="Button" parent="Panel/VBox" unique_id=1091288172]
 layout_mode = 2

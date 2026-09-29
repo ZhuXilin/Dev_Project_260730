@@ -33,9 +33,7 @@ func _ready():
 	# 扫描 chip JSON
 	_scan_chip_music()
 
-	if config:
-		print("音乐配置加载成功")
-	else:
+	if config == null:
 		push_error("音乐配置加载失败！")
 
 

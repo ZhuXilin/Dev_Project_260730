@@ -21,18 +21,16 @@ var _current_talent_id : String = ""
 @onready var unit_name_label : Label = $Panel/VBox/MainHBox/InfoPanel/UnitHeader/HeaderInfo/UnitNameLabel
 @onready var unit_desc_label : Label = $Panel/VBox/MainHBox/InfoPanel/UnitHeader/HeaderInfo/UnitDescLabel
 @onready var attr_container : VBoxContainer = $Panel/VBox/MainHBox/InfoPanel/AttrScroll/AttrContainer
-@onready var point_label : Label = $Panel/VBox/MainHBox/InfoPanel/BottomBar/PointLabel
-@onready var reset_btn : Button = $Panel/VBox/MainHBox/InfoPanel/BottomBar/ResetBtn
+# ★ 原 PointLabel 已改名为 HintLabel（用作临时消息提示）
+@onready var hint_label : Label = $Panel/VBox/MainHBox/InfoPanel/BottomBar/HintLabel
 
 
 func _ready():
 	MusicManager.play_soul_altar_music()
 	if attr_tab_btn:
 		attr_tab_btn.text = "祝福"
-	if reset_btn:
-		reset_btn.visible = false
-	if point_label:
-		point_label.visible = false    # ★ 平时隐藏，仅消息提示时显示
+	if hint_label:
+		hint_label.visible = false    # ★ 平时隐藏，仅消息提示时显示
 	if soul_forge_tab_btn and not soul_forge_tab_btn.pressed.is_connected(_on_soul_forge_tab_pressed):
 		soul_forge_tab_btn.pressed.connect(_on_soul_forge_tab_pressed)
 	_refresh_soul()
@@ -191,7 +189,7 @@ func _on_unit_selected(unit_type: String):
 
 
 # ============================================================
-#  右列 · 属性总览（新增）
+#  右列 · 属性总览
 # ============================================================
 func _build_stats_overview(unit_type: String) -> VBoxContainer:
 	var box = VBoxContainer.new()
@@ -260,7 +258,8 @@ func _build_stat_line(display: String, base: int, bonus: int) -> HBoxContainer:
 # ============================================================
 func _refresh_blessing_panel():
 	_clear_attr_container()
-	point_label.visible = false
+	if hint_label:
+		hint_label.visible = false
 	unit_sprite.visible = true
 
 	if _current_unit_type == "":
@@ -362,7 +361,8 @@ func _on_blessing_upgrade(blessing_id: String):
 # ============================================================
 func _refresh_soul_forge_panel():
 	_clear_attr_container()
-	point_label.visible = false
+	if hint_label:
+		hint_label.visible = false
 	unit_sprite.visible = true
 
 	if _current_unit_type == "":
@@ -588,7 +588,8 @@ func _on_talent_selected(talent_id: String):
 # ============================================================
 func _refresh_talent_detail():
 	_clear_attr_container()
-	point_label.visible = false
+	if hint_label:
+		hint_label.visible = false
 	unit_sprite.visible = false
 
 	if _current_talent_id == "":
@@ -754,11 +755,11 @@ func _rarity_color(rarity: String) -> Color:
 
 
 func _show_msg(msg: String):
-	if not point_label:
+	if not hint_label:
 		return
-	point_label.visible = true
-	point_label.text = msg
+	hint_label.visible = true
+	hint_label.text = msg
 	await get_tree().create_timer(1.5, true, false, true).timeout
-	if is_instance_valid(point_label):
-		point_label.visible = false
-		point_label.text = ""
+	if is_instance_valid(hint_label):
+		hint_label.visible = false
+		hint_label.text = ""

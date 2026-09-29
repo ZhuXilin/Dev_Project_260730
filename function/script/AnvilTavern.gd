@@ -11,6 +11,8 @@ var _entry_tab : int = 0
 # ★ 由 Camp 在 add_child 前调用
 func setup(tab: int) -> void:
 	_entry_tab = tab
+	if is_node_ready():
+		_switch_tab(tab as Tab)   # ← 加这行
 
 enum ArsenalSub { WEAPON, ARMOR }
 var _arsenal_sub : ArsenalSub = ArsenalSub.WEAPON

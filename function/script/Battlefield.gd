@@ -76,51 +76,6 @@ func _ready():
 	_victory_processed = false
 	_is_reward_ui_active = false
 
-	action_menu = get_node("ActionMenu")
-	attack_btn = get_node("ActionMenu/ActionPanel/ButtonContainer/AttackBtn")
-	move_btn = get_node("ActionMenu/ActionPanel/ButtonContainer/MoveBtn")
-	equip_btn = get_node("ActionMenu/ActionPanel/ButtonContainer/EquipBtn")
-	wait_btn = get_node("ActionMenu/ActionPanel/ButtonContainer/WaitBtn")
-	victory_panel = get_node("VictoryLayer/VictoryPanel")
-	victory_label = get_node("VictoryLayer/VictoryPanel/VictoryLabel")
-	victory_button = get_node("VictoryLayer/VictoryPanel/VictoryButton")
-	turn_overlay = get_node("TurnLayer/TurnRect")
-	cursor_layer = get_node("CursorLayer")
-	cursor = get_node("CursorLayer/Cursor")
-	highlight_manager = $HighlightManager
-	movement_animator = $MovementAnimator
-	ui_manager = $UIManager
-	turnlayer_manager = $TurnLayerManager
-	camera_controller = $Camera2D
-	menu_blocker = $MenuBlocker
-	info_panel = $Info/InfoPanel
-	info_text_label = $Info/InfoPanel/InfoTextLabel
-
-	# 设置栏
-	setting_panel = $SettingBar/SettingPanel
-	setting_btn = $SettingBar/SettingPanel/SettingContainer/SettingBtn
-	back_camp_btn = $SettingBar/SettingPanel/SettingContainer/BackCampBtn
-	team_view_btn = $SettingBar/SettingPanel/SettingContainer/TeamViewBtn
-	item_list_btn = $SettingBar/SettingPanel/SettingContainer/ItemListBtn
-	relic_view_btn = $SettingBar/SettingPanel/SettingContainer/RelicViewBtn
-
-	# 队伍查看
-	team_view_panel = $TeamViewLayer/TeamViewPanel
-	team_view_container = $TeamViewLayer/TeamViewPanel/TeamViewContainer
-
-	# 道具列表
-	item_list_panel = $ItemListLayer/ItemListPanel
-	item_list_container = $ItemListLayer/ItemListPanel/ItemListContainer
-
-	# 设置菜单
-	setting_menu_panel = $SettingMenuLayer/SettingMenuPanel
-
-	# HUD
-	speed_indicator = $HUD/SpeedIndicator
-	turn_count_label = $HUD/TurnCountIndicator
-	end_turn_button = $HUD/EndTurnButton
-	relic_icon_container = $HUD/RelicIconContainer
-
 	var node_list = {
 		"action_menu": action_menu,
 		"attack_btn": attack_btn,

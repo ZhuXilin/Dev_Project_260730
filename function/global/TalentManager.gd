@@ -225,9 +225,10 @@ static func is_talent_compatible_with_unit(talent_id: String, unit_name: String)
 # ============================================================
 #  斗技场：经验 / 等级
 # ============================================================
+## 升级门槛：[Lv1起点, Lv2起点, Lv3起点, 满级]
 const EXP_THRESHOLDS : Array = [0, 100, 300, 600]
 const MAX_TALENT_LEVEL : int = 3
-const MAX_TALENT_EXP : int = 600
+const MAX_TALENT_EXP : int = 600   # = EXP_THRESHOLDS[3]
 
 
 static func get_talent_exp(unit_type: String, talent_id: String) -> int:
@@ -235,33 +236,35 @@ static func get_talent_exp(unit_type: String, talent_id: String) -> int:
 	return int(unit_dict.get(talent_id, 0))
 
 
+## 返回第 level 级（1-based）的区间长度
+## Lv1 → 100，Lv2 → 200，Lv3 → 300
+static func _get_level_span(level: int) -> int:
+	var i : int = clampi(level, 1, MAX_TALENT_LEVEL)
+	return EXP_THRESHOLDS[i] - EXP_THRESHOLDS[i - 1]
+
+
 static func get_talent_level(unit_type: String, talent_id: String) -> int:
-	var cur_exp = get_talent_exp(unit_type, talent_id)
-	if cur_exp >= 300:
-		return 3
-	if cur_exp >= 100:
-		return 2
-	return 1
+	var cur_exp : int = get_talent_exp(unit_type, talent_id)
+	var lv : int = 1
+	for i in range(EXP_THRESHOLDS.size()):
+		if cur_exp >= EXP_THRESHOLDS[i]:
+			lv = i + 1
+		else:
+			break
+	return mini(lv, MAX_TALENT_LEVEL)
 
 
 static func get_talent_exp_in_level(unit_type: String, talent_id: String) -> int:
-	var cur_exp = get_talent_exp(unit_type, talent_id)
-	if cur_exp >= 600:
-		return 300
-	if cur_exp >= 300:
-		return cur_exp - 300
-	if cur_exp >= 100:
-		return cur_exp - 100
-	return cur_exp
+	var cur_exp : int = get_talent_exp(unit_type, talent_id)
+	# 满级：固定显示为最后一段区间长度
+	if cur_exp >= MAX_TALENT_EXP:
+		return _get_level_span(MAX_TALENT_LEVEL)
+	var lv : int = get_talent_level(unit_type, talent_id)
+	return cur_exp - int(EXP_THRESHOLDS[lv - 1])
 
 
 static func get_level_required_exp(unit_type: String, talent_id: String) -> int:
-	var cur_exp = get_talent_exp(unit_type, talent_id)
-	if cur_exp >= 300:
-		return 300
-	if cur_exp >= 100:
-		return 200
-	return 100
+	return _get_level_span(get_talent_level(unit_type, talent_id))
 
 
 static func is_talent_max_level(unit_type: String, talent_id: String) -> bool:

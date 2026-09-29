@@ -143,6 +143,7 @@ func _on_confirm_pressed():
 	var main_unit_data = UnitDataManager.get_unit_data(main_unit_name)
 	var faction = main_unit_data.get("faction", "王国")
 	GameState.current_faction = faction
+	LevelManager._reload_all_levels()
 	
 	var target_slot = -1
 	if SaveManager.current_slot != -1:

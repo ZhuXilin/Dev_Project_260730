@@ -13,9 +13,9 @@ var _enabled : bool = true
 
 ## ★ 在这些场景下，GM 快捷键完全禁用
 const DISABLED_SCENES : Array[String] = [
-	"res://function/tool/Editor/MapLayoutEditor.tscn",
-	"res://function/tool/Audio/ChipMusicValidator.tscn",
-	"res://function/tool/Audio/ChipMusicPreviewer.tscn",
+	"res://function/tool/editor/MapLayoutEditor.tscn",
+	"res://function/tool/audio/ChipMusicValidator.tscn",
+	"res://function/tool/audio/ChipMusicPreviewer.tscn",
 	"res://function/tool/editor/ChipMusicEditor.tscn",
 ]
 

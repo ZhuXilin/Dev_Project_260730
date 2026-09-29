@@ -1,23 +1,22 @@
 [gd_scene format=3 uid="uid://bivdtthdqgj4k"]
 
-[node name="TurnLayer" type="CanvasLayer"]
+[node name="TurnLayer" type="CanvasLayer" unique_id=1116661714]
 
-[node name="TurnRect" type="ColorRect" parent="."]
+[node name="TurnRect" type="ColorRect" parent="." unique_id=878471344]
 z_index = 99
-anchors_preset = -1
+anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = 96.0
-offset_top = 112.0
-offset_right = -96.0
+offset_left = 112.0
+offset_top = 96.0
+offset_right = -112.0
 offset_bottom = -96.0
 grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
 color = Color(0.19099915, 0.25266767, 0.5266893, 1)
-metadata/_edit_use_anchors_ = true
 
-[node name="Text" type="Label" parent="TurnRect"]
+[node name="Text" type="Label" parent="TurnRect" unique_id=77266135]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
