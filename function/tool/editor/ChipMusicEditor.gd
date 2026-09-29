@@ -29,12 +29,13 @@ extends Control
 #
 #  【音符编辑 — 右键 / 中键】
 #    右键音符                删除该音符
-#    中键音符                删除该音符
+#    中键拖动                平移视图（视口移动）
 #    右键空白                取消所有选中
 #
 #  【键盘】
 #    Delete                  删除所有选中音符
 #    ↑ / ↓                   选中音符整体移调 ±1 半音
+#    Shift + ↑ / ↓           选中音符整体移调 ±1 八度（12 半音）
 #    ← / →                   选中音符整体左右移动 ±1 tick
 #    Shift + ← / →           整体左右移动 ±1 拍
 #    Ctrl+A                  全选当前通道所有音符（All 通道时全选）
@@ -46,26 +47,25 @@ extends Control
 #
 #  【视图】
 #    滚轮                    垂直滚动
-#    Ctrl + 滚轮             水平滚动
-#    滚轮（在钢琴键区）      水平滚动
-#    顶部缩放滑块            调整横向比例（px / 拍）
+#    Shift + 滚轮            水平滚动
+#    Ctrl + 滚轮             以鼠标为中心整体缩放（同步宽 + 行高）
+#    滚轮（在钢琴键区）      垂直滚动
+#    通道面板"宽度"滑杆      横向缩放（10~120 px / 拍）
+#    通道面板"行高"滑杆      纵向行高（3.0~14.0 px）
+#
+#  【歌曲元数据】（通道面板底部）
+#    修改标题输入框          重命名歌曲（同步到底部只读 Label）
+#    修改循环开关            是否循环（勾选时 loop_start=0, loop_end=total_ticks）
 #
 #  【撤销 / 重做】
 #    Ctrl+Z                  撤销（最多 15 步）
 #    Ctrl+Shift+Z / Ctrl+Y   重做
-#
-#  【通道说明】
-#    Pulse 1  / 旋律         主旋律（占空比 12.5%）
-#    Pulse 2  / 和声         和声 / 副旋律（占空比 25%）
-#    Triangle / 贝斯         三角波贝斯（无音量控制）
-#    Noise    / 鼓           噪声通道（鼓 / 打击）
 # ============================================================
 
 const MUSIC_DIR : String = "res://content/music/"
 
 const PITCH_MIN : int = 24
 const PITCH_MAX : int = 96
-const ROW_HEIGHT : float = 7.0
 const PIANO_WIDTH : float = 22.0
 const SEEK_BAR_H : float = 14.0
 const RESIZE_HANDLE_PX : float = 4.0
@@ -77,6 +77,7 @@ const FS_PANEL  : int = 7
 const FS_HINT   : int = 5
 const FS_RULER  : int = 6
 const FS_NOTE_VEL : int = 5
+const FS_LOOP   : int = 4
 
 const BTN_H : int = 13
 const SPIN_H : int = 13
@@ -84,11 +85,22 @@ const SPIN_W : int = 20
 const SPIN_W_LONG : int = 24
 const SPIN_W_NOTE : int = 20
 const SPIN_W_NOTE_S : int = 18
-const CH_PANEL_W : int = 82
+const CH_PANEL_W : int = 90
 const CH_EN_W : int = 40
-const MUTE_W : int = 10
+const CN_LABEL_W : int = 22
+const MUTE_W : int = 12
+const MUTE_GAP : int = 12
 const VSEP_W : int = 1
 const MAX_UNDO : int = 15
+
+# 底部信息栏固定高度（避免弹跳）
+const INFO_PANEL_H : int = 16
+# 循环按钮尺寸（6×6）
+const LOOP_BTN : int = 6
+# 滑杆控件高度
+const SLIDER_H : int = 5
+# 元数据行 Label 宽度
+const META_LABEL_W : int = 28
 
 const CH_ALL : int = -1
 
@@ -114,7 +126,15 @@ const COL_TRACK_START : Color = Color(0.30, 0.95, 0.45)
 const COL_TRACK_END   : Color = Color(1.00, 0.65, 0.30)
 const COL_BOX_SEL     : Color = Color(0.40, 0.70, 1.00)
 
-const HINT_TEXT : String = "左键空白=添加/框选 · 左键音符=选中/拖动 · 拖右边缘=改时长 · Shift+拖=追加框选 · 右键空白=取消 · Delete=删除 · ↑↓=移调 · ←→=移动 · Shift+←→=整拍 · Ctrl+A=全选 · Ctrl+Z=撤销 · Ctrl+S=保存 · 空格=播放 · Esc=退出"
+# Loop 按钮颜色（蓝灰 / 暗灰）
+const COL_LOOP_ON  : Color = Color(0.42, 0.56, 0.85)
+const COL_LOOP_OFF : Color = Color(0.20, 0.20, 0.24)
+
+const HINT_TEXT : String = "左键空白=添加/框选 · 左键音符=选中/拖动 · 拖右边缘=改时长 · Shift+拖=追加 · 中键拖动=平移 · 右键音符=删除 · 右键空白=取消 · Delete=删除 · ↑↓=移调 · Shift+↑↓=八度 · ←→=移动 · Shift+←→=整拍 · Ctrl+A=全选 · 滚轮=滚动 · Ctrl+滚轮=缩放 · 空格=播放 · Esc=退出"
+
+# 行高 / 横向缩放
+var _row_height : float = 7.0
+var _px_per_beat : float = 60.0
 
 var _ch_en_names : Array[String] = ["Pulse 1", "Pulse 2", "Triangle", "Noise"]
 var _ch_cn_names : Array[String] = ["旋律", "和声", "贝斯", "鼓"]
@@ -252,7 +272,6 @@ var _selected_channel : int = CH_ALL
 var _selected_indices : Array[int] = []
 var _muted : Array[bool] = [false, false, false, false]
 
-var _px_per_beat : float = 60.0
 var _scroll_x : float = 0.0
 var _scroll_y : float = 0.0
 
@@ -271,6 +290,11 @@ var _box_start : Vector2 = Vector2.ZERO
 var _box_end : Vector2 = Vector2.ZERO
 var _box_additive : bool = false
 
+# 中键平移
+var _panning : bool = false
+var _pan_start_mouse : Vector2 = Vector2.ZERO
+var _pan_start_scroll : Vector2 = Vector2.ZERO
+
 var _dragging_progress : bool = false
 var _was_playing_before_seek : bool = false
 
@@ -283,12 +307,15 @@ var _ch_buttons : Array[Button] = []
 var _ch_cn_labels : Array[Label] = []
 var _all_btn : Button = null
 var _mute_buttons : Array[Button] = []
+var _title_label : Label = null
 var _title_edit : LineEdit = null
+var _loop_cb : Button = null
 var _bpm_spin : SpinBox = null
 var _bpb_spin : SpinBox = null
 var _tpb_spin : SpinBox = null
 var _total_spin : SpinBox = null
 var _zoom_slider : HSlider = null
+var _vzoom_slider : HSlider = null
 var _play_btn : Button = null
 var _stop_btn : Button = null
 var _save_btn : Button = null
@@ -352,6 +379,7 @@ func _apply_compact_theme():
 	le_empty.content_margin_bottom = 0
 	t.set_stylebox("normal", "LineEdit", le_empty)
 	t.set_stylebox("focus", "LineEdit", le_empty)
+	t.set_stylebox("read_only", "LineEdit", le_empty)   # 屏蔽时无背景框
 
 	t.set_font_size("font_size", "TooltipLabel", FS_SMALL)
 	t.set_font_size("font_size", "TooltipPanel", FS_SMALL)
@@ -378,19 +406,20 @@ func _apply_compact_theme():
 func _setup_slider_theme(t : Theme):
 	var slider_sb := StyleBoxFlat.new()
 	slider_sb.bg_color = Color(0.22, 0.22, 0.28, 1.0)
-	slider_sb.content_margin_top = 5.0
-	slider_sb.content_margin_bottom = 5.0
+	slider_sb.content_margin_top = 2.5
+	slider_sb.content_margin_bottom = 2.5
 	t.set_stylebox("slider", "HSlider", slider_sb)
 
 	var grab_sb := StyleBoxFlat.new()
-	grab_sb.bg_color = Color(0.45, 0.72, 1.0, 1.0)
-	grab_sb.content_margin_top = 5.0
-	grab_sb.content_margin_bottom = 5.0
+	grab_sb.bg_color = Color(0.55, 0.55, 0.60, 1.0)   # ★ 灰
+	grab_sb.content_margin_top = 2.5
+	grab_sb.content_margin_bottom = 2.5
 	t.set_stylebox("grabber_area", "HSlider", grab_sb)
 	t.set_stylebox("grabber_area_highlight", "HSlider", grab_sb)
 
-	var img := Image.create(4, 8, false, Image.FORMAT_RGBA8)
-	img.fill(Color(0.92, 0.92, 1.0, 1.0))
+	# 细长把手：宽 2 高 5，与滑杆控件高度匹配
+	var img := Image.create(2, 5, false, Image.FORMAT_RGBA8)
+	img.fill(Color(0.78, 0.78, 0.82, 1.0))
 	var tex := ImageTexture.create_from_image(img)
 	t.set_icon("grabber", "HSlider", tex)
 	t.set_icon("grabber_highlight", "HSlider", tex)
@@ -537,23 +566,6 @@ func _make_toolbar(parent : Node):
 
 	bar.add_child(_make_vsep())
 
-	_zoom_slider = HSlider.new()
-	_zoom_slider.min_value = 20.0
-	_zoom_slider.max_value = 200.0
-	_zoom_slider.step = 1.0
-	_zoom_slider.value = 60.0
-	_zoom_slider.custom_minimum_size = Vector2(52, BTN_H)
-	_zoom_slider.tooltip_text = "横向缩放（px / 拍）"
-	_zoom_slider.value_changed.connect(func(v : float):
-		_px_per_beat = v
-		_clamp_scroll()
-		if _grid_canvas: _grid_canvas.queue_redraw()
-		if _seek_bar: _seek_bar.queue_redraw()
-	)
-	bar.add_child(_zoom_slider)
-
-	bar.add_child(_make_vsep())
-
 	var quit_btn := _mk_btn("退出", func(): _request_quit())
 	bar.add_child(quit_btn)
 
@@ -603,8 +615,14 @@ func _make_channel_panel(parent : Node):
 	all_cn.text = "全部"
 	all_cn.add_theme_font_size_override("font_size", FS_BUTTON)
 	all_cn.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	all_cn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	all_cn.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	all_cn.custom_minimum_size = Vector2(CN_LABEL_W, 0)
 	all_row.add_child(all_cn)
+
+	# All 行右侧的占位（无 M 按钮，但保持与通道行右边界一致）
+	var all_gap := Control.new()
+	all_gap.custom_minimum_size = Vector2(MUTE_W + 1, 0)
+	all_row.add_child(all_gap)
 
 	for i in range(4):
 		var row := HBoxContainer.new()
@@ -629,10 +647,10 @@ func _make_channel_panel(parent : Node):
 		cn_lbl.text = _ch_cn_names[i]
 		cn_lbl.add_theme_font_size_override("font_size", FS_BUTTON)
 		cn_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		cn_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		cn_lbl.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+		cn_lbl.custom_minimum_size = Vector2(CN_LABEL_W, 0)
 		cn_lbl.modulate = Color(0.75, 0.75, 0.78)
 		row.add_child(cn_lbl)
-		_ch_cn_labels.append(cn_lbl)
 
 		var m := Button.new()
 		m.text = "M"
@@ -640,6 +658,7 @@ func _make_channel_panel(parent : Node):
 		m.tooltip_text = "静音"
 		m.add_theme_font_size_override("font_size", FS_SMALL)
 		m.custom_minimum_size = Vector2(MUTE_W, BTN_H)
+		m.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 		m.focus_mode = Control.FOCUS_NONE
 		_make_mute_button_style(m)
 		m.toggled.connect(func(v : bool):
@@ -652,7 +671,184 @@ func _make_channel_panel(parent : Node):
 		row.add_child(m)
 		_mute_buttons.append(m)
 
+	# 缩放区域：占据剩余空间，垂直居中
+	var zoom_wrap := VBoxContainer.new()
+	zoom_wrap.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	zoom_wrap.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	zoom_wrap.alignment = BoxContainer.ALIGNMENT_CENTER
+	zoom_wrap.add_theme_constant_override("separation", 3)
+	parent.add_child(zoom_wrap)
+
+	_make_bottom_zoom(zoom_wrap)
+	_make_song_meta_panel(parent)
+
 	_refresh_channel_buttons()
+
+
+## 缩放控件：宽度（上）+ 行高（下）
+## 标签左边与元数据行对齐；滑杆右侧与 M 按钮左侧对齐
+func _make_bottom_zoom(parent : Node):
+	# ===== 宽度 =====
+	var r1 := HBoxContainer.new()
+	r1.add_theme_constant_override("separation", 2)
+	parent.add_child(r1)
+
+	var l1 := Label.new()
+	l1.text = "宽度"
+	l1.add_theme_font_size_override("font_size", FS_SMALL)
+	l1.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	l1.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	l1.custom_minimum_size = Vector2(META_LABEL_W, 0)   # ★ 与元数据标签同宽
+	l1.modulate = Color(0.65, 0.65, 0.72)
+	r1.add_child(l1)
+
+	_zoom_slider = HSlider.new()
+	_zoom_slider.min_value = 10.0
+	_zoom_slider.max_value = 120.0
+	_zoom_slider.step = 0.2
+	_zoom_slider.value = _px_per_beat
+	_zoom_slider.tooltip_text = "宽度 / 横向缩放（10~120 px / 拍）"
+	_zoom_slider.custom_minimum_size = Vector2(0, SLIDER_H)
+	_zoom_slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_zoom_slider.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	_zoom_slider.value_changed.connect(func(v : float):
+		_px_per_beat = v
+		_clamp_scroll()
+		if _grid_canvas: _grid_canvas.queue_redraw()
+		if _seek_bar: _seek_bar.queue_redraw()
+	)
+	r1.add_child(_zoom_slider)
+
+	var pad1 := Control.new()
+	pad1.custom_minimum_size = Vector2(MUTE_W + 1, 0)
+	r1.add_child(pad1)
+
+	# ===== 行高 =====
+	var r2 := HBoxContainer.new()
+	r2.add_theme_constant_override("separation", 2)
+	parent.add_child(r2)
+
+	var l2 := Label.new()
+	l2.text = "行高"
+	l2.add_theme_font_size_override("font_size", FS_SMALL)
+	l2.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	l2.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	l2.custom_minimum_size = Vector2(META_LABEL_W, 0)   # ★ 与元数据标签同宽
+	l2.modulate = Color(0.65, 0.65, 0.72)
+	r2.add_child(l2)
+
+	_vzoom_slider = HSlider.new()
+	_vzoom_slider.min_value = 3.0
+	_vzoom_slider.max_value = 14.0
+	_vzoom_slider.step = 0.2
+	_vzoom_slider.value = _row_height
+	_vzoom_slider.tooltip_text = "行高（3~14 px）"
+	_vzoom_slider.custom_minimum_size = Vector2(0, SLIDER_H)
+	_vzoom_slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_vzoom_slider.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	_vzoom_slider.value_changed.connect(func(v : float):
+		_row_height = v
+		if _grid_canvas: _grid_canvas.queue_redraw()
+	)
+	r2.add_child(_vzoom_slider)
+
+	var pad2 := Control.new()
+	pad2.custom_minimum_size = Vector2(MUTE_W + 1, 0)
+	r2.add_child(pad2)
+
+
+## 歌曲元数据：修改标题 + 修改循环（无横线分隔）
+func _make_song_meta_panel(parent : Node):
+	# ---- 修改标题 ----
+	var r1 := HBoxContainer.new()
+	r1.add_theme_constant_override("separation", 2)
+	parent.add_child(r1)
+
+	var l1 := Label.new()
+	l1.text = "修改标题"
+	l1.add_theme_font_size_override("font_size", FS_SMALL)
+	l1.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	l1.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	l1.custom_minimum_size = Vector2(META_LABEL_W, 0)
+	l1.modulate = Color(0.65, 0.65, 0.72)
+	r1.add_child(l1)
+
+	_title_edit = LineEdit.new()
+	_title_edit.add_theme_font_size_override("font_size", FS_BUTTON)
+	_title_edit.custom_minimum_size = Vector2(0, BTN_H - 1)
+	_title_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_title_edit.placeholder_text = "（无标题）"
+	_title_edit.text_changed.connect(func(t : String):
+		if _song and _song.title != t:
+			_song.title = t
+			_dirty = true
+		if _title_label:
+			_title_label.text = t if t != "" else "（无标题）"
+	)
+	r1.add_child(_title_edit)
+
+	# ---- 修改循环 ----
+	var r2 := HBoxContainer.new()
+	r2.add_theme_constant_override("separation", 2)
+	parent.add_child(r2)
+
+	var l2 := Label.new()
+	l2.text = "修改循环"
+	l2.add_theme_font_size_override("font_size", FS_SMALL)
+	l2.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	l2.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	l2.custom_minimum_size = Vector2(META_LABEL_W, 0)
+	l2.modulate = Color(0.65, 0.65, 0.72)
+	r2.add_child(l2)
+
+	_loop_cb = Button.new()
+	_loop_cb.toggle_mode = true
+	_loop_cb.text = ""
+	_loop_cb.add_theme_font_size_override("font_size", FS_LOOP)
+	_loop_cb.custom_minimum_size = Vector2(LOOP_BTN, LOOP_BTN)
+	_loop_cb.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	_loop_cb.focus_mode = Control.FOCUS_NONE
+	_loop_cb.tooltip_text = "循环播放"
+	_loop_cb.toggled.connect(func(v : bool):
+		if _song == null: return
+		if v:
+			_song.loop_start = 0
+			_song.loop_end = _song.total_ticks
+		else:
+			_song.loop_start = -1
+			_song.loop_end = 0
+		_dirty = true
+		_apply_loop_visual(v)
+	)
+	_apply_loop_visual(true)
+	r2.add_child(_loop_cb)
+
+
+## 循环开关的视觉状态（蓝灰 / 暗灰，无绿色）
+func _apply_loop_visual(on : bool):
+	if _loop_cb == null: return
+	var sb := StyleBoxFlat.new()
+	sb.content_margin_left = 0
+	sb.content_margin_right = 0
+	sb.content_margin_top = 0
+	sb.content_margin_bottom = 0
+	sb.corner_radius_top_left = 1
+	sb.corner_radius_top_right = 1
+	sb.corner_radius_bottom_left = 1
+	sb.corner_radius_bottom_right = 1
+	if on:
+		sb.bg_color = COL_LOOP_ON
+		_loop_cb.text = "✓"
+		_loop_cb.modulate = Color(1, 1, 1)
+	else:
+		sb.bg_color = COL_LOOP_OFF
+		_loop_cb.text = ""
+		_loop_cb.modulate = Color(0.55, 0.55, 0.60)
+	_loop_cb.add_theme_stylebox_override("normal", sb)
+	_loop_cb.add_theme_stylebox_override("hover", sb)
+	_loop_cb.add_theme_stylebox_override("pressed", sb)
+	_loop_cb.add_theme_stylebox_override("focus", sb)
+	_loop_cb.add_theme_stylebox_override("disabled", sb)
 
 
 func _make_mute_button_style(m : Button):
@@ -691,9 +887,10 @@ func _make_grid(parent : Node):
 
 func _make_info_panel(parent : Node):
 	var panel := PanelContainer.new()
+	panel.custom_minimum_size = Vector2(0, INFO_PANEL_H)
 	var sb := StyleBoxFlat.new()
 	sb.bg_color = Color(0.10, 0.10, 0.13)
-	sb.content_margin_left = 3
+	sb.content_margin_left = 6
 	sb.content_margin_right = 3
 	sb.content_margin_top = 1
 	sb.content_margin_bottom = 1
@@ -701,17 +898,16 @@ func _make_info_panel(parent : Node):
 	parent.add_child(panel)
 
 	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 3)
+	row.add_theme_constant_override("separation", 6)
 	panel.add_child(row)
 
-	row.add_child(_small_label("标题"))
-	_title_edit = LineEdit.new()
-	_title_edit.add_theme_font_size_override("font_size", FS_BUTTON)
-	_title_edit.custom_minimum_size = Vector2(80, BTN_H - 1)
-	_title_edit.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
-	_title_edit.placeholder_text = "（无标题）"
-	_title_edit.text_changed.connect(func(_t : String): _dirty = true)
-	row.add_child(_title_edit)
+	# 只读标题 Label
+	_title_label = Label.new()
+	_title_label.add_theme_font_size_override("font_size", FS_BUTTON)
+	_title_label.text = "（无标题）"
+	_title_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_title_label.modulate = Color(0.92, 0.92, 0.95)
+	row.add_child(_title_label)
 
 	var g1 := Control.new()
 	g1.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -724,6 +920,7 @@ func _make_info_panel(parent : Node):
 	_note_info.text = "（未选中）"
 	_note_info.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	_note_info.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	_note_info.custom_minimum_size = Vector2(96, 0)   # 固定宽度防跳动
 	row.add_child(_note_info)
 
 	_note_box = HBoxContainer.new()
@@ -811,15 +1008,15 @@ func _setup_spin(sp : SpinBox):
 		le.text_submitted.connect(func(_t : String):
 			call_deferred("_save_after_spin")
 		)
-	var btns := sp.find_children("*", "Button", true, false)
+	var btns : Array[Node] = sp.find_children("*", "Button", true, false)
 	for b in btns:
 		_compact_spin_arrow_button(b as Button)
 
 
 func _compact_spin_arrow_button(btn : Button):
-	btn.custom_minimum_size = Vector2(5, 4)
-	btn.icon_max_width = 4
-	btn.icon_max_height = 4
+	btn.custom_minimum_size = Vector2(3, 2)
+	btn.icon_max_width = 2
+	btn.icon_max_height = 2
 	btn.focus_mode = Control.FOCUS_NONE
 	btn.action_mode = BaseButton.ACTION_MODE_BUTTON_RELEASE
 	var empty := StyleBoxEmpty.new()
@@ -906,7 +1103,11 @@ func _apply_snapshot(snap : Dictionary):
 	_song.loop_start = snap["loop_start"]
 	_song.loop_end = snap["loop_end"]
 
-	_title_edit.text = _song.title
+	_title_label.text = _song.title if _song.title != "" else "（无标题）"
+	if _title_edit: _title_edit.text = _song.title
+	if _loop_cb:
+		_loop_cb.set_pressed_no_signal(_song.loop_end > 0)
+		_apply_loop_visual(_song.loop_end > 0)
 	_bpm_spin.set_value_no_signal(_song.bpm)
 	_bpb_spin.set_value_no_signal(float(_song.beats_per_bar))
 	_tpb_spin.set_value_no_signal(float(_song.ticks_per_beat))
@@ -1003,7 +1204,11 @@ func _load_file(path : String):
 	_redo_stack.clear()
 	_dirty = false
 
-	_title_edit.text = s.title
+	_title_label.text = s.title if s.title != "" else "（无标题）"
+	if _title_edit: _title_edit.text = s.title
+	if _loop_cb:
+		_loop_cb.set_pressed_no_signal(s.loop_end > 0)
+		_apply_loop_visual(s.loop_end > 0)
 	_bpm_spin.set_value_no_signal(s.bpm)
 	_bpb_spin.set_value_no_signal(float(s.beats_per_bar))
 	_tpb_spin.set_value_no_signal(float(s.ticks_per_beat))
@@ -1038,7 +1243,11 @@ func _new_song():
 	_redo_stack.clear()
 	_dirty = false
 
-	_title_edit.text = "Untitled"
+	_title_label.text = "Untitled"
+	if _title_edit: _title_edit.text = "Untitled"
+	if _loop_cb:
+		_loop_cb.set_pressed_no_signal(true)
+		_apply_loop_visual(true)
 	_bpm_spin.set_value_no_signal(100.0)
 	_bpb_spin.set_value_no_signal(4.0)
 	_tpb_spin.set_value_no_signal(4.0)
@@ -1077,13 +1286,18 @@ func _save_as_dialog():
 
 
 func _do_save(path : String):
-	_song.title = _title_edit.text
+	if _title_edit:
+		_song.title = _title_edit.text
 	_song.bpm = _bpm_spin.value
 	_song.beats_per_bar = int(_bpb_spin.value)
 	_song.ticks_per_beat = int(_tpb_spin.value)
 	_song.total_ticks = int(_total_spin.value)
-	_song.loop_start = 0
-	_song.loop_end = int(_total_spin.value)
+	if _loop_cb and _loop_cb.button_pressed:
+		_song.loop_start = 0
+		_song.loop_end = int(_total_spin.value)
+	else:
+		_song.loop_start = -1
+		_song.loop_end = 0
 
 	# 裁剪超出 total_ticks 的音符
 	var total : float = float(_song.total_ticks)
@@ -1111,6 +1325,7 @@ func _do_save(path : String):
 		if trimmed_count > 0 or clipped_count > 0:
 			extra = "  [裁掉 %d, 截断 %d]" % [trimmed_count, clipped_count]
 		_status.text = "✓ 已保存: " + path.get_file() + extra
+		_title_label.text = _song.title if _song.title != "" else "（无标题）"
 		_selected_indices.clear()
 		_update_note_inspector()
 		if _grid_canvas: _grid_canvas.queue_redraw()
@@ -1207,15 +1422,15 @@ func _draw_grid(c : Control):
 		tpb = maxi(1, int(_song.ticks_per_beat))
 		bpb = maxi(1, int(_song.beats_per_bar))
 
-	var pitch_top : int = PITCH_MAX - int(_scroll_y / ROW_HEIGHT)
-	var pitch_bot : int = PITCH_MAX - int((_scroll_y + gh) / ROW_HEIGHT) - 1
+	var pitch_top : int = PITCH_MAX - int(_scroll_y / _row_height)
+	var pitch_bot : int = PITCH_MAX - int((_scroll_y + gh) / _row_height) - 1
 	pitch_top = mini(pitch_top, PITCH_MAX)
 	pitch_bot = maxi(pitch_bot, PITCH_MIN)
 
 	for p in range(pitch_bot, pitch_top + 1):
-		var y : float = gy + float(PITCH_MAX - p) * ROW_HEIGHT - _scroll_y
+		var y : float = gy + float(PITCH_MAX - p) * _row_height - _scroll_y
 		var col : Color = COL_ROW_BLACK if _is_black(p) else COL_ROW_WHITE
-		c.draw_rect(Rect2(gx, y, gw, ROW_HEIGHT), col)
+		c.draw_rect(Rect2(gx, y, gw, _row_height), col)
 
 	var px_per_tick : float = _px_per_beat / float(tpb)
 	var step : int = 1
@@ -1252,41 +1467,39 @@ func _draw_grid(c : Control):
 			var ev : float = float(e.vel)
 			var ex : float = gx + et / float(tpb) * _px_per_beat - _scroll_x
 			var ew : float = maxf(3.0, ed / float(tpb) * _px_per_beat)
-			var ey : float = gy + float(PITCH_MAX - int(en)) * ROW_HEIGHT - _scroll_y
+			var ey : float = gy + float(PITCH_MAX - int(en)) * _row_height - _scroll_y
 			if ex + ew < gx or ex > sz.x: continue
-			if ey + ROW_HEIGHT < gy or ey > sz.y: continue
+			if ey + _row_height < gy or ey > sz.y: continue
 			var col : Color = _ch_colors[ec] if ec < _ch_colors.size() else Color.WHITE
 			if i in _selected_indices:
 				col = COL_NOTE_SEL
-			c.draw_rect(Rect2(ex, ey + 1.0, ew, ROW_HEIGHT - 2.0), col)
+			c.draw_rect(Rect2(ex, ey + 1.0, ew, _row_height - 2.0), col)
 
-			# 在块上显示力度（宽度足够时）
+			# 力度数字
 			if ew >= 12.0:
 				var vel_txt := str(int(ev))
 				var fnt2 := ThemeDB.fallback_font
 				var tsize2 := fnt2.get_string_size(vel_txt,
 					HORIZONTAL_ALIGNMENT_LEFT, -1, FS_NOTE_VEL)
 				var tx : float = ex + (ew - tsize2.x) * 0.5
-				var ty : float = ey + ROW_HEIGHT - 2.0
-				var txt_col : Color = Color(0.10, 0.10, 0.10, 0.85)
-				if col == COL_NOTE_SEL:
-					txt_col = Color(0.25, 0.15, 0.0, 0.9)
+				var ty : float = ey + _row_height - 2.0
 				c.draw_string(fnt2, Vector2(tx, ty), vel_txt,
-					HORIZONTAL_ALIGNMENT_LEFT, -1, FS_NOTE_VEL, txt_col)
+					HORIZONTAL_ALIGNMENT_LEFT, -1, FS_NOTE_VEL,
+					Color(0.98, 0.98, 0.98, 0.95))
 
 	# 钢琴键
 	c.draw_rect(Rect2(0, gy, PIANO_WIDTH, gh), Color(0.10, 0.10, 0.13))
 	for p in range(pitch_bot, pitch_top + 1):
-		var y : float = gy + float(PITCH_MAX - p) * ROW_HEIGHT - _scroll_y
-		if y + ROW_HEIGHT < gy or y > sz.y: continue
+		var y : float = gy + float(PITCH_MAX - p) * _row_height - _scroll_y
+		if y + _row_height < gy or y > sz.y: continue
 		var key_col : Color = COL_PIANO_BLACK if _is_black(p) else COL_PIANO_WHITE
 		var key_w : float = PIANO_WIDTH - 1.0
-		c.draw_rect(Rect2(0, y, key_w, ROW_HEIGHT - 1.0), key_col)
+		c.draw_rect(Rect2(0, y, key_w, _row_height - 1.0), key_col)
 		c.draw_line(Vector2(0, y), Vector2(key_w, y), COL_PIANO_LINE, 1.0)
 		if p % 12 == 0:
 			var oct : int = int(float(p) / 12.0) - 1
 			var fnt := ThemeDB.fallback_font
-			c.draw_string(fnt, Vector2(1.0, y + ROW_HEIGHT - 1.0),
+			c.draw_string(fnt, Vector2(1.0, y + _row_height - 1.0),
 						  "C%d" % oct, HORIZONTAL_ALIGNMENT_LEFT, -1, 6,
 						  Color(0.35, 0.35, 0.40))
 	c.draw_line(Vector2(PIANO_WIDTH, gy), Vector2(PIANO_WIDTH, sz.y),
@@ -1339,8 +1552,19 @@ func _on_grid_input(event : InputEvent, c : Control):
 		var mb : InputEventMouseButton = event
 		var mp : Vector2 = mb.position
 
+		# Ctrl + 滚轮 = 以鼠标为中心整体缩放
+		if mb.button_index == MOUSE_BUTTON_WHEEL_UP and mb.pressed \
+			and Input.is_key_pressed(KEY_CTRL):
+			_zoom_at_mouse(mp, 1.10, c)
+			return
+		if mb.button_index == MOUSE_BUTTON_WHEEL_DOWN and mb.pressed \
+			and Input.is_key_pressed(KEY_CTRL):
+			_zoom_at_mouse(mp, 1.0 / 1.10, c)
+			return
+
+		# 普通滚轮 = 垂直滚动；Shift + 滚轮 / 钢琴键区 = 水平滚动
 		if mb.button_index == MOUSE_BUTTON_WHEEL_UP and mb.pressed:
-			if Input.is_key_pressed(KEY_CTRL) or mp.x < gx:
+			if Input.is_key_pressed(KEY_SHIFT) or mp.x < gx:
 				_scroll_x = maxf(0.0, _scroll_x - 40.0)
 			else:
 				_scroll_y = maxf(0.0, _scroll_y - 40.0)
@@ -1348,7 +1572,7 @@ func _on_grid_input(event : InputEvent, c : Control):
 			if _seek_bar: _seek_bar.queue_redraw()
 			return
 		if mb.button_index == MOUSE_BUTTON_WHEEL_DOWN and mb.pressed:
-			if Input.is_key_pressed(KEY_CTRL) or mp.x < gx:
+			if Input.is_key_pressed(KEY_SHIFT) or mp.x < gx:
 				_scroll_x += 40.0
 				_clamp_scroll()
 			else:
@@ -1362,12 +1586,11 @@ func _on_grid_input(event : InputEvent, c : Control):
 		var world_x : float = mp.x - gx + _scroll_x
 		var world_y : float = mp.y + _scroll_y
 		var click_tick : float = world_x / _px_per_beat * float(tpb)
-		var row_idx : int = int(floor(world_y / ROW_HEIGHT))
+		var row_idx : int = int(floor(world_y / _row_height))
 		var click_pitch : int = clampi(PITCH_MAX - row_idx, PITCH_MIN, PITCH_MAX)
 
 		if mb.button_index == MOUSE_BUTTON_LEFT:
 			if mb.pressed:
-				# ① 右边缘 resize
 				var edge_idx : int = _find_note_right_edge(mp.x, click_pitch)
 				if edge_idx >= 0:
 					_resizing_idx = edge_idx
@@ -1380,7 +1603,6 @@ func _on_grid_input(event : InputEvent, c : Control):
 					c.queue_redraw()
 					return
 
-				# ② 点到音符 → 选中 / 拖动
 				var hit : int = _find_note_at(click_tick, float(click_pitch))
 				if hit >= 0:
 					if Input.is_key_pressed(KEY_SHIFT):
@@ -1397,7 +1619,6 @@ func _on_grid_input(event : InputEvent, c : Control):
 					c.queue_redraw()
 					return
 
-				# ③ 空白处 → 开始框选
 				_box_selecting = true
 				_box_start = mp
 				_box_end = mp
@@ -1428,18 +1649,22 @@ func _on_grid_input(event : InputEvent, c : Control):
 					_update_note_inspector()
 					c.queue_redraw()
 
-		elif mb.button_index == MOUSE_BUTTON_MIDDLE and mb.pressed:
-			var hit : int = _find_note_at(click_tick, float(click_pitch))
-			if hit >= 0:
-				_push_undo()
-				_song.events.remove_at(hit)
-				_selected_indices.clear()
-				_update_note_inspector()
-				c.queue_redraw()
+		elif mb.button_index == MOUSE_BUTTON_MIDDLE:
+			if mb.pressed:
+				# 中键 → 平移
+				_panning = true
+				_pan_start_mouse = mp
+				_pan_start_scroll = Vector2(_scroll_x, _scroll_y)
+			else:
+				_panning = false
 
 	elif event is InputEventMouseMotion:
 		var mm : InputEventMouseMotion = event
-		if _box_selecting:
+		if _panning:
+			_perform_pan(mm.position)
+			c.queue_redraw()
+			if _seek_bar: _seek_bar.queue_redraw()
+		elif _box_selecting:
 			_box_end = mm.position
 			c.queue_redraw()
 		elif _resizing_idx >= 0:
@@ -1451,6 +1676,65 @@ func _on_grid_input(event : InputEvent, c : Control):
 
 
 # ============================================================
+#  平移 / 缩放
+# ============================================================
+## 中键平移：拖动视图
+func _perform_pan(mouse_pos : Vector2):
+	var dx : float = mouse_pos.x - _pan_start_mouse.x
+	var dy : float = mouse_pos.y - _pan_start_mouse.y
+	_scroll_x = maxf(0.0, _pan_start_scroll.x - dx)
+	_scroll_y = maxf(0.0, _pan_start_scroll.y - dy)
+	_clamp_scroll()
+
+
+## 以鼠标位置为锚点整体缩放（同步调整 _px_per_beat 和 _row_height）
+func _zoom_at_mouse(mp : Vector2, factor : float, c : Control):
+	var gx : float = PIANO_WIDTH
+
+	var zmin : float = 10.0
+	var zmax : float = 120.0
+	var vmin : float = 3.0
+	var vmax : float = 14.0
+	if _zoom_slider:
+		zmin = _zoom_slider.min_value
+		zmax = _zoom_slider.max_value
+	if _vzoom_slider:
+		vmin = _vzoom_slider.min_value
+		vmax = _vzoom_slider.max_value
+
+	var old_ppp : float = _px_per_beat
+	var old_rh : float = _row_height
+	var new_ppp : float = clampf(old_ppp * factor, zmin, zmax)
+	var new_rh : float = clampf(old_rh * factor, vmin, vmax)
+
+	if is_equal_approx(new_ppp, old_ppp) and is_equal_approx(new_rh, old_rh):
+		return
+
+	var ratio_x : float = new_ppp / old_ppp
+	var ratio_y : float = new_rh / old_rh
+
+	var rel_x : float = maxf(0.0, mp.x - gx)
+	var rel_y : float = mp.y
+
+	_scroll_x = (rel_x + _scroll_x) * ratio_x - rel_x
+	_scroll_y = (rel_y + _scroll_y) * ratio_y - rel_y
+	if _scroll_x < 0.0: _scroll_x = 0.0
+	if _scroll_y < 0.0: _scroll_y = 0.0
+
+	_px_per_beat = new_ppp
+	_row_height = new_rh
+
+	if _zoom_slider:
+		_zoom_slider.set_value_no_signal(new_ppp)
+	if _vzoom_slider:
+		_vzoom_slider.set_value_no_signal(new_rh)
+
+	_clamp_scroll()
+	c.queue_redraw()
+	if _seek_bar: _seek_bar.queue_redraw()
+
+
+# ============================================================
 #  框选
 # ============================================================
 func _finish_box_select(c : Control):
@@ -1459,20 +1743,17 @@ func _finish_box_select(c : Control):
 	var tpb : int = maxi(1, int(_song.ticks_per_beat))
 	var gx : float = PIANO_WIDTH
 
-	# 框太小 → 当作单击
 	if rect.size.x < 3.0 and rect.size.y < 3.0:
-		# 有选中 → 取消选择（不添加音符）
 		if _selected_indices.size() > 0 and not _box_additive:
 			_selected_indices.clear()
 			_update_note_inspector()
 			c.queue_redraw()
 			return
-		# 无选中 → 添加音符
 		if _selected_channel != CH_ALL:
 			var world_x : float = _box_start.x - gx + _scroll_x
 			var world_y : float = _box_start.y + _scroll_y
 			var tick : int = int(world_x / _px_per_beat * float(tpb))
-			var row_idx : int = int(floor(world_y / ROW_HEIGHT))
+			var row_idx : int = int(floor(world_y / _row_height))
 			var pitch : int = clampi(PITCH_MAX - row_idx, PITCH_MIN, PITCH_MAX)
 			_push_undo()
 			var ev : Dictionary = _make_event(maxi(0, tick), pitch, _selected_channel)
@@ -1483,7 +1764,6 @@ func _finish_box_select(c : Control):
 		c.queue_redraw()
 		return
 
-	# 大框 → 选中框内音符
 	var new_selection : Array[int] = []
 	if _box_additive:
 		new_selection = _selected_indices.duplicate()
@@ -1494,8 +1774,8 @@ func _finish_box_select(c : Control):
 		if _selected_channel != CH_ALL and ec != _selected_channel: continue
 		var ex : float = gx + float(e.tick) / float(tpb) * _px_per_beat - _scroll_x
 		var ew : float = maxf(3.0, float(e.dur) / float(tpb) * _px_per_beat)
-		var ey : float = float(PITCH_MAX - int(e.note)) * ROW_HEIGHT - _scroll_y
-		var note_rect := Rect2(ex, ey, ew, ROW_HEIGHT)
+		var ey : float = float(PITCH_MAX - int(e.note)) * _row_height - _scroll_y
+		var note_rect := Rect2(ex, ey, ew, _row_height)
 		if rect.intersects(note_rect):
 			if not (i in new_selection):
 				new_selection.append(i)
@@ -1624,7 +1904,7 @@ func _perform_drag(mouse_pos : Vector2):
 	var dx : float = mouse_pos.x - _drag_start_mouse.x
 	var dy : float = mouse_pos.y - _drag_start_mouse.y
 	var dtick : int = int(round(dx / _px_per_beat * float(tpb)))
-	var dpitch : int = -int(round(dy / ROW_HEIGHT))
+	var dpitch : int = -int(round(dy / _row_height))
 	for d in _drag_data:
 		var idx : int = int(d.get("idx", -1))
 		if idx < 0 or idx >= _song.events.size(): continue
@@ -1642,25 +1922,41 @@ func _perform_drag(mouse_pos : Vector2):
 # ============================================================
 func _update_note_inspector():
 	if _song == null or _selected_indices.size() == 0:
-		_note_box.visible = false
 		_note_info.text = "（未选中）"
+		_set_note_spins_enabled(false)
 		return
 	if _selected_indices.size() > 1:
-		_note_box.visible = false
 		_note_info.text = "已选中 %d 个" % _selected_indices.size()
+		_set_note_spins_enabled(false)
 		return
 	var idx : int = _selected_indices[0]
 	if idx < 0 or idx >= _song.events.size():
-		_note_box.visible = false
 		_note_info.text = "（索引失效）"
+		_set_note_spins_enabled(false)
 		return
 	var e : Dictionary = _song.events[idx]
-	_note_box.visible = true
 	_note_info.text = "ch%d t%d" % [int(e.ch), int(e.tick)]
+	_set_note_spins_enabled(true)
 	_note_tick.set_value_no_signal(float(e.tick))
 	_note_pitch.set_value_no_signal(float(e.note))
 	_note_vel.set_value_no_signal(float(e.vel))
 	_note_dur.set_value_no_signal(float(e.dur))
+
+
+## 统一控制 4 个 SpinBox 的可编辑 + 视觉
+func _set_note_spins_enabled(on : bool):
+	var spins : Array[SpinBox] = [_note_tick, _note_pitch, _note_vel, _note_dur]
+	for sp in spins:
+		if sp == null: continue
+		sp.editable = on
+		var le := sp.get_line_edit()
+		if le:
+			le.editable = on
+		var btns : Array[Node] = sp.find_children("*", "Button", true, false)
+		for b in btns:
+			if b is Button:
+				(b as Button).disabled = not on
+		sp.modulate = Color(1, 1, 1) if on else Color(0.55, 0.55, 0.60)
 
 
 func _on_note_prop_changed():
@@ -1706,6 +2002,15 @@ func _is_black(p : int) -> bool:
 
 
 func _input(event : InputEvent):
+	# ★ 鼠标左键按下：如果不在输入框上，释放焦点
+	if event is InputEventMouseButton and event.pressed \
+		and event.button_index == MOUSE_BUTTON_LEFT:
+		var fe := get_viewport().gui_get_focus_owner()
+		if fe is LineEdit:
+			var mp := get_viewport().get_mouse_position()
+			if not fe.get_global_rect().has_point(mp):
+				fe.release_focus()
+
 	if not (event is InputEventKey and event.pressed and not event.echo):
 		return
 	var ke : InputEventKey = event
@@ -1765,11 +2070,17 @@ func _input(event : InputEvent):
 			get_viewport().set_input_as_handled()
 		KEY_UP:
 			if _selected_indices.size() > 0:
-				_nudge_selected_pitch(1)
+				if ke.shift_pressed:
+					_nudge_selected_pitch(12)
+				else:
+					_nudge_selected_pitch(1)
 				get_viewport().set_input_as_handled()
 		KEY_DOWN:
 			if _selected_indices.size() > 0:
-				_nudge_selected_pitch(-1)
+				if ke.shift_pressed:
+					_nudge_selected_pitch(-12)
+				else:
+					_nudge_selected_pitch(-1)
 				get_viewport().set_input_as_handled()
 		KEY_LEFT:
 			if _selected_indices.size() > 0:

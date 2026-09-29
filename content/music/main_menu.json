@@ -13,37 +13,37 @@
   "lead": {
    "wave": "pulse_25",
    "env": {
-    "attack": 0.005,
-    "decay": 0.05,
-    "sustain": 0.7,
-    "release": 0.05
+	"attack": 0.005,
+	"decay": 0.05,
+	"sustain": 0.7,
+	"release": 0.05
    }
   },
   "harmony": {
    "wave": "pulse_12",
    "env": {
-    "attack": 0.01,
-    "decay": 0.05,
-    "sustain": 0.6,
-    "release": 0.05
+	"attack": 0.01,
+	"decay": 0.05,
+	"sustain": 0.6,
+	"release": 0.05
    }
   },
   "bass": {
    "wave": "triangle",
    "env": {
-    "attack": 0.01,
-    "decay": 0.1,
-    "sustain": 0.8,
-    "release": 0.1
+	"attack": 0.01,
+	"decay": 0.1,
+	"sustain": 0.8,
+	"release": 0.1
    }
   },
   "drum": {
    "wave": "noise",
    "env": {
-    "attack": 0.001,
-    "decay": 0.05,
-    "sustain": 0.0,
-    "release": 0.02
+	"attack": 0.001,
+	"decay": 0.05,
+	"sustain": 0.0,
+	"release": 0.02
    }
   }
  },
