@@ -897,7 +897,7 @@ func _build_ui():
 	_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
 	add_child(_scroll)
 
-	var canvas_script = load("res://function/tool/Editor/MapLayoutCanvas.gd")
+	var canvas_script = load("res://function/tool/editor/MapLayoutCanvas.gd")
 	_canvas = Control.new()
 	_canvas.set_script(canvas_script)
 	_canvas.editor = self

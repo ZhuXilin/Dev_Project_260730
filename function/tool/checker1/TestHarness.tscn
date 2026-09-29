@@ -1,6 +1,6 @@
 [gd_scene format=3 uid="uid://dmji7n6utrcoj"]
 
-[ext_resource type="Script" uid="uid://b3dsehd376ygf" path="res://function/tool/Checker/TestHarness.gd" id="1"]
+[ext_resource type="Script" uid="uid://b3dsehd376ygf" path="res://function/tool/checker1/TestHarness.gd" id="1"]
 [ext_resource type="StyleBox" uid="uid://6qbsaxkfwg3o" path="res://content/resource/stylebox/8bit_style_box_flat.tres" id="2"]
 
 [node name="TestHarness" type="CanvasLayer" unique_id=-294967295]

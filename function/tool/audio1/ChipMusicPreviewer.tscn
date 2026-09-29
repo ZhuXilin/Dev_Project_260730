@@ -1,6 +1,6 @@
 [gd_scene format=3 uid="uid://b8jm0xxe0lvix"]
 
-[ext_resource type="Script" uid="uid://bvf1ixeuonu1p" path="res://function/tool/Audio/ChipMusicPreviewer.gd" id="1_o50qw"]
+[ext_resource type="Script" uid="uid://bvf1ixeuonu1p" path="res://function/tool/audio1/ChipMusicPreviewer.gd" id="1_o50qw"]
 
 [node name="ChipMusicPreviewer" type="Control" unique_id=1241271761]
 layout_mode = 3
