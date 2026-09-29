@@ -70,6 +70,7 @@ var _non_combat_handler : NonCombatHandler = null
 var _function_handler : FunctionHandler = null
 var _cursor_controller : CursorController = null
 var _panel_manager : PanelManager = null
+var _ui_binder : UIBinder = null
 
 # ---- 状态 ----
 var map_grid_size : Vector2i = MapConst.DEFAULT_MAP_SIZE
@@ -121,26 +122,19 @@ func _ready():
 	_function_handler = FunctionHandler.new(self)
 	add_child(_function_handler)
 
+	_ui_binder = UIBinder.new(self)
+	add_child(_ui_binder)
+
+	# ---- UnitManager 信号（非 UI）----
 	if not UnitManager.unit_removed.is_connected(_on_unit_removed_death):
 		UnitManager.unit_removed.connect(_on_unit_removed_death)
-
-	# ---- 面板按钮连接（走 PanelManager）----
-	setting_btn.pressed.connect(_panel_manager.on_setting_btn_pressed)
-	equip_btn.pressed.connect(_on_equip_btn_pressed)
-	item_list_btn.pressed.connect(_panel_manager.on_item_list_btn_pressed)
-
-	if not SignalBus.non_combat_complete.is_connected(_non_combat_handler.on_non_combat_complete):
-		SignalBus.non_combat_complete.connect(_non_combat_handler.on_non_combat_complete)
-
 	if not UnitManager.unit_removed.is_connected(_on_unit_removed_for_vengeance):
 		UnitManager.unit_removed.connect(_on_unit_removed_for_vengeance)
 
+	# ---- HUD 初始化 ----
 	if end_turn_button:
 		end_turn_button.text = "鼠标中键结束回合"
 		end_turn_button.visible = not is_non_combat_mode
-
-	if relic_view_btn:
-		relic_view_btn.pressed.connect(_panel_manager.on_relic_view_btn_pressed)
 
 	if _initialized:
 		return
@@ -150,13 +144,12 @@ func _ready():
 	team_view_panel.visible = false
 	item_list_panel.visible = false
 	setting_menu_panel.visible = false
-	team_view_btn.pressed.connect(_panel_manager.on_team_view_btn_pressed)
 
 	if victory_panel:
 		victory_panel.visible = false
 
-	_initialize_managers()
-	_connect_signals()
+	# ---- ★ 一次绑定所有 UI 信号（Managers + 按钮 + SignalBus + Animator）----
+	_ui_binder.bind_all()
 
 	if turn_overlay:
 		turn_overlay.modulate = Color(1, 1, 1, 0)
@@ -213,14 +206,17 @@ func _ready():
 		highlight_manager.clear_highlight()
 	_cursor_controller.clear_attack_indicator()
 
+	# ---- MenuBlocker ----
 	if menu_blocker:
 		menu_blocker.mouse_filter = Control.MOUSE_FILTER_STOP
 		menu_blocker.visible = false
-		menu_blocker.gui_input.connect(_on_menu_blocker_clicked)
+		if not menu_blocker.gui_input.is_connected(_on_menu_blocker_clicked):
+			menu_blocker.gui_input.connect(_on_menu_blocker_clicked)
 		menu_blocker.size = Vector2(map_grid_size.x * MapConst.CELL_SIZE, map_grid_size.y * MapConst.CELL_SIZE)
 		menu_blocker.position = Vector2.ZERO
 		menu_blocker.z_index = UIConst.MENU_BLOCKER_Z_INDEX
 
+	# ---- 非战斗 / 战斗分支 ----
 	var is_non_combat = GameState.current_map_data and GameState.current_map_data.node_type in [
 		MapNode.NodeType.SHOP,
 		MapNode.NodeType.TREASURE,
@@ -381,129 +377,6 @@ func _process(_delta):
 
 func _physics_process(_delta):
 	_cursor_controller.update_cursor_and_mouse()
-
-
-# ===================== 初始化管理器 =====================
-func _initialize_managers():
-	ui_manager.initialize({
-		"action_menu": action_menu,
-		"action_panel": $ActionMenu/ActionPanel,
-		"move_btn": move_btn,
-		"attack_btn": attack_btn,
-		"wait_btn": wait_btn,
-		"equip_btn": equip_btn,
-		"equip_menu": $ActionMenu/EquipMenu,
-		"victory_panel": victory_panel,
-		"victory_label": victory_label,
-		"victory_button": victory_button,
-	})
-	highlight_manager.initialize(self)
-	turnlayer_manager.initialize(turn_overlay)
-	InputManager.ui_manager = ui_manager
-
-
-func _connect_signals():
-	if move_btn.pressed.is_connected(_on_move_btn_pressed):
-		move_btn.pressed.disconnect(_on_move_btn_pressed)
-	if attack_btn.pressed.is_connected(_on_attack_btn_pressed):
-		attack_btn.pressed.disconnect(_on_attack_btn_pressed)
-	if wait_btn.pressed.is_connected(_on_wait_btn_pressed):
-		wait_btn.pressed.disconnect(_on_wait_btn_pressed)
-
-	move_btn.pressed.connect(_on_move_btn_pressed)
-	attack_btn.pressed.connect(_on_attack_btn_pressed)
-	wait_btn.pressed.connect(_on_wait_btn_pressed)
-
-	if SignalBus.request_highlight.is_connected(_on_highlight_request):
-		SignalBus.request_highlight.disconnect(_on_highlight_request)
-	SignalBus.request_highlight.connect(_on_highlight_request)
-
-	if SignalBus.request_clear_highlight.is_connected(highlight_manager.clear_highlight):
-		SignalBus.request_clear_highlight.disconnect(highlight_manager.clear_highlight)
-	SignalBus.request_clear_highlight.connect(highlight_manager.clear_highlight)
-
-	if SignalBus.request_move_unit.is_connected(_on_instant_move):
-		SignalBus.request_move_unit.disconnect(_on_instant_move)
-	SignalBus.request_move_unit.connect(_on_instant_move)
-
-	if SignalBus.request_move_along_path.is_connected(_on_request_move_along_path):
-		SignalBus.request_move_along_path.disconnect(_on_request_move_along_path)
-	SignalBus.request_move_along_path.connect(_on_request_move_along_path)
-
-	if SignalBus.request_ai_move_along_path.is_connected(_on_ai_move_along_path):
-		SignalBus.request_ai_move_along_path.disconnect(_on_ai_move_along_path)
-	SignalBus.request_ai_move_along_path.connect(_on_ai_move_along_path)
-
-	if SignalBus.request_show_menu.is_connected(_on_request_show_menu):
-		SignalBus.request_show_menu.disconnect(_on_request_show_menu)
-	SignalBus.request_show_menu.connect(_on_request_show_menu)
-
-	if SignalBus.request_hide_menu.is_connected(ui_manager.hide_menu):
-		SignalBus.request_hide_menu.disconnect(ui_manager.hide_menu)
-	SignalBus.request_hide_menu.connect(ui_manager.hide_menu)
-
-	if SignalBus.request_show_victory.is_connected(_on_request_show_victory):
-		SignalBus.request_show_victory.disconnect(_on_request_show_victory)
-	SignalBus.request_show_victory.connect(_on_request_show_victory)
-
-	if SignalBus.turn_changed.is_connected(_on_turn_changed):
-		SignalBus.turn_changed.disconnect(_on_turn_changed)
-	SignalBus.turn_changed.connect(_on_turn_changed)
-
-	# ★ 攻击指示器：连到 CursorController
-	if SignalBus.request_highlight_unit.is_connected(_cursor_controller.show_attack_indicator):
-		SignalBus.request_highlight_unit.disconnect(_cursor_controller.show_attack_indicator)
-	SignalBus.request_highlight_unit.connect(_cursor_controller.show_attack_indicator)
-
-	if SignalBus.request_clear_highlight_unit.is_connected(_cursor_controller.clear_attack_indicator):
-		SignalBus.request_clear_highlight_unit.disconnect(_cursor_controller.clear_attack_indicator)
-	SignalBus.request_clear_highlight_unit.connect(_cursor_controller.clear_attack_indicator)
-
-	if SignalBus.request_screen_shake.is_connected(_on_request_screen_shake):
-		SignalBus.request_screen_shake.disconnect(_on_request_screen_shake)
-	SignalBus.request_screen_shake.connect(_on_request_screen_shake)
-
-	if SignalBus.request_damage_popup.is_connected(_on_request_damage_popup):
-		SignalBus.request_damage_popup.disconnect(_on_request_damage_popup)
-	SignalBus.request_damage_popup.connect(_on_request_damage_popup)
-
-	if SignalBus.request_show_info.is_connected(_on_request_show_info):
-		SignalBus.request_show_info.disconnect(_on_request_show_info)
-	SignalBus.request_show_info.connect(_on_request_show_info)
-
-	if SignalBus.request_hide_info.is_connected(_on_request_hide_info):
-		SignalBus.request_hide_info.disconnect(_on_request_hide_info)
-	SignalBus.request_hide_info.connect(_on_request_hide_info)
-
-	if SignalBus.request_show_setting.is_connected(_on_request_show_setting):
-		SignalBus.request_show_setting.disconnect(_on_request_show_setting)
-	SignalBus.request_show_setting.connect(_on_request_show_setting)
-
-	if SignalBus.request_hide_setting.is_connected(_on_request_hide_setting):
-		SignalBus.request_hide_setting.disconnect(_on_request_hide_setting)
-	SignalBus.request_hide_setting.connect(_on_request_hide_setting)
-
-	if SignalBus.speed_changed.is_connected(_on_speed_changed):
-		SignalBus.speed_changed.disconnect(_on_speed_changed)
-	SignalBus.speed_changed.connect(_on_speed_changed)
-
-	if SignalBus.request_show_enemy_preview.is_connected(_on_show_enemy_preview):
-		SignalBus.request_show_enemy_preview.disconnect(_on_show_enemy_preview)
-	SignalBus.request_show_enemy_preview.connect(_on_show_enemy_preview)
-
-	if SignalBus.request_dialogue_check.is_connected(_function_handler.on_dialogue_check):
-		SignalBus.request_dialogue_check.disconnect(_function_handler.on_dialogue_check)
-	SignalBus.request_dialogue_check.connect(_function_handler.on_dialogue_check)
-
-	_on_speed_changed(Globals.game_speed)
-
-	if movement_animator.movement_finished.is_connected(_on_player_movement_finished):
-		movement_animator.movement_finished.disconnect(_on_player_movement_finished)
-	movement_animator.movement_finished.connect(_on_player_movement_finished)
-
-	if movement_animator.ai_movement_finished.is_connected(_on_ai_movement_finished):
-		movement_animator.ai_movement_finished.disconnect(_on_ai_movement_finished)
-	movement_animator.ai_movement_finished.connect(_on_ai_movement_finished)
 
 
 # ===================== 信号回调 =====================
@@ -1369,7 +1242,7 @@ func _on_retry_battle():
 	get_tree().change_scene_to_file(Config.PATHS.MAP_SCENE)
 
 
-# ===================== 结束回合 / 光标刷新 =====================
+# ===================== 结束回合 =====================
 func _update_end_turn_button_visibility():
 	if not end_turn_button:
 		return
@@ -1437,6 +1310,17 @@ func _is_any_ui_active() -> bool:
 
 func _on_back_camp_pressed():
 	GameState.show_abandon_confirmation(self)
+
+
+# ============================================================
+#  InputManager 右键回调的转发（避免破坏对外接口）
+# ============================================================
+func _on_team_view_btn_pressed():
+	_panel_manager.on_team_view_btn_pressed()
+
+
+func _on_item_list_btn_pressed():
+	_panel_manager.on_item_list_btn_pressed()
 
 
 # ============================================================
