@@ -1,6 +1,6 @@
 [gd_scene format=3 uid="uid://b8jm0xxe0lvix"]
 
-[ext_resource type="Script" uid="uid://bvf1ixeuonu1p" path="res://function/tool/audio1/ChipMusicPreviewer.gd" id="1_o50qw"]
+[ext_resource type="Script" uid="uid://bvf1ixeuonu1p" path="res://function/tool/audio/ChipMusicPreviewer.gd" id="1_5yanq"]
 
 [node name="ChipMusicPreviewer" type="Control" unique_id=1241271761]
 layout_mode = 3
@@ -9,4 +9,4 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-script = ExtResource("1_o50qw")
+script = ExtResource("1_5yanq")

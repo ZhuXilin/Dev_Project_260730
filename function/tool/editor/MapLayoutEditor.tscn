@@ -1,6 +1,6 @@
 [gd_scene format=3 uid="uid://ndiugv2xqqek"]
 
-[ext_resource type="Script" uid="uid://hcaqv6rm26cw" path="res://function/tool/editor1/MapLayoutEditor.gd" id="1_8hkaf"]
+[ext_resource type="Script" uid="uid://hcaqv6rm26cw" path="res://function/tool/editor/MapLayoutEditor.gd" id="1_j6i0e"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_mofld"]
 content_margin_left = 4.0
@@ -22,4 +22,4 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 theme = SubResource("Theme_t4dea")
-script = ExtResource("1_8hkaf")
+script = ExtResource("1_j6i0e")

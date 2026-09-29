@@ -1,11 +1,11 @@
 [gd_scene format=3 uid="uid://dmji7n6utrcoj"]
 
-[ext_resource type="Script" uid="uid://b3dsehd376ygf" path="res://function/tool/checker1/TestHarness.gd" id="1"]
-[ext_resource type="StyleBox" uid="uid://6qbsaxkfwg3o" path="res://content/resource/stylebox/8bit_style_box_flat.tres" id="2"]
+[ext_resource type="Script" uid="uid://b3dsehd376ygf" path="res://function/tool/checker/TestHarness.gd" id="1_2igo0"]
+[ext_resource type="StyleBox" uid="uid://6qbsaxkfwg3o" path="res://content/resource/stylebox/8bit_style_box_flat.tres" id="2_bubfl"]
 
 [node name="TestHarness" type="CanvasLayer" unique_id=-294967295]
 layer = 200
-script = ExtResource("1")
+script = ExtResource("1_2igo0")
 
 [node name="Background" type="ColorRect" parent="." unique_id=-294967294]
 anchors_preset = 15
@@ -25,7 +25,7 @@ offset_right = -8.0
 offset_bottom = -6.0
 grow_horizontal = 2
 grow_vertical = 2
-theme_override_styles/panel = ExtResource("2")
+theme_override_styles/panel = ExtResource("2_bubfl")
 
 [node name="VBox" type="VBoxContainer" parent="Panel" unique_id=-294967292]
 layout_mode = 1

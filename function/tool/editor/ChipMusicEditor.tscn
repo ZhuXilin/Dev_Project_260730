@@ -1,6 +1,6 @@
 [gd_scene format=3 uid="uid://c4edit0ch1p8m"]
 
-[ext_resource type="Script" uid="uid://cq7b7jnmcnk74" path="res://function/tool/editor1/ChipMusicEditor.gd" id="1_qltpi"]
+[ext_resource type="Script" uid="uid://cq7b7jnmcnk74" path="res://function/tool/editor/ChipMusicEditor.gd" id="1_r63hb"]
 
 [node name="ChipMusicEditor" type="Control" unique_id=1520393578]
 layout_mode = 3
@@ -9,4 +9,4 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-script = ExtResource("1_qltpi")
+script = ExtResource("1_r63hb")
