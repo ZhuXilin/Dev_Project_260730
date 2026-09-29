@@ -64,26 +64,24 @@ const RARE_DROP_CHANCE : Dictionary = {
 	MapNode.NodeType.BOSS: 0.80,
 }
 
-# ---- 拆分模块（第一批）----
+# ---- 拆分模块 ----
 var _map_loader : MapLoader = null
 var _non_combat_handler : NonCombatHandler = null
 var _function_handler : FunctionHandler = null
+var _cursor_controller : CursorController = null
+var _panel_manager : PanelManager = null
 
 # ---- 状态 ----
 var map_grid_size : Vector2i = MapConst.DEFAULT_MAP_SIZE
 var _initialized : bool = false
-var _viewport_scale : float = 1.0
 var _battle_start_event_id : String = ""
-var _attack_indicator : TextureRect = null
 var map_functions : Dictionary = {}
 var _turn_changed_locked : bool = false
 var is_non_combat_mode: bool = false
 var non_combat_back_button: Button = null
 var current_node_type: int = MapNode.NodeType.NORMAL
 var _victory_processed: bool = false
-var _detail_popup = null
 var _is_reward_ui_active: bool = false
-var _is_showing_relics: bool = false
 
 
 func _ready():
@@ -111,6 +109,12 @@ func _ready():
 			print("警告：节点 '", node_name, "' 未找到！")
 
 	# ---- 拆分模块初始化 ----
+	_cursor_controller = CursorController.new(self)
+	add_child(_cursor_controller)
+	_panel_manager = PanelManager.new(self)
+	add_child(_panel_manager)
+	_panel_manager.init()
+
 	_map_loader = MapLoader.new(self)
 	_non_combat_handler = NonCombatHandler.new(self)
 	add_child(_non_combat_handler)
@@ -120,9 +124,10 @@ func _ready():
 	if not UnitManager.unit_removed.is_connected(_on_unit_removed_death):
 		UnitManager.unit_removed.connect(_on_unit_removed_death)
 
-	setting_btn.pressed.connect(_on_setting_btn_pressed)
+	# ---- 面板按钮连接（走 PanelManager）----
+	setting_btn.pressed.connect(_panel_manager.on_setting_btn_pressed)
 	equip_btn.pressed.connect(_on_equip_btn_pressed)
-	item_list_btn.pressed.connect(_on_item_list_btn_pressed)
+	item_list_btn.pressed.connect(_panel_manager.on_item_list_btn_pressed)
 
 	if not SignalBus.non_combat_complete.is_connected(_non_combat_handler.on_non_combat_complete):
 		SignalBus.non_combat_complete.connect(_non_combat_handler.on_non_combat_complete)
@@ -130,37 +135,22 @@ func _ready():
 	if not UnitManager.unit_removed.is_connected(_on_unit_removed_for_vengeance):
 		UnitManager.unit_removed.connect(_on_unit_removed_for_vengeance)
 
-	_detail_popup = load(Config.PATHS.ITEM_DETAIL_POPUP).instantiate()
-	add_child(_detail_popup)
-	_detail_popup.visible = false
-
 	if end_turn_button:
 		end_turn_button.text = "鼠标中键结束回合"
 		end_turn_button.visible = not is_non_combat_mode
 
 	if relic_view_btn:
-		relic_view_btn.pressed.connect(_on_relic_view_btn_pressed)
+		relic_view_btn.pressed.connect(_panel_manager.on_relic_view_btn_pressed)
 
 	if _initialized:
 		return
 	_initialized = true
-	_init_cursor()
+	_cursor_controller.init_cursor()
 
 	team_view_panel.visible = false
 	item_list_panel.visible = false
 	setting_menu_panel.visible = false
-	team_view_btn.pressed.connect(_on_team_view_btn_pressed)
-
-	_attack_indicator = TextureRect.new()
-	if cursor and cursor.texture:
-		_attack_indicator.texture = cursor.texture
-	else:
-		print("警告：cursor.texture 无效，使用默认纹理")
-	_attack_indicator.size = Vector2(MapConst.CELL_SIZE, MapConst.CELL_SIZE)
-	_attack_indicator.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_attack_indicator.z_index = UIConst.ATTACK_INDICATOR_Z_INDEX
-	_attack_indicator.visible = false
-	add_child(_attack_indicator)
+	team_view_btn.pressed.connect(_panel_manager.on_team_view_btn_pressed)
 
 	if victory_panel:
 		victory_panel.visible = false
@@ -221,7 +211,7 @@ func _ready():
 
 	if highlight_manager:
 		highlight_manager.clear_highlight()
-	_on_clear_highlight_unit()
+	_cursor_controller.clear_attack_indicator()
 
 	if menu_blocker:
 		menu_blocker.mouse_filter = Control.MOUSE_FILTER_STOP
@@ -250,7 +240,7 @@ func _ready():
 			print("BackCampBtn 已连接（非战斗）")
 
 		TurnManager.start_turn(TurnManager.Team.PLAYER)
-		_update_relic_icons()
+		_panel_manager.update_relic_icons()
 		return
 
 	if _battle_start_event_id != "":
@@ -289,7 +279,7 @@ func _ready():
 		print("BackCampBtn 已连接")
 	InputManager.ui_manager = ui_manager
 
-	_update_relic_icons()
+	_panel_manager.update_relic_icons()
 
 	_victory_processed = false
 	_is_reward_ui_active = false
@@ -312,7 +302,6 @@ func _ready():
 
 
 func _on_unit_removed_for_vengeance(unit: Unit, team: int):
-	# 复仇：玩家单位死亡时，其他玩家单位攻击力 +30%（每单位每场只触发一次）
 	if team != 0:
 		return
 	if not is_instance_valid(unit):
@@ -335,13 +324,12 @@ func _on_unit_removed_for_vengeance(unit: Unit, team: int):
 
 func _on_unit_removed_death(unit: Unit, team: int):
 	if team != 0:
-		return   # 只处理玩家单位
+		return
 	if not is_instance_valid(unit):
 		return
 	if unit.hit_points > 0:
-		return   # 非死亡移除
+		return
 
-	# 同步到 GameState.party
 	for ud in GameState.party:
 		if ud.unit_name == unit.unit_stats.unit_name and ud.display_name == unit.unit_stats.display_name:
 			ud.is_dead = true
@@ -353,9 +341,8 @@ func _on_unit_removed_death(unit: Unit, team: int):
 func _exit_tree():
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	cursor.visible = false
-	if _attack_indicator:
-		_attack_indicator.queue_free()
-		_attack_indicator = null
+	if _cursor_controller:
+		_cursor_controller.cleanup()
 	if move_btn.pressed.is_connected(_on_move_btn_pressed):
 		move_btn.pressed.disconnect(_on_move_btn_pressed)
 	if attack_btn.pressed.is_connected(_on_attack_btn_pressed):
@@ -393,30 +380,7 @@ func _process(_delta):
 
 
 func _physics_process(_delta):
-	_update_cursor_and_mouse()
-
-
-# ===================== 光标初始化 =====================
-func _init_cursor():
-	Input.mouse_mode = Input.MOUSE_MODE_HIDDEN
-	cursor.visible = true
-	if cursor.texture == null:
-		var path = Config.PATHS.CURSOR_TEXTURE
-		if ResourceLoader.exists(path):
-			cursor.texture = load(path)
-		else:
-			push_error("光标图片不存在：", path)
-	_viewport_scale = _get_viewport_scale()
-	var target_size = round(MapConst.CELL_SIZE * _viewport_scale)
-	cursor.size = Vector2(target_size, target_size)
-	cursor.mouse_filter = Control.MOUSE_FILTER_IGNORE
-
-
-func _get_viewport_scale() -> float:
-	var viewport = get_viewport()
-	var canvas_transform = viewport.get_canvas_transform()
-	var scale_value = canvas_transform.get_scale()
-	return scale_value.x
+	_cursor_controller.update_cursor_and_mouse()
 
 
 # ===================== 初始化管理器 =====================
@@ -486,13 +450,14 @@ func _connect_signals():
 		SignalBus.turn_changed.disconnect(_on_turn_changed)
 	SignalBus.turn_changed.connect(_on_turn_changed)
 
-	if SignalBus.request_highlight_unit.is_connected(_on_highlight_unit):
-		SignalBus.request_highlight_unit.disconnect(_on_highlight_unit)
-	SignalBus.request_highlight_unit.connect(_on_highlight_unit)
+	# ★ 攻击指示器：连到 CursorController
+	if SignalBus.request_highlight_unit.is_connected(_cursor_controller.show_attack_indicator):
+		SignalBus.request_highlight_unit.disconnect(_cursor_controller.show_attack_indicator)
+	SignalBus.request_highlight_unit.connect(_cursor_controller.show_attack_indicator)
 
-	if SignalBus.request_clear_highlight_unit.is_connected(_on_clear_highlight_unit):
-		SignalBus.request_clear_highlight_unit.disconnect(_on_clear_highlight_unit)
-	SignalBus.request_clear_highlight_unit.connect(_on_clear_highlight_unit)
+	if SignalBus.request_clear_highlight_unit.is_connected(_cursor_controller.clear_attack_indicator):
+		SignalBus.request_clear_highlight_unit.disconnect(_cursor_controller.clear_attack_indicator)
+	SignalBus.request_clear_highlight_unit.connect(_cursor_controller.clear_attack_indicator)
 
 	if SignalBus.request_screen_shake.is_connected(_on_request_screen_shake):
 		SignalBus.request_screen_shake.disconnect(_on_request_screen_shake)
@@ -526,7 +491,6 @@ func _connect_signals():
 		SignalBus.request_show_enemy_preview.disconnect(_on_show_enemy_preview)
 	SignalBus.request_show_enemy_preview.connect(_on_show_enemy_preview)
 
-	# ★ 待机触发事件（搬到 FunctionHandler）
 	if SignalBus.request_dialogue_check.is_connected(_function_handler.on_dialogue_check):
 		SignalBus.request_dialogue_check.disconnect(_function_handler.on_dialogue_check)
 	SignalBus.request_dialogue_check.connect(_function_handler.on_dialogue_check)
@@ -652,7 +616,7 @@ func _on_request_show_victory(winning_team: int):
 		camera_controller.cancel_smooth_move()
 	if is_instance_valid(highlight_manager):
 		highlight_manager.clear_highlight()
-	_on_clear_highlight_unit()
+	_cursor_controller.clear_attack_indicator()
 	TurnManager.clear_ai_state()
 
 	if is_instance_valid(ui_manager):
@@ -691,9 +655,6 @@ func _on_request_show_victory(winning_team: int):
 			player_units.append(unit)
 	GameState.sync_units_from_battlefield(player_units)
 
-	# ============================================================
-	# 地图模式
-	# ============================================================
 	if Globals.is_map_mode:
 		print("当前地图节点类型: ", current_node_type, " 是否为BOSS: ", is_boss)
 
@@ -723,7 +684,6 @@ func _on_request_show_victory(winning_team: int):
 				EconomyManager.add_temp_soul(soul_gain)
 				EconomyManager.apply_material_reward(materials)
 
-				# ★ 稀有掉落 roll
 				GameState.current_reward_rare_datas.clear()
 				var rare_drop : Dictionary = _roll_rare_drop_for_node(current_node_type)
 				if not rare_drop.is_empty():
@@ -770,9 +730,6 @@ func _on_request_show_victory(winning_team: int):
 				tree.change_scene_to_file(Config.PATHS.UNIT_SELECT_UI)
 		return
 
-	# ============================================================
-	# 非地图模式
-	# ============================================================
 	print("非地图模式（旧版流程）")
 	if is_win and is_last:
 		MusicManager.play_win_game_music()
@@ -886,7 +843,7 @@ func _handle_turn_change_async(team: int):
 				MusicManager.play_music(music_stream)
 
 	await _function_handler.apply_map_functions(team)
-	_update_relic_icons()
+	_panel_manager.update_relic_icons()
 	Globals.is_transitioning = false
 	_turn_changed_locked = false
 
@@ -901,22 +858,6 @@ func _get_center_position() -> Vector2:
 	var viewport_size = get_viewport().get_visible_rect().size
 	var center = camera_controller.map_rect.position + camera_controller.map_rect.size / 2
 	return center - viewport_size / 2
-
-
-func _on_highlight_unit(unit: Unit):
-	if not is_instance_valid(unit) or not _attack_indicator:
-		return
-	_on_clear_highlight_unit()
-	var target_size = MapConst.CELL_SIZE * _viewport_scale
-	_attack_indicator.size = Vector2(target_size, target_size)
-	var world_pos = grid_to_world(unit.grid_cell)
-	_attack_indicator.position = world_pos - _attack_indicator.size / 2
-	_attack_indicator.visible = true
-
-
-func _on_clear_highlight_unit():
-	if _attack_indicator:
-		_attack_indicator.visible = false
 
 
 # ===================== 输入处理 =====================
@@ -1183,152 +1124,6 @@ func _on_request_hide_setting():
 	_update_end_turn_button_visibility()
 
 
-func _on_team_view_btn_pressed():
-	if setting_menu_panel.visible:
-		setting_menu_panel.visible = false
-	if item_list_panel.visible:
-		item_list_panel.visible = false
-	team_view_panel.visible = not team_view_panel.visible
-	if team_view_panel.visible:
-		_refresh_team_view()
-
-
-func _refresh_team_view():
-	for child in team_view_container.get_children():
-		child.queue_free()
-
-	var units = []
-	for unit in UnitManager.unit_list:
-		if unit.unit_stats.team_id == 0 and unit.hit_points > 0:
-			units.append(unit)
-
-	if units.is_empty():
-		var label = Label.new()
-		label.text = "没有存活的我方单位"
-		label.add_theme_font_size_override("font_size", 6)
-		team_view_container.add_child(label)
-	else:
-		units.sort_custom(func(a, b):
-			if a.grid_cell.y != b.grid_cell.y:
-				return a.grid_cell.y < b.grid_cell.y
-			return a.grid_cell.x < b.grid_cell.x
-		)
-
-		for unit in units:
-			var btn = Button.new()
-			var icon_texture: Texture2D = null
-			if unit.animated_sprite and unit.animated_sprite.sprite_frames:
-				var frames = unit.animated_sprite.sprite_frames
-				var anim = unit.current_anim if unit.current_anim else "idle"
-				if frames.has_animation(anim):
-					icon_texture = frames.get_frame_texture(anim, 0)
-				elif frames.has_animation("idle"):
-					icon_texture = frames.get_frame_texture("idle", 0)
-			if icon_texture:
-				var image = icon_texture.get_image()
-				image.resize(16, 16, Image.INTERPOLATE_NEAREST)
-				btn.icon = ImageTexture.create_from_image(image)
-				btn.add_theme_constant_override("hseparation", 4)
-
-			var status = ""
-			var color = Color.WHITE
-			if unit.has_attacked:
-				status = "   已攻击"
-				color = Color(0.7, 0.4, 0.2, 1.0)
-			elif not unit.can_act_this_turn:
-				status = "   已待机"
-				color = Color(0.5, 0.5, 0.5)
-			else:
-				status = "   可行动"
-
-			var full_name = UnitDataManager.get_display_name_from_unit(unit)
-			btn.text = full_name + " HP:" + str(unit.hit_points) + "/" + str(unit.unit_stats.max_hp) + status
-			var talent_line = _format_unit_talents(unit)
-			if talent_line != "":
-				btn.text += "  [ " + talent_line + " ]"
-			btn.add_theme_font_size_override("font_size", 6)
-			if color != Color.WHITE:
-				btn.add_theme_color_override("font_color", color)
-			btn.pressed.connect(_on_team_member_selected.bind(unit))
-			team_view_container.add_child(btn)
-
-	var parent = team_view_container.get_parent()
-	var scroll = parent as ScrollContainer
-	if not scroll:
-		scroll = _create_scroll_container(team_view_container, parent, "TeamViewScroll")
-	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-
-	await get_tree().process_frame
-	var content_height = team_view_container.get_minimum_size().y
-	var viewport_height = get_viewport().get_visible_rect().size.y
-	var max_height = viewport_height * 0.8
-	var panel_height = clamp(content_height + 16, 20, max_height)
-	team_view_panel.size.y = panel_height
-
-
-func _format_unit_talents(unit: Unit) -> String:
-	var parts: Array = []
-	for inst in unit.talent_slots:
-		if not inst or not inst.is_active:
-			continue
-		var data = TalentManager.get_talent_data(inst.talent_id)
-		if not data:
-			continue
-		var status := ""
-
-		if inst.talent_id == "vengeance":
-			status = ""
-		elif data.is_active_skill:
-			if inst.is_ready:
-				status = "(就绪★)"
-			else:
-				status = "(冷%d)" % inst.cooldown_remaining
-		elif inst.cooldown_remaining >= 9999:
-			status = "(R)"
-		elif inst.cooldown_remaining > 0:
-			status = "(冷%d)" % inst.cooldown_remaining
-		elif inst.is_ready:
-			status = "(就绪)"
-		else:
-			var remain = max(0, data.accumulation_threshold - inst.current_stack)
-			status = "(%d)" % remain
-
-		if status == "":
-			parts.append(data.display_name)
-		else:
-			parts.append(data.display_name + status)
-	return " ".join(parts)
-
-
-func _on_team_member_selected(unit: Unit):
-	setting_menu_panel.visible = false
-	team_view_panel.visible = false
-	SignalBus.request_hide_setting.emit()
-	SignalBus.request_hide_info.emit()
-
-	InputManager.selected_unit = unit
-	if unit.can_act_this_turn and unit.hit_points > 0:
-		InputManager.interaction_phase = InputManager.Phase.MENU
-		SignalBus.request_show_menu.emit(unit)
-	else:
-		InputManager.interaction_phase = InputManager.Phase.IDLE
-
-	SignalBus.request_show_info.emit(unit)
-	SoundManager.play_select_sound()
-	SignalBus.request_clear_highlight.emit()
-	camera_controller.smooth_move_to(grid_to_world(unit.grid_cell), 0.3, true)
-	InputManager.current_highlight_cells = {}
-	InputManager.current_move_attack_targets = {}
-
-
-func _on_setting_btn_pressed():
-	if team_view_panel.visible:
-		team_view_panel.visible = false
-	if item_list_panel.visible:
-		item_list_panel.visible = false
-	setting_menu_panel.visible = not setting_menu_panel.visible
-
-
 func _sync_speed_slider(new_val: int):
 	if setting_menu_panel.visible:
 		var menu = setting_menu_panel as SettingMenu
@@ -1350,146 +1145,8 @@ func _on_show_enemy_preview(move_cells: Dictionary, attack_cells: Dictionary, at
 	highlight_manager.show_enemy_preview(move_cells, attack_cells, attack_color)
 
 
-# ===================== 道具列表 =====================
-func _refresh_item_list():
-	item_list_panel.size = Vector2(120, 20)
-	for child in item_list_container.get_children():
-		child.queue_free()
-
-	item_list_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	item_list_container.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-
-	var parent = item_list_container.get_parent()
-	var scroll = parent as ScrollContainer
-	if not scroll:
-		scroll = _create_scroll_container(item_list_container, parent, "ItemListScroll")
-	scroll.size = item_list_panel.size
-	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
-
-	var entries = []
-
-	for unit in UnitManager.unit_list:
-		if unit.unit_stats.team_id == 0 and unit.hit_points > 0:
-			var unit_name = unit.unit_stats.display_name if unit.unit_stats.display_name != "" else unit.unit_stats.unit_name
-
-			var weapon = unit.get_weapon()
-			if weapon:
-				var data = ItemManager.get_item_data(weapon.item_id)
-				if data:
-					var type_display = ""
-					if data.category != "":
-						type_display = UnitDataManager.get_weapon_category_display(data.category)
-					else:
-						type_display = _get_type_display_name(data.type)
-					entries.append({
-						"item_name": data.name,
-						"type_display": type_display,
-						"source": unit_name,
-						"slot": "武器",
-						"is_equipped": true,
-						"data": data
-					})
-
-			var armor_slots = unit.get_armor_slots()
-			for i in range(armor_slots.size()):
-				var inst = armor_slots[i]
-				if inst:
-					var data = ItemManager.get_item_data(inst.item_id)
-					if data:
-						entries.append({
-							"item_name": data.name,
-							"type_display": "",
-							"source": unit_name,
-							"slot": "防具槽" + str(i+1),
-							"is_equipped": true,
-							"data": data
-						})
-
-	if entries.is_empty():
-		var label = Label.new()
-		label.text = "没有装备"
-		label.add_theme_font_size_override("font_size", 6)
-		item_list_container.add_child(label)
-	else:
-		entries.sort_custom(func(a, b):
-			if a["source"] != b["source"]:
-				return a["source"] < b["source"]
-			return a["slot"] < b["slot"]
-		)
-
-		for entry in entries:
-			var btn = Button.new()
-			var data = entry["data"]
-			if data.icon:
-				btn.icon = data.icon
-
-			var equipped_str = " [已装备]" if entry["is_equipped"] else ""
-			var type_str = "[" + entry["type_display"] + "]" if entry["type_display"] != "" else ""
-			btn.text = entry["item_name"] + " " + type_str + equipped_str + " (" + entry["source"] + " " + entry["slot"] + ")"
-			btn.add_theme_font_size_override("font_size", 6)
-			btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-			btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
-			btn.clip_text = true
-			btn.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-			btn.disabled = true
-
-			btn.mouse_entered.connect(_on_item_hover_entered.bind(entry["data"].id))
-			btn.mouse_exited.connect(_on_item_hover_exited)
-
-			item_list_container.add_child(btn)
-
-	await get_tree().process_frame
-
-	var viewport_size = get_viewport().get_visible_rect().size
-	var max_panel_width = viewport_size.x * 0.4
-	var min_panel_width = 120
-	var content_width = min_panel_width
-	for child in item_list_container.get_children():
-		if child is Button:
-			var w = child.size.x
-			if w > content_width:
-				content_width = w
-	content_width += 16
-	var panel_width = clamp(content_width, min_panel_width, max_panel_width)
-
-	var content_height = item_list_container.get_minimum_size().y
-	var padding = 16
-	var max_height = viewport_size.y * 0.9
-	var final_height = clamp(content_height + padding, 20, max_height)
-
-	item_list_panel.size = Vector2(panel_width, final_height)
-	scroll.size = item_list_panel.size
-	item_list_container.size = scroll.size
-
-
-func _on_item_hover_entered(item_id: String):
-	show_item_detail(item_id)
-
-
-func _on_item_hover_exited():
-	hide_item_detail()
-
-
-func _find_unit_by_name(display_name: String) -> Unit:
-	for unit in UnitManager.unit_list:
-		var unit_name = unit.unit_stats.display_name if unit.unit_stats.display_name != "" else unit.unit_stats.unit_name
-		if unit_name == display_name:
-			return unit
-	return null
-
-
 func _on_equip_btn_pressed():
 	InputManager.on_equip_button_pressed()
-
-
-func _get_type_display_name(type: String) -> String:
-	match type:
-		"weapon": return "武器"
-		"armor": return "防具"
-		"relic": return "遗物"
-		_:
-			return type
 
 
 func _show_attack_highlight(cells: Dictionary, unit: Unit):
@@ -1519,31 +1176,6 @@ func _adjust_info_panel(label: Label, panel: PanelContainer):
 
 	panel.offset_bottom = panel.offset_top + panel_height
 	panel.visible = true
-
-
-func _create_scroll_container(child: Control, parent: Node, container_name: String) -> ScrollContainer:
-	var scroll = ScrollContainer.new()
-	scroll.name = container_name
-	scroll.anchors_preset = Control.PRESET_FULL_RECT
-	scroll.offset_left = 0
-	scroll.offset_top = 0
-	scroll.offset_right = 0
-	scroll.offset_bottom = 0
-	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
-	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-
-	var idx = parent.get_index()
-	parent.add_child(scroll)
-	parent.move_child(scroll, idx)
-	parent.remove_child(child)
-	scroll.add_child(child)
-
-	child.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	child.size_flags_vertical = Control.SIZE_EXPAND_FILL
-
-	return scroll
 
 
 # ---- 地图模式：胜利继续 ----
@@ -1587,15 +1219,12 @@ func _on_map_victory_continue():
 				reward_item_datas.append(data)
 				print("添加材料显示: ", data.name)
 
-	# ★ 稀有掉落显示
 	for rare_data in GameState.current_reward_rare_datas:
 		if rare_data:
 			reward_item_datas.append(rare_data)
 			print("添加稀有掉落显示: ", rare_data.name)
 
-	# ============================================================
-	#  ★ 遗物解锁（MapData + Node 合并，去重，只显示新解锁的）
-	# ============================================================
+	# ★ 遗物解锁（MapData + Node 合并，去重，只显示新解锁的）
 	var all_relic_ids : Array = []
 	if GameState.current_map_data and GameState.current_map_data.unlock_relics:
 		all_relic_ids.append_array(GameState.current_map_data.unlock_relics)
@@ -1631,8 +1260,6 @@ func _on_map_victory_continue():
 			print("[Battlefield] 本节点解锁 %d 个遗物" % newly.size())
 
 	GameState.current_node_unlock_relics.clear()
-
-	# ============================================================
 
 	var has_reward = (reward_gold > 0 or reward_soul > 0 or not reward_item_datas.is_empty())
 
@@ -1788,313 +1415,6 @@ func _end_player_turn():
 	TurnManager.start_turn(TurnManager.Team.ENEMY)
 
 
-func _update_cursor_and_mouse():
-	if _is_reward_ui_active:
-		if Input.mouse_mode != Input.MOUSE_MODE_VISIBLE:
-			Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
-		cursor.visible = false
-		return
-
-	var force_hide_cursor = (
-		Globals.is_dialogue_active or
-		Globals.is_performing_action or
-		Globals.is_item_get_popup_active or
-		Globals.is_equip_menu_active or
-		victory_panel.visible or
-		setting_panel.visible or
-		team_view_panel.visible or
-		item_list_panel.visible or
-		setting_menu_panel.visible or
-		TurnManager.current_turn_team == TurnManager.Team.ENEMY or
-		TurnManager.is_ai_moving or
-		TurnManager.is_moving or
-		Globals.is_fading or
-		Globals.is_transitioning or
-		camera_controller._is_smooth_moving
-	)
-
-	if force_hide_cursor:
-		cursor.visible = false
-		if Input.mouse_mode != Input.MOUSE_MODE_VISIBLE:
-			Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
-		return
-
-	# ---- 鼠标进入遗物/精炼面板：切回系统鼠标，让 Button 可点 ----
-	if relic_icon_container and is_instance_valid(relic_icon_container):
-		var relic_rect = relic_icon_container.get_global_rect().grow(4.0)
-		var vp_mouse = get_viewport().get_mouse_position()
-		if relic_rect.has_point(vp_mouse):
-			cursor.visible = false
-			if Input.mouse_mode != Input.MOUSE_MODE_VISIBLE:
-				Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
-			return
-
-	var show_cursor = false
-	var cursor_world_pos = Vector2.ZERO
-	var show_system_mouse = false
-
-	if (action_menu.visible or info_panel.visible) and InputManager.selected_unit != null and is_instance_valid(InputManager.selected_unit):
-		show_cursor = true
-		cursor_world_pos = grid_to_world(InputManager.selected_unit.grid_cell)
-		show_system_mouse = true
-	else:
-		if info_panel.visible:
-			var unit = InputManager.selected_unit
-			if unit != null and is_instance_valid(unit):
-				show_cursor = true
-				cursor_world_pos = grid_to_world(unit.grid_cell)
-			else:
-				var empty_cell = InputManager.current_empty_cell
-				if empty_cell != Vector2i(-1, -1):
-					show_cursor = true
-					cursor_world_pos = grid_to_world(empty_cell)
-				else:
-					show_cursor = true
-					var world_mouse = get_global_mouse_position()
-					var grid_pos = world_to_grid(world_mouse)
-					cursor_world_pos = grid_to_world(grid_pos)
-		else:
-			if not force_hide_cursor:
-				show_cursor = true
-				var world_mouse = get_global_mouse_position()
-				var grid_pos = world_to_grid(world_mouse)
-				cursor_world_pos = grid_to_world(grid_pos)
-
-		show_system_mouse = not show_cursor
-
-	if show_cursor:
-		if not (action_menu.visible or info_panel.visible):
-			var world_mouse = get_global_mouse_position()
-			var grid_pos = world_to_grid(world_mouse)
-			grid_pos.x = clamp(grid_pos.x, 0, map_grid_size.x - 1)
-			grid_pos.y = clamp(grid_pos.y, 0, map_grid_size.y - 1)
-			cursor_world_pos = grid_to_world(grid_pos)
-
-		var canvas_transform = get_viewport().get_canvas_transform()
-		var screen_pos = canvas_transform * cursor_world_pos
-		screen_pos = screen_pos.round()
-		var size = cursor.size.round()
-		cursor.position = screen_pos - size / 2
-		cursor.visible = true
-	else:
-		cursor.visible = false
-
-	if show_system_mouse:
-		if Input.mouse_mode != Input.MOUSE_MODE_VISIBLE:
-			Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
-	else:
-		if Input.mouse_mode != Input.MOUSE_MODE_HIDDEN:
-			Input.mouse_mode = Input.MOUSE_MODE_HIDDEN
-
-	if cursor.visible:
-		var new_scale = _get_viewport_scale()
-		if new_scale != _viewport_scale:
-			_viewport_scale = new_scale
-			var target_size = round(MapConst.CELL_SIZE * _viewport_scale)
-			cursor.size = Vector2(target_size, target_size)
-			if _attack_indicator:
-				_attack_indicator.size = Vector2(target_size, target_size)
-
-	var should_be_pink = false
-	if Globals.is_equip_menu_active:
-		should_be_pink = true
-	elif action_menu.visible or info_panel.visible:
-		should_be_pink = true
-	elif InputManager.selected_unit != null and InputManager.selected_unit.unit_stats.team_id == 0:
-		var phase = InputManager.interaction_phase
-		if phase in [InputManager.Phase.MENU, InputManager.Phase.MOVING, InputManager.Phase.ATTACKING]:
-			should_be_pink = true
-
-	var target_color = Color.FUCHSIA if should_be_pink else Color.WHITE
-	if cursor.modulate != target_color:
-		cursor.modulate = target_color
-
-
-# ---- 遗物查看按钮回调（复用 ItemListPanel） ----
-func _on_relic_view_btn_pressed():
-	if setting_menu_panel.visible:
-		setting_menu_panel.visible = false
-	if team_view_panel.visible:
-		team_view_panel.visible = false
-	if item_list_panel.visible and _is_showing_relics:
-		item_list_panel.visible = false
-		_is_showing_relics = false
-		return
-
-	item_list_panel.visible = true
-	_refresh_relic_list()
-	_is_showing_relics = true
-
-
-# ---- 刷新遗物列表（只显示被动槽里的遗物） ----
-func _refresh_relic_list():
-	for child in item_list_container.get_children():
-		child.queue_free()
-
-	var relics = GameState.get_relics_from_passives()
-	if relics.is_empty():
-		var label = Label.new()
-		label.text = "暂无遗物"
-		label.add_theme_font_size_override("font_size", 6)
-		item_list_container.add_child(label)
-		return
-
-	for relic in relics:
-		var data = RelicManager.get_relic_data(relic.item_id)
-		if data.is_empty():
-			continue
-		var btn = Button.new()
-		btn.text = data.get("name", "未知遗物")
-		var icon_path = data.get("icon", "")
-		if icon_path != "" and ResourceLoader.exists(icon_path):
-			btn.icon = load(icon_path)
-		btn.add_theme_font_size_override("font_size", 6)
-		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
-		btn.disabled = true
-
-		var item_id = relic.item_id
-		btn.mouse_entered.connect(_on_relic_hover_entered.bind(item_id))
-		btn.mouse_exited.connect(_on_relic_hover_exited)
-
-		item_list_container.add_child(btn)
-
-	await get_tree().process_frame
-	var content_height = item_list_container.get_minimum_size().y
-	var viewport_size = get_viewport().get_visible_rect().size
-	var max_height = viewport_size.y * 0.9
-	var panel_height = clamp(content_height + 16, 20, max_height)
-	var panel_width = clamp(120, 80, viewport_size.x * 0.4)
-	item_list_panel.size = Vector2(panel_width, panel_height)
-
-	var parent = item_list_container.get_parent()
-	var scroll = parent as ScrollContainer
-	if not scroll:
-		scroll = _create_scroll_container(item_list_container, parent, "ItemListScroll")
-	scroll.size = item_list_panel.size
-
-
-func _on_relic_hover_entered(item_id: String):
-	show_item_detail(item_id)
-
-
-func _on_relic_hover_exited():
-	hide_item_detail()
-
-
-func _on_item_list_btn_pressed():
-	if setting_menu_panel.visible:
-		setting_menu_panel.visible = false
-	if team_view_panel.visible:
-		team_view_panel.visible = false
-	if _is_showing_relics:
-		item_list_panel.visible = false
-		_is_showing_relics = false
-		return
-	item_list_panel.visible = not item_list_panel.visible
-	if item_list_panel.visible:
-		_refresh_item_list()
-		_is_showing_relics = false
-
-
-# ---- 更新常驻遗物显示（从被动槽过滤遗物） ----
-func _update_relic_icons():
-	for child in relic_icon_container.get_children():
-		child.queue_free()
-
-	var passives = GameState.get_passives()
-	var has_any = false
-
-	for i in range(passives.size()):
-		var p = passives[i]
-		if p == null:
-			continue
-
-		var btn := Button.new()
-		btn.add_theme_font_size_override("font_size", 6)
-		btn.focus_mode = Control.FOCUS_NONE
-		btn.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-		btn.custom_minimum_size = Vector2(0, 14)
-
-		if p is ItemInstance:
-			var data = RelicManager.get_relic_data(p.item_id)
-			if data.is_empty():
-				continue
-			btn.text = "◆ " + data.get("name", "?")
-			btn.disabled = true
-			btn.tooltip_text = data.get("description", "")
-			relic_icon_container.add_child(btn)
-			has_any = true
-
-		elif p is Dictionary and p.has("refine_id"):
-			var refine_id : String = p.get("refine_id", "")
-			var recipe : Dictionary = RefineManager.get_recipe(refine_id)
-			if recipe.is_empty():
-				continue
-			btn.text = "★ " + recipe.get("name", "?") + " ▶"
-			btn.tooltip_text = recipe.get("description", "")
-			btn.pressed.connect(_on_use_refine.bind(i))
-			relic_icon_container.add_child(btn)
-			has_any = true
-
-	if not has_any:
-		var label := Label.new()
-		label.text = "无遗物/精炼"
-		label.add_theme_font_size_override("font_size", 6)
-		relic_icon_container.add_child(label)
-
-
-func _on_use_refine(slot_idx: int) -> void:
-	var passives = GameState.get_passives()
-	if slot_idx < 0 or slot_idx >= passives.size():
-		return
-	var p = passives[slot_idx]
-	if not (p is Dictionary and p.has("refine_id")):
-		return
-
-	var refine_id : String = p.get("refine_id", "")
-	var effect : Dictionary = RefineManager.get_effect(refine_id)
-	if effect.is_empty():
-		return
-
-	var effect_type : String = effect.get("type", "")
-	var value : Variant = effect.get("value", 0)
-
-	for unit in UnitManager.unit_list:
-		if not is_instance_valid(unit):
-			continue
-		if unit.unit_stats.team_id != 0:
-			continue
-		match effect_type:
-			"attack_percent":
-				unit.buff_attack_percent += value
-			"crit_damage_bonus":
-				unit.buff_crit_damage_bonus += value
-			"defense_flat":
-				unit.buff_defense_flat += int(value)
-			"damage_reduction":
-				unit.buff_damage_reduction += value
-			"heal_full":
-				unit.hit_points = unit.unit_stats.max_hp
-				unit.update_hp_label()
-
-	GameState.set_passive_at_slot(slot_idx, null)
-	_update_relic_icons()
-	SoundManager.play_heal_sound()
-	print("[Battlefield] 使用精炼：", refine_id, " 类型：", effect_type)
-
-
-func show_item_detail(item_id: String):
-	if _detail_popup:
-		_detail_popup.show_item(item_id)
-		_detail_popup.visible = true
-
-
-func hide_item_detail():
-	if _detail_popup:
-		_detail_popup.visible = false
-
-
 func _wait_for_ui_clear(timeout_ms: int = 5000) -> void:
 	var start = Time.get_ticks_msec()
 	while _is_any_ui_active():
@@ -2123,19 +1443,13 @@ func _on_back_camp_pressed():
 #  战斗开始：遗物属性应用 + 熔铸持久buff
 # ============================================================
 func _apply_team_buffs():
-	# ---- 1. 精炼 buff 由玩家在战斗中主动点击触发，见 _on_use_refine() ----
-
-	# ---- 2. 遗物属性加成 ----
 	var relic_stats = GameState.get_global_relic_stats()
-	# ---- 3. 遗物 effects ----
 	var relic_effects = GameState.get_global_relic_effects()
 
-	# ---- 4. 应用到玩家单位 ----
 	for unit in UnitManager.unit_list:
 		if unit.unit_stats.team_id != 0:
 			continue
 
-		# ★ 熔铸 buff（按类型分发）
 		var sac_buffs : Dictionary = unit.unit_stats.get_sacrifice_buffs()
 		for btype in sac_buffs:
 			var bvalue : float = sac_buffs[btype]
@@ -2158,7 +1472,6 @@ func _apply_team_buffs():
 			print("[Battlefield] %s 熔铸 buff: %s" % [
 				unit.unit_stats.display_name, sac_buffs])
 
-		# 遗物属性
 		var s = unit.unit_stats
 		var old_max = s.max_hp
 		s.max_hp       += int(relic_stats.get("max_hp", 0))
@@ -2178,7 +1491,6 @@ func _apply_team_buffs():
 		if unit.hit_points > s.max_hp:
 			unit.hit_points = s.max_hp
 
-		# ★ 遗物 effects 应用到单位
 		unit.relic_first_attack_crit_available = bool(relic_effects.get("first_attack_crit", false))
 		unit.relic_low_hp_damage_reduce = float(relic_effects.get("low_hp_damage_reduce", 0.0))
 		unit.relic_kill_grants_extra_move = int(relic_effects.get("kill_grants_extra_move", 0))
@@ -2202,10 +1514,8 @@ func _roll_rare_drop_for_node(node_type: int) -> Dictionary:
 	if randf() > chance:
 		return {}
 
-	# 池子：未拥有遗物 + 已解锁精炼 + epic/legendary 防具
 	var pool : Array = []
 
-	# 未拥有遗物
 	var owned_relics : Dictionary = {}
 	for relic in GameState.get_relics_from_passives():
 		owned_relics[relic.item_id] = true
@@ -2213,12 +1523,10 @@ func _roll_rare_drop_for_node(node_type: int) -> Dictionary:
 		if not owned_relics.has(rid):
 			pool.append({"type": "relic", "id": rid})
 
-	# 已解锁精炼
 	for ref_id in RefineManager.get_all_ids():
 		if RefineManager.is_recipe_unlocked(ref_id):
 			pool.append({"type": "refine", "id": ref_id})
 
-	# epic/legendary 防具
 	for iid in ItemManager.get_all_item_ids():
 		var d : ItemData = ItemManager.get_item_data(iid)
 		if not d: continue
@@ -2233,7 +1541,6 @@ func _roll_rare_drop_for_node(node_type: int) -> Dictionary:
 	return pool[0]
 
 
-## 应用稀有掉落，返回用于显示的虚拟 ItemData
 func _apply_rare_drop(drop : Dictionary) -> ItemData:
 	var rtype : String = drop.get("type", "")
 	var rid : String = drop.get("id", "")
