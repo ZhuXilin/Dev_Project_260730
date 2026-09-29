@@ -1,0 +1,79 @@
+[gd_scene format=3 uid="uid://cx3sltedxrjmy"]
+
+[ext_resource type="StyleBox" uid="uid://6qbsaxkfwg3o" path="res://content/resource/stylebox/8bit_style_box_flat.tres" id="1_style"]
+
+[node name="ActionMenu" type="CanvasLayer" unique_id=915002698]
+
+[node name="ActionPanel" type="PanelContainer" parent="." unique_id=1839393492]
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -16.0
+offset_top = -44.0
+offset_right = 16.0
+offset_bottom = 44.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_styles/panel = ExtResource("1_style")
+
+[node name="ButtonContainer" type="VBoxContainer" parent="ActionPanel" unique_id=370993205]
+layout_mode = 2
+theme_override_constants/separation = 0
+
+[node name="AttackBtn" type="Button" parent="ActionPanel/ButtonContainer" unique_id=784626183]
+layout_mode = 2
+theme_override_font_sizes/font_size = 8
+theme_override_styles/normal = ExtResource("1_style")
+theme_override_styles/pressed = ExtResource("1_style")
+theme_override_styles/hover = ExtResource("1_style")
+theme_override_styles/disabled = ExtResource("1_style")
+theme_override_styles/focus = ExtResource("1_style")
+text = "攻击"
+
+[node name="MoveBtn" type="Button" parent="ActionPanel/ButtonContainer" unique_id=1069700238]
+layout_mode = 2
+theme_override_font_sizes/font_size = 8
+theme_override_styles/normal = ExtResource("1_style")
+theme_override_styles/pressed = ExtResource("1_style")
+theme_override_styles/hover = ExtResource("1_style")
+theme_override_styles/disabled = ExtResource("1_style")
+theme_override_styles/focus = ExtResource("1_style")
+text = "移动"
+
+[node name="EquipBtn" type="Button" parent="ActionPanel/ButtonContainer" unique_id=720158487]
+layout_mode = 2
+theme_override_font_sizes/font_size = 8
+theme_override_styles/normal = ExtResource("1_style")
+theme_override_styles/pressed = ExtResource("1_style")
+theme_override_styles/hover = ExtResource("1_style")
+theme_override_styles/disabled = ExtResource("1_style")
+theme_override_styles/focus = ExtResource("1_style")
+text = "装备"
+
+[node name="WaitBtn" type="Button" parent="ActionPanel/ButtonContainer" unique_id=426328894]
+layout_mode = 2
+theme_override_constants/h_separation = 4
+theme_override_font_sizes/font_size = 8
+theme_override_styles/normal = ExtResource("1_style")
+theme_override_styles/pressed = ExtResource("1_style")
+theme_override_styles/hover = ExtResource("1_style")
+theme_override_styles/disabled = ExtResource("1_style")
+theme_override_styles/focus = ExtResource("1_style")
+text = "待机"
+
+[node name="EquipMenu" type="PanelContainer" parent="." unique_id=151709701]
+anchors_preset = -1
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 184.0
+offset_top = 112.0
+offset_right = -152.0
+offset_bottom = -112.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_styles/panel = ExtResource("1_style")
+
+[node name="ItemsContainer" type="VBoxContainer" parent="EquipMenu" unique_id=2074843574]
+layout_mode = 2

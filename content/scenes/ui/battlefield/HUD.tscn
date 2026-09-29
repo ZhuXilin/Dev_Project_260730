@@ -1,0 +1,41 @@
+[gd_scene format=3 uid="uid://bhud0001"]
+
+[node name="HUD" type="CanvasLayer"]
+layer = 5
+
+[node name="SpeedIndicator" type="Label" parent="."]
+anchors_preset = -1
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 368.0
+offset_top = 224.0
+offset_right = -16.0
+theme_override_font_sizes/font_size = 8
+
+[node name="TurnCountIndicator" type="Label" parent="."]
+anchors_preset = -1
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 240.0
+offset_top = 224.0
+offset_right = -128.0
+theme_override_font_sizes/font_size = 8
+text = "第N回合"
+
+[node name="EndTurnButton" type="Label" parent="."]
+offset_left = 288.0
+offset_top = 224.0
+offset_right = 352.0
+offset_bottom = 240.0
+theme_override_font_sizes/font_size = 8
+text = "鼠标中键结束回合"
+
+[node name="RelicIconContainer" type="HBoxContainer" parent="."]
+anchors_preset = -1
+anchor_right = 1.0
+offset_left = 16.0
+offset_top = 224.0
+offset_right = -128.0
+offset_bottom = 240.0
+grow_horizontal = 2
+theme_override_constants/separation = 6

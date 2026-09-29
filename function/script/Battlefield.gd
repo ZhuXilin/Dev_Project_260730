@@ -36,13 +36,13 @@ const BOSS_NODE_TYPE = 6
 @onready var team_view_btn : Button = $SettingLayer/SettingPanel/SettingContainer/TeamViewBtn
 @onready var team_view_panel : PanelContainer = $SettingLayer/TeamViewPanel
 @onready var team_view_container : VBoxContainer = $SettingLayer/TeamViewPanel/TeamViewContainer
-@onready var speed_indicator : Label = $SpeedLayer/SpeedIndicator
+@onready var speed_indicator : Label = $HUD/SpeedIndicator
 @onready var item_list_btn : Button = $SettingLayer/SettingPanel/SettingContainer/ItemListBtn
 @onready var item_list_panel : PanelContainer = $SettingLayer/ItemListPanel
 @onready var item_list_container : VBoxContainer = $SettingLayer/ItemListPanel/ItemListContainer
-@onready var end_turn_button: Label = $EndTurnLayer/EndTurnButton
-@onready var turn_count_label: Label = $TurnCountLayer/TurnCountIndicator
-@onready var relic_icon_container = $RelicLayer/RelicIconContainer
+@onready var end_turn_button: Label = $HUD/EndTurnButton
+@onready var turn_count_label: Label = $HUD/TurnCountIndicator
+@onready var relic_icon_container = $HUD/RelicIconContainer
 
 const PERFORMANCE_DURATION : float = 0.5
 const ItemGetPopupScene = preload(Config.PATHS.ITEM_GET_POPUP)
@@ -91,14 +91,14 @@ func _ready():
 	team_view_btn = $SettingLayer/SettingPanel/SettingContainer/TeamViewBtn
 	team_view_panel = $SettingLayer/TeamViewPanel
 	team_view_container = $SettingLayer/TeamViewPanel/TeamViewContainer
-	speed_indicator = $SpeedLayer/SpeedIndicator
+	speed_indicator = $HUD/SpeedIndicator
 	item_list_btn = $SettingLayer/SettingPanel/SettingContainer/ItemListBtn
 	item_list_panel = $SettingLayer/ItemListPanel
 	item_list_container = $SettingLayer/ItemListPanel/ItemListContainer
-	end_turn_button = $EndTurnLayer/EndTurnButton
-	turn_count_label = $TurnCountLayer/TurnCountIndicator
+	end_turn_button = $HUD/EndTurnButton
+	turn_count_label = $HUD/TurnCountIndicator
 	relic_view_btn = $SettingLayer/SettingPanel/SettingContainer/RelicViewBtn
-	relic_icon_container = $RelicLayer/RelicIconContainer
+	relic_icon_container = $HUD/RelicIconContainer
 
 	var node_list = {
 		"action_menu": action_menu,
