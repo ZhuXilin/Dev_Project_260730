@@ -162,7 +162,13 @@ func _sample_voice(v: Voice) -> float:
 		Wave.PULSE_25: s = 1.0 if v.phase < 0.25  else -1.0
 		Wave.PULSE_50: s = 1.0 if v.phase < 0.5   else -1.0
 		Wave.PULSE_75: s = 1.0 if v.phase < 0.75  else -1.0
-		Wave.TRIANGLE: s = 4.0 * abs(v.phase - 0.5) - 1.0
+		Wave.TRIANGLE:
+			# ★ NES 三角波：32 步阶梯（16 级对称往返）
+			var step : int = int(v.phase * 32.0) % 32
+			if step < 16:
+				s = float(step) / 15.0 * 2.0 - 1.0      # -1 → +1
+			else:
+				s = 1.0 - float(step - 16) / 15.0 * 2.0 # +1 → -1
 		Wave.SAW:      s = 2.0 * v.phase - 1.0
 		Wave.NOISE:
 			var bit: int = ((v.lfsr >> 0) ^ (v.lfsr >> 1)) & 1
@@ -204,7 +210,10 @@ func _sample_voice(v: Voice) -> float:
 		4:
 			v.env_value = 0.0
 
-	return s * v.env_value * v.velocity
+	# ★ NES 硬件 DAC：4-bit 音量量化（16 级台阶）
+	var env_q : float = round(v.env_value * 15.0) / 15.0
+
+	return s * env_q * v.velocity
 
 
 # ============================================================
