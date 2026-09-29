@@ -790,6 +790,11 @@ func _make_song_meta_panel(parent : Node):
 		if _title_label:
 			_title_label.text = t if t != "" else "（无标题）"
 	)
+	# ★ 回车 = 完成输入，释放焦点
+	_title_edit.text_submitted.connect(func(_t : String):
+		if is_instance_valid(_title_edit):
+			_title_edit.release_focus()
+	)
 	r1.add_child(_title_edit)
 
 	# ---- 修改循环 ----
@@ -1012,13 +1017,23 @@ func _setup_spin(sp : SpinBox):
 		le.context_menu_enabled = false
 		le.text_submitted.connect(func(_t : String):
 			call_deferred("_save_after_spin")
+			if is_instance_valid(le):
+				le.release_focus()
 		)
+		# ★ 方案 3：任何来源的 focus 进入，只要鼠标不在 LineEdit 上就释放
+		le.focus_entered.connect(func():
+			if is_instance_valid(le):
+				var mp := get_viewport().get_mouse_position()
+				if not le.get_global_rect().has_point(mp):
+					le.call_deferred("release_focus")
+		)
+
 	var btns : Array[Node] = sp.find_children("*", "Button", true, false)
 	for b in btns:
-		_compact_spin_arrow_button(b as Button)
+		_compact_spin_arrow_button(b as Button, sp)
 
 
-func _compact_spin_arrow_button(btn : Button):
+func _compact_spin_arrow_button(btn : Button, sp : SpinBox):
 	btn.custom_minimum_size = Vector2(3, 2)
 	btn.icon_max_width = 2
 	btn.icon_max_height = 2
@@ -1034,6 +1049,24 @@ func _compact_spin_arrow_button(btn : Button):
 	btn.add_theme_stylebox_override("pressed", empty)
 	btn.add_theme_stylebox_override("focus", empty)
 	btn.add_theme_stylebox_override("disabled", empty)
+
+	# ★ 方案 1：鼠标按下瞬间（早于 SpinBox 内部逻辑）就释放焦点
+	btn.gui_input.connect(func(e : InputEvent):
+		if e is InputEventMouseButton and e.pressed \
+			and e.button_index == MOUSE_BUTTON_LEFT:
+			if is_instance_valid(sp):
+				var le := sp.get_line_edit()
+				if is_instance_valid(le) and le.has_focus():
+					le.release_focus()
+	)
+
+	# ★ 方案 2：释放鼠标后兜底（deferred 保证 Godot 内部处理完再执行）
+	btn.pressed.connect(func():
+		if is_instance_valid(sp):
+			var le := sp.get_line_edit()
+			if is_instance_valid(le):
+				le.call_deferred("release_focus")
+	)
 
 
 func _save_after_spin():
@@ -1155,24 +1188,108 @@ func _request_quit():
 
 
 func _show_unsaved_dialog():
-	var dlg := ConfirmationDialog.new()
-	dlg.title = "未保存的修改"
-	dlg.dialog_text = "当前歌曲有未保存的修改，是否保存？"
-	dlg.ok_button_text = "保存"
-	dlg.cancel_button_text = "不保存"
-	dlg.add_button("取消", true, "cancel")
-	dlg.confirmed.connect(func():
+	# 遮罩层
+	var layer := Control.new()
+	layer.set_anchors_preset(Control.PRESET_FULL_RECT)
+	layer.mouse_filter = Control.MOUSE_FILTER_STOP
+	add_child(layer)
+
+	var bg := ColorRect.new()
+	bg.color = Color(0, 0, 0, 0.7)
+	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
+	layer.add_child(bg)
+
+	# 面板（居中，260 × 130）
+	var panel := PanelContainer.new()
+	panel.anchor_left = 0.5
+	panel.anchor_top = 0.5
+	panel.anchor_right = 0.5
+	panel.anchor_bottom = 0.5
+	panel.offset_left = -130
+	panel.offset_right = 130
+	panel.offset_top = -65
+	panel.offset_bottom = 65
+
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(0.04, 0.04, 0.06)      # 黑色背景
+	sb.border_width_left = 1
+	sb.border_width_right = 1
+	sb.border_width_top = 1
+	sb.border_width_bottom = 1
+	sb.border_color = Color(0.28, 0.28, 0.34)
+	sb.corner_radius_top_left = 4
+	sb.corner_radius_top_right = 4
+	sb.corner_radius_bottom_left = 4
+	sb.corner_radius_bottom_right = 4
+	sb.content_margin_left = 12
+	sb.content_margin_right = 12
+	sb.content_margin_top = 10
+	sb.content_margin_bottom = 10
+	panel.add_theme_stylebox_override("panel", sb)
+	layer.add_child(panel)
+
+	var vbox := VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 8)
+	panel.add_child(vbox)
+
+	# 标题（居中）
+	var title := Label.new()
+	title.text = "未保存的修改"
+	title.add_theme_font_size_override("font_size", 11)
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vbox.add_child(title)
+
+	# 正文（居中）
+	var msg := Label.new()
+	msg.text = "当前歌曲有未保存的修改，是否保存？"
+	msg.add_theme_font_size_override("font_size", 7)
+	msg.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	msg.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	vbox.add_child(msg)
+
+	# 弹性间隔，把按钮推到下方
+	var spacer := Control.new()
+	spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	vbox.add_child(spacer)
+
+	# 按钮行（居中）
+	var btns := HBoxContainer.new()
+	btns.alignment = BoxContainer.ALIGNMENT_CENTER
+	btns.add_theme_constant_override("separation", 8)
+	vbox.add_child(btns)
+
+	var save_btn := Button.new()
+	save_btn.text = "保存"
+	save_btn.add_theme_font_size_override("font_size", 8)
+	save_btn.custom_minimum_size = Vector2(72, 22)
+	btns.add_child(save_btn)
+
+	var nosave_btn := Button.new()
+	nosave_btn.text = "不保存"
+	nosave_btn.add_theme_font_size_override("font_size", 8)
+	nosave_btn.custom_minimum_size = Vector2(72, 22)
+	btns.add_child(nosave_btn)
+
+	var cancel_btn := Button.new()
+	cancel_btn.text = "取消"
+	cancel_btn.add_theme_font_size_override("font_size", 8)
+	cancel_btn.custom_minimum_size = Vector2(72, 22)
+	btns.add_child(cancel_btn)
+
+	# 按钮回调
+	save_btn.pressed.connect(func():
+		layer.queue_free()
 		_save_file()
-		if not _dirty: get_tree().quit()
-		else: dlg.queue_free()
+		if not _dirty:
+			get_tree().quit()
 	)
-	dlg.canceled.connect(func(): get_tree().quit())
-	dlg.custom_action.connect(func(action : String):
-		if action == "cancel":
-			dlg.hide(); dlg.queue_free()
+	nosave_btn.pressed.connect(func():
+		layer.queue_free()
+		get_tree().quit()
 	)
-	add_child(dlg)
-	dlg.popup_centered(Vector2i(300, 100))
+	cancel_btn.pressed.connect(func():
+		layer.queue_free()
+	)
 
 
 # ============================================================

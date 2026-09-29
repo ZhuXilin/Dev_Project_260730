@@ -2,12 +2,12 @@
  "format": "chip_music_v1",
  "meta": {
   "title": "MainMenu",
-  "bpm": 100.0,
+  "bpm": 120.0,
   "beats_per_bar": 4,
   "ticks_per_beat": 4,
-  "total_ticks": 100,
+  "total_ticks": 120,
   "loop_start": 0,
-  "loop_end": 100
+  "loop_end": 120
  },
  "presets": {
   "lead": {
