@@ -34,7 +34,7 @@ func save_game(slot: int, auto: bool = false) -> bool:
 	save.checksum = save.compute_checksum()
 
 	var path = _get_slot_path(slot)
-	var err = ResourceSaver.save(save, path, ResourceSaver.FLAG_COMPRESS)
+	var err = ResourceSaver.save(save, path)
 	if err != OK:
 		push_error("保存失败: ", path, " 错误码: ", err)
 		return false
@@ -401,7 +401,7 @@ func clean_invalid_progress(slot: int):
 	save.temp_gold = 0
 	save.checksum = save.compute_checksum()
 	var path = _get_slot_path(slot)
-	ResourceSaver.save(save, path, ResourceSaver.FLAG_COMPRESS)
+	ResourceSaver.save(save, path)
 
 # ===== 路径 =====
 func _get_slot_path(slot: int) -> String:

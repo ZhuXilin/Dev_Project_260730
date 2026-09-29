@@ -855,11 +855,21 @@ func _on_back_camp_pressed():
 
 
 # ============================================================
-#  InputManager 右键回调的转发（保持对外接口不变）
+#  右键 SETTING 阶段处理（SignalBus 转发）
 # ============================================================
-func _on_team_view_btn_pressed():
-	_panel_manager.on_team_view_btn_pressed()
+func _on_request_setting_right_click():
+	if team_view_panel.visible:
+		_panel_manager.on_team_view_btn_pressed()
+		return
+	if item_list_panel.visible:
+		_panel_manager.on_item_list_btn_pressed()
+		return
+	if setting_menu_panel.visible:
+		setting_menu_panel.visible = false
+		return
 
-
-func _on_item_list_btn_pressed():
-	_panel_manager.on_item_list_btn_pressed()
+	# 没有任何面板需要关闭 → 走默认逻辑
+	SignalBus.request_hide_setting.emit()
+	SignalBus.request_hide_info.emit()
+	InputManager.interaction_phase = InputManager.Phase.IDLE
+	InputManager.current_empty_cell = Vector2i(-1, -1)

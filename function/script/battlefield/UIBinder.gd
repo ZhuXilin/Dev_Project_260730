@@ -91,6 +91,7 @@ func _connect_signal_bus() -> void:
 	_safe_connect(SignalBus.request_dialogue_check, _bf._function_handler.on_dialogue_check)
 	_safe_connect(SignalBus.request_highlight_unit, _bf._cursor_controller.show_attack_indicator)
 	_safe_connect(SignalBus.request_clear_highlight_unit, _bf._cursor_controller.clear_attack_indicator)
+	_safe_connect(SignalBus.request_setting_right_click, _bf._on_request_setting_right_click)
 
 
 # ============================================================

@@ -260,22 +260,8 @@ func _handle_right_click():
 			current_empty_cell = Vector2i(-1, -1)
 
 		Phase.SETTING:
-			var battlefield = get_node("/root/Battlefield")
-			if battlefield:
-				if battlefield.team_view_panel.visible:
-					battlefield._on_team_view_btn_pressed()
-					return
-				elif battlefield.item_list_panel.visible:
-					battlefield._on_item_list_btn_pressed()
-					return
-				elif battlefield.setting_menu_panel.visible:
-					battlefield.setting_menu_panel.visible = false
-					return
-
-			SignalBus.request_hide_setting.emit()
-			SignalBus.request_hide_info.emit()
-			interaction_phase = Phase.IDLE
-			current_empty_cell = Vector2i(-1, -1)
+			# ★ 只发信号，具体处理交给 Battlefield
+			SignalBus.request_setting_right_click.emit()
 
 		_:
 			if selected_unit != null:
