@@ -44,11 +44,35 @@ var master_volume: float = 0.3
 var voices: Array[Voice] = []
 var _sample_cursor: int = 0
 
+# ★ 通道增益（0=静音，1=正常）。索引 = 通道号
+var channel_gain: Array[float] = [1.0, 1.0, 1.0, 1.0]
+
 
 func _init(pool_size: int = 12, rate: float = 44100.0):
 	mix_rate = rate
 	for i in range(pool_size):
 		voices.append(Voice.new())
+
+
+# ============================================================
+#  通道增益（静音）
+# ============================================================
+## 设置某通道增益（0.0 = 静音，1.0 = 正常）
+func set_channel_gain(ch: int, gain: float):
+	if ch < 0: return
+	while channel_gain.size() <= ch:
+		channel_gain.append(1.0)
+	channel_gain[ch] = clampf(gain, 0.0, 1.0)
+
+
+func get_channel_gain(ch: int) -> float:
+	if ch < 0 or ch >= channel_gain.size():
+		return 1.0
+	return channel_gain[ch]
+
+
+func set_channel_muted(ch: int, muted: bool):
+	set_channel_gain(ch, 0.0 if muted else 1.0)
 
 
 # ============================================================
@@ -116,6 +140,8 @@ func get_sample() -> Vector2:
 		if not v.active:
 			continue
 		var s := _sample_voice(v)
+		# ★ 通道增益（静音 = 0，无缝生效）
+		s *= get_channel_gain(v.ch_owner)
 		# pan: -1 = 全左, 0 = 中, +1 = 全右
 		var l_gain := sqrt(0.5 * (1.0 - v.pan))
 		var r_gain := sqrt(0.5 * (1.0 + v.pan))
