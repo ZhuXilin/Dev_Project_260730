@@ -1,43 +1,43 @@
 {
  "format": "chip_music_v1",
  "meta": {
-  "title": "MainMenu",
-  "bpm": 100.0,
+  "title": "midigen_lofi_1790652116188",
+  "bpm": 60.0,
   "beats_per_bar": 4,
   "ticks_per_beat": 4,
-  "total_ticks": 64,
+  "total_ticks": 80,
   "loop_start": 0,
-  "loop_end": 64
+  "loop_end": 80
  },
  "presets": {
-  "pulse_lead": {
+  "lead": {
+   "wave": "pulse_25",
+   "env": {
+	"attack": 0.005,
+	"decay": 0.05,
+	"sustain": 0.7,
+	"release": 0.05
+   }
+  },
+  "harmony": {
    "wave": "pulse_12",
    "env": {
 	"attack": 0.01,
-	"decay": 0.08,
-	"sustain": 0.7,
-	"release": 0.1
+	"decay": 0.05,
+	"sustain": 0.6,
+	"release": 0.05
    }
   },
-  "pulse_harmony": {
-   "wave": "pulse_25",
-   "env": {
-	"attack": 0.02,
-	"decay": 0.1,
-	"sustain": 0.5,
-	"release": 0.12
-   }
-  },
-  "triangle_bass": {
+  "bass": {
    "wave": "triangle",
    "env": {
 	"attack": 0.01,
-	"decay": 0.12,
+	"decay": 0.1,
 	"sustain": 0.8,
-	"release": 0.15
+	"release": 0.1
    }
   },
-  "noise_drum": {
+  "drum": {
    "wave": "noise",
    "env": {
 	"attack": 0.001,
@@ -49,285 +49,495 @@
  },
  "channels": [
   {
-   "preset": "pulse_lead",
-   "volume": 0.85,
-   "pan": 0.0
-  },
-  {
-   "preset": "pulse_harmony",
-   "volume": 0.55,
-   "pan": 0.15
-  },
-  {
-   "preset": "triangle_bass",
+   "preset": "lead",
    "volume": 0.8,
    "pan": 0.0
   },
   {
-   "preset": "noise_drum",
+   "preset": "harmony",
+   "volume": 0.6,
+   "pan": 0.0
+  },
+  {
+   "preset": "bass",
+   "volume": 0.7,
+   "pan": 0.0
+  },
+  {
+   "preset": "drum",
    "volume": 0.4,
    "pan": 0.0
   }
  ],
  "events": [
   {
-   "ch": 0.0,
-   "tick": 0.0,
-   "note": 67.0,
-   "vel": 90.0,
-   "dur": 8.0
+   "ch": 1,
+   "tick": 0,
+   "note": 73,
+   "vel": 65,
+   "dur": 5
   },
   {
-   "ch": 0.0,
-   "tick": 8.0,
-   "note": 69.0,
-   "vel": 95.0,
-   "dur": 4.0
+   "ch": 2,
+   "tick": 0,
+   "note": 49,
+   "vel": 89,
+   "dur": 7
   },
   {
-   "ch": 0.0,
-   "tick": 12.0,
-   "note": 71.0,
-   "vel": 100.0,
-   "dur": 4.0
+   "ch": 3,
+   "tick": 0,
+   "note": 42,
+   "vel": 108,
+   "dur": 1
   },
   {
-   "ch": 0.0,
-   "tick": 16.0,
-   "note": 72.0,
-   "vel": 100.0,
-   "dur": 8.0
+   "ch": 3,
+   "tick": 2,
+   "note": 42,
+   "vel": 108,
+   "dur": 1
   },
   {
-   "ch": 1.0,
-   "tick": 16.0,
-   "note": 64.0,
-   "vel": 60.0,
-   "dur": 8.0
+   "ch": 3,
+   "tick": 3,
+   "note": 41,
+   "vel": 108,
+   "dur": 1
   },
   {
-   "ch": 0.0,
-   "tick": 24.0,
-   "note": 71.0,
-   "vel": 100.0,
-   "dur": 4.0
+   "ch": 0,
+   "tick": 4,
+   "note": 68,
+   "vel": 107,
+   "dur": 3
   },
   {
-   "ch": 1.0,
-   "tick": 24.0,
-   "note": 62.0,
-   "vel": 60.0,
-   "dur": 4.0
+   "ch": 3,
+   "tick": 4,
+   "note": 42,
+   "vel": 108,
+   "dur": 1
   },
   {
-   "ch": 0.0,
-   "tick": 28.0,
-   "note": 69.0,
-   "vel": 95.0,
-   "dur": 4.0
+   "ch": 1,
+   "tick": 6,
+   "note": 73,
+   "vel": 58,
+   "dur": 5
   },
   {
-   "ch": 1.0,
-   "tick": 28.0,
-   "note": 60.0,
-   "vel": 60.0,
-   "dur": 4.0
+   "ch": 3,
+   "tick": 6,
+   "note": 46,
+   "vel": 108,
+   "dur": 1
   },
   {
-   "ch": 0.0,
-   "tick": 32.0,
-   "note": 67.0,
-   "vel": 105.0,
-   "dur": 4.0
+   "ch": 2,
+   "tick": 8,
+   "note": 44,
+   "vel": 76,
+   "dur": 7
   },
   {
-   "ch": 1.0,
-   "tick": 32.0,
-   "note": 64.0,
-   "vel": 70.0,
-   "dur": 4.0
+   "ch": 3,
+   "tick": 8,
+   "note": 42,
+   "vel": 108,
+   "dur": 1
   },
   {
-   "ch": 0.0,
-   "tick": 36.0,
-   "note": 69.0,
-   "vel": 105.0,
-   "dur": 4.0
+   "ch": 3,
+   "tick": 10,
+   "note": 42,
+   "vel": 108,
+   "dur": 1
   },
   {
-   "ch": 1.0,
-   "tick": 36.0,
-   "note": 65.0,
-   "vel": 70.0,
-   "dur": 4.0
+   "ch": 1,
+   "tick": 11,
+   "note": 72,
+   "vel": 71,
+   "dur": 5
   },
   {
-   "ch": 0.0,
-   "tick": 40.0,
-   "note": 71.0,
-   "vel": 110.0,
-   "dur": 4.0
+   "ch": 3,
+   "tick": 11,
+   "note": 41,
+   "vel": 108,
+   "dur": 1
   },
   {
-   "ch": 1.0,
-   "tick": 40.0,
-   "note": 67.0,
-   "vel": 75.0,
-   "dur": 4.0
+   "ch": 3,
+   "tick": 12,
+   "note": 42,
+   "vel": 108,
+   "dur": 1
   },
   {
-   "ch": 0.0,
-   "tick": 44.0,
-   "note": 72.0,
-   "vel": 110.0,
-   "dur": 4.0
+   "ch": 3,
+   "tick": 14,
+   "note": 46,
+   "vel": 108,
+   "dur": 1
   },
   {
-   "ch": 1.0,
-   "tick": 44.0,
-   "note": 69.0,
-   "vel": 75.0,
-   "dur": 4.0
+   "ch": 1,
+   "tick": 16,
+   "note": 82,
+   "vel": 65,
+   "dur": 4
   },
   {
-   "ch": 0.0,
-   "tick": 48.0,
-   "note": 74.0,
-   "vel": 120.0,
-   "dur": 8.0
+   "ch": 2,
+   "tick": 16,
+   "note": 54,
+   "vel": 89,
+   "dur": 7
   },
   {
-   "ch": 1.0,
-   "tick": 48.0,
-   "note": 71.0,
-   "vel": 85.0,
-   "dur": 8.0
+   "ch": 3,
+   "tick": 16,
+   "note": 42,
+   "vel": 108,
+   "dur": 1
   },
   {
-   "ch": 0.0,
-   "tick": 56.0,
-   "note": 76.0,
-   "vel": 120.0,
-   "dur": 8.0
+   "ch": 0,
+   "tick": 17,
+   "note": 61,
+   "vel": 59,
+   "dur": 1
   },
   {
-   "ch": 1.0,
-   "tick": 56.0,
-   "note": 72.0,
-   "vel": 85.0,
-   "dur": 8.0
+   "ch": 3,
+   "tick": 18,
+   "note": 42,
+   "vel": 108,
+   "dur": 1
   },
   {
-   "ch": 2.0,
-   "tick": 0.0,
-   "note": 36.0,
-   "vel": 80.0,
-   "dur": 16.0
+   "ch": 3,
+   "tick": 19,
+   "note": 41,
+   "vel": 108,
+   "dur": 1
   },
   {
-   "ch": 2.0,
-   "tick": 16.0,
-   "note": 41.0,
-   "vel": 85.0,
-   "dur": 16.0
+   "ch": 3,
+   "tick": 20,
+   "note": 42,
+   "vel": 108,
+   "dur": 1
   },
   {
-   "ch": 2.0,
-   "tick": 32.0,
-   "note": 43.0,
-   "vel": 90.0,
-   "dur": 16.0
+   "ch": 3,
+   "tick": 22,
+   "note": 46,
+   "vel": 108,
+   "dur": 1
   },
   {
-   "ch": 2.0,
-   "tick": 48.0,
-   "note": 48.0,
-   "vel": 100.0,
-   "dur": 16.0
+   "ch": 0,
+   "tick": 24,
+   "note": 73,
+   "vel": 99,
+   "dur": 2
   },
   {
-   "ch": 3.0,
-   "tick": 32.0,
-   "note": 57.0,
-   "vel": 100.0,
-   "dur": 2.0
+   "ch": 2,
+   "tick": 24,
+   "note": 49,
+   "vel": 76,
+   "dur": 7
   },
   {
-   "ch": 3.0,
-   "tick": 36.0,
-   "note": 38.0,
-   "vel": 80.0,
-   "dur": 1.0
+   "ch": 3,
+   "tick": 24,
+   "note": 42,
+   "vel": 108,
+   "dur": 1
   },
   {
-   "ch": 3.0,
-   "tick": 40.0,
-   "note": 57.0,
-   "vel": 100.0,
-   "dur": 2.0
+   "ch": 3,
+   "tick": 26,
+   "note": 42,
+   "vel": 108,
+   "dur": 1
   },
   {
-   "ch": 3.0,
-   "tick": 44.0,
-   "note": 38.0,
-   "vel": 80.0,
-   "dur": 1.0
+   "ch": 1,
+   "tick": 27,
+   "note": 77,
+   "vel": 62,
+   "dur": 1
   },
   {
-   "ch": 3.0,
-   "tick": 48.0,
-   "note": 57.0,
-   "vel": 120.0,
-   "dur": 2.0
+   "ch": 3,
+   "tick": 27,
+   "note": 41,
+   "vel": 108,
+   "dur": 1
   },
   {
-   "ch": 3.0,
-   "tick": 50.0,
-   "note": 38.0,
-   "vel": 90.0,
-   "dur": 1.0
+   "ch": 3,
+   "tick": 28,
+   "note": 42,
+   "vel": 108,
+   "dur": 1
   },
   {
-   "ch": 3.0,
-   "tick": 52.0,
-   "note": 57.0,
-   "vel": 110.0,
-   "dur": 2.0
+   "ch": 3,
+   "tick": 30,
+   "note": 46,
+   "vel": 108,
+   "dur": 1
   },
   {
-   "ch": 3.0,
-   "tick": 54.0,
-   "note": 38.0,
-   "vel": 90.0,
-   "dur": 1.0
+   "ch": 2,
+   "tick": 32,
+   "note": 51,
+   "vel": 89,
+   "dur": 7
   },
   {
-   "ch": 3.0,
-   "tick": 56.0,
-   "note": 57.0,
-   "vel": 120.0,
-   "dur": 2.0
+   "ch": 3,
+   "tick": 32,
+   "note": 42,
+   "vel": 108,
+   "dur": 1
   },
   {
-   "ch": 3.0,
-   "tick": 58.0,
-   "note": 38.0,
-   "vel": 90.0,
-   "dur": 1.0
+   "ch": 0,
+   "tick": 34,
+   "note": 66,
+   "vel": 79,
+   "dur": 2
   },
   {
-   "ch": 3.0,
-   "tick": 60.0,
-   "note": 57.0,
-   "vel": 110.0,
-   "dur": 2.0
+   "ch": 1,
+   "tick": 34,
+   "note": 73,
+   "vel": 60,
+   "dur": 5
   },
   {
-   "ch": 3.0,
-   "tick": 62.0,
-   "note": 38.0,
-   "vel": 90.0,
-   "dur": 1.0
+   "ch": 3,
+   "tick": 34,
+   "note": 42,
+   "vel": 108,
+   "dur": 1
+  },
+  {
+   "ch": 3,
+   "tick": 35,
+   "note": 41,
+   "vel": 108,
+   "dur": 1
+  },
+  {
+   "ch": 0,
+   "tick": 36,
+   "note": 70,
+   "vel": 93,
+   "dur": 3
+  },
+  {
+   "ch": 3,
+   "tick": 36,
+   "note": 42,
+   "vel": 108,
+   "dur": 1
+  },
+  {
+   "ch": 3,
+   "tick": 38,
+   "note": 46,
+   "vel": 108,
+   "dur": 1
+  },
+  {
+   "ch": 1,
+   "tick": 40,
+   "note": 78,
+   "vel": 50,
+   "dur": 4
+  },
+  {
+   "ch": 2,
+   "tick": 40,
+   "note": 46,
+   "vel": 76,
+   "dur": 7
+  },
+  {
+   "ch": 3,
+   "tick": 40,
+   "note": 42,
+   "vel": 108,
+   "dur": 1
+  },
+  {
+   "ch": 3,
+   "tick": 42,
+   "note": 42,
+   "vel": 108,
+   "dur": 1
+  },
+  {
+   "ch": 3,
+   "tick": 43,
+   "note": 41,
+   "vel": 108,
+   "dur": 1
+  },
+  {
+   "ch": 1,
+   "tick": 44,
+   "note": 75,
+   "vel": 50,
+   "dur": 1
+  },
+  {
+   "ch": 2,
+   "tick": 44,
+   "note": 51,
+   "vel": 64,
+   "dur": 3
+  },
+  {
+   "ch": 3,
+   "tick": 44,
+   "note": 42,
+   "vel": 108,
+   "dur": 1
+  },
+  {
+   "ch": 3,
+   "tick": 46,
+   "note": 46,
+   "vel": 108,
+   "dur": 1
+  },
+  {
+   "ch": 1,
+   "tick": 48,
+   "note": 78,
+   "vel": 61,
+   "dur": 5
+  },
+  {
+   "ch": 2,
+   "tick": 48,
+   "note": 44,
+   "vel": 89,
+   "dur": 7
+  },
+  {
+   "ch": 3,
+   "tick": 48,
+   "note": 42,
+   "vel": 108,
+   "dur": 1
+  },
+  {
+   "ch": 3,
+   "tick": 50,
+   "note": 42,
+   "vel": 108,
+   "dur": 1
+  },
+  {
+   "ch": 3,
+   "tick": 51,
+   "note": 41,
+   "vel": 108,
+   "dur": 1
+  },
+  {
+   "ch": 0,
+   "tick": 52,
+   "note": 68,
+   "vel": 98,
+   "dur": 2
+  },
+  {
+   "ch": 3,
+   "tick": 52,
+   "note": 42,
+   "vel": 108,
+   "dur": 1
+  },
+  {
+   "ch": 3,
+   "tick": 54,
+   "note": 46,
+   "vel": 108,
+   "dur": 1
+  },
+  {
+   "ch": 1,
+   "tick": 56,
+   "note": 84,
+   "vel": 57,
+   "dur": 3
+  },
+  {
+   "ch": 2,
+   "tick": 56,
+   "note": 51,
+   "vel": 76,
+   "dur": 7
+  },
+  {
+   "ch": 3,
+   "tick": 56,
+   "note": 42,
+   "vel": 108,
+   "dur": 1
+  },
+  {
+   "ch": 0,
+   "tick": 58,
+   "note": 66,
+   "vel": 74,
+   "dur": 2
+  },
+  {
+   "ch": 3,
+   "tick": 58,
+   "note": 42,
+   "vel": 108,
+   "dur": 1
+  },
+  {
+   "ch": 3,
+   "tick": 59,
+   "note": 41,
+   "vel": 108,
+   "dur": 1
+  },
+  {
+   "ch": 3,
+   "tick": 60,
+   "note": 42,
+   "vel": 108,
+   "dur": 1
+  },
+  {
+   "ch": 1,
+   "tick": 61,
+   "note": 78,
+   "vel": 50,
+   "dur": 4
+  },
+  {
+   "ch": 3,
+   "tick": 62,
+   "note": 46,
+   "vel": 108,
+   "dur": 1
   }
  ]
 }
