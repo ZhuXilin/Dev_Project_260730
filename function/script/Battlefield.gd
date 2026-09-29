@@ -57,13 +57,6 @@ const BOSS_NODE_TYPE = 6
 const PERFORMANCE_DURATION : float = 0.5
 const ItemGetPopupScene = preload(Config.PATHS.ITEM_GET_POPUP)
 
-const RARE_DROP_CHANCE : Dictionary = {
-	MapNode.NodeType.START: 0.05,
-	MapNode.NodeType.NORMAL: 0.05,
-	MapNode.NodeType.ELITE: 0.25,
-	MapNode.NodeType.BOSS: 0.80,
-}
-
 # ---- 拆分模块 ----
 var _map_loader : MapLoader = null
 var _non_combat_handler : NonCombatHandler = null
@@ -71,13 +64,14 @@ var _function_handler : FunctionHandler = null
 var _cursor_controller : CursorController = null
 var _panel_manager : PanelManager = null
 var _ui_binder : UIBinder = null
+var _turn_controller : TurnController = null
+var _victory_handler : VictoryHandler = null
 
 # ---- 状态 ----
 var map_grid_size : Vector2i = MapConst.DEFAULT_MAP_SIZE
 var _initialized : bool = false
 var _battle_start_event_id : String = ""
 var map_functions : Dictionary = {}
-var _turn_changed_locked : bool = false
 var is_non_combat_mode: bool = false
 var non_combat_back_button: Button = null
 var current_node_type: int = MapNode.NodeType.NORMAL
@@ -122,6 +116,11 @@ func _ready():
 	_function_handler = FunctionHandler.new(self)
 	add_child(_function_handler)
 
+	_turn_controller = TurnController.new(self)
+	add_child(_turn_controller)
+	_victory_handler = VictoryHandler.new(self)
+	add_child(_victory_handler)
+
 	_ui_binder = UIBinder.new(self)
 	add_child(_ui_binder)
 
@@ -148,7 +147,7 @@ func _ready():
 	if victory_panel:
 		victory_panel.visible = false
 
-	# ---- ★ 一次绑定所有 UI 信号（Managers + 按钮 + SignalBus + Animator）----
+	# ---- 一次绑定所有 UI 信号 ----
 	_ui_binder.bind_all()
 
 	if turn_overlay:
@@ -293,7 +292,7 @@ func _ready():
 			SignalBus.request_show_victory.emit(1)
 			return
 
-	_apply_team_buffs()
+	_turn_controller.apply_team_buffs()
 	print("Battlefield _ready 完成")
 
 
@@ -467,270 +466,30 @@ func _on_wait_btn_pressed():
 	InputManager.on_wait_button_pressed()
 
 
-func _on_request_show_victory(winning_team: int):
-	print("=== _on_request_show_victory 被调用, _victory_processed: ", _victory_processed)
-	await _wait_for_ui_clear()
-
-	if _victory_processed:
-		print("胜利已处理，跳过重复调用")
-		return
-	_victory_processed = true
-	print("胜利处理开始")
-
-	var tree = get_tree()
-	if not tree:
-		print("错误：无法获取场景树，无法处理胜利")
-		_victory_processed = false
-		return
-
-	if is_instance_valid(movement_animator):
-		movement_animator.cancel_movement()
-	if is_instance_valid(camera_controller):
-		camera_controller.cancel_smooth_move()
-	if is_instance_valid(highlight_manager):
-		highlight_manager.clear_highlight()
-	_cursor_controller.clear_attack_indicator()
-	TurnManager.clear_ai_state()
-
+func _on_request_hide_menu():
 	if is_instance_valid(ui_manager):
 		ui_manager.hide_menu()
 	if is_instance_valid(menu_blocker):
 		menu_blocker.visible = false
-	if is_instance_valid(info_panel):
-		info_panel.visible = false
-	if is_instance_valid(setting_panel):
-		setting_panel.visible = false
-	if is_instance_valid(team_view_panel):
-		team_view_panel.visible = false
-	if is_instance_valid(setting_menu_panel):
-		setting_menu_panel.visible = false
-	if is_instance_valid(action_menu):
-		action_menu.visible = false
-	if is_instance_valid(item_list_panel):
-		item_list_panel.visible = false
-
-	InputManager.selected_unit = null
-	InputManager.interaction_phase = InputManager.Phase.IDLE
-	InputManager.current_highlight_cells = {}
-	InputManager.current_move_attack_targets = {}
-
-	var is_win = (winning_team == 0)
-	var is_last = LevelManager.is_last_level()
-
-	var is_boss = (current_node_type == MapNode.NodeType.BOSS)
-	if not is_boss and GameState.current_map_data:
-		is_boss = (GameState.current_map_data.node_type == MapNode.NodeType.BOSS)
-	print("is_boss 判断结果：", is_boss, " current_node_type=", current_node_type)
-
-	var player_units = []
-	for unit in UnitManager.unit_list:
-		if unit.unit_stats.team_id == 0 and unit.hit_points > 0:
-			player_units.append(unit)
-	GameState.sync_units_from_battlefield(player_units)
-
-	if Globals.is_map_mode:
-		print("当前地图节点类型: ", current_node_type, " 是否为BOSS: ", is_boss)
-
-		if is_win:
-			var is_non_combat_node = current_node_type in [
-				MapNode.NodeType.SHOP,
-				MapNode.NodeType.TREASURE,
-				MapNode.NodeType.FORGE,
-			]
-
-			if not is_non_combat_node:
-				var reward = EconomyManager.get_battle_reward(current_node_type, is_boss)
-				var gold_gain = reward.gold
-				var soul_gain = reward.soul
-				var materials = reward.materials
-
-				print("--- 奖励配置 ---")
-				print("gold_gain: ", gold_gain)
-				print("soul_gain: ", soul_gain)
-				print("materials: ", materials)
-
-				GameState.current_reward_gold = gold_gain
-				GameState.current_reward_soul = soul_gain
-				GameState.current_reward_materials = materials
-
-				EconomyManager.add_temp_gold(gold_gain)
-				EconomyManager.add_temp_soul(soul_gain)
-				EconomyManager.apply_material_reward(materials)
-
-				GameState.current_reward_rare_datas.clear()
-				var rare_drop : Dictionary = _roll_rare_drop_for_node(current_node_type)
-				if not rare_drop.is_empty():
-					var rare_data : ItemData = _apply_rare_drop(rare_drop)
-					if rare_data:
-						GameState.current_reward_rare_datas.append(rare_data)
-
-				print("--- 资源累加完成 ---")
-				print("temp_gold: ", GameState.temp_gold)
-				print("temp_soul: ", GameState.temp_soul)
-				print("materials: ", GameState.materials)
-			else:
-				print("非战斗地图，不累加资源")
-				GameState.current_reward_gold = 0
-				GameState.current_reward_soul = 0
-				GameState.current_reward_materials = {}
-
-		if is_win and is_boss:
-			GameState.should_advance_day = true
-
-		SignalBus.battle_completed.emit(winning_team, is_boss)
-
-		if is_win:
-			if is_last:
-				MusicManager.play_win_game_music()
-			else:
-				MusicManager.play_victory_music()
-		else:
-			MusicManager.play_defeat_music()
-
-		if is_instance_valid(ui_manager):
-			if is_win:
-				if is_last:
-					ui_manager.show_victory("全部胜利！", "回到营地", self._on_map_victory_continue)
-				else:
-					ui_manager.show_victory("战斗胜利！", "继续旅程", self._on_map_victory_continue)
-			else:
-				ui_manager.show_victory("战斗失败", "重启旅程", self._on_map_defeat_gameover)
-		else:
-			if is_win:
-				tree.change_scene_to_file(Config.PATHS.MAP_SCENE)
-			else:
-				GameState.reset_all()
-				tree.change_scene_to_file(Config.PATHS.UNIT_SELECT_UI)
-		return
-
-	print("非地图模式（旧版流程）")
-	if is_win and is_last:
-		MusicManager.play_win_game_music()
-	elif is_win:
-		MusicManager.play_victory_music()
-	else:
-		MusicManager.play_defeat_music()
-
-	if is_win:
-		if is_last:
-			ui_manager.show_victory("全部胜利", "回到营地", LevelManager.on_victory)
-		else:
-			ui_manager.show_victory("战斗胜利", "下一关", LevelManager.on_victory)
-	else:
-		ui_manager.show_victory("战斗失败", "回到营地", self._on_non_map_defeat)
+	if is_instance_valid(move_btn):
+		move_btn.disabled = true
+	print("菜单隐藏")
 
 
-func _on_turn_changed(team: int):
-	print("连接数: ", SignalBus.turn_changed.get_connections().size())
-	await _wait_for_ui_clear()
-	_handle_turn_change_async(team)
+func _on_menu_blocker_clicked(event: InputEvent):
+	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+		SignalBus.request_hide_menu.emit()
+		InputManager.selected_unit = null
+		InputManager.interaction_phase = InputManager.Phase.IDLE
 
 
-func _handle_turn_change_async(team: int):
-	if team == TurnManager.Team.PLAYER:
-		print("玩家回合开始，递增前计数: ", Globals.current_battle_turn)
-		Globals.increment_battle_turn()
-		turn_count_label.text = "第 " + str(Globals.current_battle_turn) + " 回合"
-		print("玩家回合开始，递增后计数: ", Globals.current_battle_turn)
-	if TurnManager.is_game_over:
-		return
-	if _turn_changed_locked:
-		return
-	_turn_changed_locked = true
-	Globals.is_transitioning = true
-
-	if is_instance_valid(action_menu):
-		action_menu.visible = false
-	if is_instance_valid(ui_manager):
-		ui_manager.hide_menu()
-	if is_instance_valid(menu_blocker):
-		menu_blocker.visible = false
-	if is_instance_valid(info_panel):
-		info_panel.visible = false
-	if is_instance_valid(setting_panel):
-		setting_panel.visible = false
-	if is_instance_valid(team_view_panel):
-		team_view_panel.visible = false
-	if is_instance_valid(setting_menu_panel):
-		setting_menu_panel.visible = false
-
-	InputManager.selected_unit = null
-	InputManager.interaction_phase = InputManager.Phase.IDLE
-	InputManager.current_highlight_cells = {}
-
-	MusicManager.stop_music()
-
-	if team == TurnManager.Team.PLAYER:
-		Globals.increment_battle_turn()
-
-	await get_tree().create_timer(transition_delay_before_fade, true, false, true).timeout
-	await turnlayer_manager.play_transition(team)
-	await get_tree().create_timer(transition_delay_after_fade, true, false, true).timeout
-
-	print("回合切换：", "玩家" if team == TurnManager.Team.PLAYER else "敌人")
-
-	var target_pos = null
-	if team == TurnManager.Team.PLAYER:
-		var last_unit = TurnManager.get_last_player_unit()
-		if is_instance_valid(last_unit):
-			target_pos = grid_to_world(last_unit.grid_cell)
-	else:
-		var first_enemy = TurnManager.get_first_enemy_unit()
-		if is_instance_valid(first_enemy):
-			target_pos = grid_to_world(first_enemy.grid_cell)
-
-	if target_pos:
-		camera_controller.smooth_move_to(target_pos, turnlayer_manager.transition_duration, true)
-	else:
-		var fallback_pos = _get_center_position()
-		if fallback_pos:
-			camera_controller.smooth_move_to(fallback_pos, turnlayer_manager.transition_duration, true)
-
-	if not is_non_combat_mode:
-		var is_boss = GameState.current_map_data and GameState.current_map_data.node_type == MapNode.NodeType.BOSS
-		if is_boss:
-			if team == TurnManager.Team.PLAYER:
-				if MusicManager.config and MusicManager.config.boss_player_turn_music:
-					MusicManager.play_music(MusicManager.config.boss_player_turn_music)
-				else:
-					MusicManager.play_player_turn_music()
-			else:
-				if MusicManager.config and MusicManager.config.boss_enemy_turn_music:
-					MusicManager.play_music(MusicManager.config.boss_enemy_turn_music)
-				else:
-					MusicManager.play_enemy_turn_music()
-		else:
-			if team == TurnManager.Team.PLAYER:
-				MusicManager.play_player_turn_music()
-			else:
-				MusicManager.play_enemy_turn_music()
-	else:
-		var music_stream = null
-		if MusicManager.config and MusicManager.config.non_combat_music:
-			music_stream = MusicManager.config.non_combat_music
-		elif MusicManager.config and MusicManager.config.map_music:
-			music_stream = MusicManager.config.map_music
-		if music_stream:
-			var player = MusicManager.player
-			if not player.playing or player.stream != music_stream:
-				MusicManager.play_music(music_stream)
-
-	await _function_handler.apply_map_functions(team)
-	_panel_manager.update_relic_icons()
-	Globals.is_transitioning = false
-	_turn_changed_locked = false
-
-	if team == TurnManager.Team.ENEMY and not is_non_combat_mode:
-		TurnManager.run_enemy_ai()
+# ===================== 坐标换算 =====================
+func grid_to_world(cell: Vector2i) -> Vector2:
+	return Vector2(cell.x * MapConst.CELL_SIZE + MapConst.CELL_SIZE / 2.0, cell.y * MapConst.CELL_SIZE + MapConst.CELL_SIZE / 2.0)
 
 
-func _get_center_position() -> Vector2:
-	for unit in UnitManager.unit_list:
-		if unit.unit_stats.team_id == 0 and unit.hit_points > 0:
-			return unit.global_position
-	var viewport_size = get_viewport().get_visible_rect().size
-	var center = camera_controller.map_rect.position + camera_controller.map_rect.size / 2
-	return center - viewport_size / 2
+func world_to_grid(world_pos: Vector2) -> Vector2i:
+	return Vector2i(floor(world_pos.x / MapConst.CELL_SIZE), floor(world_pos.y / MapConst.CELL_SIZE))
 
 
 # ===================== 输入处理 =====================
@@ -862,32 +621,6 @@ func _on_request_show_menu(unit: Unit):
 					can_move = true
 					break
 		move_btn.disabled = not can_move
-
-
-func _on_request_hide_menu():
-	if is_instance_valid(ui_manager):
-		ui_manager.hide_menu()
-	if is_instance_valid(menu_blocker):
-		menu_blocker.visible = false
-	if is_instance_valid(move_btn):
-		move_btn.disabled = true
-	print("菜单隐藏")
-
-
-func _on_menu_blocker_clicked(event: InputEvent):
-	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-		SignalBus.request_hide_menu.emit()
-		InputManager.selected_unit = null
-		InputManager.interaction_phase = InputManager.Phase.IDLE
-
-
-# ===================== 坐标换算 =====================
-func grid_to_world(cell: Vector2i) -> Vector2:
-	return Vector2(cell.x * MapConst.CELL_SIZE + MapConst.CELL_SIZE / 2.0, cell.y * MapConst.CELL_SIZE + MapConst.CELL_SIZE / 2.0)
-
-
-func world_to_grid(world_pos: Vector2) -> Vector2i:
-	return Vector2i(floor(world_pos.x / MapConst.CELL_SIZE), floor(world_pos.y / MapConst.CELL_SIZE))
 
 
 # ===================== 其他信号 =====================
@@ -1051,197 +784,6 @@ func _adjust_info_panel(label: Label, panel: PanelContainer):
 	panel.visible = true
 
 
-# ---- 地图模式：胜利继续 ----
-func _on_map_victory_continue():
-	print("=== _on_map_victory_continue ===")
-	print("reward_gold: ", GameState.current_reward_gold)
-	print("reward_soul: ", GameState.current_reward_soul)
-	print("reward_materials: ", GameState.current_reward_materials)
-	print("reward_items: ", GameState.reward_items)
-	print("current_node_key: ", GameState.current_node_key)
-	print("current_node_type: ", current_node_type)
-
-	var reward_gold = GameState.current_reward_gold
-	var reward_soul = GameState.current_reward_soul
-	var reward_materials = GameState.current_reward_materials
-
-	var reward_item_datas: Array = []
-	for item_id in GameState.reward_items:
-		var data = ItemManager.get_item_data(item_id)
-		if data:
-			reward_item_datas.append(data)
-		else:
-			var relic_data = RelicManager.get_relic_data(item_id)
-			if not relic_data.is_empty():
-				var virtual_data = ItemData.new()
-				virtual_data.id = item_id
-				virtual_data.name = relic_data.get("name", "未知遗物")
-				var icon_path = relic_data.get("icon", "")
-				if icon_path != "" and ResourceLoader.exists(icon_path):
-					virtual_data.icon = load(icon_path)
-				reward_item_datas.append(virtual_data)
-
-	if reward_materials and not reward_materials.is_empty():
-		for material_name in reward_materials:
-			var amount = reward_materials[material_name]
-			if amount > 0:
-				var data = ItemData.new()
-				data.id = "material_" + material_name
-				data.name = material_name + " x" + str(amount)
-				data.description = "材料 x" + str(amount)
-				reward_item_datas.append(data)
-				print("添加材料显示: ", data.name)
-
-	for rare_data in GameState.current_reward_rare_datas:
-		if rare_data:
-			reward_item_datas.append(rare_data)
-			print("添加稀有掉落显示: ", rare_data.name)
-
-	# ★ 遗物解锁（MapData + Node 合并，去重，只显示新解锁的）
-	var all_relic_ids : Array = []
-	if GameState.current_map_data and GameState.current_map_data.unlock_relics:
-		all_relic_ids.append_array(GameState.current_map_data.unlock_relics)
-	if GameState.current_node_unlock_relics:
-		all_relic_ids.append_array(GameState.current_node_unlock_relics)
-
-	if not all_relic_ids.is_empty():
-		var seen : Dictionary = {}
-		var unique_relics : Array = []
-		for rid in all_relic_ids:
-			if rid is String and rid != "" and not seen.has(rid):
-				seen[rid] = true
-				unique_relics.append(rid)
-
-		var newly : Array = []
-		for rid in unique_relics:
-			if not RelicManager.is_relic_unlocked(rid):
-				newly.append(rid)
-
-		RelicManager.unlock_relics_by_ids(unique_relics)
-
-		for rid in newly:
-			var rd : Dictionary = RelicManager.get_relic_data(rid)
-			var virtual_data := ItemData.new()
-			virtual_data.id = "unlock_relic_" + rid
-			virtual_data.name = "★ 新遗物：" + rd.get("name", rid)
-			virtual_data.description = rd.get("description", "")
-			var icon_path : String = rd.get("icon", "")
-			if icon_path != "" and ResourceLoader.exists(icon_path):
-				virtual_data.icon = load(icon_path)
-			reward_item_datas.append(virtual_data)
-		if not newly.is_empty():
-			print("[Battlefield] 本节点解锁 %d 个遗物" % newly.size())
-
-	GameState.current_node_unlock_relics.clear()
-
-	var has_reward = (reward_gold > 0 or reward_soul > 0 or not reward_item_datas.is_empty())
-
-	var is_boss = (current_node_type == MapNode.NodeType.BOSS)
-	if not is_boss and GameState.current_map_data:
-		is_boss = (GameState.current_map_data.node_type == MapNode.NodeType.BOSS)
-
-	var is_last_day = (GameState.current_day >= 3)
-
-	print("is_boss=", is_boss, " is_last_day=", is_last_day, " has_reward=", has_reward)
-
-	var need_ui_block = has_reward or is_boss
-	if need_ui_block:
-		_is_reward_ui_active = true
-		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
-		cursor.visible = false
-
-	var summary = null
-	if has_reward:
-		print("有奖励，弹出结算界面")
-		summary = Globals.get_reward_summary()
-		if summary:
-			summary.setup_reward(reward_gold, reward_soul, reward_item_datas, false, "关卡结算")
-			summary.open()
-			await summary.confirmed
-			print("结算界面已确认，summary 保持可见")
-		else:
-			push_error("Battlefield: 无法获取 RewardSummaryUI 实例")
-
-	if is_boss:
-		GameState.should_advance_day = true
-		print("Boss 胜利，设置 should_advance_day = true")
-
-		if is_last_day:
-			print("第三天最终Boss，跳过遗物三选一和英灵殿")
-		else:
-			print("弹出遗物三选一，叠加在结算之上")
-			var relic_select_scene = load(Config.PATHS.RELIC_SELECT_UI)
-			var relic_select = relic_select_scene.instantiate()
-			add_child(relic_select)
-
-			var owned_ids = []
-			for relic in GameState.get_relics_from_passives():
-				owned_ids.append(relic.item_id)
-
-			relic_select.setup_options(owned_ids)
-
-			await relic_select.relic_selected
-			print("遗物选择完成")
-
-			print("弹出英灵殿")
-			var hero_shrine_scene = load(Config.PATHS.HERO_SHRINE_UI)
-			if hero_shrine_scene:
-				var hero_shrine = hero_shrine_scene.instantiate()
-				add_child(hero_shrine)
-				hero_shrine.setup_map(1)
-				await hero_shrine.closed
-				print("英灵殿关闭")
-			else:
-				push_warning("HeroShrineUI 场景未找到")
-
-	if summary:
-		print("结算界面已关闭")
-
-	if need_ui_block:
-		_is_reward_ui_active = false
-		Input.mouse_mode = Input.MOUSE_MODE_HIDDEN
-		cursor.visible = true
-
-	if GameState.current_node_key != "":
-		GameState.visited_nodes[GameState.current_node_key] = true
-		GameState.current_node_key = ""
-
-	GameState.reward_items.clear()
-	GameState.clear_current_reward()
-	SaveManager.auto_save()
-
-	print("切换场景到 MapScene")
-	get_tree().change_scene_to_file(Config.PATHS.MAP_SCENE)
-
-
-# ---- 统一的放弃战斗逻辑 ----
-func _execute_abandon_battle():
-	Globals.is_transitioning = true
-	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
-	if cursor:
-		cursor.visible = false
-
-	GameState.current_node_key = ""
-	Globals.is_performing_action = false
-	TurnManager.is_game_over = true
-	GameState.abandon_and_return_to_camp()
-
-
-func _on_map_defeat_gameover():
-	_execute_abandon_battle()
-
-
-func _on_non_map_defeat():
-	_execute_abandon_battle()
-
-
-func _on_retry_battle():
-	if GameState.current_node_key != "":
-		GameState.visited_nodes.erase(GameState.current_node_key)
-		GameState.current_node_key = ""
-	get_tree().change_scene_to_file(Config.PATHS.MAP_SCENE)
-
-
 # ===================== 结束回合 =====================
 func _update_end_turn_button_visibility():
 	if not end_turn_button:
@@ -1313,7 +855,7 @@ func _on_back_camp_pressed():
 
 
 # ============================================================
-#  InputManager 右键回调的转发（避免破坏对外接口）
+#  InputManager 右键回调的转发（保持对外接口不变）
 # ============================================================
 func _on_team_view_btn_pressed():
 	_panel_manager.on_team_view_btn_pressed()
@@ -1321,159 +863,3 @@ func _on_team_view_btn_pressed():
 
 func _on_item_list_btn_pressed():
 	_panel_manager.on_item_list_btn_pressed()
-
-
-# ============================================================
-#  战斗开始：遗物属性应用 + 熔铸持久buff
-# ============================================================
-func _apply_team_buffs():
-	var relic_stats = GameState.get_global_relic_stats()
-	var relic_effects = GameState.get_global_relic_effects()
-
-	for unit in UnitManager.unit_list:
-		if unit.unit_stats.team_id != 0:
-			continue
-
-		var sac_buffs : Dictionary = unit.unit_stats.get_sacrifice_buffs()
-		for btype in sac_buffs:
-			var bvalue : float = sac_buffs[btype]
-			match btype:
-				"attack_percent":
-					unit.buff_attack_percent += bvalue
-				"crit_damage_bonus":
-					unit.buff_crit_damage_bonus += bvalue
-				"defense_flat":
-					unit.buff_defense_flat += int(bvalue)
-				"damage_reduction":
-					unit.buff_damage_reduction += bvalue
-				"heal_bonus":
-					unit.relic_heal_bonus += bvalue
-				"counter_damage_bonus":
-					unit.relic_counter_damage_bonus += bvalue
-				_:
-					pass
-		if not sac_buffs.is_empty():
-			print("[Battlefield] %s 熔铸 buff: %s" % [
-				unit.unit_stats.display_name, sac_buffs])
-
-		var s = unit.unit_stats
-		var old_max = s.max_hp
-		s.max_hp       += int(relic_stats.get("max_hp", 0))
-		s.strength     += int(relic_stats.get("strength", 0))
-		s.dexterity    += int(relic_stats.get("dexterity", 0))
-		s.intelligence += int(relic_stats.get("intelligence", 0))
-		s.faith        += int(relic_stats.get("faith", 0))
-		s.arcane       += int(relic_stats.get("arcane", 0))
-		s.move_range   += int(relic_stats.get("move_range", 0))
-		unit.buff_attack_flat       += int(relic_stats.get("attack", 0))
-		unit.buff_defense_flat      += int(relic_stats.get("defense", 0))
-		unit.buff_magic_attack_flat += int(relic_stats.get("magic_attack", 0))
-
-		var hp_delta = s.max_hp - old_max
-		if hp_delta > 0:
-			unit.hit_points += hp_delta
-		if unit.hit_points > s.max_hp:
-			unit.hit_points = s.max_hp
-
-		unit.relic_first_attack_crit_available = bool(relic_effects.get("first_attack_crit", false))
-		unit.relic_low_hp_damage_reduce = float(relic_effects.get("low_hp_damage_reduce", 0.0))
-		unit.relic_kill_grants_extra_move = int(relic_effects.get("kill_grants_extra_move", 0))
-		unit.relic_first_spell_free_available = bool(relic_effects.get("first_spell_free", false))
-		unit.relic_turn_first_hit_regen = float(relic_effects.get("turn_first_hit_regen", 0.0))
-		unit.relic_strength_scale_damage = float(relic_effects.get("strength_scale_damage", 0.0))
-		unit.relic_counter_damage_bonus = float(relic_effects.get("counter_damage_bonus", 0.0))
-		unit.relic_heal_bonus = float(relic_effects.get("heal_bonus", 0.0))
-		unit.relic_auto_revive_available = bool(relic_effects.get("auto_revive_once", false))
-
-		unit.update_hp_label()
-
-	print("[Battlefield] 遗物已应用 | 属性：", relic_stats, " 效果：", relic_effects)
-
-
-# ============================================================
-#  稀有掉落
-# ============================================================
-func _roll_rare_drop_for_node(node_type: int) -> Dictionary:
-	var chance : float = RARE_DROP_CHANCE.get(node_type, 0.0)
-	if randf() > chance:
-		return {}
-
-	var pool : Array = []
-
-	var owned_relics : Dictionary = {}
-	for relic in GameState.get_relics_from_passives():
-		owned_relics[relic.item_id] = true
-	for rid in RelicManager.get_unlocked_relics():
-		if not owned_relics.has(rid):
-			pool.append({"type": "relic", "id": rid})
-
-	for ref_id in RefineManager.get_all_ids():
-		if RefineManager.is_recipe_unlocked(ref_id):
-			pool.append({"type": "refine", "id": ref_id})
-
-	for iid in ItemManager.get_all_item_ids():
-		var d : ItemData = ItemManager.get_item_data(iid)
-		if not d: continue
-		if d.type != "armor": continue
-		if d.quality not in ["epic", "legendary"]: continue
-		if d.price <= 0: continue
-		pool.append({"type": "armor", "id": iid})
-
-	if pool.is_empty():
-		return {}
-	pool.shuffle()
-	return pool[0]
-
-
-func _apply_rare_drop(drop : Dictionary) -> ItemData:
-	var rtype : String = drop.get("type", "")
-	var rid : String = drop.get("id", "")
-	if rid == "":
-		return null
-	var virtual_data : ItemData = null
-
-	match rtype:
-		"relic":
-			var rd : Dictionary = RelicManager.get_relic_data(rid)
-			if rd.is_empty(): return null
-			RelicManager.unlock_relic(rid)
-			var inst := ItemInstance.new()
-			inst.item_id = rid
-			inst.count = 1
-			if not GameState.add_relic_to_passive_slot(inst):
-				print("[稀有掉落] 遗物 %s 解锁但未入槽（槽满）" % rid)
-			virtual_data = ItemData.new()
-			virtual_data.id = "rare_relic_" + rid
-			virtual_data.name = "★ 遗物：" + rd.get("name", rid)
-			virtual_data.description = rd.get("description", "")
-			var icon_path : String = rd.get("icon", "")
-			if icon_path != "" and ResourceLoader.exists(icon_path):
-				virtual_data.icon = load(icon_path)
-			print("[稀有掉落] 遗物 %s" % rid)
-
-		"refine":
-			var recipe : Dictionary = RefineManager.get_recipe(rid)
-			if recipe.is_empty(): return null
-			GameState.refined_items[rid] = GameState.refined_items.get(rid, 0) + 1
-			virtual_data = ItemData.new()
-			virtual_data.id = "rare_refine_" + rid
-			virtual_data.name = "★ 精炼：" + recipe.get("name", rid)
-			virtual_data.description = recipe.get("description", "")
-			print("[稀有掉落] 精炼 %s" % rid)
-
-		"armor":
-			var d : ItemData = ItemManager.get_item_data(rid)
-			if not d: return null
-			var inst2 := ItemInstance.new()
-			inst2.item_id = rid
-			inst2.count = 1
-			GameState.pending_forge_rewards.append(inst2)
-			virtual_data = ItemData.new()
-			virtual_data.id = "rare_armor_" + rid
-			virtual_data.name = "★ " + d.name
-			virtual_data.description = d.description
-			virtual_data.icon = d.icon
-			virtual_data.quality = d.quality
-			print("[稀有掉落] 防具 %s" % rid)
-
-	return virtual_data
