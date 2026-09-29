@@ -10,24 +10,24 @@ content_margin_bottom = 0.0
 
 [sub_resource type="Image" id="Image_4how6"]
 data = {
-"data": PackedByteArray(234, 234, 255, 255, 234, 234, 255, 255, 234, 234, 255, 255, 234, 234, 255, 255, 234, 234, 255, 255, 234, 234, 255, 255, 234, 234, 255, 255, 234, 234, 255, 255, 234, 234, 255, 255, 234, 234, 255, 255, 234, 234, 255, 255, 234, 234, 255, 255, 234, 234, 255, 255, 234, 234, 255, 255, 234, 234, 255, 255, 234, 234, 255, 255, 234, 234, 255, 255, 234, 234, 255, 255, 234, 234, 255, 255, 234, 234, 255, 255, 234, 234, 255, 255, 234, 234, 255, 255, 234, 234, 255, 255, 234, 234, 255, 255, 234, 234, 255, 255, 234, 234, 255, 255, 234, 234, 255, 255, 234, 234, 255, 255, 234, 234, 255, 255, 234, 234, 255, 255, 234, 234, 255, 255, 234, 234, 255, 255),
+"data": PackedByteArray(198, 198, 209, 255, 198, 198, 209, 255, 198, 198, 209, 255, 198, 198, 209, 255, 198, 198, 209, 255, 198, 198, 209, 255, 198, 198, 209, 255, 198, 198, 209, 255, 198, 198, 209, 255, 198, 198, 209, 255),
 "format": "RGBA8",
-"height": 8,
+"height": 5,
 "mipmaps": false,
-"width": 4
+"width": 2
 }
 
 [sub_resource type="ImageTexture" id="ImageTexture_v0omh"]
 image = SubResource("Image_4how6")
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_vwheo"]
-content_margin_top = 5.0
-content_margin_bottom = 5.0
-bg_color = Color(0.45, 0.72, 1, 1)
+content_margin_top = 2.5
+content_margin_bottom = 2.5
+bg_color = Color(0.55, 0.55, 0.6, 1)
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_pck8s"]
-content_margin_top = 5.0
-content_margin_bottom = 5.0
+content_margin_top = 2.5
+content_margin_bottom = 2.5
 bg_color = Color(0.22, 0.22, 0.28, 1)
 
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_g0ftc"]
@@ -75,6 +75,7 @@ Label/styles/normal = SubResource("StyleBoxEmpty_g0ftc")
 LineEdit/font_sizes/font_size = 6
 LineEdit/styles/focus = SubResource("StyleBoxEmpty_bgaxx")
 LineEdit/styles/normal = SubResource("StyleBoxEmpty_bgaxx")
+LineEdit/styles/read_only = SubResource("StyleBoxEmpty_bgaxx")
 TooltipLabel/font_sizes/font_size = 5
 TooltipPanel/font_sizes/font_size = 5
 TooltipPanel/styles/panel = SubResource("StyleBoxFlat_dxyj6")

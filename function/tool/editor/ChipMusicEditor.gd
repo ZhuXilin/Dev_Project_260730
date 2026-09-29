@@ -39,6 +39,8 @@ extends Control
 #    ← / →                   选中音符整体左右移动 ±1 tick
 #    Shift + ← / →           整体左右移动 ±1 拍
 #    Ctrl+A                  全选当前通道所有音符（All 通道时全选）
+#    Ctrl+X / Ctrl+C         剪切 / 复制选中音符（同通道内）
+#    Ctrl+V                  粘贴到鼠标位置（同通道内，切通道清空）
 #
 #  【通道】
 #    单击通道按钮            切换到该通道（清空选中）
@@ -130,7 +132,7 @@ const COL_BOX_SEL     : Color = Color(0.40, 0.70, 1.00)
 const COL_LOOP_ON  : Color = Color(0.42, 0.56, 0.85)
 const COL_LOOP_OFF : Color = Color(0.20, 0.20, 0.24)
 
-const HINT_TEXT : String = "左键空白=添加/框选 · 左键音符=选中/拖动 · 拖右边缘=改时长 · Shift+拖=追加 · 中键拖动=平移 · 右键音符=删除 · 右键空白=取消 · Delete=删除 · ↑↓=移调 · Shift+↑↓=八度 · ←→=移动 · Shift+←→=整拍 · Ctrl+A=全选 · 滚轮=滚动 · Ctrl+滚轮=缩放 · 空格=播放 · Esc=退出"
+const HINT_TEXT : String = "左键空白=添加/框选 · 左键音符=选中/拖动 · 拖右边缘=改时长 · 中键拖动=平移 · 右键音符=删除 · 右键空白=取消 · Delete=删除 · Ctrl+X/C/V=剪切/复制/粘贴 · ↑↓=移调 · Shift+↑↓=八度 · ←→=移动 · Shift+←→=整拍 · Ctrl+A=全选 · 滚轮=滚动 · Ctrl+滚轮=缩放 · 空格=播放 · Esc=退出"
 
 # 行高 / 横向缩放
 var _row_height : float = 7.0
@@ -294,6 +296,9 @@ var _box_additive : bool = false
 var _panning : bool = false
 var _pan_start_mouse : Vector2 = Vector2.ZERO
 var _pan_start_scroll : Vector2 = Vector2.ZERO
+
+# 剪贴板（单通道内）
+var _clipboard : Dictionary = {}
 
 var _dragging_progress : bool = false
 var _was_playing_before_seek : bool = false
@@ -1378,6 +1383,9 @@ func _on_seek_ended(tick : float):
 #  通道
 # ============================================================
 func _on_channel_btn(i : int):
+	if i != _selected_channel and not _clipboard.is_empty():
+		_clipboard.clear()             # ★ 切换通道 → 清空剪贴板
+		_status.text = "通道已切换，剪贴板已清空"
 	_selected_channel = i
 	_selected_indices.clear()
 	_refresh_channel_buttons()
@@ -1787,6 +1795,107 @@ func _finish_box_select(c : Control):
 
 
 # ============================================================
+#  剪切 / 复制 / 粘贴
+# ============================================================
+func _copy_selected():
+	if _song == null or _selected_indices.size() == 0:
+		_status.text = "没有选中的音符"
+		return
+	if _selected_channel == CH_ALL:
+		_status.text = "请先选择具体通道（All 模式下不可复制）"
+		return
+	var evts : Array = []
+	var base_tick : float = INF
+	var base_note : float = INF
+	for idx in _selected_indices:
+		if idx < 0 or idx >= _song.events.size(): continue
+		var e : Dictionary = _song.events[idx]
+		if int(e.ch) != _selected_channel: continue
+		evts.append(e.duplicate())
+		base_tick = minf(base_tick, float(e.tick))
+		base_note = minf(base_note, float(e.note))
+	if evts.is_empty():
+		_status.text = "没有可复制的音符"
+		return
+	_clipboard = {
+		"ch": _selected_channel,
+		"events": evts,
+		"base_tick": base_tick,
+		"base_note": base_note,
+	}
+	_status.text = "已复制 %d 个音符（%s）" % [evts.size(), _ch_en_names[_selected_channel]]
+
+
+func _cut_selected():
+	if _song == null or _selected_indices.size() == 0:
+		_status.text = "没有选中的音符"
+		return
+	if _selected_channel == CH_ALL:
+		_status.text = "请先选择具体通道（All 模式下不可剪切）"
+		return
+	_copy_selected()
+	if _clipboard.is_empty(): return
+	var n : int = (_clipboard["events"] as Array).size()
+	_delete_selected()
+	_status.text = "已剪切 %d 个音符（%s）" % [n, _ch_en_names[_selected_channel]]
+
+
+func _paste_at_mouse():
+	if _song == null: return
+	if _clipboard.is_empty():
+		_status.text = "剪贴板为空"
+		return
+	if _selected_channel == CH_ALL:
+		_status.text = "请先选择具体通道（All 模式下不可粘贴）"
+		return
+	# 通道一致性检查（切换通道时已清空，这里是双保险）
+	if int(_clipboard.get("ch", -999)) != _selected_channel:
+		_clipboard.clear()
+		_status.text = "通道不匹配，剪贴板已清空"
+		return
+	if _grid_canvas == null: return
+
+	# 鼠标位置 → tick / pitch
+	var mp : Vector2 = _grid_canvas.get_local_mouse_position()
+	var gx : float = PIANO_WIDTH
+	if mp.x < gx:
+		_status.text = "鼠标不在 tracker 区"
+		return
+	var tpb : int = maxi(1, int(_song.ticks_per_beat))
+	var world_x : float = mp.x - gx + _scroll_x
+	var world_y : float = mp.y + _scroll_y
+	var mouse_tick : int = maxi(0, int(round(world_x / _px_per_beat * float(tpb))))
+	var row_idx : int = int(floor(world_y / _row_height))
+	var mouse_pitch : int = clampi(PITCH_MAX - row_idx, PITCH_MIN, PITCH_MAX)
+
+	var base_tick : float = float(_clipboard.get("base_tick", 0.0))
+	var base_note : float = float(_clipboard.get("base_note", 60.0))
+	var evts : Array = _clipboard.get("events", [])
+
+	_push_undo()
+	var added : Array[int] = []
+	for src in evts:
+		var e : Dictionary = src
+		var new_tick : float = maxf(0.0, float(mouse_tick) + (float(e.tick) - base_tick))
+		var new_note : int = clampi(mouse_pitch + (int(e.note) - int(base_note)),
+			PITCH_MIN, PITCH_MAX)
+		var new_ev : Dictionary = {
+			"ch": float(_selected_channel),
+			"tick": new_tick,
+			"note": float(new_note),
+			"vel": float(e.vel),
+			"dur": float(e.dur),
+		}
+		_song.events.append(new_ev)
+		added.append(_song.events.size() - 1)
+
+	_selected_indices = added
+	_update_note_inspector()
+	if _grid_canvas: _grid_canvas.queue_redraw()
+	_status.text = "已粘贴 %d 个音符" % added.size()
+
+
+# ============================================================
 #  选中操作
 # ============================================================
 func _nudge_selected_pitch(delta_pitch : int):
@@ -2054,6 +2163,15 @@ func _input(event : InputEvent):
 				get_viewport().set_input_as_handled(); return
 			KEY_A:
 				_select_all_in_channel()
+				get_viewport().set_input_as_handled(); return
+			KEY_X:
+				_cut_selected()
+				get_viewport().set_input_as_handled(); return
+			KEY_C:
+				_copy_selected()
+				get_viewport().set_input_as_handled(); return
+			KEY_V:
+				_paste_at_mouse()
 				get_viewport().set_input_as_handled(); return
 
 	match ke.keycode:
