@@ -1,49 +1,49 @@
 {
  "format": "chip_music_v1",
  "meta": {
-  "title": "midigen_lofi_1790652116188",
-  "bpm": 60.0,
+  "title": "MainMenu",
+  "bpm": 100.0,
   "beats_per_bar": 4,
   "ticks_per_beat": 4,
-  "total_ticks": 80,
+  "total_ticks": 100,
   "loop_start": 0,
-  "loop_end": 80
+  "loop_end": 100
  },
  "presets": {
   "lead": {
    "wave": "pulse_25",
    "env": {
-	"attack": 0.005,
-	"decay": 0.05,
-	"sustain": 0.7,
-	"release": 0.05
+    "attack": 0.005,
+    "decay": 0.05,
+    "sustain": 0.7,
+    "release": 0.05
    }
   },
   "harmony": {
    "wave": "pulse_12",
    "env": {
-	"attack": 0.01,
-	"decay": 0.05,
-	"sustain": 0.6,
-	"release": 0.05
+    "attack": 0.01,
+    "decay": 0.05,
+    "sustain": 0.6,
+    "release": 0.05
    }
   },
   "bass": {
    "wave": "triangle",
    "env": {
-	"attack": 0.01,
-	"decay": 0.1,
-	"sustain": 0.8,
-	"release": 0.1
+    "attack": 0.01,
+    "decay": 0.1,
+    "sustain": 0.8,
+    "release": 0.1
    }
   },
   "drum": {
    "wave": "noise",
    "env": {
-	"attack": 0.001,
-	"decay": 0.05,
-	"sustain": 0.0,
-	"release": 0.02
+    "attack": 0.001,
+    "decay": 0.05,
+    "sustain": 0.0,
+    "release": 0.02
    }
   }
  },
@@ -71,473 +71,473 @@
  ],
  "events": [
   {
-   "ch": 1,
-   "tick": 0,
-   "note": 73,
-   "vel": 65,
-   "dur": 5
+   "ch": 1.0,
+   "tick": 0.0,
+   "note": 73.0,
+   "vel": 65.0,
+   "dur": 5.0
   },
   {
-   "ch": 2,
-   "tick": 0,
-   "note": 49,
-   "vel": 89,
-   "dur": 7
+   "ch": 2.0,
+   "tick": 0.0,
+   "note": 49.0,
+   "vel": 89.0,
+   "dur": 7.0
   },
   {
-   "ch": 3,
-   "tick": 0,
-   "note": 42,
-   "vel": 108,
-   "dur": 1
+   "ch": 3.0,
+   "tick": 0.0,
+   "note": 42.0,
+   "vel": 108.0,
+   "dur": 1.0
   },
   {
-   "ch": 3,
-   "tick": 2,
-   "note": 42,
-   "vel": 108,
-   "dur": 1
+   "ch": 3.0,
+   "tick": 2.0,
+   "note": 42.0,
+   "vel": 108.0,
+   "dur": 1.0
   },
   {
-   "ch": 3,
-   "tick": 3,
-   "note": 41,
-   "vel": 108,
-   "dur": 1
+   "ch": 3.0,
+   "tick": 3.0,
+   "note": 41.0,
+   "vel": 108.0,
+   "dur": 1.0
   },
   {
-   "ch": 0,
-   "tick": 4,
-   "note": 68,
-   "vel": 107,
-   "dur": 3
+   "ch": 0.0,
+   "tick": 4.0,
+   "note": 68.0,
+   "vel": 107.0,
+   "dur": 3.0
   },
   {
-   "ch": 3,
-   "tick": 4,
-   "note": 42,
-   "vel": 108,
-   "dur": 1
+   "ch": 3.0,
+   "tick": 4.0,
+   "note": 42.0,
+   "vel": 108.0,
+   "dur": 1.0
   },
   {
-   "ch": 1,
-   "tick": 6,
-   "note": 73,
-   "vel": 58,
-   "dur": 5
+   "ch": 1.0,
+   "tick": 6.0,
+   "note": 73.0,
+   "vel": 58.0,
+   "dur": 5.0
   },
   {
-   "ch": 3,
-   "tick": 6,
-   "note": 46,
-   "vel": 108,
-   "dur": 1
+   "ch": 3.0,
+   "tick": 6.0,
+   "note": 46.0,
+   "vel": 108.0,
+   "dur": 1.0
   },
   {
-   "ch": 2,
-   "tick": 8,
-   "note": 44,
-   "vel": 76,
-   "dur": 7
+   "ch": 2.0,
+   "tick": 8.0,
+   "note": 44.0,
+   "vel": 76.0,
+   "dur": 7.0
   },
   {
-   "ch": 3,
-   "tick": 8,
-   "note": 42,
-   "vel": 108,
-   "dur": 1
+   "ch": 3.0,
+   "tick": 8.0,
+   "note": 42.0,
+   "vel": 108.0,
+   "dur": 1.0
   },
   {
-   "ch": 3,
-   "tick": 10,
-   "note": 42,
-   "vel": 108,
-   "dur": 1
+   "ch": 3.0,
+   "tick": 10.0,
+   "note": 42.0,
+   "vel": 108.0,
+   "dur": 1.0
   },
   {
-   "ch": 1,
-   "tick": 11,
-   "note": 72,
-   "vel": 71,
-   "dur": 5
+   "ch": 1.0,
+   "tick": 11.0,
+   "note": 72.0,
+   "vel": 71.0,
+   "dur": 5.0
   },
   {
-   "ch": 3,
-   "tick": 11,
-   "note": 41,
-   "vel": 108,
-   "dur": 1
+   "ch": 3.0,
+   "tick": 11.0,
+   "note": 41.0,
+   "vel": 108.0,
+   "dur": 1.0
   },
   {
-   "ch": 3,
-   "tick": 12,
-   "note": 42,
-   "vel": 108,
-   "dur": 1
+   "ch": 3.0,
+   "tick": 12.0,
+   "note": 42.0,
+   "vel": 108.0,
+   "dur": 1.0
   },
   {
-   "ch": 3,
-   "tick": 14,
-   "note": 46,
-   "vel": 108,
-   "dur": 1
+   "ch": 3.0,
+   "tick": 14.0,
+   "note": 46.0,
+   "vel": 108.0,
+   "dur": 1.0
   },
   {
-   "ch": 1,
-   "tick": 16,
-   "note": 82,
-   "vel": 65,
-   "dur": 4
+   "ch": 1.0,
+   "tick": 16.0,
+   "note": 82.0,
+   "vel": 65.0,
+   "dur": 4.0
   },
   {
-   "ch": 2,
-   "tick": 16,
-   "note": 54,
-   "vel": 89,
-   "dur": 7
+   "ch": 2.0,
+   "tick": 16.0,
+   "note": 54.0,
+   "vel": 89.0,
+   "dur": 7.0
   },
   {
-   "ch": 3,
-   "tick": 16,
-   "note": 42,
-   "vel": 108,
-   "dur": 1
+   "ch": 3.0,
+   "tick": 16.0,
+   "note": 42.0,
+   "vel": 108.0,
+   "dur": 1.0
   },
   {
-   "ch": 0,
-   "tick": 17,
-   "note": 61,
-   "vel": 59,
-   "dur": 1
+   "ch": 0.0,
+   "tick": 17.0,
+   "note": 61.0,
+   "vel": 59.0,
+   "dur": 1.0
   },
   {
-   "ch": 3,
-   "tick": 18,
-   "note": 42,
-   "vel": 108,
-   "dur": 1
+   "ch": 3.0,
+   "tick": 18.0,
+   "note": 42.0,
+   "vel": 108.0,
+   "dur": 1.0
   },
   {
-   "ch": 3,
-   "tick": 19,
-   "note": 41,
-   "vel": 108,
-   "dur": 1
+   "ch": 3.0,
+   "tick": 19.0,
+   "note": 41.0,
+   "vel": 108.0,
+   "dur": 1.0
   },
   {
-   "ch": 3,
-   "tick": 20,
-   "note": 42,
-   "vel": 108,
-   "dur": 1
+   "ch": 3.0,
+   "tick": 20.0,
+   "note": 42.0,
+   "vel": 108.0,
+   "dur": 1.0
   },
   {
-   "ch": 3,
-   "tick": 22,
-   "note": 46,
-   "vel": 108,
-   "dur": 1
+   "ch": 3.0,
+   "tick": 22.0,
+   "note": 46.0,
+   "vel": 108.0,
+   "dur": 1.0
   },
   {
-   "ch": 0,
-   "tick": 24,
-   "note": 73,
-   "vel": 99,
-   "dur": 2
+   "ch": 0.0,
+   "tick": 24.0,
+   "note": 73.0,
+   "vel": 99.0,
+   "dur": 2.0
   },
   {
-   "ch": 2,
-   "tick": 24,
-   "note": 49,
-   "vel": 76,
-   "dur": 7
+   "ch": 2.0,
+   "tick": 24.0,
+   "note": 49.0,
+   "vel": 76.0,
+   "dur": 7.0
   },
   {
-   "ch": 3,
-   "tick": 24,
-   "note": 42,
-   "vel": 108,
-   "dur": 1
+   "ch": 3.0,
+   "tick": 24.0,
+   "note": 42.0,
+   "vel": 108.0,
+   "dur": 1.0
   },
   {
-   "ch": 3,
-   "tick": 26,
-   "note": 42,
-   "vel": 108,
-   "dur": 1
+   "ch": 3.0,
+   "tick": 26.0,
+   "note": 42.0,
+   "vel": 108.0,
+   "dur": 1.0
   },
   {
-   "ch": 1,
-   "tick": 27,
-   "note": 77,
-   "vel": 62,
-   "dur": 1
+   "ch": 1.0,
+   "tick": 27.0,
+   "note": 77.0,
+   "vel": 62.0,
+   "dur": 1.0
   },
   {
-   "ch": 3,
-   "tick": 27,
-   "note": 41,
-   "vel": 108,
-   "dur": 1
+   "ch": 3.0,
+   "tick": 27.0,
+   "note": 41.0,
+   "vel": 108.0,
+   "dur": 1.0
   },
   {
-   "ch": 3,
-   "tick": 28,
-   "note": 42,
-   "vel": 108,
-   "dur": 1
+   "ch": 3.0,
+   "tick": 28.0,
+   "note": 42.0,
+   "vel": 108.0,
+   "dur": 1.0
   },
   {
-   "ch": 3,
-   "tick": 30,
-   "note": 46,
-   "vel": 108,
-   "dur": 1
+   "ch": 3.0,
+   "tick": 30.0,
+   "note": 46.0,
+   "vel": 108.0,
+   "dur": 1.0
   },
   {
-   "ch": 2,
-   "tick": 32,
-   "note": 51,
-   "vel": 89,
-   "dur": 7
+   "ch": 2.0,
+   "tick": 32.0,
+   "note": 51.0,
+   "vel": 89.0,
+   "dur": 7.0
   },
   {
-   "ch": 3,
-   "tick": 32,
-   "note": 42,
-   "vel": 108,
-   "dur": 1
+   "ch": 3.0,
+   "tick": 32.0,
+   "note": 42.0,
+   "vel": 108.0,
+   "dur": 1.0
   },
   {
-   "ch": 0,
-   "tick": 34,
-   "note": 66,
-   "vel": 79,
-   "dur": 2
+   "ch": 0.0,
+   "tick": 34.0,
+   "note": 66.0,
+   "vel": 79.0,
+   "dur": 2.0
   },
   {
-   "ch": 1,
-   "tick": 34,
-   "note": 73,
-   "vel": 60,
-   "dur": 5
+   "ch": 1.0,
+   "tick": 34.0,
+   "note": 73.0,
+   "vel": 60.0,
+   "dur": 5.0
   },
   {
-   "ch": 3,
-   "tick": 34,
-   "note": 42,
-   "vel": 108,
-   "dur": 1
+   "ch": 3.0,
+   "tick": 34.0,
+   "note": 42.0,
+   "vel": 108.0,
+   "dur": 1.0
   },
   {
-   "ch": 3,
-   "tick": 35,
-   "note": 41,
-   "vel": 108,
-   "dur": 1
+   "ch": 3.0,
+   "tick": 35.0,
+   "note": 41.0,
+   "vel": 108.0,
+   "dur": 1.0
   },
   {
-   "ch": 0,
-   "tick": 36,
-   "note": 70,
-   "vel": 93,
-   "dur": 3
+   "ch": 0.0,
+   "tick": 36.0,
+   "note": 70.0,
+   "vel": 93.0,
+   "dur": 3.0
   },
   {
-   "ch": 3,
-   "tick": 36,
-   "note": 42,
-   "vel": 108,
-   "dur": 1
+   "ch": 3.0,
+   "tick": 36.0,
+   "note": 42.0,
+   "vel": 108.0,
+   "dur": 1.0
   },
   {
-   "ch": 3,
-   "tick": 38,
-   "note": 46,
-   "vel": 108,
-   "dur": 1
+   "ch": 3.0,
+   "tick": 38.0,
+   "note": 46.0,
+   "vel": 108.0,
+   "dur": 1.0
   },
   {
-   "ch": 1,
-   "tick": 40,
-   "note": 78,
-   "vel": 50,
-   "dur": 4
+   "ch": 1.0,
+   "tick": 40.0,
+   "note": 78.0,
+   "vel": 50.0,
+   "dur": 4.0
   },
   {
-   "ch": 2,
-   "tick": 40,
-   "note": 46,
-   "vel": 76,
-   "dur": 7
+   "ch": 2.0,
+   "tick": 40.0,
+   "note": 46.0,
+   "vel": 76.0,
+   "dur": 7.0
   },
   {
-   "ch": 3,
-   "tick": 40,
-   "note": 42,
-   "vel": 108,
-   "dur": 1
+   "ch": 3.0,
+   "tick": 40.0,
+   "note": 42.0,
+   "vel": 108.0,
+   "dur": 1.0
   },
   {
-   "ch": 3,
-   "tick": 42,
-   "note": 42,
-   "vel": 108,
-   "dur": 1
+   "ch": 3.0,
+   "tick": 42.0,
+   "note": 42.0,
+   "vel": 108.0,
+   "dur": 1.0
   },
   {
-   "ch": 3,
-   "tick": 43,
-   "note": 41,
-   "vel": 108,
-   "dur": 1
+   "ch": 3.0,
+   "tick": 43.0,
+   "note": 41.0,
+   "vel": 108.0,
+   "dur": 1.0
   },
   {
-   "ch": 1,
-   "tick": 44,
-   "note": 75,
-   "vel": 50,
-   "dur": 1
+   "ch": 1.0,
+   "tick": 44.0,
+   "note": 75.0,
+   "vel": 50.0,
+   "dur": 1.0
   },
   {
-   "ch": 2,
-   "tick": 44,
-   "note": 51,
-   "vel": 64,
-   "dur": 3
+   "ch": 2.0,
+   "tick": 44.0,
+   "note": 51.0,
+   "vel": 64.0,
+   "dur": 3.0
   },
   {
-   "ch": 3,
-   "tick": 44,
-   "note": 42,
-   "vel": 108,
-   "dur": 1
+   "ch": 3.0,
+   "tick": 44.0,
+   "note": 42.0,
+   "vel": 108.0,
+   "dur": 1.0
   },
   {
-   "ch": 3,
-   "tick": 46,
-   "note": 46,
-   "vel": 108,
-   "dur": 1
+   "ch": 3.0,
+   "tick": 46.0,
+   "note": 46.0,
+   "vel": 108.0,
+   "dur": 1.0
   },
   {
-   "ch": 1,
-   "tick": 48,
-   "note": 78,
-   "vel": 61,
-   "dur": 5
+   "ch": 1.0,
+   "tick": 48.0,
+   "note": 78.0,
+   "vel": 61.0,
+   "dur": 5.0
   },
   {
-   "ch": 2,
-   "tick": 48,
-   "note": 44,
-   "vel": 89,
-   "dur": 7
+   "ch": 2.0,
+   "tick": 48.0,
+   "note": 44.0,
+   "vel": 89.0,
+   "dur": 7.0
   },
   {
-   "ch": 3,
-   "tick": 48,
-   "note": 42,
-   "vel": 108,
-   "dur": 1
+   "ch": 3.0,
+   "tick": 48.0,
+   "note": 42.0,
+   "vel": 108.0,
+   "dur": 1.0
   },
   {
-   "ch": 3,
-   "tick": 50,
-   "note": 42,
-   "vel": 108,
-   "dur": 1
+   "ch": 3.0,
+   "tick": 50.0,
+   "note": 42.0,
+   "vel": 108.0,
+   "dur": 1.0
   },
   {
-   "ch": 3,
-   "tick": 51,
-   "note": 41,
-   "vel": 108,
-   "dur": 1
+   "ch": 3.0,
+   "tick": 51.0,
+   "note": 41.0,
+   "vel": 108.0,
+   "dur": 1.0
   },
   {
-   "ch": 0,
-   "tick": 52,
-   "note": 68,
-   "vel": 98,
-   "dur": 2
+   "ch": 0.0,
+   "tick": 52.0,
+   "note": 68.0,
+   "vel": 98.0,
+   "dur": 2.0
   },
   {
-   "ch": 3,
-   "tick": 52,
-   "note": 42,
-   "vel": 108,
-   "dur": 1
+   "ch": 3.0,
+   "tick": 52.0,
+   "note": 42.0,
+   "vel": 108.0,
+   "dur": 1.0
   },
   {
-   "ch": 3,
-   "tick": 54,
-   "note": 46,
-   "vel": 108,
-   "dur": 1
+   "ch": 3.0,
+   "tick": 54.0,
+   "note": 46.0,
+   "vel": 108.0,
+   "dur": 1.0
   },
   {
-   "ch": 1,
-   "tick": 56,
-   "note": 84,
-   "vel": 57,
-   "dur": 3
+   "ch": 1.0,
+   "tick": 56.0,
+   "note": 84.0,
+   "vel": 57.0,
+   "dur": 3.0
   },
   {
-   "ch": 2,
-   "tick": 56,
-   "note": 51,
-   "vel": 76,
-   "dur": 7
+   "ch": 2.0,
+   "tick": 56.0,
+   "note": 51.0,
+   "vel": 76.0,
+   "dur": 7.0
   },
   {
-   "ch": 3,
-   "tick": 56,
-   "note": 42,
-   "vel": 108,
-   "dur": 1
+   "ch": 3.0,
+   "tick": 56.0,
+   "note": 42.0,
+   "vel": 108.0,
+   "dur": 1.0
   },
   {
-   "ch": 0,
-   "tick": 58,
-   "note": 66,
-   "vel": 74,
-   "dur": 2
+   "ch": 0.0,
+   "tick": 58.0,
+   "note": 66.0,
+   "vel": 74.0,
+   "dur": 2.0
   },
   {
-   "ch": 3,
-   "tick": 58,
-   "note": 42,
-   "vel": 108,
-   "dur": 1
+   "ch": 3.0,
+   "tick": 58.0,
+   "note": 42.0,
+   "vel": 108.0,
+   "dur": 1.0
   },
   {
-   "ch": 3,
-   "tick": 59,
-   "note": 41,
-   "vel": 108,
-   "dur": 1
+   "ch": 3.0,
+   "tick": 59.0,
+   "note": 41.0,
+   "vel": 108.0,
+   "dur": 1.0
   },
   {
-   "ch": 3,
-   "tick": 60,
-   "note": 42,
-   "vel": 108,
-   "dur": 1
+   "ch": 3.0,
+   "tick": 60.0,
+   "note": 42.0,
+   "vel": 108.0,
+   "dur": 1.0
   },
   {
-   "ch": 1,
-   "tick": 61,
-   "note": 78,
-   "vel": 50,
-   "dur": 4
+   "ch": 1.0,
+   "tick": 61.0,
+   "note": 78.0,
+   "vel": 50.0,
+   "dur": 4.0
   },
   {
-   "ch": 3,
-   "tick": 62,
-   "note": 46,
-   "vel": 108,
-   "dur": 1
+   "ch": 3.0,
+   "tick": 62.0,
+   "note": 46.0,
+   "vel": 108.0,
+   "dur": 1.0
   }
  ]
 }

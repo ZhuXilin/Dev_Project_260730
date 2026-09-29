@@ -2,11 +2,90 @@
 
 [ext_resource type="Script" uid="uid://cq7b7jnmcnk74" path="res://function/tool/editor/ChipMusicEditor.gd" id="1_r63hb"]
 
-[node name="ChipMusicEditor" type="Control" unique_id=1520393578]
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_poq3h"]
+content_margin_left = 1.0
+content_margin_top = 0.0
+content_margin_right = 1.0
+content_margin_bottom = 0.0
+
+[sub_resource type="Image" id="Image_4how6"]
+data = {
+"data": PackedByteArray(234, 234, 255, 255, 234, 234, 255, 255, 234, 234, 255, 255, 234, 234, 255, 255, 234, 234, 255, 255, 234, 234, 255, 255, 234, 234, 255, 255, 234, 234, 255, 255, 234, 234, 255, 255, 234, 234, 255, 255, 234, 234, 255, 255, 234, 234, 255, 255, 234, 234, 255, 255, 234, 234, 255, 255, 234, 234, 255, 255, 234, 234, 255, 255, 234, 234, 255, 255, 234, 234, 255, 255, 234, 234, 255, 255, 234, 234, 255, 255, 234, 234, 255, 255, 234, 234, 255, 255, 234, 234, 255, 255, 234, 234, 255, 255, 234, 234, 255, 255, 234, 234, 255, 255, 234, 234, 255, 255, 234, 234, 255, 255, 234, 234, 255, 255, 234, 234, 255, 255, 234, 234, 255, 255, 234, 234, 255, 255),
+"format": "RGBA8",
+"height": 8,
+"mipmaps": false,
+"width": 4
+}
+
+[sub_resource type="ImageTexture" id="ImageTexture_v0omh"]
+image = SubResource("Image_4how6")
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_vwheo"]
+content_margin_top = 5.0
+content_margin_bottom = 5.0
+bg_color = Color(0.45, 0.72, 1, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_pck8s"]
+content_margin_top = 5.0
+content_margin_bottom = 5.0
+bg_color = Color(0.22, 0.22, 0.28, 1)
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_g0ftc"]
+content_margin_left = 0.0
+content_margin_top = 0.0
+content_margin_right = 0.0
+content_margin_bottom = 0.0
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_bgaxx"]
+content_margin_left = 0.0
+content_margin_top = 0.0
+content_margin_right = 0.0
+content_margin_bottom = 0.0
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_dxyj6"]
+content_margin_left = 3.0
+content_margin_top = 1.0
+content_margin_right = 3.0
+content_margin_bottom = 1.0
+bg_color = Color(0.15, 0.15, 0.15, 0.92)
+
+[sub_resource type="StyleBoxLine" id="StyleBoxLine_wf1wm"]
+color = Color(0.36, 0.36, 0.42, 1)
+grow_begin = 2.0
+grow_end = 2.0
+vertical = true
+
+[sub_resource type="Theme" id="Theme_jcxjo"]
+Button/font_sizes/font_size = 6
+Button/styles/disabled = SubResource("StyleBoxEmpty_poq3h")
+Button/styles/focus = SubResource("StyleBoxEmpty_poq3h")
+Button/styles/hover = SubResource("StyleBoxEmpty_poq3h")
+Button/styles/normal = SubResource("StyleBoxEmpty_poq3h")
+Button/styles/pressed = SubResource("StyleBoxEmpty_poq3h")
+HSlider/constants/center_grabber = 1
+HSlider/constants/grabber_offset = 0
+HSlider/icons/grabber = SubResource("ImageTexture_v0omh")
+HSlider/icons/grabber_disabled = SubResource("ImageTexture_v0omh")
+HSlider/icons/grabber_highlight = SubResource("ImageTexture_v0omh")
+HSlider/styles/grabber_area = SubResource("StyleBoxFlat_vwheo")
+HSlider/styles/grabber_area_highlight = SubResource("StyleBoxFlat_vwheo")
+HSlider/styles/slider = SubResource("StyleBoxFlat_pck8s")
+Label/font_sizes/font_size = 6
+Label/styles/normal = SubResource("StyleBoxEmpty_g0ftc")
+LineEdit/font_sizes/font_size = 6
+LineEdit/styles/focus = SubResource("StyleBoxEmpty_bgaxx")
+LineEdit/styles/normal = SubResource("StyleBoxEmpty_bgaxx")
+TooltipLabel/font_sizes/font_size = 5
+TooltipPanel/font_sizes/font_size = 5
+TooltipPanel/styles/panel = SubResource("StyleBoxFlat_dxyj6")
+VSeparator/styles/separator = SubResource("StyleBoxLine_wf1wm")
+
+[node name="ChipMusicEditor" type="Control" unique_id=1327216923]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+theme = SubResource("Theme_jcxjo")
 script = ExtResource("1_r63hb")

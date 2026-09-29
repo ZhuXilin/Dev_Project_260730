@@ -11,6 +11,14 @@ var _history : Array[String] = []
 var _history_idx : int = -1
 var _enabled : bool = true
 
+## ★ 在这些场景下，GM 快捷键完全禁用
+const DISABLED_SCENES : Array[String] = [
+	"res://function/tool/Editor/MapLayoutEditor.tscn",
+	"res://function/tool/Audio/ChipMusicValidator.tscn",
+	"res://function/tool/Audio/ChipMusicPreviewer.tscn",
+	"res://function/tool/editor/ChipMusicEditor.tscn",
+]
+
 var _panel : PanelContainer
 var _cmd_input : LineEdit
 var _output : RichTextLabel
@@ -74,6 +82,8 @@ func _build_ui():
 func _input(event: InputEvent):
 	if not _enabled:
 		return
+	if _is_in_disabled_scene():
+		return
 	if not (event is InputEventKey and event.pressed and not event.echo):
 		return
 
@@ -99,6 +109,14 @@ func _input(event: InputEvent):
 		return
 	_handle_hotkey(event.keycode)
 
+func _is_in_disabled_scene() -> bool:
+	var scene := get_tree().current_scene
+	if scene == null:
+		return false
+	var path := scene.scene_file_path
+	if path == "":
+		return false
+	return path in DISABLED_SCENES
 
 func _handle_hotkey(keycode: int):
 	# 小键盘兼容
