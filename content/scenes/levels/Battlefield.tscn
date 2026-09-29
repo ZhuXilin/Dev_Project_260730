@@ -7,9 +7,12 @@
 [ext_resource type="Script" uid="uid://dkx4dwgqjke08" path="res://function/script/MovementAnimator.gd" id="5_gf547"]
 [ext_resource type="Script" uid="uid://bo74kd1bl2qfb" path="res://function/script/UIManager.gd" id="6_i6ecf"]
 [ext_resource type="Script" uid="uid://sv7rgtcqa6h6" path="res://function/script/TurnLayerManager.gd" id="7_dhh02"]
-[ext_resource type="PackedScene" uid="uid://battlefieldcamera01" path="res://content/scenes/ui/camera/BattlefieldCamera.tscn" id="20_bcam"]
-[ext_resource type="PackedScene" uid="uid://cursorlayer0001" path="res://content/scenes/ui/camera/CursorLayer.tscn" id="21_cursor"]
-[ext_resource type="PackedScene" uid="uid://menublocker0001" path="res://content/scenes/ui/battlefield/MenuBlocker.tscn" id="22_menublk"]
+[ext_resource type="PackedScene" path="res://content/scenes/ui/camera/BattlefieldCamera.tscn" id="20_bcam"]
+[ext_resource type="PackedScene" path="res://content/scenes/ui/camera/CursorLayer.tscn" id="21_cursor"]
+[ext_resource type="PackedScene" path="res://content/scenes/ui/battlefield/MenuBlocker.tscn" id="22_menublk"]
+[ext_resource type="PackedScene" path="res://content/scenes/ui/battlefield/VictoryPanel.tscn" id="23_victory"]
+[ext_resource type="PackedScene" path="res://content/scenes/ui/battlefield/TurnOverlay.tscn" id="24_turnov"]
+[ext_resource type="PackedScene" path="res://content/scenes/ui/battlefield/BattlefieldInfo.tscn" id="25_bfinfo"]
 
 [node name="Battlefield" type="Node2D"]
 script = ExtResource("1_s4k4j")
@@ -33,20 +36,7 @@ offset_bottom = 240.0
 grow_horizontal = 2
 theme_override_constants/separation = 6
 
-[node name="Info" type="CanvasLayer" parent="."]
-
-[node name="InfoPanel" type="PanelContainer" parent="Info"]
-offset_left = 320.0
-offset_top = 16.0
-offset_right = 392.0
-offset_bottom = 33.0
-theme_override_styles/panel = ExtResource("3_c18at")
-
-[node name="InfoTextLabel" type="Label" parent="Info/InfoPanel"]
-layout_mode = 2
-theme_override_font_sizes/font_size = 6
-text = "NAME"
-autowrap_mode = 3
+[node name="Info" parent="." instance=ExtResource("25_bfinfo")]
 
 [node name="SpeedLayer" type="CanvasLayer" parent="."]
 layer = 5
@@ -330,84 +320,9 @@ offset_bottom = 240.0
 theme_override_font_sizes/font_size = 8
 text = "鼠标中键结束回合"
 
-[node name="TurnLayer" type="CanvasLayer" parent="."]
+[node name="TurnLayer" parent="." instance=ExtResource("24_turnov")]
 
-[node name="TurnRect" type="ColorRect" parent="TurnLayer"]
-z_index = 99
-anchors_preset = -1
-anchor_right = 1.0
-anchor_bottom = 1.0
-offset_left = 96.0
-offset_top = 112.0
-offset_right = -96.0
-offset_bottom = -96.0
-grow_horizontal = 2
-grow_vertical = 2
-mouse_filter = 2
-color = Color(0.19099915, 0.25266767, 0.5266893, 1)
-metadata/_edit_use_anchors_ = true
-
-[node name="Text" type="Label" parent="TurnLayer/TurnRect"]
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-theme_override_font_sizes/font_size = 12
-text = "PLAYER TURN"
-horizontal_alignment = 1
-vertical_alignment = 1
-
-[node name="VictoryLayer" type="CanvasLayer" parent="."]
-
-[node name="VictoryPanel" type="Panel" parent="VictoryLayer"]
-anchors_preset = 8
-anchor_left = 0.5
-anchor_top = 0.5
-anchor_right = 0.5
-anchor_bottom = 0.5
-offset_left = -72.0
-offset_top = -24.0
-offset_right = 72.0
-offset_bottom = 24.0
-grow_horizontal = 2
-grow_vertical = 2
-mouse_filter = 2
-theme_override_styles/panel = ExtResource("3_c18at")
-
-[node name="VictoryButton" type="Button" parent="VictoryLayer/VictoryPanel"]
-layout_mode = 1
-anchors_preset = -1
-anchor_right = 1.0
-anchor_bottom = 1.0
-offset_left = 8.0
-offset_top = 26.0
-offset_right = -8.0
-grow_horizontal = 2
-grow_vertical = 2
-theme_override_font_sizes/font_size = 10
-theme_override_styles/normal = ExtResource("3_c18at")
-theme_override_styles/pressed = ExtResource("3_c18at")
-theme_override_styles/hover = ExtResource("3_c18at")
-theme_override_styles/disabled = ExtResource("3_c18at")
-theme_override_styles/focus = ExtResource("3_c18at")
-text = "NEXT LEVEL"
-
-[node name="VictoryLabel" type="Label" parent="VictoryLayer/VictoryPanel"]
-layout_mode = 1
-anchors_preset = -1
-anchor_right = 1.0
-anchor_bottom = 1.0
-offset_left = 8.0
-offset_top = 4.0
-offset_right = -8.0
-offset_bottom = -21.0
-grow_horizontal = 2
-grow_vertical = 2
-text = "GAME OVER"
-horizontal_alignment = 1
-vertical_alignment = 1
+[node name="VictoryLayer" parent="." instance=ExtResource("23_victory")]
 
 [node name="HighlightManager" type="Node" parent="."]
 script = ExtResource("4_dhh02")

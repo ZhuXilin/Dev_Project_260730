@@ -1,0 +1,30 @@
+[gd_scene format=3 uid="uid://bivdtthdqgj4k"]
+
+[node name="TurnLayer" type="CanvasLayer"]
+
+[node name="TurnRect" type="ColorRect" parent="."]
+z_index = 99
+anchors_preset = -1
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 96.0
+offset_top = 112.0
+offset_right = -96.0
+offset_bottom = -96.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+color = Color(0.19099915, 0.25266767, 0.5266893, 1)
+metadata/_edit_use_anchors_ = true
+
+[node name="Text" type="Label" parent="TurnRect"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_font_sizes/font_size = 12
+text = "PLAYER TURN"
+horizontal_alignment = 1
+vertical_alignment = 1
