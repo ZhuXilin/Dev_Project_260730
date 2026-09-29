@@ -1,0 +1,70 @@
+[gd_scene format=3 uid="uid://bsettingbar0001"]
+
+[ext_resource type="StyleBox" path="res://content/resource/stylebox/8bit_style_box_flat.tres" id="1_style"]
+
+[node name="SettingBar" type="CanvasLayer"]
+
+[node name="SettingPanel" type="PanelContainer" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 264.0
+offset_top = 16.0
+offset_right = -88.0
+offset_bottom = -96.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_styles/panel = ExtResource("1_style")
+
+[node name="SettingContainer" type="VBoxContainer" parent="SettingPanel"]
+layout_mode = 2
+
+[node name="TeamViewBtn" type="Button" parent="SettingPanel/SettingContainer"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 8
+theme_override_styles/normal = ExtResource("1_style")
+theme_override_styles/pressed = ExtResource("1_style")
+theme_override_styles/hover = ExtResource("1_style")
+theme_override_styles/disabled = ExtResource("1_style")
+theme_override_styles/focus = ExtResource("1_style")
+text = "队伍查看"
+
+[node name="ItemListBtn" type="Button" parent="SettingPanel/SettingContainer"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 8
+theme_override_styles/normal = ExtResource("1_style")
+theme_override_styles/pressed = ExtResource("1_style")
+theme_override_styles/hover = ExtResource("1_style")
+theme_override_styles/disabled = ExtResource("1_style")
+theme_override_styles/focus = ExtResource("1_style")
+text = "道具装备"
+
+[node name="RelicViewBtn" type="Button" parent="SettingPanel/SettingContainer"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 8
+theme_override_styles/normal = ExtResource("1_style")
+theme_override_styles/pressed = ExtResource("1_style")
+theme_override_styles/hover = ExtResource("1_style")
+theme_override_styles/disabled = ExtResource("1_style")
+theme_override_styles/focus = ExtResource("1_style")
+text = "遗物查看"
+
+[node name="SettingBtn" type="Button" parent="SettingPanel/SettingContainer"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 8
+theme_override_styles/normal = ExtResource("1_style")
+theme_override_styles/pressed = ExtResource("1_style")
+theme_override_styles/hover = ExtResource("1_style")
+theme_override_styles/disabled = ExtResource("1_style")
+theme_override_styles/focus = ExtResource("1_style")
+text = "设置游戏"
+
+[node name="BackCampBtn" type="Button" parent="SettingPanel/SettingContainer"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 8
+theme_override_styles/normal = ExtResource("1_style")
+theme_override_styles/pressed = ExtResource("1_style")
+theme_override_styles/hover = ExtResource("1_style")
+theme_override_styles/disabled = ExtResource("1_style")
+theme_override_styles/focus = ExtResource("1_style")
+text = "回到营地"

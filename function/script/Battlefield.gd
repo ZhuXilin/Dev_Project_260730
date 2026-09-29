@@ -13,7 +13,6 @@ const BOSS_NODE_TYPE = 6
 @onready var attack_btn : Button = $ActionMenu/ActionPanel/ButtonContainer/AttackBtn
 @onready var move_btn : Button = $ActionMenu/ActionPanel/ButtonContainer/MoveBtn
 @onready var equip_btn : Button = $ActionMenu/ActionPanel/ButtonContainer/EquipBtn
-@onready var relic_view_btn: Button = $SettingLayer/SettingPanel/SettingContainer/RelicViewBtn
 @onready var wait_btn : Button = $ActionMenu/ActionPanel/ButtonContainer/WaitBtn
 @onready var victory_panel : Panel = $VictoryLayer/VictoryPanel
 @onready var victory_label : Label = $VictoryLayer/VictoryPanel/VictoryLabel
@@ -29,19 +28,30 @@ const BOSS_NODE_TYPE = 6
 @onready var menu_blocker : ColorRect = $MenuBlocker
 @onready var info_panel : PanelContainer = $Info/InfoPanel
 @onready var info_text_label : Label = $Info/InfoPanel/InfoTextLabel
-@onready var setting_panel : PanelContainer = $SettingLayer/SettingPanel
-@onready var back_camp_btn: Button = $SettingLayer/SettingPanel/SettingContainer/BackCampBtn
-@onready var setting_btn : Button = $SettingLayer/SettingPanel/SettingContainer/SettingBtn
-@onready var setting_menu_panel : Panel = $SettingLayer/SettingMenuPanel
-@onready var team_view_btn : Button = $SettingLayer/SettingPanel/SettingContainer/TeamViewBtn
-@onready var team_view_panel : PanelContainer = $SettingLayer/TeamViewPanel
-@onready var team_view_container : VBoxContainer = $SettingLayer/TeamViewPanel/TeamViewContainer
+
+# ---- 设置栏（SettingBar）----
+@onready var setting_panel : PanelContainer = $SettingBar/SettingPanel
+@onready var back_camp_btn : Button = $SettingBar/SettingPanel/SettingContainer/BackCampBtn
+@onready var setting_btn : Button = $SettingBar/SettingPanel/SettingContainer/SettingBtn
+@onready var team_view_btn : Button = $SettingBar/SettingPanel/SettingContainer/TeamViewBtn
+@onready var item_list_btn : Button = $SettingBar/SettingPanel/SettingContainer/ItemListBtn
+@onready var relic_view_btn : Button = $SettingBar/SettingPanel/SettingContainer/RelicViewBtn
+
+# ---- 队伍查看（TeamViewLayer）----
+@onready var team_view_panel : PanelContainer = $TeamViewLayer/TeamViewPanel
+@onready var team_view_container : VBoxContainer = $TeamViewLayer/TeamViewPanel/TeamViewContainer
+
+# ---- 道具列表（ItemListLayer）----
+@onready var item_list_panel : PanelContainer = $ItemListLayer/ItemListPanel
+@onready var item_list_container : VBoxContainer = $ItemListLayer/ItemListPanel/ItemListContainer
+
+# ---- 设置菜单（SettingMenuLayer）----
+@onready var setting_menu_panel : Panel = $SettingMenuLayer/SettingMenuPanel
+
+# ---- HUD ----
 @onready var speed_indicator : Label = $HUD/SpeedIndicator
-@onready var item_list_btn : Button = $SettingLayer/SettingPanel/SettingContainer/ItemListBtn
-@onready var item_list_panel : PanelContainer = $SettingLayer/ItemListPanel
-@onready var item_list_container : VBoxContainer = $SettingLayer/ItemListPanel/ItemListContainer
-@onready var end_turn_button: Label = $HUD/EndTurnButton
-@onready var turn_count_label: Label = $HUD/TurnCountIndicator
+@onready var turn_count_label : Label = $HUD/TurnCountIndicator
+@onready var end_turn_button : Label = $HUD/EndTurnButton
 @onready var relic_icon_container = $HUD/RelicIconContainer
 
 const PERFORMANCE_DURATION : float = 0.5
@@ -85,19 +95,30 @@ func _ready():
 	menu_blocker = $MenuBlocker
 	info_panel = $Info/InfoPanel
 	info_text_label = $Info/InfoPanel/InfoTextLabel
-	setting_panel = $SettingLayer/SettingPanel
-	setting_btn = $SettingLayer/SettingPanel/SettingContainer/SettingBtn
-	setting_menu_panel = $SettingLayer/SettingMenuPanel
-	team_view_btn = $SettingLayer/SettingPanel/SettingContainer/TeamViewBtn
-	team_view_panel = $SettingLayer/TeamViewPanel
-	team_view_container = $SettingLayer/TeamViewPanel/TeamViewContainer
+
+	# 设置栏
+	setting_panel = $SettingBar/SettingPanel
+	setting_btn = $SettingBar/SettingPanel/SettingContainer/SettingBtn
+	back_camp_btn = $SettingBar/SettingPanel/SettingContainer/BackCampBtn
+	team_view_btn = $SettingBar/SettingPanel/SettingContainer/TeamViewBtn
+	item_list_btn = $SettingBar/SettingPanel/SettingContainer/ItemListBtn
+	relic_view_btn = $SettingBar/SettingPanel/SettingContainer/RelicViewBtn
+
+	# 队伍查看
+	team_view_panel = $TeamViewLayer/TeamViewPanel
+	team_view_container = $TeamViewLayer/TeamViewPanel/TeamViewContainer
+
+	# 道具列表
+	item_list_panel = $ItemListLayer/ItemListPanel
+	item_list_container = $ItemListLayer/ItemListPanel/ItemListContainer
+
+	# 设置菜单
+	setting_menu_panel = $SettingMenuLayer/SettingMenuPanel
+
+	# HUD
 	speed_indicator = $HUD/SpeedIndicator
-	item_list_btn = $SettingLayer/SettingPanel/SettingContainer/ItemListBtn
-	item_list_panel = $SettingLayer/ItemListPanel
-	item_list_container = $SettingLayer/ItemListPanel/ItemListContainer
-	end_turn_button = $HUD/EndTurnButton
 	turn_count_label = $HUD/TurnCountIndicator
-	relic_view_btn = $SettingLayer/SettingPanel/SettingContainer/RelicViewBtn
+	end_turn_button = $HUD/EndTurnButton
 	relic_icon_container = $HUD/RelicIconContainer
 
 	var node_list = {

@@ -1,222 +1,62 @@
-[gd_scene format=4 uid="uid://b12ao25bp0ds2"]
+[gd_scene format=3 uid="uid://b12ao25bp0ds2"]
 
 [ext_resource type="Script" uid="uid://by87f4tgw0u80" path="res://function/script/Battlefield.gd" id="1_s4k4j"]
-[ext_resource type="StyleBox" uid="uid://6qbsaxkfwg3o" path="res://content/resource/stylebox/8bit_style_box_flat.tres" id="3_c18at"]
 [ext_resource type="Script" uid="uid://dcg863hvroiae" path="res://function/script/HighlightManager.gd" id="4_dhh02"]
-[ext_resource type="Script" uid="uid://d0m4rrsfv7ll3" path="res://function/script/SettingMenu.gd" id="4_m45wx"]
 [ext_resource type="Script" uid="uid://dkx4dwgqjke08" path="res://function/script/MovementAnimator.gd" id="5_gf547"]
 [ext_resource type="Script" uid="uid://bo74kd1bl2qfb" path="res://function/script/UIManager.gd" id="6_i6ecf"]
 [ext_resource type="Script" uid="uid://sv7rgtcqa6h6" path="res://function/script/TurnLayerManager.gd" id="7_dhh02"]
-[ext_resource type="PackedScene" path="res://content/scenes/ui/camera/BattlefieldCamera.tscn" id="20_bcam"]
-[ext_resource type="PackedScene" path="res://content/scenes/ui/camera/CursorLayer.tscn" id="21_cursor"]
-[ext_resource type="PackedScene" path="res://content/scenes/ui/battlefield/MenuBlocker.tscn" id="22_menublk"]
-[ext_resource type="PackedScene" path="res://content/scenes/ui/battlefield/VictoryPanel.tscn" id="23_victory"]
-[ext_resource type="PackedScene" path="res://content/scenes/ui/battlefield/TurnOverlay.tscn" id="24_turnov"]
-[ext_resource type="PackedScene" path="res://content/scenes/ui/battlefield/BattlefieldInfo.tscn" id="25_bfinfo"]
-[ext_resource type="PackedScene" path="res://content/scenes/ui/battlefield/HUD.tscn" id="26_hud"]
-[ext_resource type="PackedScene" path="res://content/scenes/ui/battlefield/ActionMenu.tscn" id="27_actionmenu"]
+[ext_resource type="PackedScene" uid="uid://bnxmm7b5pnr2c" path="res://content/scenes/ui/camera/BattlefieldCamera.tscn" id="20_bcam"]
+[ext_resource type="PackedScene" uid="uid://cqs7airqe4qoo" path="res://content/scenes/ui/camera/CursorLayer.tscn" id="21_cursor"]
+[ext_resource type="PackedScene" uid="uid://bw2utmelhtwot" path="res://content/scenes/ui/battlefield/MenuBlocker.tscn" id="22_menublk"]
+[ext_resource type="PackedScene" uid="uid://w2hsguxvq2ky" path="res://content/scenes/ui/battlefield/VictoryPanel.tscn" id="23_victory"]
+[ext_resource type="PackedScene" uid="uid://bivdtthdqgj4k" path="res://content/scenes/ui/battlefield/TurnOverlay.tscn" id="24_turnov"]
+[ext_resource type="PackedScene" uid="uid://bfinfo0001" path="res://content/scenes/ui/battlefield/BattlefieldInfo.tscn" id="25_bfinfo"]
+[ext_resource type="PackedScene" uid="uid://cncy326mv2dec" path="res://content/scenes/ui/battlefield/HUD.tscn" id="26_hud"]
+[ext_resource type="PackedScene" uid="uid://cx3sltedxrjmy" path="res://content/scenes/ui/battlefield/ActionMenu.tscn" id="27_actionmenu"]
+[ext_resource type="PackedScene" uid="uid://ce1gfkybuwl5f" path="res://content/scenes/ui/battlefield/SettingBar.tscn" id="30_settingbar"]
+[ext_resource type="PackedScene" uid="uid://cvjnmrg4hvibv" path="res://content/scenes/ui/battlefield/TeamViewLayer.tscn" id="31_teamviewlayer"]
+[ext_resource type="PackedScene" uid="uid://il23ohtsjt14" path="res://content/scenes/ui/battlefield/ItemListLayer.tscn" id="32_itemlistlayer"]
+[ext_resource type="PackedScene" uid="uid://cm0qp43cjqp3l" path="res://content/scenes/ui/battlefield/SettingMenuLayer.tscn" id="33_settingmenulayer"]
 
-[node name="Battlefield" type="Node2D"]
+[node name="Battlefield" type="Node2D" unique_id=1906074632]
 script = ExtResource("1_s4k4j")
 
-[node name="Camera2D" parent="." instance=ExtResource("20_bcam")]
+[node name="Camera2D" parent="." unique_id=1063326630 instance=ExtResource("20_bcam")]
 
-[node name="CursorLayer" parent="." instance=ExtResource("21_cursor")]
+[node name="CursorLayer" parent="." unique_id=1074438613 instance=ExtResource("21_cursor")]
 
-[node name="MenuBlocker" parent="." instance=ExtResource("22_menublk")]
+[node name="MenuBlocker" parent="." unique_id=1519363408 instance=ExtResource("22_menublk")]
 
-[node name="Info" parent="." instance=ExtResource("25_bfinfo")]
+[node name="Info" parent="." unique_id=1919540424 instance=ExtResource("25_bfinfo")]
 
-[node name="HUD" parent="." instance=ExtResource("26_hud")]
+[node name="HUD" parent="." unique_id=855640280 instance=ExtResource("26_hud")]
 
-[node name="ActionMenu" parent="." instance=ExtResource("27_actionmenu")]
+[node name="ActionMenu" parent="." unique_id=65243707 instance=ExtResource("27_actionmenu")]
 
-[node name="SettingLayer" type="CanvasLayer" parent="."]
+[node name="SettingBar" parent="." unique_id=1938508011 instance=ExtResource("30_settingbar")]
 
-[node name="SettingPanel" type="PanelContainer" parent="SettingLayer"]
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-offset_left = 264.0
-offset_top = 16.0
-offset_right = -88.0
-offset_bottom = -96.0
-grow_horizontal = 2
-grow_vertical = 2
-theme_override_styles/panel = ExtResource("3_c18at")
+[node name="TeamViewLayer" parent="." unique_id=890728464 instance=ExtResource("31_teamviewlayer")]
 
-[node name="SettingContainer" type="VBoxContainer" parent="SettingLayer/SettingPanel"]
-layout_mode = 2
+[node name="ItemListLayer" parent="." unique_id=820011087 instance=ExtResource("32_itemlistlayer")]
 
-[node name="TeamViewBtn" type="Button" parent="SettingLayer/SettingPanel/SettingContainer"]
-layout_mode = 2
-theme_override_font_sizes/font_size = 8
-theme_override_styles/normal = ExtResource("3_c18at")
-theme_override_styles/pressed = ExtResource("3_c18at")
-theme_override_styles/hover = ExtResource("3_c18at")
-theme_override_styles/disabled = ExtResource("3_c18at")
-theme_override_styles/focus = ExtResource("3_c18at")
-text = "队伍查看"
+[node name="SettingMenuLayer" parent="." unique_id=1082519316 instance=ExtResource("33_settingmenulayer")]
 
-[node name="ItemListBtn" type="Button" parent="SettingLayer/SettingPanel/SettingContainer"]
-layout_mode = 2
-theme_override_font_sizes/font_size = 8
-theme_override_styles/normal = ExtResource("3_c18at")
-theme_override_styles/pressed = ExtResource("3_c18at")
-theme_override_styles/hover = ExtResource("3_c18at")
-theme_override_styles/disabled = ExtResource("3_c18at")
-theme_override_styles/focus = ExtResource("3_c18at")
-text = "道具装备"
+[node name="TurnLayer" parent="." unique_id=74635737 instance=ExtResource("24_turnov")]
 
-[node name="RelicViewBtn" type="Button" parent="SettingLayer/SettingPanel/SettingContainer"]
-layout_mode = 2
-theme_override_font_sizes/font_size = 8
-theme_override_styles/normal = ExtResource("3_c18at")
-theme_override_styles/pressed = ExtResource("3_c18at")
-theme_override_styles/hover = ExtResource("3_c18at")
-theme_override_styles/disabled = ExtResource("3_c18at")
-theme_override_styles/focus = ExtResource("3_c18at")
-text = "遗物查看"
+[node name="VictoryLayer" parent="." unique_id=1958741626 instance=ExtResource("23_victory")]
 
-[node name="SettingBtn" type="Button" parent="SettingLayer/SettingPanel/SettingContainer"]
-layout_mode = 2
-theme_override_font_sizes/font_size = 8
-theme_override_styles/normal = ExtResource("3_c18at")
-theme_override_styles/pressed = ExtResource("3_c18at")
-theme_override_styles/hover = ExtResource("3_c18at")
-theme_override_styles/disabled = ExtResource("3_c18at")
-theme_override_styles/focus = ExtResource("3_c18at")
-text = "设置游戏"
-
-[node name="BackCampBtn" type="Button" parent="SettingLayer/SettingPanel/SettingContainer"]
-layout_mode = 2
-theme_override_font_sizes/font_size = 8
-theme_override_styles/normal = ExtResource("3_c18at")
-theme_override_styles/pressed = ExtResource("3_c18at")
-theme_override_styles/hover = ExtResource("3_c18at")
-theme_override_styles/disabled = ExtResource("3_c18at")
-theme_override_styles/focus = ExtResource("3_c18at")
-text = "回到营地"
-
-[node name="TeamViewPanel" type="PanelContainer" parent="SettingLayer"]
-anchors_preset = -1
-offset_left = 112.0
-offset_top = 16.0
-offset_right = 240.0
-offset_bottom = 224.0
-grow_horizontal = 2
-grow_vertical = 2
-theme_override_styles/panel = ExtResource("3_c18at")
-
-[node name="TeamViewContainer" type="VBoxContainer" parent="SettingLayer/TeamViewPanel"]
-layout_mode = 2
-
-[node name="ItemListPanel" type="PanelContainer" parent="SettingLayer"]
-anchors_preset = -1
-anchor_left = 1.0
-anchor_right = 1.0
-offset_left = -288.0
-offset_top = 16.0
-offset_right = -160.0
-offset_bottom = 224.0
-grow_horizontal = 2
-grow_vertical = 2
-theme_override_styles/panel = ExtResource("3_c18at")
-
-[node name="ItemListContainer" type="VBoxContainer" parent="SettingLayer/ItemListPanel"]
-layout_mode = 2
-
-[node name="SettingMenuPanel" type="Panel" parent="SettingLayer"]
-anchors_preset = -1
-anchor_right = 1.0
-anchor_bottom = 1.0
-offset_left = 64.0
-offset_top = 16.0
-offset_right = -144.0
-offset_bottom = -48.0
-grow_horizontal = 2
-grow_vertical = 2
-theme_override_styles/panel = ExtResource("3_c18at")
-script = ExtResource("4_m45wx")
-
-[node name="SettingMenuContainer" type="VBoxContainer" parent="SettingLayer/SettingMenuPanel"]
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-offset_left = 8.0
-offset_top = 4.0
-offset_right = -8.0
-grow_horizontal = 2
-grow_vertical = 2
-
-[node name="MusicVolumeLabel" type="Label" parent="SettingLayer/SettingMenuPanel/SettingMenuContainer"]
-layout_mode = 2
-size_flags_vertical = 1
-theme_override_font_sizes/font_size = 8
-text = "音乐音量"
-
-[node name="MusicVolumeSlider" type="HSlider" parent="SettingLayer/SettingMenuPanel/SettingMenuContainer"]
-layout_mode = 2
-size_flags_vertical = 1
-max_value = 1.0
-step = 0.1
-
-[node name="SoundVolumeLabel" type="Label" parent="SettingLayer/SettingMenuPanel/SettingMenuContainer"]
-layout_mode = 2
-size_flags_vertical = 1
-theme_override_font_sizes/font_size = 8
-text = "音效音量"
-
-[node name="SoundVolumeSlider" type="HSlider" parent="SettingLayer/SettingMenuPanel/SettingMenuContainer"]
-layout_mode = 2
-size_flags_vertical = 1
-max_value = 1.0
-step = 0.1
-
-[node name="SpeedLabel" type="Label" parent="SettingLayer/SettingMenuPanel/SettingMenuContainer"]
-layout_mode = 2
-size_flags_vertical = 1
-theme_override_font_sizes/font_size = 8
-text = "游戏速度"
-
-[node name="SpeedSlider" type="HSlider" parent="SettingLayer/SettingMenuPanel/SettingMenuContainer"]
-layout_mode = 2
-size_flags_vertical = 1
-min_value = -2.0
-max_value = 4.0
-
-[node name="ScreenSizeLabel" type="Label" parent="SettingLayer/SettingMenuPanel/SettingMenuContainer"]
-layout_mode = 2
-size_flags_vertical = 1
-theme_override_font_sizes/font_size = 8
-text = "画面尺寸"
-
-[node name="ScreenSizeOption" type="OptionButton" parent="SettingLayer/SettingMenuPanel/SettingMenuContainer"]
-layout_mode = 2
-theme_override_font_sizes/font_size = 6
-
-[node name="BackToMenuBtn" type="Button" parent="SettingLayer/SettingMenuPanel/SettingMenuContainer"]
-layout_mode = 2
-theme_override_font_sizes/font_size = 8
-text = "中断游戏"
-
-[node name="TurnLayer" parent="." instance=ExtResource("24_turnov")]
-
-[node name="VictoryLayer" parent="." instance=ExtResource("23_victory")]
-
-[node name="HighlightManager" type="Node" parent="."]
+[node name="HighlightManager" type="Node" parent="." unique_id=1175776744]
 script = ExtResource("4_dhh02")
 metadata/_custom_type_script = "uid://dcg863hvroiae"
 
-[node name="MovementAnimator" type="Node" parent="."]
+[node name="MovementAnimator" type="Node" parent="." unique_id=776782955]
 script = ExtResource("5_gf547")
 metadata/_custom_type_script = "uid://dkx4dwgqjke08"
 
-[node name="TurnLayerManager" type="Node" parent="."]
+[node name="TurnLayerManager" type="Node" parent="." unique_id=2078620525]
 script = ExtResource("7_dhh02")
 metadata/_custom_type_script = "uid://sv7rgtcqa6h6"
 
-[node name="UIManager" type="Node" parent="."]
+[node name="UIManager" type="Node" parent="." unique_id=1171059645]
 script = ExtResource("6_i6ecf")
 metadata/_custom_type_script = "uid://bo74kd1bl2qfb"

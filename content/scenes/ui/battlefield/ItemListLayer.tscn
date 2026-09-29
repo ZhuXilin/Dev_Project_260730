@@ -1,0 +1,20 @@
+[gd_scene format=3 uid="uid://bitemlistlayer0001"]
+
+[ext_resource type="StyleBox" path="res://content/resource/stylebox/8bit_style_box_flat.tres" id="1_style"]
+
+[node name="ItemListLayer" type="CanvasLayer"]
+
+[node name="ItemListPanel" type="PanelContainer" parent="."]
+anchors_preset = -1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -288.0
+offset_top = 16.0
+offset_right = -160.0
+offset_bottom = 224.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_styles/panel = ExtResource("1_style")
+
+[node name="ItemListContainer" type="VBoxContainer" parent="ItemListPanel"]
+layout_mode = 2

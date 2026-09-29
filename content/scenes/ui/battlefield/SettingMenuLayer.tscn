@@ -1,0 +1,81 @@
+[gd_scene format=3 uid="uid://bsettingmenulayer0001"]
+
+[ext_resource type="StyleBox" path="res://content/resource/stylebox/8bit_style_box_flat.tres" id="1_style"]
+[ext_resource type="Script" uid="uid://d0m4rrsfv7ll3" path="res://function/script/SettingMenu.gd" id="2_menu"]
+
+[node name="SettingMenuLayer" type="CanvasLayer"]
+
+[node name="SettingMenuPanel" type="Panel" parent="."]
+anchors_preset = -1
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 64.0
+offset_top = 16.0
+offset_right = -144.0
+offset_bottom = -48.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_styles/panel = ExtResource("1_style")
+script = ExtResource("2_menu")
+
+[node name="SettingMenuContainer" type="VBoxContainer" parent="SettingMenuPanel"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 8.0
+offset_top = 4.0
+offset_right = -8.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="MusicVolumeLabel" type="Label" parent="SettingMenuPanel/SettingMenuContainer"]
+layout_mode = 2
+size_flags_vertical = 1
+theme_override_font_sizes/font_size = 8
+text = "音乐音量"
+
+[node name="MusicVolumeSlider" type="HSlider" parent="SettingMenuPanel/SettingMenuContainer"]
+layout_mode = 2
+size_flags_vertical = 1
+max_value = 1.0
+step = 0.1
+
+[node name="SoundVolumeLabel" type="Label" parent="SettingMenuPanel/SettingMenuContainer"]
+layout_mode = 2
+size_flags_vertical = 1
+theme_override_font_sizes/font_size = 8
+text = "音效音量"
+
+[node name="SoundVolumeSlider" type="HSlider" parent="SettingMenuPanel/SettingMenuContainer"]
+layout_mode = 2
+size_flags_vertical = 1
+max_value = 1.0
+step = 0.1
+
+[node name="SpeedLabel" type="Label" parent="SettingMenuPanel/SettingMenuContainer"]
+layout_mode = 2
+size_flags_vertical = 1
+theme_override_font_sizes/font_size = 8
+text = "游戏速度"
+
+[node name="SpeedSlider" type="HSlider" parent="SettingMenuPanel/SettingMenuContainer"]
+layout_mode = 2
+size_flags_vertical = 1
+min_value = -2.0
+max_value = 4.0
+
+[node name="ScreenSizeLabel" type="Label" parent="SettingMenuPanel/SettingMenuContainer"]
+layout_mode = 2
+size_flags_vertical = 1
+theme_override_font_sizes/font_size = 8
+text = "画面尺寸"
+
+[node name="ScreenSizeOption" type="OptionButton" parent="SettingMenuPanel/SettingMenuContainer"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 6
+
+[node name="BackToMenuBtn" type="Button" parent="SettingMenuPanel/SettingMenuContainer"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 8
+text = "中断游戏"
