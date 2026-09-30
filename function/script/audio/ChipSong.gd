@@ -114,6 +114,22 @@ func to_dict() -> Dictionary:
 	out["meta"]["total_ticks"] = total_ticks
 	out["meta"]["loop_start"] = loop_start
 	out["meta"]["loop_end"] = loop_end
+
+	# ★ 重新序列化 events（剔除运行时字段 wave/env，只保留原始 JSON 5 字段）
+	# 加载时用 _wave_from_string 把 wave 字符串转成 int，env 也是从 preset 里复制过来的，
+	# 这些都不应该写回 JSON，否则格式就变了。
+	var ev_out : Array = []
+	for e in events:
+		var ev : Dictionary = e
+		ev_out.append({
+			"ch": float(ev.get("ch", 0.0)),
+			"tick": float(ev.get("tick", 0.0)),
+			"note": float(ev.get("note", 60.0)),
+			"vel": float(ev.get("vel", 100.0)),
+			"dur": float(ev.get("dur", 1.0)),
+		})
+	out["events"] = ev_out
+
 	return out
 
 

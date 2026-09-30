@@ -79,8 +79,17 @@ func _process_one_sample():
 		var ch_vol: float = song.get_channel_volume(ch)
 		var pan: float = song.get_channel_pan(ch)
 
+		# ★ wave / env 兜底：旧文件或手动添加的事件可能缺这两个字段
+		var wave: int = int(ev.get("wave", ChipSynth.Wave.PULSE_50))
+		var env: Dictionary = ev.get("env", {
+			"attack": 0.01,
+			"decay": 0.05,
+			"sustain": 0.7,
+			"release": 0.05,
+		})
+
 		var voice_idx: int = synth.note_on(ch, ev["note"], vel * ch_vol,
-											ev["wave"], ev["env"], pan)
+											wave, env, pan)
 
 		var note_off_sample: float = ev_sample + ev["dur"] * _samples_per_tick
 		_note_off_queue.append({
@@ -125,3 +134,18 @@ func get_current_tick() -> int:
 	if _samples_per_tick <= 0:
 		return 0
 	return int(_sample_cursor / _samples_per_tick)
+
+
+## 重新扫描事件游标（歌曲被编辑后调用，不重置音频位置）
+func rescan_events():
+	if song == null: return
+	var cur_tick : int = get_current_tick()
+	_next_event_idx = 0
+	var found : bool = false
+	for i in range(song.events.size()):
+		if song.events[i]["tick"] >= cur_tick:
+			_next_event_idx = i
+			found = true
+			break
+	if not found:
+		_next_event_idx = song.events.size()

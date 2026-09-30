@@ -8,7 +8,8 @@ extends Control
 #  【文件操作】
 #    Ctrl+N              新建歌曲
 #    Ctrl+O              打开歌曲
-#    Ctrl+S              保存
+#    Ctrl+S              保存（若未命名则弹另存为对话框）
+#    Ctrl+Shift+S        另存为（总是弹对话框）
 #    Esc                 退出（有未保存修改会弹窗确认）
 #
 #  【播放控制】
@@ -30,7 +31,7 @@ extends Control
 #  【音符编辑 — 右键 / 中键】
 #    右键音符                删除该音符
 #    中键拖动                平移视图（视口移动）
-#    右键空白                弹出操作菜单（填满轨道 / 清空通道）
+#    右键空白                弹出操作菜单
 #
 #  【键盘】
 #    Delete                  删除所有选中音符
@@ -43,7 +44,7 @@ extends Control
 #    Ctrl+V                  粘贴到鼠标位置（同通道内，切通道清空）
 #
 #  【通道】
-#    单击通道按钮            切换到该通道（清空选中）
+#    单击通道按钮            切换到该通道（清空选中 + 剪贴板 + 框选记录）
 #    All 按钮                显示所有通道（只读，空白处不能新建）
 #    M 按钮                  静音该通道
 #
@@ -51,7 +52,6 @@ extends Control
 #    滚轮                    垂直滚动
 #    Shift + 滚轮            水平滚动
 #    Ctrl + 滚轮             以鼠标为中心整体缩放（同步宽 + 行高）
-#    滚轮（在钢琴键区）      垂直滚动
 #    通道面板"宽度"滑杆      横向缩放（10~120 px / 拍）
 #    通道面板"行高"滑杆      纵向行高（3.0~14.0 px）
 #
@@ -60,8 +60,8 @@ extends Control
 #    修改循环开关            是否循环（勾选时 loop_start=0, loop_end=total_ticks）
 #
 #  【右键菜单】
-#    填满轨道                把选中块按小节重复铺满当前通道的音高区间
-#                            （只影响选中块所在音高行，及其之间所有音高行）
+#    填满后续                用框选区域确定 N 小节，向后重复铺满
+#    填满之前                用框选区域确定 N 小节，向前重复铺满
 #    清空通道                清空当前通道所有音符（All 时清空全部）
 #
 #  【撤销 / 重做】
@@ -265,6 +265,7 @@ var _song : ChipSong = null
 var _path : String = ""
 var _playhead_tick : float = -1.0
 var _dirty : bool = false
+var _events_dirty : bool = false
 var _suppress_undo : bool = false
 var _title_editing : bool = false
 
@@ -299,6 +300,10 @@ var _clipboard : Dictionary = {}
 
 # 右键菜单
 var _tracker_menu : Control = null
+
+# 最近一次框选范围（世界像素坐标，用于确定"填满"的 N 小节）
+var _last_box_world_rect : Rect2 = Rect2()
+var _has_last_box : bool = false
 
 var _undo_stack : Array[Dictionary] = []
 var _redo_stack : Array[Dictionary] = []
@@ -340,6 +345,12 @@ func _ready():
 
 
 func _process(_delta : float):
+	# ★ 歌曲事件已改动 + 正在播放 → 通知播放器刷新游标
+	if _events_dirty:
+		_events_dirty = false
+		if _player and _player.is_playing():
+			_player.notify_song_changed()
+
 	if _dragging_progress: return
 	if _player and _player.is_playing():
 		var raw_tick : float = float(_player.get_current_tick())
@@ -413,7 +424,7 @@ func _setup_slider_theme(t : Theme):
 	t.set_stylebox("slider", "HSlider", slider_sb)
 
 	var grab_sb := StyleBoxFlat.new()
-	grab_sb.bg_color = Color(0.55, 0.55, 0.60, 1.0)   # ★ 灰
+	grab_sb.bg_color = Color(0.55, 0.55, 0.60, 1.0)
 	grab_sb.content_margin_top = 2.5
 	grab_sb.content_margin_bottom = 2.5
 	t.set_stylebox("grabber_area", "HSlider", grab_sb)
@@ -506,6 +517,7 @@ func _make_toolbar(parent : Node):
 	bar.add_child(_mk_btn("打开", func(): _open_dialog()))
 	_save_btn = _mk_btn("保存", func(): _save_file())
 	bar.add_child(_save_btn)
+	bar.add_child(_mk_btn("另存", func(): _save_as_new()))
 
 	bar.add_child(_make_vsep())
 
@@ -624,7 +636,6 @@ func _make_channel_panel(parent : Node):
 	all_cn.custom_minimum_size = Vector2(CN_LABEL_W, 0)
 	all_row.add_child(all_cn)
 
-	# All 行的右侧占位（无 M 按钮）
 	var all_gap := Control.new()
 	all_gap.custom_minimum_size = Vector2(MUTE_W + 1, 0)
 	all_row.add_child(all_gap)
@@ -677,7 +688,6 @@ func _make_channel_panel(parent : Node):
 		row.add_child(m)
 		_mute_buttons.append(m)
 
-	# 缩放区域：占据剩余空间，垂直居中
 	var zoom_wrap := VBoxContainer.new()
 	zoom_wrap.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	zoom_wrap.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -1021,7 +1031,6 @@ func _setup_spin(sp : SpinBox):
 			if is_instance_valid(le):
 				le.release_focus()
 		)
-		# 鼠标不在 LineEdit 上时不聚焦（例如点击箭头按钮导致内部聚焦）
 		le.focus_entered.connect(func():
 			if is_instance_valid(le):
 				var mp := get_viewport().get_mouse_position()
@@ -1050,7 +1059,6 @@ func _compact_spin_arrow_button(btn : Button, sp : SpinBox):
 	btn.add_theme_stylebox_override("focus", empty)
 	btn.add_theme_stylebox_override("disabled", empty)
 
-	# 点击箭头后主动释放 LineEdit 焦点
 	btn.gui_input.connect(func(e : InputEvent):
 		if e is InputEventMouseButton and e.pressed \
 			and e.button_index == MOUSE_BUTTON_LEFT:
@@ -1125,6 +1133,7 @@ func _push_undo():
 		_undo_stack.pop_front()
 	_redo_stack.clear()
 	_dirty = true
+	_events_dirty = true
 
 
 func _apply_snapshot(snap : Dictionary):
@@ -1322,6 +1331,7 @@ func _load_file(path : String):
 	_undo_stack.clear()
 	_redo_stack.clear()
 	_dirty = false
+	_has_last_box = false
 
 	_title_label.text = s.title if s.title != "" else "（无标题）"
 	if _title_edit: _title_edit.text = s.title
@@ -1363,6 +1373,7 @@ func _new_song():
 	_undo_stack.clear()
 	_redo_stack.clear()
 	_dirty = false
+	_has_last_box = false
 
 	_title_label.text = "Untitled"
 	if _title_edit: _title_edit.text = "Untitled"
@@ -1384,9 +1395,20 @@ func _new_song():
 func _save_file():
 	if _song == null:
 		_status.text = "没有可保存的歌曲"; return
-	if _path == "" or _path.begins_with("res://"):
+	if _path == "":
 		_save_as_dialog(); return
-	_do_save(_path)
+	# res:// 路径转成系统绝对路径（编辑器可写）
+	var real_path : String = _path
+	if _path.begins_with("res://"):
+		real_path = ProjectSettings.globalize_path(_path)
+	_do_save(real_path)
+
+
+func _save_as_new():
+	if _song == null:
+		_status.text = "没有可保存的歌曲"
+		return
+	_save_as_dialog()
 
 
 func _save_as_dialog():
@@ -1396,7 +1418,13 @@ func _save_as_dialog():
 	fd.access = FileDialog.ACCESS_FILESYSTEM
 	fd.add_filter("*.json", "Chip Music")
 	fd.current_path = ProjectSettings.globalize_path(MUSIC_DIR)
-	fd.current_file = "new_song.json"
+	# 默认文件名：优先当前文件，其次标题
+	if _path != "":
+		fd.current_file = _path.get_file()
+	elif _song != null and _song.title.strip_edges() != "":
+		fd.current_file = _song.title.strip_edges() + ".json"
+	else:
+		fd.current_file = "new_song.json"
 	fd.file_selected.connect(func(p : String):
 		var pp := p
 		if not pp.ends_with(".json"): pp += ".json"
@@ -1438,6 +1466,7 @@ func _do_save(path : String):
 			clipped_count += 1
 		filtered.append(ev)
 	_song.events = filtered
+	_sort_events()
 
 	if _song.save_to_json(path):
 		_path = path
@@ -1454,11 +1483,24 @@ func _do_save(path : String):
 		_status.text = "❌ 保存失败: " + path
 
 
+## 按 tick（同 tick 按 ch）排序事件
+func _sort_events():
+	if _song == null: return
+	_song.events.sort_custom(func(a, b):
+		var at : float = float(a.get("tick", 0.0))
+		var bt : float = float(b.get("tick", 0.0))
+		if at != bt: return at < bt
+		return int(a.get("ch", 0)) < int(b.get("ch", 0))
+	)
+
+
 # ============================================================
 #  播放
 # ============================================================
 func _play():
 	if _song == null: return
+	# ★ 播放前按 tick 排序，保证 Sequencer 的正确遍历
+	_sort_events()
 	_player.stop()
 	if _playhead_tick > 0.0:
 		_player.play_song_from_tick(_song, int(_playhead_tick))
@@ -1499,9 +1541,11 @@ func _on_seek_ended(tick : float):
 #  通道
 # ============================================================
 func _on_channel_btn(i : int):
-	if i != _selected_channel and not _clipboard.is_empty():
-		_clipboard.clear()
-		_status.text = "通道已切换，剪贴板已清空"
+	if i != _selected_channel:
+		if not _clipboard.is_empty():
+			_clipboard.clear()
+			_status.text = "通道已切换，剪贴板已清空"
+		_has_last_box = false
 	_selected_channel = i
 	_selected_indices.clear()
 	_refresh_channel_buttons()
@@ -1609,7 +1653,6 @@ func _draw_grid(c : Control):
 					HORIZONTAL_ALIGNMENT_LEFT, -1, FS_NOTE_VEL,
 					Color(0.98, 0.98, 0.98, 0.95))
 
-	# 钢琴键
 	c.draw_rect(Rect2(0, gy, PIANO_WIDTH, gh), Color(0.10, 0.10, 0.13))
 	for p in range(pitch_bot, pitch_top + 1):
 		var y : float = gy + float(PITCH_MAX - p) * _row_height - _scroll_y
@@ -1627,7 +1670,6 @@ func _draw_grid(c : Control):
 	c.draw_line(Vector2(PIANO_WIDTH, gy), Vector2(PIANO_WIDTH, sz.y),
 				COL_GRID_BAR, 1.0)
 
-	# Track 头尾标记
 	if _song:
 		var total_tick : float = float(_song.total_ticks)
 		var start_x : float = gx - _scroll_x
@@ -1649,13 +1691,11 @@ func _draw_grid(c : Control):
 				Vector2(end_x, gy + 4.0),
 			]), COL_TRACK_END)
 
-	# 框选矩形
 	if _box_selecting:
 		var br := Rect2(_box_start, _box_end - _box_start).abs()
 		c.draw_rect(br, Color(COL_BOX_SEL.r, COL_BOX_SEL.g, COL_BOX_SEL.b, 0.15), true)
 		c.draw_rect(br, Color(COL_BOX_SEL.r, COL_BOX_SEL.g, COL_BOX_SEL.b, 0.90), false, 1.0)
 
-	# 播放头
 	if _playhead_tick >= 0.0:
 		var px : float = gx + _playhead_tick / float(tpb) * _px_per_beat - _scroll_x
 		if px >= gx and px <= sz.x:
@@ -1674,7 +1714,6 @@ func _on_grid_input(event : InputEvent, c : Control):
 		var mb : InputEventMouseButton = event
 		var mp : Vector2 = mb.position
 
-		# Ctrl + 滚轮 = 整体缩放
 		if mb.button_index == MOUSE_BUTTON_WHEEL_UP and mb.pressed \
 			and Input.is_key_pressed(KEY_CTRL):
 			_zoom_at_mouse(mp, 1.10, c)
@@ -1934,17 +1973,27 @@ func _show_tracker_menu():
 	var has_sel : bool = _selected_indices.size() > 0
 	var is_specific_ch : bool = _selected_channel != CH_ALL
 
-	# 填满轨道（需要选中块 + 具体通道）
-	var fill_btn := _make_menu_btn("填满轨道")
-	fill_btn.disabled = not (has_sel and is_specific_ch)
-	fill_btn.tooltip_text = "把选中内容按小节重复铺满该通道（只影响选中块的音高行及其之间所有音高行）"
-	fill_btn.pressed.connect(func():
+	# 填满后续
+	var fill_after_btn := _make_menu_btn("填满后续")
+	fill_after_btn.disabled = not (has_sel and is_specific_ch)
+	fill_after_btn.tooltip_text = "用选中块向后按小节重复铺满"
+	fill_after_btn.pressed.connect(func():
 		_close_tracker_menu()
-		_fill_track_with_selection()
+		_fill_track_after()
 	)
-	vbox.add_child(fill_btn)
+	vbox.add_child(fill_after_btn)
 
-	# 清空通道（无选中时可用）
+	# 填满之前
+	var fill_before_btn := _make_menu_btn("填满之前")
+	fill_before_btn.disabled = not (has_sel and is_specific_ch)
+	fill_before_btn.tooltip_text = "用选中块向前按小节重复铺满"
+	fill_before_btn.pressed.connect(func():
+		_close_tracker_menu()
+		_fill_track_before()
+	)
+	vbox.add_child(fill_before_btn)
+
+	# 清空通道
 	var clear_btn := _make_menu_btn("清空通道")
 	clear_btn.disabled = has_sel
 	clear_btn.tooltip_text = "清空当前通道所有音符（All 时为全部）"
@@ -1969,64 +2018,148 @@ func _show_tracker_menu():
 # ============================================================
 #  菜单功能
 # ============================================================
-## 填满轨道：把选中块按小节重复复制到 total_ticks 结束
-## ★ 只影响当前通道 + 选中块音高区间 [pitch_min, pitch_max] 内的音符
-func _fill_track_with_selection():
-	if _song == null or _selected_indices.size() == 0: return
+## 把模板裁切到 [bar_start, bar_end) 范围内
+## 只保留起点在范围内的音符；其 dur 若超出 bar_end 会被裁短
+func _clip_template_to_range(template : Array, bar_start : float, bar_end : float) -> Array:
+	var out : Array = []
+	for src in template:
+		var e : Dictionary = src
+		var t : float = float(e.tick)
+		var d : float = float(e.dur)
+		var t_end : float = t + d
+		if t_end <= bar_start or t >= bar_end:
+			continue
+		var nt : float = maxf(t, bar_start)
+		var ne_end : float = minf(t_end, bar_end)
+		var ne : Dictionary = e.duplicate()
+		ne.tick = nt
+		ne.dur = maxf(1.0, ne_end - nt)
+		out.append(ne)
+	return out
+
+
+## 准备填充模板
+## - 优先使用「最近一次框选」确定 N 小节范围
+## - 若无框选记录，退化为用选中音符的 tick 范围
+## - 模板中的所有音符都会裁切到 [base_bar_tick, base_bar_tick + pattern_len)
+func _prepare_fill_template() -> Dictionary:
+	if _song == null or _selected_indices.size() == 0:
+		return {"ok": false, "msg": "没有选中的块"}
 	if _selected_channel == CH_ALL:
-		_status.text = "请先选择具体通道"
-		return
+		return {"ok": false, "msg": "请先选择具体通道"}
 
 	var tpb : int = maxi(1, int(_song.ticks_per_beat))
 	var bpb : int = maxi(1, int(_song.beats_per_bar))
 	var bar_ticks : int = tpb * bpb
-	if bar_ticks <= 0: return
+	if bar_ticks <= 0:
+		return {"ok": false, "msg": "参数错误"}
 
-	# 收集模板（当前通道的选中块）+ 音高范围
-	var template : Array = []
+	# 收集当前通道的选中块
+	var sel_events : Array = []
 	var pitch_min : int = PITCH_MAX
 	var pitch_max : int = PITCH_MIN
 	for idx in _selected_indices:
 		if idx < 0 or idx >= _song.events.size(): continue
 		var e : Dictionary = _song.events[idx]
 		if int(e.ch) != _selected_channel: continue
-		template.append(e.duplicate())
+		sel_events.append(e.duplicate())
 		var p : int = int(e.note)
 		pitch_min = mini(pitch_min, p)
 		pitch_max = maxi(pitch_max, p)
+	if sel_events.is_empty():
+		return {"ok": false, "msg": "选中块不属于当前通道"}
+
+	# 确定模板 tick 范围
+	var range_tick_start : float
+	var range_tick_end : float
+	if _has_last_box:
+		range_tick_start = _last_box_world_rect.position.x / _px_per_beat * float(tpb)
+		range_tick_end = (_last_box_world_rect.position.x + _last_box_world_rect.size.x) / _px_per_beat * float(tpb)
+	else:
+		var min_t : float = INF
+		var max_t : float = -INF
+		for e in sel_events:
+			min_t = minf(min_t, float(e.tick))
+			max_t = maxf(max_t, float(e.tick) + float(e.dur))
+		range_tick_start = min_t
+		range_tick_end = max_t
+
+	# 对齐到小节边界
+	var start_bar_idx : int = int(floor(range_tick_start / float(bar_ticks)))
+	var end_bar_idx : int = int(floor((range_tick_end - 0.001) / float(bar_ticks)))
+	if end_bar_idx < start_bar_idx:
+		end_bar_idx = start_bar_idx
+	var base_bar_tick : float = float(start_bar_idx * bar_ticks)
+	var bar_count : int = end_bar_idx - start_bar_idx + 1
+	var pattern_len : float = float(bar_count * bar_ticks)
+	var pattern_end : float = base_bar_tick + pattern_len
+
+	# 生成模板：所有选中块裁切到 [base_bar_tick, pattern_end)
+	var template : Array = []
+	for e in sel_events:
+		var t : float = float(e.tick)
+		var d : float = float(e.dur)
+		var t_end : float = t + d
+		if t_end <= base_bar_tick or t >= pattern_end:
+			continue
+		var nt : float = maxf(t, base_bar_tick)
+		var ne_end : float = minf(t_end, pattern_end)
+		var ne : Dictionary = e.duplicate()
+		ne.tick = nt
+		ne.dur = maxf(1.0, ne_end - nt)
+		template.append(ne)
+
 	if template.is_empty():
-		_status.text = "选中块不属于当前通道"
-		return
+		return {"ok": false, "msg": "模板内没有音符"}
+
 	template.sort_custom(func(a, b): return float(a.tick) < float(b.tick))
 
-	var base_tick : float = float(template[0].tick)
+	return {
+		"ok": true,
+		"template": template,
+		"pitch_min": pitch_min,
+		"pitch_max": pitch_max,
+		"base_bar_tick": base_bar_tick,
+		"pattern_len": pattern_len,
+		"bar_count": bar_count,
+	}
+
+
+## 填满后续
+func _fill_track_after():
+	var p := _prepare_fill_template()
+	if not p["ok"]:
+		_status.text = p["msg"]
+		return
+	var template : Array = p["template"]
+	var pitch_min : int = p["pitch_min"]
+	var pitch_max : int = p["pitch_max"]
+	var base_bar_tick : float = p["base_bar_tick"]
+	var pattern_len : float = p["pattern_len"]
+	var bar_count : int = p["bar_count"]
 	var total : int = int(_song.total_ticks)
 
 	_push_undo()
 
-	# ★ 只删：当前通道 + tick >= base_tick + 音高在 [pitch_min, pitch_max] 区间内
 	var kept : Array = []
 	for e in _song.events:
 		var ev : Dictionary = e
 		var is_target : bool = (
 			int(ev.ch) == _selected_channel
-			and float(ev.tick) >= base_tick
+			and float(ev.tick) >= base_bar_tick
 			and int(ev.note) >= pitch_min
 			and int(ev.note) <= pitch_max
 		)
-		if is_target:
-			continue
+		if is_target: continue
 		kept.append(ev)
 
-	# 从 base_tick 起，每 bar_ticks 复制一次
 	var added : Array = []
-	var start_bar : int = int(floor(base_tick / float(bar_ticks)))
-	var num_bars : int = int(ceil(float(total) / float(bar_ticks)))
-	for b in range(start_bar, num_bars):
-		var offset : float = float(b * bar_ticks)
+	var num_repeats : int = int(ceil(float(total) / pattern_len)) + 2
+	for i in range(0, num_repeats):
+		var offset : float = float(i) * pattern_len
 		for src in template:
-			var rel : float = float(src.tick) - base_tick
-			var nt : float = offset + rel
+			var rel : float = float(src.tick) - base_bar_tick
+			var nt : float = base_bar_tick + offset + rel
 			if nt >= float(total): continue
 			var ne : Dictionary = src.duplicate()
 			ne.tick = nt
@@ -2041,11 +2174,67 @@ func _fill_track_with_selection():
 	_selected_indices.clear()
 	_update_note_inspector()
 	if _grid_canvas: _grid_canvas.queue_redraw()
-	_status.text = "填满轨道：%s 通道（音高 %d~%d），新增 %d 个音符" % [
-		_ch_en_names[_selected_channel], pitch_min, pitch_max, added.size()]
+	_status.text = "填满后续：%s（%d 小节模板，音高 %d~%d），新增 %d 个音符" % [
+		_ch_en_names[_selected_channel], bar_count, pitch_min, pitch_max, added.size()]
 
 
-## 清空通道：删除当前通道（All 时为全部）的所有事件
+## 填满之前
+func _fill_track_before():
+	var p := _prepare_fill_template()
+	if not p["ok"]:
+		_status.text = p["msg"]
+		return
+	var template : Array = p["template"]
+	var pitch_min : int = p["pitch_min"]
+	var pitch_max : int = p["pitch_max"]
+	var base_bar_tick : float = p["base_bar_tick"]
+	var pattern_len : float = p["pattern_len"]
+	var bar_count : int = p["bar_count"]
+
+	if base_bar_tick <= 0.0:
+		_status.text = "前面没有空间可填"
+		return
+
+	_push_undo()
+
+	var kept : Array = []
+	for e in _song.events:
+		var ev : Dictionary = e
+		var is_target : bool = (
+			int(ev.ch) == _selected_channel
+			and float(ev.tick) < base_bar_tick
+			and int(ev.note) >= pitch_min
+			and int(ev.note) <= pitch_max
+		)
+		if is_target: continue
+		kept.append(ev)
+
+	var added : Array = []
+	var num_repeats : int = int(ceil(base_bar_tick / pattern_len)) + 1
+	for i in range(0, num_repeats):
+		var offset : float = -float(i + 1) * pattern_len
+		for src in template:
+			var rel : float = float(src.tick) - base_bar_tick
+			var nt : float = base_bar_tick + offset + rel
+			if nt < 0.0: continue
+			var ne : Dictionary = src.duplicate()
+			ne.tick = nt
+			added.append(ne)
+
+	_song.events = kept + added
+	_song.events.sort_custom(func(a, b):
+		if int(a.tick) != int(b.tick): return int(a.tick) < int(b.tick)
+		return int(a.ch) < int(b.ch)
+	)
+
+	_selected_indices.clear()
+	_update_note_inspector()
+	if _grid_canvas: _grid_canvas.queue_redraw()
+	_status.text = "填满之前：%s（%d 小节模板，音高 %d~%d），新增 %d 个音符" % [
+		_ch_en_names[_selected_channel], bar_count, pitch_min, pitch_max, added.size()]
+
+
+## 清空通道
 func _clear_current_channel():
 	if _song == null: return
 	_push_undo()
@@ -2112,6 +2301,16 @@ func _finish_box_select(c : Control):
 			if not (i in new_selection):
 				new_selection.append(i)
 
+	# 保存框选的世界坐标范围
+	var wx0 : float = _box_start.x - gx + _scroll_x
+	var wx1 : float = _box_end.x - gx + _scroll_x
+	var wy0 : float = _box_start.y + _scroll_y
+	var wy1 : float = _box_end.y + _scroll_y
+	_last_box_world_rect = Rect2(
+		Vector2(minf(wx0, wx1), minf(wy0, wy1)),
+		Vector2(absf(wx1 - wx0), absf(wy1 - wy0)))
+	_has_last_box = true
+
 	_selected_indices = new_selection
 	_update_note_inspector()
 	c.queue_redraw()
@@ -2121,9 +2320,10 @@ func _finish_box_select(c : Control):
 # ============================================================
 #  选中操作
 # ============================================================
-func _nudge_selected_pitch(delta_pitch : int):
+func _nudge_selected_pitch(delta_pitch : int, skip_undo : bool = false):
 	if _song == null or _selected_indices.size() == 0: return
-	_push_undo()
+	if not skip_undo:
+		_push_undo()
 	for idx in _selected_indices:
 		if idx < 0 or idx >= _song.events.size(): continue
 		var e : Dictionary = _song.events[idx]
@@ -2132,9 +2332,10 @@ func _nudge_selected_pitch(delta_pitch : int):
 	if _grid_canvas: _grid_canvas.queue_redraw()
 
 
-func _nudge_selected_tick(delta_tick : int):
+func _nudge_selected_tick(delta_tick : int, skip_undo : bool = false):
 	if _song == null or _selected_indices.size() == 0: return
-	_push_undo()
+	if not skip_undo:
+		_push_undo()
 	for idx in _selected_indices:
 		if idx < 0 or idx >= _song.events.size(): continue
 		var e : Dictionary = _song.events[idx]
@@ -2245,6 +2446,8 @@ func _paste_at_mouse():
 			"vel": float(e.vel),
 			"dur": float(e.dur),
 		}
+		if e.has("wave"): new_ev["wave"] = e["wave"]
+		if e.has("env"):  new_ev["env"]  = (e["env"] as Dictionary).duplicate()
 		_song.events.append(new_ev)
 		added.append(_song.events.size() - 1)
 
@@ -2291,12 +2494,24 @@ func _perform_resize(mouse_pos : Vector2):
 func _make_event(tick : int, pitch : int, ch : int) -> Dictionary:
 	var tpb : int = 4
 	if _song: tpb = maxi(1, int(_song.ticks_per_beat))
+	var wave : int = ChipSynth.Wave.PULSE_50
+	var env : Dictionary = {"attack": 0.01, "decay": 0.05, "sustain": 0.7, "release": 0.05}
+	if _song and ch >= 0 and ch < _song.channels.size():
+		var ch_cfg : Dictionary = _song.channels[ch]
+		var preset_name : String = ch_cfg.get("preset", "")
+		var presets : Dictionary = _song._raw_data.get("presets", {})
+		if presets.has(preset_name):
+			var preset : Dictionary = presets[preset_name]
+			wave = ChipSong._wave_from_string(preset.get("wave", "pulse_50"))
+			env = preset.get("env", env)
 	return {
 		"ch": float(ch),
 		"tick": float(maxi(0, tick)),
 		"note": float(clampi(pitch, PITCH_MIN, PITCH_MAX)),
 		"vel": 100.0,
 		"dur": float(maxi(1, tpb >> 1)),
+		"wave": wave,
+		"env": env,
 	}
 
 
@@ -2383,7 +2598,7 @@ func _set_note_spins_enabled(on : bool):
 		if le:
 			le.editable = on
 			if not on:
-				le.text = ""    # ★ 未选中时清空显示，避免误解为残留值
+				le.text = ""
 		var btns : Array[Node] = sp.find_children("*", "Button", true, false)
 		for b in btns:
 			if b is Button:
@@ -2434,7 +2649,6 @@ func _is_black(p : int) -> bool:
 
 
 func _input(event : InputEvent):
-	# 鼠标左键按下：如果不在输入框上，释放焦点
 	if event is InputEventMouseButton and event.pressed \
 		and event.button_index == MOUSE_BUTTON_LEFT:
 		var fe := get_viewport().gui_get_focus_owner()
@@ -2443,9 +2657,14 @@ func _input(event : InputEvent):
 			if not fe.get_global_rect().has_point(mp):
 				fe.release_focus()
 
-	if not (event is InputEventKey and event.pressed and not event.echo):
+	if not (event is InputEventKey and event.pressed):
 		return
 	var ke : InputEventKey = event
+	# ★ 方向键允许按键重复（echo），其他键仍过滤
+	var is_arrow : bool = (ke.keycode == KEY_UP or ke.keycode == KEY_DOWN \
+		or ke.keycode == KEY_LEFT or ke.keycode == KEY_RIGHT)
+	if ke.echo and not is_arrow:
+		return
 
 	var focus := get_viewport().gui_get_focus_owner()
 	if focus is LineEdit:
@@ -2459,7 +2678,10 @@ func _input(event : InputEvent):
 				_redo()
 				get_viewport().set_input_as_handled(); return
 			KEY_S:
-				_save_file()
+				if ke.shift_pressed:
+					_save_as_new()
+				else:
+					_save_file()
 				get_viewport().set_input_as_handled(); return
 			KEY_A:
 				_select_all_in_channel()
@@ -2476,7 +2698,10 @@ func _input(event : InputEvent):
 				_redo()
 				get_viewport().set_input_as_handled(); return
 			KEY_S:
-				_save_file()
+				if ke.shift_pressed:
+					_save_as_new()
+				else:
+					_save_file()
 				get_viewport().set_input_as_handled(); return
 			KEY_O:
 				_open_dialog()
@@ -2512,30 +2737,30 @@ func _input(event : InputEvent):
 		KEY_UP:
 			if _selected_indices.size() > 0:
 				if ke.shift_pressed:
-					_nudge_selected_pitch(12)
+					_nudge_selected_pitch(12, ke.echo)
 				else:
-					_nudge_selected_pitch(1)
+					_nudge_selected_pitch(1, ke.echo)
 				get_viewport().set_input_as_handled()
 		KEY_DOWN:
 			if _selected_indices.size() > 0:
 				if ke.shift_pressed:
-					_nudge_selected_pitch(-12)
+					_nudge_selected_pitch(-12, ke.echo)
 				else:
-					_nudge_selected_pitch(-1)
+					_nudge_selected_pitch(-1, ke.echo)
 				get_viewport().set_input_as_handled()
 		KEY_LEFT:
 			if _selected_indices.size() > 0:
 				if ke.shift_pressed:
-					_nudge_selected_tick(-maxi(1, int(_song.ticks_per_beat)))
+					_nudge_selected_tick(-maxi(1, int(_song.ticks_per_beat)), ke.echo)
 				else:
-					_nudge_selected_tick(-1)
+					_nudge_selected_tick(-1, ke.echo)
 				get_viewport().set_input_as_handled()
 		KEY_RIGHT:
 			if _selected_indices.size() > 0:
 				if ke.shift_pressed:
-					_nudge_selected_tick(maxi(1, int(_song.ticks_per_beat)))
+					_nudge_selected_tick(maxi(1, int(_song.ticks_per_beat)), ke.echo)
 				else:
-					_nudge_selected_tick(1)
+					_nudge_selected_tick(1, ke.echo)
 				get_viewport().set_input_as_handled()
 		KEY_ESCAPE:
 			_request_quit()

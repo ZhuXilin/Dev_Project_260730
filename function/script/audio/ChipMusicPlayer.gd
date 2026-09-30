@@ -140,6 +140,12 @@ func seek_to_tick(tick: int):
 		_sequencer.seek_to_tick(tick)
 
 
+## 通知播放器歌曲事件已改变（重新扫描事件游标，播放中立即生效）
+func notify_song_changed():
+	if _sequencer:
+		_sequencer.rescan_events()
+
+
 ## 获取当前 tick
 func get_current_tick() -> int:
 	if _sequencer:
