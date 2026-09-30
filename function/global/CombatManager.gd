@@ -41,6 +41,14 @@ const BLOOD_RAGE_HEAL_PERCENT : Array = [0.15, 0.20, 0.25]
 const ZEAL_PER_STACK : Array = [0.10, 0.15, 0.20]
 const ZEAL_MAX_STACKS : int = 5
 
+# ============================================================
+#  ★ 表演时长（新增）
+# ============================================================
+const LUNGE_DURATION : float = 0.18          # 攻击者前冲
+const PRE_DAMAGE_DELAY : float = 0.10        # 伤害计算 → 应用之间
+const POST_DAMAGE_DELAY : float = 0.22       # 应用伤害 → 数字飘出，等一下
+const DEATH_ANIM_DURATION : float = 0.35     # 死亡淡出
+
 
 # ============================================================
 #  主动技能射程加成（供 InputManager 复用）
@@ -190,6 +198,9 @@ func execute_attack(attacker: Unit, defender: Unit) -> bool:
 		Globals.is_performing_action = false
 		return true
 
+	# ★ 阶段 1：攻击者前冲（视觉）
+	await _play_lunge_attack(attacker, defender)
+
 	var damage = calculate_damage(attacker, defender)
 
 	# ★ 主动技能触发
@@ -297,16 +308,22 @@ func execute_attack(attacker: Unit, defender: Unit) -> bool:
 		SignalBus.request_damage_popup.emit(attacker.global_position, hp_cost, false, false, false)
 		print("龙息：消耗 %d HP" % hp_cost)
 
+	# ★ 阶段 2：伤害计算 → 应用前，短停顿
+	await get_tree().create_timer(PRE_DAMAGE_DELAY, true, false, true).timeout
+
 	print("造成伤害: ", damage)
 
 	var defeated = _apply_damage_with_effects(defender, damage, attacker)
 
+	# ★ 阶段 3：伤害应用后，等数字飘一下
+	await get_tree().create_timer(POST_DAMAGE_DELAY, true, false, true).timeout
+
 	# 主动技能后效
 	if active_skill_data:
 		if splash_percent > 0.0:
-			_apply_splash(attacker, defender, damage, splash_percent)
+			await _apply_splash(attacker, defender, damage, splash_percent)
 		if aoe_percent > 0.0:
-			_apply_aoe(attacker, defender, damage, aoe_percent)
+			await _apply_aoe(attacker, defender, damage, aoe_percent)
 		if taunt_rounds > 0:
 			attacker.taunt_rounds = taunt_rounds
 			var dirs_t = [Vector2i(1,0), Vector2i(-1,0), Vector2i(0,1), Vector2i(0,-1)]
@@ -321,13 +338,13 @@ func execute_attack(attacker: Unit, defender: Unit) -> bool:
 
 	if defeated:
 		print(defender.unit_stats.unit_name + " 阵亡！")
-		_on_kill(attacker, defender)
+		var cleave_triggered := _on_kill(attacker, defender)
+		await _play_death_animation(defender)
 		UnitManager.unregister_unit(defender)
 		defender.queue_free()
 
-		# ★ 检查 cleave 是否触发
-		if not attacker.has_attacked:
-			# cleave 已重置状态：不 mark_attacked，但刷新菜单
+		# ★ cleave 触发：可再次行动，弹菜单
+		if cleave_triggered:
 			_show_menu_after_action(attacker)
 			Globals.is_performing_action = false
 			return true
@@ -364,13 +381,12 @@ func execute_attack(attacker: Unit, defender: Unit) -> bool:
 		SignalBus.request_damage_popup.emit(defender.global_position, extra_damage, false, false, false)
 		if extra_dead:
 			print(defender.unit_stats.unit_name + " 阵亡！")
-			_on_kill(attacker, defender)
+			var cleave_triggered := _on_kill(attacker, defender)
+			await _play_death_animation(defender)
 			UnitManager.unregister_unit(defender)
 			defender.queue_free()
 
-			# ★ 检查 cleave 是否触发
-			if not attacker.has_attacked:
-				# cleave 已重置状态：不 mark_attacked，但刷新菜单
+			if cleave_triggered:
 				_show_menu_after_action(attacker)
 				Globals.is_performing_action = false
 				return true
@@ -407,13 +423,12 @@ func execute_attack(attacker: Unit, defender: Unit) -> bool:
 				SignalBus.request_damage_popup.emit(defender.global_position, extra_damage, false, false, false)
 				if extra_dead:
 					print(defender.unit_stats.unit_name + " 阵亡！")
-					_on_kill(attacker, defender)
+					var cleave_triggered := _on_kill(attacker, defender)
+					await _play_death_animation(defender)
 					UnitManager.unregister_unit(defender)
 					defender.queue_free()
 
-					# ★ 检查 cleave 是否触发
-					if not attacker.has_attacked:
-						# cleave 已重置状态：不 mark_attacked，但刷新菜单
+					if cleave_triggered:
 						_show_menu_after_action(attacker)
 						Globals.is_performing_action = false
 						return true
@@ -435,11 +450,94 @@ func execute_attack(attacker: Unit, defender: Unit) -> bool:
 
 
 # ============================================================
+#  ★ 表演：攻击者前冲（shader 通用位移）
+# ============================================================
+func _play_lunge_attack(attacker: Unit, defender: Unit) -> void:
+	if not is_instance_valid(attacker) or not is_instance_valid(defender):
+		return
+	if not attacker.animated_sprite:
+		return
+	var mat = attacker.animated_sprite.material as ShaderMaterial
+	if not mat:
+		# 无 shader 时退化为极短停顿
+		await get_tree().create_timer(0.08, true, false, true).timeout
+		return
+
+	var dir = (defender.global_position - attacker.global_position)
+	if dir.length() < 0.001:
+		return
+	dir = dir.normalized()
+
+	# 用 shader 的 hit_offset 做向前冲，但不闪白（hit_enable_flash = false）
+	mat.set_shader_parameter("hit_offset_amount", dir * 6.0)
+	mat.set_shader_parameter("hit_duration", LUNGE_DURATION)
+	mat.set_shader_parameter("hit_elapsed", 0.0)
+	mat.set_shader_parameter("hit_flash_color", Color.WHITE)
+	mat.set_shader_parameter("hit_enable_flash", false)
+
+	var tween = attacker.create_tween()
+	tween.set_ignore_time_scale(true)
+	tween.tween_method(
+		func(val):
+			if is_instance_valid(mat):
+				mat.set_shader_parameter("hit_elapsed", val),
+		0.0, LUNGE_DURATION, LUNGE_DURATION
+	)
+	tween.tween_callback(func():
+		if is_instance_valid(mat):
+			mat.set_shader_parameter("hit_elapsed", 0.0)
+			mat.set_shader_parameter("hit_offset_amount", Vector2.ZERO)
+	)
+	await tween.finished
+
+
+# ============================================================
+#  ★ 表演：死亡（shader 白闪 3 次后消失）
+# ============================================================
+func _play_death_animation(unit: Unit) -> void:
+	if not is_instance_valid(unit):
+		return
+
+	# 隐藏 HUD 标签
+	for label_name in ["HPLabel", "NameLabel", "TerrainInfoLabel"]:
+		var label = unit.get_node_or_null(label_name)
+		if label:
+			label.visible = false
+
+	if not unit.animated_sprite:
+		return
+
+	var mat = unit.animated_sprite.material as ShaderMaterial
+	if mat:
+		# 准备闪白参数：duration 设大一点，只要 elapsed < duration 就会闪
+		mat.set_shader_parameter("hit_flash_color", Color(1.0, 1.0, 1.0))
+		mat.set_shader_parameter("hit_duration", 1.0)
+		mat.set_shader_parameter("hit_elapsed", 0.0)
+		mat.set_shader_parameter("hit_offset_amount", Vector2.ZERO)
+
+		# 闪烁 3 次（每次 0.08s 亮 + 0.08s 灭）
+		for i in range(3):
+			mat.set_shader_parameter("hit_enable_flash", true)
+			await get_tree().create_timer(0.08, true, false, true).timeout
+			mat.set_shader_parameter("hit_enable_flash", false)
+			await get_tree().create_timer(0.08, true, false, true).timeout
+
+		mat.set_shader_parameter("hit_enable_flash", false)
+
+	# 直接消失
+	unit.animated_sprite.visible = false
+
+	# 短停顿，避免视觉突兀
+	await get_tree().create_timer(0.1, true, false, true).timeout
+
+
+# ============================================================
 #  击杀连锁
 # ============================================================
-func _on_kill(attacker: Unit, _defender: Unit):
+## 返回：cleave 是否触发（true = 攻击者本回合可再行动）
+func _on_kill(attacker: Unit, _defender: Unit) -> bool:
 	if not is_instance_valid(attacker):
-		return
+		return false
 
 	# ---- 血怒：击杀回 HP ----
 	if TalentManager.is_talent_ready(attacker, "blood_rage"):
@@ -456,12 +554,14 @@ func _on_kill(attacker: Unit, _defender: Unit):
 		TalentManager.reset_talent(attacker, "blood_rage")
 
 	# ---- 连斩：击杀后本回合可再攻击一次 ----
+	var cleave_triggered := false
 	if TalentManager.is_talent_ready(attacker, "cleave"):
 		attacker.has_attacked = false
 		attacker.has_acted = false
 		attacker.movement_after_attack = false
 		print("连斩触发！可再次行动")
 		TalentManager.reset_talent(attacker, "cleave")
+		cleave_triggered = true
 
 	# ---- 疾风遗物：击杀后再移动 ----
 	if attacker.relic_kill_grants_extra_move > 0:
@@ -469,7 +569,10 @@ func _on_kill(attacker: Unit, _defender: Unit):
 		attacker.has_moved = false
 		print("疾风遗物：额外移动 %d 格" % attacker.relic_kill_grants_extra_move)
 
-func _apply_splash(attacker: Unit, defender: Unit, base_damage: int, percent: float):
+	return cleave_triggered
+
+
+func _apply_splash(attacker: Unit, defender: Unit, base_damage: int, percent: float) -> void:
 	var dir = defender.grid_cell - attacker.grid_cell
 	var behind = defender.grid_cell + dir
 	var splash_target = UnitManager.get_unit_at_cell(behind)
@@ -483,11 +586,12 @@ func _apply_splash(attacker: Unit, defender: Unit, base_damage: int, percent: fl
 	print("[贯穿] 溅射 %d 伤害给 %s" % [splash_dmg, splash_target.unit_stats.unit_name])
 	if dead:
 		_on_kill(attacker, splash_target)
+		await _play_death_animation(splash_target)
 		UnitManager.unregister_unit(splash_target)
 		splash_target.queue_free()
 
 
-func _apply_aoe(attacker: Unit, center: Unit, base_damage: int, percent: float):
+func _apply_aoe(attacker: Unit, center: Unit, base_damage: int, percent: float) -> void:
 	var dirs = [Vector2i(1,0), Vector2i(-1,0), Vector2i(0,1), Vector2i(0,-1)]
 	for d in dirs:
 		var cell = center.grid_cell + d
@@ -502,6 +606,7 @@ func _apply_aoe(attacker: Unit, center: Unit, base_damage: int, percent: float):
 		print("[火球] AOE %d 伤害给 %s" % [aoe_dmg, target.unit_stats.unit_name])
 		if dead:
 			_on_kill(attacker, target)
+			await _play_death_animation(target)
 			UnitManager.unregister_unit(target)
 			target.queue_free()
 
@@ -575,6 +680,22 @@ func _execute_heal(attacker: Unit, defender: Unit) -> bool:
 
 
 # ============================================================
+#  ★ 表演：受击（普攻 / 溅射 / AOE 通用）
+# ============================================================
+func _play_hurt_effect(defender: Unit, attacker: Unit) -> void:
+	if not is_instance_valid(defender):
+		return
+	# 从攻击者指向防御者 = 受击位移方向
+	var hit_dir = Vector2(1, 0)
+	if is_instance_valid(attacker):
+		var d = defender.global_position - attacker.global_position
+		if d.length() > 0.001:
+			hit_dir = d.normalized()
+	defender.play_hit_effect(hit_dir, true)
+	SignalBus.request_screen_shake.emit(0.15, 4.0, hit_dir)
+
+
+# ============================================================
 #  伤害应用 + 词条效果
 # ============================================================
 func _apply_damage_with_effects(defender: Unit, damage: int, attacker: Unit) -> bool:
@@ -625,6 +746,9 @@ func _apply_damage_with_effects(defender: Unit, damage: int, attacker: Unit) -> 
 
 	var defeated = defender.apply_damage(damage)
 
+	# ★ 受击表现（普攻 / 溅射 / AOE 通用）
+	_play_hurt_effect(defender, attacker)
+
 	# ---- 生命遗物：每回合首次受伤回血 ----
 	if not defeated and defender.relic_turn_first_hit_regen > 0.0 and not defender.relic_turn_first_hit_regen_used:
 		var regen = int(damage * defender.relic_turn_first_hit_regen)
@@ -672,7 +796,7 @@ func _get_effective_talent_level(unit: Unit, talent_id: String) -> int:
 
 
 # ============================================================
-#  反击
+#  反击（仅 counter_boost 词条触发）
 # ============================================================
 func _can_counter_attack(attacker: Unit, defender: Unit) -> bool:
 	if not defender.can_counter():
@@ -720,6 +844,7 @@ func _execute_counter(attacker: Unit, defender: Unit) -> void:
 	if attacker_dead:
 		print(attacker.unit_stats.unit_name + " 阵亡！")
 		_on_kill(defender, attacker)
+		await _play_death_animation(attacker)
 		UnitManager.unregister_unit(attacker)
 		attacker.queue_free()
 

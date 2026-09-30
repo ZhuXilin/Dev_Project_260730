@@ -798,14 +798,5 @@ func reset_combat_buffs():
 	buff_magic_attack_flat = 0
 
 func can_counter() -> bool:
-	# 词条
-	if get_talent_instance("counter_boost") != null:
-		return true
-	# 武器类型（长枪/盾）
-	var wdata = get_weapon_data()
-	if wdata and wdata.category in ["spear", "shield"]:
-		return true
-	# 遗物/协同 buff
-	if relic_counter_damage_bonus > 0.0:
-		return true
-	return false
+	# ★ 仅 counter_boost 词条触发反击（武器/遗物不授予）
+	return get_talent_instance("counter_boost") != null
