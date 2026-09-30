@@ -46,8 +46,16 @@ const MAP_NODE_FONT_SIZE : int = 5
 const PERFORMANCE_DURATION : float = 0.5
 const STEP_DURATION_PLAYER : float = 0.15
 const STEP_DURATION_AI : float = 0.12
-const HIT_FLASH_DURATION : float = 0.15
-const HIT_OFFSET_DISTANCE : float = 8.0
+
+## 受击闪光时长（只覆盖动画前段，后续只有位移）
+const HIT_FLASH_DURATION : float = 0.08
+
+## 受击位移总时长（必须 > HIT_FLASH_DURATION）
+const HIT_OFFSET_DURATION : float = 0.25
+
+## 受击位移距离（像素）
+const HIT_OFFSET_DISTANCE : float = 5.0
+
 const DAMAGE_POPUP_DURATION : float = 0.5
 const DAMAGE_POPUP_SIZE : Vector2 = Vector2(50, 25)
 const DAMAGE_FONT_SIZE : int = 12

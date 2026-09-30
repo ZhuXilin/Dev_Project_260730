@@ -165,10 +165,11 @@ func update_cursor_and_mouse() -> void:
 
 	if show_system_mouse:
 		if Input.mouse_mode != Input.MOUSE_MODE_VISIBLE:
-			Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+			_set_mouse_mode_deferred.call_deferred(Input.MOUSE_MODE_VISIBLE)
 	else:
 		if Input.mouse_mode != Input.MOUSE_MODE_HIDDEN:
-			Input.mouse_mode = Input.MOUSE_MODE_HIDDEN
+			_set_mouse_mode_deferred.call_deferred(Input.MOUSE_MODE_HIDDEN)
+			
 
 	if _bf.cursor.visible:
 		var new_scale = get_viewport_scale()
@@ -192,3 +193,8 @@ func update_cursor_and_mouse() -> void:
 	var target_color = Color.FUCHSIA if should_be_pink else Color.WHITE
 	if _bf.cursor.modulate != target_color:
 		_bf.cursor.modulate = target_color
+
+
+func _set_mouse_mode_deferred(mode: Input.MouseMode) -> void:
+	if Input.mouse_mode != mode:
+		Input.mouse_mode = mode

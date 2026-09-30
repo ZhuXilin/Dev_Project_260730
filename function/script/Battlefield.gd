@@ -67,6 +67,8 @@ var _ui_binder : UIBinder = null
 var _turn_controller : TurnController = null
 var _victory_handler : VictoryHandler = null
 
+var _damage_popup_layer : CanvasLayer = null
+
 # ---- 状态 ----
 var map_grid_size : Vector2i = MapConst.DEFAULT_MAP_SIZE
 var _initialized : bool = false
@@ -123,6 +125,12 @@ func _ready():
 
 	_ui_binder = UIBinder.new(self)
 	add_child(_ui_binder)
+
+	# ★ 伤害跳字专用层（高于 HUD=5，低于 ConfirmUI=99）
+	_damage_popup_layer = CanvasLayer.new()
+	_damage_popup_layer.name = "DamagePopupLayer"
+	_damage_popup_layer.layer = 0
+	add_child(_damage_popup_layer)
 
 	# ---- UnitManager 信号（非 UI）----
 	if not UnitManager.unit_removed.is_connected(_on_unit_removed_death):
@@ -334,6 +342,14 @@ func _on_unit_removed_death(unit: Unit, team: int):
 
 
 func _exit_tree():
+	# ★ 强制重置所有全局 UI flag（防止旧协程等到超时）
+	Globals.is_fading = false
+	Globals.is_transitioning = false
+	Globals.is_performing_action = false
+	Globals.is_dialogue_active = false
+	Globals.is_item_get_popup_active = false
+	Globals.is_equip_menu_active = false
+
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	cursor.visible = false
 	if _cursor_controller:
@@ -626,8 +642,10 @@ func _on_request_screen_shake(duration: float, intensity: float, direction: Vect
 
 
 func _on_request_damage_popup(world_pos: Vector2, damage: int, is_crit: bool, is_miss: bool, is_heal: bool):
+	if _damage_popup_layer == null:
+		return
 	var popup = preload(Config.PATHS.DAMAGE_POPUP_SCRIPT).new()
-	add_child(popup)
+	_damage_popup_layer.add_child(popup)
 	popup.setup(world_pos, damage, is_crit, is_miss, is_heal)
 
 
@@ -828,8 +846,11 @@ func _end_player_turn():
 func _wait_for_ui_clear(timeout_ms: int = 5000) -> void:
 	var start = Time.get_ticks_msec()
 	while _is_any_ui_active():
+		# ★ 对象已脱离场景树（被 free）→ 立即退出，不再等
+		if not is_inside_tree():
+			return
 		if Time.get_ticks_msec() - start > timeout_ms:
-			push_warning("Battlefield: 等待 UI 结束超时（%d ms），强制继续" % timeout_ms)
+			push_warning("Battlefield: 等待 UI 结束超时（%d ms）" % timeout_ms)
 			return
 		await get_tree().process_frame
 

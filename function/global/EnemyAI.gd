@@ -543,6 +543,58 @@ func _greedy_move_towards(unit: Unit, target_cell: Vector2i) -> Array:
 
 	return UnitManager.calculate_path(unit.grid_cell, best_cell, unit)
 
+## 路径失效时的重寻路：从当前可达格中挑一个「离敌人最近 + 地形最优」的空格
+func _retry_find_path(unit: Unit) -> Array:
+	var reachable = UnitManager.get_reachable_cells(unit.grid_cell, unit.unit_stats.move_range, unit)
+	if reachable.is_empty():
+		return []
+
+	var best_cell = unit.grid_cell
+	var best_score = -999999
+	var has_candidate = false
+
+	for cell in reachable.keys():
+		if cell == unit.grid_cell:
+			continue
+		if UnitManager.is_cell_occupied(cell):
+			continue
+
+		# 距最近敌人的距离（越近越好）
+		var nearest_enemy_dist : int = 9999
+		for enemy in UnitManager.unit_list:
+			if enemy.unit_stats.team_id == unit.unit_stats.team_id:
+				continue
+			if enemy.hit_points <= 0:
+				continue
+			var d = abs(cell.x - enemy.grid_cell.x) + abs(cell.y - enemy.grid_cell.y)
+			if d < nearest_enemy_dist:
+				nearest_enemy_dist = d
+
+		# 越近越高分（负距离）
+		var score : int = -nearest_enemy_dist * 10
+
+		# 地形加成
+		var terrain = TerrainManager.get_terrain(cell)
+		score += TerrainManager.TERRAIN_DATA[terrain]["def_bonus"] * 3
+		score += TerrainManager.TERRAIN_DATA[terrain]["avoid_bonus"]
+
+		# 队友邻近小加分
+		for dir in [Vector2i(1,0), Vector2i(-1,0), Vector2i(0,1), Vector2i(0,-1)]:
+			var neighbor_unit = UnitManager.get_unit_at_cell(cell + dir)
+			if neighbor_unit and neighbor_unit.unit_stats.team_id == unit.unit_stats.team_id:
+				score += 5
+				break
+
+		if score > best_score:
+			best_score = score
+			best_cell = cell
+			has_candidate = true
+
+	if not has_candidate or best_cell == unit.grid_cell:
+		return []
+
+	return UnitManager.calculate_path(unit.grid_cell, best_cell, unit)
+
 # ============================================================
 #  AI 队列执行
 # ============================================================
@@ -581,8 +633,12 @@ func _process_ai_queue():
 			"move":
 				var path = task["path"]
 				if path.size() == 0 or UnitManager.is_cell_occupied(path[-1]):
-					print("移动路径无效，跳过")
-					continue
+					# ★ 路径被其他 AI 单位抢先占了 → 重新寻路
+					print("AI 路径失效，重新寻路: ", unit.unit_stats.unit_name)
+					path = _retry_find_path(unit)
+					if path.size() == 0 or UnitManager.is_cell_occupied(path[-1]):
+						print("AI 无法移动，跳过: ", unit.unit_stats.unit_name)
+						continue
 				print("AI 移动: ", unit.unit_stats.unit_name, " 路径长度 ", path.size())
 				_turn_manager.start_ai_movement(unit, path)
 				await _turn_manager.move_completed

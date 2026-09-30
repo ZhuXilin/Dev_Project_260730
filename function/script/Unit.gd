@@ -607,22 +607,36 @@ func play_hit_effect(direction: Vector2, is_hit: bool):
 		return
 	var dir_norm = direction.normalized()
 	var offset = dir_norm * hit_offset_distance
+
+	# ★ 位移用 HIT_OFFSET_DURATION（0.25s），闪光时长独立
 	_color_material.set_shader_parameter("hit_offset_amount", offset)
-	_color_material.set_shader_parameter("hit_duration", MapConst.HIT_FLASH_DURATION)
+	_color_material.set_shader_parameter("hit_duration", MapConst.HIT_OFFSET_DURATION)
 	_color_material.set_shader_parameter("hit_elapsed", 0.0)
 	_color_material.set_shader_parameter("hit_flash_color", Color.RED if is_hit else Color.WHITE)
 	_color_material.set_shader_parameter("hit_enable_flash", true)
 
+	# ---- 主 tween：驱动 hit_elapsed（位移 + 闪光共用，走满 HIT_OFFSET_DURATION）----
 	var tween = create_tween()
+	tween.set_ignore_time_scale(true)
 	tween.tween_method(
-		func(val): _color_material.set_shader_parameter("hit_elapsed", val),
-		0.0, MapConst.HIT_FLASH_DURATION, MapConst.HIT_FLASH_DURATION
+		func(val):
+			if is_instance_valid(_color_material):
+				_color_material.set_shader_parameter("hit_elapsed", val),
+		0.0, MapConst.HIT_OFFSET_DURATION, MapConst.HIT_OFFSET_DURATION
 	)
 	tween.tween_callback(func():
 		if is_instance_valid(_color_material):
 			_color_material.set_shader_parameter("hit_enable_flash", false)
 			_color_material.set_shader_parameter("hit_elapsed", 0.0)
 	)
+
+	# ---- ★ 独立 tween：提前关闭闪光，让后段只见位移 ----
+	var flash_tween = create_tween()
+	flash_tween.set_ignore_time_scale(true)
+	flash_tween.tween_callback(func():
+		if is_instance_valid(_color_material):
+			_color_material.set_shader_parameter("hit_enable_flash", false)
+	).set_delay(MapConst.HIT_FLASH_DURATION)
 
 func update_hp_label():
 	var hp_label = $HPLabel
