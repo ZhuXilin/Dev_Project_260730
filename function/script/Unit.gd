@@ -643,6 +643,11 @@ func update_hp_label():
 	if hp_label:
 		hp_label.text = str(hit_points) + "/" + str(unit_stats.max_hp)
 
+func show_hp_label(v: bool) -> void:
+	var hp = get_node_or_null("HPLabel")
+	if hp:
+		hp.visible = v
+
 func update_name_label():
 	var na_label = $NameLabel
 	if na_label:
@@ -814,3 +819,8 @@ func reset_combat_buffs():
 func can_counter() -> bool:
 	# ★ 仅 counter_boost 词条触发反击（武器/遗物不授予）
 	return get_talent_instance("counter_boost") != null
+
+func set_hp_label_visible(v: bool) -> void:
+	var hp = get_node_or_null("HPLabel")
+	if hp:
+		hp.visible = v

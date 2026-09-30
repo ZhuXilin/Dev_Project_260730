@@ -4,6 +4,7 @@ extends Node
 var _bf : Node2D
 var _viewport_scale : float = 1.0
 var _attack_indicator : TextureRect = null
+var _hovered_unit : Unit = null
 
 
 func _init(bf: Node2D):
@@ -72,8 +73,12 @@ func clear_attack_indicator() -> void:
 		_attack_indicator.visible = false
 
 
+# ============================================================
+#  主更新（每物理帧）
+# ============================================================
 func update_cursor_and_mouse() -> void:
 	if _bf._is_reward_ui_active:
+		_set_hovered_unit(null)
 		if Input.mouse_mode != Input.MOUSE_MODE_VISIBLE:
 			Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 		_bf.cursor.visible = false
@@ -98,6 +103,7 @@ func update_cursor_and_mouse() -> void:
 	)
 
 	if force_hide_cursor:
+		_set_hovered_unit(null)
 		_bf.cursor.visible = false
 		if Input.mouse_mode != Input.MOUSE_MODE_VISIBLE:
 			Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
@@ -108,6 +114,7 @@ func update_cursor_and_mouse() -> void:
 		var relic_rect = _bf.relic_icon_container.get_global_rect().grow(4.0)
 		var vp_mouse = get_viewport().get_mouse_position()
 		if relic_rect.has_point(vp_mouse):
+			_set_hovered_unit(null)
 			_bf.cursor.visible = false
 			if Input.mouse_mode != Input.MOUSE_MODE_VISIBLE:
 				Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
@@ -117,7 +124,8 @@ func update_cursor_and_mouse() -> void:
 	var cursor_world_pos = Vector2.ZERO
 	var show_system_mouse = false
 
-	if (_bf.action_menu.visible or _bf.info_panel.visible) and InputManager.selected_unit != null and is_instance_valid(InputManager.selected_unit):
+	# ★ action_menu.visible → action_panel.visible
+	if (_bf.action_panel.visible or _bf.info_panel.visible) and InputManager.selected_unit != null and is_instance_valid(InputManager.selected_unit):
 		show_cursor = true
 		cursor_world_pos = _bf.grid_to_world(InputManager.selected_unit.grid_cell)
 		show_system_mouse = true
@@ -147,7 +155,8 @@ func update_cursor_and_mouse() -> void:
 		show_system_mouse = not show_cursor
 
 	if show_cursor:
-		if not (_bf.action_menu.visible or _bf.info_panel.visible):
+		# ★ action_menu.visible → action_panel.visible
+		if not (_bf.action_panel.visible or _bf.info_panel.visible):
 			var world_mouse = _bf.get_global_mouse_position()
 			var grid_pos = _bf.world_to_grid(world_mouse)
 			grid_pos.x = clamp(grid_pos.x, 0, _bf.map_grid_size.x - 1)
@@ -156,9 +165,9 @@ func update_cursor_and_mouse() -> void:
 
 		var canvas_transform = get_viewport().get_canvas_transform()
 		var screen_pos = canvas_transform * cursor_world_pos
-		screen_pos = screen_pos.round()
-		var size = _bf.cursor.size.round()
-		_bf.cursor.position = screen_pos - size / 2
+		var size = _bf.cursor.size
+		# 不取整，让光标跟随更平滑；如需像素对齐可改回 round
+		_bf.cursor.position = (screen_pos - size / 2).floor()
 		_bf.cursor.visible = true
 	else:
 		_bf.cursor.visible = false
@@ -169,7 +178,6 @@ func update_cursor_and_mouse() -> void:
 	else:
 		if Input.mouse_mode != Input.MOUSE_MODE_HIDDEN:
 			_set_mouse_mode_deferred.call_deferred(Input.MOUSE_MODE_HIDDEN)
-			
 
 	if _bf.cursor.visible:
 		var new_scale = get_viewport_scale()
@@ -180,10 +188,14 @@ func update_cursor_and_mouse() -> void:
 			if _attack_indicator:
 				_attack_indicator.size = Vector2(target_size, target_size)
 
+	# ★ 悬停单位 HP 显示
+	_update_hovered_unit_from_mouse()
+
 	var should_be_pink = false
 	if Globals.is_equip_menu_active:
 		should_be_pink = true
-	elif _bf.action_menu.visible or _bf.info_panel.visible:
+	# ★ action_menu.visible → action_panel.visible
+	elif _bf.action_panel.visible or _bf.info_panel.visible:
 		should_be_pink = true
 	elif InputManager.selected_unit != null and InputManager.selected_unit.unit_stats.team_id == 0:
 		var phase = InputManager.interaction_phase
@@ -195,6 +207,49 @@ func update_cursor_and_mouse() -> void:
 		_bf.cursor.modulate = target_color
 
 
+# ============================================================
+#  mouse_mode 延迟切换（避免首帧黑屏）
+# ============================================================
 func _set_mouse_mode_deferred(mode: Input.MouseMode) -> void:
 	if Input.mouse_mode != mode:
 		Input.mouse_mode = mode
+
+
+# ============================================================
+#  悬停单位 HP 显示
+# ============================================================
+func _update_hovered_unit_from_mouse() -> void:
+	if TurnManager.is_game_over:
+		_set_hovered_unit(null)
+		return
+
+	# 优先：正在操作的单位
+	if InputManager.selected_unit != null and is_instance_valid(InputManager.selected_unit) \
+			and InputManager.selected_unit.hit_points > 0 \
+			and (_bf.action_panel.visible or _bf.info_panel.visible):
+		_set_hovered_unit(InputManager.selected_unit)
+		return
+
+	# 否则：跟随鼠标位置
+	var world_mouse = _bf.get_global_mouse_position()
+	var grid_pos = _bf.world_to_grid(world_mouse)
+
+	if grid_pos.x < 0 or grid_pos.x >= _bf.map_grid_size.x \
+			or grid_pos.y < 0 or grid_pos.y >= _bf.map_grid_size.y:
+		_set_hovered_unit(null)
+		return
+
+	var new_unit = UnitManager.get_unit_at_cell(grid_pos)
+	_set_hovered_unit(new_unit)
+
+
+func _set_hovered_unit(new_unit: Unit) -> void:
+	if new_unit == _hovered_unit:
+		return
+	# 旧单位 → 隐藏
+	if _hovered_unit and is_instance_valid(_hovered_unit):
+		_hovered_unit.show_hp_label(false)
+	# 新单位 → 显示（仅存活单位）
+	if new_unit and is_instance_valid(new_unit) and new_unit.hit_points > 0:
+		new_unit.show_hp_label(true)
+	_hovered_unit = new_unit

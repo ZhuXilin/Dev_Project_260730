@@ -16,19 +16,6 @@ func init() -> void:
 	_detail_popup.visible = false
 
 
-# ============================================================
-#  队伍查看
-# ============================================================
-func on_team_view_btn_pressed() -> void:
-	if _bf.setting_menu_panel.visible:
-		_bf.setting_menu_panel.visible = false
-	if _bf.item_list_panel.visible:
-		_bf.item_list_panel.visible = false
-	_bf.team_view_panel.visible = not _bf.team_view_panel.visible
-	if _bf.team_view_panel.visible:
-		refresh_team_view()
-
-
 func refresh_team_view() -> void:
 	for child in _bf.team_view_container.get_children():
 		child.queue_free()
@@ -155,24 +142,6 @@ func on_team_member_selected(unit) -> void:
 	_bf.camera_controller.smooth_move_to(_bf.grid_to_world(unit.grid_cell), 0.3, true)
 	InputManager.current_highlight_cells = {}
 	InputManager.current_move_attack_targets = {}
-
-
-# ============================================================
-#  道具列表
-# ============================================================
-func on_item_list_btn_pressed() -> void:
-	if _bf.setting_menu_panel.visible:
-		_bf.setting_menu_panel.visible = false
-	if _bf.team_view_panel.visible:
-		_bf.team_view_panel.visible = false
-	if _is_showing_relics:
-		_bf.item_list_panel.visible = false
-		_is_showing_relics = false
-		return
-	_bf.item_list_panel.visible = not _bf.item_list_panel.visible
-	if _bf.item_list_panel.visible:
-		refresh_item_list()
-		_is_showing_relics = false
 
 
 func refresh_item_list() -> void:
@@ -303,24 +272,6 @@ func find_unit_by_name(display_name: String):
 	return null
 
 
-# ============================================================
-#  遗物查看
-# ============================================================
-func on_relic_view_btn_pressed() -> void:
-	if _bf.setting_menu_panel.visible:
-		_bf.setting_menu_panel.visible = false
-	if _bf.team_view_panel.visible:
-		_bf.team_view_panel.visible = false
-	if _bf.item_list_panel.visible and _is_showing_relics:
-		_bf.item_list_panel.visible = false
-		_is_showing_relics = false
-		return
-
-	_bf.item_list_panel.visible = true
-	refresh_relic_list()
-	_is_showing_relics = true
-
-
 func refresh_relic_list() -> void:
 	for child in _bf.item_list_container.get_children():
 		child.queue_free()
@@ -381,10 +332,57 @@ func on_relic_hover_exited() -> void:
 # ============================================================
 func on_setting_btn_pressed() -> void:
 	if _bf.team_view_panel.visible:
-		_bf.team_view_panel.visible = false
+		PanelRevealer.hide_panel(_bf.team_view_panel)
 	if _bf.item_list_panel.visible:
-		_bf.item_list_panel.visible = false
-	_bf.setting_menu_panel.visible = not _bf.setting_menu_panel.visible
+		PanelRevealer.hide_panel(_bf.item_list_panel)
+	if _bf.setting_menu_panel.visible:
+		PanelRevealer.hide_panel(_bf.setting_menu_panel)
+	else:
+		PanelRevealer.show_panel(_bf.setting_menu_panel)
+
+
+func on_team_view_btn_pressed() -> void:
+	if _bf.setting_menu_panel.visible:
+		PanelRevealer.hide_panel(_bf.setting_menu_panel)
+	if _bf.item_list_panel.visible:
+		PanelRevealer.hide_panel(_bf.item_list_panel)
+	if _bf.team_view_panel.visible:
+		PanelRevealer.hide_panel(_bf.team_view_panel)
+	else:
+		PanelRevealer.show_panel(_bf.team_view_panel)
+		refresh_team_view()
+
+
+func on_item_list_btn_pressed() -> void:
+	if _bf.setting_menu_panel.visible:
+		PanelRevealer.hide_panel(_bf.setting_menu_panel)
+	if _bf.team_view_panel.visible:
+		PanelRevealer.hide_panel(_bf.team_view_panel)
+	if _is_showing_relics:
+		PanelRevealer.hide_panel(_bf.item_list_panel)
+		_is_showing_relics = false
+		return
+	if _bf.item_list_panel.visible:
+		PanelRevealer.hide_panel(_bf.item_list_panel)
+	else:
+		PanelRevealer.show_panel(_bf.item_list_panel)
+		refresh_item_list()
+		_is_showing_relics = false
+
+
+func on_relic_view_btn_pressed() -> void:
+	if _bf.setting_menu_panel.visible:
+		PanelRevealer.hide_panel(_bf.setting_menu_panel)
+	if _bf.team_view_panel.visible:
+		PanelRevealer.hide_panel(_bf.team_view_panel)
+	if _bf.item_list_panel.visible and _is_showing_relics:
+		PanelRevealer.hide_panel(_bf.item_list_panel)
+		_is_showing_relics = false
+		return
+
+	PanelRevealer.show_panel(_bf.item_list_panel)
+	refresh_relic_list()
+	_is_showing_relics = true
 
 
 # ============================================================

@@ -29,61 +29,8 @@ func initialize(ui_nodes: Dictionary):
 		equip_container = equip_menu.get_node("ItemsContainer") as VBoxContainer
 	equip_btn = ui_nodes.get("equip_btn")
 
-# ---- 行动菜单 ----
-func show_menu(unit: Unit):
-	hide_equip_menu()
-	# hide_weapon_select_menu() 已删除
-	if TurnManager.current_turn_team != 0 or TurnManager.is_game_over or TurnManager.all_acted:
-		return
-	if not action_menu or not unit:
-		return
 
-	SoundManager.play_select_sound()
-	print("=== 菜单显示 ===")
-	print("单位: ", unit.unit_stats.unit_name)
-	print("剩余移动: ", unit.remaining_move)
-	print("已攻击: ", unit.has_attacked)
-
-	if unit.remaining_move > 0:
-		var reachable = UnitManager.get_reachable_cells(unit.grid_cell, unit.remaining_move, unit)
-		if reachable.size() <= 1:
-			unit.remaining_move = 0
-
-	action_menu.visible = true
-	if action_panel:
-		action_panel.visible = true
-
-	move_btn.disabled = not (unit.can_move() and not unit.has_attacked and not unit.has_acted)
-
-	var weapon_type = unit.get_weapon_type()  # 返回 category 字符串
-	if weapon_type == "staff":
-		attack_btn.text = "治疗"
-	elif weapon_type == "dragonstone":
-		attack_btn.text = "龙炎"
-	elif weapon_type == "spellbook":
-		attack_btn.text = "魔法"
-	else:
-		attack_btn.text = "攻击"
-
-	var can_attack = true
-	var equipped_id = unit.get_equipped_weapon_id()
-	if equipped_id == "" or not unit.can_use_weapon(equipped_id):
-		can_attack = false
-	
-	attack_btn.disabled = unit.has_acted or not unit.can_act_this_turn or not can_attack
-
-	wait_btn.disabled = false
-
-	if equip_btn:
-		equip_btn.disabled = false
-
-func hide_menu():
-	if action_menu:
-		action_menu.visible = false
-	hide_equip_menu()
-	# hide_weapon_select_menu() 已删除
-
-# ---- 装备菜单（仅查看，无操作） ----
+# ---- 装备菜单 ----
 func show_equip_menu(unit: Unit):
 	if not equip_menu or not equip_container:
 		return
@@ -104,7 +51,7 @@ func show_equip_menu(unit: Unit):
 
 	var weapon_inst = unit.get_weapon()
 	if weapon_inst:
-		var btn = _create_item_button(weapon_inst, unit)   # 2个参数
+		var btn = _create_item_button(weapon_inst, unit)
 		equip_container.add_child(btn)
 	else:
 		var empty_label = Label.new()
@@ -129,7 +76,7 @@ func show_equip_menu(unit: Unit):
 
 		var inst = armor_slots[i]
 		if inst:
-			var btn = _create_item_button(inst, unit)   # 2个参数
+			var btn = _create_item_button(inst, unit)
 			btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 			hbox.add_child(btn)
 		else:
@@ -152,6 +99,30 @@ func show_equip_menu(unit: Unit):
 
 	_show_submenu(equip_menu)
 	Globals.is_equip_menu_active = true
+
+
+func hide_equip_menu():
+	# ★ 只在"从装备菜单返回行动菜单"时调用
+	if equip_menu:
+		PanelRevealer.hide_panel(equip_menu)
+	if action_panel:
+		PanelRevealer.show_panel(action_panel)
+	Globals.is_equip_menu_active = false
+
+
+func _show_submenu(menu: Control):
+	if action_panel:
+		PanelRevealer.hide_panel(action_panel)
+	if menu:
+		PanelRevealer.show_panel(menu)
+
+
+func _hide_submenu(menu: Control):
+	if menu:
+		PanelRevealer.hide_panel(menu)
+	if action_panel:
+		PanelRevealer.show_panel(action_panel)
+
 
 func _create_item_button(inst: ItemInstance, unit: Unit) -> Button:
 	var data = ItemManager.get_item_data(inst.item_id)
@@ -183,22 +154,6 @@ func _on_equip_item_hover_exited():
 	if battlefield and battlefield.has_method("hide_item_detail"):
 		battlefield.hide_item_detail()
 
-func hide_equip_menu():
-	_hide_submenu(equip_menu)
-	Globals.is_equip_menu_active = false
-
-# ---- 子菜单辅助 ----
-func _show_submenu(menu: Control):
-	if action_panel:
-		action_panel.visible = false
-	if menu:
-		menu.visible = true
-
-func _hide_submenu(menu: Control):
-	if menu:
-		menu.visible = false
-	if action_panel:
-		action_panel.visible = true
 
 # ---- 胜利面板 ----
 func show_victory(label_text: String, button_text: String, callback: Callable):

@@ -5,7 +5,6 @@
 
 [node name="Camera2D" type="Camera2D" unique_id=1406447519]
 process_mode = 3
-process_callback = 1
 limit_smoothed = true
 script = ExtResource("1_y8upa")
 

@@ -34,8 +34,11 @@ func handle_turn_change_async(team: int) -> void:
 	_turn_changed_locked = true
 	Globals.is_transitioning = true
 
-	if is_instance_valid(_bf.action_menu):
-		_bf.action_menu.visible = false
+	# ★ 面板走 PanelRevealer 刷出
+	if is_instance_valid(_bf.action_panel):
+		PanelRevealer.hide_panel(_bf.action_panel)
+	if is_instance_valid(_bf.equip_menu):
+		PanelRevealer.hide_panel(_bf.equip_menu)
 	if is_instance_valid(_bf.ui_manager):
 		_bf.ui_manager.hide_menu()
 	if is_instance_valid(_bf.menu_blocker):
@@ -43,11 +46,13 @@ func handle_turn_change_async(team: int) -> void:
 	if is_instance_valid(_bf.info_panel):
 		_bf.info_panel.visible = false
 	if is_instance_valid(_bf.setting_panel):
-		_bf.setting_panel.visible = false
+		PanelRevealer.hide_panel(_bf.setting_panel)
 	if is_instance_valid(_bf.team_view_panel):
-		_bf.team_view_panel.visible = false
+		PanelRevealer.hide_panel(_bf.team_view_panel)
 	if is_instance_valid(_bf.setting_menu_panel):
-		_bf.setting_menu_panel.visible = false
+		PanelRevealer.hide_panel(_bf.setting_menu_panel)
+	if is_instance_valid(_bf.item_list_panel):
+		PanelRevealer.hide_panel(_bf.item_list_panel)
 
 	InputManager.selected_unit = null
 	InputManager.interaction_phase = InputManager.Phase.IDLE
@@ -119,9 +124,6 @@ func handle_turn_change_async(team: int) -> void:
 		TurnManager.run_enemy_ai()
 
 
-# ============================================================
-#  相机中心（回合切换回退用）
-# ============================================================
 func _get_center_position() -> Vector2:
 	for unit in UnitManager.unit_list:
 		if unit.unit_stats.team_id == 0 and unit.hit_points > 0:
@@ -132,7 +134,7 @@ func _get_center_position() -> Vector2:
 
 
 # ============================================================
-#  战斗开始：遗物属性 + 熔铸 buff
+#  战斗开始：遗物属性 + 熔铸 buff（保持原样）
 # ============================================================
 func apply_team_buffs() -> void:
 	var relic_stats = GameState.get_global_relic_stats()
@@ -142,7 +144,6 @@ func apply_team_buffs() -> void:
 		if unit.unit_stats.team_id != 0:
 			continue
 
-		# ★ 熔铸 buff（按类型分发）
 		var sac_buffs : Dictionary = unit.unit_stats.get_sacrifice_buffs()
 		for btype in sac_buffs:
 			var bvalue : float = sac_buffs[btype]
@@ -165,7 +166,6 @@ func apply_team_buffs() -> void:
 			print("[Battlefield] %s 熔铸 buff: %s" % [
 				unit.unit_stats.display_name, sac_buffs])
 
-		# 遗物属性
 		var s = unit.unit_stats
 		var old_max = s.max_hp
 		s.max_hp       += int(relic_stats.get("max_hp", 0))
@@ -185,7 +185,6 @@ func apply_team_buffs() -> void:
 		if unit.hit_points > s.max_hp:
 			unit.hit_points = s.max_hp
 
-		# ★ 遗物 effects 应用到单位
 		unit.relic_first_attack_crit_available = bool(relic_effects.get("first_attack_crit", false))
 		unit.relic_low_hp_damage_reduce = float(relic_effects.get("low_hp_damage_reduce", 0.0))
 		unit.relic_kill_grants_extra_move = int(relic_effects.get("kill_grants_extra_move", 0))

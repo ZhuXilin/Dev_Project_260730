@@ -13,6 +13,7 @@ animation = &"idle"
 autoplay = "idle"
 
 [node name="HPLabel" type="Label" parent="." unique_id=1464611416]
+visible = false
 z_index = 9
 offset_left = -8.0
 offset_top = -16.0

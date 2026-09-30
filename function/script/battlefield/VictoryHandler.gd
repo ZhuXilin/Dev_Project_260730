@@ -43,22 +43,25 @@ func on_request_show_victory(winning_team: int) -> void:
 	_bf._cursor_controller.clear_attack_indicator()
 	TurnManager.clear_ai_state()
 
+	# ★ 所有面板走 PanelRevealer 隐藏
 	if is_instance_valid(_bf.ui_manager):
 		_bf.ui_manager.hide_menu()
+	if is_instance_valid(_bf.action_panel):
+		PanelRevealer.hide_panel(_bf.action_panel)
+	if is_instance_valid(_bf.equip_menu):
+		PanelRevealer.hide_panel(_bf.equip_menu)
 	if is_instance_valid(_bf.menu_blocker):
 		_bf.menu_blocker.visible = false
 	if is_instance_valid(_bf.info_panel):
 		_bf.info_panel.visible = false
 	if is_instance_valid(_bf.setting_panel):
-		_bf.setting_panel.visible = false
+		PanelRevealer.hide_panel(_bf.setting_panel)
 	if is_instance_valid(_bf.team_view_panel):
-		_bf.team_view_panel.visible = false
+		PanelRevealer.hide_panel(_bf.team_view_panel)
 	if is_instance_valid(_bf.setting_menu_panel):
-		_bf.setting_menu_panel.visible = false
-	if is_instance_valid(_bf.action_menu):
-		_bf.action_menu.visible = false
+		PanelRevealer.hide_panel(_bf.setting_menu_panel)
 	if is_instance_valid(_bf.item_list_panel):
-		_bf.item_list_panel.visible = false
+		PanelRevealer.hide_panel(_bf.item_list_panel)
 
 	InputManager.selected_unit = null
 	InputManager.interaction_phase = InputManager.Phase.IDLE
@@ -220,13 +223,11 @@ func on_map_victory_continue() -> void:
 				reward_item_datas.append(data)
 				print("添加材料显示: ", data.name)
 
-	# ★ 稀有掉落显示
 	for rare_data in GameState.current_reward_rare_datas:
 		if rare_data:
 			reward_item_datas.append(rare_data)
 			print("添加稀有掉落显示: ", rare_data.name)
 
-	# ★ 遗物解锁（MapData + Node 合并，去重，只显示新解锁的）
 	var all_relic_ids : Array = []
 	if GameState.current_map_data and GameState.current_map_data.unlock_relics:
 		all_relic_ids.append_array(GameState.current_map_data.unlock_relics)
@@ -344,7 +345,7 @@ func on_map_victory_continue() -> void:
 
 
 # ============================================================
-#  统一的放弃战斗逻辑
+#  放弃战斗 / 重试
 # ============================================================
 func execute_abandon_battle() -> void:
 	Globals.is_transitioning = true
@@ -374,7 +375,7 @@ func on_retry_battle() -> void:
 
 
 # ============================================================
-#  稀有掉落
+#  稀有掉落（保持原样）
 # ============================================================
 func roll_rare_drop_for_node(node_type: int) -> Dictionary:
 	var chance : float = RARE_DROP_CHANCE.get(node_type, 0.0)

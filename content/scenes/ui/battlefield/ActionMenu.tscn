@@ -5,17 +5,11 @@
 [node name="ActionMenu" type="CanvasLayer" unique_id=915002698]
 
 [node name="ActionPanel" type="PanelContainer" parent="." unique_id=1839393492]
-anchors_preset = 8
-anchor_left = 0.5
-anchor_top = 0.5
-anchor_right = 0.5
-anchor_bottom = 0.5
-offset_left = -16.0
-offset_top = -44.0
-offset_right = 16.0
-offset_bottom = 44.0
-grow_horizontal = 2
-grow_vertical = 2
+anchors_preset = 0
+offset_left = 0.0
+offset_top = 0.0
+offset_right = 32.0
+offset_bottom = 88.0
 theme_override_styles/panel = ExtResource("1_style")
 
 [node name="ButtonContainer" type="VBoxContainer" parent="ActionPanel" unique_id=370993205]

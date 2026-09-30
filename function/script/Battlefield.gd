@@ -28,6 +28,8 @@ const BOSS_NODE_TYPE = 6
 @onready var menu_blocker : ColorRect = $MenuBlocker
 @onready var info_panel : PanelContainer = $Info/InfoPanel
 @onready var info_text_label : Label = $Info/InfoPanel/InfoTextLabel
+@onready var action_panel : PanelContainer = $ActionMenu/ActionPanel
+@onready var equip_menu : PanelContainer = $ActionMenu/EquipMenu
 
 # ---- 设置栏 ----
 @onready var setting_panel : PanelContainer = $SettingBar/SettingPanel
@@ -186,7 +188,7 @@ func _ready():
 		camera_controller.set_edge_scroll_margin(viewport_size.x * 0.16)
 
 	if action_menu:
-		action_menu.visible = false
+		action_panel.visible = false
 	if move_btn:
 		move_btn.disabled = true
 	if attack_btn:
@@ -301,6 +303,25 @@ func _ready():
 			return
 
 	_turn_controller.apply_team_buffs()
+	# ★ 预热面板 revealer：首次 attach 分摊到加载阶段
+	if action_panel:
+		PanelRevealer.show_panel(action_panel, 0.0)
+		PanelRevealer.force_hide(action_panel)
+	if equip_menu:
+		PanelRevealer.show_panel(equip_menu, 0.0)
+		PanelRevealer.force_hide(equip_menu)
+	if setting_panel:
+		PanelRevealer.show_panel(setting_panel, 0.0)
+		PanelRevealer.force_hide(setting_panel)
+	if setting_menu_panel:
+		PanelRevealer.show_panel(setting_menu_panel, 0.0)
+		PanelRevealer.force_hide(setting_menu_panel)
+	if team_view_panel:
+		PanelRevealer.show_panel(team_view_panel, 0.0)
+		PanelRevealer.force_hide(team_view_panel)
+	if item_list_panel:
+		PanelRevealer.show_panel(item_list_panel, 0.0)
+		PanelRevealer.force_hide(item_list_panel)
 	print("Battlefield _ready 完成")
 
 
@@ -373,8 +394,11 @@ func _exit_tree():
 
 # ===================== 主循环 =====================
 func _process(_delta):
+	# ★ 光标跟手（每渲染帧）
+	_cursor_controller.update_cursor_and_mouse()
+
 	var should_pause = (
-		action_menu.visible or
+		PanelRevealer.is_active(action_panel) or
 		victory_panel.visible or
 		info_panel.visible or
 		TurnManager.is_moving or
@@ -388,10 +412,6 @@ func _process(_delta):
 		camera_controller._is_smooth_moving
 	)
 	camera_controller.set_paused(should_pause)
-
-
-func _physics_process(_delta):
-	_cursor_controller.update_cursor_and_mouse()
 
 
 # ===================== 信号回调 =====================
@@ -560,7 +580,7 @@ func _input(event: InputEvent):
 			InputManager.handle_input(event, map_grid_size, MapConst.CELL_SIZE)
 			return
 		if event.button_index == MOUSE_BUTTON_LEFT:
-			if action_menu.visible:
+			if PanelRevealer.is_active(action_panel):
 				return
 			var mouse_pos = get_global_mouse_position()
 			var clicked_cell = world_to_grid(mouse_pos)
@@ -632,6 +652,7 @@ func _on_request_show_menu(unit: Unit):
 					can_move = true
 					break
 		move_btn.disabled = not can_move
+	_position_action_menu(unit)
 
 
 # ===================== 其他信号 =====================
@@ -731,17 +752,16 @@ func _on_request_hide_info():
 
 
 func _on_request_show_setting():
-	setting_panel.visible = true
+	PanelRevealer.show_panel(setting_panel)
 	_update_end_turn_button_visibility()
 
 
 func _on_request_hide_setting():
-	setting_panel.visible = false
-	team_view_panel.visible = false
-	item_list_panel.visible = false
-	setting_menu_panel.visible = false
+	PanelRevealer.hide_panel(setting_panel)
+	PanelRevealer.hide_panel(team_view_panel)
+	PanelRevealer.hide_panel(item_list_panel)
+	PanelRevealer.hide_panel(setting_menu_panel)
 	_update_end_turn_button_visibility()
-
 
 func _sync_speed_slider(new_val: int):
 	if setting_menu_panel.visible:
@@ -881,7 +901,7 @@ func _on_request_setting_right_click():
 		_panel_manager.on_item_list_btn_pressed()
 		return
 	if setting_menu_panel.visible:
-		setting_menu_panel.visible = false
+		PanelRevealer.hide_panel(setting_menu_panel)
 		return
 
 	# 没有任何面板需要关闭 → 走默认逻辑
@@ -889,3 +909,48 @@ func _on_request_setting_right_click():
 	SignalBus.request_hide_info.emit()
 	InputManager.interaction_phase = InputManager.Phase.IDLE
 	InputManager.current_empty_cell = Vector2i(-1, -1)
+
+
+# ============================================================
+#  定位 ActionMenu 到单位附近
+# ============================================================
+func _position_action_menu(unit: Unit) -> void:
+	if not is_instance_valid(action_panel) or not is_instance_valid(unit):
+		return
+
+	var canvas_xform := get_viewport().get_canvas_transform()
+	var screen_pos : Vector2 = canvas_xform * unit.global_position
+	var vp_size := get_viewport().get_visible_rect().size
+
+	var panel_size := action_panel.size
+	if panel_size.x <= 0 or panel_size.y <= 0:
+		panel_size = Vector2(32, 88)
+
+	# 3 格距离（逻辑像素）
+	var scale_x : float = canvas_xform.get_scale().x
+	var gap : float = MapConst.CELL_SIZE * 3.0 * scale_x
+	var margin := 4.0
+
+	# 垂直：居中于单位
+	var pos_y : float = screen_pos.y - panel_size.y / 2.0
+	pos_y = clamp(pos_y, margin, vp_size.y - panel_size.y - margin)
+
+	# 水平：单位在左半 → 菜单在右侧；否则在左侧
+	var is_unit_left = screen_pos.x < vp_size.x * 0.5
+	var pos_x : float
+	if is_unit_left:
+		pos_x = screen_pos.x + gap
+		if pos_x + panel_size.x > vp_size.x - margin:
+			pos_x = screen_pos.x - gap - panel_size.x
+	else:
+		pos_x = screen_pos.x - gap - panel_size.x
+		if pos_x < margin:
+			pos_x = screen_pos.x + gap
+
+	pos_x = clamp(pos_x, margin, vp_size.x - panel_size.x - margin)
+
+	action_panel.position = Vector2(pos_x, pos_y)
+	
+	var r = action_panel.get_node_or_null("__RevealMask")
+	if r and r.has_method("_sync_rect"):
+		r._sync_rect()
