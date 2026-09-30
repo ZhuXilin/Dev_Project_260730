@@ -26,6 +26,9 @@ var pending_attack_cells : Dictionary = {}
 # ---- UI管理器引用 ----
 var ui_manager : UIManager = null
 
+## 调试：打印单位详细信息（发布/测性能时置 false）
+const DEBUG_PRINT_UNIT_INFO : bool = false
+
 # ============================================================
 #  点击处理（主要输入路由）
 # ============================================================
@@ -343,12 +346,9 @@ func handle_wheel(delta: int):
 
 	var camera = get_node("/root/Battlefield/Camera2D")
 	if camera and camera.has_method("smooth_move_to"):
-		if camera.has_method("cancel_smooth_move"):
-			camera.cancel_smooth_move()
 		camera.smooth_move_to(new_unit.global_position, 0.2, true)
-	else:
-		if camera and camera.has_method("force_position"):
-			camera.force_position(new_unit.global_position)
+	elif camera and camera.has_method("force_position"):
+		camera.force_position(new_unit.global_position)
 
 # ============================================================
 #  攻击辅助
@@ -519,6 +519,8 @@ func handle_input(event: InputEvent, _map_grid_size: Vector2i, _cell_size: int):
 #  调试信息
 # ============================================================
 func _print_unit_info(unit: Unit):
+	if not DEBUG_PRINT_UNIT_INFO:
+		return
 	print("===== 单位信息 =====")
 	var display_name = unit.unit_stats.display_name if unit.unit_stats.display_name != "" else unit.unit_stats.unit_name
 	print("姓名: ", display_name)

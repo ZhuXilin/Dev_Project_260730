@@ -583,19 +583,10 @@ func _on_request_show_menu(unit: Unit):
 		menu_blocker.visible = true
 		menu_blocker.z_index = UIConst.MENU_BLOCKER_Z_INDEX
 
-	if is_instance_valid(move_btn):
-		var can_move = false
-		if unit.can_act_this_turn and not TurnManager.is_game_over:
-			var reachable = UnitManager.get_reachable_cells(unit.grid_cell, unit.remaining_move, unit)
-			for c in reachable.keys():
-				if c != unit.grid_cell:
-					can_move = true
-					break
-		move_btn.disabled = not can_move
-
 	if is_instance_valid(equip_btn):
 		equip_btn.disabled = false
 
+	# ---- wait_btn 文案 ----
 	if is_instance_valid(ui_manager.wait_btn):
 		var cell = unit.grid_cell
 		if map_functions.has(cell):
@@ -612,9 +603,13 @@ func _on_request_show_menu(unit: Unit):
 		else:
 			ui_manager.wait_btn.text = "待机"
 
+	# ★ move_btn 只跑一次 BFS（原来是两处，重复计算）
 	if is_instance_valid(move_btn):
 		var can_move = false
-		if not unit.has_attacked and not unit.has_acted and unit.can_act_this_turn and not TurnManager.is_game_over:
+		if unit.can_act_this_turn \
+				and not unit.has_attacked \
+				and not unit.has_acted \
+				and not TurnManager.is_game_over:
 			var reachable = UnitManager.get_reachable_cells(unit.grid_cell, unit.remaining_move, unit)
 			for c in reachable.keys():
 				if c != unit.grid_cell:

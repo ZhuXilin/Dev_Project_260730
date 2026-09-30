@@ -7,8 +7,6 @@ func initialize(container: Node2D):
 	highlight_container = container
 
 func clear_highlight():
-	print("clear_highlight 被调用，调用栈：")
-	print_stack()
 	if not highlight_container:
 		return
 	for child in highlight_container.get_children():

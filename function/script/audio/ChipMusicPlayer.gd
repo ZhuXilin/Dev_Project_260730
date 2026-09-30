@@ -3,11 +3,18 @@ extends Node
 
 # ============================================================
 #  ChipMusicPlayer — 把 ChipSong 通过 AudioStreamGenerator 播放
+#  优化点（v2）：
+#    - MIX_RATE 44100 → 22050（8bit 音质无损，CPU 减半）
+#    - BUFFER_LENGTH 0.3 → 0.15
+#    - CHUNK_MAX 2048 → 512
+#    - 每帧生成上限 MAX_FRAMES_PER_PROCESS，避免一次性大块阻塞
 # ============================================================
 
-const MIX_RATE: int = 44100
-const BUFFER_LENGTH: float = 0.3
-const CHUNK_MAX: int = 2048
+const MIX_RATE: int = 20000
+const BUFFER_LENGTH: float = 0.15
+const CHUNK_MAX: int = 512
+## ★ 单次 _process 最多生成的帧数（防止 buffer 空时一次性补满 → 卡帧）
+const MAX_FRAMES_PER_PROCESS: int = 1024
 
 var _player: AudioStreamPlayer = null
 var _generator: AudioStreamGenerator = null
@@ -47,8 +54,8 @@ func play_song(song: ChipSong):
 	_playback = _player.get_stream_playback()
 	_is_chip_playing = true
 
-	# 预填缓冲区
-	_fill_buffer()
+	# ★ 启动预填：一次性填满，避免开头静音（启动卡顿可接受）
+	_fill_buffer_initial()
 
 
 func stop():
@@ -116,7 +123,28 @@ func _process(_delta):
 	_fill_buffer()
 
 
+# ============================================================
+#  缓冲填充
+# ============================================================
+## 常规填充：每帧限流，避免卡顿
 func _fill_buffer():
+	if _playback == null or _sequencer == null:
+		return
+	var avail: int = _playback.get_frames_available()
+	if avail <= 0:
+		return
+
+	# ★ 每帧最多生成 MAX_FRAMES_PER_PROCESS 帧
+	var budget: int = mini(avail, MAX_FRAMES_PER_PROCESS)
+	while budget > 0:
+		var chunk: int = mini(budget, CHUNK_MAX)
+		var frames: PackedVector2Array = _sequencer.generate_frames(chunk)
+		_playback.push_buffer(frames)
+		budget -= chunk
+
+
+## 启动预填：一次性填满（只在 play_song 时调用一次）
+func _fill_buffer_initial():
 	if _playback == null or _sequencer == null:
 		return
 	var avail: int = _playback.get_frames_available()
@@ -138,12 +166,6 @@ func play_song_from_tick(song: ChipSong, start_tick: int):
 func seek_to_tick(tick: int):
 	if _sequencer:
 		_sequencer.seek_to_tick(tick)
-
-
-## 通知播放器歌曲事件已改变（重新扫描事件游标，播放中立即生效）
-func notify_song_changed():
-	if _sequencer:
-		_sequencer.rescan_events()
 
 
 ## 获取当前 tick

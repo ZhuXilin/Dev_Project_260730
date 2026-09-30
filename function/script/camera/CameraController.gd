@@ -14,6 +14,11 @@ var scroll_speed : float = 5.0
 var smooth_tween : Tween
 var _is_smooth_moving : bool = false
 
+# ★ 新增：记录上次平滑移动的目标，重复调用时避免 kill/rebuild
+var _last_smooth_target : Vector2 = Vector2.INF
+var _last_smooth_duration : float = -1.0
+
+
 func _ready():
 	make_current()
 	var viewport_size = get_viewport().get_visible_rect().size
@@ -22,6 +27,7 @@ func _ready():
 	target_position = _snap_to_grid(target_position)
 	global_position = target_position
 	print("Camera ready, is_current:", is_current())
+
 
 func _process(_delta):
 	if Globals.is_dialogue_active:
@@ -78,14 +84,18 @@ func _process(_delta):
 	global_position += step
 	global_position = _clamp_camera(global_position).round()
 
+
 func set_paused(p: bool):
 	paused = p
+
 
 func set_grid_size(size: int):
 	grid_size = size
 
+
 func set_edge_scroll_margin(margin: int):
 	edge_scroll_margin = margin
+
 
 func set_map_boundary(rect: Rect2):
 	map_rect = rect
@@ -96,9 +106,11 @@ func set_map_boundary(rect: Rect2):
 	global_position = target_position
 	print("Map boundary set:", map_rect)
 
+
 func force_position(pos: Vector2):
 	target_position = _snap_to_grid(pos)
 	global_position = target_position
+
 
 func follow_unit(unit: Unit):
 	follow_mode = FollowMode.UNIT
@@ -106,9 +118,11 @@ func follow_unit(unit: Unit):
 	if unit:
 		target_position = unit.global_position
 
+
 func follow_mouse():
 	follow_mode = FollowMode.MOUSE
 	target_unit = null
+
 
 func _clamp_camera(pos: Vector2) -> Vector2:
 	var viewport_size = get_viewport().get_visible_rect().size
@@ -142,15 +156,26 @@ func _clamp_camera(pos: Vector2) -> Vector2:
 		clamp(pos.y, min_y, max_y)
 	)
 
+
 func _snap_to_grid(pos: Vector2) -> Vector2:
 	return Vector2(round(pos.x / grid_size) * grid_size, round(pos.y / grid_size) * grid_size)
 
+
 func smooth_move_to(target: Vector2, duration: float, restore_follow_mouse: bool = false):
-	if smooth_tween and smooth_tween.is_valid():
-		smooth_tween.kill()
-	# 对齐到网格
 	target = _snap_to_grid(target)
 	target = _clamp_camera(target)
+
+	# ★ 目标相同且 tween 还在跑 → 跳过重启（连续滚轮切换时避免反复 kill/create）
+	if target == _last_smooth_target \
+			and is_equal_approx(duration, _last_smooth_duration) \
+			and smooth_tween and smooth_tween.is_valid():
+		return
+
+	_last_smooth_target = target
+	_last_smooth_duration = duration
+
+	if smooth_tween and smooth_tween.is_valid():
+		smooth_tween.kill()
 	_is_smooth_moving = true
 	smooth_tween = create_tween()
 	smooth_tween.tween_property(self, "global_position", target, duration).set_ease(Tween.EASE_IN_OUT)
@@ -162,12 +187,16 @@ func smooth_move_to(target: Vector2, duration: float, restore_follow_mouse: bool
 			follow_mouse()
 	)
 
+
 func cancel_smooth_move():
 	if smooth_tween and smooth_tween.is_valid():
 		smooth_tween.kill()
 		smooth_tween = null
 	_is_smooth_moving = false
+	_last_smooth_target = Vector2.INF
+	_last_smooth_duration = -1.0
 	follow_mouse()
+
 
 func clamp_position(pos: Vector2) -> Vector2:
 	return _clamp_camera(pos)

@@ -76,7 +76,8 @@ func _build_once():
 
 	# InfoBar 结构：
 	# [固定宽左容器(插件名)] [状态标签] [弹性] [存档保护中]
-	var info_bar : HBoxContainer = info_label.get_parent()
+	# ★ 注意：InfoLabel 已在重构时废弃，其 @onready 引用不再使用
+	var info_bar : HBoxContainer = $Panel/VBox/InfoBar
 	for c in info_bar.get_children():
 		info_bar.remove_child(c)
 		c.queue_free()
@@ -211,7 +212,9 @@ func _on_launch():
 		return
 	var err : String = _current_plugin.validate()
 	if err != "":
-		info_label.text = "❌ " + err
+		# ★ 改用 _status_label（info_label 已废弃）
+		if _status_label:
+			_status_label.text = "❌ " + err
 		return
 
 	SaveManager.suppress_save = true
