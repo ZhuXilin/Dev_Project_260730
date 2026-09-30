@@ -1,6 +1,6 @@
-[gd_scene format=3 uid="uid://menublocker0001"]
+[gd_scene format=3 uid="uid://dpn14lpqdlkjg"]
 
-[node name="MenuBlocker" type="ColorRect"]
+[node name="MenuBlocker" type="ColorRect" unique_id=1261410040]
 z_index = 1
 offset_right = 40.0
 offset_bottom = 40.0

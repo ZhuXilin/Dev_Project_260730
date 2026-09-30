@@ -1,10 +1,10 @@
-[gd_scene format=3 uid="uid://cursorlayer0001"]
+[gd_scene format=3 uid="uid://cvbondufeo3g3"]
 
 [ext_resource type="Texture2D" uid="uid://6hj46po8h6vj" path="res://content/images/system/选择框.png" id="1_cur"]
 
-[node name="CursorLayer" type="CanvasLayer"]
+[node name="CursorLayer" type="CanvasLayer" unique_id=875779178]
 
-[node name="Cursor" type="TextureRect" parent="."]
+[node name="Cursor" type="TextureRect" parent="." unique_id=413974319]
 anchors_preset = 8
 anchor_left = 0.5
 anchor_top = 0.5

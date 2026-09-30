@@ -1,11 +1,11 @@
-[gd_scene format=3 uid="uid://bsettingmenulayer0001"]
+[gd_scene format=3 uid="uid://dnpuqss31s4ae"]
 
-[ext_resource type="StyleBox" path="res://content/resource/stylebox/8bit_style_box_flat.tres" id="1_style"]
+[ext_resource type="StyleBox" uid="uid://6qbsaxkfwg3o" path="res://content/resource/stylebox/8bit_style_box_flat.tres" id="1_style"]
 [ext_resource type="Script" uid="uid://d0m4rrsfv7ll3" path="res://function/script/SettingMenu.gd" id="2_menu"]
 
-[node name="SettingMenuLayer" type="CanvasLayer"]
+[node name="SettingMenuLayer" type="CanvasLayer" unique_id=1745572386]
 
-[node name="SettingMenuPanel" type="Panel" parent="."]
+[node name="SettingMenuPanel" type="Panel" parent="." unique_id=1481471532]
 anchors_preset = -1
 anchor_right = 1.0
 anchor_bottom = 1.0
@@ -18,7 +18,7 @@ grow_vertical = 2
 theme_override_styles/panel = ExtResource("1_style")
 script = ExtResource("2_menu")
 
-[node name="SettingMenuContainer" type="VBoxContainer" parent="SettingMenuPanel"]
+[node name="SettingMenuContainer" type="VBoxContainer" parent="SettingMenuPanel" unique_id=209572068]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -29,53 +29,53 @@ offset_right = -8.0
 grow_horizontal = 2
 grow_vertical = 2
 
-[node name="MusicVolumeLabel" type="Label" parent="SettingMenuPanel/SettingMenuContainer"]
+[node name="MusicVolumeLabel" type="Label" parent="SettingMenuPanel/SettingMenuContainer" unique_id=1348465580]
 layout_mode = 2
 size_flags_vertical = 1
 theme_override_font_sizes/font_size = 8
 text = "音乐音量"
 
-[node name="MusicVolumeSlider" type="HSlider" parent="SettingMenuPanel/SettingMenuContainer"]
+[node name="MusicVolumeSlider" type="HSlider" parent="SettingMenuPanel/SettingMenuContainer" unique_id=695138583]
 layout_mode = 2
 size_flags_vertical = 1
 max_value = 1.0
 step = 0.1
 
-[node name="SoundVolumeLabel" type="Label" parent="SettingMenuPanel/SettingMenuContainer"]
+[node name="SoundVolumeLabel" type="Label" parent="SettingMenuPanel/SettingMenuContainer" unique_id=1845200644]
 layout_mode = 2
 size_flags_vertical = 1
 theme_override_font_sizes/font_size = 8
 text = "音效音量"
 
-[node name="SoundVolumeSlider" type="HSlider" parent="SettingMenuPanel/SettingMenuContainer"]
+[node name="SoundVolumeSlider" type="HSlider" parent="SettingMenuPanel/SettingMenuContainer" unique_id=458791098]
 layout_mode = 2
 size_flags_vertical = 1
 max_value = 1.0
 step = 0.1
 
-[node name="SpeedLabel" type="Label" parent="SettingMenuPanel/SettingMenuContainer"]
+[node name="SpeedLabel" type="Label" parent="SettingMenuPanel/SettingMenuContainer" unique_id=1823731427]
 layout_mode = 2
 size_flags_vertical = 1
 theme_override_font_sizes/font_size = 8
 text = "游戏速度"
 
-[node name="SpeedSlider" type="HSlider" parent="SettingMenuPanel/SettingMenuContainer"]
+[node name="SpeedSlider" type="HSlider" parent="SettingMenuPanel/SettingMenuContainer" unique_id=1119678013]
 layout_mode = 2
 size_flags_vertical = 1
 min_value = -2.0
 max_value = 4.0
 
-[node name="ScreenSizeLabel" type="Label" parent="SettingMenuPanel/SettingMenuContainer"]
+[node name="ScreenSizeLabel" type="Label" parent="SettingMenuPanel/SettingMenuContainer" unique_id=1489166262]
 layout_mode = 2
 size_flags_vertical = 1
 theme_override_font_sizes/font_size = 8
 text = "画面尺寸"
 
-[node name="ScreenSizeOption" type="OptionButton" parent="SettingMenuPanel/SettingMenuContainer"]
+[node name="ScreenSizeOption" type="OptionButton" parent="SettingMenuPanel/SettingMenuContainer" unique_id=295160470]
 layout_mode = 2
 theme_override_font_sizes/font_size = 6
 
-[node name="BackToMenuBtn" type="Button" parent="SettingMenuPanel/SettingMenuContainer"]
+[node name="BackToMenuBtn" type="Button" parent="SettingMenuPanel/SettingMenuContainer" unique_id=61260792]
 layout_mode = 2
 theme_override_font_sizes/font_size = 8
 text = "中断游戏"

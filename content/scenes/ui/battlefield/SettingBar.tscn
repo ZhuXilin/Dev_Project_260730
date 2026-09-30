@@ -1,10 +1,10 @@
-[gd_scene format=3 uid="uid://bsettingbar0001"]
+[gd_scene format=3 uid="uid://coywhlbv4e5xs"]
 
-[ext_resource type="StyleBox" path="res://content/resource/stylebox/8bit_style_box_flat.tres" id="1_style"]
+[ext_resource type="StyleBox" uid="uid://6qbsaxkfwg3o" path="res://content/resource/stylebox/8bit_style_box_flat.tres" id="1_style"]
 
-[node name="SettingBar" type="CanvasLayer"]
+[node name="SettingBar" type="CanvasLayer" unique_id=976224142]
 
-[node name="SettingPanel" type="PanelContainer" parent="."]
+[node name="SettingPanel" type="PanelContainer" parent="." unique_id=1427150764]
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
@@ -16,10 +16,10 @@ grow_horizontal = 2
 grow_vertical = 2
 theme_override_styles/panel = ExtResource("1_style")
 
-[node name="SettingContainer" type="VBoxContainer" parent="SettingPanel"]
+[node name="SettingContainer" type="VBoxContainer" parent="SettingPanel" unique_id=1361094674]
 layout_mode = 2
 
-[node name="TeamViewBtn" type="Button" parent="SettingPanel/SettingContainer"]
+[node name="TeamViewBtn" type="Button" parent="SettingPanel/SettingContainer" unique_id=537315907]
 layout_mode = 2
 theme_override_font_sizes/font_size = 8
 theme_override_styles/normal = ExtResource("1_style")
@@ -29,7 +29,7 @@ theme_override_styles/disabled = ExtResource("1_style")
 theme_override_styles/focus = ExtResource("1_style")
 text = "队伍查看"
 
-[node name="ItemListBtn" type="Button" parent="SettingPanel/SettingContainer"]
+[node name="ItemListBtn" type="Button" parent="SettingPanel/SettingContainer" unique_id=2007518295]
 layout_mode = 2
 theme_override_font_sizes/font_size = 8
 theme_override_styles/normal = ExtResource("1_style")
@@ -39,7 +39,7 @@ theme_override_styles/disabled = ExtResource("1_style")
 theme_override_styles/focus = ExtResource("1_style")
 text = "道具装备"
 
-[node name="RelicViewBtn" type="Button" parent="SettingPanel/SettingContainer"]
+[node name="RelicViewBtn" type="Button" parent="SettingPanel/SettingContainer" unique_id=966198334]
 layout_mode = 2
 theme_override_font_sizes/font_size = 8
 theme_override_styles/normal = ExtResource("1_style")
@@ -49,7 +49,7 @@ theme_override_styles/disabled = ExtResource("1_style")
 theme_override_styles/focus = ExtResource("1_style")
 text = "遗物查看"
 
-[node name="SettingBtn" type="Button" parent="SettingPanel/SettingContainer"]
+[node name="SettingBtn" type="Button" parent="SettingPanel/SettingContainer" unique_id=222727122]
 layout_mode = 2
 theme_override_font_sizes/font_size = 8
 theme_override_styles/normal = ExtResource("1_style")
@@ -59,7 +59,7 @@ theme_override_styles/disabled = ExtResource("1_style")
 theme_override_styles/focus = ExtResource("1_style")
 text = "设置游戏"
 
-[node name="BackCampBtn" type="Button" parent="SettingPanel/SettingContainer"]
+[node name="BackCampBtn" type="Button" parent="SettingPanel/SettingContainer" unique_id=1591446175]
 layout_mode = 2
 theme_override_font_sizes/font_size = 8
 theme_override_styles/normal = ExtResource("1_style")

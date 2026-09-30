@@ -1,10 +1,10 @@
-[gd_scene format=3 uid="uid://bteamviewlayer0001"]
+[gd_scene format=3 uid="uid://bwskxaknuph6w"]
 
-[ext_resource type="StyleBox" path="res://content/resource/stylebox/8bit_style_box_flat.tres" id="1_style"]
+[ext_resource type="StyleBox" uid="uid://6qbsaxkfwg3o" path="res://content/resource/stylebox/8bit_style_box_flat.tres" id="1_style"]
 
-[node name="TeamViewLayer" type="CanvasLayer"]
+[node name="TeamViewLayer" type="CanvasLayer" unique_id=1976906812]
 
-[node name="TeamViewPanel" type="PanelContainer" parent="."]
+[node name="TeamViewPanel" type="PanelContainer" parent="." unique_id=649714843]
 anchors_preset = -1
 offset_left = 112.0
 offset_top = 16.0
@@ -14,5 +14,5 @@ grow_horizontal = 2
 grow_vertical = 2
 theme_override_styles/panel = ExtResource("1_style")
 
-[node name="TeamViewContainer" type="VBoxContainer" parent="TeamViewPanel"]
+[node name="TeamViewContainer" type="VBoxContainer" parent="TeamViewPanel" unique_id=1214854450]
 layout_mode = 2
