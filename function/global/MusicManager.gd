@@ -17,6 +17,12 @@ var _chip_player: ChipMusicPlayer = null
 var _chip_song_cache: Dictionary = {}    # path -> ChipSong
 var _chip_slot_map: Dictionary = {}      # slot_name -> json_path
 
+# ---- 记录当前/暂停中的 chip 音乐 ----
+var _chip_current_path : String = ""
+var _chip_current_slot : String = ""
+var _saved_chip_path : String = ""
+var _saved_chip_slot : String = ""
+
 
 # ============================================================
 #  生命周期
@@ -113,20 +119,22 @@ func rescan_chip_music():
 # ============================================================
 #  统一播放入口
 # ============================================================
-## 优先 chip，回退普通 stream
 func _play_slot(slot_name: String, fallback_stream: AudioStream):
 	# 1. 优先 chip
 	if _chip_slot_map.has(slot_name):
 		var json_path: String = _chip_slot_map[slot_name]
 		if _play_chip(json_path):
+			_chip_current_path = json_path
+			_chip_current_slot = slot_name
 			return
 	# 2. 回退普通
 	if fallback_stream != null:
 		if _chip_player and _chip_player.is_playing():
 			_chip_player.stop()
+		_chip_current_path = ""
+		_chip_current_slot = ""
 		play_music(fallback_stream)
 	else:
-		# 无 stream 也无 chip → 停止
 		stop_music()
 
 
@@ -162,6 +170,8 @@ func play_music(stream: AudioStream):
 	# ★ 停 chip
 	if _chip_player and _chip_player.is_playing():
 		_chip_player.stop()
+	_chip_current_path = ""
+	_chip_current_slot = ""
 
 	print("播放音乐：", stream.resource_path if stream.resource_path else "未命名流")
 	if player.stream == stream and player.playing:
@@ -178,6 +188,8 @@ func play_music(stream: AudioStream):
 func stop_music():
 	if _chip_player and _chip_player.is_playing():
 		_chip_player.stop()
+	_chip_current_path = ""
+	_chip_current_slot = ""
 	if player and player.playing:
 		player.stop()
 		print("音乐已停止")
@@ -267,8 +279,10 @@ func play_dialogue_music():
 func pause_and_save() -> bool:
 	# ★ chip 优先
 	if _chip_player and _chip_player.is_playing():
+		_saved_chip_path = _chip_current_path
+		_saved_chip_slot = _chip_current_slot
 		_chip_player.stop()
-		print("已停止 chip 音乐")
+		print("已保存 chip 音乐: %s（slot=%s）" % [_saved_chip_path, _saved_chip_slot])
 		return true
 	if player and player.playing:
 		_saved_stream = player.stream
@@ -280,9 +294,20 @@ func pause_and_save() -> bool:
 
 
 func resume_saved():
+	# ★ 优先恢复 chip
+	if _saved_chip_path != "":
+		if _play_chip(_saved_chip_path):
+			_chip_current_path = _saved_chip_path
+			_chip_current_slot = _saved_chip_slot
+			print("恢复 chip 音乐: %s（slot=%s）" % [_saved_chip_path, _saved_chip_slot])
+			_saved_chip_path = ""
+			_saved_chip_slot = ""
+			return
+		# 失败 → 清空后走普通音乐
+		_saved_chip_path = ""
+		_saved_chip_slot = ""
+
 	if _saved_stream:
-		# ★ 如果 chip 里有对应 slot 的，优先用 chip
-		# 简化：直接恢复普通音频
 		if _chip_player and _chip_player.is_playing():
 			_chip_player.stop()
 		player.stop()

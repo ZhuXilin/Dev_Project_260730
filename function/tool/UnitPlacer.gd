@@ -174,7 +174,6 @@ func _build_unit_preview():
 	# ---- 使用英文 JSON 键获取数据 ----
 	var json_key = _get_json_key()
 	var data = UnitDataManager.get_unit_data(json_key)
-	var display_name = data.get("display_name", json_key)  # 用显示名作为标签
 
 	var anim_sprite = unit_instance.get_node("Sprite") as AnimatedSprite2D
 	if anim_sprite:
@@ -194,18 +193,11 @@ func _build_unit_preview():
 		_apply_shader_to_sprite(anim_sprite, team_id)
 		anim_sprite.flip_h = (team_id == 1)
 
-	var name_label = unit_instance.get_node("NameLabel") as Label
-	if name_label:
-		name_label.text = display_name   # 显示中文名
-
-	var hp_label = unit_instance.get_node("HPLabel") as Label
+	var hp_label = unit_instance.get_node_or_null("HPLabel") as Label
 	if hp_label:
 		var max_hp = data.get("max_hp", 20)
 		hp_label.text = str(max_hp) + "/" + str(max_hp)
-
-	var terrain_label = unit_instance.get_node("TerrainInfoLabel") as Label
-	if terrain_label:
-		terrain_label.text = ""
+		hp_label.visible = true   # ★ 编辑器预览默认隐藏，这里显式打开
 
 	unit_instance.visible = true
 	_update_visibility()

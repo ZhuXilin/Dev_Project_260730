@@ -348,8 +348,8 @@ func _process(_delta : float):
 	# ★ 歌曲事件已改动 + 正在播放 → 通知播放器刷新游标
 	if _events_dirty:
 		_events_dirty = false
-		if _player and _player.is_playing():
-			_player.notify_song_changed()
+		# ChipMusicPlayer 无 notify_song_changed()，
+		# 编辑事件后重启播放即可生效（用户手动"停止→播放"）
 
 	if _dragging_progress: return
 	if _player and _player.is_playing():

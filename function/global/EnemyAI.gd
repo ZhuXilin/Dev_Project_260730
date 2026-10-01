@@ -63,7 +63,14 @@ func run_enemy_ai():
 #  决策统一入口
 # ============================================================
 func _decide_action(unit: Unit):
-	var hp_ratio = float(unit.hit_points) / unit.unit_stats.max_hp
+	# 0. 嘲讽：强制攻击嘲讽者
+	if unit.taunt_by != null and is_instance_valid(unit.taunt_by) \
+			and unit.taunt_rounds_left > 0 and unit.taunt_by.hit_points > 0:
+		var taunt_action = _evaluate_taunt_attack(unit, unit.taunt_by)
+		if taunt_action:
+			return taunt_action
+
+	var hp_ratio = float(unit.hit_points) / float(unit.unit_stats.max_hp)
 
 	# 1. 治疗者优先治疗队友
 	if unit.get_weapon_type() == "staff":
@@ -648,6 +655,12 @@ func _process_ai_queue():
 				unit.can_act_this_turn = false
 				unit.set_gray(true)
 
+	# ★ 所有敌人处理完，清空嘲讽状态（嘲讽仅生效"下一回合"）
+	for u in UnitManager.unit_list:
+		if is_instance_valid(u) and u.unit_stats.team_id == 1:
+			u.taunt_rounds_left = 0
+			u.taunt_by = null
+
 	_processing = false
 	print("AI 队列处理完毕，发射 ai_queue_finished 信号")
 	ai_queue_finished.emit()
@@ -696,3 +709,32 @@ func _pick_target_by_weight(candidates: Array) -> Dictionary:
 
 	# 兜底（理论上不会到这）
 	return finalists[0]
+
+
+## 嘲讽状态下：优先攻击嘲讽者，够不着就朝它移动
+func _evaluate_taunt_attack(unit: Unit, taunter: Unit) -> Dictionary:
+	var weapon_data = unit.get_weapon_data()
+	if not weapon_data:
+		return {}
+
+	var dist = abs(unit.grid_cell.x - taunter.grid_cell.x) \
+			+ abs(unit.grid_cell.y - taunter.grid_cell.y)
+	var min_range = weapon_data.min_attack_range
+	var max_range = weapon_data.attack_range
+
+	# 在射程内 → 直接攻击
+	if dist >= min_range and dist <= max_range:
+		return {"type": "attack", "unit": unit, "target": taunter,
+				"weapon_id": unit.get_equipped_weapon_id()}
+
+	# 不在射程内 → 找能攻击的位置
+	var path = _find_best_move_to_target(unit, taunter.grid_cell, min_range, max_range)
+	if path.size() > 0:
+		return {"type": "move", "unit": unit, "path": path}
+
+	# 无路径 → 朝它移动
+	var greedy = _greedy_move_towards(unit, taunter.grid_cell)
+	if greedy.size() > 0:
+		return {"type": "move", "unit": unit, "path": greedy}
+
+	return {}

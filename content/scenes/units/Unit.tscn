@@ -26,28 +26,3 @@ theme_override_font_sizes/font_size = 5
 text = "100"
 horizontal_alignment = 1
 vertical_alignment = 1
-
-[node name="NameLabel" type="Label" parent="." unique_id=1428672010]
-visible = false
-z_index = 9
-offset_left = -13.0
-offset_top = -14.0
-offset_right = -6.0
-offset_bottom = -6.0
-theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
-theme_override_constants/outline_size = 3
-theme_override_font_sizes/font_size = 5
-text = "EN"
-horizontal_alignment = 1
-vertical_alignment = 1
-
-[node name="TerrainInfoLabel" type="Label" parent="." unique_id=1944740826]
-visible = false
-z_index = 9
-offset_left = -16.0
-offset_top = -32.0
-offset_right = 16.0
-offset_bottom = -16.0
-theme_override_font_sizes/font_size = 4
-text = "EN"
-horizontal_alignment = 1

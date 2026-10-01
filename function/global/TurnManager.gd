@@ -55,7 +55,15 @@ func start_movement(unit: Unit, path: Array):
 	if path.size() == 0:
 		return
 	unit.save_previous_position()
-	var move_cost = path.size()
+	# ★ 按地形代价扣，而非格数
+	var move_cost : int = 0
+	var ignore_cost : bool = unit.unit_stats.ignore_terrain_cost
+	for cell in path:
+		if ignore_cost:
+			move_cost += 1
+		else:
+			var tt : int = TerrainManager.get_terrain(cell)
+			move_cost += TerrainManager.TERRAIN_DATA[tt]["move_cost"]
 	unit.consume_move(move_cost)
 	unit.moves_since_act += 1
 	SignalBus.request_move_along_path.emit(unit, path)

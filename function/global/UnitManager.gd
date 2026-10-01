@@ -81,53 +81,62 @@ func get_reachable_cells(start_cell: Vector2i, max_move: int, unit: Unit) -> Dic
 				queue.append(neighbor)
 				result[neighbor] = true
 	
-	if result.size() <= 1:
-		unit.remaining_move = 0
-		print("单位 ", unit.unit_stats.unit_name, " 无法移动，剩余移动力清零")
-	
 	return result
 
 func calculate_path(start_cell: Vector2i, goal_cell: Vector2i, unit: Unit) -> Array:
 	if is_cell_occupied(goal_cell):
 		return []
-	
-	var queue = []
-	var visited = {}
-	var parent = {}
-	queue.append(start_cell)
-	visited[start_cell] = true
 
 	var team_id = unit.unit_stats.team_id
 	var ignore_cost = unit.unit_stats.ignore_terrain_cost
 
-	while queue.size() > 0:
-		var cell = queue.pop_front()
+	# Dijkstra：cost_so_far 记录起点到每格的最小代价
+	var open_list : Array = [start_cell]
+	var cost_so_far : Dictionary = { start_cell: 0 }
+	var parent : Dictionary = {}
+
+	while open_list.size() > 0:
+		# 取当前最小代价节点（地图小，线性扫描可接受）
+		var min_idx : int = 0
+		var min_cost : int = cost_so_far[open_list[0]]
+		for i in range(1, open_list.size()):
+			var c : int = cost_so_far[open_list[i]]
+			if c < min_cost:
+				min_cost = c
+				min_idx = i
+		var cell : Vector2i = open_list[min_idx]
+		open_list.remove_at(min_idx)
+
 		if cell == goal_cell:
 			break
+
 		var dirs = [Vector2i(1,0), Vector2i(-1,0), Vector2i(0,1), Vector2i(0,-1)]
 		for d in dirs:
 			var neighbor = cell + d
-			if neighbor.x < 0 or neighbor.x >= TerrainManager.grid_size.x or neighbor.y < 0 or neighbor.y >= TerrainManager.grid_size.y:
+			if neighbor.x < 0 or neighbor.x >= TerrainManager.grid_size.x \
+					or neighbor.y < 0 or neighbor.y >= TerrainManager.grid_size.y:
 				continue
 			var terrain_type = TerrainManager.get_terrain(neighbor)
-			# ---- 完全阻挡 ----
 			if terrain_type == TerrainManager.TerrainType.IMPASSABLE_ALL:
 				continue
-			# ---- 无视地形通行 ----
 			if not ignore_cost:
 				if not TerrainManager.TERRAIN_DATA[terrain_type]["passable"]:
 					continue
-			# 否则，任何地形均可通过
-			
+
 			var occupant = get_unit_at_cell(neighbor)
-			if occupant:
-				if occupant.unit_stats.team_id != team_id:
-					continue
-			
-			if not visited.has(neighbor):
-				visited[neighbor] = true
+			if occupant and occupant.unit_stats.team_id != team_id:
+				continue
+
+			var step_cost : int = 1 if ignore_cost else TerrainManager.TERRAIN_DATA[terrain_type]["move_cost"]
+			var new_cost : int = cost_so_far[cell] + step_cost
+			if not cost_so_far.has(neighbor) or new_cost < cost_so_far[neighbor]:
+				cost_so_far[neighbor] = new_cost
 				parent[neighbor] = cell
-				queue.append(neighbor)
+				if not (neighbor in open_list):
+					open_list.append(neighbor)
+
+	if not parent.has(goal_cell):
+		return []
 
 	var path = []
 	var current_cell = goal_cell

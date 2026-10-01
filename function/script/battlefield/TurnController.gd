@@ -60,9 +60,6 @@ func handle_turn_change_async(team: int) -> void:
 
 	MusicManager.stop_music()
 
-	if team == TurnManager.Team.PLAYER:
-		Globals.increment_battle_turn()
-
 	await get_tree().create_timer(_bf.transition_delay_before_fade, true, false, true).timeout
 	await _bf.turnlayer_manager.play_transition(team)
 	await get_tree().create_timer(_bf.transition_delay_after_fade, true, false, true).timeout

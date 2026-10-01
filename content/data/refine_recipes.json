@@ -67,7 +67,7 @@
 "revive_potion": {
 	"id": "revive_potion",
 	"name": "复活药",
-	"description": "战斗中复活一个阵亡单位（HP 50%）",
+	"description": "在地图界面使用：复活一个阵亡单位（HP 50%）",
 	"icon": "",
 	"craft_cost": { "秘银": 2, "龙鳞": 1 },
 	"unlock_cost": { "秘银": 1 },

@@ -309,9 +309,9 @@ func execute_attack(attacker: Unit, defender: Unit) -> bool:
 
 	if active_skill_data:
 		if splash_percent > 0.0:
-			await _apply_splash(attacker, defender, damage, splash_percent)
+			await _apply_splash(attacker, defender, damage, splash_percent, is_crit)
 		if aoe_percent > 0.0:
-			await _apply_aoe(attacker, defender, damage, aoe_percent)
+			await _apply_aoe(attacker, defender, damage, aoe_percent, is_crit)
 		if taunt_rounds > 0:
 			attacker.taunt_rounds = taunt_rounds
 			var dirs_t = [Vector2i(1,0), Vector2i(-1,0), Vector2i(0,1), Vector2i(0,-1)]
@@ -456,6 +456,14 @@ func _play_lunge_attack(attacker: Unit, defender: Unit) -> void:
 		return
 	if not attacker.animated_sprite:
 		return
+
+	# ★ 音效改为延迟到前冲动画一半（用独立 tween，不阻塞主流程）
+	var snd_tween = attacker.create_tween()
+	snd_tween.set_ignore_time_scale(true)
+	snd_tween.tween_callback(
+		func(): SoundManager.play_attack_sound()
+	).set_delay(LUNGE_DURATION * 0.35)
+
 	var mat = attacker.animated_sprite.material as ShaderMaterial
 	if not mat:
 		await get_tree().create_timer(0.08, true, false, true).timeout
@@ -502,6 +510,13 @@ func _play_hurt_effect(defender: Unit, attacker: Unit) -> void:
 	defender.play_hit_effect(hit_dir, true)
 	SignalBus.request_screen_shake.emit(0.15, 4.0, hit_dir)
 
+	# ★ 音效延迟到受击动画一半
+	var snd_tween = defender.create_tween()
+	snd_tween.set_ignore_time_scale(true)
+	snd_tween.tween_callback(
+		func(): SoundManager.play_hit_sound()
+	).set_delay(MapConst.HIT_OFFSET_DURATION * 0.35)
+
 
 # ============================================================
 #  表演：死亡
@@ -510,10 +525,16 @@ func _play_death_animation(unit: Unit) -> void:
 	if not is_instance_valid(unit):
 		return
 
-	for label_name in ["HPLabel", "NameLabel", "TerrainInfoLabel"]:
-		var label = unit.get_node_or_null(label_name)
-		if label:
-			label.visible = false
+	# ★ 死亡音效（在闪烁开始前一点点播，手感更自然）
+	var snd_tween = unit.create_tween()
+	snd_tween.set_ignore_time_scale(true)
+	snd_tween.tween_callback(
+		func(): SoundManager.play_death_sound()
+	).set_delay(0.05)
+
+	var hp_label = unit.get_node_or_null("HPLabel")
+	if hp_label:
+		hp_label.visible = false
 
 	if not unit.animated_sprite:
 		return
@@ -575,9 +596,9 @@ func _on_kill(attacker: Unit, _defender: Unit) -> bool:
 
 
 # ============================================================
-#  ★ 溅射（删掉重复的 popup emit，由 _apply_damage_with_effects 统一处理）
+#  ★ 溅射
 # ============================================================
-func _apply_splash(attacker: Unit, defender: Unit, base_damage: int, percent: float) -> void:
+func _apply_splash(attacker: Unit, defender: Unit, base_damage: int, percent: float, is_crit: bool = false) -> void:
 	var dir = defender.grid_cell - attacker.grid_cell
 	var behind = defender.grid_cell + dir
 	var splash_target = UnitManager.get_unit_at_cell(behind)
@@ -586,7 +607,7 @@ func _apply_splash(attacker: Unit, defender: Unit, base_damage: int, percent: fl
 	if splash_target.unit_stats.team_id == attacker.unit_stats.team_id:
 		return
 	var splash_dmg = int(base_damage * percent)
-	var dead = _apply_damage_with_effects(splash_target, splash_dmg, attacker)
+	var dead = _apply_damage_with_effects(splash_target, splash_dmg, attacker, is_crit)
 	print("[贯穿] 溅射 %d 伤害给 %s" % [splash_dmg, splash_target.unit_stats.unit_name])
 	if dead:
 		_on_kill(attacker, splash_target)
@@ -596,9 +617,9 @@ func _apply_splash(attacker: Unit, defender: Unit, base_damage: int, percent: fl
 
 
 # ============================================================
-#  ★ AOE（同溅射，popup 交给 _apply_damage_with_effects）
+#  ★ AOE
 # ============================================================
-func _apply_aoe(attacker: Unit, center: Unit, base_damage: int, percent: float) -> void:
+func _apply_aoe(attacker: Unit, center: Unit, base_damage: int, percent: float, is_crit: bool = false) -> void:
 	var dirs = [Vector2i(1,0), Vector2i(-1,0), Vector2i(0,1), Vector2i(0,-1)]
 	for d in dirs:
 		var cell = center.grid_cell + d
@@ -608,7 +629,7 @@ func _apply_aoe(attacker: Unit, center: Unit, base_damage: int, percent: float) 
 		if target.unit_stats.team_id == attacker.unit_stats.team_id:
 			continue
 		var aoe_dmg = int(base_damage * percent)
-		var dead = _apply_damage_with_effects(target, aoe_dmg, attacker)
+		var dead = _apply_damage_with_effects(target, aoe_dmg, attacker, is_crit)
 		print("[火球] AOE %d 伤害给 %s" % [aoe_dmg, target.unit_stats.unit_name])
 		if dead:
 			_on_kill(attacker, target)

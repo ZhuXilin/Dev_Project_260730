@@ -29,6 +29,20 @@ func initialize(ui_nodes: Dictionary):
 		equip_container = equip_menu.get_node("ItemsContainer") as VBoxContainer
 	equip_btn = ui_nodes.get("equip_btn")
 
+# ---- 行动菜单 ----
+func show_menu(_unit: Unit = null):
+	if action_menu:
+		action_menu.visible = true
+	if action_panel:
+		PanelRevealer.show_panel(action_panel)
+
+func hide_menu():
+	if action_panel:
+		PanelRevealer.hide_panel(action_panel)
+	# 装备菜单若开着，一并收起
+	if equip_menu and PanelRevealer.is_active(equip_menu):
+		PanelRevealer.hide_panel(equip_menu)
+		Globals.is_equip_menu_active = false
 
 # ---- 装备菜单 ----
 func show_equip_menu(unit: Unit):

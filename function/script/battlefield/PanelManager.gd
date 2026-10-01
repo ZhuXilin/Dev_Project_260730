@@ -418,6 +418,10 @@ func update_relic_icons() -> void:
 
 		elif p is Dictionary and p.has("refine_id"):
 			var refine_id : String = p.get("refine_id", "")
+			# ★ 复活药在地图界面用，战斗中不显示
+			if refine_id == "revive_potion":
+				continue
+
 			var recipe : Dictionary = RefineManager.get_recipe(refine_id)
 			if recipe.is_empty():
 				continue

@@ -619,10 +619,14 @@ func _on_request_show_menu(unit: Unit):
 		menu_blocker.visible = true
 		menu_blocker.z_index = UIConst.MENU_BLOCKER_Z_INDEX
 
+	# ---- 行动合法性总开关 ----
+	var can_act : bool = unit.can_act_this_turn and not TurnManager.is_game_over
+
+	# ---- equip_btn ----
 	if is_instance_valid(equip_btn):
 		equip_btn.disabled = false
 
-	# ---- wait_btn 文案 ----
+	# ---- wait_btn（文案 + 启用）----
 	if is_instance_valid(ui_manager.wait_btn):
 		var cell = unit.grid_cell
 		if map_functions.has(cell):
@@ -639,19 +643,29 @@ func _on_request_show_menu(unit: Unit):
 		else:
 			ui_manager.wait_btn.text = "待机"
 
-	# ★ move_btn 只跑一次 BFS（原来是两处，重复计算）
+		# ★ 加这一行
+		ui_manager.wait_btn.disabled = not can_act
+
+	# ---- move_btn（BFS 判断）----
 	if is_instance_valid(move_btn):
 		var can_move = false
-		if unit.can_act_this_turn \
-				and not unit.has_attacked \
-				and not unit.has_acted \
-				and not TurnManager.is_game_over:
+		if can_act and not unit.has_attacked and not unit.has_acted:
 			var reachable = UnitManager.get_reachable_cells(unit.grid_cell, unit.remaining_move, unit)
 			for c in reachable.keys():
 				if c != unit.grid_cell:
 					can_move = true
 					break
 		move_btn.disabled = not can_move
+
+	# ---- attack_btn（有武器 + 可行动 + 未攻击）★ 新增 ----
+	if is_instance_valid(attack_btn):
+		var has_weapon : bool = (unit.get_weapon_data() != null)
+		var can_attack : bool = can_act \
+				and has_weapon \
+				and not unit.has_attacked \
+				and not unit.has_acted
+		attack_btn.disabled = not can_attack
+
 	_position_action_menu(unit)
 
 
@@ -748,7 +762,7 @@ func _on_request_show_info(unit: Unit):
 
 
 func _on_request_hide_info():
-	info_panel.visible = false
+	PanelRevealer.hide_panel(info_panel)
 
 
 func _on_request_show_setting():
@@ -814,7 +828,9 @@ func _adjust_info_panel(label: Label, panel: PanelContainer):
 	var panel_height = label_min_height + margin_top + margin_bottom
 
 	panel.offset_bottom = panel.offset_top + panel_height
-	panel.visible = true
+	# ★ 只在从"隐藏→显示"时播动画（悬停切换单位不重播）
+	if not panel.visible:
+		PanelRevealer.show_panel(panel)
 
 
 # ===================== 结束回合 =====================

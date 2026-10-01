@@ -188,9 +188,7 @@ func setup_unit(stats_data: UnitData, start_cell: Vector2i, initial_items: Array
 	facing_flip_h = animated_sprite.flip_h
 	previous_flip_h = facing_flip_h
 
-	update_terrain_info()
 	update_hp_label()
-	update_name_label()
 	update_color()
 
 	combo_last_target = ""
@@ -471,8 +469,6 @@ func restore_from_unit_data(data: UnitData, cell: Vector2i):
 
 	update_color()
 	update_hp_label()
-	update_name_label()
-	update_terrain_info()
 
 	combo_last_target = ""
 	combo_count = 0
@@ -540,7 +536,6 @@ func revert_to_previous_position():
 
 func update_position(new_cell: Vector2i):
 	grid_cell = new_cell
-	update_terrain_info()
 
 func apply_damage(damage_amount : int) -> bool:
 	hit_points -= damage_amount
@@ -647,27 +642,6 @@ func show_hp_label(v: bool) -> void:
 	var hp = get_node_or_null("HPLabel")
 	if hp:
 		hp.visible = v
-
-func update_name_label():
-	var na_label = $NameLabel
-	if na_label:
-		var display = unit_stats.display_name if unit_stats.display_name != "" else unit_stats.unit_name
-		var type_name = UnitDataManager.get_unit_type_display_name(unit_stats.unit_name)
-		if unit_stats.advanced_class != "":
-			var adv_name : String = AdvancedClassManager.get_display_name(unit_stats.advanced_class)
-			na_label.text = display + "|" + unit_stats.faction + "|★" + adv_name
-		else:
-			na_label.text = display + "|" + unit_stats.faction + "|" + type_name
-
-func update_terrain_info():
-	var terrain_label = $TerrainInfoLabel
-	if not terrain_label:
-		return
-	var terrain_type = TerrainManager.get_terrain(grid_cell)
-	var terrain_name = TerrainManager.get_terrain_name(terrain_type)
-	var def_bonus = TerrainManager.TERRAIN_DATA[terrain_type]["def_bonus"]
-	var avoid_bonus = TerrainManager.TERRAIN_DATA[terrain_type]["avoid_bonus"]
-	terrain_label.text = terrain_name + "\n防御+" + str(def_bonus) + " 回避+" + str(avoid_bonus)
 
 
 func _init_talent_slots_from_data(data: UnitData):

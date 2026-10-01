@@ -208,6 +208,9 @@ func stop_looping():
 func play_select_sound():
 	if config: _play_sfx("select_unit", config.select_unit)
 
+func play_attack_sound():
+	if config: _play_sfx("attack", config.attack)
+
 func play_hit_sound():
 	if config: _play_sfx("hit", config.hit)
 
@@ -216,6 +219,9 @@ func play_miss_sound():
 
 func play_heal_sound():
 	if config: _play_sfx("heal", config.heal)
+
+func play_death_sound():
+	if config: _play_sfx("death", config.death)
 
 func play_cancel_sound():
 	if config: _play_sfx("cancel", config.cancel)
@@ -228,7 +234,6 @@ func play_wait_sound():
 
 func play_get_item_sound():
 	if config: _play_sfx("get_item", config.get_item)
-
 
 # ============================================================
 #  调试 / 查询

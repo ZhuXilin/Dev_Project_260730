@@ -86,9 +86,21 @@ static func _generate_epic_armor_rewards(count: int) -> Array:
 
 
 static func _grant_random_relic() -> String:
+	# ★ 优先从未拥有的遗物抽
+	var owned : Dictionary = {}
+	for relic in GameState.get_relics_from_passives():
+		owned[relic.item_id] = true
+
 	var pool : Array = []
 	for rid in RelicManager.get_unlocked_relics():
-		pool.append(rid)
+		if not owned.has(rid):
+			pool.append(rid)
+
+	# 兜底：全部已拥有 → 退回"已解锁"池（允许重复）
+	if pool.is_empty():
+		for rid in RelicManager.get_unlocked_relics():
+			pool.append(rid)
+
 	if pool.is_empty():
 		return ""
 	pool.shuffle()

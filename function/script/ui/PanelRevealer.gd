@@ -2,15 +2,15 @@ class_name PanelRevealer
 extends Node
 
 # ============================================================
-#  PanelRevealer — 面板扫描线刷入
-#
-#  MaskRect 直接挂在 Panel 下 → PanelContainer 会自动撑满它，
-#  位置/大小与 Panel 内容区一致，不会错乱。
+#  PanelRevealer — 面板扫描线刷入（按屏幕高度）
 # ============================================================
 
 const SHADER_PATH : String = "res://content/resource/shader/panel_reveal.gdshader"
 const NODE_NAME : String = "__PanelRevealer"
 const MASK_NODE_NAME : String = "__RevealMaskRect"
+
+const DEFAULT_SHOW_DURATION : float = 0.22
+const DEFAULT_HIDE_DURATION : float = 0.16
 
 var _mask : ColorRect = null
 var _mat : ShaderMaterial = null
@@ -21,22 +21,23 @@ var _target : Control = null
 # ============================================================
 #  静态入口
 # ============================================================
-static func show_panel(panel: Control, duration: float = 0.22) -> void:
+static func show_panel(panel: Control, duration: float = -1.0) -> void:
 	if panel == null: return
-	var r := _get_or_create(panel)
-	r._play(0.0, 1.0, duration, false)
+	if duration < 0.0:
+		duration = DEFAULT_SHOW_DURATION
+	_get_or_create(panel)._play(0.0, 1.0, duration, false)
 
 
-static func hide_panel(panel: Control, duration: float = 0.18) -> void:
+static func hide_panel(panel: Control, duration: float = -1.0) -> void:
 	if panel == null: return
-	var r := _get_or_create(panel)
-	r._play(1.0, 0.0, duration, true)
+	if duration < 0.0:
+		duration = DEFAULT_HIDE_DURATION
+	_get_or_create(panel)._play(1.0, 0.0, duration, true)
 
 
 static func force_hide(panel: Control) -> void:
 	if panel == null: return
-	var r := _get_or_create(panel)
-	r._force_hide()
+	_get_or_create(panel)._force_hide()
 
 
 static func is_active(panel: Control) -> bool:
@@ -69,8 +70,9 @@ func _setup():
 	_mat = ShaderMaterial.new()
 	_mat.shader = shader
 	_mat.set_shader_parameter("progress", 1.0)
+	_mat.set_shader_parameter("uv_y_top", 0.0)
+	_mat.set_shader_parameter("uv_y_bottom", 1.0)
 
-	# ★ 直接挂 Panel 下，PanelContainer 会自动撑满
 	_mask = ColorRect.new()
 	_mask.name = MASK_NODE_NAME
 	_mask.color = Color.WHITE
@@ -78,8 +80,31 @@ func _setup():
 	_mask.z_index = 4096
 	_mask.material = _mat
 	_target.add_child(_mask)
-	_mask.set_anchors_preset(Control.PRESET_FULL_RECT)
+
+	# ★★★ 关键：这里一定要用 set_anchors_and_offsets_preset ★★★
+	# 只用 set_anchors_preset 的话，offset 不重算，mask 实际是 (0,0) 大小 → 看不见效果
+	_mask.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_mask.visible = false
+
+	# 面板尺寸变化时同步 mask 尺寸
+	_target.resized.connect(func():
+		if is_instance_valid(_mask):
+			_mask.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	)
+
+
+## 计算 mask 的 UV 坐标映射：屏幕顶/底对应 mask 上的 UV.y 值
+func _compute_uv_bounds() -> Vector2:
+	if _mask == null or _target == null:
+		return Vector2(0.0, 1.0)
+
+	var mask_y : float = _mask.global_position.y
+	var mask_h : float = maxf(_mask.size.y, 1.0)
+	var vp_h : float = get_viewport().get_visible_rect().size.y
+
+	var uv_top : float = (0.0 - mask_y) / mask_h
+	var uv_bottom : float = (vp_h - mask_y) / mask_h
+	return Vector2(uv_top, uv_bottom)
 
 
 func _play(from_v: float, to_v: float, duration: float, hide_after: bool):
@@ -91,6 +116,14 @@ func _play(from_v: float, to_v: float, duration: float, hide_after: bool):
 	else:
 		_target.visible = true
 		_target.mouse_filter = Control.MOUSE_FILTER_STOP
+
+	# ★ 每次播放前刷新 mask 尺寸（PanelContainer 可能刚改过 size）
+	_mask.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+
+	# 计算屏幕映射（让扫描线跨越屏幕高）
+	var bounds := _compute_uv_bounds()
+	_mat.set_shader_parameter("uv_y_top", bounds.x)
+	_mat.set_shader_parameter("uv_y_bottom", bounds.y)
 
 	_mask.visible = true
 
@@ -129,6 +162,5 @@ func _kill_tween():
 		_tween = null
 		return
 	if _tween.is_valid():
-		_tween.custom_step(999.0)
 		_tween.kill()
 	_tween = null
