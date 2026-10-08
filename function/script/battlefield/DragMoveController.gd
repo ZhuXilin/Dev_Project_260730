@@ -3,6 +3,9 @@ extends Node
 
 # ============================================================
 #  DragMoveController — 拖拽移动控制器
+#  - 拖拽到空格 → 移动
+#  - 拖拽到射程内敌人/友军 → 原地攻击/治疗
+#  - 拖拽到射程外/类型不对 → 取消
 # ============================================================
 
 const DRAG_THRESHOLD : float = 4.0
@@ -10,7 +13,6 @@ const DRAG_THRESHOLD : float = 4.0
 var _bf : Node2D
 var _arrow : MoveArrowRenderer
 
-var _hovered_target : Unit = null
 var _is_pressing : bool = false
 var _is_dragging : bool = false
 var _pressing_unit : Unit = null
@@ -18,10 +20,10 @@ var _press_start_screen : Vector2 = Vector2.ZERO
 var _current_target_cell : Vector2i = Vector2i(-1, -1)
 var _reachable : Dictionary = {}
 var _current_path : Array = []
-var _last_sound_time : float = 0.0
+var _hovered_target : Unit = null
 
 
-func _init(bf: Node2D):
+func _init(bf : Node2D):
 	_bf = bf
 
 
@@ -31,9 +33,6 @@ func setup():
 	_bf.add_child(_arrow)
 
 
-# ============================================================
-#  窗口事件：鼠标移出时取消拖拽
-# ============================================================
 func _notification(what):
 	if what == NOTIFICATION_WM_MOUSE_EXIT:
 		if _is_dragging or _is_pressing:
@@ -43,11 +42,11 @@ func _notification(what):
 # ============================================================
 #  输入入口
 # ============================================================
-func handle_input(event: InputEvent) -> bool:
+func handle_input(event : InputEvent) -> bool:
 	if not _can_handle():
 		return false
 
-	# ---- ESC 取消 ----
+	# ESC 取消
 	if event is InputEventKey and event.pressed and not event.echo:
 		if event.keycode == KEY_ESCAPE and (_is_dragging or _is_pressing):
 			_cancel()
@@ -109,7 +108,7 @@ func _on_left_press() -> bool:
 		return false
 	if unit.has_attacked or unit.has_acted:
 		return false
-	if unit.remaining_move <= 0:
+	if unit.remaining_move <= 0 and unit.get_weapon_data() == null:
 		return false
 
 	_is_pressing = true
@@ -128,7 +127,7 @@ func _on_mouse_motion() -> bool:
 		if curr.distance_to(_press_start_screen) > DRAG_THRESHOLD:
 			_start_drag()
 		else:
-			return true   # 消费，避免被原逻辑当作"点击"
+			return true
 
 	if _is_dragging:
 		_update_drag()
@@ -141,11 +140,21 @@ func _on_left_release() -> bool:
 		return false
 
 	if _is_dragging:
-		# ★ 先检查攻击/治疗
-		if _try_attack_or_heal_target():
+		# 松手时重新检测鼠标下的单位
+		var world_pos = _bf.get_global_mouse_position()
+		var cell = _bf.world_to_grid(world_pos)
+		var hovered_any = UnitManager.get_unit_at_cell(cell)
+		if hovered_any == _pressing_unit:
+			hovered_any = null
+
+		if hovered_any != null:
+			if _is_target_in_range(hovered_any) and _is_valid_target(hovered_any):
+				_execute_attack_or_heal(hovered_any)
+			else:
+				_cancel()
 			_reset_state()
 			return true
-		# 否则按普通移动处理
+
 		_execute_move()
 	else:
 		var unit = _pressing_unit
@@ -156,46 +165,6 @@ func _on_left_release() -> bool:
 
 	_reset_state()
 	return true
-
-
-func _try_attack_or_heal_target() -> bool:
-	var unit = _pressing_unit
-	if unit == null or not is_instance_valid(unit):
-		return false
-	if _hovered_target == null or not is_instance_valid(_hovered_target):
-		return false
-
-	var target = _hovered_target
-	var weapon = unit.get_weapon_data()
-	if not weapon:
-		return false
-
-	# 距离判定：从起始格到目标格
-	var dist = abs(unit.grid_cell.x - target.grid_cell.x) \
-			+ abs(unit.grid_cell.y - target.grid_cell.y)
-	if dist < weapon.min_attack_range or dist > weapon.attack_range:
-		return false
-
-	var is_healer = (unit.get_weapon_type() == "staff")
-	var target_is_ally = (target.unit_stats.team_id == unit.unit_stats.team_id)
-
-	if is_healer:
-		if not target_is_ally: return false
-	else:
-		if target_is_ally: return false
-
-	# 有效 → 清高亮 + 异步执行战斗
-	SignalBus.request_clear_highlight.emit()
-	_bf.highlight_manager.clear_highlight()
-	InputManager.interaction_phase = InputManager.Phase.IDLE
-	InputManager.selected_unit = null
-
-	call_deferred("_do_combat_async", unit, target)
-	return true
-
-
-func _do_combat_async(attacker : Unit, defender : Unit):
-	await CombatManager.execute_attack(attacker, defender)
 
 
 # ============================================================
@@ -212,7 +181,7 @@ func _start_drag():
 		unit.grid_cell, unit.remaining_move, unit)
 
 	SignalBus.request_hide_menu.emit()
-	SignalBus.request_hide_info.emit()   # ★ 隐藏信息面板
+	SignalBus.request_hide_info.emit()
 	_bf.highlight_manager.show_move_highlight(
 		_reachable, MapConst.HIGHLIGHT_MOVE, 0, true)
 
@@ -220,25 +189,36 @@ func _start_drag():
 	_current_path = []
 	_arrow.hide_path()
 
+
 func _update_drag():
 	var world_pos = _bf.get_global_mouse_position()
 	var cell = _bf.world_to_grid(world_pos)
 
-	# ★ 检测鼠标悬停单位
 	var hovered = UnitManager.get_unit_at_cell(cell)
 	if hovered == _pressing_unit:
 		hovered = null
-	_hovered_target = hovered
 
-	# 鼠标在单位上 → 不走移动路径，只更新攻击范围预览
+	# ---- 悬停在单位身上 ----
 	if hovered != null:
-		_current_target_cell = cell
-		_current_path = []
-		_arrow.hide_path()
-		_update_attack_preview(cell)
+		var is_valid = _is_target_in_range(hovered) and _is_valid_target(hovered)
+		var new_target : Unit = hovered if is_valid else null
+
+		# 状态切换时播放音效（只播一次）
+		if new_target != null and _hovered_target != new_target:
+			SoundManager.play_select_sound()
+		_hovered_target = new_target
+
+		if is_valid:
+			_current_target_cell = cell
+			_current_path = []
+			_arrow.hide_path()
+			_update_attack_preview(_pressing_unit.grid_cell, true)
+		# 无效单位 → 不响应
 		return
 
-	# 鼠标在空格（原逻辑）
+	# ---- 悬停在空格 ----
+	_hovered_target = null
+
 	if not _reachable.has(cell):
 		return
 	if cell == _current_target_cell:
@@ -255,7 +235,7 @@ func _update_drag():
 			_pressing_unit.grid_cell, cell, _pressing_unit)
 		_arrow.show_path(_pressing_unit.grid_cell, _current_path, _bf.grid_to_world)
 
-	_update_attack_preview(cell)
+	_update_attack_preview(cell, false)
 
 
 func _execute_move():
@@ -264,7 +244,6 @@ func _execute_move():
 		return
 
 	if _current_target_cell == unit.grid_cell or _current_path.is_empty():
-		# 没移动 → 恢复菜单
 		InputManager.interaction_phase = InputManager.Phase.IDLE
 		InputManager.selected_unit = null
 		SignalBus.request_clear_highlight.emit()
@@ -296,10 +275,54 @@ func _reset_state():
 
 
 # ============================================================
-#  攻击范围动态预览
+#  攻击 / 治疗判定
 # ============================================================
-func _update_attack_preview(unit_cell : Vector2i):
+func _is_target_in_range(target : Unit) -> bool:
 	var unit = _pressing_unit
+	if unit == null or target == null: return false
+	var weapon = unit.get_weapon_data()
+	if not weapon: return false
+	var dist = abs(unit.grid_cell.x - target.grid_cell.x) \
+			+ abs(unit.grid_cell.y - target.grid_cell.y)
+	return dist >= weapon.min_attack_range and dist <= weapon.attack_range
+
+
+func _is_valid_target(target : Unit) -> bool:
+	var unit = _pressing_unit
+	if unit == null or target == null: return false
+	var is_healer = (unit.get_weapon_type() == "staff")
+	var same_team = (target.unit_stats.team_id == unit.unit_stats.team_id)
+	if is_healer:
+		return same_team
+	else:
+		return not same_team
+
+
+func _execute_attack_or_heal(target : Unit) -> void:
+	var unit = _pressing_unit
+	if unit == null or not is_instance_valid(unit): return
+	if target == null or not is_instance_valid(target): return
+
+	SignalBus.request_clear_highlight.emit()
+	_bf.highlight_manager.clear_highlight()
+	InputManager.interaction_phase = InputManager.Phase.IDLE
+	InputManager.selected_unit = null
+
+	call_deferred("_do_combat_async", unit, target)
+
+
+func _do_combat_async(attacker : Unit, defender : Unit):
+	await CombatManager.execute_attack(attacker, defender)
+
+
+# ============================================================
+#  攻击范围显示
+# ============================================================
+## from_self=true：从单位当前位置出发
+## from_self=false：从 unit_cell 出发（威胁范围）
+func _update_attack_preview(unit_cell : Vector2i, from_self : bool = false):
+	var unit = _pressing_unit
+	if unit == null: return
 	var weapon = unit.get_weapon_data()
 	if not weapon:
 		_redraw_highlights({})
@@ -307,6 +330,7 @@ func _update_attack_preview(unit_cell : Vector2i):
 
 	var max_range : int = weapon.attack_range
 	var min_range : int = weapon.min_attack_range
+	var origin_cell : Vector2i = unit.grid_cell if from_self else unit_cell
 
 	var attack_cells : Dictionary = {}
 	for x in range(-max_range, max_range + 1):
@@ -314,21 +338,19 @@ func _update_attack_preview(unit_cell : Vector2i):
 			var dist = abs(x) + abs(y)
 			if dist < min_range or dist > max_range:
 				continue
-			var c = unit_cell + Vector2i(x, y)
+			var c = origin_cell + Vector2i(x, y)
 			if c.x < 0 or c.x >= TerrainManager.grid_size.x:
 				continue
 			if c.y < 0 or c.y >= TerrainManager.grid_size.y:
 				continue
-			# 排除自身格
-			if c == unit_cell:
+			if c == origin_cell:
 				continue
-			# ★ 不再排除 _reachable，让攻击范围覆盖移动范围
 			attack_cells[c] = true
 
 	_redraw_highlights(attack_cells)
 
 
-func _redraw_highlights(attack_cells: Dictionary):
+func _redraw_highlights(attack_cells : Dictionary):
 	var color = MapConst.HIGHLIGHT_ATTACK
 	if _pressing_unit and _pressing_unit.get_weapon_type() == "staff":
 		color = MapConst.HIGHLIGHT_HEAL
