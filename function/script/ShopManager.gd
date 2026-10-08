@@ -6,28 +6,41 @@ var shop_items: Array = []
 var reset_count: int = 0
 var _context : EquipContext = null
 
-const SHOP_SIZE = 9
-const BASE_RESET_COST = 100
-const RESET_STEP = 50
-
-# ---- 商店升级（6 级：Lv0-Lv5）----
-const SHOP_MAX_LEVEL : int = 5
-const SHOP_UPGRADE_COSTS : Array = [200, 500, 1200, 2500, 5000]
-
-# 品质权重（按商店等级）：common / rare / epic / legendary
-const QUALITY_WEIGHTS : Array = [
-	{"common": 60, "rare": 30, "epic": 10, "legendary": 0},   # Lv0
-	{"common": 45, "rare": 35, "epic": 18, "legendary": 2},   # Lv1
-	{"common": 30, "rare": 40, "epic": 25, "legendary": 5},   # Lv2
-	{"common": 15, "rare": 35, "epic": 40, "legendary": 10},  # Lv3（保底 rare）
-	{"common": 5,  "rare": 25, "epic": 50, "legendary": 20},  # Lv4（保底 rare）
-	{"common": 0,  "rare": 15, "epic": 50, "legendary": 35},  # Lv5（保底 epic）
-]
-
-const RARE_GUARANTEE_LEVEL : int = 3
-const EPIC_GUARANTEE_LEVEL : int = 5
+# ---- 从 JSON 加载 ----
+var SHOP_SIZE : int = 9
+var BASE_RESET_COST : int = 100
+var RESET_STEP : int = 50
+var SHOP_MAX_LEVEL : int = 5
+var SHOP_UPGRADE_COSTS : Array = [200, 500, 1200, 2500, 5000]
+var QUALITY_WEIGHTS : Array = []
+var RARE_GUARANTEE_LEVEL : int = 3
+var EPIC_GUARANTEE_LEVEL : int = 5
 
 
+func _ready():
+	reload_config()
+
+
+func reload_config():
+	var cfg : Dictionary = GameConfigManager.get_value("economy_config.json", "shop", {})
+	SHOP_SIZE = int(cfg.get("size", 9))
+	BASE_RESET_COST = int(cfg.get("base_reset_cost", 100))
+	RESET_STEP = int(cfg.get("reset_step", 50))
+	SHOP_MAX_LEVEL = int(cfg.get("max_level", 5))
+	SHOP_UPGRADE_COSTS = cfg.get("upgrade_costs", [200, 500, 1200, 2500, 5000]).duplicate()
+	QUALITY_WEIGHTS = cfg.get("quality_weights", []).duplicate()
+	if QUALITY_WEIGHTS.is_empty():
+		QUALITY_WEIGHTS = [
+			{"common": 60, "rare": 30, "epic": 10, "legendary": 0}
+		]
+	RARE_GUARANTEE_LEVEL = int(cfg.get("rare_guarantee_level", 3))
+	EPIC_GUARANTEE_LEVEL = int(cfg.get("epic_guarantee_level", 5))
+	print("[ShopManager] 已加载: 等级上限 %d, 商品数 %d" % [SHOP_MAX_LEVEL, SHOP_SIZE])
+
+
+# ============================================================
+#  上下文
+# ============================================================
 func set_context(ctx: EquipContext):
 	_context = ctx
 
@@ -57,6 +70,9 @@ func _subtract_gold(amount: int) -> bool:
 	return true
 
 
+# ============================================================
+#  刷新商店
+# ============================================================
 func get_reset_cost() -> int:
 	return BASE_RESET_COST + reset_count * RESET_STEP
 
@@ -73,6 +89,9 @@ func reset_shop() -> int:
 	return cost
 
 
+# ============================================================
+#  生成商品
+# ============================================================
 func generate_shop_items():
 	shop_items.clear()
 	var lv : int = _get_shop_level()
@@ -108,7 +127,7 @@ func generate_shop_items():
 				quality = q
 				break
 
-		# ★ 保底
+		# 保底
 		if lv >= EPIC_GUARANTEE_LEVEL and quality == "common":
 			quality = "epic"
 		elif lv >= RARE_GUARANTEE_LEVEL and quality == "common":
@@ -127,6 +146,9 @@ func generate_shop_items():
 		shop_items.append({"item_data": pick, "price": pick.price})
 
 
+# ============================================================
+#  购买
+# ============================================================
 func buy_shop_item(index: int) -> Dictionary:
 	if index < 0 or index >= shop_items.size():
 		return {"success": false, "reason": "invalid_index"}
@@ -165,6 +187,8 @@ func get_shop_level() -> int:
 func get_upgrade_cost() -> int:
 	var lv : int = _get_shop_level()
 	if lv >= SHOP_MAX_LEVEL:
+		return -1
+	if lv >= SHOP_UPGRADE_COSTS.size():
 		return -1
 	return SHOP_UPGRADE_COSTS[lv]
 

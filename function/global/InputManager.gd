@@ -419,59 +419,6 @@ func _clear_attack_state():
 	current_highlight_cells = {}
 
 
-# ============================================================
-#  按钮回调
-# ============================================================
-func on_move_button_pressed():
-	print("移动按钮被点击")
-	if selected_unit == null:
-		print("移动按钮：selected_unit 为空")
-		return
-	if interaction_phase == Phase.MENU and selected_unit.can_move():
-		SignalBus.request_hide_info.emit()
-		var reachable = UnitManager.get_reachable_cells(selected_unit.grid_cell, selected_unit.remaining_move, selected_unit)
-		if reachable.size() <= 1:
-			print("单位无法移动到任何格子")
-			selected_unit.remaining_move = 0
-			SignalBus.request_show_menu.emit(selected_unit)
-			return
-		var attack_targets = {}
-		var weapon_data = selected_unit.get_weapon_data()
-		var max_range = weapon_data.attack_range if weapon_data else 0
-		var min_range = weapon_data.min_attack_range if weapon_data else 0
-		var is_healer = (selected_unit.get_weapon_type() == "staff")
-		for unit in UnitManager.unit_list:
-			if unit.hit_points <= 0:
-				continue
-			if is_healer:
-				if unit.unit_stats.team_id != selected_unit.unit_stats.team_id:
-					continue
-				if unit == selected_unit:
-					continue
-			else:
-				if unit.unit_stats.team_id == selected_unit.unit_stats.team_id:
-					continue
-			var can_reach = false
-			for move_cell in reachable.keys():
-				if move_cell == selected_unit.grid_cell:
-					continue
-				var dist = abs(move_cell.x - unit.grid_cell.x) + abs(move_cell.y - unit.grid_cell.y)
-				if dist >= min_range and dist <= max_range:
-					can_reach = true
-					break
-			if can_reach:
-				attack_targets[unit.grid_cell] = true
-		current_highlight_cells = reachable
-		current_move_attack_targets = attack_targets
-		interaction_phase = Phase.MOVING
-		SignalBus.request_highlight.emit(reachable)
-		if attack_targets.size() > 0:
-			SignalBus.request_highlight.emit(attack_targets)
-		SignalBus.request_hide_menu.emit()
-	else:
-		print("移动条件不满足")
-
-
 func on_attack_button_pressed():
 	if selected_unit == null or interaction_phase != Phase.MENU:
 		return

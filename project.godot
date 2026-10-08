@@ -42,6 +42,7 @@ InputManager="*res://function/global/InputManager.gd"
 GmConsole="*uid://q5yaycxpkkua"
 TestRegistry="*uid://uqtcmpoqfoyf"
 TestHarness="*uid://dmji7n6utrcoj"
+GameConfigManager="*uid://bqipfnujc115f"
 
 [display]
 

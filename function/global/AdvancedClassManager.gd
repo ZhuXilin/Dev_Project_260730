@@ -1,11 +1,12 @@
 extends Node
 
-const COST_PER_CLASS : int = 800
-
 var _classes : Dictionary = {}
 var _by_unit : Dictionary = {}
 
+var COST_PER_CLASS : int = 800
+
 func _ready():
+	COST_PER_CLASS = int(GameConfigManager.get_value("progression_config.json", "advanced_class_cost", 800))
 	load_classes()
 
 func load_classes():

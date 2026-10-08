@@ -2,30 +2,38 @@ extends CanvasLayer
 
 signal closed
 
-# ============================================================
-#  常量
-# ============================================================
-const CLEAR_TARGET : int = 4
-const SURVIVAL_ROUNDS : int = 3
 
-const ENTRY_COST_MINI_BOSS : int = 1
-const ENTRY_COST_SURVIVAL : int = 3
-const RETREAT_FEE_AFTER_STREAK_4 : int = 1
+var CLEAR_TARGET : int = 4
+var SURVIVAL_ROUNDS : int = 3
+var ENTRY_COST_MINI_BOSS : int = 1
+var ENTRY_COST_SURVIVAL : int = 3
+var RETREAT_FEE_AFTER_STREAK_4 : int = 1
+var GOLD_BY_STREAK : Array = [200, 300, 500, 800]
+var SOUL_BY_STREAK : Array = [0, 0, 1, 1]
+var GOLD_SURVIVAL : Array = [1200, 1800, 3000]
+var SOUL_SURVIVAL : Array = [2, 3, 5]
+var ENEMY_SCALE_BY_STREAK : Array = [1.0, 1.2, 1.6, 1.9]
+var ENEMY_SCALE_SURVIVAL : Array = [1.8, 2.1, 2.4]
+var HERO_SHRINE_FALLBACK_COST : int = 800
 
-const GOLD_BY_STREAK : Array = [200, 300, 500, 800]
-const SOUL_BY_STREAK : Array = [0, 0, 1, 1]
 
-const GOLD_SURVIVAL : Array = [1200, 1800, 3000]
-const SOUL_SURVIVAL : Array = [2, 3, 5]
-
-const ENEMY_SCALE_BY_STREAK : Array = [1.0, 1.2, 1.6, 1.9]
-const ENEMY_SCALE_SURVIVAL : Array = [1.8, 2.1, 2.4]
-
-const HERO_SHRINE_SCRIPT_PATH : String = "res://function/script/HeroShrineUI.gd"
-const HERO_SHRINE_FALLBACK_COST : int = 800
+func _apply_config():
+	var cfg := GameConfigManager.get_file("arena_config.json")
+	CLEAR_TARGET = int(cfg.get("clear_target", CLEAR_TARGET))
+	SURVIVAL_ROUNDS = int(cfg.get("survival_rounds", SURVIVAL_ROUNDS))
+	ENTRY_COST_MINI_BOSS = int(cfg.get("entry_cost_mini_boss", ENTRY_COST_MINI_BOSS))
+	ENTRY_COST_SURVIVAL = int(cfg.get("entry_cost_survival", ENTRY_COST_SURVIVAL))
+	RETREAT_FEE_AFTER_STREAK_4 = int(cfg.get("retreat_fee_after_streak_4", RETREAT_FEE_AFTER_STREAK_4))
+	GOLD_BY_STREAK = cfg.get("gold_by_streak", GOLD_BY_STREAK).duplicate()
+	SOUL_BY_STREAK = cfg.get("soul_by_streak", SOUL_BY_STREAK).duplicate()
+	GOLD_SURVIVAL = cfg.get("gold_survival", GOLD_SURVIVAL).duplicate()
+	SOUL_SURVIVAL = cfg.get("soul_survival", SOUL_SURVIVAL).duplicate()
+	ENEMY_SCALE_BY_STREAK = cfg.get("enemy_scale_by_streak", ENEMY_SCALE_BY_STREAK).duplicate()
+	ENEMY_SCALE_SURVIVAL = cfg.get("enemy_scale_survival", ENEMY_SCALE_SURVIVAL).duplicate()
+	HERO_SHRINE_FALLBACK_COST = int(cfg.get("hero_shrine_fallback_cost", HERO_SHRINE_FALLBACK_COST))
 
 enum Phase { IDLE, NORMAL, CLEAR, SURVIVAL, END }
-
+const HERO_SHRINE_SCRIPT_PATH : String = "res://function/script/HeroShrineUI.gd"
 const EquipmentConfigClass = preload(Config.PATHS.EQUIPMENT_CONFIG_SCRIPT)
 
 # 竞技场敌人池缓存（一次性加载）

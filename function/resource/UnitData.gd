@@ -26,6 +26,26 @@ var buff_defense_flat : int = 0
 var buff_damage_reduction : float = 0.0
 var buff_attack_flat : int = 0
 var buff_magic_attack_flat : int = 0
+var buff_lifesteal_percent : float = 0.0   # ★ 补：吸血加成
+
+# ★ ---- 遗物效果状态（战斗临时，不入档） ----
+var relic_first_attack_crit_available : bool = false
+var relic_low_hp_damage_reduce : float = 0.0
+var relic_kill_grants_extra_move : int = 0
+var relic_first_spell_free_available : bool = false
+var relic_turn_first_hit_regen : float = 0.0
+var relic_turn_first_hit_regen_used : bool = false
+var relic_strength_scale_damage : float = 0.0
+var relic_counter_damage_bonus : float = 0.0
+var relic_heal_bonus : float = 0.0
+var relic_auto_revive_available : bool = false
+
+# ★ ---- 词条累积状态（战斗临时） ----
+var bleed_stacks : int = 0
+var combo_last_target : String = ""
+var combo_count : int = 0
+var zeal_target : String = ""
+var zeal_stacks : int = 0
 
 # ---- 转职 ----
 @export var advanced_class: String = ""
@@ -38,6 +58,26 @@ func reset_combat_buffs():
 	buff_damage_reduction = 0.0
 	buff_attack_flat = 0
 	buff_magic_attack_flat = 0
+	buff_lifesteal_percent = 0.0
+
+	# 遗物
+	relic_first_attack_crit_available = false
+	relic_low_hp_damage_reduce = 0.0
+	relic_kill_grants_extra_move = 0
+	relic_first_spell_free_available = false
+	relic_turn_first_hit_regen = 0.0
+	relic_turn_first_hit_regen_used = false
+	relic_strength_scale_damage = 0.0
+	relic_counter_damage_bonus = 0.0
+	relic_heal_bonus = 0.0
+	relic_auto_revive_available = false
+
+	# 词条累积
+	bleed_stacks = 0
+	combo_last_target = ""
+	combo_count = 0
+	zeal_target = ""
+	zeal_stacks = 0
 
 # ---- 死亡状态（本三天流程内）----
 @export var is_dead: bool = false
@@ -178,19 +218,27 @@ static func from_dict(d: Dictionary) -> UnitData:
 	data.level = d.get("level", 1)
 	data.max_armor_slots = d.get("max_armor_slots", 2)
 	data.max_talent_slots = d.get("max_talent_slots", 1)
-	data.advanced_class = d.get("advanced_class", "")
-	data.advanced_talent_id = d.get("advanced_talent_id", "")     # ★ 新增
+
+	# ★ advanced_class：兼容 String / Dictionary
+	var adv_raw = d.get("advanced_class", "")
+	if adv_raw is String:
+		data.advanced_class = adv_raw
+	elif adv_raw is Dictionary:
+		data.advanced_class = str((adv_raw as Dictionary).get("id", ""))
+	else:
+		data.advanced_class = ""
+
+	data.advanced_talent_id = d.get("advanced_talent_id", "")
 	data.override_sprite_path = d.get("override_sprite_path", "")
 	data.is_dead = d.get("is_dead", false)
+
 	var buff_arr : Variant = d.get("sacrifice_buff_sources", [])
 	if buff_arr is Array:
 		data.sacrifice_buff_sources = (buff_arr as Array).duplicate()
 	else:
 		data.sacrifice_buff_sources = []
 
-	# ★ 自净 / 反查：
-	#   - advanced_class 为空 → 清空 advanced_talent_id
-	#   - advanced_class 非空但 advanced_talent_id 为空 → 从 unit_data.json 反查 granted_talent
+	# ★ 自净 / 反查（advanced_class 已处理，下面是原逻辑）
 	if data.advanced_class == "":
 		data.advanced_talent_id = ""
 	elif data.advanced_talent_id == "":
@@ -235,7 +283,6 @@ static func from_dict(d: Dictionary) -> UnitData:
 	while data.talent_slots.size() < 1:
 		data.talent_slots.append(null)
 
-	# ★ 构造运行时职业特技实例
 	data.advanced_talent_inst = null
 	if data.advanced_talent_id != "":
 		var t_inst := TalentInstance.new()

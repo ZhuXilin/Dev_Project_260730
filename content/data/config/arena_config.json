@@ -1,0 +1,14 @@
+{
+  "clear_target": 4,
+  "survival_rounds": 3,
+  "entry_cost_mini_boss": 1,
+  "entry_cost_survival": 3,
+  "retreat_fee_after_streak_4": 1,
+  "gold_by_streak": [200, 300, 500, 800],
+  "soul_by_streak": [0, 0, 1, 1],
+  "gold_survival": [1200, 1800, 3000],
+  "soul_survival": [2, 3, 5],
+  "enemy_scale_by_streak": [1.0, 1.2, 1.6, 1.9],
+  "enemy_scale_survival": [1.8, 2.1, 2.4],
+  "hero_shrine_fallback_cost": 800
+}

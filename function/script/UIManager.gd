@@ -4,7 +4,6 @@ class_name UIManager
 # ---- UI 节点引用 ----
 var action_menu : CanvasLayer
 var action_panel : PanelContainer
-var move_btn : Button
 var attack_btn : Button
 var wait_btn : Button
 var victory_panel : Panel
@@ -19,7 +18,6 @@ var equip_btn : Button
 func initialize(ui_nodes: Dictionary):
 	action_menu = ui_nodes.get("action_menu")
 	action_panel = ui_nodes.get("action_panel")
-	move_btn = ui_nodes.get("move_btn")
 	attack_btn = ui_nodes.get("attack_btn")
 	wait_btn = ui_nodes.get("wait_btn")
 	victory_panel = ui_nodes.get("victory_panel")
@@ -192,8 +190,6 @@ func show_victory(label_text: String, button_text: String, callback: Callable):
 	# ★ 用 PanelRevealer 显示
 	PanelRevealer.show_panel(victory_panel)
 
-	if move_btn:
-		move_btn.disabled = true
 	if attack_btn:
 		attack_btn.disabled = true
 	if wait_btn:

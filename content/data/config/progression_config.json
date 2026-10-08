@@ -1,0 +1,111 @@
+{
+  "advanced_class_cost": 800.0,
+  "blessing_max_level": 3.0,
+  "blessings": [
+	{
+	  "attr": "vitality",
+	  "attr_display": "最大HP",
+	  "costs": [
+		50.0,
+		200.0,
+		800.0
+	  ],
+	  "id": "blessing_vitality",
+	  "levels": [
+		1.0,
+		2.0,
+		3.0
+	  ],
+	  "name": "生命祝福"
+	},
+	{
+	  "attr": "strength",
+	  "attr_display": "力量",
+	  "costs": [
+		50.0,
+		200.0,
+		800.0
+	  ],
+	  "id": "blessing_strength",
+	  "levels": [
+		1.0,
+		2.0,
+		3.0
+	  ],
+	  "name": "力量祝福"
+	},
+	{
+	  "attr": "dexterity",
+	  "attr_display": "灵巧",
+	  "costs": [
+		50.0,
+		200.0,
+		800.0
+	  ],
+	  "id": "blessing_dexterity",
+	  "levels": [
+		1.0,
+		2.0,
+		3.0
+	  ],
+	  "name": "灵巧祝福"
+	},
+	{
+	  "attr": "intelligence",
+	  "attr_display": "智力",
+	  "costs": [
+		50.0,
+		200.0,
+		800.0
+	  ],
+	  "id": "blessing_intelligence",
+	  "levels": [
+		1.0,
+		2.0,
+		3.0
+	  ],
+	  "name": "智力祝福"
+	},
+	{
+	  "attr": "faith",
+	  "attr_display": "信仰",
+	  "costs": [
+		50.0,
+		200.0,
+		800.0
+	  ],
+	  "id": "blessing_faith",
+	  "levels": [
+		1.0,
+		2.0,
+		3.0
+	  ],
+	  "name": "信仰祝福"
+	},
+	{
+	  "attr": "arcane",
+	  "attr_display": "感应",
+	  "costs": [
+		50.0,
+		200.0,
+		800.0
+	  ],
+	  "id": "blessing_arcane",
+	  "levels": [
+		1.0,
+		2.0,
+		3.0
+	  ],
+	  "name": "感应祝福"
+	}
+  ],
+  "growth_hp_per_point": 1.0,
+  "talent_exp_thresholds": [
+	0.0,
+	100.0,
+	300.0,
+	600.0
+  ],
+  "talent_max_exp": 600.0,
+  "talent_max_level": 3.0
+}

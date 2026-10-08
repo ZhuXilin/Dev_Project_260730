@@ -4,6 +4,20 @@ class_name TalentManager
 static var _talent_db: Dictionary = {}
 static var _talent_data_loaded: bool = false
 
+static var EXP_THRESHOLDS : Array = [0, 100, 300, 600]
+static var MAX_TALENT_LEVEL : int = 3
+static var MAX_TALENT_EXP : int = 600
+static var _exp_thresholds_loaded : bool = false
+
+
+static func _ensure_exp_thresholds():
+	if _exp_thresholds_loaded: return
+	_exp_thresholds_loaded = true
+	var cfg : Dictionary = GameConfigManager.get_file("progression_config.json")
+	EXP_THRESHOLDS = cfg.get("talent_exp_thresholds", [0, 100, 300, 600]).duplicate()
+	MAX_TALENT_LEVEL = int(cfg.get("talent_max_level", 3))
+	MAX_TALENT_EXP = int(cfg.get("talent_max_exp", 600))
+
 
 static func load_talent_data():
 	if _talent_data_loaded:
@@ -220,16 +234,7 @@ static func is_talent_compatible_with_unit(talent_id: String, unit_name: String)
 		return true
 	var key = UnitDataManager.normalize_unit_key(unit_name)
 	return key in compatible
-
-
-# ============================================================
-#  斗技场：经验 / 等级
-# ============================================================
-## 升级门槛：[Lv1起点, Lv2起点, Lv3起点, 满级]
-const EXP_THRESHOLDS : Array = [0, 100, 300, 600]
-const MAX_TALENT_LEVEL : int = 3
-const MAX_TALENT_EXP : int = 600   # = EXP_THRESHOLDS[3]
-
+	
 
 static func get_talent_exp(unit_type: String, talent_id: String) -> int:
 	var unit_dict = GameState.talent_exp.get(unit_type, {})

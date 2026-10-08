@@ -11,7 +11,6 @@ const BOSS_NODE_TYPE = 6
 # ---- 节点引用 ----
 @onready var action_menu : CanvasLayer = $ActionMenu
 @onready var attack_btn : Button = $ActionMenu/ActionPanel/ButtonContainer/AttackBtn
-@onready var move_btn : Button = $ActionMenu/ActionPanel/ButtonContainer/MoveBtn
 @onready var equip_btn : Button = $ActionMenu/ActionPanel/ButtonContainer/EquipBtn
 @onready var wait_btn : Button = $ActionMenu/ActionPanel/ButtonContainer/WaitBtn
 @onready var victory_panel : Panel = $VictoryLayer/VictoryPanel
@@ -68,7 +67,7 @@ var _panel_manager : PanelManager = null
 var _ui_binder : UIBinder = null
 var _turn_controller : TurnController = null
 var _victory_handler : VictoryHandler = null
-var _drag_move_controller : DragMoveController = null   # ★
+var _drag_move_controller : DragMoveController = null
 
 var _damage_popup_layer : CanvasLayer = null
 
@@ -100,7 +99,6 @@ func _ready():
 	var node_list = {
 		"action_menu": action_menu,
 		"attack_btn": attack_btn,
-		"move_btn": move_btn,
 		"wait_btn": wait_btn,
 		"victory_panel": victory_panel,
 		"turn_overlay": turn_overlay,
@@ -202,8 +200,6 @@ func _ready():
 
 	if action_menu:
 		action_panel.visible = false
-	if move_btn:
-		move_btn.disabled = true
 	if attack_btn:
 		attack_btn.disabled = true
 	if wait_btn:
@@ -395,8 +391,6 @@ func _exit_tree():
 		cursor.visible = false
 	if _cursor_controller:
 		_cursor_controller.cleanup()
-	if move_btn and move_btn.pressed.is_connected(_on_move_btn_pressed):
-		move_btn.pressed.disconnect(_on_move_btn_pressed)
 	if attack_btn and attack_btn.pressed.is_connected(_on_attack_btn_pressed):
 		attack_btn.pressed.disconnect(_on_attack_btn_pressed)
 	if wait_btn and wait_btn.pressed.is_connected(_on_wait_btn_pressed):
@@ -491,10 +485,6 @@ func _on_ai_movement_finished(unit: Unit):
 	SignalBus.request_clear_highlight.emit()
 
 
-func _on_move_btn_pressed():
-	InputManager.on_move_button_pressed()
-
-
 func _on_attack_btn_pressed():
 	InputManager.on_attack_button_pressed()
 
@@ -531,8 +521,6 @@ func _on_request_hide_menu():
 		ui_manager.hide_menu()
 	if is_instance_valid(menu_blocker):
 		menu_blocker.visible = false
-	if is_instance_valid(move_btn):
-		move_btn.disabled = true
 	print("菜单隐藏")
 
 
@@ -679,18 +667,7 @@ func _on_request_show_menu(unit: Unit):
 
 		ui_manager.wait_btn.disabled = not can_act
 
-	# ---- move_btn（BFS）----
-	if is_instance_valid(move_btn):
-		var can_move = false
-		if can_act and not unit.has_attacked and not unit.has_acted:
-			var reachable = UnitManager.get_reachable_cells(unit.grid_cell, unit.remaining_move, unit)
-			for c in reachable.keys():
-				if c != unit.grid_cell:
-					can_move = true
-					break
-		move_btn.disabled = not can_move
-
-	# ---- attack_btn ----
+	# ---- attack_btn（有武器 + 可行动 + 未攻击）----
 	if is_instance_valid(attack_btn):
 		var has_weapon : bool = (unit.get_weapon_data() != null)
 		var can_attack : bool = can_act \

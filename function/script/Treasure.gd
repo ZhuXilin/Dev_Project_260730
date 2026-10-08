@@ -5,18 +5,21 @@ signal closed
 var _reward_options : Array = []
 var _applied : bool = false
 var _day : int = 1
+var _treasure_cfg : Dictionary = {}
 
 @onready var title_label : Label = $Panel/VBoxContainer/TitleLabel
 @onready var reward_container : VBoxContainer = $Panel/VBoxContainer/RewardContainer
 
 
 func _ready():
+	# 从 JSON 读取宝箱收益配置
+	_treasure_cfg = GameConfigManager.get_value("economy_config.json", "treasure", {})
 	title_label.text = "选择奖励"
 
 
-## 兼容两种调用：
-##   setup(day: int)            — 按天数决定数值缩放
-##   setup(legacy: Dictionary)  — 老调用，读 day 字段（默认 1）
+# ============================================================
+#  兼容两种调用
+# ============================================================
 func setup(arg = 1):
 	if arg is int:
 		_day = int(arg)
@@ -28,7 +31,7 @@ func setup(arg = 1):
 
 
 # ============================================================
-#  生成 3 个侧重点不同的选项
+#  生成 3 个选项
 # ============================================================
 func _roll_three_options() -> Array:
 	var result : Array = []
@@ -36,18 +39,28 @@ func _roll_three_options() -> Array:
 	result.append(_roll_armor_option())
 	var relic_opt : Dictionary = _roll_relic_option()
 	if relic_opt.is_empty():
-		# 遗物池空 → 再给一个金币选项作为补偿
 		result.append(_roll_gold_option())
 	else:
 		result.append(relic_opt)
 	return result
 
 
-## 金币选项：主金币 + 少量魂
+## 金币选项
 func _roll_gold_option() -> Dictionary:
-	var gold_base : int = 600 if _day <= 1 else 1000
-	var gold : int = gold_base + randi() % 400    # 600-1000 或 1000-1400
-	var soul : int = 2 + randi() % 3              # 2-4
+	var gold_base : int
+	var gold_var : int
+	if _day <= 1:
+		gold_base = int(_treasure_cfg.get("day1_gold_base", 600))
+		gold_var = int(_treasure_cfg.get("day1_gold_var", 400))
+	else:
+		gold_base = int(_treasure_cfg.get("day2_gold_base", 1000))
+		gold_var = int(_treasure_cfg.get("day2_gold_var", 400))
+	var gold : int = gold_base + randi() % maxi(1, gold_var)
+
+	var soul_base : int = int(_treasure_cfg.get("soul_base", 2))
+	var soul_var : int = int(_treasure_cfg.get("soul_var", 3))
+	var soul : int = soul_base + randi() % maxi(1, soul_var)
+
 	return {
 		"kind": "gold",
 		"gold": gold,
@@ -55,9 +68,8 @@ func _roll_gold_option() -> Dictionary:
 	}
 
 
-## 防具选项：1 件高级防具（epic/legendary）+ 少量金币
+## 防具选项
 func _roll_armor_option() -> Dictionary:
-	# Day1：只出 epic；Day2+：epic 或 legendary
 	var target_quality : Array = ["epic", "legendary"] if _day >= 2 else ["epic"]
 	var pool : Array = []
 	for iid in ItemManager.get_all_item_ids():
@@ -68,7 +80,6 @@ func _roll_armor_option() -> Dictionary:
 		if d.price <= 0: continue
 		pool.append(iid)
 
-	# 降级：连 price=0 的也算上（保底能出东西）
 	if pool.is_empty():
 		for iid in ItemManager.get_all_item_ids():
 			var d : ItemData = ItemManager.get_item_data(iid)
@@ -81,7 +92,9 @@ func _roll_armor_option() -> Dictionary:
 		return _roll_gold_option()
 
 	var pick : String = pool[randi() % pool.size()]
-	var gold : int = 150 + randi() % 150    # 150-300
+	var gold_base : int = int(_treasure_cfg.get("armor_gold_base", 150))
+	var gold_var : int = int(_treasure_cfg.get("armor_gold_var", 150))
+	var gold : int = gold_base + randi() % maxi(1, gold_var)
 	return {
 		"kind": "armor",
 		"gold": gold,
@@ -89,7 +102,7 @@ func _roll_armor_option() -> Dictionary:
 	}
 
 
-## 遗物选项：1 件随机未拥有遗物 + 少量魂
+## 遗物选项
 func _roll_relic_option() -> Dictionary:
 	var pool : Array = []
 	var owned : Dictionary = {}
@@ -103,7 +116,9 @@ func _roll_relic_option() -> Dictionary:
 		return {}
 
 	var pick : String = pool[randi() % pool.size()]
-	var soul : int = 3 + randi() % 3    # 3-5
+	var soul_base : int = int(_treasure_cfg.get("relic_soul_base", 3))
+	var soul_var : int = int(_treasure_cfg.get("relic_soul_var", 3))
+	var soul : int = soul_base + randi() % maxi(1, soul_var)
 	return {
 		"kind": "relic",
 		"soul": soul,
@@ -139,7 +154,6 @@ func _format_option_text(option : Dictionary) -> String:
 	var lines : Array = []
 	var kind : String = option.get("kind", "")
 
-	# ★ 顶部标题（明确侧重）
 	match kind:
 		"gold":   lines.append("【金币奖励】")
 		"armor":  lines.append("【强力防具】")
@@ -183,7 +197,6 @@ func _on_option_selected(idx : int):
 	var option : Dictionary = _reward_options[idx]
 	_apply_reward(option)
 
-	# 全屏遮挡：拦截一切鼠标点击
 	var blocker : ColorRect = _create_input_blocker()
 	await _show_popup(option)
 	if is_instance_valid(blocker):
@@ -194,19 +207,16 @@ func _on_option_selected(idx : int):
 
 
 func _apply_reward(option : Dictionary):
-	# 金币
 	var gold : int = int(option.get("gold", 0))
 	if gold > 0:
 		EconomyManager.add_temp_gold(gold)
 		print("[宝箱] 金币 +%d" % gold)
 
-	# 魂
 	var soul : int = int(option.get("soul", 0))
 	if soul > 0:
 		EconomyManager.add_temp_soul(soul)
 		print("[宝箱] 魂 +%d" % soul)
 
-	# 材料
 	var materials : Dictionary = option.get("materials", {})
 	for mat_name in materials:
 		var amount : int = int(materials[mat_name])
@@ -214,7 +224,6 @@ func _apply_reward(option : Dictionary):
 			EconomyManager.apply_material_reward({ mat_name: amount })
 			print("[宝箱] 材料 %s ×%d" % [mat_name, amount])
 
-	# 装备 / 遗物
 	var items : Array = option.get("items", [])
 	for item_id in items:
 		_grant_item(item_id)
@@ -265,7 +274,6 @@ func _show_popup(option : Dictionary):
 		await get_tree().create_timer(3.5, true, false, true).timeout
 
 
-## 全屏透明遮挡层
 func _create_input_blocker() -> ColorRect:
 	var blocker := ColorRect.new()
 	blocker.color = Color(0, 0, 0, 0)

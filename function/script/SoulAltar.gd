@@ -2,30 +2,28 @@ extends CanvasLayer
 
 signal closed
 
-const SOUL_WEAPON_COST : int = 500
+var SOUL_WEAPON_COST : int = 500
 
 enum Tab { BLESSING, TALENT, SOUL_FORGE }
 var _current_tab : Tab = Tab.BLESSING
 var _current_unit_type : String = ""
 var _current_talent_id : String = ""
 
-
 @onready var soul_label : Label = $Panel/VBox/TitleBar/SoulLabel
 @onready var attr_tab_btn : Button = $Panel/VBox/TabBar/AttrTabBtn
 @onready var talent_tab_btn : Button = $Panel/VBox/TabBar/TalentTabBtn
 @onready var soul_forge_tab_btn : Button = $Panel/VBox/TabBar/SoulForgeTabBtn
-
 @onready var left_title : Label = $Panel/VBox/MainHBox/LeftColumn/LeftTitle
 @onready var unit_list : VBoxContainer = $Panel/VBox/MainHBox/LeftColumn/UnitListScroll/UnitList
 @onready var unit_sprite : AnimatedSprite2D = $Panel/VBox/MainHBox/InfoPanel/UnitHeader/SpriteContainer/UnitSprite
 @onready var unit_name_label : Label = $Panel/VBox/MainHBox/InfoPanel/UnitHeader/HeaderInfo/UnitNameLabel
 @onready var unit_desc_label : Label = $Panel/VBox/MainHBox/InfoPanel/UnitHeader/HeaderInfo/UnitDescLabel
 @onready var attr_container : VBoxContainer = $Panel/VBox/MainHBox/InfoPanel/AttrScroll/AttrContainer
-# ★ 原 PointLabel 已改名为 HintLabel（用作临时消息提示）
 @onready var hint_label : Label = $Panel/VBox/MainHBox/InfoPanel/BottomBar/HintLabel
 
 
 func _ready():
+	SOUL_WEAPON_COST = int(GameConfigManager.get_value("economy_config.json", "soul_altar.weapon_forge_cost", 500))
 	MusicManager.play_soul_altar_music()
 	if attr_tab_btn:
 		attr_tab_btn.text = "祝福"

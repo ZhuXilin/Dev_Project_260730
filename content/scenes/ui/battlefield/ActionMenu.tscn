@@ -6,7 +6,7 @@
 
 [node name="ActionPanel" type="PanelContainer" parent="." unique_id=1839393492]
 offset_right = 32.0
-offset_bottom = 88.0
+offset_bottom = 72.0
 theme_override_styles/panel = ExtResource("1_style")
 
 [node name="ButtonContainer" type="VBoxContainer" parent="ActionPanel" unique_id=370993205]

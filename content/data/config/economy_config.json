@@ -1,0 +1,74 @@
+{
+  "reward_gold": { "START": 75, "NORMAL": 175, "ELITE": 350, "BOSS": 750 },
+  "reward_soul": { "START": 2, "NORMAL": 2, "ELITE": 3, "BOSS": 8 },
+  "reward_materials": {
+	"START": { "粗铁": 2 },
+	"NORMAL": { "粗铁": 2 },
+	"ELITE": { "精钢": 1, "秘银": 1 },
+	"BOSS": { "精钢": 2, "龙鳞": 1 }
+  },
+  "boss_extra_soul": 2,
+  "material_order": ["粗铁", "精钢", "秘银", "龙鳞"],
+
+  "shop": {
+	"size": 9,
+	"base_reset_cost": 100,
+	"reset_step": 50,
+	"max_level": 5,
+	"upgrade_costs": [200, 500, 1200, 2500, 5000],
+	"quality_weights": [
+	  { "common": 60, "rare": 30, "epic": 10, "legendary": 0 },
+	  { "common": 45, "rare": 35, "epic": 18, "legendary": 2 },
+	  { "common": 30, "rare": 40, "epic": 25, "legendary": 5 },
+	  { "common": 15, "rare": 35, "epic": 40, "legendary": 10 },
+	  { "common": 5,  "rare": 25, "epic": 50, "legendary": 20 },
+	  { "common": 0,  "rare": 15, "epic": 50, "legendary": 35 }
+	],
+	"rare_guarantee_level": 3,
+	"epic_guarantee_level": 5
+  },
+
+  "forge": {
+	"max_slots": 9,
+	"weapon_upgrade_max": 3,
+	"upgrade_base_cost": 50,
+	"upgrade_growth": 2.0,
+	"craft_cost": 200,
+	"quality_score": { "common": 1, "rare": 3, "epic": 6, "legendary": 10 },
+	"lucky_chance": 0.05,
+	"bonus_score_threshold": 10,
+	"bonus_chance": 0.15,
+	"craft_quality_table": [
+	  [0,  [90, 10,  0,  0]],
+	  [3,  [65, 30,  4,  1]],
+	  [6,  [40, 40, 15,  5]],
+	  [10, [20, 40, 30, 10]],
+	  [16, [10, 30, 40, 20]],
+	  [25, [ 0, 15, 40, 45]]
+	]
+  },
+
+  "treasure": {
+	"day1_gold_base": 600, "day1_gold_var": 400,
+	"day2_gold_base": 1000, "day2_gold_var": 400,
+	"soul_base": 2, "soul_var": 3,
+	"armor_gold_base": 150, "armor_gold_var": 150,
+	"relic_soul_base": 3, "relic_soul_var": 3
+  },
+
+  "soul_altar": {
+	"weapon_forge_cost": 500
+  },
+
+  "params": {
+	"drop_mult": 1.0,
+	"shop_spend": 500,
+	"craft_count": 1,
+	"melt_count": 0,
+	"melt_per": 30,
+	"melt_gold_per_soul": 6,
+	"runs": 20,
+	"soul_per_run": 30
+  },
+  "selected_layout": "MapLayoutDefault.tres"
+}

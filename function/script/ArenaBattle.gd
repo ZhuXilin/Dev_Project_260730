@@ -2,37 +2,29 @@ extends CanvasLayer
 
 signal closed(result: Dictionary)
 
+
+var CRIT_BASE_CHANCE : float = 0.05
+var CRIT_PER_DEXTERITY : float = 0.005
+var CRIT_CHANCE_BY_QUALITY : Dictionary = {"common":0.0,"rare":0.03,"epic":0.05,"legendary":0.08}
+var CRIT_DAMAGE_MULT : float = 1.5
+var QUALITY_MULT : Dictionary = {"common":1.0,"rare":1.25,"epic":1.5,"legendary":1.8}
+var STRENGTH_DEF_FACTOR : float = 0.3
+var BLEED_MAX_STACKS : int = 5
+var BLEED_BASE_PERCENT : float = 0.15
+var BLEED_PER_LEVEL : float = 0.05
+var COUNTER_BASE_PERCENT : float = 0.30
+var COUNTER_PER_LEVEL : float = 0.10
+var STAFF_SELF_HEAL_PERCENT : float = 0.10
+var HEAL_BOOST_BASE : float = 1.30
+var HEAL_BOOST_PER_LEVEL : float = 0.20
+var SPELL_CHAIN_BASE : float = 0.80
+var SPELL_CHAIN_PER_LEVEL : float = 0.10
+
+
 const HIT_DURATION : float = 0.15
 const HIT_OFFSET_DISTANCE : float = 8.0
 const SHAKE_INTENSITY : float = 4.0
 const SHAKE_DURATION : float = 0.15
-
-# 暴击
-const CRIT_BASE_CHANCE : float = 0.05
-const CRIT_PER_DEXTERITY : float = 0.005
-const CRIT_CHANCE_BY_QUALITY : Dictionary = {
-	"common": 0.0, "rare": 0.03, "epic": 0.05, "legendary": 0.08,
-}
-const CRIT_DAMAGE_MULT : float = 1.5
-const QUALITY_MULT = {
-	"common": 1.0, "rare": 1.25, "epic": 1.5, "legendary": 1.8,
-}
-const STRENGTH_DEF_FACTOR : float = 0.3
-
-# ---- 新增词条参数 ----
-const BLEED_MAX_STACKS : int = 5
-const BLEED_BASE_PERCENT : float = 0.15
-const BLEED_PER_LEVEL : float = 0.05
-
-const COUNTER_BASE_PERCENT : float = 0.30
-const COUNTER_PER_LEVEL : float = 0.10
-
-const STAFF_SELF_HEAL_PERCENT : float = 0.10
-const HEAL_BOOST_BASE : float = 1.30
-const HEAL_BOOST_PER_LEVEL : float = 0.20
-
-const SPELL_CHAIN_BASE : float = 0.80
-const SPELL_CHAIN_PER_LEVEL : float = 0.10
 
 var winner_team : int = -1
 var _crystal_reward : int = 0
@@ -74,9 +66,30 @@ var _enemy_bleed_stacks : int = 0
 
 
 func _ready():
+	_apply_config()
 	await get_tree().process_frame
 	if is_instance_valid(panel):
 		_panel_base_pos = panel.position
+
+
+func _apply_config():
+	var cfg : Dictionary = GameConfigManager.get_value("combat_config.json", "arena_battle", {})
+	CRIT_BASE_CHANCE = float(cfg.get("crit_base_chance", CRIT_BASE_CHANCE))
+	CRIT_PER_DEXTERITY = float(cfg.get("crit_per_dexterity", CRIT_PER_DEXTERITY))
+	CRIT_CHANCE_BY_QUALITY = cfg.get("crit_chance_by_quality", CRIT_CHANCE_BY_QUALITY).duplicate()
+	CRIT_DAMAGE_MULT = float(cfg.get("crit_damage_mult", CRIT_DAMAGE_MULT))
+	QUALITY_MULT = cfg.get("quality_mult", QUALITY_MULT).duplicate()
+	STRENGTH_DEF_FACTOR = float(cfg.get("strength_def_factor", STRENGTH_DEF_FACTOR))
+	BLEED_MAX_STACKS = int(cfg.get("bleed_max_stacks", BLEED_MAX_STACKS))
+	BLEED_BASE_PERCENT = float(cfg.get("bleed_base_percent", BLEED_BASE_PERCENT))
+	BLEED_PER_LEVEL = float(cfg.get("bleed_per_level", BLEED_PER_LEVEL))
+	COUNTER_BASE_PERCENT = float(cfg.get("counter_base_percent", COUNTER_BASE_PERCENT))
+	COUNTER_PER_LEVEL = float(cfg.get("counter_per_level", COUNTER_PER_LEVEL))
+	STAFF_SELF_HEAL_PERCENT = float(cfg.get("staff_self_heal_percent", STAFF_SELF_HEAL_PERCENT))
+	HEAL_BOOST_BASE = float(cfg.get("heal_boost_base", HEAL_BOOST_BASE))
+	HEAL_BOOST_PER_LEVEL = float(cfg.get("heal_boost_per_level", HEAL_BOOST_PER_LEVEL))
+	SPELL_CHAIN_BASE = float(cfg.get("spell_chain_base", SPELL_CHAIN_BASE))
+	SPELL_CHAIN_PER_LEVEL = float(cfg.get("spell_chain_per_level", SPELL_CHAIN_PER_LEVEL))
 
 
 func setup(player_data: UnitData, enemy_data: UnitData, crystal_reward: int = 0, battle_index: int = 1):

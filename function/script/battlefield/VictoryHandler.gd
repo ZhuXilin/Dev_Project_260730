@@ -3,16 +3,20 @@ extends Node
 
 var _bf : Node2D
 
-const RARE_DROP_CHANCE : Dictionary = {
+var RARE_DROP_CHANCE : Dictionary = {
 	MapNode.NodeType.START: 0.05,
 	MapNode.NodeType.NORMAL: 0.05,
 	MapNode.NodeType.ELITE: 0.25,
 	MapNode.NodeType.BOSS: 0.80,
 }
 
-
 func _init(bf: Node2D):
 	_bf = bf
+	var cfg : Dictionary = GameConfigManager.get_value("combat_config.json", "rare_drop_chance", {})
+	if cfg.has("START"): RARE_DROP_CHANCE[MapNode.NodeType.START] = float(cfg["START"])
+	if cfg.has("NORMAL"): RARE_DROP_CHANCE[MapNode.NodeType.NORMAL] = float(cfg["NORMAL"])
+	if cfg.has("ELITE"): RARE_DROP_CHANCE[MapNode.NodeType.ELITE] = float(cfg["ELITE"])
+	if cfg.has("BOSS"): RARE_DROP_CHANCE[MapNode.NodeType.BOSS] = float(cfg["BOSS"])
 
 
 # ============================================================

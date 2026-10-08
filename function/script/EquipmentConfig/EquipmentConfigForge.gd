@@ -3,34 +3,20 @@ extends RefCounted
 
 const Style = preload("res://function/script/equipmentconfig/EquipmentConfigStyle.gd")
 
-# 品质升级映射
+# 品质顺序
 const QUALITY_ORDER : Array = ["common", "rare", "epic", "legendary"]
 
-const MAX_SLOTS : int = 9
-const WEAPON_UPGRADE_MAX : int = 3
-const UPGRADE_BASE_COST : int = 50
-const UPGRADE_GROWTH : float = 2.0
-const CRAFT_COST : int = 200
-
-
-# ---- 通用合成参数 ----
-const QUALITY_SCORE : Dictionary = {
-	"common": 1, "rare": 3, "epic": 6, "legendary": 10,
-}
-const LUCKY_CHANCE : float = 0.05        # 5% 跳一级
-const BONUS_SCORE_THRESHOLD : int = 10
-const BONUS_CHANCE : float = 0.15
-
-# 品质概率表：[min_score, [w_common, w_rare, w_epic, w_legendary]]
-const CRAFT_QUALITY_TABLE : Array = [
-	[0,  [90, 10,  0,  0]],
-	[3,  [65, 30,  4,  1]],
-	[6,  [40, 40, 15,  5]],
-	[10, [20, 40, 30, 10]],
-	[16, [10, 30, 40, 20]],
-	[25, [ 0, 15, 40, 45]],
-]
-
+# ---- 从 JSON 加载 ----
+var MAX_SLOTS : int = 9
+var WEAPON_UPGRADE_MAX : int = 3
+var UPGRADE_BASE_COST : int = 50
+var UPGRADE_GROWTH : float = 2.0
+var CRAFT_COST : int = 200
+var QUALITY_SCORE : Dictionary = {"common": 1, "rare": 3, "epic": 6, "legendary": 10}
+var LUCKY_CHANCE : float = 0.05
+var BONUS_SCORE_THRESHOLD : int = 10
+var BONUS_CHANCE : float = 0.15
+var CRAFT_QUALITY_TABLE : Array = []
 
 var panel = null
 var forge_slots : Array = []
@@ -41,8 +27,34 @@ var forge_upgrade_btn : Button = null
 var inline_craft_btn : Button = null
 var _last_drag_unit_idx : int = -1
 
+
 func _init(p):
 	panel = p
+	reload_config()
+
+
+func reload_config():
+	var cfg : Dictionary = GameConfigManager.get_value("economy_config.json", "forge", {})
+	MAX_SLOTS = int(cfg.get("max_slots", 9))
+	WEAPON_UPGRADE_MAX = int(cfg.get("weapon_upgrade_max", 3))
+	UPGRADE_BASE_COST = int(cfg.get("upgrade_base_cost", 50))
+	UPGRADE_GROWTH = float(cfg.get("upgrade_growth", 2.0))
+	CRAFT_COST = int(cfg.get("craft_cost", 200))
+	QUALITY_SCORE = cfg.get("quality_score", {"common":1,"rare":3,"epic":6,"legendary":10}).duplicate()
+	LUCKY_CHANCE = float(cfg.get("lucky_chance", 0.05))
+	BONUS_SCORE_THRESHOLD = int(cfg.get("bonus_score_threshold", 10))
+	BONUS_CHANCE = float(cfg.get("bonus_chance", 0.15))
+	CRAFT_QUALITY_TABLE = cfg.get("craft_quality_table", []).duplicate()
+	if CRAFT_QUALITY_TABLE.is_empty():
+		CRAFT_QUALITY_TABLE = [
+			[0,  [90, 10,  0,  0]],
+			[3,  [65, 30,  4,  1]],
+			[6,  [40, 40, 15,  5]],
+			[10, [20, 40, 30, 10]],
+			[16, [10, 30, 40, 20]],
+			[25, [ 0, 15, 40, 45]],
+		]
+	print("[EquipmentConfigForge] 已加载: 合成成本 %d, 幸运 %.0f%%" % [CRAFT_COST, LUCKY_CHANCE * 100])
 
 
 # ============================================================
@@ -65,7 +77,6 @@ func has_pending() -> bool:
 #  UI 构建
 # ============================================================
 func build_forge_slots():
-	# ★ 强制清理所有 forge 相关子节点（含 Godot 自动改名的 @xxx@2 残留）
 	for child in panel.right_container.get_children():
 		if "Forge" in child.name:
 			panel.right_container.remove_child(child)
@@ -84,7 +95,6 @@ func build_forge_slots():
 	panel.shop_container.add_theme_constant_override("h_separation", 2)
 	panel.shop_container.add_theme_constant_override("v_separation", 2)
 
-	# ★ 铁匠铺：ShopScroll 恢复初始尺寸
 	if panel.shop_scroll:
 		panel.shop_scroll.custom_minimum_size = Vector2(0, 60)
 		panel.shop_scroll.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
@@ -116,7 +126,6 @@ func build_forge_slots():
 	_update_forge_result_label()
 	_ensure_forge_craft_row()
 
-	# ★ 强制重建升级 UI（避免 cleanup 残留导致消失）
 	if not forge_upgrade_btn or not is_instance_valid(forge_upgrade_btn) or not forge_upgrade_btn.is_inside_tree():
 		forge_upgrade_btn = null
 		forge_upgrade_label = null
@@ -124,6 +133,7 @@ func build_forge_slots():
 
 	_refresh_inline_craft_btn()
 	_ensure_forge_bottom_spacer()
+
 
 func _ensure_forge_craft_row():
 	var should_show : bool = panel._is_shop_rest_mode() or panel.is_forge_mode()
@@ -280,7 +290,7 @@ func _update_forge_result_label():
 				var inst : ItemInstance = entry_dict["inst"]
 				var d : ItemData = ItemManager.get_item_data(inst.item_id)
 				if d:
-					score += QUALITY_SCORE.get(d.quality, 1)
+					score += int(QUALITY_SCORE.get(d.quality, 1))
 		if has_input:
 			forge_result_label.text = "合成结果：随机（评分 %d，%dG）" % [score, CRAFT_COST]
 			forge_result_label.modulate = Color(1.0, 0.85, 0.3)
@@ -292,18 +302,15 @@ func _update_forge_result_label():
 
 
 func _ensure_forge_upgrade_ui():
-	# 存在且在树里 → refresh
 	if forge_upgrade_btn and is_instance_valid(forge_upgrade_btn) and forge_upgrade_btn.is_inside_tree():
 		refresh_forge_upgrade_ui()
 		return
 
-	# 引用存在但已失效 → 清空重来
 	if forge_upgrade_btn != null and not is_instance_valid(forge_upgrade_btn):
 		forge_upgrade_btn = null
 	if forge_upgrade_label != null and not is_instance_valid(forge_upgrade_label):
 		forge_upgrade_label = null
 
-	# 清理残留在 right_container 里的同名节点
 	for n_name in ["ForgeUpgradeLabel", "ForgeUpgradeBtn", "ForgeUpgradeSpacer1", "ForgeUpgradeSpacer2"]:
 		var old = panel.right_container.get_node_or_null(n_name)
 		if old:
@@ -314,17 +321,20 @@ func _ensure_forge_upgrade_ui():
 	spacer1.name = "ForgeUpgradeSpacer1"
 	spacer1.custom_minimum_size = Vector2(0, 12)
 	panel.right_container.add_child(spacer1)
+
 	forge_upgrade_label = Label.new()
 	forge_upgrade_label.name = "ForgeUpgradeLabel"
 	forge_upgrade_label.add_theme_font_size_override("font_size", Style.FONT_SMALL)
-	forge_upgrade_label.text = "拖拽武器到此升级（上限 +3）"
+	forge_upgrade_label.text = "拖拽武器到此升级"
 	forge_upgrade_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	forge_upgrade_label.modulate = Color(0.7, 0.7, 0.7)
 	panel.right_container.add_child(forge_upgrade_label)
+
 	forge_upgrade_btn = Style.create_styled_button(Style.FONT_SMALL, Style.BTN_ITEM_SIZE)
 	forge_upgrade_btn.name = "ForgeUpgradeBtn"
 	forge_upgrade_btn.set_meta("slot_type", "forge_upgrade_slot")
 	panel.right_container.add_child(forge_upgrade_btn)
+
 	var spacer2 := Control.new()
 	spacer2.name = "ForgeUpgradeSpacer2"
 	spacer2.custom_minimum_size = Vector2(0, 12)
@@ -344,10 +354,8 @@ func refresh_forge_upgrade_ui():
 	if not forge_upgrade_btn or not is_instance_valid(forge_upgrade_btn): return
 	if not forge_upgrade_label or not is_instance_valid(forge_upgrade_label): return
 
-	# ★ 按钮文案固定
 	forge_upgrade_btn.text = "拖拽武器升级"
 
-	# ---- 找目标单位 ----
 	var idx : int = _last_drag_unit_idx
 	if idx < 0 or idx >= panel.party.size():
 		idx = -1
@@ -357,14 +365,14 @@ func refresh_forge_upgrade_ui():
 				break
 
 	if idx < 0:
-		forge_upgrade_label.text = "拖拽武器到此升级（上限 +3）"
+		forge_upgrade_label.text = "拖拽武器到此升级"
 		forge_upgrade_btn.disabled = true
 		forge_upgrade_btn.modulate = Color(0.5, 0.5, 0.5)
 		return
 
 	var u : UnitData = panel.party[idx]
 	if u.weapon_slot == null or u.is_dead:
-		forge_upgrade_label.text = "拖拽武器到此升级（上限 +3）"
+		forge_upgrade_label.text = "拖拽武器到此升级"
 		forge_upgrade_btn.disabled = true
 		forge_upgrade_btn.modulate = Color(0.5, 0.5, 0.5)
 		return
@@ -372,16 +380,22 @@ func refresh_forge_upgrade_ui():
 	var wname : String = panel._get_item_name(u.weapon_slot)
 	var lv : int = u.weapon_slot.upgrade_level
 
-	if lv >= WEAPON_UPGRADE_MAX:
+	var wdata = ItemManager.get_item_data(u.weapon_slot.item_id)
+	var max_lv : int = WeaponUpgradeHelper.get_max_level(wdata)
+	if lv >= max_lv:
 		forge_upgrade_label.text = "%s 已满级 +%d" % [wname, lv]
 		forge_upgrade_btn.disabled = true
 		forge_upgrade_btn.modulate = Color(0.5, 0.5, 0.5)
 		return
 
-	# ★ Label 显示升级信息
 	var cost : int = _get_weapon_upgrade_cost(lv)
 	var afford : bool = panel._context.get_gold() >= cost
-	forge_upgrade_label.text = "%s +%d→+%d（%dG）" % [wname, lv, lv + 1, cost]
+
+	var eff_now : int = WeaponUpgradeHelper.get_effective_base_attack(wdata, lv)
+	var eff_next : int = WeaponUpgradeHelper.get_effective_base_attack(wdata, lv + 1)
+
+	forge_upgrade_label.text = "%s +%d→+%d（%dG）| 攻击 %d→%d" % [
+		wname, lv, lv + 1, cost, eff_now, eff_next]
 	forge_upgrade_btn.disabled = not afford
 	forge_upgrade_btn.modulate = Color.WHITE if afford else Color(1.0, 0.6, 0.6)
 
@@ -419,15 +433,15 @@ func cleanup():
 func _return_armor_to_unit(unit: UnitData, inst: ItemInstance, prefer_slot: int) -> bool:
 	var need : int = panel._inst_slots(inst)
 	var used : int = panel._used_slots_of(unit)
-	if used + need > unit.max_armor_slots: return false      # ← 必须是 false
+	if used + need > unit.max_armor_slots: return false
 	if prefer_slot >= 0 and prefer_slot < unit.armor_slots.size() and unit.armor_slots[prefer_slot] == null:
 		unit.armor_slots[prefer_slot] = inst
-		return true                                          # ← 必须是 true
+		return true
 	for i in range(unit.armor_slots.size()):
 		if unit.armor_slots[i] == null:
 			unit.armor_slots[i] = inst
-			return true                                      # ← 必须是 true
-	return false                                             # ← 必须有兜底
+			return true
+	return false
 
 
 func return_all_forge_slots() -> int:
@@ -506,7 +520,7 @@ func on_forge_craft_pressed():
 		if panel._context.get_context_id() == "arena" or matched in GameState.unlocked_recipes:
 			use_recipe = true
 
-	# ---- 4. 计算结果（不扣资源）----
+	# ---- 4. 计算结果 ----
 	var result : Dictionary = {}
 	if use_recipe:
 		result = _compute_recipe_result(matched)
@@ -516,14 +530,13 @@ func on_forge_craft_pressed():
 	# ---- 5. 扣金币 ----
 	panel._context.subtract_gold(CRAFT_COST)
 
-	# ---- 6. 消耗所有输入防具（直接清空插槽，不归还）----
+	# ---- 6. 消耗所有输入防具 ----
 	for i in range(forge_slots.size()):
 		forge_slots[i] = null
 
-	# ---- 7. 产出防具：优先放单位空槽，放不下则进待领取区 ----
+	# ---- 7. 产出防具 ----
 	var out_ids : Array = result["item_ids"]
 
-	# 找第一个有空格且存活的单位
 	var target_unit_idx : int = -1
 	var target_slot : int = -1
 	for i in range(panel.party.size()):
@@ -537,7 +550,6 @@ func on_forge_craft_pressed():
 		if target_unit_idx >= 0:
 			break
 
-	# 计算该单位还能放几件
 	var can_place_in_unit : int = 0
 	if target_unit_idx >= 0:
 		var pu : UnitData = panel.party[target_unit_idx]
@@ -546,7 +558,6 @@ func on_forge_craft_pressed():
 				can_place_in_unit += 1
 
 	if can_place_in_unit >= out_ids.size():
-		# 全部能放单位
 		var out_unit : UnitData = panel.party[target_unit_idx]
 		for item_id in out_ids:
 			if target_slot >= out_unit.armor_slots.size(): break
@@ -557,7 +568,6 @@ func on_forge_craft_pressed():
 				out_unit.armor_slots[target_slot] = inst
 				target_slot += 1
 	else:
-		# 全部进待领取区
 		for item_id in out_ids:
 			var inst := ItemInstance.new()
 			inst.item_id = item_id
@@ -584,6 +594,7 @@ func _is_forge_recipe_available() -> bool:
 	if panel._context.get_context_id() == "arena": return true
 	return forge_matched_recipe in GameState.unlocked_recipes
 
+
 # ============================================================
 #  拖拽合法性 / 执行
 # ============================================================
@@ -600,7 +611,9 @@ func is_valid_forge_drop(data: Dictionary, target: Control) -> bool:
 		if u.is_dead: return false
 		var weapon_inst : ItemInstance = u.weapon_slot
 		if weapon_inst == null: return false
-		if weapon_inst.upgrade_level >= WEAPON_UPGRADE_MAX: return false
+		var wdata = ItemManager.get_item_data(weapon_inst.item_id)
+		var max_lv : int = WeaponUpgradeHelper.get_max_level(wdata)
+		if weapon_inst.upgrade_level >= max_lv: return false
 		return true
 
 	# ---- 武器 ↔ 武器 ----
@@ -627,7 +640,6 @@ func is_valid_forge_drop(data: Dictionary, target: Control) -> bool:
 		if u2.is_dead: return false
 		if src_slot >= u2.armor_slots.size(): return false
 		if u2.armor_slots[src_slot] == null: return false
-		# 检查被替换的防具能否归还
 		var existing : Variant = forge_slots[slot_idx]
 		if existing != null:
 			var existing_dict : Dictionary = existing
@@ -650,7 +662,6 @@ func is_valid_forge_drop(data: Dictionary, target: Control) -> bool:
 
 	# ---- forge_slot 作为拖拽源 ----
 	if src_type == "forge_slot":
-		# → 单位防具槽
 		if tgt_type == "armor":
 			var tu3 : int = target.get_meta("unit_idx", -1)
 			var ts3 : int = target.get_meta("slot_idx", -1)
@@ -667,10 +678,8 @@ func is_valid_forge_drop(data: Dictionary, target: Control) -> bool:
 			var need : int = panel._inst_slots(inst)
 			var used : int = panel._used_slots_excluding(unit3, [ts3])
 			return used + need <= unit3.max_armor_slots
-		# → 另一个 forge_slot
 		if tgt_type == "forge_slot":
 			return true
-		# → 丢弃区
 		if target == panel.discard_zone:
 			return true
 		return false
@@ -688,7 +697,9 @@ func execute_forge_drop(data: Dictionary, target: Control):
 		var u : UnitData = panel.party[uidx]
 		var weapon_inst : ItemInstance = u.weapon_slot
 		if weapon_inst == null: return
-		if weapon_inst.upgrade_level >= WEAPON_UPGRADE_MAX: return
+		var wdata = ItemManager.get_item_data(weapon_inst.item_id)
+		var max_lv : int = WeaponUpgradeHelper.get_max_level(wdata)
+		if weapon_inst.upgrade_level >= max_lv: return
 		var lv : int = weapon_inst.upgrade_level
 		var cost : int = _get_weapon_upgrade_cost(lv)
 		if panel._context.get_gold() < cost:
@@ -776,12 +787,15 @@ func _force_return_armor_to_unit(unit: UnitData, inst: ItemInstance, prefer_slot
 			return true
 	return false
 
+
 func _try_upgrade_weapon(unit_idx: int):
 	if unit_idx < 0 or unit_idx >= panel.party.size(): return
 	var u : UnitData = panel.party[unit_idx]
 	if u.is_dead: return
 	if u.weapon_slot == null: return
-	if u.weapon_slot.upgrade_level >= WEAPON_UPGRADE_MAX: return
+	var wdata = ItemManager.get_item_data(u.weapon_slot.item_id)
+	var max_lv : int = WeaponUpgradeHelper.get_max_level(wdata)
+	if u.weapon_slot.upgrade_level >= max_lv: return
 
 	var lv : int = u.weapon_slot.upgrade_level
 	var cost : int = _get_weapon_upgrade_cost(lv)
@@ -801,7 +815,7 @@ func _try_upgrade_weapon(unit_idx: int):
 
 
 # ============================================================
-#  合成计算：图纸路径
+#  合成计算
 # ============================================================
 func _compute_recipe_result(recipe_id: String) -> Dictionary:
 	var out_data : ItemData = ItemManager.get_item_data(recipe_id)
@@ -816,21 +830,16 @@ func _compute_recipe_result(recipe_id: String) -> Dictionary:
 	}
 
 
-# ============================================================
-#  合成计算：通用路径（随机）
-# ============================================================
 func _compute_random_craft(input_insts : Array) -> Dictionary:
 	var score : int = _calc_input_score(input_insts)
 	var quality : String = _roll_quality_by_score(score)
 
-	# 幸运暴击：跳一级
 	var lucky : bool = false
 	if randf() < LUCKY_CHANCE:
 		var qi : int = QUALITY_ORDER.find(quality)
 		quality = QUALITY_ORDER[mini(qi + 1, QUALITY_ORDER.size() - 1)]
 		lucky = true
 
-	# 从该品质防具里随机抽
 	var candidates : Array = []
 	_collect_armor_candidates(quality, candidates)
 	while candidates.is_empty() and QUALITY_ORDER.find(quality) > 0:
@@ -841,7 +850,6 @@ func _compute_random_craft(input_insts : Array) -> Dictionary:
 
 	var out_ids : Array = [candidates[randi() % candidates.size()]]
 
-	# 额外产出：需要 ≥3 件输入 + 评分达标
 	var bonus_count : int = 0
 	if input_insts.size() >= 3 and score >= BONUS_SCORE_THRESHOLD and randf() < BONUS_CHANCE:
 		bonus_count = 1
@@ -862,7 +870,7 @@ func _calc_input_score(input_insts : Array) -> int:
 	for inst in input_insts:
 		var data : ItemData = ItemManager.get_item_data(inst.item_id)
 		if data:
-			score += QUALITY_SCORE.get(data.quality, 1)
+			score += int(QUALITY_SCORE.get(data.quality, 1))
 	return score
 
 

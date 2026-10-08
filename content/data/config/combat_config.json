@@ -1,0 +1,45 @@
+{
+  "quality_mult": { "common": 1.0, "rare": 1.25, "epic": 1.5, "legendary": 1.8 },
+  "strength_def_factor": 0.3,
+  "crit_base_chance": 0.05,
+  "crit_per_dexterity": 0.005,
+  "crit_chance_by_quality": { "common": 0.0, "rare": 0.03, "epic": 0.05, "legendary": 0.08 },
+  "crit_damage_mult": 1.5,
+
+  "talent_params": {
+	"double_attack_mult": [0.8, 0.9, 1.0],
+	"bleed_damage_percent": [0.15, 0.20, 0.25],
+	"bleed_max_stacks": 5,
+	"spell_chain_mult": [0.8, 0.9, 1.0],
+	"counter_boost_mult": [1.5, 1.75, 2.0],
+	"heal_boost_mult": [1.3, 1.5, 1.7],
+	"lifesteal_percent": [0.2, 0.3, 0.4],
+	"combo_mult_per_hit": [0.15, 0.25, 0.35],
+	"blood_rage_heal_percent": [0.15, 0.20, 0.25],
+	"zeal_per_stack": [0.10, 0.15, 0.20],
+	"zeal_max_stacks": 5
+  },
+
+  "arena_battle": {
+	"crit_base_chance": 0.05,
+	"crit_per_dexterity": 0.005,
+	"crit_chance_by_quality": { "common": 0.0, "rare": 0.03, "epic": 0.05, "legendary": 0.08 },
+	"crit_damage_mult": 1.5,
+	"quality_mult": { "common": 1.0, "rare": 1.25, "epic": 1.5, "legendary": 1.8 },
+	"strength_def_factor": 0.3,
+	"bleed_max_stacks": 5,
+	"bleed_base_percent": 0.15,
+	"bleed_per_level": 0.05,
+	"counter_base_percent": 0.30,
+	"counter_per_level": 0.10,
+	"staff_self_heal_percent": 0.10,
+	"heal_boost_base": 1.30,
+	"heal_boost_per_level": 0.20,
+	"spell_chain_base": 0.80,
+	"spell_chain_per_level": 0.10
+  },
+
+  "rare_drop_chance": {
+	"START": 0.05, "NORMAL": 0.05, "ELITE": 0.25, "BOSS": 0.80
+  }
+}

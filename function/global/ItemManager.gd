@@ -49,6 +49,7 @@ func load_items():
 		item.magic_attack = dict.get("magic_attack", {})
 		item.heal_effect = dict.get("heal_effect", {})
 		item.legendary_effect = dict.get("legendary_effect", "")
+		item.upgrade_stats = dict.get("upgrade_stats", {})
 		
 		# 保留 stats / use_effect 字段（ItemData 类定义需要，实际不再使用）
 		item.stats = dict.get("stats", {})

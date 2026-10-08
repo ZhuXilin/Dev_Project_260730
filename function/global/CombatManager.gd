@@ -1,45 +1,26 @@
 extends Node
 
+
+var QUALITY_MULT : Dictionary = {"common":1.0,"rare":1.25,"epic":1.5,"legendary":1.8}
+var STRENGTH_DEF_FACTOR : float = 0.3
+var CRIT_BASE_CHANCE : float = 0.05
+var CRIT_PER_DEXTERITY : float = 0.005
+var CRIT_CHANCE_BY_QUALITY : Dictionary = {"common":0.0,"rare":0.03,"epic":0.05,"legendary":0.08}
+var CRIT_DAMAGE_MULT : float = 1.5
+
+var DOUBLE_ATTACK_MULT : Array = [0.8, 0.9, 1.0]
+var BLEED_DAMAGE_PERCENT : Array = [0.15, 0.20, 0.25]
+var BLEED_MAX_STACKS : int = 5
+var SPELL_CHAIN_MULT : Array = [0.8, 0.9, 1.0]
+var COUNTER_BOOST_MULT : Array = [1.5, 1.75, 2.0]
+var HEAL_BOOST_MULT : Array = [1.3, 1.5, 1.7]
+var LIFESTEAL_PERCENT : Array = [0.2, 0.3, 0.4]
+var COMBO_MULT_PER_HIT : Array = [0.15, 0.25, 0.35]
+var BLOOD_RAGE_HEAL_PERCENT : Array = [0.15, 0.20, 0.25]
+var ZEAL_PER_STACK : Array = [0.10, 0.15, 0.20]
+var ZEAL_MAX_STACKS : int = 5
+
 const PERFORMANCE_DURATION : float = 0.5
-
-# ---- 品质 → 攻防乘数 ----
-const QUALITY_MULT = {
-	"common": 1.0,
-	"rare": 1.25,
-	"epic": 1.5,
-	"legendary": 1.8,
-}
-
-# ---- 力量 → 防御减免系数 ----
-const STRENGTH_DEF_FACTOR : float = 0.3
-
-# ---- 暴击系统 ----
-const CRIT_BASE_CHANCE : float = 0.05
-const CRIT_PER_DEXTERITY : float = 0.005
-const CRIT_CHANCE_BY_QUALITY : Dictionary = {
-	"common": 0.0,
-	"rare": 0.03,
-	"epic": 0.05,
-	"legendary": 0.08,
-}
-const CRIT_DAMAGE_MULT : float = 1.5
-
-# ============================================================
-#  词条等级参数
-# ============================================================
-const DOUBLE_ATTACK_MULT : Array = [0.8, 0.9, 1.0]
-const BLEED_DAMAGE_PERCENT : Array = [0.15, 0.20, 0.25]
-const BLEED_MAX_STACKS : int = 5
-const SPELL_CHAIN_MULT : Array = [0.8, 0.9, 1.0]
-const COUNTER_BOOST_MULT : Array = [1.5, 1.75, 2.0]
-const HEAL_BOOST_MULT : Array = [1.3, 1.5, 1.7]
-const LIFESTEAL_PERCENT : Array = [0.2, 0.3, 0.4]
-const COMBO_MULT_PER_HIT : Array = [0.15, 0.25, 0.35]
-
-# ---- 连锁词条参数 ----
-const BLOOD_RAGE_HEAL_PERCENT : Array = [0.15, 0.20, 0.25]
-const ZEAL_PER_STACK : Array = [0.10, 0.15, 0.20]
-const ZEAL_MAX_STACKS : int = 5
 
 # ============================================================
 #  表演时长
@@ -48,6 +29,35 @@ const LUNGE_DURATION : float = 0.15       # 前冲时长（缩短）
 const PRE_DAMAGE_DELAY : float = 0.10
 const POST_DAMAGE_DELAY : float = 0.28    # ★ > HIT_OFFSET_DURATION (0.25)，确保受击动画播完
 const EXTRA_HIT_DELAY : float = 0.15
+
+
+func _ready():
+	reload_config()
+
+
+func reload_config():
+	var cfg := GameConfigManager.get_file("combat_config.json")
+
+	QUALITY_MULT = cfg.get("quality_mult", QUALITY_MULT).duplicate()
+	STRENGTH_DEF_FACTOR = float(cfg.get("strength_def_factor", STRENGTH_DEF_FACTOR))
+	CRIT_BASE_CHANCE = float(cfg.get("crit_base_chance", CRIT_BASE_CHANCE))
+	CRIT_PER_DEXTERITY = float(cfg.get("crit_per_dexterity", CRIT_PER_DEXTERITY))
+	CRIT_CHANCE_BY_QUALITY = cfg.get("crit_chance_by_quality", CRIT_CHANCE_BY_QUALITY).duplicate()
+	CRIT_DAMAGE_MULT = float(cfg.get("crit_damage_mult", CRIT_DAMAGE_MULT))
+
+	var tp : Dictionary = cfg.get("talent_params", {})
+	DOUBLE_ATTACK_MULT = tp.get("double_attack_mult", DOUBLE_ATTACK_MULT).duplicate()
+	BLEED_DAMAGE_PERCENT = tp.get("bleed_damage_percent", BLEED_DAMAGE_PERCENT).duplicate()
+	BLEED_MAX_STACKS = int(tp.get("bleed_max_stacks", BLEED_MAX_STACKS))
+	SPELL_CHAIN_MULT = tp.get("spell_chain_mult", SPELL_CHAIN_MULT).duplicate()
+	COUNTER_BOOST_MULT = tp.get("counter_boost_mult", COUNTER_BOOST_MULT).duplicate()
+	HEAL_BOOST_MULT = tp.get("heal_boost_mult", HEAL_BOOST_MULT).duplicate()
+	LIFESTEAL_PERCENT = tp.get("lifesteal_percent", LIFESTEAL_PERCENT).duplicate()
+	COMBO_MULT_PER_HIT = tp.get("combo_mult_per_hit", COMBO_MULT_PER_HIT).duplicate()
+	BLOOD_RAGE_HEAL_PERCENT = tp.get("blood_rage_heal_percent", BLOOD_RAGE_HEAL_PERCENT).duplicate()
+	ZEAL_PER_STACK = tp.get("zeal_per_stack", ZEAL_PER_STACK).duplicate()
+	ZEAL_MAX_STACKS = int(tp.get("zeal_max_stacks", ZEAL_MAX_STACKS))
+	print("[CombatManager] 已加载")
 
 
 # ============================================================

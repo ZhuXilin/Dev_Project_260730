@@ -1,8 +1,13 @@
 class_name UnitDataManager
 extends RefCounted
 
-## 生命力每点 +1 HP
-const GROWTH_HP_PER_POINT : int = 1
+static var GROWTH_HP_PER_POINT : int = 1
+static var _growth_loaded : bool = false
+
+static func _ensure_growth_config():
+	if _growth_loaded: return
+	_growth_loaded = true
+	GROWTH_HP_PER_POINT = int(GameConfigManager.get_value("progression_config.json", "growth_hp_per_point", 1))
 
 # ---- 武器类别显示名称映射 ----
 static var _weapon_category_display: Dictionary = {
