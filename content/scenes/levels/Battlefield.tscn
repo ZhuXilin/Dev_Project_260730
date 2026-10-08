@@ -44,6 +44,7 @@ script = ExtResource("1_s4k4j")
 [node name="TurnLayer" parent="." unique_id=74635737 instance=ExtResource("24_turnov")]
 
 [node name="VictoryLayer" parent="." unique_id=1958741626 instance=ExtResource("23_victory")]
+visible = true
 
 [node name="HighlightManager" type="Node" parent="." unique_id=1175776744]
 script = ExtResource("4_dhh02")

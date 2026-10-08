@@ -1,32 +1,48 @@
 extends CanvasLayer
 
+@onready var panel = $Panel
 @onready var icon = $Panel/VBox/IconNameHBox/Icon
 @onready var name_label = $Panel/VBox/IconNameHBox/Name
 @onready var desc_label = $Panel/VBox/Description
 @onready var stats_label = $Panel/VBox/Stats
 
+
+func _ready():
+	# 初始隐藏（PanelRevealer 会接管显隐）
+	if panel:
+		panel.visible = false
+
+
+## 供 PanelManager 预热使用
+func get_panel() -> Panel:
+	return panel
+
+
+# ============================================================
+#  显示 / 隐藏
+# ============================================================
 func show_item(item_id: String, _unit: Unit = null):
 	# ---- 先检查是否为遗物 ----
 	var relic_data = RelicManager.get_relic_data(item_id)
 	if not relic_data.is_empty():
 		_show_relic_detail(relic_data)
 		return
-	
+
 	# ---- 非遗物：使用 ItemManager ----
 	var data = ItemManager.get_item_data(item_id)
 	if not data:
-		visible = false
+		hide_popup()
 		return
-	
+
 	if data.icon:
 		icon.texture = data.icon
 		icon.visible = true
 	else:
 		icon.visible = false
-	
+
 	name_label.text = data.name
 	desc_label.text = data.description if data.description else ""
-	
+
 	var stats_text = ""
 	if data.stats and not data.stats.is_empty():
 		var stat_names = {
@@ -40,12 +56,31 @@ func show_item(item_id: String, _unit: Unit = null):
 			var chinese = stat_names.get(key, key.capitalize())
 			stats_text += chinese + ": " + str(data.stats[key]) + "\n"
 	stats_label.text = stats_text
-	
-	visible = true
+
+	_show_panel_animated()
+
 
 func _show_relic_detail(data: Dictionary):
 	icon.visible = false
 	name_label.text = data.get("name", "")
 	desc_label.text = data.get("description", "")
 	stats_label.text = ""
-	visible = true
+	_show_panel_animated()
+
+
+## ★ 重命名，避免覆盖 Node.hide()
+func hide_popup():
+	if panel == null:
+		return
+	if panel.visible:
+		PanelRevealer.hide_panel(panel)
+
+
+## ★ 只在从"隐藏→显示"时播扫描线
+func _show_panel_animated():
+	if panel == null:
+		return
+	var was_visible : bool = panel.visible
+	panel.visible = true
+	if not was_visible:
+		PanelRevealer.show_panel(panel)

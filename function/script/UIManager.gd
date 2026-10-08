@@ -169,7 +169,6 @@ func _on_equip_item_hover_exited():
 		battlefield.hide_item_detail()
 
 
-# ---- 胜利面板 ----
 func show_victory(label_text: String, button_text: String, callback: Callable):
 	if not victory_label or not victory_button:
 		return
@@ -178,13 +177,21 @@ func show_victory(label_text: String, button_text: String, callback: Callable):
 	if victory_button.pressed.is_connected(_on_victory_button_pressed):
 		victory_button.pressed.disconnect(_on_victory_button_pressed)
 	victory_button.pressed.connect(_on_victory_button_pressed.bind(callback))
-	victory_panel.visible = true
+
+	# ★ 用 PanelRevealer 显示
+	PanelRevealer.show_panel(victory_panel)
+	victory_button.disabled = true   # ★ 动画期间禁用
 	move_btn.disabled = true
 	attack_btn.disabled = true
 	wait_btn.disabled = true
 
+	# 动画结束后启用
+	await get_tree().create_timer(PanelRevealer.DEFAULT_SHOW_DURATION, true, false, true).timeout
+	if is_instance_valid(victory_button):
+		victory_button.disabled = false
+
 func _on_victory_button_pressed(callback: Callable):
-	victory_panel.visible = false
+	PanelRevealer.hide_panel(victory_panel)
 	if callback.is_valid():
 		callback.call()
 

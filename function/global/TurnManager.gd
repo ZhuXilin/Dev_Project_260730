@@ -1,6 +1,10 @@
 extends Node
 
-# ---- 队伍枚举 ----
+# ============================================================
+#  TurnManager — 回合管理
+#  含：_battle_ready 保护（初始化期间不判胜负）
+# ============================================================
+
 enum Team {
 	PLAYER = 0,
 	ENEMY = 1,
@@ -17,7 +21,11 @@ var last_player_unit : Unit = null
 var all_acted : bool = false
 
 var enemy_ai : EnemyAI = null
-var map_functions: Dictionary = {}   # 由 Battlefield 设置
+var map_functions: Dictionary = {}
+
+# ★ 战场就绪标志：初始化期间不判胜负
+var _battle_ready : bool = false
+
 
 func _ready():
 	UnitManager.unit_removed.connect(_on_unit_removed)
@@ -26,10 +34,29 @@ func _ready():
 	enemy_ai.initialize(self)
 	enemy_ai.ai_queue_finished.connect(_on_ai_queue_finished)
 
+
+# ============================================================
+#  战场就绪控制
+# ============================================================
+func set_battle_ready(value : bool):
+	_battle_ready = value
+	print("[TurnManager] set_battle_ready(", value, ")")
+
+
+# ============================================================
+#  单位移除 → 判胜负
+# ============================================================
 func _on_unit_removed(_unit: Unit, _team: int):
+	if not _battle_ready:
+		return
+	if is_game_over:
+		return
 	check_victory()
 
+
 func check_victory():
+	if not _battle_ready:
+		return
 	var player_count = 0
 	var enemy_count = 0
 	for u in UnitManager.unit_list:
@@ -38,36 +65,41 @@ func check_victory():
 				player_count += 1
 			else:
 				enemy_count += 1
+
+	# 双方都无单位 = 尚未初始化
+	if player_count == 0 and enemy_count == 0:
+		return
+
 	if player_count == 0:
 		_trigger_victory(1)
 	elif enemy_count == 0:
 		_trigger_victory(0)
 
+
 func _trigger_victory(winning_team: int):
+	if is_game_over:
+		return   # ★ 幂等
 	is_game_over = true
 	SignalBus.request_show_victory.emit(winning_team)
 	SignalBus.request_hide_menu.emit()
 	SignalBus.request_clear_highlight.emit()
 
+
+# ============================================================
+#  移动
+# ============================================================
 func start_movement(unit: Unit, path: Array):
 	if is_game_over or is_moving:
 		return
 	if path.size() == 0:
 		return
 	unit.save_previous_position()
-	# ★ 按地形代价扣，而非格数
-	var move_cost : int = 0
-	var ignore_cost : bool = unit.unit_stats.ignore_terrain_cost
-	for cell in path:
-		if ignore_cost:
-			move_cost += 1
-		else:
-			var tt : int = TerrainManager.get_terrain(cell)
-			move_cost += TerrainManager.TERRAIN_DATA[tt]["move_cost"]
+	var move_cost = path.size()
 	unit.consume_move(move_cost)
 	unit.moves_since_act += 1
 	SignalBus.request_move_along_path.emit(unit, path)
 	is_moving = true
+
 
 func start_ai_movement(unit: Unit, path: Array):
 	if is_game_over:
@@ -82,6 +114,7 @@ func start_ai_movement(unit: Unit, path: Array):
 	SignalBus.request_ai_move_along_path.emit(unit, path)
 	is_ai_moving = true
 
+
 func on_movement_finished(unit: Unit):
 	is_moving = false
 	unit.has_moved = true
@@ -90,6 +123,7 @@ func on_movement_finished(unit: Unit):
 	InputManager.interaction_phase = InputManager.Phase.MENU
 	SignalBus.request_show_menu.emit(unit)
 	SignalBus.request_clear_highlight.emit()
+
 
 func on_ai_movement_finished(unit: Unit):
 	is_ai_moving = false
@@ -103,12 +137,21 @@ func on_ai_movement_finished(unit: Unit):
 	await get_tree().create_timer(1.0).timeout
 	move_completed.emit()
 
+
+# ============================================================
+#  回合启动
+# ============================================================
 func start_turn(team: Team):
 	print("TurnManager.start_turn 被调用，team:", team, " is_game_over:", is_game_over, " is_moving:", is_moving)
 	if is_game_over or is_moving:
 		print("跳过 start_turn")
 		return
-	
+
+	# ★ 第一次 start_turn 时标记战场就绪（此时单位已注册完，UI 已稳定）
+	if not _battle_ready:
+		_battle_ready = true
+		print("[TurnManager] 战场就绪")
+
 	if Globals.is_non_combat_mode and team == Team.ENEMY:
 		print("非战斗模式：跳过敌方回合，立即回到玩家回合")
 		start_turn(Team.PLAYER)
@@ -145,11 +188,16 @@ func start_turn(team: Team):
 
 	SignalBus.turn_changed.emit(team)
 
+
 func _refresh_all_unit_colors():
 	for unit in UnitManager.unit_list:
 		if unit.hit_points > 0 and unit.animated_sprite:
 			unit.animated_sprite.queue_redraw()
 
+
+# ============================================================
+#  敌方 AI
+# ============================================================
 func run_enemy_ai():
 	print("TurnManager.run_enemy_ai 被调用")
 	if is_game_over or is_moving:
@@ -161,10 +209,15 @@ func run_enemy_ai():
 	else:
 		print("enemy_ai 为 null")
 
+
 func _on_ai_queue_finished():
 	await get_tree().create_timer(1.5).timeout
 	start_turn(Team.PLAYER)
 
+
+# ============================================================
+#  单位行动结束
+# ============================================================
 func finish_unit_action(unit: Unit):
 	if is_game_over or is_moving:
 		return
@@ -178,6 +231,7 @@ func finish_unit_action(unit: Unit):
 	InputManager.interaction_phase = InputManager.Phase.IDLE
 	InputManager.current_highlight_cells = {}
 	check_all_acted()
+
 
 func cancel_movement(unit: Unit):
 	if is_game_over:
@@ -194,7 +248,13 @@ func cancel_movement(unit: Unit):
 	InputManager.selected_unit = null
 	InputManager.interaction_phase = InputManager.Phase.IDLE
 
+
+# ============================================================
+#  全场行动检查
+# ============================================================
 func check_all_acted():
+	if not _battle_ready:
+		return
 	var all_acted_local = true
 	for unit in UnitManager.unit_list:
 		if unit.unit_stats.team_id == current_turn_team and unit.hit_points > 0:
@@ -205,12 +265,17 @@ func check_all_acted():
 	if all_acted_local and current_turn_team == Team.PLAYER:
 		auto_end_turn()
 
+
 func auto_end_turn():
 	if is_game_over or is_moving:
 		return
 	if current_turn_team == Team.PLAYER:
 		start_turn(Team.ENEMY)
 
+
+# ============================================================
+#  AI 状态清理
+# ============================================================
 func clear_ai_state():
 	if enemy_ai:
 		enemy_ai.clear_state()
@@ -218,8 +283,15 @@ func clear_ai_state():
 	is_moving = false
 	print("TurnManager AI 状态已清理")
 
+
+# ============================================================
+#  查询
+# ============================================================
 func get_last_player_unit() -> Unit:
 	return last_player_unit
 
+
 func get_first_enemy_unit() -> Unit:
-	return enemy_ai.first_ai_unit if enemy_ai else null
+	if enemy_ai:
+		return enemy_ai.first_ai_unit
+	return null

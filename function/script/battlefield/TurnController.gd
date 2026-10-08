@@ -44,7 +44,7 @@ func handle_turn_change_async(team: int) -> void:
 	if is_instance_valid(_bf.menu_blocker):
 		_bf.menu_blocker.visible = false
 	if is_instance_valid(_bf.info_panel):
-		_bf.info_panel.visible = false
+		PanelRevealer.hide_panel(_bf.info_panel)
 	if is_instance_valid(_bf.setting_panel):
 		PanelRevealer.hide_panel(_bf.setting_panel)
 	if is_instance_valid(_bf.team_view_panel):

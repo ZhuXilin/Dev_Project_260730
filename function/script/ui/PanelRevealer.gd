@@ -21,18 +21,59 @@ var _target : Control = null
 # ============================================================
 #  静态入口
 # ============================================================
-static func show_panel(panel: Control, duration: float = -1.0) -> void:
+static func show_panel(panel: Control, duration: float = -1.0,
+		bg_color: Color = Color(0.11, 0.11, 0.11)) -> void:
 	if panel == null: return
 	if duration < 0.0:
 		duration = DEFAULT_SHOW_DURATION
-	_get_or_create(panel)._play(0.0, 1.0, duration, false)
+	_get_or_create(panel)._play(duration, false, bg_color)
 
 
-static func hide_panel(panel: Control, duration: float = -1.0) -> void:
+static func hide_panel(panel: Control, duration: float = -1.0,
+		bg_color: Color = Color(0.11, 0.11, 0.11)) -> void:
 	if panel == null: return
 	if duration < 0.0:
 		duration = DEFAULT_HIDE_DURATION
-	_get_or_create(panel)._play(1.0, 0.0, duration, true)
+	_get_or_create(panel)._play(duration, true, bg_color)
+
+
+func _play(duration: float, hide_after: bool, bg_color: Color):
+	if _mat == null or _target == null or _mask == null:
+		return
+
+	if hide_after:
+		_target.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	else:
+		_target.visible = true
+		_target.mouse_filter = Control.MOUSE_FILTER_STOP
+
+	_mask.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+
+	var bounds := _compute_uv_bounds()
+	_mat.set_shader_parameter("uv_y_top", bounds.x)
+	_mat.set_shader_parameter("uv_y_bottom", bounds.y)
+
+	# ★ 设置 mask 颜色
+	_mat.set_shader_parameter("bg_color", bg_color)
+
+	_mask.visible = true
+	_kill_tween()
+
+	_mat.set_shader_parameter("mode", 1 if hide_after else 0)
+	_mat.set_shader_parameter("progress", 0.0)
+
+	_tween = create_tween()
+	_tween.set_ignore_time_scale(true)
+	_tween.tween_method(
+		func(v): if is_instance_valid(_mat): _mat.set_shader_parameter("progress", v),
+		0.0, 1.0, duration
+	)
+	_tween.tween_callback(func():
+		if is_instance_valid(_mask):
+			_mask.visible = false
+		if hide_after and is_instance_valid(_target):
+			_target.visible = false
+	)
 
 
 static func force_hide(panel: Control) -> void:
@@ -105,44 +146,7 @@ func _compute_uv_bounds() -> Vector2:
 	var uv_top : float = (0.0 - mask_y) / mask_h
 	var uv_bottom : float = (vp_h - mask_y) / mask_h
 	return Vector2(uv_top, uv_bottom)
-
-
-func _play(from_v: float, to_v: float, duration: float, hide_after: bool):
-	if _mat == null or _target == null or _mask == null:
-		return
-
-	if hide_after:
-		_target.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	else:
-		_target.visible = true
-		_target.mouse_filter = Control.MOUSE_FILTER_STOP
-
-	# ★ 每次播放前刷新 mask 尺寸（PanelContainer 可能刚改过 size）
-	_mask.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-
-	# 计算屏幕映射（让扫描线跨越屏幕高）
-	var bounds := _compute_uv_bounds()
-	_mat.set_shader_parameter("uv_y_top", bounds.x)
-	_mat.set_shader_parameter("uv_y_bottom", bounds.y)
-
-	_mask.visible = true
-
-	_kill_tween()
-	_mat.set_shader_parameter("progress", from_v)
-
-	_tween = create_tween()
-	_tween.set_ignore_time_scale(true)
-	_tween.tween_method(
-		func(v): if is_instance_valid(_mat): _mat.set_shader_parameter("progress", v),
-		from_v, to_v, duration
-	)
-	_tween.tween_callback(func():
-		if is_instance_valid(_mask):
-			_mask.visible = false
-		if hide_after and is_instance_valid(_target):
-			_target.visible = false
-	)
-
+	
 
 func _force_hide():
 	_kill_tween()

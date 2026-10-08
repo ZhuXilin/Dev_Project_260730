@@ -84,6 +84,14 @@ var _is_reward_ui_active: bool = false
 
 
 func _ready():
+	# ★ 战场初始化开始，禁止判胜负
+	TurnManager.set_battle_ready(false)
+
+	# ★ 强制隐藏 VictoryPanel（防场景默认可见）
+	if victory_panel:
+		victory_panel.visible = false
+		PanelRevealer.force_hide(victory_panel)
+
 	_victory_processed = false
 	_is_reward_ui_active = false
 
@@ -322,6 +330,9 @@ func _ready():
 	if item_list_panel:
 		PanelRevealer.show_panel(item_list_panel, 0.0)
 		PanelRevealer.force_hide(item_list_panel)
+	if victory_panel:
+		PanelRevealer.show_panel(victory_panel, 0.0)
+		PanelRevealer.force_hide(victory_panel)
 	print("Battlefield _ready 完成")
 
 

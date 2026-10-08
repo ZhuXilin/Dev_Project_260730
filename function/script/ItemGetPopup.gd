@@ -19,7 +19,7 @@ func show_item(item_id: String, count: int):
 	icon.texture = data.icon
 	name_label.text = data.name
 	count_label.text = "x" + str(count)
-	panel.visible = true
+	PanelRevealer.show_panel(panel)
 	_auto_close()
 
 func show_unit_unlock(units: Array):
@@ -27,7 +27,7 @@ func show_unit_unlock(units: Array):
 	icon.visible = false
 	count_label.visible = false
 	name_label.text = "解锁单位：\n" + ", ".join(units)
-	panel.visible = true
+	PanelRevealer.show_panel(panel)
 	_auto_close()
 
 ## 通用文本弹窗（无图标）
@@ -36,7 +36,7 @@ func show_text(text: String):
 	icon.visible = false
 	count_label.visible = false
 	name_label.text = text
-	panel.visible = true
+	PanelRevealer.show_panel(panel)
 	_auto_close()
 
 func show_relic(relic_id: String, _count: int = 1):
@@ -48,7 +48,7 @@ func show_relic(relic_id: String, _count: int = 1):
 	icon.visible = false
 	count_label.visible = false
 	name_label.text = data.get("name", relic_id)
-	panel.visible = true
+	PanelRevealer.show_panel(panel)
 	_auto_close()
 
 func show_refine(refine_id: String, _count: int = 1):
@@ -60,7 +60,7 @@ func show_refine(refine_id: String, _count: int = 1):
 	icon.visible = false
 	count_label.visible = false
 	name_label.text = recipe.get("name", refine_id)
-	panel.visible = true
+	PanelRevealer.show_panel(panel)
 	_auto_close()
 
 func _setup_popup():

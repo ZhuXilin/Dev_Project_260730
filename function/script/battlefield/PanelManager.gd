@@ -14,8 +14,16 @@ func init() -> void:
 	_detail_popup = load(Config.PATHS.ITEM_DETAIL_POPUP).instantiate()
 	_bf.add_child(_detail_popup)
 	_detail_popup.visible = false
+	# ★ 预热 PanelRevealer，避免首次悬停时初始化
+	if _detail_popup.has_method("get_panel"):
+		var p = _detail_popup.get_panel()
+		if p:
+			PanelRevealer.force_hide(p)
 
 
+# ============================================================
+#  队伍查看
+# ============================================================
 func refresh_team_view() -> void:
 	for child in _bf.team_view_container.get_children():
 		child.queue_free()
@@ -144,6 +152,9 @@ func on_team_member_selected(unit) -> void:
 	InputManager.current_move_attack_targets = {}
 
 
+# ============================================================
+#  道具列表
+# ============================================================
 func refresh_item_list() -> void:
 	_bf.item_list_panel.size = Vector2(120, 20)
 	for child in _bf.item_list_container.get_children():
@@ -272,6 +283,9 @@ func find_unit_by_name(display_name: String):
 	return null
 
 
+# ============================================================
+#  遗物列表
+# ============================================================
 func refresh_relic_list() -> void:
 	for child in _bf.item_list_container.get_children():
 		child.queue_free()
@@ -421,7 +435,6 @@ func update_relic_icons() -> void:
 			# ★ 复活药在地图界面用，战斗中不显示
 			if refine_id == "revive_potion":
 				continue
-
 			var recipe : Dictionary = RefineManager.get_recipe(refine_id)
 			if recipe.is_empty():
 				continue
@@ -489,7 +502,7 @@ func show_item_detail(item_id: String) -> void:
 
 func hide_item_detail() -> void:
 	if _detail_popup:
-		_detail_popup.visible = false
+		_detail_popup.hide_popup()
 
 
 # ============================================================
