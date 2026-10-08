@@ -69,7 +69,7 @@ func handle_click(clicked_cell: Vector2i):
 						interaction_phase = Phase.IDLE
 						SignalBus.request_clear_highlight.emit()
 				else:
-					# ---- 敌方单位预览（威胁版，统一）----
+					# ---- 敌方单位预览（威胁版）----
 					selected_unit = clicked_unit
 					interaction_phase = Phase.IDLE
 
@@ -84,7 +84,6 @@ func handle_click(clicked_cell: Vector2i):
 					var min_range = weapon_data.min_attack_range if weapon_data else 0
 					var is_healer = (selected_unit.get_weapon_type() == "staff")
 
-					# ★ 威胁范围：从所有可达位置出发，射程覆盖的格子
 					var threat_dict : Dictionary = {}
 					if max_range > 0:
 						for move_cell in reachable.keys():
@@ -100,12 +99,17 @@ func handle_click(clicked_cell: Vector2i):
 										continue
 									if reachable.has(cell):
 										continue
+
+									# ★ 新增：跳过"不该打的单位格"
+									var occupant = UnitManager.get_unit_at_cell(cell)
+									if occupant != null and not UnitManager.is_attack_target_of(selected_unit, occupant):
+										continue
+
 									threat_dict[cell] = true
 
 					current_highlight_cells = reachable
 					current_move_attack_targets = threat_dict
 
-					# ★ 颜色：治疗者蓝，其余红
 					var attack_color = MapConst.HIGHLIGHT_HEAL if is_healer else MapConst.HIGHLIGHT_ATTACK
 					SignalBus.request_show_enemy_preview.emit(reachable, threat_dict, attack_color)
 					SoundManager.play_select_sound()

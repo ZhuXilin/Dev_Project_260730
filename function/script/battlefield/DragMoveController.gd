@@ -151,6 +151,7 @@ func _on_left_release() -> bool:
 			if _is_target_in_range(hovered_any) and _is_valid_target(hovered_any):
 				_execute_attack_or_heal(hovered_any)
 			else:
+				SoundManager.play_cancel_sound()
 				_cancel()
 			_reset_state()
 			return true
@@ -318,8 +319,6 @@ func _do_combat_async(attacker : Unit, defender : Unit):
 # ============================================================
 #  攻击范围显示
 # ============================================================
-## from_self=true：从单位当前位置出发
-## from_self=false：从 unit_cell 出发（威胁范围）
 func _update_attack_preview(unit_cell : Vector2i, from_self : bool = false):
 	var unit = _pressing_unit
 	if unit == null: return
@@ -345,6 +344,12 @@ func _update_attack_preview(unit_cell : Vector2i, from_self : bool = false):
 				continue
 			if c == origin_cell:
 				continue
+
+			# ★ 新增：跳过"不该打的单位格"
+			var occupant = UnitManager.get_unit_at_cell(c)
+			if occupant != null and not UnitManager.is_attack_target_of(unit, occupant):
+				continue
+
 			attack_cells[c] = true
 
 	_redraw_highlights(attack_cells)

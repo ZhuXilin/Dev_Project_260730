@@ -152,3 +152,17 @@ func clear_all_units():
 			unit.queue_free()
 	unit_list.clear()
 	print("所有单位已清除，剩余单位数：", unit_list.size())
+
+## 判断 occupant 是否是 attacker 的有效攻击/治疗目标
+## 仅看敌我关系，不看射程。治疗者目标是友军，攻击者目标是敌军
+func is_attack_target_of(attacker : Unit, occupant : Unit) -> bool:
+	if attacker == null or occupant == null:
+		return false
+	if attacker == occupant:
+		return false
+	var is_healer = (attacker.get_weapon_type() == "staff")
+	var same_team = (occupant.unit_stats.team_id == attacker.unit_stats.team_id)
+	if is_healer:
+		return same_team
+	else:
+		return not same_team
