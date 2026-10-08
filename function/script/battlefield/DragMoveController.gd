@@ -242,7 +242,7 @@ func _reset_state():
 # ============================================================
 #  攻击范围动态预览
 # ============================================================
-func _update_attack_preview(unit_cell: Vector2i):
+func _update_attack_preview(unit_cell : Vector2i):
 	var unit = _pressing_unit
 	var weapon = unit.get_weapon_data()
 	if not weapon:
@@ -251,7 +251,6 @@ func _update_attack_preview(unit_cell: Vector2i):
 
 	var max_range : int = weapon.attack_range
 	var min_range : int = weapon.min_attack_range
-	var is_healer : bool = (unit.get_weapon_type() == "staff")
 
 	var attack_cells : Dictionary = {}
 	for x in range(-max_range, max_range + 1):
@@ -264,12 +263,11 @@ func _update_attack_preview(unit_cell: Vector2i):
 				continue
 			if c.y < 0 or c.y >= TerrainManager.grid_size.y:
 				continue
-			if is_healer:
-				var t = UnitManager.get_unit_at_cell(c)
-				if t and t.unit_stats.team_id == unit.unit_stats.team_id and t != unit:
-					attack_cells[c] = true
-			else:
-				attack_cells[c] = true
+			# 排除自身格
+			if c == unit_cell:
+				continue
+			# ★ 不再排除 _reachable，让攻击范围覆盖移动范围
+			attack_cells[c] = true
 
 	_redraw_highlights(attack_cells)
 

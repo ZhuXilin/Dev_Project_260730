@@ -69,61 +69,45 @@ func handle_click(clicked_cell: Vector2i):
 						interaction_phase = Phase.IDLE
 						SignalBus.request_clear_highlight.emit()
 				else:
-					# 敌方预览
+					# ---- 敌方单位预览（威胁版，统一）----
 					selected_unit = clicked_unit
 					interaction_phase = Phase.IDLE
+
 					var reachable = UnitManager.get_reachable_cells(
 						selected_unit.grid_cell,
 						selected_unit.unit_stats.move_range,
 						selected_unit
 					)
+
 					var weapon_data = selected_unit.get_weapon_data()
 					var max_range = weapon_data.attack_range if weapon_data else 0
 					var min_range = weapon_data.min_attack_range if weapon_data else 0
 					var is_healer = (selected_unit.get_weapon_type() == "staff")
-					var attack_preview = {}
 
-					for move_cell in reachable.keys():
-						for x in range(-max_range, max_range + 1):
-							for y in range(-max_range, max_range + 1):
-								var dist = abs(x) + abs(y)
-								if dist < min_range or dist > max_range:
-									continue
-								var cell = move_cell + Vector2i(x, y)
-								if cell.x < 0 or cell.x >= TerrainManager.grid_size.x or cell.y < 0 or cell.y >= TerrainManager.grid_size.y:
-									continue
-								if is_healer:
-									var target = UnitManager.get_unit_at_cell(cell)
-									if target and target.unit_stats.team_id == 1 and target.hit_points > 0 and target != selected_unit:
-										attack_preview[cell] = true
-								else:
-									var target = UnitManager.get_unit_at_cell(cell)
-									if target and target.unit_stats.team_id == 0 and target.hit_points > 0:
-										attack_preview[cell] = true
+					# ★ 威胁范围：从所有可达位置出发，射程覆盖的格子
+					var threat_dict : Dictionary = {}
+					if max_range > 0:
+						for move_cell in reachable.keys():
+							for x in range(-max_range, max_range + 1):
+								for y in range(-max_range, max_range + 1):
+									var dist = abs(x) + abs(y)
+									if dist < min_range or dist > max_range:
+										continue
+									var cell = move_cell + Vector2i(x, y)
+									if cell.x < 0 or cell.x >= TerrainManager.grid_size.x:
+										continue
+									if cell.y < 0 or cell.y >= TerrainManager.grid_size.y:
+										continue
+									if reachable.has(cell):
+										continue
+									threat_dict[cell] = true
 
 					current_highlight_cells = reachable
-					current_move_attack_targets = attack_preview
-					var attack_color = MapConst.HIGHLIGHT_ENEMY_HEAL if is_healer else MapConst.HIGHLIGHT_ATTACK
-					SignalBus.request_show_enemy_preview.emit(reachable, attack_preview, attack_color)
-					SoundManager.play_select_sound()
-			else:
-				# 空地
-				if selected_unit == null:
-					SignalBus.request_show_info.emit(null)
-					SignalBus.request_show_setting.emit()
-					SoundManager.play_select_sound()
-					interaction_phase = Phase.SETTING
-					SignalBus.request_clear_highlight.emit()
-					current_empty_cell = clicked_cell
-				else:
-					if interaction_phase == Phase.MENU:
-						SignalBus.request_hide_menu.emit()
-						interaction_phase = Phase.IDLE
-					SignalBus.request_show_info.emit(null)
-					SignalBus.request_clear_highlight.emit()
-					current_highlight_cells = {}
-					current_move_attack_targets = {}
-					current_empty_cell = clicked_cell
+					current_move_attack_targets = threat_dict
+
+					# ★ 颜色：治疗者蓝，其余红
+					var attack_color = MapConst.HIGHLIGHT_HEAL if is_healer else MapConst.HIGHLIGHT_ATTACK
+					SignalBus.request_show_enemy_preview.emit(reachable, threat_dict, attack_color)
 					SoundManager.play_select_sound()
 
 		Phase.MENU:
