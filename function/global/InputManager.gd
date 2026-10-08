@@ -131,29 +131,6 @@ func handle_click(clicked_cell: Vector2i):
 			else:
 				SoundManager.play_invalid_sound()
 
-		Phase.ATTACKING:
-			if pending_attack_cells.has(clicked_cell):
-				var target_unit = UnitManager.get_unit_at_cell(clicked_cell)
-				if target_unit and selected_unit:
-					var is_healer = (selected_unit.get_weapon_type() == "staff")
-					var is_valid_target = false
-					if is_healer:
-						if target_unit.unit_stats.team_id == selected_unit.unit_stats.team_id:
-							is_valid_target = true
-					else:
-						if target_unit.unit_stats.team_id != selected_unit.unit_stats.team_id:
-							is_valid_target = true
-					if is_valid_target:
-						SignalBus.request_clear_highlight.emit()
-						pending_attack_cells = {}
-						current_highlight_cells = {}
-						await CombatManager.execute_attack(selected_unit, target_unit)
-						_clear_attack_state()
-						return
-				SoundManager.play_invalid_sound()
-			else:
-				SoundManager.play_invalid_sound()
-
 		Phase.SETTING:
 			return
 
@@ -213,25 +190,6 @@ func _handle_right_click():
 				selected_unit = null
 				interaction_phase = Phase.IDLE
 				current_empty_cell = Vector2i(-1, -1)
-
-		Phase.ATTACKING:
-			if selected_unit == null or not is_instance_valid(selected_unit):
-				SignalBus.request_clear_highlight.emit()
-				current_highlight_cells = {}
-				pending_attack_cells = {}
-				interaction_phase = Phase.IDLE
-				current_empty_cell = Vector2i(-1, -1)
-				return
-			print("右键：取消攻击/治疗选择")
-			Globals.suppress_sound = true
-			SoundManager.play_cancel_sound()
-			SignalBus.request_clear_highlight.emit()
-			current_highlight_cells = {}
-			pending_attack_cells = {}
-			SignalBus.request_show_info.emit(selected_unit)
-			interaction_phase = Phase.MENU
-			SignalBus.request_show_menu.emit(selected_unit)
-			current_empty_cell = Vector2i(-1, -1)
 
 		Phase.MOVING:
 			if selected_unit == null or not is_instance_valid(selected_unit):
@@ -344,80 +302,10 @@ func handle_wheel(delta: int):
 		camera.force_position(new_unit.global_position)
 
 
-# ============================================================
-#  攻击辅助
-# ============================================================
-func _start_attack_target_selection(unit: Unit):
-	print("=== 进入 _start_attack_target_selection ===")
-
-	var weapon_id = unit.get_equipped_weapon_id()
-	print("单位: ", unit.unit_stats.unit_name, " 武器ID: ", weapon_id)
-
-	if weapon_id == "":
-		print("错误：单位没有装备武器")
-		return
-
-	var data = ItemManager.get_item_data(weapon_id)
-	if not data or data.type != "weapon":
-		print("错误：武器数据不存在或类型错误")
-		return
-
-	print("武器名称: ", data.name)
-	print("攻击范围: ", data.min_attack_range, " ~ ", data.attack_range)
-	var max_range = data.attack_range
-	var min_range = data.min_attack_range
-
-	var range_bonus : int = CombatManager.get_active_skill_range_bonus(unit)
-	if range_bonus > 0:
-		max_range += range_bonus
-		print("[主动技能] 射程 +%d → %d" % [range_bonus, max_range])
-
-	if max_range == 0 and min_range == 0:
-		print("警告：武器射程为0，无法攻击")
-		return
-
-	var attack_range_dict = {}
-	for x in range(-max_range, max_range+1):
-		for y in range(-max_range, max_range+1):
-			var dist = abs(x) + abs(y)
-			if dist < min_range or dist > max_range:
-				continue
-			var cell = unit.grid_cell + Vector2i(x, y)
-			if cell.x < 0 or cell.x >= TerrainManager.grid_size.x or cell.y < 0 or cell.y >= TerrainManager.grid_size.y:
-				continue
-			attack_range_dict[cell] = true
-
-	if attack_range_dict.is_empty():
-		print("警告：攻击范围为空，无法攻击")
-		return
-
-	pending_attack_cells = attack_range_dict
-	current_highlight_cells = attack_range_dict
-	interaction_phase = Phase.ATTACKING
-
-	var battlefield = get_node("/root/Battlefield")
-	if battlefield and battlefield.has_method("_show_attack_highlight"):
-		battlefield._show_attack_highlight(attack_range_dict, unit)
-	else:
-		print("无法获取 Battlefield 或方法不存在")
-
-	SignalBus.request_hide_info.emit()
-	SignalBus.request_hide_menu.emit()
-	print("攻击范围格子数: ", attack_range_dict.size())
-
-
 func _clear_attack_state():
 	SignalBus.request_clear_highlight.emit()
 	pending_attack_cells = {}
 	current_highlight_cells = {}
-
-
-func on_attack_button_pressed():
-	if selected_unit == null or interaction_phase != Phase.MENU:
-		return
-	if selected_unit.has_attacked or not selected_unit.can_act_this_turn or selected_unit.has_acted:
-		return
-	_start_attack_target_selection(selected_unit)
 
 
 func on_wait_button_pressed():

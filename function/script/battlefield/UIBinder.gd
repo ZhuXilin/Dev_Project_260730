@@ -24,7 +24,6 @@ func _initialize_managers() -> void:
 	_bf.ui_manager.initialize({
 		"action_menu": _bf.action_menu,
 		"action_panel": _bf.get_node("ActionMenu/ActionPanel"),
-		"attack_btn": _bf.attack_btn,
 		"wait_btn": _bf.wait_btn,
 		"equip_btn": _bf.equip_btn,
 		"equip_menu": _bf.get_node("ActionMenu/EquipMenu"),
@@ -38,7 +37,6 @@ func _initialize_managers() -> void:
 
 
 func _connect_action_buttons() -> void:
-	_safe_connect(_bf.attack_btn.pressed, _bf._on_attack_btn_pressed)
 	_safe_connect(_bf.wait_btn.pressed, _bf._on_wait_btn_pressed)
 
 

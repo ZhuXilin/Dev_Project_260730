@@ -10,7 +10,6 @@ const BOSS_NODE_TYPE = 6
 
 # ---- 节点引用 ----
 @onready var action_menu : CanvasLayer = $ActionMenu
-@onready var attack_btn : Button = $ActionMenu/ActionPanel/ButtonContainer/AttackBtn
 @onready var equip_btn : Button = $ActionMenu/ActionPanel/ButtonContainer/EquipBtn
 @onready var wait_btn : Button = $ActionMenu/ActionPanel/ButtonContainer/WaitBtn
 @onready var victory_panel : Panel = $VictoryLayer/VictoryPanel
@@ -98,7 +97,6 @@ func _ready():
 	# ---- 节点 null 检查 ----
 	var node_list = {
 		"action_menu": action_menu,
-		"attack_btn": attack_btn,
 		"wait_btn": wait_btn,
 		"victory_panel": victory_panel,
 		"turn_overlay": turn_overlay,
@@ -200,8 +198,6 @@ func _ready():
 
 	if action_menu:
 		action_panel.visible = false
-	if attack_btn:
-		attack_btn.disabled = true
 	if wait_btn:
 		wait_btn.disabled = true
 	if info_panel:
@@ -384,8 +380,6 @@ func _exit_tree():
 		cursor.visible = false
 	if _cursor_controller:
 		_cursor_controller.cleanup()
-	if attack_btn and attack_btn.pressed.is_connected(_on_attack_btn_pressed):
-		attack_btn.pressed.disconnect(_on_attack_btn_pressed)
 	if wait_btn and wait_btn.pressed.is_connected(_on_wait_btn_pressed):
 		wait_btn.pressed.disconnect(_on_wait_btn_pressed)
 
@@ -483,10 +477,6 @@ func _on_ai_movement_finished(unit: Unit):
 	TurnManager.on_ai_movement_finished(unit)
 	camera_controller.follow_mouse()
 	SignalBus.request_clear_highlight.emit()
-
-
-func _on_attack_btn_pressed():
-	InputManager.on_attack_button_pressed()
 
 
 func _on_wait_btn_pressed():
@@ -670,15 +660,6 @@ func _on_request_show_menu(unit: Unit):
 			ui_manager.wait_btn.text = "待机"
 
 		ui_manager.wait_btn.disabled = not can_act
-
-	# ---- attack_btn（有武器 + 可行动 + 未攻击）----
-	if is_instance_valid(attack_btn):
-		var has_weapon : bool = (unit.get_weapon_data() != null)
-		var can_attack : bool = can_act \
-				and has_weapon \
-				and not unit.has_attacked \
-				and not unit.has_acted
-		attack_btn.disabled = not can_attack
 
 	_position_action_menu(unit)
 

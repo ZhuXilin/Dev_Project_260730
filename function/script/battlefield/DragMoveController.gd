@@ -10,6 +10,7 @@ const DRAG_THRESHOLD : float = 4.0
 var _bf : Node2D
 var _arrow : MoveArrowRenderer
 
+var _hovered_target : Unit = null
 var _is_pressing : bool = false
 var _is_dragging : bool = false
 var _pressing_unit : Unit = null
@@ -140,9 +141,13 @@ func _on_left_release() -> bool:
 		return false
 
 	if _is_dragging:
+		# ★ 先检查攻击/治疗
+		if _try_attack_or_heal_target():
+			_reset_state()
+			return true
+		# 否则按普通移动处理
 		_execute_move()
 	else:
-		# 纯点击 → 走原有菜单
 		var unit = _pressing_unit
 		_reset_state()
 		if unit and is_instance_valid(unit):
@@ -151,6 +156,46 @@ func _on_left_release() -> bool:
 
 	_reset_state()
 	return true
+
+
+func _try_attack_or_heal_target() -> bool:
+	var unit = _pressing_unit
+	if unit == null or not is_instance_valid(unit):
+		return false
+	if _hovered_target == null or not is_instance_valid(_hovered_target):
+		return false
+
+	var target = _hovered_target
+	var weapon = unit.get_weapon_data()
+	if not weapon:
+		return false
+
+	# 距离判定：从起始格到目标格
+	var dist = abs(unit.grid_cell.x - target.grid_cell.x) \
+			+ abs(unit.grid_cell.y - target.grid_cell.y)
+	if dist < weapon.min_attack_range or dist > weapon.attack_range:
+		return false
+
+	var is_healer = (unit.get_weapon_type() == "staff")
+	var target_is_ally = (target.unit_stats.team_id == unit.unit_stats.team_id)
+
+	if is_healer:
+		if not target_is_ally: return false
+	else:
+		if target_is_ally: return false
+
+	# 有效 → 清高亮 + 异步执行战斗
+	SignalBus.request_clear_highlight.emit()
+	_bf.highlight_manager.clear_highlight()
+	InputManager.interaction_phase = InputManager.Phase.IDLE
+	InputManager.selected_unit = null
+
+	call_deferred("_do_combat_async", unit, target)
+	return true
+
+
+func _do_combat_async(attacker : Unit, defender : Unit):
+	await CombatManager.execute_attack(attacker, defender)
 
 
 # ============================================================
@@ -179,18 +224,28 @@ func _update_drag():
 	var world_pos = _bf.get_global_mouse_position()
 	var cell = _bf.world_to_grid(world_pos)
 
+	# ★ 检测鼠标悬停单位
+	var hovered = UnitManager.get_unit_at_cell(cell)
+	if hovered == _pressing_unit:
+		hovered = null
+	_hovered_target = hovered
+
+	# 鼠标在单位上 → 不走移动路径，只更新攻击范围预览
+	if hovered != null:
+		_current_target_cell = cell
+		_current_path = []
+		_arrow.hide_path()
+		_update_attack_preview(cell)
+		return
+
+	# 鼠标在空格（原逻辑）
 	if not _reachable.has(cell):
 		return
 	if cell == _current_target_cell:
 		return
 
 	_current_target_cell = cell
-
-	# ★ 只在冷却窗口外播，且只播这一次
-	var now := Time.get_ticks_msec() / 1000.0
-	if now - _last_sound_time > 0.05:
-		SoundManager.play_select_sound()
-		_last_sound_time = now
+	SoundManager.play_select_sound()
 
 	if cell == _pressing_unit.grid_cell:
 		_current_path = []
@@ -232,6 +287,7 @@ func _reset_state():
 	_is_pressing = false
 	_is_dragging = false
 	_pressing_unit = null
+	_hovered_target = null
 	_reachable.clear()
 	_current_path.clear()
 	_current_target_cell = Vector2i(-1, -1)
