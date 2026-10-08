@@ -43,6 +43,10 @@ func set_battle_ready(value : bool):
 	print("[TurnManager] set_battle_ready(", value, ")")
 
 
+func is_battle_ready() -> bool:
+	return _battle_ready
+
+
 # ============================================================
 #  单位移除 → 判胜负
 # ============================================================

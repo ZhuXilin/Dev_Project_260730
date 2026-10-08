@@ -315,25 +315,18 @@ func _ready():
 
 	# ★ 预热面板 revealer
 	if action_panel:
-		PanelRevealer.show_panel(action_panel, 0.0)
 		PanelRevealer.force_hide(action_panel)
 	if equip_menu:
-		PanelRevealer.show_panel(equip_menu, 0.0)
 		PanelRevealer.force_hide(equip_menu)
 	if setting_panel:
-		PanelRevealer.show_panel(setting_panel, 0.0)
 		PanelRevealer.force_hide(setting_panel)
 	if setting_menu_panel:
-		PanelRevealer.show_panel(setting_menu_panel, 0.0)
 		PanelRevealer.force_hide(setting_menu_panel)
 	if team_view_panel:
-		PanelRevealer.show_panel(team_view_panel, 0.0)
 		PanelRevealer.force_hide(team_view_panel)
 	if item_list_panel:
-		PanelRevealer.show_panel(item_list_panel, 0.0)
 		PanelRevealer.force_hide(item_list_panel)
 	if victory_panel:
-		PanelRevealer.show_panel(victory_panel, 0.0)
 		PanelRevealer.force_hide(victory_panel)
 	print("Battlefield _ready 完成")
 
@@ -414,7 +407,14 @@ func _exit_tree():
 #  主循环
 # ============================================================
 func _process(_delta):
-	_cursor_controller.update_cursor_and_mouse()
+	# ★ 未就绪时不更新光标（保持隐藏）
+	if TurnManager and not TurnManager.is_battle_ready():
+		if cursor:
+			cursor.visible = false
+		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+		return
+
+	_cursor_controller.update_cursor_and_mouse()	
 
 	var should_pause = (
 		PanelRevealer.is_active(action_panel) or
@@ -437,19 +437,19 @@ func _on_highlight_request(cells: Dictionary):
 	match InputManager.interaction_phase:
 		InputManager.Phase.MOVING:
 			if cells == InputManager.current_highlight_cells:
-				highlight_manager.show_move_highlight(cells, MapConst.HIGHLIGHT_MOVE, 0, true)
+				highlight_manager.show_move_highlight(cells, MapConst.HIGHLIGHT_MOVE)
 			else:
 				var unit = InputManager.selected_unit
 				var preview_color = MapConst.HIGHLIGHT_ATTACK
 				if unit and unit.get_weapon_type() == "staff":
 					preview_color = MapConst.HIGHLIGHT_HEAL
-				highlight_manager.show_move_highlight(cells, preview_color, 1, false)
+				highlight_manager.show_move_highlight(cells, preview_color)
 		InputManager.Phase.ATTACKING:
 			var unit = InputManager.selected_unit
 			var color = MapConst.HIGHLIGHT_ATTACK
 			if unit and unit.get_weapon_type() == "staff":
 				color = MapConst.HIGHLIGHT_HEAL
-			highlight_manager.show_move_highlight(cells, color, 1, true)
+			highlight_manager.show_move_highlight(cells, color)
 		_:
 			highlight_manager.clear_highlight()
 
@@ -546,6 +546,10 @@ func world_to_grid(world_pos: Vector2) -> Vector2i:
 #  输入处理
 # ============================================================
 func _input(event: InputEvent):
+	# ★ 战场未就绪（初始化窗口期）→ 吞掉所有输入
+	if TurnManager and not TurnManager.is_battle_ready():
+		return
+
 	if Globals.is_equip_menu_active:
 		if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT:
 			Globals.suppress_sound = true
@@ -559,7 +563,7 @@ func _input(event: InputEvent):
 	if Globals.is_dialogue_active or Globals.is_item_get_popup_active:
 		return
 
-	# ★ 拖拽移动优先路由
+	# 拖拽移动优先路由
 	if _drag_move_controller and _drag_move_controller.handle_input(event):
 		return
 

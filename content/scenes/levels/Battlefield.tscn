@@ -32,6 +32,7 @@ script = ExtResource("1_s4k4j")
 [node name="HUD" parent="." unique_id=855640280 instance=ExtResource("26_hud")]
 
 [node name="ActionMenu" parent="." unique_id=65243707 instance=ExtResource("27_actionmenu")]
+visible = true
 
 [node name="SettingBar" parent="." unique_id=1938508011 instance=ExtResource("30_settingbar")]
 

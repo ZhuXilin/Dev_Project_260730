@@ -2,43 +2,29 @@ class_name MoveArrowRenderer
 extends Node2D
 
 # ============================================================
-#  MoveArrowRenderer — 拖拽移动的蛇形箭头
-#  样式参考 GBA 火纹：粗线 + 圆角转弯 + 末端三角箭头
+#  MoveArrowRenderer — 拖拽移动的蛇形箭头（无描边）
+#  层级：范围高亮(z=-1) < 箭头(z=1) < 单位(z=1，后加)
 # ============================================================
 
-const ARROW_WIDTH : float = MapConst.CELL_SIZE / 4.0     # 4px
+const ARROW_WIDTH : float = MapConst.CELL_SIZE / 3.0
 const HEAD_LENGTH : float = MapConst.CELL_SIZE / 2.5
-const HEAD_HALF_WIDTH : float = MapConst.CELL_SIZE / 4.0
-const COLOR_FILL : Color = Color(1.0, 0.95, 0.4, 0.9)
-const COLOR_OUTLINE : Color = Color(0.15, 0.1, 0.05, 0.95)
+const HEAD_HALF_WIDTH : float = MapConst.CELL_SIZE / 3.0
+const COLOR_FILL : Color = Color(0.92, 0.92, 0.95, 1.0)
 
 var _line : Line2D = null
 var _head : Polygon2D = null
-var _outline_line : Line2D = null
-var _outline_head : Polygon2D = null
 
 
 func _ready():
-	z_index = 20          # 高于移动范围(0) / 攻击范围(1)
+	# 层级：比范围格(-1)高，和单位同层但先加 → 单位盖箭头
+	z_index = 1
 	z_as_relative = false
-
-	_outline_line = Line2D.new()
-	_outline_line.width = ARROW_WIDTH + 2.0
-	_outline_line.joint_mode = Line2D.LINE_JOINT_ROUND
-	_outline_line.begin_cap_mode = Line2D.LINE_CAP_ROUND
-	_outline_line.end_cap_mode = Line2D.LINE_CAP_ROUND
-	_outline_line.default_color = COLOR_OUTLINE
-	add_child(_outline_line)
-
-	_outline_head = Polygon2D.new()
-	_outline_head.color = COLOR_OUTLINE
-	add_child(_outline_head)
 
 	_line = Line2D.new()
 	_line.width = ARROW_WIDTH
 	_line.joint_mode = Line2D.LINE_JOINT_ROUND
-	_line.begin_cap_mode = Line2D.LINE_CAP_ROUND
-	_line.end_cap_mode = Line2D.LINE_CAP_ROUND
+	_line.begin_cap_mode = Line2D.LINE_CAP_NONE
+	_line.end_cap_mode = Line2D.LINE_CAP_NONE
 	_line.default_color = COLOR_FILL
 	add_child(_line)
 
@@ -49,7 +35,7 @@ func _ready():
 	visible = false
 
 
-func show_path(start_cell: Vector2i, path: Array, grid_to_world: Callable):
+func show_path(start_cell : Vector2i, path : Array, grid_to_world : Callable):
 	if path.size() == 0:
 		hide_path()
 		return
@@ -67,13 +53,10 @@ func hide_path():
 	visible = false
 
 
-func _apply_points(points: PackedVector2Array):
+func _apply_points(points : PackedVector2Array):
 	if points.size() < 2:
 		visible = false
 		return
-
-	_line.points = points
-	_outline_line.points = points
 
 	var p_end : Vector2 = points[points.size() - 1]
 	var p_prev : Vector2 = points[points.size() - 2]
@@ -83,18 +66,17 @@ func _apply_points(points: PackedVector2Array):
 	dir = dir.normalized()
 	var perp : Vector2 = Vector2(-dir.y, dir.x)
 
-	var tip : Vector2 = p_end + dir * (HEAD_LENGTH * 0.4)
-	var base_c : Vector2 = p_end - dir * (HEAD_LENGTH * 0.6)
+	# 箭头三角
+	var tip : Vector2 = p_end + dir * (HEAD_LENGTH * 0.5)
+	var base_c : Vector2 = p_end - dir * (HEAD_LENGTH * 0.5)
 	var left : Vector2 = base_c + perp * HEAD_HALF_WIDTH
 	var right : Vector2 = base_c - perp * HEAD_HALF_WIDTH
 	_head.polygon = PackedVector2Array([tip, left, right])
 
-	# 描边（1.25x）
-	var s : float = 1.25
-	var o_tip : Vector2 = p_end + dir * (HEAD_LENGTH * 0.4 * s)
-	var o_base : Vector2 = p_end - dir * (HEAD_LENGTH * 0.6 * s)
-	_outline_head.polygon = PackedVector2Array([
-		o_tip,
-		o_base + perp * HEAD_HALF_WIDTH * s,
-		o_base - perp * HEAD_HALF_WIDTH * s,
-	])
+	# 主线段：只画到箭头根部，避免与三角重叠
+	var line_pts : PackedVector2Array = PackedVector2Array()
+	for i in range(points.size() - 1):
+		line_pts.append(points[i])
+	line_pts.append(base_c)
+
+	_line.points = line_pts

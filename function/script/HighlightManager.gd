@@ -3,7 +3,7 @@ class_name HighlightManager
 
 var highlight_container : Node2D
 
-func initialize(container: Node2D):
+func initialize(container : Node2D):
 	highlight_container = container
 
 func clear_highlight():
@@ -29,13 +29,15 @@ func _add_highlight_cells(cells: Dictionary, color: Color, z_index: int):
 		highlight_container.add_child(rect)
 
 # ---- 己方高亮（移动范围 / 攻击范围） ----
-func show_move_highlight(reachable_dict: Dictionary, color: Color = Color(0, 1, 0, 0.4), z_index: int = 0, clear: bool = true):
+## ★ 默认 z = -1（在箭头和单位之下）
+func show_move_highlight(reachable_dict: Dictionary, color: Color = Color(0, 1, 0, 0.4), z_index: int = -1, clear: bool = true):
 	if clear:
 		clear_highlight()
 	_add_highlight_cells(reachable_dict, color, z_index)
 
 # ---- 敌方预览（移动范围 + 攻击范围） ----
+## ★ 两层都用 z = -1
 func show_enemy_preview(move_cells: Dictionary, attack_cells: Dictionary, attack_color: Color = Color(0.7, 0.1, 0.2, 0.7)):
 	clear_highlight()
-	_add_highlight_cells(move_cells, Color(1, 1, 1, 0.3), 0)
-	_add_highlight_cells(attack_cells, attack_color, 1)
+	_add_highlight_cells(move_cells, Color(1, 1, 1, 0.3), -1)
+	_add_highlight_cells(attack_cells, attack_color, -1)

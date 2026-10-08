@@ -34,7 +34,11 @@ const DEBUG_PRINT_UNIT_INFO : bool = false
 #  点击处理
 # ============================================================
 func handle_click(clicked_cell: Vector2i):
+	if not TurnManager.is_battle_ready():
+		return
 	if TurnManager.is_game_over or TurnManager.is_moving:
+		return
+	if Globals.is_transitioning or Globals.is_fading:
 		return
 	if TurnManager.current_turn_team != TurnManager.Team.PLAYER:
 		print("敌人回合，禁止操作")
@@ -177,6 +181,8 @@ func handle_click(clicked_cell: Vector2i):
 #  右键处理
 # ============================================================
 func _handle_right_click():
+	if not TurnManager.is_battle_ready():
+		return
 	match interaction_phase:
 		Phase.MENU:
 			if selected_unit == null or not is_instance_valid(selected_unit):
@@ -213,6 +219,7 @@ func _handle_right_click():
 				selected_unit = null
 				interaction_phase = Phase.IDLE
 				current_empty_cell = Vector2i(-1, -1)
+				Globals.suppress_sound = false
 			else:
 				print("右键：取消菜单")
 				SignalBus.request_hide_menu.emit()
@@ -280,6 +287,8 @@ func _handle_right_click():
 #  鼠标滚轮切换单位
 # ============================================================
 func handle_wheel(delta: int):
+	if not TurnManager.is_battle_ready():
+		return
 	if Globals.is_transitioning or Globals.is_fading:
 		return
 	if TurnManager.current_turn_team != TurnManager.Team.PLAYER:

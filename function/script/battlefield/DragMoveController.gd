@@ -17,6 +17,7 @@ var _press_start_screen : Vector2 = Vector2.ZERO
 var _current_target_cell : Vector2i = Vector2i(-1, -1)
 var _reachable : Dictionary = {}
 var _current_path : Array = []
+var _last_sound_time : float = 0.0
 
 
 func _init(bf: Node2D):
@@ -174,7 +175,6 @@ func _start_drag():
 	_current_path = []
 	_arrow.hide_path()
 
-
 func _update_drag():
 	var world_pos = _bf.get_global_mouse_position()
 	var cell = _bf.world_to_grid(world_pos)
@@ -185,6 +185,12 @@ func _update_drag():
 		return
 
 	_current_target_cell = cell
+
+	# ★ 只在冷却窗口外播，且只播这一次
+	var now := Time.get_ticks_msec() / 1000.0
+	if now - _last_sound_time > 0.05:
+		SoundManager.play_select_sound()
+		_last_sound_time = now
 
 	if cell == _pressing_unit.grid_cell:
 		_current_path = []

@@ -3,7 +3,6 @@
 [ext_resource type="StyleBox" uid="uid://6qbsaxkfwg3o" path="res://content/resource/stylebox/8bit_style_box_flat.tres" id="1_style"]
 
 [node name="VictoryLayer" type="CanvasLayer" unique_id=1011119984]
-visible = false
 
 [node name="VictoryPanel" type="Panel" parent="." unique_id=1609070537]
 anchors_preset = 8
