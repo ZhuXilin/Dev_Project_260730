@@ -68,6 +68,7 @@ var _panel_manager : PanelManager = null
 var _ui_binder : UIBinder = null
 var _turn_controller : TurnController = null
 var _victory_handler : VictoryHandler = null
+var _drag_move_controller : DragMoveController = null   # ★
 
 var _damage_popup_layer : CanvasLayer = null
 
@@ -136,13 +137,18 @@ func _ready():
 	_ui_binder = UIBinder.new(self)
 	add_child(_ui_binder)
 
-	# ★ 伤害跳字专用层（高于 HUD=5，低于 ConfirmUI=99）
+	# ★ 拖拽移动控制器
+	_drag_move_controller = DragMoveController.new(self)
+	add_child(_drag_move_controller)
+	_drag_move_controller.setup()
+
+	# ★ 伤害跳字专用层
 	_damage_popup_layer = CanvasLayer.new()
 	_damage_popup_layer.name = "DamagePopupLayer"
 	_damage_popup_layer.layer = 0
 	add_child(_damage_popup_layer)
 
-	# ---- UnitManager 信号（非 UI）----
+	# ---- UnitManager 信号 ----
 	if not UnitManager.unit_removed.is_connected(_on_unit_removed_death):
 		UnitManager.unit_removed.connect(_on_unit_removed_death)
 	if not UnitManager.unit_removed.is_connected(_on_unit_removed_for_vengeance):
@@ -165,7 +171,6 @@ func _ready():
 	if victory_panel:
 		victory_panel.visible = false
 
-	# ---- 一次绑定所有 UI 信号 ----
 	_ui_binder.bind_all()
 
 	if turn_overlay:
@@ -311,7 +316,8 @@ func _ready():
 			return
 
 	_turn_controller.apply_team_buffs()
-	# ★ 预热面板 revealer：首次 attach 分摊到加载阶段
+
+	# ★ 预热面板 revealer
 	if action_panel:
 		PanelRevealer.show_panel(action_panel, 0.0)
 		PanelRevealer.force_hide(action_panel)
@@ -336,6 +342,9 @@ func _ready():
 	print("Battlefield _ready 完成")
 
 
+# ============================================================
+#  信号回调
+# ============================================================
 func _on_unit_removed_for_vengeance(unit: Unit, team: int):
 	if team != 0:
 		return
@@ -374,7 +383,6 @@ func _on_unit_removed_death(unit: Unit, team: int):
 
 
 func _exit_tree():
-	# ★ 强制重置所有全局 UI flag（防止旧协程等到超时）
 	Globals.is_fading = false
 	Globals.is_transitioning = false
 	Globals.is_performing_action = false
@@ -383,14 +391,15 @@ func _exit_tree():
 	Globals.is_equip_menu_active = false
 
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
-	cursor.visible = false
+	if cursor:
+		cursor.visible = false
 	if _cursor_controller:
 		_cursor_controller.cleanup()
-	if move_btn.pressed.is_connected(_on_move_btn_pressed):
+	if move_btn and move_btn.pressed.is_connected(_on_move_btn_pressed):
 		move_btn.pressed.disconnect(_on_move_btn_pressed)
-	if attack_btn.pressed.is_connected(_on_attack_btn_pressed):
+	if attack_btn and attack_btn.pressed.is_connected(_on_attack_btn_pressed):
 		attack_btn.pressed.disconnect(_on_attack_btn_pressed)
-	if wait_btn.pressed.is_connected(_on_wait_btn_pressed):
+	if wait_btn and wait_btn.pressed.is_connected(_on_wait_btn_pressed):
 		wait_btn.pressed.disconnect(_on_wait_btn_pressed)
 
 	if InputManager.ui_manager == ui_manager:
@@ -402,10 +411,15 @@ func _exit_tree():
 	InputManager.pending_attack_cells = {}
 	InputManager.current_move_attack_targets = {}
 
+	# ★ 重置战场就绪标志
+	if TurnManager:
+		TurnManager.set_battle_ready(false)
 
-# ===================== 主循环 =====================
+
+# ============================================================
+#  主循环
+# ============================================================
 func _process(_delta):
-	# ★ 光标跟手（每渲染帧）
 	_cursor_controller.update_cursor_and_mouse()
 
 	var should_pause = (
@@ -425,7 +439,6 @@ func _process(_delta):
 	camera_controller.set_paused(should_pause)
 
 
-# ===================== 信号回调 =====================
 func _on_highlight_request(cells: Dictionary):
 	match InputManager.interaction_phase:
 		InputManager.Phase.MOVING:
@@ -530,7 +543,9 @@ func _on_menu_blocker_clicked(event: InputEvent):
 		InputManager.interaction_phase = InputManager.Phase.IDLE
 
 
-# ===================== 坐标换算 =====================
+# ============================================================
+#  坐标换算
+# ============================================================
 func grid_to_world(cell: Vector2i) -> Vector2:
 	return Vector2(cell.x * MapConst.CELL_SIZE + MapConst.CELL_SIZE / 2.0, cell.y * MapConst.CELL_SIZE + MapConst.CELL_SIZE / 2.0)
 
@@ -539,7 +554,9 @@ func world_to_grid(world_pos: Vector2) -> Vector2i:
 	return Vector2i(floor(world_pos.x / MapConst.CELL_SIZE), floor(world_pos.y / MapConst.CELL_SIZE))
 
 
-# ===================== 输入处理 =====================
+# ============================================================
+#  输入处理
+# ============================================================
 func _input(event: InputEvent):
 	if Globals.is_equip_menu_active:
 		if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT:
@@ -552,6 +569,10 @@ func _input(event: InputEvent):
 		return
 
 	if Globals.is_dialogue_active or Globals.is_item_get_popup_active:
+		return
+
+	# ★ 拖拽移动优先路由
+	if _drag_move_controller and _drag_move_controller.handle_input(event):
 		return
 
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_MIDDLE:
@@ -569,7 +590,7 @@ func _input(event: InputEvent):
 				setting_menu_panel.visible or
 				team_view_panel.visible or
 				item_list_panel.visible or
-				InputManager.interaction_phase in [InputManager.Phase.MOVING, InputManager.Phase.ATTACKING]):
+				InputManager.interaction_phase in [InputManager.Phase.MOVING, InputManager.Phase.DRAGGING_MOVE, InputManager.Phase.ATTACKING]):
 				return
 			if TurnManager.is_game_over:
 				return
@@ -603,7 +624,9 @@ func _input(event: InputEvent):
 		return
 
 
-# ===================== UI回调 =====================
+# ============================================================
+#  UI 回调
+# ============================================================
 func _on_request_show_menu(unit: Unit):
 	if TurnManager.is_game_over or TurnManager.current_turn_team != TurnManager.Team.PLAYER or TurnManager.all_acted:
 		return
@@ -654,10 +677,9 @@ func _on_request_show_menu(unit: Unit):
 		else:
 			ui_manager.wait_btn.text = "待机"
 
-		# ★ 加这一行
 		ui_manager.wait_btn.disabled = not can_act
 
-	# ---- move_btn（BFS 判断）----
+	# ---- move_btn（BFS）----
 	if is_instance_valid(move_btn):
 		var can_move = false
 		if can_act and not unit.has_attacked and not unit.has_acted:
@@ -668,7 +690,7 @@ func _on_request_show_menu(unit: Unit):
 					break
 		move_btn.disabled = not can_move
 
-	# ---- attack_btn（有武器 + 可行动 + 未攻击）★ 新增 ----
+	# ---- attack_btn ----
 	if is_instance_valid(attack_btn):
 		var has_weapon : bool = (unit.get_weapon_data() != null)
 		var can_attack : bool = can_act \
@@ -680,7 +702,9 @@ func _on_request_show_menu(unit: Unit):
 	_position_action_menu(unit)
 
 
-# ===================== 其他信号 =====================
+# ============================================================
+#  其他信号
+# ============================================================
 func _on_request_screen_shake(duration: float, intensity: float, direction: Vector2 = Vector2.ZERO):
 	var shake_node = $Camera2D.get_node_or_null("ScreenShake") as ScreenShake
 	if shake_node:
@@ -788,6 +812,7 @@ func _on_request_hide_setting():
 	PanelRevealer.hide_panel(setting_menu_panel)
 	_update_end_turn_button_visibility()
 
+
 func _sync_speed_slider(new_val: int):
 	if setting_menu_panel.visible:
 		var menu = setting_menu_panel as SettingMenu
@@ -839,12 +864,14 @@ func _adjust_info_panel(label: Label, panel: PanelContainer):
 	var panel_height = label_min_height + margin_top + margin_bottom
 
 	panel.offset_bottom = panel.offset_top + panel_height
-	# ★ 只在从"隐藏→显示"时播动画（悬停切换单位不重播）
+	# ★ 只在从"隐藏→显示"时播动画
 	if not panel.visible:
 		PanelRevealer.show_panel(panel)
 
 
-# ===================== 结束回合 =====================
+# ============================================================
+#  结束回合
+# ============================================================
 func _update_end_turn_button_visibility():
 	if not end_turn_button:
 		return
@@ -893,7 +920,6 @@ func _end_player_turn():
 func _wait_for_ui_clear(timeout_ms: int = 5000) -> void:
 	var start = Time.get_ticks_msec()
 	while _is_any_ui_active():
-		# ★ 对象已脱离场景树（被 free）→ 立即退出，不再等
 		if not is_inside_tree():
 			return
 		if Time.get_ticks_msec() - start > timeout_ms:
@@ -917,9 +943,6 @@ func _on_back_camp_pressed():
 	GameState.show_abandon_confirmation(self)
 
 
-# ============================================================
-#  右键 SETTING 阶段处理（SignalBus 转发）
-# ============================================================
 func _on_request_setting_right_click():
 	if team_view_panel.visible:
 		_panel_manager.on_team_view_btn_pressed()
@@ -931,7 +954,6 @@ func _on_request_setting_right_click():
 		PanelRevealer.hide_panel(setting_menu_panel)
 		return
 
-	# 没有任何面板需要关闭 → 走默认逻辑
 	SignalBus.request_hide_setting.emit()
 	SignalBus.request_hide_info.emit()
 	InputManager.interaction_phase = InputManager.Phase.IDLE
@@ -939,7 +961,7 @@ func _on_request_setting_right_click():
 
 
 # ============================================================
-#  定位 ActionMenu 到单位附近
+#  定位 ActionMenu
 # ============================================================
 func _position_action_menu(unit: Unit) -> void:
 	if not is_instance_valid(action_panel) or not is_instance_valid(unit):
@@ -953,16 +975,13 @@ func _position_action_menu(unit: Unit) -> void:
 	if panel_size.x <= 0 or panel_size.y <= 0:
 		panel_size = Vector2(32, 88)
 
-	# 3 格距离（逻辑像素）
 	var scale_x : float = canvas_xform.get_scale().x
 	var gap : float = MapConst.CELL_SIZE * 3.0 * scale_x
 	var margin := 4.0
 
-	# 垂直：居中于单位
 	var pos_y : float = screen_pos.y - panel_size.y / 2.0
 	pos_y = clamp(pos_y, margin, vp_size.y - panel_size.y - margin)
 
-	# 水平：单位在左半 → 菜单在右侧；否则在左侧
 	var is_unit_left = screen_pos.x < vp_size.x * 0.5
 	var pos_x : float
 	if is_unit_left:
@@ -977,7 +996,7 @@ func _position_action_menu(unit: Unit) -> void:
 	pos_x = clamp(pos_x, margin, vp_size.x - panel_size.x - margin)
 
 	action_panel.position = Vector2(pos_x, pos_y)
-	
+
 	var r = action_panel.get_node_or_null("__RevealMask")
 	if r and r.has_method("_sync_rect"):
 		r._sync_rect()

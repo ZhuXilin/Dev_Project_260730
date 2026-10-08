@@ -99,6 +99,7 @@ func update_cursor_and_mouse() -> void:
 		TurnManager.is_moving or
 		Globals.is_fading or
 		Globals.is_transitioning or
+		InputManager.interaction_phase == InputManager.Phase.DRAGGING_MOVE or
 		_bf.camera_controller._is_smooth_moving
 	)
 

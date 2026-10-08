@@ -14,6 +14,7 @@ var equip_menu : PanelContainer
 var equip_container : VBoxContainer
 var equip_btn : Button
 
+
 # ---- 初始化 ----
 func initialize(ui_nodes: Dictionary):
 	action_menu = ui_nodes.get("action_menu")
@@ -29,12 +30,16 @@ func initialize(ui_nodes: Dictionary):
 		equip_container = equip_menu.get_node("ItemsContainer") as VBoxContainer
 	equip_btn = ui_nodes.get("equip_btn")
 
-# ---- 行动菜单 ----
+
+# ============================================================
+#  行动菜单
+# ============================================================
 func show_menu(_unit: Unit = null):
 	if action_menu:
 		action_menu.visible = true
 	if action_panel:
 		PanelRevealer.show_panel(action_panel)
+
 
 func hide_menu():
 	if action_panel:
@@ -44,7 +49,10 @@ func hide_menu():
 		PanelRevealer.hide_panel(equip_menu)
 		Globals.is_equip_menu_active = false
 
-# ---- 装备菜单 ----
+
+# ============================================================
+#  装备菜单
+# ============================================================
 func show_equip_menu(unit: Unit):
 	if not equip_menu or not equip_container:
 		return
@@ -116,7 +124,6 @@ func show_equip_menu(unit: Unit):
 
 
 func hide_equip_menu():
-	# ★ 只在"从装备菜单返回行动菜单"时调用
 	if equip_menu:
 		PanelRevealer.hide_panel(equip_menu)
 	if action_panel:
@@ -149,19 +156,20 @@ func _create_item_button(inst: ItemInstance, unit: Unit) -> Button:
 	if data.icon:
 		btn.icon = data.icon
 	btn.text = data.name
-	btn.disabled = true   # 禁用点击
+	btn.disabled = true
 
-	# ---- 悬停显示详情 ----
 	var item_id = inst.item_id
 	btn.mouse_entered.connect(_on_equip_item_hover_entered.bind(item_id, unit))
 	btn.mouse_exited.connect(_on_equip_item_hover_exited)
 
 	return btn
 
+
 func _on_equip_item_hover_entered(item_id: String, _unit: Unit):
 	var battlefield = get_parent()
 	if battlefield and battlefield.has_method("show_item_detail"):
 		battlefield.show_item_detail(item_id)
+
 
 func _on_equip_item_hover_exited():
 	var battlefield = get_parent()
@@ -169,6 +177,9 @@ func _on_equip_item_hover_exited():
 		battlefield.hide_item_detail()
 
 
+# ============================================================
+#  胜利面板
+# ============================================================
 func show_victory(label_text: String, button_text: String, callback: Callable):
 	if not victory_label or not victory_button:
 		return
@@ -180,22 +191,24 @@ func show_victory(label_text: String, button_text: String, callback: Callable):
 
 	# ★ 用 PanelRevealer 显示
 	PanelRevealer.show_panel(victory_panel)
-	victory_button.disabled = true   # ★ 动画期间禁用
-	move_btn.disabled = true
-	attack_btn.disabled = true
-	wait_btn.disabled = true
 
-	# 动画结束后启用
-	await get_tree().create_timer(PanelRevealer.DEFAULT_SHOW_DURATION, true, false, true).timeout
-	if is_instance_valid(victory_button):
-		victory_button.disabled = false
+	if move_btn:
+		move_btn.disabled = true
+	if attack_btn:
+		attack_btn.disabled = true
+	if wait_btn:
+		wait_btn.disabled = true
+
 
 func _on_victory_button_pressed(callback: Callable):
 	PanelRevealer.hide_panel(victory_panel)
 	if callback.is_valid():
 		callback.call()
 
-# ---- 辅助函数（道具类型显示等） ----
+
+# ============================================================
+#  辅助
+# ============================================================
 func _get_type_display_name(type: String) -> String:
 	match type:
 		"weapon": return "武器"
@@ -206,13 +219,15 @@ func _get_type_display_name(type: String) -> String:
 		_:
 			return type
 
-# ---- 模态消息提示 ----
+
+# ============================================================
+#  模态消息
+# ============================================================
 func show_modal_message(text: String, callback_after: Callable = Callable()):
 	var popup = CanvasLayer.new()
 	popup.layer = 40
 	get_tree().current_scene.add_child(popup)
 
-	# ---- 面板：居中显示，尺寸取自 UIConst ----
 	var panel = Panel.new()
 	panel.size = UIConst.MODAL_PANEL_SIZE
 	var viewport_size = get_viewport().get_visible_rect().size
@@ -223,7 +238,6 @@ func show_modal_message(text: String, callback_after: Callable = Callable()):
 		panel.add_theme_stylebox_override("panel", stylebox)
 	popup.add_child(panel)
 
-	# ---- 文本标签：左右留 10px 边距，顶部留 10px ----
 	var label = Label.new()
 	label.text = text
 	label.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_NORMAL)
@@ -232,7 +246,6 @@ func show_modal_message(text: String, callback_after: Callable = Callable()):
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	panel.add_child(label)
 
-	# ---- 确认按钮：底部居中，距底 10px ----
 	var btn_size = Vector2(50, 20)
 	var btn = Button.new()
 	btn.text = "确定"
@@ -251,6 +264,7 @@ func show_modal_message(text: String, callback_after: Callable = Callable()):
 	panel.add_child(btn)
 
 	Globals.is_item_get_popup_active = true
+
 
 func show_message(text: String):
 	var popup = CanvasLayer.new()

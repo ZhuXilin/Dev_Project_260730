@@ -5,6 +5,7 @@ enum Phase {
 	IDLE,
 	MENU,
 	MOVING,
+	DRAGGING_MOVE,   # ★ 新增
 	ATTACKING,
 	SETTING,
 }
@@ -26,11 +27,11 @@ var pending_attack_cells : Dictionary = {}
 # ---- UI管理器引用 ----
 var ui_manager : UIManager = null
 
-## 调试：打印单位详细信息（发布/测性能时置 false）
 const DEBUG_PRINT_UNIT_INFO : bool = false
 
+
 # ============================================================
-#  点击处理（主要输入路由）
+#  点击处理
 # ============================================================
 func handle_click(clicked_cell: Vector2i):
 	if TurnManager.is_game_over or TurnManager.is_moving:
@@ -47,10 +48,9 @@ func handle_click(clicked_cell: Vector2i):
 				return
 
 			if clicked_unit:
-				# ---- 检查单位是否存活 ----
 				if clicked_unit.hit_points <= 0:
 					return
-				
+
 				SignalBus.request_show_info.emit(clicked_unit)
 				current_empty_cell = Vector2i(-1, -1)
 
@@ -65,7 +65,7 @@ func handle_click(clicked_cell: Vector2i):
 						interaction_phase = Phase.IDLE
 						SignalBus.request_clear_highlight.emit()
 				else:
-					# ---- 敌方单位预览 ----
+					# 敌方预览
 					selected_unit = clicked_unit
 					interaction_phase = Phase.IDLE
 					var reachable = UnitManager.get_reachable_cells(
@@ -103,7 +103,7 @@ func handle_click(clicked_cell: Vector2i):
 					SignalBus.request_show_enemy_preview.emit(reachable, attack_preview, attack_color)
 					SoundManager.play_select_sound()
 			else:
-				# 点击空地
+				# 空地
 				if selected_unit == null:
 					SignalBus.request_show_info.emit(null)
 					SignalBus.request_show_setting.emit()
@@ -147,7 +147,6 @@ func handle_click(clicked_cell: Vector2i):
 			if pending_attack_cells.has(clicked_cell):
 				var target_unit = UnitManager.get_unit_at_cell(clicked_cell)
 				if target_unit and selected_unit:
-					# 治疗武器（法杖）用 category 判断
 					var is_healer = (selected_unit.get_weapon_type() == "staff")
 					var is_valid_target = false
 					if is_healer:
@@ -172,6 +171,7 @@ func handle_click(clicked_cell: Vector2i):
 
 		_:
 			pass
+
 
 # ============================================================
 #  右键处理
@@ -263,7 +263,6 @@ func _handle_right_click():
 			current_empty_cell = Vector2i(-1, -1)
 
 		Phase.SETTING:
-			# ★ 只发信号，具体处理交给 Battlefield
 			SignalBus.request_setting_right_click.emit()
 
 		_:
@@ -275,6 +274,7 @@ func _handle_right_click():
 				current_highlight_cells = {}
 				current_move_attack_targets = {}
 				current_empty_cell = Vector2i(-1, -1)
+
 
 # ============================================================
 #  鼠标滚轮切换单位
@@ -288,7 +288,7 @@ func handle_wheel(delta: int):
 		return
 	if Globals.is_performing_action:
 		return
-	if interaction_phase in [Phase.MOVING, Phase.ATTACKING]:
+	if interaction_phase in [Phase.MOVING, Phase.DRAGGING_MOVE, Phase.ATTACKING]:
 		return
 
 	if interaction_phase == Phase.SETTING:
@@ -350,19 +350,20 @@ func handle_wheel(delta: int):
 	elif camera and camera.has_method("force_position"):
 		camera.force_position(new_unit.global_position)
 
+
 # ============================================================
 #  攻击辅助
 # ============================================================
 func _start_attack_target_selection(unit: Unit):
 	print("=== 进入 _start_attack_target_selection ===")
-	
+
 	var weapon_id = unit.get_equipped_weapon_id()
 	print("单位: ", unit.unit_stats.unit_name, " 武器ID: ", weapon_id)
-	
+
 	if weapon_id == "":
 		print("错误：单位没有装备武器")
 		return
-	
+
 	var data = ItemManager.get_item_data(weapon_id)
 	if not data or data.type != "weapon":
 		print("错误：武器数据不存在或类型错误")
@@ -373,7 +374,6 @@ func _start_attack_target_selection(unit: Unit):
 	var max_range = data.attack_range
 	var min_range = data.min_attack_range
 
-	# ★ 主动技能射程加成（如龙息 range_bonus: 1）
 	var range_bonus : int = CombatManager.get_active_skill_range_bonus(unit)
 	if range_bonus > 0:
 		max_range += range_bonus
@@ -412,13 +412,15 @@ func _start_attack_target_selection(unit: Unit):
 	SignalBus.request_hide_menu.emit()
 	print("攻击范围格子数: ", attack_range_dict.size())
 
+
 func _clear_attack_state():
 	SignalBus.request_clear_highlight.emit()
 	pending_attack_cells = {}
 	current_highlight_cells = {}
 
+
 # ============================================================
-#  按钮回调（由Battlefield调用）
+#  按钮回调
 # ============================================================
 func on_move_button_pressed():
 	print("移动按钮被点击")
@@ -469,12 +471,14 @@ func on_move_button_pressed():
 	else:
 		print("移动条件不满足")
 
+
 func on_attack_button_pressed():
 	if selected_unit == null or interaction_phase != Phase.MENU:
 		return
 	if selected_unit.has_attacked or not selected_unit.can_act_this_turn or selected_unit.has_acted:
 		return
 	_start_attack_target_selection(selected_unit)
+
 
 func on_wait_button_pressed():
 	print("待机按钮被点击")
@@ -493,9 +497,11 @@ func on_wait_button_pressed():
 	else:
 		print("待机条件不满足")
 
+
 func on_equip_button_pressed():
 	if selected_unit and ui_manager:
 		ui_manager.show_equip_menu(selected_unit)
+
 
 func get_ui_manager() -> UIManager:
 	if ui_manager:
@@ -505,8 +511,9 @@ func get_ui_manager() -> UIManager:
 		ui_manager = battlefield.ui_manager
 	return ui_manager
 
+
 # ============================================================
-#  输入事件处理（由Battlefield转发）
+#  输入事件处理
 # ============================================================
 func handle_input(event: InputEvent, _map_grid_size: Vector2i, _cell_size: int):
 	if TurnManager.is_game_over or TurnManager.is_moving:
@@ -515,8 +522,9 @@ func handle_input(event: InputEvent, _map_grid_size: Vector2i, _cell_size: int):
 		_handle_right_click()
 		return
 
+
 # ============================================================
-#  调试信息
+#  调试
 # ============================================================
 func _print_unit_info(unit: Unit):
 	if not DEBUG_PRINT_UNIT_INFO:
@@ -528,28 +536,25 @@ func _print_unit_info(unit: Unit):
 	print("阵营: ", unit.unit_stats.faction if unit.unit_stats.faction != "" else "无")
 	print("队伍: ", "玩家" if unit.unit_stats.team_id == 0 else "敌人")
 	print("HP: ", unit.hit_points, "/", unit.unit_stats.max_hp)
-	
-	# ---- 武器数据 ----
+
 	var weapon_data = unit.get_weapon_data()
 	var weapon_stats = unit.get_weapon_stats()
 	var attack = weapon_stats.get("attack", 0)
 	var magic_attack = weapon_stats.get("magic_attack", 0)
 	print("攻击: ", attack, " (魔法: ", magic_attack, ")")
-	
-	# ---- 新属性 ----
+
 	print("力量: ", unit.unit_stats.strength)
 	print("敏捷: ", unit.unit_stats.dexterity)
 	print("智力: ", unit.unit_stats.intelligence)
 	print("信仰: ", unit.unit_stats.faith)
 	print("感应: ", unit.unit_stats.arcane)
 	print("移动力: ", unit.unit_stats.move_range)
-	
-	# ---- 攻击范围 ----
+
 	if weapon_data:
 		print("攻击范围: ", weapon_data.min_attack_range, "~", weapon_data.attack_range)
 	else:
 		print("攻击范围: 0~0")
-	
+
 	print("当前格子: ", unit.grid_cell)
 	print("已行动: ", unit.has_moved)
 	print("可行动: ", unit.can_act_this_turn)
@@ -558,7 +563,8 @@ func _print_unit_info(unit: Unit):
 	print("已主要行动: ", unit.has_acted)
 	print("地形: ", _get_terrain_name(TerrainManager.get_terrain(unit.grid_cell)))
 	print("==================")
-	
+
+
 func _get_terrain_name(type: int) -> String:
 	match type:
 		TerrainManager.TerrainType.PLAIN: return "平地"
