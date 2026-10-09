@@ -55,8 +55,9 @@ enum Team {
 @export var immobile : bool = false:
 	set(value):
 		if team == Team.玩家:
-			immobile = false
-		else:
+			if immobile != false:
+				immobile = false
+		elif immobile != value:
 			immobile = value
 
 @export var initial_items : Array[ItemEntry] = []

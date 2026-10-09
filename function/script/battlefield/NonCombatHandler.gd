@@ -51,4 +51,4 @@ func on_non_combat_complete() -> void:
 	TurnManager.is_game_over = true
 	MusicManager._saved_stream = null
 	MusicManager._saved_position = 0.0
-	_bf._on_request_show_victory(0)
+	_bf._victory_handler.on_request_show_victory(0)
