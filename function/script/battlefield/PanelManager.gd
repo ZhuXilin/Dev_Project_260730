@@ -4,6 +4,7 @@ extends Node
 var _bf : Node2D
 var _is_showing_relics : bool = false
 var _detail_popup = null
+var _unit_icon_cache : Dictionary = {}   # "unit_name|sprite_path" -> ImageTexture
 
 
 func _init(bf: Node2D):
@@ -56,9 +57,15 @@ func refresh_team_view() -> void:
 				elif frames.has_animation("idle"):
 					icon_texture = frames.get_frame_texture("idle", 0)
 			if icon_texture:
-				var image = icon_texture.get_image()
-				image.resize(16, 16, Image.INTERPOLATE_NEAREST)
-				btn.icon = ImageTexture.create_from_image(image)
+				var cache_key : String = "%s|%s" % [
+					unit.unit_stats.unit_name,
+					unit.unit_stats.override_sprite_path
+				]
+				if not _unit_icon_cache.has(cache_key):
+					var image = icon_texture.get_image()
+					image.resize(16, 16, Image.INTERPOLATE_NEAREST)
+					_unit_icon_cache[cache_key] = ImageTexture.create_from_image(image)
+				btn.icon = _unit_icon_cache[cache_key]
 				btn.add_theme_constant_override("hseparation", 4)
 
 			var status = ""

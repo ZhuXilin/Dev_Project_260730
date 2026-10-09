@@ -137,10 +137,8 @@ func calculate_damage(attacker: Unit, defender: Unit) -> int:
 		return 0
 
 	var quality_mult = QUALITY_MULT.get(weapon_data.quality, 1.0)
-	var upgrade_bonus = 0
-	if attacker.weapon_slot:
-		upgrade_bonus = attacker.weapon_slot.upgrade_level
-	var base_attack = (weapon_data.base_attack + upgrade_bonus) * quality_mult
+	var upgrade_lv : int = attacker.weapon_slot.upgrade_level if attacker.weapon_slot else 0
+	var base_attack : int = WeaponUpgradeHelper.get_effective_base_attack(weapon_data, upgrade_lv) * quality_mult
 
 	var modifier = weapon_data.modifier
 	var atk_bonus = 0.0
@@ -163,7 +161,8 @@ func calculate_damage(attacker: Unit, defender: Unit) -> int:
 			var item_data = ItemManager.get_item_data(slot.item_id)
 			if item_data:
 				var armor_quality_mult = QUALITY_MULT.get(item_data.quality, 1.0)
-				armor_defense += item_data.defense * armor_quality_mult
+				var armor_lv : int = slot.upgrade_level
+				armor_defense += WeaponUpgradeHelper.get_effective_defense(item_data, armor_lv) * armor_quality_mult
 	var def_value = defender.unit_stats.get_effective_attr("strength") * STRENGTH_DEF_FACTOR + armor_defense
 	def_value += defender.buff_defense_flat
 
@@ -291,7 +290,8 @@ func execute_attack(attacker: Unit, defender: Unit) -> bool:
 	if ignore_def and active_skill_data:
 		var wdata_tmp = attacker.get_weapon_data()
 		if wdata_tmp:
-			var base_only = (wdata_tmp.base_attack + (attacker.weapon_slot.upgrade_level if attacker.weapon_slot else 0)) * QUALITY_MULT.get(wdata_tmp.quality, 1.0)
+			var wd_lv : int = attacker.weapon_slot.upgrade_level if attacker.weapon_slot else 0
+			var base_only = WeaponUpgradeHelper.get_effective_base_attack(wdata_tmp, wd_lv) * QUALITY_MULT.get(wdata_tmp.quality, 1.0)
 			var atk_bonus_tmp = 0.0
 			for attr in wdata_tmp.modifier:
 				atk_bonus_tmp += attacker.unit_stats.get_effective_attr(attr) * wdata_tmp.modifier[attr]

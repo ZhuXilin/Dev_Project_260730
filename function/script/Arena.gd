@@ -44,6 +44,7 @@ static var _arena_enemy_cache : Dictionary = {}
 # ============================================================
 var _phase : Phase = Phase.IDLE
 var _arena_gold : int = 0
+var _arena_shop_level : int = 0
 var _streak : int = 0
 var _survival_round : int = 0
 var _current_player_data : UnitData = null
@@ -268,6 +269,7 @@ func _on_back_pressed():
 func _init_arena_state():
 	_phase = Phase.NORMAL
 	_arena_gold = 0
+	_arena_shop_level = 0
 	_streak = 0
 	_survival_round = 0
 	_streak_active = false
@@ -474,6 +476,7 @@ func _show_shop() -> String:
 	ctx.player_data = _current_player_data
 	ctx.passives = _arena_passives.duplicate()
 	ctx.locked_talent_id = _locked_talent_id
+	ctx.shop_level = _arena_shop_level
 
 	var scene = load(Config.PATHS.EQUIPMENT_CONFIG)
 	if not scene:
@@ -502,6 +505,7 @@ func _show_shop() -> String:
 		return "quit"
 
 	_arena_gold = ctx.arena_gold
+	_arena_shop_level = ctx.shop_level 
 	_arena_passives = ctx.passives.duplicate()
 	_locked_talent_id = ctx.locked_talent_id
 

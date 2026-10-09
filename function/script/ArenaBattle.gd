@@ -515,8 +515,8 @@ func _calc_damage(attacker: UnitData, defender: UnitData) -> int:
 		return 1
 
 	var quality_mult = QUALITY_MULT.get(wdata.quality, 1.0)
-	var upgrade_bonus = attacker.weapon_slot.upgrade_level
-	var base_attack = (wdata.base_attack + upgrade_bonus) * quality_mult
+	var upgrade_lv : int = attacker.weapon_slot.upgrade_level if attacker.weapon_slot else 0
+	var base_attack : int = WeaponUpgradeHelper.get_effective_base_attack(wdata, upgrade_lv) * quality_mult
 
 	var atk_bonus = 0.0
 	for attr in wdata.modifier:
@@ -526,13 +526,14 @@ func _calc_damage(attacker: UnitData, defender: UnitData) -> int:
 	var total_attack = base_attack + atk_bonus
 	total_attack *= (1.0 + attacker.buff_attack_percent)
 
-	var armor_defense = 0
+	var armor_defense : float = 0.0
 	for slot in defender.armor_slots:
 		if slot:
 			var idata = ItemManager.get_item_data(slot.item_id)
 			if idata:
-				var aq = QUALITY_MULT.get(idata.quality, 1.0)
-				armor_defense += idata.defense * aq
+				var aq : float = QUALITY_MULT.get(idata.quality, 1.0)
+				var armor_lv : int = slot.upgrade_level
+				armor_defense += WeaponUpgradeHelper.get_effective_defense(idata, armor_lv) * aq
 
 	var def_value = defender.get_effective_attr("strength") * STRENGTH_DEF_FACTOR + armor_defense
 	var damage = max(1, int(total_attack - def_value))

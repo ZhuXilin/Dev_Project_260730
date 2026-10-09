@@ -465,7 +465,10 @@ func _exit_tree():
 	InputManager.current_highlight_cells = {}
 	InputManager.pending_attack_cells = {}
 	InputManager.current_move_attack_targets = {}
-
+	
+	if _turn_controller:
+		_turn_controller.force_unlock()
+		
 	if TurnManager:
 		TurnManager.set_battle_ready(false)
 

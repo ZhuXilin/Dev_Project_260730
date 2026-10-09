@@ -215,7 +215,7 @@ static func create_unit_data(unit_name: String) -> UnitData:
 	# ---- 默认特技（每个单位只装 1 个，取 default_talents 的第一个） ----
 	data.talent_slots.clear()
 	var default_talents = dict.get("default_talents", [])
-	var talent_cap : int = 1
+	var talent_cap : int = int(dict.get("max_talent_slots", 1))
 	for talent_id in default_talents:
 		if data.talent_slots.size() >= talent_cap:
 			break

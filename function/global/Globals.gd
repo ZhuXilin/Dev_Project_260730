@@ -81,7 +81,7 @@ func _input(event: InputEvent):
 	if vp == null:
 		return
 	var focus := vp.gui_get_focus_owner()
-	if focus is LineEdit or focus is TextEdit:
+	if focus is LineEdit or focus is TextEdit or focus is SpinBox:
 		return
 
 	var step := 0

@@ -180,9 +180,9 @@ func get_channel_pan(ch: int) -> float:
 
 
 func get_duration_seconds() -> float:
-	if bpm <= 0:
-		return 0.0
-	return total_ticks / float(ticks_per_beat) / bpm * 60.0
+	var safe_bpm : float = maxf(bpm, 1.0)
+	var safe_tpb : int = maxi(ticks_per_beat, 1)
+	return total_ticks / float(safe_tpb) / safe_bpm * 60.0
 
 # ============================================================
 #  8bit 风格校验

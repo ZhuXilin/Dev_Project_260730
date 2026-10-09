@@ -72,6 +72,8 @@ var pending_forge_rewards : Array = []       # 元素：ItemInstance
 
 var sacrifice_count : int = 0
 
+var current_reward_rare_datas : Array = []
+
 # ============================================================
 #  方法
 # ============================================================

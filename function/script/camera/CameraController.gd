@@ -24,7 +24,7 @@ func _ready():
 	var viewport_size = get_viewport().get_visible_rect().size
 	var center = map_rect.position + map_rect.size / 2
 	target_position = center - viewport_size / 2
-	target_position = _snap_to_grid(target_position)
+	target_position = _clamp_camera(target_position)
 	global_position = target_position
 	print("Camera ready, is_current:", is_current())
 
@@ -102,7 +102,7 @@ func set_map_boundary(rect: Rect2):
 	var viewport_size = get_viewport().get_visible_rect().size
 	var center = map_rect.position + map_rect.size / 2
 	target_position = center - viewport_size / 2
-	target_position = _snap_to_grid(target_position)
+	target_position = _clamp_camera(target_position)
 	global_position = target_position
 	print("Map boundary set:", map_rect)
 

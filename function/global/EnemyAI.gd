@@ -38,12 +38,13 @@ func run_enemy_ai():
 	ai_queue.clear()
 
 	# ---- 检查是否有任何敌人能产生非待机动作 ----
-	var can_act = false
+	var cached_actions : Array = []
+	var can_act : bool = false
 	for enemy in enemies:
 		var action = _decide_action(enemy)
+		cached_actions.append(action)
 		if action and action["type"] != "wait":
 			can_act = true
-			break
 
 	if not can_act:
 		print("所有敌方单位无法行动，强制结束 AI")
@@ -51,9 +52,7 @@ func run_enemy_ai():
 		ai_queue_finished.emit()
 		return
 
-	# 填充队列
-	for enemy in enemies:
-		var action = _decide_action(enemy)
+	for action in cached_actions:
 		if action:
 			ai_queue.append(action)
 

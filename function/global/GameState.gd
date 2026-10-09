@@ -183,7 +183,9 @@ var current_reward_materials : Dictionary:
 	get: return resource_state.current_reward_materials
 	set(value): resource_state.current_reward_materials = value
 
-var current_reward_rare_datas : Array = []   # ★ 稀有掉落显示数据
+var current_reward_rare_datas : Array:
+	get: return resource_state.current_reward_rare_datas
+	set(value): resource_state.current_reward_rare_datas = value
 
 var unlocked_recipes : Array:
 	get: return resource_state.unlocked_recipes
@@ -529,6 +531,7 @@ func reset_for_new_cycle():
 	interrupt_state = InterruptState.NONE
 	init_passive_slots()
 	clear_all_pending_rewards()
+	current_reward_rare_datas.clear()
 	current_faction = ""
 	map_snapshot.clear()
 	cycle_start_soul = 0
@@ -556,6 +559,7 @@ func reset_all():
 	interrupt_state = InterruptState.NONE
 	init_passive_slots()
 	clear_all_pending_rewards()
+	current_reward_rare_datas.clear()
 	current_faction = ""
 	map_snapshot.clear()
 	cycle_start_soul = 0

@@ -1334,9 +1334,19 @@ func _on_confirm_pressed():
 			return
 
 	var target_units : Array = _context.get_units()
-	for i in range(min(party.size(), target_units.size())):
-		var u : UnitData = party[i]
-		var tu : UnitData = target_units[i]
+
+	# ★ 建立身份索引（与 PartyState.sync_units_from_battlefield 约定一致）
+	var target_map : Dictionary = {}
+	for tu in target_units:
+		var key : String = "%s|%s" % [tu.unit_name, tu.display_name]
+		target_map[key] = tu
+
+	# ★ 按身份匹配，而非索引
+	for u in party:
+		var key : String = "%s|%s" % [u.unit_name, u.display_name]
+		if not target_map.has(key):
+			continue
+		var tu : UnitData = target_map[key]
 		if u.is_dead and tu.is_dead:
 			continue
 		tu.weapon_slot = _clone_item_inst(u.weapon_slot)
@@ -1376,23 +1386,30 @@ func _clear_container(container: Node):
 
 func _sync_all():
 	var target_units : Array = _context.get_units()
-	for i in range(party.size()):
-		var u : UnitData = party[i]
+
+	var target_map : Dictionary = {}
+	for tu in target_units:
+		var key : String = "%s|%s" % [tu.unit_name, tu.display_name]
+		target_map[key] = tu
+
+	for u in party:
 		var armor_target : int = clampi(u.max_armor_slots, 0, 10)
 		u.max_armor_slots = armor_target
 		u.armor_slots.resize(armor_target)
 		var talent_target : int = maxi(u.talent_slots.size(), 1)
 		u.talent_slots.resize(talent_target)
 
-		if i < target_units.size():
-			var tu : UnitData = target_units[i]
-			if u.is_dead and tu.is_dead:
-				continue
-			tu.weapon_slot = _clone_item_inst(u.weapon_slot)
-			tu.armor_slots = _clone_inst_array(u.armor_slots)
-			tu.max_armor_slots = u.max_armor_slots
-			tu.talent_slots = u.talent_slots.duplicate()
-			tu.is_dead = u.is_dead
+		var key : String = "%s|%s" % [u.unit_name, u.display_name]
+		if not target_map.has(key):
+			continue
+		var tu : UnitData = target_map[key]
+		if u.is_dead and tu.is_dead:
+			continue
+		tu.weapon_slot = _clone_item_inst(u.weapon_slot)
+		tu.armor_slots = _clone_inst_array(u.armor_slots)
+		tu.max_armor_slots = u.max_armor_slots
+		tu.talent_slots = u.talent_slots.duplicate()
+		tu.is_dead = u.is_dead
 
 
 # ============================================================

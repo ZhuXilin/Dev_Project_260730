@@ -125,6 +125,8 @@ static func _create_node(type: MapNode.NodeType, pos: Vector2, layer: int) -> Ma
 	node.layer = layer
 	node.is_available = false
 	node.is_visited = false
+	# 稳定 id：由 layer + 位置决定，跨运行一致
+	node.node_id = "L%d_X%d_Y%d" % [layer, int(pos.x * 10.0), int(pos.y * 10.0)]
 	return node
 
 

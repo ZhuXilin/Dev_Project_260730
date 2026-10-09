@@ -182,3 +182,7 @@ func apply_team_buffs() -> void:
 		unit.update_hp_label()
 
 	print("[Battlefield] 遗物已应用 | 属性：", relic_stats, " 效果：", relic_effects)
+
+
+func force_unlock() -> void:
+	_turn_changed_locked = false

@@ -104,6 +104,7 @@ static func upgrade(unit_type: String, blessing_id: String) -> bool:
 		GameState.unit_blessings[key] = {}
 	var cur : int = int(GameState.unit_blessings[key].get(blessing_id, 0))
 	GameState.unit_blessings[key][blessing_id] = cur + 1
+	SaveManager.auto_save()
 	return true
 
 

@@ -31,7 +31,9 @@ func load_song(s: ChipSong, rate: float = 22050.0):
 	# Voice pool 大小 = 通道数 × 3（够处理和弦），最少 8
 	var pool_size: int = maxi(8, s.get_channel_count() * 3)
 	synth = ChipSynth.new(pool_size, rate)
-	_samples_per_tick = (60.0 / s.bpm) / float(s.ticks_per_beat) * mix_rate
+	var safe_bpm : float = maxf(s.bpm, 1.0)
+	var safe_tpb : int = maxi(s.ticks_per_beat, 1)
+	_samples_per_tick = (60.0 / safe_bpm) / float(safe_tpb) * mix_rate
 	_inv_samples_per_tick = 1.0 / maxf(_samples_per_tick, 0.0001)
 
 

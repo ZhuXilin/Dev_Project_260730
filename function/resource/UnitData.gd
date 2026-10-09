@@ -345,6 +345,8 @@ static func _talent_instance_to_dict(inst) -> Dictionary:
 	var t_inst : TalentInstance = inst
 	if not t_inst.is_active:
 		return {}
+	# 注意：current_stack / is_ready / cooldown_remaining 是战斗临时状态，
+	# 故意不序列化。读档后由 Unit._init_talent_slots_from_data 重新初始化。
 	return {
 		"talent_id": t_inst.talent_id,
 		"current_stack": t_inst.current_stack,
