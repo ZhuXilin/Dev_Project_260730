@@ -16,19 +16,19 @@ theme_override_font_sizes/font_size = 8
 anchors_preset = -1
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = 240.0
+offset_left = 320.0
 offset_top = 224.0
-offset_right = -128.0
+offset_right = -48.0
 theme_override_font_sizes/font_size = 8
 text = "第N回合"
 
-[node name="EndTurnButton" type="Label" parent="." unique_id=1499662869]
-offset_left = 288.0
+[node name="HintLabel" type="Label" parent="." unique_id=1499662869]
+offset_left = 240.0
 offset_top = 224.0
-offset_right = 352.0
+offset_right = 304.0
 offset_bottom = 240.0
 theme_override_font_sizes/font_size = 8
-text = "鼠标中键结束回合"
+text = "操作信息"
 
 [node name="RelicIconContainer" type="HBoxContainer" parent="." unique_id=439659231]
 anchors_preset = -1

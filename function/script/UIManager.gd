@@ -1,181 +1,17 @@
 extends Node
 class_name UIManager
 
-# ---- UI 节点引用 ----
-var action_menu : CanvasLayer
-var action_panel : PanelContainer
-var wait_btn : Button
 var victory_panel : Panel
 var victory_label : Label
 var victory_button : Button
-var equip_menu : PanelContainer
-var equip_container : VBoxContainer
-var equip_btn : Button
 
 
-# ---- 初始化 ----
 func initialize(ui_nodes: Dictionary):
-	action_menu = ui_nodes.get("action_menu")
-	action_panel = ui_nodes.get("action_panel")
-	wait_btn = ui_nodes.get("wait_btn")
 	victory_panel = ui_nodes.get("victory_panel")
 	victory_label = ui_nodes.get("victory_label")
 	victory_button = ui_nodes.get("victory_button")
-	equip_menu = ui_nodes.get("equip_menu")
-	if equip_menu:
-		equip_container = equip_menu.get_node("ItemsContainer") as VBoxContainer
-	equip_btn = ui_nodes.get("equip_btn")
 
 
-# ============================================================
-#  行动菜单
-# ============================================================
-func show_menu(_unit: Unit = null):
-	if action_menu:
-		action_menu.visible = true
-	if action_panel:
-		PanelRevealer.show_panel(action_panel)
-
-
-func hide_menu():
-	if action_panel:
-		PanelRevealer.hide_panel(action_panel)
-	# 装备菜单若开着，一并收起
-	if equip_menu and PanelRevealer.is_active(equip_menu):
-		PanelRevealer.hide_panel(equip_menu)
-		Globals.is_equip_menu_active = false
-
-
-# ============================================================
-#  装备菜单
-# ============================================================
-func show_equip_menu(unit: Unit):
-	if not equip_menu or not equip_container:
-		return
-	if action_menu:
-		action_menu.visible = true
-
-	for child in equip_container.get_children():
-		child.queue_free()
-
-	equip_menu.size.x = UIConst.EQUIP_MENU_MIN_WIDTH
-	equip_container.size.x = UIConst.EQUIP_CONTAINER_MIN_WIDTH
-
-	# ---- 武器槽 ----
-	var weapon_label = Label.new()
-	weapon_label.text = "武器"
-	weapon_label.add_theme_font_size_override("font_size", 8)
-	equip_container.add_child(weapon_label)
-
-	var weapon_inst = unit.get_weapon()
-	if weapon_inst:
-		var btn = _create_item_button(weapon_inst, unit)
-		equip_container.add_child(btn)
-	else:
-		var empty_label = Label.new()
-		empty_label.text = "（空）"
-		empty_label.add_theme_font_size_override("font_size", 6)
-		equip_container.add_child(empty_label)
-
-	# ---- 防具槽 ----
-	var armor_label = Label.new()
-	armor_label.text = "防具"
-	armor_label.add_theme_font_size_override("font_size", 8)
-	equip_container.add_child(armor_label)
-
-	var armor_slots = unit.get_armor_slots()
-	for i in range(armor_slots.size()):
-		var hbox = HBoxContainer.new()
-		var slot_label = Label.new()
-		slot_label.text = "槽" + str(i+1) + ":"
-		slot_label.add_theme_font_size_override("font_size", 6)
-		slot_label.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-		hbox.add_child(slot_label)
-
-		var inst = armor_slots[i]
-		if inst:
-			var btn = _create_item_button(inst, unit)
-			btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-			hbox.add_child(btn)
-		else:
-			var empty_label = Label.new()
-			empty_label.text = "（空）"
-			empty_label.add_theme_font_size_override("font_size", 6)
-			empty_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-			hbox.add_child(empty_label)
-
-		equip_container.add_child(hbox)
-
-	# 调整面板高度
-	await get_tree().process_frame
-	var container_min_height = equip_container.get_minimum_size().y
-	var style = equip_menu.get_theme_stylebox("panel")
-	var margin_top = style.get_margin(SIDE_TOP) if style else 0.0
-	var margin_bottom = style.get_margin(SIDE_BOTTOM) if style else 0.0
-	var panel_height = container_min_height + margin_top + margin_bottom
-	equip_menu.size.y = panel_height
-
-	_show_submenu(equip_menu)
-	Globals.is_equip_menu_active = true
-
-
-func hide_equip_menu():
-	if equip_menu:
-		PanelRevealer.hide_panel(equip_menu)
-	if action_panel:
-		PanelRevealer.show_panel(action_panel)
-	Globals.is_equip_menu_active = false
-
-
-func _show_submenu(menu: Control):
-	if action_panel:
-		PanelRevealer.hide_panel(action_panel)
-	if menu:
-		PanelRevealer.show_panel(menu)
-
-
-func _hide_submenu(menu: Control):
-	if menu:
-		PanelRevealer.hide_panel(menu)
-	if action_panel:
-		PanelRevealer.show_panel(action_panel)
-
-
-func _create_item_button(inst: ItemInstance, unit: Unit) -> Button:
-	var data = ItemManager.get_item_data(inst.item_id)
-	var btn = Button.new()
-	btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	btn.add_theme_font_size_override("font_size", 6)
-	btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
-	btn.clip_text = true
-	btn.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-	if data.icon:
-		btn.icon = data.icon
-	btn.text = data.name
-	btn.disabled = true
-
-	var item_id = inst.item_id
-	btn.mouse_entered.connect(_on_equip_item_hover_entered.bind(item_id, unit))
-	btn.mouse_exited.connect(_on_equip_item_hover_exited)
-
-	return btn
-
-
-func _on_equip_item_hover_entered(item_id: String, _unit: Unit):
-	var battlefield = get_parent()
-	if battlefield and battlefield.has_method("show_item_detail"):
-		battlefield.show_item_detail(item_id)
-
-
-func _on_equip_item_hover_exited():
-	var battlefield = get_parent()
-	if battlefield and battlefield.has_method("hide_item_detail"):
-		battlefield.hide_item_detail()
-
-
-# ============================================================
-#  胜利面板
-# ============================================================
 func show_victory(label_text: String, button_text: String, callback: Callable):
 	if not victory_label or not victory_button:
 		return
@@ -185,11 +21,7 @@ func show_victory(label_text: String, button_text: String, callback: Callable):
 		victory_button.pressed.disconnect(_on_victory_button_pressed)
 	victory_button.pressed.connect(_on_victory_button_pressed.bind(callback))
 
-	# ★ 用 PanelRevealer 显示
 	PanelRevealer.show_panel(victory_panel)
-
-	if wait_btn:
-		wait_btn.disabled = true
 
 
 func _on_victory_button_pressed(callback: Callable):
@@ -198,23 +30,6 @@ func _on_victory_button_pressed(callback: Callable):
 		callback.call()
 
 
-# ============================================================
-#  辅助
-# ============================================================
-func _get_type_display_name(type: String) -> String:
-	match type:
-		"weapon": return "武器"
-		"heal": return "回复"
-		"cure": return "治愈"
-		"buff": return "增益"
-		"attack": return "攻击"
-		_:
-			return type
-
-
-# ============================================================
-#  模态消息
-# ============================================================
 func show_modal_message(text: String, callback_after: Callable = Callable()):
 	var popup = CanvasLayer.new()
 	popup.layer = 40

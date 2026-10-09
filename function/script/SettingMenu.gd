@@ -6,29 +6,28 @@ class_name SettingMenu
 @onready var speed_slider : HSlider = $SettingMenuContainer/SpeedSlider
 @onready var speed_label : Label = $SettingMenuContainer/SpeedLabel
 @onready var screen_size_option : OptionButton = $SettingMenuContainer/ScreenSizeOption
-@onready var back_to_menu_btn : Button = $SettingMenuContainer/BackToMenuBtn
 
 const BASE_WIDTH : int = Globals.BASE_WIDTH
 const BASE_HEIGHT : int = Globals.BASE_HEIGHT
 
+
 func _ready():
-	# ---- 阻止滑杆获得焦点 ----
 	speed_slider.focus_mode = Control.FOCUS_NONE
 
-	# ---- 音量初始化 ----
+	# ---- 音量 ----
 	music_volume_slider.value = Globals.music_volume
 	sound_volume_slider.value = Globals.sound_volume
 	_on_music_volume_changed(Globals.music_volume)
 	_on_sound_volume_changed(Globals.sound_volume)
 
-	# ---- 速度初始化 ----
+	# ---- 速度 ----
 	speed_slider.min_value = -2
 	speed_slider.max_value = 4
 	speed_slider.step = 1
 	speed_slider.value = Globals.game_speed
 	_update_speed_label(Globals.game_speed)
 
-	# ---- 分辨率选项 ----
+	# ---- 分辨率 ----
 	screen_size_option.clear()
 	screen_size_option.add_item("1倍 (%dx%d)" % [BASE_WIDTH * 1, BASE_HEIGHT * 1])
 	screen_size_option.add_item("2倍 (%dx%d)" % [BASE_WIDTH * 2, BASE_HEIGHT * 2])
@@ -54,45 +53,52 @@ func _ready():
 			screen_size_option.selected = default_scale - 1
 			_apply_window_size(default_scale - 1)
 
-	# ---- 信号连接 ----
+	# ---- 信号 ----
 	music_volume_slider.value_changed.connect(_on_music_volume_changed)
 	sound_volume_slider.value_changed.connect(_on_sound_volume_changed)
 	speed_slider.value_changed.connect(_on_speed_changed)
 	screen_size_option.item_selected.connect(_on_screen_size_selected)
 
-	# ---- 修改返回按钮为“中断并回到主界面” ----
-	back_to_menu_btn.text = "中断并回到主界面"
-	for conn in back_to_menu_btn.pressed.get_connections():
-		back_to_menu_btn.pressed.disconnect(conn.callable)
-	back_to_menu_btn.pressed.connect(_on_interrupt_pressed)
-
 	SignalBus.speed_changed.connect(_on_speed_changed_from_global)
 
 	visible = false
 
-# ---- 音量回调 ----
+
+# ============================================================
+#  音量
+# ============================================================
 func _on_music_volume_changed(value: float):
 	MusicManager.set_music_volume(value)
+
 
 func _on_sound_volume_changed(value: float):
 	SoundManager.set_sound_volume(value)
 
-# ---- 速度回调 ----
+
+# ============================================================
+#  速度
+# ============================================================
 func _on_speed_changed(value: float):
 	var int_val = int(value)
 	Globals.set_game_speed(int_val)
+
 
 func _on_speed_changed_from_global(new_speed: int):
 	if speed_slider.value != new_speed:
 		speed_slider.value = new_speed
 	_update_speed_label(new_speed)
 
+
 func _update_speed_label(val: int):
 	speed_label.text = "速度偏移: " + str(val) + "X"
 
-# ---- 分辨率回调 ----
+
+# ============================================================
+#  分辨率
+# ============================================================
 func _on_screen_size_selected(index: int):
 	_apply_window_size(index)
+
 
 func _apply_window_size(index: int):
 	if index == 5:
@@ -103,23 +109,3 @@ func _apply_window_size(index: int):
 		var width = BASE_WIDTH * multiplier
 		var height = BASE_HEIGHT * multiplier
 		DisplayServer.window_set_size(Vector2i(width, height))
-
-func _on_interrupt_pressed():
-	var current_scene = get_tree().current_scene
-	var scene_path = current_scene.scene_file_path if current_scene else ""
-	
-	if scene_path.ends_with("Battlefield.tscn"):
-		GameState.undo_battle_entry()
-		GameState.interrupt_state = GameState.InterruptState.MAP
-	elif scene_path.ends_with("MapScene.tscn"):
-		GameState.interrupt_state = GameState.InterruptState.MAP
-	elif scene_path.ends_with("UnitSelectUI.tscn") or scene_path.ends_with("Camp.tscn"):
-		# ---- 在配置界面中断，不保存任何进度 ----
-		GameState.interrupt_state = GameState.InterruptState.CAMP
-		GameState.party.clear()
-		GameState.main_unit_name = ""
-		GameState.current_faction = ""
-		GameState.init_passive_slots()
-	
-	SaveManager.save_game(SaveManager.current_slot, false)
-	get_tree().change_scene_to_file("res://content/scenes/ui/MainMenu.tscn")

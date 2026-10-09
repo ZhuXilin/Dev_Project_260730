@@ -139,7 +139,6 @@ func on_team_member_selected(unit) -> void:
 
 	InputManager.selected_unit = unit
 	if unit.can_act_this_turn and unit.hit_points > 0:
-		InputManager.interaction_phase = InputManager.Phase.MENU
 		SignalBus.request_show_menu.emit(unit)
 	else:
 		InputManager.interaction_phase = InputManager.Phase.IDLE

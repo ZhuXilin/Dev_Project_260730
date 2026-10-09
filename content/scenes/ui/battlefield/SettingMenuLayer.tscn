@@ -9,10 +9,10 @@
 anchors_preset = -1
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = 64.0
+offset_left = 80.0
 offset_top = 16.0
 offset_right = -144.0
-offset_bottom = -48.0
+offset_bottom = -96.0
 grow_horizontal = 2
 grow_vertical = 2
 theme_override_styles/panel = ExtResource("1_style")
@@ -24,8 +24,9 @@ anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 offset_left = 8.0
-offset_top = 4.0
+offset_top = 7.0
 offset_right = -8.0
+offset_bottom = -7.0
 grow_horizontal = 2
 grow_vertical = 2
 
@@ -36,6 +37,8 @@ theme_override_font_sizes/font_size = 8
 text = "音乐音量"
 
 [node name="MusicVolumeSlider" type="HSlider" parent="SettingMenuPanel/SettingMenuContainer" unique_id=695138583]
+custom_minimum_size = Vector2(0, 6)
+custom_maximum_size = Vector2(100, 6)
 layout_mode = 2
 size_flags_vertical = 1
 max_value = 1.0
@@ -48,6 +51,8 @@ theme_override_font_sizes/font_size = 8
 text = "音效音量"
 
 [node name="SoundVolumeSlider" type="HSlider" parent="SettingMenuPanel/SettingMenuContainer" unique_id=458791098]
+custom_minimum_size = Vector2(0, 6)
+custom_maximum_size = Vector2(100, 6)
 layout_mode = 2
 size_flags_vertical = 1
 max_value = 1.0
@@ -60,6 +65,8 @@ theme_override_font_sizes/font_size = 8
 text = "游戏速度"
 
 [node name="SpeedSlider" type="HSlider" parent="SettingMenuPanel/SettingMenuContainer" unique_id=1119678013]
+custom_minimum_size = Vector2(0, 6)
+custom_maximum_size = Vector2(100, 6)
 layout_mode = 2
 size_flags_vertical = 1
 min_value = -2.0
@@ -73,9 +80,5 @@ text = "画面尺寸"
 
 [node name="ScreenSizeOption" type="OptionButton" parent="SettingMenuPanel/SettingMenuContainer" unique_id=295160470]
 layout_mode = 2
-theme_override_font_sizes/font_size = 6
-
-[node name="BackToMenuBtn" type="Button" parent="SettingMenuPanel/SettingMenuContainer" unique_id=61260792]
-layout_mode = 2
+size_flags_vertical = 3
 theme_override_font_sizes/font_size = 8
-text = "中断游戏"

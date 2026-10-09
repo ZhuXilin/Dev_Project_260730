@@ -22,11 +22,7 @@ func setup_non_combat_mode() -> void:
 		music_stream = MusicManager.config.map_music
 	if music_stream:
 		MusicManager.play_music(music_stream)
-
-	if _bf.attack_btn:  _bf.attack_btn.disabled = true
-	if _bf.move_btn:    _bf.move_btn.disabled = false
-	if _bf.wait_btn:    _bf.wait_btn.disabled = false
-	if _bf.equip_btn:   _bf.equip_btn.disabled = false
+		
 	if _bf.setting_panel: _bf.setting_panel.visible = false
 
 	if _bf.end_turn_button:

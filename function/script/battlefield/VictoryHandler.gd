@@ -50,8 +50,6 @@ func on_request_show_victory(winning_team: int) -> void:
 	# ★ 所有面板走 PanelRevealer 隐藏
 	if is_instance_valid(_bf.ui_manager):
 		_bf.ui_manager.hide_menu()
-	if is_instance_valid(_bf.action_panel):
-		PanelRevealer.hide_panel(_bf.action_panel)
 	if is_instance_valid(_bf.equip_menu):
 		PanelRevealer.hide_panel(_bf.equip_menu)
 	if is_instance_valid(_bf.menu_blocker):

@@ -12,7 +12,6 @@
 [ext_resource type="PackedScene" uid="uid://bivdtthdqgj4k" path="res://content/scenes/ui/battlefield/TurnOverlay.tscn" id="24_turnov"]
 [ext_resource type="PackedScene" uid="uid://bfinfo0001" path="res://content/scenes/ui/battlefield/BattlefieldInfo.tscn" id="25_bfinfo"]
 [ext_resource type="PackedScene" uid="uid://cncy326mv2dec" path="res://content/scenes/ui/battlefield/HUD.tscn" id="26_hud"]
-[ext_resource type="PackedScene" uid="uid://cx3sltedxrjmy" path="res://content/scenes/ui/battlefield/ActionMenu.tscn" id="27_actionmenu"]
 [ext_resource type="PackedScene" uid="uid://coywhlbv4e5xs" path="res://content/scenes/ui/battlefield/SettingBar.tscn" id="30_settingbar"]
 [ext_resource type="PackedScene" uid="uid://bwskxaknuph6w" path="res://content/scenes/ui/battlefield/TeamViewLayer.tscn" id="31_teamviewlayer"]
 [ext_resource type="PackedScene" uid="uid://cined60rlvxl5" path="res://content/scenes/ui/battlefield/ItemListLayer.tscn" id="32_itemlistlayer"]
@@ -31,9 +30,6 @@ script = ExtResource("1_s4k4j")
 
 [node name="HUD" parent="." unique_id=855640280 instance=ExtResource("26_hud")]
 
-[node name="ActionMenu" parent="." unique_id=65243707 instance=ExtResource("27_actionmenu")]
-visible = true
-
 [node name="SettingBar" parent="." unique_id=1938508011 instance=ExtResource("30_settingbar")]
 
 [node name="TeamViewLayer" parent="." unique_id=890728464 instance=ExtResource("31_teamviewlayer")]
@@ -45,7 +41,6 @@ visible = true
 [node name="TurnLayer" parent="." unique_id=74635737 instance=ExtResource("24_turnov")]
 
 [node name="VictoryLayer" parent="." unique_id=1958741626 instance=ExtResource("23_victory")]
-visible = true
 
 [node name="HighlightManager" type="Node" parent="." unique_id=1175776744]
 script = ExtResource("4_dhh02")

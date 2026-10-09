@@ -3,6 +3,7 @@ extends Node
 # ============================================================
 #  TurnManager — 回合管理
 #  含：_battle_ready 保护（初始化期间不判胜负）
+#      last_moved_unit 记录（撤销移动用）
 # ============================================================
 
 enum Team {
@@ -19,6 +20,9 @@ var is_ai_moving : bool = false
 
 var last_player_unit : Unit = null
 var all_acted : bool = false
+
+# ★ 最近一次移动过的单位（供右键撤销）
+var last_moved_unit : Unit = null
 
 var enemy_ai : EnemyAI = null
 var map_functions: Dictionary = {}
@@ -70,7 +74,6 @@ func check_victory():
 			else:
 				enemy_count += 1
 
-	# 双方都无单位 = 尚未初始化
 	if player_count == 0 and enemy_count == 0:
 		return
 
@@ -82,7 +85,7 @@ func check_victory():
 
 func _trigger_victory(winning_team: int):
 	if is_game_over:
-		return   # ★ 幂等
+		return
 	is_game_over = true
 	SignalBus.request_show_victory.emit(winning_team)
 	SignalBus.request_hide_menu.emit()
@@ -123,10 +126,15 @@ func on_movement_finished(unit: Unit):
 	is_moving = false
 	unit.has_moved = true
 	unit.can_act_this_turn = true
-	InputManager.selected_unit = unit
-	InputManager.interaction_phase = InputManager.Phase.MENU
-	SignalBus.request_show_menu.emit(unit)
+	# ★ 记录最近移动过的单位（供右键撤销）
+	last_moved_unit = unit
+	# ★ 移动后取消选中，让玩家自由操作
+	InputManager.selected_unit = null
+	InputManager.interaction_phase = InputManager.Phase.IDLE
 	SignalBus.request_clear_highlight.emit()
+	SignalBus.request_hide_info.emit()
+	# ★ 通知"玩家移动已完成"（二合一移动+攻击等待）
+	move_completed.emit()
 
 
 func on_ai_movement_finished(unit: Unit):
@@ -151,7 +159,7 @@ func start_turn(team: Team):
 		print("跳过 start_turn")
 		return
 
-	# ★ 第一次 start_turn 时标记战场就绪（此时单位已注册完，UI 已稳定）
+	# ★ 第一次 start_turn 时标记战场就绪
 	if not _battle_ready:
 		_battle_ready = true
 		print("[TurnManager] 战场就绪")
@@ -165,6 +173,8 @@ func start_turn(team: Team):
 	all_acted = false
 	is_moving = false
 	is_ai_moving = false
+	# ★ 每回合重置
+	last_moved_unit = null
 	InputManager.selected_unit = null
 	InputManager.interaction_phase = InputManager.Phase.IDLE
 	InputManager.current_highlight_cells = {}
@@ -180,12 +190,12 @@ func start_turn(team: Team):
 
 	call_deferred("_refresh_all_unit_colors")
 
-	# ---- 词条积累 ----
+	# 词条积累
 	for unit in UnitManager.unit_list:
 		if unit.hit_points > 0 and unit.unit_stats.team_id == team:
 			unit.accumulate_all_talents()
 
-	# ---- 重置行动状态 ----
+	# 重置行动状态
 	for unit in UnitManager.unit_list:
 		if unit.hit_points > 0 and unit.unit_stats.team_id == team:
 			unit.reset_turn()
@@ -246,6 +256,9 @@ func cancel_movement(unit: Unit):
 	unit.has_moved = false
 	unit.can_act_this_turn = true
 	unit.set_gray(false)
+	# ★ 清撤销标记
+	if last_moved_unit == unit:
+		last_moved_unit = null
 	SignalBus.request_move_unit.emit(unit, unit.grid_cell)
 	SignalBus.request_hide_menu.emit()
 	SignalBus.request_clear_highlight.emit()

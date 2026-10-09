@@ -881,28 +881,42 @@ func _consume_first_spell_free(attacker: Unit) -> bool:
 
 
 # ============================================================
-#  辅助
+#  攻击/治疗结束后的处理
 # ============================================================
 func _finish_attack(attacker: Unit, _defender: Unit, free_action: bool = false) -> void:
 	if free_action:
+		# 首次施法免费：还保有主行动
 		attacker.has_attacked = true
 		attacker.has_acted = false
 		attacker.movement_after_attack = true
 	else:
 		attacker.mark_attacked()
-	_show_menu_after_action(attacker)
+	_post_attack_check(attacker)
 
 
 func _show_menu_after_action(unit: Unit):
+	_post_attack_check(unit)
+
+
+func _post_attack_check(unit: Unit):
 	if TurnManager.current_turn_team != TurnManager.Team.PLAYER:
 		return
 	if unit.unit_stats.team_id != 0:
 		return
 	if unit.remaining_move < 0:
 		unit.remaining_move = 0
+
+	# ★ 无余力 → 自动待机
+	if unit.has_acted or not unit.can_act_this_turn:
+		TurnManager.finish_unit_action(unit)
+		InputManager.selected_unit = null
+		InputManager.interaction_phase = InputManager.Phase.IDLE
+		return
+
+	# ★ 有余力（首次施法免费）→ 保持选中，让玩家继续
 	InputManager.selected_unit = unit
-	InputManager.interaction_phase = InputManager.Phase.MENU
-	SignalBus.request_show_menu.emit(unit)
+	InputManager.interaction_phase = InputManager.Phase.IDLE
+	SignalBus.request_show_info.emit(unit)
 
 
 func _face_each_other(attacker: Unit, defender: Unit):

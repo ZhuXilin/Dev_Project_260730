@@ -5,28 +5,23 @@ var _bf : Node2D
 var _turn_changed_locked : bool = false
 
 
-func _init(bf: Node2D):
+func _init(bf : Node2D):
 	_bf = bf
 
 
 # ============================================================
-#  SignalBus.turn_changed 回调
+#  回合切换回调
 # ============================================================
-func on_turn_changed(team: int) -> void:
-	print("连接数: ", SignalBus.turn_changed.get_connections().size())
+func on_turn_changed(team : int) -> void:
 	await _bf._wait_for_ui_clear()
 	handle_turn_change_async(team)
 
 
-# ============================================================
-#  回合切换主逻辑
-# ============================================================
-func handle_turn_change_async(team: int) -> void:
+func handle_turn_change_async(team : int) -> void:
 	if team == TurnManager.Team.PLAYER:
-		print("玩家回合开始，递增前计数: ", Globals.current_battle_turn)
 		Globals.increment_battle_turn()
 		_bf.turn_count_label.text = "第 " + str(Globals.current_battle_turn) + " 回合"
-		print("玩家回合开始，递增后计数: ", Globals.current_battle_turn)
+
 	if TurnManager.is_game_over:
 		return
 	if _turn_changed_locked:
@@ -34,17 +29,11 @@ func handle_turn_change_async(team: int) -> void:
 	_turn_changed_locked = true
 	Globals.is_transitioning = true
 
-	# ★ 面板走 PanelRevealer 刷出
-	if is_instance_valid(_bf.action_panel):
-		PanelRevealer.hide_panel(_bf.action_panel)
-	if is_instance_valid(_bf.equip_menu):
-		PanelRevealer.hide_panel(_bf.equip_menu)
-	if is_instance_valid(_bf.ui_manager):
-		_bf.ui_manager.hide_menu()
+	# 收起所有面板
 	if is_instance_valid(_bf.menu_blocker):
 		_bf.menu_blocker.visible = false
 	if is_instance_valid(_bf.info_panel):
-		PanelRevealer.hide_panel(_bf.info_panel)
+		_bf.info_panel.visible = false
 	if is_instance_valid(_bf.setting_panel):
 		PanelRevealer.hide_panel(_bf.setting_panel)
 	if is_instance_valid(_bf.team_view_panel):
@@ -83,6 +72,7 @@ func handle_turn_change_async(team: int) -> void:
 		if fallback_pos:
 			_bf.camera_controller.smooth_move_to(fallback_pos, _bf.turnlayer_manager.transition_duration, true)
 
+	# 音乐
 	if not _bf.is_non_combat_mode:
 		var is_boss = GameState.current_map_data and GameState.current_map_data.node_type == MapNode.NodeType.BOSS
 		if is_boss:
@@ -131,7 +121,7 @@ func _get_center_position() -> Vector2:
 
 
 # ============================================================
-#  战斗开始：遗物属性 + 熔铸 buff（保持原样）
+#  战斗开始：遗物 + 熔铸 buff
 # ============================================================
 func apply_team_buffs() -> void:
 	var relic_stats = GameState.get_global_relic_stats()
@@ -159,9 +149,6 @@ func apply_team_buffs() -> void:
 					unit.relic_counter_damage_bonus += bvalue
 				_:
 					pass
-		if not sac_buffs.is_empty():
-			print("[Battlefield] %s 熔铸 buff: %s" % [
-				unit.unit_stats.display_name, sac_buffs])
 
 		var s = unit.unit_stats
 		var old_max = s.max_hp
