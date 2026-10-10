@@ -12,13 +12,14 @@ enum Mechanic { NONE, SOUL_DRAIN, ASH_SHIELD, THREE_FORMS }
 var _current : Mechanic = Mechanic.NONE
 var _ash_shield_stacks : int = 0
 var _three_forms_stage : int = 0
+var _boss_unit : Unit = null   # ★ 当前 Boss 本体引用
 
 signal boss_mechanic_triggered(name: String, description: String)
 
-
-func setup_for_node(node_type: int, is_boss: bool):
+func setup_for_node(is_boss: bool):
 	if not is_boss:
 		_current = Mechanic.NONE
+		_boss_unit = null
 		return
 	var day : int = GameState.current_day
 	match day:
@@ -28,7 +29,36 @@ func setup_for_node(node_type: int, is_boss: bool):
 		_: _current = Mechanic.NONE
 	_ash_shield_stacks = 0
 	_three_forms_stage = 0
-	print("[Boss] 机制设置：%s（day=%d）" % [_name(), day])
+	_boss_unit = _find_boss_unit()   # ★ 找场上 HP 最高的敌方单位
+	print("[Boss] 机制设置：%s（day=%d，boss=%s）" % [
+		_name(), day,
+		_boss_unit.unit_stats.unit_name if is_instance_valid(_boss_unit) else "无"])
+
+
+func _find_boss_unit() -> Unit:
+	# 优先扫显式标记
+	for u in UnitManager.unit_list:
+		if not is_instance_valid(u): continue
+		if u.unit_stats.team_id != 1: continue
+		if u.hit_points <= 0: continue
+		if u.unit_stats.is_boss:
+			return u
+	# 兜底：没有标记就退回"HP 最高"
+	push_warning("[Boss] 场上没有 is_boss 标记的单位，回退到 max_hp 判断")
+	var best : Unit = null
+	var best_hp : int = -1
+	for u in UnitManager.unit_list:
+		if not is_instance_valid(u): continue
+		if u.unit_stats.team_id != 1: continue
+		if u.hit_points <= 0: continue
+		if u.unit_stats.max_hp > best_hp:
+			best_hp = u.unit_stats.max_hp
+			best = u
+	return best
+
+
+func is_boss_unit(u : Unit) -> bool:
+	return is_instance_valid(_boss_unit) and u == _boss_unit
 
 
 func _name() -> String:
@@ -104,26 +134,33 @@ func on_boss_defeated(defender : Unit) -> bool:
 		return false
 	if _three_forms_stage >= 2:
 		return false
+	# ★ 只对 Boss 本体生效
+	if not is_boss_unit(defender):
+		return false
+
 	_three_forms_stage += 1
 
-	# 复活 Boss
-	defender.hit_points = int(defender.unit_stats.max_hp * 0.75)
+	# ★ 复活：HP 回满 + 强化（更符合"三形态"的压迫感）
+	# 每形态 max_hp 增长 20%，HP 回满
+	var old_max : int = defender.unit_stats.max_hp
+	defender.unit_stats.max_hp = int(defender.unit_stats.max_hp * 1.2)
+	defender.hit_points = defender.unit_stats.max_hp
 	defender.unit_stats.strength += 3
 	defender.unit_stats.dexterity += 2
 	defender.update_hp_label()
 	defender.update_color()
+	print("[Boss] 复活：max_hp %d → %d，力+3 灵+2" % [old_max, defender.unit_stats.max_hp])
 
-	# ★ 魂火上限 -3（通过降 1 级祭坛实现，且不能低于 0）
-	var old_max : int = SoulFireManager.get_max_carried()
-	var new_altar : int = SoulFireManager.altar_level
-	if new_altar > 0:
-		SoulFireManager.altar_level = new_altar - 1
-	SoulFireManager.current = mini(SoulFireManager.current, SoulFireManager.get_max_carried())
+	# ★ 魂火上限 -3（通过降 1 级祭坛实现）
+	var old_max_sf : int = SoulFireManager.get_max_carried()
+	SoulFireManager.add_boss_penalty(3)
 
-	SignalBus.request_hint_override.emit("★ Boss 进化到第 %d 形态！魂火上限 -3" % (_three_forms_stage + 1), 2.0)
+	SignalBus.request_hint_override.emit(
+		"★ %s 觉醒第 %d 形态！魂火上限 -3" % [
+			defender.unit_stats.unit_name, _three_forms_stage + 1], 2.0)
 	boss_mechanic_triggered.emit("three_forms", "魂火上限降低")
 	print("[Boss] 三形态 → 第 %d 形态，魂火上限 %d → %d" % [
-		_three_forms_stage + 1, old_max, SoulFireManager.get_max_carried()])
+		_three_forms_stage + 1, old_max_sf, SoulFireManager.get_max_carried()])
 	return true
 
 

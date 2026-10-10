@@ -144,10 +144,9 @@ func on_team_member_selected(unit) -> void:
 	SignalBus.request_hide_info.emit()
 
 	InputManager.selected_unit = unit
+	InputManager.interaction_phase = InputManager.Phase.IDLE
 	if unit.can_act_this_turn and unit.hit_points > 0:
-		SignalBus.request_show_menu.emit(unit)
-	else:
-		InputManager.interaction_phase = InputManager.Phase.IDLE
+		SignalBus.request_show_info.emit(unit)
 
 	SignalBus.request_show_info.emit(unit)
 	SoundManager.play_select_sound()

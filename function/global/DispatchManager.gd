@@ -43,10 +43,7 @@ func dispatch(units: Array, route_id: String) -> bool:
 	for u in units:
 		if is_unit_dispatched(u): return false
 	var dur : int = ROUTES[route_id]["dur"]
-	# ★ 方向 6：游魂向导亲密度
-	if StoryManager.get_affinity("guide") >= 10:
-		dur = maxi(1, dur - 1)
-	# ★ NPC 亲密度
+	# ★ 方向 6：游魂向导亲密度 ≥10 → 派遣时长 -1 局
 	if StoryManager.get_affinity("guide") >= 10:
 		dur = maxi(1, dur - 1)
 	for u in units:

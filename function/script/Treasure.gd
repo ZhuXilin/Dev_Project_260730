@@ -214,7 +214,7 @@ func _apply_reward(option : Dictionary):
 
 	var soul : int = int(option.get("soul", 0))
 	if soul > 0:
-		EconomyManager.add_temp_soul(soul)
+		EconomyManager.add_soul(soul)
 		print("[宝箱] 魂 +%d" % soul)
 
 	var items : Array = option.get("items", [])

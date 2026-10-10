@@ -9,6 +9,7 @@ class_name UnitConfig
 @export var override_stats : Dictionary = {}
 @export var immobile : bool = false   # 新增：是否不可移动（仅对敌方有效）
 @export var initial_items : Array[ItemEntry] = []
+@export var is_boss : bool = false
 
 func apply_override(stats: UnitData):
 	# ---- 基础属性 ----

@@ -77,7 +77,6 @@ func start_dialogue(dialogues_id: String, music_stream: AudioStream = null):
 	if is_active:
 		return
 
-	SignalBus.request_hide_menu.emit()
 	SignalBus.request_hide_info.emit()
 	SignalBus.request_clear_highlight.emit()
 	SignalBus.request_clear_highlight_unit.emit()
@@ -118,7 +117,6 @@ func start_inline_dialogue(entries: Array, music_stream: AudioStream = null):
 	if is_active:
 		return
 
-	SignalBus.request_hide_menu.emit()
 	SignalBus.request_hide_info.emit()
 	SignalBus.request_clear_highlight.emit()
 	SignalBus.request_clear_highlight_unit.emit()

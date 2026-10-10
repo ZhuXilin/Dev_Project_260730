@@ -82,7 +82,6 @@ func _trigger_victory(winning_team: int):
 		return
 	is_game_over = true
 	SignalBus.request_show_victory.emit(winning_team)
-	SignalBus.request_hide_menu.emit()
 	SignalBus.request_clear_highlight.emit()
 
 
@@ -165,7 +164,6 @@ func start_turn(team: Team):
 	InputManager.selected_unit = null
 	InputManager.interaction_phase = InputManager.Phase.IDLE
 	InputManager.current_highlight_cells = {}
-	SignalBus.request_hide_menu.emit()
 	SignalBus.request_clear_highlight.emit()
 
 	for unit in UnitManager.unit_list:
@@ -311,7 +309,6 @@ func finish_unit_action(unit: Unit):
 		last_player_unit = unit
 	unit.can_act_this_turn = false
 	unit.set_gray(true)
-	SignalBus.request_hide_menu.emit()
 	SignalBus.request_clear_highlight.emit()
 	InputManager.selected_unit = null
 	InputManager.interaction_phase = InputManager.Phase.IDLE
@@ -331,7 +328,6 @@ func cancel_movement(unit: Unit):
 	if last_moved_unit == unit:
 		last_moved_unit = null
 	SignalBus.request_move_unit.emit(unit, unit.grid_cell)
-	SignalBus.request_hide_menu.emit()
 	SignalBus.request_clear_highlight.emit()
 	InputManager.selected_unit = null
 	InputManager.interaction_phase = InputManager.Phase.IDLE

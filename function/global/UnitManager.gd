@@ -18,7 +18,6 @@ func unregister_unit(unit: Unit):
 			InputManager.selected_unit = null
 			InputManager.interaction_phase = InputManager.Phase.IDLE
 			InputManager.current_highlight_cells = {}
-			SignalBus.request_hide_menu.emit()
 			SignalBus.request_clear_highlight.emit()
 		TurnManager.check_all_acted()
 

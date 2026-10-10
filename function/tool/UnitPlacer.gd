@@ -60,6 +60,8 @@ enum Team {
 		elif immobile != value:
 			immobile = value
 
+@export var is_boss : bool = false
+
 @export var initial_items : Array[ItemEntry] = []
 
 # ---- 出生点模式专用 ----
@@ -268,6 +270,7 @@ func export_config() -> Variant:
 		cfg.team_id = 0 if team == Team.玩家 else 1
 		cfg.override_stats = {}
 		cfg.immobile = (team == Team.敌人 and immobile)
+		cfg.is_boss  = (team == Team.敌人 and is_boss)
 		
 		var items_to_export = initial_items.duplicate()
 		var default_id = UnitDataManager.get_default_weapon_id(cfg.unit_name)

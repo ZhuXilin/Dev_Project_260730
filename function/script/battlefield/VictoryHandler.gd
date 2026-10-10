@@ -95,8 +95,6 @@ func on_request_show_victory(winning_team: int) -> void:
 	_bf._cursor_controller.clear_attack_indicator()
 	TurnManager.clear_ai_state()
 
-	if is_instance_valid(_bf.ui_manager):
-		_bf.ui_manager.hide_menu()
 	if is_instance_valid(_bf.menu_blocker):
 		_bf.menu_blocker.visible = false
 	if is_instance_valid(_bf.info_panel):

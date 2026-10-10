@@ -33,6 +33,7 @@ static func _create_unit_stats(cfg: UnitConfig) -> UnitData:
 	stats.faction = cfg.faction
 	cfg.apply_override(stats)
 	stats.team_id = cfg.team_id
+	stats.is_boss = cfg.is_boss
 	if cfg.immobile and cfg.team_id == 1:
 		stats.move_range = 0
 

@@ -19,6 +19,7 @@ class_name UnitData
 @export var sacrifice_buff_sources : Array = []
 
 @export var core_trait: String = ""
+@export var is_boss: bool = false
 
 # ★ 批次 2：单位标签
 @export var tags: Array[String] = []
@@ -165,6 +166,7 @@ func to_dict() -> Dictionary:
 		"sacrifice_buff_sources": sacrifice_buff_sources.duplicate(),
 		"tags": tags.duplicate(),
 		"core_trait": core_trait,
+		"is_boss": is_boss,
 	}
 
 
@@ -188,6 +190,7 @@ static func from_dict(d: Dictionary) -> UnitData:
 	data.max_armor_slots = d.get("max_armor_slots", 2)
 	data.max_talent_slots = d.get("max_talent_slots", 1)
 	data.core_trait = d.get("core_trait", "")
+	data.is_boss = d.get("is_boss", false)
 	
 	var adv_raw = d.get("advanced_class", "")
 	if adv_raw is String:

@@ -81,6 +81,7 @@ var _marked_targets : Dictionary = {}
 
 func _ready():
 	TurnManager.set_battle_ready(false)
+	SoulFireManager.reset_boss_penalty()
 
 	if victory_panel:
 		victory_panel.visible = false
@@ -286,7 +287,7 @@ func _ready():
 	_turn_controller.apply_team_buffs()
 
 	var is_boss : bool = GameState.current_map_data and GameState.current_map_data.node_type == MapNode.NodeType.BOSS
-	BossMechanicManager.setup_for_node(current_node_type, is_boss)
+	BossMechanicManager.setup_for_node(is_boss)
 
 	# 预热面板
 	if setting_panel:

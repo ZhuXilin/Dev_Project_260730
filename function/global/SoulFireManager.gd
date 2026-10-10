@@ -30,6 +30,7 @@ const COST_SHOP_RESET : int = 5
 
 var current : int = 0
 var altar_level : int = 0
+var _boss_penalty : int = 0
 
 signal soul_fire_changed(current: int, max_carried: int)
 signal state_changed(new_state: State)
@@ -53,7 +54,7 @@ func get_max_carried() -> int:
 	# ★ 方向 6：守火者亲密度
 	if StoryManager.get_affinity("soul_keeper") >= 10:
 		base += 1
-	return base
+	return maxi(0, base - _boss_penalty)
 
 
 func get_initial_soul_fire() -> int:
@@ -140,6 +141,7 @@ func settle() -> int:
 
 func reset_for_new_run():
 	current = get_initial_soul_fire()
+	_boss_penalty = 0
 	_emit_changes()
 
 
@@ -188,3 +190,22 @@ func _has_eternal_flame() -> bool:
 func _emit_changes():
 	soul_fire_changed.emit(current, get_max_carried())
 	state_changed.emit(get_state())
+
+
+func add_boss_penalty(amount: int) -> void:
+	_boss_penalty += amount
+	# 立刻压低当前魂火到新上限
+	current = mini(current, get_max_carried())
+	_emit_changes()
+	print("[SoulFire] Boss 惩罚 +%d，本场上限 → %d" % [amount, get_max_carried()])
+
+
+func reset_boss_penalty() -> void:
+	if _boss_penalty != 0:
+		print("[SoulFire] 清除 Boss 上限惩罚（-%d）" % _boss_penalty)
+	_boss_penalty = 0
+	_emit_changes()
+
+
+func get_boss_penalty() -> int:
+	return _boss_penalty

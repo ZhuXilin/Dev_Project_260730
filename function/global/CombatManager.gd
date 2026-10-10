@@ -219,6 +219,20 @@ func _get_active_skill_cost(sdata) -> int:
 
 
 # ============================================================
+#  ★ Boss 三形态拦截辅助（Day3）
+#  返回 true 表示 Boss 已复活，调用方应跳过死亡流程
+#  依赖：BossMechanicManager.setup_for_node() 已在本场战斗开始时调用
+# ============================================================
+func _try_boss_revive(defender : Unit, _attacker : Unit) -> bool:
+	if not BossMechanicManager.on_boss_defeated(defender):
+		return false
+	# 屏幕震一下，给玩家"这不是普通死亡"的反馈
+	SignalBus.request_screen_shake.emit(0.4, 8.0, Vector2.ZERO)
+	print("[CombatManager] Boss 三形态复活成功")
+	return true
+
+
+# ============================================================
 #  攻击主流程
 # ============================================================
 func execute_attack(attacker: Unit, defender: Unit) -> bool:
@@ -415,6 +429,13 @@ func execute_attack(attacker: Unit, defender: Unit) -> bool:
 		SoulFireManager.spend(skill_cost)
 
 	if defeated:
+		# ★ Boss 三形态拦截（Day3）：Boss 死亡时先尝试复活
+		if _try_boss_revive(defender, attacker):
+			# Boss 复活：跳过死亡流程，但本次攻击结束
+			_finish_attack(attacker, defender)
+			Globals.is_performing_action = false
+			return true
+
 		print(defender.unit_stats.unit_name + " 阵亡！")
 		var cleave_triggered := _on_kill(attacker, defender)
 		await _play_death_animation(defender)
@@ -463,6 +484,12 @@ func execute_attack(attacker: Unit, defender: Unit) -> bool:
 		await get_tree().create_timer(POST_DAMAGE_DELAY, true, false, true).timeout
 
 		if extra_dead:
+			# ★ Boss 三形态拦截（Day3）
+			if _try_boss_revive(defender, attacker):
+				_finish_attack(attacker, defender)
+				Globals.is_performing_action = false
+				return true
+
 			print(defender.unit_stats.unit_name + " 阵亡！")
 			var cleave_triggered := _on_kill(attacker, defender)
 			await _play_death_animation(defender)
@@ -513,6 +540,12 @@ func execute_attack(attacker: Unit, defender: Unit) -> bool:
 				await get_tree().create_timer(POST_DAMAGE_DELAY, true, false, true).timeout
 
 				if extra_dead:
+					# ★ Boss 三形态拦截（Day3）
+					if _try_boss_revive(defender, attacker):
+						_finish_attack(attacker, defender)
+						Globals.is_performing_action = false
+						return true
+
 					print(defender.unit_stats.unit_name + " 阵亡！")
 					var cleave_triggered := _on_kill(attacker, defender)
 					await _play_death_animation(defender)
@@ -554,6 +587,9 @@ func _apply_burning_splash(attacker : Unit, center : Unit, base_damage : int, pe
 		var dead : bool = _apply_damage_with_effects(t, splash_dmg, attacker, false)
 		print("[燃烧溅射] %d 伤害给 %s" % [splash_dmg, t.unit_stats.unit_name])
 		if dead:
+			# ★ Boss 三形态拦截（Day3）
+			if _try_boss_revive(t, attacker):
+				continue
 			_on_kill(attacker, t)
 			await _play_death_animation(t)
 			UnitManager.unregister_unit(t)
@@ -784,6 +820,9 @@ func _apply_splash(attacker: Unit, defender: Unit, base_damage: int, percent: fl
 	var dead = _apply_damage_with_effects(splash_target, splash_dmg, attacker, is_crit)
 	print("[贯穿] 溅射 %d 伤害给 %s" % [splash_dmg, splash_target.unit_stats.unit_name])
 	if dead:
+		# ★ Boss 三形态拦截（Day3）
+		if _try_boss_revive(splash_target, attacker):
+			return
 		_on_kill(attacker, splash_target)
 		await _play_death_animation(splash_target)
 		UnitManager.unregister_unit(splash_target)
@@ -803,6 +842,9 @@ func _apply_aoe(attacker: Unit, center: Unit, base_damage: int, percent: float, 
 		var dead = _apply_damage_with_effects(target, aoe_dmg, attacker, is_crit)
 		print("[火球] AOE %d 伤害给 %s" % [aoe_dmg, target.unit_stats.unit_name])
 		if dead:
+			# ★ Boss 三形态拦截（Day3）
+			if _try_boss_revive(target, attacker):
+				continue
 			_on_kill(attacker, target)
 			await _play_death_animation(target)
 			UnitManager.unregister_unit(target)
@@ -1044,6 +1086,11 @@ func _execute_counter(attacker: Unit, defender: Unit) -> void:
 	await get_tree().create_timer(POST_DAMAGE_DELAY, true, false, true).timeout
 
 	if attacker_dead:
+		# ★ Boss 三形态拦截（Day3）——注意：Boss 可以是被反击方（敌人反击玩家时 Boss 不会死）
+		# 但为了逻辑完整性，如果 attacker 是 Boss（比如 Boss 反击玩家、玩家又反伤打死它），
+		# 这里也应该触发。防御方是 defender（我方），攻击者是 attacker（敌方 Boss）。
+		if _try_boss_revive(attacker, defender):
+			return
 		print(attacker.unit_stats.unit_name + " 阵亡！")
 		_on_kill(defender, attacker)
 		await _play_death_animation(attacker)
