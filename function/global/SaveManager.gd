@@ -8,14 +8,13 @@ signal save_completed(slot: int)
 signal load_completed(slot: int, success: bool)
 
 var current_slot: int = -1
-
-## ★ 测试模式：为 true 时所有存档写盘被拦截
 var suppress_save : bool = false
+
 
 func _ready():
 	DirAccess.make_dir_recursive_absolute(SAVE_DIR)
 
-# ===== 保存 =====
+
 # ===== 保存 =====
 func save_game(slot: int, auto: bool = false) -> bool:
 	if suppress_save:
@@ -45,7 +44,6 @@ func save_game(slot: int, auto: bool = false) -> bool:
 	return true
 
 
-# ===== 自动存档 =====
 func auto_save():
 	if suppress_save:
 		return
@@ -53,6 +51,7 @@ func auto_save():
 		save_game(0, true)
 	else:
 		save_game(current_slot, true)
+
 
 # ===== 加载 =====
 func load_game(slot: int) -> bool:
@@ -70,24 +69,10 @@ func load_game(slot: int) -> bool:
 		push_error("无法加载存档: ", path)
 		return false
 
-	# ---- 版本迁移 ----
+	# 未上线版本：旧版本存档直接拒绝（清档处理）
 	if save.save_version < SaveData.CURRENT_VERSION:
-		print("存档版本 %d 低于当前版本 %d，开始迁移" % [
-			save.save_version, SaveData.CURRENT_VERSION
-		])
-		_migrate_save(save)
-		save.checksum = save.compute_checksum()
-
-		# ★ 尊重 suppress_save：测试模式下不写盘
-		if suppress_save:
-			print("[SaveManager] suppress_save = true，跳过迁移写盘（内存中已迁移）")
-		else:
-			# .tres 是文本资源，FLAG_COMPRESS 对它无效，直接存
-			# 如果将来改为 .res 二进制，再加 ResourceSaver.FLAG_COMPRESS
-			var err = ResourceSaver.save(save, path)
-			if err != OK:
-				push_error("版本更新后保存失败：", err)
-				return false
+		push_warning("旧版本存档（v%d），已废弃。请开新档。" % save.save_version)
+		return false
 
 	if not _validate_save(save):
 		push_error("存档校验失败，可能已损坏: ", path)
@@ -101,45 +86,6 @@ func load_game(slot: int) -> bool:
 	load_completed.emit(slot, true)
 	print("存档加载成功: 槽", slot)
 	return true
-
-# ===== 版本迁移 =====
-## 把旧版本存档升级到当前版本。
-## 约定：
-##   1. 每个 if 分支做"从 N 到 N+1"的迁移
-##   2. 只补 / 转换数据，不删除已有字段（防回滚）
-##   3. 迁移函数内部不写盘（写盘由 load_game 决定）
-func _migrate_save(save: SaveData):
-	var v : int = save.save_version
-
-	if v < 8:
-		_migrate_v7_to_v8(save)
-		v = 8
-
-	if v < 9:
-		_migrate_v8_to_v9(save)
-		v = 9
-
-	save.save_version = v
-
-
-## v7 → v8：新增 pending_sacrifice_rewards / pending_forge_rewards / sacrifice_count
-## @export 默认值已给 [] / [] / 0，这里做防御性清理（防止手改存档 / 旧代码写入非预期值）
-func _migrate_v7_to_v8(save: SaveData):
-	if not (save.pending_sacrifice_rewards is Array):
-		save.pending_sacrifice_rewards = []
-	if not (save.pending_forge_rewards is Array):
-		save.pending_forge_rewards = []
-	if save.sacrifice_count < 0:
-		save.sacrifice_count = 0
-
-
-## v8 → v9：占位，未来加字段时在这里处理
-## 示例：
-##   if not ("new_field" in save):
-##       save.new_field = 默认值
-##   或者直接依赖 @export 默认值
-func _migrate_v8_to_v9(_save: SaveData):
-	pass
 
 
 # ===== 构建存档数据 =====
@@ -157,14 +103,6 @@ func _build_save_data() -> SaveData:
 
 	save.current_day = GameState.current_day
 	save.main_unit_name = GameState.main_unit_name
-	save.soul = GameState.soul
-	save.cycle_start_soul = GameState.cycle_start_soul
-	save.cycle_start_materials = GameState.cycle_start_materials.duplicate()
-	save.temp_soul = GameState.temp_soul
-	save.temp_gold = GameState.temp_gold
-	save.materials = GameState.materials.duplicate()
-	save.interrupt_state = GameState.interrupt_state
-	save.battlefield_data = GameState.battlefield_data
 	save.current_faction = GameState.current_faction
 	save.current_node_key = GameState.current_node_key
 	save.map_snapshot = GameState.map_snapshot.duplicate(true)
@@ -186,24 +124,35 @@ func _build_save_data() -> SaveData:
 	for p in GameState.get_passives():
 		save.equipped_passives.append(_serialize_passive(p))
 
-	save.pending_sacrifice_rewards = []
-	for inst in GameState.pending_sacrifice_rewards:
-		save.pending_sacrifice_rewards.append(_serialize_item_instance(inst))
+	# 资源
+	save.soul = GameState.soul
+	save.cycle_start_soul = GameState.cycle_start_soul
+	save.temp_gold = GameState.temp_gold
 
-	save.pending_forge_rewards = []
-	for inst in GameState.pending_forge_rewards:
-		save.pending_forge_rewards.append(_serialize_item_instance(inst))
+	# 魂火
+	save.soul_fire_current = SoulFireManager.current
+	save.soul_fire_altar_level = SoulFireManager.altar_level
+	save.soul_fire_initial_level = GameState.soul_fire_initial_level
+	save.unit_attr_cap = GameState.unit_attr_cap.duplicate(true)
 
+	# 中断
+	save.interrupt_state = GameState.interrupt_state
+	save.battlefield_data = GameState.battlefield_data
+
+	# 解锁
 	save.unlocked_units = Globals.unlocked_units.duplicate()
 	save.unlocked_items = Globals.unlocked_items.duplicate()
 	save.unlocked_relics = RelicManager.get_unlocked_relics()
 	save.unlocked_talents = Globals.unlocked_talents.duplicate()
 	save.unlocked_recipes = GameState.unlocked_recipes.duplicate()
 	save.unlocked_stories = GameState.unlocked_stories.duplicate()
-	save.unlocked_refine_recipes = GameState.unlocked_refine_recipes.duplicate()
-	save.refined_items = GameState.refined_items.duplicate()
+
+	# 成长
 	save.unit_growth = GameState.unit_growth.duplicate(true)
 	save.unit_blessings = GameState.unit_blessings.duplicate(true)
+	save.talent_exp = GameState.talent_exp.duplicate(true)
+
+	# 斗技场
 	save.arena_target_talents = GameState.arena_target_talents.duplicate(true)
 	save.arena_best_streak = GameState.arena_best_streak
 	save.arena_clear_count = GameState.arena_clear_count
@@ -211,13 +160,28 @@ func _build_save_data() -> SaveData:
 	save.arena_survival_best = GameState.arena_survival_best
 	save.arena_total_crystals = GameState.arena_total_crystals
 	save.arena_total_runs = GameState.arena_total_runs
+
+	# 待领取
+	save.pending_sacrifice_rewards = []
+	for inst in GameState.pending_sacrifice_rewards:
+		save.pending_sacrifice_rewards.append(_serialize_item_instance(inst))
+	save.pending_forge_rewards = []
+	for inst in GameState.pending_forge_rewards:
+		save.pending_forge_rewards.append(_serialize_item_instance(inst))
 	save.sacrifice_count = GameState.sacrifice_count
-	save.talent_exp = GameState.talent_exp.duplicate(true)
+
 	save.tutorial_stage = GameState.tutorial_stage
+
+	# NPC 对话
+	save.npc_dialogue_seen = GameState.npc_dialogue_seen.duplicate(true)
+	save.npc_dialogue_flags = GameState.npc_dialogue_flags.duplicate()
+	save.total_run_count = GameState.total_run_count
+	save.total_dispatch_count = GameState.total_dispatch_count
 
 	save.save_time = Time.get_unix_time_from_system()
 	save.checksum = save.compute_checksum()
 	return save
+
 
 # ===== 应用存档数据 =====
 func _apply_save_data(save: SaveData):
@@ -235,26 +199,9 @@ func _apply_save_data(save: SaveData):
 	LevelManager.current_day = save.current_day - 1
 	GameState.main_unit_name = save.main_unit_name
 	GameState.resume_node_id = save.selected_node_id
-	GameState.soul = save.soul
-	GameState.cycle_start_soul = save.cycle_start_soul
-	GameState.cycle_start_materials = save.cycle_start_materials.duplicate()
-	GameState.temp_soul = save.temp_soul
-	GameState.temp_gold = save.temp_gold
-	GameState.materials = save.materials.duplicate()
-	GameState.interrupt_state = save.interrupt_state as GameState.InterruptState
-	GameState.battlefield_data = save.battlefield_data
 	GameState.current_faction = save.current_faction
 	GameState.current_node_key = save.current_node_key
 	GameState.map_snapshot = save.map_snapshot.duplicate(true)
-	GameState.arena_target_talents = save.arena_target_talents.duplicate(true)
-	GameState.arena_best_streak = save.arena_best_streak
-	GameState.arena_clear_count = save.arena_clear_count
-	GameState.arena_survival_clear = save.arena_survival_clear
-	GameState.arena_survival_best = save.arena_survival_best
-	GameState.arena_total_crystals = save.arena_total_crystals
-	GameState.arena_total_runs = save.arena_total_runs
-	GameState.sacrifice_count = save.sacrifice_count
-	GameState.talent_exp = save.talent_exp.duplicate(true)
 	GameState.shop_level = save.shop_level
 
 	GameState.visited_nodes.clear()
@@ -275,7 +222,48 @@ func _apply_save_data(save: SaveData):
 		for i in range(min(arr.size(), 4)):
 			GameState.set_passive_at_slot(i, _deserialize_passive(arr[i]))
 
-	# ★ 待领取奖励
+	# 资源
+	GameState.soul = save.soul
+	GameState.cycle_start_soul = save.cycle_start_soul
+	GameState.temp_gold = save.temp_gold
+
+	# 魂火
+	SoulFireManager.current = save.soul_fire_current
+	SoulFireManager.altar_level = save.soul_fire_altar_level
+	GameState.soul_fire_initial_level = save.soul_fire_initial_level
+	GameState.unit_attr_cap = (save.unit_attr_cap if save.unit_attr_cap else {}).duplicate(true)
+
+	# 中断
+	GameState.interrupt_state = save.interrupt_state as GameState.InterruptState
+	GameState.battlefield_data = save.battlefield_data
+
+	# 解锁
+	RelicManager.set_unlocked_relics(save.unlocked_relics if save.unlocked_relics else [])
+	Globals.unlocked_units = (save.unlocked_units if save.unlocked_units else []).duplicate()
+	Globals.unlocked_items = (save.unlocked_items if save.unlocked_items else []).duplicate()
+
+	GameState.tutorial_stage = save.tutorial_stage
+	if save.unlocked_talents.is_empty():
+		Globals.reload_talent_unlock()
+		print("[SaveManager] 存档缺 unlocked_talents，按 stage=%d 重算" % GameState.tutorial_stage)
+	else:
+		Globals.unlocked_talents = save.unlocked_talents.duplicate()
+
+	GameState.unlocked_recipes = (save.unlocked_recipes if save.unlocked_recipes else []).duplicate()
+	GameState.unlocked_stories = (save.unlocked_stories if save.unlocked_stories else []).duplicate()
+
+	GameState.unit_growth = (save.unit_growth if save.unit_growth else {}).duplicate(true)
+	GameState.unit_blessings = (save.unit_blessings if save.unit_blessings else {}).duplicate(true)
+	GameState.talent_exp = (save.talent_exp if save.talent_exp else {}).duplicate(true)
+
+	GameState.arena_target_talents = (save.arena_target_talents if save.arena_target_talents else {}).duplicate(true)
+	GameState.arena_best_streak = save.arena_best_streak
+	GameState.arena_clear_count = save.arena_clear_count
+	GameState.arena_survival_clear = save.arena_survival_clear
+	GameState.arena_survival_best = save.arena_survival_best
+	GameState.arena_total_crystals = save.arena_total_crystals
+	GameState.arena_total_runs = save.arena_total_runs
+
 	GameState.pending_sacrifice_rewards.clear()
 	if save.pending_sacrifice_rewards is Array:
 		for d in save.pending_sacrifice_rewards:
@@ -290,23 +278,12 @@ func _apply_save_data(save: SaveData):
 			if inst != null:
 				GameState.pending_forge_rewards.append(inst)
 
-	RelicManager.set_unlocked_relics(save.unlocked_relics if save.unlocked_relics else [])
-	Globals.unlocked_units = (save.unlocked_units if save.unlocked_units else []).duplicate()
-	Globals.unlocked_items = (save.unlocked_items if save.unlocked_items else []).duplicate()
+	GameState.sacrifice_count = save.sacrifice_count
 
-	GameState.tutorial_stage = save.tutorial_stage
-	if save.unlocked_talents.is_empty():
-		Globals.reload_talent_unlock()
-		print("[SaveManager] 存档缺 unlocked_talents，按 stage=%d 重算" % GameState.tutorial_stage)
-	else:
-		Globals.unlocked_talents = save.unlocked_talents.duplicate()
-
-	GameState.unlocked_recipes = (save.unlocked_recipes if save.unlocked_recipes else []).duplicate()
-	GameState.unlocked_stories = (save.unlocked_stories if save.unlocked_stories else []).duplicate()
-	GameState.unlocked_refine_recipes = (save.unlocked_refine_recipes if save.unlocked_refine_recipes else []).duplicate()
-	GameState.refined_items = (save.refined_items if save.refined_items else {}).duplicate()
-	GameState.unit_growth = (save.unit_growth if save.unit_growth else {}).duplicate(true)
-	GameState.unit_blessings = (save.unit_blessings if save.unit_blessings else {}).duplicate(true)
+	GameState.npc_dialogue_seen = (save.npc_dialogue_seen if save.npc_dialogue_seen else {}).duplicate(true)
+	GameState.npc_dialogue_flags = (save.npc_dialogue_flags if save.npc_dialogue_flags else []).duplicate()
+	GameState.total_run_count = save.total_run_count
+	GameState.total_dispatch_count = save.total_dispatch_count
 
 	if Globals.unlocked_items.is_empty():
 		Globals.unlocked_items = Globals.item_unlocked_items.duplicate()
@@ -320,6 +297,7 @@ func _apply_save_data(save: SaveData):
 		GameState.visited_nodes.erase(GameState.current_node_key)
 		GameState.current_node_key = ""
 
+
 # ===== 序列化辅助 =====
 func _serialize_item_instance(inst) -> Dictionary:
 	if inst == null:
@@ -331,6 +309,7 @@ func _serialize_item_instance(inst) -> Dictionary:
 			"upgrade_level": inst.upgrade_level,
 		}
 	return {}
+
 
 func _deserialize_item_instance(d) -> Variant:
 	if not (d is Dictionary) or d.is_empty():
@@ -344,14 +323,14 @@ func _deserialize_item_instance(d) -> Variant:
 	inst.upgrade_level = d.get("upgrade_level", 0)
 	return inst
 
+
 func _serialize_passive(entry) -> Dictionary:
 	if entry == null:
 		return {"type": "empty"}
 	if entry is ItemInstance:
 		return {"type": "relic", "item_id": entry.item_id}
-	if entry is Dictionary and entry.has("refine_id"):
-		return {"type": "refine", "refine_id": entry.get("refine_id", "")}
 	return {"type": "empty"}
+
 
 func _deserialize_passive(d) -> Variant:
 	if not (d is Dictionary):
@@ -365,12 +344,8 @@ func _deserialize_passive(d) -> Variant:
 		inst.item_id = item_id
 		inst.count = 1
 		return inst
-	elif t == "refine":
-		var refine_id = d.get("refine_id", "")
-		if refine_id == "":
-			return null
-		return {"refine_id": refine_id, "count": 1}
 	return null
+
 
 # ===== 校验 =====
 func _validate_save(save: SaveData) -> bool:
@@ -380,14 +355,17 @@ func _validate_save(save: SaveData) -> bool:
 		return false
 	return true
 
+
 func load_save_data(slot: int) -> SaveData:
 	var path = _get_slot_path(slot)
 	if not ResourceLoader.exists(path):
 		return null
 	return load(path) as SaveData
 
+
 func is_map_data_valid(save: SaveData) -> bool:
 	return not save.party_data.is_empty()
+
 
 func clean_invalid_progress(slot: int):
 	var save = load_save_data(slot)
@@ -397,15 +375,16 @@ func clean_invalid_progress(slot: int):
 	save.current_day = 1
 	save.selected_node_id = ""
 	save.interrupt_state = 1
-	save.temp_soul = 0
 	save.temp_gold = 0
 	save.checksum = save.compute_checksum()
 	var path = _get_slot_path(slot)
 	ResourceSaver.save(save, path)
 
+
 # ===== 路径 =====
 func _get_slot_path(slot: int) -> String:
 	return SAVE_DIR + "slot_%d.tres" % slot
+
 
 func _get_map_scene():
 	var scene = get_tree().current_scene
@@ -413,9 +392,11 @@ func _get_map_scene():
 		return scene
 	return null
 
+
 # ===== 辅助 =====
 func has_save(slot: int) -> bool:
 	return ResourceLoader.exists(_get_slot_path(slot))
+
 
 func get_save_info(slot: int) -> Dictionary:
 	var path = _get_slot_path(slot)
@@ -433,6 +414,7 @@ func get_save_info(slot: int) -> Dictionary:
 		"soul": save.soul
 	}
 
+
 func delete_save(slot: int):
 	var path = _get_slot_path(slot)
 	if ResourceLoader.exists(path):
@@ -440,11 +422,13 @@ func delete_save(slot: int):
 		if current_slot == slot:
 			current_slot = -1
 
+
 func find_empty_slot() -> int:
 	for i in range(SLOT_COUNT):
 		if not has_save(i):
 			return i
 	return -1
+
 
 func reset_current_slot():
 	current_slot = -1

@@ -1,8 +1,5 @@
 extends Node
 
-# ============================================================
-#  中断状态枚举
-# ============================================================
 enum InterruptState {
 	NONE,
 	CAMP,
@@ -12,20 +9,14 @@ enum InterruptState {
 
 var shop_level : int = 0
 
-# ============================================================
-#  三个状态对象
-# ============================================================
 var party_state : PartyState = PartyState.new()
 var progress_state : ProgressState = ProgressState.new()
 var resource_state : ResourceState = ResourceState.new()
 
-# ============================================================
-#  常量
-# ============================================================
 const MAX_ARMOR_SLOTS_CAP : int = 4
 
 # ============================================================
-#  属性转发：PartyState
+#  PartyState 转发
 # ============================================================
 var party : Array[UnitData]:
 	get: return party_state.party
@@ -51,38 +42,17 @@ var equipped_passives : Array:
 	get: return party_state.equipped_passives
 	set(value): party_state.equipped_passives = value
 
-func init_passive_slots():
-	party_state.init_passive_slots()
-
-func get_passives() -> Array:
-	return party_state.get_passives()
-
-func set_passive_at_slot(idx: int, value):
-	party_state.set_passive_at_slot(idx, value)
-
-func remove_passive_at_slot(idx: int):
-	party_state.remove_passive_at_slot(idx)
-
-func is_passive_full() -> bool:
-	return party_state.is_passive_full()
-
+func init_passive_slots(): party_state.init_passive_slots()
+func get_passives() -> Array: return party_state.get_passives()
+func set_passive_at_slot(idx: int, value): party_state.set_passive_at_slot(idx, value)
+func remove_passive_at_slot(idx: int): party_state.remove_passive_at_slot(idx)
+func is_passive_full() -> bool: return party_state.is_passive_full()
 func add_relic_to_passive_slot(inst: ItemInstance) -> bool:
 	return party_state.add_relic_to_passive_slot(inst)
-
-func add_refine_to_passive_slot(refine_id: String) -> bool:
-	return party_state.add_refine_to_passive_slot(refine_id)
-
-func get_relics_from_passives() -> Array:
-	return party_state.get_relics_from_passives()
-
-func get_refines_from_passives() -> Array:
-	return party_state.get_refines_from_passives()
-
-func clear_refine_passives():
-	party_state.clear_refine_passives()
+func get_relics_from_passives() -> Array: return party_state.get_relics_from_passives()
 
 # ============================================================
-#  属性转发：ProgressState
+#  ProgressState 转发
 # ============================================================
 var current_day : int:
 	get: return progress_state.current_day
@@ -141,31 +111,35 @@ var battlefield_data : Dictionary:
 	set(value): progress_state.battlefield_data = value
 
 # ============================================================
-#  属性转发：ResourceState
+#  ResourceState 转发
 # ============================================================
 var soul : int:
 	get: return resource_state.soul
 	set(value): resource_state.soul = value
 
-var temp_soul : int:
-	get: return resource_state.temp_soul
-	set(value): resource_state.temp_soul = value
-
 var temp_gold : int:
 	get: return resource_state.temp_gold
 	set(value): resource_state.temp_gold = value
 
-var materials : Dictionary:
-	get: return resource_state.materials
-	set(value): resource_state.materials = value
+var soul_fire_current : int:
+	get: return resource_state.soul_fire_current
+	set(value): resource_state.soul_fire_current = value
+
+var soul_fire_altar_level : int:
+	get: return resource_state.soul_fire_altar_level
+	set(value): resource_state.soul_fire_altar_level = value
+
+var soul_fire_initial_level : int:
+	get: return resource_state.soul_fire_initial_level
+	set(value): resource_state.soul_fire_initial_level = value
+
+var unit_attr_cap : Dictionary:
+	get: return resource_state.unit_attr_cap
+	set(value): resource_state.unit_attr_cap = value
 
 var cycle_start_soul : int:
 	get: return resource_state.cycle_start_soul
 	set(value): resource_state.cycle_start_soul = value
-
-var cycle_start_materials : Dictionary:
-	get: return resource_state.cycle_start_materials
-	set(value): resource_state.cycle_start_materials = value
 
 var reward_items : Array:
 	get: return resource_state.reward_items
@@ -178,10 +152,6 @@ var current_reward_gold : int:
 var current_reward_soul : int:
 	get: return resource_state.current_reward_soul
 	set(value): resource_state.current_reward_soul = value
-
-var current_reward_materials : Dictionary:
-	get: return resource_state.current_reward_materials
-	set(value): resource_state.current_reward_materials = value
 
 var current_reward_rare_datas : Array:
 	get: return resource_state.current_reward_rare_datas
@@ -211,19 +181,10 @@ var arena_target_talents : Dictionary:
 	get: return resource_state.arena_target_talents
 	set(value): resource_state.arena_target_talents = value
 
-var unlocked_refine_recipes : Array:
-	get: return resource_state.unlocked_refine_recipes
-	set(value): resource_state.unlocked_refine_recipes = value
-
-var refined_items : Dictionary:
-	get: return resource_state.refined_items
-	set(value): resource_state.refined_items = value
-
 var tutorial_stage : int:
 	get: return resource_state.tutorial_stage
 	set(value): resource_state.tutorial_stage = value
 
-# ---- 待领取奖励 ----
 var pending_sacrifice_rewards : Array:
 	get: return resource_state.pending_sacrifice_rewards
 	set(value): resource_state.pending_sacrifice_rewards = value
@@ -232,7 +193,6 @@ var pending_forge_rewards : Array:
 	get: return resource_state.pending_forge_rewards
 	set(value): resource_state.pending_forge_rewards = value
 
-# ---- 斗技场统计 ----
 var arena_best_streak : int:
 	get: return resource_state.arena_best_streak
 	set(value): resource_state.arena_best_streak = value
@@ -265,13 +225,29 @@ var current_node_unlock_relics : Array:
 	get: return progress_state.current_node_unlock_relics
 	set(value): progress_state.current_node_unlock_relics = value
 
+var npc_dialogue_seen : Dictionary:
+	get: return resource_state.npc_dialogue_seen
+	set(value): resource_state.npc_dialogue_seen = value
+
+var npc_dialogue_flags : Array:
+	get: return resource_state.npc_dialogue_flags
+	set(value): resource_state.npc_dialogue_flags = value
+
+var total_run_count : int:
+	get: return resource_state.total_run_count
+	set(value): resource_state.total_run_count = value
+
+var total_dispatch_count : int:
+	get: return resource_state.total_dispatch_count
+	set(value): resource_state.total_dispatch_count = value
+
 # ============================================================
 #  非转发字段
 # ============================================================
 var pending_save_slot : int = -1
 
 # ============================================================
-#  队伍相关
+#  队伍
 # ============================================================
 func initialize_party(selected_units: Array[String], main_index: int):
 	party_state.initialize_party(selected_units, main_index)
@@ -324,7 +300,6 @@ func revive_unit(unit_name: String, display_name: String) -> bool:
 				return false
 			ud.is_dead = false
 			ud.hit_points = ud.max_hp
-			# ★ 清理该单位提供的熔铸 buff
 			var removed : int = 0
 			for m in party:
 				if m.sacrifice_buff_sources.has(key):
@@ -342,7 +317,6 @@ func revive_all_units():
 		if ud.is_dead:
 			ud.is_dead = false
 			ud.hit_points = ud.max_hp
-	# ★ 全员复活 → 清空所有 buff 来源
 	for m in party:
 		m.sacrifice_buff_sources.clear()
 
@@ -367,7 +341,7 @@ func has_any_dead_unit() -> bool:
 	return false
 
 # ============================================================
-#  遗物/被动统计
+#  遗物统计
 # ============================================================
 func get_global_relic_stats() -> Dictionary:
 	var bonus = {}
@@ -405,30 +379,14 @@ func get_global_relic_effects() -> Dictionary:
 	return effects
 
 # ============================================================
-#  进度相关
+#  进度
 # ============================================================
-func reset_progress():
-	progress_state.reset_progress()
-
-func undo_battle_entry():
-	progress_state.undo_battle_entry()
+func reset_progress(): progress_state.reset_progress()
+func undo_battle_entry(): progress_state.undo_battle_entry()
 
 # ============================================================
-#  资源相关
+#  奖励物品
 # ============================================================
-func add_material(material_name: String, amount: int):
-	resource_state.add_material(material_name, amount)
-	SaveManager.auto_save()
-
-func get_material(material_name: String) -> int:
-	return resource_state.get_material(material_name)
-
-func get_all_materials() -> Dictionary:
-	return resource_state.get_all_materials()
-
-func reset_materials():
-	resource_state.reset_materials()
-
 func add_reward_item(item_id: String):
 	resource_state.add_reward_item(item_id)
 
@@ -440,15 +398,14 @@ func clear_current_reward():
 	current_reward_rare_datas.clear()
 
 # ============================================================
-#  编排方法
+#  编排
 # ============================================================
 func start_new_cycle():
-	temp_soul = 0
+	total_run_count += 1
 	temp_gold = 0
 	shop_level = 0
 	sacrifice_count = 0
 	cycle_start_soul = soul
-	cycle_start_materials = materials.duplicate()
 
 	for unit_data in party:
 		unit_data.sacrifice_buff_sources.clear()
@@ -465,11 +422,12 @@ func start_new_cycle():
 			unit_data.weapon_slot = null
 	init_passive_slots()
 	clear_all_pending_rewards()
+	SoulFireManager.reset_for_new_run()
+	SaveManager.auto_save()
 
 
 func finish_day(grant_slot: bool = true):
-	soul += temp_soul
-	temp_soul = 0
+	soul += SoulFireManager.settle()
 	if grant_slot:
 		for unit_data in party:
 			if unit_data.max_armor_slots < MAX_ARMOR_SLOTS_CAP:
@@ -485,14 +443,16 @@ func finish_cycle():
 		tutorial_stage += 1
 		Globals.reload_talent_unlock()
 		print("[Tutorial] 新手阶段 → %d（已重载词条解锁）" % tutorial_stage)
+	DispatchManager.advance_run()
 
 
 func abandon_cycle():
-	temp_soul = 0
 	temp_gold = 0
 
 
 func abandon_and_return_to_camp():
+	# 先把剩余魂火结算进 soul，让结算面板显示真实的"本局赚取"
+	SoulFireManager.settle()
 	await Globals.show_cycle_reward()
 	finish_day(false)
 	abandon_cycle()
@@ -526,19 +486,16 @@ func reset_for_new_cycle():
 	last_selected_node_type = -1
 	LevelManager.current_day = 0
 	LevelManager.current_level_index = 0
-	temp_soul = 0
 	temp_gold = 0
 	interrupt_state = InterruptState.NONE
 	init_passive_slots()
 	clear_all_pending_rewards()
-	current_reward_rare_datas.clear()
 	current_faction = ""
 	map_snapshot.clear()
 	cycle_start_soul = 0
-	cycle_start_materials.clear()
 	sacrifice_count = 0
 	shop_level = 0
-	
+
 
 func reset_all():
 	party.clear()
@@ -554,18 +511,16 @@ func reset_all():
 	current_map_data = null
 	last_selected_node_type = -1
 	LevelManager.reset()
-	temp_soul = 0
 	temp_gold = 0
 	interrupt_state = InterruptState.NONE
 	init_passive_slots()
 	clear_all_pending_rewards()
-	current_reward_rare_datas.clear()
 	current_faction = ""
 	map_snapshot.clear()
 	cycle_start_soul = 0
-	cycle_start_materials.clear()
 	sacrifice_count = 0
 	shop_level = 0
+
 
 func apply_relic_stats_to_unit(_unit_data: UnitData):
 	pass

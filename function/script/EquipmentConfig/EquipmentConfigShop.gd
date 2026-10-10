@@ -107,32 +107,6 @@ func build_weapon_grid(container: GridContainer):
 			container.add_child(btn)
 
 
-func build_refine_grid(container: GridContainer):
-	for child in container.get_children(): container.remove_child(child); child.free()
-	container.columns = 3
-	var all_ids : Array = RefineManager.get_all_ids()
-	var has_any : bool = false
-	for refine_id in all_ids:
-		if not RefineManager.is_recipe_unlocked(refine_id): continue
-		var count : int = RefineManager.get_count(refine_id)
-		if count <= 0: continue
-		has_any = true
-		var recipe : Dictionary = RefineManager.get_recipe(refine_id)
-		var btn : Button = Style.create_styled_button(Style.FONT_SMALL, Style.BTN_LIBRARY_SIZE)
-		var rname : String = recipe.get("name", refine_id)
-		btn.text = rname + " ×" + str(count)
-		btn.autowrap_mode = TextServer.AUTOWRAP_OFF
-		btn.clip_text = true
-		btn.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-		btn.set_meta("slot_type", "library_refine")
-		btn.set_meta("refine_id", refine_id)
-		btn.mouse_entered.connect(panel._on_refine_hover_entered.bind(refine_id))
-		btn.mouse_exited.connect(panel._on_refine_hover_exited)
-		container.add_child(btn)
-	if not has_any:
-		container.add_child(Style.create_label("暂无精炼道具", Style.FONT_SMALL))
-
-
 # ============================================================
 #  商店购买
 # ============================================================

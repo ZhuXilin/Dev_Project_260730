@@ -4,7 +4,7 @@ extends Node
 var _bf : Node2D
 var _is_showing_relics : bool = false
 var _detail_popup = null
-var _unit_icon_cache : Dictionary = {}   # "unit_name|sprite_path" -> ImageTexture
+var _unit_icon_cache : Dictionary = {}
 
 
 func _init(bf: Node2D):
@@ -15,7 +15,6 @@ func init() -> void:
 	_detail_popup = load(Config.PATHS.ITEM_DETAIL_POPUP).instantiate()
 	_bf.add_child(_detail_popup)
 	_detail_popup.visible = false
-	# ★ 预热 PanelRevealer，避免首次悬停时初始化
 	if _detail_popup.has_method("get_panel"):
 		var p = _detail_popup.get_panel()
 		if p:
@@ -406,7 +405,7 @@ func on_relic_view_btn_pressed() -> void:
 
 
 # ============================================================
-#  遗物图标 + 精炼使用
+#  遗物图标
 # ============================================================
 func update_relic_icons() -> void:
 	for child in _bf.relic_icon_container.get_children():
@@ -419,6 +418,8 @@ func update_relic_icons() -> void:
 		var p = passives[i]
 		if p == null:
 			continue
+		if not (p is ItemInstance):
+			continue
 
 		var btn := Button.new()
 		btn.add_theme_font_size_override("font_size", 6)
@@ -426,75 +427,20 @@ func update_relic_icons() -> void:
 		btn.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		btn.custom_minimum_size = Vector2(0, 14)
 
-		if p is ItemInstance:
-			var data = RelicManager.get_relic_data(p.item_id)
-			if data.is_empty():
-				continue
-			btn.text = "◆ " + data.get("name", "?")
-			btn.disabled = true
-			btn.tooltip_text = data.get("description", "")
-			_bf.relic_icon_container.add_child(btn)
-			has_any = true
-
-		elif p is Dictionary and p.has("refine_id"):
-			var refine_id : String = p.get("refine_id", "")
-			# ★ 复活药在地图界面用，战斗中不显示
-			if refine_id == "revive_potion":
-				continue
-			var recipe : Dictionary = RefineManager.get_recipe(refine_id)
-			if recipe.is_empty():
-				continue
-			btn.text = "★ " + recipe.get("name", "?") + " ▶"
-			btn.tooltip_text = recipe.get("description", "")
-			btn.pressed.connect(on_use_refine.bind(i))
-			_bf.relic_icon_container.add_child(btn)
-			has_any = true
+		var data = RelicManager.get_relic_data(p.item_id)
+		if data.is_empty():
+			continue
+		btn.text = "◆ " + data.get("name", "?")
+		btn.disabled = true
+		btn.tooltip_text = data.get("description", "")
+		_bf.relic_icon_container.add_child(btn)
+		has_any = true
 
 	if not has_any:
 		var label := Label.new()
-		label.text = "无遗物/精炼"
+		label.text = "无遗物"
 		label.add_theme_font_size_override("font_size", 6)
 		_bf.relic_icon_container.add_child(label)
-
-
-func on_use_refine(slot_idx: int) -> void:
-	var passives = GameState.get_passives()
-	if slot_idx < 0 or slot_idx >= passives.size():
-		return
-	var p = passives[slot_idx]
-	if not (p is Dictionary and p.has("refine_id")):
-		return
-
-	var refine_id : String = p.get("refine_id", "")
-	var effect : Dictionary = RefineManager.get_effect(refine_id)
-	if effect.is_empty():
-		return
-
-	var effect_type : String = effect.get("type", "")
-	var value : Variant = effect.get("value", 0)
-
-	for unit in UnitManager.unit_list:
-		if not is_instance_valid(unit):
-			continue
-		if unit.unit_stats.team_id != 0:
-			continue
-		match effect_type:
-			"attack_percent":
-				unit.buff_attack_percent += value
-			"crit_damage_bonus":
-				unit.buff_crit_damage_bonus += value
-			"defense_flat":
-				unit.buff_defense_flat += int(value)
-			"damage_reduction":
-				unit.buff_damage_reduction += value
-			"heal_full":
-				unit.hit_points = unit.unit_stats.max_hp
-				unit.update_hp_label()
-
-	GameState.set_passive_at_slot(slot_idx, null)
-	update_relic_icons()
-	SoundManager.play_heal_sound()
-	print("[Battlefield] 使用精炼：", refine_id, " 类型：", effect_type)
 
 
 # ============================================================

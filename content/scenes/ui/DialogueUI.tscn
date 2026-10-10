@@ -35,3 +35,12 @@ offset_right = 304.0
 offset_bottom = 59.0
 theme_override_font_sizes/font_size = 8
 autowrap_mode = 3
+
+[node name="ChoiceContainer" type="VBoxContainer" parent="DialoguePanel" unique_id=800000001]
+visible = false
+layout_mode = 0
+offset_left = 16.0
+offset_top = 22.0
+offset_right = 304.0
+offset_bottom = 55.0
+theme_override_constants/separation = 2

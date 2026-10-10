@@ -23,7 +23,6 @@ Globals="*res://function/global/Globals.gd"
 SignalBus="*res://function/global/SignalBus.gd"
 ItemManager="*res://function/global/ItemManager.gd"
 RelicManager="*res://function/global/RelicManager.gd"
-RefineManager="*res://function/global/RefineManager.gd"
 RecipeManager="*res://function/global/RecipeManager.gd"
 StoryManager="*res://function/global/StoryManager.gd"
 TerrainManager="*res://function/global/TerrainManager.gd"
@@ -43,6 +42,9 @@ GmConsole="*uid://q5yaycxpkkua"
 TestRegistry="*uid://uqtcmpoqfoyf"
 TestHarness="*uid://dmji7n6utrcoj"
 GameConfigManager="*uid://bqipfnujc115f"
+SoulFireManager="*res://function/global/SoulFireManager.gd"
+DispatchManager="*res://function/global/DispatchManager.gd"
+DispatchManager="*uid://b245mfytbsrjc"
 
 [display]
 

@@ -47,7 +47,7 @@ layout_mode = 2
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_font_sizes/font_size = 10
-text = "魂铸圣所"
+text = "守火者"
 
 [node name="SoulLabel" type="Label" parent="Panel/VBox/TitleBar" unique_id=890618964]
 layout_mode = 2
@@ -58,23 +58,17 @@ text = "魂: 0"
 layout_mode = 2
 theme_override_constants/separation = 3
 
-[node name="AttrTabBtn" type="Button" parent="Panel/VBox/TabBar" unique_id=1256886633]
+[node name="SoulFireTabBtn" type="Button" parent="Panel/VBox/TabBar" unique_id=1256886633]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_font_sizes/font_size = 7
-text = "祝福"
+text = "魂火"
 
-[node name="TalentTabBtn" type="Button" parent="Panel/VBox/TabBar" unique_id=922914872]
+[node name="AttrCapTabBtn" type="Button" parent="Panel/VBox/TabBar" unique_id=922914872]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_font_sizes/font_size = 7
-text = "特技"
-
-[node name="SoulForgeTabBtn" type="Button" parent="Panel/VBox/TabBar" unique_id=922914873]
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_font_sizes/font_size = 7
-text = "魂铸"
+text = "属性上限"
 
 [node name="MainHBox" type="HBoxContainer" parent="Panel/VBox" unique_id=1885705594]
 layout_mode = 2
@@ -174,7 +168,6 @@ theme_override_styles/disabled = ExtResource("2")
 theme_override_styles/focus = ExtResource("2")
 text = "返回"
 
-[connection signal="pressed" from="Panel/VBox/TabBar/AttrTabBtn" to="." method="_on_attr_tab_pressed"]
-[connection signal="pressed" from="Panel/VBox/TabBar/TalentTabBtn" to="." method="_on_talent_tab_pressed"]
-[connection signal="pressed" from="Panel/VBox/TabBar/SoulForgeTabBtn" to="." method="_on_soul_forge_tab_pressed"]
+[connection signal="pressed" from="Panel/VBox/TabBar/SoulFireTabBtn" to="." method="_on_soul_fire_tab_pressed"]
+[connection signal="pressed" from="Panel/VBox/TabBar/AttrCapTabBtn" to="." method="_on_attr_cap_tab_pressed"]
 [connection signal="pressed" from="Panel/VBox/BackButton" to="." method="_on_back_pressed"]

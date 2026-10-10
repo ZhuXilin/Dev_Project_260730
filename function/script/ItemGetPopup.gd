@@ -7,6 +7,7 @@ extends CanvasLayer
 
 signal closed
 
+
 func show_item(item_id: String, count: int):
 	var data = ItemManager.get_item_data(item_id)
 	if not data:
@@ -22,6 +23,7 @@ func show_item(item_id: String, count: int):
 	PanelRevealer.show_panel(panel)
 	_auto_close()
 
+
 func show_unit_unlock(units: Array):
 	_setup_popup()
 	icon.visible = false
@@ -30,7 +32,7 @@ func show_unit_unlock(units: Array):
 	PanelRevealer.show_panel(panel)
 	_auto_close()
 
-## 通用文本弹窗（无图标）
+
 func show_text(text: String):
 	_setup_popup()
 	icon.visible = false
@@ -38,6 +40,7 @@ func show_text(text: String):
 	name_label.text = text
 	PanelRevealer.show_panel(panel)
 	_auto_close()
+
 
 func show_relic(relic_id: String, _count: int = 1):
 	var data = RelicManager.get_relic_data(relic_id)
@@ -51,22 +54,12 @@ func show_relic(relic_id: String, _count: int = 1):
 	PanelRevealer.show_panel(panel)
 	_auto_close()
 
-func show_refine(refine_id: String, _count: int = 1):
-	var recipe : Dictionary = RefineManager.get_recipe(refine_id)
-	if recipe.is_empty():
-		queue_free()
-		return
-	_setup_popup()
-	icon.visible = false
-	count_label.visible = false
-	name_label.text = recipe.get("name", refine_id)
-	PanelRevealer.show_panel(panel)
-	_auto_close()
 
 func _setup_popup():
 	Globals.is_item_get_popup_active = true
 	MusicManager.pause_and_save()
 	SoundManager.play_get_item_sound()
+
 
 func _auto_close():
 	await get_tree().create_timer(3.5, true, false, true).timeout

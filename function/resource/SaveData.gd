@@ -1,93 +1,86 @@
 extends Resource
 class_name SaveData
 
-const CURRENT_VERSION = 9
+const CURRENT_VERSION = 10
 
 @export var save_version: int = CURRENT_VERSION
 
+# ---- 解锁 ----
 @export var unlocked_units: Array = []
 @export var unlocked_items: Array = []
 @export var unlocked_relics: Array = []
+@export var unlocked_talents: Array = []
+@export var unlocked_recipes: Array = []
+@export var unlocked_stories: Array = []
 
+# ---- 设置 ----
 @export var music_volume: float = 0.2
 @export var sound_volume: float = 0.2
 @export var game_speed: int = 0
 @export var window_mode: int = 0
 @export var window_size: Vector2i = Vector2i(640, 480)
 
+# ---- 进度 ----
 @export var current_day: int = 1
 @export var visited_nodes: Array = []
 @export var selected_node_id: String = ""
 @export var main_unit_name: String = ""
 @export var current_node_key: String = ""
 
+# ---- 资源 ----
 @export var soul: int = 0
 @export var cycle_start_soul: int = 0
-@export var cycle_start_materials: Dictionary = {}
-@export var temp_soul: int = 0
 @export var temp_gold: int = 0
 
+# ---- 魂火 ----
+@export var soul_fire_current: int = 0
+@export var soul_fire_altar_level: int = 0
+@export var soul_fire_initial_level: int = 0
+@export var unit_attr_cap: Dictionary = {}
+
+# ---- 新手 ----
 @export var tutorial_stage: int = 0
 @export var shop_level: int = 0
 
+# ---- 成长 ----
 @export var unit_growth: Dictionary = {}
 @export var unit_blessings: Dictionary = {}
 @export var talent_exp: Dictionary = {}
 
-@export var materials: Dictionary = {
-	"粗铁": 0,
-	"精钢": 0,
-	"秘银": 0,
-	"龙鳞": 0
-}
-
-@export var unlocked_stories: Array = []
-
-@export var attribute_points: Dictionary = {
-	"strength": 0,
-	"dexterity": 0,
-	"intelligence": 0,
-	"faith": 0,
-	"arcane": 0
-}
-@export var total_attr_points_gained: int = 0
-@export var available_attr_points: int = 0
-
-@export var unit_advancement: Dictionary = {}
-
-@export var interrupt_state: int = 0
-@export var battlefield_data: Dictionary = {}
-
+# ---- 队伍 ----
 @export var party_data: Array = []
-@export var current_faction: String = ""
-
 @export var equipped_passives: Array = []
 
-@export var save_time: int = 0
-@export var checksum: String = ""
+# ---- 地图 ----
+@export var interrupt_state: int = 0
+@export var battlefield_data: Dictionary = {}
+@export var map_snapshot: Dictionary = {}
+@export var current_faction: String = ""
 
+# ---- 斗技场 ----
 @export var arena_target_talents: Dictionary = {}
 @export var arena_best_streak: int = 0
-
-# ---- 斗技场统计 ----
 @export var arena_clear_count: int = 0
 @export var arena_survival_clear: int = 0
 @export var arena_survival_best: int = 0
 @export var arena_total_crystals: int = 0
 @export var arena_total_runs: int = 0
 
-@export var unlocked_talents: Array = []
-@export var unlocked_recipes: Array = []
-@export var unlocked_refine_recipes: Array = []
-@export var refined_items: Dictionary = {}
-
-@export var map_snapshot: Dictionary = {}
-
-# ---- 待领取奖励（v8） ----
+# ---- 待领取 ----
 @export var pending_sacrifice_rewards: Array = []
 @export var pending_forge_rewards: Array = []
-
 @export var sacrifice_count: int = 0
+
+# ---- NPC 对话 ----
+@export var npc_dialogue_seen: Dictionary = {}
+@export var npc_dialogue_flags: Array = []
+@export var total_run_count: int = 0
+@export var total_dispatch_count: int = 0
+
+# ---- 时间戳 ----
+@export var save_time: int = 0
+@export var checksum: String = ""
+
 
 func compute_checksum() -> String:
 	var data = {
@@ -102,9 +95,11 @@ func compute_checksum() -> String:
 		"main_unit_name": main_unit_name,
 		"soul": soul,
 		"cycle_start_soul": cycle_start_soul,
-		"cycle_start_materials": cycle_start_materials,
-		"temp_soul": temp_soul,
 		"temp_gold": temp_gold,
+		"soul_fire_current": soul_fire_current,
+		"soul_fire_altar_level": soul_fire_altar_level,
+		"soul_fire_initial_level": soul_fire_initial_level,
+		"unit_attr_cap": unit_attr_cap,
 		"interrupt_state": interrupt_state,
 		"battlefield_data": battlefield_data,
 		"party_data": party_data,
@@ -113,17 +108,11 @@ func compute_checksum() -> String:
 		"unlocked_relics": unlocked_relics,
 		"current_faction": current_faction,
 		"equipped_passives": equipped_passives,
-		"materials": materials,
 		"unit_growth": unit_growth,
+		"unit_blessings": unit_blessings,
 		"unlocked_stories": unlocked_stories,
-		"attribute_points": attribute_points,
-		"total_attr_points_gained": total_attr_points_gained,
-		"available_attr_points": available_attr_points,
-		"unit_advancement": unit_advancement,
 		"unlocked_talents": unlocked_talents,
 		"unlocked_recipes": unlocked_recipes,
-		"unlocked_refine_recipes": unlocked_refine_recipes,
-		"refined_items": refined_items,
 		"current_node_key": current_node_key,
 		"map_snapshot": map_snapshot,
 		"arena_target_talents": arena_target_talents,
@@ -139,5 +128,9 @@ func compute_checksum() -> String:
 		"pending_forge_rewards": pending_forge_rewards,
 		"sacrifice_count": sacrifice_count,
 		"shop_level": shop_level,
+		"npc_dialogue_seen": npc_dialogue_seen,
+		"npc_dialogue_flags": npc_dialogue_flags,
+		"total_run_count": total_run_count,
+		"total_dispatch_count": total_dispatch_count,
 	}
 	return JSON.stringify(data, "  ").sha256_text()

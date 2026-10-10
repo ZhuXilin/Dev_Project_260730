@@ -2,7 +2,7 @@ extends CanvasLayer
 
 var selected_units: Array[String] = []
 var max_selection: int = 3
-var _equipment_config_instance = null   # 防止重复实例化
+var _equipment_config_instance = null
 
 @onready var unit_buttons = $UnitListContainer/VBoxContainer
 @onready var main_label = $MainUnitLabel
@@ -11,23 +11,24 @@ var _equipment_config_instance = null   # 防止重复实例化
 @onready var confirm_btn = $BottomBar/ConfirmButton
 @onready var back_btn = $BottomBar/BackButton
 
-# ★ 新增：单位信息面板
 @onready var info_name  : Label = $InfoPanel/InfoVBox/InfoName
 @onready var info_stats : Label = $InfoPanel/InfoVBox/InfoStats
 @onready var info_desc  : Label = $InfoPanel/InfoVBox/InfoDesc
 
 const EquipmentConfig = preload(Config.PATHS.EQUIPMENT_CONFIG_SCRIPT)
 
+
 func _ready():
 	if MusicManager.config and MusicManager.config.unit_select_music:
 		MusicManager.play_music(MusicManager.config.unit_select_music)
-	
+
 	_make_label_clickable(main_label, 0)
 	_make_label_clickable(slot1_label, 1)
 	_make_label_clickable(slot2_label, 2)
-	
+
 	_setup_unit_buttons()
 	_update_labels()
+
 
 func _make_label_clickable(label: Label, index: int):
 	label.mouse_filter = Control.MOUSE_FILTER_STOP
@@ -37,6 +38,7 @@ func _make_label_clickable(label: Label, index: int):
 	)
 	label.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 
+
 func _setup_unit_buttons():
 	for child in unit_buttons.get_children():
 		child.queue_free()
@@ -44,7 +46,11 @@ func _setup_unit_buttons():
 	var unlocked = Globals.get_unlocked_units()
 	unlocked.sort()
 
+	var dispatched : Array = DispatchManager.get_dispatched_unit_names()
+
 	for unit_name in unlocked:
+		if unit_name in dispatched:
+			continue
 		var display_name = UnitDataManager.get_display_name_full(unit_name)
 		var btn = Button.new()
 		btn.text = display_name
@@ -55,12 +61,11 @@ func _setup_unit_buttons():
 		btn.disabled = selected
 		btn.modulate = Color(0.5, 0.5, 0.5) if selected else Color.WHITE
 		btn.pressed.connect(_on_unit_selected.bind(unit_name, btn))
-		btn.mouse_entered.connect(_on_unit_hover.bind(unit_name))   # ★ 新增
-		btn.mouse_exited.connect(_on_unit_hover_exit)                # ★ 新增
+		btn.mouse_entered.connect(_on_unit_hover.bind(unit_name))
+		btn.mouse_exited.connect(_on_unit_hover_exit)
 		unit_buttons.add_child(btn)
 
 
-# ★ 新增：悬停显示单位详情
 func _on_unit_hover(unit_name: String):
 	if not info_name: return
 	var unit_dict = UnitDataManager.get_unit_data(unit_name)
@@ -112,6 +117,7 @@ func _on_unit_selected(unit_name: String, btn: Button):
 	_update_labels()
 	SoundManager.play_select_sound()
 
+
 func _on_slot_clicked(index: int):
 	if index < selected_units.size():
 		var unit_name = selected_units[index]
@@ -124,6 +130,7 @@ func _on_slot_clicked(index: int):
 		_update_labels()
 		SoundManager.play_cancel_sound()
 
+
 func _update_labels():
 	var slots = ["主单位", "辅助1", "辅助2"]
 	var labels = [main_label, slot1_label, slot2_label]
@@ -135,6 +142,7 @@ func _update_labels():
 			labels[i].text = slots[i] + ": (未选择)"
 	confirm_btn.disabled = selected_units.size() < max_selection
 
+
 func _on_confirm_pressed():
 	var main_unit_name = selected_units[0]
 	var selected_unit_names = selected_units.duplicate()
@@ -144,7 +152,7 @@ func _on_confirm_pressed():
 	var faction = main_unit_data.get("faction", "王国")
 	GameState.current_faction = faction
 	LevelManager._reload_all_levels()
-	
+
 	var target_slot = -1
 	if SaveManager.current_slot != -1:
 		target_slot = SaveManager.current_slot
@@ -156,15 +164,10 @@ func _on_confirm_pressed():
 			Globals.show_confirm(
 				self,
 				"所有存档槽已满，请先删除一个存档。",
-				"确定",
-				"",
-				func(): pass,
-				func(): pass,
-				false
+				"确定", "", func(): pass, func(): pass, false
 			)
 			return
 
-	# ---- 防止重复实例化 ----
 	if _equipment_config_instance != null:
 		_equipment_config_instance.show()
 		_equipment_config_instance.move_to_front()
@@ -174,17 +177,17 @@ func _on_confirm_pressed():
 	GameState.start_new_cycle()
 	GameState.reset_progress()
 	GameState.interrupt_state = GameState.InterruptState.MAP
-	
-	# ---- 创建面板 ----
+
 	var config = load(Config.PATHS.EQUIPMENT_CONFIG).instantiate()
 	add_child(config)
 	_equipment_config_instance = config
 	var panel = config.get_node("MainPanel")
 	panel.init(selected_units, target_slot, EquipmentConfig.Mode.DEPLOY)
-	
+
 	config.tree_exited.connect(func():
 		_equipment_config_instance = null
 	)
+
 
 func _on_back_pressed():
 	MusicManager.stop_music()

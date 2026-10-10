@@ -6,7 +6,6 @@ extends Control
 
 const UNIT_DATA_PATH : String = "res://content/data/unit_data.json"
 const RELIC_DATA_PATH : String = "res://content/data/relic_data.json"
-const REFINE_DATA_PATH : String = "res://content/data/refine_recipes.json"
 const ITEM_DATA_PATH : String = "res://content/data/item_data.json"
 const TALENT_DATA_PATH : String = "res://content/data/talents.json"
 

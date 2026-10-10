@@ -351,30 +351,7 @@ func get_unlocked_relics() -> Array:
 func show_cycle_reward() -> void:
 	MusicManager.play_defeat_music()
 
-	var effective_soul = GameState.soul + GameState.temp_soul
-	var earned_soul = max(0, effective_soul - GameState.cycle_start_soul)
-
-	var earned_materials = {}
-	var order = ["粗铁", "精钢", "秘银", "龙鳞"]
-	for key in order:
-		var before = GameState.cycle_start_materials.get(key, 0)
-		var now = GameState.materials.get(key, 0)
-		var earned = now - before
-		if earned > 0:
-			earned_materials[key] = earned
-
-	var reward_items: Array = []
-	for mat_name in order:
-		if not earned_materials.has(mat_name):
-			continue
-		var count = earned_materials[mat_name]
-		if count <= 0:
-			continue
-		var data = ItemData.new()
-		data.id = "material_" + mat_name
-		data.name = mat_name + " x" + str(count)
-		data.description = ""
-		reward_items.append(data)
+	var earned_soul : int = max(0, GameState.soul - GameState.cycle_start_soul)
 
 	var summary = get_reward_summary()
 	if not summary:
@@ -382,7 +359,7 @@ func show_cycle_reward() -> void:
 
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 
-	summary.setup_reward(0, earned_soul, reward_items, true, "本轮结算")
+	summary.setup_reward(0, earned_soul, [], true, "本轮结算")
 	summary.open()
 	await summary.confirmed
 	summary.close()

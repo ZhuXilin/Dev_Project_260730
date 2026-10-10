@@ -1,0 +1,134 @@
+[gd_scene format=3 uid="uid://cdisp00000001"]
+
+[ext_resource type="Script" path="res://function/script/DispatchUI.gd" id="1_script"]
+[ext_resource type="StyleBox" uid="uid://6qbsaxkfwg3o" path="res://content/resource/stylebox/8bit_style_box_flat.tres" id="2_style"]
+
+[node name="DispatchUI" type="CanvasLayer" unique_id=300000001]
+layer = 20
+script = ExtResource("1_script")
+
+[node name="Background" type="ColorRect" parent="." unique_id=300000002]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.10980392, 0.10980392, 0.10980392, 1)
+
+[node name="Panel" type="Panel" parent="." unique_id=300000003]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 16.0
+offset_top = 16.0
+offset_right = -16.0
+offset_bottom = -16.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_styles/panel = ExtResource("2_style")
+
+[node name="VBox" type="VBoxContainer" parent="Panel" unique_id=300000004]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 12.0
+offset_top = 12.0
+offset_right = -12.0
+offset_bottom = -12.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 6
+
+[node name="Title" type="Label" parent="Panel/VBox" unique_id=300000005]
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+text = "游魂向导"
+horizontal_alignment = 1
+
+[node name="Hint" type="Label" parent="Panel/VBox" unique_id=300000006]
+layout_mode = 2
+theme_override_font_sizes/font_size = 6
+text = "选 1-2 个单位 + 1 条路线后确认派遣"
+horizontal_alignment = 1
+autowrap_mode = 3
+
+[node name="Separator1" type="HSeparator" parent="Panel/VBox" unique_id=300000007]
+layout_mode = 2
+
+[node name="UnitTitle" type="Label" parent="Panel/VBox" unique_id=300000008]
+layout_mode = 2
+theme_override_font_sizes/font_size = 7
+text = "选择单位（最多 2 人）"
+
+[node name="UnitScroll" type="ScrollContainer" parent="Panel/VBox" unique_id=300000009]
+custom_minimum_size = Vector2(0, 40)
+layout_mode = 2
+size_flags_vertical = 0
+horizontal_scroll_mode = 0
+
+[node name="UnitRow" type="HBoxContainer" parent="Panel/VBox/UnitScroll" unique_id=300000010]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 4
+
+[node name="RouteTitle" type="Label" parent="Panel/VBox" unique_id=300000011]
+layout_mode = 2
+theme_override_font_sizes/font_size = 7
+text = "选择路线"
+
+[node name="RouteScroll" type="ScrollContainer" parent="Panel/VBox" unique_id=300000012]
+custom_minimum_size = Vector2(0, 40)
+layout_mode = 2
+size_flags_vertical = 0
+horizontal_scroll_mode = 0
+
+[node name="RouteRow" type="HBoxContainer" parent="Panel/VBox/RouteScroll" unique_id=300000013]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 4
+
+[node name="Separator2" type="HSeparator" parent="Panel/VBox" unique_id=300000014]
+layout_mode = 2
+
+[node name="ActiveTitle" type="Label" parent="Panel/VBox" unique_id=300000015]
+layout_mode = 2
+theme_override_font_sizes/font_size = 7
+text = "进行中的派遣"
+
+[node name="ActiveScroll" type="ScrollContainer" parent="Panel/VBox" unique_id=300000016]
+layout_mode = 2
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+
+[node name="ActiveList" type="VBoxContainer" parent="Panel/VBox/ActiveScroll" unique_id=300000017]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 2
+
+[node name="BottomBar" type="HBoxContainer" parent="Panel/VBox" unique_id=300000018]
+layout_mode = 2
+alignment = 1
+theme_override_constants/separation = 8
+
+[node name="DispatchBtn" type="Button" parent="Panel/VBox/BottomBar" unique_id=300000019]
+layout_mode = 2
+size_flags_horizontal = 4
+theme_override_font_sizes/font_size = 8
+theme_override_styles/normal = ExtResource("2_style")
+theme_override_styles/pressed = ExtResource("2_style")
+theme_override_styles/hover = ExtResource("2_style")
+theme_override_styles/disabled = ExtResource("2_style")
+theme_override_styles/focus = ExtResource("2_style")
+text = "派遣"
+
+[node name="BackBtn" type="Button" parent="Panel/VBox/BottomBar" unique_id=300000020]
+layout_mode = 2
+size_flags_horizontal = 4
+theme_override_font_sizes/font_size = 8
+theme_override_styles/normal = ExtResource("2_style")
+theme_override_styles/pressed = ExtResource("2_style")
+theme_override_styles/hover = ExtResource("2_style")
+theme_override_styles/disabled = ExtResource("2_style")
+theme_override_styles/focus = ExtResource("2_style")
+text = "返回"

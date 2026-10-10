@@ -99,20 +99,16 @@ func on_request_show_victory(winning_team: int) -> void:
 				var reward = EconomyManager.get_battle_reward(_bf.current_node_type, is_boss)
 				var gold_gain = reward.gold
 				var soul_gain = reward.soul
-				var materials = reward.materials
 
 				print("--- 奖励配置 ---")
 				print("gold_gain: ", gold_gain)
 				print("soul_gain: ", soul_gain)
-				print("materials: ", materials)
 
 				GameState.current_reward_gold = gold_gain
 				GameState.current_reward_soul = soul_gain
-				GameState.current_reward_materials = materials
 
 				EconomyManager.add_temp_gold(gold_gain)
 				EconomyManager.add_temp_soul(soul_gain)
-				EconomyManager.apply_material_reward(materials)
 
 				GameState.current_reward_rare_datas.clear()
 				var rare_drop : Dictionary = roll_rare_drop_for_node(_bf.current_node_type)
@@ -187,14 +183,12 @@ func on_map_victory_continue() -> void:
 	print("=== _on_map_victory_continue ===")
 	print("reward_gold: ", GameState.current_reward_gold)
 	print("reward_soul: ", GameState.current_reward_soul)
-	print("reward_materials: ", GameState.current_reward_materials)
 	print("reward_items: ", GameState.reward_items)
 	print("current_node_key: ", GameState.current_node_key)
 	print("current_node_type: ", _bf.current_node_type)
 
 	var reward_gold = GameState.current_reward_gold
 	var reward_soul = GameState.current_reward_soul
-	var reward_materials = GameState.current_reward_materials
 
 	var reward_item_datas: Array = []
 	for item_id in GameState.reward_items:
@@ -212,17 +206,7 @@ func on_map_victory_continue() -> void:
 					virtual_data.icon = load(icon_path)
 				reward_item_datas.append(virtual_data)
 
-	if reward_materials and not reward_materials.is_empty():
-		for material_name in reward_materials:
-			var amount = reward_materials[material_name]
-			if amount > 0:
-				var data = ItemData.new()
-				data.id = "material_" + material_name
-				data.name = material_name + " x" + str(amount)
-				data.description = "材料 x" + str(amount)
-				reward_item_datas.append(data)
-				print("添加材料显示: ", data.name)
-
+	# 稀有掉落
 	for rare_data in GameState.current_reward_rare_datas:
 		if rare_data:
 			reward_item_datas.append(rare_data)
@@ -391,9 +375,6 @@ func roll_rare_drop_for_node(node_type: int) -> Dictionary:
 		if not owned_relics.has(rid):
 			pool.append({"type": "relic", "id": rid})
 
-	for ref_id in RefineManager.get_all_ids():
-		if RefineManager.is_recipe_unlocked(ref_id):
-			pool.append({"type": "refine", "id": ref_id})
 
 	for iid in ItemManager.get_all_item_ids():
 		var d : ItemData = ItemManager.get_item_data(iid)
@@ -434,16 +415,6 @@ func apply_rare_drop(drop : Dictionary) -> ItemData:
 			if icon_path != "" and ResourceLoader.exists(icon_path):
 				virtual_data.icon = load(icon_path)
 			print("[稀有掉落] 遗物 %s" % rid)
-
-		"refine":
-			var recipe : Dictionary = RefineManager.get_recipe(rid)
-			if recipe.is_empty(): return null
-			GameState.refined_items[rid] = GameState.refined_items.get(rid, 0) + 1
-			virtual_data = ItemData.new()
-			virtual_data.id = "rare_refine_" + rid
-			virtual_data.name = "★ 精炼：" + recipe.get("name", rid)
-			virtual_data.description = recipe.get("description", "")
-			print("[稀有掉落] 精炼 %s" % rid)
 
 		"armor":
 			var d : ItemData = ItemManager.get_item_data(rid)

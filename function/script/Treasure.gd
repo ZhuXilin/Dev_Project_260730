@@ -217,13 +217,6 @@ func _apply_reward(option : Dictionary):
 		EconomyManager.add_temp_soul(soul)
 		print("[宝箱] 魂 +%d" % soul)
 
-	var materials : Dictionary = option.get("materials", {})
-	for mat_name in materials:
-		var amount : int = int(materials[mat_name])
-		if amount > 0:
-			EconomyManager.apply_material_reward({ mat_name: amount })
-			print("[宝箱] 材料 %s ×%d" % [mat_name, amount])
-
 	var items : Array = option.get("items", [])
 	for item_id in items:
 		_grant_item(item_id)

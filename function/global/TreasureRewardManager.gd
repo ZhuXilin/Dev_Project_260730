@@ -24,8 +24,6 @@ static func _load():
 	print("成功加载宝箱奖励池，天数: ", _data.keys())
 
 
-## 随机滚一个奖励（返回深拷贝）
-## day <= 1 → day1 池；day >= 2 → day2 池
 static func roll_reward(day: int) -> Dictionary:
 	_load()
 	var key = "day1" if day <= 1 else "day2"
@@ -36,8 +34,6 @@ static func roll_reward(day: int) -> Dictionary:
 	return pool[idx].duplicate(true)
 
 
-## 随机滚 N 条【尽量不重复】奖励（返回深拷贝数组）
-## 池子不够时允许重复填充
 static func roll_n_rewards(day: int, count: int = 3) -> Array:
 	_load()
 	var key = "day1" if day <= 1 else "day2"
@@ -53,7 +49,6 @@ static func roll_n_rewards(day: int, count: int = 3) -> Array:
 		if i < shuffled.size():
 			result.append(shuffled[i].duplicate(true))
 		else:
-			# 池子不足 → 重复抽
 			var idx = randi() % pool.size()
 			result.append(pool[idx].duplicate(true))
 

@@ -3,7 +3,6 @@ extends CanvasLayer
 const FONT_SIZE = 8
 const EquipmentConfig = preload(Config.PATHS.EQUIPMENT_CONFIG_SCRIPT)
 
-# ---- 变量声明 ----
 var current_day: int = 1
 var map_data: MapLevelData
 var selected_node: MapNode = null
@@ -12,7 +11,6 @@ var _equipment_config_instance = null
 var _detail_popup = null
 var _ready_guard : bool = false
 
-# ---- 节点引用 ----
 @onready var node_container = $NodeContainer
 @onready var line_container = $NodeContainer/LineContainer
 @onready var info_panel = $InfoPanel
@@ -22,7 +20,9 @@ var _ready_guard : bool = false
 @onready var day_label = $TopBar/DayLabel
 @onready var soul_label = $TopBar/SoulLabel
 @onready var gold_label = $TopBar/GoldLabel
-@onready var materials_container = $TopBar/MaterialsContainer
+@onready var soul_fire_label = $TopBar/SoulFireLabel
+@onready var state_label = $TopBar/StateLabel
+
 
 func _ready():
 	if _ready_guard:
@@ -32,22 +32,6 @@ func _ready():
 
 	print("=== MapScene _ready 开始 ===")
 	Globals.is_map_mode = true
-
-	print("=== MapScene: GameState.party 装备状态 ===")
-	for i in range(GameState.party.size()):
-		var u = GameState.party[i]
-		var weapon_id = u.weapon_slot.item_id if u.weapon_slot else "无"
-		print("单位 ", i, ": ", u.unit_name, " 武器: ", weapon_id, " 状态: ", "阵亡" if u.is_dead else "存活")
-		for j in range(u.armor_slots.size()):
-			var slot = u.armor_slots[j]
-			var slot_id = slot.item_id if slot else "空"
-			print("  防具槽", j, ": ", slot_id)
-	print("==========================================")
-
-	print("当前 temp_gold=", GameState.temp_gold, " temp_soul=", GameState.temp_soul)
-	print("visited_nodes: ", GameState.visited_nodes)
-	print("current_node_key: ", GameState.current_node_key)
-	print("map_snapshot 节点数: ", GameState.map_snapshot.get("nodes", []).size() if not GameState.map_snapshot.is_empty() else 0)
 
 	if GameState.party.is_empty():
 		print("队伍为空，返回营地")
@@ -71,19 +55,13 @@ func _ready():
 			GameState.finish_cycle()
 
 			var earned_soul = max(0, GameState.soul - GameState.cycle_start_soul)
-			var earned_materials = {}
-			for key in GameState.materials:
-				var before = GameState.cycle_start_materials.get(key, 0)
-				var earned = GameState.materials[key] - before
-				if earned > 0:
-					earned_materials[key] = earned
 
 			GameState.reset_for_new_cycle()
 			GameState.map_snapshot.clear()
 			GameState.interrupt_state = GameState.InterruptState.CAMP
 			_save_game()
 
-			await _show_cycle_reward(earned_soul, earned_materials)
+			await _show_cycle_reward(earned_soul)
 			return
 
 		current_day = LevelManager.current_day + 1
@@ -126,7 +104,7 @@ func _ready():
 	_save_game()
 	_setup_ui()
 	update_all_displays()
-	print("MapScene _ready: temp_soul=", GameState.temp_soul, " temp_gold=", GameState.temp_gold)
+	print("MapScene _ready: temp_gold=", GameState.temp_gold)
 
 	_detail_popup = load(Config.PATHS.ITEM_DETAIL_POPUP).instantiate()
 	add_child(_detail_popup)
@@ -140,6 +118,7 @@ func _save_game():
 	else:
 		SaveManager.auto_save()
 
+
 func update_all_displays():
 	if day_label:
 		day_label.add_theme_font_size_override("font_size", FONT_SIZE)
@@ -147,6 +126,10 @@ func update_all_displays():
 		soul_label.add_theme_font_size_override("font_size", FONT_SIZE)
 	if gold_label:
 		gold_label.add_theme_font_size_override("font_size", FONT_SIZE)
+	if soul_fire_label:
+		soul_fire_label.add_theme_font_size_override("font_size", FONT_SIZE)
+	if state_label:
+		state_label.add_theme_font_size_override("font_size", FONT_SIZE)
 
 	var local_label = $TopBar/LocalResourcesLabel
 	if local_label:
@@ -159,50 +142,40 @@ func update_all_displays():
 		gold_label.text = "金币: " + str(EconomyManager.get_temp_gold())
 
 	if soul_label:
-		soul_label.text = "魂: " + str(EconomyManager.get_soul() + EconomyManager.get_temp_soul())
+		soul_label.text = "魂: " + str(GameState.soul)
 
-	_update_materials_display()
+	_update_soul_fire_display()
 
-func _update_materials_display():
-	for child in materials_container.get_children():
-		child.queue_free()
 
-	var materials = GameState.get_all_materials()
-	var has_material = false
+func _update_soul_fire_display():
+	if not soul_fire_label:
+		return
+	var cur : int = SoulFireManager.current
+	var mx : int = SoulFireManager.get_max_carried()
+	soul_fire_label.text = "魂火: %d / %d" % [cur, mx]
 
-	var order = ["粗铁", "精钢", "秘银", "龙鳞"]
-	for material_name in order:
-		var count = materials.get(material_name, 0)
-		if count > 0:
-			has_material = true
-			var label = Label.new()
-			label.text = material_name + ": " + str(count)
-			label.add_theme_font_size_override("font_size", FONT_SIZE)
-			var color = _get_material_color(material_name)
-			if color:
-				label.add_theme_color_override("font_color", color)
-			materials_container.add_child(label)
+	if state_label:
+		match SoulFireManager.get_state():
+			SoulFireManager.State.BURNING:
+				state_label.text = "[燃烧]"
+				state_label.modulate = Color(1.0, 0.6, 0.2, 1)
+			SoulFireManager.State.DEPLETED:
+				state_label.text = "[枯竭]"
+				state_label.modulate = Color(0.7, 0.3, 1.0, 1)
+			SoulFireManager.State.ZERO:
+				state_label.text = "[归零]"
+				state_label.modulate = Color(1.0, 0.3, 0.3, 1)
+			_:
+				state_label.text = ""
+				state_label.modulate = Color.WHITE
 
-	if not has_material:
-		var label = Label.new()
-		label.text = "材料: 无"
-		label.add_theme_font_size_override("font_size", FONT_SIZE)
-		label.modulate = Color(0.6, 0.6, 0.6)
-		materials_container.add_child(label)
-
-func _get_material_color(material_name: String) -> Color:
-	match material_name:
-		"粗铁": return Color(0.7, 0.6, 0.5)
-		"精钢": return Color(0.5, 0.7, 0.8)
-		"秘银": return Color(0.3, 0.8, 0.7)
-		"龙鳞": return Color(0.8, 0.6, 0.1)
-		_: return Color.WHITE
 
 func update_gold_display():
 	gold_label.text = "金币:" + str(EconomyManager.get_temp_gold())
 
+
 func update_soul_display():
-	soul_label.text = "魂:" + str(EconomyManager.get_soul())
+	soul_label.text = "魂:" + str(GameState.soul)
 
 
 # ---- 按钮回调 ----
@@ -215,11 +188,14 @@ func _on_interrupt_pressed():
 	_save_game()
 	get_tree().change_scene_to_file(Config.PATHS.MAIN_MENU)
 
+
 func _on_abandon_pressed():
 	GameState.show_abandon_confirmation(self)
 
+
 func _on_abandon_confirmed():
 	GameState.abandon_and_return_to_camp()
+
 
 func _on_cycle_complete():
 	GameState.interrupt_state = GameState.InterruptState.CAMP
@@ -239,7 +215,6 @@ func _draw_connections():
 			_create_directed_line(from_pos, to_pos)
 
 
-## 创建带箭头的连线：Line2D 线段 + Polygon2D 三角箭头
 func _create_directed_line(from_pos: Vector2, to_pos: Vector2):
 	var dir : Vector2 = to_pos - from_pos
 	var dist : float = dir.length()
@@ -255,7 +230,6 @@ func _create_directed_line(from_pos: Vector2, to_pos: Vector2):
 	if (line_end - from_pos).dot(dir) <= 0.0:
 		line_end = from_pos + dir * (dist * 0.5)
 
-	# 主线段
 	var line := Line2D.new()
 	line.add_point(from_pos)
 	line.add_point(line_end)
@@ -263,7 +237,6 @@ func _create_directed_line(from_pos: Vector2, to_pos: Vector2):
 	line.default_color = MapConst.MAP_LINE_COLOR
 	line_container.add_child(line)
 
-	# 箭头
 	var arrow_length : float = 5.0
 	var arrow_width  : float = 3.5
 	var tip : Vector2 = line_end
@@ -298,12 +271,14 @@ func _create_node_buttons():
 		btn.setup(node, self, pos_map.get(node, node.position))
 		node_container.add_child(btn)
 
+
 func _get_node_layout_width() -> float:
 	if not is_inside_tree(): return 400.0
 	var vp_node : Viewport = get_viewport()
 	if vp_node == null: return 400.0
 	var vp : Vector2 = vp_node.get_visible_rect().size
 	return maxf(vp.x - 80.0, 200.0)
+
 
 func _update_availability(_start_node: MapNode):
 	var max_visited_layer = -1
@@ -316,7 +291,6 @@ func _update_availability(_start_node: MapNode):
 		node.is_available = false
 
 	if max_visited_layer == -1:
-		# ★ 还没访问过：让 layer 0 所有节点可用（Day3 有 FORGE + CHAPEL）
 		for node in map_data.nodes:
 			if node.layer == 0:
 				node.is_available = true
@@ -330,6 +304,7 @@ func _update_availability(_start_node: MapNode):
 
 	_update_buttons()
 
+
 func _update_buttons():
 	if not map_data: return
 	if not is_inside_tree(): return
@@ -340,12 +315,12 @@ func _update_buttons():
 			var btn : MapNodeButton = child
 			btn.setup(btn.map_node, self, pos_map.get(btn.map_node, btn.map_node.position))
 
+
 func generate_map(day: int):
 	print("=== generate_map 开始，day=", day, " temp_gold=", GameState.temp_gold)
 	var layout : MapLayout = LevelManager.get_current_layout()
 	map_data = MapGenerator.generate_day(day, layout, level_list)
 
-	# ★ 布局缺失 → 报错回营地
 	if map_data == null:
 		push_error("[MapScene] 地图布局缺失，返回营地")
 		GameState.interrupt_state = GameState.InterruptState.CAMP
@@ -368,12 +343,14 @@ func generate_map(day: int):
 	_save_game()
 	print("=== generate_map 结束，temp_gold=", GameState.temp_gold)
 
+
 func _setup_ui():
 	Globals.reset_battle_turn()
 	info_panel.visible = false
 	day_label.text = "第 %d 天" % current_day
 	if MusicManager.config and MusicManager.config.map_music:
 		MusicManager.play_music(MusicManager.config.map_music)
+
 
 func _restore_map_music():
 	if not is_inside_tree(): return
@@ -388,12 +365,13 @@ func _restore_map_music():
 		return
 	MusicManager.play_music(mm)
 
-# ---- 节点选择与战斗加载 ----
+
 func _select_node_by_id(node_id: String):
 	for child in node_container.get_children():
 		if child is MapNodeButton and child.map_node and child.map_node.node_id == node_id:
 			on_node_selected(child.map_node)
 			break
+
 
 func on_node_selected(node: MapNode):
 	if not node.is_available or node.is_visited:
@@ -408,9 +386,9 @@ func on_node_selected(node: MapNode):
 		MapNode.NodeType.BOSS,
 	]:
 		GameState.current_node_key = key
-	# ★ 保存节点的遗物解锁配置
 	GameState.current_node_unlock_relics = node.unlock_relics.duplicate()
 	_load_combat_for_node(node)
+
 
 func _load_combat_for_node(node: MapNode):
 	match node.node_type:
@@ -441,9 +419,6 @@ func _load_combat_for_node(node: MapNode):
 	_load_combat(map_to_load)
 
 
-# ============================================================
-#  铁匠铺节点
-# ============================================================
 func _open_forge(node: MapNode):
 	print("=== 打开铁匠铺 ===")
 
@@ -486,9 +461,6 @@ func _open_forge(node: MapNode):
 	_update_availability(map_data.root_node)
 
 
-# ============================================================
-#  宝箱 / 事件节点
-# ============================================================
 func _open_treasure(node: MapNode):
 	print("=== 打开宝箱/事件 ===")
 
@@ -520,9 +492,6 @@ func _open_treasure(node: MapNode):
 	_update_availability(map_data.root_node)
 
 
-# ============================================================
-#  圣坛节点
-# ============================================================
 func _open_chapel(node: MapNode):
 	print("=== 打开圣坛 ===")
 
@@ -535,7 +504,6 @@ func _open_chapel(node: MapNode):
 	_update_availability(map_data.root_node)
 	_save_game()
 
-	# 弹三选一
 	var scene = load(Config.PATHS.CHAPEL_UI)
 	if not scene:
 		push_error("ChapelUI 未找到")
@@ -599,9 +567,6 @@ func _on_chapel_revive_unit(unit_name: String, display_name: String, dlg: Window
 		update_all_displays()
 
 
-# ============================================================
-#  战斗加载
-# ============================================================
 func _load_combat(map_data_arg: MapData):
 	if not map_data_arg:
 		map_data_arg = _create_default_map()
@@ -611,6 +576,7 @@ func _load_combat(map_data_arg: MapData):
 	GameState.current_map_data = map_data_arg
 	Globals.reset_all_game_state()
 	get_tree().change_scene_to_file(Config.PATHS.LOADING)
+
 
 func _create_default_map() -> MapData:
 	var map = MapData.new()
@@ -623,6 +589,7 @@ func get_selected_node_id() -> String:
 	if selected_node:
 		return selected_node.node_id
 	return ""
+
 
 func _apply_visited_state():
 	print("_apply_visited_state 被调用，visited_nodes 大小：", GameState.visited_nodes.size())
@@ -672,19 +639,18 @@ func _on_config_btn_pressed():
 		_equipment_config_instance = null
 	)
 
+
 func show_item_detail(item_id: String):
 	if _detail_popup:
 		_detail_popup.show_item(item_id)
 		_detail_popup.visible = true
+
 
 func hide_item_detail():
 	if _detail_popup:
 		_detail_popup.visible = false
 
 
-# ============================================================
-#  商店节点
-# ============================================================
 func _open_shop(node: MapNode):
 	print("=== 打开商店 ===")
 
@@ -723,9 +689,6 @@ func _open_shop(node: MapNode):
 	_update_availability(map_data.root_node)
 
 
-# ============================================================
-#  统一字体大小
-# ============================================================
 func _apply_unified_font_size():
 	if day_label:
 		day_label.add_theme_font_size_override("font_size", FONT_SIZE)
@@ -741,9 +704,6 @@ func _apply_unified_font_size():
 		gold_label.add_theme_font_size_override("font_size", FONT_SIZE)
 
 
-# ============================================================
-#  快照恢复
-# ============================================================
 func _restore_map_from_snapshot():
 	map_data = MapSnapshot.deserialize(GameState.map_snapshot)
 	if not map_data:
@@ -782,7 +742,6 @@ func _validate_restored_map_data(md: MapLevelData):
 			level_pool[m.map_name] = m
 
 	for node in md.nodes:
-		# ★ 非战斗节点（含 CHAPEL）跳过
 		if node.node_type in [
 			MapNode.NodeType.SHOP,
 			MapNode.NodeType.FORGE,
@@ -822,20 +781,8 @@ func _find_map_by_type(node_type: int) -> MapData:
 # ============================================================
 #  三天结算
 # ============================================================
-func _show_cycle_reward(earned_soul: int, earned_materials: Dictionary):
+func _show_cycle_reward(earned_soul: int):
 	var reward_items: Array = []
-	var order = ["粗铁", "精钢", "秘银", "龙鳞"]
-	for mat_name in order:
-		if not earned_materials.has(mat_name):
-			continue
-		var count = earned_materials[mat_name]
-		if count <= 0:
-			continue
-		var data = ItemData.new()
-		data.id = "material_" + mat_name
-		data.name = mat_name + " x" + str(count)
-		data.description = ""
-		reward_items.append(data)
 
 	var summary = Globals.get_reward_summary()
 	if not summary:
@@ -888,6 +835,7 @@ func _get_node_description(node: MapNode) -> String:
 			return "圣坛\n全队回满 HP，复活一名阵亡单位"
 		_:
 			return "未知节点"
+
 
 func _compute_node_positions() -> Dictionary:
 	var pos_map : Dictionary = {}

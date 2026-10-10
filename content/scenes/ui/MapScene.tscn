@@ -31,6 +31,15 @@ layout_mode = 2
 theme_override_font_sizes/font_size = 6
 text = "———————"
 
+[node name="SoulFireLabel" type="Label" parent="TopBar" unique_id=797733899]
+layout_mode = 2
+theme_override_font_sizes/font_size = 8
+text = "魂火: 0 / 5"
+
+[node name="StateLabel" type="Label" parent="TopBar" unique_id=797733900]
+layout_mode = 2
+theme_override_font_sizes/font_size = 7
+
 [node name="GoldLabel" type="Label" parent="TopBar" unique_id=607983664]
 layout_mode = 2
 theme_override_font_sizes/font_size = 8
@@ -46,10 +55,6 @@ text = "———————"
 layout_mode = 2
 theme_override_font_sizes/font_size = 8
 text = "魂: 0"
-
-[node name="MaterialsContainer" type="VBoxContainer" parent="TopBar" unique_id=1091366800]
-layout_mode = 2
-theme_override_constants/separation = 2
 
 [node name="NodeContainer" type="Node2D" parent="." unique_id=295783475]
 position = Vector2(40, 0)

@@ -31,7 +31,6 @@ func start_drag(btn: Button):
 	if slot_type in ["library_weapon", "weapon"] and item_id == "": return
 	if slot_type == "shop_item" and item_id == "": return
 	if slot_type == "forge_slot" and item_id == "": return
-	if slot_type == "library_refine" and refine_id == "": return
 	if slot_type == "armor" and item_id == "": return
 	if slot_type == "pending_reward" and item_id == "": return
 
@@ -47,7 +46,6 @@ func start_drag(btn: Button):
 		"passive_index": btn.get_meta("passive_index", -1),
 		"item_price": btn.get_meta("item_price", 0),
 		"forge_slot_index": btn.get_meta("forge_slot_index", -1),
-		"refine_id": refine_id,
 		"pending_idx": btn.get_meta("pending_idx", -1),
 		"pending_src": btn.get_meta("pending_src", ""),
 	}

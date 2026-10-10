@@ -139,17 +139,3 @@ func on_relic_hover_entered(relic_id: String):
 
 func on_relic_hover_exited():
 	clear_zone()
-
-
-func on_refine_hover_entered(refine_id: String):
-	var recipe : Dictionary = RefineManager.get_recipe(refine_id)
-	if recipe.is_empty():
-		return
-	var lines : Array = []
-	lines.append(recipe.get("name", refine_id))
-	lines.append(recipe.get("description", ""))
-	show_in_zone("\n".join(lines))
-
-
-func on_refine_hover_exited():
-	clear_zone()

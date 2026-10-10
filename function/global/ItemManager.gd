@@ -43,7 +43,7 @@ func load_items():
 		item.armor_type = dict.get("armor_type", "medium")
 		item.defense = dict.get("defense", 0)
 		item.slot_count = dict.get("slot_count", 1)
-		item.unlock_cost = dict.get("unlock_cost", {})
+		item.unlock_cost = {}
 		item.craft_cost = dict.get("craft_cost", 0)
 		item.heavy_attack = dict.get("heavy_attack", {})
 		item.magic_attack = dict.get("magic_attack", {})

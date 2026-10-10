@@ -1,98 +1,301 @@
 {
-  "barkeep": {
-	"name": "酒馆老板",
-	"topics": [
+  "soul_keeper": {
+	"name": "守火者",
+	"dialogues": [
 	  {
-		"id": "barkeep_greeting",
-		"title": "打个招呼",
-		"condition": "",
+		"id": "keeper_00",
+		"priority": 0,
+		"condition": {},
 		"lines": [
-		  { "speaker": "酒馆老板", "text": "哟，旅行者！想喝点什么？" },
-		  { "speaker": "指挥官", "text": "来杯麦酒，顺便打听点消息。" },
-		  { "speaker": "酒馆老板", "text": "消息管够，只要你有金币。" }
+		  { "speaker": "守火者", "text": "火……又旺了一点。" },
+		  { "speaker": "守火者", "text": "你带回来的魂，我收到了。" }
 		]
 	  },
 	  {
-		"id": "barkeep_world",
-		"title": "世界的传闻",
-		"condition": "",
+		"id": "keeper_01",
+		"priority": 0,
+		"condition": { "min_altar_level": 1 },
 		"lines": [
-		  { "speaker": "酒馆老板", "text": "这片大陆叫艾尔登，曾经很繁荣。" },
-		  { "speaker": "酒馆老板", "text": "直到三年前那场灾变……" },
-		  { "speaker": "酒馆老板", "text": "现在处处是荒野和盗匪，出门都得带着武器。" }
+		  { "speaker": "守火者", "text": "别急。火要慢慢烧，才烧得久。" }
 		]
 	  },
 	  {
-		"id": "barkeep_boss",
-		"title": "关于 Boss",
-		"condition": "day>=2",
+		"id": "keeper_02",
+		"priority": 1,
+		"condition": { "min_altar_level": 2 },
 		"lines": [
-		  { "speaker": "酒馆老板", "text": "你打到 Boss 了？厉害啊！" },
-		  { "speaker": "酒馆老板", "text": "那家伙是这片地界最凶狠的领主，手下一群亡命徒。" },
-		  { "speaker": "指挥官", "text": "多谢提醒，我会当心的。" }
+		  { "speaker": "守火者", "text": "又一个灵魂……被火记住了。" }
 		]
+	  },
+	  {
+		"id": "keeper_curious",
+		"priority": 5,
+		"condition": { "min_altar_level": 2 },
+		"lines": [
+		  { "speaker": "守火者", "text": "……" },
+		  { "speaker": "守火者", "text": "你在看我？" }
+		],
+		"choices": [
+		  { "text": "你为什么守着火？", "flag": "keeper_asked_why" },
+		  { "text": "……没什么。", "flag": "keeper_silent" }
+		]
+	  },
+	  {
+		"id": "keeper_silent_branch",
+		"priority": 3,
+		"condition": { "flags": ["keeper_silent"] },
+		"lines": [
+		  { "speaker": "守火者", "text": "……算了。你不想听，我不说。" }
+		]
+	  },
+	  {
+		"id": "keeper_truth",
+		"priority": 10,
+		"condition": { "min_altar_level": 3, "flags": ["keeper_asked_why"] },
+		"lines": [
+		  { "speaker": "守火者", "text": "火里有人在等我。" },
+		  { "speaker": "守火者", "text": "一个被封印的灵魂。" },
+		  { "speaker": "守火者", "text": "……我终究还是告诉你了。" }
+		]
+	  },
+	  {
+		"id": "keeper_final",
+		"priority": 15,
+		"condition": { "min_altar_level": 4, "flags": ["keeper_asked_why"] },
+		"lines": [
+		  { "speaker": "守火者", "text": "你的影子……开始像火了。" },
+		  { "speaker": "守火者", "text": "去唤醒它吧。" }
+		]
+	  }
+	],
+	"unlocks": [
+	  {
+		"type": "unit",
+		"id": "keeper_shadow",
+		"conditions": {
+		  "min_altar_level": 3,
+		  "min_dialogue_count": 5,
+		  "flags": ["keeper_asked_why"]
+		}
 	  }
 	]
   },
-  "veteran": {
-	"name": "退休老兵",
-	"topics": [
+
+  "blacksmith": {
+	"name": "灰烬铁匠",
+	"dialogues": [
 	  {
-		"id": "veteran_greeting",
-		"title": "打个招呼",
-		"condition": "",
+		"id": "smith_00",
+		"priority": 0,
+		"condition": {},
 		"lines": [
-		  { "speaker": "退休老兵", "text": "年轻人，看你这身行头，是去打仗的？" },
-		  { "speaker": "指挥官", "text": "算是吧，讨伐盗匪。" },
-		  { "speaker": "退休老兵", "text": "好，好。我年轻时也这么热血。" }
+		  { "speaker": "灰烬铁匠", "text": "又来了？这次带什么材料……" },
+		  { "speaker": "灰烬铁匠", "text": "哦，你什么都没有。行吧，拿魂来。" }
 		]
 	  },
 	  {
-		"id": "veteran_tactics",
-		"title": "战术建议",
-		"condition": "",
+		"id": "smith_01",
+		"priority": 0,
+		"condition": { "min_weapon_max_level": 1 },
 		"lines": [
-		  { "speaker": "退休老兵", "text": "听我一句：打不过就撤，别硬拼。" },
-		  { "speaker": "退休老兵", "text": "战场上一个失误，可能全队覆没。" },
-		  { "speaker": "指挥官", "text": "我会记住的。" }
+		  { "speaker": "灰烬铁匠", "text": "这把武器还没死透，再烧烧。" }
 		]
 	  },
 	  {
-		"id": "veteran_elite",
-		"title": "精英战心得",
-		"condition": "day>=2",
+		"id": "smith_02",
+		"priority": 1,
+		"condition": { "min_weapon_max_level": 2 },
 		"lines": [
-		  { "speaker": "退休老兵", "text": "精英战士都是身经百战的老手。" },
-		  { "speaker": "退休老兵", "text": "他们比普通小兵更聪明，会利用地形。" },
-		  { "speaker": "退休老兵", "text": "别让他们占据高地。" }
+		  { "speaker": "灰烬铁匠", "text": "旧世界的东西……比现在结实多了。" }
 		]
+	  },
+	  {
+		"id": "smith_curious",
+		"priority": 5,
+		"condition": { "min_weapon_max_level": 2 },
+		"lines": [
+		  { "speaker": "灰烬铁匠", "text": "你怎么老盯着我的铁砧？" }
+		],
+		"choices": [
+		  { "text": "旧世界是什么样的？", "flag": "smith_asked_old_world" },
+		  { "text": "没什么。", "flag": "smith_silent" }
+		]
+	  },
+	  {
+		"id": "smith_truth",
+		"priority": 10,
+		"condition": { "min_weapon_max_level": 3, "flags": ["smith_asked_old_world"] },
+		"lines": [
+		  { "speaker": "灰烬铁匠", "text": "终燃之前，我是最著名的锻造师。" },
+		  { "speaker": "灰烬铁匠", "text": "现在只剩这破铁砧了。" }
+		]
+	  },
+	  {
+		"id": "smith_final",
+		"priority": 15,
+		"condition": { "min_weapon_max_level": 4, "flags": ["smith_asked_old_world"] },
+		"lines": [
+		  { "speaker": "灰烬铁匠", "text": "拿着——这是最后一炉。" },
+		  { "speaker": "灰烬铁匠", "text": "别弄丢。" }
+		]
+	  }
+	],
+	"unlocks": [
+	  {
+		"type": "relic",
+		"id": "relic_phoenix",
+		"conditions": {
+		  "min_weapon_max_level": 4,
+		  "min_dialogue_count": 5,
+		  "flags": ["smith_asked_old_world"]
+		}
 	  }
 	]
   },
-  "stranger": {
-	"name": "神秘旅人",
-	"topics": [
+
+  "guide": {
+	"name": "游魂向导",
+	"dialogues": [
 	  {
-		"id": "stranger_rumor",
-		"title": "旅行见闻",
-		"condition": "",
+		"id": "guide_00",
+		"priority": 0,
+		"condition": {},
 		"lines": [
-		  { "speaker": "神秘旅人", "text": "我来自很远的地方。" },
-		  { "speaker": "神秘旅人", "text": "那里的人说，这片大陆的下方沉睡着一头巨龙。" },
-		  { "speaker": "指挥官", "text": "巨龙？" },
-		  { "speaker": "神秘旅人", "text": "只是传说。也许吧。" }
+		  { "speaker": "游魂向导", "text": "北边的灰烬矿脉？我去过。" },
+		  { "speaker": "游魂向导", "text": "那里风很大，魂很轻。" }
 		]
 	  },
 	  {
-		"id": "stranger_legend",
-		"title": "古老的传说",
-		"condition": "day>=3",
+		"id": "guide_01",
+		"priority": 0,
+		"condition": { "min_dispatch_count": 1 },
 		"lines": [
-		  { "speaker": "神秘旅人", "text": "你听说过'三个太阳'的传说吗？" },
-		  { "speaker": "神秘旅人", "text": "据说当三个太阳同时升起，世界将迎来剧变。" },
-		  { "speaker": "神秘旅人", "text": "有人说那意味着毁灭，也有人说那意味着新生。" },
-		  { "speaker": "指挥官", "text": "……有意思。" }
+		  { "speaker": "游魂向导", "text": "你派谁去？那个刺客？" },
+		  { "speaker": "游魂向导", "text": "他脚程快，但话少。我喜欢话少的。" }
 		]
+	  },
+	  {
+		"id": "guide_02",
+		"priority": 1,
+		"condition": { "min_dispatch_count": 5 },
+		"lines": [
+		  { "speaker": "游魂向导", "text": "今天路不好走，有些道被封了。你挑别的吧。" }
+		]
+	  },
+	  {
+		"id": "guide_curious",
+		"priority": 5,
+		"condition": { "min_dispatch_count": 5 },
+		"lines": [
+		  { "speaker": "游魂向导", "text": "你走神了。在想什么？" }
+		],
+		"choices": [
+		  { "text": "你以前是做什么的？", "flag": "guide_asked_past" },
+		  { "text": "没什么。", "flag": "guide_silent" }
+		]
+	  },
+	  {
+		"id": "guide_truth",
+		"priority": 10,
+		"condition": { "min_dispatch_count": 8, "flags": ["guide_asked_past"] },
+		"lines": [
+		  { "speaker": "游魂向导", "text": "终燃之前，我是探险家。" },
+		  { "speaker": "游魂向导", "text": "现在……只剩风还记得我的名字。" }
+		]
+	  },
+	  {
+		"id": "guide_final",
+		"priority": 15,
+		"condition": { "min_dispatch_count": 10, "flags": ["guide_asked_past"] },
+		"lines": [
+		  { "speaker": "游魂向导", "text": "有一条路，我一直没告诉你。" },
+		  { "speaker": "游魂向导", "text": "终燃之眼——去了可能回不来。" }
+		]
+	  }
+	],
+	"unlocks": [
+	  {
+		"type": "relic",
+		"id": "relic_speed",
+		"conditions": {
+		  "min_dispatch_count": 10,
+		  "min_dialogue_count": 5,
+		  "flags": ["guide_asked_past"]
+		}
+	  }
+	]
+  },
+
+  "gladiator": {
+	"name": "角斗士",
+	"dialogues": [
+	  {
+		"id": "glad_00",
+		"priority": 0,
+		"condition": {},
+		"lines": [
+		  { "speaker": "角斗士", "text": "你回来了。手还稳吗？" }
+		]
+	  },
+	  {
+		"id": "glad_01",
+		"priority": 0,
+		"condition": { "min_arena_clear": 1 },
+		"lines": [
+		  { "speaker": "角斗士", "text": "上次那个Boss，你打得不错。" },
+		  { "speaker": "角斗士", "text": "但下次会更难。" }
+		]
+	  },
+	  {
+		"id": "glad_02",
+		"priority": 1,
+		"condition": { "min_arena_clear": 2 },
+		"lines": [
+		  { "speaker": "角斗士", "text": "规则变了。这次不能用魂火。" },
+		  { "speaker": "角斗士", "text": "你怕吗？" }
+		]
+	  },
+	  {
+		"id": "glad_curious",
+		"priority": 5,
+		"condition": { "min_arena_clear": 2 },
+		"lines": [
+		  { "speaker": "角斗士", "text": "你打得不像是为了赢。" },
+		  { "speaker": "角斗士", "text": "你在找什么？" }
+		],
+		"choices": [
+		  { "text": "你以前也是燃薪者？", "flag": "glad_asked_past" },
+		  { "text": "没什么。", "flag": "glad_silent" }
+		]
+	  },
+	  {
+		"id": "glad_truth",
+		"priority": 10,
+		"condition": { "min_arena_clear": 3, "flags": ["glad_asked_past"] },
+		"lines": [
+		  { "speaker": "角斗士", "text": "终燃之战……我是将军。" },
+		  { "speaker": "角斗士", "text": "我输了。所有人都输了。" }
+		]
+	  },
+	  {
+		"id": "glad_final",
+		"priority": 15,
+		"condition": { "min_arena_clear": 5, "flags": ["glad_asked_past"] },
+		"lines": [
+		  { "speaker": "角斗士", "text": "你让我想起了当年的自己。" },
+		  { "speaker": "角斗士", "text": "去告诉火——有人还站着。" }
+		]
+	  }
+	],
+	"unlocks": [
+	  {
+		"type": "transform_branch",
+		"id": "hidden_branch_swordsman",
+		"conditions": {
+		  "min_arena_clear": 5,
+		  "min_dialogue_count": 5,
+		  "flags": ["glad_asked_past"]
+		}
 	  }
 	]
   }

@@ -41,7 +41,6 @@ func get_max_inputs() -> int:
 	return max_n
 
 ## 根据输入的防具 ID 列表匹配配方（顺序无关）
-## 返回匹配的配方 ID，无匹配返回 ""
 func match_recipe(input_ids: Array) -> String:
 	if input_ids.is_empty():
 		return ""

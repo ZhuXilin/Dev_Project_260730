@@ -43,13 +43,11 @@ const ShopManagerScript = preload(Config.PATHS.SHOP_MANAGER_SCRIPT)
 @onready var talent_tab_btn = $VBoxContainer/MainHBox/RightContainer/TabBar/TalentTabBtn
 @onready var relic_section: VBoxContainer = $VBoxContainer/MainHBox/LeftInfoColumn/RelicSection
 @onready var relic_container: HBoxContainer = $VBoxContainer/MainHBox/LeftInfoColumn/RelicSection/RelicContainer
-@onready var refine_tab_btn : Button = $VBoxContainer/MainHBox/RightContainer/TabBar/RefineTabBtn
 @onready var sacrifice_tab_btn : Button = $VBoxContainer/MainHBox/RightContainer/TabBar/SacrificeTabBtn
 
-# ---- 待领取区（动态创建到 RightContainer） ----
+# ---- 待领取区 ----
 var _pending_section : VBoxContainer = null
 var _pending_container : HBoxContainer = null
-var _revive_btn : Button = null
 
 
 func _ready():
@@ -62,9 +60,6 @@ func _ready():
 		weapon_tab_btn.pressed.connect(_on_weapon_tab_pressed)
 	if talent_tab_btn:
 		talent_tab_btn.pressed.connect(_on_talent_tab_pressed)
-	if refine_tab_btn:
-		refine_tab_btn.pressed.connect(_on_refine_tab_pressed)
-		refine_tab_btn.visible = false
 	if sacrifice_tab_btn:
 		sacrifice_tab_btn.visible = false
 
@@ -81,15 +76,16 @@ func is_forge_mode() -> bool:
 func is_shop_rest_mode() -> bool:
 	return _is_shop_rest_mode()
 
-func _on_refine_tab_pressed(): _switch_tab("refine")
 func _on_weapon_tab_pressed():
 	if _is_shop_rest_mode(): _switch_tab("arena_shop")
 	elif current_mode == Mode.FORGE: _switch_tab("arena_shop")
 	else: _switch_tab("weapon")
+
 func _on_talent_tab_pressed():
 	if _is_shop_rest_mode(): _switch_tab("arena_forge")
 	elif current_mode == Mode.FORGE: _switch_tab("arena_forge")
 	else: _switch_tab("talent")
+
 func _on_sacrifice_tab_pressed(): _switch_tab("sacrifice")
 
 
@@ -124,9 +120,9 @@ func init(units: Array, slot: int, mode: int, context: EquipContext = null):
 	_copy_party_data()
 	_build_ui()
 
+
 func _on_shop_updated():
 	_update_gold_display()
-	# ★ 只重建商店列表，不重建整个 UI（避免 deferred 时序 + 累积状态）
 	var is_shop_view : bool = false
 	if current_mode == Mode.SHOP:
 		is_shop_view = true
@@ -139,6 +135,7 @@ func _on_shop_updated():
 		_build_shop_items()
 	else:
 		_schedule_build_ui()
+
 
 func _on_close_pressed():
 	if not _check_pending_before_leave():
@@ -199,6 +196,7 @@ func _build_ui():
 	_build_ui_inner()
 	_is_building_ui = false
 
+
 func _build_ui_inner():
 	var main_hbox = $VBoxContainer/MainHBox
 	var bottom_hbox = $VBoxContainer/BottomHBox
@@ -230,7 +228,6 @@ func _build_ui_inner():
 
 	weapon_tab_btn.visible = false
 	talent_tab_btn.visible = false
-	if refine_tab_btn: refine_tab_btn.visible = false
 	if sacrifice_tab_btn: sacrifice_tab_btn.visible = false
 
 	var left_column : VBoxContainer = $VBoxContainer/MainHBox/LeftVBox
@@ -256,19 +253,13 @@ func _build_ui_inner():
 			talent_tab_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 			talent_tab_btn.disabled = false
 			talent_tab_btn.text = "特技库"
-			if refine_tab_btn:
-				refine_tab_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-				refine_tab_btn.visible = (_context.get_context_id() == "main_game")
 			if current_tab == "" or current_tab.begins_with("arena_") or current_tab == "sacrifice":
 				current_tab = "weapon"
 			_update_tab_style()
 			if current_tab == "weapon": _build_weapon_grid(shop_container)
-			elif current_tab == "talent": _build_talent_grid(shop_container)
-			else: _build_refine_grid(shop_container)
+			else: _build_talent_grid(shop_container)
 			shop_container.visible = true
 			if left_column: left_column.size_flags_vertical = Control.SIZE_EXPAND_FILL
-			_ensure_revive_button()
-			_refresh_revive_button()
 
 		Mode.MAP:
 			mode_label.text = "装备配置"
@@ -283,18 +274,12 @@ func _build_ui_inner():
 			talent_tab_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 			talent_tab_btn.disabled = false
 			talent_tab_btn.text = "特技库"
-			if refine_tab_btn:
-				refine_tab_btn.visible = true
-				refine_tab_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-				refine_tab_btn.text = "精炼库"
 			current_tab = "talent"
 			_update_tab_style()
 			_build_talent_grid(shop_container)
 			shop_container.visible = true
 			discard_zone.visible = true
 			if left_column: left_column.size_flags_vertical = Control.SIZE_EXPAND_FILL
-			_ensure_revive_button()
-			_refresh_revive_button()
 
 		Mode.ARENA_REST:
 			mode_label.text = "魂之竞技场 · 备战"
@@ -308,7 +293,6 @@ func _build_ui_inner():
 			talent_tab_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 			talent_tab_btn.disabled = false
 			talent_tab_btn.text = "铁匠铺"
-			if refine_tab_btn: refine_tab_btn.visible = false
 			if current_tab == "" or (not current_tab.begins_with("arena_") and current_tab != "sacrifice"):
 				current_tab = "arena_shop"
 			_update_tab_style()
@@ -354,7 +338,6 @@ func _build_ui_inner():
 			talent_tab_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 			talent_tab_btn.disabled = false
 			talent_tab_btn.text = "铁匠铺"
-			if refine_tab_btn: refine_tab_btn.visible = false
 			if sacrifice_tab_btn:
 				sacrifice_tab_btn.visible = true
 				sacrifice_tab_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -416,7 +399,6 @@ func _build_ui_inner():
 			talent_tab_btn.visible = true
 			talent_tab_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 			talent_tab_btn.text = "铁匠铺"
-			if refine_tab_btn: refine_tab_btn.visible = false
 			if sacrifice_tab_btn:
 				sacrifice_tab_btn.visible = true
 				sacrifice_tab_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -454,14 +436,12 @@ func _build_ui_inner():
 	confirm_btn.add_theme_font_size_override("font_size", Style.FONT_LARGE)
 	reset_btn.add_theme_font_size_override("font_size", Style.FONT_LARGE)
 
-	# ★ 商店升级按钮（内部判断显示/隐藏）
 	_ensure_upgrade_shop_btn()
 	_refresh_upgrade_shop_btn()
 
 	_build_unit_columns()
 	visible = true
 
-	# ★ 强制重排
 	if shop_container:
 		shop_container.queue_sort()
 	if right_container:
@@ -469,13 +449,14 @@ func _build_ui_inner():
 	if tab_bar:
 		tab_bar.queue_sort()
 
+
 func _update_gold_display():
 	if gold_label:
 		gold_label.text = "金币: " + str(_context.get_gold())
 
 
 # ============================================================
-#  待领取区（加到 RightContainer，TabBar 之后）
+#  待领取区
 # ============================================================
 func _ensure_pending_section():
 	if _pending_container and is_instance_valid(_pending_container):
@@ -488,18 +469,17 @@ func _ensure_pending_section():
 	_pending_section.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	right_container.add_child(_pending_section)
 
-	# 移到 TabBar 之后
 	if tab_bar:
 		var tab_idx : int = tab_bar.get_index()
 		right_container.move_child(_pending_section, tab_idx + 1)
 
 	var title := Label.new()
 	title.name = "PendingTitle"
-	title.text = "待领取"                              # ★ 短标题
+	title.text = "待领取"
 	title.add_theme_font_size_override("font_size", 6)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART   # ★ 允许换行
-	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL  # ★ 撑满，不强制宽度
+	title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	title.modulate = Color(1.0, 0.85, 0.3)
 	_pending_section.add_child(title)
 
@@ -513,7 +493,6 @@ func _ensure_pending_section():
 
 func _build_pending_slots():
 	if not _pending_container: return
-	# ★ 立即 free，避免 queue_free 残留
 	for child in _pending_container.get_children():
 		_pending_container.remove_child(child)
 		child.free()
@@ -559,81 +538,7 @@ func _create_pending_button(inst: ItemInstance, idx: int, src: String) -> Button
 
 
 # ============================================================
-#  复活圣油按钮
-# ============================================================
-func _ensure_revive_button():
-	if _revive_btn and is_instance_valid(_revive_btn):
-		_revive_btn.visible = (current_mode == Mode.MAP or current_mode == Mode.DEPLOY)
-		return
-	if current_mode != Mode.MAP and current_mode != Mode.DEPLOY:
-		return
-	var left_col : VBoxContainer = $VBoxContainer/MainHBox/LeftInfoColumn
-	if not left_col: return
-	_revive_btn = Style.create_styled_button(Style.FONT_SMALL, Style.BTN_ITEM_SIZE)
-	_revive_btn.custom_minimum_size = Vector2(80, 16)
-	_revive_btn.pressed.connect(_on_revive_pressed)
-	left_col.add_child(_revive_btn)
-	var relic_idx : int = relic_section.get_index() if relic_section else 0
-	left_col.move_child(_revive_btn, relic_idx + 1)
-
-
-func _refresh_revive_button():
-	if not _revive_btn or not is_instance_valid(_revive_btn):
-		return
-	var count : int = RefineManager.get_count("revive_potion")
-	if count <= 0:
-		_revive_btn.visible = false
-		return
-	_revive_btn.visible = true
-	var dead_count : int = GameState.get_dead_party().size()
-	if dead_count <= 0:
-		_revive_btn.text = "复活圣油 ×%d（无阵亡）" % count
-		_revive_btn.disabled = true
-		_revive_btn.modulate = Color(0.5, 0.5, 0.5)
-	else:
-		_revive_btn.text = "使用复活圣油 ×%d" % count
-		_revive_btn.disabled = false
-		_revive_btn.modulate = Color.WHITE
-
-
-func _on_revive_pressed():
-	if RefineManager.get_count("revive_potion") <= 0:
-		return
-	var dead : Array = GameState.get_dead_party()
-	if dead.is_empty():
-		return
-	_open_revive_target_selector(dead)
-
-
-func _open_revive_target_selector(dead_units: Array):
-	var dlg := AcceptDialog.new()
-	dlg.title = "选择要复活的单位"
-	for ud in dead_units:
-		var btn := Button.new()
-		btn.text = "%s（%s）" % [ud.display_name, UnitDataManager.get_unit_type_display_name(ud.unit_name)]
-		btn.pressed.connect(_confirm_revive.bind(ud.unit_name, ud.display_name, dlg))
-		dlg.add_child(btn)
-	add_child(dlg)
-	dlg.popup_centered(Vector2(260, 180))
-
-
-func _confirm_revive(unit_name: String, display_name: String, dlg: Window):
-	dlg.queue_free()
-	if RefineManager.get_count("revive_potion") <= 0:
-		return
-	if GameState.revive_unit(unit_name, display_name):
-		GameState.refined_items["revive_potion"] -= 1
-		if GameState.refined_items["revive_potion"] <= 0:
-			GameState.refined_items.erase("revive_potion")
-		SaveManager.auto_save()
-		_sync_all()
-		_build_unit_columns()
-		_refresh_revive_button()
-		_show_detail_in_zone("已复活：%s" % display_name)
-
-
-# ============================================================
-#  熔铸标签
+#  熔铸
 # ============================================================
 func _build_sacrifice_panel():
 	_clear_container(shop_container)
@@ -658,7 +563,6 @@ func _build_sacrifice_panel():
 		shop_container.add_child(hint)
 		return
 
-	# ★ 用 SacrificeHelper 取预览
 	var next_count : int = GameState.sacrifice_count + 1
 	var preview : Dictionary = SacrificeHelper.get_reward_preview(next_count)
 	var preview_text : String = "熔铸一个单位（第 %d 次）\n获得 %d 金币 + %d 件史诗防具" % [
@@ -702,9 +606,6 @@ func _on_open_sacrifice_ui():
 	)
 
 
-# ============================================================
-#  熔铸核心逻辑
-# ============================================================
 func _do_sacrifice(u: UnitData, _armors_ignored: Array, _discard_count: int):
 	var result : Dictionary = SacrificeHelper.do_sacrifice(party, u)
 
@@ -758,7 +659,6 @@ func _equip_pending_reward(data: Dictionary, target: Control):
 	else:
 		return
 
-	# ★ 用 erase(inst)，不依赖索引（避免错位）
 	list.erase(inst)
 
 	SaveManager.auto_save()
@@ -768,7 +668,6 @@ func _equip_pending_reward(data: Dictionary, target: Control):
 	_sync_all()
 	_show_detail_in_zone("已装备：%s → %s" % [item_data.name, u.display_name])
 
-	# ★ 如果当前在熔铸标签，刷新面板（待领取清空后 → 显示熔铸按钮）
 	if current_tab == "sacrifice" and shop_container and shop_container.visible:
 		_build_sacrifice_panel()
 
@@ -785,18 +684,16 @@ func _discard_pending_reward(data: Dictionary):
 	SaveManager.auto_save()
 	_build_pending_slots()
 
-	# ★ 如果当前在熔铸标签，刷新面板
 	if current_tab == "sacrifice" and shop_container and shop_container.visible:
 		_build_sacrifice_panel()
 
 
 # ============================================================
-#  单位图标（含 idle 动画）
+#  单位图标
 # ============================================================
 func _create_unit_icon(unit: UnitData, unit_idx: int) -> Control:
-	# ★ 只需要调这两个数值
-	var icon_size : float = 32     # 图标大小
-	var y_offset : float = -8     # 垂直偏移（负 = 上移，正 = 下移）
+	var icon_size : float = 32
+	var y_offset : float = -8
 
 	var wrapper := Control.new()
 	wrapper.custom_minimum_size = Vector2(0, icon_size)
@@ -805,12 +702,10 @@ func _create_unit_icon(unit: UnitData, unit_idx: int) -> Control:
 	wrapper.mouse_filter = Control.MOUSE_FILTER_STOP
 
 	var texture_rect := TextureRect.new()
-	# ---- 水平：自动居中（anchor=0.5，左右 offset 对称） ----
 	texture_rect.anchor_left = 0.5
 	texture_rect.anchor_right = 0.5
 	texture_rect.offset_left = -icon_size / 2.0
 	texture_rect.offset_right = icon_size / 2.0
-	# ---- 垂直：只由 y_offset 决定 ----
 	texture_rect.anchor_top = 0.0
 	texture_rect.anchor_bottom = 0.0
 	texture_rect.offset_top = y_offset
@@ -874,7 +769,6 @@ func _build_unit_columns():
 			icon_ctrl.modulate = Color(0.4, 0.4, 0.4, 1)
 		col.add_child(icon_ctrl)
 
-		# ---- 武器槽 ----
 		var weapon_inst : ItemInstance = unit.weapon_slot
 		var weapon_btn : Button = _create_item_button(weapon_inst, "weapon", i, -1)
 		if unit.is_dead: _disable_button(weapon_btn)
@@ -882,7 +776,6 @@ func _build_unit_columns():
 
 		col.add_child(Style.create_label(Style.SEPARATOR_TEXT, Style.FONT_SMALL))
 
-		# ---- 防具组 ----
 		var armor_group := VBoxContainer.new()
 		armor_group.add_theme_constant_override("separation", 2)
 		col.add_child(armor_group)
@@ -892,19 +785,15 @@ func _build_unit_columns():
 			if unit.is_dead: _disable_button(armor_btn)
 			armor_group.add_child(armor_btn)
 
-		# ★ 去掉防具组后面的分隔线
-
-		# ---- 普通特技 ----
 		var talent_inst : TalentInstance = unit.talent_slots[0] if unit.talent_slots.size() > 0 else null
 		var talent_btn : Button = _create_talent_button(talent_inst, i, 0)
 		if unit.is_dead: _disable_button(talent_btn)
 		col.add_child(talent_btn)
 
-		# ---- 职业特技 ----
 		var adv_btn : Button = _create_advanced_talent_button(unit, i)
 		if unit.is_dead: _disable_button(adv_btn)
 		col.add_child(adv_btn)
-		
+
 
 func _disable_button(btn: Button):
 	btn.disabled = true
@@ -963,7 +852,6 @@ func _on_unit_hover_entered(unit_idx: int) -> void:
 	if talent_names.size() > 0:
 		lines.append("特技: " + ", ".join(talent_names))
 
-	# ★ 职业特技
 	if unit.advanced_talent_id != "":
 		var adv_data : TalentData = TalentManager.get_talent_data(unit.advanced_talent_id)
 		if adv_data:
@@ -978,6 +866,7 @@ func _on_unit_hover_entered(unit_idx: int) -> void:
 
 func _on_unit_hover_exited() -> void:
 	_detail.clear_zone()
+
 
 func _create_item_button(inst: ItemInstance, slot_type: String, unit_idx: int, slot_idx: int) -> Button:
 	var btn : Button = Style.create_styled_button(Style.FONT_SMALL, Style.BTN_ITEM_SIZE)
@@ -1045,6 +934,7 @@ func _build_passive_slots():
 		var btn : Button = _create_passive_button(inst, i)
 		relic_container.add_child(btn)
 
+
 func _create_passive_button(inst: Variant, slot_index: int) -> Button:
 	var btn : Button = Style.create_styled_button(Style.FONT_SMALL, Style.BTN_RELIC_SIZE)
 	btn.clip_text = true
@@ -1052,33 +942,27 @@ func _create_passive_button(inst: Variant, slot_index: int) -> Button:
 	btn.set_meta("slot_type", "passive_slot")
 	btn.set_meta("passive_index", slot_index)
 	if inst == null:
-		btn.text = "空"; btn.set_meta("item_id", ""); btn.set_meta("refine_id", "")
+		btn.text = "空"
+		btn.set_meta("item_id", "")
 	elif inst is ItemInstance:
 		var item_inst : ItemInstance = inst
 		var data : Dictionary = RelicManager.get_relic_data(item_inst.item_id)
 		if not data.is_empty():
 			btn.text = data.get("name", "?")
-			btn.set_meta("item_id", item_inst.item_id); btn.set_meta("refine_id", "")
+			btn.set_meta("item_id", item_inst.item_id)
 			btn.mouse_entered.connect(_on_relic_hover_entered.bind(item_inst.item_id))
 			btn.mouse_exited.connect(_on_relic_hover_exited)
 		else:
-			btn.text = "?"; btn.set_meta("item_id", ""); btn.set_meta("refine_id", "")
-	elif inst is Dictionary:
-		var inst_dict : Dictionary = inst
-		var refine_id : String = inst_dict.get("refine_id", "")
-		var recipe : Dictionary = RefineManager.get_recipe(refine_id)
-		if not recipe.is_empty():
-			btn.text = recipe.get("name", refine_id)
-			btn.set_meta("item_id", ""); btn.set_meta("refine_id", refine_id)
-			btn.mouse_entered.connect(_on_refine_hover_entered.bind(refine_id))
-			btn.mouse_exited.connect(_on_refine_hover_exited)
-		else:
-			btn.text = "?"; btn.set_meta("item_id", ""); btn.set_meta("refine_id", "")
+			btn.text = "?"
+			btn.set_meta("item_id", "")
+	else:
+		btn.text = "空"
+		btn.set_meta("item_id", "")
 	return btn
 
 
 # ============================================================
-#  格数预算辅助
+#  格数预算
 # ============================================================
 func _inst_slots(inst: ItemInstance) -> int:
 	return 0 if inst == null else 1
@@ -1100,10 +984,8 @@ func _can_equip_armor_to(unit_idx: int, item_id: String, exclude_slot_idx: int =
 	if unit_idx < 0 or unit_idx >= party.size(): return false
 	if item_id == "": return true
 	var unit : UnitData = party[unit_idx]
-	# 拖到具体槽位 → 总是可以（覆盖 or 空槽）
 	if exclude_slot_idx >= 0 and exclude_slot_idx < unit.armor_slots.size():
 		return true
-	# 拖到"第一个空槽" → 找空槽
 	for s in unit.armor_slots:
 		if s == null: return true
 	return false
@@ -1124,11 +1006,8 @@ func _is_valid_drop(data: Dictionary, target: Control) -> bool:
 	var source_type : String = data["slot_type"]
 	var target_type : String = target.get_meta("slot_type", "")
 	var discard : bool = target == discard_zone
-	# ★ 特技 → 特技库：任何模式都允许卸下
 	if source_type == "talent" and target_type == "library_talent":
 		return true
-	# ★ 特技 → 丢弃区：不允许（丢弃区灰色）
-	# （拖到空白区域由 end_drag 处理）
 
 	var tgt_uidx : int = target.get_meta("unit_idx", -1)
 	if tgt_uidx >= 0 and tgt_uidx < party.size():
@@ -1139,7 +1018,6 @@ func _is_valid_drop(data: Dictionary, target: Control) -> bool:
 		if party[src_uidx].is_dead:
 			return false
 
-	# ★ 待领取 → 单位槽
 	if source_type == "pending_reward":
 		if discard:
 			return true
@@ -1167,13 +1045,11 @@ func _is_valid_drop(data: Dictionary, target: Control) -> bool:
 			return used_p + need_p <= party[tu_p].max_armor_slots
 		return false
 
-	# 被动槽
 	if source_type == "passive_slot":
 		if target_type == "passive_slot": return true
 		if discard: return true
 		return false
 	if target_type == "passive_slot":
-		if source_type == "library_refine": return true
 		return false
 
 	if current_mode == Mode.FORGE and current_tab != "arena_shop":
@@ -1229,6 +1105,7 @@ func _is_valid_drop(data: Dictionary, target: Control) -> bool:
 		return false
 	return false
 
+
 func _check_armor_swap_budget(data: Dictionary, target: Control) -> bool:
 	var su : int = data.get("unit_idx", -1)
 	var ss : int = data.get("slot_idx", -1)
@@ -1236,7 +1113,7 @@ func _check_armor_swap_budget(data: Dictionary, target: Control) -> bool:
 	var ts : int = target.get_meta("slot_idx", -1)
 	if su < 0 or ss < 0 or tu < 0 or ts < 0: return false
 	if su == tu and ss == ts: return false
-	return true   # 每个防具占 1 槽，交换永远合法
+	return true
 
 
 # ============================================================
@@ -1254,8 +1131,6 @@ func _execute_drop(data: Dictionary, target: Control):
 	if source_type == "passive_slot":
 		if target == discard_zone: _discard_passive(data); return
 		if target_type == "passive_slot": _swap_passives(data, target); return
-	if source_type == "library_refine" and target_type == "passive_slot":
-		_equip_refine_to_slot(data, target); return
 
 	if current_mode == Mode.FORGE and current_tab != "arena_shop":
 		_forge.execute_forge_drop(data, target); return
@@ -1282,6 +1157,7 @@ func _discard_passive(data: Dictionary):
 	_context.remove_passive_at_slot(idx)
 	_sync_all(); _schedule_build_ui()
 
+
 func _swap_passives(data: Dictionary, target: Control):
 	var src_idx : int = data.get("passive_index", -1)
 	var tgt_idx : int = target.get_meta("passive_index", -1)
@@ -1292,19 +1168,6 @@ func _swap_passives(data: Dictionary, target: Control):
 	_context.set_passive_at_slot(tgt_idx, temp)
 	_sync_all(); _schedule_build_ui()
 
-func _equip_refine_to_slot(data: Dictionary, target: Control):
-	var refine_id : String = data.get("refine_id", "")
-	var slot_idx : int = target.get_meta("passive_index", -1)
-	if refine_id == "" or slot_idx < 0: return
-	if RefineManager.get_count(refine_id) <= 0: return
-	var passives : Array = _context.get_passives()
-	for p in passives:
-		if p != null and p is Dictionary:
-			var p_dict : Dictionary = p
-			if p_dict.get("refine_id", "") == refine_id: return
-	GameState.refined_items[refine_id] -= 1
-	_context.set_passive_at_slot(slot_idx, {"refine_id": refine_id, "count": 1})
-	_sync_all(); _schedule_build_ui()
 
 func _discard_item(data: Dictionary):
 	var source_type : String = data["slot_type"]
@@ -1334,14 +1197,11 @@ func _on_confirm_pressed():
 			return
 
 	var target_units : Array = _context.get_units()
-
-	# ★ 建立身份索引（与 PartyState.sync_units_from_battlefield 约定一致）
 	var target_map : Dictionary = {}
 	for tu in target_units:
 		var key : String = "%s|%s" % [tu.unit_name, tu.display_name]
 		target_map[key] = tu
 
-	# ★ 按身份匹配，而非索引
 	for u in party:
 		var key : String = "%s|%s" % [u.unit_name, u.display_name]
 		if not target_map.has(key):
@@ -1378,15 +1238,16 @@ func _copy_party_data():
 		var ud : UnitData = unit_data
 		party.append(UnitData.from_dict(ud.to_dict()))
 
+
 func _clear_container(container: Node):
 	if not container: return
 	for child in container.get_children():
 		container.remove_child(child)
 		child.queue_free()
 
+
 func _sync_all():
 	var target_units : Array = _context.get_units()
-
 	var target_map : Dictionary = {}
 	for tu in target_units:
 		var key : String = "%s|%s" % [tu.unit_name, tu.display_name]
@@ -1410,10 +1271,11 @@ func _sync_all():
 		tu.max_armor_slots = u.max_armor_slots
 		tu.talent_slots = u.talent_slots.duplicate()
 		tu.is_dead = u.is_dead
+		tu.advanced_talent_id = u.advanced_talent_id
 
 
 # ============================================================
-#  深拷贝辅助
+#  深拷贝
 # ============================================================
 static func _clone_item_inst(src: ItemInstance) -> ItemInstance:
 	if src == null: return null
@@ -1422,6 +1284,7 @@ static func _clone_item_inst(src: ItemInstance) -> ItemInstance:
 	inst.count = src.count
 	inst.upgrade_level = src.upgrade_level
 	return inst
+
 
 static func _clone_inst_array(src: Array) -> Array:
 	var out : Array = []
@@ -1445,14 +1308,12 @@ func _switch_tab(tab: String):
 	current_tab = tab
 	_update_tab_style()
 	_clear_container(shop_container)
-	# ★ 修复：只有 arena_forge 保留 forge UI，其它全部 cleanup
 	var is_forge_tab : bool = (tab == "arena_forge")
 	if not is_forge_tab:
 		_forge.cleanup()
 	match tab:
 		"weapon": _shop.build_weapon_grid(shop_container)
 		"talent": _talent.build_talent_grid(shop_container)
-		"refine": _shop.build_refine_grid(shop_container)
 		"arena_shop":
 			if shop_manager and shop_manager.get_shop_items().is_empty():
 				shop_manager.generate_shop_items()
@@ -1482,8 +1343,8 @@ func _force_relayout():
 	if shop_container:
 		shop_container.queue_sort()
 
+
 func _refresh_bottom_buttons():
-	# ★ 熔铸 / 铁匠铺下灰化"继续探索"
 	var in_sacrifice : bool = (current_tab == "sacrifice")
 	var in_arena_forge : bool = (current_tab == "arena_forge")
 
@@ -1511,6 +1372,7 @@ func _refresh_bottom_buttons():
 		confirm_btn.visible = false
 		discard_zone.visible = true
 
+
 func _update_tab_style():
 	if not weapon_tab_btn or not talent_tab_btn:
 		return
@@ -1518,7 +1380,6 @@ func _update_tab_style():
 	if current_mode == Mode.ARENA_REST:
 		weapon_tab_btn.modulate = Color.WHITE if current_tab == "arena_shop" else Color(0.5, 0.5, 0.5)
 		talent_tab_btn.modulate = Color.WHITE if current_tab == "arena_forge" else Color(0.5, 0.5, 0.5)
-		if refine_tab_btn: refine_tab_btn.visible = false
 		if sacrifice_tab_btn: sacrifice_tab_btn.visible = false
 		return
 
@@ -1527,7 +1388,6 @@ func _update_tab_style():
 		talent_tab_btn.modulate = Color.WHITE if current_tab == "arena_forge" else Color(0.5, 0.5, 0.5)
 		if sacrifice_tab_btn:
 			sacrifice_tab_btn.modulate = Color.WHITE if current_tab == "sacrifice" else Color(0.5, 0.5, 0.5)
-		if refine_tab_btn: refine_tab_btn.visible = false
 		return
 
 	if current_mode == Mode.FORGE:
@@ -1535,14 +1395,11 @@ func _update_tab_style():
 		talent_tab_btn.modulate = Color.WHITE if current_tab == "arena_forge" else Color(0.5, 0.5, 0.5)
 		if sacrifice_tab_btn:
 			sacrifice_tab_btn.modulate = Color.WHITE if current_tab == "sacrifice" else Color(0.5, 0.5, 0.5)
-		if refine_tab_btn: refine_tab_btn.visible = false
 		return
 
 	weapon_tab_btn.modulate = Color.WHITE if current_tab == "weapon" else Color(0.5, 0.5, 0.5)
 	talent_tab_btn.modulate = Color.WHITE if current_tab == "talent" else Color(0.5, 0.5, 0.5)
 	if sacrifice_tab_btn: sacrifice_tab_btn.visible = false
-	if refine_tab_btn:
-		refine_tab_btn.modulate = Color.WHITE if current_tab == "refine" else Color(0.5, 0.5, 0.5)
 
 
 # ============================================================
@@ -1559,12 +1416,13 @@ func _input(event: InputEvent):
 	elif event is InputEventMouseMotion:
 		if _drag.is_dragging: _drag.update_drag_preview()
 
+
 func _process(_delta):
 	if _drag.is_dragging: _drag.update_drag_preview()
 
 
 # ============================================================
-#  通用辅助
+#  辅助
 # ============================================================
 func _show_buy_failure_message(reason: String):
 	var msg : String = ""
@@ -1575,15 +1433,18 @@ func _show_buy_failure_message(reason: String):
 		_: msg = "购买失败：" + reason
 	Globals.show_confirm(self, msg, "确定", "", func(): pass, func(): pass, false)
 
+
 func _schedule_build_ui():
 	if _build_ui_pending: return
 	_build_ui_pending = true
 	call_deferred("_do_build_ui")
 
+
 func _do_build_ui():
 	_build_ui_pending = false
 	if _is_closing: return
 	_build_ui()
+
 
 func _has_active_confirm_ui() -> bool:
 	for child in get_children():
@@ -1598,7 +1459,6 @@ func _has_active_confirm_ui() -> bool:
 # ============================================================
 func _build_shop_items(): _shop.build_shop_items()
 func _build_weapon_grid(container: GridContainer): _shop.build_weapon_grid(container)
-func _build_refine_grid(container: GridContainer): _shop.build_refine_grid(container)
 func _on_reset_shop_pressed(): _shop.on_reset_shop_pressed()
 
 func _build_talent_grid(container: GridContainer): _talent.build_talent_grid(container)
@@ -1621,8 +1481,6 @@ func _on_talent_hover_entered(talent_id: String): _detail.on_talent_hover_entere
 func _on_talent_hover_exited(): _detail.on_talent_hover_exited()
 func _on_relic_hover_entered(relic_id: String): _detail.on_relic_hover_entered(relic_id)
 func _on_relic_hover_exited(): _detail.on_relic_hover_exited()
-func _on_refine_hover_entered(refine_id: String): _detail.on_refine_hover_entered(refine_id)
-func _on_refine_hover_exited(): _detail.on_refine_hover_exited()
 func _show_detail_in_zone(text: String): _detail.show_in_zone(text)
 func _clear_detail_zone(): _detail.clear_zone()
 
@@ -1655,6 +1513,7 @@ func _quality_cn(q : String) -> String:
 		"legendary": return "传说"
 		_: return q
 
+
 # ============================================================
 #  商店升级
 # ============================================================
@@ -1667,7 +1526,6 @@ func _ensure_upgrade_shop_btn():
 	_upgrade_shop_btn.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	_upgrade_shop_btn.pressed.connect(_on_upgrade_shop_pressed)
 	right_container.add_child(_upgrade_shop_btn)
-	# 插在 ResetBtn 之前
 	var reset_idx : int = reset_btn.get_index()
 	right_container.move_child(_upgrade_shop_btn, reset_idx)
 
@@ -1717,9 +1575,8 @@ func _create_advanced_talent_button(unit: UnitData, unit_idx: int) -> Button:
 	btn.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	btn.set_meta("slot_type", "advanced_talent")
 	btn.set_meta("unit_idx", unit_idx)
-	btn.disabled = true   # ★ 只展示
+	btn.disabled = true
 
-	# ★ 只信 advanced_talent_id（转职时由 HeroShrineUI 写入）
 	if unit.advanced_talent_id == "":
 		btn.text = "无"
 		btn.modulate = Color(0.5, 0.5, 0.5, 1)

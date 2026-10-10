@@ -4,19 +4,22 @@ extends Node
 @export var json_path : String = Config.PATHS.DIALOGUE_DATA
 
 var dialogue_ui : CanvasLayer = null
-var dialogue_panel : Panel = null      # ★ 用于 PanelRevealer
+var dialogue_panel : Panel = null
 var name_label : Label = null
 var text_label : Label = null
+var _choice_container : VBoxContainer = null
 var _dialogues : Dictionary = {}
 var current_dialogue_id : String = ""
 var current_index : int = 0
 var is_active : bool = false
 var can_interact : bool = false
 
-# ---- 默认对话（当请求的 ID 不存在时使用） ----
+var _pending_choices : Array = []
+
 var _default_dialogue = [{"speaker": "???", "text": "......"}]
 
 signal dialogue_finished
+signal choice_selected(index: int, data: Dictionary)
 
 
 func _ready():
@@ -24,9 +27,6 @@ func _ready():
 	call_deferred("_load_ui")
 
 
-# ============================================================
-#  加载对话数据
-# ============================================================
 func _load_dialogues():
 	if not FileAccess.file_exists(json_path):
 		push_error("对话 JSON 文件不存在: ", json_path)
@@ -54,11 +54,14 @@ func has_dialogue(dialogues_id: String) -> bool:
 	return _dialogues.has(dialogues_id) and _dialogues[dialogues_id].size() > 0
 
 
+func has_pending_choices() -> bool:
+	return not _pending_choices.is_empty()
+
+
 # ============================================================
-#  启动对话
+#  启动
 # ============================================================
 func start_dialogue(dialogues_id: String, music_stream: AudioStream = null):
-	# ---- 确保 UI 有效 ----
 	if not dialogue_ui or not is_instance_valid(dialogue_ui):
 		_load_ui()
 		if not dialogue_ui or not is_instance_valid(dialogue_ui):
@@ -74,7 +77,6 @@ func start_dialogue(dialogues_id: String, music_stream: AudioStream = null):
 	if is_active:
 		return
 
-	# ---- 隐藏行动菜单 / 其他 UI ----
 	SignalBus.request_hide_menu.emit()
 	SignalBus.request_hide_info.emit()
 	SignalBus.request_clear_highlight.emit()
@@ -84,7 +86,6 @@ func start_dialogue(dialogues_id: String, music_stream: AudioStream = null):
 	can_interact = false
 	Globals.is_dialogue_active = true
 
-	# ★ 用 PanelRevealer 显示对话面板
 	if dialogue_panel and is_instance_valid(dialogue_panel):
 		PanelRevealer.show_panel(dialogue_panel)
 	else:
@@ -108,7 +109,6 @@ func start_inline_dialogue(entries: Array, music_stream: AudioStream = null):
 		dialogue_finished.emit()
 		return
 
-	# ---- 确保 UI 有效 ----
 	if not dialogue_ui or not is_instance_valid(dialogue_ui):
 		_load_ui()
 		if not dialogue_ui or not is_instance_valid(dialogue_ui):
@@ -127,7 +127,6 @@ func start_inline_dialogue(entries: Array, music_stream: AudioStream = null):
 	can_interact = false
 	Globals.is_dialogue_active = true
 
-	# ★ 用 PanelRevealer 显示对话面板
 	if dialogue_panel and is_instance_valid(dialogue_panel):
 		PanelRevealer.show_panel(dialogue_panel)
 	else:
@@ -140,7 +139,6 @@ func start_inline_dialogue(entries: Array, music_stream: AudioStream = null):
 	else:
 		MusicManager.play_dialogue_music()
 
-	# ---- 把 entries 缓存到 _dialogues 里，复用现有 _show_entry ----
 	current_dialogue_id = "__inline__"
 	_dialogues["__inline__"] = entries
 	current_index = 0
@@ -148,8 +146,13 @@ func start_inline_dialogue(entries: Array, music_stream: AudioStream = null):
 	can_interact = true
 
 
+func start_inline_dialogue_with_choices(entries: Array, choices: Array, music_stream: AudioStream = null):
+	_pending_choices = choices.duplicate()
+	start_inline_dialogue(entries, music_stream)
+
+
 # ============================================================
-#  显示单条
+#  显示
 # ============================================================
 func _show_entry(index: int):
 	var entries = _get_dialogue_entries(current_dialogue_id)
@@ -181,14 +184,67 @@ func _input(event: InputEvent):
 
 
 # ============================================================
+#  选项
+# ============================================================
+func _show_choices():
+	if not _choice_container or not is_instance_valid(_choice_container):
+		_pending_choices = []
+		_do_close()
+		return
+
+	if text_label:
+		text_label.visible = false
+
+	for child in _choice_container.get_children():
+		_choice_container.remove_child(child)
+		child.queue_free()
+
+	for i in range(_pending_choices.size()):
+		var c : Dictionary = _pending_choices[i]
+		var btn := Button.new()
+		btn.text = "· " + str(c.get("text", "..."))
+		btn.add_theme_font_size_override("font_size", 8)
+		btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		btn.focus_mode = Control.FOCUS_NONE
+		btn.pressed.connect(_on_choice_pressed.bind(i))
+		_choice_container.add_child(btn)
+
+	_choice_container.visible = true
+	can_interact = false
+
+
+func _on_choice_pressed(index: int):
+	if index < 0 or index >= _pending_choices.size():
+		return
+	var c : Dictionary = _pending_choices[index]
+	for child in _choice_container.get_children():
+		_choice_container.remove_child(child)
+		child.queue_free()
+	_choice_container.visible = false
+	if text_label:
+		text_label.visible = true
+	_pending_choices = []
+	can_interact = true
+	choice_selected.emit(index, c)
+	_do_close()
+
+
+# ============================================================
 #  关闭
 # ============================================================
 func _close_dialogue():
+	if not _pending_choices.is_empty():
+		_show_choices()
+		return
+	_do_close()
+
+
+func _do_close():
 	is_active = false
 	can_interact = false
 	Globals.is_dialogue_active = false
 
-	# ★ 用 PanelRevealer 隐藏对话面板
 	if dialogue_panel and is_instance_valid(dialogue_panel):
 		PanelRevealer.hide_panel(dialogue_panel)
 	elif dialogue_ui and is_instance_valid(dialogue_ui):
@@ -196,7 +252,6 @@ func _close_dialogue():
 
 	MusicManager.stop_music()
 	await get_tree().create_timer(music_transition_delay, true, false, true).timeout
-	# ★ 先恢复原音乐，再 emit 信号（避免监听者启动的音乐被覆盖）
 	MusicManager.resume_saved()
 	dialogue_finished.emit()
 
@@ -209,8 +264,15 @@ func reset():
 	Globals.is_dialogue_active = false
 	current_dialogue_id = ""
 	current_index = 0
+	_pending_choices = []
+	if _choice_container and is_instance_valid(_choice_container):
+		for child in _choice_container.get_children():
+			_choice_container.remove_child(child)
+			child.queue_free()
+		_choice_container.visible = false
+	if text_label:
+		text_label.visible = true
 
-	# ★ 强制隐藏（不走动画）
 	if dialogue_panel and is_instance_valid(dialogue_panel):
 		PanelRevealer.force_hide(dialogue_panel)
 	elif dialogue_ui and is_instance_valid(dialogue_ui):
@@ -220,14 +282,12 @@ func reset():
 
 
 # ============================================================
-#  延迟加载 UI
+#  加载 UI
 # ============================================================
 func _load_ui():
-	# ---- 已有有效实例 ----
 	if dialogue_ui != null and is_instance_valid(dialogue_ui):
 		return
 
-	# ---- 查找 root 下是否已存在 ----
 	var root = get_tree().root
 	var existing = root.get_node_or_null("DialogueUI_Instance")
 	if existing:
@@ -235,15 +295,14 @@ func _load_ui():
 		name_label = dialogue_ui.get_node("DialoguePanel/NameLabel") as Label
 		text_label = dialogue_ui.get_node("DialoguePanel/TextLabel") as Label
 		dialogue_panel = dialogue_ui.get_node("DialoguePanel") as Panel
+		_choice_container = dialogue_ui.get_node_or_null("DialoguePanel/ChoiceContainer") as VBoxContainer
 		if name_label and text_label and dialogue_panel:
-			PanelRevealer.force_hide(dialogue_panel)   # ★ 初始隐藏
+			PanelRevealer.force_hide(dialogue_panel)
 			print("DialogueManager: 复用已存在的 DialogueUI")
 			return
-		# 残缺节点，删掉重建
 		existing.queue_free()
 		dialogue_ui = null
 
-	# ---- 创建新实例，挂到 root 下 ----
 	var ui_scene = load(Config.PATHS.DIALOGUE_UI)
 	if not ui_scene:
 		push_error("无法加载 DialogueUI.tscn，请确保路径正确")
@@ -257,11 +316,12 @@ func _load_ui():
 	name_label = dialogue_ui.get_node("DialoguePanel/NameLabel") as Label
 	text_label = dialogue_ui.get_node("DialoguePanel/TextLabel") as Label
 	dialogue_panel = dialogue_ui.get_node("DialoguePanel") as Panel
+	_choice_container = dialogue_ui.get_node_or_null("DialoguePanel/ChoiceContainer") as VBoxContainer
 	if not name_label or not text_label or not dialogue_panel:
 		push_error("DialogueUI 缺少必要节点")
 		dialogue_ui.queue_free()
 		dialogue_ui = null
 		return
 
-	PanelRevealer.force_hide(dialogue_panel)   # ★ 初始隐藏
+	PanelRevealer.force_hide(dialogue_panel)
 	print("DialogueManager: 创建 DialogueUI 实例（挂到 root 下）")

@@ -1,4 +1,4 @@
-[gd_scene format=3 uid="uid://1g63ioh8bbbm"]
+[gd_scene format=3 uid="uid://bsanctuary01"]
 
 [ext_resource type="Script" uid="uid://cpgg1d57qh6bf" path="res://function/script/Camp.gd" id="1"]
 [ext_resource type="StyleBox" uid="uid://6qbsaxkfwg3o" path="res://content/resource/stylebox/8bit_style_box_flat.tres" id="2"]
@@ -12,121 +12,175 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-color = Color(0, 0, 0, 1)
+color = Color(0.08, 0.07, 0.06, 1)
 
 [node name="Title" type="Label" parent="." unique_id=936389542]
 anchors_preset = 10
 anchor_right = 1.0
-offset_top = 16.0
-offset_bottom = 46.0
+offset_top = 6.0
+offset_bottom = 22.0
 grow_horizontal = 2
-theme_override_font_sizes/font_size = 20
-text = "营地"
+theme_override_font_sizes/font_size = 10
+text = "祭 祀 场"
 horizontal_alignment = 1
+modulate = Color(0.7, 0.65, 0.55, 1)
 
 [node name="ResourcePanel" type="VBoxContainer" parent="." unique_id=1974261780]
-anchors_preset = 8
-anchor_left = 0.5
-anchor_top = 0.5
-anchor_right = 0.5
-anchor_bottom = 0.5
-offset_left = -184.0
-offset_top = -104.0
-offset_right = -56.0
-offset_bottom = -40.0
-grow_horizontal = 2
-grow_vertical = 2
+offset_left = 8.0
+offset_top = 8.0
+offset_right = 120.0
+offset_bottom = 50.0
+theme_override_constants/separation = 2
 
 [node name="SoulLabel" type="Label" parent="ResourcePanel" unique_id=1106377332]
 layout_mode = 2
-theme_override_font_sizes/font_size = 10
-text = "Soul"
+theme_override_font_sizes/font_size = 8
+text = "魂: 0"
 
-[node name="MaterialsContainer" type="VBoxContainer" parent="ResourcePanel" unique_id=2007443963]
+[node name="SoulFireLabel" type="Label" parent="ResourcePanel" unique_id=1106377333]
 layout_mode = 2
-theme_override_constants/separation = 8
+theme_override_font_sizes/font_size = 8
+text = "魂火: 0/5"
 
-[node name="ButtonPanel" type="VBoxContainer" parent="." unique_id=1424369280]
-offset_left = 144.0
+[node name="FireSprite" type="TextureRect" parent="." unique_id=2000000001]
+offset_left = 168.0
+offset_top = 98.0
+offset_right = 232.0
+offset_bottom = 162.0
+expand_mode = 1
+stretch_mode = 5
+
+[node name="EntranceGate" type="TextureButton" parent="." unique_id=2000000002]
+offset_left = 176.0
+offset_top = 26.0
+offset_right = 224.0
+offset_bottom = 66.0
+
+[node name="GateLabel" type="Label" parent="EntranceGate" unique_id=2000000003]
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -44.0
+offset_top = 42.0
+offset_right = 44.0
+offset_bottom = 56.0
+grow_horizontal = 2
+theme_override_font_sizes/font_size = 7
+text = "三天战斗入口"
+horizontal_alignment = 1
+
+[node name="NpcGrid" type="Control" parent="." unique_id=2000000004]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="SoulKeeperBtn" type="TextureButton" parent="NpcGrid" unique_id=2000000010]
+offset_left = 52.0
 offset_top = 56.0
-offset_right = 256.0
-offset_bottom = 240.0
+offset_right = 108.0
+offset_bottom = 128.0
 
-[node name="DeployButton" type="Button" parent="ButtonPanel" unique_id=1584325358]
-layout_mode = 2
-theme_override_font_sizes/font_size = 10
+[node name="NamePlate" type="Label" parent="NpcGrid/SoulKeeperBtn" unique_id=2000000011]
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -30.0
+offset_top = 2.0
+offset_right = 30.0
+offset_bottom = 16.0
+grow_horizontal = 2
+grow_vertical = 0
+theme_override_font_sizes/font_size = 7
+text = "守火者"
+horizontal_alignment = 1
+
+[node name="BlacksmithBtn" type="TextureButton" parent="NpcGrid" unique_id=2000000020]
+offset_left = 292.0
+offset_top = 56.0
+offset_right = 348.0
+offset_bottom = 128.0
+
+[node name="NamePlate" type="Label" parent="NpcGrid/BlacksmithBtn" unique_id=2000000021]
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -30.0
+offset_top = 2.0
+offset_right = 30.0
+offset_bottom = 16.0
+grow_horizontal = 2
+grow_vertical = 0
+theme_override_font_sizes/font_size = 7
+text = "灰烬铁匠"
+horizontal_alignment = 1
+
+[node name="GuideBtn" type="TextureButton" parent="NpcGrid" unique_id=2000000030]
+offset_left = 82.0
+offset_top = 142.0
+offset_right = 138.0
+offset_bottom = 214.0
+
+[node name="NamePlate" type="Label" parent="NpcGrid/GuideBtn" unique_id=2000000031]
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -30.0
+offset_top = 2.0
+offset_right = 30.0
+offset_bottom = 16.0
+grow_horizontal = 2
+grow_vertical = 0
+theme_override_font_sizes/font_size = 7
+text = "游魂向导"
+horizontal_alignment = 1
+
+[node name="GladiatorBtn" type="TextureButton" parent="NpcGrid" unique_id=2000000040]
+offset_left = 262.0
+offset_top = 142.0
+offset_right = 318.0
+offset_bottom = 214.0
+
+[node name="NamePlate" type="Label" parent="NpcGrid/GladiatorBtn" unique_id=2000000041]
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -30.0
+offset_top = 2.0
+offset_right = 30.0
+offset_bottom = 16.0
+grow_horizontal = 2
+grow_vertical = 0
+theme_override_font_sizes/font_size = 7
+text = "角斗士"
+horizontal_alignment = 1
+
+[node name="BackButton" type="Button" parent="." unique_id=1775057048]
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -88.0
+offset_top = -32.0
+offset_right = -8.0
+offset_bottom = -8.0
+grow_horizontal = 0
+grow_vertical = 0
+theme_override_font_sizes/font_size = 8
 theme_override_styles/normal = ExtResource("2")
 theme_override_styles/pressed = ExtResource("2")
 theme_override_styles/hover = ExtResource("2")
 theme_override_styles/disabled = ExtResource("2")
 theme_override_styles/focus = ExtResource("2")
-text = "战场探索
-"
-
-[node name="ArenaButton" type="Button" parent="ButtonPanel" unique_id=2041650922]
-layout_mode = 2
-theme_override_font_sizes/font_size = 10
-theme_override_styles/normal = ExtResource("2")
-theme_override_styles/pressed = ExtResource("2")
-theme_override_styles/hover = ExtResource("2")
-theme_override_styles/disabled = ExtResource("2")
-theme_override_styles/focus = ExtResource("2")
-text = "魂之竞技场"
-
-[node name="UnitButton" type="Button" parent="ButtonPanel" unique_id=982030472]
-layout_mode = 2
-theme_override_font_sizes/font_size = 10
-theme_override_styles/normal = ExtResource("2")
-theme_override_styles/pressed = ExtResource("2")
-theme_override_styles/hover = ExtResource("2")
-theme_override_styles/disabled = ExtResource("2")
-theme_override_styles/focus = ExtResource("2")
-text = "魂铸圣所"
-
-[node name="WeaponWorkshopButton" type="Button" parent="ButtonPanel" unique_id=243680761]
-layout_mode = 2
-theme_override_font_sizes/font_size = 10
-theme_override_styles/normal = ExtResource("2")
-theme_override_styles/pressed = ExtResource("2")
-theme_override_styles/hover = ExtResource("2")
-theme_override_styles/disabled = ExtResource("2")
-theme_override_styles/focus = ExtResource("2")
-text = "武器作坊"
-
-[node name="AlchemyButton" type="Button" parent="ButtonPanel" unique_id=2041650921]
-layout_mode = 2
-theme_override_font_sizes/font_size = 10
-theme_override_styles/normal = ExtResource("2")
-theme_override_styles/pressed = ExtResource("2")
-theme_override_styles/hover = ExtResource("2")
-theme_override_styles/disabled = ExtResource("2")
-theme_override_styles/focus = ExtResource("2")
-text = "炼金坊"
-
-[node name="TavernButton" type="Button" parent="ButtonPanel" unique_id=1775057047]
-layout_mode = 2
-theme_override_font_sizes/font_size = 10
-theme_override_styles/normal = ExtResource("2")
-theme_override_styles/pressed = ExtResource("2")
-theme_override_styles/hover = ExtResource("2")
-theme_override_styles/disabled = ExtResource("2")
-theme_override_styles/focus = ExtResource("2")
-text = "酒馆"
-
-[node name="BackButton" type="Button" parent="ButtonPanel" unique_id=1775057048]
-layout_mode = 2
-theme_override_font_sizes/font_size = 10
-theme_override_styles/normal = ExtResource("2")
-theme_override_styles/pressed = ExtResource("2")
-theme_override_styles/hover = ExtResource("2")
-theme_override_styles/disabled = ExtResource("2")
-theme_override_styles/focus = ExtResource("2")
-text = "返回"
-
-[connection signal="pressed" from="ButtonPanel/DeployButton" to="." method="_on_deploy_pressed"]
-[connection signal="pressed" from="ButtonPanel/ArenaButton" to="." method="_on_arena_pressed"]
-[connection signal="pressed" from="ButtonPanel/UnitButton" to="." method="_on_unit_pressed"]
-[connection signal="pressed" from="ButtonPanel/WeaponWorkshopButton" to="." method="_on_weapon_workshop_pressed"]
-[connection signal="pressed" from="ButtonPanel/AlchemyButton" to="." method="_on_alchemy_pressed"]
-[connection signal="pressed" from="ButtonPanel/TavernButton" to="." method="_on_tavern_pressed"]
-[connection signal="pressed" from="ButtonPanel/BackButton" to="." method="_on_back_pressed"]
+text = "离开营地"

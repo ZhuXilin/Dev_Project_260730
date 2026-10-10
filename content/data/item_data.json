@@ -15,7 +15,6 @@
 	"attack_range": 1,
 	"min_attack_range": 1,
 	"modifier": { "strength": 0.6, "dexterity": 0.4 },
-	"unlock_cost": { "粗铁": 3 },
 	"upgrade_stats": { "max_level": 3, "attack_per_level": 1 }
   },
   "steel_sword": {
@@ -34,7 +33,6 @@
 	"attack_range": 1,
 	"min_attack_range": 1,
 	"modifier": { "strength": 0.7, "dexterity": 0.5 },
-	"unlock_cost": { "精钢": 3 },
 	"upgrade_stats": { "max_level": 3, "attack_per_level": 1 }
   },
   "steel_spear": {
@@ -53,7 +51,6 @@
 	"attack_range": 1,
 	"min_attack_range": 1,
 	"modifier": { "strength": 0.7, "dexterity": 0.7 },
-	"unlock_cost": { "精钢": 3 },
 	"upgrade_stats": { "max_level": 3, "attack_per_level": 1 }
   },
   "battle_axe": {
@@ -73,7 +70,6 @@
 	"min_attack_range": 1,
 	"modifier": { "strength": 1.3 },
 	"heavy_attack": { "damage_multiplier": 1.4, "charge_multiplier": 2.0 },
-	"unlock_cost": { "精钢": 3 },
 	"upgrade_stats": { "max_level": 3, "attack_per_level": 2 }
   },
   "longbow": {
@@ -92,7 +88,6 @@
 	"attack_range": 3,
 	"min_attack_range": 2,
 	"modifier": { "dexterity": 1.0, "arcane": 0.3 },
-	"unlock_cost": { "精钢": 3 },
 	"upgrade_stats": { "max_level": 3, "attack_per_level": 1 }
   },
   "light_crossbow": {
@@ -111,7 +106,6 @@
 	"attack_range": 3,
 	"min_attack_range": 2,
 	"modifier": { "dexterity": 0.8, "arcane": 0.2 },
-	"unlock_cost": { "精钢": 3 },
 	"upgrade_stats": { "max_level": 3, "attack_per_level": 1 }
   },
   "healing_staff": {
@@ -131,7 +125,6 @@
 	"min_attack_range": 0,
 	"modifier": { "faith": 1.3, "intelligence": 0.3 },
 	"heal_effect": { "base_heal": 10, "faith_multiplier": 1.0 },
-	"unlock_cost": { "精钢": 3 },
 	"upgrade_stats": { "max_level": 3, "attack_per_level": 0, "heal_per_level": 2 }
   },
   "fire_spellbook": {
@@ -151,7 +144,6 @@
 	"min_attack_range": 1,
 	"modifier": { "intelligence": 1.4, "arcane": 0.3 },
 	"magic_attack": { "ignore_defense": true },
-	"unlock_cost": { "精钢": 5 },
 	"upgrade_stats": { "max_level": 3, "attack_per_level": 2 }
   },
   "master_sword": {
@@ -171,7 +163,6 @@
 	"min_attack_range": 1,
 	"modifier": { "strength": 0.3, "dexterity": 1.2 },
 	"legendary_effect": "居合斩冷却-1回合",
-	"unlock_cost": { "秘银": 3, "龙鳞": 1 },
 	"upgrade_stats": { "max_level": 3, "attack_per_level": 2, "modifier_per_level": { "dexterity": 0.1 } }
   },
   "javelin": {
@@ -190,7 +181,6 @@
 	"attack_range": 2,
 	"min_attack_range": 1,
 	"modifier": { "strength": 0.5, "dexterity": 0.5 },
-	"unlock_cost": { "粗铁": 5 },
 	"upgrade_stats": { "max_level": 3, "attack_per_level": 1 }
   },
   "fire_dragonstone": {
@@ -211,7 +201,6 @@
 	"modifier": { "arcane": 1.1, "intelligence": 0.2 },
 	"magic_attack": { "ignore_defense": true },
 	"legendary_effect": "龙息范围+1",
-	"unlock_cost": { "秘银": 3, "龙鳞": 2 },
 	"upgrade_stats": { "max_level": 3, "attack_per_level": 2 }
   },
 
