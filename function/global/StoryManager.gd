@@ -1,11 +1,14 @@
 extends Node
 
 # ============================================================
-#  StoryManager — NPC 对话与剧情解锁
-#  v4.0：取消酒馆 topics，改为 dialogues + choices + unlocks
+#  StoryManager — NPC 对话与剧情解锁 + 亲密度
 # ============================================================
 
-var _stories : Dictionary = {}   # npc_id -> { name, dialogues, unlocks }
+var _stories : Dictionary = {}
+
+const AFFINITY_TIER_1 : int = 5
+const AFFINITY_TIER_2 : int = 10
+const AFFINITY_TIER_3 : int = 15
 
 
 func _ready():
@@ -33,10 +36,8 @@ func get_npc(npc_id: String) -> Dictionary:
 
 
 # ============================================================
-#  对话池 & 触发
+#  对话池
 # ============================================================
-
-## 返回下一个应该播放的对话（未看过 + 条件满足 + priority 最高）
 func get_next_dialogue(npc_id: String) -> Dictionary:
 	var npc : Dictionary = get_npc(npc_id)
 	if npc.is_empty(): return {}
@@ -55,7 +56,6 @@ func get_next_dialogue(npc_id: String) -> Dictionary:
 	return candidates[0]
 
 
-## 供 Camp 调用：取下一个 + 标记已看 + 播放
 func play_next_dialogue(npc_id: String) -> bool:
 	var d : Dictionary = get_next_dialogue(npc_id)
 	if d.is_empty(): return false
@@ -78,6 +78,12 @@ func mark_seen(npc_id: String, dialogue_id: String) -> void:
 	var arr : Array = GameState.npc_dialogue_seen[npc_id]
 	if dialogue_id not in arr:
 		arr.append(dialogue_id)
+		# ★ 方向 6：亲密度 +1
+		var cur : int = int(GameState.npc_affinity.get(npc_id, 0))
+		GameState.npc_affinity[npc_id] = cur + 1
+		print("[NPC] %s 亲密度 %d → %d" % [npc_id, cur, cur + 1])
+		_check_affinity_milestone(npc_id, cur, cur + 1)
+		SaveManager.auto_save()
 
 
 func record_choice(_npc_id: String, flag: String) -> void:
@@ -90,7 +96,32 @@ func has_flag(flag: String) -> bool:
 	return flag in GameState.npc_dialogue_flags
 
 
-## 检查并应用解锁（调用后可检查新解锁）
+# ============================================================
+#  亲密度查询
+# ============================================================
+func get_affinity(npc_id: String) -> int:
+	return int(GameState.npc_affinity.get(npc_id, 0))
+
+
+func get_affinity_tier(npc_id: String) -> int:
+	var a : int = get_affinity(npc_id)
+	if a >= AFFINITY_TIER_3: return 3
+	if a >= AFFINITY_TIER_2: return 2
+	if a >= AFFINITY_TIER_1: return 1
+	return 0
+
+
+func _check_affinity_milestone(npc_id: String, old_v: int, new_v: int):
+	# 触达 5 / 10 / 15 时打印
+	var milestones : Array = [AFFINITY_TIER_1, AFFINITY_TIER_2, AFFINITY_TIER_3]
+	for m in milestones:
+		if old_v < m and new_v >= m:
+			print("[NPC] %s 亲密度达到 %d，解锁新效果" % [npc_id, m])
+
+
+# ============================================================
+#  解锁
+# ============================================================
 func check_and_apply_unlocks(npc_id: String) -> Array:
 	var npc : Dictionary = get_npc(npc_id)
 	if npc.is_empty(): return []
@@ -106,7 +137,7 @@ func check_and_apply_unlocks(npc_id: String) -> Array:
 
 
 # ============================================================
-#  内部 · 条件检查
+#  内部
 # ============================================================
 func _is_seen(npc_id: String, dialogue_id: String) -> bool:
 	if not GameState.npc_dialogue_seen.has(npc_id): return false
@@ -160,9 +191,6 @@ func _check_unlock_conditions(npc_id: String, cond: Dictionary) -> bool:
 	return true
 
 
-# ============================================================
-#  内部 · 解锁应用
-# ============================================================
 func _is_unlock_done(npc_id: String, unlock_id: String) -> bool:
 	if unlock_id == "": return false
 	var key : String = "%s_%s" % [npc_id, unlock_id]
@@ -180,10 +208,8 @@ func _apply_unlock(npc_id: String, u: Dictionary) -> bool:
 		"relic":
 			RelicManager.unlock_relic(uid)
 		"aura":
-			# 后续：AuraManager.unlock_aura(uid)
 			pass
 		"transform_branch":
-			# 后续：AdvancedClassManager.unlock_branch(uid)
 			pass
 		_:
 			push_warning("[StoryManager] 未知解锁类型: " + utype)

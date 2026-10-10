@@ -13,6 +13,7 @@
 	"available_blessings": ["strength", "dexterity"],
 	"soul_weapon": "soul_sword",
 	"tags": ["物理", "守护"],
+	"core_trait": "chain_attack",
 	"sacrifice_buff": { "type": "attack_percent", "value": 0.20, "display": "全队攻击 +20%" },
 	"advanced_branches": [
 	  { "id": "swordsman_berserker", "name": "狂战士",
@@ -43,6 +44,7 @@
 	"available_blessings": ["strength", "dexterity", "vitality"],
 	"soul_weapon": "soul_lance",
 	"tags": ["物理", "守护"],
+	"core_trait": "pierce",
 	"sacrifice_buff": { "type": "counter_damage_bonus", "value": 0.40, "display": "全队反击伤害 +40%" },
 	"advanced_branches": [
 	  { "id": "spearman_dragoon", "name": "龙骑将",
@@ -74,6 +76,7 @@
 	"available_blessings": ["strength", "vitality"],
 	"soul_weapon": "soul_axe",
 	"tags": ["物理", "烈焰"],
+	"core_trait": "charge",
 	"sacrifice_buff": { "type": "crit_damage_bonus", "value": 0.40, "display": "全队暴击伤害 +40%" },
 	"advanced_branches": [
 	  { "id": "axeman_berserker", "name": "狂战士",
@@ -104,6 +107,7 @@
 	"available_blessings": ["dexterity", "arcane"],
 	"soul_weapon": "soul_bow",
 	"tags": ["物理", "灰烬"],
+	"core_trait": "mark",
 	"sacrifice_buff": { "type": "crit_damage_bonus", "value": 0.20, "display": "全队暴击伤害 +20%" },
 	"advanced_branches": [
 	  { "id": "archer_sniper", "name": "神射手",
@@ -134,6 +138,7 @@
 	"available_blessings": ["dexterity", "arcane", "vitality"],
 	"soul_weapon": "soul_javelin",
 	"tags": ["物理", "守护"],
+	"core_trait": "air_strike",
 	"sacrifice_buff": { "type": "counter_damage_bonus", "value": 0.25, "display": "全队反击伤害 +25%" },
 	"advanced_branches": [
 	  { "id": "pegasus_valkyrie", "name": "女武神",
@@ -164,6 +169,7 @@
 	"available_blessings": ["intelligence", "faith"],
 	"soul_weapon": "soul_tome",
 	"tags": ["法术", "烈焰"],
+	"core_trait": "arcane_chain",
 	"sacrifice_buff": { "type": "attack_percent", "value": 0.25, "display": "全队攻击 +25%" },
 	"advanced_branches": [
 	  { "id": "mage_archmage", "name": "大魔导",
@@ -194,6 +200,7 @@
 	"available_blessings": ["faith", "intelligence", "vitality"],
 	"soul_weapon": "soul_staff",
 	"tags": ["法术", "献祭"],
+	"core_trait": "sanctuary",
 	"sacrifice_buff": { "type": "heal_bonus", "value": 0.40, "display": "全队治疗量 +40%" },
 	"advanced_branches": [
 	  { "id": "cleric_saint", "name": "圣者",
@@ -224,6 +231,7 @@
 	"available_blessings": ["strength", "arcane", "intelligence"],
 	"soul_weapon": "soul_dragonstone",
 	"tags": ["法术", "余烬"],
+	"core_trait": "dragon_might",
 	"sacrifice_buff": { "type": "damage_reduction", "value": 0.15, "display": "全队减伤 +15%" },
 	"advanced_branches": [
 	  { "id": "dragonborn_dragonlord", "name": "龙领主",
@@ -254,6 +262,7 @@
 	"available_blessings": ["strength", "vitality", "faith"],
 	"soul_weapon": "soul_blade",
 	"tags": ["物理", "守护"],
+	"core_trait": "bulwark",
 	"sacrifice_buff": { "type": "defense_flat", "value": 3, "display": "全队防御 +3" },
 	"advanced_branches": [
 	  { "id": "armored_paladin", "name": "圣骑士",

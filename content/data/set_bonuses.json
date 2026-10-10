@@ -1,8 +1,74 @@
 {
-  "烈焰": {"name": "焚天之怒", "description": "攻击 +10%", "effect": "attack_percent", "value": 0.10},
-  "轮回": {"name": "生生不息", "description": "每回合回复 5% 最大 HP", "effect": "turn_regen", "value": 0.05},
-  "灰烬": {"name": "灰烬之舞", "description": "移动 +1，防御 +2", "effect": "move_and_defense", "move": 1, "defense": 2},
-  "守护": {"name": "不破壁垒", "description": "防御 +5", "effect": "defense_flat", "value": 5},
-  "献祭": {"name": "血之回响", "description": "击杀时回复 15% 最大 HP", "effect": "kill_heal", "value": 0.15},
-  "余烬": {"name": "不灭薪火", "description": "魂火上限 +3", "effect": "soul_fire_max", "value": 3}
+  "烈焰": {
+	"name": "焚天之怒",
+	"description": "攻击 +10%",
+	"effect": "attack_percent",
+	"value": 0.10
+  },
+  "轮回": {
+	"name": "生生不息",
+	"description": "每回合回复 5% 最大 HP",
+	"effect": "turn_regen",
+	"value": 0.05
+  },
+  "灰烬": {
+	"name": "灰烬之舞",
+	"description": "移动 +1，防御 +2",
+	"effect": "move_and_defense",
+	"move": 1,
+	"defense": 2
+  },
+  "守护": {
+	"name": "不破壁垒",
+	"description": "防御 +5",
+	"effect": "defense_flat",
+	"value": 5
+  },
+  "献祭": {
+	"name": "血之回响",
+	"description": "击杀时回复 15% 最大 HP",
+	"effect": "kill_heal",
+	"value": 0.15
+  },
+  "余烬": {
+	"name": "不灭薪火",
+	"description": "魂火上限 +3",
+	"effect": "soul_fire_max",
+	"value": 3
+  },
+
+  "cross_bonuses": {
+	"flame_ash": {
+	  "tags": ["烈焰", "灰烬"],
+	  "min_each": 2,
+	  "name": "爆燃",
+	  "description": "全队攻击 +10%",
+	  "effect": "attack_percent",
+	  "value": 0.10
+	},
+	"guard_sacrifice": {
+	  "tags": ["守护", "献祭"],
+	  "min_each": 2,
+	  "name": "血誓",
+	  "description": "全队 HP 上限 +5",
+	  "effect": "hp_flat",
+	  "value": 5
+	},
+	"cycle_ember": {
+	  "tags": ["轮回", "余烬"],
+	  "min_each": 2,
+	  "name": "轮回不息",
+	  "description": "每回合回复 3% HP",
+	  "effect": "turn_regen",
+	  "value": 0.03
+	},
+	"sacrifice_flame": {
+	  "tags": ["献祭", "烈焰"],
+	  "min_each": 2,
+	  "name": "血脉沸腾",
+	  "description": "击杀 +1 魂火",
+	  "effect": "kill_soul_fire",
+	  "value": 1
+	}
+  }
 }

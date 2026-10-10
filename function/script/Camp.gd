@@ -21,6 +21,7 @@ func _ready():
 	update_display()
 	_play_camp_music()
 
+	# ★ 方向 6：随机关闭派遣路线
 	DispatchManager.rotate_routes()
 
 
@@ -69,7 +70,13 @@ func _load_art():
 	if entrance_gate and ResourceLoader.exists(gate_path):
 		entrance_gate.texture_normal = load(gate_path)
 
+	# ★ 方向 6：亲密度显示
+	_update_affinity_display()
 
+
+# ============================================================
+#  显示刷新
+# ============================================================
 func update_display():
 	if soul_label:
 		soul_label.text = "魂: %d" % GameState.soul
@@ -77,6 +84,32 @@ func update_display():
 		soul_fire_label.text = "魂火: %d / %d" % [
 			SoulFireManager.current, SoulFireManager.get_max_carried()
 		]
+	_update_affinity_display()
+
+
+func _update_affinity_display():
+	var npcs : Array = [
+		["soul_keeper", soul_keeper_btn],
+		["blacksmith", blacksmith_btn],
+		["guide", guide_btn],
+		["gladiator", gladiator_btn],
+	]
+	for pair in npcs:
+		var npc_id : String = pair[0]
+		var btn : TextureButton = pair[1]
+		if not btn: continue
+		var aff : int = StoryManager.get_affinity(npc_id)
+		var plate = btn.get_node_or_null("NamePlate")
+		if plate:
+			var base_name : String = plate.text.split(" ")[0]
+			if aff >= 15:
+				plate.text = base_name + "  ❤❤❤"
+			elif aff >= 10:
+				plate.text = base_name + "  ❤❤"
+			elif aff >= 5:
+				plate.text = base_name + "  ❤"
+			else:
+				plate.text = base_name
 
 
 func _play_camp_music():
@@ -156,13 +189,12 @@ func _open_facility(path: String, node_name: String):
 
 
 # ============================================================
-#  NPC 对话触发
+#  NPC 对话触发（含亲密度）
 # ============================================================
 func _npc_intro(npc_id: String):
 	var played : bool = StoryManager.play_next_dialogue(npc_id)
 	if not played:
 		return
-	# 有选项 → 等玩家选
 	if DialogueManager.has_pending_choices():
 		var result = await DialogueManager.choice_selected
 		if result is Array and result.size() == 2:
@@ -172,7 +204,6 @@ func _npc_intro(npc_id: String):
 				StoryManager.record_choice(npc_id, flag)
 	await DialogueManager.dialogue_finished
 
-	# 检查解锁
 	var newly = StoryManager.check_and_apply_unlocks(npc_id)
 	if newly.size() > 0:
 		for u in newly:

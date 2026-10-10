@@ -77,6 +77,7 @@ var _is_reward_ui_active: bool = false
 var _hint_override_text : String = ""
 var _hint_override_until : float = 0.0
 
+var _marked_targets : Dictionary = {}
 
 func _ready():
 	TurnManager.set_battle_ready(false)
@@ -284,6 +285,9 @@ func _ready():
 
 	_turn_controller.apply_team_buffs()
 
+	var is_boss : bool = GameState.current_map_data and GameState.current_map_data.node_type == MapNode.NodeType.BOSS
+	BossMechanicManager.setup_for_node(current_node_type, is_boss)
+
 	# 预热面板
 	if setting_panel:
 		PanelRevealer.force_hide(setting_panel)
@@ -295,6 +299,8 @@ func _ready():
 		PanelRevealer.force_hide(item_list_panel)
 	if victory_panel:
 		PanelRevealer.force_hide(victory_panel)
+		
+	_marked_targets.clear()
 	print("Battlefield _ready 完成")
 
 

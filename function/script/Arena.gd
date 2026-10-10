@@ -398,6 +398,9 @@ func _check_entry_fee() -> String:
 	var cost : int = 0
 	if _streak == 2:
 		cost = ENTRY_COST_MINI_BOSS
+		# ★ 方向 6：角斗士亲密度
+		if StoryManager.get_affinity("gladiator") >= 10:
+			cost = int(cost * 0.5)
 	else:
 		return "accept"
 

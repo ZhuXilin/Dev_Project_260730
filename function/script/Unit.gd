@@ -71,6 +71,7 @@ var combo_count: int = 0
 
 # ★ 批次 5A：本场激活的光环
 var active_auras : Dictionary = {}
+var charge_stacks : int = 0
 
 # ---- 动画 / 材质 ----
 var animated_sprite : AnimatedSprite2D
@@ -79,7 +80,6 @@ var facing_flip_h : bool = false
 var _color_material : ShaderMaterial = null
 
 var _initialized: bool = false
-
 
 func _ready():
 	if _initialized: return
@@ -314,6 +314,34 @@ func get_total_affix_value(affix_type: String) -> int:
 
 func get_total_affix_value_float(affix_type: String) -> float:
 	return float(get_total_affix_value(affix_type)) / 100.0
+
+
+func has_core_trait(trait_id: String) -> bool:
+	return unit_stats != null and unit_stats.core_trait == trait_id
+
+
+# ============================================================
+#  熔合独特机制检测（方向 1）
+# ============================================================
+func has_fusion_effect(effect_id: String) -> bool:
+	for slot in armor_slots:
+		if slot == null: continue
+		var data : ItemData = ItemManager.get_item_data(slot.item_id)
+		if data == null: continue
+		if data.fusion_effect == effect_id:
+			return true
+	return false
+
+
+func get_fusion_effects() -> Array[String]:
+	var result : Array[String] = []
+	for slot in armor_slots:
+		if slot == null: continue
+		var data : ItemData = ItemManager.get_item_data(slot.item_id)
+		if data == null: continue
+		if data.fusion_effect != "":
+			result.append(data.fusion_effect)
+	return result
 
 
 func get_total_stats() -> Dictionary:
@@ -784,6 +812,7 @@ func reset_combat_buffs():
 	buff_damage_reduction = 0.0
 	buff_attack_flat = 0
 	buff_magic_attack_flat = 0
+	charge_stacks = 0
 	# ★ 批次 5A
 	active_auras.clear()
 

@@ -91,6 +91,7 @@ const CURRENT_VERSION = 10
 # ★ 迁移用（批次 8）
 @export var temp_soul_legacy: int = 0
 
+@export var npc_affinity: Dictionary = {}
 
 func compute_checksum() -> String:
 	var data = {
@@ -126,5 +127,6 @@ func compute_checksum() -> String:
 		"sacrifice_count": sacrifice_count, "shop_level": shop_level,
 		"npc_dialogue_seen": npc_dialogue_seen, "npc_dialogue_flags": npc_dialogue_flags,
 		"total_run_count": total_run_count, "total_dispatch_count": total_dispatch_count,
+		"npc_affinity": npc_affinity,
 	}
 	return JSON.stringify(data, "  ").sha256_text()

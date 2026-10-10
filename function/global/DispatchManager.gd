@@ -43,6 +43,12 @@ func dispatch(units: Array, route_id: String) -> bool:
 	for u in units:
 		if is_unit_dispatched(u): return false
 	var dur : int = ROUTES[route_id]["dur"]
+	# ★ 方向 6：游魂向导亲密度
+	if StoryManager.get_affinity("guide") >= 10:
+		dur = maxi(1, dur - 1)
+	# ★ NPC 亲密度
+	if StoryManager.get_affinity("guide") >= 10:
+		dur = maxi(1, dur - 1)
 	for u in units:
 		active_dispatches.append({"unit_name": u, "route_id": route_id, "remaining_runs": dur})
 		dispatch_started.emit(u, route_id)

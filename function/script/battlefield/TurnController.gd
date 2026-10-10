@@ -1,6 +1,11 @@
 class_name TurnController
 extends Node
 
+# ============================================================
+#  TurnController — 回合切换 + 战斗开始 buff
+#  含：所有批次改动（共鸣/光环/套装/词条/熔合/核心特性）
+# ============================================================
+
 var _bf : Node2D
 var _turn_changed_locked : bool = false
 
@@ -9,10 +14,16 @@ func _init(bf : Node2D):
 	_bf = bf
 
 
+# ============================================================
+#  强制解锁（Battlefield._exit_tree 调用）
+# ============================================================
 func force_unlock() -> void:
 	_turn_changed_locked = false
 
 
+# ============================================================
+#  回合切换
+# ============================================================
 func on_turn_changed(team : int) -> void:
 	await _bf._wait_for_ui_clear()
 	handle_turn_change_async(team)
@@ -23,17 +34,26 @@ func handle_turn_change_async(team : int) -> void:
 		Globals.increment_battle_turn()
 		_bf.turn_count_label.text = "第 " + str(Globals.current_battle_turn) + " 回合"
 
-	if TurnManager.is_game_over: return
-	if _turn_changed_locked: return
+	if TurnManager.is_game_over:
+		return
+	if _turn_changed_locked:
+		return
 	_turn_changed_locked = true
 	Globals.is_transitioning = true
 
-	if is_instance_valid(_bf.menu_blocker): _bf.menu_blocker.visible = false
-	if is_instance_valid(_bf.info_panel): _bf.info_panel.visible = false
-	if is_instance_valid(_bf.setting_panel): PanelRevealer.hide_panel(_bf.setting_panel)
-	if is_instance_valid(_bf.team_view_panel): PanelRevealer.hide_panel(_bf.team_view_panel)
-	if is_instance_valid(_bf.setting_menu_panel): PanelRevealer.hide_panel(_bf.setting_menu_panel)
-	if is_instance_valid(_bf.item_list_panel): PanelRevealer.hide_panel(_bf.item_list_panel)
+	# 收起所有面板
+	if is_instance_valid(_bf.menu_blocker):
+		_bf.menu_blocker.visible = false
+	if is_instance_valid(_bf.info_panel):
+		_bf.info_panel.visible = false
+	if is_instance_valid(_bf.setting_panel):
+		PanelRevealer.hide_panel(_bf.setting_panel)
+	if is_instance_valid(_bf.team_view_panel):
+		PanelRevealer.hide_panel(_bf.team_view_panel)
+	if is_instance_valid(_bf.setting_menu_panel):
+		PanelRevealer.hide_panel(_bf.setting_menu_panel)
+	if is_instance_valid(_bf.item_list_panel):
+		PanelRevealer.hide_panel(_bf.item_list_panel)
 
 	InputManager.selected_unit = null
 	InputManager.interaction_phase = InputManager.Phase.IDLE
@@ -44,6 +64,8 @@ func handle_turn_change_async(team : int) -> void:
 	await get_tree().create_timer(_bf.transition_delay_before_fade, true, false, true).timeout
 	await _bf.turnlayer_manager.play_transition(team)
 	await get_tree().create_timer(_bf.transition_delay_after_fade, true, false, true).timeout
+
+	print("回合切换：", "玩家" if team == TurnManager.Team.PLAYER else "敌人")
 
 	var target_pos = null
 	if team == TurnManager.Team.PLAYER:
@@ -111,14 +133,16 @@ func _get_center_position() -> Vector2:
 
 
 # ============================================================
-#  战斗开始 buff（批次 1/5A/6A/6B）
+#  战斗开始 buff（所有批次集中）
 # ============================================================
 func apply_team_buffs() -> void:
 	var relic_stats = GameState.get_global_relic_stats()
 	var relic_effects = GameState.get_global_relic_effects()
 
+	# ---- 遗物 + 熔铸 buff（原有）----
 	for unit in UnitManager.unit_list:
-		if unit.unit_stats.team_id != 0: continue
+		if unit.unit_stats.team_id != 0:
+			continue
 
 		var sac_buffs : Dictionary = unit.unit_stats.get_sacrifice_buffs()
 		for btype in sac_buffs:
@@ -130,6 +154,7 @@ func apply_team_buffs() -> void:
 				"damage_reduction":     unit.buff_damage_reduction += bvalue
 				"heal_bonus":           unit.relic_heal_bonus += bvalue
 				"counter_damage_bonus": unit.relic_counter_damage_bonus += bvalue
+				_: pass
 
 		var s = unit.unit_stats
 		var old_max = s.max_hp
@@ -145,8 +170,10 @@ func apply_team_buffs() -> void:
 		unit.buff_magic_attack_flat += int(relic_stats.get("magic_attack", 0))
 
 		var hp_delta = s.max_hp - old_max
-		if hp_delta > 0: unit.hit_points += hp_delta
-		if unit.hit_points > s.max_hp: unit.hit_points = s.max_hp
+		if hp_delta > 0:
+			unit.hit_points += hp_delta
+		if unit.hit_points > s.max_hp:
+			unit.hit_points = s.max_hp
 
 		unit.relic_first_attack_crit_available = bool(relic_effects.get("first_attack_crit", false))
 		unit.relic_low_hp_damage_reduce = float(relic_effects.get("low_hp_damage_reduce", 0.0))
@@ -160,26 +187,40 @@ func apply_team_buffs() -> void:
 
 		unit.update_hp_label()
 
-	# ★ 批次 1：火焰共鸣
+	# ---- 批次 1：火焰共鸣 ----
 	_apply_flame_resonance()
 
-	# ★ 批次 5A：光环被动 buff
+	# ---- 批次 5A：光环被动 buff ----
 	_apply_aura_buffs()
 
-	# ★ 批次 6A：词条 HP / 移动 / 护盾
+	# ---- 批次 6A：词条 HP / 移动 / 护盾 ----
 	_apply_affix_buffs()
 
-	# ★ 批次 6B：套装 buff
+	# ---- 批次 6B：套装 buff ----
 	_apply_set_bonuses()
 
+	# ---- 方向 2：标签交叉效果 ----
+	_apply_cross_bonuses()
 
+	# ---- 方向 1：不灭薪火（战斗开始 +2 魂火）----
+	_apply_fusion_battle_start()
+
+	# ---- 方向 7：龙威 / 壁垒 ----
+	_apply_core_trait_auras()
+
+
+# ============================================================
+#  批次 1：火焰共鸣
+# ============================================================
 func _apply_flame_resonance():
 	var resonance : Dictionary = LevelManager.current_resonance
-	if resonance.is_empty(): return
+	if resonance.is_empty():
+		return
 	var rtype : String = resonance.get("type", "")
 	var rvalue : Variant = resonance.get("value", 0)
 	for unit in UnitManager.unit_list:
-		if unit.unit_stats.team_id != 0: continue
+		if unit.unit_stats.team_id != 0:
+			continue
 		match rtype:
 			"attack_percent": unit.buff_attack_percent += float(rvalue)
 			"crit_damage":    unit.buff_crit_damage_bonus += float(rvalue)
@@ -188,17 +229,23 @@ func _apply_flame_resonance():
 	print("[Battlefield] 火焰共鸣已应用：%s" % resonance.get("display", ""))
 
 
+# ============================================================
+#  批次 5A：光环被动
+# ============================================================
 func _apply_aura_buffs():
 	for unit in UnitManager.unit_list:
-		if unit.unit_stats.team_id != 0: continue
+		if unit.unit_stats.team_id != 0:
+			continue
 		for aid in unit.active_auras:
-			if not unit.active_auras[aid]: continue
+			if not unit.active_auras[aid]:
+				continue
 			_apply_aura_passive(unit, aid)
 
 
 func _apply_aura_passive(unit : Unit, aura_id : String):
 	var d : Dictionary = AuraManager.get_aura(aura_id)
-	if d.is_empty(): return
+	if d.is_empty():
+		return
 	var params : Dictionary = d.get("params", {})
 	match d.get("effect", ""):
 		"attack_plus_and_consume":
@@ -208,18 +255,22 @@ func _apply_aura_passive(unit : Unit, aura_id : String):
 			unit.relic_counter_damage_bonus += float(params.get("counter_bonus", 0.30))
 		"defense_flat":
 			unit.buff_defense_flat += int(params.get("defense_flat", 3))
-		_:
-			pass
+		_: pass
 
 
+# ============================================================
+#  批次 6A：词条 HP/移动/护盾
+# ============================================================
 func _apply_affix_buffs():
 	for unit in UnitManager.unit_list:
-		if unit.unit_stats.team_id != 0: continue
+		if unit.unit_stats.team_id != 0:
+			continue
 		var hp_bonus : int = 0
 		var move_bonus : int = 0
 		var shield : int = 0
 		for slot in unit.armor_slots:
-			if slot == null: continue
+			if slot == null:
+				continue
 			hp_bonus += slot.get_affix_value("hp_flat")
 			move_bonus += slot.get_affix_value("move_flat")
 			shield += slot.get_affix_value("start_shield")
@@ -234,9 +285,13 @@ func _apply_affix_buffs():
 			unit.buff_defense_flat += shield
 
 
+# ============================================================
+#  批次 6B：套装 buff
+# ============================================================
 func _apply_set_bonuses():
 	for unit in UnitManager.unit_list:
-		if unit.unit_stats.team_id != 0: continue
+		if unit.unit_stats.team_id != 0:
+			continue
 		var active : Array = SetBonusManager.get_active_sets_for_unit(unit)
 		for entry in active:
 			var tag : String = entry["tag"]
@@ -252,3 +307,72 @@ func _apply_set_bonuses():
 					unit.buff_defense_flat += int(b.get("value", 0))
 			print("[套装] %s 激活：%s（%s）" % [
 				unit.unit_stats.unit_name, tag, b.get("name", "")])
+
+
+# ============================================================
+#  方向 2：标签交叉效果
+# ============================================================
+func _apply_cross_bonuses():
+	var active : Array = SetBonusManager.get_active_cross_bonuses()
+	if active.is_empty():
+		return
+	for entry in active:
+		var b : Dictionary = entry["data"]
+		var effect : String = b.get("effect", "")
+		var value : Variant = b.get("value", 0)
+		print("[交叉] %s 激活：%s" % [b.get("name", ""), b.get("description", "")])
+		for unit in UnitManager.unit_list:
+			if unit.unit_stats.team_id != 0:
+				continue
+			match effect:
+				"attack_percent":
+					unit.buff_attack_percent += float(value)
+				"hp_flat":
+					unit.unit_stats.max_hp += int(value)
+					unit.hit_points += int(value)
+					unit.update_hp_label()
+				# turn_regen / kill_soul_fire 由 TurnManager / CombatManager 处理
+
+
+# ============================================================
+#  方向 1：不灭薪火（战斗开始 +2）
+# ============================================================
+func _apply_fusion_battle_start():
+	for unit in UnitManager.unit_list:
+		if unit.unit_stats.team_id != 0:
+			continue
+		if unit.has_fusion_effect("ember_max_and_start"):
+			SoulFireManager.add(2)
+			print("[不灭薪火] 战斗开始 +2 魂火")
+			break
+
+
+# ============================================================
+#  方向 7：龙威 / 壁垒
+# ============================================================
+func _apply_core_trait_auras():
+	var dirs = [Vector2i(1,0), Vector2i(-1,0), Vector2i(0,1), Vector2i(0,-1)]
+
+	# 龙威：敌方受到龙人 -10% 攻击
+	for unit in UnitManager.unit_list:
+		if unit.unit_stats.team_id != 1:
+			continue
+		for d in dirs:
+			var c : Vector2i = unit.grid_cell + d
+			var near : Unit = UnitManager.get_unit_at_cell(c)
+			if near and near.has_core_trait("dragon_might") and near.unit_stats.team_id == 0:
+				unit.buff_attack_percent -= 0.10
+				print("[龙威] %s 攻击 -10%%" % unit.unit_stats.unit_name)
+				break
+
+	# 壁垒：友军获得重甲 +15% 减伤
+	for unit in UnitManager.unit_list:
+		if unit.unit_stats.team_id != 0:
+			continue
+		for d in dirs:
+			var c : Vector2i = unit.grid_cell + d
+			var near : Unit = UnitManager.get_unit_at_cell(c)
+			if near and near.has_core_trait("bulwark") and near != unit:
+				unit.buff_damage_reduction += 0.15
+				print("[壁垒] %s 减伤 +15%%" % unit.unit_stats.unit_name)
+				break

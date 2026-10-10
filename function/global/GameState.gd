@@ -269,7 +269,9 @@ func initialize_party(selected_units: Array[String], main_index: int):
 	party_state.initialize_party(selected_units, main_index)
 
 func get_party_units() -> Array[UnitData]: return party_state.get_party_units()
+
 func get_main_unit() -> UnitData: return party_state.get_main_unit()
+
 func sync_units_from_battlefield(battle_units: Array):
 	party_state.sync_units_from_battlefield(battle_units)
 
@@ -286,10 +288,16 @@ func has_any_pending_rewards() -> bool:
 	return has_pending_sacrifice_rewards() or has_pending_forge_rewards()
 
 func clear_pending_sacrifice_rewards(): resource_state.pending_sacrifice_rewards.clear()
+
 func clear_pending_forge_rewards(): resource_state.pending_forge_rewards.clear()
+
 func clear_all_pending_rewards():
 	resource_state.pending_sacrifice_rewards.clear()
 	resource_state.pending_forge_rewards.clear()
+
+var npc_affinity : Dictionary:
+	get: return resource_state.npc_affinity
+	set(value): resource_state.npc_affinity = value
 
 # ============================================================
 #  死亡 / 复活

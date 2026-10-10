@@ -189,6 +189,7 @@ func _build_save_data() -> SaveData:
 	save.npc_dialogue_flags = GameState.npc_dialogue_flags.duplicate()
 	save.total_run_count = GameState.total_run_count
 	save.total_dispatch_count = GameState.total_dispatch_count
+	save.npc_affinity = GameState.npc_affinity.duplicate(true)
 
 	# ★ 兼容降级（批次 8）
 	save.temp_soul_legacy = SoulFireManager.current
@@ -297,6 +298,7 @@ func _apply_save_data(save: SaveData):
 	GameState.npc_dialogue_flags = (save.npc_dialogue_flags if save.npc_dialogue_flags else []).duplicate()
 	GameState.total_run_count = save.total_run_count
 	GameState.total_dispatch_count = save.total_dispatch_count
+	GameState.npc_affinity = (save.npc_affinity if save.npc_affinity else {}).duplicate(true)
 
 	if Globals.unlocked_items.is_empty():
 		Globals.unlocked_items = Globals.item_unlocked_items.duplicate()

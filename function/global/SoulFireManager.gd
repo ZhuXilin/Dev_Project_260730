@@ -50,6 +50,19 @@ func get_max_carried() -> int:
 	if SetBonusManager.team_has_set("余烬"):
 		var b : Dictionary = SetBonusManager.get_bonus("余烬")
 		base += int(b.get("value", 3))
+	# ★ 方向 6：守火者亲密度
+	if StoryManager.get_affinity("soul_keeper") >= 10:
+		base += 1
+	return base
+
+
+func get_initial_soul_fire() -> int:
+	var base : int = INITIAL_LEVELS[clampi(GameState.soul_fire_initial_level, 0, INITIAL_LEVELS.size() - 1)]
+	if LevelManager.current_resonance.get("type", "") == "soul_fire_initial":
+		base += int(LevelManager.current_resonance.get("value", 0))
+	# ★ 方向 6：守火者亲密度
+	if StoryManager.get_affinity("soul_keeper") >= 15:
+		base += 1
 	return base
 
 
@@ -90,13 +103,6 @@ func get_upgrade_cost() -> int:
 	if altar_level >= MAX_CARRIED_LEVELS.size() - 1:
 		return -1
 	return UPGRADE_COSTS[altar_level + 1]
-
-
-func get_initial_soul_fire() -> int:
-	var base : int = INITIAL_LEVELS[clampi(GameState.soul_fire_initial_level, 0, INITIAL_LEVELS.size() - 1)]
-	if LevelManager.current_resonance.get("type", "") == "soul_fire_initial":
-		base += int(LevelManager.current_resonance.get("value", 0))
-	return base
 
 
 func get_initial_upgrade_cost() -> int:

@@ -18,6 +18,8 @@ class_name UnitData
 @export var ignore_terrain_cost: bool = false
 @export var sacrifice_buff_sources : Array = []
 
+@export var core_trait: String = ""
+
 # ★ 批次 2：单位标签
 @export var tags: Array[String] = []
 
@@ -162,6 +164,7 @@ func to_dict() -> Dictionary:
 		"is_dead": is_dead,
 		"sacrifice_buff_sources": sacrifice_buff_sources.duplicate(),
 		"tags": tags.duplicate(),
+		"core_trait": core_trait,
 	}
 
 
@@ -184,7 +187,8 @@ static func from_dict(d: Dictionary) -> UnitData:
 	data.level = d.get("level", 1)
 	data.max_armor_slots = d.get("max_armor_slots", 2)
 	data.max_talent_slots = d.get("max_talent_slots", 1)
-
+	data.core_trait = d.get("core_trait", "")
+	
 	var adv_raw = d.get("advanced_class", "")
 	if adv_raw is String:
 		data.advanced_class = adv_raw

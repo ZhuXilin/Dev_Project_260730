@@ -146,7 +146,7 @@ static func get_all_unit_ids() -> Array:
 
 
 # ============================================================
-#  创建单位
+#  创建单位（完整函数）
 # ============================================================
 static func create_unit_data(unit_name: String) -> UnitData:
 	var key = _normalize_unit_key(unit_name)
@@ -161,7 +161,7 @@ static func create_unit_data(unit_name: String) -> UnitData:
 	data.experience = 0
 	data.level = 1
 
-	# ★ 标签（批次 2）
+	# ★ 批次 2：单位标签
 	data.tags.clear()
 	var tags_raw : Variant = dict.get("tags", [])
 	if tags_raw is Array:
@@ -169,12 +169,19 @@ static func create_unit_data(unit_name: String) -> UnitData:
 			if t is String:
 				data.tags.append(t)
 
+	# ★ 方向 7：单位核心特性
+	data.core_trait = dict.get("core_trait", "")
+
 	# 默认武器
 	var default_weapon = get_default_weapon_id(key)
 	if default_weapon != "":
 		var inst = ItemInstance.new()
 		inst.item_id = default_weapon
 		inst.count = 1
+		# ★ 应用武器升级（批次 5B 局外武器升级）
+		if GameState.unit_growth.has(key):
+			var lv : int = int(GameState.unit_growth[key].get("weapon_lv_" + default_weapon, 0))
+			inst.upgrade_level = lv
 		data.weapon_slot = inst
 
 	# 默认特技
@@ -202,7 +209,7 @@ static func create_unit_data(unit_name: String) -> UnitData:
 	data.max_armor_slots = 2
 	data.max_talent_slots = talent_cap
 
-	# ★ 属性加点（批次 4）
+	# ★ 批次 4：应用属性加点
 	_apply_attr_points_to_unit(key, data)
 	return data
 
