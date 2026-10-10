@@ -4,7 +4,7 @@ class_name Unit
 @export var unit_stats : UnitData
 @export var hit_offset_distance: float = MapConst.HIT_OFFSET_DISTANCE
 
-# ---- 状态变量 ----
+# ---- 状态 ----
 var hit_points : int
 var grid_cell : Vector2i
 var previous_grid_cell : Vector2i
@@ -22,7 +22,7 @@ var previous_flip_h : bool = false
 var used_non_attack_item_this_turn : bool = false
 var moves_since_act: int = 0
 
-# ---- 战斗 Buff ----
+# ---- Buff ----
 var buff_attack_percent : float = 0.0
 var buff_crit_damage_bonus : float = 0.0
 var buff_defense_flat : int = 0
@@ -30,15 +30,15 @@ var buff_damage_reduction : float = 0.0
 var buff_attack_flat : int = 0
 var buff_magic_attack_flat : int = 0
 
-# ---- 主动技能状态 ----
+# ---- 主动技能 ----
 var active_skill_ready_consumed: Dictionary = {}
 
-# ---- 嘲讽状态 ----
+# ---- 嘲讽 ----
 var taunt_rounds: int = 0
 var taunt_by: Unit = null
 var taunt_rounds_left: int = 0
 
-# ---- 遗物效果状态 ----
+# ---- 遗物 ----
 var relic_first_attack_crit_available: bool = false
 var relic_low_hp_damage_reduce: float = 0.0
 var relic_kill_grants_extra_move: int = 0
@@ -50,10 +50,10 @@ var relic_counter_damage_bonus: float = 0.0
 var relic_heal_bonus: float = 0.0
 var relic_auto_revive_available: bool = false
 
-# ---- 连锁词条状态 ----
-var vengeance_triggered: bool = false   # 复仇：本场是否已触发（只触发一次）
-var zeal_target: String = ""            # 狂热目标 key
-var zeal_stacks: int = 0                # 狂热层数
+# ---- 连锁词条 ----
+var vengeance_triggered: bool = false
+var zeal_target: String = ""
+var zeal_stacks: int = 0
 
 # ---- 装备 ----
 var weapon_slot: ItemInstance = null
@@ -62,14 +62,17 @@ var max_armor_slots: int = 2
 
 # ---- 词条 ----
 var talent_slots: Array[TalentInstance] = []
-var advanced_talent_inst : TalentInstance = null   # 职业特技运行时实例
+var advanced_talent_inst : TalentInstance = null
 var max_talent_slots: int = 1
 
-# ---- 连击追踪 ----
+# ---- 连击 ----
 var combo_last_target: String = ""
 var combo_count: int = 0
 
-# ---- 动画与材质 ----
+# ★ 批次 5A：本场激活的光环
+var active_auras : Dictionary = {}
+
+# ---- 动画 / 材质 ----
 var animated_sprite : AnimatedSprite2D
 var current_anim : String = "idle"
 var facing_flip_h : bool = false
@@ -79,8 +82,7 @@ var _initialized: bool = false
 
 
 func _ready():
-	if _initialized:
-		return
+	if _initialized: return
 	if not animated_sprite:
 		animated_sprite = $Sprite as AnimatedSprite2D
 	if animated_sprite and not animated_sprite.sprite_frames:
@@ -136,16 +138,14 @@ func setup_unit(stats_data: UnitData, start_cell: Vector2i, initial_items: Array
 	for entry in initial_items:
 		if entry and entry.item_id != "":
 			var data = ItemManager.get_item_data(entry.item_id)
-			if not data:
-				continue
+			if not data: continue
 			if data.equipment_slot == "weapon":
 				var inst = ItemInstance.new()
 				inst.item_id = entry.item_id
 				inst.count = 1
 				weapon_slot = inst
 			elif data.equipment_slot in ["armor"]:
-				if not can_equip_armor(entry.item_id):
-					continue
+				if not can_equip_armor(entry.item_id): continue
 				for i in range(armor_slots.size()):
 					if armor_slots[i] == null:
 						var inst = ItemInstance.new()
@@ -223,16 +223,13 @@ func reset_chain_talents():
 	taunt_rounds_left = 0
 
 
-func get_weapon() -> ItemInstance:
-	return weapon_slot
-
-func get_equipped_weapon_id() -> String:
-	return weapon_slot.item_id if weapon_slot else ""
+func get_weapon() -> ItemInstance: return weapon_slot
+func get_equipped_weapon_id() -> String: return weapon_slot.item_id if weapon_slot else ""
 
 func get_weapon_data() -> ItemData:
-	if not weapon_slot:
-		return null
+	if not weapon_slot: return null
 	return ItemManager.get_item_data(weapon_slot.item_id)
+
 
 func get_weapon_stats() -> Dictionary:
 	var default_stats := {
@@ -240,8 +237,7 @@ func get_weapon_stats() -> Dictionary:
 		"attack_range": 0, "min_attack_range": 0, "attack_style": "standard",
 	}
 	var data = get_weapon_data()
-	if not data:
-		return default_stats
+	if not data: return default_stats
 
 	var quality_mult := 1.0
 	match data.quality:
@@ -250,10 +246,12 @@ func get_weapon_stats() -> Dictionary:
 		"legendary": quality_mult = 1.8
 
 	var upgrade_bonus = weapon_slot.upgrade_level if weapon_slot else 0
-
 	var stats := default_stats.duplicate()
 	stats["attack"] = int((data.base_attack + upgrade_bonus) * quality_mult)
-	stats["attack_range"] = data.attack_range
+
+	# ★ 批次 5B：动态射程（3 级 +1）
+	var up_lv : int = weapon_slot.upgrade_level if weapon_slot else 0
+	stats["attack_range"] = WeaponUpgradeHelper.get_effective_attack_range(data, up_lv)
 	stats["min_attack_range"] = data.min_attack_range
 	stats["attack_style"] = data.attack_style
 
@@ -264,14 +262,14 @@ func get_weapon_stats() -> Dictionary:
 
 	return stats
 
+
 func get_weapon_type() -> String:
 	var data = get_weapon_data()
-	if not data:
-		return ""
+	if not data: return ""
 	return data.category
 
-func can_use_weapon(_item_id: String) -> bool:
-	return true
+
+func can_use_weapon(_item_id: String) -> bool: return true
 
 func equip_weapon(weapon: ItemInstance) -> ItemInstance:
 	var old = weapon_slot
@@ -283,19 +281,16 @@ func unequip_weapon() -> ItemInstance:
 	weapon_slot = null
 	return old
 
-func get_armor_slots() -> Array[ItemInstance]:
-	return armor_slots
+func get_armor_slots() -> Array[ItemInstance]: return armor_slots
 
 func equip_armor(index: int, item: ItemInstance) -> ItemInstance:
-	if index < 0 or index >= armor_slots.size():
-		return null
+	if index < 0 or index >= armor_slots.size(): return null
 	var old = armor_slots[index]
 	armor_slots[index] = item
 	return old
 
 func unequip_armor(index: int) -> ItemInstance:
-	if index < 0 or index >= armor_slots.size():
-		return null
+	if index < 0 or index >= armor_slots.size(): return null
 	var old = armor_slots[index]
 	armor_slots[index] = null
 	return old
@@ -304,11 +299,22 @@ func add_armor_slot():
 	armor_slots.append(null)
 	max_armor_slots += 1
 
-func count_used_armor_slots() -> int:
-	return unit_stats.count_used_armor_slots()
-
+func count_used_armor_slots() -> int: return unit_stats.count_used_armor_slots()
 func can_equip_armor(item_id: String, exclude_slot_idx: int = -1) -> bool:
 	return unit_stats.can_equip_armor(item_id, exclude_slot_idx)
+
+
+# ★ 批次 6A：词条聚合
+func get_total_affix_value(affix_type: String) -> int:
+	var total : int = 0
+	for slot in armor_slots:
+		if slot == null: continue
+		total += slot.get_affix_value(affix_type)
+	return total
+
+func get_total_affix_value_float(affix_type: String) -> float:
+	return float(get_total_affix_value(affix_type)) / 100.0
+
 
 func get_total_stats() -> Dictionary:
 	var total = {
@@ -319,14 +325,9 @@ func get_total_stats() -> Dictionary:
 		"faith": unit_stats.faith,
 		"arcane": unit_stats.arcane,
 		"move_range": unit_stats.move_range,
-		"defense": 0,
-		"magic_defense": 0,
-		"attack": 0,
-		"magic_attack": 0,
-		"heal_amount": 0,
-		"attack_range": 0,
-		"min_attack_range": 0,
-		"attack_style": "standard"
+		"defense": 0, "magic_defense": 0,
+		"attack": 0, "magic_attack": 0, "heal_amount": 0,
+		"attack_range": 0, "min_attack_range": 0, "attack_style": "standard"
 	}
 
 	if weapon_slot:
@@ -339,7 +340,7 @@ func get_total_stats() -> Dictionary:
 				"legendary": quality_mult = 1.8
 			var upgrade_bonus = weapon_slot.upgrade_level
 			total["attack"] = int((data.base_attack + upgrade_bonus) * quality_mult)
-			total["attack_range"] = data.attack_range
+			total["attack_range"] = WeaponUpgradeHelper.get_effective_attack_range(data, upgrade_bonus)
 			total["min_attack_range"] = data.min_attack_range
 			total["attack_style"] = data.attack_style
 			if data.magic_attack.get("ignore_defense", false):
@@ -365,26 +366,24 @@ func get_total_stats() -> Dictionary:
 
 	return total
 
+
 func serialize_inventory() -> Array[Dictionary]:
 	var result: Array[Dictionary] = []
 	if weapon_slot:
 		result.append({
-			"item_id": weapon_slot.item_id,
-			"count": weapon_slot.count,
-			"upgrade_level": weapon_slot.upgrade_level,
-			"slot": "weapon"
+			"item_id": weapon_slot.item_id, "count": weapon_slot.count,
+			"upgrade_level": weapon_slot.upgrade_level, "slot": "weapon"
 		})
 	for i in range(armor_slots.size()):
 		var slot = armor_slots[i]
 		if slot:
 			result.append({
-				"item_id": slot.item_id,
-				"count": slot.count,
+				"item_id": slot.item_id, "count": slot.count,
 				"upgrade_level": slot.upgrade_level,
-				"slot": "armor",
-				"index": i
+				"slot": "armor", "index": i
 			})
 	return result
+
 
 func restore_from_unit_data(data: UnitData, cell: Vector2i):
 	reset_combat_buffs()
@@ -406,6 +405,7 @@ func restore_from_unit_data(data: UnitData, cell: Vector2i):
 		inst.item_id = data.weapon_slot.item_id
 		inst.count = data.weapon_slot.count
 		inst.upgrade_level = data.weapon_slot.upgrade_level
+		inst.affixes = data.weapon_slot.affixes.duplicate(true)
 		weapon_slot = inst
 	else:
 		weapon_slot = null
@@ -417,14 +417,13 @@ func restore_from_unit_data(data: UnitData, cell: Vector2i):
 			inst.item_id = slot.item_id
 			inst.count = slot.count
 			inst.upgrade_level = slot.upgrade_level
+			inst.affixes = slot.affixes.duplicate(true)
 			armor_slots.append(inst)
 		else:
 			armor_slots.append(null)
 	max_armor_slots = data.max_armor_slots
-	# ★ 补齐空槽
 	while armor_slots.size() < max_armor_slots:
 		armor_slots.append(null)
-	# ★ 截断溢出（防旧存档）
 	while armor_slots.size() > max_armor_slots:
 		armor_slots.pop_back()
 
@@ -485,8 +484,8 @@ func mark_attacked():
 	has_acted = true
 	movement_after_attack = false
 
-func mark_non_attack_action():
-	has_acted = true
+func mark_non_attack_action(): has_acted = true
+
 
 func reset_turn():
 	can_act_this_turn = true
@@ -499,27 +498,30 @@ func reset_turn():
 	used_move = 0
 	moves_since_act = 0
 	previous_remaining_move = unit_stats.move_range
-	relic_turn_first_hit_regen_used = false   # ★ 每回合重置
+	relic_turn_first_hit_regen_used = false
 	set_gray(false)
 	play_animation("idle")
 
+
 func consume_move(cost: int):
 	remaining_move -= cost
-	if remaining_move < 0:
-		remaining_move = 0
+	if remaining_move < 0: remaining_move = 0
 	used_move = unit_stats.move_range - remaining_move
 	has_moved = true
 	if has_attacked:
 		movement_after_attack = true
 
+
 func can_move() -> bool:
 	return can_act_this_turn and remaining_move > 0 and not has_attacked
+
 
 func save_previous_position():
 	previous_grid_cell = grid_cell
 	previous_remaining_move = remaining_move
 	if animated_sprite:
 		previous_flip_h = animated_sprite.flip_h
+
 
 func revert_to_previous_position():
 	grid_cell = previous_grid_cell
@@ -534,8 +536,9 @@ func revert_to_previous_position():
 		facing_flip_h = previous_flip_h
 	play_animation("idle")
 
-func update_position(new_cell: Vector2i):
-	grid_cell = new_cell
+
+func update_position(new_cell: Vector2i): grid_cell = new_cell
+
 
 func apply_damage(damage_amount : int) -> bool:
 	hit_points -= damage_amount
@@ -543,27 +546,27 @@ func apply_damage(damage_amount : int) -> bool:
 	update_hp_label()
 	return hit_points <= 0
 
+
 func play_animation(anim_name: String, force: bool = false):
-	if not animated_sprite or not animated_sprite.sprite_frames:
-		return
+	if not animated_sprite or not animated_sprite.sprite_frames: return
 	if not animated_sprite.sprite_frames.has_animation(anim_name):
 		if animated_sprite.sprite_frames.has_animation("idle"):
 			anim_name = "idle"
 		else:
 			return
-	if current_anim == anim_name and not force:
-		return
+	if current_anim == anim_name and not force: return
 	animated_sprite.play(anim_name)
 	current_anim = anim_name
 	if animated_sprite:
 		animated_sprite.flip_h = facing_flip_h
 
+
 func set_facing_direction(dir: Vector2):
-	if dir == Vector2.ZERO or not animated_sprite:
-		return
+	if dir == Vector2.ZERO or not animated_sprite: return
 	if dir.x != 0:
 		animated_sprite.flip_h = (dir.x > 0)
 		facing_flip_h = animated_sprite.flip_h
+
 
 func set_gray(gray: bool):
 	is_gray = gray
@@ -571,9 +574,9 @@ func set_gray(gray: bool):
 		is_gray = true
 	update_color()
 
+
 func update_color():
-	if not animated_sprite:
-		return
+	if not animated_sprite: return
 	var shader = preload(Config.PATHS.SHADER_REPLACE_COLOR)
 	if not shader:
 		push_error("无法加载替换 Shader")
@@ -583,8 +586,8 @@ func update_color():
 	mat.set_shader_parameter("target_color_1", Globals.TARGET_COLOR_1)
 	mat.set_shader_parameter("target_color_2", Globals.TARGET_COLOR_2)
 
-	var color1: Color
-	var color2: Color
+	var color1 : Color
+	var color2 : Color
 	if is_gray:
 		color1 = Globals.get_gray_color(true)
 		color2 = Globals.get_gray_color(false)
@@ -597,20 +600,18 @@ func update_color():
 	_color_material = mat
 	animated_sprite.modulate = Color.WHITE
 
+
 func play_hit_effect(direction: Vector2, is_hit: bool):
-	if not animated_sprite or not _color_material:
-		return
+	if not animated_sprite or not _color_material: return
 	var dir_norm = direction.normalized()
 	var offset = dir_norm * hit_offset_distance
 
-	# ★ 位移用 HIT_OFFSET_DURATION（0.25s），闪光时长独立
 	_color_material.set_shader_parameter("hit_offset_amount", offset)
 	_color_material.set_shader_parameter("hit_duration", MapConst.HIT_OFFSET_DURATION)
 	_color_material.set_shader_parameter("hit_elapsed", 0.0)
 	_color_material.set_shader_parameter("hit_flash_color", Color.RED if is_hit else Color.WHITE)
 	_color_material.set_shader_parameter("hit_enable_flash", true)
 
-	# ---- 主 tween：驱动 hit_elapsed（位移 + 闪光共用，走满 HIT_OFFSET_DURATION）----
 	var tween = create_tween()
 	tween.set_ignore_time_scale(true)
 	tween.tween_method(
@@ -625,7 +626,6 @@ func play_hit_effect(direction: Vector2, is_hit: bool):
 			_color_material.set_shader_parameter("hit_elapsed", 0.0)
 	)
 
-	# ---- ★ 独立 tween：提前关闭闪光，让后段只见位移 ----
 	var flash_tween = create_tween()
 	flash_tween.set_ignore_time_scale(true)
 	flash_tween.tween_callback(func():
@@ -633,35 +633,32 @@ func play_hit_effect(direction: Vector2, is_hit: bool):
 			_color_material.set_shader_parameter("hit_enable_flash", false)
 	).set_delay(MapConst.HIT_FLASH_DURATION)
 
+
 func update_hp_label():
 	var hp_label = $HPLabel
 	if hp_label:
 		hp_label.text = str(hit_points) + "/" + str(unit_stats.max_hp)
 
+
 func show_hp_label(v: bool) -> void:
 	var hp = get_node_or_null("HPLabel")
-	if hp:
-		hp.visible = v
+	if hp: hp.visible = v
 
 
 func _init_talent_slots_from_data(data: UnitData):
 	talent_slots.clear()
-
 	var target_max = data.max_talent_slots
-	if target_max <= 0:
-		target_max = 1
+	if target_max <= 0: target_max = 1
 	max_talent_slots = target_max
 
 	if data.talent_slots is Array:
 		for slot_data in data.talent_slots:
-			if talent_slots.size() >= max_talent_slots:
-				break
+			if talent_slots.size() >= max_talent_slots: break
 			if slot_data and slot_data is TalentInstance and slot_data.is_active:
 				var new_inst = TalentInstance.new()
 				new_inst.talent_id = slot_data.talent_id
 				new_inst.current_stack = 0
 				new_inst.is_active = true
-				# ★ 主动技能初始就绪
 				var tdata = TalentManager.get_talent_data(slot_data.talent_id)
 				if tdata and tdata.is_active_skill:
 					new_inst.is_ready = true
@@ -675,8 +672,6 @@ func _init_talent_slots_from_data(data: UnitData):
 	while talent_slots.size() < max_talent_slots:
 		talent_slots.append(null)
 
-	# ★ 职业特技（转职授予，不占普通词条槽）
-	# 只信 advanced_talent_id，不做 advanced_class 反查
 	advanced_talent_inst = null
 	if data.advanced_talent_id != "":
 		var new_adv := TalentInstance.new()
@@ -695,17 +690,15 @@ func get_talent_instance(talent_id: String) -> TalentInstance:
 	for inst in talent_slots:
 		if inst and inst.talent_id == talent_id and inst.is_active:
 			return inst
-	# ★ 也查职业特技
 	if advanced_talent_inst and advanced_talent_inst.talent_id == talent_id and advanced_talent_inst.is_active:
 		return advanced_talent_inst
 	return null
 
+
 func equip_talent(talent_id: String) -> bool:
 	var data = TalentManager.get_talent_data(talent_id)
-	if not data:
-		return false
-	if get_talent_instance(talent_id) != null:
-		return false
+	if not data: return false
+	if get_talent_instance(talent_id) != null: return false
 	for i in range(talent_slots.size()):
 		if talent_slots[i] == null:
 			var inst = TalentInstance.new()
@@ -721,6 +714,7 @@ func equip_talent(talent_id: String) -> bool:
 		return true
 	return false
 
+
 func unequip_talent(talent_id: String):
 	for i in range(talent_slots.size()):
 		var inst = talent_slots[i]
@@ -728,9 +722,11 @@ func unequip_talent(talent_id: String):
 			talent_slots[i] = null
 			return
 
+
 func get_talent_threshold(talent_id: String) -> int:
 	var data = TalentManager.get_talent_data(talent_id)
 	return data.accumulation_threshold if data else 0
+
 
 func get_talents_by_school(school: String) -> Array:
 	var result = []
@@ -741,13 +737,13 @@ func get_talents_by_school(school: String) -> Array:
 				result.append(inst.talent_id)
 	return result
 
+
 func reset_all_talents():
 	for inst in talent_slots:
-		if inst:
-			inst.reset()
-	# ★ 职业特技也重置
+		if inst: inst.reset()
 	if advanced_talent_inst:
 		advanced_talent_inst.reset()
+
 
 func get_talent_school_count(school: String) -> int:
 	var count = 0
@@ -758,19 +754,17 @@ func get_talent_school_count(school: String) -> int:
 				count += 1
 	return count
 
-# ★ 改为调用 TalentManager 静态方法
+
 func accumulate_all_talents():
 	TalentManager.accumulate_talents(talent_slots)
-	# ★ 职业特技也积累
 	if advanced_talent_inst:
 		TalentManager.accumulate_talents([advanced_talent_inst])
 
+
 func equip_talent_to_slot(slot_index: int, talent_id: String) -> bool:
-	if slot_index < 0 or slot_index >= talent_slots.size():
-		return false
+	if slot_index < 0 or slot_index >= talent_slots.size(): return false
 	var data = TalentManager.get_talent_data(talent_id)
-	if not data:
-		return false
+	if not data: return false
 	var inst = TalentInstance.new()
 	inst.talent_id = talent_id
 	inst.current_stack = 0
@@ -779,8 +773,9 @@ func equip_talent_to_slot(slot_index: int, talent_id: String) -> bool:
 	talent_slots[slot_index] = inst
 	return true
 
-func get_talent_slots() -> Array[TalentInstance]:
-	return talent_slots
+
+func get_talent_slots() -> Array[TalentInstance]: return talent_slots
+
 
 func reset_combat_buffs():
 	buff_attack_percent = 0.0
@@ -789,12 +784,14 @@ func reset_combat_buffs():
 	buff_damage_reduction = 0.0
 	buff_attack_flat = 0
 	buff_magic_attack_flat = 0
+	# ★ 批次 5A
+	active_auras.clear()
+
 
 func can_counter() -> bool:
-	# ★ 仅 counter_boost 词条触发反击（武器/遗物不授予）
 	return get_talent_instance("counter_boost") != null
+
 
 func set_hp_label_visible(v: bool) -> void:
 	var hp = get_node_or_null("HPLabel")
-	if hp:
-		hp.visible = v
+	if hp: hp.visible = v

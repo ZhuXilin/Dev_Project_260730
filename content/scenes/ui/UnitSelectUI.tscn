@@ -144,6 +144,12 @@ grow_vertical = 0
 theme_override_constants/separation = 20
 alignment = 1
 
+[node name="RerollButton" type="Button" parent="BottomBar" unique_id=1874622026]
+layout_mode = 2
+size_flags_horizontal = 4
+theme_override_font_sizes/font_size = 8
+text = "重抽 (5 魂火)"
+
 [node name="ConfirmButton" type="Button" parent="BottomBar" unique_id=1874622025]
 layout_mode = 2
 size_flags_horizontal = 4

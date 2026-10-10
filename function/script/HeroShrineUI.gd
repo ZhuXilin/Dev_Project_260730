@@ -175,18 +175,11 @@ func _build_unit_card(unit_idx: int) -> PanelContainer:
 
 	# ---- 可转职 ----
 	name_lb.text = unit_display + "\n" + type_cn
-
-	var stat_parts : Array = []
-	for key in adv.stat_bonus:
-		stat_parts.append("+%d%s" % [int(adv.stat_bonus[key]), _attr_short(key)])
-	var stat_str : String = " ".join(stat_parts)
-
-	var talent_str : String = ""
-	if adv.granted_talent != "":
-		var tdata : TalentData = TalentManager.get_talent_data(adv.granted_talent)
-		talent_str = tdata.display_name if tdata else adv.granted_talent
-
-	status_lb.text = "→ ★ %s\n%s\n授予:%s" % [adv.name, stat_str, talent_str]
+	var branches : Array = AdvancedClassManager.get_branches_for_unit(unit.unit_name)
+	var branch_names : Array = []
+	for b in branches:
+		branch_names.append("★ " + b.name)
+	status_lb.text = "可转职：\n" + "\n".join(branch_names) + "\n（点击查看）"
 
 	var can_afford : bool = _get_gold() >= COST_PER_CLASS
 	var reached : bool = _reached_limit()
@@ -194,8 +187,7 @@ func _build_unit_card(unit_idx: int) -> PanelContainer:
 	if not can_afford or reached:
 		status_lb.modulate = Color(0.55, 0.55, 0.55, 1)
 		card.modulate = Color(0.7, 0.7, 0.7, 1)
-		if reached:
-			status_lb.text += "\n（本次已转职）"
+		if reached: status_lb.text += "\n（本次已转职）"
 	else:
 		card.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 		card.gui_input.connect(_on_card_input.bind(unit_idx))
@@ -237,34 +229,17 @@ func _on_card_input(event: InputEvent, unit_idx: int):
 #  点击卡片 → 二次确认
 # ============================================================
 func _on_card_clicked(unit_idx: int):
-	if _is_performing:
-		return
-	if _reached_limit():
-		return
+	if _is_performing: return
+	if _reached_limit(): return
 	var party : Array = _get_party()
-	if unit_idx < 0 or unit_idx >= party.size():
-		return
-	if _get_gold() < COST_PER_CLASS:
-		return
+	if unit_idx < 0 or unit_idx >= party.size(): return
+	if _get_gold() < COST_PER_CLASS: return
 
 	var unit : UnitData = party[unit_idx]
-	if unit.advanced_class != "":
-		return
+	if unit.advanced_class != "": return
 
-	var adv : AdvancedClassData = AdvancedClassManager.get_class_for_unit(unit.unit_name)
-	if adv == null:
-		return
-
-	var unit_display : String = unit.display_name if unit.display_name != "" else unit.unit_name
-	Globals.show_confirm(
-		self,
-		"将 %s 转职为「%s」？\n不可撤销。" % [unit_display, adv.name],
-		"确定转职",
-		"取消",
-		func(): _begin_convert(unit, adv),
-		func(): pass,
-		true
-	)
+	var branches : Array = AdvancedClassManager.get_branches_for_unit(unit.unit_name)
+	if branches.size() < 2: return
 
 
 # ============================================================
@@ -286,6 +261,11 @@ func _begin_convert(unit : UnitData, adv : AdvancedClassData):
 	# 1. 立即扣金币 + 记录
 	_subtract_gold(COST_PER_CLASS)
 	unit.advanced_class = adv.id
+	
+	_apply_growth_rolls(unit)
+	unit.tags.clear()
+	for t in adv.tags:
+		unit.tags.append(t)
 
 	for key in adv.stat_bonus:
 		var val : int = int(adv.stat_bonus[key])
@@ -402,10 +382,12 @@ func _sync_advanced_class_to_gamestate(src_unit: UnitData):
 		src_unit.unit_name, src_unit.display_name,
 		src_unit.advanced_class, src_unit.advanced_talent_id])
 	print("[HeroShrine][DEBUG]   队伍共 %d 个" % GameState.party.size())
+
 	for i in range(GameState.party.size()):
 		var u : UnitData = GameState.party[i]
 		var match_flag : String = "✅" if (u.unit_name == src_unit.unit_name and u.display_name == src_unit.display_name) else "❌"
 		print("[HeroShrine][DEBUG]   [%d] %s/%s %s" % [i, u.unit_name, u.display_name, match_flag])
+
 		if u.unit_name == src_unit.unit_name and u.display_name == src_unit.display_name:
 			print("[HeroShrine][DEBUG]     → 匹配，写入 party 单位")
 			u.advanced_class = src_unit.advanced_class
@@ -419,5 +401,42 @@ func _sync_advanced_class_to_gamestate(src_unit: UnitData):
 			u.faith = src_unit.faith
 			u.arcane = src_unit.arcane
 			u.move_range = src_unit.move_range
+
+			# ★ 批次 2：标签同步
+			u.tags.clear()
+			for t in src_unit.tags:
+				u.tags.append(t)
+
 			return
+
 	print("[HeroShrine][DEBUG]   → 未匹配到 party 单位")
+
+
+func _apply_growth_rolls(unit : UnitData):
+	var points_dict : Dictionary = GameState.unit_attr_points.get(unit.unit_name, {})
+	if points_dict.is_empty(): return
+	for attr_key in points_dict:
+		if not _is_attr_key(attr_key): continue
+		var points : int = int(points_dict[attr_key])
+		if points <= 0: continue
+		var bonus : int = 0
+		for i in range(points):
+			if randf() < 0.3: bonus += 1
+		if bonus > 0:
+			_apply_attr_bonus(unit, attr_key, bonus)
+
+
+func _is_attr_key(key : String) -> bool:
+	return key in ["max_hp", "strength", "dexterity", "intelligence", "faith", "arcane", "move_range"]
+
+
+func _apply_attr_bonus(unit : UnitData, key : String, amount : int):
+	match key:
+		"max_hp": unit.max_hp += amount; unit.hit_points += amount
+		"strength":     unit.strength += amount
+		"dexterity":    unit.dexterity += amount
+		"intelligence": unit.intelligence += amount
+		"faith":        unit.faith += amount
+		"arcane":       unit.arcane += amount
+		"move_range":   unit.move_range += amount
+		

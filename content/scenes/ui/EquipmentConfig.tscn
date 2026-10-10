@@ -151,6 +151,17 @@ theme_override_styles/disabled = ExtResource("2")
 theme_override_styles/focus = ExtResource("2")
 text = "熔铸"
 
+[node name="FurnaceTabBtn" type="Button" parent="MainPanel/VBoxContainer/MainHBox/RightContainer/TabBar" unique_id=1672096033]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 8
+theme_override_styles/normal = ExtResource("2")
+theme_override_styles/pressed = ExtResource("2")
+theme_override_styles/hover = ExtResource("2")
+theme_override_styles/disabled = ExtResource("2")
+theme_override_styles/focus = ExtResource("2")
+text = "熔炉"
+
 [node name="ShopScroll" type="ScrollContainer" parent="MainPanel/VBoxContainer/MainHBox/RightContainer" unique_id=1871335401]
 custom_minimum_size = Vector2(0, 70)
 layout_mode = 2
@@ -187,8 +198,8 @@ layout_mode = 0
 anchor_right = 1.0
 anchor_bottom = 1.0
 theme_override_font_sizes/font_size = 6
-text = "丢弃区
-拖拽装备到此"
+text = "出售区
+拖拽装备到此换金币"
 horizontal_alignment = 1
 vertical_alignment = 1
 
@@ -220,6 +231,7 @@ theme_override_styles/focus = ExtResource("2")
 text = "返回"
 
 [connection signal="pressed" from="MainPanel/VBoxContainer/MainHBox/RightContainer/TabBar/SacrificeTabBtn" to="MainPanel" method="_on_sacrifice_tab_pressed"]
+[connection signal="pressed" from="MainPanel/VBoxContainer/MainHBox/RightContainer/TabBar/FurnaceTabBtn" to="MainPanel" method="_on_furnace_tab_pressed"]
 [connection signal="pressed" from="MainPanel/VBoxContainer/MainHBox/RightContainer/ResetBtn" to="MainPanel" method="_on_reset_shop_pressed"]
 [connection signal="pressed" from="MainPanel/VBoxContainer/BottomHBox/ConfirmBtn" to="MainPanel" method="_on_confirm_pressed"]
 [connection signal="pressed" from="MainPanel/VBoxContainer/BottomHBox/CloseBtn" to="MainPanel" method="_on_close_pressed"]

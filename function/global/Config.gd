@@ -15,6 +15,9 @@ const PATHS : Dictionary = {
 	"STORY_DATA":       "res://content/data/stories.json",
 	"TREASURE_REWARDS": "res://content/data/treasure_rewards.json",
 	"ARENA_ENEMIES":    "res://content/data/arena_enemies.json",
+	"AURA_DATA":        "res://content/data/auras.json",
+	"AFFIX_DATA":       "res://content/data/affixes.json",
+	"SET_BONUS_DATA":   "res://content/data/set_bonuses.json",
 
 	# 配置资源
 	"MUSIC_CONFIG":     "res://content/scenes/levels/MusicConfig.tres",

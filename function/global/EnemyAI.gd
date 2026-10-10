@@ -47,14 +47,12 @@ func run_enemy_ai():
 			can_act = true
 
 	if not can_act:
-		print("所有敌方单位无法行动，强制结束 AI")
 		_processing = false
 		ai_queue_finished.emit()
 		return
 
 	for action in cached_actions:
-		if action:
-			ai_queue.append(action)
+		if action: ai_queue.append(action)
 
 	_process_ai_queue()
 
@@ -157,8 +155,9 @@ func _evaluate_attack(unit: Unit):
 		print("错误：武器数据不存在，ID: %s" % weapon_id)
 		return null
 
-	var max_range = data.attack_range
-	var min_range = data.min_attack_range
+	var up_lv : int = unit.weapon_slot.upgrade_level if unit.weapon_slot else 0
+	var max_range : int = WeaponUpgradeHelper.get_effective_attack_range(data, up_lv)
+	var min_range : int = data.min_attack_range
 	print("武器 %s 范围: %d~%d" % [data.name, min_range, max_range])
 
 	# ★ 收集所有候选，不边循环边取最优

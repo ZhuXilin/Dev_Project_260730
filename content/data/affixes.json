@@ -1,0 +1,16 @@
+{
+  "affix_attack": {"id": "affix_attack", "name": "锋锐", "description": "攻击 +{v}", "type": "attack_flat", "value_min": 1, "value_max": 3, "min_quality": "rare", "tags": []},
+  "affix_defense": {"id": "affix_defense", "name": "坚硬", "description": "防御 +{v}", "type": "defense_flat", "value_min": 1, "value_max": 3, "min_quality": "rare", "tags": []},
+  "affix_hp": {"id": "affix_hp", "name": "坚韧", "description": "最大 HP +{v}", "type": "hp_flat", "value_min": 3, "value_max": 8, "min_quality": "rare", "tags": []},
+  "affix_crit_chance": {"id": "affix_crit_chance", "name": "锐眼", "description": "暴击率 +{v}%", "type": "crit_chance", "value_min": 3, "value_max": 8, "min_quality": "epic", "tags": []},
+  "affix_crit_damage": {"id": "affix_crit_damage", "name": "残暴", "description": "暴击伤害 +{v}%", "type": "crit_damage", "value_min": 10, "value_max": 25, "min_quality": "epic", "tags": []},
+  "affix_dodge": {"id": "affix_dodge", "name": "灵巧", "description": "闪避 +{v}%", "type": "dodge", "value_min": 5, "value_max": 15, "min_quality": "epic", "tags": ["灰烬"]},
+  "affix_lifesteal": {"id": "affix_lifesteal", "name": "吸血", "description": "攻击时回复伤害 {v}% 的 HP", "type": "lifesteal", "value_min": 5, "value_max": 15, "min_quality": "epic", "tags": ["献祭"]},
+  "affix_counter": {"id": "affix_counter", "name": "反击", "description": "反击伤害 +{v}%", "type": "counter", "value_min": 15, "value_max": 40, "min_quality": "epic", "tags": ["守护"]},
+  "affix_soul_fire_gain": {"id": "affix_soul_fire_gain", "name": "余烬", "description": "击杀回魂火 +{v}", "type": "soul_fire_gain", "value_min": 1, "value_max": 1, "min_quality": "legendary", "tags": ["余烬"]},
+  "affix_heal_boost": {"id": "affix_heal_boost", "name": "恩泽", "description": "治疗量 +{v}%", "type": "heal_boost", "value_min": 15, "value_max": 30, "min_quality": "epic", "tags": ["献祭"]},
+  "affix_flame_damage": {"id": "affix_flame_damage", "name": "焚身", "description": "对敌造成额外 {v} 火焰伤害", "type": "flame_damage", "value_min": 2, "value_max": 5, "min_quality": "rare", "tags": ["烈焰"]},
+  "affix_move": {"id": "affix_move", "name": "疾行", "description": "移动力 +{v}", "type": "move_flat", "value_min": 1, "value_max": 1, "min_quality": "rare", "tags": ["灰烬"]},
+  "affix_cycle_regen": {"id": "affix_cycle_regen", "name": "轮回", "description": "每回合回复 {v}% 最大 HP", "type": "turn_regen", "value_min": 3, "value_max": 6, "min_quality": "epic", "tags": ["轮回"]},
+  "affix_guard_shield": {"id": "affix_guard_shield", "name": "护盾", "description": "战斗开始获得 {v} 点护盾", "type": "start_shield", "value_min": 2, "value_max": 5, "min_quality": "epic", "tags": ["守护"]}
+}

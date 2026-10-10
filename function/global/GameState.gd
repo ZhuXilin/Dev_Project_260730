@@ -1,11 +1,6 @@
 extends Node
 
-enum InterruptState {
-	NONE,
-	CAMP,
-	MAP,
-	BATTLEFIELD,
-}
+enum InterruptState { NONE, CAMP, MAP, BATTLEFIELD }
 
 var shop_level : int = 0
 
@@ -111,7 +106,7 @@ var battlefield_data : Dictionary:
 	set(value): progress_state.battlefield_data = value
 
 # ============================================================
-#  ResourceState 转发
+#  ResourceState 转发（含所有批次新增字段）
 # ============================================================
 var soul : int:
 	get: return resource_state.soul
@@ -137,6 +132,26 @@ var unit_attr_cap : Dictionary:
 	get: return resource_state.unit_attr_cap
 	set(value): resource_state.unit_attr_cap = value
 
+var unit_attr_points : Dictionary:
+	get: return resource_state.unit_attr_points
+	set(value): resource_state.unit_attr_points = value
+
+var tag_purchase_count : Dictionary:
+	get: return resource_state.tag_purchase_count
+	set(value): resource_state.tag_purchase_count = value
+
+var unlocked_auras : Array:
+	get: return resource_state.unlocked_auras
+	set(value): resource_state.unlocked_auras = value
+
+var active_aura_research : Dictionary:
+	get: return resource_state.active_aura_research
+	set(value): resource_state.active_aura_research = value
+
+var aura_research_progress : Dictionary:
+	get: return resource_state.aura_research_progress
+	set(value): resource_state.aura_research_progress = value
+
 var cycle_start_soul : int:
 	get: return resource_state.cycle_start_soul
 	set(value): resource_state.cycle_start_soul = value
@@ -152,6 +167,10 @@ var current_reward_gold : int:
 var current_reward_soul : int:
 	get: return resource_state.current_reward_soul
 	set(value): resource_state.current_reward_soul = value
+
+var current_reward_materials : Dictionary:
+	get: return resource_state.current_reward_materials
+	set(value): resource_state.current_reward_materials = value
 
 var current_reward_rare_datas : Array:
 	get: return resource_state.current_reward_rare_datas
@@ -241,9 +260,6 @@ var total_dispatch_count : int:
 	get: return resource_state.total_dispatch_count
 	set(value): resource_state.total_dispatch_count = value
 
-# ============================================================
-#  非转发字段
-# ============================================================
 var pending_save_slot : int = -1
 
 # ============================================================
@@ -252,17 +268,13 @@ var pending_save_slot : int = -1
 func initialize_party(selected_units: Array[String], main_index: int):
 	party_state.initialize_party(selected_units, main_index)
 
-func get_party_units() -> Array[UnitData]:
-	return party_state.get_party_units()
-
-func get_main_unit() -> UnitData:
-	return party_state.get_main_unit()
-
+func get_party_units() -> Array[UnitData]: return party_state.get_party_units()
+func get_main_unit() -> UnitData: return party_state.get_main_unit()
 func sync_units_from_battlefield(battle_units: Array):
 	party_state.sync_units_from_battlefield(battle_units)
 
 # ============================================================
-#  待领取奖励
+#  待领取
 # ============================================================
 func has_pending_sacrifice_rewards() -> bool:
 	return not resource_state.pending_sacrifice_rewards.is_empty()
@@ -273,18 +285,14 @@ func has_pending_forge_rewards() -> bool:
 func has_any_pending_rewards() -> bool:
 	return has_pending_sacrifice_rewards() or has_pending_forge_rewards()
 
-func clear_pending_sacrifice_rewards():
-	resource_state.pending_sacrifice_rewards.clear()
-
-func clear_pending_forge_rewards():
-	resource_state.pending_forge_rewards.clear()
-
+func clear_pending_sacrifice_rewards(): resource_state.pending_sacrifice_rewards.clear()
+func clear_pending_forge_rewards(): resource_state.pending_forge_rewards.clear()
 func clear_all_pending_rewards():
 	resource_state.pending_sacrifice_rewards.clear()
 	resource_state.pending_forge_rewards.clear()
 
 # ============================================================
-#  永久死亡 / 复活
+#  死亡 / 复活
 # ============================================================
 func is_unit_dead(unit_name: String, display_name: String) -> bool:
 	for ud in party:
@@ -296,8 +304,7 @@ func revive_unit(unit_name: String, display_name: String) -> bool:
 	var key : String = "%s|%s" % [unit_name, display_name]
 	for ud in party:
 		if ud.unit_name == unit_name and ud.display_name == display_name:
-			if not ud.is_dead:
-				return false
+			if not ud.is_dead: return false
 			ud.is_dead = false
 			ud.hit_points = ud.max_hp
 			var removed : int = 0
@@ -323,21 +330,18 @@ func revive_all_units():
 func get_alive_party() -> Array:
 	var result : Array = []
 	for ud in party:
-		if not ud.is_dead:
-			result.append(ud)
+		if not ud.is_dead: result.append(ud)
 	return result
 
 func get_dead_party() -> Array:
 	var result : Array = []
 	for ud in party:
-		if ud.is_dead:
-			result.append(ud)
+		if ud.is_dead: result.append(ud)
 	return result
 
 func has_any_dead_unit() -> bool:
 	for ud in party:
-		if ud.is_dead:
-			return true
+		if ud.is_dead: return true
 	return false
 
 # ============================================================
@@ -347,20 +351,17 @@ func get_global_relic_stats() -> Dictionary:
 	var bonus = {}
 	for relic in get_relics_from_passives():
 		var data = RelicManager.get_relic_data(relic.item_id)
-		if data.is_empty():
-			continue
+		if data.is_empty(): continue
 		var stats = data.get("stats", {})
 		for key in stats:
 			bonus[key] = bonus.get(key, 0) + stats[key]
 	return bonus
 
-
 func get_global_relic_effects() -> Dictionary:
 	var effects := {}
 	for relic in get_relics_from_passives():
 		var data = RelicManager.get_relic_data(relic.item_id)
-		if data.is_empty():
-			continue
+		if data.is_empty(): continue
 		var e : Dictionary = data.get("effects", {})
 		for key in e:
 			var add = e[key]
@@ -368,31 +369,17 @@ func get_global_relic_effects() -> Dictionary:
 				effects[key] = add
 			else:
 				var cur = effects[key]
-				if cur is bool and add is bool:
-					effects[key] = cur or add
-				elif cur is int and add is int:
-					effects[key] = cur + add
-				elif cur is float or add is float:
-					effects[key] = float(cur) + float(add)
-				else:
-					effects[key] = add
+				if cur is bool and add is bool: effects[key] = cur or add
+				elif cur is int and add is int: effects[key] = cur + add
+				elif cur is float or add is float: effects[key] = float(cur) + float(add)
+				else: effects[key] = add
 	return effects
 
-# ============================================================
-#  进度
-# ============================================================
 func reset_progress(): progress_state.reset_progress()
 func undo_battle_entry(): progress_state.undo_battle_entry()
 
-# ============================================================
-#  奖励物品
-# ============================================================
-func add_reward_item(item_id: String):
-	resource_state.add_reward_item(item_id)
-
-func clear_reward_items():
-	resource_state.clear_reward_items()
-
+func add_reward_item(item_id: String): resource_state.add_reward_item(item_id)
+func clear_reward_items(): resource_state.clear_reward_items()
 func clear_current_reward():
 	resource_state.clear_current_reward()
 	current_reward_rare_datas.clear()
@@ -425,7 +412,6 @@ func start_new_cycle():
 	SoulFireManager.reset_for_new_run()
 	SaveManager.auto_save()
 
-
 func finish_day(grant_slot: bool = true):
 	soul += SoulFireManager.settle()
 	if grant_slot:
@@ -433,8 +419,6 @@ func finish_day(grant_slot: bool = true):
 			if unit_data.max_armor_slots < MAX_ARMOR_SLOTS_CAP:
 				unit_data.armor_slots.append(null)
 				unit_data.max_armor_slots += 1
-	print("每天结束：soul=", soul, " 槽位上限=", MAX_ARMOR_SLOTS_CAP)
-
 
 func finish_cycle():
 	finish_day(false)
@@ -442,16 +426,13 @@ func finish_cycle():
 	if tutorial_stage < 3:
 		tutorial_stage += 1
 		Globals.reload_talent_unlock()
-		print("[Tutorial] 新手阶段 → %d（已重载词条解锁）" % tutorial_stage)
 	DispatchManager.advance_run()
-
+	AuraManager.advance_research()
 
 func abandon_cycle():
 	temp_gold = 0
 
-
 func abandon_and_return_to_camp():
-	# 先把剩余魂火结算进 soul，让结算面板显示真实的"本局赚取"
 	SoulFireManager.settle()
 	await Globals.show_cycle_reward()
 	finish_day(false)
@@ -461,17 +442,14 @@ func abandon_and_return_to_camp():
 	SaveManager.save_game(SaveManager.current_slot, false)
 	get_tree().change_scene_to_file(Config.PATHS.CAMP)
 
-
 func show_abandon_confirmation(parent: Node):
 	Globals.show_confirm(
 		parent,
 		"确定放弃本局游戏吗？进度将丢失，已获得的临时资源将丢弃。",
-		"放弃",
-		"取消",
+		"放弃", "取消",
 		abandon_and_return_to_camp,
 		func(): pass
 	)
-
 
 func reset_for_new_cycle():
 	party.clear()
@@ -495,7 +473,6 @@ func reset_for_new_cycle():
 	cycle_start_soul = 0
 	sacrifice_count = 0
 	shop_level = 0
-
 
 func reset_all():
 	party.clear()
@@ -521,6 +498,4 @@ func reset_all():
 	sacrifice_count = 0
 	shop_level = 0
 
-
-func apply_relic_stats_to_unit(_unit_data: UnitData):
-	pass
+func apply_relic_stats_to_unit(_unit_data: UnitData): pass

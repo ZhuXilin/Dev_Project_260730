@@ -1,37 +1,13 @@
 {
-  "steel_armor": {
-	"inputs": ["iron_armor", "wooden_shield"],
-  },
-  "mage_robe": {
-	"inputs": ["leather_armor", "iron_helmet"],
-  },
-  "traveler_boots": {
-	"inputs": ["iron_armor", "leather_armor"],
-  },
-
-  "power_ring": {
-	"inputs": ["wooden_shield", "steel_armor"],
-  },
-  "guard_ring": {
-	"inputs": ["iron_armor", "power_ring"],
-  },
-  "speed_boots": {
-	"inputs": ["wooden_shield", "power_ring"],
-  },
-  "knight_armor": {
-	"inputs": ["steel_armor", "iron_armor"],
-  },
-
-  "soul_guardian_plate": {
-	"inputs": ["knight_armor", "guard_ring"],
-  },
-  "dragon_scale_armor": {
-	"inputs": ["knight_armor", "steel_armor"],
-  },
-  "phoenix_cloak": {
-	"inputs": ["knight_armor", "speed_boots"],
-  },
-  "arcane_crown": {
-	"inputs": ["knight_armor", "mage_robe"],
-  }
+  "steel_armor":     { "inputs": ["iron_armor", "wooden_shield"] },
+  "mage_robe":       { "inputs": ["leather_armor", "iron_helmet"] },
+  "traveler_boots":  { "inputs": ["iron_armor", "leather_armor"] },
+  "power_ring":      { "inputs": ["wooden_shield", "steel_armor"] },
+  "guard_ring":      { "inputs": ["iron_armor", "power_ring"] },
+  "speed_boots":     { "inputs": ["wooden_shield", "power_ring"] },
+  "knight_armor":    { "inputs": ["steel_armor", "iron_armor"] },
+  "soul_guardian_plate": { "inputs": ["knight_armor", "guard_ring"] },
+  "dragon_scale_armor":  { "inputs": ["knight_armor", "steel_armor"] },
+  "phoenix_cloak":       { "inputs": ["knight_armor", "speed_boots"] },
+  "arcane_crown":        { "inputs": ["knight_armor", "mage_robe"] }
 }

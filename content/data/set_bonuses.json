@@ -1,0 +1,8 @@
+{
+  "烈焰": {"name": "焚天之怒", "description": "攻击 +10%", "effect": "attack_percent", "value": 0.10},
+  "轮回": {"name": "生生不息", "description": "每回合回复 5% 最大 HP", "effect": "turn_regen", "value": 0.05},
+  "灰烬": {"name": "灰烬之舞", "description": "移动 +1，防御 +2", "effect": "move_and_defense", "move": 1, "defense": 2},
+  "守护": {"name": "不破壁垒", "description": "防御 +5", "effect": "defense_flat", "value": 5},
+  "献祭": {"name": "血之回响", "description": "击杀时回复 15% 最大 HP", "effect": "kill_heal", "value": 0.15},
+  "余烬": {"name": "不灭薪火", "description": "魂火上限 +3", "effect": "soul_fire_max", "value": 3}
+}

@@ -42,7 +42,15 @@ func _ready():
 
 
 func get_max_carried() -> int:
-	return MAX_CARRIED_LEVELS[clampi(altar_level, 0, MAX_CARRIED_LEVELS.size() - 1)]
+	var base : int = MAX_CARRIED_LEVELS[clampi(altar_level, 0, MAX_CARRIED_LEVELS.size() - 1)]
+	if LevelManager.current_resonance.get("type", "") == "soul_fire_max":
+		base += int(LevelManager.current_resonance.get("value", 0))
+	if _has_eternal_flame():
+		base += 5
+	if SetBonusManager.team_has_set("余烬"):
+		var b : Dictionary = SetBonusManager.get_bonus("余烬")
+		base += int(b.get("value", 3))
+	return base
 
 
 func get_ratio() -> float:
@@ -61,6 +69,19 @@ func get_state() -> State:
 	return State.NORMAL
 
 
+func get_move_bonus() -> int:
+	return 1 if get_state() == State.BURNING else 0
+
+func get_splash_percent() -> float:
+	return 0.5 if get_state() == State.BURNING else 0.0
+
+func get_crit_damage_bonus() -> float:
+	return 0.5 if get_state() == State.DEPLETED else 0.0
+
+func get_damage_taken_mult() -> float:
+	return 1.3 if get_state() == State.DEPLETED else 1.0
+
+
 func can_spend(amount: int) -> bool:
 	return current >= amount
 
@@ -72,7 +93,10 @@ func get_upgrade_cost() -> int:
 
 
 func get_initial_soul_fire() -> int:
-	return INITIAL_LEVELS[clampi(GameState.soul_fire_initial_level, 0, INITIAL_LEVELS.size() - 1)]
+	var base : int = INITIAL_LEVELS[clampi(GameState.soul_fire_initial_level, 0, INITIAL_LEVELS.size() - 1)]
+	if LevelManager.current_resonance.get("type", "") == "soul_fire_initial":
+		base += int(LevelManager.current_resonance.get("value", 0))
+	return base
 
 
 func get_initial_upgrade_cost() -> int:
@@ -83,8 +107,7 @@ func get_initial_upgrade_cost() -> int:
 
 
 func add(amount: int) -> int:
-	if amount <= 0:
-		return 0
+	if amount <= 0: return 0
 	var before : int = current
 	current = mini(current + amount, get_max_carried())
 	var actual : int = current - before
@@ -94,10 +117,8 @@ func add(amount: int) -> int:
 
 
 func spend(amount: int) -> bool:
-	if amount <= 0:
-		return true
-	if current < amount:
-		return false
+	if amount <= 0: return true
+	if current < amount: return false
 	current -= amount
 	_emit_changes()
 	return true
@@ -118,8 +139,7 @@ func reset_for_new_run():
 
 func upgrade_altar() -> bool:
 	var cost : int = get_upgrade_cost()
-	if cost < 0 or GameState.soul < cost:
-		return false
+	if cost < 0 or GameState.soul < cost: return false
 	GameState.soul -= cost
 	altar_level += 1
 	_emit_changes()
@@ -129,8 +149,7 @@ func upgrade_altar() -> bool:
 
 func upgrade_initial() -> bool:
 	var cost : int = get_initial_upgrade_cost()
-	if cost < 0 or GameState.soul < cost:
-		return false
+	if cost < 0 or GameState.soul < cost: return false
 	GameState.soul -= cost
 	GameState.soul_fire_initial_level += 1
 	SaveManager.auto_save()
@@ -138,11 +157,9 @@ func upgrade_initial() -> bool:
 
 
 func tick_turn_start(units: Array) -> void:
-	if get_state() != State.ZERO:
-		return
+	if get_state() != State.ZERO: return
 	for unit in units:
-		if unit.unit_stats.team_id != 0 or unit.hit_points <= 0:
-			continue
+		if unit.unit_stats.team_id != 0 or unit.hit_points <= 0: continue
 		var dmg : int = int(unit.unit_stats.max_hp * 0.05)
 		unit.apply_damage(dmg)
 		depleted_damage_taken.emit(dmg)
@@ -151,6 +168,15 @@ func tick_turn_start(units: Array) -> void:
 func on_kill() -> void:
 	if get_state() == State.ZERO:
 		add(1)
+
+
+func _has_eternal_flame() -> bool:
+	for u in GameState.party:
+		if u.is_dead: continue
+		for slot in u.armor_slots:
+			if slot and slot.item_id == "eternal_flame":
+				return true
+	return false
 
 
 func _emit_changes():

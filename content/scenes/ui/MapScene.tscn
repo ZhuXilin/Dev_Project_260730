@@ -39,6 +39,13 @@ text = "魂火: 0 / 5"
 [node name="StateLabel" type="Label" parent="TopBar" unique_id=797733900]
 layout_mode = 2
 theme_override_font_sizes/font_size = 7
+text = ""
+
+[node name="ResonanceLabel" type="Label" parent="TopBar" unique_id=797733901]
+layout_mode = 2
+theme_override_font_sizes/font_size = 7
+text = ""
+modulate = Color(1.0, 0.85, 0.3, 1)
 
 [node name="GoldLabel" type="Label" parent="TopBar" unique_id=607983664]
 layout_mode = 2

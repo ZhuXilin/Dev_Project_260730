@@ -9,57 +9,31 @@ static func _ensure_growth_config():
 	_growth_loaded = true
 	GROWTH_HP_PER_POINT = int(GameConfigManager.get_value("progression_config.json", "growth_hp_per_point", 1))
 
-# ---- 武器类别显示名称映射 ----
+
 static var _weapon_category_display: Dictionary = {
-	"sword": "剑",
-	"spear": "枪",
-	"axe": "斧",
-	"bow": "弓",
-	"shield": "盾",
-	"crossbow": "弩",
-	"staff": "法杖",
-	"spellbook": "魔法书",
-	"dragonstone": "龙石"
+	"sword": "剑", "spear": "枪", "axe": "斧", "bow": "弓",
+	"shield": "盾", "crossbow": "弩", "staff": "法杖",
+	"spellbook": "魔法书", "dragonstone": "龙石"
 }
 
-# ---- 单位中文名映射（英文→中文） ----
 static var _unit_display_name: Dictionary = {
-	"swordsman": "剑士",
-	"spearman": "枪兵",
-	"axeman": "斧兵",
-	"archer": "弓兵",
-	"pegasus": "飞马",
-	"mage": "法师",
-	"cleric": "修女",
-	"dragonborn": "龙人",
-	"armored": "重甲兵"
+	"swordsman": "剑士", "spearman": "枪兵", "axeman": "斧兵",
+	"archer": "弓兵", "pegasus": "飞马", "mage": "法师",
+	"cleric": "修女", "dragonborn": "龙人", "armored": "重甲兵"
 }
 
-# ---- 中文→英文映射（用于兼容中文输入/旧存档） ----
 static var _cn_to_en_unit: Dictionary = {
-	"剑士": "swordsman",
-	"枪兵": "spearman",
-	"斧兵": "axeman",
-	"弓兵": "archer",
-	"飞马": "pegasus",
-	"法师": "mage",
-	"修女": "cleric",
-	"龙人": "dragonborn",
-	"重甲兵": "armored"
+	"剑士": "swordsman", "枪兵": "spearman", "斧兵": "axeman",
+	"弓兵": "archer", "飞马": "pegasus", "法师": "mage",
+	"修女": "cleric", "龙人": "dragonborn", "重甲兵": "armored"
 }
 
-# ---- 单位数据缓存 ----
 static var _unit_data_cache: Dictionary = {}
 static var _data_loaded: bool = false
 
 
-# ============================================================
-#  数据加载
-# ============================================================
-
 static func _load_unit_data():
-	if _data_loaded:
-		return
+	if _data_loaded: return
 	_data_loaded = true
 	var path = Config.PATHS.UNIT_DATA
 	if not FileAccess.file_exists(path):
@@ -75,19 +49,10 @@ static func _load_unit_data():
 	_unit_data_cache = data
 
 
-# ============================================================
-#  核心数据查询
-# ============================================================
-
-# ---- 规范化单位键名（中文→英文，内部使用） ----
 static func _normalize_unit_key(unit_name: String) -> String:
 	return _cn_to_en_unit.get(unit_name, unit_name)
 
 
-# ---- 规范化单位键名（公开版本，供 TalentManager 等外部调用） ----
-## 说明：输入可以是英文 key 或中文名，统一返回英文 key
-## 例：normalize_unit_key("剑士") → "swordsman"
-##     normalize_unit_key("swordsman") → "swordsman"
 static func normalize_unit_key(unit_name: String) -> String:
 	return _normalize_unit_key(unit_name)
 
@@ -101,7 +66,7 @@ static func get_unit_data(unit_name: String) -> Dictionary:
 static func get_all_unit_data() -> Dictionary:
 	_load_unit_data()
 	return _unit_data_cache
-	
+
 
 static func get_sprite_frames_path(unit_name: String) -> String:
 	return get_unit_data(unit_name).get("sprite_frames_path", "")
@@ -131,14 +96,9 @@ static func get_sacrifice_buff(unit_name: String) -> Dictionary:
 
 static func get_sacrifice_buff_display(unit_name: String) -> String:
 	var buff : Dictionary = get_sacrifice_buff(unit_name)
-	if buff.is_empty():
-		return ""
+	if buff.is_empty(): return ""
 	return buff.get("display", "")
 
-
-# ============================================================
-#  显示名称（用于UI）
-# ============================================================
 
 static func get_display_name(unit_name: String) -> String:
 	var key = _normalize_unit_key(unit_name)
@@ -156,14 +116,11 @@ static func get_display_name_full(unit_name: String) -> String:
 	var data = get_unit_data(key)
 	if data.is_empty():
 		return unit_name + "|未知|未知"
-
 	var display = data.get("display_name", "")
 	if display == "":
 		display = _unit_display_name.get(key, key)
-
 	var faction = data.get("faction", "无")
 	var type_name = _unit_display_name.get(key, key)
-
 	return "%s|%s|%s" % [display, faction, type_name]
 
 
@@ -178,7 +135,7 @@ static func get_description(unit_name: String) -> String:
 static func get_weapon_category_display(category: String) -> String:
 	return _weapon_category_display.get(category, category)
 
-## 获取所有单位 ID（用于魂铸圣所显示未解锁项）
+
 static func get_all_unit_ids() -> Array:
 	_load_unit_data()
 	var ids : Array = []
@@ -187,10 +144,10 @@ static func get_all_unit_ids() -> Array:
 	ids.sort()
 	return ids
 
-# ============================================================
-#  单位数据创建
-# ============================================================
 
+# ============================================================
+#  创建单位
+# ============================================================
 static func create_unit_data(unit_name: String) -> UnitData:
 	var key = _normalize_unit_key(unit_name)
 	var dict = get_unit_data(key)
@@ -204,7 +161,15 @@ static func create_unit_data(unit_name: String) -> UnitData:
 	data.experience = 0
 	data.level = 1
 
-	# ---- 默认武器 ----
+	# ★ 标签（批次 2）
+	data.tags.clear()
+	var tags_raw : Variant = dict.get("tags", [])
+	if tags_raw is Array:
+		for t in tags_raw:
+			if t is String:
+				data.tags.append(t)
+
+	# 默认武器
 	var default_weapon = get_default_weapon_id(key)
 	if default_weapon != "":
 		var inst = ItemInstance.new()
@@ -212,7 +177,7 @@ static func create_unit_data(unit_name: String) -> UnitData:
 		inst.count = 1
 		data.weapon_slot = inst
 
-	# ---- 默认特技（每个单位只装 1 个，取 default_talents 的第一个） ----
+	# 默认特技
 	data.talent_slots.clear()
 	var default_talents = dict.get("default_talents", [])
 	var talent_cap : int = int(dict.get("max_talent_slots", 1))
@@ -223,7 +188,6 @@ static func create_unit_data(unit_name: String) -> UnitData:
 		talent_inst.talent_id = talent_id
 		talent_inst.current_stack = 0
 		talent_inst.is_active = true
-		# ★ 主动技能初始就绪
 		var tdata = TalentManager.get_talent_data(talent_id)
 		if tdata and tdata.is_active_skill:
 			talent_inst.is_ready = true
@@ -234,17 +198,60 @@ static func create_unit_data(unit_name: String) -> UnitData:
 	while data.talent_slots.size() < talent_cap:
 		data.talent_slots.append(null)
 
-
 	data.armor_slots = [null, null]
 	data.max_armor_slots = 2
 	data.max_talent_slots = talent_cap
-	# 旧加点已废弃，改用祝福
-	BlessingManager.apply_to_unit_data(key, data)
+
+	# ★ 属性加点（批次 4）
+	_apply_attr_points_to_unit(key, data)
 	return data
 
+
+static func _apply_attr_points_to_unit(unit_key: String, data: UnitData):
+	var points_dict : Dictionary = GameState.unit_attr_points.get(unit_key, {})
+	if points_dict.is_empty():
+		return
+	for attr_key in points_dict:
+		var pts : int = int(points_dict[attr_key])
+		if pts <= 0: continue
+		_apply_one_attr(data, attr_key, pts)
+	print("[加点] %s 已应用：%s" % [unit_key, points_dict])
+
+
+static func _apply_one_attr(data: UnitData, attr_key: String, amount: int):
+	match attr_key:
+		"vitality":
+			data.max_hp += amount
+			data.hit_points += amount
+		"strength":     data.strength += amount
+		"dexterity":    data.dexterity += amount
+		"intelligence": data.intelligence += amount
+		"faith":        data.faith += amount
+		"arcane":       data.arcane += amount
+		"move_range":   data.move_range += amount
+
+
 # ============================================================
-#  从Unit实例获取显示信息
+#  辅助（批次 4）
 # ============================================================
+static func get_total_attr_points(unit_key: String) -> int:
+	var total : int = 0
+	var d : Dictionary = GameState.unit_attr_points.get(unit_key, {})
+	for k in d:
+		total += int(d[k])
+	return total
+
+
+static func get_attr_points_for(unit_key: String, attr_key: String) -> int:
+	var d : Dictionary = GameState.unit_attr_points.get(unit_key, {})
+	return int(d.get(attr_key, 0))
+
+
+static func get_attr_cap(unit_key: String) -> int:
+	const LEVELS : Array[int] = [0, 2, 5, 8, 12, 16, 20, 25]
+	var lv : int = int(GameState.unit_attr_cap.get(unit_key, 0))
+	return LEVELS[clampi(lv, 0, LEVELS.size() - 1)]
+
 
 static func get_display_name_from_unit(unit: Unit) -> String:
 	var display_name = unit.unit_stats.display_name if unit.unit_stats.display_name != "" else unit.unit_stats.unit_name
@@ -252,17 +259,14 @@ static func get_display_name_from_unit(unit: Unit) -> String:
 	return "%s|%s|%s" % [display_name, faction, unit.unit_stats.unit_name]
 
 
-# ---- 获取单位类型中文名（用于UI显示，如"剑士"） ----
 static func get_unit_type_display_name(unit_name: String) -> String:
 	var key = _normalize_unit_key(unit_name)
 	return _unit_display_name.get(key, key)
 
-## 把魂之祭坛的成长应用到 UnitData
+
 static func apply_growth(stats: UnitData, unit_type: String) -> void:
-	if GameState.unit_growth.is_empty():
-		return
-	if not GameState.unit_growth.has(unit_type):
-		return
+	if GameState.unit_growth.is_empty(): return
+	if not GameState.unit_growth.has(unit_type): return
 	var g = GameState.unit_growth[unit_type]
 	stats.max_hp += int(g.get("vitality", 0)) * GROWTH_HP_PER_POINT
 	stats.strength += int(g.get("strength", 0))

@@ -13,7 +13,7 @@ func _init(p):
 
 
 # ============================================================
-#  详情区显示 / 清除
+#  详情区
 # ============================================================
 func show_in_zone(text: String):
 	if not is_instance_valid(panel):
@@ -34,7 +34,7 @@ func clear_zone():
 # ============================================================
 #  物品详情
 # ============================================================
-func show_item(item_id: String):
+func show_item(item_id: String, affixes: Array = []):
 	var relic_data : Dictionary = RelicManager.get_relic_data(item_id)
 	if not relic_data.is_empty():
 		show_relic(relic_data)
@@ -48,6 +48,9 @@ func show_item(item_id: String):
 		lines.append("品质: " + Style.get_quality_display_name(data.quality))
 	if data.description and data.description != "":
 		lines.append(data.description)
+	if data.tags and not data.tags.is_empty():
+		lines.append("标签: " + "/".join(data.tags))
+
 	if data.type == "weapon":
 		lines.append("基础攻击: " + str(data.base_attack))
 		lines.append("射程: " + str(data.min_attack_range) + "~" + str(data.attack_range))
@@ -63,18 +66,47 @@ func show_item(item_id: String):
 		if data.slot_count > 0:
 			lines.append("占用格数: " + str(data.slot_count))
 		if data.modifier and not data.modifier.is_empty():
-			var mod_str : String = ""
+			var mod_str2 : String = ""
 			for key in data.modifier:
-				var v : Variant = data.modifier[key]
-				mod_str += Style.get_attr_display_name(key) + "+" + str(v) + " "
-			lines.append("属性加成: " + mod_str.strip_edges())
+				var v2 : Variant = data.modifier[key]
+				mod_str2 += Style.get_attr_display_name(key) + "+" + str(v2) + " "
+			lines.append("属性加成: " + mod_str2.strip_edges())
+
 	if data.price > 0:
 		lines.append("价格: " + str(data.price) + "G")
+
+	# ★ 词条
+	if not affixes.is_empty():
+		lines.append("--- 词条 ---")
+		for a in affixes:
+			var aid : String = a.get("id", "")
+			var val : int = int(a.get("value", 0))
+			lines.append("· " + AffixManager.format_description(aid, val))
+
+	# ★ 套装效果提示
+	var set_line : String = _build_set_hint(data)
+	if set_line != "":
+		lines.append(set_line)
+
 	show_in_zone("\n".join(lines))
 
 
 func hide_item():
 	clear_zone()
+
+
+func _build_set_hint(data : ItemData) -> String:
+	if data.tags.is_empty():
+		return ""
+	var parts : Array = []
+	for tag in data.tags:
+		var b : Dictionary = SetBonusManager.get_bonus(tag)
+		if b.is_empty():
+			continue
+		parts.append("【%s】%s" % [tag, b.get("description", "")])
+	if parts.is_empty():
+		return ""
+	return "--- 套装（3件）---\n" + "\n".join(parts)
 
 
 # ============================================================

@@ -39,3 +39,36 @@ offset_right = -176.0
 offset_bottom = 240.0
 grow_horizontal = 2
 theme_override_constants/separation = 6
+
+[node name="SoulFireHUD" type="HBoxContainer" parent="." unique_id=439659232]
+anchors_preset = -1
+anchor_right = 1.0
+offset_left = 16.0
+offset_top = 208.0
+offset_right = -176.0
+offset_bottom = 224.0
+grow_horizontal = 2
+theme_override_constants/separation = 4
+
+[node name="FireIcon" type="Label" parent="SoulFireHUD" unique_id=439659233]
+layout_mode = 2
+theme_override_font_sizes/font_size = 8
+text = "◆"
+
+[node name="SoulFireBar" type="ProgressBar" parent="SoulFireHUD" unique_id=439659234]
+custom_minimum_size = Vector2(60, 6)
+layout_mode = 2
+size_flags_vertical = 4
+max_value = 5.0
+value = 0.0
+show_percentage = false
+
+[node name="SoulFireLabel" type="Label" parent="SoulFireHUD" unique_id=439659235]
+layout_mode = 2
+theme_override_font_sizes/font_size = 8
+text = "0/5"
+
+[node name="StateLabel" type="Label" parent="SoulFireHUD" unique_id=439659236]
+layout_mode = 2
+theme_override_font_sizes/font_size = 8
+text = ""

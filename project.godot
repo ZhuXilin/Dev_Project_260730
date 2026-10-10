@@ -1,10 +1,4 @@
 ; Engine configuration file.
-; It's best edited using the editor UI and not directly,
-; since the parameters that go here are not all obvious.
-;
-; Format:
-;   [section] ; section goes between []
-;   param=value ; assign values to parameters
 
 config_version=5
 
@@ -38,13 +32,15 @@ SoundManager="*res://function/global/SoundManager.gd"
 SaveManager="*res://function/global/SaveManager.gd"
 LevelManager="*res://function/global/LevelManager.gd"
 InputManager="*res://function/global/InputManager.gd"
+SoulFireManager="*res://function/global/SoulFireManager.gd"
+DispatchManager="*res://function/global/DispatchManager.gd"
+AffixManager="*res://function/global/AffixManager.gd"
+AuraManager="*res://function/global/AuraManager.gd"
+SetBonusManager="*res://function/global/SetBonusManager.gd"
 GmConsole="*uid://q5yaycxpkkua"
 TestRegistry="*uid://uqtcmpoqfoyf"
 TestHarness="*uid://dmji7n6utrcoj"
 GameConfigManager="*uid://bqipfnujc115f"
-SoulFireManager="*res://function/global/SoulFireManager.gd"
-DispatchManager="*res://function/global/DispatchManager.gd"
-DispatchManager="*uid://b245mfytbsrjc"
 
 [display]
 

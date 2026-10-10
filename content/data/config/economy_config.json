@@ -1,7 +1,7 @@
 {
   "reward_gold": { "START": 75, "NORMAL": 175, "ELITE": 350, "BOSS": 750 },
   "reward_soul": { "START": 2, "NORMAL": 2, "ELITE": 3, "BOSS": 8 },
-  "boss_extra_soul": 2,
+  "boss_extra_soul": 5,
 
   "shop": {
 	"size": 9,
@@ -23,7 +23,7 @@
 
   "forge": {
 	"max_slots": 9,
-	"weapon_upgrade_max": 3,
+	"weapon_upgrade_max": 5,
 	"upgrade_base_cost": 50,
 	"upgrade_growth": 2.0,
 	"craft_cost": 200,
@@ -49,6 +49,10 @@
 	"relic_soul_base": 3, "relic_soul_var": 3
   },
 
+  "aura_research": {
+	"accel_cost": 50
+  },
+
   "soul_altar": {
 	"weapon_forge_cost": 500
   },
@@ -63,5 +67,6 @@
 	"runs": 20,
 	"soul_per_run": 30
   },
+
   "selected_layout": "MapLayoutDefault.tres"
 }

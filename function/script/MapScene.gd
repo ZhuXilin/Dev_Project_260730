@@ -22,6 +22,7 @@ var _ready_guard : bool = false
 @onready var gold_label = $TopBar/GoldLabel
 @onready var soul_fire_label = $TopBar/SoulFireLabel
 @onready var state_label = $TopBar/StateLabel
+@onready var resonance_label = $TopBar/ResonanceLabel
 
 
 func _ready():
@@ -109,7 +110,9 @@ func _ready():
 	_detail_popup = load(Config.PATHS.ITEM_DETAIL_POPUP).instantiate()
 	add_child(_detail_popup)
 	_detail_popup.visible = false
-
+	
+	if not SoulFireManager.soul_fire_changed.is_connected(_on_soul_fire_changed):
+		SoulFireManager.soul_fire_changed.connect(_on_soul_fire_changed)
 
 func _save_game():
 	if Globals.pending_save_slot != -1:
@@ -145,29 +148,6 @@ func update_all_displays():
 		soul_label.text = "魂: " + str(GameState.soul)
 
 	_update_soul_fire_display()
-
-
-func _update_soul_fire_display():
-	if not soul_fire_label:
-		return
-	var cur : int = SoulFireManager.current
-	var mx : int = SoulFireManager.get_max_carried()
-	soul_fire_label.text = "魂火: %d / %d" % [cur, mx]
-
-	if state_label:
-		match SoulFireManager.get_state():
-			SoulFireManager.State.BURNING:
-				state_label.text = "[燃烧]"
-				state_label.modulate = Color(1.0, 0.6, 0.2, 1)
-			SoulFireManager.State.DEPLETED:
-				state_label.text = "[枯竭]"
-				state_label.modulate = Color(0.7, 0.3, 1.0, 1)
-			SoulFireManager.State.ZERO:
-				state_label.text = "[归零]"
-				state_label.modulate = Color(1.0, 0.3, 0.3, 1)
-			_:
-				state_label.text = ""
-				state_label.modulate = Color.WHITE
 
 
 func update_gold_display():
@@ -350,6 +330,8 @@ func _setup_ui():
 	day_label.text = "第 %d 天" % current_day
 	if MusicManager.config and MusicManager.config.map_music:
 		MusicManager.play_music(MusicManager.config.map_music)
+	_update_soul_fire_display()
+	_show_resonance_hint()
 
 
 func _restore_map_music():
@@ -877,3 +859,55 @@ func _compute_node_positions() -> Dictionary:
 			var py : float = top_offset + (max_layer - n.layer + 0.5) * layer_height
 			pos_map[n] = Vector2(px, py)
 	return pos_map
+
+
+func _on_soul_fire_changed(_c: int, _m: int):
+	_update_soul_fire_display()
+
+
+func _update_soul_fire_display():
+	if not soul_fire_label: return
+	var cur : int = SoulFireManager.current
+	var mx : int = SoulFireManager.get_max_carried()
+	soul_fire_label.text = "魂火: %d / %d" % [cur, mx]
+	if state_label:
+		match SoulFireManager.get_state():
+			SoulFireManager.State.BURNING:
+				state_label.text = "[燃烧]"
+				state_label.modulate = Color(1.0, 0.6, 0.2, 1)
+			SoulFireManager.State.DEPLETED:
+				state_label.text = "[枯竭]"
+				state_label.modulate = Color(0.7, 0.3, 1.0, 1)
+			SoulFireManager.State.ZERO:
+				state_label.text = "[归零]"
+				state_label.modulate = Color(1.0, 0.3, 0.3, 1)
+			_:
+				state_label.text = ""
+				state_label.modulate = Color.WHITE
+
+
+func _show_resonance_hint():
+	var r : Dictionary = LevelManager.current_resonance
+	if resonance_label:
+		resonance_label.text = "" if r.is_empty() else "★ 共鸣：" + str(r.get("display", ""))
+	if r.is_empty(): return
+	_show_floating_toast("火焰共鸣：%s" % r.get("display", ""))
+
+
+func _show_floating_toast(text : String):
+	var toast := Label.new()
+	toast.text = text
+	toast.add_theme_font_size_override("font_size", 10)
+	toast.add_theme_color_override("font_color", Color(1.0, 0.85, 0.3))
+	toast.add_theme_color_override("font_outline_color", Color.BLACK)
+	toast.add_theme_constant_override("outline_size", 3)
+	toast.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	toast.size = Vector2(400, 20)
+	toast.position = Vector2(0, 60)
+	add_child(toast)
+	var tw := create_tween()
+	tw.set_ignore_time_scale(true)
+	tw.tween_property(toast, "modulate:a", 0.0, 0.3).set_delay(2.0)
+	tw.tween_callback(func():
+		if is_instance_valid(toast): toast.queue_free()
+	)

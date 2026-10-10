@@ -16,19 +16,20 @@ class_name UnitData
 @export var arcane: int = 3
 @export var move_range: int = 5
 @export var ignore_terrain_cost: bool = false
-## 熔铸 buff 来源列表（每个元素是提供 buff 的熔铸单位 key）
 @export var sacrifice_buff_sources : Array = []
 
-# ---- 战斗 Buff（临时，不入档） ----
+# ★ 批次 2：单位标签
+@export var tags: Array[String] = []
+
+# ---- 战斗 Buff ----
 var buff_attack_percent : float = 0.0
 var buff_crit_damage_bonus : float = 0.0
 var buff_defense_flat : int = 0
 var buff_damage_reduction : float = 0.0
 var buff_attack_flat : int = 0
 var buff_magic_attack_flat : int = 0
-var buff_lifesteal_percent : float = 0.0   # ★ 补：吸血加成
+var buff_lifesteal_percent : float = 0.0
 
-# ★ ---- 遗物效果状态（战斗临时，不入档） ----
 var relic_first_attack_crit_available : bool = false
 var relic_low_hp_damage_reduce : float = 0.0
 var relic_kill_grants_extra_move : int = 0
@@ -40,14 +41,12 @@ var relic_counter_damage_bonus : float = 0.0
 var relic_heal_bonus : float = 0.0
 var relic_auto_revive_available : bool = false
 
-# ★ ---- 词条累积状态（战斗临时） ----
 var bleed_stacks : int = 0
 var combo_last_target : String = ""
 var combo_count : int = 0
 var zeal_target : String = ""
 var zeal_stacks : int = 0
 
-# ---- 转职 ----
 @export var advanced_class: String = ""
 @export var override_sprite_path: String = ""
 
@@ -59,8 +58,6 @@ func reset_combat_buffs():
 	buff_attack_flat = 0
 	buff_magic_attack_flat = 0
 	buff_lifesteal_percent = 0.0
-
-	# 遗物
 	relic_first_attack_crit_available = false
 	relic_low_hp_damage_reduce = 0.0
 	relic_kill_grants_extra_move = 0
@@ -71,56 +68,38 @@ func reset_combat_buffs():
 	relic_counter_damage_bonus = 0.0
 	relic_heal_bonus = 0.0
 	relic_auto_revive_available = false
-
-	# 词条累积
 	bleed_stacks = 0
 	combo_last_target = ""
 	combo_count = 0
 	zeal_target = ""
 	zeal_stacks = 0
 
-# ---- 死亡状态（本三天流程内）----
 @export var is_dead: bool = false
-
 @export var experience: int = 0
 @export var level: int = 1
 
-# ---- 装备系统 ----
 @export var weapon_slot: ItemInstance = null
 @export var armor_slots: Array = []
 @export var max_armor_slots: int = 2
 
-# ---- 词条系统 ----
 @export var talent_slots: Array = []
 @export var max_talent_slots: int = 1
 
-# ---- 职业特技（转职授予，不占普通词条槽） ----
 @export var advanced_talent_id : String = ""
 var advanced_talent_inst : TalentInstance = null
 
-# ---- 职业成长（魂加点） ----
 @export var advancement: Dictionary = {
-	"hp_bonus": 0,
-	"atk_bonus": 0,
-	"def_bonus": 0,
-	"spd_bonus": 0
+	"hp_bonus": 0, "atk_bonus": 0, "def_bonus": 0, "spd_bonus": 0
 }
 
-# ============================================================
-#  装备 modifier 汇总
-# ============================================================
 
-## 汇总所有防具的 modifier 加成
-## 返回 { "strength": 2, "dexterity": 1, ... }
 func get_armor_modifier_bonus() -> Dictionary:
 	var bonus : Dictionary = {}
 	for slot_v in armor_slots:
-		if slot_v == null:
-			continue
+		if slot_v == null: continue
 		var slot : ItemInstance = slot_v
 		var data : ItemData = ItemManager.get_item_data(slot.item_id)
-		if not data:
-			continue
+		if not data: continue
 		for key in data.modifier:
 			var cur : int = int(bonus.get(key, 0))
 			var add : int = int(data.modifier[key])
@@ -128,7 +107,6 @@ func get_armor_modifier_bonus() -> Dictionary:
 	return bonus
 
 
-## 计算已占用的防具格数（考虑 slot_count）
 func count_used_armor_slots() -> int:
 	var used : int = 0
 	for slot_v in armor_slots:
@@ -136,7 +114,6 @@ func count_used_armor_slots() -> int:
 	return used
 
 
-## 是否还能装下指定防具
 func can_equip_armor(_item_id: String, exclude_slot_idx: int = -1) -> bool:
 	if exclude_slot_idx >= 0 and exclude_slot_idx < armor_slots.size():
 		return true
@@ -145,8 +122,6 @@ func can_equip_armor(_item_id: String, exclude_slot_idx: int = -1) -> bool:
 	return false
 
 
-## 返回含防具 modifier 加成的最终属性（取整）
-## attr_name ∈ {strength, dexterity, intelligence, faith, arcane, move_range, max_hp}
 func get_effective_attr(attr_name: String) -> int:
 	var base : int = 0
 	match attr_name:
@@ -163,27 +138,18 @@ func get_effective_attr(attr_name: String) -> int:
 	return base + bonus_val
 
 
-# ============================================================
-#  序列化 / 反序列化（v3）
-# ============================================================
-
 func to_dict() -> Dictionary:
 	return {
 		"unit_name": unit_name,
 		"display_name": display_name,
 		"faction": faction,
 		"team_id": team_id,
-		"max_hp": max_hp,
-		"hit_points": hit_points,
-		"strength": strength,
-		"dexterity": dexterity,
-		"intelligence": intelligence,
-		"faith": faith,
-		"arcane": arcane,
+		"max_hp": max_hp, "hit_points": hit_points,
+		"strength": strength, "dexterity": dexterity,
+		"intelligence": intelligence, "faith": faith, "arcane": arcane,
 		"move_range": move_range,
 		"ignore_terrain_cost": ignore_terrain_cost,
-		"experience": experience,
-		"level": level,
+		"experience": experience, "level": level,
 		"max_armor_slots": max_armor_slots,
 		"max_talent_slots": max_talent_slots,
 		"advancement": advancement.duplicate(),
@@ -195,12 +161,12 @@ func to_dict() -> Dictionary:
 		"override_sprite_path": override_sprite_path,
 		"is_dead": is_dead,
 		"sacrifice_buff_sources": sacrifice_buff_sources.duplicate(),
+		"tags": tags.duplicate(),
 	}
 
 
 static func from_dict(d: Dictionary) -> UnitData:
 	var data := UnitData.new()
-
 	data.unit_name = d.get("unit_name", "swordsman")
 	data.display_name = d.get("display_name", "")
 	data.faction = d.get("faction", "")
@@ -219,7 +185,6 @@ static func from_dict(d: Dictionary) -> UnitData:
 	data.max_armor_slots = d.get("max_armor_slots", 2)
 	data.max_talent_slots = d.get("max_talent_slots", 1)
 
-	# ★ advanced_class：兼容 String / Dictionary
 	var adv_raw = d.get("advanced_class", "")
 	if adv_raw is String:
 		data.advanced_class = adv_raw
@@ -238,19 +203,17 @@ static func from_dict(d: Dictionary) -> UnitData:
 	else:
 		data.sacrifice_buff_sources = []
 
-	# ★ 自净 / 反查（advanced_class 已处理，下面是原逻辑）
+	# ★ 标签
+	data.tags.clear()
+	var tags_v : Variant = d.get("tags", [])
+	if tags_v is Array:
+		for t in tags_v:
+			if t is String:
+				data.tags.append(t)
+
+	# advanced_class 为空时清空 advanced_talent_id
 	if data.advanced_class == "":
 		data.advanced_talent_id = ""
-	elif data.advanced_talent_id == "":
-		var unit_dict : Dictionary = UnitDataManager.get_unit_data(data.unit_name)
-		var adv_dict : Variant = unit_dict.get("advanced_class", {})
-		if adv_dict is Dictionary and not (adv_dict as Dictionary).is_empty():
-			var adv_id : String = (adv_dict as Dictionary).get("id", "")
-			if adv_id == data.advanced_class:
-				var granted : String = (adv_dict as Dictionary).get("granted_talent", "")
-				if granted != "":
-					data.advanced_talent_id = granted
-					print("[UnitData] 从 advanced_class=%s 反查 talent=%s" % [data.advanced_class, granted])
 
 	if d.has("advancement"):
 		var adv_v : Variant = d["advancement"]
@@ -297,29 +260,32 @@ static func from_dict(d: Dictionary) -> UnitData:
 	return data
 
 
-# ============================================================
-#  内部辅助
-# ============================================================
 static func _item_instance_to_dict(inst: ItemInstance) -> Dictionary:
-	if not inst:
-		return {}
+	if not inst: return {}
 	return {
 		"item_id": inst.item_id,
 		"count": inst.count,
 		"upgrade_level": inst.upgrade_level,
+		"affixes": inst.affixes.duplicate(true),
 	}
 
+
 static func _dict_to_item_instance(d: Dictionary) -> ItemInstance:
-	if d.is_empty():
-		return null
+	if d.is_empty(): return null
 	var item_id : String = d.get("item_id", "")
-	if item_id == "":
-		return null
+	if item_id == "": return null
 	var inst := ItemInstance.new()
 	inst.item_id = item_id
 	inst.count = d.get("count", 1)
 	inst.upgrade_level = d.get("upgrade_level", 0)
+	var af : Variant = d.get("affixes", [])
+	if af is Array:
+		inst.affixes.clear()
+		for a in af:
+			if a is Dictionary:
+				inst.affixes.append({"id": a.get("id", ""), "value": int(a.get("value", 0))})
 	return inst
+
 
 static func _item_instance_array_to_array(arr: Array) -> Array:
 	var result : Array = []
@@ -340,13 +306,9 @@ static func _array_to_item_instance_array(arr: Array) -> Array:
 
 
 static func _talent_instance_to_dict(inst) -> Dictionary:
-	if not inst or not (inst is TalentInstance):
-		return {}
+	if not inst or not (inst is TalentInstance): return {}
 	var t_inst : TalentInstance = inst
-	if not t_inst.is_active:
-		return {}
-	# 注意：current_stack / is_ready / cooldown_remaining 是战斗临时状态，
-	# 故意不序列化。读档后由 Unit._init_talent_slots_from_data 重新初始化。
+	if not t_inst.is_active: return {}
 	return {
 		"talent_id": t_inst.talent_id,
 		"current_stack": t_inst.current_stack,
@@ -356,11 +318,9 @@ static func _talent_instance_to_dict(inst) -> Dictionary:
 
 
 static func _dict_to_talent_instance(d: Dictionary) -> TalentInstance:
-	if d.is_empty():
-		return null
+	if d.is_empty(): return null
 	var talent_id : String = d.get("talent_id", "")
-	if talent_id == "":
-		return null
+	if talent_id == "": return null
 	var inst := TalentInstance.new()
 	inst.talent_id = talent_id
 	inst.current_stack = d.get("current_stack", 0)
@@ -386,18 +346,17 @@ static func _array_to_talent_instance_array(arr: Array) -> Array:
 			result.append(null)
 	return result
 
-## 当前熔铸 buff 层数
+
 func get_sacrifice_buff_count() -> int:
 	return sacrifice_buff_sources.size()
 
 
-## 汇总所有熔铸 buff（按类型求和）
 func get_sacrifice_buffs() -> Dictionary:
 	var result : Dictionary = {}
 	for src_key in sacrifice_buff_sources:
 		var parts : PackedStringArray = String(src_key).split("|")
 		if parts.size() < 1: continue
-		var src_unit_name : String = parts[0]      # ★ 改名，避免 shadowing
+		var src_unit_name : String = parts[0]
 		var buff : Dictionary = UnitDataManager.get_sacrifice_buff(src_unit_name)
 		if buff.is_empty(): continue
 		var btype : String = buff.get("type", "")
@@ -407,6 +366,5 @@ func get_sacrifice_buffs() -> Dictionary:
 	return result
 
 
-## 生成"熔铸单位"的唯一 key（用于追踪）
 static func make_sacrifice_key(unit: UnitData) -> String:
 	return "%s|%s" % [unit.unit_name, unit.display_name]

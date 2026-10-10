@@ -245,9 +245,11 @@ func _grant_item(item_id: String):
 		return
 
 	Globals.unlock_item(item_id)
-	var inst2 := ItemInstance.new()
-	inst2.item_id = item_id
-	inst2.count = 1
+	var inst2 : ItemInstance = ItemManager.create_instance_with_affixes(item_id)
+	if inst2 == null:
+		inst2 = ItemInstance.new()
+		inst2.item_id = item_id
+		inst2.count = 1
 	GameState.pending_forge_rewards.append(inst2)
 	print("[宝箱] 装备进待领取区: %s" % item_data.name)
 

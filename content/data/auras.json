@@ -1,0 +1,44 @@
+{
+  "aura_flame": {
+	"id": "aura_flame", "name": "焚身", "tag": "烈焰",
+	"description": "全队攻击 +15%，每次攻击消耗 1 魂火",
+	"effect": "attack_plus_and_consume",
+	"params": { "attack_percent": 0.15, "soul_fire_cost_per_attack": 1 },
+	"research_time": 2, "unlock_cost": 100
+  },
+  "aura_cycle": {
+	"id": "aura_cycle", "name": "轮回流转", "tag": "轮回",
+	"description": "击杀敌人回 1 魂火",
+	"effect": "kill_gain_soul_fire",
+	"params": { "soul_fire_gain": 1 },
+	"research_time": 2, "unlock_cost": 100
+  },
+  "aura_ash": {
+	"id": "aura_ash", "name": "灰烬之拥", "tag": "灰烬",
+	"description": "全队受伤 -10%，反击伤害 +30%",
+	"effect": "damage_reduce_and_counter",
+	"params": { "damage_reduction": 0.10, "counter_bonus": 0.30 },
+	"research_time": 2, "unlock_cost": 100
+  },
+  "aura_guardian": {
+	"id": "aura_guardian", "name": "铁壁", "tag": "守护",
+	"description": "全队防御 +3",
+	"effect": "defense_flat",
+	"params": { "defense_flat": 3 },
+	"research_time": 2, "unlock_cost": 100
+  },
+  "aura_sacrifice": {
+	"id": "aura_sacrifice", "name": "血脉燃烧", "tag": "献祭",
+	"description": "全队击杀时治疗 15% 最大 HP",
+	"effect": "kill_heal_percent",
+	"params": { "heal_percent": 0.15 },
+	"research_time": 3, "unlock_cost": 150
+  },
+  "aura_ember": {
+	"id": "aura_ember", "name": "薪火相传", "tag": "余烬",
+	"description": "每回合开始全队 +1 魂火",
+	"effect": "turn_start_gain_soul_fire",
+	"params": { "soul_fire_gain": 1 },
+	"research_time": 3, "unlock_cost": 150
+  }
+}

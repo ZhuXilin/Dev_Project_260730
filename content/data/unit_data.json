@@ -8,22 +8,26 @@
 	"display_name": "艾琳", "faction": "王国",
 	"default_weapon": "iron_sword",
 	"default_talents": ["crit", "parry"],
+	"max_talent_slots": 1,
 	"arena_exp": 30,
 	"available_blessings": ["strength", "dexterity"],
 	"soul_weapon": "soul_sword",
-	"sacrifice_buff": {
-	  "type": "attack_percent",
-	  "value": 0.20,
-	  "display": "全队攻击 +20%"
-	},
-	"advanced_class": {
-	  "id": "swordsman_hero", "name": "剑圣",
-	  "description": "疾风剑术，暴击强化",
-	  "stat_bonus": { "max_hp": 5, "dexterity": 3, "strength": 2 },
-	  "granted_talent": "active_charge",
-	  "flavor": "以一人一剑，断千军万马。",
-	  "sprite_frames_path": ""
-	}
+	"tags": ["物理", "守护"],
+	"sacrifice_buff": { "type": "attack_percent", "value": 0.20, "display": "全队攻击 +20%" },
+	"advanced_branches": [
+	  { "id": "swordsman_berserker", "name": "狂战士",
+		"description": "烈焰形态，攻击 +50%，每次攻击消耗 1 魂火",
+		"stat_bonus": { "max_hp": 5, "strength": 5, "dexterity": 1 },
+		"granted_talent": "active_charge",
+		"flavor": "血已沸腾，唯有杀戮能平。",
+		"sprite_frames_path": "", "tags": ["物理", "烈焰"] },
+	  { "id": "swordsman_guardian", "name": "盾卫",
+		"description": "守护形态，嘲讽 + 护盾，受击 30% 回 1 魂火",
+		"stat_bonus": { "max_hp": 8, "strength": 2, "faith": 2 },
+		"granted_talent": "active_taunt",
+		"flavor": "我的盾，就是同伴的墙。",
+		"sprite_frames_path": "", "tags": ["物理", "守护"] }
+	]
   },
   "spearman": {
 	"max_hp": 27, "strength": 8, "dexterity": 5,
@@ -34,22 +38,27 @@
 	"display_name": "罗兰", "faction": "王国",
 	"default_weapon": "steel_spear",
 	"default_talents": ["crit"],
+	"max_talent_slots": 1,
 	"arena_exp": 35,
 	"available_blessings": ["strength", "dexterity", "vitality"],
 	"soul_weapon": "soul_lance",
-	"sacrifice_buff": {
-	  "type": "counter_damage_bonus",
-	  "value": 0.40,
-	  "display": "全队反击伤害 +40%"
-	},
-	"advanced_class": {
-	  "id": "spearman_dragoon", "name": "龙骑将",
-	  "description": "跃击破空，反击强化",
-	  "stat_bonus": { "max_hp": 4, "strength": 3, "dexterity": 2 },
-	  "granted_talent": "active_pierce",
-	  "flavor": "长枪所指，便是雷光落处。",
-	  "sprite_frames_path": "res://content/images/characters/unit_knight_upgrade_frames.tres"
-	}
+	"tags": ["物理", "守护"],
+	"sacrifice_buff": { "type": "counter_damage_bonus", "value": 0.40, "display": "全队反击伤害 +40%" },
+	"advanced_branches": [
+	  { "id": "spearman_dragoon", "name": "龙骑将",
+		"description": "跃击破空，反击强化",
+		"stat_bonus": { "max_hp": 4, "strength": 3, "dexterity": 2 },
+		"granted_talent": "active_pierce",
+		"flavor": "长枪所指，便是雷光落处。",
+		"sprite_frames_path": "res://content/images/characters/unit_knight_upgrade_frames.tres",
+		"tags": ["物理", "烈焰"] },
+	  { "id": "spearman_ironshield", "name": "铁壁枪兵",
+		"description": "防御态势，受击回魂火",
+		"stat_bonus": { "max_hp": 6, "strength": 3, "faith": 2 },
+		"granted_talent": "parry",
+		"flavor": "枪如林，盾如墙。",
+		"sprite_frames_path": "", "tags": ["物理", "守护"] }
+	]
   },
   "axeman": {
 	"max_hp": 17, "strength": 10, "dexterity": 4,
@@ -60,22 +69,26 @@
 	"display_name": "格伦", "faction": "海盗",
 	"default_weapon": "battle_axe",
 	"default_talents": ["block", "bleed"],
+	"max_talent_slots": 1,
 	"arena_exp": 25,
 	"available_blessings": ["strength", "vitality"],
 	"soul_weapon": "soul_axe",
-	"sacrifice_buff": {
-	  "type": "crit_damage_bonus",
-	  "value": 0.40,
-	  "display": "全队暴击伤害 +40%"
-	},
-	"advanced_class": {
-	  "id": "axeman_berserker", "name": "狂战士",
-	  "description": "血战不休，攻击吸血",
-	  "stat_bonus": { "max_hp": 6, "strength": 3 },
-	  "granted_talent": "lifesteal",
-	  "flavor": "血已沸腾，唯有杀戮能平。",
-	  "sprite_frames_path": ""
-	}
+	"tags": ["物理", "烈焰"],
+	"sacrifice_buff": { "type": "crit_damage_bonus", "value": 0.40, "display": "全队暴击伤害 +40%" },
+	"advanced_branches": [
+	  { "id": "axeman_berserker", "name": "狂战士",
+		"description": "血战不休，攻击吸血",
+		"stat_bonus": { "max_hp": 6, "strength": 3 },
+		"granted_talent": "lifesteal",
+		"flavor": "血已沸腾，唯有杀戮能平。",
+		"sprite_frames_path": "", "tags": ["物理", "烈焰"] },
+	  { "id": "axeman_ashcleaver", "name": "灰烬劈砍者",
+		"description": "灰烬形态，暴击即回魂火",
+		"stat_bonus": { "max_hp": 5, "strength": 4, "dexterity": 1 },
+		"granted_talent": "active_heavy_slash",
+		"flavor": "斧过之处，只剩灰烬。",
+		"sprite_frames_path": "", "tags": ["物理", "灰烬"] }
+	]
   },
   "archer": {
 	"max_hp": 14, "strength": 4, "dexterity": 9,
@@ -86,22 +99,26 @@
 	"display_name": "莉安娜", "faction": "王国",
 	"default_weapon": "longbow",
 	"default_talents": ["crit", "double_attack"],
+	"max_talent_slots": 1,
 	"arena_exp": 30,
 	"available_blessings": ["dexterity", "arcane"],
 	"soul_weapon": "soul_bow",
-	"sacrifice_buff": {
-	  "type": "crit_damage_bonus",
-	  "value": 0.20,
-	  "display": "全队暴击伤害 +20%"
-	},
-	"advanced_class": {
-	  "id": "archer_sniper", "name": "神射手",
-	  "description": "一击必中，二次攻击",
-	  "stat_bonus": { "max_hp": 3, "dexterity": 4 },
-	  "granted_talent": "double_attack",
-	  "flavor": "风，停了。",
-	  "sprite_frames_path": ""
-	}
+	"tags": ["物理", "灰烬"],
+	"sacrifice_buff": { "type": "crit_damage_bonus", "value": 0.20, "display": "全队暴击伤害 +20%" },
+	"advanced_branches": [
+	  { "id": "archer_sniper", "name": "神射手",
+		"description": "一击必中，二次攻击",
+		"stat_bonus": { "max_hp": 3, "dexterity": 4 },
+		"granted_talent": "active_snipe",
+		"flavor": "风，停了。",
+		"sprite_frames_path": "", "tags": ["物理", "灰烬"] },
+	  { "id": "archer_hunter", "name": "猎杀者",
+		"description": "追击残敌，连续击杀",
+		"stat_bonus": { "max_hp": 4, "dexterity": 3, "strength": 2 },
+		"granted_talent": "double_attack",
+		"flavor": "猎人与猎物，只有一步之差。",
+		"sprite_frames_path": "", "tags": ["物理"] }
+	]
   },
   "pegasus": {
 	"max_hp": 24, "strength": 6, "dexterity": 7,
@@ -112,22 +129,26 @@
 	"display_name": "塞拉", "faction": "海盗",
 	"default_weapon": "steel_spear",
 	"default_talents": ["crit"],
+	"max_talent_slots": 1,
 	"arena_exp": 40,
 	"available_blessings": ["dexterity", "arcane", "vitality"],
 	"soul_weapon": "soul_javelin",
-	"sacrifice_buff": {
-	  "type": "counter_damage_bonus",
-	  "value": 0.25,
-	  "display": "全队反击伤害 +25%"
-	},
-	"advanced_class": {
-	  "id": "pegasus_valkyrie", "name": "女武神",
-	  "description": "天空之主，暴击猎手",
-	  "stat_bonus": { "max_hp": 5, "dexterity": 3, "strength": 1 },
-	  "granted_talent": "active_dive",
-	  "flavor": "天马嘶鸣，是死者的战歌。",
-	  "sprite_frames_path": ""
-	}
+	"tags": ["物理", "守护"],
+	"sacrifice_buff": { "type": "counter_damage_bonus", "value": 0.25, "display": "全队反击伤害 +25%" },
+	"advanced_branches": [
+	  { "id": "pegasus_valkyrie", "name": "女武神",
+		"description": "天空之主，暴击猎手",
+		"stat_bonus": { "max_hp": 5, "dexterity": 3, "strength": 1 },
+		"granted_talent": "active_dive",
+		"flavor": "天马嘶鸣，是死者的战歌。",
+		"sprite_frames_path": "", "tags": ["物理", "守护"] },
+	  { "id": "pegasus_windrider", "name": "疾风骑士",
+		"description": "驰风掠影，移动如风",
+		"stat_bonus": { "max_hp": 3, "dexterity": 4, "move_range": 1 },
+		"granted_talent": "double_attack",
+		"flavor": "你只看到风的痕迹。",
+		"sprite_frames_path": "", "tags": ["物理", "灰烬"] }
+	]
   },
   "mage": {
 	"max_hp": 18, "strength": 3, "dexterity": 5,
@@ -138,22 +159,26 @@
 	"display_name": "梅林", "faction": "王国",
 	"default_weapon": "fire_spellbook",
 	"default_talents": ["spell_chain"],
+	"max_talent_slots": 1,
 	"arena_exp": 35,
 	"available_blessings": ["intelligence", "faith"],
 	"soul_weapon": "soul_tome",
-	"sacrifice_buff": {
-	  "type": "attack_percent",
-	  "value": 0.25,
-	  "display": "全队攻击 +25%"
-	},
-	"advanced_class": {
-	  "id": "mage_archmage", "name": "大魔导",
-	  "description": "奥术极致，法术连击",
-	  "stat_bonus": { "max_hp": 3, "intelligence": 4, "faith": 1 },
-	  "granted_talent": "active_fireball",
-	  "flavor": "元素皆是我意志的延伸。",
-	  "sprite_frames_path": ""
-	}
+	"tags": ["法术", "烈焰"],
+	"sacrifice_buff": { "type": "attack_percent", "value": 0.25, "display": "全队攻击 +25%" },
+	"advanced_branches": [
+	  { "id": "mage_archmage", "name": "大魔导",
+		"description": "奥术极致，法术连击",
+		"stat_bonus": { "max_hp": 3, "intelligence": 4, "faith": 1 },
+		"granted_talent": "active_fireball",
+		"flavor": "元素皆是我意志的延伸。",
+		"sprite_frames_path": "", "tags": ["法术", "烈焰"] },
+	  { "id": "mage_curser", "name": "咒术师",
+		"description": "诅咒敌人，击杀回魂火",
+		"stat_bonus": { "max_hp": 4, "intelligence": 3, "arcane": 2 },
+		"granted_talent": "spell_chain",
+		"flavor": "命运从不仁慈，我只是替它开口。",
+		"sprite_frames_path": "", "tags": ["法术", "轮回"] }
+	]
   },
   "cleric": {
 	"max_hp": 14, "strength": 2, "dexterity": 4,
@@ -164,22 +189,26 @@
 	"display_name": "菲奥娜", "faction": "王国",
 	"default_weapon": "healing_staff",
 	"default_talents": ["heal_boost"],
+	"max_talent_slots": 1,
 	"arena_exp": 30,
 	"available_blessings": ["faith", "intelligence", "vitality"],
 	"soul_weapon": "soul_staff",
-	"sacrifice_buff": {
-	  "type": "heal_bonus",
-	  "value": 0.40,
-	  "display": "全队治疗量 +40%"
-	},
-	"advanced_class": {
-	  "id": "cleric_saint", "name": "圣者",
-	  "description": "神恩眷顾，治疗强化",
-	  "stat_bonus": { "max_hp": 5, "faith": 4, "intelligence": 1 },
-	  "granted_talent": "active_mass_heal",
-	  "flavor": "以我血肉，换你重生。",
-	  "sprite_frames_path": ""
-	}
+	"tags": ["法术", "献祭"],
+	"sacrifice_buff": { "type": "heal_bonus", "value": 0.40, "display": "全队治疗量 +40%" },
+	"advanced_branches": [
+	  { "id": "cleric_saint", "name": "圣者",
+		"description": "神恩眷顾，治疗强化",
+		"stat_bonus": { "max_hp": 5, "faith": 4, "intelligence": 1 },
+		"granted_talent": "active_mass_heal",
+		"flavor": "以我血肉，换你重生。",
+		"sprite_frames_path": "", "tags": ["法术", "献祭"] },
+	  { "id": "cleric_guardian", "name": "守护者",
+		"description": "护盾加身，队友减伤",
+		"stat_bonus": { "max_hp": 6, "faith": 3, "strength": 1 },
+		"granted_talent": "block",
+		"flavor": "我不能拯救所有人，但我可以守护你。",
+		"sprite_frames_path": "", "tags": ["法术", "守护"] }
+	]
   },
   "dragonborn": {
 	"max_hp": 30, "strength": 8, "dexterity": 3,
@@ -190,22 +219,26 @@
 	"display_name": "拉兹", "faction": "龙族",
 	"default_weapon": "fire_dragonstone",
 	"default_talents": ["parry", "block"],
+	"max_talent_slots": 1,
 	"arena_exp": 60,
 	"available_blessings": ["strength", "arcane", "intelligence"],
 	"soul_weapon": "soul_dragonstone",
-	"sacrifice_buff": {
-	  "type": "damage_reduction",
-	  "value": 0.15,
-	  "display": "全队减伤 +15%"
-	},
-	"advanced_class": {
-	  "id": "dragonborn_dragonlord", "name": "龙领主",
-	  "description": "龙威降临，铁壁坚守",
-	  "stat_bonus": { "max_hp": 10, "strength": 3, "arcane": 2 },
-	  "granted_talent": "block",
-	  "flavor": "吾乃龙之血脉，不灭之躯。",
-	  "sprite_frames_path": ""
-	}
+	"tags": ["法术", "余烬"],
+	"sacrifice_buff": { "type": "damage_reduction", "value": 0.15, "display": "全队减伤 +15%" },
+	"advanced_branches": [
+	  { "id": "dragonborn_dragonlord", "name": "龙领主",
+		"description": "龙威降临，铁壁坚守",
+		"stat_bonus": { "max_hp": 10, "strength": 3, "arcane": 2 },
+		"granted_talent": "active_dragon_breath",
+		"flavor": "吾乃龙之血脉，不灭之躯。",
+		"sprite_frames_path": "", "tags": ["法术", "余烬"] },
+	  { "id": "dragonborn_ashtongue", "name": "灰烬吐息者",
+		"description": "焚尽一切，代价自受",
+		"stat_bonus": { "max_hp": 6, "arcane": 4, "dexterity": 2 },
+		"granted_talent": "active_fireball",
+		"flavor": "以灰烬为食，以烈火为语。",
+		"sprite_frames_path": "", "tags": ["法术", "灰烬"] }
+	]
   },
   "armored": {
 	"max_hp": 30, "strength": 9, "dexterity": 3,
@@ -216,21 +249,26 @@
 	"display_name": "巴尔", "faction": "王国",
 	"default_weapon": "iron_sword",
 	"default_talents": ["block"],
+	"max_talent_slots": 1,
 	"arena_exp": 55,
 	"available_blessings": ["strength", "vitality", "faith"],
 	"soul_weapon": "soul_blade",
-	"sacrifice_buff": {
-	  "type": "defense_flat",
-	  "value": 3,
-	  "display": "全队防御 +3"
-	},
-	"advanced_class": {
-	  "id": "armored_paladin", "name": "圣骑士",
-	  "description": "神盾铁壁，反弹一切",
-	  "stat_bonus": { "max_hp": 12, "strength": 3, "faith": 2 },
-	  "granted_talent": "active_taunt",
-	  "flavor": "我的盾，就是神的旨意。",
-	  "sprite_frames_path": "res://content/images/characters/unit_heavyarmored_upgrade_frames.tres"
-	}
+	"tags": ["物理", "守护"],
+	"sacrifice_buff": { "type": "defense_flat", "value": 3, "display": "全队防御 +3" },
+	"advanced_branches": [
+	  { "id": "armored_paladin", "name": "圣骑士",
+		"description": "神盾铁壁，反弹一切",
+		"stat_bonus": { "max_hp": 12, "strength": 3, "faith": 2 },
+		"granted_talent": "active_taunt",
+		"flavor": "我的盾，就是神的旨意。",
+		"sprite_frames_path": "res://content/images/characters/unit_heavyarmored_upgrade_frames.tres",
+		"tags": ["物理", "守护"] },
+	  { "id": "armored_flamebearer", "name": "焚身者",
+		"description": "烈焰附身，攻守兼备",
+		"stat_bonus": { "max_hp": 8, "strength": 4, "arcane": 2 },
+		"granted_talent": "active_heavy_slash",
+		"flavor": "熔炉之中，我成为火。",
+		"sprite_frames_path": "", "tags": ["物理", "烈焰"] }
+	]
   }
 }
