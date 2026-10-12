@@ -68,20 +68,21 @@ input[type=checkbox]{accent-color:#2d6cdf;margin-right:4px}
 #layer-list{display:flex;flex-direction:column;gap:2px;margin-bottom:8px;max-height:220px;overflow-y:auto;background:#1a1a1f;border:1px solid #333;border-radius:4px;padding:4px}
 #layer-list::-webkit-scrollbar{width:6px}
 #layer-list::-webkit-scrollbar-thumb{background:#444;border-radius:3px}
-.layer-item{display:flex;align-items:center;gap:6px;padding:4px 6px;background:#26262b;border-radius:3px;cursor:pointer;font-size:12px;border:1px solid transparent}
+.layer-item{display:flex;align-items:center;gap:6px;padding:4px 6px;background:#26262b;border-radius:3px;cursor:pointer;font-size:12px;border:1px solid transparent;transition:box-shadow .08s}
 .layer-item:hover{background:#33333a}
 .layer-item.active{border-color:#2d6cdf;background:#2d3a54}
+.layer-item.dragging{opacity:.4}
+.layer-item.drag-over-top{box-shadow:0 -3px 0 #2d6cdf}
+.layer-item.drag-over-bottom{box-shadow:0 3px 0 #2d6cdf}
 .layer-item .eye{width:18px;text-align:center;font-size:13px;opacity:.85;flex-shrink:0;cursor:pointer}
 .layer-item .eye.off{opacity:.3}
 .layer-item .thumb{width:26px;height:26px;flex-shrink:0;background:#101013;border:1px solid #444;border-radius:2px;image-rendering:pixelated;background-image:linear-gradient(45deg,#1d1d22 25%,transparent 25%),linear-gradient(-45deg,#1d1d22 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#1d1d22 75%),linear-gradient(-45deg,transparent 75%,#1d1d22 75%);background-size:6px 6px;background-position:0 0,0 3px,3px -3px,-3px 0}
 .layer-item .name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .layer-item .name input{width:100%;background:#15151a;color:#ddd;border:1px solid #2d6cdf;border-radius:2px;padding:1px 3px;font:inherit;font-size:12px}
 .sel-mode-btn.on{background:#2d6cdf;border-color:#4a8cf5;color:#fff}
-/* 颜色色块 */
 .color-chip{width:40px;height:28px;border-radius:4px;border:2px solid #555;cursor:pointer;flex-shrink:0;box-shadow:inset 0 0 0 1px rgba(0,0,0,.5);position:relative}
 .color-chip:hover{border-color:#888}
 .color-chip:active{border-color:#2d6cdf}
-/* 自定义调色板弹窗 */
 .cp-popup{position:fixed;z-index:3000;background:#2d2d34;border:1px solid #444;border-radius:6px;padding:10px;width:264px;box-shadow:0 8px 30px rgba(0,0,0,.75);display:none}
 .cp-popup.open{display:block}
 .cp-header{font-size:11px;color:#6fb8ff;font-weight:600;margin-bottom:8px;letter-spacing:.5px}
@@ -109,16 +110,14 @@ input[type=checkbox]{accent-color:#2d6cdf;margin-right:4px}
     <button class="menu-btn" data-menu="edit">编辑 ▾</button>
     <span class="sep"></span>
     <button class="tool-btn active" data-tool="1" title="选择/移动 (V)">选</button>
-    <button class="tool-btn" data-tool="2" title="铅笔 (B)">笔</button>
+    <button class="tool-btn" data-tool="2" title="铅笔 (B) · Alt+点击吸色">笔</button>
     <button class="tool-btn" data-tool="3" title="橡皮 (E)">擦</button>
     <button class="tool-btn" data-tool="5" title="吸管 (I)">吸</button>
-    <button class="tool-btn" data-tool="4" title="油漆桶 (G)">桶</button>
+    <button class="tool-btn" data-tool="4" title="油漆桶 (G) · Alt+点击吸色">桶</button>
     <button class="tool-btn" data-tool="6" title="替换色 (J)">换</button>
     <span class="sep"></span>
     <button id="btn-undo" title="撤销 (Ctrl+Z)">撤销</button>
     <button id="btn-redo" title="重做 (Ctrl+Shift+Z)">重做</button>
-    <span class="sep"></span>
-    <button id="btn-view-mode" title="切换单格/全图显示">单格</button>
     <span class="sep"></span>
     <button id="btn-save-as-png" title="另存为 PNG">另存 PNG</button>
     <button id="btn-save-as-proj" title="另存为工程">另存工程</button>
@@ -129,6 +128,8 @@ input[type=checkbox]{accent-color:#2d6cdf;margin-right:4px}
     <button id="btn-fit" title="适应窗口 (F)">适应</button>
     <span class="sep"></span>
     <button id="btn-bg" title="切换观察背景">格子</button>
+    <span class="sep"></span>
+    <button id="btn-view-mode" title="切换单格/全图显示">单格</button>
   </div>
 
   <div id="workarea">
@@ -199,7 +200,7 @@ input[type=checkbox]{accent-color:#2d6cdf;margin-right:4px}
       </div>
 
       <div class="section">
-        <h3>图层</h3>
+        <h3>图层 <span class="hint">（拖动排序）</span></h3>
         <div id="layer-list"></div>
         <div class="row">
           <button id="btn-layer-new">新建</button>
@@ -218,16 +219,22 @@ input[type=checkbox]{accent-color:#2d6cdf;margin-right:4px}
       </div>
 
       <div class="section">
-        <h3>参考线</h3>
+        <h3>参考线 / 吸附</h3>
         <div class="row">
-          <label><input type="checkbox" id="snap-enabled" checked> 吸附参考线</label>
+          <label><input type="checkbox" id="snap-enabled" checked> 吸附（参考线 / 格子）</label>
         </div>
-        <div class="row"><button id="btn-guides-clear">清空参考线</button></div>
+        <div class="row">
+          <button id="btn-guides-toggle">隐藏参考线</button>
+          <button id="btn-guides-clear">清空参考线</button>
+        </div>
         <div style="color:#888;font-size:11px;line-height:1.6">
           顶部标尺往下拖 → 水平参考线<br>
           左侧标尺往右拖 → 垂直参考线<br>
-          <b>鼠标靠近参考线直接拖动</b> → 移动<br>
-          <b>双击参考线</b> → 删除
+          <b>Ctrl + 鼠标靠近参考线拖动</b> → 移动<br>
+          拖动时自动吸附到格子边沿 / 中心<br>
+          <b>双击参考线</b> → 删除<br>
+          选框终点会吸附到邻近参考线（起点不吸附）<br>
+          <b>隐藏参考线后不吸附、不可拖动</b>
         </div>
       </div>
 
@@ -249,14 +256,15 @@ input[type=checkbox]{accent-color:#2d6cdf;margin-right:4px}
         <div class="row">
           <button id="btn-sel-all">全选 <span style="color:#888">(Ctrl+A)</span></button>
           <button id="btn-sel-none">取消 <span style="color:#888">(Ctrl+D)</span></button>
-          <button id="btn-sel-inv">反选</button>
+          <button id="btn-sel-inv">反选 <span style="color:#888">(Ctrl+I)</span></button>
         </div>
         <div class="row">
           <button id="btn-sel-cell">选当前格</button>
           <button id="btn-del-sel">删除像素</button>
         </div>
         <div style="color:#888;font-size:11px;margin-top:4px">
-          <b>Shift</b> 加选 · <b>Alt/Ctrl</b> 减选 · <b>X</b> 锁 1:1
+          <b>Shift</b> 正方形 · <b>Ctrl</b> 加选 · <b>Alt</b> 减选<br>
+          <b>Ctrl+C</b> 复制 · <b>Ctrl+X</b> 剪切 · <b>Ctrl+V</b> 粘贴 · <b>Ctrl+Shift+V</b> 粘贴为新图层
         </div>
       </div>
     </aside>
@@ -285,18 +293,12 @@ input[type=checkbox]{accent-color:#2d6cdf;margin-right:4px}
   <hr>
   <div data-act="select-all">全选 <span class="sc">Ctrl+A</span></div>
   <div data-act="select-none">取消选择 <span class="sc">Ctrl+D</span></div>
-  <div data-act="select-inv">反选</div>
+  <div data-act="select-inv">反选 <span class="sc">Ctrl+I</span></div>
   <div data-act="select-cell">选择当前格</div>
-  <hr>
-  <div data-act="copy">复制 <span class="sc">Ctrl+C</span></div>
-  <div data-act="cut">剪切 <span class="sc">Ctrl+X</span></div>
-  <div data-act="paste">粘贴 <span class="sc">Ctrl+V</span></div>
-  <div data-act="paste-layer">粘贴为新图层</div>
   <hr>
   <div data-act="delete">删除选中像素 <span class="sc">Del</span></div>
 </div>
 
-<!-- 自定义调色板弹窗 -->
 <div class="cp-popup" id="color-picker-popup">
   <div class="cp-header" id="cp-title">主色</div>
   <canvas class="cp-sv" id="cp-sv" width="244" height="140"></canvas>
@@ -319,23 +321,13 @@ input[type=checkbox]{accent-color:#2d6cdf;margin-right:4px}
 'use strict';
 (function(){
 
-/* ============================================================
- *  NES 调色板（NTSC 2C02 · Nestopia 系列采样）
- *  说明：NES RGB 值没有唯一权威版本（输出的是模拟信号），
- *  不同仿真器/采样会产生不同数值。此处 $36 采用 FFBFAF，
- *  与用户已有的 NES 8bit 图对齐。
- * ============================================================ */
 var NES_HEX = [
-  // $00 行
   '626262','002E94','1E0FB7','4C00B2','92009A','BE005F','C61F07','BC401A',
   '906804','4E7A04','1D8704','009200','00949B','000000','000000','000000',
-  // $10 行
   'ABABAB','0064E3','1F38EF','5B15EE','A708D9','D90D74','E7281C','E1551F',
   'DA7A00','89B100','4CB800','00B100','00D0C0','4C4C4C','000000','000000',
-  // $20 行
   'F8F8F8','3CBCFC','6888FC','9878F8','F878F8','F85898','F87858','FCA044',
   'F8B800','B8F818','58D854','58F898','00E8D8','787878','000000','000000',
-  // $30 行（$36 已改为 FFBFAF）
   'FCFCFC','A4E4FC','B8B8F8','D8B8F8','F8B8F8','F8A4C0','FFBFAF','FCE0A8',
   'F8D878','D8F878','B8F8B8','B8F8D8','00FCFC','F8D8F8','000000','000000'
 ];
@@ -348,6 +340,8 @@ var SEL_REPLACE=0, SEL_ADD=1, SEL_SUB=2;
 var HISTORY_MAX = 60;
 var RULER = 20;
 var BG_NAMES = ['白底','灰底','黑底','格子'];
+var GUIDE_HIT_PX = 2;
+var SNAP_HIT_PX = 6;
 
 var bgMode = 3;
 
@@ -366,6 +360,7 @@ var ui = {
   brushSize:1,
   primary:[0,0,0,255], secondary:[255,255,255,255],
   showGrid:true, showPixelGrid:true,
+  showGuides:true,
   snapEnabled:true, snapThreshold:3,
   singleCell:false, currentCell:0,
   paletteNES:[], paletteCustom:[],
@@ -379,21 +374,21 @@ var drag = {
   guideIdx:-1, guideAxis:0, guideStart:0,
   guideNew:false, guideStartPos:0
 };
-var mouse = { inside:false, sx:0, sy:0, px:0, py:0, inRulerTop:false, inRulerLeft:false };
+var mouse = { inside:false, sx:0, sy:0, px:0, py:0, hasValidPos:false, inRulerTop:false, inRulerLeft:false };
+/* clipboard 保留用于窗口内兼容（image/* 无法从剪贴板读回时），不再有 read() 逻辑 */
 var clipboard = null;
 var needsRender = true;
 var spaceDown = false;
-var xKeyDown = false;
 var checkerPattern = null;
 var animPreviewDirty = true;
 var animDragging = false;
 var gridSyncing = false;
 var layerRenaming = -1;
+var layerDragFrom = -1;
 var selModeOverride = SEL_REPLACE;
 var dashOffset = 0;
 var gridHistTimer = 0;
 
-/* 自定义调色板状态 */
 var cpTarget = 'primary';
 var cpActive = false;
 var cpPickingFromCanvas = false;
@@ -425,9 +420,6 @@ function rgbToHex(rgba){
 }
 function colorsEqual(a,b){ return a[0]===b[0]&&a[1]===b[1]&&a[2]===b[2]&&a[3]===b[3]; }
 
-/* ============================================================
- *  HSV <-> RGB
- * ============================================================ */
 function hsvToRgb(h, s, v) {
   h = ((h % 360) + 360) % 360;
   var c = v * s;
@@ -440,11 +432,7 @@ function hsvToRgb(h, s, v) {
   else if (h < 240) { r = 0; g = x; b = c; }
   else if (h < 300) { r = x; g = 0; b = c; }
   else { r = c; g = 0; b = x; }
-  return [
-    Math.round((r + m) * 255),
-    Math.round((g + m) * 255),
-    Math.round((b + m) * 255)
-  ];
+  return [Math.round((r + m) * 255), Math.round((g + m) * 255), Math.round((b + m) * 255)];
 }
 function rgbToHsv(r, g, b) {
   r /= 255; g /= 255; b /= 255;
@@ -460,6 +448,55 @@ function rgbToHsv(r, g, b) {
   }
   var s = max === 0 ? 0 : d / max;
   return [h, s, max];
+}
+
+function getSnapThreshold(){ return Math.max(2, SNAP_HIT_PX / view.zoom); }
+
+function snapGuideToGrid(axis, pos){
+  if(!ui.snapEnabled) return pos;
+  var thr = getSnapThreshold();
+  var g = doc.grid;
+  if(g.w <= 0 || g.h <= 0) return pos;
+  var cell = (axis === 0) ? g.w : g.h;
+  var maxDim = (axis === 0) ? doc.width : doc.height;
+  var n = Math.ceil(maxDim / cell);
+  var best = pos, bestD = Infinity;
+  for(var i=0;i<=n;i++){
+    var edge = i * cell;
+    var center = edge + cell / 2;
+    var dE = Math.abs(edge - pos);
+    if(dE <= thr && dE < bestD){ bestD = dE; best = edge; }
+    var dC = Math.abs(center - pos);
+    if(dC <= thr && dC < bestD){ bestD = dC; best = center; }
+  }
+  return best;
+}
+
+function snapSelPointToGuides(x, y){
+  if(!ui.snapEnabled || !ui.showGuides) return {x:x, y:y, snapped:false};
+  var thr = getSnapThreshold();
+  var bx = x, bdx = Infinity;
+  var by = y, bdy = Infinity;
+  var snappedX = false, snappedY = false;
+  for(var i=0;i<doc.guides.length;i++){
+    var g = doc.guides[i];
+    if(g.axis === 0){
+      var d = Math.abs(g.pos - x);
+      if(d <= thr && d < bdx){
+        bdx = d;
+        bx = (x < g.pos) ? (g.pos - 1) : g.pos;
+        snappedX = true;
+      }
+    } else {
+      var d2 = Math.abs(g.pos - y);
+      if(d2 <= thr && d2 < bdy){
+        bdy = d2;
+        by = (y < g.pos) ? (g.pos - 1) : g.pos;
+        snappedY = true;
+      }
+    }
+  }
+  return { x: Math.round(bx), y: Math.round(by), snapped: (snappedX || snappedY) };
 }
 
 function rebuildComposite(){
@@ -566,9 +603,6 @@ function rebuildHighlightMask(){
   _highlightDirty = false;
 }
 
-/* ============================================================
- *  历史
- * ============================================================ */
 var historyStack = [];
 var historyIndex = -1;
 
@@ -577,10 +611,7 @@ function makeSnapshot(){
     w:doc.width, h:doc.height,
     activeLayer:doc.activeLayer,
     layers:doc.layers.map(function(L){
-      return {
-        name:L.name, visible:L.visible, opacity:L.opacity,
-        data:new Uint8ClampedArray(L.imageData.data)
-      };
+      return { name:L.name, visible:L.visible, opacity:L.opacity, data:new Uint8ClampedArray(L.imageData.data) };
     }),
     sel:new Uint8Array(doc.selMask),
     hasSel:doc.hasSelection,
@@ -590,8 +621,7 @@ function makeSnapshot(){
   };
 }
 function restoreSnapshot(s){
-  drag.mode = null; drag.guideIdx = -1; drag.lastPx = null;
-  drag.guideNew = false;
+  drag.mode = null; drag.guideIdx = -1; drag.lastPx = null; drag.guideNew = false;
   if(s.w !== doc.width || s.h !== doc.height){
     doc.width = s.w; doc.height = s.h;
     doc.imageCanvas = document.createElement('canvas');
@@ -599,25 +629,16 @@ function restoreSnapshot(s){
     doc.imageCtx = doc.imageCanvas.getContext('2d');
   }
   doc.layers = s.layers.map(function(L){
-    return {
-      name:L.name, visible:L.visible, opacity:L.opacity,
-      imageData:new ImageData(new Uint8ClampedArray(L.data), s.w, s.h)
-    };
+    return { name:L.name, visible:L.visible, opacity:L.opacity, imageData:new ImageData(new Uint8ClampedArray(L.data), s.w, s.h) };
   });
   doc.activeLayer = Math.min(s.activeLayer, doc.layers.length-1);
   doc.imageData = doc.layers[doc.activeLayer].imageData;
   doc.selMask = new Uint8Array(s.sel);
   doc.hasSelection = s.hasSel;
   doc.selBounds = {x:s.bounds.x,y:s.bounds.y,w:s.bounds.w,h:s.bounds.h};
-  if(s.grid){
-    doc.grid.w = s.grid.w || doc.grid.w;
-    doc.grid.h = s.grid.h || doc.grid.h;
-  }
-  if(s.guides){
-    doc.guides = s.guides.map(function(g){ return {axis:g.axis,pos:g.pos}; });
-  } else {
-    doc.guides = [];
-  }
+  if(s.grid){ doc.grid.w = s.grid.w || doc.grid.w; doc.grid.h = s.grid.h || doc.grid.h; }
+  if(s.guides){ doc.guides = s.guides.map(function(g){ return {axis:g.axis,pos:g.pos}; }); }
+  else { doc.guides = []; }
   doc.floating = null; doc.floatCanvas = null;
   doc.imageDirty = true; animPreviewDirty = true;
   _highlightDirty = true;
@@ -634,8 +655,7 @@ function commitHistory(){
   updateUndoButtons();
 }
 function isBusyDrag(){
-  return drag.mode === 'move' || drag.mode === 'draw'
-      || drag.mode === 'select' || drag.mode === 'guide';
+  return drag.mode === 'move' || drag.mode === 'draw' || drag.mode === 'select' || drag.mode === 'guide';
 }
 function doUndo(){
   if(isBusyDrag()){ setStatus('请先松开鼠标再撤销'); return; }
@@ -659,9 +679,6 @@ function updateUndoButtons(){
   if(r) r.disabled = (historyIndex >= historyStack.length-1);
 }
 
-/* ============================================================
- *  笔刷
- * ============================================================ */
 function getBrushMask(size){
   size = Math.max(1,size|0);
   if(brushMaskCache[size]) return brushMaskCache[size];
@@ -695,9 +712,6 @@ function getBrushOutline(size){
   return segs;
 }
 
-/* ============================================================
- *  文档
- * ============================================================ */
 function newDoc(w,h){
   w=Math.max(1,w|0); h=Math.max(1,h|0);
   doc.width=w; doc.height=h;
@@ -785,16 +799,24 @@ function getCompositePixel(x,y){
   return [d[0],d[1],d[2],d[3]];
 }
 
-/* ============================================================
- *  图层
- * ============================================================ */
-function setActiveLayer(idx){
+function setActiveLayer(idx, skipRefresh){
   if(idx<0 || idx>=doc.layers.length) return;
   if(idx === doc.activeLayer) return;
   if(doc.floating){ commitFloat(); commitHistory(); }
   doc.activeLayer = idx;
   doc.imageData = doc.layers[idx].imageData;
-  refreshLayerList(); requestRender();
+  if(skipRefresh){
+    if(layerListEl){
+      var items = layerListEl.querySelectorAll('.layer-item');
+      for(var i=0;i<items.length;i++){
+        var cur = +items[i].dataset.idx;
+        items[i].classList.toggle('active', cur === idx);
+      }
+    }
+  } else {
+    refreshLayerList();
+  }
+  requestRender();
   setStatus('已选中图层: '+doc.layers[idx].name);
 }
 function addLayer(){
@@ -842,6 +864,28 @@ function moveLayer(dir){
   doc.imageData = doc.layers[j].imageData;
   doc.imageDirty = true; _highlightDirty = true;
   refreshLayerList(); commitHistory(); refreshColorUsage(); requestRender();
+}
+function reorderLayer(fromIdx, insertPos){
+  var arr = doc.layers;
+  var N = arr.length;
+  if(fromIdx < 0 || fromIdx >= N) return false;
+  if(insertPos < 0 || insertPos > N) return false;
+  if(fromIdx === insertPos || fromIdx + 1 === insertPos) return false;
+  var layer = arr[fromIdx];
+  arr.splice(fromIdx, 1);
+  if(fromIdx < insertPos) insertPos--;
+  arr.splice(insertPos, 0, layer);
+  for(var i=0;i<arr.length;i++){ if(arr[i] === layer){ doc.activeLayer = i; break; } }
+  doc.imageData = doc.layers[doc.activeLayer].imageData;
+  doc.imageDirty = true; _highlightDirty = true;
+  refreshLayerList(); commitHistory(); refreshColorUsage(); requestRender();
+  setStatus('图层已重排序');
+  return true;
+}
+function clearLayerDropIndicators(){
+  if(!layerListEl) return;
+  var items = layerListEl.querySelectorAll('.layer-item');
+  for(var i=0;i<items.length;i++) items[i].classList.remove('drag-over-top','drag-over-bottom');
 }
 function mergeDown(){
   var i = doc.activeLayer;
@@ -925,6 +969,44 @@ function refreshLayerList(){
       var item = document.createElement('div');
       item.className = 'layer-item' + (idx===doc.activeLayer ? ' active' : '');
       item.dataset.idx = idx;
+      item.draggable = true;
+
+      item.addEventListener('dragstart', function(e){
+        layerDragFrom = idx;
+        try{ e.dataTransfer.setData('text/plain', 'layer-'+idx); }catch(ex){}
+        try{ e.dataTransfer.effectAllowed = 'move'; }catch(ex){}
+        var it = item;
+        setTimeout(function(){ it.classList.add('dragging'); }, 0);
+      });
+      item.addEventListener('dragend', function(){
+        item.classList.remove('dragging');
+        clearLayerDropIndicators();
+        layerDragFrom = -1;
+      });
+      item.addEventListener('dragover', function(e){
+        if(layerDragFrom < 0) return;
+        e.preventDefault();
+        try{ e.dataTransfer.dropEffect = 'move'; }catch(ex){}
+        var rect = item.getBoundingClientRect();
+        var isTop = (e.clientY - rect.top) < rect.height / 2;
+        clearLayerDropIndicators();
+        item.classList.add(isTop ? 'drag-over-top' : 'drag-over-bottom');
+      });
+      item.addEventListener('dragleave', function(e){
+        if(item.contains(e.relatedTarget)) return;
+        item.classList.remove('drag-over-top','drag-over-bottom');
+      });
+      item.addEventListener('drop', function(e){
+        if(layerDragFrom < 0) return;
+        e.preventDefault();
+        var fromIdx = layerDragFrom;
+        var rect = item.getBoundingClientRect();
+        var isTop = (e.clientY - rect.top) < rect.height / 2;
+        var insertPos = isTop ? (idx + 1) : idx;
+        clearLayerDropIndicators();
+        layerDragFrom = -1;
+        reorderLayer(fromIdx, insertPos);
+      });
 
       var eye = document.createElement('span');
       eye.className = 'eye' + (L.visible ? '' : ' off');
@@ -962,6 +1044,7 @@ function refreshLayerList(){
         nameEl.textContent = '';
         var input = document.createElement('input');
         input.type = 'text'; input.value = L.name;
+        input.draggable = false;
         var finish = function(commit){
           var v = input.value.trim();
           layerRenaming = -1;
@@ -979,17 +1062,14 @@ function refreshLayerList(){
       item.addEventListener('mousedown', function(e){
         if(e.button !== 0) return;
         if(e.target && e.target.tagName === 'INPUT') return;
-        e.preventDefault();
-        setActiveLayer(idx);
+        if(e.target && e.target.classList && e.target.classList.contains('eye')) return;
+        setActiveLayer(idx, true);
       });
       layerListEl.appendChild(item);
     })(i);
   }
 }
 
-/* ============================================================
- *  网格
- * ============================================================ */
 function cellCount(){
   var g = doc.grid;
   if(g.w<=0||g.h<=0) return {x:1,y:1};
@@ -1050,9 +1130,6 @@ function onGridNMChanged(){
   scheduleGridHistory();
 }
 
-/* ============================================================
- *  选区
- * ============================================================ */
 function recalcBounds(){
   var W = doc.width, H = doc.height;
   var minx=W,miny=H,maxx=-1,maxy=-1;
@@ -1143,9 +1220,6 @@ function deleteSelection(){
   doc.imageDirty = true; _highlightDirty = true; requestRender();
 }
 
-/* ============================================================
- *  视图
- * ============================================================ */
 function resizeCanvas(){
   var rect = canvasWrap.getBoundingClientRect();
   var dpr = window.devicePixelRatio || 1;
@@ -1193,9 +1267,6 @@ function fitToView(){
   updateZoomLabel(); requestRender();
 }
 
-/* ============================================================
- *  Marching ants
- * ============================================================ */
 function paintMarchingAnts(g,mask,W,H,bounds,ox,oy,z,offset){
   g.beginPath();
   var y,x,row,prevRow,nextRow,runStart,isEdge,sx,sy;
@@ -1241,15 +1312,26 @@ function paintMarchingAnts(g,mask,W,H,bounds,ox,oy,z,offset){
   g.lineDashOffset = -offset+dashLen; g.strokeStyle = 'rgba(0,0,0,0.85)'; g.stroke();
   g.setLineDash([]);
 }
+function getEffectiveSelCur(){
+  if(!drag.square) return drag.selCur;
+  var a = drag.selStart, b = drag.selCur;
+  var dx = b.x - a.x, dy = b.y - a.y;
+  var size = Math.max(Math.abs(dx), Math.abs(dy));
+  var sx = dx >= 0 ? 1 : -1;
+  var sy = dy >= 0 ? 1 : -1;
+  return {x: a.x + sx * size, y: a.y + sy * size};
+}
 function getPreviewMask(){
   var W = doc.width, H = doc.height;
   if(!_previewMask || _previewMask.length !== W*H) _previewMask = new Uint8Array(W*H);
   _previewMask.set(doc.selMask);
   if(drag.mode === 'select' && drag.selStart && drag.selCur){
-    var x0 = Math.min(drag.selStart.x, drag.selCur.x);
-    var y0 = Math.min(drag.selStart.y, drag.selCur.y);
-    var x1 = Math.max(drag.selStart.x, drag.selCur.x);
-    var y1 = Math.max(drag.selStart.y, drag.selCur.y);
+    var a = drag.selStart;
+    var b = getEffectiveSelCur();
+    var x0 = Math.min(a.x, b.x);
+    var y0 = Math.min(a.y, b.y);
+    var x1 = Math.max(a.x, b.x);
+    var y1 = Math.max(a.y, b.y);
     var rx0 = clamp(x0,0,W), ry0 = clamp(y0,0,H);
     var rx1 = clamp(x1+1,0,W), ry1 = clamp(y1+1,0,H);
     var mode = drag.selMode;
@@ -1274,9 +1356,6 @@ function getPreviewMask(){
   return {mask:_previewMask, bounds:bounds};
 }
 
-/* ============================================================
- *  渲染
- * ============================================================ */
 function drawBackground(g,x,y,w,h){
   if(bgMode === 0){ g.fillStyle = '#ffffff'; g.fillRect(x,y,w,h); }
   else if(bgMode === 1){ g.fillStyle = '#808080'; g.fillRect(x,y,w,h); }
@@ -1327,17 +1406,22 @@ function render(){
   ctx.imageSmoothingEnabled = false;
   ctx.drawImage(doc.imageCanvas, srcX,srcY,srcW,srcH, dstX,dstY,dstW,dstH);
 
-  if(doc.floating && !ui.singleCell){
+  if(doc.floating){
     if(doc.floatDirty) rebuildFloatCanvas();
     var f = doc.floating;
-    ctx.drawImage(doc.floatCanvas, px+f.x*z, py+f.y*z, f.w*z, f.h*z);
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(RULER, RULER, W - RULER, H - RULER);
+    ctx.clip();
+    ctx.drawImage(doc.floatCanvas, ox + f.x*z, oy + f.y*z, f.w*z, f.h*z);
+    ctx.restore();
   }
 
   ctx.strokeStyle = 'rgba(120,120,140,0.9)';
   ctx.lineWidth = 1;
   ctx.strokeRect(dstX+0.5,dstY+0.5,dstW-1,dstH-1);
 
-  if(!ui.singleCell) drawGuides(z,px,py);
+  drawGuides(z, ox, oy, W, H);
 
   if(highlightColor !== null){
     if(_highlightDirty) rebuildHighlightMask();
@@ -1425,31 +1509,52 @@ function drawGridLines(z,px,py){
     ctx.strokeRect(px+cr.x*z+1,py+cr.y*z+1,cr.w*z-2,cr.h*z-2);
   }
 }
-function drawGuides(z,px,py){
+function drawGuides(z, ox, oy, W, H){
+  if(!ui.showGuides) return;
+  if(doc.guides.length === 0) return;
+  var visX0, visX1, visY0, visY1;
+  if(ui.singleCell){
+    var cr = cellRect(ui.currentCell);
+    if(!cr) return;
+    visX0 = cr.x; visX1 = cr.x + cr.w;
+    visY0 = cr.y; visY1 = cr.y + cr.h;
+  } else {
+    visX0 = 0; visX1 = doc.width;
+    visY0 = 0; visY1 = doc.height;
+  }
+  ctx.save();
   for(var i=0;i<doc.guides.length;i++){
     var g = doc.guides[i];
     if(g.axis===0){
-      var sx = px+g.pos*z+0.5;
+      if(g.pos < visX0 || g.pos > visX1) continue;
+      var sx = ox + g.pos*z + 0.5;
       ctx.strokeStyle = (drag.mode==='guide' && drag.guideIdx===i) ? 'rgba(255,230,80,0.95)' : 'rgba(64,240,255,0.85)';
       ctx.lineWidth = 1;
-      ctx.beginPath(); ctx.moveTo(sx,RULER); ctx.lineTo(sx,canvas.height); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(sx, 0); ctx.lineTo(sx, H); ctx.stroke();
     } else {
-      var sy = py+g.pos*z+0.5;
+      if(g.pos < visY0 || g.pos > visY1) continue;
+      var sy = oy + g.pos*z + 0.5;
       ctx.strokeStyle = (drag.mode==='guide' && drag.guideIdx===i) ? 'rgba(255,230,80,0.95)' : 'rgba(255,120,120,0.85)';
       ctx.lineWidth = 1;
-      ctx.beginPath(); ctx.moveTo(RULER,sy); ctx.lineTo(canvas.width,sy); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(0, sy); ctx.lineTo(W, sy); ctx.stroke();
     }
   }
+  ctx.restore();
 }
 function drawSelection(z,ox,oy){
   if(doc.floating){
     var b = {x:doc.floating.x,y:doc.floating.y,w:doc.floating.w,h:doc.floating.h};
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(RULER, RULER, canvas.width - RULER, canvas.height - RULER);
+    ctx.clip();
     ctx.strokeStyle = 'rgba(0,0,0,0.85)';
     ctx.lineWidth = 2;
     ctx.strokeRect(ox+b.x*z, oy+b.y*z, b.w*z, b.h*z);
     ctx.strokeStyle = 'rgba(255,255,255,0.95)';
     ctx.lineWidth = 1;
     ctx.strokeRect(ox+b.x*z+0.5, oy+b.y*z+0.5, b.w*z-1, b.h*z-1);
+    ctx.restore();
     return;
   }
   var drawMask = null, drawBounds = null;
@@ -1550,9 +1655,6 @@ function drawRulers(z,px,py,W,H){
   ctx.strokeRect(0.5,0.5,RULER-1,RULER-1);
 }
 
-/* ============================================================
- *  绘制原语
- * ============================================================ */
 function stampBrush(cxp,cyp,rgba){
   var pts = getBrushMask(ui.brushSize);
   var useSel = doc.hasSelection;
@@ -1653,7 +1755,8 @@ function pickAt(p){
   if(c[3] > 0){ ui.primary = c.slice(); syncColorInputs(); setStatus('取色 '+rgbToHex(c)); }
 }
 function guideAt(x,y){
-  var thr = Math.max(1,5/view.zoom);
+  if(!ui.showGuides) return -1;
+  var thr = Math.max(1, GUIDE_HIT_PX / view.zoom);
   for(var i=0;i<doc.guides.length;i++){
     var g = doc.guides[i];
     if(g.axis===0 && Math.abs(x-g.pos) <= thr) return i;
@@ -1664,6 +1767,8 @@ function guideAt(x,y){
 
 /* ============================================================
  *  剪贴板
+ *  - 复制/剪切：写剪贴板（write() 不需要权限）
+ *  - 粘贴：通过 document 的 paste 事件同步拿数据（不弹权限框）
  * ============================================================ */
 function doCopy(){
   if(!doc.hasSelection){ setStatus('没有选区可复制'); return; }
@@ -1692,82 +1797,49 @@ function doCopy(){
     setStatus('已复制 '+b.w+'×'+b.h+'（仅本页）');
   }
 }
-function readClipboardImage(cb){
-  if(navigator.clipboard && navigator.clipboard.read){
-    navigator.clipboard.read().then(function(items){
-      var tryNext = function(idx){
-        if(idx >= items.length){
-          if(clipboard){ cb({w:clipboard.w,h:clipboard.h,data:clipboard.data}); }
-          else cb(null);
-          return;
-        }
-        var item = items[idx];
-        var types = item.types;
-        var tryType = function(ti){
-          if(ti >= types.length){ tryNext(idx+1); return; }
-          var type = types[ti];
-          if(!/^image\//.test(type)){ tryType(ti+1); return; }
-          item.getType(type).then(function(blob){
-            var url = URL.createObjectURL(blob);
-            var img = new Image();
-            img.onload = function(){
-              URL.revokeObjectURL(url);
-              var c = document.createElement('canvas');
-              c.width = img.width; c.height = img.height;
-              var cx2 = c.getContext('2d');
-              cx2.imageSmoothingEnabled = false;
-              cx2.drawImage(img,0,0);
-              var id = cx2.getImageData(0,0,img.width,img.height);
-              cb({w:img.width,h:img.height,data:id.data});
-            };
-            img.onerror = function(){ URL.revokeObjectURL(url); tryType(ti+1); };
-            img.src = url;
-          }).catch(function(){ tryType(ti+1); });
-        };
-        tryType(0);
-      };
-      tryNext(0);
-    }).catch(function(){
-      if(clipboard){ cb({w:clipboard.w,h:clipboard.h,data:clipboard.data}); }
-      else cb(null);
-    });
-  } else {
-    if(clipboard){ cb({w:clipboard.w,h:clipboard.h,data:clipboard.data}); }
-    else cb(null);
-  }
+function doCut(){
+  if(!doc.hasSelection){ setStatus('没有选区可剪切'); return; }
+  doCopy();
+  deleteSelection();
+  commitHistory(); refreshColorUsage();
+  setStatus('已剪切');
 }
-function doPaste(){
-  setStatus('读取剪贴板…');
-  readClipboardImage(function(result){
-    if(!result){ setStatus('剪贴板为空'); return; }
-    if(doc.floating){ commitFloat(); commitHistory(); }
-    var W = doc.width, H = doc.height, d = doc.imageData.data;
-    for(var y=0;y<result.h;y++){
-      if(y>=H) break;
-      for(var x=0;x<result.w;x++){
-        if(x>=W) break;
-        var si = (y*result.w+x)*4, di = (y*W+x)*4;
-        d[di]=result.data[si]; d[di+1]=result.data[si+1]; d[di+2]=result.data[si+2]; d[di+3]=result.data[si+3];
-      }
-    }
-    doc.imageDirty = true; _highlightDirty = true;
-    doc.selMask.fill(0);
-    for(var yy=0;yy<Math.min(result.h,H);yy++) for(var xx=0;xx<Math.min(result.w,W);xx++) doc.selMask[yy*W+xx] = 1;
-    recalcBounds(); commitHistory(); refreshColorUsage(); requestRender();
-    setStatus('已粘贴 '+result.w+'×'+result.h);
-  });
+/* 计算粘贴起点：以内容中心对齐鼠标位置 */
+function calcPasteOrigin(w, h){
+  var mx, my;
+  if(mouse.hasValidPos){ mx = mouse.px; my = mouse.py; }
+  else { mx = Math.floor(doc.width / 2); my = Math.floor(doc.height / 2); }
+  var ox = Math.round(mx - w / 2);
+  var oy = Math.round(my - h / 2);
+  if(ox + w > doc.width) ox = doc.width - w;
+  if(oy + h > doc.height) oy = doc.height - h;
+  if(ox < 0) ox = 0;
+  if(oy < 0) oy = 0;
+  return {x: ox, y: oy};
 }
-function doPasteAsLayer(){
-  setStatus('读取剪贴板…');
-  readClipboardImage(function(result){
-    if(!result){ setStatus('剪贴板为空'); return; }
-    if(doc.floating){ commitFloat(); commitHistory(); }
-    var W = doc.width, H = doc.height;
-    var id = new ImageData(W,H);
+/* 应用从剪贴板拿到的 ImageData：
+   asLayer=true → 新建图层并写入
+   asLayer=false → 写入当前图层并设置选区 */
+function applyPastedImageData(imageData, asLayer){
+  if(!imageData) return;
+  var rw = imageData.width, rh = imageData.height;
+  var rdata = imageData.data;
+  if(doc.floating){ commitFloat(); commitHistory(); }
+  var W = doc.width, H = doc.height;
+  var org = calcPasteOrigin(rw, rh);
+
+  if(asLayer){
+    var id = new ImageData(W, H);
     var d = id.data;
-    for(var y=0;y<Math.min(result.h,H);y++) for(var x=0;x<Math.min(result.w,W);x++){
-      var si = (y*result.w+x)*4, di = (y*W+x)*4;
-      d[di]=result.data[si]; d[di+1]=result.data[si+1]; d[di+2]=result.data[si+2]; d[di+3]=result.data[si+3];
+    for(var y=0;y<rh;y++){
+      var dy = y + org.y;
+      if(dy < 0 || dy >= H) continue;
+      for(var x=0;x<rw;x++){
+        var dx = x + org.x;
+        if(dx < 0 || dx >= W) continue;
+        var si = (y*rw+x)*4, di = (dy*W+dx)*4;
+        d[di]=rdata[si]; d[di+1]=rdata[si+1]; d[di+2]=rdata[si+2]; d[di+3]=rdata[si+3];
+      }
     }
     var newLayer = {name:'粘贴图层',visible:true,opacity:255,imageData:id};
     var idx = doc.activeLayer+1;
@@ -1776,20 +1848,75 @@ function doPasteAsLayer(){
     doc.imageData = newLayer.imageData;
     doc.imageDirty = true; _highlightDirty = true;
     refreshLayerList(); commitHistory(); refreshColorUsage(); requestRender();
-    setStatus('已粘贴为新图层');
-  });
+    setStatus('已粘贴为新图层 '+rw+'×'+rh+' @ ('+org.x+','+org.y+')');
+    return;
+  }
+
+  var cur = doc.imageData.data;
+  for(var yy=0;yy<rh;yy++){
+    var dy2 = yy + org.y;
+    if(dy2 < 0 || dy2 >= H) continue;
+    for(var xx=0;xx<rw;xx++){
+      var dx2 = xx + org.x;
+      if(dx2 < 0 || dx2 >= W) continue;
+      var si2 = (yy*rw+xx)*4, di2 = (dy2*W+dx2)*4;
+      cur[di2]=rdata[si2]; cur[di2+1]=rdata[si2+1]; cur[di2+2]=rdata[si2+2]; cur[di2+3]=rdata[si2+3];
+    }
+  }
+  doc.imageDirty = true; _highlightDirty = true;
+  doc.selMask.fill(0);
+  for(var y3=0;y3<rh;y3++){
+    var dy3 = y3 + org.y;
+    if(dy3 < 0 || dy3 >= H) continue;
+    for(var x3=0;x3<rw;x3++){
+      var dx3 = x3 + org.x;
+      if(dx3 < 0 || dx3 >= W) continue;
+      doc.selMask[dy3*W+dx3] = 1;
+    }
+  }
+  recalcBounds(); commitHistory(); refreshColorUsage(); requestRender();
+  setStatus('已粘贴 '+rw+'×'+rh+' @ ('+org.x+','+org.y+')');
 }
-function doCut(){
-  if(!doc.hasSelection){ setStatus('没有选区可剪切'); return; }
-  doCopy();
-  deleteSelection();
-  commitHistory(); refreshColorUsage();
-  setStatus('已剪切');
+/* 从 paste 事件的 clipboardData 里提取 ImageData（异步读取 File） */
+function handlePasteEvent(e){
+  if(!e.clipboardData) return;
+  /* 正在输入框里 → 让浏览器自己处理 */
+  if(e.target && e.target.tagName === 'INPUT') return;
+
+  var items = e.clipboardData.items;
+  if(!items || !items.length) return;
+  var file = null;
+  for(var i=0;i<items.length;i++){
+    var it = items[i];
+    if(it.kind === 'file' && /^image\//.test(it.type)){
+      file = it.getAsFile();
+      if(file) break;
+    }
+  }
+  if(!file) return;   /* 剪贴板里没有图片 */
+
+  e.preventDefault();
+  var asLayer = !!e.shiftKey;   /* Ctrl+Shift+V → 新图层 */
+
+  var reader = new FileReader();
+  reader.onload = function(){
+    var img = new Image();
+    img.onload = function(){
+      var c = document.createElement('canvas');
+      c.width = img.width; c.height = img.height;
+      var cx2 = c.getContext('2d');
+      cx2.imageSmoothingEnabled = false;
+      cx2.drawImage(img,0,0);
+      var id = cx2.getImageData(0,0,img.width,img.height);
+      applyPastedImageData(id, asLayer);
+    };
+    img.onerror = function(){ setStatus('剪贴板图片解析失败'); };
+    img.src = reader.result;
+  };
+  reader.onerror = function(){ setStatus('剪贴板读取失败'); };
+  reader.readAsDataURL(file);
 }
 
-/* ============================================================
- *  鼠标事件
- * ============================================================ */
 function getMouse(e){
   var r = canvas.getBoundingClientRect();
   var sx = e.clientX-r.left, sy = e.clientY-r.top;
@@ -1797,7 +1924,6 @@ function getMouse(e){
   return {sx:sx,sy:sy,px:p.x,py:p.y};
 }
 function onCanvasMouseDown(e){
-  /* 画布回退取色（浏览器不支持 EyeDropper 时使用） */
   if(cpPickingFromCanvas){
     var m0 = getMouse(e);
     var c0 = getCompositePixel(m0.px, m0.py);
@@ -1819,23 +1945,30 @@ function onCanvasMouseDown(e){
   var m = getMouse(e);
   var inRulerTop = m.sy < RULER && m.sx >= RULER;
   var inRulerLeft = m.sx < RULER && m.sy >= RULER;
+  var modCtrl = e.ctrlKey || e.metaKey;
 
   if(e.button===0 && inRulerTop){
     drag.mode = 'guide'; drag.guideAxis = 1;
-    drag.guideStart = clamp(Math.round((m.sy-view.panY)/view.zoom),0,doc.height);
-    doc.guides.push({axis:1,pos:drag.guideStart});
+    var gs = clamp(Math.round((m.sy-view.panY)/view.zoom),0,doc.height);
+    gs = clamp(Math.round(snapGuideToGrid(1, gs)), 0, doc.height);
+    drag.guideStart = gs;
+    doc.guides.push({axis:1,pos:gs});
     drag.guideIdx = doc.guides.length-1;
     drag.guideNew = true;
-    drag.guideStartPos = drag.guideStart;
+    drag.guideStartPos = gs;
+    if(!ui.showGuides){ ui.showGuides = true; updateGuidesToggleButton(); }
     requestRender(); e.preventDefault(); return;
   }
   if(e.button===0 && inRulerLeft){
     drag.mode = 'guide'; drag.guideAxis = 0;
-    drag.guideStart = clamp(Math.round((m.sx-view.panX)/view.zoom),0,doc.width);
-    doc.guides.push({axis:0,pos:drag.guideStart});
+    var gs2 = clamp(Math.round((m.sx-view.panX)/view.zoom),0,doc.width);
+    gs2 = clamp(Math.round(snapGuideToGrid(0, gs2)), 0, doc.width);
+    drag.guideStart = gs2;
+    doc.guides.push({axis:0,pos:gs2});
     drag.guideIdx = doc.guides.length-1;
     drag.guideNew = true;
-    drag.guideStartPos = drag.guideStart;
+    drag.guideStartPos = gs2;
+    if(!ui.showGuides){ ui.showGuides = true; updateGuidesToggleButton(); }
     requestRender(); e.preventDefault(); return;
   }
   if(inRulerTop || inRulerLeft){ e.preventDefault(); return; }
@@ -1851,28 +1984,30 @@ function onCanvasMouseDown(e){
   }
   if(e.button !== 0) return;
 
-  var gi = guideAt(m.px, m.py);
-  if(gi >= 0 && !spaceDown){
-    drag.mode = 'guide'; drag.guideIdx = gi;
-    drag.guideNew = false;
-    drag.guideStartPos = doc.guides[gi].pos;
-    setStatus('拖动参考线 #'+gi);
-    e.preventDefault(); return;
+  if(modCtrl && !spaceDown && ui.showGuides){
+    var gi = guideAt(m.px, m.py);
+    if(gi >= 0){
+      drag.mode = 'guide'; drag.guideIdx = gi;
+      drag.guideNew = false;
+      drag.guideStartPos = doc.guides[gi].pos;
+      setStatus('拖动参考线 #'+gi);
+      e.preventDefault(); return;
+    }
   }
 
-  if(e.ctrlKey && (ui.tool===TOOL.PENCIL || ui.tool===TOOL.BUCKET)){
+  if(e.altKey && (ui.tool===TOOL.PENCIL || ui.tool===TOOL.BUCKET)){
     pickAt({x:m.px,y:m.py}); e.preventDefault(); return;
   }
 
   var selMode = selModeOverride;
   if(ui.tool === TOOL.SELECT){
-    if(e.shiftKey) selMode = SEL_ADD;
-    else if(e.altKey || e.ctrlKey) selMode = SEL_SUB;
+    if(modCtrl) selMode = SEL_ADD;
+    else if(e.altKey) selMode = SEL_SUB;
   }
 
   switch(ui.tool){
     case TOOL.SELECT:
-      if(doc.hasSelection && isSelected(m.px,m.py) && selMode === SEL_REPLACE){
+      if(doc.hasSelection && isSelected(m.px,m.py) && selMode === SEL_REPLACE && !e.shiftKey){
         beginFloat();
         drag.mode = 'move';
         drag.moveOrigin = {x:m.px,y:m.py};
@@ -1880,10 +2015,10 @@ function onCanvasMouseDown(e){
         setStatus('移动 dx=0, dy=0');
       } else {
         drag.mode = 'select';
-        drag.selStart = {x:m.px,y:m.py};
-        drag.selCur = {x:m.px,y:m.py};
+        drag.selStart = {x: m.px, y: m.py};
+        drag.selCur = {x: m.px, y: m.py};
         drag.selMode = selMode;
-        drag.square = xKeyDown;
+        drag.square = e.shiftKey;
       }
       break;
     case TOOL.PENCIL:
@@ -1911,8 +2046,10 @@ function onCanvasMouseMove(e){
   var m = getMouse(e);
   mouse.inside = true; mouse.sx = m.sx; mouse.sy = m.sy;
   mouse.px = m.px; mouse.py = m.py;
+  mouse.hasValidPos = true;
   mouse.inRulerTop = m.sy < RULER && m.sx >= RULER;
   mouse.inRulerLeft = m.sx < RULER && m.sy >= RULER;
+  var modCtrl = e.ctrlKey || e.metaKey;
 
   var cur = 'crosshair';
   if(mouse.inRulerTop) cur = 'ns-resize';
@@ -1920,9 +2057,11 @@ function onCanvasMouseMove(e){
   else if(drag.mode === 'guide'){
     var g = doc.guides[drag.guideIdx];
     cur = (g && g.axis===0) ? 'ew-resize' : 'ns-resize';
+  } else if(drag.mode === 'move'){
+    cur = 'move';
   } else {
-    var gi = guideAt(m.px, m.py);
-    if(gi >= 0 && !spaceDown){
+    var gi = ui.showGuides ? guideAt(m.px, m.py) : -1;
+    if(gi >= 0 && modCtrl && !spaceDown){
       var g2 = doc.guides[gi];
       cur = g2.axis===0 ? 'ew-resize' : 'ns-resize';
     } else if(spaceDown) cur = 'grab';
@@ -1945,17 +2084,23 @@ function onCanvasMouseMove(e){
   if(drag.mode === 'guide' && drag.guideIdx >= 0){
     var gg = doc.guides[drag.guideIdx];
     if(!gg) return;
-    if(gg.axis===0) gg.pos = clamp(m.px,0,doc.width);
-    else gg.pos = clamp(m.py,0,doc.height);
-    setStatus('参考线 '+(gg.axis===0?'竖 x':'横 y')+'='+gg.pos+' px');
+    var raw = (gg.axis === 0) ? m.px : m.py;
+    var snapped = snapGuideToGrid(gg.axis, raw);
+    var maxPos = (gg.axis === 0) ? doc.width : doc.height;
+    gg.pos = clamp(snapped, 0, maxPos);
+    var snapHint = (Math.abs(snapped - raw) > 0.001) ? '（吸附）' : '';
+    setStatus('参考线 '+(gg.axis===0?'竖 x':'横 y')+'='+Math.round(gg.pos*10)/10+' px'+snapHint);
     requestRender(); return;
   }
   if(drag.mode === 'select'){
-    drag.selCur = {x:m.px,y:m.py};
-    drag.square = xKeyDown;
-    var r = rectFromPoints(drag.selStart,drag.selCur,drag.square);
+    var snapPt = snapSelPointToGuides(m.px, m.py);
+    drag.selCur = {x: snapPt.x, y: snapPt.y};
+    drag.square = e.shiftKey;
+    var r = rectFromPoints(drag.selStart, drag.selCur, drag.square);
     var mn = drag.selMode===SEL_ADD?'（加选）':drag.selMode===SEL_SUB?'（减选）':'';
-    setStatus('选区 '+r.w+' × '+r.h+' px'+(drag.square?' (1:1)':'')+mn);
+    var sq = drag.square ? ' (1:1)' : '';
+    var sn = snapPt.snapped ? '（吸附）' : '';
+    setStatus('选区 '+r.w+' × '+r.h+' px'+sq+sn+mn);
     requestRender(); return;
   }
   if(drag.mode === 'move' && doc.floating){
@@ -2005,13 +2150,9 @@ function onCanvasMouseUp(){
   requestRender();
 }
 
-/* ============================================================
- *  键盘
- * ============================================================ */
 function onKeyDown(e){
   if(e.target.tagName === 'INPUT') return;
   if(e.key === ' ' && !e.repeat) spaceDown = true;
-  if((e.key === 'x' || e.key === 'X') && !e.repeat) xKeyDown = true;
 
   if(e.ctrlKey || e.metaKey){
     switch(e.key.toLowerCase()){
@@ -2019,9 +2160,10 @@ function onKeyDown(e){
       case 'y': e.preventDefault(); doRedo(); return;
       case 'a': e.preventDefault(); selectAll(); return;
       case 'd': e.preventDefault(); deselectAll(); return;
+      case 'i': e.preventDefault(); invertSelection(); return;
       case 'c': e.preventDefault(); doCopy(); return;
       case 'x': e.preventDefault(); doCut(); return;
-      case 'v': e.preventDefault(); if(e.shiftKey) doPasteAsLayer(); else doPaste(); return;
+      /* Ctrl+V / Ctrl+Shift+V 交给浏览器 paste 事件（不弹权限框） */
       case 's': e.preventDefault(); savePng(false); return;
     }
   }
@@ -2083,12 +2225,8 @@ function onKeyDown(e){
 }
 function onKeyUp(e){
   if(e.key === ' ') spaceDown = false;
-  if(e.key === 'x' || e.key === 'X') xKeyDown = false;
 }
 
-/* ============================================================
- *  动画
- * ============================================================ */
 function updateAnimRange(){
   var total = totalCells();
   var a = document.getElementById('anim-start');
@@ -2181,9 +2319,6 @@ function animUpdateFromEvent(e){
   }
 }
 
-/* ============================================================
- *  工具
- * ============================================================ */
 function setTool(t){
   ui.tool = t;
   var btns = document.querySelectorAll('.tool-btn');
@@ -2212,7 +2347,7 @@ function setSelMode(mode){
     btns[i].classList.toggle('on', +btns[i].dataset.mode === mode);
   }
   var names = ['新建','加选','减选'];
-  setStatus('选区模式: '+names[mode]+'（拖拽框选）');
+  setStatus('选区模式: '+names[mode]+'（拖拽框选；Shift=正方形，Ctrl=加选，Alt=减选）');
 }
 function cycleBackground(){
   bgMode = (bgMode+1)%4;
@@ -2220,13 +2355,14 @@ function cycleBackground(){
   if(btn) btn.textContent = BG_NAMES[bgMode];
   requestRender();
 }
-
-/* ============================================================
- *  自定义调色板
- * ============================================================ */
-function cpGetColor(){
-  return cpTarget === 'primary' ? ui.primary : ui.secondary;
+function updateGuidesToggleButton(){
+  var btn = document.getElementById('btn-guides-toggle');
+  if(!btn) return;
+  btn.textContent = ui.showGuides ? '隐藏参考线' : '显示参考线';
+  btn.classList.toggle('active', !ui.showGuides);
 }
+
+function cpGetColor(){ return cpTarget === 'primary' ? ui.primary : ui.secondary; }
 function cpRenderSV() {
   var cv = document.getElementById('cp-sv');
   if (!cv) return;
@@ -2238,30 +2374,19 @@ function cpRenderSV() {
   var gW = g.createLinearGradient(0, 0, W, 0);
   gW.addColorStop(0, 'rgba(255,255,255,1)');
   gW.addColorStop(1, 'rgba(255,255,255,0)');
-  g.fillStyle = gW;
-  g.fillRect(0, 0, W, H);
+  g.fillStyle = gW; g.fillRect(0, 0, W, H);
   var gB = g.createLinearGradient(0, 0, 0, H);
   gB.addColorStop(0, 'rgba(0,0,0,0)');
   gB.addColorStop(1, 'rgba(0,0,0,1)');
-  g.fillStyle = gB;
-  g.fillRect(0, 0, W, H);
-
+  g.fillStyle = gB; g.fillRect(0, 0, W, H);
   var cx = cpState.s * W;
   var cy = (1 - cpState.v) * H;
-  g.beginPath();
-  g.arc(cx, cy, 6, 0, Math.PI * 2);
-  g.strokeStyle = '#000';
-  g.lineWidth = 2;
-  g.stroke();
-  g.strokeStyle = '#fff';
-  g.lineWidth = 1;
-  g.stroke();
-
+  g.beginPath(); g.arc(cx, cy, 6, 0, Math.PI * 2);
+  g.strokeStyle = '#000'; g.lineWidth = 2; g.stroke();
+  g.strokeStyle = '#fff'; g.lineWidth = 1; g.stroke();
   var hc = document.getElementById('cp-hue-cursor');
   if (hc) hc.style.left = (cpState.h / 360 * 100) + '%';
 }
-
-/* 更新所有输入框（跳过当前正在编辑的字段） */
 function cpUpdateFields(skipId) {
   var col = cpGetColor();
   var hexEl = document.getElementById('cp-hex');
@@ -2273,8 +2398,6 @@ function cpUpdateFields(skipId) {
   if (gEl && skipId !== 'g' && document.activeElement !== gEl) gEl.value = col[1];
   if (bEl && skipId !== 'b' && document.activeElement !== bEl) bEl.value = col[2];
 }
-
-/* 从 RGB 数值应用（用户输入 R/G/B 时） */
 function cpApplyRgb(r, g, b, skipId) {
   r = clamp(Math.round(r), 0, 255);
   g = clamp(Math.round(g), 0, 255);
@@ -2283,15 +2406,11 @@ function cpApplyRgb(r, g, b, skipId) {
   if (cpTarget === 'primary') ui.primary = col;
   else ui.secondary = col;
   var hsv = rgbToHsv(r, g, b);
-  cpState.h = hsv[0];
-  cpState.s = hsv[1];
-  cpState.v = hsv[2];
+  cpState.h = hsv[0]; cpState.s = hsv[1]; cpState.v = hsv[2];
   cpRenderSV();
   syncColorInputs();
   cpUpdateFields(skipId);
 }
-
-/* 从 HSV 状态提交（拖动 SV / 色相条时） */
 function cpCommitFromHsv() {
   var rgb = hsvToRgb(cpState.h, cpState.s, cpState.v);
   var col = [rgb[0], rgb[1], rgb[2], 255];
@@ -2301,60 +2420,46 @@ function cpCommitFromHsv() {
   syncColorInputs();
   cpUpdateFields();
 }
-
 function openColorPicker(target, anchorEl) {
   cpTarget = target;
   cpActive = true;
   var color = cpGetColor();
   var hsv = rgbToHsv(color[0], color[1], color[2]);
-  cpState.h = hsv[0];
-  cpState.s = hsv[1];
-  cpState.v = hsv[2];
-
+  cpState.h = hsv[0]; cpState.s = hsv[1]; cpState.v = hsv[2];
   var popup = document.getElementById('color-picker-popup');
   document.getElementById('cp-title').textContent = target === 'primary' ? '主色' : '辅色';
   document.getElementById('cp-hex').value = rgbToHex(color);
   popup.classList.add('open');
   cpRenderSV();
   cpUpdateFields();
-
-  /* 定位：优先在色块上方；放在侧边栏宽度内，避免压住画布 */
   var sidebarRect = document.getElementById('sidebar').getBoundingClientRect();
   var r = anchorEl.getBoundingClientRect();
   var ph = popup.offsetHeight;
   var pw = popup.offsetWidth;
-
   var left = sidebarRect.left + 10;
   if (left + pw > window.innerWidth - 8) left = window.innerWidth - pw - 8;
   if (left < 8) left = 8;
-
   var top = r.top - ph - 8;
   if (top < 8) top = r.bottom + 8;
   if (top + ph > window.innerHeight - 8) top = window.innerHeight - ph - 8;
   if (top < 8) top = 8;
-
   popup.style.left = left + 'px';
   popup.style.top = top + 'px';
 }
-
 function closeColorPicker() {
   if (!cpActive) return;
   cpActive = false;
   document.getElementById('color-picker-popup').classList.remove('open');
 }
-
-/* 画布取色回退方案 */
 function cpFallbackToCanvas() {
   cpPickingFromCanvas = true;
   closeColorPicker();
   canvas.style.cursor = 'crosshair';
   setStatus('浏览器不支持屏幕取色，已切换到画布取色（点击画布任意位置，Esc 取消）');
 }
-
 function bindColorPicker() {
   var chipP = document.getElementById('chip-primary');
   var chipS = document.getElementById('chip-secondary');
-
   chipP.addEventListener('click', function(e) {
     e.stopPropagation();
     if (cpActive && cpTarget === 'primary') { closeColorPicker(); return; }
@@ -2366,7 +2471,6 @@ function bindColorPicker() {
     openColorPicker('secondary', chipS);
   });
 
-  /* SV 面板 */
   var svEl = document.getElementById('cp-sv');
   function handleSVPick(e) {
     var r = svEl.getBoundingClientRect();
@@ -2375,8 +2479,7 @@ function bindColorPicker() {
     cpCommitFromHsv();
   }
   svEl.addEventListener('mousedown', function(e) {
-    e.preventDefault();
-    handleSVPick(e);
+    e.preventDefault(); handleSVPick(e);
     var move = function(ev) { handleSVPick(ev); };
     var up = function() {
       document.removeEventListener('mousemove', move);
@@ -2386,7 +2489,6 @@ function bindColorPicker() {
     document.addEventListener('mouseup', up);
   });
 
-  /* 色相条 */
   var hueTrack = document.getElementById('cp-hue-track');
   function handleHuePick(e) {
     var r = hueTrack.getBoundingClientRect();
@@ -2394,8 +2496,7 @@ function bindColorPicker() {
     cpCommitFromHsv();
   }
   hueTrack.addEventListener('mousedown', function(e) {
-    e.preventDefault();
-    handleHuePick(e);
+    e.preventDefault(); handleHuePick(e);
     var move = function(ev) { handleHuePick(ev); };
     var up = function() {
       document.removeEventListener('mousemove', move);
@@ -2405,7 +2506,6 @@ function bindColorPicker() {
     document.addEventListener('mouseup', up);
   });
 
-  /* Hex 输入 */
   var hexEl = document.getElementById('cp-hex');
   hexEl.addEventListener('input', function() {
     var v = this.value.trim();
@@ -2414,14 +2514,9 @@ function bindColorPicker() {
     var rgb = hexToRgb(v);
     cpApplyRgb(rgb[0], rgb[1], rgb[2], 'hex');
   });
-  hexEl.addEventListener('blur', function() {
-    this.value = rgbToHex(cpGetColor());
-  });
-  hexEl.addEventListener('keydown', function(e) {
-    if (e.key === 'Enter') { e.preventDefault(); this.blur(); }
-  });
+  hexEl.addEventListener('blur', function() { this.value = rgbToHex(cpGetColor()); });
+  hexEl.addEventListener('keydown', function(e) { if (e.key === 'Enter') { e.preventDefault(); this.blur(); } });
 
-  /* R / G / B 输入 */
   var rEl = document.getElementById('cp-r');
   var gEl = document.getElementById('cp-g');
   var bEl = document.getElementById('cp-b');
@@ -2437,9 +2532,7 @@ function bindColorPicker() {
   bEl.addEventListener('input', function(){ tryApplyFromRGB('b'); });
   function blurRGB(){
     var col = cpGetColor();
-    rEl.value = col[0];
-    gEl.value = col[1];
-    bEl.value = col[2];
+    rEl.value = col[0]; gEl.value = col[1]; bEl.value = col[2];
   }
   rEl.addEventListener('blur', blurRGB);
   gEl.addEventListener('blur', blurRGB);
@@ -2450,7 +2543,6 @@ function bindColorPicker() {
     });
   });
 
-  /* 吸管按钮：优先用 EyeDropper 全屏取色；不支持时回退到画布取色 */
   document.getElementById('cp-pick').addEventListener('click', function() {
     var target = cpTarget;
     if (typeof window.EyeDropper === 'function') {
@@ -2458,7 +2550,6 @@ function bindColorPicker() {
         var eyeDropper = new EyeDropper();
         eyeDropper.open().then(function(result){
           var rgb = hexToRgb(result.sRGBHex);
-          /* 取色期间 cpTarget 不会变化（EyeDropper 遮挡 UI），直接应用 */
           cpTarget = target;
           cpApplyRgb(rgb[0], rgb[1], rgb[2]);
           setStatus('已从屏幕取色 ' + result.sRGBHex);
@@ -2469,14 +2560,11 @@ function bindColorPicker() {
           }
         });
         return;
-      } catch(e) {
-        console.error('EyeDropper 创建失败:', e);
-      }
+      } catch(e) { console.error('EyeDropper 创建失败:', e); }
     }
     cpFallbackToCanvas();
   });
 
-  /* 点击弹窗外部时关闭 */
   document.addEventListener('mousedown', function(e) {
     if (!cpActive) return;
     var popup = document.getElementById('color-picker-popup');
@@ -2486,9 +2574,6 @@ function bindColorPicker() {
   }, true);
 }
 
-/* ============================================================
- *  文件
- * ============================================================ */
 function download(blob,name){
   var url = URL.createObjectURL(blob);
   var a = document.createElement('a');
@@ -2633,6 +2718,7 @@ function saveProject(saveAs){
     layers:layers, activeLayer:doc.activeLayer,
     grid:{w:doc.grid.w,h:doc.grid.h},
     guides:doc.guides.slice(),
+    showGuides: ui.showGuides,
     singleCell:ui.singleCell, currentCell:ui.currentCell,
     animStart:+document.getElementById('anim-start').value,
     animEnd:+document.getElementById('anim-end').value,
@@ -2735,11 +2821,10 @@ async function loadProjectData(data){
   _highlightMask = null;
   _highlightDirty = false;
 
-  if(data.grid){
-    doc.grid.w = data.grid.w || 32;
-    doc.grid.h = data.grid.h || 32;
-  }
+  if(data.grid){ doc.grid.w = data.grid.w || 32; doc.grid.h = data.grid.h || 32; }
   doc.guides = Array.isArray(data.guides) ? data.guides.slice() : [];
+  if(data.showGuides != null) ui.showGuides = !!data.showGuides;
+  updateGuidesToggleButton();
   syncGridInputsFromWH();
   ui.singleCell = !!data.singleCell;
   document.getElementById('btn-view-mode').textContent = ui.singleCell ? '全图' : '单格';
@@ -2795,9 +2880,6 @@ function importCustomPalette(){
   fileInput.click();
 }
 
-/* ============================================================
- *  色板
- * ============================================================ */
 function initPalettes(){
   ui.paletteNES = NES_HEX.map(function(h){ return hexToRgb('#'+h); });
   ui.paletteCustom = DEFAULT_CUSTOM_HEX.map(function(h){ return hexToRgb('#'+h); });
@@ -2851,9 +2933,6 @@ function refreshPaletteCustom(){
   }
 }
 
-/* ============================================================
- *  对话框
- * ============================================================ */
 function showModal(title,bodyHTML,onOK,okLabel){
   var back = document.createElement('div');
   back.className = 'modal-back';
@@ -2914,9 +2993,6 @@ function showResizeDialog(){
   }
 }
 
-/* ============================================================
- *  菜单
- * ============================================================ */
 function closeAllMenus(){
   var menus = document.querySelectorAll('.menu');
   for(var i=0;i<menus.length;i++) menus[i].classList.remove('open');
@@ -2970,19 +3046,12 @@ function handleMenuAction(act){
       if(cr){ applyRectSelection(cr, SEL_REPLACE); requestRender(); commitHistory(); }
       break;
     }
-    case 'copy': doCopy(); break;
-    case 'cut': doCut(); break;
-    case 'paste': doPaste(); break;
-    case 'paste-layer': doPasteAsLayer(); break;
     case 'delete':
       if(doc.hasSelection){ deleteSelection(); commitHistory(); refreshColorUsage(); }
       break;
   }
 }
 
-/* ============================================================
- *  UI 绑定
- * ============================================================ */
 function bindUI(){
   var toolBtns = document.querySelectorAll('.tool-btn');
   for(var i=0;i<toolBtns.length;i++){
@@ -3015,7 +3084,9 @@ function bindUI(){
   document.getElementById('btn-layer-down').addEventListener('click', function(){ moveLayer(-1); });
   document.getElementById('btn-layer-merge').addEventListener('click', mergeDown);
   document.getElementById('btn-layer-flatten').addEventListener('click', flattenVisible);
-  document.getElementById('btn-layer-paste').addEventListener('click', doPasteAsLayer);
+  document.getElementById('btn-layer-paste').addEventListener('click', function(){
+    setStatus('请使用快捷键 Ctrl+Shift+V 粘贴为新图层');
+  });
 
   var smBtns = document.querySelectorAll('.sel-mode-btn');
   for(var j=0;j<smBtns.length;j++){
@@ -3086,7 +3157,16 @@ function bindUI(){
   document.getElementById('btn-del-sel').addEventListener('click', function(){
     if(doc.hasSelection){ deleteSelection(); commitHistory(); refreshColorUsage(); }
   });
-  document.getElementById('snap-enabled').addEventListener('change', function(e){ ui.snapEnabled = e.target.checked; });
+  document.getElementById('snap-enabled').addEventListener('change', function(e){
+    ui.snapEnabled = e.target.checked;
+    setStatus(ui.snapEnabled ? '已开启吸附' : '已关闭吸附');
+  });
+  document.getElementById('btn-guides-toggle').addEventListener('click', function(){
+    ui.showGuides = !ui.showGuides;
+    updateGuidesToggleButton();
+    requestRender();
+    setStatus(ui.showGuides ? '已显示参考线' : '已隐藏参考线（不吸附、不可拖动）');
+  });
   document.getElementById('btn-guides-clear').addEventListener('click', function(){
     if(doc.guides.length === 0){ setStatus('没有参考线'); return; }
     doc.guides = [];
@@ -3096,9 +3176,6 @@ function bindUI(){
   });
 }
 
-/* ============================================================
- *  主循环
- * ============================================================ */
 function mainLoop(now){
   try {
     tickAnim(now);
@@ -3114,9 +3191,6 @@ function mainLoop(now){
   requestAnimationFrame(mainLoop);
 }
 
-/* ============================================================
- *  初始化
- * ============================================================ */
 function init(){
   try {
     canvas = document.getElementById('canvas');
@@ -3148,6 +3222,7 @@ function init(){
 
     document.getElementById('btn-bg').textContent = BG_NAMES[bgMode];
     setTool(TOOL.SELECT);
+    updateGuidesToggleButton();
 
     canvas.addEventListener('contextmenu', function(e){ e.preventDefault(); });
     canvas.addEventListener('mousedown', onCanvasMouseDown);
@@ -3158,13 +3233,15 @@ function init(){
     canvas.addEventListener('dblclick', function(e){
       var m = getMouse(e);
       if(m.sx < RULER && m.sy < RULER) return;
-      var gi = guideAt(m.px, m.py);
-      if(gi >= 0){
-        doc.guides.splice(gi,1);
-        commitHistory();
-        requestRender();
-        setStatus('已删除参考线');
-        return;
+      if(ui.showGuides){
+        var gi = guideAt(m.px, m.py);
+        if(gi >= 0){
+          doc.guides.splice(gi,1);
+          commitHistory();
+          requestRender();
+          setStatus('已删除参考线');
+          return;
+        }
       }
       var ci = cellIndexAt({x:m.px,y:m.py});
       if(ci >= 0){
@@ -3191,6 +3268,8 @@ function init(){
 
     document.addEventListener('keydown', onKeyDown);
     document.addEventListener('keyup', onKeyUp);
+    /* 粘贴走浏览器 paste 事件：不弹权限框 */
+    document.addEventListener('paste', handlePasteEvent);
 
     animPreviewWrap.addEventListener('mousedown', function(e){
       if(e.button !== 0) return;
@@ -3266,7 +3345,7 @@ function init(){
     fitToView();
     renderAnimPreview();
     refreshColorUsage();
-    setStatus('就绪 — 当前工具：选择 | V选择 B铅笔 E橡皮 I吸管 G油漆桶 J替换色');
+    setStatus('就绪 — Ctrl+C 复制 · Ctrl+X 剪切 · Ctrl+V 粘贴 · Ctrl+Shift+V 粘贴为新图层');
 
     requestAnimationFrame(mainLoop);
   } catch(err){
