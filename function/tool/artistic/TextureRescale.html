@@ -1,0 +1,873 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>像素缩放工具</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    font: 13px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: #16181d; color: #dfe3e9; overflow: hidden;
+    -webkit-user-select: none; user-select: none;
+  }
+  .app { display: flex; flex-direction: column; height: 100%; }
+
+  /* ---------- 工具栏 ---------- */
+  .toolbar {
+    display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+    padding: 8px 10px; background: #22252b;
+    border-bottom: 1px solid #33383f; flex: 0 0 auto;
+  }
+  .toolbar button {
+    font: inherit; padding: 5px 11px; color: #dfe3e9;
+    background: #2e333a; border: 1px solid #3d434c;
+    border-radius: 6px; cursor: pointer; transition: background .12s;
+    white-space: nowrap;
+  }
+  .toolbar button:hover:not(:disabled) { background: #3a4049; }
+  .toolbar button:active:not(:disabled) { background: #262b32; }
+  .toolbar button:disabled { opacity: .35; cursor: default; }
+  .toolbar button.mini { padding: 5px 8px; min-width: 34px; font-variant-numeric: tabular-nums; }
+  .toolbar .sep { width: 1px; height: 20px; background: #3d434c; margin: 0 2px; }
+  .toolbar label { display: inline-flex; align-items: center; gap: 5px; color: #a7aeb9; }
+  .toolbar input[type="number"] {
+    width: 78px; font: inherit; padding: 4px 6px;
+    color: #dfe3e9; background: #191c21;
+    border: 1px solid #3d434c; border-radius: 6px;
+  }
+  .toolbar input[type="number"]:focus { outline: none; border-color: #3b82f6; }
+  .toolbar input[type="number"]::-webkit-outer-spin-button,
+  .toolbar input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+  .toolbar input[type="checkbox"] { accent-color: #3b82f6; }
+  .spacer { flex: 1; }
+  .hint { color: #767e8a; font-size: 12px; }
+
+  /* ---------- 画布区 ---------- */
+  .stage {
+    position: relative; flex: 1 1 auto; overflow: hidden;
+    background-color: #1b1e23;
+    background-image:
+      linear-gradient(45deg, #202329 25%, transparent 25%),
+      linear-gradient(-45deg, #202329 25%, transparent 25%),
+      linear-gradient(45deg, transparent 75%, #202329 75%),
+      linear-gradient(-45deg, transparent 75%, #202329 75%);
+    background-size: 20px 20px;
+    background-position: 0 0, 0 10px, 10px -10px, -10px 0;
+    touch-action: none;
+  }
+  .placeholder {
+    position: absolute; inset: 0; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 12px;
+    color: #5d6673; font-size: 14px; pointer-events: none;
+  }
+  .placeholder .big { font-size: 46px; opacity: .45; }
+
+  .wrap {
+    position: absolute; left: 0; top: 0;
+    transform-origin: 0 0; display: none;
+    box-shadow: 0 0 0 1px rgba(125,135,150,.7), 0 12px 48px rgba(0,0,0,.6);
+  }
+  .wrap.on { display: block; }
+  .wrap canvas {
+    display: block; width: 100%; height: 100%;
+    image-rendering: -moz-crisp-edges;
+    image-rendering: pixelated;
+  }
+
+  /* ---------- 手柄 ---------- */
+  .handle {
+    position: absolute; width: 11px; height: 11px;
+    background: #fff; border: 1.5px solid #3b82f6; border-radius: 3px;
+    box-shadow: 0 1px 4px rgba(0,0,0,.55); z-index: 5;
+  }
+  .handle[data-dir="nw"] { left: -6px;  top: -6px;                        cursor: nwse-resize; }
+  .handle[data-dir="n"]  { left: calc(50% - 5.5px);  top: -6px;           cursor: ns-resize; }
+  .handle[data-dir="ne"] { right: -6px; top: -6px;                        cursor: nesw-resize; }
+  .handle[data-dir="e"]  { right: -6px; top: calc(50% - 5.5px);           cursor: ew-resize; }
+  .handle[data-dir="se"] { right: -6px; bottom: -6px;                     cursor: nwse-resize; }
+  .handle[data-dir="s"]  { left: calc(50% - 5.5px);  bottom: -6px;        cursor: ns-resize; }
+  .handle[data-dir="sw"] { left: -6px;  bottom: -6px;                     cursor: nesw-resize; }
+  .handle[data-dir="w"]  { left: -6px;  top: calc(50% - 5.5px);           cursor: ew-resize; }
+
+  /* ---------- 状态栏 ---------- */
+  .status {
+    flex: 0 0 auto; display: flex; align-items: center; gap: 18px;
+    padding: 5px 12px; background: #22252b;
+    border-top: 1px solid #33383f; color: #8b929d; font-size: 12px;
+    font-variant-numeric: tabular-nums;
+  }
+  .status .msg { color: #6fb0ff; }
+  .status .hist { color: #9aa3af; }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <div class="toolbar">
+    <button id="btnOpen">打开图片</button>
+    <button id="btnSave" disabled>保存 PNG</button>
+    <button id="btnSaveAs" disabled>另存为…</button>
+    <button id="btnClose" disabled>关闭</button>
+    <div class="sep"></div>
+    <button id="btnUndo" disabled title="Ctrl+Z">↶ 撤销</button>
+    <button id="btnRedo" disabled title="Ctrl+Shift+Z / Ctrl+Y">↷ 重做</button>
+    <div class="sep"></div>
+    <button id="btnReset" disabled>原始尺寸</button>
+    <button id="btnFit" disabled>适应窗口</button>
+    <button id="btnOne" disabled>1:1</button>
+    <div class="sep"></div>
+    <button id="btnHalf"  class="mini" disabled title="缩小到 1/2">½</button>
+    <button id="btnQuart" class="mini" disabled title="缩小到 1/4">¼</button>
+    <button id="btnEighth" class="mini" disabled title="缩小到 1/8">⅛</button>
+    <button id="btnDouble" class="mini" disabled title="放大到 2 倍">×2</button>
+    <div class="sep"></div>
+    <label>宽 <input id="inW" type="number" min="1" max="16384" step="1" disabled></label>
+    <label>高 <input id="inH" type="number" min="1" max="16384" step="1" disabled></label>
+    <label><input id="lockRatio" type="checkbox" checked> 锁定比例</label>
+    <div class="spacer"></div>
+    <span class="hint">拖手柄改像素 · 滚轮缩放视图 · 拖空白平移 · Shift 切换比例锁定</span>
+  </div>
+
+  <div class="stage" id="stage">
+    <div class="placeholder" id="placeholder">
+      <div class="big">🖼</div>
+      <div>把图片拖到这里，或点击「打开图片」</div>
+    </div>
+    <div class="wrap" id="wrap">
+      <canvas id="cv"></canvas>
+      <div class="handle" data-dir="nw"></div>
+      <div class="handle" data-dir="n"></div>
+      <div class="handle" data-dir="ne"></div>
+      <div class="handle" data-dir="e"></div>
+      <div class="handle" data-dir="se"></div>
+      <div class="handle" data-dir="s"></div>
+      <div class="handle" data-dir="sw"></div>
+      <div class="handle" data-dir="w"></div>
+    </div>
+  </div>
+
+  <div class="status">
+    <span id="stOrig">未打开图片</span>
+    <span id="stCur"></span>
+    <span id="stZoom"></span>
+    <span class="hist" id="stHist"></span>
+    <span class="spacer"></span>
+    <span class="msg" id="stMsg"></span>
+  </div>
+
+</div>
+
+<input type="file" id="fileInput" accept="image/*" hidden>
+
+<script>
+(function () {
+  'use strict';
+
+  var $ = function (id) { return document.getElementById(id); };
+
+  var stage       = $('stage');
+  var wrap        = $('wrap');
+  var cv          = $('cv');
+  var ctx         = cv.getContext('2d');
+  var placeholder = $('placeholder');
+  var fileInput   = $('fileInput');
+  var inW         = $('inW');
+  var inH         = $('inH');
+  var lockRatio   = $('lockRatio');
+  var stOrig      = $('stOrig');
+  var stCur       = $('stCur');
+  var stZoom      = $('stZoom');
+  var stHist      = $('stHist');
+  var stMsg       = $('stMsg');
+
+  var MAX_SIZE   = 16384;
+  var MAX_PIXELS = 96e6;
+  var MIN_ZOOM   = 0.02;
+  var MAX_ZOOM   = 64;
+  var MAX_HISTORY = 30;          // 最多 30 步可撤销
+
+  /* ---------- 源像素（永不改变） ---------- */
+  var src32 = null;              // Uint32Array 视图，直接看 RGBA
+  var srcW = 0, srcH = 0;
+
+  /* ---------- 当前状态 ---------- */
+  var hasImage = false;
+  var targetW = 0, targetH = 0;  // 目标像素尺寸
+  var zoom = 1, panX = 0, panY = 0;
+  var baseName = 'image';
+  var fileHandle = null;         // File System Access 句柄（另存为后记住）
+
+  /* ---------- 历史记录 ---------- */
+  var history = [];              // [{w,h}, ...]，第 0 项是原始尺寸
+  var histIndex = -1;
+
+  var drag = null;               // 缩放手柄拖拽
+  var panDrag = null;            // 平移拖拽
+
+  /* ================= 小工具 ================= */
+  function clamp(v, a, b) { return v < a ? a : (v > b ? b : v); }
+
+  var msgTimer = 0;
+  function setMsg(t, autoClear) {
+    stMsg.textContent = t || '';
+    clearTimeout(msgTimer);
+    if (t && autoClear) {
+      msgTimer = setTimeout(function () { stMsg.textContent = ''; }, autoClear);
+    }
+  }
+
+  function fmtZoom(z) {
+    var p = z * 100;
+    if (p >= 100) return p.toFixed(0) + '%';
+    if (p >= 10)  return p.toFixed(1) + '%';
+    return p.toFixed(2) + '%';
+  }
+
+  var ALL_BTN = ['btnSave', 'btnSaveAs', 'btnClose', 'btnReset', 'btnFit', 'btnOne',
+                 'inW', 'inH', 'btnHalf', 'btnQuart', 'btnEighth', 'btnDouble'];
+
+  function setEnabled(on) {
+    ALL_BTN.forEach(function (id) { $(id).disabled = !on; });
+    updateHistoryUI();
+  }
+
+  /* ================= 历史记录 ================= */
+  function resetHistory() {
+    history = [{ w: srcW, h: srcH }];
+    histIndex = 0;
+    updateHistoryUI();
+  }
+
+  function pushHistory() {
+    if (!hasImage) return;
+    var w = targetW, h = targetH;
+
+    if (histIndex >= 0) {
+      var c = history[histIndex];
+      if (c.w === w && c.h === h) return;   // 没变化不记录
+    }
+
+    history.length = histIndex + 1;         // 丢弃 redo 分支
+    history.push({ w: w, h: h });
+
+    while (history.length > MAX_HISTORY + 1) history.shift();
+
+    histIndex = history.length - 1;
+    updateHistoryUI();
+  }
+
+  function updateHistoryUI() {
+    var has = hasImage;
+    $('btnUndo').disabled = !has || histIndex <= 0;
+    $('btnRedo').disabled = !has || histIndex >= history.length - 1;
+
+    if (!has) { stHist.textContent = ''; return; }
+    stHist.textContent = '历史 ' + histIndex + '/' + (history.length - 1) + ' 步';
+  }
+
+  function applyHistoryState() {
+    var s = history[histIndex];
+    if (!s) return;
+
+    // 以视图中心为锚点换尺寸
+    var cx = panX + targetW * zoom / 2;
+    var cy = panY + targetH * zoom / 2;
+
+    targetW = s.w;
+    targetH = s.h;
+
+    panX = Math.round(cx - targetW * zoom / 2);
+    panY = Math.round(cy - targetH * zoom / 2);
+
+    syncInputs();
+    applyResize();
+    render();
+    updateHistoryUI();
+  }
+
+  function undo() {
+    if (!hasImage || histIndex <= 0) return;
+    histIndex--;
+    applyHistoryState();
+    setMsg('撤销 → ' + targetW + ' × ' + targetH, 1200);
+  }
+
+  function redo() {
+    if (!hasImage || histIndex >= history.length - 1) return;
+    histIndex++;
+    applyHistoryState();
+    setMsg('重做 → ' + targetW + ' × ' + targetH, 1200);
+  }
+
+  /* ================= 渲染 ================= */
+  function render() {
+    if (!hasImage) return;
+    wrap.style.width  = (targetW * zoom) + 'px';
+    wrap.style.height = (targetH * zoom) + 'px';
+    wrap.style.transform = 'translate3d(' + panX + 'px,' + panY + 'px,0)';
+    updateStatus();
+  }
+
+  function updateStatus() {
+    if (!hasImage) {
+      stOrig.textContent = '未打开图片';
+      stCur.textContent = '';
+      stZoom.textContent = '';
+      return;
+    }
+    stOrig.textContent = '原始 ' + srcW + ' × ' + srcH;
+    stCur.textContent  = '当前 ' + targetW + ' × ' + targetH;
+    stZoom.textContent = '视图 ' + fmtZoom(zoom);
+  }
+
+  function syncInputs() {
+    if (!hasImage) { inW.value = ''; inH.value = ''; return; }
+    inW.value = targetW;
+    inH.value = targetH;
+  }
+
+  function centerView() {
+    panX = Math.round((stage.clientWidth  - targetW * zoom) / 2);
+    panY = Math.round((stage.clientHeight - targetH * zoom) / 2);
+  }
+
+  function fitView() {
+    if (!hasImage) return;
+    var pad = 72;
+    var aw = Math.max(40, stage.clientWidth  - pad);
+    var ah = Math.max(40, stage.clientHeight - pad);
+    zoom = clamp(Math.min(aw / targetW, ah / targetH), MIN_ZOOM, 16);
+    centerView();
+    render();
+  }
+
+  /* ================= 核心：最近邻重采样 =================
+     直接从原始像素数组按整数索引取值，绝不插值。
+     每个目标像素 = 源图中某个真实存在的像素（原样复制 4 字节）。
+     所以：不可能出现"半个像素"，也不可能出现新颜色。
+     因为每次都从 src32 重算，缩小后再放大会精确还原原始像素。
+     ===================================================== */
+  var cacheImgData = null, cacheW = 0, cacheH = 0;
+
+  function applyResize() {
+    if (!hasImage) return;
+    if (cv.width === targetW && cv.height === targetH) return;
+
+    var t0 = performance.now();
+
+    cv.width  = targetW;
+    cv.height = targetH;
+    ctx.imageSmoothingEnabled = false;   // 改尺寸会重置，必须重设
+
+    if (!cacheImgData || cacheW !== targetW || cacheH !== targetH) {
+      try {
+        cacheImgData = ctx.createImageData(targetW, targetH);
+        cacheW = targetW;
+        cacheH = targetH;
+      } catch (err) {
+        setMsg('尺寸太大，无法创建画布');
+        return;
+      }
+    }
+    var imgData = cacheImgData;
+    var dst32 = new Uint32Array(imgData.data.buffer);
+
+    // 预计算每一列的源像素索引
+    var xmap = new Int32Array(targetW);
+    for (var x = 0; x < targetW; x++) {
+      var sx = ((x + 0.5) * srcW / targetW) | 0;
+      if (sx >= srcW) sx = srcW - 1;
+      if (sx < 0) sx = 0;
+      xmap[x] = sx;
+    }
+
+    // 逐行复制（一次拷贝一个像素的 4 字节）
+    for (var y = 0; y < targetH; y++) {
+      var sy = ((y + 0.5) * srcH / targetH) | 0;
+      if (sy >= srcH) sy = srcH - 1;
+      if (sy < 0) sy = 0;
+
+      var sRow = sy * srcW;
+      var dRow = y * targetW;
+      for (var i = 0; i < targetW; i++) {
+        dst32[dRow + i] = src32[sRow + xmap[i]];
+      }
+    }
+
+    ctx.putImageData(imgData, 0, 0);     // 直接覆盖，不做任何混合
+
+    var dt = performance.now() - t0;
+    if (dt > 120) setMsg('重采样 ' + dt.toFixed(0) + ' ms', 1800);
+  }
+
+  /* ================= 打开图片 ================= */
+  function loadImage(file) {
+    if (!file || !/^image\//.test(file.type)) {
+      setMsg('请选择图片文件', 2000);
+      return;
+    }
+    setMsg('正在载入…');
+
+    var url = URL.createObjectURL(file);
+    var im = new Image();
+
+    im.onload = function () {
+      URL.revokeObjectURL(url);
+
+      var w = im.naturalWidth, h = im.naturalHeight;
+      if (!w || !h) { setMsg('图片尺寸无效', 2000); return; }
+
+      // 1) 原图 1:1 画进离屏 canvas，取出原始像素
+      var c = document.createElement('canvas');
+      c.width = w; c.height = h;
+      var cx = c.getContext('2d', { willReadFrequently: true });
+      cx.imageSmoothingEnabled = false;
+      cx.drawImage(im, 0, 0);
+
+      var idata = cx.getImageData(0, 0, w, h);
+      src32 = new Uint32Array(idata.data.buffer);
+      srcW = w; srcH = h;
+
+      // 2) 重置状态
+      hasImage = true;
+      targetW = w; targetH = h;
+      baseName = (file.name || 'image').replace(/\.[^.]+$/, '') || 'image';
+      fileHandle = null;              // 换了图片，之前记住的文件句柄作废
+
+      placeholder.style.display = 'none';
+      wrap.classList.add('on');
+      setEnabled(true);
+
+      // 3) 首帧直接原样显示
+      cv.width = w; cv.height = h;
+      ctx.imageSmoothingEnabled = false;
+      ctx.clearRect(0, 0, w, h);
+      ctx.drawImage(c, 0, 0);
+      cacheImgData = null; cacheW = 0; cacheH = 0;
+
+      syncInputs();
+      resetHistory();
+      fitView();
+      setMsg('');
+    };
+
+    im.onerror = function () {
+      URL.revokeObjectURL(url);
+      setMsg('图片解析失败', 2500);
+    };
+
+    im.src = url;
+  }
+
+  /* ================= 关闭 ================= */
+  function closeImage() {
+    hasImage = false;
+    src32 = null; srcW = 0; srcH = 0;
+    targetW = 0; targetH = 0;
+    fileHandle = null;
+    cacheImgData = null; cacheW = 0; cacheH = 0;
+
+    cv.width = 0; cv.height = 0;
+    wrap.classList.remove('on');
+    wrap.style.width = '0px';
+    wrap.style.height = '0px';
+    placeholder.style.display = '';
+    history = []; histIndex = -1;
+    setEnabled(false);
+    syncInputs();
+    updateStatus();
+    setMsg('');
+  }
+
+  /* ================= 保存 / 另存为 ================= */
+  function defaultFileName() {
+    return baseName + '_' + targetW + 'x' + targetH + '.png';
+  }
+
+  function canvasToBlob() {
+    return new Promise(function (resolve, reject) {
+      if (cv.width !== targetW || cv.height !== targetH) applyResize();
+      cv.toBlob(function (b) {
+        if (b) resolve(b);
+        else reject(new Error('导出失败'));
+      }, 'image/png');
+    });
+  }
+
+  function downloadBlob(blob, name) {
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(function () { URL.revokeObjectURL(url); }, 2000);
+  }
+
+  async function writeToHandle(handle, blob) {
+    var opts = { mode: 'readwrite' };
+    if (handle.queryPermission) {
+      var p = await handle.queryPermission(opts);
+      if (p !== 'granted' && handle.requestPermission) {
+        p = await handle.requestPermission(opts);
+      }
+      if (p !== 'granted') throw new Error('没有文件写入权限');
+    }
+    var stream = await handle.createWritable();
+    await stream.write(blob);
+    await stream.close();
+  }
+
+  var supportsFS = (typeof window.showSaveFilePicker === 'function');
+
+  // 保存：若已有文件句柄就覆盖写入，否则走下载
+  async function doSave() {
+    if (!hasImage) return;
+
+    if (fileHandle) {
+      try {
+        var perm = fileHandle.queryPermission
+          ? await fileHandle.queryPermission({ mode: 'readwrite' })
+          : 'granted';
+
+        if (perm !== 'granted' && fileHandle.requestPermission) {
+          perm = await fileHandle.requestPermission({ mode: 'readwrite' });
+        }
+
+        if (perm === 'granted') {
+          var blob = await canvasToBlob();
+          await writeToHandle(fileHandle, blob);
+          setMsg('已保存到 ' + fileHandle.name, 2500);
+          return;
+        }
+        setMsg('文件权限已失效，请用「另存为…」', 3000);
+        return;
+      } catch (err) {
+        setMsg('保存失败：' + (err.message || err), 3000);
+        return;
+      }
+    }
+
+    // 没有句柄 → 下载
+    try {
+      var b2 = await canvasToBlob();
+      var name = defaultFileName();
+      downloadBlob(b2, name);
+      setMsg('已下载 ' + name, 2500);
+    } catch (err) {
+      setMsg('保存失败：' + (err.message || err), 3000);
+    }
+  }
+
+  // 另存为：优先弹出系统「另存为」对话框；不支持则回退下载
+  async function doSaveAs() {
+    if (!hasImage) return;
+
+    var suggested = defaultFileName();
+    var handle = null;
+
+    // 必须在用户手势同步阶段调用 showSaveFilePicker
+    if (supportsFS) {
+      try {
+        handle = await window.showSaveFilePicker({
+          suggestedName: suggested,
+          types: [{ description: 'PNG 图片', accept: { 'image/png': ['.png'] } }]
+        });
+      } catch (err) {
+        if (err && err.name === 'AbortError') return;   // 用户取消
+        handle = null;                                  // 其他错误 → 回退下载
+      }
+    }
+
+    try {
+      var blob = await canvasToBlob();
+
+      if (handle) {
+        await writeToHandle(handle, blob);
+        fileHandle = handle;
+        var n = handle.name.replace(/\.[^.]+$/, '');
+        if (n) baseName = n;
+        setMsg('已另存为 ' + handle.name, 2500);
+      } else {
+        downloadBlob(blob, suggested);
+        setMsg(supportsFS
+          ? '已下载 ' + suggested
+          : '此浏览器不支持选择位置，已下载到默认目录', 3200);
+      }
+    } catch (err) {
+      if (err && err.name === 'AbortError') return;
+      setMsg('另存失败：' + (err.message || err), 3000);
+    }
+  }
+
+  /* ================= 精确改尺寸 ================= */
+  function commitSize(w, h, record) {
+    if (!hasImage) return;
+
+    w = clamp(Math.round(w) || 1, 1, MAX_SIZE);
+    h = clamp(Math.round(h) || 1, 1, MAX_SIZE);
+
+    if (w * h > MAX_PIXELS) {
+      setMsg('尺寸超出上限', 2000);
+      syncInputs();
+      return;
+    }
+
+    // 以中心为锚点
+    var cx = panX + targetW * zoom / 2;
+    var cy = panY + targetH * zoom / 2;
+
+    targetW = w; targetH = h;
+    panX = Math.round(cx - w * zoom / 2);
+    panY = Math.round(cy - h * zoom / 2);
+
+    syncInputs();
+    applyResize();
+    render();
+
+    if (record !== false) pushHistory();
+  }
+
+  function scaleBy(factor) {
+    if (!hasImage) return;
+    var w = Math.max(1, Math.round(targetW * factor));
+    var h = Math.max(1, Math.round(targetH * factor));
+    commitSize(w, h, true);
+    setMsg('缩放到 ' + w + ' × ' + h, 1200);
+  }
+
+  inW.addEventListener('change', function () {
+    if (!hasImage) return;
+    var w = parseFloat(inW.value);
+    if (!isFinite(w) || w < 1) { syncInputs(); return; }
+    var h = lockRatio.checked ? w / (targetW / targetH) : targetH;
+    commitSize(w, h, true);
+  });
+
+  inH.addEventListener('change', function () {
+    if (!hasImage) return;
+    var h = parseFloat(inH.value);
+    if (!isFinite(h) || h < 1) { syncInputs(); return; }
+    var w = lockRatio.checked ? h * (targetW / targetH) : targetW;
+    commitSize(w, h, true);
+  });
+
+  /* ================= 缩放手柄拖拽 ================= */
+  Array.prototype.forEach.call(document.querySelectorAll('.handle'), function (el) {
+    el.addEventListener('pointerdown', function (e) {
+      if (!hasImage || e.button !== 0) return;
+      e.preventDefault();
+      e.stopPropagation();
+      el.setPointerCapture(e.pointerId);
+
+      drag = {
+        dir: el.dataset.dir,
+        sx: e.clientX, sy: e.clientY,
+        w0: targetW, h0: targetH,
+        px0: panX, py0: panY,
+        z: zoom,
+        ratio: targetW / targetH
+      };
+    });
+  });
+
+  function onResizeMove(e) {
+    var d = drag;
+    var dx = (e.clientX - d.sx) / d.z;   // 屏幕位移 → 图片像素位移
+    var dy = (e.clientY - d.sy) / d.z;
+
+    var dir  = d.dir;
+    var hasE = dir.indexOf('e') >= 0;
+    var hasW = dir.indexOf('w') >= 0;
+    var hasN = dir.indexOf('n') >= 0;
+    var hasS = dir.indexOf('s') >= 0;
+
+    var w = d.w0, h = d.h0;
+    if (hasE) w = d.w0 + dx;
+    if (hasW) w = d.w0 - dx;
+    if (hasS) h = d.h0 + dy;
+    if (hasN) h = d.h0 - dy;
+
+    // 锁定比例：勾选框 与 Shift 是"异或"关系
+    var lock = (lockRatio.checked !== e.shiftKey);
+    var isCorner = (hasE || hasW) && (hasN || hasS);
+
+    if (lock && isCorner) {
+      var r = d.ratio;
+      var dwRel = Math.abs(w - d.w0) / d.w0;
+      var dhRel = Math.abs(h - d.h0) / d.h0;
+      if (dwRel >= dhRel) h = w / r;
+      else                w = h * r;
+    }
+
+    w = clamp(Math.round(w), 1, MAX_SIZE);
+    h = clamp(Math.round(h), 1, MAX_SIZE);
+
+    if (w * h > MAX_PIXELS) {
+      var k = Math.sqrt(MAX_PIXELS / (w * h));
+      w = Math.max(1, Math.floor(w * k));
+      h = Math.max(1, Math.floor(h * k));
+    }
+
+    // 锚点：被拖的那条边动，对面的边不动
+    var oldW = d.w0 * d.z, oldH = d.h0 * d.z;
+    var newW = w * d.z,    newH = h * d.z;
+
+    var px = d.px0, py = d.py0;
+    if (hasW) px = d.px0 + oldW - newW;
+    if (hasN) py = d.py0 + oldH - newH;
+
+    targetW = w; targetH = h;
+    panX = px;   panY = py;
+
+    // 拖拽中只做 CSS 预览（wrap 尺寸变了，canvas 被拉伸，
+    // 配合 image-rendering:pixelated 就是硬边预览），松手才真正重采样
+    render();
+    syncInputs();
+  }
+
+  /* ================= 平移 ================= */
+  stage.addEventListener('pointerdown', function (e) {
+    if (!hasImage) return;
+    if (e.button !== 0 && e.button !== 1) return;
+    if (e.target && e.target.closest && e.target.closest('.handle')) return;
+
+    e.preventDefault();
+    stage.setPointerCapture(e.pointerId);
+    panDrag = { sx: e.clientX, sy: e.clientY, px: panX, py: panY };
+    stage.style.cursor = 'grabbing';
+  });
+
+  /* ================= 全局指针事件 ================= */
+  document.addEventListener('pointermove', function (e) {
+    if (drag) { onResizeMove(e); return; }
+    if (panDrag) {
+      panX = panDrag.px + (e.clientX - panDrag.sx);
+      panY = panDrag.py + (e.clientY - panDrag.sy);
+      render();
+    }
+  });
+
+  function endResize() {
+    if (!drag) return;
+    drag = null;
+    if (cv.width !== targetW || cv.height !== targetH) applyResize();
+    render();
+    pushHistory();          // 拖拽结束记录一步
+  }
+
+  document.addEventListener('pointerup', function () {
+    endResize();
+    if (panDrag) {
+      panDrag = null;
+      stage.style.cursor = '';
+    }
+  });
+
+  document.addEventListener('pointercancel', function () {
+    endResize();
+    panDrag = null;
+    stage.style.cursor = '';
+  });
+
+  /* ================= 滚轮缩放视图 ================= */
+  stage.addEventListener('wheel', function (e) {
+    if (!hasImage) return;
+    e.preventDefault();
+
+    var rect = stage.getBoundingClientRect();
+    var mx = e.clientX - rect.left;
+    var my = e.clientY - rect.top;
+
+    var old = zoom;
+    var factor = Math.exp(-e.deltaY * (e.ctrlKey ? 0.01 : 0.0018));
+    var nz = clamp(old * factor, MIN_ZOOM, MAX_ZOOM);
+    if (nz === old) return;
+
+    var k = nz / old;
+    panX = mx - (mx - panX) * k;
+    panY = my - (my - panY) * k;
+    zoom = nz;
+
+    render();
+  }, { passive: false });
+
+  /* ================= 按钮 ================= */
+  $('btnOpen').addEventListener('click', function () { fileInput.click(); });
+
+  fileInput.addEventListener('change', function () {
+    if (fileInput.files && fileInput.files[0]) loadImage(fileInput.files[0]);
+    fileInput.value = '';
+  });
+
+  $('btnSave').addEventListener('click', doSave);
+  $('btnSaveAs').addEventListener('click', doSaveAs);
+  $('btnClose').addEventListener('click', closeImage);
+
+  $('btnUndo').addEventListener('click', undo);
+  $('btnRedo').addEventListener('click', redo);
+
+  $('btnReset').addEventListener('click', function () {
+    if (!hasImage) return;
+    commitSize(srcW, srcH, true);
+    setMsg('回到原始尺寸 ' + srcW + ' × ' + srcH, 1500);
+  });
+
+  $('btnFit').addEventListener('click', fitView);
+
+  $('btnOne').addEventListener('click', function () {
+    if (!hasImage) return;
+    zoom = 1;
+    centerView();
+    render();
+  });
+
+  $('btnHalf').addEventListener('click',   function () { scaleBy(1 / 2); });
+  $('btnQuart').addEventListener('click',  function () { scaleBy(1 / 4); });
+  $('btnEighth').addEventListener('click', function () { scaleBy(1 / 8); });
+  $('btnDouble').addEventListener('click', function () { scaleBy(2); });
+
+  /* ================= 拖放文件 ================= */
+  ['dragenter', 'dragover'].forEach(function (t) {
+    document.addEventListener(t, function (e) { e.preventDefault(); });
+  });
+  document.addEventListener('drop', function (e) {
+    e.preventDefault();
+    var f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+    if (f) loadImage(f);
+  });
+
+  /* ================= 快捷键 ================= */
+  document.addEventListener('keydown', function (e) {
+    var tag = (e.target.tagName || '').toLowerCase();
+    if (tag === 'input' || tag === 'textarea') return;
+
+    var mod = e.ctrlKey || e.metaKey;
+    var k = (e.key || '').toLowerCase();
+
+    if (mod && k === 'o') { e.preventDefault(); fileInput.click(); }
+    else if (mod && k === 's') { e.preventDefault(); doSave(); }
+    else if (mod && e.shiftKey && k === 's') { e.preventDefault(); doSaveAs(); }
+    else if (mod && k === 'z' && !e.shiftKey) { e.preventDefault(); undo(); }
+    else if (mod && (k === 'y' || (k === 'z' && e.shiftKey))) { e.preventDefault(); redo(); }
+    else if (!mod && e.key === '0') { e.preventDefault(); fitView(); }
+    else if (!mod && e.key === '1') {
+      e.preventDefault();
+      if (hasImage) { zoom = 1; centerView(); render(); }
+    }
+  });
+
+  /* ================= 窗口尺寸变化 ================= */
+  window.addEventListener('resize', function () { if (hasImage) render(); });
+
+  /* ================= 初始化 ================= */
+  setEnabled(false);
+  updateStatus();
+
+})();
+</script>
+</body>
+</html>
