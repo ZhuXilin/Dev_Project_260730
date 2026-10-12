@@ -29,6 +29,9 @@
   .toolbar button:hover:not(:disabled) { background: #3a4049; }
   .toolbar button:active:not(:disabled) { background: #262b32; }
   .toolbar button:disabled { opacity: .35; cursor: default; }
+  .toolbar button.toggle.on {
+    background: #2d6cdf; border-color: #4a8cf5; color: #fff;
+  }
   .toolbar button.mini { padding: 5px 8px; min-width: 34px; font-variant-numeric: tabular-nums; }
   .toolbar .sep { width: 1px; height: 20px; background: #3d434c; margin: 0 2px; }
   .toolbar label { display: inline-flex; align-items: center; gap: 5px; color: #a7aeb9; }
@@ -57,6 +60,7 @@
     background-position: 0 0, 0 10px, 10px -10px, -10px 0;
     touch-action: none;
   }
+  .stage.select-mode { cursor: crosshair; }
   .placeholder {
     position: absolute; inset: 0; display: flex; flex-direction: column;
     align-items: center; justify-content: center; gap: 12px;
@@ -74,6 +78,14 @@
     display: block; width: 100%; height: 100%;
     image-rendering: -moz-crisp-edges;
     image-rendering: pixelated;
+  }
+  .wrap .sel-overlay {
+    position: absolute; left: 0; top: 0;
+    width: 100%; height: 100%;
+    pointer-events: none;
+    image-rendering: -moz-crisp-edges;
+    image-rendering: pixelated;
+    z-index: 4;
   }
 
   /* ---------- 手柄 ---------- */
@@ -100,6 +112,7 @@
   }
   .status .msg { color: #6fb0ff; }
   .status .hist { color: #9aa3af; }
+  .status .sel-info { color: #7fd4ff; }
 </style>
 </head>
 <body>
@@ -126,6 +139,12 @@
     <label>宽 <input id="inW" type="number" min="1" max="16384" step="1" disabled></label>
     <label>高 <input id="inH" type="number" min="1" max="16384" step="1" disabled></label>
     <label><input id="lockRatio" type="checkbox" checked> 锁定比例</label>
+    <div class="sep"></div>
+    <button id="btnSelect" class="toggle" disabled title="选择模式 (S)：在画布上拖拽框选">▢ 选择</button>
+    <button id="btnSelectAll" disabled title="Ctrl+A">全选</button>
+    <button id="btnSelectNone" disabled title="Esc / Ctrl+D">取消选择</button>
+    <button id="btnSelectInv" disabled>反选</button>
+    <button id="btnCopy" disabled title="Ctrl+C">📋 复制</button>
     <div class="spacer"></div>
     <span class="hint">拖手柄改像素 · 滚轮缩放视图 · 拖空白平移 · Shift 切换比例锁定</span>
   </div>
@@ -137,6 +156,7 @@
     </div>
     <div class="wrap" id="wrap">
       <canvas id="cv"></canvas>
+      <canvas id="selCv" class="sel-overlay"></canvas>
       <div class="handle" data-dir="nw"></div>
       <div class="handle" data-dir="n"></div>
       <div class="handle" data-dir="ne"></div>
@@ -152,6 +172,7 @@
     <span id="stOrig">未打开图片</span>
     <span id="stCur"></span>
     <span id="stZoom"></span>
+    <span class="sel-info" id="stSel"></span>
     <span class="hist" id="stHist"></span>
     <span class="spacer"></span>
     <span class="msg" id="stMsg"></span>
@@ -171,6 +192,8 @@
   var wrap        = $('wrap');
   var cv          = $('cv');
   var ctx         = cv.getContext('2d');
+  var selCv       = $('selCv');
+  var selCtx      = selCv.getContext('2d');
   var placeholder = $('placeholder');
   var fileInput   = $('fileInput');
   var inW         = $('inW');
@@ -179,6 +202,7 @@
   var stOrig      = $('stOrig');
   var stCur       = $('stCur');
   var stZoom      = $('stZoom');
+  var stSel       = $('stSel');
   var stHist      = $('stHist');
   var stMsg       = $('stMsg');
 
@@ -186,25 +210,32 @@
   var MAX_PIXELS = 96e6;
   var MIN_ZOOM   = 0.02;
   var MAX_ZOOM   = 64;
-  var MAX_HISTORY = 30;          // 最多 30 步可撤销
+  var MAX_HISTORY = 30;
 
   /* ---------- 源像素（永不改变） ---------- */
-  var src32 = null;              // Uint32Array 视图，直接看 RGBA
+  var src32 = null;
   var srcW = 0, srcH = 0;
 
   /* ---------- 当前状态 ---------- */
   var hasImage = false;
-  var targetW = 0, targetH = 0;  // 目标像素尺寸
+  var targetW = 0, targetH = 0;
   var zoom = 1, panX = 0, panY = 0;
   var baseName = 'image';
-  var fileHandle = null;         // File System Access 句柄（另存为后记住）
+  var fileHandle = null;
 
   /* ---------- 历史记录 ---------- */
-  var history = [];              // [{w,h}, ...]，第 0 项是原始尺寸
+  var history = [];
   var histIndex = -1;
 
-  var drag = null;               // 缩放手柄拖拽
-  var panDrag = null;            // 平移拖拽
+  var drag = null;
+  var panDrag = null;
+
+  /* ---------- 选择状态 ---------- */
+  var selectionMode = false;
+  var selMask = null;              // Uint8Array(targetW * targetH)
+  var hasSelection = false;
+  var selBounds = { x: 0, y: 0, w: 0, h: 0 };
+  var selDrag = null;              // { x0, y0, x1, y1, mode }
 
   /* ================= 小工具 ================= */
   function clamp(v, a, b) { return v < a ? a : (v > b ? b : v); }
@@ -226,11 +257,13 @@
   }
 
   var ALL_BTN = ['btnSave', 'btnSaveAs', 'btnClose', 'btnReset', 'btnFit', 'btnOne',
-                 'inW', 'inH', 'btnHalf', 'btnQuart', 'btnEighth', 'btnDouble'];
+                 'inW', 'inH', 'btnHalf', 'btnQuart', 'btnEighth', 'btnDouble',
+                 'btnSelect', 'btnSelectAll', 'btnSelectNone', 'btnSelectInv'];
 
   function setEnabled(on) {
     ALL_BTN.forEach(function (id) { $(id).disabled = !on; });
     updateHistoryUI();
+    updateSelectUI();
   }
 
   /* ================= 历史记录 ================= */
@@ -246,10 +279,10 @@
 
     if (histIndex >= 0) {
       var c = history[histIndex];
-      if (c.w === w && c.h === h) return;   // 没变化不记录
+      if (c.w === w && c.h === h) return;
     }
 
-    history.length = histIndex + 1;         // 丢弃 redo 分支
+    history.length = histIndex + 1;
     history.push({ w: w, h: h });
 
     while (history.length > MAX_HISTORY + 1) history.shift();
@@ -271,7 +304,6 @@
     var s = history[histIndex];
     if (!s) return;
 
-    // 以视图中心为锚点换尺寸
     var cx = panX + targetW * zoom / 2;
     var cy = panY + targetH * zoom / 2;
 
@@ -280,6 +312,9 @@
 
     panX = Math.round(cx - targetW * zoom / 2);
     panY = Math.round(cy - targetH * zoom / 2);
+
+    // 尺寸变化会作废选区
+    clearSelection(false);
 
     syncInputs();
     applyResize();
@@ -308,6 +343,7 @@
     wrap.style.height = (targetH * zoom) + 'px';
     wrap.style.transform = 'translate3d(' + panX + 'px,' + panY + 'px,0)';
     updateStatus();
+    renderSelectionOverlay();
   }
 
   function updateStatus() {
@@ -315,11 +351,33 @@
       stOrig.textContent = '未打开图片';
       stCur.textContent = '';
       stZoom.textContent = '';
+      stSel.textContent = '';
       return;
     }
     stOrig.textContent = '原始 ' + srcW + ' × ' + srcH;
     stCur.textContent  = '当前 ' + targetW + ' × ' + targetH;
     stZoom.textContent = '视图 ' + fmtZoom(zoom);
+  }
+
+  function updateSelectUI() {
+    var has = hasImage;
+    $('btnSelect').classList.toggle('on', selectionMode);
+    $('btnCopy').disabled = !has || !hasSelection;
+    $('btnSelectAll').disabled = !has;
+    $('btnSelectNone').disabled = !has || !hasSelection;
+    $('btnSelectInv').disabled = !has;
+
+    if (!has) {
+      stSel.textContent = '';
+      return;
+    }
+    if (hasSelection) {
+      stSel.textContent = '选区 ' + selBounds.w + ' × ' + selBounds.h;
+    } else if (selectionMode) {
+      stSel.textContent = '选择模式（拖拽框选）';
+    } else {
+      stSel.textContent = '';
+    }
   }
 
   function syncInputs() {
@@ -343,12 +401,7 @@
     render();
   }
 
-  /* ================= 核心：最近邻重采样 =================
-     直接从原始像素数组按整数索引取值，绝不插值。
-     每个目标像素 = 源图中某个真实存在的像素（原样复制 4 字节）。
-     所以：不可能出现"半个像素"，也不可能出现新颜色。
-     因为每次都从 src32 重算，缩小后再放大会精确还原原始像素。
-     ===================================================== */
+  /* ================= 核心：最近邻重采样 ================= */
   var cacheImgData = null, cacheW = 0, cacheH = 0;
 
   function applyResize() {
@@ -359,7 +412,7 @@
 
     cv.width  = targetW;
     cv.height = targetH;
-    ctx.imageSmoothingEnabled = false;   // 改尺寸会重置，必须重设
+    ctx.imageSmoothingEnabled = false;
 
     if (!cacheImgData || cacheW !== targetW || cacheH !== targetH) {
       try {
@@ -374,7 +427,6 @@
     var imgData = cacheImgData;
     var dst32 = new Uint32Array(imgData.data.buffer);
 
-    // 预计算每一列的源像素索引
     var xmap = new Int32Array(targetW);
     for (var x = 0; x < targetW; x++) {
       var sx = ((x + 0.5) * srcW / targetW) | 0;
@@ -383,7 +435,6 @@
       xmap[x] = sx;
     }
 
-    // 逐行复制（一次拷贝一个像素的 4 字节）
     for (var y = 0; y < targetH; y++) {
       var sy = ((y + 0.5) * srcH / targetH) | 0;
       if (sy >= srcH) sy = srcH - 1;
@@ -396,10 +447,343 @@
       }
     }
 
-    ctx.putImageData(imgData, 0, 0);     // 直接覆盖，不做任何混合
+    ctx.putImageData(imgData, 0, 0);
 
     var dt = performance.now() - t0;
     if (dt > 120) setMsg('重采样 ' + dt.toFixed(0) + ' ms', 1800);
+  }
+
+  /* ================= 选择系统 ================= */
+
+  function resetSelMask() {
+    selMask = new Uint8Array(targetW * targetH);
+    hasSelection = false;
+    selBounds = { x: 0, y: 0, w: 0, h: 0 };
+  }
+
+  function clearSelection(updateUI) {
+    if (selMask) selMask.fill(0);
+    hasSelection = false;
+    selBounds = { x: 0, y: 0, w: 0, h: 0 };
+    selDrag = null;
+    if (updateUI !== false) {
+      updateSelectUI();
+      renderSelectionOverlay();
+    }
+  }
+
+  function recalcSelBounds() {
+    if (!selMask) { hasSelection = false; return; }
+    var W = targetW, H = targetH;
+    var minx = W, miny = H, maxx = -1, maxy = -1;
+    for (var y = 0; y < H; y++) {
+      var row = y * W;
+      for (var x = 0; x < W; x++) {
+        if (selMask[row + x]) {
+          if (x < minx) minx = x;
+          if (x > maxx) maxx = x;
+          if (y < miny) miny = y;
+          if (y > maxy) maxy = y;
+        }
+      }
+    }
+    if (maxx < 0) {
+      hasSelection = false;
+      selBounds = { x: 0, y: 0, w: 0, h: 0 };
+    } else {
+      hasSelection = true;
+      selBounds = { x: minx, y: miny, w: maxx - minx + 1, h: maxy - miny + 1 };
+    }
+  }
+
+  function applyRectToSelMask(x0, y0, x1, y1, mode) {
+    if (!selMask) resetSelMask();
+    var W = targetW, H = targetH;
+    x0 = clamp(x0, 0, W);
+    y0 = clamp(y0, 0, H);
+    x1 = clamp(x1, 0, W);
+    y1 = clamp(y1, 0, H);
+    if (x1 < x0) { var t = x0; x0 = x1; x1 = t; }
+    if (y1 < y0) { var t2 = y0; y0 = y1; y1 = t2; }
+
+    if (mode === 'replace') selMask.fill(0);
+
+    for (var y = y0; y < y1; y++) {
+      var row = y * W;
+      for (var x = x0; x < x1; x++) {
+        if (mode === 'sub') selMask[row + x] = 0;
+        else selMask[row + x] = 1;
+      }
+    }
+  }
+
+  function selectAll() {
+    if (!hasImage) return;
+    if (!selMask) resetSelMask();
+    selMask.fill(1);
+    recalcSelBounds();
+    updateSelectUI();
+    renderSelectionOverlay();
+    setMsg('已全选', 1200);
+  }
+
+  function deselectAll() {
+    if (!hasImage) return;
+    clearSelection(true);
+    setMsg('已取消选择', 1200);
+  }
+
+  function invertSelection() {
+    if (!hasImage) return;
+    if (!selMask) resetSelMask();
+    for (var i = 0; i < selMask.length; i++) selMask[i] = selMask[i] ? 0 : 1;
+    recalcSelBounds();
+    updateSelectUI();
+    renderSelectionOverlay();
+    setMsg(hasSelection ? '已反选' : '反选后为空', 1200);
+  }
+
+  /* ---------- 选择拖拽 ---------- */
+
+  function stagePointFromEvent(e) {
+    var rect = stage.getBoundingClientRect();
+    var mx = e.clientX - rect.left;
+    var my = e.clientY - rect.top;
+    var px = Math.floor((mx - panX) / zoom);
+    var py = Math.floor((my - panY) / zoom);
+    return { px: px, py: py };
+  }
+
+  function beginSelectDrag(e) {
+    var p = stagePointFromEvent(e);
+    var mode = 'replace';
+    if (e.shiftKey) mode = 'add';
+    else if (e.ctrlKey || e.metaKey) mode = 'sub';
+
+    selDrag = {
+      x0: p.px, y0: p.py,
+      x1: p.px, y1: p.py,
+      mode: mode
+    };
+  }
+
+  function updateSelectDrag(e) {
+    if (!selDrag) return;
+    var p = stagePointFromEvent(e);
+    selDrag.x1 = p.px;
+    selDrag.y1 = p.py;
+    renderSelectionOverlay();
+    // 实时显示尺寸
+    var r = normalizedDragRect();
+    if (r) {
+      stSel.textContent = '选区 ' + r.w + ' × ' + r.h + ' px';
+    }
+  }
+
+  function normalizedDragRect() {
+    if (!selDrag) return null;
+    var x0 = Math.min(selDrag.x0, selDrag.x1);
+    var y0 = Math.min(selDrag.y0, selDrag.y1);
+    var x1 = Math.max(selDrag.x0, selDrag.x1);
+    var y1 = Math.max(selDrag.y0, selDrag.y1);
+    x0 = clamp(x0, 0, targetW);
+    y0 = clamp(y0, 0, targetH);
+    x1 = clamp(x1, 0, targetW);
+    y1 = clamp(y1, 0, targetH);
+    return { x: x0, y: y0, w: x1 - x0, h: y1 - y0, x1: x1, y1: y1 };
+  }
+
+  function endSelectDrag() {
+    if (!selDrag) return;
+    var r = normalizedDragRect();
+    var mode = selDrag.mode;
+    selDrag = null;
+
+    if (!r || r.w === 0 || r.h === 0) {
+      // 没有实际拖动：如果是替换模式，视为点击取消选择
+      if (mode === 'replace') {
+        clearSelection(true);
+      } else {
+        renderSelectionOverlay();
+        updateSelectUI();
+      }
+      return;
+    }
+
+    applyRectToSelMask(r.x, r.y, r.x1, r.y1, mode);
+    recalcSelBounds();
+    updateSelectUI();
+    renderSelectionOverlay();
+
+    if (hasSelection) {
+      setMsg('选区 ' + selBounds.w + ' × ' + selBounds.h +
+        (mode === 'add' ? '（加选）' : mode === 'sub' ? '（减选）' : ''), 1400);
+    } else {
+      setMsg('选区为空', 1200);
+    }
+  }
+
+  /* ---------- 选区绘制 ---------- */
+
+  function renderSelectionOverlay() {
+    if (!hasImage) {
+      selCv.style.display = 'none';
+      return;
+    }
+    selCv.style.display = 'block';
+
+    if (selCv.width !== targetW || selCv.height !== targetH) {
+      selCv.width = targetW;
+      selCv.height = targetH;
+    }
+    selCtx.clearRect(0, 0, targetW, targetH);
+    selCtx.imageSmoothingEnabled = false;
+
+    // 1) 已有选区（按遮罩逐像素绘制）
+    if (selMask && hasSelection) {
+      var W = targetW;
+      var b = selBounds;
+
+      // 半透明填充
+      selCtx.fillStyle = 'rgba(80, 180, 255, 0.18)';
+      for (var y = b.y; y < b.y + b.h; y++) {
+        var row = y * W;
+        for (var x = b.x; x < b.x + b.w; x++) {
+          if (selMask[row + x]) selCtx.fillRect(x, y, 1, 1);
+        }
+      }
+
+      // 边缘描边
+      var lw = 1 / zoom;
+      selCtx.lineWidth = lw;
+      selCtx.strokeStyle = 'rgba(0,0,0,0.85)';
+      selCtx.beginPath();
+      drawMaskEdges(selCtx, W, b);
+      selCtx.stroke();
+
+      selCtx.lineWidth = Math.max(lw, 0.5 / zoom);
+      selCtx.strokeStyle = 'rgba(255,255,255,0.95)';
+      selCtx.beginPath();
+      drawMaskEdges(selCtx, W, b);
+      selCtx.stroke();
+    }
+
+    // 2) 拖拽中的预览矩形
+    if (selDrag) {
+      var r = normalizedDragRect();
+      if (r && r.w > 0 && r.h > 0) {
+        selCtx.fillStyle = 'rgba(80, 180, 255, 0.25)';
+        selCtx.fillRect(r.x, r.y, r.w, r.h);
+
+        var lw2 = 1 / zoom;
+        selCtx.lineWidth = lw2;
+        selCtx.strokeStyle = 'rgba(0,0,0,0.9)';
+        selCtx.strokeRect(r.x + lw2 * 0.5, r.y + lw2 * 0.5, r.w - lw2, r.h - lw2);
+        selCtx.lineWidth = Math.max(lw2, 0.5 / zoom);
+        selCtx.strokeStyle = 'rgba(255,255,255,0.95)';
+        selCtx.strokeRect(r.x + lw2 * 0.5, r.y + lw2 * 0.5, r.w - lw2, r.h - lw2);
+      }
+    }
+  }
+
+  function drawMaskEdges(c, W, b) {
+    for (var y = b.y; y < b.y + b.h; y++) {
+      var row = y * W;
+      for (var x = b.x; x < b.x + b.w; x++) {
+        if (!selMask[row + x]) continue;
+        // 上边
+        if (y === 0 || !selMask[(y - 1) * W + x]) {
+          c.moveTo(x, y); c.lineTo(x + 1, y);
+        }
+        // 下边
+        if (y === targetH - 1 || !selMask[(y + 1) * W + x]) {
+          c.moveTo(x, y + 1); c.lineTo(x + 1, y + 1);
+        }
+        // 左边
+        if (x === 0 || !selMask[y * W + (x - 1)]) {
+          c.moveTo(x, y); c.lineTo(x, y + 1);
+        }
+        // 右边
+        if (x === targetW - 1 || !selMask[y * W + (x + 1)]) {
+          c.moveTo(x + 1, y); c.lineTo(x + 1, y + 1);
+        }
+      }
+    }
+  }
+
+  /* ================= 复制到剪贴板 ================= */
+
+  async function doCopy() {
+    if (!hasImage) return;
+    if (!hasSelection || !selMask) {
+      setMsg('没有选区', 1500);
+      return;
+    }
+
+    var b = selBounds;
+    // 从已缩放画布 cv 中提取
+    var tmp = document.createElement('canvas');
+    tmp.width = b.w;
+    tmp.height = b.h;
+    var tctx = tmp.getContext('2d');
+    tctx.imageSmoothingEnabled = false;
+    tctx.drawImage(cv, b.x, b.y, b.w, b.h, 0, 0, b.w, b.h);
+
+    // 若选区不是规则矩形，按遮罩抠掉外部
+    var needMask = false;
+    for (var yy = 0; yy < b.h; yy++) {
+      for (var xx = 0; xx < b.w; xx++) {
+        if (!selMask[(b.y + yy) * targetW + (b.x + xx)]) {
+          needMask = true;
+          break;
+        }
+      }
+      if (needMask) break;
+    }
+
+    if (needMask) {
+      var imgData = tctx.getImageData(0, 0, b.w, b.h);
+      var d = imgData.data;
+      for (var y = 0; y < b.h; y++) {
+        for (var x = 0; x < b.w; x++) {
+          if (!selMask[(b.y + y) * targetW + (b.x + x)]) {
+            var i = (y * b.w + x) * 4;
+            d[i] = 0; d[i+1] = 0; d[i+2] = 0; d[i+3] = 0;
+          }
+        }
+      }
+      tctx.putImageData(imgData, 0, 0);
+    }
+
+    var blob = await new Promise(function (res) {
+      tmp.toBlob(function (bl) { res(bl); }, 'image/png');
+    });
+
+    if (!blob) {
+      setMsg('导出失败', 2000);
+      return;
+    }
+
+    // 尝试写入系统剪贴板（跨工具可用）
+    var ok = false;
+    try {
+      if (navigator.clipboard && navigator.clipboard.write &&
+          typeof ClipboardItem !== 'undefined') {
+        await navigator.clipboard.write([
+          new ClipboardItem({ 'image/png': blob })
+        ]);
+        ok = true;
+      }
+    } catch (err) {
+      // 系统剪贴板写入失败，回退下载
+    }
+
+    if (ok) {
+      setMsg('已复制 ' + b.w + ' × ' + b.h + '（可跨工具粘贴）', 2200);
+    } else {
+      downloadBlob(blob, 'copy_' + b.w + 'x' + b.h + '.png');
+      setMsg('已下载 ' + b.w + ' × ' + b.h + '（浏览器不支持剪贴板）', 2600);
+    }
   }
 
   /* ================= 打开图片 ================= */
@@ -419,7 +803,6 @@
       var w = im.naturalWidth, h = im.naturalHeight;
       if (!w || !h) { setMsg('图片尺寸无效', 2000); return; }
 
-      // 1) 原图 1:1 画进离屏 canvas，取出原始像素
       var c = document.createElement('canvas');
       c.width = w; c.height = h;
       var cx = c.getContext('2d', { willReadFrequently: true });
@@ -430,26 +813,32 @@
       src32 = new Uint32Array(idata.data.buffer);
       srcW = w; srcH = h;
 
-      // 2) 重置状态
       hasImage = true;
       targetW = w; targetH = h;
       baseName = (file.name || 'image').replace(/\.[^.]+$/, '') || 'image';
-      fileHandle = null;              // 换了图片，之前记住的文件句柄作废
+      fileHandle = null;
+
+      // 重建选区
+      resetSelMask();
 
       placeholder.style.display = 'none';
       wrap.classList.add('on');
       setEnabled(true);
 
-      // 3) 首帧直接原样显示
       cv.width = w; cv.height = h;
       ctx.imageSmoothingEnabled = false;
       ctx.clearRect(0, 0, w, h);
       ctx.drawImage(c, 0, 0);
       cacheImgData = null; cacheW = 0; cacheH = 0;
 
+      // 选区 overlay 尺寸
+      selCv.width = w;
+      selCv.height = h;
+
       syncInputs();
       resetHistory();
       fitView();
+      updateSelectUI();
       setMsg('');
     };
 
@@ -470,6 +859,12 @@
     cacheImgData = null; cacheW = 0; cacheH = 0;
 
     cv.width = 0; cv.height = 0;
+    selCv.width = 0; selCv.height = 0;
+    selMask = null;
+    hasSelection = false;
+    selBounds = { x: 0, y: 0, w: 0, h: 0 };
+    selDrag = null;
+
     wrap.classList.remove('on');
     wrap.style.width = '0px';
     wrap.style.height = '0px';
@@ -478,6 +873,7 @@
     setEnabled(false);
     syncInputs();
     updateStatus();
+    updateSelectUI();
     setMsg('');
   }
 
@@ -523,7 +919,6 @@
 
   var supportsFS = (typeof window.showSaveFilePicker === 'function');
 
-  // 保存：若已有文件句柄就覆盖写入，否则走下载
   async function doSave() {
     if (!hasImage) return;
 
@@ -551,7 +946,6 @@
       }
     }
 
-    // 没有句柄 → 下载
     try {
       var b2 = await canvasToBlob();
       var name = defaultFileName();
@@ -562,14 +956,12 @@
     }
   }
 
-  // 另存为：优先弹出系统「另存为」对话框；不支持则回退下载
   async function doSaveAs() {
     if (!hasImage) return;
 
     var suggested = defaultFileName();
     var handle = null;
 
-    // 必须在用户手势同步阶段调用 showSaveFilePicker
     if (supportsFS) {
       try {
         handle = await window.showSaveFilePicker({
@@ -577,8 +969,8 @@
           types: [{ description: 'PNG 图片', accept: { 'image/png': ['.png'] } }]
         });
       } catch (err) {
-        if (err && err.name === 'AbortError') return;   // 用户取消
-        handle = null;                                  // 其他错误 → 回退下载
+        if (err && err.name === 'AbortError') return;
+        handle = null;
       }
     }
 
@@ -616,7 +1008,6 @@
       return;
     }
 
-    // 以中心为锚点
     var cx = panX + targetW * zoom / 2;
     var cy = panY + targetH * zoom / 2;
 
@@ -624,9 +1015,13 @@
     panX = Math.round(cx - w * zoom / 2);
     panY = Math.round(cy - h * zoom / 2);
 
+    // 尺寸变化 → 选区作废
+    resetSelMask();
+
     syncInputs();
     applyResize();
     render();
+    updateSelectUI();
 
     if (record !== false) pushHistory();
   }
@@ -676,7 +1071,7 @@
 
   function onResizeMove(e) {
     var d = drag;
-    var dx = (e.clientX - d.sx) / d.z;   // 屏幕位移 → 图片像素位移
+    var dx = (e.clientX - d.sx) / d.z;
     var dy = (e.clientY - d.sy) / d.z;
 
     var dir  = d.dir;
@@ -691,7 +1086,6 @@
     if (hasS) h = d.h0 + dy;
     if (hasN) h = d.h0 - dy;
 
-    // 锁定比例：勾选框 与 Shift 是"异或"关系
     var lock = (lockRatio.checked !== e.shiftKey);
     var isCorner = (hasE || hasW) && (hasN || hasS);
 
@@ -712,7 +1106,6 @@
       h = Math.max(1, Math.floor(h * k));
     }
 
-    // 锚点：被拖的那条边动，对面的边不动
     var oldW = d.w0 * d.z, oldH = d.h0 * d.z;
     var newW = w * d.z,    newH = h * d.z;
 
@@ -723,18 +1116,25 @@
     targetW = w; targetH = h;
     panX = px;   panY = py;
 
-    // 拖拽中只做 CSS 预览（wrap 尺寸变了，canvas 被拉伸，
-    // 配合 image-rendering:pixelated 就是硬边预览），松手才真正重采样
     render();
     syncInputs();
   }
 
-  /* ================= 平移 ================= */
+  /* ================= 平移 / 选择 ================= */
   stage.addEventListener('pointerdown', function (e) {
     if (!hasImage) return;
     if (e.button !== 0 && e.button !== 1) return;
     if (e.target && e.target.closest && e.target.closest('.handle')) return;
 
+    // 选择模式：左键拖拽 = 框选
+    if (selectionMode && e.button === 0) {
+      e.preventDefault();
+      stage.setPointerCapture(e.pointerId);
+      beginSelectDrag(e);
+      return;
+    }
+
+    // 否则平移
     e.preventDefault();
     stage.setPointerCapture(e.pointerId);
     panDrag = { sx: e.clientX, sy: e.clientY, px: panX, py: panY };
@@ -743,6 +1143,7 @@
 
   /* ================= 全局指针事件 ================= */
   document.addEventListener('pointermove', function (e) {
+    if (selDrag) { updateSelectDrag(e); return; }
     if (drag) { onResizeMove(e); return; }
     if (panDrag) {
       panX = panDrag.px + (e.clientX - panDrag.sx);
@@ -756,11 +1157,12 @@
     drag = null;
     if (cv.width !== targetW || cv.height !== targetH) applyResize();
     render();
-    pushHistory();          // 拖拽结束记录一步
+    pushHistory();
   }
 
   document.addEventListener('pointerup', function () {
     endResize();
+    if (selDrag) endSelectDrag();
     if (panDrag) {
       panDrag = null;
       stage.style.cursor = '';
@@ -769,6 +1171,7 @@
 
   document.addEventListener('pointercancel', function () {
     endResize();
+    if (selDrag) endSelectDrag();
     panDrag = null;
     stage.style.cursor = '';
   });
@@ -830,6 +1233,19 @@
   $('btnEighth').addEventListener('click', function () { scaleBy(1 / 8); });
   $('btnDouble').addEventListener('click', function () { scaleBy(2); });
 
+  /* 选择相关按钮 */
+  $('btnSelect').addEventListener('click', function () {
+    selectionMode = !selectionMode;
+    stage.classList.toggle('select-mode', selectionMode);
+    updateSelectUI();
+    setMsg(selectionMode ? '选择模式：拖拽框选，Shift 加选，Ctrl 减选' : '退出选择模式', 1800);
+  });
+
+  $('btnSelectAll').addEventListener('click', selectAll);
+  $('btnSelectNone').addEventListener('click', deselectAll);
+  $('btnSelectInv').addEventListener('click', invertSelection);
+  $('btnCopy').addEventListener('click', doCopy);
+
   /* ================= 拖放文件 ================= */
   ['dragenter', 'dragover'].forEach(function (t) {
     document.addEventListener(t, function (e) { e.preventDefault(); });
@@ -849,10 +1265,23 @@
     var k = (e.key || '').toLowerCase();
 
     if (mod && k === 'o') { e.preventDefault(); fileInput.click(); }
-    else if (mod && k === 's') { e.preventDefault(); doSave(); }
     else if (mod && e.shiftKey && k === 's') { e.preventDefault(); doSaveAs(); }
+    else if (mod && k === 's') { e.preventDefault(); doSave(); }
     else if (mod && k === 'z' && !e.shiftKey) { e.preventDefault(); undo(); }
     else if (mod && (k === 'y' || (k === 'z' && e.shiftKey))) { e.preventDefault(); redo(); }
+    else if (mod && k === 'a') { e.preventDefault(); selectAll(); }
+    else if (mod && k === 'd') { e.preventDefault(); deselectAll(); }
+    else if (mod && k === 'i') { e.preventDefault(); invertSelection(); }
+    else if (mod && k === 'c') { e.preventDefault(); doCopy(); }
+    else if (!mod && (e.key === 'Escape' || e.key === 'Esc')) {
+      e.preventDefault();
+      deselectAll();
+    }
+    else if (!mod && k === 's') {
+      // 单按 S 切换选择模式
+      e.preventDefault();
+      $('btnSelect').click();
+    }
     else if (!mod && e.key === '0') { e.preventDefault(); fitView(); }
     else if (!mod && e.key === '1') {
       e.preventDefault();
@@ -866,6 +1295,7 @@
   /* ================= 初始化 ================= */
   setEnabled(false);
   updateStatus();
+  updateSelectUI();
 
 })();
 </script>

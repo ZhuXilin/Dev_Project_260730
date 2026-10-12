@@ -64,6 +64,47 @@ input[type=checkbox]{accent-color:#2d6cdf;margin-right:4px}
 .anchor-cell{background:#2f2f36;border:1px solid #444;border-radius:3px;cursor:pointer;transition:background .08s}
 .anchor-cell:hover{background:#3e3e46}
 .anchor-cell.active{background:#2d6cdf;border-color:#4a8cf5}
+
+/* 图层 */
+#layer-list{
+  display:flex;flex-direction:column;gap:2px;
+  margin-bottom:8px;max-height:220px;overflow-y:auto;
+  background:#1a1a1f;border:1px solid #333;border-radius:4px;padding:4px;
+}
+#layer-list::-webkit-scrollbar{width:6px}
+#layer-list::-webkit-scrollbar-thumb{background:#444;border-radius:3px}
+.layer-item{
+  display:flex;align-items:center;gap:6px;
+  padding:4px 6px;background:#26262b;border-radius:3px;
+  cursor:pointer;font-size:12px;border:1px solid transparent;
+  transition:background .08s;
+}
+.layer-item:hover{background:#33333a}
+.layer-item.active{border-color:#2d6cdf;background:#2d3a54}
+.layer-item .eye{
+  width:18px;text-align:center;font-size:13px;
+  opacity:.85;user-select:none;flex-shrink:0;cursor:pointer;
+}
+.layer-item .eye.off{opacity:.3}
+.layer-item .thumb{
+  width:26px;height:26px;flex-shrink:0;
+  background:#101013;
+  border:1px solid #444;border-radius:2px;
+  image-rendering:pixelated;
+  background-image:linear-gradient(45deg,#1d1d22 25%,transparent 25%),
+                   linear-gradient(-45deg,#1d1d22 25%,transparent 25%),
+                   linear-gradient(45deg,transparent 75%,#1d1d22 75%),
+                   linear-gradient(-45deg,transparent 75%,#1d1d22 75%);
+  background-size:6px 6px;
+  background-position:0 0,0 3px,3px -3px,-3px 0;
+}
+.layer-item .name{
+  flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.layer-item .name input{
+  width:100%;background:#15151a;color:#ddd;border:1px solid #2d6cdf;
+  border-radius:2px;padding:1px 3px;font:inherit;font-size:12px;
+}
 </style>
 </head>
 <body>
@@ -96,6 +137,7 @@ input[type=checkbox]{accent-color:#2d6cdf;margin-right:4px}
   <div id="workarea">
     <div id="canvas-wrap"><canvas id="canvas"></canvas></div>
     <aside id="sidebar">
+
       <div class="section">
         <h3>网格 / 分格</h3>
         <div class="row">
@@ -162,6 +204,25 @@ input[type=checkbox]{accent-color:#2d6cdf;margin-right:4px}
       </div>
 
       <div class="section">
+        <h3>图层</h3>
+        <div id="layer-list"></div>
+        <div class="row">
+          <button id="btn-layer-new" title="新建空白图层">新建</button>
+          <button id="btn-layer-dup" title="复制当前图层">复制</button>
+          <button id="btn-layer-del" title="删除当前图层">删除</button>
+        </div>
+        <div class="row">
+          <button id="btn-layer-up" title="上移一层">▲</button>
+          <button id="btn-layer-down" title="下移一层">▼</button>
+          <button id="btn-layer-merge" title="与下方图层合并">合并 ↓</button>
+        </div>
+        <div class="row">
+          <button id="btn-layer-flatten" title="合并所有可见图层">拼合可见</button>
+          <button id="btn-layer-paste" title="把系统剪贴板粘贴为新图层">粘贴为新图层</button>
+        </div>
+      </div>
+
+      <div class="section">
         <h3>选区</h3>
         <div class="row">
           <button id="btn-sel-all">全选 <span style="color:#888">(Ctrl+A)</span></button>
@@ -224,6 +285,7 @@ input[type=checkbox]{accent-color:#2d6cdf;margin-right:4px}
   <div data-act="copy">复制 <span class="sc">Ctrl+C</span></div>
   <div data-act="cut">剪切 <span class="sc">Ctrl+X</span></div>
   <div data-act="paste">粘贴 <span class="sc">Ctrl+V</span></div>
+  <div data-act="paste-layer">粘贴为新图层</div>
   <hr>
   <div data-act="delete">删除选中像素 <span class="sc">Del</span></div>
 </div>
@@ -247,7 +309,7 @@ const DEFAULT_CUSTOM_HEX = (
 
 const TOOL = { SELECT:1, PENCIL:2, ERASER:3, BUCKET:4, PICKER:5, REPLACE:6 };
 const SEL_REPLACE=0, SEL_ADD=1, SEL_SUB=2;
-const HISTORY_MAX = 80;
+const HISTORY_MAX = 60;
 const RULER = 20;
 
 // ============================================================
@@ -255,7 +317,12 @@ const RULER = 20;
 // ============================================================
 const doc = {
   width:128, height:128,
-  imageData:null, imageCanvas:null, imageCtx:null, imageDirty:true,
+  layers: [],
+  activeLayer: 0,
+  imageData: null,
+  imageCanvas: null,
+  imageCtx: null,
+  imageDirty: true,
   selMask:null, hasSelection:false,
   selBounds:{x:0,y:0,w:0,h:0},
   floating:null, floatCanvas:null, floatDirty:false,
@@ -287,9 +354,53 @@ let checkerPattern = null;
 let animPreviewDirty = true;
 let animDragging = false;
 let gridSyncing = false;
+let layerRenaming = -1;
 
 const brushMaskCache = {};
 const brushOutlineCache = {};
+let _tmpCanvas = null;
+let _tmpCtx = null;
+
+// ============================================================
+// 图层合成
+// ============================================================
+function rebuildComposite(){
+  const W = doc.width, H = doc.height;
+  if(W <= 0 || H <= 0) return;
+  if(doc.imageCanvas.width !== W || doc.imageCanvas.height !== H){
+    doc.imageCanvas.width = W;
+    doc.imageCanvas.height = H;
+  }
+  const outCtx = doc.imageCtx;
+  outCtx.imageSmoothingEnabled = false;
+  outCtx.clearRect(0, 0, W, H);
+
+  if(!_tmpCanvas || _tmpCanvas.width !== W || _tmpCanvas.height !== H){
+    _tmpCanvas = document.createElement('canvas');
+    _tmpCanvas.width = W;
+    _tmpCanvas.height = H;
+    _tmpCtx = _tmpCanvas.getContext('2d');
+  }
+  _tmpCtx.imageSmoothingEnabled = false;
+
+  for(let i=0; i<doc.layers.length; i++){
+    const L = doc.layers[i];
+    if(!L.visible || L.opacity === 0) continue;
+    _tmpCtx.clearRect(0, 0, W, H);
+    _tmpCtx.putImageData(L.imageData, 0, 0);
+    outCtx.globalAlpha = L.opacity / 255;
+    outCtx.drawImage(_tmpCanvas, 0, 0);
+  }
+  outCtx.globalAlpha = 1;
+
+  doc.imageDirty = false;
+}
+
+function syncImageCanvas(){
+  if(!doc.imageDirty) return;
+  rebuildComposite();
+  animPreviewDirty = true;
+}
 
 // ============================================================
 // 历史
@@ -300,25 +411,39 @@ let historyIndex = -1;
 function makeSnapshot(){
   return {
     w: doc.width, h: doc.height,
-    data: new Uint8ClampedArray(doc.imageData.data),
+    activeLayer: doc.activeLayer,
+    layers: doc.layers.map(L => ({
+      name: L.name,
+      visible: L.visible,
+      opacity: L.opacity,
+      data: new Uint8ClampedArray(L.imageData.data)
+    })),
     sel: new Uint8Array(doc.selMask),
     hasSel: doc.hasSelection,
     bounds: Object.assign({}, doc.selBounds)
   };
 }
+
 function restoreSnapshot(s){
   drag.mode = null;
   drag.guideIdx = -1;
   drag.lastPx = null;
+
   if(s.w !== doc.width || s.h !== doc.height){
     doc.width = s.w; doc.height = s.h;
-    doc.imageData = new ImageData(new Uint8ClampedArray(s.data), s.w, s.h);
     doc.imageCanvas = document.createElement('canvas');
     doc.imageCanvas.width = s.w; doc.imageCanvas.height = s.h;
     doc.imageCtx = doc.imageCanvas.getContext('2d');
-  } else {
-    doc.imageData.data.set(s.data);
   }
+  doc.layers = s.layers.map(L => ({
+    name: L.name,
+    visible: L.visible,
+    opacity: L.opacity,
+    imageData: new ImageData(new Uint8ClampedArray(L.data), s.w, s.h)
+  }));
+  doc.activeLayer = Math.min(s.activeLayer, doc.layers.length - 1);
+  doc.imageData = doc.layers[doc.activeLayer].imageData;
+
   doc.selMask = new Uint8Array(s.sel);
   doc.hasSelection = s.hasSel;
   doc.selBounds = Object.assign({}, s.bounds);
@@ -326,14 +451,18 @@ function restoreSnapshot(s){
   doc.floatCanvas = null;
   doc.imageDirty = true;
   animPreviewDirty = true;
+
   updateAnimRange();
+  refreshLayerList();
   requestRender();
 }
+
 function resetHistory(){
   historyStack = [makeSnapshot()];
   historyIndex = 0;
   updateUndoButtons();
 }
+
 function commitHistory(){
   if(historyIndex < historyStack.length - 1){
     historyStack.length = historyIndex + 1;
@@ -343,6 +472,7 @@ function commitHistory(){
   historyIndex = historyStack.length - 1;
   updateUndoButtons();
 }
+
 function doUndo(){
   if(drag.mode === 'move'){ setStatus('请先松开鼠标再撤销'); return; }
   if(historyIndex <= 0) return;
@@ -385,6 +515,7 @@ const gridWEl = document.getElementById('grid-w');
 const gridHEl = document.getElementById('grid-h');
 const gridColsEl = document.getElementById('grid-cols');
 const gridRowsEl = document.getElementById('grid-rows');
+const layerListEl = document.getElementById('layer-list');
 
 // ============================================================
 // 工具函数
@@ -415,15 +546,12 @@ function getBrushMask(size){
   for(let y=0;y<size;y++){
     for(let x=0;x<size;x++){
       const dx = x - cx, dy = y - cy;
-      if(dx*dx + dy*dy <= r2){
-        pts.push({x: off+x, y: off+y});
-      }
+      if(dx*dx + dy*dy <= r2) pts.push({x: off+x, y: off+y});
     }
   }
   brushMaskCache[size] = pts;
   return pts;
 }
-
 function getBrushOutline(size){
   size = Math.max(1, size|0);
   if(brushOutlineCache[size]) return brushOutlineCache[size];
@@ -448,10 +576,21 @@ function getBrushOutline(size){
 function newDoc(w,h){
   w=Math.max(1,w|0); h=Math.max(1,h|0);
   doc.width=w; doc.height=h;
-  doc.imageData = new ImageData(w,h);
+
+  doc.layers = [{
+    name: '图层 1',
+    visible: true,
+    opacity: 255,
+    imageData: new ImageData(w, h)
+  }];
+  doc.activeLayer = 0;
+  doc.imageData = doc.layers[0].imageData;
+
   doc.imageCanvas = document.createElement('canvas');
-  doc.imageCanvas.width=w; doc.imageCanvas.height=h;
+  doc.imageCanvas.width = w;
+  doc.imageCanvas.height = h;
   doc.imageCtx = doc.imageCanvas.getContext('2d');
+
   doc.selMask = new Uint8Array(w*h);
   doc.hasSelection=false;
   doc.selBounds={x:0,y:0,w:0,h:0};
@@ -461,12 +600,12 @@ function newDoc(w,h){
   animPreviewDirty=true;
   resetHistory();
   syncGridInputsFromWH();
+  refreshLayerList();
 }
+
 function resizeDocWithAnchor(w, h, anchor){
   w=Math.max(1,w|0); h=Math.max(1,h|0);
   const oldW = doc.width, oldH = doc.height;
-  const oldData = doc.imageData.data;
-  const newData = new Uint8ClampedArray(w*h*4);
 
   const ax = anchor % 3, ay = Math.floor(anchor / 3);
   let dx, dy;
@@ -477,26 +616,33 @@ function resizeDocWithAnchor(w, h, anchor){
   else if(ay===1) dy = Math.floor((h - oldH) / 2);
   else dy = h - oldH;
 
-  for(let y=0;y<oldH;y++){
-    const ny = y + dy;
-    if(ny < 0 || ny >= h) continue;
-    for(let x=0;x<oldW;x++){
-      const nx = x + dx;
-      if(nx < 0 || nx >= w) continue;
-      const si = (y*oldW + x)*4;
-      const di = (ny*w + nx)*4;
-      newData[di] = oldData[si];
-      newData[di+1] = oldData[si+1];
-      newData[di+2] = oldData[si+2];
-      newData[di+3] = oldData[si+3];
+  for(const L of doc.layers){
+    const oldData = L.imageData.data;
+    const newData = new Uint8ClampedArray(w*h*4);
+    for(let y=0;y<oldH;y++){
+      const ny = y + dy;
+      if(ny < 0 || ny >= h) continue;
+      for(let x=0;x<oldW;x++){
+        const nx = x + dx;
+        if(nx < 0 || nx >= w) continue;
+        const si = (y*oldW + x)*4;
+        const di = (ny*w + nx)*4;
+        newData[di] = oldData[si];
+        newData[di+1] = oldData[si+1];
+        newData[di+2] = oldData[si+2];
+        newData[di+3] = oldData[si+3];
+      }
     }
+    L.imageData = new ImageData(newData, w, h);
   }
 
   doc.width=w; doc.height=h;
-  doc.imageData = new ImageData(newData,w,h);
+  doc.imageData = doc.layers[doc.activeLayer].imageData;
+
   doc.imageCanvas = document.createElement('canvas');
-  doc.imageCanvas.width=w; doc.imageCanvas.height=h;
+  doc.imageCanvas.width = w; doc.imageCanvas.height = h;
   doc.imageCtx = doc.imageCanvas.getContext('2d');
+
   doc.selMask = new Uint8Array(w*h);
   doc.hasSelection=false;
   doc.selBounds={x:0,y:0,w:0,h:0};
@@ -505,13 +651,9 @@ function resizeDocWithAnchor(w, h, anchor){
   animPreviewDirty=true;
   updateAnimRange();
   syncGridInputsFromWH();
+  refreshLayerList();
 }
-function syncImageCanvas(){
-  if(!doc.imageDirty) return;
-  doc.imageCtx.putImageData(doc.imageData,0,0);
-  doc.imageDirty=false;
-  animPreviewDirty=true;
-}
+
 function rebuildFloatCanvas(){
   if(!doc.floating){ doc.floatCanvas=null; return; }
   const f = doc.floating;
@@ -523,6 +665,7 @@ function rebuildFloatCanvas(){
   fctx.putImageData(new ImageData(new Uint8ClampedArray(f.data),f.w,f.h),0,0);
   doc.floatDirty=false;
 }
+
 function getPixel(x,y){
   if(x<0||y<0||x>=doc.width||y>=doc.height) return [0,0,0,0];
   const i=(y*doc.width+x)*4, d=doc.imageData.data;
@@ -533,6 +676,293 @@ function setPixel(x,y,rgba){
   const i=(y*doc.width+x)*4, d=doc.imageData.data;
   d[i]=rgba[0]; d[i+1]=rgba[1]; d[i+2]=rgba[2]; d[i+3]=rgba[3];
   doc.imageDirty=true;
+}
+function getCompositePixel(x,y){
+  if(x<0||y<0||x>=doc.width||y>=doc.height) return [0,0,0,0];
+  syncImageCanvas();
+  const d = doc.imageCtx.getImageData(x, y, 1, 1).data;
+  return [d[0], d[1], d[2], d[3]];
+}
+
+// ============================================================
+// 图层操作
+// ============================================================
+function setActiveLayer(idx){
+  if(idx < 0 || idx >= doc.layers.length) return;
+  if(idx === doc.activeLayer) return;
+  if(doc.floating){ commitFloat(); commitHistory(); }
+  doc.activeLayer = idx;
+  doc.imageData = doc.layers[idx].imageData;
+  refreshLayerList();
+  requestRender();
+  setStatus('已选中图层: ' + doc.layers[idx].name);
+}
+
+function addLayer(){
+  if(doc.floating){ commitFloat(); commitHistory(); }
+  const newLayer = {
+    name: '图层 ' + (doc.layers.length + 1),
+    visible: true,
+    opacity: 255,
+    imageData: new ImageData(doc.width, doc.height)
+  };
+  const idx = doc.activeLayer + 1;
+  doc.layers.splice(idx, 0, newLayer);
+  doc.activeLayer = idx;
+  doc.imageData = newLayer.imageData;
+  doc.imageDirty = true;
+  refreshLayerList();
+  commitHistory();
+  requestRender();
+  setStatus('已新建图层');
+}
+
+function duplicateLayer(){
+  if(doc.floating){ commitFloat(); commitHistory(); }
+  const L = doc.layers[doc.activeLayer];
+  const dup = {
+    name: L.name + ' 副本',
+    visible: L.visible,
+    opacity: L.opacity,
+    imageData: new ImageData(new Uint8ClampedArray(L.imageData.data), doc.width, doc.height)
+  };
+  const idx = doc.activeLayer + 1;
+  doc.layers.splice(idx, 0, dup);
+  doc.activeLayer = idx;
+  doc.imageData = dup.imageData;
+  doc.imageDirty = true;
+  refreshLayerList();
+  commitHistory();
+  requestRender();
+  setStatus('已复制图层');
+}
+
+function deleteLayer(){
+  if(doc.layers.length <= 1){
+    setStatus('至少保留一个图层');
+    return;
+  }
+  if(doc.floating){ commitFloat(); commitHistory(); }
+  doc.layers.splice(doc.activeLayer, 1);
+  doc.activeLayer = Math.min(doc.activeLayer, doc.layers.length - 1);
+  doc.imageData = doc.layers[doc.activeLayer].imageData;
+  doc.imageDirty = true;
+  refreshLayerList();
+  commitHistory();
+  requestRender();
+  setStatus('已删除图层');
+}
+
+function moveLayer(dir){
+  const i = doc.activeLayer;
+  const j = i + dir;
+  if(j < 0 || j >= doc.layers.length) return;
+  if(doc.floating){ commitFloat(); commitHistory(); }
+  const tmp = doc.layers[i];
+  doc.layers[i] = doc.layers[j];
+  doc.layers[j] = tmp;
+  doc.activeLayer = j;
+  doc.imageData = doc.layers[j].imageData;
+  doc.imageDirty = true;
+  refreshLayerList();
+  commitHistory();
+  requestRender();
+}
+
+function mergeDown(){
+  const i = doc.activeLayer;
+  if(i <= 0){
+    setStatus('下方没有图层');
+    return;
+  }
+  if(doc.floating){ commitFloat(); commitHistory(); }
+
+  const upper = doc.layers[i];
+  const lower = doc.layers[i-1];
+  const W = doc.width, H = doc.height;
+
+  const ua = upper.visible ? (upper.opacity / 255) : 0;
+  const la = lower.visible ? (lower.opacity / 255) : 0;
+  const ud = upper.imageData.data;
+  const ld = lower.imageData.data;
+  const out = new Uint8ClampedArray(W * H * 4);
+
+  for(let p=0; p<W*H; p++){
+    const i4 = p * 4;
+    let dr = ld[i4], dg = ld[i4+1], db = ld[i4+2], da = ld[i4+3] / 255 * la;
+    let sr = ud[i4], sg = ud[i4+1], sb = ud[i4+2], sa = ud[i4+3] / 255 * ua;
+
+    const outA = sa + da * (1 - sa);
+    if(outA <= 0){
+      out[i4] = 0; out[i4+1] = 0; out[i4+2] = 0; out[i4+3] = 0;
+    } else {
+      out[i4]   = Math.round((sr * sa + dr * da * (1 - sa)) / outA);
+      out[i4+1] = Math.round((sg * sa + dg * da * (1 - sa)) / outA);
+      out[i4+2] = Math.round((sb * sa + db * da * (1 - sa)) / outA);
+      out[i4+3] = Math.round(outA * 255);
+    }
+  }
+
+  lower.imageData = new ImageData(out, W, H);
+  lower.visible = true;
+  lower.opacity = 255;
+
+  doc.layers.splice(i, 1);
+  doc.activeLayer = i - 1;
+  doc.imageData = doc.layers[doc.activeLayer].imageData;
+  doc.imageDirty = true;
+  refreshLayerList();
+  commitHistory();
+  requestRender();
+  setStatus('已合并到下方图层');
+}
+
+function flattenVisible(){
+  if(doc.floating){ commitFloat(); commitHistory(); }
+  const W = doc.width, H = doc.height;
+  const out = new Uint8ClampedArray(W * H * 4);
+
+  for(const L of doc.layers){
+    if(!L.visible || L.opacity === 0) continue;
+    const la = L.opacity / 255;
+    const d = L.imageData.data;
+    for(let p=0; p<W*H; p++){
+      const i4 = p*4;
+      const sa = (d[i4+3] / 255) * la;
+      if(sa <= 0) continue;
+      const da = out[i4+3] / 255;
+      const outA = sa + da * (1 - sa);
+      if(outA <= 0){
+        out[i4] = 0; out[i4+1] = 0; out[i4+2] = 0; out[i4+3] = 0;
+      } else {
+        out[i4]   = Math.round((d[i4]   * sa + out[i4]   * da * (1-sa)) / outA);
+        out[i4+1] = Math.round((d[i4+1] * sa + out[i4+1] * da * (1-sa)) / outA);
+        out[i4+2] = Math.round((d[i4+2] * sa + out[i4+2] * da * (1-sa)) / outA);
+        out[i4+3] = Math.round(outA * 255);
+      }
+    }
+  }
+
+  doc.layers = [{
+    name: '合并图层',
+    visible: true,
+    opacity: 255,
+    imageData: new ImageData(out, W, H)
+  }];
+  doc.activeLayer = 0;
+  doc.imageData = doc.layers[0].imageData;
+  doc.imageDirty = true;
+  refreshLayerList();
+  commitHistory();
+  requestRender();
+  setStatus('已拼合所有可见图层');
+}
+
+function toggleLayerVisible(idx){
+  doc.layers[idx].visible = !doc.layers[idx].visible;
+  doc.imageDirty = true;
+  refreshLayerList();
+  commitHistory();
+  requestRender();
+}
+
+function renameLayer(idx, newName){
+  if(!newName) newName = '图层';
+  doc.layers[idx].name = newName;
+  refreshLayerList();
+  commitHistory();
+}
+
+// ============================================================
+// 图层面板
+// ============================================================
+function refreshLayerList(){
+  layerListEl.innerHTML = '';
+  // 顶层显示在最上 → 反向遍历
+  for(let i = doc.layers.length - 1; i >= 0; i--){
+    const L = doc.layers[i];
+    const item = document.createElement('div');
+    item.className = 'layer-item' + (i === doc.activeLayer ? ' active' : '');
+    item.dataset.idx = i;
+
+    // 眼睛
+    const eye = document.createElement('span');
+    eye.className = 'eye' + (L.visible ? '' : ' off');
+    eye.textContent = L.visible ? '👁' : '—';
+    eye.title = L.visible ? '隐藏图层' : '显示图层';
+    eye.addEventListener('mousedown', e => {
+      e.preventDefault();
+      e.stopPropagation();
+      toggleLayerVisible(i);
+    });
+    item.appendChild(eye);
+
+    // 缩略图
+    const thumb = document.createElement('canvas');
+    thumb.className = 'thumb';
+    thumb.width = Math.max(1, Math.min(doc.width, 32));
+    thumb.height = Math.max(1, Math.min(doc.height, 32));
+    thumb.style.width = '26px';
+    thumb.style.height = '26px';
+    {
+      const tctx = thumb.getContext('2d');
+      tctx.imageSmoothingEnabled = false;
+      const tmpC = document.createElement('canvas');
+      tmpC.width = doc.width;
+      tmpC.height = doc.height;
+      tmpC.getContext('2d').putImageData(L.imageData, 0, 0);
+      tctx.drawImage(tmpC, 0, 0, doc.width, doc.height, 0, 0, thumb.width, thumb.height);
+    }
+    item.appendChild(thumb);
+
+    // 名称
+    const nameEl = document.createElement('span');
+    nameEl.className = 'name';
+    nameEl.textContent = L.name;
+    nameEl.title = L.name;
+    nameEl.addEventListener('dblclick', e => {
+      e.stopPropagation();
+      layerRenaming = i;
+      refreshLayerList();
+      const input2 = layerListEl.querySelector('.layer-item[data-idx="'+i+'"] input');
+      if(input2){
+        input2.focus();
+        input2.select();
+      }
+    });
+    item.appendChild(nameEl);
+
+    // 重命名输入框
+    if(layerRenaming === i){
+      nameEl.textContent = '';
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.value = L.name;
+      const finish = (commit) => {
+        const v = input.value.trim();
+        layerRenaming = -1;
+        if(commit && v) renameLayer(i, v);
+        else refreshLayerList();
+      };
+      input.addEventListener('keydown', e => {
+        if(e.key === 'Enter'){ e.preventDefault(); finish(true); }
+        else if(e.key === 'Escape'){ e.preventDefault(); finish(false); }
+      });
+      input.addEventListener('blur', () => finish(true));
+      input.addEventListener('mousedown', e => e.stopPropagation());
+      nameEl.appendChild(input);
+    }
+
+    // 点击选择（BUG 修复：不能引用可能未定义的 input）
+    item.addEventListener('mousedown', e => {
+      if(e.button !== 0) return;
+      if(e.target && e.target.tagName === 'INPUT') return;
+      e.preventDefault();
+      setActiveLayer(i);
+    });
+
+    layerListEl.appendChild(item);
+  }
 }
 
 // ============================================================
@@ -804,7 +1234,6 @@ function render(){
   ctx.strokeRect(dstX+0.5,dstY+0.5,dstW-1,dstH-1);
 
   if(!ui.singleCell) drawGuides(z, px, py);
-
   drawSelection(z, ox, oy);
 
   if(drag.mode==='select'){
@@ -917,10 +1346,8 @@ function drawCursor(z,ox,oy){
   if(ui.tool!==TOOL.PENCIL && ui.tool!==TOOL.ERASER) return;
 
   const segs = getBrushOutline(ui.brushSize);
-
   ctx.save();
   ctx.lineCap = 'square';
-
   ctx.beginPath();
   for(const s of segs){
     const x0 = Math.round(ox + (mouse.px + s[0]) * z) + 0.5;
@@ -930,14 +1357,12 @@ function drawCursor(z,ox,oy){
     ctx.moveTo(x0, y0);
     ctx.lineTo(x1, y1);
   }
-
   ctx.strokeStyle = 'rgba(0,0,0,0.75)';
   ctx.lineWidth = 3;
   ctx.stroke();
   ctx.strokeStyle = 'rgba(255,255,255,0.95)';
   ctx.lineWidth = 1;
   ctx.stroke();
-
   ctx.restore();
 }
 function drawRulers(z,px,py,W,H){
@@ -1094,8 +1519,7 @@ function replacePrimaryWithSecondary(){
   setStatus('已替换 '+count+' 个像素');
 }
 function pickAt(p){
-  if(p.x<0||p.y<0||p.x>=doc.width||p.y>=doc.height) return;
-  const c=getPixel(p.x,p.y);
+  const c = getCompositePixel(p.x, p.y);
   if(c[3]>0){
     ui.primary=c.slice();
     syncColorInputs();
@@ -1114,6 +1538,163 @@ function guideAt(x,y){
     if(g.axis===1 && Math.abs(y-g.pos)<=thr) return i;
   }
   return -1;
+}
+
+// ============================================================
+// 剪贴板（跨工具）
+// ============================================================
+async function doCopy(){
+  if(!doc.hasSelection){ setStatus('没有选区可复制'); return; }
+  const b = doc.selBounds;
+  const W = doc.width;
+  const d = doc.imageData.data;
+
+  const data = new Uint8ClampedArray(b.w * b.h * 4);
+  for(let y=0;y<b.h;y++) for(let x=0;x<b.w;x++){
+    const sxp = b.x + x, syp = b.y + y;
+    if(isSelected(sxp, syp)){
+      const si = (syp*W + sxp) * 4;
+      const di = (y*b.w + x) * 4;
+      data[di]   = d[si];
+      data[di+1] = d[si+1];
+      data[di+2] = d[si+2];
+      data[di+3] = d[si+3];
+    }
+  }
+  clipboard = { w: b.w, h: b.h, data, x: b.x, y: b.y };
+
+  try {
+    if(navigator.clipboard && navigator.clipboard.write){
+      const c = document.createElement('canvas');
+      c.width = b.w; c.height = b.h;
+      const cx2 = c.getContext('2d');
+      cx2.putImageData(new ImageData(new Uint8ClampedArray(data), b.w, b.h), 0, 0);
+      const blob = await new Promise(res => c.toBlob(res, 'image/png'));
+      if(blob){
+        await navigator.clipboard.write([new ClipboardItem({'image/png': blob})]);
+        setStatus(`已复制 ${b.w}×${b.h}（可跨工具粘贴）`);
+        return;
+      }
+    }
+  } catch(err){
+    console.warn('系统剪贴板写入失败', err);
+  }
+  setStatus(`已复制 ${b.w}×${b.h}（仅本页可用）`);
+}
+
+async function readClipboardImage(){
+  try {
+    if(navigator.clipboard && navigator.clipboard.read){
+      const items = await navigator.clipboard.read();
+      for(const item of items){
+        for(const type of item.types){
+          if(type === 'image/png' || type === 'image/jpeg' || type === 'image/webp' || type === 'image/gif'){
+            const blob = await item.getType(type);
+            const img = await blobToImage(blob);
+            const c = document.createElement('canvas');
+            c.width = img.width; c.height = img.height;
+            const cx2 = c.getContext('2d');
+            cx2.imageSmoothingEnabled = false;
+            cx2.drawImage(img, 0, 0);
+            const id = cx2.getImageData(0, 0, img.width, img.height);
+            return { w: img.width, h: img.height, data: id.data };
+          }
+        }
+      }
+    }
+  } catch(err){ /* 回退到内部剪贴板 */ }
+  if(clipboard) return { w: clipboard.w, h: clipboard.h, data: clipboard.data };
+  return null;
+}
+
+function blobToImage(blob){
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(blob);
+    const img = new Image();
+    img.onload = () => { URL.revokeObjectURL(url); resolve(img); };
+    img.onerror = (e) => { URL.revokeObjectURL(url); reject(e); };
+    img.src = url;
+  });
+}
+
+async function doPaste(){
+  setStatus('读取剪贴板…');
+  const result = await readClipboardImage();
+  if(!result){ setStatus('剪贴板为空'); return; }
+  if(doc.floating){ commitFloat(); commitHistory(); }
+
+  const W = doc.width, H = doc.height;
+  const d = doc.imageData.data;
+
+  for(let y=0; y<result.h; y++){
+    if(y >= H) break;
+    for(let x=0; x<result.w; x++){
+      if(x >= W) break;
+      const si = (y*result.w + x) * 4;
+      const di = (y*W + x) * 4;
+      d[di]   = result.data[si];
+      d[di+1] = result.data[si+1];
+      d[di+2] = result.data[si+2];
+      d[di+3] = result.data[si+3];
+    }
+  }
+  doc.imageDirty = true;
+
+  doc.selMask.fill(0);
+  for(let y=0; y<Math.min(result.h, H); y++){
+    for(let x=0; x<Math.min(result.w, W); x++){
+      doc.selMask[y*W+x] = 1;
+    }
+  }
+  recalcBounds();
+  commitHistory();
+  requestRender();
+  setStatus(`已粘贴 ${result.w}×${result.h}`);
+}
+
+async function doPasteAsLayer(){
+  setStatus('读取剪贴板…');
+  const result = await readClipboardImage();
+  if(!result){ setStatus('剪贴板为空'); return; }
+  if(doc.floating){ commitFloat(); commitHistory(); }
+
+  const W = doc.width, H = doc.height;
+  const id = new ImageData(W, H);
+  const d = id.data;
+  for(let y=0; y<Math.min(result.h, H); y++){
+    for(let x=0; x<Math.min(result.w, W); x++){
+      const si = (y*result.w + x) * 4;
+      const di = (y*W + x) * 4;
+      d[di]   = result.data[si];
+      d[di+1] = result.data[si+1];
+      d[di+2] = result.data[si+2];
+      d[di+3] = result.data[si+3];
+    }
+  }
+
+  const newLayer = {
+    name: '粘贴图层',
+    visible: true,
+    opacity: 255,
+    imageData: id
+  };
+  const idx = doc.activeLayer + 1;
+  doc.layers.splice(idx, 0, newLayer);
+  doc.activeLayer = idx;
+  doc.imageData = newLayer.imageData;
+  doc.imageDirty = true;
+  refreshLayerList();
+  commitHistory();
+  requestRender();
+  setStatus(`已粘贴为新图层 ${result.w}×${result.h}`);
+}
+
+function doCut(){
+  if(!doc.hasSelection){ setStatus('没有选区可剪切'); return; }
+  doCopy();
+  deleteSelection();
+  commitHistory();
+  setStatus('已剪切');
 }
 
 // ============================================================
@@ -1346,9 +1927,7 @@ function finishDrag(){
       const rdx = doc.floating.x - drag.floatOrigin.x;
       const rdy = doc.floating.y - drag.floatOrigin.y;
       commitFloat();
-      if(rdx !== 0 || rdy !== 0){
-        commitHistory();
-      }
+      if(rdx !== 0 || rdy !== 0) commitHistory();
       setStatus(`已移动 dx=${rdx}, dy=${rdy}`);
     }
   } else if(drag.mode==='draw'){
@@ -1421,7 +2000,10 @@ document.addEventListener('keydown', e => {
       case 'd': e.preventDefault(); deselectAll(); setStatus('取消选择'); return;
       case 'c': e.preventDefault(); doCopy(); return;
       case 'x': e.preventDefault(); doCut(); return;
-      case 'v': e.preventDefault(); doPaste(); return;
+      case 'v':
+        e.preventDefault();
+        if(e.shiftKey) doPasteAsLayer(); else doPaste();
+        return;
       case 's': e.preventDefault(); savePng(false); return;
     }
   }
@@ -1482,53 +2064,6 @@ document.addEventListener('keydown', e => {
 document.addEventListener('keyup', e => {
   if(e.key===' '){ spaceDown=false; canvas.style.cursor='crosshair'; }
 });
-
-// ============================================================
-// 剪贴板
-// ============================================================
-function doCopy(){
-  if(!doc.hasSelection){ setStatus('没有选区可复制'); return; }
-  const b=doc.selBounds;
-  const data=new Uint8ClampedArray(b.w*b.h*4);
-  for(let y=0;y<b.h;y++) for(let x=0;x<b.w;x++){
-    if(isSelected(b.x+x,b.y+y)){
-      const c=getPixel(b.x+x,b.y+y);
-      const di=(y*b.w+x)*4;
-      data[di]=c[0]; data[di+1]=c[1]; data[di+2]=c[2]; data[di+3]=c[3];
-    }
-  }
-  clipboard={w:b.w,h:b.h,data,x:b.x,y:b.y};
-  setStatus('已复制 '+b.w+'×'+b.h);
-}
-function doCut(){
-  if(!doc.hasSelection){ setStatus('没有选区可剪切'); return; }
-  doCopy();
-  deleteSelection();
-  commitHistory();
-  setStatus('已剪切');
-}
-function doPaste(){
-  if(!clipboard){ setStatus('剪贴板为空'); return; }
-  const {w, h, data, x, y} = clipboard;
-  const d = doc.imageData.data;
-  for(let j=0;j<h;j++) for(let i=0;i<w;i++){
-    const dx = x+i, dy = y+j;
-    if(dx<0||dy<0||dx>=doc.width||dy>=doc.height) continue;
-    const si = (j*w+i)*4, di = (dy*doc.width+dx)*4;
-    d[di] = data[si]; d[di+1] = data[si+1]; d[di+2] = data[si+2]; d[di+3] = data[si+3];
-  }
-  doc.imageDirty = true;
-  doc.selMask.fill(0);
-  for(let j=0;j<h;j++) for(let i=0;i<w;i++){
-    const dx = x+i, dy = y+j;
-    if(dx<0||dy<0||dx>=doc.width||dy>=doc.height) continue;
-    doc.selMask[dy*doc.width+dx] = 1;
-  }
-  recalcBounds();
-  commitHistory();
-  requestRender();
-  setStatus('已粘贴 ' + w + '×' + h);
-}
 
 // ============================================================
 // 动画
@@ -1678,8 +2213,21 @@ function getBaseName(){
   return (doc.fileName.replace(/\.(png|pxproj|json)$/i,'') || 'sprite');
 }
 
-async function savePng(saveAs){
+function buildExportCanvas(){
   syncImageCanvas();
+  const c = document.createElement('canvas');
+  c.width = doc.width;
+  c.height = doc.height;
+  const cx2 = c.getContext('2d');
+  cx2.imageSmoothingEnabled = false;
+  cx2.drawImage(doc.imageCanvas, 0, 0);
+  return c;
+}
+
+async function savePng(saveAs){
+  if(doc.floating){ commitFloat(); commitHistory(); }
+  syncImageCanvas();
+  const exportCanvas = buildExportCanvas();
   const defName = getBaseName() + '.png';
 
   let handle = null;
@@ -1703,7 +2251,7 @@ async function savePng(saveAs){
     }
   }
 
-  const blob = await new Promise(res => doc.imageCanvas.toBlob(res, 'image/png'));
+  const blob = await new Promise(res => exportCanvas.toBlob(res, 'image/png'));
 
   if(handle){
     try{
@@ -1737,21 +2285,35 @@ function openPng(){
         const g=c.getContext('2d');
         g.drawImage(img,0,0);
         const id=g.getImageData(0,0,img.width,img.height);
-        doc.width=img.width; doc.height=img.height;
-        doc.imageData = new ImageData(img.width, img.height);
+
+        doc.width = img.width;
+        doc.height = img.height;
+        doc.layers = [{
+          name: '背景',
+          visible: true,
+          opacity: 255,
+          imageData: id
+        }];
+        doc.activeLayer = 0;
+        doc.imageData = doc.layers[0].imageData;
+
         doc.imageCanvas = document.createElement('canvas');
-        doc.imageCanvas.width=img.width; doc.imageCanvas.height=img.height;
+        doc.imageCanvas.width = img.width;
+        doc.imageCanvas.height = img.height;
         doc.imageCtx = doc.imageCanvas.getContext('2d');
+
         doc.selMask = new Uint8Array(img.width*img.height);
         doc.hasSelection=false;
         doc.selBounds={x:0,y:0,w:0,h:0};
         doc.floating=null; doc.floatCanvas=null;
-        doc.imageData.data.set(id.data);
         doc.imageDirty=true;
         doc.fileName=f.name;
+        animPreviewDirty=true;
+
         resetHistory();
         updateAnimRange();
         syncGridInputsFromWH();
+        refreshLayerList();
         fitToView();
         setStatus('已打开: '+f.name);
       };
@@ -1763,7 +2325,31 @@ function openPng(){
   fileInput.click();
 }
 
+function imageDataToDataURL(id){
+  const c = document.createElement('canvas');
+  c.width = id.width;
+  c.height = id.height;
+  c.getContext('2d').putImageData(id, 0, 0);
+  return c.toDataURL('image/png');
+}
+function dataURLToImageData(dataURL, W, H){
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const c = document.createElement('canvas');
+      c.width = W; c.height = H;
+      const cx2 = c.getContext('2d');
+      cx2.imageSmoothingEnabled = false;
+      cx2.drawImage(img, 0, 0);
+      resolve(cx2.getImageData(0, 0, W, H));
+    };
+    img.onerror = reject;
+    img.src = dataURL;
+  });
+}
+
 async function saveProject(saveAs){
+  if(doc.floating){ commitFloat(); commitHistory(); }
   syncImageCanvas();
   const defName = getBaseName() + '.pxproj';
 
@@ -1788,20 +2374,32 @@ async function saveProject(saveAs){
     }
   }
 
+  const layers = doc.layers.map(L => ({
+    name: L.name,
+    visible: L.visible,
+    opacity: L.opacity,
+    png: imageDataToDataURL(L.imageData)
+  }));
+
   const data = {
-    app:'pxedit', version:5,
-    width:doc.width, height:doc.height,
-    png:doc.imageCanvas.toDataURL('image/png'),
-    grid:Object.assign({},doc.grid),
-    guides:doc.guides.slice(),
-    singleCell:ui.singleCell, currentCell:ui.currentCell,
-    animStart:+document.getElementById('anim-start').value,
-    animEnd:+document.getElementById('anim-end').value,
-    animFps:+document.getElementById('anim-fps').value,
-    animLoop:document.getElementById('anim-loop').checked,
+    app: 'pxedit',
+    version: 6,
+    width: doc.width,
+    height: doc.height,
+    layers: layers,
+    activeLayer: doc.activeLayer,
+    grid: Object.assign({}, doc.grid),
+    guides: doc.guides.slice(),
+    singleCell: ui.singleCell,
+    currentCell: ui.currentCell,
+    animStart: +document.getElementById('anim-start').value,
+    animEnd: +document.getElementById('anim-end').value,
+    animFps: +document.getElementById('anim-fps').value,
+    animLoop: document.getElementById('anim-loop').checked,
     paletteCustom: ui.paletteCustom.map(c=>rgbToHex(c)),
-    primary:rgbToHex(ui.primary), secondary:rgbToHex(ui.secondary),
-    brushSize:ui.brushSize
+    primary: rgbToHex(ui.primary),
+    secondary: rgbToHex(ui.secondary),
+    brushSize: ui.brushSize
   };
   const blob = new Blob([JSON.stringify(data, null, 2)], { type:'application/json' });
 
@@ -1829,68 +2427,117 @@ function openProject(){
   fileInput.onchange=()=>{
     const f=fileInput.files[0]; if(!f) return;
     const reader=new FileReader();
-    reader.onload=()=>{
+    reader.onload=async ()=>{
       try{
-        const data=JSON.parse(reader.result);
-        loadProjectData(data);
+        const data = JSON.parse(reader.result);
+        await loadProjectData(data);
         doc.fileName=f.name;
         setStatus('工程已载入: '+f.name);
-      } catch(err){ setStatus('工程解析失败'); console.error(err); }
+      } catch(err){
+        setStatus('工程解析失败');
+        console.error(err);
+      }
     };
     reader.readAsText(f);
     fileInput.value='';
   };
   fileInput.click();
 }
-function loadProjectData(data){
-  const img=new Image();
-  img.onload=()=>{
-    doc.width=img.width; doc.height=img.height;
-    doc.imageData = new ImageData(img.width, img.height);
-    doc.imageCanvas = document.createElement('canvas');
-    doc.imageCanvas.width=img.width; doc.imageCanvas.height=img.height;
-    doc.imageCtx = doc.imageCanvas.getContext('2d');
-    doc.selMask = new Uint8Array(img.width*img.height);
-    doc.hasSelection=false;
-    doc.selBounds={x:0,y:0,w:0,h:0};
-    doc.floating=null; doc.floatCanvas=null;
-    const c=document.createElement('canvas');
-    c.width=img.width; c.height=img.height;
-    const g=c.getContext('2d');
-    g.drawImage(img,0,0);
-    const id=g.getImageData(0,0,img.width,img.height);
-    doc.imageData.data.set(id.data);
-    doc.imageDirty=true;
 
-    if(data.grid){
-      doc.grid.w=data.grid.w||32; doc.grid.h=data.grid.h||32;
+async function loadProjectData(data){
+  const W = data.width, H = data.height;
+  if(!W || !H) throw new Error('无效尺寸');
+
+  let layers = [];
+  if(Array.isArray(data.layers) && data.layers.length){
+    for(let i=0; i<data.layers.length; i++){
+      const L = data.layers[i];
+      let imageData;
+      if(L.png){
+        try {
+          imageData = await dataURLToImageData(L.png, W, H);
+        } catch(err){
+          imageData = new ImageData(W, H);
+        }
+      } else {
+        imageData = new ImageData(W, H);
+      }
+      layers.push({
+        name: L.name || ('图层 ' + (i+1)),
+        visible: L.visible !== false,
+        opacity: (L.opacity != null) ? L.opacity : 255,
+        imageData: imageData
+      });
     }
-    doc.guides=Array.isArray(data.guides)?data.guides.slice():[];
-    syncGridInputsFromWH();
-    ui.singleCell=!!data.singleCell;
-    document.getElementById('btn-view-mode').textContent = ui.singleCell ? '全图' : '单格';
-    ui.currentCell=data.currentCell||0;
-    updateAnimRange();
-    if(data.animStart!=null) document.getElementById('anim-start').value=data.animStart;
-    if(data.animEnd!=null) document.getElementById('anim-end').value=data.animEnd;
-    if(data.animFps!=null) document.getElementById('anim-fps').value=data.animFps;
-    if(data.animLoop!=null) document.getElementById('anim-loop').checked=!!data.animLoop;
-    if(Array.isArray(data.paletteCustom) && data.paletteCustom.length){
-      ui.paletteCustom = data.paletteCustom.map(h=>hexToRgb(h));
-      refreshPaletteCustom();
-    } else if(Array.isArray(data.palette) && data.palette.length){
-      ui.paletteCustom = data.palette.map(h=>hexToRgb(h));
-      refreshPaletteCustom();
+  }
+
+  if(layers.length === 0){
+    let singleId;
+    if(data.png){
+      try {
+        singleId = await dataURLToImageData(data.png, W, H);
+      } catch(err){
+        singleId = new ImageData(W, H);
+      }
+    } else {
+      singleId = new ImageData(W, H);
     }
-    if(data.primary) ui.primary=hexToRgb(data.primary);
-    if(data.secondary) ui.secondary=hexToRgb(data.secondary);
-    if(data.brushSize) setBrushSize(data.brushSize);
-    syncColorInputs();
-    resetHistory();
-    fitToView(); requestRender();
-  };
-  img.src=data.png;
+    layers = [{ name: '图层 1', visible: true, opacity: 255, imageData: singleId }];
+  }
+
+  doc.width = W;
+  doc.height = H;
+  doc.layers = layers;
+  doc.activeLayer = clamp(data.activeLayer || 0, 0, layers.length - 1);
+  doc.imageData = layers[doc.activeLayer].imageData;
+
+  doc.imageCanvas = document.createElement('canvas');
+  doc.imageCanvas.width = W;
+  doc.imageCanvas.height = H;
+  doc.imageCtx = doc.imageCanvas.getContext('2d');
+
+  doc.selMask = new Uint8Array(W*H);
+  doc.hasSelection = false;
+  doc.selBounds = {x:0,y:0,w:0,h:0};
+  doc.floating = null;
+  doc.floatCanvas = null;
+  doc.imageDirty = true;
+  animPreviewDirty = true;
+
+  if(data.grid){
+    doc.grid.w = data.grid.w || 32;
+    doc.grid.h = data.grid.h || 32;
+  }
+  doc.guides = Array.isArray(data.guides) ? data.guides.slice() : [];
+  syncGridInputsFromWH();
+  ui.singleCell = !!data.singleCell;
+  document.getElementById('btn-view-mode').textContent = ui.singleCell ? '全图' : '单格';
+  ui.currentCell = data.currentCell || 0;
+  updateAnimRange();
+
+  if(data.animStart != null) document.getElementById('anim-start').value = data.animStart;
+  if(data.animEnd != null) document.getElementById('anim-end').value = data.animEnd;
+  if(data.animFps != null) document.getElementById('anim-fps').value = data.animFps;
+  if(data.animLoop != null) document.getElementById('anim-loop').checked = !!data.animLoop;
+
+  if(Array.isArray(data.paletteCustom) && data.paletteCustom.length){
+    ui.paletteCustom = data.paletteCustom.map(h=>hexToRgb(h));
+    refreshPaletteCustom();
+  } else if(Array.isArray(data.palette) && data.palette.length){
+    ui.paletteCustom = data.palette.map(h=>hexToRgb(h));
+    refreshPaletteCustom();
+  }
+  if(data.primary) ui.primary = hexToRgb(data.primary);
+  if(data.secondary) ui.secondary = hexToRgb(data.secondary);
+  if(data.brushSize) setBrushSize(data.brushSize);
+  syncColorInputs();
+
+  resetHistory();
+  refreshLayerList();
+  fitToView();
+  requestRender();
 }
+
 function exportCustomPalette(){
   const arr = ui.paletteCustom.map(c=>rgbToHex(c));
   download(new Blob([JSON.stringify(arr,null,2)],{type:'application/json'}),'palette-custom.json');
@@ -2142,6 +2789,7 @@ function handleMenuAction(act){
     case 'copy': doCopy(); break;
     case 'cut': doCut(); break;
     case 'paste': doPaste(); break;
+    case 'paste-layer': doPasteAsLayer(); break;
     case 'delete':
       if(doc.hasSelection){ deleteSelection(); commitHistory(); }
       break;
@@ -2167,6 +2815,16 @@ function bindUI(){
 
   document.getElementById('btn-save-as-png').addEventListener('click',()=>savePng(true));
   document.getElementById('btn-save-as-proj').addEventListener('click',()=>saveProject(true));
+
+  // 图层按钮
+  document.getElementById('btn-layer-new').addEventListener('click', addLayer);
+  document.getElementById('btn-layer-dup').addEventListener('click', duplicateLayer);
+  document.getElementById('btn-layer-del').addEventListener('click', deleteLayer);
+  document.getElementById('btn-layer-up').addEventListener('click', ()=>moveLayer(1));
+  document.getElementById('btn-layer-down').addEventListener('click', ()=>moveLayer(-1));
+  document.getElementById('btn-layer-merge').addEventListener('click', mergeDown);
+  document.getElementById('btn-layer-flatten').addEventListener('click', flattenVisible);
+  document.getElementById('btn-layer-paste').addEventListener('click', doPasteAsLayer);
 
   document.getElementById('btn-zoom-in').addEventListener('click',()=>{
     const cx=canvasWrap.clientWidth/2, cy=canvasWrap.clientHeight/2;
@@ -2272,7 +2930,7 @@ function init(){
   syncGridInputsFromWH();
   fitToView();
   renderAnimPreview();
-  setStatus('就绪 — V选择 B铅笔 E橡皮 I吸管 G油漆桶 J替换色 | [ ] 调笔刷');
+  setStatus('就绪 — V选择 B铅笔 E橡皮 I吸管 G油漆桶 J替换色 | Ctrl+V 粘贴（Shift 粘贴为新图层）');
   requestAnimationFrame(mainLoop);
 }
 init();
