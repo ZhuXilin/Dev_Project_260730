@@ -277,8 +277,17 @@ body{font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Mi
     _previewMask=null; cacheImgData=null; cacheW=0; cacheH=0;
     syncInputs(); forceReapply(); updateHistoryUI(); updateSelectUI();
   }
-  function undo(){ if(!hasImage||histIndex<=0) return; histIndex--; applyHistoryEntry(history[histIndex]); setMsg('撤销',1200); }
-  function redo(){ if(!hasImage||histIndex>=history.length-1) return; histIndex++; applyHistoryEntry(history[histIndex]); setMsg('重做',1200); }
+  /* 拖拽（缩放手柄或框选）进行中时拒绝撤销/重做，避免基准值过期、状态错乱 */
+  function undo(){
+    if(drag || selDrag){ setMsg('请先松开鼠标再撤销',1600); return; }
+    if(!hasImage||histIndex<=0) return;
+    histIndex--; applyHistoryEntry(history[histIndex]); setMsg('撤销',1200);
+  }
+  function redo(){
+    if(drag || selDrag){ setMsg('请先松开鼠标再重做',1600); return; }
+    if(!hasImage||histIndex>=history.length-1) return;
+    histIndex++; applyHistoryEntry(history[histIndex]); setMsg('重做',1200);
+  }
 
   function render(){
     if(!hasImage){ if(selCv) selCv.classList.remove('on'); return; }
@@ -451,7 +460,7 @@ body{font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Mi
     g.setLineDash([]);
   }
 
-  /* 修复：拖拽中直接绘制矩形预览（独立于 selMask） */
+  /* 拖拽中直接绘制矩形预览（独立于 selMask） */
   function renderSelectionOverlay(){
     if(!hasImage){ selCv.classList.remove('on'); return; }
     selCv.classList.add('on');
@@ -482,7 +491,7 @@ body{font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Mi
       paintMarchingAnts(selCtx,drawMask,targetW,targetH,drawBounds,panX,panY,zoom,dashOffset);
     }
 
-    /* 2. 拖拽中的预览：直接绘制边框（这一版不再依赖 mask，实时可见） */
+    /* 2. 拖拽中的预览：直接绘制边框（实时可见） */
     if(selDrag){
       var r = normalizedDragRect();
       if(r && r.w > 0 && r.h > 0){
