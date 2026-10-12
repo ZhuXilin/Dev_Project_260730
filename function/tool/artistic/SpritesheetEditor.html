@@ -11,7 +11,7 @@ html,body{margin:0;padding:0;height:100%;overflow:hidden;font-family:system-ui,"
 #toolbar{flex:0 0 auto;display:flex;align-items:center;gap:4px;padding:6px 8px;background:#26262b;border-bottom:1px solid #111;overflow-x:auto;overflow-y:hidden;white-space:nowrap;min-height:44px}
 #toolbar::-webkit-scrollbar{height:6px}
 #toolbar::-webkit-scrollbar-thumb{background:#444;border-radius:3px}
-button,.menu-btn{background:#3a3a42;color:#ddd;border:1px solid #444;border-radius:4px;padding:5px 10px;cursor:pointer;font-size:13px;font-family:inherit;white-space:nowrap;flex-shrink:0;transition:background .08s}
+button,.menu-btn{background:#3a3a42;color:#ddd;border:1px solid #444;border-radius:4px;padding:5px 10px;cursor:pointer;font-size:13px;font-family:inherit;white-space:nowrap;flex-shrink:0}
 button:hover{background:#4a4a54}
 button:active{background:#555}
 button:focus,.menu-btn:focus,.tool-btn:focus{outline:none}
@@ -33,11 +33,11 @@ button:disabled{opacity:.35;cursor:default}
 #sidebar{width:340px;flex-shrink:0;overflow-y:auto;background:#232328;border-left:1px solid #111;padding:10px 12px 40px}
 #sidebar::-webkit-scrollbar{width:8px}
 #sidebar::-webkit-scrollbar-thumb{background:#444;border-radius:4px}
-#sidebar::-webkit-scrollbar-track{background:#1a1a1e}
 .section{margin-top:14px;border-top:1px solid #333;padding-top:10px}
 .section:first-child{margin-top:0;border-top:none;padding-top:0}
-.section h3{margin:0 0 8px 0;font-size:12px;color:#6fb8ff;font-weight:600;letter-spacing:.5px}
-.section h3 .hint{color:#888;font-weight:400;font-size:11px;letter-spacing:0}
+.section h3{margin:0 0 8px 0;font-size:12px;color:#6fb8ff;font-weight:600;display:flex;justify-content:space-between;align-items:center}
+.section h3 .hint{color:#888;font-weight:400;font-size:11px}
+.section h3 button{font-size:11px;padding:2px 8px;background:#3a3a42}
 .row{display:flex;gap:6px;align-items:center;margin-bottom:6px;flex-wrap:wrap}
 .row>label{color:#aaa;font-size:12px;display:inline-flex;align-items:center;gap:4px}
 input[type=number],input[type=text]{background:#2a2a30;color:#ddd;border:1px solid #444;border-radius:3px;padding:3px 6px;width:68px;font-family:inherit;font-size:12px}
@@ -47,13 +47,14 @@ input[type=checkbox]{accent-color:#2d6cdf;margin-right:4px}
 .swatches{display:grid;grid-template-columns:repeat(16,1fr);gap:2px;margin-bottom:8px}
 .swatch{width:100%;aspect-ratio:1;border-radius:2px;cursor:pointer;border:1px solid transparent}
 .swatch:hover{border-color:#fff}
+.swatch.sel{border-color:#ffd23c;box-shadow:0 0 0 1px #000}
 .swatches.readonly .swatch{cursor:default}
 #anim-preview-wrap{position:relative;background:#181820;border:1px solid #333;border-radius:4px;padding:4px;margin-bottom:8px;overflow:auto;max-height:260px;cursor:pointer}
-#anim-preview{display:block;image-rendering:pixelated;image-rendering:crisp-edges;pointer-events:none}
+#anim-preview{display:block;image-rendering:pixelated;pointer-events:none}
 #anim-cursor{position:absolute;border:2px solid #ffd23c;pointer-events:none;box-shadow:0 0 0 1px #000 inset,0 0 0 1px #000;display:none;box-sizing:border-box}
 #statusbar{flex:0 0 auto;display:flex;justify-content:space-between;align-items:center;padding:5px 12px;background:#26262b;border-top:1px solid #111;font-size:12px;color:#aaa}
+#status{color:#6fb0ff}
 #coord{font-family:ui-monospace,Consolas,monospace;color:#888}
-#status-left{display:flex;gap:16px;align-items:center}
 .modal-back{position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;z-index:2000}
 .modal{background:#2a2a30;border:1px solid #444;border-radius:6px;padding:16px 20px;min-width:340px;box-shadow:0 10px 40px rgba(0,0,0,.7)}
 .modal h2{margin:0 0 12px 0;font-size:14px;color:#ddd;font-weight:600}
@@ -61,50 +62,21 @@ input[type=checkbox]{accent-color:#2d6cdf;margin-right:4px}
 .modal .field{display:flex;align-items:center;gap:8px;margin-bottom:8px}
 .modal .field label{color:#aaa;font-size:12px;width:60px;flex-shrink:0}
 .anchor-grid{display:grid;grid-template-columns:repeat(3,28px);grid-template-rows:repeat(3,28px);gap:3px;margin:6px 0 10px 0}
-.anchor-cell{background:#2f2f36;border:1px solid #444;border-radius:3px;cursor:pointer;transition:background .08s}
+.anchor-cell{background:#2f2f36;border:1px solid #444;border-radius:3px;cursor:pointer}
 .anchor-cell:hover{background:#3e3e46}
 .anchor-cell.active{background:#2d6cdf;border-color:#4a8cf5}
-
-/* 图层 */
-#layer-list{
-  display:flex;flex-direction:column;gap:2px;
-  margin-bottom:8px;max-height:220px;overflow-y:auto;
-  background:#1a1a1f;border:1px solid #333;border-radius:4px;padding:4px;
-}
+#layer-list{display:flex;flex-direction:column;gap:2px;margin-bottom:8px;max-height:220px;overflow-y:auto;background:#1a1a1f;border:1px solid #333;border-radius:4px;padding:4px}
 #layer-list::-webkit-scrollbar{width:6px}
 #layer-list::-webkit-scrollbar-thumb{background:#444;border-radius:3px}
-.layer-item{
-  display:flex;align-items:center;gap:6px;
-  padding:4px 6px;background:#26262b;border-radius:3px;
-  cursor:pointer;font-size:12px;border:1px solid transparent;
-  transition:background .08s;
-}
+.layer-item{display:flex;align-items:center;gap:6px;padding:4px 6px;background:#26262b;border-radius:3px;cursor:pointer;font-size:12px;border:1px solid transparent}
 .layer-item:hover{background:#33333a}
 .layer-item.active{border-color:#2d6cdf;background:#2d3a54}
-.layer-item .eye{
-  width:18px;text-align:center;font-size:13px;
-  opacity:.85;user-select:none;flex-shrink:0;cursor:pointer;
-}
+.layer-item .eye{width:18px;text-align:center;font-size:13px;opacity:.85;flex-shrink:0;cursor:pointer}
 .layer-item .eye.off{opacity:.3}
-.layer-item .thumb{
-  width:26px;height:26px;flex-shrink:0;
-  background:#101013;
-  border:1px solid #444;border-radius:2px;
-  image-rendering:pixelated;
-  background-image:linear-gradient(45deg,#1d1d22 25%,transparent 25%),
-                   linear-gradient(-45deg,#1d1d22 25%,transparent 25%),
-                   linear-gradient(45deg,transparent 75%,#1d1d22 75%),
-                   linear-gradient(-45deg,transparent 75%,#1d1d22 75%);
-  background-size:6px 6px;
-  background-position:0 0,0 3px,3px -3px,-3px 0;
-}
-.layer-item .name{
-  flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
-}
-.layer-item .name input{
-  width:100%;background:#15151a;color:#ddd;border:1px solid #2d6cdf;
-  border-radius:2px;padding:1px 3px;font:inherit;font-size:12px;
-}
+.layer-item .thumb{width:26px;height:26px;flex-shrink:0;background:#101013;border:1px solid #444;border-radius:2px;image-rendering:pixelated;background-image:linear-gradient(45deg,#1d1d22 25%,transparent 25%),linear-gradient(-45deg,#1d1d22 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#1d1d22 75%),linear-gradient(-45deg,transparent 75%,#1d1d22 75%);background-size:6px 6px;background-position:0 0,0 3px,3px -3px,-3px 0}
+.layer-item .name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.layer-item .name input{width:100%;background:#15151a;color:#ddd;border:1px solid #2d6cdf;border-radius:2px;padding:1px 3px;font:inherit;font-size:12px}
+.sel-mode-btn.on{background:#2d6cdf;border-color:#4a8cf5;color:#fff}
 </style>
 </head>
 <body>
@@ -114,14 +86,14 @@ input[type=checkbox]{accent-color:#2d6cdf;margin-right:4px}
     <button class="menu-btn" data-menu="edit">编辑 ▾</button>
     <span class="sep"></span>
     <button class="tool-btn" data-tool="1" title="选择/移动 (V)">选</button>
-    <button class="tool-btn active" data-tool="2" title="铅笔 (B) — Ctrl 临时吸管">笔</button>
+    <button class="tool-btn active" data-tool="2" title="铅笔 (B)">笔</button>
     <button class="tool-btn" data-tool="3" title="橡皮 (E)">擦</button>
     <button class="tool-btn" data-tool="5" title="吸管 (I)">吸</button>
-    <button class="tool-btn" data-tool="4" title="油漆桶 (G) — Ctrl 临时吸管">桶</button>
+    <button class="tool-btn" data-tool="4" title="油漆桶 (G)">桶</button>
     <button class="tool-btn" data-tool="6" title="替换色 (J)">换</button>
     <span class="sep"></span>
-    <button id="btn-undo" title="撤销 (Ctrl+Z)">↶</button>
-    <button id="btn-redo" title="重做 (Ctrl+Shift+Z)">↷</button>
+    <button id="btn-undo" title="撤销 (Ctrl+Z)">撤销</button>
+    <button id="btn-redo" title="重做 (Ctrl+Shift+Z)">重做</button>
     <span class="sep"></span>
     <button id="btn-view-mode" title="切换单格/全图显示">单格</button>
     <span class="sep"></span>
@@ -132,12 +104,13 @@ input[type=checkbox]{accent-color:#2d6cdf;margin-right:4px}
     <span id="zoom-label">100%</span>
     <button id="btn-zoom-in">＋</button>
     <button id="btn-fit" title="适应窗口 (F)">适应</button>
+    <span class="sep"></span>
+    <button id="btn-bg" title="切换观察背景">格子</button>
   </div>
 
   <div id="workarea">
     <div id="canvas-wrap"><canvas id="canvas"></canvas></div>
     <aside id="sidebar">
-
       <div class="section">
         <h3>网格 / 分格</h3>
         <div class="row">
@@ -152,9 +125,7 @@ input[type=checkbox]{accent-color:#2d6cdf;margin-right:4px}
           <label><input type="checkbox" id="show-grid" checked> 显示分格网格</label>
           <label><input type="checkbox" id="show-pixel-grid" checked> 显示像素格</label>
         </div>
-        <div class="row">
-          <button id="btn-resize">调整画布…</button>
-        </div>
+        <div class="row"><button id="btn-resize">调整画布…</button></div>
       </div>
 
       <div class="section">
@@ -172,8 +143,8 @@ input[type=checkbox]{accent-color:#2d6cdf;margin-right:4px}
           <label><input type="checkbox" id="anim-loop" checked> 循环</label>
         </div>
         <div class="row">
-          <button id="btn-play">▶ 播放</button>
-          <button id="btn-stop">■ 停止</button>
+          <button id="btn-play">播放</button>
+          <button id="btn-stop">停止</button>
           <button id="btn-anim-all">全范围</button>
         </div>
       </div>
@@ -183,7 +154,7 @@ input[type=checkbox]{accent-color:#2d6cdf;margin-right:4px}
         <div class="row">
           <input type="color" id="color-primary" value="#000000" title="主色">
           <input type="color" id="color-secondary" value="#ffffff" title="辅色">
-          <button id="btn-replace-color" title="将全图/选区中的主色像素替换为辅色">全图替换</button>
+          <button id="btn-replace-color">全图替换</button>
         </div>
       </div>
 
@@ -204,26 +175,53 @@ input[type=checkbox]{accent-color:#2d6cdf;margin-right:4px}
       </div>
 
       <div class="section">
+        <h3>在用颜色 <button id="btn-color-usage-refresh">刷新</button></h3>
+        <div class="swatches" id="color-usage-swatches"></div>
+        <div style="color:#888;font-size:11px;margin-top:6px">
+          点击色块 → 高亮该颜色区域（再次点击取消）
+        </div>
+      </div>
+
+      <div class="section">
         <h3>图层</h3>
         <div id="layer-list"></div>
         <div class="row">
-          <button id="btn-layer-new" title="新建空白图层">新建</button>
-          <button id="btn-layer-dup" title="复制当前图层">复制</button>
-          <button id="btn-layer-del" title="删除当前图层">删除</button>
+          <button id="btn-layer-new">新建</button>
+          <button id="btn-layer-dup">复制</button>
+          <button id="btn-layer-del">删除</button>
         </div>
         <div class="row">
-          <button id="btn-layer-up" title="上移一层">▲</button>
-          <button id="btn-layer-down" title="下移一层">▼</button>
-          <button id="btn-layer-merge" title="与下方图层合并">合并 ↓</button>
+          <button id="btn-layer-up">上移</button>
+          <button id="btn-layer-down">下移</button>
+          <button id="btn-layer-merge">合并 ↓</button>
         </div>
         <div class="row">
-          <button id="btn-layer-flatten" title="合并所有可见图层">拼合可见</button>
-          <button id="btn-layer-paste" title="把系统剪贴板粘贴为新图层">粘贴为新图层</button>
+          <button id="btn-layer-flatten">拼合可见</button>
+          <button id="btn-layer-paste">粘贴为新图层</button>
+        </div>
+      </div>
+
+      <div class="section">
+        <h3>参考线</h3>
+        <div class="row">
+          <label><input type="checkbox" id="snap-enabled" checked> 吸附参考线</label>
+        </div>
+        <div class="row"><button id="btn-guides-clear">清空参考线</button></div>
+        <div style="color:#888;font-size:11px;line-height:1.6">
+          顶部标尺往下拖 → 水平参考线<br>
+          左侧标尺往右拖 → 垂直参考线<br>
+          <b>鼠标靠近参考线直接拖动</b> → 移动<br>
+          <b>双击参考线</b> → 删除
         </div>
       </div>
 
       <div class="section">
         <h3>选区</h3>
+        <div class="row" id="sel-mode-row">
+          <button class="sel-mode-btn on" data-mode="0">新建</button>
+          <button class="sel-mode-btn" data-mode="1">加选</button>
+          <button class="sel-mode-btn" data-mode="2">减选</button>
+        </div>
         <div class="row">
           <button id="btn-sel-all">全选 <span style="color:#888">(Ctrl+A)</span></button>
           <button id="btn-sel-none">取消 <span style="color:#888">(Ctrl+D)</span></button>
@@ -233,31 +231,15 @@ input[type=checkbox]{accent-color:#2d6cdf;margin-right:4px}
           <button id="btn-sel-cell">选当前格</button>
           <button id="btn-del-sel">删除像素</button>
         </div>
-      </div>
-
-      <div class="section">
-        <h3>参考线</h3>
-        <div class="row">
-          <label><input type="checkbox" id="snap-enabled" checked> 吸附参考线</label>
-        </div>
-        <div class="row">
-          <button id="btn-guides-clear">清空参考线</button>
-        </div>
-        <div style="color:#888;font-size:11px;line-height:1.6">
-          从画布顶部标尺往下拖 → 创建水平参考线<br>
-          从左侧标尺往右拖 → 创建垂直参考线<br>
-          <b>鼠标靠近参考线后直接拖动</b> → 移动已有参考线<br>
-          <b>双击参考线</b> → 删除
+        <div style="color:#888;font-size:11px;margin-top:4px">
+          <b>Shift</b> 加选 · <b>Alt/Ctrl</b> 减选 · <b>X</b> 锁 1:1
         </div>
       </div>
     </aside>
   </div>
 
   <div id="statusbar">
-    <div id="status-left">
-      <span id="status">就绪</span>
-      <span id="brush-info">笔刷: 1</span>
-    </div>
+    <span id="status">就绪</span>
     <span id="coord">— , —</span>
   </div>
 </div>
@@ -292,10 +274,12 @@ input[type=checkbox]{accent-color:#2d6cdf;margin-right:4px}
 
 <script>
 'use strict';
-// ============================================================
-// 常量
-// ============================================================
-const NES_HEX = ('7C7C7C 0000FC 0000BC 4428BC 940084 A80020 A81000 881400 '+
+(function(){
+
+/* ============================================================
+ *  常量
+ * ============================================================ */
+var NES_HEX = ('7C7C7C 0000FC 0000BC 4428BC 940084 A80020 A81000 881400 '+
 '503000 007800 006800 005800 004058 000000 000000 000000 '+
 'BCBCBC 0078F8 0058F8 6844FC D800CC E40058 F83800 E45C10 '+
 'AC7C00 00B800 00A800 00A844 008888 000000 000000 000000 '+
@@ -303,34 +287,32 @@ const NES_HEX = ('7C7C7C 0000FC 0000BC 4428BC 940084 A80020 A81000 881400 '+
 'F8B800 B8F818 58D854 58F898 00E8D8 787878 000000 000000 '+
 'FCFCFC A4E4FC B8B8F8 D8B8F8 F8B8F8 F8A4C0 F0D0B0 FCE0A8 '+
 'F8D878 D8F878 B8F8B8 B8F8D8 00FCFC F8D8F8 000000 000000').split(' ');
-const DEFAULT_CUSTOM_HEX = (
-'000000 1D2B53 7E2553 008751 AB5236 5F574F C2C3C7 FFF1E8 '+
+
+var DEFAULT_CUSTOM_HEX = ('000000 1D2B53 7E2553 008751 AB5236 5F574F C2C3C7 FFF1E8 '+
 'FF004D FFA300 FFEC27 00E436 29ADFF 83769C FF77A8 FFCCAA').split(' ');
 
-const TOOL = { SELECT:1, PENCIL:2, ERASER:3, BUCKET:4, PICKER:5, REPLACE:6 };
-const SEL_REPLACE=0, SEL_ADD=1, SEL_SUB=2;
-const HISTORY_MAX = 60;
-const RULER = 20;
+var TOOL = { SELECT:1, PENCIL:2, ERASER:3, BUCKET:4, PICKER:5, REPLACE:6 };
+var SEL_REPLACE=0, SEL_ADD=1, SEL_SUB=2;
+var HISTORY_MAX = 60;
+var RULER = 20;
+var BG_NAMES = ['白底','灰底','黑底','格子'];
 
-// ============================================================
-// 状态
-// ============================================================
-const doc = {
+/* ============================================================
+ *  状态
+ * ============================================================ */
+var bgMode = 3;
+
+var doc = {
   width:128, height:128,
-  layers: [],
-  activeLayer: 0,
-  imageData: null,
-  imageCanvas: null,
-  imageCtx: null,
-  imageDirty: true,
+  layers:[], activeLayer:0,
+  imageData:null, imageCanvas:null, imageCtx:null, imageDirty:true,
   selMask:null, hasSelection:false,
   selBounds:{x:0,y:0,w:0,h:0},
   floating:null, floatCanvas:null, floatDirty:false,
-  grid:{w:32,h:32},
-  guides:[], fileName:''
+  grid:{w:32,h:32}, guides:[], fileName:''
 };
-const view = { zoom:6, panX:200, panY:100 };
-const ui = {
+var view = { zoom:6, panX:200, panY:100 };
+var ui = {
   tool:TOOL.PENCIL, brushSize:1,
   primary:[0,0,0,255], secondary:[255,255,255,255],
   showGrid:true, showPixelGrid:true,
@@ -339,867 +321,885 @@ const ui = {
   paletteNES:[], paletteCustom:[],
   playing:false, animTimer:0, animFrame:0, animLastT:0
 };
-const drag = {
+var drag = {
   mode:null, startX:0, startY:0, panStartX:0, panStartY:0,
   selStart:{x:0,y:0}, selCur:{x:0,y:0}, selMode:SEL_REPLACE, square:false,
   lastPx:null, drawErase:false,
   moveOrigin:{x:0,y:0}, floatOrigin:{x:0,y:0},
   guideIdx:-1, guideAxis:0, guideStart:0
 };
-const mouse = { inside:false, sx:0, sy:0, px:0, py:0, inRulerTop:false, inRulerLeft:false };
-let clipboard = null;
-let needsRender = true;
-let spaceDown = false;
-let checkerPattern = null;
-let animPreviewDirty = true;
-let animDragging = false;
-let gridSyncing = false;
-let layerRenaming = -1;
+var mouse = { inside:false, sx:0, sy:0, px:0, py:0, inRulerTop:false, inRulerLeft:false };
+var clipboard = null;
+var needsRender = true;
+var spaceDown = false;
+var xKeyDown = false;
+var checkerPattern = null;
+var animPreviewDirty = true;
+var animDragging = false;
+var gridSyncing = false;
+var layerRenaming = -1;
+var selModeOverride = SEL_REPLACE;
+var dashOffset = 0;
 
-const brushMaskCache = {};
-const brushOutlineCache = {};
-let _tmpCanvas = null;
-let _tmpCtx = null;
+var highlightColor = null;
+var _highlightMask = null;
+var _highlightDirty = false;
 
-// ============================================================
-// 图层合成
-// ============================================================
+var brushMaskCache = {};
+var brushOutlineCache = {};
+var _tmpCanvas = null;
+var _tmpCtx = null;
+var _previewMask = null;
+var colorUsageSwatches = [];
+
+/* DOM 引用 */
+var canvas, ctx, canvasWrap, statusEl, coordEl, zoomLabel, brushInfoEl, fileInput;
+var animPreview, animPreviewCtx, animCursor, animPreviewWrap;
+var gridWEl, gridHEl, gridColsEl, gridRowsEl, layerListEl;
+
+/* ============================================================
+ *  工具函数
+ * ============================================================ */
+function setStatus(s){ if(statusEl) statusEl.textContent = s; }
+function requestRender(){ needsRender = true; }
+function clamp(v,a,b){ return v<a?a:(v>b?b:v); }
+function hexToRgb(hex){
+  var n = parseInt(hex.replace('#',''),16);
+  return [(n>>16)&255,(n>>8)&255,n&255,255];
+}
+function rgbToHex(rgba){
+  return '#'+rgba[0].toString(16).padStart(2,'0')
+             +rgba[1].toString(16).padStart(2,'0')
+             +rgba[2].toString(16).padStart(2,'0');
+}
+function colorsEqual(a,b){ return a[0]===b[0]&&a[1]===b[1]&&a[2]===b[2]&&a[3]===b[3]; }
+
+/* ============================================================
+ *  图层合成
+ * ============================================================ */
 function rebuildComposite(){
-  const W = doc.width, H = doc.height;
-  if(W <= 0 || H <= 0) return;
-  if(doc.imageCanvas.width !== W || doc.imageCanvas.height !== H){
-    doc.imageCanvas.width = W;
-    doc.imageCanvas.height = H;
+  var W = doc.width, H = doc.height;
+  if(W<=0 || H<=0) return;
+  if(doc.imageCanvas.width!==W || doc.imageCanvas.height!==H){
+    doc.imageCanvas.width = W; doc.imageCanvas.height = H;
   }
-  const outCtx = doc.imageCtx;
+  var outCtx = doc.imageCtx;
   outCtx.imageSmoothingEnabled = false;
-  outCtx.clearRect(0, 0, W, H);
-
-  if(!_tmpCanvas || _tmpCanvas.width !== W || _tmpCanvas.height !== H){
+  outCtx.clearRect(0,0,W,H);
+  if(!_tmpCanvas || _tmpCanvas.width!==W || _tmpCanvas.height!==H){
     _tmpCanvas = document.createElement('canvas');
-    _tmpCanvas.width = W;
-    _tmpCanvas.height = H;
+    _tmpCanvas.width = W; _tmpCanvas.height = H;
     _tmpCtx = _tmpCanvas.getContext('2d');
   }
   _tmpCtx.imageSmoothingEnabled = false;
-
-  for(let i=0; i<doc.layers.length; i++){
-    const L = doc.layers[i];
-    if(!L.visible || L.opacity === 0) continue;
-    _tmpCtx.clearRect(0, 0, W, H);
-    _tmpCtx.putImageData(L.imageData, 0, 0);
-    outCtx.globalAlpha = L.opacity / 255;
-    outCtx.drawImage(_tmpCanvas, 0, 0);
+  for(var i=0;i<doc.layers.length;i++){
+    var L = doc.layers[i];
+    if(!L.visible || L.opacity===0) continue;
+    _tmpCtx.clearRect(0,0,W,H);
+    _tmpCtx.putImageData(L.imageData,0,0);
+    outCtx.globalAlpha = L.opacity/255;
+    outCtx.drawImage(_tmpCanvas,0,0);
   }
   outCtx.globalAlpha = 1;
-
   doc.imageDirty = false;
 }
-
 function syncImageCanvas(){
   if(!doc.imageDirty) return;
   rebuildComposite();
   animPreviewDirty = true;
+  _highlightDirty = true;
 }
 
-// ============================================================
-// 历史
-// ============================================================
-let historyStack = [];
-let historyIndex = -1;
+/* ============================================================
+ *  在用颜色面板
+ * ============================================================ */
+function refreshColorUsage(){
+  if(!doc.width || !doc.height || !doc.imageCanvas){
+    colorUsageSwatches = [];
+    renderColorUsageSwatches();
+    return;
+  }
+  try{
+    syncImageCanvas();
+    var W = doc.width, H = doc.height;
+    var id = doc.imageCtx.getImageData(0,0,W,H);
+    var d32 = new Uint32Array(id.data.buffer);
+    var map = new Map();
+    for(var i=0;i<d32.length;i++){
+      var c = d32[i];
+      if((c>>>24)===0) continue;
+      map.set(c,(map.get(c)||0)+1);
+    }
+    var arr = [];
+    map.forEach(function(count,packed){ arr.push({packed:packed,count:count}); });
+    arr.sort(function(a,b){ return b.count-a.count; });
+    colorUsageSwatches = arr;
+    renderColorUsageSwatches();
+  } catch(err){
+    console.error('refreshColorUsage', err);
+  }
+}
+function renderColorUsageSwatches(){
+  var el = document.getElementById('color-usage-swatches');
+  if(!el) return;
+  el.innerHTML = '';
+  if(colorUsageSwatches.length === 0){
+    el.innerHTML = '<div style="color:#666;font-size:11px;grid-column:1/17;text-align:center;padding:4px">暂无颜色，点「刷新」统计</div>';
+    return;
+  }
+  for(var i=0;i<colorUsageSwatches.length;i++){
+    var c = colorUsageSwatches[i];
+    var r = c.packed & 255;
+    var g = (c.packed>>>8)&255;
+    var b = (c.packed>>>16)&255;
+    var a = (c.packed>>>24)&255;
+    var div = document.createElement('div');
+    div.className = 'swatch';
+    div.style.background = 'rgba('+r+','+g+','+b+','+(a/255).toFixed(3)+')';
+    div.title = rgbToHex([r,g,b])+' × '+c.count+' 像素';
+    if(highlightColor === c.packed) div.classList.add('sel');
+    (function(packed){
+      div.addEventListener('mousedown', function(e){
+        e.preventDefault();
+        highlightColor = (highlightColor === packed) ? null : packed;
+        _highlightDirty = true;
+        renderColorUsageSwatches();
+        requestRender();
+      });
+    })(c.packed);
+    el.appendChild(div);
+  }
+}
+function rebuildHighlightMask(){
+  var W = doc.width, H = doc.height;
+  if(!_highlightMask || _highlightMask.length !== W*H){
+    _highlightMask = new Uint8Array(W*H);
+  }
+  _highlightMask.fill(0);
+  if(highlightColor === null){ _highlightDirty = false; return; }
+  if(doc.imageDirty) rebuildComposite();
+  var id = doc.imageCtx.getImageData(0,0,W,H);
+  var d32 = new Uint32Array(id.data.buffer);
+  for(var i=0;i<d32.length;i++){
+    if(d32[i] === highlightColor) _highlightMask[i] = 1;
+  }
+  _highlightDirty = false;
+}
+
+/* ============================================================
+ *  历史
+ * ============================================================ */
+var historyStack = [];
+var historyIndex = -1;
 
 function makeSnapshot(){
   return {
-    w: doc.width, h: doc.height,
-    activeLayer: doc.activeLayer,
-    layers: doc.layers.map(L => ({
-      name: L.name,
-      visible: L.visible,
-      opacity: L.opacity,
-      data: new Uint8ClampedArray(L.imageData.data)
-    })),
-    sel: new Uint8Array(doc.selMask),
-    hasSel: doc.hasSelection,
-    bounds: Object.assign({}, doc.selBounds)
+    w:doc.width, h:doc.height,
+    activeLayer:doc.activeLayer,
+    layers:doc.layers.map(function(L){
+      return {
+        name:L.name, visible:L.visible, opacity:L.opacity,
+        data:new Uint8ClampedArray(L.imageData.data)
+      };
+    }),
+    sel:new Uint8Array(doc.selMask),
+    hasSel:doc.hasSelection,
+    bounds:{x:doc.selBounds.x,y:doc.selBounds.y,w:doc.selBounds.w,h:doc.selBounds.h}
   };
 }
-
 function restoreSnapshot(s){
-  drag.mode = null;
-  drag.guideIdx = -1;
-  drag.lastPx = null;
-
+  drag.mode = null; drag.guideIdx = -1; drag.lastPx = null;
   if(s.w !== doc.width || s.h !== doc.height){
     doc.width = s.w; doc.height = s.h;
     doc.imageCanvas = document.createElement('canvas');
     doc.imageCanvas.width = s.w; doc.imageCanvas.height = s.h;
     doc.imageCtx = doc.imageCanvas.getContext('2d');
   }
-  doc.layers = s.layers.map(L => ({
-    name: L.name,
-    visible: L.visible,
-    opacity: L.opacity,
-    imageData: new ImageData(new Uint8ClampedArray(L.data), s.w, s.h)
-  }));
-  doc.activeLayer = Math.min(s.activeLayer, doc.layers.length - 1);
+  doc.layers = s.layers.map(function(L){
+    return {
+      name:L.name, visible:L.visible, opacity:L.opacity,
+      imageData:new ImageData(new Uint8ClampedArray(L.data), s.w, s.h)
+    };
+  });
+  doc.activeLayer = Math.min(s.activeLayer, doc.layers.length-1);
   doc.imageData = doc.layers[doc.activeLayer].imageData;
-
   doc.selMask = new Uint8Array(s.sel);
   doc.hasSelection = s.hasSel;
-  doc.selBounds = Object.assign({}, s.bounds);
-  doc.floating = null;
-  doc.floatCanvas = null;
-  doc.imageDirty = true;
-  animPreviewDirty = true;
-
-  updateAnimRange();
-  refreshLayerList();
-  requestRender();
+  doc.selBounds = {x:s.bounds.x,y:s.bounds.y,w:s.bounds.w,h:s.bounds.h};
+  doc.floating = null; doc.floatCanvas = null;
+  doc.imageDirty = true; animPreviewDirty = true;
+  _highlightDirty = true;
+  _previewMask = null;
+  updateAnimRange(); refreshLayerList(); refreshColorUsage(); requestRender(); updateUndoButtons();
 }
-
-function resetHistory(){
-  historyStack = [makeSnapshot()];
-  historyIndex = 0;
-  updateUndoButtons();
-}
-
+function resetHistory(){ historyStack = [makeSnapshot()]; historyIndex = 0; updateUndoButtons(); }
 function commitHistory(){
-  if(historyIndex < historyStack.length - 1){
-    historyStack.length = historyIndex + 1;
-  }
+  if(historyIndex < historyStack.length-1) historyStack.length = historyIndex+1;
   historyStack.push(makeSnapshot());
   if(historyStack.length > HISTORY_MAX) historyStack.shift();
-  historyIndex = historyStack.length - 1;
+  historyIndex = historyStack.length-1;
   updateUndoButtons();
 }
-
 function doUndo(){
   if(drag.mode === 'move'){ setStatus('请先松开鼠标再撤销'); return; }
   if(historyIndex <= 0) return;
   historyIndex--;
   restoreSnapshot(historyStack[historyIndex]);
-  updateUndoButtons();
-  setStatus('撤销');
+  updateUndoButtons(); setStatus('撤销');
 }
 function doRedo(){
   if(drag.mode === 'move'){ setStatus('请先松开鼠标再重做'); return; }
-  if(historyIndex >= historyStack.length - 1) return;
+  if(historyIndex >= historyStack.length-1) return;
   historyIndex++;
   restoreSnapshot(historyStack[historyIndex]);
-  updateUndoButtons();
-  setStatus('重做');
+  updateUndoButtons(); setStatus('重做');
 }
 function updateUndoButtons(){
-  const u = document.getElementById('btn-undo');
-  const r = document.getElementById('btn-redo');
+  var u = document.getElementById('btn-undo'), r = document.getElementById('btn-redo');
   if(u) u.disabled = (historyIndex <= 0);
-  if(r) r.disabled = (historyIndex >= historyStack.length - 1);
+  if(r) r.disabled = (historyIndex >= historyStack.length-1);
 }
 
-// ============================================================
-// DOM
-// ============================================================
-const canvas = document.getElementById('canvas');
-const ctx = canvas.getContext('2d');
-const canvasWrap = document.getElementById('canvas-wrap');
-const statusEl = document.getElementById('status');
-const coordEl = document.getElementById('coord');
-const zoomLabel = document.getElementById('zoom-label');
-const brushInfoEl = document.getElementById('brush-info');
-const fileInput = document.getElementById('file-input');
-const animPreview = document.getElementById('anim-preview');
-const animPreviewCtx = animPreview.getContext('2d');
-const animCursor = document.getElementById('anim-cursor');
-const animPreviewWrap = document.getElementById('anim-preview-wrap');
-const gridWEl = document.getElementById('grid-w');
-const gridHEl = document.getElementById('grid-h');
-const gridColsEl = document.getElementById('grid-cols');
-const gridRowsEl = document.getElementById('grid-rows');
-const layerListEl = document.getElementById('layer-list');
-
-// ============================================================
-// 工具函数
-// ============================================================
-function setStatus(s){ statusEl.textContent = s; }
-function requestRender(){ needsRender = true; }
-function clamp(v,a,b){ return v<a?a:(v>b?b:v); }
-function hexToRgb(hex){
-  const n = parseInt(hex.replace('#',''),16);
-  return [(n>>16)&255,(n>>8)&255,n&255,255];
-}
-function rgbToHex(rgba){
-  const r=rgba[0].toString(16).padStart(2,'0');
-  const g=rgba[1].toString(16).padStart(2,'0');
-  const b=rgba[2].toString(16).padStart(2,'0');
-  return '#'+r+g+b;
-}
-function colorsEqual(a,b){ return a[0]===b[0]&&a[1]===b[1]&&a[2]===b[2]&&a[3]===b[3]; }
-
+/* ============================================================
+ *  笔刷
+ * ============================================================ */
 function getBrushMask(size){
-  size = Math.max(1, size|0);
+  size = Math.max(1,size|0);
   if(brushMaskCache[size]) return brushMaskCache[size];
-  const off = -Math.floor((size-1)/2);
-  const cx = (size-1)/2, cy = (size-1)/2;
-  const r = size/2 - 0.25;
-  const r2 = r*r;
-  const pts = [];
-  for(let y=0;y<size;y++){
-    for(let x=0;x<size;x++){
-      const dx = x - cx, dy = y - cy;
-      if(dx*dx + dy*dy <= r2) pts.push({x: off+x, y: off+y});
-    }
+  var off = -Math.floor((size-1)/2);
+  var cx = (size-1)/2, cy = (size-1)/2;
+  var r = size/2 - 0.25; var r2 = r*r;
+  var pts = [];
+  for(var y=0;y<size;y++) for(var x=0;x<size;x++){
+    var dx = x-cx, dy = y-cy;
+    if(dx*dx+dy*dy <= r2) pts.push({x:off+x, y:off+y});
   }
   brushMaskCache[size] = pts;
   return pts;
 }
 function getBrushOutline(size){
-  size = Math.max(1, size|0);
+  size = Math.max(1,size|0);
   if(brushOutlineCache[size]) return brushOutlineCache[size];
-  const pts = getBrushMask(size);
-  const set = new Set();
-  for(const p of pts) set.add(p.x + ',' + p.y);
-  const segs = [];
-  for(const p of pts){
-    const x = p.x, y = p.y;
-    if(!set.has((x-1)+','+y)) segs.push([x,   y,   x,   y+1]);
-    if(!set.has((x+1)+','+y)) segs.push([x+1, y,   x+1, y+1]);
-    if(!set.has(x+','+(y-1))) segs.push([x,   y,   x+1, y]);
-    if(!set.has(x+','+(y+1))) segs.push([x,   y+1, x+1, y+1]);
+  var pts = getBrushMask(size);
+  var set = new Set();
+  for(var i=0;i<pts.length;i++) set.add(pts[i].x+','+pts[i].y);
+  var segs = [];
+  for(var j=0;j<pts.length;j++){
+    var p = pts[j];
+    var x=p.x, y=p.y;
+    if(!set.has((x-1)+','+y)) segs.push([x,y,x,y+1]);
+    if(!set.has((x+1)+','+y)) segs.push([x+1,y,x+1,y+1]);
+    if(!set.has(x+','+(y-1))) segs.push([x,y,x+1,y]);
+    if(!set.has(x+','+(y+1))) segs.push([x,y+1,x+1,y+1]);
   }
   brushOutlineCache[size] = segs;
   return segs;
 }
 
-// ============================================================
-// 文档
-// ============================================================
+/* ============================================================
+ *  文档
+ * ============================================================ */
 function newDoc(w,h){
   w=Math.max(1,w|0); h=Math.max(1,h|0);
   doc.width=w; doc.height=h;
-
-  doc.layers = [{
-    name: '图层 1',
-    visible: true,
-    opacity: 255,
-    imageData: new ImageData(w, h)
-  }];
+  doc.layers = [{name:'图层 1',visible:true,opacity:255,imageData:new ImageData(w,h)}];
   doc.activeLayer = 0;
   doc.imageData = doc.layers[0].imageData;
-
   doc.imageCanvas = document.createElement('canvas');
-  doc.imageCanvas.width = w;
-  doc.imageCanvas.height = h;
+  doc.imageCanvas.width = w; doc.imageCanvas.height = h;
   doc.imageCtx = doc.imageCanvas.getContext('2d');
-
   doc.selMask = new Uint8Array(w*h);
-  doc.hasSelection=false;
-  doc.selBounds={x:0,y:0,w:0,h:0};
+  doc.hasSelection = false; doc.selBounds = {x:0,y:0,w:0,h:0};
   doc.floating=null; doc.floatCanvas=null;
   doc.guides=[];
-  doc.imageDirty=true;
-  animPreviewDirty=true;
+  doc.imageDirty=true; animPreviewDirty=true;
+  _previewMask = null;
+  highlightColor = null;
+  _highlightMask = null;
+  _highlightDirty = false;
   resetHistory();
-  syncGridInputsFromWH();
-  refreshLayerList();
+  syncGridInputsFromWH(); refreshLayerList(); refreshColorUsage();
 }
-
-function resizeDocWithAnchor(w, h, anchor){
+function resizeDocWithAnchor(w,h,anchor){
   w=Math.max(1,w|0); h=Math.max(1,h|0);
-  const oldW = doc.width, oldH = doc.height;
-
-  const ax = anchor % 3, ay = Math.floor(anchor / 3);
-  let dx, dy;
-  if(ax===0) dx = 0;
-  else if(ax===1) dx = Math.floor((w - oldW) / 2);
-  else dx = w - oldW;
-  if(ay===0) dy = 0;
-  else if(ay===1) dy = Math.floor((h - oldH) / 2);
-  else dy = h - oldH;
-
-  for(const L of doc.layers){
-    const oldData = L.imageData.data;
-    const newData = new Uint8ClampedArray(w*h*4);
-    for(let y=0;y<oldH;y++){
-      const ny = y + dy;
-      if(ny < 0 || ny >= h) continue;
-      for(let x=0;x<oldW;x++){
-        const nx = x + dx;
-        if(nx < 0 || nx >= w) continue;
-        const si = (y*oldW + x)*4;
-        const di = (ny*w + nx)*4;
-        newData[di] = oldData[si];
-        newData[di+1] = oldData[si+1];
-        newData[di+2] = oldData[si+2];
-        newData[di+3] = oldData[si+3];
+  var oldW = doc.width, oldH = doc.height;
+  var ax = anchor%3, ay = Math.floor(anchor/3);
+  var dx, dy;
+  if(ax===0) dx=0; else if(ax===1) dx=Math.floor((w-oldW)/2); else dx=w-oldW;
+  if(ay===0) dy=0; else if(ay===1) dy=Math.floor((h-oldH)/2); else dy=h-oldH;
+  for(var li=0;li<doc.layers.length;li++){
+    var L = doc.layers[li];
+    var oldData = L.imageData.data;
+    var newData = new Uint8ClampedArray(w*h*4);
+    for(var y=0;y<oldH;y++){
+      var ny = y+dy; if(ny<0||ny>=h) continue;
+      for(var x=0;x<oldW;x++){
+        var nx = x+dx; if(nx<0||nx>=w) continue;
+        var si = (y*oldW+x)*4, di = (ny*w+nx)*4;
+        newData[di]=oldData[si]; newData[di+1]=oldData[si+1]; newData[di+2]=oldData[si+2]; newData[di+3]=oldData[si+3];
       }
     }
     L.imageData = new ImageData(newData, w, h);
   }
-
   doc.width=w; doc.height=h;
   doc.imageData = doc.layers[doc.activeLayer].imageData;
-
   doc.imageCanvas = document.createElement('canvas');
   doc.imageCanvas.width = w; doc.imageCanvas.height = h;
   doc.imageCtx = doc.imageCanvas.getContext('2d');
-
   doc.selMask = new Uint8Array(w*h);
-  doc.hasSelection=false;
-  doc.selBounds={x:0,y:0,w:0,h:0};
+  doc.hasSelection = false; doc.selBounds = {x:0,y:0,w:0,h:0};
   doc.floating=null; doc.floatCanvas=null;
-  doc.imageDirty=true;
-  animPreviewDirty=true;
-  updateAnimRange();
-  syncGridInputsFromWH();
-  refreshLayerList();
+  doc.imageDirty=true; animPreviewDirty=true;
+  _previewMask = null;
+  highlightColor = null;
+  _highlightMask = null;
+  _highlightDirty = false;
+  updateAnimRange(); syncGridInputsFromWH(); refreshLayerList(); refreshColorUsage();
 }
-
 function rebuildFloatCanvas(){
   if(!doc.floating){ doc.floatCanvas=null; return; }
-  const f = doc.floating;
+  var f = doc.floating;
   if(!doc.floatCanvas || doc.floatCanvas.width!==f.w || doc.floatCanvas.height!==f.h){
     doc.floatCanvas = document.createElement('canvas');
-    doc.floatCanvas.width=f.w; doc.floatCanvas.height=f.h;
+    doc.floatCanvas.width = f.w; doc.floatCanvas.height = f.h;
   }
-  const fctx = doc.floatCanvas.getContext('2d');
-  fctx.putImageData(new ImageData(new Uint8ClampedArray(f.data),f.w,f.h),0,0);
-  doc.floatDirty=false;
+  var fctx = doc.floatCanvas.getContext('2d');
+  fctx.putImageData(new ImageData(new Uint8ClampedArray(f.data), f.w, f.h), 0, 0);
+  doc.floatDirty = false;
 }
-
 function getPixel(x,y){
   if(x<0||y<0||x>=doc.width||y>=doc.height) return [0,0,0,0];
-  const i=(y*doc.width+x)*4, d=doc.imageData.data;
+  var i = (y*doc.width+x)*4, d = doc.imageData.data;
   return [d[i],d[i+1],d[i+2],d[i+3]];
 }
 function setPixel(x,y,rgba){
   if(x<0||y<0||x>=doc.width||y>=doc.height) return;
-  const i=(y*doc.width+x)*4, d=doc.imageData.data;
+  var i = (y*doc.width+x)*4, d = doc.imageData.data;
   d[i]=rgba[0]; d[i+1]=rgba[1]; d[i+2]=rgba[2]; d[i+3]=rgba[3];
-  doc.imageDirty=true;
+  doc.imageDirty = true;
+  _highlightDirty = true;
 }
 function getCompositePixel(x,y){
   if(x<0||y<0||x>=doc.width||y>=doc.height) return [0,0,0,0];
   syncImageCanvas();
-  const d = doc.imageCtx.getImageData(x, y, 1, 1).data;
-  return [d[0], d[1], d[2], d[3]];
+  var d = doc.imageCtx.getImageData(x,y,1,1).data;
+  return [d[0],d[1],d[2],d[3]];
 }
 
-// ============================================================
-// 图层操作
-// ============================================================
+/* ============================================================
+ *  图层操作
+ * ============================================================ */
 function setActiveLayer(idx){
-  if(idx < 0 || idx >= doc.layers.length) return;
+  if(idx<0 || idx>=doc.layers.length) return;
   if(idx === doc.activeLayer) return;
   if(doc.floating){ commitFloat(); commitHistory(); }
   doc.activeLayer = idx;
   doc.imageData = doc.layers[idx].imageData;
-  refreshLayerList();
-  requestRender();
-  setStatus('已选中图层: ' + doc.layers[idx].name);
+  refreshLayerList(); requestRender();
+  setStatus('已选中图层: '+doc.layers[idx].name);
 }
-
 function addLayer(){
   if(doc.floating){ commitFloat(); commitHistory(); }
-  const newLayer = {
-    name: '图层 ' + (doc.layers.length + 1),
-    visible: true,
-    opacity: 255,
-    imageData: new ImageData(doc.width, doc.height)
-  };
-  const idx = doc.activeLayer + 1;
-  doc.layers.splice(idx, 0, newLayer);
+  var newLayer = {name:'图层 '+(doc.layers.length+1),visible:true,opacity:255,imageData:new ImageData(doc.width,doc.height)};
+  var idx = doc.activeLayer+1;
+  doc.layers.splice(idx,0,newLayer);
   doc.activeLayer = idx;
   doc.imageData = newLayer.imageData;
-  doc.imageDirty = true;
-  refreshLayerList();
-  commitHistory();
-  requestRender();
+  doc.imageDirty = true; _highlightDirty = true;
+  refreshLayerList(); commitHistory(); refreshColorUsage(); requestRender();
   setStatus('已新建图层');
 }
-
 function duplicateLayer(){
   if(doc.floating){ commitFloat(); commitHistory(); }
-  const L = doc.layers[doc.activeLayer];
-  const dup = {
-    name: L.name + ' 副本',
-    visible: L.visible,
-    opacity: L.opacity,
-    imageData: new ImageData(new Uint8ClampedArray(L.imageData.data), doc.width, doc.height)
-  };
-  const idx = doc.activeLayer + 1;
-  doc.layers.splice(idx, 0, dup);
+  var L = doc.layers[doc.activeLayer];
+  var dup = {name:L.name+' 副本',visible:L.visible,opacity:L.opacity,imageData:new ImageData(new Uint8ClampedArray(L.imageData.data),doc.width,doc.height)};
+  var idx = doc.activeLayer+1;
+  doc.layers.splice(idx,0,dup);
   doc.activeLayer = idx;
   doc.imageData = dup.imageData;
-  doc.imageDirty = true;
-  refreshLayerList();
-  commitHistory();
-  requestRender();
+  doc.imageDirty = true; _highlightDirty = true;
+  refreshLayerList(); commitHistory(); refreshColorUsage(); requestRender();
   setStatus('已复制图层');
 }
-
 function deleteLayer(){
-  if(doc.layers.length <= 1){
-    setStatus('至少保留一个图层');
-    return;
-  }
+  if(doc.layers.length <= 1){ setStatus('至少保留一个图层'); return; }
   if(doc.floating){ commitFloat(); commitHistory(); }
-  doc.layers.splice(doc.activeLayer, 1);
-  doc.activeLayer = Math.min(doc.activeLayer, doc.layers.length - 1);
+  doc.layers.splice(doc.activeLayer,1);
+  doc.activeLayer = Math.min(doc.activeLayer,doc.layers.length-1);
   doc.imageData = doc.layers[doc.activeLayer].imageData;
-  doc.imageDirty = true;
-  refreshLayerList();
-  commitHistory();
-  requestRender();
+  doc.imageDirty = true; _highlightDirty = true;
+  refreshLayerList(); commitHistory(); refreshColorUsage(); requestRender();
   setStatus('已删除图层');
 }
-
 function moveLayer(dir){
-  const i = doc.activeLayer;
-  const j = i + dir;
-  if(j < 0 || j >= doc.layers.length) return;
+  var i = doc.activeLayer;
+  var j = i+dir;
+  if(j<0 || j>=doc.layers.length) return;
   if(doc.floating){ commitFloat(); commitHistory(); }
-  const tmp = doc.layers[i];
+  var tmp = doc.layers[i];
   doc.layers[i] = doc.layers[j];
   doc.layers[j] = tmp;
   doc.activeLayer = j;
   doc.imageData = doc.layers[j].imageData;
-  doc.imageDirty = true;
-  refreshLayerList();
-  commitHistory();
-  requestRender();
+  doc.imageDirty = true; _highlightDirty = true;
+  refreshLayerList(); commitHistory(); refreshColorUsage(); requestRender();
 }
-
 function mergeDown(){
-  const i = doc.activeLayer;
-  if(i <= 0){
-    setStatus('下方没有图层');
-    return;
-  }
+  var i = doc.activeLayer;
+  if(i<=0){ setStatus('下方没有图层'); return; }
   if(doc.floating){ commitFloat(); commitHistory(); }
-
-  const upper = doc.layers[i];
-  const lower = doc.layers[i-1];
-  const W = doc.width, H = doc.height;
-
-  const ua = upper.visible ? (upper.opacity / 255) : 0;
-  const la = lower.visible ? (lower.opacity / 255) : 0;
-  const ud = upper.imageData.data;
-  const ld = lower.imageData.data;
-  const out = new Uint8ClampedArray(W * H * 4);
-
-  for(let p=0; p<W*H; p++){
-    const i4 = p * 4;
-    let dr = ld[i4], dg = ld[i4+1], db = ld[i4+2], da = ld[i4+3] / 255 * la;
-    let sr = ud[i4], sg = ud[i4+1], sb = ud[i4+2], sa = ud[i4+3] / 255 * ua;
-
-    const outA = sa + da * (1 - sa);
-    if(outA <= 0){
-      out[i4] = 0; out[i4+1] = 0; out[i4+2] = 0; out[i4+3] = 0;
-    } else {
-      out[i4]   = Math.round((sr * sa + dr * da * (1 - sa)) / outA);
-      out[i4+1] = Math.round((sg * sa + dg * da * (1 - sa)) / outA);
-      out[i4+2] = Math.round((sb * sa + db * da * (1 - sa)) / outA);
-      out[i4+3] = Math.round(outA * 255);
+  var upper = doc.layers[i], lower = doc.layers[i-1];
+  var W = doc.width, H = doc.height;
+  var ua = upper.visible ? (upper.opacity/255) : 0;
+  var la = lower.visible ? (lower.opacity/255) : 0;
+  var ud = upper.imageData.data, ld = lower.imageData.data;
+  var out = new Uint8ClampedArray(W*H*4);
+  for(var p=0;p<W*H;p++){
+    var i4 = p*4;
+    var dr=ld[i4],dg=ld[i4+1],db=ld[i4+2],da=ld[i4+3]/255*la;
+    var sr=ud[i4],sg=ud[i4+1],sb=ud[i4+2],sa=ud[i4+3]/255*ua;
+    var outA = sa + da*(1-sa);
+    if(outA<=0){ out[i4]=0;out[i4+1]=0;out[i4+2]=0;out[i4+3]=0; }
+    else {
+      out[i4]   = Math.round((sr*sa + dr*da*(1-sa))/outA);
+      out[i4+1] = Math.round((sg*sa + dg*da*(1-sa))/outA);
+      out[i4+2] = Math.round((sb*sa + db*da*(1-sa))/outA);
+      out[i4+3] = Math.round(outA*255);
     }
   }
-
-  lower.imageData = new ImageData(out, W, H);
-  lower.visible = true;
-  lower.opacity = 255;
-
-  doc.layers.splice(i, 1);
-  doc.activeLayer = i - 1;
+  lower.imageData = new ImageData(out,W,H);
+  lower.visible = true; lower.opacity = 255;
+  doc.layers.splice(i,1);
+  doc.activeLayer = i-1;
   doc.imageData = doc.layers[doc.activeLayer].imageData;
-  doc.imageDirty = true;
-  refreshLayerList();
-  commitHistory();
-  requestRender();
+  doc.imageDirty = true; _highlightDirty = true;
+  refreshLayerList(); commitHistory(); refreshColorUsage(); requestRender();
   setStatus('已合并到下方图层');
 }
-
 function flattenVisible(){
   if(doc.floating){ commitFloat(); commitHistory(); }
-  const W = doc.width, H = doc.height;
-  const out = new Uint8ClampedArray(W * H * 4);
-
-  for(const L of doc.layers){
-    if(!L.visible || L.opacity === 0) continue;
-    const la = L.opacity / 255;
-    const d = L.imageData.data;
-    for(let p=0; p<W*H; p++){
-      const i4 = p*4;
-      const sa = (d[i4+3] / 255) * la;
-      if(sa <= 0) continue;
-      const da = out[i4+3] / 255;
-      const outA = sa + da * (1 - sa);
-      if(outA <= 0){
-        out[i4] = 0; out[i4+1] = 0; out[i4+2] = 0; out[i4+3] = 0;
-      } else {
-        out[i4]   = Math.round((d[i4]   * sa + out[i4]   * da * (1-sa)) / outA);
-        out[i4+1] = Math.round((d[i4+1] * sa + out[i4+1] * da * (1-sa)) / outA);
-        out[i4+2] = Math.round((d[i4+2] * sa + out[i4+2] * da * (1-sa)) / outA);
-        out[i4+3] = Math.round(outA * 255);
+  var W = doc.width, H = doc.height;
+  var out = new Uint8ClampedArray(W*H*4);
+  for(var li=0;li<doc.layers.length;li++){
+    var L = doc.layers[li];
+    if(!L.visible || L.opacity===0) continue;
+    var la = L.opacity/255;
+    var d = L.imageData.data;
+    for(var p=0;p<W*H;p++){
+      var i4 = p*4;
+      var sa = (d[i4+3]/255)*la;
+      if(sa<=0) continue;
+      var da = out[i4+3]/255;
+      var outA = sa + da*(1-sa);
+      if(outA<=0){ out[i4]=0;out[i4+1]=0;out[i4+2]=0;out[i4+3]=0; }
+      else {
+        out[i4]   = Math.round((d[i4]  *sa + out[i4]  *da*(1-sa))/outA);
+        out[i4+1] = Math.round((d[i4+1]*sa + out[i4+1]*da*(1-sa))/outA);
+        out[i4+2] = Math.round((d[i4+2]*sa + out[i4+2]*da*(1-sa))/outA);
+        out[i4+3] = Math.round(outA*255);
       }
     }
   }
-
-  doc.layers = [{
-    name: '合并图层',
-    visible: true,
-    opacity: 255,
-    imageData: new ImageData(out, W, H)
-  }];
+  doc.layers = [{name:'合并图层',visible:true,opacity:255,imageData:new ImageData(out,W,H)}];
   doc.activeLayer = 0;
   doc.imageData = doc.layers[0].imageData;
-  doc.imageDirty = true;
-  refreshLayerList();
-  commitHistory();
-  requestRender();
+  doc.imageDirty = true; _highlightDirty = true;
+  refreshLayerList(); commitHistory(); refreshColorUsage(); requestRender();
   setStatus('已拼合所有可见图层');
 }
-
 function toggleLayerVisible(idx){
   doc.layers[idx].visible = !doc.layers[idx].visible;
-  doc.imageDirty = true;
-  refreshLayerList();
-  commitHistory();
-  requestRender();
+  doc.imageDirty = true; _highlightDirty = true;
+  refreshLayerList(); commitHistory(); refreshColorUsage(); requestRender();
 }
-
-function renameLayer(idx, newName){
+function renameLayer(idx,newName){
   if(!newName) newName = '图层';
   doc.layers[idx].name = newName;
-  refreshLayerList();
-  commitHistory();
+  refreshLayerList(); commitHistory();
 }
-
-// ============================================================
-// 图层面板
-// ============================================================
 function refreshLayerList(){
+  if(!layerListEl) return;
   layerListEl.innerHTML = '';
-  // 顶层显示在最上 → 反向遍历
-  for(let i = doc.layers.length - 1; i >= 0; i--){
-    const L = doc.layers[i];
-    const item = document.createElement('div');
-    item.className = 'layer-item' + (i === doc.activeLayer ? ' active' : '');
-    item.dataset.idx = i;
+  for(var i=doc.layers.length-1; i>=0; i--){
+    (function(idx){
+      var L = doc.layers[idx];
+      var item = document.createElement('div');
+      item.className = 'layer-item' + (idx===doc.activeLayer ? ' active' : '');
+      item.dataset.idx = idx;
 
-    // 眼睛
-    const eye = document.createElement('span');
-    eye.className = 'eye' + (L.visible ? '' : ' off');
-    eye.textContent = L.visible ? '👁' : '—';
-    eye.title = L.visible ? '隐藏图层' : '显示图层';
-    eye.addEventListener('mousedown', e => {
-      e.preventDefault();
-      e.stopPropagation();
-      toggleLayerVisible(i);
-    });
-    item.appendChild(eye);
+      var eye = document.createElement('span');
+      eye.className = 'eye' + (L.visible ? '' : ' off');
+      eye.textContent = L.visible ? '👁' : '—';
+      eye.addEventListener('mousedown', function(e){ e.preventDefault(); e.stopPropagation(); toggleLayerVisible(idx); });
+      item.appendChild(eye);
 
-    // 缩略图
-    const thumb = document.createElement('canvas');
-    thumb.className = 'thumb';
-    thumb.width = Math.max(1, Math.min(doc.width, 32));
-    thumb.height = Math.max(1, Math.min(doc.height, 32));
-    thumb.style.width = '26px';
-    thumb.style.height = '26px';
-    {
-      const tctx = thumb.getContext('2d');
+      var thumb = document.createElement('canvas');
+      thumb.className = 'thumb';
+      thumb.width = Math.max(1,Math.min(doc.width,32));
+      thumb.height = Math.max(1,Math.min(doc.height,32));
+      thumb.style.width = '26px'; thumb.style.height = '26px';
+      var tctx = thumb.getContext('2d');
       tctx.imageSmoothingEnabled = false;
-      const tmpC = document.createElement('canvas');
-      tmpC.width = doc.width;
-      tmpC.height = doc.height;
-      tmpC.getContext('2d').putImageData(L.imageData, 0, 0);
-      tctx.drawImage(tmpC, 0, 0, doc.width, doc.height, 0, 0, thumb.width, thumb.height);
-    }
-    item.appendChild(thumb);
+      var tmpC = document.createElement('canvas');
+      tmpC.width = doc.width; tmpC.height = doc.height;
+      tmpC.getContext('2d').putImageData(L.imageData,0,0);
+      tctx.drawImage(tmpC,0,0,doc.width,doc.height,0,0,thumb.width,thumb.height);
+      item.appendChild(thumb);
 
-    // 名称
-    const nameEl = document.createElement('span');
-    nameEl.className = 'name';
-    nameEl.textContent = L.name;
-    nameEl.title = L.name;
-    nameEl.addEventListener('dblclick', e => {
-      e.stopPropagation();
-      layerRenaming = i;
-      refreshLayerList();
-      const input2 = layerListEl.querySelector('.layer-item[data-idx="'+i+'"] input');
-      if(input2){
-        input2.focus();
-        input2.select();
-      }
-    });
-    item.appendChild(nameEl);
-
-    // 重命名输入框
-    if(layerRenaming === i){
-      nameEl.textContent = '';
-      const input = document.createElement('input');
-      input.type = 'text';
-      input.value = L.name;
-      const finish = (commit) => {
-        const v = input.value.trim();
-        layerRenaming = -1;
-        if(commit && v) renameLayer(i, v);
-        else refreshLayerList();
-      };
-      input.addEventListener('keydown', e => {
-        if(e.key === 'Enter'){ e.preventDefault(); finish(true); }
-        else if(e.key === 'Escape'){ e.preventDefault(); finish(false); }
+      var nameEl = document.createElement('span');
+      nameEl.className = 'name';
+      nameEl.textContent = L.name;
+      nameEl.title = L.name;
+      nameEl.addEventListener('dblclick', function(e){
+        e.stopPropagation();
+        layerRenaming = idx;
+        refreshLayerList();
+        var input2 = layerListEl.querySelector('.layer-item[data-idx="'+idx+'"] input');
+        if(input2){ input2.focus(); input2.select(); }
       });
-      input.addEventListener('blur', () => finish(true));
-      input.addEventListener('mousedown', e => e.stopPropagation());
-      nameEl.appendChild(input);
-    }
+      item.appendChild(nameEl);
 
-    // 点击选择（BUG 修复：不能引用可能未定义的 input）
-    item.addEventListener('mousedown', e => {
-      if(e.button !== 0) return;
-      if(e.target && e.target.tagName === 'INPUT') return;
-      e.preventDefault();
-      setActiveLayer(i);
-    });
+      if(layerRenaming === idx){
+        nameEl.textContent = '';
+        var input = document.createElement('input');
+        input.type = 'text'; input.value = L.name;
+        var finish = function(commit){
+          var v = input.value.trim();
+          layerRenaming = -1;
+          if(commit && v) renameLayer(idx,v); else refreshLayerList();
+        };
+        input.addEventListener('keydown', function(e){
+          if(e.key === 'Enter'){ e.preventDefault(); finish(true); }
+          else if(e.key === 'Escape'){ e.preventDefault(); finish(false); }
+        });
+        input.addEventListener('blur', function(){ finish(true); });
+        input.addEventListener('mousedown', function(e){ e.stopPropagation(); });
+        nameEl.appendChild(input);
+      }
 
-    layerListEl.appendChild(item);
+      item.addEventListener('mousedown', function(e){
+        if(e.button !== 0) return;
+        if(e.target && e.target.tagName === 'INPUT') return;
+        e.preventDefault();
+        setActiveLayer(idx);
+      });
+      layerListEl.appendChild(item);
+    })(i);
   }
 }
 
-// ============================================================
-// 网格
-// ============================================================
+/* ============================================================
+ *  网格
+ * ============================================================ */
 function cellCount(){
-  const g=doc.grid;
+  var g = doc.grid;
   if(g.w<=0||g.h<=0) return {x:1,y:1};
-  return {
-    x:Math.max(1,Math.ceil(doc.width/g.w)),
-    y:Math.max(1,Math.ceil(doc.height/g.h))
-  };
+  return {x:Math.max(1,Math.ceil(doc.width/g.w)), y:Math.max(1,Math.ceil(doc.height/g.h))};
 }
 function cellRect(idx){
-  const cc=cellCount();
+  var cc = cellCount();
   if(idx<0||idx>=cc.x*cc.y) return null;
-  const cx=idx%cc.x, cy=Math.floor(idx/cc.x);
-  return { x:cx*doc.grid.w, y:cy*doc.grid.h, w:doc.grid.w, h:doc.grid.h };
+  var cx = idx%cc.x, cy = Math.floor(idx/cc.x);
+  return {x:cx*doc.grid.w, y:cy*doc.grid.h, w:doc.grid.w, h:doc.grid.h};
 }
 function cellIndexAt(p){
-  const g=doc.grid;
-  const cx=Math.floor(p.x/g.w), cy=Math.floor(p.y/g.h);
-  const cc=cellCount();
+  var g = doc.grid;
+  var cx = Math.floor(p.x/g.w), cy = Math.floor(p.y/g.h);
+  var cc = cellCount();
   if(cx<0||cy<0||cx>=cc.x||cy>=cc.y) return -1;
   return cy*cc.x+cx;
 }
-function totalCells(){ const cc=cellCount(); return cc.x*cc.y; }
-
+function totalCells(){ var cc = cellCount(); return cc.x*cc.y; }
 function syncGridInputsFromWH(){
   if(gridSyncing) return;
   gridSyncing = true;
-  gridWEl.value = doc.grid.w;
-  gridHEl.value = doc.grid.h;
-  gridColsEl.value = Math.max(1, Math.ceil(doc.width / doc.grid.w));
-  gridRowsEl.value = Math.max(1, Math.ceil(doc.height / doc.grid.h));
+  if(gridWEl) gridWEl.value = doc.grid.w;
+  if(gridHEl) gridHEl.value = doc.grid.h;
+  if(gridColsEl) gridColsEl.value = Math.max(1,Math.ceil(doc.width/doc.grid.w));
+  if(gridRowsEl) gridRowsEl.value = Math.max(1,Math.ceil(doc.height/doc.grid.h));
   gridSyncing = false;
 }
 function onGridWHChanged(){
   if(gridSyncing) return;
-  const w = Math.max(1, +gridWEl.value|0);
-  const h = Math.max(1, +gridHEl.value|0);
+  var w = Math.max(1,+gridWEl.value|0);
+  var h = Math.max(1,+gridHEl.value|0);
   doc.grid.w = w; doc.grid.h = h;
   gridSyncing = true;
-  gridColsEl.value = Math.max(1, Math.ceil(doc.width / w));
-  gridRowsEl.value = Math.max(1, Math.ceil(doc.height / h));
+  gridColsEl.value = Math.max(1,Math.ceil(doc.width/w));
+  gridRowsEl.value = Math.max(1,Math.ceil(doc.height/h));
   gridSyncing = false;
   updateAnimRange(); animPreviewDirty = true; updateAnimCursor(); requestRender();
 }
 function onGridNMChanged(){
   if(gridSyncing) return;
-  const n = Math.max(1, +gridColsEl.value|0);
-  const m = Math.max(1, +gridRowsEl.value|0);
-  const w = Math.max(1, Math.ceil(doc.width / n));
-  const h = Math.max(1, Math.ceil(doc.height / m));
+  var n = Math.max(1,+gridColsEl.value|0);
+  var m = Math.max(1,+gridRowsEl.value|0);
+  var w = Math.max(1,Math.ceil(doc.width/n));
+  var h = Math.max(1,Math.ceil(doc.height/m));
   doc.grid.w = w; doc.grid.h = h;
   gridSyncing = true;
-  gridWEl.value = w;
-  gridHEl.value = h;
+  gridWEl.value = w; gridHEl.value = h;
   gridSyncing = false;
   updateAnimRange(); animPreviewDirty = true; updateAnimCursor(); requestRender();
 }
 
-// ============================================================
-// 选区
-// ============================================================
+/* ============================================================
+ *  选区
+ * ============================================================ */
 function recalcBounds(){
-  const W=doc.width, H=doc.height;
-  let minx=W,miny=H,maxx=-1,maxy=-1;
-  for(let y=0;y<H;y++){
-    const row=y*W;
-    for(let x=0;x<W;x++) if(doc.selMask[row+x]){
-      if(x<minx)minx=x; if(x>maxx)maxx=x;
-      if(y<miny)miny=y; if(y>maxy)maxy=y;
+  var W = doc.width, H = doc.height;
+  var minx=W,miny=H,maxx=-1,maxy=-1;
+  for(var y=0;y<H;y++){
+    var row = y*W;
+    for(var x=0;x<W;x++) if(doc.selMask[row+x]){
+      if(x<minx) minx=x; if(x>maxx) maxx=x;
+      if(y<miny) miny=y; if(y>maxy) maxy=y;
     }
   }
   if(maxx<0){ doc.hasSelection=false; doc.selBounds={x:0,y:0,w:0,h:0}; }
-  else{
-    doc.hasSelection=true;
-    doc.selBounds={x:minx,y:miny,w:maxx-minx+1,h:maxy-miny+1};
-  }
+  else { doc.hasSelection=true; doc.selBounds={x:minx,y:miny,w:maxx-minx+1,h:maxy-miny+1}; }
 }
 function applyRectSelection(r,mode){
-  const W=doc.width, H=doc.height;
-  const x0=clamp(r.x,0,W), y0=clamp(r.y,0,H);
-  const x1=clamp(r.x+r.w,0,W), y1=clamp(r.y+r.h,0,H);
-  if(mode===SEL_REPLACE){
+  var W = doc.width, H = doc.height;
+  var x0 = clamp(r.x,0,W), y0 = clamp(r.y,0,H);
+  var x1 = clamp(r.x+r.w,0,W), y1 = clamp(r.y+r.h,0,H);
+  if(mode === SEL_REPLACE){
     doc.selMask.fill(0);
-    for(let y=y0;y<y1;y++) for(let x=x0;x<x1;x++) doc.selMask[y*W+x]=1;
-  } else if(mode===SEL_SUB){
-    for(let y=y0;y<y1;y++) for(let x=x0;x<x1;x++) doc.selMask[y*W+x]=0;
+    for(var y=y0;y<y1;y++) for(var x=x0;x<x1;x++) doc.selMask[y*W+x]=1;
+  } else if(mode === SEL_SUB){
+    for(var y2=y0;y2<y1;y2++) for(var x2=x0;x2<x1;x2++) doc.selMask[y2*W+x2]=0;
   } else {
-    for(let y=y0;y<y1;y++) for(let x=x0;x<x1;x++) doc.selMask[y*W+x]=1;
+    for(var y3=y0;y3<y1;y3++) for(var x3=x0;x3<x1;x3++) doc.selMask[y3*W+x3]=1;
   }
   recalcBounds();
 }
-function selectAll(){ doc.selMask.fill(1); recalcBounds(); requestRender(); }
-function deselectAll(){ doc.selMask.fill(0); recalcBounds(); requestRender(); }
+function selectAll(){ if(doc.floating){ commitFloat(); } doc.selMask.fill(1); recalcBounds(); requestRender(); commitHistory(); setStatus('全选'); }
+function deselectAll(){ doc.selMask.fill(0); recalcBounds(); requestRender(); commitHistory(); setStatus('取消选择'); }
 function invertSelection(){
-  for(let i=0;i<doc.selMask.length;i++) doc.selMask[i]=doc.selMask[i]?0:1;
-  recalcBounds(); requestRender();
+  for(var i=0;i<doc.selMask.length;i++) doc.selMask[i] = doc.selMask[i] ? 0 : 1;
+  recalcBounds(); requestRender(); commitHistory(); setStatus('反选');
 }
 function isSelected(x,y){
   if(doc.floating){
-    const f=doc.floating, lx=x-f.x, ly=y-f.y;
+    var f = doc.floating, lx = x-f.x, ly = y-f.y;
     if(lx<0||ly<0||lx>=f.w||ly>=f.h) return false;
-    return f.data[(ly*f.w+lx)*4+3]>0;
+    return f.data[(ly*f.w+lx)*4+3] > 0;
   }
   if(!doc.hasSelection) return false;
   if(x<0||y<0||x>=doc.width||y>=doc.height) return false;
-  return doc.selMask[y*doc.width+x]!==0;
+  return doc.selMask[y*doc.width+x] !== 0;
 }
-
-// ============================================================
-// 浮动层
-// ============================================================
 function beginFloat(){
-  if(!doc.hasSelection||doc.floating) return;
-  const b=doc.selBounds, fw=b.w, fh=b.h;
+  if(!doc.hasSelection || doc.floating) return;
+  var b = doc.selBounds, fw = b.w, fh = b.h;
   if(fw<=0||fh<=0) return;
-  const fdata=new Uint8ClampedArray(fw*fh*4);
-  const d=doc.imageData.data, W=doc.width;
-  for(let y=0;y<fh;y++) for(let x=0;x<fw;x++){
-    const sx=b.x+x, sy=b.y+y;
+  var fdata = new Uint8ClampedArray(fw*fh*4);
+  var d = doc.imageData.data, W = doc.width;
+  for(var y=0;y<fh;y++) for(var x=0;x<fw;x++){
+    var sx = b.x+x, sy = b.y+y;
     if(doc.selMask[sy*W+sx]){
-      const si=(sy*W+sx)*4, di=(y*fw+x)*4;
+      var si = (sy*W+sx)*4, di = (y*fw+x)*4;
       fdata[di]=d[si]; fdata[di+1]=d[si+1]; fdata[di+2]=d[si+2]; fdata[di+3]=d[si+3];
       d[si]=0; d[si+1]=0; d[si+2]=0; d[si+3]=0;
     }
   }
-  doc.floating={w:fw,h:fh,data:fdata,x:b.x,y:b.y};
-  doc.floatDirty=true; doc.imageDirty=true;
-  doc.selMask.fill(0); doc.hasSelection=false;
-  doc.selBounds={x:0,y:0,w:0,h:0};
+  doc.floating = {w:fw,h:fh,data:fdata,x:b.x,y:b.y};
+  doc.floatDirty = true; doc.imageDirty = true; _highlightDirty = true;
+  doc.selMask.fill(0); doc.hasSelection = false;
+  doc.selBounds = {x:0,y:0,w:0,h:0};
   requestRender();
 }
 function commitFloat(){
   if(!doc.floating) return;
-  const f=doc.floating, d=doc.imageData.data;
-  const W=doc.width, H=doc.height;
+  var f = doc.floating, d = doc.imageData.data;
+  var W = doc.width, H = doc.height;
   doc.selMask.fill(0);
-  for(let y=0;y<f.h;y++) for(let x=0;x<f.w;x++){
-    const dx=f.x+x, dy=f.y+y;
+  for(var y=0;y<f.h;y++) for(var x=0;x<f.w;x++){
+    var dx = f.x+x, dy = f.y+y;
     if(dx<0||dy<0||dx>=W||dy>=H) continue;
-    const si=(y*f.w+x)*4, di=(dy*W+dx)*4;
+    var si = (y*f.w+x)*4, di = (dy*W+dx)*4;
     d[di]=f.data[si]; d[di+1]=f.data[si+1]; d[di+2]=f.data[si+2]; d[di+3]=f.data[si+3];
-    doc.selMask[dy*W+dx]=1;
+    doc.selMask[dy*W+dx] = 1;
   }
-  doc.floating=null; doc.floatCanvas=null; doc.imageDirty=true;
+  doc.floating = null; doc.floatCanvas = null; doc.imageDirty = true; _highlightDirty = true;
   recalcBounds(); requestRender();
 }
 function deleteSelection(){
   if(!doc.hasSelection) return;
-  const W=doc.width, b=doc.selBounds, d=doc.imageData.data;
-  for(let y=b.y;y<b.y+b.h;y++) for(let x=b.x;x<b.x+b.w;x++){
+  var W = doc.width, b = doc.selBounds, d = doc.imageData.data;
+  for(var y=b.y;y<b.y+b.h;y++) for(var x=b.x;x<b.x+b.w;x++){
     if(doc.selMask[y*W+x]){
-      const i=(y*W+x)*4;
+      var i = (y*W+x)*4;
       d[i]=0; d[i+1]=0; d[i+2]=0; d[i+3]=0;
     }
   }
-  doc.imageDirty=true; requestRender();
+  doc.imageDirty = true; _highlightDirty = true; requestRender();
 }
 
-// ============================================================
-// 视图
-// ============================================================
+/* ============================================================
+ *  视图
+ * ============================================================ */
 function resizeCanvas(){
-  const rect=canvasWrap.getBoundingClientRect();
-  const dpr=window.devicePixelRatio||1;
-  canvas.width=Math.max(1,Math.round(rect.width*dpr));
-  canvas.height=Math.max(1,Math.round(rect.height*dpr));
-  canvas.style.width=rect.width+'px';
-  canvas.style.height=rect.height+'px';
+  var rect = canvasWrap.getBoundingClientRect();
+  var dpr = window.devicePixelRatio || 1;
+  canvas.width = Math.max(1,Math.round(rect.width*dpr));
+  canvas.height = Math.max(1,Math.round(rect.height*dpr));
+  canvas.style.width = rect.width+'px';
+  canvas.style.height = rect.height+'px';
   requestRender();
 }
 function initChecker(){
-  const c=document.createElement('canvas');
-  c.width=c.height=16;
-  const g=c.getContext('2d');
-  g.fillStyle='#2a2a30'; g.fillRect(0,0,16,16);
-  g.fillStyle='#202025'; g.fillRect(0,0,8,8); g.fillRect(8,8,8,8);
-  checkerPattern=ctx.createPattern(c,'repeat');
+  var c = document.createElement('canvas');
+  c.width = c.height = 16;
+  var g = c.getContext('2d');
+  g.fillStyle = '#4a4a50'; g.fillRect(0,0,16,16);
+  g.fillStyle = '#3a3a40'; g.fillRect(0,0,8,8); g.fillRect(8,8,8,8);
+  checkerPattern = ctx.createPattern(c,'repeat');
 }
 function screenToPixel(sx,sy){
-  let ix = Math.floor((sx-view.panX)/view.zoom);
-  let iy = Math.floor((sy-view.panY)/view.zoom);
+  var ix = Math.floor((sx-view.panX)/view.zoom);
+  var iy = Math.floor((sy-view.panY)/view.zoom);
   if(ui.singleCell){
-    const cr = cellRect(ui.currentCell);
+    var cr = cellRect(ui.currentCell);
     if(cr){ ix += cr.x; iy += cr.y; }
   }
-  return {x:ix, y:iy};
+  return {x:ix,y:iy};
 }
-function updateZoomLabel(){ zoomLabel.textContent=Math.round(view.zoom*100)+'%'; }
+function updateZoomLabel(){ if(zoomLabel) zoomLabel.textContent = Math.round(view.zoom*100)+'%'; }
 function centerCurrentCell(){
-  const W=canvasWrap.clientWidth, H=canvasWrap.clientHeight;
-  view.panX=RULER+(W-RULER-doc.grid.w*view.zoom)/2;
-  view.panY=RULER+(H-RULER-doc.grid.h*view.zoom)/2;
+  var W = canvasWrap.clientWidth, H = canvasWrap.clientHeight;
+  view.panX = RULER + (W-RULER-doc.grid.w*view.zoom)/2;
+  view.panY = RULER + (H-RULER-doc.grid.h*view.zoom)/2;
 }
 function fitToView(){
-  const W=canvasWrap.clientWidth, H=canvasWrap.clientHeight;
-  const margin=40;
-  let srcW,srcH;
-  if(ui.singleCell){ srcW=doc.grid.w; srcH=doc.grid.h; }
-  else { srcW=doc.width; srcH=doc.height; }
-  let z=Math.min((W-RULER-margin)/srcW,(H-RULER-margin)/srcH);
-  z=clamp(z,0.25,64);
-  if(z>=1) z=Math.max(1,Math.floor(z));
-  view.zoom=z;
-  view.panX=RULER+(W-RULER-srcW*view.zoom)/2;
-  view.panY=RULER+(H-RULER-srcH*view.zoom)/2;
-  updateZoomLabel();
-  requestRender();
+  var W = canvasWrap.clientWidth, H = canvasWrap.clientHeight;
+  var margin = 40;
+  var srcW, srcH;
+  if(ui.singleCell){ srcW = doc.grid.w; srcH = doc.grid.h; }
+  else { srcW = doc.width; srcH = doc.height; }
+  var z = Math.min((W-RULER-margin)/srcW, (H-RULER-margin)/srcH);
+  z = clamp(z,0.25,64);
+  if(z>=1) z = Math.max(1,Math.floor(z));
+  view.zoom = z;
+  view.panX = RULER + (W-RULER-srcW*view.zoom)/2;
+  view.panY = RULER + (H-RULER-srcH*view.zoom)/2;
+  updateZoomLabel(); requestRender();
 }
 
-// ============================================================
-// 渲染
-// ============================================================
+/* ============================================================
+ *  Marching ants
+ * ============================================================ */
+function paintMarchingAnts(g,mask,W,H,bounds,ox,oy,z,offset){
+  g.beginPath();
+  var y,x,row,prevRow,nextRow,runStart,isEdge,sx,sy;
+  for(y=bounds.y;y<bounds.y+bounds.h;y++){
+    row = y*W; prevRow = (y-1)*W; runStart = -1;
+    for(x=bounds.x;x<=bounds.x+bounds.w;x++){
+      isEdge = false;
+      if(x<bounds.x+bounds.w) isEdge = mask[row+x]!==0 && (y===0 || !mask[prevRow+x]);
+      if(isEdge){ if(runStart===-1) runStart=x; }
+      else if(runStart!==-1){ sy = oy+y*z; g.moveTo(ox+runStart*z,sy); g.lineTo(ox+x*z,sy); runStart=-1; }
+    }
+  }
+  for(y=bounds.y;y<bounds.y+bounds.h;y++){
+    row = y*W; nextRow = (y+1)*W; runStart = -1;
+    for(x=bounds.x;x<=bounds.x+bounds.w;x++){
+      isEdge = false;
+      if(x<bounds.x+bounds.w) isEdge = mask[row+x]!==0 && (y===H-1 || !mask[nextRow+x]);
+      if(isEdge){ if(runStart===-1) runStart=x; }
+      else if(runStart!==-1){ sy = oy+(y+1)*z; g.moveTo(ox+runStart*z,sy); g.lineTo(ox+x*z,sy); runStart=-1; }
+    }
+  }
+  for(x=bounds.x;x<bounds.x+bounds.w;x++){
+    runStart = -1;
+    for(y=bounds.y;y<=bounds.y+bounds.h;y++){
+      isEdge = false;
+      if(y<bounds.y+bounds.h) isEdge = mask[y*W+x]!==0 && (x===0 || !mask[y*W+x-1]);
+      if(isEdge){ if(runStart===-1) runStart=y; }
+      else if(runStart!==-1){ sx = ox+x*z; g.moveTo(sx,oy+runStart*z); g.lineTo(sx,oy+y*z); runStart=-1; }
+    }
+  }
+  for(x=bounds.x;x<bounds.x+bounds.w;x++){
+    runStart = -1;
+    for(y=bounds.y;y<=bounds.y+bounds.h;y++){
+      isEdge = false;
+      if(y<bounds.y+bounds.h) isEdge = mask[y*W+x]!==0 && (x===W-1 || !mask[y*W+x+1]);
+      if(isEdge){ if(runStart===-1) runStart=y; }
+      else if(runStart!==-1){ sx = ox+(x+1)*z; g.moveTo(sx,oy+runStart*z); g.lineTo(sx,oy+y*z); runStart=-1; }
+    }
+  }
+  var dashLen = 4, gapLen = 4;
+  g.setLineDash([dashLen,gapLen]);
+  g.lineDashOffset = -offset; g.strokeStyle = 'rgba(255,255,255,0.95)'; g.lineWidth = 2; g.stroke();
+  g.lineDashOffset = -offset+dashLen; g.strokeStyle = 'rgba(0,0,0,0.85)'; g.stroke();
+  g.setLineDash([]);
+}
+function getPreviewMask(){
+  var W = doc.width, H = doc.height;
+  if(!_previewMask || _previewMask.length !== W*H) _previewMask = new Uint8Array(W*H);
+  _previewMask.set(doc.selMask);
+  if(drag.mode === 'select' && drag.selStart && drag.selCur){
+    var x0 = Math.min(drag.selStart.x, drag.selCur.x);
+    var y0 = Math.min(drag.selStart.y, drag.selCur.y);
+    var x1 = Math.max(drag.selStart.x, drag.selCur.x);
+    var y1 = Math.max(drag.selStart.y, drag.selCur.y);
+    var rx0 = clamp(x0,0,W), ry0 = clamp(y0,0,H);
+    var rx1 = clamp(x1+1,0,W), ry1 = clamp(y1+1,0,H);
+    var mode = drag.selMode;
+    if(mode === SEL_REPLACE) _previewMask.fill(0);
+    for(var y=ry0;y<ry1;y++){
+      var row = y*W;
+      for(var x=rx0;x<rx1;x++){
+        if(mode === SEL_SUB) _previewMask[row+x] = 0;
+        else _previewMask[row+x] = 1;
+      }
+    }
+  }
+  var minx=W, miny=H, maxx=-1, maxy=-1;
+  for(var yy=0;yy<H;yy++){
+    var rw = yy*W;
+    for(var xx=0;xx<W;xx++) if(_previewMask[rw+xx]){
+      if(xx<minx) minx=xx; if(xx>maxx) maxx=xx;
+      if(yy<miny) miny=yy; if(yy>maxy) maxy=yy;
+    }
+  }
+  var bounds = maxx<0 ? {x:0,y:0,w:0,h:0} : {x:minx,y:miny,w:maxx-minx+1,h:maxy-miny+1};
+  return {mask:_previewMask, bounds:bounds};
+}
+
+/* ============================================================
+ *  渲染
+ * ============================================================ */
+function drawBackground(g,x,y,w,h){
+  if(bgMode === 0){ g.fillStyle = '#ffffff'; g.fillRect(x,y,w,h); }
+  else if(bgMode === 1){ g.fillStyle = '#808080'; g.fillRect(x,y,w,h); }
+  else if(bgMode === 2){ g.fillStyle = '#000000'; g.fillRect(x,y,w,h); }
+  else {
+    if(!checkerPattern) initChecker();
+    g.fillStyle = checkerPattern;
+    g.fillRect(x,y,w,h);
+  }
+}
 function render(){
-  const dpr=window.devicePixelRatio||1;
+  var dpr = window.devicePixelRatio || 1;
   ctx.setTransform(dpr,0,0,dpr,0,0);
-  const W=canvas.width/dpr, H=canvas.height/dpr;
-  ctx.fillStyle='#141418';
+  var W = canvas.width/dpr, H = canvas.height/dpr;
+  ctx.fillStyle = '#141418';
   ctx.fillRect(0,0,W,H);
 
   syncImageCanvas();
-  const z=view.zoom, px=view.panX, py=view.panY;
+  var z = view.zoom, px = view.panX, py = view.panY;
 
-  let srcX=0,srcY=0,srcW=doc.width,srcH=doc.height;
-  let dstX=px,dstY=py,dstW=doc.width*z,dstH=doc.height*z;
-  let ox=px, oy=py;
+  var srcX=0, srcY=0, srcW=doc.width, srcH=doc.height;
+  var dstX=px, dstY=py, dstW=doc.width*z, dstH=doc.height*z;
+  var ox=px, oy=py;
 
   if(ui.singleCell){
-    const cr=cellRect(ui.currentCell);
+    var cr = cellRect(ui.currentCell);
     if(cr){
       srcX=cr.x; srcY=cr.y; srcW=cr.w; srcH=cr.h;
       dstX=px; dstY=py; dstW=cr.w*z; dstH=cr.h*z;
-      ox = px - cr.x * z;
-      oy = py - cr.y * z;
+      ox = px - cr.x*z; oy = py - cr.y*z;
     }
   }
 
@@ -1207,200 +1207,223 @@ function render(){
   ctx.beginPath();
   ctx.rect(dstX,dstY,dstW,dstH);
   ctx.clip();
-  if(checkerPattern){
-    ctx.fillStyle=checkerPattern;
-    ctx.fillRect(dstX,dstY,dstW,dstH);
-  }
+  drawBackground(ctx,dstX,dstY,dstW,dstH);
   ctx.restore();
 
   if(ui.showPixelGrid && z >= 4 && !ui.singleCell){
-    drawPixelGrid(z, px, py, srcX, srcY, srcW, srcH);
+    drawPixelGrid(z,px,py,srcX,srcY,srcW,srcH);
   }
   if(ui.showGrid && !ui.singleCell){
-    drawGridLines(z, px, py);
+    drawGridLines(z,px,py);
   }
 
-  ctx.imageSmoothingEnabled=false;
+  ctx.imageSmoothingEnabled = false;
   ctx.drawImage(doc.imageCanvas, srcX,srcY,srcW,srcH, dstX,dstY,dstW,dstH);
 
   if(doc.floating && !ui.singleCell){
     if(doc.floatDirty) rebuildFloatCanvas();
-    const f=doc.floating;
+    var f = doc.floating;
     ctx.drawImage(doc.floatCanvas, px+f.x*z, py+f.y*z, f.w*z, f.h*z);
   }
 
-  ctx.strokeStyle='rgba(120,120,140,0.9)';
-  ctx.lineWidth=1;
+  ctx.strokeStyle = 'rgba(120,120,140,0.9)';
+  ctx.lineWidth = 1;
   ctx.strokeRect(dstX+0.5,dstY+0.5,dstW-1,dstH-1);
 
-  if(!ui.singleCell) drawGuides(z, px, py);
-  drawSelection(z, ox, oy);
+  if(!ui.singleCell) drawGuides(z,px,py);
 
-  if(drag.mode==='select'){
-    const r=rectFromPoints(drag.selStart,drag.selCur,drag.square);
-    ctx.fillStyle='rgba(255,255,255,0.12)';
-    ctx.fillRect(ox+r.x*z,oy+r.y*z,r.w*z,r.h*z);
-    ctx.strokeStyle='rgba(255,255,255,0.9)';
-    ctx.lineWidth=1;
-    ctx.strokeRect(ox+r.x*z+0.5,oy+r.y*z+0.5,r.w*z-1,r.h*z-1);
+  if(highlightColor !== null){
+    if(_highlightDirty) rebuildHighlightMask();
+    if(_highlightMask){
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(dstX,dstY,dstW,dstH);
+      ctx.clip();
+      ctx.fillStyle = 'rgba(255,220,0,0.55)';
+      for(var y=0;y<doc.height;y++){
+        var row = y*doc.width;
+        var sy = py + y*z;
+        for(var x=0;x<doc.width;x++){
+          if(_highlightMask[row+x]) ctx.fillRect(px + x*z, sy, z, z);
+        }
+      }
+      ctx.restore();
+    }
   }
 
-  drawRulers(z, px, py, W, H);
-  drawCursor(z, ox, oy);
+  drawSelection(z,ox,oy);
+  drawRulers(z,px,py,W,H);
+  drawCursor(z,ox,oy);
 }
-
-function drawPixelGrid(z, px, py, srcX, srcY, srcW, srcH){
-  if(srcW + srcH > 2000) return;
-  ctx.strokeStyle='rgba(255,255,255,0.07)';
-  ctx.lineWidth=1;
+function drawPixelGrid(z,px,py,srcX,srcY,srcW,srcH){
+  if(srcW+srcH > 2000) return;
+  ctx.strokeStyle = 'rgba(255,255,255,0.07)';
+  ctx.lineWidth = 1;
   ctx.beginPath();
-  const x0=px+srcX*z, y0=py+srcY*z;
-  const x1=x0+srcW*z, y1=y0+srcH*z;
-  for(let i=0;i<=srcW;i++){
-    const sx=Math.round(x0+i*z)+0.5;
+  var x0 = px+srcX*z, y0 = py+srcY*z;
+  var x1 = x0+srcW*z, y1 = y0+srcH*z;
+  for(var i=0;i<=srcW;i++){
+    var sx = Math.round(x0+i*z)+0.5;
     if(sx<x0-1||sx>x1+1) continue;
     ctx.moveTo(sx,y0); ctx.lineTo(sx,y1);
   }
-  for(let j=0;j<=srcH;j++){
-    const sy=Math.round(y0+j*z)+0.5;
+  for(var j=0;j<=srcH;j++){
+    var sy = Math.round(y0+j*z)+0.5;
     if(sy<y0-1||sy>y1+1) continue;
     ctx.moveTo(x0,sy); ctx.lineTo(x1,sy);
   }
   ctx.stroke();
 }
 function rectFromPoints(a,b,square){
-  let bx=b.x, by=b.y;
+  var bx=b.x, by=b.y;
   if(square){
-    const dx=b.x-a.x, dy=b.y-a.y;
-    const size=Math.max(Math.abs(dx),Math.abs(dy));
-    const sx=dx>=0?1:-1, sy=dy>=0?1:-1;
-    bx=a.x+sx*size; by=a.y+sy*size;
+    var dx=b.x-a.x, dy=b.y-a.y;
+    var size = Math.max(Math.abs(dx),Math.abs(dy));
+    var sx = dx>=0?1:-1, sy = dy>=0?1:-1;
+    bx = a.x+sx*size; by = a.y+sy*size;
   }
-  const x0=Math.min(a.x,bx), y0=Math.min(a.y,by);
-  const x1=Math.max(a.x,bx), y1=Math.max(a.y,by);
+  var x0 = Math.min(a.x,bx), y0 = Math.min(a.y,by);
+  var x1 = Math.max(a.x,bx), y1 = Math.max(a.y,by);
   return {x:x0,y:y0,w:x1-x0+1,h:y1-y0+1};
 }
 function drawGridLines(z,px,py){
-  const g=doc.grid;
+  var g = doc.grid;
   if(g.w<=0||g.h<=0) return;
-  const W=doc.width, H=doc.height;
-  const ccx=Math.ceil(W/g.w)+1;
-  const ccy=Math.ceil(H/g.h)+1;
-  if(ccx+ccy>1500) return;
-  ctx.strokeStyle='rgba(120,200,255,0.28)';
-  ctx.lineWidth=1;
+  var W = doc.width, H = doc.height;
+  var ccx = Math.ceil(W/g.w)+1;
+  var ccy = Math.ceil(H/g.h)+1;
+  if(ccx+ccy > 1500) return;
+  ctx.strokeStyle = 'rgba(120,200,255,0.35)';
+  ctx.lineWidth = 1;
   ctx.beginPath();
-  for(let i=0;i<=ccx;i++){
-    const x=i*g.w;
+  for(var i=0;i<=ccx;i++){
+    var x = i*g.w;
     if(x<0||x>W) continue;
-    const sx=Math.round(px+x*z)+0.5;
+    var sx = Math.round(px+x*z)+0.5;
     ctx.moveTo(sx,py); ctx.lineTo(sx,py+H*z);
   }
-  for(let j=0;j<=ccy;j++){
-    const y=j*g.h;
+  for(var j=0;j<=ccy;j++){
+    var y = j*g.h;
     if(y<0||y>H) continue;
-    const sy=Math.round(py+y*z)+0.5;
+    var sy = Math.round(py+y*z)+0.5;
     ctx.moveTo(px,sy); ctx.lineTo(px+W*z,sy);
   }
   ctx.stroke();
-  const cr=cellRect(ui.currentCell);
+  var cr = cellRect(ui.currentCell);
   if(cr){
-    ctx.strokeStyle='rgba(80,200,255,0.75)';
-    ctx.lineWidth=2;
+    ctx.strokeStyle = 'rgba(80,200,255,0.75)';
+    ctx.lineWidth = 2;
     ctx.strokeRect(px+cr.x*z+1,py+cr.y*z+1,cr.w*z-2,cr.h*z-2);
   }
 }
 function drawGuides(z,px,py){
-  for(let i=0;i<doc.guides.length;i++){
-    const g=doc.guides[i];
+  for(var i=0;i<doc.guides.length;i++){
+    var g = doc.guides[i];
     if(g.axis===0){
-      const sx=px+g.pos*z+0.5;
-      ctx.strokeStyle=(drag.mode==='guide' && drag.guideIdx===i)
-        ? 'rgba(255,230,80,0.95)' : 'rgba(64,240,255,0.85)';
-      ctx.lineWidth=1;
+      var sx = px+g.pos*z+0.5;
+      ctx.strokeStyle = (drag.mode==='guide' && drag.guideIdx===i) ? 'rgba(255,230,80,0.95)' : 'rgba(64,240,255,0.85)';
+      ctx.lineWidth = 1;
       ctx.beginPath(); ctx.moveTo(sx,RULER); ctx.lineTo(sx,canvas.height); ctx.stroke();
     } else {
-      const sy=py+g.pos*z+0.5;
-      ctx.strokeStyle=(drag.mode==='guide' && drag.guideIdx===i)
-        ? 'rgba(255,230,80,0.95)' : 'rgba(255,120,120,0.85)';
-      ctx.lineWidth=1;
+      var sy = py+g.pos*z+0.5;
+      ctx.strokeStyle = (drag.mode==='guide' && drag.guideIdx===i) ? 'rgba(255,230,80,0.95)' : 'rgba(255,120,120,0.85)';
+      ctx.lineWidth = 1;
       ctx.beginPath(); ctx.moveTo(RULER,sy); ctx.lineTo(canvas.width,sy); ctx.stroke();
     }
   }
 }
-function drawSelection(z,px,py){
-  let b=null;
-  if(doc.floating) b={x:doc.floating.x,y:doc.floating.y,w:doc.floating.w,h:doc.floating.h};
-  else if(doc.hasSelection) b=doc.selBounds;
-  if(!b||b.w<=0||b.h<=0) return;
-  ctx.strokeStyle='rgba(0,0,0,0.85)';
-  ctx.lineWidth=2;
-  ctx.strokeRect(px+b.x*z,py+b.y*z,b.w*z,b.h*z);
-  ctx.strokeStyle='rgba(255,255,255,0.95)';
-  ctx.lineWidth=1;
-  ctx.strokeRect(px+b.x*z+0.5,py+b.y*z+0.5,b.w*z-1,b.h*z-1);
+function drawSelection(z,ox,oy){
+  if(doc.floating){
+    var b = {x:doc.floating.x,y:doc.floating.y,w:doc.floating.w,h:doc.floating.h};
+    ctx.strokeStyle = 'rgba(0,0,0,0.85)';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(ox+b.x*z, oy+b.y*z, b.w*z, b.h*z);
+    ctx.strokeStyle = 'rgba(255,255,255,0.95)';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(ox+b.x*z+0.5, oy+b.y*z+0.5, b.w*z-1, b.h*z-1);
+    return;
+  }
+  var drawMask = null, drawBounds = null;
+  if(drag.mode === 'select' && drag.selStart && drag.selCur){
+    var pv = getPreviewMask();
+    drawMask = pv.mask; drawBounds = pv.bounds;
+  } else if(doc.hasSelection && doc.selMask){
+    drawMask = doc.selMask; drawBounds = doc.selBounds;
+  }
+  if(!drawMask || !drawBounds || drawBounds.w<=0 || drawBounds.h<=0) return;
+  ctx.save();
+  if(ui.singleCell){
+    var cr = cellRect(ui.currentCell);
+    if(cr){ ctx.beginPath(); ctx.rect(view.panX,view.panY,cr.w*z,cr.h*z); ctx.clip(); }
+  } else {
+    ctx.beginPath(); ctx.rect(view.panX,view.panY,doc.width*z,doc.height*z); ctx.clip();
+  }
+  ctx.fillStyle = 'rgba(80,180,255,0.12)';
+  for(var y=drawBounds.y;y<drawBounds.y+drawBounds.h;y++){
+    var row = y*doc.width;
+    var sy = oy+y*z;
+    for(var x=drawBounds.x;x<drawBounds.x+drawBounds.w;x++){
+      if(drawMask[row+x]) ctx.fillRect(ox+x*z, sy, z, z);
+    }
+  }
+  paintMarchingAnts(ctx, drawMask, doc.width, doc.height, drawBounds, ox, oy, z, dashOffset);
+  ctx.restore();
 }
 function drawCursor(z,ox,oy){
   if(!mouse.inside) return;
   if(mouse.inRulerTop || mouse.inRulerLeft) return;
-  if(ui.tool!==TOOL.PENCIL && ui.tool!==TOOL.ERASER) return;
-
-  const segs = getBrushOutline(ui.brushSize);
+  if(ui.tool !== TOOL.PENCIL && ui.tool !== TOOL.ERASER) return;
+  var segs = getBrushOutline(ui.brushSize);
   ctx.save();
   ctx.lineCap = 'square';
   ctx.beginPath();
-  for(const s of segs){
-    const x0 = Math.round(ox + (mouse.px + s[0]) * z) + 0.5;
-    const y0 = Math.round(oy + (mouse.py + s[1]) * z) + 0.5;
-    const x1 = Math.round(ox + (mouse.px + s[2]) * z) + 0.5;
-    const y1 = Math.round(oy + (mouse.py + s[3]) * z) + 0.5;
-    ctx.moveTo(x0, y0);
-    ctx.lineTo(x1, y1);
+  for(var i=0;i<segs.length;i++){
+    var s = segs[i];
+    var x0 = Math.round(ox+(mouse.px+s[0])*z)+0.5;
+    var y0 = Math.round(oy+(mouse.py+s[1])*z)+0.5;
+    var x1 = Math.round(ox+(mouse.px+s[2])*z)+0.5;
+    var y1 = Math.round(oy+(mouse.py+s[3])*z)+0.5;
+    ctx.moveTo(x0,y0); ctx.lineTo(x1,y1);
   }
-  ctx.strokeStyle = 'rgba(0,0,0,0.75)';
-  ctx.lineWidth = 3;
-  ctx.stroke();
-  ctx.strokeStyle = 'rgba(255,255,255,0.95)';
-  ctx.lineWidth = 1;
-  ctx.stroke();
+  ctx.strokeStyle = 'rgba(0,0,0,0.75)'; ctx.lineWidth = 3; ctx.stroke();
+  ctx.strokeStyle = 'rgba(255,255,255,0.95)'; ctx.lineWidth = 1; ctx.stroke();
   ctx.restore();
 }
 function drawRulers(z,px,py,W,H){
-  ctx.fillStyle='#1e1e24';
+  ctx.fillStyle = '#1e1e24';
   ctx.fillRect(0,0,W,RULER);
   ctx.fillRect(0,0,RULER,H);
-  ctx.strokeStyle='#333';
-  ctx.lineWidth=1;
+  ctx.strokeStyle = '#333';
+  ctx.lineWidth = 1;
   ctx.beginPath();
   ctx.moveTo(0,RULER+0.5); ctx.lineTo(W,RULER+0.5);
   ctx.moveTo(RULER+0.5,0); ctx.lineTo(RULER+0.5,H);
   ctx.stroke();
 
-  const targets=[1,2,5,10,20,50,100,200,500,1000];
-  let step=1;
-  for(const t of targets){ step=t; if(t*z >= 40) break; }
+  var targets = [1,2,5,10,20,50,100,200,500,1000];
+  var step = 1;
+  for(var ti=0;ti<targets.length;ti++){ step = targets[ti]; if(targets[ti]*z >= 40) break; }
 
-  ctx.strokeStyle='#666';
-  ctx.fillStyle='#999';
-  ctx.font='10px ui-monospace,Consolas,monospace';
-  ctx.textBaseline='top';
+  ctx.strokeStyle = '#666'; ctx.fillStyle = '#999';
+  ctx.font = '10px ui-monospace,Consolas,monospace';
+  ctx.textBaseline = 'top';
 
-  const xStartPx = Math.max(0, Math.floor((RULER - px) / z / step) * step);
-  for(let ix=xStartPx; ; ix+=step){
-    const sx=px+ix*z;
-    if(sx > W) break;
-    if(sx < RULER) continue;
+  var xStartPx = Math.max(0, Math.floor((RULER-px)/z/step)*step);
+  for(var ix=xStartPx; ; ix+=step){
+    var sx = px+ix*z;
+    if(sx>W) break;
+    if(sx<RULER) continue;
     ctx.beginPath();
     ctx.moveTo(Math.round(sx)+0.5,RULER-6);
     ctx.lineTo(Math.round(sx)+0.5,RULER);
     ctx.stroke();
     ctx.fillText(ix, Math.round(sx)+2, 2);
   }
-  const yStartPx = Math.max(0, Math.floor((RULER - py) / z / step) * step);
-  for(let iy=yStartPx; ; iy+=step){
-    const sy=py+iy*z;
-    if(sy > H) break;
-    if(sy < RULER) continue;
+  var yStartPx = Math.max(0, Math.floor((RULER-py)/z/step)*step);
+  for(var iy=yStartPx; ; iy+=step){
+    var sy = py+iy*z;
+    if(sy>H) break;
+    if(sy<RULER) continue;
     ctx.beginPath();
     ctx.moveTo(RULER-6,Math.round(sy)+0.5);
     ctx.lineTo(RULER,Math.round(sy)+0.5);
@@ -1408,632 +1431,478 @@ function drawRulers(z,px,py,W,H){
     ctx.save();
     ctx.translate(2,Math.round(sy)+2);
     ctx.rotate(-Math.PI/2);
-    ctx.textBaseline='top';
-    ctx.fillText(iy, -14, 0);
+    ctx.textBaseline = 'top';
+    ctx.fillText(iy,-14,0);
     ctx.restore();
   }
-  ctx.fillStyle='#26262b';
+  ctx.fillStyle = '#26262b';
   ctx.fillRect(0,0,RULER,RULER);
-  ctx.strokeStyle='#333';
+  ctx.strokeStyle = '#333';
   ctx.strokeRect(0.5,0.5,RULER-1,RULER-1);
 }
 
-// ============================================================
-// 绘制原语
-// ============================================================
+/* ============================================================
+ *  绘制原语
+ * ============================================================ */
 function stampBrush(cxp,cyp,rgba){
-  const pts = getBrushMask(ui.brushSize);
-  const useSel = doc.hasSelection;
-  for(const p of pts){
-    const tx = cxp + p.x, ty = cyp + p.y;
+  var pts = getBrushMask(ui.brushSize);
+  var useSel = doc.hasSelection;
+  for(var i=0;i<pts.length;i++){
+    var p = pts[i];
+    var tx = cxp+p.x, ty = cyp+p.y;
     if(tx<0||ty<0||tx>=doc.width||ty>=doc.height) continue;
     if(useSel && !doc.selMask[ty*doc.width+tx]) continue;
     setPixel(tx,ty,rgba);
   }
 }
 function bresenham(a,b){
-  const pts=[];
-  let x0=a.x,y0=a.y,x1=b.x,y1=b.y;
-  const dx=Math.abs(x1-x0), dy=-Math.abs(y1-y0);
-  const sx=x0<x1?1:-1, sy=y0<y1?1:-1;
-  let err=dx+dy;
+  var pts = [];
+  var x0=a.x, y0=a.y, x1=b.x, y1=b.y;
+  var dx = Math.abs(x1-x0), dy = -Math.abs(y1-y0);
+  var sx = x0<x1?1:-1, sy = y0<y1?1:-1;
+  var err = dx+dy;
   while(true){
     pts.push({x:x0,y:y0});
-    if(x0===x1&&y0===y1) break;
-    const e2=2*err;
-    if(e2>=dy){ err+=dy; x0+=sx; }
-    if(e2<=dx){ err+=dx; y0+=sy; }
+    if(x0===x1 && y0===y1) break;
+    var e2 = 2*err;
+    if(e2 >= dy){ err += dy; x0 += sx; }
+    if(e2 <= dx){ err += dx; y0 += sy; }
   }
   return pts;
 }
 function floodFill(start){
   if(start.x<0||start.y<0||start.x>=doc.width||start.y>=doc.height) return false;
-  const target=getPixel(start.x,start.y);
-  if(target[3]===0) return false;
-  const repl=ui.primary;
+  var target = getPixel(start.x,start.y);
+  if(target[3] === 0) return false;
+  var repl = ui.primary;
   if(colorsEqual(target,repl)) return false;
-  const W=doc.width,H=doc.height;
-  const visited=new Uint8Array(W*H);
-  const stack=[start];
-  const useSel=doc.hasSelection, d=doc.imageData.data;
-  let changed=false;
+  var W = doc.width, H = doc.height;
+  var visited = new Uint8Array(W*H);
+  var stack = [start];
+  var useSel = doc.hasSelection, d = doc.imageData.data;
+  var changed = false;
   while(stack.length){
-    const p=stack.pop();
+    var p = stack.pop();
     if(p.x<0||p.y<0||p.x>=W||p.y>=H) continue;
-    const i=p.y*W+p.x;
+    var i = p.y*W+p.x;
     if(visited[i]) continue;
-    visited[i]=1;
+    visited[i] = 1;
     if(useSel && !doc.selMask[i]) continue;
-    const di=i*4;
+    var di = i*4;
     if(d[di]!==target[0]||d[di+1]!==target[1]||d[di+2]!==target[2]||d[di+3]!==target[3]) continue;
     d[di]=repl[0]; d[di+1]=repl[1]; d[di+2]=repl[2]; d[di+3]=repl[3];
-    changed=true;
+    changed = true;
     stack.push({x:p.x-1,y:p.y}); stack.push({x:p.x+1,y:p.y});
     stack.push({x:p.x,y:p.y-1}); stack.push({x:p.x,y:p.y+1});
   }
-  if(changed){ doc.imageDirty=true; requestRender(); }
+  if(changed){ doc.imageDirty = true; _highlightDirty = true; requestRender(); }
   return changed;
 }
 function replaceColorAt(p){
   if(p.x<0||p.y<0||p.x>=doc.width||p.y>=doc.height) return false;
-  const target=getPixel(p.x,p.y);
-  const repl=ui.primary;
+  var target = getPixel(p.x,p.y);
+  var repl = ui.primary;
   if(colorsEqual(target,repl)) return false;
-  let rx=0,ry=0,rw=doc.width,rh=doc.height;
-  if(ui.singleCell){
-    const r=cellRect(ui.currentCell);
-    if(r){ rx=r.x; ry=r.y; rw=r.w; rh=r.h; }
-  }
-  const useSel=doc.hasSelection, d=doc.imageData.data;
-  let changed=false;
-  for(let y=ry;y<ry+rh;y++) for(let x=rx;x<rx+rw;x++){
+  var rx=0,ry=0,rw=doc.width,rh=doc.height;
+  if(ui.singleCell){ var r = cellRect(ui.currentCell); if(r){ rx=r.x; ry=r.y; rw=r.w; rh=r.h; } }
+  var useSel = doc.hasSelection, d = doc.imageData.data;
+  var changed = false;
+  for(var y=ry;y<ry+rh;y++) for(var x=rx;x<rx+rw;x++){
     if(x<0||y<0||x>=doc.width||y>=doc.height) continue;
-    const i=y*doc.width+x;
+    var i = y*doc.width+x;
     if(useSel && !doc.selMask[i]) continue;
-    const di=i*4;
+    var di = i*4;
     if(d[di]===target[0]&&d[di+1]===target[1]&&d[di+2]===target[2]&&d[di+3]===target[3]){
       d[di]=repl[0]; d[di+1]=repl[1]; d[di+2]=repl[2]; d[di+3]=repl[3];
-      changed=true;
+      changed = true;
     }
   }
-  if(changed){ doc.imageDirty=true; requestRender(); }
+  if(changed){ doc.imageDirty = true; _highlightDirty = true; requestRender(); }
   return changed;
 }
 function replacePrimaryWithSecondary(){
-  const from=ui.primary, to=ui.secondary;
+  var from = ui.primary, to = ui.secondary;
   if(colorsEqual(from,to)){ setStatus('主色与辅色相同'); return; }
-  let count=0;
-  const d=doc.imageData.data;
-  const useSel=doc.hasSelection;
-  for(let y=0;y<doc.height;y++) for(let x=0;x<doc.width;x++){
-    const i=y*doc.width+x;
+  var count = 0;
+  var d = doc.imageData.data;
+  var useSel = doc.hasSelection;
+  for(var y=0;y<doc.height;y++) for(var x=0;x<doc.width;x++){
+    var i = y*doc.width+x;
     if(useSel && !doc.selMask[i]) continue;
-    const di=i*4;
+    var di = i*4;
     if(d[di]===from[0]&&d[di+1]===from[1]&&d[di+2]===from[2]&&d[di+3]===from[3]){
       d[di]=to[0]; d[di+1]=to[1]; d[di+2]=to[2]; d[di+3]=to[3];
       count++;
     }
   }
-  if(count>0){ doc.imageDirty=true; commitHistory(); }
+  if(count>0){ doc.imageDirty = true; _highlightDirty = true; commitHistory(); refreshColorUsage(); }
   requestRender();
   setStatus('已替换 '+count+' 个像素');
 }
 function pickAt(p){
-  const c = getCompositePixel(p.x, p.y);
-  if(c[3]>0){
-    ui.primary=c.slice();
-    syncColorInputs();
-    setStatus('取色 '+rgbToHex(c));
-  }
+  var c = getCompositePixel(p.x,p.y);
+  if(c[3] > 0){ ui.primary = c.slice(); syncColorInputs(); setStatus('取色 '+rgbToHex(c)); }
 }
-
-// ============================================================
-// 参考线
-// ============================================================
 function guideAt(x,y){
-  const thr=Math.max(1,5/view.zoom);
-  for(let i=0;i<doc.guides.length;i++){
-    const g=doc.guides[i];
-    if(g.axis===0 && Math.abs(x-g.pos)<=thr) return i;
-    if(g.axis===1 && Math.abs(y-g.pos)<=thr) return i;
+  var thr = Math.max(1,5/view.zoom);
+  for(var i=0;i<doc.guides.length;i++){
+    var g = doc.guides[i];
+    if(g.axis===0 && Math.abs(x-g.pos) <= thr) return i;
+    if(g.axis===1 && Math.abs(y-g.pos) <= thr) return i;
   }
   return -1;
 }
 
-// ============================================================
-// 剪贴板（跨工具）
-// ============================================================
-async function doCopy(){
+/* ============================================================
+ *  剪贴板
+ * ============================================================ */
+function doCopy(){
   if(!doc.hasSelection){ setStatus('没有选区可复制'); return; }
-  const b = doc.selBounds;
-  const W = doc.width;
-  const d = doc.imageData.data;
-
-  const data = new Uint8ClampedArray(b.w * b.h * 4);
-  for(let y=0;y<b.h;y++) for(let x=0;x<b.w;x++){
-    const sxp = b.x + x, syp = b.y + y;
-    if(isSelected(sxp, syp)){
-      const si = (syp*W + sxp) * 4;
-      const di = (y*b.w + x) * 4;
-      data[di]   = d[si];
-      data[di+1] = d[si+1];
-      data[di+2] = d[si+2];
-      data[di+3] = d[si+3];
+  var b = doc.selBounds, W = doc.width, d = doc.imageData.data;
+  var data = new Uint8ClampedArray(b.w*b.h*4);
+  for(var y=0;y<b.h;y++) for(var x=0;x<b.w;x++){
+    var sxp = b.x+x, syp = b.y+y;
+    if(isSelected(sxp,syp)){
+      var si = (syp*W+sxp)*4, di = (y*b.w+x)*4;
+      data[di]=d[si]; data[di+1]=d[si+1]; data[di+2]=d[si+2]; data[di+3]=d[si+3];
     }
   }
-  clipboard = { w: b.w, h: b.h, data, x: b.x, y: b.y };
-
-  try {
-    if(navigator.clipboard && navigator.clipboard.write){
-      const c = document.createElement('canvas');
-      c.width = b.w; c.height = b.h;
-      const cx2 = c.getContext('2d');
-      cx2.putImageData(new ImageData(new Uint8ClampedArray(data), b.w, b.h), 0, 0);
-      const blob = await new Promise(res => c.toBlob(res, 'image/png'));
-      if(blob){
-        await navigator.clipboard.write([new ClipboardItem({'image/png': blob})]);
-        setStatus(`已复制 ${b.w}×${b.h}（可跨工具粘贴）`);
-        return;
-      }
-    }
-  } catch(err){
-    console.warn('系统剪贴板写入失败', err);
+  clipboard = {w:b.w,h:b.h,data:data,x:b.x,y:b.y};
+  if(navigator.clipboard && navigator.clipboard.write && typeof ClipboardItem !== 'undefined'){
+    var c = document.createElement('canvas');
+    c.width = b.w; c.height = b.h;
+    var cx2 = c.getContext('2d');
+    cx2.putImageData(new ImageData(new Uint8ClampedArray(data),b.w,b.h),0,0);
+    c.toBlob(function(blob){
+      if(!blob){ setStatus('已复制 '+b.w+'×'+b.h); return; }
+      navigator.clipboard.write([new ClipboardItem({'image/png':blob})])
+        .then(function(){ setStatus('已复制 '+b.w+'×'+b.h+'（可跨工具粘贴）'); })
+        .catch(function(){ setStatus('已复制 '+b.w+'×'+b.h+'（仅本页）'); });
+    },'image/png');
+  } else {
+    setStatus('已复制 '+b.w+'×'+b.h+'（仅本页）');
   }
-  setStatus(`已复制 ${b.w}×${b.h}（仅本页可用）`);
 }
-
-async function readClipboardImage(){
-  try {
-    if(navigator.clipboard && navigator.clipboard.read){
-      const items = await navigator.clipboard.read();
-      for(const item of items){
-        for(const type of item.types){
-          if(type === 'image/png' || type === 'image/jpeg' || type === 'image/webp' || type === 'image/gif'){
-            const blob = await item.getType(type);
-            const img = await blobToImage(blob);
-            const c = document.createElement('canvas');
-            c.width = img.width; c.height = img.height;
-            const cx2 = c.getContext('2d');
-            cx2.imageSmoothingEnabled = false;
-            cx2.drawImage(img, 0, 0);
-            const id = cx2.getImageData(0, 0, img.width, img.height);
-            return { w: img.width, h: img.height, data: id.data };
-          }
+function readClipboardImage(cb){
+  if(navigator.clipboard && navigator.clipboard.read){
+    navigator.clipboard.read().then(function(items){
+      var tryNext = function(idx){
+        if(idx >= items.length){
+          if(clipboard){ cb({w:clipboard.w,h:clipboard.h,data:clipboard.data}); }
+          else cb(null);
+          return;
         }
+        var item = items[idx];
+        var types = item.types;
+        var tryType = function(ti){
+          if(ti >= types.length){ tryNext(idx+1); return; }
+          var type = types[ti];
+          if(!/^image\//.test(type)){ tryType(ti+1); return; }
+          item.getType(type).then(function(blob){
+            var url = URL.createObjectURL(blob);
+            var img = new Image();
+            img.onload = function(){
+              URL.revokeObjectURL(url);
+              var c = document.createElement('canvas');
+              c.width = img.width; c.height = img.height;
+              var cx2 = c.getContext('2d');
+              cx2.imageSmoothingEnabled = false;
+              cx2.drawImage(img,0,0);
+              var id = cx2.getImageData(0,0,img.width,img.height);
+              cb({w:img.width,h:img.height,data:id.data});
+            };
+            img.onerror = function(){ URL.revokeObjectURL(url); tryType(ti+1); };
+            img.src = url;
+          }).catch(function(){ tryType(ti+1); });
+        };
+        tryType(0);
+      };
+      tryNext(0);
+    }).catch(function(){
+      if(clipboard){ cb({w:clipboard.w,h:clipboard.h,data:clipboard.data}); }
+      else cb(null);
+    });
+  } else {
+    if(clipboard){ cb({w:clipboard.w,h:clipboard.h,data:clipboard.data}); }
+    else cb(null);
+  }
+}
+function doPaste(){
+  setStatus('读取剪贴板…');
+  readClipboardImage(function(result){
+    if(!result){ setStatus('剪贴板为空'); return; }
+    if(doc.floating){ commitFloat(); commitHistory(); }
+    var W = doc.width, H = doc.height, d = doc.imageData.data;
+    for(var y=0;y<result.h;y++){
+      if(y>=H) break;
+      for(var x=0;x<result.w;x++){
+        if(x>=W) break;
+        var si = (y*result.w+x)*4, di = (y*W+x)*4;
+        d[di]=result.data[si]; d[di+1]=result.data[si+1]; d[di+2]=result.data[si+2]; d[di+3]=result.data[si+3];
       }
     }
-  } catch(err){ /* 回退到内部剪贴板 */ }
-  if(clipboard) return { w: clipboard.w, h: clipboard.h, data: clipboard.data };
-  return null;
-}
-
-function blobToImage(blob){
-  return new Promise((resolve, reject) => {
-    const url = URL.createObjectURL(blob);
-    const img = new Image();
-    img.onload = () => { URL.revokeObjectURL(url); resolve(img); };
-    img.onerror = (e) => { URL.revokeObjectURL(url); reject(e); };
-    img.src = url;
+    doc.imageDirty = true; _highlightDirty = true;
+    doc.selMask.fill(0);
+    for(var yy=0;yy<Math.min(result.h,H);yy++) for(var xx=0;xx<Math.min(result.w,W);xx++) doc.selMask[yy*W+xx] = 1;
+    recalcBounds(); commitHistory(); refreshColorUsage(); requestRender();
+    setStatus('已粘贴 '+result.w+'×'+result.h);
   });
 }
-
-async function doPaste(){
+function doPasteAsLayer(){
   setStatus('读取剪贴板…');
-  const result = await readClipboardImage();
-  if(!result){ setStatus('剪贴板为空'); return; }
-  if(doc.floating){ commitFloat(); commitHistory(); }
-
-  const W = doc.width, H = doc.height;
-  const d = doc.imageData.data;
-
-  for(let y=0; y<result.h; y++){
-    if(y >= H) break;
-    for(let x=0; x<result.w; x++){
-      if(x >= W) break;
-      const si = (y*result.w + x) * 4;
-      const di = (y*W + x) * 4;
-      d[di]   = result.data[si];
-      d[di+1] = result.data[si+1];
-      d[di+2] = result.data[si+2];
-      d[di+3] = result.data[si+3];
+  readClipboardImage(function(result){
+    if(!result){ setStatus('剪贴板为空'); return; }
+    if(doc.floating){ commitFloat(); commitHistory(); }
+    var W = doc.width, H = doc.height;
+    var id = new ImageData(W,H);
+    var d = id.data;
+    for(var y=0;y<Math.min(result.h,H);y++) for(var x=0;x<Math.min(result.w,W);x++){
+      var si = (y*result.w+x)*4, di = (y*W+x)*4;
+      d[di]=result.data[si]; d[di+1]=result.data[si+1]; d[di+2]=result.data[si+2]; d[di+3]=result.data[si+3];
     }
-  }
-  doc.imageDirty = true;
-
-  doc.selMask.fill(0);
-  for(let y=0; y<Math.min(result.h, H); y++){
-    for(let x=0; x<Math.min(result.w, W); x++){
-      doc.selMask[y*W+x] = 1;
-    }
-  }
-  recalcBounds();
-  commitHistory();
-  requestRender();
-  setStatus(`已粘贴 ${result.w}×${result.h}`);
+    var newLayer = {name:'粘贴图层',visible:true,opacity:255,imageData:id};
+    var idx = doc.activeLayer+1;
+    doc.layers.splice(idx,0,newLayer);
+    doc.activeLayer = idx;
+    doc.imageData = newLayer.imageData;
+    doc.imageDirty = true; _highlightDirty = true;
+    refreshLayerList(); commitHistory(); refreshColorUsage(); requestRender();
+    setStatus('已粘贴为新图层');
+  });
 }
-
-async function doPasteAsLayer(){
-  setStatus('读取剪贴板…');
-  const result = await readClipboardImage();
-  if(!result){ setStatus('剪贴板为空'); return; }
-  if(doc.floating){ commitFloat(); commitHistory(); }
-
-  const W = doc.width, H = doc.height;
-  const id = new ImageData(W, H);
-  const d = id.data;
-  for(let y=0; y<Math.min(result.h, H); y++){
-    for(let x=0; x<Math.min(result.w, W); x++){
-      const si = (y*result.w + x) * 4;
-      const di = (y*W + x) * 4;
-      d[di]   = result.data[si];
-      d[di+1] = result.data[si+1];
-      d[di+2] = result.data[si+2];
-      d[di+3] = result.data[si+3];
-    }
-  }
-
-  const newLayer = {
-    name: '粘贴图层',
-    visible: true,
-    opacity: 255,
-    imageData: id
-  };
-  const idx = doc.activeLayer + 1;
-  doc.layers.splice(idx, 0, newLayer);
-  doc.activeLayer = idx;
-  doc.imageData = newLayer.imageData;
-  doc.imageDirty = true;
-  refreshLayerList();
-  commitHistory();
-  requestRender();
-  setStatus(`已粘贴为新图层 ${result.w}×${result.h}`);
-}
-
 function doCut(){
   if(!doc.hasSelection){ setStatus('没有选区可剪切'); return; }
   doCopy();
   deleteSelection();
-  commitHistory();
+  commitHistory(); refreshColorUsage();
   setStatus('已剪切');
 }
 
-// ============================================================
-// 鼠标
-// ============================================================
+/* ============================================================
+ *  鼠标事件
+ * ============================================================ */
 function getMouse(e){
-  const r=canvas.getBoundingClientRect();
-  const sx=e.clientX-r.left, sy=e.clientY-r.top;
-  const p=screenToPixel(sx,sy);
-  return {sx,sy,px:p.x,py:p.y};
+  var r = canvas.getBoundingClientRect();
+  var sx = e.clientX-r.left, sy = e.clientY-r.top;
+  var p = screenToPixel(sx,sy);
+  return {sx:sx,sy:sy,px:p.x,py:p.y};
 }
-
-canvas.addEventListener('contextmenu', e => e.preventDefault());
-
-canvas.addEventListener('mousedown', e => {
-  const m=getMouse(e);
-
-  const inRulerTop = m.sy < RULER && m.sx >= RULER;
-  const inRulerLeft = m.sx < RULER && m.sy >= RULER;
+function onCanvasMouseDown(e){
+  var m = getMouse(e);
+  var inRulerTop = m.sy < RULER && m.sx >= RULER;
+  var inRulerLeft = m.sx < RULER && m.sy >= RULER;
 
   if(e.button===0 && inRulerTop){
-    drag.mode='guide';
-    drag.guideAxis=1;
-    drag.guideStart = clamp(Math.round((m.sy - view.panY)/view.zoom),0,doc.height);
+    drag.mode = 'guide'; drag.guideAxis = 1;
+    drag.guideStart = clamp(Math.round((m.sy-view.panY)/view.zoom),0,doc.height);
     doc.guides.push({axis:1,pos:drag.guideStart});
     drag.guideIdx = doc.guides.length-1;
-    requestRender();
-    e.preventDefault();
-    return;
+    requestRender(); e.preventDefault(); return;
   }
   if(e.button===0 && inRulerLeft){
-    drag.mode='guide';
-    drag.guideAxis=0;
-    drag.guideStart = clamp(Math.round((m.sx - view.panX)/view.zoom),0,doc.width);
+    drag.mode = 'guide'; drag.guideAxis = 0;
+    drag.guideStart = clamp(Math.round((m.sx-view.panX)/view.zoom),0,doc.width);
     doc.guides.push({axis:0,pos:drag.guideStart});
     drag.guideIdx = doc.guides.length-1;
-    requestRender();
-    e.preventDefault();
-    return;
+    requestRender(); e.preventDefault(); return;
   }
   if(inRulerTop || inRulerLeft){ e.preventDefault(); return; }
 
   if(e.button===1 || (e.button===0 && spaceDown)){
-    drag.mode='pan';
-    drag.startX=m.sx; drag.startY=m.sy;
-    drag.panStartX=view.panX; drag.panStartY=view.panY;
-    e.preventDefault();
-    return;
+    drag.mode = 'pan'; drag.startX = m.sx; drag.startY = m.sy;
+    drag.panStartX = view.panX; drag.panStartY = view.panY;
+    e.preventDefault(); return;
   }
-
   if(e.button===2){
-    if(doc.hasSelection){
-      deselectAll();
-      setStatus('已取消选区');
-      e.preventDefault();
-      return;
-    }
-    pickAt({x:m.px,y:m.py});
-    e.preventDefault();
-    return;
+    if(doc.hasSelection){ deselectAll(); e.preventDefault(); return; }
+    pickAt({x:m.px,y:m.py}); e.preventDefault(); return;
   }
+  if(e.button !== 0) return;
 
-  if(e.button!==0) return;
-
-  {
-    const gi = guideAt(m.px, m.py);
-    if(gi >= 0 && !spaceDown){
-      drag.mode='guide';
-      drag.guideIdx = gi;
-      const g = doc.guides[gi];
-      setStatus(`拖动参考线 #${gi} (${g.axis===0?'竖':'横'})`);
-      e.preventDefault();
-      return;
-    }
+  var gi = guideAt(m.px, m.py);
+  if(gi >= 0 && !spaceDown){
+    drag.mode = 'guide'; drag.guideIdx = gi;
+    setStatus('拖动参考线 #'+gi);
+    e.preventDefault(); return;
   }
 
   if(e.ctrlKey && (ui.tool===TOOL.PENCIL || ui.tool===TOOL.BUCKET)){
-    pickAt({x:m.px,y:m.py});
-    e.preventDefault();
-    return;
+    pickAt({x:m.px,y:m.py}); e.preventDefault(); return;
   }
 
-  let selMode=SEL_REPLACE;
-  if(ui.tool===TOOL.SELECT){
-    if(e.ctrlKey) selMode=SEL_SUB;
-    else if(e.altKey) selMode=SEL_ADD;
+  var selMode = selModeOverride;
+  if(ui.tool === TOOL.SELECT){
+    if(e.shiftKey) selMode = SEL_ADD;
+    else if(e.altKey || e.ctrlKey) selMode = SEL_SUB;
   }
 
   switch(ui.tool){
     case TOOL.SELECT:
-      if(doc.hasSelection && isSelected(m.px,m.py)){
+      if(doc.hasSelection && isSelected(m.px,m.py) && selMode === SEL_REPLACE){
         beginFloat();
-        drag.mode='move';
-        drag.moveOrigin={x:m.px,y:m.py};
-        drag.floatOrigin={x:doc.floating.x,y:doc.floating.y};
+        drag.mode = 'move';
+        drag.moveOrigin = {x:m.px,y:m.py};
+        drag.floatOrigin = {x:doc.floating.x,y:doc.floating.y};
         setStatus('移动 dx=0, dy=0');
       } else {
-        drag.mode='select';
-        drag.selStart={x:m.px,y:m.py};
-        drag.selCur={x:m.px,y:m.py};
-        drag.selMode=selMode;
-        drag.square=e.shiftKey;
-        const r0 = rectFromPoints(drag.selStart, drag.selCur, drag.square);
-        setStatus(`选区 ${r0.w} × ${r0.h} px${drag.square?' (1:1)':''}`);
+        drag.mode = 'select';
+        drag.selStart = {x:m.px,y:m.py};
+        drag.selCur = {x:m.px,y:m.py};
+        drag.selMode = selMode;
+        drag.square = xKeyDown;
       }
       break;
     case TOOL.PENCIL:
-      drag.mode='draw'; drag.drawErase=false;
-      drag.lastPx={x:m.px,y:m.py};
+      drag.mode = 'draw'; drag.drawErase = false;
+      drag.lastPx = {x:m.px,y:m.py};
       stampBrush(m.px,m.py,ui.primary);
-      requestRender();
-      break;
+      requestRender(); break;
     case TOOL.ERASER:
-      drag.mode='draw'; drag.drawErase=true;
-      drag.lastPx={x:m.px,y:m.py};
+      drag.mode = 'draw'; drag.drawErase = true;
+      drag.lastPx = {x:m.px,y:m.py};
       stampBrush(m.px,m.py,[0,0,0,0]);
-      requestRender();
-      break;
+      requestRender(); break;
     case TOOL.BUCKET:
-      if(floodFill({x:m.px,y:m.py})) commitHistory();
+      if(floodFill({x:m.px,y:m.py})){ commitHistory(); refreshColorUsage(); }
       break;
     case TOOL.PICKER:
-      pickAt({x:m.px,y:m.py});
-      break;
+      pickAt({x:m.px,y:m.py}); break;
     case TOOL.REPLACE:
-      if(replaceColorAt({x:m.px,y:m.py})) commitHistory();
+      if(replaceColorAt({x:m.px,y:m.py})){ commitHistory(); refreshColorUsage(); }
       break;
   }
   e.preventDefault();
-});
-
-canvas.addEventListener('mousemove', e => {
-  const m=getMouse(e);
-  mouse.inside=true; mouse.sx=m.sx; mouse.sy=m.sy;
-  mouse.px=m.px; mouse.py=m.py;
+}
+function onCanvasMouseMove(e){
+  var m = getMouse(e);
+  mouse.inside = true; mouse.sx = m.sx; mouse.sy = m.sy;
+  mouse.px = m.px; mouse.py = m.py;
   mouse.inRulerTop = m.sy < RULER && m.sx >= RULER;
   mouse.inRulerLeft = m.sx < RULER && m.sy >= RULER;
 
-  let cur = 'crosshair';
+  var cur = 'crosshair';
   if(mouse.inRulerTop) cur = 'ns-resize';
   else if(mouse.inRulerLeft) cur = 'ew-resize';
-  else if(drag.mode==='guide'){
-    const g=doc.guides[drag.guideIdx];
+  else if(drag.mode === 'guide'){
+    var g = doc.guides[drag.guideIdx];
     cur = (g && g.axis===0) ? 'ew-resize' : 'ns-resize';
   } else {
-    const gi = guideAt(m.px, m.py);
+    var gi = guideAt(m.px, m.py);
     if(gi >= 0 && !spaceDown){
-      const g = doc.guides[gi];
-      cur = g.axis===0 ? 'ew-resize' : 'ns-resize';
-    } else if(spaceDown){
-      cur = 'grab';
-    } else if(ui.tool===TOOL.PENCIL || ui.tool===TOOL.ERASER){
-      cur = 'none';
-    } else {
-      cur = 'crosshair';
-    }
+      var g2 = doc.guides[gi];
+      cur = g2.axis===0 ? 'ew-resize' : 'ns-resize';
+    } else if(spaceDown) cur = 'grab';
+    else if(ui.tool===TOOL.PENCIL || ui.tool===TOOL.ERASER) cur = 'none';
   }
   if(canvas.style.cursor !== cur) canvas.style.cursor = cur;
 
   if(m.px<0||m.py<0||m.px>=doc.width||m.py>=doc.height){
-    coordEl.textContent='— , —';
+    coordEl.textContent = '— , —';
   } else {
-    const ci=cellIndexAt({x:m.px,y:m.py});
-    coordEl.textContent=`${m.px} , ${m.py}  [格 ${ci}]`;
+    var ci = cellIndexAt({x:m.px,y:m.py});
+    coordEl.textContent = m.px+' , '+m.py+'  [格 '+ci+']';
   }
 
-  if(drag.mode==='pan'){
-    view.panX=drag.panStartX+(m.sx-drag.startX);
-    view.panY=drag.panStartY+(m.sy-drag.startY);
+  if(drag.mode === 'pan'){
+    view.panX = drag.panStartX + (m.sx-drag.startX);
+    view.panY = drag.panStartY + (m.sy-drag.startY);
     requestRender(); return;
   }
-  if(drag.mode==='guide' && drag.guideIdx>=0){
-    const g=doc.guides[drag.guideIdx];
-    if(!g) return;
-    if(g.axis===0) g.pos=clamp(m.px,0,doc.width);
-    else g.pos=clamp(m.py,0,doc.height);
-    setStatus(`参考线 ${g.axis===0?'竖 x':'横 y'}=${g.pos} px`);
+  if(drag.mode === 'guide' && drag.guideIdx >= 0){
+    var gg = doc.guides[drag.guideIdx];
+    if(!gg) return;
+    if(gg.axis===0) gg.pos = clamp(m.px,0,doc.width);
+    else gg.pos = clamp(m.py,0,doc.height);
+    setStatus('参考线 '+(gg.axis===0?'竖 x':'横 y')+'='+gg.pos+' px');
     requestRender(); return;
   }
-  if(drag.mode==='select'){
-    drag.selCur={x:m.px,y:m.py};
-    drag.square=e.shiftKey;
-    const r=rectFromPoints(drag.selStart, drag.selCur, drag.square);
-    setStatus(`选区 ${r.w} × ${r.h} px${drag.square?' (1:1)':''}`);
+  if(drag.mode === 'select'){
+    drag.selCur = {x:m.px,y:m.py};
+    drag.square = xKeyDown;
+    var r = rectFromPoints(drag.selStart,drag.selCur,drag.square);
+    var mn = drag.selMode===SEL_ADD?'（加选）':drag.selMode===SEL_SUB?'（减选）':'';
+    setStatus('选区 '+r.w+' × '+r.h+' px'+(drag.square?' (1:1)':'')+mn);
     requestRender(); return;
   }
-  if(drag.mode==='move' && doc.floating){
-    const dx=m.px-drag.moveOrigin.x, dy=m.py-drag.moveOrigin.y;
-    let nx=drag.floatOrigin.x+dx, ny=drag.floatOrigin.y+dy;
-    if(ui.snapEnabled){
-      const thr=ui.snapThreshold/view.zoom;
-      for(const g of doc.guides){
-        if(g.axis===0){
-          if(Math.abs(nx-g.pos)<=thr) nx=g.pos;
-          else if(Math.abs(nx+doc.floating.w-g.pos)<=thr) nx=g.pos-doc.floating.w;
-        } else {
-          if(Math.abs(ny-g.pos)<=thr) ny=g.pos;
-          else if(Math.abs(ny+doc.floating.h-g.pos)<=thr) ny=g.pos-doc.floating.h;
-        }
-      }
-    }
-    doc.floating.x=nx; doc.floating.y=ny;
-    const rdx = nx - drag.floatOrigin.x;
-    const rdy = ny - drag.floatOrigin.y;
-    setStatus(`移动 dx=${rdx}, dy=${rdy}`);
+  if(drag.mode === 'move' && doc.floating){
+    var dx = m.px-drag.moveOrigin.x, dy = m.py-drag.moveOrigin.y;
+    var nx = drag.floatOrigin.x+dx, ny = drag.floatOrigin.y+dy;
+    doc.floating.x = nx; doc.floating.y = ny;
+    setStatus('移动 dx='+(nx-drag.floatOrigin.x)+', dy='+(ny-drag.floatOrigin.y));
     requestRender(); return;
   }
-  if(drag.mode==='draw' && drag.lastPx){
-    const now={x:m.px,y:m.py};
-    if(now.x!==drag.lastPx.x || now.y!==drag.lastPx.y){
-      const col=drag.drawErase?[0,0,0,0]:ui.primary;
-      for(const p of bresenham(drag.lastPx,now)) stampBrush(p.x,p.y,col);
-      drag.lastPx=now;
+  if(drag.mode === 'draw' && drag.lastPx){
+    var now = {x:m.px,y:m.py};
+    if(now.x !== drag.lastPx.x || now.y !== drag.lastPx.y){
+      var col = drag.drawErase ? [0,0,0,0] : ui.primary;
+      var pts = bresenham(drag.lastPx, now);
+      for(var i=0;i<pts.length;i++) stampBrush(pts[i].x,pts[i].y,col);
+      drag.lastPx = now;
       requestRender();
     }
     return;
   }
-  requestRender();
-});
-
-function finishDrag(){
-  if(!drag.mode) return;
-  if(drag.mode==='select'){
-    const r=rectFromPoints(drag.selStart,drag.selCur,drag.square);
-    applyRectSelection(r,drag.selMode);
-    setStatus(`已创建选区 ${r.w} × ${r.h} px`);
-    updateUndoButtons();
-  } else if(drag.mode==='move'){
-    if(doc.floating){
-      const rdx = doc.floating.x - drag.floatOrigin.x;
-      const rdy = doc.floating.y - drag.floatOrigin.y;
-      commitFloat();
-      if(rdx !== 0 || rdy !== 0) commitHistory();
-      setStatus(`已移动 dx=${rdx}, dy=${rdy}`);
-    }
-  } else if(drag.mode==='draw'){
-    doc.imageDirty=true;
-    commitHistory();
-  }
-  drag.mode=null;
-  drag.guideIdx=-1;
-  drag.lastPx=null;
   requestRender();
 }
-canvas.addEventListener('mouseup', finishDrag);
-window.addEventListener('mouseup', () => { if(drag.mode) finishDrag(); });
-
-canvas.addEventListener('mouseleave', () => {
-  mouse.inside=false;
-  requestRender();
-});
-
-canvas.addEventListener('dblclick', e => {
-  const m=getMouse(e);
-  if(m.sx < RULER && m.sy < RULER) return;
-
-  const gi=guideAt(m.px,m.py);
-  if(gi>=0){
-    doc.guides.splice(gi,1);
-    requestRender();
-    setStatus('已删除参考线');
-    return;
+function onCanvasMouseUp(){
+  if(!drag.mode) return;
+  if(drag.mode === 'select'){
+    var r = rectFromPoints(drag.selStart,drag.selCur,drag.square);
+    applyRectSelection(r, drag.selMode);
+    commitHistory();
+    setStatus('已创建选区 '+r.w+' × '+r.h+' px');
+  } else if(drag.mode === 'move'){
+    if(doc.floating){ commitFloat(); commitHistory(); refreshColorUsage(); }
+  } else if(drag.mode === 'draw'){
+    doc.imageDirty = true; _highlightDirty = true;
+    commitHistory(); refreshColorUsage();
   }
-
-  const ci = cellIndexAt({x:m.px, y:m.py});
-  if(ci >= 0){
-    const cr = cellRect(ci);
-    if(cr){
-      ui.currentCell = ci;
-      applyRectSelection(cr, SEL_REPLACE);
-      requestRender();
-      updateAnimCursor();
-      setStatus(`已选中格 #${ci} (${cr.w} × ${cr.h} px)`);
-    }
-  }
-});
-
-canvas.addEventListener('wheel', e => {
-  e.preventDefault();
-  const r=canvas.getBoundingClientRect();
-  const sx=e.clientX-r.left, sy=e.clientY-r.top;
-  const ipx=(sx-view.panX)/view.zoom, ipy=(sy-view.panY)/view.zoom;
-  const factor=e.deltaY<0?1.18:1/1.18;
-  view.zoom=clamp(view.zoom*factor,0.25,64);
-  view.panX=sx-ipx*view.zoom;
-  view.panY=sy-ipy*view.zoom;
-  updateZoomLabel();
+  drag.mode = null; drag.guideIdx = -1; drag.lastPx = null;
   requestRender();
-},{passive:false});
+}
 
-// ============================================================
-// 键盘
-// ============================================================
-document.addEventListener('keydown', e => {
-  if(e.target.tagName==='INPUT') return;
-  if(e.key===' ' && !e.repeat) spaceDown=true;
+/* ============================================================
+ *  键盘
+ * ============================================================ */
+function onKeyDown(e){
+  if(e.target.tagName === 'INPUT') return;
+  if(e.key === ' ' && !e.repeat) spaceDown = true;
+  if((e.key === 'x' || e.key === 'X') && !e.repeat) xKeyDown = true;
 
-  if(e.ctrlKey||e.metaKey){
+  if(e.ctrlKey || e.metaKey){
     switch(e.key.toLowerCase()){
       case 'z': e.preventDefault(); if(e.shiftKey) doRedo(); else doUndo(); return;
       case 'y': e.preventDefault(); doRedo(); return;
-      case 'a': e.preventDefault(); selectAll(); setStatus('全选'); return;
-      case 'd': e.preventDefault(); deselectAll(); setStatus('取消选择'); return;
+      case 'a': e.preventDefault(); selectAll(); return;
+      case 'd': e.preventDefault(); deselectAll(); return;
       case 'c': e.preventDefault(); doCopy(); return;
       case 'x': e.preventDefault(); doCut(); return;
-      case 'v':
-        e.preventDefault();
-        if(e.shiftKey) doPasteAsLayer(); else doPaste();
-        return;
+      case 'v': e.preventDefault(); if(e.shiftKey) doPasteAsLayer(); else doPaste(); return;
       case 's': e.preventDefault(); savePng(false); return;
     }
   }
-
   switch(e.key){
     case 'Delete': case 'Backspace':
-      if(doc.hasSelection){
-        deleteSelection();
-        commitHistory();
-      }
+      if(doc.hasSelection){ deleteSelection(); commitHistory(); refreshColorUsage(); }
       e.preventDefault(); break;
     case 'Escape':
-      if(drag.mode==='move' && doc.floating){
-        drag.mode=null;
+      if(drag.mode === 'move' && doc.floating){
+        drag.mode = null;
         restoreSnapshot(historyStack[historyIndex]);
-        setStatus('已取消移动');
-      } else {
-        deselectAll();
-      }
+      } else if(highlightColor !== null){
+        highlightColor = null;
+        _highlightMask = null;
+        _highlightDirty = false;
+        renderColorUsageSwatches();
+        requestRender();
+      } else deselectAll();
       e.preventDefault(); break;
     case 'Enter':
-      if(drag.mode==='move' && doc.floating){
-        finishDrag();
-        setStatus('已放置');
-      }
+      if(drag.mode === 'move' && doc.floating){ onCanvasMouseUp(); }
       e.preventDefault(); break;
     case 'f': case 'F': fitToView(); break;
     case '[': setBrushSize(ui.brushSize-1); e.preventDefault(); break;
     case ']': setBrushSize(ui.brushSize+1); e.preventDefault(); break;
-
     case 'v': case 'V': setTool(TOOL.SELECT); break;
     case 'b': case 'B': setTool(TOOL.PENCIL); break;
     case 'e': case 'E': setTool(TOOL.ERASER); break;
@@ -2046,7 +1915,6 @@ document.addEventListener('keydown', e => {
     case '4': setTool(TOOL.BUCKET); break;
     case '5': setTool(TOOL.PICKER); break;
     case '6': setTool(TOOL.REPLACE); break;
-
     case 'ArrowLeft':
       if(doc.floating){ doc.floating.x--; requestRender(); e.preventDefault(); }
       break;
@@ -2060,97 +1928,95 @@ document.addEventListener('keydown', e => {
       if(doc.floating){ doc.floating.y++; requestRender(); e.preventDefault(); }
       break;
   }
-});
-document.addEventListener('keyup', e => {
-  if(e.key===' '){ spaceDown=false; canvas.style.cursor='crosshair'; }
-});
+}
+function onKeyUp(e){
+  if(e.key === ' ') spaceDown = false;
+  if(e.key === 'x' || e.key === 'X') xKeyDown = false;
+}
 
-// ============================================================
-// 动画
-// ============================================================
+/* ============================================================
+ *  动画
+ * ============================================================ */
 function updateAnimRange(){
-  const total=totalCells();
-  const a=document.getElementById('anim-start');
-  const b=document.getElementById('anim-end');
-  a.max=Math.max(0,total-1);
-  b.max=Math.max(0,total-1);
-  if(+b.value>=total) b.value=Math.max(0,total-1);
+  var total = totalCells();
+  var a = document.getElementById('anim-start');
+  var b = document.getElementById('anim-end');
+  if(!a || !b) return;
+  a.max = Math.max(0,total-1);
+  b.max = Math.max(0,total-1);
+  if(+b.value >= total) b.value = Math.max(0,total-1);
 }
 function startPlay(){
   if(!ui.singleCell){
-    ui.singleCell=true;
-    document.getElementById('btn-view-mode').textContent='全图';
+    ui.singleCell = true;
+    document.getElementById('btn-view-mode').textContent = '全图';
     centerCurrentCell();
   }
-  ui.playing=true;
-  ui.animFrame=+document.getElementById('anim-start').value;
-  ui.currentCell=ui.animFrame;
-  ui.animLastT=performance.now();
-  ui.animTimer=0;
-  document.getElementById('btn-play').textContent='⏸ 暂停';
-  requestRender();
-  updateAnimCursor();
+  ui.playing = true;
+  ui.animFrame = +document.getElementById('anim-start').value;
+  ui.currentCell = ui.animFrame;
+  ui.animLastT = performance.now();
+  ui.animTimer = 0;
+  document.getElementById('btn-play').textContent = '暂停';
+  requestRender(); updateAnimCursor();
 }
 function stopPlay(){
-  ui.playing=false;
-  document.getElementById('btn-play').textContent='▶ 播放';
+  ui.playing = false;
+  document.getElementById('btn-play').textContent = '播放';
 }
 function tickAnim(now){
-  if(!ui.playing){ ui.animLastT=now; return; }
-  const fps=Math.max(1,+document.getElementById('anim-fps').value);
-  const ft=1000/fps;
+  if(!ui.playing){ ui.animLastT = now; return; }
+  var fps = Math.max(1,+document.getElementById('anim-fps').value);
+  var ft = 1000/fps;
   ui.animTimer += now-ui.animLastT;
-  ui.animLastT=now;
-  while(ui.animTimer>=ft){
-    ui.animTimer-=ft;
-    const start=+document.getElementById('anim-start').value;
-    const end=+document.getElementById('anim-end').value;
+  ui.animLastT = now;
+  while(ui.animTimer >= ft){
+    ui.animTimer -= ft;
+    var start = +document.getElementById('anim-start').value;
+    var end = +document.getElementById('anim-end').value;
     ui.animFrame++;
-    if(ui.animFrame>end){
-      if(document.getElementById('anim-loop').checked) ui.animFrame=start;
-      else { ui.animFrame=end; stopPlay(); break; }
+    if(ui.animFrame > end){
+      if(document.getElementById('anim-loop').checked) ui.animFrame = start;
+      else { ui.animFrame = end; stopPlay(); break; }
     }
-    ui.currentCell=ui.animFrame;
-    requestRender();
-    updateAnimCursor();
+    ui.currentCell = ui.animFrame;
+    requestRender(); updateAnimCursor();
   }
 }
 function renderAnimPreview(){
-  const W=doc.width, H=doc.height;
-  animPreview.width=W; animPreview.height=H;
+  var W = doc.width, H = doc.height;
+  animPreview.width = W; animPreview.height = H;
   animPreviewCtx.clearRect(0,0,W,H);
-  animPreviewCtx.imageSmoothingEnabled=false;
+  animPreviewCtx.imageSmoothingEnabled = false;
   syncImageCanvas();
   animPreviewCtx.drawImage(doc.imageCanvas,0,0);
-  const maxW=280, maxH=240;
-  const scale=Math.min(maxW/W, maxH/H, 4);
-  animPreview.style.width=(W*scale)+'px';
-  animPreview.style.height=(H*scale)+'px';
-  animPreviewDirty=false;
+  var maxW = 280, maxH = 240;
+  var scale = Math.min(maxW/W, maxH/H, 4);
+  animPreview.style.width = (W*scale)+'px';
+  animPreview.style.height = (H*scale)+'px';
+  animPreviewDirty = false;
   updateAnimCursor();
 }
 function updateAnimCursor(){
   if(!doc.grid.w || !doc.grid.h) return;
-  const cc=cellCount();
-  const cur=ui.currentCell;
-  if(cur<0 || cur>=cc.x*cc.y){ animCursor.style.display='none'; return; }
-  const cx=cur%cc.x, cy=Math.floor(cur/cc.x);
-  const scale=animPreview.clientWidth/doc.width;
-  animCursor.style.display='block';
-  animCursor.style.left=(4 + cx*doc.grid.w*scale)+'px';
-  animCursor.style.top=(4 + cy*doc.grid.h*scale)+'px';
-  animCursor.style.width=(doc.grid.w*scale)+'px';
-  animCursor.style.height=(doc.grid.h*scale)+'px';
+  var cc = cellCount();
+  var cur = ui.currentCell;
+  if(cur<0 || cur>=cc.x*cc.y){ animCursor.style.display = 'none'; return; }
+  var cx = cur%cc.x, cy = Math.floor(cur/cc.x);
+  var scale = animPreview.clientWidth/doc.width;
+  animCursor.style.display = 'block';
+  animCursor.style.left = (4+cx*doc.grid.w*scale)+'px';
+  animCursor.style.top = (4+cy*doc.grid.h*scale)+'px';
+  animCursor.style.width = (doc.grid.w*scale)+'px';
+  animCursor.style.height = (doc.grid.h*scale)+'px';
 }
 function animUpdateFromEvent(e){
-  const r = animPreview.getBoundingClientRect();
-  const sx = e.clientX - r.left;
-  const sy = e.clientY - r.top;
-  if(sx < 0 || sy < 0 || sx > r.width || sy > r.height) return;
-  const scale = doc.width / r.width;
-  const px = Math.floor(sx * scale);
-  const py = Math.floor(sy * scale);
-  const idx = cellIndexAt({x:px, y:py});
+  var r = animPreview.getBoundingClientRect();
+  var sx = e.clientX-r.left, sy = e.clientY-r.top;
+  if(sx<0||sy<0||sx>r.width||sy>r.height) return;
+  var scale = doc.width/r.width;
+  var px = Math.floor(sx*scale), py = Math.floor(sy*scale);
+  var idx = cellIndexAt({x:px,y:py});
   if(idx >= 0){
     ui.currentCell = idx;
     if(!ui.singleCell){
@@ -2158,351 +2024,296 @@ function animUpdateFromEvent(e){
       document.getElementById('btn-view-mode').textContent = '全图';
       centerCurrentCell();
     }
-    requestRender();
-    updateAnimCursor();
+    requestRender(); updateAnimCursor();
   }
 }
-animPreviewWrap.addEventListener('mousedown', e => {
-  if(e.button !== 0) return;
-  e.preventDefault();
-  if(ui.playing) stopPlay();
-  animDragging = true;
-  animUpdateFromEvent(e);
-});
-window.addEventListener('mousemove', e => {
-  if(animDragging) animUpdateFromEvent(e);
-});
-window.addEventListener('mouseup', () => { animDragging = false; });
 
-// ============================================================
-// 工具
-// ============================================================
+/* ============================================================
+ *  工具
+ * ============================================================ */
 function setTool(t){
-  ui.tool=t;
-  document.querySelectorAll('.tool-btn').forEach(b => {
-    b.classList.toggle('active', +b.dataset.tool===t);
-  });
-  if(t===TOOL.PENCIL || t===TOOL.ERASER){
-    canvas.style.cursor = 'none';
-  } else {
-    canvas.style.cursor = 'crosshair';
+  ui.tool = t;
+  var btns = document.querySelectorAll('.tool-btn');
+  for(var i=0;i<btns.length;i++){
+    btns[i].classList.toggle('active', +btns[i].dataset.tool === t);
   }
+  if(t === TOOL.PENCIL || t === TOOL.ERASER) canvas.style.cursor = 'none';
+  else canvas.style.cursor = 'crosshair';
   requestRender();
 }
 function setBrushSize(n){
-  ui.brushSize=clamp(n,1,64);
-  brushInfoEl.textContent='笔刷: '+ui.brushSize;
+  ui.brushSize = clamp(n,1,64);
+  if(brushInfoEl) brushInfoEl.textContent = '笔刷: '+ui.brushSize;
   requestRender();
 }
 function syncColorInputs(){
-  document.getElementById('color-primary').value=rgbToHex(ui.primary);
-  document.getElementById('color-secondary').value=rgbToHex(ui.secondary);
+  document.getElementById('color-primary').value = rgbToHex(ui.primary);
+  document.getElementById('color-secondary').value = rgbToHex(ui.secondary);
+}
+function setSelMode(mode){
+  selModeOverride = mode;
+  var btns = document.querySelectorAll('.sel-mode-btn');
+  for(var i=0;i<btns.length;i++){
+    btns[i].classList.toggle('on', +btns[i].dataset.mode === mode);
+  }
+  var names = ['新建','加选','减选'];
+  setStatus('选区模式: '+names[mode]+'（拖拽框选）');
+}
+function cycleBackground(){
+  bgMode = (bgMode+1)%4;
+  var btn = document.getElementById('btn-bg');
+  if(btn) btn.textContent = BG_NAMES[bgMode];
+  requestRender();
 }
 
-// ============================================================
-// 文件
-// ============================================================
+/* ============================================================
+ *  文件
+ * ============================================================ */
 function download(blob,name){
-  const url=URL.createObjectURL(blob);
-  const a=document.createElement('a');
-  a.href=url; a.download=name;
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url; a.download = name;
   document.body.appendChild(a); a.click();
-  setTimeout(()=>{ document.body.removeChild(a); URL.revokeObjectURL(url); },100);
+  setTimeout(function(){ document.body.removeChild(a); URL.revokeObjectURL(url); },100);
 }
-function getBaseName(){
-  return (doc.fileName.replace(/\.(png|pxproj|json)$/i,'') || 'sprite');
-}
-
+function getBaseName(){ return doc.fileName.replace(/\.(png|pxproj|json)$/i,'') || 'sprite'; }
 function buildExportCanvas(){
   syncImageCanvas();
-  const c = document.createElement('canvas');
-  c.width = doc.width;
-  c.height = doc.height;
-  const cx2 = c.getContext('2d');
+  var c = document.createElement('canvas');
+  c.width = doc.width; c.height = doc.height;
+  var cx2 = c.getContext('2d');
   cx2.imageSmoothingEnabled = false;
-  cx2.drawImage(doc.imageCanvas, 0, 0);
+  cx2.drawImage(doc.imageCanvas,0,0);
   return c;
 }
-
-async function savePng(saveAs){
+function savePng(saveAs){
   if(doc.floating){ commitFloat(); commitHistory(); }
   syncImageCanvas();
-  const exportCanvas = buildExportCanvas();
-  const defName = getBaseName() + '.png';
-
-  let handle = null;
-  let fallbackName = defName;
-  if(saveAs){
-    if(window.showSaveFilePicker){
-      try{
-        handle = await window.showSaveFilePicker({
-          suggestedName: defName,
-          types: [{ description: 'PNG 图片', accept: { 'image/png': ['.png'] } }]
-        });
-      } catch(err){
-        if(err && err.name === 'AbortError') return;
-      }
-    }
-    if(!handle){
-      const input = prompt('另存为 PNG 文件名：', defName);
-      if(input === null) return;
-      fallbackName = input.trim() || defName;
+  var exportCanvas = buildExportCanvas();
+  var defName = getBaseName()+'.png';
+  var doSaveToHandle = function(handle){
+    exportCanvas.toBlob(function(blob){
+      handle.createWritable().then(function(w){
+        return w.write(blob).then(function(){ return w.close(); });
+      }).then(function(){
+        doc.fileName = handle.name;
+        setStatus('已保存 PNG: '+handle.name);
+      }).catch(function(err){ setStatus('保存失败: '+err.message); });
+    },'image/png');
+  };
+  if(saveAs && window.showSaveFilePicker){
+    window.showSaveFilePicker({
+      suggestedName: defName,
+      types: [{description:'PNG 图片', accept:{'image/png':['.png']}}]
+    }).then(doSaveToHandle).catch(function(err){
+      if(err && err.name === 'AbortError') return;
+      var fallbackName = prompt('另存为 PNG 文件名：', defName);
+      if(fallbackName === null) return;
       if(!/\.png$/i.test(fallbackName)) fallbackName += '.png';
-    }
-  }
-
-  const blob = await new Promise(res => exportCanvas.toBlob(res, 'image/png'));
-
-  if(handle){
-    try{
-      const writable = await handle.createWritable();
-      await writable.write(blob);
-      await writable.close();
-      doc.fileName = handle.name;
-      setStatus('已保存 PNG: ' + handle.name);
-    } catch(err){
-      console.error(err);
-      setStatus('保存失败: ' + (err && err.message || err));
-    }
+      exportCanvas.toBlob(function(blob){ download(blob, fallbackName); setStatus('已保存 PNG: '+fallbackName); },'image/png');
+    });
     return;
   }
-
-  download(blob, saveAs ? fallbackName : defName);
-  if(!saveAs) doc.fileName = defName;
-  setStatus('已保存 PNG: ' + (saveAs ? fallbackName : defName));
+  exportCanvas.toBlob(function(blob){
+    download(blob, defName);
+    if(!saveAs) doc.fileName = defName;
+    setStatus('已保存 PNG: '+defName);
+  },'image/png');
 }
-
 function openPng(){
-  fileInput.accept='image/*';
-  fileInput.onchange=()=>{
-    const f=fileInput.files[0]; if(!f) return;
-    const reader=new FileReader();
-    reader.onload=()=>{
-      const img=new Image();
-      img.onload=()=>{
-        const c=document.createElement('canvas');
-        c.width=img.width; c.height=img.height;
-        const g=c.getContext('2d');
-        g.drawImage(img,0,0);
-        const id=g.getImageData(0,0,img.width,img.height);
+  fileInput.accept = 'image/*';
+  fileInput.onchange = function(){
+    var f = fileInput.files[0];
+    if(!f) return;
+    var reader = new FileReader();
+    reader.onload = function(){
+      var img = new Image();
+      img.onload = function(){
+        try {
+          var c = document.createElement('canvas');
+          c.width = img.width; c.height = img.height;
+          var g = c.getContext('2d');
+          g.imageSmoothingEnabled = false;
+          g.drawImage(img,0,0);
+          var id = g.getImageData(0,0,img.width,img.height);
 
-        doc.width = img.width;
-        doc.height = img.height;
-        doc.layers = [{
-          name: '背景',
-          visible: true,
-          opacity: 255,
-          imageData: id
-        }];
-        doc.activeLayer = 0;
-        doc.imageData = doc.layers[0].imageData;
+          doc.width = img.width; doc.height = img.height;
+          doc.layers = [{name:'背景',visible:true,opacity:255,imageData:id}];
+          doc.activeLayer = 0;
+          doc.imageData = doc.layers[0].imageData;
 
-        doc.imageCanvas = document.createElement('canvas');
-        doc.imageCanvas.width = img.width;
-        doc.imageCanvas.height = img.height;
-        doc.imageCtx = doc.imageCanvas.getContext('2d');
+          doc.imageCanvas = document.createElement('canvas');
+          doc.imageCanvas.width = img.width;
+          doc.imageCanvas.height = img.height;
+          doc.imageCtx = doc.imageCanvas.getContext('2d');
 
-        doc.selMask = new Uint8Array(img.width*img.height);
-        doc.hasSelection=false;
-        doc.selBounds={x:0,y:0,w:0,h:0};
-        doc.floating=null; doc.floatCanvas=null;
-        doc.imageDirty=true;
-        doc.fileName=f.name;
-        animPreviewDirty=true;
+          doc.selMask = new Uint8Array(img.width*img.height);
+          doc.hasSelection = false;
+          doc.selBounds = {x:0,y:0,w:0,h:0};
+          doc.floating = null; doc.floatCanvas = null;
+          doc.imageDirty = true;
+          doc.fileName = f.name;
+          animPreviewDirty = true;
+          _previewMask = null;
+          highlightColor = null;
+          _highlightMask = null;
+          _highlightDirty = false;
 
-        resetHistory();
-        updateAnimRange();
-        syncGridInputsFromWH();
-        refreshLayerList();
-        fitToView();
-        setStatus('已打开: '+f.name);
+          resetHistory();
+          updateAnimRange();
+          syncGridInputsFromWH();
+          refreshLayerList();
+          refreshColorUsage();
+          fitToView();
+          setStatus('已打开: '+f.name);
+        } catch(err){
+          console.error(err);
+          setStatus('图片载入失败');
+        }
       };
-      img.src=reader.result;
+      img.onerror = function(){ setStatus('图片解析失败'); };
+      img.src = reader.result;
     };
     reader.readAsDataURL(f);
-    fileInput.value='';
+    fileInput.value = '';
   };
   fileInput.click();
 }
-
 function imageDataToDataURL(id){
-  const c = document.createElement('canvas');
-  c.width = id.width;
-  c.height = id.height;
-  c.getContext('2d').putImageData(id, 0, 0);
+  var c = document.createElement('canvas');
+  c.width = id.width; c.height = id.height;
+  c.getContext('2d').putImageData(id,0,0);
   return c.toDataURL('image/png');
 }
-function dataURLToImageData(dataURL, W, H){
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.onload = () => {
-      const c = document.createElement('canvas');
+function dataURLToImageData(dataURL,W,H){
+  return new Promise(function(resolve,reject){
+    var img = new Image();
+    img.onload = function(){
+      var c = document.createElement('canvas');
       c.width = W; c.height = H;
-      const cx2 = c.getContext('2d');
+      var cx2 = c.getContext('2d');
       cx2.imageSmoothingEnabled = false;
-      cx2.drawImage(img, 0, 0);
-      resolve(cx2.getImageData(0, 0, W, H));
+      cx2.drawImage(img,0,0);
+      resolve(cx2.getImageData(0,0,W,H));
     };
     img.onerror = reject;
     img.src = dataURL;
   });
 }
-
-async function saveProject(saveAs){
+function saveProject(saveAs){
   if(doc.floating){ commitFloat(); commitHistory(); }
   syncImageCanvas();
-  const defName = getBaseName() + '.pxproj';
-
-  let handle = null;
-  let fallbackName = defName;
-  if(saveAs){
-    if(window.showSaveFilePicker){
-      try{
-        handle = await window.showSaveFilePicker({
-          suggestedName: defName,
-          types: [{ description: '像素工程', accept: { 'application/json': ['.pxproj'] } }]
-        });
-      } catch(err){
-        if(err && err.name === 'AbortError') return;
-      }
-    }
-    if(!handle){
-      const input = prompt('另存为工程文件名：', defName);
-      if(input === null) return;
-      fallbackName = input.trim() || defName;
-      if(!/\.pxproj$/i.test(fallbackName)) fallbackName += '.pxproj';
-    }
-  }
-
-  const layers = doc.layers.map(L => ({
-    name: L.name,
-    visible: L.visible,
-    opacity: L.opacity,
-    png: imageDataToDataURL(L.imageData)
-  }));
-
-  const data = {
-    app: 'pxedit',
-    version: 6,
-    width: doc.width,
-    height: doc.height,
-    layers: layers,
-    activeLayer: doc.activeLayer,
-    grid: Object.assign({}, doc.grid),
-    guides: doc.guides.slice(),
-    singleCell: ui.singleCell,
-    currentCell: ui.currentCell,
-    animStart: +document.getElementById('anim-start').value,
-    animEnd: +document.getElementById('anim-end').value,
-    animFps: +document.getElementById('anim-fps').value,
-    animLoop: document.getElementById('anim-loop').checked,
-    paletteCustom: ui.paletteCustom.map(c=>rgbToHex(c)),
-    primary: rgbToHex(ui.primary),
-    secondary: rgbToHex(ui.secondary),
-    brushSize: ui.brushSize
+  var defName = getBaseName()+'.pxproj';
+  var layers = doc.layers.map(function(L){
+    return {name:L.name,visible:L.visible,opacity:L.opacity,png:imageDataToDataURL(L.imageData)};
+  });
+  var data = {
+    app:'pxedit', version:7,
+    width:doc.width, height:doc.height,
+    layers:layers, activeLayer:doc.activeLayer,
+    grid:{w:doc.grid.w,h:doc.grid.h},
+    guides:doc.guides.slice(),
+    singleCell:ui.singleCell, currentCell:ui.currentCell,
+    animStart:+document.getElementById('anim-start').value,
+    animEnd:+document.getElementById('anim-end').value,
+    animFps:+document.getElementById('anim-fps').value,
+    animLoop:document.getElementById('anim-loop').checked,
+    paletteCustom:ui.paletteCustom.map(function(c){ return rgbToHex(c); }),
+    primary:rgbToHex(ui.primary), secondary:rgbToHex(ui.secondary),
+    brushSize:ui.brushSize
   };
-  const blob = new Blob([JSON.stringify(data, null, 2)], { type:'application/json' });
-
-  if(handle){
-    try{
-      const writable = await handle.createWritable();
-      await writable.write(blob);
-      await writable.close();
-      doc.fileName = handle.name;
-      setStatus('工程已保存: ' + handle.name);
-    } catch(err){
-      console.error(err);
-      setStatus('保存失败: ' + (err && err.message || err));
-    }
+  var blob = new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+  if(saveAs && window.showSaveFilePicker){
+    window.showSaveFilePicker({
+      suggestedName: defName,
+      types: [{description:'像素工程', accept:{'application/json':['.pxproj']}}]
+    }).then(function(handle){
+      handle.createWritable().then(function(w){
+        return w.write(blob).then(function(){ return w.close(); });
+      }).then(function(){
+        doc.fileName = handle.name;
+        setStatus('工程已保存: '+handle.name);
+      }).catch(function(err){ setStatus('保存失败: '+err.message); });
+    }).catch(function(err){
+      if(err && err.name === 'AbortError') return;
+      var fb = prompt('另存为工程文件名：', defName);
+      if(fb === null) return;
+      if(!/\.pxproj$/i.test(fb)) fb += '.pxproj';
+      download(blob, fb);
+      setStatus('已下载: '+fb);
+    });
     return;
   }
-
-  download(blob, saveAs ? fallbackName : defName);
+  download(blob, defName);
   if(!saveAs) doc.fileName = defName;
-  setStatus('工程已保存: ' + (saveAs ? fallbackName : defName));
+  setStatus('工程已保存: '+defName);
 }
-
 function openProject(){
-  fileInput.accept='.pxproj,.json,application/json';
-  fileInput.onchange=()=>{
-    const f=fileInput.files[0]; if(!f) return;
-    const reader=new FileReader();
-    reader.onload=async ()=>{
-      try{
-        const data = JSON.parse(reader.result);
-        await loadProjectData(data);
-        doc.fileName=f.name;
-        setStatus('工程已载入: '+f.name);
+  fileInput.accept = '.pxproj,.json,application/json';
+  fileInput.onchange = function(){
+    var f = fileInput.files[0]; if(!f) return;
+    var reader = new FileReader();
+    reader.onload = function(){
+      try {
+        var data = JSON.parse(reader.result);
+        loadProjectData(data).then(function(){
+          doc.fileName = f.name;
+          setStatus('工程已载入: '+f.name);
+        }).catch(function(err){
+          setStatus('工程解析失败: '+err.message);
+        });
       } catch(err){
         setStatus('工程解析失败');
-        console.error(err);
       }
     };
     reader.readAsText(f);
-    fileInput.value='';
+    fileInput.value = '';
   };
   fileInput.click();
 }
-
 async function loadProjectData(data){
-  const W = data.width, H = data.height;
+  var W = data.width, H = data.height;
   if(!W || !H) throw new Error('无效尺寸');
-
-  let layers = [];
+  var layers = [];
   if(Array.isArray(data.layers) && data.layers.length){
-    for(let i=0; i<data.layers.length; i++){
-      const L = data.layers[i];
-      let imageData;
+    for(var i=0;i<data.layers.length;i++){
+      var L = data.layers[i];
+      var imageData;
       if(L.png){
-        try {
-          imageData = await dataURLToImageData(L.png, W, H);
-        } catch(err){
-          imageData = new ImageData(W, H);
-        }
-      } else {
-        imageData = new ImageData(W, H);
-      }
+        try { imageData = await dataURLToImageData(L.png, W, H); }
+        catch(err){ imageData = new ImageData(W,H); }
+      } else imageData = new ImageData(W,H);
       layers.push({
-        name: L.name || ('图层 ' + (i+1)),
-        visible: L.visible !== false,
-        opacity: (L.opacity != null) ? L.opacity : 255,
-        imageData: imageData
+        name:L.name || ('图层 '+(i+1)),
+        visible:L.visible !== false,
+        opacity:(L.opacity != null) ? L.opacity : 255,
+        imageData:imageData
       });
     }
   }
-
   if(layers.length === 0){
-    let singleId;
-    if(data.png){
-      try {
-        singleId = await dataURLToImageData(data.png, W, H);
-      } catch(err){
-        singleId = new ImageData(W, H);
-      }
-    } else {
-      singleId = new ImageData(W, H);
-    }
-    layers = [{ name: '图层 1', visible: true, opacity: 255, imageData: singleId }];
+    var singleId = new ImageData(W,H);
+    if(data.png){ try { singleId = await dataURLToImageData(data.png, W, H); } catch(err){} }
+    layers = [{name:'图层 1', visible:true, opacity:255, imageData:singleId}];
   }
-
-  doc.width = W;
-  doc.height = H;
+  doc.width = W; doc.height = H;
   doc.layers = layers;
-  doc.activeLayer = clamp(data.activeLayer || 0, 0, layers.length - 1);
+  doc.activeLayer = clamp(data.activeLayer || 0, 0, layers.length-1);
   doc.imageData = layers[doc.activeLayer].imageData;
 
   doc.imageCanvas = document.createElement('canvas');
-  doc.imageCanvas.width = W;
-  doc.imageCanvas.height = H;
+  doc.imageCanvas.width = W; doc.imageCanvas.height = H;
   doc.imageCtx = doc.imageCanvas.getContext('2d');
 
   doc.selMask = new Uint8Array(W*H);
   doc.hasSelection = false;
   doc.selBounds = {x:0,y:0,w:0,h:0};
-  doc.floating = null;
-  doc.floatCanvas = null;
-  doc.imageDirty = true;
-  animPreviewDirty = true;
+  doc.floating = null; doc.floatCanvas = null;
+  doc.imageDirty = true; animPreviewDirty = true;
+  _previewMask = null;
+  highlightColor = null;
+  _highlightMask = null;
+  _highlightDirty = false;
 
   if(data.grid){
     doc.grid.w = data.grid.w || 32;
@@ -2514,17 +2325,16 @@ async function loadProjectData(data){
   document.getElementById('btn-view-mode').textContent = ui.singleCell ? '全图' : '单格';
   ui.currentCell = data.currentCell || 0;
   updateAnimRange();
-
   if(data.animStart != null) document.getElementById('anim-start').value = data.animStart;
   if(data.animEnd != null) document.getElementById('anim-end').value = data.animEnd;
   if(data.animFps != null) document.getElementById('anim-fps').value = data.animFps;
   if(data.animLoop != null) document.getElementById('anim-loop').checked = !!data.animLoop;
 
   if(Array.isArray(data.paletteCustom) && data.paletteCustom.length){
-    ui.paletteCustom = data.paletteCustom.map(h=>hexToRgb(h));
+    ui.paletteCustom = data.paletteCustom.map(function(h){ return hexToRgb(h); });
     refreshPaletteCustom();
   } else if(Array.isArray(data.palette) && data.palette.length){
-    ui.paletteCustom = data.palette.map(h=>hexToRgb(h));
+    ui.paletteCustom = data.palette.map(function(h){ return hexToRgb(h); });
     refreshPaletteCustom();
   }
   if(data.primary) ui.primary = hexToRgb(data.primary);
@@ -2534,238 +2344,189 @@ async function loadProjectData(data){
 
   resetHistory();
   refreshLayerList();
+  refreshColorUsage();
   fitToView();
   requestRender();
 }
-
 function exportCustomPalette(){
-  const arr = ui.paletteCustom.map(c=>rgbToHex(c));
+  var arr = ui.paletteCustom.map(function(c){ return rgbToHex(c); });
   download(new Blob([JSON.stringify(arr,null,2)],{type:'application/json'}),'palette-custom.json');
   setStatus('自定义色板已导出');
 }
 function importCustomPalette(){
-  fileInput.accept='.json,application/json';
-  fileInput.onchange=()=>{
-    const f=fileInput.files[0]; if(!f) return;
-    const reader=new FileReader();
-    reader.onload=()=>{
+  fileInput.accept = '.json,application/json';
+  fileInput.onchange = function(){
+    var f = fileInput.files[0]; if(!f) return;
+    var reader = new FileReader();
+    reader.onload = function(){
       try{
-        const arr=JSON.parse(reader.result);
+        var arr = JSON.parse(reader.result);
         if(Array.isArray(arr)){
-          ui.paletteCustom = arr.map(h=>hexToRgb(h.startsWith('#')?h:'#'+h));
+          ui.paletteCustom = arr.map(function(h){ return hexToRgb(h.charAt(0)==='#'?h:'#'+h); });
           refreshPaletteCustom();
           setStatus('自定义色板已载入');
         }
       } catch(e){ setStatus('色板解析失败'); }
     };
     reader.readAsText(f);
-    fileInput.value='';
+    fileInput.value = '';
   };
   fileInput.click();
 }
 
-// ============================================================
-// 色板
-// ============================================================
+/* ============================================================
+ *  色板
+ * ============================================================ */
 function initPalettes(){
-  ui.paletteNES = NES_HEX.map(h=>hexToRgb('#'+h));
-  ui.paletteCustom = DEFAULT_CUSTOM_HEX.map(h=>hexToRgb('#'+h));
+  ui.paletteNES = NES_HEX.map(function(h){ return hexToRgb('#'+h); });
+  ui.paletteCustom = DEFAULT_CUSTOM_HEX.map(function(h){ return hexToRgb('#'+h); });
   refreshPaletteNES();
   refreshPaletteCustom();
 }
 function refreshPaletteNES(){
-  const el = document.getElementById('palette-nes');
+  var el = document.getElementById('palette-nes');
   el.innerHTML = '';
-  for(let i=0;i<ui.paletteNES.length;i++){
-    const c = ui.paletteNES[i];
-    const div = document.createElement('div');
-    div.className = 'swatch';
-    div.style.background = 'rgb('+c[0]+','+c[1]+','+c[2]+')';
-    div.title = 'NES #' + rgbToHex(c).slice(1);
-    div.addEventListener('mousedown', e=>{
-      e.preventDefault();
-      if(e.button===2) ui.secondary = c.slice();
-      else ui.primary = c.slice();
-      syncColorInputs();
-    });
-    div.addEventListener('contextmenu', e=>e.preventDefault());
-    el.appendChild(div);
+  for(var i=0;i<ui.paletteNES.length;i++){
+    (function(c){
+      var div = document.createElement('div');
+      div.className = 'swatch';
+      div.style.background = 'rgb('+c[0]+','+c[1]+','+c[2]+')';
+      div.title = 'NES #'+rgbToHex(c).slice(1);
+      div.addEventListener('mousedown', function(e){
+        e.preventDefault();
+        if(e.button===2) ui.secondary = c.slice();
+        else ui.primary = c.slice();
+        syncColorInputs();
+      });
+      div.addEventListener('contextmenu', function(e){ e.preventDefault(); });
+      el.appendChild(div);
+    })(ui.paletteNES[i]);
   }
 }
 function refreshPaletteCustom(){
-  const el = document.getElementById('palette-custom');
+  var el = document.getElementById('palette-custom');
   el.innerHTML = '';
-  for(let i=0;i<ui.paletteCustom.length;i++){
-    const c = ui.paletteCustom[i];
-    const div = document.createElement('div');
-    div.className = 'swatch';
-    div.style.background = 'rgb('+c[0]+','+c[1]+','+c[2]+')';
-    div.title = '#'+rgbToHex(c).slice(1)+' (中键删除)';
-    div.addEventListener('mousedown', e=>{
-      e.preventDefault();
-      if(e.button===1){
-        ui.paletteCustom.splice(i,1);
-        refreshPaletteCustom();
-      } else if(e.button===0){
-        ui.primary = c.slice();
-        syncColorInputs();
-      }
-    });
-    div.addEventListener('contextmenu', e=>e.preventDefault());
-    el.appendChild(div);
+  for(var i=0;i<ui.paletteCustom.length;i++){
+    (function(idx,c){
+      var div = document.createElement('div');
+      div.className = 'swatch';
+      div.style.background = 'rgb('+c[0]+','+c[1]+','+c[2]+')';
+      div.title = '#'+rgbToHex(c).slice(1)+' (中键删除)';
+      div.addEventListener('mousedown', function(e){
+        e.preventDefault();
+        if(e.button===1){
+          ui.paletteCustom.splice(idx,1);
+          refreshPaletteCustom();
+        } else if(e.button===0){
+          ui.primary = c.slice();
+          syncColorInputs();
+        }
+      });
+      div.addEventListener('contextmenu', function(e){ e.preventDefault(); });
+      el.appendChild(div);
+    })(i, ui.paletteCustom[i]);
   }
 }
 
-// ============================================================
-// 对话框
-// ============================================================
+/* ============================================================
+ *  对话框
+ * ============================================================ */
 function showModal(title,bodyHTML,onOK,okLabel){
-  const back=document.createElement('div');
-  back.className='modal-back';
-  back.innerHTML=`<div class="modal"><h2>${title}</h2>${bodyHTML}
-    <div class="actions">
-      <button class="cancel">取消</button>
-      <button class="ok">${okLabel||'确定'}</button>
-    </div></div>`;
+  var back = document.createElement('div');
+  back.className = 'modal-back';
+  back.innerHTML = '<div class="modal"><h2>'+title+'</h2>'+bodyHTML+
+    '<div class="actions"><button class="cancel">取消</button><button class="ok">'+(okLabel||'确定')+'</button></div></div>';
   document.body.appendChild(back);
-  const close=()=>document.body.removeChild(back);
-  back.querySelector('.cancel').addEventListener('click',close);
-  back.querySelector('.ok').addEventListener('click',()=>{
-    const result=onOK(back);
-    if(result!==false) close();
+  var close = function(){ if(back.parentNode) document.body.removeChild(back); };
+  back.querySelector('.cancel').addEventListener('click', close);
+  back.querySelector('.ok').addEventListener('click', function(){
+    var result = onOK(back);
+    if(result !== false) close();
   });
-  back.addEventListener('mousedown',e=>{ if(e.target===back) close(); });
+  back.addEventListener('mousedown', function(e){ if(e.target === back) close(); });
   return back;
 }
 function showNewDialog(){
-  const el=showModal('新建图片',
-    `<div class="row"><label>宽度 <input type="number" class="nw" min="1" max="4096" value="128" style="width:80px"></label></div>
-     <div class="row"><label>高度 <input type="number" class="nh" min="1" max="4096" value="128" style="width:80px"></label></div>`,
-    dlg=>{
-      const w=+dlg.querySelector('.nw').value;
-      const h=+dlg.querySelector('.nh').value;
+  var el = showModal('新建图片',
+    '<div class="row"><label>宽度 <input type="number" class="nw" min="1" max="4096" value="128" style="width:80px"></label></div>'+
+    '<div class="row"><label>高度 <input type="number" class="nh" min="1" max="4096" value="128" style="width:80px"></label></div>',
+    function(dlg){
+      var w = +dlg.querySelector('.nw').value;
+      var h = +dlg.querySelector('.nh').value;
       newDoc(w,h);
-      fitToView();
-      updateAnimRange();
-      setStatus(`新建 ${w}×${h}`);
+      fitToView(); updateAnimRange();
+      setStatus('新建 '+w+'×'+h);
     },'创建');
   el.querySelector('.nw').focus();
 }
-
 function showResizeDialog(){
-  const W0 = doc.width, H0 = doc.height;
-  const el = showModal('调整画布尺寸',
-    `<div class="field"><label>宽度</label><input type="number" class="nw" min="1" max="4096" value="${W0}" style="width:100px"></div>
-     <div class="field"><label>高度</label><input type="number" class="nh" min="1" max="4096" value="${H0}" style="width:100px"></div>
-     <div style="color:#aaa;font-size:12px;margin-top:8px">缩放锚点（旧图像相对于新画布的位置）：</div>
-     <div class="anchor-grid" id="anchor-grid">
-       <div class="anchor-cell" data-a="0"></div>
-       <div class="anchor-cell" data-a="1"></div>
-       <div class="anchor-cell" data-a="2"></div>
-       <div class="anchor-cell" data-a="3"></div>
-       <div class="anchor-cell active" data-a="4"></div>
-       <div class="anchor-cell" data-a="5"></div>
-       <div class="anchor-cell" data-a="6"></div>
-       <div class="anchor-cell" data-a="7"></div>
-       <div class="anchor-cell" data-a="8"></div>
-     </div>
-     <div style="position:relative;width:200px;height:140px;background:#1a1a20;border:1px solid #444;border-radius:4px;overflow:hidden" id="rp-preview">
-       <div id="rp-old" style="position:absolute;background:rgba(80,200,255,0.18);border:1px dashed #50c8ff"></div>
-       <div id="rp-new" style="position:absolute;background:rgba(80,200,255,0.32);border:1px solid #50c8ff"></div>
-     </div>
-     <div style="color:#888;font-size:11px;margin-top:6px">虚线框 = 原画布范围；实线框 = 新画布范围</div>`,
-    dlg=>{
-      const nw = Math.max(1, +dlg.querySelector('.nw').value|0);
-      const nh = Math.max(1, +dlg.querySelector('.nh').value|0);
-      const anchor = dlg._anchor != null ? dlg._anchor : 4;
+  var W0 = doc.width, H0 = doc.height;
+  var el = showModal('调整画布尺寸',
+    '<div class="field"><label>宽度</label><input type="number" class="nw" min="1" max="4096" value="'+W0+'" style="width:100px"></div>'+
+    '<div class="field"><label>高度</label><input type="number" class="nh" min="1" max="4096" value="'+H0+'" style="width:100px"></div>'+
+    '<div style="color:#aaa;font-size:12px;margin-top:8px">缩放锚点：</div>'+
+    '<div class="anchor-grid" id="anchor-grid">'+
+    '<div class="anchor-cell" data-a="0"></div><div class="anchor-cell" data-a="1"></div><div class="anchor-cell" data-a="2"></div>'+
+    '<div class="anchor-cell" data-a="3"></div><div class="anchor-cell active" data-a="4"></div><div class="anchor-cell" data-a="5"></div>'+
+    '<div class="anchor-cell" data-a="6"></div><div class="anchor-cell" data-a="7"></div><div class="anchor-cell" data-a="8"></div>'+
+    '</div>',
+    function(dlg){
+      var nw = Math.max(1, +dlg.querySelector('.nw').value|0);
+      var nh = Math.max(1, +dlg.querySelector('.nh').value|0);
+      var anchor = dlg._anchor != null ? dlg._anchor : 4;
       resizeDocWithAnchor(nw, nh, anchor);
-      commitHistory();
-      fitToView();
-      updateAnimRange();
-      setStatus(`画布已调整为 ${nw}×${nh}`);
+      commitHistory(); fitToView(); updateAnimRange();
+      setStatus('画布已调整为 '+nw+'×'+nh);
     },'应用');
-
-  let selectedAnchor = 4;
-  el._anchor = selectedAnchor;
-
-  const cells = el.querySelectorAll('.anchor-cell');
-  const oldEl = el.querySelector('#rp-old');
-  const newEl = el.querySelector('#rp-new');
-
-  function updatePreview(){
-    const nw = Math.max(1, +el.querySelector('.nw').value|0);
-    const nh = Math.max(1, +el.querySelector('.nh').value|0);
-    const previewW = 200, previewH = 140;
-    const scale = Math.min(previewW/Math.max(nw,W0), previewH/Math.max(nh,H0)) * 0.9;
-    const ow = W0 * scale, oh = H0 * scale;
-    const nww = nw * scale, nhh = nh * scale;
-    const ax = selectedAnchor % 3, ay = Math.floor(selectedAnchor / 3);
-    let dx, dy;
-    if(ax===0) dx = 0;
-    else if(ax===1) dx = (nww - ow) / 2;
-    else dx = nww - ow;
-    if(ay===0) dy = 0;
-    else if(ay===1) dy = (nhh - oh) / 2;
-    else dy = nhh - oh;
-
-    const offX = (previewW - nww) / 2;
-    const offY = (previewH - nhh) / 2;
-
-    newEl.style.left = offX + 'px';
-    newEl.style.top = offY + 'px';
-    newEl.style.width = nww + 'px';
-    newEl.style.height = nhh + 'px';
-
-    oldEl.style.left = (offX + dx) + 'px';
-    oldEl.style.top = (offY + dy) + 'px';
-    oldEl.style.width = ow + 'px';
-    oldEl.style.height = oh + 'px';
+  el._anchor = 4;
+  var cells = el.querySelectorAll('.anchor-cell');
+  for(var i=0;i<cells.length;i++){
+    (function(cell){
+      cell.addEventListener('click', function(){
+        for(var k=0;k<cells.length;k++) cells[k].classList.remove('active');
+        cell.classList.add('active');
+        el._anchor = +cell.dataset.a;
+      });
+    })(cells[i]);
   }
-  updatePreview();
-
-  el.querySelector('.nw').addEventListener('input', updatePreview);
-  el.querySelector('.nh').addEventListener('input', updatePreview);
-
-  cells.forEach(cell=>{
-    cell.addEventListener('click', ()=>{
-      cells.forEach(c=>c.classList.remove('active'));
-      cell.classList.add('active');
-      selectedAnchor = +cell.dataset.a;
-      el._anchor = selectedAnchor;
-      updatePreview();
-    });
-  });
 }
 
-// ============================================================
-// 菜单
-// ============================================================
+/* ============================================================
+ *  菜单
+ * ============================================================ */
 function closeAllMenus(){
-  document.querySelectorAll('.menu').forEach(m=>m.classList.remove('open'));
+  var menus = document.querySelectorAll('.menu');
+  for(var i=0;i<menus.length;i++) menus[i].classList.remove('open');
 }
 function initMenus(){
-  document.querySelectorAll('.menu-btn').forEach(btn=>{
-    btn.addEventListener('click',e=>{
-      e.stopPropagation();
-      const menu=document.getElementById('menu-'+btn.dataset.menu);
-      const isOpen=menu.classList.contains('open');
-      closeAllMenus();
-      if(!isOpen){
-        const r=btn.getBoundingClientRect();
-        menu.style.left=r.left+'px';
-        menu.style.top=(r.bottom+2)+'px';
-        menu.classList.add('open');
-      }
-    });
-  });
-  document.addEventListener('click',()=>closeAllMenus());
-  document.querySelectorAll('.menu > div[data-act]').forEach(item=>{
-    item.addEventListener('click',e=>{
-      e.stopPropagation();
-      handleMenuAction(item.dataset.act);
-      closeAllMenus();
-    });
-  });
+  var btns = document.querySelectorAll('.menu-btn');
+  for(var i=0;i<btns.length;i++){
+    (function(btn){
+      btn.addEventListener('click', function(e){
+        e.stopPropagation();
+        var menu = document.getElementById('menu-'+btn.dataset.menu);
+        var isOpen = menu.classList.contains('open');
+        closeAllMenus();
+        if(!isOpen){
+          var r = btn.getBoundingClientRect();
+          menu.style.left = r.left+'px';
+          menu.style.top = (r.bottom+2)+'px';
+          menu.classList.add('open');
+        }
+      });
+    })(btns[i]);
+  }
+  document.addEventListener('click', closeAllMenus);
+  var items = document.querySelectorAll('.menu > div[data-act]');
+  for(var j=0;j<items.length;j++){
+    (function(item){
+      item.addEventListener('click', function(e){
+        e.stopPropagation();
+        handleMenuAction(item.dataset.act);
+        closeAllMenus();
+      });
+    })(items[j]);
+  }
 }
 function handleMenuAction(act){
   switch(act){
@@ -2778,12 +2539,12 @@ function handleMenuAction(act){
     case 'save-proj-as': saveProject(true); break;
     case 'undo': doUndo(); break;
     case 'redo': doRedo(); break;
-    case 'select-all': selectAll(); setStatus('全选'); break;
-    case 'select-none': deselectAll(); setStatus('取消选择'); break;
+    case 'select-all': selectAll(); break;
+    case 'select-none': deselectAll(); break;
     case 'select-inv': invertSelection(); break;
     case 'select-cell': {
-      const cr=cellRect(ui.currentCell);
-      if(cr){ applyRectSelection(cr,SEL_REPLACE); requestRender(); }
+      var cr = cellRect(ui.currentCell);
+      if(cr){ applyRectSelection(cr, SEL_REPLACE); requestRender(); commitHistory(); }
       break;
     }
     case 'copy': doCopy(); break;
@@ -2791,149 +2552,305 @@ function handleMenuAction(act){
     case 'paste': doPaste(); break;
     case 'paste-layer': doPasteAsLayer(); break;
     case 'delete':
-      if(doc.hasSelection){ deleteSelection(); commitHistory(); }
+      if(doc.hasSelection){ deleteSelection(); commitHistory(); refreshColorUsage(); }
       break;
   }
 }
 
-// ============================================================
-// UI 绑定
-// ============================================================
+/* ============================================================
+ *  UI 绑定
+ * ============================================================ */
 function bindUI(){
-  document.querySelectorAll('.tool-btn').forEach(btn=>{
-    btn.addEventListener('click',()=>setTool(+btn.dataset.tool));
-  });
-  document.getElementById('btn-undo').addEventListener('click',doUndo);
-  document.getElementById('btn-redo').addEventListener('click',doRedo);
-  document.getElementById('btn-view-mode').addEventListener('click',()=>{
-    ui.singleCell=!ui.singleCell;
+  var toolBtns = document.querySelectorAll('.tool-btn');
+  for(var i=0;i<toolBtns.length;i++){
+    (function(btn){
+      btn.addEventListener('click', function(){ setTool(+btn.dataset.tool); });
+    })(toolBtns[i]);
+  }
+  document.getElementById('btn-undo').addEventListener('click', doUndo);
+  document.getElementById('btn-redo').addEventListener('click', doRedo);
+  document.getElementById('btn-view-mode').addEventListener('click', function(){
+    ui.singleCell = !ui.singleCell;
     document.getElementById('btn-view-mode').textContent = ui.singleCell ? '全图' : '单格';
     if(ui.singleCell) centerCurrentCell();
     requestRender();
     setStatus(ui.singleCell ? '单格显示模式' : '全图显示模式');
   });
+  document.getElementById('btn-save-as-png').addEventListener('click', function(){ savePng(true); });
+  document.getElementById('btn-save-as-proj').addEventListener('click', function(){ saveProject(true); });
+  document.getElementById('btn-bg').addEventListener('click', cycleBackground);
 
-  document.getElementById('btn-save-as-png').addEventListener('click',()=>savePng(true));
-  document.getElementById('btn-save-as-proj').addEventListener('click',()=>saveProject(true));
+  document.getElementById('btn-color-usage-refresh').addEventListener('click', function(){
+    refreshColorUsage();
+    setStatus('已刷新在用颜色');
+  });
 
-  // 图层按钮
   document.getElementById('btn-layer-new').addEventListener('click', addLayer);
   document.getElementById('btn-layer-dup').addEventListener('click', duplicateLayer);
   document.getElementById('btn-layer-del').addEventListener('click', deleteLayer);
-  document.getElementById('btn-layer-up').addEventListener('click', ()=>moveLayer(1));
-  document.getElementById('btn-layer-down').addEventListener('click', ()=>moveLayer(-1));
+  document.getElementById('btn-layer-up').addEventListener('click', function(){ moveLayer(1); });
+  document.getElementById('btn-layer-down').addEventListener('click', function(){ moveLayer(-1); });
   document.getElementById('btn-layer-merge').addEventListener('click', mergeDown);
   document.getElementById('btn-layer-flatten').addEventListener('click', flattenVisible);
   document.getElementById('btn-layer-paste').addEventListener('click', doPasteAsLayer);
 
-  document.getElementById('btn-zoom-in').addEventListener('click',()=>{
-    const cx=canvasWrap.clientWidth/2, cy=canvasWrap.clientHeight/2;
-    const ipx=(cx-view.panX)/view.zoom, ipy=(cy-view.panY)/view.zoom;
-    view.zoom=clamp(view.zoom*1.25,0.25,64);
-    view.panX=cx-ipx*view.zoom; view.panY=cy-ipy*view.zoom;
+  var smBtns = document.querySelectorAll('.sel-mode-btn');
+  for(var j=0;j<smBtns.length;j++){
+    (function(btn){
+      btn.addEventListener('click', function(){ setSelMode(+btn.dataset.mode); });
+    })(smBtns[j]);
+  }
+
+  document.getElementById('btn-zoom-in').addEventListener('click', function(){
+    var cx = canvasWrap.clientWidth/2, cy = canvasWrap.clientHeight/2;
+    var ipx = (cx-view.panX)/view.zoom, ipy = (cy-view.panY)/view.zoom;
+    view.zoom = clamp(view.zoom*1.25, 0.25, 64);
+    view.panX = cx - ipx*view.zoom; view.panY = cy - ipy*view.zoom;
     updateZoomLabel(); requestRender();
   });
-  document.getElementById('btn-zoom-out').addEventListener('click',()=>{
-    const cx=canvasWrap.clientWidth/2, cy=canvasWrap.clientHeight/2;
-    const ipx=(cx-view.panX)/view.zoom, ipy=(cy-view.panY)/view.zoom;
-    view.zoom=clamp(view.zoom/1.25,0.25,64);
-    view.panX=cx-ipx*view.zoom; view.panY=cy-ipy*view.zoom;
+  document.getElementById('btn-zoom-out').addEventListener('click', function(){
+    var cx = canvasWrap.clientWidth/2, cy = canvasWrap.clientHeight/2;
+    var ipx = (cx-view.panX)/view.zoom, ipy = (cy-view.panY)/view.zoom;
+    view.zoom = clamp(view.zoom/1.25, 0.25, 64);
+    view.panX = cx - ipx*view.zoom; view.panY = cy - ipy*view.zoom;
     updateZoomLabel(); requestRender();
   });
-  document.getElementById('btn-fit').addEventListener('click',fitToView);
+  document.getElementById('btn-fit').addEventListener('click', fitToView);
 
   gridWEl.addEventListener('input', onGridWHChanged);
   gridHEl.addEventListener('input', onGridWHChanged);
   gridColsEl.addEventListener('input', onGridNMChanged);
   gridRowsEl.addEventListener('input', onGridNMChanged);
+  document.getElementById('show-grid').addEventListener('change', function(e){ ui.showGrid = e.target.checked; requestRender(); });
+  document.getElementById('show-pixel-grid').addEventListener('change', function(e){ ui.showPixelGrid = e.target.checked; requestRender(); });
+  document.getElementById('btn-resize').addEventListener('click', showResizeDialog);
 
-  document.getElementById('show-grid').addEventListener('change',e=>{
-    ui.showGrid=e.target.checked; requestRender();
-  });
-  document.getElementById('show-pixel-grid').addEventListener('change',e=>{
-    ui.showPixelGrid=e.target.checked; requestRender();
-  });
-  document.getElementById('btn-resize').addEventListener('click',showResizeDialog);
-
-  document.getElementById('btn-play').addEventListener('click',()=>{
+  document.getElementById('btn-play').addEventListener('click', function(){
     if(ui.playing) stopPlay(); else startPlay();
   });
-  document.getElementById('btn-stop').addEventListener('click',stopPlay);
-  document.getElementById('btn-anim-all').addEventListener('click',()=>{
-    const total=totalCells();
-    document.getElementById('anim-start').value=0;
-    document.getElementById('anim-end').value=Math.max(0,total-1);
+  document.getElementById('btn-stop').addEventListener('click', stopPlay);
+  document.getElementById('btn-anim-all').addEventListener('click', function(){
+    var total = totalCells();
+    document.getElementById('anim-start').value = 0;
+    document.getElementById('anim-end').value = Math.max(0, total-1);
   });
 
-  document.getElementById('color-primary').addEventListener('input',e=>{ ui.primary=hexToRgb(e.target.value); });
-  document.getElementById('color-secondary').addEventListener('input',e=>{ ui.secondary=hexToRgb(e.target.value); });
-  document.getElementById('btn-replace-color').addEventListener('click',replacePrimaryWithSecondary);
+  document.getElementById('color-primary').addEventListener('input', function(e){ ui.primary = hexToRgb(e.target.value); });
+  document.getElementById('color-secondary').addEventListener('input', function(e){ ui.secondary = hexToRgb(e.target.value); });
+  document.getElementById('btn-replace-color').addEventListener('click', replacePrimaryWithSecondary);
 
-  document.getElementById('btn-pal-reset').addEventListener('click',()=>{
-    ui.paletteCustom = DEFAULT_CUSTOM_HEX.map(h=>hexToRgb('#'+h));
+  document.getElementById('btn-pal-reset').addEventListener('click', function(){
+    ui.paletteCustom = DEFAULT_CUSTOM_HEX.map(function(h){ return hexToRgb('#'+h); });
     refreshPaletteCustom();
     setStatus('已恢复自定义色板默认值');
   });
-  document.getElementById('btn-pal-load').addEventListener('click',importCustomPalette);
-  document.getElementById('btn-pal-save').addEventListener('click',exportCustomPalette);
-  document.getElementById('btn-pal-add').addEventListener('click',()=>{
+  document.getElementById('btn-pal-load').addEventListener('click', importCustomPalette);
+  document.getElementById('btn-pal-save').addEventListener('click', exportCustomPalette);
+  document.getElementById('btn-pal-add').addEventListener('click', function(){
     ui.paletteCustom.push(ui.primary.slice());
     refreshPaletteCustom();
   });
 
-  document.getElementById('btn-sel-all').addEventListener('click',()=>{ selectAll(); setStatus('全选'); });
-  document.getElementById('btn-sel-none').addEventListener('click',()=>{ deselectAll(); setStatus('取消选择'); });
-  document.getElementById('btn-sel-inv').addEventListener('click',()=>{ invertSelection(); setStatus('反选'); });
-  document.getElementById('btn-sel-cell').addEventListener('click',()=>{
-    const cr=cellRect(ui.currentCell);
-    if(cr){ applyRectSelection(cr,SEL_REPLACE); requestRender(); setStatus('已选择当前格'); }
+  document.getElementById('btn-sel-all').addEventListener('click', selectAll);
+  document.getElementById('btn-sel-none').addEventListener('click', deselectAll);
+  document.getElementById('btn-sel-inv').addEventListener('click', invertSelection);
+  document.getElementById('btn-sel-cell').addEventListener('click', function(){
+    var cr = cellRect(ui.currentCell);
+    if(cr){
+      applyRectSelection(cr, SEL_REPLACE);
+      requestRender(); commitHistory();
+      setStatus('已选择当前格');
+    }
   });
-  document.getElementById('btn-del-sel').addEventListener('click',()=>{
-    if(doc.hasSelection){ deleteSelection(); commitHistory(); }
+  document.getElementById('btn-del-sel').addEventListener('click', function(){
+    if(doc.hasSelection){ deleteSelection(); commitHistory(); refreshColorUsage(); }
   });
-
-  document.getElementById('snap-enabled').addEventListener('change',e=>{ ui.snapEnabled=e.target.checked; });
-  document.getElementById('btn-guides-clear').addEventListener('click',()=>{ doc.guides=[]; requestRender(); });
+  document.getElementById('snap-enabled').addEventListener('change', function(e){ ui.snapEnabled = e.target.checked; });
+  document.getElementById('btn-guides-clear').addEventListener('click', function(){ doc.guides = []; requestRender(); });
 }
 
-// ============================================================
-// 主循环
-// ============================================================
+/* ============================================================
+ *  主循环
+ * ============================================================ */
 function mainLoop(now){
-  tickAnim(now);
-  if(animPreviewDirty) renderAnimPreview();
-  if(needsRender){
-    render();
-    needsRender=false;
+  try {
+    tickAnim(now);
+    if(animPreviewDirty) renderAnimPreview();
+    if(doc.hasSelection || doc.floating || (drag.mode === 'select' && drag.selStart)){
+      dashOffset = (now * 0.02) % 8;
+      needsRender = true;
+    }
+    if(needsRender){ render(); needsRender = false; }
+  } catch(err){
+    console.error('mainLoop', err);
   }
   requestAnimationFrame(mainLoop);
 }
 
-// ============================================================
-// 初始化
-// ============================================================
+/* ============================================================
+ *  初始化
+ * ============================================================ */
 function init(){
-  newDoc(128,128);
-  initPalettes();
-  bindUI();
-  initMenus();
-  initChecker();
-  resizeCanvas();
-  window.addEventListener('resize',()=>{
+  try {
+    canvas = document.getElementById('canvas');
+    ctx = canvas.getContext('2d');
+    canvasWrap = document.getElementById('canvas-wrap');
+    statusEl = document.getElementById('status');
+    coordEl = document.getElementById('coord');
+    zoomLabel = document.getElementById('zoom-label');
+    brushInfoEl = document.getElementById('brush-info');
+    fileInput = document.getElementById('file-input');
+    animPreview = document.getElementById('anim-preview');
+    animPreviewCtx = animPreview.getContext('2d');
+    animCursor = document.getElementById('anim-cursor');
+    animPreviewWrap = document.getElementById('anim-preview-wrap');
+    gridWEl = document.getElementById('grid-w');
+    gridHEl = document.getElementById('grid-h');
+    gridColsEl = document.getElementById('grid-cols');
+    gridRowsEl = document.getElementById('grid-rows');
+    layerListEl = document.getElementById('layer-list');
+
+    newDoc(128,128);
+    initPalettes();
+    bindUI();
+    initMenus();
+    initChecker();
     resizeCanvas();
+
+    document.getElementById('btn-bg').textContent = BG_NAMES[bgMode];
+
+    canvas.addEventListener('contextmenu', function(e){ e.preventDefault(); });
+    canvas.addEventListener('mousedown', onCanvasMouseDown);
+    canvas.addEventListener('mousemove', onCanvasMouseMove);
+    canvas.addEventListener('mouseup', onCanvasMouseUp);
+    window.addEventListener('mouseup', function(){ if(drag.mode) onCanvasMouseUp(); });
+    canvas.addEventListener('mouseleave', function(){ mouse.inside = false; requestRender(); });
+    canvas.addEventListener('dblclick', function(e){
+      var m = getMouse(e);
+      if(m.sx < RULER && m.sy < RULER) return;
+      var gi = guideAt(m.px, m.py);
+      if(gi >= 0){
+        doc.guides.splice(gi,1);
+        requestRender();
+        setStatus('已删除参考线');
+        return;
+      }
+      var ci = cellIndexAt({x:m.px,y:m.py});
+      if(ci >= 0){
+        var cr = cellRect(ci);
+        if(cr){
+          ui.currentCell = ci;
+          applyRectSelection(cr, SEL_REPLACE);
+          requestRender(); updateAnimCursor(); commitHistory();
+          setStatus('已选中格 #'+ci);
+        }
+      }
+    });
+    canvas.addEventListener('wheel', function(e){
+      e.preventDefault();
+      var r = canvas.getBoundingClientRect();
+      var sx = e.clientX-r.left, sy = e.clientY-r.top;
+      var ipx = (sx-view.panX)/view.zoom, ipy = (sy-view.panY)/view.zoom;
+      var factor = e.deltaY < 0 ? 1.18 : 1/1.18;
+      view.zoom = clamp(view.zoom*factor, 0.25, 64);
+      view.panX = sx - ipx*view.zoom;
+      view.panY = sy - ipy*view.zoom;
+      updateZoomLabel(); requestRender();
+    }, {passive:false});
+
+    document.addEventListener('keydown', onKeyDown);
+    document.addEventListener('keyup', onKeyUp);
+
+    animPreviewWrap.addEventListener('mousedown', function(e){
+      if(e.button !== 0) return;
+      e.preventDefault();
+      if(ui.playing) stopPlay();
+      animDragging = true;
+      animUpdateFromEvent(e);
+    });
+    window.addEventListener('mousemove', function(e){ if(animDragging) animUpdateFromEvent(e); });
+    window.addEventListener('mouseup', function(){ animDragging = false; });
+
+    window.addEventListener('resize', function(){ resizeCanvas(); renderAnimPreview(); });
+
+    ['dragenter','dragover'].forEach(function(t){
+      document.addEventListener(t, function(e){ e.preventDefault(); });
+    });
+    document.addEventListener('drop', function(e){
+      e.preventDefault();
+      var f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+      if(!f) return;
+      if(!/^image\//.test(f.type)){ setStatus('请拖入图片文件'); return; }
+      setStatus('正在载入…');
+      var url = URL.createObjectURL(f);
+      var im = new Image();
+      im.onload = function(){
+        URL.revokeObjectURL(url);
+        var w = im.naturalWidth, h = im.naturalHeight;
+        if(!w||!h){ setStatus('图片尺寸无效'); return; }
+        var c = document.createElement('canvas');
+        c.width = w; c.height = h;
+        var g = c.getContext('2d');
+        g.imageSmoothingEnabled = false;
+        g.drawImage(im,0,0);
+        var id = g.getImageData(0,0,w,h);
+
+        doc.width = w; doc.height = h;
+        doc.layers = [{name:'背景',visible:true,opacity:255,imageData:id}];
+        doc.activeLayer = 0;
+        doc.imageData = doc.layers[0].imageData;
+        doc.imageCanvas = document.createElement('canvas');
+        doc.imageCanvas.width = w;
+        doc.imageCanvas.height = h;
+        doc.imageCtx = doc.imageCanvas.getContext('2d');
+        doc.selMask = new Uint8Array(w*h);
+        doc.hasSelection = false;
+        doc.selBounds = {x:0,y:0,w:0,h:0};
+        doc.floating = null; doc.floatCanvas = null;
+        doc.imageDirty = true;
+        doc.fileName = f.name;
+        animPreviewDirty = true;
+        _previewMask = null;
+        highlightColor = null;
+        _highlightMask = null;
+        _highlightDirty = false;
+
+        resetHistory();
+        updateAnimRange();
+        syncGridInputsFromWH();
+        refreshLayerList();
+        refreshColorUsage();
+        fitToView();
+        setStatus('已打开: '+f.name);
+      };
+      im.onerror = function(){ URL.revokeObjectURL(url); setStatus('图片解析失败'); };
+      im.src = url;
+    });
+
+    syncColorInputs();
+    updateZoomLabel();
+    updateAnimRange();
+    setBrushSize(1);
+    syncGridInputsFromWH();
+    fitToView();
     renderAnimPreview();
-  });
-  syncColorInputs();
-  updateZoomLabel();
-  updateAnimRange();
-  setBrushSize(1);
-  syncGridInputsFromWH();
-  fitToView();
-  renderAnimPreview();
-  setStatus('就绪 — V选择 B铅笔 E橡皮 I吸管 G油漆桶 J替换色 | Ctrl+V 粘贴（Shift 粘贴为新图层）');
-  requestAnimationFrame(mainLoop);
+    refreshColorUsage();
+    setStatus('就绪 — V选择 B铅笔 E橡皮 I吸管 G油漆桶 J替换色 | Shift加选 Alt/Ctrl减选 X锁定1:1');
+
+    requestAnimationFrame(mainLoop);
+  } catch(err){
+    console.error('init failed:', err);
+    if(statusEl) statusEl.textContent = '初始化失败: ' + err.message;
+  }
 }
-init();
+
+if(document.readyState === 'loading'){
+  document.addEventListener('DOMContentLoaded', init);
+} else {
+  init();
+}
+
+})();
 </script>
 </body>
 </html>

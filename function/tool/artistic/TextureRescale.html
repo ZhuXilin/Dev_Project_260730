@@ -5,158 +5,125 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>像素缩放工具</title>
 <style>
-  * { box-sizing: border-box; }
-  html, body { height: 100%; margin: 0; }
-  body {
-    font: 13px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
-    background: #16181d; color: #dfe3e9; overflow: hidden;
-    -webkit-user-select: none; user-select: none;
-  }
-  .app { display: flex; flex-direction: column; height: 100%; }
-
-  /* ---------- 工具栏 ---------- */
-  .toolbar {
-    display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
-    padding: 8px 10px; background: #22252b;
-    border-bottom: 1px solid #33383f; flex: 0 0 auto;
-  }
-  .toolbar button {
-    font: inherit; padding: 5px 11px; color: #dfe3e9;
-    background: #2e333a; border: 1px solid #3d434c;
-    border-radius: 6px; cursor: pointer; transition: background .12s;
-    white-space: nowrap;
-  }
-  .toolbar button:hover:not(:disabled) { background: #3a4049; }
-  .toolbar button:active:not(:disabled) { background: #262b32; }
-  .toolbar button:disabled { opacity: .35; cursor: default; }
-  .toolbar button.toggle.on {
-    background: #2d6cdf; border-color: #4a8cf5; color: #fff;
-  }
-  .toolbar button.mini { padding: 5px 8px; min-width: 34px; font-variant-numeric: tabular-nums; }
-  .toolbar .sep { width: 1px; height: 20px; background: #3d434c; margin: 0 2px; }
-  .toolbar label { display: inline-flex; align-items: center; gap: 5px; color: #a7aeb9; }
-  .toolbar input[type="number"] {
-    width: 78px; font: inherit; padding: 4px 6px;
-    color: #dfe3e9; background: #191c21;
-    border: 1px solid #3d434c; border-radius: 6px;
-  }
-  .toolbar input[type="number"]:focus { outline: none; border-color: #3b82f6; }
-  .toolbar input[type="number"]::-webkit-outer-spin-button,
-  .toolbar input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
-  .toolbar input[type="checkbox"] { accent-color: #3b82f6; }
-  .spacer { flex: 1; }
-  .hint { color: #767e8a; font-size: 12px; }
-
-  /* ---------- 画布区 ---------- */
-  .stage {
-    position: relative; flex: 1 1 auto; overflow: hidden;
-    background-color: #1b1e23;
-    background-image:
-      linear-gradient(45deg, #202329 25%, transparent 25%),
-      linear-gradient(-45deg, #202329 25%, transparent 25%),
-      linear-gradient(45deg, transparent 75%, #202329 75%),
-      linear-gradient(-45deg, transparent 75%, #202329 75%);
-    background-size: 20px 20px;
-    background-position: 0 0, 0 10px, 10px -10px, -10px 0;
-    touch-action: none;
-  }
-  .stage.select-mode { cursor: crosshair; }
-  .placeholder {
-    position: absolute; inset: 0; display: flex; flex-direction: column;
-    align-items: center; justify-content: center; gap: 12px;
-    color: #5d6673; font-size: 14px; pointer-events: none;
-  }
-  .placeholder .big { font-size: 46px; opacity: .45; }
-
-  .wrap {
-    position: absolute; left: 0; top: 0;
-    transform-origin: 0 0; display: none;
-    box-shadow: 0 0 0 1px rgba(125,135,150,.7), 0 12px 48px rgba(0,0,0,.6);
-  }
-  .wrap.on { display: block; }
-  .wrap canvas {
-    display: block; width: 100%; height: 100%;
-    image-rendering: -moz-crisp-edges;
-    image-rendering: pixelated;
-  }
-  .wrap .sel-overlay {
-    position: absolute; left: 0; top: 0;
-    width: 100%; height: 100%;
-    pointer-events: none;
-    image-rendering: -moz-crisp-edges;
-    image-rendering: pixelated;
-    z-index: 4;
-  }
-
-  /* ---------- 手柄 ---------- */
-  .handle {
-    position: absolute; width: 11px; height: 11px;
-    background: #fff; border: 1.5px solid #3b82f6; border-radius: 3px;
-    box-shadow: 0 1px 4px rgba(0,0,0,.55); z-index: 5;
-  }
-  .handle[data-dir="nw"] { left: -6px;  top: -6px;                        cursor: nwse-resize; }
-  .handle[data-dir="n"]  { left: calc(50% - 5.5px);  top: -6px;           cursor: ns-resize; }
-  .handle[data-dir="ne"] { right: -6px; top: -6px;                        cursor: nesw-resize; }
-  .handle[data-dir="e"]  { right: -6px; top: calc(50% - 5.5px);           cursor: ew-resize; }
-  .handle[data-dir="se"] { right: -6px; bottom: -6px;                     cursor: nwse-resize; }
-  .handle[data-dir="s"]  { left: calc(50% - 5.5px);  bottom: -6px;        cursor: ns-resize; }
-  .handle[data-dir="sw"] { left: -6px;  bottom: -6px;                     cursor: nesw-resize; }
-  .handle[data-dir="w"]  { left: -6px;  top: calc(50% - 5.5px);           cursor: ew-resize; }
-
-  /* ---------- 状态栏 ---------- */
-  .status {
-    flex: 0 0 auto; display: flex; align-items: center; gap: 18px;
-    padding: 5px 12px; background: #22252b;
-    border-top: 1px solid #33383f; color: #8b929d; font-size: 12px;
-    font-variant-numeric: tabular-nums;
-  }
-  .status .msg { color: #6fb0ff; }
-  .status .hist { color: #9aa3af; }
-  .status .sel-info { color: #7fd4ff; }
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;background:#16181d;color:#dfe3e9;overflow:hidden;user-select:none}
+.app{display:flex;flex-direction:column;height:100%}
+.toolbar{display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:8px 10px;background:#22252b;border-bottom:1px solid #33383f;flex:0 0 auto}
+.toolbar button{font:inherit;padding:5px 11px;color:#dfe3e9;background:#2e333a;border:1px solid #3d434c;border-radius:6px;cursor:pointer;white-space:nowrap}
+.toolbar button:hover:not(:disabled){background:#3a4049}
+.toolbar button:active:not(:disabled){background:#262b32}
+.toolbar button:disabled{opacity:.35;cursor:default}
+.toolbar button.toggle.on{background:#2d6cdf;border-color:#4a8cf5;color:#fff}
+.toolbar button.mini{padding:5px 8px;min-width:34px}
+.toolbar .sep{width:1px;height:20px;background:#3d434c;margin:0 2px}
+.toolbar label{display:inline-flex;align-items:center;gap:5px;color:#a7aeb9}
+.toolbar input[type=number]{width:78px;font:inherit;padding:4px 6px;color:#dfe3e9;background:#191c21;border:1px solid #3d434c;border-radius:6px}
+.toolbar input[type=number]:focus{outline:none;border-color:#3b82f6}
+.spacer{flex:1}
+.hint{color:#767e8a;font-size:12px}
+.stage{position:relative;flex:1 1 auto;overflow:hidden;background:#1b1e23;touch-action:none}
+.stage.select-mode,.stage.picking{cursor:crosshair}
+.placeholder{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;color:#5d6673;font-size:14px;pointer-events:none}
+.placeholder .big{font-size:46px;opacity:.45}
+.wrap{position:absolute;left:0;top:0;transform-origin:0 0;display:none;box-shadow:0 0 0 1px rgba(125,135,150,.7),0 12px 48px rgba(0,0,0,.6)}
+.wrap.on{display:block}
+.wrap canvas{display:block;width:100%;height:100%;image-rendering:pixelated}
+.sel-overlay{position:absolute;left:0;top:0;pointer-events:none;z-index:4;display:none}
+.sel-overlay.on{display:block}
+.handle{position:absolute;width:11px;height:11px;background:#fff;border:1.5px solid #3b82f6;border-radius:3px;box-shadow:0 1px 4px rgba(0,0,0,.55);z-index:5}
+.handle[data-dir=nw]{left:-6px;top:-6px;cursor:nwse-resize}
+.handle[data-dir=n]{left:calc(50% - 5.5px);top:-6px;cursor:ns-resize}
+.handle[data-dir=ne]{right:-6px;top:-6px;cursor:nesw-resize}
+.handle[data-dir=e]{right:-6px;top:calc(50% - 5.5px);cursor:ew-resize}
+.handle[data-dir=se]{right:-6px;bottom:-6px;cursor:nwse-resize}
+.handle[data-dir=s]{left:calc(50% - 5.5px);bottom:-6px;cursor:ns-resize}
+.handle[data-dir=sw]{left:-6px;bottom:-6px;cursor:nesw-resize}
+.handle[data-dir=w]{left:-6px;top:calc(50% - 5.5px);cursor:ew-resize}
+.status{flex:0 0 auto;display:flex;align-items:center;gap:18px;padding:5px 12px;background:#22252b;border-top:1px solid #33383f;color:#8b929d;font-size:12px;font-variant-numeric:tabular-nums}
+.status .msg{color:#6fb0ff}
+.status .hist{color:#9aa3af}
+.status .sel-info{color:#7fd4ff}
+.floating-panel{position:fixed;top:56px;right:356px;width:300px;background:#2a2a30;border:1px solid #444;border-radius:6px;padding:14px 16px;box-shadow:0 10px 40px rgba(0,0,0,.7);z-index:1500;color:#dfe3e9;font-size:13px}
+.floating-panel h3{margin:0 0 10px;font-size:14px;color:#ddd;font-weight:600}
+.floating-panel .hint-text{color:#a7aeb9;font-size:12px;line-height:1.5;margin-bottom:10px}
+.floating-panel .hint-text b{color:#6fb0ff}
+.dc-color-row{display:flex;align-items:center;gap:10px;margin-bottom:10px;background:#1a1a20;padding:8px 10px;border-radius:4px;border:1px solid #333}
+.dc-swatch{width:22px;height:22px;border-radius:3px;border:1px solid #555;background:#222;flex-shrink:0}
+.dc-hex{font-family:ui-monospace,Consolas,monospace;color:#bcc;font-size:12px}
+.slider-row{display:flex;align-items:center;gap:8px;color:#a7aeb9;font-size:12px;margin-bottom:8px}
+.slider-row span:first-child{width:72px;flex-shrink:0}
+.slider-row input[type=range]{flex:1;accent-color:#3b82f6}
+.slider-row .val{min-width:48px;text-align:right;color:#6fb0ff;font-family:ui-monospace,Consolas,monospace}
+.dc-count-line{font-size:12px;color:#a7aeb9;margin:8px 0;padding:6px 10px;background:#1a1a20;border-radius:4px;border:1px solid #333}
+.dc-count-line b{color:#ff8b8b;font-size:14px}
+.dc-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:10px}
+.dc-actions button{font:inherit;padding:5px 12px;color:#dfe3e9;background:#2e333a;border:1px solid #3d434c;border-radius:6px;cursor:pointer}
+.dc-actions button:hover:not(:disabled){background:#3a4049}
+.dc-actions button:disabled{opacity:.35;cursor:default}
+.dc-actions button.apply{background:#2d6cdf;border-color:#4a8cf5;color:#fff}
+.dc-actions button.apply:hover:not(:disabled){background:#3a7ce8}
+.modal-back{position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;z-index:2000}
+.modal{background:#2a2a30;border:1px solid #444;border-radius:6px;padding:16px 20px;min-width:420px;max-width:600px;display:flex;flex-direction:column;box-shadow:0 10px 40px rgba(0,0,0,.7)}
+.modal h2{margin:0 0 12px;font-size:14px;color:#ddd;font-weight:600}
+.modal .info-line{font-size:12px;color:#a7aeb9;margin-bottom:10px}
+.modal .info-line b{color:#6fb0ff}
+.color-list{max-height:280px;overflow-y:auto;background:#1a1a20;border:1px solid #333;border-radius:4px;padding:8px;display:grid;grid-template-columns:repeat(12,1fr);gap:4px}
+.color-list::-webkit-scrollbar{width:8px}
+.color-list::-webkit-scrollbar-thumb{background:#444;border-radius:4px}
+.color-cell{aspect-ratio:1;border-radius:3px;border:1px solid #333;cursor:pointer;position:relative}
+.color-cell:hover{border-color:#fff}
+.modal .actions{display:flex;justify-content:flex-end;gap:8px;margin-top:14px}
+.modal .actions button{font:inherit;padding:5px 12px;color:#dfe3e9;background:#2e333a;border:1px solid #3d434c;border-radius:6px;cursor:pointer}
+.modal .actions button:hover:not(:disabled){background:#3a4049}
 </style>
 </head>
 <body>
 <div class="app">
-
   <div class="toolbar">
     <button id="btnOpen">打开图片</button>
     <button id="btnSave" disabled>保存 PNG</button>
     <button id="btnSaveAs" disabled>另存为…</button>
     <button id="btnClose" disabled>关闭</button>
     <div class="sep"></div>
-    <button id="btnUndo" disabled title="Ctrl+Z">↶ 撤销</button>
-    <button id="btnRedo" disabled title="Ctrl+Shift+Z / Ctrl+Y">↷ 重做</button>
+    <button id="btnUndo" disabled>撤销</button>
+    <button id="btnRedo" disabled>重做</button>
     <div class="sep"></div>
     <button id="btnReset" disabled>原始尺寸</button>
     <button id="btnFit" disabled>适应窗口</button>
     <button id="btnOne" disabled>1:1</button>
+    <button id="btnHalf" class="mini" disabled>½</button>
+    <button id="btnQuart" class="mini" disabled>¼</button>
+    <button id="btnEighth" class="mini" disabled>⅛</button>
+    <button id="btnDouble" class="mini" disabled>×2</button>
     <div class="sep"></div>
-    <button id="btnHalf"  class="mini" disabled title="缩小到 1/2">½</button>
-    <button id="btnQuart" class="mini" disabled title="缩小到 1/4">¼</button>
-    <button id="btnEighth" class="mini" disabled title="缩小到 1/8">⅛</button>
-    <button id="btnDouble" class="mini" disabled title="放大到 2 倍">×2</button>
-    <div class="sep"></div>
-    <label>宽 <input id="inW" type="number" min="1" max="16384" step="1" disabled></label>
-    <label>高 <input id="inH" type="number" min="1" max="16384" step="1" disabled></label>
+    <label>宽 <input id="inW" type="number" min="1" max="16384" disabled></label>
+    <label>高 <input id="inH" type="number" min="1" max="16384" disabled></label>
     <label><input id="lockRatio" type="checkbox" checked> 锁定比例</label>
     <div class="sep"></div>
-    <button id="btnSelect" class="toggle" disabled title="选择模式 (S)：在画布上拖拽框选">▢ 选择</button>
-    <button id="btnSelectAll" disabled title="Ctrl+A">全选</button>
-    <button id="btnSelectNone" disabled title="Esc / Ctrl+D">取消选择</button>
+    <button id="btnBg" disabled title="切换观察背景">格子</button>
+    <button id="btnSelect" class="toggle on" disabled>选择</button>
+    <button id="btnSelectAll" disabled>全选</button>
+    <button id="btnSelectNone" disabled>取消选择</button>
     <button id="btnSelectInv" disabled>反选</button>
-    <button id="btnCopy" disabled title="Ctrl+C">📋 复制</button>
+    <button id="btnCopy" disabled>复制</button>
+    <button id="btnDeleteSel" disabled>删除选区</button>
+    <div class="sep"></div>
+    <button id="btnClean" disabled>清理像素</button>
+    <button id="btnColors" disabled>颜色统计…</button>
+    <button id="btnMergeSimilar" disabled>合并相似色…</button>
+    <button id="btnDeleteColor" disabled>删除颜色…</button>
     <div class="spacer"></div>
-    <span class="hint">拖手柄改像素 · 滚轮缩放视图 · 拖空白平移 · Shift 切换比例锁定</span>
+    <span class="hint">滚轮缩放 · 拖空白平移 · 默认选择工具</span>
   </div>
 
-  <div class="stage" id="stage">
+  <div class="stage select-mode" id="stage">
     <div class="placeholder" id="placeholder">
       <div class="big">🖼</div>
       <div>把图片拖到这里，或点击「打开图片」</div>
     </div>
     <div class="wrap" id="wrap">
       <canvas id="cv"></canvas>
-      <canvas id="selCv" class="sel-overlay"></canvas>
       <div class="handle" data-dir="nw"></div>
       <div class="handle" data-dir="n"></div>
       <div class="handle" data-dir="ne"></div>
@@ -166,6 +133,7 @@
       <div class="handle" data-dir="sw"></div>
       <div class="handle" data-dir="w"></div>
     </div>
+    <canvas id="selCv" class="sel-overlay"></canvas>
   </div>
 
   <div class="status">
@@ -177,1126 +145,947 @@
     <span class="spacer"></span>
     <span class="msg" id="stMsg"></span>
   </div>
+</div>
 
+<div class="floating-panel" id="deleteColorPanel" style="display:none">
+  <h3>删除颜色</h3>
+  <div class="hint-text">请在<b>画布</b>上点击要删除的颜色</div>
+  <div class="dc-color-row">
+    <div class="dc-swatch" id="dcColorSwatch"></div>
+    <div class="dc-hex" id="dcColorHex">— 未选择 —</div>
+  </div>
+  <div class="slider-row">
+    <span>相似阈值</span>
+    <input type="range" id="dcThreshold" min="0" max="255" value="0">
+    <span class="val" id="dcThresholdLabel">0</span>
+  </div>
+  <div style="color:#888;font-size:11px;line-height:1.5">0 = 精确匹配；越大，越多相近色被包含。</div>
+  <div class="dc-count-line">将删除 <b id="dcCount">0</b> 个像素</div>
+  <div class="dc-actions">
+    <button id="dcCancel">取消</button>
+    <button id="dcApply" class="apply" disabled>应用删除</button>
+  </div>
+</div>
+
+<div class="floating-panel" id="mergePanel" style="display:none">
+  <h3>合并相似颜色</h3>
+  <div class="hint-text">相近的颜色会被合并为一种，用于减少颜色数</div>
+  <div class="slider-row">
+    <span>相似阈值</span>
+    <input type="range" id="mergeThreshold" min="1" max="100" value="10">
+    <span class="val" id="mergeThresholdLabel">10</span>
+  </div>
+  <div style="color:#888;font-size:11px;line-height:1.5">
+    阈值为颜色距离。越大合并越多，但可能损失细节。
+  </div>
+  <div class="dc-count-line">
+    <b id="mergeBefore">0</b> 种颜色 → 约 <b id="mergeAfter">0</b> 种
+  </div>
+  <div class="dc-actions">
+    <button id="mergeCancel">取消</button>
+    <button id="mergeApply" class="apply">应用合并</button>
+  </div>
 </div>
 
 <input type="file" id="fileInput" accept="image/*" hidden>
 
+<div class="modal-back" id="colorModal" style="display:none">
+  <div class="modal">
+    <h2>颜色统计</h2>
+    <div class="info-line">共 <b id="colorTotal">0</b> 种颜色</div>
+    <div class="color-list" id="colorList"></div>
+    <div class="actions">
+      <button id="colorModalCancel">关闭</button>
+    </div>
+  </div>
+</div>
+
 <script>
-(function () {
-  'use strict';
-
-  var $ = function (id) { return document.getElementById(id); };
-
-  var stage       = $('stage');
-  var wrap        = $('wrap');
-  var cv          = $('cv');
-  var ctx         = cv.getContext('2d');
-  var selCv       = $('selCv');
-  var selCtx      = selCv.getContext('2d');
-  var placeholder = $('placeholder');
-  var fileInput   = $('fileInput');
-  var inW         = $('inW');
-  var inH         = $('inH');
-  var lockRatio   = $('lockRatio');
-  var stOrig      = $('stOrig');
-  var stCur       = $('stCur');
-  var stZoom      = $('stZoom');
-  var stSel       = $('stSel');
-  var stHist      = $('stHist');
-  var stMsg       = $('stMsg');
-
-  var MAX_SIZE   = 16384;
+'use strict';
+(function(){
+  var MAX_SIZE = 16384;
   var MAX_PIXELS = 96e6;
-  var MIN_ZOOM   = 0.02;
-  var MAX_ZOOM   = 64;
-  var MAX_HISTORY = 30;
+  var MIN_ZOOM = 0.02;
+  var MAX_ZOOM = 64;
+  var MAX_HISTORY = 24;
+  var BG_NAMES = ['白底', '灰底', '黑底', '格子'];
+  var BG_COLORS = ['#ffffff', '#808080', '#000000', null];
 
-  /* ---------- 源像素（永不改变） ---------- */
-  var src32 = null;
-  var srcW = 0, srcH = 0;
-
-  /* ---------- 当前状态 ---------- */
-  var hasImage = false;
-  var targetW = 0, targetH = 0;
+  var src32 = null, srcW = 0, srcH = 0;
+  var hasImage = false, targetW = 0, targetH = 0;
   var zoom = 1, panX = 0, panY = 0;
-  var baseName = 'image';
-  var fileHandle = null;
-
-  /* ---------- 历史记录 ---------- */
-  var history = [];
-  var histIndex = -1;
-
-  var drag = null;
-  var panDrag = null;
-
-  /* ---------- 选择状态 ---------- */
-  var selectionMode = false;
-  var selMask = null;              // Uint8Array(targetW * targetH)
-  var hasSelection = false;
-  var selBounds = { x: 0, y: 0, w: 0, h: 0 };
-  var selDrag = null;              // { x0, y0, x1, y1, mode }
-
-  /* ================= 小工具 ================= */
-  function clamp(v, a, b) { return v < a ? a : (v > b ? b : v); }
-
-  var msgTimer = 0;
-  function setMsg(t, autoClear) {
-    stMsg.textContent = t || '';
-    clearTimeout(msgTimer);
-    if (t && autoClear) {
-      msgTimer = setTimeout(function () { stMsg.textContent = ''; }, autoClear);
-    }
-  }
-
-  function fmtZoom(z) {
-    var p = z * 100;
-    if (p >= 100) return p.toFixed(0) + '%';
-    if (p >= 10)  return p.toFixed(1) + '%';
-    return p.toFixed(2) + '%';
-  }
-
-  var ALL_BTN = ['btnSave', 'btnSaveAs', 'btnClose', 'btnReset', 'btnFit', 'btnOne',
-                 'inW', 'inH', 'btnHalf', 'btnQuart', 'btnEighth', 'btnDouble',
-                 'btnSelect', 'btnSelectAll', 'btnSelectNone', 'btnSelectInv'];
-
-  function setEnabled(on) {
-    ALL_BTN.forEach(function (id) { $(id).disabled = !on; });
-    updateHistoryUI();
-    updateSelectUI();
-  }
-
-  /* ================= 历史记录 ================= */
-  function resetHistory() {
-    history = [{ w: srcW, h: srcH }];
-    histIndex = 0;
-    updateHistoryUI();
-  }
-
-  function pushHistory() {
-    if (!hasImage) return;
-    var w = targetW, h = targetH;
-
-    if (histIndex >= 0) {
-      var c = history[histIndex];
-      if (c.w === w && c.h === h) return;
-    }
-
-    history.length = histIndex + 1;
-    history.push({ w: w, h: h });
-
-    while (history.length > MAX_HISTORY + 1) history.shift();
-
-    histIndex = history.length - 1;
-    updateHistoryUI();
-  }
-
-  function updateHistoryUI() {
-    var has = hasImage;
-    $('btnUndo').disabled = !has || histIndex <= 0;
-    $('btnRedo').disabled = !has || histIndex >= history.length - 1;
-
-    if (!has) { stHist.textContent = ''; return; }
-    stHist.textContent = '历史 ' + histIndex + '/' + (history.length - 1) + ' 步';
-  }
-
-  function applyHistoryState() {
-    var s = history[histIndex];
-    if (!s) return;
-
-    var cx = panX + targetW * zoom / 2;
-    var cy = panY + targetH * zoom / 2;
-
-    targetW = s.w;
-    targetH = s.h;
-
-    panX = Math.round(cx - targetW * zoom / 2);
-    panY = Math.round(cy - targetH * zoom / 2);
-
-    // 尺寸变化会作废选区
-    clearSelection(false);
-
-    syncInputs();
-    applyResize();
-    render();
-    updateHistoryUI();
-  }
-
-  function undo() {
-    if (!hasImage || histIndex <= 0) return;
-    histIndex--;
-    applyHistoryState();
-    setMsg('撤销 → ' + targetW + ' × ' + targetH, 1200);
-  }
-
-  function redo() {
-    if (!hasImage || histIndex >= history.length - 1) return;
-    histIndex++;
-    applyHistoryState();
-    setMsg('重做 → ' + targetW + ' × ' + targetH, 1200);
-  }
-
-  /* ================= 渲染 ================= */
-  function render() {
-    if (!hasImage) return;
-    wrap.style.width  = (targetW * zoom) + 'px';
-    wrap.style.height = (targetH * zoom) + 'px';
-    wrap.style.transform = 'translate3d(' + panX + 'px,' + panY + 'px,0)';
-    updateStatus();
-    renderSelectionOverlay();
-  }
-
-  function updateStatus() {
-    if (!hasImage) {
-      stOrig.textContent = '未打开图片';
-      stCur.textContent = '';
-      stZoom.textContent = '';
-      stSel.textContent = '';
-      return;
-    }
-    stOrig.textContent = '原始 ' + srcW + ' × ' + srcH;
-    stCur.textContent  = '当前 ' + targetW + ' × ' + targetH;
-    stZoom.textContent = '视图 ' + fmtZoom(zoom);
-  }
-
-  function updateSelectUI() {
-    var has = hasImage;
-    $('btnSelect').classList.toggle('on', selectionMode);
-    $('btnCopy').disabled = !has || !hasSelection;
-    $('btnSelectAll').disabled = !has;
-    $('btnSelectNone').disabled = !has || !hasSelection;
-    $('btnSelectInv').disabled = !has;
-
-    if (!has) {
-      stSel.textContent = '';
-      return;
-    }
-    if (hasSelection) {
-      stSel.textContent = '选区 ' + selBounds.w + ' × ' + selBounds.h;
-    } else if (selectionMode) {
-      stSel.textContent = '选择模式（拖拽框选）';
-    } else {
-      stSel.textContent = '';
-    }
-  }
-
-  function syncInputs() {
-    if (!hasImage) { inW.value = ''; inH.value = ''; return; }
-    inW.value = targetW;
-    inH.value = targetH;
-  }
-
-  function centerView() {
-    panX = Math.round((stage.clientWidth  - targetW * zoom) / 2);
-    panY = Math.round((stage.clientHeight - targetH * zoom) / 2);
-  }
-
-  function fitView() {
-    if (!hasImage) return;
-    var pad = 72;
-    var aw = Math.max(40, stage.clientWidth  - pad);
-    var ah = Math.max(40, stage.clientHeight - pad);
-    zoom = clamp(Math.min(aw / targetW, ah / targetH), MIN_ZOOM, 16);
-    centerView();
-    render();
-  }
-
-  /* ================= 核心：最近邻重采样 ================= */
+  var baseName = 'image', fileHandle = null;
+  var history = [], histIndex = -1;
+  var drag = null, panDrag = null;
+  var selectionMode = true;    /* 默认开启选择工具 */
+  var selMask = null, hasSelection = false;
+  var selBounds = {x:0,y:0,w:0,h:0};
+  var selDrag = null;
+  var dashOffset = 0, _previewMask = null, _lastDashFrame = 0;
+  var bgMode = 3;
+  var deleteColorMode = {active:false,targetPacked:0,targetR:0,targetG:0,targetB:0,threshold:0,matchedMask:null,matchedCount:0,hasTarget:false};
   var cacheImgData = null, cacheW = 0, cacheH = 0;
+  var msgTimer = 0;
+  var spaceDown = false;
 
-  function applyResize() {
-    if (!hasImage) return;
-    if (cv.width === targetW && cv.height === targetH) return;
+  var stage, wrap, cv, ctx, selCv, selCtx, placeholder, fileInput;
+  var inW, inH, lockRatio, stOrig, stCur, stZoom, stSel, stHist, stMsg;
 
-    var t0 = performance.now();
+  function $(id){ return document.getElementById(id); }
+  function clamp(v,a,b){ return v<a?a:(v>b?b:v); }
+  function setMsg(t,ac){ if(!stMsg) return; stMsg.textContent=t||''; clearTimeout(msgTimer); if(t&&ac) msgTimer=setTimeout(function(){ stMsg.textContent=''; },ac); }
+  function fmtZoom(z){ var p=z*100; if(p>=100) return p.toFixed(0)+'%'; if(p>=10) return p.toFixed(1)+'%'; return p.toFixed(2)+'%'; }
+  function rgbToHex(r,g,b){ return '#'+r.toString(16).padStart(2,'0')+g.toString(16).padStart(2,'0')+b.toString(16).padStart(2,'0'); }
 
-    cv.width  = targetW;
-    cv.height = targetH;
-    ctx.imageSmoothingEnabled = false;
-
-    if (!cacheImgData || cacheW !== targetW || cacheH !== targetH) {
-      try {
-        cacheImgData = ctx.createImageData(targetW, targetH);
-        cacheW = targetW;
-        cacheH = targetH;
-      } catch (err) {
-        setMsg('尺寸太大，无法创建画布');
-        return;
-      }
-    }
-    var imgData = cacheImgData;
-    var dst32 = new Uint32Array(imgData.data.buffer);
-
-    var xmap = new Int32Array(targetW);
-    for (var x = 0; x < targetW; x++) {
-      var sx = ((x + 0.5) * srcW / targetW) | 0;
-      if (sx >= srcW) sx = srcW - 1;
-      if (sx < 0) sx = 0;
-      xmap[x] = sx;
-    }
-
-    for (var y = 0; y < targetH; y++) {
-      var sy = ((y + 0.5) * srcH / targetH) | 0;
-      if (sy >= srcH) sy = srcH - 1;
-      if (sy < 0) sy = 0;
-
-      var sRow = sy * srcW;
-      var dRow = y * targetW;
-      for (var i = 0; i < targetW; i++) {
-        dst32[dRow + i] = src32[sRow + xmap[i]];
-      }
-    }
-
-    ctx.putImageData(imgData, 0, 0);
-
-    var dt = performance.now() - t0;
-    if (dt > 120) setMsg('重采样 ' + dt.toFixed(0) + ' ms', 1800);
+  var ALL_BTN = ['btnSave','btnSaveAs','btnClose','btnReset','btnFit','btnOne','inW','inH','btnHalf','btnQuart','btnEighth','btnDouble','btnSelect','btnSelectAll','btnSelectNone','btnSelectInv','btnClean','btnColors','btnMergeSimilar','btnDeleteColor','btnBg'];
+  function setEnabled(on){
+    ALL_BTN.forEach(function(id){ var el=$(id); if(el) el.disabled=!on; });
+    updateHistoryUI(); updateSelectUI();
   }
 
-  /* ================= 选择系统 ================= */
-
-  function resetSelMask() {
-    selMask = new Uint8Array(targetW * targetH);
-    hasSelection = false;
-    selBounds = { x: 0, y: 0, w: 0, h: 0 };
+  function makeEntry(w,h,arr,sw,sh){
+    return {w:w,h:h,src32:new Uint32Array(arr),srcW:sw,srcH:sh,
+      selMask:selMask?new Uint8Array(selMask):null,hasSel:hasSelection,
+      selBounds:{x:selBounds.x,y:selBounds.y,w:selBounds.w,h:selBounds.h}};
   }
-
-  function clearSelection(updateUI) {
-    if (selMask) selMask.fill(0);
-    hasSelection = false;
-    selBounds = { x: 0, y: 0, w: 0, h: 0 };
-    selDrag = null;
-    if (updateUI !== false) {
-      updateSelectUI();
-      renderSelectionOverlay();
+  function resetHistory(){ history=[makeEntry(srcW,srcH,src32,srcW,srcH)]; histIndex=0; updateHistoryUI(); }
+  function pushHistory(){
+    if(!hasImage) return;
+    history.length = histIndex+1;
+    history.push(makeEntry(targetW,targetH,src32,srcW,srcH));
+    while(history.length>MAX_HISTORY+1) history.shift();
+    histIndex=history.length-1; updateHistoryUI();
+  }
+  function markSrcModified(){
+    var e=history[histIndex];
+    if(e && e.src32===src32){
+      history[histIndex]={w:e.w,h:e.h,srcW:e.srcW,srcH:e.srcH,src32:new Uint32Array(src32),selMask:e.selMask,hasSel:e.hasSel,selBounds:e.selBounds};
     }
   }
+  function updateHistoryUI(){
+    if(!stHist) return;
+    $('btnUndo').disabled=!hasImage||histIndex<=0;
+    $('btnRedo').disabled=!hasImage||histIndex>=history.length-1;
+    stHist.textContent=hasImage?('历史 '+histIndex+'/'+(history.length-1)+' 步'):'';
+  }
+  function applyHistoryEntry(e){
+    targetW=e.w; targetH=e.h; src32=e.src32; srcW=e.srcW; srcH=e.srcH;
+    if(e.selMask && e.selMask.length===targetW*targetH){
+      selMask=new Uint8Array(e.selMask); hasSelection=e.hasSel;
+      selBounds={x:e.selBounds.x,y:e.selBounds.y,w:e.selBounds.w,h:e.selBounds.h};
+    } else { if(selMask) selMask.fill(0); hasSelection=false; selBounds={x:0,y:0,w:0,h:0}; }
+    _previewMask=null; cacheImgData=null; cacheW=0; cacheH=0;
+    syncInputs(); forceReapply(); updateHistoryUI(); updateSelectUI();
+  }
+  function undo(){ if(!hasImage||histIndex<=0) return; histIndex--; applyHistoryEntry(history[histIndex]); setMsg('撤销',1200); }
+  function redo(){ if(!hasImage||histIndex>=history.length-1) return; histIndex++; applyHistoryEntry(history[histIndex]); setMsg('重做',1200); }
 
-  function recalcSelBounds() {
-    if (!selMask) { hasSelection = false; return; }
-    var W = targetW, H = targetH;
-    var minx = W, miny = H, maxx = -1, maxy = -1;
-    for (var y = 0; y < H; y++) {
-      var row = y * W;
-      for (var x = 0; x < W; x++) {
-        if (selMask[row + x]) {
-          if (x < minx) minx = x;
-          if (x > maxx) maxx = x;
-          if (y < miny) miny = y;
-          if (y > maxy) maxy = y;
-        }
-      }
-    }
-    if (maxx < 0) {
-      hasSelection = false;
-      selBounds = { x: 0, y: 0, w: 0, h: 0 };
+  function render(){
+    if(!hasImage){ if(selCv) selCv.classList.remove('on'); return; }
+    wrap.style.width=(targetW*zoom)+'px';
+    wrap.style.height=(targetH*zoom)+'px';
+    wrap.style.transform='translate3d('+panX+'px,'+panY+'px,0)';
+    var color = BG_COLORS[bgMode];
+    if(color===null){
+      wrap.style.backgroundColor='#3a3a40';
+      wrap.style.backgroundImage='linear-gradient(45deg,#4a4a50 25%,transparent 25%),linear-gradient(-45deg,#4a4a50 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#4a4a50 75%),linear-gradient(-45deg,transparent 75%,#4a4a50 75%)';
+      wrap.style.backgroundSize='20px 20px';
+      wrap.style.backgroundPosition='0 0,0 10px,10px -10px,-10px 0';
     } else {
-      hasSelection = true;
-      selBounds = { x: minx, y: miny, w: maxx - minx + 1, h: maxy - miny + 1 };
+      wrap.style.backgroundColor=color;
+      wrap.style.backgroundImage='';
     }
+    updateStatus(); renderSelectionOverlay();
   }
-
-  function applyRectToSelMask(x0, y0, x1, y1, mode) {
-    if (!selMask) resetSelMask();
-    var W = targetW, H = targetH;
-    x0 = clamp(x0, 0, W);
-    y0 = clamp(y0, 0, H);
-    x1 = clamp(x1, 0, W);
-    y1 = clamp(y1, 0, H);
-    if (x1 < x0) { var t = x0; x0 = x1; x1 = t; }
-    if (y1 < y0) { var t2 = y0; y0 = y1; y1 = t2; }
-
-    if (mode === 'replace') selMask.fill(0);
-
-    for (var y = y0; y < y1; y++) {
-      var row = y * W;
-      for (var x = x0; x < x1; x++) {
-        if (mode === 'sub') selMask[row + x] = 0;
-        else selMask[row + x] = 1;
-      }
+  function updateStatus(){
+    if(!hasImage){ stOrig.textContent='未打开图片'; stCur.textContent=''; stZoom.textContent=''; stSel.textContent=''; return; }
+    stOrig.textContent='原始 '+srcW+' × '+srcH;
+    stCur.textContent='当前 '+targetW+' × '+targetH;
+    stZoom.textContent='视图 '+fmtZoom(zoom);
+  }
+  function updateSelectUI(){
+    if(!hasImage){ if(stSel) stSel.textContent=''; return; }
+    var bSel=$('btnSelect'); if(bSel) bSel.classList.toggle('on',selectionMode);
+    if($('btnCopy')) $('btnCopy').disabled=!hasSelection;
+    if($('btnDeleteSel')) $('btnDeleteSel').disabled=!hasSelection;
+    if($('btnSelectNone')) $('btnSelectNone').disabled=!hasSelection;
+    if(deleteColorMode.active) stSel.textContent='删除颜色模式';
+    else if(hasSelection) stSel.textContent='选区 '+selBounds.w+' × '+selBounds.h;
+    else if(selectionMode) stSel.textContent='选择模式（拖拽框选）';
+    else stSel.textContent='';
+  }
+  function syncInputs(){ if(!hasImage){ inW.value=''; inH.value=''; return; } inW.value=targetW; inH.value=targetH; }
+  function centerView(){ panX=Math.round((stage.clientWidth-targetW*zoom)/2); panY=Math.round((stage.clientHeight-targetH*zoom)/2); }
+  function fitView(){
+    if(!hasImage) return;
+    var pad=72, aw=Math.max(40,stage.clientWidth-pad), ah=Math.max(40,stage.clientHeight-pad);
+    zoom=clamp(Math.min(aw/targetW,ah/targetH),MIN_ZOOM,16);
+    centerView(); render();
+  }
+  function applyResize(force){
+    if(!hasImage) return;
+    if(!force && cv.width===targetW && cv.height===targetH) return;
+    cv.width=targetW; cv.height=targetH; ctx.imageSmoothingEnabled=false;
+    if(!cacheImgData||cacheW!==targetW||cacheH!==targetH){
+      try{ cacheImgData=ctx.createImageData(targetW,targetH); cacheW=targetW; cacheH=targetH; }
+      catch(err){ setMsg('尺寸太大'); return; }
     }
-  }
-
-  function selectAll() {
-    if (!hasImage) return;
-    if (!selMask) resetSelMask();
-    selMask.fill(1);
-    recalcSelBounds();
-    updateSelectUI();
-    renderSelectionOverlay();
-    setMsg('已全选', 1200);
-  }
-
-  function deselectAll() {
-    if (!hasImage) return;
-    clearSelection(true);
-    setMsg('已取消选择', 1200);
-  }
-
-  function invertSelection() {
-    if (!hasImage) return;
-    if (!selMask) resetSelMask();
-    for (var i = 0; i < selMask.length; i++) selMask[i] = selMask[i] ? 0 : 1;
-    recalcSelBounds();
-    updateSelectUI();
-    renderSelectionOverlay();
-    setMsg(hasSelection ? '已反选' : '反选后为空', 1200);
-  }
-
-  /* ---------- 选择拖拽 ---------- */
-
-  function stagePointFromEvent(e) {
-    var rect = stage.getBoundingClientRect();
-    var mx = e.clientX - rect.left;
-    var my = e.clientY - rect.top;
-    var px = Math.floor((mx - panX) / zoom);
-    var py = Math.floor((my - panY) / zoom);
-    return { px: px, py: py };
-  }
-
-  function beginSelectDrag(e) {
-    var p = stagePointFromEvent(e);
-    var mode = 'replace';
-    if (e.shiftKey) mode = 'add';
-    else if (e.ctrlKey || e.metaKey) mode = 'sub';
-
-    selDrag = {
-      x0: p.px, y0: p.py,
-      x1: p.px, y1: p.py,
-      mode: mode
-    };
-  }
-
-  function updateSelectDrag(e) {
-    if (!selDrag) return;
-    var p = stagePointFromEvent(e);
-    selDrag.x1 = p.px;
-    selDrag.y1 = p.py;
-    renderSelectionOverlay();
-    // 实时显示尺寸
-    var r = normalizedDragRect();
-    if (r) {
-      stSel.textContent = '选区 ' + r.w + ' × ' + r.h + ' px';
+    var dst32=new Uint32Array(cacheImgData.data.buffer);
+    var xmap=new Int32Array(targetW);
+    for(var x=0;x<targetW;x++){ var sx=((x+0.5)*srcW/targetW)|0; if(sx>=srcW) sx=srcW-1; if(sx<0) sx=0; xmap[x]=sx; }
+    for(var y=0;y<targetH;y++){
+      var sy=((y+0.5)*srcH/targetH)|0; if(sy>=srcH) sy=srcH-1; if(sy<0) sy=0;
+      var sRow=sy*srcW, dRow=y*targetW;
+      for(var i=0;i<targetW;i++) dst32[dRow+i]=src32[sRow+xmap[i]];
     }
+    ctx.putImageData(cacheImgData,0,0);
   }
+  function forceReapply(){ cacheImgData=null; cacheW=0; cacheH=0; applyResize(true); render(); }
 
-  function normalizedDragRect() {
-    if (!selDrag) return null;
-    var x0 = Math.min(selDrag.x0, selDrag.x1);
-    var y0 = Math.min(selDrag.y0, selDrag.y1);
-    var x1 = Math.max(selDrag.x0, selDrag.x1);
-    var y1 = Math.max(selDrag.y0, selDrag.y1);
-    x0 = clamp(x0, 0, targetW);
-    y0 = clamp(y0, 0, targetH);
-    x1 = clamp(x1, 0, targetW);
-    y1 = clamp(y1, 0, targetH);
-    return { x: x0, y: y0, w: x1 - x0, h: y1 - y0, x1: x1, y1: y1 };
+  function resetSelMask(){ selMask=new Uint8Array(targetW*targetH); hasSelection=false; selBounds={x:0,y:0,w:0,h:0}; _previewMask=null; }
+  function clearSelection(u){ if(selMask) selMask.fill(0); hasSelection=false; selBounds={x:0,y:0,w:0,h:0}; selDrag=null; if(u!==false){ updateSelectUI(); renderSelectionOverlay(); } }
+  function recalcBounds(){
+    if(!selMask){ hasSelection=false; return; }
+    var W=targetW,H=targetH,minx=W,miny=H,maxx=-1,maxy=-1;
+    for(var y=0;y<H;y++){ var row=y*W; for(var x=0;x<W;x++) if(selMask[row+x]){
+      if(x<minx) minx=x; if(x>maxx) maxx=x; if(y<miny) miny=y; if(y>maxy) maxy=y;
+    }}
+    if(maxx<0){ hasSelection=false; selBounds={x:0,y:0,w:0,h:0}; }
+    else { hasSelection=true; selBounds={x:minx,y:miny,w:maxx-minx+1,h:maxy-miny+1}; }
   }
-
-  function endSelectDrag() {
-    if (!selDrag) return;
-    var r = normalizedDragRect();
-    var mode = selDrag.mode;
-    selDrag = null;
-
-    if (!r || r.w === 0 || r.h === 0) {
-      // 没有实际拖动：如果是替换模式，视为点击取消选择
-      if (mode === 'replace') {
-        clearSelection(true);
-      } else {
-        renderSelectionOverlay();
-        updateSelectUI();
-      }
+  function applyRectToSelMask(x0,y0,x1,y1,mode){
+    if(!selMask) resetSelMask();
+    var W=targetW,H=targetH;
+    x0=clamp(x0,0,W);y0=clamp(y0,0,H);x1=clamp(x1,0,W);y1=clamp(y1,0,H);
+    if(x1<x0){var t=x0;x0=x1;x1=t;} if(y1<y0){var t2=y0;y0=y1;y1=t2;}
+    if(mode==='replace') selMask.fill(0);
+    for(var y=y0;y<y1;y++){ var row=y*W; for(var x=x0;x<x1;x++){
+      if(mode==='sub') selMask[row+x]=0; else selMask[row+x]=1;
+    }}
+  }
+  function selectAll(){ if(!hasImage) return; if(!selMask) resetSelMask(); selMask.fill(1); recalcBounds(); updateSelectUI(); renderSelectionOverlay(); pushHistory(); setMsg('全选',1200); }
+  function deselectAll(noH){ if(!hasImage) return; var had=hasSelection; clearSelection(true); if(!noH&&had) pushHistory(); if(!noH) setMsg('取消选择',1200); }
+  function invertSelection(){
+    if(!hasImage) return; if(!selMask) resetSelMask();
+    for(var i=0;i<selMask.length;i++) selMask[i]=selMask[i]?0:1;
+    recalcBounds(); updateSelectUI(); renderSelectionOverlay(); pushHistory();
+    setMsg(hasSelection?'反选':'反选后为空',1200);
+  }
+  function stagePointFromEvent(e){
+    var r=stage.getBoundingClientRect();
+    return {px:Math.floor((e.clientX-r.left-panX)/zoom), py:Math.floor((e.clientY-r.top-panY)/zoom)};
+  }
+  function beginSelectDrag(e){
+    var p=stagePointFromEvent(e);
+    var mode='replace';
+    if(e.shiftKey) mode='add'; else if(e.ctrlKey||e.metaKey||e.altKey) mode='sub';
+    selDrag={x0:p.px,y0:p.py,x1:p.px,y1:p.py,mode:mode};
+    requestRender();
+  }
+  function updateSelectDrag(e){
+    if(!selDrag) return;
+    var p=stagePointFromEvent(e); selDrag.x1=p.px; selDrag.y1=p.py;
+    renderSelectionOverlay();
+    var r=normalizedDragRect();
+    if(r){ var mn=selDrag.mode==='add'?'（加选）':selDrag.mode==='sub'?'（减选）':''; stSel.textContent='选区 '+r.w+' × '+r.h+' px'+mn; }
+  }
+  function normalizedDragRect(){
+    if(!selDrag) return null;
+    var x0=Math.min(selDrag.x0,selDrag.x1), y0=Math.min(selDrag.y0,selDrag.y1);
+    var x1=Math.max(selDrag.x0,selDrag.x1), y1=Math.max(selDrag.y0,selDrag.y1);
+    x0=clamp(x0,0,targetW);y0=clamp(y0,0,targetH);x1=clamp(x1,0,targetW);y1=clamp(y1,0,targetH);
+    return {x:x0,y:y0,w:x1-x0,h:y1-y0,x1:x1,y1:y1};
+  }
+  function endSelectDrag(){
+    if(!selDrag) return;
+    var r=normalizedDragRect(), mode=selDrag.mode; selDrag=null;
+    if(!r||r.w===0||r.h===0){
+      if(mode==='replace'){ var had=hasSelection; clearSelection(true); if(had) pushHistory(); }
+      else { renderSelectionOverlay(); updateSelectUI(); }
       return;
     }
-
-    applyRectToSelMask(r.x, r.y, r.x1, r.y1, mode);
-    recalcSelBounds();
-    updateSelectUI();
-    renderSelectionOverlay();
-
-    if (hasSelection) {
-      setMsg('选区 ' + selBounds.w + ' × ' + selBounds.h +
-        (mode === 'add' ? '（加选）' : mode === 'sub' ? '（减选）' : ''), 1400);
-    } else {
-      setMsg('选区为空', 1200);
+    applyRectToSelMask(r.x,r.y,r.x1,r.y1,mode);
+    recalcBounds(); updateSelectUI(); renderSelectionOverlay(); pushHistory();
+    if(hasSelection){ var mn=mode==='add'?'（加选）':mode==='sub'?'（减选）':''; setMsg('选区 '+selBounds.w+' × '+selBounds.h+mn,1400); }
+    else setMsg('选区为空',1200);
+  }
+  function paintMarchingAnts(g,mask,W,H,bounds,ox,oy,z,offset){
+    g.beginPath();
+    var y,x,row,prevRow,nextRow,runStart,isEdge,sx,sy;
+    for(y=bounds.y;y<bounds.y+bounds.h;y++){ row=y*W; prevRow=(y-1)*W; runStart=-1;
+      for(x=bounds.x;x<=bounds.x+bounds.w;x++){
+        isEdge=false;
+        if(x<bounds.x+bounds.w) isEdge=mask[row+x]!==0&&(y===0||!mask[prevRow+x]);
+        if(isEdge){ if(runStart===-1) runStart=x; }
+        else if(runStart!==-1){ sy=oy+y*z; g.moveTo(ox+runStart*z,sy); g.lineTo(ox+x*z,sy); runStart=-1; }
+      }
     }
+    for(y=bounds.y;y<bounds.y+bounds.h;y++){ row=y*W; nextRow=(y+1)*W; runStart=-1;
+      for(x=bounds.x;x<=bounds.x+bounds.w;x++){
+        isEdge=false;
+        if(x<bounds.x+bounds.w) isEdge=mask[row+x]!==0&&(y===H-1||!mask[nextRow+x]);
+        if(isEdge){ if(runStart===-1) runStart=x; }
+        else if(runStart!==-1){ sy=oy+(y+1)*z; g.moveTo(ox+runStart*z,sy); g.lineTo(ox+x*z,sy); runStart=-1; }
+      }
+    }
+    for(x=bounds.x;x<bounds.x+bounds.w;x++){ runStart=-1;
+      for(y=bounds.y;y<=bounds.y+bounds.h;y++){
+        isEdge=false;
+        if(y<bounds.y+bounds.h) isEdge=mask[y*W+x]!==0&&(x===0||!mask[y*W+x-1]);
+        if(isEdge){ if(runStart===-1) runStart=y; }
+        else if(runStart!==-1){ sx=ox+x*z; g.moveTo(sx,oy+runStart*z); g.lineTo(sx,oy+y*z); runStart=-1; }
+      }
+    }
+    for(x=bounds.x;x<bounds.x+bounds.w;x++){ runStart=-1;
+      for(y=bounds.y;y<=bounds.y+bounds.h;y++){
+        isEdge=false;
+        if(y<bounds.y+bounds.h) isEdge=mask[y*W+x]!==0&&(x===W-1||!mask[y*W+x+1]);
+        if(isEdge){ if(runStart===-1) runStart=y; }
+        else if(runStart!==-1){ sx=ox+(x+1)*z; g.moveTo(sx,oy+runStart*z); g.lineTo(sx,oy+y*z); runStart=-1; }
+      }
+    }
+    var dashLen=4, gapLen=4;
+    g.setLineDash([dashLen,gapLen]);
+    g.lineDashOffset=-offset; g.strokeStyle='rgba(255,255,255,0.95)'; g.lineWidth=2; g.stroke();
+    g.lineDashOffset=-offset+dashLen; g.strokeStyle='rgba(0,0,0,0.85)'; g.stroke();
+    g.setLineDash([]);
   }
 
-  /* ---------- 选区绘制 ---------- */
-
-  function renderSelectionOverlay() {
-    if (!hasImage) {
-      selCv.style.display = 'none';
-      return;
+  /* 修复：拖拽中直接绘制矩形预览（独立于 selMask） */
+  function renderSelectionOverlay(){
+    if(!hasImage){ selCv.classList.remove('on'); return; }
+    selCv.classList.add('on');
+    var rect=stage.getBoundingClientRect();
+    var dpr=window.devicePixelRatio||1;
+    var W=Math.max(1,Math.round(rect.width)), H=Math.max(1,Math.round(rect.height));
+    if(selCv.width!==W*dpr||selCv.height!==H*dpr){
+      selCv.width=W*dpr; selCv.height=H*dpr;
+      selCv.style.width=W+'px'; selCv.style.height=H+'px';
     }
-    selCv.style.display = 'block';
+    selCtx.setTransform(dpr,0,0,dpr,0,0);
+    selCtx.clearRect(0,0,W,H);
+    selCtx.imageSmoothingEnabled=false;
 
-    if (selCv.width !== targetW || selCv.height !== targetH) {
-      selCv.width = targetW;
-      selCv.height = targetH;
-    }
-    selCtx.clearRect(0, 0, targetW, targetH);
-    selCtx.imageSmoothingEnabled = false;
+    if(deleteColorMode.active){ renderDeleteColorPreview(); return; }
 
-    // 1) 已有选区（按遮罩逐像素绘制）
-    if (selMask && hasSelection) {
-      var W = targetW;
-      var b = selBounds;
-
-      // 半透明填充
-      selCtx.fillStyle = 'rgba(80, 180, 255, 0.18)';
-      for (var y = b.y; y < b.y + b.h; y++) {
-        var row = y * W;
-        for (var x = b.x; x < b.x + b.w; x++) {
-          if (selMask[row + x]) selCtx.fillRect(x, y, 1, 1);
+    /* 1. 已有选区：marching ants */
+    if(selMask && hasSelection){
+      var drawMask = selMask;
+      var drawBounds = selBounds;
+      selCtx.fillStyle='rgba(80,180,255,0.12)';
+      for(var y=drawBounds.y;y<drawBounds.y+drawBounds.h;y++){
+        var row=y*targetW; var sy=panY+y*zoom;
+        for(var x=drawBounds.x;x<drawBounds.x+drawBounds.w;x++){
+          if(drawMask[row+x]) selCtx.fillRect(panX+x*zoom,sy,zoom,zoom);
         }
       }
-
-      // 边缘描边
-      var lw = 1 / zoom;
-      selCtx.lineWidth = lw;
-      selCtx.strokeStyle = 'rgba(0,0,0,0.85)';
-      selCtx.beginPath();
-      drawMaskEdges(selCtx, W, b);
-      selCtx.stroke();
-
-      selCtx.lineWidth = Math.max(lw, 0.5 / zoom);
-      selCtx.strokeStyle = 'rgba(255,255,255,0.95)';
-      selCtx.beginPath();
-      drawMaskEdges(selCtx, W, b);
-      selCtx.stroke();
+      paintMarchingAnts(selCtx,drawMask,targetW,targetH,drawBounds,panX,panY,zoom,dashOffset);
     }
 
-    // 2) 拖拽中的预览矩形
-    if (selDrag) {
+    /* 2. 拖拽中的预览：直接绘制边框（这一版不再依赖 mask，实时可见） */
+    if(selDrag){
       var r = normalizedDragRect();
-      if (r && r.w > 0 && r.h > 0) {
-        selCtx.fillStyle = 'rgba(80, 180, 255, 0.25)';
-        selCtx.fillRect(r.x, r.y, r.w, r.h);
-
-        var lw2 = 1 / zoom;
-        selCtx.lineWidth = lw2;
+      if(r && r.w > 0 && r.h > 0){
+        var dx = panX + r.x * zoom;
+        var dy = panY + r.y * zoom;
+        var dw = r.w * zoom;
+        var dh = r.h * zoom;
+        selCtx.fillStyle = (selDrag.mode === 'sub') ? 'rgba(255,80,80,0.18)' : 'rgba(80,180,255,0.18)';
+        selCtx.fillRect(dx, dy, dw, dh);
         selCtx.strokeStyle = 'rgba(0,0,0,0.9)';
-        selCtx.strokeRect(r.x + lw2 * 0.5, r.y + lw2 * 0.5, r.w - lw2, r.h - lw2);
-        selCtx.lineWidth = Math.max(lw2, 0.5 / zoom);
+        selCtx.lineWidth = 2;
+        selCtx.strokeRect(dx, dy, dw, dh);
         selCtx.strokeStyle = 'rgba(255,255,255,0.95)';
-        selCtx.strokeRect(r.x + lw2 * 0.5, r.y + lw2 * 0.5, r.w - lw2, r.h - lw2);
+        selCtx.lineWidth = 1;
+        selCtx.strokeRect(dx + 0.5, dy + 0.5, dw - 1, dh - 1);
       }
     }
   }
 
-  function drawMaskEdges(c, W, b) {
-    for (var y = b.y; y < b.y + b.h; y++) {
-      var row = y * W;
-      for (var x = b.x; x < b.x + b.w; x++) {
-        if (!selMask[row + x]) continue;
-        // 上边
-        if (y === 0 || !selMask[(y - 1) * W + x]) {
-          c.moveTo(x, y); c.lineTo(x + 1, y);
-        }
-        // 下边
-        if (y === targetH - 1 || !selMask[(y + 1) * W + x]) {
-          c.moveTo(x, y + 1); c.lineTo(x + 1, y + 1);
-        }
-        // 左边
-        if (x === 0 || !selMask[y * W + (x - 1)]) {
-          c.moveTo(x, y); c.lineTo(x, y + 1);
-        }
-        // 右边
-        if (x === targetW - 1 || !selMask[y * W + (x + 1)]) {
-          c.moveTo(x + 1, y); c.lineTo(x + 1, y + 1);
-        }
-      }
+  function renderDeleteColorPreview(){
+    var mask=deleteColorMode.matchedMask; if(!mask) return;
+    var W=targetW,H=targetH;
+    selCtx.fillStyle='rgba(255,80,80,0.55)';
+    for(var y=0;y<H;y++){ var row=y*W; var sy=panY+y*zoom;
+      for(var x=0;x<W;x++) if(mask[row+x]) selCtx.fillRect(panX+x*zoom,sy,zoom,zoom);
     }
   }
 
-  /* ================= 复制到剪贴板 ================= */
-
-  async function doCopy() {
-    if (!hasImage) return;
-    if (!hasSelection || !selMask) {
-      setMsg('没有选区', 1500);
-      return;
-    }
-
-    var b = selBounds;
-    // 从已缩放画布 cv 中提取
-    var tmp = document.createElement('canvas');
-    tmp.width = b.w;
-    tmp.height = b.h;
-    var tctx = tmp.getContext('2d');
-    tctx.imageSmoothingEnabled = false;
-    tctx.drawImage(cv, b.x, b.y, b.w, b.h, 0, 0, b.w, b.h);
-
-    // 若选区不是规则矩形，按遮罩抠掉外部
-    var needMask = false;
-    for (var yy = 0; yy < b.h; yy++) {
-      for (var xx = 0; xx < b.w; xx++) {
-        if (!selMask[(b.y + yy) * targetW + (b.x + xx)]) {
-          needMask = true;
-          break;
-        }
+  function computeColorMatch(){
+    if(!deleteColorMode.hasTarget) return;
+    var tR=deleteColorMode.targetR, tG=deleteColorMode.targetG, tB=deleteColorMode.targetB;
+    var th=deleteColorMode.threshold, t2=th*th;
+    var W=targetW,H=targetH;
+    var sRX=srcW/W, sRY=srcH/H;
+    if(!deleteColorMode.matchedMask||deleteColorMode.matchedMask.length!==W*H) deleteColorMode.matchedMask=new Uint8Array(W*H);
+    var mask=deleteColorMode.matchedMask, count=0;
+    for(var y=0;y<H;y++){
+      var sy_s=Math.floor((y+0.5)*sRY); if(sy_s>=srcH) sy_s=srcH-1; if(sy_s<0) sy_s=0;
+      var sRow=sy_s*srcW, dRow=y*W;
+      for(var x=0;x<W;x++){
+        var sx_s=Math.floor((x+0.5)*sRX); if(sx_s>=srcW) sx_s=srcW-1; if(sx_s<0) sx_s=0;
+        var packed=src32[sRow+sx_s];
+        if(((packed>>>24)&255)===0){ mask[dRow+x]=0; continue; }
+        var r=packed&255, g=(packed>>>8)&255, b=(packed>>>16)&255;
+        var dr=r-tR, dg=g-tG, db=b-tB;
+        if(dr*dr+dg*dg+db*db<=t2){ mask[dRow+x]=1; count++; } else mask[dRow+x]=0;
       }
-      if (needMask) break;
     }
-
-    if (needMask) {
-      var imgData = tctx.getImageData(0, 0, b.w, b.h);
-      var d = imgData.data;
-      for (var y = 0; y < b.h; y++) {
-        for (var x = 0; x < b.w; x++) {
-          if (!selMask[(b.y + y) * targetW + (b.x + x)]) {
-            var i = (y * b.w + x) * 4;
-            d[i] = 0; d[i+1] = 0; d[i+2] = 0; d[i+3] = 0;
+    deleteColorMode.matchedCount=count;
+    $('dcCount').textContent=count;
+  }
+  function openDeleteColorPanel(){
+    if(!hasImage) return;
+    deleteColorMode.active=true; deleteColorMode.hasTarget=false;
+    deleteColorMode.targetPacked=0; deleteColorMode.targetR=0; deleteColorMode.targetG=0; deleteColorMode.targetB=0;
+    deleteColorMode.threshold=0; deleteColorMode.matchedMask=null; deleteColorMode.matchedCount=0;
+    $('dcThreshold').value=0; $('dcThresholdLabel').textContent='0';
+    $('dcColorHex').textContent='— 未选择 —'; $('dcColorSwatch').style.background='#222';
+    $('dcCount').textContent='0'; $('dcApply').disabled=true;
+    $('deleteColorPanel').style.display='';
+    stage.classList.add('picking'); updateSelectUI();
+    setMsg('请在画布上点击要删除的颜色',3000);
+    renderSelectionOverlay();
+  }
+  function closeDeleteColorPanel(){
+    deleteColorMode.active=false; deleteColorMode.hasTarget=false;
+    deleteColorMode.matchedMask=null; deleteColorMode.matchedCount=0;
+    $('deleteColorPanel').style.display='none';
+    stage.classList.remove('picking'); updateSelectUI(); renderSelectionOverlay();
+  }
+  function applyDeleteColor(){
+    if(!deleteColorMode.active||!deleteColorMode.hasTarget||!deleteColorMode.matchedMask) return;
+    markSrcModified();
+    var W=targetW,H=targetH, mask=deleteColorMode.matchedMask;
+    var sRX=srcW/W, sRY=srcH/H, seen=new Uint8Array(srcW*srcH), count=0;
+    for(var y=0;y<H;y++){
+      var sy_s=Math.floor((y+0.5)*sRY); if(sy_s>=srcH) sy_s=srcH-1; if(sy_s<0) sy_s=0;
+      var sRow=sy_s*srcW, dRow=y*W;
+      for(var x=0;x<W;x++){
+        if(!mask[dRow+x]) continue;
+        var sx_s=Math.floor((x+0.5)*sRX); if(sx_s>=srcW) sx_s=srcW-1; if(sx_s<0) sx_s=0;
+        var si=sRow+sx_s; if(seen[si]) continue; seen[si]=1;
+        if(src32[si]!==0){ src32[si]=0; count++; }
+      }
+    }
+    var th=deleteColorMode.threshold;
+    closeDeleteColorPanel(); forceReapply(); pushHistory();
+    setMsg('已删除 '+count+' 个像素（阈值 '+th+'）',2400);
+  }
+  function doCopy(){
+    if(!hasImage||!hasSelection){ setMsg('没有选区',1500); return; }
+    var b=selBounds, tmp=document.createElement('canvas');
+    tmp.width=b.w; tmp.height=b.h;
+    var tctx=tmp.getContext('2d'); tctx.imageSmoothingEnabled=false;
+    tctx.drawImage(cv,b.x,b.y,b.w,b.h,0,0,b.w,b.h);
+    var needMask=false;
+    for(var yy=0;yy<b.h;yy++){ for(var xx=0;xx<b.w;xx++) if(!selMask[(b.y+yy)*targetW+(b.x+xx)]){ needMask=true; break; } if(needMask) break; }
+    if(needMask){
+      var imgData=tctx.getImageData(0,0,b.w,b.h), d=imgData.data;
+      for(var y=0;y<b.h;y++) for(var x=0;x<b.w;x++){
+        if(!selMask[(b.y+y)*targetW+(b.x+x)]){ var i=(y*b.w+x)*4; d[i]=0;d[i+1]=0;d[i+2]=0;d[i+3]=0; }
+      }
+      tctx.putImageData(imgData,0,0);
+    }
+    tmp.toBlob(function(blob){
+      if(!blob){ setMsg('导出失败',2000); return; }
+      if(navigator.clipboard&&navigator.clipboard.write&&typeof ClipboardItem!=='undefined'){
+        navigator.clipboard.write([new ClipboardItem({'image/png':blob})])
+          .then(function(){ setMsg('已复制 '+b.w+'×'+b.h,2200); })
+          .catch(function(){ downloadBlob(blob,'copy_'+b.w+'x'+b.h+'.png'); setMsg('已下载',2600); });
+      } else { downloadBlob(blob,'copy_'+b.w+'x'+b.h+'.png'); setMsg('已下载 '+b.w+'×'+b.h,2600); }
+    },'image/png');
+  }
+  function deleteSelectionAsTransparent(){
+    if(!hasImage||!hasSelection) return;
+    markSrcModified();
+    var sX=srcW/targetW, sY=srcH/targetH, seen=new Uint8Array(srcW*srcH), count=0;
+    for(var y=selBounds.y;y<selBounds.y+selBounds.h;y++){
+      for(var x=selBounds.x;x<selBounds.x+selBounds.w;x++){
+        if(!selMask[y*targetW+x]) continue;
+        var mx=Math.floor((x+0.5)*sX), my=Math.floor((y+0.5)*sY);
+        if(mx<0||mx>=srcW||my<0||my>=srcH) continue;
+        var si=my*srcW+mx; if(seen[si]) continue; seen[si]=1;
+        if(src32[si]!==0){ src32[si]=0; count++; }
+      }
+    }
+    forceReapply(); pushHistory();
+    setMsg('已删除 '+count+' 个像素',1800);
+  }
+  function cleanPixels(){
+    if(!hasImage) return;
+    setMsg('正在清理…');
+    setTimeout(function(){
+      markSrcModified();
+      var W=srcW,H=srcH,total=W*H,d=src32,cleared=0;
+      for(var i=0;i<total;i++){
+        var c=d[i], a=(c>>>24)&255;
+        if(a===0) continue;
+        if(a<128){ d[i]=0; cleared++; }
+        else if(a!==255) d[i]=(c&0x00FFFFFF)|0xFF000000;
+      }
+      var replaced=0;
+      for(var iter=0;iter<4;iter++){
+        var ref=new Uint32Array(d), changed=0;
+        for(var y=1;y<H-1;y++) for(var x=1;x<W-1;x++){
+          var idx=y*W+x, cur=ref[idx];
+          if(((cur>>>24)&255)===0) continue;
+          var counter=new Map();
+          for(var dy=-1;dy<=1;dy++) for(var dx=-1;dx<=1;dx++){
+            if(dx===0&&dy===0) continue;
+            var nc=ref[(y+dy)*W+(x+dx)];
+            if(((nc>>>24)&255)===0) continue;
+            counter.set(nc,(counter.get(nc)||0)+1);
           }
+          var bestC=cur,bestN=0;
+          counter.forEach(function(n,nc){ if(n>bestN){ bestN=n; bestC=nc; } });
+          if(bestC!==cur&&bestN>=4){ d[idx]=bestC; changed++; }
         }
+        replaced+=changed;
+        if(changed===0) break;
       }
-      tctx.putImageData(imgData, 0, 0);
-    }
-
-    var blob = await new Promise(function (res) {
-      tmp.toBlob(function (bl) { res(bl); }, 'image/png');
-    });
-
-    if (!blob) {
-      setMsg('导出失败', 2000);
-      return;
-    }
-
-    // 尝试写入系统剪贴板（跨工具可用）
-    var ok = false;
-    try {
-      if (navigator.clipboard && navigator.clipboard.write &&
-          typeof ClipboardItem !== 'undefined') {
-        await navigator.clipboard.write([
-          new ClipboardItem({ 'image/png': blob })
-        ]);
-        ok = true;
-      }
-    } catch (err) {
-      // 系统剪贴板写入失败，回退下载
-    }
-
-    if (ok) {
-      setMsg('已复制 ' + b.w + ' × ' + b.h + '（可跨工具粘贴）', 2200);
-    } else {
-      downloadBlob(blob, 'copy_' + b.w + 'x' + b.h + '.png');
-      setMsg('已下载 ' + b.w + ' × ' + b.h + '（浏览器不支持剪贴板）', 2600);
-    }
+      forceReapply(); pushHistory();
+      setMsg('清理完成：透明 '+cleared+' 个，去杂 '+replaced+' 个',2400);
+    },20);
   }
 
-  /* ================= 打开图片 ================= */
-  function loadImage(file) {
-    if (!file || !/^image\//.test(file.type)) {
-      setMsg('请选择图片文件', 2000);
-      return;
+  function analyzeColors(){
+    var map=new Map(), total=0;
+    for(var i=0;i<src32.length;i++){
+      var c=src32[i]; if(((c>>>24)&255)===0) continue;
+      map.set(c,(map.get(c)||0)+1); total++;
     }
+    var arr=[];
+    map.forEach(function(count,packed){
+      var r=packed&255, g=(packed>>>8)&255, b=(packed>>>16)&255;
+      arr.push({packed:packed,r:r,g:g,b:b,count:count});
+    });
+    arr.sort(function(a,b){ return b.count-a.count; });
+    return {arr:arr,total:total};
+  }
+  function openColorModal(){
+    if(!hasImage) return;
+    setMsg('正在统计…');
+    setTimeout(function(){
+      var stats=analyzeColors();
+      $('colorTotal').textContent=stats.arr.length;
+      var list=$('colorList'); list.innerHTML='';
+      for(var i=0;i<stats.arr.length;i++){
+        var c=stats.arr[i];
+        var cell=document.createElement('div');
+        cell.className='color-cell';
+        cell.style.background='rgb('+c.r+','+c.g+','+c.b+')';
+        cell.dataset.hex=rgbToHex(c.r,c.g,c.b);
+        (function(color){
+          cell.addEventListener('click',function(){
+            $('color-primary').value=rgbToHex(color.r,color.g,color.b);
+            setMsg('主色已设为 '+rgbToHex(color.r,color.g,color.b),1500);
+          });
+        })(c);
+        list.appendChild(cell);
+      }
+      $('colorModal').style.display='';
+      setMsg('');
+    },20);
+  }
+  function openMergePanel(){
+    if(!hasImage) return;
+    $('mergePanel').style.display='';
+    updateMergePreview();
+  }
+  function closeMergePanel(){ $('mergePanel').style.display='none'; }
+  function computeMergePlan(){
+    var stats=analyzeColors();
+    var th=parseInt($('mergeThreshold').value,10)||0;
+    var t2=th*th;
+    var keep=[];
+    var map=new Map();
+    for(var i=0;i<stats.arr.length;i++){
+      var c=stats.arr[i];
+      var best=null, bestD=Infinity;
+      for(var j=0;j<keep.length;j++){
+        var k=keep[j];
+        var dr=c.r-k.r, dg=c.g-k.g, db=c.b-k.b;
+        var d2=dr*dr+dg*dg+db*db;
+        if(d2<bestD){ bestD=d2; best=k; }
+      }
+      if(best!==null && bestD<=t2){
+        map.set(c.packed, best.packed);
+      } else {
+        keep.push(c);
+      }
+    }
+    return {keep:keep, map:map, before:stats.arr.length, after:keep.length};
+  }
+  function updateMergePreview(){
+    var plan=computeMergePlan();
+    $('mergeBefore').textContent=plan.before;
+    $('mergeAfter').textContent=plan.after;
+  }
+  function applyMergeColors(){
+    if(!hasImage) return;
+    var plan=computeMergePlan();
+    if(plan.map.size===0){ setMsg('当前没有可合并的颜色'); return; }
+    markSrcModified();
+    var changed=0;
+    for(var m=0;m<src32.length;m++){
+      if(plan.map.has(src32[m])){ src32[m]=plan.map.get(src32[m]); changed++; }
+    }
+    forceReapply(); pushHistory();
+    closeMergePanel();
+    setMsg('已合并 '+changed+' 个像素 → '+plan.after+' 种颜色', 2400);
+  }
+
+  function loadImage(file){
+    if(!file||!/^image\//.test(file.type)){ setMsg('请选择图片文件',2000); return; }
     setMsg('正在载入…');
-
-    var url = URL.createObjectURL(file);
-    var im = new Image();
-
-    im.onload = function () {
+    var url=URL.createObjectURL(file);
+    var im=new Image();
+    im.onload=function(){
       URL.revokeObjectURL(url);
-
-      var w = im.naturalWidth, h = im.naturalHeight;
-      if (!w || !h) { setMsg('图片尺寸无效', 2000); return; }
-
-      var c = document.createElement('canvas');
-      c.width = w; c.height = h;
-      var cx = c.getContext('2d', { willReadFrequently: true });
-      cx.imageSmoothingEnabled = false;
-      cx.drawImage(im, 0, 0);
-
-      var idata = cx.getImageData(0, 0, w, h);
-      src32 = new Uint32Array(idata.data.buffer);
-      srcW = w; srcH = h;
-
-      hasImage = true;
-      targetW = w; targetH = h;
-      baseName = (file.name || 'image').replace(/\.[^.]+$/, '') || 'image';
-      fileHandle = null;
-
-      // 重建选区
+      var w=im.naturalWidth, h=im.naturalHeight;
+      if(!w||!h){ setMsg('图片尺寸无效',2000); return; }
+      var c=document.createElement('canvas');
+      c.width=w; c.height=h;
+      var cx=c.getContext('2d'); cx.imageSmoothingEnabled=false; cx.drawImage(im,0,0);
+      var idata=cx.getImageData(0,0,w,h);
+      src32=new Uint32Array(idata.data.buffer);
+      srcW=w; srcH=h;
+      hasImage=true; targetW=w; targetH=h;
+      baseName=(file.name||'image').replace(/\.[^.]+$/,'')||'image';
+      fileHandle=null;
       resetSelMask();
-
-      placeholder.style.display = 'none';
+      placeholder.style.display='none';
       wrap.classList.add('on');
       setEnabled(true);
-
-      cv.width = w; cv.height = h;
-      ctx.imageSmoothingEnabled = false;
-      ctx.clearRect(0, 0, w, h);
-      ctx.drawImage(c, 0, 0);
-      cacheImgData = null; cacheW = 0; cacheH = 0;
-
-      // 选区 overlay 尺寸
-      selCv.width = w;
-      selCv.height = h;
-
-      syncInputs();
-      resetHistory();
-      fitView();
-      updateSelectUI();
-      setMsg('');
+      cv.width=w; cv.height=h; ctx.imageSmoothingEnabled=false;
+      ctx.clearRect(0,0,w,h); ctx.drawImage(c,0,0);
+      cacheImgData=null; cacheW=0; cacheH=0;
+      syncInputs(); resetHistory(); fitView(); updateSelectUI(); setMsg('');
     };
-
-    im.onerror = function () {
-      URL.revokeObjectURL(url);
-      setMsg('图片解析失败', 2500);
-    };
-
-    im.src = url;
+    im.onerror=function(){ URL.revokeObjectURL(url); setMsg('图片解析失败',2500); };
+    im.src=url;
   }
-
-  /* ================= 关闭 ================= */
-  function closeImage() {
-    hasImage = false;
-    src32 = null; srcW = 0; srcH = 0;
-    targetW = 0; targetH = 0;
-    fileHandle = null;
-    cacheImgData = null; cacheW = 0; cacheH = 0;
-
-    cv.width = 0; cv.height = 0;
-    selCv.width = 0; selCv.height = 0;
-    selMask = null;
-    hasSelection = false;
-    selBounds = { x: 0, y: 0, w: 0, h: 0 };
-    selDrag = null;
-
-    wrap.classList.remove('on');
-    wrap.style.width = '0px';
-    wrap.style.height = '0px';
-    placeholder.style.display = '';
-    history = []; histIndex = -1;
+  function closeImage(){
+    hasImage=false; src32=null; srcW=0; srcH=0; targetW=0; targetH=0;
+    fileHandle=null; cacheImgData=null; cacheW=0; cacheH=0;
+    cv.width=0; cv.height=0;
+    selCv.classList.remove('on');
+    selMask=null; hasSelection=false; selBounds={x:0,y:0,w:0,h:0}; selDrag=null; _previewMask=null;
+    closeDeleteColorPanel(); closeMergePanel();
+    wrap.classList.remove('on'); wrap.style.width='0px'; wrap.style.height='0px';
+    placeholder.style.display='';
+    history=[]; histIndex=-1;
     setEnabled(false);
-    syncInputs();
-    updateStatus();
-    updateSelectUI();
-    setMsg('');
+    syncInputs(); updateStatus(); updateSelectUI(); setMsg('');
   }
-
-  /* ================= 保存 / 另存为 ================= */
-  function defaultFileName() {
-    return baseName + '_' + targetW + 'x' + targetH + '.png';
-  }
-
-  function canvasToBlob() {
-    return new Promise(function (resolve, reject) {
-      if (cv.width !== targetW || cv.height !== targetH) applyResize();
-      cv.toBlob(function (b) {
-        if (b) resolve(b);
-        else reject(new Error('导出失败'));
-      }, 'image/png');
+  function defaultFileName(){ return baseName+'_'+targetW+'x'+targetH+'.png'; }
+  function canvasToBlob(){
+    return new Promise(function(resolve,reject){
+      if(cv.width!==targetW||cv.height!==targetH) applyResize(true);
+      cv.toBlob(function(b){ if(b) resolve(b); else reject(new Error('导出失败')); },'image/png');
     });
   }
-
-  function downloadBlob(blob, name) {
-    var url = URL.createObjectURL(blob);
-    var a = document.createElement('a');
-    a.href = url;
-    a.download = name;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    setTimeout(function () { URL.revokeObjectURL(url); }, 2000);
+  function downloadBlob(blob,name){
+    var url=URL.createObjectURL(blob);
+    var a=document.createElement('a'); a.href=url; a.download=name;
+    document.body.appendChild(a); a.click();
+    setTimeout(function(){ document.body.removeChild(a); URL.revokeObjectURL(url); },100);
   }
-
-  async function writeToHandle(handle, blob) {
-    var opts = { mode: 'readwrite' };
-    if (handle.queryPermission) {
-      var p = await handle.queryPermission(opts);
-      if (p !== 'granted' && handle.requestPermission) {
-        p = await handle.requestPermission(opts);
-      }
-      if (p !== 'granted') throw new Error('没有文件写入权限');
+  async function writeToHandle(handle,blob){
+    var opts={mode:'readwrite'};
+    if(handle.queryPermission){ var p=await handle.queryPermission(opts);
+      if(p!=='granted'&&handle.requestPermission) p=await handle.requestPermission(opts);
+      if(p!=='granted') throw new Error('没有写入权限');
     }
-    var stream = await handle.createWritable();
-    await stream.write(blob);
-    await stream.close();
+    var stream=await handle.createWritable();
+    await stream.write(blob); await stream.close();
   }
-
-  var supportsFS = (typeof window.showSaveFilePicker === 'function');
-
-  async function doSave() {
-    if (!hasImage) return;
-
-    if (fileHandle) {
-      try {
-        var perm = fileHandle.queryPermission
-          ? await fileHandle.queryPermission({ mode: 'readwrite' })
-          : 'granted';
-
-        if (perm !== 'granted' && fileHandle.requestPermission) {
-          perm = await fileHandle.requestPermission({ mode: 'readwrite' });
-        }
-
-        if (perm === 'granted') {
-          var blob = await canvasToBlob();
-          await writeToHandle(fileHandle, blob);
-          setMsg('已保存到 ' + fileHandle.name, 2500);
-          return;
-        }
-        setMsg('文件权限已失效，请用「另存为…」', 3000);
-        return;
-      } catch (err) {
-        setMsg('保存失败：' + (err.message || err), 3000);
-        return;
-      }
+  var supportsFS=(typeof window.showSaveFilePicker==='function');
+  async function doSave(){
+    if(!hasImage) return;
+    if(fileHandle){
+      try{
+        var perm=fileHandle.queryPermission?await fileHandle.queryPermission({mode:'readwrite'}):'granted';
+        if(perm!=='granted'&&fileHandle.requestPermission) perm=await fileHandle.requestPermission({mode:'readwrite'});
+        if(perm==='granted'){ var blob=await canvasToBlob(); await writeToHandle(fileHandle,blob); setMsg('已保存到 '+fileHandle.name,2500); return; }
+        setMsg('文件权限失效，请另存为',3000); return;
+      } catch(err){ setMsg('保存失败：'+(err.message||err),3000); return; }
     }
-
-    try {
-      var b2 = await canvasToBlob();
-      var name = defaultFileName();
-      downloadBlob(b2, name);
-      setMsg('已下载 ' + name, 2500);
-    } catch (err) {
-      setMsg('保存失败：' + (err.message || err), 3000);
-    }
+    try{ var b2=await canvasToBlob(); var name=defaultFileName(); downloadBlob(b2,name); setMsg('已下载 '+name,2500); }
+    catch(err){ setMsg('保存失败：'+(err.message||err),3000); }
   }
+  async function doSaveAs(){
+    if(!hasImage) return;
+    var suggested=defaultFileName(), handle=null;
+    if(supportsFS){
+      try{ handle=await window.showSaveFilePicker({suggestedName:suggested,types:[{description:'PNG 图片',accept:{'image/png':['.png']}}]}); }
+      catch(err){ if(err&&err.name==='AbortError') return; handle=null; }
+    }
+    try{
+      var blob=await canvasToBlob();
+      if(handle){ await writeToHandle(handle,blob); fileHandle=handle;
+        var n=handle.name.replace(/\.[^.]+$/,''); if(n) baseName=n;
+        setMsg('已另存为 '+handle.name,2500);
+      } else { downloadBlob(blob,suggested); setMsg('已下载 '+suggested,2500); }
+    } catch(err){ if(err&&err.name==='AbortError') return; setMsg('另存失败：'+(err.message||err),3000); }
+  }
+  function commitSize(w,h,record){
+    if(!hasImage) return;
+    w=clamp(Math.round(w)||1,1,MAX_SIZE); h=clamp(Math.round(h)||1,1,MAX_SIZE);
+    if(w*h>MAX_PIXELS){ setMsg('尺寸超出上限',2000); syncInputs(); return; }
+    var cx=panX+targetW*zoom/2, cy=panY+targetH*zoom/2;
+    targetW=w; targetH=h;
+    panX=Math.round(cx-w*zoom/2); panY=Math.round(cy-h*zoom/2);
+    resetSelMask(); syncInputs(); applyResize(true); render(); updateSelectUI();
+    if(record!==false) pushHistory();
+  }
+  function scaleBy(f){ if(!hasImage) return; commitSize(Math.max(1,Math.round(targetW*f)),Math.max(1,Math.round(targetH*f)),true); setMsg('缩放到 '+targetW+' × '+targetH,1200); }
+  function cycleBackground(){ bgMode=(bgMode+1)%4; $('btnBg').textContent=BG_NAMES[bgMode]; render(); }
 
-  async function doSaveAs() {
-    if (!hasImage) return;
-
-    var suggested = defaultFileName();
-    var handle = null;
-
-    if (supportsFS) {
-      try {
-        handle = await window.showSaveFilePicker({
-          suggestedName: suggested,
-          types: [{ description: 'PNG 图片', accept: { 'image/png': ['.png'] } }]
-        });
-      } catch (err) {
-        if (err && err.name === 'AbortError') return;
-        handle = null;
+  /* 支持 requestRender 触发 */
+  var needsRender = true;
+  function requestRender(){ needsRender = true; }
+  function mainLoop(){
+    if(needsRender){
+      if(hasImage) render();
+      else updateStatus();
+      needsRender = false;
+    }
+    /* marching ants 动画 */
+    if(hasImage && !deleteColorMode.active && (hasSelection||selDrag)){
+      var now = performance.now();
+      if(now - _lastDashFrame > 16){
+        dashOffset = (now * 0.02) % 8;
+        renderSelectionOverlay();
+        _lastDashFrame = now;
       }
     }
-
-    try {
-      var blob = await canvasToBlob();
-
-      if (handle) {
-        await writeToHandle(handle, blob);
-        fileHandle = handle;
-        var n = handle.name.replace(/\.[^.]+$/, '');
-        if (n) baseName = n;
-        setMsg('已另存为 ' + handle.name, 2500);
-      } else {
-        downloadBlob(blob, suggested);
-        setMsg(supportsFS
-          ? '已下载 ' + suggested
-          : '此浏览器不支持选择位置，已下载到默认目录', 3200);
-      }
-    } catch (err) {
-      if (err && err.name === 'AbortError') return;
-      setMsg('另存失败：' + (err.message || err), 3000);
-    }
+    requestAnimationFrame(mainLoop);
   }
 
-  /* ================= 精确改尺寸 ================= */
-  function commitSize(w, h, record) {
-    if (!hasImage) return;
+  function init(){
+    stage=$('stage'); wrap=$('wrap'); cv=$('cv'); ctx=cv.getContext('2d');
+    selCv=$('selCv'); selCtx=selCv.getContext('2d');
+    placeholder=$('placeholder'); fileInput=$('fileInput');
+    inW=$('inW'); inH=$('inH'); lockRatio=$('lockRatio');
+    stOrig=$('stOrig'); stCur=$('stCur'); stZoom=$('stZoom');
+    stSel=$('stSel'); stHist=$('stHist'); stMsg=$('stMsg');
 
-    w = clamp(Math.round(w) || 1, 1, MAX_SIZE);
-    h = clamp(Math.round(h) || 1, 1, MAX_SIZE);
+    cv.width=128; cv.height=128; ctx.imageSmoothingEnabled=false;
+    var id=new ImageData(128,128);
+    src32=new Uint32Array(id.data.buffer);
+    srcW=128; srcH=128; targetW=128; targetH=128; hasImage=false;
 
-    if (w * h > MAX_PIXELS) {
-      setMsg('尺寸超出上限', 2000);
-      syncInputs();
-      return;
-    }
+    setEnabled(false); updateStatus(); updateSelectUI();
+    $('btnBg').textContent=BG_NAMES[bgMode];
+    /* 默认选中"选择"工具 */
+    $('btnSelect').classList.add('on');
+    stage.classList.add('select-mode');
 
-    var cx = panX + targetW * zoom / 2;
-    var cy = panY + targetH * zoom / 2;
-
-    targetW = w; targetH = h;
-    panX = Math.round(cx - w * zoom / 2);
-    panY = Math.round(cy - h * zoom / 2);
-
-    // 尺寸变化 → 选区作废
-    resetSelMask();
-
-    syncInputs();
-    applyResize();
-    render();
-    updateSelectUI();
-
-    if (record !== false) pushHistory();
-  }
-
-  function scaleBy(factor) {
-    if (!hasImage) return;
-    var w = Math.max(1, Math.round(targetW * factor));
-    var h = Math.max(1, Math.round(targetH * factor));
-    commitSize(w, h, true);
-    setMsg('缩放到 ' + w + ' × ' + h, 1200);
-  }
-
-  inW.addEventListener('change', function () {
-    if (!hasImage) return;
-    var w = parseFloat(inW.value);
-    if (!isFinite(w) || w < 1) { syncInputs(); return; }
-    var h = lockRatio.checked ? w / (targetW / targetH) : targetH;
-    commitSize(w, h, true);
-  });
-
-  inH.addEventListener('change', function () {
-    if (!hasImage) return;
-    var h = parseFloat(inH.value);
-    if (!isFinite(h) || h < 1) { syncInputs(); return; }
-    var w = lockRatio.checked ? h * (targetW / targetH) : targetW;
-    commitSize(w, h, true);
-  });
-
-  /* ================= 缩放手柄拖拽 ================= */
-  Array.prototype.forEach.call(document.querySelectorAll('.handle'), function (el) {
-    el.addEventListener('pointerdown', function (e) {
-      if (!hasImage || e.button !== 0) return;
-      e.preventDefault();
-      e.stopPropagation();
-      el.setPointerCapture(e.pointerId);
-
-      drag = {
-        dir: el.dataset.dir,
-        sx: e.clientX, sy: e.clientY,
-        w0: targetW, h0: targetH,
-        px0: panX, py0: panY,
-        z: zoom,
-        ratio: targetW / targetH
-      };
+    $('btnOpen').addEventListener('click',function(){ fileInput.click(); });
+    fileInput.addEventListener('change',function(){
+      if(fileInput.files&&fileInput.files[0]) loadImage(fileInput.files[0]);
+      fileInput.value='';
     });
-  });
+    $('btnSave').addEventListener('click',doSave);
+    $('btnSaveAs').addEventListener('click',doSaveAs);
+    $('btnClose').addEventListener('click',closeImage);
+    $('btnUndo').addEventListener('click',undo);
+    $('btnRedo').addEventListener('click',redo);
+    $('btnReset').addEventListener('click',function(){ if(hasImage){ commitSize(srcW,srcH,true); setMsg('回到原始尺寸',1500); } });
+    $('btnFit').addEventListener('click',fitView);
+    $('btnOne').addEventListener('click',function(){ if(!hasImage) return; zoom=1; centerView(); render(); });
+    $('btnHalf').addEventListener('click',function(){ scaleBy(0.5); });
+    $('btnQuart').addEventListener('click',function(){ scaleBy(0.25); });
+    $('btnEighth').addEventListener('click',function(){ scaleBy(0.125); });
+    $('btnDouble').addEventListener('click',function(){ scaleBy(2); });
+    $('btnBg').addEventListener('click',cycleBackground);
+    $('btnSelect').addEventListener('click',function(){
+      if(!hasImage) return;
+      selectionMode=!selectionMode;
+      stage.classList.toggle('select-mode',selectionMode);
+      updateSelectUI();
+      setMsg(selectionMode?'选择模式：拖拽框选，Shift加选，Alt/Ctrl减选':'退出选择模式',1800);
+    });
+    $('btnSelectAll').addEventListener('click',selectAll);
+    $('btnSelectNone').addEventListener('click',function(){ deselectAll(false); });
+    $('btnSelectInv').addEventListener('click',invertSelection);
+    $('btnCopy').addEventListener('click',doCopy);
+    $('btnDeleteSel').addEventListener('click',deleteSelectionAsTransparent);
+    $('btnClean').addEventListener('click',cleanPixels);
+    $('btnColors').addEventListener('click',openColorModal);
+    $('btnMergeSimilar').addEventListener('click',openMergePanel);
+    $('btnDeleteColor').addEventListener('click',openDeleteColorPanel);
 
-  function onResizeMove(e) {
-    var d = drag;
-    var dx = (e.clientX - d.sx) / d.z;
-    var dy = (e.clientY - d.sy) / d.z;
+    inW.addEventListener('change',function(){
+      if(!hasImage) return;
+      var w=parseFloat(inW.value); if(!isFinite(w)||w<1){ syncInputs(); return; }
+      var h=lockRatio.checked? w/(targetW/targetH):targetH;
+      commitSize(w,h,true);
+    });
+    inH.addEventListener('change',function(){
+      if(!hasImage) return;
+      var h=parseFloat(inH.value); if(!isFinite(h)||h<1){ syncInputs(); return; }
+      var w=lockRatio.checked? h*(targetW/targetH):targetW;
+      commitSize(w,h,true);
+    });
 
-    var dir  = d.dir;
-    var hasE = dir.indexOf('e') >= 0;
-    var hasW = dir.indexOf('w') >= 0;
-    var hasN = dir.indexOf('n') >= 0;
-    var hasS = dir.indexOf('s') >= 0;
+    $('dcThreshold').addEventListener('input',function(){
+      deleteColorMode.threshold=parseInt(this.value,10)||0;
+      $('dcThresholdLabel').textContent=deleteColorMode.threshold;
+      if(deleteColorMode.hasTarget){ computeColorMatch(); renderSelectionOverlay(); }
+    });
+    $('dcCancel').addEventListener('click',function(){ closeDeleteColorPanel(); });
+    $('dcApply').addEventListener('click',applyDeleteColor);
 
-    var w = d.w0, h = d.h0;
-    if (hasE) w = d.w0 + dx;
-    if (hasW) w = d.w0 - dx;
-    if (hasS) h = d.h0 + dy;
-    if (hasN) h = d.h0 - dy;
+    $('mergeThreshold').addEventListener('input',function(){
+      $('mergeThresholdLabel').textContent=this.value;
+      updateMergePreview();
+    });
+    $('mergeCancel').addEventListener('click',closeMergePanel);
+    $('mergeApply').addEventListener('click',applyMergeColors);
 
-    var lock = (lockRatio.checked !== e.shiftKey);
-    var isCorner = (hasE || hasW) && (hasN || hasS);
+    $('colorModalCancel').addEventListener('click',function(){ $('colorModal').style.display='none'; });
 
-    if (lock && isCorner) {
-      var r = d.ratio;
-      var dwRel = Math.abs(w - d.w0) / d.w0;
-      var dhRel = Math.abs(h - d.h0) / d.h0;
-      if (dwRel >= dhRel) h = w / r;
-      else                w = h * r;
+    document.querySelectorAll('.handle').forEach(function(el){
+      el.addEventListener('pointerdown',function(e){
+        if(!hasImage||e.button!==0) return;
+        e.preventDefault(); e.stopPropagation();
+        el.setPointerCapture(e.pointerId);
+        drag={dir:el.dataset.dir,sx:e.clientX,sy:e.clientY,w0:targetW,h0:targetH,px0:panX,py0:panY,z:zoom,ratio:targetW/targetH};
+      });
+    });
+    document.addEventListener('pointermove',function(e){
+      if(!drag) return;
+      var d=drag;
+      var dx=(e.clientX-d.sx)/d.z, dy=(e.clientY-d.sy)/d.z;
+      var dir=d.dir;
+      var hasE=dir.indexOf('e')>=0, hasW=dir.indexOf('w')>=0, hasN=dir.indexOf('n')>=0, hasS=dir.indexOf('s')>=0;
+      var w=d.w0, h=d.h0;
+      if(hasE) w=d.w0+dx; if(hasW) w=d.w0-dx;
+      if(hasS) h=d.h0+dy; if(hasN) h=d.h0-dy;
+      var lock=(lockRatio.checked!==e.shiftKey);
+      var isCorner=(hasE||hasW)&&(hasN||hasS);
+      if(lock&&isCorner){
+        var r=d.ratio;
+        var dwRel=Math.abs(w-d.w0)/d.w0, dhRel=Math.abs(h-d.h0)/d.h0;
+        if(dwRel>=dhRel) h=w/r; else w=h*r;
+      }
+      w=clamp(Math.round(w),1,MAX_SIZE); h=clamp(Math.round(h),1,MAX_SIZE);
+      if(w*h>MAX_PIXELS){ var k=Math.sqrt(MAX_PIXELS/(w*h)); w=Math.max(1,Math.floor(w*k)); h=Math.max(1,Math.floor(h*k)); }
+      var oldW=d.w0*d.z, oldH=d.h0*d.z, newW=w*d.z, newH=h*d.z;
+      var px=d.px0, py=d.py0;
+      if(hasW) px=d.px0+oldW-newW; if(hasN) py=d.py0+oldH-newH;
+      targetW=w; targetH=h; panX=px; panY=py;
+      render(); syncInputs();
+    });
+    document.addEventListener('pointerup',function(){
+      if(drag){ drag=null; if(cv.width!==targetW||cv.height!==targetH) applyResize(true); render(); pushHistory(); }
+    });
+
+    function handleStageMousedown(e){
+      if(!hasImage) return;
+      if(e.button===0 && deleteColorMode.active){
+        e.preventDefault();
+        var r=stage.getBoundingClientRect();
+        var mx=e.clientX-r.left, my=e.clientY-r.top;
+        var px=Math.floor((mx-panX)/zoom), py=Math.floor((my-panY)/zoom);
+        var sx_s=Math.floor((px+0.5)*srcW/targetW), sy_s=Math.floor((py+0.5)*srcH/targetH);
+        if(sx_s<0||sx_s>=srcW||sy_s<0||sy_s>=srcH) return;
+        var packed=src32[sy_s*srcW+sx_s];
+        if(((packed>>>24)&255)===0){ setMsg('该像素透明，请另选',1800); return; }
+        var rr=packed&255, gg=(packed>>>8)&255, bb=(packed>>>16)&255;
+        deleteColorMode.targetPacked=packed; deleteColorMode.targetR=rr; deleteColorMode.targetG=gg; deleteColorMode.targetB=bb;
+        deleteColorMode.hasTarget=true;
+        $('dcColorSwatch').style.background='rgb('+rr+','+gg+','+bb+')';
+        $('dcColorHex').textContent=rgbToHex(rr,gg,bb);
+        $('dcApply').disabled=false;
+        computeColorMatch(); renderSelectionOverlay();
+        return;
+      }
+      if(e.button===1||(e.button===0&&spaceDown)){
+        e.preventDefault(); panDrag={sx:e.clientX,sy:e.clientY,px:panX,py:panY}; return;
+      }
+      if(e.button===2){
+        e.preventDefault();
+        if(hasSelection) deselectAll(false);
+        return;
+      }
+      if(e.button!==0) return;
+      if(selectionMode){ e.preventDefault(); beginSelectDrag(e); return; }
+      e.preventDefault();
+      panDrag={sx:e.clientX,sy:e.clientY,px:panX,py:panY};
     }
+    stage.addEventListener('contextmenu',function(e){ e.preventDefault(); });
+    stage.addEventListener('mousedown',function(e){
+      if(e.target && e.target.closest && e.target.closest('.handle')) return;
+      handleStageMousedown(e);
+    });
 
-    w = clamp(Math.round(w), 1, MAX_SIZE);
-    h = clamp(Math.round(h), 1, MAX_SIZE);
+    document.addEventListener('mousemove',function(e){
+      if(selDrag){ updateSelectDrag(e); return; }
+      if(panDrag){ panX=panDrag.px+(e.clientX-panDrag.sx); panY=panDrag.py+(e.clientY-panDrag.sy); render(); }
+    });
+    document.addEventListener('mouseup',function(){
+      if(selDrag) endSelectDrag();
+      if(panDrag) panDrag=null;
+    });
 
-    if (w * h > MAX_PIXELS) {
-      var k = Math.sqrt(MAX_PIXELS / (w * h));
-      w = Math.max(1, Math.floor(w * k));
-      h = Math.max(1, Math.floor(h * k));
-    }
+    stage.addEventListener('wheel',function(e){
+      if(!hasImage) return;
+      e.preventDefault();
+      var rect=stage.getBoundingClientRect();
+      var mx=e.clientX-rect.left, my=e.clientY-rect.top;
+      var old=zoom;
+      var factor=Math.exp(-e.deltaY*(e.ctrlKey?0.01:0.0018));
+      var nz=clamp(old*factor,MIN_ZOOM,MAX_ZOOM);
+      if(nz===old) return;
+      var k=nz/old;
+      panX=mx-(mx-panX)*k; panY=my-(my-panY)*k;
+      zoom=nz; render();
+    },{passive:false});
 
-    var oldW = d.w0 * d.z, oldH = d.h0 * d.z;
-    var newW = w * d.z,    newH = h * d.z;
+    document.addEventListener('keydown',function(e){
+      if(e.target.tagName==='INPUT') return;
+      if(e.key===' '&&!e.repeat) spaceDown=true;
+      if(e.ctrlKey||e.metaKey){
+        switch(e.key.toLowerCase()){
+          case 'z': e.preventDefault(); if(e.shiftKey) redo(); else undo(); return;
+          case 'y': e.preventDefault(); redo(); return;
+          case 'a': e.preventDefault(); selectAll(); return;
+          case 'd': e.preventDefault(); deselectAll(false); return;
+          case 'i': e.preventDefault(); invertSelection(); return;
+          case 'c': e.preventDefault(); doCopy(); return;
+          case 's': e.preventDefault(); doSave(); return;
+        }
+      }
+      if(e.key==='Escape'){
+        e.preventDefault();
+        if(deleteColorMode.active) closeDeleteColorPanel();
+        else if($('mergePanel').style.display!=='none') closeMergePanel();
+        else if($('colorModal').style.display!=='none') $('colorModal').style.display='none';
+        else deselectAll(false);
+      }
+      if(e.key==='Delete'&&hasSelection){ e.preventDefault(); deleteSelectionAsTransparent(); }
+      if(e.key==='v'||e.key==='V'){ if(!hasImage) return; e.preventDefault(); selectionMode=!selectionMode; stage.classList.toggle('select-mode',selectionMode); updateSelectUI(); }
+      if(e.key==='f'||e.key==='F'){ e.preventDefault(); fitView(); }
+    });
+    document.addEventListener('keyup',function(e){ if(e.key===' ') spaceDown=false; });
 
-    var px = d.px0, py = d.py0;
-    if (hasW) px = d.px0 + oldW - newW;
-    if (hasN) py = d.py0 + oldH - newH;
+    ['dragenter','dragover'].forEach(function(t){ document.addEventListener(t,function(e){ e.preventDefault(); }); });
+    document.addEventListener('drop',function(e){
+      e.preventDefault();
+      var f=e.dataTransfer&&e.dataTransfer.files&&e.dataTransfer.files[0];
+      if(f) loadImage(f);
+    });
 
-    targetW = w; targetH = h;
-    panX = px;   panY = py;
-
+    requestAnimationFrame(mainLoop);
     render();
-    syncInputs();
   }
 
-  /* ================= 平移 / 选择 ================= */
-  stage.addEventListener('pointerdown', function (e) {
-    if (!hasImage) return;
-    if (e.button !== 0 && e.button !== 1) return;
-    if (e.target && e.target.closest && e.target.closest('.handle')) return;
-
-    // 选择模式：左键拖拽 = 框选
-    if (selectionMode && e.button === 0) {
-      e.preventDefault();
-      stage.setPointerCapture(e.pointerId);
-      beginSelectDrag(e);
-      return;
-    }
-
-    // 否则平移
-    e.preventDefault();
-    stage.setPointerCapture(e.pointerId);
-    panDrag = { sx: e.clientX, sy: e.clientY, px: panX, py: panY };
-    stage.style.cursor = 'grabbing';
-  });
-
-  /* ================= 全局指针事件 ================= */
-  document.addEventListener('pointermove', function (e) {
-    if (selDrag) { updateSelectDrag(e); return; }
-    if (drag) { onResizeMove(e); return; }
-    if (panDrag) {
-      panX = panDrag.px + (e.clientX - panDrag.sx);
-      panY = panDrag.py + (e.clientY - panDrag.sy);
-      render();
-    }
-  });
-
-  function endResize() {
-    if (!drag) return;
-    drag = null;
-    if (cv.width !== targetW || cv.height !== targetH) applyResize();
-    render();
-    pushHistory();
-  }
-
-  document.addEventListener('pointerup', function () {
-    endResize();
-    if (selDrag) endSelectDrag();
-    if (panDrag) {
-      panDrag = null;
-      stage.style.cursor = '';
-    }
-  });
-
-  document.addEventListener('pointercancel', function () {
-    endResize();
-    if (selDrag) endSelectDrag();
-    panDrag = null;
-    stage.style.cursor = '';
-  });
-
-  /* ================= 滚轮缩放视图 ================= */
-  stage.addEventListener('wheel', function (e) {
-    if (!hasImage) return;
-    e.preventDefault();
-
-    var rect = stage.getBoundingClientRect();
-    var mx = e.clientX - rect.left;
-    var my = e.clientY - rect.top;
-
-    var old = zoom;
-    var factor = Math.exp(-e.deltaY * (e.ctrlKey ? 0.01 : 0.0018));
-    var nz = clamp(old * factor, MIN_ZOOM, MAX_ZOOM);
-    if (nz === old) return;
-
-    var k = nz / old;
-    panX = mx - (mx - panX) * k;
-    panY = my - (my - panY) * k;
-    zoom = nz;
-
-    render();
-  }, { passive: false });
-
-  /* ================= 按钮 ================= */
-  $('btnOpen').addEventListener('click', function () { fileInput.click(); });
-
-  fileInput.addEventListener('change', function () {
-    if (fileInput.files && fileInput.files[0]) loadImage(fileInput.files[0]);
-    fileInput.value = '';
-  });
-
-  $('btnSave').addEventListener('click', doSave);
-  $('btnSaveAs').addEventListener('click', doSaveAs);
-  $('btnClose').addEventListener('click', closeImage);
-
-  $('btnUndo').addEventListener('click', undo);
-  $('btnRedo').addEventListener('click', redo);
-
-  $('btnReset').addEventListener('click', function () {
-    if (!hasImage) return;
-    commitSize(srcW, srcH, true);
-    setMsg('回到原始尺寸 ' + srcW + ' × ' + srcH, 1500);
-  });
-
-  $('btnFit').addEventListener('click', fitView);
-
-  $('btnOne').addEventListener('click', function () {
-    if (!hasImage) return;
-    zoom = 1;
-    centerView();
-    render();
-  });
-
-  $('btnHalf').addEventListener('click',   function () { scaleBy(1 / 2); });
-  $('btnQuart').addEventListener('click',  function () { scaleBy(1 / 4); });
-  $('btnEighth').addEventListener('click', function () { scaleBy(1 / 8); });
-  $('btnDouble').addEventListener('click', function () { scaleBy(2); });
-
-  /* 选择相关按钮 */
-  $('btnSelect').addEventListener('click', function () {
-    selectionMode = !selectionMode;
-    stage.classList.toggle('select-mode', selectionMode);
-    updateSelectUI();
-    setMsg(selectionMode ? '选择模式：拖拽框选，Shift 加选，Ctrl 减选' : '退出选择模式', 1800);
-  });
-
-  $('btnSelectAll').addEventListener('click', selectAll);
-  $('btnSelectNone').addEventListener('click', deselectAll);
-  $('btnSelectInv').addEventListener('click', invertSelection);
-  $('btnCopy').addEventListener('click', doCopy);
-
-  /* ================= 拖放文件 ================= */
-  ['dragenter', 'dragover'].forEach(function (t) {
-    document.addEventListener(t, function (e) { e.preventDefault(); });
-  });
-  document.addEventListener('drop', function (e) {
-    e.preventDefault();
-    var f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
-    if (f) loadImage(f);
-  });
-
-  /* ================= 快捷键 ================= */
-  document.addEventListener('keydown', function (e) {
-    var tag = (e.target.tagName || '').toLowerCase();
-    if (tag === 'input' || tag === 'textarea') return;
-
-    var mod = e.ctrlKey || e.metaKey;
-    var k = (e.key || '').toLowerCase();
-
-    if (mod && k === 'o') { e.preventDefault(); fileInput.click(); }
-    else if (mod && e.shiftKey && k === 's') { e.preventDefault(); doSaveAs(); }
-    else if (mod && k === 's') { e.preventDefault(); doSave(); }
-    else if (mod && k === 'z' && !e.shiftKey) { e.preventDefault(); undo(); }
-    else if (mod && (k === 'y' || (k === 'z' && e.shiftKey))) { e.preventDefault(); redo(); }
-    else if (mod && k === 'a') { e.preventDefault(); selectAll(); }
-    else if (mod && k === 'd') { e.preventDefault(); deselectAll(); }
-    else if (mod && k === 'i') { e.preventDefault(); invertSelection(); }
-    else if (mod && k === 'c') { e.preventDefault(); doCopy(); }
-    else if (!mod && (e.key === 'Escape' || e.key === 'Esc')) {
-      e.preventDefault();
-      deselectAll();
-    }
-    else if (!mod && k === 's') {
-      // 单按 S 切换选择模式
-      e.preventDefault();
-      $('btnSelect').click();
-    }
-    else if (!mod && e.key === '0') { e.preventDefault(); fitView(); }
-    else if (!mod && e.key === '1') {
-      e.preventDefault();
-      if (hasImage) { zoom = 1; centerView(); render(); }
-    }
-  });
-
-  /* ================= 窗口尺寸变化 ================= */
-  window.addEventListener('resize', function () { if (hasImage) render(); });
-
-  /* ================= 初始化 ================= */
-  setEnabled(false);
-  updateStatus();
-  updateSelectUI();
-
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',init);
+  else init();
 })();
 </script>
 </body>
