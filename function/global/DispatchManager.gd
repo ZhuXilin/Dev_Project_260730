@@ -74,10 +74,33 @@ func _resolve_completion(completed: Array):
 		var soul_min : int = int(route.get("soul_min", 1))
 		var soul_max : int = int(route.get("soul_max", 3))
 		var gained : int = randi() % (soul_max - soul_min + 1) + soul_min
+
+		# ★ 标签匹配：单位标签与路线标签有交集 → +1 魂
+		var bonus : int = 0
+		var unit_tags : Array = _get_unit_tags(d.unit_name)
+		var route_tags : Array = route.get("tags", [])
+		for t in unit_tags:
+			if t in route_tags:
+				bonus = 1
+				break
+		gained += bonus
+
 		GameState.soul += gained
-		results.append({"unit_name": d.unit_name, "route_id": d.route_id, "soul": gained})
+		results.append({
+			"unit_name": d.unit_name,
+			"route_id": d.route_id,
+			"soul": gained,
+			"bonus": bonus,
+		})
 	GameState.total_dispatch_count += completed.size()
 	dispatch_completed.emit(results)
+
+
+func _get_unit_tags(unit_name: String) -> Array:
+	for u in GameState.party:
+		if u.unit_name == unit_name:
+			return u.tags
+	return []
 
 
 func rotate_routes():

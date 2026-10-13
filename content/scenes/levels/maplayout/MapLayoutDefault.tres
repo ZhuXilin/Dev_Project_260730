@@ -1,8 +1,8 @@
-[gd_resource type="Resource" script_class="MapLayout" format=3 uid="uid://dlglkbw7vaux6"]
+[gd_resource type="Resource" script_class="MapLayout" format=3]
 
-[ext_resource type="Script" uid="uid://bxty2awrl8vnm" path="res://function/resource/MapLayout.gd" id="1_layout"]
-[ext_resource type="Script" uid="uid://4nvpnev86piy" path="res://function/resource/MapLayoutDay.gd" id="2_day"]
-[ext_resource type="Script" uid="uid://b6ykl5a7xtr3e" path="res://function/resource/MapLayoutNode.gd" id="3_node"]
+[ext_resource type="Script" path="res://function/resource/MapLayout.gd" id="1_layout"]
+[ext_resource type="Script" path="res://function/resource/MapLayoutDay.gd" id="2_day"]
+[ext_resource type="Script" path="res://function/resource/MapLayoutNode.gd" id="3_node"]
 
 [sub_resource type="Resource" id="D1N0"]
 script = ExtResource("3_node")
@@ -24,7 +24,7 @@ connects_to = Array[int]([3])
 
 [sub_resource type="Resource" id="D1N3"]
 script = ExtResource("3_node")
-node_type = 3
+node_type = 6
 position = Vector2(200, 118)
 layer = 2
 connects_to = Array[int]([4, 5])

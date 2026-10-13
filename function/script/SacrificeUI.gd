@@ -152,18 +152,15 @@ func _on_sacrifice(u: UnitData):
 	if equip_count > 0:
 		msg += "该单位仍有 %d 件装备，熔铸后将永久锁定（可通过圣坛或复活圣油取回）。\n\n" % equip_count
 	var next_count : int = GameState.sacrifice_count + 1
-	var reward_gold : int = 1000
-	var reward_epic : int = 3
+	var reward_sf : int = 5
 	var reward_relic : bool = false
 	if next_count == 2:
-		reward_gold = 2000
-		reward_epic = 5
+		reward_sf = 8
 	elif next_count >= 3:
-		reward_gold = 3000
-		reward_epic = 5
+		reward_sf = 10
 		reward_relic = true
 
-	msg += "确定熔铸 %s？\n将获得 %d 金币 + %d 件史诗防具" % [u.display_name, reward_gold, reward_epic]
+	msg += "确定熔铸 %s？\n将获得 %d 魂火" % [u.display_name, reward_sf]
 	if reward_relic:
 		msg += " + 1 件遗物"
 	msg += "。"

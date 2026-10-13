@@ -93,13 +93,30 @@ func _refresh_active():
 		active_list.add_child(lb)
 	else:
 		for d in DispatchManager.active_dispatches:
-			var lb = Label.new()
+			var lb := Label.new()
 			var route : Dictionary = DispatchManager.ROUTES.get(d.route_id, {})
-			lb.text = "%s → %s（剩 %d 局）" % [
-				d.unit_name, route.get("name", d.route_id), d.remaining_runs
+			# ★ 显示匹配标记
+			var match_mark : String = ""
+			var unit_tags : Array = _get_unit_tags(d.unit_name)
+			var route_tags : Array = route.get("tags", [])
+			for t in unit_tags:
+				if t in route_tags:
+					match_mark = "  ★ 标签匹配"
+					break
+			lb.text = "%s → %s（剩 %d 局）%s" % [
+				d.unit_name, route.get("name", d.route_id), d.remaining_runs, match_mark
 			]
 			lb.add_theme_font_size_override("font_size", 7)
+			if match_mark != "":
+				lb.modulate = Color(1.0, 0.85, 0.3)
 			active_list.add_child(lb)
+
+
+func _get_unit_tags(unit_name: String) -> Array:
+	for u in GameState.party:
+		if u.unit_name == unit_name:
+			return u.tags
+	return []
 
 
 func _refresh_dispatch_btn():

@@ -2,9 +2,9 @@ class_name SacrificeHelper
 extends RefCounted
 
 const REWARDS : Array = [
-	{"gold": 1000, "epic_count": 2, "relic": false},
-	{"gold": 2000, "epic_count": 2, "relic": false},
-	{"gold": 3000, "epic_count": 2, "relic": true},
+	{"soul_fire": 5,  "relic": false},
+	{"soul_fire": 8,  "relic": false},
+	{"soul_fire": 10, "relic": true},
 ]
 
 
@@ -24,11 +24,8 @@ static func do_sacrifice(party: Array, unit: UnitData) -> Dictionary:
 	GameState.sacrifice_count += 1
 	var reward : Dictionary = get_reward_preview(GameState.sacrifice_count)
 
-	EconomyManager.add_temp_gold(reward["gold"])
-
-	var epic_rewards : Array = _generate_epic_armor_rewards(reward["epic_count"])
-	for inst in epic_rewards:
-		GameState.pending_sacrifice_rewards.append(inst)
+	# ★ 改为给魂火（受上限压制，溢出浪费）
+	var actual_soul_fire : int = SoulFireManager.add(int(reward["soul_fire"]))
 
 	var relic_id : String = ""
 	if reward["relic"]:
@@ -47,42 +44,12 @@ static func do_sacrifice(party: Array, unit: UnitData) -> Dictionary:
 	SaveManager.auto_save()
 
 	return {
-		"gold": reward["gold"],
-		"epic_count": epic_rewards.size(),
+		"soul_fire": int(reward["soul_fire"]),
+		"actual_soul_fire": actual_soul_fire,
 		"relic_id": relic_id,
 		"source_key": source_key,
 		"buff_display": buff_display,
 	}
-
-
-static func _generate_epic_armor_rewards(count: int) -> Array:
-	var result : Array = []
-	var candidates : Array = []
-	for item_id in ItemManager.get_all_item_ids():
-		var d : ItemData = ItemManager.get_item_data(item_id)
-		if not d: continue
-		if d.type != "armor": continue
-		if d.quality != "epic": continue
-		candidates.append(item_id)
-
-	if candidates.is_empty():
-		for item_id in ItemManager.get_all_item_ids():
-			var d : ItemData = ItemManager.get_item_data(item_id)
-			if not d: continue
-			if d.type != "armor": continue
-			if d.quality != "rare": continue
-			candidates.append(item_id)
-
-	if candidates.is_empty():
-		return result
-
-	for i in range(count):
-		var pick : String = candidates[randi() % candidates.size()]
-		var inst := ItemInstance.new()
-		inst.item_id = pick
-		inst.count = 1
-		result.append(inst)
-	return result
 
 
 static func _grant_random_relic() -> String:

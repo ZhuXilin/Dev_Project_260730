@@ -565,8 +565,8 @@ func _build_sacrifice_panel():
 
 	var next_count : int = GameState.sacrifice_count + 1
 	var preview : Dictionary = SacrificeHelper.get_reward_preview(next_count)
-	var preview_text : String = "熔铸一个单位（第 %d 次）\n获得 %d 金币 + %d 件史诗防具" % [
-		next_count, preview["gold"], preview["epic_count"]
+	var preview_text : String = "熔铸一个单位（第 %d 次）\n获得 %d 魂火" % [
+		next_count, preview["soul_fire"]
 	]
 	if preview["relic"]:
 		preview_text += "\n★ 额外获得 1 件遗物"
@@ -614,8 +614,8 @@ func _do_sacrifice(u: UnitData, _armors_ignored: Array, _discard_count: int):
 	_build_pending_slots()
 	_update_gold_display()
 
-	var msg : String = "已熔铸：%s\n获得 %d 金币 + %d 件史诗防具" % [
-		u.display_name, result["gold"], result["epic_count"]
+	var msg : String = "已熔铸：%s\n获得 %d 魂火（实收 %d）" % [
+		u.display_name, result["soul_fire"], result["actual_soul_fire"]
 	]
 	if result["buff_display"] != "":
 		msg += "\n★ 全队获得：" + result["buff_display"]
