@@ -14,30 +14,17 @@ config/name="Dev Project 260730"
 config/version="0.1.0"
 run/main_scene="uid://bwmyhb2qc6n21"
 config/features=PackedStringArray("4.7", "GL Compatibility")
-[application]
-config/name="Dev Project 260730"
-config/version="0.1.0"
-run/main_scene="uid://bwmyhb2qc6n21"
-config/features=PackedStringArray("4.7", "GL Compatibility")
-
-; ★ 启动画面
-boot_splash/image="res://content/images/system/主菜单背景.png"
 boot_splash/bg_color=Color(0.08, 0.08, 0.08, 1)
-boot_splash/show_image=true
-boot_splash/fullsize=false
+boot_splash/stretch_mode=0
+boot_splash/image="res://content/images/system/主菜单背景.png"
 
 [autoload]
 
-; ============ 第 1 层：基础（无依赖） ============
 Config="*res://function/global/Config.gd"
 GameConfigManager="*uid://bqipfnujc115f"
 SignalBus="*res://function/global/SignalBus.gd"
-
-; ============ 第 2 层：核心状态 ============
 GameState="*res://function/global/GameState.gd"
 Globals="*res://function/global/Globals.gd"
-
-; ============ 第 3 层：数据管理器（只读 JSON/配置） ============
 ItemManager="*res://function/global/ItemManager.gd"
 RelicManager="*res://function/global/RelicManager.gd"
 RecipeManager="*res://function/global/RecipeManager.gd"
@@ -45,8 +32,6 @@ StoryManager="*res://function/global/StoryManager.gd"
 AffixManager="*res://function/global/AffixManager.gd"
 AuraManager="*res://function/global/AuraManager.gd"
 SetBonusManager="*res://function/global/SetBonusManager.gd"
-
-; ============ 第 4 层：核心系统 ============
 TerrainManager="*res://function/global/TerrainManager.gd"
 UnitManager="*res://function/global/UnitManager.gd"
 AdvancedClassManager="*uid://c4ydojqviy28d"
@@ -57,16 +42,12 @@ EconomyManager="*res://function/global/EconomyManager.gd"
 CombatManager="*res://function/global/CombatManager.gd"
 TurnManager="*res://function/global/TurnManager.gd"
 LevelManager="*res://function/global/LevelManager.gd"
-
-; ============ 第 5 层：表现层 / IO ============
 MusicManager="*res://function/global/MusicManager.gd"
 SoundManager="*res://function/global/SoundManager.gd"
 DialogueManager="*res://function/global/DialogueManager.gd"
 EventManager="*res://function/global/EventManager.gd"
 InputManager="*res://function/global/InputManager.gd"
 SaveManager="*res://function/global/SaveManager.gd"
-
-; ============ 第 6 层：开发工具（发布前删除） ============
 GmConsole="*uid://q5yaycxpkkua"
 TestRegistry="*uid://uqtcmpoqfoyf"
 TestHarness="*uid://dmji7n6utrcoj"
@@ -78,13 +59,9 @@ window/size/viewport_height=240
 window/stretch/mode="canvas_items"
 
 [rendering]
+
 textures/canvas_textures/default_texture_filter=0
 renderer/rendering_method="gl_compatibility"
 textures/vram_compression/import_etc2_astc=true
-
-; ★ 像素吸附（防相机移动时单位半像素抖动）
 2d/snap/snap_2d_transforms_to_pixel=true
 2d/snap/snap_2d_vertices_to_pixel=true
-
-; ★ 2D 关闭 MSAA（像素游戏不需要）
-anti_aliasing/quality/msaa_2d=0
