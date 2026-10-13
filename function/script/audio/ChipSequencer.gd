@@ -3,10 +3,12 @@ extends RefCounted
 
 # ============================================================
 #  ChipSequencer — 把 ChipSong 的事件表转成合成器调用
-#  优化点（v2）：
-#    - generate_frames 循环内避免 Dictionary 重复查找
-#    - 缓存 _samples_per_tick 的倒数
-#    - note_off 队列用两个并行数组代替 Dictionary
+#  v3 更新（P0-P3）：
+#    - 修复 loop 重置时 next_idx 默认值（空 loop 区间会一次性
+#      触发全部事件的 bug）
+#    - 事件查找改用二分搜索（events 已按 tick 排序）
+#    - start 支持指定初始 sample 位置
+#    - 循环参数预缓存到局部变量，避免每帧访问 song
 # ============================================================
 
 var mix_rate: float = 22050.0
@@ -19,7 +21,7 @@ var _next_event_idx: int = 0
 var _samples_per_tick: float = 0.0
 var _inv_samples_per_tick: float = 0.0
 
-# ★ note-off 队列（用两个并行数组，避免 Dictionary 开销）
+# note-off 队列（用两个并行数组，避免 Dictionary 开销）
 var _noteoff_voice: PackedInt32Array = PackedInt32Array()
 var _noteoff_sample: PackedInt32Array = PackedInt32Array()
 var _noteoff_head: int = 0
@@ -37,9 +39,10 @@ func load_song(s: ChipSong, rate: float = 22050.0):
 	_inv_samples_per_tick = 1.0 / maxf(_samples_per_tick, 0.0001)
 
 
-func start():
+## 启动。at_sample 用于从指定采样位置开始（默认 0）。
+func start(at_sample: int = 0):
 	_started = true
-	_sample_cursor = 0
+	_sample_cursor = at_sample
 	_next_event_idx = 0
 	_noteoff_voice = PackedInt32Array()
 	_noteoff_sample = PackedInt32Array()
@@ -56,6 +59,23 @@ func stop():
 
 func is_playing() -> bool:
 	return _started
+
+
+## ★ 二分查找：返回第一个 tick >= target_tick 的事件索引
+## 无匹配则返回 events.size()。前提：events 已按 tick 升序。
+func _find_event_index_at_or_after(target_tick: int) -> int:
+	if song == null:
+		return 0
+	var evs: Array = song.events
+	var lo := 0
+	var hi := evs.size()
+	while lo < hi:
+		var mid := (lo + hi) >> 1
+		if int(evs[mid].tick) < target_tick:
+			lo = mid + 1
+		else:
+			hi = mid
+	return lo
 
 
 ## 生成 count 帧立体声
@@ -75,6 +95,14 @@ func generate_frames(count: int) -> PackedVector2Array:
 	var cursor: int = _sample_cursor
 	var next_idx: int = _next_event_idx
 	var sp_tick: float = _samples_per_tick
+
+	# ★ 预缓存循环参数，避免每帧访问 song
+	var has_loop: bool = song.loop_end > 0
+	var loop_end_sample: int = 0
+	var loop_start_tick: int = 0
+	if has_loop:
+		loop_end_sample = int(float(song.loop_end) * sp_tick)
+		loop_start_tick = song.loop_start if song.loop_start >= 0 else 0
 
 	for i in range(count):
 		# ---- 1. 到期 note-off ----
@@ -109,22 +137,17 @@ func generate_frames(count: int) -> PackedVector2Array:
 		cursor += 1
 
 		# ---- 3. 循环 ----
-		if song.loop_end > 0:
-			var loop_end_sample: int = int(float(song.loop_end) * sp_tick)
-			if cursor >= loop_end_sample:
-				var loop_start_tick: int = song.loop_start if song.loop_start >= 0 else 0
-				cursor = int(float(loop_start_tick) * sp_tick)
-				# 重置事件游标
-				next_idx = 0
-				for k in range(events_size):
-					if int(events[k].tick) >= loop_start_tick:
-						next_idx = k
-						break
-				# 清空 note-off 队列
-				noteoff_v = PackedInt32Array()
-				noteoff_s = PackedInt32Array()
-				head = 0
-				synth.all_notes_off()
+		if has_loop and cursor >= loop_end_sample:
+			cursor = int(float(loop_start_tick) * sp_tick)
+			# ★ 二分查找（events 已按 tick 排序）。
+			#   即使 loop 区间没有事件，也会正确返回 events_size，
+			#   不会导致所有事件在循环第一帧被一次性触发。
+			next_idx = _find_event_index_at_or_after(loop_start_tick)
+			# 清空 note-off 队列
+			noteoff_v = PackedInt32Array()
+			noteoff_s = PackedInt32Array()
+			head = 0
+			synth.all_notes_off()
 
 	# ★ 回写状态
 	_sample_cursor = cursor
@@ -140,12 +163,8 @@ func seek_to_tick(target_tick: int):
 	if song == null or synth == null:
 		return
 	_sample_cursor = int(float(target_tick) * _samples_per_tick)
-	_next_event_idx = 0
-	var events: Array = song.events
-	for i in range(events.size()):
-		if int(events[i].tick) >= target_tick:
-			_next_event_idx = i
-			break
+	# ★ 二分查找
+	_next_event_idx = _find_event_index_at_or_after(target_tick)
 	_noteoff_voice = PackedInt32Array()
 	_noteoff_sample = PackedInt32Array()
 	_noteoff_head = 0

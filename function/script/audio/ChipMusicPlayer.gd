@@ -3,18 +3,20 @@ extends Node
 
 # ============================================================
 #  ChipMusicPlayer — 把 ChipSong 通过 AudioStreamGenerator 播放
-#  优化点（v2）：
-#    - MIX_RATE 44100 → 22050（8bit 音质无损，CPU 减半）
-#    - BUFFER_LENGTH 0.3 → 0.15
-#    - CHUNK_MAX 2048 → 512
-#    - 每帧生成上限 MAX_FRAMES_PER_PROCESS，避免一次性大块阻塞
+#  v3 更新（P0-P3）：
+#    - MIX_RATE 统一为 22050（8bit 音质无损，CPU 减半）
+#    - 修复 play_song_from_tick 会先播放头部 buffer 的 bug：
+#      统一走 _prepare(song, start_tick)，先 start 再 seek
+#    - _fill_buffer_initial 加安全上限，避免异常情况下死循环
 # ============================================================
 
-const MIX_RATE: int = 20000
+const MIX_RATE: int = 22050
 const BUFFER_LENGTH: float = 0.15
 const CHUNK_MAX: int = 512
-## ★ 单次 _process 最多生成的帧数（防止 buffer 空时一次性补满 → 卡帧）
+## 单次 _process 最多生成的帧数（防止 buffer 空时一次性补满 → 卡帧）
 const MAX_FRAMES_PER_PROCESS: int = 1024
+## 启动预填最大循环次数（仅作保护，正常 1~2 次即可填满）
+const INITIAL_FILL_MAX_ITER: int = 256
 
 var _player: AudioStreamPlayer = null
 var _generator: AudioStreamGenerator = null
@@ -22,7 +24,7 @@ var _playback: AudioStreamGeneratorPlayback = null
 var _sequencer: ChipSequencer = null
 var _is_chip_playing: bool = false
 
-# ★ 通道静音状态
+# 通道静音状态
 var _muted: Array[bool] = [false, false, false, false]
 
 
@@ -37,6 +39,15 @@ func _ready():
 
 
 func play_song(song: ChipSong):
+	_prepare(song, 0)
+
+
+func play_song_from_tick(song: ChipSong, start_tick: int):
+	_prepare(song, maxi(start_tick, 0))
+
+
+## ★ 统一的启动路径。先 start 再 seek，避免 buffer 里残留开头音频。
+func _prepare(song: ChipSong, start_tick: int):
 	stop()
 	if song == null:
 		return
@@ -44,17 +55,20 @@ func play_song(song: ChipSong):
 	_sequencer = ChipSequencer.new()
 	_sequencer.load_song(song, MIX_RATE)
 
-	# ★ 应用当前静音状态到新的 synth
+	# 应用当前静音状态到新的 synth
 	_apply_mute_to_synth()
 
+	# 先 start（重置 note-off 队列和 voice），再 seek（覆盖 cursor / event_idx）
 	_sequencer.start()
+	if start_tick > 0:
+		_sequencer.seek_to_tick(start_tick)
 
 	_player.stream = _generator
 	_player.play()
 	_playback = _player.get_stream_playback()
 	_is_chip_playing = true
 
-	# ★ 启动预填：一次性填满，避免开头静音（启动卡顿可接受）
+	# 启动预填：一次性填满，避免开头静音（启动卡顿可接受）
 	_fill_buffer_initial()
 
 
@@ -83,7 +97,7 @@ func set_volume(linear: float):
 # ============================================================
 #  静音 API（无缝）
 # ============================================================
-## 设置通道静音（播放中即时生效，无断点）
+## 设置通道静音（播放中平滑过渡生效，无咔哒）
 func set_channel_muted(channel: int, muted: bool):
 	if channel < 0: return
 	while _muted.size() <= channel:
@@ -92,7 +106,7 @@ func set_channel_muted(channel: int, muted: bool):
 		return
 	_muted[channel] = muted
 
-	# 直接改 synth 的通道增益，播放中无缝生效
+	# 直接改 synth 的通道目标增益，播放中平滑过渡
 	if _sequencer and _sequencer.synth:
 		_sequencer.synth.set_channel_muted(channel, muted)
 
@@ -134,7 +148,7 @@ func _fill_buffer():
 	if avail <= 0:
 		return
 
-	# ★ 每帧最多生成 MAX_FRAMES_PER_PROCESS 帧
+	# 每帧最多生成 MAX_FRAMES_PER_PROCESS 帧
 	var budget: int = mini(avail, MAX_FRAMES_PER_PROCESS)
 	while budget > 0:
 		var chunk: int = mini(budget, CHUNK_MAX)
@@ -143,23 +157,19 @@ func _fill_buffer():
 		budget -= chunk
 
 
-## 启动预填：一次性填满（只在 play_song 时调用一次）
+## 启动预填：一次性填满（只在 _prepare 里调用一次）
 func _fill_buffer_initial():
 	if _playback == null or _sequencer == null:
 		return
-	var avail: int = _playback.get_frames_available()
-	while avail > 0:
+	var safety := 0
+	while safety < INITIAL_FILL_MAX_ITER:
+		var avail: int = _playback.get_frames_available()
+		if avail <= 0:
+			break
 		var chunk: int = mini(avail, CHUNK_MAX)
 		var frames: PackedVector2Array = _sequencer.generate_frames(chunk)
 		_playback.push_buffer(frames)
-		avail -= chunk
-
-
-## 从指定 tick 开始播放
-func play_song_from_tick(song: ChipSong, start_tick: int):
-	play_song(song)
-	if _sequencer:
-		_sequencer.seek_to_tick(start_tick)
+		safety += 1
 
 
 ## 跳到指定 tick（播放中有效）
