@@ -5,32 +5,36 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>8-bit Chip Music 工具集</title>
 <style>
-:root{--bg:#1a1d23;--panel:#23272e;--panel2:#2b3038;--border:#383e47;--fg:#d8dde3;--dim:#8b949e;--green:#4CAF50;--blue:#2196F3;--purple:#9c6ade;--red:#e05252}
+:root{--bg:#1a1d23;--panel:#23272e;--panel2:#2b3038;--border:#383e47;--fg:#d8dde3;--dim:#8b949e;--green:#4CAF50;--blue:#2196F3;--purple:#9c6ade;--orange:#ff9800;--red:#e05252}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--fg);font-size:13px;font-family:"Microsoft YaHei","PingFang SC",system-ui,sans-serif}
 .wrap{max-width:880px;margin:0 auto;padding:16px}
 h1{font-size:18px;margin:8px 0 4px;text-align:center}
 .sub{text-align:center;color:var(--dim);font-size:12px;margin-bottom:16px}
-.tabs{display:flex;gap:6px;margin-bottom:12px}
-.tab{flex:1;padding:10px;background:var(--panel);border:1px solid var(--border);color:var(--dim);border-radius:6px;cursor:pointer;font-size:13px}
+.tabs{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap}
+.tab{flex:1;min-width:110px;padding:10px;background:var(--panel);border:1px solid var(--border);color:var(--dim);border-radius:6px;cursor:pointer;font-size:13px;white-space:nowrap}
 .tab.active{background:var(--blue);color:#fff;border-color:var(--blue)}
+.tab.sfxr-tab.active{background:var(--orange);border-color:var(--orange)}
+.tab.player-tab.active{background:var(--purple);border-color:var(--purple)}
 .panel{display:none}.panel.active{display:block}
 .card{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:12px}
 .card h3{margin:0 0 10px;font-size:13px;color:var(--fg);font-weight:600}
 .hint{color:var(--dim);font-size:11px;margin-top:4px}
-.hint.warn{color:#ff9800}.hint.blue{color:#4da3ff}.hint.good{color:#4be08c}.hint.red{color:var(--red)}
 .row{display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap}
 .row label{color:var(--dim);font-size:12px;min-width:80px}
 input[type=text],input[type=number],select{background:var(--panel2);border:1px solid var(--border);color:var(--fg);padding:6px 8px;border-radius:4px;font-size:12px;font-family:Consolas,monospace;outline:none}
 input[type=text]{flex:1;min-width:120px}
-input[type=number]{width:70px}
+input[type=number]{width:80px}
+input[type=range]{accent-color:var(--purple);cursor:pointer}
 input[type=checkbox]{accent-color:var(--blue);cursor:pointer}
 button{background:var(--panel2);border:1px solid var(--border);color:var(--fg);padding:7px 14px;border-radius:4px;cursor:pointer;font-size:12px}
 button.primary{background:var(--green);border-color:var(--green);color:#fff;font-weight:600;padding:11px;font-size:14px;width:100%}
-button:disabled{opacity:.4;cursor:not-allowed}
+button.primary:disabled{opacity:.4;cursor:not-allowed}
+button.sfxr-btn{background:var(--orange);border-color:var(--orange);color:#fff}
+button.player-btn{background:var(--purple);border-color:var(--purple);color:#fff}
 .filelist{background:#1a1d23;border:1px solid var(--border);border-radius:4px;padding:6px;max-height:110px;overflow-y:auto;font-family:Consolas,monospace;font-size:11px;color:var(--dim);margin-top:6px}
 .filelist div{padding:2px 4px}
-.log{background:#111418;border:1px solid var(--border);border-radius:4px;padding:8px;height:240px;overflow-y:auto;font-family:Consolas,monospace;font-size:11px;line-height:1.6;white-space:pre-wrap;color:#c8ced6}
+.log{background:#111418;border:1px solid var(--border);border-radius:4px;padding:8px;height:200px;overflow-y:auto;font-family:Consolas,monospace;font-size:11px;line-height:1.6;white-space:pre-wrap;color:#c8ced6}
 .results{display:flex;flex-direction:column;gap:4px;margin-top:8px}
 .results .item{display:flex;align-items:center;justify-content:space-between;background:var(--panel2);padding:6px 10px;border-radius:4px;font-size:12px}
 .results .item a{color:#4da3ff;text-decoration:none;font-family:Consolas,monospace}
@@ -43,30 +47,34 @@ details[open] summary{margin-bottom:8px}
 .status.idle{background:var(--panel2);color:var(--dim)}
 .status.loading{background:rgba(33,150,243,.15);color:#4da3ff}
 .status.ready{background:rgba(75,224,140,.15);color:#4be08c}
-.status.error{background:rgba(224,82,82,.15);color:var(--red)}
+.status.error{background:rgba(224,82,82,.15);color:#e05252}
+.seek-bar{position:relative;height:8px;background:var(--panel2);border-radius:4px;cursor:pointer;margin-top:8px;overflow:hidden}
+.seek-bar>i{position:absolute;left:0;top:0;bottom:0;width:0;background:var(--purple);transition:width .08s linear}
+.seek-info{display:flex;justify-content:space-between;font-size:11px;color:var(--dim);font-family:Consolas,monospace;margin-top:4px}
+.ch-mute-row{display:flex;align-items:center;gap:16px;flex-wrap:wrap;padding:8px;background:var(--panel2);border-radius:4px}
+.ch-mute-row label{display:flex;align-items:center;gap:4px;font-size:12px;color:var(--fg);min-width:auto;cursor:pointer}
 </style>
 </head>
 <body>
 <div class="wrap">
   <h1>🎮 8-bit Chip Music 工具集</h1>
-  <div class="sub">MIDI / 音频 → Chip JSON　（纯浏览器）</div>
+  <div class="sub">MIDI / 音频 / sfxr / 播放器（纯浏览器）</div>
   <div class="tabs">
-    <button class="tab" data-tab="midi">MIDI → Chip</button>
-    <button class="tab" data-tab="audio">音频 → Chip (DSP)</button>
-    <button class="tab active" data-tab="smart">音频 → Chip (智能)</button>
+    <button class="tab active" data-tab="midi">MIDI → Chip</button>
+    <button class="tab" data-tab="audio">音频 DSP</button>
+    <button class="tab" data-tab="smart">音频 智能</button>
+    <button class="tab sfxr-tab" data-tab="sfxr">sfxr → Chip</button>
+    <button class="tab player-tab" data-tab="player">🎵 播放器</button>
   </div>
 
-  <div class="panel" id="panel-midi">
-    <div class="card">
-      <h3>1. 选择 MIDI 文件</h3>
-      <div class="row"><input type="file" id="midi-files" multiple accept=".mid,.midi"><button id="midi-clear">清空</button></div>
-      <div class="filelist" id="midi-list">（未选择）</div>
-    </div>
-    <div class="card">
-      <h3>2. 选项</h3>
-      <div class="row"><label>波形</label><select id="midi-wave"><option value="pulse_12">pulse_12</option><option value="pulse_25" selected>pulse_25</option><option value="pulse_50">pulse_50</option><option value="pulse_75">pulse_75</option><option value="triangle">triangle</option><option value="saw">saw</option></select></div>
+  <div class="panel active" id="panel-midi">
+    <div class="card"><h3>1. 选择 MIDI 文件</h3><div class="row"><input type="file" id="midi-files" multiple accept=".mid,.midi"><button id="midi-clear">清空</button></div><div class="filelist" id="midi-list">（未选择）</div></div>
+    <div class="card"><h3>2. 选项</h3>
+      <div class="row"><label>波形</label><select id="midi-wave"><option value="auto" selected>🎵 自动检测</option><option value="pulse_12">pulse_12</option><option value="pulse_25">pulse_25</option><option value="pulse_50">pulse_50</option><option value="pulse_75">pulse_75</option><option value="triangle">triangle</option><option value="saw">saw</option></select></div>
       <div class="row"><label>BPM</label><input type="text" id="midi-bpm" placeholder="留空=用MIDI内BPM" style="max-width:220px"></div>
       <div class="row"><label>循环</label><input type="checkbox" id="midi-loop" checked></div>
+      <div class="row"><label>和弦分流</label><input type="checkbox" id="midi-chord-split" checked></div>
+      <div class="row"><label>挪动范围</label><input type="number" id="midi-displace" value="2" min="0" max="8"><span class="hint">tick</span></div>
     </div>
     <button class="primary" id="midi-run">开始转换</button>
     <div class="bar"><i id="midi-bar"></i></div>
@@ -74,24 +82,18 @@ details[open] summary{margin-bottom:8px}
   </div>
 
   <div class="panel" id="panel-audio">
-    <div class="card">
-      <h3>1. 选择音频文件</h3>
-      <div class="row"><input type="file" id="audio-files" multiple accept="audio/*,.mp3,.wav,.flac,.ogg,.m4a"><button id="audio-clear">清空</button></div>
-      <div class="filelist" id="audio-list">（未选择）</div>
-    </div>
-    <div class="card">
-      <h3>2. 自动分析</h3>
-      <div class="row"><label>自动 BPM</label><input type="checkbox" id="audio-auto-bpm" checked><span class="hint">检测到：</span><span class="mono" id="audio-bpm-detected" style="color:var(--purple)">—</span></div>
-      <div class="row"><label>自动波形</label><input type="checkbox" id="audio-auto-wave" checked><span class="hint">检测到：</span><span class="mono" id="audio-wave-detected" style="color:var(--purple)">—</span></div>
+    <div class="card"><h3>1. 选择音频文件</h3><div class="row"><input type="file" id="audio-files" multiple accept="audio/*"><button id="audio-clear">清空</button></div><div class="filelist" id="audio-list">（未选择）</div></div>
+    <div class="card"><h3>2. 自动分析</h3>
+      <div class="row"><label>自动 BPM</label><input type="checkbox" id="audio-auto-bpm" checked><span class="hint">检测到：</span><span id="audio-bpm-detected" style="color:var(--purple)">—</span></div>
+      <div class="row"><label>自动波形</label><input type="checkbox" id="audio-auto-wave" checked><span class="hint">检测到：</span><span id="audio-wave-detected" style="color:var(--purple)">—</span></div>
       <details><summary>手动覆盖</summary>
         <div class="row"><label>BPM</label><input type="number" id="audio-bpm" value="120"></div>
         <div class="row"><label>波形</label><select id="audio-wave"><option value="pulse_12">pulse_12</option><option value="pulse_25" selected>pulse_25</option><option value="pulse_50">pulse_50</option><option value="pulse_75">pulse_75</option><option value="triangle">triangle</option><option value="saw">saw</option></select></div>
       </details>
     </div>
-    <div class="card">
-      <h3>3. 拆解模式</h3>
-      <div class="chrow"><input type="radio" name="audio-split" value="4ch" id="audio-split-4" checked><label for="audio-split-4" style="min-width:auto;color:var(--fg)">4 通道</label></div>
-      <div class="chrow"><input type="radio" name="audio-split" value="1ch" id="audio-split-1"><label for="audio-split-1" style="min-width:auto;color:var(--fg)">单通道</label></div>
+    <div class="card"><h3>3. 拆解模式</h3>
+      <div class="chrow"><input type="radio" name="audio-split" value="4ch" id="audio-split-4" checked><label for="audio-split-4" style="min-width:auto">4 通道</label></div>
+      <div class="chrow"><input type="radio" name="audio-split" value="1ch" id="audio-split-1"><label for="audio-split-1" style="min-width:auto">单通道</label></div>
       <div class="row" style="margin-top:12px"><label>循环</label><input type="checkbox" id="audio-loop" checked></div>
     </div>
     <button class="primary" id="audio-run">开始转换</button>
@@ -99,7 +101,7 @@ details[open] summary{margin-bottom:8px}
     <div class="card" style="margin-top:12px"><h3>日志</h3><div class="log" id="audio-log">就绪。</div><div class="results" id="audio-results"></div></div>
   </div>
 
-  <div class="panel active" id="panel-smart">
+  <div class="panel" id="panel-smart">
     <div class="card">
       <h3>1. 模型状态</h3>
       <div class="row"><label>状态</label><span class="status idle" id="smart-status">未加载</span><button id="smart-load" class="primary" style="width:auto;padding:7px 14px;font-size:12px">加载模型（~20MB）</button></div>
@@ -107,1072 +109,2845 @@ details[open] summary{margin-bottom:8px}
     </div>
     <div class="card">
       <h3>2. 选择音频文件</h3>
-      <div class="row"><input type="file" id="smart-files" multiple accept="audio/*,.mp3,.wav,.flac,.ogg,.m4a"><button id="smart-clear">清空</button></div>
+      <div class="row"><input type="file" id="smart-files" multiple accept="audio/*"><button id="smart-clear">清空</button></div>
       <div class="filelist" id="smart-list">（未选择）</div>
-      <div class="hint good">✓ 噪声段过滤 + harmony 降级 + 音高平滑</div>
     </div>
     <div class="card">
       <h3>3. 参数</h3>
       <div class="row"><label>onset 阈值</label><input type="number" id="smart-onset" value="0.4" step="0.05" min="0.1" max="0.9"></div>
       <div class="row"><label>frame 阈值</label><input type="number" id="smart-frame" value="0.25" step="0.05" min="0.1" max="0.9"></div>
       <details><summary>高级</summary>
-        <div class="row"><label>bass 上限</label><input type="number" id="smart-bass-max" value="52" min="24" max="72"></div>
+        <div class="row"><label>bass 上限</label><input type="number" id="smart-bass-max" value="48" min="24" max="72"></div>
         <div class="row"><label>lead 上限</label><input type="number" id="smart-lead-max" value="84" min="48" max="108"></div>
         <div class="row"><label>鼓阈值</label><input type="number" id="smart-drum-thresh" value="2.5" step="0.1" min="1.0" max="5.0"></div>
-        <div class="row"><label>鼓最小间隔</label><input type="number" id="smart-drum-minint" value="0.5" step="0.1" min="0.1" max="2.0"><span class="hint">拍</span></div>
-        <div class="row"><label>最大时长</label><input type="number" id="smart-max-sec" value="90" min="10" max="600"><span class="hint">秒</span></div>
-        <div class="row"><label>单音上限</label><input type="number" id="smart-max-notelen" value="3" step="0.5" min="0.5" max="10"><span class="hint">秒</span></div>
-        <div class="row"><label>合并间隔</label><input type="number" id="smart-merge-gap" value="6" step="1" min="0" max="20"><span class="hint">帧</span></div>
-        <div class="row"><label>量化</label><input type="number" id="smart-quant" value="1" step="1" min="1" max="4"><span class="hint">tick</span></div>
-        <div class="row"><label>每帧最多音符</label><input type="number" id="smart-max-per-frame" value="4" min="1" max="10"><span class="hint">超过视为噪声</span></div>
-        <div class="row"><label>音高平滑</label><input type="number" id="smart-smooth" value="2" step="1" min="0" max="6"><span class="hint">半音，越大越平滑</span></div>
+        <div class="row"><label>鼓最小间隔</label><input type="number" id="smart-drum-minint" value="0.5" step="0.1" min="0.1" max="2.0"></div>
+        <div class="row"><label>最大时长</label><input type="number" id="smart-max-sec" value="90" min="10" max="600"></div>
+        <div class="row"><label>单音上限</label><input type="number" id="smart-max-notelen" value="3" step="0.5" min="0.5" max="10"></div>
+        <div class="row"><label>合并间隔</label><input type="number" id="smart-merge-gap" value="6" step="1" min="0" max="20"></div>
+        <div class="row"><label>量化</label><input type="number" id="smart-quant" value="1" step="1" min="1" max="4"></div>
+        <div class="row"><label>每帧最多</label><input type="number" id="smart-max-per-frame" value="8" min="1" max="12"></div>
+        <div class="row"><label>音高平滑</label><input type="number" id="smart-smooth" value="2" step="1" min="0" max="6"></div>
+        <div class="row"><label>harmony 层数</label><input type="number" id="smart-harm-layers" value="1" min="1" max="4"></div>
+        <div class="row"><label>harmony 最小幅度</label><input type="number" id="smart-harm-minamp" value="0.35" step="0.05" min="0.1" max="0.9"></div>
+        <div class="row"><label>Gap 填补</label><input type="number" id="smart-gap-fill" value="16" step="1" min="0" max="32"></div>
+        <div class="row"><label>补间上限</label><input type="number" id="smart-interp-max" value="64" step="4" min="0" max="128"></div>
       </details>
-      <div class="row"><label>自动 BPM</label><input type="checkbox" id="smart-auto-bpm" checked><span class="hint">检测到：</span><span class="mono" id="smart-bpm-detected" style="color:var(--purple)">—</span></div>
-      <details><summary>手动 BPM</summary>
-        <div class="row"><label>BPM</label><input type="number" id="smart-bpm" value="120"></div>
-      </details>
-      <div class="row"><label>循环</label><input type="checkbox" id="smart-loop" checked></div>
+      <div class="row"><label>自动 BPM</label><input type="checkbox" id="smart-auto-bpm" checked><span class="hint">检测到：</span><span id="smart-bpm-detected" style="color:var(--purple)">—</span></div>
+      <details><summary>手动 BPM</summary><div class="row"><label>BPM</label><input type="number" id="smart-bpm" value="120"></div></details>
+      <div class="row">
+        <label>素材类型</label>
+        <select id="smart-material" style="min-width:200px">
+          <option value="music" selected>🎵 音乐（补齐到小节）</option>
+          <option value="sfx">🔔 短音效（不补齐，不循环）</option>
+          <option value="loop_sfx">🔁 循环音效（补齐 + 循环）</option>
+        </select>
+      </div>
+      <div class="row"><label>循环</label><input type="checkbox" id="smart-loop" checked><span class="hint">仅"音乐"类型有效</span></div>
     </div>
     <button class="primary" id="smart-run" style="background:var(--purple);border-color:var(--purple)">开始智能转录</button>
     <div class="bar"><i id="smart-bar"></i></div>
-    <div class="card" style="margin-top:12px"><h3>日志</h3><div class="log" id="smart-log">就绪。</div><div class="results" id="smart-results"></div></div>
+    <div class="card" style="margin-top:12px"><h3>日志</h3><div class="log" id="smart-log">就绪。先点「加载模型」。</div><div class="results" id="smart-results"></div></div>
+  </div>
+
+  <div class="panel" id="panel-sfxr">
+    <div class="card">
+      <h3>1. 选择 sfxr JSON 文件</h3>
+      <div class="row"><input type="file" id="sfxr-files" multiple accept=".json"><button id="sfxr-clear">清空</button></div>
+      <div class="filelist" id="sfxr-list">（未选择）</div>
+      <div class="hint">支持 sfxr 0.6+ / jsfxr / ChipTone / as3sfxr（含 oldParams 老格式）</div>
+    </div>
+    <div class="card">
+      <h3>2. 转换选项</h3>
+      <div class="row">
+        <label>BPM</label>
+        <input type="number" id="sfxr-bpm" value="240" min="60" max="10000">
+        <label style="margin-left:12px;min-width:auto"><input type="checkbox" id="sfxr-auto-bpm" checked> 自动（推荐）</label>
+      </div>
+      <div class="row">
+        <label>素材类型</label>
+        <select id="sfxr-material" style="min-width:200px">
+          <option value="sfx" selected>🔔 短音效（不补齐，不循环）</option>
+          <option value="loop_sfx">🔁 循环音效（补齐 + 循环）</option>
+        </select>
+      </div>
+      <div class="row">
+        <label>波形覆盖</label>
+        <select id="sfxr-wave-override">
+          <option value="auto" selected>自动（按 wave_type）</option>
+          <option value="pulse_12">pulse_12</option>
+          <option value="pulse_25">pulse_25</option>
+          <option value="pulse_50">pulse_50</option>
+          <option value="pulse_75">pulse_75</option>
+          <option value="triangle">triangle</option>
+          <option value="saw">saw</option>
+          <option value="noise">noise</option>
+        </select>
+      </div>
+      <div class="hint">⚠ sfxr 描述的是"如何合成"，chip_music 只描述"音符序列"。滤波、punch 曲线、相位偏移等信息无法保留。</div>
+    </div>
+    <button class="primary sfxr-btn" id="sfxr-run">开始转换</button>
+    <div class="bar"><i id="sfxr-bar"></i></div>
+    <div class="card" style="margin-top:12px"><h3>日志</h3><div class="log" id="sfxr-log">就绪。</div><div class="results" id="sfxr-results"></div></div>
+  </div>
+
+  <div class="panel" id="panel-player">
+    <div class="card">
+      <h3>1. 打开 chip_music_v1 JSON</h3>
+      <div class="row"><input type="file" id="player-files" multiple accept=".json"><button id="player-clear">清空</button></div>
+      <div class="filelist" id="player-list">（未选择）</div>
+      <div class="hint" id="player-status">引擎初始化中...</div>
+    </div>
+    <div class="card">
+      <h3>2. 播放控制</h3>
+      <div class="row" style="gap:12px">
+        <button id="player-play" class="player-btn" style="padding:10px 24px;font-size:14px;font-weight:600" disabled>▶ 播放</button>
+        <button id="player-stop" style="padding:10px 18px">⏹ 停止</button>
+        <label style="margin-left:auto"><input type="checkbox" id="player-loop"> 循环播放</label>
+      </div>
+      <div class="seek-bar" id="player-seek"><i id="player-seek-fill"></i></div>
+      <div class="seek-info">
+        <span id="player-time-current">0.00s</span>
+        <span id="player-time-total">0.00s</span>
+      </div>
+      <div class="row" style="margin-top:12px">
+        <label>音量</label>
+        <input type="range" id="player-volume" min="0" max="100" value="70" style="width:180px">
+        <span id="player-volume-display" style="color:var(--dim);font-family:Consolas">70%</span>
+      </div>
+    </div>
+    <div class="card">
+      <h3>3. 通道控制</h3>
+      <div class="ch-mute-row">
+        <label><input type="checkbox" id="mute-ch0" data-ch="0"> 静音 lead</label>
+        <label><input type="checkbox" id="mute-ch1" data-ch="1"> 静音 harmony</label>
+        <label><input type="checkbox" id="mute-ch2" data-ch="2"> 静音 bass</label>
+        <label><input type="checkbox" id="mute-ch3" data-ch="3"> 静音 drum</label>
+      </div>
+      <div class="row" style="margin-top:8px">
+        <label>单通道单音</label>
+        <input type="checkbox" id="player-mono">
+        <span class="hint">NES 风格：同通道新音自动停止旧音</span>
+      </div>
+    </div>
+    <div class="card">
+      <h3>4. 曲目信息</h3>
+      <div class="log" id="player-log" style="height:140px">未加载。</div>
+    </div>
   </div>
 </div>
 
-<script type="module">
-const TICKS_PER_BEAT = 4;
-const DEFAULT_BPM = 120.0;
-const DEFAULT_BEATS_PER_BAR = 4;
-const NOTE_LOW = 24, NOTE_HIGH = 96;
-const TARGET_SR = 11025;
-const BP_SR = 22050;
-const BP_FRAME_RATE = BP_SR / 256;
+<!-- ============ AudioWorklet 引擎代码（作为纯文本存放） ============ -->
+<script type="text/plain" id="worklet-code">
+// ============================================================
+//  ChipSynth — 8-bit 波形合成器（AudioWorklet 版）
+//  参考 ChipSynth.gd v3，逐样本复刻 NES 硬件特性
+// ============================================================
 
+const Wave = {
+  PULSE_12: 0, PULSE_25: 1, PULSE_50: 2, PULSE_75: 3,
+  TRIANGLE: 4, NOISE: 5, SAW: 6,
+};
+
+const NES_NOISE_PERIODS = [
+  4, 8, 16, 32, 64, 96, 128, 160,
+  202, 254, 380, 508, 762, 1016, 2034, 4068
+];
+const NES_CPU_CLOCK = 1789773.0;
+const GAIN_SMOOTH_ALPHA = 0.02;
+
+class Voice {
+  constructor() {
+    this.active = false;
+    this.wave = Wave.PULSE_50;
+    this.phase = 0;
+    this.phase_inc = 0;
+    this.frequency = 440;
+    this.base_frequency = 440;
+    this.velocity = 1;
+    this.pan = 0;
+    this.attack = 0.01;
+    this.decay = 0.05;
+    this.sustain = 0.7;
+    this.release = 0.05;
+    this.env_stage = 0;
+    this.env_time = 0;
+    this.env_value = 0;
+    this.lfsr = 0x7FFF;
+    this.noise_period_samples = 1;
+    this.noise_counter = 0;
+    this.noise_short_mode = false;
+    this.sweep_enabled = false;
+    this.sweep_period = 0;
+    this.sweep_shift = 0;
+    this.sweep_negate = false;
+    this.sweep_counter = 0;
+    this.start_sample = 0;
+    this.ch_owner = -1;
+  }
+}
+
+class ChipSynth {
+  constructor(poolSize, rate) {
+    this.mix_rate = rate;
+    this.inv_mix_rate = 1.0 / rate;
+    this.master_volume = 0.3;
+    this.voices = [];
+    for (let i = 0; i < poolSize; i++) this.voices.push(new Voice());
+    this.sample_cursor = 0;
+    this.mono_per_channel = false;
+    this.channel_gain_target = [1, 1, 1, 1];
+    this.channel_gain_smooth = [1, 1, 1, 1];
+    this.dc_prev_in_l = 0; this.dc_prev_in_r = 0;
+    this.dc_prev_out_l = 0; this.dc_prev_out_r = 0;
+    let r = 1.0 - (2.0 * Math.PI * 15.0 / rate);
+    this.dc_r = Math.max(0, Math.min(0.9999, r));
+  }
+  setChannelGain(ch, gain) {
+    if (ch < 0) return;
+    while (this.channel_gain_target.length <= ch) {
+      this.channel_gain_target.push(1); this.channel_gain_smooth.push(1);
+    }
+    this.channel_gain_target[ch] = Math.max(0, Math.min(1, gain));
+  }
+  setChannelMuted(ch, muted) { this.setChannelGain(ch, muted ? 0 : 1); }
+  allocVoice() {
+    for (let i = 0; i < this.voices.length; i++) if (!this.voices[i].active) return i;
+    let oldest = 0;
+    for (let i = 1; i < this.voices.length; i++) {
+      if (this.voices[i].start_sample < this.voices[oldest].start_sample) oldest = i;
+    }
+    return oldest;
+  }
+  noteOn(ch, midiNote, velocity, wave, env, pan) {
+    if (this.mono_per_channel) {
+      for (let i = 0; i < this.voices.length; i++) {
+        const vo = this.voices[i];
+        if (vo.active && vo.ch_owner === ch && vo.env_stage !== 3 && vo.env_stage !== 4) {
+          vo.env_stage = 3; vo.env_time = 0;
+        }
+      }
+    }
+    const idx = this.allocVoice();
+    if (idx < 0) return -1;
+    const v = this.voices[idx];
+    v.active = true; v.ch_owner = ch; v.wave = wave; v.velocity = velocity; v.pan = pan;
+    v.frequency = 440.0 * Math.pow(2, (midiNote - 69) / 12);
+    v.base_frequency = v.frequency;
+    v.phase_inc = v.frequency * this.inv_mix_rate;
+    v.phase = 0; v.lfsr = 0x7FFF;
+    v.attack = env.attack != null ? env.attack : 0.01;
+    v.decay = env.decay != null ? env.decay : 0.05;
+    v.sustain = env.sustain != null ? env.sustain : 0.7;
+    v.release = env.release != null ? env.release : 0.05;
+    v.env_stage = 0; v.env_time = 0; v.env_value = 0;
+    v.start_sample = this.sample_cursor;
+    let noise_idx = env.noise_period != null ? (env.noise_period | 0) : 4;
+    noise_idx = Math.max(0, Math.min(15, noise_idx));
+    v.noise_period_samples = NES_NOISE_PERIODS[noise_idx] * this.mix_rate / NES_CPU_CLOCK;
+    if (v.noise_period_samples < 1) v.noise_period_samples = 1;
+    v.noise_counter = 0;
+    v.noise_short_mode = !!env.noise_short;
+    v.sweep_enabled = !!env.sweep_enabled;
+    v.sweep_period = Math.max((env.sweep_period | 0) || 0, 0);
+    v.sweep_shift = Math.max(0, Math.min(7, (env.sweep_shift | 0) || 0));
+    v.sweep_negate = !!env.sweep_negate;
+    v.sweep_counter = 0;
+    return idx;
+  }
+  noteOff(voiceIdx) {
+    if (voiceIdx < 0 || voiceIdx >= this.voices.length) return;
+    const v = this.voices[voiceIdx];
+    if (v.env_stage !== 3 && v.env_stage !== 4) { v.env_stage = 3; v.env_time = 0; }
+  }
+  allNotesOff() {
+    for (const v of this.voices) {
+      if (v.active && v.env_stage !== 4) { v.env_stage = 3; v.env_time = 0; }
+    }
+  }
+  clearAllVoices() {
+    for (const v of this.voices) { v.active = false; v.env_stage = 4; v.env_value = 0; }
+    this.dc_prev_in_l = 0; this.dc_prev_in_r = 0;
+    this.dc_prev_out_l = 0; this.dc_prev_out_r = 0;
+  }
+  sampleVoice(v) {
+    let s = 0;
+    switch (v.wave) {
+      case Wave.PULSE_12: s = v.phase < 0.125 ? 1 : 0; break;
+      case Wave.PULSE_25: s = v.phase < 0.25  ? 1 : 0; break;
+      case Wave.PULSE_50: s = v.phase < 0.5   ? 1 : 0; break;
+      case Wave.PULSE_75: s = v.phase < 0.75  ? 1 : 0; break;
+      case Wave.TRIANGLE: {
+        const step = Math.floor(v.phase * 32.0) % 32;
+        if (step < 16) s = (step / 15.0) * 2.0 - 1.0;
+        else s = 1.0 - ((step - 16) / 15.0) * 2.0;
+        break;
+      }
+      case Wave.SAW: s = 2.0 * v.phase - 1.0; break;
+      case Wave.NOISE: {
+        v.noise_counter += 1.0;
+        if (v.noise_counter >= v.noise_period_samples) {
+          v.noise_counter -= v.noise_period_samples;
+          let bit;
+          if (v.noise_short_mode) bit = ((v.lfsr >> 0) ^ (v.lfsr >> 6)) & 1;
+          else bit = ((v.lfsr >> 0) ^ (v.lfsr >> 1)) & 1;
+          v.lfsr = (v.lfsr >> 1) | (bit << 14);
+        }
+        s = (v.lfsr & 1) === 1 ? 1 : 0;
+        break;
+      }
+    }
+    v.phase += v.phase_inc;
+    if (v.phase >= 1.0) {
+      v.phase -= 1.0;
+      if (v.sweep_enabled && v.sweep_period > 0 && v.sweep_shift > 0) {
+        v.sweep_counter += 1;
+        if (v.sweep_counter >= v.sweep_period) {
+          v.sweep_counter = 0;
+          const delta = v.base_frequency / (1 << v.sweep_shift);
+          let newFreq = v.sweep_negate ? v.frequency - delta : v.frequency + delta;
+          const fmax = this.mix_rate * 0.45;
+          newFreq = Math.max(20, Math.min(fmax, newFreq));
+          v.frequency = newFreq;
+          v.phase_inc = v.frequency * this.inv_mix_rate;
+        }
+      }
+    }
+    v.env_time += this.inv_mix_rate;
+    switch (v.env_stage) {
+      case 0:
+        if (v.env_time >= v.attack) { v.env_stage = 1; v.env_time = 0; v.env_value = 1; }
+        else v.env_value = v.env_time / Math.max(v.attack, 0.0001);
+        break;
+      case 1:
+        if (v.env_time >= v.decay) { v.env_stage = 2; v.env_value = v.sustain; }
+        else {
+          const t = v.env_time / Math.max(v.decay, 0.0001);
+          v.env_value = 1.0 + (v.sustain - 1.0) * t;
+        }
+        break;
+      case 2: v.env_value = v.sustain; break;
+      case 3:
+        if (v.env_time >= v.release) { v.active = false; v.env_stage = 4; v.env_value = 0; }
+        else {
+          const t = v.env_time / Math.max(v.release, 0.0001);
+          v.env_value = v.sustain * (1.0 - t);
+        }
+        break;
+      case 4: v.env_value = 0; break;
+    }
+    if (v.wave === Wave.TRIANGLE) {
+      if (v.env_stage === 4) return 0;
+      return s * v.velocity;
+    }
+    const env_q = Math.round(v.env_value * 15.0) / 15.0;
+    return s * env_q * v.velocity;
+  }
+  getSample() {
+    let sum_l = 0, sum_r = 0;
+    for (const v of this.voices) {
+      if (!v.active) continue;
+      let s = this.sampleVoice(v);
+      const ch = v.ch_owner;
+      if (ch >= 0 && ch < this.channel_gain_smooth.length) {
+        let cur = this.channel_gain_smooth[ch];
+        const tgt = this.channel_gain_target[ch];
+        if (cur !== tgt) {
+          cur += (tgt - cur) * GAIN_SMOOTH_ALPHA;
+          if (Math.abs(cur - tgt) < 0.0005) cur = tgt;
+          this.channel_gain_smooth[ch] = cur;
+        }
+        s *= cur;
+      }
+      const l_gain = Math.sqrt(0.5 * (1.0 - v.pan));
+      const r_gain = Math.sqrt(0.5 * (1.0 + v.pan));
+      sum_l += s * l_gain; sum_r += s * r_gain;
+    }
+    sum_l *= this.master_volume;
+    sum_r *= this.master_volume;
+    const out_l = sum_l - this.dc_prev_in_l + this.dc_prev_out_l * this.dc_r;
+    const out_r = sum_r - this.dc_prev_in_r + this.dc_prev_out_r * this.dc_r;
+    this.dc_prev_in_l = sum_l; this.dc_prev_in_r = sum_r;
+    this.dc_prev_out_l = out_l; this.dc_prev_out_r = out_r;
+    this.sample_cursor += 1;
+    return [Math.max(-1, Math.min(1, out_l)), Math.max(-1, Math.min(1, out_r))];
+  }
+}
+
+class ChipSequencer {
+  constructor(synth, rate) {
+    this.synth = synth;
+    this.mix_rate = rate;
+    this.song = null;
+    this.events = [];
+    this.channel_vol = [1, 1, 1, 1];
+    this.channel_pan = [0, 0, 0, 0];
+    this.samples_per_tick = 0;
+    this.has_loop = false;
+    this.loop_enabled = true;    // ★ UI 开关
+    this.loop_end_sample = 0;
+    this.loop_start_tick = 0;
+    this.total_ticks = 0;
+    this.started = false;
+    this.next_event_idx = 0;
+    this.noteoff_voice = [];
+    this.noteoff_sample = [];
+    this.noteoff_head = 0;
+  }
+  waveFromString(s) {
+    switch (s) {
+      case 'pulse_12': return Wave.PULSE_12;
+      case 'pulse_25': return Wave.PULSE_25;
+      case 'pulse_50': return Wave.PULSE_50;
+      case 'pulse_75': return Wave.PULSE_75;
+      case 'triangle': return Wave.TRIANGLE;
+      case 'noise':    return Wave.NOISE;
+      case 'saw':      return Wave.SAW;
+      default:         return Wave.PULSE_50;
+    }
+  }
+  loadSong(song) {
+    this.song = song;
+    const meta = song.meta || {};
+    const bpm = Math.max(meta.bpm || 120, 1);
+    const tpb = Math.max(meta.ticks_per_beat || 4, 1);
+    this.samples_per_tick = (60.0 / bpm) / tpb * this.mix_rate;
+    this.total_ticks = meta.total_ticks || 0;
+    this.has_loop = (meta.loop_end > 0);
+    this.loop_end_sample = this.has_loop ? meta.loop_end * this.samples_per_tick : 0;
+    this.loop_start_tick = (meta.loop_start != null && meta.loop_start >= 0) ? meta.loop_start : 0;
+    const presets = song.presets || {};
+    const chans = song.channels || [];
+    this.channel_vol = []; this.channel_pan = [];
+    for (const c of chans) {
+      this.channel_vol.push(c.volume != null ? c.volume : 1);
+      this.channel_pan.push(c.pan != null ? c.pan : 0);
+    }
+    this.events = [];
+    for (const ev of (song.events || [])) {
+      const chCfg = chans[ev.ch];
+      if (!chCfg) continue;
+      const preset = presets[chCfg.preset] || {};
+      this.events.push({
+        ch: ev.ch, tick: ev.tick, note: ev.note, vel: ev.vel, dur: ev.dur,
+        wave: this.waveFromString(preset.wave || 'pulse_50'),
+        env: preset.env || {},
+      });
+    }
+    this.events.sort((a, b) => {
+      if (a.tick !== b.tick) return a.tick - b.tick;
+      return a.ch - b.ch;
+    });
+  }
+  findEventIndexAtOrAfter(targetTick) {
+    let lo = 0, hi = this.events.length;
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1;
+      if (this.events[mid].tick < targetTick) lo = mid + 1;
+      else hi = mid;
+    }
+    return lo;
+  }
+  start(at_tick) {
+    this.started = true;
+    this.synth.sample_cursor = 0;
+    this.next_event_idx = 0;
+    this.noteoff_voice = []; this.noteoff_sample = [];
+    this.noteoff_head = 0;
+    this.synth.clearAllVoices();
+    if (at_tick != null && at_tick > 0) this.seek(at_tick);
+  }
+  stop() { this.started = false; this.synth.allNotesOff(); }
+  seek(target_tick) {
+    this.synth.sample_cursor = Math.floor(target_tick * this.samples_per_tick);
+    this.next_event_idx = this.findEventIndexAtOrAfter(target_tick);
+    this.noteoff_voice = []; this.noteoff_sample = [];
+    this.noteoff_head = 0;
+    this.synth.clearAllVoices();
+  }
+  getCurrentTick() {
+    if (this.samples_per_tick <= 0) return 0;
+    return Math.floor(this.synth.sample_cursor / this.samples_per_tick);
+  }
+  process(outL, outR) {
+    const n = outL.length;
+    if (!this.started) {
+      for (let i = 0; i < n; i++) { outL[i] = 0; outR[i] = 0; }
+      return;
+    }
+    const sp_tick = this.samples_per_tick;
+    const events = this.events;
+    const events_size = events.length;
+    for (let i = 0; i < n; i++) {
+      const cursor = this.synth.sample_cursor;
+      while (this.noteoff_head < this.noteoff_sample.length
+             && this.noteoff_sample[this.noteoff_head] <= cursor) {
+        this.synth.noteOff(this.noteoff_voice[this.noteoff_head]);
+        this.noteoff_head += 1;
+      }
+      while (this.next_event_idx < events_size) {
+        const ev = events[this.next_event_idx];
+        const ev_sample = ev.tick * sp_tick;
+        if (ev_sample > cursor) break;
+        const vel = ev.vel / 127;
+        const ch_vol = this.channel_vol[ev.ch] != null ? this.channel_vol[ev.ch] : 1;
+        const pan = this.channel_pan[ev.ch] != null ? this.channel_pan[ev.ch] : 0;
+        const voiceIdx = this.synth.noteOn(ev.ch, ev.note, vel * ch_vol, ev.wave, ev.env, pan);
+        const offSample = Math.floor(ev_sample + ev.dur * sp_tick);
+        this.noteoff_voice.push(voiceIdx);
+        this.noteoff_sample.push(offSample);
+        this.next_event_idx += 1;
+      }
+      const s = this.synth.getSample();
+      outL[i] = s[0]; outR[i] = s[1];
+      // ★ 循环：has_loop && loop_enabled 都成立才循环
+      if (this.has_loop && this.loop_enabled
+          && this.synth.sample_cursor >= this.loop_end_sample) {
+        this.synth.sample_cursor = Math.floor(this.loop_start_tick * sp_tick);
+        this.next_event_idx = this.findEventIndexAtOrAfter(this.loop_start_tick);
+        this.noteoff_voice = []; this.noteoff_sample = [];
+        this.noteoff_head = 0;
+        this.synth.allNotesOff();
+      }
+    }
+    if (this.noteoff_head > 64) {
+      this.noteoff_voice = this.noteoff_voice.slice(this.noteoff_head);
+      this.noteoff_sample = this.noteoff_sample.slice(this.noteoff_head);
+      this.noteoff_head = 0;
+    }
+  }
+}
+
+if (typeof AudioWorkletProcessor !== 'undefined') {
+  class ChipMusicProcessor extends AudioWorkletProcessor {
+    constructor() {
+      super();
+      this.synth = new ChipSynth(16, sampleRate);
+      this.sequencer = new ChipSequencer(this.synth, sampleRate);
+      this.last_report_sample = 0;
+      this.report_interval = Math.floor(sampleRate / 10);
+      this.ended_reported = false;
+      this.port.onmessage = (e) => this.handleMessage(e.data);
+    }
+    handleMessage(msg) {
+      switch (msg.type) {
+        case 'load':
+          this.sequencer.loadSong(msg.song);
+          this.sequencer.started = false;
+          this.synth.clearAllVoices();
+          this.last_report_sample = 0;
+          this.ended_reported = false;
+          this.port.postMessage({ type: 'loaded', events: this.sequencer.events.length });
+          break;
+        case 'start':
+          this.sequencer.start(msg.at_tick || 0);
+          this.ended_reported = false;
+          this.port.postMessage({ type: 'started' });
+          break;
+        case 'stop':
+          this.sequencer.stop();
+          break;
+        case 'seek':
+          this.sequencer.seek(msg.tick);
+          break;
+        case 'set_channel_mute':
+          this.synth.setChannelMuted(msg.ch, msg.muted);
+          break;
+        case 'set_volume':
+          this.synth.master_volume = Math.max(0, Math.min(1, msg.volume));
+          break;
+        case 'set_mono':
+          this.synth.mono_per_channel = !!msg.mono;
+          break;
+        case 'set_loop':                       // ★ 新增
+          this.sequencer.loop_enabled = !!msg.enabled;
+          break;
+      }
+    }
+    process(inputs, outputs, parameters) {
+      const out = outputs[0];
+      const outL = out[0];
+      const outR = out[1] || out[0];
+      this.sequencer.process(outL, outR);
+      const cursor = this.synth.sample_cursor;
+      if (cursor - this.last_report_sample >= this.report_interval) {
+        this.last_report_sample = cursor;
+        const tick = this.sequencer.getCurrentTick();
+        this.port.postMessage({ type: 'progress', tick, sample: cursor });
+        // ★ 结束检测：has_loop && loop_enabled 都关才判结束
+        const actuallyLooping = this.sequencer.has_loop && this.sequencer.loop_enabled;
+        if (!actuallyLooping
+            && !this.ended_reported
+            && this.sequencer.next_event_idx >= this.sequencer.events.length
+            && !this.hasActiveVoices()) {
+          this.sequencer.started = false;
+          this.ended_reported = true;
+          this.port.postMessage({ type: 'ended' });
+        }
+      }
+      return true;
+    }
+    hasActiveVoices() {
+      for (const v of this.synth.voices) if (v.active) return true;
+      return false;
+    }
+  }
+  registerProcessor('chip-music-processor', ChipMusicProcessor);
+}
+</script>
+
+<script type="module">
+/* ============================================================
+   公共配置与工具
+   ============================================================ */
+const TICKS_PER_BEAT = 4, DEFAULT_BPM = 120, DEFAULT_BEATS_PER_BAR = 4;
+const NOTE_LOW = 24, NOTE_HIGH = 96, TARGET_SR = 11025, BP_SR = 22050;
+const BP_FRAME_RATE = BP_SR / 256;
+const MAX_DUR_TICKS_CHIP = 32;
 const CHANNEL_PRESETS = {
-  0: {name:'lead',    wave:'pulse_25', env:{attack:0.005,decay:0.05,sustain:0.7,release:0.05}},
-  1: {name:'harmony', wave:'pulse_12', env:{attack:0.010,decay:0.05,sustain:0.6,release:0.05}},
-  2: {name:'bass',    wave:'triangle', env:{attack:0.010,decay:0.10,sustain:0.8,release:0.10}},
-  3: {name:'pad',     wave:'pulse_50', env:{attack:0.020,decay:0.10,sustain:0.5,release:0.15}},
-  9: {name:'drum',    wave:'noise',    env:{attack:0.001,decay:0.05,sustain:0.0,release:0.02}},
+  0:{name:'lead',    wave:'pulse_25', env:{attack:0.005,decay:0.05,sustain:0.7,release:0.05}},
+  1:{name:'harmony', wave:'pulse_12', env:{attack:0.010,decay:0.05,sustain:0.6,release:0.05}},
+  2:{name:'bass',    wave:'triangle', env:{attack:0.010,decay:0.10,sustain:0.8,release:0.10}},
+  3:{name:'pad',     wave:'pulse_50', env:{attack:0.020,decay:0.10,sustain:0.5,release:0.15}},
+  9:{name:'drum',    wave:'noise',    env:{attack:0.001,decay:0.05,sustain:0.0,release:0.02}},
 };
 const FALLBACK_PRESET = CHANNEL_PRESETS[0];
 const enc = new TextEncoder();
 
-/* 下载/ZIP */
-function downloadBlob(blob,name){const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();document.body.removeChild(a);setTimeout(()=>URL.revokeObjectURL(url),2000)}
-function downloadText(text,name){downloadBlob(new Blob([text],{type:'application/json'}),name)}
-const CRC_TABLE=(()=>{const t=new Uint32Array(256);for(let i=0;i<256;i++){let c=i;for(let k=0;k<8;k++)c=(c&1)?(0xEDB88320^(c>>>1)):(c>>>1);t[i]=c>>>0}return t})();
-function crc32(bytes){let c=0xFFFFFFFF;for(let i=0;i<bytes.length;i++)c=CRC_TABLE[(c^bytes[i])&0xFF]^(c>>>8);return (c^0xFFFFFFFF)>>>0}
-function makeZip(files){
-  const chunks=[],central=[];let offset=0;const now=new Date();
-  const dosTime=((now.getHours()<<11)|(now.getMinutes()<<5)|(now.getSeconds()>>1))&0xFFFF;
-  const dosDate=(((now.getFullYear()-1980)<<9)|((now.getMonth()+1)<<5)|now.getDate())&0xFFFF;
-  for(const f of files){
-    const nameBytes=enc.encode(f.name);const crc=crc32(f.data);const size=f.data.length;
-    const local=new Uint8Array(30+nameBytes.length);const lv=new DataView(local.buffer);
-    lv.setUint32(0,0x04034b50,true);lv.setUint16(4,20,true);lv.setUint16(6,0,true);lv.setUint16(8,0,true);
-    lv.setUint16(10,dosTime,true);lv.setUint16(12,dosDate,true);
-    lv.setUint32(14,crc,true);lv.setUint32(18,size,true);lv.setUint32(22,size,true);
-    lv.setUint16(26,nameBytes.length,true);lv.setUint16(28,0,true);
-    local.set(nameBytes,30);chunks.push(local,f.data);
-    const cd=new Uint8Array(46+nameBytes.length);const cv=new DataView(cd.buffer);
-    cv.setUint32(0,0x02014b50,true);cv.setUint16(4,20,true);cv.setUint16(6,20,true);cv.setUint16(8,0,true);cv.setUint16(10,0,true);
-    cv.setUint16(12,dosTime,true);cv.setUint16(14,dosDate,true);
-    cv.setUint32(16,crc,true);cv.setUint32(20,size,true);cv.setUint32(24,size,true);
-    cv.setUint16(28,nameBytes.length,true);cv.setUint16(30,0,true);cv.setUint16(32,0,true);cv.setUint16(34,0,true);cv.setUint16(36,0,true);
-    cv.setUint32(38,0,true);cv.setUint32(42,offset,true);
-    cd.set(nameBytes,46);central.push(cd);offset+=local.length+size;
+function downloadBlob(blob, name) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = name;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+}
+function downloadText(text, name) {
+  downloadBlob(new Blob([text], { type: 'application/json' }), name);
+}
+const CRC_TABLE = (() => {
+  const t = new Uint32Array(256);
+  for (let i = 0; i < 256; i++) {
+    let c = i;
+    for (let k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+    t[i] = c >>> 0;
   }
-  let cdSize=0;for(const c of central)cdSize+=c.length;
-  const eocd=new Uint8Array(22);const ev=new DataView(eocd.buffer);
-  ev.setUint32(0,0x06054b50,true);ev.setUint16(4,0,true);ev.setUint16(6,0,true);
-  ev.setUint16(8,files.length,true);ev.setUint16(10,files.length,true);
-  ev.setUint32(12,cdSize,true);ev.setUint32(16,offset,true);ev.setUint16(20,0,true);
-  const all=[...chunks,...central,eocd];let total=0;for(const c of all)total+=c.length;
-  const out=new Uint8Array(total);let p=0;for(const c of all){out.set(c,p);p+=c.length}
+  return t;
+})();
+function crc32(bytes) {
+  let c = 0xFFFFFFFF;
+  for (let i = 0; i < bytes.length; i++) c = CRC_TABLE[(c ^ bytes[i]) & 0xFF] ^ (c >>> 8);
+  return (c ^ 0xFFFFFFFF) >>> 0;
+}
+function makeZip(files) {
+  const chunks = [], central = [];
+  let offset = 0;
+  const now = new Date();
+  const dosTime = ((now.getHours()<<11)|(now.getMinutes()<<5)|(now.getSeconds()>>1)) & 0xFFFF;
+  const dosDate = (((now.getFullYear()-1980)<<9)|((now.getMonth()+1)<<5)|now.getDate()) & 0xFFFF;
+  for (const f of files) {
+    const nameBytes = enc.encode(f.name);
+    const crc = crc32(f.data);
+    const size = f.data.length;
+    const local = new Uint8Array(30 + nameBytes.length);
+    const lv = new DataView(local.buffer);
+    lv.setUint32(0, 0x04034b50, true); lv.setUint16(4, 20, true); lv.setUint16(6, 0, true);
+    lv.setUint16(8, 0, true); lv.setUint16(10, dosTime, true); lv.setUint16(12, dosDate, true);
+    lv.setUint32(14, crc, true); lv.setUint32(18, size, true); lv.setUint32(22, size, true);
+    lv.setUint16(26, nameBytes.length, true); lv.setUint16(28, 0, true);
+    local.set(nameBytes, 30);
+    chunks.push(local, f.data);
+    const cd = new Uint8Array(46 + nameBytes.length);
+    const cv = new DataView(cd.buffer);
+    cv.setUint32(0, 0x02014b50, true); cv.setUint16(4, 20, true); cv.setUint16(6, 20, true);
+    cv.setUint16(8, 0, true); cv.setUint16(10, 0, true);
+    cv.setUint16(12, dosTime, true); cv.setUint16(14, dosDate, true);
+    cv.setUint32(16, crc, true); cv.setUint32(20, size, true); cv.setUint32(24, size, true);
+    cv.setUint16(28, nameBytes.length, true); cv.setUint16(30, 0, true);
+    cv.setUint16(32, 0, true); cv.setUint16(34, 0, true); cv.setUint16(36, 0, true);
+    cv.setUint32(38, 0, true); cv.setUint32(42, offset, true);
+    cd.set(nameBytes, 46);
+    central.push(cd);
+    offset += local.length + size;
+  }
+  let cdSize = 0;
+  for (const c of central) cdSize += c.length;
+  const eocd = new Uint8Array(22);
+  const ev = new DataView(eocd.buffer);
+  ev.setUint32(0, 0x06054b50, true); ev.setUint16(4, 0, true); ev.setUint16(6, 0, true);
+  ev.setUint16(8, files.length, true); ev.setUint16(10, files.length, true);
+  ev.setUint32(12, cdSize, true); ev.setUint32(16, offset, true); ev.setUint16(20, 0, true);
+  const all = [...chunks, ...central, eocd];
+  let total = 0;
+  for (const c of all) total += c.length;
+  const out = new Uint8Array(total);
+  let p = 0;
+  for (const c of all) { out.set(c, p); p += c.length; }
   return out;
 }
 
-/* MIDI 解析 */
-function parseMidi(buf){
-  const view=new DataView(buf);let pos=0;
-  const u8=()=>view.getUint8(pos++);
-  const u16=()=>{const v=view.getUint16(pos);pos+=2;return v};
-  const u32=()=>{const v=view.getUint32(pos);pos+=4;return v};
-  const str=n=>{let s='';for(let i=0;i<n;i++)s+=String.fromCharCode(view.getUint8(pos++));return s};
-  const varlen=()=>{let v=0,b;do{b=view.getUint8(pos++);v=(v<<7)|(b&0x7F)}while(b&0x80);return v};
-  if(str(4)!=='MThd')throw new Error('不是有效的 MIDI 文件');
-  const headerLen=u32();u16();u16();const division=u16();pos+=Math.max(0,headerLen-6);
-  if(division&0x8000)throw new Error('不支持 SMPTE');
-  const tracks=[];const total=buf.byteLength;
-  while(pos+8<=total){
-    const id=str(4);const len=u32();const end=pos+len;
-    if(id!=='MTrk'){pos=end;continue}
-    const events=[];let tick=0,running=0;
-    while(pos<end){
-      tick+=varlen();let status=view.getUint8(pos);
-      if(status&0x80){pos++;running=status}else{status=running}
-      if(status===0xFF){const mt=u8();const ml=varlen();
-        if(mt===0x51&&ml===3){const tempo=(view.getUint8(pos)<<16)|(view.getUint8(pos+1)<<8)|view.getUint8(pos+2);events.push({tick,type:'tempo',tempo})}
-        pos+=ml;continue}
-      if(status===0xF0||status===0xF7){pos+=varlen();continue}
-      const type=status&0xF0;const ch=status&0x0F;
-      if(type===0x80||type===0x90){const note=u8(),vel=u8();events.push({tick,type:(type===0x90&&vel>0)?'on':'off',ch,note,vel})}
-      else if(type===0xA0||type===0xB0||type===0xE0){pos+=2}
-      else if(type===0xC0||type===0xD0){pos+=1}
+/* ============================================================
+   MIDI 解析
+   ============================================================ */
+function parseMidi(buf) {
+  const view = new DataView(buf);
+  let pos = 0;
+  const u8  = () => view.getUint8(pos++);
+  const u16 = () => { const v = view.getUint16(pos); pos += 2; return v; };
+  const u32 = () => { const v = view.getUint32(pos); pos += 4; return v; };
+  const str = n => { let s = ''; for (let i = 0; i < n; i++) s += String.fromCharCode(view.getUint8(pos++)); return s; };
+  const varlen = () => { let v = 0, b; do { b = view.getUint8(pos++); v = (v << 7) | (b & 0x7F); } while (b & 0x80); return v; };
+  if (str(4) !== 'MThd') throw new Error('不是有效的 MIDI 文件');
+  const headerLen = u32(); u16(); u16();
+  const division = u16();
+  pos += Math.max(0, headerLen - 6);
+  if (division & 0x8000) throw new Error('不支持 SMPTE 时间格式');
+  const tracks = [];
+  const total = buf.byteLength;
+  while (pos + 8 <= total) {
+    const id = str(4); const len = u32(); const end = pos + len;
+    if (id !== 'MTrk') { pos = end; continue; }
+    const events = [];
+    let tick = 0, running = 0;
+    while (pos < end) {
+      tick += varlen();
+      let status = view.getUint8(pos);
+      if (status & 0x80) { pos++; running = status; } else { status = running; }
+      if (status === 0xFF) {
+        const mt = u8(); const ml = varlen();
+        if (mt === 0x51 && ml === 3) {
+          const tempo = (view.getUint8(pos) << 16) | (view.getUint8(pos+1) << 8) | view.getUint8(pos+2);
+          events.push({ tick, type: 'tempo', tempo });
+        }
+        pos += ml; continue;
+      }
+      if (status === 0xF0 || status === 0xF7) { pos += varlen(); continue; }
+      const type = status & 0xF0;
+      const ch = status & 0x0F;
+      if (type === 0x80 || type === 0x90) {
+        const note = u8(), vel = u8();
+        events.push({ tick, type: (type === 0x90 && vel > 0) ? 'on' : 'off', ch, note, vel });
+      } else if (type === 0xA0 || type === 0xB0 || type === 0xE0) { pos += 2; }
+      else if (type === 0xC0) { const program = u8(); events.push({ tick, type: 'program', ch, program }); }
+      else if (type === 0xD0) { pos += 1; }
       else break;
     }
-    tracks.push(events);pos=end;
+    tracks.push(events);
+    pos = end;
   }
-  return {division,tracks};
+  return { division, tracks };
 }
-function extractNotes(mid){
-  const scale=TICKS_PER_BEAT/mid.division;const all=[];const chSet=new Set();
-  for(const track of mid.tracks){
-    let abs=0;const open=new Map();
-    for(const m of track){
-      abs+=m.tick;const ourTick=Math.round(abs*scale);
-      if(m.type==='on'){const key=m.ch+':'+m.note;
-        if(open.has(key)){const p=open.get(key);let d=ourTick-p.tick;if(d<=0)d=1;all.push({ch:m.ch,tick:p.tick,note:m.note,vel:p.vel,dur:d});chSet.add(m.ch)}
-        open.set(key,{tick:ourTick,vel:m.vel});
-      }else if(m.type==='off'){const key=m.ch+':'+m.note;if(!open.has(key))continue;
-        const p=open.get(key);open.delete(key);let d=ourTick-p.tick;if(d<=0)d=1;
-        all.push({ch:m.ch,tick:p.tick,note:m.note,vel:p.vel,dur:d});chSet.add(m.ch);
+
+function extractNotes(mid) {
+  const scale = TICKS_PER_BEAT / mid.division;
+  const all = [];
+  const chSet = new Set();
+  for (const track of mid.tracks) {
+    const open = new Map();
+    for (const m of track) {
+      const ourTick = Math.round(m.tick * scale);
+      if (m.type === 'on') {
+        const key = m.ch + ':' + m.note;
+        if (open.has(key)) {
+          const p = open.get(key);
+          let d = ourTick - p.tick; if (d <= 0) d = 1;
+          all.push({ ch: m.ch, tick: p.tick, note: m.note, vel: p.vel, dur: d });
+          chSet.add(m.ch);
+        }
+        open.set(key, { tick: ourTick, vel: m.vel });
+      } else if (m.type === 'off') {
+        const key = m.ch + ':' + m.note;
+        if (!open.has(key)) continue;
+        const p = open.get(key);
+        open.delete(key);
+        let d = ourTick - p.tick; if (d <= 0) d = 1;
+        all.push({ ch: m.ch, tick: p.tick, note: m.note, vel: p.vel, dur: d });
+        chSet.add(m.ch);
       }
     }
   }
-  all.sort((a,b)=>a.tick-b.tick||a.ch-b.ch);
-  return {events:all,channelSet:chSet};
-}
-function filterChipStyle(events,channelSet,maxCh,report){
-  if(channelSet.size>maxCh){
-    const cnt=new Map();for(const e of events)cnt.set(e.ch,(cnt.get(e.ch)||0)+1);
-    const keep=new Set();if(cnt.has(9)){keep.add(9);cnt.delete(9)}
-    const sorted=[...cnt.keys()].sort((a,b)=>cnt.get(b)-cnt.get(a));
-    for(const c of sorted){if(keep.size>=maxCh)break;keep.add(c)}
-    events=events.filter(e=>keep.has(e.ch));
-    report.push(`通道裁剪：${[...channelSet].sort((a,b)=>a-b).join(',')} → ${[...keep].sort((a,b)=>a-b).join(',')}`);
-    channelSet=keep;
-  }
-  const byKey=new Map();let removed=0;
-  for(const e of events){const k=e.ch+':'+e.tick;
-    if(!byKey.has(k))byKey.set(k,e);else{if(e.note>byKey.get(k).note)byKey.set(k,e);removed++}}
-  if(removed>0)report.push(`单音化：${removed} 个叠音`);
-  events=[...byKey.values()];
-  let shifted=0;
-  for(const e of events){const orig=e.note;
-    while(e.note<NOTE_LOW)e.note+=12;while(e.note>NOTE_HIGH)e.note-=12;
-    if(e.note!==orig)shifted++}
-  if(shifted>0)report.push(`音域归一化：${shifted} 个`);
-  events.sort((a,b)=>a.tick-b.tick||a.ch-b.ch);
-  return {events,channelSet,report};
-}
-function remapChannels(events,channelSet,leadWave){
-  let used=[...channelSet].sort((a,b)=>a-b);
-  used=used.filter(c=>c!==9).concat(used.includes(9)?[9]:[]);
-  const presets={};const channels=[];const remap=new Map();
-  used.forEach((oldCh,newCh)=>{
-    remap.set(oldCh,newCh);
-    const base=CHANNEL_PRESETS[oldCh]||FALLBACK_PRESET;
-    const preset=JSON.parse(JSON.stringify(base));
-    if(newCh===0&&leadWave)preset.wave=leadWave;
-    presets[preset.name]={wave:preset.wave,env:preset.env};
-    let vol=0.8;if(preset.name==='drum')vol=0.4;else if(preset.name==='bass')vol=0.7;else if(preset.name==='harmony')vol=0.6;
-    channels.push({preset:preset.name,volume:vol,pan:0.0});
-  });
-  const out=[];for(const e of events){if(!remap.has(e.ch))continue;out.push({...e,ch:remap.get(e.ch)})}
-  return {events:out,presets,channels};
-}
-function eventsToChip(events,channelSet,opts){
-  const report=[];const filtered=filterChipStyle(events,channelSet,4,report);
-  if(opts.reportCb)filtered.report.forEach(opts.reportCb);
-  let totalTicks=filtered.events.reduce((m,e)=>Math.max(m,e.tick+e.dur),0);
-  const barTicks=TICKS_PER_BEAT*DEFAULT_BEATS_PER_BAR;
-  totalTicks=Math.ceil(totalTicks/barTicks)*barTicks;
-  if(totalTicks===0)throw new Error('无有效音符');
-  const remapped=remapChannels(filtered.events,filtered.channelSet,opts.wave);
-  const data={format:'chip_music_v1',meta:{title:opts.title,bpm:Number(opts.bpm.toFixed(3)),
-    beats_per_bar:DEFAULT_BEATS_PER_BAR,ticks_per_beat:TICKS_PER_BEAT,total_ticks:totalTicks,
-    loop_start:opts.loop?0:-1,loop_end:opts.loop?totalTicks:0,source:opts.source||'unknown'},
-    presets:remapped.presets,channels:remapped.channels,events:remapped.events};
-  const duration=totalTicks/TICKS_PER_BEAT/opts.bpm*60;
-  return {json:JSON.stringify(data,null,1),
-    info:{events:remapped.events.length,totalTicks,duration,bpm:opts.bpm,
-      channels:remapped.channels.map((c,i)=>({name:c.preset,count:remapped.events.filter(e=>e.ch===i).length}))}};
-}
-function buildChipFromAssigned(assigned, opts){
-  const maxDurTicks=opts.maxDurTicks||16;
-  const presets={
-    lead:{wave:opts.wave,env:{attack:0.005,decay:0.05,sustain:0.7,release:0.05}},
-    harmony:{wave:'pulse_12',env:{attack:0.010,decay:0.05,sustain:0.6,release:0.05}},
-    bass:{wave:'triangle',env:{attack:0.010,decay:0.10,sustain:0.8,release:0.10}},
-    drum:{wave:'noise',env:{attack:0.001,decay:0.05,sustain:0.0,release:0.02}},
-  };
-  const channels=[
-    {preset:'lead',volume:0.8,pan:0.0},
-    {preset:'harmony',volume:0.55,pan:0.0},
-    {preset:'bass',volume:0.7,pan:0.0},
-    {preset:'drum',volume:0.4,pan:0.0},
-  ];
-  const allEvents=[];
-  for(let ch=0;ch<4;ch++){
-    const src=assigned[`ch${ch}`]||[];
-    const byTick=new Map();
-    for(const e of src){const k=e.tick;
-      if(!byTick.has(k))byTick.set(k,e);
-      else if(e.vel>byTick.get(k).vel)byTick.set(k,e);
-    }
-    const sorted=[...byTick.values()].sort((a,b)=>a.tick-b.tick);
-    for(let i=0;i<sorted.length;i++){
-      const e=sorted[i];
-      if(e.dur>maxDurTicks)e.dur=maxDurTicks;
-      if(i+1<sorted.length){const next=sorted[i+1];if(e.tick+e.dur>next.tick)e.dur=Math.max(1,next.tick-e.tick)}
-      allEvents.push({...e,ch});
-    }
-  }
-  allEvents.sort((a,b)=>a.tick-b.tick||a.ch-b.ch);
-  if(allEvents.length===0)throw new Error('无有效音符');
-  let totalTicks=allEvents.reduce((m,e)=>Math.max(m,e.tick+e.dur),0);
-  const barTicks=TICKS_PER_BEAT*DEFAULT_BEATS_PER_BAR;
-  totalTicks=Math.ceil(totalTicks/barTicks)*barTicks;
-  const data={format:'chip_music_v1',meta:{title:opts.title,bpm:Number(opts.bpm.toFixed(3)),
-    beats_per_bar:DEFAULT_BEATS_PER_BAR,ticks_per_beat:TICKS_PER_BEAT,total_ticks:totalTicks,
-    loop_start:opts.loop?0:-1,loop_end:opts.loop?totalTicks:0,source:'audio_smart'},
-    presets,channels,events:allEvents};
-  const duration=totalTicks/TICKS_PER_BEAT/opts.bpm*60;
-  return {json:JSON.stringify(data,null,1),
-    info:{events:allEvents.length,totalTicks,duration,bpm:opts.bpm,
-      channels:[{name:'lead',count:allEvents.filter(e=>e.ch===0).length},
-                {name:'harmony',count:allEvents.filter(e=>e.ch===1).length},
-                {name:'bass',count:allEvents.filter(e=>e.ch===2).length},
-                {name:'drum',count:allEvents.filter(e=>e.ch===3).length}]}};
+  all.sort((a,b) => a.tick - b.tick || a.ch - b.ch);
+  return { events: all, channelSet: chSet };
 }
 
-/* DSP */
-function biquadLP(samples,sr,fc,Q=0.7071){
-  const w0=2*Math.PI*fc/sr;const cosw=Math.cos(w0),sinw=Math.sin(w0);const alpha=sinw/(2*Q);
-  const b0=(1-cosw)/2,b1=1-cosw,b2=(1-cosw)/2;const a0=1+alpha,a1=-2*cosw,a2=1-alpha;
-  const nb0=b0/a0,nb1=b1/a0,nb2=b2/a0,na1=a1/a0,na2=a2/a0;
-  const out=new Float32Array(samples.length);let x1=0,x2=0,y1=0,y2=0;
-  for(let i=0;i<samples.length;i++){const x=samples[i];const y=nb0*x+nb1*x1+nb2*x2-na1*y1-na2*y2;
-    out[i]=y;x2=x1;x1=x;y2=y1;y1=y}
+function gmToWave(program) {
+  if (program < 8)   return 'pulse_50';
+  if (program < 16)  return 'pulse_25';
+  if (program < 24)  return 'pulse_50';
+  if (program < 32)  return 'pulse_25';
+  if (program < 40)  return 'triangle';
+  if (program < 48)  return 'saw';
+  if (program < 56)  return 'pulse_50';
+  if (program < 64)  return 'saw';
+  if (program < 72)  return 'pulse_25';
+  if (program < 80)  return 'triangle';
+  if (program < 88)  return 'pulse_25';
+  if (program < 96)  return 'pulse_50';
+  if (program < 104) return 'pulse_12';
+  if (program < 112) return 'pulse_25';
+  if (program < 120) return 'pulse_12';
+  return 'noise';
+}
+function gmGroupName(program) {
+  if (program < 8)   return '钢琴';
+  if (program < 16)  return '打击乐';
+  if (program < 24)  return '风琴';
+  if (program < 32)  return '吉他';
+  if (program < 40)  return '贝斯';
+  if (program < 48)  return '弦乐';
+  if (program < 56)  return '合奏';
+  if (program < 64)  return '铜管';
+  if (program < 72)  return '簧管';
+  if (program < 80)  return '管乐';
+  if (program < 88)  return '合成主音';
+  if (program < 96)  return '合成和弦';
+  if (program < 104) return '合成特效';
+  if (program < 112) return '民族';
+  if (program < 120) return '打击乐音效';
+  return '音效';
+}
+function autoDetectWaveform(mid, events, channelSet) {
+  const cnt = new Map();
+  for (const e of events) {
+    if (e.ch === 9) continue;
+    cnt.set(e.ch, (cnt.get(e.ch) || 0) + 1);
+  }
+  if (cnt.size === 0) return { wave: 'pulse_25', reason: '无旋律通道，默认 pulse_25' };
+  let leadCh = -1, maxCnt = 0;
+  for (const [ch, c] of cnt) { if (c > maxCnt) { maxCnt = c; leadCh = ch; } }
+  let program = null;
+  for (const track of mid.tracks) {
+    for (const m of track) {
+      if (m.type === 'program' && m.ch === leadCh) { program = m.program; break; }
+    }
+    if (program !== null) break;
+  }
+  const leadNotes = events.filter(e => e.ch === leadCh);
+  const avgNote = leadNotes.reduce((s, e) => s + e.note, 0) / leadNotes.length;
+  let wave, reason;
+  if (program !== null) {
+    wave = gmToWave(program);
+    reason = `GM 乐器 #${program}（${gmGroupName(program)}）→ ${wave}`;
+  } else {
+    if (avgNote >= 76) { wave = 'pulse_25'; reason = `平均音高 ${avgNote.toFixed(1)}（高）→ pulse_25`; }
+    else if (avgNote >= 64) { wave = 'pulse_50'; reason = `平均音高 ${avgNote.toFixed(1)}（中）→ pulse_50`; }
+    else if (avgNote >= 52) { wave = 'pulse_25'; reason = `平均音高 ${avgNote.toFixed(1)}（中低）→ pulse_25`; }
+    else { wave = 'pulse_12'; reason = `平均音高 ${avgNote.toFixed(1)}（低）→ pulse_12`; }
+  }
+  return { wave, reason };
+}
+
+function filterChipStyle(events, channelSet, maxCh, report, opts) {
+  const enableChordSplit = opts?.chordSplit !== false;
+  const displaceRange = opts?.displaceRange ?? 2;
+  if (channelSet.size > maxCh) {
+    const chStats = new Map();
+    for (const ch of channelSet) {
+      const chEvents = events.filter(e => e.ch === ch);
+      const avgNote = chEvents.length ? chEvents.reduce((s, e) => s + e.note, 0) / chEvents.length : 60;
+      chStats.set(ch, { count: chEvents.length, avgNote, isDrum: ch === 9 });
+    }
+    const keep = new Set();
+    if (chStats.has(9) && chStats.get(9).isDrum) keep.add(9);
+    const others = [...channelSet].filter(c => c !== 9)
+      .sort((a, b) => chStats.get(b).count - chStats.get(a).count);
+    for (const c of others) { if (keep.size >= maxCh) break; keep.add(c); }
+    const remap = new Map();
+    const dropped = [...channelSet].filter(c => !keep.has(c));
+    for (const c of dropped) {
+      const srcAvg = chStats.get(c).avgNote;
+      let bestTarget = null, bestDist = Infinity;
+      for (const k of keep) {
+        if (k === 9) continue;
+        const dist = Math.abs(chStats.get(k).avgNote - srcAvg);
+        if (dist < bestDist) { bestDist = dist; bestTarget = k; }
+      }
+      if (bestTarget === null) { for (const k of keep) { bestTarget = k; break; } }
+      if (bestTarget !== null) remap.set(c, bestTarget);
+    }
+    events = events.map(e => {
+      if (keep.has(e.ch)) return e;
+      if (remap.has(e.ch)) return { ...e, ch: remap.get(e.ch) };
+      return null;
+    }).filter(e => e !== null);
+    report.push(`通道合并：${[...channelSet].sort((a,b)=>a-b).join(',')} → ${[...keep].sort((a,b)=>a-b).join(',')}`);
+    channelSet = keep;
+  }
+  const byTick = new Map();
+  for (const e of events) {
+    if (!byTick.has(e.tick)) byTick.set(e.tick, []);
+    byTick.get(e.tick).push(e);
+  }
+  const occupiedByTick = new Map();
+  for (const [tick, list] of byTick) {
+    occupiedByTick.set(tick, new Set(list.map(e => e.ch)));
+  }
+  const findFreeChannel = (note, usedChs, originCh) => {
+    if (note < 52 && !usedChs.has(2)) return 2;
+    if (!usedChs.has(1)) return 1;
+    if (!usedChs.has(2)) return 2;
+    if (!usedChs.has(0) && originCh !== 0) return 0;
+    if (!usedChs.has(3)) return 3;
+    return null;
+  };
+  const output = [];
+  let redirected = 0, dropped = 0, displaced = 0;
+  const pendingDisplace = [];
+  const allTicks = [...byTick.keys()].sort((a, b) => a - b);
+  for (const tick of allTicks) {
+    const tickEvents = byTick.get(tick);
+    const byCh = new Map();
+    for (const e of tickEvents) {
+      if (!byCh.has(e.ch)) byCh.set(e.ch, []);
+      byCh.get(e.ch).push(e);
+    }
+    const usedChs = occupiedByTick.get(tick);
+    for (const [ch, chEvents] of byCh) {
+      chEvents.sort((a, b) => b.note - a.note);
+      output.push(chEvents[0]);
+      if (!enableChordSplit) { dropped += chEvents.length - 1; continue; }
+      for (let i = 1; i < chEvents.length; i++) {
+        const e = chEvents[i];
+        const target = findFreeChannel(e.note, usedChs, ch);
+        if (target !== null) {
+          output.push({ ...e, ch: target });
+          usedChs.add(target);
+          redirected++;
+        } else pendingDisplace.push({ event: e, originTick: tick });
+      }
+    }
+  }
+  if (enableChordSplit && pendingDisplace.length > 0 && displaceRange > 0) {
+    for (const { event, originTick } of pendingDisplace) {
+      let placed = false;
+      outer:
+      for (let d = 1; d <= displaceRange; d++) {
+        for (const dir of [1, -1]) {
+          const nt = originTick + dir * d;
+          if (nt < 0) continue;
+          const occupied = occupiedByTick.get(nt);
+          let targetCh;
+          if (!occupied) targetCh = event.ch;
+          else { targetCh = findFreeChannel(event.note, occupied, event.ch); if (targetCh === null) continue; }
+          output.push({ ...event, tick: nt, ch: targetCh });
+          if (!occupiedByTick.has(nt)) occupiedByTick.set(nt, new Set());
+          occupiedByTick.get(nt).add(targetCh);
+          displaced++;
+          placed = true;
+          break outer;
+        }
+      }
+      if (!placed) dropped++;
+    }
+  } else dropped += pendingDisplace.length;
+  if (redirected > 0 || dropped > 0 || displaced > 0) {
+    const parts = [];
+    if (redirected > 0) parts.push(`分流 ${redirected}`);
+    if (displaced > 0) parts.push(`挪动 ${displaced}`);
+    if (dropped > 0) parts.push(`丢弃 ${dropped}`);
+    report.push(`单音化：${parts.join('，')}`);
+  }
+  events = output;
+  let shifted = 0;
+  for (const e of events) {
+    const orig = e.note;
+    while (e.note < NOTE_LOW) e.note += 12;
+    while (e.note > NOTE_HIGH) e.note -= 12;
+    if (e.note !== orig) shifted++;
+  }
+  if (shifted > 0) report.push(`音域归一化：${shifted} 个`);
+  let truncated = 0;
+  for (const e of events) {
+    if (e.dur > MAX_DUR_TICKS_CHIP) { e.dur = MAX_DUR_TICKS_CHIP; truncated++; }
+  }
+  if (truncated > 0) report.push(`时长截断：${truncated} 个`);
+  events.sort((a,b) => a.tick - b.tick || a.ch - b.ch);
+  return { events, channelSet, report };
+}
+
+function remapChannels(events, channelSet, leadWave) {
+  let used = [...channelSet].sort((a, b) => a - b);
+  used = used.filter(c => c !== 9).concat(used.includes(9) ? [9] : []);
+  const presets = {};
+  const channels = [];
+  const remap = new Map();
+  used.forEach((oldCh, newCh) => {
+    remap.set(oldCh, newCh);
+    const base = CHANNEL_PRESETS[oldCh] || FALLBACK_PRESET;
+    const preset = JSON.parse(JSON.stringify(base));
+    if (newCh === 0 && leadWave) preset.wave = leadWave;
+    presets[preset.name] = { wave: preset.wave, env: preset.env };
+    let vol = 0.8;
+    if (preset.name === 'drum') vol = 0.4;
+    else if (preset.name === 'bass') vol = 0.7;
+    else if (preset.name === 'harmony') vol = 0.6;
+    channels.push({ preset: preset.name, volume: vol, pan: 0.0 });
+  });
+  const out = [];
+  for (const e of events) {
+    if (!remap.has(e.ch)) continue;
+    out.push({ ...e, ch: remap.get(e.ch) });
+  }
+  return { events: out, presets, channels };
+}
+
+function eventsToChip(events, channelSet, opts) {
+  const report = [];
+  const filtered = filterChipStyle(events, channelSet, 4, report, {
+    chordSplit: opts.chordSplit,
+    displaceRange: opts.displaceRange,
+  });
+  if (opts.reportCb) filtered.report.forEach(opts.reportCb);
+  const materialType = opts.materialType || 'music';
+  let totalTicks = filtered.events.reduce((m, e) => Math.max(m, e.tick + e.dur), 0);
+  const barTicks = TICKS_PER_BEAT * DEFAULT_BEATS_PER_BAR;
+  const shouldPad = (materialType !== 'sfx');
+  if (shouldPad) totalTicks = Math.ceil(totalTicks / barTicks) * barTicks;
+  if (totalTicks === 0) throw new Error('无有效音符');
+  let loopStart, loopEnd;
+  if (materialType === 'sfx') { loopStart = -1; loopEnd = 0; }
+  else if (materialType === 'loop_sfx') { loopStart = 0; loopEnd = totalTicks; }
+  else { loopStart = opts.loop ? 0 : -1; loopEnd = opts.loop ? totalTicks : 0; }
+  const remapped = remapChannels(filtered.events, filtered.channelSet, opts.wave);
+  const data = {
+    format: 'chip_music_v1',
+    meta: {
+      title: opts.title,
+      bpm: Number(opts.bpm.toFixed(3)),
+      beats_per_bar: DEFAULT_BEATS_PER_BAR,
+      ticks_per_beat: TICKS_PER_BEAT,
+      total_ticks: totalTicks,
+      loop_start: loopStart,
+      loop_end: loopEnd,
+      source: opts.source || 'unknown',
+    },
+    presets: remapped.presets,
+    channels: remapped.channels,
+    events: remapped.events,
+  };
+  const duration = totalTicks / TICKS_PER_BEAT / opts.bpm * 60;
+  return {
+    json: JSON.stringify(data, null, 1),
+    info: {
+      events: remapped.events.length,
+      totalTicks,
+      duration,
+      bpm: opts.bpm,
+      channels: remapped.channels.map((c, i) => ({
+        name: c.preset,
+        count: remapped.events.filter(e => e.ch === i).length,
+      })),
+    },
+  };
+}
+
+function buildChipFromAssigned(assigned, opts) {
+  const maxDurTicks = opts.maxDurTicks || 16;
+  const materialType = opts.materialType || 'music';
+  const presets = {
+    lead:    { wave: opts.wave, env: { attack: 0.005, decay: 0.05, sustain: 0.7, release: 0.05 } },
+    harmony: { wave: 'pulse_12', env: { attack: 0.010, decay: 0.05, sustain: 0.6, release: 0.05 } },
+    bass:    { wave: 'triangle', env: { attack: 0.010, decay: 0.10, sustain: 0.8, release: 0.10 } },
+    drum:    { wave: 'noise',    env: { attack: 0.001, decay: 0.05, sustain: 0.0, release: 0.02 } },
+  };
+  const channels = [
+    { preset: 'lead',    volume: 0.8,  pan: 0.0 },
+    { preset: 'harmony', volume: 0.55, pan: 0.0 },
+    { preset: 'bass',    volume: 0.7,  pan: 0.0 },
+    { preset: 'drum',    volume: 0.4,  pan: 0.0 },
+  ];
+  const allEvents = [];
+  for (let ch = 0; ch < 4; ch++) {
+    const src = assigned[`ch${ch}`] || [];
+    const byTick = new Map();
+    for (const e of src) {
+      const k = e.tick;
+      if (!byTick.has(k)) byTick.set(k, e);
+      else if (e.vel > byTick.get(k).vel) byTick.set(k, e);
+    }
+    const sorted = [...byTick.values()].sort((a, b) => a.tick - b.tick);
+    for (let i = 0; i < sorted.length; i++) {
+      const e = sorted[i];
+      if (e.dur > maxDurTicks) e.dur = maxDurTicks;
+      if (i + 1 < sorted.length) {
+        const next = sorted[i + 1];
+        if (e.tick + e.dur > next.tick) e.dur = Math.max(1, next.tick - e.tick);
+      }
+      allEvents.push({ ...e, ch });
+    }
+  }
+  allEvents.sort((a, b) => a.tick - b.tick || a.ch - b.ch);
+  if (allEvents.length === 0) throw new Error('无有效音符');
+  let totalTicks = allEvents.reduce((m, e) => Math.max(m, e.tick + e.dur), 0);
+  const barTicks = TICKS_PER_BEAT * DEFAULT_BEATS_PER_BAR;
+  const shouldPad = (materialType !== 'sfx');
+  if (shouldPad) totalTicks = Math.ceil(totalTicks / barTicks) * barTicks;
+  let loopStart, loopEnd;
+  if (materialType === 'sfx') { loopStart = -1; loopEnd = 0; }
+  else if (materialType === 'loop_sfx') { loopStart = 0; loopEnd = totalTicks; }
+  else { loopStart = opts.loop ? 0 : -1; loopEnd = opts.loop ? totalTicks : 0; }
+  const data = {
+    format: 'chip_music_v1',
+    meta: {
+      title: opts.title,
+      bpm: Number(opts.bpm.toFixed(3)),
+      beats_per_bar: DEFAULT_BEATS_PER_BAR,
+      ticks_per_beat: TICKS_PER_BEAT,
+      total_ticks: totalTicks,
+      loop_start: loopStart,
+      loop_end: loopEnd,
+      source: 'audio_smart',
+    },
+    presets, channels,
+    events: allEvents,
+  };
+  const duration = totalTicks / TICKS_PER_BEAT / opts.bpm * 60;
+  return {
+    json: JSON.stringify(data, null, 1),
+    info: {
+      events: allEvents.length,
+      totalTicks,
+      duration,
+      bpm: opts.bpm,
+      channels: [
+        { name: 'lead',    count: allEvents.filter(e => e.ch === 0).length },
+        { name: 'harmony', count: allEvents.filter(e => e.ch === 1).length },
+        { name: 'bass',    count: allEvents.filter(e => e.ch === 2).length },
+        { name: 'drum',    count: allEvents.filter(e => e.ch === 3).length },
+      ],
+    },
+  };
+}
+
+/* ============================================================
+   sfxr → chip
+   ============================================================ */
+function sfxrToChip(sfxrData, opts) {
+  const title = opts.title || 'sfx';
+  const materialType = opts.materialType || 'sfx';
+  const waveOverride = opts.waveOverride || 'auto';
+  const autoBpm = opts.autoBpm !== false;
+
+  const waveType = parseInt(sfxrData.wave_type ?? 0);
+  const p_env_attack  = parseFloat(sfxrData.p_env_attack  ?? 0);
+  const p_env_sustain = parseFloat(sfxrData.p_env_sustain ?? 0.3);
+  const p_env_decay   = parseFloat(sfxrData.p_env_decay   ?? 0.1);
+  const p_env_punch   = parseFloat(sfxrData.p_env_punch   ?? 0);
+  const p_base_freq   = parseFloat(sfxrData.p_base_freq   ?? 0.3);
+  const p_freq_ramp   = parseFloat(sfxrData.p_freq_ramp   ?? 0);
+  const p_freq_dramp  = parseFloat(sfxrData.p_freq_dramp  ?? 0);
+  const p_duty        = parseFloat(sfxrData.p_duty        ?? 0);
+  const p_vib_strength= parseFloat(sfxrData.p_vib_strength?? 0);
+  const p_vib_speed   = parseFloat(sfxrData.p_vib_speed   ?? 0);
+  const p_arp_mod     = parseFloat(sfxrData.p_arp_mod     ?? 0);
+  const p_arp_speed   = parseFloat(sfxrData.p_arp_speed   ?? 0);
+  const sound_vol     = parseFloat(sfxrData.sound_vol     ?? 0.5);
+
+  const timeFromEnv = v => v * v * 100000 / 44100;
+  const attackSec  = timeFromEnv(p_env_attack);
+  const sustainSec = timeFromEnv(p_env_sustain);
+  const decaySec   = timeFromEnv(p_env_decay);
+  const totalDurSec = Math.max(0.015, attackSec + sustainSec + decaySec);
+
+  const freqHz = 441 * p_base_freq * p_base_freq + 0.001;
+  const baseMidi = Math.round(69 + 12 * Math.log2(freqHz / 440));
+
+  let wave;
+  if (waveOverride !== 'auto') {
+    wave = waveOverride;
+  } else {
+    if (waveType === 0) {
+      if (p_duty < 0.1875) wave = 'pulse_12';
+      else if (p_duty < 0.375) wave = 'pulse_25';
+      else if (p_duty < 0.625) wave = 'pulse_50';
+      else wave = 'pulse_75';
+    } else if (waveType === 1) wave = 'saw';
+    else if (waveType === 2) wave = 'triangle';
+    else wave = 'noise';
+  }
+
+  let bpm;
+  if (autoBpm) {
+    const targetTicks = 8;
+    const tickSec = totalDurSec / targetTicks;
+    bpm = Math.round(60 / (tickSec * TICKS_PER_BEAT));
+    bpm = Math.max(60, Math.min(10000, bpm));
+  } else {
+    bpm = opts.bpm || 240;
+  }
+  const tickSec = 60 / bpm / TICKS_PER_BEAT;
+  const totalTicks = Math.max(1, Math.min(MAX_DUR_TICKS_CHIP, Math.round(totalDurSec / tickSec)));
+
+  const baseVel = Math.round(Math.min(1, sound_vol * 1.5) * 127);
+  const punchVel = Math.round(Math.min(1, (sound_vol + p_env_punch * 0.4) * 1.5) * 127);
+  const events = [];
+
+  for (let i = 0; i < totalTicks; i++) {
+    const t = totalTicks > 1 ? i / (totalTicks - 1) : 0;
+    let freqMul = 1;
+    if (p_freq_ramp !== 0 || p_freq_dramp !== 0) {
+      freqMul = Math.pow(2, p_freq_ramp * t + p_freq_dramp * t * t);
+    }
+    if (p_arp_mod !== 0 && p_arp_speed > 0) {
+      const arpPhase = (i * tickSec) * p_arp_speed * 10;
+      if (Math.floor(arpPhase) % 2 === 1) freqMul *= Math.pow(2, p_arp_mod);
+    }
+    if (p_vib_strength !== 0 && p_vib_speed > 0) {
+      const vibPhase = (i * tickSec) * p_vib_speed * 10;
+      freqMul *= Math.pow(2, Math.sin(vibPhase * 2 * Math.PI) * p_vib_strength * 0.5);
+    }
+    const freq = freqHz * freqMul;
+    let note = Math.round(69 + 12 * Math.log2(freq / 440));
+    while (note < NOTE_LOW) note += 12;
+    while (note > NOTE_HIGH) note -= 12;
+    events.push({
+      ch: 0, tick: i, note,
+      vel: i === 0 ? punchVel : baseVel,
+      dur: 1,
+    });
+  }
+
+  const merged = [];
+  for (const e of events) {
+    const last = merged[merged.length - 1];
+    if (last && last.note === e.note && last.tick + last.dur === e.tick) last.dur += 1;
+    else merged.push({ ...e });
+  }
+
+  let finalTotalTicks = merged.reduce((m, e) => Math.max(m, e.tick + e.dur), 0);
+  const barTicks = TICKS_PER_BEAT * DEFAULT_BEATS_PER_BAR;
+  const shouldPad = (materialType !== 'sfx');
+  if (shouldPad) finalTotalTicks = Math.ceil(finalTotalTicks / barTicks) * barTicks;
+  let loopStart, loopEnd;
+  if (materialType === 'sfx') { loopStart = -1; loopEnd = 0; }
+  else { loopStart = 0; loopEnd = finalTotalTicks; }
+
+  const env = {
+    attack: Math.max(0.001, Math.min(attackSec, 0.15)),
+    decay: Math.max(0.005, Math.min(decaySec, 0.5)),
+    sustain: 0.6,
+    release: 0.03,
+  };
+
+  const data = {
+    format: 'chip_music_v1',
+    meta: {
+      title,
+      bpm: Number(bpm.toFixed(3)),
+      beats_per_bar: DEFAULT_BEATS_PER_BAR,
+      ticks_per_beat: TICKS_PER_BEAT,
+      total_ticks: finalTotalTicks,
+      loop_start: loopStart,
+      loop_end: loopEnd,
+      source: 'sfxr_converted',
+    },
+    presets: { sfx: { wave, env } },
+    channels: [{ preset: 'sfx', volume: 0.8, pan: 0 }],
+    events: merged,
+  };
+  const durationSec = finalTotalTicks / TICKS_PER_BEAT / bpm * 60;
+  return {
+    json: JSON.stringify(data, null, 1),
+    info: {
+      events: merged.length,
+      totalTicks: finalTotalTicks,
+      duration: durationSec,
+      bpm, wave,
+      freqHz: freqHz.toFixed(1),
+      baseMidi,
+      rawDurationSec: totalDurSec,
+      hasRamp: p_freq_ramp !== 0 || p_freq_dramp !== 0,
+      hasArp: p_arp_mod !== 0,
+      hasVib: p_vib_strength !== 0,
+    },
+  };
+}
+
+/* ============================================================
+   DSP 工具
+   ============================================================ */
+function biquadLP(samples, sr, fc, Q = 0.7071) {
+  const w0 = 2*Math.PI*fc/sr, cosw = Math.cos(w0), sinw = Math.sin(w0), alpha = sinw/(2*Q);
+  const b0 = (1-cosw)/2, b1 = 1-cosw, b2 = (1-cosw)/2, a0 = 1+alpha, a1 = -2*cosw, a2 = 1-alpha;
+  const nb0 = b0/a0, nb1 = b1/a0, nb2 = b2/a0, na1 = a1/a0, na2 = a2/a0;
+  const out = new Float32Array(samples.length);
+  let x1=0, x2=0, y1=0, y2=0;
+  for (let i = 0; i < samples.length; i++) {
+    const x = samples[i], y = nb0*x + nb1*x1 + nb2*x2 - na1*y1 - na2*y2;
+    out[i] = y; x2=x1; x1=x; y2=y1; y1=y;
+  }
   return out;
 }
-function biquadHP(samples,sr,fc,Q=0.7071){
-  const w0=2*Math.PI*fc/sr;const cosw=Math.cos(w0),sinw=Math.sin(w0);const alpha=sinw/(2*Q);
-  const b0=(1+cosw)/2,b1=-(1+cosw),b2=(1+cosw)/2;const a0=1+alpha,a1=-2*cosw,a2=1-alpha;
-  const nb0=b0/a0,nb1=b1/a0,nb2=b2/a0,na1=a1/a0,na2=a2/a0;
-  const out=new Float32Array(samples.length);let x1=0,x2=0,y1=0,y2=0;
-  for(let i=0;i<samples.length;i++){const x=samples[i];const y=nb0*x+nb1*x1+nb2*x2-na1*y1-na2*y2;
-    out[i]=y;x2=x1;x1=x;y2=y1;y1=y}
+function biquadHP(samples, sr, fc, Q = 0.7071) {
+  const w0 = 2*Math.PI*fc/sr, cosw = Math.cos(w0), sinw = Math.sin(w0), alpha = sinw/(2*Q);
+  const b0 = (1+cosw)/2, b1 = -(1+cosw), b2 = (1+cosw)/2, a0 = 1+alpha, a1 = -2*cosw, a2 = 1-alpha;
+  const nb0 = b0/a0, nb1 = b1/a0, nb2 = b2/a0, na1 = a1/a0, na2 = a2/a0;
+  const out = new Float32Array(samples.length);
+  let x1=0, x2=0, y1=0, y2=0;
+  for (let i = 0; i < samples.length; i++) {
+    const x = samples[i], y = nb0*x + nb1*x1 + nb2*x2 - na1*y1 - na2*y2;
+    out[i] = y; x2=x1; x1=x; y2=y1; y1=y;
+  }
   return out;
 }
-function dcBlock(samples){
-  const out=new Float32Array(samples.length);let x1=0,y1=0;const R=0.995;
-  for(let i=0;i<samples.length;i++){const x=samples[i];const y=x-x1+R*y1;out[i]=y;x1=x;y1=y}
+function dcBlock(samples) {
+  const out = new Float32Array(samples.length);
+  let x1 = 0, y1 = 0, R = 0.995;
+  for (let i = 0; i < samples.length; i++) {
+    const x = samples[i];
+    const y = x - x1 + R * y1;
+    out[i] = y; x1 = x; y1 = y;
+  }
   return out;
 }
-function bandpass24(samples,sr,fLow,fHigh){
-  let s=samples;
-  if(fLow>0){s=biquadHP(s,sr,fLow);s=biquadHP(s,sr,fLow)}
-  if(fHigh<sr*0.45){s=biquadLP(s,sr,fHigh);s=biquadLP(s,sr,fHigh)}
+function bandpass24(samples, sr, fLow, fHigh) {
+  let s = samples;
+  if (fLow > 0) { s = biquadHP(s, sr, fLow); s = biquadHP(s, sr, fLow); }
+  if (fHigh < sr*0.45) { s = biquadLP(s, sr, fHigh); s = biquadLP(s, sr, fHigh); }
   return s;
 }
-function toMono(audioBuffer){
-  const n=audioBuffer.length;const ch=audioBuffer.numberOfChannels;
-  if(ch===1)return audioBuffer.getChannelData(0).slice();
-  const out=new Float32Array(n);
-  for(let c=0;c<ch;c++){const d=audioBuffer.getChannelData(c);for(let i=0;i<n;i++)out[i]+=d[i]/ch}
+function toMono(audioBuffer) {
+  const n = audioBuffer.length, ch = audioBuffer.numberOfChannels;
+  if (ch === 1) return audioBuffer.getChannelData(0).slice();
+  const out = new Float32Array(n);
+  for (let c = 0; c < ch; c++) {
+    const d = audioBuffer.getChannelData(c);
+    for (let i = 0; i < n; i++) out[i] += d[i] / ch;
+  }
   return out;
 }
-function resampleAA(src,srcRate,dstRate){
-  if(srcRate===dstRate)return src;
-  const ratio=srcRate/dstRate;let s=src;const cutoff=dstRate*0.45;
-  s=biquadLP(s,srcRate,cutoff);s=biquadLP(s,srcRate,cutoff);
-  const outLen=Math.floor(s.length/ratio);const out=new Float32Array(outLen);
-  for(let i=0;i<outLen;i++){const p=i*ratio;const i0=Math.floor(p);const i1=Math.min(i0+1,s.length-1);
-    const f=p-i0;out[i]=s[i0]*(1-f)+s[i1]*f}
+function resampleAA(src, srcRate, dstRate) {
+  if (srcRate === dstRate) return src;
+  const ratio = srcRate / dstRate;
+  let s = src, cutoff = dstRate * 0.45;
+  s = biquadLP(s, srcRate, cutoff); s = biquadLP(s, srcRate, cutoff);
+  const outLen = Math.floor(s.length / ratio), out = new Float32Array(outLen);
+  for (let i = 0; i < outLen; i++) {
+    const p = i * ratio;
+    const i0 = Math.floor(p), i1 = Math.min(i0+1, s.length-1), f = p - i0;
+    out[i] = s[i0]*(1-f) + s[i1]*f;
+  }
   return out;
 }
-async function yinDetect(samples,sr,opts){
-  const FRAME=opts.frameLen||1024;const HOP=opts.hop||256;
-  const tMin=Math.max(2,Math.floor(sr/opts.fMax));
-  const tMax=Math.min(FRAME>>1,Math.floor(sr/opts.fMin));
-  const THRESH=opts.threshold??0.15;const RMS_MIN=opts.rmsMin??0.003;
-  const nFrames=Math.max(0,Math.floor((samples.length-FRAME)/HOP)+1);
-  const pitches=new Float32Array(nFrames).fill(NaN);
-  const d=new Float32Array(tMax+1);const dp=new Float32Array(tMax+1);
-  for(let f=0;f<nFrames;f++){
-    const off=f*HOP;let energy=0;
-    for(let i=0;i<FRAME;i++){const s=samples[off+i];energy+=s*s}
-    if(Math.sqrt(energy/FRAME)<RMS_MIN){
-      if((f&127)===0){opts.onProgress&&opts.onProgress(f/nFrames);await new Promise(r=>setTimeout(r,0))}
+async function yinDetect(samples, sr, opts) {
+  const FRAME = opts.frameLen || 1024, HOP = opts.hop || 256;
+  const tMin = Math.max(2, Math.floor(sr / opts.fMax));
+  const tMax = Math.min(FRAME >> 1, Math.floor(sr / opts.fMin));
+  const THRESH = opts.threshold ?? 0.15, RMS_MIN = opts.rmsMin ?? 0.003;
+  const nFrames = Math.max(0, Math.floor((samples.length - FRAME) / HOP) + 1);
+  const pitches = new Float32Array(nFrames).fill(NaN);
+  const d = new Float32Array(tMax + 1), dp = new Float32Array(tMax + 1);
+  for (let f = 0; f < nFrames; f++) {
+    const off = f * HOP;
+    let energy = 0;
+    for (let i = 0; i < FRAME; i++) { const s = samples[off+i]; energy += s*s; }
+    if (Math.sqrt(energy / FRAME) < RMS_MIN) {
+      if ((f & 127) === 0) { opts.onProgress && opts.onProgress(f / nFrames); await new Promise(r => setTimeout(r, 0)); }
       continue;
     }
-    for(let tau=1;tau<=tMax;tau++){let sum=0;const lim=FRAME-tau;
-      for(let j=0;j<lim;j++){const diff=samples[off+j]-samples[off+j+tau];sum+=diff*diff}d[tau]=sum}
-    let run=0;dp[0]=1;
-    for(let tau=1;tau<=tMax;tau++){run+=d[tau];dp[tau]=run>0?d[tau]*tau/run:1}
-    const candidates=[];
-    for(let tau=tMin;tau<=tMax;tau++){
-      if(dp[tau]<THRESH&&(tau===tMin||dp[tau]<=dp[tau-1])&&(tau===tMax||dp[tau]<=dp[tau+1]))candidates.push(tau);
+    for (let tau = 1; tau <= tMax; tau++) {
+      let sum = 0; const lim = FRAME - tau;
+      for (let j = 0; j < lim; j++) {
+        const diff = samples[off+j] - samples[off+j+tau];
+        sum += diff * diff;
+      }
+      d[tau] = sum;
     }
-    let bestTau=-1;
-    if(candidates.length>0){bestTau=candidates[0];
-      for(const c of candidates){if(c>=bestTau*1.9&&c<=bestTau*2.1){if(dp[c]<dp[bestTau]*0.85)bestTau=c;break}}
-    }else{let minV=Infinity;
-      for(let tau=tMin;tau<=tMax;tau++){if(dp[tau]<minV){minV=dp[tau];bestTau=tau}}
-      if(minV>0.35)bestTau=-1;
+    let run = 0; dp[0] = 1;
+    for (let tau = 1; tau <= tMax; tau++) { run += d[tau]; dp[tau] = run > 0 ? d[tau]*tau/run : 1; }
+    const candidates = [];
+    for (let tau = tMin; tau <= tMax; tau++) {
+      if (dp[tau] < THRESH && (tau === tMin || dp[tau] <= dp[tau-1]) && (tau === tMax || dp[tau] <= dp[tau+1])) {
+        candidates.push(tau);
+      }
     }
-    if(bestTau>0){
-      let betterTau=bestTau;
-      if(bestTau>1&&bestTau<tMax){const s0=dp[bestTau-1],s1=dp[bestTau],s2=dp[bestTau+1];
-        const denom=2*(2*s1-s2-s0);if(Math.abs(denom)>1e-9)betterTau=bestTau+(s2-s0)/denom}
-      pitches[f]=69+12*Math.log2((sr/betterTau)/440);
+    let bestTau = -1;
+    if (candidates.length > 0) {
+      bestTau = candidates[0];
+      for (const c of candidates) {
+        if (c >= bestTau * 1.9 && c <= bestTau * 2.1) {
+          if (dp[c] < dp[bestTau] * 0.85) bestTau = c;
+          break;
+        }
+      }
+    } else {
+      let minV = Infinity;
+      for (let tau = tMin; tau <= tMax; tau++) { if (dp[tau] < minV) { minV = dp[tau]; bestTau = tau; } }
+      if (minV > 0.35) bestTau = -1;
     }
-    if((f&127)===0){opts.onProgress&&opts.onProgress(f/nFrames);await new Promise(r=>setTimeout(r,0))}
+    if (bestTau > 0) {
+      let betterTau = bestTau;
+      if (bestTau > 1 && bestTau < tMax) {
+        const s0 = dp[bestTau-1], s1 = dp[bestTau], s2 = dp[bestTau+1];
+        const denom = 2*(2*s1 - s2 - s0);
+        if (Math.abs(denom) > 1e-9) betterTau = bestTau + (s2 - s0) / denom;
+      }
+      pitches[f] = 69 + 12 * Math.log2((sr / betterTau) / 440);
+    }
+    if ((f & 127) === 0) { opts.onProgress && opts.onProgress(f / nFrames); await new Promise(r => setTimeout(r, 0)); }
   }
-  opts.onProgress&&opts.onProgress(1);
-  const smoothed=pitches.slice();
-  for(let i=1;i<nFrames-1;i++){
-    const a=pitches[i-1],b=pitches[i],c=pitches[i+1];
-    if(Number.isNaN(a)||Number.isNaN(b)||Number.isNaN(c))continue;
-    smoothed[i]=Math.max(Math.min(a,b),Math.min(Math.max(a,b),c));
+  opts.onProgress && opts.onProgress(1);
+  const smoothed = pitches.slice();
+  for (let i = 1; i < nFrames - 1; i++) {
+    const a = pitches[i-1], b = pitches[i], c = pitches[i+1];
+    if (Number.isNaN(a) || Number.isNaN(b) || Number.isNaN(c)) continue;
+    smoothed[i] = Math.max(Math.min(a,b), Math.min(Math.max(a,b), c));
   }
-  return {pitches:smoothed,nFrames};
+  return { pitches: smoothed, nFrames };
 }
-function detectBPM(mono,sr){
-  const HOP=512;const nFrames=Math.floor(mono.length/HOP);
-  const env=new Float32Array(nFrames);
-  for(let i=0;i<nFrames;i++){let e=0;for(let j=0;j<HOP;j++){const s=mono[i*HOP+j];e+=s*s}env[i]=Math.sqrt(e/HOP)}
-  const onset=new Float32Array(nFrames);
-  for(let i=1;i<nFrames;i++){const d=env[i]-env[i-1];onset[i]=d>0?d:0}
-  let meanOn=0;for(let i=0;i<nFrames;i++)meanOn+=onset[i];meanOn/=nFrames;
-  for(let i=0;i<nFrames;i++)onset[i]=Math.max(0,onset[i]-meanOn);
-  const fps=sr/HOP;const minLag=Math.max(2,Math.floor(fps*60/200));
-  const maxLag=Math.min(nFrames-1,Math.floor(fps*60/60));
-  let bestLag=minLag,bestScore=-Infinity;
-  for(let lag=minLag;lag<=maxLag;lag++){
-    let s=0,cnt=0;
-    for(let i=0;i<nFrames-lag;i++){s+=onset[i]*onset[i+lag];cnt++}
-    if(cnt>0)s/=cnt;if(s>bestScore){bestScore=s;bestLag=lag}
+function detectBPM(mono, sr) {
+  const HOP = 512, nFrames = Math.floor(mono.length / HOP);
+  const env = new Float32Array(nFrames);
+  for (let i = 0; i < nFrames; i++) {
+    let e = 0;
+    for (let j = 0; j < HOP; j++) { const s = mono[i*HOP+j]; e += s*s; }
+    env[i] = Math.sqrt(e / HOP);
   }
-  let bpm=60*fps/bestLag;
-  while(bpm<80)bpm*=2;while(bpm>180)bpm/=2;
+  const onset = new Float32Array(nFrames);
+  for (let i = 1; i < nFrames; i++) { const d = env[i] - env[i-1]; onset[i] = d > 0 ? d : 0; }
+  let meanOn = 0; for (let i = 0; i < nFrames; i++) meanOn += onset[i]; meanOn /= nFrames;
+  for (let i = 0; i < nFrames; i++) onset[i] = Math.max(0, onset[i] - meanOn);
+  const fps = sr / HOP, minLag = Math.max(2, Math.floor(fps * 60 / 200));
+  const maxLag = Math.min(nFrames - 1, Math.floor(fps * 60 / 60));
+  let bestLag = minLag, bestScore = -Infinity;
+  for (let lag = minLag; lag <= maxLag; lag++) {
+    let s = 0, cnt = 0;
+    for (let i = 0; i < nFrames - lag; i++) { s += onset[i]*onset[i+lag]; cnt++; }
+    if (cnt > 0) s /= cnt;
+    if (s > bestScore) { bestScore = s; bestLag = lag; }
+  }
+  let bpm = 60 * fps / bestLag;
+  while (bpm < 80) bpm *= 2;
+  while (bpm > 180) bpm /= 2;
   return Math.round(bpm);
 }
-function goertzel(samples,sr,freq){
-  const n=samples.length;const w=2*Math.PI*freq/sr;const cosw=Math.cos(w);const coeff=2*cosw;
-  let s1=0,s2=0;
-  for(let i=0;i<n;i++){const s0=samples[i]+coeff*s1-s2;s2=s1;s1=s0}
-  const real=s1-s2*cosw;const imag=s2*Math.sin(w);
-  return Math.sqrt(real*real+imag*imag);
+function goertzel(samples, sr, freq) {
+  const n = samples.length, w = 2*Math.PI*freq/sr, cosw = Math.cos(w), coeff = 2*cosw;
+  let s1 = 0, s2 = 0;
+  for (let i = 0; i < n; i++) { const s0 = samples[i] + coeff*s1 - s2; s2 = s1; s1 = s0; }
+  const real = s1 - s2*cosw, imag = s2*Math.sin(w);
+  return Math.sqrt(real*real + imag*imag);
 }
-function detectWaveform(band,sr,pitchData){
-  const FRAME=1024,HOP=256;const ratios=[];
-  const {pitches}=pitchData;
-  for(let f=0;f<Math.floor((band.length-FRAME)/HOP);f++){
-    if(Number.isNaN(pitches[f]))continue;
-    const f0=440*Math.pow(2,(pitches[f]-69)/12);
-    if(f0<120||f0>1500)continue;
-    const off=f*HOP;let energy=0;
-    for(let i=0;i<FRAME;i++){const s=band[off+i];energy+=s*s}
-    if(Math.sqrt(energy/FRAME)<0.005)continue;
-    const win=new Float32Array(FRAME);
-    for(let i=0;i<FRAME;i++)win[i]=band[off+i]*(0.5-0.5*Math.cos(2*Math.PI*i/(FRAME-1)));
-    const h1=goertzel(win,sr,f0);if(h1<1e-6)continue;
-    const h2=goertzel(win,sr,f0*2);const h3=goertzel(win,sr,f0*3);const h4=goertzel(win,sr,f0*4);
-    ratios.push([h2/h1,h3/h1,h4/h1]);
-    if(ratios.length>=40)break;
+function detectWaveform(band, sr, pitchData) {
+  const FRAME = 1024, HOP = 256, ratios = [];
+  const { pitches } = pitchData;
+  for (let f = 0; f < Math.floor((band.length-FRAME)/HOP); f++) {
+    if (Number.isNaN(pitches[f])) continue;
+    const f0 = 440 * Math.pow(2, (pitches[f] - 69) / 12);
+    if (f0 < 120 || f0 > 1500) continue;
+    const off = f * HOP;
+    let energy = 0;
+    for (let i = 0; i < FRAME; i++) { const s = band[off+i]; energy += s*s; }
+    if (Math.sqrt(energy / FRAME) < 0.005) continue;
+    const win = new Float32Array(FRAME);
+    for (let i = 0; i < FRAME; i++) win[i] = band[off+i] * (0.5 - 0.5*Math.cos(2*Math.PI*i/(FRAME-1)));
+    const h1 = goertzel(win, sr, f0); if (h1 < 1e-6) continue;
+    const h2 = goertzel(win, sr, f0*2);
+    const h3 = goertzel(win, sr, f0*3);
+    const h4 = goertzel(win, sr, f0*4);
+    ratios.push([h2/h1, h3/h1, h4/h1]);
+    if (ratios.length >= 40) break;
   }
-  if(ratios.length===0)return {wave:'pulse_25',conf:0};
-  let r2=0,r3=0,r4=0;
-  for(const [a,b,c] of ratios){r2+=a;r3+=b;r4+=c}
-  r2/=ratios.length;r3/=ratios.length;r4/=ratios.length;
-  const T=[['triangle',0.05,0.11,0.03],['pulse_50',0.05,0.33,0.05],['pulse_25',0.71,0.33,0.05],
-    ['pulse_12',0.92,0.71,0.46],['saw',0.50,0.33,0.25]];
-  let best='pulse_25',bestD=Infinity;
-  for(const [name,a,b,c] of T){const d=(r2-a)**2+(r3-b)**2+(r4-c)**2;if(d<bestD){bestD=d;best=name}}
-  const conf=Math.max(0,1-Math.sqrt(bestD)*1.5);
-  return {wave:best,conf};
+  if (ratios.length === 0) return { wave: 'pulse_25', conf: 0 };
+  let r2=0, r3=0, r4=0;
+  for (const [a,b,c] of ratios) { r2+=a; r3+=b; r4+=c; }
+  r2/=ratios.length; r3/=ratios.length; r4/=ratios.length;
+  const T = [
+    ['triangle', 0.05, 0.11, 0.03],
+    ['pulse_50', 0.05, 0.33, 0.05],
+    ['pulse_25', 0.71, 0.33, 0.05],
+    ['pulse_12', 0.92, 0.71, 0.46],
+    ['saw', 0.50, 0.33, 0.25],
+  ];
+  let best = 'pulse_25', bestD = Infinity;
+  for (const [name,a,b,c] of T) {
+    const d = (r2-a)**2 + (r3-b)**2 + (r4-c)**2;
+    if (d < bestD) { bestD = d; best = name; }
+  }
+  const conf = Math.max(0, 1 - Math.sqrt(bestD) * 1.5);
+  return { wave: best, conf };
 }
-function pitchesToEvents(pitchData,frameSec,ticksPerSec,ch,opts){
-  const {pitches}=pitchData;
-  const minDurFrames=Math.max(1,Math.round((opts.minNoteMs/1000)/frameSec));
-  const tol=opts.pitchTol??0.6;
-  const raw=[];let cur=null,start=0;
-  for(let i=0;i<pitches.length;i++){
-    const v=pitches[i];
-    if(Number.isNaN(v)){if(cur!==null){if(i-start>=minDurFrames)raw.push([start,i,cur]);cur=null}continue}
-    if(cur===null){cur=v;start=i}
-    else if(Math.abs(v-cur)>tol){if(i-start>=minDurFrames)raw.push([start,i,cur]);cur=v;start=i}
+function pitchesToEvents(pitchData, frameSec, ticksPerSec, ch, opts) {
+  const { pitches } = pitchData;
+  const minDurFrames = Math.max(1, Math.round((opts.minNoteMs / 1000) / frameSec));
+  const tol = opts.pitchTol ?? 0.6;
+  const raw = [];
+  let cur = null, start = 0;
+  for (let i = 0; i < pitches.length; i++) {
+    const v = pitches[i];
+    if (Number.isNaN(v)) {
+      if (cur !== null) { if (i - start >= minDurFrames) raw.push([start, i, cur]); cur = null; }
+      continue;
+    }
+    if (cur === null) { cur = v; start = i; }
+    else if (Math.abs(v - cur) > tol) {
+      if (i - start >= minDurFrames) raw.push([start, i, cur]);
+      cur = v; start = i;
+    }
   }
-  if(cur!==null&&pitches.length-start>=minDurFrames)raw.push([start,pitches.length,cur]);
-  const events=[];let shifted=0;
-  for(const [sf,ef,pitch] of raw){
-    const startTick=Math.round(sf*frameSec*ticksPerSec);
-    const endTick=Math.round(ef*frameSec*ticksPerSec);
-    let note=Math.round(pitch);const orig=note;
-    while(note<NOTE_LOW)note+=12;while(note>NOTE_HIGH)note-=12;
-    if(note!==orig)shifted++;
-    events.push({ch,tick:startTick,note,vel:100,dur:Math.max(1,endTick-startTick)});
+  if (cur !== null && pitches.length - start >= minDurFrames) raw.push([start, pitches.length, cur]);
+  const events = [];
+  let shifted = 0;
+  for (const [sf, ef, pitch] of raw) {
+    const startTick = Math.round(sf * frameSec * ticksPerSec);
+    const endTick = Math.round(ef * frameSec * ticksPerSec);
+    let note = Math.round(pitch);
+    const orig = note;
+    while (note < NOTE_LOW) note += 12;
+    while (note > NOTE_HIGH) note -= 12;
+    if (note !== orig) shifted++;
+    events.push({ ch, tick: startTick, note, vel: 100, dur: Math.max(1, endTick - startTick) });
   }
-  return {events,shifted};
+  return { events, shifted };
 }
-function detectPercussion(hpSignal,sampleRate,hopSize,overallRms,threshMul,minIntervalFrames){
-  const nFrames=Math.floor(hpSignal.length/hopSize);
-  const env=new Float32Array(nFrames);
-  for(let i=0;i<nFrames;i++){let e=0;for(let j=0;j<hopSize;j++){const s=hpSignal[i*hopSize+j]||0;e+=s*s}env[i]=Math.sqrt(e/hopSize)}
-  let avg=0;for(let i=0;i<nFrames;i++)avg+=env[i];avg/=nFrames;
-  const thr=Math.max(avg*threshMul,overallRms*0.3,0.002);
-  const onsets=[];let last=-999;
-  for(let i=2;i<nFrames-1;i++){
-    if(env[i]>thr&&env[i]>env[i-1]&&env[i]>=env[i+1]){if(i-last>=minIntervalFrames){onsets.push(i);last=i}}
+function detectPercussion(hpSignal, sampleRate, hopSize, overallRms, threshMul, minIntervalFrames) {
+  const nFrames = Math.floor(hpSignal.length / hopSize);
+  const env = new Float32Array(nFrames);
+  for (let i = 0; i < nFrames; i++) {
+    let e = 0;
+    for (let j = 0; j < hopSize; j++) { const s = hpSignal[i*hopSize+j] || 0; e += s*s; }
+    env[i] = Math.sqrt(e / hopSize);
   }
-  return {onsets,frameRate:sampleRate/hopSize};
+  let avg = 0; for (let i = 0; i < nFrames; i++) avg += env[i]; avg /= nFrames;
+  const thr = Math.max(avg * threshMul, overallRms * 0.3, 0.002);
+  const onsets = [];
+  let last = -999;
+  for (let i = 2; i < nFrames - 1; i++) {
+    if (env[i] > thr && env[i] > env[i-1] && env[i] >= env[i+1]) {
+      if (i - last >= minIntervalFrames) { onsets.push(i); last = i; }
+    }
+  }
+  return { onsets, frameRate: sampleRate / hopSize };
 }
 
 /* Basic Pitch */
-let bpModule=null,bpModel=null,bpReady=false;
-const BP_LIBRARY_URL='https://cdn.jsdelivr.net/npm/@spotify/basic-pitch@1.0.1/+esm';
-const BP_MODEL_CANDIDATES=[
+let bpModule = null, bpModel = null, bpReady = false;
+const BP_LIBRARY_URL = 'https://cdn.jsdelivr.net/npm/@spotify/basic-pitch@1.0.1/+esm';
+const BP_MODEL_CANDIDATES = [
   'https://huggingface.co/spotify/basic-pitch/resolve/main/model.json',
   'https://cdn.jsdelivr.net/npm/@spotify/basic-pitch/model/model.json',
   'https://raw.githubusercontent.com/spotify/basic-pitch-ts/main/model/model.json',
 ];
-async function resampleAudioBuffer(audioBuf,targetSR){
-  const needsResample=audioBuf.sampleRate!==targetSR;
-  const needsMono=audioBuf.numberOfChannels>1;
-  if(!needsResample&&!needsMono)return audioBuf;
-  const outLen=Math.ceil(audioBuf.duration*targetSR);
-  const offCtx=new OfflineAudioContext(1,outLen,targetSR);
-  const src=offCtx.createBufferSource();src.buffer=audioBuf;src.connect(offCtx.destination);src.start(0);
+async function resampleAudioBuffer(audioBuf, targetSR) {
+  const needsResample = audioBuf.sampleRate !== targetSR;
+  const needsMono = audioBuf.numberOfChannels > 1;
+  if (!needsResample && !needsMono) return audioBuf;
+  const outLen = Math.ceil(audioBuf.duration * targetSR);
+  const offCtx = new OfflineAudioContext(1, outLen, targetSR);
+  const src = offCtx.createBufferSource();
+  src.buffer = audioBuf;
+  src.connect(offCtx.destination);
+  src.start(0);
   return await offCtx.startRendering();
 }
-async function loadBasicPitch(logCb){
-  if(bpReady)return;
+async function loadBasicPitch(logCb) {
+  if (bpReady) return;
   logCb('加载 basic-pitch 库...');
-  try{bpModule=await import(BP_LIBRARY_URL)}catch(e){throw new Error('库加载失败：'+e.message)}
+  try { bpModule = await import(BP_LIBRARY_URL); } catch (e) { throw new Error('库加载失败：' + e.message); }
   logCb('  库加载成功');
-  let lastErr=null;
-  for(const url of BP_MODEL_CANDIDATES){
-    try{
-      logCb('尝试模型：'+url);
-      const head=await fetch(url,{method:'HEAD'});
-      if(!head.ok)throw new Error('HTTP '+head.status);
+  let lastErr = null;
+  for (const url of BP_MODEL_CANDIDATES) {
+    try {
+      logCb('尝试模型：' + url);
+      const head = await fetch(url, { method: 'HEAD' });
+      if (!head.ok) throw new Error('HTTP ' + head.status);
       logCb('  可访问，初始化...');
-      bpModel=new bpModule.BasicPitch(url);
-      const warmCtx=new OfflineAudioContext(1,22050,22050);
-      const dummy=warmCtx.createBuffer(1,22050,22050);
+      bpModel = new bpModule.BasicPitch(url);
+      const warmCtx = new OfflineAudioContext(1, 22050, 22050);
+      const dummy = warmCtx.createBuffer(1, 22050, 22050);
       logCb('  下载权重...');
-      await bpModel.evaluateModel(dummy,()=>{},(progress)=>{
-        const pct=typeof progress==='number'?Math.round(progress*100):'?';
+      await bpModel.evaluateModel(dummy, () => {}, (progress) => {
+        const pct = typeof progress === 'number' ? Math.round(progress * 100) : '?';
         logCb(`    下载进度：${pct}%`);
       });
-      bpReady=true;logCb('✓ 模型就绪');return;
-    }catch(e){logCb('  ✗ '+e.message);lastErr=e;bpModel=null}
-  }
-  throw new Error('所有 URL 失败：'+(lastErr?.message||'未知'));
-}
-async function bpEvaluateFull(model,audioBuffer,opts){
-  const {onProgress,log}=opts;
-  const frames=[],onsets=[];
-  let windowCount=0,lastLogged=0;
-  await model.evaluateModel(audioBuffer,
-    (f,o)=>{windowCount++;if(f&&f.length)frames.push(...f);if(o&&o.length)onsets.push(...o);
-      if(frames.length-lastLogged>=1000){lastLogged=frames.length;log&&log(`    累计 ${frames.length} 帧`)}},
-    (p)=>{onProgress&&onProgress(p)});
-  log&&log(`  共 ${windowCount} 次 window 回调，总计 ${frames.length} 帧`);
-  return {frames,onsets};
-}
-
-/* ============ 智能分桶（增强版） ============ */
-
-/* ★ 改动1：噪声段过滤 —— 每帧超过 maxPerFrame 个激活 bin 的帧视为噪声 */
-function bpExtractNotes(frames,onsets,opts){
-  const {onsetThresh,frameThresh,minFrames,maxNoteFrames,maxPerFrame}=opts;
-  const T=frames.length;
-  if(T===0)return [];
-  const nBins=frames[0].length;
-
-  // 先计算每帧有多少 bin 激活
-  const activePerFrame=new Uint16Array(T);
-  for(let t=0;t<T;t++){
-    let cnt=0;
-    for(let i=0;i<nBins;i++){
-      if(frames[t][i]>frameThresh || onsets[t][i]>onsetThresh) cnt++;
+      bpReady = true;
+      logCb('✓ 模型就绪');
+      return;
+    } catch (e) {
+      logCb('  ✗ ' + e.message);
+      lastErr = e;
+      bpModel = null;
     }
-    activePerFrame[t]=cnt;
   }
-  // 标记噪声帧
-  const noisyFrames=new Uint8Array(T);
-  let noisyCount=0;
-  for(let t=0;t<T;t++){
-    if(activePerFrame[t]>maxPerFrame){ noisyFrames[t]=1; noisyCount++; }
+  throw new Error('所有 URL 失败：' + (lastErr?.message || '未知'));
+}
+async function bpEvaluateFull(model, audioBuffer, opts) {
+  const { onProgress, log } = opts;
+  const frames = [], onsets = [];
+  let windowCount = 0, lastLogged = 0;
+  await model.evaluateModel(audioBuffer,
+    (f, o) => {
+      windowCount++;
+      if (f && f.length) frames.push(...f);
+      if (o && o.length) onsets.push(...o);
+      if (frames.length - lastLogged >= 1000) {
+        lastLogged = frames.length;
+        log && log(`    累计 ${frames.length} 帧`);
+      }
+    },
+    (p) => { onProgress && onProgress(p); }
+  );
+  log && log(`  共 ${windowCount} 次 window 回调，总计 ${frames.length} 帧`);
+  return { frames, onsets };
+}
+function bpExtractNotes(frames, onsets, opts) {
+  const { onsetThresh, frameThresh, minFrames, maxNoteFrames, maxPerFrame } = opts;
+  const T = frames.length;
+  if (T === 0) return { notes: [], softLimitedFrames: 0, totalFrames: 0 };
+  const nBins = frames[0].length;
+  const keptPerFrame = new Array(T);
+  let softLimitedFrames = 0;
+  for (let t = 0; t < T; t++) {
+    const activeBins = [];
+    let maxBinIdx = -1, maxBinVal = 0;
+    for (let i = 0; i < nBins; i++) {
+      const fr = frames[t][i] > frameThresh;
+      const on = onsets[t][i] > onsetThresh;
+      const v = Math.max(frames[t][i], onsets[t][i] * 0.9);
+      if (v > maxBinVal) { maxBinVal = v; maxBinIdx = i; }
+      if (fr || on) activeBins.push({ i, v });
+    }
+    if (activeBins.length <= maxPerFrame) {
+      const s = new Set();
+      for (const b of activeBins) s.add(b.i);
+      keptPerFrame[t] = s;
+    } else {
+      softLimitedFrames++;
+      activeBins.sort((a, b) => b.v - a.v);
+      const s = new Set();
+      for (let k = 0; k < maxPerFrame; k++) s.add(activeBins[k].i);
+      keptPerFrame[t] = s;
+    }
+    if (keptPerFrame[t].size === 0 && maxBinIdx >= 0 && maxBinVal > 0.05) keptPerFrame[t].add(maxBinIdx);
   }
-
-  const notes=[];
-  for(let i=0;i<nBins;i++){
-    let active=false,start=0,maxAmp=0,noisyFramesInNote=0;
-    for(let t=0;t<T;t++){
-      const on=onsets[t][i]>onsetThresh;
-      const fr=frames[t][i]>frameThresh;
-      const isNoisy=noisyFrames[t]===1;
-      if(!active){
-        if((on||fr) && !isNoisy){ active=true; start=t; maxAmp=frames[t][i]; }
-      }else{
-        if(fr && !isNoisy){
-          if(frames[t][i]>maxAmp)maxAmp=frames[t][i];
-          if(t-start>=maxNoteFrames){
-            notes.push({pitch:21+i,startFrame:start,endFrame:start+maxNoteFrames,amp:maxAmp});
-            active=false;
+  const notes = [];
+  for (let i = 0; i < nBins; i++) {
+    let active = false, start = 0, maxAmp = 0;
+    for (let t = 0; t < T; t++) {
+      const isKept = keptPerFrame[t].has(i);
+      const fr = frames[t][i] > frameThresh;
+      const on = onsets[t][i] > onsetThresh;
+      if (!active) {
+        if ((on || fr) && isKept) { active = true; start = t; maxAmp = frames[t][i]; }
+      } else {
+        if (fr && isKept) {
+          if (frames[t][i] > maxAmp) maxAmp = frames[t][i];
+          if (t - start >= maxNoteFrames) {
+            notes.push({ pitch: 21+i, startFrame: start, endFrame: start+maxNoteFrames, amp: maxAmp });
+            active = false;
           }
-        }else{
-          // 关掉（噪声帧也算关掉）
-          if(t-start>=minFrames)notes.push({pitch:21+i,startFrame:start,endFrame:t,amp:maxAmp});
-          active=false;
+        } else {
+          if (t - start >= minFrames) notes.push({ pitch: 21+i, startFrame: start, endFrame: t, amp: maxAmp });
+          active = false;
         }
       }
     }
-    if(active){
-      const dur=Math.min(T-start,maxNoteFrames);
-      if(dur>=minFrames)notes.push({pitch:21+i,startFrame:start,endFrame:start+dur,amp:maxAmp});
+    if (active) {
+      const dur = Math.min(T - start, maxNoteFrames);
+      if (dur >= minFrames) notes.push({ pitch: 21+i, startFrame: start, endFrame: start+dur, amp: maxAmp });
     }
   }
-  return {notes, noisyCount, totalFrames:T};
+  return { notes, softLimitedFrames, totalFrames: T };
 }
-
-function removeNoiseArtefacts(notes,drumFrames,windowFrames,ampThreshold){
-  if(drumFrames.length===0)return notes;
-  const drumSet=new Set();
-  for(const df of drumFrames)for(let d=-windowFrames;d<=windowFrames;d++)drumSet.add(df+d);
-  return notes.filter(n=>{
-    let overlaps=false;
-    for(let f=n.startFrame;f<n.endFrame;f++)if(drumSet.has(f)){overlaps=true;break}
-    if(!overlaps)return true;
-    return n.amp>=ampThreshold;
+function removeNoiseArtefacts(notes, drumFrames, windowFrames, ampThreshold) {
+  if (drumFrames.length === 0) return notes;
+  const drumSet = new Set();
+  for (const df of drumFrames) for (let d = -windowFrames; d <= windowFrames; d++) drumSet.add(df+d);
+  return notes.filter(n => {
+    let overlaps = false;
+    for (let f = n.startFrame; f < n.endFrame; f++) if (drumSet.has(f)) { overlaps = true; break; }
+    if (!overlaps) return true;
+    return n.amp >= ampThreshold;
   });
 }
-
-function splitByPitch(notes,bassMax,leadMax){
-  const bass=[],mid=[],high=[];
-  for(const n of notes){
-    if(n.pitch<bassMax)bass.push(n);
-    else if(n.pitch>leadMax)high.push(n);
+function splitByPitch(notes, bassMax, leadMax) {
+  const bass = [], mid = [], high = [];
+  for (const n of notes) {
+    if (n.pitch < bassMax) bass.push(n);
+    else if (n.pitch > leadMax) high.push(n);
     else mid.push(n);
   }
-  return {bass,mid,high};
+  return { bass, mid, high };
 }
-
-function mergeAdjacentNotes(notes, maxGapFrames){
-  const sorted=[...notes].sort((a,b)=>a.startFrame-b.startFrame);
-  const out=[];
-  for(const n of sorted){
-    if(out.length > 0){
-      const prev=out[out.length-1];
-      const gap=n.startFrame-prev.endFrame;
-      const pitchDiff=Math.abs(prev.pitch-n.pitch);
-      if(gap<=maxGapFrames && pitchDiff<=1){
-        prev.endFrame=Math.max(prev.endFrame,n.endFrame);
-        prev.amp=Math.max(prev.amp,n.amp);
+function mergeAdjacentNotes(notes, maxGapFrames) {
+  const sorted = [...notes].sort((a, b) => a.startFrame - b.startFrame);
+  const out = [];
+  for (const n of sorted) {
+    if (out.length > 0) {
+      const prev = out[out.length - 1];
+      const gap = n.startFrame - prev.endFrame;
+      const pitchDiff = Math.abs(prev.pitch - n.pitch);
+      if (gap <= maxGapFrames && pitchDiff <= 1) {
+        prev.endFrame = Math.max(prev.endFrame, n.endFrame);
+        prev.amp = Math.max(prev.amp, n.amp);
         continue;
       }
     }
-    out.push({...n});
+    out.push({ ...n });
   }
   return out;
 }
-
-/* ★ 改动2：音高平滑 —— 相邻音符音高差 ≤ 半音阈值且间隔 < 5 帧 → 对齐到前者 */
-function smoothPitchLine(notes, pitchTol){
-  if(pitchTol <= 0) return notes;
-  const sorted=[...notes].sort((a,b)=>a.startFrame-b.startFrame);
-  for(let i=1;i<sorted.length;i++){
-    const prev=sorted[i-1], cur=sorted[i];
-    const gap=cur.startFrame-prev.endFrame;
-    if(gap>=0 && gap<5){
-      const diff=cur.pitch-prev.pitch;
-      if(Math.abs(diff)>0.1 && Math.abs(diff)<=pitchTol){
-        cur.pitch=prev.pitch;
-      }
+function smoothPitchLine(notes, pitchTol) {
+  if (pitchTol <= 0) return notes;
+  const sorted = [...notes].sort((a, b) => a.startFrame - b.startFrame);
+  for (let i = 1; i < sorted.length; i++) {
+    const prev = sorted[i-1], cur = sorted[i];
+    const gap = cur.startFrame - prev.endFrame;
+    if (gap >= 0 && gap < 5) {
+      const diff = cur.pitch - prev.pitch;
+      if (Math.abs(diff) > 0.1 && Math.abs(diff) <= pitchTol) cur.pitch = prev.pitch;
     }
   }
   return sorted;
 }
-
-function resolveOverlap(notes,scoreFn){
-  const sorted=[...notes].sort((a,b)=>a.startFrame-b.startFrame||a.endFrame-b.endFrame);
-  const result=[];
-  for(const n of sorted){
-    const conflicts=result.filter(r=>r.startFrame<n.endFrame&&n.startFrame<r.endFrame);
-    if(conflicts.length===0){result.push(n);continue}
-    const sN=scoreFn(n);
-    let bestScore=scoreFn(conflicts[0]);
-    for(let i=1;i<conflicts.length;i++){
-      const sc=scoreFn(conflicts[i]);
-      if(sc>bestScore)bestScore=sc;
+function resolveOverlap(notes, scoreFn) {
+  const sorted = [...notes].sort((a, b) => a.startFrame - b.startFrame || a.endFrame - b.endFrame);
+  const result = [];
+  for (const n of sorted) {
+    const conflicts = result.filter(r => r.startFrame < n.endFrame && n.startFrame < r.endFrame);
+    if (conflicts.length === 0) { result.push(n); continue; }
+    const sN = scoreFn(n);
+    let bestScore = scoreFn(conflicts[0]);
+    for (let i = 1; i < conflicts.length; i++) {
+      const sc = scoreFn(conflicts[i]);
+      if (sc > bestScore) bestScore = sc;
     }
-    if(sN>bestScore*1.15){
-      for(const c of conflicts){const idx=result.indexOf(c);if(idx>=0)result.splice(idx,1)}
+    if (sN > bestScore * 1.15) {
+      for (const c of conflicts) { const idx = result.indexOf(c); if (idx >= 0) result.splice(idx, 1); }
       result.push(n);
     }
   }
   return result;
 }
-
-/* ★ 改动3：双线分配 —— 被挤出 lead 的音符尝试降/升八度进 harmony，不直接丢弃 */
-function assignTwoLines(notes,scoreFn){
-  const sorted=[...notes].sort((a,b)=>a.startFrame-b.startFrame||a.endFrame-b.endFrame);
-  const lead=[],harmony=[];
-  const tryPlaceHarmony=(candidate)=>{
-    // 尝试原始、降八度、升八度三个版本
-    const attempts=[candidate,{...candidate,pitch:candidate.pitch-12},{...candidate,pitch:candidate.pitch+12}];
-    for(const attempt of attempts){
-      if(attempt.pitch<21||attempt.pitch>108)continue;
-      const hCon=harmony.some(r=>r.startFrame<attempt.endFrame&&attempt.startFrame<r.endFrame);
-      if(!hCon){harmony.push(attempt);return true}
+function assignTwoLines(notes, scoreFn, opts) {
+  const maxHarmonyConcurrent = opts.maxHarmonyConcurrent ?? 1;
+  const harmonyMinAmp = opts.harmonyMinAmp ?? 0.35;
+  const minHarmonyFrames = opts.minHarmonyFrames ?? 3;
+  const sorted = [...notes].sort((a, b) => a.startFrame - b.startFrame || a.endFrame - b.endFrame);
+  const lead = [], harmony = [];
+  const placeHarmony = (candidate) => {
+    if (candidate.amp < harmonyMinAmp) return;
+    if (candidate.endFrame - candidate.startFrame < minHarmonyFrames) return;
+    const overlapping = harmony.filter(r => r.startFrame < candidate.endFrame && candidate.startFrame < r.endFrame);
+    if (overlapping.length < maxHarmonyConcurrent) { harmony.push({ ...candidate }); return; }
+    let weakest = overlapping[0], weakScore = scoreFn(overlapping[0]);
+    for (let i = 1; i < overlapping.length; i++) {
+      const sc = scoreFn(overlapping[i]);
+      if (sc < weakScore) { weakScore = sc; weakest = overlapping[i]; }
     }
-    return false;
+    if (scoreFn(candidate) > weakScore * 1.3) {
+      const idx = harmony.indexOf(weakest);
+      if (idx >= 0) harmony.splice(idx, 1);
+      harmony.push({ ...candidate });
+    }
   };
-  for(const n of sorted){
-    const leadConflicts=lead.filter(r=>r.startFrame<n.endFrame&&n.startFrame<r.endFrame);
-    if(leadConflicts.length===0){lead.push(n);continue}
-    let bestScore=scoreFn(leadConflicts[0]);
-    for(let i=1;i<leadConflicts.length;i++){
-      const sc=scoreFn(leadConflicts[i]);
-      if(sc>bestScore)bestScore=sc;
+  for (const n of sorted) {
+    const conflicts = lead.filter(r => r.startFrame < n.endFrame && n.startFrame < r.endFrame);
+    if (conflicts.length === 0) { lead.push(n); continue; }
+    let bestScore = scoreFn(conflicts[0]);
+    for (let i = 1; i < conflicts.length; i++) {
+      const sc = scoreFn(conflicts[i]);
+      if (sc > bestScore) bestScore = sc;
     }
-    if(scoreFn(n)>bestScore*1.15){
-      for(const c of leadConflicts){
-        const idx=lead.indexOf(c);
-        if(idx>=0)lead.splice(idx,1);
-        tryPlaceHarmony(c);
+    if (scoreFn(n) > bestScore * 1.15) {
+      for (const c of conflicts) {
+        const idx = lead.indexOf(c);
+        if (idx >= 0) lead.splice(idx, 1);
+        placeHarmony(c);
       }
       lead.push(n);
-    }else{
-      tryPlaceHarmony(n);
+    } else {
+      placeHarmony(n);
     }
   }
-  return {lead,harmony};
+  return { lead, harmony };
 }
-
-function fixOctaveJumps(notes){
-  const sorted=[...notes].sort((a,b)=>a.startFrame-b.startFrame);
-  if(sorted.length===0)return sorted;
-  let prevPitch=sorted[0].pitch;
-  for(let i=1;i<sorted.length;i++){
-    const n=sorted[i];const gap=n.startFrame-sorted[i-1].endFrame;
-    if(gap>=0&&gap<5){
-      const diff=n.pitch-prevPitch;
-      if(Math.abs(diff-12)<1.5)n.pitch-=12;
-      else if(Math.abs(diff+12)<1.5)n.pitch+=12;
+function refineHarmony(harmony, scoreFn, strictRatio) {
+  const sorted = [...harmony].sort((a, b) => a.startFrame - b.startFrame || a.endFrame - b.endFrame);
+  const result = [];
+  for (const n of sorted) {
+    const conflicts = result.filter(r => r.startFrame < n.endFrame && n.startFrame < r.endFrame);
+    if (conflicts.length === 0) { result.push(n); continue; }
+    const sN = scoreFn(n);
+    let bestScore = scoreFn(conflicts[0]);
+    for (let i = 1; i < conflicts.length; i++) {
+      const sc = scoreFn(conflicts[i]);
+      if (sc > bestScore) bestScore = sc;
     }
-    prevPitch=n.pitch;
+    if (sN > bestScore * strictRatio) {
+      for (const c of conflicts) { const idx = result.indexOf(c); if (idx >= 0) result.splice(idx, 1); }
+      result.push(n);
+    }
+  }
+  return result;
+}
+function fixOctaveJumps(notes) {
+  const sorted = [...notes].sort((a, b) => a.startFrame - b.startFrame);
+  if (sorted.length === 0) return sorted;
+  let prevPitch = sorted[0].pitch;
+  for (let i = 1; i < sorted.length; i++) {
+    const n = sorted[i];
+    const gap = n.startFrame - sorted[i-1].endFrame;
+    if (gap >= 0 && gap < 5) {
+      const diff = n.pitch - prevPitch;
+      if (Math.abs(diff - 12) < 1.5) n.pitch -= 12;
+      else if (Math.abs(diff + 12) < 1.5) n.pitch += 12;
+    }
+    prevPitch = n.pitch;
   }
   return sorted;
 }
-
-/* ★ 改动4：段落诊断 */
-function diagnoseSegments(leadLine,harmLine,bassLine,drumOnsets,totalFrames,log,segSec){
-  const segFrames=Math.round(segSec*BP_FRAME_RATE);
-  const nSegs=Math.ceil(totalFrames/segFrames);
-  log(`  段落诊断（每 ${segSec}s）：`);
-  for(let s=0;s<nSegs;s++){
-    const f0=s*segFrames, f1=Math.min(f0+segFrames,totalFrames);
-    const cntIn=(arr)=>arr.filter(n=>n.startFrame>=f0&&n.startFrame<f1).length;
-    const time=`${(f0/BP_FRAME_RATE).toFixed(1)}s`;
-    const lead=cntIn(leadLine),harm=cntIn(harmLine),bass=cntIn(bassLine);
-    const drum=drumOnsets.filter(fr=>fr>=f0&&fr<f1).length;
-    const warn=(lead+harm+bass===0)?" ⚠无旋律":"";
-    log(`    [${time}] lead=${lead} harm=${harm} bass=${bass} drum=${drum}${warn}`);
+function diagnoseSegments(leadLine, harmLine, bassLine, drumOnsets, totalFrames, mono22050, log, segSec) {
+  const segFrames = Math.round(segSec * BP_FRAME_RATE);
+  const nSegs = Math.ceil(totalFrames / segFrames);
+  let globalSumSq = 0;
+  for (let i = 0; i < mono22050.length; i++) globalSumSq += mono22050[i] * mono22050[i];
+  const globalRms = Math.sqrt(globalSumSq / mono22050.length);
+  log(`  段落诊断（每 ${segSec}s），全局 RMS=${globalRms.toFixed(4)}：`);
+  for (let s = 0; s < nSegs; s++) {
+    const f0 = s * segFrames, f1 = Math.min(f0 + segFrames, totalFrames);
+    const cntIn = (arr) => arr.filter(n => n.startFrame >= f0 && n.startFrame < f1).length;
+    const time = `${(f0 / BP_FRAME_RATE).toFixed(1)}s`;
+    const lead = cntIn(leadLine), harm = cntIn(harmLine), bass = cntIn(bassLine);
+    const drum = drumOnsets.filter(fr => fr >= f0 && fr < f1).length;
+    const sampleStart = Math.round(f0 / BP_FRAME_RATE * 22050);
+    const sampleEnd = Math.min(Math.round(f1 / BP_FRAME_RATE * 22050), mono22050.length);
+    let segSumSq = 0;
+    for (let i = sampleStart; i < sampleEnd; i++) segSumSq += mono22050[i] * mono22050[i];
+    const segRms = sampleEnd > sampleStart ? Math.sqrt(segSumSq / (sampleEnd - sampleStart)) : 0;
+    const dbRatio = globalRms > 0 ? (20 * Math.log10(Math.max(1e-9, segRms / globalRms))).toFixed(1) : '0';
+    const isQuiet = segRms < globalRms * 0.3;
+    let warn = '';
+    if (lead + harm + bass === 0) warn = isQuiet ? ' (原曲安静)' : ' ⚠无旋律';
+    log(`    [${time}] lead=${lead} harm=${harm} bass=${bass} drum=${drum} rms=${dbRatio}dB${warn}`);
   }
 }
-
-function smartAssign(notes,drumOnsets,opts,log){
-  const {bassMax=52,leadMax=84,minNoteFrames=2,noiseWindow=4,noiseAmpThreshold=0.2,mergeGapFrames=6,pitchSmoothTol=2}=opts;
+function diagnoseChannels(ch0, ch1, ch2, ch3, log) {
+  const names = ['lead', 'harmony', 'bass', 'drum'];
+  const chans = [ch0, ch1, ch2, ch3];
+  log('  通道连续性诊断（gap 统计）：');
+  for (let i = 0; i < 4; i++) {
+    const ev = chans[i];
+    if (ev.length === 0) { log(`    ${names[i]}: 空`); continue; }
+    const sorted = [...ev].sort((a, b) => a.tick - b.tick);
+    let maxGap = 0, gapCount = 0, totalGap = 0;
+    for (let j = 0; j < sorted.length - 1; j++) {
+      const gap = sorted[j+1].tick - (sorted[j].tick + sorted[j].dur);
+      if (gap > 0) {
+        if (gap > maxGap) maxGap = gap;
+        if (gap >= 4) gapCount++;
+        totalGap += gap;
+      }
+    }
+    const avgGap = sorted.length > 1 ? (totalGap / (sorted.length - 1)).toFixed(1) : '0';
+    log(`    ${names[i]}: ${ev.length} 音符，最大 gap ${maxGap} ticks，>1拍 gap 数 ${gapCount}，平均 gap ${avgGap}`);
+  }
+}
+function smartAssign(notes, drumOnsets, opts, log) {
+  const { bassMax = 48, leadMax = 84, minNoteFrames = 2, noiseWindow = 4, noiseAmpThreshold = 0.1,
+    mergeGapFrames = 6, pitchSmoothTol = 2, maxHarmonyConcurrent = 1, harmonyMinAmp = 0.35 } = opts;
   log(`Basic Pitch 提取到 ${notes.length} 个原始音符`);
-  const cleaned=removeNoiseArtefacts(notes,drumOnsets,noiseWindow,noiseAmpThreshold);
-  log(`剔除噪声伪影后：${cleaned.length}（-${notes.length-cleaned.length}）`);
-  const {bass,mid,high}=splitByPitch(cleaned,bassMax,leadMax);
+  const cleaned = removeNoiseArtefacts(notes, drumOnsets, noiseWindow, noiseAmpThreshold);
+  log(`剔除噪声伪影后：${cleaned.length}（-${notes.length - cleaned.length}）`);
+  const { bass, mid, high } = splitByPitch(cleaned, bassMax, leadMax);
   log(`分层：bass ${bass.length} / mid ${mid.length} / high ${high.length}`);
-  const scoreFn=n=>n.amp*Math.sqrt(Math.max(1,n.endFrame-n.startFrame));
-
-  const bassMerged=mergeAdjacentNotes(bass,mergeGapFrames);
-  const midMerged=mergeAdjacentNotes(mid,mergeGapFrames);
-  const highMerged=mergeAdjacentNotes(high,mergeGapFrames);
+  const scoreFn = n => n.amp * Math.sqrt(Math.max(1, n.endFrame - n.startFrame));
+  const bassMerged = mergeAdjacentNotes(bass, mergeGapFrames);
+  const midMerged = mergeAdjacentNotes(mid, mergeGapFrames);
+  const highMerged = mergeAdjacentNotes(high, mergeGapFrames);
   log(`合并相邻：bass ${bassMerged.length} / mid ${midMerged.length} / high ${highMerged.length}`);
-
-  let bassLine=resolveOverlap(bassMerged,scoreFn);
-  const midAll=midMerged.concat(highMerged);
-  const {lead,harmony}=assignTwoLines(midAll,scoreFn);
-  let leadLine=lead,harmLine=harmony;
-  log(`解重叠后：bass ${bassLine.length} / lead ${leadLine.length} / harmony ${harmLine.length}`);
-
-  bassLine=fixOctaveJumps(bassLine);
-  leadLine=fixOctaveJumps(leadLine);
-  harmLine=fixOctaveJumps(harmLine);
-
-  // ★ 音高平滑
-  bassLine=smoothPitchLine(bassLine,pitchSmoothTol);
-  leadLine=smoothPitchLine(leadLine,pitchSmoothTol);
-  harmLine=smoothPitchLine(harmLine,pitchSmoothTol);
-
-  // 再合并
-  bassLine=mergeAdjacentNotes(bassLine,mergeGapFrames);
-  leadLine=mergeAdjacentNotes(leadLine,mergeGapFrames);
-  harmLine=mergeAdjacentNotes(harmLine,mergeGapFrames);
-
-  const filterShort=(arr,min)=>arr.filter(n=>n.endFrame-n.startFrame>=min);
-  bassLine=filterShort(bassLine,minNoteFrames);
-  leadLine=filterShort(leadLine,minNoteFrames);
-  harmLine=filterShort(harmLine,minNoteFrames);
-
-  log(`平滑后：bass ${bassLine.length} / lead ${leadLine.length} / harmony ${harmLine.length}`);
-  return {bassLine,leadLine,harmLine};
-}
-
-function quantizeEvents(events, quant){
-  if(quant<=1)return events;
-  const byTick=new Map();
-  for(const e of events){
-    const t=Math.round(e.tick/quant)*quant;
-    if(!byTick.has(t))byTick.set(t,{...e,tick:t});
-    else if(e.vel>byTick.get(t).vel)byTick.set(t,{...e,tick:t});
+  let bassLine = resolveOverlap(bassMerged, scoreFn);
+  const midAll = midMerged.concat(highMerged);
+  const { lead, harmony } = assignTwoLines(midAll, scoreFn, {
+    maxHarmonyConcurrent, harmonyMinAmp, minHarmonyFrames: 3,
+  });
+  let leadLine = lead, harmLine = harmony;
+  log(`初分配：lead ${leadLine.length} / harmony ${harmLine.length}`);
+  harmLine = refineHarmony(harmLine, scoreFn, 1.3);
+  log(`harmony 严格精简后：${harmLine.length}`);
+  const isBassEmptyAt = (f) => {
+    for (const n of bassLine) { if (f >= n.startFrame && f <= n.endFrame) return false; }
+    return true;
+  };
+  const borrowedToBass = [];
+  for (const n of midAll) {
+    if (n.pitch <= 56 && n.amp >= 0.25 && isBassEmptyAt(n.startFrame)) {
+      borrowedToBass.push({ ...n, pitch: n.pitch - 12, amp: n.amp * 0.8 });
+    }
   }
-  const sorted=[...byTick.values()].sort((a,b)=>a.tick-b.tick);
-  for(let i=0;i<sorted.length-1;i++){
-    const cur=sorted[i],next=sorted[i+1];
-    const dur=Math.round(cur.dur/quant)*quant;
-    cur.dur=Math.max(quant,Math.min(dur,next.tick-cur.tick));
+  if (borrowedToBass.length > 0) {
+    log(`  bass 兜底：从 mid 借用 ${borrowedToBass.length} 个音符下移八度`);
+    bassLine = bassLine.concat(borrowedToBass);
+    bassLine.sort((a, b) => a.startFrame - b.startFrame);
+  }
+  bassLine = fixOctaveJumps(bassLine);
+  leadLine = fixOctaveJumps(leadLine);
+  harmLine = fixOctaveJumps(harmLine);
+  bassLine = smoothPitchLine(bassLine, pitchSmoothTol);
+  leadLine = smoothPitchLine(leadLine, pitchSmoothTol);
+  harmLine = smoothPitchLine(harmLine, pitchSmoothTol);
+  bassLine = mergeAdjacentNotes(bassLine, mergeGapFrames);
+  leadLine = mergeAdjacentNotes(leadLine, mergeGapFrames);
+  harmLine = mergeAdjacentNotes(harmLine, mergeGapFrames);
+  const filterShort = (arr, min) => arr.filter(n => n.endFrame - n.startFrame >= min);
+  bassLine = filterShort(bassLine, minNoteFrames);
+  leadLine = filterShort(leadLine, minNoteFrames);
+  harmLine = filterShort(harmLine, minNoteFrames);
+  log(`平滑后：bass ${bassLine.length} / lead ${leadLine.length} / harmony ${harmLine.length}`);
+  return { bassLine, leadLine, harmLine };
+}
+function quantizeEvents(events, quant) {
+  if (quant <= 1) return events;
+  const byTick = new Map();
+  for (const e of events) {
+    const t = Math.round(e.tick / quant) * quant;
+    if (!byTick.has(t)) byTick.set(t, { ...e, tick: t });
+    else if (e.vel > byTick.get(t).vel) byTick.set(t, { ...e, tick: t });
+  }
+  const sorted = [...byTick.values()].sort((a, b) => a.tick - b.tick);
+  for (let i = 0; i < sorted.length - 1; i++) {
+    const cur = sorted[i], next = sorted[i+1];
+    const dur = Math.round(cur.dur / quant) * quant;
+    cur.dur = Math.max(quant, Math.min(dur, next.tick - cur.tick));
   }
   return sorted;
 }
-
-function smartToEvents(assigned,drumOnsets,drumFrameRate,bpm,quantTicks){
-  const ticksPerSec=bpm/60*TICKS_PER_BEAT;
-  const bpFrameSec=1/BP_FRAME_RATE;
-  const drumFrameSec=1/drumFrameRate;
-  function toEvents(notes,ch){
-    return notes.map(n=>{
-      const startTick=Math.round(n.startFrame*bpFrameSec*ticksPerSec);
-      const endTick=Math.round(n.endFrame*bpFrameSec*ticksPerSec);
-      let pitch=Math.round(n.pitch);
-      while(pitch<NOTE_LOW)pitch+=12;
-      while(pitch>NOTE_HIGH)pitch-=12;
-      return {ch,tick:startTick,note:pitch,vel:Math.round(Math.min(1,n.amp)*127),
-        dur:Math.max(1,endTick-startTick)};
+function interpolateChannelGaps(events, minGapTicks, maxGapTicks, log, chName) {
+  if (events.length < 2) return events;
+  const sorted = [...events].sort((a, b) => a.tick - b.tick);
+  const out = [sorted[0]];
+  let filled = 0;
+  for (let i = 1; i < sorted.length; i++) {
+    const prev = out[out.length - 1];
+    const cur = sorted[i];
+    const prevEnd = prev.tick + prev.dur;
+    const gap = cur.tick - prevEnd;
+    if (gap >= minGapTicks && gap <= maxGapTicks) {
+      const pitchDiff = Math.abs(cur.note - prev.note);
+      let bridgeNote = null;
+      if (pitchDiff <= 4) bridgeNote = prev.note;
+      else if (pitchDiff <= 7) bridgeNote = Math.round((prev.note + cur.note) / 2);
+      if (bridgeNote !== null) {
+        out.push({ ch: prev.ch, tick: prevEnd, note: bridgeNote,
+          vel: Math.max(60, Math.min(prev.vel, cur.vel)), dur: gap });
+        filled++;
+      }
+    }
+    out.push(cur);
+  }
+  if (filled > 0) log(`    ${chName}: 补间 ${filled} 处`);
+  return out;
+}
+function fillChannelGaps(events, maxGapTicks, maxDurTicks) {
+  if (events.length < 2) return events;
+  const sorted = [...events].sort((a, b) => a.tick - b.tick);
+  const out = [];
+  for (let i = 0; i < sorted.length; i++) {
+    const cur = { ...sorted[i] };
+    if (i + 1 < sorted.length) {
+      const next = sorted[i+1];
+      const curEnd = cur.tick + cur.dur;
+      const gap = next.tick - curEnd;
+      if (gap > 0 && gap <= maxGapTicks) cur.dur = Math.min(cur.dur + gap, maxDurTicks);
+    }
+    if (cur.dur > maxDurTicks) cur.dur = maxDurTicks;
+    out.push(cur);
+  }
+  return out;
+}
+function smartToEvents(assigned, drumOnsets, drumFrameRate, bpm, quantTicks, fillGapTicks, interpMaxTicks, log) {
+  const ticksPerSec = bpm / 60 * TICKS_PER_BEAT;
+  const bpFrameSec = 1 / BP_FRAME_RATE;
+  const drumFrameSec = 1 / drumFrameRate;
+  function toEvents(notes, ch) {
+    return notes.map(n => {
+      const startTick = Math.round(n.startFrame * bpFrameSec * ticksPerSec);
+      const endTick = Math.round(n.endFrame * bpFrameSec * ticksPerSec);
+      let pitch = Math.round(n.pitch);
+      while (pitch < NOTE_LOW) pitch += 12;
+      while (pitch > NOTE_HIGH) pitch -= 12;
+      return { ch, tick: startTick, note: pitch,
+        vel: Math.round(Math.min(1, n.amp) * 127),
+        dur: Math.max(1, endTick - startTick) };
     });
   }
-  let ch0=toEvents(assigned.leadLine,0);
-  let ch1=toEvents(assigned.harmLine,1);
-  let ch2=toEvents(assigned.bassLine,2);
-  let ch3=drumOnsets.map(fr=>({ch:3,tick:Math.round(fr*drumFrameSec*ticksPerSec),note:40,vel:100,dur:1}));
-  if(quantTicks>1){
-    ch0=quantizeEvents(ch0,quantTicks);
-    ch1=quantizeEvents(ch1,quantTicks);
-    ch2=quantizeEvents(ch2,quantTicks);
+  let ch0 = toEvents(assigned.leadLine, 0);
+  let ch1 = toEvents(assigned.harmLine, 1);
+  let ch2 = toEvents(assigned.bassLine, 2);
+  let ch3 = drumOnsets.map(fr => ({
+    ch: 3, tick: Math.round(fr * drumFrameSec * ticksPerSec),
+    note: 40, vel: 100, dur: 1,
+  }));
+  if (interpMaxTicks > 0) {
+    log('  补间：');
+    ch0 = interpolateChannelGaps(ch0, 3, interpMaxTicks, log, 'lead');
+    ch1 = interpolateChannelGaps(ch1, 3, interpMaxTicks, log, 'harmony');
+    ch2 = interpolateChannelGaps(ch2, 3, interpMaxTicks, log, 'bass');
   }
-  return {ch0,ch1,ch2,ch3};
+  if (fillGapTicks > 0) {
+    ch0 = fillChannelGaps(ch0, fillGapTicks, 16);
+    ch1 = fillChannelGaps(ch1, fillGapTicks, 16);
+    ch2 = fillChannelGaps(ch2, fillGapTicks, 16);
+  }
+  if (quantTicks > 1) {
+    ch0 = quantizeEvents(ch0, quantTicks);
+    ch1 = quantizeEvents(ch1, quantTicks);
+    ch2 = quantizeEvents(ch2, quantTicks);
+  }
+  return { ch0, ch1, ch2, ch3 };
 }
 
-/* UI */
-document.querySelectorAll('.tab').forEach(btn=>{
-  btn.onclick=()=>{
-    document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));
-    document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+/* ============================================================
+   UI
+   ============================================================ */
+document.querySelectorAll('.tab').forEach(btn => {
+  btn.onclick = () => {
+    document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
     btn.classList.add('active');
-    document.getElementById('panel-'+btn.dataset.tab).classList.add('active');
+    document.getElementById('panel-' + btn.dataset.tab).classList.add('active');
   };
 });
-function makeLogger(elId){
-  const el=document.getElementById(elId);el.textContent='';
-  return {log:txt=>{el.textContent+=txt+'\n';el.scrollTop=el.scrollHeight},clear:()=>{el.textContent=''}};
-}
-function makeResults(elId){
-  const el=document.getElementById(elId);
-  return {
-    clear:()=>{el.innerHTML='';el._files=[]},
-    add(name,text){
-      el._files=el._files||[];el._files.push({name,data:enc.encode(text)});
-      const div=document.createElement('div');div.className='item';
-      const a=document.createElement('a');a.textContent=name;a.href='#';
-      a.onclick=e=>{e.preventDefault();downloadText(text,name)};
-      const sz=document.createElement('span');sz.style.color='var(--dim)';
-      sz.textContent=(text.length/1024).toFixed(1)+' KB';
-      div.appendChild(a);div.appendChild(sz);el.appendChild(div);
-    },
-    addZipButton(){
-      const files=el._files||[];if(files.length<2)return;
-      const btn=document.createElement('button');
-      btn.textContent=`⬇ 下载全部 (${files.length} 个文件, ZIP)`;btn.style.marginTop='8px';
-      btn.onclick=()=>{const zip=makeZip(files);downloadBlob(new Blob([zip],{type:'application/zip'}),'chip_music_export.zip')};
-      el.appendChild(btn);
+function makeLogger(elId) {
+  const el = document.getElementById(elId);
+  el.textContent = '';
+  const btn = document.createElement('button');
+  btn.textContent = '📋 复制日志';
+  btn.style.cssText = 'margin-top:6px;padding:5px 12px;font-size:11px;background:var(--panel2);border:1px solid var(--border);color:var(--fg);border-radius:4px;cursor:pointer;';
+  btn.onclick = async () => {
+    const text = el.textContent;
+    if (!text || text === '就绪。' || text === '就绪。先点「加载模型」。' || text === '未加载。') {
+      btn.textContent = '⚠ 日志为空';
+      setTimeout(() => btn.textContent = '📋 复制日志', 1500);
+      return;
     }
+    try {
+      await navigator.clipboard.writeText(text);
+      btn.textContent = '✓ 已复制到剪贴板';
+      btn.style.background = 'rgba(75,224,140,.2)';
+      btn.style.borderColor = '#4be08c';
+    } catch (e) {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      try {
+        document.execCommand('copy');
+        btn.textContent = '✓ 已复制到剪贴板';
+        btn.style.background = 'rgba(75,224,140,.2)';
+        btn.style.borderColor = '#4be08c';
+      } catch (e2) { btn.textContent = '✗ 复制失败'; }
+      document.body.removeChild(ta);
+    }
+    setTimeout(() => {
+      btn.textContent = '📋 复制日志';
+      btn.style.background = 'var(--panel2)';
+      btn.style.borderColor = 'var(--border)';
+    }, 1800);
+  };
+  el.parentNode.insertBefore(btn, el.nextSibling);
+  return {
+    log: txt => { el.textContent += txt + '\n'; el.scrollTop = el.scrollHeight; },
+    set: txt => { el.textContent = txt; },
+    clear: () => { el.textContent = ''; },
+  };
+}
+function makeResults(elId) {
+  const el = document.getElementById(elId);
+  return {
+    clear: () => { el.innerHTML = ''; el._files = []; },
+    add(name, text) {
+      el._files = el._files || [];
+      el._files.push({ name, data: enc.encode(text) });
+      const div = document.createElement('div');
+      div.className = 'item';
+      const a = document.createElement('a');
+      a.textContent = name;
+      a.href = '#';
+      a.onclick = e => { e.preventDefault(); downloadText(text, name); };
+      const sz = document.createElement('span');
+      sz.style.color = 'var(--dim)';
+      sz.textContent = (text.length / 1024).toFixed(1) + ' KB';
+      div.appendChild(a); div.appendChild(sz);
+      el.appendChild(div);
+    },
+    addZipButton() {
+      const files = el._files || [];
+      if (files.length < 2) return;
+      const btn = document.createElement('button');
+      btn.textContent = `⬇ 下载全部 (${files.length} 个文件, ZIP)`;
+      btn.style.marginTop = '8px';
+      btn.onclick = () => {
+        const zip = makeZip(files);
+        downloadBlob(new Blob([zip], { type: 'application/zip' }), 'chip_music_export.zip');
+      };
+      el.appendChild(btn);
+    },
   };
 }
 
-/* MIDI 页 */
-(function(){
-  const fileInput=document.getElementById('midi-files');
-  const listEl=document.getElementById('midi-list');
-  const logger=makeLogger('midi-log');
-  const results=makeResults('midi-results');
-  const bar=document.getElementById('midi-bar');
-  let files=[];
-  function refresh(){listEl.innerHTML='';if(files.length===0){listEl.textContent='（未选择）';return}
-    files.forEach(f=>{const d=document.createElement('div');d.textContent=f.name;listEl.appendChild(d)})}
-  fileInput.onchange=()=>{files=[...fileInput.files];refresh()};
-  document.getElementById('midi-clear').onclick=()=>{files=[];fileInput.value='';refresh()};
-  document.getElementById('midi-run').onclick=async()=>{
-    if(files.length===0){alert('请先选择 MIDI 文件');return}
-    const wave=document.getElementById('midi-wave').value;
-    const loop=document.getElementById('midi-loop').checked;
-    const bpmStr=document.getElementById('midi-bpm').value.trim();
-    let bpmOverride=null;
-    if(bpmStr){bpmOverride=parseFloat(bpmStr);if(!isFinite(bpmOverride)||bpmOverride<=0){alert('BPM 必须是正数');return}}
-    logger.clear();results.clear();bar.style.width='0%';
-    document.getElementById('midi-run').disabled=true;
-    let ok=0,fail=0;
-    for(let i=0;i<files.length;i++){
-      const f=files[i];logger.log(`[${f.name}]`);
-      try{
-        const buf=await f.arrayBuffer();
-        const mid=parseMidi(buf);
-        let bpm=DEFAULT_BPM;
-        outer:for(const track of mid.tracks)for(const m of track)
-          if(m.type==='tempo'){bpm=60000000/m.tempo;break outer}
-        const useBpm=bpmOverride||bpm;
-        logger.log(`  MIDI BPM=${bpm.toFixed(1)}${bpmOverride?' → 覆盖为 '+useBpm.toFixed(1):''}`);
-        const {events,channelSet}=extractNotes(mid);
-        if(events.length===0)throw new Error('无音符事件');
-        const {json,info}=eventsToChip(events,channelSet,{
-          title:f.name.replace(/\.[^.]+$/,''),bpm:useBpm,loop,wave,source:'midi',
-          reportCb:t=>logger.log('  '+t)});
-        const outName=f.name.replace(/\.[^.]+$/,'')+'.json';
+/* ============================================================
+   MIDI 页
+   ============================================================ */
+(function() {
+  const fileInput = document.getElementById('midi-files');
+  const listEl = document.getElementById('midi-list');
+  const logger = makeLogger('midi-log');
+  const results = makeResults('midi-results');
+  const bar = document.getElementById('midi-bar');
+  let files = [];
+  function refresh() {
+    listEl.innerHTML = '';
+    if (files.length === 0) { listEl.textContent = '（未选择）'; return; }
+    files.forEach(f => { const d = document.createElement('div'); d.textContent = f.name; listEl.appendChild(d); });
+  }
+  fileInput.onchange = () => { files = [...fileInput.files]; refresh(); };
+  document.getElementById('midi-clear').onclick = () => { files = []; fileInput.value = ''; refresh(); };
+  document.getElementById('midi-run').onclick = async () => {
+    if (files.length === 0) { alert('请先选择 MIDI 文件'); return; }
+    const waveOption = document.getElementById('midi-wave').value;
+    const loop = document.getElementById('midi-loop').checked;
+    const chordSplit = document.getElementById('midi-chord-split').checked;
+    const displaceRange = parseInt(document.getElementById('midi-displace').value) || 0;
+    const bpmStr = document.getElementById('midi-bpm').value.trim();
+    let bpmOverride = null;
+    if (bpmStr) {
+      bpmOverride = parseFloat(bpmStr);
+      if (!isFinite(bpmOverride) || bpmOverride <= 0) { alert('BPM 必须是正数'); return; }
+    }
+    logger.clear(); results.clear(); bar.style.width = '0%';
+    document.getElementById('midi-run').disabled = true;
+    let ok = 0, fail = 0;
+    for (let i = 0; i < files.length; i++) {
+      const f = files[i];
+      logger.log(`[${f.name}]`);
+      try {
+        const buf = await f.arrayBuffer();
+        const mid = parseMidi(buf);
+        logger.log(`  MIDI division=${mid.division} ticks/beat，${mid.tracks.length} 个轨道`);
+        let bpm = DEFAULT_BPM;
+        outer:
+        for (const track of mid.tracks) for (const m of track)
+          if (m.type === 'tempo') { bpm = 60000000 / m.tempo; break outer; }
+        const useBpm = bpmOverride || bpm;
+        logger.log(`  MIDI BPM=${bpm.toFixed(1)}${bpmOverride ? ' → 覆盖为 ' + useBpm.toFixed(1) : ''}`);
+        const { events, channelSet } = extractNotes(mid);
+        if (events.length === 0) throw new Error('无音符事件');
+        const maxRawTick = events.reduce((m, e) => Math.max(m, e.tick + e.dur), 0);
+        const estDuration = maxRawTick / TICKS_PER_BEAT / useBpm * 60;
+        logger.log(`  原始事件 ${events.length} 个，涉及 ${channelSet.size} 个通道 [${[...channelSet].sort((a,b)=>a-b).join(',')}]，估算时长 ${estDuration.toFixed(1)}s`);
+        let wave = waveOption;
+        if (waveOption === 'auto') {
+          const detect = autoDetectWaveform(mid, events, channelSet);
+          wave = detect.wave;
+          logger.log(`  🎵 自动波形：${detect.reason}`);
+        } else logger.log(`  🎵 手动波形：${wave}`);
+        const { json, info } = eventsToChip(events, channelSet, {
+          title: f.name.replace(/\.[^.]+$/, ''),
+          bpm: useBpm, loop, wave,
+          source: 'midi',
+          chordSplit, displaceRange,
+          materialType: 'music',
+          reportCb: t => logger.log('  ' + t),
+        });
+        const outName = f.name.replace(/\.[^.]+$/, '') + '.json';
         logger.log(`  ✓ → ${outName}`);
         logger.log(`     事件数: ${info.events}  时长: ${info.duration.toFixed(1)}s`);
-        info.channels.forEach(ch=>logger.log(`     ch ${ch.name}: ${ch.count} 事件`));
-        results.add(outName,json);
-        if(files.length===1){try{downloadText(json,outName);logger.log(`  📥 已触发下载`)}catch(e){logger.log(`  ⚠ 自动下载被拦截`)}};
-        ok++;
-      }catch(err){logger.log(`  ✗ ${err.message}`);fail++}
-      bar.style.width=((i+1)/files.length*100)+'%';
-    }
-    logger.log('─'.repeat(50));logger.log(`完成: ${ok} 成功, ${fail} 失败`);
-    results.addZipButton();document.getElementById('midi-run').disabled=false;
-  };
-})();
-
-/* DSP 页 */
-(function(){
-  const fileInput=document.getElementById('audio-files');
-  const listEl=document.getElementById('audio-list');
-  const logger=makeLogger('audio-log');
-  const results=makeResults('audio-results');
-  const bar=document.getElementById('audio-bar');
-  const bpmDetEl=document.getElementById('audio-bpm-detected');
-  const waveDetEl=document.getElementById('audio-wave-detected');
-  let files=[],audioCtx=null;
-  function getCtx(){if(!audioCtx)audioCtx=new (window.AudioContext||window.webkitAudioContext)();return audioCtx}
-  function refresh(){listEl.innerHTML='';if(files.length===0){listEl.textContent='（未选择）';return}
-    files.forEach(f=>{const d=document.createElement('div');d.textContent=f.name;listEl.appendChild(d)})}
-  fileInput.onchange=()=>{files=[...fileInput.files];refresh()};
-  document.getElementById('audio-clear').onclick=()=>{files=[];fileInput.value='';refresh();
-    bpmDetEl.textContent='—';waveDetEl.textContent='—'};
-  document.getElementById('audio-run').onclick=async()=>{
-    if(files.length===0){alert('请先选择音频文件');return}
-    const autoBpm=document.getElementById('audio-auto-bpm').checked;
-    const autoWave=document.getElementById('audio-auto-wave').checked;
-    let bpm=parseFloat(document.getElementById('audio-bpm').value);
-    if(!autoBpm&&(!isFinite(bpm)||bpm<=0)){alert('BPM 必须是正数');return}
-    const wave=document.getElementById('audio-wave').value;
-    const loop=document.getElementById('audio-loop').checked;
-    const split=document.querySelector('input[name="audio-split"]:checked').value;
-    logger.clear();results.clear();bar.style.width='0%';
-    bpmDetEl.textContent='—';waveDetEl.textContent='—';
-    document.getElementById('audio-run').disabled=true;
-    const ctx=getCtx();if(ctx.state==='suspended')await ctx.resume();
-    let ok=0,fail=0;
-    for(let i=0;i<files.length;i++){
-      const f=files[i];logger.log(`[${f.name}]`);
-      try{
-        const buf=await f.arrayBuffer();
-        const audioBuf=await ctx.decodeAudioData(buf.slice(0));
-        let mono=toMono(audioBuf);mono=dcBlock(mono);
-        let sumSq=0;for(let j=0;j<mono.length;j++)sumSq+=mono[j]*mono[j];
-        const overallRms=Math.sqrt(sumSq/mono.length);
-        mono=resampleAA(mono,audioBuf.sampleRate,TARGET_SR);
-        if(autoBpm){bpm=detectBPM(mono,TARGET_SR);logger.log(`  自动 BPM ≈ ${bpm}`);bpmDetEl.textContent=bpm+' BPM'}
-        const frameSec=256/TARGET_SR;const tickPerSec=bpm/60*TICKS_PER_BEAT;
-        const rmsMin=Math.max(0.002,overallRms*0.15);
-        let melodyWave=wave;let allEvents=[];const globalChannelSet=new Set();
-        if(split==='4ch'){
-          const bassBand=bandpass24(mono,TARGET_SR,60,250);
-          const melBand=bandpass24(mono,TARGET_SR,250,1200);
-          const harmBand=bandpass24(mono,TARGET_SR,1200,4500);
-          const hpPerc=biquadHP(biquadHP(mono,TARGET_SR,2000),TARGET_SR,2000);
-          const melData=await yinDetect(melBand,TARGET_SR,{fMin:250,fMax:1200,threshold:0.15,rmsMin,
-            onProgress:p=>{bar.style.width=((i+0.05+0.35*p)/files.length*100)+'%'}});
-          if(autoWave){const wres=detectWaveform(melBand,TARGET_SR,melData);melodyWave=wres.wave;
-            logger.log(`  波形：${wres.wave}`);waveDetEl.textContent=wres.wave}
-          const melEvents=pitchesToEvents(melData,frameSec,tickPerSec,0,{minNoteMs:60,pitchTol:0.6});
-          allEvents.push(...melEvents.events);globalChannelSet.add(0);
-          const bassData=await yinDetect(bassBand,TARGET_SR,{fMin:60,fMax:250,threshold:0.15,rmsMin,
-            onProgress:p=>{bar.style.width=((i+0.4+0.25*p)/files.length*100)+'%'}});
-          const bassEvents=pitchesToEvents(bassData,frameSec,tickPerSec,2,{minNoteMs:90,pitchTol:0.5});
-          allEvents.push(...bassEvents.events);globalChannelSet.add(2);
-          const harmData=await yinDetect(harmBand,TARGET_SR,{fMin:1200,fMax:4500,threshold:0.15,rmsMin,
-            onProgress:p=>{bar.style.width=((i+0.65+0.25*p)/files.length*100)+'%'}});
-          const harmEvents=pitchesToEvents(harmData,frameSec,tickPerSec,1,{minNoteMs:55,pitchTol:0.7});
-          allEvents.push(...harmEvents.events);globalChannelSet.add(1);
-          const perc=detectPercussion(hpPerc,TARGET_SR,256,overallRms,1.8,8);
-          const drumEvents=perc.onsets.map(fr=>({ch:3,tick:Math.round(fr*frameSec*tickPerSec),note:40,vel:100,dur:1}));
-          allEvents.push(...drumEvents);globalChannelSet.add(3);
-          logger.log(`  P1:${melEvents.events.length} Tri:${bassEvents.events.length} P2:${harmEvents.events.length} Noise:${drumEvents.length}`);
-        }else{
-          const data=await yinDetect(mono,TARGET_SR,{fMin:60,fMax:5000,threshold:0.15,rmsMin,
-            onProgress:p=>{bar.style.width=((i+p)/files.length*100)+'%'}});
-          if(autoWave){const wres=detectWaveform(mono,TARGET_SR,data);melodyWave=wres.wave;
-            logger.log(`  波形：${wres.wave}`);waveDetEl.textContent=wres.wave}
-          const res=pitchesToEvents(data,frameSec,tickPerSec,0,{minNoteMs:60});
-          allEvents.push(...res.events);globalChannelSet.add(0);
+        info.channels.forEach(ch => logger.log(`     ch ${ch.name}: ${ch.count} 事件`));
+        results.add(outName, json);
+        if (files.length === 1) {
+          try { downloadText(json, outName); logger.log(`  📥 已触发下载`); }
+          catch (e) { logger.log(`  ⚠ 自动下载被拦截`); }
         }
-        const {json,info}=eventsToChip(allEvents,globalChannelSet,{
-          title:f.name.replace(/\.[^.]+$/,''),bpm,loop,wave:melodyWave,source:'audio_dsp',
-          reportCb:t=>logger.log('  '+t)});
-        const outName=f.name.replace(/\.[^.]+$/,'')+'.json';
-        logger.log(`  ✓ → ${outName}`);
-        results.add(outName,json);
-        if(files.length===1){try{downloadText(json,outName);logger.log(`  📥 已触发下载`)}catch(e){logger.log(`  ⚠ 被拦截`)}};
         ok++;
-      }catch(err){logger.log(`  ✗ ${err.message}`);console.error(err);fail++}
-      bar.style.width=((i+1)/files.length*100)+'%';
+      } catch (err) {
+        logger.log(`  ✗ ${err.message}`);
+        console.error(err);
+        fail++;
+      }
+      bar.style.width = ((i + 1) / files.length * 100) + '%';
     }
-    logger.log('─'.repeat(50));logger.log(`完成: ${ok} 成功, ${fail} 失败`);
-    results.addZipButton();document.getElementById('audio-run').disabled=false;
+    logger.log('─'.repeat(50));
+    logger.log(`完成: ${ok} 成功, ${fail} 失败`);
+    results.addZipButton();
+    document.getElementById('midi-run').disabled = false;
   };
 })();
 
-/* 智能页 */
-(function(){
-  const fileInput=document.getElementById('smart-files');
-  const listEl=document.getElementById('smart-list');
-  const logger=makeLogger('smart-log');
-  const results=makeResults('smart-results');
-  const bar=document.getElementById('smart-bar');
-  const statusEl=document.getElementById('smart-status');
-  const bpmDetEl=document.getElementById('smart-bpm-detected');
-  const loadBtn=document.getElementById('smart-load');
-  const runBtn=document.getElementById('smart-run');
-  let files=[],audioCtx=null;
-  function getCtx(){if(!audioCtx)audioCtx=new (window.AudioContext||window.webkitAudioContext)();return audioCtx}
-  function setStatus(state,text){statusEl.className='status '+state;statusEl.textContent=text}
-  function refresh(){listEl.innerHTML='';if(files.length===0){listEl.textContent='（未选择）';return}
-    files.forEach(f=>{const d=document.createElement('div');d.textContent=f.name;listEl.appendChild(d)})}
-  fileInput.onchange=()=>{files=[...fileInput.files];refresh()};
-  document.getElementById('smart-clear').onclick=()=>{files=[];fileInput.value='';refresh();bpmDetEl.textContent='—'};
-  loadBtn.onclick=async()=>{
-    loadBtn.disabled=true;setStatus('loading','加载中...');logger.clear();
-    try{await loadBasicPitch(t=>logger.log(t));setStatus('ready','就绪');logger.log('\n✓ 模型加载完成。')}
-    catch(e){setStatus('error','失败');logger.log('\n✗ 加载失败：'+e.message)}
-    finally{loadBtn.disabled=false}
+/* ============================================================
+   DSP 页
+   ============================================================ */
+(function() {
+  const fileInput = document.getElementById('audio-files');
+  const listEl = document.getElementById('audio-list');
+  const logger = makeLogger('audio-log');
+  const results = makeResults('audio-results');
+  const bar = document.getElementById('audio-bar');
+  const bpmDetEl = document.getElementById('audio-bpm-detected');
+  const waveDetEl = document.getElementById('audio-wave-detected');
+  let files = [], audioCtxDSP = null;
+  function getCtx() {
+    if (!audioCtxDSP) audioCtxDSP = new (window.AudioContext || window.webkitAudioContext)();
+    return audioCtxDSP;
+  }
+  function refresh() {
+    listEl.innerHTML = '';
+    if (files.length === 0) { listEl.textContent = '（未选择）'; return; }
+    files.forEach(f => { const d = document.createElement('div'); d.textContent = f.name; listEl.appendChild(d); });
+  }
+  fileInput.onchange = () => { files = [...fileInput.files]; refresh(); };
+  document.getElementById('audio-clear').onclick = () => {
+    files = []; fileInput.value = ''; refresh();
+    bpmDetEl.textContent = '—'; waveDetEl.textContent = '—';
   };
-  runBtn.onclick=async()=>{
-    if(!bpReady){alert('请先加载模型');return}
-    if(files.length===0){alert('请先选择音频文件');return}
-    const onsetThresh=parseFloat(document.getElementById('smart-onset').value);
-    const frameThresh=parseFloat(document.getElementById('smart-frame').value);
-    const bassMax=parseInt(document.getElementById('smart-bass-max').value);
-    const leadMax=parseInt(document.getElementById('smart-lead-max').value);
-    const drumThreshMul=parseFloat(document.getElementById('smart-drum-thresh').value);
-    const drumMinIntBeats=parseFloat(document.getElementById('smart-drum-minint').value);
-    const maxSec=parseInt(document.getElementById('smart-max-sec').value);
-    const maxNoteLenSec=parseFloat(document.getElementById('smart-max-notelen').value);
-    const mergeGapFrames=parseInt(document.getElementById('smart-merge-gap').value);
-    const quantTicks=parseInt(document.getElementById('smart-quant').value);
-    const maxPerFrame=parseInt(document.getElementById('smart-max-per-frame').value);
-    const pitchSmoothTol=parseInt(document.getElementById('smart-smooth').value);
-    const autoBpm=document.getElementById('smart-auto-bpm').checked;
-    const loop=document.getElementById('smart-loop').checked;
-    let bpm=parseFloat(document.getElementById('smart-bpm').value);
-    if(!autoBpm&&(!isFinite(bpm)||bpm<=0)){alert('BPM 必须是正数');return}
-    logger.clear();results.clear();bar.style.width='0%';bpmDetEl.textContent='—';
-    runBtn.disabled=true;
-    const ctx=getCtx();if(ctx.state==='suspended')await ctx.resume();
-    const maxNoteFrames=Math.round(maxNoteLenSec*BP_FRAME_RATE);
-    let ok=0,fail=0;
-    for(let i=0;i<files.length;i++){
-      const f=files[i];logger.log(`[${f.name}]`);
-      try{
+  document.getElementById('audio-run').onclick = async () => {
+    if (files.length === 0) { alert('请先选择音频文件'); return; }
+    const autoBpm = document.getElementById('audio-auto-bpm').checked;
+    const autoWave = document.getElementById('audio-auto-wave').checked;
+    let bpm = parseFloat(document.getElementById('audio-bpm').value);
+    if (!autoBpm && (!isFinite(bpm) || bpm <= 0)) { alert('BPM 必须是正数'); return; }
+    const wave = document.getElementById('audio-wave').value;
+    const loop = document.getElementById('audio-loop').checked;
+    const split = document.querySelector('input[name="audio-split"]:checked').value;
+    logger.clear(); results.clear(); bar.style.width = '0%';
+    bpmDetEl.textContent = '—'; waveDetEl.textContent = '—';
+    document.getElementById('audio-run').disabled = true;
+    const ctx = getCtx();
+    if (ctx.state === 'suspended') await ctx.resume();
+    let ok = 0, fail = 0;
+    for (let i = 0; i < files.length; i++) {
+      const f = files[i];
+      logger.log(`[${f.name}]`);
+      try {
+        const buf = await f.arrayBuffer();
+        const audioBuf = await ctx.decodeAudioData(buf.slice(0));
+        let mono = toMono(audioBuf);
+        mono = dcBlock(mono);
+        let sumSq = 0;
+        for (let j = 0; j < mono.length; j++) sumSq += mono[j] * mono[j];
+        const overallRms = Math.sqrt(sumSq / mono.length);
+        mono = resampleAA(mono, audioBuf.sampleRate, TARGET_SR);
+        if (autoBpm) {
+          bpm = detectBPM(mono, TARGET_SR);
+          logger.log(`  自动 BPM ≈ ${bpm}`);
+          bpmDetEl.textContent = bpm + ' BPM';
+        }
+        const frameSec = 256 / TARGET_SR, tickPerSec = bpm / 60 * TICKS_PER_BEAT;
+        const rmsMin = Math.max(0.002, overallRms * 0.15);
+        let melodyWave = wave, allEvents = [], globalChannelSet = new Set();
+        if (split === '4ch') {
+          const bassBand = bandpass24(mono, TARGET_SR, 60, 250);
+          const melBand = bandpass24(mono, TARGET_SR, 250, 1200);
+          const harmBand = bandpass24(mono, TARGET_SR, 1200, 4500);
+          const hpPerc = biquadHP(biquadHP(mono, TARGET_SR, 2000), TARGET_SR, 2000);
+          const melData = await yinDetect(melBand, TARGET_SR, {
+            fMin: 250, fMax: 1200, threshold: 0.15, rmsMin,
+            onProgress: p => { bar.style.width = ((i + 0.05 + 0.35 * p) / files.length * 100) + '%'; },
+          });
+          if (autoWave) {
+            const wres = detectWaveform(melBand, TARGET_SR, melData);
+            melodyWave = wres.wave;
+            waveDetEl.textContent = wres.wave;
+          }
+          const melEvents = pitchesToEvents(melData, frameSec, tickPerSec, 0, { minNoteMs: 60, pitchTol: 0.6 });
+          allEvents.push(...melEvents.events);
+          globalChannelSet.add(0);
+          const bassData = await yinDetect(bassBand, TARGET_SR, {
+            fMin: 60, fMax: 250, threshold: 0.15, rmsMin,
+            onProgress: p => { bar.style.width = ((i + 0.4 + 0.25 * p) / files.length * 100) + '%'; },
+          });
+          const bassEvents = pitchesToEvents(bassData, frameSec, tickPerSec, 2, { minNoteMs: 90, pitchTol: 0.5 });
+          allEvents.push(...bassEvents.events);
+          globalChannelSet.add(2);
+          const harmData = await yinDetect(harmBand, TARGET_SR, {
+            fMin: 1200, fMax: 4500, threshold: 0.15, rmsMin,
+            onProgress: p => { bar.style.width = ((i + 0.65 + 0.25 * p) / files.length * 100) + '%'; },
+          });
+          const harmEvents = pitchesToEvents(harmData, frameSec, tickPerSec, 1, { minNoteMs: 55, pitchTol: 0.7 });
+          allEvents.push(...harmEvents.events);
+          globalChannelSet.add(1);
+          const perc = detectPercussion(hpPerc, TARGET_SR, 256, overallRms, 1.8, 8);
+          const drumEvents = perc.onsets.map(fr => ({
+            ch: 3, tick: Math.round(fr * frameSec * tickPerSec),
+            note: 40, vel: 100, dur: 1,
+          }));
+          allEvents.push(...drumEvents);
+          globalChannelSet.add(3);
+          logger.log(`  P1:${melEvents.events.length} Tri:${bassEvents.events.length} P2:${harmEvents.events.length} Noise:${drumEvents.length}`);
+        } else {
+          const data = await yinDetect(mono, TARGET_SR, {
+            fMin: 60, fMax: 5000, threshold: 0.15, rmsMin,
+            onProgress: p => { bar.style.width = ((i + p) / files.length * 100) + '%'; },
+          });
+          if (autoWave) {
+            const wres = detectWaveform(mono, TARGET_SR, data);
+            melodyWave = wres.wave;
+            waveDetEl.textContent = wres.wave;
+          }
+          const res = pitchesToEvents(data, frameSec, tickPerSec, 0, { minNoteMs: 60 });
+          allEvents.push(...res.events);
+          globalChannelSet.add(0);
+        }
+        const { json, info } = eventsToChip(allEvents, globalChannelSet, {
+          title: f.name.replace(/\.[^.]+$/, ''),
+          bpm, loop, wave: melodyWave,
+          source: 'audio_dsp',
+          chordSplit: true, displaceRange: 2, materialType: 'music',
+          reportCb: t => logger.log('  ' + t),
+        });
+        const outName = f.name.replace(/\.[^.]+$/, '') + '.json';
+        logger.log(`  ✓ → ${outName}`);
+        results.add(outName, json);
+        if (files.length === 1) {
+          try { downloadText(json, outName); logger.log(`  📥 已触发下载`); }
+          catch (e) { logger.log(`  ⚠ 被拦截`); }
+        }
+        ok++;
+      } catch (err) {
+        logger.log(`  ✗ ${err.message}`);
+        console.error(err);
+        fail++;
+      }
+      bar.style.width = ((i + 1) / files.length * 100) + '%';
+    }
+    logger.log('─'.repeat(50));
+    logger.log(`完成: ${ok} 成功, ${fail} 失败`);
+    results.addZipButton();
+    document.getElementById('audio-run').disabled = false;
+  };
+})();
+
+/* ============================================================
+   智能页
+   ============================================================ */
+(function() {
+  const fileInput = document.getElementById('smart-files');
+  const listEl = document.getElementById('smart-list');
+  const logger = makeLogger('smart-log');
+  const results = makeResults('smart-results');
+  const bar = document.getElementById('smart-bar');
+  const statusEl = document.getElementById('smart-status');
+  const bpmDetEl = document.getElementById('smart-bpm-detected');
+  const loadBtn = document.getElementById('smart-load');
+  const runBtn = document.getElementById('smart-run');
+  let files = [], audioCtxSmart = null;
+  function getCtx() {
+    if (!audioCtxSmart) audioCtxSmart = new (window.AudioContext || window.webkitAudioContext)();
+    return audioCtxSmart;
+  }
+  function setStatus(state, text) { statusEl.className = 'status ' + state; statusEl.textContent = text; }
+  function refresh() {
+    listEl.innerHTML = '';
+    if (files.length === 0) { listEl.textContent = '（未选择）'; return; }
+    files.forEach(f => { const d = document.createElement('div'); d.textContent = f.name; listEl.appendChild(d); });
+  }
+  fileInput.onchange = () => { files = [...fileInput.files]; refresh(); };
+  document.getElementById('smart-clear').onclick = () => {
+    files = []; fileInput.value = ''; refresh(); bpmDetEl.textContent = '—';
+  };
+  loadBtn.onclick = async () => {
+    loadBtn.disabled = true;
+    setStatus('loading', '加载中...');
+    logger.clear();
+    try {
+      await loadBasicPitch(t => logger.log(t));
+      setStatus('ready', '就绪');
+      logger.log('\n✓ 模型加载完成。');
+    } catch (e) {
+      setStatus('error', '失败');
+      logger.log('\n✗ 加载失败：' + e.message);
+    } finally { loadBtn.disabled = false; }
+  };
+  runBtn.onclick = async () => {
+    if (!bpReady) { alert('请先加载模型'); return; }
+    if (files.length === 0) { alert('请先选择音频文件'); return; }
+    const onsetThresh = parseFloat(document.getElementById('smart-onset').value);
+    const frameThresh = parseFloat(document.getElementById('smart-frame').value);
+    const bassMax = parseInt(document.getElementById('smart-bass-max').value);
+    const leadMax = parseInt(document.getElementById('smart-lead-max').value);
+    const drumThreshMul = parseFloat(document.getElementById('smart-drum-thresh').value);
+    const drumMinIntBeats = parseFloat(document.getElementById('smart-drum-minint').value);
+    const maxSec = parseInt(document.getElementById('smart-max-sec').value);
+    const maxNoteLenSec = parseFloat(document.getElementById('smart-max-notelen').value);
+    const mergeGapFrames = parseInt(document.getElementById('smart-merge-gap').value);
+    const quantTicks = parseInt(document.getElementById('smart-quant').value);
+    const maxPerFrame = parseInt(document.getElementById('smart-max-per-frame').value);
+    const pitchSmoothTol = parseInt(document.getElementById('smart-smooth').value);
+    const maxHarmonyConcurrent = parseInt(document.getElementById('smart-harm-layers').value);
+    const harmonyMinAmp = parseFloat(document.getElementById('smart-harm-minamp').value);
+    const fillGapTicks = parseInt(document.getElementById('smart-gap-fill').value);
+    const interpMaxTicks = parseInt(document.getElementById('smart-interp-max').value);
+    const autoBpm = document.getElementById('smart-auto-bpm').checked;
+    const loop = document.getElementById('smart-loop').checked;
+    const materialType = document.getElementById('smart-material').value;
+    let bpm = parseFloat(document.getElementById('smart-bpm').value);
+    if (!autoBpm && (!isFinite(bpm) || bpm <= 0)) { alert('BPM 必须是正数'); return; }
+    logger.clear(); results.clear(); bar.style.width = '0%'; bpmDetEl.textContent = '—';
+    runBtn.disabled = true;
+    const ctx = getCtx();
+    if (ctx.state === 'suspended') await ctx.resume();
+    const maxNoteFrames = Math.round(maxNoteLenSec * BP_FRAME_RATE);
+    let ok = 0, fail = 0;
+    for (let i = 0; i < files.length; i++) {
+      const f = files[i];
+      logger.log(`[${f.name}]`);
+      try {
         logger.log('  解码音频...');
-        const buf=await f.arrayBuffer();
-        const audioBuf=await ctx.decodeAudioData(buf.slice(0));
+        const buf = await f.arrayBuffer();
+        const audioBuf = await ctx.decodeAudioData(buf.slice(0));
         logger.log(`  时长 ${audioBuf.duration.toFixed(1)}s，${audioBuf.sampleRate}Hz / ${audioBuf.numberOfChannels}声道`);
         logger.log('  重采样到 22050Hz 单声道...');
-        let buf22050=await resampleAudioBuffer(audioBuf,22050);
-        const maxSamples=maxSec*22050;
-        if(buf22050.length>maxSamples){
+        let buf22050 = await resampleAudioBuffer(audioBuf, 22050);
+        const maxSamples = maxSec * 22050;
+        if (buf22050.length > maxSamples) {
           logger.log(`  音频超过 ${maxSec}s，截取前 ${maxSec}s`);
-          const trimCtx=new OfflineAudioContext(1,maxSamples,22050);
-          const src=trimCtx.createBufferSource();src.buffer=buf22050;src.connect(trimCtx.destination);src.start(0);
-          buf22050=await trimCtx.startRendering();
+          const trimCtx = new OfflineAudioContext(1, maxSamples, 22050);
+          const src = trimCtx.createBufferSource();
+          src.buffer = buf22050;
+          src.connect(trimCtx.destination);
+          src.start(0);
+          buf22050 = await trimCtx.startRendering();
         }
         logger.log(`  → ${buf22050.length} 采样 (${(buf22050.length/22050).toFixed(1)}s)`);
-        const mono22050=buf22050.getChannelData(0).slice();
-        if(autoBpm){bpm=detectBPM(mono22050,22050);logger.log(`  自动 BPM ≈ ${bpm}`);bpmDetEl.textContent=bpm+' BPM'}
-        else logger.log(`  手动 BPM = ${bpm}`);
-        const secondsPerBeat=60/bpm;
-        const minIntSec=secondsPerBeat*drumMinIntBeats;
-        const minIntFrames=Math.max(4, Math.round(minIntSec*BP_FRAME_RATE));
-        logger.log(`  检测打击乐（最小间隔 ${(minIntSec*1000).toFixed(0)}ms = ${drumMinIntBeats} 拍）...`);
-        const hp=biquadHP(biquadHP(mono22050,22050,2000),22050,2000);
-        let sumSq=0;for(let j=0;j<mono22050.length;j++)sumSq+=mono22050[j]*mono22050[j];
-        const overallRms=Math.sqrt(sumSq/mono22050.length);
-        const perc=detectPercussion(hp,22050,256,overallRms,drumThreshMul,minIntFrames);
-        const drumOnsets=perc.onsets;const drumFrameRate=perc.frameRate;
+        const mono22050 = buf22050.getChannelData(0).slice();
+        if (autoBpm) {
+          bpm = detectBPM(mono22050, 22050);
+          logger.log(`  自动 BPM ≈ ${bpm}`);
+          bpmDetEl.textContent = bpm + ' BPM';
+        } else logger.log(`  手动 BPM = ${bpm}`);
+        const secondsPerBeat = 60 / bpm;
+        const minIntSec = secondsPerBeat * drumMinIntBeats;
+        const minIntFrames = Math.max(4, Math.round(minIntSec * BP_FRAME_RATE));
+        logger.log(`  检测打击乐...`);
+        const hp = biquadHP(biquadHP(mono22050, 22050, 2000), 22050, 2000);
+        let sumSq = 0;
+        for (let j = 0; j < mono22050.length; j++) sumSq += mono22050[j] * mono22050[j];
+        const overallRms = Math.sqrt(sumSq / mono22050.length);
+        const perc = detectPercussion(hp, 22050, 256, overallRms, drumThreshMul, minIntFrames);
+        const drumOnsets = perc.onsets, drumFrameRate = perc.frameRate;
         logger.log(`  检测到 ${drumOnsets.length} 个打击点`);
         logger.log('  Basic Pitch 推理...');
-        const {frames,onsets}=await bpEvaluateFull(bpModel,buf22050,{
-          onProgress:(p)=>{bar.style.width=((i+0.5*p)/files.length*100)+'%'},
-          log:t=>logger.log(t)});
-        if(!frames||frames.length===0)throw new Error('模型未返回任何帧');
-        const expectedFrames=Math.round(buf22050.length/22050*BP_FRAME_RATE);
+        const { frames, onsets } = await bpEvaluateFull(bpModel, buf22050, {
+          onProgress: p => { bar.style.width = ((i + 0.5 * p) / files.length * 100) + '%'; },
+          log: t => logger.log(t),
+        });
+        if (!frames || frames.length === 0) throw new Error('模型未返回任何帧');
+        const expectedFrames = Math.round(buf22050.length / 22050 * BP_FRAME_RATE);
         logger.log(`  预期约 ${expectedFrames} 帧，实际 ${frames.length} 帧`);
-
-        logger.log(`  提取原始音符（单音上限 ${maxNoteLenSec}s，每帧最多 ${maxPerFrame} 音符）...`);
-        const {notes:rawNotes, noisyCount, totalFrames}=bpExtractNotes(frames,onsets,{
-          onsetThresh,frameThresh,minFrames:2,maxNoteFrames,maxPerFrame});
+        logger.log(`  提取原始音符...`);
+        const { notes: rawNotes, softLimitedFrames, totalFrames } = bpExtractNotes(frames, onsets, {
+          onsetThresh, frameThresh, minFrames: 2, maxNoteFrames, maxPerFrame,
+        });
         logger.log(`  初步提取：${rawNotes.length} 个音符`);
-        if(noisyCount>0) logger.log(`  过滤掉 ${noisyCount} 个噪声帧（每帧 > ${maxPerFrame} 个激活 bin）`);
-
-        const assigned=smartAssign(rawNotes,drumOnsets,{
-          bassMax,leadMax,minNoteFrames:2,noiseWindow:4,noiseAmpThreshold:0.2,
-          mergeGapFrames,pitchSmoothTol
-        },txt=>logger.log(txt));
-
-        // ★ 段落诊断
-        diagnoseSegments(assigned.leadLine,assigned.harmLine,assigned.bassLine,drumOnsets,
-          totalFrames,txt=>logger.log(txt),4);
-
-        const events=smartToEvents(assigned,drumOnsets,drumFrameRate,bpm,quantTicks);
+        if (softLimitedFrames > 0) logger.log(`  软性限制帧数：${softLimitedFrames}`);
+        const assigned = smartAssign(rawNotes, drumOnsets, {
+          bassMax, leadMax, minNoteFrames: 2, noiseWindow: 4, noiseAmpThreshold: 0.1,
+          mergeGapFrames, pitchSmoothTol, maxHarmonyConcurrent, harmonyMinAmp,
+        }, txt => logger.log(txt));
+        diagnoseSegments(assigned.leadLine, assigned.harmLine, assigned.bassLine, drumOnsets,
+          totalFrames, mono22050, txt => logger.log(txt), 4);
+        const events = smartToEvents(assigned, drumOnsets, drumFrameRate, bpm, quantTicks,
+          fillGapTicks, interpMaxTicks, txt => logger.log(txt));
+        diagnoseChannels(events.ch0, events.ch1, events.ch2, events.ch3, txt => logger.log(txt));
         logger.log(`  分配结果：lead ${events.ch0.length} / harmony ${events.ch1.length} / bass ${events.ch2.length} / drum ${events.ch3.length}`);
-
-        const {json,info}=buildChipFromAssigned(events,{
-          title:f.name.replace(/\.[^.]+$/,''),bpm,loop,wave:'pulse_25',maxDurTicks:16});
-        const outName=f.name.replace(/\.[^.]+$/,'')+'.json';
+        logger.log(`  素材类型：${materialType === 'music' ? '🎵 音乐' : materialType === 'sfx' ? '🔔 短音效' : '🔁 循环音效'}`);
+        const { json, info } = buildChipFromAssigned(events, {
+          title: f.name.replace(/\.[^.]+$/, ''),
+          bpm, loop, wave: 'pulse_25', maxDurTicks: 16, materialType,
+        });
+        const outName = f.name.replace(/\.[^.]+$/, '') + '.json';
         logger.log(`  ✓ → ${outName}`);
-        logger.log(`     事件数: ${info.events}  时长: ${info.duration.toFixed(1)}s`);
-        info.channels.forEach(ch=>{if(ch.count>0)logger.log(`     ch ${ch.name}: ${ch.count} 事件`)});
-        results.add(outName,json);
-        if(files.length===1){try{downloadText(json,outName);logger.log(`  📥 已触发下载`)}catch(e){logger.log(`  ⚠ 被拦截`)}};
+        logger.log(`     事件数: ${info.events}  时长: ${info.duration.toFixed(2)}s  total_ticks: ${info.totalTicks}`);
+        info.channels.forEach(ch => { if (ch.count > 0) logger.log(`     ch ${ch.name}: ${ch.count} 事件`); });
+        results.add(outName, json);
+        if (files.length === 1) {
+          try { downloadText(json, outName); logger.log(`  📥 已触发下载`); }
+          catch (e) { logger.log(`  ⚠ 被拦截`); }
+        }
         ok++;
-      }catch(err){logger.log(`  ✗ ${err.message}`);console.error(err);fail++}
-      bar.style.width=((i+1)/files.length*100)+'%';
+      } catch (err) {
+        logger.log(`  ✗ ${err.message}`);
+        console.error(err);
+        fail++;
+      }
+      bar.style.width = ((i + 1) / files.length * 100) + '%';
     }
-    logger.log('─'.repeat(50));logger.log(`完成: ${ok} 成功, ${fail} 失败`);
-    if(files.length>1){results.addZipButton()}
-    runBtn.disabled=false;
+    logger.log('─'.repeat(50));
+    logger.log(`完成: ${ok} 成功, ${fail} 失败`);
+    if (files.length > 1) results.addZipButton();
+    runBtn.disabled = false;
   };
+})();
+
+/* ============================================================
+   sfxr 转换页
+   ============================================================ */
+(function() {
+  const fileInput = document.getElementById('sfxr-files');
+  const listEl = document.getElementById('sfxr-list');
+  const logger = makeLogger('sfxr-log');
+  const results = makeResults('sfxr-results');
+  const bar = document.getElementById('sfxr-bar');
+  let files = [];
+  function refresh() {
+    listEl.innerHTML = '';
+    if (files.length === 0) { listEl.textContent = '（未选择）'; return; }
+    files.forEach(f => { const d = document.createElement('div'); d.textContent = f.name; listEl.appendChild(d); });
+  }
+  fileInput.onchange = () => { files = [...fileInput.files]; refresh(); };
+  document.getElementById('sfxr-clear').onclick = () => { files = []; fileInput.value = ''; refresh(); };
+  document.getElementById('sfxr-run').onclick = async () => {
+    if (files.length === 0) { alert('请先选择 sfxr JSON 文件'); return; }
+    const bpm = parseFloat(document.getElementById('sfxr-bpm').value) || 240;
+    const autoBpm = document.getElementById('sfxr-auto-bpm').checked;
+    const materialType = document.getElementById('sfxr-material').value;
+    const waveOverride = document.getElementById('sfxr-wave-override').value;
+    logger.clear(); results.clear(); bar.style.width = '0%';
+    document.getElementById('sfxr-run').disabled = true;
+    let ok = 0, fail = 0;
+    for (let i = 0; i < files.length; i++) {
+      const f = files[i];
+      logger.log(`[${f.name}]`);
+      try {
+        const text = await f.text();
+        const data = JSON.parse(text);
+        logger.log(`  解析成功（${data.oldParams ? '老格式' : '新格式'}）`);
+        logger.log(`  wave_type=${data.wave_type}，base_freq=${data.p_base_freq?.toFixed(4) ?? 'N/A'}`);
+        logger.log(`  env: attack=${data.p_env_attack?.toFixed(4)} sustain=${data.p_env_sustain?.toFixed(4)} decay=${data.p_env_decay?.toFixed(4)}`);
+        logger.log(`  freq_ramp=${data.p_freq_ramp?.toFixed(4)} freq_dramp=${data.p_freq_dramp?.toFixed(4)}`);
+        logger.log(`  duty=${data.p_duty?.toFixed(4)} arp_mod=${data.p_arp_mod?.toFixed(4)} vib_strength=${data.p_vib_strength?.toFixed(4)}`);
+        const { json, info } = sfxrToChip(data, {
+          title: f.name.replace(/\.[^.]+$/, ''),
+          bpm, materialType, waveOverride, autoBpm,
+        });
+        logger.log(`  → 波形 ${info.wave}`);
+        logger.log(`  → 基频 ${info.freqHz} Hz → MIDI ${info.baseMidi}`);
+        logger.log(`  → 原音时长 ${(info.rawDurationSec * 1000).toFixed(1)} ms`);
+        if (info.hasRamp) logger.log(`  → 含频率滑动`);
+        if (info.hasArp) logger.log(`  → 含琶音`);
+        if (info.hasVib) logger.log(`  → 含颤音`);
+        const outName = f.name.replace(/\.[^.]+$/, '') + '.json';
+        logger.log(`  ✓ → ${outName}`);
+        logger.log(`     事件数: ${info.events}  时长: ${info.duration.toFixed(3)}s  BPM: ${info.bpm}  total_ticks: ${info.totalTicks}`);
+        results.add(outName, json);
+        if (files.length === 1) {
+          try { downloadText(json, outName); logger.log(`  📥 已触发下载`); }
+          catch (e) { logger.log(`  ⚠ 被拦截`); }
+        }
+        ok++;
+      } catch (err) {
+        logger.log(`  ✗ ${err.message}`);
+        console.error(err);
+        fail++;
+      }
+      bar.style.width = ((i + 1) / files.length * 100) + '%';
+    }
+    logger.log('─'.repeat(50));
+    logger.log(`完成: ${ok} 成功, ${fail} 失败`);
+    results.addZipButton();
+    document.getElementById('sfxr-run').disabled = false;
+  };
+})();
+
+/* ============================================================
+   播放器页 — AudioWorklet NES 仿真
+   ============================================================ */
+(function() {
+  const fileInput = document.getElementById('player-files');
+  const listEl = document.getElementById('player-list');
+  const logger = makeLogger('player-log');
+  const playBtn = document.getElementById('player-play');
+  const stopBtn = document.getElementById('player-stop');
+  const loopCheckbox = document.getElementById('player-loop');
+  const volumeSlider = document.getElementById('player-volume');
+  const volumeDisplay = document.getElementById('player-volume-display');
+  const seekBar = document.getElementById('player-seek');
+  const seekFill = document.getElementById('player-seek-fill');
+  const timeCurrentEl = document.getElementById('player-time-current');
+  const timeTotalEl = document.getElementById('player-time-total');
+  const statusEl = document.getElementById('player-status');
+  const monoCheckbox = document.getElementById('player-mono');
+  const muteCheckboxes = document.querySelectorAll('input[data-ch]');
+
+  let files = [];
+  let currentSong = null;
+  let audioCtx = null;
+  let workletNode = null;
+  let fallbackNode = null;
+  let fallbackSequencer = null;
+  let fallbackSynth = null;
+  let useFallback = false;
+  let ready = false;
+  let isPlaying = false;
+  let isPaused = false;
+  let currentTick = 0;
+  let totalTicks = 0;
+  let samplesPerTick = 0;
+  let totalDurationSec = 0;
+
+  async function initEngine() {
+    statusEl.textContent = '引擎初始化中...';
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const workletCode = document.getElementById('worklet-code').textContent;
+    const blob = new Blob([workletCode], { type: 'application/javascript' });
+    const url = URL.createObjectURL(blob);
+    try {
+      await audioCtx.audioWorklet.addModule(url);
+      workletNode = new AudioWorkletNode(audioCtx, 'chip-music-processor', {
+        numberOfInputs: 0,
+        numberOfOutputs: 1,
+        outputChannelCount: [2],
+      });
+      workletNode.connect(audioCtx.destination);
+      workletNode.port.onmessage = (e) => handleWorkletMessage(e.data);
+      ready = true;
+      useFallback = false;
+      statusEl.innerHTML = '<span style="color:#4be08c">✓ AudioWorklet 引擎就绪（NES 硬件仿真）</span>';
+      logger.log('✓ AudioWorklet 引擎初始化成功');
+      logger.log('  采样率：' + audioCtx.sampleRate + ' Hz');
+      logger.log('  已启用：单极性脉冲 / 4-bit 量化 / DC blocking / 32 步三角波 / LFSR 噪声');
+    } catch (e) {
+      console.warn('AudioWorklet 加载失败，降级到 ScriptProcessor:', e);
+      initFallback(workletCode);
+    }
+  }
+
+  function initFallback(workletCode) {
+    try {
+      const factory = new Function(workletCode + '\nreturn { ChipSynth, ChipSequencer };');
+      const { ChipSynth, ChipSequencer } = factory();
+      const rate = audioCtx.sampleRate;
+      fallbackSynth = new ChipSynth(16, rate);
+      fallbackSequencer = new ChipSequencer(fallbackSynth, rate);
+      fallbackNode = audioCtx.createScriptProcessor(2048, 0, 2);
+      fallbackNode.onaudioprocess = (e) => {
+        const outL = e.outputBuffer.getChannelData(0);
+        const outR = e.outputBuffer.getChannelData(1);
+        fallbackSequencer.process(outL, outR);
+      };
+      fallbackNode.connect(audioCtx.destination);
+      ready = true;
+      useFallback = true;
+      statusEl.innerHTML = '<span style="color:#ff9800">⚠ 降级到 ScriptProcessor（可能不是 100% NES 仿真）</span>';
+      logger.log('⚠ AudioWorklet 不可用（可能是 file:// 限制），已降级到 ScriptProcessor');
+    } catch (e2) {
+      console.error('降级也失败:', e2);
+      statusEl.innerHTML = '<span style="color:#e05252">✗ 引擎初始化失败</span>';
+      logger.log('✗ 引擎初始化失败：' + e2.message);
+      logger.log('  请尝试把 HTML 放到 HTTP 服务器上运行');
+    }
+  }
+
+  function handleWorkletMessage(msg) {
+    switch (msg.type) {
+      case 'loaded':
+        logger.log(`  → 引擎已加载 ${msg.events} 个事件`);
+        break;
+      case 'started':
+        break;
+      case 'progress':
+        currentTick = msg.tick;
+        updateProgressUI();
+        break;
+      case 'ended':
+        isPlaying = false;
+        isPaused = false;
+        playBtn.textContent = '▶ 播放';
+        logger.log('  ⏹ 播放结束');
+        break;
+    }
+  }
+
+  function updateProgressUI() {
+    if (totalDurationSec > 0) {
+      const tSec = samplesPerTick > 0 ? (currentTick * samplesPerTick) / audioCtx.sampleRate : 0;
+      timeCurrentEl.textContent = tSec.toFixed(2) + 's';
+      const pct = Math.min(100, (currentTick / totalTicks) * 100);
+      seekFill.style.width = pct + '%';
+    }
+  }
+
+  volumeSlider.oninput = () => {
+    const v = parseInt(volumeSlider.value) / 100;
+    volumeDisplay.textContent = volumeSlider.value + '%';
+    if (workletNode) {
+      workletNode.port.postMessage({ type: 'set_volume', volume: v });
+    } else if (fallbackSynth) {
+      fallbackSynth.master_volume = v;
+    }
+  };
+
+  muteCheckboxes.forEach(cb => {
+    cb.onchange = () => {
+      const ch = parseInt(cb.dataset.ch);
+      const muted = cb.checked;
+      if (workletNode) {
+        workletNode.port.postMessage({ type: 'set_channel_mute', ch, muted });
+      } else if (fallbackSynth) {
+        fallbackSynth.setChannelMuted(ch, muted);
+      }
+    };
+  });
+
+  // ★ 循环开关
+  loopCheckbox.onchange = () => {
+    const enabled = loopCheckbox.checked;
+    if (workletNode) {
+      workletNode.port.postMessage({ type: 'set_loop', enabled });
+    } else if (fallbackSequencer) {
+      fallbackSequencer.loop_enabled = enabled;
+    }
+    logger.log(`  循环：${enabled ? '开' : '关'}`);
+  };
+
+  monoCheckbox.onchange = () => {
+    const mono = monoCheckbox.checked;
+    if (workletNode) {
+      workletNode.port.postMessage({ type: 'set_mono', mono });
+    } else if (fallbackSynth) {
+      fallbackSynth.mono_per_channel = mono;
+    }
+    logger.log(`  单通道单音：${mono ? '开' : '关'}`);
+  };
+
+  function refresh() {
+    listEl.innerHTML = '';
+    if (files.length === 0) { listEl.textContent = '（未选择）'; playBtn.disabled = true; return; }
+    files.forEach(f => { const d = document.createElement('div'); d.textContent = f.name; listEl.appendChild(d); });
+    playBtn.disabled = false;
+  }
+
+  fileInput.onchange = async () => {
+    stopPlayback();
+    files = [...fileInput.files];
+    if (files.length === 0) {
+      currentSong = null;
+      logger.set('未加载。');
+      timeTotalEl.textContent = '0.00s';
+      timeCurrentEl.textContent = '0.00s';
+      seekFill.style.width = '0%';
+      refresh();
+      return;
+    }
+    const f = files[0];
+    try {
+      const text = await f.text();
+      const song = JSON.parse(text);
+      if (song.format !== 'chip_music_v1') {
+        throw new Error('不是 chip_music_v1 格式（format=' + song.format + '）');
+      }
+      currentSong = song;
+      logger.clear();
+      logger.log(`已加载：${f.name}`);
+      logger.log(`  title: ${song.meta.title || '(无)'}`);
+      logger.log(`  bpm: ${song.meta.bpm}`);
+      logger.log(`  ticks_per_beat: ${song.meta.ticks_per_beat}`);
+      logger.log(`  total_ticks: ${song.meta.total_ticks}`);
+      const tickSec = 60 / song.meta.bpm / song.meta.ticks_per_beat;
+      totalDurationSec = song.meta.total_ticks * tickSec;
+      samplesPerTick = tickSec * audioCtx.sampleRate;
+      totalTicks = song.meta.total_ticks;
+      logger.log(`  时长: ${totalDurationSec.toFixed(2)}s`);
+      logger.log(`  loop: [${song.meta.loop_start}, ${song.meta.loop_end}]`);
+      logger.log(`  通道数: ${song.channels.length}`);
+      song.channels.forEach((c, i) => logger.log(`    ch${i}: ${c.preset} (vol=${c.volume})`));
+      logger.log(`  总事件: ${song.events.length}`);
+      const chCounts = new Array(4).fill(0);
+      for (const ev of song.events) { if (ev.ch < 4) chCounts[ev.ch]++; }
+      logger.log(`  分布: lead=${chCounts[0]} harmony=${chCounts[1]} bass=${chCounts[2]} drum=${chCounts[3]}`);
+
+      timeTotalEl.textContent = totalDurationSec.toFixed(2) + 's';
+      timeCurrentEl.textContent = '0.00s';
+      seekFill.style.width = '0%';
+
+      if (workletNode) {
+        workletNode.port.postMessage({ type: 'load', song });
+      } else if (fallbackSequencer) {
+        fallbackSequencer.loadSong(song);
+        fallbackSequencer.started = false;
+        fallbackSynth.clearAllVoices();
+      }
+    } catch (err) {
+      logger.clear();
+      logger.log(`✗ 加载失败：${err.message}`);
+      currentSong = null;
+      playBtn.disabled = true;
+    }
+    refresh();
+  };
+
+  document.getElementById('player-clear').onclick = () => {
+    stopPlayback();
+    files = [];
+    fileInput.value = '';
+    currentSong = null;
+    logger.set('未加载。');
+    timeTotalEl.textContent = '0.00s';
+    timeCurrentEl.textContent = '0.00s';
+    seekFill.style.width = '0%';
+    refresh();
+  };
+
+  function stopPlayback() {
+    if (workletNode) workletNode.port.postMessage({ type: 'stop' });
+    if (fallbackSequencer) fallbackSequencer.stop();
+    isPlaying = false;
+    isPaused = false;
+    playBtn.textContent = '▶ 播放';
+  }
+
+  playBtn.onclick = async () => {
+    if (!currentSong) { alert('请先加载 JSON 文件'); return; }
+    if (audioCtx.state === 'suspended') await audioCtx.resume();
+
+    if (isPlaying && !isPaused) {
+      await audioCtx.suspend();
+      isPaused = true;
+      playBtn.textContent = '▶ 继续';
+      return;
+    }
+    if (isPlaying && isPaused) {
+      await audioCtx.resume();
+      isPaused = false;
+      playBtn.textContent = '⏸ 暂停';
+      return;
+    }
+
+    // ★ 全新播放前，先同步循环开关状态
+    if (workletNode) {
+      workletNode.port.postMessage({ type: 'set_loop', enabled: loopCheckbox.checked });
+      workletNode.port.postMessage({ type: 'start', at_tick: 0 });
+    } else if (fallbackSequencer) {
+      fallbackSequencer.loop_enabled = loopCheckbox.checked;
+      fallbackSequencer.start(0);
+    }
+    isPlaying = true;
+    isPaused = false;
+    playBtn.textContent = '⏸ 暂停';
+  };
+
+  stopBtn.onclick = () => {
+    stopPlayback();
+    currentTick = 0;
+    timeCurrentEl.textContent = '0.00s';
+    seekFill.style.width = '0%';
+  };
+
+  seekBar.onclick = (e) => {
+    if (!currentSong || !isPlaying) return;
+    const rect = seekBar.getBoundingClientRect();
+    const pct = (e.clientX - rect.left) / rect.width;
+    const targetTick = Math.floor(pct * totalTicks);
+    if (workletNode) {
+      workletNode.port.postMessage({ type: 'seek', tick: targetTick });
+    } else if (fallbackSequencer) {
+      fallbackSequencer.seek(targetTick);
+    }
+    currentTick = targetTick;
+    updateProgressUI();
+  };
+
+  initEngine();
 })();
 </script>
 </body>
