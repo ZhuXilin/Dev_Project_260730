@@ -559,7 +559,6 @@ func _show_type_picker_popup(node_idx: int):
 		[MapNode.NodeType.START, "START"],
 		[MapNode.NodeType.NORMAL, "NORMAL"],
 		[MapNode.NodeType.ELITE, "ELITE"],
-		[MapNode.NodeType.SHOP, "SHOP"],
 		[MapNode.NodeType.TREASURE, "TREASURE"],
 		[MapNode.NodeType.BOSS, "BOSS"],
 		[MapNode.NodeType.FORGE, "FORGE"],
@@ -1374,7 +1373,6 @@ func _node_type_short(t: int) -> String:
 		MapNode.NodeType.START: return "START"
 		MapNode.NodeType.NORMAL: return "NORMAL"
 		MapNode.NodeType.ELITE: return "ELITE"
-		MapNode.NodeType.SHOP: return "SHOP"
 		MapNode.NodeType.TREASURE: return "TREASURE"
 		MapNode.NodeType.BOSS: return "BOSS"
 		MapNode.NodeType.FORGE: return "FORGE"

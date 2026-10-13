@@ -212,8 +212,9 @@ func _ready():
 
 	# 非战斗/战斗分支
 	var is_non_combat = GameState.current_map_data and GameState.current_map_data.node_type in [
-		MapNode.NodeType.SHOP, MapNode.NodeType.TREASURE,
-		MapNode.NodeType.FORGE, MapNode.NodeType.CHAPEL,
+		MapNode.NodeType.TREASURE,
+		MapNode.NodeType.FORGE,
+		MapNode.NodeType.CHAPEL,
 	]
 
 	if is_non_combat:
@@ -281,13 +282,24 @@ func _ready():
 
 	if not is_non_combat_mode:
 		var alive_player : int = 0
+		var alive_enemy : int = 0
 		for u in UnitManager.unit_list:
-			if u.unit_stats.team_id == 0 and u.hit_points > 0:
+			if u.hit_points <= 0:
+				continue
+			if u.unit_stats.team_id == 0:
 				alive_player += 1
+			else:
+				alive_enemy += 1
 		if alive_player == 0:
 			TurnManager.is_game_over = true
 			await get_tree().process_frame
 			SignalBus.request_show_victory.emit(1)
+			return
+		# ★ 敌人已全灭（GM 提前清场 / 布阵异常），直接胜利
+		if alive_enemy == 0:
+			TurnManager.is_game_over = true
+			await get_tree().process_frame
+			SignalBus.request_show_victory.emit(0)
 			return
 
 	_turn_controller.apply_team_buffs()

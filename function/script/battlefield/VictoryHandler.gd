@@ -135,7 +135,6 @@ func on_request_show_victory(winning_team: int) -> void:
 
 		if is_win:
 			var is_non_combat_node = _bf.current_node_type in [
-				MapNode.NodeType.SHOP,
 				MapNode.NodeType.TREASURE,
 				MapNode.NodeType.FORGE,
 			]

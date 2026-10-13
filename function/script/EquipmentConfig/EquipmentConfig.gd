@@ -1,6 +1,6 @@
 extends Panel
 
-enum Mode { DEPLOY, MAP, SHOP, FORGE, ARENA_REST, MAP_SHOP_REST }
+enum Mode { DEPLOY, MAP, FORGE, ARENA_REST, MAP_SHOP_REST }
 
 const Style = preload("res://function/script/equipmentconfig/EquipmentConfigStyle.gd")
 
@@ -102,7 +102,7 @@ func init(units: Array, slot: int, mode: int, context: EquipContext = null):
 	current_mode = mode as Mode
 	_context = context if context else MainGameEquipContext.new()
 
-	if mode == Mode.SHOP or _is_shop_rest_mode() or mode == Mode.FORGE:
+	if _is_shop_rest_mode() or mode == Mode.FORGE:
 		if not shop_manager:
 			shop_manager = ShopManagerScript.new()
 			add_child(shop_manager)
@@ -123,14 +123,13 @@ func init(units: Array, slot: int, mode: int, context: EquipContext = null):
 
 func _on_shop_updated():
 	_update_gold_display()
-	var is_shop_view : bool = false
-	if current_mode == Mode.SHOP:
-		is_shop_view = true
-	elif current_tab == "arena_shop" and (current_mode == Mode.ARENA_REST
+	var is_shop_view : bool = (
+		current_tab == "arena_shop" and (
+			current_mode == Mode.ARENA_REST
 			or current_mode == Mode.MAP_SHOP_REST
-			or current_mode == Mode.FORGE):
-		is_shop_view = true
-
+			or current_mode == Mode.FORGE
+		)
+	)
 	if is_shop_view and shop_container and shop_container.visible:
 		_build_shop_items()
 	else:
@@ -368,21 +367,6 @@ func _build_ui_inner():
 						reset_btn.text = "刷新商店 (" + str(shop_manager.get_reset_cost()) + "G)"
 					discard_zone.visible = true
 
-			if left_column: left_column.size_flags_vertical = Control.SIZE_EXPAND_FILL
-
-		Mode.SHOP:
-			mode_label.text = "商店"
-			close_btn.visible = true
-			close_btn.text = "继续探索"
-			confirm_btn.visible = false
-			gold_label.visible = true
-			tab_bar.visible = false
-			_build_shop_items()
-			shop_container.visible = true
-			reset_btn.visible = true
-			if shop_manager:
-				reset_btn.text = "重置商店 (" + str(shop_manager.get_reset_cost()) + "G)"
-			discard_zone.visible = true
 			if left_column: left_column.size_flags_vertical = Control.SIZE_EXPAND_FILL
 
 		Mode.FORGE:
@@ -1077,8 +1061,7 @@ func _is_valid_drop(data: Dictionary, target: Control) -> bool:
 		return false
 
 	var is_shop_ctx = (
-		current_mode == Mode.SHOP
-		or (current_mode == Mode.FORGE and current_tab == "arena_shop")
+		(current_mode == Mode.FORGE and current_tab == "arena_shop")
 		or (_is_shop_rest_mode() and current_tab == "arena_shop")
 	)
 	if is_shop_ctx:
@@ -1538,8 +1521,7 @@ func _refresh_upgrade_shop_btn():
 		return
 
 	var is_shop_tab : bool = (
-		current_mode == Mode.SHOP
-		or (current_mode == Mode.FORGE and current_tab == "arena_shop")
+		(current_mode == Mode.FORGE and current_tab == "arena_shop")
 		or (_is_shop_rest_mode() and current_tab == "arena_shop")
 	)
 	if not is_shop_tab:

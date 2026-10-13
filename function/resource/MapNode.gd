@@ -5,7 +5,6 @@ enum NodeType {
 	START,
 	NORMAL,
 	ELITE,
-	SHOP,
 	TREASURE,
 	BOSS,
 	FORGE,

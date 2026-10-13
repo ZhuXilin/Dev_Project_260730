@@ -124,6 +124,11 @@ func _is_in_disabled_scene() -> bool:
 	return path in DISABLED_SCENES
 
 func _handle_hotkey(keycode: int):
+	# ★ 战场中（鼠标锁定/捕获）禁用所有 GM 快捷键，避免误触
+	var mm : Input.MouseMode = Input.mouse_mode
+	if mm == Input.MOUSE_MODE_HIDDEN or mm == Input.MOUSE_MODE_CAPTURED:
+		return
+
 	# 小键盘兼容
 	var k = keycode
 	if k == KEY_KP_0: k = KEY_0

@@ -9,7 +9,6 @@ const NODE_TYPES : Array = [
 	MapNode.NodeType.NORMAL,
 	MapNode.NodeType.ELITE,
 	MapNode.NodeType.BOSS,
-	MapNode.NodeType.SHOP,
 	MapNode.NodeType.FORGE,
 	MapNode.NodeType.TREASURE,
 	MapNode.NodeType.CHAPEL,
@@ -288,7 +287,6 @@ func launch():
 
 	# ---------- 非战斗节点：直接弹 UI ----------
 	if _selected_type in [
-		MapNode.NodeType.SHOP,
 		MapNode.NodeType.FORGE,
 		MapNode.NodeType.TREASURE,
 		MapNode.NodeType.CHAPEL,
@@ -297,7 +295,6 @@ func launch():
 		GameState.current_day = _get_day()
 		_play_non_combat_music()
 		match _selected_type:
-			MapNode.NodeType.SHOP:     await _open_shop()
 			MapNode.NodeType.FORGE:    await _open_forge()
 			MapNode.NodeType.TREASURE: await _open_treasure()
 			MapNode.NodeType.CHAPEL:   await _open_chapel()
@@ -330,14 +327,6 @@ func _play_non_combat_music():
 		stream = MusicManager.config.map_music
 	if stream:
 		MusicManager.play_music(stream)
-
-
-func _open_shop():
-	var config = load(Config.PATHS.EQUIPMENT_CONFIG).instantiate()
-	_attach_to_root(config)
-	var panel = config.get_node("MainPanel")
-	panel.call("init", _get_party_unit_names(), -1, int(EquipmentConfigScript.Mode.SHOP))
-	await panel.tree_exited
 
 
 func _open_forge():

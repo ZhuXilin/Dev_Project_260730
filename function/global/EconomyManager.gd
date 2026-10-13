@@ -8,11 +8,10 @@ const TYPE_NAME_TO_ID : Dictionary = {
 	"START":    0,
 	"NORMAL":   1,
 	"ELITE":    2,
-	"SHOP":     3,
-	"TREASURE": 4,
-	"BOSS":     5,
-	"FORGE":    6,
-	"CHAPEL":   7,
+	"TREASURE": 3,
+	"BOSS":     4,
+	"FORGE":    5,
+	"CHAPEL":   6,
 }
 
 var REWARD_GOLD : Dictionary = {}

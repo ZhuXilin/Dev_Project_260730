@@ -374,9 +374,6 @@ func on_node_selected(node: MapNode):
 
 func _load_combat_for_node(node: MapNode):
 	match node.node_type:
-		MapNode.NodeType.SHOP:
-			_open_shop(node)
-			return
 		MapNode.NodeType.FORGE:
 			_open_forge(node)
 			return
@@ -633,44 +630,6 @@ func hide_item_detail():
 		_detail_popup.visible = false
 
 
-func _open_shop(node: MapNode):
-	print("=== 打开商店 ===")
-
-	var key = "%d_%d" % [node.position.x, node.position.y]
-	GameState.visited_nodes[key] = true
-	node.is_visited = true
-	node.is_available = false
-
-	info_panel.visible = false
-	_update_availability(map_data.root_node)
-	_save_game()
-
-	var config = load(Config.PATHS.EQUIPMENT_CONFIG).instantiate()
-	add_child(config)
-	var panel = config.get_node("MainPanel")
-
-	var unit_names: Array[String] = []
-	for unit_data in GameState.party:
-		unit_names.append(unit_data.unit_name)
-
-	var slot = SaveManager.current_slot
-	if slot == -1:
-		slot = SaveManager.find_empty_slot()
-
-	panel.init(unit_names, slot, EquipmentConfig.Mode.SHOP)
-
-	await panel.tree_exited
-
-	if not is_inside_tree():
-		return
-
-	print("商店已关闭")
-	_restore_map_music()
-	_save_game()
-	update_all_displays()
-	_update_availability(map_data.root_node)
-
-
 func _apply_unified_font_size():
 	if day_label:
 		day_label.add_theme_font_size_override("font_size", FONT_SIZE)
@@ -725,7 +684,6 @@ func _validate_restored_map_data(md: MapLevelData):
 
 	for node in md.nodes:
 		if node.node_type in [
-			MapNode.NodeType.SHOP,
 			MapNode.NodeType.FORGE,
 			MapNode.NodeType.TREASURE,
 			MapNode.NodeType.CHAPEL,
@@ -805,8 +763,6 @@ func _get_node_description(node: MapNode) -> String:
 			return "普通战斗"
 		MapNode.NodeType.ELITE:
 			return "精英战斗\n敌人更强，奖励更好"
-		MapNode.NodeType.SHOP:
-			return "商店\n可购买武器与防具"
 		MapNode.NodeType.FORGE:
 			return "铁匠铺\n合成防具 / 升级武器"
 		MapNode.NodeType.TREASURE:

@@ -182,6 +182,19 @@ input[type=checkbox]{accent-color:#2d6cdf;margin-right:4px}
       </div>
 
       <div class="section">
+        <h3><span>旋转 / 翻转 <span class="hint">（操作选中像素）</span><span class="help-icon" title="按住 R 键 + 鼠标左键拖拽，以选区中心任意角度旋转&#10;旋转时按住 Shift，角度吸附到 45° 的整数倍">?</span></span></h3>
+        <div class="row">
+          <button id="btn-rot-cw-90">↻ 90°</button>
+          <button id="btn-rot-ccw-90">↺ 90°</button>
+          <button id="btn-rot-180">180°</button>
+        </div>
+        <div class="row">
+          <button id="btn-flip-h">左右翻转</button>
+          <button id="btn-flip-v">上下翻转</button>
+        </div>
+      </div>
+
+      <div class="section">
         <h3><span>动画预览 <span class="hint">（拖拽可定位格）</span></span><span id="anim-label">#0 / 15</span></h3>
         <div id="anim-preview-wrap">
           <canvas id="anim-preview"></canvas>
@@ -435,6 +448,16 @@ var _previewMask = null;
 var colorUsageSwatches = [];
 var _onionCanvas = null;
 var _onionCtx = null;
+
+// 旋转状态
+var rotateState = {
+  active: false,
+  isRotating: false,
+  startAngle: 0,
+  centerX: 0,
+  centerY: 0,
+  originalFloat: null
+};
 
 var canvas, ctx, canvasWrap, statusEl, coordEl, zoomLabel, brushInfoEl, fileInput;
 var animPreview, animPreviewCtx, animCursor, animPreviewWrap, animLabel;
@@ -2199,6 +2222,36 @@ function getMouse(e){
   return {sx:sx,sy:sy,px:p.x,py:p.y};
 }
 function onCanvasMouseDown(e){
+  if(rotateState.active && e.button === 0){
+    if (getFloatOrFromSelection()) {
+      if (!doc.floating) return;
+      var f = doc.floating;
+      if (!rotateState.originalFloat) {
+        rotateState.centerX = f.x + f.w / 2;
+        rotateState.centerY = f.y + f.h / 2;
+        rotateState.originalFloat = {
+          w: f.w, h: f.h,
+          data: new Uint8ClampedArray(f.data),
+          x: f.x, y: f.y
+        };
+      }
+      rotateState.isRotating = true;
+      rotateState.startAngle = Math.atan2(mouse.py - rotateState.centerY, mouse.px - rotateState.centerX);
+      setStatus('拖拽旋转中，松开鼠标结束本次旋转');
+      e.preventDefault();
+      return;
+    }
+  }
+
+  var m = getMouse(e);
+
+  if(doc.floating && !isSelected(m.px, m.py)) {
+    commitFloat();
+    commitHistory();
+    refreshColorUsage();
+    requestRender();
+  }
+
   if(cpPickingFromCanvas){
     var m0 = getMouse(e);
     var c0 = getCompositePixel(m0.px, m0.py);
@@ -2217,7 +2270,6 @@ function onCanvasMouseDown(e){
     return;
   }
 
-  var m = getMouse(e);
   var inRulerTop = m.sy < RULER && m.sx >= RULER;
   var inRulerLeft = m.sx < RULER && m.sy >= RULER;
   var modCtrl = e.ctrlKey || e.metaKey;
@@ -2354,6 +2406,19 @@ function onCanvasMouseMove(e){
   mouse.inRulerLeft = m.sx < RULER && m.sy >= RULER;
   var modCtrl = e.ctrlKey || e.metaKey;
 
+  // 旋转拖拽中（含 Shift 吸附到 45° 整数倍）
+  if (rotateState.active && rotateState.isRotating) {
+    var currentAngle = Math.atan2(mouse.py - rotateState.centerY, mouse.px - rotateState.centerX);
+    var deltaAngle = currentAngle - rotateState.startAngle;
+    if (e.shiftKey) {
+      var degrees = deltaAngle * 180 / Math.PI;
+      var snapped = Math.round(degrees / 45) * 45;
+      deltaAngle = snapped * Math.PI / 180;
+    }
+    rotateFloatFree(deltaAngle);
+    return;
+  }
+
   var cur = 'crosshair';
   if(mouse.inRulerTop) cur = 'ns-resize';
   else if(mouse.inRulerLeft) cur = 'ew-resize';
@@ -2368,6 +2433,7 @@ function onCanvasMouseMove(e){
       var g2 = doc.guides[gi];
       cur = g2.axis===0 ? 'ew-resize' : 'ns-resize';
     } else if(spaceDown) cur = 'grab';
+    else if(rotateState.active) cur = 'alias';
     else if(ui.tool===TOOL.PENCIL || ui.tool===TOOL.ERASER) cur = 'none';
   }
   if(canvas.style.cursor !== cur) canvas.style.cursor = cur;
@@ -2408,6 +2474,13 @@ function onCanvasMouseMove(e){
   }
   if(drag.mode === 'move' && doc.floating){
     var dx = m.px-drag.moveOrigin.x, dy = m.py-drag.moveOrigin.y;
+    if (e.shiftKey) {
+      if (Math.abs(dx) > Math.abs(dy)) {
+        dy = 0;
+      } else {
+        dx = 0;
+      }
+    }
     var nx = drag.floatOrigin.x+dx, ny = drag.floatOrigin.y+dy;
     doc.floating.x = nx; doc.floating.y = ny;
     setStatus('移动 dx='+(nx-drag.floatOrigin.x)+', dy='+(ny-drag.floatOrigin.y));
@@ -2459,6 +2532,13 @@ function onCanvasMouseMove(e){
   requestRender();
 }
 function onCanvasMouseUp(e){
+  if (rotateState.isRotating) {
+    rotateState.isRotating = false;
+    setStatus('本次拖拽旋转结束，按 Enter 确认或继续按住 R 拖拽调整');
+    e.preventDefault();
+    return;
+  }
+
   if(!drag.mode) return;
   if(drag.mode === 'select'){
     var r = rectFromPoints(drag.selStart,drag.selCur,drag.square);
@@ -2516,6 +2596,29 @@ function onKeyDown(e){
   if(e.target.tagName === 'INPUT') return;
   if(e.key === ' ' && !e.repeat) spaceDown = true;
 
+  // R 键旋转准备模式
+  if ((e.key === 'r' || e.key === 'R') && !e.ctrlKey && !e.metaKey && !e.altKey) {
+    if (!e.repeat && !rotateState.active) {
+      if (getFloatOrFromSelection()) {
+        var f = doc.floating;
+        rotateState.active = true;
+        rotateState.isRotating = false;
+        rotateState.centerX = f.x + f.w / 2;
+        rotateState.centerY = f.y + f.h / 2;
+        rotateState.originalFloat = {
+          w: f.w, h: f.h,
+          data: new Uint8ClampedArray(f.data),
+          x: f.x, y: f.y
+        };
+        setStatus('按住 R 键，鼠标左键拖拽旋转；按住 Shift 吸附 45°');
+        e.preventDefault();
+        return;
+      } else {
+        setStatus('请先选中像素或创建浮动层');
+      }
+    }
+  }
+
   if((e.key === 'v' || e.key === 'V') && !e.ctrlKey && !e.metaKey && !e.altKey){
     if(!e.repeat){
       vDown = true;
@@ -2561,6 +2664,14 @@ function onKeyDown(e){
         e.preventDefault(); break;
       }
       if(cpActive){ closeColorPicker(); e.preventDefault(); break; }
+      if(rotateState.active) {
+        rotateState.active = false;
+        rotateState.isRotating = false;
+        rotateState.originalFloat = null;
+        setStatus('已取消旋转');
+        e.preventDefault();
+        break;
+      }
       if(drag.mode === 'move' && doc.floating){
         drag.mode = null;
         restoreSnapshot(historyStack[historyIndex]);
@@ -2577,7 +2688,13 @@ function onKeyDown(e){
       } else deselectAll();
       e.preventDefault(); break;
     case 'Enter':
-      if(drag.mode === 'move' && doc.floating){ onCanvasMouseUp(); }
+      if (doc.floating) {
+        commitFloat();
+        commitHistory();
+        refreshColorUsage();
+        setStatus('已应用');
+        requestRender();
+      }
       e.preventDefault(); break;
     case 'f': case 'F': fitToView(); break;
     case '[': setBrushSize(ui.brushSize-1); e.preventDefault(); break;
@@ -2610,6 +2727,14 @@ function onKeyDown(e){
 }
 function onKeyUp(e){
   if(e.key === ' ') spaceDown = false;
+  if (e.key === 'r' || e.key === 'R') {
+    if (rotateState.active) {
+      rotateState.active = false;
+      rotateState.isRotating = false;
+      rotateState.originalFloat = null;
+      setStatus('退出旋转模式');
+    }
+  }
   if((e.key === 'v' || e.key === 'V') && !e.ctrlKey && !e.metaKey && !e.altKey){
     vDown = false;
     if(!vDragged){
@@ -2624,6 +2749,165 @@ function onKeyUp(e){
     }
     mDragged = false;
   }
+}
+
+// 旋转相关函数
+function getFloatOrFromSelection() {
+  if (doc.floating) return true;
+  if (doc.hasSelection) {
+    beginFloat();
+    return !!doc.floating;
+  }
+  return false;
+}
+
+function rotateFloat90(direction) {
+  if (!getFloatOrFromSelection()) { setStatus('请先选中像素'); return; }
+  var f = doc.floating;
+  var w = f.w, h = f.h;
+  var src = f.data;
+  var newW, newH, dst;
+  if (direction === 2) {
+    newW = w; newH = h;
+    dst = new Uint8ClampedArray(newW * newH * 4);
+    for (var y = 0; y < h; y++) {
+      for (var x = 0; x < w; x++) {
+        var si = (y * w + x) * 4;
+        var dx = w - 1 - x;
+        var dy = h - 1 - y;
+        var di = (dy * newW + dx) * 4;
+        dst[di] = src[si];
+        dst[di+1] = src[si+1];
+        dst[di+2] = src[si+2];
+        dst[di+3] = src[si+3];
+      }
+    }
+  } else if (direction === 1) {
+    newW = h; newH = w;
+    dst = new Uint8ClampedArray(newW * newH * 4);
+    for (var y = 0; y < h; y++) {
+      for (var x = 0; x < w; x++) {
+        var si = (y * w + x) * 4;
+        var dx = h - 1 - y;
+        var dy = x;
+        var di = (dy * newW + dx) * 4;
+        dst[di] = src[si];
+        dst[di+1] = src[si+1];
+        dst[di+2] = src[si+2];
+        dst[di+3] = src[si+3];
+      }
+    }
+  } else if (direction === -1) {
+    newW = h; newH = w;
+    dst = new Uint8ClampedArray(newW * newH * 4);
+    for (var y = 0; y < h; y++) {
+      for (var x = 0; x < w; x++) {
+        var si = (y * w + x) * 4;
+        var dx = y;
+        var dy = w - 1 - x;
+        var di = (dy * newW + dx) * 4;
+        dst[di] = src[si];
+        dst[di+1] = src[si+1];
+        dst[di+2] = src[si+2];
+        dst[di+3] = src[si+3];
+      }
+    }
+  }
+  var centerX = f.x + f.w / 2;
+  var centerY = f.y + f.h / 2;
+  f.w = newW; f.h = newH; f.data = dst;
+  f.x = Math.round(centerX - newW / 2);
+  f.y = Math.round(centerY - newH / 2);
+  doc.floatDirty = true;
+  doc.imageDirty = true;
+  _highlightDirty = true;
+  requestRender();
+  setStatus('旋转 ' + (direction === 1 ? '顺时针 90°' : direction === -1 ? '逆时针 90°' : '180°'));
+}
+
+function flipFloat(horizontal) {
+  if (!getFloatOrFromSelection()) { setStatus('请先选中像素'); return; }
+  var f = doc.floating;
+  var w = f.w, h = f.h;
+  var src = f.data;
+  var dst = new Uint8ClampedArray(w * h * 4);
+  for (var y = 0; y < h; y++) {
+    for (var x = 0; x < w; x++) {
+      var si = (y * w + x) * 4;
+      var dx = horizontal ? (w - 1 - x) : x;
+      var dy = horizontal ? y : (h - 1 - y);
+      var di = (dy * w + dx) * 4;
+      dst[di] = src[si];
+      dst[di+1] = src[si+1];
+      dst[di+2] = src[si+2];
+      dst[di+3] = src[si+3];
+    }
+  }
+  f.data = dst;
+  doc.floatDirty = true;
+  doc.imageDirty = true;
+  _highlightDirty = true;
+  requestRender();
+  setStatus(horizontal ? '左右翻转' : '上下翻转');
+}
+
+function rotateFloatFree(angleRad) {
+  if (!rotateState.originalFloat) return;
+  var orig = rotateState.originalFloat;
+  var w = orig.w, h = orig.h, src = orig.data;
+  var cos = Math.cos(angleRad);
+  var sin = Math.sin(angleRad);
+  var cx = w / 2, cy = h / 2;
+  var corners = [
+    {x: -cx, y: -cy},
+    {x: w - cx, y: -cy},
+    {x: w - cx, y: h - cy},
+    {x: -cx, y: h - cy}
+  ];
+  var minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+  for (var i = 0; i < 4; i++) {
+    var rx = corners[i].x * cos - corners[i].y * sin;
+    var ry = corners[i].x * sin + corners[i].y * cos;
+    if (rx < minX) minX = rx;
+    if (rx > maxX) maxX = rx;
+    if (ry < minY) minY = ry;
+    if (ry > maxY) maxY = ry;
+  }
+  var newW = Math.ceil(maxX - minX);
+  var newH = Math.ceil(maxY - minY);
+  var newData = new Uint8ClampedArray(newW * newH * 4);
+  var ncx = newW / 2;
+  var ncy = newH / 2;
+  
+  for (var ny = 0; ny < newH; ny++) {
+    for (var nx = 0; nx < newW; nx++) {
+      var dx = nx - ncx;
+      var dy = ny - ncy;
+      var sx = dx * cos + dy * sin + cx;
+      var sy = -dx * sin + dy * cos + cy;
+      var ix = Math.round(sx);
+      var iy = Math.round(sy);
+      if (ix >= 0 && ix < w && iy >= 0 && iy < h) {
+        var si = (iy * w + ix) * 4;
+        var di = (ny * newW + nx) * 4;
+        newData[di] = src[si];
+        newData[di+1] = src[si+1];
+        newData[di+2] = src[si+2];
+        newData[di+3] = src[si+3];
+      }
+    }
+  }
+  
+  var f = doc.floating;
+  f.w = newW; f.h = newH; f.data = newData;
+  f.x = Math.round(rotateState.centerX - newW / 2);
+  f.y = Math.round(rotateState.centerY - newH / 2);
+  
+  doc.floatDirty = true;
+  doc.imageDirty = true;
+  _highlightDirty = true;
+  requestRender();
+  setStatus('旋转中... 松开鼠标结束');
 }
 
 function updateAnimRange(){
@@ -2690,7 +2974,6 @@ function updateAnimCursor(){
   var cc = cellCount();
   var cur = ui.currentCell;
   var total = cc.x * cc.y;
-  /* 编号显示为 "#N / 最大编号"：总数-1 才是最大编号（0..total-1） */
   if(animLabel) animLabel.textContent = '#' + cur + ' / ' + Math.max(0, total - 1);
   if(!doc.grid.w || !doc.grid.h) return;
   if(cur<0 || cur>=total){ animCursor.style.display = 'none'; return; }
@@ -3516,11 +3799,16 @@ function bindUI(){
     setStatus(ui.singleCell ? '单格显示模式' : '全图显示模式');
   });
 
-  // 新按钮的事件绑定
   document.getElementById('btn-open-png').addEventListener('click', openPng);
   document.getElementById('btn-open-proj').addEventListener('click', openProject);
   document.getElementById('btn-save-as-png').addEventListener('click', function(){ savePng(true); });
   document.getElementById('btn-save-as-proj').addEventListener('click', function(){ saveProject(true); });
+
+  document.getElementById('btn-rot-cw-90').addEventListener('click', function(){ rotateFloat90(1); });
+  document.getElementById('btn-rot-ccw-90').addEventListener('click', function(){ rotateFloat90(-1); });
+  document.getElementById('btn-rot-180').addEventListener('click', function(){ rotateFloat90(2); });
+  document.getElementById('btn-flip-h').addEventListener('click', function(){ flipFloat(true); });
+  document.getElementById('btn-flip-v').addEventListener('click', function(){ flipFloat(false); });
 
   document.getElementById('btn-bg').addEventListener('click', cycleBackground);
 

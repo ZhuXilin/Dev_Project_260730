@@ -37,8 +37,13 @@ func _ready():
 #  战场就绪
 # ============================================================
 func set_battle_ready(value : bool):
+	var was_ready : bool = _battle_ready
 	_battle_ready = value
 	print("[TurnManager] set_battle_ready(", value, ")")
+	# ★ 从 false→true 的瞬间补一次胜负检查：
+	#   覆盖"在战场就绪前，敌人已被 GM 清空"的情况
+	if value and not was_ready:
+		call_deferred("check_victory")
 
 
 func is_battle_ready() -> bool:

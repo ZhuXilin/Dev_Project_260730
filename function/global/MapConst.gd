@@ -85,7 +85,6 @@ static func get_node_display_name(node_type: int) -> String:
 		MapNode.NodeType.NORMAL:   return "普通"
 		MapNode.NodeType.ELITE:    return "精英"
 		MapNode.NodeType.BOSS:     return "首领"
-		MapNode.NodeType.SHOP:     return "商店"
 		MapNode.NodeType.FORGE:    return "铁匠铺"
 		MapNode.NodeType.TREASURE: return "宝箱"
 		MapNode.NodeType.CHAPEL:   return "圣坛"

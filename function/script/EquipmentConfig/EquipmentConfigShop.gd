@@ -213,15 +213,14 @@ func swap_armor(data: Dictionary, target: Control):
 #  商店刷新 / 清空插槽
 # ============================================================
 func on_reset_shop_pressed():
-	# ★ 只有 forge tab 才走"清空插槽"
+	# 只有 forge tab 才走"清空插槽"
 	if panel.current_tab == "arena_forge":
 		if panel.current_mode == panel.Mode.FORGE or panel._is_shop_rest_mode():
 			panel._forge.on_forge_clear_pressed()
 			return
 
-	# 商店刷新：仅 SHOP / FORGE+arena_shop / MAP_SHOP_REST+arena_shop
-	if panel.current_mode != panel.Mode.SHOP \
-			and not (panel._is_shop_rest_mode() and panel.current_tab == "arena_shop") \
+	# 商店刷新：FORGE+arena_shop / MAP_SHOP_REST+arena_shop
+	if not (panel._is_shop_rest_mode() and panel.current_tab == "arena_shop") \
 			and not (panel.current_mode == panel.Mode.FORGE and panel.current_tab == "arena_shop"):
 		return
 	if not panel.shop_manager: return

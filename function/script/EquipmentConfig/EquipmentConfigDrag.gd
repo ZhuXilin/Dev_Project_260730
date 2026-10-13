@@ -207,10 +207,6 @@ func _get_all_target_controls() -> Array[Control]:
 	if (panel.current_mode == panel.Mode.DEPLOY or panel.current_mode == panel.Mode.MAP) and panel.shop_container.visible:
 		for btn in panel.shop_container.get_children():
 			if btn is Button and not btn.disabled: targets.append(btn)
-	# SHOP 模式
-	if panel.current_mode == panel.Mode.SHOP and panel.shop_container.visible:
-		for btn in panel.shop_container.get_children():
-			if btn is Button and not btn.disabled: targets.append(btn)
 	# Arena shop
 	if panel._is_shop_rest_mode() and panel.current_tab == "arena_shop" and panel.shop_container.visible:
 		for btn in panel.shop_container.get_children():
@@ -288,12 +284,6 @@ func _find_control_at_position(pos: Vector2) -> Control:
 			if btn is Button:
 				var b4 : Button = btn
 				if not b4.disabled and b4.get_global_rect().grow(BUFFER).has_point(pos): return b4
-	# SHOP 模式
-	if panel.current_mode == panel.Mode.SHOP and panel.shop_container.visible:
-		for btn in panel.shop_container.get_children():
-			if btn is Button:
-				var b5 : Button = btn
-				if not b5.disabled and b5.get_global_rect().grow(BUFFER).has_point(pos): return b5
 	# Arena shop
 	if panel._is_shop_rest_mode() and panel.current_tab == "arena_shop" and panel.shop_container.visible:
 		for btn in panel.shop_container.get_children():
@@ -349,12 +339,6 @@ func _get_target_from_position(global_pos: Vector2) -> Control:
 			if btn is Button:
 				var b4 : Button = btn
 				if not b4.disabled and b4.get_global_rect().grow(BUFFER).has_point(global_pos): return b4
-	# SHOP 模式
-	if panel.current_mode == panel.Mode.SHOP and panel.shop_container.visible:
-		for btn in panel.shop_container.get_children():
-			if btn is Button:
-				var b5 : Button = btn
-				if not b5.disabled and b5.get_global_rect().grow(BUFFER).has_point(global_pos): return b5
 	# Arena shop
 	if panel._is_shop_rest_mode() and panel.current_tab == "arena_shop" and panel.shop_container.visible:
 		for btn in panel.shop_container.get_children():

@@ -154,7 +154,6 @@ func _node_color(node: MapLayoutNode) -> Color:
 		MapNode.NodeType.START: return Color(0.3, 0.9, 0.3)
 		MapNode.NodeType.NORMAL: return Color(0.85, 0.85, 0.85)
 		MapNode.NodeType.ELITE: return Color(1.0, 0.4, 0.4)
-		MapNode.NodeType.SHOP: return Color(0.4, 0.7, 1.0)
 		MapNode.NodeType.TREASURE: return Color(0.7, 0.5, 1.0)
 		MapNode.NodeType.BOSS: return Color(1.0, 0.3, 0.8)
 		MapNode.NodeType.FORGE: return Color(1.0, 0.7, 0.4)
@@ -176,7 +175,6 @@ func _node_type_short(t: int) -> String:
 		MapNode.NodeType.START: return "ST"
 		MapNode.NodeType.NORMAL: return "NM"
 		MapNode.NodeType.ELITE: return "EL"
-		MapNode.NodeType.SHOP: return "SH"
 		MapNode.NodeType.TREASURE: return "TR"
 		MapNode.NodeType.BOSS: return "BS"
 		MapNode.NodeType.FORGE: return "FG"

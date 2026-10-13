@@ -129,7 +129,6 @@ static func _assign_map_data_to_all_nodes(nodes: Array):
 	var combat_nodes_by_type : Dictionary = {}
 	for node in nodes:
 		if node.node_type in [
-			MapNode.NodeType.SHOP,
 			MapNode.NodeType.FORGE,
 			MapNode.NodeType.TREASURE,
 			MapNode.NodeType.CHAPEL,

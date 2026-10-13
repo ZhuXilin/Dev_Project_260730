@@ -52,7 +52,6 @@ func setup(node_data: MapNode, map_scene: CanvasLayer, override_pos: Vector2 = V
 func _get_node_label(node: MapNode) -> String:
 	# 非战斗节点 → 直接中文类型名（商店 / 铁匠铺 / 宝箱 / 圣坛）
 	if node.node_type in [
-		MapNode.NodeType.SHOP,
 		MapNode.NodeType.FORGE,
 		MapNode.NodeType.TREASURE,
 		MapNode.NodeType.CHAPEL,
