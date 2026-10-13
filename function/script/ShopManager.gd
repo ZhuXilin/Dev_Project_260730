@@ -15,6 +15,10 @@ var QUALITY_WEIGHTS : Array = []
 var RARE_GUARANTEE_LEVEL : int = 3
 var EPIC_GUARANTEE_LEVEL : int = 5
 
+## ★ 商店只卖 armor → 只统计 armor 可能出现的标签
+## 避免单位自带的 "物理" / "法术" 标签挤占权重
+const ARMOR_TAGS : Array = ["守护", "烈焰", "灰烬", "轮回", "献祭", "余烬"]
+
 
 func _ready():
 	reload_config()
@@ -68,25 +72,22 @@ func is_arena_context() -> bool:
 
 
 # ============================================================
-#  刷新商店（批次 1）
+#  刷新商店
 # ============================================================
 func get_reset_cost() -> int:
 	return BASE_RESET_COST + reset_count * RESET_STEP
 
 
 func get_reset_cost_text() -> String:
-	if is_arena_context():
-		return "%dG" % get_reset_cost()
-	return "%d 魂火" % SoulFireManager.COST_SHOP_RESET
+	# ★ 统一用金币刷新
+	return "%dG" % get_reset_cost()
 
 
 func reset_shop() -> int:
+	# ★ 统一用金币刷新（UI 显示和实际扣费一致）
 	var cost = get_reset_cost()
-	if is_arena_context():
-		if _get_gold() < cost: return -1
-		if not _subtract_gold(cost): return -1
-	else:
-		if not SoulFireManager.spend(SoulFireManager.COST_SHOP_RESET): return -1
+	if _get_gold() < cost: return -1
+	if not _subtract_gold(cost): return -1
 	reset_count += 1
 	generate_shop_items()
 	shop_updated.emit()
@@ -94,15 +95,19 @@ func reset_shop() -> int:
 
 
 # ============================================================
-#  标签权重（批次 3）
+#  标签权重（★ 已过滤非防具标签）
 # ============================================================
 func _get_team_tag_weights() -> Dictionary:
 	var weights : Dictionary = {}
 	for ud in GameState.party:
 		if ud.is_dead: continue
 		for tag in ud.tags:
+			if tag not in ARMOR_TAGS:   # ★ 过滤
+				continue
 			weights[tag] = weights.get(tag, 0) + 3
 	for tag in GameState.tag_purchase_count:
+		if tag not in ARMOR_TAGS:   # ★ 过滤
+			continue
 		weights[tag] = weights.get(tag, 0) + int(GameState.tag_purchase_count[tag])
 	return weights
 
@@ -119,7 +124,7 @@ func _get_top_tags(weights : Dictionary, n : int = 2) -> Array:
 
 
 # ============================================================
-#  生成商品（批次 3：标签权重）
+#  生成商品
 # ============================================================
 func generate_shop_items():
 	shop_items.clear()
@@ -191,7 +196,7 @@ func generate_shop_items():
 
 
 # ============================================================
-#  购买（批次 3：累加标签）
+#  购买
 # ============================================================
 func buy_shop_item(index: int) -> Dictionary:
 	if index < 0 or index >= shop_items.size():
@@ -206,7 +211,6 @@ func buy_shop_item(index: int) -> Dictionary:
 	if not _subtract_gold(price):
 		return {"success": false, "reason": "not_enough_gold"}
 
-	# ★ 累加标签
 	for tag in item_data.tags:
 		GameState.tag_purchase_count[tag] = GameState.tag_purchase_count.get(tag, 0) + 1
 

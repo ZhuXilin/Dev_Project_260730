@@ -7,7 +7,6 @@ const BOSS_NODE_TYPE = 6
 @export var transition_delay_before_fade : float = 1.0
 @export var transition_delay_after_fade : float = 1.0
 
-# ---- 节点引用 ----
 @onready var victory_panel : Panel = $VictoryLayer/VictoryPanel
 @onready var victory_label : Label = $VictoryLayer/VictoryPanel/VictoryLabel
 @onready var victory_button : Button = $VictoryLayer/VictoryPanel/VictoryButton
@@ -23,7 +22,6 @@ const BOSS_NODE_TYPE = 6
 @onready var info_panel : PanelContainer = $Info/InfoPanel
 @onready var info_text_label : Label = $Info/InfoPanel/InfoTextLabel
 
-# ---- 设置栏 ----
 @onready var setting_panel : PanelContainer = $SettingBar/SettingPanel
 @onready var back_camp_btn : Button = $SettingBar/SettingPanel/SettingContainer/BackCampBtn
 @onready var back_to_menu_btn : Button = $SettingBar/SettingPanel/SettingContainer/BackToMenuBtn
@@ -40,7 +38,6 @@ const BOSS_NODE_TYPE = 6
 
 @onready var setting_menu_panel : Panel = $SettingMenuLayer/SettingMenuPanel
 
-# ---- HUD ----
 @onready var speed_indicator : Label = $HUD/SpeedIndicator
 @onready var turn_count_label : Label = $HUD/TurnCountIndicator
 @onready var hint_label : Label = $HUD/HintLabel
@@ -49,7 +46,6 @@ const BOSS_NODE_TYPE = 6
 const PERFORMANCE_DURATION : float = 0.5
 const ItemGetPopupScene = preload(Config.PATHS.ITEM_GET_POPUP)
 
-# ---- 拆分模块 ----
 var _map_loader : MapLoader = null
 var _non_combat_handler : NonCombatHandler = null
 var _function_handler : FunctionHandler = null
@@ -62,7 +58,6 @@ var _drag_move_controller : DragMoveController = null
 
 var _damage_popup_layer : CanvasLayer = null
 
-# ---- 状态 ----
 var map_grid_size : Vector2i = MapConst.DEFAULT_MAP_SIZE
 var _initialized : bool = false
 var _battle_start_event_id : String = ""
@@ -73,7 +68,6 @@ var current_node_type: int = MapNode.NodeType.NORMAL
 var _victory_processed: bool = false
 var _is_reward_ui_active: bool = false
 
-# ---- 提示条状态 ----
 var _hint_override_text : String = ""
 var _hint_override_until : float = 0.0
 
@@ -81,6 +75,8 @@ var _marked_targets : Dictionary = {}
 
 func _ready():
 	TurnManager.set_battle_ready(false)
+
+	# ★ 新战斗开始 → 清除上次的 Boss 临时上限惩罚
 	SoulFireManager.reset_boss_penalty()
 
 	if victory_panel:
@@ -211,6 +207,9 @@ func _ready():
 		menu_blocker.position = Vector2.ZERO
 		menu_blocker.z_index = UIConst.MENU_BLOCKER_Z_INDEX
 
+	# ★ 提前计算 is_boss（两条路径都要用）
+	var is_boss : bool = GameState.current_map_data and GameState.current_map_data.node_type == MapNode.NodeType.BOSS
+
 	# 非战斗/战斗分支
 	var is_non_combat = GameState.current_map_data and GameState.current_map_data.node_type in [
 		MapNode.NodeType.SHOP, MapNode.NodeType.TREASURE,
@@ -233,6 +232,9 @@ func _ready():
 			back_to_menu_btn.pressed.connect(_on_back_to_menu_pressed)
 			back_to_menu_btn.text = "中断游戏"
 
+		# ★ 非战斗节点重置 Boss 机制（避免残留上一场的状态）
+		BossMechanicManager.setup_for_node(false)
+
 		TurnManager.start_turn(TurnManager.Team.PLAYER)
 		_panel_manager.update_relic_icons()
 		return
@@ -250,6 +252,10 @@ func _ready():
 		MusicManager.stop_music()
 		MusicManager._saved_stream = null
 		MusicManager._saved_position = 0.0
+
+	# ★ Boss 机制设置必须在 start_turn 之前
+	# 否则 start_turn 会调 on_player_turn_start() 用上一场的旧机制
+	BossMechanicManager.setup_for_node(is_boss)
 
 	await get_tree().process_frame
 	TurnManager.start_turn(TurnManager.Team.PLAYER)
@@ -286,8 +292,8 @@ func _ready():
 
 	_turn_controller.apply_team_buffs()
 
-	var is_boss : bool = GameState.current_map_data and GameState.current_map_data.node_type == MapNode.NodeType.BOSS
-	BossMechanicManager.setup_for_node(is_boss)
+	# ★ 注意：BossMechanicManager.setup_for_node(is_boss) 已上移到 start_turn 之前
+	# 原位置的那行已删除
 
 	# 预热面板
 	if setting_panel:
@@ -300,7 +306,7 @@ func _ready():
 		PanelRevealer.force_hide(item_list_panel)
 	if victory_panel:
 		PanelRevealer.force_hide(victory_panel)
-		
+
 	_marked_targets.clear()
 	print("Battlefield _ready 完成")
 
@@ -319,12 +325,10 @@ func _update_hint_label():
 
 	var now := Time.get_ticks_msec() / 1000.0
 
-	# 优先级 1：临时覆盖
 	if now < _hint_override_until and _hint_override_text != "":
 		hint_label.text = _hint_override_text
 		return
 
-	# 优先级 2：拖拽中
 	if _drag_move_controller and _drag_move_controller.is_dragging():
 		var hint := _drag_move_controller.get_drag_hint()
 		if hint == "":
@@ -332,17 +336,14 @@ func _update_hint_label():
 		hint_label.text = hint
 		return
 
-	# 优先级 3：有选中单位
 	var sel = InputManager.selected_unit
 	if sel != null and is_instance_valid(sel) and sel.hit_points > 0:
 		if sel.unit_stats.team_id != 0:
-			# ★ 敌方
 			hint_label.text = "不可操作单位"
 		else:
 			hint_label.text = "按住左键拖拽单位"
 		return
 
-	# 优先级 4：空闲
 	hint_label.text = "中键结束回合"
 
 
@@ -369,10 +370,9 @@ func deselect_unit():
 
 
 # ============================================================
-#  范围显示（威胁版，敌我统一）
+#  范围显示（威胁版）
 # ============================================================
 func _show_unit_ranges(unit: Unit):
-	# 移动范围：我方用剩余移动力，敌方用总移动力
 	var move_range : int = unit.remaining_move
 	if unit.unit_stats.team_id != 0:
 		move_range = unit.unit_stats.move_range
@@ -389,7 +389,6 @@ func _show_unit_ranges(unit: Unit):
 	var min_range : int = weapon.min_attack_range
 	var is_healer : bool = (unit.get_weapon_type() == "staff")
 
-	# 威胁范围：从所有可达位置出发
 	var threat_cells : Dictionary = {}
 	for move_cell in reachable.keys():
 		for x in range(-max_range, max_range + 1):
@@ -403,15 +402,12 @@ func _show_unit_ranges(unit: Unit):
 				if c.y < 0 or c.y >= TerrainManager.grid_size.y:
 					continue
 
-				# ★ 剔除墙（IMPASSABLE_ALL）
 				var tt : int = TerrainManager.get_terrain(c)
 				if tt == TerrainManager.TerrainType.IMPASSABLE_ALL:
 					continue
 
-				# 排除已在移动范围里的格
 				if reachable.has(c):
 					continue
-				# 排除不该打的单位格
 				var occ = UnitManager.get_unit_at_cell(c)
 				if occ != null and not UnitManager.is_attack_target_of(unit, occ):
 					continue
@@ -472,10 +468,10 @@ func _exit_tree():
 	InputManager.current_highlight_cells = {}
 	InputManager.pending_attack_cells = {}
 	InputManager.current_move_attack_targets = {}
-	
+
 	if _turn_controller:
 		_turn_controller.force_unlock()
-		
+
 	if TurnManager:
 		TurnManager.set_battle_ready(false)
 
@@ -565,11 +561,9 @@ func _input(event: InputEvent):
 	if Globals.is_dialogue_active or Globals.is_item_get_popup_active:
 		return
 
-	# 拖拽优先
 	if _drag_move_controller and _drag_move_controller.handle_input(event):
 		return
 
-	# 中键结束回合
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_MIDDLE:
 		if TurnManager.current_turn_team == TurnManager.Team.PLAYER and not Globals.is_fading and not Globals.is_transitioning and not Globals.is_dialogue_active:
 			_end_player_turn()
@@ -578,7 +572,6 @@ func _input(event: InputEvent):
 	if Globals.is_transitioning or Globals.is_fading:
 		return
 
-	# 滚轮
 	if event is InputEventMouseButton and event.pressed:
 		if event.button_index == MOUSE_BUTTON_WHEEL_UP or event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
 			if (setting_panel.visible or
@@ -631,11 +624,10 @@ func _on_request_damage_popup(world_pos: Vector2, damage: int, is_crit: bool, is
 
 
 # ============================================================
-#  InfoPanel（完整信息）
+#  InfoPanel
 # ============================================================
 func _on_request_show_info(unit: Unit):
 	if unit == null:
-		# 地形
 		var mouse_pos = get_global_mouse_position()
 		var t_cell = world_to_grid(mouse_pos)
 		var t_type = TerrainManager.get_terrain(t_cell)
@@ -655,15 +647,12 @@ func _on_request_show_info(unit: Unit):
 
 	var lines : Array = []
 
-	# 名称 | 阵营 | 类型
 	var display_name = unit.unit_stats.display_name if unit.unit_stats.display_name != "" else unit.unit_stats.unit_name
 	var type_name = UnitDataManager.get_unit_type_display_name(unit.unit_stats.unit_name)
 	lines.append(display_name + " | " + unit.unit_stats.faction + " | " + type_name)
 
-	# HP
 	lines.append("HP: " + str(unit.hit_points) + "/" + str(unit.unit_stats.max_hp))
 
-	# 状态
 	var status_str : String = ""
 	if unit.hit_points <= 0:
 		status_str = "【已阵亡】"
@@ -675,7 +664,6 @@ func _on_request_show_info(unit: Unit):
 		status_str = "【可行动】"
 	lines.append("状态: " + status_str)
 
-	# 武器
 	var weapon_data = unit.get_weapon_data()
 	if weapon_data:
 		var wname : String = weapon_data.name
@@ -690,7 +678,6 @@ func _on_request_show_info(unit: Unit):
 	else:
 		lines.append("武器: 无")
 
-	# 防具
 	var armor_slots = unit.get_armor_slots()
 	var armor_lines : Array = []
 	for i in range(armor_slots.size()):
@@ -705,7 +692,6 @@ func _on_request_show_info(unit: Unit):
 		lines.append("防具:")
 		lines.append_array(armor_lines)
 
-	# 属性
 	lines.append("力量 " + str(unit.unit_stats.strength) \
 		+ " | 灵巧 " + str(unit.unit_stats.dexterity) \
 		+ " | 智力 " + str(unit.unit_stats.intelligence))
@@ -713,7 +699,6 @@ func _on_request_show_info(unit: Unit):
 		+ " | 感应 " + str(unit.unit_stats.arcane) \
 		+ " | 移动 " + str(unit.unit_stats.move_range))
 
-	# 词条
 	var talent_names : Array = []
 	for inst in unit.talent_slots:
 		if inst and inst.is_active:
@@ -727,7 +712,6 @@ func _on_request_show_info(unit: Unit):
 	if talent_names.size() > 0:
 		lines.append("词条: " + ", ".join(talent_names))
 
-	# 地形
 	var cell = unit.grid_cell
 	var terrain_type = TerrainManager.get_terrain(cell)
 	var terrain_name = TerrainManager.get_terrain_name(terrain_type)
@@ -750,7 +734,6 @@ const INFO_PANEL_MARGIN : float = 8.0
 func _adjust_info_panel(label: Label, panel: PanelContainer, ref_unit: Unit = null):
 	var vp_size := get_viewport().get_visible_rect().size
 
-	# 位置：根据参考单位在屏幕左右
 	if ref_unit != null and is_instance_valid(ref_unit):
 		var xform := get_viewport().get_canvas_transform()
 		var screen_x : float = (xform * ref_unit.global_position).x
@@ -766,7 +749,6 @@ func _adjust_info_panel(label: Label, panel: PanelContainer, ref_unit: Unit = nu
 
 	panel.offset_top = INFO_PANEL_MARGIN
 
-	# 内容布局
 	label.vertical_alignment = VERTICAL_ALIGNMENT_TOP
 	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -877,7 +859,6 @@ func _on_back_camp_pressed():
 
 
 func _on_back_to_menu_pressed():
-	# 中断：直接回主菜单（不弹确认）
 	var current_scene = get_tree().current_scene
 	var scene_path : String = ""
 	if current_scene:

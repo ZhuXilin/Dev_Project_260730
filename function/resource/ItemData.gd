@@ -20,7 +20,6 @@ class_name ItemData
 @export var armor_type: String = "medium"
 @export var defense: int = 0
 @export var slot_count: int = 1
-@export var unlock_cost: Dictionary = {}
 @export var craft_cost: int = 0
 
 @export var heavy_attack: Dictionary = {}

@@ -16,8 +16,9 @@ collision_enabled = false
 [node name="Enemy01" type="Node2D" parent="." unique_id=1755657792]
 position = Vector2(176, 128)
 script = ExtResource("2_bug8j")
-unit_type = 6
+unit_type = 8
 team = 1
+is_boss = true
 metadata/_custom_type_script = "uid://cjvddjaj43chx"
 
 [node name="Enemy02" type="Node2D" parent="." unique_id=42826125]

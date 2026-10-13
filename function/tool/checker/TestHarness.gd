@@ -16,6 +16,11 @@ var _launching : bool = false
 
 
 func _ready():
+	# ★ 发布版禁用测试工具
+	if not OS.is_debug_build():
+		queue_free()
+		return
+
 	layer = 200
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	visible = false

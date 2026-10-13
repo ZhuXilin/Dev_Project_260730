@@ -19,10 +19,12 @@ class_name UnitData
 @export var sacrifice_buff_sources : Array = []
 
 @export var core_trait: String = ""
+
 @export var is_boss: bool = false
 
 # ★ 批次 2：单位标签
 @export var tags: Array[String] = []
+
 
 # ---- 战斗 Buff ----
 var buff_attack_percent : float = 0.0
@@ -166,7 +168,7 @@ func to_dict() -> Dictionary:
 		"sacrifice_buff_sources": sacrifice_buff_sources.duplicate(),
 		"tags": tags.duplicate(),
 		"core_trait": core_trait,
-		"is_boss": is_boss,
+		"is_boss": is_boss,   # ★ 新增
 	}
 
 

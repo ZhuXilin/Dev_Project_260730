@@ -102,11 +102,6 @@ static func _generate_from_layout(day: int, day_layout: MapLayoutDay) -> MapLeve
 	if root == null and not nodes.is_empty():
 		root = nodes[0]
 
-	# ---- TREASURE 节点：roll 奖励 ----
-	for n in nodes:
-		if n.node_type == MapNode.NodeType.TREASURE:
-			n.reward = TreasureRewardManager.roll_reward(day)
-
 	_assign_map_data_to_all_nodes(nodes)
 
 	data.nodes = nodes

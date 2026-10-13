@@ -41,7 +41,7 @@ func has_forge() -> bool:
 func is_talent_locked() -> bool:
 	return false
 
-# ---- 商店（走 EquipmentConfig 里的 shop_manager，context 不接管） ----
+# ---- 商店 ----
 func buy_item(item_id: String) -> bool:
 	var data = ItemManager.get_item_data(item_id)
 	if not data:
@@ -73,6 +73,7 @@ func on_confirm() -> void:
 	GameState.reset_progress()
 	LevelManager.start_game()
 
+# ---- 商店等级（★ 新增） ----
 func get_shop_level() -> int:
 	return GameState.shop_level
 

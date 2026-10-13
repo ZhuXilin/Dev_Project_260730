@@ -2,7 +2,9 @@ extends CanvasLayer
 
 signal closed
 
-const COST_PER_CLASS : int = 0
+# ★ 从 const 改为 var，_ready() 里从配置读
+var COST_PER_CLASS : int = 0
+
 const PERFORMANCE_DURATION : float = 2.0
 const POST_SWITCH_DURATION : float = 0.8
 
@@ -23,7 +25,6 @@ var _mode : String = "map"
 var _arena_ref = null
 var _custom_party : Array = []
 
-# ★ 转职次数限制（-1 = 无限）
 var _max_conversions : int = 1
 var _converted_count : int = 0
 
@@ -35,7 +36,7 @@ func setup_arena(arena_node, unit_data) -> void:
 	_mode = "arena"
 	_arena_ref = arena_node
 	_custom_party = [unit_data] if unit_data else []
-	_max_conversions = 1      # ★ Arena 只有 1 个单位，转职 1 次即可
+	_max_conversions = 1
 	_converted_count = 0
 	if is_node_ready():
 		_rebuild()
@@ -52,7 +53,7 @@ func setup_map(max_conversions: int = 1) -> void:
 
 
 func _rebuild():
-	_refresh_gold_display()
+	_refresh_soul_display()
 	_build_unit_row()
 
 
@@ -62,17 +63,13 @@ func _get_party() -> Array:
 	return GameState.party
 
 
-func _get_gold() -> int:
-	if _mode == "arena" and _arena_ref != null:
-		return _arena_ref._arena_gold
-	return GameState.temp_gold
+# ★ 统一用魂
+func _get_soul() -> int:
+	return GameState.soul
 
 
-func _subtract_gold(amount: int) -> void:
-	if _mode == "arena" and _arena_ref != null:
-		_arena_ref._arena_gold -= amount
-	else:
-		GameState.temp_gold -= amount
+func _subtract_soul(amount: int) -> void:
+	GameState.soul -= amount
 
 
 func _reached_limit() -> bool:
@@ -84,15 +81,15 @@ func _reached_limit() -> bool:
 # ============================================================
 func _ready():
 	performance_layer.visible = false
-	cost_label.text = "  |  转职：免费"
+	cost_label.text = "  |  免费转职"
 	MusicManager.play_hero_shrine_music()
-	_refresh_gold_display()
+	_refresh_soul_display()
 	_build_unit_row()
 
 
-func _refresh_gold_display():
+func _refresh_soul_display():
 	if gold_label:
-		gold_label.text = "金币: %d" % _get_gold()
+		gold_label.text = "魂: %d" % GameState.soul
 
 
 func _build_unit_row():
@@ -136,7 +133,7 @@ func _build_unit_card(unit_idx: int) -> PanelContainer:
 	status_lb.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	vbox.add_child(status_lb)
 
-	# ---- 已转职（阵亡状态叠加） ----
+	# ---- 已转职 ----
 	if unit.advanced_class != "":
 		var adv_name : String = AdvancedClassManager.get_display_name(unit.advanced_class)
 		name_lb.text = unit_display + "\n" + type_cn
@@ -155,7 +152,7 @@ func _build_unit_card(unit_idx: int) -> PanelContainer:
 		card.modulate = card_color
 		return card
 
-	# ---- 未转职 + 阵亡 / 已熔铸 ----
+	# ---- 阵亡 ----
 	if unit.is_dead:
 		name_lb.text = unit_display + "\n" + type_cn
 		name_lb.modulate = Color(0.4, 0.4, 0.4, 1)
@@ -165,8 +162,8 @@ func _build_unit_card(unit_idx: int) -> PanelContainer:
 		return card
 
 	# ---- 无进阶定义 ----
-	var adv : AdvancedClassData = AdvancedClassManager.get_class_for_unit(unit.unit_name)
-	if adv == null:
+	var branches : Array = AdvancedClassManager.get_branches_for_unit(unit.unit_name)
+	if branches.is_empty():
 		name_lb.text = unit_display + "\n" + type_cn
 		status_lb.text = "无转职"
 		status_lb.modulate = Color(0.55, 0.55, 0.55, 1)
@@ -175,13 +172,12 @@ func _build_unit_card(unit_idx: int) -> PanelContainer:
 
 	# ---- 可转职 ----
 	name_lb.text = unit_display + "\n" + type_cn
-	var branches : Array = AdvancedClassManager.get_branches_for_unit(unit.unit_name)
 	var branch_names : Array = []
 	for b in branches:
 		branch_names.append("★ " + b.name)
 	status_lb.text = "可转职：\n" + "\n".join(branch_names) + "\n（点击查看）"
 
-	var can_afford : bool = _get_gold() >= COST_PER_CLASS
+	var can_afford : bool = _get_soul() >= COST_PER_CLASS
 	var reached : bool = _reached_limit()
 
 	if not can_afford or reached:
@@ -226,20 +222,121 @@ func _on_card_input(event: InputEvent, unit_idx: int):
 
 
 # ============================================================
-#  点击卡片 → 二次确认
+#  点击卡片 → 二选一弹窗
 # ============================================================
 func _on_card_clicked(unit_idx: int):
 	if _is_performing: return
 	if _reached_limit(): return
 	var party : Array = _get_party()
 	if unit_idx < 0 or unit_idx >= party.size(): return
-	if _get_gold() < COST_PER_CLASS: return
+	if _get_soul() < COST_PER_CLASS: return
 
 	var unit : UnitData = party[unit_idx]
 	if unit.advanced_class != "": return
 
 	var branches : Array = AdvancedClassManager.get_branches_for_unit(unit.unit_name)
-	if branches.size() < 2: return
+	if branches.is_empty():
+		return
+	if branches.size() == 1:
+		_begin_convert(unit, branches[0])
+		return
+	_show_branch_picker(unit, branches)
+
+
+func _show_branch_picker(unit : UnitData, branches : Array):
+	var picker := _make_picker_panel(unit, branches)
+	add_child(picker)
+
+
+# ★ 注意：overlay / picker_panel 避免遮蔽 CanvasLayer.layer 和 @onready panel
+func _make_picker_panel(unit : UnitData, branches : Array) -> Control:
+	var overlay := Control.new()
+	overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+	overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+
+	var bg := ColorRect.new()
+	bg.color = Color(0, 0, 0, 0.75)
+	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
+	overlay.add_child(bg)
+
+	var picker_panel := PanelContainer.new()
+	picker_panel.set_anchors_preset(Control.PRESET_CENTER)
+	picker_panel.offset_left = -160
+	picker_panel.offset_top = -80
+	picker_panel.offset_right = 160
+	picker_panel.offset_bottom = 80
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(0.06, 0.06, 0.08)
+	sb.content_margin_left = 12
+	sb.content_margin_right = 12
+	sb.content_margin_top = 10
+	sb.content_margin_bottom = 10
+	picker_panel.add_theme_stylebox_override("panel", sb)
+	overlay.add_child(picker_panel)
+
+	var vbox := VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 8)
+	picker_panel.add_child(vbox)
+
+	var title := Label.new()
+	title.text = "选择转职方向"
+	title.add_theme_font_size_override("font_size", 11)
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vbox.add_child(title)
+
+	var row := HBoxContainer.new()
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_theme_constant_override("separation", 12)
+	vbox.add_child(row)
+
+	for b in branches:
+		var adv : AdvancedClassData = b
+		var col := VBoxContainer.new()
+		col.custom_minimum_size = Vector2(130, 0)
+		col.add_theme_constant_override("separation", 4)
+
+		var name_lb := Label.new()
+		name_lb.text = "★ " + adv.name
+		name_lb.add_theme_font_size_override("font_size", 10)
+		name_lb.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		col.add_child(name_lb)
+
+		var desc_lb := Label.new()
+		desc_lb.text = adv.description
+		desc_lb.add_theme_font_size_override("font_size", 7)
+		desc_lb.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		desc_lb.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		col.add_child(desc_lb)
+
+		var stats_lb := Label.new()
+		var stats_text : Array = []
+		for k in adv.stat_bonus:
+			stats_text.append("%s +%d" % [_attr_short(k), int(adv.stat_bonus[k])])
+		stats_lb.text = "\n".join(stats_text)
+		stats_lb.add_theme_font_size_override("font_size", 7)
+		stats_lb.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		stats_lb.modulate = Color(0.7, 0.9, 0.7)
+		col.add_child(stats_lb)
+
+		var btn := Button.new()
+		btn.text = "选择"
+		btn.add_theme_font_size_override("font_size", 9)
+		btn.pressed.connect(func():
+			overlay.queue_free()
+			_begin_convert(unit, adv)
+		)
+		col.add_child(btn)
+
+		row.add_child(col)
+
+	var cancel := Button.new()
+	cancel.text = "取消"
+	cancel.add_theme_font_size_override("font_size", 8)
+	cancel.custom_minimum_size = Vector2(80, 20)
+	cancel.pressed.connect(func(): overlay.queue_free())
+	vbox.add_child(cancel)
+
+	return overlay
 
 
 # ============================================================
@@ -248,7 +345,7 @@ func _on_card_clicked(unit_idx: int):
 func _begin_convert(unit : UnitData, adv : AdvancedClassData):
 	if _is_performing:
 		return
-	if _get_gold() < COST_PER_CLASS:
+	if _get_soul() < COST_PER_CLASS:
 		return
 	if _reached_limit():
 		return
@@ -258,10 +355,10 @@ func _begin_convert(unit : UnitData, adv : AdvancedClassData):
 	print("[HeroShrine][DEBUG] _begin_convert unit=%s/%s adv=%s granted_talent=%s" % [
 		unit.unit_name, unit.display_name, adv.id, adv.granted_talent])
 
-	# 1. 立即扣金币 + 记录
-	_subtract_gold(COST_PER_CLASS)
+	# 1. 立即扣魂 + 记录
+	_subtract_soul(COST_PER_CLASS)
 	unit.advanced_class = adv.id
-	
+
 	_apply_growth_rolls(unit)
 	unit.tags.clear()
 	for t in adv.tags:
@@ -280,11 +377,8 @@ func _begin_convert(unit : UnitData, adv : AdvancedClassData):
 			"arcane":       unit.arcane += val
 			"move_range":   unit.move_range += val
 
-	# 职业特技：写入独立字段
 	if adv.granted_talent != "":
 		unit.advanced_talent_id = adv.granted_talent
-		print("[HeroShrine][DEBUG]   → unit.advanced_talent_id = %s（对象 id=%d）" % [
-			unit.advanced_talent_id, unit.get_instance_id()])
 		var t_inst := TalentInstance.new()
 		t_inst.talent_id = adv.granted_talent
 		t_inst.is_active = true
@@ -297,7 +391,6 @@ func _begin_convert(unit : UnitData, adv : AdvancedClassData):
 	if adv.sprite_frames_path != "":
 		unit.override_sprite_path = adv.sprite_frames_path
 
-	# ★ 累加转职次数
 	_converted_count += 1
 
 	if _mode == "map":
@@ -305,7 +398,7 @@ func _begin_convert(unit : UnitData, adv : AdvancedClassData):
 	else:
 		_sync_advanced_class_to_gamestate(unit)
 		SaveManager.auto_save()
-	print("[HeroShrine] %s 转职为 %s（%s 模式，金币已扣，本次已转 %d/%d）" % [
+	print("[HeroShrine] %s 转职为 %s（%s 模式，魂已扣，本次已转 %d/%d）" % [
 		unit.display_name, adv.name, _mode, _converted_count, _max_conversions])
 
 	# 2. 演出
@@ -332,10 +425,9 @@ func _begin_convert(unit : UnitData, adv : AdvancedClassData):
 	panel.visible = true
 	MusicManager.play_hero_shrine_music()
 
-	_refresh_gold_display()
+	_refresh_soul_display()
 	_build_unit_row()
 
-	# ★ 达到上限 → 更新提示 + 关闭按钮文字
 	if _reached_limit():
 		if hint_label:
 			hint_label.text = "本次转职已完成"
@@ -381,15 +473,10 @@ func _sync_advanced_class_to_gamestate(src_unit: UnitData):
 	print("[HeroShrine][DEBUG] _sync_advanced_class_to_gamestate src=%s/%s class=%s talent=%s" % [
 		src_unit.unit_name, src_unit.display_name,
 		src_unit.advanced_class, src_unit.advanced_talent_id])
-	print("[HeroShrine][DEBUG]   队伍共 %d 个" % GameState.party.size())
 
 	for i in range(GameState.party.size()):
 		var u : UnitData = GameState.party[i]
-		var match_flag : String = "✅" if (u.unit_name == src_unit.unit_name and u.display_name == src_unit.display_name) else "❌"
-		print("[HeroShrine][DEBUG]   [%d] %s/%s %s" % [i, u.unit_name, u.display_name, match_flag])
-
 		if u.unit_name == src_unit.unit_name and u.display_name == src_unit.display_name:
-			print("[HeroShrine][DEBUG]     → 匹配，写入 party 单位")
 			u.advanced_class = src_unit.advanced_class
 			u.advanced_talent_id = src_unit.advanced_talent_id
 			u.advanced_talent_inst = src_unit.advanced_talent_inst
@@ -402,14 +489,10 @@ func _sync_advanced_class_to_gamestate(src_unit: UnitData):
 			u.arcane = src_unit.arcane
 			u.move_range = src_unit.move_range
 
-			# ★ 批次 2：标签同步
 			u.tags.clear()
 			for t in src_unit.tags:
 				u.tags.append(t)
-
 			return
-
-	print("[HeroShrine][DEBUG]   → 未匹配到 party 单位")
 
 
 func _apply_growth_rolls(unit : UnitData):
@@ -439,4 +522,3 @@ func _apply_attr_bonus(unit : UnitData, key : String, amount : int):
 		"faith":        unit.faith += amount
 		"arcane":       unit.arcane += amount
 		"move_range":   unit.move_range += amount
-		

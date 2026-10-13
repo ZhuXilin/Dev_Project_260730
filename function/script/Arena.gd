@@ -14,7 +14,7 @@ var GOLD_SURVIVAL : Array = [1200, 1800, 3000]
 var SOUL_SURVIVAL : Array = [2, 3, 5]
 var ENEMY_SCALE_BY_STREAK : Array = [1.0, 1.2, 1.6, 1.9]
 var ENEMY_SCALE_SURVIVAL : Array = [1.8, 2.1, 2.4]
-var HERO_SHRINE_FALLBACK_COST : int = 800
+var HERO_SHRINE_DEFAULT_COST : int = 800
 
 
 func _apply_config():
@@ -30,7 +30,7 @@ func _apply_config():
 	SOUL_SURVIVAL = cfg.get("soul_survival", SOUL_SURVIVAL).duplicate()
 	ENEMY_SCALE_BY_STREAK = cfg.get("enemy_scale_by_streak", ENEMY_SCALE_BY_STREAK).duplicate()
 	ENEMY_SCALE_SURVIVAL = cfg.get("enemy_scale_survival", ENEMY_SCALE_SURVIVAL).duplicate()
-	HERO_SHRINE_FALLBACK_COST = int(cfg.get("hero_shrine_fallback_cost", HERO_SHRINE_FALLBACK_COST))
+	HERO_SHRINE_DEFAULT_COST = int(cfg.get("hero_shrine_default_cost", HERO_SHRINE_DEFAULT_COST))
 
 enum Phase { IDLE, NORMAL, CLEAR, SURVIVAL, END }
 const HERO_SHRINE_SCRIPT_PATH : String = "res://function/script/HeroShrineUI.gd"
@@ -968,14 +968,6 @@ func _open_hero_shrine():
 	if not _current_player_data:
 		return
 	if _current_player_data.advanced_class != "":
-		return
-
-	var hero_shrine_cost : int = HERO_SHRINE_FALLBACK_COST
-	var hero_shrine_script : GDScript = load(HERO_SHRINE_SCRIPT_PATH)
-	if hero_shrine_script:
-		hero_shrine_cost = hero_shrine_script.COST_PER_CLASS
-	if _arena_gold < hero_shrine_cost:
-		print("[Arena] 英灵殿跳过：金币不足（%d/%d）" % [_arena_gold, hero_shrine_cost])
 		return
 
 	var hero_shrine_scene = load(Config.PATHS.HERO_SHRINE_UI)

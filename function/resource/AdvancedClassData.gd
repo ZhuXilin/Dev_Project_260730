@@ -9,6 +9,7 @@ class_name AdvancedClassData
 @export var granted_talent: String = ""
 @export var flavor: String = ""
 @export var sprite_frames_path: String = ""
+@export var tags: Array[String] = []   # ★ 新增
 
 static func from_dict(d: Dictionary, base_unit_key: String = "") -> AdvancedClassData:
 	var r = AdvancedClassData.new()
@@ -20,4 +21,10 @@ static func from_dict(d: Dictionary, base_unit_key: String = "") -> AdvancedClas
 	r.granted_talent = d.get("granted_talent", "")
 	r.flavor = d.get("flavor", "")
 	r.sprite_frames_path = d.get("sprite_frames_path", "")
+	# ★ 读 tags
+	var tags_raw : Variant = d.get("tags", [])
+	if tags_raw is Array:
+		for t in tags_raw:
+			if t is String:
+				r.tags.append(t)
 	return r

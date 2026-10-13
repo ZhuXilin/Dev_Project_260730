@@ -9,6 +9,9 @@ var _ready_done : bool = false
 
 
 func _ready():
+	# ★ 发布版不注册任何测试插件
+	if not OS.is_debug_build():
+		return
 	if _ready_done:
 		return
 	_ready_done = true

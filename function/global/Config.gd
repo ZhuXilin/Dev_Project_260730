@@ -13,7 +13,6 @@ const PATHS : Dictionary = {
 	"EVENT_DATA":       "res://content/data/events.json",
 	"RECIPE_DATA":      "res://content/data/recipes.json",
 	"STORY_DATA":       "res://content/data/stories.json",
-	"TREASURE_REWARDS": "res://content/data/treasure_rewards.json",
 	"ARENA_ENEMIES":    "res://content/data/arena_enemies.json",
 	"AURA_DATA":        "res://content/data/auras.json",
 	"AFFIX_DATA":       "res://content/data/affixes.json",
@@ -23,7 +22,6 @@ const PATHS : Dictionary = {
 	"MUSIC_CONFIG":     "res://content/scenes/levels/MusicConfig.tres",
 	"SOUND_CONFIG":     "res://content/scenes/levels/SoundConfig.tres",
 	"UNIT_LEVEL_MAP":   "res://content/scenes/levels/UnitLevelMap.tres",
-	"LEVEL_LIST":       "res://content/scenes/levels/LevelList.tres",
 
 	# 样式 / 着色器
 	"STYLEBOX_8BIT":        "res://content/resource/stylebox/8bit_style_box_flat.tres",

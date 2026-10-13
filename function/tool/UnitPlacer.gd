@@ -4,21 +4,13 @@ class_name UnitPlacerTool
 
 # ---- 放置模式 ----
 enum PlacementMode {
-	FIXED_UNIT,    # 固定单位（原有模式）
-	SPAWN_POINT    # 出生点（队伍单位填充）
+	FIXED_UNIT,
+	SPAWN_POINT
 }
 
-# ---- 单位类型（仅 FIXED_UNIT 模式使用） ----
+# ---- 单位类型 ----
 enum UnitType {
-	剑士,
-	枪兵,
-	斧兵,
-	弓兵,
-	飞马,
-	法师,
-	修女,
-	龙人,
-	重甲兵
+	剑士, 枪兵, 斧兵, 弓兵, 飞马, 法师, 修女, 龙人, 重甲兵
 }
 
 # ---- 队伍类型 ----
@@ -60,6 +52,7 @@ enum Team {
 		elif immobile != value:
 			immobile = value
 
+# ★ 新增：仅对敌方单位生效。勾选后此单位被标记为 Boss（Day3 三形态）
 @export var is_boss : bool = false
 
 @export var initial_items : Array[ItemEntry] = []
@@ -73,7 +66,6 @@ enum Team {
 
 const UNIT_SCENE_PATH = Config.PATHS.UNIT_SCENE
 
-# ---- 中文枚举 → 英文 JSON 键映射 ----
 const UNIT_TYPE_TO_JSON_KEY = {
 	UnitType.剑士: "swordsman",
 	UnitType.枪兵: "spearman",
@@ -94,9 +86,7 @@ func _ready():
 func _build_preview():
 	if not Engine.is_editor_hint():
 		return
-		
 	_clear_all_children()
-
 	if placement_mode == PlacementMode.SPAWN_POINT:
 		_build_spawn_point_preview()
 	else:
@@ -105,18 +95,14 @@ func _build_preview():
 func _get_configuration_warnings() -> PackedStringArray:
 	var warnings = PackedStringArray()
 	if Engine.is_editor_hint():
-		# ---- 检查网格对齐 ----
 		var pos = position
 		var cell_size = MapConst.CELL_SIZE
-		
 		var x_mod = fmod(pos.x, cell_size)
 		var y_mod = fmod(pos.y, cell_size)
 		var x_aligned = abs(x_mod) < 0.01
 		var y_aligned = abs(y_mod) < 0.01
-		
 		if not x_aligned or not y_aligned:
 			warnings.append("节点位置未对齐到网格顶点（应位于格子角点，坐标应为 %d 的整数倍）。建议使用网格吸附功能。" % MapConst.CELL_SIZE)
-		
 		if placement_mode == PlacementMode.FIXED_UNIT:
 			if initial_items.size() > 5:
 				warnings.append("初始道具数量超过5个，将只保留前5个")
@@ -174,7 +160,6 @@ func _build_unit_preview():
 	unit_instance.input_pickable = false
 	add_child(unit_instance)
 
-	# ---- 使用英文 JSON 键获取数据 ----
 	var json_key = _get_json_key()
 	var data = UnitDataManager.get_unit_data(json_key)
 
@@ -200,7 +185,7 @@ func _build_unit_preview():
 	if hp_label:
 		var max_hp = data.get("max_hp", 20)
 		hp_label.text = str(max_hp) + "/" + str(max_hp)
-		hp_label.visible = true   # ★ 编辑器预览默认隐藏，这里显式打开
+		hp_label.visible = true
 
 	unit_instance.visible = true
 	_update_visibility()
@@ -236,7 +221,6 @@ func _update_visibility():
 	for child in get_children():
 		child.visible = show_preview
 
-# ---- 获取中文名称（仅用于显示标签） ----
 func _get_unit_name() -> String:
 	match unit_type:
 		UnitType.剑士: return "剑士"
@@ -250,14 +234,12 @@ func _get_unit_name() -> String:
 		UnitType.重甲兵: return "重甲兵"
 		_: return "剑士"
 
-# ---- 获取英文 JSON 键 ----
 func _get_json_key() -> String:
 	return UNIT_TYPE_TO_JSON_KEY.get(unit_type, "swordsman")
 
-# ---- 导出配置（供 Battlefield 加载） ----
 func export_config() -> Variant:
 	var grid_pos = Vector2i(floor(position.x / MapConst.CELL_SIZE), floor(position.y / MapConst.CELL_SIZE))
-	
+
 	if placement_mode == PlacementMode.SPAWN_POINT:
 		return {
 			"type": "spawn_point",
@@ -266,12 +248,12 @@ func export_config() -> Variant:
 		}
 	else:
 		var cfg = UnitConfig.new()
-		cfg.unit_name = _get_json_key()   # 使用英文键
+		cfg.unit_name = _get_json_key()
 		cfg.team_id = 0 if team == Team.玩家 else 1
 		cfg.override_stats = {}
 		cfg.immobile = (team == Team.敌人 and immobile)
-		cfg.is_boss  = (team == Team.敌人 and is_boss)
-		
+		cfg.is_boss  = (team == Team.敌人 and is_boss)   # ★ 新增
+
 		var items_to_export = initial_items.duplicate()
 		var default_id = UnitDataManager.get_default_weapon_id(cfg.unit_name)
 		if default_id != "":
@@ -285,7 +267,7 @@ func export_config() -> Variant:
 				weapon_entry.item_id = default_id
 				weapon_entry.count = 1
 				items_to_export.insert(0, weapon_entry)
-		
+
 		if items_to_export.size() > 5:
 			var dropped = items_to_export.slice(5)
 			var dropped_names = []
@@ -295,7 +277,7 @@ func export_config() -> Variant:
 			if Engine.is_editor_hint():
 				push_warning("UnitPlacer: 初始道具（含默认武器）超过5种，丢弃了：%s" % ", ".join(dropped_names))
 			items_to_export = items_to_export.slice(0, 5)
-		
+
 		cfg.initial_items = items_to_export
 		cfg.position = grid_pos
 		return cfg

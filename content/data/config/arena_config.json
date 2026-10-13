@@ -10,5 +10,5 @@
   "soul_survival": [2, 3, 5],
   "enemy_scale_by_streak": [1.0, 1.2, 1.6, 1.9],
   "enemy_scale_survival": [1.8, 2.1, 2.4],
-  "hero_shrine_fallback_cost": 800
+  "hero_shrine_default_cost": 800
 }

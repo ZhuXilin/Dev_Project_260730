@@ -70,7 +70,7 @@ func get_active_skill_range_bonus(unit: Unit) -> int:
 
 
 # ============================================================
-#  目标查询（批次 5B：动态射程）
+#  目标查询
 # ============================================================
 func get_attackable_targets(unit: Unit) -> Array:
 	var weapon_data = unit.get_weapon_data()
@@ -125,7 +125,7 @@ func attempt_attack_after_move(unit: Unit):
 
 
 # ============================================================
-#  伤害公式（批次 4/6A/8）
+#  伤害公式
 # ============================================================
 func calculate_damage(attacker: Unit, defender: Unit) -> int:
 	var weapon_data = attacker.get_weapon_data()
@@ -164,21 +164,18 @@ func calculate_damage(attacker: Unit, defender: Unit) -> int:
 
 	var damage = max(1, int(total_attack - def_value))
 
-	# ★ 批次 6A：词条防御
 	var def_armor_bonus : int = 0
 	for slot in defender.armor_slots:
 		if slot:
 			def_armor_bonus += slot.get_affix_value("defense_flat")
 	damage = max(1, damage - def_armor_bonus)
 
-	# ★ 批次 6A：词条攻击
 	var atk_affix_bonus : int = 0
 	for slot in attacker.armor_slots:
 		if slot:
 			atk_affix_bonus += slot.get_affix_value("attack_flat")
 	damage += atk_affix_bonus
 
-	# ★ 批次 8：枯竭受伤 +30%
 	if defender.unit_stats.team_id == 0:
 		var taken_mult : float = SoulFireManager.get_damage_taken_mult()
 		if taken_mult > 1.0:
@@ -191,7 +188,7 @@ func calculate_damage(attacker: Unit, defender: Unit) -> int:
 
 
 # ============================================================
-#  暴击（批次 6A）
+#  暴击
 # ============================================================
 func _roll_crit(attacker: Unit) -> bool:
 	var chance : float = CRIT_BASE_CHANCE
@@ -204,7 +201,7 @@ func _roll_crit(attacker: Unit) -> bool:
 
 
 # ============================================================
-#  主动技能消耗（批次 1）
+#  主动技能消耗
 # ============================================================
 func _get_active_skill_cost(sdata) -> int:
 	if sdata == null:
@@ -221,7 +218,6 @@ func _get_active_skill_cost(sdata) -> int:
 # ============================================================
 #  ★ Boss 三形态拦截辅助（Day3）
 #  返回 true 表示 Boss 已复活，调用方应跳过死亡流程
-#  依赖：BossMechanicManager.setup_for_node() 已在本场战斗开始时调用
 # ============================================================
 func _try_boss_revive(defender : Unit, _attacker : Unit) -> bool:
 	if not BossMechanicManager.on_boss_defeated(defender):
@@ -319,10 +315,8 @@ func execute_attack(attacker: Unit, defender: Unit) -> bool:
 
 	var is_crit := false
 	var crit_mult : float = CRIT_DAMAGE_MULT
-	# ★ 批次 8：枯竭暴击伤害 +50%
 	if attacker.unit_stats.team_id == 0:
 		crit_mult += SoulFireManager.get_crit_damage_bonus()
-	# ★ 批次 6A：词条暴击伤害
 	crit_mult += attacker.get_total_affix_value_float("crit_damage")
 
 	if force_crit:
@@ -375,7 +369,6 @@ func execute_attack(attacker: Unit, defender: Unit) -> bool:
 
 	var defeated = _apply_damage_with_effects(defender, damage, attacker, is_crit)
 
-	# ★ 批次 5B：5 级武器眩晕
 	if attacker.weapon_slot:
 		var up_lv : int = attacker.weapon_slot.upgrade_level
 		if WeaponUpgradeHelper.has_special_effect(up_lv):
@@ -385,7 +378,6 @@ func execute_attack(attacker: Unit, defender: Unit) -> bool:
 				SignalBus.request_hint_override.emit("★ 眩晕！%s 无法行动" % defender.unit_stats.unit_name, 1.0)
 				print("[武器特效] %s 眩晕了 %s" % [attacker.unit_stats.unit_name, defender.unit_stats.unit_name])
 
-	# ★ 批次 6A：词条火焰附加伤害
 	var flame_bonus : int = 0
 	for slot in attacker.armor_slots:
 		if slot:
@@ -397,17 +389,13 @@ func execute_attack(attacker: Unit, defender: Unit) -> bool:
 		if extra_flame_dead:
 			defeated = true
 
-	# ★ 批次 8：燃烧溅射
 	var splash_sf : float = SoulFireManager.get_splash_percent()
 	if splash_sf > 0.0 and attacker.unit_stats.team_id == 0 and defender.hit_points > 0:
 		await _apply_burning_splash(attacker, defender, damage, splash_sf)
 
-	# ★ 批次 5A：攻击后光环消耗
 	_apply_aura_attack_cost(attacker)
 
 	await get_tree().create_timer(POST_DAMAGE_DELAY, true, false, true).timeout
-
-	# ★ 批次 5B：Boss 三形态拦截（已推迟，此处不接）
 
 	if active_skill_data:
 		if splash_percent > 0.0:
@@ -429,9 +417,8 @@ func execute_attack(attacker: Unit, defender: Unit) -> bool:
 		SoulFireManager.spend(skill_cost)
 
 	if defeated:
-		# ★ Boss 三形态拦截（Day3）：Boss 死亡时先尝试复活
+		# ★ Boss 三形态拦截（Day3）
 		if _try_boss_revive(defender, attacker):
-			# Boss 复活：跳过死亡流程，但本次攻击结束
 			_finish_attack(attacker, defender)
 			Globals.is_performing_action = false
 			return true
@@ -484,7 +471,7 @@ func execute_attack(attacker: Unit, defender: Unit) -> bool:
 		await get_tree().create_timer(POST_DAMAGE_DELAY, true, false, true).timeout
 
 		if extra_dead:
-			# ★ Boss 三形态拦截（Day3）
+			# ★ Boss 三形态拦截
 			if _try_boss_revive(defender, attacker):
 				_finish_attack(attacker, defender)
 				Globals.is_performing_action = false
@@ -540,7 +527,7 @@ func execute_attack(attacker: Unit, defender: Unit) -> bool:
 				await get_tree().create_timer(POST_DAMAGE_DELAY, true, false, true).timeout
 
 				if extra_dead:
-					# ★ Boss 三形态拦截（Day3）
+					# ★ Boss 三形态拦截
 					if _try_boss_revive(defender, attacker):
 						_finish_attack(attacker, defender)
 						Globals.is_performing_action = false
@@ -587,7 +574,7 @@ func _apply_burning_splash(attacker : Unit, center : Unit, base_damage : int, pe
 		var dead : bool = _apply_damage_with_effects(t, splash_dmg, attacker, false)
 		print("[燃烧溅射] %d 伤害给 %s" % [splash_dmg, t.unit_stats.unit_name])
 		if dead:
-			# ★ Boss 三形态拦截（Day3）
+			# ★ Boss 三形态拦截
 			if _try_boss_revive(t, attacker):
 				continue
 			_on_kill(attacker, t)
@@ -597,7 +584,7 @@ func _apply_burning_splash(attacker : Unit, center : Unit, base_damage : int, pe
 
 
 # ============================================================
-#  光环攻击消耗（批次 5A）
+#  光环攻击消耗
 # ============================================================
 func _apply_aura_attack_cost(attacker : Unit):
 	for aid in attacker.active_auras:
@@ -713,7 +700,7 @@ func _play_death_animation(unit: Unit) -> void:
 
 
 # ============================================================
-#  击杀连锁（批次 5A/5B/6A/6B/8）
+#  击杀连锁
 # ============================================================
 func _on_kill(attacker: Unit, _defender: Unit) -> bool:
 	if not is_instance_valid(attacker):
@@ -746,13 +733,11 @@ func _on_kill(attacker: Unit, _defender: Unit) -> bool:
 		attacker.has_moved = false
 		print("疾风遗物：额外移动 %d 格" % attacker.relic_kill_grants_extra_move)
 
-	# ★ 批次 5A：光环击杀效果
 	for aid in attacker.active_auras:
 		if not attacker.active_auras[aid]:
 			continue
 		_apply_aura_kill_effect(attacker, aid)
 
-	# ★ 批次 6A：词条击杀回魂火
 	var bonus_sf : int = 0
 	for slot in attacker.armor_slots:
 		if slot:
@@ -761,7 +746,6 @@ func _on_kill(attacker: Unit, _defender: Unit) -> bool:
 		SoulFireManager.add(bonus_sf)
 		print("[词条] 余烬：击杀 +%d 魂火" % bonus_sf)
 
-	# ★ 批次 6B：套装击杀回血
 	var active_sets : Array = SetBonusManager.get_active_sets_for_unit(attacker)
 	for entry in active_sets:
 		var b : Dictionary = entry["bonus"]
@@ -776,7 +760,6 @@ func _on_kill(attacker: Unit, _defender: Unit) -> bool:
 				SignalBus.request_damage_popup.emit(attacker.global_position, actual2, false, false, true)
 				print("[套装] 血之回响 +%d HP" % actual2)
 
-	# ★ 批次 8：魂火归零回魂火
 	if attacker.unit_stats.team_id == 0:
 		SoulFireManager.on_kill()
 
@@ -820,7 +803,7 @@ func _apply_splash(attacker: Unit, defender: Unit, base_damage: int, percent: fl
 	var dead = _apply_damage_with_effects(splash_target, splash_dmg, attacker, is_crit)
 	print("[贯穿] 溅射 %d 伤害给 %s" % [splash_dmg, splash_target.unit_stats.unit_name])
 	if dead:
-		# ★ Boss 三形态拦截（Day3）
+		# ★ Boss 三形态拦截
 		if _try_boss_revive(splash_target, attacker):
 			return
 		_on_kill(attacker, splash_target)
@@ -842,7 +825,7 @@ func _apply_aoe(attacker: Unit, center: Unit, base_damage: int, percent: float, 
 		var dead = _apply_damage_with_effects(target, aoe_dmg, attacker, is_crit)
 		print("[火球] AOE %d 伤害给 %s" % [aoe_dmg, target.unit_stats.unit_name])
 		if dead:
-			# ★ Boss 三形态拦截（Day3）
+			# ★ Boss 三形态拦截
 			if _try_boss_revive(target, attacker):
 				continue
 			_on_kill(attacker, target)
@@ -852,7 +835,7 @@ func _apply_aoe(attacker: Unit, center: Unit, base_damage: int, percent: float, 
 
 
 # ============================================================
-#  治疗（批次 6A）
+#  治疗
 # ============================================================
 func _execute_heal(attacker: Unit, defender: Unit) -> bool:
 	if defender.unit_stats.team_id != attacker.unit_stats.team_id:
@@ -868,7 +851,6 @@ func _execute_heal(attacker: Unit, defender: Unit) -> bool:
 	if attacker.relic_heal_bonus > 0.0:
 		total_heal = int(total_heal * (1.0 + attacker.relic_heal_bonus))
 
-	# ★ 批次 6A：词条治疗
 	var heal_affix_bonus : float = 0.0
 	for slot in attacker.armor_slots:
 		if slot:
@@ -924,7 +906,7 @@ func _execute_heal(attacker: Unit, defender: Unit) -> bool:
 
 
 # ============================================================
-#  伤害应用 + 词条效果（批次 5B/6A/8）
+#  伤害应用 + 词条效果
 # ============================================================
 func _apply_damage_with_effects(defender: Unit, damage: int, attacker: Unit, is_crit: bool = false) -> bool:
 	if TalentManager.is_talent_ready(defender, "parry"):
@@ -973,7 +955,6 @@ func _apply_damage_with_effects(defender: Unit, damage: int, attacker: Unit, is_
 	SignalBus.request_damage_popup.emit(defender.global_position, damage, is_crit, false, false)
 	_play_hurt_effect(defender, attacker)
 
-	# ★ 批次 6A：吸血词条
 	var ls_bonus : float = 0.0
 	for slot in attacker.armor_slots:
 		if slot:
@@ -1032,7 +1013,7 @@ func _get_effective_talent_level(unit: Unit, talent_id: String) -> int:
 
 
 # ============================================================
-#  反击（批次 6A）
+#  反击
 # ============================================================
 func _can_counter_attack(attacker: Unit, defender: Unit) -> bool:
 	if not defender.can_counter():
@@ -1060,7 +1041,6 @@ func _execute_counter(attacker: Unit, defender: Unit) -> void:
 	if defender.relic_counter_damage_bonus > 0.0:
 		counter_damage = int(counter_damage * (1.0 + defender.relic_counter_damage_bonus))
 
-	# ★ 批次 6A：词条反击加成
 	var counter_bonus : float = 0.0
 	for slot in defender.armor_slots:
 		if slot:
@@ -1086,9 +1066,7 @@ func _execute_counter(attacker: Unit, defender: Unit) -> void:
 	await get_tree().create_timer(POST_DAMAGE_DELAY, true, false, true).timeout
 
 	if attacker_dead:
-		# ★ Boss 三形态拦截（Day3）——注意：Boss 可以是被反击方（敌人反击玩家时 Boss 不会死）
-		# 但为了逻辑完整性，如果 attacker 是 Boss（比如 Boss 反击玩家、玩家又反伤打死它），
-		# 这里也应该触发。防御方是 defender（我方），攻击者是 attacker（敌方 Boss）。
+		# ★ Boss 三形态拦截（Day3）——被反击方是 Boss 时也走复活
 		if _try_boss_revive(attacker, defender):
 			return
 		print(attacker.unit_stats.unit_name + " 阵亡！")
