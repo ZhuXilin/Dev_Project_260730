@@ -40,10 +40,10 @@ body{font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Mi
 .handle[data-dir=s]{left:calc(50% - 5.5px);bottom:-6px;cursor:ns-resize}
 .handle[data-dir=sw]{left:-6px;bottom:-6px;cursor:nesw-resize}
 .handle[data-dir=w]{left:-6px;top:calc(50% - 5.5px);cursor:ew-resize}
-.status{flex:0 0 auto;display:flex;align-items:center;gap:18px;padding:5px 12px;background:#22252b;border-top:1px solid #33383f;color:#8b929d;font-size:12px;font-variant-numeric:tabular-nums}
-.status .msg{color:#6fb0ff}
-.status .hist{color:#9aa3af}
-.status .sel-info{color:#7fd4ff}
+.status{flex:0 0 auto;display:flex;align-items:center;gap:18px;padding:5px 12px;background:#22252b;border-top:1px solid #33383f;color:#a7aeb9;font-size:12px;font-variant-numeric:tabular-nums}
+.status .msg{color:#a7aeb9}
+.status .hist{color:#a7aeb9}
+.status .sel-info{color:#a7aeb9}
 .floating-panel{position:fixed;top:56px;right:356px;width:300px;background:#2a2a30;border:1px solid #444;border-radius:6px;padding:14px 16px;box-shadow:0 10px 40px rgba(0,0,0,.7);z-index:1500;color:#dfe3e9;font-size:13px}
 .floating-panel h3{margin:0 0 10px;font-size:14px;color:#ddd;font-weight:600}
 .floating-panel .hint-text{color:#a7aeb9;font-size:12px;line-height:1.5;margin-bottom:10px}
@@ -55,6 +55,8 @@ body{font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Mi
 .slider-row span:first-child{width:72px;flex-shrink:0}
 .slider-row input[type=range]{flex:1;accent-color:#3b82f6}
 .slider-row .val{min-width:48px;text-align:right;color:#6fb0ff;font-family:ui-monospace,Consolas,monospace}
+.slider-row input[type=number]{flex:1;font:inherit;padding:4px 6px;color:#dfe3e9;background:#191c21;border:1px solid #3d434c;border-radius:6px}
+.slider-row input[type=number]:focus{outline:none;border-color:#3b82f6}
 .dc-count-line{font-size:12px;color:#a7aeb9;margin:8px 0;padding:6px 10px;background:#1a1a20;border-radius:4px;border:1px solid #333}
 .dc-count-line b{color:#ff8b8b;font-size:14px}
 .dc-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:10px}
@@ -113,6 +115,7 @@ body{font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Mi
     <button id="btnColors" disabled>颜色统计…</button>
     <button id="btnMergeSimilar" disabled>合并相似色…</button>
     <button id="btnDeleteColor" disabled>删除颜色…</button>
+    <button id="btnSplitExport" disabled>拆分导出…</button>
     <div class="spacer"></div>
     <span class="hint">滚轮缩放 · 拖空白平移 · Shift=正方形 · Ctrl=加选 · Alt=减选</span>
   </div>
@@ -187,6 +190,26 @@ body{font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Mi
   </div>
 </div>
 
+<div class="floating-panel" id="splitPanel" style="display:none">
+  <h3>拆分导出</h3>
+  <div class="hint-text">将当前图片按行列拆分成多个小图片并导出</div>
+  <div class="slider-row">
+    <span>列数</span>
+    <input type="number" id="splitCols" min="1" max="100" value="1">
+  </div>
+  <div class="slider-row">
+    <span>行数</span>
+    <input type="number" id="splitRows" min="1" max="100" value="1">
+  </div>
+  <div class="dc-count-line" id="splitInfo">
+    每块尺寸: <b id="splitPieceSize">0 x 0</b>
+  </div>
+  <div class="dc-actions">
+    <button id="splitCancel">取消</button>
+    <button id="splitApply" class="apply">选择目录并导出</button>
+  </div>
+</div>
+
 <input type="file" id="fileInput" accept="image/*" hidden>
 
 <div class="modal-back" id="colorModal" style="display:none">
@@ -237,7 +260,7 @@ body{font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Mi
   function fmtZoom(z){ var p=z*100; if(p>=100) return p.toFixed(0)+'%'; if(p>=10) return p.toFixed(1)+'%'; return p.toFixed(2)+'%'; }
   function rgbToHex(r,g,b){ return '#'+r.toString(16).padStart(2,'0')+g.toString(16).padStart(2,'0')+b.toString(16).padStart(2,'0'); }
 
-  var ALL_BTN = ['btnSave','btnSaveAs','btnClose','btnReset','btnFit','btnOne','inW','inH','btnHalf','btnQuart','btnEighth','btnDouble','btnSelect','btnSelectAll','btnSelectNone','btnSelectInv','btnClean','btnColors','btnMergeSimilar','btnDeleteColor','btnBg'];
+  var ALL_BTN = ['btnSave','btnSaveAs','btnClose','btnReset','btnFit','btnOne','inW','inH','btnHalf','btnQuart','btnEighth','btnDouble','btnSelect','btnSelectAll','btnSelectNone','btnSelectInv','btnClean','btnColors','btnMergeSimilar','btnDeleteColor','btnSplitExport','btnBg'];
   function setEnabled(on){
     ALL_BTN.forEach(function(id){ var el=$(id); if(el) el.disabled=!on; });
     updateHistoryUI(); updateSelectUI();
@@ -386,7 +409,6 @@ body{font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Mi
   function beginSelectDrag(e){
     var p=stagePointFromEvent(e);
     var mode='replace';
-    /* Ctrl(或 Cmd)=加选，Alt=减选；Shift=正方形 */
     if(e.ctrlKey||e.metaKey) mode='add';
     else if(e.altKey) mode='sub';
     selDrag={x0:p.px,y0:p.py,x1:p.px,y1:p.py,mode:mode,square:!!e.shiftKey};
@@ -396,7 +418,6 @@ body{font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Mi
     if(!selDrag) return;
     var p=stagePointFromEvent(e);
     selDrag.x1=p.px; selDrag.y1=p.py;
-    /* 拖动过程中实时响应 Shift 变化 */
     selDrag.square = !!e.shiftKey;
     renderSelectionOverlay();
     var r=normalizedDragRect();
@@ -701,7 +722,6 @@ body{font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Mi
         cell.dataset.hex=rgbToHex(c.r,c.g,c.b);
         (function(color){
           cell.addEventListener('click',function(){
-            $('color-primary').value=rgbToHex(color.r,color.g,color.b);
             setMsg('主色已设为 '+rgbToHex(color.r,color.g,color.b),1500);
           });
         })(c);
@@ -759,6 +779,134 @@ body{font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Mi
     setMsg('已合并 '+changed+' 个像素 → '+plan.after+' 种颜色', 2400);
   }
 
+  /* --- 拆分导出功能 --- */
+  var splitPanel, splitCols, splitRows, splitPieceSize, splitApply;
+
+  function openSplitPanel() {
+    if (!hasImage) return;
+    splitCols.value = 1;
+    splitRows.value = 1;
+    updateSplitPreview();
+    splitPanel.style.display = '';
+    $('btnSplitExport').classList.add('on');
+  }
+
+  function closeSplitPanel() {
+    splitPanel.style.display = 'none';
+    $('btnSplitExport').classList.remove('on');
+  }
+
+  function updateSplitPreview() {
+    var cols = parseInt(splitCols.value, 10) || 1;
+    var rows = parseInt(splitRows.value, 10) || 1;
+    var pw = Math.floor(targetW / cols);
+    var ph = Math.floor(targetH / rows);
+    splitPieceSize.textContent = pw + ' x ' + ph + ' px';
+    if (pw <= 0 || ph <= 0) {
+      splitPieceSize.textContent = '尺寸过小，无法拆分';
+      splitPieceSize.style.color = '#ff8b8b';
+    } else {
+      splitPieceSize.style.color = '#6fb0ff';
+    }
+  }
+
+  async function executeSplitExport() {
+    var cols = parseInt(splitCols.value, 10) || 1;
+    var rows = parseInt(splitRows.value, 10) || 1;
+    var pw = Math.floor(targetW / cols);
+    var ph = Math.floor(targetH / rows);
+
+    if (pw <= 0 || ph <= 0) {
+      setMsg('拆分尺寸过小，无法导出', 2000);
+      return;
+    }
+
+    closeSplitPanel();
+    setMsg('正在拆分导出…');
+
+    var srcCanvas = document.createElement('canvas');
+    srcCanvas.width = targetW;
+    srcCanvas.height = targetH;
+    var sCtx = srcCanvas.getContext('2d');
+    sCtx.imageSmoothingEnabled = false;
+    sCtx.drawImage(cv, 0, 0);
+
+    var total = rows * cols;
+    var index = 0;
+
+    var useDirPicker = (typeof window.showDirectoryPicker === 'function');
+    var dirHandle = null;
+
+    if (useDirPicker) {
+      try {
+        dirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
+      } catch (err) {
+        if (err.name === 'AbortError') {
+          setMsg('已取消导出');
+          return;
+        }
+        console.warn('目录选择器不可用，回退到下载模式:', err);
+        useDirPicker = false;
+      }
+    }
+
+    if (!useDirPicker) {
+      setMsg('提示：将依次触发下载，请允许浏览器下载多个文件', 4000);
+    }
+
+    for (var r = 0; r < rows; r++) {
+      for (var c = 0; c < cols; c++) {
+        var pieceCanvas = document.createElement('canvas');
+        pieceCanvas.width = pw;
+        pieceCanvas.height = ph;
+        var pCtx = pieceCanvas.getContext('2d');
+        pCtx.imageSmoothingEnabled = false;
+        pCtx.drawImage(srcCanvas, c * pw, r * ph, pw, ph, 0, 0, pw, ph);
+
+        var filename = baseName + '_r' + (r + 1) + '_c' + (c + 1) + '.png';
+
+        if (dirHandle) {
+          try {
+            var fileHandle = await dirHandle.getFileHandle(filename, { create: true });
+            var writable = await fileHandle.createWritable();
+            await new Promise(function(resolve, reject) {
+              pieceCanvas.toBlob(async function(blob) {
+                if (!blob) { reject(new Error('导出失败')); return; }
+                try {
+                  await writable.write(blob);
+                  await writable.close();
+                  resolve();
+                } catch (e) { reject(e); }
+              }, 'image/png');
+            });
+          } catch (err) {
+            console.error('写入文件失败:', err);
+            setMsg('写入文件失败: ' + err.message, 3000);
+            break;
+          }
+        } else {
+          await new Promise(function(resolve) {
+            pieceCanvas.toBlob(function(blob) {
+              if (blob) {
+                downloadBlob(blob, filename);
+              }
+              resolve();
+            }, 'image/png');
+          });
+          await new Promise(function(resolve) { setTimeout(resolve, 150); });
+        }
+        index++;
+        setMsg('正在导出 ' + index + ' / ' + total + ' …');
+      }
+    }
+
+    if (dirHandle) {
+      setMsg('已成功导出 ' + total + ' 个文件到所选文件夹', 3000);
+    } else {
+      setMsg('已触发下载 ' + total + ' 个文件（请检查浏览器下载）', 3000);
+    }
+  }
+
   function loadImage(file){
     if(!file||!/^image\//.test(file.type)){ setMsg('请选择图片文件',2000); return; }
     setMsg('正在载入…');
@@ -795,7 +943,7 @@ body{font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Mi
     cv.width=0; cv.height=0;
     selCv.classList.remove('on');
     selMask=null; hasSelection=false; selBounds={x:0,y:0,w:0,h:0}; selDrag=null; _previewMask=null;
-    closeDeleteColorPanel(); closeMergePanel();
+    closeDeleteColorPanel(); closeMergePanel(); closeSplitPanel();
     wrap.classList.remove('on'); wrap.style.width='0px'; wrap.style.height='0px';
     placeholder.style.display='';
     history=[]; histIndex=-1;
@@ -893,6 +1041,9 @@ body{font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Mi
     stOrig=$('stOrig'); stCur=$('stCur'); stZoom=$('stZoom');
     stSel=$('stSel'); stHist=$('stHist'); stMsg=$('stMsg');
 
+    splitPanel=$('splitPanel'); splitCols=$('splitCols'); splitRows=$('splitRows');
+    splitPieceSize=$('splitPieceSize'); splitApply=$('splitApply');
+
     cv.width=128; cv.height=128; ctx.imageSmoothingEnabled=false;
     var id=new ImageData(128,128);
     src32=new Uint32Array(id.data.buffer);
@@ -937,6 +1088,7 @@ body{font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Mi
     $('btnColors').addEventListener('click',openColorModal);
     $('btnMergeSimilar').addEventListener('click',openMergePanel);
     $('btnDeleteColor').addEventListener('click',openDeleteColorPanel);
+    $('btnSplitExport').addEventListener('click',openSplitPanel);
 
     inW.addEventListener('change',function(){
       if(!hasImage) return;
@@ -965,6 +1117,11 @@ body{font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Mi
     });
     $('mergeCancel').addEventListener('click',closeMergePanel);
     $('mergeApply').addEventListener('click',applyMergeColors);
+
+    splitCols.addEventListener('input', updateSplitPreview);
+    splitRows.addEventListener('input', updateSplitPreview);
+    $('splitCancel').addEventListener('click', closeSplitPanel);
+    splitApply.addEventListener('click', executeSplitExport);
 
     $('colorModalCancel').addEventListener('click',function(){ $('colorModal').style.display='none'; });
 
@@ -1084,6 +1241,7 @@ body{font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Mi
         e.preventDefault();
         if(deleteColorMode.active) closeDeleteColorPanel();
         else if($('mergePanel').style.display!=='none') closeMergePanel();
+        else if(splitPanel.style.display!=='none') closeSplitPanel();
         else if($('colorModal').style.display!=='none') $('colorModal').style.display='none';
         else deselectAll(false);
       }
