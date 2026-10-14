@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://dapmuf2hld4n8"
-path="res://.godot/imported/units_group_r20_c1.png-94ace33fe311c0276997f9911797746a.ctex"
+path="res://.godot/imported/units_hunter.png-4058615a7a9ab948a8768d367eb02c7c.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://content/images/characters/units_group_r20_c1.png"
-dest_files=["res://.godot/imported/units_group_r20_c1.png-94ace33fe311c0276997f9911797746a.ctex"]
+source_file="res://content/images/characters/units_hunter.png"
+dest_files=["res://.godot/imported/units_hunter.png-4058615a7a9ab948a8768d367eb02c7c.ctex"]
 
 [params]
 

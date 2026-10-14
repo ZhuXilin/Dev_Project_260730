@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>像素图编辑器</title>
+<title>Pixel Editor</title>
 <style>
 *{box-sizing:border-box}
 html,body{margin:0;padding:0;height:100%;overflow:hidden;font-family:system-ui,"Microsoft YaHei","PingFang SC",sans-serif;font-size:13px;color:#ddd;background:#1a1a1e;user-select:none;-webkit-user-select:none}
@@ -103,7 +103,6 @@ input[type=checkbox]{accent-color:#2d6cdf;margin-right:4px}
 .cp-pick-btn{display:block;width:100%;background:#3a3a42;color:#ddd;border:1px solid #444;border-radius:3px;padding:5px 10px;font:inherit;font-size:12px;cursor:pointer}
 .cp-pick-btn:hover{background:#4a4a54}
 .cp-pick-btn:active{background:#555}
-.cp-pick-btn::before{content:"🎯 "}
 .nes-cmp{background:#2a2a30;border:1px solid #444;border-radius:6px;padding:16px 20px;min-width:520px;max-width:700px;max-height:82vh;overflow-y:auto;box-shadow:0 10px 40px rgba(0,0,0,.7)}
 .nes-cmp::-webkit-scrollbar{width:8px}
 .nes-cmp::-webkit-scrollbar-thumb{background:#444;border-radius:4px}
@@ -504,6 +503,17 @@ function rgbToHsv(r, g, b) {
 }
 
 function getSnapThreshold(){ return Math.max(2, SNAP_HIT_PX / view.zoom); }
+
+/* 单格模式下把选区坐标钳制到当前格内 */
+function clampSelPointToCell(x, y){
+  if(!ui.singleCell) return {x:x, y:y};
+  var cr = cellRect(ui.currentCell);
+  if(!cr) return {x:x, y:y};
+  return {
+    x: clamp(x, cr.x, cr.x + cr.w - 1),
+    y: clamp(y, cr.y, cr.y + cr.h - 1)
+  };
+}
 
 function snapGuideToGrid(axis, pos){
   if(!ui.snapEnabled) return pos;
@@ -1193,8 +1203,22 @@ function recalcBounds(){
 }
 function applyRectSelection(r,mode){
   var W = doc.width, H = doc.height;
-  var x0 = clamp(r.x,0,W), y0 = clamp(r.y,0,H);
-  var x1 = clamp(r.x+r.w,0,W), y1 = clamp(r.y+r.h,0,H);
+  var rx = r.x, ry = r.y, rw = r.w, rh = r.h;
+  // 单格模式下：把矩形裁切到当前格范围内
+  if(ui.singleCell){
+    var cr = cellRect(ui.currentCell);
+    if(cr){
+      var nx0 = Math.max(rx, cr.x);
+      var ny0 = Math.max(ry, cr.y);
+      var nx1 = Math.min(rx + rw, cr.x + cr.w);
+      var ny1 = Math.min(ry + rh, cr.y + cr.h);
+      rx = nx0; ry = ny0;
+      rw = Math.max(0, nx1 - nx0);
+      rh = Math.max(0, ny1 - ny0);
+    }
+  }
+  var x0 = clamp(rx,0,W), y0 = clamp(ry,0,H);
+  var x1 = clamp(rx+rw,0,W), y1 = clamp(ry+rh,0,H);
   if(mode === SEL_REPLACE){
     doc.selMask.fill(0);
     for(var y=y0;y<y1;y++) for(var x=x0;x<x1;x++) doc.selMask[y*W+x]=1;
@@ -1367,7 +1391,16 @@ function getEffectiveSelCur(){
   var size = Math.max(Math.abs(dx), Math.abs(dy));
   var sx = dx >= 0 ? 1 : -1;
   var sy = dy >= 0 ? 1 : -1;
-  return {x: a.x + sx * size, y: a.y + sy * size};
+  var res = {x: a.x + sx * size, y: a.y + sy * size};
+  // 单格模式钳制
+  if(ui.singleCell){
+    var cr = cellRect(ui.currentCell);
+    if(cr){
+      res.x = clamp(res.x, cr.x, cr.x + cr.w - 1);
+      res.y = clamp(res.y, cr.y, cr.y + cr.h - 1);
+    }
+  }
+  return res;
 }
 function getPreviewMask(){
   var W = doc.width, H = doc.height;
@@ -1435,8 +1468,14 @@ function applyLassoMask(points, mode, isCircle){
   var d = id.data;
   if(mode === SEL_REPLACE) doc.selMask.fill(0);
   var n = W*H;
+  // 单格模式下：只应用当前格内的像素
+  var cell = ui.singleCell ? cellRect(ui.currentCell) : null;
   for(var j=0;j<n;j++){
     if(d[j*4+3] > 127){
+      if(cell){
+        var px = j % W, py = Math.floor(j / W);
+        if(px < cell.x || px >= cell.x + cell.w || py < cell.y || py >= cell.y + cell.h) continue;
+      }
       if(mode === SEL_SUB) doc.selMask[j] = 0;
       else doc.selMask[j] = 1;
     }
@@ -2160,7 +2199,6 @@ function onCanvasMouseDown(e){
       w: doc.selBounds.w, h: doc.selBounds.h
     };
     drag.lastDx = 0; drag.lastDy = 0;
-    setStatus(currentLang==='zh'?'仅移动选区（不移动像素）':'Move selection only');
     requestRender();
     e.preventDefault(); return;
   }
@@ -2188,13 +2226,15 @@ function onCanvasMouseDown(e){
     case TOOL.LASSO:
       if(ui.tool === TOOL.LASSO){
         drag.mode = 'lasso';
-        drag.lassoPoints = [{x:m.px, y:m.py}];
+        var lp = clampSelPointToCell(m.px, m.py);
+        drag.lassoPoints = [{x: lp.x, y: lp.y}];
         drag.lassoMode = selMode;
         drag.lassoShift = e.shiftKey;
       } else {
         drag.mode = 'select';
-        drag.selStart = {x: m.px, y: m.py};
-        drag.selCur = {x: m.px, y: m.py};
+        var sp = clampSelPointToCell(m.px, m.py);
+        drag.selStart = {x: sp.x, y: sp.y};
+        drag.selCur = {x: sp.x, y: sp.y};
         drag.selMode = selMode;
         drag.square = e.shiftKey;
       }
@@ -2270,11 +2310,11 @@ function onCanvasMouseMove(e){
   }
   if(drag.mode === 'select'){
     var snapPt = snapSelPointToGuides(m.px, m.py);
-    drag.selCur = {x: snapPt.x, y: snapPt.y};
+    var clamped = clampSelPointToCell(snapPt.x, snapPt.y);
+    drag.selCur = {x: clamped.x, y: clamped.y};
     drag.square = e.shiftKey;
     var r = rectFromPoints(drag.selStart, drag.selCur, drag.square);
-    var mn = drag.selMode===SEL_ADD?(currentLang==='zh'?'（加选）':' (add)'):drag.selMode===SEL_SUB?(currentLang==='zh'?'（减选）':' (sub)'):'';
-    setStatus((currentLang==='zh'?'选区 ':'Selection ')+r.w+' × '+r.h+' px'+(drag.square?' (1:1)':'')+mn);
+    setStatus((currentLang==='zh'?'选区 ':'Selection ')+r.w+' × '+r.h+' px'+(drag.square?' (1:1)':''));
     requestRender(); return;
   }
   if(drag.mode === 'move' && doc.floating){
@@ -2311,9 +2351,10 @@ function onCanvasMouseMove(e){
     requestRender(); return;
   }
   if(drag.mode === 'lasso' && drag.lassoPoints){
+    var cp = clampSelPointToCell(m.px, m.py);
     var lastP = drag.lassoPoints[drag.lassoPoints.length-1];
-    if(lastP.x !== m.px || lastP.y !== m.py){
-      drag.lassoPoints.push({x: m.px, y: m.py});
+    if(lastP.x !== cp.x || lastP.y !== cp.y){
+      drag.lassoPoints.push({x: cp.x, y: cp.y});
     }
     drag.lassoShift = e.shiftKey;
     requestRender(); return;
@@ -2467,69 +2508,6 @@ function onKeyUp(e){
   }
 }
 
-/* ==== 动画范围约束 ==== */
-function enforceAnimRange(which){
-  if(!animStartEl || !animEndEl) return;
-  var total = totalCells();
-  var maxIdx = Math.max(0, total - 1);
-  if(total < 2){
-    animStartEl.value = 0;
-    animEndEl.value = 0;
-    animStartEl.min = 0; animStartEl.max = 0;
-    animEndEl.min = 0; animEndEl.max = 0;
-    return;
-  }
-  var s = parseInt(animStartEl.value, 10);
-  var e = parseInt(animEndEl.value, 10);
-  if(isNaN(s)) s = 0;
-  if(isNaN(e)) e = maxIdx;
-  s = clamp(s, 0, maxIdx);
-  e = clamp(e, 0, maxIdx);
-
-  if(which === 'start'){
-    if(s >= e){
-      e = Math.min(s + 1, maxIdx);
-      if(s >= e){
-        // s 已到顶，回退 s
-        s = Math.max(e - 1, 0);
-      }
-    }
-  } else if(which === 'end'){
-    if(e <= s){
-      s = Math.max(e - 1, 0);
-      if(e <= s){
-        e = Math.min(s + 1, maxIdx);
-      }
-    }
-  } else {
-    // 无指定，优先修 end
-    if(s >= e){
-      e = Math.min(s + 1, maxIdx);
-      if(s >= e) s = Math.max(e - 1, 0);
-    }
-  }
-  animStartEl.value = s;
-  animEndEl.value = e;
-  updateAnimRangeAttrs(s, e);
-}
-
-function updateAnimRangeAttrs(s, e){
-  if(!animStartEl || !animEndEl) return;
-  var total = totalCells();
-  var maxIdx = Math.max(0, total - 1);
-  if(total < 2){
-    animStartEl.min = 0; animStartEl.max = 0;
-    animEndEl.min = 0; animEndEl.max = 0;
-    return;
-  }
-  if(typeof s !== 'number') s = parseInt(animStartEl.value, 10) || 0;
-  if(typeof e !== 'number') e = parseInt(animEndEl.value, 10) || 0;
-  animStartEl.min = 0;
-  animStartEl.max = Math.max(0, e - 1);
-  animEndEl.min = Math.min(maxIdx, s + 1);
-  animEndEl.max = maxIdx;
-}
-
 function updateAnimRange(){
   var total = totalCells();
   if(!animStartEl || !animEndEl) return;
@@ -2550,9 +2528,40 @@ function updateAnimRange(){
   }
   animStartEl.value = s;
   animEndEl.value = e;
-  updateAnimRangeAttrs(s, e);
 }
-
+function enforceAnimRange(which){
+  if(!animStartEl || !animEndEl) return;
+  var total = totalCells();
+  var maxIdx = Math.max(0, total - 1);
+  if(total < 2){
+    animStartEl.value = 0; animEndEl.value = 0;
+    return;
+  }
+  var s = parseInt(animStartEl.value, 10);
+  var e = parseInt(animEndEl.value, 10);
+  if(isNaN(s)) s = 0;
+  if(isNaN(e)) e = maxIdx;
+  s = clamp(s, 0, maxIdx);
+  e = clamp(e, 0, maxIdx);
+  if(which === 'start'){
+    if(s >= e){
+      e = Math.min(s + 1, maxIdx);
+      if(s >= e) s = Math.max(e - 1, 0);
+    }
+  } else if(which === 'end'){
+    if(e <= s){
+      s = Math.max(e - 1, 0);
+      if(e <= s) e = Math.min(s + 1, maxIdx);
+    }
+  } else {
+    if(s >= e){
+      e = Math.min(s + 1, maxIdx);
+      if(s >= e) s = Math.max(e - 1, 0);
+    }
+  }
+  animStartEl.value = s;
+  animEndEl.value = e;
+}
 function startPlay(){
   if(!ui.singleCell){
     ui.singleCell = true;
@@ -2696,11 +2705,8 @@ function updateGuidesToggleButton(){
 function updateViewModeButton(){
   var btn = document.getElementById('btn-view-mode');
   if(!btn) return;
-  if(ui.singleCell){
-    btn.textContent = currentLang==='zh'?'全图':'Full';
-  } else {
-    btn.textContent = currentLang==='zh'?'单格':'Single';
-  }
+  if(ui.singleCell) btn.textContent = currentLang==='zh'?'全图':'Full';
+  else btn.textContent = currentLang==='zh'?'单格':'Single';
 }
 
 function cpGetColor(){ return cpTarget === 'primary' ? ui.primary : ui.secondary; }
@@ -2937,9 +2943,7 @@ function savePng(saveAs){
     exportCanvas.toBlob(function(blob){
       handle.createWritable().then(function(w){
         return w.write(blob).then(function(){ return w.close(); });
-      }).then(function(){
-        doc.fileName = handle.name;
-      }).catch(function(){});
+      }).then(function(){ doc.fileName = handle.name; }).catch(function(){});
     },'image/png');
   };
   if(saveAs && window.showSaveFilePicker){
@@ -3269,7 +3273,7 @@ function refreshPaletteCustom(){
   }
 }
 
-/* ==== i18n 字典 ==== */
+/* ==== i18n ==== */
 var I18N = {
   'menu.file': {zh:'文件 ▾', en:'File ▾'},
   'menu.edit': {zh:'编辑 ▾', en:'Edit ▾'},
@@ -3407,6 +3411,72 @@ function toggleLanguage() {
   applyLanguage(next);
 }
 
+function closeAllMenus(){
+  var menus = document.querySelectorAll('.menu');
+  for(var i=0;i<menus.length;i++) menus[i].classList.remove('open');
+}
+function initMenus(){
+  var btns = document.querySelectorAll('.menu-btn');
+  for(var i=0;i<btns.length;i++){
+    (function(btn){
+      btn.addEventListener('click', function(e){
+        e.stopPropagation();
+        var menu = document.getElementById('menu-'+btn.dataset.menu);
+        var isOpen = menu.classList.contains('open');
+        closeAllMenus();
+        if(!isOpen){
+          var r = btn.getBoundingClientRect();
+          menu.style.left = r.left+'px';
+          menu.style.top = (r.bottom+2)+'px';
+          menu.classList.add('open');
+        }
+      });
+    })(btns[i]);
+  }
+  document.addEventListener('click', closeAllMenus);
+  var items = document.querySelectorAll('.menu > div[data-act]');
+  for(var j=0;j<items.length;j++){
+    (function(item){
+      item.addEventListener('click', function(e){
+        e.stopPropagation();
+        handleMenuAction(item.dataset.act);
+        closeAllMenus();
+      });
+    })(items[j]);
+  }
+}
+function handleMenuAction(act){
+  switch(act){
+    case 'new':
+      var w = parseInt(prompt('Width:', doc.width),10);
+      if(!isFinite(w)||w<1) return;
+      var h = parseInt(prompt('Height:', doc.height),10);
+      if(!isFinite(h)||h<1) return;
+      newDoc(w,h);
+      fitToView(); updateAnimRange();
+      break;
+    case 'open-png': openPng(); break;
+    case 'open-proj': openProject(); break;
+    case 'save': savePng(false); break;
+    case 'save-as': savePng(true); break;
+    case 'save-proj': saveProject(false); break;
+    case 'save-proj-as': saveProject(true); break;
+    case 'undo': doUndo(); break;
+    case 'redo': doRedo(); break;
+    case 'select-all': selectAll(); break;
+    case 'select-none': deselectAll(); break;
+    case 'select-inv': invertSelection(); break;
+    case 'select-cell': {
+      var cr = cellRect(ui.currentCell);
+      if(cr){ applyRectSelection(cr, SEL_REPLACE); requestRender(); commitHistory(); }
+      break;
+    }
+    case 'delete':
+      if(doc.hasSelection){ deleteSelection(); commitHistory(); refreshColorUsage(); }
+      break;
+  }
+}
+
 function bindUI(){
   var toolBtns = document.querySelectorAll('.tool-btn');
   for(var i=0;i<toolBtns.length;i++){
@@ -3500,7 +3570,6 @@ function bindUI(){
     updateAnimRange();
   });
 
-  // 动画范围约束
   animStartEl.addEventListener('change', function(){ enforceAnimRange('start'); });
   animEndEl.addEventListener('change', function(){ enforceAnimRange('end'); });
 
@@ -3596,6 +3665,7 @@ function init(){
     initPalettes();
     bindUI();
     bindColorPicker();
+    initMenus();
     initChecker();
     resizeCanvas();
 

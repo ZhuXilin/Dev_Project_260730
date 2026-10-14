@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://b73oprbdtfqw6"
-path="res://.godot/imported/units_group_r21_c1.png-34e78959edd8079e7b7a0188f3cb9ca6.ctex"
+uid="uid://baxvl2cw6dqrc"
+path="res://.godot/imported/units_priest.png-c241a87f44128ef894aeec616e2d2b22.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://content/images/characters/units_group_r21_c1.png"
-dest_files=["res://.godot/imported/units_group_r21_c1.png-34e78959edd8079e7b7a0188f3cb9ca6.ctex"]
+source_file="res://content/images/characters/units_priest.png"
+dest_files=["res://.godot/imported/units_priest.png-c241a87f44128ef894aeec616e2d2b22.ctex"]
 
 [params]
 
