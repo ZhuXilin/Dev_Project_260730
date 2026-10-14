@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://cu8hwgiahqvjx"
-path="res://.godot/imported/units_group_r6_c1.png-db9225c49acad154888a31e16f966636.ctex"
+uid="uid://dfjhd6t8w7dns"
+path="res://.godot/imported/unit_heavyknight.png-adb423102d78545b12c893a1648acb54.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://content/images/characters/units_group_r6_c1.png"
-dest_files=["res://.godot/imported/units_group_r6_c1.png-db9225c49acad154888a31e16f966636.ctex"]
+source_file="res://content/images/characters/unit_heavyknight.png"
+dest_files=["res://.godot/imported/unit_heavyknight.png-adb423102d78545b12c893a1648acb54.ctex"]
 
 [params]
 

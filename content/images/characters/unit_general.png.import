@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://dfjhd6t8w7dns"
-path="res://.godot/imported/unit_knight_upgrade.png-a430934abef149a16b846af504104489.ctex"
+uid="uid://wh5ysalm87wh"
+path="res://.godot/imported/unit_general.png-04903c579eb4e5205970ee21b4d50c8a.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://content/images/characters/unit_knight_upgrade.png"
-dest_files=["res://.godot/imported/unit_knight_upgrade.png-a430934abef149a16b846af504104489.ctex"]
+source_file="res://content/images/characters/unit_general.png"
+dest_files=["res://.godot/imported/unit_general.png-04903c579eb4e5205970ee21b4d50c8a.ctex"]
 
 [params]
 

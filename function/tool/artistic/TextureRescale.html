@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>像素缩放工具</title>
+<title>Pixel Rescale Tool</title>
 <style>
 *{box-sizing:border-box}
 html,body{margin:0;height:100%}
@@ -22,6 +22,7 @@ body{font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Mi
 .toolbar input[type=number]:focus{outline:none;border-color:#3b82f6}
 .spacer{flex:1}
 .hint{color:#767e8a;font-size:12px}
+#btnLang{font-weight:600;letter-spacing:.5px;min-width:44px}
 .stage{position:relative;flex:1 1 auto;overflow:hidden;background:#1b1e23;touch-action:none}
 .stage.select-mode,.stage.picking{cursor:crosshair}
 .placeholder{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;color:#5d6673;font-size:14px;pointer-events:none}
@@ -83,47 +84,48 @@ body{font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Mi
 <body>
 <div class="app">
   <div class="toolbar">
-    <button id="btnOpen">打开图片</button>
-    <button id="btnSave" disabled>保存 PNG</button>
-    <button id="btnSaveAs" disabled>另存为…</button>
-    <button id="btnClose" disabled>关闭</button>
+    <button id="btnOpen" data-i18n="btn.open">Open Image</button>
+    <button id="btnSave" disabled data-i18n="btn.save">Save PNG</button>
+    <button id="btnSaveAs" disabled data-i18n="btn.saveAs">Save As…</button>
+    <button id="btnClose" disabled data-i18n="btn.close">Close</button>
     <div class="sep"></div>
-    <button id="btnUndo" disabled>撤销</button>
-    <button id="btnRedo" disabled>重做</button>
+    <button id="btnUndo" disabled data-i18n="btn.undo">Undo</button>
+    <button id="btnRedo" disabled data-i18n="btn.redo">Redo</button>
     <div class="sep"></div>
-    <button id="btnReset" disabled>原始尺寸</button>
-    <button id="btnFit" disabled>适应窗口</button>
+    <button id="btnReset" disabled data-i18n="btn.reset">Original Size</button>
+    <button id="btnFit" disabled data-i18n="btn.fit">Fit to Window</button>
     <button id="btnOne" disabled>1:1</button>
     <button id="btnHalf" class="mini" disabled>½</button>
     <button id="btnQuart" class="mini" disabled>¼</button>
     <button id="btnEighth" class="mini" disabled>⅛</button>
     <button id="btnDouble" class="mini" disabled>×2</button>
     <div class="sep"></div>
-    <label>宽 <input id="inW" type="number" min="1" max="16384" disabled></label>
-    <label>高 <input id="inH" type="number" min="1" max="16384" disabled></label>
-    <label><input id="lockRatio" type="checkbox" checked> 锁定比例</label>
+    <label><span data-i18n="label.w">W</span> <input id="inW" type="number" min="1" max="16384" disabled></label>
+    <label><span data-i18n="label.h">H</span> <input id="inH" type="number" min="1" max="16384" disabled></label>
+    <label><input id="lockRatio" type="checkbox" checked> <span data-i18n="label.lock">Lock Ratio</span></label>
     <div class="sep"></div>
-    <button id="btnBg" disabled title="切换观察背景">格子</button>
-    <button id="btnSelect" class="toggle on" disabled>选择</button>
-    <button id="btnSelectAll" disabled>全选</button>
-    <button id="btnSelectNone" disabled>取消选择</button>
-    <button id="btnSelectInv" disabled>反选</button>
-    <button id="btnCopy" disabled>复制</button>
-    <button id="btnDeleteSel" disabled>删除选区</button>
+    <button id="btnBg" disabled title="Background"></button>
+    <button id="btnSelect" class="toggle on" disabled data-i18n="btn.select">Select</button>
+    <button id="btnSelectAll" disabled data-i18n="btn.selectAll">Select All</button>
+    <button id="btnSelectNone" disabled data-i18n="btn.selectNone">Deselect</button>
+    <button id="btnSelectInv" disabled data-i18n="btn.selectInv">Invert</button>
+    <button id="btnCopy" disabled data-i18n="btn.copy">Copy</button>
+    <button id="btnDeleteSel" disabled data-i18n="btn.delSel">Delete Selection</button>
     <div class="sep"></div>
-    <button id="btnClean" disabled>清理像素</button>
-    <button id="btnColors" disabled>颜色统计…</button>
-    <button id="btnMergeSimilar" disabled>合并相似色…</button>
-    <button id="btnDeleteColor" disabled>删除颜色…</button>
-    <button id="btnSplitExport" disabled>拆分导出…</button>
+    <button id="btnClean" disabled data-i18n="btn.clean">Clean Pixels</button>
+    <button id="btnColors" disabled data-i18n="btn.colors">Color Stats…</button>
+    <button id="btnMergeSimilar" disabled data-i18n="btn.merge">Merge Similar…</button>
+    <button id="btnDeleteColor" disabled data-i18n="btn.delColor">Delete Color…</button>
+    <button id="btnSplitExport" disabled data-i18n="btn.split">Split Export…</button>
     <div class="spacer"></div>
-    <span class="hint">滚轮缩放 · 拖空白平移 · Shift=正方形 · Ctrl=加选 · Alt=减选</span>
+    <button id="btnLang" title="Switch Language">EN</button>
+    <span class="hint" data-i18n="hint.toolbar">Wheel zoom · Drag empty to pan · Shift=Square · Ctrl=Add · Alt=Subtract</span>
   </div>
 
   <div class="stage select-mode" id="stage">
     <div class="placeholder" id="placeholder">
       <div class="big">🖼</div>
-      <div>把图片拖到这里，或点击「打开图片」</div>
+      <div data-i18n="placeholder">Drop image here or click Open Image</div>
     </div>
     <div class="wrap" id="wrap">
       <canvas id="cv"></canvas>
@@ -140,7 +142,7 @@ body{font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Mi
   </div>
 
   <div class="status">
-    <span id="stOrig">未打开图片</span>
+    <span id="stOrig"></span>
     <span id="stCur"></span>
     <span id="stZoom"></span>
     <span class="sel-info" id="stSel"></span>
@@ -151,62 +153,60 @@ body{font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Mi
 </div>
 
 <div class="floating-panel" id="deleteColorPanel" style="display:none">
-  <h3>删除颜色</h3>
-  <div class="hint-text">请在<b>画布</b>上点击要删除的颜色</div>
+  <h3 data-i18n="dc.title">Delete Color</h3>
+  <div class="hint-text"><span data-i18n="dc.hint">Click on canvas to pick a color to delete</span></div>
   <div class="dc-color-row">
     <div class="dc-swatch" id="dcColorSwatch"></div>
-    <div class="dc-hex" id="dcColorHex">— 未选择 —</div>
+    <div class="dc-hex" id="dcColorHex">—</div>
   </div>
   <div class="slider-row">
-    <span>相似阈值</span>
+    <span data-i18n="dc.threshold">Similarity</span>
     <input type="range" id="dcThreshold" min="0" max="255" value="0">
     <span class="val" id="dcThresholdLabel">0</span>
   </div>
-  <div style="color:#888;font-size:11px;line-height:1.5">0 = 精确匹配；越大，越多相近色被包含。</div>
-  <div class="dc-count-line">将删除 <b id="dcCount">0</b> 个像素</div>
+  <div style="color:#888;font-size:11px;line-height:1.5" data-i18n="dc.thresholdHint">0 = exact match; larger includes more similar colors.</div>
+  <div class="dc-count-line"><span data-i18n="dc.willDelete">Will delete</span> <b id="dcCount">0</b> <span data-i18n="dc.pixels">pixels</span></div>
   <div class="dc-actions">
-    <button id="dcCancel">取消</button>
-    <button id="dcApply" class="apply" disabled>应用删除</button>
+    <button id="dcCancel" data-i18n="common.cancel">Cancel</button>
+    <button id="dcApply" class="apply" disabled data-i18n="dc.apply">Apply</button>
   </div>
 </div>
 
 <div class="floating-panel" id="mergePanel" style="display:none">
-  <h3>合并相似颜色</h3>
-  <div class="hint-text">相近的颜色会被合并为一种，用于减少颜色数</div>
+  <h3 data-i18n="merge.title">Merge Similar Colors</h3>
+  <div class="hint-text" data-i18n="merge.hint">Similar colors merge into one to reduce color count</div>
   <div class="slider-row">
-    <span>相似阈值</span>
+    <span data-i18n="merge.threshold">Similarity</span>
     <input type="range" id="mergeThreshold" min="1" max="100" value="10">
     <span class="val" id="mergeThresholdLabel">10</span>
   </div>
-  <div style="color:#888;font-size:11px;line-height:1.5">
-    阈值为颜色距离。越大合并越多，但可能损失细节。
+  <div style="color:#888;font-size:11px;line-height:1.5" data-i18n="merge.thresholdHint">
+    Threshold is color distance. Larger merges more but may lose detail.
   </div>
-  <div class="dc-count-line">
-    <b id="mergeBefore">0</b> 种颜色 → 约 <b id="mergeAfter">0</b> 种
-  </div>
+  <div class="dc-count-line" id="mergeCountLine"></div>
   <div class="dc-actions">
-    <button id="mergeCancel">取消</button>
-    <button id="mergeApply" class="apply">应用合并</button>
+    <button id="mergeCancel" data-i18n="common.cancel">Cancel</button>
+    <button id="mergeApply" class="apply" data-i18n="merge.apply">Apply Merge</button>
   </div>
 </div>
 
 <div class="floating-panel" id="splitPanel" style="display:none">
-  <h3>拆分导出</h3>
-  <div class="hint-text">将当前图片按行列拆分成多个小图片并导出</div>
+  <h3 data-i18n="split.title">Split Export</h3>
+  <div class="hint-text" data-i18n="split.hint">Split current image into tiles by rows/cols and export</div>
   <div class="slider-row">
-    <span>列数</span>
+    <span data-i18n="split.cols">Cols</span>
     <input type="number" id="splitCols" min="1" max="100" value="1">
   </div>
   <div class="slider-row">
-    <span>行数</span>
+    <span data-i18n="split.rows">Rows</span>
     <input type="number" id="splitRows" min="1" max="100" value="1">
   </div>
-  <div class="dc-count-line" id="splitInfo">
-    每块尺寸: <b id="splitPieceSize">0 x 0</b>
+  <div class="dc-count-line">
+    <span data-i18n="split.tileSize">Tile size:</span> <b id="splitPieceSize">0 x 0</b>
   </div>
   <div class="dc-actions">
-    <button id="splitCancel">取消</button>
-    <button id="splitApply" class="apply">选择目录并导出</button>
+    <button id="splitCancel" data-i18n="common.cancel">Cancel</button>
+    <button id="splitApply" class="apply" data-i18n="split.apply">Choose Folder & Export</button>
   </div>
 </div>
 
@@ -214,11 +214,11 @@ body{font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Mi
 
 <div class="modal-back" id="colorModal" style="display:none">
   <div class="modal">
-    <h2>颜色统计</h2>
-    <div class="info-line">共 <b id="colorTotal">0</b> 种颜色</div>
+    <h2 data-i18n="modal.title">Color Stats</h2>
+    <div class="info-line" id="colorTotalLine"></div>
     <div class="color-list" id="colorList"></div>
     <div class="actions">
-      <button id="colorModalCancel">关闭</button>
+      <button id="colorModalCancel" data-i18n="common.close">Close</button>
     </div>
   </div>
 </div>
@@ -231,7 +231,10 @@ body{font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Mi
   var MIN_ZOOM = 0.02;
   var MAX_ZOOM = 64;
   var MAX_HISTORY = 24;
-  var BG_NAMES = ['白底', '灰底', '黑底', '格子'];
+  var BG_NAMES = {
+    zh: ['白底','灰底','黑底','格子'],
+    en: ['White','Gray','Black','Checker']
+  };
   var BG_COLORS = ['#ffffff', '#808080', '#000000', null];
 
   var src32 = null, srcW = 0, srcH = 0;
@@ -253,12 +256,79 @@ body{font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Mi
 
   var stage, wrap, cv, ctx, selCv, selCtx, placeholder, fileInput;
   var inW, inH, lockRatio, stOrig, stCur, stZoom, stSel, stHist, stMsg;
+  var langBtn;
+
+  var currentLang = 'en';
 
   function $(id){ return document.getElementById(id); }
   function clamp(v,a,b){ return v<a?a:(v>b?b:v); }
+  function tr(zh, en){ return currentLang === 'zh' ? zh : en; }
   function setMsg(t,ac){ if(!stMsg) return; stMsg.textContent=t||''; clearTimeout(msgTimer); if(t&&ac) msgTimer=setTimeout(function(){ stMsg.textContent=''; },ac); }
   function fmtZoom(z){ var p=z*100; if(p>=100) return p.toFixed(0)+'%'; if(p>=10) return p.toFixed(1)+'%'; return p.toFixed(2)+'%'; }
   function rgbToHex(r,g,b){ return '#'+r.toString(16).padStart(2,'0')+g.toString(16).padStart(2,'0')+b.toString(16).padStart(2,'0'); }
+
+  /* ---------- i18n ---------- */
+  var I18N = {
+    'btn.open':      {zh:'打开图片',   en:'Open Image'},
+    'btn.save':      {zh:'保存 PNG',   en:'Save PNG'},
+    'btn.saveAs':    {zh:'另存为…',    en:'Save As…'},
+    'btn.close':     {zh:'关闭',       en:'Close'},
+    'btn.undo':      {zh:'撤销',       en:'Undo'},
+    'btn.redo':      {zh:'重做',       en:'Redo'},
+    'btn.reset':     {zh:'原始尺寸',   en:'Original Size'},
+    'btn.fit':       {zh:'适应窗口',   en:'Fit to Window'},
+    'label.w':       {zh:'宽',         en:'W'},
+    'label.h':       {zh:'高',         en:'H'},
+    'label.lock':    {zh:'锁定比例',   en:'Lock Ratio'},
+    'btn.select':    {zh:'选择',       en:'Select'},
+    'btn.selectAll': {zh:'全选',       en:'Select All'},
+    'btn.selectNone':{zh:'取消选择',   en:'Deselect'},
+    'btn.selectInv': {zh:'反选',       en:'Invert'},
+    'btn.copy':      {zh:'复制',       en:'Copy'},
+    'btn.delSel':    {zh:'删除选区',   en:'Delete Selection'},
+    'btn.clean':     {zh:'清理像素',   en:'Clean Pixels'},
+    'btn.colors':    {zh:'颜色统计…',  en:'Color Stats…'},
+    'btn.merge':     {zh:'合并相似色…',en:'Merge Similar…'},
+    'btn.delColor':  {zh:'删除颜色…',  en:'Delete Color…'},
+    'btn.split':     {zh:'拆分导出…',  en:'Split Export…'},
+    'hint.toolbar':  {zh:'滚轮缩放 · 拖空白平移 · Shift=正方形 · Ctrl=加选 · Alt=减选',
+                      en:'Wheel zoom · Drag empty to pan · Shift=Square · Ctrl=Add · Alt=Subtract'},
+    'placeholder':   {zh:'把图片拖到这里，或点击「打开图片」',
+                      en:'Drop image here or click Open Image'},
+    'dc.title':      {zh:'删除颜色',   en:'Delete Color'},
+    'dc.hint':       {zh:'请在画布上点击要删除的颜色', en:'Click on canvas to pick a color to delete'},
+    'dc.threshold':  {zh:'相似阈值',   en:'Similarity'},
+    'dc.thresholdHint':{zh:'0 = 精确匹配；越大，越多相近色被包含。',
+                        en:'0 = exact match; larger includes more similar colors.'},
+    'dc.willDelete': {zh:'将删除',     en:'Will delete'},
+    'dc.pixels':     {zh:'个像素',     en:'pixels'},
+    'dc.apply':      {zh:'应用删除',   en:'Apply'},
+    'merge.title':   {zh:'合并相似颜色', en:'Merge Similar Colors'},
+    'merge.hint':    {zh:'相近的颜色会被合并为一种，用于减少颜色数',
+                      en:'Similar colors merge into one to reduce color count'},
+    'merge.threshold':{zh:'相似阈值',  en:'Similarity'},
+    'merge.thresholdHint':{zh:'阈值为颜色距离。越大合并越多，但可能损失细节。',
+                           en:'Threshold is color distance. Larger merges more but may lose detail.'},
+    'merge.apply':   {zh:'应用合并',   en:'Apply Merge'},
+    'split.title':   {zh:'拆分导出',   en:'Split Export'},
+    'split.hint':    {zh:'将当前图片按行列拆分成多个小图片并导出',
+                      en:'Split current image into tiles by rows/cols and export'},
+    'split.cols':    {zh:'列数',       en:'Cols'},
+    'split.rows':    {zh:'行数',       en:'Rows'},
+    'split.tileSize':{zh:'每块尺寸:',  en:'Tile size:'},
+    'split.apply':   {zh:'选择目录并导出', en:'Choose Folder & Export'},
+    'modal.title':   {zh:'颜色统计',   en:'Color Stats'},
+    'common.cancel': {zh:'取消',       en:'Cancel'},
+    'common.close':  {zh:'关闭',       en:'Close'},
+    'common.notSelected':{zh:'— 未选择 —', en:'— Not selected —'}
+  };
+
+  function t(key){
+    var e = I18N[key];
+    if(!e) return '';
+    var v = e[currentLang];
+    return v === undefined ? e.zh : v;
+  }
 
   var ALL_BTN = ['btnSave','btnSaveAs','btnClose','btnReset','btnFit','btnOne','inW','inH','btnHalf','btnQuart','btnEighth','btnDouble','btnSelect','btnSelectAll','btnSelectNone','btnSelectInv','btnClean','btnColors','btnMergeSimilar','btnDeleteColor','btnSplitExport','btnBg'];
   function setEnabled(on){
@@ -289,7 +359,11 @@ body{font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Mi
     if(!stHist) return;
     $('btnUndo').disabled=!hasImage||histIndex<=0;
     $('btnRedo').disabled=!hasImage||histIndex>=history.length-1;
-    stHist.textContent=hasImage?('历史 '+histIndex+'/'+(history.length-1)+' 步'):'';
+    stHist.textContent = hasImage
+      ? (currentLang==='zh'
+          ? '历史 '+histIndex+'/'+(history.length-1)+' 步'
+          : 'History '+histIndex+'/'+(history.length-1))
+      : '';
   }
   function applyHistoryEntry(e){
     targetW=e.w; targetH=e.h; src32=e.src32; srcW=e.srcW; srcH=e.srcH;
@@ -301,14 +375,14 @@ body{font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Mi
     syncInputs(); forceReapply(); updateHistoryUI(); updateSelectUI();
   }
   function undo(){
-    if(drag || selDrag){ setMsg('请先松开鼠标再撤销',1600); return; }
+    if(drag || selDrag){ setMsg(tr('请先松开鼠标再撤销','Release mouse to undo'),1600); return; }
     if(!hasImage||histIndex<=0) return;
-    histIndex--; applyHistoryEntry(history[histIndex]); setMsg('撤销',1200);
+    histIndex--; applyHistoryEntry(history[histIndex]); setMsg(tr('撤销','Undo'),1200);
   }
   function redo(){
-    if(drag || selDrag){ setMsg('请先松开鼠标再重做',1600); return; }
+    if(drag || selDrag){ setMsg(tr('请先松开鼠标再重做','Release mouse to redo'),1600); return; }
     if(!hasImage||histIndex>=history.length-1) return;
-    histIndex++; applyHistoryEntry(history[histIndex]); setMsg('重做',1200);
+    histIndex++; applyHistoryEntry(history[histIndex]); setMsg(tr('重做','Redo'),1200);
   }
 
   function render(){
@@ -329,10 +403,14 @@ body{font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Mi
     updateStatus(); renderSelectionOverlay();
   }
   function updateStatus(){
-    if(!hasImage){ stOrig.textContent='未打开图片'; stCur.textContent=''; stZoom.textContent=''; stSel.textContent=''; return; }
-    stOrig.textContent='原始 '+srcW+' × '+srcH;
-    stCur.textContent='当前 '+targetW+' × '+targetH;
-    stZoom.textContent='视图 '+fmtZoom(zoom);
+    if(!hasImage){
+      stOrig.textContent = tr('未打开图片','No image');
+      stCur.textContent=''; stZoom.textContent=''; stSel.textContent='';
+      return;
+    }
+    stOrig.textContent = tr('原始 ','Original ')+srcW+' × '+srcH;
+    stCur.textContent  = tr('当前 ','Current ') +targetW+' × '+targetH;
+    stZoom.textContent = tr('视图 ','Zoom ')    +fmtZoom(zoom);
   }
   function updateSelectUI(){
     if(!hasImage){ if(stSel) stSel.textContent=''; return; }
@@ -340,9 +418,9 @@ body{font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Mi
     if($('btnCopy')) $('btnCopy').disabled=!hasSelection;
     if($('btnDeleteSel')) $('btnDeleteSel').disabled=!hasSelection;
     if($('btnSelectNone')) $('btnSelectNone').disabled=!hasSelection;
-    if(deleteColorMode.active) stSel.textContent='删除颜色模式';
-    else if(hasSelection) stSel.textContent='选区 '+selBounds.w+' × '+selBounds.h;
-    else if(selectionMode) stSel.textContent='选择模式（拖拽框选 · Shift=正方 · Ctrl=加选 · Alt=减选）';
+    if(deleteColorMode.active) stSel.textContent = tr('删除颜色模式','Delete color mode');
+    else if(hasSelection) stSel.textContent = tr('选区 ','Selection ')+selBounds.w+' × '+selBounds.h;
+    else if(selectionMode) stSel.textContent = tr('选择模式（拖拽框选 · Shift=正方 · Ctrl=加选 · Alt=减选）','Select mode (drag to select · Shift=Square · Ctrl=Add · Alt=Subtract)');
     else stSel.textContent='';
   }
   function syncInputs(){ if(!hasImage){ inW.value=''; inH.value=''; return; } inW.value=targetW; inH.value=targetH; }
@@ -359,7 +437,7 @@ body{font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Mi
     cv.width=targetW; cv.height=targetH; ctx.imageSmoothingEnabled=false;
     if(!cacheImgData||cacheW!==targetW||cacheH!==targetH){
       try{ cacheImgData=ctx.createImageData(targetW,targetH); cacheW=targetW; cacheH=targetH; }
-      catch(err){ setMsg('尺寸太大'); return; }
+      catch(err){ setMsg(tr('尺寸太大','Too large')); return; }
     }
     var dst32=new Uint32Array(cacheImgData.data.buffer);
     var xmap=new Int32Array(targetW);
@@ -394,13 +472,13 @@ body{font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Mi
       if(mode==='sub') selMask[row+x]=0; else selMask[row+x]=1;
     }}
   }
-  function selectAll(){ if(!hasImage) return; if(!selMask) resetSelMask(); selMask.fill(1); recalcBounds(); updateSelectUI(); renderSelectionOverlay(); pushHistory(); setMsg('全选',1200); }
-  function deselectAll(noH){ if(!hasImage) return; var had=hasSelection; clearSelection(true); if(!noH&&had) pushHistory(); if(!noH) setMsg('取消选择',1200); }
+  function selectAll(){ if(!hasImage) return; if(!selMask) resetSelMask(); selMask.fill(1); recalcBounds(); updateSelectUI(); renderSelectionOverlay(); pushHistory(); setMsg(tr('全选','Select All'),1200); }
+  function deselectAll(noH){ if(!hasImage) return; var had=hasSelection; clearSelection(true); if(!noH&&had) pushHistory(); if(!noH) setMsg(tr('取消选择','Deselect'),1200); }
   function invertSelection(){
     if(!hasImage) return; if(!selMask) resetSelMask();
     for(var i=0;i<selMask.length;i++) selMask[i]=selMask[i]?0:1;
     recalcBounds(); updateSelectUI(); renderSelectionOverlay(); pushHistory();
-    setMsg(hasSelection?'反选':'反选后为空',1200);
+    setMsg(hasSelection?tr('反选','Inverted'):tr('反选后为空','Empty after invert'),1200);
   }
   function stagePointFromEvent(e){
     var r=stage.getBoundingClientRect();
@@ -422,9 +500,9 @@ body{font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Mi
     renderSelectionOverlay();
     var r=normalizedDragRect();
     if(r){
-      var mn=selDrag.mode==='add'?'（加选）':selDrag.mode==='sub'?'（减选）':'';
-      var sq=selDrag.square?' (1:1)':'';
-      stSel.textContent='选区 '+r.w+' × '+r.h+' px'+sq+mn;
+      var mn=selDrag.mode==='add'?tr('（加选）',' (add)'):selDrag.mode==='sub'?tr('（减选）',' (sub)'):'';
+      var sq=selDrag.square?tr(' (1:1)',' (1:1)'):'';
+      stSel.textContent=tr('选区 ','Selection ')+r.w+' × '+r.h+' px'+sq+mn;
     }
   }
   function normalizedDragRect(){
@@ -453,8 +531,14 @@ body{font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Mi
     }
     applyRectToSelMask(r.x,r.y,r.x1,r.y1,mode);
     recalcBounds(); updateSelectUI(); renderSelectionOverlay(); pushHistory();
-    if(hasSelection){ var mn=mode==='add'?'（加选）':mode==='sub'?'（减选）':''; setMsg('选区 '+selBounds.w+' × '+selBounds.h+mn,1400); }
-    else setMsg('选区为空',1200);
+    if(hasSelection){
+      var mn = mode==='add' ? tr('（加选）',' (add)')
+             : mode==='sub' ? tr('（减选）',' (sub)')
+             : '';
+      setMsg(tr('选区 ','Selection ')+selBounds.w+' × '+selBounds.h+mn,1400);
+    } else {
+      setMsg(tr('选区为空','Empty selection'),1200);
+    }
   }
   function paintMarchingAnts(g,mask,W,H,bounds,ox,oy,z,offset){
     g.beginPath();
@@ -584,11 +668,11 @@ body{font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Mi
     deleteColorMode.targetPacked=0; deleteColorMode.targetR=0; deleteColorMode.targetG=0; deleteColorMode.targetB=0;
     deleteColorMode.threshold=0; deleteColorMode.matchedMask=null; deleteColorMode.matchedCount=0;
     $('dcThreshold').value=0; $('dcThresholdLabel').textContent='0';
-    $('dcColorHex').textContent='— 未选择 —'; $('dcColorSwatch').style.background='#222';
+    $('dcColorHex').textContent=t('common.notSelected'); $('dcColorSwatch').style.background='#222';
     $('dcCount').textContent='0'; $('dcApply').disabled=true;
     $('deleteColorPanel').style.display='';
     stage.classList.add('picking'); updateSelectUI();
-    setMsg('请在画布上点击要删除的颜色',3000);
+    setMsg(tr('请在画布上点击要删除的颜色','Click on canvas to pick a color'),3000);
     renderSelectionOverlay();
   }
   function closeDeleteColorPanel(){
@@ -614,10 +698,10 @@ body{font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Mi
     }
     var th=deleteColorMode.threshold;
     closeDeleteColorPanel(); forceReapply(); pushHistory();
-    setMsg('已删除 '+count+' 个像素（阈值 '+th+'）',2400);
+    setMsg(tr('已删除 '+count+' 个像素（阈值 '+th+'）','Deleted '+count+' pixels (threshold '+th+')'),2400);
   }
   function doCopy(){
-    if(!hasImage||!hasSelection){ setMsg('没有选区',1500); return; }
+    if(!hasImage||!hasSelection){ setMsg(tr('没有选区','No selection'),1500); return; }
     var b=selBounds, tmp=document.createElement('canvas');
     tmp.width=b.w; tmp.height=b.h;
     var tctx=tmp.getContext('2d'); tctx.imageSmoothingEnabled=false;
@@ -632,12 +716,12 @@ body{font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Mi
       tctx.putImageData(imgData,0,0);
     }
     tmp.toBlob(function(blob){
-      if(!blob){ setMsg('导出失败',2000); return; }
+      if(!blob){ setMsg(tr('导出失败','Export failed'),2000); return; }
       if(navigator.clipboard&&navigator.clipboard.write&&typeof ClipboardItem!=='undefined'){
         navigator.clipboard.write([new ClipboardItem({'image/png':blob})])
-          .then(function(){ setMsg('已复制 '+b.w+'×'+b.h,2200); })
-          .catch(function(){ downloadBlob(blob,'copy_'+b.w+'x'+b.h+'.png'); setMsg('已下载',2600); });
-      } else { downloadBlob(blob,'copy_'+b.w+'x'+b.h+'.png'); setMsg('已下载 '+b.w+'×'+b.h,2600); }
+          .then(function(){ setMsg(tr('已复制 '+b.w+'×'+b.h,'Copied '+b.w+'×'+b.h),2200); })
+          .catch(function(){ downloadBlob(blob,'copy_'+b.w+'x'+b.h+'.png'); setMsg(tr('已下载','Downloaded'),2600); });
+      } else { downloadBlob(blob,'copy_'+b.w+'x'+b.h+'.png'); setMsg(tr('已下载 '+b.w+'×'+b.h,'Downloaded '+b.w+'×'+b.h),2600); }
     },'image/png');
   }
   function deleteSelectionAsTransparent(){
@@ -654,11 +738,11 @@ body{font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Mi
       }
     }
     forceReapply(); pushHistory();
-    setMsg('已删除 '+count+' 个像素',1800);
+    setMsg(tr('已删除 '+count+' 个像素','Deleted '+count+' pixels'),1800);
   }
   function cleanPixels(){
     if(!hasImage) return;
-    setMsg('正在清理…');
+    setMsg(tr('正在清理…','Cleaning…'));
     setTimeout(function(){
       markSrcModified();
       var W=srcW,H=srcH,total=W*H,d=src32,cleared=0;
@@ -689,7 +773,8 @@ body{font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Mi
         if(changed===0) break;
       }
       forceReapply(); pushHistory();
-      setMsg('清理完成：透明 '+cleared+' 个，去杂 '+replaced+' 个',2400);
+      setMsg(tr('清理完成：透明 '+cleared+' 个，去杂 '+replaced+' 个',
+                'Clean done: '+cleared+' transparent, '+replaced+' noise'),2400);
     },20);
   }
 
@@ -709,10 +794,13 @@ body{font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Mi
   }
   function openColorModal(){
     if(!hasImage) return;
-    setMsg('正在统计…');
+    setMsg(tr('正在统计…','Counting…'));
     setTimeout(function(){
       var stats=analyzeColors();
-      $('colorTotal').textContent=stats.arr.length;
+      var line = $('colorTotalLine');
+      line.innerHTML = currentLang === 'zh'
+        ? '共 <b>'+stats.arr.length+'</b> 种颜色'
+        : '<b>'+stats.arr.length+'</b> colors total';
       var list=$('colorList'); list.innerHTML='';
       for(var i=0;i<stats.arr.length;i++){
         var c=stats.arr[i];
@@ -722,7 +810,7 @@ body{font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Mi
         cell.dataset.hex=rgbToHex(c.r,c.g,c.b);
         (function(color){
           cell.addEventListener('click',function(){
-            setMsg('主色已设为 '+rgbToHex(color.r,color.g,color.b),1500);
+            setMsg(tr('主色已设为 ','Primary set to ')+rgbToHex(color.r,color.g,color.b),1500);
           });
         })(c);
         list.appendChild(cell);
@@ -762,13 +850,16 @@ body{font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Mi
   }
   function updateMergePreview(){
     var plan=computeMergePlan();
-    $('mergeBefore').textContent=plan.before;
-    $('mergeAfter').textContent=plan.after;
+    var el=$('mergeCountLine');
+    if(!el) return;
+    el.innerHTML = currentLang === 'zh'
+      ? '<b>'+plan.before+'</b> 种颜色 → 约 <b>'+plan.after+'</b> 种'
+      : '<b>'+plan.before+'</b> colors → ~<b>'+plan.after+'</b>';
   }
   function applyMergeColors(){
     if(!hasImage) return;
     var plan=computeMergePlan();
-    if(plan.map.size===0){ setMsg('当前没有可合并的颜色'); return; }
+    if(plan.map.size===0){ setMsg(tr('当前没有可合并的颜色','No mergeable colors')); return; }
     markSrcModified();
     var changed=0;
     for(var m=0;m<src32.length;m++){
@@ -776,10 +867,11 @@ body{font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Mi
     }
     forceReapply(); pushHistory();
     closeMergePanel();
-    setMsg('已合并 '+changed+' 个像素 → '+plan.after+' 种颜色', 2400);
+    setMsg(tr('已合并 '+changed+' 个像素 → '+plan.after+' 种颜色',
+              'Merged '+changed+' px → '+plan.after+' colors'), 2400);
   }
 
-  /* --- 拆分导出功能 --- */
+  /* ---------- 拆分导出 ---------- */
   var splitPanel, splitCols, splitRows, splitPieceSize, splitApply;
 
   function openSplitPanel() {
@@ -790,39 +882,31 @@ body{font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Mi
     splitPanel.style.display = '';
     $('btnSplitExport').classList.add('on');
   }
-
   function closeSplitPanel() {
     splitPanel.style.display = 'none';
     $('btnSplitExport').classList.remove('on');
   }
-
   function updateSplitPreview() {
     var cols = parseInt(splitCols.value, 10) || 1;
     var rows = parseInt(splitRows.value, 10) || 1;
     var pw = Math.floor(targetW / cols);
     var ph = Math.floor(targetH / rows);
-    splitPieceSize.textContent = pw + ' x ' + ph + ' px';
     if (pw <= 0 || ph <= 0) {
-      splitPieceSize.textContent = '尺寸过小，无法拆分';
+      splitPieceSize.textContent = tr('尺寸过小，无法拆分','Size too small');
       splitPieceSize.style.color = '#ff8b8b';
     } else {
+      splitPieceSize.textContent = pw + ' x ' + ph + ' px';
       splitPieceSize.style.color = '#6fb0ff';
     }
   }
-
   async function executeSplitExport() {
     var cols = parseInt(splitCols.value, 10) || 1;
     var rows = parseInt(splitRows.value, 10) || 1;
     var pw = Math.floor(targetW / cols);
     var ph = Math.floor(targetH / rows);
-
-    if (pw <= 0 || ph <= 0) {
-      setMsg('拆分尺寸过小，无法导出', 2000);
-      return;
-    }
-
+    if (pw <= 0 || ph <= 0) { setMsg(tr('拆分尺寸过小，无法导出','Split size too small'), 2000); return; }
     closeSplitPanel();
-    setMsg('正在拆分导出…');
+    setMsg(tr('正在拆分导出…','Splitting…'));
 
     var srcCanvas = document.createElement('canvas');
     srcCanvas.width = targetW;
@@ -833,25 +917,18 @@ body{font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Mi
 
     var total = rows * cols;
     var index = 0;
-
     var useDirPicker = (typeof window.showDirectoryPicker === 'function');
     var dirHandle = null;
-
     if (useDirPicker) {
-      try {
-        dirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
-      } catch (err) {
-        if (err.name === 'AbortError') {
-          setMsg('已取消导出');
-          return;
-        }
-        console.warn('目录选择器不可用，回退到下载模式:', err);
+      try { dirHandle = await window.showDirectoryPicker({ mode: 'readwrite' }); }
+      catch (err) {
+        if (err.name === 'AbortError') { setMsg(tr('已取消导出','Export cancelled')); return; }
         useDirPicker = false;
       }
     }
-
     if (!useDirPicker) {
-      setMsg('提示：将依次触发下载，请允许浏览器下载多个文件', 4000);
+      setMsg(tr('提示：将依次触发下载，请允许浏览器下载多个文件',
+                'Will trigger multiple downloads, please allow'), 4000);
     }
 
     for (var r = 0; r < rows; r++) {
@@ -862,60 +939,44 @@ body{font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Mi
         var pCtx = pieceCanvas.getContext('2d');
         pCtx.imageSmoothingEnabled = false;
         pCtx.drawImage(srcCanvas, c * pw, r * ph, pw, ph, 0, 0, pw, ph);
-
         var filename = baseName + '_r' + (r + 1) + '_c' + (c + 1) + '.png';
-
         if (dirHandle) {
           try {
-            var fileHandle = await dirHandle.getFileHandle(filename, { create: true });
-            var writable = await fileHandle.createWritable();
+            var fh = await dirHandle.getFileHandle(filename, { create: true });
+            var writable = await fh.createWritable();
             await new Promise(function(resolve, reject) {
               pieceCanvas.toBlob(async function(blob) {
-                if (!blob) { reject(new Error('导出失败')); return; }
-                try {
-                  await writable.write(blob);
-                  await writable.close();
-                  resolve();
-                } catch (e) { reject(e); }
+                if (!blob) { reject(new Error('blob failed')); return; }
+                try { await writable.write(blob); await writable.close(); resolve(); }
+                catch (e) { reject(e); }
               }, 'image/png');
             });
-          } catch (err) {
-            console.error('写入文件失败:', err);
-            setMsg('写入文件失败: ' + err.message, 3000);
-            break;
-          }
+          } catch (err) { setMsg(tr('写入文件失败: ','Write failed: ')+err.message, 3000); break; }
         } else {
           await new Promise(function(resolve) {
-            pieceCanvas.toBlob(function(blob) {
-              if (blob) {
-                downloadBlob(blob, filename);
-              }
-              resolve();
-            }, 'image/png');
+            pieceCanvas.toBlob(function(blob) { if (blob) downloadBlob(blob, filename); resolve(); }, 'image/png');
           });
           await new Promise(function(resolve) { setTimeout(resolve, 150); });
         }
         index++;
-        setMsg('正在导出 ' + index + ' / ' + total + ' …');
+        setMsg(tr('正在导出 ','Exporting ')+index+' / '+total+' …');
       }
     }
-
-    if (dirHandle) {
-      setMsg('已成功导出 ' + total + ' 个文件到所选文件夹', 3000);
-    } else {
-      setMsg('已触发下载 ' + total + ' 个文件（请检查浏览器下载）', 3000);
-    }
+    if (dirHandle) setMsg(tr('已成功导出 '+total+' 个文件到所选文件夹',
+                              'Exported '+total+' files to folder'), 3000);
+    else setMsg(tr('已触发下载 '+total+' 个文件（请检查浏览器下载）',
+                   'Triggered '+total+' downloads (check browser)'), 3000);
   }
 
   function loadImage(file){
-    if(!file||!/^image\//.test(file.type)){ setMsg('请选择图片文件',2000); return; }
-    setMsg('正在载入…');
+    if(!file||!/^image\//.test(file.type)){ setMsg(tr('请选择图片文件','Please select an image'),2000); return; }
+    setMsg(tr('正在载入…','Loading…'));
     var url=URL.createObjectURL(file);
     var im=new Image();
     im.onload=function(){
       URL.revokeObjectURL(url);
       var w=im.naturalWidth, h=im.naturalHeight;
-      if(!w||!h){ setMsg('图片尺寸无效',2000); return; }
+      if(!w||!h){ setMsg(tr('图片尺寸无效','Invalid image size'),2000); return; }
       var c=document.createElement('canvas');
       c.width=w; c.height=h;
       var cx=c.getContext('2d'); cx.imageSmoothingEnabled=false; cx.drawImage(im,0,0);
@@ -934,7 +995,7 @@ body{font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Mi
       cacheImgData=null; cacheW=0; cacheH=0;
       syncInputs(); resetHistory(); fitView(); updateSelectUI(); setMsg('');
     };
-    im.onerror=function(){ URL.revokeObjectURL(url); setMsg('图片解析失败',2500); };
+    im.onerror=function(){ URL.revokeObjectURL(url); setMsg(tr('图片解析失败','Image parse failed'),2500); };
     im.src=url;
   }
   function closeImage(){
@@ -954,7 +1015,7 @@ body{font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Mi
   function canvasToBlob(){
     return new Promise(function(resolve,reject){
       if(cv.width!==targetW||cv.height!==targetH) applyResize(true);
-      cv.toBlob(function(b){ if(b) resolve(b); else reject(new Error('导出失败')); },'image/png');
+      cv.toBlob(function(b){ if(b) resolve(b); else reject(new Error('export failed')); },'image/png');
     });
   }
   function downloadBlob(blob,name){
@@ -967,7 +1028,7 @@ body{font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Mi
     var opts={mode:'readwrite'};
     if(handle.queryPermission){ var p=await handle.queryPermission(opts);
       if(p!=='granted'&&handle.requestPermission) p=await handle.requestPermission(opts);
-      if(p!=='granted') throw new Error('没有写入权限');
+      if(p!=='granted') throw new Error('no permission');
     }
     var stream=await handle.createWritable();
     await stream.write(blob); await stream.close();
@@ -979,40 +1040,44 @@ body{font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Mi
       try{
         var perm=fileHandle.queryPermission?await fileHandle.queryPermission({mode:'readwrite'}):'granted';
         if(perm!=='granted'&&fileHandle.requestPermission) perm=await fileHandle.requestPermission({mode:'readwrite'});
-        if(perm==='granted'){ var blob=await canvasToBlob(); await writeToHandle(fileHandle,blob); setMsg('已保存到 '+fileHandle.name,2500); return; }
-        setMsg('文件权限失效，请另存为',3000); return;
-      } catch(err){ setMsg('保存失败：'+(err.message||err),3000); return; }
+        if(perm==='granted'){ var blob=await canvasToBlob(); await writeToHandle(fileHandle,blob); setMsg(tr('已保存到 ','Saved to ')+fileHandle.name,2500); return; }
+        setMsg(tr('文件权限失效，请另存为','Permission lost, use Save As'),3000); return;
+      } catch(err){ setMsg(tr('保存失败：','Save failed: ')+(err.message||err),3000); return; }
     }
-    try{ var b2=await canvasToBlob(); var name=defaultFileName(); downloadBlob(b2,name); setMsg('已下载 '+name,2500); }
-    catch(err){ setMsg('保存失败：'+(err.message||err),3000); }
+    try{ var b2=await canvasToBlob(); var name=defaultFileName(); downloadBlob(b2,name); setMsg(tr('已下载 ','Downloaded ')+name,2500); }
+    catch(err){ setMsg(tr('保存失败：','Save failed: ')+(err.message||err),3000); }
   }
   async function doSaveAs(){
     if(!hasImage) return;
     var suggested=defaultFileName(), handle=null;
     if(supportsFS){
-      try{ handle=await window.showSaveFilePicker({suggestedName:suggested,types:[{description:'PNG 图片',accept:{'image/png':['.png']}}]}); }
+      try{ handle=await window.showSaveFilePicker({suggestedName:suggested,types:[{description:'PNG',accept:{'image/png':['.png']}}]}); }
       catch(err){ if(err&&err.name==='AbortError') return; handle=null; }
     }
     try{
       var blob=await canvasToBlob();
       if(handle){ await writeToHandle(handle,blob); fileHandle=handle;
         var n=handle.name.replace(/\.[^.]+$/,''); if(n) baseName=n;
-        setMsg('已另存为 '+handle.name,2500);
-      } else { downloadBlob(blob,suggested); setMsg('已下载 '+suggested,2500); }
-    } catch(err){ if(err&&err.name==='AbortError') return; setMsg('另存失败：'+(err.message||err),3000); }
+        setMsg(tr('已另存为 ','Saved as ')+handle.name,2500);
+      } else { downloadBlob(blob,suggested); setMsg(tr('已下载 ','Downloaded ')+suggested,2500); }
+    } catch(err){ if(err&&err.name==='AbortError') return; setMsg(tr('另存失败：','Save failed: ')+(err.message||err),3000); }
   }
   function commitSize(w,h,record){
     if(!hasImage) return;
     w=clamp(Math.round(w)||1,1,MAX_SIZE); h=clamp(Math.round(h)||1,1,MAX_SIZE);
-    if(w*h>MAX_PIXELS){ setMsg('尺寸超出上限',2000); syncInputs(); return; }
+    if(w*h>MAX_PIXELS){ setMsg(tr('尺寸超出上限','Size out of range'),2000); syncInputs(); return; }
     var cx=panX+targetW*zoom/2, cy=panY+targetH*zoom/2;
     targetW=w; targetH=h;
     panX=Math.round(cx-w*zoom/2); panY=Math.round(cy-h*zoom/2);
     resetSelMask(); syncInputs(); applyResize(true); render(); updateSelectUI();
     if(record!==false) pushHistory();
   }
-  function scaleBy(f){ if(!hasImage) return; commitSize(Math.max(1,Math.round(targetW*f)),Math.max(1,Math.round(targetH*f)),true); setMsg('缩放到 '+targetW+' × '+targetH,1200); }
-  function cycleBackground(){ bgMode=(bgMode+1)%4; $('btnBg').textContent=BG_NAMES[bgMode]; render(); }
+  function scaleBy(f){ if(!hasImage) return; commitSize(Math.max(1,Math.round(targetW*f)),Math.max(1,Math.round(targetH*f)),true); setMsg(tr('缩放到 ','Scaled to ')+targetW+' × '+targetH,1200); }
+  function cycleBackground(){ bgMode=(bgMode+1)%4; updateBgButton(); render(); }
+  function updateBgButton(){
+    var btn=$('btnBg');
+    if(btn) btn.textContent = BG_NAMES[currentLang][bgMode];
+  }
 
   var needsRender = true;
   function requestRender(){ needsRender = true; }
@@ -1033,6 +1098,35 @@ body{font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Mi
     requestAnimationFrame(mainLoop);
   }
 
+  /* ---------- 语言切换 ---------- */
+  function applyLanguage(lang){
+    currentLang = lang;
+    document.documentElement.lang = lang === 'zh' ? 'zh-CN' : 'en';
+    document.querySelectorAll('[data-i18n]').forEach(function(el){
+      var key = el.dataset.i18n;
+      var entry = I18N[key];
+      if(!entry) return;
+      var txt = entry[lang];
+      if(txt === undefined) txt = entry.zh;
+      el.textContent = txt;
+    });
+    updateBgButton();
+    updateStatus();
+    updateSelectUI();
+    updateHistoryUI();
+    if(deleteColorMode.active && !deleteColorMode.hasTarget){
+      $('dcColorHex').textContent = t('common.notSelected');
+    }
+    updateMergePreview();
+    updateSplitPreview();
+    langBtn.textContent = lang === 'zh' ? 'CH' : 'EN';
+    if(!hasImage) setMsg('');
+  }
+
+  function toggleLanguage(){
+    applyLanguage(currentLang === 'zh' ? 'en' : 'zh');
+  }
+
   function init(){
     stage=$('stage'); wrap=$('wrap'); cv=$('cv'); ctx=cv.getContext('2d');
     selCv=$('selCv'); selCtx=selCv.getContext('2d');
@@ -1040,6 +1134,7 @@ body{font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Mi
     inW=$('inW'); inH=$('inH'); lockRatio=$('lockRatio');
     stOrig=$('stOrig'); stCur=$('stCur'); stZoom=$('stZoom');
     stSel=$('stSel'); stHist=$('stHist'); stMsg=$('stMsg');
+    langBtn=$('btnLang');
 
     splitPanel=$('splitPanel'); splitCols=$('splitCols'); splitRows=$('splitRows');
     splitPieceSize=$('splitPieceSize'); splitApply=$('splitApply');
@@ -1049,10 +1144,14 @@ body{font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Mi
     src32=new Uint32Array(id.data.buffer);
     srcW=128; srcH=128; targetW=128; targetH=128; hasImage=false;
 
-    setEnabled(false); updateStatus(); updateSelectUI();
-    $('btnBg').textContent=BG_NAMES[bgMode];
+    setEnabled(false);
+    updateBgButton();
+    updateStatus();
+    updateSelectUI();
     $('btnSelect').classList.add('on');
     stage.classList.add('select-mode');
+
+    applyLanguage('en');
 
     $('btnOpen').addEventListener('click',function(){ fileInput.click(); });
     fileInput.addEventListener('change',function(){
@@ -1064,7 +1163,7 @@ body{font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Mi
     $('btnClose').addEventListener('click',closeImage);
     $('btnUndo').addEventListener('click',undo);
     $('btnRedo').addEventListener('click',redo);
-    $('btnReset').addEventListener('click',function(){ if(hasImage){ commitSize(srcW,srcH,true); setMsg('回到原始尺寸',1500); } });
+    $('btnReset').addEventListener('click',function(){ if(hasImage){ commitSize(srcW,srcH,true); setMsg(tr('回到原始尺寸','Reset to original size'),1500); } });
     $('btnFit').addEventListener('click',fitView);
     $('btnOne').addEventListener('click',function(){ if(!hasImage) return; zoom=1; centerView(); render(); });
     $('btnHalf').addEventListener('click',function(){ scaleBy(0.5); });
@@ -1077,7 +1176,10 @@ body{font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Mi
       selectionMode=!selectionMode;
       stage.classList.toggle('select-mode',selectionMode);
       updateSelectUI();
-      setMsg(selectionMode?'选择模式：拖拽框选，Shift=正方形，Ctrl=加选，Alt=减选':'退出选择模式',1800);
+      setMsg(selectionMode
+        ? tr('选择模式：拖拽框选，Shift=正方形，Ctrl=加选，Alt=减选',
+             'Select mode: drag to select, Shift=Square, Ctrl=Add, Alt=Subtract')
+        : tr('退出选择模式','Exited select mode'), 1800);
     });
     $('btnSelectAll').addEventListener('click',selectAll);
     $('btnSelectNone').addEventListener('click',function(){ deselectAll(false); });
@@ -1089,6 +1191,8 @@ body{font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Mi
     $('btnMergeSimilar').addEventListener('click',openMergePanel);
     $('btnDeleteColor').addEventListener('click',openDeleteColorPanel);
     $('btnSplitExport').addEventListener('click',openSplitPanel);
+
+    langBtn.addEventListener('click', toggleLanguage);
 
     inW.addEventListener('change',function(){
       if(!hasImage) return;
@@ -1171,7 +1275,7 @@ body{font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Mi
         var sx_s=Math.floor((px+0.5)*srcW/targetW), sy_s=Math.floor((py+0.5)*srcH/targetH);
         if(sx_s<0||sx_s>=srcW||sy_s<0||sy_s>=srcH) return;
         var packed=src32[sy_s*srcW+sx_s];
-        if(((packed>>>24)&255)===0){ setMsg('该像素透明，请另选',1800); return; }
+        if(((packed>>>24)&255)===0){ setMsg(tr('该像素透明，请另选','Transparent pixel, pick another'),1800); return; }
         var rr=packed&255, gg=(packed>>>8)&255, bb=(packed>>>16)&255;
         deleteColorMode.targetPacked=packed; deleteColorMode.targetR=rr; deleteColorMode.targetG=gg; deleteColorMode.targetB=bb;
         deleteColorMode.hasTarget=true;
@@ -1256,6 +1360,12 @@ body{font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Mi
       e.preventDefault();
       var f=e.dataTransfer&&e.dataTransfer.files&&e.dataTransfer.files[0];
       if(f) loadImage(f);
+    });
+
+    document.querySelectorAll('input[type="number"]').forEach(function(input){
+      input.addEventListener('keydown', function(e){
+        if(e.key === 'Enter'){ e.preventDefault(); this.blur(); }
+      });
     });
 
     requestAnimationFrame(mainLoop);

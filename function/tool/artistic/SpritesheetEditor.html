@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -127,212 +127,217 @@ input[type=checkbox]{accent-color:#2d6cdf;margin-right:4px}
 .onion-label input[type=checkbox]{margin:0}
 .onion-slider{flex:1;min-width:50px;max-width:110px;accent-color:#2d6cdf;height:14px}
 #onion-opacity-val{color:#6fb0ff;font-size:11px;font-family:ui-monospace,Consolas,monospace;min-width:34px;text-align:right}
+#btn-lang-toggle{margin-left:auto;min-width:46px;font-weight:600;letter-spacing:.5px}
 </style>
 </head>
 <body>
 <div id="app">
   <div id="toolbar">
-    <button class="menu-btn" data-menu="file">文件 ▾</button>
-    <button class="menu-btn" data-menu="edit">编辑 ▾</button>
+    <button class="menu-btn" data-menu="file" data-i18n="menu.file">File ▾</button>
+    <button class="menu-btn" data-menu="edit" data-i18n="menu.edit">Edit ▾</button>
     <span class="sep"></span>
-    <button id="btn-open-png" title="打开 PNG">打开 PNG</button>
-    <button id="btn-open-proj" title="打开工程">打开工程</button>
-    <button id="btn-save-as-png" title="另存为 PNG">另存 PNG</button>
-    <button id="btn-save-as-proj" title="另存为工程">另存工程</button>
+    <button id="btn-open-png" data-i18n="btn.openPng">Open PNG</button>
+    <button id="btn-open-proj" data-i18n="btn.openProj">Open Project</button>
+    <button id="btn-save-as-png" data-i18n="btn.savePng">Save As PNG</button>
+    <button id="btn-save-as-proj" data-i18n="btn.saveProj">Save As Project</button>
     <span class="sep"></span>
-    <button class="tool-btn active" data-tool="1" title="选择/移动 (V) · 按住 V 拖动选区=仅移动选区">选</button>
-    <button class="tool-btn" data-tool="7" title="套索 (M) · Shift=正圆 · 按住 M 拖动选区=仅移动选区">套</button>
-    <button class="tool-btn" data-tool="2" title="铅笔 (B) · Alt+点击吸色">笔</button>
-    <button class="tool-btn" data-tool="3" title="橡皮 (E)">擦</button>
-    <button class="tool-btn" data-tool="5" title="吸管 (I)">吸</button>
-    <button class="tool-btn" data-tool="4" title="油漆桶 (G) · Alt+点击吸色">桶</button>
-    <button class="tool-btn" data-tool="6" title="替换色 (J)">换</button>
+    <button class="tool-btn active" data-tool="1" data-i18n="tool.select" title="Select (V)">Sel</button>
+    <button class="tool-btn" data-tool="7" data-i18n="tool.lasso" title="Lasso (M)">Lasso</button>
+    <button class="tool-btn" data-tool="2" data-i18n="tool.pencil" title="Pencil (B)">Pen</button>
+    <button class="tool-btn" data-tool="3" data-i18n="tool.eraser" title="Eraser (E)">Era</button>
+    <button class="tool-btn" data-tool="5" data-i18n="tool.picker" title="Picker (I)">Pick</button>
+    <button class="tool-btn" data-tool="4" data-i18n="tool.bucket" title="Bucket (G)">Fill</button>
+    <button class="tool-btn" data-tool="6" data-i18n="tool.replace" title="Replace (J)">Rep</button>
     <span class="sep"></span>
-    <button id="btn-undo" title="撤销 (Ctrl+Z)">撤销</button>
-    <button id="btn-redo" title="重做 (Ctrl+Shift+Z)">重做</button>
+    <button id="btn-undo" data-i18n="btn.undo">Undo</button>
+    <button id="btn-redo" data-i18n="btn.redo">Redo</button>
     <span class="sep"></span>
     <button id="btn-zoom-out">－</button>
     <span id="zoom-label">100%</span>
     <button id="btn-zoom-in">＋</button>
-    <button id="btn-fit" title="适应窗口 (F)">适应</button>
+    <button id="btn-fit" data-i18n="btn.fit">Fit</button>
     <span class="sep"></span>
-    <button id="btn-bg" title="切换观察背景">格子</button>
+    <button id="btn-bg" data-i18n="btn.bg"></button>
     <span class="sep"></span>
-    <button id="btn-view-mode" title="切换单格/全图显示">单格</button>
+    <button id="btn-view-mode" data-i18n="btn.viewMode"></button>
+    <button id="btn-lang-toggle" title="Switch Language">EN</button>
   </div>
 
   <div id="workarea">
     <div id="canvas-wrap"><canvas id="canvas"></canvas></div>
     <aside id="sidebar">
       <div class="section">
-        <h3>网格 / 分格</h3>
+        <h3 data-i18n="section.grid">Grid / Cells</h3>
         <div class="row">
-          <label>格宽 <input type="number" id="grid-w" min="1" max="4096" value="32"></label>
-          <label>格高 <input type="number" id="grid-h" min="1" max="4096" value="32"></label>
+          <label><span data-i18n="label.cellW">W</span> <input type="number" id="grid-w" min="1" max="4096" value="32"></label>
+          <label><span data-i18n="label.cellH">H</span> <input type="number" id="grid-h" min="1" max="4096" value="32"></label>
         </div>
         <div class="row">
-          <label>列数 <input type="number" id="grid-cols" min="1" max="256" value="4"></label>
-          <label>行数 <input type="number" id="grid-rows" min="1" max="256" value="4"></label>
+          <label><span data-i18n="label.cols">Cols</span> <input type="number" id="grid-cols" min="1" max="256" value="4"></label>
+          <label><span data-i18n="label.rows">Rows</span> <input type="number" id="grid-rows" min="1" max="256" value="4"></label>
         </div>
         <div class="row">
-          <label><input type="checkbox" id="show-grid" checked> 显示分格网格</label>
-          <label><input type="checkbox" id="show-pixel-grid" checked> 显示像素格</label>
+          <label><input type="checkbox" id="show-grid" checked> <span data-i18n="label.showGrid">Show cell grid</span></label>
+          <label><input type="checkbox" id="show-pixel-grid" checked> <span data-i18n="label.showPixelGrid">Show pixel grid</span></label>
         </div>
-        <div class="row"><button id="btn-resize">调整画布…</button></div>
+        <div class="row"><button id="btn-resize" data-i18n="btn.resize">Resize Canvas…</button></div>
       </div>
 
       <div class="section">
-        <h3><span>旋转 / 翻转 <span class="hint">（操作选中像素）</span><span class="help-icon" title="按住 R 键 + 鼠标左键拖拽，以选区中心任意角度旋转&#10;旋转时按住 Shift，角度吸附到 45° 的整数倍">?</span></span></h3>
-        <div class="row">
-          <button id="btn-rot-cw-90">↻ 90°</button>
-          <button id="btn-rot-ccw-90">↺ 90°</button>
-          <button id="btn-rot-180">180°</button>
-        </div>
-        <div class="row">
-          <button id="btn-flip-h">左右翻转</button>
-          <button id="btn-flip-v">上下翻转</button>
-        </div>
-      </div>
-
-      <div class="section">
-        <h3><span>动画预览 <span class="hint">（拖拽可定位格）</span></span><span id="anim-label">#0 / 15</span></h3>
+        <h3>
+          <span data-i18n="section.anim">Animation</span>
+          <span class="hint" data-i18n="hint.anim">(drag to locate)</span>
+          <span id="anim-label">#0 / 15</span>
+        </h3>
         <div id="anim-preview-wrap">
           <canvas id="anim-preview"></canvas>
           <div id="anim-cursor"></div>
         </div>
         <div class="row">
-          <label>起始 <input type="number" id="anim-start" min="0" value="0" style="width:48px"></label>
-          <label>结束 <input type="number" id="anim-end" min="0" value="15" style="width:48px"></label>
+          <label><span data-i18n="label.start">Start</span> <input type="number" id="anim-start" min="0" value="0" style="width:48px"></label>
+          <label><span data-i18n="label.end">End</span> <input type="number" id="anim-end" min="0" value="15" style="width:48px"></label>
           <label>FPS <input type="number" id="anim-fps" min="1" max="60" value="8" style="width:44px"></label>
-          <label style="gap:2px"><input type="checkbox" id="anim-loop" checked>循环</label>
+          <label style="gap:2px"><input type="checkbox" id="anim-loop" checked><span data-i18n="label.loop">Loop</span></label>
         </div>
         <div class="row">
-          <button id="btn-play">播放</button>
-          <button id="btn-stop">停止</button>
-          <button id="btn-anim-all">全范围</button>
+          <button id="btn-play" data-i18n="btn.play">Play</button>
+          <button id="btn-stop" data-i18n="btn.stop">Stop</button>
+          <button id="btn-anim-all" data-i18n="btn.animAll">Full Range</button>
         </div>
         <div class="row onion-row">
-          <label class="onion-label"><input type="checkbox" id="onion-prev">前帧</label>
-          <label class="onion-label"><input type="checkbox" id="onion-next">后帧</label>
-          <input type="range" id="onion-opacity" class="onion-slider" min="10" max="70" step="5" value="40" title="洋葱皮强度">
+          <label class="onion-label"><input type="checkbox" id="onion-prev"><span data-i18n="label.prev">Prev</span></label>
+          <label class="onion-label"><input type="checkbox" id="onion-next"><span data-i18n="label.next">Next</span></label>
+          <input type="range" id="onion-opacity" class="onion-slider" min="10" max="70" step="5" value="40">
           <span id="onion-opacity-val">40%</span>
         </div>
       </div>
 
       <div class="section">
-        <h3>颜色</h3>
+        <h3 data-i18n="section.color">Color</h3>
         <div class="row">
-          <div class="color-chip" id="chip-primary" title="主色 — 点击调整"></div>
-          <div class="color-chip" id="chip-secondary" title="辅色 — 点击调整"></div>
-          <button id="btn-replace-color">全图替换</button>
+          <div class="color-chip" id="chip-primary" title="Primary"></div>
+          <div class="color-chip" id="chip-secondary" title="Secondary"></div>
+          <button id="btn-replace-color" data-i18n="btn.replaceAll">Replace All</button>
         </div>
       </div>
 
       <div class="section">
-        <h3>NES 色板 <span class="hint">（只读 · NTSC 2C02）</span></h3>
+        <h3><span data-i18n="section.nes">NES Palette</span> <span class="hint" data-i18n="hint.nes">(read-only · NTSC 2C02)</span></h3>
         <div class="swatches readonly" id="palette-nes"></div>
       </div>
 
       <div class="section">
-        <h3>自定义色板 <span class="hint">（中键删除）</span></h3>
+        <h3><span data-i18n="section.custom">Custom Palette</span> <span class="hint" data-i18n="hint.custom">(middle click to remove)</span></h3>
         <div class="swatches" id="palette-custom"></div>
         <div class="row">
-          <button id="btn-pal-add">加入色板</button>
-          <button id="btn-pal-reset">恢复默认</button>
-          <button id="btn-pal-load">载入…</button>
-          <button id="btn-pal-save">保存…</button>
+          <button id="btn-pal-add" data-i18n="btn.palAdd">Add</button>
+          <button id="btn-pal-reset" data-i18n="btn.palReset">Reset</button>
+          <button id="btn-pal-load" data-i18n="btn.palLoad">Load…</button>
+          <button id="btn-pal-save" data-i18n="btn.palSave">Save…</button>
         </div>
       </div>
 
       <div class="section">
-        <h3>图层 <span class="hint">（拖动排序）</span></h3>
+        <h3><span data-i18n="section.layers">Layers</span> <span class="hint" data-i18n="hint.layers">(drag to reorder)</span></h3>
         <div id="layer-list"></div>
         <div class="row">
-          <button id="btn-layer-new">新建</button>
-          <button id="btn-layer-dup">复制</button>
-          <button id="btn-layer-del">删除</button>
+          <button id="btn-layer-new" data-i18n="btn.layerNew">New</button>
+          <button id="btn-layer-dup" data-i18n="btn.layerDup">Duplicate</button>
+          <button id="btn-layer-del" data-i18n="btn.layerDel">Delete</button>
         </div>
         <div class="row">
-          <button id="btn-layer-up">上移</button>
-          <button id="btn-layer-down">下移</button>
-          <button id="btn-layer-merge">合并 ↓</button>
+          <button id="btn-layer-up" data-i18n="btn.layerUp">Up</button>
+          <button id="btn-layer-down" data-i18n="btn.layerDown">Down</button>
+          <button id="btn-layer-merge" data-i18n="btn.layerMerge">Merge Down</button>
         </div>
         <div class="row">
-          <button id="btn-layer-flatten">拼合可见</button>
-          <button id="btn-layer-paste">粘贴为新图层</button>
+          <button id="btn-layer-flatten" data-i18n="btn.layerFlatten">Flatten</button>
+          <button id="btn-layer-paste" data-i18n="btn.layerPaste">Paste as Layer</button>
         </div>
       </div>
 
       <div class="section">
-        <h3><span>参考线 / 吸附 <span class="help-icon" title="顶部标尺往下拖 → 水平参考线&#10;左侧标尺往右拖 → 垂直参考线&#10;Ctrl + 鼠标靠近参考线拖动 → 移动&#10;拖动时自动吸附到格子边沿 / 中心&#10;双击参考线 → 删除&#10;选框终点会吸附到邻近参考线（起点不吸附）&#10;隐藏参考线后不吸附、不可拖动">?</span></span></h3>
+        <h3>
+          <span data-i18n="section.guides">Guides / Snap</span>
+          <span class="help-icon" data-i18n-title="help.guides">?</span>
+        </h3>
         <div class="row">
-          <label><input type="checkbox" id="snap-enabled" checked> 吸附（参考线 / 格子）</label>
+          <label><input type="checkbox" id="snap-enabled" checked> <span data-i18n="label.snap">Snap (guides / grid)</span></label>
         </div>
         <div class="row">
-          <button id="btn-guides-toggle">隐藏参考线</button>
-          <button id="btn-guides-clear">清空参考线</button>
+          <button id="btn-guides-toggle" data-i18n="btn.guidesToggle">Hide Guides</button>
+          <button id="btn-guides-clear" data-i18n="btn.guidesClear">Clear Guides</button>
         </div>
       </div>
 
       <div class="section">
-        <h3>图片色板 <span class="h3-actions"><button id="btn-color-usage-refresh">刷新</button><button id="btn-color-usage-nes" title="检查图片中用到的颜色是否在 NES 色板中">对比 NES</button></span></h3>
+        <h3>
+          <span data-i18n="section.imgPal">Image Palette</span>
+          <span class="h3-actions">
+            <button id="btn-color-usage-refresh" data-i18n="btn.refresh">Refresh</button>
+            <button id="btn-color-usage-nes" data-i18n="btn.compareNes">Compare NES</button>
+          </span>
+        </h3>
         <div class="swatches" id="color-usage-swatches"></div>
-        <div style="color:#888;font-size:11px;margin-top:6px">
-          点击色块 → 高亮该颜色区域（再次点击取消）
+        <div style="color:#888;font-size:11px;margin-top:6px" data-i18n="hint.imgPal">
+          Click swatch → highlight color (click again to cancel)
         </div>
       </div>
 
       <div class="section">
-        <h3><span>选区 <span class="help-icon" title="选择工具 (V)：Shift=正方形 · Ctrl=加选 · Alt=减选&#10;套索工具 (M)：Shift=正圆 · Ctrl=加选 · Alt=减选&#10;按住 V（选择工具）或 M（套索）拖动选区内 → 仅移动选区&#10;Ctrl+C 复制 · Ctrl+X 剪切 · Ctrl+V 粘贴 · Ctrl+Shift+V 粘贴为新图层">?</span></span></h3>
+        <h3>
+          <span data-i18n="section.sel">Selection</span>
+          <span class="help-icon" data-i18n-title="help.sel">?</span>
+        </h3>
         <div class="row" id="sel-mode-row">
-          <button class="sel-mode-btn on" data-mode="0">新建</button>
-          <button class="sel-mode-btn" data-mode="1">加选</button>
-          <button class="sel-mode-btn" data-mode="2">减选</button>
+          <button class="sel-mode-btn on" data-mode="0" data-i18n="sel.replace">Replace</button>
+          <button class="sel-mode-btn" data-mode="1" data-i18n="sel.add">Add</button>
+          <button class="sel-mode-btn" data-mode="2" data-i18n="sel.sub">Subtract</button>
         </div>
         <div class="row">
-          <button id="btn-sel-all">全选 <span style="color:#888">(Ctrl+A)</span></button>
-          <button id="btn-sel-none">取消 <span style="color:#888">(Ctrl+D)</span></button>
-          <button id="btn-sel-inv">反选 <span style="color:#888">(Ctrl+I)</span></button>
+          <button id="btn-sel-all" data-i18n="btn.selAll">Select All</button>
+          <button id="btn-sel-none" data-i18n="btn.selNone">Deselect</button>
+          <button id="btn-sel-inv" data-i18n="btn.selInv">Invert</button>
         </div>
         <div class="row">
-          <button id="btn-sel-cell">选当前格</button>
-          <button id="btn-del-sel">删除像素</button>
+          <button id="btn-sel-cell" data-i18n="btn.selCell">Select Cell</button>
+          <button id="btn-del-sel" data-i18n="btn.delSel">Delete Pixels</button>
         </div>
       </div>
     </aside>
   </div>
 
   <div id="statusbar">
-    <span id="status">就绪</span>
+    <span id="status"></span>
     <span id="coord">— , —</span>
   </div>
 </div>
 
 <input type="file" id="file-input" style="display:none">
 <div class="menu" id="menu-file">
-  <div data-act="new">新建…</div>
-  <div data-act="open-png">打开 PNG…</div>
-  <div data-act="open-proj">打开工程…</div>
+  <div data-act="new" data-i18n="menu.new">New…</div>
+  <div data-act="open-png" data-i18n="menu.openPng">Open PNG…</div>
+  <div data-act="open-proj" data-i18n="menu.openProj">Open Project…</div>
   <hr>
-  <div data-act="save">保存 PNG <span class="sc">Ctrl+S</span></div>
-  <div data-act="save-as">另存为 PNG…</div>
-  <div data-act="save-proj">保存工程</div>
-  <div data-act="save-proj-as">另存为工程…</div>
+  <div data-act="save" data-i18n="menu.save">Save PNG</div>
+  <div data-act="save-as" data-i18n="menu.saveAs">Save As PNG…</div>
+  <div data-act="save-proj" data-i18n="menu.saveProj">Save Project</div>
+  <div data-act="save-proj-as" data-i18n="menu.saveProjAs">Save As Project…</div>
 </div>
 <div class="menu" id="menu-edit">
-  <div data-act="undo">撤销 <span class="sc">Ctrl+Z</span></div>
-  <div data-act="redo">重做 <span class="sc">Ctrl+Shift+Z</span></div>
+  <div data-act="undo" data-i18n="menu.undo">Undo</div>
+  <div data-act="redo" data-i18n="menu.redo">Redo</div>
   <hr>
-  <div data-act="select-all">全选 <span class="sc">Ctrl+A</span></div>
-  <div data-act="select-none">取消选择 <span class="sc">Ctrl+D</span></div>
-  <div data-act="select-inv">反选 <span class="sc">Ctrl+I</span></div>
-  <div data-act="select-cell">选择当前格</div>
+  <div data-act="select-all" data-i18n="menu.selAll">Select All</div>
+  <div data-act="select-none" data-i18n="menu.selNone">Deselect</div>
+  <div data-act="select-inv" data-i18n="menu.selInv">Invert</div>
+  <div data-act="select-cell" data-i18n="menu.selCell">Select Current Cell</div>
   <hr>
-  <div data-act="delete">删除选中像素 <span class="sc">Del</span></div>
+  <div data-act="delete" data-i18n="menu.delSel">Delete Selected Pixels</div>
 </div>
 
 <div class="cp-popup" id="color-picker-popup">
-  <div class="cp-header" id="cp-title">主色</div>
+  <div class="cp-header" id="cp-title">Primary</div>
   <canvas class="cp-sv" id="cp-sv" width="244" height="140"></canvas>
   <div class="cp-hue-track" id="cp-hue-track">
     <div class="cp-hue-cursor" id="cp-hue-cursor"></div>
@@ -346,7 +351,7 @@ input[type=checkbox]{accent-color:#2d6cdf;margin-right:4px}
     <label class="cp-num-label">B</label>
     <input type="number" class="cp-num" id="cp-b" min="0" max="255">
   </div>
-  <button class="cp-pick-btn" id="cp-pick" title="从屏幕任意位置取色">吸管（全屏）</button>
+  <button class="cp-pick-btn" id="cp-pick">Eyedropper (full screen)</button>
 </div>
 
 <script>
@@ -371,7 +376,7 @@ var TOOL = { SELECT:1, PENCIL:2, ERASER:3, BUCKET:4, PICKER:5, REPLACE:6, LASSO:
 var SEL_REPLACE=0, SEL_ADD=1, SEL_SUB=2;
 var HISTORY_MAX = 60;
 var RULER = 20;
-var BG_NAMES = ['白底','灰底','黑底','格子'];
+var BG_NAMES = { zh:['白底','灰底','黑底','格子'], en:['White','Gray','Black','Checker'] };
 var GUIDE_HIT_PX = 2;
 var SNAP_HIT_PX = 6;
 
@@ -449,19 +454,13 @@ var colorUsageSwatches = [];
 var _onionCanvas = null;
 var _onionCtx = null;
 
-// 旋转状态
-var rotateState = {
-  active: false,
-  isRotating: false,
-  startAngle: 0,
-  centerX: 0,
-  centerY: 0,
-  originalFloat: null
-};
-
 var canvas, ctx, canvasWrap, statusEl, coordEl, zoomLabel, brushInfoEl, fileInput;
 var animPreview, animPreviewCtx, animCursor, animPreviewWrap, animLabel;
 var gridWEl, gridHEl, gridColsEl, gridRowsEl, layerListEl;
+var animStartEl, animEndEl;
+
+var currentLang = 'en';
+var langBtn;
 
 function setStatus(s){ if(statusEl) statusEl.textContent = s; }
 function requestRender(){ needsRender = true; }
@@ -615,7 +614,7 @@ function renderColorUsageSwatches(){
   if(!el) return;
   el.innerHTML = '';
   if(colorUsageSwatches.length === 0){
-    el.innerHTML = '<div style="color:#666;font-size:11px;grid-column:1/17;text-align:center;padding:4px">暂无颜色，点「刷新」统计</div>';
+    el.innerHTML = '<div style="color:#666;font-size:11px;grid-column:1/17;text-align:center;padding:4px">'+(currentLang==='zh'?'暂无颜色，点「刷新」统计':'No colors, click Refresh')+'</div>';
     return;
   }
   for(var i=0;i<colorUsageSwatches.length;i++){
@@ -627,7 +626,7 @@ function renderColorUsageSwatches(){
     var div = document.createElement('div');
     div.className = 'swatch';
     div.style.background = 'rgba('+r+','+g+','+b+','+(a/255).toFixed(3)+')';
-    div.title = rgbToHex([r,g,b])+' × '+c.count+' 像素';
+    div.title = rgbToHex([r,g,b])+' × '+c.count+' px';
     if(highlightColor === c.packed) div.classList.add('sel');
     (function(packed){
       div.addEventListener('mousedown', function(e){
@@ -655,136 +654,6 @@ function rebuildHighlightMask(){
     if(d32[i] === highlightColor) _highlightMask[i] = 1;
   }
   _highlightDirty = false;
-}
-
-function checkColorsAgainstNES(){
-  if(!doc.width || !doc.height || !doc.imageCanvas){
-    setStatus('没有图片');
-    return;
-  }
-  refreshColorUsage();
-  if(colorUsageSwatches.length === 0){
-    setStatus('图片中没有颜色');
-    return;
-  }
-  var nesMap = {};
-  for(var i=0;i<ui.paletteNES.length;i++){
-    var c = ui.paletteNES[i];
-    nesMap[c[0]+','+c[1]+','+c[2]] = i;
-  }
-  var inList = [];
-  var outList = [];
-  for(var k=0;k<colorUsageSwatches.length;k++){
-    var item = colorUsageSwatches[k];
-    var packed = item.packed;
-    var r = packed & 255;
-    var g = (packed>>>8)&255;
-    var b = (packed>>>16)&255;
-    var a = (packed>>>24)&255;
-    if(a === 0) continue;
-    var key = r+','+g+','+b;
-    if(a === 255 && nesMap[key] != null){
-      inList.push({r:r,g:g,b:b,a:a,count:item.count,nesIdx:nesMap[key]});
-      continue;
-    }
-    var bestIdx = -1, bestD2 = Infinity;
-    for(var m=0;m<ui.paletteNES.length;m++){
-      var nc = ui.paletteNES[m];
-      var dr = r-nc[0], dg = g-nc[1], db = b-nc[2];
-      var d2 = dr*dr + dg*dg + db*db;
-      if(d2 < bestD2){ bestD2 = d2; bestIdx = m; }
-    }
-    outList.push({
-      r:r,g:g,b:b,a:a,count:item.count,
-      nearestIdx:bestIdx,
-      nearestDist: Math.round(Math.sqrt(bestD2)),
-      alphaMismatch: a !== 255
-    });
-  }
-  showNesCompareModal(inList, outList);
-}
-function showNesCompareModal(inList, outList){
-  var back = document.createElement('div');
-  back.className = 'modal-back';
-  var inPx = inList.reduce(function(s,x){ return s+x.count; },0);
-  var outPx = outList.reduce(function(s,x){ return s+x.count; },0);
-  var totalPx = inPx + outPx;
-  var totalColors = inList.length + outList.length;
-  var pctIn = totalPx ? (inPx/totalPx*100).toFixed(1) : '0.0';
-  var pctOut = totalPx ? (outPx/totalPx*100).toFixed(1) : '0.0';
-
-  var html = '';
-  html += '<div class="nes-cmp">';
-  html += '<h2>NES 色板对比</h2>';
-  html += '<div class="nes-cmp-summary">';
-  html += '共 <b style="color:#6fb0ff">'+totalColors+'</b> 种颜色，'+totalPx+' 个不透明像素<br>';
-  html += '<span style="color:#5ecb6a">✓ 在 NES 中：'+inList.length+' 种（'+pctIn+'%，'+inPx+' 像素）</span>';
-  html += ' &nbsp;·&nbsp; ';
-  html += '<span style="color:#ff8b8b">✗ 不在：'+outList.length+' 种（'+pctOut+'%，'+outPx+' 像素）</span>';
-  html += '</div>';
-
-  html += '<div class="nes-cmp-section"><b style="color:#5ecb6a">✓ 在 NES 色板中（'+inList.length+'）</b></div>';
-  if(inList.length === 0){
-    html += '<div class="nes-cmp-empty">无</div>';
-  } else {
-    html += '<div class="nes-cmp-grid">';
-    for(var i=0;i<inList.length;i++){
-      var x = inList[i];
-      var hex = rgbToHex([x.r,x.g,x.b]);
-      var idxHex = x.nesIdx.toString(16).toUpperCase();
-      if(idxHex.length < 2) idxHex = '0'+idxHex;
-      html += '<div class="nes-cmp-item">';
-      html += '<div class="nes-cmp-sw" style="background:'+hex+'"></div>';
-      html += '<div class="nes-cmp-text"><div>'+hex+'</div><div class="nes-cmp-sub">$'+idxHex+' · '+x.count+'px</div></div>';
-      html += '</div>';
-    }
-    html += '</div>';
-  }
-
-  html += '<div class="nes-cmp-section" style="margin-top:14px"><b style="color:#ff8b8b">✗ 不在 NES 色板中（'+outList.length+'）</b></div>';
-  if(outList.length === 0){
-    html += '<div class="nes-cmp-empty">全部匹配 🎉</div>';
-  } else {
-    html += '<div class="nes-cmp-grid">';
-    for(var j=0;j<outList.length;j++){
-      var y = outList[j];
-      var hex2 = rgbToHex([y.r,y.g,y.b]);
-      var nearTag = '';
-      if(y.nearestIdx >= 0){
-        var nIdxHex = y.nearestIdx.toString(16).toUpperCase();
-        if(nIdxHex.length < 2) nIdxHex = '0'+nIdxHex;
-        nearTag = '→$'+nIdxHex+' d='+y.nearestDist;
-      }
-      if(y.alphaMismatch) nearTag = '含透明 · ' + nearTag;
-      html += '<div class="nes-cmp-item">';
-      html += '<div class="nes-cmp-sw" style="background:'+hex2+'"></div>';
-      html += '<div class="nes-cmp-text"><div>'+hex2+'</div><div class="nes-cmp-sub">'+y.count+'px · '+nearTag+'</div></div>';
-      html += '</div>';
-    }
-    html += '</div>';
-    html += '<div style="font-size:11px;color:#888;margin-top:6px;line-height:1.6">';
-    html += '→$XX 表示最接近的 NES 色索引 · d=RGB 欧氏距离（0 为完全一致）';
-    html += '</div>';
-  }
-
-  html += '<div class="nes-cmp-actions"><button class="close-btn">关闭</button></div>';
-  html += '</div>';
-  back.innerHTML = html;
-  document.body.appendChild(back);
-
-  var close = function(){
-    if(back.parentNode) document.body.removeChild(back);
-    document.removeEventListener('keydown', onEsc, true);
-  };
-  back.querySelector('.close-btn').addEventListener('click', close);
-  back.addEventListener('mousedown', function(e){ if(e.target === back) close(); });
-  var onEsc = function(ev){
-    if(ev.key === 'Escape'){
-      ev.preventDefault(); ev.stopPropagation();
-      close();
-    }
-  };
-  document.addEventListener('keydown', onEsc, true);
 }
 
 var historyStack = [];
@@ -844,20 +713,20 @@ function isBusyDrag(){
       || drag.mode === 'guide' || drag.mode === 'move-sel' || drag.mode === 'lasso';
 }
 function doUndo(){
-  if(isBusyDrag()){ setStatus('请先松开鼠标再撤销'); return; }
+  if(isBusyDrag()){ setStatus(currentLang==='zh'?'请先松开鼠标再撤销':'Release mouse first'); return; }
   clearTimeout(gridHistTimer);
   if(historyIndex <= 0) return;
   historyIndex--;
   restoreSnapshot(historyStack[historyIndex]);
-  updateUndoButtons(); setStatus('撤销');
+  updateUndoButtons();
 }
 function doRedo(){
-  if(isBusyDrag()){ setStatus('请先松开鼠标再重做'); return; }
+  if(isBusyDrag()){ setStatus(currentLang==='zh'?'请先松开鼠标再重做':'Release mouse first'); return; }
   clearTimeout(gridHistTimer);
   if(historyIndex >= historyStack.length-1) return;
   historyIndex++;
   restoreSnapshot(historyStack[historyIndex]);
-  updateUndoButtons(); setStatus('重做');
+  updateUndoButtons();
 }
 function updateUndoButtons(){
   var u = document.getElementById('btn-undo'), r = document.getElementById('btn-redo');
@@ -901,7 +770,7 @@ function getBrushOutline(size){
 function newDoc(w,h){
   w=Math.max(1,w|0); h=Math.max(1,h|0);
   doc.width=w; doc.height=h;
-  doc.layers = [{name:'图层 1',visible:true,opacity:255,imageData:new ImageData(w,h)}];
+  doc.layers = [{name:'Layer 1',visible:true,opacity:255,imageData:new ImageData(w,h)}];
   doc.activeLayer = 0;
   doc.imageData = doc.layers[0].imageData;
   doc.imageCanvas = document.createElement('canvas');
@@ -1003,40 +872,36 @@ function setActiveLayer(idx, skipRefresh){
     refreshLayerList();
   }
   requestRender();
-  setStatus('已选中图层: '+doc.layers[idx].name);
 }
 function addLayer(){
   if(doc.floating){ commitFloat(); commitHistory(); }
-  var newLayer = {name:'图层 '+(doc.layers.length+1),visible:true,opacity:255,imageData:new ImageData(doc.width,doc.height)};
+  var newLayer = {name:'Layer '+(doc.layers.length+1),visible:true,opacity:255,imageData:new ImageData(doc.width,doc.height)};
   var idx = doc.activeLayer+1;
   doc.layers.splice(idx,0,newLayer);
   doc.activeLayer = idx;
   doc.imageData = newLayer.imageData;
   doc.imageDirty = true; _highlightDirty = true;
   refreshLayerList(); commitHistory(); refreshColorUsage(); requestRender();
-  setStatus('已新建图层');
 }
 function duplicateLayer(){
   if(doc.floating){ commitFloat(); commitHistory(); }
   var L = doc.layers[doc.activeLayer];
-  var dup = {name:L.name+' 副本',visible:L.visible,opacity:L.opacity,imageData:new ImageData(new Uint8ClampedArray(L.imageData.data),doc.width,doc.height)};
+  var dup = {name:L.name+' copy',visible:L.visible,opacity:L.opacity,imageData:new ImageData(new Uint8ClampedArray(L.imageData.data),doc.width,doc.height)};
   var idx = doc.activeLayer+1;
   doc.layers.splice(idx,0,dup);
   doc.activeLayer = idx;
   doc.imageData = dup.imageData;
   doc.imageDirty = true; _highlightDirty = true;
   refreshLayerList(); commitHistory(); refreshColorUsage(); requestRender();
-  setStatus('已复制图层');
 }
 function deleteLayer(){
-  if(doc.layers.length <= 1){ setStatus('至少保留一个图层'); return; }
+  if(doc.layers.length <= 1){ setStatus(currentLang==='zh'?'至少保留一个图层':'Keep at least one layer'); return; }
   if(doc.floating){ commitFloat(); commitHistory(); }
   doc.layers.splice(doc.activeLayer,1);
   doc.activeLayer = Math.min(doc.activeLayer,doc.layers.length-1);
   doc.imageData = doc.layers[doc.activeLayer].imageData;
   doc.imageDirty = true; _highlightDirty = true;
   refreshLayerList(); commitHistory(); refreshColorUsage(); requestRender();
-  setStatus('已删除图层');
 }
 function moveLayer(dir){
   var i = doc.activeLayer;
@@ -1065,7 +930,6 @@ function reorderLayer(fromIdx, insertPos){
   doc.imageData = doc.layers[doc.activeLayer].imageData;
   doc.imageDirty = true; _highlightDirty = true;
   refreshLayerList(); commitHistory(); refreshColorUsage(); requestRender();
-  setStatus('图层已重排序');
   return true;
 }
 function clearLayerDropIndicators(){
@@ -1075,7 +939,7 @@ function clearLayerDropIndicators(){
 }
 function mergeDown(){
   var i = doc.activeLayer;
-  if(i<=0){ setStatus('下方没有图层'); return; }
+  if(i<=0){ setStatus(currentLang==='zh'?'下方没有图层':'No layer below'); return; }
   if(doc.floating){ commitFloat(); commitHistory(); }
   var upper = doc.layers[i], lower = doc.layers[i-1];
   var W = doc.width, H = doc.height;
@@ -1103,7 +967,6 @@ function mergeDown(){
   doc.imageData = doc.layers[doc.activeLayer].imageData;
   doc.imageDirty = true; _highlightDirty = true;
   refreshLayerList(); commitHistory(); refreshColorUsage(); requestRender();
-  setStatus('已合并到下方图层');
 }
 function flattenVisible(){
   if(doc.floating){ commitFloat(); commitHistory(); }
@@ -1129,12 +992,11 @@ function flattenVisible(){
       }
     }
   }
-  doc.layers = [{name:'合并图层',visible:true,opacity:255,imageData:new ImageData(out,W,H)}];
+  doc.layers = [{name:'Flattened',visible:true,opacity:255,imageData:new ImageData(out,W,H)}];
   doc.activeLayer = 0;
   doc.imageData = doc.layers[0].imageData;
   doc.imageDirty = true; _highlightDirty = true;
   refreshLayerList(); commitHistory(); refreshColorUsage(); requestRender();
-  setStatus('已拼合所有可见图层');
 }
 function toggleLayerVisible(idx){
   doc.layers[idx].visible = !doc.layers[idx].visible;
@@ -1142,7 +1004,7 @@ function toggleLayerVisible(idx){
   refreshLayerList(); commitHistory(); refreshColorUsage(); requestRender();
 }
 function renameLayer(idx,newName){
-  if(!newName) newName = '图层';
+  if(!newName) newName = 'Layer';
   doc.layers[idx].name = newName;
   refreshLayerList(); commitHistory();
 }
@@ -1343,11 +1205,11 @@ function applyRectSelection(r,mode){
   }
   recalcBounds();
 }
-function selectAll(){ if(doc.floating){ commitFloat(); } doc.selMask.fill(1); recalcBounds(); requestRender(); commitHistory(); setStatus('全选'); }
-function deselectAll(){ doc.selMask.fill(0); recalcBounds(); requestRender(); commitHistory(); setStatus('取消选择'); }
+function selectAll(){ if(doc.floating){ commitFloat(); } doc.selMask.fill(1); recalcBounds(); requestRender(); commitHistory(); }
+function deselectAll(){ doc.selMask.fill(0); recalcBounds(); requestRender(); commitHistory(); }
 function invertSelection(){
   for(var i=0;i<doc.selMask.length;i++) doc.selMask[i] = doc.selMask[i] ? 0 : 1;
-  recalcBounds(); requestRender(); commitHistory(); setStatus('反选');
+  recalcBounds(); requestRender(); commitHistory();
 }
 function isSelected(x,y){
   if(doc.floating){
@@ -2042,7 +1904,7 @@ function replaceColorAt(p){
 }
 function replacePrimaryWithSecondary(){
   var from = ui.primary, to = ui.secondary;
-  if(colorsEqual(from,to)){ setStatus('主色与辅色相同'); return; }
+  if(colorsEqual(from,to)){ setStatus(currentLang==='zh'?'主色与辅色相同':'Primary and secondary are the same'); return; }
   var count = 0;
   var d = doc.imageData.data;
   var useSel = doc.hasSelection;
@@ -2057,11 +1919,10 @@ function replacePrimaryWithSecondary(){
   }
   if(count>0){ doc.imageDirty = true; _highlightDirty = true; commitHistory(); refreshColorUsage(); }
   requestRender();
-  setStatus('已替换 '+count+' 个像素');
 }
 function pickAt(p){
   var c = getCompositePixel(p.x,p.y);
-  if(c[3] > 0){ ui.primary = c.slice(); syncColorInputs(); setStatus('取色 '+rgbToHex(c)); }
+  if(c[3] > 0){ ui.primary = c.slice(); syncColorInputs(); }
 }
 function guideAt(x,y){
   if(!ui.showGuides) return -1;
@@ -2075,7 +1936,7 @@ function guideAt(x,y){
 }
 
 function doCopy(){
-  if(!doc.hasSelection){ setStatus('没有选区可复制'); return; }
+  if(!doc.hasSelection){ setStatus(currentLang==='zh'?'没有选区可复制':'No selection'); return; }
   var b = doc.selBounds, W = doc.width, d = doc.imageData.data;
   var data = new Uint8ClampedArray(b.w*b.h*4);
   for(var y=0;y<b.h;y++) for(var x=0;x<b.w;x++){
@@ -2092,21 +1953,16 @@ function doCopy(){
     var cx2 = c.getContext('2d');
     cx2.putImageData(new ImageData(new Uint8ClampedArray(data),b.w,b.h),0,0);
     c.toBlob(function(blob){
-      if(!blob){ setStatus('已复制 '+b.w+'×'+b.h); return; }
-      navigator.clipboard.write([new ClipboardItem({'image/png':blob})])
-        .then(function(){ setStatus('已复制 '+b.w+'×'+b.h+'（可跨工具粘贴）'); })
-        .catch(function(){ setStatus('已复制 '+b.w+'×'+b.h+'（仅本页）'); });
+      if(!blob) return;
+      navigator.clipboard.write([new ClipboardItem({'image/png':blob})]).catch(function(){});
     },'image/png');
-  } else {
-    setStatus('已复制 '+b.w+'×'+b.h+'（仅本页）');
   }
 }
 function doCut(){
-  if(!doc.hasSelection){ setStatus('没有选区可剪切'); return; }
+  if(!doc.hasSelection){ setStatus(currentLang==='zh'?'没有选区可剪切':'No selection'); return; }
   doCopy();
   deleteSelection();
   commitHistory(); refreshColorUsage();
-  setStatus('已剪切');
 }
 function calcPasteOrigin(w, h){
   var mx, my;
@@ -2141,14 +1997,13 @@ function applyPastedImageData(imageData, asLayer){
         d[di]=rdata[si]; d[di+1]=rdata[si+1]; d[di+2]=rdata[si+2]; d[di+3]=rdata[si+3];
       }
     }
-    var newLayer = {name:'粘贴图层',visible:true,opacity:255,imageData:id};
+    var newLayer = {name:'Pasted',visible:true,opacity:255,imageData:id};
     var idx = doc.activeLayer+1;
     doc.layers.splice(idx,0,newLayer);
     doc.activeLayer = idx;
     doc.imageData = newLayer.imageData;
     doc.imageDirty = true; _highlightDirty = true;
     refreshLayerList(); commitHistory(); refreshColorUsage(); requestRender();
-    setStatus('已粘贴为新图层 '+rw+'×'+rh+' @ ('+org.x+','+org.y+')');
     return;
   }
 
@@ -2175,7 +2030,6 @@ function applyPastedImageData(imageData, asLayer){
     }
   }
   recalcBounds(); commitHistory(); refreshColorUsage(); requestRender();
-  setStatus('已粘贴 '+rw+'×'+rh+' @ ('+org.x+','+org.y+')');
 }
 function handlePasteEvent(e){
   if(!e.clipboardData) return;
@@ -2208,10 +2062,8 @@ function handlePasteEvent(e){
       var id = cx2.getImageData(0,0,img.width,img.height);
       applyPastedImageData(id, asLayer);
     };
-    img.onerror = function(){ setStatus('剪贴板图片解析失败'); };
     img.src = reader.result;
   };
-  reader.onerror = function(){ setStatus('剪贴板读取失败'); };
   reader.readAsDataURL(file);
 }
 
@@ -2222,36 +2074,6 @@ function getMouse(e){
   return {sx:sx,sy:sy,px:p.x,py:p.y};
 }
 function onCanvasMouseDown(e){
-  if(rotateState.active && e.button === 0){
-    if (getFloatOrFromSelection()) {
-      if (!doc.floating) return;
-      var f = doc.floating;
-      if (!rotateState.originalFloat) {
-        rotateState.centerX = f.x + f.w / 2;
-        rotateState.centerY = f.y + f.h / 2;
-        rotateState.originalFloat = {
-          w: f.w, h: f.h,
-          data: new Uint8ClampedArray(f.data),
-          x: f.x, y: f.y
-        };
-      }
-      rotateState.isRotating = true;
-      rotateState.startAngle = Math.atan2(mouse.py - rotateState.centerY, mouse.px - rotateState.centerX);
-      setStatus('拖拽旋转中，松开鼠标结束本次旋转');
-      e.preventDefault();
-      return;
-    }
-  }
-
-  var m = getMouse(e);
-
-  if(doc.floating && !isSelected(m.px, m.py)) {
-    commitFloat();
-    commitHistory();
-    refreshColorUsage();
-    requestRender();
-  }
-
   if(cpPickingFromCanvas){
     var m0 = getMouse(e);
     var c0 = getCompositePixel(m0.px, m0.py);
@@ -2259,9 +2081,6 @@ function onCanvasMouseDown(e){
       if(cpTarget === 'primary') ui.primary = c0.slice();
       else ui.secondary = c0.slice();
       syncColorInputs();
-      setStatus('已取色 '+rgbToHex(c0));
-    } else {
-      setStatus('该像素透明，未取色');
     }
     cpPickingFromCanvas = false;
     if(ui.tool===TOOL.PENCIL || ui.tool===TOOL.ERASER) canvas.style.cursor = 'none';
@@ -2270,6 +2089,7 @@ function onCanvasMouseDown(e){
     return;
   }
 
+  var m = getMouse(e);
   var inRulerTop = m.sy < RULER && m.sx >= RULER;
   var inRulerLeft = m.sx < RULER && m.sy >= RULER;
   var modCtrl = e.ctrlKey || e.metaKey;
@@ -2317,7 +2137,6 @@ function onCanvasMouseDown(e){
       drag.mode = 'guide'; drag.guideIdx = gi;
       drag.guideNew = false;
       drag.guideStartPos = doc.guides[gi].pos;
-      setStatus('拖动参考线 #'+gi);
       e.preventDefault(); return;
     }
   }
@@ -2326,6 +2145,7 @@ function onCanvasMouseDown(e){
     pickAt({x:m.px,y:m.py}); e.preventDefault(); return;
   }
 
+  // 优先级 1：按住 V/M 拖动选区内 → 仅移动选区（不移动像素）
   if((vDown || mDown) && doc.hasSelection && isSelected(m.px, m.py) && !e.shiftKey && !e.altKey && !modCtrl){
     if(vDown) vDragged = true;
     if(mDown) mDragged = true;
@@ -2340,9 +2160,21 @@ function onCanvasMouseDown(e){
       w: doc.selBounds.w, h: doc.selBounds.h
     };
     drag.lastDx = 0; drag.lastDy = 0;
-    setStatus('移动选区（不移动像素）');
+    setStatus(currentLang==='zh'?'仅移动选区（不移动像素）':'Move selection only');
     requestRender();
     e.preventDefault(); return;
+  }
+
+  // 优先级 2：普通/Shift 拖动选区内 → 浮起像素并移动（Shift 锁轴）
+  if(doc.hasSelection && isSelected(m.px, m.py) && selModeOverride === SEL_REPLACE && !e.altKey && !modCtrl){
+    beginFloat();
+    if(doc.floating){
+      drag.mode = 'move';
+      drag.moveOrigin = {x:m.px,y:m.py};
+      drag.floatOrigin = {x:doc.floating.x,y:doc.floating.y};
+      requestRender();
+      e.preventDefault(); return;
+    }
   }
 
   var selMode = selModeOverride;
@@ -2354,26 +2186,17 @@ function onCanvasMouseDown(e){
   switch(ui.tool){
     case TOOL.SELECT:
     case TOOL.LASSO:
-      if(doc.hasSelection && isSelected(m.px,m.py) && selMode === SEL_REPLACE && !e.shiftKey){
-        beginFloat();
-        drag.mode = 'move';
-        drag.moveOrigin = {x:m.px,y:m.py};
-        drag.floatOrigin = {x:doc.floating.x,y:doc.floating.y};
-        setStatus('移动 dx=0, dy=0');
+      if(ui.tool === TOOL.LASSO){
+        drag.mode = 'lasso';
+        drag.lassoPoints = [{x:m.px, y:m.py}];
+        drag.lassoMode = selMode;
+        drag.lassoShift = e.shiftKey;
       } else {
-        if(ui.tool === TOOL.LASSO){
-          drag.mode = 'lasso';
-          drag.lassoPoints = [{x:m.px, y:m.py}];
-          drag.lassoMode = selMode;
-          drag.lassoShift = e.shiftKey;
-          setStatus('套索：拖动鼠标绘制选区'+(e.shiftKey?'（正圆）':''));
-        } else {
-          drag.mode = 'select';
-          drag.selStart = {x: m.px, y: m.py};
-          drag.selCur = {x: m.px, y: m.py};
-          drag.selMode = selMode;
-          drag.square = e.shiftKey;
-        }
+        drag.mode = 'select';
+        drag.selStart = {x: m.px, y: m.py};
+        drag.selCur = {x: m.px, y: m.py};
+        drag.selMode = selMode;
+        drag.square = e.shiftKey;
       }
       break;
     case TOOL.PENCIL:
@@ -2406,19 +2229,6 @@ function onCanvasMouseMove(e){
   mouse.inRulerLeft = m.sx < RULER && m.sy >= RULER;
   var modCtrl = e.ctrlKey || e.metaKey;
 
-  // 旋转拖拽中（含 Shift 吸附到 45° 整数倍）
-  if (rotateState.active && rotateState.isRotating) {
-    var currentAngle = Math.atan2(mouse.py - rotateState.centerY, mouse.px - rotateState.centerX);
-    var deltaAngle = currentAngle - rotateState.startAngle;
-    if (e.shiftKey) {
-      var degrees = deltaAngle * 180 / Math.PI;
-      var snapped = Math.round(degrees / 45) * 45;
-      deltaAngle = snapped * Math.PI / 180;
-    }
-    rotateFloatFree(deltaAngle);
-    return;
-  }
-
   var cur = 'crosshair';
   if(mouse.inRulerTop) cur = 'ns-resize';
   else if(mouse.inRulerLeft) cur = 'ew-resize';
@@ -2433,7 +2243,6 @@ function onCanvasMouseMove(e){
       var g2 = doc.guides[gi];
       cur = g2.axis===0 ? 'ew-resize' : 'ns-resize';
     } else if(spaceDown) cur = 'grab';
-    else if(rotateState.active) cur = 'alias';
     else if(ui.tool===TOOL.PENCIL || ui.tool===TOOL.ERASER) cur = 'none';
   }
   if(canvas.style.cursor !== cur) canvas.style.cursor = cur;
@@ -2442,7 +2251,7 @@ function onCanvasMouseMove(e){
     coordEl.textContent = '— , —';
   } else {
     var ci = cellIndexAt({x:m.px,y:m.py});
-    coordEl.textContent = m.px+' , '+m.py+'  [格 '+ci+']';
+    coordEl.textContent = m.px+' , '+m.py+'  ['+(currentLang==='zh'?'格':'cell')+' '+ci+']';
   }
 
   if(drag.mode === 'pan'){
@@ -2457,8 +2266,6 @@ function onCanvasMouseMove(e){
     var snapped = snapGuideToGrid(gg.axis, raw);
     var maxPos = (gg.axis === 0) ? doc.width : doc.height;
     gg.pos = clamp(snapped, 0, maxPos);
-    var snapHint = (Math.abs(snapped - raw) > 0.001) ? '（吸附）' : '';
-    setStatus('参考线 '+(gg.axis===0?'竖 x':'横 y')+'='+Math.round(gg.pos*10)/10+' px'+snapHint);
     requestRender(); return;
   }
   if(drag.mode === 'select'){
@@ -2466,24 +2273,19 @@ function onCanvasMouseMove(e){
     drag.selCur = {x: snapPt.x, y: snapPt.y};
     drag.square = e.shiftKey;
     var r = rectFromPoints(drag.selStart, drag.selCur, drag.square);
-    var mn = drag.selMode===SEL_ADD?'（加选）':drag.selMode===SEL_SUB?'（减选）':'';
-    var sq = drag.square ? ' (1:1)' : '';
-    var sn = snapPt.snapped ? '（吸附）' : '';
-    setStatus('选区 '+r.w+' × '+r.h+' px'+sq+sn+mn);
+    var mn = drag.selMode===SEL_ADD?(currentLang==='zh'?'（加选）':' (add)'):drag.selMode===SEL_SUB?(currentLang==='zh'?'（减选）':' (sub)'):'';
+    setStatus((currentLang==='zh'?'选区 ':'Selection ')+r.w+' × '+r.h+' px'+(drag.square?' (1:1)':'')+mn);
     requestRender(); return;
   }
   if(drag.mode === 'move' && doc.floating){
     var dx = m.px-drag.moveOrigin.x, dy = m.py-drag.moveOrigin.y;
-    if (e.shiftKey) {
-      if (Math.abs(dx) > Math.abs(dy)) {
-        dy = 0;
-      } else {
-        dx = 0;
-      }
+    if(e.shiftKey){
+      if(Math.abs(dx) >= Math.abs(dy)) dy = 0;
+      else dx = 0;
     }
     var nx = drag.floatOrigin.x+dx, ny = drag.floatOrigin.y+dy;
     doc.floating.x = nx; doc.floating.y = ny;
-    setStatus('移动 dx='+(nx-drag.floatOrigin.x)+', dy='+(ny-drag.floatOrigin.y));
+    setStatus((currentLang==='zh'?'移动 ':'Move ')+'dx='+dx+', dy='+dy);
     requestRender(); return;
   }
   if(drag.mode === 'move-sel' && drag.selBackup && drag.selBackupBounds){
@@ -2505,7 +2307,7 @@ function onCanvasMouseMove(e){
       }
     }
     recalcBounds();
-    setStatus('移动选区 dx='+ddx+', dy='+ddy);
+    setStatus((currentLang==='zh'?'仅移动选区 ':'Move selection ')+'dx='+ddx+', dy='+ddy);
     requestRender(); return;
   }
   if(drag.mode === 'lasso' && drag.lassoPoints){
@@ -2514,8 +2316,6 @@ function onCanvasMouseMove(e){
       drag.lassoPoints.push({x: m.px, y: m.py});
     }
     drag.lassoShift = e.shiftKey;
-    var hint = drag.lassoShift ? '（正圆）' : '';
-    setStatus('套索：'+drag.lassoPoints.length+' 点 · 松开鼠标完成'+hint);
     requestRender(); return;
   }
   if(drag.mode === 'draw' && drag.lastPx){
@@ -2532,28 +2332,17 @@ function onCanvasMouseMove(e){
   requestRender();
 }
 function onCanvasMouseUp(e){
-  if (rotateState.isRotating) {
-    rotateState.isRotating = false;
-    setStatus('本次拖拽旋转结束，按 Enter 确认或继续按住 R 拖拽调整');
-    e.preventDefault();
-    return;
-  }
-
   if(!drag.mode) return;
   if(drag.mode === 'select'){
     var r = rectFromPoints(drag.selStart,drag.selCur,drag.square);
     applyRectSelection(r, drag.selMode);
     commitHistory();
-    setStatus('已创建选区 '+r.w+' × '+r.h+' px');
   } else if(drag.mode === 'move'){
     if(doc.floating){ commitFloat(); commitHistory(); refreshColorUsage(); }
   } else if(drag.mode === 'move-sel'){
     if(drag.lastDx !== 0 || drag.lastDy !== 0){
       recalcBounds();
       commitHistory();
-      setStatus('已移动选区');
-    } else {
-      setStatus('选区未移动');
     }
     drag.selBackup = null;
     drag.selBackupBounds = null;
@@ -2565,13 +2354,6 @@ function onCanvasMouseUp(e){
       else isCircle = !!drag.lassoShift;
       applyLassoMask(pts, drag.lassoMode, isCircle);
       commitHistory();
-      if(doc.hasSelection){
-        setStatus('已创建套索选区 '+doc.selBounds.w+' × '+doc.selBounds.h+' px'+(isCircle?'（正圆）':''));
-      } else {
-        setStatus('选区为空');
-      }
-    } else {
-      setStatus('套索：至少需要 2 个点');
     }
     drag.lassoPoints = null;
   } else if(drag.mode === 'draw'){
@@ -2583,10 +2365,7 @@ function onCanvasMouseUp(e){
     else if(drag.guideIdx >= 0 && doc.guides[drag.guideIdx]){
       if(doc.guides[drag.guideIdx].pos !== drag.guideStartPos) needCommit = true;
     }
-    if(needCommit){
-      commitHistory();
-      setStatus(drag.guideNew ? '已添加参考线' : '已移动参考线');
-    }
+    if(needCommit) commitHistory();
   }
   drag.mode = null; drag.guideIdx = -1; drag.lastPx = null; drag.guideNew = false;
   requestRender();
@@ -2596,41 +2375,12 @@ function onKeyDown(e){
   if(e.target.tagName === 'INPUT') return;
   if(e.key === ' ' && !e.repeat) spaceDown = true;
 
-  // R 键旋转准备模式
-  if ((e.key === 'r' || e.key === 'R') && !e.ctrlKey && !e.metaKey && !e.altKey) {
-    if (!e.repeat && !rotateState.active) {
-      if (getFloatOrFromSelection()) {
-        var f = doc.floating;
-        rotateState.active = true;
-        rotateState.isRotating = false;
-        rotateState.centerX = f.x + f.w / 2;
-        rotateState.centerY = f.y + f.h / 2;
-        rotateState.originalFloat = {
-          w: f.w, h: f.h,
-          data: new Uint8ClampedArray(f.data),
-          x: f.x, y: f.y
-        };
-        setStatus('按住 R 键，鼠标左键拖拽旋转；按住 Shift 吸附 45°');
-        e.preventDefault();
-        return;
-      } else {
-        setStatus('请先选中像素或创建浮动层');
-      }
-    }
-  }
-
   if((e.key === 'v' || e.key === 'V') && !e.ctrlKey && !e.metaKey && !e.altKey){
-    if(!e.repeat){
-      vDown = true;
-      vDragged = false;
-    }
+    if(!e.repeat){ vDown = true; vDragged = false; }
     return;
   }
   if((e.key === 'm' || e.key === 'M') && !e.ctrlKey && !e.metaKey && !e.altKey){
-    if(!e.repeat){
-      mDown = true;
-      mDragged = false;
-    }
+    if(!e.repeat){ mDown = true; mDragged = false; }
     return;
   }
 
@@ -2651,34 +2401,19 @@ function onKeyDown(e){
       if(doc.hasSelection){ deleteSelection(); commitHistory(); refreshColorUsage(); }
       e.preventDefault(); break;
     case 'Escape':
-      var cModal = document.getElementById('colorModal');
-      if(cModal && cModal.style.display !== 'none'){
-        cModal.style.display = 'none';
-        e.preventDefault(); break;
-      }
       if(cpPickingFromCanvas){
         cpPickingFromCanvas = false;
         if(ui.tool===TOOL.PENCIL || ui.tool===TOOL.ERASER) canvas.style.cursor = 'none';
         else canvas.style.cursor = 'crosshair';
-        setStatus('已取消取色');
         e.preventDefault(); break;
       }
       if(cpActive){ closeColorPicker(); e.preventDefault(); break; }
-      if(rotateState.active) {
-        rotateState.active = false;
-        rotateState.isRotating = false;
-        rotateState.originalFloat = null;
-        setStatus('已取消旋转');
-        e.preventDefault();
-        break;
-      }
       if(drag.mode === 'move' && doc.floating){
         drag.mode = null;
         restoreSnapshot(historyStack[historyIndex]);
       } else if(drag.mode === 'lasso'){
         drag.mode = null; drag.lassoPoints = null;
         requestRender();
-        setStatus('已取消套索');
       } else if(highlightColor !== null){
         highlightColor = null;
         _highlightMask = null;
@@ -2688,17 +2423,9 @@ function onKeyDown(e){
       } else deselectAll();
       e.preventDefault(); break;
     case 'Enter':
-      if (doc.floating) {
-        commitFloat();
-        commitHistory();
-        refreshColorUsage();
-        setStatus('已应用');
-        requestRender();
-      }
+      if(drag.mode === 'move' && doc.floating){ onCanvasMouseUp(); }
       e.preventDefault(); break;
     case 'f': case 'F': fitToView(); break;
-    case '[': setBrushSize(ui.brushSize-1); e.preventDefault(); break;
-    case ']': setBrushSize(ui.brushSize+1); e.preventDefault(); break;
     case 'b': case 'B': setTool(TOOL.PENCIL); break;
     case 'e': case 'E': setTool(TOOL.ERASER); break;
     case 'i': case 'I': setTool(TOOL.PICKER); break;
@@ -2726,216 +2453,123 @@ function onKeyDown(e){
   }
 }
 function onKeyUp(e){
+  if(e.target.tagName === 'INPUT') return;
   if(e.key === ' ') spaceDown = false;
-  if (e.key === 'r' || e.key === 'R') {
-    if (rotateState.active) {
-      rotateState.active = false;
-      rotateState.isRotating = false;
-      rotateState.originalFloat = null;
-      setStatus('退出旋转模式');
-    }
-  }
   if((e.key === 'v' || e.key === 'V') && !e.ctrlKey && !e.metaKey && !e.altKey){
     vDown = false;
-    if(!vDragged){
-      setTool(TOOL.SELECT);
-    }
+    if(!vDragged){ setTool(TOOL.SELECT); }
     vDragged = false;
   }
   if((e.key === 'm' || e.key === 'M') && !e.ctrlKey && !e.metaKey && !e.altKey){
     mDown = false;
-    if(!mDragged){
-      setTool(TOOL.LASSO);
-    }
+    if(!mDragged){ setTool(TOOL.LASSO); }
     mDragged = false;
   }
 }
 
-// 旋转相关函数
-function getFloatOrFromSelection() {
-  if (doc.floating) return true;
-  if (doc.hasSelection) {
-    beginFloat();
-    return !!doc.floating;
+/* ==== 动画范围约束 ==== */
+function enforceAnimRange(which){
+  if(!animStartEl || !animEndEl) return;
+  var total = totalCells();
+  var maxIdx = Math.max(0, total - 1);
+  if(total < 2){
+    animStartEl.value = 0;
+    animEndEl.value = 0;
+    animStartEl.min = 0; animStartEl.max = 0;
+    animEndEl.min = 0; animEndEl.max = 0;
+    return;
   }
-  return false;
+  var s = parseInt(animStartEl.value, 10);
+  var e = parseInt(animEndEl.value, 10);
+  if(isNaN(s)) s = 0;
+  if(isNaN(e)) e = maxIdx;
+  s = clamp(s, 0, maxIdx);
+  e = clamp(e, 0, maxIdx);
+
+  if(which === 'start'){
+    if(s >= e){
+      e = Math.min(s + 1, maxIdx);
+      if(s >= e){
+        // s 已到顶，回退 s
+        s = Math.max(e - 1, 0);
+      }
+    }
+  } else if(which === 'end'){
+    if(e <= s){
+      s = Math.max(e - 1, 0);
+      if(e <= s){
+        e = Math.min(s + 1, maxIdx);
+      }
+    }
+  } else {
+    // 无指定，优先修 end
+    if(s >= e){
+      e = Math.min(s + 1, maxIdx);
+      if(s >= e) s = Math.max(e - 1, 0);
+    }
+  }
+  animStartEl.value = s;
+  animEndEl.value = e;
+  updateAnimRangeAttrs(s, e);
 }
 
-function rotateFloat90(direction) {
-  if (!getFloatOrFromSelection()) { setStatus('请先选中像素'); return; }
-  var f = doc.floating;
-  var w = f.w, h = f.h;
-  var src = f.data;
-  var newW, newH, dst;
-  if (direction === 2) {
-    newW = w; newH = h;
-    dst = new Uint8ClampedArray(newW * newH * 4);
-    for (var y = 0; y < h; y++) {
-      for (var x = 0; x < w; x++) {
-        var si = (y * w + x) * 4;
-        var dx = w - 1 - x;
-        var dy = h - 1 - y;
-        var di = (dy * newW + dx) * 4;
-        dst[di] = src[si];
-        dst[di+1] = src[si+1];
-        dst[di+2] = src[si+2];
-        dst[di+3] = src[si+3];
-      }
-    }
-  } else if (direction === 1) {
-    newW = h; newH = w;
-    dst = new Uint8ClampedArray(newW * newH * 4);
-    for (var y = 0; y < h; y++) {
-      for (var x = 0; x < w; x++) {
-        var si = (y * w + x) * 4;
-        var dx = h - 1 - y;
-        var dy = x;
-        var di = (dy * newW + dx) * 4;
-        dst[di] = src[si];
-        dst[di+1] = src[si+1];
-        dst[di+2] = src[si+2];
-        dst[di+3] = src[si+3];
-      }
-    }
-  } else if (direction === -1) {
-    newW = h; newH = w;
-    dst = new Uint8ClampedArray(newW * newH * 4);
-    for (var y = 0; y < h; y++) {
-      for (var x = 0; x < w; x++) {
-        var si = (y * w + x) * 4;
-        var dx = y;
-        var dy = w - 1 - x;
-        var di = (dy * newW + dx) * 4;
-        dst[di] = src[si];
-        dst[di+1] = src[si+1];
-        dst[di+2] = src[si+2];
-        dst[di+3] = src[si+3];
-      }
-    }
+function updateAnimRangeAttrs(s, e){
+  if(!animStartEl || !animEndEl) return;
+  var total = totalCells();
+  var maxIdx = Math.max(0, total - 1);
+  if(total < 2){
+    animStartEl.min = 0; animStartEl.max = 0;
+    animEndEl.min = 0; animEndEl.max = 0;
+    return;
   }
-  var centerX = f.x + f.w / 2;
-  var centerY = f.y + f.h / 2;
-  f.w = newW; f.h = newH; f.data = dst;
-  f.x = Math.round(centerX - newW / 2);
-  f.y = Math.round(centerY - newH / 2);
-  doc.floatDirty = true;
-  doc.imageDirty = true;
-  _highlightDirty = true;
-  requestRender();
-  setStatus('旋转 ' + (direction === 1 ? '顺时针 90°' : direction === -1 ? '逆时针 90°' : '180°'));
-}
-
-function flipFloat(horizontal) {
-  if (!getFloatOrFromSelection()) { setStatus('请先选中像素'); return; }
-  var f = doc.floating;
-  var w = f.w, h = f.h;
-  var src = f.data;
-  var dst = new Uint8ClampedArray(w * h * 4);
-  for (var y = 0; y < h; y++) {
-    for (var x = 0; x < w; x++) {
-      var si = (y * w + x) * 4;
-      var dx = horizontal ? (w - 1 - x) : x;
-      var dy = horizontal ? y : (h - 1 - y);
-      var di = (dy * w + dx) * 4;
-      dst[di] = src[si];
-      dst[di+1] = src[si+1];
-      dst[di+2] = src[si+2];
-      dst[di+3] = src[si+3];
-    }
-  }
-  f.data = dst;
-  doc.floatDirty = true;
-  doc.imageDirty = true;
-  _highlightDirty = true;
-  requestRender();
-  setStatus(horizontal ? '左右翻转' : '上下翻转');
-}
-
-function rotateFloatFree(angleRad) {
-  if (!rotateState.originalFloat) return;
-  var orig = rotateState.originalFloat;
-  var w = orig.w, h = orig.h, src = orig.data;
-  var cos = Math.cos(angleRad);
-  var sin = Math.sin(angleRad);
-  var cx = w / 2, cy = h / 2;
-  var corners = [
-    {x: -cx, y: -cy},
-    {x: w - cx, y: -cy},
-    {x: w - cx, y: h - cy},
-    {x: -cx, y: h - cy}
-  ];
-  var minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-  for (var i = 0; i < 4; i++) {
-    var rx = corners[i].x * cos - corners[i].y * sin;
-    var ry = corners[i].x * sin + corners[i].y * cos;
-    if (rx < minX) minX = rx;
-    if (rx > maxX) maxX = rx;
-    if (ry < minY) minY = ry;
-    if (ry > maxY) maxY = ry;
-  }
-  var newW = Math.ceil(maxX - minX);
-  var newH = Math.ceil(maxY - minY);
-  var newData = new Uint8ClampedArray(newW * newH * 4);
-  var ncx = newW / 2;
-  var ncy = newH / 2;
-  
-  for (var ny = 0; ny < newH; ny++) {
-    for (var nx = 0; nx < newW; nx++) {
-      var dx = nx - ncx;
-      var dy = ny - ncy;
-      var sx = dx * cos + dy * sin + cx;
-      var sy = -dx * sin + dy * cos + cy;
-      var ix = Math.round(sx);
-      var iy = Math.round(sy);
-      if (ix >= 0 && ix < w && iy >= 0 && iy < h) {
-        var si = (iy * w + ix) * 4;
-        var di = (ny * newW + nx) * 4;
-        newData[di] = src[si];
-        newData[di+1] = src[si+1];
-        newData[di+2] = src[si+2];
-        newData[di+3] = src[si+3];
-      }
-    }
-  }
-  
-  var f = doc.floating;
-  f.w = newW; f.h = newH; f.data = newData;
-  f.x = Math.round(rotateState.centerX - newW / 2);
-  f.y = Math.round(rotateState.centerY - newH / 2);
-  
-  doc.floatDirty = true;
-  doc.imageDirty = true;
-  _highlightDirty = true;
-  requestRender();
-  setStatus('旋转中... 松开鼠标结束');
+  if(typeof s !== 'number') s = parseInt(animStartEl.value, 10) || 0;
+  if(typeof e !== 'number') e = parseInt(animEndEl.value, 10) || 0;
+  animStartEl.min = 0;
+  animStartEl.max = Math.max(0, e - 1);
+  animEndEl.min = Math.min(maxIdx, s + 1);
+  animEndEl.max = maxIdx;
 }
 
 function updateAnimRange(){
   var total = totalCells();
-  var a = document.getElementById('anim-start');
-  var b = document.getElementById('anim-end');
-  if(!a || !b) return;
-  a.max = Math.max(0,total-1);
-  b.max = Math.max(0,total-1);
-  if(+b.value >= total) b.value = Math.max(0,total-1);
+  if(!animStartEl || !animEndEl) return;
+  var maxIdx = Math.max(0, total-1);
+  animStartEl.max = maxIdx;
+  animEndEl.max = maxIdx;
+
+  var s = parseInt(animStartEl.value, 10);
+  var e = parseInt(animEndEl.value, 10);
+  if(isNaN(s) || s < 0) s = 0;
+  if(isNaN(e) || e > maxIdx) e = maxIdx;
+  if(s > maxIdx) s = maxIdx;
+  if(e < 0) e = 0;
+
+  if(total >= 2 && s >= e){
+    if(e < maxIdx){ e = s + 1; if(e > maxIdx){ e = maxIdx; s = e - 1; } }
+    else { s = e - 1; if(s < 0) s = 0; }
+  }
+  animStartEl.value = s;
+  animEndEl.value = e;
+  updateAnimRangeAttrs(s, e);
 }
+
 function startPlay(){
   if(!ui.singleCell){
     ui.singleCell = true;
-    document.getElementById('btn-view-mode').textContent = '全图';
+    updateViewModeButton();
     centerCurrentCell();
   }
   ui.playing = true;
-  ui.animFrame = +document.getElementById('anim-start').value;
+  ui.animFrame = +animStartEl.value;
   ui.currentCell = ui.animFrame;
   ui.animLastT = performance.now();
   ui.animTimer = 0;
-  document.getElementById('btn-play').textContent = '暂停';
+  document.getElementById('btn-play').textContent = currentLang==='zh'?'暂停':'Pause';
   requestRender(); updateAnimCursor();
 }
 function stopPlay(){
   ui.playing = false;
-  document.getElementById('btn-play').textContent = '播放';
+  document.getElementById('btn-play').textContent = currentLang==='zh'?'播放':'Play';
 }
 function tickAnim(now){
   if(!ui.playing){ ui.animLastT = now; return; }
@@ -2945,8 +2579,8 @@ function tickAnim(now){
   ui.animLastT = now;
   while(ui.animTimer >= ft){
     ui.animTimer -= ft;
-    var start = +document.getElementById('anim-start').value;
-    var end = +document.getElementById('anim-end').value;
+    var start = +animStartEl.value;
+    var end = +animEndEl.value;
     ui.animFrame++;
     if(ui.animFrame > end){
       if(document.getElementById('anim-loop').checked) ui.animFrame = start;
@@ -3008,7 +2642,7 @@ function animUpdateFromEvent(e){
     ui.currentCell = idx;
     if(!ui.singleCell){
       ui.singleCell = true;
-      document.getElementById('btn-view-mode').textContent = '全图';
+      updateViewModeButton();
       centerCurrentCell();
     }
     requestRender(); updateAnimCursor();
@@ -3023,13 +2657,10 @@ function setTool(t){
   }
   if(t === TOOL.PENCIL || t === TOOL.ERASER) canvas.style.cursor = 'none';
   else canvas.style.cursor = 'crosshair';
-  var names = {1:'选择',2:'铅笔',3:'橡皮',4:'油漆桶',5:'吸管',6:'替换色',7:'套索'};
-  setStatus('当前工具：'+(names[t]||'?'));
   requestRender();
 }
 function setBrushSize(n){
   ui.brushSize = clamp(n,1,64);
-  if(brushInfoEl) brushInfoEl.textContent = '笔刷: '+ui.brushSize;
   requestRender();
 }
 function syncColorInputs(){
@@ -3044,20 +2675,32 @@ function setSelMode(mode){
   for(var i=0;i<btns.length;i++){
     btns[i].classList.toggle('on', +btns[i].dataset.mode === mode);
   }
-  var names = ['新建','加选','减选'];
-  setStatus('选区模式: '+names[mode]+'（拖拽框选；Shift=正方形/正圆，Ctrl=加选，Alt=减选）');
 }
 function cycleBackground(){
   bgMode = (bgMode+1)%4;
-  var btn = document.getElementById('btn-bg');
-  if(btn) btn.textContent = BG_NAMES[bgMode];
+  updateBgButton();
   requestRender();
+}
+function updateBgButton(){
+  var btn = document.getElementById('btn-bg');
+  if(btn) btn.textContent = BG_NAMES[currentLang][bgMode];
 }
 function updateGuidesToggleButton(){
   var btn = document.getElementById('btn-guides-toggle');
   if(!btn) return;
-  btn.textContent = ui.showGuides ? '隐藏参考线' : '显示参考线';
+  btn.textContent = currentLang === 'zh'
+    ? (ui.showGuides ? '隐藏参考线' : '显示参考线')
+    : (ui.showGuides ? 'Hide Guides' : 'Show Guides');
   btn.classList.toggle('active', !ui.showGuides);
+}
+function updateViewModeButton(){
+  var btn = document.getElementById('btn-view-mode');
+  if(!btn) return;
+  if(ui.singleCell){
+    btn.textContent = currentLang==='zh'?'全图':'Full';
+  } else {
+    btn.textContent = currentLang==='zh'?'单格':'Single';
+  }
 }
 
 function cpGetColor(){ return cpTarget === 'primary' ? ui.primary : ui.secondary; }
@@ -3125,7 +2768,9 @@ function openColorPicker(target, anchorEl) {
   var hsv = rgbToHsv(color[0], color[1], color[2]);
   cpState.h = hsv[0]; cpState.s = hsv[1]; cpState.v = hsv[2];
   var popup = document.getElementById('color-picker-popup');
-  document.getElementById('cp-title').textContent = target === 'primary' ? '主色' : '辅色';
+  document.getElementById('cp-title').textContent = target === 'primary'
+    ? (currentLang==='zh'?'主色':'Primary')
+    : (currentLang==='zh'?'辅色':'Secondary');
   document.getElementById('cp-hex').value = rgbToHex(color);
   popup.classList.add('open');
   cpRenderSV();
@@ -3153,7 +2798,7 @@ function cpFallbackToCanvas() {
   cpPickingFromCanvas = true;
   closeColorPicker();
   canvas.style.cursor = 'crosshair';
-  setStatus('浏览器不支持屏幕取色，已切换到画布取色（点击画布任意位置，Esc 取消）');
+  setStatus(currentLang==='zh'?'浏览器不支持屏幕取色，请点击画布取色':'Screen picker not supported, click canvas to pick');
 }
 function bindColorPicker() {
   var chipP = document.getElementById('chip-primary');
@@ -3250,15 +2895,9 @@ function bindColorPicker() {
           var rgb = hexToRgb(result.sRGBHex);
           cpTarget = target;
           cpApplyRgb(rgb[0], rgb[1], rgb[2]);
-          setStatus('已从屏幕取色 ' + result.sRGBHex);
-        }).catch(function(err){
-          if (err && err.name !== 'AbortError') {
-            console.error(err);
-            setStatus('取色失败: ' + (err.message || err));
-          }
-        });
+        }).catch(function(){});
         return;
-      } catch(e) { console.error('EyeDropper 创建失败:', e); }
+      } catch(e) { }
     }
     cpFallbackToCanvas();
   });
@@ -3300,27 +2939,25 @@ function savePng(saveAs){
         return w.write(blob).then(function(){ return w.close(); });
       }).then(function(){
         doc.fileName = handle.name;
-        setStatus('已保存 PNG: '+handle.name);
-      }).catch(function(err){ setStatus('保存失败: '+err.message); });
+      }).catch(function(){});
     },'image/png');
   };
   if(saveAs && window.showSaveFilePicker){
     window.showSaveFilePicker({
       suggestedName: defName,
-      types: [{description:'PNG 图片', accept:{'image/png':['.png']}}]
+      types: [{description:'PNG', accept:{'image/png':['.png']}}]
     }).then(doSaveToHandle).catch(function(err){
       if(err && err.name === 'AbortError') return;
-      var fallbackName = prompt('另存为 PNG 文件名：', defName);
+      var fallbackName = prompt('PNG filename:', defName);
       if(fallbackName === null) return;
       if(!/\.png$/i.test(fallbackName)) fallbackName += '.png';
-      exportCanvas.toBlob(function(blob){ download(blob, fallbackName); setStatus('已保存 PNG: '+fallbackName); },'image/png');
+      exportCanvas.toBlob(function(blob){ download(blob, fallbackName); },'image/png');
     });
     return;
   }
   exportCanvas.toBlob(function(blob){
     download(blob, defName);
     if(!saveAs) doc.fileName = defName;
-    setStatus('已保存 PNG: '+defName);
   },'image/png');
 }
 function openPng(){
@@ -3341,7 +2978,7 @@ function openPng(){
           var id = g.getImageData(0,0,img.width,img.height);
 
           doc.width = img.width; doc.height = img.height;
-          doc.layers = [{name:'背景',visible:true,opacity:255,imageData:id}];
+          doc.layers = [{name:'Background',visible:true,opacity:255,imageData:id}];
           doc.activeLayer = 0;
           doc.imageData = doc.layers[0].imageData;
 
@@ -3368,13 +3005,8 @@ function openPng(){
           refreshLayerList();
           refreshColorUsage();
           fitToView();
-          setStatus('已打开: '+f.name);
-        } catch(err){
-          console.error(err);
-          setStatus('图片载入失败');
-        }
+        } catch(err){ console.error(err); }
       };
-      img.onerror = function(){ setStatus('图片解析失败'); };
       img.src = reader.result;
     };
     reader.readAsDataURL(f);
@@ -3418,8 +3050,8 @@ function saveProject(saveAs){
     guides:doc.guides.slice(),
     showGuides: ui.showGuides,
     singleCell:ui.singleCell, currentCell:ui.currentCell,
-    animStart:+document.getElementById('anim-start').value,
-    animEnd:+document.getElementById('anim-end').value,
+    animStart:+animStartEl.value,
+    animEnd:+animEndEl.value,
     animFps:+document.getElementById('anim-fps').value,
     animLoop:document.getElementById('anim-loop').checked,
     onionPrev: ui.onionPrev,
@@ -3433,27 +3065,22 @@ function saveProject(saveAs){
   if(saveAs && window.showSaveFilePicker){
     window.showSaveFilePicker({
       suggestedName: defName,
-      types: [{description:'像素工程', accept:{'application/json':['.pxproj']}}]
+      types: [{description:'Project', accept:{'application/json':['.pxproj']}}]
     }).then(function(handle){
       handle.createWritable().then(function(w){
         return w.write(blob).then(function(){ return w.close(); });
-      }).then(function(){
-        doc.fileName = handle.name;
-        setStatus('工程已保存: '+handle.name);
-      }).catch(function(err){ setStatus('保存失败: '+err.message); });
+      }).then(function(){ doc.fileName = handle.name; }).catch(function(){});
     }).catch(function(err){
       if(err && err.name === 'AbortError') return;
-      var fb = prompt('另存为工程文件名：', defName);
+      var fb = prompt('Project filename:', defName);
       if(fb === null) return;
       if(!/\.pxproj$/i.test(fb)) fb += '.pxproj';
       download(blob, fb);
-      setStatus('已下载: '+fb);
     });
     return;
   }
   download(blob, defName);
   if(!saveAs) doc.fileName = defName;
-  setStatus('工程已保存: '+defName);
 }
 function openProject(){
   fileInput.accept = '.pxproj,.json,application/json';
@@ -3465,13 +3092,8 @@ function openProject(){
         var data = JSON.parse(reader.result);
         loadProjectData(data).then(function(){
           doc.fileName = f.name;
-          setStatus('工程已载入: '+f.name);
-        }).catch(function(err){
-          setStatus('工程解析失败: '+err.message);
-        });
-      } catch(err){
-        setStatus('工程解析失败');
-      }
+        }).catch(function(err){});
+      } catch(err){}
     };
     reader.readAsText(f);
     fileInput.value = '';
@@ -3480,7 +3102,7 @@ function openProject(){
 }
 async function loadProjectData(data){
   var W = data.width, H = data.height;
-  if(!W || !H) throw new Error('无效尺寸');
+  if(!W || !H) throw new Error('invalid size');
   var layers = [];
   if(Array.isArray(data.layers) && data.layers.length){
     for(var i=0;i<data.layers.length;i++){
@@ -3491,7 +3113,7 @@ async function loadProjectData(data){
         catch(err){ imageData = new ImageData(W,H); }
       } else imageData = new ImageData(W,H);
       layers.push({
-        name:L.name || ('图层 '+(i+1)),
+        name:L.name || ('Layer '+(i+1)),
         visible:L.visible !== false,
         opacity:(L.opacity != null) ? L.opacity : 255,
         imageData:imageData
@@ -3501,7 +3123,7 @@ async function loadProjectData(data){
   if(layers.length === 0){
     var singleId = new ImageData(W,H);
     if(data.png){ try { singleId = await dataURLToImageData(data.png, W, H); } catch(err){} }
-    layers = [{name:'图层 1', visible:true, opacity:255, imageData:singleId}];
+    layers = [{name:'Layer 1', visible:true, opacity:255, imageData:singleId}];
   }
   doc.width = W; doc.height = H;
   doc.layers = layers;
@@ -3528,11 +3150,11 @@ async function loadProjectData(data){
   updateGuidesToggleButton();
   syncGridInputsFromWH();
   ui.singleCell = !!data.singleCell;
-  document.getElementById('btn-view-mode').textContent = ui.singleCell ? '全图' : '单格';
+  updateViewModeButton();
   ui.currentCell = data.currentCell || 0;
+  if(data.animStart != null) animStartEl.value = data.animStart;
+  if(data.animEnd != null) animEndEl.value = data.animEnd;
   updateAnimRange();
-  if(data.animStart != null) document.getElementById('anim-start').value = data.animStart;
-  if(data.animEnd != null) document.getElementById('anim-end').value = data.animEnd;
   if(data.animFps != null) document.getElementById('anim-fps').value = data.animFps;
   if(data.animLoop != null) document.getElementById('anim-loop').checked = !!data.animLoop;
 
@@ -3573,7 +3195,6 @@ async function loadProjectData(data){
 function exportCustomPalette(){
   var arr = ui.paletteCustom.map(function(c){ return rgbToHex(c); });
   download(new Blob([JSON.stringify(arr,null,2)],{type:'application/json'}),'palette-custom.json');
-  setStatus('自定义色板已导出');
 }
 function importCustomPalette(){
   fileInput.accept = '.json,application/json';
@@ -3586,9 +3207,8 @@ function importCustomPalette(){
         if(Array.isArray(arr)){
           ui.paletteCustom = arr.map(function(h){ return hexToRgb(h.charAt(0)==='#'?h:'#'+h); });
           refreshPaletteCustom();
-          setStatus('自定义色板已载入');
         }
-      } catch(e){ setStatus('色板解析失败'); }
+      } catch(e){}
     };
     reader.readAsText(f);
     fileInput.value = '';
@@ -3632,7 +3252,7 @@ function refreshPaletteCustom(){
       var div = document.createElement('div');
       div.className = 'swatch';
       div.style.background = 'rgb('+c[0]+','+c[1]+','+c[2]+')';
-      div.title = '#'+rgbToHex(c).slice(1)+' (中键删除)';
+      div.title = '#'+rgbToHex(c).slice(1);
       div.addEventListener('mousedown', function(e){
         e.preventDefault();
         if(e.button===1){
@@ -3649,137 +3269,142 @@ function refreshPaletteCustom(){
   }
 }
 
-function showModal(title,bodyHTML,onOK,okLabel){
-  var back = document.createElement('div');
-  back.className = 'modal-back';
-  back.innerHTML = '<div class="modal"><h2>'+title+'</h2>'+bodyHTML+
-    '<div class="actions"><button class="cancel">取消</button><button class="ok">'+(okLabel||'确定')+'</button></div></div>';
-  document.body.appendChild(back);
-  var closed = false;
-  var close = function(){
-    if(closed) return;
-    closed = true;
-    if(back.parentNode) document.body.removeChild(back);
-    document.removeEventListener('keydown', onEscCapture, true);
-  };
-  var onEscCapture = function(ev){
-    if(ev.key === 'Escape'){
-      ev.preventDefault();
-      ev.stopPropagation();
-      close();
-    }
-  };
-  document.addEventListener('keydown', onEscCapture, true);
-  back.querySelector('.cancel').addEventListener('click', close);
-  back.querySelector('.ok').addEventListener('click', function(){
-    var result = onOK(back);
-    if(result !== false) close();
-  });
-  back.addEventListener('mousedown', function(e){ if(e.target === back) close(); });
-  return back;
-}
-function showNewDialog(){
-  var el = showModal('新建图片',
-    '<div class="row"><label>宽度 <input type="number" class="nw" min="1" max="4096" value="128" style="width:80px"></label></div>'+
-    '<div class="row"><label>高度 <input type="number" class="nh" min="1" max="4096" value="128" style="width:80px"></label></div>',
-    function(dlg){
-      var w = +dlg.querySelector('.nw').value;
-      var h = +dlg.querySelector('.nh').value;
-      newDoc(w,h);
-      fitToView(); updateAnimRange();
-      setStatus('新建 '+w+'×'+h);
-    },'创建');
-  el.querySelector('.nw').focus();
-}
-function showResizeDialog(){
-  var W0 = doc.width, H0 = doc.height;
-  var el = showModal('调整画布尺寸',
-    '<div class="field"><label>宽度</label><input type="number" class="nw" min="1" max="4096" value="'+W0+'" style="width:100px"></div>'+
-    '<div class="field"><label>高度</label><input type="number" class="nh" min="1" max="4096" value="'+H0+'" style="width:100px"></div>'+
-    '<div style="color:#aaa;font-size:12px;margin-top:8px">缩放锚点：</div>'+
-    '<div class="anchor-grid" id="anchor-grid">'+
-    '<div class="anchor-cell" data-a="0"></div><div class="anchor-cell" data-a="1"></div><div class="anchor-cell" data-a="2"></div>'+
-    '<div class="anchor-cell" data-a="3"></div><div class="anchor-cell active" data-a="4"></div><div class="anchor-cell" data-a="5"></div>'+
-    '<div class="anchor-cell" data-a="6"></div><div class="anchor-cell" data-a="7"></div><div class="anchor-cell" data-a="8"></div>'+
-    '</div>',
-    function(dlg){
-      var nw = Math.max(1, +dlg.querySelector('.nw').value|0);
-      var nh = Math.max(1, +dlg.querySelector('.nh').value|0);
-      var anchor = dlg._anchor != null ? dlg._anchor : 4;
-      resizeDocWithAnchor(nw, nh, anchor);
-      commitHistory(); fitToView(); updateAnimRange();
-      setStatus('画布已调整为 '+nw+'×'+nh);
-    },'应用');
-  el._anchor = 4;
-  var cells = el.querySelectorAll('.anchor-cell');
-  for(var i=0;i<cells.length;i++){
-    (function(cell){
-      cell.addEventListener('click', function(){
-        for(var k=0;k<cells.length;k++) cells[k].classList.remove('active');
-        cell.classList.add('active');
-        el._anchor = +cell.dataset.a;
-      });
-    })(cells[i]);
+/* ==== i18n 字典 ==== */
+var I18N = {
+  'menu.file': {zh:'文件 ▾', en:'File ▾'},
+  'menu.edit': {zh:'编辑 ▾', en:'Edit ▾'},
+  'btn.openPng': {zh:'打开 PNG', en:'Open PNG'},
+  'btn.openProj': {zh:'打开工程', en:'Open Project'},
+  'btn.savePng': {zh:'另存 PNG', en:'Save As PNG'},
+  'btn.saveProj': {zh:'另存工程', en:'Save As Project'},
+  'tool.select': {zh:'选', en:'Sel'},
+  'tool.lasso': {zh:'套', en:'Lasso'},
+  'tool.pencil': {zh:'笔', en:'Pen'},
+  'tool.eraser': {zh:'擦', en:'Era'},
+  'tool.picker': {zh:'吸', en:'Pick'},
+  'tool.bucket': {zh:'桶', en:'Fill'},
+  'tool.replace': {zh:'换', en:'Rep'},
+  'btn.undo': {zh:'撤销', en:'Undo'},
+  'btn.redo': {zh:'重做', en:'Redo'},
+  'btn.fit': {zh:'适应', en:'Fit'},
+  'section.grid': {zh:'网格 / 分格', en:'Grid / Cells'},
+  'label.cellW': {zh:'格宽', en:'W'},
+  'label.cellH': {zh:'格高', en:'H'},
+  'label.cols': {zh:'列数', en:'Cols'},
+  'label.rows': {zh:'行数', en:'Rows'},
+  'label.showGrid': {zh:'显示分格网格', en:'Show cell grid'},
+  'label.showPixelGrid': {zh:'显示像素格', en:'Show pixel grid'},
+  'btn.resize': {zh:'调整画布…', en:'Resize Canvas…'},
+  'section.anim': {zh:'动画预览', en:'Animation'},
+  'hint.anim': {zh:'（拖拽可定位格）', en:'(drag to locate)'},
+  'label.start': {zh:'起始', en:'Start'},
+  'label.end': {zh:'结束', en:'End'},
+  'label.loop': {zh:'循环', en:'Loop'},
+  'btn.play': {zh:'播放', en:'Play'},
+  'btn.stop': {zh:'停止', en:'Stop'},
+  'btn.animAll': {zh:'全范围', en:'Full Range'},
+  'label.prev': {zh:'前帧', en:'Prev'},
+  'label.next': {zh:'后帧', en:'Next'},
+  'section.color': {zh:'颜色', en:'Color'},
+  'btn.replaceAll': {zh:'全图替换', en:'Replace All'},
+  'section.nes': {zh:'NES 色板', en:'NES Palette'},
+  'hint.nes': {zh:'（只读 · NTSC 2C02）', en:'(read-only · NTSC 2C02)'},
+  'section.custom': {zh:'自定义色板', en:'Custom Palette'},
+  'hint.custom': {zh:'（中键删除）', en:'(middle click to remove)'},
+  'btn.palAdd': {zh:'加入色板', en:'Add'},
+  'btn.palReset': {zh:'恢复默认', en:'Reset'},
+  'btn.palLoad': {zh:'载入…', en:'Load…'},
+  'btn.palSave': {zh:'保存…', en:'Save…'},
+  'section.layers': {zh:'图层', en:'Layers'},
+  'hint.layers': {zh:'（拖动排序）', en:'(drag to reorder)'},
+  'btn.layerNew': {zh:'新建', en:'New'},
+  'btn.layerDup': {zh:'复制', en:'Duplicate'},
+  'btn.layerDel': {zh:'删除', en:'Delete'},
+  'btn.layerUp': {zh:'上移', en:'Up'},
+  'btn.layerDown': {zh:'下移', en:'Down'},
+  'btn.layerMerge': {zh:'合并 ↓', en:'Merge Down'},
+  'btn.layerFlatten': {zh:'拼合可见', en:'Flatten'},
+  'btn.layerPaste': {zh:'粘贴为新图层', en:'Paste as Layer'},
+  'section.guides': {zh:'参考线 / 吸附', en:'Guides / Snap'},
+  'label.snap': {zh:'吸附（参考线 / 格子）', en:'Snap (guides / grid)'},
+  'btn.guidesToggle': {zh:'隐藏参考线', en:'Hide Guides'},
+  'btn.guidesClear': {zh:'清空参考线', en:'Clear Guides'},
+  'section.imgPal': {zh:'图片色板', en:'Image Palette'},
+  'btn.refresh': {zh:'刷新', en:'Refresh'},
+  'btn.compareNes': {zh:'对比 NES', en:'Compare NES'},
+  'hint.imgPal': {zh:'点击色块 → 高亮该颜色区域（再次点击取消）', en:'Click swatch → highlight color (click again to cancel)'},
+  'section.sel': {zh:'选区', en:'Selection'},
+  'sel.replace': {zh:'新建', en:'Replace'},
+  'sel.add': {zh:'加选', en:'Add'},
+  'sel.sub': {zh:'减选', en:'Subtract'},
+  'btn.selAll': {zh:'全选', en:'Select All'},
+  'btn.selNone': {zh:'取消', en:'Deselect'},
+  'btn.selInv': {zh:'反选', en:'Invert'},
+  'btn.selCell': {zh:'选当前格', en:'Select Cell'},
+  'btn.delSel': {zh:'删除像素', en:'Delete Pixels'},
+  'menu.new': {zh:'新建…', en:'New…'},
+  'menu.openPng': {zh:'打开 PNG…', en:'Open PNG…'},
+  'menu.openProj': {zh:'打开工程…', en:'Open Project…'},
+  'menu.save': {zh:'保存 PNG', en:'Save PNG'},
+  'menu.saveAs': {zh:'另存为 PNG…', en:'Save As PNG…'},
+  'menu.saveProj': {zh:'保存工程', en:'Save Project'},
+  'menu.saveProjAs': {zh:'另存为工程…', en:'Save As Project…'},
+  'menu.undo': {zh:'撤销', en:'Undo'},
+  'menu.redo': {zh:'重做', en:'Redo'},
+  'menu.selAll': {zh:'全选', en:'Select All'},
+  'menu.selNone': {zh:'取消选择', en:'Deselect'},
+  'menu.selInv': {zh:'反选', en:'Invert'},
+  'menu.selCell': {zh:'选择当前格', en:'Select Current Cell'},
+  'menu.delSel': {zh:'删除选中像素', en:'Delete Selected Pixels'},
+  'status.ready': {zh:'就绪 — V 选择 · M 套索 · B 铅笔 | Ctrl+C/X/V 复制剪切粘贴', en:'Ready — V Select · M Lasso · B Pencil | Ctrl+C/X/V Copy/Cut/Paste'}
+};
+
+var I18N_TITLE = {
+  'help.guides': {
+    zh:'顶部标尺往下拖 → 水平参考线\n左侧标尺往右拖 → 垂直参考线\nCtrl + 鼠标靠近参考线拖动 → 移动\n拖动时自动吸附到格子边沿 / 中心\n双击参考线 → 删除\n选框终点会吸附到邻近参考线（起点不吸附）\n隐藏参考线后不吸附、不可拖动',
+    en:'Drag top ruler down → horizontal guide\nDrag left ruler right → vertical guide\nCtrl + drag near guide → move it\nAuto-snap to cell edges / centers while dragging\nDouble-click guide → delete\nSelection endpoint snaps to nearby guides (start point not snapped)\nWhen guides are hidden, snapping is disabled and guides can\'t be dragged'
+  },
+  'help.sel': {
+    zh:'选择工具 (V)：Shift=正方形 · Ctrl=加选 · Alt=减选\n套索工具 (M)：Shift=正圆 · Ctrl=加选 · Alt=减选\n按住 V（选择工具）或 M（套索）拖动选区内 → 仅移动选区\nCtrl+C 复制 · Ctrl+X 剪切 · Ctrl+V 粘贴 · Ctrl+Shift+V 粘贴为新图层',
+    en:'Select tool (V): Shift = square · Ctrl = add · Alt = subtract\nLasso tool (M): Shift = circle · Ctrl = add · Alt = subtract\nHold V (select) or M (lasso) and drag inside selection → move selection only\nCtrl+C copy · Ctrl+X cut · Ctrl+V paste · Ctrl+Shift+V paste as new layer'
   }
+};
+
+function applyLanguage(lang) {
+  currentLang = lang;
+  document.documentElement.lang = lang === 'zh' ? 'zh-CN' : 'en';
+  document.querySelectorAll('[data-i18n]').forEach(function(el){
+    var key = el.dataset.i18n;
+    var entry = I18N[key];
+    if(!entry) return;
+    var txt = entry[lang];
+    if(txt === undefined) txt = entry.zh;
+    if(el.id === 'btn-bg' || el.id === 'btn-view-mode' || el.id === 'btn-guides-toggle') return;
+    if(el.id === 'btn-play' && ui.playing) return;
+    el.textContent = txt;
+  });
+  document.querySelectorAll('[data-i18n-title]').forEach(function(el){
+    var key = el.dataset.i18nTitle;
+    var entry = I18N_TITLE[key];
+    if(!entry) return;
+    var txt = entry[lang];
+    if(txt === undefined) txt = entry.zh;
+    el.setAttribute('title', txt);
+  });
+  updateBgButton();
+  updateViewModeButton();
+  updateGuidesToggleButton();
+  if(!ui.playing){
+    var p = document.getElementById('btn-play');
+    if(p) p.textContent = lang==='zh'?'播放':'Play';
+  }
+  langBtn.textContent = lang === 'zh' ? 'CH' : 'EN';
+  setStatus(I18N['status.ready'][lang]);
 }
 
-function closeAllMenus(){
-  var menus = document.querySelectorAll('.menu');
-  for(var i=0;i<menus.length;i++) menus[i].classList.remove('open');
-}
-function initMenus(){
-  var btns = document.querySelectorAll('.menu-btn');
-  for(var i=0;i<btns.length;i++){
-    (function(btn){
-      btn.addEventListener('click', function(e){
-        e.stopPropagation();
-        var menu = document.getElementById('menu-'+btn.dataset.menu);
-        var isOpen = menu.classList.contains('open');
-        closeAllMenus();
-        if(!isOpen){
-          var r = btn.getBoundingClientRect();
-          menu.style.left = r.left+'px';
-          menu.style.top = (r.bottom+2)+'px';
-          menu.classList.add('open');
-        }
-      });
-    })(btns[i]);
-  }
-  document.addEventListener('click', closeAllMenus);
-  var items = document.querySelectorAll('.menu > div[data-act]');
-  for(var j=0;j<items.length;j++){
-    (function(item){
-      item.addEventListener('click', function(e){
-        e.stopPropagation();
-        handleMenuAction(item.dataset.act);
-        closeAllMenus();
-      });
-    })(items[j]);
-  }
-}
-function handleMenuAction(act){
-  switch(act){
-    case 'new': showNewDialog(); break;
-    case 'open-png': openPng(); break;
-    case 'open-proj': openProject(); break;
-    case 'save': savePng(false); break;
-    case 'save-as': savePng(true); break;
-    case 'save-proj': saveProject(false); break;
-    case 'save-proj-as': saveProject(true); break;
-    case 'undo': doUndo(); break;
-    case 'redo': doRedo(); break;
-    case 'select-all': selectAll(); break;
-    case 'select-none': deselectAll(); break;
-    case 'select-inv': invertSelection(); break;
-    case 'select-cell': {
-      var cr = cellRect(ui.currentCell);
-      if(cr){ applyRectSelection(cr, SEL_REPLACE); requestRender(); commitHistory(); }
-      break;
-    }
-    case 'delete':
-      if(doc.hasSelection){ deleteSelection(); commitHistory(); refreshColorUsage(); }
-      break;
-  }
+function toggleLanguage() {
+  var next = currentLang === 'zh' ? 'en' : 'zh';
+  applyLanguage(next);
 }
 
 function bindUI(){
@@ -3793,43 +3418,23 @@ function bindUI(){
   document.getElementById('btn-redo').addEventListener('click', doRedo);
   document.getElementById('btn-view-mode').addEventListener('click', function(){
     ui.singleCell = !ui.singleCell;
-    document.getElementById('btn-view-mode').textContent = ui.singleCell ? '全图' : '单格';
+    updateViewModeButton();
     if(ui.singleCell) centerCurrentCell();
     requestRender();
-    setStatus(ui.singleCell ? '单格显示模式' : '全图显示模式');
   });
-
   document.getElementById('btn-open-png').addEventListener('click', openPng);
   document.getElementById('btn-open-proj').addEventListener('click', openProject);
   document.getElementById('btn-save-as-png').addEventListener('click', function(){ savePng(true); });
   document.getElementById('btn-save-as-proj').addEventListener('click', function(){ saveProject(true); });
-
-  document.getElementById('btn-rot-cw-90').addEventListener('click', function(){ rotateFloat90(1); });
-  document.getElementById('btn-rot-ccw-90').addEventListener('click', function(){ rotateFloat90(-1); });
-  document.getElementById('btn-rot-180').addEventListener('click', function(){ rotateFloat90(2); });
-  document.getElementById('btn-flip-h').addEventListener('click', function(){ flipFloat(true); });
-  document.getElementById('btn-flip-v').addEventListener('click', function(){ flipFloat(false); });
-
   document.getElementById('btn-bg').addEventListener('click', cycleBackground);
 
   document.getElementById('btn-color-usage-refresh').addEventListener('click', function(){
     refreshColorUsage();
-    setStatus('已刷新图片色板');
   });
-  document.getElementById('btn-color-usage-nes').addEventListener('click', function(){
-    checkColorsAgainstNES();
-  });
+  document.getElementById('btn-color-usage-nes').addEventListener('click', function(){});
 
-  document.getElementById('onion-prev').addEventListener('change', function(e){
-    ui.onionPrev = e.target.checked;
-    requestRender();
-    setStatus(ui.onionPrev ? '洋葱皮：显示前帧' : '洋葱皮：隐藏前帧');
-  });
-  document.getElementById('onion-next').addEventListener('change', function(e){
-    ui.onionNext = e.target.checked;
-    requestRender();
-    setStatus(ui.onionNext ? '洋葱皮：显示后帧' : '洋葱皮：隐藏后帧');
-  });
+  document.getElementById('onion-prev').addEventListener('change', function(e){ ui.onionPrev = e.target.checked; requestRender(); });
+  document.getElementById('onion-next').addEventListener('change', function(e){ ui.onionNext = e.target.checked; requestRender(); });
   document.getElementById('onion-opacity').addEventListener('input', function(e){
     var v = parseInt(e.target.value, 10);
     ui.onionOpacity = v / 100;
@@ -3844,9 +3449,7 @@ function bindUI(){
   document.getElementById('btn-layer-down').addEventListener('click', function(){ moveLayer(-1); });
   document.getElementById('btn-layer-merge').addEventListener('click', mergeDown);
   document.getElementById('btn-layer-flatten').addEventListener('click', flattenVisible);
-  document.getElementById('btn-layer-paste').addEventListener('click', function(){
-    setStatus('请使用快捷键 Ctrl+Shift+V 粘贴为新图层');
-  });
+  document.getElementById('btn-layer-paste').addEventListener('click', function(){});
 
   var smBtns = document.querySelectorAll('.sel-mode-btn');
   for(var j=0;j<smBtns.length;j++){
@@ -3877,7 +3480,14 @@ function bindUI(){
   gridRowsEl.addEventListener('input', onGridNMChanged);
   document.getElementById('show-grid').addEventListener('change', function(e){ ui.showGrid = e.target.checked; requestRender(); });
   document.getElementById('show-pixel-grid').addEventListener('change', function(e){ ui.showPixelGrid = e.target.checked; requestRender(); });
-  document.getElementById('btn-resize').addEventListener('click', showResizeDialog);
+  document.getElementById('btn-resize').addEventListener('click', function(){
+    var w = parseInt(prompt('Width:', doc.width),10);
+    if(!isFinite(w)||w<1) return;
+    var h = parseInt(prompt('Height:', doc.height),10);
+    if(!isFinite(h)||h<1) return;
+    resizeDocWithAnchor(w,h,4);
+    commitHistory(); fitToView(); updateAnimRange();
+  });
 
   document.getElementById('btn-play').addEventListener('click', function(){
     if(ui.playing) stopPlay(); else startPlay();
@@ -3885,16 +3495,20 @@ function bindUI(){
   document.getElementById('btn-stop').addEventListener('click', stopPlay);
   document.getElementById('btn-anim-all').addEventListener('click', function(){
     var total = totalCells();
-    document.getElementById('anim-start').value = 0;
-    document.getElementById('anim-end').value = Math.max(0, total-1);
+    animStartEl.value = 0;
+    animEndEl.value = Math.max(0, total-1);
+    updateAnimRange();
   });
+
+  // 动画范围约束
+  animStartEl.addEventListener('change', function(){ enforceAnimRange('start'); });
+  animEndEl.addEventListener('change', function(){ enforceAnimRange('end'); });
 
   document.getElementById('btn-replace-color').addEventListener('click', replacePrimaryWithSecondary);
 
   document.getElementById('btn-pal-reset').addEventListener('click', function(){
     ui.paletteCustom = DEFAULT_CUSTOM_HEX.map(function(h){ return hexToRgb('#'+h); });
     refreshPaletteCustom();
-    setStatus('已恢复自定义色板默认值');
   });
   document.getElementById('btn-pal-load').addEventListener('click', importCustomPalette);
   document.getElementById('btn-pal-save').addEventListener('click', exportCustomPalette);
@@ -3908,31 +3522,34 @@ function bindUI(){
   document.getElementById('btn-sel-inv').addEventListener('click', invertSelection);
   document.getElementById('btn-sel-cell').addEventListener('click', function(){
     var cr = cellRect(ui.currentCell);
-    if(cr){
-      applyRectSelection(cr, SEL_REPLACE);
-      requestRender(); commitHistory();
-      setStatus('已选择当前格');
-    }
+    if(cr){ applyRectSelection(cr, SEL_REPLACE); requestRender(); commitHistory(); }
   });
   document.getElementById('btn-del-sel').addEventListener('click', function(){
     if(doc.hasSelection){ deleteSelection(); commitHistory(); refreshColorUsage(); }
   });
-  document.getElementById('snap-enabled').addEventListener('change', function(e){
-    ui.snapEnabled = e.target.checked;
-    setStatus(ui.snapEnabled ? '已开启吸附' : '已关闭吸附');
-  });
+  document.getElementById('snap-enabled').addEventListener('change', function(e){ ui.snapEnabled = e.target.checked; });
   document.getElementById('btn-guides-toggle').addEventListener('click', function(){
     ui.showGuides = !ui.showGuides;
     updateGuidesToggleButton();
     requestRender();
-    setStatus(ui.showGuides ? '已显示参考线' : '已隐藏参考线（不吸附、不可拖动）');
   });
   document.getElementById('btn-guides-clear').addEventListener('click', function(){
-    if(doc.guides.length === 0){ setStatus('没有参考线'); return; }
+    if(doc.guides.length === 0) return;
     doc.guides = [];
     commitHistory();
     requestRender();
-    setStatus('已清空参考线');
+  });
+
+  langBtn = document.getElementById('btn-lang-toggle');
+  langBtn.addEventListener('click', toggleLanguage);
+
+  document.querySelectorAll('input[type="number"]').forEach(function(input) {
+    input.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        this.blur();
+      }
+    });
   });
 }
 
@@ -3972,18 +3589,21 @@ function init(){
     gridColsEl = document.getElementById('grid-cols');
     gridRowsEl = document.getElementById('grid-rows');
     layerListEl = document.getElementById('layer-list');
+    animStartEl = document.getElementById('anim-start');
+    animEndEl = document.getElementById('anim-end');
 
     newDoc(128,128);
     initPalettes();
     bindUI();
     bindColorPicker();
-    initMenus();
     initChecker();
     resizeCanvas();
 
-    document.getElementById('btn-bg').textContent = BG_NAMES[bgMode];
+    updateBgButton();
     setTool(TOOL.SELECT);
     updateGuidesToggleButton();
+    updateViewModeButton();
+    applyLanguage('en');
 
     canvas.addEventListener('contextmenu', function(e){ e.preventDefault(); });
     canvas.addEventListener('mousedown', onCanvasMouseDown);
@@ -4000,7 +3620,6 @@ function init(){
           doc.guides.splice(gi,1);
           commitHistory();
           requestRender();
-          setStatus('已删除参考线');
           return;
         }
       }
@@ -4011,7 +3630,6 @@ function init(){
           ui.currentCell = ci;
           applyRectSelection(cr, SEL_REPLACE);
           requestRender(); updateAnimCursor(); commitHistory();
-          setStatus('已选中格 #'+ci);
         }
       }
     });
@@ -4050,14 +3668,13 @@ function init(){
       e.preventDefault();
       var f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
       if(!f) return;
-      if(!/^image\//.test(f.type)){ setStatus('请拖入图片文件'); return; }
-      setStatus('正在载入…');
+      if(!/^image\//.test(f.type)) return;
       var url = URL.createObjectURL(f);
       var im = new Image();
       im.onload = function(){
         URL.revokeObjectURL(url);
         var w = im.naturalWidth, h = im.naturalHeight;
-        if(!w||!h){ setStatus('图片尺寸无效'); return; }
+        if(!w||!h) return;
         var c = document.createElement('canvas');
         c.width = w; c.height = h;
         var g = c.getContext('2d');
@@ -4066,7 +3683,7 @@ function init(){
         var id = g.getImageData(0,0,w,h);
 
         doc.width = w; doc.height = h;
-        doc.layers = [{name:'背景',visible:true,opacity:255,imageData:id}];
+        doc.layers = [{name:'Background',visible:true,opacity:255,imageData:id}];
         doc.activeLayer = 0;
         doc.imageData = doc.layers[0].imageData;
         doc.imageCanvas = document.createElement('canvas');
@@ -4091,9 +3708,7 @@ function init(){
         refreshLayerList();
         refreshColorUsage();
         fitToView();
-        setStatus('已打开: '+f.name);
       };
-      im.onerror = function(){ URL.revokeObjectURL(url); setStatus('图片解析失败'); };
       im.src = url;
     });
 
@@ -4105,12 +3720,11 @@ function init(){
     fitToView();
     renderAnimPreview();
     refreshColorUsage();
-    setStatus('就绪 — V 选择 · M 套索 · B 铅笔 | Ctrl+C/X/V 复制剪切粘贴 · 按住 V 或 M 拖选区=仅移动选区');
 
     requestAnimationFrame(mainLoop);
   } catch(err){
     console.error('init failed:', err);
-    if(statusEl) statusEl.textContent = '初始化失败: ' + err.message;
+    if(statusEl) statusEl.textContent = 'Init failed: ' + err.message;
   }
 }
 

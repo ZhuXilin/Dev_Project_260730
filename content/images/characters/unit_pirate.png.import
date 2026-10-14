@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://1brth6lyv021"
-path="res://.godot/imported/units_group_r15_c1.png-27fe4c525b727de6c42f5f2e5526895a.ctex"
+uid="uid://c84k0u5ayvwun"
+path="res://.godot/imported/unit_pirate.png-cd39e45b4bb045d2e12f3ce1f5a9b188.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://content/images/characters/units_group_r15_c1.png"
-dest_files=["res://.godot/imported/units_group_r15_c1.png-27fe4c525b727de6c42f5f2e5526895a.ctex"]
+source_file="res://content/images/characters/unit_pirate.png"
+dest_files=["res://.godot/imported/unit_pirate.png-cd39e45b4bb045d2e12f3ce1f5a9b188.ctex"]
 
 [params]
 
