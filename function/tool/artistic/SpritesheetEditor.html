@@ -433,8 +433,7 @@ var mDown = false;
 var mDragged = false;
 var rDown = false;
 var rotState = null;
-/* 动画快捷键播放状态 */
-var animKeyDir = 0;       // -1 前, 1 后, 0 停止
+var animKeyDir = 0;
 var animKeyTimer = null;
 var animKeyInterval = null;
 
@@ -475,6 +474,7 @@ var animPreview, animPreviewCtx, animCursor, animPreviewWrap, animLabel;
 var gridWEl, gridHEl, gridColsEl, gridRowsEl, layerListEl;
 var animStartEl, animEndEl;
 
+var hasImage = false;
 var currentLang = 'en';
 var langBtn;
 
@@ -812,6 +812,8 @@ function newDoc(w,h){
   highlightColor = null;
   _highlightMask = null;
   _highlightDirty = false;
+  /* ★ 修复：newDoc 也视为已载入文档 */
+  hasImage = true;
   resetHistory();
   syncGridInputsFromWH(); refreshLayerList(); refreshColorUsage();
 }
@@ -2201,7 +2203,10 @@ function updateRotateFromMouse(e){
 
 /* ===== 动画快捷键：← → / A D ===== */
 function animStepFrame(dir){
-  if(!hasImage) return;
+  if(!hasImage){
+    setStatus(currentLang === 'zh' ? '请先打开图片' : 'Open an image first');
+    return;
+  }
   if(ui.playing) stopPlay();
 
   var total = totalCells();
@@ -2231,17 +2236,13 @@ function animStepFrame(dir){
   setStatus((currentLang === 'zh' ? '帧 ' : 'Frame ') + (cur + 1) + ' / ' + total);
 }
 function startAnimKeyPlayback(dir){
-  // 如果已经在同方向连续播放，忽略重复触发
-  if(animKeyDir === dir) return;
-  // 方向改变：先停旧的
+  // ★ 修复：只要同方向且已有定时器/间隔器在跑，才忽略；
+  //        若 animKeyDir 卡住但实际没跑，就允许重新启动。
+  if(animKeyDir === dir && (animKeyTimer || animKeyInterval)) return;
   if(animKeyTimer){ clearTimeout(animKeyTimer); animKeyTimer = null; }
   if(animKeyInterval){ clearInterval(animKeyInterval); animKeyInterval = null; }
-
   animKeyDir = dir;
-  // 立即切换 1 帧
   animStepFrame(dir);
-
-  // 300ms 后开始连续播放，频率 80ms
   animKeyTimer = setTimeout(function(){
     animKeyTimer = null;
     animKeyInterval = setInterval(function(){
@@ -2700,7 +2701,9 @@ function onCanvasMouseUp(e){
 }
 
 function onKeyDown(e){
-  if(e.target.tagName === 'INPUT') return;
+  var tag = (e.target && e.target.tagName) ? e.target.tagName : '';
+  if(tag === 'INPUT' || tag === 'TEXTAREA') return;
+
   if(e.key === ' ' && !e.repeat) spaceDown = true;
 
   // R 旋转
@@ -2738,16 +2741,13 @@ function onKeyDown(e){
   }
 
   // ===== 动画切换键：← → / A D =====
-  // 注意：不要用 e.repeat 过滤，否则某些浏览器长按无效；
-  // 连续播放由 startAnimKeyPlayback 内部的 animKeyDir 去重控制。
   if(!e.ctrlKey && !e.metaKey && !e.altKey){
     var isPrev = (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A');
     var isNext = (e.key === 'ArrowRight'|| e.key === 'd' || e.key === 'D');
     if(isPrev || isNext){
       var isArrow = (e.key === 'ArrowLeft' || e.key === 'ArrowRight');
-      // 若当前有浮动像素且按的是方向键，保留原有"移动浮动像素"逻辑
       if(doc.floating && isArrow){
-        // 交给下面 switch 处理
+        // 有浮动像素时方向键移动浮动像素，交给下面 switch
       } else {
         e.preventDefault();
         startAnimKeyPlayback(isPrev ? -1 : 1);
@@ -2833,7 +2833,9 @@ function onKeyDown(e){
   }
 }
 function onKeyUp(e){
-  if(e.target.tagName === 'INPUT') return;
+  var tag = (e.target && e.target.tagName) ? e.target.tagName : '';
+  if(tag === 'INPUT' || tag === 'TEXTAREA') return;
+
   if(e.key === ' ') spaceDown = false;
 
   if((e.key === 'r' || e.key === 'R') && !e.ctrlKey && !e.metaKey && !e.altKey){
@@ -2852,7 +2854,6 @@ function onKeyUp(e){
     mDragged = false;
   }
 
-  // ===== 释放动画切换键 =====
   if(!e.ctrlKey && !e.metaKey && !e.altKey){
     if(e.key === 'ArrowLeft' || e.key === 'ArrowRight' ||
        e.key === 'a' || e.key === 'A' || e.key === 'd' || e.key === 'D'){
@@ -2916,6 +2917,7 @@ function enforceAnimRange(which){
   animEndEl.value = e;
 }
 function startPlay(){
+  if(!hasImage){ setStatus(currentLang === 'zh' ? '请先打开图片' : 'Open an image first'); return; }
   if(!ui.singleCell){
     ui.singleCell = true;
     updateViewModeButton();
@@ -3355,6 +3357,9 @@ function openPng(){
           _highlightMask = null;
           _highlightDirty = false;
 
+          /* ★ 修复：PNG 加载后必须设置 hasImage */
+          hasImage = true;
+
           resetHistory();
           updateAnimRange();
           syncGridInputsFromWH();
@@ -3500,6 +3505,9 @@ async function loadProjectData(data){
   highlightColor = null;
   _highlightMask = null;
   _highlightDirty = false;
+
+  /* ★ 修复：工程加载后也要设置 hasImage */
+  hasImage = true;
 
   if(data.grid){ doc.grid.w = data.grid.w || 32; doc.grid.h = data.grid.h || 32; }
   doc.guides = Array.isArray(data.guides) ? data.guides.slice() : [];
@@ -4251,6 +4259,9 @@ function init(){
         highlightColor = null;
         _highlightMask = null;
         _highlightDirty = false;
+
+        /* ★ 修复：拖拽载入也要设置 hasImage */
+        hasImage = true;
 
         resetHistory();
         updateAnimRange();
