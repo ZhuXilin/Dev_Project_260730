@@ -1,1 +1,0 @@
-除 .gitignore，README.txt 以外，拷贝到根目录运行

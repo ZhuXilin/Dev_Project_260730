@@ -105,24 +105,6 @@ input[type=checkbox]{accent-color:#2d6cdf;margin-right:4px}
 .cp-pick-btn{display:block;width:100%;background:#3a3a42;color:#ddd;border:1px solid #444;border-radius:3px;padding:5px 10px;font:inherit;font-size:12px;cursor:pointer}
 .cp-pick-btn:hover{background:#4a4a54}
 .cp-pick-btn:active{background:#555}
-.nes-cmp{background:#2a2a30;border:1px solid #444;border-radius:6px;padding:16px 20px;min-width:520px;max-width:700px;max-height:82vh;overflow-y:auto;box-shadow:0 10px 40px rgba(0,0,0,.7)}
-.nes-cmp::-webkit-scrollbar{width:8px}
-.nes-cmp::-webkit-scrollbar-thumb{background:#444;border-radius:4px}
-.nes-cmp h2{margin:0 0 10px;font-size:14px;color:#ddd;font-weight:600}
-.nes-cmp-summary{font-size:12px;color:#bbb;margin-bottom:12px;line-height:1.7}
-.nes-cmp-section{font-size:12px;margin-bottom:6px}
-.nes-cmp-empty{font-size:12px;color:#666;padding:6px 4px}
-.nes-cmp-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:5px;max-height:200px;overflow-y:auto;background:#1a1a20;border:1px solid #333;border-radius:4px;padding:8px}
-.nes-cmp-grid::-webkit-scrollbar{width:6px}
-.nes-cmp-grid::-webkit-scrollbar-thumb{background:#444;border-radius:3px}
-.nes-cmp-item{display:flex;align-items:center;gap:6px;font-size:11px;padding:3px 4px;border-radius:3px;background:#222;min-width:0}
-.nes-cmp-sw{width:22px;height:22px;border-radius:3px;border:1px solid #444;flex-shrink:0}
-.nes-cmp-text{flex:1;min-width:0;overflow:hidden}
-.nes-cmp-text>div:first-child{font-family:ui-monospace,Consolas,monospace;color:#dfe3e9;font-size:11px}
-.nes-cmp-sub{color:#888;font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.nes-cmp-actions{display:flex;justify-content:flex-end;margin-top:14px}
-.nes-cmp-actions button{font:inherit;padding:5px 14px;color:#dfe3e9;background:#2e333a;border:1px solid #3d434c;border-radius:6px;cursor:pointer;font-size:13px}
-.nes-cmp-actions button:hover{background:#3a4049}
 .onion-row{gap:8px !important;margin-bottom:0 !important}
 .onion-label{color:#aaa;font-size:11px;white-space:nowrap;display:inline-flex;align-items:center;gap:3px}
 .onion-label input[type=checkbox]{margin:0}
@@ -437,6 +419,9 @@ var animKeyDir = 0;
 var animKeyTimer = null;
 var animKeyInterval = null;
 
+var hasImage = false;           /* ★ 声明 */
+var spaceDragged = false;       /* ★ 空格是否被用于拖动 */
+
 var mouse = { inside:false, sx:0, sy:0, px:0, py:0, hasValidPos:false, inRulerTop:false, inRulerLeft:false };
 var clipboard = null;
 var needsRender = true;
@@ -474,7 +459,6 @@ var animPreview, animPreviewCtx, animCursor, animPreviewWrap, animLabel;
 var gridWEl, gridHEl, gridColsEl, gridRowsEl, layerListEl;
 var animStartEl, animEndEl;
 
-var hasImage = false;
 var currentLang = 'en';
 var langBtn;
 
@@ -812,7 +796,6 @@ function newDoc(w,h){
   highlightColor = null;
   _highlightMask = null;
   _highlightDirty = false;
-  /* ★ 修复：newDoc 也视为已载入文档 */
   hasImage = true;
   resetHistory();
   syncGridInputsFromWH(); refreshLayerList(); refreshColorUsage();
@@ -2040,7 +2023,6 @@ function guideAt(x,y){
   return -1;
 }
 
-/* ===== Transform (rotate / flip) ===== */
 function withFloating(fn){
   if(!doc.floating && doc.hasSelection) beginFloat();
   if(!doc.floating){
@@ -2201,7 +2183,7 @@ function updateRotateFromMouse(e){
   setStatus((currentLang === 'zh' ? '旋转 ' : 'Rotate ') + delta.toFixed(1) + '°');
 }
 
-/* ===== 动画快捷键：← → / A D ===== */
+/* ===== 动画快捷键 ===== */
 function animStepFrame(dir){
   if(!hasImage){
     setStatus(currentLang === 'zh' ? '请先打开图片' : 'Open an image first');
@@ -2236,8 +2218,6 @@ function animStepFrame(dir){
   setStatus((currentLang === 'zh' ? '帧 ' : 'Frame ') + (cur + 1) + ' / ' + total);
 }
 function startAnimKeyPlayback(dir){
-  // ★ 修复：只要同方向且已有定时器/间隔器在跑，才忽略；
-  //        若 animKeyDir 卡住但实际没跑，就允许重新启动。
   if(animKeyDir === dir && (animKeyTimer || animKeyInterval)) return;
   if(animKeyTimer){ clearTimeout(animKeyTimer); animKeyTimer = null; }
   if(animKeyInterval){ clearInterval(animKeyInterval); animKeyInterval = null; }
@@ -2254,6 +2234,15 @@ function stopAnimKeyPlayback(){
   if(animKeyTimer){ clearTimeout(animKeyTimer); animKeyTimer = null; }
   if(animKeyInterval){ clearInterval(animKeyInterval); animKeyInterval = null; }
   animKeyDir = 0;
+}
+
+/* ===== 播放/暂停（空格用） ===== */
+function togglePlay(){
+  if(!hasImage){
+    setStatus(currentLang === 'zh' ? '请先打开图片' : 'Open an image first');
+    return;
+  }
+  if(ui.playing) stopPlay(); else startPlay();
 }
 
 function doCopy(){
@@ -2440,6 +2429,7 @@ function onCanvasMouseDown(e){
   if(inRulerTop || inRulerLeft){ e.preventDefault(); return; }
 
   if(e.button===1 || (e.button===0 && spaceDown)){
+    spaceDragged = true;    /* ★ 空格拖动平移 */
     drag.mode = 'pan'; drag.startX = m.sx; drag.startY = m.sy;
     drag.panStartX = view.panX; drag.panStartY = view.panY;
     e.preventDefault(); return;
@@ -2661,6 +2651,7 @@ function onCanvasMouseMove(e){
   requestRender();
 }
 function onCanvasMouseUp(e){
+  spaceDragged = false;      /* ★ 松开鼠标时复位 */
   if(!drag.mode) return;
   if(drag.mode === 'select'){
     var r = rectFromPoints(drag.selStart,drag.selCur,drag.square);
@@ -2702,12 +2693,33 @@ function onCanvasMouseUp(e){
 
 function onKeyDown(e){
   var tag = (e.target && e.target.tagName) ? e.target.tagName : '';
-  if(tag === 'INPUT' || tag === 'TEXTAREA') return;
+  var isInput = (tag === 'INPUT' || tag === 'TEXTAREA');
+  var isNumberInput = (tag === 'INPUT' && e.target.type === 'number');
+  var k = e.key;
+  var isAnimKey = (k === ' ' || k === 'ArrowLeft' || k === 'ArrowRight' ||
+                   k === 'a' || k === 'A' || k === 'd' || k === 'D');
 
-  if(e.key === ' ' && !e.repeat) spaceDown = true;
+  /* ★ 数字输入框：按动画快捷键 -> 先失焦，再继续处理
+     这样用户输入完数字后可以直接按快捷键，无需手动点击其他地方。 */
+  if(isInput){
+    if(isNumberInput && isAnimKey){
+      try { e.target.blur(); } catch(err){}
+      /* 继续往下走，不 return */
+    } else {
+      return;
+    }
+  }
 
-  // R 旋转
-  if((e.key === 'r' || e.key === 'R') && !e.ctrlKey && !e.metaKey && !e.altKey){
+  /* 空格：短按=播放/暂停，按住+拖动=平移 */
+  if(k === ' ' && !e.repeat){
+    spaceDown = true;
+    spaceDragged = false;
+    e.preventDefault();
+    return;
+  }
+
+  /* R 旋转 */
+  if((k === 'r' || k === 'R') && !e.ctrlKey && !e.metaKey && !e.altKey){
     if(!e.repeat && !rDown){
       rDown = true;
       if(doc.hasSelection || doc.floating) startRotateMode();
@@ -2716,19 +2728,18 @@ function onKeyDown(e){
     return;
   }
 
-  // V / M 临时切换
-  if((e.key === 'v' || e.key === 'V') && !e.ctrlKey && !e.metaKey && !e.altKey){
+  /* V / M 临时切换 */
+  if((k === 'v' || k === 'V') && !e.ctrlKey && !e.metaKey && !e.altKey){
     if(!e.repeat){ vDown = true; vDragged = false; }
     return;
   }
-  if((e.key === 'm' || e.key === 'M') && !e.ctrlKey && !e.metaKey && !e.altKey){
+  if((k === 'm' || k === 'M') && !e.ctrlKey && !e.metaKey && !e.altKey){
     if(!e.repeat){ mDown = true; mDragged = false; }
     return;
   }
 
-  // Ctrl 组合
   if(e.ctrlKey || e.metaKey){
-    switch(e.key.toLowerCase()){
+    switch(k.toLowerCase()){
       case 'z': e.preventDefault(); if(e.shiftKey) doRedo(); else doUndo(); return;
       case 'y': e.preventDefault(); doRedo(); return;
       case 'a': e.preventDefault(); selectAll(); return;
@@ -2740,14 +2751,14 @@ function onKeyDown(e){
     }
   }
 
-  // ===== 动画切换键：← → / A D =====
+  /* 动画逐帧：← → / A D */
   if(!e.ctrlKey && !e.metaKey && !e.altKey){
-    var isPrev = (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A');
-    var isNext = (e.key === 'ArrowRight'|| e.key === 'd' || e.key === 'D');
+    var isPrev = (k === 'ArrowLeft' || k === 'a' || k === 'A');
+    var isNext = (k === 'ArrowRight'|| k === 'd' || k === 'D');
     if(isPrev || isNext){
-      var isArrow = (e.key === 'ArrowLeft' || e.key === 'ArrowRight');
+      var isArrow = (k === 'ArrowLeft' || k === 'ArrowRight');
       if(doc.floating && isArrow){
-        // 有浮动像素时方向键移动浮动像素，交给下面 switch
+        /* 有浮动像素时方向键移动浮动像素，交给下面 switch */
       } else {
         e.preventDefault();
         startAnimKeyPlayback(isPrev ? -1 : 1);
@@ -2756,7 +2767,7 @@ function onKeyDown(e){
     }
   }
 
-  switch(e.key){
+  switch(k){
     case 'Delete': case 'Backspace':
       if(doc.hasSelection){ deleteSelection(); commitHistory(); refreshColorUsage(); }
       e.preventDefault(); break;
@@ -2834,9 +2845,20 @@ function onKeyDown(e){
 }
 function onKeyUp(e){
   var tag = (e.target && e.target.tagName) ? e.target.tagName : '';
-  if(tag === 'INPUT' || tag === 'TEXTAREA') return;
+  var isInput = (tag === 'INPUT' || tag === 'TEXTAREA');
 
-  if(e.key === ' ') spaceDown = false;
+  /* ★ 空格：如果期间没有拖动过，就触发播放/暂停 */
+  if(e.key === ' '){
+    var wasDown = spaceDown;
+    spaceDown = false;
+    if(!isInput && wasDown && !spaceDragged && !e.repeat){
+      togglePlay();
+    }
+    spaceDragged = false;
+    return;
+  }
+
+  if(isInput) return;
 
   if((e.key === 'r' || e.key === 'R') && !e.ctrlKey && !e.metaKey && !e.altKey){
     if(rDown){ rDown = false; endRotateMode(); }
@@ -3357,9 +3379,7 @@ function openPng(){
           _highlightMask = null;
           _highlightDirty = false;
 
-          /* ★ 修复：PNG 加载后必须设置 hasImage */
           hasImage = true;
-
           resetHistory();
           updateAnimRange();
           syncGridInputsFromWH();
@@ -3506,7 +3526,6 @@ async function loadProjectData(data){
   _highlightMask = null;
   _highlightDirty = false;
 
-  /* ★ 修复：工程加载后也要设置 hasImage */
   hasImage = true;
 
   if(data.grid){ doc.grid.w = data.grid.w || 32; doc.grid.h = data.grid.h || 32; }
@@ -3837,8 +3856,8 @@ var I18N_TITLE = {
     en:'Drag top ruler down → horizontal guide\nDrag left ruler right → vertical guide\nCtrl + drag near guide → move it\nAuto-snap to cell edges / centers while dragging\nDouble-click guide → delete\nWhen hidden, snapping is disabled'
   },
   'help.sel': {
-    zh:'选择工具 (V)：Shift=正方形 · Ctrl=加选 · Alt=减选\n套索工具 (M)：Shift=正圆 · Ctrl=加选 · Alt=减选\n按住 V 或 M 拖动选区内 → 仅移动选区\n普通拖动选区内 → 浮起像素并移动（Shift 锁轴）\n按住 R + 鼠标移动 → 围绕选区中心旋转（Shift=45°）\n← → / A D → 切换动画帧（长按连续播放，释放停住）\nCtrl+C 复制 · Ctrl+X 剪切 · Ctrl+V 粘贴 · Ctrl+Shift+V 粘贴为新图层',
-    en:'Select (V): Shift=Square · Ctrl=Add · Alt=Subtract\nLasso (M): Shift=Circle · Ctrl=Add · Alt=Subtract\nHold V or M and drag inside → move selection only\nNormal drag inside → float pixels & move (Shift=lock axis)\nHold R + move mouse → rotate around selection center (Shift=45°)\n← → / A D → step animation frames (hold = continuous, release = stop)\nCtrl+C Copy · Ctrl+X Cut · Ctrl+V Paste · Ctrl+Shift+V Paste as new layer'
+    zh:'选择工具 (V)：Shift=正方形 · Ctrl=加选 · Alt=减选\n套索工具 (M)：Shift=正圆 · Ctrl=加选 · Alt=减选\n按住 V 或 M 拖动选区内 → 仅移动选区\n普通拖动选区内 → 浮起像素并移动（Shift 锁轴）\n按住 R + 鼠标移动 → 围绕选区中心旋转（Shift=45°）\n← → / A D → 切换动画帧（长按连续播放，释放停住）\n空格 → 播放 / 暂停；空格 + 拖动 → 平移画布\nCtrl+C 复制 · Ctrl+X 剪切 · Ctrl+V 粘贴 · Ctrl+Shift+V 粘贴为新图层',
+    en:'Select (V): Shift=Square · Ctrl=Add · Alt=Subtract\nLasso (M): Shift=Circle · Ctrl=Add · Alt=Subtract\nHold V or M and drag inside → move selection only\nNormal drag inside → float pixels & move (Shift=lock axis)\nHold R + move mouse → rotate around selection center (Shift=45°)\n← → / A D → step animation frames (hold = continuous, release = stop)\nSpace → play/pause; Space + drag → pan\nCtrl+C Copy · Ctrl+X Cut · Ctrl+V Paste · Ctrl+Shift+V Paste as new layer'
   },
   'tt.rotCcw': {zh:'逆时针旋转 90°', en:'Rotate 90° CCW'},
   'tt.rotCw':  {zh:'顺时针旋转 90°', en:'Rotate 90° CW'},
@@ -4103,6 +4122,13 @@ function bindUI(){
       }
     });
   });
+
+  /* ★ 所有 button 的 mousedown 阻止默认行为，避免抢走焦点 */
+  document.querySelectorAll('button').forEach(function(b){
+    b.addEventListener('mousedown', function(e){
+      e.preventDefault();
+    });
+  });
 }
 
 function mainLoop(now){
@@ -4204,6 +4230,7 @@ function init(){
     window.addEventListener('blur', function(){
       stopAnimKeyPlayback();
       spaceDown = false;
+      spaceDragged = false;
     });
 
     animPreviewWrap.addEventListener('mousedown', function(e){
@@ -4260,9 +4287,7 @@ function init(){
         _highlightMask = null;
         _highlightDirty = false;
 
-        /* ★ 修复：拖拽载入也要设置 hasImage */
         hasImage = true;
-
         resetHistory();
         updateAnimRange();
         syncGridInputsFromWH();
