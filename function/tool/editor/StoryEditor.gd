@@ -4,17 +4,11 @@ extends Control
 # ============================================================
 #  StoryEditor — NPC 剧情 / 独立对话 / 地图事件 统一编辑器
 # ============================================================
-#
-#  [NPC 剧情]  → stories.json
-#  [独立对话]  → dialogues.json
-#  [地图事件]  → events.json
-#
-#  快捷键：Ctrl+S 保存 / Esc 退出
-# ============================================================
 
 const STORY_PATH : String = "res://content/data/stories.json"
 const DIALOGUE_PATH : String = "res://content/data/dialogues.json"
 const EVENT_PATH : String = "res://content/data/events.json"
+const MAP_DIR : String = "res://content/scenes/maps/"
 
 const UNLOCK_TYPES : Array = ["unit", "relic", "aura", "route", "talent", "transform_branch"]
 const NUM_CONDITIONS : Array = [
@@ -23,7 +17,18 @@ const NUM_CONDITIONS : Array = [
 	"min_dialogue_count"
 ]
 
-# ---- ★ 全局尺寸（大幅压缩）----
+const CONDITION_HELP : Dictionary = {
+	"min_run_count": "累计通关局数 ≥ N",
+	"min_altar_level": "魂火上限等级 ≥ N（0-6）",
+	"min_initial_level": "初始魂火等级 ≥ N（0-3）",
+	"min_weapon_max_level": "任意单位武器最高等级 ≥ N（0-5）",
+	"min_dispatch_count": "累计派遣次数 ≥ N",
+	"min_arena_clear": "竞技场通关次数 ≥ N",
+	"min_dialogue_count": "与该 NPC 已看对话数 ≥ N",
+	"after_dialogue": "必须先看过指定对话",
+	"flags": "必须已获得所有 flag（逗号分隔）",
+}
+
 const FS_BTN   : int = 6
 const FS_TAB   : int = 7
 const FS_LABEL : int = 6
@@ -36,15 +41,19 @@ const SPIN_W   : int = 40
 const TAB_W    : int = 64
 const TAB_H    : int = 20
 const LEFT_W   : int = 90
-const MID_W    : int = 140
+const MID_W    : int = 160
 
-# ---- 数据 ----
+# ★ 输入框统一配色（扁平）
+const COL_INPUT_BG     : Color = Color(0.15, 0.15, 0.19, 1)
+const COL_INPUT_BORDER : Color = Color(0.28, 0.28, 0.34, 1)
+const COL_INPUT_TEXT   : Color = Color(0.92, 0.92, 0.95, 1)
+
 var _stories : Dictionary = {}
 var _dialogues : Dictionary = {}
 var _events : Dictionary = {}
 var _dirty : bool = false
+var _event_usage_cache : Dictionary = {}
 
-# ---- 当前选中 ----
 var _tab : String = "stories"
 var _current_npc : String = ""
 var _current_dialogue_id : String = ""
@@ -53,7 +62,6 @@ var _current_flat_id : String = ""
 var _current_event_id : String = ""
 var _current_action_idx : int = -1
 
-# ---- UI 引用 ----
 var _tab_stories_btn : Button
 var _tab_dialogues_btn : Button
 var _tab_events_btn : Button
@@ -73,6 +81,7 @@ func _ready():
 	_setup_window()
 	_build_ui()
 	_load_all()
+	_build_event_usage_cache()
 	_switch_tab("stories")
 
 
@@ -104,7 +113,6 @@ func _build_ui():
 	main.add_theme_constant_override("separation", 3)
 	add_child(main)
 
-	# ----- TopBar -----
 	var top := HBoxContainer.new()
 	top.name = "TopBar"
 	top.add_theme_constant_override("separation", 4)
@@ -142,7 +150,6 @@ func _build_ui():
 	quit_btn.pressed.connect(_on_quit)
 	top.add_child(quit_btn)
 
-	# ----- Body: 嵌套 HSplitContainer -----
 	var outer_split := HSplitContainer.new()
 	outer_split.name = "OuterSplit"
 	outer_split.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -201,8 +208,10 @@ func _build_ui():
 	_mid_list.add_theme_constant_override("separation", 1)
 	mid_scroll.add_child(_mid_list)
 
+	# ★ 右列：min 改小 + 加 size_flags
 	var right := VBoxContainer.new()
-	right.custom_minimum_size = Vector2(260, 0)
+	right.custom_minimum_size = Vector2(150, 0)
+	right.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	right.add_theme_constant_override("separation", 2)
 	inner_split.add_child(right)
 
@@ -213,10 +222,12 @@ func _build_ui():
 	_right_title.clip_text = true
 	right.add_child(_right_title)
 
+	# ★ 关键：横向滚动设为 AUTO（超宽时出滚动条，不撑破布局）
 	var right_scroll := ScrollContainer.new()
 	right_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	right_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	right_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	right_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+	right_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
 	right.add_child(right_scroll)
 
 	_right_container = VBoxContainer.new()
@@ -225,7 +236,6 @@ func _build_ui():
 	_right_container.add_theme_constant_override("separation", 3)
 	right_scroll.add_child(_right_container)
 
-	# ----- StatusBar -----
 	var status_bar := PanelContainer.new()
 	status_bar.custom_minimum_size = Vector2(0, 16)
 	var sb := StyleBoxFlat.new()
@@ -245,6 +255,29 @@ func _build_ui():
 
 
 # ============================================================
+#  ★ 统一样式
+# ============================================================
+func _make_input_stylebox(focused : bool = false) -> StyleBoxFlat:
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = COL_INPUT_BG
+	sb.border_color = Color(0.4, 0.5, 0.7, 1) if focused else COL_INPUT_BORDER
+	sb.border_width_left = 1
+	sb.border_width_right = 1
+	sb.border_width_top = 1
+	sb.border_width_bottom = 1
+	sb.content_margin_left = 3
+	sb.content_margin_right = 3
+	sb.content_margin_top = 1
+	sb.content_margin_bottom = 1
+	sb.corner_radius_top_left = 1
+	sb.corner_radius_top_right = 1
+	sb.corner_radius_bottom_left = 1
+	sb.corner_radius_bottom_right = 1
+	sb.anti_aliasing = false
+	return sb
+
+
+# ============================================================
 #  小工具
 # ============================================================
 func _mk_button(text : String, fs : int = FS_BTN) -> Button:
@@ -258,6 +291,27 @@ func _mk_button(text : String, fs : int = FS_BTN) -> Button:
 	var empty := StyleBoxEmpty.new()
 	empty.content_margin_left = 3
 	empty.content_margin_right = 3
+	empty.content_margin_top = 0
+	empty.content_margin_bottom = 0
+	b.add_theme_stylebox_override("normal", empty)
+	b.add_theme_stylebox_override("hover", empty)
+	b.add_theme_stylebox_override("pressed", empty)
+	b.add_theme_stylebox_override("focus", empty)
+	return b
+
+
+func _mk_icon_button(text : String, warn_color : bool = false) -> Button:
+	var b := Button.new()
+	b.text = text
+	b.add_theme_font_size_override("font_size", 8)
+	b.custom_minimum_size = Vector2(14, ROW_H)
+	b.focus_mode = Control.FOCUS_NONE
+	b.clip_text = true
+	if warn_color:
+		b.modulate = Color(1.0, 0.5, 0.5)
+	var empty := StyleBoxEmpty.new()
+	empty.content_margin_left = 0
+	empty.content_margin_right = 0
 	empty.content_margin_top = 0
 	empty.content_margin_bottom = 0
 	b.add_theme_stylebox_override("normal", empty)
@@ -291,8 +345,14 @@ func _mk_line_edit(text : String, placeholder : String = "") -> LineEdit:
 	le.text = text
 	le.placeholder_text = placeholder
 	le.add_theme_font_size_override("font_size", FS_BTN)
+	le.add_theme_color_override("font_color", COL_INPUT_TEXT)
+	le.add_theme_color_override("font_placeholder_color", Color(0.5, 0.5, 0.55, 1))
+	# ★ 扁平输入框样式（去阴影）
+	le.add_theme_stylebox_override("normal", _make_input_stylebox(false))
+	le.add_theme_stylebox_override("focus", _make_input_stylebox(true))
+	le.add_theme_stylebox_override("read_only", _make_input_stylebox(false))
 	le.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	le.custom_minimum_size = Vector2(30, ROW_H)
+	le.custom_minimum_size = Vector2(0, ROW_H)   # ★ x=0：可压缩
 	return le
 
 
@@ -306,9 +366,7 @@ func _mk_spin(value : int, min_v : int, max_v : int) -> SpinBox:
 	sp.size_flags_horizontal = Control.SIZE_SHRINK_END
 	sp.add_theme_font_size_override("font_size", FS_BTN)
 	sp.add_theme_constant_override("separation", 0)
-	# ★ 立即 + 延迟双保险
 	_setup_spin_internal(sp)
-	sp.call_deferred("_ensure_internal_style") if false else null
 	call_deferred("_setup_spin_internal", sp)
 	return sp
 
@@ -318,10 +376,13 @@ func _setup_spin_internal(sp : SpinBox):
 	var le := sp.get_line_edit()
 	if le:
 		le.add_theme_font_size_override("font_size", FS_BTN)
+		le.add_theme_color_override("font_color", COL_INPUT_TEXT)
+		le.add_theme_stylebox_override("normal", _make_input_stylebox(false))
+		le.add_theme_stylebox_override("focus", _make_input_stylebox(true))
+		le.add_theme_stylebox_override("read_only", _make_input_stylebox(false))
 		le.custom_minimum_size = Vector2(0, ROW_H - 2)
 		le.select_all_on_focus = true
 		le.context_menu_enabled = false
-	# 上下箭头压缩
 	for path in ["up", "down"]:
 		var btn : Control = sp.get_node_or_null(path)
 		if btn:
@@ -329,14 +390,35 @@ func _setup_spin_internal(sp : SpinBox):
 			btn.size = Vector2(8, ROW_H / 2)
 
 
-func _mk_checkbox(text : String, pressed : bool) -> CheckBox:
-	var cb := CheckBox.new()
-	cb.text = text
-	cb.button_pressed = pressed
-	cb.add_theme_font_size_override("font_size", FS_LABEL)
-	cb.clip_text = true
-	cb.focus_mode = Control.FOCUS_NONE
-	return cb
+## ★ 用 Button 模拟 checkbox（尺寸可完全控制）
+func _mk_checkbox(text : String, pressed : bool) -> Button:
+	var b := Button.new()
+	b.toggle_mode = true
+	b.button_pressed = pressed
+	b.focus_mode = Control.FOCUS_NONE
+	b.add_theme_font_size_override("font_size", FS_LABEL)
+	b.clip_text = true
+	b.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	b.text = _checkbox_text(text, pressed)
+	b.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	b.custom_minimum_size = Vector2(0, ROW_H)   # ★ 不撑宽
+	var empty := StyleBoxEmpty.new()
+	empty.content_margin_left = 2
+	empty.content_margin_right = 2
+	empty.content_margin_top = 0
+	empty.content_margin_bottom = 0
+	b.add_theme_stylebox_override("normal", empty)
+	b.add_theme_stylebox_override("hover", empty)
+	b.add_theme_stylebox_override("pressed", empty)
+	b.add_theme_stylebox_override("focus", empty)
+	b.toggled.connect(func(p):
+		b.text = _checkbox_text(text, p)
+	)
+	return b
+
+
+func _checkbox_text(label : String, checked : bool) -> String:
+	return ("☑ " if checked else "☐ ") + label
 
 
 func _clear_container(node : Node):
@@ -355,6 +437,14 @@ func _stretch_row_button(btn : Button):
 	btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
 	btn.clip_text = true
 	btn.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+
+
+## ★ 行容器：不撑宽
+func _mk_row_container() -> HBoxContainer:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 2)
+	row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	return row
 
 
 # ============================================================
@@ -401,11 +491,58 @@ func _save_json(path : String, data : Dictionary) -> bool:
 
 func _on_reload():
 	_load_all()
+	_build_event_usage_cache()
 	_switch_tab(_tab)
 
 
 func _on_quit():
 	get_tree().quit()
+
+
+# ============================================================
+#  事件反查
+# ============================================================
+func _build_event_usage_cache():
+	_event_usage_cache.clear()
+	_scan_dir_for_events(MAP_DIR)
+
+
+func _scan_dir_for_events(dir_path : String):
+	var dir := DirAccess.open(dir_path)
+	if dir == null: return
+	dir.list_dir_begin()
+	var fname := dir.get_next()
+	while fname != "":
+		if dir.current_is_dir():
+			if fname != "." and fname != "..":
+				_scan_dir_for_events(dir_path + fname + "/")
+		elif fname.ends_with(".tscn"):
+			_scan_tscn_for_events(dir_path + fname)
+		fname = dir.get_next()
+	dir.list_dir_end()
+
+
+func _scan_tscn_for_events(path : String):
+	var f := FileAccess.open(path, FileAccess.READ)
+	if f == null: return
+	var text := f.get_as_text()
+	f.close()
+	var lines : PackedStringArray = text.split("\n")
+	for line in lines:
+		var s : String = line.strip_edges()
+		if s.begins_with("event_id") and s.contains("="):
+			var eq_idx : int = s.find("=")
+			var val_part : String = s.substr(eq_idx + 1).strip_edges()
+			val_part = val_part.trim_prefix("\"").trim_suffix("\"")
+			if val_part != "":
+				if not _event_usage_cache.has(val_part):
+					_event_usage_cache[val_part] = []
+				var short : String = path.get_file()
+				_event_usage_cache[val_part].append(short)
+
+
+func _get_event_usages(event_id : String) -> Array:
+	return _event_usage_cache.get(event_id, [])
 
 
 # ============================================================
@@ -482,8 +619,7 @@ func _build_mid_list():
 	if _current_npc == "" or not _stories.has(_current_npc): return
 	var npc : Dictionary = _stories[_current_npc]
 
-	var add_row := HBoxContainer.new()
-	add_row.add_theme_constant_override("separation", 3)
+	var add_row := _mk_row_container()
 	_mid_list.add_child(add_row)
 
 	var add_dlg := _mk_button("+ 对话")
@@ -563,8 +699,7 @@ func _build_dialogue_form():
 
 	_right_title.text = "编辑：" + _current_dialogue_id
 
-	var head_row := HBoxContainer.new()
-	head_row.add_theme_constant_override("separation", 3)
+	var head_row := _mk_row_container()
 	_right_container.add_child(head_row)
 
 	var preview_btn := _mk_button("▶ 预览")
@@ -578,6 +713,7 @@ func _build_dialogue_form():
 
 	var id_row := _mk_row("ID")
 	var id_edit := _mk_line_edit(_current_dialogue_id)
+	id_edit.tooltip_text = "对话唯一 ID（同 NPC 内不可重复）"
 	id_edit.text_submitted.connect(func(new_id):
 		_rename_dialogue_id(_current_dialogue_id, new_id)
 	)
@@ -585,6 +721,7 @@ func _build_dialogue_form():
 
 	var pri_row := _mk_row("priority")
 	var pri_spin := _mk_spin(int(d.get("priority", 0)), -100, 100)
+	pri_spin.tooltip_text = "优先级：满足 condition 的多个对话中，选 priority 最高的播放"
 	pri_spin.value_changed.connect(func(v):
 		d["priority"] = int(v)
 		_dirty = true
@@ -592,7 +729,11 @@ func _build_dialogue_form():
 	)
 	pri_row.add_child(pri_spin)
 
-	_right_container.add_child(_mk_section_label("— condition —"))
+	var pri_hint := _mk_label("数值越大越优先", FS_HINT)
+	pri_hint.modulate = Color(0.55, 0.55, 0.55)
+	_right_container.add_child(pri_hint)
+
+	_right_container.add_child(_mk_section_label("— condition（全部满足才触发）—"))
 	_build_condition_editor(d.get("condition", {}), func(new_cond):
 		if new_cond.is_empty():
 			d.erase("condition")
@@ -609,11 +750,10 @@ func _build_dialogue_form():
 
 
 func _mk_row(label_text : String) -> HBoxContainer:
-	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 3)
+	var row := _mk_row_container()
 	_right_container.add_child(row)
 	var lb := _mk_label(label_text, FS_LABEL)
-	lb.custom_minimum_size = Vector2(55, 0)
+	lb.custom_minimum_size = Vector2(50, 0)
 	row.add_child(lb)
 	return row
 
@@ -633,9 +773,24 @@ func _find_dialogue(npc_id : String, dialogue_id : String) -> Dictionary:
 	return {}
 
 
+func _is_dialogue_id_taken(npc_id : String, new_id : String, exclude_old_id : String) -> bool:
+	if not _stories.has(npc_id): return false
+	var dialogues : Array = _stories[npc_id].get("dialogues", [])
+	for d in dialogues:
+		if not (d is Dictionary): continue
+		var did : String = d.get("id", "")
+		if did == new_id and did != exclude_old_id:
+			return true
+	return false
+
+
 func _rename_dialogue_id(old_id : String, new_id : String):
 	if new_id == "" or new_id == old_id: return
 	if not _stories.has(_current_npc): return
+	if _is_dialogue_id_taken(_current_npc, new_id, old_id):
+		_set_status("✗ ID 已存在：%s" % new_id)
+		_build_dialogue_form()
+		return
 	var dialogues : Array = _stories[_current_npc].get("dialogues", [])
 	for d in dialogues:
 		if d is Dictionary and d.get("id", "") == old_id:
@@ -670,7 +825,12 @@ func _add_new_dialogue():
 	var npc : Dictionary = _stories[_current_npc]
 	if not npc.has("dialogues"):
 		npc["dialogues"] = []
-	var new_id : String = "new_dialogue_%d" % (Time.get_ticks_msec() % 100000)
+	var base_id : String = "new_dialogue"
+	var new_id : String = base_id
+	var n : int = 1
+	while _is_dialogue_id_taken(_current_npc, new_id, ""):
+		n += 1
+		new_id = "%s_%d" % [base_id, n]
 	npc["dialogues"].append({
 		"id": new_id,
 		"priority": 0,
@@ -752,7 +912,7 @@ func _build_unlock_id_editor(u : Dictionary) -> Control:
 	var opt := OptionButton.new()
 	opt.add_theme_font_size_override("font_size", FS_BTN)
 	opt.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	opt.custom_minimum_size = Vector2(70, ROW_H)
+	opt.custom_minimum_size = Vector2(60, ROW_H)
 	opt.clip_text = true
 
 	opt.add_item("（选择…）", 0)
@@ -878,19 +1038,19 @@ func _add_new_unlock():
 
 
 # ============================================================
-#  Condition 编辑器
+#  Condition 编辑器（★ 修复：checkbox 不再硬编码宽度）
 # ============================================================
 func _build_condition_editor(cond : Dictionary, on_change : Callable):
 	var work : Dictionary = cond.duplicate(true)
 
 	for key in NUM_CONDITIONS:
-		var row := HBoxContainer.new()
-		row.add_theme_constant_override("separation", 3)
+		var row := _mk_row_container()
 		_right_container.add_child(row)
 
 		var cb := _mk_checkbox(key, work.has(key))
-		cb.custom_minimum_size = Vector2(110, ROW_H)
+		# ★ 关键：不覆盖 _mk_checkbox 的 min_size；让 checkbox 可压缩
 		cb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		cb.tooltip_text = CONDITION_HELP.get(key, "")
 		row.add_child(cb)
 
 		var sp := _mk_spin(int(work.get(key, 0)), 0, 999)
@@ -911,13 +1071,12 @@ func _build_condition_editor(cond : Dictionary, on_change : Callable):
 		)
 
 	# after_dialogue
-	var ad_row := HBoxContainer.new()
-	ad_row.add_theme_constant_override("separation", 3)
+	var ad_row := _mk_row_container()
 	_right_container.add_child(ad_row)
 
 	var ad_cb := _mk_checkbox("after_dialogue", work.has("after_dialogue"))
-	ad_cb.custom_minimum_size = Vector2(110, ROW_H)
-	ad_cb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	ad_cb.size_flags_horizontal = Control.SIZE_EXPAND_FILL   # ★ 不覆盖宽度
+	ad_cb.tooltip_text = CONDITION_HELP.get("after_dialogue", "")
 	ad_row.add_child(ad_cb)
 
 	var dialogue_ids : Array = []
@@ -933,7 +1092,7 @@ func _build_condition_editor(cond : Dictionary, on_change : Callable):
 	var ad_opt := OptionButton.new()
 	ad_opt.add_theme_font_size_override("font_size", FS_BTN)
 	ad_opt.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	ad_opt.custom_minimum_size = Vector2(70, ROW_H)
+	ad_opt.custom_minimum_size = Vector2(50, ROW_H)
 	ad_opt.clip_text = true
 	ad_opt.disabled = not work.has("after_dialogue")
 
@@ -974,10 +1133,10 @@ func _build_condition_editor(cond : Dictionary, on_change : Callable):
 	# flags
 	var flags_label := _mk_label("flags（逗号分隔）:")
 	flags_label.modulate = Color(0.8, 0.8, 0.8)
+	flags_label.tooltip_text = CONDITION_HELP.get("flags", "")
 	_right_container.add_child(flags_label)
 
-	var flags_row := HBoxContainer.new()
-	flags_row.add_theme_constant_override("separation", 3)
+	var flags_row := _mk_row_container()
 	_right_container.add_child(flags_row)
 
 	var flags_arr : Array = work.get("flags", [])
@@ -1008,8 +1167,7 @@ func _build_lines_editor(d : Dictionary):
 
 	for i in range(lines.size()):
 		var line : Dictionary = lines[i]
-		var row := HBoxContainer.new()
-		row.add_theme_constant_override("separation", 2)
+		var row := _mk_row_container()
 		_right_container.add_child(row)
 
 		var speaker_edit := _mk_line_edit(str(line.get("speaker", "")), "说话者")
@@ -1029,19 +1187,15 @@ func _build_lines_editor(d : Dictionary):
 		row.add_child(text_edit)
 
 		var idx : int = i
-		var up := _mk_button("↑")
-		up.custom_minimum_size = Vector2(16, ROW_H)
+		var up := _mk_icon_button("↑")
 		up.pressed.connect(_move_line.bind(d, idx, -1))
 		row.add_child(up)
 
-		var dn := _mk_button("↓")
-		dn.custom_minimum_size = Vector2(16, ROW_H)
+		var dn := _mk_icon_button("↓")
 		dn.pressed.connect(_move_line.bind(d, idx, 1))
 		row.add_child(dn)
 
-		var del := _mk_button("×")
-		del.custom_minimum_size = Vector2(16, ROW_H)
-		del.modulate = Color(1.0, 0.6, 0.6)
+		var del := _mk_icon_button("×", true)
 		del.pressed.connect(_delete_line.bind(d, idx))
 		row.add_child(del)
 
@@ -1091,8 +1245,7 @@ func _build_choices_editor(d : Dictionary):
 	var choices : Array = d["choices"]
 	for i in range(choices.size()):
 		var c : Dictionary = choices[i]
-		var row := HBoxContainer.new()
-		row.add_theme_constant_override("separation", 2)
+		var row := _mk_row_container()
 		_right_container.add_child(row)
 
 		var text_edit := _mk_line_edit(str(c.get("text", "")), "选项文本")
@@ -1103,7 +1256,7 @@ func _build_choices_editor(d : Dictionary):
 		row.add_child(text_edit)
 
 		var flag_edit := _mk_line_edit(str(c.get("flag", "")), "flag")
-		flag_edit.custom_minimum_size = Vector2(70, ROW_H)
+		flag_edit.custom_minimum_size = Vector2(60, ROW_H)
 		flag_edit.size_flags_horizontal = Control.SIZE_FILL
 		flag_edit.text_changed.connect(func(t):
 			c["flag"] = t
@@ -1112,9 +1265,7 @@ func _build_choices_editor(d : Dictionary):
 		row.add_child(flag_edit)
 
 		var idx : int = i
-		var del := _mk_button("×")
-		del.custom_minimum_size = Vector2(16, ROW_H)
-		del.modulate = Color(1.0, 0.6, 0.6)
+		var del := _mk_icon_button("×", true)
 		del.pressed.connect(func():
 			choices.remove_at(idx)
 			if choices.is_empty(): d.erase("choices")
@@ -1171,8 +1322,7 @@ func _build_flat_form():
 
 	var lines : Array = _dialogues[_current_flat_id]
 
-	var head_row := HBoxContainer.new()
-	head_row.add_theme_constant_override("separation", 3)
+	var head_row := _mk_row_container()
 	_right_container.add_child(head_row)
 
 	var preview_btn := _mk_button("▶ 预览")
@@ -1188,8 +1338,7 @@ func _build_flat_form():
 
 	for i in range(lines.size()):
 		var line : Dictionary = lines[i]
-		var row := HBoxContainer.new()
-		row.add_theme_constant_override("separation", 2)
+		var row := _mk_row_container()
 		_right_container.add_child(row)
 
 		var sp_edit := _mk_line_edit(str(line.get("speaker", "")), "说话者")
@@ -1209,9 +1358,7 @@ func _build_flat_form():
 		row.add_child(tx_edit)
 
 		var idx : int = i
-		var del := _mk_button("×")
-		del.custom_minimum_size = Vector2(16, ROW_H)
-		del.modulate = Color(1.0, 0.6, 0.6)
+		var del := _mk_icon_button("×", true)
 		del.pressed.connect(func():
 			lines.remove_at(idx)
 			_dirty = true
@@ -1229,7 +1376,12 @@ func _build_flat_form():
 
 
 func _add_new_flat_dialogue():
-	var new_id : String = "new_dialogue_%d" % (Time.get_ticks_msec() % 100000)
+	var base_id : String = "new_dialogue"
+	var new_id : String = base_id
+	var n : int = 1
+	while _dialogues.has(new_id):
+		n += 1
+		new_id = "%s_%d" % [base_id, n]
 	_dialogues[new_id] = [{"speaker": "???", "text": "..."}]
 	_dirty = true
 	_current_flat_id = new_id
@@ -1255,11 +1407,16 @@ func _delete_flat_dialogue():
 # ============================================================
 func _build_event_id_list():
 	for eid in _events:
-		var btn := _mk_button(eid)
+		var usages : Array = _get_event_usages(eid)
+		var suffix : String = ""
+		if not usages.is_empty():
+			suffix = "  [%d 处]" % usages.size()
+		var btn := _mk_button(eid + suffix)
 		_stretch_row_button(btn)
 		btn.toggle_mode = true
 		btn.button_pressed = (eid == _current_event_id)
 		btn.modulate = Color.WHITE if eid == _current_event_id else Color(0.75, 0.75, 0.75, 1)
+		btn.tooltip_text = "被引用：" + (", ".join(usages) if not usages.is_empty() else "（无）")
 		btn.pressed.connect(_on_event_selected.bind(eid))
 		_left_list.add_child(btn)
 
@@ -1278,7 +1435,7 @@ func _on_event_selected(event_id : String):
 	_current_action_idx = -1
 	for child in _left_list.get_children():
 		if child is Button:
-			child.modulate = Color.WHITE if child.text == event_id else Color(0.75, 0.75, 0.75, 1)
+			child.modulate = Color.WHITE if child.text.begins_with(event_id) else Color(0.75, 0.75, 0.75, 1)
 	_build_event_action_list()
 	_clear_container(_right_container)
 	_right_title.text = "— 编辑区 —"
@@ -1289,8 +1446,7 @@ func _build_event_action_list():
 	if _current_event_id == "" or not _events.has(_current_event_id): return
 	var ev : Dictionary = _events[_current_event_id]
 
-	var add_row := HBoxContainer.new()
-	add_row.add_theme_constant_override("separation", 3)
+	var add_row := _mk_row_container()
 	_mid_list.add_child(add_row)
 
 	var add_action_btn := _mk_button("+ action")
@@ -1299,6 +1455,7 @@ func _build_event_action_list():
 	add_row.add_child(add_action_btn)
 
 	var once_cb := _mk_checkbox("once", bool(ev.get("once", true)))
+	once_cb.tooltip_text = "勾选后此事件只触发一次"
 	once_cb.toggled.connect(func(pressed):
 		ev["once"] = pressed
 		_dirty = true
@@ -1362,6 +1519,14 @@ func _build_action_form():
 	if _current_action_idx >= actions.size(): return
 	var a : Dictionary = actions[_current_action_idx]
 
+	var usages : Array = _get_event_usages(_current_event_id)
+	var usage_text : String = "（无地图引用）"
+	if not usages.is_empty():
+		usage_text = "被 %d 张地图引用：%s" % [usages.size(), ", ".join(usages)]
+	var usage_label := _mk_label(usage_text, FS_HINT)
+	usage_label.modulate = Color(0.7, 0.9, 0.7) if not usages.is_empty() else Color(0.7, 0.5, 0.5)
+	_right_container.add_child(usage_label)
+
 	_right_title.text = "action #%d" % _current_action_idx
 
 	var type_row := _mk_row("type")
@@ -1388,8 +1553,7 @@ func _build_action_form():
 	)
 	type_row.add_child(opt)
 
-	var head_row := HBoxContainer.new()
-	head_row.add_theme_constant_override("separation", 3)
+	var head_row := _mk_row_container()
 	_right_container.add_child(head_row)
 
 	var up_btn := _mk_button("↑ 上移")
@@ -1455,8 +1619,7 @@ func _build_dynamic_fields_editor(a : Dictionary):
 			_build_one_field_row(a, key)
 
 	_right_container.add_child(_mk_section_label("— 添加字段 —"))
-	var add_row := HBoxContainer.new()
-	add_row.add_theme_constant_override("separation", 3)
+	var add_row := _mk_row_container()
 	_right_container.add_child(add_row)
 
 	var key_edit := _mk_line_edit("", "字段名")
@@ -1467,8 +1630,7 @@ func _build_dynamic_fields_editor(a : Dictionary):
 	var val_edit := _mk_line_edit("", "值")
 	add_row.add_child(val_edit)
 
-	var add_btn := _mk_button("+")
-	add_btn.custom_minimum_size = Vector2(20, ROW_H)
+	var add_btn := _mk_icon_button("+")
 	add_btn.pressed.connect(func():
 		var k : String = key_edit.text.strip_edges()
 		var v : String = val_edit.text
@@ -1502,8 +1664,7 @@ func _auto_parse_value(v : String) -> Variant:
 func _build_one_field_row(a : Dictionary, key : String):
 	var value : Variant = a[key]
 
-	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 3)
+	var row := _mk_row_container()
 	_right_container.add_child(row)
 
 	var lb := _mk_label(key, FS_LABEL)
@@ -1560,9 +1721,7 @@ func _build_one_field_row(a : Dictionary, key : String):
 		)
 		row.add_child(le)
 
-	var del := _mk_button("×")
-	del.custom_minimum_size = Vector2(16, ROW_H)
-	del.modulate = Color(1.0, 0.6, 0.6)
+	var del := _mk_icon_button("×", true)
 	del.pressed.connect(func():
 		a.erase(key)
 		_dirty = true
@@ -1573,7 +1732,12 @@ func _build_one_field_row(a : Dictionary, key : String):
 
 
 func _add_new_event():
-	var new_id : String = "new_event_%d" % (Time.get_ticks_msec() % 100000)
+	var base_id : String = "new_event"
+	var new_id : String = base_id
+	var n : int = 1
+	while _events.has(new_id):
+		n += 1
+		new_id = "%s_%d" % [base_id, n]
 	_events[new_id] = {
 		"actions": [{"type": "dialog", "dialog_id": ""}],
 		"once": true
