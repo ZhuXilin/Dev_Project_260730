@@ -912,7 +912,9 @@ func _apply_damage_with_effects(defender: Unit, damage: int, attacker: Unit, is_
 	if TalentManager.is_talent_ready(defender, "parry"):
 		var level = _get_effective_talent_level(defender, "parry")
 		var reflect_mult = 0.5 + (level - 1) * 0.15
-		var parry_damage = int(damage * reflect_mult)
+		# ★ 方案 A：走完整伤害公式（防御方攻击力 → 攻方防御力 → 差值为准）
+		var parry_base = calculate_damage(defender, attacker)
+		var parry_damage = max(1, int(parry_base * reflect_mult))
 		attacker.apply_damage(parry_damage)
 		SignalBus.request_damage_popup.emit(attacker.global_position, parry_damage, false, false, false)
 		print("盾反触发！Lv.%d 反弹 %d 伤害" % [level, parry_damage])
