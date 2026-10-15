@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://dapmuf2hld4n8"
-path="res://.godot/imported/units_hunter.png-4058615a7a9ab948a8768d367eb02c7c.ctex"
+uid="uid://odc0147hfhod"
+path="res://.godot/imported/unit_flyingdragon.png-b1b23536dfd34817c4796b28a3c90a5b.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://content/images/characters/units_hunter.png"
-dest_files=["res://.godot/imported/units_hunter.png-4058615a7a9ab948a8768d367eb02c7c.ctex"]
+source_file="res://content/images/characters/unit_flyingdragon.png"
+dest_files=["res://.godot/imported/unit_flyingdragon.png-b1b23536dfd34817c4796b28a3c90a5b.ctex"]
 
 [params]
 

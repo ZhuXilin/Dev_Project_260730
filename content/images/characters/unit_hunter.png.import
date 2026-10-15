@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://2eie2qj1i4ft"
-path="res://.godot/imported/units_ballista.png-8058b7b4a3514a48f9517f46168dd690.ctex"
+uid="uid://dapmuf2hld4n8"
+path="res://.godot/imported/unit_hunter.png-524ebb2cb5da500a6c18ec0ac02ddf82.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://content/images/characters/units_ballista.png"
-dest_files=["res://.godot/imported/units_ballista.png-8058b7b4a3514a48f9517f46168dd690.ctex"]
+source_file="res://content/images/characters/unit_hunter.png"
+dest_files=["res://.godot/imported/unit_hunter.png-524ebb2cb5da500a6c18ec0ac02ddf82.ctex"]
 
 [params]
 

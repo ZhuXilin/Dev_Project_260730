@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://brm1ejocj52xd"
-path="res://.godot/imported/units_horsearcher.png-3b34dd51ee808e874e512749e825cece.ctex"
+uid="uid://baxvl2cw6dqrc"
+path="res://.godot/imported/unit_priest.png-045cd1d6c85e85b4704ed62e85c4c134.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://content/images/characters/units_horsearcher.png"
-dest_files=["res://.godot/imported/units_horsearcher.png-3b34dd51ee808e874e512749e825cece.ctex"]
+source_file="res://content/images/characters/unit_priest.png"
+dest_files=["res://.godot/imported/unit_priest.png-045cd1d6c85e85b4704ed62e85c4c134.ctex"]
 
 [params]
 

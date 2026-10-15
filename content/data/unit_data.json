@@ -7,7 +7,7 @@
 	"description": "平衡型近战单位，擅长剑术，攻守兼备。",
 	"display_name": "艾琳", "faction": "王国",
 	"default_weapon": "iron_sword",
-	"default_talents": ["crit", "parry"],
+	"default_talents": ["crit"],
 	"max_talent_slots": 1,
 	"arena_exp": 30,
 	"available_blessings": ["strength", "dexterity"],
@@ -19,13 +19,13 @@
 		"stat_bonus": { "max_hp": 5, "strength": 5, "dexterity": 1 },
 		"granted_talent": "active_charge",
 		"flavor": "血已沸腾，唯有杀戮能平。",
-		"sprite_frames_path": "", "tags": ["物理", "烈焰"] },
+		"sprite_frames_path": "res://content/images/characters/unit_hunter_frames.tres", "tags": ["物理", "烈焰"] },
 	  { "id": "swordsman_guardian", "name": "盾卫",
 		"description": "守护形态，嘲讽 + 护盾，受击 30% 回 1 魂火",
 		"stat_bonus": { "max_hp": 8, "strength": 2, "faith": 2 },
 		"granted_talent": "active_taunt",
 		"flavor": "我的盾，就是同伴的墙。",
-		"sprite_frames_path": "", "tags": ["物理", "守护"] }
+		"sprite_frames_path": "res://content/images/characters/unit_guardian_frames.tres", "tags": ["物理", "守护"] }
 	]
   },
   "spearman": {
@@ -55,7 +55,7 @@
 		"stat_bonus": { "max_hp": 6, "strength": 3, "faith": 2 },
 		"granted_talent": "parry",
 		"flavor": "枪如林，盾如墙。",
-		"sprite_frames_path": "", "tags": ["物理", "守护"] }
+		"sprite_frames_path": "res://content/images/characters/unit_horsearcher_frames.tres", "tags": ["物理", "守护"] }
 	]
   },
   "axeman": {
@@ -66,7 +66,7 @@
 	"description": "狂战士，高攻击力但命中率低，适合破甲。",
 	"display_name": "格伦", "faction": "海盗",
 	"default_weapon": "battle_axe",
-	"default_talents": ["block", "bleed"],
+	"default_talents": ["block"],
 	"max_talent_slots": 1,
 	"arena_exp": 25,
 	"available_blessings": ["strength", "vitality"],
@@ -79,24 +79,24 @@
 		"stat_bonus": { "max_hp": 6, "strength": 3 },
 		"granted_talent": "lifesteal",
 		"flavor": "血已沸腾，唯有杀戮能平。",
-		"sprite_frames_path": "", "tags": ["物理", "烈焰"] },
+		"sprite_frames_path": "res://content/images/characters/unit_pirate_frames.tres", "tags": ["物理", "烈焰"] },
 	  { "id": "axeman_ashcleaver", "name": "灰烬劈砍者",
 		"description": "灰烬形态，暴击即回魂火",
 		"stat_bonus": { "max_hp": 5, "strength": 4, "dexterity": 1 },
 		"granted_talent": "active_heavy_slash",
 		"flavor": "斧过之处，只剩灰烬。",
-		"sprite_frames_path": "", "tags": ["物理", "灰烬"] }
+		"sprite_frames_path": "res://content/images/characters/unit_pirate_frames.tres", "tags": ["物理", "灰烬"] }
 	]
   },
   "archer": {
 	"max_hp": 14, "strength": 4, "dexterity": 9,
 	"intelligence": 2, "faith": 2, "arcane": 4, "move_range": 5,
 	"ignore_terrain_cost": false,
-	"sprite_frames_path": "res://content/images/characters/unit_archer_frames.tres",
+	"sprite_frames_path": "res://content/images/characters/unit_crossbow_frames.tres",
 	"description": "远程物理单位，可攻击远处敌人。",
 	"display_name": "莉安娜", "faction": "王国",
 	"default_weapon": "longbow",
-	"default_talents": ["crit", "double_attack"],
+	"default_talents": ["crit"],
 	"max_talent_slots": 1,
 	"arena_exp": 30,
 	"available_blessings": ["dexterity", "arcane"],
@@ -108,13 +108,13 @@
 		"stat_bonus": { "max_hp": 3, "dexterity": 4 },
 		"granted_talent": "active_snipe",
 		"flavor": "风，停了。",
-		"sprite_frames_path": "", "tags": ["物理", "灰烬"] },
+		"sprite_frames_path": "res://content/images/characters/unit_sniper_frames.tres", "tags": ["物理", "灰烬"] },
 	  { "id": "archer_hunter", "name": "猎杀者",
 		"description": "追击残敌，连续击杀",
 		"stat_bonus": { "max_hp": 4, "dexterity": 3, "strength": 2 },
 		"granted_talent": "double_attack",
 		"flavor": "猎人与猎物，只有一步之差。",
-		"sprite_frames_path": "", "tags": ["物理"] }
+		"sprite_frames_path": "res://content/images/characters/unit_archer_frames.tres", "tags": ["物理"] }
 	]
   },
   "pegasus": {
@@ -137,13 +137,13 @@
 		"stat_bonus": { "max_hp": 5, "dexterity": 3, "strength": 1 },
 		"granted_talent": "active_dive",
 		"flavor": "天马嘶鸣，是死者的战歌。",
-		"sprite_frames_path": "", "tags": ["物理", "守护"] },
+		"sprite_frames_path": "res://content/images/characters/unit_flyingdragon_frames.tres", "tags": ["物理", "守护"] },
 	  { "id": "pegasus_windrider", "name": "疾风骑士",
 		"description": "驰风掠影，移动如风",
 		"stat_bonus": { "max_hp": 3, "dexterity": 4, "move_range": 1 },
 		"granted_talent": "double_attack",
 		"flavor": "你只看到风的痕迹。",
-		"sprite_frames_path": "", "tags": ["物理", "灰烬"] }
+		"sprite_frames_path": "res://content/images/characters/unit_flyingdragon_frames.tres", "tags": ["物理", "灰烬"] }
 	]
   },
   "mage": {
@@ -166,13 +166,13 @@
 		"stat_bonus": { "max_hp": 3, "intelligence": 4, "faith": 1 },
 		"granted_talent": "active_fireball",
 		"flavor": "元素皆是我意志的延伸。",
-		"sprite_frames_path": "", "tags": ["法术", "烈焰"] },
+		"sprite_frames_path": "res://content/images/characters/unit_priest_frames.tres", "tags": ["法术", "烈焰"] },
 	  { "id": "mage_curser", "name": "咒术师",
 		"description": "诅咒敌人，击杀回魂火",
 		"stat_bonus": { "max_hp": 4, "intelligence": 3, "arcane": 2 },
 		"granted_talent": "spell_chain",
 		"flavor": "命运从不仁慈，我只是替它开口。",
-		"sprite_frames_path": "", "tags": ["法术", "轮回"] }
+		"sprite_frames_path": "res://content/images/characters/unit_priest_frames.tres", "tags": ["法术", "轮回"] }
 	]
   },
   "cleric": {
@@ -195,13 +195,13 @@
 		"stat_bonus": { "max_hp": 5, "faith": 4, "intelligence": 1 },
 		"granted_talent": "active_mass_heal",
 		"flavor": "以我血肉，换你重生。",
-		"sprite_frames_path": "", "tags": ["法术", "献祭"] },
+		"sprite_frames_path": "res://content/images/characters/unit_thief_frames.tres", "tags": ["法术", "献祭"] },
 	  { "id": "cleric_guardian", "name": "守护者",
 		"description": "护盾加身，队友减伤",
 		"stat_bonus": { "max_hp": 6, "faith": 3, "strength": 1 },
 		"granted_talent": "block",
 		"flavor": "我不能拯救所有人，但我可以守护你。",
-		"sprite_frames_path": "", "tags": ["法术", "守护"] }
+		"sprite_frames_path": "res://content/images/characters/unit_thief_frames.tres", "tags": ["法术", "守护"] }
 	]
   },
   "dragonborn": {
@@ -212,7 +212,7 @@
 	"description": "龙族后裔，拥有极高防御和魔法防御，移动缓慢但顽强。",
 	"display_name": "拉兹", "faction": "龙族",
 	"default_weapon": "fire_dragonstone",
-	"default_talents": ["parry", "block"],
+	"default_talents": ["parry"],
 	"max_talent_slots": 1,
 	"arena_exp": 60,
 	"available_blessings": ["strength", "arcane", "intelligence"],
@@ -225,13 +225,13 @@
 		"stat_bonus": { "max_hp": 10, "strength": 3, "arcane": 2 },
 		"granted_talent": "active_dragon_breath",
 		"flavor": "吾乃龙之血脉，不灭之躯。",
-		"sprite_frames_path": "", "tags": ["法术", "余烬"] },
+		"sprite_frames_path": "res://content/images/characters/unit_dragonborn_frames.tres", "tags": ["法术", "余烬"] },
 	  { "id": "dragonborn_ashtongue", "name": "灰烬吐息者",
 		"description": "焚尽一切，代价自受",
 		"stat_bonus": { "max_hp": 6, "arcane": 4, "dexterity": 2 },
 		"granted_talent": "active_fireball",
 		"flavor": "以灰烬为食，以烈火为语。",
-		"sprite_frames_path": "", "tags": ["法术", "灰烬"] }
+		"sprite_frames_path": "res://content/images/characters/unit_dragonborn_frames.tres", "tags": ["法术", "灰烬"] }
 	]
   },
   "armored": {
@@ -262,7 +262,7 @@
 		"stat_bonus": { "max_hp": 8, "strength": 4, "arcane": 2 },
 		"granted_talent": "active_heavy_slash",
 		"flavor": "熔炉之中，我成为火。",
-		"sprite_frames_path": "", "tags": ["物理", "烈焰"] }
+		"sprite_frames_path": "res://content/images/characters/unit_general_frames.tres", "tags": ["物理", "烈焰"] }
 	]
   }
 }

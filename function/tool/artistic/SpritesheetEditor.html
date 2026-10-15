@@ -187,20 +187,20 @@ input[type=checkbox]{accent-color:#2d6cdf;margin-right:4px}
       </div>
 
       <div class="section">
-        <h3><span data-i18n="section.xform">Transform</span><span class="hint" data-i18n="hint.rotR">(hold R + move = rotate)</span></h3>
+        <h3><span data-i18n="section.xform">Transform</span><span class="hint" data-i18n="hint.rotR">(hold R to rotate)</span></h3>
         <div class="row compact-row">
-          <button id="btn-rot-ccw" class="xform-btn" data-i18n="btn.rotCcw" data-i18n-title="tt.rotCcw" title="Rotate 90° CCW">⟲<small>90</small></button>
-          <button id="btn-rot-cw"  class="xform-btn" data-i18n="btn.rotCw"  data-i18n-title="tt.rotCw"  title="Rotate 90° CW">⟳<small>90</small></button>
-          <button id="btn-rot-180" class="xform-btn" data-i18n="btn.rot180" data-i18n-title="tt.rot180" title="Rotate 180°">↻<small>180</small></button>
-          <button id="btn-flip-h"  class="xform-btn" data-i18n="btn.flipH"  data-i18n-title="tt.flipH"  title="Flip Horizontal">↔</button>
-          <button id="btn-flip-v"  class="xform-btn" data-i18n="btn.flipV"  data-i18n-title="tt.flipV"  title="Flip Vertical">↕</button>
+          <button id="btn-rot-ccw" class="xform-btn" data-i18n-title="tt.rotCcw" title="Rotate 90° CCW">⟲<small>90</small></button>
+          <button id="btn-rot-cw"  class="xform-btn" data-i18n-title="tt.rotCw"  title="Rotate 90° CW">⟳<small>90</small></button>
+          <button id="btn-rot-180" class="xform-btn" data-i18n-title="tt.rot180" title="Rotate 180°">↻<small>180</small></button>
+          <button id="btn-flip-h"  class="xform-btn" data-i18n-title="tt.flipH"  title="Flip Horizontal">↔</button>
+          <button id="btn-flip-v"  class="xform-btn" data-i18n-title="tt.flipV"  title="Flip Vertical">↕</button>
         </div>
       </div>
 
       <div class="section">
         <h3>
           <span data-i18n="section.anim">Animation</span>
-          <span class="hint" data-i18n="hint.anim">(drag to locate)</span>
+          <span class="hint" data-i18n="hint.anim">(← → / A D · Space play)</span>
           <span id="anim-label">#0 / 15</span>
         </h3>
         <div id="anim-preview-wrap">
@@ -398,7 +398,8 @@ var doc = {
   selMask:null, hasSelection:false,
   selBounds:{x:0,y:0,w:0,h:0},
   floating:null, floatCanvas:null, floatDirty:false,
-  grid:{w:32,h:32}, guides:[], fileName:''
+  grid:{w:32,h:32}, guides:[], fileName:'',
+  preciseCx:null, preciseCy:null
 };
 var view = { zoom:6, panX:200, panY:100 };
 var ui = {
@@ -432,6 +433,10 @@ var mDown = false;
 var mDragged = false;
 var rDown = false;
 var rotState = null;
+/* 动画快捷键播放状态 */
+var animKeyDir = 0;       // -1 前, 1 后, 0 停止
+var animKeyTimer = null;
+var animKeyInterval = null;
 
 var mouse = { inside:false, sx:0, sy:0, px:0, py:0, hasValidPos:false, inRulerTop:false, inRulerLeft:false };
 var clipboard = null;
@@ -801,6 +806,7 @@ function newDoc(w,h){
   doc.hasSelection = false; doc.selBounds = {x:0,y:0,w:0,h:0};
   doc.floating=null; doc.floatCanvas=null;
   doc.guides=[];
+  doc.preciseCx=null; doc.preciseCy=null;
   doc.imageDirty=true; animPreviewDirty=true;
   _previewMask = null;
   highlightColor = null;
@@ -838,6 +844,7 @@ function resizeDocWithAnchor(w,h,anchor){
   doc.selMask = new Uint8Array(w*h);
   doc.hasSelection = false; doc.selBounds = {x:0,y:0,w:0,h:0};
   doc.floating=null; doc.floatCanvas=null;
+  doc.preciseCx=null; doc.preciseCy=null;
   doc.imageDirty=true; animPreviewDirty=true;
   _previewMask = null;
   highlightColor = null;
@@ -1239,10 +1246,19 @@ function applyRectSelection(r,mode){
   }
   recalcBounds();
 }
-function selectAll(){ if(doc.floating){ commitFloat(); } doc.selMask.fill(1); recalcBounds(); requestRender(); commitHistory(); }
-function deselectAll(){ doc.selMask.fill(0); recalcBounds(); requestRender(); commitHistory(); }
+function selectAll(){
+  if(doc.floating){ commitFloat(); }
+  doc.preciseCx = null; doc.preciseCy = null;
+  doc.selMask.fill(1); recalcBounds(); requestRender(); commitHistory();
+}
+function deselectAll(){
+  doc.selMask.fill(0);
+  doc.preciseCx = null; doc.preciseCy = null;
+  recalcBounds(); requestRender(); commitHistory();
+}
 function invertSelection(){
   for(var i=0;i<doc.selMask.length;i++) doc.selMask[i] = doc.selMask[i] ? 0 : 1;
+  doc.preciseCx = null; doc.preciseCy = null;
   recalcBounds(); requestRender(); commitHistory();
 }
 function isSelected(x,y){
@@ -1269,7 +1285,18 @@ function beginFloat(){
       d[si]=0; d[si+1]=0; d[si+2]=0; d[si+3]=0;
     }
   }
-  doc.floating = {w:fw,h:fh,data:fdata,x:b.x,y:b.y};
+  var bCx = b.x + fw / 2;
+  var bCy = b.y + fh / 2;
+  if(doc.preciseCx == null || doc.preciseCy == null ||
+     Math.abs(doc.preciseCx - bCx) > 1.5 ||
+     Math.abs(doc.preciseCy - bCy) > 1.5){
+    doc.preciseCx = bCx;
+    doc.preciseCy = bCy;
+  }
+  doc.floating = {
+    w:fw, h:fh, data:fdata, x:b.x, y:b.y,
+    cx: doc.preciseCx, cy: doc.preciseCy
+  };
   doc.floatDirty = true; doc.imageDirty = true; _highlightDirty = true;
   doc.selMask.fill(0); doc.hasSelection = false;
   doc.selBounds = {x:0,y:0,w:0,h:0};
@@ -1773,7 +1800,6 @@ function drawSelection(z,ox,oy){
     ctx.lineWidth = 1;
     ctx.strokeRect(ox+b.x*z+0.5, oy+b.y*z+0.5, b.w*z-1, b.h*z-1);
     ctx.restore();
-    // 旋转中：绘制中心点和辅助线
     if(rotState){
       ctx.save();
       ctx.strokeStyle = 'rgba(255,210,60,0.9)';
@@ -1820,7 +1846,6 @@ function drawCursor(z,ox,oy){
   if(!mouse.inside) return;
   if(mouse.inRulerTop || mouse.inRulerLeft) return;
   if(rotState){
-    // 旋转模式下画个虚线圆
     if(!doc.floating) return;
     var f = doc.floating;
     ctx.save();
@@ -2014,8 +2039,6 @@ function guideAt(x,y){
 }
 
 /* ===== Transform (rotate / flip) ===== */
-
-// 把选区内容浮起（如果还没浮起），然后执行回调
 function withFloating(fn){
   if(!doc.floating && doc.hasSelection) beginFloat();
   if(!doc.floating){
@@ -2024,8 +2047,6 @@ function withFloating(fn){
   }
   fn();
 }
-
-// 90/180 整数旋转（不重采样，中心对齐）
 function rotateInteger(deg){
   withFloating(function(){
     var f = doc.floating;
@@ -2049,13 +2070,20 @@ function rotateInteger(deg){
     g.drawImage(src, -w / 2, -h / 2);
 
     var id = g.getImageData(0, 0, nw, nh);
-    var cx = f.x + w / 2, cy = f.y + h / 2;
+    var cx = (f.cx != null) ? f.cx : (f.x + w / 2);
+    var cy = (f.cy != null) ? f.cy : (f.y + h / 2);
+    var newX = cx - nw / 2;
+    var newY = cy - nh / 2;
+
     doc.floating = {
       w: nw, h: nh,
       data: new Uint8ClampedArray(id.data),
-      x: Math.round(cx - nw / 2),
-      y: Math.round(cy - nh / 2)
+      x: Math.round(newX),
+      y: Math.round(newY),
+      cx: cx, cy: cy
     };
+    doc.preciseCx = cx;
+    doc.preciseCy = cy;
     doc.floatDirty = true;
     commitFloat();
     commitHistory();
@@ -2063,7 +2091,6 @@ function rotateInteger(deg){
     requestRender();
   });
 }
-
 function flipInteger(axis){
   withFloating(function(){
     var f = doc.floating;
@@ -2083,14 +2110,14 @@ function flipInteger(axis){
     }
     f.data = out;
     doc.floatDirty = true;
+    doc.preciseCx = f.cx != null ? f.cx : (f.x + w / 2);
+    doc.preciseCy = f.cy != null ? f.cy : (f.y + h / 2);
     commitFloat();
     commitHistory();
     refreshColorUsage();
     requestRender();
   });
 }
-
-// 按住 R 键旋转
 function startRotateMode(){
   if(!doc.floating && doc.hasSelection){
     beginFloat();
@@ -2100,8 +2127,8 @@ function startRotateMode(){
   rotState = {
     baseW: f.w, baseH: f.h,
     baseData: new Uint8ClampedArray(f.data),
-    cx: f.x + f.w / 2,
-    cy: f.y + f.h / 2,
+    cx: f.cx != null ? f.cx : (f.x + f.w / 2),
+    cy: f.cy != null ? f.cy : (f.y + f.h / 2),
     startAngle: null,
     lastDeg: 0
   };
@@ -2110,7 +2137,6 @@ function startRotateMode(){
 }
 function endRotateMode(){
   if(rotState && rotState.startAngle !== null){
-    // 提交旋转结果
     commitFloat();
     commitHistory();
     refreshColorUsage();
@@ -2147,7 +2173,8 @@ function applyRotatedFloat(deg){
     w: nw, h: nh,
     data: new Uint8ClampedArray(id.data),
     x: Math.round(rotState.cx - nw / 2),
-    y: Math.round(rotState.cy - nh / 2)
+    y: Math.round(rotState.cy - nh / 2),
+    cx: rotState.cx, cy: rotState.cy
   };
   doc.floatDirty = true;
   requestRender();
@@ -2164,13 +2191,68 @@ function updateRotateFromMouse(e){
     return;
   }
   var delta = (ang - rotState.startAngle) * 180 / Math.PI;
-  // 归一化到 -180..180
   while(delta > 180) delta -= 360;
   while(delta < -180) delta += 360;
   if(e.shiftKey) delta = Math.round(delta / 45) * 45;
   rotState.lastDeg = delta;
   applyRotatedFloat(delta);
   setStatus((currentLang === 'zh' ? '旋转 ' : 'Rotate ') + delta.toFixed(1) + '°');
+}
+
+/* ===== 动画快捷键：← → / A D ===== */
+function animStepFrame(dir){
+  if(!hasImage) return;
+  if(ui.playing) stopPlay();
+
+  var total = totalCells();
+  if(total <= 0) return;
+  var start = parseInt(animStartEl.value, 10);
+  var end = parseInt(animEndEl.value, 10);
+  if(isNaN(start)) start = 0;
+  if(isNaN(end)) end = Math.max(0, total-1);
+  if(end < start){ var t = start; start = end; end = t; }
+
+  var cur = ui.currentCell;
+  if(cur < 0 || cur >= total) cur = start;
+
+  var loop = document.getElementById('anim-loop').checked;
+  cur += dir;
+  if(cur > end){ cur = loop ? start : end; }
+  if(cur < start){ cur = loop ? end : start; }
+
+  ui.currentCell = cur;
+  if(!ui.singleCell){
+    ui.singleCell = true;
+    updateViewModeButton();
+    centerCurrentCell();
+  }
+  requestRender();
+  updateAnimCursor();
+  setStatus((currentLang === 'zh' ? '帧 ' : 'Frame ') + (cur + 1) + ' / ' + total);
+}
+function startAnimKeyPlayback(dir){
+  // 如果已经在同方向连续播放，忽略重复触发
+  if(animKeyDir === dir) return;
+  // 方向改变：先停旧的
+  if(animKeyTimer){ clearTimeout(animKeyTimer); animKeyTimer = null; }
+  if(animKeyInterval){ clearInterval(animKeyInterval); animKeyInterval = null; }
+
+  animKeyDir = dir;
+  // 立即切换 1 帧
+  animStepFrame(dir);
+
+  // 300ms 后开始连续播放，频率 80ms
+  animKeyTimer = setTimeout(function(){
+    animKeyTimer = null;
+    animKeyInterval = setInterval(function(){
+      if(animKeyDir !== 0) animStepFrame(animKeyDir);
+    }, 80);
+  }, 300);
+}
+function stopAnimKeyPlayback(){
+  if(animKeyTimer){ clearTimeout(animKeyTimer); animKeyTimer = null; }
+  if(animKeyInterval){ clearInterval(animKeyInterval); animKeyInterval = null; }
+  animKeyDir = 0;
 }
 
 function doCopy(){
@@ -2309,9 +2391,7 @@ function getMouse(e){
   return {sx:sx,sy:sy,px:p.x,py:p.y};
 }
 function onCanvasMouseDown(e){
-  // 旋转模式下忽略鼠标按下
   if(rotState) { e.preventDefault(); return; }
-
   if(cpPickingFromCanvas){
     var m0 = getMouse(e);
     var c0 = getCompositePixel(m0.px, m0.py);
@@ -2528,6 +2608,10 @@ function onCanvasMouseMove(e){
     }
     var nx = drag.floatOrigin.x+dx, ny = drag.floatOrigin.y+dy;
     doc.floating.x = nx; doc.floating.y = ny;
+    doc.preciseCx = nx + doc.floating.w/2;
+    doc.preciseCy = ny + doc.floating.h/2;
+    doc.floating.cx = doc.preciseCx;
+    doc.floating.cy = doc.preciseCy;
     setStatus((currentLang==='zh'?'移动 ':'Move ')+'dx='+dx+', dy='+dy);
     requestRender(); return;
   }
@@ -2619,18 +2703,17 @@ function onKeyDown(e){
   if(e.target.tagName === 'INPUT') return;
   if(e.key === ' ' && !e.repeat) spaceDown = true;
 
-  // R 键：旋转模式
+  // R 旋转
   if((e.key === 'r' || e.key === 'R') && !e.ctrlKey && !e.metaKey && !e.altKey){
     if(!e.repeat && !rDown){
       rDown = true;
-      if(doc.hasSelection || doc.floating){
-        startRotateMode();
-      }
+      if(doc.hasSelection || doc.floating) startRotateMode();
     }
     e.preventDefault();
     return;
   }
 
+  // V / M 临时切换
   if((e.key === 'v' || e.key === 'V') && !e.ctrlKey && !e.metaKey && !e.altKey){
     if(!e.repeat){ vDown = true; vDragged = false; }
     return;
@@ -2640,6 +2723,7 @@ function onKeyDown(e){
     return;
   }
 
+  // Ctrl 组合
   if(e.ctrlKey || e.metaKey){
     switch(e.key.toLowerCase()){
       case 'z': e.preventDefault(); if(e.shiftKey) doRedo(); else doUndo(); return;
@@ -2652,6 +2736,26 @@ function onKeyDown(e){
       case 's': e.preventDefault(); savePng(false); return;
     }
   }
+
+  // ===== 动画切换键：← → / A D =====
+  // 注意：不要用 e.repeat 过滤，否则某些浏览器长按无效；
+  // 连续播放由 startAnimKeyPlayback 内部的 animKeyDir 去重控制。
+  if(!e.ctrlKey && !e.metaKey && !e.altKey){
+    var isPrev = (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A');
+    var isNext = (e.key === 'ArrowRight'|| e.key === 'd' || e.key === 'D');
+    if(isPrev || isNext){
+      var isArrow = (e.key === 'ArrowLeft' || e.key === 'ArrowRight');
+      // 若当前有浮动像素且按的是方向键，保留原有"移动浮动像素"逻辑
+      if(doc.floating && isArrow){
+        // 交给下面 switch 处理
+      } else {
+        e.preventDefault();
+        startAnimKeyPlayback(isPrev ? -1 : 1);
+        return;
+      }
+    }
+  }
+
   switch(e.key){
     case 'Delete': case 'Backspace':
       if(doc.hasSelection){ deleteSelection(); commitHistory(); refreshColorUsage(); }
@@ -2695,16 +2799,36 @@ function onKeyDown(e){
     case '6': setTool(TOOL.REPLACE); break;
     case '7': setTool(TOOL.LASSO); break;
     case 'ArrowLeft':
-      if(doc.floating){ doc.floating.x--; requestRender(); e.preventDefault(); }
+      if(doc.floating){
+        doc.floating.x--;
+        doc.preciseCx = doc.floating.x + doc.floating.w/2;
+        doc.floating.cx = doc.preciseCx;
+        requestRender(); e.preventDefault();
+      }
       break;
     case 'ArrowRight':
-      if(doc.floating){ doc.floating.x++; requestRender(); e.preventDefault(); }
+      if(doc.floating){
+        doc.floating.x++;
+        doc.preciseCx = doc.floating.x + doc.floating.w/2;
+        doc.floating.cx = doc.preciseCx;
+        requestRender(); e.preventDefault();
+      }
       break;
     case 'ArrowUp':
-      if(doc.floating){ doc.floating.y--; requestRender(); e.preventDefault(); }
+      if(doc.floating){
+        doc.floating.y--;
+        doc.preciseCy = doc.floating.y + doc.floating.h/2;
+        doc.floating.cy = doc.preciseCy;
+        requestRender(); e.preventDefault();
+      }
       break;
     case 'ArrowDown':
-      if(doc.floating){ doc.floating.y++; requestRender(); e.preventDefault(); }
+      if(doc.floating){
+        doc.floating.y++;
+        doc.preciseCy = doc.floating.y + doc.floating.h/2;
+        doc.floating.cy = doc.preciseCy;
+        requestRender(); e.preventDefault();
+      }
       break;
   }
 }
@@ -2713,10 +2837,7 @@ function onKeyUp(e){
   if(e.key === ' ') spaceDown = false;
 
   if((e.key === 'r' || e.key === 'R') && !e.ctrlKey && !e.metaKey && !e.altKey){
-    if(rDown){
-      rDown = false;
-      endRotateMode();
-    }
+    if(rDown){ rDown = false; endRotateMode(); }
     return;
   }
 
@@ -2729,6 +2850,14 @@ function onKeyUp(e){
     mDown = false;
     if(!mDragged){ setTool(TOOL.LASSO); }
     mDragged = false;
+  }
+
+  // ===== 释放动画切换键 =====
+  if(!e.ctrlKey && !e.metaKey && !e.altKey){
+    if(e.key === 'ArrowLeft' || e.key === 'ArrowRight' ||
+       e.key === 'a' || e.key === 'A' || e.key === 'd' || e.key === 'D'){
+      stopAnimKeyPlayback();
+    }
   }
 }
 
@@ -3217,6 +3346,7 @@ function openPng(){
           doc.hasSelection = false;
           doc.selBounds = {x:0,y:0,w:0,h:0};
           doc.floating = null; doc.floatCanvas = null;
+          doc.preciseCx = null; doc.preciseCy = null;
           doc.imageDirty = true;
           doc.fileName = f.name;
           animPreviewDirty = true;
@@ -3364,6 +3494,7 @@ async function loadProjectData(data){
   doc.hasSelection = false;
   doc.selBounds = {x:0,y:0,w:0,h:0};
   doc.floating = null; doc.floatCanvas = null;
+  doc.preciseCx = null; doc.preciseCy = null;
   doc.imageDirty = true; animPreviewDirty = true;
   _previewMask = null;
   highlightColor = null;
@@ -3495,7 +3626,6 @@ function refreshPaletteCustom(){
   }
 }
 
-/* ===== Modal / Resize Canvas ===== */
 function showModal(title, bodyHTML, onOK, okLabel){
   var back = document.createElement('div');
   back.className = 'modal-back';
@@ -3524,7 +3654,6 @@ function showModal(title, bodyHTML, onOK, okLabel){
   back.addEventListener('mousedown', function(e){ if(e.target === back) close(); });
   return back;
 }
-
 function showResizeDialog(){
   var W0 = doc.width, H0 = doc.height;
   var bodyHTML = ''
@@ -3567,7 +3696,6 @@ function showResizeDialog(){
   el.querySelector('.nh').addEventListener('input', function(){ updateResizePreview(el, W0, H0); });
   updateResizePreview(el, W0, H0);
 }
-
 function updateResizePreview(dlg, W0, H0){
   var nw = Math.max(1, +dlg.querySelector('.nw').value|0);
   var nh = Math.max(1, +dlg.querySelector('.nh').value|0);
@@ -3604,7 +3732,6 @@ function updateResizePreview(dlg, W0, H0){
   oldEl.style.height = dOldH + 'px';
 }
 
-/* ===== i18n ===== */
 var I18N = {
   'menu.file': {zh:'文件 ▾', en:'File ▾'},
   'menu.edit': {zh:'编辑 ▾', en:'Edit ▾'},
@@ -3625,11 +3752,6 @@ var I18N = {
   'section.grid': {zh:'网格 / 分格', en:'Grid / Cells'},
   'section.xform': {zh:'变换', en:'Transform'},
   'hint.rotR': {zh:'(按住 R 旋转)', en:'(hold R to rotate)'},
-  'btn.rotCcw': {zh:'⟲', en:'⟲'},
-  'btn.rotCw': {zh:'⟳', en:'⟳'},
-  'btn.rot180': {zh:'↻', en:'↻'},
-  'btn.flipH': {zh:'↔', en:'↔'},
-  'btn.flipV': {zh:'↕', en:'↕'},
   'label.cellW': {zh:'格宽', en:'W'},
   'label.cellH': {zh:'格高', en:'H'},
   'label.cols': {zh:'列数', en:'Cols'},
@@ -3638,7 +3760,7 @@ var I18N = {
   'label.showPixelGrid': {zh:'显示像素格', en:'Show pixel grid'},
   'btn.resize': {zh:'调整画布…', en:'Resize Canvas…'},
   'section.anim': {zh:'动画预览', en:'Animation'},
-  'hint.anim': {zh:'（拖拽可定位格）', en:'(drag to locate)'},
+  'hint.anim': {zh:'(← → / A D · 空格播放)', en:'(← → / A D · Space play)'},
   'label.start': {zh:'起始', en:'Start'},
   'label.end': {zh:'结束', en:'End'},
   'label.loop': {zh:'循环', en:'Loop'},
@@ -3698,7 +3820,7 @@ var I18N = {
   'menu.selInv': {zh:'反选', en:'Invert'},
   'menu.selCell': {zh:'选择当前格', en:'Select Current Cell'},
   'menu.delSel': {zh:'删除选中像素', en:'Delete Selected Pixels'},
-  'status.ready': {zh:'就绪 — V 选择 · M 套索 · B 铅笔 · R 旋转 | Ctrl+C/X/V 复制剪切粘贴', en:'Ready — V Select · M Lasso · B Pencil · R Rotate | Ctrl+C/X/V Copy/Cut/Paste'}
+  'status.ready': {zh:'就绪 — V 选择 · M 套索 · B 铅笔 · R 旋转 · ←/→ A/D 逐帧 · 空格播放', en:'Ready — V Select · M Lasso · B Pencil · R Rotate · ←/→ A/D Frame · Space Play'}
 };
 
 var I18N_TITLE = {
@@ -3707,8 +3829,8 @@ var I18N_TITLE = {
     en:'Drag top ruler down → horizontal guide\nDrag left ruler right → vertical guide\nCtrl + drag near guide → move it\nAuto-snap to cell edges / centers while dragging\nDouble-click guide → delete\nWhen hidden, snapping is disabled'
   },
   'help.sel': {
-    zh:'选择工具 (V)：Shift=正方形 · Ctrl=加选 · Alt=减选\n套索工具 (M)：Shift=正圆 · Ctrl=加选 · Alt=减选\n按住 V 或 M 拖动选区内 → 仅移动选区\n普通拖动选区内 → 浮起像素并移动（Shift 锁轴）\n按住 R + 鼠标移动 → 围绕选区中心旋转（Shift=45°）\nCtrl+C 复制 · Ctrl+X 剪切 · Ctrl+V 粘贴 · Ctrl+Shift+V 粘贴为新图层',
-    en:'Select (V): Shift=Square · Ctrl=Add · Alt=Subtract\nLasso (M): Shift=Circle · Ctrl=Add · Alt=Subtract\nHold V or M and drag inside → move selection only\nNormal drag inside → float pixels & move (Shift=lock axis)\nHold R + move mouse → rotate around selection center (Shift=45°)\nCtrl+C Copy · Ctrl+X Cut · Ctrl+V Paste · Ctrl+Shift+V Paste as new layer'
+    zh:'选择工具 (V)：Shift=正方形 · Ctrl=加选 · Alt=减选\n套索工具 (M)：Shift=正圆 · Ctrl=加选 · Alt=减选\n按住 V 或 M 拖动选区内 → 仅移动选区\n普通拖动选区内 → 浮起像素并移动（Shift 锁轴）\n按住 R + 鼠标移动 → 围绕选区中心旋转（Shift=45°）\n← → / A D → 切换动画帧（长按连续播放，释放停住）\nCtrl+C 复制 · Ctrl+X 剪切 · Ctrl+V 粘贴 · Ctrl+Shift+V 粘贴为新图层',
+    en:'Select (V): Shift=Square · Ctrl=Add · Alt=Subtract\nLasso (M): Shift=Circle · Ctrl=Add · Alt=Subtract\nHold V or M and drag inside → move selection only\nNormal drag inside → float pixels & move (Shift=lock axis)\nHold R + move mouse → rotate around selection center (Shift=45°)\n← → / A D → step animation frames (hold = continuous, release = stop)\nCtrl+C Copy · Ctrl+X Cut · Ctrl+V Paste · Ctrl+Shift+V Paste as new layer'
   },
   'tt.rotCcw': {zh:'逆时针旋转 90°', en:'Rotate 90° CCW'},
   'tt.rotCw':  {zh:'顺时针旋转 90°', en:'Rotate 90° CW'},
@@ -3728,7 +3850,6 @@ function applyLanguage(lang) {
     if(txt === undefined) txt = entry.zh;
     if(el.id === 'btn-bg' || el.id === 'btn-view-mode' || el.id === 'btn-guides-toggle') return;
     if(el.id === 'btn-play' && ui.playing) return;
-    // 带 <small> 子元素的按钮，只替换文本节点
     var small = el.querySelector('small');
     if(small){
       var nodes = el.childNodes;
@@ -3853,7 +3974,6 @@ function bindUI(){
   document.getElementById('btn-save-as-proj').addEventListener('click', function(){ saveProject(true); });
   document.getElementById('btn-bg').addEventListener('click', cycleBackground);
 
-  // 变换按钮
   document.getElementById('btn-rot-ccw').addEventListener('click', function(){ rotateInteger(-90); });
   document.getElementById('btn-rot-cw').addEventListener('click', function(){ rotateInteger(90); });
   document.getElementById('btn-rot-180').addEventListener('click', function(){ rotateInteger(180); });
@@ -4073,6 +4193,10 @@ function init(){
     document.addEventListener('keydown', onKeyDown);
     document.addEventListener('keyup', onKeyUp);
     document.addEventListener('paste', handlePasteEvent);
+    window.addEventListener('blur', function(){
+      stopAnimKeyPlayback();
+      spaceDown = false;
+    });
 
     animPreviewWrap.addEventListener('mousedown', function(e){
       if(e.button !== 0) return;
@@ -4119,6 +4243,7 @@ function init(){
         doc.hasSelection = false;
         doc.selBounds = {x:0,y:0,w:0,h:0};
         doc.floating = null; doc.floatCanvas = null;
+        doc.preciseCx = null; doc.preciseCy = null;
         doc.imageDirty = true;
         doc.fileName = f.name;
         animPreviewDirty = true;

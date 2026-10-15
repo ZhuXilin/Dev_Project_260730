@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://odc0147hfhod"
-path="res://.godot/imported/units_flyingdragon.png-bdd20e63a6be22e0172fd7adab43b6ad.ctex"
+uid="uid://2eie2qj1i4ft"
+path="res://.godot/imported/unit_ballista.png-79a5669acf4f2b604da6b03107dc4b34.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://content/images/characters/units_flyingdragon.png"
-dest_files=["res://.godot/imported/units_flyingdragon.png-bdd20e63a6be22e0172fd7adab43b6ad.ctex"]
+source_file="res://content/images/characters/unit_ballista.png"
+dest_files=["res://.godot/imported/unit_ballista.png-79a5669acf4f2b604da6b03107dc4b34.ctex"]
 
 [params]
 
