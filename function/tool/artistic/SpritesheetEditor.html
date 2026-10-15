@@ -43,6 +43,8 @@ button:disabled{opacity:.35;cursor:default}
 .help-icon:hover{background:#4a4a54;color:#ccc}
 .row{display:flex;gap:6px;align-items:center;margin-bottom:6px;flex-wrap:wrap}
 .row>label{color:#aaa;font-size:12px;display:inline-flex;align-items:center;gap:4px}
+.compact-row{flex-wrap:nowrap !important;gap:4px !important}
+.compact-row button{flex:1;min-width:0;padding:5px 4px;font-size:12px;text-align:center;overflow:hidden;text-overflow:ellipsis}
 input[type=number],input[type=text]{background:#2a2a30;color:#ddd;border:1px solid #444;border-radius:3px;padding:3px 6px;width:68px;font-family:inherit;font-size:12px}
 input[type=number]:focus,input[type=text]:focus{outline:none;border-color:#2d6cdf}
 input[type=checkbox]{accent-color:#2d6cdf;margin-right:4px}
@@ -127,6 +129,8 @@ input[type=checkbox]{accent-color:#2d6cdf;margin-right:4px}
 .onion-slider{flex:1;min-width:50px;max-width:110px;accent-color:#2d6cdf;height:14px}
 #onion-opacity-val{color:#6fb0ff;font-size:11px;font-family:ui-monospace,Consolas,monospace;min-width:34px;text-align:right}
 #btn-lang-toggle{margin-left:auto;min-width:46px;font-weight:600;letter-spacing:.5px}
+.xform-btn{font-size:14px;padding:5px 0;line-height:1}
+.xform-btn small{font-size:10px;color:#bbb}
 </style>
 </head>
 <body>
@@ -179,7 +183,18 @@ input[type=checkbox]{accent-color:#2d6cdf;margin-right:4px}
           <label><input type="checkbox" id="show-grid" checked> <span data-i18n="label.showGrid">Show cell grid</span></label>
           <label><input type="checkbox" id="show-pixel-grid" checked> <span data-i18n="label.showPixelGrid">Show pixel grid</span></label>
         </div>
-        <div class="row"><button id="btn-resize" data-i18n="btn.resize">Resize Canvas…</button></div>
+        <div class="row"><button id="btn-resize" data-i18n="btn.resize" style="flex:1">Resize Canvas…</button></div>
+      </div>
+
+      <div class="section">
+        <h3><span data-i18n="section.xform">Transform</span><span class="hint" data-i18n="hint.rotR">(hold R + move = rotate)</span></h3>
+        <div class="row compact-row">
+          <button id="btn-rot-ccw" class="xform-btn" data-i18n="btn.rotCcw" data-i18n-title="tt.rotCcw" title="Rotate 90° CCW">⟲<small>90</small></button>
+          <button id="btn-rot-cw"  class="xform-btn" data-i18n="btn.rotCw"  data-i18n-title="tt.rotCw"  title="Rotate 90° CW">⟳<small>90</small></button>
+          <button id="btn-rot-180" class="xform-btn" data-i18n="btn.rot180" data-i18n-title="tt.rot180" title="Rotate 180°">↻<small>180</small></button>
+          <button id="btn-flip-h"  class="xform-btn" data-i18n="btn.flipH"  data-i18n-title="tt.flipH"  title="Flip Horizontal">↔</button>
+          <button id="btn-flip-v"  class="xform-btn" data-i18n="btn.flipV"  data-i18n-title="tt.flipV"  title="Flip Vertical">↕</button>
+        </div>
       </div>
 
       <div class="section">
@@ -199,9 +214,9 @@ input[type=checkbox]{accent-color:#2d6cdf;margin-right:4px}
           <label style="gap:2px"><input type="checkbox" id="anim-loop" checked><span data-i18n="label.loop">Loop</span></label>
         </div>
         <div class="row">
-          <button id="btn-play" data-i18n="btn.play">Play</button>
-          <button id="btn-stop" data-i18n="btn.stop">Stop</button>
-          <button id="btn-anim-all" data-i18n="btn.animAll">Full Range</button>
+          <button id="btn-play" data-i18n="btn.play" style="flex:1">Play</button>
+          <button id="btn-stop" data-i18n="btn.stop" style="flex:1">Stop</button>
+          <button id="btn-anim-all" data-i18n="btn.animAll" style="flex:1">Full Range</button>
         </div>
         <div class="row onion-row">
           <label class="onion-label"><input type="checkbox" id="onion-prev"><span data-i18n="label.prev">Prev</span></label>
@@ -216,7 +231,7 @@ input[type=checkbox]{accent-color:#2d6cdf;margin-right:4px}
         <div class="row">
           <div class="color-chip" id="chip-primary" title="Primary"></div>
           <div class="color-chip" id="chip-secondary" title="Secondary"></div>
-          <button id="btn-replace-color" data-i18n="btn.replaceAll">Replace All</button>
+          <button id="btn-replace-color" data-i18n="btn.replaceAll" style="flex:1">Replace All</button>
         </div>
       </div>
 
@@ -264,8 +279,8 @@ input[type=checkbox]{accent-color:#2d6cdf;margin-right:4px}
           <label><input type="checkbox" id="snap-enabled" checked> <span data-i18n="label.snap">Snap (guides / grid)</span></label>
         </div>
         <div class="row">
-          <button id="btn-guides-toggle" data-i18n="btn.guidesToggle">Hide Guides</button>
-          <button id="btn-guides-clear" data-i18n="btn.guidesClear">Clear Guides</button>
+          <button id="btn-guides-toggle" data-i18n="btn.guidesToggle" style="flex:1">Hide Guides</button>
+          <button id="btn-guides-clear" data-i18n="btn.guidesClear" style="flex:1">Clear Guides</button>
         </div>
       </div>
 
@@ -278,9 +293,6 @@ input[type=checkbox]{accent-color:#2d6cdf;margin-right:4px}
           </span>
         </h3>
         <div class="swatches" id="color-usage-swatches"></div>
-        <div style="color:#888;font-size:11px;margin-top:6px" data-i18n="hint.imgPal">
-          Click swatch → highlight color (click again to cancel)
-        </div>
       </div>
 
       <div class="section">
@@ -288,19 +300,17 @@ input[type=checkbox]{accent-color:#2d6cdf;margin-right:4px}
           <span data-i18n="section.sel">Selection</span>
           <span class="help-icon" data-i18n-title="help.sel">?</span>
         </h3>
-        <div class="row" id="sel-mode-row">
+        <div class="row compact-row" id="sel-mode-row">
           <button class="sel-mode-btn on" data-mode="0" data-i18n="sel.replace">Replace</button>
           <button class="sel-mode-btn" data-mode="1" data-i18n="sel.add">Add</button>
           <button class="sel-mode-btn" data-mode="2" data-i18n="sel.sub">Subtract</button>
         </div>
-        <div class="row">
-          <button id="btn-sel-all" data-i18n="btn.selAll">Select All</button>
-          <button id="btn-sel-none" data-i18n="btn.selNone">Deselect</button>
-          <button id="btn-sel-inv" data-i18n="btn.selInv">Invert</button>
-        </div>
-        <div class="row">
-          <button id="btn-sel-cell" data-i18n="btn.selCell">Select Cell</button>
-          <button id="btn-del-sel" data-i18n="btn.delSel">Delete Pixels</button>
+        <div class="row compact-row">
+          <button id="btn-sel-all" data-i18n="btn.selAllShort">All</button>
+          <button id="btn-sel-none" data-i18n="btn.selNoneShort">None</button>
+          <button id="btn-sel-inv" data-i18n="btn.selInvShort">Invert</button>
+          <button id="btn-sel-cell" data-i18n="btn.selCellShort">Cell</button>
+          <button id="btn-del-sel" data-i18n="btn.delSelShort">Del</button>
         </div>
       </div>
     </aside>
@@ -420,6 +430,8 @@ var vDown = false;
 var vDragged = false;
 var mDown = false;
 var mDragged = false;
+var rDown = false;
+var rotState = null;
 
 var mouse = { inside:false, sx:0, sy:0, px:0, py:0, hasValidPos:false, inRulerTop:false, inRulerLeft:false };
 var clipboard = null;
@@ -504,7 +516,6 @@ function rgbToHsv(r, g, b) {
 
 function getSnapThreshold(){ return Math.max(2, SNAP_HIT_PX / view.zoom); }
 
-/* 单格模式下把选区坐标钳制到当前格内 */
 function clampSelPointToCell(x, y){
   if(!ui.singleCell) return {x:x, y:y};
   var cr = cellRect(ui.currentCell);
@@ -1204,7 +1215,6 @@ function recalcBounds(){
 function applyRectSelection(r,mode){
   var W = doc.width, H = doc.height;
   var rx = r.x, ry = r.y, rw = r.w, rh = r.h;
-  // 单格模式下：把矩形裁切到当前格范围内
   if(ui.singleCell){
     var cr = cellRect(ui.currentCell);
     if(cr){
@@ -1392,7 +1402,6 @@ function getEffectiveSelCur(){
   var sx = dx >= 0 ? 1 : -1;
   var sy = dy >= 0 ? 1 : -1;
   var res = {x: a.x + sx * size, y: a.y + sy * size};
-  // 单格模式钳制
   if(ui.singleCell){
     var cr = cellRect(ui.currentCell);
     if(cr){
@@ -1468,7 +1477,6 @@ function applyLassoMask(points, mode, isCircle){
   var d = id.data;
   if(mode === SEL_REPLACE) doc.selMask.fill(0);
   var n = W*H;
-  // 单格模式下：只应用当前格内的像素
   var cell = ui.singleCell ? cellRect(ui.currentCell) : null;
   for(var j=0;j<n;j++){
     if(d[j*4+3] > 127){
@@ -1765,6 +1773,21 @@ function drawSelection(z,ox,oy){
     ctx.lineWidth = 1;
     ctx.strokeRect(ox+b.x*z+0.5, oy+b.y*z+0.5, b.w*z-1, b.h*z-1);
     ctx.restore();
+    // 旋转中：绘制中心点和辅助线
+    if(rotState){
+      ctx.save();
+      ctx.strokeStyle = 'rgba(255,210,60,0.9)';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([3,3]);
+      var ccx = ox + rotState.cx*z;
+      var ccy = oy + rotState.cy*z;
+      ctx.beginPath();
+      ctx.moveTo(ccx - 12, ccy); ctx.lineTo(ccx + 12, ccy);
+      ctx.moveTo(ccx, ccy - 12); ctx.lineTo(ccx, ccy + 12);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.restore();
+    }
     return;
   }
   var drawMask = null, drawBounds = null;
@@ -1796,6 +1819,22 @@ function drawSelection(z,ox,oy){
 function drawCursor(z,ox,oy){
   if(!mouse.inside) return;
   if(mouse.inRulerTop || mouse.inRulerLeft) return;
+  if(rotState){
+    // 旋转模式下画个虚线圆
+    if(!doc.floating) return;
+    var f = doc.floating;
+    ctx.save();
+    ctx.strokeStyle = 'rgba(255,210,60,0.75)';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([4,3]);
+    var ccx = ox + (f.x + f.w/2)*z;
+    var ccy = oy + (f.y + f.h/2)*z;
+    var rr = Math.max(f.w, f.h) * z * 0.9;
+    ctx.beginPath(); ctx.arc(ccx, ccy, rr, 0, Math.PI*2); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.restore();
+    return;
+  }
   if(ui.tool !== TOOL.PENCIL && ui.tool !== TOOL.ERASER) return;
   var segs = getBrushOutline(ui.brushSize);
   ctx.save();
@@ -1974,6 +2013,166 @@ function guideAt(x,y){
   return -1;
 }
 
+/* ===== Transform (rotate / flip) ===== */
+
+// 把选区内容浮起（如果还没浮起），然后执行回调
+function withFloating(fn){
+  if(!doc.floating && doc.hasSelection) beginFloat();
+  if(!doc.floating){
+    setStatus(currentLang==='zh' ? '请先选择区域' : 'Select an area first');
+    return;
+  }
+  fn();
+}
+
+// 90/180 整数旋转（不重采样，中心对齐）
+function rotateInteger(deg){
+  withFloating(function(){
+    var f = doc.floating;
+    var w = f.w, h = f.h;
+    var degN = ((deg % 360) + 360) % 360;
+    var swap = (degN === 90 || degN === 270);
+    var nw = swap ? h : w;
+    var nh = swap ? w : h;
+
+    var src = document.createElement('canvas');
+    src.width = w; src.height = h;
+    src.getContext('2d').putImageData(
+      new ImageData(new Uint8ClampedArray(f.data), w, h), 0, 0);
+
+    var dst = document.createElement('canvas');
+    dst.width = nw; dst.height = nh;
+    var g = dst.getContext('2d');
+    g.imageSmoothingEnabled = false;
+    g.translate(nw / 2, nh / 2);
+    g.rotate(degN * Math.PI / 180);
+    g.drawImage(src, -w / 2, -h / 2);
+
+    var id = g.getImageData(0, 0, nw, nh);
+    var cx = f.x + w / 2, cy = f.y + h / 2;
+    doc.floating = {
+      w: nw, h: nh,
+      data: new Uint8ClampedArray(id.data),
+      x: Math.round(cx - nw / 2),
+      y: Math.round(cy - nh / 2)
+    };
+    doc.floatDirty = true;
+    commitFloat();
+    commitHistory();
+    refreshColorUsage();
+    requestRender();
+  });
+}
+
+function flipInteger(axis){
+  withFloating(function(){
+    var f = doc.floating;
+    var w = f.w, h = f.h;
+    var out = new Uint8ClampedArray(w * h * 4);
+    for(var y = 0; y < h; y++){
+      for(var x = 0; x < w; x++){
+        var sx = (axis === 'h') ? (w - 1 - x) : x;
+        var sy = (axis === 'v') ? (h - 1 - y) : y;
+        var si = (sy * w + sx) * 4;
+        var di = (y * w + x) * 4;
+        out[di]   = f.data[si];
+        out[di+1] = f.data[si+1];
+        out[di+2] = f.data[si+2];
+        out[di+3] = f.data[si+3];
+      }
+    }
+    f.data = out;
+    doc.floatDirty = true;
+    commitFloat();
+    commitHistory();
+    refreshColorUsage();
+    requestRender();
+  });
+}
+
+// 按住 R 键旋转
+function startRotateMode(){
+  if(!doc.floating && doc.hasSelection){
+    beginFloat();
+  }
+  if(!doc.floating) return;
+  var f = doc.floating;
+  rotState = {
+    baseW: f.w, baseH: f.h,
+    baseData: new Uint8ClampedArray(f.data),
+    cx: f.x + f.w / 2,
+    cy: f.y + f.h / 2,
+    startAngle: null,
+    lastDeg: 0
+  };
+  canvas.style.cursor = 'grabbing';
+  setStatus(currentLang === 'zh' ? '旋转模式：移动鼠标旋转（Shift=45°）' : 'Rotate: move mouse (Shift=45°)');
+}
+function endRotateMode(){
+  if(rotState && rotState.startAngle !== null){
+    // 提交旋转结果
+    commitFloat();
+    commitHistory();
+    refreshColorUsage();
+    requestRender();
+  }
+  rotState = null;
+  if(!isBusyDrag() && !spaceDown) canvas.style.cursor = 'crosshair';
+  setStatus(I18N['status.ready'][currentLang]);
+}
+function applyRotatedFloat(deg){
+  if(!rotState) return;
+  var w = rotState.baseW, h = rotState.baseH;
+  var rad = deg * Math.PI / 180;
+  var cosA = Math.abs(Math.cos(rad));
+  var sinA = Math.abs(Math.sin(rad));
+  var nw = Math.max(1, Math.ceil(w * cosA + h * sinA));
+  var nh = Math.max(1, Math.ceil(w * sinA + h * cosA));
+
+  var src = document.createElement('canvas');
+  src.width = w; src.height = h;
+  src.getContext('2d').putImageData(
+    new ImageData(new Uint8ClampedArray(rotState.baseData), w, h), 0, 0);
+
+  var dst = document.createElement('canvas');
+  dst.width = nw; dst.height = nh;
+  var g = dst.getContext('2d');
+  g.imageSmoothingEnabled = false;
+  g.translate(nw / 2, nh / 2);
+  g.rotate(rad);
+  g.drawImage(src, -w / 2, -h / 2);
+
+  var id = g.getImageData(0, 0, nw, nh);
+  doc.floating = {
+    w: nw, h: nh,
+    data: new Uint8ClampedArray(id.data),
+    x: Math.round(rotState.cx - nw / 2),
+    y: Math.round(rotState.cy - nh / 2)
+  };
+  doc.floatDirty = true;
+  requestRender();
+}
+function updateRotateFromMouse(e){
+  if(!rotState) return;
+  var m = getMouse(e);
+  var dx = m.px - rotState.cx;
+  var dy = m.py - rotState.cy;
+  if(Math.abs(dx) < 0.0001 && Math.abs(dy) < 0.0001) return;
+  var ang = Math.atan2(dy, dx);
+  if(rotState.startAngle === null){
+    rotState.startAngle = ang;
+    return;
+  }
+  var delta = (ang - rotState.startAngle) * 180 / Math.PI;
+  // 归一化到 -180..180
+  while(delta > 180) delta -= 360;
+  while(delta < -180) delta += 360;
+  if(e.shiftKey) delta = Math.round(delta / 45) * 45;
+  rotState.lastDeg = delta;
+  applyRotatedFloat(delta);
+  setStatus((currentLang === 'zh' ? '旋转 ' : 'Rotate ') + delta.toFixed(1) + '°');
+}
+
 function doCopy(){
   if(!doc.hasSelection){ setStatus(currentLang==='zh'?'没有选区可复制':'No selection'); return; }
   var b = doc.selBounds, W = doc.width, d = doc.imageData.data;
@@ -2073,7 +2272,6 @@ function applyPastedImageData(imageData, asLayer){
 function handlePasteEvent(e){
   if(!e.clipboardData) return;
   if(e.target && e.target.tagName === 'INPUT') return;
-
   var items = e.clipboardData.items;
   if(!items || !items.length) return;
   var file = null;
@@ -2085,10 +2283,8 @@ function handlePasteEvent(e){
     }
   }
   if(!file) return;
-
   e.preventDefault();
   var asLayer = !!e.shiftKey;
-
   var reader = new FileReader();
   reader.onload = function(){
     var img = new Image();
@@ -2113,6 +2309,9 @@ function getMouse(e){
   return {sx:sx,sy:sy,px:p.x,py:p.y};
 }
 function onCanvasMouseDown(e){
+  // 旋转模式下忽略鼠标按下
+  if(rotState) { e.preventDefault(); return; }
+
   if(cpPickingFromCanvas){
     var m0 = getMouse(e);
     var c0 = getCompositePixel(m0.px, m0.py);
@@ -2184,7 +2383,6 @@ function onCanvasMouseDown(e){
     pickAt({x:m.px,y:m.py}); e.preventDefault(); return;
   }
 
-  // 优先级 1：按住 V/M 拖动选区内 → 仅移动选区（不移动像素）
   if((vDown || mDown) && doc.hasSelection && isSelected(m.px, m.py) && !e.shiftKey && !e.altKey && !modCtrl){
     if(vDown) vDragged = true;
     if(mDown) mDragged = true;
@@ -2203,7 +2401,6 @@ function onCanvasMouseDown(e){
     e.preventDefault(); return;
   }
 
-  // 优先级 2：普通/Shift 拖动选区内 → 浮起像素并移动（Shift 锁轴）
   if(doc.hasSelection && isSelected(m.px, m.py) && selModeOverride === SEL_REPLACE && !e.altKey && !modCtrl){
     beginFloat();
     if(doc.floating){
@@ -2268,6 +2465,12 @@ function onCanvasMouseMove(e){
   mouse.inRulerTop = m.sy < RULER && m.sx >= RULER;
   mouse.inRulerLeft = m.sx < RULER && m.sy >= RULER;
   var modCtrl = e.ctrlKey || e.metaKey;
+
+  if(rotState){
+    updateRotateFromMouse(e);
+    requestRender();
+    return;
+  }
 
   var cur = 'crosshair';
   if(mouse.inRulerTop) cur = 'ns-resize';
@@ -2416,6 +2619,18 @@ function onKeyDown(e){
   if(e.target.tagName === 'INPUT') return;
   if(e.key === ' ' && !e.repeat) spaceDown = true;
 
+  // R 键：旋转模式
+  if((e.key === 'r' || e.key === 'R') && !e.ctrlKey && !e.metaKey && !e.altKey){
+    if(!e.repeat && !rDown){
+      rDown = true;
+      if(doc.hasSelection || doc.floating){
+        startRotateMode();
+      }
+    }
+    e.preventDefault();
+    return;
+  }
+
   if((e.key === 'v' || e.key === 'V') && !e.ctrlKey && !e.metaKey && !e.altKey){
     if(!e.repeat){ vDown = true; vDragged = false; }
     return;
@@ -2496,6 +2711,15 @@ function onKeyDown(e){
 function onKeyUp(e){
   if(e.target.tagName === 'INPUT') return;
   if(e.key === ' ') spaceDown = false;
+
+  if((e.key === 'r' || e.key === 'R') && !e.ctrlKey && !e.metaKey && !e.altKey){
+    if(rDown){
+      rDown = false;
+      endRotateMode();
+    }
+    return;
+  }
+
   if((e.key === 'v' || e.key === 'V') && !e.ctrlKey && !e.metaKey && !e.altKey){
     vDown = false;
     if(!vDragged){ setTool(TOOL.SELECT); }
@@ -2638,14 +2862,12 @@ function animUpdateFromEvent(e){
   if(sy < 0) sy = 0;
   if(sx > r.width - 0.0001) sx = r.width - 0.0001;
   if(sy > r.height - 0.0001) sy = r.height - 0.0001;
-
   var scale = doc.width/r.width;
   var px = Math.floor(sx*scale), py = Math.floor(sy*scale);
   if(px < 0) px = 0;
   if(py < 0) py = 0;
   if(px >= doc.width) px = doc.width - 1;
   if(py >= doc.height) py = doc.height - 1;
-
   var idx = cellIndexAt({x:px,y:py});
   if(idx >= 0){
     ui.currentCell = idx;
@@ -3273,7 +3495,116 @@ function refreshPaletteCustom(){
   }
 }
 
-/* ==== i18n ==== */
+/* ===== Modal / Resize Canvas ===== */
+function showModal(title, bodyHTML, onOK, okLabel){
+  var back = document.createElement('div');
+  back.className = 'modal-back';
+  back.innerHTML = '<div class="modal"><h2>'+title+'</h2>'+bodyHTML+
+    '<div class="actions"><button class="cancel">Cancel</button><button class="ok">'+(okLabel||'OK')+'</button></div></div>';
+  document.body.appendChild(back);
+  var closed = false;
+  var close = function(){
+    if(closed) return;
+    closed = true;
+    if(back.parentNode) document.body.removeChild(back);
+    document.removeEventListener('keydown', onEscCapture, true);
+  };
+  var onEscCapture = function(ev){
+    if(ev.key === 'Escape'){
+      ev.preventDefault(); ev.stopPropagation();
+      close();
+    }
+  };
+  document.addEventListener('keydown', onEscCapture, true);
+  back.querySelector('.cancel').addEventListener('click', close);
+  back.querySelector('.ok').addEventListener('click', function(){
+    var result = onOK(back);
+    if(result !== false) close();
+  });
+  back.addEventListener('mousedown', function(e){ if(e.target === back) close(); });
+  return back;
+}
+
+function showResizeDialog(){
+  var W0 = doc.width, H0 = doc.height;
+  var bodyHTML = ''
+    + '<div class="row" style="gap:12px;margin-bottom:10px">'
+    +   '<label style="color:#aaa;font-size:12px">W <input type="number" class="nw" min="1" max="4096" value="'+W0+'" style="width:80px"></label>'
+    +   '<label style="color:#aaa;font-size:12px">H <input type="number" class="nh" min="1" max="4096" value="'+H0+'" style="width:80px"></label>'
+    + '</div>'
+    + '<div class="resize-visual" style="position:relative;width:100%;height:160px;background:#1a1a20;border:1px solid #333;border-radius:4px;margin-bottom:10px;overflow:hidden">'
+    +   '<div class="resize-new" style="position:absolute;border:1px dashed #6a6a72;background:rgba(255,255,255,0.02);box-sizing:border-box"></div>'
+    +   '<div class="resize-old" style="position:absolute;background:rgba(45,108,223,0.35);border:1px solid #4a8cf5;box-sizing:border-box"></div>'
+    +   '<div style="position:absolute;left:8px;bottom:6px;font-size:11px;color:#777">'+(currentLang==='zh'?'蓝=原画布 / 虚线=新画布':'Blue=old / dashed=new')+'</div>'
+    + '</div>'
+    + '<div style="color:#aaa;font-size:12px;margin-bottom:4px">'+(currentLang==='zh'?'扩展方向：':'Expand direction:')+'</div>'
+    + '<div class="anchor-grid">'
+    + '<div class="anchor-cell" data-a="0"></div><div class="anchor-cell" data-a="1"></div><div class="anchor-cell" data-a="2"></div>'
+    + '<div class="anchor-cell" data-a="3"></div><div class="anchor-cell active" data-a="4"></div><div class="anchor-cell" data-a="5"></div>'
+    + '<div class="anchor-cell" data-a="6"></div><div class="anchor-cell" data-a="7"></div><div class="anchor-cell" data-a="8"></div>'
+    + '</div>';
+  var el = showModal(currentLang==='zh'?'调整画布尺寸':'Resize Canvas', bodyHTML,
+    function(dlg){
+      var nw = Math.max(1, +dlg.querySelector('.nw').value|0);
+      var nh = Math.max(1, +dlg.querySelector('.nh').value|0);
+      var anchor = dlg._anchor != null ? dlg._anchor : 4;
+      resizeDocWithAnchor(nw, nh, anchor);
+      commitHistory(); fitToView(); updateAnimRange();
+    }, currentLang==='zh'?'应用':'Apply');
+  el._anchor = 4;
+  var cells = el.querySelectorAll('.anchor-cell');
+  for(var i=0;i<cells.length;i++){
+    (function(cell){
+      cell.addEventListener('click', function(){
+        for(var k=0;k<cells.length;k++) cells[k].classList.remove('active');
+        cell.classList.add('active');
+        el._anchor = +cell.dataset.a;
+        updateResizePreview(el, W0, H0);
+      });
+    })(cells[i]);
+  }
+  el.querySelector('.nw').addEventListener('input', function(){ updateResizePreview(el, W0, H0); });
+  el.querySelector('.nh').addEventListener('input', function(){ updateResizePreview(el, W0, H0); });
+  updateResizePreview(el, W0, H0);
+}
+
+function updateResizePreview(dlg, W0, H0){
+  var nw = Math.max(1, +dlg.querySelector('.nw').value|0);
+  var nh = Math.max(1, +dlg.querySelector('.nh').value|0);
+  var anchor = dlg._anchor != null ? dlg._anchor : 4;
+  var box = dlg.querySelector('.resize-visual');
+  var boxW = box.clientWidth || 300;
+  var boxH = box.clientHeight || 160;
+  var maxW = Math.max(nw, W0);
+  var maxH = Math.max(nh, H0);
+  var pad = 20;
+  var scale = Math.min((boxW - pad*2) / maxW, (boxH - pad*2) / maxH);
+  if(!isFinite(scale) || scale <= 0) scale = 1;
+  var dNewW = nw * scale, dNewH = nh * scale;
+  var dOldW = W0 * scale, dOldH = H0 * scale;
+  var nx = (boxW - dNewW) / 2;
+  var ny = (boxH - dNewH) / 2;
+  var ax = anchor % 3, ay = Math.floor(anchor / 3);
+  var ox, oy;
+  if(ax === 0) ox = nx;
+  else if(ax === 1) ox = nx + (dNewW - dOldW) / 2;
+  else ox = nx + dNewW - dOldW;
+  if(ay === 0) oy = ny;
+  else if(ay === 1) oy = ny + (dNewH - dOldH) / 2;
+  else oy = ny + dNewH - dOldH;
+  var newEl = dlg.querySelector('.resize-new');
+  var oldEl = dlg.querySelector('.resize-old');
+  newEl.style.left = nx + 'px';
+  newEl.style.top = ny + 'px';
+  newEl.style.width = dNewW + 'px';
+  newEl.style.height = dNewH + 'px';
+  oldEl.style.left = ox + 'px';
+  oldEl.style.top = oy + 'px';
+  oldEl.style.width = dOldW + 'px';
+  oldEl.style.height = dOldH + 'px';
+}
+
+/* ===== i18n ===== */
 var I18N = {
   'menu.file': {zh:'文件 ▾', en:'File ▾'},
   'menu.edit': {zh:'编辑 ▾', en:'Edit ▾'},
@@ -3292,6 +3623,13 @@ var I18N = {
   'btn.redo': {zh:'重做', en:'Redo'},
   'btn.fit': {zh:'适应', en:'Fit'},
   'section.grid': {zh:'网格 / 分格', en:'Grid / Cells'},
+  'section.xform': {zh:'变换', en:'Transform'},
+  'hint.rotR': {zh:'(按住 R 旋转)', en:'(hold R to rotate)'},
+  'btn.rotCcw': {zh:'⟲', en:'⟲'},
+  'btn.rotCw': {zh:'⟳', en:'⟳'},
+  'btn.rot180': {zh:'↻', en:'↻'},
+  'btn.flipH': {zh:'↔', en:'↔'},
+  'btn.flipV': {zh:'↕', en:'↕'},
   'label.cellW': {zh:'格宽', en:'W'},
   'label.cellH': {zh:'格高', en:'H'},
   'label.cols': {zh:'列数', en:'Cols'},
@@ -3341,11 +3679,11 @@ var I18N = {
   'sel.replace': {zh:'新建', en:'Replace'},
   'sel.add': {zh:'加选', en:'Add'},
   'sel.sub': {zh:'减选', en:'Subtract'},
-  'btn.selAll': {zh:'全选', en:'Select All'},
-  'btn.selNone': {zh:'取消', en:'Deselect'},
-  'btn.selInv': {zh:'反选', en:'Invert'},
-  'btn.selCell': {zh:'选当前格', en:'Select Cell'},
-  'btn.delSel': {zh:'删除像素', en:'Delete Pixels'},
+  'btn.selAllShort': {zh:'全选', en:'All'},
+  'btn.selNoneShort': {zh:'取消', en:'None'},
+  'btn.selInvShort': {zh:'反选', en:'Invert'},
+  'btn.selCellShort': {zh:'选格', en:'Cell'},
+  'btn.delSelShort': {zh:'删除', en:'Del'},
   'menu.new': {zh:'新建…', en:'New…'},
   'menu.openPng': {zh:'打开 PNG…', en:'Open PNG…'},
   'menu.openProj': {zh:'打开工程…', en:'Open Project…'},
@@ -3360,18 +3698,23 @@ var I18N = {
   'menu.selInv': {zh:'反选', en:'Invert'},
   'menu.selCell': {zh:'选择当前格', en:'Select Current Cell'},
   'menu.delSel': {zh:'删除选中像素', en:'Delete Selected Pixels'},
-  'status.ready': {zh:'就绪 — V 选择 · M 套索 · B 铅笔 | Ctrl+C/X/V 复制剪切粘贴', en:'Ready — V Select · M Lasso · B Pencil | Ctrl+C/X/V Copy/Cut/Paste'}
+  'status.ready': {zh:'就绪 — V 选择 · M 套索 · B 铅笔 · R 旋转 | Ctrl+C/X/V 复制剪切粘贴', en:'Ready — V Select · M Lasso · B Pencil · R Rotate | Ctrl+C/X/V Copy/Cut/Paste'}
 };
 
 var I18N_TITLE = {
   'help.guides': {
-    zh:'顶部标尺往下拖 → 水平参考线\n左侧标尺往右拖 → 垂直参考线\nCtrl + 鼠标靠近参考线拖动 → 移动\n拖动时自动吸附到格子边沿 / 中心\n双击参考线 → 删除\n选框终点会吸附到邻近参考线（起点不吸附）\n隐藏参考线后不吸附、不可拖动',
-    en:'Drag top ruler down → horizontal guide\nDrag left ruler right → vertical guide\nCtrl + drag near guide → move it\nAuto-snap to cell edges / centers while dragging\nDouble-click guide → delete\nSelection endpoint snaps to nearby guides (start point not snapped)\nWhen guides are hidden, snapping is disabled and guides can\'t be dragged'
+    zh:'顶部标尺往下拖 → 水平参考线\n左侧标尺往右拖 → 垂直参考线\nCtrl + 鼠标靠近参考线拖动 → 移动\n拖动时自动吸附到格子边沿 / 中心\n双击参考线 → 删除\n隐藏参考线后不吸附、不可拖动',
+    en:'Drag top ruler down → horizontal guide\nDrag left ruler right → vertical guide\nCtrl + drag near guide → move it\nAuto-snap to cell edges / centers while dragging\nDouble-click guide → delete\nWhen hidden, snapping is disabled'
   },
   'help.sel': {
-    zh:'选择工具 (V)：Shift=正方形 · Ctrl=加选 · Alt=减选\n套索工具 (M)：Shift=正圆 · Ctrl=加选 · Alt=减选\n按住 V（选择工具）或 M（套索）拖动选区内 → 仅移动选区\nCtrl+C 复制 · Ctrl+X 剪切 · Ctrl+V 粘贴 · Ctrl+Shift+V 粘贴为新图层',
-    en:'Select tool (V): Shift = square · Ctrl = add · Alt = subtract\nLasso tool (M): Shift = circle · Ctrl = add · Alt = subtract\nHold V (select) or M (lasso) and drag inside selection → move selection only\nCtrl+C copy · Ctrl+X cut · Ctrl+V paste · Ctrl+Shift+V paste as new layer'
-  }
+    zh:'选择工具 (V)：Shift=正方形 · Ctrl=加选 · Alt=减选\n套索工具 (M)：Shift=正圆 · Ctrl=加选 · Alt=减选\n按住 V 或 M 拖动选区内 → 仅移动选区\n普通拖动选区内 → 浮起像素并移动（Shift 锁轴）\n按住 R + 鼠标移动 → 围绕选区中心旋转（Shift=45°）\nCtrl+C 复制 · Ctrl+X 剪切 · Ctrl+V 粘贴 · Ctrl+Shift+V 粘贴为新图层',
+    en:'Select (V): Shift=Square · Ctrl=Add · Alt=Subtract\nLasso (M): Shift=Circle · Ctrl=Add · Alt=Subtract\nHold V or M and drag inside → move selection only\nNormal drag inside → float pixels & move (Shift=lock axis)\nHold R + move mouse → rotate around selection center (Shift=45°)\nCtrl+C Copy · Ctrl+X Cut · Ctrl+V Paste · Ctrl+Shift+V Paste as new layer'
+  },
+  'tt.rotCcw': {zh:'逆时针旋转 90°', en:'Rotate 90° CCW'},
+  'tt.rotCw':  {zh:'顺时针旋转 90°', en:'Rotate 90° CW'},
+  'tt.rot180': {zh:'旋转 180°', en:'Rotate 180°'},
+  'tt.flipH':  {zh:'水平翻转', en:'Flip Horizontal'},
+  'tt.flipV':  {zh:'垂直翻转', en:'Flip Vertical'}
 };
 
 function applyLanguage(lang) {
@@ -3385,7 +3728,19 @@ function applyLanguage(lang) {
     if(txt === undefined) txt = entry.zh;
     if(el.id === 'btn-bg' || el.id === 'btn-view-mode' || el.id === 'btn-guides-toggle') return;
     if(el.id === 'btn-play' && ui.playing) return;
-    el.textContent = txt;
+    // 带 <small> 子元素的按钮，只替换文本节点
+    var small = el.querySelector('small');
+    if(small){
+      var nodes = el.childNodes;
+      for(var i=0;i<nodes.length;i++){
+        if(nodes[i].nodeType === 3){
+          nodes[i].nodeValue = txt;
+          break;
+        }
+      }
+    } else {
+      el.textContent = txt;
+    }
   });
   document.querySelectorAll('[data-i18n-title]').forEach(function(el){
     var key = el.dataset.i18nTitle;
@@ -3498,6 +3853,13 @@ function bindUI(){
   document.getElementById('btn-save-as-proj').addEventListener('click', function(){ saveProject(true); });
   document.getElementById('btn-bg').addEventListener('click', cycleBackground);
 
+  // 变换按钮
+  document.getElementById('btn-rot-ccw').addEventListener('click', function(){ rotateInteger(-90); });
+  document.getElementById('btn-rot-cw').addEventListener('click', function(){ rotateInteger(90); });
+  document.getElementById('btn-rot-180').addEventListener('click', function(){ rotateInteger(180); });
+  document.getElementById('btn-flip-h').addEventListener('click', function(){ flipInteger('h'); });
+  document.getElementById('btn-flip-v').addEventListener('click', function(){ flipInteger('v'); });
+
   document.getElementById('btn-color-usage-refresh').addEventListener('click', function(){
     refreshColorUsage();
   });
@@ -3550,14 +3912,7 @@ function bindUI(){
   gridRowsEl.addEventListener('input', onGridNMChanged);
   document.getElementById('show-grid').addEventListener('change', function(e){ ui.showGrid = e.target.checked; requestRender(); });
   document.getElementById('show-pixel-grid').addEventListener('change', function(e){ ui.showPixelGrid = e.target.checked; requestRender(); });
-  document.getElementById('btn-resize').addEventListener('click', function(){
-    var w = parseInt(prompt('Width:', doc.width),10);
-    if(!isFinite(w)||w<1) return;
-    var h = parseInt(prompt('Height:', doc.height),10);
-    if(!isFinite(h)||h<1) return;
-    resizeDocWithAnchor(w,h,4);
-    commitHistory(); fitToView(); updateAnimRange();
-  });
+  document.getElementById('btn-resize').addEventListener('click', showResizeDialog);
 
   document.getElementById('btn-play').addEventListener('click', function(){
     if(ui.playing) stopPlay(); else startPlay();
@@ -3627,7 +3982,7 @@ function mainLoop(now){
     tickAnim(now);
     if(animPreviewDirty) renderAnimPreview();
     if(doc.hasSelection || doc.floating || (drag.mode === 'select' && drag.selStart)
-       || (drag.mode === 'lasso' && drag.lassoPoints)){
+       || (drag.mode === 'lasso' && drag.lassoPoints) || rotState){
       dashOffset = (now * 0.02) % 8;
       needsRender = true;
     }

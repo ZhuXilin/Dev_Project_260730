@@ -20,6 +20,7 @@ body{font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Mi
 .toolbar label{display:inline-flex;align-items:center;gap:5px;color:#a7aeb9}
 .toolbar input[type=number]{width:78px;font:inherit;padding:4px 6px;color:#dfe3e9;background:#191c21;border:1px solid #3d434c;border-radius:6px}
 .toolbar input[type=number]:focus{outline:none;border-color:#3b82f6}
+.toolbar input[type=checkbox]{accent-color:#3b82f6;margin:0}
 .spacer{flex:1}
 .hint{color:#767e8a;font-size:12px}
 #btnLang{font-weight:600;letter-spacing:.5px;min-width:44px}
@@ -41,10 +42,12 @@ body{font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Mi
 .handle[data-dir=s]{left:calc(50% - 5.5px);bottom:-6px;cursor:ns-resize}
 .handle[data-dir=sw]{left:-6px;bottom:-6px;cursor:nesw-resize}
 .handle[data-dir=w]{left:-6px;top:calc(50% - 5.5px);cursor:ew-resize}
-.status{flex:0 0 auto;display:flex;align-items:center;gap:18px;padding:5px 12px;background:#22252b;border-top:1px solid #33383f;color:#a7aeb9;font-size:12px;font-variant-numeric:tabular-nums}
+.status{flex:0 0 auto;display:flex;align-items:center;gap:18px;padding:5px 12px;background:#22252b;border-top:1px solid #33383f;color:#a7aeb9;font-size:12px;font-variant-numeric:tabular-nums;overflow:hidden;white-space:nowrap}
 .status .msg{color:#a7aeb9}
 .status .hist{color:#a7aeb9}
 .status .sel-info{color:#a7aeb9}
+.status .hint{color:#767e8a;font-size:12px}
+.status #coord{font-family:ui-monospace,Consolas,monospace;color:#888;margin-left:8px}
 .floating-panel{position:fixed;top:56px;right:356px;width:300px;background:#2a2a30;border:1px solid #444;border-radius:6px;padding:14px 16px;box-shadow:0 10px 40px rgba(0,0,0,.7);z-index:1500;color:#dfe3e9;font-size:13px}
 .floating-panel h3{margin:0 0 10px;font-size:14px;color:#ddd;font-weight:600}
 .floating-panel .hint-text{color:#a7aeb9;font-size:12px;line-height:1.5;margin-bottom:10px}
@@ -104,13 +107,8 @@ body{font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Mi
     <label><span data-i18n="label.h">H</span> <input id="inH" type="number" min="1" max="16384" disabled></label>
     <label><input id="lockRatio" type="checkbox" checked> <span data-i18n="label.lock">Lock Ratio</span></label>
     <div class="sep"></div>
+    <label title="Show pixel grid"><input id="chkPixelGrid" type="checkbox" checked disabled> <span data-i18n="label.showPixelGrid">Show Pixel Grid</span></label>
     <button id="btnBg" disabled title="Background"></button>
-    <button id="btnSelect" class="toggle on" disabled data-i18n="btn.select">Select</button>
-    <button id="btnSelectAll" disabled data-i18n="btn.selectAll">Select All</button>
-    <button id="btnSelectNone" disabled data-i18n="btn.selectNone">Deselect</button>
-    <button id="btnSelectInv" disabled data-i18n="btn.selectInv">Invert</button>
-    <button id="btnCopy" disabled data-i18n="btn.copy">Copy</button>
-    <button id="btnDeleteSel" disabled data-i18n="btn.delSel">Delete Selection</button>
     <div class="sep"></div>
     <button id="btnClean" disabled data-i18n="btn.clean">Clean Pixels</button>
     <button id="btnColors" disabled data-i18n="btn.colors">Color Stats…</button>
@@ -119,7 +117,6 @@ body{font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Mi
     <button id="btnSplitExport" disabled data-i18n="btn.split">Split Export…</button>
     <div class="spacer"></div>
     <button id="btnLang" title="Switch Language">EN</button>
-    <span class="hint" data-i18n="hint.toolbar">Wheel zoom · Drag empty to pan · Shift=Square · Ctrl=Add · Alt=Subtract</span>
   </div>
 
   <div class="stage select-mode" id="stage">
@@ -147,8 +144,10 @@ body{font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Mi
     <span id="stZoom"></span>
     <span class="sel-info" id="stSel"></span>
     <span class="hist" id="stHist"></span>
+    <span class="hint" id="stHint" data-i18n="hint.toolbar">Wheel zoom · Drag empty to pan · Shift=Square · Ctrl=Add · Alt=Subtract</span>
     <span class="spacer"></span>
     <span class="msg" id="stMsg"></span>
+    <span id="coord">— , —</span>
   </div>
 </div>
 
@@ -253,9 +252,11 @@ body{font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Mi
   var cacheImgData = null, cacheW = 0, cacheH = 0;
   var msgTimer = 0;
   var spaceDown = false;
+  var showPixelGrid = true;
 
   var stage, wrap, cv, ctx, selCv, selCtx, placeholder, fileInput;
   var inW, inH, lockRatio, stOrig, stCur, stZoom, stSel, stHist, stMsg;
+  var coordEl, chkPixelGrid;
   var langBtn;
 
   var currentLang = 'en';
@@ -267,7 +268,6 @@ body{font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Mi
   function fmtZoom(z){ var p=z*100; if(p>=100) return p.toFixed(0)+'%'; if(p>=10) return p.toFixed(1)+'%'; return p.toFixed(2)+'%'; }
   function rgbToHex(r,g,b){ return '#'+r.toString(16).padStart(2,'0')+g.toString(16).padStart(2,'0')+b.toString(16).padStart(2,'0'); }
 
-  /* ---------- i18n ---------- */
   var I18N = {
     'btn.open':      {zh:'打开图片',   en:'Open Image'},
     'btn.save':      {zh:'保存 PNG',   en:'Save PNG'},
@@ -280,12 +280,7 @@ body{font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Mi
     'label.w':       {zh:'宽',         en:'W'},
     'label.h':       {zh:'高',         en:'H'},
     'label.lock':    {zh:'锁定比例',   en:'Lock Ratio'},
-    'btn.select':    {zh:'选择',       en:'Select'},
-    'btn.selectAll': {zh:'全选',       en:'Select All'},
-    'btn.selectNone':{zh:'取消选择',   en:'Deselect'},
-    'btn.selectInv': {zh:'反选',       en:'Invert'},
-    'btn.copy':      {zh:'复制',       en:'Copy'},
-    'btn.delSel':    {zh:'删除选区',   en:'Delete Selection'},
+    'label.showPixelGrid':{zh:'显示像素格', en:'Show Pixel Grid'},
     'btn.clean':     {zh:'清理像素',   en:'Clean Pixels'},
     'btn.colors':    {zh:'颜色统计…',  en:'Color Stats…'},
     'btn.merge':     {zh:'合并相似色…',en:'Merge Similar…'},
@@ -330,7 +325,7 @@ body{font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Mi
     return v === undefined ? e.zh : v;
   }
 
-  var ALL_BTN = ['btnSave','btnSaveAs','btnClose','btnReset','btnFit','btnOne','inW','inH','btnHalf','btnQuart','btnEighth','btnDouble','btnSelect','btnSelectAll','btnSelectNone','btnSelectInv','btnClean','btnColors','btnMergeSimilar','btnDeleteColor','btnSplitExport','btnBg'];
+  var ALL_BTN = ['btnSave','btnSaveAs','btnClose','btnReset','btnFit','btnOne','inW','inH','btnHalf','btnQuart','btnEighth','btnDouble','btnClean','btnColors','btnMergeSimilar','btnDeleteColor','btnSplitExport','btnBg','chkPixelGrid'];
   function setEnabled(on){
     ALL_BTN.forEach(function(id){ var el=$(id); if(el) el.disabled=!on; });
     updateHistoryUI(); updateSelectUI();
@@ -406,6 +401,7 @@ body{font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Mi
     if(!hasImage){
       stOrig.textContent = tr('未打开图片','No image');
       stCur.textContent=''; stZoom.textContent=''; stSel.textContent='';
+      coordEl.textContent = '— , —';
       return;
     }
     stOrig.textContent = tr('原始 ','Original ')+srcW+' × '+srcH;
@@ -414,14 +410,9 @@ body{font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Mi
   }
   function updateSelectUI(){
     if(!hasImage){ if(stSel) stSel.textContent=''; return; }
-    var bSel=$('btnSelect'); if(bSel) bSel.classList.toggle('on',selectionMode);
-    if($('btnCopy')) $('btnCopy').disabled=!hasSelection;
-    if($('btnDeleteSel')) $('btnDeleteSel').disabled=!hasSelection;
-    if($('btnSelectNone')) $('btnSelectNone').disabled=!hasSelection;
     if(deleteColorMode.active) stSel.textContent = tr('删除颜色模式','Delete color mode');
     else if(hasSelection) stSel.textContent = tr('选区 ','Selection ')+selBounds.w+' × '+selBounds.h;
-    else if(selectionMode) stSel.textContent = tr('选择模式（拖拽框选 · Shift=正方 · Ctrl=加选 · Alt=减选）','Select mode (drag to select · Shift=Square · Ctrl=Add · Alt=Subtract)');
-    else stSel.textContent='';
+    else stSel.textContent = '';
   }
   function syncInputs(){ if(!hasImage){ inW.value=''; inH.value=''; return; } inW.value=targetW; inH.value=targetH; }
   function centerView(){ panX=Math.round((stage.clientWidth-targetW*zoom)/2); panY=Math.round((stage.clientHeight-targetH*zoom)/2); }
@@ -582,6 +573,33 @@ body{font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Mi
     g.setLineDash([]);
   }
 
+  function drawPixelGridOverlay(){
+    var z = zoom;
+    if(z < 4) return;
+    var gw = targetW, gh = targetH;
+    if(gw + gh > 2000) return;
+    var ox = panX, oy = panY;
+    selCtx.save();
+    selCtx.beginPath();
+    selCtx.rect(ox, oy, gw*z, gh*z);
+    selCtx.clip();
+    selCtx.strokeStyle = 'rgba(255,255,255,0.1)';
+    selCtx.lineWidth = 1;
+    selCtx.beginPath();
+    var x0 = ox, y0 = oy;
+    var x1 = x0 + gw*z, y1 = y0 + gh*z;
+    for(var i=0;i<=gw;i++){
+      var sx = Math.round(x0 + i*z) + 0.5;
+      selCtx.moveTo(sx, y0); selCtx.lineTo(sx, y1);
+    }
+    for(var j=0;j<=gh;j++){
+      var sy = Math.round(y0 + j*z) + 0.5;
+      selCtx.moveTo(x0, sy); selCtx.lineTo(x1, sy);
+    }
+    selCtx.stroke();
+    selCtx.restore();
+  }
+
   function renderSelectionOverlay(){
     if(!hasImage){ selCv.classList.remove('on'); return; }
     selCv.classList.add('on');
@@ -595,6 +613,10 @@ body{font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Mi
     selCtx.setTransform(dpr,0,0,dpr,0,0);
     selCtx.clearRect(0,0,W,H);
     selCtx.imageSmoothingEnabled=false;
+
+    if(showPixelGrid){
+      drawPixelGridOverlay();
+    }
 
     if(deleteColorMode.active){ renderDeleteColorPreview(); return; }
 
@@ -871,7 +893,6 @@ body{font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Mi
               'Merged '+changed+' px → '+plan.after+' colors'), 2400);
   }
 
-  /* ---------- 拆分导出 ---------- */
   var splitPanel, splitCols, splitRows, splitPieceSize, splitApply;
 
   function openSplitPanel() {
@@ -1098,7 +1119,6 @@ body{font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Mi
     requestAnimationFrame(mainLoop);
   }
 
-  /* ---------- 语言切换 ---------- */
   function applyLanguage(lang){
     currentLang = lang;
     document.documentElement.lang = lang === 'zh' ? 'zh-CN' : 'en';
@@ -1134,6 +1154,7 @@ body{font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Mi
     inW=$('inW'); inH=$('inH'); lockRatio=$('lockRatio');
     stOrig=$('stOrig'); stCur=$('stCur'); stZoom=$('stZoom');
     stSel=$('stSel'); stHist=$('stHist'); stMsg=$('stMsg');
+    coordEl=$('coord'); chkPixelGrid=$('chkPixelGrid');
     langBtn=$('btnLang');
 
     splitPanel=$('splitPanel'); splitCols=$('splitCols'); splitRows=$('splitRows');
@@ -1148,7 +1169,6 @@ body{font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Mi
     updateBgButton();
     updateStatus();
     updateSelectUI();
-    $('btnSelect').classList.add('on');
     stage.classList.add('select-mode');
 
     applyLanguage('en');
@@ -1171,26 +1191,16 @@ body{font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Mi
     $('btnEighth').addEventListener('click',function(){ scaleBy(0.125); });
     $('btnDouble').addEventListener('click',function(){ scaleBy(2); });
     $('btnBg').addEventListener('click',cycleBackground);
-    $('btnSelect').addEventListener('click',function(){
-      if(!hasImage) return;
-      selectionMode=!selectionMode;
-      stage.classList.toggle('select-mode',selectionMode);
-      updateSelectUI();
-      setMsg(selectionMode
-        ? tr('选择模式：拖拽框选，Shift=正方形，Ctrl=加选，Alt=减选',
-             'Select mode: drag to select, Shift=Square, Ctrl=Add, Alt=Subtract')
-        : tr('退出选择模式','Exited select mode'), 1800);
-    });
-    $('btnSelectAll').addEventListener('click',selectAll);
-    $('btnSelectNone').addEventListener('click',function(){ deselectAll(false); });
-    $('btnSelectInv').addEventListener('click',invertSelection);
-    $('btnCopy').addEventListener('click',doCopy);
-    $('btnDeleteSel').addEventListener('click',deleteSelectionAsTransparent);
     $('btnClean').addEventListener('click',cleanPixels);
     $('btnColors').addEventListener('click',openColorModal);
     $('btnMergeSimilar').addEventListener('click',openMergePanel);
     $('btnDeleteColor').addEventListener('click',openDeleteColorPanel);
     $('btnSplitExport').addEventListener('click',openSplitPanel);
+
+    chkPixelGrid.addEventListener('change', function(e){
+      showPixelGrid = !!e.target.checked;
+      renderSelectionOverlay();
+    });
 
     langBtn.addEventListener('click', toggleLanguage);
 
@@ -1294,14 +1304,27 @@ body{font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Mi
         return;
       }
       if(e.button!==0) return;
-      if(selectionMode){ e.preventDefault(); beginSelectDrag(e); return; }
-      e.preventDefault();
-      panDrag={sx:e.clientX,sy:e.clientY,px:panX,py:panY};
+      e.preventDefault(); beginSelectDrag(e); return;
     }
     stage.addEventListener('contextmenu',function(e){ e.preventDefault(); });
     stage.addEventListener('mousedown',function(e){
       if(e.target && e.target.closest && e.target.closest('.handle')) return;
       handleStageMousedown(e);
+    });
+
+    stage.addEventListener('mousemove', function(e){
+      if(!hasImage){ coordEl.textContent = '— , —'; return; }
+      var r = stage.getBoundingClientRect();
+      var px = Math.floor((e.clientX - r.left - panX) / zoom);
+      var py = Math.floor((e.clientY - r.top - panY) / zoom);
+      if(px < 0 || py < 0 || px >= targetW || py >= targetH){
+        coordEl.textContent = '— , —';
+      } else {
+        coordEl.textContent = px + ' , ' + py;
+      }
+    });
+    stage.addEventListener('mouseleave', function(){
+      coordEl.textContent = '— , —';
     });
 
     document.addEventListener('mousemove',function(e){
@@ -1350,7 +1373,6 @@ body{font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Mi
         else deselectAll(false);
       }
       if(e.key==='Delete'&&hasSelection){ e.preventDefault(); deleteSelectionAsTransparent(); }
-      if(e.key==='v'||e.key==='V'){ if(!hasImage) return; e.preventDefault(); selectionMode=!selectionMode; stage.classList.toggle('select-mode',selectionMode); updateSelectUI(); }
       if(e.key==='f'||e.key==='F'){ e.preventDefault(); fitView(); }
     });
     document.addEventListener('keyup',function(e){ if(e.key===' ') spaceDown=false; });
