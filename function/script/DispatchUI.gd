@@ -15,6 +15,10 @@ signal closed
 var _selected_units : Array = []
 var _selected_route : String = ""
 
+const COLOR_UNIT_ON : Color = Color(0.4, 0.9, 0.5, 1)
+const COLOR_UNIT_OFF : Color = Color(0.85, 0.85, 0.85, 1)
+const COLOR_UNIT_DISABLED : Color = Color(0.45, 0.45, 0.45, 1)
+
 
 func _ready():
 	layer = 24
@@ -30,14 +34,37 @@ func _refresh():
 	_refresh_routes()
 	_refresh_active()
 	_refresh_dispatch_btn()
-	if hint_label:
-		hint_label.text = "选 1-2 个单位 + 1 条路线后确认派遣"
+	_refresh_hint()
 
 
+func _refresh_hint():
+	if not hint_label: return
+	var n : int = _selected_units.size()
+	var route_name : String = ""
+	if _selected_route != "" and DispatchManager.ROUTES.has(_selected_route):
+		route_name = DispatchManager.ROUTES[_selected_route].get("name", _selected_route)
+	if n == 0:
+		hint_label.text = "① 选择 1-2 个单位   ② 选择 1 条路线   ③ 点派遣"
+	elif _selected_route == "":
+		hint_label.text = "已选 %d 人，请选择路线" % n
+	else:
+		hint_label.text = "已选 %d 人 → %s，点【派遣】确认" % [n, route_name]
+
+
+# ============================================================
+#  单位选择
+# ============================================================
 func _refresh_units():
 	for c in unit_row.get_children():
 		unit_row.remove_child(c); c.queue_free()
-	var dispatched = DispatchManager.get_dispatched_unit_names()
+
+	# ★ 动态加大滚动区高度，避免按钮被压扁
+	var unit_scroll : ScrollContainer = $Panel/VBox/UnitScroll
+	if unit_scroll:
+		unit_scroll.custom_minimum_size = Vector2(0, 56)
+
+	var dispatched : Array = DispatchManager.get_dispatched_unit_names()
+
 	if GameState.party.is_empty():
 		var lb = Label.new()
 		lb.text = "（暂无队伍）"
@@ -45,19 +72,39 @@ func _refresh_units():
 		lb.modulate = Color(0.6, 0.6, 0.6)
 		unit_row.add_child(lb)
 		return
+
 	for u in GameState.party:
-		var btn = Button.new()
-		btn.text = u.display_name
+		var btn := Button.new()
+		var display_name : String = u.display_name if u.display_name != "" else u.unit_name
+		var is_dispatched : bool = u.unit_name in dispatched
+		var is_selected : bool = u.unit_name in _selected_units
+
+		btn.text = display_name
 		btn.toggle_mode = true
-		btn.custom_minimum_size = Vector2(80, 24)
+		btn.custom_minimum_size = Vector2(90, 32)
 		btn.add_theme_font_size_override("font_size", 7)
-		if u.unit_name in dispatched:
+		btn.focus_mode = Control.FOCUS_NONE
+
+		if is_dispatched:
 			btn.disabled = true
-			btn.text += "（派遣中）"
+			btn.text = display_name + "\n(派遣中)"
+			btn.modulate = COLOR_UNIT_DISABLED
 		else:
-			btn.button_pressed = u.unit_name in _selected_units
-			btn.toggled.connect(_on_unit_toggled.bind(u.unit_name))
+			btn.button_pressed = is_selected
+			btn.modulate = COLOR_UNIT_ON if is_selected else COLOR_UNIT_OFF
+			btn.toggled.connect(_on_unit_toggled.bind(u.unit_name, btn))
+			# ★ 双击直接派遣（可选，提升手感）
+			btn.pressed.connect(func(): _update_unit_visual(btn, u.unit_name))
+
 		unit_row.add_child(btn)
+
+
+## 选中状态视觉刷新
+func _update_unit_visual(btn : Button, unit_name : String):
+	if unit_name in _selected_units:
+		btn.modulate = COLOR_UNIT_ON
+	else:
+		btn.modulate = COLOR_UNIT_OFF
 
 
 func _refresh_routes():
@@ -77,8 +124,15 @@ func _refresh_routes():
 		btn.text = "%s [%s]" % [route["name"], "/".join(route["tags"])]
 		btn.toggle_mode = true
 		btn.button_pressed = (rid == _selected_route)
+		btn.custom_minimum_size = Vector2(0, 26)
 		btn.add_theme_font_size_override("font_size", 7)
-		btn.pressed.connect(func(): _selected_route = rid; _refresh_routes(); _refresh_dispatch_btn())
+		btn.modulate = Color(0.4, 0.9, 0.5, 1) if rid == _selected_route else Color.WHITE
+		btn.pressed.connect(func():
+			_selected_route = rid
+			_refresh_routes()
+			_refresh_dispatch_btn()
+			_refresh_hint()
+		)
 		route_row.add_child(btn)
 
 
@@ -95,7 +149,6 @@ func _refresh_active():
 		for d in DispatchManager.active_dispatches:
 			var lb := Label.new()
 			var route : Dictionary = DispatchManager.ROUTES.get(d.route_id, {})
-			# ★ 显示匹配标记
 			var match_mark : String = ""
 			var unit_tags : Array = _get_unit_tags(d.unit_name)
 			var route_tags : Array = route.get("tags", [])
@@ -123,16 +176,23 @@ func _refresh_dispatch_btn():
 	if not dispatch_btn: return
 	var ok : bool = (not _selected_units.is_empty()) and _selected_route != ""
 	dispatch_btn.disabled = not ok
+	dispatch_btn.text = "派遣 (%d/2)" % _selected_units.size()
 
 
-func _on_unit_toggled(pressed: bool, unit_name: String):
+func _on_unit_toggled(pressed: bool, unit_name: String, btn : Button):
 	if pressed:
 		if _selected_units.size() >= 2:
+			# 超额 → 立即回弹
+			btn.set_pressed_no_signal(false)
+			SoundManager.play_invalid_sound()
 			return
 		_selected_units.append(unit_name)
 	else:
 		_selected_units.erase(unit_name)
+	_update_unit_visual(btn, unit_name)
 	_refresh_dispatch_btn()
+	_refresh_hint()
+	SoundManager.play_select_sound()
 
 
 func _do_dispatch():

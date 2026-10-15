@@ -1,5 +1,12 @@
 extends Node
 
+# ============================================================
+#  ShopManager — 商店系统
+#  ★ v4.1：SHOP 节点已删除，本类仅作为 FORGE 内嵌商店（arena_shop tab）
+#         不再独立挂地图节点。如需恢复独立 SHOP 节点，需同步还原
+#         MapNode.NodeType 和地图布局。
+# ============================================================
+
 signal shop_updated
 
 var shop_items: Array = []
@@ -151,6 +158,22 @@ func generate_shop_items():
 			if tag_pools.has(tag):
 				tag_pools[tag][q].append(data)
 
+	# ★ v4.1 修复（缺口 3）：按位置分配——前 80% 走标签池，后 20% 走全池
+	# 原先的 randf() < 0.8 只是概率期望，玩家可能连出 3 个非标签商品；
+	# 现在改成显式位置分配，严格保证约 80% 商品位偏向标签方向。
+	var tag_pool_usable : bool = false
+	if not top_tags.is_empty():
+		for tag in top_tags:
+			for q in ["common", "rare", "epic", "legendary"]:
+				if not (tag_pools[tag][q] as Array).is_empty():
+					tag_pool_usable = true
+					break
+			if tag_pool_usable: break
+
+	var tag_slot_count : int = 0
+	if tag_pool_usable:
+		tag_slot_count = int(round(float(SHOP_SIZE) * 0.8))
+
 	var total_weight : int = 0
 	for q in weights:
 		total_weight += int(weights[q])
@@ -172,15 +195,12 @@ func generate_shop_items():
 		if lv >= EPIC_GUARANTEE_LEVEL and quality == "common": quality = "epic"
 		elif lv >= RARE_GUARANTEE_LEVEL and quality == "common": quality = "rare"
 
-		var use_tag_pool : bool = (randf() < 0.8) and not top_tags.is_empty()
 		var pool : Array = []
-
-		if use_tag_pool:
+		if i < tag_slot_count:
 			for tag in top_tags:
 				pool.append_array(tag_pools[tag].get(quality, []))
-			if pool.is_empty(): use_tag_pool = false
-
-		if not use_tag_pool:
+		# 标签池空 或 后 20% 位 → 走全池
+		if pool.is_empty():
 			pool = all_pools.get(quality, [])
 
 		var target_idx : int = order.find(quality)

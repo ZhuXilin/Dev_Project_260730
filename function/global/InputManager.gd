@@ -66,35 +66,41 @@ func _handle_right_click():
 		SignalBus.request_setting_right_click.emit()
 		return
 
-	var unit = selected_unit
+	# ★ v4.1 优化：右键分层
+	#   优先级 1：有选中单位 → 只取消选中（无副作用，含隐藏信息面板）
+	#   优先级 2：无选中 + 刚移动过的单位 → 撤销移动（有副作用）
+	#   这样：点击单位后的第一次右键 = 取消选中；第二次右键 = 撤销移动
 
-	# ★ 无选中但有"刚移动过的单位" → 优先撤销它
-	if unit == null and TurnManager.last_moved_unit != null:
-		var m = TurnManager.last_moved_unit
-		if is_instance_valid(m) and m.has_moved and not m.has_attacked:
-			unit = m
-
-	if unit == null or not is_instance_valid(unit):
-		return
-
-	# 我方 + 有移动历史 → 撤销
-	if unit.unit_stats.team_id == 0 and unit.has_moved and not unit.has_attacked:
+	# ---- 优先级 1：取消选中 ----
+	if selected_unit != null and is_instance_valid(selected_unit):
 		SoundManager.play_cancel_sound()
-		TurnManager.cancel_movement(unit)
-		unit.moves_since_act -= 1
-		SignalBus.request_hint_override.emit("已撤销操作", 1.0)
+		SignalBus.request_hint_override.emit("已取消选中", 1.0)
 		SignalBus.request_clear_highlight.emit()
 		SignalBus.request_clear_highlight_unit.emit()
+		SignalBus.request_hide_info.emit()   # ★ 关键：确保信息面板消失
 		selected_unit = null
 		interaction_phase = Phase.IDLE
 		return
 
-	# 其他 → 取消选中
+	# ---- 优先级 2：撤销移动 ----
+	var m : Unit = TurnManager.last_moved_unit
+	if m != null and is_instance_valid(m) and m.has_moved and not m.has_attacked:
+		SoundManager.play_cancel_sound()
+		TurnManager.cancel_movement(m)
+		m.moves_since_act -= 1
+		SignalBus.request_hint_override.emit("已撤销操作", 1.0)
+		SignalBus.request_clear_highlight.emit()
+		SignalBus.request_clear_highlight_unit.emit()
+		SignalBus.request_hide_info.emit()   # ★ 补上：撤销移动后也要隐藏信息面板
+		selected_unit = null
+		interaction_phase = Phase.IDLE
+		return
+
+	# ---- 都不是：轻量级清理 ----
 	SoundManager.play_cancel_sound()
-	SignalBus.request_hint_override.emit("已取消选中", 1.0)
 	SignalBus.request_clear_highlight.emit()
+	SignalBus.request_clear_highlight_unit.emit()
 	SignalBus.request_hide_info.emit()
-	selected_unit = null
 	interaction_phase = Phase.IDLE
 
 

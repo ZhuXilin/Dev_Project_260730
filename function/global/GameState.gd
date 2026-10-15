@@ -418,6 +418,9 @@ func start_new_cycle():
 	init_passive_slots()
 	clear_all_pending_rewards()
 	SoulFireManager.reset_for_new_run()
+	# ★ v4.1 修复（缺口 10）：清空 Boss 机制残留，避免上一局 ash_shield/three_forms 带过来
+	if BossMechanicManager:
+		BossMechanicManager.setup_for_node(false)
 	SaveManager.auto_save()
 
 func finish_day(grant_slot: bool = true):

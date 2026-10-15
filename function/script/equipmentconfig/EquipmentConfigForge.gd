@@ -7,7 +7,7 @@ const QUALITY_ORDER : Array = ["common", "rare", "epic", "legendary"]
 
 # ★ 批次 4 / 6B
 const FUSION_COST : int = 2000
-const REFORGE_COST : int = 500
+var REFORGE_COST : int = 500
 
 var MAX_SLOTS : int = 9
 var WEAPON_UPGRADE_MAX : int = 5
@@ -28,7 +28,8 @@ var forge_upgrade_label : Label = null
 var forge_upgrade_btn : Button = null
 var inline_craft_btn : Button = null
 var _last_drag_unit_idx : int = -1
-
+var forge_reforge_btn : Button = null
+var forge_reforge_label : Label = null
 
 func _init(p):
 	panel = p
@@ -42,6 +43,7 @@ func reload_config():
 	UPGRADE_BASE_COST = int(cfg.get("upgrade_base_cost", 50))
 	UPGRADE_GROWTH = float(cfg.get("upgrade_growth", 2.0))
 	CRAFT_COST = int(cfg.get("craft_cost", 200))
+	REFORGE_COST = int(cfg.get("reforge_cost", 500))
 	QUALITY_SCORE = cfg.get("quality_score", {"common":1,"rare":3,"epic":6,"legendary":10}).duplicate()
 	LUCKY_CHANCE = float(cfg.get("lucky_chance", 0.05))
 	BONUS_SCORE_THRESHOLD = int(cfg.get("bonus_score_threshold", 10))
@@ -284,7 +286,7 @@ func display_recipe_info():
 
 	forge_matched_recipe = RecipeManager.match_recipe(input_ids)
 
-	if forge_matched_recipe != "" and _is_forge_recipe_available():
+	if forge_matched_recipe != "":
 		var recipe : RecipeData = RecipeManager.get_recipe(forge_matched_recipe)
 		var out_data : ItemData = ItemManager.get_item_data(forge_matched_recipe)
 		var lines : Array = []
@@ -354,7 +356,7 @@ func _refresh_inline_craft_btn():
 	if fusion.get("ok", false):
 		inline_craft_btn.text = "熔合 %dG" % FUSION_COST
 		btn_cost = FUSION_COST
-	elif forge_matched_recipe != "" and _is_forge_recipe_available():
+	elif forge_matched_recipe != "":
 		inline_craft_btn.text = "合成 %dG" % CRAFT_COST
 	else:
 		inline_craft_btn.text = "通用合成 %dG" % CRAFT_COST
@@ -382,7 +384,7 @@ func _update_forge_result_label():
 		_refresh_inline_craft_btn()
 		return
 
-	if forge_matched_recipe != "" and _is_forge_recipe_available():
+	if forge_matched_recipe != "":
 		var out_data : ItemData = ItemManager.get_item_data(forge_matched_recipe)
 		var out_name : String = out_data.name if out_data else forge_matched_recipe
 		forge_result_label.text = "合成结果：%s（%dG）" % [out_name, CRAFT_COST]
@@ -420,8 +422,13 @@ func _ensure_forge_upgrade_ui():
 		forge_upgrade_btn = null
 	if forge_upgrade_label != null and not is_instance_valid(forge_upgrade_label):
 		forge_upgrade_label = null
+	if forge_reforge_btn != null and not is_instance_valid(forge_reforge_btn):
+		forge_reforge_btn = null
+	if forge_reforge_label != null and not is_instance_valid(forge_reforge_label):
+		forge_reforge_label = null
 
-	for n_name in ["ForgeUpgradeLabel", "ForgeUpgradeBtn", "ForgeUpgradeSpacer1", "ForgeUpgradeSpacer2"]:
+	for n_name in ["ForgeUpgradeLabel", "ForgeUpgradeBtn", "ForgeUpgradeSpacer1", "ForgeUpgradeSpacer2",
+				   "ForgeReforgeSpacer", "ForgeReforgeLabel", "ForgeReforgeBtn"]:
 		var old = panel.right_container.get_node_or_null(n_name)
 		if old:
 			panel.right_container.remove_child(old)
@@ -447,8 +454,27 @@ func _ensure_forge_upgrade_ui():
 
 	var spacer2 := Control.new()
 	spacer2.name = "ForgeUpgradeSpacer2"
-	spacer2.custom_minimum_size = Vector2(0, 12)
+	spacer2.custom_minimum_size = Vector2(0, 8)
 	panel.right_container.add_child(spacer2)
+
+	# ★ v4.1：紫装重铸槽（缺口 2）
+	var reforge_spacer := Control.new()
+	reforge_spacer.name = "ForgeReforgeSpacer"
+	reforge_spacer.custom_minimum_size = Vector2(0, 8)
+	panel.right_container.add_child(reforge_spacer)
+
+	forge_reforge_label = Label.new()
+	forge_reforge_label.name = "ForgeReforgeLabel"
+	forge_reforge_label.add_theme_font_size_override("font_size", Style.FONT_SMALL)
+	forge_reforge_label.text = "紫装重铸"
+	forge_reforge_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	forge_reforge_label.modulate = Color(0.7, 0.7, 0.7)
+	panel.right_container.add_child(forge_reforge_label)
+
+	forge_reforge_btn = Style.create_styled_button(Style.FONT_SMALL, Style.BTN_ITEM_SIZE)
+	forge_reforge_btn.name = "ForgeReforgeBtn"
+	forge_reforge_btn.set_meta("slot_type", "forge_reforge_slot")
+	panel.right_container.add_child(forge_reforge_btn)
 
 	if panel.tab_bar and is_instance_valid(panel.tab_bar):
 		var tab_idx : int = panel.tab_bar.get_index()
@@ -456,6 +482,9 @@ func _ensure_forge_upgrade_ui():
 		panel.right_container.move_child(forge_upgrade_label, tab_idx + 2)
 		panel.right_container.move_child(forge_upgrade_btn, tab_idx + 3)
 		panel.right_container.move_child(spacer2, tab_idx + 4)
+		panel.right_container.move_child(reforge_spacer, tab_idx + 5)
+		panel.right_container.move_child(forge_reforge_label, tab_idx + 6)
+		panel.right_container.move_child(forge_reforge_btn, tab_idx + 7)
 
 	refresh_forge_upgrade_ui()
 
@@ -480,36 +509,38 @@ func refresh_forge_upgrade_ui():
 		forge_upgrade_label.text = "拖拽武器到此升级"
 		forge_upgrade_btn.disabled = true
 		forge_upgrade_btn.modulate = Color(0.5, 0.5, 0.5)
-		return
+	else:
+		var u : UnitData = panel.party[idx]
+		if u.weapon_slot == null or u.is_dead:
+			forge_upgrade_label.text = "拖拽武器到此升级"
+			forge_upgrade_btn.disabled = true
+			forge_upgrade_btn.modulate = Color(0.5, 0.5, 0.5)
+		else:
+			var wname : String = panel._get_item_name(u.weapon_slot)
+			var lv : int = u.weapon_slot.upgrade_level
+			var wdata = ItemManager.get_item_data(u.weapon_slot.item_id)
+			var max_lv : int = WeaponUpgradeHelper.get_max_level(wdata)
+			if lv >= max_lv:
+				forge_upgrade_label.text = "%s 已满级 +%d" % [wname, lv]
+				forge_upgrade_btn.disabled = true
+				forge_upgrade_btn.modulate = Color(0.5, 0.5, 0.5)
+			else:
+				var cost : int = _get_weapon_upgrade_cost(lv)
+				var afford : bool = panel._context.get_gold() >= cost
+				var eff_now : int = WeaponUpgradeHelper.get_effective_base_attack(wdata, lv)
+				var eff_next : int = WeaponUpgradeHelper.get_effective_base_attack(wdata, lv + 1)
+				forge_upgrade_label.text = "%s +%d→+%d（%dG）| 攻击 %d→%d" % [
+					wname, lv, lv + 1, cost, eff_now, eff_next]
+				forge_upgrade_btn.disabled = not afford
+				forge_upgrade_btn.modulate = Color.WHITE if afford else Color(1.0, 0.6, 0.6)
 
-	var u : UnitData = panel.party[idx]
-	if u.weapon_slot == null or u.is_dead:
-		forge_upgrade_label.text = "拖拽武器到此升级"
-		forge_upgrade_btn.disabled = true
-		forge_upgrade_btn.modulate = Color(0.5, 0.5, 0.5)
-		return
-
-	var wname : String = panel._get_item_name(u.weapon_slot)
-	var lv : int = u.weapon_slot.upgrade_level
-
-	var wdata = ItemManager.get_item_data(u.weapon_slot.item_id)
-	var max_lv : int = WeaponUpgradeHelper.get_max_level(wdata)
-	if lv >= max_lv:
-		forge_upgrade_label.text = "%s 已满级 +%d" % [wname, lv]
-		forge_upgrade_btn.disabled = true
-		forge_upgrade_btn.modulate = Color(0.5, 0.5, 0.5)
-		return
-
-	var cost : int = _get_weapon_upgrade_cost(lv)
-	var afford : bool = panel._context.get_gold() >= cost
-
-	var eff_now : int = WeaponUpgradeHelper.get_effective_base_attack(wdata, lv)
-	var eff_next : int = WeaponUpgradeHelper.get_effective_base_attack(wdata, lv + 1)
-
-	forge_upgrade_label.text = "%s +%d→+%d（%dG）| 攻击 %d→%d" % [
-		wname, lv, lv + 1, cost, eff_now, eff_next]
-	forge_upgrade_btn.disabled = not afford
-	forge_upgrade_btn.modulate = Color.WHITE if afford else Color(1.0, 0.6, 0.6)
+	if forge_reforge_btn and is_instance_valid(forge_reforge_btn):
+		var afford_r : bool = panel._context.get_gold() >= REFORGE_COST
+		forge_reforge_btn.text = "拖拽紫装重铸（%dG）" % REFORGE_COST
+		forge_reforge_btn.disabled = not afford_r
+		forge_reforge_btn.modulate = Color.WHITE if afford_r else Color(1.0, 0.6, 0.6)
+		if forge_reforge_label:
+			forge_reforge_label.text = "史诗词条重 roll（%dG）" % REFORGE_COST
 
 
 func update_upgrade_slot_for_drag(unit_idx: int) -> void:
@@ -528,7 +559,8 @@ func _ensure_forge_bottom_spacer():
 
 func cleanup():
 	for n_name in ["ForgeResultLabel", "ForgeCraftRow", "ForgeUpgradeLabel", "ForgeUpgradeBtn",
-					"ForgeUpgradeSpacer1", "ForgeUpgradeSpacer2", "ForgeBottomSpacer"]:
+					"ForgeUpgradeSpacer1", "ForgeUpgradeSpacer2", "ForgeBottomSpacer",
+					"ForgeReforgeLabel", "ForgeReforgeBtn", "ForgeReforgeSpacer"]:
 		var n : Node = panel.right_container.get_node_or_null(n_name)
 		if n:
 			panel.right_container.remove_child(n)
@@ -536,6 +568,8 @@ func cleanup():
 	forge_result_label = null
 	forge_upgrade_btn = null
 	forge_upgrade_label = null
+	forge_reforge_btn = null
+	forge_reforge_label = null
 	inline_craft_btn = null
 
 
@@ -637,10 +671,7 @@ func on_forge_craft_pressed():
 		input_ids.append(inst.item_id)
 
 	var matched : String = RecipeManager.match_recipe(input_ids)
-	var use_recipe : bool = false
-	if matched != "":
-		if panel._context.get_context_id() == "arena" or matched in GameState.unlocked_recipes:
-			use_recipe = true
+	var use_recipe : bool = (matched != "")
 
 	var result : Dictionary = {}
 	if use_recipe:
@@ -711,9 +742,7 @@ func _get_weapon_upgrade_cost(level: int) -> int:
 
 
 func _is_forge_recipe_available() -> bool:
-	if forge_matched_recipe == "": return false
-	if panel._context.get_context_id() == "arena": return true
-	return forge_matched_recipe in GameState.unlocked_recipes
+	return forge_matched_recipe != ""
 
 
 # ============================================================
@@ -722,6 +751,20 @@ func _is_forge_recipe_available() -> bool:
 func is_valid_forge_drop(data: Dictionary, target: Control) -> bool:
 	var src_type : String = data.get("slot_type", "")
 	var tgt_type : String = target.get_meta("slot_type", "")
+
+	if src_type == "armor" and tgt_type == "forge_reforge_slot":
+		var uidx : int = data.get("unit_idx", -1)
+		var src_slot : int = data.get("slot_idx", -1)
+		if uidx < 0 or src_slot < 0: return false
+		if uidx >= panel.party.size(): return false
+		var u : UnitData = panel.party[uidx]
+		if u.is_dead: return false
+		if src_slot >= u.armor_slots.size(): return false
+		var inst : ItemInstance = u.armor_slots[src_slot]
+		if inst == null: return false
+		var d : ItemData = ItemManager.get_item_data(inst.item_id)
+		if not d or d.quality != "epic": return false
+		return true
 
 	if src_type == "weapon" and tgt_type == "forge_upgrade_slot":
 		var uidx : int = data.get("unit_idx", -1)
@@ -806,6 +849,30 @@ func is_valid_forge_drop(data: Dictionary, target: Control) -> bool:
 func execute_forge_drop(data: Dictionary, target: Control):
 	var src_type : String = data.get("slot_type", "")
 	var tgt_type : String = target.get_meta("slot_type", "")
+
+	# ★ v4.1：紫装重铸
+	if src_type == "armor" and tgt_type == "forge_reforge_slot":
+		var uidx : int = data.get("unit_idx", -1)
+		var src_slot : int = data.get("slot_idx", -1)
+		if uidx < 0 or src_slot < 0: return
+		var u : UnitData = panel.party[uidx]
+		var inst : ItemInstance = u.armor_slots[src_slot]
+		if inst == null: return
+		var d : ItemData = ItemManager.get_item_data(inst.item_id)
+		if not d or d.quality != "epic": return
+		if panel._context.get_gold() < REFORGE_COST:
+			panel._show_buy_failure_message("not_enough_gold"); return
+		if not panel._context.subtract_gold(REFORGE_COST):
+			panel._show_buy_failure_message("not_enough_gold"); return
+		inst.affixes = AffixManager.roll_affixes(d.quality, d.tags)
+		SaveManager.auto_save()
+		panel._build_unit_columns()
+		panel._sync_all()
+		panel._update_gold_display()
+		panel._show_detail_in_zone("★ %s 已重铸" % d.name)
+		SoundManager.play_select_sound()
+		panel._schedule_build_ui()
+		return
 
 	if src_type == "weapon" and tgt_type == "forge_upgrade_slot":
 		var uidx : int = data.get("unit_idx", -1)

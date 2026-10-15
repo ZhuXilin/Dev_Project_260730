@@ -21,8 +21,11 @@ func _ready():
 	update_display()
 	_play_camp_music()
 
-	# ★ 方向 6：随机关闭派遣路线
+	# 随机关闭派遣路线
 	DispatchManager.rotate_routes()
+
+	# 显示上次派遣结果（如果有）
+	_show_dispatch_results()
 
 
 func _connect_buttons():
@@ -85,6 +88,53 @@ func update_display():
 			SoulFireManager.current, SoulFireManager.get_max_carried()
 		]
 	_update_affinity_display()
+
+
+# ============================================================
+#  派遣结果 toast（v4.1）
+# ============================================================
+func _show_dispatch_results():
+	var results : Array = DispatchManager.consume_pending_results()
+	if results.is_empty(): return
+
+	# 拼成一条消息
+	var lines : Array = []
+	for r in results:
+		var unit : String = str(r.get("unit_name", "?"))
+		var route : String = str(r.get("route_name", r.get("route_id", "?")))
+		var soul : int = int(r.get("soul", 0))
+		var bonus : int = int(r.get("bonus", 0))
+		var line : String = "%s 从「%s」归来：+%d 魂" % [unit, route, soul]
+		if bonus > 0:
+			line += "（★ 标签匹配 +1）"
+		lines.append(line)
+
+	var toast_text : String = "\n".join(lines)
+	_show_floating_toast(toast_text)
+
+
+func _show_floating_toast(text : String):
+	var toast := Label.new()
+	toast.text = text
+	toast.add_theme_font_size_override("font_size", 8)
+	toast.add_theme_color_override("font_color", Color(1.0, 0.85, 0.3))
+	toast.add_theme_color_override("font_outline_color", Color.BLACK)
+	toast.add_theme_constant_override("outline_size", 3)
+	toast.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	toast.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	toast.anchor_left = 0.5
+	toast.anchor_right = 0.5
+	toast.offset_left = -140
+	toast.offset_right = 140
+	toast.offset_top = 40
+	toast.offset_bottom = 100
+	add_child(toast)
+	var tw := create_tween()
+	tw.set_ignore_time_scale(true)
+	tw.tween_property(toast, "modulate:a", 0.0, 0.5).set_delay(3.0)
+	tw.tween_callback(func():
+		if is_instance_valid(toast): toast.queue_free()
+	)
 
 
 func _update_affinity_display():

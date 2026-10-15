@@ -2,6 +2,7 @@ extends Node
 
 # ============================================================
 #  StoryManager — NPC 对话与剧情解锁 + 亲密度
+#  v4.1：支持 route / talent 解锁类型 + after_dialogue 条件
 # ============================================================
 
 var _stories : Dictionary = {}
@@ -112,7 +113,6 @@ func get_affinity_tier(npc_id: String) -> int:
 
 
 func _check_affinity_milestone(npc_id: String, old_v: int, new_v: int):
-	# 触达 5 / 10 / 15 时打印
 	var milestones : Array = [AFFINITY_TIER_1, AFFINITY_TIER_2, AFFINITY_TIER_3]
 	for m in milestones:
 		if old_v < m and new_v >= m:
@@ -176,6 +176,9 @@ func _get_max_weapon_level() -> int:
 
 func _check_unlock_conditions(npc_id: String, cond: Dictionary) -> bool:
 	if cond.is_empty(): return true
+	# ★ v4.1：after_dialogue —— 玩家已看过某段对话才允许解锁
+	if cond.has("after_dialogue"):
+		if not _is_seen(npc_id, str(cond["after_dialogue"])): return false
 	if cond.has("min_altar_level") and SoulFireManager.altar_level < int(cond["min_altar_level"]): return false
 	if cond.has("min_initial_level") and GameState.soul_fire_initial_level < int(cond["min_initial_level"]): return false
 	if cond.has("min_weapon_max_level"):
@@ -208,9 +211,15 @@ func _apply_unlock(npc_id: String, u: Dictionary) -> bool:
 		"relic":
 			RelicManager.unlock_relic(uid)
 		"aura":
-			pass
+			# 光环走研究系统，这里只支持直接加入 unlocked_auras
+			if uid not in GameState.unlocked_auras:
+				GameState.unlocked_auras.append(uid)
 		"transform_branch":
 			pass
+		"route":                              # ★ v4.1：派遣路线解锁
+			DispatchManager.unlock_route(uid)
+		"talent":                             # ★ v4.1：词条解锁（预留给未来）
+			Globals.unlock_talent(uid)
 		_:
 			push_warning("[StoryManager] 未知解锁类型: " + utype)
 			return false

@@ -48,11 +48,16 @@ func get_max_carried() -> int:
 	var base : int = MAX_CARRIED_LEVELS[clampi(altar_level, 0, MAX_CARRIED_LEVELS.size() - 1)]
 	if LevelManager.current_resonance.get("type", "") == "soul_fire_max":
 		base += int(LevelManager.current_resonance.get("value", 0))
+
+	var flame_bonus : int = 0
 	if _has_eternal_flame():
-		base += 5
+		flame_bonus = 5
+	var set_bonus : int = 0
 	if SetBonusManager.team_has_set("余烬"):
 		var b : Dictionary = SetBonusManager.get_bonus("余烬")
-		base += int(b.get("value", 3))
+		set_bonus = int(b.get("value", 3))
+	base += maxi(flame_bonus, set_bonus)
+
 	# ★ 方向 6：守火者亲密度
 	if StoryManager.get_affinity("soul_keeper") >= 10:
 		base += 1

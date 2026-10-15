@@ -27,6 +27,7 @@
 	"upgrade_base_cost": 50,
 	"upgrade_growth": 2.0,
 	"craft_cost": 200,
+	"reforge_cost": 500,
 	"quality_score": { "common": 1, "rare": 3, "epic": 6, "legendary": 10 },
 	"lucky_chance": 0.05,
 	"bonus_score_threshold": 10,

@@ -44,6 +44,7 @@ const ShopManagerScript = preload(Config.PATHS.SHOP_MANAGER_SCRIPT)
 @onready var relic_section: VBoxContainer = $VBoxContainer/MainHBox/LeftInfoColumn/RelicSection
 @onready var relic_container: HBoxContainer = $VBoxContainer/MainHBox/LeftInfoColumn/RelicSection/RelicContainer
 @onready var sacrifice_tab_btn : Button = $VBoxContainer/MainHBox/RightContainer/TabBar/SacrificeTabBtn
+@onready var furnace_tab_btn : Button = $VBoxContainer/MainHBox/RightContainer/TabBar/FurnaceTabBtn
 
 # ---- 待领取区 ----
 var _pending_section : VBoxContainer = null
@@ -228,6 +229,7 @@ func _build_ui_inner():
 	weapon_tab_btn.visible = false
 	talent_tab_btn.visible = false
 	if sacrifice_tab_btn: sacrifice_tab_btn.visible = false
+	if furnace_tab_btn: furnace_tab_btn.visible = false
 
 	var left_column : VBoxContainer = $VBoxContainer/MainHBox/LeftVBox
 	if left_column:

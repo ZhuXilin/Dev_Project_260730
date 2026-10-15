@@ -220,6 +220,10 @@ func _get_all_target_controls() -> Array[Control]:
 	if (panel.current_mode == panel.Mode.FORGE or (panel._is_shop_rest_mode() and panel.current_tab == "arena_forge")) \
 			and panel._forge.forge_upgrade_btn and is_instance_valid(panel._forge.forge_upgrade_btn):
 		if not panel._forge.forge_upgrade_btn.disabled: targets.append(panel._forge.forge_upgrade_btn)
+	# 紫装重铸槽
+	if (panel.current_mode == panel.Mode.FORGE or (panel._is_shop_rest_mode() and panel.current_tab == "arena_forge")) \
+			and panel._forge.forge_reforge_btn and is_instance_valid(panel._forge.forge_reforge_btn):
+		if not panel._forge.forge_reforge_btn.disabled: targets.append(panel._forge.forge_reforge_btn)
 	# 丢弃区
 	if panel.discard_zone.visible: targets.append(panel.discard_zone)
 	return targets
@@ -307,7 +311,7 @@ func _get_target_from_position(global_pos: Vector2) -> Control:
 	const BUFFER : int = 4
 	# 丢弃区优先
 	if panel.discard_zone.visible and panel.discard_zone.get_global_rect().has_point(global_pos): return panel.discard_zone
-	# ★ 单位列（含 armor_group 嵌套）
+	# 单位列（含 armor_group 嵌套）
 	for col in panel.unit_container.get_children():
 		for child in col.get_children():
 			if child is Button:
@@ -359,4 +363,8 @@ func _get_target_from_position(global_pos: Vector2) -> Control:
 	if (panel.current_mode == panel.Mode.FORGE or (panel._is_shop_rest_mode() and panel.current_tab == "arena_forge")) \
 			and panel._forge.forge_upgrade_btn and is_instance_valid(panel._forge.forge_upgrade_btn) and not panel._forge.forge_upgrade_btn.disabled:
 		if panel._forge.forge_upgrade_btn.get_global_rect().grow(BUFFER).has_point(global_pos): return panel._forge.forge_upgrade_btn
+	# ★ v4.1：紫装重铸槽
+	if (panel.current_mode == panel.Mode.FORGE or (panel._is_shop_rest_mode() and panel.current_tab == "arena_forge")) \
+			and panel._forge.forge_reforge_btn and is_instance_valid(panel._forge.forge_reforge_btn) and not panel._forge.forge_reforge_btn.disabled:
+		if panel._forge.forge_reforge_btn.get_global_rect().grow(BUFFER).has_point(global_pos): return panel._forge.forge_reforge_btn
 	return null

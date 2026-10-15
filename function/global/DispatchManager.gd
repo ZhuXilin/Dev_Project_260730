@@ -14,6 +14,9 @@ var ROUTES : Dictionary = {
 var unlocked_routes : Array = ["ruins"]
 var active_dispatches : Array = []
 
+## ★ v4.1：本局已完成但尚未展示的结果（营地 toast 显示）
+var pending_results : Array = []
+
 signal dispatch_started(unit_name: String, route_id: String)
 signal dispatch_completed(results: Array)
 signal routes_changed()
@@ -86,14 +89,24 @@ func _resolve_completion(completed: Array):
 		gained += bonus
 
 		GameState.soul += gained
-		results.append({
+		var entry : Dictionary = {
 			"unit_name": d.unit_name,
 			"route_id": d.route_id,
 			"soul": gained,
 			"bonus": bonus,
-		})
+			"route_name": route.get("name", d.route_id),
+		}
+		results.append(entry)
+		pending_results.append(entry)   # ★ v4.1：供营地 toast
 	GameState.total_dispatch_count += completed.size()
 	dispatch_completed.emit(results)
+
+
+## ★ v4.1：营地消费 pending_results（一次性取走）
+func consume_pending_results() -> Array:
+	var r : Array = pending_results.duplicate()
+	pending_results.clear()
+	return r
 
 
 func _get_unit_tags(unit_name: String) -> Array:

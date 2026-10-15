@@ -57,7 +57,7 @@ script = ExtResource("3_node")
 node_type = 4
 position = Vector2(200, 34)
 layer = 5
-unlock_relics = Array[String](["relic_defense"])
+unlock_relics = Array[String](["relic_attack", "relic_defense", "relic_health"])
 
 [sub_resource type="Resource" id="D1V1"]
 script = ExtResource("2_day")
@@ -115,7 +115,7 @@ script = ExtResource("3_node")
 node_type = 4
 position = Vector2(200, 34)
 layer = 5
-unlock_relics = Array[String](["relic_dexterity"])
+unlock_relics = Array[String](["relic_strength", "relic_faith"])
 
 [sub_resource type="Resource" id="D2V1"]
 script = ExtResource("2_day")
@@ -139,7 +139,7 @@ script = ExtResource("3_node")
 node_type = 4
 position = Vector2(200, 34)
 layer = 2
-unlock_relics = Array[String](["relic_strength"])
+unlock_relics = Array[String](["relic_phoenix"])
 
 [sub_resource type="Resource" id="D3V1"]
 script = ExtResource("2_day")

@@ -487,6 +487,9 @@ func _exit_tree():
 	if TurnManager:
 		TurnManager.set_battle_ready(false)
 
+	if SoulFireManager:
+		SoulFireManager.reset_boss_penalty()
+
 
 # ============================================================
 #  主循环

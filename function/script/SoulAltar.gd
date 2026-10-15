@@ -2,13 +2,14 @@ extends CanvasLayer
 
 signal closed
 
-enum Tab { SOUL_FIRE, ATTR_CAP }
+enum Tab { SOUL_FIRE, ATTR_CAP, UNIT_UNLOCK }
 
 const ATTR_CAP_LEVELS : Array[int] = [0, 2, 5, 8, 12, 16, 20, 25]
 const ATTR_CAP_COSTS  : Array[int] = [20, 30, 45, 65, 90, 120, 160, 200]
 
 var _current_tab : Tab = Tab.SOUL_FIRE
 var _current_unit_type : String = ""
+var unit_unlock_tab_btn : Button = null
 
 @onready var soul_label : Label = $Panel/VBox/TitleBar/SoulLabel
 @onready var soul_fire_tab_btn : Button = $Panel/VBox/TabBar/SoulFireTabBtn
@@ -36,12 +37,23 @@ func _ready():
 	if attr_cap_tab_btn and not attr_cap_tab_btn.pressed.is_connected(_on_attr_cap_tab_pressed):
 		attr_cap_tab_btn.pressed.connect(_on_attr_cap_tab_pressed)
 
+	# ★ v4.1：动态创建"唤醒残魂"tab
+	var tab_bar : HBoxContainer = $Panel/VBox/TabBar
+	if tab_bar:
+		unit_unlock_tab_btn = Button.new()
+		unit_unlock_tab_btn.text = "唤醒残魂"
+		unit_unlock_tab_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		unit_unlock_tab_btn.add_theme_font_size_override("font_size", 7)
+		tab_bar.add_child(unit_unlock_tab_btn)
+		unit_unlock_tab_btn.pressed.connect(_on_unit_unlock_tab_pressed)
+
 	_refresh_soul()
 	_switch_tab(Tab.SOUL_FIRE)
 
 
 func _on_soul_fire_tab_pressed(): _switch_tab(Tab.SOUL_FIRE)
 func _on_attr_cap_tab_pressed(): _switch_tab(Tab.ATTR_CAP)
+func _on_unit_unlock_tab_pressed(): _switch_tab(Tab.UNIT_UNLOCK)
 
 
 func _on_back_pressed():
@@ -55,15 +67,21 @@ func _switch_tab(tab: Tab):
 	_current_tab = tab
 	soul_fire_tab_btn.modulate = Color.WHITE if tab == Tab.SOUL_FIRE else Color(0.5, 0.5, 0.5, 1)
 	attr_cap_tab_btn.modulate = Color.WHITE if tab == Tab.ATTR_CAP else Color(0.5, 0.5, 0.5, 1)
+	if unit_unlock_tab_btn:
+		unit_unlock_tab_btn.modulate = Color.WHITE if tab == Tab.UNIT_UNLOCK else Color(0.5, 0.5, 0.5, 1)
 
 	if tab == Tab.SOUL_FIRE:
 		left_title.text = "— 魂火 —"
 		_clear_unit_list()
 		_refresh_soul_fire_panel()
-	else:
+	elif tab == Tab.ATTR_CAP:
 		left_title.text = "— 单位 —"
 		_build_unit_list()
 		_refresh_attr_cap_panel()
+	else:
+		left_title.text = "— 残魂 —"
+		_build_locked_unit_list()
+		_refresh_unit_unlock_panel()
 
 
 func _clear_unit_list():
@@ -215,6 +233,151 @@ func _on_upgrade_attr_cap():
 	_build_unit_list()
 	_refresh_attr_cap_panel()
 	_show_msg("上限已提升")
+
+
+# ============================================================
+#  Tab 3 · 唤醒残魂（单位解锁）
+# ============================================================
+func _build_locked_unit_list():
+	for c in unit_list.get_children():
+		unit_list.remove_child(c); c.queue_free()
+
+	var costs : Dictionary = Globals.unlock_config.get("unlock_costs", {})
+	var locked : Array = []
+	for unit_type in costs:
+		if not Globals.is_unit_unlocked(unit_type):
+			locked.append(unit_type)
+
+	if locked.is_empty():
+		var lb := Label.new()
+		lb.text = "（所有残魂已唤醒）"
+		lb.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_SMALL)
+		lb.modulate = Color(0.6, 0.6, 0.6, 1)
+		lb.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		unit_list.add_child(lb)
+		return
+
+	for unit_type in locked:
+		var btn := Button.new()
+		var display = UnitDataManager.get_unit_type_display_name(unit_type)
+		btn.text = display
+		btn.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_SMALL)
+		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		btn.set_meta("unit_type", unit_type)
+		btn.modulate = Color.WHITE if unit_type == _current_unit_type else Color(0.7, 0.7, 0.7, 1)
+		btn.pressed.connect(_on_locked_unit_selected.bind(unit_type))
+		unit_list.add_child(btn)
+
+	if _current_unit_type == "" or Globals.is_unit_unlocked(_current_unit_type):
+		_current_unit_type = locked[0]
+
+
+func _on_locked_unit_selected(unit_type: String):
+	_current_unit_type = unit_type
+	for child in unit_list.get_children():
+		if child is Button:
+			var ut = child.get_meta("unit_type", "")
+			if ut != "":
+				child.modulate = Color.WHITE if ut == unit_type else Color(0.7, 0.7, 0.7, 1)
+	_refresh_unit_unlock_panel()
+
+
+func _refresh_unit_unlock_panel():
+	_clear_attr_container()
+
+	# 全部解锁 → 展示完成态
+	var costs : Dictionary = Globals.unlock_config.get("unlock_costs", {})
+	var any_locked : bool = false
+	for unit_type in costs:
+		if not Globals.is_unit_unlocked(unit_type):
+			any_locked = true
+			break
+	if not any_locked:
+		unit_sprite.visible = false
+		unit_name_label.text = "所有残魂已唤醒"
+		unit_desc_label.text = "守火者的火光照亮了每一个角落。"
+		attr_container.add_child(_make_info("—— 无待唤醒的残魂 ——"))
+		return
+
+	if _current_unit_type == "" or Globals.is_unit_unlocked(_current_unit_type):
+		# 尝试选第一个未解锁单位
+		for unit_type in costs:
+			if not Globals.is_unit_unlocked(unit_type):
+				_current_unit_type = unit_type
+				break
+
+	if _current_unit_type == "":
+		return
+
+	var display : String = UnitDataManager.get_unit_type_display_name(_current_unit_type)
+	var dict : Dictionary = UnitDataManager.get_unit_data(_current_unit_type)
+	var cost : int = Globals.get_unit_unlock_cost(_current_unit_type)
+	var can_afford : bool = GameState.soul >= cost
+
+	unit_name_label.text = "%s   （未唤醒）" % display
+	unit_desc_label.text = dict.get("description", "")
+	unit_sprite.visible = true
+	_load_unit_sprite(_current_unit_type)
+
+	attr_container.add_child(_make_title("— 残魂信息 —"))
+	attr_container.add_child(_make_info("HP：%d" % int(dict.get("max_hp", 0))))
+	attr_container.add_child(_make_info("力量：%d    灵巧：%d" % [
+		int(dict.get("strength", 0)), int(dict.get("dexterity", 0))]))
+	attr_container.add_child(_make_info("智力：%d    信仰：%d    感应：%d" % [
+		int(dict.get("intelligence", 0)),
+		int(dict.get("faith", 0)),
+		int(dict.get("arcane", 0))]))
+	attr_container.add_child(_make_info("移动力：%d" % int(dict.get("move_range", 0))))
+
+	attr_container.add_child(HSeparator.new())
+
+	attr_container.add_child(_make_title("— 唤醒代价 —"))
+	attr_container.add_child(_make_info("需要魂：%d" % cost))
+	attr_container.add_child(_make_info("当前魂：%d" % GameState.soul))
+
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 4)
+	var lb := Label.new()
+	lb.text = "唤醒此残魂？"
+	lb.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_SMALL)
+	lb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(lb)
+	var btn := Button.new()
+	btn.text = "唤醒"
+	btn.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_SMALL)
+	btn.custom_minimum_size = Vector2(50, 0)
+	btn.disabled = not can_afford
+	if can_afford:
+		btn.pressed.connect(_on_unlock_unit_pressed)
+	row.add_child(btn)
+	attr_container.add_child(row)
+
+	if not can_afford:
+		var warn := Label.new()
+		warn.text = "⚠ 魂不足"
+		warn.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_TINY)
+		warn.modulate = Color(1.0, 0.6, 0.6, 1)
+		attr_container.add_child(warn)
+
+
+func _on_unlock_unit_pressed():
+	if _current_unit_type == "": return
+	var cost : int = Globals.get_unit_unlock_cost(_current_unit_type)
+	if GameState.soul < cost: return
+	if Globals.is_unit_unlocked(_current_unit_type): return
+
+	GameState.soul -= cost
+	Globals.unlock_unit(_current_unit_type)
+	SaveManager.auto_save()
+
+	_refresh_soul()
+	_show_msg("★ %s 已唤醒！" % UnitDataManager.get_unit_type_display_name(_current_unit_type))
+
+	# 切换到下一个未解锁单位
+	_current_unit_type = ""
+	_build_locked_unit_list()
+	_refresh_unit_unlock_panel()
 
 
 # ============================================================

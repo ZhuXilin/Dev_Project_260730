@@ -49,7 +49,7 @@ func _build_cards():
 
 func _build_unit_card(u: UnitData) -> Control:
 	var card := PanelContainer.new()
-	card.custom_minimum_size = Vector2(100, 150)
+	card.custom_minimum_size = Vector2(100, 160)   # ★ 略加高容纳溢出提示
 	card.mouse_filter = Control.MOUSE_FILTER_STOP
 
 	var vbox := VBoxContainer.new()
@@ -95,7 +95,7 @@ func _build_unit_card(u: UnitData) -> Control:
 	hp_lb.add_theme_font_size_override("font_size", 6)
 	vbox.add_child(hp_lb)
 
-	# ---- 装备数（有装备时高亮） ----
+	# ---- 装备数 ----
 	var equip_count : int = 0
 	if u.weapon_slot != null: equip_count += 1
 	for s in u.armor_slots:
@@ -109,6 +109,31 @@ func _build_unit_card(u: UnitData) -> Control:
 	else:
 		equip_lb.modulate = Color(0.6, 0.6, 0.6)
 	vbox.add_child(equip_lb)
+
+	# ★ v4.1 修复（缺口 4）：魂火溢出警告
+	var next_count : int = GameState.sacrifice_count + 1
+	var preview : Dictionary = SacrificeHelper.get_reward_preview(next_count)
+	var reward_sf : int = int(preview.get("soul_fire", 0))
+	var cur_sf : int = SoulFireManager.current
+	var max_sf : int = SoulFireManager.get_max_carried()
+	var total_after : int = cur_sf + reward_sf
+	if total_after > max_sf:
+		var overflow : int = total_after - max_sf
+		var overflow_lb := Label.new()
+		overflow_lb.text = "⚠ 溢出 %d（%d/%d）" % [overflow, cur_sf, max_sf]
+		overflow_lb.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		overflow_lb.add_theme_font_size_override("font_size", 6)
+		overflow_lb.modulate = Color(1.0, 0.55, 0.35)
+		overflow_lb.tooltip_text = "当前魂火 %d，上限 %d；本次熔铸 +%d，将浪费 %d" % [
+			cur_sf, max_sf, reward_sf, overflow]
+		vbox.add_child(overflow_lb)
+	else:
+		var gain_lb := Label.new()
+		gain_lb.text = "+%d 魂火" % reward_sf
+		gain_lb.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		gain_lb.add_theme_font_size_override("font_size", 6)
+		gain_lb.modulate = Color(0.6, 1.0, 0.6)
+		vbox.add_child(gain_lb)
 
 	# ---- 熔铸按钮 ----
 	var btn := Button.new()

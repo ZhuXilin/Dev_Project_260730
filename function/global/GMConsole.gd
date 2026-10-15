@@ -1,7 +1,7 @@
 extends CanvasLayer
 # 通用 GM 控制台
 # 唤起：` 或 F12
-# 快捷键：5=魂+100  6=金币+1000  7=全材料+20  0=胜利  9=失败
+# 快捷键（v4.1）：5=魂+100  6=金币+1000  7=魂火拉满  0=胜利  9=失败
 
 # ============================================================
 #  状态
@@ -145,7 +145,7 @@ func _handle_hotkey(keycode: int):
 			_hotkey_gold()
 			get_viewport().set_input_as_handled()
 		KEY_7:
-			_hotkey_materials()
+			_hotkey_soul_fire()
 			get_viewport().set_input_as_handled()
 		KEY_0:
 			_hotkey_win()
@@ -211,10 +211,13 @@ func _hotkey_gold():
 	print("[GM] 加金币只在局内或竞技场有效")
 
 
-func _hotkey_materials():
-	for mat_name in ["粗铁", "精钢", "秘银", "龙鳞"]:
-		GameState.add_material(mat_name, 20)
-	print("[GM] 全材料 +20")
+## ★ v4.1：快捷键 7 —— 魂火拉满（替换原"全材料 +20"）
+func _hotkey_soul_fire():
+	var before : int = SoulFireManager.current
+	var cap : int = SoulFireManager.get_max_carried()
+	SoulFireManager.current = cap
+	SoulFireManager._emit_changes()
+	print("[GM] 魂火 %d → %d（拉满）" % [before, cap])
 	_refresh_all_ui()
 
 
@@ -289,39 +292,56 @@ func register(cmd: String, handler: Callable, help_text: String, aliases: Array 
 func _register_commands():
 	register("help", _cmd_help, "help  显示所有命令", ["?"])
 
+	# ---- 资源 ----
 	register("gold", _cmd_gold, "gold <数量>  修改金币（局内/竞技场）", ["g"])
 	register("soul", _cmd_soul, "soul <数量>  修改魂", ["s"])
-	register("mat", _cmd_material, "mat <材料名> <数量>  修改材料", ["material"])
-	register("mat_all", _cmd_material_all, "mat_all <数量>  全材料 +N")
+	register("sf", _cmd_soul_fire, "sf <数量>  修改当前魂火（上限内）", ["soul_fire"])
+	register("sf_max", _cmd_soul_fire_max, "sf_max  魂火拉满")
+	register("sf_level", _cmd_soul_fire_level, "sf_level <0-6>  设置魂火上限等级")
+	register("sf_init", _cmd_soul_fire_init, "sf_init <0-3>  设置初始魂火等级")
 
+	# ---- 商店 / 献祭 ----
+	register("shop_level", _cmd_shop_level, "shop_level <0-5>  设置商店等级")
+	register("sac", _cmd_sacrifice, "sac <n>  设置献祭次数", ["sacrifice"])
+
+	# ---- NPC ----
+	register("affinity", _cmd_affinity, "affinity <npc> <n>  设置 NPC 亲密度")
+
+	# ---- 解锁 ----
 	register("unlock", _cmd_unlock, "unlock <unit|weapon|armor|item|talent|relic> <id|all>")
 	register("unlock_all", _cmd_unlock_all, "unlock_all  解锁所有内容")
+	register("unlock_route", _cmd_unlock_route, "unlock_route <route_id>  解锁派遣路线")
+	register("aura_unlock", _cmd_aura_unlock, "aura_unlock <aura_id>  直接解锁光环")
 
+	# ---- 流程 ----
 	register("tutorial", _cmd_tutorial, "tutorial <0-3>  设置新手阶段")
 	register("skip_tutorial", _cmd_skip_tutorial, "skip_tutorial  跳到新手结束", ["skip"])
 	register("day", _cmd_day, "day <1-3>  设置天数")
 	register("reset_cycle", _cmd_reset_cycle, "reset_cycle  重置本轮（保留永久资源）")
 
+	# ---- 战斗 ----
 	register("kill_enemies", _cmd_kill_enemies, "kill_enemies  杀死所有敌人", ["ke"])
 	register("kill_allies", _cmd_kill_allies, "kill_allies  杀死所有我方", ["ka"])
 	register("win", _cmd_win, "win  直接胜利", ["w"])
 	register("lose", _cmd_lose, "lose  直接失败", ["l"])
 	register("god", _cmd_god, "god  我方 HP 设为 9999")
 
+	# ---- 跳转 ----
 	register("goto", _cmd_goto, "goto <camp|map|arena|main>")
 
+	# ---- 单位 ----
 	register("blessing", _cmd_blessing, "blessing <unit> <attr> <level>")
 	register("adv_class", _cmd_adv_class, "adv_class <unit_index>  给队伍成员转职")
 	register("clear_adv_class", _cmd_clear_adv_class, "clear_adv_class  清空所有单位转职状态")
 	register("max_armor", _cmd_max_armor, "max_armor <n>  全员防具槽 = n")
 
+	# ---- 系统 ----
 	register("speed", _cmd_speed, "speed <-2..4>  设置游戏速度")
 	register("save", _cmd_save, "save  立即保存")
 	register("clear", _cmd_clear, "clear  清空输出", ["cls"])
-	
 	register("dump_units", _cmd_dump_units, "dump_units  打印队伍所有单位的转职字段")
-	
 	register("fix_adv_talent", _cmd_fix_adv_talent, "fix_adv_talent  清理不一致的职业特技")
+
 
 # ============================================================
 #  命令解析与执行
@@ -354,7 +374,7 @@ func _out(msg: String, color: String = "white"):
 
 
 # ============================================================
-#  命令实现
+#  命令实现 — 资源
 # ============================================================
 func _cmd_help(_args: Array):
 	_out("=== 可用命令 ===", "yellow")
@@ -406,24 +426,87 @@ func _cmd_soul(args: Array):
 	_refresh_all_ui()
 
 
-func _cmd_material(args: Array):
+## ★ v4.1：魂火直接改（替换原 mat）
+func _cmd_soul_fire(args: Array):
+	if args.is_empty():
+		_out("用法: sf <数量>（可为负）", "red"); return
+	var n = _parse_int(args[0])
+	var before : int = SoulFireManager.current
+	var cap : int = SoulFireManager.get_max_carried()
+	SoulFireManager.current = clampi(before + n, 0, cap)
+	SoulFireManager._emit_changes()
+	_out("魂火 %+d → %d / %d" % [n, SoulFireManager.current, cap], "green")
+	_refresh_all_ui()
+
+
+func _cmd_soul_fire_max(_args: Array):
+	var cap : int = SoulFireManager.get_max_carried()
+	SoulFireManager.current = cap
+	SoulFireManager._emit_changes()
+	_out("魂火拉满 → %d / %d" % [SoulFireManager.current, cap], "green")
+	_refresh_all_ui()
+
+
+func _cmd_soul_fire_level(args: Array):
+	if args.is_empty():
+		_out("用法: sf_level <0-6>", "red"); return
+	var n : int = clampi(_parse_int(args[0]), 0, SoulFireManager.MAX_CARRIED_LEVELS.size() - 1)
+	SoulFireManager.altar_level = n
+	GameState.soul_fire_altar_level = n
+	var cap : int = SoulFireManager.get_max_carried()
+	SoulFireManager.current = mini(SoulFireManager.current, cap)
+	SoulFireManager._emit_changes()
+	SaveManager.auto_save()
+	_out("魂火上限等级 → Lv%d（上限 %d）" % [n, cap], "green")
+	_refresh_all_ui()
+
+
+func _cmd_soul_fire_init(args: Array):
+	if args.is_empty():
+		_out("用法: sf_init <0-3>", "red"); return
+	var n : int = clampi(_parse_int(args[0]), 0, SoulFireManager.INITIAL_LEVELS.size() - 1)
+	GameState.soul_fire_initial_level = n
+	SaveManager.auto_save()
+	_out("初始魂火等级 → Lv%d（每局开始 %d）" % [n, SoulFireManager.get_initial_soul_fire()], "green")
+	_refresh_all_ui()
+
+
+# ============================================================
+#  命令实现 — 商店 / 献祭 / NPC
+# ============================================================
+func _cmd_shop_level(args: Array):
+	if args.is_empty():
+		_out("用法: shop_level <0-5>", "red"); return
+	var n : int = clampi(_parse_int(args[0]), 0, 5)
+	GameState.shop_level = n
+	SaveManager.auto_save()
+	_out("商店等级 → Lv%d" % n, "green")
+	_refresh_all_ui()
+
+
+func _cmd_sacrifice(args: Array):
+	if args.is_empty():
+		_out("用法: sac <n>", "red"); return
+	var n : int = maxi(0, _parse_int(args[0]))
+	GameState.sacrifice_count = n
+	SaveManager.auto_save()
+	_out("献祭次数 → %d（下次奖励：%s）" % [
+		n, str(SacrificeHelper.get_reward_preview(n + 1))], "green")
+
+
+func _cmd_affinity(args: Array):
 	if args.size() < 2:
-		_out("用法: mat <材料名> <数量>", "red"); return
-	var mat_name = args[0]
-	var n = _parse_int(args[1])
-	GameState.add_material(mat_name, n)
-	_out("%s %+d → %d" % [mat_name, n, GameState.get_material(mat_name)], "green")
-	_refresh_all_ui()
+		_out("用法: affinity <npc> <n>", "red"); return
+	var npc : String = args[0]
+	var n : int = maxi(0, _parse_int(args[1]))
+	GameState.npc_affinity[npc] = n
+	SaveManager.auto_save()
+	_out("%s 亲密度 → %d" % [npc, n], "green")
 
 
-func _cmd_material_all(args: Array):
-	var n = _parse_int(args[0]) if not args.is_empty() else 10
-	for mat in ["粗铁", "精钢", "秘银", "龙鳞"]:
-		GameState.add_material(mat, n)
-	_out("全材料 +%d" % n, "green")
-	_refresh_all_ui()
-
-
+# ============================================================
+#  命令实现 — 解锁
+# ============================================================
 func _cmd_unlock(args: Array):
 	if args.size() < 2:
 		_out("用法: unlock <类型> <id|all>", "red"); return
@@ -471,6 +554,36 @@ func _cmd_unlock_all(_args: Array):
 	_out("★ 全部解锁完成", "yellow")
 
 
+func _cmd_unlock_route(args: Array):
+	if args.is_empty():
+		_out("用法: unlock_route <route_id>", "red")
+		_out("可用: " + ", ".join(DispatchManager.ROUTES.keys()), "cyan")
+		return
+	var rid : String = args[0]
+	if DispatchManager.unlock_route(rid):
+		_out("解锁派遣路线: " + rid, "green")
+	else:
+		_out("失败：路线不存在或已解锁", "red")
+
+
+func _cmd_aura_unlock(args: Array):
+	if args.is_empty():
+		_out("用法: aura_unlock <aura_id>", "red")
+		_out("可用: " + ", ".join(AuraManager.get_all_ids()), "cyan")
+		return
+	var aid : String = args[0]
+	if AuraManager.get_aura(aid).is_empty():
+		_out("未知光环: " + aid, "red"); return
+	if aid in GameState.unlocked_auras:
+		_out("已解锁", "yellow"); return
+	GameState.unlocked_auras.append(aid)
+	SaveManager.auto_save()
+	_out("解锁光环: " + aid, "green")
+
+
+# ============================================================
+#  命令实现 — 流程
+# ============================================================
 func _cmd_tutorial(args: Array):
 	if args.is_empty():
 		_out("用法: tutorial <0-3>", "red"); return
@@ -500,6 +613,9 @@ func _cmd_reset_cycle(_args: Array):
 	_out("已重置本轮（保留永久资源）", "yellow")
 
 
+# ============================================================
+#  命令实现 — 战斗
+# ============================================================
 func _cmd_kill_enemies(_args: Array):
 	if not _is_in_combat():
 		_out("该场景无敌人可击杀", "yellow")
@@ -558,6 +674,9 @@ func _cmd_goto(args: Array):
 	_out("跳转 → " + args[0], "green")
 
 
+# ============================================================
+#  命令实现 — 单位
+# ============================================================
 func _cmd_blessing(args: Array):
 	if args.size() < 3:
 		_out("用法: blessing <unit> <attr> <level>", "red"); return
@@ -581,7 +700,6 @@ func _cmd_adv_class(args: Array):
 	if adv == null:
 		_out("该单位无转职", "red"); return
 	u.advanced_class = adv.id
-	# ★ 同步职业特技 id
 	if adv.granted_talent != "":
 		u.advanced_talent_id = adv.granted_talent
 	for k in adv.stat_bonus:
@@ -621,6 +739,9 @@ func _cmd_max_armor(args: Array):
 	_out("全员防具槽 → %d" % n, "green")
 
 
+# ============================================================
+#  命令实现 — 系统
+# ============================================================
 func _cmd_speed(args: Array):
 	if args.is_empty():
 		_out("用法: speed <-2..4>", "red"); return
@@ -637,6 +758,29 @@ func _cmd_clear(_args: Array):
 	_output.clear()
 
 
+func _cmd_dump_units(_args: Array):
+	_out("=== 队伍单位 ===", "yellow")
+	for i in range(GameState.party.size()):
+		var u : UnitData = GameState.party[i]
+		_out("[%d] %s/%s" % [i, u.unit_name, u.display_name], "cyan")
+		_out("    advanced_class = '%s'" % u.advanced_class, "white")
+		_out("    advanced_talent_id = '%s'" % u.advanced_talent_id, "white")
+		_out("    override_sprite_path = '%s'" % u.override_sprite_path, "white")
+	_out("=== 结束 ===", "yellow")
+
+
+func _cmd_fix_adv_talent(_args: Array):
+	var fixed : int = 0
+	for u in GameState.party:
+		if u.advanced_class == "" and u.advanced_talent_id != "":
+			u.advanced_talent_id = ""
+			u.advanced_talent_inst = null
+			fixed += 1
+			print("[GM] 清理 %s 的不一致职业特技" % u.display_name)
+	SaveManager.auto_save()
+	_out("已清理 %d 个不一致的职业特技" % fixed, "yellow")
+
+
 # ============================================================
 #  通用 UI 刷新
 # ============================================================
@@ -645,10 +789,9 @@ const REFRESH_METHODS : Array = [
 	"update_all_displays",
 	"update_display",
 	"_refresh_soul",
-	"_refresh_materials",
-	"_update_gold_display",
 	"_refresh_streak_label",
 	"_refresh_center_panel",
+	"_update_soul_fire_display",
 ]
 
 
@@ -754,25 +897,3 @@ func _parse_int(s: String) -> int:
 	s = s.strip_edges()
 	if s.begins_with("+"): s = s.substr(1)
 	return int(s) if s.is_valid_int() else 0
-
-func _cmd_dump_units(_args: Array):
-	_out("=== 队伍单位 ===", "yellow")
-	for i in range(GameState.party.size()):
-		var u : UnitData = GameState.party[i]
-		_out("[%d] %s/%s" % [i, u.unit_name, u.display_name], "cyan")
-		_out("    advanced_class = '%s'" % u.advanced_class, "white")
-		_out("    advanced_talent_id = '%s'" % u.advanced_talent_id, "white")
-		_out("    override_sprite_path = '%s'" % u.override_sprite_path, "white")
-	_out("=== 结束 ===", "yellow")
-
-
-func _cmd_fix_adv_talent(_args: Array):
-	var fixed : int = 0
-	for u in GameState.party:
-		if u.advanced_class == "" and u.advanced_talent_id != "":
-			u.advanced_talent_id = ""
-			u.advanced_talent_inst = null
-			fixed += 1
-			print("[GM] 清理 %s 的不一致职业特技" % u.display_name)
-	SaveManager.auto_save()
-	_out("已清理 %d 个不一致的职业特技" % fixed, "yellow")

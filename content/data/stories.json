@@ -317,6 +317,26 @@
 	],
 	"unlocks": [
 	  {
+		"type": "route", "id": "mine",
+		"conditions": { "after_dialogue": "guide_00" }
+	  },
+	  {
+		"type": "route", "id": "forest",
+		"conditions": { "after_dialogue": "guide_chat_2" }
+	  },
+	  {
+		"type": "route", "id": "shrine",
+		"conditions": { "after_dialogue": "guide_curious" }
+	  },
+	  {
+		"type": "route", "id": "volcano",
+		"conditions": { "after_dialogue": "guide_truth_2" }
+	  },
+	  {
+		"type": "route", "id": "abyss",
+		"conditions": { "after_dialogue": "guide_final" }
+	  },
+	  {
 		"type": "relic", "id": "relic_speed",
 		"conditions": {
 		  "min_dispatch_count": 10, "min_dialogue_count": 5,

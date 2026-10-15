@@ -124,9 +124,9 @@ func setup_unit(stats_data: UnitData, start_cell: Vector2i, initial_items: Array
 	has_attacked = false
 	has_acted = false
 	can_act_this_turn = true
-	remaining_move = unit_stats.move_range
+	remaining_move = get_total_move_range()
 	used_move = 0
-	previous_remaining_move = unit_stats.move_range
+	previous_remaining_move = get_total_move_range()
 	is_gray = false
 
 	weapon_slot = null
@@ -422,7 +422,7 @@ func restore_from_unit_data(data: UnitData, cell: Vector2i):
 	grid_cell = cell
 	previous_grid_cell = cell
 	hit_points = data.hit_points
-	remaining_move = data.move_range
+	remaining_move = get_total_move_range()
 	can_act_this_turn = true
 	has_moved = false
 	has_attacked = false
@@ -522,10 +522,11 @@ func reset_turn():
 	has_acted = false
 	used_non_attack_item_this_turn = false
 	movement_after_attack = false
-	remaining_move = unit_stats.move_range
+	var total_move : int = get_total_move_range()
+	remaining_move = total_move
 	used_move = 0
 	moves_since_act = 0
-	previous_remaining_move = unit_stats.move_range
+	previous_remaining_move = total_move
 	relic_turn_first_hit_regen_used = false
 	set_gray(false)
 	play_animation("idle")
@@ -824,3 +825,10 @@ func can_counter() -> bool:
 func set_hp_label_visible(v: bool) -> void:
 	var hp = get_node_or_null("HPLabel")
 	if hp: hp.visible = v
+
+
+func get_total_move_range() -> int:
+	var base : int = unit_stats.move_range
+	if unit_stats.team_id == 0:
+		base += SoulFireManager.get_move_bonus()
+	return base
