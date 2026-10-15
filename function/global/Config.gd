@@ -56,6 +56,7 @@ const PATHS : Dictionary = {
 	"SACRIFICE_UI":         "res://content/scenes/ui/SacrificeUI.tscn",
 	"CHAPEL_UI":            "res://content/scenes/ui/ChapelUI.tscn",
 	"DISPATCH_UI":          "res://content/scenes/ui/DispatchUI.tscn",
+	"TALENT_UNLOCK_UI":     "res://content/scenes/ui/TalentUnlockUI.tscn",
 
 	# 脚本
 	"DAMAGE_POPUP_SCRIPT":      "res://function/script/DamagePopup.gd",

@@ -22,6 +22,8 @@ static func do_sacrifice(party: Array, unit: UnitData) -> Dictionary:
 	unit.hit_points = 0
 
 	GameState.sacrifice_count += 1
+	# ★ v4.1：数据埋点 — 献祭
+	AnalyticsLogger.record_sacrifice()
 	var reward : Dictionary = get_reward_preview(GameState.sacrifice_count)
 
 	# ★ 改为给魂火（受上限压制，溢出浪费）

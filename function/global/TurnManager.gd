@@ -171,6 +171,10 @@ func start_turn(team: Team):
 	InputManager.current_highlight_cells = {}
 	SignalBus.request_clear_highlight.emit()
 
+	# ★ v4.1：数据埋点 — 玩家回合采样魂火状态
+	if team == Team.PLAYER:
+		AnalyticsLogger.record_soul_fire_sample()
+
 	for unit in UnitManager.unit_list:
 		if unit.hit_points > 0:
 			unit.is_gray = false

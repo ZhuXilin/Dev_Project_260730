@@ -67,7 +67,7 @@ func _refresh_units():
 
 	if GameState.party.is_empty():
 		var lb = Label.new()
-		lb.text = "（暂无队伍）"
+		lb.text = "（暂无队伍，请先在营地大门组队）"
 		lb.add_theme_font_size_override("font_size", 7)
 		lb.modulate = Color(0.6, 0.6, 0.6)
 		unit_row.add_child(lb)
@@ -174,9 +174,13 @@ func _get_unit_tags(unit_name: String) -> Array:
 
 func _refresh_dispatch_btn():
 	if not dispatch_btn: return
-	var ok : bool = (not _selected_units.is_empty()) and _selected_route != ""
+	var has_team : bool = not GameState.party.is_empty()
+	var ok : bool = has_team and (not _selected_units.is_empty()) and _selected_route != ""
 	dispatch_btn.disabled = not ok
-	dispatch_btn.text = "派遣 (%d/2)" % _selected_units.size()
+	if not has_team:
+		dispatch_btn.text = "派遣（无队伍）"
+	else:
+		dispatch_btn.text = "派遣 (%d/2)" % _selected_units.size()
 
 
 func _on_unit_toggled(pressed: bool, unit_name: String, btn : Button):

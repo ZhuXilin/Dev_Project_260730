@@ -1,0 +1,70 @@
+[gd_scene format=3 uid="uid://dm63qe7tllbg7"]
+
+[ext_resource type="Script" uid="uid://c6wgtih24ugdi" path="res://function/script/TalentUnlockUI.gd" id="1_script"]
+[ext_resource type="StyleBox" uid="uid://6qbsaxkfwg3o" path="res://content/resource/stylebox/8bit_style_box_flat.tres" id="2_style"]
+
+[node name="TalentUnlockUI" type="CanvasLayer" unique_id=999000101]
+layer = 28
+script = ExtResource("1_script")
+
+[node name="Background" type="ColorRect" parent="." unique_id=999000102]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.10980392, 0.10980392, 0.10980392, 1)
+
+[node name="Panel" type="Panel" parent="." unique_id=999000103]
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -180.0
+offset_top = -110.0
+offset_right = 180.0
+offset_bottom = 110.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_styles/panel = ExtResource("2_style")
+
+[node name="VBox" type="VBoxContainer" parent="Panel" unique_id=999000104]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 10.0
+offset_top = 10.0
+offset_right = -10.0
+offset_bottom = -10.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 6
+
+[node name="Title" type="Label" parent="Panel/VBox" unique_id=999000105]
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+text = "选择词条"
+horizontal_alignment = 1
+
+[node name="Hint" type="Label" parent="Panel/VBox" unique_id=999000106]
+modulate = Color(0.7, 0.7, 0.7, 1)
+layout_mode = 2
+theme_override_font_sizes/font_size = 7
+text = "解锁一项词条（永久生效）"
+horizontal_alignment = 1
+
+[node name="TabBar" type="HBoxContainer" parent="Panel/VBox" unique_id=999000107]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="TalentScroll" type="ScrollContainer" parent="Panel/VBox" unique_id=999000108]
+layout_mode = 2
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+
+[node name="TalentList" type="VBoxContainer" parent="Panel/VBox/TalentScroll" unique_id=999000109]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 4

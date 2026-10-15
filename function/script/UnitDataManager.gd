@@ -211,7 +211,52 @@ static func create_unit_data(unit_name: String) -> UnitData:
 
 	# ★ 批次 4：应用属性加点
 	_apply_attr_points_to_unit(key, data)
+	# ★ v4.1：应用属性上限加成
+	_apply_attr_cap_bonus(key, data)
 	return data
+
+
+# ============================================================
+#  ★ v4.1：单位属性上限（attr_cap_levels）
+# ============================================================
+## 读取单位的属性上限等级表（每级净增）
+## 返回格式：[{"strength": 1, "vitality": 1}, {...}, {...}]
+## 未配置的单位 → 返回空数组（表示不可升级）
+static func get_attr_cap_levels(unit_type: String) -> Array:
+	var key : String = normalize_unit_key(unit_type)
+	var dict : Dictionary = get_unit_data(key)
+	var levels : Variant = dict.get("attr_cap_levels", [])
+	if levels is Array:
+		return (levels as Array).duplicate(true)
+	return []
+
+
+## 检查单位是否支持属性上限系统
+static func has_attr_cap_levels(unit_type: String) -> bool:
+	return not get_attr_cap_levels(unit_type).is_empty()
+
+
+## 累计某等级（含）之前的全部加成
+## cur_lv = 当前 LV（0 = 无加成）
+static func get_attr_cap_total_bonus(unit_type: String, cur_lv: int) -> Dictionary:
+	var levels : Array = get_attr_cap_levels(unit_type)
+	var total : Dictionary = {}
+	for i in range(mini(cur_lv, levels.size())):
+		var lv_dict : Dictionary = levels[i]
+		for k in lv_dict:
+			total[k] = total.get(k, 0) + int(lv_dict[k])
+	return total
+
+
+## 应用属性上限加成到 UnitData（create_unit_data 时调用）
+static func _apply_attr_cap_bonus(unit_key: String, data: UnitData) -> void:
+	var cur_lv : int = int(GameState.unit_attr_cap.get(unit_key, 0))
+	if cur_lv <= 0: return
+	var total : Dictionary = get_attr_cap_total_bonus(unit_key, cur_lv)
+	if total.is_empty(): return
+	for k in total:
+		_apply_one_attr(data, k, int(total[k]))
+	print("[属性上限] %s 已应用 Lv%d 加成：%s" % [unit_key, cur_lv, total])
 
 
 static func _apply_attr_points_to_unit(unit_key: String, data: UnitData):

@@ -88,6 +88,9 @@ func _resolve_completion(completed: Array):
 				break
 		gained += bonus
 
+		# ★ v4.1：数据埋点 — 派遣完成
+		AnalyticsLogger.record_dispatch(bonus > 0)
+
 		GameState.soul += gained
 		var entry : Dictionary = {
 			"unit_name": d.unit_name,

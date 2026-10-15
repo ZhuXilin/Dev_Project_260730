@@ -895,6 +895,12 @@ func _show_summary(success: bool, reason: String, skip_music: bool = false):
 	if not is_inside_tree():
 		return
 
+	# ★ v4.1：通关（撤离 或 生存全通）弹词条解锁面板
+	if success and reason in ["撤离", "生存通过"]:
+		await _open_talent_unlock()
+		if not is_inside_tree():
+			return
+
 	_return_to_idle()
 
 
@@ -941,6 +947,30 @@ func _add_talent_exp_to_all(exp_gain: int) -> Array:
 		if not r2.is_empty(): results.append(r2)
 
 	return results
+
+
+# ============================================================
+#  ★ v4.1：词条解锁面板（竞技场通关奖励）
+# ============================================================
+func _open_talent_unlock():
+	# 前置检查：是否还有未解锁词条
+	var remaining : int = 0
+	for tid in TalentManager.get_all_talent_ids():
+		if tid not in Globals.unlocked_talents:
+			remaining += 1
+	if remaining == 0:
+		print("[Arena] 所有词条已解锁，跳过选择面板")
+		return
+
+	if not ResourceLoader.exists(Config.PATHS.TALENT_UNLOCK_UI):
+		push_warning("[Arena] TalentUnlockUI 未找到: " + Config.PATHS.TALENT_UNLOCK_UI)
+		return
+
+	var scene = load(Config.PATHS.TALENT_UNLOCK_UI)
+	var ui = scene.instantiate()
+	add_child(ui)
+	await ui.closed
+	print("[Arena] 词条选择完成")
 
 
 func _add_one_talent_exp(unit_name: String, tid: String, exp_gain: int) -> Dictionary:

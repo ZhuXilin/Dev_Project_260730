@@ -78,6 +78,8 @@ func _ready():
 		generate_map(current_day)
 		_save_game()
 		_setup_ui()
+		# ★ v4.1：数据埋点 — 天数
+		AnalyticsLogger.record_day_reached(current_day)
 		return
 
 	var day_to_load = GameState.current_day
@@ -105,6 +107,8 @@ func _ready():
 	_save_game()
 	_setup_ui()
 	update_all_displays()
+	# ★ v4.1：数据埋点 — 天数
+	AnalyticsLogger.record_day_reached(current_day)
 	print("MapScene _ready: temp_gold=", GameState.temp_gold)
 
 	_detail_popup = load(Config.PATHS.ITEM_DETAIL_POPUP).instantiate()

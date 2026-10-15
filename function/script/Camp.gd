@@ -18,13 +18,14 @@ func _ready():
 
 	_connect_buttons()
 	_load_art()
+	_ensure_default_party()
 	update_display()
 	_play_camp_music()
 
-	# 随机关闭派遣路线
+	# ★ 方向 6：随机关闭派遣路线
 	DispatchManager.rotate_routes()
 
-	# 显示上次派遣结果（如果有）
+	# ★ v4.1：显示上次派遣结果（如果有）
 	_show_dispatch_results()
 
 
@@ -75,6 +76,27 @@ func _load_art():
 
 	# ★ 方向 6：亲密度显示
 	_update_affinity_display()
+
+
+## ★ v4.1：若队伍为空，自动填充默认三人，保证派遣等功能可用。
+## 玩家点大门进 UnitSelectUI 时可以覆盖（initialize_party 会重建）。
+func _ensure_default_party():
+	if not GameState.party.is_empty():
+		return
+	var defaults : Array = Globals.unlock_config.get("default_unlocked", [])
+	if defaults.is_empty():
+		push_warning("[Camp] unlock_config.default_unlocked 为空，无法填充默认队伍")
+		return
+	var take : int = mini(3, defaults.size())
+	var selected : Array[String] = []
+	for i in range(take):
+		var u : Variant = defaults[i]
+		if u is String and (u as String) != "":
+			selected.append(u)
+	if selected.is_empty():
+		return
+	GameState.initialize_party(selected, 0)
+	print("[Camp] 自动填充默认队伍：" + str(selected))
 
 
 # ============================================================

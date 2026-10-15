@@ -422,6 +422,8 @@ func start_new_cycle():
 	if BossMechanicManager:
 		BossMechanicManager.setup_for_node(false)
 	SaveManager.auto_save()
+	# ★ v4.1：数据埋点 — 开局
+	AnalyticsLogger.begin_run()
 
 func finish_day(grant_slot: bool = true):
 	soul += SoulFireManager.settle()
@@ -439,11 +441,14 @@ func finish_cycle():
 		Globals.reload_talent_unlock()
 	DispatchManager.advance_run()
 	AuraManager.advance_research()
+	AnalyticsLogger.finish_run(true)
 
 func abandon_cycle():
 	temp_gold = 0
 
 func abandon_and_return_to_camp():
+	# ★ v4.1：数据埋点 — 放弃/失败
+	AnalyticsLogger.finish_run(false)
 	SoulFireManager.settle()
 	await Globals.show_cycle_reward()
 	finish_day(false)

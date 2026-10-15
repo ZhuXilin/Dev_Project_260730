@@ -10,9 +10,13 @@
 	"default_talents": ["crit"],
 	"max_talent_slots": 1,
 	"arena_exp": 30,
-	"available_blessings": ["strength", "dexterity"],
 	"tags": ["物理", "守护"],
 	"sacrifice_buff": { "type": "attack_percent", "value": 0.20, "display": "全队攻击 +20%" },
+	"attr_cap_levels": [
+	  { "strength": 1, "vitality": 1 },
+	  { "strength": 1, "dexterity": 1 },
+	  { "strength": 1, "dexterity": 1, "vitality": 2 }
+	],
 	"advanced_branches": [
 	  { "id": "swordsman_berserker", "name": "狂战士",
 		"description": "烈焰形态，攻击 +50%，每次攻击消耗 1 魂火",
@@ -39,9 +43,13 @@
 	"default_talents": ["crit"],
 	"max_talent_slots": 1,
 	"arena_exp": 35,
-	"available_blessings": ["strength", "dexterity", "vitality"],
 	"tags": ["物理", "守护"],
 	"sacrifice_buff": { "type": "counter_damage_bonus", "value": 0.40, "display": "全队反击伤害 +40%" },
+	"attr_cap_levels": [
+	  { "strength": 1, "vitality": 2 },
+	  { "strength": 1, "dexterity": 1 },
+	  { "strength": 1, "dexterity": 1, "vitality": 2 }
+	],
 	"advanced_branches": [
 	  { "id": "spearman_dragoon", "name": "龙骑将",
 		"description": "跃击破空，反击强化",
@@ -69,10 +77,14 @@
 	"default_talents": ["block"],
 	"max_talent_slots": 1,
 	"arena_exp": 25,
-	"available_blessings": ["strength", "vitality"],
 	"tags": ["物理", "烈焰"],
 	"core_trait": "charge",
 	"sacrifice_buff": { "type": "crit_damage_bonus", "value": 0.40, "display": "全队暴击伤害 +40%" },
+	"attr_cap_levels": [
+	  { "strength": 2, "vitality": 1 },
+	  { "strength": 1, "vitality": 2 },
+	  { "vitality": 4 }
+	],
 	"advanced_branches": [
 	  { "id": "axeman_berserker", "name": "狂战士",
 		"description": "血战不休，攻击吸血",
@@ -99,9 +111,13 @@
 	"default_talents": ["crit"],
 	"max_talent_slots": 1,
 	"arena_exp": 30,
-	"available_blessings": ["dexterity", "arcane"],
 	"tags": ["物理", "灰烬"],
 	"sacrifice_buff": { "type": "crit_damage_bonus", "value": 0.20, "display": "全队暴击伤害 +20%" },
+	"attr_cap_levels": [
+	  { "dexterity": 1, "vitality": 1 },
+	  { "dexterity": 2 },
+	  { "dexterity": 1, "arcane": 1, "vitality": 1 }
+	],
 	"advanced_branches": [
 	  { "id": "archer_sniper", "name": "神射手",
 		"description": "一击必中，二次攻击",
@@ -128,9 +144,13 @@
 	"default_talents": ["crit"],
 	"max_talent_slots": 1,
 	"arena_exp": 40,
-	"available_blessings": ["dexterity", "arcane", "vitality"],
 	"tags": ["物理", "守护"],
 	"sacrifice_buff": { "type": "counter_damage_bonus", "value": 0.25, "display": "全队反击伤害 +25%" },
+	"attr_cap_levels": [
+	  { "dexterity": 1, "vitality": 2 },
+	  { "dexterity": 1, "arcane": 1 },
+	  { "dexterity": 1, "vitality": 2 }
+	],
 	"advanced_branches": [
 	  { "id": "pegasus_valkyrie", "name": "女武神",
 		"description": "天空之主，暴击猎手",
@@ -157,9 +177,13 @@
 	"default_talents": ["spell_chain"],
 	"max_talent_slots": 1,
 	"arena_exp": 35,
-	"available_blessings": ["intelligence", "faith"],
 	"tags": ["法术", "烈焰"],
 	"sacrifice_buff": { "type": "attack_percent", "value": 0.25, "display": "全队攻击 +25%" },
+	"attr_cap_levels": [
+	  { "intelligence": 1, "faith": 1 },
+	  { "intelligence": 2 },
+	  { "intelligence": 1, "faith": 1, "vitality": 1 }
+	],
 	"advanced_branches": [
 	  { "id": "mage_archmage", "name": "大魔导",
 		"description": "奥术极致，法术连击",
@@ -186,9 +210,13 @@
 	"default_talents": ["heal_boost"],
 	"max_talent_slots": 1,
 	"arena_exp": 30,
-	"available_blessings": ["faith", "intelligence", "vitality"],
 	"tags": ["法术", "献祭"],
 	"sacrifice_buff": { "type": "heal_bonus", "value": 0.40, "display": "全队治疗量 +40%" },
+	"attr_cap_levels": [
+	  { "faith": 1, "intelligence": 1 },
+	  { "faith": 2 },
+	  { "faith": 1, "intelligence": 1, "vitality": 2 }
+	],
 	"advanced_branches": [
 	  { "id": "cleric_saint", "name": "圣者",
 		"description": "神恩眷顾，治疗强化",
@@ -215,10 +243,14 @@
 	"default_talents": ["parry"],
 	"max_talent_slots": 1,
 	"arena_exp": 60,
-	"available_blessings": ["strength", "arcane", "intelligence"],
 	"tags": ["法术", "余烬"],
 	"core_trait": "dragon_might",
 	"sacrifice_buff": { "type": "damage_reduction", "value": 0.15, "display": "全队减伤 +15%" },
+	"attr_cap_levels": [
+	  { "strength": 1, "arcane": 1 },
+	  { "arcane": 1, "vitality": 3 },
+	  { "strength": 1, "arcane": 2, "intelligence": 1 }
+	],
 	"advanced_branches": [
 	  { "id": "dragonborn_dragonlord", "name": "龙领主",
 		"description": "龙威降临，铁壁坚守",
@@ -245,10 +277,14 @@
 	"default_talents": ["block"],
 	"max_talent_slots": 1,
 	"arena_exp": 55,
-	"available_blessings": ["strength", "vitality", "faith"],
 	"tags": ["物理", "守护"],
 	"core_trait": "bulwark",
 	"sacrifice_buff": { "type": "defense_flat", "value": 3, "display": "全队防御 +3" },
+	"attr_cap_levels": [
+	  { "strength": 1, "vitality": 3 },
+	  { "strength": 1, "faith": 1 },
+	  { "vitality": 5, "faith": 1 }
+	],
 	"advanced_branches": [
 	  { "id": "armored_paladin", "name": "圣骑士",
 		"description": "神盾铁壁，反弹一切",

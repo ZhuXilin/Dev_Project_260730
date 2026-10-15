@@ -121,6 +121,10 @@ func init(units: Array, slot: int, mode: int, context: EquipContext = null):
 	_copy_party_data()
 	_build_ui()
 
+	# ★ v4.1：数据埋点 — FORGE 会话开始计时
+	if current_mode == Mode.FORGE:
+		AnalyticsLogger.begin_forge_session()
+
 
 func _on_shop_updated():
 	_update_gold_display()
@@ -162,6 +166,9 @@ func _on_close_pressed():
 	_sync_all()
 	_context.mark_cancelled()
 	_is_closing = true
+	# ★ v4.1：数据埋点 — FORGE 会话结束
+	if current_mode == Mode.FORGE:
+		AnalyticsLogger.finish_forge_session()
 	if shop_manager:
 		if shop_manager.shop_updated.is_connected(_on_shop_updated):
 			shop_manager.shop_updated.disconnect(_on_shop_updated)
