@@ -1,6 +1,6 @@
 # TextureRescale · 像素缩放工具
 
-一个纯前端的像素图缩放 / 清理 / 拆分工具，适用于分辨率处理、颜色精简和 spritesheet 拆分导出。
+纯前端的像素图缩放 / 清理 / 拆分工具，适用于分辨率处理、颜色精简和 spritesheet 拆分导出。
 
 A pure front-end pixel rescale / cleanup / split tool for resolution handling, color reduction and spritesheet splitting.
 
@@ -20,7 +20,7 @@ TextureRescale 是一款轻量的像素图处理工具，专注于「缩放」�
 
 1. 用浏览器打开 `TextureRescale.html`。
 2. 点击 `打开图片` 或直接拖入图片。
-3. 在顶部输入框中修改 `W`（宽）/ `H`（高），或点击 `½` / `¼` / `⅛` / `×2` 快速缩放。
+3. 修改 `W`（宽）/ `H`（高），或点击 `½` / `¼` / `⅛` / `×2` 快速缩放。
 4. 勾选 `锁定比例` 保持宽高比。
 5. 完成后 `保存 PNG` 或 `另存为…`。
 
@@ -42,11 +42,8 @@ TextureRescale 是一款轻量的像素图处理工具，专注于「缩放」�
 | ×2 | 图片尺寸放大 2 倍 |
 | 宽 / 高 | 输入目标尺寸 |
 | 锁定比例 | 保持原始宽高比 |
+| 显示像素格 | 勾选后，在缩放 ≥ 400% 时显示像素格 |
 | 背景 | 循环切换 白底 / 灰底 / 黑底 / 格子 |
-| 选择 | 切换选择模式（默认开） |
-| 全选 / 取消选择 / 反选 | 选区操作 |
-| 复制 | 复制选区为新 PNG |
-| 删除选区 | 将选区像素变为透明 |
 | 清理像素 | 去除杂色、半透明 |
 | 颜色统计… | 统计图片使用的全部颜色 |
 | 合并相似色… | 合并相近颜色 |
@@ -56,14 +53,14 @@ TextureRescale 是一款轻量的像素图处理工具，专注于「缩放」�
 
 **底部状态栏**
 
-- 原始尺寸、当前尺寸、视图缩放比
-- 选区信息
-- 历史步数
-- 临时状态消息
+- 左侧：原始尺寸、当前尺寸、视图缩放比、选区信息、历史步数、操作提示
+- 右侧：**鼠标当前像素坐标**（格式 `x , y`）
+
+**选择工具**：默认开启（无需单独按钮），直接在画布上拖拽即可框选。
 
 ### 四、缩放
 
-1. **手动输入**：修改 `宽` 或 `高` 后按回车或点击其他区域。锁定比例时，只改一个值即可等比缩放。
+1. **手动输入**：修改 `宽` 或 `高` 后按回车或点击其他区域。锁定比例时只改一个值即可等比缩放。
 2. **快速按钮**：`½`、`¼`、`⅛`、`×2` 一键缩放。
 3. **拖拽手柄**：图片四周有 8 个控制点，可直接拖拽缩放（`Shift` 反向锁定比例）。
 4. **恢复**：点击 `原始尺寸` 回到载入时的尺寸。
@@ -78,7 +75,13 @@ TextureRescale 是一款轻量的像素图处理工具，专注于「缩放」�
 - 右键 = 取消当前选区。
 - `Ctrl+A` 全选，`Ctrl+D` 取消，`Ctrl+I` 反选。
 
-### 六、清理像素
+### 六、显示像素格
+
+- 勾选顶部 `显示像素格` 复选框。
+- 当视图缩放 ≥ 400%（`zoom ≥ 4`）时，画布上会叠加像素格线。
+- 缩放小于 400% 时不显示，避免视觉噪音。
+
+### 七、清理像素
 
 点击 `清理像素` 将执行：
 - 把 alpha < 128 的像素设为完全透明。
@@ -87,7 +90,7 @@ TextureRescale 是一款轻量的像素图处理工具，专注于「缩放」�
 
 适合去除抗锯齿残留、JPEG 压缩杂色。
 
-### 七、颜色处理
+### 八、颜色处理
 
 **颜色统计**
 - 点击 `颜色统计…` 打开模态框，列出图片中所有颜色及其出现次数。
@@ -105,7 +108,7 @@ TextureRescale 是一款轻量的像素图处理工具，专注于「缩放」�
 - 拖动 `相似阈值`（0 = 精确匹配，越大包含越多相近色）。
 - 点击 `应用删除`。
 
-### 八、拆分导出
+### 九、拆分导出
 
 1. 点击 `拆分导出…`。
 2. 输入 `列数` 和 `行数`。面板会实时显示每块的尺寸。
@@ -115,7 +118,7 @@ TextureRescale 是一款轻量的像素图处理工具，专注于「缩放」�
 
 导出文件命名格式：`原文件名_r行号_c列号.png`（行列均从 1 开始）。
 
-### 九、快捷键速查表
+### 十、快捷键速查表
 
 | 快捷键 | 功能 |
 | --- | --- |
@@ -130,7 +133,7 @@ TextureRescale 是一款轻量的像素图处理工具，专注于「缩放」�
 | 滚轮 | 缩放视图（`Ctrl + 滚轮` 更细腻） |
 | `Esc` | 关闭当前面板 / 取消选区 |
 
-### 十、常见问题
+### 十一、常见问题
 
 **Q：为什么缩小图片会丢失细节？**
 A：像素图缩放采用最近邻插值，缩小会按采样点丢弃像素。建议先放大处理，最后再统一缩小。
@@ -150,7 +153,7 @@ A：最多 24 步历史。可通过源码中的 `MAX_HISTORY` 修改。
 
 ### 1. Introduction
 
-TextureRescale is a lightweight pixel image tool focused on **rescaling**. It quickly enlarges or shrinks pixel art with hard edges (nearest-neighbor, no blur), plus a set of handy utilities: clean pixels, color stats, merge similar colors, delete color, and split export by rows/cols.
+TextureRescale is a lightweight pixel image tool focused on **rescaling**. It quickly enlarges or shrinks pixel art with hard edges (nearest-neighbor, no blur), plus utilities: clean pixels, color stats, merge similar colors, delete color, and split export by rows/cols.
 
 Default language is English, with one-click switch to Chinese. No installation — just open the HTML file.
 
@@ -158,7 +161,7 @@ Default language is English, with one-click switch to Chinese. No installation �
 
 1. Open `TextureRescale.html` in a modern browser.
 2. Click `Open Image` or drag & drop an image.
-3. Edit `W` (width) / `H` (height), or click `½` / `¼` / `⅛` / `×2`.
+3. Edit `W` / `H`, or click `½` / `¼` / `⅛` / `×2`.
 4. Keep `Lock Ratio` checked to preserve aspect ratio.
 5. `Save PNG` or `Save As…` when done.
 
@@ -180,11 +183,8 @@ Default language is English, with one-click switch to Chinese. No installation �
 | ×2 | Enlarge image 2× |
 | W / H | Target width / height |
 | Lock Ratio | Preserve aspect ratio |
+| Show Pixel Grid | Toggle pixel grid overlay (visible at zoom ≥ 400%) |
 | Background | Cycle White / Gray / Black / Checker |
-| Select | Toggle selection mode (on by default) |
-| Select All / Deselect / Invert | Selection operations |
-| Copy | Copy selection as a new PNG |
-| Delete Selection | Make selection transparent |
 | Clean Pixels | Remove noise & semi-transparency |
 | Color Stats… | Count all colors used |
 | Merge Similar… | Merge nearby colors |
@@ -194,10 +194,10 @@ Default language is English, with one-click switch to Chinese. No installation �
 
 **Status bar**
 
-- Original size, current size, zoom
-- Selection info
-- History step
-- Transient message
+- Left: original size, current size, zoom, selection info, history step, hint
+- Right: **current mouse pixel coordinate** (`x , y`)
+
+**Selection tool** is enabled by default — just drag on the canvas to select; no dedicated button.
 
 ### 4. Rescaling
 
@@ -206,7 +206,7 @@ Default language is English, with one-click switch to Chinese. No installation �
 3. **Drag handles**: 8 handles around the image let you resize directly (`Shift` inverts the ratio lock behavior).
 4. **Restore**: click `Original Size`.
 
-All rescaling uses **nearest-neighbor interpolation** (no blur), preserving crisp pixel edges.
+All rescaling uses **nearest-neighbor interpolation**, preserving crisp pixel edges.
 
 ### 5. Selection
 
@@ -216,7 +216,13 @@ All rescaling uses **nearest-neighbor interpolation** (no blur), preserving cris
 - Right-click = clear selection.
 - `Ctrl+A` select all, `Ctrl+D` deselect, `Ctrl+I` invert.
 
-### 6. Clean Pixels
+### 6. Show Pixel Grid
+
+- Check the `Show Pixel Grid` checkbox in the toolbar.
+- When view zoom ≥ 400% (`zoom ≥ 4`), a pixel grid overlay is drawn on the canvas.
+- Hidden at lower zoom to avoid visual clutter.
+
+### 7. Clean Pixels
 
 Click `Clean Pixels` to:
 - Set pixels with alpha < 128 fully transparent.
@@ -225,7 +231,7 @@ Click `Clean Pixels` to:
 
 Ideal for removing anti-aliasing remnants and JPEG artifacts.
 
-### 7. Color Handling
+### 8. Color Handling
 
 **Color Stats**
 - Click `Color Stats…` to open a modal listing every color and its count.
@@ -234,7 +240,7 @@ Ideal for removing anti-aliasing remnants and JPEG artifacts.
 **Merge Similar Colors**
 - Click `Merge Similar…`.
 - Drag the `Similarity` slider (1–100, RGB Euclidean distance).
-- The panel shows before/after color counts live.
+- Panel shows before/after color counts live.
 - Click `Apply Merge`.
 
 **Delete Color**
@@ -243,7 +249,7 @@ Ideal for removing anti-aliasing remnants and JPEG artifacts.
 - Adjust `Similarity` (0 = exact match, larger includes more nearby colors).
 - Click `Apply`.
 
-### 8. Split Export
+### 9. Split Export
 
 1. Click `Split Export…`.
 2. Enter `Cols` and `Rows`. Tile size is shown live.
@@ -253,7 +259,7 @@ Ideal for removing anti-aliasing remnants and JPEG artifacts.
 
 File naming: `basename_r{row}_c{col}.png` (rows/cols start at 1).
 
-### 9. Keyboard Shortcuts
+### 10. Keyboard Shortcuts
 
 | Shortcut | Action |
 | --- | --- |
@@ -268,7 +274,7 @@ File naming: `basename_r{row}_c{col}.png` (rows/cols start at 1).
 | Mouse wheel | Zoom view (`Ctrl + wheel` for finer steps) |
 | `Esc` | Close current panel / deselect |
 
-### 10. FAQ
+### 11. FAQ
 
 **Q: Why do details get lost when shrinking?**
 A: Nearest-neighbor sampling drops pixels when shrinking. For best results, work at high resolution first, then shrink at the very end.
