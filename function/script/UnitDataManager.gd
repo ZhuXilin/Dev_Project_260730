@@ -115,7 +115,8 @@ static func get_display_name_full(unit_name: String) -> String:
 	var key = _normalize_unit_key(unit_name)
 	var data = get_unit_data(key)
 	if data.is_empty():
-		return unit_name + "|未知|未知"
+		# ★ v4.1：无数据时返回原始 key（供 UI 层继续处理）
+		return key
 	var display = data.get("display_name", "")
 	if display == "":
 		display = _unit_display_name.get(key, key)

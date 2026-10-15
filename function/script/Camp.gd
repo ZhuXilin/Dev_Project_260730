@@ -291,11 +291,19 @@ func _show_unlock_toast(utype: String, uid: String):
 			var rd = RelicManager.get_relic_data(uid)
 			msg = "★ 新遗物：%s" % rd.get("name", uid)
 		"aura":
-			msg = "★ 新光环：%s" % uid
+			msg = "★ 新光环：%s" % AuraManager.get_display_name(uid)
 		"transform_branch":
 			msg = "★ 隐藏质变分支解锁"
+		"route":                                    # ★ v4.1
+			var route : Dictionary = DispatchManager.ROUTES.get(uid, {})
+			msg = "★ 新派遣路线：%s" % route.get("name", uid)
+		"talent":                                   # ★ v4.1（预留）
+			var td = TalentManager.get_talent_data(uid)
+			msg = "★ 新词条：%s" % (td.display_name if td else uid)
 	if msg == "": return
 	print("[Camp] " + msg)
+	# ★ v4.1：把解锁提示显示在营地上
+	_show_floating_toast(msg)
 
 
 # ============================================================

@@ -17,6 +17,10 @@ var _equipment_config_instance = null
 
 const EquipmentConfig = preload(Config.PATHS.EQUIPMENT_CONFIG_SCRIPT)
 
+const COLOR_DISPATCHED : Color = Color(0.4, 0.4, 0.4, 1)
+const COLOR_DISABLED   : Color = Color(0.5, 0.5, 0.5, 1)
+const COLOR_NORMAL     : Color = Color.WHITE
+
 
 func _ready():
 	if MusicManager.config and MusicManager.config.unit_select_music:
@@ -39,6 +43,9 @@ func _make_label_clickable(label: Label, index: int):
 	label.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 
 
+# ============================================================
+#  单位按钮（v4.1：派遣中显示但禁用）
+# ============================================================
 func _setup_unit_buttons():
 	for child in unit_buttons.get_children():
 		child.queue_free()
@@ -49,27 +56,50 @@ func _setup_unit_buttons():
 	var dispatched : Array = DispatchManager.get_dispatched_unit_names()
 
 	for unit_name in unlocked:
-		if unit_name in dispatched:
+		# ★ 数据防护：跳过 unit_data.json 里没有定义的单位
+		var dict : Dictionary = UnitDataManager.get_unit_data(unit_name)
+		if dict.is_empty():
+			push_warning("[UnitSelectUI] 跳过无数据的单位：%s" % unit_name)
 			continue
+
 		var display_name = UnitDataManager.get_display_name_full(unit_name)
+		var is_dispatched : bool = unit_name in dispatched
+
 		var btn = Button.new()
 		btn.text = display_name
 		btn.set_meta("unit_name", unit_name)
 		btn.add_theme_font_size_override("font_size", 8)
 		btn.size = Vector2(100, 30)
-		var selected = unit_name in selected_units
-		btn.disabled = selected
-		btn.modulate = Color(0.5, 0.5, 0.5) if selected else Color.WHITE
-		btn.pressed.connect(_on_unit_selected.bind(unit_name, btn))
+
+		if is_dispatched:
+			# ★ 派遣中：显示但禁用
+			btn.text = display_name + "  [派遣中]"
+			btn.disabled = true
+			btn.modulate = COLOR_DISPATCHED
+		elif unit_name in selected_units:
+			# 已选：显示但禁用
+			btn.disabled = true
+			btn.modulate = COLOR_DISABLED
+		else:
+			btn.disabled = false
+			btn.modulate = COLOR_NORMAL
+			btn.pressed.connect(_on_unit_selected.bind(unit_name, btn))
+
 		btn.mouse_entered.connect(_on_unit_hover.bind(unit_name))
 		btn.mouse_exited.connect(_on_unit_hover_exit)
 		unit_buttons.add_child(btn)
 
 
+# ============================================================
+#  悬停显示详情
+# ============================================================
 func _on_unit_hover(unit_name: String):
 	if not info_name: return
 	var unit_dict = UnitDataManager.get_unit_data(unit_name)
 	if unit_dict.is_empty():
+		info_name.text = "（无数据）"
+		info_stats.text = ""
+		info_desc.text = "该单位在 unit_data.json 中未定义。"
 		return
 
 	var display = unit_dict.get("display_name", unit_name)
@@ -86,6 +116,12 @@ func _on_unit_hover(unit_name: String):
 	lines.append("信仰    %d" % unit_dict.get("faith", 0))
 	lines.append("感应    %d" % unit_dict.get("arcane", 0))
 	lines.append("移动力  %d" % unit_dict.get("move_range", 0))
+
+	# ★ 显示派遣状态提示
+	if DispatchManager.is_unit_dispatched(unit_name):
+		lines.append("")
+		lines.append("【派遣中，本局不能出战】")
+
 	info_stats.text = "\n".join(lines)
 
 	info_desc.text = unit_dict.get("description", "")
@@ -98,11 +134,14 @@ func _on_unit_hover_exit():
 	info_desc.text = ""
 
 
+# ============================================================
+#  选择 / 取消选择
+# ============================================================
 func _on_unit_selected(unit_name: String, btn: Button):
 	if unit_name in selected_units:
 		selected_units.erase(unit_name)
 		btn.disabled = false
-		btn.modulate = Color.WHITE
+		btn.modulate = COLOR_NORMAL
 		_update_labels()
 		SoundManager.play_cancel_sound()
 		return
@@ -113,7 +152,7 @@ func _on_unit_selected(unit_name: String, btn: Button):
 
 	selected_units.append(unit_name)
 	btn.disabled = true
-	btn.modulate = Color(0.5, 0.5, 0.5)
+	btn.modulate = COLOR_DISABLED
 	_update_labels()
 	SoundManager.play_select_sound()
 
@@ -125,7 +164,7 @@ func _on_slot_clicked(index: int):
 		for child in unit_buttons.get_children():
 			if child is Button and child.get_meta("unit_name") == unit_name:
 				child.disabled = false
-				child.modulate = Color.WHITE
+				child.modulate = COLOR_NORMAL
 				break
 		_update_labels()
 		SoundManager.play_cancel_sound()
@@ -143,6 +182,9 @@ func _update_labels():
 	confirm_btn.disabled = selected_units.size() < max_selection
 
 
+# ============================================================
+#  确认 / 返回
+# ============================================================
 func _on_confirm_pressed():
 	var main_unit_name = selected_units[0]
 	var selected_unit_names = selected_units.duplicate()

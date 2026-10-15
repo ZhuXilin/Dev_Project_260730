@@ -112,15 +112,7 @@
 		]
 	  }
 	],
-	"unlocks": [
-	  {
-		"type": "unit", "id": "keeper_shadow",
-		"conditions": {
-		  "min_altar_level": 3, "min_dialogue_count": 5,
-		  "flags": ["keeper_asked_why"]
-		}
-	  }
-	]
+	"unlocks": []
   },
 
   "blacksmith": {

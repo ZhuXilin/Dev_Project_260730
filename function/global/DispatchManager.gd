@@ -32,6 +32,12 @@ func is_unit_dispatched(unit_name: String) -> bool:
 	return false
 
 
+func is_route_busy(route_id: String) -> bool:
+	for d in active_dispatches:
+		if d.route_id == route_id: return true
+	return false
+
+
 func get_dispatched_unit_names() -> Array:
 	var names : Array = []
 	for d in active_dispatches:
@@ -39,19 +45,21 @@ func get_dispatched_unit_names() -> Array:
 	return names
 
 
-func dispatch(units: Array, route_id: String) -> bool:
-	if units.is_empty() or units.size() > 2: return false
+## ★ v4.1：单单位派遣。一条路线同时只能有一个派遣。
+func dispatch(unit_name: String, route_id: String) -> bool:
+	if unit_name == "": return false
 	if not unlocked_routes.has(route_id): return false
 	if not ROUTES.has(route_id): return false
-	for u in units:
-		if is_unit_dispatched(u): return false
+	if is_unit_dispatched(unit_name): return false
+	if is_route_busy(route_id): return false
+
 	var dur : int = ROUTES[route_id]["dur"]
 	# ★ 方向 6：游魂向导亲密度 ≥10 → 派遣时长 -1 局
 	if StoryManager.get_affinity("guide") >= 10:
 		dur = maxi(1, dur - 1)
-	for u in units:
-		active_dispatches.append({"unit_name": u, "route_id": route_id, "remaining_runs": dur})
-		dispatch_started.emit(u, route_id)
+
+	active_dispatches.append({"unit_name": unit_name, "route_id": route_id, "remaining_runs": dur})
+	dispatch_started.emit(unit_name, route_id)
 	SaveManager.auto_save()
 	return true
 
@@ -112,10 +120,12 @@ func consume_pending_results() -> Array:
 	return r
 
 
+## ★ v4.1：从 unit_data.json 直接读标签，不依赖 GameState.party
 func _get_unit_tags(unit_name: String) -> Array:
-	for u in GameState.party:
-		if u.unit_name == unit_name:
-			return u.tags
+	var dict : Dictionary = UnitDataManager.get_unit_data(unit_name)
+	var tags : Variant = dict.get("tags", [])
+	if tags is Array:
+		return tags
 	return []
 
 
