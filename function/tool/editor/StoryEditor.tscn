@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://b1no0g4mcbyc6"]
+
+[ext_resource type="Script" uid="uid://bh08dglryn8oe" path="res://function/tool/editor/StoryEditor.gd" id="1_script"]
+
+[node name="StoryEditor" type="Control" unique_id=900000001]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_script")
