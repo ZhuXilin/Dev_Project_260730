@@ -304,8 +304,8 @@ func _ready():
 
 	_turn_controller.apply_team_buffs()
 
-	# ★ 注意：BossMechanicManager.setup_for_node(is_boss) 已上移到 start_turn 之前
-	# 原位置的那行已删除
+	if _victory_handler:
+		_victory_handler.record_battle_start_hp()
 
 	# 预热面板
 	if setting_panel:

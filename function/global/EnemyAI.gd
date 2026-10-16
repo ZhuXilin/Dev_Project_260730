@@ -379,13 +379,12 @@ func _can_attack_from_cell(unit: Unit, cell: Vector2i) -> bool:
 	var weapon_data = unit.get_weapon_data()
 	if not weapon_data:
 		return false
-	var max_range : int = weapon_data.attack_range
+	var up_lv : int = unit.weapon_slot.upgrade_level if unit.weapon_slot else 0
+	var max_range : int = WeaponUpgradeHelper.get_effective_attack_range(weapon_data, up_lv)
 	var min_range : int = weapon_data.min_attack_range
 	for enemy in UnitManager.unit_list:
-		if enemy.unit_stats.team_id == unit.unit_stats.team_id:
-			continue
-		if enemy.hit_points <= 0:
-			continue
+		if enemy.unit_stats.team_id == unit.unit_stats.team_id: continue
+		if enemy.hit_points <= 0: continue
 		var dist = abs(cell.x - enemy.grid_cell.x) + abs(cell.y - enemy.grid_cell.y)
 		if dist >= min_range and dist <= max_range:
 			return true

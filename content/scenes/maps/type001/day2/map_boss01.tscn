@@ -59,6 +59,7 @@ position = Vector2(176, 144)
 script = ExtResource("2_bsw5k")
 unit_type = 5
 team = 1
+is_boss = true
 metadata/_custom_type_script = "uid://cjvddjaj43chx"
 
 [node name="BattleStartEvent" type="Node2D" parent="." unique_id=32031953]
