@@ -141,9 +141,9 @@ func _build_existing_relics():
 			btn.text = "（精炼）"
 			btn.disabled = true
 		elif p is Dictionary and p.get("type", "") == "aura":
-			# ★ 光环槽：不可被遗物替换
 			var aid : String = p.get("aura_id", "")
-			btn.text = "◆ " + AuraManager.get_display_name(aid)
+			btn.text = "✦ " + AuraManager.get_display_name(aid)   # ◆ → ✦，和 HUD 统一
+			btn.tooltip_text = "光环占用此槽（去 FORGE 的光环 tab 卸下）"
 			btn.disabled = true
 		else:
 			btn.text = "空"

@@ -400,6 +400,12 @@ func _validate_auras():
 		var tag : String = str(ad.get("tag", ""))
 		if tag != "" and tag not in VALID_SET_TAGS:
 			_warn(fname, "%s.tag" % aid, "未知标签: %s" % tag)
+		# ★ 加一段
+		var bc : int = int(ad.get("buy_cost", 0))
+		if bc <= 0:
+			_warn(fname, "%s.buy_cost" % aid, "缺少有效的购买价格 buy_cost（应为 4-8）")
+		elif bc < 4 or bc > 8:
+			_warn(fname, "%s.buy_cost" % aid, "购买价格 %d 超出建议范围（4-8）" % bc)
 
 
 # ============================================================
