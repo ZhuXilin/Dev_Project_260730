@@ -1,11 +1,6 @@
 class_name TurnController
 extends Node
 
-# ============================================================
-#  TurnController — 回合切换 + 战斗开始 buff
-#  含：所有批次改动（共鸣/光环/套装/词条/熔合/核心特性）
-# ============================================================
-
 var _bf : Node2D
 var _turn_changed_locked : bool = false
 
@@ -14,9 +9,6 @@ func _init(bf : Node2D):
 	_bf = bf
 
 
-# ============================================================
-#  强制解锁（Battlefield._exit_tree 调用）
-# ============================================================
 func force_unlock() -> void:
 	_turn_changed_locked = false
 
@@ -41,7 +33,6 @@ func handle_turn_change_async(team : int) -> void:
 	_turn_changed_locked = true
 	Globals.is_transitioning = true
 
-	# 收起所有面板
 	if is_instance_valid(_bf.menu_blocker):
 		_bf.menu_blocker.visible = false
 	if is_instance_valid(_bf.info_panel):
@@ -84,7 +75,6 @@ func handle_turn_change_async(team : int) -> void:
 		if fallback_pos:
 			_bf.camera_controller.smooth_move_to(fallback_pos, _bf.turnlayer_manager.transition_duration, true)
 
-	# 音乐
 	if not _bf.is_non_combat_mode:
 		var is_boss = GameState.current_map_data and GameState.current_map_data.node_type == MapNode.NodeType.BOSS
 		if is_boss:
@@ -133,13 +123,15 @@ func _get_center_position() -> Vector2:
 
 
 # ============================================================
-#  战斗开始 buff（所有批次集中）
+#  战斗开始 buff
 # ============================================================
 func apply_team_buffs() -> void:
 	var relic_stats = GameState.get_global_relic_stats()
 	var relic_effects = GameState.get_global_relic_effects()
 
-	# ---- 遗物 + 熔铸 buff（原有）----
+	# ★ v4.2：先把 GameState 里的光环同步到每个 unit
+	_sync_auras_to_units()
+
 	for unit in UnitManager.unit_list:
 		if unit.unit_stats.team_id != 0:
 			continue
@@ -187,30 +179,28 @@ func apply_team_buffs() -> void:
 
 		unit.update_hp_label()
 
-	# ---- 批次 1：火焰共鸣 ----
 	_apply_flame_resonance()
-
-	# ---- 批次 5A：光环被动 buff ----
 	_apply_aura_buffs()
-
-	# ---- 批次 6A：词条 HP / 移动 / 护盾 ----
 	_apply_affix_buffs()
-
-	# ---- 批次 6B：套装 buff ----
 	_apply_set_bonuses()
-
-	# ---- 方向 2：标签交叉效果 ----
 	_apply_cross_bonuses()
-
-	# ---- 方向 1：不灭薪火（战斗开始 +2 魂火）----
 	_apply_fusion_battle_start()
-
-	# ---- 方向 7：龙威 / 壁垒 ----
 	_apply_core_trait_auras()
 
 
+# ★ v4.2：从 GameState 同步光环到每个我方单位
+func _sync_auras_to_units():
+	var aura_ids : Array = GameState.get_auras_from_passives()
+	for unit in UnitManager.unit_list:
+		if unit.unit_stats.team_id != 0:
+			continue
+		unit.active_auras.clear()
+		for aid in aura_ids:
+			unit.active_auras[aid] = true
+
+
 # ============================================================
-#  批次 1：火焰共鸣
+#  火焰共鸣
 # ============================================================
 func _apply_flame_resonance():
 	var resonance : Dictionary = LevelManager.current_resonance
@@ -230,7 +220,7 @@ func _apply_flame_resonance():
 
 
 # ============================================================
-#  批次 5A：光环被动
+#  光环被动
 # ============================================================
 func _apply_aura_buffs():
 	for unit in UnitManager.unit_list:
@@ -259,7 +249,7 @@ func _apply_aura_passive(unit : Unit, aura_id : String):
 
 
 # ============================================================
-#  批次 6A：词条 HP/移动/护盾
+#  词条 HP/移动/护盾
 # ============================================================
 func _apply_affix_buffs():
 	for unit in UnitManager.unit_list:
@@ -286,7 +276,7 @@ func _apply_affix_buffs():
 
 
 # ============================================================
-#  批次 6B：套装 buff
+#  套装 buff
 # ============================================================
 func _apply_set_bonuses():
 	for unit in UnitManager.unit_list:
@@ -310,7 +300,7 @@ func _apply_set_bonuses():
 
 
 # ============================================================
-#  方向 2：标签交叉效果
+#  标签交叉效果
 # ============================================================
 func _apply_cross_bonuses():
 	var active : Array = SetBonusManager.get_active_cross_bonuses()
@@ -331,11 +321,10 @@ func _apply_cross_bonuses():
 					unit.unit_stats.max_hp += int(value)
 					unit.hit_points += int(value)
 					unit.update_hp_label()
-				# turn_regen / kill_soul_fire 由 TurnManager / CombatManager 处理
 
 
 # ============================================================
-#  方向 1：不灭薪火（战斗开始 +2）
+#  不灭薪火
 # ============================================================
 func _apply_fusion_battle_start():
 	for unit in UnitManager.unit_list:
@@ -348,12 +337,11 @@ func _apply_fusion_battle_start():
 
 
 # ============================================================
-#  方向 7：龙威 / 壁垒
+#  龙威 / 壁垒
 # ============================================================
 func _apply_core_trait_auras():
 	var dirs = [Vector2i(1,0), Vector2i(-1,0), Vector2i(0,1), Vector2i(0,-1)]
 
-	# 龙威：敌方受到龙人 -10% 攻击
 	for unit in UnitManager.unit_list:
 		if unit.unit_stats.team_id != 1:
 			continue
@@ -365,7 +353,6 @@ func _apply_core_trait_auras():
 				print("[龙威] %s 攻击 -10%%" % unit.unit_stats.unit_name)
 				break
 
-	# 壁垒：友军获得重甲 +15% 减伤
 	for unit in UnitManager.unit_list:
 		if unit.unit_stats.team_id != 0:
 			continue

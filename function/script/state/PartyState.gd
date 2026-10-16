@@ -10,7 +10,7 @@ var main_unit_name : String = ""
 var main_unit_index : int = 0
 var current_faction : String = ""
 
-# ---- 被动槽（纯遗物，共 4 格）----
+# ---- 被动槽（遗物 + 光环，共 4 格）----
 var equipped_passives : Array = []
 
 
@@ -108,3 +108,44 @@ func get_relics_from_passives() -> Array:
 		if p is ItemInstance:
 			result.append(p)
 	return result
+
+
+# ============================================================
+#  ★ v4.2：光环被动槽
+# ============================================================
+## 把光环放入第一个空槽；返回 true 表示成功
+func add_aura_to_passive_slot(aura_id: String) -> bool:
+	if aura_id == "":
+		return false
+	_ensure_passive_size()
+	# 已装备过就不重复
+	for i in range(MAX_PASSIVE_SLOTS):
+		var p : Variant = equipped_passives[i]
+		if p is Dictionary and p.get("type", "") == "aura" and p.get("aura_id", "") == aura_id:
+			return false
+	for i in range(MAX_PASSIVE_SLOTS):
+		if equipped_passives[i] == null:
+			equipped_passives[i] = {"type": "aura", "aura_id": aura_id}
+			return true
+	return false
+
+
+## 返回所有已装备的光环 id
+func get_auras_from_passives() -> Array:
+	var result : Array = []
+	for p in get_passives():
+		if p is Dictionary and p.get("type", "") == "aura":
+			var aid : String = p.get("aura_id", "")
+			if aid != "":
+				result.append(aid)
+	return result
+
+
+## 某个光环是否已装备
+func is_aura_equipped(aura_id: String) -> bool:
+	if aura_id == "":
+		return false
+	for p in get_passives():
+		if p is Dictionary and p.get("type", "") == "aura" and p.get("aura_id", "") == aura_id:
+			return true
+	return false

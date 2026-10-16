@@ -33,6 +33,10 @@ func set_passive_at_slot(idx: int, value) -> void:
 func remove_passive_at_slot(idx: int) -> void:
 	GameState.remove_passive_at_slot(idx)
 
+# ★ v4.2：光环购买
+func add_aura_to_passive_slot(aura_id: String) -> bool:
+	return GameState.add_aura_to_passive_slot(aura_id)
+
 # ---- 铁匠铺 ----
 func has_forge() -> bool:
 	return false
@@ -73,7 +77,7 @@ func on_confirm() -> void:
 	GameState.reset_progress()
 	LevelManager.start_game()
 
-# ---- 商店等级（★ 新增） ----
+# ---- 商店等级 ----
 func get_shop_level() -> int:
 	return GameState.shop_level
 

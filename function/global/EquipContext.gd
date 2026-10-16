@@ -30,6 +30,9 @@ func get_passives() -> Array: return []
 func set_passive_at_slot(_idx: int, _value) -> void: pass
 func remove_passive_at_slot(_idx: int) -> void: pass
 
+# ★ v4.2：光环购买（默认不支持，MainGameEquipContext 覆写）
+func add_aura_to_passive_slot(_aura_id: String) -> bool: return false
+
 # ---- 铁匠铺 ----
 func has_forge() -> bool: return false
 func get_weapon_upgrade_tokens() -> int: return 0

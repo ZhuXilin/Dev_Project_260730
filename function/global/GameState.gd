@@ -46,6 +46,15 @@ func add_relic_to_passive_slot(inst: ItemInstance) -> bool:
 	return party_state.add_relic_to_passive_slot(inst)
 func get_relics_from_passives() -> Array: return party_state.get_relics_from_passives()
 
+# ★ v4.2：光环槽转发
+func add_aura_to_passive_slot(aura_id: String) -> bool:
+	return party_state.add_aura_to_passive_slot(aura_id)
+func get_auras_from_passives() -> Array:
+	return party_state.get_auras_from_passives()
+func is_aura_equipped(aura_id: String) -> bool:
+	return party_state.is_aura_equipped(aura_id)
+
+
 # ============================================================
 #  ProgressState 转发
 # ============================================================

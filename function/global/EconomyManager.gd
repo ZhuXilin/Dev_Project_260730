@@ -2,6 +2,7 @@ extends Node
 
 # ============================================================
 #  EconomyManager — 战斗奖励（金币 + 魂火）
+#  v4.2：删除废弃的 reward_soul 读取（魂只由魂火 1:1 结算而来）
 # ============================================================
 
 const TYPE_NAME_TO_ID : Dictionary = {
@@ -33,16 +34,12 @@ func reload_config():
 			REWARD_GOLD[TYPE_NAME_TO_ID[key]] = int(raw_gold[key])
 
 	REWARD_SOUL_FIRE = SoulFireManager.REWARD_ON_KILL.duplicate()
-
 	BOSS_EXTRA_SOUL = int(cfg.get("boss_extra_soul", 5))
 
 	print("[EconomyManager] 已加载: %d 金 / %d 魂火" % [
 		REWARD_GOLD.size(), REWARD_SOUL_FIRE.size()])
 
 
-# ============================================================
-#  奖励查询
-# ============================================================
 func get_battle_reward(node_type: int, is_boss: bool) -> Dictionary:
 	var gold : int = REWARD_GOLD.get(node_type, 0)
 	var soul_fire : int = REWARD_SOUL_FIRE.get(node_type, 0)
@@ -54,9 +51,6 @@ func get_battle_reward(node_type: int, is_boss: bool) -> Dictionary:
 	}
 
 
-# ============================================================
-#  临时资源
-# ============================================================
 func add_temp_gold(amount: int): GameState.temp_gold += amount
 func subtract_temp_gold(amount: int): GameState.temp_gold -= amount
 func get_temp_gold() -> int: return GameState.temp_gold

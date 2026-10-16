@@ -8,21 +8,19 @@ signal relic_selected(relic_id: String)
 @onready var cancel_btn: Button = $Panel/VBoxContainer/CancelButton
 @onready var separator2: HSeparator = $Panel/VBoxContainer/Separator2
 
-var _relic_options: Array = []          # 3 个候选遗物 id
-var _selected_candidate: String = ""    # 玩家选中的候选遗物 id
-var _slots_full: bool = false           # 被动槽是否已满
-var _candidate_buttons: Dictionary = {} # relic_id -> Button
+var _relic_options: Array = []
+var _selected_candidate: String = ""
+var _slots_full: bool = false
+var _candidate_buttons: Dictionary = {}
 
 func _ready():
 	cancel_btn.pressed.connect(_on_cancel_pressed)
 
-# ---- 初始化：从已解锁遗物中排除已拥有的，随机 3 个 ----
+
 func setup_options(exclude_ids: Array = []):
-	# ---- 检查被动槽是否满 ----
 	_slots_full = GameState.is_passive_full()
 	print("RelicSelectUI: 被动槽已满=", _slots_full)
 
-	# ---- 候选池：排除调用方传入 + 已拥有 ----
 	var owned_ids : Array = []
 	for relic in GameState.get_relics_from_passives():
 		owned_ids.append(relic.item_id)
@@ -45,7 +43,7 @@ func setup_options(exclude_ids: Array = []):
 	_build_candidates()
 	_update_ui_state()
 
-# ---- 构建 3 个候选卡片 ----
+
 func _build_candidates():
 	for child in relic_container.get_children():
 		child.queue_free()
@@ -84,7 +82,7 @@ func _build_candidates():
 		relic_container.add_child(vbox)
 		_candidate_buttons[relic_id] = btn
 
-# ---- 候选被点击 ----
+
 func _on_candidate_clicked(relic_id: String):
 	print("候选点击: ", relic_id)
 
@@ -95,7 +93,7 @@ func _on_candidate_clicked(relic_id: String):
 	_selected_candidate = relic_id
 	_update_ui_state()
 
-# ---- 更新界面状态 ----
+
 func _update_ui_state():
 	if not _slots_full:
 		hint_label.visible = false
@@ -119,7 +117,8 @@ func _update_ui_state():
 		cancel_btn.visible = true
 		_build_existing_relics()
 
-# ---- 构建已有被动槽按钮（仅遗物槽可替换） ----
+
+# ★ v4.2：兼容 {type:"aura"} 与 {type:"refine"} 槽位
 func _build_existing_relics():
 	for child in existing_container.get_children():
 		child.queue_free()
@@ -139,8 +138,12 @@ func _build_existing_relics():
 			btn.text = data.get("name", "?")
 			btn.pressed.connect(_on_existing_relic_clicked.bind(i))
 		elif p is Dictionary and p.has("refine_id"):
-			# 精炼槽：不可被遗物替换
 			btn.text = "（精炼）"
+			btn.disabled = true
+		elif p is Dictionary and p.get("type", "") == "aura":
+			# ★ 光环槽：不可被遗物替换
+			var aid : String = p.get("aura_id", "")
+			btn.text = "◆ " + AuraManager.get_display_name(aid)
 			btn.disabled = true
 		else:
 			btn.text = "空"
@@ -148,13 +151,13 @@ func _build_existing_relics():
 
 		existing_container.add_child(btn)
 
-# ---- 已有被动槽被点击（替换） ----
+
 func _on_existing_relic_clicked(slot_idx: int):
 	print("替换被动槽 ", slot_idx, " -> ", _selected_candidate)
 
-	# 双保险：目标槽不能是精炼
+	# ★ 双保险：精炼槽 / 光环槽 不可被遗物替换
 	var target = GameState.get_passives()[slot_idx]
-	if target is Dictionary and target.has("refine_id"):
+	if target is Dictionary and (target.has("refine_id") or target.get("type", "") == "aura"):
 		return
 
 	var inst = ItemInstance.new()
@@ -167,7 +170,7 @@ func _on_existing_relic_clicked(slot_idx: int):
 	relic_selected.emit(_selected_candidate)
 	queue_free()
 
-# ---- 未满槽：直接确认选择 ----
+
 func _confirm_selection(relic_id: String):
 	var inst = ItemInstance.new()
 	inst.item_id = relic_id
@@ -181,7 +184,7 @@ func _confirm_selection(relic_id: String):
 	relic_selected.emit(relic_id)
 	queue_free()
 
-# ---- 放弃选择 ----
+
 func _on_cancel_pressed():
 	print("放弃遗物选择")
 	relic_selected.emit("")

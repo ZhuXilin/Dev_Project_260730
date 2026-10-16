@@ -23,10 +23,6 @@ corner_radius_bottom_right = 2
 corner_radius_bottom_left = 2
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_vwheo"]
-content_margin_left = 0.0
-content_margin_top = 0.0
-content_margin_right = 0.0
-content_margin_bottom = 0.0
 bg_color = Color(0.08, 0.08, 0.1, 1)
 
 [sub_resource type="Image" id="Image_pck8s"]
@@ -52,16 +48,8 @@ content_margin_bottom = 1.5
 bg_color = Color(0.22, 0.22, 0.28, 1)
 
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_wf1wm"]
-content_margin_left = 0.0
-content_margin_top = 0.0
-content_margin_right = 0.0
-content_margin_bottom = 0.0
 
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_jcxjo"]
-content_margin_left = 0.0
-content_margin_top = 0.0
-content_margin_right = 0.0
-content_margin_bottom = 0.0
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_uym7d"]
 content_margin_left = 3.0

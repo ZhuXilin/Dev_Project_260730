@@ -417,23 +417,39 @@ func update_relic_icons() -> void:
 		var p = passives[i]
 		if p == null:
 			continue
-		if not (p is ItemInstance):
-			continue
 
-		var btn := Button.new()
-		btn.add_theme_font_size_override("font_size", 6)
-		btn.focus_mode = Control.FOCUS_NONE
-		btn.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-		btn.custom_minimum_size = Vector2(0, 14)
+		# ★ v4.2：遗物
+		if p is ItemInstance:
+			var btn := Button.new()
+			btn.add_theme_font_size_override("font_size", 6)
+			btn.focus_mode = Control.FOCUS_NONE
+			btn.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+			btn.custom_minimum_size = Vector2(0, 14)
 
-		var data = RelicManager.get_relic_data(p.item_id)
-		if data.is_empty():
-			continue
-		btn.text = "◆ " + data.get("name", "?")
-		btn.disabled = true
-		btn.tooltip_text = data.get("description", "")
-		_bf.relic_icon_container.add_child(btn)
-		has_any = true
+			var data = RelicManager.get_relic_data(p.item_id)
+			if data.is_empty():
+				continue
+			btn.text = "◆ " + data.get("name", "?")
+			btn.disabled = true
+			btn.tooltip_text = data.get("description", "")
+			_bf.relic_icon_container.add_child(btn)
+			has_any = true
+		# ★ v4.2：光环
+		elif p is Dictionary and p.get("type", "") == "aura":
+			var aid : String = p.get("aura_id", "")
+			var ad : Dictionary = AuraManager.get_aura(aid)
+			if ad.is_empty():
+				continue
+			var btn2 := Button.new()
+			btn2.add_theme_font_size_override("font_size", 6)
+			btn2.focus_mode = Control.FOCUS_NONE
+			btn2.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+			btn2.custom_minimum_size = Vector2(0, 14)
+			btn2.text = "✦ " + ad.get("name", aid)
+			btn2.disabled = true
+			btn2.tooltip_text = ad.get("description", "")
+			_bf.relic_icon_container.add_child(btn2)
+			has_any = true
 
 	if not has_any:
 		var label := Label.new()

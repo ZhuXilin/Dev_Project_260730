@@ -1,12 +1,5 @@
 extends Node
 
-# ============================================================
-#  ShopManager — 商店系统
-#  ★ v4.1：SHOP 节点已删除，本类仅作为 FORGE 内嵌商店（arena_shop tab）
-#         不再独立挂地图节点。如需恢复独立 SHOP 节点，需同步还原
-#         MapNode.NodeType 和地图布局。
-# ============================================================
-
 signal shop_updated
 
 var shop_items: Array = []
@@ -22,12 +15,10 @@ var QUALITY_WEIGHTS : Array = []
 var RARE_GUARANTEE_LEVEL : int = 3
 var EPIC_GUARANTEE_LEVEL : int = 5
 
-## ★ 商店只卖 armor → 只统计 armor 可能出现的标签
-## 避免单位自带的 "物理" / "法术" 标签挤占权重
 const ARMOR_TAGS : Array = ["守护", "烈焰", "灰烬", "轮回", "献祭", "余烬"]
 
-## ★ 标签池占比提取常量
 const TAG_SLOT_RATIO : float = 0.8
+const TAG_PURCHASE_WEIGHT_CAP : int = 10   # ★ v4.2：单标签购买权重上限
 
 func _ready():
 	reload_config()
@@ -47,9 +38,6 @@ func reload_config():
 	EPIC_GUARANTEE_LEVEL = int(cfg.get("epic_guarantee_level", 5))
 
 
-# ============================================================
-#  上下文
-# ============================================================
 func set_context(ctx: EquipContext):
 	_context = ctx
 
@@ -80,20 +68,15 @@ func is_arena_context() -> bool:
 	return _context != null and _context.get_context_id() == "arena"
 
 
-# ============================================================
-#  刷新商店
-# ============================================================
 func get_reset_cost() -> int:
 	return BASE_RESET_COST + reset_count * RESET_STEP
 
 
 func get_reset_cost_text() -> String:
-	# ★ 统一用金币刷新
 	return "%dG" % get_reset_cost()
 
 
 func reset_shop() -> int:
-	# ★ 统一用金币刷新（UI 显示和实际扣费一致）
 	var cost = get_reset_cost()
 	if _get_gold() < cost: return -1
 	if not _subtract_gold(cost): return -1
@@ -103,21 +86,20 @@ func reset_shop() -> int:
 	return cost
 
 
-# ============================================================
-#  标签权重（★ 已过滤非防具标签）
-# ============================================================
+# ★ v4.2：加入权重上限，避免长时间玩后单一标签碾压
 func _get_team_tag_weights() -> Dictionary:
 	var weights : Dictionary = {}
 	for ud in GameState.party:
 		if ud.is_dead: continue
 		for tag in ud.tags:
-			if tag not in ARMOR_TAGS:   # ★ 过滤
+			if tag not in ARMOR_TAGS:
 				continue
 			weights[tag] = weights.get(tag, 0) + 3
 	for tag in GameState.tag_purchase_count:
-		if tag not in ARMOR_TAGS:   # ★ 过滤
+		if tag not in ARMOR_TAGS:
 			continue
-		weights[tag] = weights.get(tag, 0) + int(GameState.tag_purchase_count[tag])
+		var cnt : int = min(int(GameState.tag_purchase_count[tag]), TAG_PURCHASE_WEIGHT_CAP)
+		weights[tag] = weights.get(tag, 0) + cnt
 	return weights
 
 
@@ -132,9 +114,6 @@ func _get_top_tags(weights : Dictionary, n : int = 2) -> Array:
 	return result
 
 
-# ============================================================
-#  生成商品
-# ============================================================
 func generate_shop_items():
 	shop_items.clear()
 	var lv : int = _get_shop_level()
@@ -160,9 +139,6 @@ func generate_shop_items():
 			if tag_pools.has(tag):
 				tag_pools[tag][q].append(data)
 
-	# ★ v4.1 修复（缺口 3）：按位置分配——前 80% 走标签池，后 20% 走全池
-	# 原先的 randf() < 0.8 只是概率期望，玩家可能连出 3 个非标签商品；
-	# 现在改成显式位置分配，严格保证约 80% 商品位偏向标签方向。
 	var tag_pool_usable : bool = false
 	if not top_tags.is_empty():
 		for tag in top_tags:
@@ -201,7 +177,6 @@ func generate_shop_items():
 		if i < tag_slot_count:
 			for tag in top_tags:
 				pool.append_array(tag_pools[tag].get(quality, []))
-		# 标签池空 或 后 20% 位 → 走全池
 		if pool.is_empty():
 			pool = all_pools.get(quality, [])
 
@@ -217,9 +192,6 @@ func generate_shop_items():
 		shop_items.append({"item_data": pick, "price": pick.price})
 
 
-# ============================================================
-#  购买
-# ============================================================
 func buy_shop_item(index: int) -> Dictionary:
 	if index < 0 or index >= shop_items.size():
 		return {"success": false, "reason": "invalid_index"}
@@ -249,9 +221,6 @@ func is_shop_empty() -> bool:
 	return true
 
 
-# ============================================================
-#  商店升级
-# ============================================================
 func get_shop_level() -> int: return _get_shop_level()
 
 func get_upgrade_cost() -> int:

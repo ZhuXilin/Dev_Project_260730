@@ -25,6 +25,7 @@ var _shop : EquipmentConfigShop = null
 var _talent : EquipmentConfigTalent = null
 
 var _upgrade_shop_btn : Button = null
+var _aura_tab_btn : Button = null   # ★ v4.2
 
 const ShopManagerScript = preload(Config.PATHS.SHOP_MANAGER_SCRIPT)
 
@@ -62,10 +63,38 @@ func _ready():
 		talent_tab_btn.pressed.connect(_on_talent_tab_pressed)
 	if sacrifice_tab_btn:
 		sacrifice_tab_btn.visible = false
+	_ensure_aura_tab_btn()
 
 
 # ============================================================
-#  ★ 第五批：合并重复方法，只保留公开版
+#  ★ v4.2：光环 tab 动态创建
+# ============================================================
+func _ensure_aura_tab_btn():
+	if _aura_tab_btn and is_instance_valid(_aura_tab_btn):
+		return
+	if not sacrifice_tab_btn:
+		return
+	var parent : Node = sacrifice_tab_btn.get_parent()
+	if not parent:
+		return
+	_aura_tab_btn = Button.new()
+	_aura_tab_btn.name = "AuraTabBtn"
+	_aura_tab_btn.text = "光环"
+	_aura_tab_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_aura_tab_btn.add_theme_font_size_override("font_size", 8)
+	_aura_tab_btn.focus_mode = Control.FOCUS_NONE
+	_aura_tab_btn.visible = false
+	_aura_tab_btn.pressed.connect(_on_aura_tab_pressed)
+	parent.add_child(_aura_tab_btn)
+	parent.move_child(_aura_tab_btn, sacrifice_tab_btn.get_index() + 1)
+
+
+func _on_aura_tab_pressed():
+	_switch_tab("aura")
+
+
+# ============================================================
+#  Mode 辅助
 # ============================================================
 func is_forge_mode() -> bool:
 	return current_mode == Mode.FORGE
@@ -73,7 +102,6 @@ func is_forge_mode() -> bool:
 func is_shop_rest_mode() -> bool:
 	return current_mode == Mode.ARENA_REST or current_mode == Mode.MAP_SHOP_REST
 
-# 兼容旧的内部调用点，避免大面积改名 —— 直接代理到公开版
 func _is_shop_rest_mode() -> bool:
 	return is_shop_rest_mode()
 
@@ -142,7 +170,6 @@ func _on_shop_updated():
 
 
 func _on_close_pressed():
-	# ★ 第十二批：关闭面板时允许"丢弃并离开"；切 tab 时保持阻止（走 _switch_tab 里的原逻辑）
 	if GameState.has_any_pending_rewards():
 		var total : int = (
 			GameState.pending_sacrifice_rewards.size()
@@ -165,7 +192,6 @@ func _do_close_with_discard():
 
 
 func _do_close_normal():
-	# ===== 原有 _on_close_pressed 的主体逻辑 =====
 	if is_shop_rest_mode() and current_tab == "arena_forge":
 		var unresolved : int = _forge.return_all_forge_slots()
 		_build_unit_columns()
@@ -254,6 +280,7 @@ func _build_ui_inner():
 	talent_tab_btn.visible = false
 	if sacrifice_tab_btn: sacrifice_tab_btn.visible = false
 	if furnace_tab_btn: furnace_tab_btn.visible = false
+	if _aura_tab_btn: _aura_tab_btn.visible = false   # ★ v4.2
 
 	var left_column : VBoxContainer = $VBoxContainer/MainHBox/LeftVBox
 	if left_column:
@@ -278,7 +305,7 @@ func _build_ui_inner():
 			talent_tab_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 			talent_tab_btn.disabled = false
 			talent_tab_btn.text = "特技库"
-			if current_tab == "" or current_tab.begins_with("arena_") or current_tab == "sacrifice":
+			if current_tab == "" or current_tab.begins_with("arena_") or current_tab == "sacrifice" or current_tab == "aura":
 				current_tab = "weapon"
 			_update_tab_style()
 			if current_tab == "weapon": _build_weapon_grid(shop_container)
@@ -318,7 +345,7 @@ func _build_ui_inner():
 			talent_tab_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 			talent_tab_btn.disabled = false
 			talent_tab_btn.text = "铁匠铺"
-			if current_tab == "" or (not current_tab.begins_with("arena_") and current_tab != "sacrifice"):
+			if current_tab == "" or (not current_tab.begins_with("arena_") and current_tab != "sacrifice" and current_tab != "aura"):
 				current_tab = "arena_shop"
 			_update_tab_style()
 			_forge.cleanup()
@@ -366,8 +393,11 @@ func _build_ui_inner():
 			if sacrifice_tab_btn:
 				sacrifice_tab_btn.visible = true
 				sacrifice_tab_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			if _aura_tab_btn:                        # ★ v4.2
+				_aura_tab_btn.visible = true
+				_aura_tab_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 
-			if current_tab == "" or (not current_tab.begins_with("arena_") and current_tab != "sacrifice"):
+			if current_tab == "" or (not current_tab.begins_with("arena_") and current_tab != "sacrifice" and current_tab != "aura"):
 				current_tab = "arena_shop"
 			_update_tab_style()
 			_forge.cleanup()
@@ -382,6 +412,11 @@ func _build_ui_inner():
 					discard_zone.visible = true
 				"sacrifice":
 					_build_sacrifice_panel()
+					shop_container.visible = true
+					reset_btn.visible = false
+					discard_zone.visible = true
+				"aura":                                    # ★ v4.2
+					_build_aura_panel()
 					shop_container.visible = true
 					reset_btn.visible = false
 					discard_zone.visible = true
@@ -412,8 +447,11 @@ func _build_ui_inner():
 			if sacrifice_tab_btn:
 				sacrifice_tab_btn.visible = true
 				sacrifice_tab_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			if _aura_tab_btn:                            # ★ v4.2
+				_aura_tab_btn.visible = true
+				_aura_tab_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 
-			if current_tab == "" or (not current_tab in ["arena_shop", "arena_forge", "sacrifice"]):
+			if current_tab == "" or (not current_tab in ["arena_shop", "arena_forge", "sacrifice", "aura"]):
 				current_tab = "arena_forge"
 
 			_update_tab_style()
@@ -436,6 +474,11 @@ func _build_ui_inner():
 					_forge.display_recipe_info()
 				"sacrifice":
 					_build_sacrifice_panel()
+					shop_container.visible = true
+					reset_btn.visible = false
+					discard_zone.visible = true
+				"aura":                                    # ★ v4.2
+					_build_aura_panel()
 					shop_container.visible = true
 					reset_btn.visible = false
 					discard_zone.visible = true
@@ -465,6 +508,123 @@ func _update_gold_display():
 		gold_label.text = "金币: " + str(_context.get_gold())
 
 
+# ============================================================
+#  ★ v4.2：光环面板
+# ============================================================
+func _build_aura_panel():
+	_clear_container(shop_container)
+	shop_container.columns = 1
+	shop_container.add_theme_constant_override("h_separation", 4)
+	shop_container.add_theme_constant_override("v_separation", 4)
+	shop_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+
+	if shop_scroll:
+		shop_scroll.custom_minimum_size = Vector2(0, 0)
+		shop_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		shop_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+
+	var unlocked : Array = GameState.unlocked_auras.duplicate()
+	var equipped : Array = GameState.get_auras_from_passives()
+	var candidates : Array = []
+	for aid in unlocked:
+		if aid not in equipped:
+			candidates.append(aid)
+
+	var cur_sf : int = SoulFireManager.current
+	var cap : int = SoulFireManager.get_max_carried()
+	var empty_slot : int = _get_first_empty_passive_slot()
+
+	var info := Label.new()
+	info.text = "已解锁 %d / 候选 %d / 魂火 %d/%d" % [
+		unlocked.size(), candidates.size(), cur_sf, cap
+	]
+	info.add_theme_font_size_override("font_size", 7)
+	info.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	shop_container.add_child(info)
+
+	if empty_slot < 0:
+		var warn := Label.new()
+		warn.text = "被动槽已满（%d/%d），请先卸下一个" % [MAX_PASSIVE_SLOTS, MAX_PASSIVE_SLOTS]
+		warn.add_theme_font_size_override("font_size", 7)
+		warn.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		warn.modulate = Color(1.0, 0.6, 0.6)
+		shop_container.add_child(warn)
+		return
+
+	if candidates.is_empty():
+		var hint := Label.new()
+		hint.text = "暂无未装备的光环\n（在灰烬铁匠处研究以解锁新光环）"
+		hint.add_theme_font_size_override("font_size", 7)
+		hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		hint.modulate = Color(0.6, 0.6, 0.6)
+		hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		shop_container.add_child(hint)
+		return
+
+	for aid in candidates:
+		shop_container.add_child(_make_aura_row(aid, empty_slot))
+
+
+func _get_first_empty_passive_slot() -> int:
+	var passives : Array = _context.get_passives()
+	for i in range(passives.size()):
+		if passives[i] == null:
+			return i
+	return -1
+
+
+func _make_aura_row(aid : String, _target_slot : int) -> HBoxContainer:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 6)
+
+	var ad : Dictionary = AuraManager.get_aura(aid)
+	var buy_cost : int = int(ad.get("buy_cost", 0))
+	if buy_cost <= 0:
+		buy_cost = 6
+
+	var name_lb := Label.new()
+	name_lb.text = "【%s】%s" % [ad.get("tag", ""), ad.get("name", aid)]
+	name_lb.add_theme_font_size_override("font_size", 8)
+	name_lb.custom_minimum_size = Vector2(90, 0)
+	name_lb.clip_text = true
+	row.add_child(name_lb)
+
+	var desc_lb := Label.new()
+	desc_lb.text = ad.get("description", "")
+	desc_lb.add_theme_font_size_override("font_size", 6)
+	desc_lb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	desc_lb.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	row.add_child(desc_lb)
+
+	var buy_btn := Button.new()
+	buy_btn.text = "购买 %d◆" % buy_cost
+	buy_btn.add_theme_font_size_override("font_size", 7)
+	buy_btn.custom_minimum_size = Vector2(70, 20)
+	var can_buy : bool = SoulFireManager.current >= buy_cost
+	buy_btn.disabled = not can_buy
+	if can_buy:
+		buy_btn.pressed.connect(_on_buy_aura.bind(aid, buy_cost))
+	row.add_child(buy_btn)
+	return row
+
+
+func _on_buy_aura(aid : String, cost : int):
+	if not SoulFireManager.spend(cost):
+		return
+	if not _context.add_aura_to_passive_slot(aid):
+		SoulFireManager.add(cost)
+		_show_detail_in_zone("被动槽已满")
+		return
+	SoundManager.play_get_item_sound()
+	_sync_all()
+	_update_gold_display()
+	_schedule_build_ui()
+	_show_detail_in_zone("已购买光环：%s" % AuraManager.get_display_name(aid))
+
+
+# ============================================================
+#  待领取区
+# ============================================================
 func _ensure_pending_section():
 	if _pending_container and is_instance_valid(_pending_container):
 		return
@@ -962,6 +1122,14 @@ func _create_passive_button(inst: Variant, slot_index: int) -> Button:
 		else:
 			btn.text = "?"
 			btn.set_meta("item_id", "")
+	elif inst is Dictionary and inst.get("type", "") == "aura":
+		# ★ v4.2：光环被动槽
+		var aid : String = inst.get("aura_id", "")
+		var ad : Dictionary = AuraManager.get_aura(aid)
+		btn.text = "✦ " + ad.get("name", aid)
+		btn.set_meta("item_id", "")
+		btn.tooltip_text = ad.get("description", "")
+		btn.modulate = Color(0.7, 0.9, 1.0)
 	else:
 		btn.text = "空"
 		btn.set_meta("item_id", "")
@@ -1014,7 +1182,6 @@ func _is_valid_drop(data: Dictionary, target: Control) -> bool:
 	var target_type : String = target.get_meta("slot_type", "")
 	var discard : bool = target == discard_zone
 
-	# ★ 第五批：talent → library_talent 允许（拖回库 = 卸下）
 	if source_type == "talent" and target_type == "library_talent":
 		return true
 
@@ -1334,6 +1501,9 @@ func _switch_tab(tab: String):
 		"sacrifice":
 			_build_sacrifice_panel()
 			if reset_btn: reset_btn.visible = false
+		"aura":                                         # ★ v4.2
+			_build_aura_panel()
+			if reset_btn: reset_btn.visible = false
 	shop_container.visible = true
 	if is_shop_rest_mode():
 		discard_zone.visible = true
@@ -1355,8 +1525,9 @@ func _force_relayout():
 func _refresh_bottom_buttons():
 	var in_sacrifice : bool = (current_tab == "sacrifice")
 	var in_arena_forge : bool = (current_tab == "arena_forge")
+	var in_aura : bool = (current_tab == "aura")          # ★ v4.2
 
-	if in_sacrifice or in_arena_forge:
+	if in_sacrifice or in_arena_forge or in_aura:
 		close_btn.disabled = true
 		close_btn.modulate = Color(0.5, 0.5, 0.5)
 	else:
@@ -1367,7 +1538,7 @@ func _refresh_bottom_buttons():
 		close_btn.visible = false
 		confirm_btn.visible = true
 		confirm_btn.text = "出发"
-		if current_tab == "arena_forge":
+		if current_tab == "arena_forge" or current_tab == "aura":
 			confirm_btn.disabled = true
 			confirm_btn.modulate = Color(0.5, 0.5, 0.5)
 		else:
@@ -1389,6 +1560,7 @@ func _update_tab_style():
 		weapon_tab_btn.modulate = Color.WHITE if current_tab == "arena_shop" else Color(0.5, 0.5, 0.5)
 		talent_tab_btn.modulate = Color.WHITE if current_tab == "arena_forge" else Color(0.5, 0.5, 0.5)
 		if sacrifice_tab_btn: sacrifice_tab_btn.visible = false
+		if _aura_tab_btn: _aura_tab_btn.visible = false
 		return
 
 	if current_mode == Mode.MAP_SHOP_REST:
@@ -1396,6 +1568,8 @@ func _update_tab_style():
 		talent_tab_btn.modulate = Color.WHITE if current_tab == "arena_forge" else Color(0.5, 0.5, 0.5)
 		if sacrifice_tab_btn:
 			sacrifice_tab_btn.modulate = Color.WHITE if current_tab == "sacrifice" else Color(0.5, 0.5, 0.5)
+		if _aura_tab_btn:
+			_aura_tab_btn.modulate = Color.WHITE if current_tab == "aura" else Color(0.5, 0.5, 0.5)
 		return
 
 	if current_mode == Mode.FORGE:
@@ -1403,11 +1577,14 @@ func _update_tab_style():
 		talent_tab_btn.modulate = Color.WHITE if current_tab == "arena_forge" else Color(0.5, 0.5, 0.5)
 		if sacrifice_tab_btn:
 			sacrifice_tab_btn.modulate = Color.WHITE if current_tab == "sacrifice" else Color(0.5, 0.5, 0.5)
+		if _aura_tab_btn:
+			_aura_tab_btn.modulate = Color.WHITE if current_tab == "aura" else Color(0.5, 0.5, 0.5)
 		return
 
 	weapon_tab_btn.modulate = Color.WHITE if current_tab == "weapon" else Color(0.5, 0.5, 0.5)
 	talent_tab_btn.modulate = Color.WHITE if current_tab == "talent" else Color(0.5, 0.5, 0.5)
 	if sacrifice_tab_btn: sacrifice_tab_btn.visible = false
+	if _aura_tab_btn: _aura_tab_btn.visible = false
 
 
 # ============================================================
