@@ -439,7 +439,7 @@
 	],
 	"unlocks": [
 	  {
-		"type": "transform_branch", "id": "hidden_branch_swordsman",
+		"type": "transform_branch", "id": "swordsman_hidden_branch",
 		"conditions": {
 		  "min_arena_clear": 5, "min_dialogue_count": 5,
 		  "flags": ["glad_asked_past"]

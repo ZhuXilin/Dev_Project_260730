@@ -1,289 +1,261 @@
-# TextureRescale · 像素缩放工具
+# TextureRescale 使用说明 / User Guide
 
-纯前端的像素图缩放 / 清理 / 拆分工具，适用于分辨率处理、颜色精简和 spritesheet 拆分导出。
+面向像素画/贴图的轻量图像处理工具。支持打开图片、缩放、转真像素、颜色精简、删除/替换颜色、拆分导出。
 
-A pure front-end pixel rescale / cleanup / split tool for resolution handling, color reduction and spritesheet splitting.
-
-> [中文](#中文文档) ｜ [English](#english-documentation)
+A lightweight image tool for pixel art / texture: open, resize, convert to true pixels, simplify colors, delete/replace colors, split export.
 
 ---
 
-## 中文文档
+## 打开与保存 / Open & Save
 
-### 一、简介
+**中文**
 
-TextureRescale 是一款轻量的像素图处理工具，专注于「缩放」场景。它可以快速放大 / 缩小像素图，保留硬边缘（无插值），并附带清理像素、颜色统计、合并相似色、删除指定颜色、按行列拆分导出等实用功能。
+- **打开图片**：点击工具栏「打开图片」，或直接将图片拖入窗口。
+- **保存 PNG**：有文件句柄时直接保存，否则触发下载。
+- **另存为…**：使用系统文件选择器保存为 PNG。
+- **关闭**：关闭当前图片，恢复空状态。
 
-默认英文界面，可一键切换中文。无需安装，双击 HTML 文件即可使用。
+**English**
 
-### 二、快速开始
+- **Open Image**: click the toolbar button, or drag an image into the window.
+- **Save PNG**: save to current file handle if available, otherwise download.
+- **Save As…**: use the system file picker to save as PNG.
+- **Close**: close current image and return to empty state.
 
-1. 用浏览器打开 `TextureRescale.html`。
-2. 点击 `打开图片` 或直接拖入图片。
-3. 修改 `W`（宽）/ `H`（高），或点击 `½` / `¼` / `⅛` / `×2` 快速缩放。
-4. 勾选 `锁定比例` 保持宽高比。
-5. 完成后 `保存 PNG` 或 `另存为…`。
+---
 
-### 三、界面说明
+## 视图与缩放 / View & Zoom
 
-**顶部工具栏（从左到右）**
+**中文**
 
-| 按钮 | 说明 |
-| --- | --- |
-| 打开图片 | 载入 PNG / JPG / WebP 等 |
-| 保存 PNG | 保存到上次保存的文件（若无则下载） |
-| 另存为… | 弹出系统保存对话框 |
-| 关闭 | 清空当前图片 |
-| 撤销 / 重做 | 撤销栈最多 24 步 |
-| 原始尺寸 | 回到载入时的尺寸 |
-| 适应窗口 | 视图自动缩放填满窗口 |
-| 1:1 | 视图 100% |
-| ½ / ¼ / ⅛ | 图片尺寸缩小到 1/2、1/4、1/8 |
-| ×2 | 图片尺寸放大 2 倍 |
-| 宽 / 高 | 输入目标尺寸 |
-| 锁定比例 | 保持原始宽高比 |
-| 显示像素格 | 勾选后，在缩放 ≥ 400% 时显示像素格 |
-| 背景 | 循环切换 白底 / 灰底 / 黑底 / 格子 |
-| 清理像素 | 去除杂色、半透明 |
-| 颜色统计… | 统计图片使用的全部颜色 |
-| 合并相似色… | 合并相近颜色 |
-| 删除颜色… | 按颜色批量删除 |
-| 拆分导出… | 按行列拆成小图并导出 |
-| CH / EN | 语言切换 |
+- **滚轮缩放**：以鼠标为中心缩放。
+- **拖空白平移**：按住鼠标中键，或按住空格 + 左键拖动。
+- **原始尺寸**：将当前显示尺寸重置为原始尺寸（不影响缩放比例）。
+- **适应窗口**：自动缩放并居中显示。
+- **1:1 / ½ / ¼ / ⅛ / ×2**：快速按比例调整当前尺寸。
+- **W / H 输入框**：直接输入目标宽高。
+- **锁定比例**：勾选后修改宽或高会自动同步另一项。
+- **吸附像素**：开启后框选边沿自动吸附到像素网格。
+- **显示像素格**：在缩放 ≥ 4 时显示像素网格。
+- **背景切换**：白底 / 灰底 / 黑底 / 格子，循环切换。
 
-**底部状态栏**
+**English**
 
-- 左侧：原始尺寸、当前尺寸、视图缩放比、选区信息、历史步数、操作提示
-- 右侧：**鼠标当前像素坐标**（格式 `x , y`）
+- **Wheel zoom**: zoom centered on the mouse cursor.
+- **Drag empty to pan**: middle mouse button, or hold Space + left drag.
+- **Original Size**: reset the current display size to the original size (zoom ratio unaffected).
+- **Fit to Window**: auto-scale and center the view.
+- **1:1 / ½ / ¼ / ⅛ / ×2**: quickly scale by ratio.
+- **W / H inputs**: type the target width/height directly.
+- **Lock Ratio**: editing one dimension updates the other.
+- **Snap to Pixels**: selection edges snap to the pixel grid.
+- **Show Pixel Grid**: show pixel grid when zoom ≥ 4.
+- **Background**: cycle White / Gray / Black / Checker.
 
-**选择工具**：默认开启（无需单独按钮），直接在画布上拖拽即可框选。
+---
 
-### 四、缩放
+## 选区操作 / Selection
 
-1. **手动输入**：修改 `宽` 或 `高` 后按回车或点击其他区域。锁定比例时只改一个值即可等比缩放。
-2. **快速按钮**：`½`、`¼`、`⅛`、`×2` 一键缩放。
-3. **拖拽手柄**：图片四周有 8 个控制点，可直接拖拽缩放（`Shift` 反向锁定比例）。
-4. **恢复**：点击 `原始尺寸` 回到载入时的尺寸。
+**中文**
 
-所有缩放都使用**最近邻插值**（无模糊），保持像素硬边缘。
+- **矩形选择**：默认模式，拖拽创建选区。
+- **套索选择**：按 `M` 键切换套索模式，拖拽绘制路径，松开生成选区。
+- **加选**：按住 `Ctrl`（或 `Cmd`）拖拽。
+- **减选**：按住 `Alt` 拖拽。
+- **正方形 / 正圆**：按住 `Shift` 拖拽。
+- **移动选区**：在选区内直接拖动可移动选区位置（仅移动选区，不移动像素）。
+- **删除选区像素**：按 `Delete` 键，将选区像素置为透明。
+- **全选 / 取消 / 反选**：`Ctrl+A` / `Ctrl+D` / `Ctrl+I`。
+- **复制选区**：`Ctrl+C` 复制为 PNG 到剪贴板。
 
-### 五、选区
+**English**
 
-- 用鼠标在画布上拖拽框选。
-- **`Shift`** = 正方形选区。
-- **`Ctrl`** = 加选，**`Alt`** = 减选。
-- 右键 = 取消当前选区。
-- `Ctrl+A` 全选，`Ctrl+D` 取消，`Ctrl+I` 反选。
+- **Rectangle select**: default mode; drag to create.
+- **Lasso select**: press `M` to toggle lasso mode, drag to draw a path, release to create.
+- **Add**: hold `Ctrl` (or `Cmd`) and drag.
+- **Subtract**: hold `Alt` and drag.
+- **Square / Circle**: hold `Shift` and drag.
+- **Move selection**: drag inside the selection to move it (selection only, not pixels).
+- **Delete selection pixels**: press `Delete` to make them transparent.
+- **Select All / Deselect / Invert**: `Ctrl+A` / `Ctrl+D` / `Ctrl+I`.
+- **Copy selection**: `Ctrl+C` copies as PNG to clipboard.
 
-### 六、显示像素格
+---
 
-- 勾选顶部 `显示像素格` 复选框。
-- 当视图缩放 ≥ 400%（`zoom ≥ 4`）时，画布上会叠加像素格线。
-- 缩放小于 400% 时不显示，避免视觉噪音。
+## 转真像素 / True Pixels
 
-### 七、清理像素
+**中文**
 
-点击 `清理像素` 将执行：
-- 把 alpha < 128 的像素设为完全透明。
-- 把 128 ≤ alpha < 255 的像素设为完全不透明。
-- 用多数投票法（4 邻域内同色 ≥ 4）平滑噪点，最多 4 轮。
+将模拟像素图转换为硬边、纯色、无半透明像素的真实像素图。
 
-适合去除抗锯齿残留、JPEG 压缩杂色。
+- **打开面板**：点击「转真像素…」。
+- **像素块**：自动检测的原始像素块大小，可手动调整。点「自动」重新检测。
+- **采样 — 众数**：取块内出现最多的颜色。
+- **采样 — 中心**：取块中心像素颜色（默认）。
+- **合并色**：0–100，越大合并越多相近色，默认 40。
+- **边缘清理**：去毛刺、硬边，默认开启。
+- **去除半透明像素**：alpha < 128 变为全透明，其余变为完全不透明，默认开启。
+- **实时预览**：所有调整立即生效，底部显示输出尺寸和颜色数。
+- **应用 / 取消**：应用写入历史，取消恢复原图。
 
-### 八、颜色处理
+**English**
 
-**颜色统计**
-- 点击 `颜色统计…` 打开模态框，列出图片中所有颜色及其出现次数。
-- 点击色块可将该色设为主色。
+Convert simulated pixel art into hard-edged, flat-color, non-semi-transparent true pixels.
 
-**合并相似色**
-- 点击 `合并相似色…` 打开面板。
-- 拖动 `相似阈值` 滑块（1–100，颜色 RGB 欧氏距离）。
-- 面板实时显示合并前后的颜色数量。
-- 点击 `应用合并` 执行。
+- **Open panel**: click "True Pixels…".
+- **Block**: auto-detected original pixel block size; adjustable. Click "Auto" to re-detect.
+- **Sample — Majority**: most frequent color in the block.
+- **Sample — Center**: color at the block center (default).
+- **Merge**: 0–100, larger merges more similar colors, default 40.
+- **Edge cleanup**: de-noise and hard edges, default on.
+- **Remove semi-transparent**: alpha < 128 → fully transparent; otherwise fully opaque, default on.
+- **Live preview**: adjustments apply immediately; footer shows output size and color count.
+- **Apply / Cancel**: Apply commits to history, Cancel restores original.
 
-**删除颜色**
-- 点击 `删除颜色…` 打开面板。
-- 在画布上点击要删除的颜色。
-- 拖动 `相似阈值`（0 = 精确匹配，越大包含越多相近色）。
-- 点击 `应用删除`。
+---
 
-### 九、拆分导出
+## 清理像素 / Clean Pixels
 
-1. 点击 `拆分导出…`。
-2. 输入 `列数` 和 `行数`。面板会实时显示每块的尺寸。
-3. 点击 `选择目录并导出`：
-   - **支持 File System Access API 的浏览器**（Chrome / Edge）：弹出文件夹选择框，直接写入所有小图。
-   - **其他浏览器**：依次触发多个 PNG 下载，请允许浏览器「下载多个文件」。
+**中文**
 
-导出文件命名格式：`原文件名_r行号_c列号.png`（行列均从 1 开始）。
+- 将 alpha < 128 的像素置为透明，alpha ≥ 128 的变为完全不透明。
+- 对非透明像素进行 4 轮 3×3 多数投票去噪，减少孤立杂色。
 
-### 十、快捷键速查表
+**English**
+
+- Make alpha < 128 pixels transparent; alpha ≥ 128 fully opaque.
+- Run 4 rounds of 3×3 majority-vote de-noise on non-transparent pixels to reduce isolated noise.
+
+---
+
+## 颜色统计 / Color Stats
+
+**中文**
+
+- 统计所有非透明像素的颜色及出现次数。
+- 点击色块可设为“主色”并提示。
+
+**English**
+
+- Count all non-transparent pixel colors and their occurrences.
+- Click a swatch to set it as "primary color".
+
+---
+
+## 合并相似色 / Merge Similar Colors
+
+**中文**
+
+- 通过相似度阈值合并颜色，减少颜色总数。
+- 实时预览合并前后颜色数量。
+- 点击「应用合并」执行。
+
+**English**
+
+- Merge colors by similarity threshold to reduce color count.
+- Live preview of color count before/after merge.
+- Click "Apply Merge" to run.
+
+---
+
+## 删除 / 替换颜色 / Delete / Replace Color
+
+**中文**
+
+- 点击「删除/替换颜色…」打开面板。
+- 在画布上点击要处理的颜色，显示颜色样本和十六进制值。
+- **相似阈值**：0 为精确匹配，越大包含越多相近色。
+- **启用替换**：勾选后可选择替换色，否则默认删除（置为透明）。
+- **应用**：按匹配像素数执行删除或替换。
+
+**English**
+
+- Click "Delete/Replace Color…" to open the panel.
+- Click a color on the canvas; shows swatch and hex.
+- **Similarity**: 0 = exact match; larger includes more similar colors.
+- **Enable replace**: check to choose a replacement color; otherwise delete (make transparent).
+- **Apply**: performs delete or replace on the matched pixel count.
+
+---
+
+## 拆分导出 / Split Export
+
+**中文**
+
+- 按行列数将当前图片拆分为多个小图。
+- 显示每块尺寸。
+- 点击「选择目录并导出」选择文件夹（支持文件系统访问 API 时），否则依次触发下载。
+
+**English**
+
+- Split current image into tiles by rows/cols.
+- Shows tile size.
+- Click "Choose Folder & Export" to select a folder (uses File System Access API if available), otherwise triggers downloads in sequence.
+
+---
+
+## 撤销 / 重做 / Undo & Redo
+
+**中文**
+
+- `Ctrl+Z` 撤销，`Ctrl+Shift+Z` 或 `Ctrl+Y` 重做。
+- 历史步数上限 24。
+
+**English**
+
+- `Ctrl+Z` undo, `Ctrl+Shift+Z` or `Ctrl+Y` redo.
+- History limit: 24 steps.
+
+---
+
+## 快捷键总览 / Keyboard Shortcuts
+
+**中文**
 
 | 快捷键 | 功能 |
-| --- | --- |
-| `Ctrl+Z` / `Ctrl+Shift+Z` / `Ctrl+Y` | 撤销 / 重做 |
+|--------|------|
+| `Ctrl+Z` / `Ctrl+Shift+Z` | 撤销 / 重做 |
 | `Ctrl+A` / `Ctrl+D` / `Ctrl+I` | 全选 / 取消 / 反选 |
 | `Ctrl+C` | 复制选区 |
 | `Ctrl+S` | 保存 PNG |
-| `Delete` | 删除选区（变透明） |
-| `V` | 切换选择模式 |
+| `M` | 切换套索模式 |
+| `Shift` + 拖拽 | 正方形 / 正圆 |
+| `Ctrl` + 拖拽 | 加选 |
+| `Alt` + 拖拽 | 减选 |
+| `Delete` | 删除选区像素 |
 | `F` | 适应窗口 |
-| `空格 + 左键拖动` | 平移视图 |
-| 滚轮 | 缩放视图（`Ctrl + 滚轮` 更细腻） |
-| `Esc` | 关闭当前面板 / 取消选区 |
+| `Esc` | 取消当前操作 / 关闭面板 |
+| `空格` + 拖拽 | 平移画布 |
 
-### 十一、常见问题
-
-**Q：为什么缩小图片会丢失细节？**
-A：像素图缩放采用最近邻插值，缩小会按采样点丢弃像素。建议先放大处理，最后再统一缩小。
-
-**Q：为什么「选择目录并导出」没弹出文件夹选择框？**
-A：该功能依赖 File System Access API，仅 Chrome / Edge 88+ 支持。其他浏览器会自动回退到多次下载模式。
-
-**Q：能处理的最大尺寸？**
-A：单边最大 16384 像素，总像素数上限约 9600 万。
-
-**Q：撤销栈有限制吗？**
-A：最多 24 步历史。可通过源码中的 `MAX_HISTORY` 修改。
-
----
-
-## English Documentation
-
-### 1. Introduction
-
-TextureRescale is a lightweight pixel image tool focused on **rescaling**. It quickly enlarges or shrinks pixel art with hard edges (nearest-neighbor, no blur), plus utilities: clean pixels, color stats, merge similar colors, delete color, and split export by rows/cols.
-
-Default language is English, with one-click switch to Chinese. No installation — just open the HTML file.
-
-### 2. Quick Start
-
-1. Open `TextureRescale.html` in a modern browser.
-2. Click `Open Image` or drag & drop an image.
-3. Edit `W` / `H`, or click `½` / `¼` / `⅛` / `×2`.
-4. Keep `Lock Ratio` checked to preserve aspect ratio.
-5. `Save PNG` or `Save As…` when done.
-
-### 3. Interface
-
-**Toolbar (left to right)**
-
-| Button | Description |
-| --- | --- |
-| Open Image | Load PNG / JPG / WebP etc. |
-| Save PNG | Save to previous file, or download |
-| Save As… | Show system save dialog |
-| Close | Clear the current image |
-| Undo / Redo | Up to 24 steps |
-| Original Size | Restore original dimensions |
-| Fit to Window | Auto-fit zoom |
-| 1:1 | Zoom to 100% |
-| ½ / ¼ / ⅛ | Shrink image to 1/2, 1/4, 1/8 |
-| ×2 | Enlarge image 2× |
-| W / H | Target width / height |
-| Lock Ratio | Preserve aspect ratio |
-| Show Pixel Grid | Toggle pixel grid overlay (visible at zoom ≥ 400%) |
-| Background | Cycle White / Gray / Black / Checker |
-| Clean Pixels | Remove noise & semi-transparency |
-| Color Stats… | Count all colors used |
-| Merge Similar… | Merge nearby colors |
-| Delete Color… | Bulk delete a color |
-| Split Export… | Split into tiles by rows/cols |
-| CH / EN | Language toggle |
-
-**Status bar**
-
-- Left: original size, current size, zoom, selection info, history step, hint
-- Right: **current mouse pixel coordinate** (`x , y`)
-
-**Selection tool** is enabled by default — just drag on the canvas to select; no dedicated button.
-
-### 4. Rescaling
-
-1. **Manual input**: edit `W` or `H`, then press Enter or click elsewhere. With `Lock Ratio` on, only one value is needed.
-2. **Quick buttons**: `½`, `¼`, `⅛`, `×2`.
-3. **Drag handles**: 8 handles around the image let you resize directly (`Shift` inverts the ratio lock behavior).
-4. **Restore**: click `Original Size`.
-
-All rescaling uses **nearest-neighbor interpolation**, preserving crisp pixel edges.
-
-### 5. Selection
-
-- Drag on the canvas to create a selection.
-- **`Shift`** = square selection.
-- **`Ctrl`** = add, **`Alt`** = subtract.
-- Right-click = clear selection.
-- `Ctrl+A` select all, `Ctrl+D` deselect, `Ctrl+I` invert.
-
-### 6. Show Pixel Grid
-
-- Check the `Show Pixel Grid` checkbox in the toolbar.
-- When view zoom ≥ 400% (`zoom ≥ 4`), a pixel grid overlay is drawn on the canvas.
-- Hidden at lower zoom to avoid visual clutter.
-
-### 7. Clean Pixels
-
-Click `Clean Pixels` to:
-- Set pixels with alpha < 128 fully transparent.
-- Set pixels with 128 ≤ alpha < 255 fully opaque.
-- Smooth noise with majority vote (≥ 4 same-color neighbors), up to 4 rounds.
-
-Ideal for removing anti-aliasing remnants and JPEG artifacts.
-
-### 8. Color Handling
-
-**Color Stats**
-- Click `Color Stats…` to open a modal listing every color and its count.
-- Click a swatch to set it as primary.
-
-**Merge Similar Colors**
-- Click `Merge Similar…`.
-- Drag the `Similarity` slider (1–100, RGB Euclidean distance).
-- Panel shows before/after color counts live.
-- Click `Apply Merge`.
-
-**Delete Color**
-- Click `Delete Color…`.
-- Click a color on the canvas.
-- Adjust `Similarity` (0 = exact match, larger includes more nearby colors).
-- Click `Apply`.
-
-### 9. Split Export
-
-1. Click `Split Export…`.
-2. Enter `Cols` and `Rows`. Tile size is shown live.
-3. Click `Choose Folder & Export`:
-   - **Browsers with File System Access API** (Chrome / Edge): a folder picker appears, all tiles are written directly.
-   - **Other browsers**: multiple PNG downloads will be triggered. Please allow "download multiple files".
-
-File naming: `basename_r{row}_c{col}.png` (rows/cols start at 1).
-
-### 10. Keyboard Shortcuts
+**English**
 
 | Shortcut | Action |
-| --- | --- |
-| `Ctrl+Z` / `Ctrl+Shift+Z` / `Ctrl+Y` | Undo / Redo |
+|----------|--------|
+| `Ctrl+Z` / `Ctrl+Shift+Z` | Undo / Redo |
 | `Ctrl+A` / `Ctrl+D` / `Ctrl+I` | Select All / Deselect / Invert |
 | `Ctrl+C` | Copy selection |
 | `Ctrl+S` | Save PNG |
-| `Delete` | Delete selection (transparent) |
-| `V` | Toggle selection mode |
+| `M` | Toggle lasso mode |
+| `Shift` + drag | Square / circle |
+| `Ctrl` + drag | Add to selection |
+| `Alt` + drag | Subtract from selection |
+| `Delete` | Delete selection pixels |
 | `F` | Fit to window |
-| `Space + drag` | Pan |
-| Mouse wheel | Zoom view (`Ctrl + wheel` for finer steps) |
-| `Esc` | Close current panel / deselect |
+| `Esc` | Cancel op / close panel |
+| `Space` + drag | Pan canvas |
 
-### 11. FAQ
+---
 
-**Q: Why do details get lost when shrinking?**
-A: Nearest-neighbor sampling drops pixels when shrinking. For best results, work at high resolution first, then shrink at the very end.
+## 底部状态栏 / Status Bar
 
-**Q: Why didn't a folder picker appear for Split Export?**
-A: This feature uses File System Access API (Chrome / Edge 88+). Other browsers fall back to multiple downloads.
+**中文**
 
-**Q: Maximum size?**
-A: Max 16384 px per side; max ~96 million pixels total.
+- 显示原始尺寸、当前尺寸、缩放比例、选区信息、历史步数。
+- 右侧消息区实时显示操作反馈。
+- 坐标显示当前鼠标像素位置。
 
-**Q: Undo limit?**
-A: Up to 24 steps. Modify `MAX_HISTORY` in the source to change.
+**English**
+
+- Shows original size, current size, zoom, selection info, history steps.
+- Right-side message area shows live operation feedback.
+- Coordinate display shows current mouse pixel position.
