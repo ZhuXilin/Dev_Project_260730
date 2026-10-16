@@ -23,7 +23,9 @@ func save_game(slot: int, auto: bool = false) -> bool:
 	var save = _build_save_data()
 	if not save: return false
 	save.save_time = Time.get_unix_time_from_system()
-	save.checksum = save.compute_checksum()
+	# ★ 第九批：不再计算 checksum —— JSON.stringify 的键顺序不稳定，
+	# 每次加载都会误报"checksum 不匹配"。单人游戏手改存档无副作用。
+	# save.checksum 字段保留（兼容旧档），但不再写入新值。
 	var path = _get_slot_path(slot)
 	var err = ResourceSaver.save(save, path)
 	if err != OK:
@@ -54,7 +56,7 @@ func load_game(slot: int) -> bool:
 		print("[SaveManager] 存档版本 v%d，开始迁移到 v%d" % [
 			save.save_version, SaveData.CURRENT_VERSION])
 		_migrate_save(save)
-		save.checksum = save.compute_checksum()
+		# ★ 第九批：迁移后不再重算 checksum（本来就要废弃）
 		if not suppress_save:
 			var mig_err = ResourceSaver.save(save, path)
 			if mig_err != OK:
@@ -193,7 +195,8 @@ func _build_save_data() -> SaveData:
 	save.temp_soul_legacy = SoulFireManager.current
 
 	save.save_time = Time.get_unix_time_from_system()
-	save.checksum = save.compute_checksum()
+	# ★ 第九批：不计算 checksum
+	save.checksum = ""
 	return save
 
 
@@ -213,7 +216,6 @@ func _apply_save_data(save: SaveData):
 	GameState.resume_node_id = save.selected_node_id
 	GameState.current_faction = save.current_faction
 	GameState.current_node_key = save.current_node_key
-	# ★ 第三批：类型安全辅助
 	GameState.map_snapshot = _safe_dict(save.map_snapshot)
 	GameState.shop_level = save.shop_level
 
@@ -242,7 +244,6 @@ func _apply_save_data(save: SaveData):
 	SoulFireManager.altar_level = save.soul_fire_altar_level
 	GameState.soul_fire_initial_level = save.soul_fire_initial_level
 
-	# ★ 第三批：类型安全
 	GameState.unit_attr_cap = _safe_dict(save.unit_attr_cap)
 	GameState.unit_attr_points = _safe_dict(save.unit_attr_points)
 	GameState.tag_purchase_count = _safe_dict(save.tag_purchase_count)
@@ -255,7 +256,6 @@ func _apply_save_data(save: SaveData):
 	GameState.battlefield_data = _safe_dict(save.battlefield_data)
 
 	RelicManager.set_unlocked_relics(_safe_array(save.unlocked_relics))
-	# ★ 第七批：过滤存档里的幽灵单位 id
 	Globals.unlocked_units = _filter_valid_unit_keys(_safe_array(save.unlocked_units))
 	Globals.unlocked_items = _safe_array(save.unlocked_items)
 
@@ -328,7 +328,6 @@ static func _safe_array(v : Variant) -> Array:
 	return []
 
 
-# ★ 第七批：过滤掉 unit_data.json 里不存在的单位 id
 static func _filter_valid_unit_keys(keys: Array) -> Array:
 	var result : Array = []
 	for k in keys:
@@ -398,18 +397,11 @@ func _deserialize_passive(d) -> Variant:
 
 
 # ============================================================
-#  ★ 第四批：checksum 校验（宽容模式：只警告不拒绝）
+#  校验（★ 第九批：只校验版本，不再校验 checksum）
 # ============================================================
 func _validate_save(save: SaveData) -> bool:
 	if not save: return false
 	if save.save_version <= 0: return false
-
-	if save.checksum != "":
-		var expected : String = save.compute_checksum()
-		if expected != save.checksum:
-			push_warning("[SaveManager] checksum 不匹配，存档可能被手改：expected=%s got=%s" % [
-				expected.substr(0, 8), save.checksum.substr(0, 8)])
-			# 只警告不拒绝 —— 玩家手改数值不影响游戏运行
 	return true
 
 
@@ -431,7 +423,7 @@ func clean_invalid_progress(slot: int):
 	save.selected_node_id = ""
 	save.interrupt_state = 1
 	save.temp_gold = 0
-	save.checksum = save.compute_checksum()
+	# ★ 第九批：不再算 checksum
 	ResourceSaver.save(save, _get_slot_path(slot))
 
 

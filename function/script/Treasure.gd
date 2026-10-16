@@ -7,12 +7,12 @@ var _applied : bool = false
 var _day : int = 1
 var _treasure_cfg : Dictionary = {}
 
+
 @onready var title_label : Label = $Panel/VBoxContainer/TitleLabel
 @onready var reward_container : VBoxContainer = $Panel/VBoxContainer/RewardContainer
 
 
 func _ready():
-	# 从 JSON 读取宝箱收益配置
 	_treasure_cfg = GameConfigManager.get_value("economy_config.json", "treasure", {})
 	title_label.text = "选择奖励"
 
@@ -31,21 +31,73 @@ func setup(arg = 1):
 
 
 # ============================================================
-#  生成 3 个选项
+#  ★ 第十批：三选项类型从配置加权抽取
 # ============================================================
 func _roll_three_options() -> Array:
+	var types : Array = _roll_option_types()
 	var result : Array = []
-	result.append(_roll_gold_option())
-	result.append(_roll_armor_option())
-	var relic_opt : Dictionary = _roll_relic_option()
-	if relic_opt.is_empty():
-		result.append(_roll_gold_option())
-	else:
-		result.append(relic_opt)
+	for t in types:
+		match t:
+			"gold":
+				result.append(_roll_gold_option())
+			"armor":
+				result.append(_roll_armor_option())
+			"relic":
+				var r : Dictionary = _roll_relic_option()
+				# 遗物池空时退回金币
+				if r.is_empty():
+					result.append(_roll_gold_option())
+				else:
+					result.append(r)
+			_:
+				result.append(_roll_gold_option())
 	return result
 
 
-## 金币选项
+## 加权抽 3 个不重复的选项类型
+func _roll_option_types() -> Array:
+	# 从配置读权重；默认 金:3 甲:2 遗物:1
+	var weights : Dictionary = _treasure_cfg.get(
+		"option_weights", {"gold": 3, "armor": 2, "relic": 1})
+
+	# 构建带权重的池子（每单位权重一个槽位）
+	var pool : Array = []
+	for k in weights:
+		var w : int = int(weights[k])
+		for i in range(maxi(1, w)):
+			pool.append(k)
+
+	if pool.is_empty():
+		pool = ["gold", "armor", "relic"]
+
+	# 不重复抽取 3 个
+	var result : Array = []
+	var safety : int = 0
+	while result.size() < 3 and safety < 50:
+		safety += 1
+		if pool.is_empty():
+			# 池子空了，允许重复使用已抽到的类型
+			if result.is_empty():
+				result.append("gold")
+			else:
+				result.append(result[randi() % result.size()])
+			continue
+		var pick : String = pool[randi() % pool.size()]
+		if pick in result:
+			continue
+		result.append(pick)
+		pool.erase(pick)
+
+	# 兜底：确保返回正好 3 个
+	while result.size() < 3:
+		result.append("gold")
+
+	return result
+
+
+# ============================================================
+#  单个选项
+# ============================================================
 func _roll_gold_option() -> Dictionary:
 	var gold_base : int
 	var gold_var : int
@@ -68,7 +120,6 @@ func _roll_gold_option() -> Dictionary:
 	}
 
 
-## 防具选项
 func _roll_armor_option() -> Dictionary:
 	var target_quality : Array = ["epic", "legendary"] if _day >= 2 else ["epic"]
 	var pool : Array = []
@@ -102,7 +153,6 @@ func _roll_armor_option() -> Dictionary:
 	}
 
 
-## 遗物选项
 func _roll_relic_option() -> Dictionary:
 	var pool : Array = []
 	var owned : Dictionary = {}
@@ -139,13 +189,27 @@ func _build_options():
 	hbox.alignment = BoxContainer.ALIGNMENT_CENTER
 	reward_container.add_child(hbox)
 
+	# ★ 第十一批：先算所有选项文本的最大行数，三张卡片统一高度
+	var texts : Array = []
+	var max_lines : int = 0
+	for i in range(_reward_options.size()):
+		var t : String = _format_option_text(_reward_options[i])
+		texts.append(t)
+		var n : int = t.split("\n").size()
+		if n > max_lines:
+			max_lines = n
+
+	# 7 号字 + 行距 ≈ 11px/行；加 padding 20；最小高度 90
+	var card_height : int = maxi(90, max_lines * 11 + 20)
+
 	for i in range(_reward_options.size()):
 		var option : Dictionary = _reward_options[i]
 		var btn := Button.new()
-		btn.custom_minimum_size = Vector2(150, 100)
+		btn.custom_minimum_size = Vector2(150, card_height)
+		btn.size_flags_vertical = Control.SIZE_FILL
 		btn.add_theme_font_size_override("font_size", 7)
 		btn.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		btn.text = _format_option_text(option)
+		btn.text = texts[i]
 		btn.pressed.connect(_on_option_selected.bind(i))
 		hbox.add_child(btn)
 
@@ -226,7 +290,6 @@ func _grant_item(item_id: String):
 	if item_id == "":
 		return
 
-	# 遗物
 	var relic_data : Dictionary = RelicManager.get_relic_data(item_id)
 	if not relic_data.is_empty():
 		RelicManager.unlock_relic(item_id)
@@ -238,7 +301,6 @@ func _grant_item(item_id: String):
 		print("[宝箱] 遗物 %s" % item_id)
 		return
 
-	# 普通装备
 	var item_data : ItemData = ItemManager.get_item_data(item_id)
 	if not item_data:
 		print("[宝箱] 警告：道具不存在 %s" % item_id)

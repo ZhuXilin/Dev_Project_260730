@@ -36,7 +36,6 @@ enum Phase { IDLE, NORMAL, CLEAR, SURVIVAL, END }
 const HERO_SHRINE_SCRIPT_PATH : String = "res://function/script/HeroShrineUI.gd"
 const EquipmentConfigClass = preload(Config.PATHS.EQUIPMENT_CONFIG_SCRIPT)
 
-# 竞技场敌人池缓存（一次性加载）
 static var _arena_enemy_cache : Dictionary = {}
 
 # ============================================================
@@ -345,7 +344,6 @@ func _run_battle_loop():
 				if not is_inside_tree():
 					return
 				if choice == "survival":
-					# 付魂已确认，进生存前弹出英灵殿
 					await _open_hero_shrine()
 					if not is_inside_tree():
 						return
@@ -401,7 +399,6 @@ func _check_entry_fee() -> String:
 	var cost : int = 0
 	if _streak == 2:
 		cost = ENTRY_COST_MINI_BOSS
-		# ★ 方向 6：角斗士亲密度
 		if StoryManager.get_affinity("gladiator") >= 10:
 			cost = int(cost * 0.5)
 	else:
@@ -511,20 +508,20 @@ func _show_shop() -> String:
 		return "quit"
 
 	_arena_gold = ctx.arena_gold
-	_arena_shop_level = ctx.shop_level 
+	_arena_shop_level = ctx.shop_level
 	_arena_passives = ctx.passives.duplicate()
 	_locked_talent_id = ctx.locked_talent_id
 
 	if _locked_talent_id != "" and _current_player_data:
 		GameState.arena_target_talents[_current_player_data.unit_name] = _locked_talent_id
 
-	# ★ 无条件刷新主界面（正常/取消都要更新金币显示）
 	_refresh_streak_label()
 
 	if ctx.was_cancelled():
 		return "quit"
 
 	return "go"
+
 
 # ============================================================
 #  单场战斗
@@ -576,7 +573,6 @@ func _do_one_battle() -> int:
 			GameState.soul += soul_gain
 			_earned_soul += soul_gain
 
-		# 所有已装备词条加经验
 		var talent_results : Array = _add_talent_exp_to_all(exp_gain)
 
 		_current_player_data.hit_points = _current_player_data.max_hp
@@ -667,7 +663,7 @@ func _show_battle_rewards(gold_gain: int, soul_gain: int,
 
 
 # ============================================================
-#  进度奖励（精英后再 +1）
+#  进度奖励
 # ============================================================
 func _grant_progress_rewards():
 	if _phase != Phase.NORMAL:
@@ -692,7 +688,6 @@ func _is_mini_boss_battle() -> bool:
 #  敌人
 # ============================================================
 func _roll_enemy() -> String:
-	# ---- 懒加载缓存 ----
 	if _arena_enemy_cache.is_empty():
 		_load_arena_enemy_cache()
 
@@ -750,7 +745,6 @@ func _apply_enemy_scaling(enemy_data: UnitData):
 
 	enemy_data.max_hp = int(enemy_data.max_hp * mult)
 	enemy_data.hit_points = enemy_data.max_hp
-	# ★ 属性只缩放 40%，避免一击秒杀
 	var attr_mult : float = 1.0 + (mult - 1.0) * 0.4
 	enemy_data.strength = int(enemy_data.strength * attr_mult)
 	enemy_data.dexterity = int(enemy_data.dexterity * attr_mult)
@@ -821,16 +815,18 @@ func _show_clear_panel() -> String:
 
 
 # ============================================================
-#  结算
+#  结算（★ 第八批：加埋点）
 # ============================================================
 func _show_summary(success: bool, reason: String, skip_music: bool = false):
+	# ★ 第八批：即时埋点，追踪每局竞技场的最终结果
+	AnalyticsLogger.record_arena_result(reason, success)
+
 	if not skip_music:
 		if success:
 			MusicManager.play_victory_music()
 		else:
 			MusicManager.play_defeat_music()
 
-	# ★ "撤离" = 4 连胜后主动撤离，也算通关
 	if success and reason in ["撤离", "生存通过"]:
 		GameState.arena_clear_count += 1
 	if success and reason == "生存通过":
@@ -838,7 +834,6 @@ func _show_summary(success: bool, reason: String, skip_music: bool = false):
 	if _phase == Phase.SURVIVAL:
 		GameState.arena_survival_best = maxi(GameState.arena_survival_best, _survival_round)
 
-	# 累计本局获得的魂（不论成败）
 	GameState.arena_total_crystals += _earned_soul
 
 	SaveManager.auto_save()
@@ -898,7 +893,6 @@ func _show_summary(success: bool, reason: String, skip_music: bool = false):
 	if not is_inside_tree():
 		return
 
-	# ★ v4.1：通关（撤离 或 生存全通）弹词条解锁面板
 	if success and reason in ["撤离", "生存通过"]:
 		await _open_talent_unlock()
 		if not is_inside_tree():
@@ -912,7 +906,7 @@ func _return_to_idle():
 		return
 	_phase = Phase.IDLE
 	_current_player_data = null
-	# ★ 第六批：显式清空为纯 null 数组（避免上一局 aura Dictionary 残留）
+	# ★ 第六批：显式构建纯 null 数组
 	_arena_passives.clear()
 	for i in range(4):
 		_arena_passives.append(null)
@@ -923,7 +917,7 @@ func _return_to_idle():
 	_build_unit_list()
 	_refresh_center_panel()
 	_refresh_streak_label()
-	
+
 
 func _show_hint(text: String):
 	info_label.text = text
@@ -941,13 +935,11 @@ func _add_talent_exp_to_all(exp_gain: int) -> Array:
 		return results
 	var unit_name : String = _current_player_data.unit_name
 
-	# 普通词条
 	for inst in _current_player_data.talent_slots:
 		if not inst or not inst.is_active: continue
 		var r : Dictionary = _add_one_talent_exp(unit_name, inst.talent_id, exp_gain)
 		if not r.is_empty(): results.append(r)
 
-	# ★ 职业特技
 	if _current_player_data.advanced_talent_id != "":
 		var r2 : Dictionary = _add_one_talent_exp(unit_name, _current_player_data.advanced_talent_id, exp_gain)
 		if not r2.is_empty(): results.append(r2)
@@ -956,10 +948,9 @@ func _add_talent_exp_to_all(exp_gain: int) -> Array:
 
 
 # ============================================================
-#  ★ v4.1：词条解锁面板（竞技场通关奖励）
+#  词条解锁面板（竞技场通关奖励）
 # ============================================================
 func _open_talent_unlock():
-	# 前置检查：是否还有未解锁词条
 	var remaining : int = 0
 	for tid in TalentManager.get_all_talent_ids():
 		if tid not in Globals.unlocked_talents:
@@ -998,7 +989,7 @@ func _add_one_talent_exp(unit_name: String, tid: String, exp_gain: int) -> Dicti
 
 
 # ============================================================
-#  英灵殿（生存模式启动前触发）
+#  英灵殿
 # ============================================================
 func _open_hero_shrine():
 	if not _current_player_data:
@@ -1016,4 +1007,3 @@ func _open_hero_shrine():
 	hero_shrine.setup_arena(self, _current_player_data)
 	await hero_shrine.closed
 	print("[Arena] 英灵殿关闭")
-	

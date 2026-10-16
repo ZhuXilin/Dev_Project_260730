@@ -168,6 +168,58 @@ func _hint_shop_purchase_failed(data: Dictionary, target: Control) -> void:
 	panel._show_detail_in_zone("无法购买 %s\n请拖到对应的单位槽位" % item_name)
 
 
+# ============================================================
+#  ★ 第十一批：统一目标收集（按优先级从"具体"到"一般"）
+#  返回一个按点击优先级排序的目标数组，两个调用者共享。
+# ============================================================
+func _collect_targets() -> Array:
+	var targets : Array = []
+	var mode : int = panel.current_mode
+	var cur_tab : String = panel.current_tab
+
+	# ---- 1. 丢弃区（最具体区域）----
+	if panel.discard_zone and panel.discard_zone.visible:
+		targets.append(panel.discard_zone)
+
+	# ---- 2. 单位列（含 armor_group 嵌套）----
+	for col in panel.unit_container.get_children():
+		for child in col.get_children():
+			if child is Button:
+				targets.append(child)
+			elif child is VBoxContainer:
+				for sub in child.get_children():
+					if sub is Button:
+						targets.append(sub)
+
+	# ---- 3. 被动槽 ----
+	if panel.relic_container:
+		for btn in panel.relic_container.get_children():
+			if btn is Button:
+				targets.append(btn)
+
+	# ---- 4. 待领取区 ----
+	if panel._pending_container and panel._pending_section and panel._pending_section.visible:
+		for btn in panel._pending_container.get_children():
+			if btn is Button:
+				targets.append(btn)
+
+	# ---- 5. 武器升级 / 紫装重铸（单个具体按钮，优先级高于商店格子）----
+	var is_forge_ctx : bool = (mode == panel.Mode.FORGE) or (panel._is_shop_rest_mode() and cur_tab == "arena_forge")
+	if is_forge_ctx:
+		if panel._forge.forge_upgrade_btn and is_instance_valid(panel._forge.forge_upgrade_btn):
+			targets.append(panel._forge.forge_upgrade_btn)
+		if panel._forge.forge_reforge_btn and is_instance_valid(panel._forge.forge_reforge_btn):
+			targets.append(panel._forge.forge_reforge_btn)
+
+	# ---- 6. 商店容器（一般目标）----
+	if panel.shop_container and panel.shop_container.visible:
+		for btn in panel.shop_container.get_children():
+			if btn is Button:
+				targets.append(btn)
+
+	return targets
+
+
 func _restore_drag_source():
 	if not is_instance_valid(drag_source): return
 	drag_source.disabled = drag_source.get_meta("_original_disabled", false)
@@ -255,118 +307,31 @@ func _reset_targets_visuals():
 # ============================================================
 func _find_control_at_position(pos: Vector2) -> Control:
 	const BUFFER : int = 4
-	# ★ 单位列（含 armor_group 嵌套）
-	for col in panel.unit_container.get_children():
-		for child in col.get_children():
-			if child is Button:
-				var b2 : Button = child
-				if panel.current_mode == panel.Mode.DEPLOY and b2.get_meta("slot_type", "") == "armor": continue
-				if b2.get_global_rect().grow(BUFFER).has_point(pos): return b2
-			elif child is VBoxContainer:
-				for sub in child.get_children():
-					if sub is Button:
-						var b3 : Button = sub
-						if panel.current_mode == panel.Mode.DEPLOY and b3.get_meta("slot_type", "") == "armor": continue
-						if b3.get_global_rect().grow(BUFFER).has_point(pos): return b3
-	# 被动槽
-	if panel.relic_container:
-		for btn in panel.relic_container.get_children():
-			if btn is Button:
-				var b : Button = btn
-				if b.disabled: continue
-				if b.get_global_rect().grow(BUFFER).has_point(pos): return b
-	# 待领取区
-	if panel._pending_container and panel._pending_section and panel._pending_section.visible:
-		for btn in panel._pending_container.get_children():
-			if btn is Button:
-				var bp : Button = btn
-				if bp.disabled: continue
-				if bp.get_global_rect().grow(BUFFER).has_point(pos): return bp
-	# DEPLOY / MAP 商店
-	if (panel.current_mode == panel.Mode.DEPLOY or panel.current_mode == panel.Mode.MAP) and panel.shop_container.visible:
-		for btn in panel.shop_container.get_children():
-			if btn is Button:
-				var b4 : Button = btn
-				if not b4.disabled and b4.get_global_rect().grow(BUFFER).has_point(pos): return b4
-	# Arena shop
-	if panel._is_shop_rest_mode() and panel.current_tab == "arena_shop" and panel.shop_container.visible:
-		for btn in panel.shop_container.get_children():
-			if btn is Button:
-				var b6 : Button = btn
-				if not b6.disabled and b6.get_global_rect().grow(BUFFER).has_point(pos): return b6
-	# FORGE / ARENA_REST / MAP_SHOP_REST
-	if panel.shop_container.visible:
-		for btn in panel.shop_container.get_children():
-			if btn is Button:
-				var b7 : Button = btn
-				var st : String = b7.get_meta("slot_type", "")
-				if panel.current_tab == "arena_forge" and st == "forge_slot":
-					if b7.get_global_rect().grow(BUFFER).has_point(pos): return b7
-				elif panel.current_tab == "arena_shop" and st == "shop_item":
-					if not b7.disabled and b7.get_global_rect().grow(BUFFER).has_point(pos): return b7
+	for t in _collect_targets():
+		if t == null or not is_instance_valid(t):
+			continue
+		if t is Button:
+			var b : Button = t
+			# 拖拽源不能是 disabled（与落点查找行为分离）
+			if b.disabled:
+				continue
+		if t.get_global_rect().grow(BUFFER).has_point(pos):
+			return t
 	return null
 
 
 func _get_target_from_position(global_pos: Vector2) -> Control:
 	const BUFFER : int = 4
-	# 丢弃区优先
-	if panel.discard_zone.visible and panel.discard_zone.get_global_rect().has_point(global_pos): return panel.discard_zone
-	# 单位列（含 armor_group 嵌套）
-	for col in panel.unit_container.get_children():
-		for child in col.get_children():
-			if child is Button:
-				var b : Button = child
-				if b.disabled: continue
-				if b.get_global_rect().grow(BUFFER).has_point(global_pos): return b
-			elif child is VBoxContainer:
-				for sub in child.get_children():
-					if sub is Button:
-						var b2 : Button = sub
-						if b2.disabled: continue
-						if b2.get_global_rect().grow(BUFFER).has_point(global_pos): return b2
-	# 被动槽
-	if panel.relic_container:
-		for btn in panel.relic_container.get_children():
-			if btn is Button:
-				var b3 : Button = btn
-				if b3.disabled: continue
-				if b3.get_global_rect().grow(BUFFER).has_point(global_pos): return b3
-	# 待领取区
-	if panel._pending_container and panel._pending_section and panel._pending_section.visible:
-		for btn in panel._pending_container.get_children():
-			if btn is Button:
-				var bp : Button = btn
-				if bp.disabled: continue
-				if bp.get_global_rect().grow(BUFFER).has_point(global_pos): return bp
-	# DEPLOY / MAP 商店
-	if (panel.current_mode == panel.Mode.DEPLOY or panel.current_mode == panel.Mode.MAP) and panel.shop_container.visible:
-		for btn in panel.shop_container.get_children():
-			if btn is Button:
-				var b4 : Button = btn
-				if not b4.disabled and b4.get_global_rect().grow(BUFFER).has_point(global_pos): return b4
-	# Arena shop
-	if panel._is_shop_rest_mode() and panel.current_tab == "arena_shop" and panel.shop_container.visible:
-		for btn in panel.shop_container.get_children():
-			if btn is Button:
-				var b6 : Button = btn
-				if not b6.disabled and b6.get_global_rect().grow(BUFFER).has_point(global_pos): return b6
-	# FORGE / ARENA_REST / MAP_SHOP_REST
-	if panel.shop_container.visible:
-		for btn in panel.shop_container.get_children():
-			if btn is Button:
-				var b7 : Button = btn
-				var st : String = b7.get_meta("slot_type", "")
-				if panel.current_tab == "arena_forge" and st == "forge_slot":
-					# ★ 第六批：空槽永远可用于拖入，即使按钮 disabled 也允许（保持原语义）
-					if b7.get_global_rect().grow(BUFFER).has_point(global_pos): return b7
-				elif panel.current_tab == "arena_shop" and st == "shop_item":
-					if not b7.disabled and b7.get_global_rect().grow(BUFFER).has_point(global_pos): return b7
-	# 武器升级按钮
-	if (panel.current_mode == panel.Mode.FORGE or (panel._is_shop_rest_mode() and panel.current_tab == "arena_forge")) \
-			and panel._forge.forge_upgrade_btn and is_instance_valid(panel._forge.forge_upgrade_btn) and not panel._forge.forge_upgrade_btn.disabled:
-		if panel._forge.forge_upgrade_btn.get_global_rect().grow(BUFFER).has_point(global_pos): return panel._forge.forge_upgrade_btn
-	# ★ v4.1：紫装重铸槽
-	if (panel.current_mode == panel.Mode.FORGE or (panel._is_shop_rest_mode() and panel.current_tab == "arena_forge")) \
-			and panel._forge.forge_reforge_btn and is_instance_valid(panel._forge.forge_reforge_btn) and not panel._forge.forge_reforge_btn.disabled:
-		if panel._forge.forge_reforge_btn.get_global_rect().grow(BUFFER).has_point(global_pos): return panel._forge.forge_reforge_btn
+	for t in _collect_targets():
+		if t == null or not is_instance_valid(t):
+			continue
+		# forge_slot 允许空槽（即使 disabled 也能接收）
+		if t is Button:
+			var b : Button = t
+			var st : String = b.get_meta("slot_type", "")
+			var allow_disabled : bool = (st == "forge_slot")
+			if b.disabled and not allow_disabled:
+				continue
+		if t.get_global_rect().grow(BUFFER).has_point(global_pos):
+			return t
 	return null

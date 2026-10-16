@@ -86,47 +86,18 @@ const CURRENT_VERSION = 10
 
 # ---- 时间戳 ----
 @export var save_time: int = 0
-@export var checksum: String = ""
 
-# ★ 迁移用（批次 8）
+# ============================================================
+#  ★ 清档说明（第九批）
+# ============================================================
+# 下面两个字段已废弃，但**保留**以免 Godot 加载旧 .tres 时报
+# "Property not found"。新档这两个字段永远是默认空值。
+# 如需彻底清理，请做一次性数据迁移后再删除字段。
+# ============================================================
+## @deprecated 已不再使用；JSON.stringify 键顺序不稳定，无法可靠校验
+@export var checksum: String = ""
+## @deprecated 仅 v9 → v10 迁移用；v10 及以上不再写入
 @export var temp_soul_legacy: int = 0
 
+# ---- NPC 亲密度 ----
 @export var npc_affinity: Dictionary = {}
-
-func compute_checksum() -> String:
-	var data = {
-		"music_volume": music_volume, "sound_volume": sound_volume,
-		"game_speed": game_speed, "window_mode": window_mode, "window_size": window_size,
-		"current_day": current_day, "visited_nodes": visited_nodes,
-		"selected_node_id": selected_node_id, "main_unit_name": main_unit_name,
-		"soul": soul, "cycle_start_soul": cycle_start_soul, "temp_gold": temp_gold,
-		"soul_fire_current": soul_fire_current,
-		"soul_fire_altar_level": soul_fire_altar_level,
-		"soul_fire_initial_level": soul_fire_initial_level,
-		"unit_attr_cap": unit_attr_cap, "unit_attr_points": unit_attr_points,
-		"tag_purchase_count": tag_purchase_count,
-		"unlocked_auras": unlocked_auras,
-		"active_aura_research": active_aura_research,
-		"aura_research_progress": aura_research_progress,
-		"interrupt_state": interrupt_state, "battlefield_data": battlefield_data,
-		"party_data": party_data,
-		"unlocked_units": unlocked_units, "unlocked_items": unlocked_items,
-		"unlocked_relics": unlocked_relics, "unlocked_talents": unlocked_talents,
-		"unlocked_recipes": unlocked_recipes, "unlocked_stories": unlocked_stories,
-		"current_faction": current_faction, "equipped_passives": equipped_passives,
-		"unit_growth": unit_growth, "unit_blessings": unit_blessings,
-		"talent_exp": talent_exp,
-		"current_node_key": current_node_key, "map_snapshot": map_snapshot,
-		"arena_target_talents": arena_target_talents,
-		"arena_best_streak": arena_best_streak, "arena_clear_count": arena_clear_count,
-		"arena_survival_clear": arena_survival_clear, "arena_survival_best": arena_survival_best,
-		"arena_total_crystals": arena_total_crystals, "arena_total_runs": arena_total_runs,
-		"tutorial_stage": tutorial_stage,
-		"pending_sacrifice_rewards": pending_sacrifice_rewards,
-		"pending_forge_rewards": pending_forge_rewards,
-		"sacrifice_count": sacrifice_count, "shop_level": shop_level,
-		"npc_dialogue_seen": npc_dialogue_seen, "npc_dialogue_flags": npc_dialogue_flags,
-		"total_run_count": total_run_count, "total_dispatch_count": total_dispatch_count,
-		"npc_affinity": npc_affinity,
-	}
-	return JSON.stringify(data, "  ").sha256_text()

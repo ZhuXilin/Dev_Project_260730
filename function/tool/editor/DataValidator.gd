@@ -217,10 +217,30 @@ func _validate_units():
 			else:
 				seen_bid[bid] = true
 
+				# ★ 第九批：命名规范检查（id 必须以 unit_key + "_" 开头）
+				# 理由：AdvancedClassManager / HeroShrineUI 按前缀反查单位
+				var expected_prefix : String = unit_key + "_"
+				if not bid.begins_with(expected_prefix):
+					_warn(fname, "%s.advanced_branches[%d].id" % [unit_key, i],
+						"命名不规范，建议以 '%s' 开头（当前 '%s'）" % [expected_prefix, bid])
+
+			# name 非空检查
+			var bname : String = str((b as Dictionary).get("name", ""))
+			if bname == "":
+				_warn(fname, "%s.advanced_branches[%d].name" % [unit_key, i], "分支 name 为空")
+
 			var gt : String = str((b as Dictionary).get("granted_talent", ""))
 			if gt != "" and not _talent_db.has(gt):
 				_error(fname, "%s.advanced_branches[%d].granted_talent" % [unit_key, i],
 					"特技不存在: %s" % gt)
+
+			# ★ 第九批：stat_bonus 的 key 校验
+			var stat_bonus : Variant = (b as Dictionary).get("stat_bonus", {})
+			if stat_bonus is Dictionary:
+				for k in (stat_bonus as Dictionary):
+					if k not in VALID_CAP_ATTRS and k != "max_hp" and k != "move_range":
+						_warn(fname, "%s.advanced_branches[%d].stat_bonus.%s" % [unit_key, i, k],
+							"未知属性 key: %s" % k)
 
 			var sp : String = str((b as Dictionary).get("sprite_frames_path", ""))
 			if sp != "" and not ResourceLoader.exists(sp):
@@ -427,8 +447,9 @@ func _validate_stories():
 		if not (npc is Dictionary): continue
 		var nd : Dictionary = npc
 
-		# 收集本 NPC 的所有对话 id
-		var dlg_ids : Dictionary = {}
+		# ---- 第一遍：收集本 NPC 全部对话 id 及其 priority ----
+		var dlg_ids : Dictionary = {}      # id -> priority
+		var dlg_defs : Array = []          # 保留用于报错定位
 		var dialogues : Array = nd.get("dialogues", [])
 		for i in range(dialogues.size()):
 			var d : Variant = dialogues[i]
@@ -436,20 +457,36 @@ func _validate_stories():
 			var did : String = str((d as Dictionary).get("id", ""))
 			if did == "":
 				_error(fname, "%s.dialogues[%d].id" % [npc_id, i], "对话 id 为空")
-			elif dlg_ids.has(did):
+				continue
+			if dlg_ids.has(did):
 				_error(fname, "%s.dialogues[%d].id" % [npc_id, i], "对话 id 重复: %s" % did)
-			else:
-				dlg_ids[did] = true
+				continue
+			var pri : int = int((d as Dictionary).get("priority", 0))
+			dlg_ids[did] = pri
+			dlg_defs.append({"id": did, "priority": pri, "idx": i})
 
-			# condition.after_dialogue 必须指向本 NPC 的对话
-			var cond : Dictionary = (d as Dictionary).get("condition", {})
+		# ---- 第二遍：检查 dialogues[].condition.after_dialogue ----
+		for entry in dlg_defs:
+			var did : String = entry["id"]
+			var my_pri : int = entry["priority"]
+			var di : int = entry["idx"]
+			var d : Dictionary = dialogues[di]
+			var cond : Dictionary = d.get("condition", {})
 			var ad : String = str(cond.get("after_dialogue", ""))
-			if ad != "" and not dlg_ids.has(ad):
-				# 可能是后面才定义的对话，只警告
-				_warn(fname, "%s.dialogues[%d].condition.after_dialogue" % [npc_id, i],
-					"after_dialogue 指向未在本文档内出现的对话: %s" % ad)
+			if ad == "":
+				continue
+			if not dlg_ids.has(ad):
+				_error(fname, "%s.dialogues[%d].condition.after_dialogue" % [npc_id, di],
+					"after_dialogue 指向不存在的对话: %s" % ad)
+				continue
+			# ★ 第十一批：优先度顺序校验（引用方 priority 必须 > 被引方 priority）
+			var ref_pri : int = int(dlg_ids[ad])
+			if my_pri <= ref_pri:
+				_warn(fname, "%s.dialogues[%d].condition.after_dialogue" % [npc_id, di],
+					"引用方 priority(%d) 未高于被引用方 %s 的 priority(%d)，可能导致解锁顺序异常"
+						% [my_pri, ad, ref_pri])
 
-		# unlocks
+		# ---- 第三遍：检查 unlocks ----
 		var unlocks : Array = nd.get("unlocks", [])
 		for i in range(unlocks.size()):
 			var u : Variant = unlocks[i]
@@ -484,7 +521,7 @@ func _validate_stories():
 				_:
 					_warn(fname, "%s.unlocks[%d].type" % [npc_id, i], "未知解锁类型: %s" % utype)
 
-			# conditions.after_dialogue 必须指向本 NPC 的对话
+			# ★ 第十一批：unlocks[].conditions.after_dialogue 用 dlg_ids 集合校验，不依赖顺序
 			var ucond : Dictionary = ud.get("conditions", {})
 			var uad : String = str(ucond.get("after_dialogue", ""))
 			if uad != "" and not dlg_ids.has(uad):

@@ -4,10 +4,18 @@ extends RefCounted
 # ============================================================
 #  字号 / 尺寸常量
 # ============================================================
-const FONT_TINY = 4
-const FONT_SMALL = 6
+# ★ 第九批：明确语义分层
+#   TINY   —— 极小文本（塔罗牌角标、最紧凑的标签）
+#   SMALL  —— 一般按钮/标签
+#   NORMAL —— 中等强调（与 SMALL 合并，避免视觉碎片）
+#   LARGE  —— 主按钮 / 顶层标题
+#   TITLE  —— 保留给未来使用（当前 UI 未用）
+const FONT_TINY   = 4
+const FONT_SMALL  = 6
 const FONT_NORMAL = 6
-const FONT_LARGE = 6
+const FONT_LARGE  = 8      # ★ 第九批：原来也是 6，与 NORMAL 完全重复；
+						   #   提升到 8 给"主按钮/顶层标题"用，避免"看起来都一样"
+const FONT_TITLE  = 10     # 预留
 
 const BTN_ITEM_SIZE = Vector2(28, 16)
 const BTN_TALENT_SIZE = Vector2(28, 18)

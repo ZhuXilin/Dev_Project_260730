@@ -40,13 +40,11 @@ var _player_material : ShaderMaterial = null
 var _enemy_material : ShaderMaterial = null
 var _panel_base_pos : Vector2 = Vector2.ZERO
 
-# ---- 词条运行时状态 ----
 var _player_zeal_target : String = ""
 var _player_zeal_stacks : int = 0
 var _enemy_zeal_target : String = ""
 var _enemy_zeal_stacks : int = 0
 
-# ---- 出血层数（本场累积）----
 var _player_bleed_stacks : int = 0
 var _enemy_bleed_stacks : int = 0
 
@@ -252,7 +250,7 @@ func _run_battle():
 		continue_btn.visible = false
 		return_btn.visible = true
 	else:
-		# ★ 第六批：平局按 HP 比例判定（避免高 HP 单位天然占优）
+		# ★ 第六批：平局按 HP 比例判定
 		var p_max : int = maxi(1, _player.max_hp)
 		var e_max : int = maxi(1, _enemy.max_hp)
 		var p_ratio : float = float(_player_hp) / float(p_max)
@@ -269,7 +267,6 @@ func _run_battle():
 			result_label.add_theme_color_override("font_color", Color(1.0, 0.4, 0.4, 1))
 			MusicManager.play_defeat_music()
 		else:
-			# 完全相同比例 → 按剩余 HP 决胜
 			winner_team = 0 if _player_hp >= _enemy_hp else 1
 			result_label.text = "险胜" if winner_team == 0 else "惜败"
 			result_label.add_theme_color_override(
@@ -289,10 +286,9 @@ func _do_attack(attacker: UnitData, defender: UnitData):
 
 	var is_player_attacker = (attacker == _player)
 
-	# ---- 计算基础伤害 ----
 	var damage = _calc_damage(attacker, defender)
 
-	# ---- 主动技能（就绪时自动触发）----
+	# ---- 主动技能 ----
 	var ready_skills : Array = TalentManager.get_ready_active_skills(attacker)
 	if ready_skills.size() > 0:
 		var skill_id : String = ready_skills[0]
@@ -332,7 +328,7 @@ func _do_attack(attacker: UnitData, defender: UnitData):
 		damage = int(damage * bonus)
 		_reset_talent(attacker, "zeal")
 
-	# ---- 暴击判定 ----
+	# ---- 暴击 ----
 	var is_crit := false
 	var crit_mult : float = CRIT_DAMAGE_MULT
 
@@ -347,7 +343,7 @@ func _do_attack(attacker: UnitData, defender: UnitData):
 	if is_crit:
 		damage = int(damage * crit_mult)
 
-	# ---- 盾反（parry）----
+	# ---- 盾反 ----
 	if _is_talent_ready(defender, "parry"):
 		var lv = _get_talent_level(defender, "parry")
 		var reflect = 0.5 + (lv - 1) * 0.15
@@ -360,7 +356,7 @@ func _do_attack(attacker: UnitData, defender: UnitData):
 			enemy_hp_bar.value = _enemy_hp
 		_reset_talent(defender, "parry")
 
-	# ★ ---- 反击强化（counter_boost）----
+	# ---- 反击强化 ----
 	if _is_talent_ready(defender, "counter_boost"):
 		var lv = _get_talent_level(defender, "counter_boost")
 		var reflect_pct = COUNTER_BASE_PERCENT + (lv - 1) * COUNTER_PER_LEVEL
@@ -424,7 +420,7 @@ func _do_attack(attacker: UnitData, defender: UnitData):
 	_refresh_hp_labels()
 	await get_tree().create_timer(0.6, true, false, true).timeout
 
-	# ★ ---- 出血（bleed）：攻击方给防守方叠层 ----
+	# ---- 出血 ----
 	if _is_talent_ready(attacker, "bleed"):
 		var lv = _get_talent_level(attacker, "bleed")
 		var pct = BLEED_BASE_PERCENT + (lv - 1) * BLEED_PER_LEVEL
@@ -447,7 +443,7 @@ func _do_attack(attacker: UnitData, defender: UnitData):
 		_reset_talent(attacker, "bleed")
 		_refresh_hp_labels()
 
-	# ★ ---- 治疗法杖自愈（heal_boost）----
+	# ---- 法杖自愈 ----
 	var weapon_data = null
 	if attacker.weapon_slot:
 		weapon_data = ItemManager.get_item_data(attacker.weapon_slot.item_id)
@@ -475,7 +471,7 @@ func _do_attack(attacker: UnitData, defender: UnitData):
 				log_label.text += "  [自愈 +%d]" % actual
 		_refresh_hp_labels()
 
-	# ★ ---- 法术连击（spell_chain）----
+	# ---- 法术连击 ----
 	if _is_talent_ready(attacker, "spell_chain"):
 		if weapon_data and (weapon_data.category == "spellbook" or weapon_data.category == "staff"):
 			var lv_sc = _get_talent_level(attacker, "spell_chain")
@@ -492,7 +488,7 @@ func _do_attack(attacker: UnitData, defender: UnitData):
 			_refresh_hp_labels()
 			await get_tree().create_timer(0.4, true, false, true).timeout
 
-	# ---- 复活（死亡检查）----
+	# ---- 复活 ----
 	if _player_hp <= 0 and _is_talent_ready(_player, "revive"):
 		_player_hp = _player.max_hp
 		player_hp_bar.value = _player_hp
@@ -520,10 +516,12 @@ func _do_attack(attacker: UnitData, defender: UnitData):
 		else:
 			_player_hp = max(0, _player_hp - extra)
 			player_hp_bar.value = _player_hp
-		SignalBus.request_damage_popup.emit(Vector2.ZERO, extra, false, false, false)
+		# ★ 第八批：删除 SignalBus.request_damage_popup.emit(Vector2.ZERO, ...)
+		# 原因：ArenaBattle 是 UI 场景，无世界坐标，弹字会落在屏幕外，没有意义
 		log_label.text += "  [二次攻击 +%d]" % extra
 		_refresh_hp_labels()
 		await get_tree().create_timer(0.4, true, false, true).timeout
+
 
 func _calc_damage(attacker: UnitData, defender: UnitData) -> int:
 	var wdata = null
@@ -620,7 +618,6 @@ func _get_talent_inst(data: UnitData, talent_id: String) -> TalentInstance:
 	for inst in data.talent_slots:
 		if inst and inst.talent_id == talent_id and inst.is_active:
 			return inst
-	# ★ 职业特技
 	if data.advanced_talent_inst and data.advanced_talent_inst.talent_id == talent_id:
 		return data.advanced_talent_inst
 	return null

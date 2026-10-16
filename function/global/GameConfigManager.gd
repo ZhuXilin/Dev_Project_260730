@@ -56,9 +56,39 @@ func get_value(fname : String, path : String, default = null):
 	return cur
 
 
+# ============================================================
+#  重载
+# ============================================================
 func reload(fname : String):
 	_data[fname] = _load_file(CONFIG_DIR + fname)
+	_after_reload(fname)
 
 
 func reload_all():
 	load_all()
+	_after_reload("")
+
+
+# ★ 第九批：重载后联动通知各 Manager 刷新本地缓存
+func _after_reload(fname : String):
+	print("[GameConfigManager] reload('%s')，通知缓存管理器" % fname)
+	# economy → 影响 EconomyManager / AuraManager / ShopManager / EquipmentConfigForge
+	if fname == "" or fname == "economy_config.json":
+		if has_node("/root/EconomyManager"):
+			EconomyManager.reload_config()
+		if has_node("/root/AuraManager"):
+			AuraManager._load_config()
+	# combat → 影响 CombatManager / EnemyAI / VictoryHandler
+	if fname == "" or fname == "combat_config.json":
+		if has_node("/root/CombatManager"):
+			CombatManager.reload_config()
+	# progression → 影响 AdvancedClassManager / TalentManager / 祝福配置
+	if fname == "" or fname == "progression_config.json":
+		if has_node("/root/AdvancedClassManager"):
+			AdvancedClassManager.COST_PER_CLASS = int(get_value(
+				"progression_config.json", "advanced_class_cost", 800))
+		# TalentManager 的 EXP_THRESHOLDS 是静态的，强制刷新
+		if TalentManager:
+			TalentManager._exp_thresholds_loaded = false
+			TalentManager._ensure_exp_thresholds()
+	# arena → 影响 Arena（每次打开会自己 _apply_config，无需刷新）

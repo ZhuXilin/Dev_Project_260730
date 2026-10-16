@@ -325,8 +325,6 @@ func display_recipe_info():
 			if pct > 0:
 				lines2.append("  %s: %d%%" % [names[i], pct])
 	lines2.append("")
-	if forge_matched_recipe != "" and not _is_forge_recipe_available():
-		lines2.append("⚠ 图纸未解锁，走通用合成")
 	lines2.append("金币: %dG" % CRAFT_COST)
 	panel._show_detail_in_zone("\n".join(lines2))
 	_update_forge_result_label()
@@ -750,10 +748,6 @@ func _get_weapon_upgrade_cost(level: int) -> int:
 			return -1
 		return int(UPGRADE_COST_TABLE[level])
 	return int(UPGRADE_BASE_COST * pow(UPGRADE_GROWTH, level))
-
-
-func _is_forge_recipe_available() -> bool:
-	return forge_matched_recipe != ""
 
 
 # ============================================================

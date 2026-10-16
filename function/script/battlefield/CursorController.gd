@@ -76,7 +76,6 @@ func update_cursor_and_mouse() -> void:
 		_use_system_mouse()
 		return
 
-	# 强制隐藏
 	var force_hide_cursor = (
 		Globals.is_dialogue_active or
 		Globals.is_performing_action or
@@ -87,7 +86,7 @@ func update_cursor_and_mouse() -> void:
 		TurnManager.is_moving or
 		Globals.is_fading or
 		Globals.is_transitioning or
-		_bf.camera_controller._is_smooth_moving
+		_bf.camera_controller.is_smooth_moving()
 	)
 	if force_hide_cursor:
 		_set_hovered_unit(null)

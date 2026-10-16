@@ -80,8 +80,9 @@ func _reached_limit() -> bool:
 #  初始化
 # ============================================================
 func _ready():
+	COST_PER_CLASS = AdvancedClassManager.get_cost_per_class()
 	performance_layer.visible = false
-	cost_label.text = "  |  免费转职"
+	cost_label.text = "  |  转职：%d 魂" % COST_PER_CLASS
 	MusicManager.play_hero_shrine_music()
 	_refresh_soul_display()
 	_build_unit_row()

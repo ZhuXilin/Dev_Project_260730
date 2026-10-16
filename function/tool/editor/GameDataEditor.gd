@@ -412,11 +412,19 @@ func _build_edit_tab(parent : Control) -> Control:
 	branch_header.add_theme_constant_override("separation", 4)
 	content.add_child(branch_header)
 	branch_header.add_child(_section("— 转职分支 —"))
+
 	var add_branch_btn := Button.new()
 	add_branch_btn.text = "+ 添加分支"
 	add_branch_btn.add_theme_font_size_override("font_size", 7)
 	add_branch_btn.pressed.connect(_add_branch_card)
 	branch_header.add_child(add_branch_btn)
+
+	var clear_branches_btn := Button.new()
+	clear_branches_btn.text = "清空全部"
+	clear_branches_btn.add_theme_font_size_override("font_size", 7)
+	clear_branches_btn.modulate = Color(1.0, 0.6, 0.6)
+	clear_branches_btn.pressed.connect(_clear_all_branches)
+	branch_header.add_child(clear_branches_btn)
 
 	_edit_branches_box = VBoxContainer.new()
 	_edit_branches_box.add_theme_constant_override("separation", 4)
@@ -524,6 +532,20 @@ func _rebuild_branches(data : Array):
 func _add_branch_card():
 	_add_branch_card_with_data({})
 
+func _clear_all_branches():
+	if _edit_branch_cards.is_empty():
+		return
+	Globals.show_confirm(
+		self,
+		"确定清空该单位的所有转职分支吗？\n（保存后写入 JSON 生效）",
+		"清空", "取消",
+		func():
+			for c in _edit_branches_box.get_children():
+				_edit_branches_box.remove_child(c)
+				c.queue_free()
+			_edit_branch_cards.clear(),
+		func(): pass
+	)
 
 func _add_branch_card_with_data(d : Dictionary):
 	var card := PanelContainer.new()

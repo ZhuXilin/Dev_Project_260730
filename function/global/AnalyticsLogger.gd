@@ -7,8 +7,6 @@ extends Node
 # ============================================================
 
 const LOG_PATH : String = "user://analytics.log"
-## ★ 注意：不能用 const，因为 OS.is_debug_build() 是运行时函数。
-## 作为 autoload 单例，var 只在游戏启动时求值一次。
 var ENABLED : bool = OS.is_debug_build()
 
 var _current : Dictionary = {}
@@ -33,7 +31,6 @@ func begin_run():
 		"sacrifice_count": 0,
 		"talent_unlock_count": 0,
 
-		# 魂火状态采样（按玩家回合数统计）
 		"sf_samples_total": 0,
 		"sf_samples_burning": 0,
 		"sf_samples_depleted": 0,
@@ -44,7 +41,7 @@ func begin_run():
 
 
 # ============================================================
-#  魂火状态采样（每个玩家回合调一次）
+#  魂火状态采样
 # ============================================================
 func record_soul_fire_sample():
 	if not ENABLED: return
@@ -64,7 +61,7 @@ func record_soul_fire_sample():
 
 
 # ============================================================
-#  FORGE 会话（进入/离开打点）
+#  FORGE 会话
 # ============================================================
 func begin_forge_session():
 	if not ENABLED: return
@@ -83,7 +80,7 @@ func finish_forge_session(decisions : int = 0):
 
 
 # ============================================================
-#  派遣（每次完成一条路线调一次）
+#  派遣
 # ============================================================
 func record_dispatch(matched : bool):
 	if not ENABLED: return
@@ -118,7 +115,21 @@ func record_day_reached(day : int):
 
 
 # ============================================================
-#  结算（写一行 JSON）
+#  竞技场结果即时打点
+# ============================================================
+func record_arena_result(reason : String, success : bool):
+	if not ENABLED: return
+	var record : Dictionary = {
+		"event": "arena_result",
+		"timestamp": int(Time.get_unix_time_from_system()),
+		"reason": reason,
+		"success": success,
+	}
+	_write_line(record)
+
+
+# ============================================================
+#  结算
 # ============================================================
 func finish_run(win : bool, rating : String = ""):
 	if not ENABLED: return
@@ -129,7 +140,6 @@ func finish_run(win : bool, rating : String = ""):
 	_current["duration_sec"] = now - int(_current["start_time"])
 	_current["timestamp"] = now
 
-	# 派生指标
 	var total : int = maxi(1, int(_current["sf_samples_total"]))
 	_current["sf_time_in_burning"]  = float(_current["sf_samples_burning"])  / float(total)
 	_current["sf_time_in_depleted"] = float(_current["sf_samples_depleted"]) / float(total)
@@ -150,3 +160,171 @@ func _write_line(dict : Dictionary):
 	f.seek_end()
 	f.store_line(JSON.stringify(dict))
 	f.close()
+
+
+# ============================================================
+#  ★ 第十一批：导出 CSV
+#  生成两个文件：
+#    user://analytics_runs.csv   —— finish_run 记录（每局一行）
+#    user://analytics_arena.csv  —— record_arena_result 记录（每次结算一行）
+# ============================================================
+func export_csv():
+	if not FileAccess.file_exists(LOG_PATH):
+		print("[Analytics] 无日志文件：" + LOG_PATH)
+		return
+
+	var f : FileAccess = FileAccess.open(LOG_PATH, FileAccess.READ)
+	if f == null:
+		push_warning("[Analytics] 无法打开 " + LOG_PATH)
+		return
+	var text : String = f.get_as_text()
+	f.close()
+
+	var lines : Array = text.split("\n", false)
+
+	var run_rows : Array = []
+	var arena_rows : Array = []
+
+	var run_keys : Array = [
+		"timestamp", "win", "rating", "day_reached", "duration_sec",
+		"forge_visits", "forge_total_time_sec", "forge_decisions",
+		"dispatch_count", "dispatch_tag_match_count",
+		"sacrifice_count", "talent_unlock_count",
+		"sf_samples_total", "sf_time_in_burning", "sf_time_in_depleted", "sf_time_in_zero",
+		"sf_peak_ratio", "sf_lowest_ratio",
+	]
+	var arena_keys : Array = ["timestamp", "reason", "success"]
+
+	for line in lines:
+		var s : String = line.strip_edges()
+		if s == "":
+			continue
+		var d = JSON.parse_string(s)
+		if not (d is Dictionary):
+			continue
+		if d.has("event") and str(d["event"]) == "arena_result":
+			arena_rows.append(d)
+		elif d.has("win"):
+			run_rows.append(d)
+
+	_write_csv("user://analytics_runs.csv", run_keys, run_rows)
+	_write_csv("user://analytics_arena.csv", arena_keys, arena_rows)
+	print("[Analytics] CSV 已导出：analytics_runs.csv（%d 行）、analytics_arena.csv（%d 行）" % [
+		run_rows.size(), arena_rows.size()])
+
+
+func _write_csv(path : String, keys : Array, rows : Array):
+	var f : FileAccess = FileAccess.open(path, FileAccess.WRITE)
+	if f == null:
+		push_warning("[Analytics] 无法写入 " + path)
+		return
+	var header : Array = []
+	for k in keys:
+		header.append(_csv_escape(k))
+	f.store_line(",".join(header))
+	for row in rows:
+		var cells : Array = []
+		for k in keys:
+			cells.append(_csv_escape(row.get(k, "")))
+		f.store_line(",".join(cells))
+	f.close()
+
+
+func _csv_escape(v : Variant) -> String:
+	var s : String = str(v)
+	if s.find(",") != -1 or s.find("\"") != -1 or s.find("\n") != -1:
+		s = s.replace("\"", "\"\"")
+		return "\"%s\"" % s
+	return s
+
+
+# ============================================================
+#  调用方式：
+#    - GM 控制台：`analytics`
+#    - 直接代码：AnalyticsLogger.dump_summary()
+# ============================================================
+func dump_summary():
+	if not FileAccess.file_exists(LOG_PATH):
+		print("[Analytics] 无日志文件：" + LOG_PATH)
+		return
+	var f : FileAccess = FileAccess.open(LOG_PATH, FileAccess.READ)
+	if f == null:
+		push_warning("[Analytics] 无法打开 " + LOG_PATH)
+		return
+	var text : String = f.get_as_text()
+	f.close()
+
+	var lines : Array = text.split("\n", false)
+	var total : int = 0
+	var wins : int = 0
+	var s_count : int = 0
+	var forge_time_total : float = 0.0
+	var forge_visits_total : int = 0
+	var sf_burning_total : float = 0.0
+	var sf_depleted_total : float = 0.0
+	var sf_zero_total : float = 0.0
+	var dispatch_total : int = 0
+	var dispatch_match_total : int = 0
+	var sacrifice_total : int = 0
+	var day_reached_max : int = 1
+	var arena_records : int = 0
+	var arena_success : int = 0
+	var arena_by_reason : Dictionary = {}
+
+	for line in lines:
+		var s : String = line.strip_edges()
+		if s == "":
+			continue
+		var d = JSON.parse_string(s)
+		if not (d is Dictionary):
+			continue
+		# arena_result 事件单独统计
+		if d.has("event") and str(d["event"]) == "arena_result":
+			arena_records += 1
+			if bool(d.get("success", false)):
+				arena_success += 1
+			var reason : String = str(d.get("reason", "?"))
+			arena_by_reason[reason] = int(arena_by_reason.get(reason, 0)) + 1
+			continue
+
+		# run 结算记录
+		total += 1
+		if bool(d.get("win", false)):
+			wins += 1
+		if str(d.get("rating", "")) == "S":
+			s_count += 1
+		forge_time_total += float(d.get("forge_total_time_sec", 0.0))
+		forge_visits_total += int(d.get("forge_visits", 0))
+		sf_burning_total += float(d.get("sf_time_in_burning", 0.0))
+		sf_depleted_total += float(d.get("sf_time_in_depleted", 0.0))
+		sf_zero_total += float(d.get("sf_time_in_zero", 0.0))
+		dispatch_total += int(d.get("dispatch_count", 0))
+		dispatch_match_total += int(d.get("dispatch_tag_match_count", 0))
+		sacrifice_total += int(d.get("sacrifice_count", 0))
+		day_reached_max = maxi(day_reached_max, int(d.get("day_reached", 1)))
+
+	var total_f : float = maxf(1.0, float(total))
+
+	print("========== Analytics 汇总 ==========")
+	print("日志路径：%s" % LOG_PATH)
+	print("局数：%d    最远天数：第 %d 天" % [total, day_reached_max])
+	print("通关率：%.1f%%（%d / %d）" % [
+		100.0 * float(wins) / total_f, wins, total])
+	print("S 评级：%.1f%%（%d 次）" % [
+		100.0 * float(s_count) / total_f, s_count])
+	print("FORGE：平均 %.1f 秒/次，共 %d 次" % [
+		forge_time_total / maxf(1.0, float(forge_visits_total)),
+		forge_visits_total])
+	print("魂火时间占比：燃烧 %.1f%% ｜ 枯竭 %.1f%% ｜ 归零 %.1f%%" % [
+		100.0 * sf_burning_total / total_f,
+		100.0 * sf_depleted_total / total_f,
+		100.0 * sf_zero_total / total_f])
+	print("派遣：共 %d，匹配 %d（%.1f%%）" % [
+		dispatch_total, dispatch_match_total,
+		100.0 * float(dispatch_match_total) / maxf(1.0, float(dispatch_total))])
+	print("献祭：共 %d（局均 %.2f）" % [
+		sacrifice_total, float(sacrifice_total) / total_f])
+	print("竞技场：%d 场（成功 %d）" % [arena_records, arena_success])
+	for r in arena_by_reason:
+		print("  - %s: %d" % [r, arena_by_reason[r]])
+	print("=====================================")

@@ -48,7 +48,8 @@
 	"day2_gold_base": 1000, "day2_gold_var": 400,
 	"soul_base": 2, "soul_var": 3,
 	"armor_gold_base": 150, "armor_gold_var": 150,
-	"relic_soul_base": 3, "relic_soul_var": 3
+	"relic_soul_base": 3, "relic_soul_var": 3,
+	"option_weights": { "gold": 3, "armor": 2, "relic": 1 }
   },
 
   "aura_research": {

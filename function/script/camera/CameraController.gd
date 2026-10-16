@@ -198,5 +198,9 @@ func cancel_smooth_move():
 	follow_mouse()
 
 
+func is_smooth_moving() -> bool:
+	return _is_smooth_moving
+
+
 func clamp_position(pos: Vector2) -> Vector2:
 	return _clamp_camera(pos)

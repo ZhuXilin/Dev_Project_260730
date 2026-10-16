@@ -9,6 +9,7 @@ func _ready():
 	_refresh_slots()
 	back_button.pressed.connect(_on_back_pressed)
 
+
 func _refresh_slots():
 	for child in slot_container.get_children():
 		child.queue_free()
@@ -32,7 +33,12 @@ func _refresh_slots():
 					unit_names.append(unit_name)
 				var unit_list_str = "、".join(unit_names)
 				var day_str = "第" + str(save_data.current_day) + "天"
-				info_label.text = "存档%d：%s %s  %s" % [i + 1, unit_list_str, day_str, time_str]
+				var state_suffix = ""
+				# ★ 第八批：在存档列表上标注"战斗中"状态，让玩家有预期
+				if save_data.interrupt_state == GameState.InterruptState.BATTLEFIELD:
+					state_suffix = " [战斗中]"
+				info_label.text = "存档%d：%s %s  %s%s" % [
+					i + 1, unit_list_str, day_str, time_str, state_suffix]
 			else:
 				info_label.text = "存档%d：营地休息中  %s" % [i + 1, time_str]
 		else:
@@ -67,35 +73,58 @@ func _refresh_slots():
 		slot_container.add_child(hbox)
 
 
-# ★ 第五批：按存档状态决定跳转目标
+# ============================================================
+#  ★ 第八批：加载前先看 interrupt_state，战场上弹确认
+# ============================================================
 func _on_load_pressed(slot: int):
+	# 先 dry-run 检查状态，不 apply
+	var save_data : SaveData = SaveManager.load_save_data(slot)
+	if not save_data:
+		return
+
+	if save_data.interrupt_state == GameState.InterruptState.BATTLEFIELD:
+		Globals.show_confirm(
+			self,
+			"该存档在战斗中，无法恢复战斗进度。\n是否回到营地继续？\n（战场上的临时资源将丢失）",
+			"回到营地", "取消",
+			func(): _do_load_and_go_camp(slot),
+			func(): pass
+		)
+		return
+
+	_do_load_and_go(slot)
+
+
+func _do_load_and_go(slot: int):
 	var success = SaveManager.load_game(slot)
 	if not success:
 		return
 
-	# 1. 根据 interrupt_state 决定目标场景
 	var state : int = GameState.interrupt_state
 
 	match state:
 		GameState.InterruptState.CAMP:
 			get_tree().change_scene_to_file(Config.PATHS.CAMP)
 		GameState.InterruptState.MAP:
-			# 队伍为空 → 强制回营地
 			if GameState.party.is_empty():
 				GameState.interrupt_state = GameState.InterruptState.CAMP
 				get_tree().change_scene_to_file(Config.PATHS.CAMP)
 			else:
 				get_tree().change_scene_to_file(Config.PATHS.MAP_SCENE)
-		GameState.InterruptState.BATTLEFIELD:
-			# 中途战场存档 —— 直接回营地更安全（战场数据不完整）
-			GameState.interrupt_state = GameState.InterruptState.CAMP
-			get_tree().change_scene_to_file(Config.PATHS.CAMP)
 		_:
-			# NONE 状态：有队伍去地图，无队伍去营地
 			if GameState.party.is_empty():
 				get_tree().change_scene_to_file(Config.PATHS.CAMP)
 			else:
 				get_tree().change_scene_to_file(Config.PATHS.MAP_SCENE)
+
+
+func _do_load_and_go_camp(slot: int):
+	var success = SaveManager.load_game(slot)
+	if not success:
+		return
+	GameState.interrupt_state = GameState.InterruptState.CAMP
+	SaveManager.save_game(slot, false)
+	get_tree().change_scene_to_file(Config.PATHS.CAMP)
 
 
 func _on_new_game_pressed(slot: int):

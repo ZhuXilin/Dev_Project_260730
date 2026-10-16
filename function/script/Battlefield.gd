@@ -509,7 +509,7 @@ func _process(_delta):
 		Globals.is_performing_action or
 		Globals.is_dialogue_active or
 		Globals.is_item_get_popup_active or
-		camera_controller._is_smooth_moving
+		camera_controller.is_smooth_moving()   # ★ 第十批：用 getter
 	)
 	camera_controller.set_paused(should_pause)
 

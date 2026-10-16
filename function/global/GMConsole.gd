@@ -341,7 +341,8 @@ func _register_commands():
 	register("clear", _cmd_clear, "clear  清空输出", ["cls"])
 	register("dump_units", _cmd_dump_units, "dump_units  打印队伍所有单位的转职字段")
 	register("fix_adv_talent", _cmd_fix_adv_talent, "fix_adv_talent  清理不一致的职业特技")
-
+	register("analytics", _cmd_analytics, "analytics  输出埋点汇总到控制台")
+	register("analytics_csv", _cmd_analytics_csv, "analytics_csv  导出埋点 CSV 到 user://")
 
 # ============================================================
 #  命令解析与执行
@@ -355,6 +356,16 @@ func _on_submit(text: String):
 	_output.append_text("[color=#888]>>> %s[/color]\n" % text)
 	_execute(text)
 	_cmd_input.text = ""
+
+
+func _cmd_analytics_csv(_args: Array):
+	AnalyticsLogger.export_csv()
+	_out("已导出：user://analytics_runs.csv 与 user://analytics_arena.csv", "green")
+
+
+func _cmd_analytics(_args: Array):
+	AnalyticsLogger.dump_summary()
+	_out("已输出汇总到控制台（F12 查看 Output）", "green")
 
 
 func _execute(text: String):
