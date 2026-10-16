@@ -1,6 +1,24 @@
 extends CanvasLayer
 
+# ============================================================
+#  MapScene — 局内地图
+#  v4.3：ChipMusicEditor 风格主题 + 细滚动条 + 节点点击防抖
+# ============================================================
+
 const FONT_SIZE = 8
+
+# ---- ChipMusicEditor 风格字号 ----
+const FS_BUTTON : int = 6
+const FS_LABEL  : int = 6
+const FS_SMALL  : int = 5
+const FS_PANEL  : int = 7
+const FS_HINT   : int = 5
+
+const COL_BG     : Color = Color(0.08, 0.08, 0.10)
+const COL_PANEL  : Color = Color(0.10, 0.10, 0.13)
+const COL_VSEP   : Color = Color(0.36, 0.36, 0.42)
+const COL_TIP_BG : Color = Color(0.15, 0.15, 0.15, 0.92)
+
 const EquipmentConfig = preload(Config.PATHS.EQUIPMENT_CONFIG_SCRIPT)
 
 var current_day: int = 1
@@ -10,6 +28,9 @@ var level_list: Array[MapData] = []
 var _equipment_config_instance = null
 var _detail_popup = null
 var _ready_guard : bool = false
+
+# ★ 节点点击防抖
+var _is_loading_combat : bool = false
 
 @onready var node_container = $NodeContainer
 @onready var line_container = $NodeContainer/LineContainer
@@ -25,11 +46,96 @@ var _ready_guard : bool = false
 @onready var resonance_label = $TopBar/ResonanceLabel
 
 
+# ============================================================
+#  ★ 全局主题（ChipMusicEditor 风格）
+# ============================================================
+func _apply_compact_theme():
+	var t := Theme.new()
+
+	t.set_font_size("font_size", "Button", FS_BUTTON)
+	var btn_empty := StyleBoxEmpty.new()
+	btn_empty.content_margin_left = 1
+	btn_empty.content_margin_right = 1
+	btn_empty.content_margin_top = 0
+	btn_empty.content_margin_bottom = 0
+	t.set_stylebox("normal", "Button", btn_empty)
+	t.set_stylebox("hover", "Button", btn_empty)
+	t.set_stylebox("pressed", "Button", btn_empty)
+	t.set_stylebox("focus", "Button", btn_empty)
+	t.set_stylebox("disabled", "Button", btn_empty)
+
+	t.set_font_size("font_size", "Label", FS_LABEL)
+	var label_empty := StyleBoxEmpty.new()
+	t.set_stylebox("normal", "Label", label_empty)
+
+	t.set_font_size("font_size", "LineEdit", FS_BUTTON)
+	t.set_font_size("font_size", "OptionButton", FS_BUTTON)
+	t.set_font_size("font_size", "PopupMenu", FS_SMALL)
+	t.set_font_size("font_size", "TooltipLabel", FS_SMALL)
+	t.set_font_size("font_size", "TooltipPanel", FS_SMALL)
+
+	var tip_sb := StyleBoxFlat.new()
+	tip_sb.bg_color = COL_TIP_BG
+	tip_sb.content_margin_left = 3
+	tip_sb.content_margin_right = 3
+	tip_sb.content_margin_top = 1
+	tip_sb.content_margin_bottom = 1
+	t.set_stylebox("panel", "TooltipPanel", tip_sb)
+
+	# 细滚动条
+	var track := StyleBoxFlat.new()
+	track.bg_color = Color(0.08, 0.08, 0.10, 1)
+	var grab_off := StyleBoxFlat.new()
+	grab_off.bg_color = Color(0.32, 0.32, 0.38, 1)
+	grab_off.corner_radius_top_left = 2
+	grab_off.corner_radius_top_right = 2
+	grab_off.corner_radius_bottom_left = 2
+	grab_off.corner_radius_bottom_right = 2
+	var grab_hl := StyleBoxFlat.new()
+	grab_hl.bg_color = Color(0.55, 0.55, 0.65, 1)
+	grab_hl.corner_radius_top_left = 2
+	grab_hl.corner_radius_top_right = 2
+	grab_hl.corner_radius_bottom_left = 2
+	grab_hl.corner_radius_bottom_right = 2
+
+	# OptionButton 小箭头
+	var arrow_img := Image.create(7, 4, false, Image.FORMAT_RGBA8)
+	arrow_img.fill(Color(0, 0, 0, 0))
+	for y in range(4):
+		for x in range(7):
+			var half : float = float(y) * 0.5
+			if float(x) >= half and float(x) <= 6.0 - half:
+				arrow_img.set_pixel(x, y, Color(0.72, 0.72, 0.78, 1.0))
+	var arrow_tex := ImageTexture.create_from_image(arrow_img)
+	t.set_icon("arrow", "OptionButton", arrow_tex)
+	t.set_constant("arrow_margin", "OptionButton", 2)
+
+	t.set_stylebox("scroll", "VScrollBar", track)
+	t.set_stylebox("scroll_focus", "VScrollBar", track)
+	t.set_stylebox("grabber", "VScrollBar", grab_off)
+	t.set_stylebox("grabber_highlight", "VScrollBar", grab_hl)
+	t.set_stylebox("grabber_pressed", "VScrollBar", grab_hl)
+	t.set_constant("minimum_grab_size", "VScrollBar", 6)
+	t.set_constant("scroll_width", "VScrollBar", 4)
+
+	t.set_stylebox("scroll", "HScrollBar", track)
+	t.set_stylebox("scroll_focus", "HScrollBar", track)
+	t.set_stylebox("grabber", "HScrollBar", grab_off)
+	t.set_stylebox("grabber_highlight", "HScrollBar", grab_hl)
+	t.set_stylebox("grabber_pressed", "HScrollBar", grab_hl)
+	t.set_constant("minimum_grab_size", "HScrollBar", 6)
+	t.set_constant("scroll_height", "HScrollBar", 4)
+
+	theme = t
+
+
 func _ready():
 	if _ready_guard:
 		print("警告：MapScene._ready 被重复调用，忽略")
 		return
 	_ready_guard = true
+
+	_apply_compact_theme()
 
 	print("=== MapScene _ready 开始 ===")
 	Globals.is_map_mode = true
@@ -78,7 +184,6 @@ func _ready():
 		generate_map(current_day)
 		_save_game()
 		_setup_ui()
-		# ★ v4.1：数据埋点 — 天数
 		AnalyticsLogger.record_day_reached(current_day)
 		return
 
@@ -107,16 +212,16 @@ func _ready():
 	_save_game()
 	_setup_ui()
 	update_all_displays()
-	# ★ v4.1：数据埋点 — 天数
 	AnalyticsLogger.record_day_reached(current_day)
 	print("MapScene _ready: temp_gold=", GameState.temp_gold)
 
 	_detail_popup = load(Config.PATHS.ITEM_DETAIL_POPUP).instantiate()
 	add_child(_detail_popup)
 	_detail_popup.visible = false
-	
+
 	if not SoulFireManager.soul_fire_changed.is_connected(_on_soul_fire_changed):
 		SoulFireManager.soul_fire_changed.connect(_on_soul_fire_changed)
+
 
 func _save_game():
 	if Globals.pending_save_slot != -1:
@@ -359,9 +464,17 @@ func _select_node_by_id(node_id: String):
 			break
 
 
+# ============================================================
+#  ★ 节点点击防抖
+# ============================================================
 func on_node_selected(node: MapNode):
+	if _is_loading_combat:
+		return
 	if not node.is_available or node.is_visited:
 		return
+
+	_is_loading_combat = true
+
 	var key = "%d_%d" % [node.position.x, node.position.y]
 	GameState.last_selected_node_type = node.node_type
 	print("进入节点: ", key, " 类型: ", node.node_type)
@@ -373,7 +486,7 @@ func on_node_selected(node: MapNode):
 	]:
 		GameState.current_node_key = key
 	GameState.current_node_unlock_relics = node.unlock_relics.duplicate()
-	GameState.current_node_unlock_units = node.unlock_units.duplicate()   # ★ 新增
+	GameState.current_node_unlock_units = node.unlock_units.duplicate()
 	_load_combat_for_node(node)
 
 
@@ -443,6 +556,7 @@ func _open_forge(node: MapNode):
 	_save_game()
 	update_all_displays()
 	_update_availability(map_data.root_node)
+	_is_loading_combat = false
 
 
 func _open_treasure(node: MapNode):
@@ -460,6 +574,7 @@ func _open_treasure(node: MapNode):
 	var treasure_scene = load(Config.PATHS.TREASURE_UI)
 	if not treasure_scene:
 		push_error("Treasure UI 未找到: " + Config.PATHS.TREASURE_UI)
+		_is_loading_combat = false
 		return
 	var treasure = treasure_scene.instantiate()
 	add_child(treasure)
@@ -474,6 +589,7 @@ func _open_treasure(node: MapNode):
 	_save_game()
 	update_all_displays()
 	_update_availability(map_data.root_node)
+	_is_loading_combat = false
 
 
 func _open_chapel(node: MapNode):
@@ -491,6 +607,7 @@ func _open_chapel(node: MapNode):
 	var scene = load(Config.PATHS.CHAPEL_UI)
 	if not scene:
 		push_error("ChapelUI 未找到")
+		_is_loading_combat = false
 		return
 	var ui = scene.instantiate()
 	add_child(ui)
@@ -503,6 +620,7 @@ func _open_chapel(node: MapNode):
 	_save_game()
 	update_all_displays()
 	_update_availability(map_data.root_node)
+	_is_loading_combat = false
 
 
 func _open_chapel_revive_dialog(dead_units: Array, healed_count: int):

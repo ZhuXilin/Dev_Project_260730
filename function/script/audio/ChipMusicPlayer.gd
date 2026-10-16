@@ -176,6 +176,11 @@ func _fill_buffer_initial():
 func seek_to_tick(tick: int):
 	if _sequencer:
 		_sequencer.seek_to_tick(tick)
+	# ★ 第十二批：清空残留 audio buffer，再预填新位置的内容
+	# 否则会听到 seek 前的那段尾巴（约 BUFFER_LENGTH 秒）
+	if _playback and _is_chip_playing:
+		_playback.clear_buffer()
+		_fill_buffer_initial()
 
 
 ## 获取当前 tick

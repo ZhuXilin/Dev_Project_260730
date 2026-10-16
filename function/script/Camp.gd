@@ -127,6 +127,8 @@ func _show_dispatch_results():
 
 func _show_floating_toast(text : String):
 	var toast := Label.new()
+	# ★ 第十二批：故意用 Label —— 不解析 bbcode，天然免疫注入。
+	# 若未来改用 RichTextLabel，请对 text 调用 escape_bbcode()。
 	toast.text = text
 	toast.add_theme_font_size_override("font_size", 8)
 	toast.add_theme_color_override("font_color", Color(1.0, 0.85, 0.3))
@@ -298,8 +300,25 @@ func _show_unlock_toast(utype: String, uid: String):
 			var td = TalentManager.get_talent_data(uid)
 			msg = "★ 新词条：%s" % (td.display_name if td else uid)
 	if msg == "": return
-	print("[Camp] " + msg)
+	# ★ 第十二批：日志安全打印（避免名字里带控制字符污染 console）
+	print("[Camp] " + _log_safe(msg))
+	# 显示仍走 Label（不解析 bbcode，无需转义）
 	_show_floating_toast(msg)
+
+
+# ============================================================
+#  Label 不解析任何标记 —— 当前 toast 用 Label，不需要转义。
+#  以下函数供未来切换到 RichTextLabel 时使用（bbcode 注入防护）。
+# ============================================================
+static func escape_bbcode(text : String) -> String:
+	# 转义 RichTextLabel 会解释的字符
+	# 参考：https://docs.godotengine.org/en/stable/tutorials/ui/bbcode_in_richtextlabel.html
+	return text.replace("[", "&#91;")
+
+
+func _log_safe(s : Variant) -> String:
+	# 控制台打印时移除可能影响阅读的控制字符
+	return str(s).replace("\n", "\\n").replace("\t", "\\t")
 
 
 # ============================================================

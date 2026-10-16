@@ -3,6 +3,7 @@ extends Control
 
 # ============================================================
 #  MapLayoutEditor — 地图布局可视化编辑器
+#  v4.2 第 12 批：新增 undo/redo（Ctrl+Z / Ctrl+Shift+Z / Ctrl+Y）
 # ============================================================
 
 const LAYER_HEIGHT : float = 28.0
@@ -15,13 +16,15 @@ const LAYOUT_DIR : String = "res://content/scenes/levels/maplayout/"
 const BAKE_WIDTH : float = 400.0
 const RELIC_DATA_PATH : String = "res://content/data/relic_data.json"
 
-## ★ 只有战斗节点允许配遗物解锁
 const COMBAT_NODE_TYPES : Array = [
 	MapNode.NodeType.START,
 	MapNode.NodeType.NORMAL,
 	MapNode.NodeType.ELITE,
 	MapNode.NodeType.BOSS,
 ]
+
+# ★ 第十二批：undo/redo 栈
+const MAX_UNDO : int = 30
 
 enum Tool { EDIT, LINK }
 
@@ -56,8 +59,11 @@ var _hint_label : Label = null
 
 var _popup_confirm_callback : Callable = Callable()
 
-## ★ 遗物数据缓存（编辑器读一次就够）
 var _relic_data_cache : Dictionary = {}
+
+# ★ 第十二批：undo/redo 栈
+var _undo_stack : Array = []   # [{day, variant_idx, nodes: Array[MapLayoutNode], tool, selected_link}]
+var _redo_stack : Array = []
 
 
 # ============================================================
@@ -75,13 +81,11 @@ func _ensure_dir():
 		DirAccess.make_dir_recursive_absolute(LAYOUT_DIR)
 
 
-## 统一 tooltip 字号（Godot 默认 16，缩到 8）+ 无边框
 func _apply_tooltip_theme():
 	var t := Theme.new()
 	t.set_font_size("font_size", "TooltipLabel", 8)
 	t.set_font_size("font_size", "TooltipPanel", 8)
 
-	# ★ 无边框 tooltip
 	var sb := StyleBoxFlat.new()
 	sb.bg_color = Color(0.15, 0.15, 0.15, 0.9)
 	sb.border_width_left = 0
@@ -99,6 +103,140 @@ func _apply_tooltip_theme():
 	t.set_stylebox("panel", "TooltipPanel", sb)
 
 	theme = t
+
+
+# ============================================================
+#  ★ 第十二批：undo / redo
+# ============================================================
+func _snapshot_current() -> Dictionary:
+	var day_layout : MapLayoutDay = _get_current_day_layout()
+	if day_layout == null:
+		return {}
+	var nodes_copy : Array = []
+	for n in day_layout.nodes:
+		var cp := MapLayoutNode.new()
+		cp.node_type = n.node_type
+		cp.random_pool = n.random_pool.duplicate()
+		cp.position = n.position
+		cp.layer = n.layer
+		cp.connects_to = n.connects_to.duplicate()
+		cp.unlock_relics = n.unlock_relics.duplicate()
+		cp.unlock_units = n.unlock_units.duplicate()
+		nodes_copy.append(cp)
+	return {
+		"day": _current_day,
+		"variant_idx": _variant_idx,
+		"nodes": nodes_copy,
+		"tool": _current_tool,
+		"selected_link": _selected_link,
+	}
+
+
+func _push_undo():
+	var snap : Dictionary = _snapshot_current()
+	if snap.is_empty():
+		return
+	_undo_stack.append(snap)
+	if _undo_stack.size() > MAX_UNDO:
+		_undo_stack.pop_front()
+	_redo_stack.clear()
+
+
+func _undo():
+	if _undo_stack.is_empty():
+		print("[MapLayoutEditor] 无可撤销")
+		return
+	var cur : Dictionary = _snapshot_current()
+	if not cur.is_empty():
+		_redo_stack.append(cur)
+	var snap : Dictionary = _undo_stack.pop_back()
+	_apply_snapshot(snap)
+	print("[MapLayoutEditor] ↶ 撤销（剩余 %d 步）" % _undo_stack.size())
+
+
+func _redo():
+	if _redo_stack.is_empty():
+		print("[MapLayoutEditor] 无可重做")
+		return
+	var cur : Dictionary = _snapshot_current()
+	if not cur.is_empty():
+		_undo_stack.append(cur)
+	var snap : Dictionary = _redo_stack.pop_back()
+	_apply_snapshot(snap)
+	print("[MapLayoutEditor] ↷ 重做（剩余 %d 步）" % _redo_stack.size())
+
+
+func _apply_snapshot(snap : Dictionary):
+	var day : int = int(snap.get("day", 1))
+	var vi : int = int(snap.get("variant_idx", 0))
+	var nodes : Array = snap.get("nodes", [])
+	_current_day = day
+	_variant_idx = vi
+	var arr : Array = _get_variant_array_for_day(day)
+	while arr.size() <= vi:
+		arr.append(MapLayoutDay.new())
+	var dl : MapLayoutDay = arr[vi]
+	dl.nodes.clear()
+	for n in nodes:
+		dl.nodes.append(n)
+	_current_tool = snap.get("tool", Tool.EDIT) as Tool
+	_selected_link = int(snap.get("selected_link", -1))
+	_dragging_idx = -1
+	_update_all_labels()
+	_refresh_canvas_size()
+	if _canvas:
+		_canvas.queue_redraw()
+
+
+func _get_variant_array_for_day(day : int) -> Array:
+	if _layout == null: return []
+	match day:
+		1: return _layout.day1_variants
+		2: return _layout.day2_variants
+		3: return _layout.day3_variants
+	return []
+
+
+func _clear_history():
+	_undo_stack.clear()
+	_redo_stack.clear()
+
+
+# ============================================================
+#  快捷键
+# ============================================================
+func _unhandled_input(event: InputEvent):
+	if not (event is InputEventKey and event.pressed and not event.echo):
+		return
+
+	# ★ 第十二批：undo/redo 优先处理
+	if event.ctrl_pressed and not event.alt_pressed:
+		match event.keycode:
+			KEY_Z:
+				if event.shift_pressed:
+					_redo()
+				else:
+					_undo()
+				get_viewport().set_input_as_handled()
+				return
+			KEY_Y:
+				_redo()
+				get_viewport().set_input_as_handled()
+				return
+			KEY_S:
+				_on_save()
+				get_viewport().set_input_as_handled()
+				return
+
+	if _popup_layer == null or not is_instance_valid(_popup_layer):
+		return
+	if event.keycode == KEY_ESCAPE:
+		_close_popup()
+		get_viewport().set_input_as_handled()
+	elif event.keycode == KEY_ENTER or event.keycode == KEY_KP_ENTER:
+		if _popup_confirm_callback.is_valid():
+			_popup_confirm_callback.call()
+		get_viewport().set_input_as_handled()
 
 
 # ============================================================
@@ -158,6 +296,7 @@ func _load_file(path: String):
 	_current_day = 1
 	_variant_idx = 0
 	_ensure_variant_exists()
+	_clear_history()
 	_update_all_labels()
 	_refresh_canvas_size()
 	_canvas.queue_redraw()
@@ -182,6 +321,7 @@ func _prompt_new_file():
 		_current_day = 1
 		_variant_idx = 0
 		_ensure_variant_exists()
+		_clear_history()
 		_update_all_labels()
 		_refresh_canvas_size()
 		_canvas.queue_redraw()
@@ -293,7 +433,6 @@ func _generate_test_map():
 	var day_layout : MapLayoutDay = _get_current_day_layout()
 	if day_layout == null: return
 
-	# ---- 收集每个类型的候选地图 ----
 	var pools : Dictionary = {}
 	if _levellist and _levellist.levels:
 		for m in _levellist.levels:
@@ -303,7 +442,6 @@ func _generate_test_map():
 				pools[t] = []
 			pools[t].append(m)
 
-	# ---- 逐层解析（同层去重，和 MapGenerator 一致） ----
 	var by_layer : Dictionary = {}
 	for i in range(day_layout.nodes.size()):
 		var ln : MapLayoutNode = day_layout.nodes[i]
@@ -333,7 +471,6 @@ func _generate_test_map():
 				resolved = available[randi() % available.size()]
 				used_types[resolved] = true
 
-			# ★ 优先从 LevelList 抽地图名
 			var pool : Array = pools.get(resolved, [])
 			if not pool.is_empty():
 				var pick : MapData = pool[randi() % pool.size()]
@@ -341,12 +478,11 @@ func _generate_test_map():
 					_test_map_assignment[ln] = pick.map_name
 					continue
 
-			# ★ 池子空 / map_name 空 → 用 MapConst 统一的中文类型名
 			_test_map_assignment[ln] = MapConst.get_node_display_name(resolved)
 
 
 # ============================================================
-#  遗物数据（供弹窗 + 画布使用）
+#  遗物数据
 # ============================================================
 func _load_relic_data_for_editor() -> Dictionary:
 	if not FileAccess.file_exists(RELIC_DATA_PATH):
@@ -369,7 +505,6 @@ func _get_relic_data_cached() -> Dictionary:
 	return _relic_data_cache
 
 
-## 供 MapLayoutCanvas 调用：返回遗物显示名
 func _relic_display_name(relic_id: String) -> String:
 	var d : Dictionary = _get_relic_data_cached()
 	if d.has(relic_id):
@@ -377,7 +512,6 @@ func _relic_display_name(relic_id: String) -> String:
 	return relic_id
 
 
-## 节点能否配遗物解锁（非战斗节点禁用）
 func _node_can_unlock_relics(node: MapLayoutNode) -> bool:
 	if not node.random_pool.is_empty():
 		for t in node.random_pool:
@@ -472,7 +606,7 @@ func _show_text_input_popup(title: String, label_text: String, default_text: Str
 
 
 # ============================================================
-#  嵌入式 Popup — 节点配置（类型 + 遗物解锁）
+#  嵌入式 Popup — 节点配置
 # ============================================================
 func _show_type_picker_popup(node_idx: int):
 	_close_popup()
@@ -504,7 +638,6 @@ func _show_type_picker_popup(node_idx: int):
 	)
 	_popup_layer.add_child(bg)
 
-	# ---------- 面板（居中） ----------
 	var panel := PanelContainer.new()
 	panel.set_anchors_preset(Control.PRESET_CENTER)
 	panel.anchor_top = 0.0
@@ -525,7 +658,6 @@ func _show_type_picker_popup(node_idx: int):
 	title_lb.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	vbox.add_child(title_lb)
 
-	# ---------- 主体：左右两列 ----------
 	var main := HBoxContainer.new()
 	main.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	main.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -541,7 +673,6 @@ func _show_type_picker_popup(node_idx: int):
 	var left_title := Label.new()
 	left_title.text = "类型"
 	left_title.add_theme_font_size_override("font_size", 7)
-	left_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	left_box.add_child(left_title)
 
 	var type_scroll := ScrollContainer.new()
@@ -604,7 +735,6 @@ func _show_type_picker_popup(node_idx: int):
 	main.add_child(left_box)
 
 	# ================= 右列：解锁遗物 =================
-	# ================= 右列：解锁遗物 =================
 	var can_unlock : bool = _node_can_unlock_relics(node)
 
 	var right_box := VBoxContainer.new()
@@ -615,7 +745,6 @@ func _show_type_picker_popup(node_idx: int):
 	var right_title := Label.new()
 	right_title.text = "解锁遗物"
 	right_title.add_theme_font_size_override("font_size", 7)
-	right_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	right_box.add_child(right_title)
 
 	var relic_checks : Array[Button] = []
@@ -678,7 +807,6 @@ func _show_type_picker_popup(node_idx: int):
 			hint.modulate = Color(0.6, 0.6, 0.6)
 			relic_list.add_child(hint)
 
-		# ★ 孤儿遗物检测（在 relic_data.json 里不存在）
 		var valid_relic_ids : Dictionary = {}
 		for rid in all_relics: valid_relic_ids[rid] = true
 		for rid in current_relics:
@@ -692,7 +820,7 @@ func _show_type_picker_popup(node_idx: int):
 
 	main.add_child(right_box)
 
-	# ================= 第三列 - 解锁单位 =================
+	# ================= 第三列：解锁单位 =================
 	var unit_box := VBoxContainer.new()
 	unit_box.custom_minimum_size = Vector2(90, 0)
 	unit_box.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -701,7 +829,6 @@ func _show_type_picker_popup(node_idx: int):
 	var unit_title := Label.new()
 	unit_title.text = "解锁单位"
 	unit_title.add_theme_font_size_override("font_size", 7)
-	unit_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	unit_box.add_child(unit_title)
 
 	var unit_checks : Array[Button] = []
@@ -763,7 +890,6 @@ func _show_type_picker_popup(node_idx: int):
 			hint2.modulate = Color(0.6, 0.6, 0.6)
 			unit_list.add_child(hint2)
 
-		# ★ 孤儿单位检测
 		var valid_unit_ids : Dictionary = {}
 		for uid in all_unit_ids: valid_unit_ids[uid] = true
 		for uid in current_units:
@@ -777,7 +903,6 @@ func _show_type_picker_popup(node_idx: int):
 
 	main.add_child(unit_box)
 
-	# ---------- 底部按钮 ----------
 	var btns := HBoxContainer.new()
 	btns.alignment = BoxContainer.ALIGNMENT_CENTER
 	btns.add_theme_constant_override("separation", 8)
@@ -796,9 +921,10 @@ func _show_type_picker_popup(node_idx: int):
 	cancel.pressed.connect(_close_popup)
 	btns.add_child(cancel)
 
-	# ---------- 确认回调 ----------
 	var confirm_action := func():
-		# 节点类型
+		# ★ 第十二批：节点配置改动 → 先 push undo
+		_push_undo()
+
 		var selected : Array = []
 		for btn in checks:
 			if btn.button_pressed:
@@ -813,7 +939,6 @@ func _show_type_picker_popup(node_idx: int):
 			node.random_pool = typed_pool
 			node.node_type = typed_pool[0]
 
-		# ★ 遗物解锁（仅战斗节点）
 		if can_unlock:
 			var new_relics : Array[String] = []
 			for btn in relic_checks:
@@ -825,7 +950,6 @@ func _show_type_picker_popup(node_idx: int):
 		else:
 			node.unlock_relics.clear()
 
-		# ★ 单位解锁（仅战斗节点）
 		if can_unlock:
 			var new_units : Array[String] = []
 			for btn in unit_checks:
@@ -873,7 +997,6 @@ func _make_btn(text: String, tooltip: String = "") -> Button:
 
 
 func _build_ui():
-	# ---------- 单行工具栏 ----------
 	var top := HBoxContainer.new()
 	top.set_anchors_preset(Control.PRESET_TOP_WIDE)
 	top.offset_left = 2
@@ -883,7 +1006,6 @@ func _build_ui():
 	top.add_theme_constant_override("separation", 1)
 	add_child(top)
 
-	# D1 / D2 / D3
 	for d in [1, 2, 3]:
 		var b := _make_btn("D%d" % d, "Day %d" % d)
 		b.add_theme_font_size_override("font_size", 7)
@@ -894,7 +1016,6 @@ func _build_ui():
 
 	top.add_child(VSeparator.new())
 
-	# 变体
 	var prev_btn := _make_btn("◀", "上一个变体")
 	prev_btn.add_theme_font_size_override("font_size", 7)
 	prev_btn.pressed.connect(_on_variant_prev)
@@ -925,7 +1046,6 @@ func _build_ui():
 
 	top.add_child(VSeparator.new())
 
-	# 工具
 	var edit_btn := _make_btn("编辑", "编辑模式")
 	edit_btn.add_theme_font_size_override("font_size", 6)
 	edit_btn.toggle_mode = true
@@ -945,14 +1065,23 @@ func _build_ui():
 	add_layer_btn.pressed.connect(_on_add_layer)
 	top.add_child(add_layer_btn)
 
+	# ★ 第十二批：撤销 / 重做按钮
+	var undo_btn := _make_btn("↶", "撤销 (Ctrl+Z)")
+	undo_btn.add_theme_font_size_override("font_size", 6)
+	undo_btn.pressed.connect(_undo)
+	top.add_child(undo_btn)
+
+	var redo_btn := _make_btn("↷", "重做 (Ctrl+Shift+Z / Ctrl+Y)")
+	redo_btn.add_theme_font_size_override("font_size", 6)
+	redo_btn.pressed.connect(_redo)
+	top.add_child(redo_btn)
+
 	top.add_child(VSeparator.new())
 
-	# ★ 弹性间隔，把右侧按钮推到底
 	var spacer := Control.new()
 	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	top.add_child(spacer)
 
-	# 关卡池 / 测试
 	_levellist_btn = _make_btn("关卡池", "选择 LevelList 文件")
 	_levellist_btn.add_theme_font_size_override("font_size", 4)
 	_levellist_btn.pressed.connect(_on_pick_levellist)
@@ -964,7 +1093,6 @@ func _build_ui():
 	_test_btn.pressed.connect(_on_test_toggle)
 	top.add_child(_test_btn)
 
-	# 新 / 开 / 存
 	var new_btn := _make_btn("新", "新建文件")
 	new_btn.add_theme_font_size_override("font_size", 6)
 	new_btn.pressed.connect(_on_new)
@@ -980,28 +1108,24 @@ func _build_ui():
 	save_btn.pressed.connect(_on_save)
 	top.add_child(save_btn)
 
-	# ★ 校验（v4.1 新增）
 	var validate_btn := _make_btn("校验", "扫描所有节点的 unlock_relics / unlock_units")
 	validate_btn.add_theme_font_size_override("font_size", 6)
 	validate_btn.pressed.connect(_run_layout_validation)
 	top.add_child(validate_btn)
 
-	# ★ 退出（最右）
 	var quit_btn := _make_btn("退出", "关闭编辑器")
 	quit_btn.add_theme_font_size_override("font_size", 6)
 	quit_btn.pressed.connect(func(): get_tree().quit())
 	top.add_child(quit_btn)
 
-	# ---------- Hint ----------
 	_hint_label = Label.new()
 	_hint_label.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
 	_hint_label.offset_top = -14
 	_hint_label.offset_left = 6
 	_hint_label.add_theme_font_size_override("font_size", 6)
-	_hint_label.text = "左键=创建/拖动 | 中键=删节点/删连线 | 右键=改类型/空白处=插入层 | 滚轮=滚动"
+	_hint_label.text = "左键=创建/拖动 | 中键=删节点/删连线 | 右键=改类型/空白处=插入层 | Ctrl+Z=撤销 | 滚轮=滚动"
 	add_child(_hint_label)
 
-	# ---------- 画布 ----------
 	_scroll = ScrollContainer.new()
 	_scroll.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_scroll.offset_left = 2
@@ -1021,20 +1145,6 @@ func _build_ui():
 	_scroll.add_child(_canvas)
 
 	_canvas.gui_input.connect(_on_canvas_input)
-
-
-func _unhandled_input(event: InputEvent):
-	if not (event is InputEventKey and event.pressed and not event.echo):
-		return
-	if _popup_layer == null or not is_instance_valid(_popup_layer):
-		return
-	if event.keycode == KEY_ESCAPE:
-		_close_popup()
-		get_viewport().set_input_as_handled()
-	elif event.keycode == KEY_ENTER or event.keycode == KEY_KP_ENTER:
-		if _popup_confirm_callback.is_valid():
-			_popup_confirm_callback.call()
-		get_viewport().set_input_as_handled()
 
 
 # ============================================================
@@ -1060,6 +1170,7 @@ func _handle_mouse_button(event: InputEventMouseButton, local: Vector2):
 			var idx : int = _node_at(local)
 			if idx >= 0:
 				if _current_tool == Tool.EDIT:
+					_push_undo()   # ★ 拖动起点 push
 					_dragging_idx = idx
 				else:
 					_handle_link_click(idx)
@@ -1067,7 +1178,6 @@ func _handle_mouse_button(event: InputEventMouseButton, local: Vector2):
 				if _current_tool == Tool.EDIT:
 					_create_node_at(local)
 		elif event.button_index == MOUSE_BUTTON_RIGHT:
-			# ★ 编辑模式：右键节点 → 弹配置；右键空白/间隙 → 插入层
 			if _current_tool == Tool.EDIT:
 				var idx : int = _node_at(local)
 				if idx >= 0:
@@ -1091,10 +1201,8 @@ func _handle_mouse_button(event: InputEventMouseButton, local: Vector2):
 # ============================================================
 #  插入层
 # ============================================================
-## 判断鼠标 y 落在"层间隙"时返回插入位置；落在节点上返回 -1
 func _compute_insert_layer_at_y(y: float) -> int:
 	var max_layer : int = _get_max_layer()
-	# 画布范围检查
 	if y < CANVAS_PADDING_TOP - LAYER_HEIGHT * 0.5:
 		return max_layer + 1
 	var bottom_y : float = CANVAS_PADDING_TOP + (max_layer + 1) * LAYER_HEIGHT + LAYER_HEIGHT * 0.5
@@ -1105,7 +1213,6 @@ func _compute_insert_layer_at_y(y: float) -> int:
 	var center_y : float = CANVAS_PADDING_TOP + (max_layer - layer_idx + 0.5) * LAYER_HEIGHT
 	var dist : float = abs(y - center_y)
 
-	# 太靠近节点中心 → 视为点节点，不插入
 	if dist < NODE_H / 2.0 + 2.0:
 		return -1
 
@@ -1127,12 +1234,12 @@ func _insert_layer(insert_at: int):
 	var day_layout : MapLayoutDay = _get_current_day_layout()
 	if day_layout == null: return
 
-	# 所有 layer >= insert_at 的节点，layer += 1
+	_push_undo()   # ★ 第十二批
+
 	for n in day_layout.nodes:
 		if n.layer >= insert_at:
 			n.layer += 1
 
-	# 新建一个 NORMAL 节点
 	var n := MapLayoutNode.new()
 	n.node_type = MapNode.NodeType.NORMAL
 	n.layer = insert_at
@@ -1147,12 +1254,7 @@ func _insert_layer(insert_at: int):
 #  布局管理
 # ============================================================
 func _get_variant_array() -> Array:
-	if _layout == null: return []
-	match _current_day:
-		1: return _layout.day1_variants
-		2: return _layout.day2_variants
-		3: return _layout.day3_variants
-	return []
+	return _get_variant_array_for_day(_current_day)
 
 
 func _get_current_day_layout() -> MapLayoutDay:
@@ -1266,6 +1368,7 @@ func _delete_link(from_idx: int, to_idx: int):
 	var day_layout : MapLayoutDay = _get_current_day_layout()
 	if day_layout == null: return
 	if from_idx < 0 or from_idx >= day_layout.nodes.size(): return
+	_push_undo()   # ★
 	day_layout.nodes[from_idx].connects_to.erase(to_idx)
 	_canvas.queue_redraw()
 
@@ -1280,6 +1383,7 @@ func _layer_at_y(y: float) -> int:
 func _create_node_at(local: Vector2):
 	var day_layout : MapLayoutDay = _get_current_day_layout()
 	if day_layout == null: return
+	_push_undo()   # ★
 	var new_layer : int = _layer_at_y(local.y)
 	var n := MapLayoutNode.new()
 	n.node_type = MapNode.NodeType.NORMAL
@@ -1292,6 +1396,9 @@ func _create_node_at(local: Vector2):
 func _end_drag(local: Vector2):
 	var day_layout : MapLayoutDay = _get_current_day_layout()
 	if day_layout == null: return
+	if _dragging_idx < 0 or _dragging_idx >= day_layout.nodes.size():
+		_dragging_idx = -1
+		return
 	var new_layer : int = _layer_at_y(local.y)
 	day_layout.nodes[_dragging_idx].layer = new_layer
 	_dragging_idx = -1
@@ -1313,6 +1420,7 @@ func _handle_link_click(idx: int):
 	if day_layout == null: return
 	var node : MapLayoutNode = day_layout.nodes[from_idx]
 	if not node.connects_to.has(idx):
+		_push_undo()   # ★
 		node.connects_to.append(idx)
 	_canvas.queue_redraw()
 
@@ -1321,6 +1429,8 @@ func _delete_node(idx: int):
 	var day_layout : MapLayoutDay = _get_current_day_layout()
 	if day_layout == null: return
 	if idx < 0 or idx >= day_layout.nodes.size(): return
+
+	_push_undo()   # ★
 
 	var removed_layer : int = day_layout.nodes[idx].layer
 	day_layout.nodes.remove_at(idx)
@@ -1378,6 +1488,7 @@ func _on_variant_next():
 
 
 func _on_variant_add():
+	_push_undo()   # ★
 	var arr : Array = _get_variant_array()
 	arr.append(MapLayoutDay.new())
 	_variant_idx = arr.size() - 1
@@ -1391,6 +1502,7 @@ func _on_variant_delete():
 	var arr : Array = _get_variant_array()
 	if arr.size() <= 1:
 		return
+	_push_undo()   # ★
 	arr.remove_at(_variant_idx)
 	_variant_idx = clampi(_variant_idx, 0, arr.size() - 1)
 	_ensure_variant_exists()
@@ -1402,6 +1514,7 @@ func _on_variant_delete():
 func _on_add_layer():
 	var day_layout : MapLayoutDay = _get_current_day_layout()
 	if day_layout == null: return
+	_push_undo()   # ★
 	var new_layer : int = _get_max_layer() + 1
 	var n := MapLayoutNode.new()
 	n.node_type = MapNode.NodeType.NORMAL
@@ -1428,7 +1541,6 @@ func _update_all_labels():
 	if _variant_label:
 		_variant_label.text = "%d/%d" % [_variant_idx + 1, maxi(arr.size(), 1)]
 
-	# LevelList 按钮
 	if _levellist_btn:
 		if _levellist_path != "":
 			var fname : String = _levellist_path.get_file()
@@ -1440,7 +1552,6 @@ func _update_all_labels():
 			_levellist_btn.text = "关卡池"
 			_levellist_btn.tooltip_text = "选择 LevelList 文件"
 
-	# 测试按钮
 	if _test_btn:
 		_test_btn.button_pressed = _in_test_mode
 		_test_btn.text = "退出" if _in_test_mode else "测试"
@@ -1460,7 +1571,7 @@ func _bake_positions():
 
 
 # ============================================================
-#  ★ 校验所有节点的 unlock_relics / unlock_units
+#  校验
 # ============================================================
 func _run_layout_validation():
 	if _layout == null:
@@ -1470,7 +1581,6 @@ func _run_layout_validation():
 
 	var errors : Array = []
 
-	# 有效池
 	var relic_db : Dictionary = _get_relic_data_cached()
 	var valid_relics : Dictionary = {}
 	for rid in relic_db:
@@ -1481,7 +1591,6 @@ func _run_layout_validation():
 	for uid in unit_ids:
 		valid_units[uid] = true
 
-	# 3 天所有 variant
 	var all_days : Array = [
 		{"day": 1, "variants": _layout.day1_variants},
 		{"day": 2, "variants": _layout.day2_variants},
@@ -1508,7 +1617,6 @@ func _run_layout_validation():
 						errors.append("Day%d V%d Node[%d]%s  单位不存在: %s"
 							% [day_num, vi, ni, pos_str, uid])
 
-	# 输出报告
 	var msg : String = ""
 	if errors.is_empty():
 		msg = "✓ 校验通过\n\n所有 unlock_relics / unlock_units 引用均存在。"
@@ -1551,9 +1659,6 @@ func _node_pos_for_variant(day_layout: MapLayoutDay, idx: int) -> Vector2:
 	return Vector2(x, y)
 
 
-# ============================================================
-#  节点类型短名
-# ============================================================
 func _node_type_short(t: int) -> String:
 	match t:
 		MapNode.NodeType.START: return "START"

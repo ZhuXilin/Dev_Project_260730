@@ -3,70 +3,7 @@ extends Control
 
 # ============================================================
 #  ChipMusicEditor — 独立 8-bit 音乐编辑器
-# ============================================================
-#
-#  【文件操作】
-#    Ctrl+N              新建歌曲
-#    Ctrl+O              打开歌曲
-#    Ctrl+S              保存（若未命名则弹另存为对话框）
-#    Ctrl+Shift+S        另存为（总是弹对话框）
-#    Esc                 退出（有未保存修改会弹窗确认）
-#
-#  【播放控制】
-#    空格                播放 / 暂停（记住当前位置）
-#    播放按钮            从当前播放头位置开始
-#    停止按钮            停止并回到 tick 0
-#    拖拽进度条          拖动到指定位置（拖前在播放则续播）
-#
-#  【音符编辑 — 左键】
-#    左键空白（无选中）      添加音符（默认半拍）
-#    左键空白（有选中）      取消所有选中
-#    左键拖拽空白            框选一片音符
-#    Shift + 左键拖拽空白    追加框选（保留已有选中）
-#    Shift + 左键点音符      加选 / 减选单个音符
-#    左键点音符              选中该音符
-#    左键拖拽音符            移动选中组（tick + 音高）
-#    拖拽音符右边缘          调整该音符时长（整数 tick）
-#
-#  【音符编辑 — 右键 / 中键】
-#    右键音符                删除该音符
-#    中键拖动                平移视图（视口移动）
-#    右键空白                弹出操作菜单
-#
-#  【键盘】
-#    Delete                  删除所有选中音符
-#    ↑ / ↓                   选中音符整体移调 ±1 半音
-#    Shift + ↑ / ↓           选中音符整体移调 ±1 八度（12 半音）
-#    ← / →                   选中音符整体左右移动 ±1 tick
-#    Shift + ← / →           整体左右移动 ±1 拍
-#    Ctrl+A                  全选当前通道所有音符（All 通道时全选）
-#    Ctrl+X / Ctrl+C         剪切 / 复制选中音符（同通道内）
-#    Ctrl+V                  粘贴到鼠标位置（同通道内，切通道清空）
-#
-#  【通道】
-#    单击通道按钮            切换到该通道（清空选中 + 剪贴板 + 框选记录）
-#    All 按钮                显示所有通道（只读，空白处不能新建）
-#    M 按钮                  静音该通道
-#
-#  【视图】
-#    滚轮                    垂直滚动
-#    Shift + 滚轮            水平滚动
-#    Ctrl + 滚轮             以鼠标为中心整体缩放（同步宽 + 行高）
-#    通道面板"宽度"滑杆      横向缩放（10~120 px / 拍）
-#    通道面板"行高"滑杆      纵向行高（3.0~14.0 px）
-#
-#  【歌曲元数据】（通道面板底部）
-#    修改标题输入框          重命名歌曲（同步到底部只读 Label）
-#    修改循环开关            是否循环（勾选时 loop_start=0, loop_end=total_ticks）
-#
-#  【右键菜单】
-#    填满后续                用框选区域确定 N 小节，向后重复铺满
-#    填满之前                用框选区域确定 N 小节，向前重复铺满
-#    清空通道                清空当前通道所有音符（All 时清空全部）
-#
-#  【撤销 / 重做】
-#    Ctrl+Z                  撤销（最多 15 步）
-#    Ctrl+Shift+Z / Ctrl+Y   重做
+#  本版新增：批量归一化音量、细滚动条主题、_toast 提示
 # ============================================================
 
 const MUSIC_DIR : String = "res://content/music/"
@@ -105,6 +42,10 @@ const SLIDER_H : int = 5
 const META_LABEL_W : int = 28
 
 const CH_ALL : int = -1
+
+# 批量归一化目标峰值
+const NORMALIZE_TARGET_PEAK : float = 0.8
+const NORMALIZE_MIN_DELTA : float = 0.01
 
 const COL_BG          := Color(0.06, 0.06, 0.08)
 const COL_ROW_BLACK   := Color(0.09, 0.09, 0.12)
@@ -295,13 +236,10 @@ var _pan_start_scroll : Vector2 = Vector2.ZERO
 var _dragging_progress : bool = false
 var _was_playing_before_seek : bool = false
 
-# 剪贴板（单通道内）
 var _clipboard : Dictionary = {}
 
-# 右键菜单
 var _tracker_menu : Control = null
 
-# 最近一次框选范围（世界像素坐标，用于确定"填满"的 N 小节）
 var _last_box_world_rect : Rect2 = Rect2()
 var _has_last_box : bool = false
 
@@ -327,6 +265,7 @@ var _play_btn : Button = null
 var _stop_btn : Button = null
 var _save_btn : Button = null
 var _status : Label = null
+var _toast_label : Label = null       # ★ 新增
 var _note_info : Label = null
 var _note_tick : SpinBox = null
 var _note_pitch : SpinBox = null
@@ -345,11 +284,8 @@ func _ready():
 
 
 func _process(_delta : float):
-	# ★ 歌曲事件已改动 + 正在播放 → 通知播放器刷新游标
 	if _events_dirty:
 		_events_dirty = false
-		# ChipMusicPlayer 无 notify_song_changed()，
-		# 编辑事件后重启播放即可生效（用户手动"停止→播放"）
 
 	if _dragging_progress: return
 	if _player and _player.is_playing():
@@ -413,24 +349,25 @@ func _apply_compact_theme():
 	t.set_stylebox("separator", "VSeparator", sep_sb)
 
 	_setup_slider_theme(t)
+	_setup_scrollbar_theme(t)
 	theme = t
 
 
 func _setup_slider_theme(t : Theme):
 	var slider_sb := StyleBoxFlat.new()
 	slider_sb.bg_color = Color(0.22, 0.22, 0.28, 1.0)
-	slider_sb.content_margin_top = 2.5
-	slider_sb.content_margin_bottom = 2.5
+	slider_sb.content_margin_top = 1.5
+	slider_sb.content_margin_bottom = 1.5
 	t.set_stylebox("slider", "HSlider", slider_sb)
 
 	var grab_sb := StyleBoxFlat.new()
 	grab_sb.bg_color = Color(0.55, 0.55, 0.60, 1.0)
-	grab_sb.content_margin_top = 2.5
-	grab_sb.content_margin_bottom = 2.5
+	grab_sb.content_margin_top = 1.5
+	grab_sb.content_margin_bottom = 1.5
 	t.set_stylebox("grabber_area", "HSlider", grab_sb)
 	t.set_stylebox("grabber_area_highlight", "HSlider", grab_sb)
 
-	var img := Image.create(2, 5, false, Image.FORMAT_RGBA8)
+	var img := Image.create(2, 4, false, Image.FORMAT_RGBA8)
 	img.fill(Color(0.78, 0.78, 0.82, 1.0))
 	var tex := ImageTexture.create_from_image(img)
 	t.set_icon("grabber", "HSlider", tex)
@@ -439,6 +376,45 @@ func _setup_slider_theme(t : Theme):
 
 	t.set_constant("center_grabber", "HSlider", 1)
 	t.set_constant("grabber_offset", "HSlider", 0)
+
+
+func _setup_scrollbar_theme(t : Theme):
+	var track := StyleBoxFlat.new()
+	track.bg_color = Color(0.08, 0.08, 0.10, 1)
+	track.content_margin_left = 0
+	track.content_margin_right = 0
+	track.content_margin_top = 0
+	track.content_margin_bottom = 0
+
+	var grab_off := StyleBoxFlat.new()
+	grab_off.bg_color = Color(0.32, 0.32, 0.38, 1)
+	grab_off.corner_radius_top_left = 2
+	grab_off.corner_radius_top_right = 2
+	grab_off.corner_radius_bottom_left = 2
+	grab_off.corner_radius_bottom_right = 2
+
+	var grab_hl := StyleBoxFlat.new()
+	grab_hl.bg_color = Color(0.55, 0.55, 0.65, 1)
+	grab_hl.corner_radius_top_left = 2
+	grab_hl.corner_radius_top_right = 2
+	grab_hl.corner_radius_bottom_left = 2
+	grab_hl.corner_radius_bottom_right = 2
+
+	t.set_stylebox("scroll", "VScrollBar", track)
+	t.set_stylebox("scroll_focus", "VScrollBar", track)
+	t.set_stylebox("grabber", "VScrollBar", grab_off)
+	t.set_stylebox("grabber_highlight", "VScrollBar", grab_hl)
+	t.set_stylebox("grabber_pressed", "VScrollBar", grab_hl)
+	t.set_constant("minimum_grab_size", "VScrollBar", 6)
+	t.set_constant("scroll_width", "VScrollBar", 4)
+
+	t.set_stylebox("scroll", "HScrollBar", track)
+	t.set_stylebox("scroll_focus", "HScrollBar", track)
+	t.set_stylebox("grabber", "HScrollBar", grab_off)
+	t.set_stylebox("grabber_highlight", "HScrollBar", grab_hl)
+	t.set_stylebox("grabber_pressed", "HScrollBar", grab_hl)
+	t.set_constant("minimum_grab_size", "HScrollBar", 6)
+	t.set_constant("scroll_height", "HScrollBar", 4)
 
 
 func _auto_load_default():
@@ -499,6 +475,7 @@ func _build_ui():
 
 	_make_info_panel(root)
 	_make_hint_bar(root)
+	_make_toast_label(root)     # ★ 新增
 
 
 func _make_toolbar(parent : Node):
@@ -580,6 +557,13 @@ func _make_toolbar(parent : Node):
 			if _seek_bar: _seek_bar.queue_redraw()
 	)
 	bar.add_child(_total_spin)
+
+	bar.add_child(_make_vsep())
+
+	# ★ 批量归一化
+	var normalize_btn := _mk_btn("批量归一化", func(): _batch_normalize_volume())
+	normalize_btn.tooltip_text = "扫描 music/ 与 sound/ 下所有 JSON，把所有通道音量按峰值缩放到 0.8"
+	bar.add_child(normalize_btn)
 
 	bar.add_child(_make_vsep())
 
@@ -702,7 +686,6 @@ func _make_channel_panel(parent : Node):
 
 
 func _make_bottom_zoom(parent : Node):
-	# ===== 宽度 =====
 	var r1 := HBoxContainer.new()
 	r1.add_theme_constant_override("separation", 2)
 	parent.add_child(r1)
@@ -737,7 +720,6 @@ func _make_bottom_zoom(parent : Node):
 	pad1.custom_minimum_size = Vector2(MUTE_W + 1, 0)
 	r1.add_child(pad1)
 
-	# ===== 行高 =====
 	var r2 := HBoxContainer.new()
 	r2.add_theme_constant_override("separation", 2)
 	parent.add_child(r2)
@@ -772,7 +754,6 @@ func _make_bottom_zoom(parent : Node):
 
 
 func _make_song_meta_panel(parent : Node):
-	# ---- 修改标题 ----
 	var r1 := HBoxContainer.new()
 	r1.add_theme_constant_override("separation", 2)
 	parent.add_child(r1)
@@ -809,7 +790,6 @@ func _make_song_meta_panel(parent : Node):
 	)
 	r1.add_child(_title_edit)
 
-	# ---- 修改循环 ----
 	var r2 := HBoxContainer.new()
 	r2.add_theme_constant_override("separation", 2)
 	parent.add_child(r2)
@@ -979,6 +959,26 @@ func _make_hint_bar(parent : Node):
 	_status.text = HINT_TEXT
 	_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	panel.add_child(_status)
+
+
+# ★ 新增：屏幕下方 toast 提示条
+func _make_toast_label(parent : Node):
+	_toast_label = Label.new()
+	_toast_label.add_theme_font_size_override("font_size", FS_SMALL)
+	_toast_label.modulate = Color(0.6, 1.0, 0.6)
+	_toast_label.text = ""
+	_toast_label.clip_text = true
+	parent.add_child(_toast_label)
+
+
+# ★ 新增：显示 1.5 秒的 toast
+func _toast(msg : String):
+	if _toast_label == null:
+		return
+	_toast_label.text = msg
+	await get_tree().create_timer(1.5).timeout
+	if is_instance_valid(_toast_label):
+		_toast_label.text = ""
 
 
 # ---------------- UI 小工具 ----------------
@@ -1186,6 +1186,103 @@ func _redo():
 	_apply_snapshot(snap)
 	_dirty = true
 	_status.text = "↷ 重做 (剩余 %d 步)" % _redo_stack.size()
+
+
+# ============================================================
+#  批量归一化音量
+# ============================================================
+func _batch_normalize_volume():
+	var files : Array = []
+	_scan_dir_for_json(MUSIC_DIR, files)
+	_scan_dir_for_json("res://content/sound/", files)
+	if files.is_empty():
+		_toast("未找到 JSON 文件")
+		return
+
+	var count : int = 0
+	var changed : int = 0
+	var errors : int = 0
+	for path in files:
+		count += 1
+		var r : int = _normalize_song_file(path)
+		if r == 1: changed += 1
+		elif r < 0: errors += 1
+
+	var msg : String = "扫描 %d，修改 %d" % [count, changed]
+	if errors > 0:
+		msg += "，失败 %d" % errors
+	_toast(msg)
+	print("[ChipMusicEditor] 批量归一化：%s（目标峰值 %.2f）" % [msg, NORMALIZE_TARGET_PEAK])
+
+	if _path != "" and _path in files:
+		_load_file(_path)
+
+
+## 返回：1=有变化且已保存，0=无变化，-1=失败
+func _normalize_song_file(path : String) -> int:
+	if not FileAccess.file_exists(path):
+		return -1
+	var f := FileAccess.open(path, FileAccess.READ)
+	if f == null:
+		return -1
+	var text : String = f.get_as_text()
+	f.close()
+
+	var data = JSON.parse_string(text)
+	if not (data is Dictionary):
+		return -1
+
+	var channels : Array = data.get("channels", [])
+	if channels.is_empty():
+		return 0
+
+	var peak : float = 0.0
+	for c in channels:
+		if c is Dictionary:
+			peak = maxf(peak, float(c.get("volume", 1.0)))
+
+	if peak <= 0.0001:
+		return 0
+
+	var scale : float = NORMALIZE_TARGET_PEAK / peak
+	if is_equal_approx(scale, 1.0):
+		return 0
+
+	var changed : bool = false
+	for c in channels:
+		if c is Dictionary:
+			var old_v : float = float(c.get("volume", 1.0))
+			var new_v : float = clampf(old_v * scale, 0.0, 1.0)
+			if absf(new_v - old_v) >= NORMALIZE_MIN_DELTA:
+				c["volume"] = new_v
+				changed = true
+
+	if not changed:
+		return 0
+
+	var out := FileAccess.open(path, FileAccess.WRITE)
+	if out == null:
+		return -1
+	out.store_string(JSON.stringify(data, " ", false))
+	out.close()
+	return 1
+
+
+func _scan_dir_for_json(dir_path : String, out : Array):
+	if not DirAccess.dir_exists_absolute(dir_path):
+		return
+	var dir := DirAccess.open(dir_path)
+	if dir == null:
+		return
+	dir.list_dir_begin()
+	var fname := dir.get_next()
+	while fname != "":
+		if not dir.current_is_dir() and fname.ends_with(".json"):
+			var p : String = dir_path + fname
+			if p not in out:
+				out.append(p)
+		fname = dir.get_next()
+	dir.list_dir_end()
 
 
 # ============================================================
@@ -1397,7 +1494,6 @@ func _save_file():
 		_status.text = "没有可保存的歌曲"; return
 	if _path == "":
 		_save_as_dialog(); return
-	# res:// 路径转成系统绝对路径（编辑器可写）
 	var real_path : String = _path
 	if _path.begins_with("res://"):
 		real_path = ProjectSettings.globalize_path(_path)
@@ -1418,7 +1514,6 @@ func _save_as_dialog():
 	fd.access = FileDialog.ACCESS_FILESYSTEM
 	fd.add_filter("*.json", "Chip Music")
 	fd.current_path = ProjectSettings.globalize_path(MUSIC_DIR)
-	# 默认文件名：优先当前文件，其次标题
 	if _path != "":
 		fd.current_file = _path.get_file()
 	elif _song != null and _song.title.strip_edges() != "":
@@ -1483,7 +1578,6 @@ func _do_save(path : String):
 		_status.text = "❌ 保存失败: " + path
 
 
-## 按 tick（同 tick 按 ch）排序事件
 func _sort_events():
 	if _song == null: return
 	_song.events.sort_custom(func(a, b):
@@ -1499,7 +1593,6 @@ func _sort_events():
 # ============================================================
 func _play():
 	if _song == null: return
-	# ★ 播放前按 tick 排序，保证 Sequencer 的正确遍历
 	_sort_events()
 	_player.stop()
 	if _playhead_tick > 0.0:
@@ -1973,7 +2066,6 @@ func _show_tracker_menu():
 	var has_sel : bool = _selected_indices.size() > 0
 	var is_specific_ch : bool = _selected_channel != CH_ALL
 
-	# 填满后续
 	var fill_after_btn := _make_menu_btn("填满后续")
 	fill_after_btn.disabled = not (has_sel and is_specific_ch)
 	fill_after_btn.tooltip_text = "用选中块向后按小节重复铺满"
@@ -1983,7 +2075,6 @@ func _show_tracker_menu():
 	)
 	vbox.add_child(fill_after_btn)
 
-	# 填满之前
 	var fill_before_btn := _make_menu_btn("填满之前")
 	fill_before_btn.disabled = not (has_sel and is_specific_ch)
 	fill_before_btn.tooltip_text = "用选中块向前按小节重复铺满"
@@ -1993,7 +2084,6 @@ func _show_tracker_menu():
 	)
 	vbox.add_child(fill_before_btn)
 
-	# 清空通道
 	var clear_btn := _make_menu_btn("清空通道")
 	clear_btn.disabled = has_sel
 	clear_btn.tooltip_text = "清空当前通道所有音符（All 时为全部）"
@@ -2018,8 +2108,6 @@ func _show_tracker_menu():
 # ============================================================
 #  菜单功能
 # ============================================================
-## 把模板裁切到 [bar_start, bar_end) 范围内
-## 只保留起点在范围内的音符；其 dur 若超出 bar_end 会被裁短
 func _clip_template_to_range(template : Array, bar_start : float, bar_end : float) -> Array:
 	var out : Array = []
 	for src in template:
@@ -2038,10 +2126,6 @@ func _clip_template_to_range(template : Array, bar_start : float, bar_end : floa
 	return out
 
 
-## 准备填充模板
-## - 优先使用「最近一次框选」确定 N 小节范围
-## - 若无框选记录，退化为用选中音符的 tick 范围
-## - 模板中的所有音符都会裁切到 [base_bar_tick, base_bar_tick + pattern_len)
 func _prepare_fill_template() -> Dictionary:
 	if _song == null or _selected_indices.size() == 0:
 		return {"ok": false, "msg": "没有选中的块"}
@@ -2054,7 +2138,6 @@ func _prepare_fill_template() -> Dictionary:
 	if bar_ticks <= 0:
 		return {"ok": false, "msg": "参数错误"}
 
-	# 收集当前通道的选中块
 	var sel_events : Array = []
 	var pitch_min : int = PITCH_MAX
 	var pitch_max : int = PITCH_MIN
@@ -2069,7 +2152,6 @@ func _prepare_fill_template() -> Dictionary:
 	if sel_events.is_empty():
 		return {"ok": false, "msg": "选中块不属于当前通道"}
 
-	# 确定模板 tick 范围
 	var range_tick_start : float
 	var range_tick_end : float
 	if _has_last_box:
@@ -2084,7 +2166,6 @@ func _prepare_fill_template() -> Dictionary:
 		range_tick_start = min_t
 		range_tick_end = max_t
 
-	# 对齐到小节边界
 	var start_bar_idx : int = int(floor(range_tick_start / float(bar_ticks)))
 	var end_bar_idx : int = int(floor((range_tick_end - 0.001) / float(bar_ticks)))
 	if end_bar_idx < start_bar_idx:
@@ -2094,7 +2175,6 @@ func _prepare_fill_template() -> Dictionary:
 	var pattern_len : float = float(bar_count * bar_ticks)
 	var pattern_end : float = base_bar_tick + pattern_len
 
-	# 生成模板：所有选中块裁切到 [base_bar_tick, pattern_end)
 	var template : Array = []
 	for e in sel_events:
 		var t : float = float(e.tick)
@@ -2125,7 +2205,6 @@ func _prepare_fill_template() -> Dictionary:
 	}
 
 
-## 填满后续
 func _fill_track_after():
 	var p := _prepare_fill_template()
 	if not p["ok"]:
@@ -2178,7 +2257,6 @@ func _fill_track_after():
 		_ch_en_names[_selected_channel], bar_count, pitch_min, pitch_max, added.size()]
 
 
-## 填满之前
 func _fill_track_before():
 	var p := _prepare_fill_template()
 	if not p["ok"]:
@@ -2234,7 +2312,6 @@ func _fill_track_before():
 		_ch_en_names[_selected_channel], bar_count, pitch_min, pitch_max, added.size()]
 
 
-## 清空通道
 func _clear_current_channel():
 	if _song == null: return
 	_push_undo()
@@ -2301,7 +2378,6 @@ func _finish_box_select(c : Control):
 			if not (i in new_selection):
 				new_selection.append(i)
 
-	# 保存框选的世界坐标范围
 	var wx0 : float = _box_start.x - gx + _scroll_x
 	var wx1 : float = _box_end.x - gx + _scroll_x
 	var wy0 : float = _box_start.y + _scroll_y
@@ -2660,7 +2736,6 @@ func _input(event : InputEvent):
 	if not (event is InputEventKey and event.pressed):
 		return
 	var ke : InputEventKey = event
-	# ★ 方向键允许按键重复（echo），其他键仍过滤
 	var is_arrow : bool = (ke.keycode == KEY_UP or ke.keycode == KEY_DOWN \
 		or ke.keycode == KEY_LEFT or ke.keycode == KEY_RIGHT)
 	if ke.echo and not is_arrow:

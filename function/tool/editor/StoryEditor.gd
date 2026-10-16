@@ -3,7 +3,7 @@ extends Control
 
 # ============================================================
 #  StoryEditor — NPC 剧情 / 独立对话 / 地图事件 统一编辑器
-#  UI 完全对齐 ChipMusicEditor
+#  v4.2 第 12 批：新增"复制对话"按钮
 # ============================================================
 
 const STORY_PATH : String = "res://content/data/stories.json"
@@ -30,7 +30,6 @@ const CONDITION_HELP : Dictionary = {
 	"flags": "必须已获得所有 flag（逗号分隔）",
 }
 
-# ---- ★ 完全对齐 ChipMusicEditor 的尺寸 ----
 const FS_BUTTON : int = 6
 const FS_LABEL  : int = 6
 const FS_SMALL  : int = 5
@@ -47,7 +46,6 @@ const ROW_H  : int = 13
 const LEFT_W : int = 90
 const MID_W  : int = 170
 
-# ---- 配色（对齐 ChipMusicEditor） ----
 const COL_BG        : Color = Color(0.08, 0.08, 0.10)
 const COL_PANEL     : Color = Color(0.10, 0.10, 0.13)
 const COL_VSEP      : Color = Color(0.36, 0.36, 0.42)
@@ -101,12 +99,11 @@ func _setup_window():
 
 
 # ============================================================
-#  ★ 全局 Theme（照搬 ChipMusicEditor）
+#  全局 Theme
 # ============================================================
 func _apply_compact_theme():
 	var t := Theme.new()
 
-	# ---- Button ----
 	t.set_font_size("font_size", "Button", FS_BUTTON)
 	var btn_empty := StyleBoxEmpty.new()
 	btn_empty.content_margin_left = 1
@@ -119,30 +116,20 @@ func _apply_compact_theme():
 	t.set_stylebox("focus", "Button", btn_empty)
 	t.set_stylebox("disabled", "Button", btn_empty)
 
-	# ---- Label ----
 	t.set_font_size("font_size", "Label", FS_LABEL)
 	var label_empty := StyleBoxEmpty.new()
-	label_empty.content_margin_left = 0
-	label_empty.content_margin_right = 0
-	label_empty.content_margin_top = 0
-	label_empty.content_margin_bottom = 0
 	t.set_stylebox("normal", "Label", label_empty)
 
-	# ---- LineEdit（无边框） ----
 	t.set_font_size("font_size", "LineEdit", FS_BUTTON)
 	var le_empty := StyleBoxEmpty.new()
 	le_empty.content_margin_left = 2
 	le_empty.content_margin_right = 2
-	le_empty.content_margin_top = 0
-	le_empty.content_margin_bottom = 0
 	t.set_stylebox("normal", "LineEdit", le_empty)
 	t.set_stylebox("focus", "LineEdit", le_empty)
 	t.set_stylebox("read_only", "LineEdit", le_empty)
 
-	# ---- OptionButton ----
 	t.set_font_size("font_size", "OptionButton", FS_BUTTON)
 
-	# ---- PopupMenu（下拉） ----
 	t.set_font_size("font_size", "PopupMenu", FS_SMALL)
 	t.set_font_size("font_separator_size", "PopupMenu", FS_SMALL)
 	t.set_constant("item_start_padding", "PopupMenu", 3)
@@ -165,7 +152,6 @@ func _apply_compact_theme():
 	popup_panel.content_margin_bottom = 2
 	t.set_stylebox("panel", "PopupMenu", popup_panel)
 
-	# ---- Tooltip ----
 	t.set_font_size("font_size", "TooltipLabel", FS_SMALL)
 	t.set_font_size("font_size", "TooltipPanel", FS_SMALL)
 	var tip_sb := StyleBoxFlat.new()
@@ -176,7 +162,6 @@ func _apply_compact_theme():
 	tip_sb.content_margin_bottom = 1
 	t.set_stylebox("panel", "TooltipPanel", tip_sb)
 
-	# ---- VSeparator ----
 	var sep_sb := StyleBoxLine.new()
 	sep_sb.color = COL_VSEP
 	sep_sb.thickness = 1
@@ -185,11 +170,93 @@ func _apply_compact_theme():
 	sep_sb.grow_end = 2
 	t.set_stylebox("separator", "VSeparator", sep_sb)
 
-	# ---- SpinBox ----
 	t.set_font_size("font_size", "SpinBox", FS_BUTTON)
 
-	theme = t
+	# ============================================================
+	#  ★ 细滚动条 / 细滑杆（宽 4px，视觉比默认细一半以上）
+	# ============================================================
+	var scroll_track := StyleBoxFlat.new()
+	scroll_track.bg_color = Color(0.08, 0.08, 0.10, 1)
+	scroll_track.content_margin_left = 0
+	scroll_track.content_margin_right = 0
+	scroll_track.content_margin_top = 0
+	scroll_track.content_margin_bottom = 0
 
+	var grabber_off := StyleBoxFlat.new()
+	grabber_off.bg_color = Color(0.32, 0.32, 0.38, 1)
+	grabber_off.corner_radius_top_left = 2
+	grabber_off.corner_radius_top_right = 2
+	grabber_off.corner_radius_bottom_left = 2
+	grabber_off.corner_radius_bottom_right = 2
+
+	var grabber_hl := StyleBoxFlat.new()
+	grabber_hl.bg_color = Color(0.55, 0.55, 0.65, 1)
+	grabber_hl.corner_radius_top_left = 2
+	grabber_hl.corner_radius_top_right = 2
+	grabber_hl.corner_radius_bottom_left = 2
+	grabber_hl.corner_radius_bottom_right = 2
+
+	# VScrollBar
+	t.set_stylebox("scroll", "VScrollBar", scroll_track)
+	t.set_stylebox("scroll_focus", "VScrollBar", scroll_track)
+	t.set_stylebox("grabber", "VScrollBar", grabber_off)
+	t.set_stylebox("grabber_highlight", "VScrollBar", grabber_hl)
+	t.set_stylebox("grabber_pressed", "VScrollBar", grabber_hl)
+	t.set_constant("minimum_grab_size", "VScrollBar", 6)
+	t.set_constant("scroll_width", "VScrollBar", 4)
+
+	# HScrollBar
+	t.set_stylebox("scroll", "HScrollBar", scroll_track)
+	t.set_stylebox("scroll_focus", "HScrollBar", scroll_track)
+	t.set_stylebox("grabber", "HScrollBar", grabber_off)
+	t.set_stylebox("grabber_highlight", "HScrollBar", grabber_hl)
+	t.set_stylebox("grabber_pressed", "HScrollBar", grabber_hl)
+	t.set_constant("minimum_grab_size", "HScrollBar", 6)
+	t.set_constant("scroll_height", "HScrollBar", 4)
+
+	# HSlider：细一半
+	var slider_track := StyleBoxFlat.new()
+	slider_track.bg_color = Color(0.20, 0.20, 0.24, 1)
+	slider_track.content_margin_top = 1.5
+	slider_track.content_margin_bottom = 1.5
+	t.set_stylebox("slider", "HSlider", slider_track)
+
+	var slider_grab := StyleBoxFlat.new()
+	slider_grab.bg_color = Color(0.5, 0.5, 0.55, 1)
+	slider_grab.content_margin_top = 1.5
+	slider_grab.content_margin_bottom = 1.5
+	t.set_stylebox("grabber_area", "HSlider", slider_grab)
+	t.set_stylebox("grabber_area_highlight", "HSlider", slider_grab)
+
+	var img := Image.create(2, 4, false, Image.FORMAT_RGBA8)
+	img.fill(Color(0.78, 0.78, 0.82, 1.0))
+	var tex := ImageTexture.create_from_image(img)
+	t.set_icon("grabber", "HSlider", tex)
+	t.set_icon("grabber_highlight", "HSlider", tex)
+	t.set_icon("grabber_disabled", "HSlider", tex)
+	t.set_constant("center_grabber", "HSlider", 1)
+	t.set_constant("grabber_offset", "HSlider", 0)
+
+	# ============================================================
+	#  ★ OptionButton 小箭头（默认箭头大 3 倍，撑开整行高度）
+	# ============================================================
+	var arrow_img := Image.create(7, 4, false, Image.FORMAT_RGBA8)
+	arrow_img.fill(Color(0, 0, 0, 0))
+	for y in range(4):
+		for x in range(7):
+			# 简易下三角：x ∈ [y/2, 6 - y/2] 时填充
+			var half : float = float(y) * 0.5
+			if float(x) >= half and float(x) <= 6.0 - half:
+				arrow_img.set_pixel(x, y, Color(0.72, 0.72, 0.78, 1.0))
+	var arrow_tex := ImageTexture.create_from_image(arrow_img)
+	t.set_icon("arrow", "OptionButton", arrow_tex)
+
+	# OptionButton 最小高度
+	t.set_constant("arrow_margin", "OptionButton", 2)
+	t.set_constant("modulate_arrow", "OptionButton", 0)
+	t.set_font_size("font_size", "OptionButton", FS_BUTTON)
+
+	theme = t
 
 # ============================================================
 #  UI 构建
@@ -213,7 +280,6 @@ func _build_ui():
 	main.add_theme_constant_override("separation", 1)
 	add_child(main)
 
-	# ---- TopBar ----
 	var top := HBoxContainer.new()
 	top.add_theme_constant_override("separation", 0)
 	main.add_child(top)
@@ -246,7 +312,6 @@ func _build_ui():
 	var quit_btn := _mk_btn("退出", _on_quit)
 	top.add_child(quit_btn)
 
-	# ---- Body: 嵌套 HSplit ----
 	var outer_split := HSplitContainer.new()
 	outer_split.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	outer_split.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -328,7 +393,6 @@ func _build_ui():
 	_right_container.add_theme_constant_override("separation", 1)
 	right_scroll.add_child(_right_container)
 
-	# ---- StatusBar ----
 	var status_bar := PanelContainer.new()
 	status_bar.custom_minimum_size = Vector2(0, 14)
 	var sb := StyleBoxFlat.new()
@@ -348,7 +412,7 @@ func _build_ui():
 
 
 # ============================================================
-#  控件工厂（完全对齐 ChipMusicEditor）
+#  控件工厂
 # ============================================================
 func _mk_btn(text : String, cb : Callable = Callable()) -> Button:
 	var b := Button.new()
@@ -405,7 +469,6 @@ func _mk_spin(value : int, min_v : int, max_v : int, w : int = SPIN_W) -> SpinBo
 	return sp
 
 
-## ★ 完全照搬 ChipMusicEditor._setup_spin
 func _setup_spin(sp : SpinBox):
 	var le := sp.get_line_edit()
 	if le:
@@ -762,11 +825,16 @@ func _build_dialogue_form():
 	pv.pressed.connect(_preview_dialogue.bind(d))
 	head.add_child(pv)
 
+	# ★ 第十二批：复制对话
+	var dup := _mk_btn("复制")
+	dup.tooltip_text = "复制为一份新对话（id 加 _copy 后缀）"
+	dup.pressed.connect(_duplicate_current_dialogue)
+	head.add_child(dup)
+
 	var dl := _mk_btn("删除", _delete_current_dialogue)
 	dl.modulate = Color(1.0, 0.6, 0.6)
 	head.add_child(dl)
 
-	# ID
 	var id_row := _mk_row()
 	_right_container.add_child(id_row)
 	id_row.add_child(_mk_label("ID:"))
@@ -778,7 +846,6 @@ func _build_dialogue_form():
 	)
 	id_row.add_child(id_edit)
 
-	# priority
 	var pri_row := _mk_row()
 	_right_container.add_child(pri_row)
 	pri_row.add_child(_mk_label("priority:"))
@@ -804,6 +871,47 @@ func _build_dialogue_form():
 
 	_right_container.add_child(_mk_section("— choices —"))
 	_build_choices_editor(d)
+
+
+# ============================================================
+#  ★ 第十二批：复制当前对话
+# ============================================================
+func _duplicate_current_dialogue():
+	if _current_npc == "" or _current_dialogue_id == "": return
+	var src : Dictionary = _find_dialogue(_current_npc, _current_dialogue_id)
+	if src.is_empty(): return
+
+	# 深拷贝
+	var new_d : Dictionary = src.duplicate(true)
+
+	# 生成不重复的新 id
+	var base : String = _current_dialogue_id
+	if base.ends_with("_copy"):
+		base = base.substr(0, base.length() - 5)
+	var new_id : String = base + "_copy"
+	var n : int = 1
+	while _is_id_taken(_current_npc, new_id, ""):
+		n += 1
+		new_id = "%s_copy%d" % [base, n]
+	new_d["id"] = new_id
+	# 复制出来的对话 priority 设为 0，避免干扰原对话
+	new_d["priority"] = 0
+
+	# 插入到源对话后面
+	var dlist : Array = _stories[_current_npc].get("dialogues", [])
+	var insert_at : int = dlist.size()
+	for i in range(dlist.size()):
+		if dlist[i] is Dictionary and dlist[i].get("id", "") == _current_dialogue_id:
+			insert_at = i + 1
+			break
+	dlist.insert(insert_at, new_d)
+
+	_dirty = true
+	_current_dialogue_id = new_id
+	_current_unlock_idx = -1
+	_build_mid_list()
+	_build_dialogue_form()
+	_set_status("已复制对话：%s → %s" % [base, new_id])
 
 
 func _find_dialogue(npc_id : String, dialogue_id : String) -> Dictionary:
@@ -889,9 +997,9 @@ func _build_unlock_form():
 
 	_right_title.text = "编辑解锁 #%d" % _current_unlock_idx
 
-	var tr := _mk_row()
-	_right_container.add_child(tr)
-	tr.add_child(_mk_label("type:"))
+	var type_row := _mk_row()
+	_right_container.add_child(type_row)
+	type_row.add_child(_mk_label("type:"))
 	var opt := _mk_option_button()
 	opt.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	for i in range(UNLOCK_TYPES.size()):
@@ -904,7 +1012,7 @@ func _build_unlock_form():
 		_build_mid_list()
 		_build_unlock_form()
 	)
-	tr.add_child(opt)
+	type_row.add_child(opt)
 
 	var ir := _mk_row()
 	_right_container.add_child(ir)
@@ -1044,22 +1152,37 @@ func _build_condition_editor(cond : Dictionary, on_change : Callable):
 		cb.tooltip_text = CONDITION_HELP.get(key, "")
 		row.add_child(cb)
 
-		var sp := _mk_spin(int(work.get(key, 0)), 0, 999)
-		sp.editable = work.has(key)
-		sp.value_changed.connect(func(v):
-			work[key] = int(v)
+		# ★ 用 LineEdit 替代 SpinBox（SpinBox 的上下箭头会撑开整行高度）
+		var le := LineEdit.new()
+		le.text = str(int(work.get(key, 0)))
+		le.placeholder_text = "0"
+		le.add_theme_font_size_override("font_size", FS_BUTTON)
+		le.custom_minimum_size = Vector2(36, ROW_H)
+		le.size_flags_horizontal = Control.SIZE_SHRINK_END
+		le.alignment = HORIZONTAL_ALIGNMENT_CENTER
+		le.select_all_on_focus = true
+		le.editable = work.has(key)
+		le.text_changed.connect(func(s : String):
+			var t : String = s.strip_edges()
+			if t == "":
+				work[key] = 0
+			elif t.is_valid_int():
+				work[key] = int(t)
 			on_change.call(work)
 		)
-		row.add_child(sp)
+		row.add_child(le)
 
-		cb.toggled.connect(func(p):
-			sp.editable = p
-			if p: work[key] = int(sp.value)
-			else: work.erase(key)
+		cb.toggled.connect(func(p : bool):
+			le.editable = p
+			if p:
+				var t : String = le.text.strip_edges()
+				work[key] = int(t) if t.is_valid_int() else 0
+			else:
+				work.erase(key)
 			on_change.call(work)
 		)
 
-	# after_dialogue
+	# ===== after_dialogue（保持不变，只换 OptionButton 箭头主题）=====
 	var ad_row := _mk_row()
 	_right_container.add_child(ad_row)
 	var ad_cb := _mk_checkbox("after_dialogue", work.has("after_dialogue"))
@@ -1091,13 +1214,13 @@ func _build_condition_editor(cond : Dictionary, on_change : Callable):
 		ad_opt.add_item("（当前）" + cur_ad, ids.size() + 1)
 		ad_opt.set_item_metadata(ids.size() + 1, cur_ad)
 		ad_opt.selected = ids.size() + 1
-	ad_opt.item_selected.connect(func(idx):
+	ad_opt.item_selected.connect(func(idx : int):
 		var v = ad_opt.get_item_metadata(idx)
 		work["after_dialogue"] = str(v if v != null else "")
 		on_change.call(work)
 	)
 	ad_row.add_child(ad_opt)
-	ad_cb.toggled.connect(func(p):
+	ad_cb.toggled.connect(func(p : bool):
 		ad_opt.disabled = not p
 		if p:
 			var v = ad_opt.get_item_metadata(ad_opt.selected)
@@ -1107,7 +1230,6 @@ func _build_condition_editor(cond : Dictionary, on_change : Callable):
 		on_change.call(work)
 	)
 
-	# flags
 	var fl := _mk_label("flags（逗号分隔）:")
 	fl.modulate = Color(0.8, 0.8, 0.8)
 	fl.tooltip_text = CONDITION_HELP.get("flags", "")
@@ -1120,7 +1242,7 @@ func _build_condition_editor(cond : Dictionary, on_change : Callable):
 	for x in fa: ft += str(x) + ","
 	ft = ft.trim_suffix(",")
 	var fe := _mk_line_edit(ft, "keeper_asked_why, xxx")
-	fe.text_changed.connect(func(t):
+	fe.text_changed.connect(func(t : String):
 		var parts : Array = []
 		for p in t.split(",", false):
 			var s : String = p.strip_edges()
@@ -1298,6 +1420,12 @@ func _build_flat_form():
 	pv.pressed.connect(func(): DialogueManager.start_inline_dialogue(lines))
 	head.add_child(pv)
 
+	# ★ 第十二批：独立对话也支持复制
+	var dup := _mk_btn("复制")
+	dup.tooltip_text = "复制为一份新对话（id 加 _copy 后缀）"
+	dup.pressed.connect(_duplicate_flat_dialogue)
+	head.add_child(dup)
+
 	var dl := _mk_btn("删除", _delete_flat)
 	dl.modulate = Color(1.0, 0.6, 0.6)
 	head.add_child(dl)
@@ -1356,6 +1484,37 @@ func _add_new_flat():
 	_build_flat_id_list()
 	_build_flat_form()
 	_set_status("新建独立对话：" + nid)
+
+
+# ============================================================
+#  ★ 第十二批：复制独立对话
+# ============================================================
+func _duplicate_flat_dialogue():
+	if _current_flat_id == "" or not _dialogues.has(_current_flat_id): return
+	var src : Array = _dialogues[_current_flat_id]
+	var new_lines : Array = []
+	for l in src:
+		if l is Dictionary:
+			new_lines.append((l as Dictionary).duplicate(true))
+		else:
+			new_lines.append(l)
+
+	var base : String = _current_flat_id
+	if base.ends_with("_copy"):
+		base = base.substr(0, base.length() - 5)
+	var new_id : String = base + "_copy"
+	var n : int = 1
+	while _dialogues.has(new_id):
+		n += 1
+		new_id = "%s_copy%d" % [base, n]
+
+	_dialogues[new_id] = new_lines
+	_dirty = true
+	_current_flat_id = new_id
+	_clear_container(_left_list)
+	_build_flat_id_list()
+	_build_flat_form()
+	_set_status("已复制对话：%s → %s" % [base, new_id])
 
 
 func _delete_flat():
@@ -1487,9 +1646,9 @@ func _build_action_form():
 
 	_right_title.text = "action #%d" % _current_action_idx
 
-	var tr := _mk_row()
-	_right_container.add_child(tr)
-	tr.add_child(_mk_label("type:"))
+	var type_row := _mk_row()
+	_right_container.add_child(type_row)
+	type_row.add_child(_mk_label("type:"))
 	var opt := _mk_option_button()
 	opt.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	var ct : String = a.get("type", "dialog")
@@ -1508,7 +1667,7 @@ func _build_action_form():
 		_build_event_action_list()
 		_build_action_form()
 	)
-	tr.add_child(opt)
+	type_row.add_child(opt)
 
 	var head := HBoxContainer.new()
 	head.add_theme_constant_override("separation", 2)
@@ -1727,6 +1886,13 @@ func _input(event : InputEvent):
 	var ke : InputEventKey = event
 	if ke.ctrl_pressed and ke.keycode == KEY_S:
 		_on_save()
+		get_viewport().set_input_as_handled()
+	elif ke.ctrl_pressed and ke.keycode == KEY_D:
+		# ★ 第十二批：Ctrl+D 快捷复制（NPC 剧情或独立对话）
+		if _tab == "stories":
+			_duplicate_current_dialogue()
+		elif _tab == "dialogues":
+			_duplicate_flat_dialogue()
 		get_viewport().set_input_as_handled()
 	elif ke.keycode == KEY_ESCAPE:
 		_on_quit()

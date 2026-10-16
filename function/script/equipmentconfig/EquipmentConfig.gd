@@ -142,9 +142,30 @@ func _on_shop_updated():
 
 
 func _on_close_pressed():
-	if not _check_pending_before_leave():
+	# ★ 第十二批：关闭面板时允许"丢弃并离开"；切 tab 时保持阻止（走 _switch_tab 里的原逻辑）
+	if GameState.has_any_pending_rewards():
+		var total : int = (
+			GameState.pending_sacrifice_rewards.size()
+			+ GameState.pending_forge_rewards.size()
+		)
+		Globals.show_confirm(
+			self,
+			"还有 %d 件待领取奖励，离开将丢失。\n确定吗？" % total,
+			"丢弃并离开", "取消",
+			func(): _do_close_with_discard(),
+			func(): pass
+		)
 		return
+	_do_close_normal()
 
+
+func _do_close_with_discard():
+	GameState.clear_all_pending_rewards()
+	_do_close_normal()
+
+
+func _do_close_normal():
+	# ===== 原有 _on_close_pressed 的主体逻辑 =====
 	if is_shop_rest_mode() and current_tab == "arena_forge":
 		var unresolved : int = _forge.return_all_forge_slots()
 		_build_unit_columns()

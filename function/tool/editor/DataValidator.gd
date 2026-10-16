@@ -467,7 +467,6 @@ func _validate_stories():
 
 		# ---- 第二遍：检查 dialogues[].condition.after_dialogue ----
 		for entry in dlg_defs:
-			var did : String = entry["id"]
 			var my_pri : int = entry["priority"]
 			var di : int = entry["idx"]
 			var d : Dictionary = dialogues[di]

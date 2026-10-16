@@ -2,8 +2,7 @@ extends Control
 
 # ============================================================
 #  GameDataEditor — 单位 / 战斗模拟 / 数值 / 套装 / 词条池 / 光环
-#  v4.1 第 2 批：单位编辑器完整重写
-#  v4.1 第 4 批：修复 _build_edit_tab 缺失装备/特技 UI 导致的 nil 崩溃
+#  v4.3：全面对齐 ChipMusicEditor 的界面主题
 # ============================================================
 
 const UNIT_DATA_PATH : String = "res://content/data/unit_data.json"
@@ -17,6 +16,24 @@ const AURA_PATH : String = "res://content/data/auras.json"
 
 const JSON_EDITOR_SCRIPT : String = "res://function/tool/editor/JSONEditorPanel.gd"
 
+# ---- 字号（对齐 ChipMusicEditor）----
+const FS_BUTTON : int = 6
+const FS_LABEL  : int = 6
+const FS_SMALL  : int = 5
+const FS_TINY   : int = 5
+const FS_PANEL  : int = 7
+const FS_HINT   : int = 5
+
+const BTN_H : int = 13
+const SPIN_H : int = 13
+const SPIN_W : int = 24
+const ROW_H : int = 13
+
+const COL_BG     : Color = Color(0.08, 0.08, 0.10)
+const COL_PANEL  : Color = Color(0.10, 0.10, 0.13)
+const COL_VSEP   : Color = Color(0.36, 0.36, 0.42)
+const COL_TIP_BG : Color = Color(0.15, 0.15, 0.15, 0.92)
+
 const EDITABLE_ATTRS : Array = [
 	{"key": "max_hp",       "label": "HP",   "min": 1, "max": 999},
 	{"key": "strength",     "label": "力",   "min": 0, "max": 99},
@@ -28,9 +45,7 @@ const EDITABLE_ATTRS : Array = [
 ]
 
 const UNIT_TAGS : Array = ["烈焰", "轮回", "灰烬", "守护", "献祭", "余烬"]
-
 const CORE_TRAITS : Array = ["", "charge", "dragon_might", "bulwark"]
-
 const SAC_BUFF_TYPES : Array = [
 	"", "attack_percent", "crit_damage_bonus", "defense_flat",
 	"damage_reduction", "heal_bonus", "counter_damage_bonus"
@@ -40,22 +55,18 @@ const CAP_ATTRS : Array = [
 	"vitality", "strength", "dexterity",
 	"intelligence", "faith", "arcane"
 ]
-
 const CAP_ATTR_LABELS : Dictionary = {
 	"vitality": "HP", "strength": "力", "dexterity": "灵",
 	"intelligence": "智", "faith": "信", "arcane": "感"
 }
-
 const BRANCH_STAT_KEYS : Array = [
 	"max_hp", "strength", "dexterity",
 	"intelligence", "faith", "arcane", "move_range"
 ]
-
 const BRANCH_STAT_LABELS : Dictionary = {
 	"max_hp": "HP", "strength": "力", "dexterity": "灵",
 	"intelligence": "智", "faith": "信", "arcane": "感", "move_range": "移"
 }
-
 const CAP_MAX_LEVEL : int = 3
 
 # ---- 数据 ----
@@ -125,6 +136,7 @@ var _cfg_tab_panels : Dictionary = {}
 
 
 func _ready():
+	_apply_compact_theme()
 	_load_all_data()
 	_build_ui()
 	_refresh_unit_list()
@@ -132,6 +144,176 @@ func _ready():
 	if _unit_keys.size() > 0:
 		_select_edit_unit(_unit_keys[0])
 	call_deferred("_auto_validate")
+
+
+# ============================================================
+#  ★ ChipMusicEditor 风格全局主题
+# ============================================================
+func _apply_compact_theme():
+	var t := Theme.new()
+
+	# ---- Button ----
+	t.set_font_size("font_size", "Button", FS_BUTTON)
+	var btn_empty := StyleBoxEmpty.new()
+	btn_empty.content_margin_left = 1
+	btn_empty.content_margin_right = 1
+	btn_empty.content_margin_top = 0
+	btn_empty.content_margin_bottom = 0
+	t.set_stylebox("normal", "Button", btn_empty)
+	t.set_stylebox("hover", "Button", btn_empty)
+	t.set_stylebox("pressed", "Button", btn_empty)
+	t.set_stylebox("focus", "Button", btn_empty)
+	t.set_stylebox("disabled", "Button", btn_empty)
+
+	# ---- Label ----
+	t.set_font_size("font_size", "Label", FS_LABEL)
+	var label_empty := StyleBoxEmpty.new()
+	label_empty.content_margin_left = 0
+	label_empty.content_margin_right = 0
+	label_empty.content_margin_top = 0
+	label_empty.content_margin_bottom = 0
+	t.set_stylebox("normal", "Label", label_empty)
+
+	# ---- LineEdit ----
+	t.set_font_size("font_size", "LineEdit", FS_BUTTON)
+	var le_empty := StyleBoxEmpty.new()
+	le_empty.content_margin_left = 2
+	le_empty.content_margin_right = 2
+	le_empty.content_margin_top = 0
+	le_empty.content_margin_bottom = 0
+	t.set_stylebox("normal", "LineEdit", le_empty)
+	t.set_stylebox("focus", "LineEdit", le_empty)
+	t.set_stylebox("read_only", "LineEdit", le_empty)
+
+	# ---- OptionButton ----
+	t.set_font_size("font_size", "OptionButton", FS_BUTTON)
+
+	# ---- PopupMenu ----
+	t.set_font_size("font_size", "PopupMenu", FS_SMALL)
+	t.set_font_size("font_separator_size", "PopupMenu", FS_SMALL)
+	t.set_constant("item_start_padding", "PopupMenu", 3)
+	t.set_constant("item_end_padding", "PopupMenu", 3)
+	t.set_constant("v_separation", "PopupMenu", 0)
+	t.set_constant("h_separation", "PopupMenu", 0)
+	t.set_constant("icon_max_width", "PopupMenu", 6)
+	t.set_constant("outline_size", "PopupMenu", 0)
+
+	var popup_panel := StyleBoxFlat.new()
+	popup_panel.bg_color = Color(0.13, 0.13, 0.16, 1)
+	popup_panel.border_color = Color(0.28, 0.28, 0.34, 1)
+	popup_panel.border_width_left = 1
+	popup_panel.border_width_right = 1
+	popup_panel.border_width_top = 1
+	popup_panel.border_width_bottom = 1
+	popup_panel.content_margin_left = 2
+	popup_panel.content_margin_right = 2
+	popup_panel.content_margin_top = 2
+	popup_panel.content_margin_bottom = 2
+	t.set_stylebox("panel", "PopupMenu", popup_panel)
+
+	# ---- Tooltip ----
+	t.set_font_size("font_size", "TooltipLabel", FS_SMALL)
+	t.set_font_size("font_size", "TooltipPanel", FS_SMALL)
+	var tip_sb := StyleBoxFlat.new()
+	tip_sb.bg_color = COL_TIP_BG
+	tip_sb.content_margin_left = 3
+	tip_sb.content_margin_right = 3
+	tip_sb.content_margin_top = 1
+	tip_sb.content_margin_bottom = 1
+	t.set_stylebox("panel", "TooltipPanel", tip_sb)
+
+	# ---- VSeparator ----
+	var sep_sb := StyleBoxLine.new()
+	sep_sb.color = COL_VSEP
+	sep_sb.thickness = 1
+	sep_sb.vertical = true
+	sep_sb.grow_begin = 2
+	sep_sb.grow_end = 2
+	t.set_stylebox("separator", "VSeparator", sep_sb)
+
+	# ---- HSeparator ----
+	var hsep_sb := StyleBoxLine.new()
+	hsep_sb.color = COL_VSEP
+	hsep_sb.thickness = 1
+	hsep_sb.vertical = false
+	t.set_stylebox("separator", "HSeparator", hsep_sb)
+
+	# ---- SpinBox ----
+	t.set_font_size("font_size", "SpinBox", FS_BUTTON)
+
+	# ---- CheckBox / CheckButton ----
+	t.set_font_size("font_size", "CheckBox", FS_LABEL)
+	t.set_font_size("font_size", "CheckButton", FS_LABEL)
+
+	# ---- TextEdit ----
+	t.set_font_size("font_size", "TextEdit", FS_BUTTON)
+
+	# ---- 细滚动条 ----
+	_setup_scrollbar_theme(t)
+
+	# ---- 细滑杆 ----
+	_setup_slider_theme(t)
+
+	theme = t
+
+
+func _setup_scrollbar_theme(t : Theme):
+	var track := StyleBoxFlat.new()
+	track.bg_color = Color(0.08, 0.08, 0.10, 1)
+
+	var grab_off := StyleBoxFlat.new()
+	grab_off.bg_color = Color(0.32, 0.32, 0.38, 1)
+	grab_off.corner_radius_top_left = 2
+	grab_off.corner_radius_top_right = 2
+	grab_off.corner_radius_bottom_left = 2
+	grab_off.corner_radius_bottom_right = 2
+
+	var grab_hl := StyleBoxFlat.new()
+	grab_hl.bg_color = Color(0.55, 0.55, 0.65, 1)
+	grab_hl.corner_radius_top_left = 2
+	grab_hl.corner_radius_top_right = 2
+	grab_hl.corner_radius_bottom_left = 2
+	grab_hl.corner_radius_bottom_right = 2
+
+	t.set_stylebox("scroll", "VScrollBar", track)
+	t.set_stylebox("scroll_focus", "VScrollBar", track)
+	t.set_stylebox("grabber", "VScrollBar", grab_off)
+	t.set_stylebox("grabber_highlight", "VScrollBar", grab_hl)
+	t.set_stylebox("grabber_pressed", "VScrollBar", grab_hl)
+	t.set_constant("minimum_grab_size", "VScrollBar", 6)
+	t.set_constant("scroll_width", "VScrollBar", 4)
+
+	t.set_stylebox("scroll", "HScrollBar", track)
+	t.set_stylebox("scroll_focus", "HScrollBar", track)
+	t.set_stylebox("grabber", "HScrollBar", grab_off)
+	t.set_stylebox("grabber_highlight", "HScrollBar", grab_hl)
+	t.set_stylebox("grabber_pressed", "HScrollBar", grab_hl)
+	t.set_constant("minimum_grab_size", "HScrollBar", 6)
+	t.set_constant("scroll_height", "HScrollBar", 4)
+
+
+func _setup_slider_theme(t : Theme):
+	var slider_sb := StyleBoxFlat.new()
+	slider_sb.bg_color = Color(0.22, 0.22, 0.28, 1.0)
+	slider_sb.content_margin_top = 1.5
+	slider_sb.content_margin_bottom = 1.5
+	t.set_stylebox("slider", "HSlider", slider_sb)
+
+	var grab_sb := StyleBoxFlat.new()
+	grab_sb.bg_color = Color(0.55, 0.55, 0.60, 1.0)
+	grab_sb.content_margin_top = 1.5
+	grab_sb.content_margin_bottom = 1.5
+	t.set_stylebox("grabber_area", "HSlider", grab_sb)
+	t.set_stylebox("grabber_area_highlight", "HSlider", grab_sb)
+
+	var img := Image.create(2, 4, false, Image.FORMAT_RGBA8)
+	img.fill(Color(0.78, 0.78, 0.82, 1.0))
+	var tex := ImageTexture.create_from_image(img)
+	t.set_icon("grabber", "HSlider", tex)
+	t.set_icon("grabber_highlight", "HSlider", tex)
+	t.set_icon("grabber_disabled", "HSlider", tex)
+	t.set_constant("center_grabber", "HSlider", 1)
+	t.set_constant("grabber_offset", "HSlider", 0)
 
 
 # ============================================================
@@ -150,6 +332,8 @@ func _load_all_data():
 	_refine_keys = _refine_db.keys()
 	_refine_keys.sort()
 
+	_weapon_ids.clear()
+	_armor_ids.clear()
 	for iid in ItemManager.get_all_item_ids():
 		var d = ItemManager.get_item_data(iid)
 		if d == null: continue
@@ -177,19 +361,25 @@ func _load_json(path : String) -> Dictionary:
 #  主 UI
 # ============================================================
 func _build_ui():
+	var bg := ColorRect.new()
+	bg.color = COL_BG
+	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
+	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(bg)
+
 	var root := VBoxContainer.new()
 	root.set_anchors_preset(Control.PRESET_FULL_RECT)
 	root.offset_left = 4
-	root.offset_top = 4
+	root.offset_top = 3
 	root.offset_right = -4
-	root.offset_bottom = -4
-	root.add_theme_constant_override("separation", 3)
+	root.offset_bottom = -3
+	root.add_theme_constant_override("separation", 2)
 	add_child(root)
 
 	var tab_scroll := ScrollContainer.new()
 	tab_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
 	tab_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	tab_scroll.custom_minimum_size = Vector2(0, 22)
+	tab_scroll.custom_minimum_size = Vector2(0, 20)
 	root.add_child(tab_scroll)
 
 	var tab_bar := HBoxContainer.new()
@@ -202,8 +392,8 @@ func _build_ui():
 		btn.text = tab_names[i]
 		btn.toggle_mode = true
 		btn.focus_mode = Control.FOCUS_NONE
-		btn.add_theme_font_size_override("font_size", 7)
-		btn.custom_minimum_size = Vector2(0, 20)
+		btn.add_theme_font_size_override("font_size", FS_PANEL)
+		btn.custom_minimum_size = Vector2(0, 18)
 		btn.pressed.connect(func(): _switch_tab(i))
 		tab_bar.add_child(btn)
 		_tab_btns.append(btn)
@@ -271,7 +461,7 @@ func _build_edit_tab(parent : Control) -> Control:
 
 	var content := VBoxContainer.new()
 	content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	content.add_theme_constant_override("separation", 3)
+	content.add_theme_constant_override("separation", 2)
 	r_scroll.add_child(content)
 
 	# ---- 基础信息 ----
@@ -282,15 +472,10 @@ func _build_edit_tab(parent : Control) -> Control:
 	var desc_row := HBoxContainer.new()
 	desc_row.add_theme_constant_override("separation", 3)
 	content.add_child(desc_row)
-	var desc_lbl := Label.new()
-	desc_lbl.text = "描述"
-	desc_lbl.custom_minimum_size = Vector2(40, 0)
-	desc_lbl.add_theme_font_size_override("font_size", 7)
-	desc_row.add_child(desc_lbl)
+	desc_row.add_child(_lbl("描述", 40))
 	_edit_desc_edit = TextEdit.new()
 	_edit_desc_edit.custom_minimum_size = Vector2(0, 40)
 	_edit_desc_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_edit_desc_edit.add_theme_font_size_override("font_size", 7)
 	_edit_desc_edit.wrap_mode = TextEdit.LINE_WRAPPING_BOUNDARY
 	desc_row.add_child(_edit_desc_edit)
 
@@ -303,19 +488,14 @@ func _build_edit_tab(parent : Control) -> Control:
 	content.add_child(attr_grid)
 
 	for a in EDITABLE_ATTRS:
-		var lb := Label.new()
-		lb.text = a["label"]
-		lb.custom_minimum_size = Vector2(30, 0)
-		lb.add_theme_font_size_override("font_size", 7)
-		attr_grid.add_child(lb)
-
+		attr_grid.add_child(_lbl(a["label"], 30))
 		var sp := SpinBox.new()
 		sp.min_value = a["min"]
 		sp.max_value = a["max"]
 		sp.step = 1
 		sp.custom_minimum_size = Vector2(60, 16)
 		attr_grid.add_child(sp)
-		_style_spin(sp, 7)
+		_style_spin(sp)
 		_edit_attr_spins[a["key"]] = sp
 
 	# ---- 标签 ----
@@ -328,7 +508,6 @@ func _build_edit_tab(parent : Control) -> Control:
 	for tag in UNIT_TAGS:
 		var cb := CheckBox.new()
 		cb.text = tag
-		cb.add_theme_font_size_override("font_size", 7)
 		tag_flow.add_child(cb)
 		_edit_tags_cbs[tag] = cb
 
@@ -340,7 +519,6 @@ func _build_edit_tab(parent : Control) -> Control:
 	ct_row.add_child(_lbl("特性", 40))
 	_edit_core_opt = OptionButton.new()
 	_edit_core_opt.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_edit_core_opt.add_theme_font_size_override("font_size", 7)
 	_edit_core_opt.add_item("（无）", 0)
 	_edit_core_opt.set_item_metadata(0, "")
 	for i in range(1, CORE_TRAITS.size()):
@@ -356,7 +534,6 @@ func _build_edit_tab(parent : Control) -> Control:
 	sac_type_row.add_child(_lbl("类型", 40))
 	_edit_sac_type_opt = OptionButton.new()
 	_edit_sac_type_opt.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_edit_sac_type_opt.add_theme_font_size_override("font_size", 7)
 	for i in range(SAC_BUFF_TYPES.size()):
 		var t : String = SAC_BUFF_TYPES[i]
 		_edit_sac_type_opt.add_item(t if t != "" else "（无）", i)
@@ -373,7 +550,7 @@ func _build_edit_tab(parent : Control) -> Control:
 	_edit_sac_value_spin.step = 0.05
 	_edit_sac_value_spin.custom_minimum_size = Vector2(80, 16)
 	sac_val_row.add_child(_edit_sac_value_spin)
-	_style_spin(_edit_sac_value_spin, 7)
+	_style_spin(_edit_sac_value_spin)
 
 	var sac_disp_row := HBoxContainer.new()
 	sac_disp_row.add_theme_constant_override("separation", 3)
@@ -381,10 +558,9 @@ func _build_edit_tab(parent : Control) -> Control:
 	sac_disp_row.add_child(_lbl("显示", 40))
 	_edit_sac_display_edit = LineEdit.new()
 	_edit_sac_display_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_edit_sac_display_edit.add_theme_font_size_override("font_size", 7)
 	sac_disp_row.add_child(_edit_sac_display_edit)
 
-	# ---- ★ 修复：默认装备 / 默认防具 / 默认特技 ----
+	# ---- 默认装备 / 默认防具 / 默认特技 ----
 	content.add_child(_section("— 默认装备 —"))
 	_edit_weapon_opt = _add_option_row(content, "武器", _weapon_ids, "（无）")
 
@@ -398,11 +574,10 @@ func _build_edit_tab(parent : Control) -> Control:
 	for i in range(2):
 		_edit_talent_opts.append(_add_option_row(content, "特技%d" % (i + 1), _talent_ids, "（无）"))
 
-	# ---- 分隔 ----
 	content.add_child(HSeparator.new())
 
 	# ---- 属性上限 ----
-	content.add_child(_section("— 属性上限（每级净增，未列出的属性=不可升级）—"))
+	content.add_child(_section("— 属性上限（每级净增）—"))
 	_rebuild_attr_cap_grid(content)
 
 	content.add_child(HSeparator.new())
@@ -415,13 +590,11 @@ func _build_edit_tab(parent : Control) -> Control:
 
 	var add_branch_btn := Button.new()
 	add_branch_btn.text = "+ 添加分支"
-	add_branch_btn.add_theme_font_size_override("font_size", 7)
 	add_branch_btn.pressed.connect(_add_branch_card)
 	branch_header.add_child(add_branch_btn)
 
 	var clear_branches_btn := Button.new()
 	clear_branches_btn.text = "清空全部"
-	clear_branches_btn.add_theme_font_size_override("font_size", 7)
 	clear_branches_btn.modulate = Color(1.0, 0.6, 0.6)
 	clear_branches_btn.pressed.connect(_clear_all_branches)
 	branch_header.add_child(clear_branches_btn)
@@ -438,18 +611,15 @@ func _build_edit_tab(parent : Control) -> Control:
 
 	var reset_btn := Button.new()
 	reset_btn.text = "重置"
-	reset_btn.add_theme_font_size_override("font_size", 7)
 	reset_btn.pressed.connect(_reset_unit_db)
 	btn_row.add_child(reset_btn)
 
 	var save_btn := Button.new()
 	save_btn.text = "保存"
-	save_btn.add_theme_font_size_override("font_size", 7)
 	save_btn.pressed.connect(_save_unit_db)
 	btn_row.add_child(save_btn)
 
 	_edit_status = Label.new()
-	_edit_status.add_theme_font_size_override("font_size", 6)
 	_edit_status.modulate = Color(0.7, 0.9, 0.7)
 	btn_row.add_child(_edit_status)
 
@@ -484,7 +654,7 @@ func _rebuild_attr_cap_grid(parent : Node):
 			sp.value = 0
 			sp.custom_minimum_size = Vector2(40, 16)
 			grid.add_child(sp)
-			_style_spin(sp, 7)
+			_style_spin(sp)
 			lv_spins[lv] = sp
 		_edit_cap_spins[attr] = lv_spins
 
@@ -526,11 +696,12 @@ func _rebuild_branches(data : Array):
 
 	for branch in data:
 		if branch is Dictionary:
-			_add_branch_card_with_data(branch)
+			_add_branch_card_with_data(branch, false)
 
 
 func _add_branch_card():
-	_add_branch_card_with_data({})
+	_add_branch_card_with_data({}, true)
+
 
 func _clear_all_branches():
 	if _edit_branch_cards.is_empty():
@@ -547,7 +718,8 @@ func _clear_all_branches():
 		func(): pass
 	)
 
-func _add_branch_card_with_data(d : Dictionary):
+
+func _add_branch_card_with_data(d : Dictionary, is_new : bool = false):
 	var card := PanelContainer.new()
 	var sb := StyleBoxFlat.new()
 	sb.bg_color = Color(0.13, 0.13, 0.16, 1)
@@ -569,6 +741,7 @@ func _add_branch_card_with_data(d : Dictionary):
 
 	var card_refs : Dictionary = {}
 
+	# id
 	var head := HBoxContainer.new()
 	head.add_theme_constant_override("separation", 3)
 	vbox.add_child(head)
@@ -576,13 +749,11 @@ func _add_branch_card_with_data(d : Dictionary):
 	var id_edit := LineEdit.new()
 	id_edit.text = d.get("id", "")
 	id_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	id_edit.add_theme_font_size_override("font_size", 7)
 	head.add_child(id_edit)
 	card_refs["id"] = id_edit
 
 	var del_btn := Button.new()
 	del_btn.text = "×"
-	del_btn.add_theme_font_size_override("font_size", 8)
 	del_btn.modulate = Color(1.0, 0.5, 0.5)
 	del_btn.custom_minimum_size = Vector2(16, 16)
 	del_btn.pressed.connect(func():
@@ -591,6 +762,7 @@ func _add_branch_card_with_data(d : Dictionary):
 	)
 	head.add_child(del_btn)
 
+	# name
 	var name_row := HBoxContainer.new()
 	name_row.add_theme_constant_override("separation", 3)
 	vbox.add_child(name_row)
@@ -598,10 +770,10 @@ func _add_branch_card_with_data(d : Dictionary):
 	var name_edit := LineEdit.new()
 	name_edit.text = d.get("name", "")
 	name_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	name_edit.add_theme_font_size_override("font_size", 7)
 	name_row.add_child(name_edit)
 	card_refs["name"] = name_edit
 
+	# desc
 	var desc_row := HBoxContainer.new()
 	desc_row.add_theme_constant_override("separation", 3)
 	vbox.add_child(desc_row)
@@ -609,17 +781,16 @@ func _add_branch_card_with_data(d : Dictionary):
 	var desc_edit := LineEdit.new()
 	desc_edit.text = d.get("description", "")
 	desc_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	desc_edit.add_theme_font_size_override("font_size", 7)
 	desc_row.add_child(desc_edit)
 	card_refs["description"] = desc_edit
 
+	# granted_talent
 	var tal_row := HBoxContainer.new()
 	tal_row.add_theme_constant_override("separation", 3)
 	vbox.add_child(tal_row)
 	tal_row.add_child(_lbl("特技", 40))
 	var tal_opt := OptionButton.new()
 	tal_opt.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	tal_opt.add_theme_font_size_override("font_size", 7)
 	tal_opt.add_item("（无）", 0)
 	tal_opt.set_item_metadata(0, "")
 	for i in range(_talent_ids.size()):
@@ -629,14 +800,19 @@ func _add_branch_card_with_data(d : Dictionary):
 		tal_opt.add_item(tname, i + 1)
 		tal_opt.set_item_metadata(i + 1, tid)
 	var cur_tal : String = d.get("granted_talent", "")
+	var matched : bool = false
 	for i in range(tal_opt.item_count):
 		var m = tal_opt.get_item_metadata(i)
 		if m != null and str(m) == cur_tal:
 			tal_opt.selected = i
+			matched = true
 			break
+	if is_new and not matched and _talent_ids.size() > 0:
+		tal_opt.selected = 1
 	tal_row.add_child(tal_opt)
 	card_refs["granted_talent"] = tal_opt
 
+	# sprite_frames_path
 	var sprite_row := HBoxContainer.new()
 	sprite_row.add_theme_constant_override("separation", 3)
 	vbox.add_child(sprite_row)
@@ -644,11 +820,11 @@ func _add_branch_card_with_data(d : Dictionary):
 	var sprite_edit := LineEdit.new()
 	sprite_edit.text = d.get("sprite_frames_path", "")
 	sprite_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	sprite_edit.add_theme_font_size_override("font_size", 7)
 	sprite_edit.placeholder_text = "res://.../*_frames.tres"
 	sprite_row.add_child(sprite_edit)
 	card_refs["sprite_frames_path"] = sprite_edit
 
+	# flavor
 	var flavor_row := HBoxContainer.new()
 	flavor_row.add_theme_constant_override("separation", 3)
 	vbox.add_child(flavor_row)
@@ -656,10 +832,10 @@ func _add_branch_card_with_data(d : Dictionary):
 	var flavor_edit := LineEdit.new()
 	flavor_edit.text = d.get("flavor", "")
 	flavor_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	flavor_edit.add_theme_font_size_override("font_size", 7)
 	flavor_row.add_child(flavor_edit)
 	card_refs["flavor"] = flavor_edit
 
+	# stat_bonus
 	vbox.add_child(_section("stat_bonus"))
 	var stat_row := HFlowContainer.new()
 	stat_row.add_theme_constant_override("h_separation", 6)
@@ -672,12 +848,7 @@ func _add_branch_card_with_data(d : Dictionary):
 		var pair := HBoxContainer.new()
 		pair.add_theme_constant_override("separation", 2)
 		stat_row.add_child(pair)
-
-		var lb := Label.new()
-		lb.text = BRANCH_STAT_LABELS.get(key, key)
-		lb.add_theme_font_size_override("font_size", 7)
-		pair.add_child(lb)
-
+		pair.add_child(_lbl(BRANCH_STAT_LABELS.get(key, key), 0))
 		var sp := SpinBox.new()
 		sp.min_value = -20
 		sp.max_value = 99
@@ -685,10 +856,11 @@ func _add_branch_card_with_data(d : Dictionary):
 		sp.value = int(stat_bonus.get(key, 0))
 		sp.custom_minimum_size = Vector2(40, 16)
 		pair.add_child(sp)
-		_style_spin(sp, 7)
+		_style_spin(sp)
 		stat_spins[key] = sp
 	card_refs["stat_spins"] = stat_spins
 
+	# tags
 	vbox.add_child(_section("tags"))
 	var tag_flow := HFlowContainer.new()
 	tag_flow.add_theme_constant_override("h_separation", 8)
@@ -701,7 +873,6 @@ func _add_branch_card_with_data(d : Dictionary):
 		var cb := CheckBox.new()
 		cb.text = tag
 		cb.button_pressed = tag in branch_tags
-		cb.add_theme_font_size_override("font_size", 7)
 		tag_flow.add_child(cb)
 		tag_cbs[tag] = cb
 	card_refs["tag_cbs"] = tag_cbs
@@ -752,7 +923,6 @@ func _refresh_unit_list():
 		btn.toggle_mode = true
 		btn.focus_mode = Control.FOCUS_NONE
 		btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
-		btn.add_theme_font_size_override("font_size", 7)
 		btn.clip_text = true
 		btn.set_meta("unit_key", key)
 		btn.pressed.connect(func(): _select_edit_unit(key))
@@ -788,7 +958,6 @@ func _select_edit_unit(key : String):
 	_edit_sac_value_spin.value = float(sac.get("value", 0))
 	_edit_sac_display_edit.text = sac.get("display", "")
 
-	# ★ 现在这几个控件已在 _build_edit_tab 里创建，不会再 null
 	if _edit_weapon_opt:
 		_select_option_by_meta(_edit_weapon_opt, d.get("default_weapon", ""))
 	var armor_list : Array = d.get("default_armors", [])
@@ -805,8 +974,7 @@ func _select_edit_unit(key : String):
 
 
 func _select_option_by_meta(opt : OptionButton, target_id : String):
-	if opt == null:
-		return
+	if opt == null: return
 	opt.selected = 0
 	for i in range(opt.item_count):
 		var m = opt.get_item_metadata(i)
@@ -824,7 +992,7 @@ func _reset_unit_db():
 	UnitDataManager.reload_all()
 	if _current_unit_key != "" and _unit_db.has(_current_unit_key):
 		_select_edit_unit(_current_unit_key)
-	_edit_status.text = "已重置（未保存的修改已丢弃）"
+	_edit_status.text = "已重置"
 
 
 func _save_unit_db():
@@ -890,10 +1058,7 @@ func _save_unit_db():
 	f.store_string(JSON.stringify(_unit_db, "  "))
 	f.close()
 
-	# 让 UnitDataManager 静态缓存失效，运行中的游戏下次读取到新数据
 	UnitDataManager.reload_all()
-
-	# ★ 第七批：刷新 sim 下拉框（否则显示的还是旧名字/旧属性）
 	_refresh_sim_unit_lists()
 
 	_edit_status.text = "✓ 已保存"
@@ -939,14 +1104,9 @@ func _build_sim_side(title : String, is_player : bool) -> VBoxContainer:
 	inner.add_theme_constant_override("separation", 1)
 	scroll.add_child(inner)
 
-	var lb := Label.new()
-	lb.text = "— %s —" % title
-	lb.add_theme_font_size_override("font_size", 7)
-	lb.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	inner.add_child(lb)
+	inner.add_child(_center_label("— %s —" % title))
 
 	var unit_opt := OptionButton.new()
-	unit_opt.add_theme_font_size_override("font_size", 7)
 	if is_player: _sim_player_opt = unit_opt
 	else: _sim_enemy_opt = unit_opt
 	inner.add_child(unit_opt)
@@ -968,7 +1128,6 @@ func _build_sim_side(title : String, is_player : bool) -> VBoxContainer:
 		var rname : String = _relic_db[rid].get("name", rid)
 		var cb := CheckBox.new()
 		cb.text = rname
-		cb.add_theme_font_size_override("font_size", 6)
 		cb.set_meta("rid", rid)
 		inner.add_child(cb)
 		relic_checks.append(cb)
@@ -980,7 +1139,6 @@ func _build_sim_side(title : String, is_player : bool) -> VBoxContainer:
 		var fname : String = _refine_db[fid].get("name", fid)
 		var cb := CheckBox.new()
 		cb.text = fname
-		cb.add_theme_font_size_override("font_size", 6)
 		cb.set_meta("fid", fid)
 		inner.add_child(cb)
 		refine_checks.append(cb)
@@ -992,7 +1150,6 @@ func _build_sim_side(title : String, is_player : bool) -> VBoxContainer:
 		if not tdata or not tdata.is_active_skill: continue
 		var cb := CheckBox.new()
 		cb.text = tdata.display_name
-		cb.add_theme_font_size_override("font_size", 6)
 		cb.set_meta("tid", tid)
 		inner.add_child(cb)
 		skill_checks.append(cb)
@@ -1023,7 +1180,6 @@ func _add_sep_label(parent : Node, text : String):
 	parent.add_child(sep)
 	var lb := Label.new()
 	lb.text = text
-	lb.add_theme_font_size_override("font_size", 6)
 	lb.modulate = Color(0.75, 0.8, 0.9)
 	parent.add_child(lb)
 
@@ -1032,16 +1188,9 @@ func _add_int_option_row(parent : Node, label : String, min_v : int, max_v : int
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 3)
 	parent.add_child(row)
-
-	var lb := Label.new()
-	lb.text = label
-	lb.custom_minimum_size = Vector2(40, 0)
-	lb.add_theme_font_size_override("font_size", 7)
-	row.add_child(lb)
-
+	row.add_child(_lbl(label, 40))
 	var opt := OptionButton.new()
 	opt.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	opt.add_theme_font_size_override("font_size", 7)
 	for v in range(min_v, max_v + 1):
 		opt.add_item("+%d" % v, v - min_v)
 		opt.set_item_metadata(v - min_v, v)
@@ -1056,11 +1205,7 @@ func _build_sim_center() -> VBoxContainer:
 	vbox.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	vbox.add_theme_constant_override("separation", 2)
 
-	var lb := Label.new()
-	lb.text = "— 战斗日志 —"
-	lb.add_theme_font_size_override("font_size", 7)
-	lb.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	vbox.add_child(lb)
+	vbox.add_child(_center_label("— 战斗日志 —"))
 
 	var ctrl := HBoxContainer.new()
 	ctrl.add_theme_constant_override("separation", 4)
@@ -1070,13 +1215,11 @@ func _build_sim_center() -> VBoxContainer:
 	_sim_talent_cb = CheckBox.new()
 	_sim_talent_cb.text = "词条"
 	_sim_talent_cb.button_pressed = true
-	_sim_talent_cb.add_theme_font_size_override("font_size", 7)
 	ctrl.add_child(_sim_talent_cb)
 
 	_sim_counter_cb = CheckBox.new()
 	_sim_counter_cb.text = "反击"
 	_sim_counter_cb.button_pressed = true
-	_sim_counter_cb.add_theme_font_size_override("font_size", 7)
 	ctrl.add_child(_sim_counter_cb)
 
 	var scroll := ScrollContainer.new()
@@ -1091,7 +1234,6 @@ func _build_sim_center() -> VBoxContainer:
 	_sim_log.scroll_following = true
 	_sim_log.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_sim_log.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	_sim_log.add_theme_font_size_override("normal_font_size", 7)
 	scroll.add_child(_sim_log)
 
 	var btn_row := HBoxContainer.new()
@@ -1101,18 +1243,15 @@ func _build_sim_center() -> VBoxContainer:
 
 	var start_btn := Button.new()
 	start_btn.text = "开始模拟"
-	start_btn.add_theme_font_size_override("font_size", 7)
 	start_btn.pressed.connect(_run_simulation)
 	btn_row.add_child(start_btn)
 
 	var clear_btn := Button.new()
 	clear_btn.text = "清空"
-	clear_btn.add_theme_font_size_override("font_size", 7)
 	clear_btn.pressed.connect(func(): _sim_log.clear())
 	btn_row.add_child(clear_btn)
 
 	_sim_status = Label.new()
-	_sim_status.add_theme_font_size_override("font_size", 6)
 	_sim_status.modulate = Color(0.7, 0.9, 0.7)
 	_sim_status.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	vbox.add_child(_sim_status)
@@ -1146,7 +1285,6 @@ func _build_cfg_tab(parent : Control) -> Control:
 		btn.text = cfg_files[i]["name"]
 		btn.toggle_mode = true
 		btn.focus_mode = Control.FOCUS_NONE
-		btn.add_theme_font_size_override("font_size", 7)
 		bar.add_child(btn)
 		btns.append(btn)
 
@@ -1212,7 +1350,7 @@ func _build_aura_tab(parent : Control) -> Control:
 func _section(text : String) -> Label:
 	var l := Label.new()
 	l.text = text
-	l.add_theme_font_size_override("font_size", 7)
+	l.add_theme_font_size_override("font_size", FS_PANEL)
 	l.modulate = Color(0.7, 0.8, 1.0)
 	return l
 
@@ -1220,10 +1358,16 @@ func _section(text : String) -> Label:
 func _lbl(text : String, min_w : float = 0) -> Label:
 	var l := Label.new()
 	l.text = text
-	l.add_theme_font_size_override("font_size", 7)
 	l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	if min_w > 0:
 		l.custom_minimum_size = Vector2(min_w, 0)
+	return l
+
+
+func _center_label(text : String) -> Label:
+	var l := Label.new()
+	l.text = text
+	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	return l
 
 
@@ -1231,12 +1375,9 @@ func _add_edit_row(parent : Node, label : String) -> LineEdit:
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 3)
 	parent.add_child(row)
-
 	row.add_child(_lbl(label, 40))
-
 	var le := LineEdit.new()
 	le.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	le.add_theme_font_size_override("font_size", 7)
 	row.add_child(le)
 	return le
 
@@ -1245,14 +1386,11 @@ func _add_option_row(parent : Node, label : String, ids : Array, none_text : Str
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 3)
 	parent.add_child(row)
-
 	row.add_child(_lbl(label, 40))
 
 	var opt := OptionButton.new()
 	opt.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	opt.add_theme_font_size_override("font_size", 7)
 	opt.add_item(none_text, 0)
-	# ★ 显式给"无"选项设空 metadata，避免 _get_meta 返回 "null"
 	opt.set_item_metadata(0, "")
 	for i in range(ids.size()):
 		var iid : String = ids[i]
@@ -1272,23 +1410,43 @@ func _get_display_name(iid : String) -> String:
 	return iid
 
 
-func _style_spin(sp : SpinBox, font_px : int):
-	sp.add_theme_font_size_override("font_size", font_px)
+func _style_spin(sp : SpinBox):
+	sp.add_theme_font_size_override("font_size", FS_BUTTON)
 	sp.ready.connect(func():
 		if not is_instance_valid(sp): return
 		var le := sp.get_line_edit()
-		if le: le.add_theme_font_size_override("font_size", font_px)
-		var up = sp.get_node_or_null("up")
-		var dn = sp.get_node_or_null("down")
-		if up: up.custom_minimum_size = Vector2(5, 4)
-		if dn: dn.custom_minimum_size = Vector2(5, 4)
+		if le:
+			le.add_theme_font_size_override("font_size", FS_BUTTON)
+			le.select_all_on_focus = true
+		var btns : Array[Node] = sp.find_children("*", "Button", true, false)
+		for b in btns:
+			_compact_spin_arrow_button(b as Button)
 	, CONNECT_ONE_SHOT)
+
+
+func _compact_spin_arrow_button(btn : Button):
+	btn.custom_minimum_size = Vector2(3, 2)
+	btn.icon_max_width = 2
+	btn.icon_max_height = 2
+	btn.focus_mode = Control.FOCUS_NONE
+	btn.action_mode = BaseButton.ACTION_MODE_BUTTON_RELEASE
+	var empty := StyleBoxEmpty.new()
+	empty.content_margin_left = 0
+	empty.content_margin_right = 0
+	empty.content_margin_top = 0
+	empty.content_margin_bottom = 0
+	btn.add_theme_stylebox_override("normal", empty)
+	btn.add_theme_stylebox_override("hover", empty)
+	btn.add_theme_stylebox_override("pressed", empty)
+	btn.add_theme_stylebox_override("focus", empty)
+	btn.add_theme_stylebox_override("disabled", empty)
 
 
 # ============================================================
 #  战斗模拟逻辑
 # ============================================================
 func _refresh_sim_unit_lists():
+	if _sim_player_opt == null or _sim_enemy_opt == null: return
 	_sim_player_opt.clear()
 	_sim_enemy_opt.clear()
 	for i in range(_unit_keys.size()):
@@ -1454,13 +1612,11 @@ func _build_validator_tab(parent : Control) -> Control:
 
 	var run_btn := Button.new()
 	run_btn.text = "运行校验"
-	run_btn.add_theme_font_size_override("font_size", 7)
 	run_btn.pressed.connect(_run_validation)
 	bar.add_child(run_btn)
 
 	var clear_btn := Button.new()
 	clear_btn.text = "清空"
-	clear_btn.add_theme_font_size_override("font_size", 7)
 	clear_btn.pressed.connect(func():
 		if _validator_output: _validator_output.clear()
 		if _validator_status: _validator_status.text = ""
@@ -1468,7 +1624,6 @@ func _build_validator_tab(parent : Control) -> Control:
 	bar.add_child(clear_btn)
 
 	_validator_status = Label.new()
-	_validator_status.add_theme_font_size_override("font_size", 7)
 	_validator_status.modulate = Color(0.85, 0.85, 0.85)
 	bar.add_child(_validator_status)
 
@@ -1478,7 +1633,6 @@ func _build_validator_tab(parent : Control) -> Control:
 
 	var hint := Label.new()
 	hint.text = "红色=错误 · 黄色=警告"
-	hint.add_theme_font_size_override("font_size", 6)
 	hint.modulate = Color(0.6, 0.6, 0.6)
 	bar.add_child(hint)
 
@@ -1494,7 +1648,6 @@ func _build_validator_tab(parent : Control) -> Control:
 	_validator_output.scroll_following = true
 	_validator_output.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_validator_output.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	_validator_output.add_theme_font_size_override("normal_font_size", 7)
 	scroll.add_child(_validator_output)
 
 	return panel
