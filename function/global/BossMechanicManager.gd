@@ -102,12 +102,15 @@ func on_enemy_turn_start():
 	print("[Boss] 灰烬护盾层数：%d" % _ash_shield_stacks)
 
 
-func modify_damage_to_boss(attacker : Unit, damage : int) -> int:
+func modify_damage_to_boss(attacker : Unit, defender : Unit, damage : int) -> int:
 	if _current != Mechanic.ASH_SHIELD:
 		return damage
 	if _ash_shield_stacks <= 0:
 		return damage
 	if attacker == null or attacker.unit_stats.team_id != 0:
+		return damage
+	# ★ v4.2：必须打在 Boss 身上才触发（普通敌人不受影响）
+	if not is_boss_unit(defender):
 		return damage
 
 	if SoulFireManager.can_spend(1):

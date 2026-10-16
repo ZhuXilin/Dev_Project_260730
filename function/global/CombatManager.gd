@@ -875,6 +875,9 @@ func _execute_heal(attacker: Unit, defender: Unit) -> bool:
 	SignalBus.request_damage_popup.emit(defender.global_position, actual_heal, false, false, true)
 	SoundManager.play_heal_sound()
 
+	# ★ v4.2：群体治愈（active_mass_heal）
+	#         原代码没有检查魂火/扣魂火，导致群体治愈免费。
+	#         现在与 execute_attack 对齐：先检查能否支付，成功才触发并扣费。
 	var ready_heal : Array = TalentManager.get_ready_active_skills(attacker)
 	for skill_id in ready_heal:
 		var skill_data = TalentManager.get_talent_data(skill_id)
@@ -883,6 +886,13 @@ func _execute_heal(attacker: Unit, defender: Unit) -> bool:
 		var mass_pct = float(skill_data.effect_params.get("mass_heal_percent", 0.0))
 		if mass_pct <= 0.0:
 			continue
+
+		var cost : int = _get_active_skill_cost(skill_data)
+		if not SoulFireManager.can_spend(cost):
+			print("[群体治愈] %s 魂火不足（需 %d，现有 %d），跳过" % [
+				attacker.unit_stats.unit_name, cost, SoulFireManager.current])
+			continue
+
 		var mass_heal = int(actual_heal * mass_pct)
 		for u in UnitManager.unit_list:
 			if u.unit_stats.team_id != attacker.unit_stats.team_id:
@@ -895,8 +905,10 @@ func _execute_heal(attacker: Unit, defender: Unit) -> bool:
 			if real > 0:
 				u.update_hp_label()
 				SignalBus.request_damage_popup.emit(u.global_position, real, false, false, true)
-		print("[群体治愈] 其他友军回复 %d HP" % mass_heal)
+		print("[群体治愈] 其他友军回复 %d HP（消耗 %d 魂火）" % [mass_heal, cost])
+
 		TalentManager.consume_active_skill(attacker, skill_id)
+		SoulFireManager.spend(cost)
 		break
 
 	await get_tree().create_timer(PERFORMANCE_DURATION, true, false, true).timeout
@@ -914,7 +926,6 @@ func _apply_damage_with_effects(defender: Unit, damage: int, attacker: Unit, is_
 	if TalentManager.is_talent_ready(defender, "parry"):
 		var level = _get_effective_talent_level(defender, "parry")
 		var reflect_mult = 0.5 + (level - 1) * 0.15
-		# ★ 方案 A：走完整伤害公式（防御方攻击力 → 攻方防御力 → 差值为准）
 		var parry_base = calculate_damage(defender, attacker)
 		var parry_damage = max(1, int(parry_base * reflect_mult))
 		attacker.apply_damage(parry_damage)
@@ -953,6 +964,10 @@ func _apply_damage_with_effects(defender: Unit, damage: int, attacker: Unit, is_
 		if hp_ratio < 0.3:
 			damage = max(1, int(damage * (1.0 - defender.relic_low_hp_damage_reduce)))
 			print("守护遗物：低血量减伤 %d%%" % int(defender.relic_low_hp_damage_reduce * 100))
+
+	# ★ v4.2：Boss 灰烬护盾（Day2）—— 应用伤害前，让 Boss 机制有机会改写伤害
+	if BossMechanicManager:
+		damage = BossMechanicManager.modify_damage_to_boss(attacker, defender, damage)
 
 	var defeated = defender.apply_damage(damage)
 
