@@ -10,7 +10,6 @@ var RARE_DROP_CHANCE : Dictionary = {
 	MapNode.NodeType.BOSS: 0.80,
 }
 
-# ★ 批次 5B：战斗开始 HP 记录
 var _battle_start_hp : Dictionary = {}
 
 
@@ -23,9 +22,6 @@ func _init(bf: Node2D):
 	if cfg.has("BOSS"): RARE_DROP_CHANCE[MapNode.NodeType.BOSS] = float(cfg["BOSS"])
 
 
-# ============================================================
-#  战斗开始 HP 记录（批次 5B）
-# ============================================================
 func record_battle_start_hp():
 	_battle_start_hp.clear()
 	for u in UnitManager.unit_list:
@@ -33,9 +29,6 @@ func record_battle_start_hp():
 			_battle_start_hp[u.unit_stats.unit_name] = u.hit_points
 
 
-# ============================================================
-#  评级（批次 5B）
-# ============================================================
 func _compute_rating() -> String:
 	var alive : int = 0
 	var total_start : int = _battle_start_hp.size()
@@ -67,9 +60,6 @@ func _compute_rating() -> String:
 	return "C"
 
 
-# ============================================================
-#  SignalBus.request_show_victory
-# ============================================================
 func on_request_show_victory(winning_team: int) -> void:
 	print("=== _on_request_show_victory 被调用, _victory_processed: ", _bf._victory_processed)
 	await _bf._wait_for_ui_clear()
@@ -127,9 +117,6 @@ func on_request_show_victory(winning_team: int) -> void:
 			player_units.append(unit)
 	GameState.sync_units_from_battlefield(player_units)
 
-	# ============================================================
-	#  地图模式
-	# ============================================================
 	if Globals.is_map_mode:
 		print("当前地图节点类型: ", _bf.current_node_type, " 是否为BOSS: ", is_boss)
 
@@ -200,9 +187,6 @@ func on_request_show_victory(winning_team: int) -> void:
 				tree.change_scene_to_file(Config.PATHS.UNIT_SELECT_UI)
 		return
 
-	# ============================================================
-	#  非地图模式
-	# ============================================================
 	print("非地图模式（旧版流程）")
 	if is_win and is_last:
 		MusicManager.play_win_game_music()
@@ -220,9 +204,6 @@ func on_request_show_victory(winning_team: int) -> void:
 		_bf.ui_manager.show_victory("战斗失败", "回到营地", on_non_map_defeat)
 
 
-# ============================================================
-#  地图模式：胜利继续（完整重写）
-# ============================================================
 func on_map_victory_continue() -> void:
 	print("=== _on_map_victory_continue ===")
 	print("reward_gold: ", GameState.current_reward_gold)
@@ -234,7 +215,6 @@ func on_map_victory_continue() -> void:
 	var reward_gold = GameState.current_reward_gold
 	var reward_soul = GameState.current_reward_soul
 
-	# ★ 批次 5B：评级
 	var rating : String = _compute_rating()
 	var rating_soul_bonus : int = 0
 	if rating == "S":
@@ -242,7 +222,6 @@ func on_map_victory_continue() -> void:
 	reward_soul += rating_soul_bonus
 	print("[评级] %s（额外 +%d 魂）" % [rating, rating_soul_bonus])
 
-	# 奖励物品列表
 	var reward_item_datas: Array = []
 	for item_id in GameState.reward_items:
 		var data = ItemManager.get_item_data(item_id)
@@ -259,13 +238,11 @@ func on_map_victory_continue() -> void:
 					virtual_data.icon = load(icon_path)
 				reward_item_datas.append(virtual_data)
 
-	# 稀有掉落
 	for rare_data in GameState.current_reward_rare_datas:
 		if rare_data:
 			reward_item_datas.append(rare_data)
 			print("添加稀有掉落显示: ", rare_data.name)
 
-	# ★ 评级条目
 	var rating_item := ItemData.new()
 	rating_item.id = "rating"
 	rating_item.name = "评级：%s" % rating
@@ -274,7 +251,6 @@ func on_map_victory_continue() -> void:
 	rating_item.description = ""
 	reward_item_datas.append(rating_item)
 
-	# 遗物解锁
 	var all_relic_ids : Array = []
 	if GameState.current_map_data and GameState.current_map_data.unlock_relics:
 		all_relic_ids.append_array(GameState.current_map_data.unlock_relics)
@@ -311,7 +287,6 @@ func on_map_victory_continue() -> void:
 
 	GameState.current_node_unlock_relics.clear()
 
-	# ★ 新增：解锁单位（BOSS 节点可配置）
 	var unit_unlock_ids : Array = []
 	if GameState.current_map_data and GameState.current_map_data.unlock_units:
 		unit_unlock_ids.append_array(GameState.current_map_data.unlock_units)
@@ -426,9 +401,6 @@ func on_map_victory_continue() -> void:
 	get_tree().change_scene_to_file(Config.PATHS.MAP_SCENE)
 
 
-# ============================================================
-#  失败 / 放弃
-# ============================================================
 func execute_abandon_battle() -> void:
 	Globals.is_transitioning = true
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
@@ -457,7 +429,7 @@ func on_retry_battle() -> void:
 
 
 # ============================================================
-#  稀有掉落
+#  ★ 第四批：稀有掉落单次遍历
 # ============================================================
 func roll_rare_drop_for_node(node_type: int) -> Dictionary:
 	var chance : float = RARE_DROP_CHANCE.get(node_type, 0.0)
@@ -475,9 +447,9 @@ func roll_rare_drop_for_node(node_type: int) -> Dictionary:
 
 	for iid in ItemManager.get_all_item_ids():
 		var d : ItemData = ItemManager.get_item_data(iid)
-		if not d: continue
+		if d == null: continue
 		if d.type != "armor": continue
-		if d.quality not in ["epic", "legendary"]: continue
+		if d.quality != "epic" and d.quality != "legendary": continue
 		if d.price <= 0: continue
 		pool.append({"type": "armor", "id": iid})
 

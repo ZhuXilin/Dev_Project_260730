@@ -37,35 +37,35 @@ func get_reachable_cells(start_cell: Vector2i, max_move: int, unit: Unit) -> Dic
 	queue.append(start_cell)
 	cost_so_far[start_cell] = 0
 	result[start_cell] = true
-	
+
 	var team_id = unit.unit_stats.team_id
 	var ignore_cost = unit.unit_stats.ignore_terrain_cost
 
 	while queue.size() > 0:
 		var cell = queue.pop_front()
 		var current_cost = cost_so_far[cell]
-		
+
 		var dirs = [Vector2i(1,0), Vector2i(-1,0), Vector2i(0,1), Vector2i(0,-1)]
 		for d in dirs:
 			var neighbor = cell + d
 			if neighbor.x < 0 or neighbor.x >= TerrainManager.grid_size.x or neighbor.y < 0 or neighbor.y >= TerrainManager.grid_size.y:
 				continue
-			
+
 			var terrain_type = TerrainManager.get_terrain(neighbor)
 			# ---- 完全阻挡地形（连飞马也不可通过） ----
 			if terrain_type == TerrainManager.TerrainType.IMPASSABLE_ALL:
-				continue   # 无论如何都不可通行
+				continue
 			# ---- 无视地形通行（飞马可进入所有格子） ----
 			if not ignore_cost:
 				if not TerrainManager.TERRAIN_DATA[terrain_type]["passable"]:
 					continue
 			# 否则，任何地形均可进入（包括 IMPASSABLE）
-			
+
 			var move_cost = 1 if ignore_cost else TerrainManager.TERRAIN_DATA[terrain_type]["move_cost"]
 			var updated_cost = current_cost + move_cost
 			if updated_cost > max_move:
 				continue
-			
+
 			var occupant = get_unit_at_cell(neighbor)
 			if occupant:
 				if occupant.unit_stats.team_id != team_id:
@@ -74,12 +74,12 @@ func get_reachable_cells(start_cell: Vector2i, max_move: int, unit: Unit) -> Dic
 					cost_so_far[neighbor] = updated_cost
 					queue.append(neighbor)
 				continue
-			
+
 			if not cost_so_far.has(neighbor) or updated_cost < cost_so_far[neighbor]:
 				cost_so_far[neighbor] = updated_cost
 				queue.append(neighbor)
 				result[neighbor] = true
-	
+
 	return result
 
 func calculate_path(start_cell: Vector2i, goal_cell: Vector2i, unit: Unit) -> Array:

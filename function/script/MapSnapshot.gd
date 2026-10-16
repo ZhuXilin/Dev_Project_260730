@@ -1,7 +1,6 @@
 class_name MapSnapshot
 extends RefCounted
 
-# ---- 序列化：MapLevelData → 纯 Dictionary ----
 static func serialize(map_data: MapLevelData) -> Dictionary:
 	if not map_data:
 		return {}
@@ -23,7 +22,7 @@ static func serialize(map_data: MapLevelData) -> Dictionary:
 			"custom_label": node.custom_label,
 			"reward": node.reward,
 			"unlock_relics": node.unlock_relics.duplicate(),
-			"unlock_units": node.unlock_units.duplicate(),   # ★ 新增
+			"unlock_units": node.unlock_units.duplicate(),
 			"map_data": _serialize_map_data(node.map_data),
 			"connected_node_ids": []
 		}
@@ -40,20 +39,23 @@ static func _serialize_map_data(map_data: MapData) -> Dictionary:
 	if not map_data:
 		return {}
 
-	var spawn_points_serialized = []
+	# ★ 第五批：直接存 Vector2i，不再拆 [x, y] 数组
+	# JSON 序列化会把它写成 {"x":..., "y":...} 或 [x, y] 都行，
+	# 关键是不损失整型语义
+	var spawn_points_serialized : Array = []
 	for sp in map_data.spawn_points:
-		spawn_points_serialized.append([sp.x, sp.y])
+		spawn_points_serialized.append([int(sp.x), int(sp.y)])
 
 	return {
 		"map_name": map_data.map_name,
 		"scene_path": map_data.scene.resource_path if map_data.scene else "",
-		"map_size_x": map_data.map_size.x,
-		"map_size_y": map_data.map_size.y,
+		"map_size_x": int(map_data.map_size.x),
+		"map_size_y": int(map_data.map_size.y),
 		"node_type": map_data.node_type,
 		"spawn_points": spawn_points_serialized,
 		"required_unit": map_data.required_unit,
 		"unlock_relics": map_data.unlock_relics.duplicate(),
-		"unlock_units": map_data.unlock_units.duplicate(),   # ★ 新增
+		"unlock_units": map_data.unlock_units.duplicate(),
 	}
 
 
@@ -88,7 +90,6 @@ static func deserialize(snapshot: Dictionary) -> MapLevelData:
 					relic_arr.append(rid)
 		node.unlock_relics = relic_arr
 
-		# ★ 新增：恢复 unlock_units
 		var unit_arr: Array[String] = []
 		var raw_units = node_dict.get("unlock_units", [])
 		if raw_units is Array:
@@ -126,19 +127,23 @@ static func _deserialize_map_data(data: Dictionary) -> MapData:
 	var map = MapData.new()
 	map.map_name = data.get("map_name", "")
 	map.map_size = Vector2i(
-		data.get("map_size_x", MapConst.DEFAULT_MAP_SIZE.x),
-		data.get("map_size_y", MapConst.DEFAULT_MAP_SIZE.y)
+		int(data.get("map_size_x", MapConst.DEFAULT_MAP_SIZE.x)),
+		int(data.get("map_size_y", MapConst.DEFAULT_MAP_SIZE.y))
 	)
 	map.node_type = data.get("node_type", MapNode.NodeType.NORMAL)
 	map.required_unit = data.get("required_unit", "")
 
+	# ★ 第五批：显式 int() 转换，兼容 float / String 混入
 	var spawn_points: Array[Vector2i] = []
 	for sp in data.get("spawn_points", []):
 		if sp is Array and sp.size() == 2:
 			spawn_points.append(Vector2i(int(sp[0]), int(sp[1])))
+		elif sp is Vector2i:
+			spawn_points.append(sp)
+		elif sp is Vector2:
+			spawn_points.append(Vector2i(int(sp.x), int(sp.y)))
 	map.spawn_points = spawn_points
 
-	# ★ 新增：恢复 unlock_relics / unlock_units
 	var relic_arr : Array[String] = []
 	var raw_relics = data.get("unlock_relics", [])
 	if raw_relics is Array:

@@ -69,10 +69,12 @@ func _toggle(force = null):
 		_refresh_category_list()
 		_refresh_protect_hint()
 	else:
-		# ★ 关闭时通知当前插件
 		if _current_plugin:
 			_current_plugin.on_deactivate()
+		# ★ 修复：关闭时恢复存档，避免后续所有自动保存被吞
+		SaveManager.suppress_save = false
 	visible = target
+	_refresh_protect_hint()
 
 
 func _build_once():

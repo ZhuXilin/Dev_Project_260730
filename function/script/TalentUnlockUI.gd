@@ -83,12 +83,13 @@ func _refresh_list():
 
 func _get_candidates(school : String) -> Array:
 	var result : Array = []
+	var school_lower : String = school.to_lower()
 	for tid in TalentManager.get_all_talent_ids():
 		if tid in Globals.unlocked_talents:
 			continue
 		var data = TalentManager.get_talent_data(tid)
 		if data == null: continue
-		if data.school != school: continue
+		if data.school.to_lower() != school_lower: continue
 		result.append(tid)
 	return result
 

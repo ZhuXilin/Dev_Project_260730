@@ -336,6 +336,7 @@ func _get_target_from_position(global_pos: Vector2) -> Control:
 		for btn in panel._pending_container.get_children():
 			if btn is Button:
 				var bp : Button = btn
+				if bp.disabled: continue
 				if bp.get_global_rect().grow(BUFFER).has_point(global_pos): return bp
 	# DEPLOY / MAP 商店
 	if (panel.current_mode == panel.Mode.DEPLOY or panel.current_mode == panel.Mode.MAP) and panel.shop_container.visible:
@@ -356,6 +357,7 @@ func _get_target_from_position(global_pos: Vector2) -> Control:
 				var b7 : Button = btn
 				var st : String = b7.get_meta("slot_type", "")
 				if panel.current_tab == "arena_forge" and st == "forge_slot":
+					# ★ 第六批：空槽永远可用于拖入，即使按钮 disabled 也允许（保持原语义）
 					if b7.get_global_rect().grow(BUFFER).has_point(global_pos): return b7
 				elif panel.current_tab == "arena_shop" and st == "shop_item":
 					if not b7.disabled and b7.get_global_rect().grow(BUFFER).has_point(global_pos): return b7

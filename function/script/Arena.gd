@@ -276,7 +276,10 @@ func _init_arena_state():
 	_earned_soul = 0
 	_total_paid = 0
 	_retreat_fee = 0
-	_arena_passives = [null, null, null, null]
+	# ★ 第六批：显式构建纯 null 数组，避免共享引用
+	_arena_passives.clear()
+	for i in range(4):
+		_arena_passives.append(null)
 	_locked_talent_id = ""
 
 	_current_player_data.reset_combat_buffs()
@@ -909,7 +912,10 @@ func _return_to_idle():
 		return
 	_phase = Phase.IDLE
 	_current_player_data = null
-	_arena_passives = [null, null, null, null]
+	# ★ 第六批：显式清空为纯 null 数组（避免上一局 aura Dictionary 残留）
+	_arena_passives.clear()
+	for i in range(4):
+		_arena_passives.append(null)
 	_earned_soul = 0
 	_total_paid = 0
 	_retreat_fee = 0
@@ -917,7 +923,7 @@ func _return_to_idle():
 	_build_unit_list()
 	_refresh_center_panel()
 	_refresh_streak_label()
-
+	
 
 func _show_hint(text: String):
 	info_label.text = text

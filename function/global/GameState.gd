@@ -106,7 +106,7 @@ var battlefield_data : Dictionary:
 	set(value): progress_state.battlefield_data = value
 
 # ============================================================
-#  ResourceState 转发（含所有批次新增字段）
+#  ResourceState 转发
 # ============================================================
 var soul : int:
 	get: return resource_state.soul
@@ -244,7 +244,7 @@ var current_node_unlock_relics : Array:
 	get: return progress_state.current_node_unlock_relics
 	set(value): progress_state.current_node_unlock_relics = value
 
-var current_node_unlock_units : Array:       # ★ 新增
+var current_node_unlock_units : Array:
 	get: return progress_state.current_node_unlock_units
 	set(value): progress_state.current_node_unlock_units = value
 
@@ -422,11 +422,9 @@ func start_new_cycle():
 	init_passive_slots()
 	clear_all_pending_rewards()
 	SoulFireManager.reset_for_new_run()
-	# ★ v4.1 修复（缺口 10）：清空 Boss 机制残留，避免上一局 ash_shield/three_forms 带过来
 	if BossMechanicManager:
 		BossMechanicManager.setup_for_node(false)
 	SaveManager.auto_save()
-	# ★ v4.1：数据埋点 — 开局
 	AnalyticsLogger.begin_run()
 
 func finish_day(grant_slot: bool = true):
@@ -451,7 +449,6 @@ func abandon_cycle():
 	temp_gold = 0
 
 func abandon_and_return_to_camp():
-	# ★ v4.1：数据埋点 — 放弃/失败
 	AnalyticsLogger.finish_run(false)
 	SoulFireManager.settle()
 	await Globals.show_cycle_reward()
@@ -471,19 +468,20 @@ func show_abandon_confirmation(parent: Node):
 		func(): pass
 	)
 
-func reset_for_new_cycle():
+# ============================================================
+#  ★ 重置（公共部分抽出来）
+# ============================================================
+func _reset_common():
 	party.clear()
 	main_unit_name = ""
 	visited_nodes.clear()
 	current_day = 1
-	cached_map_level_data = null
-	cached_day = -1
 	resume_node_id = ""
 	should_advance_day = false
+	cached_map_level_data = null
+	cached_day = -1
 	current_map_data = null
 	last_selected_node_type = -1
-	LevelManager.current_day = 0
-	LevelManager.current_level_index = 0
 	temp_gold = 0
 	interrupt_state = InterruptState.NONE
 	init_passive_slots()
@@ -494,28 +492,18 @@ func reset_for_new_cycle():
 	sacrifice_count = 0
 	shop_level = 0
 
+
+func reset_for_new_cycle():
+	_reset_common()
+	# ★ 顺带清掉火焰共鸣（原来漏了 LevelManager.reset() 会导致残留）
+	LevelManager.reset()
+
+
 func reset_all():
-	party.clear()
-	main_unit_name = ""
-	visited_nodes.clear()
-	current_day = 1
+	_reset_common()
 	current_map_index = 0
 	is_map_mode = false
-	should_advance_day = false
-	resume_node_id = ""
-	cached_map_level_data = null
-	cached_day = -1
-	current_map_data = null
-	last_selected_node_type = -1
 	LevelManager.reset()
-	temp_gold = 0
-	interrupt_state = InterruptState.NONE
-	init_passive_slots()
-	clear_all_pending_rewards()
-	current_faction = ""
-	map_snapshot.clear()
-	cycle_start_soul = 0
-	sacrifice_count = 0
-	shop_level = 0
+
 
 func apply_relic_stats_to_unit(_unit_data: UnitData): pass

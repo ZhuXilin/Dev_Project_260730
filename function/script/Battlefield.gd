@@ -660,6 +660,10 @@ func _on_request_show_info(unit: Unit):
 	if not is_instance_valid(unit):
 		return
 
+	# ★ 第六批：加 nil 保护，避免某个 unit_stats 未初始化时崩溃
+	if unit.unit_stats == null:
+		return
+
 	var lines : Array = []
 
 	var display_name = unit.unit_stats.display_name if unit.unit_stats.display_name != "" else unit.unit_stats.unit_name
@@ -693,19 +697,23 @@ func _on_request_show_info(unit: Unit):
 	else:
 		lines.append("武器: 无")
 
-	var armor_slots = unit.get_armor_slots()
-	var armor_lines : Array = []
-	for i in range(armor_slots.size()):
-		var inst = armor_slots[i]
-		if inst:
-			var data = ItemManager.get_item_data(inst.item_id)
-			if data:
-				armor_lines.append("  槽" + str(i+1) + ": " + data.name)
-		else:
-			armor_lines.append("  槽" + str(i+1) + ": （空）")
-	if armor_lines.size() > 0:
-		lines.append("防具:")
-		lines.append_array(armor_lines)
+	# ★ 第六批：armor_slots 加 null 保护
+	var armor_slots : Array = unit.get_armor_slots()
+	if armor_slots != null:
+		var armor_lines : Array = []
+		for i in range(armor_slots.size()):
+			var inst = armor_slots[i]
+			if inst:
+				var data = ItemManager.get_item_data(inst.item_id)
+				if data:
+					armor_lines.append("  槽" + str(i+1) + ": " + data.name)
+				else:
+					armor_lines.append("  槽" + str(i+1) + ": （未知）")
+			else:
+				armor_lines.append("  槽" + str(i+1) + ": （空）")
+		if armor_lines.size() > 0:
+			lines.append("防具:")
+			lines.append_array(armor_lines)
 
 	lines.append("力量 " + str(unit.unit_stats.strength) \
 		+ " | 灵巧 " + str(unit.unit_stats.dexterity) \
@@ -715,11 +723,12 @@ func _on_request_show_info(unit: Unit):
 		+ " | 移动 " + str(unit.unit_stats.move_range))
 
 	var talent_names : Array = []
-	for inst in unit.talent_slots:
-		if inst and inst.is_active:
-			var tdata = TalentManager.get_talent_data(inst.talent_id)
-			if tdata:
-				talent_names.append(tdata.display_name)
+	if unit.talent_slots != null:
+		for inst in unit.talent_slots:
+			if inst and inst.is_active:
+				var tdata = TalentManager.get_talent_data(inst.talent_id)
+				if tdata:
+					talent_names.append(tdata.display_name)
 	if unit.advanced_talent_inst and unit.advanced_talent_inst.is_active:
 		var adv_tdata = TalentManager.get_talent_data(unit.advanced_talent_inst.talent_id)
 		if adv_tdata:

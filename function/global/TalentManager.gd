@@ -52,10 +52,19 @@ static func load_talent_data():
 		talent.soul_cost = int(dict.get("soul_cost", 0))
 		talent.is_active_skill = bool(dict.get("is_active_skill", false))
 		talent.skill_cooldown = int(dict.get("skill_cooldown", 0))
-		# ★ 新手阶段（默认 3 = 视为全解锁，向后兼容旧数据）
 		talent.tutorial_stage = int(dict.get("tutorial_stage", 3))
 		_talent_db[talent.id] = talent
 	print("成功加载 ", _talent_db.size(), " 个词条")
+
+
+# ============================================================
+#  ★ 新增：让静态缓存失效，下次读取时重载
+# ============================================================
+static func reload_all() -> void:
+	_talent_data_loaded = false
+	_talent_db.clear()
+	load_talent_data()
+	print("[TalentManager] 数据已重载，共 %d 个词条" % _talent_db.size())
 
 
 static func get_talent_data(talent_id: String) -> TalentData:
@@ -156,7 +165,6 @@ static func accumulate_talents(talent_slots: Array) -> void:
 		var data = get_talent_data(inst.talent_id)
 		if not data:
 			continue
-		# 主动技能：CD 递减到 0 就绪
 		if data.is_active_skill:
 			if inst.cooldown_remaining >= 9999:
 				continue
@@ -165,7 +173,6 @@ static func accumulate_talents(talent_slots: Array) -> void:
 				if inst.cooldown_remaining == 0:
 					inst.is_ready = true
 			continue
-		# R 词条（9999）跳过冷却递减
 		if inst.cooldown_remaining >= 9999:
 			continue
 		if inst.cooldown_remaining > 0:
@@ -176,7 +183,6 @@ static func accumulate_talents(talent_slots: Array) -> void:
 			inst.is_ready = true
 
 
-## ★ 主动技能就绪检查
 static func is_active_skill_ready(unit, talent_id: String) -> bool:
 	var data = get_talent_data(talent_id)
 	if not data or not data.is_active_skill:
@@ -189,17 +195,14 @@ static func is_active_skill_ready(unit, talent_id: String) -> bool:
 	return inst.is_ready
 
 
-## ★ 消耗主动技能（触发后进入 CD）
 static func consume_active_skill(unit, talent_id: String) -> void:
 	reset_talent(unit, talent_id)
 
 
-## ★ 获取单位身上所有就绪的主动技能
 static func get_ready_active_skills(unit) -> Array:
 	var result : Array = []
 	if unit == null:
 		return result
-	# 普通词条槽
 	for inst in unit.talent_slots:
 		if not inst or not inst.is_active:
 			continue
@@ -208,7 +211,6 @@ static func get_ready_active_skills(unit) -> Array:
 			continue
 		if inst.is_ready:
 			result.append(inst.talent_id)
-	# ★ 职业特技（advanced_talent_inst）
 	var adv = unit.advanced_talent_inst
 	if adv and adv.is_active:
 		var data_adv = get_talent_data(adv.talent_id)
@@ -234,15 +236,13 @@ static func is_talent_compatible_with_unit(talent_id: String, unit_name: String)
 		return true
 	var key = UnitDataManager.normalize_unit_key(unit_name)
 	return key in compatible
-	
+
 
 static func get_talent_exp(unit_type: String, talent_id: String) -> int:
 	var unit_dict = GameState.talent_exp.get(unit_type, {})
 	return int(unit_dict.get(talent_id, 0))
 
 
-## 返回第 level 级（1-based）的区间长度
-## Lv1 → 100，Lv2 → 200，Lv3 → 300
 static func _get_level_span(level: int) -> int:
 	var i : int = clampi(level, 1, MAX_TALENT_LEVEL)
 	return EXP_THRESHOLDS[i] - EXP_THRESHOLDS[i - 1]
@@ -261,7 +261,6 @@ static func get_talent_level(unit_type: String, talent_id: String) -> int:
 
 static func get_talent_exp_in_level(unit_type: String, talent_id: String) -> int:
 	var cur_exp : int = get_talent_exp(unit_type, talent_id)
-	# 满级：固定显示为最后一段区间长度
 	if cur_exp >= MAX_TALENT_EXP:
 		return _get_level_span(MAX_TALENT_LEVEL)
 	var lv : int = get_talent_level(unit_type, talent_id)

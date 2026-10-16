@@ -25,11 +25,6 @@ func setup_non_combat_mode() -> void:
 		
 	if _bf.setting_panel: _bf.setting_panel.visible = false
 
-	if _bf.end_turn_button:
-		_bf.end_turn_button.text = "鼠标中键结束回合"
-		_bf.end_turn_button.visible = true
-		_bf.end_turn_button.modulate = Color.WHITE
-
 	if _bf._battle_start_event_id != "":
 		print("检测到非战斗地图事件：", _bf._battle_start_event_id)
 		var music = MusicManager.config.battle_start_dialogue_music if MusicManager.config else null

@@ -26,6 +26,8 @@ var EPIC_GUARANTEE_LEVEL : int = 5
 ## 避免单位自带的 "物理" / "法术" 标签挤占权重
 const ARMOR_TAGS : Array = ["守护", "烈焰", "灰烬", "轮回", "献祭", "余烬"]
 
+## ★ 标签池占比提取常量
+const TAG_SLOT_RATIO : float = 0.8
 
 func _ready():
 	reload_config()
@@ -172,7 +174,7 @@ func generate_shop_items():
 
 	var tag_slot_count : int = 0
 	if tag_pool_usable:
-		tag_slot_count = int(round(float(SHOP_SIZE) * 0.8))
+		tag_slot_count = int(round(float(SHOP_SIZE) * TAG_SLOT_RATIO))
 
 	var total_weight : int = 0
 	for q in weights:

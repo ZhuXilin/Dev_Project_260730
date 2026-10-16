@@ -46,7 +46,6 @@ const ShopManagerScript = preload(Config.PATHS.SHOP_MANAGER_SCRIPT)
 @onready var sacrifice_tab_btn : Button = $VBoxContainer/MainHBox/RightContainer/TabBar/SacrificeTabBtn
 @onready var furnace_tab_btn : Button = $VBoxContainer/MainHBox/RightContainer/TabBar/FurnaceTabBtn
 
-# ---- 待领取区 ----
 var _pending_section : VBoxContainer = null
 var _pending_container : HBoxContainer = null
 
@@ -66,24 +65,26 @@ func _ready():
 
 
 # ============================================================
-#  模式 / Tab 判断辅助
+#  ★ 第五批：合并重复方法，只保留公开版
 # ============================================================
-func _is_shop_rest_mode() -> bool:
-	return current_mode == Mode.ARENA_REST or current_mode == Mode.MAP_SHOP_REST
-
 func is_forge_mode() -> bool:
 	return current_mode == Mode.FORGE
 
 func is_shop_rest_mode() -> bool:
-	return _is_shop_rest_mode()
+	return current_mode == Mode.ARENA_REST or current_mode == Mode.MAP_SHOP_REST
+
+# 兼容旧的内部调用点，避免大面积改名 —— 直接代理到公开版
+func _is_shop_rest_mode() -> bool:
+	return is_shop_rest_mode()
+
 
 func _on_weapon_tab_pressed():
-	if _is_shop_rest_mode(): _switch_tab("arena_shop")
+	if is_shop_rest_mode(): _switch_tab("arena_shop")
 	elif current_mode == Mode.FORGE: _switch_tab("arena_shop")
 	else: _switch_tab("weapon")
 
 func _on_talent_tab_pressed():
-	if _is_shop_rest_mode(): _switch_tab("arena_forge")
+	if is_shop_rest_mode(): _switch_tab("arena_forge")
 	elif current_mode == Mode.FORGE: _switch_tab("arena_forge")
 	else: _switch_tab("talent")
 
@@ -103,7 +104,7 @@ func init(units: Array, slot: int, mode: int, context: EquipContext = null):
 	current_mode = mode as Mode
 	_context = context if context else MainGameEquipContext.new()
 
-	if _is_shop_rest_mode() or mode == Mode.FORGE:
+	if is_shop_rest_mode() or mode == Mode.FORGE:
 		if not shop_manager:
 			shop_manager = ShopManagerScript.new()
 			add_child(shop_manager)
@@ -112,16 +113,15 @@ func init(units: Array, slot: int, mode: int, context: EquipContext = null):
 		shop_manager.generate_shop_items()
 		shop_manager.reset_count = 0
 
-	if mode == Mode.FORGE or _is_shop_rest_mode():
+	if mode == Mode.FORGE or is_shop_rest_mode():
 		_forge.init_slots()
 
-	if _is_shop_rest_mode():
+	if is_shop_rest_mode():
 		current_tab = "arena_shop"
 
 	_copy_party_data()
 	_build_ui()
 
-	# ★ v4.1：数据埋点 — FORGE 会话开始计时
 	if current_mode == Mode.FORGE:
 		AnalyticsLogger.begin_forge_session()
 
@@ -145,7 +145,7 @@ func _on_close_pressed():
 	if not _check_pending_before_leave():
 		return
 
-	if _is_shop_rest_mode() and current_tab == "arena_forge":
+	if is_shop_rest_mode() and current_tab == "arena_forge":
 		var unresolved : int = _forge.return_all_forge_slots()
 		_build_unit_columns()
 		if unresolved > 0:
@@ -166,7 +166,6 @@ func _on_close_pressed():
 	_sync_all()
 	_context.mark_cancelled()
 	_is_closing = true
-	# ★ v4.1：数据埋点 — FORGE 会话结束
 	if current_mode == Mode.FORGE:
 		AnalyticsLogger.finish_forge_session()
 	if shop_manager:
@@ -180,9 +179,6 @@ func _on_close_pressed():
 	else: queue_free()
 
 
-# ============================================================
-#  待领取检查
-# ============================================================
 func _check_pending_before_leave() -> bool:
 	if GameState.has_pending_sacrifice_rewards():
 		_show_detail_in_zone("请先领取熔铸奖励（%d 件）" % GameState.pending_sacrifice_rewards.size())
@@ -448,9 +444,6 @@ func _update_gold_display():
 		gold_label.text = "金币: " + str(_context.get_gold())
 
 
-# ============================================================
-#  待领取区
-# ============================================================
 func _ensure_pending_section():
 	if _pending_container and is_instance_valid(_pending_container):
 		return
@@ -622,7 +615,7 @@ func _do_sacrifice(u: UnitData, _armors_ignored: Array, _discard_count: int):
 
 
 # ============================================================
-#  领取待领取奖励
+#  领取待领取
 # ============================================================
 func _equip_pending_reward(data: Dictionary, target: Control):
 	var pending_idx : int = data.get("pending_idx", -1)
@@ -999,6 +992,8 @@ func _is_valid_drop(data: Dictionary, target: Control) -> bool:
 	var source_type : String = data["slot_type"]
 	var target_type : String = target.get_meta("slot_type", "")
 	var discard : bool = target == discard_zone
+
+	# ★ 第五批：talent → library_talent 允许（拖回库 = 卸下）
 	if source_type == "talent" and target_type == "library_talent":
 		return true
 
@@ -1047,7 +1042,7 @@ func _is_valid_drop(data: Dictionary, target: Control) -> bool:
 
 	if current_mode == Mode.FORGE and current_tab != "arena_shop":
 		return _forge.is_valid_forge_drop(data, target)
-	if _is_shop_rest_mode() and current_tab == "arena_forge":
+	if is_shop_rest_mode() and current_tab == "arena_forge":
 		return _forge.is_valid_forge_drop(data, target)
 
 	if current_mode == Mode.DEPLOY:
@@ -1071,7 +1066,7 @@ func _is_valid_drop(data: Dictionary, target: Control) -> bool:
 
 	var is_shop_ctx = (
 		(current_mode == Mode.FORGE and current_tab == "arena_shop")
-		or (_is_shop_rest_mode() and current_tab == "arena_shop")
+		or (is_shop_rest_mode() and current_tab == "arena_shop")
 	)
 	if is_shop_ctx:
 		if discard:
@@ -1126,7 +1121,7 @@ func _execute_drop(data: Dictionary, target: Control):
 
 	if current_mode == Mode.FORGE and current_tab != "arena_shop":
 		_forge.execute_forge_drop(data, target); return
-	if _is_shop_rest_mode() and current_tab == "arena_forge":
+	if is_shop_rest_mode() and current_tab == "arena_forge":
 		_forge.execute_forge_drop(data, target); return
 
 	var discard : bool = target == discard_zone
@@ -1291,7 +1286,7 @@ func _switch_tab(tab: String):
 	if not _check_pending_before_leave():
 		return
 	if current_tab == tab: return
-	if (current_mode == Mode.FORGE or _is_shop_rest_mode()) and current_tab == "arena_forge":
+	if (current_mode == Mode.FORGE or is_shop_rest_mode()) and current_tab == "arena_forge":
 		var unresolved : int = _forge.return_all_forge_slots()
 		_build_unit_columns()
 		if unresolved > 0:
@@ -1319,7 +1314,7 @@ func _switch_tab(tab: String):
 			_build_sacrifice_panel()
 			if reset_btn: reset_btn.visible = false
 	shop_container.visible = true
-	if _is_shop_rest_mode():
+	if is_shop_rest_mode():
 		discard_zone.visible = true
 	_refresh_bottom_buttons()
 	_refresh_upgrade_shop_btn()
@@ -1531,7 +1526,7 @@ func _refresh_upgrade_shop_btn():
 
 	var is_shop_tab : bool = (
 		(current_mode == Mode.FORGE and current_tab == "arena_shop")
-		or (_is_shop_rest_mode() and current_tab == "arena_shop")
+		or (is_shop_rest_mode() and current_tab == "arena_shop")
 	)
 	if not is_shop_tab:
 		_upgrade_shop_btn.visible = false

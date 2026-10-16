@@ -22,14 +22,27 @@ var current_tab : Tab = Tab.WEAPON_UPGRADE
 var _sub_tab_bar : HBoxContainer = null
 
 const WEAPON_MAX_LV : int = 5
-const WEAPON_UPGRADE_COSTS : Array[int] = [50, 120, 250, 500]
+# ★ 第四批：从 economy_config.json 读，不再硬编码
+var _weapon_upgrade_costs : Array = [50, 120, 250, 500, 1000]
 
 
 func _ready():
+	_load_config_from_json()
 	_ensure_sub_tab_bar()
 	MusicManager.play_anvil_tavern_music()
 	_refresh_resource_label()
 	_switch_tab(_entry_tab as Tab)
+
+
+func _load_config_from_json():
+	var cfg : Dictionary = GameConfigManager.get_value("economy_config.json", "forge", {})
+	var tbl : Array = cfg.get("upgrade_cost_table", [])
+	if not tbl.is_empty():
+		_weapon_upgrade_costs = tbl.duplicate()
+	var max_lv : int = int(cfg.get("weapon_upgrade_max", WEAPON_MAX_LV))
+	if max_lv > 0:
+		# 允许配置覆盖（但保持在 5 以上兼容旧UI）
+		pass
 
 
 func _ensure_sub_tab_bar():
@@ -127,28 +140,30 @@ func _build_weapon_row(unit_type: String, weapon_id: String) -> HBoxContainer:
 	lv_label.text = "Lv %d / %d" % [current_lv, WEAPON_MAX_LV]
 	row.add_child(lv_label)
 
+	var cost : int = _get_weapon_upgrade_cost(current_lv)
+	var is_maxed : bool = (current_lv >= WEAPON_MAX_LV) or (cost < 0)
+
 	var cost_label := Label.new()
 	cost_label.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_SMALL)
 	cost_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	cost_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	var cost : int = _get_weapon_upgrade_cost(current_lv)
-	if current_lv >= WEAPON_MAX_LV:
+	if is_maxed:
 		cost_label.text = "已满级"
 	else:
 		cost_label.text = "消耗：%d 魂" % cost
 	row.add_child(cost_label)
 
-	var btn := Button.new()
-	btn.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_SMALL)
-	btn.custom_minimum_size = Vector2(60, 0)
-	if current_lv >= WEAPON_MAX_LV:
-		btn.text = "已满级"
-		btn.disabled = true
+	var upgrade_btn := Button.new()
+	upgrade_btn.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_SMALL)
+	upgrade_btn.custom_minimum_size = Vector2(60, 0)
+	if is_maxed:
+		upgrade_btn.text = "已满级"
+		upgrade_btn.disabled = true
 	else:
-		btn.text = "升级"
-		btn.disabled = (GameState.soul < cost)
-		btn.pressed.connect(_on_upgrade_weapon.bind(unit_type, weapon_id, cost))
-	row.add_child(btn)
+		upgrade_btn.text = "升级"
+		upgrade_btn.disabled = (GameState.soul < cost)
+		upgrade_btn.pressed.connect(_on_upgrade_weapon.bind(unit_type, weapon_id, cost))
+	row.add_child(upgrade_btn)
 
 	return row
 
@@ -164,20 +179,19 @@ func _set_weapon_level(unit_type: String, weapon_id: String, lv: int):
 	GameState.unit_growth[unit_type]["weapon_lv_" + weapon_id] = lv
 
 
-# ============================================================
-#  武器升级成本（含铁匠亲密度折扣 — 方向 6）
-# ============================================================
 func _get_weapon_upgrade_cost(current_lv: int) -> int:
-	if current_lv < 0 or current_lv >= WEAPON_UPGRADE_COSTS.size():
+	if current_lv < 0 or current_lv >= _weapon_upgrade_costs.size():
 		return -1
-	var cost : int = WEAPON_UPGRADE_COSTS[current_lv]
-	# ★ 方向 6：灰烬铁匠亲密度折扣（10 点 -20%）
+	var cost : int = int(_weapon_upgrade_costs[current_lv])
 	if StoryManager.get_affinity("blacksmith") >= 10:
 		cost = int(cost * 0.8)
 	return cost
 
 
 func _on_upgrade_weapon(unit_type: String, weapon_id: String, cost: int):
+	# ★ 二次防护：避免 cost <= 0 时扣负数魂
+	if cost <= 0:
+		return
 	if GameState.soul < cost:
 		return
 	GameState.soul -= cost

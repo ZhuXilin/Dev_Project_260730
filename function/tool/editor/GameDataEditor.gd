@@ -3,6 +3,7 @@ extends Control
 # ============================================================
 #  GameDataEditor — 单位 / 战斗模拟 / 数值 / 套装 / 词条池 / 光环
 #  v4.1 第 2 批：单位编辑器完整重写
+#  v4.1 第 4 批：修复 _build_edit_tab 缺失装备/特技 UI 导致的 nil 崩溃
 # ============================================================
 
 const UNIT_DATA_PATH : String = "res://content/data/unit_data.json"
@@ -26,7 +27,6 @@ const EDITABLE_ATTRS : Array = [
 	{"key": "move_range",   "label": "移",   "min": 0, "max": 20},
 ]
 
-## v4.1 新增
 const UNIT_TAGS : Array = ["烈焰", "轮回", "灰烬", "守护", "献祭", "余烬"]
 
 const CORE_TRAITS : Array = ["", "charge", "dragon_might", "bulwark"]
@@ -36,7 +36,6 @@ const SAC_BUFF_TYPES : Array = [
 	"damage_reduction", "heal_bonus", "counter_damage_bonus"
 ]
 
-## attr_cap_levels 用的属性 key（顺序固定）
 const CAP_ATTRS : Array = [
 	"vitality", "strength", "dexterity",
 	"intelligence", "faith", "arcane"
@@ -47,7 +46,6 @@ const CAP_ATTR_LABELS : Dictionary = {
 	"intelligence": "智", "faith": "信", "arcane": "感"
 }
 
-## advanced_branches 的 stat_bonus 支持的字段
 const BRANCH_STAT_KEYS : Array = [
 	"max_hp", "strength", "dexterity",
 	"intelligence", "faith", "arcane", "move_range"
@@ -58,7 +56,6 @@ const BRANCH_STAT_LABELS : Dictionary = {
 	"intelligence": "智", "faith": "信", "arcane": "感", "move_range": "移"
 }
 
-## attr_cap 固定 3 级
 const CAP_MAX_LEVEL : int = 3
 
 # ---- 数据 ----
@@ -87,14 +84,14 @@ var _edit_attr_spins : Dictionary = {}
 var _edit_weapon_opt : OptionButton = null
 var _edit_armor_opts : Array = []
 var _edit_talent_opts : Array = []
-var _edit_tags_cbs : Dictionary = {}       # tag -> CheckBox
+var _edit_tags_cbs : Dictionary = {}
 var _edit_core_opt : OptionButton = null
 var _edit_sac_type_opt : OptionButton = null
 var _edit_sac_value_spin : SpinBox = null
 var _edit_sac_display_edit : LineEdit = null
-var _edit_cap_spins : Dictionary = {}      # [lv][attr] -> SpinBox
+var _edit_cap_spins : Dictionary = {}
 var _edit_branches_box : VBoxContainer = null
-var _edit_branch_cards : Array = []        # Array[Dictionary]
+var _edit_branch_cards : Array = []
 
 # ---- 战斗模拟 UI ----
 var _sim_player_opt : OptionButton = null
@@ -134,7 +131,6 @@ func _ready():
 	_refresh_sim_unit_lists()
 	if _unit_keys.size() > 0:
 		_select_edit_unit(_unit_keys[0])
-	# ★ 自动跑一次校验（延迟到所有 UI 构建完成）
 	call_deferred("_auto_validate")
 
 
@@ -237,7 +233,7 @@ func _switch_tab(idx : int):
 
 
 # ============================================================
-#  Tab 1：单位编辑（完整重写）
+#  Tab 1：单位编辑
 # ============================================================
 func _build_edit_tab(parent : Control) -> Control:
 	var panel := HBoxContainer.new()
@@ -245,7 +241,6 @@ func _build_edit_tab(parent : Control) -> Control:
 	panel.add_theme_constant_override("separation", 4)
 	parent.add_child(panel)
 
-	# ============ 左列：单位列表 ============
 	var left := VBoxContainer.new()
 	left.custom_minimum_size = Vector2(90, 0)
 	left.add_theme_constant_override("separation", 1)
@@ -263,7 +258,6 @@ func _build_edit_tab(parent : Control) -> Control:
 	_edit_unit_list.add_theme_constant_override("separation", 1)
 	l_scroll.add_child(_edit_unit_list)
 
-	# ============ 右列：编辑区（含保存/重置） ============
 	var right := VBoxContainer.new()
 	right.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	right.add_theme_constant_override("separation", 2)
@@ -285,7 +279,6 @@ func _build_edit_tab(parent : Control) -> Control:
 	_edit_name_edit = _add_edit_row(content, "名字")
 	_edit_faction_edit = _add_edit_row(content, "阵营")
 
-	# 描述（多行）
 	var desc_row := HBoxContainer.new()
 	desc_row.add_theme_constant_override("separation", 3)
 	content.add_child(desc_row)
@@ -391,14 +384,27 @@ func _build_edit_tab(parent : Control) -> Control:
 	_edit_sac_display_edit.add_theme_font_size_override("font_size", 7)
 	sac_disp_row.add_child(_edit_sac_display_edit)
 
+	# ---- ★ 修复：默认装备 / 默认防具 / 默认特技 ----
+	content.add_child(_section("— 默认装备 —"))
+	_edit_weapon_opt = _add_option_row(content, "武器", _weapon_ids, "（无）")
+
+	content.add_child(_section("— 默认防具（最多 2）—"))
+	_edit_armor_opts.clear()
+	for i in range(2):
+		_edit_armor_opts.append(_add_option_row(content, "防具%d" % (i + 1), _armor_ids, "（无）"))
+
+	content.add_child(_section("— 默认特技 —"))
+	_edit_talent_opts.clear()
+	for i in range(2):
+		_edit_talent_opts.append(_add_option_row(content, "特技%d" % (i + 1), _talent_ids, "（无）"))
+
 	# ---- 分隔 ----
 	content.add_child(HSeparator.new())
 
-	# ---- 属性上限（attr_cap_levels） ----
+	# ---- 属性上限 ----
 	content.add_child(_section("— 属性上限（每级净增，未列出的属性=不可升级）—"))
 	_rebuild_attr_cap_grid(content)
 
-	# ---- 分隔 ----
 	content.add_child(HSeparator.new())
 
 	# ---- 转职分支 ----
@@ -446,21 +452,18 @@ func _build_edit_tab(parent : Control) -> Control:
 #  属性上限表
 # ============================================================
 func _rebuild_attr_cap_grid(parent : Node):
-	# 清空旧引用
 	_edit_cap_spins.clear()
 
 	var grid := GridContainer.new()
-	grid.columns = 1 + CAP_MAX_LEVEL  # 行头 + 3 级
+	grid.columns = 1 + CAP_MAX_LEVEL
 	grid.add_theme_constant_override("h_separation", 6)
 	grid.add_theme_constant_override("v_separation", 2)
 	parent.add_child(grid)
 
-	# 表头
 	grid.add_child(_lbl("", 30))
 	for lv in range(CAP_MAX_LEVEL):
 		grid.add_child(_lbl("Lv%d" % (lv + 1), 40))
 
-	# 每个属性一行
 	for attr in CAP_ATTRS:
 		grid.add_child(_lbl(CAP_ATTR_LABELS.get(attr, attr), 30))
 
@@ -478,7 +481,6 @@ func _rebuild_attr_cap_grid(parent : Node):
 		_edit_cap_spins[attr] = lv_spins
 
 
-## 从 UI 读 attr_cap_levels 数组
 func _read_attr_cap_levels() -> Array:
 	var result : Array = []
 	for lv in range(CAP_MAX_LEVEL):
@@ -493,7 +495,6 @@ func _read_attr_cap_levels() -> Array:
 	return result
 
 
-## 从数据填充 attr_cap_levels 表
 func _fill_attr_cap_levels(data : Array):
 	for attr in CAP_ATTRS:
 		var lv_spins : Dictionary = _edit_cap_spins.get(attr, {})
@@ -510,7 +511,6 @@ func _fill_attr_cap_levels(data : Array):
 #  转职分支卡片
 # ============================================================
 func _rebuild_branches(data : Array):
-	# 清空
 	for c in _edit_branches_box.get_children():
 		_edit_branches_box.remove_child(c)
 		c.queue_free()
@@ -547,7 +547,6 @@ func _add_branch_card_with_data(d : Dictionary):
 
 	var card_refs : Dictionary = {}
 
-	# 顶部：id + 删除按钮
 	var head := HBoxContainer.new()
 	head.add_theme_constant_override("separation", 3)
 	vbox.add_child(head)
@@ -570,7 +569,6 @@ func _add_branch_card_with_data(d : Dictionary):
 	)
 	head.add_child(del_btn)
 
-	# name
 	var name_row := HBoxContainer.new()
 	name_row.add_theme_constant_override("separation", 3)
 	vbox.add_child(name_row)
@@ -582,7 +580,6 @@ func _add_branch_card_with_data(d : Dictionary):
 	name_row.add_child(name_edit)
 	card_refs["name"] = name_edit
 
-	# description
 	var desc_row := HBoxContainer.new()
 	desc_row.add_theme_constant_override("separation", 3)
 	vbox.add_child(desc_row)
@@ -594,7 +591,6 @@ func _add_branch_card_with_data(d : Dictionary):
 	desc_row.add_child(desc_edit)
 	card_refs["description"] = desc_edit
 
-	# granted_talent
 	var tal_row := HBoxContainer.new()
 	tal_row.add_theme_constant_override("separation", 3)
 	vbox.add_child(tal_row)
@@ -619,7 +615,6 @@ func _add_branch_card_with_data(d : Dictionary):
 	tal_row.add_child(tal_opt)
 	card_refs["granted_talent"] = tal_opt
 
-	# sprite_frames_path
 	var sprite_row := HBoxContainer.new()
 	sprite_row.add_theme_constant_override("separation", 3)
 	vbox.add_child(sprite_row)
@@ -632,7 +627,6 @@ func _add_branch_card_with_data(d : Dictionary):
 	sprite_row.add_child(sprite_edit)
 	card_refs["sprite_frames_path"] = sprite_edit
 
-	# flavor
 	var flavor_row := HBoxContainer.new()
 	flavor_row.add_theme_constant_override("separation", 3)
 	vbox.add_child(flavor_row)
@@ -644,7 +638,6 @@ func _add_branch_card_with_data(d : Dictionary):
 	flavor_row.add_child(flavor_edit)
 	card_refs["flavor"] = flavor_edit
 
-	# stat_bonus
 	vbox.add_child(_section("stat_bonus"))
 	var stat_row := HFlowContainer.new()
 	stat_row.add_theme_constant_override("h_separation", 6)
@@ -674,7 +667,6 @@ func _add_branch_card_with_data(d : Dictionary):
 		stat_spins[key] = sp
 	card_refs["stat_spins"] = stat_spins
 
-	# tags
 	vbox.add_child(_section("tags"))
 	var tag_flow := HFlowContainer.new()
 	tag_flow.add_theme_constant_override("h_separation", 8)
@@ -695,7 +687,6 @@ func _add_branch_card_with_data(d : Dictionary):
 	_edit_branch_cards.append(card_refs)
 
 
-## 从所有卡片收集分支数据
 func _read_branches() -> Array:
 	var result : Array = []
 	for card in _edit_branch_cards:
@@ -751,38 +742,33 @@ func _select_edit_unit(key : String):
 	_current_unit_key = key
 	var d : Dictionary = _unit_db[key]
 
-	# 左列高亮
 	for btn in _edit_unit_list.get_children():
 		var k : String = btn.get_meta("unit_key", "")
 		btn.button_pressed = (k == key)
 		btn.modulate = Color.WHITE if k == key else Color(0.7, 0.7, 0.7)
 
-	# 基础
 	_edit_name_edit.text = d.get("display_name", key)
 	_edit_faction_edit.text = d.get("faction", "")
 	_edit_desc_edit.text = d.get("description", "")
 
-	# 属性
 	for a in EDITABLE_ATTRS:
 		_edit_attr_spins[a["key"]].value = d.get(a["key"], 0)
 
-	# 标签
 	var unit_tags : Array = d.get("tags", [])
 	for tag in UNIT_TAGS:
 		_edit_tags_cbs[tag].button_pressed = tag in unit_tags
 
-	# 核心特性
 	var core : String = d.get("core_trait", "")
 	_select_option_by_meta(_edit_core_opt, core)
 
-	# 献祭 buff
 	var sac : Dictionary = d.get("sacrifice_buff", {})
 	_select_option_by_meta(_edit_sac_type_opt, sac.get("type", ""))
 	_edit_sac_value_spin.value = float(sac.get("value", 0))
 	_edit_sac_display_edit.text = sac.get("display", "")
 
-	# 默认装备 / 特技
-	_select_option_by_meta(_edit_weapon_opt, d.get("default_weapon", ""))
+	# ★ 现在这几个控件已在 _build_edit_tab 里创建，不会再 null
+	if _edit_weapon_opt:
+		_select_option_by_meta(_edit_weapon_opt, d.get("default_weapon", ""))
 	var armor_list : Array = d.get("default_armors", [])
 	for i in range(_edit_armor_opts.size()):
 		var aid : String = armor_list[i] if i < armor_list.size() else ""
@@ -792,14 +778,13 @@ func _select_edit_unit(key : String):
 		var tid : String = talent_list[i] if i < talent_list.size() else ""
 		_select_option_by_meta(_edit_talent_opts[i], tid)
 
-	# 属性上限
 	_fill_attr_cap_levels(d.get("attr_cap_levels", []))
-
-	# 转职分支
 	_rebuild_branches(d.get("advanced_branches", []))
 
 
 func _select_option_by_meta(opt : OptionButton, target_id : String):
+	if opt == null:
+		return
 	opt.selected = 0
 	for i in range(opt.item_count):
 		var m = opt.get_item_metadata(i)
@@ -814,6 +799,7 @@ func _reset_unit_db():
 	_unit_keys.sort()
 	_refresh_unit_list()
 	_refresh_sim_unit_lists()
+	UnitDataManager.reload_all()
 	if _current_unit_key != "" and _unit_db.has(_current_unit_key):
 		_select_edit_unit(_current_unit_key)
 	_edit_status.text = "已重置（未保存的修改已丢弃）"
@@ -827,25 +813,21 @@ func _save_unit_db():
 	d["faction"] = _edit_faction_edit.text
 	d["description"] = _edit_desc_edit.text
 
-	# 属性
 	for a in EDITABLE_ATTRS:
 		d[a["key"]] = int(_edit_attr_spins[a["key"]].value)
 
-	# 标签
 	var tags : Array = []
 	for tag in UNIT_TAGS:
 		if _edit_tags_cbs[tag].button_pressed:
 			tags.append(tag)
 	d["tags"] = tags
 
-	# 核心特性
 	var core : String = _get_meta(_edit_core_opt)
 	if core != "":
 		d["core_trait"] = core
 	else:
 		d.erase("core_trait")
 
-	# 献祭 buff
 	var sac_type : String = _get_meta(_edit_sac_type_opt)
 	if sac_type != "":
 		d["sacrifice_buff"] = {
@@ -856,8 +838,8 @@ func _save_unit_db():
 	else:
 		d.erase("sacrifice_buff")
 
-	# 默认装备 / 特技
-	d["default_weapon"] = _get_meta(_edit_weapon_opt)
+	if _edit_weapon_opt:
+		d["default_weapon"] = _get_meta(_edit_weapon_opt)
 
 	var armor_ids : Array = []
 	for opt in _edit_armor_opts:
@@ -871,28 +853,33 @@ func _save_unit_db():
 		if tid != "": talent_ids.append(tid)
 	d["default_talents"] = talent_ids
 
-	# 属性上限
 	d["attr_cap_levels"] = _read_attr_cap_levels()
 
-	# 转职分支
 	var branches : Array = _read_branches()
 	if branches.is_empty():
 		d.erase("advanced_branches")
 	else:
 		d["advanced_branches"] = branches
 
-	# 写文件
 	var f := FileAccess.open(UNIT_DATA_PATH, FileAccess.WRITE)
 	if f == null:
 		_edit_status.text = "❌ 保存失败"
 		return
 	f.store_string(JSON.stringify(_unit_db, "  "))
 	f.close()
+
+	# 让 UnitDataManager 静态缓存失效，运行中的游戏下次读取到新数据
+	UnitDataManager.reload_all()
+
+	# ★ 第七批：刷新 sim 下拉框（否则显示的还是旧名字/旧属性）
+	_refresh_sim_unit_lists()
+
 	_edit_status.text = "✓ 已保存"
 	print("[GameDataEditor] unit_data.json 已保存")
 
 
 func _get_meta(opt : OptionButton) -> String:
+	if opt == null: return ""
 	var idx : int = opt.selected
 	if idx < 0: return ""
 	var m = opt.get_item_metadata(idx)
@@ -900,7 +887,7 @@ func _get_meta(opt : OptionButton) -> String:
 
 
 # ============================================================
-#  Tab 2：战斗模拟（保持原样）
+#  Tab 2：战斗模拟
 # ============================================================
 func _build_sim_tab(parent : Control) -> Control:
 	var panel := HBoxContainer.new()
@@ -1112,7 +1099,7 @@ func _build_sim_center() -> VBoxContainer:
 
 
 # ============================================================
-#  Tab 3：数值编辑（JSON 编辑器）
+#  Tab 3：数值编辑
 # ============================================================
 func _build_cfg_tab(parent : Control) -> Control:
 	var panel := VBoxContainer.new()
@@ -1243,6 +1230,8 @@ func _add_option_row(parent : Node, label : String, ids : Array, none_text : Str
 	opt.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	opt.add_theme_font_size_override("font_size", 7)
 	opt.add_item(none_text, 0)
+	# ★ 显式给"无"选项设空 metadata，避免 _get_meta 返回 "null"
+	opt.set_item_metadata(0, "")
 	for i in range(ids.size()):
 		var iid : String = ids[i]
 		opt.add_item(_get_display_name(iid), i + 1)
@@ -1275,7 +1264,7 @@ func _style_spin(sp : SpinBox, font_px : int):
 
 
 # ============================================================
-#  战斗模拟逻辑（保持不变）
+#  战斗模拟逻辑
 # ============================================================
 func _refresh_sim_unit_lists():
 	_sim_player_opt.clear()
@@ -1389,7 +1378,7 @@ func _build_runtime_unit(key : String, weapon_override : String, weapon_upgrade 
 	if not armors_override.is_empty():
 		ud.armor_slots.clear()
 		for aid in armors_override:
-			var inst := Instance.new()
+			var inst := ItemInstance.new()
 			inst.item_id = aid
 			inst.count = 1
 			ud.armor_slots.append(inst)
@@ -1423,7 +1412,7 @@ func _build_runtime_unit(key : String, weapon_override : String, weapon_upgrade 
 
 
 # ============================================================
-#  Tab 7：跨表校验（v4.1 第 3 批）
+#  Tab 7：跨表校验
 # ============================================================
 var _validator_output : RichTextLabel = null
 var _validator_status : Label = null
@@ -1437,7 +1426,6 @@ func _build_validator_tab(parent : Control) -> Control:
 	panel.add_theme_constant_override("separation", 3)
 	parent.add_child(panel)
 
-	# 顶部按钮栏
 	var bar := HBoxContainer.new()
 	bar.add_theme_constant_override("separation", 4)
 	panel.add_child(bar)
@@ -1472,7 +1460,6 @@ func _build_validator_tab(parent : Control) -> Control:
 	hint.modulate = Color(0.6, 0.6, 0.6)
 	bar.add_child(hint)
 
-	# 输出区
 	var scroll := ScrollContainer.new()
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -1502,18 +1489,18 @@ func _run_validation():
 	var validator := DataValidator.new()
 	var results : Array = validator.validate_all()
 	var err_count : int = validator.get_error_count()
+	var warn_count : int = validator.get_warn_count()
 	_validator_last_errors = err_count
 	_validator_last_warns = warn_count
-	var warn_count : int = validator.get_warn_count()
-	
+
 	if results.is_empty():
 		_validator_output.append_text("[color=#7FBF7F]✓ 全部通过，未发现问题[/color]\n")
 		if _validator_status:
 			_validator_status.text = "✓ 0 错误 / 0 警告"
-		_update_tab_validation_marker()   # ★
+			_validator_status.modulate = Color(0.85, 0.85, 0.85)
+		_update_tab_validation_marker()
 		return
 
-	# 按文件分组
 	var by_file : Dictionary = {}
 	for r in results:
 		var f : String = r["file"]
@@ -1530,9 +1517,11 @@ func _run_validation():
 			var path : String = r["path"]
 			var msg : String = r["message"]
 			if r["level"] == DataValidator.Level.ERROR:
-				_validator_output.append_text("  [color=#FF6B6B]✗[/color] [color=#888]%s[/color]  %s\n" % [path, msg])
+				_validator_output.append_text(
+					"  [color=#FF6B6B]✗[/color] [color=#888]%s[/color]  %s\n" % [path, msg])
 			else:
-				_validator_output.append_text("  [color=#FFD966]⚠[/color] [color=#888]%s[/color]  %s\n" % [path, msg])
+				_validator_output.append_text(
+					"  [color=#FFD966]⚠[/color] [color=#888]%s[/color]  %s\n" % [path, msg])
 		_validator_output.append_text("\n")
 
 	if _validator_status:
@@ -1544,17 +1533,14 @@ func _run_validation():
 			_validator_status.text = "⚠ " + msg_text
 			_validator_status.modulate = Color(1.0, 0.85, 0.5)
 
-	# ★ 更新 Tab 标题
 	_update_tab_validation_marker()
 
 
-## 自动跑一次校验（不弹窗，只更新 Tab 标记）
 func _auto_validate():
 	if _validator_output == null: return
 	_run_validation()
 
 
-## 更新 [校验] Tab 的显示（带错误/警告数）
 func _update_tab_validation_marker():
 	if _tab_btns.size() < 7: return
 	var tab_idx : int = 6

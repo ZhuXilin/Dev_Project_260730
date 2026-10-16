@@ -31,10 +31,7 @@ func handle_click(clicked_cell: Vector2i):
 
 	if clicked_unit != null:
 		if clicked_unit.unit_stats.team_id != 0:
-			# ★ 敌方 → 走 Battlefield.select_unit
-			var bf = get_node_or_null("/root/Battlefield")
-			if bf and bf.has_method("select_unit"):
-				bf.select_unit(clicked_unit)
+			SignalBus.request_select_unit.emit(clicked_unit)
 		return
 
 	# ---- 点空地 ----

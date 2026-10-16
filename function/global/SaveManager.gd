@@ -50,7 +50,6 @@ func load_game(slot: int) -> bool:
 	if not save:
 		push_error("无法加载存档: " + path); return false
 
-	# ★ 版本迁移（批次 8）
 	if save.save_version < SaveData.CURRENT_VERSION:
 		print("[SaveManager] 存档版本 v%d，开始迁移到 v%d" % [
 			save.save_version, SaveData.CURRENT_VERSION])
@@ -72,7 +71,7 @@ func load_game(slot: int) -> bool:
 
 
 # ============================================================
-#  版本迁移（批次 8）
+#  版本迁移
 # ============================================================
 func _migrate_save(save: SaveData):
 	var v : int = save.save_version
@@ -191,7 +190,6 @@ func _build_save_data() -> SaveData:
 	save.total_dispatch_count = GameState.total_dispatch_count
 	save.npc_affinity = GameState.npc_affinity.duplicate(true)
 
-	# ★ 兼容降级（批次 8）
 	save.temp_soul_legacy = SoulFireManager.current
 
 	save.save_time = Time.get_unix_time_from_system()
@@ -215,7 +213,8 @@ func _apply_save_data(save: SaveData):
 	GameState.resume_node_id = save.selected_node_id
 	GameState.current_faction = save.current_faction
 	GameState.current_node_key = save.current_node_key
-	GameState.map_snapshot = save.map_snapshot.duplicate(true)
+	# ★ 第三批：类型安全辅助
+	GameState.map_snapshot = _safe_dict(save.map_snapshot)
 	GameState.shop_level = save.shop_level
 
 	GameState.visited_nodes.clear()
@@ -242,35 +241,38 @@ func _apply_save_data(save: SaveData):
 	SoulFireManager.current = save.soul_fire_current
 	SoulFireManager.altar_level = save.soul_fire_altar_level
 	GameState.soul_fire_initial_level = save.soul_fire_initial_level
-	GameState.unit_attr_cap = (save.unit_attr_cap if save.unit_attr_cap else {}).duplicate(true)
-	GameState.unit_attr_points = (save.unit_attr_points if save.unit_attr_points else {}).duplicate(true)
-	GameState.tag_purchase_count = (save.tag_purchase_count if save.tag_purchase_count else {}).duplicate(true)
 
-	GameState.unlocked_auras = (save.unlocked_auras if save.unlocked_auras else []).duplicate()
-	GameState.active_aura_research = (save.active_aura_research if save.active_aura_research else {}).duplicate(true)
-	GameState.aura_research_progress = (save.aura_research_progress if save.aura_research_progress else {}).duplicate(true)
+	# ★ 第三批：类型安全
+	GameState.unit_attr_cap = _safe_dict(save.unit_attr_cap)
+	GameState.unit_attr_points = _safe_dict(save.unit_attr_points)
+	GameState.tag_purchase_count = _safe_dict(save.tag_purchase_count)
+
+	GameState.unlocked_auras = _safe_array(save.unlocked_auras)
+	GameState.active_aura_research = _safe_dict(save.active_aura_research)
+	GameState.aura_research_progress = _safe_dict(save.aura_research_progress)
 
 	GameState.interrupt_state = save.interrupt_state as GameState.InterruptState
-	GameState.battlefield_data = save.battlefield_data
+	GameState.battlefield_data = _safe_dict(save.battlefield_data)
 
-	RelicManager.set_unlocked_relics(save.unlocked_relics if save.unlocked_relics else [])
-	Globals.unlocked_units = (save.unlocked_units if save.unlocked_units else []).duplicate()
-	Globals.unlocked_items = (save.unlocked_items if save.unlocked_items else []).duplicate()
+	RelicManager.set_unlocked_relics(_safe_array(save.unlocked_relics))
+	# ★ 第七批：过滤存档里的幽灵单位 id
+	Globals.unlocked_units = _filter_valid_unit_keys(_safe_array(save.unlocked_units))
+	Globals.unlocked_items = _safe_array(save.unlocked_items)
 
 	GameState.tutorial_stage = save.tutorial_stage
 	if save.unlocked_talents.is_empty():
 		Globals.reload_talent_unlock()
 	else:
-		Globals.unlocked_talents = save.unlocked_talents.duplicate()
+		Globals.unlocked_talents = _safe_array(save.unlocked_talents)
 
-	GameState.unlocked_recipes = (save.unlocked_recipes if save.unlocked_recipes else []).duplicate()
-	GameState.unlocked_stories = (save.unlocked_stories if save.unlocked_stories else []).duplicate()
+	GameState.unlocked_recipes = _safe_array(save.unlocked_recipes)
+	GameState.unlocked_stories = _safe_array(save.unlocked_stories)
 
-	GameState.unit_growth = (save.unit_growth if save.unit_growth else {}).duplicate(true)
-	GameState.unit_blessings = (save.unit_blessings if save.unit_blessings else {}).duplicate(true)
-	GameState.talent_exp = (save.talent_exp if save.talent_exp else {}).duplicate(true)
+	GameState.unit_growth = _safe_dict(save.unit_growth)
+	GameState.unit_blessings = _safe_dict(save.unit_blessings)
+	GameState.talent_exp = _safe_dict(save.talent_exp)
 
-	GameState.arena_target_talents = (save.arena_target_talents if save.arena_target_talents else {}).duplicate(true)
+	GameState.arena_target_talents = _safe_dict(save.arena_target_talents)
 	GameState.arena_best_streak = save.arena_best_streak
 	GameState.arena_clear_count = save.arena_clear_count
 	GameState.arena_survival_clear = save.arena_survival_clear
@@ -294,11 +296,11 @@ func _apply_save_data(save: SaveData):
 
 	GameState.sacrifice_count = save.sacrifice_count
 
-	GameState.npc_dialogue_seen = (save.npc_dialogue_seen if save.npc_dialogue_seen else {}).duplicate(true)
-	GameState.npc_dialogue_flags = (save.npc_dialogue_flags if save.npc_dialogue_flags else []).duplicate()
+	GameState.npc_dialogue_seen = _safe_dict(save.npc_dialogue_seen)
+	GameState.npc_dialogue_flags = _safe_array(save.npc_dialogue_flags)
 	GameState.total_run_count = save.total_run_count
 	GameState.total_dispatch_count = save.total_dispatch_count
-	GameState.npc_affinity = (save.npc_affinity if save.npc_affinity else {}).duplicate(true)
+	GameState.npc_affinity = _safe_dict(save.npc_affinity)
 
 	if Globals.unlocked_items.is_empty():
 		Globals.unlocked_items = Globals.item_unlocked_items.duplicate()
@@ -310,6 +312,33 @@ func _apply_save_data(save: SaveData):
 	if GameState.current_node_key != "":
 		GameState.visited_nodes.erase(GameState.current_node_key)
 		GameState.current_node_key = ""
+
+
+# ============================================================
+#  类型安全辅助
+# ============================================================
+static func _safe_dict(v : Variant) -> Dictionary:
+	if v is Dictionary:
+		return (v as Dictionary).duplicate(true)
+	return {}
+
+static func _safe_array(v : Variant) -> Array:
+	if v is Array:
+		return (v as Array).duplicate()
+	return []
+
+
+# ★ 第七批：过滤掉 unit_data.json 里不存在的单位 id
+static func _filter_valid_unit_keys(keys: Array) -> Array:
+	var result : Array = []
+	for k in keys:
+		if not (k is String) or k == "":
+			continue
+		if UnitDataManager.get_unit_data(k).is_empty():
+			continue
+		if k not in result:
+			result.append(k)
+	return result
 
 
 # ============================================================
@@ -368,9 +397,19 @@ func _deserialize_passive(d) -> Variant:
 	return null
 
 
+# ============================================================
+#  ★ 第四批：checksum 校验（宽容模式：只警告不拒绝）
+# ============================================================
 func _validate_save(save: SaveData) -> bool:
 	if not save: return false
 	if save.save_version <= 0: return false
+
+	if save.checksum != "":
+		var expected : String = save.compute_checksum()
+		if expected != save.checksum:
+			push_warning("[SaveManager] checksum 不匹配，存档可能被手改：expected=%s got=%s" % [
+				expected.substr(0, 8), save.checksum.substr(0, 8)])
+			# 只警告不拒绝 —— 玩家手改数值不影响游戏运行
 	return true
 
 

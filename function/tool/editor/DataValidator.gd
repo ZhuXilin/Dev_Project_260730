@@ -173,16 +173,35 @@ func _validate_units():
 		# attr_cap_levels
 		var cap : Variant = u.get("attr_cap_levels", [])
 		if cap is Array:
-			if (cap as Array).size() > MAX_CAP_LEVEL:
+			var cap_arr : Array = cap
+			if cap_arr.size() > MAX_CAP_LEVEL:
 				_error(fname, "%s.attr_cap_levels" % unit_key,
-					"级数超过 %d（当前 %d）" % [MAX_CAP_LEVEL, (cap as Array).size()])
-			for lv_idx in range((cap as Array).size()):
-				var lv_dict : Variant = (cap as Array)[lv_idx]
-				if not (lv_dict is Dictionary): continue
-				for k in (lv_dict as Dictionary):
+					"级数超过 %d（当前 %d）" % [MAX_CAP_LEVEL, cap_arr.size()])
+			# ★ 第七批：级数不足 MAX_CAP_LEVEL 给出警告（可能是有意留空，也可能是漏填）
+			elif cap_arr.size() < MAX_CAP_LEVEL:
+				_warn(fname, "%s.attr_cap_levels" % unit_key,
+					"级数不足 %d（当前 %d），部分等级无加成" % [MAX_CAP_LEVEL, cap_arr.size()])
+
+			for lv_idx in range(cap_arr.size()):
+				var lv_dict : Variant = cap_arr[lv_idx]
+				if not (lv_dict is Dictionary):
+					_warn(fname, "%s.attr_cap_levels[%d]" % [unit_key, lv_idx],
+						"该级不是 Dictionary（跳过）")
+					continue
+				var d : Dictionary = lv_dict
+				# ★ 第七批：空级警告
+				if d.is_empty():
+					_warn(fname, "%s.attr_cap_levels[%d]" % [unit_key, lv_idx],
+						"该级为空（无加成）")
+				for k in d:
 					if k not in VALID_CAP_ATTRS:
 						_warn(fname, "%s.attr_cap_levels[%d].%s" % [unit_key, lv_idx, k],
 							"未知属性 key: %s" % k)
+					# ★ 第七批：值类型校验
+					var v : Variant = d[k]
+					if not (v is int) and not (v is float):
+						_warn(fname, "%s.attr_cap_levels[%d].%s" % [unit_key, lv_idx, k],
+							"值不是数字：%s" % str(v))
 
 		# advanced_branches
 		var branches : Array = u.get("advanced_branches", [])

@@ -151,13 +151,16 @@ func increment_battle_turn():
 # ============================================================
 #  单位解锁
 # ============================================================
+# ============================================================
+#  单位解锁
+# ============================================================
 func _load_unlock_config():
 	var path = Config.PATHS.UNIT_UNLOCK
 	var default_units = ["swordsman", "spearman", "axeman"]
 
 	if not FileAccess.file_exists(path):
 		unlock_config = { "default_unlocked": default_units }
-		unlocked_units = default_units.duplicate()
+		unlocked_units = _filter_valid_unit_keys(default_units)
 		return
 
 	var file = FileAccess.open(path, FileAccess.READ)
@@ -172,18 +175,41 @@ func _load_unlock_config():
 		for item in raw:
 			if item is String:
 				arr.append(item)
-		unlocked_units = arr
+		# ★ 第七批：过滤 unit_data.json 里不存在的 id，避免幽灵单位
+		unlocked_units = _filter_valid_unit_keys(arr)
 	else:
 		unlock_config = { "default_unlocked": default_units }
-		unlocked_units = default_units.duplicate()
+		unlocked_units = _filter_valid_unit_keys(default_units)
+
+
+# ★ 第七批：过滤非法单位 key
+func _filter_valid_unit_keys(keys: Array) -> Array:
+	var result : Array = []
+	for k in keys:
+		if not (k is String) or k == "":
+			continue
+		if UnitDataManager.get_unit_data(k).is_empty():
+			print("[Globals] 忽略未定义单位：%s" % k)
+			continue
+		if k not in result:
+			result.append(k)
+	return result
+
 
 func is_unit_unlocked(unit_name: String) -> bool:
 	var key : String = UnitDataManager.normalize_unit_key(unit_name)
 	return key in unlocked_units
 
 
+# ★ 第七批：加存在性校验，拒绝写入非法 id
 func unlock_unit(unit_name: String):
 	var key : String = UnitDataManager.normalize_unit_key(unit_name)
+	if key == "":
+		return
+	# 数据表里没这个单位 → 拒绝写入，避免污染存档
+	if UnitDataManager.get_unit_data(key).is_empty():
+		print("[Globals] unlock_unit 忽略未定义单位：%s" % key)
+		return
 	if key not in unlocked_units:
 		unlocked_units.append(key)
 

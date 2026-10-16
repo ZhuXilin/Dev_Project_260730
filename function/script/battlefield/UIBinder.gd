@@ -65,6 +65,9 @@ func _connect_signal_bus() -> void:
 	_safe_connect(SignalBus.request_show_enemy_preview, _bf._on_show_enemy_preview)
 	_safe_connect(SignalBus.request_hint_override, _bf._set_hint_override)
 
+	# ★ 修复：敌方单位点击选择走信号，避免 /root/Battlefield 硬路径
+	_safe_connect(SignalBus.request_select_unit, _bf.select_unit)
+
 	# ---- 子模块 ----
 	_safe_connect(SignalBus.request_clear_highlight, _bf.highlight_manager.clear_highlight)
 	_safe_connect(SignalBus.non_combat_complete, _bf._non_combat_handler.on_non_combat_complete)

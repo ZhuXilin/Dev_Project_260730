@@ -49,6 +49,20 @@ static func _load_unit_data():
 	_unit_data_cache = data
 
 
+# ============================================================
+#  ★ 让静态缓存失效，下次读取时重载
+#  正确位置：这里（RefCounted class_name），不是 UnitManager.gd（Node autoload）
+# ============================================================
+static func reload_all() -> void:
+	_data_loaded = false
+	_unit_data_cache.clear()
+	_load_unit_data()
+	print("[UnitDataManager] 数据已重载，共 %d 个单位" % _unit_data_cache.size())
+	# 联动刷新 TalentManager（如果它可用）
+	if TalentManager:
+		TalentManager.reload_all()
+
+
 static func _normalize_unit_key(unit_name: String) -> String:
 	return _cn_to_en_unit.get(unit_name, unit_name)
 
@@ -111,12 +125,17 @@ static func get_display_name(unit_name: String) -> String:
 	return display
 
 
+# ============================================================
+#  ★ 第六批：缺数据时也保持 name|faction|type 格式，避免 UI split 崩
+# ============================================================
 static func get_display_name_full(unit_name: String) -> String:
 	var key = _normalize_unit_key(unit_name)
 	var data = get_unit_data(key)
 	if data.is_empty():
-		# ★ v4.1：无数据时返回原始 key（供 UI 层继续处理）
-		return key
+		# ★ 修复：原来返回裸 key，格式与其他分支不一致
+		# 现在统一为 "display|faction|type" 格式
+		var fallback_display : String = _unit_display_name.get(key, key)
+		return "%s|无|%s" % [fallback_display, key]
 	var display = data.get("display_name", "")
 	if display == "":
 		display = _unit_display_name.get(key, key)
@@ -147,7 +166,7 @@ static func get_all_unit_ids() -> Array:
 
 
 # ============================================================
-#  创建单位（完整函数）
+#  创建单位
 # ============================================================
 static func create_unit_data(unit_name: String) -> UnitData:
 	var key = _normalize_unit_key(unit_name)
@@ -162,7 +181,6 @@ static func create_unit_data(unit_name: String) -> UnitData:
 	data.experience = 0
 	data.level = 1
 
-	# ★ 批次 2：单位标签
 	data.tags.clear()
 	var tags_raw : Variant = dict.get("tags", [])
 	if tags_raw is Array:
@@ -170,22 +188,18 @@ static func create_unit_data(unit_name: String) -> UnitData:
 			if t is String:
 				data.tags.append(t)
 
-	# ★ 方向 7：单位核心特性
 	data.core_trait = dict.get("core_trait", "")
 
-	# 默认武器
 	var default_weapon = get_default_weapon_id(key)
 	if default_weapon != "":
 		var inst = ItemInstance.new()
 		inst.item_id = default_weapon
 		inst.count = 1
-		# ★ 应用武器升级（批次 5B 局外武器升级）
 		if GameState.unit_growth.has(key):
 			var lv : int = int(GameState.unit_growth[key].get("weapon_lv_" + default_weapon, 0))
 			inst.upgrade_level = lv
 		data.weapon_slot = inst
 
-	# 默认特技
 	data.talent_slots.clear()
 	var default_talents = dict.get("default_talents", [])
 	var talent_cap : int = int(dict.get("max_talent_slots", 1))
@@ -210,19 +224,14 @@ static func create_unit_data(unit_name: String) -> UnitData:
 	data.max_armor_slots = 2
 	data.max_talent_slots = talent_cap
 
-	# ★ 批次 4：应用属性加点
 	_apply_attr_points_to_unit(key, data)
-	# ★ v4.1：应用属性上限加成
 	_apply_attr_cap_bonus(key, data)
 	return data
 
 
 # ============================================================
-#  ★ v4.1：单位属性上限（attr_cap_levels）
+#  单位属性上限
 # ============================================================
-## 读取单位的属性上限等级表（每级净增）
-## 返回格式：[{"strength": 1, "vitality": 1}, {...}, {...}]
-## 未配置的单位 → 返回空数组（表示不可升级）
 static func get_attr_cap_levels(unit_type: String) -> Array:
 	var key : String = normalize_unit_key(unit_type)
 	var dict : Dictionary = get_unit_data(key)
@@ -232,13 +241,10 @@ static func get_attr_cap_levels(unit_type: String) -> Array:
 	return []
 
 
-## 检查单位是否支持属性上限系统
 static func has_attr_cap_levels(unit_type: String) -> bool:
 	return not get_attr_cap_levels(unit_type).is_empty()
 
 
-## 累计某等级（含）之前的全部加成
-## cur_lv = 当前 LV（0 = 无加成）
 static func get_attr_cap_total_bonus(unit_type: String, cur_lv: int) -> Dictionary:
 	var levels : Array = get_attr_cap_levels(unit_type)
 	var total : Dictionary = {}
@@ -249,7 +255,6 @@ static func get_attr_cap_total_bonus(unit_type: String, cur_lv: int) -> Dictiona
 	return total
 
 
-## 应用属性上限加成到 UnitData（create_unit_data 时调用）
 static func _apply_attr_cap_bonus(unit_key: String, data: UnitData) -> void:
 	var cur_lv : int = int(GameState.unit_attr_cap.get(unit_key, 0))
 	if cur_lv <= 0: return
@@ -285,7 +290,7 @@ static func _apply_one_attr(data: UnitData, attr_key: String, amount: int):
 
 
 # ============================================================
-#  辅助（批次 4）
+#  辅助
 # ============================================================
 static func get_total_attr_points(unit_key: String) -> int:
 	var total : int = 0

@@ -22,10 +22,7 @@ func _ready():
 	update_display()
 	_play_camp_music()
 
-	# ★ 方向 6：随机关闭派遣路线
 	DispatchManager.rotate_routes()
-
-	# ★ v4.1：显示上次派遣结果（如果有）
 	_show_dispatch_results()
 
 
@@ -74,12 +71,9 @@ func _load_art():
 	if entrance_gate and ResourceLoader.exists(gate_path):
 		entrance_gate.texture_normal = load(gate_path)
 
-	# ★ 方向 6：亲密度显示
 	_update_affinity_display()
 
 
-## ★ v4.1：若队伍为空，自动填充默认三人，保证派遣等功能可用。
-## 玩家点大门进 UnitSelectUI 时可以覆盖（initialize_party 会重建）。
 func _ensure_default_party():
 	if not GameState.party.is_empty():
 		return
@@ -112,14 +106,10 @@ func update_display():
 	_update_affinity_display()
 
 
-# ============================================================
-#  派遣结果 toast（v4.1）
-# ============================================================
 func _show_dispatch_results():
 	var results : Array = DispatchManager.consume_pending_results()
 	if results.is_empty(): return
 
-	# 拼成一条消息
 	var lines : Array = []
 	for r in results:
 		var unit : String = str(r.get("unit_name", "?"))
@@ -159,6 +149,7 @@ func _show_floating_toast(text : String):
 	)
 
 
+# ★ 第五批：加空字符串保护
 func _update_affinity_display():
 	var npcs : Array = [
 		["soul_keeper", soul_keeper_btn],
@@ -173,7 +164,13 @@ func _update_affinity_display():
 		var aff : int = StoryManager.get_affinity(npc_id)
 		var plate = btn.get_node_or_null("NamePlate")
 		if plate:
-			var base_name : String = plate.text.split(" ")[0]
+			# ★ 保护：plate.text 为空 / 无空格时不让 [0] 越界
+			var base_name : String = str(plate.text)
+			if base_name == "":
+				base_name = npc_id
+			var sp : PackedStringArray = base_name.split(" ")
+			if sp.size() > 0:
+				base_name = sp[0]
 			if aff >= 15:
 				plate.text = base_name + "  ❤❤❤"
 			elif aff >= 10:
@@ -261,7 +258,7 @@ func _open_facility(path: String, node_name: String):
 
 
 # ============================================================
-#  NPC 对话触发（含亲密度）
+#  NPC 对话触发
 # ============================================================
 func _npc_intro(npc_id: String):
 	var played : bool = StoryManager.play_next_dialogue(npc_id)
@@ -294,15 +291,14 @@ func _show_unlock_toast(utype: String, uid: String):
 			msg = "★ 新光环：%s" % AuraManager.get_display_name(uid)
 		"transform_branch":
 			msg = "★ 隐藏质变分支解锁"
-		"route":                                    # ★ v4.1
+		"route":
 			var route : Dictionary = DispatchManager.ROUTES.get(uid, {})
 			msg = "★ 新派遣路线：%s" % route.get("name", uid)
-		"talent":                                   # ★ v4.1（预留）
+		"talent":
 			var td = TalentManager.get_talent_data(uid)
 			msg = "★ 新词条：%s" % (td.display_name if td else uid)
 	if msg == "": return
 	print("[Camp] " + msg)
-	# ★ v4.1：把解锁提示显示在营地上
 	_show_floating_toast(msg)
 
 

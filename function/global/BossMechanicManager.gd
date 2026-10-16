@@ -5,7 +5,7 @@ enum Mechanic { NONE, SOUL_DRAIN, ASH_SHIELD, THREE_FORMS }
 var _current : Mechanic = Mechanic.NONE
 var _ash_shield_stacks : int = 0
 var _three_forms_stage : int = 0
-var _boss_unit : Unit = null   # ★ Boss 本体引用
+var _boss_unit : Unit = null
 
 signal boss_mechanic_triggered(name: String, description: String)
 
@@ -14,6 +14,9 @@ func setup_for_node(is_boss: bool):
 	if not is_boss:
 		_current = Mechanic.NONE
 		_boss_unit = null
+		# ★ 修复：进入非 Boss 节点时清魂火上限惩罚（双保险）
+		if SoulFireManager:
+			SoulFireManager.reset_boss_penalty()
 		return
 	var day : int = GameState.current_day
 	match day:
@@ -24,8 +27,6 @@ func setup_for_node(is_boss: bool):
 	_ash_shield_stacks = 0
 	_three_forms_stage = 0
 
-	# ★ 只有三形态才需要识别 Boss 单位
-	# Day1/Day2 是全场效果，不需要知道 Boss 是谁
 	if _current == Mechanic.THREE_FORMS:
 		_boss_unit = _find_boss_unit()
 		print("[Boss] 机制设置：%s（day=%d，boss=%s）" % [
@@ -37,7 +38,6 @@ func setup_for_node(is_boss: bool):
 
 
 func _find_boss_unit() -> Unit:
-	# 优先扫显式标记
 	for u in UnitManager.unit_list:
 		if not is_instance_valid(u): continue
 		if u.unit_stats.team_id != 1: continue
@@ -45,7 +45,6 @@ func _find_boss_unit() -> Unit:
 		if u.unit_stats.is_boss:
 			print("[Boss] 找到标记单位：%s" % u.unit_stats.unit_name)
 			return u
-	# 兜底：没有标记就退回"HP 最高"
 	push_warning("[Boss] 场上没有 is_boss 标记的单位，回退到 max_hp 判断")
 	var best : Unit = null
 	var best_hp : int = -1
@@ -137,7 +136,6 @@ func on_boss_defeated(defender : Unit) -> bool:
 
 	_three_forms_stage += 1
 
-	# ★ 复活：max_hp ×1.2 + HP 回满 + 强化
 	var old_max : int = defender.unit_stats.max_hp
 	defender.unit_stats.max_hp = int(defender.unit_stats.max_hp * 1.2)
 	defender.hit_points = defender.unit_stats.max_hp
@@ -147,7 +145,6 @@ func on_boss_defeated(defender : Unit) -> bool:
 	defender.update_color()
 	print("[Boss] 复活：max_hp %d → %d，力+3 灵+2" % [old_max, defender.unit_stats.max_hp])
 
-	# ★ 临时上限惩罚（不改 altar_level）
 	var old_max_sf : int = SoulFireManager.get_max_carried()
 	SoulFireManager.add_boss_penalty(3)
 

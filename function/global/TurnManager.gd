@@ -1,10 +1,5 @@
 extends Node
 
-# ============================================================
-#  TurnManager — 回合管理
-#  含：所有批次改动（共鸣/光环/词条/套装/熔合/Boss/核心特性）
-# ============================================================
-
 enum Team { PLAYER = 0, ENEMY = 1 }
 
 signal move_completed
@@ -33,15 +28,10 @@ func _ready():
 	enemy_ai.ai_queue_finished.connect(_on_ai_queue_finished)
 
 
-# ============================================================
-#  战场就绪
-# ============================================================
 func set_battle_ready(value : bool):
 	var was_ready : bool = _battle_ready
 	_battle_ready = value
 	print("[TurnManager] set_battle_ready(", value, ")")
-	# ★ 从 false→true 的瞬间补一次胜负检查：
-	#   覆盖"在战场就绪前，敌人已被 GM 清空"的情况
 	if value and not was_ready:
 		call_deferred("check_victory")
 
@@ -50,9 +40,6 @@ func is_battle_ready() -> bool:
 	return _battle_ready
 
 
-# ============================================================
-#  单位移除 → 判胜负
-# ============================================================
 func _on_unit_removed(_unit: Unit, _team: int):
 	if not _battle_ready:
 		return
@@ -146,7 +133,7 @@ func on_ai_movement_finished(unit: Unit):
 
 
 # ============================================================
-#  回合启动（所有批次效果集中）
+#  回合启动
 # ============================================================
 func start_turn(team: Team):
 	print("TurnManager.start_turn 被调用，team:", team)
@@ -171,7 +158,6 @@ func start_turn(team: Team):
 	InputManager.current_highlight_cells = {}
 	SignalBus.request_clear_highlight.emit()
 
-	# ★ v4.1：数据埋点 — 玩家回合采样魂火状态
 	if team == Team.PLAYER:
 		AnalyticsLogger.record_soul_fire_sample()
 
@@ -192,16 +178,15 @@ func start_turn(team: Team):
 		if unit.hit_points > 0 and unit.unit_stats.team_id == team:
 			unit.reset_turn()
 
-	# ★ 所有批次：回合开始效果
 	if team == Team.PLAYER:
-		SoulFireManager.tick_turn_start(UnitManager.unit_list)   # 批次 8：归零扣血
-		_apply_turn_start_regen()                                # 批次 6A + 6B：回合回复
-		_apply_turn_start_auras()                                # 批次 5A：薪火相传
-		_apply_turn_start_fusion()                               # 方向 1：不灭余烬
-		_apply_charge_stacks()                                   # 方向 7：斧兵蓄力
-		BossMechanicManager.on_player_turn_start()               # 方向 3：Day1
+		SoulFireManager.tick_turn_start(UnitManager.unit_list)
+		_apply_turn_start_regen()
+		_apply_turn_start_auras()
+		_apply_turn_start_fusion()
+		_apply_charge_stacks()
+		BossMechanicManager.on_player_turn_start()
 	else:
-		BossMechanicManager.on_enemy_turn_start()                # 方向 3：Day2
+		BossMechanicManager.on_enemy_turn_start()
 
 	SignalBus.turn_changed.emit(team)
 
@@ -213,29 +198,39 @@ func _refresh_all_unit_colors():
 
 
 # ============================================================
-#  回合开始效果 · 批次 6A + 6B（词条 + 套装）
+#  回合开始效果 · 词条 + 套装（★ 第四批：同类型取 max + 15% 上限）
 # ============================================================
 func _apply_turn_start_regen():
 	for u in UnitManager.unit_list:
 		if u.unit_stats.team_id != 0 or u.hit_points <= 0:
 			continue
-		var regen_pct : float = 0.0
-		# 词条：轮回
+
+		# 1. 词条（可叠，因为是不同部位不同词条）
+		var regen_from_affix : float = 0.0
 		for slot in u.armor_slots:
 			if slot:
-				regen_pct += slot.get_affix_value_float("turn_regen")
-		# 套装：生生不息
+				regen_from_affix += slot.get_affix_value_float("turn_regen")
+
+		# 2. 套装（取 max）
+		var regen_from_set : float = 0.0
 		var active : Array = SetBonusManager.get_active_sets_for_unit(u)
 		for entry in active:
 			var b : Dictionary = entry["bonus"]
 			if b.get("effect", "") == "turn_regen":
-				regen_pct += float(b.get("value", 0.0))
-		# ★ 方向 2：轮回不息（交叉效果）
+				regen_from_set = maxf(regen_from_set, float(b.get("value", 0.0)))
+
+		# 3. 交叉效果（取 max）
+		var regen_from_cross : float = 0.0
 		var cross_active : Array = SetBonusManager.get_active_cross_bonuses()
 		for entry in cross_active:
 			var b2 : Dictionary = entry["data"]
 			if b2.get("effect", "") == "turn_regen":
-				regen_pct += float(b2.get("value", 0.03))
+				regen_from_cross = maxf(regen_from_cross, float(b2.get("value", 0.03)))
+
+		# ★ 组合：词条可叠 + (套装与交叉取 max)，且总上限 15%
+		var regen_pct : float = regen_from_affix + maxf(regen_from_set, regen_from_cross)
+		regen_pct = minf(regen_pct, 0.15)
+
 		if regen_pct > 0.0:
 			var heal : int = int(u.unit_stats.max_hp * regen_pct)
 			if heal > 0:
@@ -247,9 +242,6 @@ func _apply_turn_start_regen():
 					SignalBus.request_damage_popup.emit(u.global_position, actual, false, false, true)
 
 
-# ============================================================
-#  回合开始效果 · 批次 5A（光环）
-# ============================================================
 func _apply_turn_start_auras():
 	for u in UnitManager.unit_list:
 		if u.unit_stats.team_id != 0 or u.hit_points <= 0:
@@ -266,9 +258,6 @@ func _apply_turn_start_auras():
 			return
 
 
-# ============================================================
-#  回合开始效果 · 方向 1（不灭余烬）
-# ============================================================
 func _apply_turn_start_fusion():
 	if SoulFireManager.current > 0:
 		return
@@ -281,9 +270,6 @@ func _apply_turn_start_fusion():
 			return
 
 
-# ============================================================
-#  回合开始效果 · 方向 7（蓄力）
-# ============================================================
 func _apply_charge_stacks():
 	for u in UnitManager.unit_list:
 		if u.unit_stats.team_id != 0 or u.hit_points <= 0:
@@ -342,9 +328,6 @@ func cancel_movement(unit: Unit):
 	InputManager.interaction_phase = InputManager.Phase.IDLE
 
 
-# ============================================================
-#  全场行动检查
-# ============================================================
 func check_all_acted():
 	if not _battle_ready:
 		return
@@ -366,9 +349,6 @@ func auto_end_turn():
 		start_turn(Team.ENEMY)
 
 
-# ============================================================
-#  AI 状态清理
-# ============================================================
 func clear_ai_state():
 	if enemy_ai:
 		enemy_ai.clear_state()
@@ -376,9 +356,6 @@ func clear_ai_state():
 	is_moving = false
 
 
-# ============================================================
-#  查询
-# ============================================================
 func get_last_player_unit() -> Unit:
 	return last_player_unit
 

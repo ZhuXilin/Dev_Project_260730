@@ -141,26 +141,23 @@ func _decide_healer_action(unit: Unit):
 func _evaluate_attack(unit: Unit):
 	var is_healer = (unit.get_weapon_type() == "staff")
 	if is_healer:
-		print("AI 治疗者不执行攻击")
 		return null
 
 	var weapon_id = unit.get_equipped_weapon_id()
-	print("AI 单位 %s 当前武器 ID: %s" % [unit.unit_stats.unit_name, weapon_id])
 	if weapon_id == "":
-		print("警告：单位 %s 没有装备武器，无法攻击" % unit.unit_stats.unit_name)
+		# ★ 第七批：降级为 print（这是数据异常但不是致命错误，且会反复触发）
+		print("[AI] 单位 %s 没有装备武器，跳过攻击评估" % unit.unit_stats.unit_name)
 		return null
 
 	var data = ItemManager.get_item_data(weapon_id)
 	if not data:
-		print("错误：武器数据不存在，ID: %s" % weapon_id)
+		print("[AI] 单位 %s 武器数据不存在（ID=%s）" % [unit.unit_stats.unit_name, weapon_id])
 		return null
 
 	var up_lv : int = unit.weapon_slot.upgrade_level if unit.weapon_slot else 0
 	var max_range : int = WeaponUpgradeHelper.get_effective_attack_range(data, up_lv)
 	var min_range : int = data.min_attack_range
-	print("武器 %s 范围: %d~%d" % [data.name, min_range, max_range])
 
-	# ★ 收集所有候选，不边循环边取最优
 	var candidates : Array = []
 
 	for enemy in UnitManager.unit_list:
@@ -168,22 +165,17 @@ func _evaluate_attack(unit: Unit):
 			continue
 
 		var dist = abs(unit.grid_cell.x - enemy.grid_cell.x) + abs(unit.grid_cell.y - enemy.grid_cell.y)
-		print("  检查目标 %s，距离 %d" % [enemy.unit_stats.unit_name, dist])
 		if dist < min_range or dist > max_range:
-			print("    距离不在攻击范围内")
 			continue
 
 		var damage = CombatManager.calculate_damage(unit, enemy)
-		print("    伤害 %d" % [damage])
 		if damage <= 0:
-			print("    伤害为0，跳过")
 			continue
 
 		var score = damage * 2
 		if damage >= enemy.hit_points:
 			score += 50
 
-		# 检查敌人能否反击
 		var can_counter = false
 		var enemy_weapon_type = enemy.get_weapon_type()
 		if enemy_weapon_type != "" and enemy_weapon_type != "staff":
@@ -197,24 +189,21 @@ func _evaluate_attack(unit: Unit):
 
 		if not can_counter:
 			score += 30
-		# 攻击必定命中，不再有命中率加分
 		if can_counter and unit.hit_points < unit.unit_stats.max_hp * 0.3:
 			var counter_dmg = CombatManager.calculate_damage(enemy, unit)
 			if counter_dmg >= unit.hit_points:
 				score -= 100
 
-		print("    最终评分: %d" % score)
 		candidates.append({"target": enemy, "score": score})
 
 	if candidates.is_empty():
-		print("没有合适的攻击目标")
 		return null
 
-	# ★ 从高分候选中加权随机
 	var picked : Dictionary = _pick_target_by_weight(candidates)
 	var best_target : Unit = picked["target"]
-	var best_score : int = picked["score"]
-	print("选择目标: %s，评分 %d" % [best_target.unit_stats.unit_name, best_score])
+	print("[AI] %s 选择目标 %s（评分 %d，共 %d 个候选）" % [
+		unit.unit_stats.unit_name, best_target.unit_stats.unit_name,
+		picked["score"], candidates.size()])
 	return {"type": "attack", "unit": unit, "target": best_target, "weapon_id": weapon_id}
 
 
@@ -604,13 +593,14 @@ func _retry_find_path(unit: Unit) -> Array:
 #  AI 队列执行
 # ============================================================
 func _process_ai_queue():
-	print("_process_ai_queue 开始执行，队列大小: ", ai_queue.size())
+	var total_tasks : int = ai_queue.size()
+	print("[AI] 开始处理队列，共 %d 个任务" % total_tasks)
+	var processed : int = 0
 	while ai_queue.size() > 0:
-		print("处理任务，剩余: ", ai_queue.size())
 		await get_tree().create_timer(0.5).timeout
 		if _turn_manager.is_game_over:
 			_processing = false
-			print("游戏结束，终止 AI")
+			print("[AI] 游戏结束，终止")
 			return
 		if ai_queue.size() == 0:
 			break
@@ -618,50 +608,47 @@ func _process_ai_queue():
 		var task = ai_queue.pop_front()
 		var unit = task["unit"]
 		if not is_instance_valid(unit) or unit.hit_points <= 0:
-			print("单位无效，跳过任务")
 			continue
 
 		match task["type"]:
 			"attack":
 				var target = task["target"]
 				if is_instance_valid(target) and target.hit_points > 0:
-					print("AI 攻击: ", unit.unit_stats.unit_name, " -> ", target.unit_stats.unit_name)
+					# ★ 第六批：合并为一行
+					print("[AI] %s 攻击 %s" % [
+						unit.unit_stats.unit_name, target.unit_stats.unit_name])
 					SignalBus.request_highlight_unit.emit(target)
 					await get_tree().create_timer(0.3).timeout
-					await CombatManager.execute_attack(unit, target)   # 直接使用当前武器
+					await CombatManager.execute_attack(unit, target)
 					unit.can_act_this_turn = false
 					unit.has_attacked = true
 					unit.set_gray(true)
 					SignalBus.request_clear_highlight_unit.emit()
-				else:
-					print("攻击目标无效，跳过")
 			"move":
 				var path = task["path"]
 				if path.size() == 0 or UnitManager.is_cell_occupied(path[-1]):
-					# ★ 路径被其他 AI 单位抢先占了 → 重新寻路
-					print("AI 路径失效，重新寻路: ", unit.unit_stats.unit_name)
 					path = _retry_find_path(unit)
 					if path.size() == 0 or UnitManager.is_cell_occupied(path[-1]):
-						print("AI 无法移动，跳过: ", unit.unit_stats.unit_name)
 						continue
-				print("AI 移动: ", unit.unit_stats.unit_name, " 路径长度 ", path.size())
+				print("[AI] %s 移动 %d 格" % [unit.unit_stats.unit_name, path.size()])
 				_turn_manager.start_ai_movement(unit, path)
 				await _turn_manager.move_completed
-				print("AI 移动完成")
 			"wait":
-				print("AI 待机: ", unit.unit_stats.unit_name)
+				# 待机不再单独打印
 				unit.can_act_this_turn = false
 				unit.set_gray(true)
+		processed += 1
 
-	# ★ 所有敌人处理完，清空嘲讽状态（嘲讽仅生效"下一回合"）
+	# 清空嘲讽状态
 	for u in UnitManager.unit_list:
 		if is_instance_valid(u) and u.unit_stats.team_id == 1:
 			u.taunt_rounds_left = 0
 			u.taunt_by = null
 
 	_processing = false
-	print("AI 队列处理完毕，发射 ai_queue_finished 信号")
+	print("[AI] 队列处理完毕（处理 %d / %d）" % [processed, total_tasks])
 	ai_queue_finished.emit()
+	
 
 func _on_move_completed():
 	pass

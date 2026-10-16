@@ -56,10 +56,10 @@ func _setup_unit_buttons():
 	var dispatched : Array = DispatchManager.get_dispatched_unit_names()
 
 	for unit_name in unlocked:
-		# ★ 数据防护：跳过 unit_data.json 里没有定义的单位
+		# ★ 第七批：数据防护，改成 print（正常防护日志，不该刷警告）
 		var dict : Dictionary = UnitDataManager.get_unit_data(unit_name)
 		if dict.is_empty():
-			push_warning("[UnitSelectUI] 跳过无数据的单位：%s" % unit_name)
+			print("[UnitSelectUI] 跳过未定义单位：%s" % unit_name)
 			continue
 
 		var display_name = UnitDataManager.get_display_name_full(unit_name)
@@ -72,12 +72,10 @@ func _setup_unit_buttons():
 		btn.size = Vector2(100, 30)
 
 		if is_dispatched:
-			# ★ 派遣中：显示但禁用
 			btn.text = display_name + "  [派遣中]"
 			btn.disabled = true
 			btn.modulate = COLOR_DISPATCHED
 		elif unit_name in selected_units:
-			# 已选：显示但禁用
 			btn.disabled = true
 			btn.modulate = COLOR_DISABLED
 		else:

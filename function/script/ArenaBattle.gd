@@ -252,18 +252,36 @@ func _run_battle():
 		continue_btn.visible = false
 		return_btn.visible = true
 	else:
-		# 平局：以剩余 HP 多寡判定
-		winner_team = 0 if _player_hp >= _enemy_hp else 1
-		if winner_team == 0:
+		# ★ 第六批：平局按 HP 比例判定（避免高 HP 单位天然占优）
+		var p_max : int = maxi(1, _player.max_hp)
+		var e_max : int = maxi(1, _enemy.max_hp)
+		var p_ratio : float = float(_player_hp) / float(p_max)
+		var e_ratio : float = float(_enemy_hp) / float(e_max)
+
+		if p_ratio > e_ratio:
+			winner_team = 0
 			result_label.text = "险胜"
 			result_label.add_theme_color_override("font_color", Color(0.3, 1.0, 0.3, 1))
 			MusicManager.play_victory_music()
-		else:
+		elif e_ratio > p_ratio:
+			winner_team = 1
 			result_label.text = "惜败"
 			result_label.add_theme_color_override("font_color", Color(1.0, 0.4, 0.4, 1))
 			MusicManager.play_defeat_music()
+		else:
+			# 完全相同比例 → 按剩余 HP 决胜
+			winner_team = 0 if _player_hp >= _enemy_hp else 1
+			result_label.text = "险胜" if winner_team == 0 else "惜败"
+			result_label.add_theme_color_override(
+				"font_color",
+				Color(0.3, 1.0, 0.3, 1) if winner_team == 0 else Color(1.0, 0.4, 0.4, 1))
+			if winner_team == 0:
+				MusicManager.play_victory_music()
+			else:
+				MusicManager.play_defeat_music()
 		continue_btn.visible = false
 		return_btn.visible = true
+
 
 func _do_attack(attacker: UnitData, defender: UnitData):
 	if _player_hp <= 0 or _enemy_hp <= 0:

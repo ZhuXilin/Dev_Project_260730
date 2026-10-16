@@ -5,7 +5,6 @@ const Style = preload("res://function/script/equipmentconfig/EquipmentConfigStyl
 
 const QUALITY_ORDER : Array = ["common", "rare", "epic", "legendary"]
 
-# ★ 批次 4 / 6B
 const FUSION_COST : int = 2000
 var REFORGE_COST : int = 500
 
@@ -13,6 +12,7 @@ var MAX_SLOTS : int = 9
 var WEAPON_UPGRADE_MAX : int = 5
 var UPGRADE_BASE_COST : int = 50
 var UPGRADE_GROWTH : float = 2.0
+var UPGRADE_COST_TABLE : Array = []   # ★ 第四批：与 AnvilTavern 共用同一张表
 var CRAFT_COST : int = 200
 var QUALITY_SCORE : Dictionary = {"common": 1, "rare": 3, "epic": 6, "legendary": 10}
 var LUCKY_CHANCE : float = 0.05
@@ -31,6 +31,7 @@ var _last_drag_unit_idx : int = -1
 var forge_reforge_btn : Button = null
 var forge_reforge_label : Label = null
 
+
 func _init(p):
 	panel = p
 	reload_config()
@@ -42,6 +43,8 @@ func reload_config():
 	WEAPON_UPGRADE_MAX = int(cfg.get("weapon_upgrade_max", 5))
 	UPGRADE_BASE_COST = int(cfg.get("upgrade_base_cost", 50))
 	UPGRADE_GROWTH = float(cfg.get("upgrade_growth", 2.0))
+	# ★ 第四批：读升级成本表
+	UPGRADE_COST_TABLE = cfg.get("upgrade_cost_table", []).duplicate()
 	CRAFT_COST = int(cfg.get("craft_cost", 200))
 	REFORGE_COST = int(cfg.get("reforge_cost", 500))
 	QUALITY_SCORE = cfg.get("quality_score", {"common":1,"rare":3,"epic":6,"legendary":10}).duplicate()
@@ -74,7 +77,7 @@ func has_pending() -> bool:
 
 
 # ============================================================
-#  熔合检测（批次 4）
+#  熔合检测
 # ============================================================
 func _check_fusion(input_insts : Array) -> Dictionary:
 	if input_insts.size() != 2:
@@ -142,7 +145,7 @@ func _do_fusion(product_id: String, cost: int):
 
 
 # ============================================================
-#  重铸（批次 6B）
+#  重铸
 # ============================================================
 func reforge_instance(inst : ItemInstance) -> bool:
 	if inst == null: return false
@@ -457,7 +460,6 @@ func _ensure_forge_upgrade_ui():
 	spacer2.custom_minimum_size = Vector2(0, 8)
 	panel.right_container.add_child(spacer2)
 
-	# ★ v4.1：紫装重铸槽（缺口 2）
 	var reforge_spacer := Control.new()
 	reforge_spacer.name = "ForgeReforgeSpacer"
 	reforge_spacer.custom_minimum_size = Vector2(0, 8)
@@ -653,7 +655,6 @@ func on_forge_craft_pressed():
 		Globals.show_confirm(panel, "请先放入防具", "确定", "", func(): pass, func(): pass, false)
 		return
 
-	# ★ 批次 4：熔合检测
 	var fusion : Dictionary = _check_fusion(input_insts)
 	if fusion.get("ok", false):
 		if panel._context.get_gold() < FUSION_COST:
@@ -679,12 +680,17 @@ func on_forge_craft_pressed():
 	else:
 		result = _compute_random_craft(input_insts)
 
+	# ★ 第四批：空产出保护
+	var out_ids : Array = result["item_ids"]
+	if out_ids.is_empty():
+		panel._show_detail_in_zone("合成失败：无可产出防具")
+		panel._schedule_build_ui()
+		return
+
 	panel._context.subtract_gold(CRAFT_COST)
 
 	for i in range(forge_slots.size()):
 		forge_slots[i] = null
-
-	var out_ids : Array = result["item_ids"]
 
 	var target_unit_idx : int = -1
 	var target_slot : int = -1
@@ -738,6 +744,11 @@ func on_forge_craft_pressed():
 
 
 func _get_weapon_upgrade_cost(level: int) -> int:
+	# ★ 第四批：优先查表，与 AnvilTavern 保持一致
+	if not UPGRADE_COST_TABLE.is_empty():
+		if level < 0 or level >= UPGRADE_COST_TABLE.size():
+			return -1
+		return int(UPGRADE_COST_TABLE[level])
 	return int(UPGRADE_BASE_COST * pow(UPGRADE_GROWTH, level))
 
 
@@ -850,7 +861,6 @@ func execute_forge_drop(data: Dictionary, target: Control):
 	var src_type : String = data.get("slot_type", "")
 	var tgt_type : String = target.get_meta("slot_type", "")
 
-	# ★ v4.1：紫装重铸
 	if src_type == "armor" and tgt_type == "forge_reforge_slot":
 		var uidx : int = data.get("unit_idx", -1)
 		var src_slot : int = data.get("slot_idx", -1)
@@ -885,6 +895,7 @@ func execute_forge_drop(data: Dictionary, target: Control):
 		if weapon_inst.upgrade_level >= max_lv: return
 		var lv : int = weapon_inst.upgrade_level
 		var cost : int = _get_weapon_upgrade_cost(lv)
+		if cost <= 0: return
 		if panel._context.get_gold() < cost:
 			panel._show_buy_failure_message("not_enough_gold"); return
 		if not panel._context.subtract_gold(cost):
@@ -963,41 +974,6 @@ func execute_forge_drop(data: Dictionary, target: Control):
 		display_recipe_info(); panel._schedule_build_ui(); return
 
 
-func _force_return_armor_to_unit(unit: UnitData, inst: ItemInstance, prefer_slot: int) -> bool:
-	if prefer_slot >= 0 and prefer_slot < unit.armor_slots.size() and unit.armor_slots[prefer_slot] == null:
-		unit.armor_slots[prefer_slot] = inst
-		return true
-	for i in range(unit.armor_slots.size()):
-		if unit.armor_slots[i] == null:
-			unit.armor_slots[i] = inst
-			return true
-	return false
-
-
-func _try_upgrade_weapon(unit_idx: int):
-	if unit_idx < 0 or unit_idx >= panel.party.size(): return
-	var u : UnitData = panel.party[unit_idx]
-	if u.is_dead: return
-	if u.weapon_slot == null: return
-	var wdata = ItemManager.get_item_data(u.weapon_slot.item_id)
-	var max_lv : int = WeaponUpgradeHelper.get_max_level(wdata)
-	if u.weapon_slot.upgrade_level >= max_lv: return
-
-	var lv : int = u.weapon_slot.upgrade_level
-	var cost : int = _get_weapon_upgrade_cost(lv)
-	if panel._context.get_gold() < cost:
-		panel._show_buy_failure_message("not_enough_gold"); return
-	if not panel._context.subtract_gold(cost):
-		panel._show_buy_failure_message("not_enough_gold"); return
-
-	u.weapon_slot.upgrade_level += 1
-	refresh_forge_upgrade_ui()
-	panel._build_unit_columns()
-	panel._sync_all()
-	panel._update_gold_display()
-	panel._schedule_build_ui()
-
-
 # ============================================================
 #  合成计算
 # ============================================================
@@ -1029,8 +1005,24 @@ func _compute_random_craft(input_insts : Array) -> Dictionary:
 	while candidates.is_empty() and QUALITY_ORDER.find(quality) > 0:
 		quality = QUALITY_ORDER[QUALITY_ORDER.find(quality) - 1]
 		_collect_armor_candidates(quality, candidates)
+
+	# ★ 第四批：动态兜底，不再硬编码 wooden_shield
 	if candidates.is_empty():
-		candidates = ["wooden_shield"]
+		for iid in ItemManager.get_all_item_ids():
+			var d : ItemData = ItemManager.get_item_data(iid)
+			if d and d.type == "armor":
+				candidates.append(iid)
+				break
+	if candidates.is_empty():
+		push_warning("[Forge] 没有任何防具可合成")
+		return {
+			"item_ids": [],
+			"quality": "common",
+			"bonus_count": 0,
+			"is_recipe": false,
+			"input_score": score,
+			"lucky": false,
+		}
 
 	var out_ids : Array = [candidates[randi() % candidates.size()]]
 
