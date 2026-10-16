@@ -39,10 +39,19 @@ func get_class_data(class_id: String) -> AdvancedClassData:
 	return _classes.get(class_id)
 
 
-## 返回该单位的所有分支（用于 HeroShrine 二选一 UI）
+## 返回该单位的可选分支（用于 HeroShrine 二选一 UI）
+## ★ 隐藏分支：只有剧情解锁（GameState.npc_dialogue_flags 中含对应 flag）才出现
 func get_branches_for_unit(unit_type: String) -> Array:
 	var key : String = UnitDataManager.normalize_unit_key(unit_type)
-	return (_by_unit.get(key, []) as Array).duplicate()
+	var all_branches : Array = (_by_unit.get(key, []) as Array)
+	var result : Array = []
+	for adv in all_branches:
+		if adv == null:
+			continue
+		if adv.hidden and not _is_branch_unlocked(adv.id):
+			continue
+		result.append(adv)
+	return result
 
 
 ## 兼容旧接口：返回第一个分支（无分支时返回 null）
@@ -58,3 +67,23 @@ func get_cost_per_class() -> int:
 func get_display_name(class_id: String) -> String:
 	var c = get_class_data(class_id)
 	return c.name if c else class_id
+
+
+# ============================================================
+#  隐藏分支解锁检查
+# ============================================================
+## StoryManager._apply_unlock() 对每个 unlock 都会写一条 flag：
+##     "unlocked_<npc_id>_<uid>"
+## 我们只需扫 GameState.npc_dialogue_flags 里有没有以
+##     "unlocked_" 开头、以 "_<branch_id>" 结尾的字符串。
+func _is_branch_unlocked(branch_id: String) -> bool:
+	if branch_id == "":
+		return false
+	var suffix : String = "_" + branch_id
+	for f in GameState.npc_dialogue_flags:
+		if not (f is String):
+			continue
+		var s : String = f
+		if s.begins_with("unlocked_") and s.ends_with(suffix):
+			return true
+	return false

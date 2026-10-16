@@ -3,7 +3,7 @@ extends Control
 
 # ============================================================
 #  StoryEditor — NPC 剧情 / 独立对话 / 地图事件 统一编辑器
-#  v4.2 第 12 批：新增"复制对话"按钮
+#  v4.4：修 _setup_spin 里 for 迭代变量 name 与 Node.name 冲突
 # ============================================================
 
 const STORY_PATH : String = "res://content/data/stories.json"
@@ -38,13 +38,15 @@ const FS_HINT   : int = 5
 
 const BTN_H : int = 13
 const SPIN_H : int = 13
-const SPIN_W : int = 24
+const SPIN_W : int = 28
 const TAB_H  : int = 18
 const TAB_W  : int = 68
 const ROW_H  : int = 13
 
 const LEFT_W : int = 90
 const MID_W  : int = 170
+
+const MAX_UNDO : int = 30
 
 const COL_BG        : Color = Color(0.08, 0.08, 0.10)
 const COL_PANEL     : Color = Color(0.10, 0.10, 0.13)
@@ -66,9 +68,15 @@ var _current_flat_id : String = ""
 var _current_event_id : String = ""
 var _current_action_idx : int = -1
 
+var _undo_stack : Array[Dictionary] = []
+var _redo_stack : Array[Dictionary] = []
+var _suppress_undo : bool = false
+
 var _tab_stories_btn : Button
 var _tab_dialogues_btn : Button
 var _tab_events_btn : Button
+var _undo_btn : Button
+var _redo_btn : Button
 var _status_label : Label
 var _left_title : Label
 var _left_list : VBoxContainer
@@ -172,9 +180,6 @@ func _apply_compact_theme():
 
 	t.set_font_size("font_size", "SpinBox", FS_BUTTON)
 
-	# ============================================================
-	#  ★ 细滚动条 / 细滑杆（宽 4px，视觉比默认细一半以上）
-	# ============================================================
 	var scroll_track := StyleBoxFlat.new()
 	scroll_track.bg_color = Color(0.08, 0.08, 0.10, 1)
 	scroll_track.content_margin_left = 0
@@ -196,7 +201,6 @@ func _apply_compact_theme():
 	grabber_hl.corner_radius_bottom_left = 2
 	grabber_hl.corner_radius_bottom_right = 2
 
-	# VScrollBar
 	t.set_stylebox("scroll", "VScrollBar", scroll_track)
 	t.set_stylebox("scroll_focus", "VScrollBar", scroll_track)
 	t.set_stylebox("grabber", "VScrollBar", grabber_off)
@@ -205,7 +209,6 @@ func _apply_compact_theme():
 	t.set_constant("minimum_grab_size", "VScrollBar", 6)
 	t.set_constant("scroll_width", "VScrollBar", 4)
 
-	# HScrollBar
 	t.set_stylebox("scroll", "HScrollBar", scroll_track)
 	t.set_stylebox("scroll_focus", "HScrollBar", scroll_track)
 	t.set_stylebox("grabber", "HScrollBar", grabber_off)
@@ -214,7 +217,6 @@ func _apply_compact_theme():
 	t.set_constant("minimum_grab_size", "HScrollBar", 6)
 	t.set_constant("scroll_height", "HScrollBar", 4)
 
-	# HSlider：细一半
 	var slider_track := StyleBoxFlat.new()
 	slider_track.bg_color = Color(0.20, 0.20, 0.24, 1)
 	slider_track.content_margin_top = 1.5
@@ -237,21 +239,16 @@ func _apply_compact_theme():
 	t.set_constant("center_grabber", "HSlider", 1)
 	t.set_constant("grabber_offset", "HSlider", 0)
 
-	# ============================================================
-	#  ★ OptionButton 小箭头（默认箭头大 3 倍，撑开整行高度）
-	# ============================================================
 	var arrow_img := Image.create(7, 4, false, Image.FORMAT_RGBA8)
 	arrow_img.fill(Color(0, 0, 0, 0))
 	for y in range(4):
 		for x in range(7):
-			# 简易下三角：x ∈ [y/2, 6 - y/2] 时填充
 			var half : float = float(y) * 0.5
 			if float(x) >= half and float(x) <= 6.0 - half:
 				arrow_img.set_pixel(x, y, Color(0.72, 0.72, 0.78, 1.0))
 	var arrow_tex := ImageTexture.create_from_image(arrow_img)
 	t.set_icon("arrow", "OptionButton", arrow_tex)
 
-	# OptionButton 最小高度
 	t.set_constant("arrow_margin", "OptionButton", 2)
 	t.set_constant("modulate_arrow", "OptionButton", 0)
 	t.set_font_size("font_size", "OptionButton", FS_BUTTON)
@@ -295,6 +292,18 @@ func _build_ui():
 	_tab_events_btn = _mk_tab_button("地图事件")
 	_tab_events_btn.pressed.connect(_switch_tab.bind("events"))
 	top.add_child(_tab_events_btn)
+
+	top.add_child(_make_vsep())
+
+	_undo_btn = _mk_btn("↶ 撤销")
+	_undo_btn.tooltip_text = "撤销 (Ctrl+Z)"
+	_undo_btn.pressed.connect(_undo)
+	top.add_child(_undo_btn)
+
+	_redo_btn = _mk_btn("↷ 重做")
+	_redo_btn.tooltip_text = "重做 (Ctrl+Shift+Z / Ctrl+Y)"
+	_redo_btn.pressed.connect(_redo)
+	top.add_child(_redo_btn)
 
 	top.add_child(_make_vsep())
 
@@ -461,8 +470,10 @@ func _mk_spin(value : int, min_v : int, max_v : int, w : int = SPIN_W) -> SpinBo
 	sp.max_value = max_v
 	sp.step = 1
 	sp.value = value
+	sp.editable = true
+	sp.update_on_text_changed = true
 	sp.custom_minimum_size = Vector2(w, SPIN_H)
-	sp.size_flags_horizontal = Control.SIZE_SHRINK_END
+	sp.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	sp.add_theme_font_size_override("font_size", FS_BUTTON)
 	sp.add_theme_constant_override("separation", 0)
 	sp.ready.connect(func(): _setup_spin(sp), CONNECT_ONE_SHOT)
@@ -470,6 +481,7 @@ func _mk_spin(value : int, min_v : int, max_v : int, w : int = SPIN_W) -> SpinBo
 
 
 func _setup_spin(sp : SpinBox):
+	if not is_instance_valid(sp): return
 	var le := sp.get_line_edit()
 	if le:
 		le.add_theme_font_size_override("font_size", FS_BUTTON)
@@ -478,17 +490,26 @@ func _setup_spin(sp : SpinBox):
 		le.editable = true
 		le.select_all_on_focus = true
 		le.context_menu_enabled = false
-	var btns : Array[Node] = sp.find_children("*", "Button", true, false)
-	for b in btns:
-		_compact_spin_arrow_button(b as Button)
+	# ★ 用 find_children 兜底；迭代变量改名 arrow_btn，避免与 Node.name 冲突
+	var arrow_btns : Array[Node] = sp.find_children("*", "Button", true, false)
+	for arrow_btn in arrow_btns:
+		_compact_spin_arrow_button(arrow_btn as Button)
+	# 兼容性：按节点名直接拿
+	if arrow_btns.is_empty():
+		for arrow_name in ["up", "down"]:
+			var b2 = sp.get_node_or_null(arrow_name)
+			if b2 is Button:
+				_compact_spin_arrow_button(b2 as Button)
 
 
 func _compact_spin_arrow_button(btn : Button):
-	btn.custom_minimum_size = Vector2(3, 2)
-	btn.icon_max_width = 2
-	btn.icon_max_height = 2
+	btn.custom_minimum_size = Vector2(5, 0)
+	btn.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	btn.icon_max_width = 4
+	btn.icon_max_height = 3
 	btn.focus_mode = Control.FOCUS_NONE
 	btn.action_mode = BaseButton.ACTION_MODE_BUTTON_RELEASE
+	btn.flat = true
 	var empty := StyleBoxEmpty.new()
 	empty.content_margin_left = 0
 	empty.content_margin_right = 0
@@ -576,6 +597,117 @@ func _mk_section(text : String) -> Label:
 
 
 # ============================================================
+#  撤销 / 重做
+# ============================================================
+func _make_snapshot() -> Dictionary:
+	return {
+		"stories": _stories.duplicate(true),
+		"dialogues": _dialogues.duplicate(true),
+		"events": _events.duplicate(true),
+		"tab": _tab,
+		"npc": _current_npc,
+		"dialogue": _current_dialogue_id,
+		"unlock_idx": _current_unlock_idx,
+		"flat": _current_flat_id,
+		"event": _current_event_id,
+		"action_idx": _current_action_idx,
+	}
+
+
+func _push_undo():
+	if _suppress_undo:
+		return
+	_undo_stack.append(_make_snapshot())
+	if _undo_stack.size() > MAX_UNDO:
+		_undo_stack.pop_front()
+	_redo_stack.clear()
+	_dirty = true
+	_refresh_undo_buttons()
+
+
+func _apply_snapshot(snap : Dictionary):
+	_suppress_undo = true
+	_stories = (snap.get("stories", {}) as Dictionary).duplicate(true)
+	_dialogues = (snap.get("dialogues", {}) as Dictionary).duplicate(true)
+	_events = (snap.get("events", {}) as Dictionary).duplicate(true)
+
+	_tab = str(snap.get("tab", "stories"))
+	_current_npc = str(snap.get("npc", ""))
+	_current_dialogue_id = str(snap.get("dialogue", ""))
+	_current_unlock_idx = int(snap.get("unlock_idx", -1))
+	_current_flat_id = str(snap.get("flat", ""))
+	_current_event_id = str(snap.get("event", ""))
+	_current_action_idx = int(snap.get("action_idx", -1))
+
+	_dirty = true
+	_rebuild_all_panels()
+	_suppress_undo = false
+	_refresh_undo_buttons()
+
+
+func _rebuild_all_panels():
+	_clear_container(_left_list)
+	_clear_container(_mid_list)
+	_clear_container(_right_container)
+
+	match _tab:
+		"stories":
+			_left_title.text = "NPC"
+			_mid_title.text = "对话 / 解锁"
+			_right_title.text = "— 编辑区 —"
+			_build_npc_list()
+			if _current_npc != "" and _stories.has(_current_npc):
+				_build_mid_list()
+				if _current_dialogue_id != "" and not _find_dialogue(_current_npc, _current_dialogue_id).is_empty():
+					_build_dialogue_form()
+				elif _current_unlock_idx >= 0:
+					_build_unlock_form()
+		"dialogues":
+			_left_title.text = "对话 ID"
+			_mid_title.text = "—"
+			_right_title.text = "— 编辑区 —"
+			_build_flat_id_list()
+			if _current_flat_id != "" and _dialogues.has(_current_flat_id):
+				_build_flat_form()
+		"events":
+			_left_title.text = "事件 ID"
+			_mid_title.text = "actions"
+			_right_title.text = "— 编辑区 —"
+			_build_event_id_list()
+			if _current_event_id != "" and _events.has(_current_event_id):
+				_build_event_action_list()
+				if _current_action_idx >= 0:
+					_build_action_form()
+
+
+func _undo():
+	if _undo_stack.is_empty():
+		_set_status("无可撤销")
+		return
+	_redo_stack.append(_make_snapshot())
+	var snap : Dictionary = _undo_stack.pop_back()
+	_apply_snapshot(snap)
+	_set_status("↶ 撤销（剩余 %d）" % _undo_stack.size())
+
+
+func _redo():
+	if _redo_stack.is_empty():
+		_set_status("无可重做")
+		return
+	_undo_stack.append(_make_snapshot())
+	var snap : Dictionary = _redo_stack.pop_back()
+	_apply_snapshot(snap)
+	_set_status("↷ 重做（剩余 %d）" % _redo_stack.size())
+
+
+func _refresh_undo_buttons():
+	if _undo_btn:
+		_undo_btn.modulate = Color(1, 1, 1) if not _undo_stack.is_empty() else Color(0.5, 0.5, 0.5)
+	if _redo_btn:
+		_redo_btn.modulate = Color(1, 1, 1) if not _redo_stack.is_empty() else Color(0.5, 0.5, 0.5)
+
+
+# ============================================================
 #  数据加载 / 保存
 # ============================================================
 func _load_all():
@@ -583,6 +715,9 @@ func _load_all():
 	_dialogues = _load_json(DIALOGUE_PATH)
 	_events = _load_json(EVENT_PATH)
 	_dirty = false
+	_undo_stack.clear()
+	_redo_stack.clear()
+	_refresh_undo_buttons()
 	_set_status("已加载：%d NPC / %d 对话 / %d 事件" % [_stories.size(), _dialogues.size(), _events.size()])
 
 
@@ -825,7 +960,6 @@ func _build_dialogue_form():
 	pv.pressed.connect(_preview_dialogue.bind(d))
 	head.add_child(pv)
 
-	# ★ 第十二批：复制对话
 	var dup := _mk_btn("复制")
 	dup.tooltip_text = "复制为一份新对话（id 加 _copy 后缀）"
 	dup.pressed.connect(_duplicate_current_dialogue)
@@ -852,6 +986,8 @@ func _build_dialogue_form():
 	var ps := _mk_spin(int(d.get("priority", 0)), -100, 100)
 	ps.tooltip_text = "满足 condition 的多个对话中，选 priority 最高的播放"
 	ps.value_changed.connect(func(v):
+		if int(v) == int(d.get("priority", 0)): return
+		_push_undo()
 		d["priority"] = int(v)
 		_dirty = true
 		_build_mid_list()
@@ -861,6 +997,7 @@ func _build_dialogue_form():
 
 	_right_container.add_child(_mk_section("— condition（全部满足才触发）—"))
 	_build_condition_editor(d.get("condition", {}), func(nc):
+		_push_undo()
 		if nc.is_empty(): d.erase("condition")
 		else: d["condition"] = nc
 		_dirty = true
@@ -873,18 +1010,13 @@ func _build_dialogue_form():
 	_build_choices_editor(d)
 
 
-# ============================================================
-#  ★ 第十二批：复制当前对话
-# ============================================================
 func _duplicate_current_dialogue():
 	if _current_npc == "" or _current_dialogue_id == "": return
 	var src : Dictionary = _find_dialogue(_current_npc, _current_dialogue_id)
 	if src.is_empty(): return
+	_push_undo()
 
-	# 深拷贝
 	var new_d : Dictionary = src.duplicate(true)
-
-	# 生成不重复的新 id
 	var base : String = _current_dialogue_id
 	if base.ends_with("_copy"):
 		base = base.substr(0, base.length() - 5)
@@ -894,10 +1026,8 @@ func _duplicate_current_dialogue():
 		n += 1
 		new_id = "%s_copy%d" % [base, n]
 	new_d["id"] = new_id
-	# 复制出来的对话 priority 设为 0，避免干扰原对话
 	new_d["priority"] = 0
 
-	# 插入到源对话后面
 	var dlist : Array = _stories[_current_npc].get("dialogues", [])
 	var insert_at : int = dlist.size()
 	for i in range(dlist.size()):
@@ -937,6 +1067,7 @@ func _rename_dialogue(old_id : String, new_id : String):
 		_set_status("✗ ID 已存在：%s" % new_id)
 		_build_dialogue_form()
 		return
+	_push_undo()
 	for d in _stories[_current_npc].get("dialogues", []):
 		if d is Dictionary and d.get("id", "") == old_id:
 			d["id"] = new_id
@@ -950,6 +1081,7 @@ func _rename_dialogue(old_id : String, new_id : String):
 
 func _delete_current_dialogue():
 	if _current_npc == "" or _current_dialogue_id == "": return
+	_push_undo()
 	var dlist : Array = _stories[_current_npc].get("dialogues", [])
 	for i in range(dlist.size()):
 		if dlist[i] is Dictionary and dlist[i].get("id", "") == _current_dialogue_id:
@@ -965,6 +1097,7 @@ func _delete_current_dialogue():
 
 func _add_new_dialogue():
 	if _current_npc == "": return
+	_push_undo()
 	var npc : Dictionary = _stories[_current_npc]
 	if not npc.has("dialogues"): npc["dialogues"] = []
 	var base : String = "new_dialogue"
@@ -1006,6 +1139,7 @@ func _build_unlock_form():
 		opt.add_item(UNLOCK_TYPES[i], i)
 		if UNLOCK_TYPES[i] == u.get("type", ""): opt.selected = i
 	opt.item_selected.connect(func(idx):
+		_push_undo()
 		u["type"] = UNLOCK_TYPES[idx]
 		u["id"] = ""
 		_dirty = true
@@ -1022,6 +1156,7 @@ func _build_unlock_form():
 
 	_right_container.add_child(_mk_section("— conditions —"))
 	_build_condition_editor(u.get("conditions", {}), func(nc):
+		_push_undo()
 		if nc.is_empty(): u.erase("conditions")
 		else: u["conditions"] = nc
 		_dirty = true
@@ -1066,6 +1201,7 @@ func _build_unlock_id_editor(u : Dictionary) -> Control:
 		opt.set_item_metadata(cands.size() + 1, cur)
 		opt.selected = cands.size() + 1
 	opt.item_selected.connect(func(idx):
+		_push_undo()
 		var v = opt.get_item_metadata(idx)
 		u["id"] = str(v if v != null else "")
 		_dirty = true
@@ -1115,6 +1251,7 @@ func _unlock_display(ut : String, uid : String) -> String:
 func _delete_current_unlock():
 	var unlocks : Array = _stories.get(_current_npc, {}).get("unlocks", [])
 	if _current_unlock_idx < 0 or _current_unlock_idx >= unlocks.size(): return
+	_push_undo()
 	unlocks.remove_at(_current_unlock_idx)
 	_dirty = true
 	_current_unlock_idx = -1
@@ -1126,6 +1263,7 @@ func _delete_current_unlock():
 
 func _add_new_unlock():
 	if _current_npc == "": return
+	_push_undo()
 	var npc : Dictionary = _stories[_current_npc]
 	if not npc.has("unlocks"): npc["unlocks"] = []
 	npc["unlocks"].append({"type": "route", "id": "", "conditions": {}})
@@ -1152,7 +1290,6 @@ func _build_condition_editor(cond : Dictionary, on_change : Callable):
 		cb.tooltip_text = CONDITION_HELP.get(key, "")
 		row.add_child(cb)
 
-		# ★ 用 LineEdit 替代 SpinBox（SpinBox 的上下箭头会撑开整行高度）
 		var le := LineEdit.new()
 		le.text = str(int(work.get(key, 0)))
 		le.placeholder_text = "0"
@@ -1173,6 +1310,7 @@ func _build_condition_editor(cond : Dictionary, on_change : Callable):
 		row.add_child(le)
 
 		cb.toggled.connect(func(p : bool):
+			_push_undo()
 			le.editable = p
 			if p:
 				var t : String = le.text.strip_edges()
@@ -1182,7 +1320,6 @@ func _build_condition_editor(cond : Dictionary, on_change : Callable):
 			on_change.call(work)
 		)
 
-	# ===== after_dialogue（保持不变，只换 OptionButton 箭头主题）=====
 	var ad_row := _mk_row()
 	_right_container.add_child(ad_row)
 	var ad_cb := _mk_checkbox("after_dialogue", work.has("after_dialogue"))
@@ -1221,6 +1358,7 @@ func _build_condition_editor(cond : Dictionary, on_change : Callable):
 	)
 	ad_row.add_child(ad_opt)
 	ad_cb.toggled.connect(func(p : bool):
+		_push_undo()
 		ad_opt.disabled = not p
 		if p:
 			var v = ad_opt.get_item_metadata(ad_opt.selected)
@@ -1297,6 +1435,7 @@ func _build_lines_editor(d : Dictionary):
 
 	var add := _mk_btn("+ 添加台词")
 	add.pressed.connect(func():
+		_push_undo()
 		if not d.has("lines"): d["lines"] = []
 		d["lines"].append({"speaker": "???", "text": ""})
 		_dirty = true
@@ -1309,6 +1448,7 @@ func _move_line(d : Dictionary, idx : int, dir : int):
 	var lines : Array = d.get("lines", [])
 	var ni : int = idx + dir
 	if ni < 0 or ni >= lines.size(): return
+	_push_undo()
 	var t = lines[idx]
 	lines[idx] = lines[ni]
 	lines[ni] = t
@@ -1319,6 +1459,7 @@ func _move_line(d : Dictionary, idx : int, dir : int):
 func _delete_line(d : Dictionary, idx : int):
 	var lines : Array = d.get("lines", [])
 	if idx < 0 or idx >= lines.size(): return
+	_push_undo()
 	lines.remove_at(idx)
 	_dirty = true
 	_build_dialogue_form()
@@ -1328,6 +1469,7 @@ func _build_choices_editor(d : Dictionary):
 	if not d.has("choices"):
 		var init := _mk_btn("+ 添加选项")
 		init.pressed.connect(func():
+			_push_undo()
 			d["choices"] = [{"text": "", "flag": ""}]
 			_dirty = true
 			_build_dialogue_form()
@@ -1343,6 +1485,7 @@ func _build_choices_editor(d : Dictionary):
 
 		var dl := _mk_icon_btn("-", true)
 		dl.pressed.connect(func():
+			_push_undo()
 			choices.remove_at(idx)
 			if choices.is_empty(): d.erase("choices")
 			_dirty = true
@@ -1369,6 +1512,7 @@ func _build_choices_editor(d : Dictionary):
 
 	var add := _mk_btn("+ 添加选项")
 	add.pressed.connect(func():
+		_push_undo()
 		choices.append({"text": "", "flag": ""})
 		_dirty = true
 		_build_dialogue_form()
@@ -1420,7 +1564,6 @@ func _build_flat_form():
 	pv.pressed.connect(func(): DialogueManager.start_inline_dialogue(lines))
 	head.add_child(pv)
 
-	# ★ 第十二批：独立对话也支持复制
 	var dup := _mk_btn("复制")
 	dup.tooltip_text = "复制为一份新对话（id 加 _copy 后缀）"
 	dup.pressed.connect(_duplicate_flat_dialogue)
@@ -1438,6 +1581,7 @@ func _build_flat_form():
 
 		var dl2 := _mk_icon_btn("-", true)
 		dl2.pressed.connect(func():
+			_push_undo()
 			lines.remove_at(idx)
 			_dirty = true
 			_build_flat_form()
@@ -1463,6 +1607,7 @@ func _build_flat_form():
 
 	var add := _mk_btn("+ 添加台词")
 	add.pressed.connect(func():
+		_push_undo()
 		lines.append({"speaker": "???", "text": ""})
 		_dirty = true
 		_build_flat_form()
@@ -1477,6 +1622,7 @@ func _add_new_flat():
 	while _dialogues.has(nid):
 		n += 1
 		nid = "%s_%d" % [base, n]
+	_push_undo()
 	_dialogues[nid] = [{"speaker": "???", "text": "..."}]
 	_dirty = true
 	_current_flat_id = nid
@@ -1486,11 +1632,9 @@ func _add_new_flat():
 	_set_status("新建独立对话：" + nid)
 
 
-# ============================================================
-#  ★ 第十二批：复制独立对话
-# ============================================================
 func _duplicate_flat_dialogue():
 	if _current_flat_id == "" or not _dialogues.has(_current_flat_id): return
+	_push_undo()
 	var src : Array = _dialogues[_current_flat_id]
 	var new_lines : Array = []
 	for l in src:
@@ -1519,6 +1663,7 @@ func _duplicate_flat_dialogue():
 
 func _delete_flat():
 	if _current_flat_id == "": return
+	_push_undo()
 	_dialogues.erase(_current_flat_id)
 	_dirty = true
 	_current_flat_id = ""
@@ -1578,6 +1723,7 @@ func _build_event_action_list():
 	var oc := _mk_checkbox("once", bool(ev.get("once", true)))
 	oc.tooltip_text = "勾选后此事件只触发一次"
 	oc.toggled.connect(func(p):
+		_push_undo()
 		ev["once"] = p
 		_dirty = true
 	)
@@ -1613,6 +1759,7 @@ func _on_action_selected(idx : int):
 
 func _add_new_action():
 	if _current_event_id == "": return
+	_push_undo()
 	var ev : Dictionary = _events[_current_event_id]
 	if not ev.has("actions"): ev["actions"] = []
 	ev["actions"].append({"type": "dialog", "dialog_id": ""})
@@ -1662,6 +1809,7 @@ func _build_action_form():
 		opt.add_item(ct + "（自定义）", ACTION_TYPES.size())
 		opt.selected = ACTION_TYPES.size()
 	opt.item_selected.connect(func(idx):
+		_push_undo()
 		if idx < ACTION_TYPES.size(): a["type"] = ACTION_TYPES[idx]
 		_dirty = true
 		_build_event_action_list()
@@ -1693,6 +1841,7 @@ func _move_action(dir : int):
 	var actions : Array = _events.get(_current_event_id, {}).get("actions", [])
 	var ni : int = _current_action_idx + dir
 	if ni < 0 or ni >= actions.size(): return
+	_push_undo()
 	var t = actions[_current_action_idx]
 	actions[_current_action_idx] = actions[ni]
 	actions[ni] = t
@@ -1705,6 +1854,7 @@ func _move_action(dir : int):
 func _delete_current_action():
 	var actions : Array = _events.get(_current_event_id, {}).get("actions", [])
 	if _current_action_idx < 0 or _current_action_idx >= actions.size(): return
+	_push_undo()
 	actions.remove_at(_current_action_idx)
 	_dirty = true
 	_current_action_idx = -1
@@ -1746,6 +1896,7 @@ func _build_dynamic_fields(a : Dictionary):
 	ab.pressed.connect(func():
 		var k : String = ke.text.strip_edges()
 		if k == "" or k == "type": return
+		_push_undo()
 		a[k] = _parse_value(ve.text)
 		_dirty = true
 		_build_event_action_list()
@@ -1779,6 +1930,7 @@ func _build_one_field(a : Dictionary, key : String):
 
 	var dl := _mk_icon_btn("-", true)
 	dl.pressed.connect(func():
+		_push_undo()
 		a.erase(key)
 		_dirty = true
 		_build_event_action_list()
@@ -1795,6 +1947,7 @@ func _build_one_field(a : Dictionary, key : String):
 	if t == TYPE_BOOL:
 		var cb := _mk_checkbox("", bool(value))
 		cb.toggled.connect(func(p):
+			_push_undo()
 			a[key] = p
 			_dirty = true
 		)
@@ -1851,6 +2004,7 @@ func _add_new_event():
 	while _events.has(nid):
 		n += 1
 		nid = "%s_%d" % [base, n]
+	_push_undo()
 	_events[nid] = {"actions": [{"type": "dialog", "dialog_id": ""}], "once": true}
 	_dirty = true
 	_current_event_id = nid
@@ -1884,11 +2038,38 @@ func _input(event : InputEvent):
 	if not (event is InputEventKey and event.pressed and not event.echo):
 		return
 	var ke : InputEventKey = event
+
+	var focus := get_viewport().gui_get_focus_owner()
+	if focus is LineEdit or focus is TextEdit:
+		if not ke.ctrl_pressed:
+			return
+		match ke.keycode:
+			KEY_Z:
+				if ke.shift_pressed: _redo()
+				else: _undo()
+				get_viewport().set_input_as_handled()
+				return
+			KEY_Y:
+				_redo()
+				get_viewport().set_input_as_handled()
+				return
+			KEY_S:
+				_on_save()
+				get_viewport().set_input_as_handled()
+				return
+		return
+
 	if ke.ctrl_pressed and ke.keycode == KEY_S:
 		_on_save()
 		get_viewport().set_input_as_handled()
+	elif ke.ctrl_pressed and ke.keycode == KEY_Z:
+		if ke.shift_pressed: _redo()
+		else: _undo()
+		get_viewport().set_input_as_handled()
+	elif ke.ctrl_pressed and ke.keycode == KEY_Y:
+		_redo()
+		get_viewport().set_input_as_handled()
 	elif ke.ctrl_pressed and ke.keycode == KEY_D:
-		# ★ 第十二批：Ctrl+D 快捷复制（NPC 剧情或独立对话）
 		if _tab == "stories":
 			_duplicate_current_dialogue()
 		elif _tab == "dialogues":

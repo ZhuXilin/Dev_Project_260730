@@ -1139,7 +1139,7 @@ func _build_ui():
 	var canvas_script = load("res://function/tool/editor/MapLayoutCanvas.gd")
 	_canvas = Control.new()
 	_canvas.set_script(canvas_script)
-	_canvas.editor = self
+	_canvas.set("editor", self)
 	_canvas.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_canvas.mouse_filter = Control.MOUSE_FILTER_STOP
 	_scroll.add_child(_canvas)

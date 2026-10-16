@@ -3,6 +3,7 @@ extends CanvasLayer
 # ============================================================
 #  MapScene — 局内地图
 #  v4.3：ChipMusicEditor 风格主题 + 细滚动条 + 节点点击防抖
+#  v4.4：修复 CanvasLayer 无 theme 属性的问题
 # ============================================================
 
 const FONT_SIZE = 8
@@ -48,6 +49,7 @@ var _is_loading_combat : bool = false
 
 # ============================================================
 #  ★ 全局主题（ChipMusicEditor 风格）
+#  ★ 修复：CanvasLayer 没有 theme 属性，改为递归给所有 Control 子节点设 theme
 # ============================================================
 func _apply_compact_theme():
 	var t := Theme.new()
@@ -126,7 +128,16 @@ func _apply_compact_theme():
 	t.set_constant("minimum_grab_size", "HScrollBar", 6)
 	t.set_constant("scroll_height", "HScrollBar", 4)
 
-	theme = t
+	# ★ 修复：CanvasLayer 没有 theme 属性，递归应用到所有 Control 子节点
+	_apply_theme_to_all_controls(self, t)
+
+
+# ★ 新增：递归把所有 Control 子节点的 theme 设置成同一个，模拟全局主题
+func _apply_theme_to_all_controls(node: Node, t: Theme) -> void:
+	for child in node.get_children():
+		if child is Control:
+			(child as Control).theme = t
+		_apply_theme_to_all_controls(child, t)
 
 
 func _ready():

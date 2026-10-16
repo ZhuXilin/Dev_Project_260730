@@ -1,7 +1,16 @@
+@tool
 extends Control
 class_name MapLayoutCanvas
 
-var editor : Node = null
+# ============================================================
+#  MapLayoutCanvas — 地图布局编辑器的画布
+#  v2：editor 声明改为无类型，避免 @tool 环境下类型推断失败
+# ============================================================
+
+# ★ 关键：不写类型。editor 是被动态挂载的 MapLayoutEditor，
+#    在 @tool 环境下 Godot 有时无法正确推断，导致赋值报
+#    "Invalid assignment of property or key 'editor'"
+var editor = null
 
 const ARROW_LENGTH : float = 5.0
 const ARROW_WIDTH  : float = 3.5
@@ -9,7 +18,7 @@ const ARROW_WIDTH  : float = 3.5
 
 func _draw():
 	if editor == null: return
-	var day_layout : MapLayoutDay = editor._get_current_day_layout()
+	var day_layout = editor._get_current_day_layout()
 	if day_layout == null: return
 
 	var canvas_w : float = size.x
@@ -25,19 +34,17 @@ func _draw():
 			draw_string(font, Vector2(2, y - 2), "L%d" % i,
 				HORIZONTAL_ALIGNMENT_LEFT, -1, 7, Color(0.5, 0.5, 0.5, 0.7))
 
-	# ---- 连线（动态 gap）----
 	var link_color : Color = Color(0.35, 0.35, 0.35, 0.9) if in_test else Color(0.6, 0.6, 0.6, 0.9)
 	for i in range(day_layout.nodes.size()):
-		var node : MapLayoutNode = day_layout.nodes[i]
+		var node = day_layout.nodes[i]
 		for target in node.connects_to:
 			if target < 0 or target >= day_layout.nodes.size(): continue
 			var from_pos : Vector2 = editor._node_pos(i)
 			var to_pos : Vector2 = editor._node_pos(target)
 			_draw_directed_line(from_pos, to_pos, link_color, 1.0)
 
-	# ---- 节点 ----
 	for i in range(day_layout.nodes.size()):
-		var node : MapLayoutNode = day_layout.nodes[i]
+		var node = day_layout.nodes[i]
 		var pos : Vector2 = editor._node_pos(i)
 		var rect := Rect2(
 			pos - Vector2(editor.NODE_W / 2.0, editor.NODE_H / 2.0),
@@ -73,7 +80,6 @@ func _draw():
 				Vector2(pos.x - text_size2.x / 2.0, baseline_y2),
 				label2, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size2, Color.BLACK)
 
-			# ★ 节点下方绘制遗物名（4号字）
 			if not node.unlock_relics.is_empty():
 				var relic_line : String = _format_relic_line(node.unlock_relics)
 				if relic_line != "":
@@ -101,8 +107,13 @@ func _draw():
 			Color(1, 1, 0, 0.5), 1)
 
 
+func _gui_input(e : InputEvent):
+	if editor == null: return
+	editor._on_canvas_input(e)
+
+
 # ============================================================
-#  带方向箭头（动态出口距离）
+#  带方向箭头
 # ============================================================
 func _draw_directed_line(from_pos: Vector2, to_pos: Vector2, color: Color, width: float = 1.0):
 	var dir : Vector2 = to_pos - from_pos
@@ -112,22 +123,18 @@ func _draw_directed_line(from_pos: Vector2, to_pos: Vector2, color: Color, width
 	dir = dir / dist
 	var perp : Vector2 = Vector2(-dir.y, dir.x)
 
-	# ★ 动态 gap：沿 dir 方向走到目标矩形边界外 2px
 	var hw : float = editor.NODE_W * 0.5
 	var hh : float = editor.NODE_H * 0.5
 	var gap : float = _exit_gap_distance(dir, hw, hh) + 2.0
 	var line_end : Vector2 = to_pos - dir * gap
 
-	# 若线段被压得过短 → 退化到中点
 	if (line_end - from_pos).dot(dir) <= 0.0:
 		line_end = from_pos + dir * (dist * 0.5)
-		# 中点太短就放弃箭头（只画线）
 		draw_line(from_pos, line_end, color, width)
 		return
 
 	draw_line(from_pos, line_end, color, width)
 
-	# 箭头三角
 	var tip : Vector2 = line_end
 	var base_center : Vector2 = line_end - dir * ARROW_LENGTH
 	var left : Vector2 = base_center + perp * ARROW_WIDTH * 0.5
@@ -136,7 +143,6 @@ func _draw_directed_line(from_pos: Vector2, to_pos: Vector2, color: Color, width
 	draw_colored_polygon(PackedVector2Array([tip, left, right]), arrow_color)
 
 
-## 从矩形中心沿 dir 走到矩形边界的距离
 func _exit_gap_distance(dir: Vector2, hw: float, hh: float) -> float:
 	var ax : float = abs(dir.x)
 	var ay : float = abs(dir.y)
@@ -147,7 +153,7 @@ func _exit_gap_distance(dir: Vector2, hw: float, hh: float) -> float:
 	return min(hw / ax, hh / ay)
 
 
-func _node_color(node: MapLayoutNode) -> Color:
+func _node_color(node) -> Color:
 	if not node.random_pool.is_empty():
 		return Color(0.9, 0.85, 0.3)
 	match node.node_type:
@@ -161,7 +167,7 @@ func _node_color(node: MapLayoutNode) -> Color:
 	return Color.WHITE
 
 
-func _node_label(node: MapLayoutNode) -> String:
+func _node_label(node) -> String:
 	if not node.random_pool.is_empty():
 		var parts : Array = []
 		for t in node.random_pool:
@@ -182,7 +188,6 @@ func _node_type_short(t: int) -> String:
 	return "?"
 
 
-## 把遗物 id 列表格式化为一行显示文本（用 editor 的显示名）
 func _format_relic_line(relics: Array) -> String:
 	var names : Array = []
 	for rid in relics:
@@ -194,7 +199,6 @@ func _format_relic_line(relics: Array) -> String:
 		else:
 			n = rid
 		names.append(n)
-		# 最多显示 2 个，超出加 "…"
 		if names.size() >= 2:
 			break
 	var line : String = " ".join(names)

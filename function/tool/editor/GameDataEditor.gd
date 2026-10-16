@@ -1424,12 +1424,24 @@ func _style_spin(sp : SpinBox):
 	, CONNECT_ONE_SHOT)
 
 
+# ============================================================
+#  GameDataEditor — SpinBox 紧凑箭头（★ 本版加强）
+# ============================================================
+
+## ★ 把 SpinBox 的上下箭头按钮改小（视觉非常小，但仍可点）
+## 原来：custom_minimum_size = Vector2(3, 2) —— 尺寸太小导致鼠标点不中
+## 现在：宽 5px，高度跟随 SpinBox 行高；图标上限 4x3
+## 效果：箭头看起来像一根细条，几乎不占空间
 func _compact_spin_arrow_button(btn : Button):
-	btn.custom_minimum_size = Vector2(3, 2)
-	btn.icon_max_width = 2
-	btn.icon_max_height = 2
+	btn.custom_minimum_size = Vector2(5, 0)      # ★ 宽 5px，高由行撑开
+	btn.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	btn.icon_max_width = 4                        # ★ 箭头图标最多 4px 宽
+	btn.icon_max_height = 3                       # ★ 箭头图标最多 3px 高
 	btn.focus_mode = Control.FOCUS_NONE
 	btn.action_mode = BaseButton.ACTION_MODE_BUTTON_RELEASE
+	btn.flat = true                               # ★ 无边框
+	btn.expand_icon = false
+
 	var empty := StyleBoxEmpty.new()
 	empty.content_margin_left = 0
 	empty.content_margin_right = 0
@@ -1440,6 +1452,28 @@ func _compact_spin_arrow_button(btn : Button):
 	btn.add_theme_stylebox_override("pressed", empty)
 	btn.add_theme_stylebox_override("focus", empty)
 	btn.add_theme_stylebox_override("disabled", empty)
+
+
+## ★ 让 SpinBox 里的箭头按钮被点时不抢 LineEdit 焦点（否则数字无法"点进"）
+func _setup_spin(sp : SpinBox):
+	if not is_instance_valid(sp): return
+	var le := sp.get_line_edit()
+	if le:
+		le.add_theme_font_size_override("font_size", FS_BUTTON)
+		le.select_all_on_focus = true
+	var btns : Array[Node] = sp.find_children("*", "Button", true, false)
+	for b in btns:
+		_compact_spin_arrow_button(b as Button)
+		var btn := b as Button
+		if not btn.gui_input.is_connected(_on_spin_arrow_gui):
+			btn.gui_input.connect(_on_spin_arrow_gui)
+
+
+func _on_spin_arrow_gui(e : InputEvent):
+	if e is InputEventMouseButton and e.pressed \
+		and e.button_index == MOUSE_BUTTON_LEFT:
+		# 不做任何事，让 Button 的默认行为（Stepper 加减）继续
+		pass
 
 
 # ============================================================

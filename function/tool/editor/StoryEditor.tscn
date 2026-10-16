@@ -3,17 +3,73 @@
 [ext_resource type="Script" uid="uid://bh08dglryn8oe" path="res://function/tool/editor/StoryEditor.gd" id="1_script"]
 
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_6gv2d"]
-content_margin_left = 3.0
+content_margin_left = 1.0
 content_margin_top = 0.0
-content_margin_right = 3.0
+content_margin_right = 1.0
 content_margin_bottom = 0.0
 
-[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_h5ind"]
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_h5ind"]
+bg_color = Color(0.32, 0.32, 0.38, 1)
+corner_radius_top_left = 2
+corner_radius_top_right = 2
+corner_radius_bottom_right = 2
+corner_radius_bottom_left = 2
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_jbe63"]
-bg_color = Color(0.28, 0.36, 0.5, 1)
+bg_color = Color(0.55, 0.55, 0.65, 1)
+corner_radius_top_left = 2
+corner_radius_top_right = 2
+corner_radius_bottom_right = 2
+corner_radius_bottom_left = 2
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_dc17i"]
+content_margin_left = 0.0
+content_margin_top = 0.0
+content_margin_right = 0.0
+content_margin_bottom = 0.0
+bg_color = Color(0.08, 0.08, 0.1, 1)
+
+[sub_resource type="Image" id="Image_5ck4e"]
+data = {
+"data": PackedByteArray(198, 198, 209, 255, 198, 198, 209, 255, 198, 198, 209, 255, 198, 198, 209, 255, 198, 198, 209, 255, 198, 198, 209, 255, 198, 198, 209, 255, 198, 198, 209, 255),
+"format": "RGBA8",
+"height": 4,
+"mipmaps": false,
+"width": 2
+}
+
+[sub_resource type="ImageTexture" id="ImageTexture_cbv1c"]
+image = SubResource("Image_5ck4e")
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_56fpi"]
+content_margin_top = 1.5
+content_margin_bottom = 1.5
+bg_color = Color(0.5, 0.5, 0.55, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_8ekhf"]
+content_margin_top = 1.5
+content_margin_bottom = 1.5
+bg_color = Color(0.2, 0.2, 0.24, 1)
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_lvk41"]
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_23kck"]
+content_margin_left = 2.0
+content_margin_right = 2.0
+
+[sub_resource type="Image" id="Image_i8f2m"]
+data = {
+"data": PackedByteArray(183, 183, 198, 255, 183, 183, 198, 255, 183, 183, 198, 255, 183, 183, 198, 255, 183, 183, 198, 255, 183, 183, 198, 255, 183, 183, 198, 255, 0, 0, 0, 0, 183, 183, 198, 255, 183, 183, 198, 255, 183, 183, 198, 255, 183, 183, 198, 255, 183, 183, 198, 255, 0, 0, 0, 0, 0, 0, 0, 0, 183, 183, 198, 255, 183, 183, 198, 255, 183, 183, 198, 255, 183, 183, 198, 255, 183, 183, 198, 255, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 183, 183, 198, 255, 183, 183, 198, 255, 183, 183, 198, 255, 0, 0, 0, 0, 0, 0, 0, 0),
+"format": "RGBA8",
+"height": 4,
+"mipmaps": false,
+"width": 7
+}
+
+[sub_resource type="ImageTexture" id="ImageTexture_ip7wg"]
+image = SubResource("Image_i8f2m")
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_0gypu"]
 content_margin_left = 2.0
 content_margin_top = 2.0
 content_margin_right = 2.0
@@ -25,46 +81,72 @@ border_width_right = 1
 border_width_bottom = 1
 border_color = Color(0.28, 0.28, 0.34, 1)
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_5ck4e"]
-content_margin_left = 4.0
-content_margin_top = 2.0
-content_margin_right = 4.0
-content_margin_bottom = 2.0
-bg_color = Color(0.1, 0.1, 0.13, 0.95)
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
-border_color = Color(0.4, 0.4, 0.5, 1)
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_v5rcx"]
+content_margin_left = 3.0
+content_margin_top = 1.0
+content_margin_right = 3.0
+content_margin_bottom = 1.0
+bg_color = Color(0.15, 0.15, 0.15, 0.92)
 
-[sub_resource type="Theme" id="Theme_cbv1c"]
+[sub_resource type="StyleBoxLine" id="StyleBoxLine_wcgfi"]
+color = Color(0.36, 0.36, 0.42, 1)
+grow_begin = 2.0
+grow_end = 2.0
+vertical = true
+
+[sub_resource type="Theme" id="Theme_lw1jx"]
 Button/font_sizes/font_size = 6
 Button/styles/disabled = SubResource("StyleBoxEmpty_6gv2d")
 Button/styles/focus = SubResource("StyleBoxEmpty_6gv2d")
 Button/styles/hover = SubResource("StyleBoxEmpty_6gv2d")
 Button/styles/normal = SubResource("StyleBoxEmpty_6gv2d")
 Button/styles/pressed = SubResource("StyleBoxEmpty_6gv2d")
-CheckBox/font_sizes/font_size = 6
-CheckButton/font_sizes/font_size = 6
+HScrollBar/constants/minimum_grab_size = 6
+HScrollBar/constants/scroll_height = 4
+HScrollBar/styles/grabber = SubResource("StyleBoxFlat_h5ind")
+HScrollBar/styles/grabber_highlight = SubResource("StyleBoxFlat_jbe63")
+HScrollBar/styles/grabber_pressed = SubResource("StyleBoxFlat_jbe63")
+HScrollBar/styles/scroll = SubResource("StyleBoxFlat_dc17i")
+HScrollBar/styles/scroll_focus = SubResource("StyleBoxFlat_dc17i")
+HSlider/constants/center_grabber = 1
+HSlider/constants/grabber_offset = 0
+HSlider/icons/grabber = SubResource("ImageTexture_cbv1c")
+HSlider/icons/grabber_disabled = SubResource("ImageTexture_cbv1c")
+HSlider/icons/grabber_highlight = SubResource("ImageTexture_cbv1c")
+HSlider/styles/grabber_area = SubResource("StyleBoxFlat_56fpi")
+HSlider/styles/grabber_area_highlight = SubResource("StyleBoxFlat_56fpi")
+HSlider/styles/slider = SubResource("StyleBoxFlat_8ekhf")
 Label/font_sizes/font_size = 6
-Label/styles/normal = SubResource("StyleBoxEmpty_h5ind")
+Label/styles/normal = SubResource("StyleBoxEmpty_lvk41")
 LineEdit/font_sizes/font_size = 6
+LineEdit/styles/focus = SubResource("StyleBoxEmpty_23kck")
+LineEdit/styles/normal = SubResource("StyleBoxEmpty_23kck")
+LineEdit/styles/read_only = SubResource("StyleBoxEmpty_23kck")
+OptionButton/constants/arrow_margin = 2
+OptionButton/constants/modulate_arrow = 0
 OptionButton/font_sizes/font_size = 6
+OptionButton/icons/arrow = SubResource("ImageTexture_ip7wg")
 PopupMenu/constants/h_separation = 0
-PopupMenu/constants/icon_max_width = 8
-PopupMenu/constants/item_end_padding = 4
-PopupMenu/constants/item_start_padding = 4
+PopupMenu/constants/icon_max_width = 6
+PopupMenu/constants/item_end_padding = 3
+PopupMenu/constants/item_start_padding = 3
 PopupMenu/constants/outline_size = 0
 PopupMenu/constants/v_separation = 0
-PopupMenu/font_sizes/font_separator_outline_size = 7
-PopupMenu/font_sizes/font_separator_size = 7
-PopupMenu/font_sizes/font_size = 7
-PopupMenu/styles/hover = SubResource("StyleBoxFlat_jbe63")
-PopupMenu/styles/panel = SubResource("StyleBoxFlat_dc17i")
+PopupMenu/font_sizes/font_separator_size = 5
+PopupMenu/font_sizes/font_size = 5
+PopupMenu/styles/panel = SubResource("StyleBoxFlat_0gypu")
 SpinBox/font_sizes/font_size = 6
-TooltipLabel/font_sizes/font_size = 6
-TooltipPanel/font_sizes/font_size = 6
-TooltipPanel/styles/panel = SubResource("StyleBoxFlat_5ck4e")
+TooltipLabel/font_sizes/font_size = 5
+TooltipPanel/font_sizes/font_size = 5
+TooltipPanel/styles/panel = SubResource("StyleBoxFlat_v5rcx")
+VScrollBar/constants/minimum_grab_size = 6
+VScrollBar/constants/scroll_width = 4
+VScrollBar/styles/grabber = SubResource("StyleBoxFlat_h5ind")
+VScrollBar/styles/grabber_highlight = SubResource("StyleBoxFlat_jbe63")
+VScrollBar/styles/grabber_pressed = SubResource("StyleBoxFlat_jbe63")
+VScrollBar/styles/scroll = SubResource("StyleBoxFlat_dc17i")
+VScrollBar/styles/scroll_focus = SubResource("StyleBoxFlat_dc17i")
+VSeparator/styles/separator = SubResource("StyleBoxLine_wcgfi")
 
 [node name="StoryEditor" type="Control" unique_id=900000001]
 layout_mode = 3
@@ -73,5 +155,5 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-theme = SubResource("Theme_cbv1c")
+theme = SubResource("Theme_lw1jx")
 script = ExtResource("1_script")

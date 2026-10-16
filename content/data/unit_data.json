@@ -29,7 +29,15 @@
 		"stat_bonus": { "max_hp": 8, "strength": 2, "faith": 2 },
 		"granted_talent": "active_taunt",
 		"flavor": "我的盾，就是同伴的墙。",
-		"sprite_frames_path": "res://content/images/characters/unit_guardian_frames.tres", "tags": ["物理", "守护"] }
+		"sprite_frames_path": "res://content/images/characters/unit_guardian_frames.tres", "tags": ["物理", "守护"] },
+	  { "id": "swordsman_hidden_branch", "name": "灰烬剑圣",
+		"description": "隐藏质变：角斗士传承。全属性强化，攻击附加吸血",
+		"stat_bonus": { "max_hp": 6, "strength": 3, "dexterity": 3, "faith": 2 },
+		"granted_talent": "lifesteal",
+		"flavor": "唯有在斗技场见证过千场血战的人，才能走上这条路。",
+		"sprite_frames_path": "res://content/images/characters/unit_swordsmen_frames.tres",
+		"tags": ["物理", "余烬"],
+		"hidden": true }
 	]
   },
   "spearman": {

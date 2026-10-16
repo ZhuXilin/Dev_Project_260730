@@ -9,7 +9,10 @@ class_name AdvancedClassData
 @export var granted_talent: String = ""
 @export var flavor: String = ""
 @export var sprite_frames_path: String = ""
-@export var tags: Array[String] = []   # ★ 新增
+@export var tags: Array[String] = []
+
+# ★ 新增：隐藏分支。true 时默认不出现在英雄殿，需剧情 unlock 才可见
+@export var hidden: bool = false
 
 static func from_dict(d: Dictionary, base_unit_key: String = "") -> AdvancedClassData:
 	var r = AdvancedClassData.new()
@@ -21,7 +24,7 @@ static func from_dict(d: Dictionary, base_unit_key: String = "") -> AdvancedClas
 	r.granted_talent = d.get("granted_talent", "")
 	r.flavor = d.get("flavor", "")
 	r.sprite_frames_path = d.get("sprite_frames_path", "")
-	# ★ 读 tags
+	r.hidden = bool(d.get("hidden", false))     # ★ 读 hidden 字段
 	var tags_raw : Variant = d.get("tags", [])
 	if tags_raw is Array:
 		for t in tags_raw:

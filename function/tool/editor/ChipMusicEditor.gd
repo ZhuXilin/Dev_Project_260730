@@ -3,7 +3,8 @@ extends Control
 
 # ============================================================
 #  ChipMusicEditor — 独立 8-bit 音乐编辑器
-#  本版新增：批量归一化音量、细滚动条主题、_toast 提示
+#  v3.3：把 SeekBar 里的 == null 换成 typeof() 判断，
+#        彻底消除 "Nil → float" 运行时错误
 # ============================================================
 
 const MUSIC_DIR : String = "res://content/music/"
@@ -43,7 +44,6 @@ const META_LABEL_W : int = 28
 
 const CH_ALL : int = -1
 
-# 批量归一化目标峰值
 const NORMALIZE_TARGET_PEAK : float = 0.8
 const NORMALIZE_MIN_DELTA : float = 0.01
 
@@ -74,6 +74,7 @@ const COL_LOOP_OFF : Color = Color(0.20, 0.20, 0.24)
 
 const HINT_TEXT : String = "左键空白=添加/框选 · 左键音符=选中/拖动 · 拖右边缘=改时长 · 中键拖动=平移 · 右键音符=删除 · 右键空白=菜单 · Delete=删除 · Ctrl+X/C/V=剪切/复制/粘贴 · ↑↓=移调 · Shift+↑↓=八度 · ←→=移动 · Shift+←→=整拍 · Ctrl+A=全选 · 滚轮=滚动 · Ctrl+滚轮=缩放 · 空格=播放 · Esc=退出"
 
+# ★ 关键：带类型 + 初始值。任何形式的 "= null" 都会导致下游 null 传递
 var _row_height : float = 7.0
 var _px_per_beat : float = 60.0
 
@@ -93,7 +94,6 @@ var _ch_colors : Array[Color] = [
 ]
 
 
-# ============================================================
 class GridCanvas extends Control:
 	var editor : Control = null
 	func _draw():
@@ -112,31 +112,93 @@ class SeekBar extends Control:
 	var dragging : bool = false
 
 	func _get_total() -> float:
-		if editor and editor._song:
-			return maxf(1.0, float(editor._song.total_ticks))
-		return 64.0
+		if editor == null:
+			return 64.0
+		var s = editor.get("_song")
+		if s == null:
+			return 64.0
+		# 直接读 _song.total_ticks；如果 s 是 ChipSong，它一定有 total_ticks
+		var t : Variant = s.get("total_ticks")
+		if typeof(t) == TYPE_NIL:
+			return 64.0
+		return maxf(1.0, float(t))
 
 	func set_value(v : float):
 		value = clampf(v, 0.0, _get_total())
 		queue_redraw()
 
+	# ★ 用 typeof 精确判断，避免 Godot 4.7 下 Object.get() 返回的 Nil Variant
+	#    与 == null 比较失败导致的下游 float() 报错
+	func _safe_ppp() -> float:
+		if editor == null:
+			return 60.0
+		var p : Variant = editor.get("_px_per_beat")
+		if typeof(p) == TYPE_FLOAT:
+			return float(p)
+		if typeof(p) == TYPE_INT:
+			return float(p)
+		return 60.0
+
+	func _safe_scroll_x() -> float:
+		if editor == null:
+			return 0.0
+		var v : Variant = editor.get("_scroll_x")
+		if typeof(v) == TYPE_FLOAT:
+			return float(v)
+		if typeof(v) == TYPE_INT:
+			return float(v)
+		return 0.0
+
+	func _safe_tpb() -> int:
+		if editor == null:
+			return 4
+		var s = editor.get("_song")
+		if s == null:
+			return 4
+		var t : Variant = s.get("ticks_per_beat")
+		if typeof(t) == TYPE_NIL:
+			return 4
+		return maxi(1, int(t))
+
+	func _safe_bpb() -> int:
+		if editor == null:
+			return 4
+		var s = editor.get("_song")
+		if s == null:
+			return 4
+		var t : Variant = s.get("beats_per_bar")
+		if typeof(t) == TYPE_NIL:
+			return 4
+		return maxi(1, int(t))
+
+	func _safe_total_ticks() -> int:
+		if editor == null:
+			return 64
+		var s = editor.get("_song")
+		if s == null:
+			return 64
+		var t : Variant = s.get("total_ticks")
+		if typeof(t) == TYPE_NIL:
+			return 64
+		return int(t)
+
 	func _draw():
 		if editor == null: return
 		var sz := size
 		if sz.x <= 0.0 or sz.y <= 0.0: return
-		var ppp : float = editor._px_per_beat
-		var sx : float = editor._scroll_x
-		var pw : float = editor.PIANO_WIDTH
+		var ppp : float = _safe_ppp()
+		var sx : float = _safe_scroll_x()
+		var pw : float = PIANO_WIDTH
 		draw_rect(Rect2(Vector2.ZERO, sz), Color(0.14, 0.14, 0.17))
-		var tpb : int = 4
-		var bpb : int = 4
-		var total : int = 64
-		if editor._song:
-			tpb = maxi(1, int(editor._song.ticks_per_beat))
-			bpb = maxi(1, int(editor._song.beats_per_bar))
-			total = int(editor._song.total_ticks)
+
+		var tpb : int = _safe_tpb()
+		var bpb : int = _safe_bpb()
+		var total : int = _safe_total_ticks()
+
 		var fnt := ThemeDB.fallback_font
 		var px_per_bar : float = ppp * float(bpb)
+		if px_per_bar <= 0.001:
+			px_per_bar = 60.0
 		var first_bar : int = int(floor(sx / px_per_bar))
 		var bars_visible : int = int(ceil(sz.x / px_per_bar)) + 2
 		for b in range(first_bar, first_bar + bars_visible + 1):
@@ -187,12 +249,12 @@ class SeekBar extends Control:
 			accept_event()
 
 	func _seek(pos : Vector2):
-		if editor == null or editor._song == null: return
-		var ppp : float = editor._px_per_beat
-		var sx : float = editor._scroll_x
-		var pw : float = editor.PIANO_WIDTH
-		var tpb : int = maxi(1, int(editor._song.ticks_per_beat))
-		var tick : float = (pos.x - pw + sx) / ppp * float(tpb)
+		if editor == null: return
+		var ppp : float = _safe_ppp()
+		var sx : float = _safe_scroll_x()
+		var pw : float = PIANO_WIDTH
+		var tpb : int = _safe_tpb()
+		var tick : float = (pos.x - pw + sx) / maxf(ppp, 0.001) * float(tpb)
 		value = clampf(tick, 0.0, _get_total())
 		seek_changed.emit(value)
 		queue_redraw()
@@ -265,7 +327,7 @@ var _play_btn : Button = null
 var _stop_btn : Button = null
 var _save_btn : Button = null
 var _status : Label = null
-var _toast_label : Label = null       # ★ 新增
+var _toast_label : Label = null
 var _note_info : Label = null
 var _note_tick : SpinBox = null
 var _note_pitch : SpinBox = null
@@ -274,8 +336,14 @@ var _note_dur : SpinBox = null
 var _note_box : HBoxContainer = null
 
 
-# ============================================================
 func _ready():
+	# ★ 在任何 UI 构建之前强制初始化，杜绝任何 null 传递
+	_row_height = 7.0
+	_px_per_beat = 60.0
+	_scroll_x = 0.0
+	_scroll_y = 0.0
+	_playhead_tick = -1.0
+
 	_apply_compact_theme()
 	_player = ChipMusicPlayer.new()
 	add_child(_player)
@@ -286,15 +354,16 @@ func _ready():
 func _process(_delta : float):
 	if _events_dirty:
 		_events_dirty = false
-
 	if _dragging_progress: return
 	if _player and _player.is_playing():
 		var raw_tick : float = float(_player.get_current_tick())
 		var total : float = 64.0
 		if _song: total = float(_song.total_ticks)
 		_playhead_tick = clampf(raw_tick, 0.0, total)
-		if _seek_bar: _seek_bar.set_value(_playhead_tick)
-		if _grid_canvas: _grid_canvas.queue_redraw()
+		if _seek_bar and is_instance_valid(_seek_bar):
+			_seek_bar.set_value(_playhead_tick)
+		if _grid_canvas and is_instance_valid(_grid_canvas):
+			_grid_canvas.queue_redraw()
 
 
 func _apply_compact_theme():
@@ -314,18 +383,10 @@ func _apply_compact_theme():
 
 	t.set_font_size("font_size", "Label", FS_LABEL)
 	var label_empty := StyleBoxEmpty.new()
-	label_empty.content_margin_left = 0
-	label_empty.content_margin_right = 0
-	label_empty.content_margin_top = 0
-	label_empty.content_margin_bottom = 0
 	t.set_stylebox("normal", "Label", label_empty)
 
 	t.set_font_size("font_size", "LineEdit", FS_BUTTON)
 	var le_empty := StyleBoxEmpty.new()
-	le_empty.content_margin_left = 0
-	le_empty.content_margin_right = 0
-	le_empty.content_margin_top = 0
-	le_empty.content_margin_bottom = 0
 	t.set_stylebox("normal", "LineEdit", le_empty)
 	t.set_stylebox("focus", "LineEdit", le_empty)
 	t.set_stylebox("read_only", "LineEdit", le_empty)
@@ -381,18 +442,12 @@ func _setup_slider_theme(t : Theme):
 func _setup_scrollbar_theme(t : Theme):
 	var track := StyleBoxFlat.new()
 	track.bg_color = Color(0.08, 0.08, 0.10, 1)
-	track.content_margin_left = 0
-	track.content_margin_right = 0
-	track.content_margin_top = 0
-	track.content_margin_bottom = 0
-
 	var grab_off := StyleBoxFlat.new()
 	grab_off.bg_color = Color(0.32, 0.32, 0.38, 1)
 	grab_off.corner_radius_top_left = 2
 	grab_off.corner_radius_top_right = 2
 	grab_off.corner_radius_bottom_left = 2
 	grab_off.corner_radius_bottom_right = 2
-
 	var grab_hl := StyleBoxFlat.new()
 	grab_hl.bg_color = Color(0.55, 0.55, 0.65, 1)
 	grab_hl.corner_radius_top_left = 2
@@ -475,7 +530,7 @@ func _build_ui():
 
 	_make_info_panel(root)
 	_make_hint_bar(root)
-	_make_toast_label(root)     # ★ 新增
+	_make_toast_label(root)
 
 
 func _make_toolbar(parent : Node):
@@ -560,7 +615,6 @@ func _make_toolbar(parent : Node):
 
 	bar.add_child(_make_vsep())
 
-	# ★ 批量归一化
 	var normalize_btn := _mk_btn("批量归一化", func(): _batch_normalize_volume())
 	normalize_btn.tooltip_text = "扫描 music/ 与 sound/ 下所有 JSON，把所有通道音量按峰值缩放到 0.8"
 	bar.add_child(normalize_btn)
@@ -961,7 +1015,6 @@ func _make_hint_bar(parent : Node):
 	panel.add_child(_status)
 
 
-# ★ 新增：屏幕下方 toast 提示条
 func _make_toast_label(parent : Node):
 	_toast_label = Label.new()
 	_toast_label.add_theme_font_size_override("font_size", FS_SMALL)
@@ -971,7 +1024,6 @@ func _make_toast_label(parent : Node):
 	parent.add_child(_toast_label)
 
 
-# ★ 新增：显示 1.5 秒的 toast
 func _toast(msg : String):
 	if _toast_label == null:
 		return
@@ -1218,7 +1270,6 @@ func _batch_normalize_volume():
 		_load_file(_path)
 
 
-## 返回：1=有变化且已保存，0=无变化，-1=失败
 func _normalize_song_file(path : String) -> int:
 	if not FileAccess.file_exists(path):
 		return -1
@@ -1244,15 +1295,15 @@ func _normalize_song_file(path : String) -> int:
 	if peak <= 0.0001:
 		return 0
 
-	var scale : float = NORMALIZE_TARGET_PEAK / peak
-	if is_equal_approx(scale, 1.0):
+	var norm_scale : float = NORMALIZE_TARGET_PEAK / peak
+	if is_equal_approx(norm_scale, 1.0):
 		return 0
 
 	var changed : bool = false
 	for c in channels:
 		if c is Dictionary:
 			var old_v : float = float(c.get("volume", 1.0))
-			var new_v : float = clampf(old_v * scale, 0.0, 1.0)
+			var new_v : float = clampf(old_v * norm_scale, 0.0, 1.0)
 			if absf(new_v - old_v) >= NORMALIZE_MIN_DELTA:
 				c["volume"] = new_v
 				changed = true
@@ -1665,7 +1716,7 @@ func _refresh_channel_buttons():
 
 
 # ============================================================
-#  绘制
+#  绘制（网格）
 # ============================================================
 func _draw_grid(c : Control):
 	var sz : Vector2 = c.size
@@ -1683,28 +1734,31 @@ func _draw_grid(c : Control):
 		tpb = maxi(1, int(_song.ticks_per_beat))
 		bpb = maxi(1, int(_song.beats_per_bar))
 
-	var pitch_top : int = PITCH_MAX - int(_scroll_y / _row_height)
-	var pitch_bot : int = PITCH_MAX - int((_scroll_y + gh) / _row_height) - 1
+	var rh : float = maxf(_row_height, 0.001)
+	var ppp : float = maxf(_px_per_beat, 0.001)
+
+	var pitch_top : int = PITCH_MAX - int(_scroll_y / rh)
+	var pitch_bot : int = PITCH_MAX - int((_scroll_y + gh) / rh) - 1
 	pitch_top = mini(pitch_top, PITCH_MAX)
 	pitch_bot = maxi(pitch_bot, PITCH_MIN)
 
 	for p in range(pitch_bot, pitch_top + 1):
-		var y : float = gy + float(PITCH_MAX - p) * _row_height - _scroll_y
+		var y : float = gy + float(PITCH_MAX - p) * rh - _scroll_y
 		var col : Color = COL_ROW_BLACK if _is_black(p) else COL_ROW_WHITE
-		c.draw_rect(Rect2(gx, y, gw, _row_height), col)
+		c.draw_rect(Rect2(gx, y, gw, rh), col)
 
-	var px_per_tick : float = _px_per_beat / float(tpb)
+	var px_per_tick : float = ppp / float(tpb)
 	var step : int = 1
 	if px_per_tick < 2.0: step = tpb
 	if px_per_tick * float(step) < 3.0: step = tpb * bpb
 
-	var first_tick : int = int(_scroll_x / _px_per_beat * float(tpb))
+	var first_tick : int = int(_scroll_x / ppp * float(tpb))
 	first_tick = first_tick - (first_tick % step)
-	var last_tick : int = int((_scroll_x + gw) / _px_per_beat * float(tpb)) + step
+	var last_tick : int = int((_scroll_x + gw) / ppp * float(tpb)) + step
 
 	var t : int = first_tick
 	while t <= last_tick:
-		var x : float = gx + float(t) / float(tpb) * _px_per_beat - _scroll_x
+		var x : float = gx + float(t) / float(tpb) * ppp - _scroll_x
 		if x >= gx and x <= sz.x:
 			var col : Color = COL_GRID_TICK
 			var w : float = 1.0
@@ -1725,15 +1779,15 @@ func _draw_grid(c : Control):
 			var ed : float = float(e.dur)
 			var en : float = float(e.note)
 			var ev : float = float(e.vel)
-			var ex : float = gx + et / float(tpb) * _px_per_beat - _scroll_x
-			var ew : float = maxf(3.0, ed / float(tpb) * _px_per_beat)
-			var ey : float = gy + float(PITCH_MAX - int(en)) * _row_height - _scroll_y
+			var ex : float = gx + et / float(tpb) * ppp - _scroll_x
+			var ew : float = maxf(3.0, ed / float(tpb) * ppp)
+			var ey : float = gy + float(PITCH_MAX - int(en)) * rh - _scroll_y
 			if ex + ew < gx or ex > sz.x: continue
-			if ey + _row_height < gy or ey > sz.y: continue
+			if ey + rh < gy or ey > sz.y: continue
 			var col : Color = _ch_colors[ec] if ec < _ch_colors.size() else Color.WHITE
 			if i in _selected_indices:
 				col = COL_NOTE_SEL
-			c.draw_rect(Rect2(ex, ey + 1.0, ew, _row_height - 2.0), col)
+			c.draw_rect(Rect2(ex, ey + 1.0, ew, rh - 2.0), col)
 
 			if ew >= 12.0:
 				var vel_txt := str(int(ev))
@@ -1741,23 +1795,23 @@ func _draw_grid(c : Control):
 				var tsize2 := fnt2.get_string_size(vel_txt,
 					HORIZONTAL_ALIGNMENT_LEFT, -1, FS_NOTE_VEL)
 				var tx : float = ex + (ew - tsize2.x) * 0.5
-				var ty : float = ey + _row_height - 2.0
+				var ty : float = ey + rh - 2.0
 				c.draw_string(fnt2, Vector2(tx, ty), vel_txt,
 					HORIZONTAL_ALIGNMENT_LEFT, -1, FS_NOTE_VEL,
 					Color(0.98, 0.98, 0.98, 0.95))
 
 	c.draw_rect(Rect2(0, gy, PIANO_WIDTH, gh), Color(0.10, 0.10, 0.13))
 	for p in range(pitch_bot, pitch_top + 1):
-		var y : float = gy + float(PITCH_MAX - p) * _row_height - _scroll_y
-		if y + _row_height < gy or y > sz.y: continue
+		var y : float = gy + float(PITCH_MAX - p) * rh - _scroll_y
+		if y + rh < gy or y > sz.y: continue
 		var key_col : Color = COL_PIANO_BLACK if _is_black(p) else COL_PIANO_WHITE
 		var key_w : float = PIANO_WIDTH - 1.0
-		c.draw_rect(Rect2(0, y, key_w, _row_height - 1.0), key_col)
+		c.draw_rect(Rect2(0, y, key_w, rh - 1.0), key_col)
 		c.draw_line(Vector2(0, y), Vector2(key_w, y), COL_PIANO_LINE, 1.0)
 		if p % 12 == 0:
 			var oct : int = int(float(p) / 12.0) - 1
 			var fnt := ThemeDB.fallback_font
-			c.draw_string(fnt, Vector2(1.0, y + _row_height - 1.0),
+			c.draw_string(fnt, Vector2(1.0, y + rh - 1.0),
 						  "C%d" % oct, HORIZONTAL_ALIGNMENT_LEFT, -1, 6,
 						  Color(0.35, 0.35, 0.40))
 	c.draw_line(Vector2(PIANO_WIDTH, gy), Vector2(PIANO_WIDTH, sz.y),
@@ -1774,7 +1828,7 @@ func _draw_grid(c : Control):
 				Vector2(start_x + 3.0, gy),
 				Vector2(start_x, gy + 4.0),
 			]), COL_TRACK_START)
-		var end_x : float = gx + total_tick / float(tpb) * _px_per_beat - _scroll_x
+		var end_x : float = gx + total_tick / float(tpb) * ppp - _scroll_x
 		if end_x >= gx - 1.0 and end_x <= sz.x + 1.0:
 			c.draw_line(Vector2(end_x, gy), Vector2(end_x, sz.y),
 				COL_TRACK_END, 1.0)
@@ -1790,7 +1844,7 @@ func _draw_grid(c : Control):
 		c.draw_rect(br, Color(COL_BOX_SEL.r, COL_BOX_SEL.g, COL_BOX_SEL.b, 0.90), false, 1.0)
 
 	if _playhead_tick >= 0.0:
-		var px : float = gx + _playhead_tick / float(tpb) * _px_per_beat - _scroll_x
+		var px : float = gx + _playhead_tick / float(tpb) * ppp - _scroll_x
 		if px >= gx and px <= sz.x:
 			c.draw_line(Vector2(px, gy), Vector2(px, sz.y), COL_PLAYHEAD, 1.5)
 
@@ -1802,6 +1856,8 @@ func _on_grid_input(event : InputEvent, c : Control):
 	if _song == null: return
 	var tpb : int = maxi(1, int(_song.ticks_per_beat))
 	var gx : float = PIANO_WIDTH
+	var rh : float = maxf(_row_height, 0.001)
+	var ppp : float = maxf(_px_per_beat, 0.001)
 
 	if event is InputEventMouseButton:
 		var mb : InputEventMouseButton = event
@@ -1838,8 +1894,8 @@ func _on_grid_input(event : InputEvent, c : Control):
 
 		var world_x : float = mp.x - gx + _scroll_x
 		var world_y : float = mp.y + _scroll_y
-		var click_tick : float = world_x / _px_per_beat * float(tpb)
-		var row_idx : int = int(floor(world_y / _row_height))
+		var click_tick : float = world_x / ppp * float(tpb)
+		var row_idx : int = int(floor(world_y / rh))
 		var click_pitch : int = clampi(PITCH_MAX - row_idx, PITCH_MIN, PITCH_MAX)
 
 		if mb.button_index == MOUSE_BUTTON_LEFT:
@@ -1949,8 +2005,8 @@ func _zoom_at_mouse(mp : Vector2, factor : float, c : Control):
 		vmin = _vzoom_slider.min_value
 		vmax = _vzoom_slider.max_value
 
-	var old_ppp : float = _px_per_beat
-	var old_rh : float = _row_height
+	var old_ppp : float = maxf(_px_per_beat, 0.001)
+	var old_rh : float = maxf(_row_height, 0.001)
 	var new_ppp : float = clampf(old_ppp * factor, zmin, zmax)
 	var new_rh : float = clampf(old_rh * factor, vmin, vmax)
 
@@ -2108,24 +2164,6 @@ func _show_tracker_menu():
 # ============================================================
 #  菜单功能
 # ============================================================
-func _clip_template_to_range(template : Array, bar_start : float, bar_end : float) -> Array:
-	var out : Array = []
-	for src in template:
-		var e : Dictionary = src
-		var t : float = float(e.tick)
-		var d : float = float(e.dur)
-		var t_end : float = t + d
-		if t_end <= bar_start or t >= bar_end:
-			continue
-		var nt : float = maxf(t, bar_start)
-		var ne_end : float = minf(t_end, bar_end)
-		var ne : Dictionary = e.duplicate()
-		ne.tick = nt
-		ne.dur = maxf(1.0, ne_end - nt)
-		out.append(ne)
-	return out
-
-
 func _prepare_fill_template() -> Dictionary:
 	if _song == null or _selected_indices.size() == 0:
 		return {"ok": false, "msg": "没有选中的块"}
@@ -2137,6 +2175,8 @@ func _prepare_fill_template() -> Dictionary:
 	var bar_ticks : int = tpb * bpb
 	if bar_ticks <= 0:
 		return {"ok": false, "msg": "参数错误"}
+
+	var ppp : float = maxf(_px_per_beat, 0.001)
 
 	var sel_events : Array = []
 	var pitch_min : int = PITCH_MAX
@@ -2155,8 +2195,8 @@ func _prepare_fill_template() -> Dictionary:
 	var range_tick_start : float
 	var range_tick_end : float
 	if _has_last_box:
-		range_tick_start = _last_box_world_rect.position.x / _px_per_beat * float(tpb)
-		range_tick_end = (_last_box_world_rect.position.x + _last_box_world_rect.size.x) / _px_per_beat * float(tpb)
+		range_tick_start = _last_box_world_rect.position.x / ppp * float(tpb)
+		range_tick_end = (_last_box_world_rect.position.x + _last_box_world_rect.size.x) / ppp * float(tpb)
 	else:
 		var min_t : float = INF
 		var max_t : float = -INF
@@ -2233,7 +2273,7 @@ func _fill_track_after():
 		kept.append(ev)
 
 	var added : Array = []
-	var num_repeats : int = int(ceil(float(total) / pattern_len)) + 2
+	var num_repeats : int = int(ceil(float(total) / maxf(pattern_len, 0.001))) + 2
 	for i in range(0, num_repeats):
 		var offset : float = float(i) * pattern_len
 		for src in template:
@@ -2288,7 +2328,7 @@ func _fill_track_before():
 		kept.append(ev)
 
 	var added : Array = []
-	var num_repeats : int = int(ceil(base_bar_tick / pattern_len)) + 1
+	var num_repeats : int = int(ceil(base_bar_tick / maxf(pattern_len, 0.001))) + 1
 	for i in range(0, num_repeats):
 		var offset : float = -float(i + 1) * pattern_len
 		for src in template:
@@ -2340,6 +2380,8 @@ func _finish_box_select(c : Control):
 	var rect := Rect2(_box_start, _box_end - _box_start).abs()
 	var tpb : int = maxi(1, int(_song.ticks_per_beat))
 	var gx : float = PIANO_WIDTH
+	var rh : float = maxf(_row_height, 0.001)
+	var ppp : float = maxf(_px_per_beat, 0.001)
 
 	if rect.size.x < 3.0 and rect.size.y < 3.0:
 		if _selected_indices.size() > 0 and not _box_additive:
@@ -2350,8 +2392,8 @@ func _finish_box_select(c : Control):
 		if _selected_channel != CH_ALL:
 			var world_x : float = _box_start.x - gx + _scroll_x
 			var world_y : float = _box_start.y + _scroll_y
-			var tick : int = int(world_x / _px_per_beat * float(tpb))
-			var row_idx : int = int(floor(world_y / _row_height))
+			var tick : int = int(world_x / ppp * float(tpb))
+			var row_idx : int = int(floor(world_y / rh))
 			var pitch : int = clampi(PITCH_MAX - row_idx, PITCH_MIN, PITCH_MAX)
 			_push_undo()
 			var ev : Dictionary = _make_event(maxi(0, tick), pitch, _selected_channel)
@@ -2370,10 +2412,10 @@ func _finish_box_select(c : Control):
 		var e : Dictionary = _song.events[i]
 		var ec : int = int(e.ch)
 		if _selected_channel != CH_ALL and ec != _selected_channel: continue
-		var ex : float = gx + float(e.tick) / float(tpb) * _px_per_beat - _scroll_x
-		var ew : float = maxf(3.0, float(e.dur) / float(tpb) * _px_per_beat)
-		var ey : float = float(PITCH_MAX - int(e.note)) * _row_height - _scroll_y
-		var note_rect := Rect2(ex, ey, ew, _row_height)
+		var ex : float = gx + float(e.tick) / float(tpb) * ppp - _scroll_x
+		var ew : float = maxf(3.0, float(e.dur) / float(tpb) * ppp)
+		var ey : float = float(PITCH_MAX - int(e.note)) * rh - _scroll_y
+		var note_rect := Rect2(ex, ey, ew, rh)
 		if rect.intersects(note_rect):
 			if not (i in new_selection):
 				new_selection.append(i)
@@ -2498,10 +2540,12 @@ func _paste_at_mouse():
 		_status.text = "鼠标不在 tracker 区"
 		return
 	var tpb : int = maxi(1, int(_song.ticks_per_beat))
+	var ppp : float = maxf(_px_per_beat, 0.001)
+	var rh : float = maxf(_row_height, 0.001)
 	var world_x : float = mp.x - gx + _scroll_x
 	var world_y : float = mp.y + _scroll_y
-	var mouse_tick : int = maxi(0, int(round(world_x / _px_per_beat * float(tpb))))
-	var row_idx : int = int(floor(world_y / _row_height))
+	var mouse_tick : int = maxi(0, int(round(world_x / ppp * float(tpb))))
+	var row_idx : int = int(floor(world_y / rh))
 	var mouse_pitch : int = clampi(PITCH_MAX - row_idx, PITCH_MIN, PITCH_MAX)
 
 	var base_tick : float = float(_clipboard.get("base_tick", 0.0))
@@ -2540,13 +2584,14 @@ func _find_note_right_edge(mouse_x : float, click_pitch : int) -> int:
 	if _song == null: return -1
 	var tpb : int = maxi(1, int(_song.ticks_per_beat))
 	var gx : float = PIANO_WIDTH
+	var ppp : float = maxf(_px_per_beat, 0.001)
 	for i in range(_song.events.size() - 1, -1, -1):
 		var e : Dictionary = _song.events[i]
 		var ec : int = int(e.ch)
 		if _selected_channel != CH_ALL and ec != _selected_channel: continue
 		if int(e.note) != click_pitch: continue
 		var end_tick : float = float(e.tick) + float(e.dur)
-		var end_x : float = gx + end_tick / float(tpb) * _px_per_beat - _scroll_x
+		var end_x : float = gx + end_tick / float(tpb) * ppp - _scroll_x
 		if abs(mouse_x - end_x) <= RESIZE_HANDLE_PX:
 			return i
 	return -1
@@ -2556,8 +2601,9 @@ func _perform_resize(mouse_pos : Vector2):
 	if _song == null or _resizing_idx < 0: return
 	if _resizing_idx >= _song.events.size(): return
 	var tpb : int = maxi(1, int(_song.ticks_per_beat))
+	var ppp : float = maxf(_px_per_beat, 0.001)
 	var dx : float = mouse_pos.x - _drag_start_mouse.x
-	var dtick : float = dx / _px_per_beat * float(tpb)
+	var dtick : float = dx / ppp * float(tpb)
 	var new_dur : float = roundf(maxf(1.0, _resizing_start_dur + dtick))
 	var e : Dictionary = _song.events[_resizing_idx]
 	e.dur = new_dur
@@ -2623,10 +2669,12 @@ func _start_drag(mouse_pos : Vector2):
 func _perform_drag(mouse_pos : Vector2):
 	if _song == null: return
 	var tpb : int = maxi(1, int(_song.ticks_per_beat))
+	var ppp : float = maxf(_px_per_beat, 0.001)
+	var rh : float = maxf(_row_height, 0.001)
 	var dx : float = mouse_pos.x - _drag_start_mouse.x
 	var dy : float = mouse_pos.y - _drag_start_mouse.y
-	var dtick : int = int(round(dx / _px_per_beat * float(tpb)))
-	var dpitch : int = -int(round(dy / _row_height))
+	var dtick : int = int(round(dx / ppp * float(tpb)))
+	var dpitch : int = -int(round(dy / rh))
 	for d in _drag_data:
 		var idx : int = int(d.get("idx", -1))
 		if idx < 0 or idx >= _song.events.size(): continue

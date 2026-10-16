@@ -3,7 +3,8 @@ extends RefCounted
 
 # ============================================================
 #  DataValidator — 跨表数据一致性校验
-#  独立运行：从磁盘读所有 JSON，检查引用完整性
+#  v2：区分 单位/装备 tags（8 种）与 套装 tags（6 大流派）；
+#      unlock_unit 支持中文名 → key 归一化
 # ============================================================
 
 const UNIT_DATA_PATH : String = "res://content/data/unit_data.json"
@@ -18,7 +19,12 @@ const STORY_PATH : String = "res://content/data/stories.json"
 const EVENT_PATH : String = "res://content/data/events.json"
 const DIALOGUE_PATH : String = "res://content/data/dialogues.json"
 
-const VALID_TAGS : Array = ["烈焰", "轮回", "灰烬", "守护", "献祭", "余烬"]
+# ★ 单位和装备允许 8 种标签（物理 / 法术 + 6 大流派）
+const VALID_UNIT_TAGS : Array = ["物理", "法术", "烈焰", "轮回", "灰烬", "守护", "献祭", "余烬"]
+
+# ★ 套装、词条、光环只允许 6 大流派
+const VALID_SET_TAGS : Array = ["烈焰", "轮回", "灰烬", "守护", "献祭", "余烬"]
+
 const VALID_CORE_TRAITS : Array = ["charge", "dragon_might", "bulwark"]
 const VALID_CAP_ATTRS : Array = ["vitality", "strength", "dexterity", "intelligence", "faith", "arcane"]
 const VALID_AFFIX_TYPES : Array = [
@@ -37,9 +43,8 @@ const MAX_CAP_LEVEL : int = 3
 
 enum Level { ERROR, WARN }
 
-var _results : Array = []      # {level, file, path, message}
+var _results : Array = []
 
-# ---- 缓存 ----
 var _unit_db : Dictionary = {}
 var _item_db : Dictionary = {}
 var _talent_db : Dictionary = {}
@@ -125,6 +130,11 @@ func _warn(file : String, path : String, message : String):
 	_results.append({"level": Level.WARN, "file": file, "path": path, "message": message})
 
 
+# ★ 单位名归一化（中文 → 英文 key）
+func _normalize_unit_key(unit_name : String) -> String:
+	return UnitDataManager.normalize_unit_key(unit_name)
+
+
 # ============================================================
 #  单位校验
 # ============================================================
@@ -134,7 +144,6 @@ func _validate_units():
 		var u : Dictionary = _unit_db[unit_key]
 		if not (u is Dictionary): continue
 
-		# default_weapon
 		var dw : String = str(u.get("default_weapon", ""))
 		if dw != "":
 			if not _item_db.has(dw):
@@ -142,7 +151,6 @@ func _validate_units():
 			elif _item_db[dw].get("type", "") != "weapon":
 				_error(fname, "%s.default_weapon" % unit_key, "不是武器: %s" % dw)
 
-		# default_armors
 		var armors : Array = u.get("default_armors", [])
 		for i in range(armors.size()):
 			var aid : String = str(armors[i])
@@ -151,33 +159,29 @@ func _validate_units():
 			elif _item_db[aid].get("type", "") != "armor":
 				_error(fname, "%s.default_armors[%d]" % [unit_key, i], "不是防具: %s" % aid)
 
-		# default_talents
 		var talents : Array = u.get("default_talents", [])
 		for i in range(talents.size()):
 			var tid : String = str(talents[i])
 			if not _talent_db.has(tid):
 				_error(fname, "%s.default_talents[%d]" % [unit_key, i], "词条不存在: %s" % tid)
 
-		# tags
+		# ★ 单位 tags：用 VALID_UNIT_TAGS（含物理/法术）
 		var tags : Array = u.get("tags", [])
 		for i in range(tags.size()):
 			var tag : String = str(tags[i])
-			if tag not in VALID_TAGS:
+			if tag not in VALID_UNIT_TAGS:
 				_warn(fname, "%s.tags[%d]" % [unit_key, i], "未知标签: %s" % tag)
 
-		# core_trait
 		var ct : String = str(u.get("core_trait", ""))
 		if ct != "" and ct not in VALID_CORE_TRAITS:
 			_warn(fname, "%s.core_trait" % unit_key, "未知核心特性: %s" % ct)
 
-		# attr_cap_levels
 		var cap : Variant = u.get("attr_cap_levels", [])
 		if cap is Array:
 			var cap_arr : Array = cap
 			if cap_arr.size() > MAX_CAP_LEVEL:
 				_error(fname, "%s.attr_cap_levels" % unit_key,
 					"级数超过 %d（当前 %d）" % [MAX_CAP_LEVEL, cap_arr.size()])
-			# ★ 第七批：级数不足 MAX_CAP_LEVEL 给出警告（可能是有意留空，也可能是漏填）
 			elif cap_arr.size() < MAX_CAP_LEVEL:
 				_warn(fname, "%s.attr_cap_levels" % unit_key,
 					"级数不足 %d（当前 %d），部分等级无加成" % [MAX_CAP_LEVEL, cap_arr.size()])
@@ -189,7 +193,6 @@ func _validate_units():
 						"该级不是 Dictionary（跳过）")
 					continue
 				var d : Dictionary = lv_dict
-				# ★ 第七批：空级警告
 				if d.is_empty():
 					_warn(fname, "%s.attr_cap_levels[%d]" % [unit_key, lv_idx],
 						"该级为空（无加成）")
@@ -197,13 +200,11 @@ func _validate_units():
 					if k not in VALID_CAP_ATTRS:
 						_warn(fname, "%s.attr_cap_levels[%d].%s" % [unit_key, lv_idx, k],
 							"未知属性 key: %s" % k)
-					# ★ 第七批：值类型校验
 					var v : Variant = d[k]
 					if not (v is int) and not (v is float):
 						_warn(fname, "%s.attr_cap_levels[%d].%s" % [unit_key, lv_idx, k],
 							"值不是数字：%s" % str(v))
 
-		# advanced_branches
 		var branches : Array = u.get("advanced_branches", [])
 		var seen_bid : Dictionary = {}
 		for i in range(branches.size()):
@@ -216,15 +217,11 @@ func _validate_units():
 				_error(fname, "%s.advanced_branches[%d].id" % [unit_key, i], "分支 id 重复: %s" % bid)
 			else:
 				seen_bid[bid] = true
-
-				# ★ 第九批：命名规范检查（id 必须以 unit_key + "_" 开头）
-				# 理由：AdvancedClassManager / HeroShrineUI 按前缀反查单位
 				var expected_prefix : String = unit_key + "_"
 				if not bid.begins_with(expected_prefix):
 					_warn(fname, "%s.advanced_branches[%d].id" % [unit_key, i],
 						"命名不规范，建议以 '%s' 开头（当前 '%s'）" % [expected_prefix, bid])
 
-			# name 非空检查
 			var bname : String = str((b as Dictionary).get("name", ""))
 			if bname == "":
 				_warn(fname, "%s.advanced_branches[%d].name" % [unit_key, i], "分支 name 为空")
@@ -234,7 +231,6 @@ func _validate_units():
 				_error(fname, "%s.advanced_branches[%d].granted_talent" % [unit_key, i],
 					"特技不存在: %s" % gt)
 
-			# ★ 第九批：stat_bonus 的 key 校验
 			var stat_bonus : Variant = (b as Dictionary).get("stat_bonus", {})
 			if stat_bonus is Dictionary:
 				for k in (stat_bonus as Dictionary):
@@ -247,10 +243,11 @@ func _validate_units():
 				_warn(fname, "%s.advanced_branches[%d].sprite_frames_path" % [unit_key, i],
 					"资源文件不存在: %s" % sp)
 
+			# ★ 分支 tags：也用 VALID_UNIT_TAGS
 			var btags : Array = (b as Dictionary).get("tags", [])
 			for j in range(btags.size()):
 				var tag2 : String = str(btags[j])
-				if tag2 not in VALID_TAGS:
+				if tag2 not in VALID_UNIT_TAGS:
 					_warn(fname, "%s.advanced_branches[%d].tags[%d]" % [unit_key, i, j],
 						"未知标签: %s" % tag2)
 
@@ -265,17 +262,14 @@ func _validate_items():
 		if not (d is Dictionary): continue
 		var dd : Dictionary = d
 
-		# 品质
 		var q : String = str(dd.get("quality", ""))
 		if q != "" and q not in VALID_QUALITIES:
 			_warn(fname, "%s.quality" % item_id, "未知品质: %s" % q)
 
-		# 类型
 		var t : String = str(dd.get("type", ""))
 		if t != "" and t not in ["weapon", "armor", "relic"]:
 			_warn(fname, "%s.type" % item_id, "未知类型: %s" % t)
 
-		# fusion
 		var fid : String = str(dd.get("fusion_id", ""))
 		if fid != "":
 			if not _item_db.has(fid):
@@ -283,11 +277,11 @@ func _validate_items():
 			if str(dd.get("fusion_effect", "")) == "":
 				_warn(fname, "%s.fusion_effect" % item_id, "有 fusion_id 但 fusion_effect 为空")
 
-		# tags
+		# ★ 装备 tags：用 VALID_UNIT_TAGS（含物理/法术）
 		var tags : Array = dd.get("tags", [])
 		for i in range(tags.size()):
 			var tag : String = str(tags[i])
-			if tag not in VALID_TAGS:
+			if tag not in VALID_UNIT_TAGS:
 				_warn(fname, "%s.tags[%d]" % [item_id, i], "未知标签: %s" % tag)
 
 
@@ -301,24 +295,21 @@ func _validate_talents():
 		if not (t is Dictionary): continue
 		var td : Dictionary = t
 
-		# compatible_units
+		# compatible_units：也做一次归一化，方便中文 id
 		var cu : Array = td.get("compatible_units", [])
 		for i in range(cu.size()):
-			var ukey : String = str(cu[i])
+			var ukey : String = _normalize_unit_key(str(cu[i]))
 			if not _unit_db.has(ukey):
-				_error(fname, "%s.compatible_units[%d]" % [tid, i], "单位不存在: %s" % ukey)
+				_error(fname, "%s.compatible_units[%d]" % [tid, i], "单位不存在: %s" % str(cu[i]))
 
-		# unlock_type
 		var ut : String = str(td.get("unlock_type", "default"))
 		if ut not in ["default", "soul", "story"]:
 			_warn(fname, "%s.unlock_type" % tid, "未知解锁类型: %s" % ut)
 
-		# 主动技能冷却
 		if bool(td.get("is_active_skill", false)):
 			if int(td.get("skill_cooldown", 0)) <= 0:
 				_warn(fname, "%s.skill_cooldown" % tid, "主动技能冷却 ≤ 0")
 
-		# soul 类型必须有 cost
 		if ut == "soul" and int(td.get("soul_cost", 0)) <= 0:
 			_warn(fname, "%s.soul_cost" % tid, "soul 类型词条 soul_cost ≤ 0")
 
@@ -362,10 +353,11 @@ func _validate_affixes():
 		if q != "" and q not in VALID_QUALITIES:
 			_warn(fname, "%s.min_quality" % aid, "未知品质: %s" % q)
 
+		# ★ 词条 tags：用 VALID_SET_TAGS
 		var tags : Array = ad.get("tags", [])
 		for i in range(tags.size()):
 			var tag : String = str(tags[i])
-			if tag not in VALID_TAGS:
+			if tag not in VALID_SET_TAGS:
 				_warn(fname, "%s.tags[%d]" % [aid, i], "未知标签: %s" % tag)
 
 		var vmin : int = int(ad.get("value_min", 0))
@@ -389,10 +381,10 @@ func _validate_set_bonuses():
 					var tags : Array = (c as Dictionary).get("tags", [])
 					for i in range(tags.size()):
 						var t2 : String = str(tags[i])
-						if t2 not in VALID_TAGS:
+						if t2 not in VALID_SET_TAGS:
 							_warn(fname, "cross_bonuses.%s.tags[%d]" % [cid, i], "未知标签: %s" % t2)
 		else:
-			if tag not in VALID_TAGS:
+			if tag not in VALID_SET_TAGS:
 				_warn(fname, tag, "未知标签: %s" % tag)
 
 
@@ -406,7 +398,7 @@ func _validate_auras():
 		if not (a is Dictionary): continue
 		var ad : Dictionary = a
 		var tag : String = str(ad.get("tag", ""))
-		if tag != "" and tag not in VALID_TAGS:
+		if tag != "" and tag not in VALID_SET_TAGS:
 			_warn(fname, "%s.tag" % aid, "未知标签: %s" % tag)
 
 
@@ -416,16 +408,13 @@ func _validate_auras():
 func _validate_recipes():
 	var fname := "recipes.json"
 	for product_id in _recipe_db:
-		# 产物存在？
 		if not _item_db.has(product_id):
 			_error(fname, product_id, "产物不存在: %s" % product_id)
 			continue
-		# 产物是防具？
 		var pd : Variant = _item_db[product_id]
 		if pd is Dictionary and (pd as Dictionary).get("type", "") != "armor":
 			_warn(fname, product_id, "产物不是防具")
 
-		# inputs
 		var r : Variant = _recipe_db[product_id]
 		if not (r is Dictionary): continue
 		var inputs : Array = (r as Dictionary).get("inputs", [])
@@ -447,9 +436,8 @@ func _validate_stories():
 		if not (npc is Dictionary): continue
 		var nd : Dictionary = npc
 
-		# ---- 第一遍：收集本 NPC 全部对话 id 及其 priority ----
-		var dlg_ids : Dictionary = {}      # id -> priority
-		var dlg_defs : Array = []          # 保留用于报错定位
+		var dlg_ids : Dictionary = {}
+		var dlg_defs : Array = []
 		var dialogues : Array = nd.get("dialogues", [])
 		for i in range(dialogues.size()):
 			var d : Variant = dialogues[i]
@@ -465,7 +453,6 @@ func _validate_stories():
 			dlg_ids[did] = pri
 			dlg_defs.append({"id": did, "priority": pri, "idx": i})
 
-		# ---- 第二遍：检查 dialogues[].condition.after_dialogue ----
 		for entry in dlg_defs:
 			var my_pri : int = entry["priority"]
 			var di : int = entry["idx"]
@@ -478,14 +465,12 @@ func _validate_stories():
 				_error(fname, "%s.dialogues[%d].condition.after_dialogue" % [npc_id, di],
 					"after_dialogue 指向不存在的对话: %s" % ad)
 				continue
-			# ★ 第十一批：优先度顺序校验（引用方 priority 必须 > 被引方 priority）
 			var ref_pri : int = int(dlg_ids[ad])
 			if my_pri <= ref_pri:
 				_warn(fname, "%s.dialogues[%d].condition.after_dialogue" % [npc_id, di],
 					"引用方 priority(%d) 未高于被引用方 %s 的 priority(%d)，可能导致解锁顺序异常"
 						% [my_pri, ad, ref_pri])
 
-		# ---- 第三遍：检查 unlocks ----
 		var unlocks : Array = nd.get("unlocks", [])
 		for i in range(unlocks.size()):
 			var u : Variant = unlocks[i]
@@ -500,7 +485,9 @@ func _validate_stories():
 
 			match utype:
 				"unit":
-					if not _unit_db.has(uid):
+					# ★ 归一化后再查
+					var nkey : String = _normalize_unit_key(uid)
+					if not _unit_db.has(nkey):
 						_error(fname, "%s.unlocks[%d]" % [npc_id, i], "单位不存在: %s" % uid)
 				"relic":
 					if not _relic_db.has(uid):
@@ -520,7 +507,6 @@ func _validate_stories():
 				_:
 					_warn(fname, "%s.unlocks[%d].type" % [npc_id, i], "未知解锁类型: %s" % utype)
 
-			# ★ 第十一批：unlocks[].conditions.after_dialogue 用 dlg_ids 集合校验，不依赖顺序
 			var ucond : Dictionary = ud.get("conditions", {})
 			var uad : String = str(ucond.get("after_dialogue", ""))
 			if uad != "" and not dlg_ids.has(uad):
@@ -584,10 +570,11 @@ func _validate_events():
 					if us.is_empty():
 						_warn(fname, "%s.actions[%d].units" % [eid, i], "unlock_unit 没有 units")
 					for j in range(us.size()):
-						var ukey : String = str(us[j])
+						var raw_name : String = str(us[j])
+						var ukey : String = _normalize_unit_key(raw_name)
 						if not _unit_db.has(ukey):
 							_error(fname, "%s.actions[%d].units[%d]" % [eid, i, j],
-								"单位不存在: %s" % ukey)
+								"单位不存在: %s" % raw_name)
 				"unlock_talent":
 					var tid : String = str(ad.get("talent_id", ""))
 					if tid != "" and not _talent_db.has(tid):
