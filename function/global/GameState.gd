@@ -450,8 +450,6 @@ func finish_cycle():
 	if tutorial_stage < 3:
 		tutorial_stage += 1
 		Globals.reload_talent_unlock()
-	DispatchManager.advance_run()
-	AuraManager.advance_research()
 	AnalyticsLogger.finish_run(true)
 
 func abandon_cycle():

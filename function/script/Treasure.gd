@@ -189,7 +189,7 @@ func _build_options():
 	hbox.alignment = BoxContainer.ALIGNMENT_CENTER
 	reward_container.add_child(hbox)
 
-	# ★ 第十一批：先算所有选项文本的最大行数，三张卡片统一高度
+	# ★ 先算所有选项文本的最大行数，三张卡片统一高度
 	var texts : Array = []
 	var max_lines : int = 0
 	for i in range(_reward_options.size()):
@@ -203,7 +203,6 @@ func _build_options():
 	var card_height : int = maxi(90, max_lines * 11 + 20)
 
 	for i in range(_reward_options.size()):
-		var option : Dictionary = _reward_options[i]
 		var btn := Button.new()
 		btn.custom_minimum_size = Vector2(150, card_height)
 		btn.size_flags_vertical = Control.SIZE_FILL

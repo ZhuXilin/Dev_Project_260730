@@ -243,19 +243,30 @@ func _apply_turn_start_regen():
 
 
 func _apply_turn_start_auras():
+	# ★ v4.2：先收集全队激活的光环并去重，再按 effect 分发，
+	#          避免同一光环因挂在多个单位上被重复触发
+	var active_auras : Dictionary = {}
 	for u in UnitManager.unit_list:
 		if u.unit_stats.team_id != 0 or u.hit_points <= 0:
 			continue
 		for aid in u.active_auras:
-			if not u.active_auras[aid]:
-				continue
-			var d : Dictionary = AuraManager.get_aura(aid)
-			if d.get("effect", "") != "turn_start_gain_soul_fire":
-				continue
+			if u.active_auras[aid]:
+				active_auras[aid] = true
+
+	for aid in active_auras:
+		_apply_turn_start_aura_effect(aid)
+
+
+func _apply_turn_start_aura_effect(aid : String):
+	var d : Dictionary = AuraManager.get_aura(aid)
+	if d.is_empty():
+		return
+	match d.get("effect", ""):
+		"turn_start_gain_soul_fire":
 			var gain : int = int(d.get("params", {}).get("soul_fire_gain", 1))
 			SoulFireManager.add(gain)
 			print("[光环] %s：回合开始 +%d 魂火" % [d.get("name", aid), gain])
-			return
+		_: pass
 
 
 func _apply_turn_start_fusion():

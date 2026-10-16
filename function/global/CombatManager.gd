@@ -151,14 +151,16 @@ func calculate_damage(attacker: Unit, defender: Unit) -> int:
 		var str_val = attacker.unit_stats.get_effective_attr("strength")
 		total_attack *= (1.0 + str_val * attacker.relic_strength_scale_damage)
 
-	var armor_defense = 0
+	# ★ v4.2：防具升级系统未实现（armor_slots 上无 upgrade 逻辑），
+	#          此处直接读 item_data.defense，不再走 slot.upgrade_level 死代码
+	var armor_defense : float = 0.0
 	for slot in defender.armor_slots:
 		if slot:
 			var item_data = ItemManager.get_item_data(slot.item_id)
 			if item_data:
 				var armor_quality_mult = QUALITY_MULT.get(item_data.quality, 1.0)
-				var armor_lv : int = slot.upgrade_level
-				armor_defense += WeaponUpgradeHelper.get_effective_defense(item_data, armor_lv) * armor_quality_mult
+				armor_defense += item_data.defense * armor_quality_mult
+
 	var def_value = defender.unit_stats.get_effective_attr("strength") * STRENGTH_DEF_FACTOR + armor_defense
 	def_value += defender.buff_defense_flat
 

@@ -159,6 +159,9 @@ func _clone_map_data(src: MapData, node_type: int) -> MapData:
 #  流程控制
 # ============================================================
 func advance_day() -> bool:
+	DispatchManager.advance_run()
+	AuraManager.advance_research()
+
 	current_day += 1
 	if current_day >= 3:
 		all_days_completed.emit()

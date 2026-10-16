@@ -130,12 +130,6 @@ func _get_unit_tags(unit_name: String) -> Array:
 
 
 func rotate_routes():
-	if unlocked_routes.size() <= 1: return
-	var n : int = 1 if unlocked_routes.size() <= 3 else 2
-	for i in range(n):
-		if unlocked_routes.size() <= 1: break
-		var idx : int = randi() % unlocked_routes.size()
-		unlocked_routes.remove_at(idx)
 	routes_changed.emit()
 
 
