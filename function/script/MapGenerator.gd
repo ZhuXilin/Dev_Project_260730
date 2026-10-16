@@ -78,7 +78,8 @@ static func _generate_from_layout(day: int, day_layout: MapLayoutDay) -> MapLeve
 		var ln : MapLayoutNode = day_layout.nodes[i]
 		var actual_type : int = resolved_types[i]
 		var n : MapNode = _create_node(actual_type as MapNode.NodeType, ln.position, ln.layer)
-		n.unlock_relics = ln.unlock_relics.duplicate()   # ★ 复制
+		n.unlock_relics = ln.unlock_relics.duplicate()
+		n.unlock_units = ln.unlock_units.duplicate()   # ★ 新增
 		nodes.append(n)
 
 	# ---- 建立连接 ----

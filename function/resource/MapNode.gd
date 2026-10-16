@@ -23,8 +23,11 @@ static var _node_counter : int = 0
 @export var layer: int = 0
 @export var reward: Dictionary = {}
 
-## ★ 完成此节点解锁的遗物 id 列表（从 MapLayoutNode 复制）
+## 完成此节点解锁的遗物 id 列表（从 MapLayoutNode 复制）
 @export var unlock_relics: Array[String] = []
+
+## ★ 新增：完成此节点解锁的单位 id 列表（从 MapLayoutNode 复制）
+@export var unlock_units: Array[String] = []
 
 var connected_nodes: Array = []
 var is_completed: bool = false

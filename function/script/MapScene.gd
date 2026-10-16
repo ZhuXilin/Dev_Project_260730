@@ -373,6 +373,7 @@ func on_node_selected(node: MapNode):
 	]:
 		GameState.current_node_key = key
 	GameState.current_node_unlock_relics = node.unlock_relics.duplicate()
+	GameState.current_node_unlock_units = node.unlock_units.duplicate()   # ★ 新增
 	_load_combat_for_node(node)
 
 

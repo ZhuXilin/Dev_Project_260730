@@ -198,19 +198,10 @@ func _extract_map_unit_placers(node: Node) -> void:
 		match cfg.get("type", ""):
 			"event_trigger":
 				var event_id = cfg.get("event_id", "")
-				var relics : Array = cfg.get("unlock_relics", [])
-
 				if event_id != "":
 					entry["event_id"] = event_id
 					_bf.map_functions[cell] = entry
 					print("功能格: 位置 ", cell, " 事件ID: ", event_id)
-				elif not relics.is_empty():
-					var generated_id = "unlock_%d_%d" % [cell.x, cell.y]
-					var actions = [{ "type": "unlock_relics", "relic_ids": relics }]
-					EventManager.register_event(generated_id, { "actions": actions, "once": true })
-					entry["event_id"] = generated_id
-					_bf.map_functions[cell] = entry
-					print("功能格: 位置 ", cell, " 自动解锁遗物: ", relics)
 
 			"hp_function":
 				var amount = cfg.get("hp_amount", 0)

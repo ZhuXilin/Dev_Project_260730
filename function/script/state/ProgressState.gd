@@ -11,6 +11,7 @@ var resume_node_id : String = ""
 var last_selected_node_type : int = -1
 var should_advance_day : bool = false
 var current_node_unlock_relics : Array[String] = []
+var current_node_unlock_units : Array[String] = []     # ★ 新增
 
 # ---- 地图缓存 / 快照 ----
 var cached_map_level_data : MapLevelData = null
@@ -19,7 +20,7 @@ var current_map_data : MapData = null
 var map_snapshot : Dictionary = {}
 
 # ---- 中断状态 ----
-var interrupt_state : int = 0   # GameState.InterruptState 的值
+var interrupt_state : int = 0
 var battlefield_data : Dictionary = {}
 
 func reset_progress():
@@ -33,6 +34,7 @@ func reset_progress():
 	last_selected_node_type = -1
 	map_snapshot.clear()
 	current_node_unlock_relics.clear()
+	current_node_unlock_units.clear()      # ★ 新增
 
 func undo_battle_entry():
 	current_node_key = ""

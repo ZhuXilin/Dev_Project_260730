@@ -7,8 +7,12 @@ class_name MapLayoutNode
 @export var layer: int = 0
 @export var connects_to: Array[int] = []
 
-## ★ 完成此节点时解锁的遗物 id 列表
+## 完成此节点时解锁的遗物 id 列表
 @export var unlock_relics: Array[String] = []
+
+## ★ 新增：完成此节点时解锁的单位 id 列表
+## 场景：BOSS 节点配置 → 打完后解锁新单位（可切换主单位/阵营）
+@export var unlock_units: Array[String] = []
 
 
 func resolve_type() -> MapNode.NodeType:

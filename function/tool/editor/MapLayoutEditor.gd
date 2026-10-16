@@ -509,8 +509,8 @@ func _show_type_picker_popup(node_idx: int):
 	panel.set_anchors_preset(Control.PRESET_CENTER)
 	panel.anchor_top = 0.0
 	panel.anchor_bottom = 1.0
-	panel.offset_left = -110
-	panel.offset_right = 110
+	panel.offset_left = -160
+	panel.offset_right = 160
 	panel.offset_top = 8
 	panel.offset_bottom = -8
 	_popup_layer.add_child(panel)
@@ -604,6 +604,7 @@ func _show_type_picker_popup(node_idx: int):
 	main.add_child(left_box)
 
 	# ================= 右列：解锁遗物 =================
+	# ================= 右列：解锁遗物 =================
 	var can_unlock : bool = _node_can_unlock_relics(node)
 
 	var right_box := VBoxContainer.new()
@@ -677,7 +678,104 @@ func _show_type_picker_popup(node_idx: int):
 			hint.modulate = Color(0.6, 0.6, 0.6)
 			relic_list.add_child(hint)
 
+		# ★ 孤儿遗物检测（在 relic_data.json 里不存在）
+		var valid_relic_ids : Dictionary = {}
+		for rid in all_relics: valid_relic_ids[rid] = true
+		for rid in current_relics:
+			if not valid_relic_ids.has(rid):
+				var orphan_lb := Label.new()
+				orphan_lb.text = "⚠ 孤儿：" + rid
+				orphan_lb.add_theme_font_size_override("font_size", 7)
+				orphan_lb.modulate = Color(1.0, 0.5, 0.5)
+				orphan_lb.tooltip_text = "该 id 在 relic_data.json 里不存在"
+				relic_list.add_child(orphan_lb)
+
 	main.add_child(right_box)
+
+	# ================= 第三列 - 解锁单位 =================
+	var unit_box := VBoxContainer.new()
+	unit_box.custom_minimum_size = Vector2(90, 0)
+	unit_box.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	unit_box.add_theme_constant_override("separation", 2)
+
+	var unit_title := Label.new()
+	unit_title.text = "解锁单位"
+	unit_title.add_theme_font_size_override("font_size", 7)
+	unit_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	unit_box.add_child(unit_title)
+
+	var unit_checks : Array[Button] = []
+
+	if not can_unlock:
+		var unit_hint := Label.new()
+		unit_hint.text = "（非战斗节点\n不支持）"
+		unit_hint.add_theme_font_size_override("font_size", 7)
+		unit_hint.modulate = Color(0.6, 0.6, 0.6)
+		unit_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		unit_hint.custom_minimum_size = Vector2(0, 60)
+		unit_hint.vertical_alignment = VERTICAL_ALIGNMENT_TOP
+		unit_box.add_child(unit_hint)
+	else:
+		var unit_scroll := ScrollContainer.new()
+		unit_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		unit_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		unit_scroll.custom_minimum_size = Vector2(0, 120)
+		unit_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+		unit_box.add_child(unit_scroll)
+
+		var unit_list := VBoxContainer.new()
+		unit_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		unit_list.add_theme_constant_override("separation", 0)
+		unit_scroll.add_child(unit_list)
+
+		var all_unit_ids : Array = UnitDataManager.get_all_unit_ids()
+		var current_units : Array = node.unlock_units
+
+		for uid in all_unit_ids:
+			var udisplay : String = UnitDataManager.get_display_name(uid)
+			var is_checked_u : bool = uid in current_units
+
+			var btn := Button.new()
+			btn.toggle_mode = true
+			btn.button_pressed = is_checked_u
+			btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
+			btn.text = ("☑ " if is_checked_u else "☐ ") + udisplay
+			btn.add_theme_font_size_override("font_size", 7)
+			btn.add_theme_stylebox_override("normal", empty)
+			btn.add_theme_stylebox_override("hover", empty)
+			btn.add_theme_stylebox_override("pressed", empty)
+			btn.add_theme_stylebox_override("focus", empty)
+			btn.add_theme_stylebox_override("disabled", empty)
+			btn.custom_minimum_size = Vector2(0, 10)
+			btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			btn.set_meta("unit_id", uid)
+			var unit_label : String = udisplay
+			btn.toggled.connect(func(pressed: bool):
+				btn.text = ("☑ " if pressed else "☐ ") + unit_label
+			)
+			unit_list.add_child(btn)
+			unit_checks.append(btn)
+
+		if unit_checks.is_empty():
+			var hint2 := Label.new()
+			hint2.text = "（无单位）"
+			hint2.add_theme_font_size_override("font_size", 7)
+			hint2.modulate = Color(0.6, 0.6, 0.6)
+			unit_list.add_child(hint2)
+
+		# ★ 孤儿单位检测
+		var valid_unit_ids : Dictionary = {}
+		for uid in all_unit_ids: valid_unit_ids[uid] = true
+		for uid in current_units:
+			if not valid_unit_ids.has(uid):
+				var orphan_lb2 := Label.new()
+				orphan_lb2.text = "⚠ 孤儿：" + uid
+				orphan_lb2.add_theme_font_size_override("font_size", 7)
+				orphan_lb2.modulate = Color(1.0, 0.5, 0.5)
+				orphan_lb2.tooltip_text = "该 id 在 unit_data.json 里不存在"
+				unit_list.add_child(orphan_lb2)
+
+	main.add_child(unit_box)
 
 	# ---------- 底部按钮 ----------
 	var btns := HBoxContainer.new()
@@ -726,6 +824,18 @@ func _show_type_picker_popup(node_idx: int):
 			node.unlock_relics = new_relics
 		else:
 			node.unlock_relics.clear()
+
+		# ★ 单位解锁（仅战斗节点）
+		if can_unlock:
+			var new_units : Array[String] = []
+			for btn in unit_checks:
+				if btn.button_pressed:
+					var uid : String = btn.get_meta("unit_id", "")
+					if uid != "":
+						new_units.append(uid)
+			node.unlock_units = new_units
+		else:
+			node.unlock_units.clear()
 
 		_canvas.queue_redraw()
 		_close_popup()
@@ -869,6 +979,12 @@ func _build_ui():
 	save_btn.add_theme_font_size_override("font_size", 6)
 	save_btn.pressed.connect(_on_save)
 	top.add_child(save_btn)
+
+	# ★ 校验（v4.1 新增）
+	var validate_btn := _make_btn("校验", "扫描所有节点的 unlock_relics / unlock_units")
+	validate_btn.add_theme_font_size_override("font_size", 6)
+	validate_btn.pressed.connect(_run_layout_validation)
+	top.add_child(validate_btn)
 
 	# ★ 退出（最右）
 	var quit_btn := _make_btn("退出", "关闭编辑器")
@@ -1341,6 +1457,76 @@ func _bake_positions():
 			for i in range(day_layout.nodes.size()):
 				var node : MapLayoutNode = day_layout.nodes[i]
 				node.position = _node_pos_for_variant(day_layout, i)
+
+
+# ============================================================
+#  ★ 校验所有节点的 unlock_relics / unlock_units
+# ============================================================
+func _run_layout_validation():
+	if _layout == null:
+		Globals.show_confirm(self, "未加载布局文件。", "确定", "",
+			func(): pass, func(): pass, false)
+		return
+
+	var errors : Array = []
+
+	# 有效池
+	var relic_db : Dictionary = _get_relic_data_cached()
+	var valid_relics : Dictionary = {}
+	for rid in relic_db:
+		valid_relics[rid] = true
+
+	var unit_ids : Array = UnitDataManager.get_all_unit_ids()
+	var valid_units : Dictionary = {}
+	for uid in unit_ids:
+		valid_units[uid] = true
+
+	# 3 天所有 variant
+	var all_days : Array = [
+		{"day": 1, "variants": _layout.day1_variants},
+		{"day": 2, "variants": _layout.day2_variants},
+		{"day": 3, "variants": _layout.day3_variants},
+	]
+
+	for day_data in all_days:
+		var day_num : int = day_data["day"]
+		var variants : Array = day_data["variants"]
+		for vi in range(variants.size()):
+			var dl : MapLayoutDay = variants[vi]
+			if dl == null: continue
+			for ni in range(dl.nodes.size()):
+				var node : MapLayoutNode = dl.nodes[ni]
+				var pos_str : String = "(%.0f, %.0f)" % [node.position.x, node.position.y]
+
+				for rid in node.unlock_relics:
+					if not valid_relics.has(rid):
+						errors.append("Day%d V%d Node[%d]%s  遗物不存在: %s"
+							% [day_num, vi, ni, pos_str, rid])
+
+				for uid in node.unlock_units:
+					if not valid_units.has(uid):
+						errors.append("Day%d V%d Node[%d]%s  单位不存在: %s"
+							% [day_num, vi, ni, pos_str, uid])
+
+	# 输出报告
+	var msg : String = ""
+	if errors.is_empty():
+		msg = "✓ 校验通过\n\n所有 unlock_relics / unlock_units 引用均存在。"
+		print("[MapLayoutEditor] ✓ 校验通过")
+	else:
+		msg = "发现 %d 个错误:\n\n" % errors.size()
+		var show_count : int = mini(errors.size(), 15)
+		for i in range(show_count):
+			msg += "· " + errors[i] + "\n"
+		if errors.size() > show_count:
+			msg += "\n... (还有 %d 个，见控制台)" % (errors.size() - show_count)
+
+		print("[MapLayoutEditor] === 校验报告 ===")
+		for e in errors:
+			print("[校验] " + e)
+
+	Globals.show_confirm(self, msg, "确定", "",
+		func(): pass, func(): pass, false)
 
 
 func _node_pos_for_variant(day_layout: MapLayoutDay, idx: int) -> Vector2:

@@ -36,7 +36,6 @@ TerrainManager="*res://function/global/TerrainManager.gd"
 UnitManager="*res://function/global/UnitManager.gd"
 AdvancedClassManager="*uid://c4ydojqviy28d"
 SoulFireManager="*res://function/global/SoulFireManager.gd"
-AnalyticsLogger="*uid://6tr6ydnchi6o"
 BossMechanicManager="*uid://boi3cml5562pt"
 DispatchManager="*res://function/global/DispatchManager.gd"
 EconomyManager="*res://function/global/EconomyManager.gd"
@@ -52,6 +51,7 @@ SaveManager="*res://function/global/SaveManager.gd"
 GmConsole="*uid://q5yaycxpkkua"
 TestRegistry="*uid://uqtcmpoqfoyf"
 TestHarness="*uid://dmji7n6utrcoj"
+AnalyticsLogger="*uid://6tr6ydnchi6o"
 
 [display]
 

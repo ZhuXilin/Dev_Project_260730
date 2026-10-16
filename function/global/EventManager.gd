@@ -150,28 +150,6 @@ func trigger_event(event_id: String, unit: Unit = null, default_music: AudioStre
 					else:
 						Globals.unlock_item(item_id)
 
-			# ============================================================
-			#  ★ 遗物解锁 action
-			# ============================================================
-			"unlock_relics":
-				var ids = action.get("relic_ids", [])
-				var single_id = action.get("relic_id", "")
-				var collected : Array = []
-				if single_id is String and single_id != "":
-					collected.append(single_id)
-				if ids is Array:
-					for rid in ids:
-						if rid is String and rid != "":
-							collected.append(rid)
-				if not collected.is_empty():
-					var new_relics : Array = RelicManager.unlock_relics_by_ids(collected)
-					print("[事件] 解锁 %d 个遗物: %s" % [new_relics.size(), new_relics])
-					# 顺便给个弹窗提示
-					for rid in new_relics:
-						var rd : Dictionary = RelicManager.get_relic_data(rid)
-						if not rd.is_empty():
-							await show_relic_get_popup(rid)
-			# ============================================================
 
 			"heal":
 				if unit == null:
@@ -238,21 +216,6 @@ func show_item_get_popup(item_id: String, count: int):
 	root.add_child(popup)
 	popup.show_item(item_id, count)
 
-
-func show_relic_get_popup(relic_id: String):
-	if Globals.is_item_get_popup_active:
-		return
-	var root = get_tree().root
-	if not root:
-		return
-	var popup = ItemGetPopupScene.instantiate()
-	root.add_child(popup)
-	popup.show_relic(relic_id, 1)
-
-
-func clear_completed():
-	_completed.clear()
-	print("EventManager 已完成事件记录已清空")
 
 # ============================================================
 #  辅助方法

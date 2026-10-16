@@ -2,6 +2,70 @@
 
 [ext_resource type="Script" uid="uid://bh08dglryn8oe" path="res://function/tool/editor/StoryEditor.gd" id="1_script"]
 
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_6gv2d"]
+content_margin_left = 3.0
+content_margin_top = 0.0
+content_margin_right = 3.0
+content_margin_bottom = 0.0
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_h5ind"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_jbe63"]
+bg_color = Color(0.28, 0.36, 0.5, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_dc17i"]
+content_margin_left = 2.0
+content_margin_top = 2.0
+content_margin_right = 2.0
+content_margin_bottom = 2.0
+bg_color = Color(0.13, 0.13, 0.16, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.28, 0.28, 0.34, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_5ck4e"]
+content_margin_left = 4.0
+content_margin_top = 2.0
+content_margin_right = 4.0
+content_margin_bottom = 2.0
+bg_color = Color(0.1, 0.1, 0.13, 0.95)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.4, 0.4, 0.5, 1)
+
+[sub_resource type="Theme" id="Theme_cbv1c"]
+Button/font_sizes/font_size = 6
+Button/styles/disabled = SubResource("StyleBoxEmpty_6gv2d")
+Button/styles/focus = SubResource("StyleBoxEmpty_6gv2d")
+Button/styles/hover = SubResource("StyleBoxEmpty_6gv2d")
+Button/styles/normal = SubResource("StyleBoxEmpty_6gv2d")
+Button/styles/pressed = SubResource("StyleBoxEmpty_6gv2d")
+CheckBox/font_sizes/font_size = 6
+CheckButton/font_sizes/font_size = 6
+Label/font_sizes/font_size = 6
+Label/styles/normal = SubResource("StyleBoxEmpty_h5ind")
+LineEdit/font_sizes/font_size = 6
+OptionButton/font_sizes/font_size = 6
+PopupMenu/constants/h_separation = 0
+PopupMenu/constants/icon_max_width = 8
+PopupMenu/constants/item_end_padding = 4
+PopupMenu/constants/item_start_padding = 4
+PopupMenu/constants/outline_size = 0
+PopupMenu/constants/v_separation = 0
+PopupMenu/font_sizes/font_separator_outline_size = 7
+PopupMenu/font_sizes/font_separator_size = 7
+PopupMenu/font_sizes/font_size = 7
+PopupMenu/styles/hover = SubResource("StyleBoxFlat_jbe63")
+PopupMenu/styles/panel = SubResource("StyleBoxFlat_dc17i")
+SpinBox/font_sizes/font_size = 6
+TooltipLabel/font_sizes/font_size = 6
+TooltipPanel/font_sizes/font_size = 6
+TooltipPanel/styles/panel = SubResource("StyleBoxFlat_5ck4e")
+
 [node name="StoryEditor" type="Control" unique_id=900000001]
 layout_mode = 3
 anchors_preset = 15
@@ -9,4 +73,5 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+theme = SubResource("Theme_cbv1c")
 script = ExtResource("1_script")

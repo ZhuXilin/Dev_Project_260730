@@ -244,6 +244,10 @@ var current_node_unlock_relics : Array:
 	get: return progress_state.current_node_unlock_relics
 	set(value): progress_state.current_node_unlock_relics = value
 
+var current_node_unlock_units : Array:       # ★ 新增
+	get: return progress_state.current_node_unlock_units
+	set(value): progress_state.current_node_unlock_units = value
+
 var npc_dialogue_seen : Dictionary:
 	get: return resource_state.npc_dialogue_seen
 	set(value): resource_state.npc_dialogue_seen = value

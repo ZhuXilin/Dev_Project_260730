@@ -311,6 +311,41 @@ func on_map_victory_continue() -> void:
 
 	GameState.current_node_unlock_relics.clear()
 
+	# ★ 新增：解锁单位（BOSS 节点可配置）
+	var unit_unlock_ids : Array = []
+	if GameState.current_map_data and GameState.current_map_data.unlock_units:
+		unit_unlock_ids.append_array(GameState.current_map_data.unlock_units)
+	if GameState.current_node_unlock_units:
+		unit_unlock_ids.append_array(GameState.current_node_unlock_units)
+
+	if not unit_unlock_ids.is_empty():
+		var seen_u : Dictionary = {}
+		var unique_units : Array = []
+		for uid in unit_unlock_ids:
+			if uid is String and uid != "" and not seen_u.has(uid):
+				seen_u[uid] = true
+				unique_units.append(uid)
+
+		var newly_units : Array = []
+		for uid in unique_units:
+			if not Globals.is_unit_unlocked(uid):
+				newly_units.append(uid)
+
+		for uid in unique_units:
+			Globals.unlock_unit(uid)
+
+		for uid in newly_units:
+			var display : String = UnitDataManager.get_display_name(uid)
+			var virtual_data := ItemData.new()
+			virtual_data.id = "unlock_unit_" + uid
+			virtual_data.name = "★ 新单位：" + display
+			virtual_data.description = "可在下次组队时选择"
+			reward_item_datas.append(virtual_data)
+		if not newly_units.is_empty():
+			print("[Battlefield] 本节点解锁 %d 个单位" % newly_units.size())
+
+	GameState.current_node_unlock_units.clear()
+
 	var has_reward = (reward_gold > 0 or reward_soul > 0 or not reward_item_datas.is_empty())
 
 	var is_boss = (_bf.current_node_type == MapNode.NodeType.BOSS)

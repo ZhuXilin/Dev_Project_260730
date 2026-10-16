@@ -8,6 +8,10 @@ class_name MapData
 @export var spawn_points: Array[Vector2i] = []
 @export var required_unit: String = ""
 
-## ★ 打完这张地图时解锁的遗物 id 列表
+## 打完这张地图时解锁的遗物 id 列表
 ## 与 MapLayoutNode.unlock_relics 会合并
 @export var unlock_relics: Array[String] = []
+
+## ★ 新增：打完这张地图时解锁的单位 id 列表
+## 与 MapLayoutNode.unlock_units 会合并
+@export var unlock_units: Array[String] = []
