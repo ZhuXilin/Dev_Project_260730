@@ -1215,7 +1215,11 @@ func _candidates(ut : String) -> Array:
 	match ut:
 		"unit":
 			for k in UnitDataManager.get_all_unit_ids():
-				arr.append({"id": k, "name": UnitDataManager.get_display_name(k)})
+				# 加上“（资格）”提示，说明剧情这里只解锁守火者候选
+				arr.append({
+					"id": k, 
+					"name": "%s (资格)" % UnitDataManager.get_display_name(k)
+				})
 		"relic":
 			for r in RelicManager.get_all_relic_ids():
 				arr.append({"id": r, "name": RelicManager.get_relic_data(r).get("name", r)})
@@ -1234,7 +1238,8 @@ func _candidates(ut : String) -> Array:
 
 func _unlock_display(ut : String, uid : String) -> String:
 	match ut:
-		"unit": return "%s (%s)" % [UnitDataManager.get_display_name(uid), uid]
+		"unit": 
+			return "%s (%s·资格)" % [UnitDataManager.get_display_name(uid), uid]
 		"relic":
 			var d : Dictionary = RelicManager.get_relic_data(uid)
 			return uid if d.is_empty() else "%s (%s)" % [d.get("name", uid), uid]
