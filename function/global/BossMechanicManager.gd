@@ -81,11 +81,20 @@ func on_player_turn_start():
 		boss_mechanic_triggered.emit("soul_drain", "吸取 2 魂火")
 		print("[Boss] 魂火窃贼吸取 2 魂火")
 	else:
+		# ★ v4.2：先收集死亡单位，再统一清理，避免幽灵单位
+		var killed : Array = []
 		for u in UnitManager.unit_list:
 			if u.unit_stats.team_id == 0 and u.hit_points > 0:
 				var dmg : int = int(u.unit_stats.max_hp * 0.1)
-				u.apply_damage(dmg)
+				var dead : bool = u.apply_damage(dmg)
 				SignalBus.request_damage_popup.emit(u.global_position, dmg, false, false, false)
+				if dead:
+					killed.append(u)
+		for u in killed:
+			if is_instance_valid(u) and u in UnitManager.unit_list:
+				print("[Boss 汲取失败] %s 阵亡" % u.unit_stats.unit_name)
+				UnitManager.unregister_unit(u)
+				u.queue_free()
 		SignalBus.request_hint_override.emit("★ Boss 汲取失败，全队受伤", 1.5)
 		boss_mechanic_triggered.emit("soul_drain_fail", "全队受伤")
 		print("[Boss] 魂火窃贼未能吸取，全队受伤")

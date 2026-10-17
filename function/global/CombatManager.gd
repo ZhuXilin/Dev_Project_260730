@@ -399,6 +399,12 @@ func execute_attack(attacker: Unit, defender: Unit) -> bool:
 
 	await get_tree().create_timer(POST_DAMAGE_DELAY, true, false, true).timeout
 
+	# ★ v4.2：parry / 溅射可能打死 attacker，此处统一拦截
+	if not _is_alive(attacker):
+		print("[攻击流程] attacker 已阵亡，提前结束")
+		Globals.is_performing_action = false
+		return true
+
 	if active_skill_data:
 		if splash_percent > 0.0:
 			await _apply_splash(attacker, defender, damage, splash_percent, is_crit)
@@ -419,7 +425,6 @@ func execute_attack(attacker: Unit, defender: Unit) -> bool:
 		SoulFireManager.spend(skill_cost)
 
 	if defeated:
-		# ★ Boss 三形态拦截（Day3）
 		if _try_boss_revive(defender, attacker):
 			_finish_attack(attacker, defender)
 			Globals.is_performing_action = false
@@ -463,6 +468,13 @@ func execute_attack(attacker: Unit, defender: Unit) -> bool:
 		TalentManager.reset_talent(attacker, "double_attack")
 
 		await get_tree().create_timer(EXTRA_HIT_DELAY, true, false, true).timeout
+
+		# ★ v4.2：await 后再次检查
+		if not _is_alive(attacker):
+			print("[攻击流程] 二次攻击前 attacker 已阵亡")
+			Globals.is_performing_action = false
+			return true
+
 		await _play_lunge_attack(attacker, defender)
 		await get_tree().create_timer(PRE_DAMAGE_DELAY, true, false, true).timeout
 
@@ -473,7 +485,6 @@ func execute_attack(attacker: Unit, defender: Unit) -> bool:
 		await get_tree().create_timer(POST_DAMAGE_DELAY, true, false, true).timeout
 
 		if extra_dead:
-			# ★ Boss 三形态拦截
 			if _try_boss_revive(defender, attacker):
 				_finish_attack(attacker, defender)
 				Globals.is_performing_action = false
@@ -493,6 +504,11 @@ func execute_attack(attacker: Unit, defender: Unit) -> bool:
 			_finish_attack(attacker, defender)
 			Globals.is_performing_action = false
 			return true
+
+	# ★ v4.2：二次攻击后检查
+	if not _is_alive(attacker):
+		Globals.is_performing_action = false
+		return true
 
 	# ---- 法术连击 ----
 	if TalentManager.is_talent_ready(attacker, "spell_chain"):
@@ -519,6 +535,12 @@ func execute_attack(attacker: Unit, defender: Unit) -> bool:
 				TalentManager.reset_talent(attacker, "spell_chain")
 
 				await get_tree().create_timer(EXTRA_HIT_DELAY, true, false, true).timeout
+
+				# ★ v4.2：await 后再次检查
+				if not _is_alive(attacker):
+					Globals.is_performing_action = false
+					return true
+
 				await _play_lunge_attack(attacker, defender)
 				await get_tree().create_timer(PRE_DAMAGE_DELAY, true, false, true).timeout
 
@@ -529,7 +551,6 @@ func execute_attack(attacker: Unit, defender: Unit) -> bool:
 				await get_tree().create_timer(POST_DAMAGE_DELAY, true, false, true).timeout
 
 				if extra_dead:
-					# ★ Boss 三形态拦截
 					if _try_boss_revive(defender, attacker):
 						_finish_attack(attacker, defender)
 						Globals.is_performing_action = false
@@ -550,9 +571,20 @@ func execute_attack(attacker: Unit, defender: Unit) -> bool:
 					Globals.is_performing_action = false
 					return true
 
+	# ★ v4.2：法术连击后检查
+	if not _is_alive(attacker):
+		Globals.is_performing_action = false
+		return true
+
 	# ---- 反击 ----
 	if _can_counter_attack(attacker, defender):
 		await _execute_counter(attacker, defender)
+
+	# ★ v4.2：反击的 parry 可能打死 attacker
+	if not _is_alive(attacker):
+		print("[攻击流程] 反击后 attacker 已阵亡")
+		Globals.is_performing_action = false
+		return true
 
 	var free_action : bool = _consume_first_spell_free(attacker)
 	_finish_attack(attacker, defender, free_action)
@@ -1109,6 +1141,10 @@ func _consume_first_spell_free(attacker: Unit) -> bool:
 	attacker.relic_first_spell_free_available = false
 	print("[魔力遗物] %s 首次施法免费" % attacker.unit_stats.unit_name)
 	return true
+
+
+func _is_alive(u: Unit) -> bool:
+	return u != null and is_instance_valid(u) and u.hit_points > 0
 
 
 # ============================================================

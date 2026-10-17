@@ -174,11 +174,21 @@ func upgrade_initial() -> bool:
 
 func tick_turn_start(units: Array) -> void:
 	if get_state() != State.ZERO: return
+	# ★ v4.2：先收集，再处理 —— 避免在遍历 unit_list 时改动它
+	var killed : Array = []
 	for unit in units:
 		if unit.unit_stats.team_id != 0 or unit.hit_points <= 0: continue
 		var dmg : int = int(unit.unit_stats.max_hp * 0.05)
-		unit.apply_damage(dmg)
+		var dead : bool = unit.apply_damage(dmg)
 		depleted_damage_taken.emit(dmg)
+		if dead:
+			killed.append(unit)
+	# ★ v4.2：清理死于魂火归零的单位，避免幽灵单位
+	for unit in killed:
+		if is_instance_valid(unit) and unit in UnitManager.unit_list:
+			print("[魂火归零] %s 阵亡" % unit.unit_stats.unit_name)
+			UnitManager.unregister_unit(unit)
+			unit.queue_free()
 
 
 func on_kill() -> void:
