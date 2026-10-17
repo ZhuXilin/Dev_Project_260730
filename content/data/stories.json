@@ -446,5 +446,32 @@
 		}
 	  }
 	]
+  },
+
+  "secret_merchant": {
+	"name": "兜帽商人",
+	"dialogues": [
+	  {
+		"id": "merchant_first",
+		"priority": 10,
+		"condition": {},
+		"lines": [
+		  { "speaker": "兜帽商人", "text": "嘘……你终于找到这里了。" },
+		  { "speaker": "兜帽商人", "text": "我看过太多人死在不该死的地方。" },
+		  { "speaker": "兜帽商人", "text": "我有一把钥匙，能让你在死眠中看见真相。" },
+		  { "speaker": "兜帽商人", "text": "代价不菲……但你会需要它的。" }
+		]
+	  },
+	  {
+		"id": "merchant_repeat",
+		"priority": 0,
+		"condition": {},
+		"lines": [
+		  { "speaker": "兜帽商人", "text": "又是你。" },
+		  { "speaker": "兜帽商人", "text": "这一次……你攒够了吗？" }
+		]
+	  }
+	],
+	"unlocks": []
   }
 }

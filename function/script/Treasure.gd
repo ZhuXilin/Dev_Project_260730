@@ -124,10 +124,11 @@ func _roll_option_types() -> Array:
 
 	var result : Array = []
 	var safety : int = 0
-	while result.size() < 3 and safety < 50:
+	# ★ 修复：三选项严格不重复；safety 从 50 提到 200，避免极端权重下死循环
+	while result.size() < 3 and safety < 200:
 		safety += 1
 		var pick : String = pool[randi() % pool.size()]
-		if pick in result and result.size() < 2:
+		if pick in result:
 			continue
 		result.append(pick)
 

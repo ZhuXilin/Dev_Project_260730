@@ -72,6 +72,8 @@ var _hint_override_text : String = ""
 var _hint_override_until : float = 0.0
 
 var _marked_targets : Dictionary = {}
+var _objective_banner : Label = null
+
 
 func _ready():
 	TurnManager.set_battle_ready(false)
@@ -233,8 +235,10 @@ func _ready():
 			back_to_menu_btn.pressed.connect(_on_back_to_menu_pressed)
 			back_to_menu_btn.text = "中断游戏"
 
-		# ★ 非战斗节点重置 Boss 机制（避免残留上一场的状态）
+		# ★ 非战斗节点重置 Boss 机制和目标状态
 		BossMechanicManager.setup_for_node(false)
+		if ObjectiveManager:
+			ObjectiveManager.setup_for_node(null)
 
 		TurnManager.start_turn(TurnManager.Team.PLAYER)
 		_panel_manager.update_relic_icons()
@@ -258,8 +262,16 @@ func _ready():
 	# 否则 start_turn 会调 on_player_turn_start() 用上一场的旧机制
 	BossMechanicManager.setup_for_node(is_boss)
 
+	# ★ 胜利目标初始化
+	if ObjectiveManager:
+		ObjectiveManager.setup_for_node(GameState.current_map_data)
+
 	await get_tree().process_frame
 	TurnManager.start_turn(TurnManager.Team.PLAYER)
+
+	# ★ 显示目标 banner（延迟避开 turn overlay）
+	if ObjectiveManager and not ObjectiveManager.is_annihilate():
+		call_deferred("_deferred_show_objective_banner")
 
 	if back_camp_btn:
 		for conn in back_camp_btn.pressed.get_connections():
@@ -489,6 +501,9 @@ func _exit_tree():
 
 	if SoulFireManager:
 		SoulFireManager.reset_boss_penalty()
+
+	if ObjectiveManager:
+		ObjectiveManager.setup_for_node(null)
 
 
 # ============================================================
@@ -913,3 +928,47 @@ func _on_request_setting_right_click():
 	SignalBus.request_hide_info.emit()
 	InputManager.interaction_phase = InputManager.Phase.IDLE
 	InputManager.current_empty_cell = Vector2i(-1, -1)
+
+
+func _deferred_show_objective_banner():
+	await get_tree().create_timer(1.5, true, false, true).timeout
+	if not is_inside_tree():
+		return
+	if ObjectiveManager == null or ObjectiveManager.is_annihilate():
+		return
+	_show_objective_banner()
+
+
+func _show_objective_banner():
+	if _objective_banner and is_instance_valid(_objective_banner):
+		_objective_banner.queue_free()
+
+	var text : String = "★ 目标：" + ObjectiveManager.get_description()
+	var lb := Label.new()
+	lb.name = "ObjectiveBanner"
+	lb.text = text
+	lb.add_theme_font_size_override("font_size", 11)
+	lb.add_theme_color_override("font_color", Color(1.0, 0.85, 0.3))
+	lb.add_theme_color_override("font_outline_color", Color.BLACK)
+	lb.add_theme_constant_override("outline_size", 3)
+	lb.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	lb.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	lb.anchor_left = 0.5
+	lb.anchor_right = 0.5
+	lb.offset_left = -180
+	lb.offset_right = 180
+	lb.offset_top = 16
+	lb.offset_bottom = 42
+	lb.z_index = 100
+	add_child(lb)
+	_objective_banner = lb
+
+	var tw := create_tween()
+	tw.set_ignore_time_scale(true)
+	tw.tween_property(lb, "modulate:a", 0.0, 0.8).set_delay(3.0)
+	tw.tween_callback(func():
+		if is_instance_valid(lb):
+			lb.queue_free()
+		if _objective_banner == lb:
+			_objective_banner = null
+	)

@@ -40,11 +40,13 @@ func is_battle_ready() -> bool:
 	return _battle_ready
 
 
-func _on_unit_removed(_unit: Unit, _team: int):
+func _on_unit_removed(unit: Unit, team: int):
 	if not _battle_ready:
 		return
 	if is_game_over:
 		return
+	if ObjectiveManager:
+		ObjectiveManager.on_unit_removed(unit, team)
 	check_victory()
 
 
@@ -63,10 +65,20 @@ func check_victory():
 	if player_count == 0 and enemy_count == 0:
 		return
 
+	# 玩家全灭 → 任何目标都是失败
 	if player_count == 0:
 		_trigger_victory(1)
-	elif enemy_count == 0:
+		return
+
+	# 目标完成 → 胜利
+	if ObjectiveManager and ObjectiveManager.is_completed():
 		_trigger_victory(0)
+		return
+
+	# 全灭目标：敌人全灭 → 胜利
+	if (not ObjectiveManager) or ObjectiveManager.is_annihilate():
+		if enemy_count == 0:
+			_trigger_victory(0)
 
 
 func _trigger_victory(winning_team: int):
@@ -147,6 +159,14 @@ func start_turn(team: Team):
 	if Globals.is_non_combat_mode and team == Team.ENEMY:
 		start_turn(Team.PLAYER)
 		return
+
+	# ★ v4.3：玩家回合 → 敌人回合边界，检查胜利目标
+	if team == Team.ENEMY and current_turn_team == Team.PLAYER:
+		if ObjectiveManager:
+			ObjectiveManager.on_player_turn_end()
+		check_victory()
+		if is_game_over:
+			return
 
 	current_turn_team = team
 	all_acted = false
