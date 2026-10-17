@@ -23,7 +23,7 @@
 		"stat_bonus": { "max_hp": 5, "strength": 5, "dexterity": 1 },
 		"granted_talent": "active_charge",
 		"flavor": "血已沸腾，唯有杀戮能平。",
-		"sprite_frames_path": "res://content/images/characters/unit_hunter_frames.tres", "tags": ["物理", "烈焰"] },
+		"sprite_frames_path": "res://content/images/characters/unit_berserker_frames.tres", "tags": ["物理", "烈焰"] },
 	  { "id": "swordsman_guardian", "name": "盾卫",
 		"description": "守护形态，嘲讽 + 护盾，受击 30% 回 1 魂火",
 		"stat_bonus": { "max_hp": 8, "strength": 2, "faith": 2 },
@@ -64,14 +64,14 @@
 		"stat_bonus": { "max_hp": 4, "strength": 3, "dexterity": 2 },
 		"granted_talent": "active_pierce",
 		"flavor": "长枪所指，便是雷光落处。",
-		"sprite_frames_path": "res://content/images/characters/unit_heavyknight_frames.tres",
+		"sprite_frames_path": "res://content/images/characters/unit_spearmandragoon_frames.tres",
 		"tags": ["物理", "烈焰"] },
 	  { "id": "spearman_ironshield", "name": "铁壁枪兵",
 		"description": "防御态势，受击回魂火",
 		"stat_bonus": { "max_hp": 6, "strength": 3, "faith": 2 },
 		"granted_talent": "parry",
 		"flavor": "枪如林，盾如墙。",
-		"sprite_frames_path": "res://content/images/characters/unit_horsearcher_frames.tres", "tags": ["物理", "守护"] }
+		"sprite_frames_path": "res://content/images/characters/unit_heavyknight_frames.tres", "tags": ["物理", "守护"] }
 	]
   },
   "axeman": {
@@ -105,7 +105,7 @@
 		"stat_bonus": { "max_hp": 5, "strength": 4, "dexterity": 1 },
 		"granted_talent": "active_heavy_slash",
 		"flavor": "斧过之处，只剩灰烬。",
-		"sprite_frames_path": "res://content/images/characters/unit_pirate_frames.tres", "tags": ["物理", "灰烬"] }
+		"sprite_frames_path": "res://content/images/characters/unit_ashcleaver_frames.tres", "tags": ["物理", "灰烬"] }
 	]
   },
   "archer": {
@@ -204,7 +204,7 @@
 		"stat_bonus": { "max_hp": 4, "intelligence": 3, "arcane": 2 },
 		"granted_talent": "spell_chain",
 		"flavor": "命运从不仁慈，我只是替它开口。",
-		"sprite_frames_path": "res://content/images/characters/unit_priest_frames.tres", "tags": ["法术", "轮回"] }
+		"sprite_frames_path": "res://content/images/characters/unit_curser_frames.tres", "tags": ["法术", "轮回"] }
 	]
   },
   "cleric": {
@@ -231,7 +231,7 @@
 		"stat_bonus": { "max_hp": 5, "faith": 4, "intelligence": 1 },
 		"granted_talent": "active_mass_heal",
 		"flavor": "以我血肉，换你重生。",
-		"sprite_frames_path": "res://content/images/characters/unit_thief_frames.tres", "tags": ["法术", "献祭"] },
+		"sprite_frames_path": "res://content/images/characters/unit_saint_frames.tres", "tags": ["法术", "献祭"] },
 	  { "id": "cleric_guardian", "name": "守护者",
 		"description": "护盾加身，队友减伤",
 		"stat_bonus": { "max_hp": 6, "faith": 3, "strength": 1 },
@@ -265,13 +265,13 @@
 		"stat_bonus": { "max_hp": 10, "strength": 3, "arcane": 2 },
 		"granted_talent": "active_dragon_breath",
 		"flavor": "吾乃龙之血脉，不灭之躯。",
-		"sprite_frames_path": "res://content/images/characters/unit_dragonborn_frames.tres", "tags": ["法术", "余烬"] },
+		"sprite_frames_path": "res://content/images/characters/unit_dragonlord_frames.tres", "tags": ["法术", "余烬"] },
 	  { "id": "dragonborn_ashtongue", "name": "灰烬吐息者",
 		"description": "焚尽一切，代价自受",
 		"stat_bonus": { "max_hp": 6, "arcane": 4, "dexterity": 2 },
 		"granted_talent": "active_fireball",
 		"flavor": "以灰烬为食，以烈火为语。",
-		"sprite_frames_path": "res://content/images/characters/unit_dragonborn_frames.tres", "tags": ["法术", "灰烬"] }
+		"sprite_frames_path": "res://content/images/characters/unit_dragonlord_frames.tres", "tags": ["法术", "灰烬"] }
 	]
   },
   "armored": {
@@ -306,7 +306,7 @@
 		"stat_bonus": { "max_hp": 8, "strength": 4, "arcane": 2 },
 		"granted_talent": "active_heavy_slash",
 		"flavor": "熔炉之中，我成为火。",
-		"sprite_frames_path": "res://content/images/characters/unit_general_frames.tres", "tags": ["物理", "烈焰"] }
+		"sprite_frames_path": "res://content/images/characters/unit_flamebearer_frames.tres", "tags": ["物理", "烈焰"] }
 	]
   }
 }

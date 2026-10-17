@@ -263,6 +263,7 @@ input[type=checkbox]{accent-color:#2d6cdf;margin-right:4px}
         </div>
         <div class="row">
           <button id="btn-guides-toggle" data-i18n="btn.guidesToggle" style="flex:1">Hide Guides</button>
+          <button id="btn-guides-midline" data-i18n="btn.guidesMidline" style="flex:1">Midlines</button>
           <button id="btn-guides-clear" data-i18n="btn.guidesClear" style="flex:1">Clear Guides</button>
         </div>
       </div>
@@ -443,8 +444,8 @@ var gridHistTimer = 0;
 
 var cpTarget = 'primary';
 var cpActive = false;
-var cpPickingFromCanvas = false;
 var cpState = { h: 0, s: 0, v: 0 };
+var pickerOverlay = null;
 
 var highlightColor = null;
 var _highlightMask = null;
@@ -1301,8 +1302,18 @@ function commitFloat(){
     var dx = f.x+x, dy = f.y+y;
     if(dx<0||dy<0||dx>=W||dy>=H) continue;
     var si = (y*f.w+x)*4, di = (dy*W+dx)*4;
-    d[di]=f.data[si]; d[di+1]=f.data[si+1]; d[di+2]=f.data[si+2]; d[di+3]=f.data[si+3];
-    doc.selMask[dy*W+dx] = 1;
+    var sa = f.data[si+3] / 255;
+    if (sa > 0) {
+        var da = d[di+3] / 255;
+        var outA = sa + da * (1 - sa);
+        if (outA > 0) {
+            d[di]   = Math.round((f.data[si]   * sa + d[di]   * da * (1 - sa)) / outA);
+            d[di+1] = Math.round((f.data[si+1] * sa + d[di+1] * da * (1 - sa)) / outA);
+            d[di+2] = Math.round((f.data[si+2] * sa + d[di+2] * da * (1 - sa)) / outA);
+            d[di+3] = Math.round(outA * 255);
+        }
+        doc.selMask[dy*W+dx] = 1;
+    }
   }
   doc.floating = null; doc.floatCanvas = null; doc.imageDirty = true; _highlightDirty = true;
   recalcBounds(); requestRender();
@@ -2514,20 +2525,6 @@ function getMouse(e){
 }
 function onCanvasMouseDown(e){
   if(rotState) { e.preventDefault(); return; }
-  if(cpPickingFromCanvas){
-    var m0 = getMouse(e);
-    var c0 = getCompositePixel(m0.px, m0.py);
-    if(c0[3] > 0){
-      if(cpTarget === 'primary') ui.primary = c0.slice();
-      else ui.secondary = c0.slice();
-      syncColorInputs();
-    }
-    cpPickingFromCanvas = false;
-    if(ui.tool===TOOL.PENCIL || ui.tool===TOOL.ERASER) canvas.style.cursor = 'none';
-    else canvas.style.cursor = 'crosshair';
-    e.preventDefault();
-    return;
-  }
 
   var m = getMouse(e);
   var inRulerTop = m.sy < RULER && m.sx >= RULER;
@@ -2863,6 +2860,16 @@ function onKeyDown(e){
     if(!e.repeat){ mDown = true; mDragged = false; }
     return;
   }
+  
+  // ★ Q键切换单格/全图显示
+  if ((k === 'q' || k === 'Q') && !e.ctrlKey && !e.metaKey && !e.altKey) {
+    e.preventDefault();
+    ui.singleCell = !ui.singleCell;
+    updateViewModeButton();
+    if(ui.singleCell) centerCurrentCell();
+    requestRender();
+    return;
+  }
 
   if(e.ctrlKey || e.metaKey){
     switch(k.toLowerCase()){
@@ -2904,12 +2911,6 @@ function onKeyDown(e){
       if(doc.hasSelection){ deleteSelection(); commitHistory(); refreshColorUsage(); }
       e.preventDefault(); break;
     case 'Escape':
-      if(cpPickingFromCanvas){
-        cpPickingFromCanvas = false;
-        if(ui.tool===TOOL.PENCIL || ui.tool===TOOL.ERASER) canvas.style.cursor = 'none';
-        else canvas.style.cursor = 'crosshair';
-        e.preventDefault(); break;
-      }
       if(cpActive){ closeColorPicker(); e.preventDefault(); break; }
       if(drag.mode === 'move' && doc.floating){
         drag.mode = null;
@@ -3215,6 +3216,37 @@ function updateViewModeButton(){
   else btn.textContent = currentLang==='zh'?'单格':'Single';
 }
 
+function addGridMidlines(){
+  if(!hasImage) return;
+  var cc = cellCount();
+  var added = 0;
+  for(var i=0; i<cc.x; i++){
+    var cx = i * doc.grid.w + doc.grid.w / 2;
+    if(cx >= doc.width) continue;
+    var exists = false;
+    for(var j=0; j<doc.guides.length; j++){
+      if(doc.guides[j].axis === 0 && Math.abs(doc.guides[j].pos - cx) < 0.1) { exists = true; break; }
+    }
+    if(!exists) { doc.guides.push({axis: 0, pos: cx}); added++; }
+  }
+  for(var k=0; k<cc.y; k++){
+    var cy = k * doc.grid.h + doc.grid.h / 2;
+    if(cy >= doc.height) continue;
+    var existsY = false;
+    for(var l=0; l<doc.guides.length; l++){
+      if(doc.guides[l].axis === 1 && Math.abs(doc.guides[l].pos - cy) < 0.1) { existsY = true; break; }
+    }
+    if(!existsY) { doc.guides.push({axis: 1, pos: cy}); added++; }
+  }
+  if(added > 0){
+    commitHistory();
+    requestRender();
+    setStatus(currentLang==='zh' ? '已添加 '+added+' 条网格中线' : 'Added '+added+' midlines');
+  } else {
+    setStatus(currentLang==='zh' ? '网格中线已存在' : 'Midlines already exist');
+  }
+}
+
 function cpGetColor(){ return cpTarget === 'primary' ? ui.primary : ui.secondary; }
 function cpRenderSV() {
   var cv = document.getElementById('cp-sv');
@@ -3300,18 +3332,89 @@ function openColorPicker(target, anchorEl) {
   if (top < 8) top = 8;
   popup.style.left = left + 'px';
   popup.style.top = top + 'px';
+  
+  // ★ 打开调色板时，直接设置画布光标为十字准星
+  canvas.style.cursor = 'crosshair';
 }
 function closeColorPicker() {
   if (!cpActive) return;
   cpActive = false;
   document.getElementById('color-picker-popup').classList.remove('open');
+  // ★ 恢复画布光标
+  if(ui.tool===TOOL.PENCIL || ui.tool===TOOL.ERASER) canvas.style.cursor = 'none';
+  else canvas.style.cursor = 'crosshair';
 }
-function cpFallbackToCanvas() {
-  cpPickingFromCanvas = true;
+function startPickingColor() {
+  if (pickerOverlay) return;
+  
+  // 尝试原生 EyeDropper
+  if (typeof window.EyeDropper === 'function') {
+    try {
+      var eyeDropper = new EyeDropper();
+      eyeDropper.open().then(function(result){
+        var rgb = hexToRgb(result.sRGBHex);
+        cpApplyRgb(rgb[0], rgb[1], rgb[2]);
+        closeColorPicker();
+        setStatus(currentLang==='zh'?'已取色':'Color picked');
+      }).catch(function(){
+        // 用户按 Esc 取消原生吸管，保持调色板打开
+      });
+      return;
+    } catch(e) { }
+  }
+
+  // Fallback: 画布内吸色
   closeColorPicker();
-  canvas.style.cursor = 'crosshair';
-  setStatus(currentLang==='zh'?'浏览器不支持屏幕取色，请点击画布取色':'Screen picker not supported, click canvas to pick');
+  
+  pickerOverlay = document.createElement('div');
+  pickerOverlay.style.position = 'fixed';
+  pickerOverlay.style.inset = '0';
+  pickerOverlay.style.zIndex = '9999';
+  pickerOverlay.style.cursor = 'crosshair';
+  document.body.appendChild(pickerOverlay);
+  
+  pickerOverlay.addEventListener('mousedown', onPickerMouseDown, true);
+  document.addEventListener('keydown', onPickerKeyDown, true);
+  
+  setStatus(currentLang==='zh'?'取色模式：请在画布内点击取色（Esc 退出）':'Picking mode: Click canvas to pick (Esc to exit)');
 }
+
+function onPickerMouseDown(e) {
+  e.preventDefault();
+  e.stopPropagation();
+  
+  var r = canvas.getBoundingClientRect();
+  var sx = e.clientX - r.left;
+  var sy = e.clientY - r.top;
+  var p = screenToPixel(sx, sy);
+  
+  if (p.x >= 0 && p.y >= 0 && p.x < doc.width && p.y < doc.height) {
+    var c0 = getCompositePixel(p.x, p.y);
+    cpApplyRgb(c0[0], c0[1], c0[2]);
+    stopPickingColor();
+    setStatus(currentLang==='zh'?'已取色':'Color picked');
+  } else {
+    setStatus(currentLang==='zh'?'请点击画布内部取色':'Please click inside the canvas');
+  }
+}
+
+function onPickerKeyDown(e) {
+  if (e.key === 'Escape') {
+    e.preventDefault();
+    e.stopPropagation();
+    stopPickingColor();
+    setStatus(currentLang==='zh'?'已取消取色':'Picking cancelled');
+  }
+}
+
+function stopPickingColor() {
+  if (pickerOverlay) {
+    if (pickerOverlay.parentNode) pickerOverlay.parentNode.removeChild(pickerOverlay);
+    pickerOverlay = null;
+  }
+  document.removeEventListener('keydown', onPickerKeyDown, true);
+}
+
 function bindColorPicker() {
   var chipP = document.getElementById('chip-primary');
   var chipS = document.getElementById('chip-secondary');
@@ -3399,19 +3502,7 @@ function bindColorPicker() {
   });
 
   document.getElementById('cp-pick').addEventListener('click', function() {
-    var target = cpTarget;
-    if (typeof window.EyeDropper === 'function') {
-      try {
-        var eyeDropper = new EyeDropper();
-        eyeDropper.open().then(function(result){
-          var rgb = hexToRgb(result.sRGBHex);
-          cpTarget = target;
-          cpApplyRgb(rgb[0], rgb[1], rgb[2]);
-        }).catch(function(){});
-        return;
-      } catch(e) { }
-    }
-    cpFallbackToCanvas();
+    startPickingColor();
   });
 
   document.addEventListener('mousedown', function(e) {
@@ -3419,6 +3510,7 @@ function bindColorPicker() {
     var popup = document.getElementById('color-picker-popup');
     if (popup.contains(e.target)) return;
     if (e.target.id === 'chip-primary' || e.target.id === 'chip-secondary') return;
+    // 移除针对 canvas 的排除，点击画布也关闭调色板
     closeColorPicker();
   }, true);
 }
@@ -3952,6 +4044,7 @@ var I18N = {
   'section.guides': {zh:'参考线 / 吸附', en:'Guides / Snap'},
   'label.snap': {zh:'吸附（参考线 / 格子）', en:'Snap (guides / grid)'},
   'btn.guidesToggle': {zh:'隐藏参考线', en:'Hide Guides'},
+  'btn.guidesMidline': {zh:'网格中线', en:'Midlines'},
   'btn.guidesClear': {zh:'清空参考线', en:'Clear Guides'},
   'section.imgPal': {zh:'图片色板', en:'Image Palette'},
   'btn.refresh': {zh:'刷新', en:'Refresh'},
@@ -3982,7 +4075,7 @@ var I18N = {
   'menu.selCell': {zh:'选择当前格', en:'Select Current Cell'},
   'menu.crop': {zh:'裁切到选区', en:'Crop to Selection'},
   'menu.delSel': {zh:'删除选中像素', en:'Delete Selected Pixels'},
-  'status.ready': {zh:'就绪 — V 选择 · M 套索 · C 裁切 · B 铅笔 · R 旋转 · ←/→ A/D 逐帧 · 空格播放', en:'Ready — V Select · M Lasso · C Crop · B Pencil · R Rotate · ←/→ A/D Frame · Space Play'}
+  'status.ready': {zh:'就绪 — V 选择 · M 套索 · C 裁切 · B 铅笔 · R 旋转 · Q 视图切换 · ←/→ A/D 逐帧 · 空格播放', en:'Ready — V Select · M Lasso · C Crop · B Pencil · R Rotate · Q View Mode · ←/→ A/D Frame · Space Play'}
 };
 
 var I18N_TITLE = {
@@ -3991,8 +4084,8 @@ var I18N_TITLE = {
     en:'Drag top ruler down → horizontal guide\nDrag left ruler right → vertical guide\nCtrl + drag near guide → move it\nAuto-snap to cell edges / centers while dragging\nDouble-click guide → delete\nWhen hidden, snapping is disabled'
   },
   'help.sel': {
-    zh:'选择工具 (V)：Shift=正方形 · Ctrl=加选 · Alt=减选\n套索工具 (M)：Shift=正圆 · Ctrl=加选 · Alt=减选\n按住 V 或 M 拖动选区内 → 仅移动选区\n普通拖动选区内 → 浮起像素并移动（Shift 锁轴）\n按住 R + 鼠标移动 → 围绕选区中心旋转（Shift=45°）\nC → 裁切图片到选区\n← → / A D → 切换动画帧（长按连续播放，释放停住）\n空格 → 播放 / 暂停；空格 + 拖动 → 平移画布\nCtrl+C 复制 · Ctrl+X 剪切 · Ctrl+V 粘贴 · Ctrl+Shift+V 粘贴为新图层',
-    en:'Select (V): Shift=Square · Ctrl=Add · Alt=Subtract\nLasso (M): Shift=Circle · Ctrl=Add · Alt=Subtract\nHold V or M and drag inside → move selection only\nNormal drag inside → float pixels & move (Shift=lock axis)\nHold R + move mouse → rotate around selection center (Shift=45°)\nC → Crop image to selection\n← → / A D → step animation frames (hold = continuous, release = stop)\nSpace → play/pause; Space + drag → pan\nCtrl+C Copy · Ctrl+X Cut · Ctrl+V Paste · Ctrl+Shift+V Paste as new layer'
+    zh:'选择工具 (V)：Shift=正方形 · Ctrl=加选 · Alt=减选\n套索工具 (M)：Shift=正圆 · Ctrl=加选 · Alt=减选\n按住 V 或 M 拖动选区内 → 仅移动选区\n普通拖动选区内 → 浮起像素并移动（Shift 锁轴）\n按住 R + 鼠标移动 → 围绕选区中心旋转（Shift=45°）\nC → 裁切图片到选区\nQ → 切换单格/全图显示\n← → / A D → 切换动画帧（长按连续播放，释放停住）\n空格 → 播放 / 暂停；空格 + 拖动 → 平移画布\nCtrl+C 复制 · Ctrl+X 剪切 · Ctrl+V 粘贴 · Ctrl+Shift+V 粘贴为新图层',
+    en:'Select (V): Shift=Square · Ctrl=Add · Alt=Subtract\nLasso (M): Shift=Circle · Ctrl=Add · Alt=Subtract\nHold V or M and drag inside → move selection only\nNormal drag inside → float pixels & move (Shift=lock axis)\nHold R + move mouse → rotate around selection center (Shift=45°)\nC → Crop image to selection\nQ → Toggle single cell / full canvas\n← → / A D → step animation frames (hold = continuous, release = stop)\nSpace → play/pause; Space + drag → pan\nCtrl+C Copy · Ctrl+X Cut · Ctrl+V Paste · Ctrl+Shift+V Paste as new layer'
   },
   'tt.rotCcw': {zh:'逆时针旋转 90°', en:'Rotate 90° CCW'},
   'tt.rotCw':  {zh:'顺时针旋转 90°', en:'Rotate 90° CW'},
@@ -4254,6 +4347,7 @@ function bindUI(){
     updateGuidesToggleButton();
     requestRender();
   });
+  document.getElementById('btn-guides-midline').addEventListener('click', addGridMidlines);
   document.getElementById('btn-guides-clear').addEventListener('click', function(){
     if(doc.guides.length === 0) return;
     doc.guides = [];
