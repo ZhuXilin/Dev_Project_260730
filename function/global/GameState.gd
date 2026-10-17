@@ -285,6 +285,22 @@ var keys_bought : int:
 	get: return resource_state.keys_bought
 	set(value): resource_state.keys_bought = value
 
+var pending_tag_pin : String:
+	get: return resource_state.pending_tag_pin
+	set(value): resource_state.pending_tag_pin = value
+
+var active_tag_pin : String:
+	get: return resource_state.active_tag_pin
+	set(value): resource_state.active_tag_pin = value
+
+var soul_fire_threshold_override : float:
+	get: return resource_state.soul_fire_threshold_override
+	set(value): resource_state.soul_fire_threshold_override = value
+
+var reforge_tickets : int:
+	get: return resource_state.reforge_tickets
+	set(value): resource_state.reforge_tickets = value
+
 var pending_save_slot : int = -1
 
 # ============================================================
@@ -428,6 +444,15 @@ func start_new_cycle():
 	cycle_start_soul = soul
 	keys = 0
 	keys_bought = 0
+
+	# 标签定向器 pending → active
+	if pending_tag_pin != "":
+		active_tag_pin = pending_tag_pin
+		pending_tag_pin = ""
+	else:
+		active_tag_pin = ""
+	soul_fire_threshold_override = 0.0
+	# reforge_tickets 跨局保留（不清空）
 
 	for unit_data in party:
 		unit_data.sacrifice_buff_sources.clear()

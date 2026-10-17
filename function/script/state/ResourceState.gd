@@ -12,6 +12,12 @@ var temp_gold : int = 0
 var keys : int = 0
 var keys_bought : int = 0
 
+# ---- 隐藏商人商品 ----
+var pending_tag_pin : String = ""
+var active_tag_pin : String = ""
+var soul_fire_threshold_override : float = 0.0
+var reforge_tickets : int = 0
+
 # ---- 魂火 ----
 var soul_fire_current : int = 0
 var soul_fire_altar_level : int = 0

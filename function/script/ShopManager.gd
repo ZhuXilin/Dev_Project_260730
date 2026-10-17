@@ -100,11 +100,16 @@ func _get_team_tag_weights() -> Dictionary:
 		var cnt : int = min(int(GameState.tag_purchase_count[tag]), TAG_PURCHASE_WEIGHT_CAP)
 		weights[tag] = weights.get(tag, 0) + cnt
 
-	# ★ v4.4：FORGE 低语带来的标签权重加成
+	# FORGE 低语
 	for tag in ARMOR_TAGS:
 		var boost : int = ForgeWhisperManager.get_shop_tag_boost(tag)
 		if boost > 0:
 			weights[tag] = weights.get(tag, 0) + boost
+
+	# 隐藏商人标签定向器（压倒性权重）
+	var pin : String = GameState.active_tag_pin
+	if pin != "" and pin in ARMOR_TAGS:
+		weights[pin] = weights.get(pin, 0) + 200
 
 	return weights
 

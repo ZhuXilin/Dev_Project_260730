@@ -305,6 +305,8 @@ func _register_commands():
 	register("sac", _cmd_sacrifice, "sac <n>  设置献祭次数", ["sacrifice"])
 	register("whisper", _cmd_whisper, "whisper  打印当前低语")
 	register("whisper_reset", _cmd_whisper_reset, "whisper_reset  重置本局低语")
+	register("wave", _cmd_wave, "wave <1-3>  设置当前地图波次")
+	register("reinforce", _cmd_reinforce, "reinforce <0-5>  设置当前地图增援数量")
 
 	# ---- NPC ----
 	register("affinity", _cmd_affinity, "affinity <npc> <n>  设置 NPC 亲密度")
@@ -347,6 +349,10 @@ func _register_commands():
 	register("analytics_csv", _cmd_analytics_csv, "analytics_csv  导出埋点 CSV 到 user://")
 
 	register("key", _cmd_key, "key <n>  修改当前死眠之钥数量（0-1）")
+
+	register("tag_pin", _cmd_tag_pin, "tag_pin <tag|clear>  设置挂起的标签定向器")
+	register("threshold", _cmd_threshold, "threshold <0|1>  开启/关闭魂火阈值调节")
+	register("reforge_ticket", _cmd_reforge_ticket, "reforge_ticket <n>  设置重铸券数量")
 
 # ============================================================
 #  命令解析与执行
@@ -953,3 +959,63 @@ func _cmd_whisper(_args: Array):
 func _cmd_whisper_reset(_args: Array):
 	ForgeWhisperManager.reset_for_new_run()
 	_out("已重置本局低语", "green")
+
+
+func _cmd_wave(args: Array):
+	if args.is_empty():
+		_out("用法: wave <1-3>", "red")
+		return
+	var n : int = clampi(_parse_int(args[0]), 1, 3)
+	if GameState.current_map_data == null:
+		_out("当前没有地图（仅在 Battlefield 场景可用）", "yellow")
+		return
+	GameState.current_map_data.max_waves = n
+	if WaveManager:
+		WaveManager.reset()
+		WaveManager.setup_for_node(GameState.current_map_data, get_tree().current_scene)
+	_out("当前地图波次 → %d" % n, "green")
+
+
+func _cmd_reinforce(args: Array):
+	if args.is_empty():
+		_out("用法: reinforce <0-5>", "red")
+		return
+	var n : int = clampi(_parse_int(args[0]), 0, 5)
+	if GameState.current_map_data == null:
+		_out("当前没有地图（仅在 Battlefield 场景可用）", "yellow")
+		return
+	GameState.current_map_data.reinforcement_count = n
+	_out("当前地图增援数量 → %d（需再进一次波次才生效）" % n, "green")
+
+
+func _cmd_tag_pin(args: Array):
+	if args.is_empty():
+		_out("用法: tag_pin <守护|烈焰|灰烬|轮回|献祭|余烬|clear>", "red")
+		return
+	if args[0] == "clear":
+		GameState.pending_tag_pin = ""
+		GameState.active_tag_pin = ""
+		_out("已清除标签定向器", "green")
+		return
+	GameState.pending_tag_pin = args[0]
+	_out("挂起标签定向器 → %s（下一局生效）" % args[0], "green")
+
+
+func _cmd_threshold(args: Array):
+	if args.is_empty():
+		_out("用法: threshold <0|1>", "red")
+		return
+	if args[0] == "0":
+		GameState.soul_fire_threshold_override = 0.0
+		_out("魂火阈值调节器：关闭", "green")
+	else:
+		GameState.soul_fire_threshold_override = 0.4
+		_out("魂火阈值调节器：燃烧线 → 40%%", "green")
+
+
+func _cmd_reforge_ticket(args: Array):
+	if args.is_empty():
+		_out("用法: reforge_ticket <n>", "red")
+		return
+	GameState.reforge_tickets = maxi(0, _parse_int(args[0]))
+	_out("重铸券 → %d" % GameState.reforge_tickets, "green")

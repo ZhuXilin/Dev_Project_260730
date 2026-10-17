@@ -152,8 +152,15 @@ func reforge_instance(inst : ItemInstance) -> bool:
 	var data : ItemData = ItemManager.get_item_data(inst.item_id)
 	if not data: return false
 	if data.quality != "epic": return false
-	if panel._context.get_gold() < REFORGE_COST: return false
-	panel._context.subtract_gold(REFORGE_COST)
+
+	# ★ v4.6：优先用重铸券
+	if GameState.reforge_tickets > 0:
+		GameState.reforge_tickets -= 1
+		SaveManager.auto_save()
+	else:
+		if panel._context.get_gold() < REFORGE_COST: return false
+		panel._context.subtract_gold(REFORGE_COST)
+
 	inst.affixes = AffixManager.roll_affixes(data.quality, data.tags)
 	SaveManager.auto_save()
 	panel._update_gold_display()
@@ -536,7 +543,10 @@ func refresh_forge_upgrade_ui():
 
 	if forge_reforge_btn and is_instance_valid(forge_reforge_btn):
 		var afford_r : bool = panel._context.get_gold() >= REFORGE_COST
-		forge_reforge_btn.text = "拖拽紫装重铸（%dG）" % REFORGE_COST
+		if GameState.reforge_tickets > 0:
+			forge_reforge_btn.text = "拖拽紫装重铸（券 ×%d）" % GameState.reforge_tickets
+		else:
+			forge_reforge_btn.text = "拖拽紫装重铸（%dG）" % REFORGE_COST
 		forge_reforge_btn.disabled = not afford_r
 		forge_reforge_btn.modulate = Color.WHITE if afford_r else Color(1.0, 0.6, 0.6)
 		if forge_reforge_label:
@@ -864,10 +874,13 @@ func execute_forge_drop(data: Dictionary, target: Control):
 		if inst == null: return
 		var d : ItemData = ItemManager.get_item_data(inst.item_id)
 		if not d or d.quality != "epic": return
-		if panel._context.get_gold() < REFORGE_COST:
-			panel._show_buy_failure_message("not_enough_gold"); return
-		if not panel._context.subtract_gold(REFORGE_COST):
-			panel._show_buy_failure_message("not_enough_gold"); return
+		if GameState.reforge_tickets > 0:
+			GameState.reforge_tickets -= 1
+		else:
+			if panel._context.get_gold() < REFORGE_COST:
+				panel._show_buy_failure_message("not_enough_gold"); return
+			if not panel._context.subtract_gold(REFORGE_COST):
+				panel._show_buy_failure_message("not_enough_gold"); return
 		inst.affixes = AffixManager.roll_affixes(d.quality, d.tags)
 		SaveManager.auto_save()
 		panel._build_unit_columns()

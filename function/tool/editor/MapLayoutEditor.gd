@@ -343,9 +343,12 @@ func _snapshot_current() -> Dictionary:
 		cp.connects_to = n.connects_to.duplicate()
 		cp.unlock_relics = n.unlock_relics.duplicate()
 		cp.unlock_units = n.unlock_units.duplicate()
-		# ★ v4.4：撤销/重做也要复制目标字段
+		# 撤销/重做也要复制目标字段
 		cp.objective_type = n.objective_type
 		cp.objective_params = n.objective_params.duplicate(true)
+		# 波次字段也要复制
+		cp.max_waves = n.max_waves
+		cp.reinforcement_count = n.reinforcement_count
 		nodes_copy.append(cp)
 	return {
 		"day": _current_day,
@@ -1031,6 +1034,44 @@ func _show_type_picker_popup(node_idx: int):
 		obj_param_edit.text = JSON.stringify(node.objective_params)
 	obj_row.add_child(obj_param_edit)
 
+	# ============================================================
+	#  ★ v4.5：波次/增援行
+	# ============================================================
+	var wave_row := HBoxContainer.new()
+	wave_row.add_theme_constant_override("separation", 4)
+	wave_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	vbox.add_child(wave_row)
+
+	var wave_lb := Label.new()
+	wave_lb.text = "波次:"
+	wave_lb.add_theme_font_size_override("font_size", 7)
+	wave_row.add_child(wave_lb)
+
+	var wave_spin := SpinBox.new()
+	wave_spin.min_value = 1
+	wave_spin.max_value = 3
+	wave_spin.step = 1
+	wave_spin.value = maxi(1, node.max_waves)
+	wave_spin.add_theme_font_size_override("font_size", 7)
+	wave_spin.custom_minimum_size = Vector2(40, 0)
+	wave_spin.editable = can_unlock
+	wave_row.add_child(wave_spin)
+
+	var reinf_lb := Label.new()
+	reinf_lb.text = "  增援:"
+	reinf_lb.add_theme_font_size_override("font_size", 7)
+	wave_row.add_child(reinf_lb)
+
+	var reinf_spin := SpinBox.new()
+	reinf_spin.min_value = 0
+	reinf_spin.max_value = 5
+	reinf_spin.step = 1
+	reinf_spin.value = maxi(0, node.reinforcement_count)
+	reinf_spin.add_theme_font_size_override("font_size", 7)
+	reinf_spin.custom_minimum_size = Vector2(40, 0)
+	reinf_spin.editable = can_unlock
+	wave_row.add_child(reinf_spin)
+
 	var btns := HBoxContainer.new()
 	btns.alignment = BoxContainer.ALIGNMENT_CENTER
 	btns.add_theme_constant_override("separation", 8)
@@ -1088,7 +1129,6 @@ func _show_type_picker_popup(node_idx: int):
 		else:
 			node.unlock_units.clear()
 
-		# ★ v4.4：应用目标
 		if can_unlock:
 			node.objective_type = obj_opt.selected as MapData.ObjectiveType
 			var param_text : String = obj_param_edit.text.strip_edges()
@@ -1117,9 +1157,15 @@ func _show_type_picker_popup(node_idx: int):
 					node.objective_params = cleaned
 				else:
 					node.objective_params = {}
+
+			# ★ v4.5：写回波次/增援
+			node.max_waves = clampi(int(wave_spin.value), 1, 3)
+			node.reinforcement_count = clampi(int(reinf_spin.value), 0, 5)
 		else:
 			node.objective_type = MapData.ObjectiveType.ANNIHILATE
 			node.objective_params = {}
+			node.max_waves = 1
+			node.reinforcement_count = 0
 
 		_canvas.queue_redraw()
 		_close_popup()

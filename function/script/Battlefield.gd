@@ -262,12 +262,13 @@ func _ready():
 	# 否则 start_turn 会调 on_player_turn_start() 用上一场的旧机制
 	BossMechanicManager.setup_for_node(is_boss)
 
-	# ★ v4.3：胜利目标初始化
+	# 胜利目标初始化
 	if ObjectiveManager:
 		ObjectiveManager.setup_for_node(GameState.current_map_data)
 
-	# 波次初始化（在所有单位 spawn 之后，Battlefield 自己）
+	# 波次初始化（先连接信号，再 setup）
 	if WaveManager:
+		_connect_wave_signals()
 		WaveManager.setup_for_node(GameState.current_map_data, self)
 
 	# 目标可视化 + 状态 HUD
@@ -518,6 +519,7 @@ func _exit_tree():
 
 	if WaveManager:
 		WaveManager.reset()
+		_disconnect_wave_signals()
 
 
 # ============================================================
@@ -1139,6 +1141,99 @@ func _show_intel_banner(text : String):
 			lb.queue_free()
 		if _intel_banner == lb:
 			_intel_banner = null
+	)
+
+
+# ============================================================
+#  波次 HUD + 增援警告 banner
+# ============================================================
+var _wave_hud_label : Label = null
+var _wave_warning_banner : Label = null
+
+
+func _connect_wave_signals():
+	if WaveManager == null:
+		return
+	if not WaveManager.wave_advanced.is_connected(_on_wave_advanced):
+		WaveManager.wave_advanced.connect(_on_wave_advanced)
+	if not WaveManager.wave_warning.is_connected(_on_wave_warning):
+		WaveManager.wave_warning.connect(_on_wave_warning)
+
+
+func _disconnect_wave_signals():
+	if WaveManager == null:
+		return
+	if WaveManager.wave_advanced.is_connected(_on_wave_advanced):
+		WaveManager.wave_advanced.disconnect(_on_wave_advanced)
+	if WaveManager.wave_warning.is_connected(_on_wave_warning):
+		WaveManager.wave_warning.disconnect(_on_wave_warning)
+
+
+func _ensure_wave_hud():
+	if _wave_hud_label and is_instance_valid(_wave_hud_label):
+		return
+	_wave_hud_label = Label.new()
+	_wave_hud_label.name = "WaveIndicator"
+	_wave_hud_label.add_theme_font_size_override("font_size", 8)
+	_wave_hud_label.add_theme_color_override("font_color", Color(0.9, 0.75, 1.0))
+	_wave_hud_label.add_theme_color_override("font_outline_color", Color.BLACK)
+	_wave_hud_label.add_theme_constant_override("outline_size", 2)
+	_wave_hud_label.position = Vector2(240, 208)
+	_wave_hud_label.size = Vector2(80, 14)
+	_wave_hud_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	_wave_hud_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_wave_hud_label)
+
+
+func _on_wave_advanced(current : int, total : int):
+	if not is_inside_tree():
+		return
+	if total <= 1:
+		return
+	_ensure_wave_hud()
+	if _wave_hud_label and is_instance_valid(_wave_hud_label):
+		_wave_hud_label.text = "波次 %d / %d" % [current, total]
+		_wave_hud_label.visible = true
+
+
+func _on_wave_warning(next_wave : int, total : int):
+	if not is_inside_tree():
+		return
+	_show_wave_warning_banner("⚠ 增援即将到达（%d / %d）" % [next_wave, total])
+
+
+func _show_wave_warning_banner(text : String):
+	if _wave_warning_banner and is_instance_valid(_wave_warning_banner):
+		_wave_warning_banner.queue_free()
+
+	var lb := Label.new()
+	lb.name = "WaveWarningBanner"
+	lb.text = text
+	lb.add_theme_font_size_override("font_size", 10)
+	lb.add_theme_color_override("font_color", Color(1.0, 0.5, 0.35))
+	lb.add_theme_color_override("font_outline_color", Color.BLACK)
+	lb.add_theme_constant_override("outline_size", 3)
+	lb.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	lb.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	lb.anchor_left = 0.5
+	lb.anchor_right = 0.5
+	lb.offset_left = -140
+	lb.offset_right = 140
+	lb.offset_top = 104
+	lb.offset_bottom = 128
+	lb.z_index = 100
+	lb.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(lb)
+	_wave_warning_banner = lb
+
+	var tw := create_tween()
+	tw.set_ignore_time_scale(true)
+	tw.tween_property(lb, "modulate:a", 0.0, 0.5).set_delay(2.5)
+	tw.tween_callback(func():
+		if is_instance_valid(lb):
+			lb.queue_free()
+		if _wave_warning_banner == lb:
+			_wave_warning_banner = null
 	)
 
 

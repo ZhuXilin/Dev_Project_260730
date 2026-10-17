@@ -84,9 +84,17 @@ func get_state() -> State:
 	if current <= 0:
 		return State.ZERO
 	var r : float = get_ratio()
-	if r > 0.5:
+
+	# ★ v4.6：魂火阈值调节器
+	var burning_threshold : float = 0.5
+	var depleted_threshold : float = 0.2
+	var override : float = GameState.soul_fire_threshold_override
+	if override > 0.0 and override < burning_threshold:
+		burning_threshold = override
+
+	if r > burning_threshold:
 		return State.BURNING
-	elif r < 0.2:
+	elif r < depleted_threshold:
 		return State.DEPLETED
 	return State.NORMAL
 

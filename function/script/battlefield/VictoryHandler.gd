@@ -50,9 +50,13 @@ func _compute_rating() -> String:
 		hp_loss_ratio /= float(total_start)
 
 	var turns : int = Globals.current_battle_turn
-	var turn_score : float = clampf(1.0 - float(turns) / 20.0, 0.0, 1.0)
+	# 波次战斗的回合分按总波次归一化
+	var wave_mult : int = 1
+	if GameState.current_map_data:
+		wave_mult = maxi(1, GameState.current_map_data.max_waves)
+	var turn_score : float = clampf(1.0 - float(turns) / (20.0 * float(wave_mult)), 0.0, 1.0)
 
-	# ★ v4.4：按目标类型分叉评级公式
+	# 按目标类型分叉评级公式
 	var obj_type : int = MapData.ObjectiveType.ANNIHILATE
 	if ObjectiveManager != null:
 		obj_type = ObjectiveManager.get_objective_type()

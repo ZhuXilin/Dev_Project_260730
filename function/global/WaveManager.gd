@@ -210,7 +210,6 @@ func on_player_turn_end() -> void:
 	if _pending_groups.is_empty():
 		return
 
-	# 当前波是否已清空（场上无活跃敌人）
 	var alive_enemies : int = 0
 	for u in UnitManager.unit_list:
 		if not is_instance_valid(u):
@@ -220,28 +219,23 @@ func on_player_turn_end() -> void:
 		if u.hit_points <= 0:
 			continue
 		if u.visible == false:
-			# 隐藏的不算
 			continue
 		alive_enemies += 1
 
 	if alive_enemies > 0:
-		# 场上还有敌人，波次不推进
 		return
 
-	# 场上是空的，处理波次推进
 	if not _warning_shown:
 		_warning_shown = true
 		_next_wave_delay = 1
 		print("[Wave] 第 %d 波清空，警告即将增援" % _current_wave)
 		wave_warning.emit(_current_wave + 1, _type_total_waves)
-		SignalBus.request_hint_override.emit("⚠ 增援即将到达", 2.0)
 		return
 
 	if _next_wave_delay > 0:
 		_next_wave_delay -= 1
 		if _next_wave_delay > 0:
 			return
-		# 激活下一波
 		_activate_next_wave()
 
 

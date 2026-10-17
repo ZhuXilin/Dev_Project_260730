@@ -49,7 +49,7 @@ func setup(node_data: MapNode, map_scene: CanvasLayer, override_pos: Vector2 = V
 			child.queue_free()
 			break
 
-	# ★ v4.4：目标徽章
+	# 目标徽章
 	_add_objective_badge(node_data)
 
 
@@ -60,16 +60,25 @@ func _add_objective_badge(node: MapNode):
 
 	if node == null or node.map_data == null:
 		return
-	if node.map_data.objective_type == MapData.ObjectiveType.ANNIHILATE:
-		return
 
-	var badge_text : String = _objective_badge_text(node.map_data.objective_type)
-	if badge_text == "":
+	var parts : Array = []
+
+	var obj_text : String = _objective_badge_text(node.map_data.objective_type)
+	if obj_text != "":
+		parts.append(obj_text)
+
+	if node.map_data.max_waves > 1:
+		if node.map_data.reinforcement_count > 0:
+			parts.append("波%d+援%d" % [node.map_data.max_waves, node.map_data.reinforcement_count])
+		else:
+			parts.append("波%d" % node.map_data.max_waves)
+
+	if parts.is_empty():
 		return
 
 	var badge := Label.new()
 	badge.name = "ObjectiveBadge"
-	badge.text = badge_text
+	badge.text = " · ".join(parts)
 	badge.add_theme_font_size_override("font_size", 5)
 	badge.add_theme_color_override("font_color", Color(1.0, 0.85, 0.3))
 	badge.add_theme_color_override("font_outline_color", Color.BLACK)

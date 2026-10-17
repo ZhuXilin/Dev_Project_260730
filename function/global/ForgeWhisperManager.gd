@@ -86,6 +86,13 @@ func get_fusion_hints() -> Array:
 	return _fusion_hints.duplicate()
 
 
+func add_revealed_intel(text : String) -> void:
+	if text == "":
+		return
+	if not (text in _revealed_intel):
+		_revealed_intel.append(text)
+
+
 func get_shop_tag_boost(tag : String) -> int:
 	var total : int = 0
 	for e in _active_effects:

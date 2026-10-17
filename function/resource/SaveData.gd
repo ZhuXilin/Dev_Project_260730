@@ -41,6 +41,12 @@ const CURRENT_VERSION = 10
 @export var keys: int = 0
 @export var keys_bought: int = 0
 
+# ---- 隐藏商人商品 ----
+@export var pending_tag_pin: String = ""
+@export var active_tag_pin: String = ""
+@export var soul_fire_threshold_override: float = 0.0
+@export var reforge_tickets: int = 0
+
 # ---- 魂火 ----
 @export var soul_fire_current: int = 0
 @export var soul_fire_altar_level: int = 0

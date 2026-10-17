@@ -101,6 +101,12 @@ func _build_save_data() -> SaveData:
 	save.soul = GameState.soul
 	save.keys = GameState.keys
 	save.keys_bought = GameState.keys_bought
+	save.keys = GameState.keys
+	save.keys_bought = GameState.keys_bought
+	save.pending_tag_pin = GameState.pending_tag_pin
+	save.active_tag_pin = GameState.active_tag_pin
+	save.soul_fire_threshold_override = GameState.soul_fire_threshold_override
+	save.reforge_tickets = GameState.reforge_tickets
 	save.cycle_start_soul = GameState.cycle_start_soul
 	save.temp_gold = GameState.temp_gold
 
@@ -203,6 +209,12 @@ func _apply_save_data(save: SaveData):
 	GameState.soul = save.soul
 	GameState.keys = save.keys
 	GameState.keys_bought = save.keys_bought
+	GameState.keys = save.keys
+	GameState.keys_bought = save.keys_bought
+	GameState.pending_tag_pin = save.pending_tag_pin
+	GameState.active_tag_pin = save.active_tag_pin
+	GameState.soul_fire_threshold_override = save.soul_fire_threshold_override
+	GameState.reforge_tickets = save.reforge_tickets
 	GameState.cycle_start_soul = save.cycle_start_soul
 	GameState.temp_gold = save.temp_gold
 
