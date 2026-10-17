@@ -38,6 +38,8 @@ const CURRENT_VERSION = 10
 @export var soul: int = 0
 @export var cycle_start_soul: int = 0
 @export var temp_gold: int = 0
+@export var keys: int = 0
+@export var keys_bought: int = 0
 
 # ---- 魂火 ----
 @export var soul_fire_current: int = 0

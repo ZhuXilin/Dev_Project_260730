@@ -99,6 +99,8 @@ func _build_save_data() -> SaveData:
 		save.equipped_passives.append(_serialize_passive(p))
 
 	save.soul = GameState.soul
+	save.keys = GameState.keys
+	save.keys_bought = GameState.keys_bought
 	save.cycle_start_soul = GameState.cycle_start_soul
 	save.temp_gold = GameState.temp_gold
 
@@ -197,6 +199,8 @@ func _apply_save_data(save: SaveData):
 			GameState.set_passive_at_slot(i, _deserialize_passive(arr[i]))
 
 	GameState.soul = save.soul
+	GameState.keys = save.keys
+	GameState.keys_bought = save.keys_bought
 	GameState.cycle_start_soul = save.cycle_start_soul
 	GameState.temp_gold = save.temp_gold
 

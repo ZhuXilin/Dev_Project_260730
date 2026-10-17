@@ -24,6 +24,7 @@ func _ready():
 
 	DispatchManager.rotate_routes()
 	_show_dispatch_results()
+	_check_secret_merchant()
 
 
 func _connect_buttons():
@@ -38,7 +39,8 @@ func _connect_buttons():
 	for pair in pairs:
 		var btn = pair[0]
 		var cb = pair[1]
-		if not btn: continue
+		if not btn:
+			continue
 		for conn in btn.pressed.get_connections():
 			btn.pressed.disconnect(conn.callable)
 		btn.pressed.connect(cb)
@@ -93,9 +95,6 @@ func _ensure_default_party():
 	print("[Camp] 自动填充默认队伍：" + str(selected))
 
 
-# ============================================================
-#  显示刷新
-# ============================================================
 func update_display():
 	if soul_label:
 		soul_label.text = "魂: %d" % GameState.soul
@@ -108,7 +107,8 @@ func update_display():
 
 func _show_dispatch_results():
 	var results : Array = DispatchManager.consume_pending_results()
-	if results.is_empty(): return
+	if results.is_empty():
+		return
 
 	var lines : Array = []
 	for r in results:
@@ -127,8 +127,6 @@ func _show_dispatch_results():
 
 func _show_floating_toast(text : String):
 	var toast := Label.new()
-	# ★ 第十二批：故意用 Label —— 不解析 bbcode，天然免疫注入。
-	# 若未来改用 RichTextLabel，请对 text 调用 escape_bbcode()。
 	toast.text = text
 	toast.add_theme_font_size_override("font_size", 8)
 	toast.add_theme_color_override("font_color", Color(1.0, 0.85, 0.3))
@@ -147,11 +145,11 @@ func _show_floating_toast(text : String):
 	tw.set_ignore_time_scale(true)
 	tw.tween_property(toast, "modulate:a", 0.0, 0.5).set_delay(3.0)
 	tw.tween_callback(func():
-		if is_instance_valid(toast): toast.queue_free()
+		if is_instance_valid(toast):
+			toast.queue_free()
 	)
 
 
-# ★ 第五批：加空字符串保护
 func _update_affinity_display():
 	var npcs : Array = [
 		["soul_keeper", soul_keeper_btn],
@@ -162,11 +160,11 @@ func _update_affinity_display():
 	for pair in npcs:
 		var npc_id : String = pair[0]
 		var btn : TextureButton = pair[1]
-		if not btn: continue
+		if not btn:
+			continue
 		var aff : int = StoryManager.get_affinity(npc_id)
 		var plate = btn.get_node_or_null("NamePlate")
 		if plate:
-			# ★ 保护：plate.text 为空 / 无空格时不让 [0] 越界
 			var base_name : String = str(plate.text)
 			if base_name == "":
 				base_name = npc_id
@@ -192,9 +190,6 @@ func _restore_camp_music():
 	_play_camp_music()
 
 
-# ============================================================
-#  NPC 入口
-# ============================================================
 func _on_deploy_pressed():
 	if GameState.cached_map_level_data != null and not GameState.party.is_empty():
 		Globals.show_confirm(self, "当前有未完成的冒险，确定重新开始吗？",
@@ -212,40 +207,48 @@ func _confirm_deploy():
 
 func _on_soul_keeper_pressed():
 	await _npc_intro("soul_keeper")
-	if not is_inside_tree(): return
+	if not is_inside_tree():
+		return
 	_open_facility(Config.PATHS.SOUL_ALTAR_UI, "SoulAltar")
 
 
 func _on_blacksmith_pressed():
 	await _npc_intro("blacksmith")
-	if not is_inside_tree(): return
+	if not is_inside_tree():
+		return
 	var scene = load(Config.PATHS.ANVIL_TAVERN_UI)
-	if not scene: return
-	if get_node_or_null("AnvilTavern"): return
+	if not scene:
+		return
+	if get_node_or_null("AnvilTavern"):
+		return
 	var tavern = scene.instantiate()
 	tavern.name = "AnvilTavern"
 	tavern.setup(0)
 	add_child(tavern)
 	await tavern.closed
-	if not is_inside_tree(): return
+	if not is_inside_tree():
+		return
 	_restore_camp_music()
 	update_display()
 
 
 func _on_guide_pressed():
 	await _npc_intro("guide")
-	if not is_inside_tree(): return
+	if not is_inside_tree():
+		return
 	_open_facility("res://content/scenes/ui/DispatchUI.tscn", "DispatchUI")
 
 
 func _on_gladiator_pressed():
 	await _npc_intro("gladiator")
-	if not is_inside_tree(): return
+	if not is_inside_tree():
+		return
 	_open_facility(Config.PATHS.ARENA_UI, "Arena")
 
 
 func _open_facility(path: String, node_name: String):
-	if get_node_or_null(node_name): return
+	if get_node_or_null(node_name):
+		return
 	if not ResourceLoader.exists(path):
 		push_warning("[Camp] 设施未找到: " + path)
 		return
@@ -254,14 +257,12 @@ func _open_facility(path: String, node_name: String):
 	inst.name = node_name
 	add_child(inst)
 	await inst.closed
-	if not is_inside_tree(): return
+	if not is_inside_tree():
+		return
 	_restore_camp_music()
 	update_display()
 
 
-# ============================================================
-#  NPC 对话触发
-# ============================================================
 func _npc_intro(npc_id: String):
 	var played : bool = StoryManager.play_next_dialogue(npc_id)
 	if not played:
@@ -299,32 +300,70 @@ func _show_unlock_toast(utype: String, uid: String):
 		"talent":
 			var td = TalentManager.get_talent_data(uid)
 			msg = "★ 新词条：%s" % (td.display_name if td else uid)
-	if msg == "": return
-	# ★ 第十二批：日志安全打印（避免名字里带控制字符污染 console）
+	if msg == "":
+		return
 	print("[Camp] " + _log_safe(msg))
-	# 显示仍走 Label（不解析 bbcode，无需转义）
 	_show_floating_toast(msg)
 
 
-# ============================================================
-#  Label 不解析任何标记 —— 当前 toast 用 Label，不需要转义。
-#  以下函数供未来切换到 RichTextLabel 时使用（bbcode 注入防护）。
-# ============================================================
 static func escape_bbcode(text : String) -> String:
-	# 转义 RichTextLabel 会解释的字符
-	# 参考：https://docs.godotengine.org/en/stable/tutorials/ui/bbcode_in_richtextlabel.html
 	return text.replace("[", "&#91;")
 
 
 func _log_safe(s : Variant) -> String:
-	# 控制台打印时移除可能影响阅读的控制字符
 	return str(s).replace("\n", "\\n").replace("\t", "\\t")
 
 
-# ============================================================
-#  离开
-# ============================================================
 func _on_back_pressed():
 	GameState.interrupt_state = GameState.InterruptState.CAMP
 	SaveManager.save_game(SaveManager.current_slot, false)
 	get_tree().change_scene_to_file("res://content/scenes/ui/MainMenu.tscn")
+
+
+# ============================================================
+#  隐藏商人（死眠商人）
+# ============================================================
+func _check_secret_merchant():
+	if get_node_or_null("SecretMerchantBtn") != null:
+		return
+
+	var should_appear := false
+	if GameState.total_run_count > 0 and GameState.total_run_count % 3 == 0:
+		should_appear = true
+	if GameState.soul >= 300:
+		should_appear = true
+
+	if not should_appear:
+		return
+
+	var btn := TextureButton.new()
+	btn.name = "SecretMerchantBtn"
+	btn.position = Vector2(200, 80)
+	btn.size = Vector2(64, 64)
+	btn.custom_minimum_size = Vector2(64, 64)
+
+	var img := Image.create(64, 64, false, Image.FORMAT_RGBA8)
+	img.fill(Color(0.2, 0.1, 0.3, 0.8))
+	var tex := ImageTexture.create_from_image(img)
+	btn.texture_normal = tex
+
+	var label := Label.new()
+	label.text = "黑市商人"
+	label.position = Vector2(0, -16)
+	label.add_theme_font_size_override("font_size", 7)
+	label.add_theme_color_override("font_color", Color(0.8, 0.7, 1.0))
+	btn.add_child(label)
+
+	btn.pressed.connect(_on_secret_merchant_pressed)
+	add_child(btn)
+
+
+func _on_secret_merchant_pressed():
+	var scene = load("res://content/scenes/ui/SecretMerchantUI.tscn")
+	if not scene:
+		push_warning("[Camp] SecretMerchantUI.tscn 未找到")
+		return
+	var ui = scene.instantiate()
+	add_child(ui)
+	await ui.closed
+	update_display()

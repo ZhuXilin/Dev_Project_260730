@@ -6,7 +6,7 @@ var _reward_options : Array = []
 var _applied : bool = false
 var _day : int = 1
 var _treasure_cfg : Dictionary = {}
-
+var _is_premium : bool = false
 
 @onready var title_label : Label = $Panel/VBoxContainer/TitleLabel
 @onready var reward_container : VBoxContainer = $Panel/VBoxContainer/RewardContainer
@@ -14,37 +14,90 @@ var _treasure_cfg : Dictionary = {}
 
 func _ready():
 	_treasure_cfg = GameConfigManager.get_value("economy_config.json", "treasure", {})
-	title_label.text = "选择奖励"
+	title_label.text = "发现了一个宝箱..."
+	_show_choice_ui()
 
 
-# ============================================================
-#  兼容两种调用
-# ============================================================
 func setup(arg = 1):
 	if arg is int:
 		_day = int(arg)
 	elif arg is Dictionary:
 		_day = int((arg as Dictionary).get("day", 1))
 
+	if not _applied and reward_container.get_child_count() == 0:
+		_show_choice_ui()
+
+
+# ============================================================
+#  界面 1：选择开启方式
+# ============================================================
+func _show_choice_ui():
+	for child in reward_container.get_children():
+		reward_container.remove_child(child)
+		child.queue_free()
+
+	var info := Label.new()
+	info.text = "当前【死眠之钥】：%d / 1\n" % GameState.keys
+	info.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	reward_container.add_child(info)
+
+	var btn_normal := Button.new()
+	btn_normal.text = "普通开启（随机 3 选 1）"
+	btn_normal.custom_minimum_size = Vector2(150, 30)
+	btn_normal.pressed.connect(_on_open_normal)
+	reward_container.add_child(btn_normal)
+
+	var btn_premium := Button.new()
+	btn_premium.text = "高级隐藏开启（消耗 1 钥匙）\n必出史诗 / 极高概率出遗物"
+	btn_premium.custom_minimum_size = Vector2(150, 40)
+	btn_premium.disabled = (GameState.keys <= 0)
+
+	if GameState.keys > 0:
+		btn_premium.modulate = Color(1.0, 0.85, 0.3)
+		btn_premium.pressed.connect(_on_open_premium)
+	else:
+		btn_premium.text += "\n（无钥匙）"
+
+	reward_container.add_child(btn_premium)
+
+
+# ============================================================
+#  界面 2：展示奖励选项
+# ============================================================
+func _on_open_normal():
+	_is_premium = false
+	_start_roll()
+
+
+func _on_open_premium():
+	_is_premium = true
+	GameState.keys = maxi(0, GameState.keys - 1)
+	SaveManager.auto_save()
+	_start_roll()
+
+
+func _start_roll():
+	title_label.text = "选择奖励"
 	_reward_options = _roll_three_options()
 	_build_options()
 
 
-# ============================================================
-#  ★ 第十批：三选项类型从配置加权抽取
-# ============================================================
 func _roll_three_options() -> Array:
-	var types : Array = _roll_option_types()
 	var result : Array = []
+	var types : Array = _roll_option_types()
 	for t in types:
 		match t:
 			"gold":
 				result.append(_roll_gold_option())
 			"armor":
-				result.append(_roll_armor_option())
+				var armor_opt = _roll_armor_option()
+				if armor_opt.is_empty():
+					result.append(_roll_gold_option())
+				else:
+					result.append(armor_opt)
 			"relic":
 				var r : Dictionary = _roll_relic_option()
-				# 遗物池空时退回金币
 				if r.is_empty():
 					result.append(_roll_gold_option())
 				else:
@@ -54,50 +107,36 @@ func _roll_three_options() -> Array:
 	return result
 
 
-## 加权抽 3 个不重复的选项类型
 func _roll_option_types() -> Array:
-	# 从配置读权重；默认 金:3 甲:2 遗物:1
 	var weights : Dictionary = _treasure_cfg.get(
 		"option_weights", {"gold": 3, "armor": 2, "relic": 1})
 
-	# 构建带权重的池子（每单位权重一个槽位）
+	if _is_premium:
+		weights = {"gold": 1, "armor": 2, "relic": 8}
+
 	var pool : Array = []
 	for k in weights:
-		var w : int = int(weights[k])
-		for i in range(maxi(1, w)):
+		for i in range(maxi(1, int(weights[k]))):
 			pool.append(k)
 
 	if pool.is_empty():
 		pool = ["gold", "armor", "relic"]
 
-	# 不重复抽取 3 个
 	var result : Array = []
 	var safety : int = 0
 	while result.size() < 3 and safety < 50:
 		safety += 1
-		if pool.is_empty():
-			# 池子空了，允许重复使用已抽到的类型
-			if result.is_empty():
-				result.append("gold")
-			else:
-				result.append(result[randi() % result.size()])
-			continue
 		var pick : String = pool[randi() % pool.size()]
-		if pick in result:
+		if pick in result and result.size() < 2:
 			continue
 		result.append(pick)
-		pool.erase(pick)
 
-	# 兜底：确保返回正好 3 个
 	while result.size() < 3:
 		result.append("gold")
 
 	return result
 
 
-# ============================================================
-#  单个选项
-# ============================================================
 func _roll_gold_option() -> Dictionary:
 	var gold_base : int
 	var gold_var : int
@@ -107,37 +146,43 @@ func _roll_gold_option() -> Dictionary:
 	else:
 		gold_base = int(_treasure_cfg.get("day2_gold_base", 1000))
 		gold_var = int(_treasure_cfg.get("day2_gold_var", 400))
+
+	if _is_premium:
+		gold_base = int(gold_base * 1.8)
+
 	var gold : int = gold_base + randi() % maxi(1, gold_var)
 
 	var soul_base : int = int(_treasure_cfg.get("soul_base", 2))
 	var soul_var : int = int(_treasure_cfg.get("soul_var", 3))
 	var soul : int = soul_base + randi() % maxi(1, soul_var)
 
-	return {
-		"kind": "gold",
-		"gold": gold,
-		"soul": soul,
-	}
+	if _is_premium:
+		soul += 2
+
+	return {"kind": "gold", "gold": gold, "soul": soul}
 
 
 func _roll_armor_option() -> Dictionary:
-	var target_quality : Array = ["epic", "legendary"] if _day >= 2 else ["epic"]
+	var target_quality : Array
+	if _is_premium:
+		target_quality = ["epic", "legendary"]
+	elif _day >= 2:
+		target_quality = ["epic", "legendary"]
+	else:
+		target_quality = ["epic"]
+
 	var pool : Array = []
 	for iid in ItemManager.get_all_item_ids():
 		var d : ItemData = ItemManager.get_item_data(iid)
-		if not d: continue
-		if d.type != "armor": continue
-		if d.quality not in target_quality: continue
-		if d.price <= 0: continue
+		if not d:
+			continue
+		if d.type != "armor":
+			continue
+		if d.quality not in target_quality:
+			continue
+		if d.price <= 0:
+			continue
 		pool.append(iid)
-
-	if pool.is_empty():
-		for iid in ItemManager.get_all_item_ids():
-			var d : ItemData = ItemManager.get_item_data(iid)
-			if not d: continue
-			if d.type != "armor": continue
-			if d.quality not in ["epic", "legendary"]: continue
-			pool.append(iid)
 
 	if pool.is_empty():
 		return _roll_gold_option()
@@ -146,11 +191,11 @@ func _roll_armor_option() -> Dictionary:
 	var gold_base : int = int(_treasure_cfg.get("armor_gold_base", 150))
 	var gold_var : int = int(_treasure_cfg.get("armor_gold_var", 150))
 	var gold : int = gold_base + randi() % maxi(1, gold_var)
-	return {
-		"kind": "armor",
-		"gold": gold,
-		"items": [pick],
-	}
+
+	if _is_premium:
+		gold = int(gold * 2.0)
+
+	return {"kind": "armor", "gold": gold, "items": [pick]}
 
 
 func _roll_relic_option() -> Dictionary:
@@ -158,6 +203,7 @@ func _roll_relic_option() -> Dictionary:
 	var owned : Dictionary = {}
 	for p in GameState.get_relics_from_passives():
 		owned[p.item_id] = true
+
 	for rid in RelicManager.get_unlocked_relics():
 		if not owned.has(rid):
 			pool.append(rid)
@@ -169,16 +215,13 @@ func _roll_relic_option() -> Dictionary:
 	var soul_base : int = int(_treasure_cfg.get("relic_soul_base", 3))
 	var soul_var : int = int(_treasure_cfg.get("relic_soul_var", 3))
 	var soul : int = soul_base + randi() % maxi(1, soul_var)
-	return {
-		"kind": "relic",
-		"soul": soul,
-		"items": [pick],
-	}
+
+	if _is_premium:
+		soul += 2
+
+	return {"kind": "relic", "soul": soul, "items": [pick]}
 
 
-# ============================================================
-#  显示
-# ============================================================
 func _build_options():
 	for child in reward_container.get_children():
 		reward_container.remove_child(child)
@@ -189,26 +232,23 @@ func _build_options():
 	hbox.alignment = BoxContainer.ALIGNMENT_CENTER
 	reward_container.add_child(hbox)
 
-	# ★ 先算所有选项文本的最大行数，三张卡片统一高度
 	var texts : Array = []
 	var max_lines : int = 0
 	for i in range(_reward_options.size()):
 		var t : String = _format_option_text(_reward_options[i])
 		texts.append(t)
-		var n : int = t.split("\n").size()
-		if n > max_lines:
-			max_lines = n
+		max_lines = maxi(max_lines, t.split("\n").size())
 
-	# 7 号字 + 行距 ≈ 11px/行；加 padding 20；最小高度 90
 	var card_height : int = maxi(90, max_lines * 11 + 20)
 
 	for i in range(_reward_options.size()):
 		var btn := Button.new()
 		btn.custom_minimum_size = Vector2(150, card_height)
-		btn.size_flags_vertical = Control.SIZE_FILL
 		btn.add_theme_font_size_override("font_size", 7)
 		btn.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		btn.text = texts[i]
+		if _is_premium:
+			btn.modulate = Color(1.0, 0.9, 0.6)
 		btn.pressed.connect(_on_option_selected.bind(i))
 		hbox.add_child(btn)
 
@@ -218,44 +258,43 @@ func _format_option_text(option : Dictionary) -> String:
 	var kind : String = option.get("kind", "")
 
 	match kind:
-		"gold":   lines.append("【金币奖励】")
-		"armor":  lines.append("【强力防具】")
-		"relic":  lines.append("【遗物】")
-		_:        pass
+		"gold":
+			lines.append("【金币奖励】")
+		"armor":
+			lines.append("【史诗防具】" if _is_premium else "【强力防具】")
+		"relic":
+			lines.append("【传说遗物】")
+		_:
+			pass
 
 	lines.append("")
 
 	var gold = int(option.get("gold", 0))
 	var soul = int(option.get("soul", 0))
-	var materials : Dictionary = option.get("materials", {})
 	var items : Array = option.get("items", [])
 
 	if gold > 0:
 		lines.append("金币 +%d" % gold)
 	if soul > 0:
 		lines.append("魂 +%d" % soul)
-	for mat in materials:
-		lines.append("%s ×%d" % [mat, materials[mat]])
+
 	for item_id in items:
 		var d : ItemData = ItemManager.get_item_data(item_id)
 		if d:
 			lines.append("★ " + d.name)
 		else:
 			var rd : Dictionary = RelicManager.get_relic_data(item_id)
-			if not rd.is_empty():
-				lines.append("★ " + rd.get("name", item_id))
-			else:
-				lines.append("★ " + item_id)
+			lines.append("★ " + rd.get("name", item_id))
 
 	return "\n".join(lines)
 
 
-# ============================================================
-#  选择 / 应用
-# ============================================================
 func _on_option_selected(idx : int):
-	if _applied: return
-	if idx < 0 or idx >= _reward_options.size(): return
+	if _applied:
+		return
+	if idx < 0 or idx >= _reward_options.size():
+		return
+
 	_applied = true
 	var option : Dictionary = _reward_options[idx]
 	_apply_reward(option)
@@ -273,12 +312,10 @@ func _apply_reward(option : Dictionary):
 	var gold : int = int(option.get("gold", 0))
 	if gold > 0:
 		EconomyManager.add_temp_gold(gold)
-		print("[宝箱] 金币 +%d" % gold)
 
 	var soul : int = int(option.get("soul", 0))
 	if soul > 0:
 		EconomyManager.add_soul(soul)
-		print("[宝箱] 魂 +%d" % soul)
 
 	var items : Array = option.get("items", [])
 	for item_id in items:
@@ -297,12 +334,10 @@ func _grant_item(item_id: String):
 		inst.count = 1
 		if not GameState.add_relic_to_passive_slot(inst):
 			print("[宝箱] 遗物 %s 解锁但未入槽（槽满）" % item_id)
-		print("[宝箱] 遗物 %s" % item_id)
 		return
 
 	var item_data : ItemData = ItemManager.get_item_data(item_id)
 	if not item_data:
-		print("[宝箱] 警告：道具不存在 %s" % item_id)
 		return
 
 	Globals.unlock_item(item_id)
@@ -311,19 +346,22 @@ func _grant_item(item_id: String):
 		inst2 = ItemInstance.new()
 		inst2.item_id = item_id
 		inst2.count = 1
+
 	GameState.pending_forge_rewards.append(inst2)
-	print("[宝箱] 装备进待领取区: %s" % item_data.name)
 
 
 func _show_popup(option : Dictionary):
 	if Globals.is_item_get_popup_active:
 		return
+
 	var scene = load(Config.PATHS.ITEM_GET_POPUP)
 	if not scene:
 		return
+
 	var popup = scene.instantiate()
 	get_tree().root.add_child(popup)
 	popup.show_text(_format_option_text(option))
+
 	if popup.has_signal("closed"):
 		await popup.closed
 	else:

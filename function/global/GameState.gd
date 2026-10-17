@@ -277,6 +277,14 @@ var total_dispatch_count : int:
 	get: return resource_state.total_dispatch_count
 	set(value): resource_state.total_dispatch_count = value
 
+var keys : int:
+	get: return resource_state.keys
+	set(value): resource_state.keys = value
+
+var keys_bought : int:
+	get: return resource_state.keys_bought
+	set(value): resource_state.keys_bought = value
+
 var pending_save_slot : int = -1
 
 # ============================================================
@@ -418,6 +426,8 @@ func start_new_cycle():
 	shop_level = 0
 	sacrifice_count = 0
 	cycle_start_soul = soul
+	keys = 0
+	keys_bought = 0
 
 	for unit_data in party:
 		unit_data.sacrifice_buff_sources.clear()

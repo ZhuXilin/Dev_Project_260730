@@ -344,6 +344,8 @@ func _register_commands():
 	register("analytics", _cmd_analytics, "analytics  输出埋点汇总到控制台")
 	register("analytics_csv", _cmd_analytics_csv, "analytics_csv  导出埋点 CSV 到 user://")
 
+	register("key", _cmd_key, "key <n>  修改当前死眠之钥数量（0-1）")
+
 # ============================================================
 #  命令解析与执行
 # ============================================================
@@ -908,3 +910,13 @@ func _parse_int(s: String) -> int:
 	s = s.strip_edges()
 	if s.begins_with("+"): s = s.substr(1)
 	return int(s) if s.is_valid_int() else 0
+
+
+func _cmd_key(args: Array):
+	if args.is_empty():
+		_out("用法: key <数量>", "red")
+		return
+	var n = _parse_int(args[0])
+	GameState.keys = clampi(GameState.keys + n, 0, 1)
+	SaveManager.auto_save()
+	_out("死眠之钥 %+d → %d / 1" % [n, GameState.keys], "green")

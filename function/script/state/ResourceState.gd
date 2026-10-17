@@ -9,6 +9,8 @@ var npc_affinity : Dictionary = {}   # npc_id → int
 # ---- 资源 ----
 var soul : int = 0
 var temp_gold : int = 0
+var keys : int = 0
+var keys_bought : int = 0
 
 # ---- 魂火 ----
 var soul_fire_current : int = 0

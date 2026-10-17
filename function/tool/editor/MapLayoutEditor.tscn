@@ -2,17 +2,44 @@
 
 [ext_resource type="Script" uid="uid://hcaqv6rm26cw" path="res://function/tool/editor/MapLayoutEditor.gd" id="1_j6i0e"]
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_8hkaf"]
-content_margin_left = 4.0
-content_margin_top = 2.0
-content_margin_right = 4.0
-content_margin_bottom = 2.0
-bg_color = Color(0.15, 0.15, 0.15, 0.9)
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_8hkaf"]
+content_margin_left = 2.0
+content_margin_top = 0.0
+content_margin_right = 2.0
+content_margin_bottom = 0.0
 
-[sub_resource type="Theme" id="Theme_mofld"]
-TooltipLabel/font_sizes/font_size = 8
-TooltipPanel/font_sizes/font_size = 8
-TooltipPanel/styles/panel = SubResource("StyleBoxFlat_8hkaf")
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_mofld"]
+content_margin_left = 2.0
+content_margin_top = 2.0
+content_margin_right = 2.0
+content_margin_bottom = 2.0
+bg_color = Color(0.13, 0.13, 0.16, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.28, 0.28, 0.34, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_t4dea"]
+content_margin_left = 3.0
+content_margin_top = 1.0
+content_margin_right = 3.0
+content_margin_bottom = 1.0
+bg_color = Color(0.15, 0.15, 0.15, 0.92)
+
+[sub_resource type="Theme" id="Theme_j5ssq"]
+Button/font_sizes/font_size = 6
+Button/styles/focus = SubResource("StyleBoxEmpty_8hkaf")
+Button/styles/hover = SubResource("StyleBoxEmpty_8hkaf")
+Button/styles/normal = SubResource("StyleBoxEmpty_8hkaf")
+Button/styles/pressed = SubResource("StyleBoxEmpty_8hkaf")
+Label/font_sizes/font_size = 6
+PopupMenu/constants/v_separation = 0
+PopupMenu/font_sizes/font_size = 6
+PopupMenu/styles/panel = SubResource("StyleBoxFlat_mofld")
+TooltipLabel/font_sizes/font_size = 6
+TooltipPanel/font_sizes/font_size = 6
+TooltipPanel/styles/panel = SubResource("StyleBoxFlat_t4dea")
 
 [node name="MapLayoutEditor" type="Control" unique_id=2072347888]
 layout_mode = 3
@@ -21,5 +48,5 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-theme = SubResource("Theme_mofld")
+theme = SubResource("Theme_j5ssq")
 script = ExtResource("1_j6i0e")
