@@ -31,18 +31,19 @@ static func _create_unit_stats(cfg: UnitConfig) -> UnitData:
 	stats.faction = cfg.faction
 	cfg.apply_override(stats)
 	stats.team_id = cfg.team_id
-	stats.is_boss = cfg.is_boss   # ★ 新增
+	stats.is_boss = cfg.is_boss
 	if cfg.immobile and cfg.team_id == 1:
 		stats.move_range = 0
 
-	# ★ 敌方 HP 缩放
+	# ★ 敌方 HP 缩放（节点自带 × 高收益负面）
 	if cfg.team_id == 1 and GameState.current_map_data != null:
 		var mult := 1.0
 		match GameState.current_map_data.node_type:
 			MapNode.NodeType.ELITE: mult = 1.5
 			MapNode.NodeType.BOSS:  mult = 2.0
 			_: mult = 1.0
-		stats.max_hp = int(stats.max_hp * mult)
+		var extra_hp : float = maxf(1.0, GameState.current_map_data.enemy_hp_multiplier)
+		stats.max_hp = int(stats.max_hp * mult * extra_hp)
 		stats.hit_points = stats.max_hp
 
 	return stats

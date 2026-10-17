@@ -101,14 +101,15 @@ func _build_save_data() -> SaveData:
 	save.soul = GameState.soul
 	save.keys = GameState.keys
 	save.keys_bought = GameState.keys_bought
-	save.keys = GameState.keys
-	save.keys_bought = GameState.keys_bought
 	save.pending_tag_pin = GameState.pending_tag_pin
 	save.active_tag_pin = GameState.active_tag_pin
 	save.soul_fire_threshold_override = GameState.soul_fire_threshold_override
-	save.reforge_tickets = GameState.reforge_tickets
 	save.cycle_start_soul = GameState.cycle_start_soul
 	save.temp_gold = GameState.temp_gold
+
+	# ★ v4.5：遗物精炼
+	save.relic_fragments = GameState.relic_fragments
+	save.relic_levels = GameState.relic_levels.duplicate(true)
 
 	save.soul_fire_current = SoulFireManager.current
 	save.soul_fire_altar_level = SoulFireManager.altar_level
@@ -163,7 +164,7 @@ func _build_save_data() -> SaveData:
 	save.npc_affinity = GameState.npc_affinity.duplicate(true)
 	if ForgeWhisperManager:
 		save.forge_whisper_state = ForgeWhisperManager.export_state()
-		
+
 	save.temp_soul_legacy = SoulFireManager.current
 
 	save.save_time = Time.get_unix_time_from_system()
@@ -209,14 +210,15 @@ func _apply_save_data(save: SaveData):
 	GameState.soul = save.soul
 	GameState.keys = save.keys
 	GameState.keys_bought = save.keys_bought
-	GameState.keys = save.keys
-	GameState.keys_bought = save.keys_bought
 	GameState.pending_tag_pin = save.pending_tag_pin
 	GameState.active_tag_pin = save.active_tag_pin
 	GameState.soul_fire_threshold_override = save.soul_fire_threshold_override
-	GameState.reforge_tickets = save.reforge_tickets
 	GameState.cycle_start_soul = save.cycle_start_soul
 	GameState.temp_gold = save.temp_gold
+
+	# ★ v4.5：遗物精炼
+	GameState.relic_fragments = save.relic_fragments
+	GameState.relic_levels = _safe_dict(save.relic_levels)
 
 	SoulFireManager.current = save.soul_fire_current
 	SoulFireManager.altar_level = save.soul_fire_altar_level

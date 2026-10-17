@@ -281,7 +281,7 @@ static func _apply_objective_from_layout(nodes: Array, day_layout: MapLayoutDay)
 
 
 # ============================================================
-#  ★ v4.5：layout 波次 → MapData
+#  layout 波次 → MapData
 # ============================================================
 static func _apply_wave_from_layout(nodes: Array, day_layout: MapLayoutDay) -> void:
 	if day_layout == null:
@@ -303,14 +303,16 @@ static func _apply_wave_from_layout(nodes: Array, day_layout: MapLayoutDay) -> v
 		if real_type in NON_COMBAT_TYPES:
 			continue
 
-		# 只在 layout 有显式配置时覆盖（避免冲掉 .tres 里的值）
-		if layout_node.max_waves <= 1 and layout_node.reinforcement_count <= 0:
-			continue
-
 		if layout_node.max_waves > 1:
 			map_node.map_data.max_waves = layout_node.max_waves
 		if layout_node.reinforcement_count > 0:
 			map_node.map_data.reinforcement_count = layout_node.reinforcement_count
+
+		# ★ v4.5：高收益 / 负面 HP 倍率（只有显式配置才覆盖）
+		if layout_node.reward_multiplier > 1.0:
+			map_node.map_data.reward_multiplier = layout_node.reward_multiplier
+		if layout_node.enemy_hp_multiplier > 1.0:
+			map_node.map_data.enemy_hp_multiplier = layout_node.enemy_hp_multiplier
 
 
 # ============================================================

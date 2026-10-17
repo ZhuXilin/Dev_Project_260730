@@ -129,7 +129,6 @@ func apply_team_buffs() -> void:
 	var relic_stats = GameState.get_global_relic_stats()
 	var relic_effects = GameState.get_global_relic_effects()
 
-	# ★ v4.2：先把 GameState 里的光环同步到每个 unit
 	_sync_auras_to_units()
 
 	for unit in UnitManager.unit_list:
@@ -177,6 +176,18 @@ func apply_team_buffs() -> void:
 		unit.relic_heal_bonus = float(relic_effects.get("heal_bonus", 0.0))
 		unit.relic_auto_revive_available = bool(relic_effects.get("auto_revive_once", false))
 
+		# ★ v4.5：精炼相关初始化
+		unit.relic_first_attack_crit_remaining = 2 if GameState.is_relic_refined("relic_attack") else 1
+		if not unit.relic_first_attack_crit_available:
+			unit.relic_first_attack_crit_remaining = 0
+
+		unit.relic_first_spell_free_remaining = 2 if GameState.is_relic_refined("relic_magic") else 1
+		if not unit.relic_first_spell_free_available:
+			unit.relic_first_spell_free_remaining = 0
+
+		unit.relic_low_hp_threshold = 0.4 if GameState.is_relic_refined("relic_defense") else 0.3
+		unit.relic_phoenix_revive_attack_bonus = 0.2 if GameState.is_relic_refined("relic_phoenix") else 0.0
+
 		unit.update_hp_label()
 
 	_apply_flame_resonance()
@@ -188,7 +199,7 @@ func apply_team_buffs() -> void:
 	_apply_core_trait_auras()
 
 
-# ★ v4.2：从 GameState 同步光环到每个我方单位
+# 从 GameState 同步光环到每个我方单位
 func _sync_auras_to_units():
 	var aura_ids : Array = GameState.get_auras_from_passives()
 	for unit in UnitManager.unit_list:

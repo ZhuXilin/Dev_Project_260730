@@ -818,7 +818,6 @@ func _show_clear_panel() -> String:
 #  结算（★ 第八批：加埋点）
 # ============================================================
 func _show_summary(success: bool, reason: String, skip_music: bool = false):
-	# ★ 第八批：即时埋点，追踪每局竞技场的最终结果
 	AnalyticsLogger.record_arena_result(reason, success)
 
 	if not skip_music:
@@ -831,6 +830,11 @@ func _show_summary(success: bool, reason: String, skip_music: bool = false):
 		GameState.arena_clear_count += 1
 	if success and reason == "生存通过":
 		GameState.arena_survival_clear += 1
+		# ★ v4.5：50% 概率 +1 片遗物精炼碎片
+		if randf() < 0.5:
+			GameState.add_relic_fragments(1)
+			SaveManager.auto_save()
+			print("[Arena] 生存通过额外获得 1 片遗物精炼碎片")
 	if _phase == Phase.SURVIVAL:
 		GameState.arena_survival_best = maxi(GameState.arena_survival_best, _survival_round)
 

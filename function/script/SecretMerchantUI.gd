@@ -4,15 +4,14 @@ extends CanvasLayer
 signal closed
 
 # ============================================================
-#  商品定义（v4.6）
+#  商品定义（v4.5）
 # ============================================================
 const KEY_COST : int = 200
 const PIN_COST : int = 100
 const THRESHOLD_COST : int = 120
-const REFORGE_COST : int = 60
 const INTEL_COST : int = 40
-
-const MAX_REFORGE_TICKETS : int = 3
+const FRAGMENT_COST : int = 180
+const FRAGMENT_AMOUNT : int = 3
 
 const ARMOR_TAGS : Array = ["守护", "烈焰", "灰烬", "轮回", "献祭", "余烬"]
 
@@ -43,12 +42,10 @@ func _ready():
 #  UI 构建
 # ============================================================
 func _build_item_list():
-	# 隐藏原 BuyBtn（单按钮改造为商品列表）
 	var old_buy = $Panel/VBox.get_node_or_null("BuyBtn")
 	if old_buy:
 		old_buy.visible = false
 
-	# 检查是否已存在商品列表
 	var existing = $Panel/VBox.get_node_or_null("ItemScroll")
 	if existing:
 		_item_list = existing.get_node_or_null("ItemList")
@@ -61,7 +58,6 @@ func _build_item_list():
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	$Panel/VBox.add_child(scroll)
 
-	# 放在 DescLabel 之后
 	var vbox = $Panel/VBox
 	var desc_idx : int = 0
 	for i in range(vbox.get_child_count()):
@@ -124,14 +120,14 @@ func _refresh_ui():
 		_on_buy_threshold
 	)
 
-	# 4. 重铸券
+	# 4. 遗物精炼碎片（v4.5，替代已删除的重铸券）
 	_add_item_row(
-		"重铸券（%d/%d）" % [GameState.reforge_tickets, MAX_REFORGE_TICKETS],
-		"重铸史诗防具时不消耗金币",
-		REFORGE_COST,
-		GameState.reforge_tickets < MAX_REFORGE_TICKETS and GameState.soul >= REFORGE_COST,
-		"已达上限" if GameState.reforge_tickets >= MAX_REFORGE_TICKETS else "魂不足",
-		_on_buy_reforge_ticket
+		"遗物精炼碎片 ×%d" % FRAGMENT_AMOUNT,
+		"用于精炼已有遗物（3 片 = 1 次）· 当前 %d 片" % GameState.relic_fragments,
+		FRAGMENT_COST,
+		GameState.soul >= FRAGMENT_COST,
+		"魂不足",
+		_on_buy_fragments
 	)
 
 	# 5. Boss 情报
@@ -213,13 +209,14 @@ func _on_buy_threshold():
 	_refresh_ui()
 
 
-func _on_buy_reforge_ticket():
-	if GameState.reforge_tickets >= MAX_REFORGE_TICKETS or GameState.soul < REFORGE_COST:
+func _on_buy_fragments():
+	if GameState.soul < FRAGMENT_COST:
 		return
-	GameState.soul -= REFORGE_COST
-	GameState.reforge_tickets += 1
+	GameState.soul -= FRAGMENT_COST
+	GameState.add_relic_fragments(FRAGMENT_AMOUNT)
 	SaveManager.auto_save()
-	_show_hint("★ 获得重铸券 ×1（当前 %d 张）。" % GameState.reforge_tickets)
+	_show_hint("★ 获得 %d 片遗物精炼碎片（当前 %d 片）" % [
+		FRAGMENT_AMOUNT, GameState.relic_fragments])
 	_refresh_ui()
 
 
@@ -354,8 +351,6 @@ func _show_intel_picker():
 	title.add_theme_font_size_override("font_size", 9)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	vbox.add_child(title)
-
-	var existing_intels : Array = ForgeWhisperManager.get_revealed_intel()
 
 	for opt in INTEL_OPTIONS:
 		var text : String = opt.get("text", "")

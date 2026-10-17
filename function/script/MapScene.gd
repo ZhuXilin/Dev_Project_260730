@@ -916,15 +916,19 @@ func _get_node_description(node: MapNode) -> String:
 		_:
 			base = "未知节点"
 
-	# ★ v4.4：显示目标类型
 	if node.map_data and node.map_data.objective_type != MapData.ObjectiveType.ANNIHILATE:
 		base += "\n★ 目标：" + _objective_display_name(node.map_data.objective_type)
 
-	# ★ v4.5：显示波次/增援
 	if node.map_data and node.map_data.max_waves > 1:
 		base += "\n波次：" + str(node.map_data.max_waves)
 		if node.map_data.reinforcement_count > 0:
 			base += "（每波增援 " + str(node.map_data.reinforcement_count) + "）"
+
+	# ★ v4.5：高收益 / 负面 HP
+	if node.map_data and node.map_data.reward_multiplier > 1.0:
+		base += "\n★ 高收益：奖励 ×%.1f" % node.map_data.reward_multiplier
+		if node.map_data.enemy_hp_multiplier > 1.0:
+			base += "\n⚠ 负面：敌人 HP ×%.1f" % node.map_data.enemy_hp_multiplier
 
 	return base
 

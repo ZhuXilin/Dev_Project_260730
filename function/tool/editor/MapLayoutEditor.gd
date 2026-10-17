@@ -994,9 +994,7 @@ func _show_type_picker_popup(node_idx: int):
 
 	main.add_child(unit_box)
 
-	# ============================================================
-	#  ★ v4.4：胜利目标行
-	# ============================================================
+	# 目标行
 	var obj_row := HBoxContainer.new()
 	obj_row.add_theme_constant_override("separation", 4)
 	obj_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -1034,9 +1032,7 @@ func _show_type_picker_popup(node_idx: int):
 		obj_param_edit.text = JSON.stringify(node.objective_params)
 	obj_row.add_child(obj_param_edit)
 
-	# ============================================================
-	#  ★ v4.5：波次/增援行
-	# ============================================================
+	# 波次/增援/奖励/敌HP 行
 	var wave_row := HBoxContainer.new()
 	wave_row.add_theme_constant_override("separation", 4)
 	wave_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -1053,12 +1049,12 @@ func _show_type_picker_popup(node_idx: int):
 	wave_spin.step = 1
 	wave_spin.value = maxi(1, node.max_waves)
 	wave_spin.add_theme_font_size_override("font_size", 7)
-	wave_spin.custom_minimum_size = Vector2(40, 0)
+	wave_spin.custom_minimum_size = Vector2(36, 0)
 	wave_spin.editable = can_unlock
 	wave_row.add_child(wave_spin)
 
 	var reinf_lb := Label.new()
-	reinf_lb.text = "  增援:"
+	reinf_lb.text = " 增援:"
 	reinf_lb.add_theme_font_size_override("font_size", 7)
 	wave_row.add_child(reinf_lb)
 
@@ -1068,9 +1064,102 @@ func _show_type_picker_popup(node_idx: int):
 	reinf_spin.step = 1
 	reinf_spin.value = maxi(0, node.reinforcement_count)
 	reinf_spin.add_theme_font_size_override("font_size", 7)
-	reinf_spin.custom_minimum_size = Vector2(40, 0)
+	reinf_spin.custom_minimum_size = Vector2(36, 0)
 	reinf_spin.editable = can_unlock
 	wave_row.add_child(reinf_spin)
+
+	var reward_lb := Label.new()
+	reward_lb.text = " 奖励×:"
+	reward_lb.add_theme_font_size_override("font_size", 7)
+	wave_row.add_child(reward_lb)
+
+	var reward_spin := SpinBox.new()
+	reward_spin.min_value = 1.0
+	reward_spin.max_value = 2.0
+	reward_spin.step = 0.1
+	reward_spin.value = maxf(1.0, node.reward_multiplier)
+	reward_spin.add_theme_font_size_override("font_size", 7)
+	reward_spin.custom_minimum_size = Vector2(44, 0)
+	reward_spin.editable = can_unlock
+	wave_row.add_child(reward_spin)
+
+	var enemy_hp_lb := Label.new()
+	enemy_hp_lb.text = " 敌HP×:"
+	enemy_hp_lb.add_theme_font_size_override("font_size", 7)
+	wave_row.add_child(enemy_hp_lb)
+
+	var enemy_hp_spin := SpinBox.new()
+	enemy_hp_spin.min_value = 1.0
+	enemy_hp_spin.max_value = 1.5
+	enemy_hp_spin.step = 0.1
+	enemy_hp_spin.value = maxf(1.0, node.enemy_hp_multiplier)
+	enemy_hp_spin.add_theme_font_size_override("font_size", 7)
+	enemy_hp_spin.custom_minimum_size = Vector2(44, 0)
+	enemy_hp_spin.editable = can_unlock
+	wave_row.add_child(enemy_hp_spin)
+
+	# ★ v4.5：快速预设行
+	var preset_row := HBoxContainer.new()
+	preset_row.add_theme_constant_override("separation", 4)
+	preset_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	vbox.add_child(preset_row)
+
+	var preset_lb := Label.new()
+	preset_lb.text = "快速预设:"
+	preset_lb.add_theme_font_size_override("font_size", 7)
+	preset_row.add_child(preset_lb)
+
+	var preset_normal := Button.new()
+	preset_normal.text = "普通×2"
+	preset_normal.add_theme_font_size_override("font_size", 7)
+	preset_normal.custom_minimum_size = Vector2(52, 0)
+	preset_normal.disabled = not can_unlock
+	preset_normal.pressed.connect(func():
+		wave_spin.value = 2
+		reinf_spin.value = 0
+		reward_spin.value = 1.5
+		enemy_hp_spin.value = 1.0
+	)
+	preset_row.add_child(preset_normal)
+
+	var preset_elite := Button.new()
+	preset_elite.text = "精英×3"
+	preset_elite.add_theme_font_size_override("font_size", 7)
+	preset_elite.custom_minimum_size = Vector2(52, 0)
+	preset_elite.disabled = not can_unlock
+	preset_elite.pressed.connect(func():
+		wave_spin.value = 3
+		reinf_spin.value = 0
+		reward_spin.value = 2.0
+		enemy_hp_spin.value = 1.2
+	)
+	preset_row.add_child(preset_elite)
+
+	var preset_boss := Button.new()
+	preset_boss.text = "首领×2+援"
+	preset_boss.add_theme_font_size_override("font_size", 7)
+	preset_boss.custom_minimum_size = Vector2(64, 0)
+	preset_boss.disabled = not can_unlock
+	preset_boss.pressed.connect(func():
+		wave_spin.value = 2
+		reinf_spin.value = 1
+		reward_spin.value = 2.0
+		enemy_hp_spin.value = 1.4
+	)
+	preset_row.add_child(preset_boss)
+
+	var preset_clear := Button.new()
+	preset_clear.text = "清空"
+	preset_clear.add_theme_font_size_override("font_size", 7)
+	preset_clear.custom_minimum_size = Vector2(40, 0)
+	preset_clear.disabled = not can_unlock
+	preset_clear.pressed.connect(func():
+		wave_spin.value = 1
+		reinf_spin.value = 0
+		reward_spin.value = 1.0
+		enemy_hp_spin.value = 1.0
+	)
+	preset_row.add_child(preset_clear)
 
 	var btns := HBoxContainer.new()
 	btns.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -1158,14 +1247,18 @@ func _show_type_picker_popup(node_idx: int):
 				else:
 					node.objective_params = {}
 
-			# ★ v4.5：写回波次/增援
 			node.max_waves = clampi(int(wave_spin.value), 1, 3)
 			node.reinforcement_count = clampi(int(reinf_spin.value), 0, 5)
+			# ★ v4.5
+			node.reward_multiplier = clampf(float(reward_spin.value), 1.0, 2.0)
+			node.enemy_hp_multiplier = clampf(float(enemy_hp_spin.value), 1.0, 1.5)
 		else:
 			node.objective_type = MapData.ObjectiveType.ANNIHILATE
 			node.objective_params = {}
 			node.max_waves = 1
 			node.reinforcement_count = 0
+			node.reward_multiplier = 1.0
+			node.enemy_hp_multiplier = 1.0
 
 		_canvas.queue_redraw()
 		_close_popup()

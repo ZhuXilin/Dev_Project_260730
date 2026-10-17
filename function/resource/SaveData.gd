@@ -13,10 +13,7 @@ const CURRENT_VERSION = 10
 @export var unlocked_recipes: Array = []
 @export var unlocked_stories: Array = []
 
-# ---- 单位资格层（地图/剧情解锁，需守火者正式解锁）----
 @export var eligible_units: Array = []
-
-# ---- 节点解锁临时数据（防止中断丢失）----
 @export var current_node_unlock_relics: Array = []
 @export var current_node_unlock_units: Array = []
 
@@ -45,7 +42,12 @@ const CURRENT_VERSION = 10
 @export var pending_tag_pin: String = ""
 @export var active_tag_pin: String = ""
 @export var soul_fire_threshold_override: float = 0.0
+## @deprecated v4.5 已删除重铸券；字段保留仅用于兼容旧档加载
 @export var reforge_tickets: int = 0
+
+# ---- 遗物精炼（v4.5）----
+@export var relic_fragments: int = 0
+@export var relic_levels: Dictionary = {}
 
 # ---- 魂火 ----
 @export var soul_fire_current: int = 0
@@ -55,7 +57,7 @@ const CURRENT_VERSION = 10
 @export var unit_attr_points: Dictionary = {}
 @export var tag_purchase_count: Dictionary = {}
 
-# ---- 光环（5A）----
+# ---- 光环 ----
 @export var unlocked_auras: Array = []
 @export var active_aura_research: Dictionary = {}
 @export var aura_research_progress: Dictionary = {}
@@ -102,19 +104,10 @@ const CURRENT_VERSION = 10
 # ---- 时间戳 ----
 @export var save_time: int = 0
 
-# ============================================================
-#  ★ 清档说明（第九批）
-# ============================================================
-# 下面两个字段已废弃，但**保留**以免 Godot 加载旧 .tres 时报
-# "Property not found"。新档这两个字段永远是默认空值。
-# 如需彻底清理，请做一次性数据迁移后再删除字段。
-# ============================================================
-## @deprecated 已不再使用；JSON.stringify 键顺序不稳定，无法可靠校验
+## @deprecated 已不再使用
 @export var checksum: String = ""
-## @deprecated 仅 v9 → v10 迁移用；v10 及以上不再写入
+## @deprecated 仅 v9 → v10 迁移用
 @export var temp_soul_legacy: int = 0
 
-# ---- NPC 亲密度 ----
 @export var npc_affinity: Dictionary = {}
-# ---- FORGE 低语（v4.5）----
 @export var forge_whisper_state: Dictionary = {}

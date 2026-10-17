@@ -1255,7 +1255,9 @@ func _create_passive_button(inst: Variant, slot_index: int) -> Button:
 		var item_inst : ItemInstance = inst
 		var data : Dictionary = RelicManager.get_relic_data(item_inst.item_id)
 		if not data.is_empty():
-			btn.text = data.get("name", "?")
+			# ★ v4.5：已精炼加 ★ 前缀
+			var prefix : String = "★ " if GameState.is_relic_refined(item_inst.item_id) else ""
+			btn.text = prefix + data.get("name", "?")
 			btn.set_meta("item_id", item_inst.item_id)
 			btn.mouse_entered.connect(_on_relic_hover_entered.bind(item_inst.item_id))
 			btn.mouse_exited.connect(_on_relic_hover_exited)
@@ -1263,7 +1265,6 @@ func _create_passive_button(inst: Variant, slot_index: int) -> Button:
 			btn.text = "?"
 			btn.set_meta("item_id", "")
 	elif inst is Dictionary and inst.get("type", "") == "aura":
-		# ★ v4.2：光环被动槽
 		var aid : String = inst.get("aura_id", "")
 		var ad : Dictionary = AuraManager.get_aura(aid)
 		btn.text = "✦ " + ad.get("name", aid)

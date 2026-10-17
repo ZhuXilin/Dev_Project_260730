@@ -418,7 +418,6 @@ func update_relic_icons() -> void:
 		if p == null:
 			continue
 
-		# ★ v4.2：遗物
 		if p is ItemInstance:
 			var btn := Button.new()
 			btn.add_theme_font_size_override("font_size", 6)
@@ -429,12 +428,13 @@ func update_relic_icons() -> void:
 			var data = RelicManager.get_relic_data(p.item_id)
 			if data.is_empty():
 				continue
-			btn.text = "◆ " + data.get("name", "?")
+			# ★ v4.5：已精炼加 ★ 前缀
+			var prefix : String = "★ " if GameState.is_relic_refined(p.item_id) else "◆ "
+			btn.text = prefix + data.get("name", "?")
 			btn.disabled = true
 			btn.tooltip_text = data.get("description", "")
 			_bf.relic_icon_container.add_child(btn)
 			has_any = true
-		# ★ v4.2：光环
 		elif p is Dictionary and p.get("type", "") == "aura":
 			var aid : String = p.get("aura_id", "")
 			var ad : Dictionary = AuraManager.get_aura(aid)

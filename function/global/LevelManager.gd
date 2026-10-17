@@ -156,6 +156,12 @@ func _clone_map_data(src: MapData, node_type: int) -> MapData:
 	copy.unlock_units = src.unlock_units.duplicate()
 	copy.objective_type = src.objective_type
 	copy.objective_params = src.objective_params.duplicate(true)
+	copy.max_waves = src.max_waves
+	copy.reinforcement_count = src.reinforcement_count
+	copy.reinforcement_pool = src.reinforcement_pool.duplicate()
+	# ★ v4.5
+	copy.reward_multiplier = src.reward_multiplier
+	copy.enemy_hp_multiplier = src.enemy_hp_multiplier
 	return copy
 
 

@@ -281,7 +281,6 @@ func _spawn_reinforcements(count : int):
 	if not ("grid_to_world" in _battlefield):
 		return
 
-	# 收集当前地图敌人类型作为候选池
 	var pool : Array = _map_data.reinforcement_pool.duplicate() if _map_data else []
 	if pool.is_empty():
 		for u in UnitManager.unit_list:
@@ -306,16 +305,22 @@ func _spawn_reinforcements(count : int):
 	if unit_scene == null:
 		return
 
+	# ★ v4.5：增援也吃高收益节点的负面 HP 倍率
+	var extra_hp : float = 1.0
+	if _map_data != null:
+		extra_hp = maxf(1.0, _map_data.enemy_hp_multiplier)
+
 	for i in range(mini(count, spawn_cells.size())):
 		var cell : Vector2i = spawn_cells[i]
 		var tname : String = pool[randi() % pool.size()]
 		var stats : UnitData = UnitDataManager.create_unit_data(tname)
 		stats.team_id = 1
-		# 与现有敌人同样的 Elite/Boss 缩放
 		if _map_data and _map_data.node_type == MapNode.NodeType.BOSS:
-			stats.max_hp = int(stats.max_hp * 2.0)
+			stats.max_hp = int(stats.max_hp * 2.0 * extra_hp)
 		elif _map_data and _map_data.node_type == MapNode.NodeType.ELITE:
-			stats.max_hp = int(stats.max_hp * 1.5)
+			stats.max_hp = int(stats.max_hp * 1.5 * extra_hp)
+		else:
+			stats.max_hp = int(stats.max_hp * extra_hp)
 		stats.hit_points = stats.max_hp
 
 		var unit = unit_scene.instantiate()

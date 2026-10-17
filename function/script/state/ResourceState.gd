@@ -1,10 +1,7 @@
 class_name ResourceState
 extends RefCounted
 
-# ============================================================
-#  ResourceState — 全局状态分区（批次 1,3,4,5A,5B,8）
-# ============================================================
-var npc_affinity : Dictionary = {}   # npc_id → int
+var npc_affinity : Dictionary = {}
 
 # ---- 资源 ----
 var soul : int = 0
@@ -16,17 +13,20 @@ var keys_bought : int = 0
 var pending_tag_pin : String = ""
 var active_tag_pin : String = ""
 var soul_fire_threshold_override : float = 0.0
-var reforge_tickets : int = 0
+
+# ---- 遗物精炼（v4.5）----
+var relic_fragments : int = 0
+var relic_levels : Dictionary = {}
 
 # ---- 魂火 ----
 var soul_fire_current : int = 0
 var soul_fire_altar_level : int = 0
 var soul_fire_initial_level : int = 0
 var unit_attr_cap : Dictionary = {}
-var unit_attr_points : Dictionary = {}       # ★ 批次 4
-var tag_purchase_count : Dictionary = {}     # ★ 批次 3
+var unit_attr_points : Dictionary = {}
+var tag_purchase_count : Dictionary = {}
 
-# ---- 光环（批次 5A）----
+# ---- 光环 ----
 var unlocked_auras : Array = []
 var active_aura_research : Dictionary = {}
 var aura_research_progress : Dictionary = {}
@@ -79,10 +79,8 @@ func add_reward_item(item_id: String):
 	if item_id not in reward_items:
 		reward_items.append(item_id)
 
-
 func clear_reward_items():
 	reward_items.clear()
-
 
 func clear_current_reward():
 	current_reward_gold = 0

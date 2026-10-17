@@ -157,11 +157,16 @@ func on_request_show_victory(winning_team: int) -> void:
 			]
 
 			if not is_non_combat_node:
-				var reward = EconomyManager.get_battle_reward(_bf.current_node_type, is_boss)
-				var gold_gain = reward.gold
-				var soul_fire_gain = reward.get("soul_fire", 0)
+				# ★ v4.5：高收益节点倍率
+				var mult : float = 1.0
+				if GameState.current_map_data != null:
+					mult = maxf(1.0, GameState.current_map_data.reward_multiplier)
 
-				print("--- 奖励配置 ---")
+				var reward = EconomyManager.get_battle_reward(_bf.current_node_type, is_boss)
+				var gold_gain = int(round(float(reward.gold) * mult))
+				var soul_fire_gain = int(round(float(reward.get("soul_fire", 0)) * mult))
+
+				print("--- 奖励配置（倍率 %.2f）---" % mult)
 				print("gold_gain: ", gold_gain)
 				print("soul_fire_gain: ", soul_fire_gain)
 
@@ -248,7 +253,11 @@ func on_map_victory_continue() -> void:
 	var rating : String = _compute_rating()
 	var rating_soul_bonus : int = 0
 	if rating == "S":
-		rating_soul_bonus = 3
+		# ★ v4.5：S 评级魂也吃高收益倍率
+		var mult : float = 1.0
+		if GameState.current_map_data != null:
+			mult = maxf(1.0, GameState.current_map_data.reward_multiplier)
+		rating_soul_bonus = int(round(3.0 * mult))
 	reward_soul += rating_soul_bonus
 	print("[评级] %s（额外 +%d 魂）" % [rating, rating_soul_bonus])
 
@@ -277,7 +286,7 @@ func on_map_victory_continue() -> void:
 	rating_item.id = "rating"
 	rating_item.name = "评级：%s" % rating
 	if rating == "S":
-		rating_item.name += "（+3 魂）"
+		rating_item.name += "（+%d 魂）" % rating_soul_bonus
 	rating_item.description = ""
 	reward_item_datas.append(rating_item)
 
@@ -317,7 +326,6 @@ func on_map_victory_continue() -> void:
 
 	GameState.current_node_unlock_relics.clear()
 
-	# ===== 单位解锁：走「地图解锁单位 → 可唤醒单位」映射 =====
 	var map_unlock_ids : Array = []
 	if GameState.current_map_data and GameState.current_map_data.unlock_units:
 		map_unlock_ids.append_array(GameState.current_map_data.unlock_units)
@@ -332,20 +340,13 @@ func on_map_victory_continue() -> void:
 				seen_u[uid] = true
 				unique_map_unlock.append(uid)
 
-		# 1) 解析成实际要加入 eligible_units 的单位列表
 		var resolved : Array = Globals.resolve_map_unlock_units(unique_map_unlock)
-
-		# 2) 先算出「真正新增」的（既未正式解锁，也尚未获得资格）
 		var newly_units : Array = []
 		for uid in resolved:
 			if not Globals.is_unit_unlocked(uid) and not Globals.is_unit_eligible(uid):
 				newly_units.append(uid)
-
-		# 3) 统一给资格
 		for uid in resolved:
 			Globals.make_unit_eligible(uid)
-
-		# 4) 只展示本次「新增」的，避免重复提示
 		for uid in newly_units:
 			var display : String = UnitDataManager.get_display_name(uid)
 			var virtual_data := ItemData.new()
@@ -365,7 +366,6 @@ func on_map_victory_continue() -> void:
 		is_boss = (GameState.current_map_data.node_type == MapNode.NodeType.BOSS)
 
 	var is_last_day = (GameState.current_day >= 3)
-
 	print("is_boss=", is_boss, " is_last_day=", is_last_day, " has_reward=", has_reward)
 
 	var need_ui_block = has_reward or is_boss
@@ -403,7 +403,6 @@ func on_map_victory_continue() -> void:
 				owned_ids.append(relic.item_id)
 
 			relic_select.setup_options(owned_ids)
-
 			await relic_select.relic_selected
 			print("遗物选择完成")
 

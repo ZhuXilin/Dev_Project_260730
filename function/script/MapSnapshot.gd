@@ -44,7 +44,6 @@ static func _serialize_map_data(map_data: MapData) -> Dictionary:
 	for sp in map_data.spawn_points:
 		spawn_points_serialized.append([int(sp.x), int(sp.y)])
 
-	# objective_params 里 Vector2i 需要转数组（JSON/Tres 里存不了 Vector2i）
 	var params_serialized : Dictionary = {}
 	for k in map_data.objective_params:
 		var v : Variant = map_data.objective_params[k]
@@ -70,7 +69,89 @@ static func _serialize_map_data(map_data: MapData) -> Dictionary:
 		"max_waves": int(map_data.max_waves),
 		"reinforcement_count": int(map_data.reinforcement_count),
 		"reinforcement_pool": map_data.reinforcement_pool.duplicate(),
+		# ★ v4.5
+		"reward_multiplier": float(map_data.reward_multiplier),
+		"enemy_hp_multiplier": float(map_data.enemy_hp_multiplier),
 	}
+
+
+static func _deserialize_map_data(data: Dictionary) -> MapData:
+	if data.is_empty():
+		return null
+
+	var map = MapData.new()
+	map.map_name = data.get("map_name", "")
+	map.map_size = Vector2i(
+		int(data.get("map_size_x", MapConst.DEFAULT_MAP_SIZE.x)),
+		int(data.get("map_size_y", MapConst.DEFAULT_MAP_SIZE.y))
+	)
+	map.node_type = data.get("node_type", MapNode.NodeType.NORMAL) as MapNode.NodeType
+	map.required_unit = data.get("required_unit", "")
+
+	var spawn_points: Array[Vector2i] = []
+	var raw_sp: Array = data.get("spawn_points", [])
+	for sp in raw_sp:
+		if sp is Array and sp.size() == 2:
+			spawn_points.append(Vector2i(int(sp[0]), int(sp[1])))
+		elif sp is Vector2i:
+			spawn_points.append(sp)
+		elif sp is Vector2:
+			spawn_points.append(Vector2i(int(sp.x), int(sp.y)))
+	map.spawn_points = spawn_points
+
+	var relic_arr : Array[String] = []
+	var raw_relics: Array = data.get("unlock_relics", [])
+	for rid in raw_relics:
+		if rid is String:
+			relic_arr.append(rid)
+	map.unlock_relics = relic_arr
+
+	var unit_arr : Array[String] = []
+	var raw_units: Array = data.get("unlock_units", [])
+	for uid in raw_units:
+		if uid is String:
+			unit_arr.append(uid)
+	map.unlock_units = unit_arr
+
+	map.objective_type = int(data.get("objective_type", 0)) as MapData.ObjectiveType
+	var params_raw : Dictionary = data.get("objective_params", {})
+	map.objective_params = {}
+	for k in params_raw:
+		var v : Variant = params_raw[k]
+		if v is Array and (v as Array).size() == 2:
+			var arr : Array = v
+			var t0 : int = typeof(arr[0])
+			var t1 : int = typeof(arr[1])
+			var is_num0 : bool = (t0 == TYPE_INT or t0 == TYPE_FLOAT)
+			var is_num1 : bool = (t1 == TYPE_INT or t1 == TYPE_FLOAT)
+			if is_num0 and is_num1:
+				map.objective_params[k] = Vector2i(int(arr[0]), int(arr[1]))
+				continue
+		if typeof(v) == TYPE_FLOAT:
+			map.objective_params[k] = int(v)
+		else:
+			map.objective_params[k] = v
+
+	map.max_waves = maxi(1, int(data.get("max_waves", 1)))
+	map.reinforcement_count = maxi(0, int(data.get("reinforcement_count", 0)))
+	var raw_pool : Array = data.get("reinforcement_pool", [])
+	var pool_arr : Array[String] = []
+	for pid in raw_pool:
+		if pid is String and (pid as String) != "":
+			pool_arr.append(pid)
+	map.reinforcement_pool = pool_arr
+
+	# ★ v4.5
+	map.reward_multiplier = maxf(1.0, float(data.get("reward_multiplier", 1.0)))
+	map.enemy_hp_multiplier = maxf(1.0, float(data.get("enemy_hp_multiplier", 1.0)))
+
+	var scene_path = data.get("scene_path", "")
+	if scene_path != "" and ResourceLoader.exists(scene_path):
+		var scene = load(scene_path) as PackedScene
+		if scene:
+			map.scene = scene
+
+	return map
 
 
 static func deserialize(snapshot: Dictionary) -> MapLevelData:
@@ -134,83 +215,3 @@ static func deserialize(snapshot: Dictionary) -> MapLevelData:
 	map_data.root_node = node_by_id.get(snapshot.get("root_node_id", ""))
 
 	return map_data
-
-
-static func _deserialize_map_data(data: Dictionary) -> MapData:
-	if data.is_empty():
-		return null
-
-	var map = MapData.new()
-	map.map_name = data.get("map_name", "")
-	map.map_size = Vector2i(
-		int(data.get("map_size_x", MapConst.DEFAULT_MAP_SIZE.x)),
-		int(data.get("map_size_y", MapConst.DEFAULT_MAP_SIZE.y))
-	)
-	map.node_type = data.get("node_type", MapNode.NodeType.NORMAL) as MapNode.NodeType
-	map.required_unit = data.get("required_unit", "")
-
-	var spawn_points: Array[Vector2i] = []
-	var raw_sp: Array = data.get("spawn_points", [])
-	for sp in raw_sp:
-		if sp is Array and sp.size() == 2:
-			spawn_points.append(Vector2i(int(sp[0]), int(sp[1])))
-		elif sp is Vector2i:
-			spawn_points.append(sp)
-		elif sp is Vector2:
-			spawn_points.append(Vector2i(int(sp.x), int(sp.y)))
-	map.spawn_points = spawn_points
-
-	var relic_arr : Array[String] = []
-	var raw_relics: Array = data.get("unlock_relics", [])
-	for rid in raw_relics:
-		if rid is String:
-			relic_arr.append(rid)
-	map.unlock_relics = relic_arr
-
-	var unit_arr : Array[String] = []
-	var raw_units: Array = data.get("unlock_units", [])
-	for uid in raw_units:
-		if uid is String:
-			unit_arr.append(uid)
-	map.unlock_units = unit_arr
-
-	# ★ v4.4：目标字段
-	map.objective_type = int(data.get("objective_type", 0)) as MapData.ObjectiveType
-	var params_raw : Dictionary = data.get("objective_params", {})
-	map.objective_params = {}
-	for k in params_raw:
-		var v : Variant = params_raw[k]
-		# 约定：[int, int] 或 [float, float] 视为 Vector2i
-		if v is Array and (v as Array).size() == 2:
-			var arr : Array = v
-			var t0 : int = typeof(arr[0])
-			var t1 : int = typeof(arr[1])
-			var is_num0 : bool = (t0 == TYPE_INT or t0 == TYPE_FLOAT)
-			var is_num1 : bool = (t1 == TYPE_INT or t1 == TYPE_FLOAT)
-			if is_num0 and is_num1:
-				map.objective_params[k] = Vector2i(int(arr[0]), int(arr[1]))
-				continue
-		if typeof(v) == TYPE_FLOAT:
-			map.objective_params[k] = int(v)
-		else:
-			map.objective_params[k] = v
-
-	map.max_waves = maxi(1, int(data.get("max_waves", 1)))
-	map.reinforcement_count = maxi(0, int(data.get("reinforcement_count", 0)))
-	var raw_pool : Array = data.get("reinforcement_pool", [])
-	var pool_arr : Array[String] = []
-	for pid in raw_pool:
-		if pid is String and (pid as String) != "":
-			pool_arr.append(pid)
-	map.reinforcement_pool = pool_arr
-
-	var scene_path = data.get("scene_path", "")
-
-	if scene_path != "" and ResourceLoader.exists(scene_path):
-		var scene = load(scene_path) as PackedScene
-		if scene:
-			map.scene = scene
-		else:
-			print("警告：无法加载场景 ", scene_path)
-
-	return map

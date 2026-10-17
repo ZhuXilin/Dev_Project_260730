@@ -200,8 +200,15 @@ func tick_turn_start(units: Array) -> void:
 
 
 func on_kill() -> void:
+	# 常规击杀回魂火 +1，受 reward_multiplier 影响
+	var mult : float = 1.0
+	if GameState.current_map_data != null:
+		mult = maxf(1.0, GameState.current_map_data.reward_multiplier)
+	var gain : int = maxi(1, int(round(1.0 * mult)))
+	# 归零时额外 +1
 	if get_state() == State.ZERO:
-		add(1)
+		gain += 1
+	add(gain)
 
 
 func _has_eternal_flame() -> bool:

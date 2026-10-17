@@ -352,7 +352,6 @@ func _register_commands():
 
 	register("tag_pin", _cmd_tag_pin, "tag_pin <tag|clear>  设置挂起的标签定向器")
 	register("threshold", _cmd_threshold, "threshold <0|1>  开启/关闭魂火阈值调节")
-	register("reforge_ticket", _cmd_reforge_ticket, "reforge_ticket <n>  设置重铸券数量")
 
 # ============================================================
 #  命令解析与执行
@@ -1011,11 +1010,3 @@ func _cmd_threshold(args: Array):
 	else:
 		GameState.soul_fire_threshold_override = 0.4
 		_out("魂火阈值调节器：燃烧线 → 40%%", "green")
-
-
-func _cmd_reforge_ticket(args: Array):
-	if args.is_empty():
-		_out("用法: reforge_ticket <n>", "red")
-		return
-	GameState.reforge_tickets = maxi(0, _parse_int(args[0]))
-	_out("重铸券 → %d" % GameState.reforge_tickets, "green")

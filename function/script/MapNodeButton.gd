@@ -73,6 +73,10 @@ func _add_objective_badge(node: MapNode):
 		else:
 			parts.append("波%d" % node.map_data.max_waves)
 
+	# ★ v4.5：高收益徽章
+	if node.map_data.reward_multiplier > 1.0:
+		parts.append("×%.1f" % node.map_data.reward_multiplier)
+
 	if parts.is_empty():
 		return
 

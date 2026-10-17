@@ -331,11 +331,13 @@ func execute_attack(attacker: Unit, defender: Unit) -> bool:
 		is_crit = true
 		print("暴击词条触发！Lv.%d 倍率 %.1f" % [lv_crit, crit_mult])
 		TalentManager.reset_talent(attacker, "crit")
-	elif attacker.relic_first_attack_crit_available:
+	elif attacker.relic_first_attack_crit_remaining > 0:
 		crit_mult += attacker.buff_crit_damage_bonus
 		is_crit = true
-		attacker.relic_first_attack_crit_available = false
-		print("力量遗物：首次攻击必暴击！")
+		attacker.relic_first_attack_crit_remaining -= 1
+		if attacker.relic_first_attack_crit_remaining <= 0:
+			attacker.relic_first_attack_crit_available = false
+		print("力量遗物：必暴击（剩 %d 次）！" % attacker.relic_first_attack_crit_remaining)
 	elif _roll_crit(attacker):
 		crit_mult += attacker.buff_crit_damage_bonus
 		is_crit = true
@@ -993,11 +995,11 @@ func _apply_damage_with_effects(defender: Unit, damage: int, attacker: Unit, is_
 
 	if defender.relic_low_hp_damage_reduce > 0.0:
 		var hp_ratio = float(defender.hit_points) / float(defender.unit_stats.max_hp)
-		if hp_ratio < 0.3:
+		# ★ v4.5：使用精炼后的阈值
+		if hp_ratio < defender.relic_low_hp_threshold:
 			damage = max(1, int(damage * (1.0 - defender.relic_low_hp_damage_reduce)))
 			print("守护遗物：低血量减伤 %d%%" % int(defender.relic_low_hp_damage_reduce * 100))
 
-	# ★ v4.2：Boss 灰烬护盾（Day2）—— 应用伤害前，让 Boss 机制有机会改写伤害
 	if BossMechanicManager:
 		damage = BossMechanicManager.modify_damage_to_boss(attacker, defender, damage)
 
@@ -1034,6 +1036,12 @@ func _apply_damage_with_effects(defender: Unit, damage: int, attacker: Unit, is_
 		defender.update_hp_label()
 		SignalBus.request_damage_popup.emit(defender.global_position, defender.hit_points, false, false, true)
 		defender.relic_auto_revive_available = false
+		# ★ v4.5：凤凰精炼——复活后攻击 +20%
+		if defender.relic_phoenix_revive_attack_bonus > 0.0:
+			defender.buff_attack_percent += defender.relic_phoenix_revive_attack_bonus
+			print("[凤凰精炼] %s 复活后攻击 +%d%%" % [
+				defender.unit_stats.unit_name,
+				int(defender.relic_phoenix_revive_attack_bonus * 100)])
 		print("[凤凰之羽] %s 满血复活" % defender.unit_stats.unit_name)
 		return false
 
@@ -1135,11 +1143,20 @@ func _consume_first_spell_free(attacker: Unit) -> bool:
 		return false
 	if not attacker.relic_first_spell_free_available:
 		return false
+	# ★ v4.5：剩余次数用尽就视为不可用
+	if attacker.relic_first_spell_free_remaining <= 0:
+		attacker.relic_first_spell_free_available = false
+		return false
 	var wt : String = attacker.get_weapon_type()
 	if wt != "spellbook" and wt != "staff":
 		return false
-	attacker.relic_first_spell_free_available = false
-	print("[魔力遗物] %s 首次施法免费" % attacker.unit_stats.unit_name)
+
+	attacker.relic_first_spell_free_remaining -= 1
+	if attacker.relic_first_spell_free_remaining <= 0:
+		attacker.relic_first_spell_free_available = false
+
+	print("[魔力遗物] %s 施法免费（剩 %d 次）" % [
+		attacker.unit_stats.unit_name, attacker.relic_first_spell_free_remaining])
 	return true
 
 

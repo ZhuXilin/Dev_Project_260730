@@ -46,6 +46,12 @@ var relic_counter_damage_bonus : float = 0.0
 var relic_heal_bonus : float = 0.0
 var relic_auto_revive_available : bool = false
 
+# ★ v4.5：遗物精炼运行时状态（每场战斗开始由 TurnController.apply_team_buffs() 重新赋值）
+var relic_first_attack_crit_remaining : int = 0
+var relic_first_spell_free_remaining : int = 0
+var relic_low_hp_threshold : float = 0.3
+var relic_phoenix_revive_attack_bonus : float = 0.0
+
 var bleed_stacks : int = 0
 var combo_last_target : String = ""
 var combo_count : int = 0
@@ -73,6 +79,11 @@ func reset_combat_buffs():
 	relic_counter_damage_bonus = 0.0
 	relic_heal_bonus = 0.0
 	relic_auto_revive_available = false
+	# ★ v4.5
+	relic_first_attack_crit_remaining = 0
+	relic_first_spell_free_remaining = 0
+	relic_low_hp_threshold = 0.3
+	relic_phoenix_revive_attack_bonus = 0.0
 	bleed_stacks = 0
 	combo_last_target = ""
 	combo_count = 0
@@ -168,7 +179,7 @@ func to_dict() -> Dictionary:
 		"sacrifice_buff_sources": sacrifice_buff_sources.duplicate(),
 		"tags": tags.duplicate(),
 		"core_trait": core_trait,
-		"is_boss": is_boss,   # ★ 新增
+		"is_boss": is_boss,
 	}
 
 
@@ -193,7 +204,7 @@ static func from_dict(d: Dictionary) -> UnitData:
 	data.max_talent_slots = d.get("max_talent_slots", 1)
 	data.core_trait = d.get("core_trait", "")
 	data.is_boss = d.get("is_boss", false)
-	
+
 	var adv_raw = d.get("advanced_class", "")
 	if adv_raw is String:
 		data.advanced_class = adv_raw
@@ -266,6 +277,8 @@ static func from_dict(d: Dictionary) -> UnitData:
 			t_inst.cooldown_remaining = 0
 		data.advanced_talent_inst = t_inst
 
+	# ★ v4.5：运行时精炼字段保持默认值（0 / 0.3 / 0.0），
+	#          由 TurnController.apply_team_buffs() 在战斗开始时重新赋值
 	return data
 
 
