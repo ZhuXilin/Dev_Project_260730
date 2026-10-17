@@ -343,7 +343,10 @@ func _build_locked_unit_list():
 		unit_list.add_child(btn)
 
 	if _current_unit_type == "" or Globals.is_unit_unlocked(_current_unit_type):
-		_current_unit_type = locked[0]
+		if locked.size() > 0:
+			_current_unit_type = locked[0]
+		else:
+			_current_unit_type = ""
 
 
 func _on_locked_unit_selected(unit_type: String):

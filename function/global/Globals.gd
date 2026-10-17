@@ -313,16 +313,19 @@ func resolve_map_unlock_units(map_unlock_ids: Array) -> Array:
 			continue
 		var key : String = UnitDataManager.normalize_unit_key(raw)
 		var to_unlock : Array = []
-		if mapping.has(key):
+		
+		# ★ 修复：如果有配映射，且映射非空，取映射；否则默认取自己
+		if mapping.has(key) and not mapping[key].is_empty():
 			for u in mapping[key]:
 				to_unlock.append(u)
 		else:
 			to_unlock.append(key)
+			
 		for u in to_unlock:
 			if u not in result:
 				result.append(u)
 	return result
-
+	
 
 # ============================================================
 #  道具解锁

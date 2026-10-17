@@ -1578,12 +1578,32 @@ func _update_all_labels():
 # ============================================================
 func _bake_positions():
 	if _layout == null: return
+	# ★ 新增：保存前自动清理不符合规范的孤儿单位
+	var valid_pool : Array = Globals.get_map_unlock_units()
+	var valid_dict : Dictionary = {}
+	for u in valid_pool: valid_dict[u] = true
+	var clean_count : int = 0
+
 	for day_variants in [_layout.day1_variants, _layout.day2_variants, _layout.day3_variants]:
 		for day_layout in day_variants:
 			if day_layout == null: continue
 			for i in range(day_layout.nodes.size()):
 				var node : MapLayoutNode = day_layout.nodes[i]
 				node.position = _node_pos_for_variant(day_layout, i)
+				
+				# 清洗 unlock_units
+				var new_units : Array[String] = []
+				for uid in node.unlock_units:
+					var key := UnitDataManager.normalize_unit_key(uid)
+					if valid_dict.has(key):
+						new_units.append(key)
+					else:
+						clean_count += 1
+						print("[MapLayoutEditor] 自动清理非法的地图解锁单位: ", uid)
+				node.unlock_units = new_units
+				
+	if clean_count > 0:
+		print("[MapLayoutEditor] 保存前共清理 %d 个违规的解锁单位" % clean_count)
 
 
 # ============================================================

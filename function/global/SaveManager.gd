@@ -52,16 +52,6 @@ func load_game(slot: int) -> bool:
 	if not save:
 		push_error("无法加载存档: " + path); return false
 
-	if save.save_version < SaveData.CURRENT_VERSION:
-		print("[SaveManager] 存档版本 v%d，开始迁移到 v%d" % [
-			save.save_version, SaveData.CURRENT_VERSION])
-		_migrate_save(save)
-		# ★ 第九批：迁移后不再重算 checksum（本来就要废弃）
-		if not suppress_save:
-			var mig_err = ResourceSaver.save(save, path)
-			if mig_err != OK:
-				push_error("迁移后保存失败: %d" % mig_err); return false
-
 	if not _validate_save(save):
 		push_error("存档校验失败: " + path); return false
 
@@ -70,38 +60,6 @@ func load_game(slot: int) -> bool:
 	Globals.pending_save_slot = -1
 	load_completed.emit(slot, true)
 	return true
-
-
-# ============================================================
-#  版本迁移
-# ============================================================
-func _migrate_save(save: SaveData):
-	var v : int = save.save_version
-	if v < 10:
-		_migrate_v9_to_v10(save)
-		v = 10
-	save.save_version = v
-	print("[SaveManager] 迁移完成 → v%d" % v)
-
-
-func _migrate_v9_to_v10(save: SaveData):
-	var legacy_soul : int = save.temp_soul_legacy
-	save.soul_fire_current = maxi(legacy_soul, 0)
-	save.soul_fire_altar_level = 0
-	save.soul_fire_initial_level = 0
-	if not (save.unit_attr_cap is Dictionary): save.unit_attr_cap = {}
-	if not (save.unit_attr_points is Dictionary): save.unit_attr_points = {}
-	if not (save.tag_purchase_count is Dictionary): save.tag_purchase_count = {}
-	if not (save.unlocked_auras is Array): save.unlocked_auras = []
-	if not (save.active_aura_research is Dictionary): save.active_aura_research = {}
-	if not (save.aura_research_progress is Dictionary): save.aura_research_progress = {}
-	if not (save.npc_dialogue_seen is Dictionary): save.npc_dialogue_seen = {}
-	if not (save.npc_dialogue_flags is Array): save.npc_dialogue_flags = []
-	save.total_run_count = maxi(save.total_run_count, 0)
-	save.total_dispatch_count = maxi(save.total_dispatch_count, 0)
-	save.temp_soul_legacy = 0
-	print("[SaveManager] v9→v10：temp_soul %d → soul_fire_current %d" % [
-		legacy_soul, save.soul_fire_current])
 
 
 # ============================================================
@@ -199,8 +157,6 @@ func _build_save_data() -> SaveData:
 	save.temp_soul_legacy = SoulFireManager.current
 
 	save.save_time = Time.get_unix_time_from_system()
-	# ★ 第九批：不计算 checksum
-	save.checksum = ""
 	return save
 
 

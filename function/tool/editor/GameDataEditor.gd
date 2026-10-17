@@ -1617,7 +1617,10 @@ func _on_mapping_toggled(pressed : bool, source_unit : String, target_unit : Str
 	if not mapping.has(source_unit):
 		mapping[source_unit] = []
 		
-	var arr: Array = mapping[source_unit]
+	var arr: Variant = mapping[source_unit]
+	if not (arr is Array):
+		arr = []
+		mapping[source_unit] = arr
 
 	if pressed:
 		if target_unit not in arr:
@@ -1625,8 +1628,8 @@ func _on_mapping_toggled(pressed : bool, source_unit : String, target_unit : Str
 		# 互斥：从其他源移除
 		for other_src in mapping.keys():
 			if other_src == source_unit: continue
-			var other_arr: Array = mapping[other_src]
-			if target_unit in other_arr:
+			var other_arr: Variant = mapping[other_src]
+			if other_arr is Array and target_unit in other_arr:
 				other_arr.erase(target_unit)
 	else:
 		arr.erase(target_unit)
