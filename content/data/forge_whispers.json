@@ -1,0 +1,73 @@
+{
+  "whisper_blacksmith_guard": {
+	"id": "whisper_blacksmith_guard",
+	"speaker": "灰烬铁匠",
+	"text": "今天炉火偏守护。",
+	"priority": 10,
+	"condition": {},
+	"effect": {
+	  "type": "shop_tag_weight_boost",
+	  "params": { "tag": "守护", "amount": 8 }
+	}
+  },
+  "whisper_blacksmith_ember": {
+	"id": "whisper_blacksmith_ember",
+	"speaker": "灰烬铁匠",
+	"text": "轮回的道，我今天想打一件。",
+	"priority": 9,
+	"condition": {},
+	"effect": {
+	  "type": "shop_tag_weight_boost",
+	  "params": { "tag": "轮回", "amount": 6 }
+	}
+  },
+  "whisper_guide_three_forms": {
+	"id": "whisper_guide_three_forms",
+	"speaker": "游魂向导",
+	"text": "三形态第三次复活，会再扣 3 点上限。",
+	"priority": 10,
+	"condition": { "min_altar_level": 2 },
+	"effect": {
+	  "type": "reveal_boss_intel",
+	  "params": { "text": "Day3 三形态 Boss：每次复活临时扣 3 魂火上限" }
+	}
+  },
+  "whisper_keeper_ember_fusion": {
+	"id": "whisper_keeper_ember_fusion",
+	"speaker": "守火者",
+	"text": "我感觉到你身上有余烬的味道。",
+	"priority": 8,
+	"condition": {},
+	"effect": {
+	  "type": "fusion_hint",
+	  "params": { "hint": "余烬熔合：不灭薪火（魂火上限 +5，开战 +2）" }
+	}
+  },
+  "whisper_gladiator_rating": {
+	"id": "whisper_gladiator_rating",
+	"speaker": "角斗士",
+	"text": "打得快，比打得好更重要。",
+	"priority": 5,
+	"condition": { "min_arena_clear": 1 },
+	"effect": { "type": "none", "params": {} }
+  },
+  "whisper_keeper_deep": {
+	"id": "whisper_keeper_deep",
+	"speaker": "守火者",
+	"text": "火记得你来过几次。",
+	"priority": 3,
+	"condition": { "min_run_count": 5 },
+	"effect": { "type": "none", "params": {} }
+  },
+  "whisper_guide_flame_tag": {
+	"id": "whisper_guide_flame_tag",
+	"speaker": "游魂向导",
+	"text": "今天的风向偏烈焰。",
+	"priority": 7,
+	"condition": { "min_dispatch_count": 3 },
+	"effect": {
+	  "type": "shop_tag_weight_boost",
+	  "params": { "tag": "烈焰", "amount": 6 }
+	}
+  }
+}

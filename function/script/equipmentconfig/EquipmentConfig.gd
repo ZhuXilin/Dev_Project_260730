@@ -25,7 +25,11 @@ var _shop : EquipmentConfigShop = null
 var _talent : EquipmentConfigTalent = null
 
 var _upgrade_shop_btn : Button = null
-var _aura_tab_btn : Button = null   # ★ v4.2
+var _aura_tab_btn : Button = null
+
+var _whisper_icon : Button = null
+var _whisper_panel : PanelContainer = null
+var _whisper_auto_shown : bool = false
 
 const ShopManagerScript = preload(Config.PATHS.SHOP_MANAGER_SCRIPT)
 
@@ -490,7 +494,10 @@ func _build_ui_inner():
 					discard_zone.visible = true
 
 			if left_column: left_column.size_flags_vertical = Control.SIZE_EXPAND_FILL
-
+			
+	if current_mode == Mode.FORGE or is_shop_rest_mode():
+		_init_whisper_ui()
+		
 	close_btn.add_theme_font_size_override("font_size", Style.FONT_LARGE)
 	confirm_btn.add_theme_font_size_override("font_size", Style.FONT_LARGE)
 	reset_btn.add_theme_font_size_override("font_size", Style.FONT_LARGE)
@@ -1917,3 +1924,175 @@ func _create_advanced_talent_button(unit: UnitData, unit_idx: int) -> Button:
 	btn.mouse_entered.connect(_on_talent_hover_entered.bind(unit.advanced_talent_id))
 	btn.mouse_exited.connect(_on_talent_hover_exited)
 	return btn
+
+
+# ============================================================
+#  v4.4：FORGE 低语
+# ============================================================
+func _init_whisper_ui():
+	if _whisper_icon and is_instance_valid(_whisper_icon):
+		# 图标已存在 → 不重复创建
+		if not _whisper_auto_shown and ForgeWhisperManager.should_show_this_run():
+			_whisper_auto_shown = true
+			call_deferred("_auto_show_whisper")
+		return
+
+	var canvas : Node = get_parent()
+	if not canvas or not (canvas is CanvasLayer):
+		return
+
+	_whisper_icon = Button.new()
+	_whisper_icon.name = "WhisperIcon"
+	_whisper_icon.text = "◈"
+	_whisper_icon.focus_mode = Control.FOCUS_NONE
+	_whisper_icon.add_theme_font_size_override("font_size", 14)
+	_whisper_icon.add_theme_color_override("font_color", Color(0.9, 0.75, 0.95))
+	_whisper_icon.add_theme_color_override("font_hover_color", Color(1.0, 0.9, 1.0))
+	_whisper_icon.add_theme_color_override("font_pressed_color", Color(0.7, 0.55, 0.8))
+
+	var empty := StyleBoxEmpty.new()
+	_whisper_icon.add_theme_stylebox_override("normal", empty)
+	_whisper_icon.add_theme_stylebox_override("hover", empty)
+	_whisper_icon.add_theme_stylebox_override("pressed", empty)
+	_whisper_icon.add_theme_stylebox_override("focus", empty)
+
+	_whisper_icon.size = Vector2(20, 20)
+	_whisper_icon.position = Vector2(374, 110)
+	_whisper_icon.tooltip_text = "低语"
+	_whisper_icon.z_index = 100
+	_whisper_icon.pressed.connect(_on_whisper_icon_pressed)
+	canvas.add_child(_whisper_icon)
+
+	# 首次自动弹
+	if not _whisper_auto_shown and ForgeWhisperManager.should_show_this_run():
+		_whisper_auto_shown = true
+		call_deferred("_auto_show_whisper")
+
+
+func _auto_show_whisper():
+	if not is_inside_tree():
+		return
+	var w : Dictionary = ForgeWhisperManager.pick_for_current_run()
+	if w.is_empty():
+		return
+	_show_whisper_panel(w)
+	_regenerate_shop_if_needed()
+
+
+func _on_whisper_icon_pressed():
+	var w : Dictionary = ForgeWhisperManager.get_current_whisper()
+	if w.is_empty():
+		w = ForgeWhisperManager.pick_for_current_run()
+		if not w.is_empty():
+			_regenerate_shop_if_needed()
+	if w.is_empty():
+		return
+	_show_whisper_panel(w)
+
+
+func _show_whisper_panel(whisper : Dictionary):
+	if _whisper_panel and is_instance_valid(_whisper_panel):
+		_whisper_panel.queue_free()
+
+	var canvas : Node = get_parent()
+	if not canvas:
+		return
+
+	_whisper_panel = PanelContainer.new()
+	_whisper_panel.name = "WhisperPanel"
+
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(0.05, 0.03, 0.1, 0.94)
+	sb.border_color = Color(0.6, 0.5, 0.8, 0.85)
+	sb.border_width_left = 1
+	sb.border_width_right = 1
+	sb.border_width_top = 1
+	sb.border_width_bottom = 1
+	sb.content_margin_left = 6
+	sb.content_margin_right = 6
+	sb.content_margin_top = 4
+	sb.content_margin_bottom = 4
+	_whisper_panel.add_theme_stylebox_override("panel", sb)
+
+	_whisper_panel.z_index = 101
+	_whisper_panel.position = Vector2(240, 100)
+	_whisper_panel.custom_minimum_size = Vector2(130, 0)
+	canvas.add_child(_whisper_panel)
+
+	var vbox := VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 2)
+	_whisper_panel.add_child(vbox)
+
+	var speaker_lb := Label.new()
+	speaker_lb.text = whisper.get("speaker", "低语")
+	speaker_lb.add_theme_font_size_override("font_size", 7)
+	speaker_lb.add_theme_color_override("font_color", Color(0.85, 0.75, 1.0))
+	vbox.add_child(speaker_lb)
+
+	var text_lb := Label.new()
+	text_lb.text = whisper.get("text", "")
+	text_lb.add_theme_font_size_override("font_size", 7)
+	text_lb.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	text_lb.custom_minimum_size = Vector2(118, 0)
+	vbox.add_child(text_lb)
+
+	var effect_hint : String = _whisper_effect_hint(whisper)
+	if effect_hint != "":
+		var eff_lb := Label.new()
+		eff_lb.text = effect_hint
+		eff_lb.add_theme_font_size_override("font_size", 6)
+		eff_lb.add_theme_color_override("font_color", Color(0.9, 0.9, 0.6))
+		eff_lb.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		eff_lb.custom_minimum_size = Vector2(118, 0)
+		vbox.add_child(eff_lb)
+
+	var close_whisper_btn := Button.new()
+	close_whisper_btn.text = "关闭"
+	close_whisper_btn.add_theme_font_size_override("font_size", 6)
+	close_whisper_btn.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	close_whisper_btn.pressed.connect(_close_whisper_panel)
+	vbox.add_child(close_whisper_btn)
+
+	# 5 秒后自动关闭
+	var tw := create_tween()
+	tw.set_ignore_time_scale(true)
+	tw.tween_property(_whisper_panel, "modulate:a", 0.0, 0.5).set_delay(5.0)
+	tw.tween_callback(_close_whisper_panel)
+
+
+func _close_whisper_panel():
+	if _whisper_panel and is_instance_valid(_whisper_panel):
+		_whisper_panel.queue_free()
+	_whisper_panel = null
+
+
+func _whisper_effect_hint(whisper : Dictionary) -> String:
+	var effect : Dictionary = whisper.get("effect", {})
+	if effect.is_empty():
+		return ""
+	var t : String = effect.get("type", "")
+	var params : Dictionary = effect.get("params", {})
+	match t:
+		"shop_tag_weight_boost":
+			return "本局商店偏向：" + str(params.get("tag", ""))
+		"reveal_boss_intel":
+			return "★ 记入 Boss 情报"
+		"fusion_hint":
+			return "★ 记入熔合提示"
+	return ""
+
+
+func _has_shop_weight_effect() -> bool:
+	for e in ForgeWhisperManager.get_active_effects():
+		if e.get("type", "") == "shop_tag_weight_boost":
+			return true
+	return false
+
+
+func _regenerate_shop_if_needed():
+	if not _has_shop_weight_effect():
+		return
+	if shop_manager == null:
+		return
+	shop_manager.generate_shop_items()
+	shop_manager.shop_updated.emit()

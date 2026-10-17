@@ -303,6 +303,8 @@ func _register_commands():
 	# ---- 商店 / 献祭 ----
 	register("shop_level", _cmd_shop_level, "shop_level <0-5>  设置商店等级")
 	register("sac", _cmd_sacrifice, "sac <n>  设置献祭次数", ["sacrifice"])
+	register("whisper", _cmd_whisper, "whisper  打印当前低语")
+	register("whisper_reset", _cmd_whisper_reset, "whisper_reset  重置本局低语")
 
 	# ---- NPC ----
 	register("affinity", _cmd_affinity, "affinity <npc> <n>  设置 NPC 亲密度")
@@ -920,3 +922,27 @@ func _cmd_key(args: Array):
 	GameState.keys = clampi(GameState.keys + n, 0, 1)
 	SaveManager.auto_save()
 	_out("死眠之钥 %+d → %d / 1" % [n, GameState.keys], "green")
+
+
+func _cmd_whisper(_args: Array):
+	var w = ForgeWhisperManager.get_current_whisper()
+	if w.is_empty():
+		_out("本局尚未抽取低语", "yellow")
+	else:
+		_out("当前低语: %s - %s" % [w.get("speaker", "?"), w.get("text", "")], "cyan")
+		_out("效果: " + str(w.get("effect", {})), "white")
+	var effects : Array = ForgeWhisperManager.get_active_effects()
+	_out("生效中效果: %d" % effects.size(), "white")
+	for e in effects:
+		_out("  - " + str(e), "white")
+	var intel : Array = ForgeWhisperManager.get_revealed_intel()
+	if not intel.is_empty():
+		_out("Boss 情报: %d 条" % intel.size(), "yellow")
+	var hints : Array = ForgeWhisperManager.get_fusion_hints()
+	if not hints.is_empty():
+		_out("熔合提示: %d 条" % hints.size(), "yellow")
+
+
+func _cmd_whisper_reset(_args: Array):
+	ForgeWhisperManager.reset_for_new_run()
+	_out("已重置本局低语", "green")

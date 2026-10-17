@@ -447,6 +447,8 @@ func start_new_cycle():
 	SoulFireManager.reset_for_new_run()
 	if BossMechanicManager:
 		BossMechanicManager.setup_for_node(false)
+	if ForgeWhisperManager:
+		ForgeWhisperManager.reset_for_new_run()
 	SaveManager.auto_save()
 	AnalyticsLogger.begin_run()
 

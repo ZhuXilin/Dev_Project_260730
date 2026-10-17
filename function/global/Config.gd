@@ -18,6 +18,7 @@ const PATHS : Dictionary = {
 	"AFFIX_DATA":       "res://content/data/affixes.json",
 	"SET_BONUS_DATA":   "res://content/data/set_bonuses.json",
 	"TREASURE_REWARDS": "res://content/data/treasure_rewards.json",
+	"FORGE_WHISPER_DATA": "res://content/data/forge_whispers.json",
 
 	# 配置资源
 	"MUSIC_CONFIG":     "res://content/scenes/levels/MusicConfig.tres",
