@@ -4,6 +4,7 @@ class_name MapNodeButton
 @export var map_node: MapNode
 var map_scene_ref: CanvasLayer
 
+
 func setup(node_data: MapNode, map_scene: CanvasLayer, override_pos: Vector2 = Vector2.INF):
 	map_node = node_data
 	map_scene_ref = map_scene
@@ -48,11 +49,55 @@ func setup(node_data: MapNode, map_scene: CanvasLayer, override_pos: Vector2 = V
 			child.queue_free()
 			break
 
+	# ★ v4.4：目标徽章
+	_add_objective_badge(node_data)
+
+
+func _add_objective_badge(node: MapNode):
+	var existing = get_node_or_null("ObjectiveBadge")
+	if existing:
+		existing.queue_free()
+
+	if node == null or node.map_data == null:
+		return
+	if node.map_data.objective_type == MapData.ObjectiveType.ANNIHILATE:
+		return
+
+	var badge_text : String = _objective_badge_text(node.map_data.objective_type)
+	if badge_text == "":
+		return
+
+	var badge := Label.new()
+	badge.name = "ObjectiveBadge"
+	badge.text = badge_text
+	badge.add_theme_font_size_override("font_size", 5)
+	badge.add_theme_color_override("font_color", Color(1.0, 0.85, 0.3))
+	badge.add_theme_color_override("font_outline_color", Color.BLACK)
+	badge.add_theme_constant_override("outline_size", 1)
+	badge.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	badge.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	badge.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	badge.anchor_left = 0.0
+	badge.anchor_right = 1.0
+	badge.anchor_top = 1.0
+	badge.anchor_bottom = 1.0
+	badge.offset_top = 1
+	badge.offset_bottom = 9
+	add_child(badge)
+
+
+func _objective_badge_text(t: int) -> String:
+	match t:
+		MapData.ObjectiveType.CAPTURE: return "★占"
+		MapData.ObjectiveType.FLAG: return "★旗"
+		MapData.ObjectiveType.ASSAULT: return "★突"
+		_: return ""
+
 
 func _get_node_label(node: MapNode) -> String:
 	if node.node_type == MapNode.NodeType.QUESTION:
 		return "???"
-		
+
 	if node.node_type in [
 		MapNode.NodeType.FORGE,
 		MapNode.NodeType.TREASURE,

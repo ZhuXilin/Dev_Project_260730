@@ -44,6 +44,17 @@ static func _serialize_map_data(map_data: MapData) -> Dictionary:
 	for sp in map_data.spawn_points:
 		spawn_points_serialized.append([int(sp.x), int(sp.y)])
 
+	# objective_params 里 Vector2i 需要转数组（JSON/Tres 里存不了 Vector2i）
+	var params_serialized : Dictionary = {}
+	for k in map_data.objective_params:
+		var v : Variant = map_data.objective_params[k]
+		if v is Vector2i:
+			params_serialized[k] = [int(v.x), int(v.y)]
+		elif v is Vector2:
+			params_serialized[k] = [int(v.x), int(v.y)]
+		else:
+			params_serialized[k] = v
+
 	return {
 		"map_name": map_data.map_name,
 		"scene_path": map_data.scene.resource_path if map_data.scene else "",
@@ -54,6 +65,8 @@ static func _serialize_map_data(map_data: MapData) -> Dictionary:
 		"required_unit": map_data.required_unit,
 		"unlock_relics": map_data.unlock_relics.duplicate(),
 		"unlock_units": map_data.unlock_units.duplicate(),
+		"objective_type": int(map_data.objective_type),
+		"objective_params": params_serialized,
 	}
 
 
@@ -157,6 +170,27 @@ static func _deserialize_map_data(data: Dictionary) -> MapData:
 		if uid is String:
 			unit_arr.append(uid)
 	map.unlock_units = unit_arr
+
+	# ★ v4.4：目标字段
+	map.objective_type = int(data.get("objective_type", 0)) as MapData.ObjectiveType
+	var params_raw : Dictionary = data.get("objective_params", {})
+	map.objective_params = {}
+	for k in params_raw:
+		var v : Variant = params_raw[k]
+		# 约定：[int, int] 或 [float, float] 视为 Vector2i
+		if v is Array and (v as Array).size() == 2:
+			var arr : Array = v
+			var t0 : int = typeof(arr[0])
+			var t1 : int = typeof(arr[1])
+			var is_num0 : bool = (t0 == TYPE_INT or t0 == TYPE_FLOAT)
+			var is_num1 : bool = (t1 == TYPE_INT or t1 == TYPE_FLOAT)
+			if is_num0 and is_num1:
+				map.objective_params[k] = Vector2i(int(arr[0]), int(arr[1]))
+				continue
+		if typeof(v) == TYPE_FLOAT:
+			map.objective_params[k] = int(v)
+		else:
+			map.objective_params[k] = v
 
 	var scene_path = data.get("scene_path", "")
 	if scene_path != "" and ResourceLoader.exists(scene_path):

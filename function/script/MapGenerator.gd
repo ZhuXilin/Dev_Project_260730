@@ -122,6 +122,9 @@ static func _generate_from_layout(day: int, day_layout: MapLayoutDay) -> MapLeve
 
 	_assign_map_data_to_all_nodes(nodes)
 
+	# ★ v4.4：把 layout 层的胜利目标覆盖到 map_data 上
+	_apply_objective_from_layout(nodes, day_layout)
+
 	data.nodes = nodes
 	data.root_node = root
 	data.map_name = "第%d天" % day
@@ -235,6 +238,43 @@ static func _apply_question_guarantee(nodes: Array) -> void:
 		target.hidden_node_type = _roll_non_combat_question_type()
 		print("[MapGenerator] 问号保底：layer %d 强制 QUESTION → %s" % [
 			layer_key, MapConst.get_node_display_name(target.hidden_node_type)])
+
+
+static func _apply_objective_from_layout(nodes: Array, day_layout: MapLayoutDay) -> void:
+	if day_layout == null:
+		return
+	if nodes.size() != day_layout.nodes.size():
+		push_warning("[MapGenerator] objective 应用失败：nodes 数量与 layout 不一致")
+		return
+
+	for i in range(nodes.size()):
+		var map_node : MapNode = nodes[i]
+		var layout_node : MapLayoutNode = day_layout.nodes[i]
+		if map_node == null or layout_node == null:
+			continue
+		if map_node.map_data == null:
+			continue
+
+		var real_type : int = map_node.node_type
+		if real_type == MapNode.NodeType.QUESTION and map_node.hidden_node_type != -1:
+			real_type = map_node.hidden_node_type
+		if real_type in NON_COMBAT_TYPES:
+			continue
+
+		# ★ v4.4 修复：只有 layout 显式配置目标时才覆盖 .tres
+		# "显式"= 非默认类型 OR 参数非空
+		var has_explicit : bool = (
+			layout_node.objective_type != MapData.ObjectiveType.ANNIHILATE
+			or not layout_node.objective_params.is_empty()
+		)
+		if not has_explicit:
+			continue
+
+		map_node.map_data.objective_type = layout_node.objective_type
+		if layout_node.objective_params.is_empty():
+			map_node.map_data.objective_params = {}
+		else:
+			map_node.map_data.objective_params = layout_node.objective_params.duplicate(true)
 
 
 # ============================================================

@@ -52,7 +52,33 @@ func _compute_rating() -> String:
 	var turns : int = Globals.current_battle_turn
 	var turn_score : float = clampf(1.0 - float(turns) / 20.0, 0.0, 1.0)
 
-	var score : float = alive_ratio * 0.4 + (1.0 - hp_loss_ratio) * 0.4 + turn_score * 0.2
+	# ★ v4.4：按目标类型分叉评级公式
+	var obj_type : int = MapData.ObjectiveType.ANNIHILATE
+	if ObjectiveManager != null:
+		obj_type = ObjectiveManager.get_objective_type()
+
+	var score : float = 0.0
+	match obj_type:
+		MapData.ObjectiveType.CAPTURE:
+			# 占领：核心看"最少额外回合完成占点"
+			var hold_turns : int = 3
+			if ObjectiveManager != null:
+				hold_turns = maxi(1, ObjectiveManager.get_capture_hold_turns())
+			var extra_turns : int = maxi(0, turns - hold_turns)
+			var hold_score : float = clampf(1.0 - float(extra_turns) / 15.0, 0.0, 1.0)
+			score = alive_ratio * 0.2 + (1.0 - hp_loss_ratio) * 0.2 + hold_score * 0.6
+
+		MapData.ObjectiveType.FLAG:
+			# 夺旗：回合权重最高，鼓励"跑得越快越好"
+			score = alive_ratio * 0.15 + (1.0 - hp_loss_ratio) * 0.15 + turn_score * 0.7
+
+		MapData.ObjectiveType.ASSAULT:
+			# 突进：回合权重高，损失权重低（斩首就是消耗战）
+			score = alive_ratio * 0.15 + (1.0 - hp_loss_ratio) * 0.15 + turn_score * 0.7
+
+		_:
+			# 全灭：原公式
+			score = alive_ratio * 0.4 + (1.0 - hp_loss_ratio) * 0.4 + turn_score * 0.2
 
 	if score >= 0.9: return "S"
 	if score >= 0.75: return "A"

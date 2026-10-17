@@ -10,9 +10,17 @@ class_name MapLayoutNode
 ## 完成此节点时解锁的遗物 id 列表
 @export var unlock_relics: Array[String] = []
 
-## ★ 新增：完成此节点时解锁的单位 id 列表
-## 场景：BOSS 节点配置 → 打完后解锁新单位（可切换主单位/阵营）
+## 完成此节点时解锁的单位 id 列表
 @export var unlock_units: Array[String] = []
+
+## v4.4：胜利目标（仅战斗节点/问号节点有效）
+@export var objective_type: MapData.ObjectiveType = MapData.ObjectiveType.ANNIHILATE
+
+## v4.4：胜利目标参数（Dictionary，序列化到 .tres 时直接用类型）
+## - CAPTURE: { "target_cell": Vector2i(10, 7), "hold_turns": 3 }
+## - FLAG:    { "flag_cell": Vector2i(15, 7), "goal_cell": Vector2i(1, 7) }
+## - ASSAULT: { "target_unit_name": "dragonborn" }
+@export var objective_params: Dictionary = {}
 
 
 func resolve_type() -> MapNode.NodeType:

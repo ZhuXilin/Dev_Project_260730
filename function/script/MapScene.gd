@@ -896,24 +896,39 @@ func hide_node_info() -> void:
 func _get_node_description(node: MapNode) -> String:
 	if node.node_type == MapNode.NodeType.QUESTION:
 		return "未知领域\n进入后随机触发事件"
-		
+
+	var base : String = ""
 	match node.node_type:
 		MapNode.NodeType.START:
-			return "起始点\n进入战斗"
+			base = "起始点\n进入战斗"
 		MapNode.NodeType.NORMAL:
-			return "普通战斗"
+			base = "普通战斗"
 		MapNode.NodeType.ELITE:
-			return "精英战斗\n敌人更强，奖励更好"
+			base = "精英战斗\n敌人更强，奖励更好"
 		MapNode.NodeType.FORGE:
-			return "铁匠铺\n合成防具 / 升级武器"
+			base = "铁匠铺\n合成防具 / 升级武器"
 		MapNode.NodeType.TREASURE:
-			return "宝箱"
+			base = "宝箱"
 		MapNode.NodeType.BOSS:
-			return "首领战"
+			base = "首领战"
 		MapNode.NodeType.CHAPEL:
-			return "圣坛\n全队回满 HP，复活一名阵亡单位"
+			base = "圣坛\n全队回满 HP，复活一名阵亡单位"
 		_:
-			return "未知节点"
+			base = "未知节点"
+
+	# ★ v4.4：显示目标类型
+	if node.map_data and node.map_data.objective_type != MapData.ObjectiveType.ANNIHILATE:
+		base += "\n★ 目标：" + _objective_display_name(node.map_data.objective_type)
+
+	return base
+
+
+func _objective_display_name(t: int) -> String:
+	match t:
+		MapData.ObjectiveType.CAPTURE: return "占领"
+		MapData.ObjectiveType.FLAG: return "夺旗"
+		MapData.ObjectiveType.ASSAULT: return "突进"
+		_: return "全灭"
 
 
 func _compute_node_positions() -> Dictionary:

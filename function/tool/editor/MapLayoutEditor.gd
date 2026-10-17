@@ -343,6 +343,9 @@ func _snapshot_current() -> Dictionary:
 		cp.connects_to = n.connects_to.duplicate()
 		cp.unlock_relics = n.unlock_relics.duplicate()
 		cp.unlock_units = n.unlock_units.duplicate()
+		# ★ v4.4：撤销/重做也要复制目标字段
+		cp.objective_type = n.objective_type
+		cp.objective_params = n.objective_params.duplicate(true)
 		nodes_copy.append(cp)
 	return {
 		"day": _current_day,
@@ -988,6 +991,46 @@ func _show_type_picker_popup(node_idx: int):
 
 	main.add_child(unit_box)
 
+	# ============================================================
+	#  ★ v4.4：胜利目标行
+	# ============================================================
+	var obj_row := HBoxContainer.new()
+	obj_row.add_theme_constant_override("separation", 4)
+	obj_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	vbox.add_child(obj_row)
+
+	var obj_lb := Label.new()
+	obj_lb.text = "目标:"
+	obj_lb.add_theme_font_size_override("font_size", 7)
+	obj_row.add_child(obj_lb)
+
+	var obj_opt := OptionButton.new()
+	obj_opt.add_theme_font_size_override("font_size", 7)
+	obj_opt.add_item("全灭", int(MapData.ObjectiveType.ANNIHILATE))
+	obj_opt.add_item("占领", int(MapData.ObjectiveType.CAPTURE))
+	obj_opt.add_item("夺旗", int(MapData.ObjectiveType.FLAG))
+	obj_opt.add_item("突进", int(MapData.ObjectiveType.ASSAULT))
+	obj_opt.selected = int(node.objective_type)
+	obj_opt.disabled = not can_unlock
+	obj_opt.custom_minimum_size = Vector2(50, 0)
+	obj_row.add_child(obj_opt)
+
+	var obj_param_lb := Label.new()
+	obj_param_lb.text = "参数:"
+	obj_param_lb.add_theme_font_size_override("font_size", 7)
+	obj_row.add_child(obj_param_lb)
+
+	var obj_param_edit := LineEdit.new()
+	obj_param_edit.add_theme_font_size_override("font_size", 7)
+	obj_param_edit.custom_minimum_size = Vector2(0, 14)
+	obj_param_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	obj_param_edit.editable = can_unlock
+	obj_param_edit.placeholder_text = "JSON，如 {\"target_cell\": [10, 7], \"hold_turns\": 3}"
+	obj_param_edit.tooltip_text = "CAPTURE: {\"target_cell\": [x, y], \"hold_turns\": n}\nFLAG: {\"flag_cell\": [x, y], \"goal_cell\": [x, y]}\nASSAULT: {\"target_unit_name\": \"id\"}\n留空：由 ObjectiveManager 智能 fallback"
+	if not node.objective_params.is_empty():
+		obj_param_edit.text = JSON.stringify(node.objective_params)
+	obj_row.add_child(obj_param_edit)
+
 	var btns := HBoxContainer.new()
 	btns.alignment = BoxContainer.ALIGNMENT_CENTER
 	btns.add_theme_constant_override("separation", 8)
@@ -1044,6 +1087,39 @@ func _show_type_picker_popup(node_idx: int):
 			node.unlock_units = new_units
 		else:
 			node.unlock_units.clear()
+
+		# ★ v4.4：应用目标
+		if can_unlock:
+			node.objective_type = obj_opt.selected as MapData.ObjectiveType
+			var param_text : String = obj_param_edit.text.strip_edges()
+			if param_text == "":
+				node.objective_params = {}
+			else:
+				var parsed = JSON.parse_string(param_text)
+				if parsed is Dictionary:
+					var cleaned : Dictionary = {}
+					for k in parsed:
+						var v : Variant = parsed[k]
+						var t : int = typeof(v)
+						if t == TYPE_ARRAY and (v as Array).size() == 2:
+							var arr : Array = v
+							var t0 : int = typeof(arr[0])
+							var t1 : int = typeof(arr[1])
+							var is_num0 : bool = (t0 == TYPE_INT or t0 == TYPE_FLOAT)
+							var is_num1 : bool = (t1 == TYPE_INT or t1 == TYPE_FLOAT)
+							if is_num0 and is_num1:
+								cleaned[k] = Vector2i(int(arr[0]), int(arr[1]))
+								continue
+						if t == TYPE_FLOAT:
+							cleaned[k] = int(v)
+						else:
+							cleaned[k] = v
+					node.objective_params = cleaned
+				else:
+					node.objective_params = {}
+		else:
+			node.objective_type = MapData.ObjectiveType.ANNIHILATE
+			node.objective_params = {}
 
 		_canvas.queue_redraw()
 		_close_popup()

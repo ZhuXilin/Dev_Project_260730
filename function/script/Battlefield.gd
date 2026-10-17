@@ -262,14 +262,18 @@ func _ready():
 	# 否则 start_turn 会调 on_player_turn_start() 用上一场的旧机制
 	BossMechanicManager.setup_for_node(is_boss)
 
-	# ★ 胜利目标初始化
+	# ★ v4.3：胜利目标初始化
 	if ObjectiveManager:
 		ObjectiveManager.setup_for_node(GameState.current_map_data)
+
+	# ★ v4.4：目标可视化 + 状态 HUD
+	_render_objective_markers()
+	_create_objective_status_label()
 
 	await get_tree().process_frame
 	TurnManager.start_turn(TurnManager.Team.PLAYER)
 
-	# ★ 显示目标 banner（延迟避开 turn overlay）
+	# ★ v4.3：显示目标 banner（延迟避开 turn overlay）
 	if ObjectiveManager and not ObjectiveManager.is_annihilate():
 		call_deferred("_deferred_show_objective_banner")
 
@@ -512,6 +516,7 @@ func _exit_tree():
 func _process(_delta):
 	_cursor_controller.update_cursor_and_mouse()
 	_update_hint_label()
+	_refresh_objective_status()
 
 	var should_pause = (
 		victory_panel.visible or
@@ -928,6 +933,146 @@ func _on_request_setting_right_click():
 	SignalBus.request_hide_info.emit()
 	InputManager.interaction_phase = InputManager.Phase.IDLE
 	InputManager.current_empty_cell = Vector2i(-1, -1)
+
+
+# ============================================================
+#  v4.4：胜利目标可视化 + 状态 HUD
+# ============================================================
+var _objective_marker_layer : Node2D = null
+var _objective_status_label : Label = null
+var _last_obj_status_text : String = ""
+
+
+func _render_objective_markers():
+	if _objective_marker_layer and is_instance_valid(_objective_marker_layer):
+		_objective_marker_layer.queue_free()
+	_objective_marker_layer = null
+
+	if ObjectiveManager == null:
+		return
+	var obj_type : int = ObjectiveManager.get_objective_type()
+	if obj_type == MapData.ObjectiveType.ANNIHILATE:
+		return
+
+	_objective_marker_layer = Node2D.new()
+	_objective_marker_layer.name = "ObjectiveMarkerLayer"
+	_objective_marker_layer.z_index = 0
+	add_child(_objective_marker_layer)
+
+	match obj_type:
+		MapData.ObjectiveType.CAPTURE:
+			_render_capture_marker()
+		MapData.ObjectiveType.FLAG:
+			_render_flag_markers()
+		MapData.ObjectiveType.ASSAULT:
+			_render_assault_marker()
+
+
+func _render_capture_marker():
+	var cell : Vector2i = ObjectiveManager.get_capture_cell()
+	if cell == Vector2i(-1, -1):
+		return
+	_draw_cell_marker(cell, Color(1.0, 0.85, 0.3, 0.35), "★", Color(1.0, 0.85, 0.3))
+
+
+func _render_flag_markers():
+	var flag_cell : Vector2i = ObjectiveManager.get_flag_cell()
+	var goal_cell : Vector2i = ObjectiveManager.get_flag_goal_cell()
+	if flag_cell != Vector2i(-1, -1):
+		_draw_cell_marker(flag_cell, Color(0.9, 0.3, 0.3, 0.4), "旗", Color(1.0, 0.4, 0.4))
+	if goal_cell != Vector2i(-1, -1):
+		_draw_cell_marker(goal_cell, Color(0.3, 0.9, 0.3, 0.4), "终", Color(0.4, 1.0, 0.4))
+
+
+func _render_assault_marker():
+	# 突进：目标单位会移动，状态 HUD 文字提示即可，不做世界坐标标记
+	pass
+
+
+func _draw_cell_marker(cell: Vector2i, bg_color: Color, text: String, text_color: Color):
+	if _objective_marker_layer == null or not is_instance_valid(_objective_marker_layer):
+		return
+
+	var px : float = float(cell.x) * MapConst.CELL_SIZE
+	var py : float = float(cell.y) * MapConst.CELL_SIZE
+
+	var rect := ColorRect.new()
+	rect.color = bg_color
+	rect.size = Vector2(MapConst.CELL_SIZE, MapConst.CELL_SIZE)
+	rect.position = Vector2(px, py)
+	rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_objective_marker_layer.add_child(rect)
+
+	var label := Label.new()
+	label.text = text
+	label.add_theme_font_size_override("font_size", 8)
+	label.add_theme_color_override("font_color", text_color)
+	label.add_theme_color_override("font_outline_color", Color.BLACK)
+	label.add_theme_constant_override("outline_size", 2)
+	label.size = Vector2(MapConst.CELL_SIZE, MapConst.CELL_SIZE)
+	label.position = Vector2(px, py)
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_objective_marker_layer.add_child(label)
+
+
+func _create_objective_status_label():
+	if _objective_status_label and is_instance_valid(_objective_status_label):
+		return
+	if ObjectiveManager == null:
+		return
+	if ObjectiveManager.is_annihilate():
+		return
+
+	_objective_status_label = Label.new()
+	_objective_status_label.name = "ObjectiveStatusLabel"
+	_objective_status_label.add_theme_font_size_override("font_size", 7)
+	_objective_status_label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.3))
+	_objective_status_label.add_theme_color_override("font_outline_color", Color.BLACK)
+	_objective_status_label.add_theme_constant_override("outline_size", 2)
+	_objective_status_label.anchor_left = 0.5
+	_objective_status_label.anchor_right = 0.5
+	_objective_status_label.offset_left = -100
+	_objective_status_label.offset_right = 100
+	_objective_status_label.offset_top = 46
+	_objective_status_label.offset_bottom = 60
+	_objective_status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_objective_status_label.z_index = 99
+	_objective_status_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_objective_status_label)
+	_last_obj_status_text = ""
+	_refresh_objective_status()
+
+
+func _refresh_objective_status():
+	if not _objective_status_label or not is_instance_valid(_objective_status_label):
+		return
+	if ObjectiveManager == null:
+		if _last_obj_status_text != "":
+			_objective_status_label.text = ""
+			_last_obj_status_text = ""
+		return
+
+	var new_text : String = ""
+	match ObjectiveManager.get_objective_type():
+		MapData.ObjectiveType.CAPTURE:
+			var cur : int = ObjectiveManager.get_capture_progress()
+			var need : int = ObjectiveManager.get_capture_hold_turns()
+			new_text = "占领 %d / %d" % [cur, need]
+		MapData.ObjectiveType.FLAG:
+			if ObjectiveManager.get_flag_carrier() != null:
+				new_text = "已拾旗 → 带回终点"
+			else:
+				new_text = "未拾旗 → 前往旗帜位置"
+		MapData.ObjectiveType.ASSAULT:
+			new_text = "击杀目标 Boss"
+		_:
+			new_text = ""
+
+	if new_text != _last_obj_status_text:
+		_objective_status_label.text = new_text
+		_last_obj_status_text = new_text
 
 
 func _deferred_show_objective_banner():

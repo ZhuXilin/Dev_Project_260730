@@ -152,6 +152,10 @@ func _clone_map_data(src: MapData, node_type: int) -> MapData:
 	copy.node_type = node_type
 	copy.spawn_points = src.spawn_points.duplicate()
 	copy.required_unit = src.required_unit
+	copy.unlock_relics = src.unlock_relics.duplicate()
+	copy.unlock_units = src.unlock_units.duplicate()
+	copy.objective_type = src.objective_type
+	copy.objective_params = src.objective_params.duplicate(true)
 	return copy
 
 
