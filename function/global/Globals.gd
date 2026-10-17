@@ -219,6 +219,31 @@ func get_unlocked_units() -> Array:
 
 
 # ============================================================
+#  单位资格层（地图/剧情解锁，需守火者花魂正式解锁）
+# ============================================================
+func make_unit_eligible(unit_name: String):
+	var key : String = UnitDataManager.normalize_unit_key(unit_name)
+	if key == "":
+		return
+	if UnitDataManager.get_unit_data(key).is_empty():
+		print("[Globals] make_unit_eligible 忽略未定义单位：%s" % key)
+		return
+	if key in GameState.eligible_units:
+		return
+	GameState.eligible_units.append(key)
+	print("[Globals] 残魂资格解锁：%s" % key)
+
+
+func is_unit_eligible(unit_name: String) -> bool:
+	var key : String = UnitDataManager.normalize_unit_key(unit_name)
+	return key in GameState.eligible_units
+
+
+func get_eligible_units() -> Array:
+	return GameState.eligible_units.duplicate()
+
+
+# ============================================================
 #  道具解锁
 # ============================================================
 func _load_item_unlock_config():

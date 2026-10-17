@@ -165,6 +165,10 @@ func _build_save_data() -> SaveData:
 	save.unlocked_recipes = GameState.unlocked_recipes.duplicate()
 	save.unlocked_stories = GameState.unlocked_stories.duplicate()
 
+	save.eligible_units = GameState.eligible_units.duplicate()
+	save.current_node_unlock_relics = GameState.current_node_unlock_relics.duplicate()
+	save.current_node_unlock_units = GameState.current_node_unlock_units.duplicate()
+
 	save.unit_growth = GameState.unit_growth.duplicate(true)
 	save.unit_blessings = GameState.unit_blessings.duplicate(true)
 	save.talent_exp = GameState.talent_exp.duplicate(true)
@@ -268,6 +272,10 @@ func _apply_save_data(save: SaveData):
 	GameState.unlocked_recipes = _safe_array(save.unlocked_recipes)
 	GameState.unlocked_stories = _safe_array(save.unlocked_stories)
 
+	GameState.eligible_units = _filter_valid_unit_keys(_safe_array(save.eligible_units))
+	GameState.current_node_unlock_relics = _safe_string_array(save.current_node_unlock_relics)
+	GameState.current_node_unlock_units = _safe_string_array(save.current_node_unlock_units)
+
 	GameState.unit_growth = _safe_dict(save.unit_growth)
 	GameState.unit_blessings = _safe_dict(save.unit_blessings)
 	GameState.talent_exp = _safe_dict(save.talent_exp)
@@ -326,6 +334,15 @@ static func _safe_array(v : Variant) -> Array:
 	if v is Array:
 		return (v as Array).duplicate()
 	return []
+
+
+static func _safe_string_array(v : Variant) -> Array[String]:
+	var result : Array[String] = []
+	if v is Array:
+		for item in v:
+			if item is String and (item as String) != "":
+				result.append(item)
+	return result
 
 
 static func _filter_valid_unit_keys(keys: Array) -> Array:

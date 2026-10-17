@@ -301,10 +301,24 @@ func _build_locked_unit_list():
 		unit_list.remove_child(c); c.queue_free()
 
 	var costs : Dictionary = Globals.unlock_config.get("unlock_costs", {})
+	var eligible : Array = Globals.get_eligible_units()
+
+	# 候选池 = unlock_costs keys ∪ eligible_units
+	var all_candidates : Array = []
+	for k in costs:
+		all_candidates.append(k)
+	for k in eligible:
+		if k not in all_candidates:
+			all_candidates.append(k)
+
+	# 排除已正式解锁的
 	var locked : Array = []
-	for unit_type in costs:
-		if not Globals.is_unit_unlocked(unit_type):
-			locked.append(unit_type)
+	for unit_type in all_candidates:
+		if Globals.is_unit_unlocked(unit_type):
+			continue
+		if UnitDataManager.get_unit_data(unit_type).is_empty():
+			continue
+		locked.append(unit_type)
 
 	if locked.is_empty():
 		var lb := Label.new()
@@ -345,11 +359,24 @@ func _refresh_unit_unlock_panel():
 	_clear_attr_container()
 
 	var costs : Dictionary = Globals.unlock_config.get("unlock_costs", {})
+	var eligible : Array = Globals.get_eligible_units()
+
+	var all_candidates : Array = []
+	for k in costs:
+		all_candidates.append(k)
+	for k in eligible:
+		if k not in all_candidates:
+			all_candidates.append(k)
+
 	var any_locked : bool = false
-	for unit_type in costs:
-		if not Globals.is_unit_unlocked(unit_type):
-			any_locked = true
-			break
+	for unit_type in all_candidates:
+		if Globals.is_unit_unlocked(unit_type):
+			continue
+		if UnitDataManager.get_unit_data(unit_type).is_empty():
+			continue
+		any_locked = true
+		break
+
 	if not any_locked:
 		unit_sprite.visible = false
 		unit_name_label.text = "所有残魂已唤醒"
@@ -358,8 +385,10 @@ func _refresh_unit_unlock_panel():
 		return
 
 	if _current_unit_type == "" or Globals.is_unit_unlocked(_current_unit_type):
-		for unit_type in costs:
+		for unit_type in all_candidates:
 			if not Globals.is_unit_unlocked(unit_type):
+				if UnitDataManager.get_unit_data(unit_type).is_empty():
+					continue
 				_current_unit_type = unit_type
 				break
 

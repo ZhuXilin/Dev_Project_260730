@@ -209,6 +209,10 @@ var arena_target_talents : Dictionary:
 	get: return resource_state.arena_target_talents
 	set(value): resource_state.arena_target_talents = value
 
+var eligible_units : Array:
+	get: return resource_state.eligible_units
+	set(value): resource_state.eligible_units = value
+
 var tutorial_stage : int:
 	get: return resource_state.tutorial_stage
 	set(value): resource_state.tutorial_stage = value
@@ -251,11 +255,11 @@ var sacrifice_count : int:
 
 var current_node_unlock_relics : Array:
 	get: return progress_state.current_node_unlock_relics
-	set(value): progress_state.current_node_unlock_relics = value
+	set(value): progress_state.current_node_unlock_relics.assign(value)
 
 var current_node_unlock_units : Array:
 	get: return progress_state.current_node_unlock_units
-	set(value): progress_state.current_node_unlock_units = value
+	set(value): progress_state.current_node_unlock_units.assign(value)
 
 var npc_dialogue_seen : Dictionary:
 	get: return resource_state.npc_dialogue_seen
@@ -511,6 +515,29 @@ func reset_all():
 	current_map_index = 0
 	is_map_mode = false
 	LevelManager.reset()
+
+
+# ============================================================
+#  光环候选（v4.2：FORGE 每局抽 3 个，排除已装备）
+# ============================================================
+var current_aura_candidates : Array = []
+
+func refresh_aura_candidates():
+	var equipped : Array = get_auras_from_passives()
+	var pool : Array = []
+	for aid in unlocked_auras:
+		if aid in equipped:
+			continue
+		pool.append(aid)
+	pool.shuffle()
+	var picked : Array = []
+	for i in range(mini(3, pool.size())):
+		picked.append(pool[i])
+	current_aura_candidates = picked
+	print("[GameState] 光环候选刷新：%s" % [picked])
+
+func remove_aura_candidate(aid: String):
+	current_aura_candidates.erase(aid)
 
 
 func apply_relic_stats_to_unit(_unit_data: UnitData): pass

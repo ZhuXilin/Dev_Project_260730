@@ -13,6 +13,13 @@ const CURRENT_VERSION = 10
 @export var unlocked_recipes: Array = []
 @export var unlocked_stories: Array = []
 
+# ---- 单位资格层（地图/剧情解锁，需守火者正式解锁）----
+@export var eligible_units: Array = []
+
+# ---- 节点解锁临时数据（防止中断丢失）----
+@export var current_node_unlock_relics: Array = []
+@export var current_node_unlock_units: Array = []
+
 # ---- 设置 ----
 @export var music_volume: float = 0.2
 @export var sound_volume: float = 0.2

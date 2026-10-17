@@ -307,14 +307,14 @@ func on_map_victory_continue() -> void:
 				newly_units.append(uid)
 
 		for uid in unique_units:
-			Globals.unlock_unit(uid)
+			Globals.make_unit_eligible(uid)
 
 		for uid in newly_units:
 			var display : String = UnitDataManager.get_display_name(uid)
 			var virtual_data := ItemData.new()
 			virtual_data.id = "unlock_unit_" + uid
-			virtual_data.name = "★ 新单位：" + display
-			virtual_data.description = "可在下次组队时选择"
+			virtual_data.name = "★ 新残魂资格：" + display
+			virtual_data.description = "可在守火者「唤醒残魂」中花魂解锁"
 			reward_item_datas.append(virtual_data)
 		if not newly_units.is_empty():
 			print("[Battlefield] 本节点解锁 %d 个单位" % newly_units.size())

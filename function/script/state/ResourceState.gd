@@ -32,6 +32,7 @@ var unlocked_recipes : Array = []
 var unlocked_stories : Array = []
 var talent_exp : Dictionary = {}
 var arena_target_talents : Dictionary = {}
+var eligible_units : Array = []
 
 # ---- 斗技场统计 ----
 var arena_best_streak : int = 0

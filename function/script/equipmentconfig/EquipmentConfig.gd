@@ -132,6 +132,12 @@ func init(units: Array, slot: int, mode: int, context: EquipContext = null):
 	current_mode = mode as Mode
 	_context = context if context else MainGameEquipContext.new()
 
+	current_mode = mode as Mode
+	_context = context if context else MainGameEquipContext.new()
+
+	if current_mode == Mode.FORGE or is_shop_rest_mode():
+		GameState.refresh_aura_candidates()
+
 	if is_shop_rest_mode() or mode == Mode.FORGE:
 		if not shop_manager:
 			shop_manager = ShopManagerScript.new()
@@ -525,6 +531,7 @@ func _build_aura_panel():
 
 	var unlocked : Array = GameState.unlocked_auras.duplicate()
 	var equipped : Array = GameState.get_auras_from_passives()
+	var candidates : Array = GameState.current_aura_candidates.duplicate()
 	var cur_sf : int = SoulFireManager.current
 	var cap : int = SoulFireManager.get_max_carried()
 	var empty_slot : int = _get_first_empty_passive_slot()
@@ -547,6 +554,35 @@ func _build_aura_panel():
 		shop_container.add_child(hint0)
 		return
 
+	# ---- 已装备区 ----
+	if not equipped.is_empty():
+		var eq_title := Label.new()
+		eq_title.text = "— 已装备（可卸下） —"
+		eq_title.add_theme_font_size_override("font_size", 7)
+		eq_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		eq_title.modulate = Color(0.7, 1.0, 0.7)
+		shop_container.add_child(eq_title)
+		for aid in equipped:
+			shop_container.add_child(_make_equipped_aura_row(aid))
+
+	# ---- 候选区 ----
+	var cand_title := Label.new()
+	cand_title.text = "— 候选（花魂火购买） —"
+	cand_title.add_theme_font_size_override("font_size", 7)
+	cand_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	cand_title.modulate = Color(0.8, 0.8, 0.9)
+	shop_container.add_child(cand_title)
+
+	if candidates.is_empty():
+		var hint := Label.new()
+		hint.text = "暂无可购买候选\n（下次进入 FORGE 时重新抽取）"
+		hint.add_theme_font_size_override("font_size", 7)
+		hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		hint.modulate = Color(0.6, 0.6, 0.6)
+		hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		shop_container.add_child(hint)
+		return
+
 	if empty_slot < 0:
 		var warn := Label.new()
 		warn.text = "被动槽已满（%d/%d），卸下一个后可以再购买" % [MAX_PASSIVE_SLOTS, MAX_PASSIVE_SLOTS]
@@ -556,10 +592,72 @@ func _build_aura_panel():
 		warn.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		shop_container.add_child(warn)
 
-	# ★ 显示所有已解锁光环：已装备的显示"卸下"，未装备的显示"购买"
-	for aid in unlocked:
-		var is_equipped : bool = aid in equipped
-		shop_container.add_child(_make_aura_row(aid, empty_slot, is_equipped))
+	for aid in candidates:
+		shop_container.add_child(_make_aura_candidate_row(aid, empty_slot))
+
+
+func _make_equipped_aura_row(aid: String) -> HBoxContainer:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 6)
+
+	var ad : Dictionary = AuraManager.get_aura(aid)
+	var name_lb := Label.new()
+	name_lb.text = "【%s】%s" % [ad.get("tag", ""), ad.get("name", aid)]
+	name_lb.add_theme_font_size_override("font_size", 8)
+	name_lb.custom_minimum_size = Vector2(90, 0)
+	name_lb.clip_text = true
+	name_lb.modulate = Color(0.7, 1.0, 0.7)
+	row.add_child(name_lb)
+
+	var desc_lb := Label.new()
+	desc_lb.text = ad.get("description", "")
+	desc_lb.add_theme_font_size_override("font_size", 6)
+	desc_lb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	desc_lb.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	row.add_child(desc_lb)
+
+	var unequip_btn := Button.new()
+	unequip_btn.text = "卸下"
+	unequip_btn.add_theme_font_size_override("font_size", 7)
+	unequip_btn.custom_minimum_size = Vector2(70, 20)
+	unequip_btn.pressed.connect(_on_unequip_aura.bind(aid))
+	row.add_child(unequip_btn)
+	return row
+
+
+func _make_aura_candidate_row(aid: String, empty_slot: int) -> HBoxContainer:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 6)
+
+	var ad : Dictionary = AuraManager.get_aura(aid)
+	var buy_cost : int = int(ad.get("buy_cost", 0))
+	if buy_cost <= 0:
+		buy_cost = 6
+
+	var name_lb := Label.new()
+	name_lb.text = "【%s】%s" % [ad.get("tag", ""), ad.get("name", aid)]
+	name_lb.add_theme_font_size_override("font_size", 8)
+	name_lb.custom_minimum_size = Vector2(90, 0)
+	name_lb.clip_text = true
+	row.add_child(name_lb)
+
+	var desc_lb := Label.new()
+	desc_lb.text = ad.get("description", "")
+	desc_lb.add_theme_font_size_override("font_size", 6)
+	desc_lb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	desc_lb.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	row.add_child(desc_lb)
+
+	var buy_btn := Button.new()
+	buy_btn.text = "购买 %d◆" % buy_cost
+	buy_btn.add_theme_font_size_override("font_size", 7)
+	buy_btn.custom_minimum_size = Vector2(70, 20)
+	var can_buy : bool = SoulFireManager.current >= buy_cost and empty_slot >= 0
+	buy_btn.disabled = not can_buy
+	if can_buy:
+		buy_btn.pressed.connect(_on_buy_aura.bind(aid, buy_cost))
+	row.add_child(buy_btn)
+	return row
 
 
 func _get_first_empty_passive_slot() -> int:
@@ -625,13 +723,14 @@ func _make_aura_row(aid : String, empty_slot : int, is_equipped : bool) -> HBoxC
 	return row
 
 
-func _on_buy_aura(aid : String, cost : int):
+func _on_buy_aura(aid: String, cost: int):
 	if not SoulFireManager.spend(cost):
 		return
 	if not _context.add_aura_to_passive_slot(aid):
 		SoulFireManager.add(cost)
 		_show_detail_in_zone("被动槽已满")
 		return
+	GameState.remove_aura_candidate(aid)
 	SoundManager.play_get_item_sound()
 	_sync_all()
 	_update_gold_display()
@@ -639,8 +738,7 @@ func _on_buy_aura(aid : String, cost : int):
 	_show_detail_in_zone("已购买光环：%s" % AuraManager.get_display_name(aid))
 
 
-func _on_unequip_aura(aid : String):
-	# 找到这个光环在哪个槽位，清空它
+func _on_unequip_aura(aid: String):
 	var passives : Array = _context.get_passives()
 	var found_idx : int = -1
 	for i in range(passives.size()):
@@ -654,7 +752,7 @@ func _on_unequip_aura(aid : String):
 	SoundManager.play_cancel_sound()
 	_sync_all()
 	_schedule_build_ui()
-	_show_detail_in_zone("已卸下光环：%s\n（不返还魂火，可再次购买）" % AuraManager.get_display_name(aid))
+	_show_detail_in_zone("已卸下光环：%s\n（不返还魂火，下次进 FORGE 时可能重新抽到）" % AuraManager.get_display_name(aid))
 
 
 # ============================================================
