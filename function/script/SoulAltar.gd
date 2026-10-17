@@ -300,13 +300,14 @@ func _build_locked_unit_list():
 	for c in unit_list.get_children():
 		unit_list.remove_child(c); c.queue_free()
 
-	var costs : Dictionary = Globals.unlock_config.get("unlock_costs", {})
+	# ★ 候选池 = initial_candidates（初始可见） ∪ eligible_units（地图/事件/剧情获得资格）
+	var initial : Array = Globals.get_initial_candidates()
 	var eligible : Array = Globals.get_eligible_units()
 
-	# 候选池 = unlock_costs keys ∪ eligible_units
 	var all_candidates : Array = []
-	for k in costs:
-		all_candidates.append(k)
+	for k in initial:
+		if k not in all_candidates:
+			all_candidates.append(k)
 	for k in eligible:
 		if k not in all_candidates:
 			all_candidates.append(k)
@@ -358,12 +359,13 @@ func _on_locked_unit_selected(unit_type: String):
 func _refresh_unit_unlock_panel():
 	_clear_attr_container()
 
-	var costs : Dictionary = Globals.unlock_config.get("unlock_costs", {})
+	var initial : Array = Globals.get_initial_candidates()
 	var eligible : Array = Globals.get_eligible_units()
 
 	var all_candidates : Array = []
-	for k in costs:
-		all_candidates.append(k)
+	for k in initial:
+		if k not in all_candidates:
+			all_candidates.append(k)
 	for k in eligible:
 		if k not in all_candidates:
 			all_candidates.append(k)

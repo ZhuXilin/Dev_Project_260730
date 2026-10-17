@@ -1,8 +1,8 @@
 extends Control
 
 # ============================================================
-#  GameDataEditor — 单位 / 战斗模拟 / 数值 / 套装 / 词条池 / 光环
-#  v4.3：全面对齐 ChipMusicEditor 的界面主题
+#  GameDataEditor — 单位 / 战斗模拟 / 数值 / 套装 / 词条池 / 光环 / 单位解锁 / 校验
+#  v4.4：新增单位解锁面板；修复 UI 刷新逻辑
 # ============================================================
 
 const UNIT_DATA_PATH : String = "res://content/data/unit_data.json"
@@ -13,6 +13,7 @@ const REFINE_DATA_PATH : String = "res://content/data/refine_data.json"
 const SET_BONUS_PATH : String = "res://content/data/set_bonuses.json"
 const AFFIX_PATH : String = "res://content/data/affixes.json"
 const AURA_PATH : String = "res://content/data/auras.json"
+const UNIT_UNLOCK_PATH : String = "res://content/data/unit_unlock.json"
 
 const JSON_EDITOR_SCRIPT : String = "res://function/tool/editor/JSONEditorPanel.gd"
 
@@ -134,6 +135,19 @@ var _sim_counter_cb : CheckBox = null
 
 var _cfg_tab_panels : Dictionary = {}
 
+# ---- 校验 UI ----
+var _validator_output : RichTextLabel = null
+var _validator_status : Label = null
+var _validator_last_errors : int = 0
+var _validator_last_warns : int = 0
+
+# ---- 单位解锁 UI ----
+var _unit_unlock_data : Dictionary = {}
+var _unit_unlock_selected : String = ""
+var _unit_unlock_list_box : VBoxContainer = null
+var _unit_unlock_mapping_box : VBoxContainer = null
+var _unit_unlock_status : Label = null
+var _unit_unlock_right_title : Label = null
 
 func _ready():
 	_apply_compact_theme()
@@ -332,6 +346,8 @@ func _load_all_data():
 	_refine_keys = _refine_db.keys()
 	_refine_keys.sort()
 
+	_unit_unlock_data = _load_json(UNIT_UNLOCK_PATH)
+
 	_weapon_ids.clear()
 	_armor_ids.clear()
 	for iid in ItemManager.get_all_item_ids():
@@ -386,7 +402,7 @@ func _build_ui():
 	tab_bar.add_theme_constant_override("separation", 2)
 	tab_scroll.add_child(tab_bar)
 
-	var tab_names : Array = ["单位编辑", "战斗模拟", "数值编辑", "套装", "词条池", "光环", "校验"]
+	var tab_names : Array = ["单位编辑", "战斗模拟", "数值编辑", "套装", "词条池", "光环", "单位解锁", "校验"]
 	for i in range(tab_names.size()):
 		var btn := Button.new()
 		btn.text = tab_names[i]
@@ -410,6 +426,7 @@ func _build_ui():
 	_tab_panels.append(_build_set_bonus_tab(body))
 	_tab_panels.append(_build_affix_tab(body))
 	_tab_panels.append(_build_aura_tab(body))
+	_tab_panels.append(_build_unit_unlock_tab(body))
 	_tab_panels.append(_build_validator_tab(body))
 
 	_switch_tab(0)
@@ -1345,135 +1362,500 @@ func _build_aura_tab(parent : Control) -> Control:
 
 
 # ============================================================
-#  通用小工具
+#  Tab 7：单位解锁（地图解锁单位 → 可唤醒单位）
 # ============================================================
-func _section(text : String) -> Label:
-	var l := Label.new()
-	l.text = text
-	l.add_theme_font_size_override("font_size", FS_PANEL)
-	l.modulate = Color(0.7, 0.8, 1.0)
-	return l
+func _build_unit_unlock_tab(parent : Control) -> Control:
+	var panel := HBoxContainer.new()
+	panel.set_anchors_preset(Control.PRESET_FULL_RECT)
+	panel.add_theme_constant_override("separation", 12)
+	parent.add_child(panel)
+
+	# ================= 左列：地图解锁池 =================
+	var left := VBoxContainer.new()
+	left.custom_minimum_size = Vector2(180, 0)
+	left.add_theme_constant_override("separation", 4)
+	panel.add_child(left)
+
+	var l_title := Label.new()
+	l_title.text = "— 地图解锁池 —"
+	l_title.add_theme_font_size_override("font_size", FS_PANEL)
+	l_title.modulate = Color(0.85, 0.85, 1.0)
+	left.add_child(l_title)
+	
+	var l_hint := Label.new()
+	l_hint.text = "只有这里的单位，才能配给地图节点。\n点下方【+ 添加】把新单位放入池中。"
+	l_hint.add_theme_font_size_override("font_size", FS_SMALL)
+	l_hint.modulate = Color(0.6, 0.6, 0.6)
+	l_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	left.add_child(l_hint)
+
+	var l_scroll := ScrollContainer.new()
+	l_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	l_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	left.add_child(l_scroll)
+
+	_unit_unlock_list_box = VBoxContainer.new()
+	_unit_unlock_list_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_unit_unlock_list_box.add_theme_constant_override("separation", 2)
+	l_scroll.add_child(_unit_unlock_list_box)
+
+	var l_btns := HBoxContainer.new()
+	l_btns.add_theme_constant_override("separation", 4)
+	left.add_child(l_btns)
+
+	var add_btn := Button.new()
+	add_btn.text = "+ 添加"
+	add_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	add_btn.pressed.connect(_on_unit_unlock_add)
+	l_btns.add_child(add_btn)
+
+	var del_btn := Button.new()
+	del_btn.text = "- 移除选中"
+	del_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	del_btn.modulate = Color(1.0, 0.6, 0.6)
+	del_btn.pressed.connect(_on_unit_unlock_remove)
+	l_btns.add_child(del_btn)
+
+	# ================= 右列：可唤醒单位映射 =================
+	var right := VBoxContainer.new()
+	right.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	right.add_theme_constant_override("separation", 4)
+	panel.add_child(right)
+
+	_unit_unlock_right_title = Label.new()
+	_unit_unlock_right_title.text = "— 选中项 → 节点完成后唤醒列表出现： —"
+	_unit_unlock_right_title.add_theme_font_size_override("font_size", FS_PANEL)
+	_unit_unlock_right_title.modulate = Color(0.85, 0.85, 1.0)
+	right.add_child(_unit_unlock_right_title)
+
+	var r_scroll := ScrollContainer.new()
+	r_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	r_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	right.add_child(r_scroll)
+
+	_unit_unlock_mapping_box = VBoxContainer.new()
+	_unit_unlock_mapping_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_unit_unlock_mapping_box.add_theme_constant_override("separation", 4)
+	r_scroll.add_child(_unit_unlock_mapping_box)
+
+	var r_btns := HBoxContainer.new()
+	r_btns.add_theme_constant_override("separation", 4)
+	right.add_child(r_btns)
+
+	_unit_unlock_status = Label.new()
+	_unit_unlock_status.modulate = Color(0.7, 0.9, 0.7)
+	_unit_unlock_status.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_unit_unlock_status.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	r_btns.add_child(_unit_unlock_status)
+
+	var reload_btn := Button.new()
+	reload_btn.text = "重置"
+	reload_btn.pressed.connect(func():
+		_unit_unlock_data = _load_json(UNIT_UNLOCK_PATH)
+		_unit_unlock_selected = ""
+		_refresh_unit_unlock_ui()
+		if _unit_unlock_status: _unit_unlock_status.text = "已重载"
+	)
+	r_btns.add_child(reload_btn)
+
+	var save_btn := Button.new()
+	save_btn.text = "保存"
+	save_btn.modulate = Color(0.7, 1.0, 0.7)
+	save_btn.pressed.connect(_save_unit_unlock_config)
+	r_btns.add_child(save_btn)
+
+	call_deferred("_refresh_unit_unlock_ui")
+	return panel
 
 
-func _lbl(text : String, min_w : float = 0) -> Label:
-	var l := Label.new()
-	l.text = text
-	l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	if min_w > 0:
-		l.custom_minimum_size = Vector2(min_w, 0)
-	return l
+func _refresh_unit_unlock_ui():
+	_refresh_unit_unlock_list()
+	_refresh_unit_unlock_mapping()
 
 
-func _center_label(text : String) -> Label:
-	var l := Label.new()
-	l.text = text
-	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	return l
+func _refresh_unit_unlock_list():
+	if _unit_unlock_list_box == null: return
+	
+	for c in _unit_unlock_list_box.get_children():
+		_unit_unlock_list_box.remove_child(c)
+		c.queue_free()
+
+	if not _unit_unlock_data.has("map_unlock_units"):
+		_unit_unlock_data["map_unlock_units"] = []
+		
+	var map_units: Array = _unit_unlock_data["map_unlock_units"]
+	var mapping: Dictionary = _unit_unlock_data.get("map_unlock_mapping", {})
+
+	if map_units.is_empty():
+		var hint := Label.new()
+		hint.text = "（空）请点下方添加"
+		hint.add_theme_font_size_override("font_size", FS_SMALL)
+		hint.modulate = Color(0.6, 0.6, 0.6)
+		_unit_unlock_list_box.add_child(hint)
+		_unit_unlock_selected = ""
+		return
+
+	for uid in map_units:
+		var display := UnitDataManager.get_display_name(uid)
+		var mapped_count: int = mapping.get(uid, []).size()
+		var suffix := "  → 解 %d 个" % mapped_count if mapped_count > 0 else ""
+		
+		var btn := Button.new()
+		btn.text = "%s (%s)%s" % [display, uid, suffix]
+		btn.toggle_mode = true
+		btn.button_pressed = (uid == _unit_unlock_selected)
+		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		btn.clip_text = true
+		btn.focus_mode = Control.FOCUS_NONE
+		btn.set_meta("uid", uid)
+		btn.pressed.connect(_on_unit_unlock_selected.bind(uid))
+		_unit_unlock_list_box.add_child(btn)
+
+	if _unit_unlock_selected == "" or _unit_unlock_selected not in map_units:
+		_on_unit_unlock_selected(map_units[0])
 
 
-func _add_edit_row(parent : Node, label : String) -> LineEdit:
-	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 3)
-	parent.add_child(row)
-	row.add_child(_lbl(label, 40))
-	var le := LineEdit.new()
-	le.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	row.add_child(le)
-	return le
+func _on_unit_unlock_selected(uid : String):
+	_unit_unlock_selected = uid
+	for c in _unit_unlock_list_box.get_children():
+		if c is Button:
+			c.button_pressed = (c.get_meta("uid", "") == uid)
+	_refresh_unit_unlock_mapping()
 
 
-func _add_option_row(parent : Node, label : String, ids : Array, none_text : String) -> OptionButton:
-	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 3)
-	parent.add_child(row)
-	row.add_child(_lbl(label, 40))
+func _refresh_unit_unlock_mapping():
+	if _unit_unlock_mapping_box == null: return
 
-	var opt := OptionButton.new()
-	opt.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	opt.add_item(none_text, 0)
-	opt.set_item_metadata(0, "")
-	for i in range(ids.size()):
-		var iid : String = ids[i]
-		opt.add_item(_get_display_name(iid), i + 1)
-		opt.set_item_metadata(i + 1, iid)
-	row.add_child(opt)
-	return opt
+	for c in _unit_unlock_mapping_box.get_children():
+		_unit_unlock_mapping_box.remove_child(c)
+		c.queue_free()
+
+	if _unit_unlock_selected == "":
+		_unit_unlock_right_title.text = "— 请先选择左侧单位 —"
+		return
+
+	var display_src := UnitDataManager.get_display_name(_unit_unlock_selected)
+	_unit_unlock_right_title.text = "打地图获得「%s」时，唤醒列表出现：" % display_src
+
+	var mapping: Dictionary = _unit_unlock_data.get("map_unlock_mapping", {})
+	var current_list: Array = mapping.get(_unit_unlock_selected, [])
+
+	var assigned_to_other := {}
+	for src_uid in mapping:
+		if src_uid == _unit_unlock_selected: continue
+		for target_uid in mapping[src_uid]:
+			assigned_to_other[target_uid] = src_uid
+
+	var available_units := []
+	var transferred_units := []
+	var all_unit_ids := UnitDataManager.get_all_unit_ids()
+	
+	for uid in all_unit_ids:
+		var other_src = assigned_to_other.get(uid, "")
+		var is_checked = uid in current_list
+		
+		if other_src != "" and not is_checked:
+			transferred_units.append({"uid": uid, "by": other_src})
+		else:
+			available_units.append(uid)
+
+	# 1. 渲染自由可选的单位
+	for uid in available_units:
+		var display := UnitDataManager.get_display_name(uid)
+		var cb := CheckBox.new()
+		cb.text = "%s (%s)" % [display, uid]
+		cb.add_theme_font_size_override("font_size", FS_LABEL)
+		cb.button_pressed = (uid in current_list)
+		cb.toggled.connect(_on_mapping_toggled.bind(_unit_unlock_selected, uid))
+		_unit_unlock_mapping_box.add_child(cb)
+
+	# 2. 渲染已经被其他源抢占的单位
+	if transferred_units.size() > 0:
+		var sep := HSeparator.new()
+		sep.modulate = Color(0.4, 0.4, 0.4)
+		_unit_unlock_mapping_box.add_child(sep)
+
+		var lbl := Label.new()
+		lbl.text = "↓ 以下单位已被其他地图池单位分配 ↓"
+		lbl.add_theme_font_size_override("font_size", FS_SMALL)
+		lbl.modulate = Color(0.7, 0.6, 0.6)
+		lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		_unit_unlock_mapping_box.add_child(lbl)
+
+		for entry in transferred_units:
+			var row := HBoxContainer.new()
+			row.add_theme_constant_override("separation", 4)
+			
+			var lb := Label.new()
+			lb.text = "%s (%s)  [已被 %s 分配]" % [
+				UnitDataManager.get_display_name(entry.uid), 
+				entry.uid, 
+				UnitDataManager.get_display_name(entry.by)
+			]
+			lb.add_theme_font_size_override("font_size", FS_LABEL)
+			lb.modulate = Color(0.5, 0.5, 0.5)
+			lb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			row.add_child(lb)
+			
+			var steal_btn := Button.new()
+			steal_btn.text = "抢占"
+			steal_btn.add_theme_font_size_override("font_size", FS_SMALL)
+			steal_btn.tooltip_text = "把该单位从「%s」移除，并分配给当前选中项" % UnitDataManager.get_display_name(entry.by)
+			steal_btn.pressed.connect(func():
+				_on_mapping_toggled(true, _unit_unlock_selected, entry.uid)
+			)
+			row.add_child(steal_btn)
+			_unit_unlock_mapping_box.add_child(row)
 
 
-func _get_display_name(iid : String) -> String:
-	var item = ItemManager.get_item_data(iid)
-	if item: return item.name
-	var talent = TalentManager.get_talent_data(iid)
-	if talent: return talent.display_name
-	var relic = _relic_db.get(iid, {})
-	if not relic.is_empty(): return relic.get("name", iid)
-	return iid
+func _on_mapping_toggled(pressed : bool, source_unit : String, target_unit : String):
+	if not _unit_unlock_data.has("map_unlock_mapping"):
+		_unit_unlock_data["map_unlock_mapping"] = {}
+	var mapping: Dictionary = _unit_unlock_data["map_unlock_mapping"]
+	
+	if not mapping.has(source_unit):
+		mapping[source_unit] = []
+		
+	var arr: Array = mapping[source_unit]
+
+	if pressed:
+		if target_unit not in arr:
+			arr.append(target_unit)
+		# 互斥：从其他源移除
+		for other_src in mapping.keys():
+			if other_src == source_unit: continue
+			var other_arr: Array = mapping[other_src]
+			if target_unit in other_arr:
+				other_arr.erase(target_unit)
+	else:
+		arr.erase(target_unit)
+
+	mapping[source_unit] = arr
+	_unit_unlock_data["map_unlock_mapping"] = mapping
+	if _unit_unlock_status:
+		_unit_unlock_status.text = "已修改（未保存）"
+		
+	_refresh_unit_unlock_ui()
 
 
-func _style_spin(sp : SpinBox):
-	sp.add_theme_font_size_override("font_size", FS_BUTTON)
-	sp.ready.connect(func():
-		if not is_instance_valid(sp): return
-		var le := sp.get_line_edit()
-		if le:
-			le.add_theme_font_size_override("font_size", FS_BUTTON)
-			le.select_all_on_focus = true
-		var btns : Array[Node] = sp.find_children("*", "Button", true, false)
-		for b in btns:
-			_compact_spin_arrow_button(b as Button)
-	, CONNECT_ONE_SHOT)
+func _on_unit_unlock_add():
+	var dialog := AcceptDialog.new()
+	dialog.title = "添加单位到地图解锁池"
+	dialog.ok_button_text = "关闭"
+	
+	var scroll := ScrollContainer.new()
+	scroll.custom_minimum_size = Vector2(280, 360)
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	dialog.add_child(scroll)
+	
+	var list := VBoxContainer.new()
+	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	list.add_theme_constant_override("separation", 2)
+	scroll.add_child(list)
+
+	var all_unit_ids := UnitDataManager.get_all_unit_ids()
+	var current: Array = _unit_unlock_data.get("map_unlock_units", [])
+	
+	var available := []
+	for uid in all_unit_ids:
+		if uid not in current:
+			available.append(uid)
+
+	if available.is_empty():
+		var hint := Label.new()
+		hint.text = "（所有单位都已加入地图解锁池）"
+		hint.modulate = Color(0.6, 0.6, 0.6)
+		list.add_child(hint)
+	else:
+		for uid in available:
+			var display := UnitDataManager.get_display_name(uid)
+			var btn := Button.new()
+			btn.text = "%s (%s)" % [display, uid]
+			btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
+			btn.add_theme_font_size_override("font_size", FS_BUTTON)
+			btn.focus_mode = Control.FOCUS_NONE
+			btn.pressed.connect(func():
+				if not _unit_unlock_data.has("map_unlock_units"):
+					_unit_unlock_data["map_unlock_units"] = []
+				_unit_unlock_data["map_unlock_units"].append(uid)
+				dialog.queue_free()
+				_unit_unlock_selected = uid
+				_refresh_unit_unlock_ui()
+				if _unit_unlock_status:
+					_unit_unlock_status.text = "已添加（未保存）"
+			)
+			list.add_child(btn)
+
+	add_child(dialog)
+	dialog.popup_centered(Vector2(320, 420))
+
+
+func _on_unit_unlock_remove():
+	if _unit_unlock_selected == "":
+		return
+	var current: Array = _unit_unlock_data.get("map_unlock_units", [])
+	current.erase(_unit_unlock_selected)
+	_unit_unlock_data["map_unlock_units"] = current
+	
+	var mapping: Dictionary = _unit_unlock_data.get("map_unlock_mapping", {})
+	mapping.erase(_unit_unlock_selected)
+	_unit_unlock_data["map_unlock_mapping"] = mapping
+	
+	_unit_unlock_selected = ""
+	_refresh_unit_unlock_ui()
+	if _unit_unlock_status:
+		_unit_unlock_status.text = "已移除（未保存）"
+
+
+func _save_unit_unlock_config():
+	var f := FileAccess.open(UNIT_UNLOCK_PATH, FileAccess.WRITE)
+	if f == null:
+		if _unit_unlock_status:
+			_unit_unlock_status.text = "❌ 保存失败"
+		return
+	f.store_string(JSON.stringify(_unit_unlock_data, "  "))
+	f.close()
+	
+	Globals._load_unlock_config()
+	if _unit_unlock_status:
+		_unit_unlock_status.text = "✓ 已保存"
+	print("[GameDataEditor] unit_unlock.json 已保存")
 
 
 # ============================================================
-#  GameDataEditor — SpinBox 紧凑箭头（★ 本版加强）
+#  Tab 8：跨表校验
 # ============================================================
+func _build_validator_tab(parent : Control) -> Control:
+	var panel := VBoxContainer.new()
+	panel.set_anchors_preset(Control.PRESET_FULL_RECT)
+	panel.add_theme_constant_override("separation", 3)
+	parent.add_child(panel)
 
-## ★ 把 SpinBox 的上下箭头按钮改小（视觉非常小，但仍可点）
-## 原来：custom_minimum_size = Vector2(3, 2) —— 尺寸太小导致鼠标点不中
-## 现在：宽 5px，高度跟随 SpinBox 行高；图标上限 4x3
-## 效果：箭头看起来像一根细条，几乎不占空间
-func _compact_spin_arrow_button(btn : Button):
-	btn.custom_minimum_size = Vector2(5, 0)      # ★ 宽 5px，高由行撑开
-	btn.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	btn.icon_max_width = 4                        # ★ 箭头图标最多 4px 宽
-	btn.icon_max_height = 3                       # ★ 箭头图标最多 3px 高
-	btn.focus_mode = Control.FOCUS_NONE
-	btn.action_mode = BaseButton.ACTION_MODE_BUTTON_RELEASE
-	btn.flat = true                               # ★ 无边框
-	btn.expand_icon = false
+	var bar := HBoxContainer.new()
+	bar.add_theme_constant_override("separation", 4)
+	panel.add_child(bar)
 
-	var empty := StyleBoxEmpty.new()
-	empty.content_margin_left = 0
-	empty.content_margin_right = 0
-	empty.content_margin_top = 0
-	empty.content_margin_bottom = 0
-	btn.add_theme_stylebox_override("normal", empty)
-	btn.add_theme_stylebox_override("hover", empty)
-	btn.add_theme_stylebox_override("pressed", empty)
-	btn.add_theme_stylebox_override("focus", empty)
-	btn.add_theme_stylebox_override("disabled", empty)
+	var run_btn := Button.new()
+	run_btn.text = "运行校验"
+	run_btn.pressed.connect(_run_validation)
+	bar.add_child(run_btn)
+
+	var clear_btn := Button.new()
+	clear_btn.text = "清空"
+	clear_btn.pressed.connect(func():
+		if _validator_output: _validator_output.clear()
+		if _validator_status: _validator_status.text = ""
+	)
+	bar.add_child(clear_btn)
+
+	_validator_status = Label.new()
+	_validator_status.modulate = Color(0.85, 0.85, 0.85)
+	bar.add_child(_validator_status)
+
+	var spacer := Control.new()
+	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	bar.add_child(spacer)
+
+	var hint := Label.new()
+	hint.text = "红色=错误 · 黄色=警告"
+	hint.modulate = Color(0.6, 0.6, 0.6)
+	bar.add_child(hint)
+
+	var scroll := ScrollContainer.new()
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	panel.add_child(scroll)
+
+	_validator_output = RichTextLabel.new()
+	_validator_output.bbcode_enabled = true
+	_validator_output.fit_content = true
+	_validator_output.scroll_following = true
+	_validator_output.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_validator_output.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.add_child(_validator_output)
+
+	return panel
 
 
-## ★ 让 SpinBox 里的箭头按钮被点时不抢 LineEdit 焦点（否则数字无法"点进"）
-func _setup_spin(sp : SpinBox):
-	if not is_instance_valid(sp): return
-	var le := sp.get_line_edit()
-	if le:
-		le.add_theme_font_size_override("font_size", FS_BUTTON)
-		le.select_all_on_focus = true
-	var btns : Array[Node] = sp.find_children("*", "Button", true, false)
-	for b in btns:
-		_compact_spin_arrow_button(b as Button)
-		var btn := b as Button
-		if not btn.gui_input.is_connected(_on_spin_arrow_gui):
-			btn.gui_input.connect(_on_spin_arrow_gui)
+func _run_validation():
+	if _validator_output == null: return
+	_validator_output.clear()
+	_validator_last_errors = 0
+	_validator_last_warns = 0
+	if _validator_status:
+		_validator_status.text = "校验中..."
+
+	var validator := DataValidator.new()
+	var results : Array = validator.validate_all()
+	var err_count : int = validator.get_error_count()
+	var warn_count : int = validator.get_warn_count()
+	_validator_last_errors = err_count
+	_validator_last_warns = warn_count
+
+	if results.is_empty():
+		_validator_output.append_text("[color=#7FBF7F]✓ 全部通过，未发现问题[/color]\n")
+		if _validator_status:
+			_validator_status.text = "✓ 0 错误 / 0 警告"
+			_validator_status.modulate = Color(0.85, 0.85, 0.85)
+		_update_tab_validation_marker()
+		return
+
+	var by_file : Dictionary = {}
+	for r in results:
+		var f : String = r["file"]
+		if not by_file.has(f):
+			by_file[f] = []
+		by_file[f].append(r)
+
+	var files : Array = by_file.keys()
+	files.sort()
+	for fname in files:
+		_validator_output.append_text("[b]%s[/b]\n" % fname)
+		var entries : Array = by_file[fname]
+		for r in entries:
+			var path : String = r["path"]
+			var msg : String = r["message"]
+			if r["level"] == DataValidator.Level.ERROR:
+				_validator_output.append_text(
+					"  [color=#FF6B6B]✗[/color] [color=#888]%s[/color]  %s\n" % [path, msg])
+			else:
+				_validator_output.append_text(
+					"  [color=#FFD966]⚠[/color] [color=#888]%s[/color]  %s\n" % [path, msg])
+		_validator_output.append_text("\n")
+
+	if _validator_status:
+		var msg_text : String = "%d 错误 / %d 警告" % [err_count, warn_count]
+		if err_count > 0:
+			_validator_status.text = "✗ " + msg_text
+			_validator_status.modulate = Color(1.0, 0.6, 0.6)
+		else:
+			_validator_status.text = "⚠ " + msg_text
+			_validator_status.modulate = Color(1.0, 0.85, 0.5)
+
+	_update_tab_validation_marker()
 
 
-func _on_spin_arrow_gui(e : InputEvent):
-	if e is InputEventMouseButton and e.pressed \
-		and e.button_index == MOUSE_BUTTON_LEFT:
-		# 不做任何事，让 Button 的默认行为（Stepper 加减）继续
-		pass
+func _auto_validate():
+	if _validator_output == null: return
+	_run_validation()
+
+
+func _update_tab_validation_marker():
+	if _tab_btns.size() < 8: return
+	var tab_idx : int = 7
+	var base_name : String = "校验"
+	if _validator_last_errors > 0:
+		_tab_btns[tab_idx].text = "%s (%d)" % [base_name, _validator_last_errors]
+		_tab_btns[tab_idx].modulate = Color(1.0, 0.6, 0.6)
+	elif _validator_last_warns > 0:
+		_tab_btns[tab_idx].text = "%s (%d)" % [base_name, _validator_last_warns]
+		_tab_btns[tab_idx].modulate = Color(1.0, 0.85, 0.5)
+	else:
+		_tab_btns[tab_idx].text = base_name
+		_tab_btns[tab_idx].modulate = Color.WHITE
 
 
 # ============================================================
@@ -1625,146 +2007,6 @@ func _build_runtime_unit(key : String, weapon_override : String, weapon_upgrade 
 	return ud
 
 
-# ============================================================
-#  Tab 7：跨表校验
-# ============================================================
-var _validator_output : RichTextLabel = null
-var _validator_status : Label = null
-var _validator_last_errors : int = 0
-var _validator_last_warns : int = 0
-
-
-func _build_validator_tab(parent : Control) -> Control:
-	var panel := VBoxContainer.new()
-	panel.set_anchors_preset(Control.PRESET_FULL_RECT)
-	panel.add_theme_constant_override("separation", 3)
-	parent.add_child(panel)
-
-	var bar := HBoxContainer.new()
-	bar.add_theme_constant_override("separation", 4)
-	panel.add_child(bar)
-
-	var run_btn := Button.new()
-	run_btn.text = "运行校验"
-	run_btn.pressed.connect(_run_validation)
-	bar.add_child(run_btn)
-
-	var clear_btn := Button.new()
-	clear_btn.text = "清空"
-	clear_btn.pressed.connect(func():
-		if _validator_output: _validator_output.clear()
-		if _validator_status: _validator_status.text = ""
-	)
-	bar.add_child(clear_btn)
-
-	_validator_status = Label.new()
-	_validator_status.modulate = Color(0.85, 0.85, 0.85)
-	bar.add_child(_validator_status)
-
-	var spacer := Control.new()
-	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	bar.add_child(spacer)
-
-	var hint := Label.new()
-	hint.text = "红色=错误 · 黄色=警告"
-	hint.modulate = Color(0.6, 0.6, 0.6)
-	bar.add_child(hint)
-
-	var scroll := ScrollContainer.new()
-	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	panel.add_child(scroll)
-
-	_validator_output = RichTextLabel.new()
-	_validator_output.bbcode_enabled = true
-	_validator_output.fit_content = true
-	_validator_output.scroll_following = true
-	_validator_output.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_validator_output.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	scroll.add_child(_validator_output)
-
-	return panel
-
-
-func _run_validation():
-	if _validator_output == null: return
-	_validator_output.clear()
-	_validator_last_errors = 0
-	_validator_last_warns = 0
-	if _validator_status:
-		_validator_status.text = "校验中..."
-
-	var validator := DataValidator.new()
-	var results : Array = validator.validate_all()
-	var err_count : int = validator.get_error_count()
-	var warn_count : int = validator.get_warn_count()
-	_validator_last_errors = err_count
-	_validator_last_warns = warn_count
-
-	if results.is_empty():
-		_validator_output.append_text("[color=#7FBF7F]✓ 全部通过，未发现问题[/color]\n")
-		if _validator_status:
-			_validator_status.text = "✓ 0 错误 / 0 警告"
-			_validator_status.modulate = Color(0.85, 0.85, 0.85)
-		_update_tab_validation_marker()
-		return
-
-	var by_file : Dictionary = {}
-	for r in results:
-		var f : String = r["file"]
-		if not by_file.has(f):
-			by_file[f] = []
-		by_file[f].append(r)
-
-	var files : Array = by_file.keys()
-	files.sort()
-	for fname in files:
-		_validator_output.append_text("[b]%s[/b]\n" % fname)
-		var entries : Array = by_file[fname]
-		for r in entries:
-			var path : String = r["path"]
-			var msg : String = r["message"]
-			if r["level"] == DataValidator.Level.ERROR:
-				_validator_output.append_text(
-					"  [color=#FF6B6B]✗[/color] [color=#888]%s[/color]  %s\n" % [path, msg])
-			else:
-				_validator_output.append_text(
-					"  [color=#FFD966]⚠[/color] [color=#888]%s[/color]  %s\n" % [path, msg])
-		_validator_output.append_text("\n")
-
-	if _validator_status:
-		var msg_text : String = "%d 错误 / %d 警告" % [err_count, warn_count]
-		if err_count > 0:
-			_validator_status.text = "✗ " + msg_text
-			_validator_status.modulate = Color(1.0, 0.6, 0.6)
-		else:
-			_validator_status.text = "⚠ " + msg_text
-			_validator_status.modulate = Color(1.0, 0.85, 0.5)
-
-	_update_tab_validation_marker()
-
-
-func _auto_validate():
-	if _validator_output == null: return
-	_run_validation()
-
-
-func _update_tab_validation_marker():
-	if _tab_btns.size() < 7: return
-	var tab_idx : int = 6
-	var base_name : String = "校验"
-	if _validator_last_errors > 0:
-		_tab_btns[tab_idx].text = "%s (%d)" % [base_name, _validator_last_errors]
-		_tab_btns[tab_idx].modulate = Color(1.0, 0.6, 0.6)
-	elif _validator_last_warns > 0:
-		_tab_btns[tab_idx].text = "%s (%d)" % [base_name, _validator_last_warns]
-		_tab_btns[tab_idx].modulate = Color(1.0, 0.85, 0.5)
-	else:
-		_tab_btns[tab_idx].text = base_name
-		_tab_btns[tab_idx].modulate = Color.WHITE
-
-
 func _apply_relics(ud : UnitData, relic_ids : Array):
 	for rid in relic_ids:
 		var rdata : Dictionary = _relic_db.get(rid, {})
@@ -1806,3 +2048,124 @@ func _apply_refines(ud : UnitData, refine_ids : Array):
 				ud.buff_defense_flat += int(val)
 			"damage_reduction":
 				ud.buff_damage_reduction += val
+
+
+# ============================================================
+#  通用小工具
+# ============================================================
+func _section(text : String) -> Label:
+	var l := Label.new()
+	l.text = text
+	l.add_theme_font_size_override("font_size", FS_PANEL)
+	l.modulate = Color(0.7, 0.8, 1.0)
+	return l
+
+
+func _lbl(text : String, min_w : float = 0) -> Label:
+	var l := Label.new()
+	l.text = text
+	l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	if min_w > 0:
+		l.custom_minimum_size = Vector2(min_w, 0)
+	return l
+
+
+func _center_label(text : String) -> Label:
+	var l := Label.new()
+	l.text = text
+	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	return l
+
+
+func _add_edit_row(parent : Node, label : String) -> LineEdit:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 3)
+	parent.add_child(row)
+	row.add_child(_lbl(label, 40))
+	var le := LineEdit.new()
+	le.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(le)
+	return le
+
+
+func _add_option_row(parent : Node, label : String, ids : Array, none_text : String) -> OptionButton:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 3)
+	parent.add_child(row)
+	row.add_child(_lbl(label, 40))
+
+	var opt := OptionButton.new()
+	opt.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	opt.add_item(none_text, 0)
+	opt.set_item_metadata(0, "")
+	for i in range(ids.size()):
+		var iid : String = ids[i]
+		opt.add_item(_get_display_name(iid), i + 1)
+		opt.set_item_metadata(i + 1, iid)
+	row.add_child(opt)
+	return opt
+
+
+func _get_display_name(iid : String) -> String:
+	var item = ItemManager.get_item_data(iid)
+	if item: return item.name
+	var talent = TalentManager.get_talent_data(iid)
+	if talent: return talent.display_name
+	var relic = _relic_db.get(iid, {})
+	if not relic.is_empty(): return relic.get("name", iid)
+	return iid
+
+
+func _style_spin(sp : SpinBox):
+	sp.add_theme_font_size_override("font_size", FS_BUTTON)
+	sp.ready.connect(func():
+		if not is_instance_valid(sp): return
+		var le := sp.get_line_edit()
+		if le:
+			le.add_theme_font_size_override("font_size", FS_BUTTON)
+			le.select_all_on_focus = true
+		var btns : Array[Node] = sp.find_children("*", "Button", true, false)
+		for b in btns:
+			_compact_spin_arrow_button(b as Button)
+	, CONNECT_ONE_SHOT)
+
+
+func _compact_spin_arrow_button(btn : Button):
+	btn.custom_minimum_size = Vector2(5, 0)
+	btn.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	btn.icon_max_width = 4
+	btn.icon_max_height = 3
+	btn.focus_mode = Control.FOCUS_NONE
+	btn.action_mode = BaseButton.ACTION_MODE_BUTTON_RELEASE
+	btn.flat = true
+	btn.expand_icon = false
+
+	var empty := StyleBoxEmpty.new()
+	empty.content_margin_left = 0
+	empty.content_margin_right = 0
+	empty.content_margin_top = 0
+	empty.content_margin_bottom = 0
+	btn.add_theme_stylebox_override("normal", empty)
+	btn.add_theme_stylebox_override("hover", empty)
+	btn.add_theme_stylebox_override("pressed", empty)
+	btn.add_theme_stylebox_override("focus", empty)
+	btn.add_theme_stylebox_override("disabled", empty)
+
+
+func _setup_spin(sp : SpinBox):
+	if not is_instance_valid(sp): return
+	var le := sp.get_line_edit()
+	if le:
+		le.add_theme_font_size_override("font_size", FS_BUTTON)
+		le.select_all_on_focus = true
+	var btns : Array[Node] = sp.find_children("*", "Button", true, false)
+	for b in btns:
+		_compact_spin_arrow_button(b as Button)
+		var btn := b as Button
+		if not btn.gui_input.is_connected(_on_spin_arrow_gui):
+			btn.gui_input.connect(_on_spin_arrow_gui)
+
+
+func _on_spin_arrow_gui(e : InputEvent):
+	if e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_LEFT:
+		pass

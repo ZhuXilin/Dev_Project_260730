@@ -207,7 +207,7 @@ func _apply_unlock(npc_id: String, u: Dictionary) -> bool:
 		return false
 	match utype:
 		"unit":
-			Globals.unlock_unit(uid)
+			Globals.make_unit_eligible(uid)
 		"relic":
 			RelicManager.unlock_relic(uid)
 		"aura":

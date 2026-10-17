@@ -70,13 +70,10 @@ func _set_default_window():
 	DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED)
 	DisplayServer.window_set_size(Vector2i(BASE_WIDTH * DEFAULT_SCALE, BASE_HEIGHT * DEFAULT_SCALE))
 
+
 func _input(event: InputEvent):
-	# 只处理"首次按下"的按键事件
 	if not (event is InputEventKey and event.pressed and not event.echo):
 		return
-
-	# 方向键只在没有输入框获得焦点时接管
-	# 覆盖：LineEdit / TextEdit / SpinBox 内部 LineEdit / OptionButton 弹出
 	var vp := get_viewport()
 	if vp == null:
 		return
@@ -94,13 +91,16 @@ func _input(event: InputEvent):
 		set_game_speed(game_speed + step)
 		vp.set_input_as_handled()
 
+
 func get_time_scale(speed_val: int) -> float:
 	if speed_val >= 0:
 		return 1.0 + float(speed_val)
 	return 1.0 / (1.0 - float(speed_val))
 
+
 func _apply_game_speed():
 	Engine.time_scale = get_time_scale(game_speed)
+
 
 func set_game_speed(new_val: int):
 	var clamped = clamp(new_val, -2, 4)
@@ -109,6 +109,7 @@ func set_game_speed(new_val: int):
 	game_speed = clamped
 	_apply_game_speed()
 	SignalBus.speed_changed.emit(game_speed)
+
 
 # ============================================================
 #  游戏状态重置
@@ -127,18 +128,22 @@ func reset_all_game_state():
 	TurnManager.is_game_over = false
 
 	UnitManager.clear_all_units()
-	
+
 	is_non_combat_mode = false
+
 
 func get_team_color(team_id: int, primary: bool = true) -> Color:
 	var colors = TEAM_COLORS.get(team_id, TEAM_COLORS[0])
 	return colors["primary"] if primary else colors["secondary"]
 
+
 func get_gray_color(primary: bool = true) -> Color:
 	return GRAY_COLORS["primary"] if primary else GRAY_COLORS["secondary"]
 
+
 func reset_battle_turn():
 	current_battle_turn = 0
+
 
 func increment_battle_turn():
 	var now = Time.get_ticks_msec() / 1000.0
@@ -148,9 +153,6 @@ func increment_battle_turn():
 	current_battle_turn += 1
 
 
-# ============================================================
-#  单位解锁
-# ============================================================
 # ============================================================
 #  单位解锁
 # ============================================================
@@ -175,24 +177,23 @@ func _load_unlock_config():
 		for item in raw:
 			if item is String:
 				arr.append(item)
-		# ★ 第七批：过滤 unit_data.json 里不存在的 id，避免幽灵单位
 		unlocked_units = _filter_valid_unit_keys(arr)
 	else:
 		unlock_config = { "default_unlocked": default_units }
 		unlocked_units = _filter_valid_unit_keys(default_units)
 
 
-# ★ 第七批：过滤非法单位 key
 func _filter_valid_unit_keys(keys: Array) -> Array:
 	var result : Array = []
 	for k in keys:
 		if not (k is String) or k == "":
 			continue
-		if UnitDataManager.get_unit_data(k).is_empty():
+		var key : String = UnitDataManager.normalize_unit_key(k)
+		if UnitDataManager.get_unit_data(key).is_empty():
 			print("[Globals] 忽略未定义单位：%s" % k)
 			continue
-		if k not in result:
-			result.append(k)
+		if key not in result:
+			result.append(key)
 	return result
 
 
@@ -201,12 +202,10 @@ func is_unit_unlocked(unit_name: String) -> bool:
 	return key in unlocked_units
 
 
-# ★ 第七批：加存在性校验，拒绝写入非法 id
 func unlock_unit(unit_name: String):
 	var key : String = UnitDataManager.normalize_unit_key(unit_name)
 	if key == "":
 		return
-	# 数据表里没这个单位 → 拒绝写入，避免污染存档
 	if UnitDataManager.get_unit_data(key).is_empty():
 		print("[Globals] unlock_unit 忽略未定义单位：%s" % key)
 		return
@@ -219,7 +218,7 @@ func get_unlocked_units() -> Array:
 
 
 # ============================================================
-#  单位资格层（地图/剧情解锁，需守火者花魂正式解锁）
+#  单位资格层（地图/剧情/事件解锁，需守火者花魂正式解锁）
 # ============================================================
 func make_unit_eligible(unit_name: String):
 	var key : String = UnitDataManager.normalize_unit_key(unit_name)
@@ -241,6 +240,88 @@ func is_unit_eligible(unit_name: String) -> bool:
 
 func get_eligible_units() -> Array:
 	return GameState.eligible_units.duplicate()
+
+
+# ============================================================
+#  地图解锁单位 → 可唤醒单位映射
+# ============================================================
+
+## 地图编辑器可选的地图解锁单位池（只有这些单位能配到节点 unlock_units）
+func get_map_unlock_units() -> Array:
+	var raw : Array = unlock_config.get("map_unlock_units", [])
+	var result : Array = []
+	for k in raw:
+		if not (k is String) or k == "":
+			continue
+		var key : String = UnitDataManager.normalize_unit_key(k)
+		if key not in result:
+			result.append(key)
+	return result
+
+
+func is_map_unlock_unit(unit_name: String) -> bool:
+	var key : String = UnitDataManager.normalize_unit_key(unit_name)
+	return key in get_map_unlock_units()
+
+
+## 返回 { 地图解锁单位 key : [可唤醒单位 key, ...] }
+func get_map_unlock_mapping() -> Dictionary:
+	var raw : Variant = unlock_config.get("map_unlock_mapping", {})
+	if not (raw is Dictionary):
+		return {}
+	var result : Dictionary = {}
+	var d : Dictionary = raw
+	for k in d:
+		if not (k is String) or k == "":
+			continue
+		var key : String = UnitDataManager.normalize_unit_key(k)
+		var arr : Variant = d[k]
+		var resolved : Array = []
+		if arr is Array:
+			for u in arr:
+				if u is String and u != "":
+					var uk : String = UnitDataManager.normalize_unit_key(u)
+					if uk not in resolved:
+						resolved.append(uk)
+		result[key] = resolved
+	return result
+
+
+## 守火者「初始候选」——不依赖地图即可见的可唤醒单位
+func get_initial_candidates() -> Array:
+	var raw : Variant = unlock_config.get("initial_candidates", [])
+	var result : Array = []
+	if raw is Array:
+		for k in raw:
+			if not (k is String) or k == "":
+				continue
+			var key : String = UnitDataManager.normalize_unit_key(k)
+			if key not in result:
+				result.append(key)
+	return result
+
+
+## 把「地图解锁单位」列表解析成「实际要加入 eligible_units 的可用单位」列表
+## 规则：
+##   - 若 mapping 有 X → 返回 mapping[X]
+##   - 否则默认返回 [X]（即 X 自己）
+func resolve_map_unlock_units(map_unlock_ids: Array) -> Array:
+	var mapping : Dictionary = get_map_unlock_mapping()
+	var result : Array = []
+	for raw in map_unlock_ids:
+		if not (raw is String) or raw == "":
+			continue
+		var key : String = UnitDataManager.normalize_unit_key(raw)
+		var to_unlock : Array = []
+		if mapping.has(key):
+			for u in mapping[key]:
+				to_unlock.append(u)
+		else:
+			to_unlock.append(key)
+		for u in to_unlock:
+			if u not in result:
+				result.append(u)
+	return result
 
 
 # ============================================================
@@ -271,22 +352,24 @@ func _load_item_unlock_config():
 		if item_id not in unlocked_items:
 			unlocked_items.append(item_id)
 
+
 func is_item_unlocked(item_id: String) -> bool:
 	return item_id in unlocked_items
+
 
 func unlock_item(item_id: String):
 	if item_id not in unlocked_items:
 		unlocked_items.append(item_id)
+
 
 func get_unlocked_items() -> Array:
 	return unlocked_items.duplicate()
 
 
 # ============================================================
-#  特技解锁（方案 B：从 TalentManager 读取）
+#  特技解锁（从 TalentManager 读取 default，按 tutorial_stage 过滤）
 # ============================================================
 func _load_talent_unlock_config():
-	# 从 TalentManager 获取默认解锁列表，按 tutorial_stage 过滤
 	unlocked_talents.clear()
 	var stage : int = GameState.tutorial_stage
 	var default_talents : Array = TalentManager.get_default_unlocked_talents()
@@ -343,6 +426,33 @@ func is_talent_story_locked(talent_id: String) -> bool:
 	return data.unlock_type == "story"
 
 
+## 重新计算 default 词条解锁（保留魂解锁 / 剧情 / GM 解锁的）
+func reload_talent_unlock():
+	var stage : int = GameState.tutorial_stage
+	var default_talents : Array = TalentManager.get_default_unlocked_talents()
+
+	# 1. 保留非 default 的解锁
+	var preserved : Array = []
+	for tid in unlocked_talents:
+		var data = TalentManager.get_talent_data(tid)
+		if data and data.unlock_type != "default":
+			preserved.append(tid)
+
+	# 2. 重建 default
+	unlocked_talents.clear()
+	for tid in default_talents:
+		var data = TalentManager.get_talent_data(tid)
+		if data and data.tutorial_stage <= stage:
+			unlocked_talents.append(tid)
+
+	# 3. 恢复非 default
+	for tid in preserved:
+		if tid not in unlocked_talents:
+			unlocked_talents.append(tid)
+
+	print("[Globals] 词条解锁重载：stage=%d，共 %d 个" % [stage, unlocked_talents.size()])
+
+
 # ============================================================
 #  确认对话框
 # ============================================================
@@ -389,8 +499,10 @@ func get_reward_summary() -> CanvasLayer:
 func is_relic_unlocked(relic_id: String) -> bool:
 	return RelicManager.is_relic_unlocked(relic_id)
 
+
 func unlock_relic(relic_id: String):
 	RelicManager.unlock_relic(relic_id)
+
 
 func get_unlocked_relics() -> Array:
 	return RelicManager.get_unlocked_relics()
@@ -415,33 +527,8 @@ func show_cycle_reward() -> void:
 	await summary.confirmed
 	summary.close()
 
+
 func get_unit_unlock_cost(unit_type: String) -> int:
 	var key : String = UnitDataManager.normalize_unit_key(unit_type)
 	var costs = unlock_config.get("unlock_costs", {})
 	return int(costs.get(key, 50))
-
-## 重新计算 default 词条解锁（保留魂解锁/剧情解锁/GM 解锁的）
-func reload_talent_unlock():
-	var stage : int = GameState.tutorial_stage
-	var default_talents : Array = TalentManager.get_default_unlocked_talents()
-
-	# ---- 1. 保留非 default 的解锁（魂解锁、剧情、GM） ----
-	var preserved : Array = []
-	for tid in unlocked_talents:
-		var data = TalentManager.get_talent_data(tid)
-		if data and data.unlock_type != "default":
-			preserved.append(tid)
-
-	# ---- 2. 重建 default ----
-	unlocked_talents.clear()
-	for tid in default_talents:
-		var data = TalentManager.get_talent_data(tid)
-		if data and data.tutorial_stage <= stage:
-			unlocked_talents.append(tid)
-
-	# ---- 3. 恢复非 default ----
-	for tid in preserved:
-		if tid not in unlocked_talents:
-			unlocked_talents.append(tid)
-
-	print("[Globals] 词条解锁重载：stage=%d，共 %d 个" % [stage, unlocked_talents.size()])

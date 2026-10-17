@@ -4,12 +4,38 @@
 	"spearman",
 	"axeman",
 	"archer",
-	"cleric"
+    "cleric"
+  ],
+  "initial_candidates": [],
+  "map_unlock_mapping": {
+	"armored": [
+	  "archer",
+      "armored"
+	],
+	"mage": [
+	  "axeman",
+      "spearman"
+	],
+	"pegasus": [
+	  "pegasus",
+	  "mage",
+      "cleric"
+	],
+	"swordsman": [
+	  "swordsman",
+      "dragonborn"
+	]
+  },
+  "map_unlock_units": [
+	"pegasus",
+	"mage",
+	"armored",
+    "swordsman"
   ],
   "unlock_costs": {
-	"pegasus": 50,
-	"mage": 60,
-	"armored": 120,
-	"dragonborn": 150
+	"armored": 120.0,
+	"dragonborn": 150.0,
+	"mage": 60.0,
+	"pegasus": 50.0
   }
 }

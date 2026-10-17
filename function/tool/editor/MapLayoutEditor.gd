@@ -855,7 +855,7 @@ func _show_type_picker_popup(node_idx: int):
 		unit_list.add_theme_constant_override("separation", 0)
 		unit_scroll.add_child(unit_list)
 
-		var all_unit_ids : Array = UnitDataManager.get_all_unit_ids()
+		var all_unit_ids : Array = Globals.get_map_unlock_units()
 		var current_units : Array = node.unlock_units
 
 		for uid in all_unit_ids:
@@ -894,12 +894,28 @@ func _show_type_picker_popup(node_idx: int):
 		for uid in all_unit_ids: valid_unit_ids[uid] = true
 		for uid in current_units:
 			if not valid_unit_ids.has(uid):
-				var orphan_lb2 := Label.new()
-				orphan_lb2.text = "⚠ 孤儿：" + uid
-				orphan_lb2.add_theme_font_size_override("font_size", 7)
-				orphan_lb2.modulate = Color(1.0, 0.5, 0.5)
-				orphan_lb2.tooltip_text = "该 id 在 unit_data.json 里不存在"
-				unit_list.add_child(orphan_lb2)
+				# ★ 孤儿：允许取消（作为 checkbox），避免无法清理
+				var display_o : String = UnitDataManager.get_display_name(uid)
+				var btn_o := Button.new()
+				btn_o.toggle_mode = true
+				btn_o.button_pressed = true
+				btn_o.alignment = HORIZONTAL_ALIGNMENT_LEFT
+				btn_o.text = "☑ ⚠ " + display_o + " (" + uid + ")"
+				btn_o.add_theme_font_size_override("font_size", 7)
+				btn_o.add_theme_stylebox_override("normal", empty)
+				btn_o.add_theme_stylebox_override("hover", empty)
+				btn_o.add_theme_stylebox_override("pressed", empty)
+				btn_o.add_theme_stylebox_override("focus", empty)
+				btn_o.add_theme_stylebox_override("disabled", empty)
+				btn_o.custom_minimum_size = Vector2(0, 10)
+				btn_o.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+				btn_o.set_meta("unit_id", uid)
+				btn_o.tooltip_text = "该单位不在 map_unlock_units 里（孤儿）\n取消勾选可移除"
+				btn_o.toggled.connect(func(pressed: bool):
+					btn_o.text = ("☑ ⚠ " if pressed else "☐ ⚠ ") + display_o + " (" + uid + ")"
+				)
+				unit_list.add_child(btn_o)
+				unit_checks.append(btn_o)
 
 	main.add_child(unit_box)
 
@@ -1586,7 +1602,8 @@ func _run_layout_validation():
 	for rid in relic_db:
 		valid_relics[rid] = true
 
-	var unit_ids : Array = UnitDataManager.get_all_unit_ids()
+	# ★ 只允许 map_unlock_units 出现在 unlock_units
+	var unit_ids : Array = Globals.get_map_unlock_units()
 	var valid_units : Dictionary = {}
 	for uid in unit_ids:
 		valid_units[uid] = true
@@ -1614,7 +1631,7 @@ func _run_layout_validation():
 
 				for uid in node.unlock_units:
 					if not valid_units.has(uid):
-						errors.append("Day%d V%d Node[%d]%s  单位不存在: %s"
+						errors.append("Day%d V%d Node[%d]%s  非地图解锁单位: %s（不在 map_unlock_units 里）"
 							% [day_num, vi, ni, pos_str, uid])
 
 	var msg : String = ""

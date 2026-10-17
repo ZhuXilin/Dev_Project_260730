@@ -287,28 +287,35 @@ func on_map_victory_continue() -> void:
 
 	GameState.current_node_unlock_relics.clear()
 
-	var unit_unlock_ids : Array = []
+	# ===== 单位解锁：走「地图解锁单位 → 可唤醒单位」映射 =====
+	var map_unlock_ids : Array = []
 	if GameState.current_map_data and GameState.current_map_data.unlock_units:
-		unit_unlock_ids.append_array(GameState.current_map_data.unlock_units)
+		map_unlock_ids.append_array(GameState.current_map_data.unlock_units)
 	if GameState.current_node_unlock_units:
-		unit_unlock_ids.append_array(GameState.current_node_unlock_units)
+		map_unlock_ids.append_array(GameState.current_node_unlock_units)
 
-	if not unit_unlock_ids.is_empty():
+	if not map_unlock_ids.is_empty():
 		var seen_u : Dictionary = {}
-		var unique_units : Array = []
-		for uid in unit_unlock_ids:
+		var unique_map_unlock : Array = []
+		for uid in map_unlock_ids:
 			if uid is String and uid != "" and not seen_u.has(uid):
 				seen_u[uid] = true
-				unique_units.append(uid)
+				unique_map_unlock.append(uid)
 
+		# 1) 解析成实际要加入 eligible_units 的单位列表
+		var resolved : Array = Globals.resolve_map_unlock_units(unique_map_unlock)
+
+		# 2) 先算出「真正新增」的（既未正式解锁，也尚未获得资格）
 		var newly_units : Array = []
-		for uid in unique_units:
-			if not Globals.is_unit_unlocked(uid):
+		for uid in resolved:
+			if not Globals.is_unit_unlocked(uid) and not Globals.is_unit_eligible(uid):
 				newly_units.append(uid)
 
-		for uid in unique_units:
+		# 3) 统一给资格
+		for uid in resolved:
 			Globals.make_unit_eligible(uid)
 
+		# 4) 只展示本次「新增」的，避免重复提示
 		for uid in newly_units:
 			var display : String = UnitDataManager.get_display_name(uid)
 			var virtual_data := ItemData.new()
@@ -317,7 +324,7 @@ func on_map_victory_continue() -> void:
 			virtual_data.description = "可在守火者「唤醒残魂」中花魂解锁"
 			reward_item_datas.append(virtual_data)
 		if not newly_units.is_empty():
-			print("[Battlefield] 本节点解锁 %d 个单位" % newly_units.size())
+			print("[Battlefield] 本节点新增 %d 个残魂资格" % newly_units.size())
 
 	GameState.current_node_unlock_units.clear()
 

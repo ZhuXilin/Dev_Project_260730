@@ -187,13 +187,23 @@ func trigger_event(event_id: String, unit: Unit = null, default_music: AudioStre
 				var units = action.get("units", [])
 				if units is String:
 					units = [units]
-				var unlocked = []
+				var raw_list : Array = []
 				for u in units:
 					if u != "" and u != null:
-						Globals.unlock_unit(u)
-						unlocked.append(u)
-				if unlocked.size() > 0:
-					show_unit_unlock_popup(unlocked)
+						raw_list.append(u)
+
+				# ★ 走「地图解锁单位 → 可唤醒单位」映射
+				var resolved : Array = Globals.resolve_map_unlock_units(raw_list)
+
+				var newly : Array = []
+				for u in resolved:
+					if not Globals.is_unit_unlocked(u) and not Globals.is_unit_eligible(u):
+						newly.append(u)
+					Globals.make_unit_eligible(u)
+
+				if not newly.is_empty():
+					# ★ 文案从「解锁单位」改为「残魂资格」
+					show_unit_eligible_popup(newly)
 
 			"unlock_talent":
 				var talent_id = action.get("talent_id", "")
@@ -235,3 +245,14 @@ func show_unit_unlock_popup(units: Array):
 	var popup = ItemGetPopupScene.instantiate()
 	root.add_child(popup)
 	popup.show_unit_unlock(units)
+
+
+func show_unit_eligible_popup(units: Array):
+	if Globals.is_item_get_popup_active:
+		return
+	var root = get_tree().root
+	if not root:
+		return
+	var popup = ItemGetPopupScene.instantiate()
+	root.add_child(popup)
+	popup.show_text("★ 新残魂资格：\n" + ", ".join(units))

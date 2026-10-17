@@ -263,6 +263,10 @@ func _apply_save_data(save: SaveData):
 	Globals.unlocked_units = _filter_valid_unit_keys(_safe_array(save.unlocked_units))
 	Globals.unlocked_items = _safe_array(save.unlocked_items)
 
+	if Globals.unlocked_units.is_empty():
+		print("[SaveManager] unlocked_units 为空，回退默认解锁")
+		Globals._load_unlock_config()
+
 	GameState.tutorial_stage = save.tutorial_stage
 	if save.unlocked_talents.is_empty():
 		Globals.reload_talent_unlock()
@@ -350,10 +354,11 @@ static func _filter_valid_unit_keys(keys: Array) -> Array:
 	for k in keys:
 		if not (k is String) or k == "":
 			continue
-		if UnitDataManager.get_unit_data(k).is_empty():
+		var key : String = UnitDataManager.normalize_unit_key(k)
+		if UnitDataManager.get_unit_data(key).is_empty():
 			continue
-		if k not in result:
-			result.append(k)
+		if key not in result:
+			result.append(key)
 	return result
 
 
