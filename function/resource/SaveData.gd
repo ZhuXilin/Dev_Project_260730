@@ -110,3 +110,5 @@ const CURRENT_VERSION = 10
 
 # ---- NPC 亲密度 ----
 @export var npc_affinity: Dictionary = {}
+# ---- FORGE 低语（v4.5）----
+@export var forge_whisper_state: Dictionary = {}

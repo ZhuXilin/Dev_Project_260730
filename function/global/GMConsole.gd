@@ -931,16 +931,23 @@ func _cmd_whisper(_args: Array):
 	else:
 		_out("当前低语: %s - %s" % [w.get("speaker", "?"), w.get("text", "")], "cyan")
 		_out("效果: " + str(w.get("effect", {})), "white")
+
 	var effects : Array = ForgeWhisperManager.get_active_effects()
 	_out("生效中效果: %d" % effects.size(), "white")
 	for e in effects:
 		_out("  - " + str(e), "white")
+
 	var intel : Array = ForgeWhisperManager.get_revealed_intel()
 	if not intel.is_empty():
 		_out("Boss 情报: %d 条" % intel.size(), "yellow")
+		for t in intel:
+			_out("  · " + str(t), "yellow")
+
 	var hints : Array = ForgeWhisperManager.get_fusion_hints()
 	if not hints.is_empty():
 		_out("熔合提示: %d 条" % hints.size(), "yellow")
+		for h in hints:
+			_out("  · " + str(h), "yellow")
 
 
 func _cmd_whisper_reset(_args: Array):

@@ -122,8 +122,11 @@ static func _generate_from_layout(day: int, day_layout: MapLayoutDay) -> MapLeve
 
 	_assign_map_data_to_all_nodes(nodes)
 
-	# ★ v4.4：把 layout 层的胜利目标覆盖到 map_data 上
+	# ★ 把 layout 层的胜利目标覆盖到 map_data 上
 	_apply_objective_from_layout(nodes, day_layout)
+
+	# ★ 把 layout 层的波次/增援写入 map_data
+	_apply_wave_from_layout(nodes, day_layout)
 
 	data.nodes = nodes
 	data.root_node = root
@@ -275,6 +278,39 @@ static func _apply_objective_from_layout(nodes: Array, day_layout: MapLayoutDay)
 			map_node.map_data.objective_params = {}
 		else:
 			map_node.map_data.objective_params = layout_node.objective_params.duplicate(true)
+
+
+# ============================================================
+#  ★ v4.5：layout 波次 → MapData
+# ============================================================
+static func _apply_wave_from_layout(nodes: Array, day_layout: MapLayoutDay) -> void:
+	if day_layout == null:
+		return
+	if nodes.size() != day_layout.nodes.size():
+		return
+
+	for i in range(nodes.size()):
+		var map_node : MapNode = nodes[i]
+		var layout_node : MapLayoutNode = day_layout.nodes[i]
+		if map_node == null or layout_node == null:
+			continue
+		if map_node.map_data == null:
+			continue
+
+		var real_type : int = map_node.node_type
+		if real_type == MapNode.NodeType.QUESTION and map_node.hidden_node_type != -1:
+			real_type = map_node.hidden_node_type
+		if real_type in NON_COMBAT_TYPES:
+			continue
+
+		# 只在 layout 有显式配置时覆盖（避免冲掉 .tres 里的值）
+		if layout_node.max_waves <= 1 and layout_node.reinforcement_count <= 0:
+			continue
+
+		if layout_node.max_waves > 1:
+			map_node.map_data.max_waves = layout_node.max_waves
+		if layout_node.reinforcement_count > 0:
+			map_node.map_data.reinforcement_count = layout_node.reinforcement_count
 
 
 # ============================================================

@@ -5,6 +5,7 @@ extends Node
 #  - 每局首次进 FORGE 抽 1 条
 #  - 可跳过、可手动重看
 #  - effect 三类：shop_tag_weight_boost / reveal_boss_intel / fusion_hint / none
+#  - v4.5：状态持久化 + 汇总展示
 # ============================================================
 
 var _whispers : Dictionary = {}
@@ -93,6 +94,45 @@ func get_shop_tag_boost(tag : String) -> int:
 		if e.get("tag", "") == tag:
 			total += int(e.get("amount", 0))
 	return total
+
+
+# ============================================================
+#  v4.5：状态序列化（存档用）
+# ============================================================
+func export_state() -> Dictionary:
+	return {
+		"current": _current.duplicate(true),
+		"shown_this_run": _shown_this_run,
+		"active_effects": _active_effects.duplicate(true),
+		"revealed_intel": _revealed_intel.duplicate(),
+		"fusion_hints": _fusion_hints.duplicate(),
+	}
+
+
+func import_state(d : Dictionary) -> void:
+	if d.is_empty():
+		return
+	_current = d.get("current", {})
+	if _current is Dictionary:
+		_current = _current.duplicate(true)
+	else:
+		_current = {}
+	_shown_this_run = bool(d.get("shown_this_run", false))
+	_active_effects = d.get("active_effects", [])
+	if _active_effects is Array:
+		_active_effects = _active_effects.duplicate(true)
+	else:
+		_active_effects = []
+	_revealed_intel = d.get("revealed_intel", [])
+	if _revealed_intel is Array:
+		_revealed_intel = _revealed_intel.duplicate()
+	else:
+		_revealed_intel = []
+	_fusion_hints = d.get("fusion_hints", [])
+	if _fusion_hints is Array:
+		_fusion_hints = _fusion_hints.duplicate()
+	else:
+		_fusion_hints = []
 
 
 # ============================================================

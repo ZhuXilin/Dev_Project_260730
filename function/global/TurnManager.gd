@@ -78,6 +78,9 @@ func check_victory():
 	# 全灭目标：敌人全灭 → 胜利
 	if (not ObjectiveManager) or ObjectiveManager.is_annihilate():
 		if enemy_count == 0:
+			# ★ v4.5：如果还有待入场的波次，不判胜利
+			if WaveManager and WaveManager.has_pending_waves():
+				return
 			_trigger_victory(0)
 
 
@@ -160,10 +163,12 @@ func start_turn(team: Team):
 		start_turn(Team.PLAYER)
 		return
 
-	# ★ v4.3：玩家回合 → 敌人回合边界，检查胜利目标
+	# 玩家回合 → 敌人回合边界，检查胜利目标 + 推进波次
 	if team == Team.ENEMY and current_turn_team == Team.PLAYER:
 		if ObjectiveManager:
 			ObjectiveManager.on_player_turn_end()
+		if WaveManager:
+			WaveManager.on_player_turn_end()
 		check_victory()
 		if is_game_over:
 			return

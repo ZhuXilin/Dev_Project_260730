@@ -258,7 +258,7 @@ func _ready():
 		MusicManager._saved_stream = null
 		MusicManager._saved_position = 0.0
 
-	# ★ Boss 机制设置必须在 start_turn 之前
+	# Boss 机制设置必须在 start_turn 之前
 	# 否则 start_turn 会调 on_player_turn_start() 用上一场的旧机制
 	BossMechanicManager.setup_for_node(is_boss)
 
@@ -266,16 +266,23 @@ func _ready():
 	if ObjectiveManager:
 		ObjectiveManager.setup_for_node(GameState.current_map_data)
 
-	# ★ v4.4：目标可视化 + 状态 HUD
+	# 波次初始化（在所有单位 spawn 之后，Battlefield 自己）
+	if WaveManager:
+		WaveManager.setup_for_node(GameState.current_map_data, self)
+
+	# 目标可视化 + 状态 HUD
 	_render_objective_markers()
 	_create_objective_status_label()
 
 	await get_tree().process_frame
 	TurnManager.start_turn(TurnManager.Team.PLAYER)
 
-	# ★ v4.3：显示目标 banner（延迟避开 turn overlay）
+	# 显示目标 banner（延迟避开 turn overlay）
 	if ObjectiveManager and not ObjectiveManager.is_annihilate():
 		call_deferred("_deferred_show_objective_banner")
+
+	# BOSS 战前显示 Boss 情报
+	call_deferred("_deferred_show_boss_intel")
 
 	if back_camp_btn:
 		for conn in back_camp_btn.pressed.get_connections():
@@ -508,6 +515,9 @@ func _exit_tree():
 
 	if ObjectiveManager:
 		ObjectiveManager.setup_for_node(null)
+
+	if WaveManager:
+		WaveManager.reset()
 
 
 # ============================================================
@@ -1073,6 +1083,63 @@ func _refresh_objective_status():
 	if new_text != _last_obj_status_text:
 		_objective_status_label.text = new_text
 		_last_obj_status_text = new_text
+
+
+# ============================================================
+#  v4.5：Boss 情报 banner
+# ============================================================
+var _intel_banner : Label = null
+
+
+func _deferred_show_boss_intel():
+	await get_tree().create_timer(2.5, true, false, true).timeout
+	if not is_inside_tree():
+		return
+	if ForgeWhisperManager == null:
+		return
+	if GameState.current_map_data == null:
+		return
+	if GameState.current_map_data.node_type != MapNode.NodeType.BOSS:
+		return
+	var intels : Array = ForgeWhisperManager.get_revealed_intel()
+	if intels.is_empty():
+		return
+	_show_intel_banner(str(intels[0]))
+
+
+func _show_intel_banner(text : String):
+	if _intel_banner and is_instance_valid(_intel_banner):
+		_intel_banner.queue_free()
+
+	var lb := Label.new()
+	lb.name = "IntelBanner"
+	lb.text = "⚡ 情报：" + text
+	lb.add_theme_font_size_override("font_size", 9)
+	lb.add_theme_color_override("font_color", Color(0.8, 0.7, 1.0))
+	lb.add_theme_color_override("font_outline_color", Color.BLACK)
+	lb.add_theme_constant_override("outline_size", 3)
+	lb.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	lb.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	lb.anchor_left = 0.5
+	lb.anchor_right = 0.5
+	lb.offset_left = -180
+	lb.offset_right = 180
+	lb.offset_top = 76
+	lb.offset_bottom = 104
+	lb.z_index = 100
+	lb.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(lb)
+	_intel_banner = lb
+
+	var tw := create_tween()
+	tw.set_ignore_time_scale(true)
+	tw.tween_property(lb, "modulate:a", 0.0, 0.8).set_delay(4.0)
+	tw.tween_callback(func():
+		if is_instance_valid(lb):
+			lb.queue_free()
+		if _intel_banner == lb:
+			_intel_banner = null
+	)
 
 
 func _deferred_show_objective_banner():

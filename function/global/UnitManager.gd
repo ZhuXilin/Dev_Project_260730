@@ -23,7 +23,7 @@ func unregister_unit(unit: Unit):
 
 func get_unit_at_cell(cell: Vector2i) -> Unit:
 	for unit in unit_list:
-		if unit.grid_cell == cell and unit.hit_points > 0:
+		if unit.grid_cell == cell and unit.hit_points > 0 and unit.visible:
 			return unit
 	return null
 

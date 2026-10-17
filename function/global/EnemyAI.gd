@@ -30,7 +30,7 @@ func run_enemy_ai():
 
 	var enemies = []
 	for unit in UnitManager.unit_list:
-		if unit.unit_stats.team_id == 1 and unit.hit_points > 0:
+		if unit.unit_stats.team_id == 1 and unit.hit_points > 0 and unit.visible:
 			enemies.append(unit)
 
 	first_ai_unit = enemies[0] if enemies.size() > 0 else null

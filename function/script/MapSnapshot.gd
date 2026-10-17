@@ -67,6 +67,9 @@ static func _serialize_map_data(map_data: MapData) -> Dictionary:
 		"unlock_units": map_data.unlock_units.duplicate(),
 		"objective_type": int(map_data.objective_type),
 		"objective_params": params_serialized,
+		"max_waves": int(map_data.max_waves),
+		"reinforcement_count": int(map_data.reinforcement_count),
+		"reinforcement_pool": map_data.reinforcement_pool.duplicate(),
 	}
 
 
@@ -192,7 +195,17 @@ static func _deserialize_map_data(data: Dictionary) -> MapData:
 		else:
 			map.objective_params[k] = v
 
+	map.max_waves = maxi(1, int(data.get("max_waves", 1)))
+	map.reinforcement_count = maxi(0, int(data.get("reinforcement_count", 0)))
+	var raw_pool : Array = data.get("reinforcement_pool", [])
+	var pool_arr : Array[String] = []
+	for pid in raw_pool:
+		if pid is String and (pid as String) != "":
+			pool_arr.append(pid)
+	map.reinforcement_pool = pool_arr
+
 	var scene_path = data.get("scene_path", "")
+
 	if scene_path != "" and ResourceLoader.exists(scene_path):
 		var scene = load(scene_path) as PackedScene
 		if scene:

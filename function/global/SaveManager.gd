@@ -155,7 +155,9 @@ func _build_save_data() -> SaveData:
 	save.total_run_count = GameState.total_run_count
 	save.total_dispatch_count = GameState.total_dispatch_count
 	save.npc_affinity = GameState.npc_affinity.duplicate(true)
-
+	if ForgeWhisperManager:
+		save.forge_whisper_state = ForgeWhisperManager.export_state()
+		
 	save.temp_soul_legacy = SoulFireManager.current
 
 	save.save_time = Time.get_unix_time_from_system()

@@ -1980,14 +1980,12 @@ func _auto_show_whisper():
 
 
 func _on_whisper_icon_pressed():
-	var w : Dictionary = ForgeWhisperManager.get_current_whisper()
-	if w.is_empty():
-		w = ForgeWhisperManager.pick_for_current_run()
-		if not w.is_empty():
-			_regenerate_shop_if_needed()
-	if w.is_empty():
-		return
-	_show_whisper_panel(w)
+	# 首次点击时若本局还没抽，先抽一条
+	if ForgeWhisperManager.should_show_this_run():
+		ForgeWhisperManager.pick_for_current_run()
+		_regenerate_shop_if_needed()
+
+	_show_intel_summary_panel()
 
 
 func _show_whisper_panel(whisper : Dictionary):
@@ -2096,3 +2094,152 @@ func _regenerate_shop_if_needed():
 		return
 	shop_manager.generate_shop_items()
 	shop_manager.shop_updated.emit()
+
+
+# ============================================================
+#  v4.5：情报汇总面板（低语 + Boss 情报 + 熔合提示）
+# ============================================================
+var _intel_summary_panel : PanelContainer = null
+
+
+func _show_intel_summary_panel():
+	if _intel_summary_panel and is_instance_valid(_intel_summary_panel):
+		_intel_summary_panel.queue_free()
+
+	var canvas : Node = get_parent()
+	if not canvas:
+		return
+
+	_intel_summary_panel = PanelContainer.new()
+	_intel_summary_panel.name = "IntelSummaryPanel"
+
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(0.05, 0.03, 0.1, 0.95)
+	sb.border_color = Color(0.6, 0.5, 0.8, 0.85)
+	sb.border_width_left = 1
+	sb.border_width_right = 1
+	sb.border_width_top = 1
+	sb.border_width_bottom = 1
+	sb.content_margin_left = 8
+	sb.content_margin_right = 8
+	sb.content_margin_top = 6
+	sb.content_margin_bottom = 6
+	_intel_summary_panel.add_theme_stylebox_override("panel", sb)
+
+	_intel_summary_panel.z_index = 102
+	_intel_summary_panel.anchor_left = 0.5
+	_intel_summary_panel.anchor_right = 0.5
+	_intel_summary_panel.anchor_top = 0.5
+	_intel_summary_panel.anchor_bottom = 0.5
+	_intel_summary_panel.offset_left = -100
+	_intel_summary_panel.offset_right = 100
+	_intel_summary_panel.offset_top = -80
+	_intel_summary_panel.offset_bottom = 80
+	canvas.add_child(_intel_summary_panel)
+
+	var vbox := VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 4)
+	_intel_summary_panel.add_child(vbox)
+
+	var title_lb := Label.new()
+	title_lb.text = "情报簿"
+	title_lb.add_theme_font_size_override("font_size", 9)
+	title_lb.add_theme_color_override("font_color", Color(0.9, 0.8, 1.0))
+	title_lb.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vbox.add_child(title_lb)
+
+	var scroll := ScrollContainer.new()
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	vbox.add_child(scroll)
+
+	var content := VBoxContainer.new()
+	content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	content.add_theme_constant_override("separation", 3)
+	scroll.add_child(content)
+
+	# 1. 当前低语
+	var cur_w : Dictionary = ForgeWhisperManager.get_current_whisper()
+	var section_any : bool = false
+	if not cur_w.is_empty():
+		section_any = true
+		var sec := Label.new()
+		sec.text = "◈ 低语"
+		sec.add_theme_font_size_override("font_size", 7)
+		sec.add_theme_color_override("font_color", Color(0.85, 0.75, 1.0))
+		content.add_child(sec)
+
+		var w_lb := Label.new()
+		w_lb.text = "%s：%s" % [
+			cur_w.get("speaker", "低语"),
+			cur_w.get("text", "")
+		]
+		w_lb.add_theme_font_size_override("font_size", 7)
+		w_lb.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		w_lb.custom_minimum_size = Vector2(170, 0)
+		content.add_child(w_lb)
+
+		var hint : String = _whisper_effect_hint(cur_w)
+		if hint != "":
+			var h_lb := Label.new()
+			h_lb.text = "[" + hint + "]"
+			h_lb.add_theme_font_size_override("font_size", 6)
+			h_lb.add_theme_color_override("font_color", Color(0.9, 0.9, 0.6))
+			h_lb.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			h_lb.custom_minimum_size = Vector2(170, 0)
+			content.add_child(h_lb)
+
+	# 2. Boss 情报
+	var intels : Array = ForgeWhisperManager.get_revealed_intel()
+	if not intels.is_empty():
+		section_any = true
+		var sec2 := Label.new()
+		sec2.text = "⚡ 情报"
+		sec2.add_theme_font_size_override("font_size", 7)
+		sec2.add_theme_color_override("font_color", Color(0.7, 0.85, 1.0))
+		content.add_child(sec2)
+		for i in intels:
+			var l := Label.new()
+			l.text = "· " + str(i)
+			l.add_theme_font_size_override("font_size", 6)
+			l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			l.custom_minimum_size = Vector2(170, 0)
+			content.add_child(l)
+
+	# 3. 熔合提示
+	var hints : Array = ForgeWhisperManager.get_fusion_hints()
+	if not hints.is_empty():
+		section_any = true
+		var sec3 := Label.new()
+		sec3.text = "✦ 熔合提示"
+		sec3.add_theme_font_size_override("font_size", 7)
+		sec3.add_theme_color_override("font_color", Color(1.0, 0.85, 0.5))
+		content.add_child(sec3)
+		for h in hints:
+			var l2 := Label.new()
+			l2.text = "· " + str(h)
+			l2.add_theme_font_size_override("font_size", 6)
+			l2.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			l2.custom_minimum_size = Vector2(170, 0)
+			content.add_child(l2)
+
+	if not section_any:
+		var empty_lb := Label.new()
+		empty_lb.text = "（暂无情报）"
+		empty_lb.add_theme_font_size_override("font_size", 7)
+		empty_lb.modulate = Color(0.6, 0.6, 0.6)
+		empty_lb.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		content.add_child(empty_lb)
+
+	var close_intel_btn := Button.new()
+	close_intel_btn.text = "关闭"
+	close_intel_btn.add_theme_font_size_override("font_size", 7)
+	close_intel_btn.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	close_intel_btn.pressed.connect(_close_intel_summary_panel)
+	vbox.add_child(close_intel_btn)
+
+
+func _close_intel_summary_panel():
+	if _intel_summary_panel and is_instance_valid(_intel_summary_panel):
+		_intel_summary_panel.queue_free()
+	_intel_summary_panel = null

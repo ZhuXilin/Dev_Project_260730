@@ -34,3 +34,12 @@ enum ObjectiveType {
 ## - FLAG:    { "flag_cell": Vector2i, "goal_cell": Vector2i }
 ## - ASSAULT: { "target_unit_name": String }（为空时用 is_boss 单位）
 @export var objective_params: Dictionary = {}
+
+## v4.5：波次（1 = 无波次，敌人全灭即胜；>1 = 分批入场）
+@export var max_waves: int = 1
+
+## v4.5：每次波次推进时额外生成的增援数量（0 = 无增援）
+@export var reinforcement_count: int = 0
+
+## v4.5：增援单位类型池（空 = 从当前地图敌人里抽）
+@export var reinforcement_pool: Array[String] = []
