@@ -1,12 +1,6 @@
 class_name DataValidator
 extends RefCounted
 
-# ============================================================
-#  DataValidator — 跨表数据一致性校验
-#  v2：区分 单位/装备 tags（8 种）与 套装 tags（6 大流派）；
-#      unlock_unit 支持中文名 → key 归一化
-# ============================================================
-
 const UNIT_DATA_PATH : String = "res://content/data/unit_data.json"
 const ITEM_DATA_PATH : String = "res://content/data/item_data.json"
 const TALENT_DATA_PATH : String = "res://content/data/talents.json"
@@ -20,10 +14,7 @@ const EVENT_PATH : String = "res://content/data/events.json"
 const DIALOGUE_PATH : String = "res://content/data/dialogues.json"
 const UNIT_UNLOCK_PATH : String = "res://content/data/unit_unlock.json"
 
-# ★ 单位和装备允许 8 种标签（物理 / 法术 + 6 大流派）
 const VALID_UNIT_TAGS : Array = ["物理", "法术", "烈焰", "轮回", "灰烬", "守护", "献祭", "余烬"]
-
-# ★ 套装、词条、光环只允许 6 大流派
 const VALID_SET_TAGS : Array = ["烈焰", "轮回", "灰烬", "守护", "献祭", "余烬"]
 
 const VALID_CORE_TRAITS : Array = ["charge", "dragon_might", "bulwark"]
@@ -60,9 +51,6 @@ var _dialogue_db : Dictionary = {}
 var _unit_unlock_db : Dictionary = {}
 
 
-# ============================================================
-#  入口
-# ============================================================
 func validate_all() -> Array:
 	_results.clear()
 	_load_all()
@@ -94,9 +82,6 @@ func get_warn_count() -> int:
 	return n
 
 
-# ============================================================
-#  数据加载
-# ============================================================
 func _load_all():
 	_unit_db = _load_json(UNIT_DATA_PATH)
 	_item_db = _load_json(ITEM_DATA_PATH)
@@ -123,9 +108,6 @@ func _load_json(path : String) -> Dictionary:
 	return data
 
 
-# ============================================================
-#  输出辅助
-# ============================================================
 func _error(file : String, path : String, message : String):
 	_results.append({"level": Level.ERROR, "file": file, "path": path, "message": message})
 
@@ -134,14 +116,10 @@ func _warn(file : String, path : String, message : String):
 	_results.append({"level": Level.WARN, "file": file, "path": path, "message": message})
 
 
-# ★ 单位名归一化（中文 → 英文 key）
 func _normalize_unit_key(unit_name : String) -> String:
 	return UnitDataManager.normalize_unit_key(unit_name)
 
 
-# ============================================================
-#  单位校验
-# ============================================================
 func _validate_units():
 	var fname := "unit_data.json"
 	for unit_key in _unit_db:
@@ -169,7 +147,6 @@ func _validate_units():
 			if not _talent_db.has(tid):
 				_error(fname, "%s.default_talents[%d]" % [unit_key, i], "词条不存在: %s" % tid)
 
-		# ★ 单位 tags：用 VALID_UNIT_TAGS（含物理/法术）
 		var tags : Array = u.get("tags", [])
 		for i in range(tags.size()):
 			var tag : String = str(tags[i])
@@ -247,7 +224,6 @@ func _validate_units():
 				_warn(fname, "%s.advanced_branches[%d].sprite_frames_path" % [unit_key, i],
 					"资源文件不存在: %s" % sp)
 
-			# ★ 分支 tags：也用 VALID_UNIT_TAGS
 			var btags : Array = (b as Dictionary).get("tags", [])
 			for j in range(btags.size()):
 				var tag2 : String = str(btags[j])
@@ -256,9 +232,71 @@ func _validate_units():
 						"未知标签: %s" % tag2)
 
 
-# ============================================================
-#  装备校验
-# ============================================================
+func _validate_unit_unlock():
+	var fname := "unit_unlock.json"
+	if _unit_unlock_db.is_empty():
+		_error(fname, "root", "文件无法解析或为空")
+		return
+
+	var lists_to_check := {
+		"default_unlocked": "默认解锁",
+		"initial_candidates": "初始候选",
+		"map_unlock_units": "地图解锁池"
+	}
+
+	var valid_map_units : Dictionary = {}
+
+	for key in lists_to_check:
+		var arr : Variant = _unit_unlock_db.get(key, [])
+		if not (arr is Array): continue
+		for i in range(arr.size()):
+			var raw_id : String = str(arr[i])
+			var ukey : String = _normalize_unit_key(raw_id)
+			if not _unit_db.has(ukey):
+				_error(fname, "%s[%d]" % [key, i], "单位不存在: %s" % raw_id)
+			
+			if key == "map_unlock_units" and _unit_db.has(ukey):
+				if valid_map_units.has(ukey):
+					_error(fname, "%s[%d]" % [key, i], "地图解锁池出现重复单位: %s" % ukey)
+				valid_map_units[ukey] = true
+
+	var costs : Variant = _unit_unlock_db.get("unlock_costs", {})
+	if costs is Dictionary:
+		for raw_key in costs:
+			var ukey : String = _normalize_unit_key(raw_key)
+			if not _unit_db.has(ukey):
+				_error(fname, "unlock_costs.%s" % raw_key, "单位不存在")
+			var c : int = int(costs[raw_key])
+			if c <= 0:
+				_warn(fname, "unlock_costs.%s" % raw_key, "解锁价格 <= 0")
+
+	var mapping : Variant = _unit_unlock_db.get("map_unlock_mapping", {})
+	var assigned_targets : Dictionary = {}
+	
+	if mapping is Dictionary:
+		for src_raw in mapping:
+			var src_key : String = _normalize_unit_key(src_raw)
+			if not valid_map_units.has(src_key):
+				_error(fname, "map_unlock_mapping.%s" % src_raw, "源单位不在 map_unlock_units 列表中")
+
+			var targets : Variant = mapping[src_raw]
+			if targets is Array:
+				for i in range(targets.size()):
+					var tgt_raw : String = str(targets[i])
+					var tgt_key : String = _normalize_unit_key(tgt_raw)
+					
+					if not _unit_db.has(tgt_key):
+						_error(fname, "map_unlock_mapping.%s[%d]" % [src_raw, i], "目标单位不存在: %s" % tgt_raw)
+						continue
+
+					if assigned_targets.has(tgt_key):
+						var old_src : String = assigned_targets[tgt_key]
+						_warn(fname, "map_unlock_mapping.%s[%d]" % [src_raw, i], 
+							"单位 %s 已经被 %s 分配，可能引发覆盖" % [tgt_key, old_src])
+					else:
+						assigned_targets[tgt_key] = src_key
+
+
 func _validate_items():
 	var fname := "item_data.json"
 	for item_id in _item_db:
@@ -281,7 +319,6 @@ func _validate_items():
 			if str(dd.get("fusion_effect", "")) == "":
 				_warn(fname, "%s.fusion_effect" % item_id, "有 fusion_id 但 fusion_effect 为空")
 
-		# ★ 装备 tags：用 VALID_UNIT_TAGS（含物理/法术）
 		var tags : Array = dd.get("tags", [])
 		for i in range(tags.size()):
 			var tag : String = str(tags[i])
@@ -289,9 +326,6 @@ func _validate_items():
 				_warn(fname, "%s.tags[%d]" % [item_id, i], "未知标签: %s" % tag)
 
 
-# ============================================================
-#  词条校验
-# ============================================================
 func _validate_talents():
 	var fname := "talents.json"
 	for tid in _talent_db:
@@ -299,7 +333,6 @@ func _validate_talents():
 		if not (t is Dictionary): continue
 		var td : Dictionary = t
 
-		# compatible_units：也做一次归一化，方便中文 id
 		var cu : Array = td.get("compatible_units", [])
 		for i in range(cu.size()):
 			var ukey : String = _normalize_unit_key(str(cu[i]))
@@ -318,9 +351,6 @@ func _validate_talents():
 			_warn(fname, "%s.soul_cost" % tid, "soul 类型词条 soul_cost ≤ 0")
 
 
-# ============================================================
-#  遗物校验
-# ============================================================
 const VALID_RELIC_EFFECTS : Array = [
 	"first_attack_crit", "low_hp_damage_reduce", "kill_grants_extra_move",
 	"first_spell_free", "turn_first_hit_regen", "strength_scale_damage",
@@ -339,9 +369,6 @@ func _validate_relics():
 				_warn(fname, "%s.effects.%s" % [rid, key], "未知效果 key: %s" % key)
 
 
-# ============================================================
-#  词条池校验
-# ============================================================
 func _validate_affixes():
 	var fname := "affixes.json"
 	for aid in _affix_db:
@@ -357,7 +384,6 @@ func _validate_affixes():
 		if q != "" and q not in VALID_QUALITIES:
 			_warn(fname, "%s.min_quality" % aid, "未知品质: %s" % q)
 
-		# ★ 词条 tags：用 VALID_SET_TAGS
 		var tags : Array = ad.get("tags", [])
 		for i in range(tags.size()):
 			var tag : String = str(tags[i])
@@ -370,9 +396,6 @@ func _validate_affixes():
 			_error(fname, "%s" % aid, "value_min (%d) > value_max (%d)" % [vmin, vmax])
 
 
-# ============================================================
-#  套装校验
-# ============================================================
 func _validate_set_bonuses():
 	var fname := "set_bonuses.json"
 	for tag in _set_bonus_db:
@@ -392,9 +415,6 @@ func _validate_set_bonuses():
 				_warn(fname, tag, "未知标签: %s" % tag)
 
 
-# ============================================================
-#  光环校验
-# ============================================================
 func _validate_auras():
 	var fname := "auras.json"
 	for aid in _aura_db:
@@ -404,7 +424,6 @@ func _validate_auras():
 		var tag : String = str(ad.get("tag", ""))
 		if tag != "" and tag not in VALID_SET_TAGS:
 			_warn(fname, "%s.tag" % aid, "未知标签: %s" % tag)
-		# ★ 加一段
 		var bc : int = int(ad.get("buy_cost", 0))
 		if bc <= 0:
 			_warn(fname, "%s.buy_cost" % aid, "缺少有效的购买价格 buy_cost（应为 4-8）")
@@ -412,9 +431,6 @@ func _validate_auras():
 			_warn(fname, "%s.buy_cost" % aid, "购买价格 %d 超出建议范围（4-8）" % bc)
 
 
-# ============================================================
-#  配方校验
-# ============================================================
 func _validate_recipes():
 	var fname := "recipes.json"
 	for product_id in _recipe_db:
@@ -436,9 +452,6 @@ func _validate_recipes():
 				_error(fname, "%s.inputs[%d]" % [product_id, i], "输入不存在: %s" % iid)
 
 
-# ============================================================
-#  剧情校验
-# ============================================================
 func _validate_stories():
 	var fname := "stories.json"
 	for npc_id in _story_db:
@@ -495,7 +508,6 @@ func _validate_stories():
 
 			match utype:
 				"unit":
-					# ★ 归一化后再查
 					var nkey : String = _normalize_unit_key(uid)
 					if not _unit_db.has(nkey):
 						_error(fname, "%s.unlocks[%d]" % [npc_id, i], "单位不存在: %s" % uid)
@@ -535,9 +547,6 @@ func _branch_exists(branch_id : String) -> bool:
 	return false
 
 
-# ============================================================
-#  事件校验
-# ============================================================
 func _validate_events():
 	var fname := "events.json"
 	for eid in _event_db:
@@ -596,78 +605,3 @@ func _validate_events():
 				"unlock_relics":
 					_warn(fname, "%s.actions[%d]" % [eid, i],
 						"unlock_relics action 已废弃（遗物统一走 BOSS 节点）")
-
-
-# ============================================================
-#  单位解锁校验（unit_unlock.json）
-# ============================================================
-func _validate_unit_unlock():
-	var fname := "unit_unlock.json"
-	if _unit_unlock_db.is_empty():
-		_error(fname, "root", "文件无法解析或为空")
-		return
-
-	# 1. 基础单位列表校验
-	var lists_to_check := {
-		"default_unlocked": "默认解锁",
-		"initial_candidates": "初始候选",
-		"map_unlock_units": "地图解锁池"
-	}
-
-	var map_unlock_units : Array = _unit_unlock_db.get("map_unlock_units", [])
-	var valid_map_units : Dictionary = {}
-
-	for key in lists_to_check:
-		var arr : Variant = _unit_unlock_db.get(key, [])
-		if not (arr is Array): continue
-		for i in range(arr.size()):
-			var raw_id : String = str(arr[i])
-			var ukey : String = _normalize_unit_key(raw_id)
-			if not _unit_db.has(ukey):
-				_error(fname, "%s[%d]" % [key, i], "单位不存在: %s" % raw_id)
-			
-			if key == "map_unlock_units" and _unit_db.has(ukey):
-				if valid_map_units.has(ukey):
-					_error(fname, "%s[%d]" % [key, i], "地图解锁池出现重复单位: %s" % ukey)
-				valid_map_units[ukey] = true
-
-	# 2. 价格表校验 (unlock_costs)
-	var costs : Variant = _unit_unlock_db.get("unlock_costs", {})
-	if costs is Dictionary:
-		for raw_key in costs:
-			var ukey : String = _normalize_unit_key(raw_key)
-			if not _unit_db.has(ukey):
-				_error(fname, "unlock_costs.%s" % raw_key, "单位不存在")
-			var c : int = int(costs[raw_key])
-			if c <= 0:
-				_warn(fname, "unlock_costs.%s" % raw_key, "解锁价格 <= 0")
-
-	# 3. 映射表校验 (map_unlock_mapping)
-	var mapping : Variant = _unit_unlock_db.get("map_unlock_mapping", {})
-	var assigned_targets : Dictionary = {}
-	
-	if mapping is Dictionary:
-		for src_raw in mapping:
-			var src_key : String = _normalize_unit_key(src_raw)
-			# 源必须是地图解锁单位
-			if not valid_map_units.has(src_key):
-				_error(fname, "map_unlock_mapping.%s" % src_raw, "源单位不在 map_unlock_units 列表中")
-			
-			var targets : Variant = mapping[src_raw]
-			if targets is Array:
-				for i in range(targets.size()):
-					var tgt_raw : String = str(targets[i])
-					var tgt_key : String = _normalize_unit_key(tgt_raw)
-					
-					# 目标单位必须存在
-					if not _unit_db.has(tgt_key):
-						_error(fname, "map_unlock_mapping.%s[%d]" % [src_raw, i], "目标单位不存在: %s" % tgt_raw)
-						continue
-
-					# 目标不能重复分配（即便编辑器做了互斥，手改 JSON 可能出错）
-					if assigned_targets.has(tgt_key):
-						var old_src : String = assigned_targets[tgt_key]
-						_warn(fname, "map_unlock_mapping.%s[%d]" % [src_raw, i], 
-							"单位 %s 已经被 %s 分配，可能引发覆盖" % [tgt_key, old_src])
-					else:
-						assigned_targets[tgt_key] = src_key

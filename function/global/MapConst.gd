@@ -77,8 +77,6 @@ const AI_SCORE_TERRAIN_DEF_WEIGHT : float = 2.0
 # ============================================================
 #  节点类型显示名（★ 全项目唯一来源）
 # ============================================================
-## 用于：局内地图节点按钮、地图编辑器测试模式
-## 战斗节点的中文名仅作为"兜底名"，正常情况下应显示 map_name
 static func get_node_display_name(node_type: int) -> String:
 	match node_type:
 		MapNode.NodeType.START:    return "起始"
@@ -88,4 +86,26 @@ static func get_node_display_name(node_type: int) -> String:
 		MapNode.NodeType.FORGE:    return "铁匠铺"
 		MapNode.NodeType.TREASURE: return "宝箱"
 		MapNode.NodeType.CHAPEL:   return "圣坛"
+		MapNode.NodeType.QUESTION: return "未知" # ★ 新增
 	return "?"
+
+
+# ============================================================
+#  阵营定义（供编辑器下拉框使用）
+# ============================================================
+enum Faction {
+	KINGDOM,
+	PIRATE,
+	DRAGON,
+	NEUTRAL
+}
+
+const FACTION_CN = {
+	Faction.KINGDOM: "王国",
+	Faction.PIRATE: "海盗",
+	Faction.DRAGON: "龙族",
+	Faction.NEUTRAL: "中立"
+}
+
+static func get_faction_cn(f: int) -> String:
+	return FACTION_CN.get(f, "未知")

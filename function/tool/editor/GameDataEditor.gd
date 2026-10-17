@@ -148,6 +148,7 @@ var _unit_unlock_list_box : VBoxContainer = null
 var _unit_unlock_mapping_box : VBoxContainer = null
 var _unit_unlock_status : Label = null
 var _unit_unlock_right_title : Label = null
+var _unit_db_dirty : bool = false
 
 func _ready():
 	_apply_compact_theme()
@@ -1496,9 +1497,11 @@ func _refresh_unit_unlock_list():
 		return
 
 	for uid in map_units:
-		var display := UnitDataManager.get_display_name(uid)
+		var dict : Dictionary = UnitDataManager.get_unit_data(uid)
+		var display : String = dict.get("display_name", uid)
+		var faction : String = dict.get("faction", "无阵营")
 		var mapped_count: int = mapping.get(uid, []).size()
-		var suffix := "  → 解 %d 个" % mapped_count if mapped_count > 0 else ""
+		var suffix : String = " [%s]" % faction if mapped_count > 0 else ""
 		
 		var btn := Button.new()
 		btn.text = "%s (%s)%s" % [display, uid, suffix]
@@ -1535,17 +1538,20 @@ func _refresh_unit_unlock_mapping():
 		_unit_unlock_right_title.text = "— 请先选择左侧单位 —"
 		return
 
-	var display_src := UnitDataManager.get_display_name(_unit_unlock_selected)
-	_unit_unlock_right_title.text = "打地图获得「%s」时，唤醒列表出现：" % display_src
+	var src_dict : Dictionary = UnitDataManager.get_unit_data(_unit_unlock_selected)
+	var display_src : String = src_dict.get("display_name", _unit_unlock_selected)
+	var src_faction : String = src_dict.get("faction", "无阵营")
+	
+	_unit_unlock_right_title.text = "打地图获得「%s」(阵营: %s) 时，唤醒列表出现：" % [display_src, src_faction]
 
 	var mapping: Dictionary = _unit_unlock_data.get("map_unlock_mapping", {})
 	var current_list: Array = mapping.get(_unit_unlock_selected, [])
 
 	var assigned_to_other := {}
-	for src_uid in mapping:
-		if src_uid == _unit_unlock_selected: continue
-		for target_uid in mapping[src_uid]:
-			assigned_to_other[target_uid] = src_uid
+	for s_uid in mapping:
+		if s_uid == _unit_unlock_selected: continue
+		for t_uid in mapping[s_uid]:
+			assigned_to_other[t_uid] = s_uid
 
 	var available_units := []
 	var transferred_units := []
@@ -1562,12 +1568,25 @@ func _refresh_unit_unlock_mapping():
 
 	# 1. 渲染自由可选的单位
 	for uid in available_units:
-		var display := UnitDataManager.get_display_name(uid)
+		var dict : Dictionary = UnitDataManager.get_unit_data(uid)
+		var display : String = dict.get("display_name", uid)
+		var faction : String = dict.get("faction", "无阵营")
+		
 		var cb := CheckBox.new()
-		cb.text = "%s (%s)" % [display, uid]
 		cb.add_theme_font_size_override("font_size", FS_LABEL)
 		cb.button_pressed = (uid in current_list)
 		cb.toggled.connect(_on_mapping_toggled.bind(_unit_unlock_selected, uid))
+		
+		var is_faction_match : bool = (faction == src_faction)
+		if is_faction_match:
+			cb.text = "%s (%s) [%s]" % [display, uid, faction]
+			cb.add_theme_color_override("font_color", Color(0.85, 0.85, 0.85))
+		else:
+			# 提示勾选后将自动同步阵营
+			cb.text = "%s (%s) [%s → %s]" % [display, uid, faction, src_faction]
+			cb.add_theme_color_override("font_color", Color(1.0, 0.8, 0.5)) # 橙色提示
+			cb.tooltip_text = "勾选后，将自动把该单位的阵营同步为「%s」" % src_faction
+
 		_unit_unlock_mapping_box.add_child(cb)
 
 	# 2. 渲染已经被其他源抢占的单位
@@ -1625,6 +1644,20 @@ func _on_mapping_toggled(pressed : bool, source_unit : String, target_unit : Str
 	if pressed:
 		if target_unit not in arr:
 			arr.append(target_unit)
+			
+		# ★ 自动同步阵营
+		var src_faction : String = ""
+		if _unit_db.has(source_unit):
+			src_faction = _unit_db[source_unit].get("faction", "")
+		
+		if src_faction != "" and _unit_db.has(target_unit):
+			var tgt_faction : String = _unit_db[target_unit].get("faction", "")
+			if tgt_faction != src_faction:
+				_unit_db[target_unit]["faction"] = src_faction
+				_unit_db_dirty = true
+				if _unit_unlock_status:
+					_unit_unlock_status.text = "⚠ 自动同步：%s 阵营 → %s（未保存）" % [target_unit, src_faction]
+
 		# 互斥：从其他源移除
 		for other_src in mapping.keys():
 			if other_src == source_unit: continue
@@ -1636,10 +1669,13 @@ func _on_mapping_toggled(pressed : bool, source_unit : String, target_unit : Str
 
 	mapping[source_unit] = arr
 	_unit_unlock_data["map_unlock_mapping"] = mapping
-	if _unit_unlock_status:
-		_unit_unlock_status.text = "已修改（未保存）"
-		
+	
+	# 刷新 UI
 	_refresh_unit_unlock_ui()
+	
+	# 如果状态栏没被同步提示占用，则显示常规提示
+	if _unit_unlock_status and not _unit_unlock_status.text.begins_with("⚠ 自动同步"):
+		_unit_unlock_status.text = "已修改（未保存）"
 
 
 func _on_unit_unlock_add():
@@ -1721,6 +1757,19 @@ func _save_unit_unlock_config():
 	f.store_string(JSON.stringify(_unit_unlock_data, "  "))
 	f.close()
 	
+	# 2. 如果有自动同步的阵营，一并保存到 unit_data.json
+	if _unit_db_dirty:
+		var f2 := FileAccess.open(UNIT_DATA_PATH, FileAccess.WRITE)
+		if f2 != null:
+			f2.store_string(JSON.stringify(_unit_db, "  "))
+			f2.close()
+			UnitDataManager.reload_all() # 让运行时数据立即生效
+			_unit_db_dirty = false
+			if _unit_unlock_status: 
+				_unit_unlock_status.text = "✓ 已保存(含阵营同步)"
+			Globals._load_unlock_config()
+			return
+
 	Globals._load_unlock_config()
 	if _unit_unlock_status:
 		_unit_unlock_status.text = "✓ 已保存"

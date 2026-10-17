@@ -2,14 +2,6 @@
 extends Control
 class_name MapLayoutCanvas
 
-# ============================================================
-#  MapLayoutCanvas — 地图布局编辑器的画布
-#  v2：editor 声明改为无类型，避免 @tool 环境下类型推断失败
-# ============================================================
-
-# ★ 关键：不写类型。editor 是被动态挂载的 MapLayoutEditor，
-#    在 @tool 环境下 Godot 有时无法正确推断，导致赋值报
-#    "Invalid assignment of property or key 'editor'"
 var editor = null
 
 const ARROW_LENGTH : float = 5.0
@@ -112,9 +104,6 @@ func _gui_input(e : InputEvent):
 	editor._on_canvas_input(e)
 
 
-# ============================================================
-#  带方向箭头
-# ============================================================
 func _draw_directed_line(from_pos: Vector2, to_pos: Vector2, color: Color, width: float = 1.0):
 	var dir : Vector2 = to_pos - from_pos
 	var dist : float = dir.length()
@@ -164,6 +153,7 @@ func _node_color(node) -> Color:
 		MapNode.NodeType.BOSS: return Color(1.0, 0.3, 0.8)
 		MapNode.NodeType.FORGE: return Color(1.0, 0.7, 0.4)
 		MapNode.NodeType.CHAPEL: return Color(0.9, 0.9, 0.4)
+		MapNode.NodeType.QUESTION: return Color(0.2, 0.8, 0.8)
 	return Color.WHITE
 
 
@@ -185,6 +175,7 @@ func _node_type_short(t: int) -> String:
 		MapNode.NodeType.BOSS: return "BS"
 		MapNode.NodeType.FORGE: return "FG"
 		MapNode.NodeType.CHAPEL: return "CH"
+		MapNode.NodeType.QUESTION: return "?"
 	return "?"
 
 

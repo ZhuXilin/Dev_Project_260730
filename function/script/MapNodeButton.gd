@@ -50,17 +50,17 @@ func setup(node_data: MapNode, map_scene: CanvasLayer, override_pos: Vector2 = V
 
 
 func _get_node_label(node: MapNode) -> String:
-	# 非战斗节点 → 直接中文类型名（商店 / 铁匠铺 / 宝箱 / 圣坛）
+	if node.node_type == MapNode.NodeType.QUESTION:
+		return "???"
+		
 	if node.node_type in [
 		MapNode.NodeType.FORGE,
 		MapNode.NodeType.TREASURE,
 		MapNode.NodeType.CHAPEL,
 	]:
 		return MapConst.get_node_display_name(node.node_type)
-	# 战斗节点 → 关卡名
 	if node.map_data and node.map_data.map_name != "":
 		return node.map_data.map_name
-	# 兜底 → 中文类型名
 	return MapConst.get_node_display_name(node.node_type)
 
 
@@ -68,6 +68,8 @@ func _get_color(node: MapNode) -> Color:
 	if node.is_visited:
 		return MapConst.MAP_NODE_VISITED
 	if node.is_available:
+		if node.node_type == MapNode.NodeType.QUESTION:
+			return Color(1.0, 0.85, 0.3)
 		return MapConst.MAP_NODE_AVAILABLE
 	return MapConst.MAP_NODE_UNAVAILABLE
 

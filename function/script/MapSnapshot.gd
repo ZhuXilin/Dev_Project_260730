@@ -16,6 +16,7 @@ static func serialize(map_data: MapLevelData) -> Dictionary:
 		var node_dict = {
 			"node_id": node.node_id,
 			"node_type": node.node_type,
+			"hidden_node_type": node.hidden_node_type,
 			"position_x": node.position.x,
 			"position_y": node.position.y,
 			"layer": node.layer,
@@ -39,9 +40,6 @@ static func _serialize_map_data(map_data: MapData) -> Dictionary:
 	if not map_data:
 		return {}
 
-	# ★ 第五批：直接存 Vector2i，不再拆 [x, y] 数组
-	# JSON 序列化会把它写成 {"x":..., "y":...} 或 [x, y] 都行，
-	# 关键是不损失整型语义
 	var spawn_points_serialized : Array = []
 	for sp in map_data.spawn_points:
 		spawn_points_serialized.append([int(sp.x), int(sp.y)])
@@ -70,10 +68,12 @@ static func deserialize(snapshot: Dictionary) -> MapLevelData:
 	var nodes: Array[MapNode] = []
 	var node_by_id = {}
 
-	for node_dict in snapshot.get("nodes", []):
+	for node_dict_v in snapshot.get("nodes", []):
+		var node_dict: Dictionary = node_dict_v
 		var node = MapNode.new()
 		node.node_id = node_dict.get("node_id", "")
-		node.node_type = node_dict.get("node_type", 0)
+		node.node_type = node_dict.get("node_type", 0) as MapNode.NodeType
+		node.hidden_node_type = int(node_dict.get("hidden_node_type", -1))
 		node.position = Vector2(
 			node_dict.get("position_x", 0),
 			node_dict.get("position_y", 0)
@@ -83,19 +83,17 @@ static func deserialize(snapshot: Dictionary) -> MapLevelData:
 		node.reward = node_dict.get("reward", {})
 
 		var relic_arr: Array[String] = []
-		var raw_relics = node_dict.get("unlock_relics", [])
-		if raw_relics is Array:
-			for rid in raw_relics:
-				if rid is String:
-					relic_arr.append(rid)
+		var raw_relics: Array = node_dict.get("unlock_relics", [])
+		for rid in raw_relics:
+			if rid is String:
+				relic_arr.append(rid)
 		node.unlock_relics = relic_arr
 
 		var unit_arr: Array[String] = []
-		var raw_units = node_dict.get("unlock_units", [])
-		if raw_units is Array:
-			for uid in raw_units:
-				if uid is String:
-					unit_arr.append(uid)
+		var raw_units: Array = node_dict.get("unlock_units", [])
+		for uid in raw_units:
+			if uid is String:
+				unit_arr.append(uid)
 		node.unlock_units = unit_arr
 
 		node.is_visited = false
@@ -105,11 +103,13 @@ static func deserialize(snapshot: Dictionary) -> MapLevelData:
 		nodes.append(node)
 		node_by_id[node.node_id] = node
 
-	for node_dict in snapshot.get("nodes", []):
+	for node_dict_v in snapshot.get("nodes", []):
+		var node_dict: Dictionary = node_dict_v
 		var node = node_by_id.get(node_dict.get("node_id", ""))
 		if not node:
 			continue
-		for conn_id in node_dict.get("connected_node_ids", []):
+		var conn_ids: Array = node_dict.get("connected_node_ids", [])
+		for conn_id in conn_ids:
 			var conn_node = node_by_id.get(conn_id)
 			if conn_node and not node.connected_nodes.has(conn_node):
 				node.connected_nodes.append(conn_node)
@@ -130,12 +130,12 @@ static func _deserialize_map_data(data: Dictionary) -> MapData:
 		int(data.get("map_size_x", MapConst.DEFAULT_MAP_SIZE.x)),
 		int(data.get("map_size_y", MapConst.DEFAULT_MAP_SIZE.y))
 	)
-	map.node_type = data.get("node_type", MapNode.NodeType.NORMAL)
+	map.node_type = data.get("node_type", MapNode.NodeType.NORMAL) as MapNode.NodeType
 	map.required_unit = data.get("required_unit", "")
 
-	# ★ 第五批：显式 int() 转换，兼容 float / String 混入
 	var spawn_points: Array[Vector2i] = []
-	for sp in data.get("spawn_points", []):
+	var raw_sp: Array = data.get("spawn_points", [])
+	for sp in raw_sp:
 		if sp is Array and sp.size() == 2:
 			spawn_points.append(Vector2i(int(sp[0]), int(sp[1])))
 		elif sp is Vector2i:
@@ -145,19 +145,17 @@ static func _deserialize_map_data(data: Dictionary) -> MapData:
 	map.spawn_points = spawn_points
 
 	var relic_arr : Array[String] = []
-	var raw_relics = data.get("unlock_relics", [])
-	if raw_relics is Array:
-		for rid in raw_relics:
-			if rid is String:
-				relic_arr.append(rid)
+	var raw_relics: Array = data.get("unlock_relics", [])
+	for rid in raw_relics:
+		if rid is String:
+			relic_arr.append(rid)
 	map.unlock_relics = relic_arr
 
 	var unit_arr : Array[String] = []
-	var raw_units = data.get("unlock_units", [])
-	if raw_units is Array:
-		for uid in raw_units:
-			if uid is String:
-				unit_arr.append(uid)
+	var raw_units: Array = data.get("unlock_units", [])
+	for uid in raw_units:
+		if uid is String:
+			unit_arr.append(uid)
 	map.unlock_units = unit_arr
 
 	var scene_path = data.get("scene_path", "")
