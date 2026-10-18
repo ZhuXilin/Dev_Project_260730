@@ -22,6 +22,15 @@ func on_turn_changed(team : int) -> void:
 
 
 func handle_turn_change_async(team : int) -> void:
+	# ★ v4.5：进场时的高收益提示
+	if Globals.current_battle_turn == 0 and team == TurnManager.Team.PLAYER:
+		var map_data = GameState.current_map_data
+		if map_data and map_data.reward_multiplier > 1.0:
+			var msg : String = "★ 高收益战斗 (奖励×%.1f)" % map_data.reward_multiplier
+			if map_data.enemy_hp_multiplier > 1.0:
+				msg += " | ⚠ 敌方 HP×%.1f" % map_data.enemy_hp_multiplier
+			SignalBus.request_hint_override.emit(msg, 3.5)
+
 	if team == TurnManager.Team.PLAYER:
 		Globals.increment_battle_turn()
 		_bf.turn_count_label.text = "第 " + str(Globals.current_battle_turn) + " 回合"
@@ -129,6 +138,7 @@ func apply_team_buffs() -> void:
 	var relic_stats = GameState.get_global_relic_stats()
 	var relic_effects = GameState.get_global_relic_effects()
 
+	# ★ v4.2：先把 GameState 里的光环同步到每个 unit
 	_sync_auras_to_units()
 
 	for unit in UnitManager.unit_list:
@@ -176,13 +186,15 @@ func apply_team_buffs() -> void:
 		unit.relic_heal_bonus = float(relic_effects.get("heal_bonus", 0.0))
 		unit.relic_auto_revive_available = bool(relic_effects.get("auto_revive_once", false))
 
-		# ★ v4.5：精炼相关初始化
-		unit.relic_first_attack_crit_remaining = 2 if GameState.is_relic_refined("relic_attack") else 1
-		if not unit.relic_first_attack_crit_available:
+		# ★ v4.5：精炼相关初始化（加固）
+		if unit.relic_first_attack_crit_available:
+			unit.relic_first_attack_crit_remaining = 2 if GameState.is_relic_refined("relic_attack") else 1
+		else:
 			unit.relic_first_attack_crit_remaining = 0
 
-		unit.relic_first_spell_free_remaining = 2 if GameState.is_relic_refined("relic_magic") else 1
-		if not unit.relic_first_spell_free_available:
+		if unit.relic_first_spell_free_available:
+			unit.relic_first_spell_free_remaining = 2 if GameState.is_relic_refined("relic_magic") else 1
+		else:
 			unit.relic_first_spell_free_remaining = 0
 
 		unit.relic_low_hp_threshold = 0.4 if GameState.is_relic_refined("relic_defense") else 0.3
@@ -199,7 +211,6 @@ func apply_team_buffs() -> void:
 	_apply_core_trait_auras()
 
 
-# 从 GameState 同步光环到每个我方单位
 func _sync_auras_to_units():
 	var aura_ids : Array = GameState.get_auras_from_passives()
 	for unit in UnitManager.unit_list:

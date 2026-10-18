@@ -269,6 +269,21 @@ func update_all_displays():
 
 	_update_soul_fire_display()
 
+	# ★ v4.5：显示死眠之钥
+	var key_label = get_node_or_null("TopBar/KeyLabel")
+	if key_label == null:
+		key_label = Label.new()
+		key_label.name = "KeyLabel"
+		key_label.add_theme_font_size_override("font_size", FONT_SIZE)
+		key_label.modulate = Color(1.0, 0.85, 0.3)
+		$TopBar.add_child(key_label)
+
+	if GameState.keys > 0:
+		key_label.text = "🗝 钥匙: %d / 1" % GameState.keys
+		key_label.visible = true
+	else:
+		key_label.visible = false
+
 
 func update_gold_display():
 	gold_label.text = "金币:" + str(EconomyManager.get_temp_gold())

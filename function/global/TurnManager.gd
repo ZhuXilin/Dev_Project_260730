@@ -167,6 +167,12 @@ func start_turn(team: Team):
 	if team == Team.ENEMY and current_turn_team == Team.PLAYER:
 		if ObjectiveManager:
 			ObjectiveManager.on_player_turn_end()
+		
+		# ★ v4.5 修复冲突：如果目标已经完成，直接胜利，不再推进下一波
+		check_victory()
+		if is_game_over:
+			return
+			
 		if WaveManager:
 			WaveManager.on_player_turn_end()
 		check_victory()

@@ -434,6 +434,22 @@ func update_display():
 		soul_fire_label.text = "魂火: %d / %d" % [
 			SoulFireManager.current, SoulFireManager.get_max_carried()
 		]
+	
+	# ★ v4.5：显示死眠之钥
+	var key_label = get_node_or_null("ResourcePanel/KeyLabel")
+	if key_label == null:
+		key_label = Label.new()
+		key_label.name = "KeyLabel"
+		key_label.add_theme_font_size_override("font_size", 8)
+		key_label.modulate = Color(1.0, 0.85, 0.3)
+		$ResourcePanel.add_child(key_label)
+		
+	if GameState.keys > 0:
+		key_label.text = "🗝 死眠之钥: %d / 1" % GameState.keys
+		key_label.visible = true
+	else:
+		key_label.visible = false
+		
 	_update_affinity_display()
 
 
