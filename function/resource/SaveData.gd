@@ -46,7 +46,6 @@ const CURRENT_VERSION = 11
 @export var reforge_tickets: int = 0
 
 # ---- 遗物精炼（v4.5）----
-@export var relic_fragments: int = 0
 @export var relic_levels: Dictionary = {}
 
 # ---- 魂火 ----

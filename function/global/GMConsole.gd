@@ -307,7 +307,6 @@ func _register_commands():
 	register("tag_pin", _cmd_tag_pin, "tag_pin <tag|clear>  设置挂起的标签定向器")
 	register("threshold", _cmd_threshold, "threshold <0|1>  开启/关闭魂火阈值调节")
 
-	register("relic_fragment", _cmd_relic_fragment, "relic_fragment <n>  设置遗物精炼碎片数量")
 	register("refine_relic", _cmd_refine_relic, "refine_relic <relic_id>  直接精炼指定遗物")
 
 
@@ -930,16 +929,6 @@ func _cmd_threshold(args: Array):
 	else:
 		GameState.soul_fire_threshold_override = 0.4
 		_out("魂火阈值调节器：燃烧线 → 40%%", "green")
-
-
-func _cmd_relic_fragment(args: Array):
-	if args.is_empty():
-		_out("用法: relic_fragment <n>", "red")
-		return
-	GameState.relic_fragments = maxi(0, _parse_int(args[0]))
-	_out("遗物碎片 → %d" % GameState.relic_fragments, "green")
-	SaveManager.auto_save()
-	_refresh_all_ui()
 
 
 func _cmd_refine_relic(args: Array):

@@ -9,6 +9,7 @@ var progress_state : ProgressState = ProgressState.new()
 var resource_state : ResourceState = ResourceState.new()
 
 const MAX_ARMOR_SLOTS_CAP : int = 4
+const REFINE_COST : int = 150
 
 # ============================================================
 #  PartyState 转发
@@ -298,10 +299,6 @@ var soul_fire_threshold_override : float:
 	set(value): resource_state.soul_fire_threshold_override = value
 
 # ★ v4.5：遗物精炼
-var relic_fragments: int:
-	get: return resource_state.relic_fragments
-	set(value): resource_state.relic_fragments = value
-
 var relic_levels: Dictionary:
 	get: return resource_state.relic_levels
 	set(value): resource_state.relic_levels = value
@@ -309,17 +306,10 @@ var relic_levels: Dictionary:
 func is_relic_refined(relic_id: String) -> bool:
 	return int(relic_levels.get(relic_id, 0)) >= 1
 
-func add_relic_fragments(n: int) -> void:
-	relic_fragments = maxi(0, relic_fragments + n)
-
-func consume_relic_fragments(n: int) -> bool:
-	if relic_fragments < n: return false
-	relic_fragments -= n
-	return true
-
 func refine_relic(relic_id: String) -> bool:
 	if is_relic_refined(relic_id): return false
-	if not consume_relic_fragments(3): return false
+	if soul < REFINE_COST: return false
+	soul -= REFINE_COST
 	relic_levels[relic_id] = 1
 	SaveManager.auto_save()
 	return true
@@ -488,7 +478,7 @@ func start_new_cycle():
 		active_tag_pin = ""
 	soul_fire_threshold_override = 0.0
 	# reforge_tickets 已删除（v4.5）
-	# relic_fragments / relic_levels 跨局保留（不清空）
+	# relic_levels 跨局保留（不清空）
 
 	for unit_data in party:
 		unit_data.sacrifice_buff_sources.clear()

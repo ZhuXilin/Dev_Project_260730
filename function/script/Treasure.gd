@@ -300,14 +300,6 @@ func _on_option_selected(idx : int):
 	var option : Dictionary = _reward_options[idx]
 	_apply_reward(option)
 
-	# ★ v4.5：高级开启额外掉 1-2 片遗物精炼碎片
-	if _is_premium:
-		var frag : int = 1 + (randi() % 2)
-		GameState.add_relic_fragments(frag)
-		SaveManager.auto_save()
-		print("[宝箱] 高级开启额外获得 %d 片遗物精炼碎片（当前 %d）" % [
-			frag, GameState.relic_fragments])
-
 	var blocker : ColorRect = _create_input_blocker()
 	await _show_popup(option)
 	if is_instance_valid(blocker):

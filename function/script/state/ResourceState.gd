@@ -15,7 +15,6 @@ var active_tag_pin : String = ""
 var soul_fire_threshold_override : float = 0.0
 
 # ---- 遗物精炼（v4.5）----
-var relic_fragments : int = 0
 var relic_levels : Dictionary = {}
 
 # ---- 魂火 ----

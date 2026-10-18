@@ -120,17 +120,8 @@ func _refresh_ui():
 		_on_buy_threshold
 	)
 
-	# 4. 遗物精炼碎片（v4.5，替代已删除的重铸券）
-	_add_item_row(
-		"遗物精炼碎片 ×%d" % FRAGMENT_AMOUNT,
-		"用于精炼已有遗物（3 片 = 1 次）· 当前 %d 片" % GameState.relic_fragments,
-		FRAGMENT_COST,
-		GameState.soul >= FRAGMENT_COST,
-		"魂不足",
-		_on_buy_fragments
-	)
 
-	# 5. Boss 情报
+	# 4. Boss 情报
 	_add_item_row(
 		"Boss 情报",
 		"揭示一条 Boss 机制（Day1/2/3）",
@@ -206,17 +197,6 @@ func _on_buy_threshold():
 	GameState.soul_fire_threshold_override = 0.4
 	SaveManager.auto_save()
 	_show_hint("★ 本局燃烧线已降至 40%。")
-	_refresh_ui()
-
-
-func _on_buy_fragments():
-	if GameState.soul < FRAGMENT_COST:
-		return
-	GameState.soul -= FRAGMENT_COST
-	GameState.add_relic_fragments(FRAGMENT_AMOUNT)
-	SaveManager.auto_save()
-	_show_hint("★ 获得 %d 片遗物精炼碎片（当前 %d 片）" % [
-		FRAGMENT_AMOUNT, GameState.relic_fragments])
 	_refresh_ui()
 
 

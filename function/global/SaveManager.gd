@@ -108,7 +108,6 @@ func _build_save_data() -> SaveData:
 	save.temp_gold = GameState.temp_gold
 
 	# ★ v4.5：遗物精炼
-	save.relic_fragments = GameState.relic_fragments
 	save.relic_levels = GameState.relic_levels.duplicate(true)
 
 	save.soul_fire_current = SoulFireManager.current
@@ -217,7 +216,6 @@ func _apply_save_data(save: SaveData):
 	GameState.temp_gold = save.temp_gold
 
 	# ★ v4.5：遗物精炼
-	GameState.relic_fragments = save.relic_fragments
 	GameState.relic_levels = _safe_dict(save.relic_levels)
 
 	SoulFireManager.current = save.soul_fire_current

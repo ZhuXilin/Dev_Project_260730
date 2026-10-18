@@ -480,11 +480,11 @@ func _build_relic_refine_panel():
 	_clear_attr_container()
 	unit_sprite.visible = false
 	unit_name_label.text = "遗物精炼"
-	unit_desc_label.text = "3 片碎片 = 1 次精炼；每件遗物只能精炼 1 次"
+	unit_desc_label.text = "精炼需消耗魂；每件遗物只能精炼 1 次"
 
-	attr_container.add_child(_make_title("— 碎片 —"))
-	attr_container.add_child(_make_info("当前碎片：%d 片" % GameState.relic_fragments))
-	attr_container.add_child(_make_info("（来源：死眠宝箱 / 隐藏商人 / 竞技场生存）"))
+	attr_container.add_child(_make_title("— 精炼消耗 —"))
+	attr_container.add_child(_make_info("每次精炼消耗：%d 魂" % GameState.REFINE_COST))
+	attr_container.add_child(_make_info("当前魂：%d" % GameState.soul))
 	attr_container.add_child(HSeparator.new())
 
 	attr_container.add_child(_make_title("— 已解锁遗物 —"))
@@ -518,10 +518,10 @@ func _build_relic_refine_panel():
 			row.add_child(tag)
 		else:
 			var btn := Button.new()
-			btn.text = "精炼（3 片）"
+			btn.text = "精炼（%d 魂）" % GameState.REFINE_COST
 			btn.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_SMALL)
 			btn.custom_minimum_size = Vector2(80, 0)
-			btn.disabled = GameState.relic_fragments < 3
+			btn.disabled = GameState.soul < GameState.REFINE_COST
 			if not btn.disabled:
 				btn.pressed.connect(_on_refine_relic.bind(rid))
 			row.add_child(btn)
