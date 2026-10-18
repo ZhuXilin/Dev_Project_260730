@@ -8,7 +8,13 @@ content_margin_top = 0.0
 content_margin_right = 2.0
 content_margin_bottom = 0.0
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_mofld"]
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_mofld"]
+content_margin_left = 2.0
+content_margin_top = 0.0
+content_margin_right = 2.0
+content_margin_bottom = 0.0
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_t4dea"]
 content_margin_left = 2.0
 content_margin_top = 2.0
 content_margin_right = 2.0
@@ -20,26 +26,32 @@ border_width_right = 1
 border_width_bottom = 1
 border_color = Color(0.28, 0.28, 0.34, 1)
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_t4dea"]
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_j5ssq"]
 content_margin_left = 3.0
 content_margin_top = 1.0
 content_margin_right = 3.0
 content_margin_bottom = 1.0
 bg_color = Color(0.15, 0.15, 0.15, 0.92)
 
-[sub_resource type="Theme" id="Theme_j5ssq"]
+[sub_resource type="Theme" id="Theme_7fhl6"]
 Button/font_sizes/font_size = 6
 Button/styles/focus = SubResource("StyleBoxEmpty_8hkaf")
 Button/styles/hover = SubResource("StyleBoxEmpty_8hkaf")
 Button/styles/normal = SubResource("StyleBoxEmpty_8hkaf")
 Button/styles/pressed = SubResource("StyleBoxEmpty_8hkaf")
 Label/font_sizes/font_size = 6
+LineEdit/font_sizes/font_size = 7
+LineEdit/styles/focus = SubResource("StyleBoxEmpty_mofld")
+LineEdit/styles/normal = SubResource("StyleBoxEmpty_mofld")
+LineEdit/styles/read_only = SubResource("StyleBoxEmpty_mofld")
+OptionButton/font_sizes/font_size = 7
 PopupMenu/constants/v_separation = 0
 PopupMenu/font_sizes/font_size = 6
-PopupMenu/styles/panel = SubResource("StyleBoxFlat_mofld")
+PopupMenu/styles/panel = SubResource("StyleBoxFlat_t4dea")
+SpinBox/font_sizes/font_size = 7
 TooltipLabel/font_sizes/font_size = 6
 TooltipPanel/font_sizes/font_size = 6
-TooltipPanel/styles/panel = SubResource("StyleBoxFlat_t4dea")
+TooltipPanel/styles/panel = SubResource("StyleBoxFlat_j5ssq")
 
 [node name="MapLayoutEditor" type="Control" unique_id=2072347888]
 layout_mode = 3
@@ -48,5 +60,5 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-theme = SubResource("Theme_j5ssq")
+theme = SubResource("Theme_7fhl6")
 script = ExtResource("1_j6i0e")

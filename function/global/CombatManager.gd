@@ -332,6 +332,7 @@ func execute_attack(attacker: Unit, defender: Unit) -> bool:
 		print("暴击词条触发！Lv.%d 倍率 %.1f" % [lv_crit, crit_mult])
 		TalentManager.reset_talent(attacker, "crit")
 	elif attacker.relic_first_attack_crit_remaining > 0:
+		# ★ v4.5：精炼后的剩余次数逻辑
 		crit_mult += attacker.buff_crit_damage_bonus
 		is_crit = true
 		attacker.relic_first_attack_crit_remaining -= 1
