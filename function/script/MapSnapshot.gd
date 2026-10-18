@@ -69,9 +69,9 @@ static func _serialize_map_data(map_data: MapData) -> Dictionary:
 		"max_waves": int(map_data.max_waves),
 		"reinforcement_count": int(map_data.reinforcement_count),
 		"reinforcement_pool": map_data.reinforcement_pool.duplicate(),
-		# ★ v4.5
 		"reward_multiplier": float(map_data.reward_multiplier),
 		"enemy_hp_multiplier": float(map_data.enemy_hp_multiplier),
+		"intensity": int(map_data.intensity),
 	}
 
 
@@ -141,9 +141,9 @@ static func _deserialize_map_data(data: Dictionary) -> MapData:
 			pool_arr.append(pid)
 	map.reinforcement_pool = pool_arr
 
-	# ★ v4.5
 	map.reward_multiplier = maxf(1.0, float(data.get("reward_multiplier", 1.0)))
 	map.enemy_hp_multiplier = maxf(1.0, float(data.get("enemy_hp_multiplier", 1.0)))
+	map.intensity = clampi(int(data.get("intensity", 0)), 0, 3)
 
 	var scene_path = data.get("scene_path", "")
 	if scene_path != "" and ResourceLoader.exists(scene_path):

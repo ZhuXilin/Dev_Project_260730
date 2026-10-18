@@ -5,7 +5,7 @@ extends RefCounted
 #  WeaponUpgradeHelper — 读取 item_data.json 里的 upgrade_stats
 # ============================================================
 
-const DEFAULT_MAX_LEVEL : int = 3
+const DEFAULT_MAX_LEVEL : int = 5
 const DEFAULT_ATTACK_PER_LEVEL : int = 2
 const DEFAULT_DEFENSE_PER_LEVEL : int = 0
 

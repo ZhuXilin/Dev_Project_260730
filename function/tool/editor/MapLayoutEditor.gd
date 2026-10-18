@@ -384,6 +384,7 @@ func _snapshot_current() -> Dictionary:
 		cp.reinforcement_count = n.reinforcement_count
 		cp.reward_multiplier = n.reward_multiplier
 		cp.enemy_hp_multiplier = n.enemy_hp_multiplier
+		cp.intensity = n.intensity
 		nodes_copy.append(cp)
 	return {
 		"day": _current_day,
@@ -810,14 +811,14 @@ func _show_type_picker_popup(node_idx: int):
 	type_scroll.add_child(type_list)
 
 	var types := [
-		[MapNode.NodeType.START, "START"],
-		[MapNode.NodeType.NORMAL, "NORMAL"],
-		[MapNode.NodeType.ELITE, "ELITE"],
-		[MapNode.NodeType.TREASURE, "TREASURE"],
-		[MapNode.NodeType.BOSS, "BOSS"],
-		[MapNode.NodeType.FORGE, "FORGE"],
-		[MapNode.NodeType.CHAPEL, "CHAPEL"],
-		[MapNode.NodeType.QUESTION, "QUESTION"],
+		[MapNode.NodeType.START, "起始"],
+		[MapNode.NodeType.NORMAL, "普通"],
+		[MapNode.NodeType.ELITE, "精英"],
+		[MapNode.NodeType.TREASURE, "宝箱"],
+		[MapNode.NodeType.BOSS, "首领"],
+		[MapNode.NodeType.FORGE, "铁匠铺"],
+		[MapNode.NodeType.CHAPEL, "圣坛"],
+		[MapNode.NodeType.QUESTION, "未知"],
 	]
 
 	var is_in_pool : bool = not node.random_pool.is_empty()
@@ -1050,12 +1051,33 @@ func _show_type_picker_popup(node_idx: int):
 	obj_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	vbox.add_child(obj_row)
 
-	var obj_lb := Label.new()
-	obj_lb.text = "目标:"
-	obj_lb.add_theme_font_size_override("font_size", 7)
-	obj_lb.custom_minimum_size = Vector2(0, 16)
-	obj_lb.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	obj_row.add_child(obj_lb)
+	# v4.5：强度 I/II/III（独立于波次/HP 倍率，纯展示）
+	var intensity_row := HBoxContainer.new()
+	intensity_row.add_theme_constant_override("separation", 4)
+	intensity_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	vbox.add_child(intensity_row)
+
+	var int_lb := Label.new()
+	int_lb.text = "强度:"
+	int_lb.add_theme_font_size_override("font_size", 7)
+	int_lb.custom_minimum_size = Vector2(0, 16)
+	int_lb.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	intensity_row.add_child(int_lb)
+
+	var int_opt := OptionButton.new()
+	int_opt.add_theme_font_size_override("font_size", 7)
+	int_opt.add_item("无", 0)
+	int_opt.add_item("I", 1)
+	int_opt.add_item("II", 2)
+	int_opt.add_item("III", 3)
+	int_opt.selected = clampi(node.intensity, 0, 3)
+	int_opt.disabled = not can_unlock
+	int_opt.custom_minimum_size = Vector2(56, 16)
+	intensity_row.add_child(int_opt)
+
+	var wave_row := HBoxContainer.new()
+	wave_row.add_theme_constant_override("separation", 4)
+	vbox.add_child(wave_row)
 
 	var obj_opt := OptionButton.new()
 	obj_opt.add_theme_font_size_override("font_size", 7)
@@ -1086,10 +1108,6 @@ func _show_type_picker_popup(node_idx: int):
 		obj_param_edit.text = JSON.stringify(node.objective_params)
 	obj_row.add_child(obj_param_edit)
 
-	var wave_row := HBoxContainer.new()
-	wave_row.add_theme_constant_override("separation", 4)
-	wave_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	vbox.add_child(wave_row)
 
 	var wave_lb := Label.new()
 	wave_lb.text = "波次:"
@@ -1313,6 +1331,7 @@ func _show_type_picker_popup(node_idx: int):
 			node.reinforcement_count = clampi(int(reinf_spin.value), 0, 5)
 			node.reward_multiplier = clampf(float(reward_spin.value), 1.0, 2.0)
 			node.enemy_hp_multiplier = clampf(float(enemy_hp_spin.value), 1.0, 1.5)
+			node.intensity = clampi(int_opt.selected, 0, 3)
 		else:
 			node.objective_type = MapData.ObjectiveType.ANNIHILATE
 			node.objective_params = {}
@@ -1320,6 +1339,7 @@ func _show_type_picker_popup(node_idx: int):
 			node.reinforcement_count = 0
 			node.reward_multiplier = 1.0
 			node.enemy_hp_multiplier = 1.0
+			node.intensity = 0
 
 		_canvas.queue_redraw()
 		_close_popup()
@@ -1983,6 +2003,10 @@ func _run_layout_validation():
 				if node.enemy_hp_multiplier < 1.0 or node.enemy_hp_multiplier > 1.5:
 					errors.append("Day%d V%d Node[%d]%s  enemy_hp_multiplier=%.2f 越界（应为 1.0-1.5）"
 						% [day_num, vi, ni, pos_str, node.enemy_hp_multiplier])
+				# v4.5：强度越界检查
+				if node.intensity < 0 or node.intensity > 3:
+					errors.append("Day%d V%d Node[%d]%s  intensity=%d 越界（应为 0-3）"
+						% [day_num, vi, ni, pos_str, node.intensity])
 				if node.reward_multiplier > 1.0 and node.enemy_hp_multiplier <= 1.0:
 					errors.append("Day%d V%d Node[%d]%s  有奖励倍率但没有负面代价，建议配 enemy_hp_multiplier"
 						% [day_num, vi, ni, pos_str])

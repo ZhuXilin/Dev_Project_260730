@@ -30,3 +30,7 @@ enum ObjectiveType {
 
 ## v4.5：高收益节点的负面代价——敌人最大 HP 倍率
 @export var enemy_hp_multiplier: float = 1.0
+
+## v4.5：战斗强度等级（0 = 无，1 = I，2 = II，3 = III）
+## 纯展示用，不影响实际战斗。ELITE / BOSS 节点常用 I/II/III 区分难度档位
+@export var intensity: int = 0

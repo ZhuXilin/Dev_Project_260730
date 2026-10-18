@@ -931,6 +931,12 @@ func _get_node_description(node: MapNode) -> String:
 		_:
 			base = "未知节点"
 
+	# v4.5：强度显示（任何节点都可配，但通常只在 ELITE/BOSS 上有意义）
+	if node.map_data and node.map_data.intensity > 0:
+		var int_str : String = _intensity_display(node.map_data.intensity)
+		if int_str != "":
+			base += "\n强度：" + int_str
+
 	if node.map_data and node.map_data.objective_type != MapData.ObjectiveType.ANNIHILATE:
 		base += "\n★ 目标：" + _objective_display_name(node.map_data.objective_type)
 
@@ -954,6 +960,14 @@ func _objective_display_name(t: int) -> String:
 		MapData.ObjectiveType.FLAG: return "夺旗"
 		MapData.ObjectiveType.ASSAULT: return "突进"
 		_: return "全灭"
+
+
+func _intensity_display(intensity: int) -> String:
+	match intensity:
+		1: return "I"
+		2: return "II"
+		3: return "III"
+		_: return ""
 
 
 func _compute_node_positions() -> Dictionary:

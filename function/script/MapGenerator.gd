@@ -317,6 +317,10 @@ static func _apply_wave_from_layout(nodes: Array, day_layout: MapLayoutDay) -> v
 		if layout_node.enemy_hp_multiplier > 1.0:
 			map_node.map_data.enemy_hp_multiplier = layout_node.enemy_hp_multiplier
 
+		# v4.5：强度写入 MapData
+		if layout_node.intensity > 0:
+			map_node.map_data.intensity = clampi(layout_node.intensity, 0, 3)
+
 
 # ============================================================
 #  保底专用：非战斗 QUESTION 类型掷骰

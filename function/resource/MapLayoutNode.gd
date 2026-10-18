@@ -19,6 +19,9 @@ class_name MapLayoutNode
 @export var reward_multiplier: float = 1.0
 @export var enemy_hp_multiplier: float = 1.0
 
+## v4.5：战斗强度等级（0 = 无，1 = I，2 = II，3 = III）
+@export var intensity: int = 0
+
 func resolve_type() -> MapNode.NodeType:
 	if random_pool.is_empty():
 		return node_type

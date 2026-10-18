@@ -164,8 +164,6 @@ func _build_save_data() -> SaveData:
 	if ForgeWhisperManager:
 		save.forge_whisper_state = ForgeWhisperManager.export_state()
 
-	save.temp_soul_legacy = SoulFireManager.current
-
 	save.save_time = Time.get_unix_time_from_system()
 	return save
 

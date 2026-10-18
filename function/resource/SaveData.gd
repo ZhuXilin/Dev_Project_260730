@@ -105,7 +105,7 @@ const CURRENT_VERSION = 11
 
 ## @deprecated 已不再使用
 @export var checksum: String = ""
-## @deprecated 仅 v9 → v10 迁移用
+## @deprecated 仅 v9 → v10 迁移用（v4.5 起不再写入，字段保留兼容旧档）
 @export var temp_soul_legacy: int = 0
 
 @export var npc_affinity: Dictionary = {}

@@ -536,9 +536,7 @@ func _calc_damage(atk : UnitData, dfd : UnitData) -> int:
 		if slot:
 			var d = ItemManager.get_item_data(slot.item_id)
 			if d:
-				var armor_up_lv : int = 0
-				var base_def : int = WeaponUpgradeHelper.get_effective_defense(d, armor_up_lv)
-				armor_def += base_def * QUALITY_MULT.get(d.quality, 1.0)
+				armor_def += float(d.defense) * QUALITY_MULT.get(d.quality, 1.0)
 	var def_val : float = dfd.get_effective_attr("strength") * STRENGTH_DEF_FACTOR + armor_def
 	def_val += dfd.buff_defense_flat
 	return max(1, int(total - def_val))

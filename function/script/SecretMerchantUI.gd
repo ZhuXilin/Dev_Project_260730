@@ -10,8 +10,6 @@ const KEY_COST : int = 200
 const PIN_COST : int = 100
 const THRESHOLD_COST : int = 120
 const INTEL_COST : int = 40
-const FRAGMENT_COST : int = 180
-const FRAGMENT_AMOUNT : int = 3
 
 const ARMOR_TAGS : Array = ["守护", "烈焰", "灰烬", "轮回", "献祭", "余烬"]
 

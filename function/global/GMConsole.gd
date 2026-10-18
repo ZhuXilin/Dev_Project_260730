@@ -75,6 +75,10 @@ func _input(event: InputEvent):
 	if not (event is InputEventKey and event.pressed and not event.echo):
 		return
 
+	# ★ 检查是否正在输入框里打字，如果是，不响应快捷键
+	var focus = get_viewport().gui_get_focus_owner()
+	var is_typing = focus is LineEdit or focus is TextEdit or focus is SpinBox
+
 	if event.keycode == KEY_QUOTELEFT or event.keycode == KEY_F12:
 		_toggle()
 		get_viewport().set_input_as_handled()
@@ -90,8 +94,13 @@ func _input(event: InputEvent):
 			_nav_history(1)
 		return
 
+	# 如果正在打字，且按了任意键，直接返回（防止输入数字触发 GM）
+	if is_typing:
+		return
+
 	if event.ctrl_pressed or event.alt_pressed:
 		return
+		
 	_handle_hotkey(event.keycode)
 
 
@@ -106,9 +115,7 @@ func _is_in_disabled_scene() -> bool:
 
 
 func _handle_hotkey(keycode: int):
-	var mm : Input.MouseMode = Input.mouse_mode
-	if mm == Input.MOUSE_MODE_HIDDEN or mm == Input.MOUSE_MODE_CAPTURED:
-		return
+	# ★ 移除了原本在此处的 Input.mouse_mode 判断，允许战斗中隐藏鼠标时使用快捷键
 
 	var k = keycode
 	if k == KEY_KP_0: k = KEY_0

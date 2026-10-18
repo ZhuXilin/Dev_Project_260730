@@ -65,6 +65,11 @@ func _add_objective_badge(node: MapNode):
 
 	var parts : Array = []
 
+	if node.node_type == MapNode.NodeType.ELITE or node.node_type == MapNode.NodeType.BOSS:
+		var int_text : String = _intensity_badge_text(node.map_data.intensity)
+		if int_text != "":
+			parts.append(int_text)
+
 	var obj_text : String = _objective_badge_text(node.map_data.objective_type)
 	if obj_text != "":
 		parts.append(obj_text)
@@ -151,3 +156,11 @@ func _on_hover_enter():
 func _on_hover_exit():
 	if map_scene_ref and map_scene_ref.has_method("hide_node_info"):
 		map_scene_ref.hide_node_info()
+
+
+func _intensity_badge_text(intensity: int) -> String:
+	match intensity:
+		1: return "强度I"
+		2: return "强度II"
+		3: return "强度III"
+		_: return ""
