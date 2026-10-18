@@ -579,7 +579,8 @@ func _do_one_battle() -> int:
 		_streak_active = true
 		SaveManager.auto_save()
 
-		await _show_battle_rewards(gold_gain, soul_gain, talent_results, battle_index)
+		# ★ 传入统计数据
+		await _show_battle_rewards(gold_gain, soul_gain, talent_results, battle_index, result)
 		if not is_inside_tree():
 			return 1
 
@@ -622,32 +623,38 @@ func _calc_exp_gain(enemy_type: String) -> int:
 #  战斗奖励弹窗
 # ============================================================
 func _show_battle_rewards(gold_gain: int, soul_gain: int,
-		talent_results: Array, battle_index: int):
+		talent_results: Array, battle_index: int, stats: Dictionary = {}):
 	var summary = Globals.get_reward_summary()
 	if not summary:
 		return
 
 	var items : Array = []
 
+	# ★ 展示战斗统计
+	if not stats.is_empty():
+		var stat_item := ItemData.new()
+		stat_item.id = "arena_stats"
+		stat_item.name = "伤害:%d | 承伤:%d | 暴击:%d次" % [
+			stats.get("total_damage_dealt", 0),
+			stats.get("total_damage_taken", 0),
+			stats.get("crit_count", 0)
+		]
+		stat_item.description = "竞技场纯 Build 验证数据"
+		items.append(stat_item)
+
+	# 词条经验展示
 	for r in talent_results:
 		var tid : String = r["talent_id"]
 		var data : TalentData = TalentManager.get_talent_data(tid)
 		var tname : String = data.display_name if data else tid
 		var old_lv : int = r["old_level"]
 		var new_lv : int = r["new_level"]
-		var old_in : int = r["old_in"]
-		var old_need : int = r["old_need"]
-		var new_in : int = r["new_in"]
-		var new_need : int = r["new_need"]
-
+		var exp_gain : int = r["exp_gain"]
+		
 		var exp_item := ItemData.new()
 		exp_item.id = "arena_exp_" + tid
-		if new_lv > old_lv:
-			exp_item.name = "★ %s 升级 Lv%d→Lv%d  (%d/%d → %d/%d)" % [
-				tname, old_lv, new_lv, old_in, old_need, new_in, new_need]
-		else:
-			exp_item.name = "%s Lv%d 经验 +%d  (%d/%d → %d/%d)" % [
-				tname, new_lv, r["exp_gain"], old_in, old_need, new_in, new_need]
+		# ★ 修复：在这里使用了 old_lv
+		exp_item.name = "%s Lv%d→Lv%d (+%d)" % [tname, old_lv, new_lv, exp_gain]
 		if data:
 			exp_item.description = data.description
 		items.append(exp_item)

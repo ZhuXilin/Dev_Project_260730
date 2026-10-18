@@ -136,9 +136,7 @@ func init(units: Array, slot: int, mode: int, context: EquipContext = null):
 	current_mode = mode as Mode
 	_context = context if context else MainGameEquipContext.new()
 
-	current_mode = mode as Mode
-	_context = context if context else MainGameEquipContext.new()
-
+	# ★ 修复：进入 FORGE / 商店休息时，必须重新刷新光环候选
 	if current_mode == Mode.FORGE or is_shop_rest_mode():
 		GameState.refresh_aura_candidates()
 

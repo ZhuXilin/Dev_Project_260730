@@ -254,6 +254,26 @@ func _build_options():
 		hbox.add_child(btn)
 
 
+func _on_option_selected(idx : int):
+	if _applied:
+		return
+	if idx < 0 or idx >= _reward_options.size():
+		return
+
+	_applied = true
+	var option : Dictionary = _reward_options[idx]
+	_apply_reward(option)
+
+	# 移除遗留的碎片逻辑，单纯展示高级物品
+	
+	var blocker : ColorRect = _create_input_blocker()
+	await _show_popup(option)
+	if is_instance_valid(blocker):
+		blocker.queue_free()
+
+	closed.emit()
+	queue_free()
+
 func _format_option_text(option : Dictionary) -> String:
 	var lines : Array = []
 	var kind : String = option.get("kind", "")
@@ -286,27 +306,12 @@ func _format_option_text(option : Dictionary) -> String:
 		else:
 			var rd : Dictionary = RelicManager.get_relic_data(item_id)
 			lines.append("★ " + rd.get("name", item_id))
+			
+	# 附加提示死眠效果
+	if _is_premium:
+		lines.append("\n(死眠之钥效果：必出史诗及以上)")
 
 	return "\n".join(lines)
-
-
-func _on_option_selected(idx : int):
-	if _applied:
-		return
-	if idx < 0 or idx >= _reward_options.size():
-		return
-
-	_applied = true
-	var option : Dictionary = _reward_options[idx]
-	_apply_reward(option)
-
-	var blocker : ColorRect = _create_input_blocker()
-	await _show_popup(option)
-	if is_instance_valid(blocker):
-		blocker.queue_free()
-
-	closed.emit()
-	queue_free()
 
 
 func _apply_reward(option : Dictionary):

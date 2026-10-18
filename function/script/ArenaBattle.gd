@@ -48,6 +48,10 @@ var _enemy_zeal_stacks : int = 0
 var _player_bleed_stacks : int = 0
 var _enemy_bleed_stacks : int = 0
 
+var _total_damage_dealt : int = 0
+var _total_damage_taken : int = 0
+var _crit_count : int = 0
+
 @onready var panel : Panel = $Panel
 @onready var enemy_sprite : AnimatedSprite2D = $Panel/EnemySpriteContainer/EnemySprite
 @onready var enemy_name : Label = $Panel/EnemyName
@@ -342,6 +346,8 @@ func _do_attack(attacker: UnitData, defender: UnitData):
 
 	if is_crit:
 		damage = int(damage * crit_mult)
+		if is_player_attacker:
+			_crit_count += 1  # ★ 统计暴击
 
 	# ---- 盾反 ----
 	if _is_talent_ready(defender, "parry"):
@@ -351,6 +357,7 @@ func _do_attack(attacker: UnitData, defender: UnitData):
 		if is_player_attacker:
 			_player_hp = max(0, _player_hp - parry_dmg)
 			player_hp_bar.value = _player_hp
+			_total_damage_taken += parry_dmg # ★ 统计承受伤害
 		else:
 			_enemy_hp = max(0, _enemy_hp - parry_dmg)
 			enemy_hp_bar.value = _enemy_hp
@@ -364,6 +371,7 @@ func _do_attack(attacker: UnitData, defender: UnitData):
 		if is_player_attacker:
 			_player_hp = maxi(0, _player_hp - reflect_dmg)
 			player_hp_bar.value = _player_hp
+			_total_damage_taken += reflect_dmg # ★ 统计承受伤害
 		else:
 			_enemy_hp = maxi(0, _enemy_hp - reflect_dmg)
 			enemy_hp_bar.value = _enemy_hp
@@ -381,11 +389,13 @@ func _do_attack(attacker: UnitData, defender: UnitData):
 	if is_player_attacker:
 		_enemy_hp = max(0, _enemy_hp - damage)
 		enemy_hp_bar.value = _enemy_hp
+		_total_damage_dealt += damage # ★ 统计造成伤害
 		_play_hit_effect(enemy_sprite, _enemy_material, Vector2(-1, 0))
 		_shake_panel(Vector2(-1, 0))
 	else:
 		_player_hp = max(0, _player_hp - damage)
 		player_hp_bar.value = _player_hp
+		_total_damage_taken += damage # ★ 统计承受伤害
 		_play_hit_effect(player_sprite, _player_material, Vector2(1, 0))
 		_shake_panel(Vector2(1, 0))
 
@@ -431,6 +441,7 @@ func _do_attack(attacker: UnitData, defender: UnitData):
 				_enemy_hp = maxi(0, _enemy_hp - bleed_dmg)
 				enemy_hp_bar.value = _enemy_hp
 				_enemy_bleed_stacks = 0
+				_total_damage_dealt += bleed_dmg # ★ 统计造成伤害
 				log_label.text += "  [出血爆发 -%d]" % bleed_dmg
 		else:
 			_player_bleed_stacks += 1
@@ -439,6 +450,7 @@ func _do_attack(attacker: UnitData, defender: UnitData):
 				_player_hp = maxi(0, _player_hp - bleed_dmg)
 				player_hp_bar.value = _player_hp
 				_player_bleed_stacks = 0
+				_total_damage_taken += bleed_dmg # ★ 统计承受伤害
 				log_label.text += "  [出血爆发 -%d]" % bleed_dmg
 		_reset_talent(attacker, "bleed")
 		_refresh_hp_labels()
@@ -453,7 +465,6 @@ func _do_attack(attacker: UnitData, defender: UnitData):
 			var lv_hb = _get_talent_level(attacker, "heal_boost")
 			self_heal_pct *= (HEAL_BOOST_BASE + (lv_hb - 1) * HEAL_BOOST_PER_LEVEL)
 			_reset_talent(attacker, "heal_boost")
-			print("[Arena] 治愈强化：自愈倍率 %.2f" % self_heal_pct)
 		var heal = maxi(1, int(attacker.max_hp * self_heal_pct))
 		if is_player_attacker:
 			var old_hp = _player_hp
@@ -480,9 +491,11 @@ func _do_attack(attacker: UnitData, defender: UnitData):
 			if is_player_attacker:
 				_enemy_hp = maxi(0, _enemy_hp - extra)
 				enemy_hp_bar.value = _enemy_hp
+				_total_damage_dealt += extra # ★ 统计造成伤害
 			else:
 				_player_hp = maxi(0, _player_hp - extra)
 				player_hp_bar.value = _player_hp
+				_total_damage_taken += extra # ★ 统计承受伤害
 			_reset_talent(attacker, "spell_chain")
 			log_label.text += "  [法术连击 +%d]" % extra
 			_refresh_hp_labels()
@@ -513,11 +526,11 @@ func _do_attack(attacker: UnitData, defender: UnitData):
 		if is_player_attacker:
 			_enemy_hp = max(0, _enemy_hp - extra)
 			enemy_hp_bar.value = _enemy_hp
+			_total_damage_dealt += extra # ★ 统计造成伤害
 		else:
 			_player_hp = max(0, _player_hp - extra)
 			player_hp_bar.value = _player_hp
-		# ★ 第八批：删除 SignalBus.request_damage_popup.emit(Vector2.ZERO, ...)
-		# 原因：ArenaBattle 是 UI 场景，无世界坐标，弹字会落在屏幕外，没有意义
+			_total_damage_taken += extra # ★ 统计承受伤害
 		log_label.text += "  [二次攻击 +%d]" % extra
 		_refresh_hp_labels()
 		await get_tree().create_timer(0.4, true, false, true).timeout
@@ -628,6 +641,9 @@ func _emit_result(continue_requested: bool):
 		"winner_team": winner_team,
 		"remaining_hp": _player_hp,
 		"continue_requested": continue_requested,
+		"total_damage_dealt": _total_damage_dealt,
+		"total_damage_taken": _total_damage_taken,
+		"crit_count": _crit_count
 	})
 	queue_free()
 

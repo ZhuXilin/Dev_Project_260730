@@ -145,13 +145,10 @@ func _evaluate_attack(unit: Unit):
 
 	var weapon_id = unit.get_equipped_weapon_id()
 	if weapon_id == "":
-		# ★ 第七批：降级为 print（这是数据异常但不是致命错误，且会反复触发）
-		print("[AI] 单位 %s 没有装备武器，跳过攻击评估" % unit.unit_stats.unit_name)
 		return null
 
 	var data = ItemManager.get_item_data(weapon_id)
 	if not data:
-		print("[AI] 单位 %s 武器数据不存在（ID=%s）" % [unit.unit_stats.unit_name, weapon_id])
 		return null
 
 	var up_lv : int = unit.weapon_slot.upgrade_level if unit.weapon_slot else 0
@@ -189,8 +186,14 @@ func _evaluate_attack(unit: Unit):
 
 		if not can_counter:
 			score += 30
-		if can_counter and unit.hit_points < unit.unit_stats.max_hp * 0.3:
+			
+		# ★ 修复：AI感知玩家的精炼力量遗物（前两刀必暴），如果玩家还有暴击次数，AI谨慎打分
+		if can_counter and unit.hit_points < unit.unit_stats.max_hp * 0.4:
 			var counter_dmg = CombatManager.calculate_damage(enemy, unit)
+			# 如果玩家有精炼暴击次数，反伤期望极高
+			if enemy.relic_first_attack_crit_remaining > 0:
+				counter_dmg = int(counter_dmg * 1.5) 
+			
 			if counter_dmg >= unit.hit_points:
 				score -= 100
 
@@ -201,9 +204,6 @@ func _evaluate_attack(unit: Unit):
 
 	var picked : Dictionary = _pick_target_by_weight(candidates)
 	var best_target : Unit = picked["target"]
-	print("[AI] %s 选择目标 %s（评分 %d，共 %d 个候选）" % [
-		unit.unit_stats.unit_name, best_target.unit_stats.unit_name,
-		picked["score"], candidates.size()])
 	return {"type": "attack", "unit": unit, "target": best_target, "weapon_id": weapon_id}
 
 

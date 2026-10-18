@@ -128,6 +128,14 @@ func _ready():
 	add_child(_drag_move_controller)
 	_drag_move_controller.setup()
 
+	_drag_move_controller = DragMoveController.new(self)
+	add_child(_drag_move_controller)
+	_drag_move_controller.setup()
+	
+	# ★ 新增魂火视觉反馈控制器
+	var visual_ctrl = SoulFireVisualController.new()
+	add_child(visual_ctrl)
+
 	_damage_popup_layer = CanvasLayer.new()
 	_damage_popup_layer.name = "DamagePopupLayer"
 	_damage_popup_layer.layer = 0

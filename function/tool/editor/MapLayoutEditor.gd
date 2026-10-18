@@ -498,21 +498,54 @@ func _unhandled_input(event: InputEvent):
 		get_viewport().set_input_as_handled()
 
 
+func _on_test_toggle():
+	# ★ 优化：如果准备开启测试且还没选文件，尝试自动加载当前阵营对应的关卡池
+	if not _in_test_mode and _levellist == null:
+		var entry = _get_entry_for_faction(_current_faction)
+		if entry:
+			match _current_day:
+				1: _levellist = entry.day1
+				2: _levellist = entry.day2
+				3: _levellist = entry.day3
+			
+			if _levellist:
+				_levellist_path = _levellist.resource_path
+				print("[MapLayoutEditor] 自动加载测试关卡池: ", _levellist_path)
+				_update_all_labels()
+
+	_in_test_mode = not _in_test_mode
+	_test_btn.button_pressed = _in_test_mode
+
+	if _in_test_mode:
+		if _levellist == null:
+			Globals.show_confirm(self, "当前阵营（%s）第 %d 天未绑定 LevelList。\n请先点顶部【关卡池】按钮手动选择。" % [_current_faction, _current_day], "确定", "", func(): pass, func(): pass, false)
+			_in_test_mode = false
+			_test_btn.button_pressed = false
+			return
+		_generate_test_map()
+	else:
+		_test_map_assignment.clear()
+
+	_update_all_labels()
+	_canvas.queue_redraw()
+
+
 func _on_pick_levellist():
 	var fd := FileDialog.new()
 	fd.file_mode = FileDialog.FILE_MODE_OPEN_FILE
 	fd.access = FileDialog.ACCESS_RESOURCES
 	fd.add_filter("*.tres", "Tres 文件")
 	fd.use_native_dialog = true
+	# ★ 优化：默认直接打开 levellists 目录，防止选错到 maplayout 目录
 	fd.current_dir = "res://content/scenes/levels/levellists/"
-	fd.title = "选择 LevelList 文件"
+	fd.title = "选择关卡池（LevelList，不是 MapLayout）"
 	fd.file_selected.connect(func(path):
 		var res = load(path)
 		if res == null:
 			fd.queue_free()
 			return
 		if not (res is LevelListResource):
-			Globals.show_confirm(self, "选中的文件不是关卡池（LevelList）", "确定", "", func(): pass, func(): pass, false)
+			Globals.show_confirm(self, "选中的文件不是关卡池（LevelList）。\n请选择 levellists 文件夹下的文件。", "确定", "", func(): pass, func(): pass, false)
 			fd.queue_free()
 			return
 		_levellist = res
@@ -523,24 +556,6 @@ func _on_pick_levellist():
 	fd.canceled.connect(func(): fd.queue_free())
 	add_child(fd)
 	fd.popup_centered(Vector2i(500, 400))
-
-
-func _on_test_toggle():
-	_in_test_mode = not _in_test_mode
-	_test_btn.button_pressed = _in_test_mode
-
-	if _in_test_mode:
-		if _levellist == null:
-			push_warning("请先选择 LevelList 文件")
-			_in_test_mode = false
-			_test_btn.button_pressed = false
-			return
-		_generate_test_map()
-	else:
-		_test_map_assignment.clear()
-
-	_update_all_labels()
-	_canvas.queue_redraw()
 
 
 func _generate_test_map():

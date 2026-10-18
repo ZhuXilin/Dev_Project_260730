@@ -154,11 +154,11 @@ static func _roll_question_node_type() -> int:
 		top_tags.append(sorted_tags[1])
 
 	var pool : Array = [
-		{"type": MapNode.NodeType.NORMAL,  "weight": 40, "tag": ""},
+		{"type": MapNode.NodeType.NORMAL,  "weight": 35, "tag": ""},
 		{"type": MapNode.NodeType.ELITE,   "weight": 25, "tag": ""},
 		{"type": MapNode.NodeType.TREASURE,"weight": 20, "tag": ""},
 		{"type": MapNode.NodeType.FORGE,   "weight": 10, "tag": ""},
-		{"type": MapNode.NodeType.CHAPEL,  "weight": 5,  "tag": ""},
+		{"type": MapNode.NodeType.CHAPEL,  "weight": 10, "tag": ""},
 	]
 
 	for entry in pool:
@@ -166,20 +166,23 @@ static func _roll_question_node_type() -> int:
 		var add_w = 0
 		for t in top_tags:
 			match t:
-				"守护", "献祭":
-					if t_type in [MapNode.NodeType.NORMAL, MapNode.NodeType.ELITE]:
+				"守护":
+					if t_type in [MapNode.NodeType.NORMAL, MapNode.NodeType.ELITE, MapNode.NodeType.CHAPEL]:
 						add_w += 15
-					if t_type == MapNode.NodeType.CHAPEL:
-						add_w += 10
-				"烈焰", "灰烬":
-					if t_type == MapNode.NodeType.ELITE:
-						add_w += 20
-					if t_type == MapNode.NodeType.TREASURE:
+				"献祭":
+					if t_type in [MapNode.NodeType.ELITE, MapNode.NodeType.FORGE]:
 						add_w += 15
-				"轮回", "余烬":
-					if t_type == MapNode.NodeType.TREASURE:
+				"烈焰":
+					if t_type in [MapNode.NodeType.ELITE, MapNode.NodeType.TREASURE]:
+						add_w += 15
+				"灰烬":
+					if t_type in [MapNode.NodeType.ELITE, MapNode.NodeType.NORMAL]:
 						add_w += 10
-					if t_type == MapNode.NodeType.FORGE:
+				"轮回":
+					if t_type in [MapNode.NodeType.TREASURE, MapNode.NodeType.CHAPEL]:
+						add_w += 15
+				"余烬":
+					if t_type in [MapNode.NodeType.FORGE, MapNode.NodeType.TREASURE]:
 						add_w += 15
 		entry["weight"] += add_w
 

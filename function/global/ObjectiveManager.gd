@@ -39,6 +39,28 @@ func setup_for_node(map_data : MapData) -> void:
 	else:
 		_params = {}
 
+	# ★ 新增：如果未显式配置目标，根据队伍主标签动态分配
+	if _type == MapData.ObjectiveType.ANNIHILATE and GameState.current_map_data == null:
+		var tag_counts : Dictionary = {}
+		for ud in GameState.party:
+			if ud.is_dead: continue
+			for tag in ud.tags:
+				tag_counts[tag] = tag_counts.get(tag, 0) + 1
+				
+		var main_tag = ""
+		var max_c = -1
+		for t in tag_counts:
+			if tag_counts[t] > max_c:
+				max_c = tag_counts[t]
+				main_tag = t
+				
+		if main_tag == "守护" or main_tag == "献祭":
+			_type = MapData.ObjectiveType.CAPTURE
+		elif main_tag == "烈焰" or main_tag == "灰烬":
+			_type = MapData.ObjectiveType.ASSAULT
+		elif main_tag == "轮回" or main_tag == "余烬":
+			if randf() < 0.5: _type = MapData.ObjectiveType.FLAG
+
 	_state = State.ACTIVE
 
 	match _type:
