@@ -256,6 +256,12 @@ func play_hero_shrine_music():
 func play_hero_shrine_convert_music():
 	if config: _play_slot("hero_shrine_convert", config.hero_shrine_convert_music)
 
+func play_dispatch_music():
+	if config: _play_slot("dispatch", config.dispatch_music)
+
+func play_secret_merchant_music():
+	if config: _play_slot("secret_merchant", config.secret_merchant_music)
+
 
 # ============================================================
 #  对话音乐

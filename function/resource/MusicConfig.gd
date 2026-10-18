@@ -24,6 +24,8 @@ class_name MusicConfig
 @export var arena_battle_music : AudioStream
 @export var hero_shrine_music : AudioStream
 @export var hero_shrine_convert_music : AudioStream
+@export var dispatch_music : AudioStream
+@export var secret_merchant_music : AudioStream
 
 # ---- 对话音乐 ----
 @export var dialogue_music : AudioStream

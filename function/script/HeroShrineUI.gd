@@ -80,9 +80,10 @@ func _reached_limit() -> bool:
 #  初始化
 # ============================================================
 func _ready():
-	COST_PER_CLASS = AdvancedClassManager.get_cost_per_class()
+	COST_PER_CLASS = 0 
 	performance_layer.visible = false
-	cost_label.text = "  |  转职：%d 魂" % COST_PER_CLASS
+	cost_label.text = "  |  转职：免费"
+	
 	MusicManager.play_hero_shrine_music()
 	_refresh_soul_display()
 	_build_unit_row()
@@ -178,13 +179,14 @@ func _build_unit_card(unit_idx: int) -> PanelContainer:
 		branch_names.append("★ " + b.name)
 	status_lb.text = "可转职：\n" + "\n".join(branch_names) + "\n（点击查看）"
 
-	var can_afford : bool = _get_soul() >= COST_PER_CLASS
+	# ★ 因为费用是 0，这里 can_afford 永远为 true
+	var _can_afford : bool = true 
 	var reached : bool = _reached_limit()
 
-	if not can_afford or reached:
+	if reached:
 		status_lb.modulate = Color(0.55, 0.55, 0.55, 1)
 		card.modulate = Color(0.7, 0.7, 0.7, 1)
-		if reached: status_lb.text += "\n（本次已转职）"
+		status_lb.text += "\n（本次已转职）"
 	else:
 		card.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 		card.gui_input.connect(_on_card_input.bind(unit_idx))

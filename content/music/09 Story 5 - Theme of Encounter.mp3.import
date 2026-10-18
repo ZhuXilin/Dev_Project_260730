@@ -1,0 +1,19 @@
+[remap]
+
+importer="mp3"
+type="AudioStreamMP3"
+uid="uid://cde3c5ppv4p5r"
+path="res://.godot/imported/09 Story 5 - Theme of Encounter.mp3-14c4482b4c746a4a22037e18c86f59b1.mp3str"
+
+[deps]
+
+source_file="res://content/music/09 Story 5 - Theme of Encounter.mp3"
+dest_files=["res://.godot/imported/09 Story 5 - Theme of Encounter.mp3-14c4482b4c746a4a22037e18c86f59b1.mp3str"]
+
+[params]
+
+loop=true
+loop_offset=0.0
+bpm=0.0
+beat_count=0
+bar_beats=4

@@ -1,0 +1,19 @@
+[remap]
+
+importer="mp3"
+type="AudioStreamMP3"
+uid="uid://d2jd5e1dh2uv6"
+path="res://.godot/imported/17 Story 4 - Victory of Each Map.mp3-8f2cecb1cc32324cdf14b3217a06465e.mp3str"
+
+[deps]
+
+source_file="res://content/music/17 Story 4 - Victory of Each Map.mp3"
+dest_files=["res://.godot/imported/17 Story 4 - Victory of Each Map.mp3-8f2cecb1cc32324cdf14b3217a06465e.mp3str"]
+
+[params]
+
+loop=true
+loop_offset=0.0
+bpm=0.0
+beat_count=0
+bar_beats=4

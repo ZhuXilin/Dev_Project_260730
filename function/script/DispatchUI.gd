@@ -26,6 +26,8 @@ const BTN_HEIGHT : int = 20
 
 func _ready():
 	layer = 24
+	MusicManager.play_dispatch_music()
+	
 	if back_btn and not back_btn.pressed.is_connected(_on_back_pressed):
 		back_btn.pressed.connect(_on_back_pressed)
 	if dispatch_btn and not dispatch_btn.pressed.is_connected(_do_dispatch):

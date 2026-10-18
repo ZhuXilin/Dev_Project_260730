@@ -319,7 +319,10 @@ func _on_secret_merchant_pressed():
 		GameState.npc_dialogue_flags.append(flag)
 		SaveManager.auto_save()
 
-	# 先播对话
+	# ★ 1. 播放隐藏商人专属音乐
+	MusicManager.play_secret_merchant_music()
+
+	# 先播对话（DialogueManager 会自动暂停当前音乐，并在对话结束后恢复）
 	var played : bool = StoryManager.play_next_dialogue("secret_merchant")
 	if played:
 		await DialogueManager.dialogue_finished
@@ -338,6 +341,9 @@ func _on_secret_merchant_pressed():
 	if not is_inside_tree():
 		return
 	update_display()
+
+	# ★ 2. 交易完成后，恢复营地原有音乐
+	_restore_camp_music()
 
 	# 交易完成后移除商人，箭头恢复
 	if is_instance_valid(_secret_btn):
