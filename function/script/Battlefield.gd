@@ -917,12 +917,35 @@ func _is_any_ui_active() -> bool:
 	)
 
 
+# 修改1：点击回营地时，关闭所有菜单，清除选中状态，然后再弹确认框
 func _on_back_camp_pressed():
+	# 关闭所有菜单
 	PanelRevealer.force_hide(setting_panel)
+	PanelRevealer.force_hide(team_view_panel)
+	PanelRevealer.force_hide(item_list_panel)
+	PanelRevealer.force_hide(setting_menu_panel)
+	
+	# 重置输入状态
+	InputManager.selected_unit = null
+	InputManager.interaction_phase = InputManager.Phase.IDLE
+	InputManager.current_empty_cell = Vector2i(-1, -1)
+	SignalBus.request_clear_highlight.emit()
+	SignalBus.request_hide_info.emit()
+
+	SoundManager.play_select_sound() # ★ 补上点击音效
 	GameState.show_abandon_confirmation(self)
 
-
 func _on_back_to_menu_pressed():
+	PanelRevealer.force_hide(setting_panel)
+	PanelRevealer.force_hide(team_view_panel)
+	PanelRevealer.force_hide(item_list_panel)
+	PanelRevealer.force_hide(setting_menu_panel)
+	
+	InputManager.selected_unit = null
+	InputManager.interaction_phase = InputManager.Phase.IDLE
+	InputManager.current_empty_cell = Vector2i(-1, -1)
+	SoundManager.play_select_sound() # ★ 补上点击音效
+	
 	var current_scene = get_tree().current_scene
 	var scene_path : String = ""
 	if current_scene:
@@ -938,17 +961,24 @@ func _on_back_to_menu_pressed():
 	get_tree().change_scene_to_file("res://content/scenes/ui/MainMenu.tscn")
 
 
+# 修改3：统一右键撤回逻辑和音效
 func _on_request_setting_right_click():
+	# 如果有子面板打开，优先关闭子面板
 	if team_view_panel.visible:
 		_panel_manager.on_team_view_btn_pressed()
+		SoundManager.play_cancel_sound()
 		return
 	if item_list_panel.visible:
 		_panel_manager.on_item_list_btn_pressed()
+		SoundManager.play_cancel_sound()
 		return
 	if setting_menu_panel.visible:
 		PanelRevealer.hide_panel(setting_menu_panel)
+		SoundManager.play_cancel_sound()
 		return
 
+	# 如果只有最外层 SettingPanel，右键关闭它
+	SoundManager.play_cancel_sound() 
 	SignalBus.request_hide_setting.emit()
 	SignalBus.request_hide_info.emit()
 	InputManager.interaction_phase = InputManager.Phase.IDLE

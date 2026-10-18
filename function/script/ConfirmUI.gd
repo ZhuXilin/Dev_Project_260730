@@ -8,6 +8,10 @@ var confirm_callback: Callable
 var cancel_callback: Callable
 
 func _ready():
+	# ★ 去除按钮的焦点高亮（防止默认出现白框）
+	confirm_button.focus_mode = Control.FOCUS_NONE
+	cancel_button.focus_mode = Control.FOCUS_NONE
+
 	for conn in confirm_button.pressed.get_connections():
 		confirm_button.pressed.disconnect(conn.callable)
 	for conn in cancel_button.pressed.get_connections():
@@ -16,6 +20,24 @@ func _ready():
 	confirm_button.pressed.connect(_on_confirm_button_pressed)
 	cancel_button.pressed.connect(_on_cancel_button_pressed)
 
+func _input(event):
+	if not visible:
+		return
+		
+	# ★ 统一处理 ESC 和 鼠标右键，均视为“取消”
+	var is_cancel = false
+	if event is InputEventKey and event.pressed and not event.echo:
+		if event.keycode == KEY_ESCAPE:
+			is_cancel = true
+	elif event is InputEventMouseButton and event.pressed:
+		if event.button_index == MOUSE_BUTTON_RIGHT:
+			is_cancel = true
+
+	if is_cancel:
+		get_viewport().set_input_as_handled()
+		# 播放正确的取消音效
+		SoundManager.play_cancel_sound()
+		_on_cancel_button_pressed()
 
 func show_confirm(message: String, confirm_text: String = "确定", cancel_text: String = "取消", confirm_cb: Callable = Callable(), cancel_cb: Callable = Callable(), show_cancel: bool = true, font_size: int = 0):
 	message_label.text = message
@@ -24,7 +46,6 @@ func show_confirm(message: String, confirm_text: String = "确定", cancel_text:
 	confirm_callback = confirm_cb
 	cancel_callback = cancel_cb
 
-	# ---- 可选：覆盖字号（长消息时调用方传更小值） ----
 	if font_size > 0:
 		message_label.add_theme_font_size_override("font_size", font_size)
 
@@ -36,14 +57,15 @@ func show_confirm(message: String, confirm_text: String = "确定", cancel_text:
 	else:
 		confirm_button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 
-
 func _on_confirm_button_pressed() -> void:
+	visible = false
+	SoundManager.play_select_sound()
 	if confirm_callback.is_valid():
 		confirm_callback.call()
-	queue_free()
-
+	queue_free.call_deferred()
 
 func _on_cancel_button_pressed() -> void:
+	visible = false
 	if cancel_callback.is_valid():
 		cancel_callback.call()
-	queue_free()
+	queue_free.call_deferred()

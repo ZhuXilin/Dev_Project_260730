@@ -346,62 +346,74 @@ func on_relic_hover_exited() -> void:
 	hide_item_detail()
 
 
-# ============================================================
-#  设置菜单开关
-# ============================================================
+# ---- 设置菜单 ----
 func on_setting_btn_pressed() -> void:
 	if _bf.team_view_panel.visible:
 		PanelRevealer.hide_panel(_bf.team_view_panel)
 	if _bf.item_list_panel.visible:
 		PanelRevealer.hide_panel(_bf.item_list_panel)
+		
 	if _bf.setting_menu_panel.visible:
 		PanelRevealer.hide_panel(_bf.setting_menu_panel)
+		SoundManager.play_cancel_sound() # ★ 播放取消音
 	else:
 		PanelRevealer.show_panel(_bf.setting_menu_panel)
+		SoundManager.play_select_sound() # ★ 播放选中音
 
-
+# ---- 队伍查看 ----
 func on_team_view_btn_pressed() -> void:
 	if _bf.setting_menu_panel.visible:
 		PanelRevealer.hide_panel(_bf.setting_menu_panel)
 	if _bf.item_list_panel.visible:
 		PanelRevealer.hide_panel(_bf.item_list_panel)
+		
 	if _bf.team_view_panel.visible:
 		PanelRevealer.hide_panel(_bf.team_view_panel)
+		SoundManager.play_cancel_sound() # ★
 	else:
 		PanelRevealer.show_panel(_bf.team_view_panel)
 		refresh_team_view()
+		SoundManager.play_select_sound() # ★
 
-
+# ---- 道具装备 ----
 func on_item_list_btn_pressed() -> void:
 	if _bf.setting_menu_panel.visible:
 		PanelRevealer.hide_panel(_bf.setting_menu_panel)
 	if _bf.team_view_panel.visible:
 		PanelRevealer.hide_panel(_bf.team_view_panel)
+		
 	if _is_showing_relics:
 		PanelRevealer.hide_panel(_bf.item_list_panel)
 		_is_showing_relics = false
+		SoundManager.play_cancel_sound() # ★
 		return
+		
 	if _bf.item_list_panel.visible:
 		PanelRevealer.hide_panel(_bf.item_list_panel)
+		SoundManager.play_cancel_sound() # ★
 	else:
 		PanelRevealer.show_panel(_bf.item_list_panel)
 		refresh_item_list()
 		_is_showing_relics = false
+		SoundManager.play_select_sound() # ★
 
-
+# ---- 遗物查看 ----
 func on_relic_view_btn_pressed() -> void:
 	if _bf.setting_menu_panel.visible:
 		PanelRevealer.hide_panel(_bf.setting_menu_panel)
 	if _bf.team_view_panel.visible:
 		PanelRevealer.hide_panel(_bf.team_view_panel)
+		
 	if _bf.item_list_panel.visible and _is_showing_relics:
 		PanelRevealer.hide_panel(_bf.item_list_panel)
 		_is_showing_relics = false
+		SoundManager.play_cancel_sound() # ★
 		return
 
 	PanelRevealer.show_panel(_bf.item_list_panel)
 	refresh_relic_list()
 	_is_showing_relics = true
+	SoundManager.play_select_sound() # ★
 
 
 # ============================================================

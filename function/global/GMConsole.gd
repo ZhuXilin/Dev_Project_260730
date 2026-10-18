@@ -94,7 +94,6 @@ func _input(event: InputEvent):
 			_nav_history(1)
 		return
 
-	# 如果正在打字，且按了任意键，直接返回（防止输入数字触发 GM）
 	if is_typing:
 		return
 
@@ -115,8 +114,7 @@ func _is_in_disabled_scene() -> bool:
 
 
 func _handle_hotkey(keycode: int):
-	# ★ 移除了原本在此处的 Input.mouse_mode 判断，允许战斗中隐藏鼠标时使用快捷键
-
+	# ★ 去除了 Input.mouse_mode 的限制，允许战斗中隐藏鼠标时按快捷键
 	var k = keycode
 	if k == KEY_KP_0: k = KEY_0
 	elif k == KEY_KP_5: k = KEY_5
@@ -202,55 +200,28 @@ func _hotkey_soul_fire():
 
 
 func _hotkey_win():
-	if not _is_in_combat():
-		print("[GM] 该场景不可用胜负快捷键")
-		return
-
-	var arena_battle = _find_node_by_name("ArenaBattle")
-	if arena_battle != null and is_instance_valid(arena_battle):
-		arena_battle.set("_enemy_hp", 0)
-		print("[GM] 竞技场：敌方 HP 归零")
-		return
-
-	_do_kill_team(1)
+	_cmd_win([])
 
 
 func _hotkey_lose():
-	if not _is_in_combat():
-		print("[GM] 该场景不可用胜负快捷键")
-		return
-
-	var arena_battle = _find_node_by_name("ArenaBattle")
-	if arena_battle != null and is_instance_valid(arena_battle):
-		arena_battle.set("_player_hp", 0)
-		print("[GM] 竞技场：我方 HP 归零")
-		return
-
-	_do_kill_team(0)
+	_cmd_lose([])
 
 
 func _do_kill_team(team_id: int) -> int:
 	var targets : Array = []
 	for u in UnitManager.unit_list:
-		if not is_instance_valid(u):
-			continue
-		if u.unit_stats.team_id != team_id:
-			continue
-		if u.hit_points <= 0:
-			continue
+		if not is_instance_valid(u): continue
+		if u.unit_stats.team_id != team_id: continue
+		if u.hit_points <= 0: continue
 		targets.append(u)
 
 	var n = 0
 	for u in targets:
-		if not is_instance_valid(u):
-			continue
+		if not is_instance_valid(u): continue
 		u.apply_damage(u.hit_points)
 		UnitManager.unregister_unit(u)
 		u.queue_free()
 		n += 1
-
-	if n > 0:
-		TurnManager.check_victory()
 	return n
 
 
@@ -262,46 +233,37 @@ func register(cmd: String, handler: Callable, help_text: String, aliases: Array 
 
 func _register_commands():
 	register("help", _cmd_help, "help  显示所有命令", ["?"])
-
 	register("gold", _cmd_gold, "gold <数量>  修改金币（局内/竞技场）", ["g"])
 	register("soul", _cmd_soul, "soul <数量>  修改魂", ["s"])
 	register("sf", _cmd_soul_fire, "sf <数量>  修改当前魂火（上限内）", ["soul_fire"])
 	register("sf_max", _cmd_soul_fire_max, "sf_max  魂火拉满")
 	register("sf_level", _cmd_soul_fire_level, "sf_level <0-6>  设置魂火上限等级")
 	register("sf_init", _cmd_soul_fire_init, "sf_init <0-3>  设置初始魂火等级")
-
 	register("shop_level", _cmd_shop_level, "shop_level <0-5>  设置商店等级")
 	register("sac", _cmd_sacrifice, "sac <n>  设置献祭次数", ["sacrifice"])
 	register("whisper", _cmd_whisper, "whisper  打印当前低语")
 	register("whisper_reset", _cmd_whisper_reset, "whisper_reset  重置本局低语")
 	register("wave", _cmd_wave, "wave <1-3>  设置当前地图波次")
 	register("reinforce", _cmd_reinforce, "reinforce <0-5>  设置当前地图增援数量")
-
 	register("affinity", _cmd_affinity, "affinity <npc> <n>  设置 NPC 亲密度")
-
 	register("unlock", _cmd_unlock, "unlock <unit|weapon|armor|item|talent|relic> <id|all>")
 	register("unlock_all", _cmd_unlock_all, "unlock_all  解锁所有内容")
 	register("unlock_route", _cmd_unlock_route, "unlock_route <route_id>  解锁派遣路线")
 	register("aura_unlock", _cmd_aura_unlock, "aura_unlock <aura_id>  直接解锁光环")
-
 	register("tutorial", _cmd_tutorial, "tutorial <0-3>  设置新手阶段")
 	register("skip_tutorial", _cmd_skip_tutorial, "skip_tutorial  跳到新手结束", ["skip"])
 	register("day", _cmd_day, "day <1-3>  设置天数")
 	register("reset_cycle", _cmd_reset_cycle, "reset_cycle  重置本轮（保留永久资源）")
-
 	register("kill_enemies", _cmd_kill_enemies, "kill_enemies  杀死所有敌人", ["ke"])
 	register("kill_allies", _cmd_kill_allies, "kill_allies  杀死所有我方", ["ka"])
-	register("win", _cmd_win, "win  直接胜利", ["w"])
+	register("win", _cmd_win, "win  直接胜利（无视胜利条件与波次）", ["w"])
 	register("lose", _cmd_lose, "lose  直接失败", ["l"])
 	register("god", _cmd_god, "god  我方 HP 设为 9999")
-
 	register("goto", _cmd_goto, "goto <camp|map|arena|main>")
-
 	register("blessing", _cmd_blessing, "blessing <unit> <attr> <level>")
 	register("adv_class", _cmd_adv_class, "adv_class <unit_index>  给队伍成员转职")
 	register("clear_adv_class", _cmd_clear_adv_class, "clear_adv_class  清空所有单位转职状态")
 	register("max_armor", _cmd_max_armor, "max_armor <n>  全员防具槽 = n")
-
 	register("speed", _cmd_speed, "speed <-2..4>  设置游戏速度")
 	register("save", _cmd_save, "save  立即保存")
 	register("clear", _cmd_clear, "clear  清空输出", ["cls"])
@@ -309,11 +271,9 @@ func _register_commands():
 	register("fix_adv_talent", _cmd_fix_adv_talent, "fix_adv_talent  清理不一致的职业特技")
 	register("analytics", _cmd_analytics, "analytics  输出埋点汇总到控制台")
 	register("analytics_csv", _cmd_analytics_csv, "analytics_csv  导出埋点 CSV 到 user://")
-
 	register("key", _cmd_key, "key <n>  修改当前死眠之钥数量（0-1）")
 	register("tag_pin", _cmd_tag_pin, "tag_pin <tag|clear>  设置挂起的标签定向器")
 	register("threshold", _cmd_threshold, "threshold <0|1>  开启/关闭魂火阈值调节")
-
 	register("refine_relic", _cmd_refine_relic, "refine_relic <relic_id>  直接精炼指定遗物")
 
 
@@ -374,8 +334,7 @@ func _cmd_gold(args: Array):
 	var arena = _find_arena()
 	if equip_ctx != null:
 		equip_ctx.arena_gold = maxi(0, equip_ctx.arena_gold + n)
-		if arena != null:
-			arena._arena_gold = equip_ctx.arena_gold
+		if arena != null: arena._arena_gold = equip_ctx.arena_gold
 		_out("竞技场金币 %+d → %d" % [n, equip_ctx.arena_gold], "green")
 		_refresh_all_ui()
 		return
@@ -584,6 +543,7 @@ func _cmd_kill_enemies(_args: Array):
 		_out("该场景无敌人可击杀", "yellow")
 		return
 	var n = _do_kill_team(1)
+	TurnManager.check_victory()
 	_out("已击杀 %d 个敌人" % n, "green")
 
 
@@ -592,6 +552,7 @@ func _cmd_kill_allies(_args: Array):
 		_out("该场景无我方单位可击杀", "yellow")
 		return
 	var n = _do_kill_team(0)
+	TurnManager.check_victory()
 	_out("已击杀 %d 个我方" % n, "green")
 
 
@@ -599,14 +560,45 @@ func _cmd_win(_args: Array):
 	if not _is_in_combat():
 		_out("该场景不可用胜负命令", "yellow")
 		return
-	_cmd_kill_enemies([])
+
+	var arena_battle = _find_node_by_name("ArenaBattle")
+	if arena_battle != null and is_instance_valid(arena_battle):
+		arena_battle.set("_enemy_hp", 0)
+		_out("★ 竞技场：强制胜利", "green")
+		return
+
+	var n = _do_kill_team(1)
+	
+	if WaveManager:
+		WaveManager._pending_groups.clear()
+		WaveManager._type_total_waves = 1
+		
+	if ObjectiveManager:
+		ObjectiveManager.force_complete()
+
+	TurnManager.check_victory()
+	
+	if not TurnManager.is_game_over:
+		TurnManager._trigger_victory(0)
+		
+	_out("★ 战场：强制通关（击杀 %d 名敌人）" % n, "green")
 
 
 func _cmd_lose(_args: Array):
 	if not _is_in_combat():
 		_out("该场景不可用胜负命令", "yellow")
 		return
-	_cmd_kill_allies([])
+
+	var arena_battle = _find_node_by_name("ArenaBattle")
+	if arena_battle != null and is_instance_valid(arena_battle):
+		arena_battle.set("_player_hp", 0)
+		_out("★ 竞技场：强制失败", "green")
+		return
+
+	var n = _do_kill_team(0)
+	TurnManager.check_victory()
+	
+	_out("★ 战场：强制失败（击杀 %d 名我方）" % n, "green")
 
 
 func _cmd_god(_args: Array):
@@ -615,8 +607,7 @@ func _cmd_god(_args: Array):
 		return
 	var n = 0
 	for u in UnitManager.unit_list:
-		if not is_instance_valid(u):
-			continue
+		if not is_instance_valid(u): continue
 		if u.unit_stats.team_id == 0:
 			u.unit_stats.max_hp = 9999
 			u.hit_points = 9999

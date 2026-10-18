@@ -311,3 +311,10 @@ func get_description() -> String:
 				return "击杀目标：%s" % UnitDataManager.get_display_name(_assault_target_name)
 			return "击杀 Boss"
 	return ""
+
+
+func force_complete() -> void:
+	if _state == State.INACTIVE: return
+	_state = State.COMPLETED
+	objective_completed.emit()
+	print("[Objective] 目标被 GM 强制完成")

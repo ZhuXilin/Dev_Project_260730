@@ -59,14 +59,10 @@ func _handle_right_click():
 	if not TurnManager.is_battle_ready():
 		return
 
+	# ★ 如果是设置菜单打开状态，直接转发信号，不在这里播音效（由 Battlefield 统一播）
 	if interaction_phase == Phase.SETTING:
 		SignalBus.request_setting_right_click.emit()
 		return
-
-	# ★ v4.1 优化：右键分层
-	#   优先级 1：有选中单位 → 只取消选中（无副作用，含隐藏信息面板）
-	#   优先级 2：无选中 + 刚移动过的单位 → 撤销移动（有副作用）
-	#   这样：点击单位后的第一次右键 = 取消选中；第二次右键 = 撤销移动
 
 	# ---- 优先级 1：取消选中 ----
 	if selected_unit != null and is_instance_valid(selected_unit):
@@ -74,7 +70,7 @@ func _handle_right_click():
 		SignalBus.request_hint_override.emit("已取消选中", 1.0)
 		SignalBus.request_clear_highlight.emit()
 		SignalBus.request_clear_highlight_unit.emit()
-		SignalBus.request_hide_info.emit()   # ★ 关键：确保信息面板消失
+		SignalBus.request_hide_info.emit()
 		selected_unit = null
 		interaction_phase = Phase.IDLE
 		return
@@ -88,13 +84,12 @@ func _handle_right_click():
 		SignalBus.request_hint_override.emit("已撤销操作", 1.0)
 		SignalBus.request_clear_highlight.emit()
 		SignalBus.request_clear_highlight_unit.emit()
-		SignalBus.request_hide_info.emit()   # ★ 补上：撤销移动后也要隐藏信息面板
+		SignalBus.request_hide_info.emit()
 		selected_unit = null
 		interaction_phase = Phase.IDLE
 		return
 
-	# ---- 都不是：轻量级清理 ----
-	SoundManager.play_cancel_sound()
+	# ---- 都不是：轻量级清理（不播放音效，防止误触发出声音） ----
 	SignalBus.request_clear_highlight.emit()
 	SignalBus.request_clear_highlight_unit.emit()
 	SignalBus.request_hide_info.emit()
