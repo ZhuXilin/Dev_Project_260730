@@ -12,9 +12,6 @@ func _init(p):
 	panel = p
 
 
-# ============================================================
-#  详情区
-# ============================================================
 func show_in_zone(text: String):
 	if not is_instance_valid(panel):
 		return
@@ -31,13 +28,10 @@ func clear_zone():
 		detail_label.text = "选中物品详情"
 
 
-# ============================================================
-#  物品详情
-# ============================================================
 func show_item(item_id: String, affixes: Array = []):
 	var relic_data : Dictionary = RelicManager.get_relic_data(item_id)
 	if not relic_data.is_empty():
-		show_relic(relic_data)
+		show_relic(relic_data, item_id)
 		return
 	var data : ItemData = ItemManager.get_item_data(item_id)
 	if not data:
@@ -75,7 +69,6 @@ func show_item(item_id: String, affixes: Array = []):
 	if data.price > 0:
 		lines.append("价格: " + str(data.price) + "G")
 
-	# ★ 词条
 	if not affixes.is_empty():
 		lines.append("--- 词条 ---")
 		for a in affixes:
@@ -83,7 +76,6 @@ func show_item(item_id: String, affixes: Array = []):
 			var val : int = int(a.get("value", 0))
 			lines.append("· " + AffixManager.format_description(aid, val))
 
-	# ★ 套装效果提示
 	var set_line : String = _build_set_hint(data)
 	if set_line != "":
 		lines.append(set_line)
@@ -109,19 +101,19 @@ func _build_set_hint(data : ItemData) -> String:
 	return "--- 套装（3件）---\n" + "\n".join(parts)
 
 
-# ============================================================
-#  遗物详情
-# ============================================================
-func show_relic(data: Dictionary):
+func show_relic(data: Dictionary, item_id: String = ""):
 	var lines : Array = []
-	lines.append(data.get("name", "未知遗物"))
+	var name_text : String = data.get("name", "未知遗物")
+	# ★ v4.5：精炼状态
+	if item_id != "" and GameState.is_relic_refined(item_id):
+		name_text = "★ " + name_text
+	lines.append(name_text)
 	lines.append(data.get("description", ""))
+	if item_id != "" and GameState.is_relic_refined(item_id):
+		lines.append("（已精炼）")
 	show_in_zone("\n".join(lines))
 
 
-# ============================================================
-#  特技详情
-# ============================================================
 func show_talent(data: TalentData):
 	var lines : Array = []
 	lines.append(data.display_name)
@@ -142,9 +134,6 @@ func show_talent(data: TalentData):
 	show_in_zone("\n".join(lines))
 
 
-# ============================================================
-#  悬停回调
-# ============================================================
 func on_button_hover_entered(item_id: String):
 	show_item(item_id)
 
@@ -166,7 +155,7 @@ func on_talent_hover_exited():
 func on_relic_hover_entered(relic_id: String):
 	var data : Dictionary = RelicManager.get_relic_data(relic_id)
 	if not data.is_empty():
-		show_relic(data)
+		show_relic(data, relic_id)
 
 
 func on_relic_hover_exited():

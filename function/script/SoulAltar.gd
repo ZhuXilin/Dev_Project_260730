@@ -4,7 +4,6 @@ signal closed
 
 enum Tab { SOUL_FIRE, ATTR_CAP, UNIT_UNLOCK, RELIC_REFINE }
 
-## ★ v4.1：只保留 3 级成本（20 / 50 / 120）
 const ATTR_CAP_COSTS : Array[int] = [20, 50, 120]
 
 var _current_tab : Tab = Tab.SOUL_FIRE
@@ -47,7 +46,6 @@ func _ready():
 		tab_bar.add_child(unit_unlock_tab_btn)
 		unit_unlock_tab_btn.pressed.connect(_on_unit_unlock_tab_pressed)
 
-		# ★ v4.5：遗物精炼 tab
 		relic_refine_tab_btn = Button.new()
 		relic_refine_tab_btn.text = "遗物精炼"
 		relic_refine_tab_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -62,6 +60,7 @@ func _ready():
 func _on_soul_fire_tab_pressed(): _switch_tab(Tab.SOUL_FIRE)
 func _on_attr_cap_tab_pressed(): _switch_tab(Tab.ATTR_CAP)
 func _on_unit_unlock_tab_pressed(): _switch_tab(Tab.UNIT_UNLOCK)
+func _on_relic_refine_tab_pressed(): _switch_tab(Tab.RELIC_REFINE)
 
 
 func _on_back_pressed():
@@ -70,8 +69,6 @@ func _on_back_pressed():
 	closed.emit()
 	queue_free()
 
-
-func _on_relic_refine_tab_pressed(): _switch_tab(Tab.RELIC_REFINE)
 
 func _switch_tab(tab: Tab):
 	_current_tab = tab
@@ -164,7 +161,7 @@ func _on_upgrade_soul_fire_initial():
 
 
 # ============================================================
-#  Tab 2 · 属性上限（v4.1 重做）
+#  Tab 2 · 属性上限
 # ============================================================
 func _build_unit_list():
 	for c in unit_list.get_children():
@@ -173,7 +170,6 @@ func _build_unit_list():
 	var all_units = UnitDataManager.get_all_unit_ids()
 	for unit_type in all_units:
 		if not Globals.is_unit_unlocked(unit_type): continue
-		# 只显示有 attr_cap_levels 配置的单位
 		if not UnitDataManager.has_attr_cap_levels(unit_type): continue
 
 		var btn = Button.new()
@@ -189,7 +185,6 @@ func _build_unit_list():
 		btn.pressed.connect(_on_unit_selected.bind(unit_type))
 		unit_list.add_child(btn)
 
-	# 默认选中第一个
 	if _current_unit_type == "" or not _is_unit_in_list(_current_unit_type):
 		for child in unit_list.get_children():
 			if child is Button:
@@ -235,7 +230,6 @@ func _refresh_attr_cap_panel():
 	unit_sprite.visible = true
 	_load_unit_sprite(_current_unit_type)
 
-	# ---- 已获得加成 ----
 	attr_container.add_child(_make_title("— 已获得加成 —"))
 	var total : Dictionary = UnitDataManager.get_attr_cap_total_bonus(_current_unit_type, cur_lv)
 	if total.is_empty():
@@ -243,7 +237,6 @@ func _refresh_attr_cap_panel():
 	else:
 		attr_container.add_child(_make_info(_format_bonus_dict(total)))
 
-	# ---- 下一级预览 ----
 	if cur_lv < max_lv:
 		var next_dict : Dictionary = levels[cur_lv]
 		attr_container.add_child(_make_title("— 下一级 Lv%d 预览 —" % (cur_lv + 1)))
@@ -256,7 +249,6 @@ func _refresh_attr_cap_panel():
 	else:
 		attr_container.add_child(_make_title("— 已达最高等级 —"))
 
-	# ---- 不可升级属性 ----
 	attr_container.add_child(HSeparator.new())
 	attr_container.add_child(_make_title("— 不可升级 —"))
 	var all_attrs : Array = ["vitality", "strength", "dexterity", "intelligence", "faith", "arcane"]
@@ -281,7 +273,6 @@ func _refresh_attr_cap_panel():
 		lb.modulate = Color(0.6, 0.6, 0.6, 1)
 		attr_container.add_child(lb)
 
-	# ---- 提示 ----
 	var note := Label.new()
 	note.text = "升级后将于下一局生效。"
 	note.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_TINY)
@@ -310,13 +301,12 @@ func _on_upgrade_attr_cap():
 
 
 # ============================================================
-#  Tab 3 · 唤醒残魂（单位解锁）
+#  Tab 3 · 唤醒残魂
 # ============================================================
 func _build_locked_unit_list():
 	for c in unit_list.get_children():
 		unit_list.remove_child(c); c.queue_free()
 
-	# ★ 候选池 = initial_candidates（初始可见） ∪ eligible_units（地图/事件/剧情获得资格）
 	var initial : Array = Globals.get_initial_candidates()
 	var eligible : Array = Globals.get_eligible_units()
 
@@ -328,7 +318,6 @@ func _build_locked_unit_list():
 		if k not in all_candidates:
 			all_candidates.append(k)
 
-	# 排除已正式解锁的
 	var locked : Array = []
 	for unit_type in all_candidates:
 		if Globals.is_unit_unlocked(unit_type):
@@ -485,6 +474,82 @@ func _on_unlock_unit_pressed():
 
 
 # ============================================================
+#  Tab 4 · 遗物精炼 (v4.5)
+# ============================================================
+func _build_relic_refine_panel():
+	_clear_attr_container()
+	unit_sprite.visible = false
+	unit_name_label.text = "遗物精炼"
+	unit_desc_label.text = "3 片碎片 = 1 次精炼；每件遗物只能精炼 1 次"
+
+	attr_container.add_child(_make_title("— 碎片 —"))
+	attr_container.add_child(_make_info("当前碎片：%d 片" % GameState.relic_fragments))
+	attr_container.add_child(_make_info("（来源：死眠宝箱 / 隐藏商人 / 竞技场生存）"))
+	attr_container.add_child(HSeparator.new())
+
+	attr_container.add_child(_make_title("— 已解锁遗物 —"))
+
+	var unlocked : Array = RelicManager.get_unlocked_relics()
+	if unlocked.is_empty():
+		attr_container.add_child(_make_info("（暂无可精炼遗物）"))
+		return
+
+	for rid in unlocked:
+		var rd : Dictionary = RelicManager.get_relic_data(rid)
+		if rd.is_empty():
+			continue
+
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 4)
+
+		var is_refined : bool = GameState.is_relic_refined(rid)
+
+		var name_lb := Label.new()
+		name_lb.text = ("★ " if is_refined else "") + rd.get("name", rid)
+		name_lb.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_SMALL)
+		name_lb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		row.add_child(name_lb)
+
+		if is_refined:
+			var tag := Label.new()
+			tag.text = "已精炼"
+			tag.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_SMALL)
+			tag.modulate = Color(0.7, 1.0, 0.7)
+			row.add_child(tag)
+		else:
+			var btn := Button.new()
+			btn.text = "精炼（3 片）"
+			btn.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_SMALL)
+			btn.custom_minimum_size = Vector2(80, 0)
+			btn.disabled = GameState.relic_fragments < 3
+			if not btn.disabled:
+				btn.pressed.connect(_on_refine_relic.bind(rid))
+			row.add_child(btn)
+
+		attr_container.add_child(row)
+
+	attr_container.add_child(HSeparator.new())
+	attr_container.add_child(_make_title("— 精炼说明 —"))
+	attr_container.add_child(_make_info("力量遗物：首击必暴 → 前两次必暴"))
+	attr_container.add_child(_make_info("守护遗物：低血减伤阈值 30% → 40%"))
+	attr_container.add_child(_make_info("疾风遗物：击杀 +2 移动 → +3 移动"))
+	attr_container.add_child(_make_info("魔力遗物：首次施法免费 → 前两次免费"))
+	attr_container.add_child(_make_info("生命遗物：回合首伤回复 30% → 50%"))
+	attr_container.add_child(_make_info("巨力遗物：力量 ×2% 伤害 → ×3% 伤害"))
+	attr_container.add_child(_make_info("迅捷遗物：反击 +50% → +80%"))
+	attr_container.add_child(_make_info("信仰遗物：治疗 +50% → +80%"))
+	attr_container.add_child(_make_info("凤凰之羽：复活后攻击 +20%（本场）"))
+
+
+func _on_refine_relic(rid: String):
+	if GameState.refine_relic(rid):
+		_refresh_soul()
+		_build_relic_refine_panel()
+		_show_msg("★ %s 已精炼" % RelManagerName(rid))
+
+func RelManagerName(rid): return RelicManager.get_relic_data(rid).get("name", rid)
+
+# ============================================================
 #  辅助
 # ============================================================
 func _make_title(text: String) -> Label:
@@ -557,7 +622,6 @@ func _show_msg(msg: String):
 		hint_label.text = ""
 
 
-## 属性 key → 中文简称
 func _attr_cn(key: String) -> String:
 	match key:
 		"vitality":     return "HP"
@@ -570,91 +634,13 @@ func _attr_cn(key: String) -> String:
 		_: return key
 
 
-## {"strength": 1, "vitality": 2} → "力量 +1   HP +2"
 func _format_bonus_dict(dict : Dictionary) -> String:
 	var parts : Array = []
-	# 固定顺序：力、灵、智、信、感、HP
 	var order : Array = ["strength", "dexterity", "intelligence", "faith", "arcane", "vitality"]
 	for k in order:
 		if dict.has(k):
 			parts.append("%s +%d" % [_attr_cn(k), int(dict[k])])
-	# 兜底：不在顺序里的键
 	for k in dict:
 		if k not in order:
 			parts.append("%s +%d" % [_attr_cn(k), int(dict[k])])
 	return "    ".join(parts)
-
-
-# ============================================================
-#  Tab 4 · 遗物精炼（v4.5）
-# ============================================================
-func _build_relic_refine_panel():
-	_clear_attr_container()
-	unit_sprite.visible = false
-	unit_name_label.text = "遗物精炼"
-	unit_desc_label.text = "3 片碎片 = 1 次精炼；每件遗物只能精炼 1 次"
-
-	attr_container.add_child(_make_title("— 碎片 —"))
-	attr_container.add_child(_make_info("当前碎片：%d 片" % GameState.relic_fragments))
-	attr_container.add_child(_make_info("（来源：死眠宝箱 / 隐藏商人 / 竞技场生存）"))
-	attr_container.add_child(HSeparator.new())
-
-	attr_container.add_child(_make_title("— 已解锁遗物 —"))
-
-	var unlocked : Array = RelicManager.get_unlocked_relics()
-	if unlocked.is_empty():
-		attr_container.add_child(_make_info("（暂无可精炼遗物）"))
-		return
-
-	for rid in unlocked:
-		var rd : Dictionary = RelicManager.get_relic_data(rid)
-		if rd.is_empty():
-			continue
-
-		var row := HBoxContainer.new()
-		row.add_theme_constant_override("separation", 4)
-
-		var is_refined : bool = GameState.is_relic_refined(rid)
-
-		var name_lb := Label.new()
-		name_lb.text = ("★ " if is_refined else "") + rd.get("name", rid)
-		name_lb.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_SMALL)
-		name_lb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		row.add_child(name_lb)
-
-		if is_refined:
-			var tag := Label.new()
-			tag.text = "已精炼"
-			tag.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_SMALL)
-			tag.modulate = Color(0.7, 1.0, 0.7)
-			row.add_child(tag)
-		else:
-			var btn := Button.new()
-			btn.text = "精炼（3 片）"
-			btn.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_SMALL)
-			btn.custom_minimum_size = Vector2(80, 0)
-			btn.disabled = GameState.relic_fragments < 3
-			if not btn.disabled:
-				btn.pressed.connect(_on_refine_relic.bind(rid))
-			row.add_child(btn)
-
-		attr_container.add_child(row)
-
-	attr_container.add_child(HSeparator.new())
-	attr_container.add_child(_make_title("— 精炼说明 —"))
-	attr_container.add_child(_make_info("力量遗物：首击必暴 → 前两次必暴"))
-	attr_container.add_child(_make_info("守护遗物：低血减伤阈值 30% → 40%"))
-	attr_container.add_child(_make_info("疾风遗物：击杀 +2 移动 → +3 移动"))
-	attr_container.add_child(_make_info("魔力遗物：首次施法免费 → 前两次免费"))
-	attr_container.add_child(_make_info("生命遗物：回合首伤回复 30% → 50%"))
-	attr_container.add_child(_make_info("巨力遗物：力量 ×2% 伤害 → ×3% 伤害"))
-	attr_container.add_child(_make_info("迅捷遗物：反击 +50% → +80%"))
-	attr_container.add_child(_make_info("信仰遗物：治疗 +50% → +80%"))
-	attr_container.add_child(_make_info("凤凰之羽：复活后攻击 +20%（本场）"))
-
-
-func _on_refine_relic(rid: String):
-	if GameState.refine_relic(rid):
-		_refresh_soul()
-		_build_relic_refine_panel()
-		_show_msg("★ %s 已精炼" % RelicManager.get_relic_data(rid).get("name", rid))

@@ -15,9 +15,6 @@ func _ready():
 	_refresh_list()
 
 
-# ============================================================
-#  筛选栏
-# ============================================================
 func _build_filter_bar():
 	if $VBoxContainer.has_node("FilterBar"):
 		return
@@ -61,9 +58,6 @@ func _matches_filter(data) -> bool:
 	return q == _current_filter
 
 
-# ============================================================
-#  列表刷新
-# ============================================================
 func _refresh_list():
 	for list in [weapon_list, armor_list, relic_list]:
 		if list:
@@ -160,9 +154,6 @@ func _fill_relic_column():
 		relic_list.add_child(_make_relic_button(relic_id, data, false))
 
 
-# ============================================================
-#  按钮
-# ============================================================
 func _make_item_button(data, unlocked: bool) -> Button:
 	var btn = Button.new()
 	btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -185,7 +176,8 @@ func _make_relic_button(relic_id: String, data: Dictionary, unlocked: bool) -> B
 	btn.add_theme_font_size_override("font_size", 8)
 	btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
 
-	btn.text = data.get("name", relic_id)
+	var prefix : String = "★ " if GameState.is_relic_refined(relic_id) else ""
+	btn.text = prefix + data.get("name", relic_id)
 	if unlocked:
 		btn.pressed.connect(_show_relic_detail.bind(data, relic_id))
 	else:
@@ -195,9 +187,6 @@ func _make_relic_button(relic_id: String, data: Dictionary, unlocked: bool) -> B
 	return btn
 
 
-# ============================================================
-#  详情
-# ============================================================
 func _show_item_detail(data):
 	if data.icon:
 		item_icon.texture = data.icon
@@ -231,11 +220,17 @@ func _show_item_detail(data):
 
 func _show_relic_detail(data: Dictionary, _relic_id: String):
 	item_icon.visible = false
-	item_name.text = data.get("name", "")
+	var name_text : String = data.get("name", "")
+	if GameState.is_relic_refined(_relic_id):
+		name_text = "★ " + name_text
+	item_name.text = name_text
 	item_name.remove_theme_color_override("font_color")
 
 	var lines = []
 	lines.append(data.get("description", "无描述"))
+	if GameState.is_relic_refined(_relic_id):
+		lines.append("")
+		lines.append("（已精炼）")
 	var stats = data.get("stats", {})
 	if not stats.is_empty():
 		lines.append("")
@@ -245,9 +240,6 @@ func _show_relic_detail(data: Dictionary, _relic_id: String):
 	item_detail.text = "\n".join(lines)
 
 
-# ============================================================
-#  辅助
-# ============================================================
 func _quality_display(q: String) -> String:
 	match q:
 		"common": return "普通"

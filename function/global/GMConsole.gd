@@ -1,17 +1,10 @@
 extends CanvasLayer
-# 通用 GM 控制台
-# 唤起：` 或 F12
-# 快捷键（v4.1）：5=魂+100  6=金币+1000  7=魂火拉满  0=胜利  9=失败
 
-# ============================================================
-#  状态
-# ============================================================
 var _commands : Dictionary = {}
 var _history : Array[String] = []
 var _history_idx : int = -1
 var _enabled : bool = true
 
-## ★ 在这些场景下，GM 快捷键完全禁用
 const DISABLED_SCENES : Array[String] = [
 	"res://function/tool/editor/MapLayoutEditor.tscn",
 	"res://function/tool/audio/ChipMusicValidator.tscn",
@@ -25,11 +18,7 @@ var _output : RichTextLabel
 var _hint : Label
 
 
-# ============================================================
-#  生命周期
-# ============================================================
 func _ready():
-	# ★ 发布版禁用 GM 控制台
 	if not OS.is_debug_build():
 		queue_free()
 		return
@@ -42,9 +31,6 @@ func _ready():
 	print("[GMConsole] 就绪，按 ` 键打开")
 
 
-# ============================================================
-#  UI 构建
-# ============================================================
 func _build_ui():
 	var bg = ColorRect.new()
 	bg.color = Color(0, 0, 0, 0.85)
@@ -81,9 +67,6 @@ func _build_ui():
 	vbox.add_child(_cmd_input)
 
 
-# ============================================================
-#  输入处理
-# ============================================================
 func _input(event: InputEvent):
 	if not _enabled:
 		return
@@ -92,13 +75,11 @@ func _input(event: InputEvent):
 	if not (event is InputEventKey and event.pressed and not event.echo):
 		return
 
-	# ---- 1. 控制台开关 ----
 	if event.keycode == KEY_QUOTELEFT or event.keycode == KEY_F12:
 		_toggle()
 		get_viewport().set_input_as_handled()
 		return
 
-	# ---- 2. 控制台已打开：只响应 Esc / 方向键 ----
 	if visible:
 		if event.keycode == KEY_ESCAPE:
 			_toggle(false)
@@ -109,10 +90,10 @@ func _input(event: InputEvent):
 			_nav_history(1)
 		return
 
-	# ---- 3. 控制台关闭时：数字键热键 ----
 	if event.ctrl_pressed or event.alt_pressed:
 		return
 	_handle_hotkey(event.keycode)
+
 
 func _is_in_disabled_scene() -> bool:
 	var scene := get_tree().current_scene
@@ -123,13 +104,12 @@ func _is_in_disabled_scene() -> bool:
 		return false
 	return path in DISABLED_SCENES
 
+
 func _handle_hotkey(keycode: int):
-	# ★ 战场中（鼠标锁定/捕获）禁用所有 GM 快捷键，避免误触
 	var mm : Input.MouseMode = Input.mouse_mode
 	if mm == Input.MOUSE_MODE_HIDDEN or mm == Input.MOUSE_MODE_CAPTURED:
 		return
 
-	# 小键盘兼容
 	var k = keycode
 	if k == KEY_KP_0: k = KEY_0
 	elif k == KEY_KP_5: k = KEY_5
@@ -172,9 +152,6 @@ func _nav_history(dir: int):
 	_cmd_input.text = "" if _history_idx == -1 else _history[_history_idx]
 
 
-# ============================================================
-#  热键处理
-# ============================================================
 func _hotkey_soul():
 	GameState.soul += 100
 	print("[GM] 魂 +100 → %d" % GameState.soul)
@@ -182,7 +159,6 @@ func _hotkey_soul():
 
 
 func _hotkey_gold():
-	# ---- 1. 优先：竞技场商店（EquipmentConfig）----
 	var equip_ctx = _find_arena_equip_context()
 	var arena = _find_arena()
 
@@ -194,14 +170,12 @@ func _hotkey_gold():
 		_refresh_all_ui()
 		return
 
-	# ---- 2. 竞技场主界面（未开商店）----
 	if arena != null:
 		arena._arena_gold += 1000
 		print("[GM] 竞技场金币 +1000 → %d" % arena._arena_gold)
 		_refresh_all_ui()
 		return
 
-	# ---- 3. 局内 ----
 	if _is_in_run():
 		EconomyManager.add_temp_gold(1000)
 		print("[GM] 金币 +1000 → %d" % GameState.temp_gold)
@@ -211,7 +185,6 @@ func _hotkey_gold():
 	print("[GM] 加金币只在局内或竞技场有效")
 
 
-## ★ v4.1：快捷键 7 —— 魂火拉满（替换原"全材料 +20"）
 func _hotkey_soul_fire():
 	var before : int = SoulFireManager.current
 	var cap : int = SoulFireManager.get_max_carried()
@@ -226,14 +199,12 @@ func _hotkey_win():
 		print("[GM] 该场景不可用胜负快捷键")
 		return
 
-	# 竞技场战斗
 	var arena_battle = _find_node_by_name("ArenaBattle")
 	if arena_battle != null and is_instance_valid(arena_battle):
 		arena_battle.set("_enemy_hp", 0)
 		print("[GM] 竞技场：敌方 HP 归零")
 		return
 
-	# 战场
 	_do_kill_team(1)
 
 
@@ -251,10 +222,6 @@ func _hotkey_lose():
 	_do_kill_team(0)
 
 
-# ============================================================
-#  核心击杀逻辑
-# ============================================================
-## team_id = 0 杀我方，team_id = 1 杀敌方
 func _do_kill_team(team_id: int) -> int:
 	var targets : Array = []
 	for u in UnitManager.unit_list:
@@ -280,9 +247,6 @@ func _do_kill_team(team_id: int) -> int:
 	return n
 
 
-# ============================================================
-#  命令注册
-# ============================================================
 func register(cmd: String, handler: Callable, help_text: String, aliases: Array = []):
 	_commands[cmd] = {"handler": handler, "help": help_text}
 	for a in aliases:
@@ -292,7 +256,6 @@ func register(cmd: String, handler: Callable, help_text: String, aliases: Array 
 func _register_commands():
 	register("help", _cmd_help, "help  显示所有命令", ["?"])
 
-	# ---- 资源 ----
 	register("gold", _cmd_gold, "gold <数量>  修改金币（局内/竞技场）", ["g"])
 	register("soul", _cmd_soul, "soul <数量>  修改魂", ["s"])
 	register("sf", _cmd_soul_fire, "sf <数量>  修改当前魂火（上限内）", ["soul_fire"])
@@ -300,7 +263,6 @@ func _register_commands():
 	register("sf_level", _cmd_soul_fire_level, "sf_level <0-6>  设置魂火上限等级")
 	register("sf_init", _cmd_soul_fire_init, "sf_init <0-3>  设置初始魂火等级")
 
-	# ---- 商店 / 献祭 ----
 	register("shop_level", _cmd_shop_level, "shop_level <0-5>  设置商店等级")
 	register("sac", _cmd_sacrifice, "sac <n>  设置献祭次数", ["sacrifice"])
 	register("whisper", _cmd_whisper, "whisper  打印当前低语")
@@ -308,38 +270,31 @@ func _register_commands():
 	register("wave", _cmd_wave, "wave <1-3>  设置当前地图波次")
 	register("reinforce", _cmd_reinforce, "reinforce <0-5>  设置当前地图增援数量")
 
-	# ---- NPC ----
 	register("affinity", _cmd_affinity, "affinity <npc> <n>  设置 NPC 亲密度")
 
-	# ---- 解锁 ----
 	register("unlock", _cmd_unlock, "unlock <unit|weapon|armor|item|talent|relic> <id|all>")
 	register("unlock_all", _cmd_unlock_all, "unlock_all  解锁所有内容")
 	register("unlock_route", _cmd_unlock_route, "unlock_route <route_id>  解锁派遣路线")
 	register("aura_unlock", _cmd_aura_unlock, "aura_unlock <aura_id>  直接解锁光环")
 
-	# ---- 流程 ----
 	register("tutorial", _cmd_tutorial, "tutorial <0-3>  设置新手阶段")
 	register("skip_tutorial", _cmd_skip_tutorial, "skip_tutorial  跳到新手结束", ["skip"])
 	register("day", _cmd_day, "day <1-3>  设置天数")
 	register("reset_cycle", _cmd_reset_cycle, "reset_cycle  重置本轮（保留永久资源）")
 
-	# ---- 战斗 ----
 	register("kill_enemies", _cmd_kill_enemies, "kill_enemies  杀死所有敌人", ["ke"])
 	register("kill_allies", _cmd_kill_allies, "kill_allies  杀死所有我方", ["ka"])
 	register("win", _cmd_win, "win  直接胜利", ["w"])
 	register("lose", _cmd_lose, "lose  直接失败", ["l"])
 	register("god", _cmd_god, "god  我方 HP 设为 9999")
 
-	# ---- 跳转 ----
 	register("goto", _cmd_goto, "goto <camp|map|arena|main>")
 
-	# ---- 单位 ----
 	register("blessing", _cmd_blessing, "blessing <unit> <attr> <level>")
 	register("adv_class", _cmd_adv_class, "adv_class <unit_index>  给队伍成员转职")
 	register("clear_adv_class", _cmd_clear_adv_class, "clear_adv_class  清空所有单位转职状态")
 	register("max_armor", _cmd_max_armor, "max_armor <n>  全员防具槽 = n")
 
-	# ---- 系统 ----
 	register("speed", _cmd_speed, "speed <-2..4>  设置游戏速度")
 	register("save", _cmd_save, "save  立即保存")
 	register("clear", _cmd_clear, "clear  清空输出", ["cls"])
@@ -349,13 +304,13 @@ func _register_commands():
 	register("analytics_csv", _cmd_analytics_csv, "analytics_csv  导出埋点 CSV 到 user://")
 
 	register("key", _cmd_key, "key <n>  修改当前死眠之钥数量（0-1）")
-
 	register("tag_pin", _cmd_tag_pin, "tag_pin <tag|clear>  设置挂起的标签定向器")
 	register("threshold", _cmd_threshold, "threshold <0|1>  开启/关闭魂火阈值调节")
 
-# ============================================================
-#  命令解析与执行
-# ============================================================
+	register("relic_fragment", _cmd_relic_fragment, "relic_fragment <n>  设置遗物精炼碎片数量")
+	register("refine_relic", _cmd_refine_relic, "refine_relic <relic_id>  直接精炼指定遗物")
+
+
 func _on_submit(text: String):
 	text = text.strip_edges()
 	if text == "": return
@@ -393,9 +348,6 @@ func _out(msg: String, color: String = "white"):
 	_output.append_text("[color=%s]%s[/color]\n" % [color, msg])
 
 
-# ============================================================
-#  命令实现 — 资源
-# ============================================================
 func _cmd_help(_args: Array):
 	_out("=== 可用命令 ===", "yellow")
 	var seen = {}
@@ -412,7 +364,6 @@ func _cmd_gold(args: Array):
 		return
 	var n = _parse_int(args[0])
 
-	# 竞技场商店
 	var equip_ctx = _find_arena_equip_context()
 	var arena = _find_arena()
 	if equip_ctx != null:
@@ -428,7 +379,6 @@ func _cmd_gold(args: Array):
 		_refresh_all_ui()
 		return
 
-	# 局内
 	if not _is_in_run():
 		_out("加金币只在局内或竞技场有效", "yellow")
 		return
@@ -446,7 +396,6 @@ func _cmd_soul(args: Array):
 	_refresh_all_ui()
 
 
-## ★ v4.1：魂火直接改（替换原 mat）
 func _cmd_soul_fire(args: Array):
 	if args.is_empty():
 		_out("用法: sf <数量>（可为负）", "red"); return
@@ -491,9 +440,6 @@ func _cmd_soul_fire_init(args: Array):
 	_refresh_all_ui()
 
 
-# ============================================================
-#  命令实现 — 商店 / 献祭 / NPC
-# ============================================================
 func _cmd_shop_level(args: Array):
 	if args.is_empty():
 		_out("用法: shop_level <0-5>", "red"); return
@@ -524,9 +470,6 @@ func _cmd_affinity(args: Array):
 	_out("%s 亲密度 → %d" % [npc, n], "green")
 
 
-# ============================================================
-#  命令实现 — 解锁
-# ============================================================
 func _cmd_unlock(args: Array):
 	if args.size() < 2:
 		_out("用法: unlock <类型> <id|all>", "red"); return
@@ -601,9 +544,6 @@ func _cmd_aura_unlock(args: Array):
 	_out("解锁光环: " + aid, "green")
 
 
-# ============================================================
-#  命令实现 — 流程
-# ============================================================
 func _cmd_tutorial(args: Array):
 	if args.is_empty():
 		_out("用法: tutorial <0-3>", "red"); return
@@ -633,9 +573,6 @@ func _cmd_reset_cycle(_args: Array):
 	_out("已重置本轮（保留永久资源）", "yellow")
 
 
-# ============================================================
-#  命令实现 — 战斗
-# ============================================================
 func _cmd_kill_enemies(_args: Array):
 	if not _is_in_combat():
 		_out("该场景无敌人可击杀", "yellow")
@@ -694,9 +631,6 @@ func _cmd_goto(args: Array):
 	_out("跳转 → " + args[0], "green")
 
 
-# ============================================================
-#  命令实现 — 单位
-# ============================================================
 func _cmd_blessing(args: Array):
 	if args.size() < 3:
 		_out("用法: blessing <unit> <attr> <level>", "red"); return
@@ -759,9 +693,6 @@ func _cmd_max_armor(args: Array):
 	_out("全员防具槽 → %d" % n, "green")
 
 
-# ============================================================
-#  命令实现 — 系统
-# ============================================================
 func _cmd_speed(args: Array):
 	if args.is_empty():
 		_out("用法: speed <-2..4>", "red"); return
@@ -801,9 +732,6 @@ func _cmd_fix_adv_talent(_args: Array):
 	_out("已清理 %d 个不一致的职业特技" % fixed, "yellow")
 
 
-# ============================================================
-#  通用 UI 刷新
-# ============================================================
 const REFRESH_METHODS : Array = [
 	"refresh_gm_display",
 	"update_all_displays",
@@ -813,7 +741,6 @@ const REFRESH_METHODS : Array = [
 	"_refresh_center_panel",
 	"_update_soul_fire_display",
 ]
-
 
 func _refresh_all_ui():
 	_refresh_ui_recursive(get_tree().root)
@@ -829,9 +756,6 @@ func _refresh_ui_recursive(node: Node):
 		_refresh_ui_recursive(child)
 
 
-# ============================================================
-#  场景 / 节点查找辅助
-# ============================================================
 func _find_arena() -> Node:
 	var scene = get_tree().current_scene
 	if scene == null:
@@ -864,7 +788,6 @@ func _is_in_run() -> bool:
 	return path.contains("MapScene") or path.contains("Battlefield")
 
 
-## 是否处于"可判定胜负"的战斗中
 func _is_in_combat() -> bool:
 	var arena_battle = _find_node_by_name("ArenaBattle")
 	if arena_battle != null and is_instance_valid(arena_battle):
@@ -910,9 +833,6 @@ func _recursive_find_by_script(node: Node, script_name: String) -> Node:
 	return null
 
 
-# ============================================================
-#  辅助
-# ============================================================
 func _parse_int(s: String) -> int:
 	s = s.strip_edges()
 	if s.begins_with("+"): s = s.substr(1)
@@ -1010,3 +930,31 @@ func _cmd_threshold(args: Array):
 	else:
 		GameState.soul_fire_threshold_override = 0.4
 		_out("魂火阈值调节器：燃烧线 → 40%%", "green")
+
+
+func _cmd_relic_fragment(args: Array):
+	if args.is_empty():
+		_out("用法: relic_fragment <n>", "red")
+		return
+	GameState.relic_fragments = maxi(0, _parse_int(args[0]))
+	_out("遗物碎片 → %d" % GameState.relic_fragments, "green")
+	SaveManager.auto_save()
+	_refresh_all_ui()
+
+
+func _cmd_refine_relic(args: Array):
+	if args.is_empty():
+		_out("用法: refine_relic <relic_id>", "red")
+		_out("可用: " + ", ".join(RelicManager.get_all_relic_ids()), "cyan")
+		return
+	var rid : String = args[0]
+	if RelicManager.get_relic_data(rid).is_empty():
+		_out("未知遗物: " + rid, "red")
+		return
+	if GameState.is_relic_refined(rid):
+		_out("已精炼", "yellow")
+		return
+	GameState.relic_levels[rid] = 1
+	SaveManager.auto_save()
+	_out("已精炼: " + rid, "green")
+	_refresh_all_ui()

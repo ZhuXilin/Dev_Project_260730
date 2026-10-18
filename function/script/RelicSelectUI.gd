@@ -118,7 +118,6 @@ func _update_ui_state():
 		_build_existing_relics()
 
 
-# ★ v4.2：兼容 {type:"aura"} 与 {type:"refine"} 槽位
 func _build_existing_relics():
 	for child in existing_container.get_children():
 		child.queue_free()
@@ -135,7 +134,9 @@ func _build_existing_relics():
 			btn.pressed.connect(_on_existing_relic_clicked.bind(i))
 		elif p is ItemInstance:
 			var data = RelicManager.get_relic_data(p.item_id)
-			btn.text = data.get("name", "?")
+			# ★ v4.5：已精炼加 ★ 前缀
+			var prefix : String = "★ " if GameState.is_relic_refined(p.item_id) else ""
+			btn.text = prefix + data.get("name", "?")
 			btn.pressed.connect(_on_existing_relic_clicked.bind(i))
 		elif p is Dictionary and p.has("refine_id"):
 			btn.text = "（精炼）"
@@ -155,7 +156,6 @@ func _build_existing_relics():
 func _on_existing_relic_clicked(slot_idx: int):
 	print("替换被动槽 ", slot_idx, " -> ", _selected_candidate)
 
-	# ★ 双保险：精炼槽 / 光环槽 不可被遗物替换
 	var target = GameState.get_passives()[slot_idx]
 	if target is Dictionary and (target.has("refine_id") or target.get("type", "") == "aura"):
 		return

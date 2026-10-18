@@ -49,7 +49,6 @@ func setup(node_data: MapNode, map_scene: CanvasLayer, override_pos: Vector2 = V
 			child.queue_free()
 			break
 
-	# 目标徽章
 	_add_objective_badge(node_data)
 
 
@@ -58,7 +57,10 @@ func _add_objective_badge(node: MapNode):
 	if existing:
 		existing.queue_free()
 
-	if node == null or node.map_data == null:
+	# ★ v4.5：问号节点不显示徽章，避免泄露 hidden_node_type
+	if node == null or node.node_type == MapNode.NodeType.QUESTION:
+		return
+	if node.map_data == null:
 		return
 
 	var parts : Array = []

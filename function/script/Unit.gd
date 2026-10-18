@@ -50,6 +50,12 @@ var relic_counter_damage_bonus: float = 0.0
 var relic_heal_bonus: float = 0.0
 var relic_auto_revive_available: bool = false
 
+# ★ v4.5：遗物精炼运行时状态
+var relic_first_attack_crit_remaining : int = 0
+var relic_first_spell_free_remaining : int = 0
+var relic_low_hp_threshold : float = 0.3
+var relic_phoenix_revive_attack_bonus : float = 0.0
+
 # ---- 连锁词条 ----
 var vengeance_triggered: bool = false
 var zeal_target: String = ""
@@ -212,6 +218,11 @@ func reset_relic_effects():
 	relic_counter_damage_bonus = 0.0
 	relic_heal_bonus = 0.0
 	relic_auto_revive_available = false
+	# ★ v4.5
+	relic_first_attack_crit_remaining = 0
+	relic_first_spell_free_remaining = 0
+	relic_low_hp_threshold = 0.3
+	relic_phoenix_revive_attack_bonus = 0.0
 
 
 func reset_chain_talents():
@@ -249,7 +260,6 @@ func get_weapon_stats() -> Dictionary:
 	var stats := default_stats.duplicate()
 	stats["attack"] = int((data.base_attack + upgrade_bonus) * quality_mult)
 
-	# ★ 批次 5B：动态射程（3 级 +1）
 	var up_lv : int = weapon_slot.upgrade_level if weapon_slot else 0
 	stats["attack_range"] = WeaponUpgradeHelper.get_effective_attack_range(data, up_lv)
 	stats["min_attack_range"] = data.min_attack_range
@@ -304,7 +314,6 @@ func can_equip_armor(item_id: String, exclude_slot_idx: int = -1) -> bool:
 	return unit_stats.can_equip_armor(item_id, exclude_slot_idx)
 
 
-# ★ 批次 6A：词条聚合
 func get_total_affix_value(affix_type: String) -> int:
 	var total : int = 0
 	for slot in armor_slots:
@@ -320,9 +329,6 @@ func has_core_trait(trait_id: String) -> bool:
 	return unit_stats != null and unit_stats.core_trait == trait_id
 
 
-# ============================================================
-#  熔合独特机制检测（方向 1）
-# ============================================================
 func has_fusion_effect(effect_id: String) -> bool:
 	for slot in armor_slots:
 		if slot == null: continue
@@ -814,7 +820,6 @@ func reset_combat_buffs():
 	buff_attack_flat = 0
 	buff_magic_attack_flat = 0
 	charge_stacks = 0
-	# ★ 批次 5A
 	active_auras.clear()
 
 

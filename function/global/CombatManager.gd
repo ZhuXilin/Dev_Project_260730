@@ -1051,6 +1051,28 @@ func _apply_damage_with_effects(defender: Unit, damage: int, attacker: Unit, is_
 	return defeated
 
 
+func _consume_first_spell_free(attacker: Unit) -> bool:
+	if attacker == null:
+		return false
+	if not attacker.relic_first_spell_free_available:
+		return false
+	# ★ v4.5：剩余次数用尽就视为不可用
+	if attacker.relic_first_spell_free_remaining <= 0:
+		attacker.relic_first_spell_free_available = false
+		return false
+	var wt : String = attacker.get_weapon_type()
+	if wt != "spellbook" and wt != "staff":
+		return false
+
+	attacker.relic_first_spell_free_remaining -= 1
+	if attacker.relic_first_spell_free_remaining <= 0:
+		attacker.relic_first_spell_free_available = false
+
+	print("[魔力遗物] %s 施法免费（剩 %d 次）" % [
+		attacker.unit_stats.unit_name, attacker.relic_first_spell_free_remaining])
+	return true
+
+
 func _try_revive(defender: Unit) -> bool:
 	if not TalentManager.is_talent_ready(defender, "revive"):
 		return false
@@ -1133,31 +1155,6 @@ func _execute_counter(attacker: Unit, defender: Unit) -> void:
 		await _play_death_animation(attacker)
 		UnitManager.unregister_unit(attacker)
 		attacker.queue_free()
-
-
-# ============================================================
-#  首次施法免费
-# ============================================================
-func _consume_first_spell_free(attacker: Unit) -> bool:
-	if attacker == null:
-		return false
-	if not attacker.relic_first_spell_free_available:
-		return false
-	# ★ v4.5：剩余次数用尽就视为不可用
-	if attacker.relic_first_spell_free_remaining <= 0:
-		attacker.relic_first_spell_free_available = false
-		return false
-	var wt : String = attacker.get_weapon_type()
-	if wt != "spellbook" and wt != "staff":
-		return false
-
-	attacker.relic_first_spell_free_remaining -= 1
-	if attacker.relic_first_spell_free_remaining <= 0:
-		attacker.relic_first_spell_free_available = false
-
-	print("[魔力遗物] %s 施法免费（剩 %d 次）" % [
-		attacker.unit_stats.unit_name, attacker.relic_first_spell_free_remaining])
-	return true
 
 
 func _is_alive(u: Unit) -> bool:

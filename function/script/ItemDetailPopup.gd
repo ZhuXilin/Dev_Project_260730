@@ -8,27 +8,20 @@ extends CanvasLayer
 
 
 func _ready():
-	# 初始隐藏（PanelRevealer 会接管显隐）
 	if panel:
 		panel.visible = false
 
 
-## 供 PanelManager 预热使用
 func get_panel() -> Panel:
 	return panel
 
 
-# ============================================================
-#  显示 / 隐藏
-# ============================================================
 func show_item(item_id: String, _unit: Unit = null):
-	# ---- 先检查是否为遗物 ----
 	var relic_data = RelicManager.get_relic_data(item_id)
 	if not relic_data.is_empty():
-		_show_relic_detail(relic_data)
+		_show_relic_detail(relic_data, item_id)
 		return
 
-	# ---- 非遗物：使用 ItemManager ----
 	var data = ItemManager.get_item_data(item_id)
 	if not data:
 		hide_popup()
@@ -60,15 +53,20 @@ func show_item(item_id: String, _unit: Unit = null):
 	_show_panel_animated()
 
 
-func _show_relic_detail(data: Dictionary):
+func _show_relic_detail(data: Dictionary, item_id: String = ""):
 	icon.visible = false
-	name_label.text = data.get("name", "")
-	desc_label.text = data.get("description", "")
+	var name_text : String = data.get("name", "")
+	var desc_text : String = data.get("description", "")
+	# ★ v4.5：精炼状态
+	if item_id != "" and GameState.is_relic_refined(item_id):
+		name_text = "★ " + name_text
+		desc_text += "\n（已精炼）"
+	name_label.text = name_text
+	desc_label.text = desc_text
 	stats_label.text = ""
 	_show_panel_animated()
 
 
-## ★ 重命名，避免覆盖 Node.hide()
 func hide_popup():
 	if panel == null:
 		return
@@ -76,7 +74,6 @@ func hide_popup():
 		PanelRevealer.hide_panel(panel)
 
 
-## ★ 只在从"隐藏→显示"时播扫描线
 func _show_panel_animated():
 	if panel == null:
 		return

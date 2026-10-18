@@ -87,6 +87,10 @@ func _apply_compact_theme():
 	t.set_font_size("font_size", "PopupMenu", 6)
 	t.set_font_size("font_size", "TooltipLabel", 6)
 	t.set_font_size("font_size", "TooltipPanel", 6)
+	# ★ v4.5：统一弹窗里的字号
+	t.set_font_size("font_size", "SpinBox", 7)
+	t.set_font_size("font_size", "OptionButton", 7)
+	t.set_font_size("font_size", "LineEdit", 7)
 
 	var empty := StyleBoxEmpty.new()
 	empty.content_margin_left = 2
@@ -97,6 +101,16 @@ func _apply_compact_theme():
 	t.set_stylebox("hover", "Button", empty)
 	t.set_stylebox("pressed", "Button", empty)
 	t.set_stylebox("focus", "Button", empty)
+
+	# ★ v4.5：压扁 LineEdit
+	var le_empty := StyleBoxEmpty.new()
+	le_empty.content_margin_left = 2
+	le_empty.content_margin_right = 2
+	le_empty.content_margin_top = 0
+	le_empty.content_margin_bottom = 0
+	t.set_stylebox("normal", "LineEdit", le_empty)
+	t.set_stylebox("focus", "LineEdit", le_empty)
+	t.set_stylebox("read_only", "LineEdit", le_empty)
 
 	var popup_panel := StyleBoxFlat.new()
 	popup_panel.bg_color = Color(0.13, 0.13, 0.16, 1)
@@ -121,6 +135,31 @@ func _apply_compact_theme():
 	t.set_stylebox("panel", "TooltipPanel", tip_sb)
 
 	theme = t
+
+
+func _style_spin(sp : SpinBox):
+	if not is_instance_valid(sp): return
+	var le := sp.get_line_edit()
+	if le:
+		le.add_theme_font_size_override("font_size", 7)
+	var btns : Array[Node] = sp.find_children("*", "Button", true, false)
+	for b in btns:
+		var btn := b as Button
+		btn.custom_minimum_size = Vector2(3, 2)
+		btn.icon_max_width = 2
+		btn.icon_max_height = 2
+		btn.focus_mode = Control.FOCUS_NONE
+		btn.action_mode = BaseButton.ACTION_MODE_BUTTON_RELEASE
+		var e := StyleBoxEmpty.new()
+		e.content_margin_left = 0
+		e.content_margin_right = 0
+		e.content_margin_top = 0
+		e.content_margin_bottom = 0
+		btn.add_theme_stylebox_override("normal", e)
+		btn.add_theme_stylebox_override("hover", e)
+		btn.add_theme_stylebox_override("pressed", e)
+		btn.add_theme_stylebox_override("focus", e)
+		btn.add_theme_stylebox_override("disabled", e)
 
 
 func _load_unit_level_map():
@@ -216,7 +255,6 @@ func _show_faction_menu():
 		menu.queue_free()
 	)
 
-	# ★ Bug 2 修复：点外部关闭时也 queue_free，避免节点堆积
 	menu.popup_hide.connect(func():
 		if is_instance_valid(menu):
 			menu.queue_free()
@@ -326,9 +364,6 @@ func _get_entry_for_faction(faction_cn: String) -> UnitLevelMapEntry:
 	return null
 
 
-# ============================================================
-#  撤销 / 重做
-# ============================================================
 func _snapshot_current() -> Dictionary:
 	var day_layout : MapLayoutDay = _get_current_day_layout()
 	if day_layout == null:
@@ -343,12 +378,12 @@ func _snapshot_current() -> Dictionary:
 		cp.connects_to = n.connects_to.duplicate()
 		cp.unlock_relics = n.unlock_relics.duplicate()
 		cp.unlock_units = n.unlock_units.duplicate()
-		# 撤销/重做也要复制目标字段
 		cp.objective_type = n.objective_type
 		cp.objective_params = n.objective_params.duplicate(true)
-		# 波次字段也要复制
 		cp.max_waves = n.max_waves
 		cp.reinforcement_count = n.reinforcement_count
+		cp.reward_multiplier = n.reward_multiplier
+		cp.enemy_hp_multiplier = n.enemy_hp_multiplier
 		nodes_copy.append(cp)
 	return {
 		"day": _current_day,
@@ -430,7 +465,6 @@ func _unhandled_input(event: InputEvent):
 	if not (event is InputEventKey and event.pressed and not event.echo):
 		return
 
-	# ★ Bug 1 修复：LineEdit 聚焦且回车时，交给输入框自己处理
 	var focus := get_viewport().gui_get_focus_owner()
 	if (event.keycode == KEY_ENTER or event.keycode == KEY_KP_ENTER) and focus is LineEdit:
 		return
@@ -638,7 +672,7 @@ func _show_text_input_popup(title: String, label_text: String, default_text: Str
 	var le := LineEdit.new()
 	le.text = default_text
 	le.add_theme_font_size_override("font_size", 8)
-	le.custom_minimum_size = Vector2(0, 14)
+	le.custom_minimum_size = Vector2(0, 16)
 	le.select_all()
 	vbox.add_child(le)
 
@@ -672,7 +706,6 @@ func _show_text_input_popup(title: String, label_text: String, default_text: Str
 	ok.pressed.connect(confirm_action)
 	_popup_confirm_callback = confirm_action
 
-	# ★ Bug 1 修复：LineEdit 回车视为"确定"，并消费事件避免重复触发
 	le.text_submitted.connect(func(t):
 		get_viewport().set_input_as_handled()
 		_close_popup()
@@ -994,7 +1027,9 @@ func _show_type_picker_popup(node_idx: int):
 
 	main.add_child(unit_box)
 
-	# 目标行
+	# ============================================================
+	#  ★ v4.5：目标、波次、奖励、倍率行（应用压扁字号与尺寸）
+	# ============================================================
 	var obj_row := HBoxContainer.new()
 	obj_row.add_theme_constant_override("separation", 4)
 	obj_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -1003,6 +1038,8 @@ func _show_type_picker_popup(node_idx: int):
 	var obj_lb := Label.new()
 	obj_lb.text = "目标:"
 	obj_lb.add_theme_font_size_override("font_size", 7)
+	obj_lb.custom_minimum_size = Vector2(0, 16)
+	obj_lb.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	obj_row.add_child(obj_lb)
 
 	var obj_opt := OptionButton.new()
@@ -1013,17 +1050,19 @@ func _show_type_picker_popup(node_idx: int):
 	obj_opt.add_item("突进", int(MapData.ObjectiveType.ASSAULT))
 	obj_opt.selected = int(node.objective_type)
 	obj_opt.disabled = not can_unlock
-	obj_opt.custom_minimum_size = Vector2(50, 0)
+	obj_opt.custom_minimum_size = Vector2(56, 16) # 限制高度
 	obj_row.add_child(obj_opt)
 
 	var obj_param_lb := Label.new()
 	obj_param_lb.text = "参数:"
 	obj_param_lb.add_theme_font_size_override("font_size", 7)
+	obj_param_lb.custom_minimum_size = Vector2(0, 16)
+	obj_param_lb.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	obj_row.add_child(obj_param_lb)
 
 	var obj_param_edit := LineEdit.new()
 	obj_param_edit.add_theme_font_size_override("font_size", 7)
-	obj_param_edit.custom_minimum_size = Vector2(0, 14)
+	obj_param_edit.custom_minimum_size = Vector2(0, 16) # 限制高度
 	obj_param_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	obj_param_edit.editable = can_unlock
 	obj_param_edit.placeholder_text = "JSON，如 {\"target_cell\": [10, 7], \"hold_turns\": 3}"
@@ -1032,7 +1071,6 @@ func _show_type_picker_popup(node_idx: int):
 		obj_param_edit.text = JSON.stringify(node.objective_params)
 	obj_row.add_child(obj_param_edit)
 
-	# 波次/增援/奖励/敌HP 行
 	var wave_row := HBoxContainer.new()
 	wave_row.add_theme_constant_override("separation", 4)
 	wave_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -1041,6 +1079,8 @@ func _show_type_picker_popup(node_idx: int):
 	var wave_lb := Label.new()
 	wave_lb.text = "波次:"
 	wave_lb.add_theme_font_size_override("font_size", 7)
+	wave_lb.custom_minimum_size = Vector2(0, 16)
+	wave_lb.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	wave_row.add_child(wave_lb)
 
 	var wave_spin := SpinBox.new()
@@ -1048,14 +1088,16 @@ func _show_type_picker_popup(node_idx: int):
 	wave_spin.max_value = 3
 	wave_spin.step = 1
 	wave_spin.value = maxi(1, node.max_waves)
-	wave_spin.add_theme_font_size_override("font_size", 7)
-	wave_spin.custom_minimum_size = Vector2(36, 0)
+	wave_spin.custom_minimum_size = Vector2(40, 16)
 	wave_spin.editable = can_unlock
 	wave_row.add_child(wave_spin)
+	_style_spin(wave_spin)
 
 	var reinf_lb := Label.new()
 	reinf_lb.text = " 增援:"
 	reinf_lb.add_theme_font_size_override("font_size", 7)
+	reinf_lb.custom_minimum_size = Vector2(0, 16)
+	reinf_lb.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	wave_row.add_child(reinf_lb)
 
 	var reinf_spin := SpinBox.new()
@@ -1063,14 +1105,16 @@ func _show_type_picker_popup(node_idx: int):
 	reinf_spin.max_value = 5
 	reinf_spin.step = 1
 	reinf_spin.value = maxi(0, node.reinforcement_count)
-	reinf_spin.add_theme_font_size_override("font_size", 7)
-	reinf_spin.custom_minimum_size = Vector2(36, 0)
+	reinf_spin.custom_minimum_size = Vector2(40, 16)
 	reinf_spin.editable = can_unlock
 	wave_row.add_child(reinf_spin)
+	_style_spin(reinf_spin)
 
 	var reward_lb := Label.new()
 	reward_lb.text = " 奖励×:"
 	reward_lb.add_theme_font_size_override("font_size", 7)
+	reward_lb.custom_minimum_size = Vector2(0, 16)
+	reward_lb.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	wave_row.add_child(reward_lb)
 
 	var reward_spin := SpinBox.new()
@@ -1078,14 +1122,16 @@ func _show_type_picker_popup(node_idx: int):
 	reward_spin.max_value = 2.0
 	reward_spin.step = 0.1
 	reward_spin.value = maxf(1.0, node.reward_multiplier)
-	reward_spin.add_theme_font_size_override("font_size", 7)
-	reward_spin.custom_minimum_size = Vector2(44, 0)
+	reward_spin.custom_minimum_size = Vector2(44, 16)
 	reward_spin.editable = can_unlock
 	wave_row.add_child(reward_spin)
+	_style_spin(reward_spin)
 
 	var enemy_hp_lb := Label.new()
 	enemy_hp_lb.text = " 敌HP×:"
 	enemy_hp_lb.add_theme_font_size_override("font_size", 7)
+	enemy_hp_lb.custom_minimum_size = Vector2(0, 16)
+	enemy_hp_lb.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	wave_row.add_child(enemy_hp_lb)
 
 	var enemy_hp_spin := SpinBox.new()
@@ -1093,12 +1139,11 @@ func _show_type_picker_popup(node_idx: int):
 	enemy_hp_spin.max_value = 1.5
 	enemy_hp_spin.step = 0.1
 	enemy_hp_spin.value = maxf(1.0, node.enemy_hp_multiplier)
-	enemy_hp_spin.add_theme_font_size_override("font_size", 7)
-	enemy_hp_spin.custom_minimum_size = Vector2(44, 0)
+	enemy_hp_spin.custom_minimum_size = Vector2(44, 16)
 	enemy_hp_spin.editable = can_unlock
 	wave_row.add_child(enemy_hp_spin)
+	_style_spin(enemy_hp_spin)
 
-	# ★ v4.5：快速预设行
 	var preset_row := HBoxContainer.new()
 	preset_row.add_theme_constant_override("separation", 4)
 	preset_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -1107,12 +1152,14 @@ func _show_type_picker_popup(node_idx: int):
 	var preset_lb := Label.new()
 	preset_lb.text = "快速预设:"
 	preset_lb.add_theme_font_size_override("font_size", 7)
+	preset_lb.custom_minimum_size = Vector2(0, 16)
+	preset_lb.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	preset_row.add_child(preset_lb)
 
 	var preset_normal := Button.new()
 	preset_normal.text = "普通×2"
 	preset_normal.add_theme_font_size_override("font_size", 7)
-	preset_normal.custom_minimum_size = Vector2(52, 0)
+	preset_normal.custom_minimum_size = Vector2(52, 16)
 	preset_normal.disabled = not can_unlock
 	preset_normal.pressed.connect(func():
 		wave_spin.value = 2
@@ -1125,7 +1172,7 @@ func _show_type_picker_popup(node_idx: int):
 	var preset_elite := Button.new()
 	preset_elite.text = "精英×3"
 	preset_elite.add_theme_font_size_override("font_size", 7)
-	preset_elite.custom_minimum_size = Vector2(52, 0)
+	preset_elite.custom_minimum_size = Vector2(52, 16)
 	preset_elite.disabled = not can_unlock
 	preset_elite.pressed.connect(func():
 		wave_spin.value = 3
@@ -1138,7 +1185,7 @@ func _show_type_picker_popup(node_idx: int):
 	var preset_boss := Button.new()
 	preset_boss.text = "首领×2+援"
 	preset_boss.add_theme_font_size_override("font_size", 7)
-	preset_boss.custom_minimum_size = Vector2(64, 0)
+	preset_boss.custom_minimum_size = Vector2(64, 16)
 	preset_boss.disabled = not can_unlock
 	preset_boss.pressed.connect(func():
 		wave_spin.value = 2
@@ -1151,7 +1198,7 @@ func _show_type_picker_popup(node_idx: int):
 	var preset_clear := Button.new()
 	preset_clear.text = "清空"
 	preset_clear.add_theme_font_size_override("font_size", 7)
-	preset_clear.custom_minimum_size = Vector2(40, 0)
+	preset_clear.custom_minimum_size = Vector2(40, 16)
 	preset_clear.disabled = not can_unlock
 	preset_clear.pressed.connect(func():
 		wave_spin.value = 1
@@ -1249,7 +1296,6 @@ func _show_type_picker_popup(node_idx: int):
 
 			node.max_waves = clampi(int(wave_spin.value), 1, 3)
 			node.reinforcement_count = clampi(int(reinf_spin.value), 0, 5)
-			# ★ v4.5
 			node.reward_multiplier = clampf(float(reward_spin.value), 1.0, 2.0)
 			node.enemy_hp_multiplier = clampf(float(enemy_hp_spin.value), 1.0, 1.5)
 		else:
@@ -1762,7 +1808,6 @@ func _on_variant_prev():
 	_canvas.queue_redraw()
 
 
-# ★ Bug 3 修复：不再自动 append 新变体。新建变体请点 "+" 按钮。
 func _on_variant_next():
 	var arr : Array = _get_variant_array()
 	if _variant_idx + 1 >= arr.size():
@@ -1915,6 +1960,17 @@ func _run_layout_validation():
 			for ni in range(dl.nodes.size()):
 				var node : MapLayoutNode = dl.nodes[ni]
 				var pos_str : String = "(%.0f, %.0f)" % [node.position.x, node.position.y]
+
+				# ★ v4.5：校验倍率
+				if node.reward_multiplier < 1.0 or node.reward_multiplier > 2.0:
+					errors.append("Day%d V%d Node[%d]%s  reward_multiplier=%.2f 越界（应为 1.0-2.0）"
+						% [day_num, vi, ni, pos_str, node.reward_multiplier])
+				if node.enemy_hp_multiplier < 1.0 or node.enemy_hp_multiplier > 1.5:
+					errors.append("Day%d V%d Node[%d]%s  enemy_hp_multiplier=%.2f 越界（应为 1.0-1.5）"
+						% [day_num, vi, ni, pos_str, node.enemy_hp_multiplier])
+				if node.reward_multiplier > 1.0 and node.enemy_hp_multiplier <= 1.0:
+					errors.append("Day%d V%d Node[%d]%s  有奖励倍率但没有负面代价，建议配 enemy_hp_multiplier"
+						% [day_num, vi, ni, pos_str])
 
 				for rid in node.unlock_relics:
 					if not valid_relics.has(rid):

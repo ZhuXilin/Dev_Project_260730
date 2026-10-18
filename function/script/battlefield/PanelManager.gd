@@ -296,7 +296,7 @@ func refresh_relic_list() -> void:
 
 	var relics = GameState.get_relics_from_passives()
 	if relics.is_empty():
-		var label = Label.new()
+		var label := Label.new()
 		label.text = "暂无遗物"
 		label.add_theme_font_size_override("font_size", 6)
 		_bf.item_list_container.add_child(label)
@@ -306,8 +306,9 @@ func refresh_relic_list() -> void:
 		var data = RelicManager.get_relic_data(relic.item_id)
 		if data.is_empty():
 			continue
-		var btn = Button.new()
-		btn.text = data.get("name", "未知遗物")
+		var btn := Button.new()
+		var prefix : String = "★ " if GameState.is_relic_refined(relic.item_id) else ""
+		btn.text = prefix + data.get("name", "未知遗物")
 		var icon_path = data.get("icon", "")
 		if icon_path != "" and ResourceLoader.exists(icon_path):
 			btn.icon = load(icon_path)
@@ -428,7 +429,6 @@ func update_relic_icons() -> void:
 			var data = RelicManager.get_relic_data(p.item_id)
 			if data.is_empty():
 				continue
-			# ★ v4.5：已精炼加 ★ 前缀
 			var prefix : String = "★ " if GameState.is_relic_refined(p.item_id) else "◆ "
 			btn.text = prefix + data.get("name", "?")
 			btn.disabled = true

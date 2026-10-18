@@ -297,9 +297,7 @@ var soul_fire_threshold_override : float:
 	get: return resource_state.soul_fire_threshold_override
 	set(value): resource_state.soul_fire_threshold_override = value
 
-# ============================================================
-#  遗物精炼（v4.5）
-# ============================================================
+# ★ v4.5：遗物精炼
 var relic_fragments: int:
 	get: return resource_state.relic_fragments
 	set(value): resource_state.relic_fragments = value
@@ -431,7 +429,6 @@ func get_global_relic_stats() -> Dictionary:
 			bonus[key] = bonus.get(key, 0) + stats[key]
 	return bonus
 
-
 func get_global_relic_effects() -> Dictionary:
 	var effects := {}
 	for relic in get_relics_from_passives():
@@ -462,7 +459,6 @@ func get_global_relic_effects() -> Dictionary:
 		effects["heal_bonus"] = 0.8
 	return effects
 
-
 func reset_progress(): progress_state.reset_progress()
 func undo_battle_entry(): progress_state.undo_battle_entry()
 
@@ -491,7 +487,8 @@ func start_new_cycle():
 	else:
 		active_tag_pin = ""
 	soul_fire_threshold_override = 0.0
-	# reforge_tickets 跨局保留（不清空）
+	# reforge_tickets 已删除（v4.5）
+	# relic_fragments / relic_levels 跨局保留（不清空）
 
 	for unit_data in party:
 		unit_data.sacrifice_buff_sources.clear()
@@ -555,9 +552,6 @@ func show_abandon_confirmation(parent: Node):
 		func(): pass
 	)
 
-# ============================================================
-#  ★ 重置（公共部分抽出来）
-# ============================================================
 func _reset_common():
 	party.clear()
 	main_unit_name = ""
@@ -582,7 +576,6 @@ func _reset_common():
 
 func reset_for_new_cycle():
 	_reset_common()
-	# ★ 顺带清掉火焰共鸣（原来漏了 LevelManager.reset() 会导致残留）
 	LevelManager.reset()
 
 
