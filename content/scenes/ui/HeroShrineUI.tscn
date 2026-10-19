@@ -62,7 +62,7 @@ text = "金币: 0"
 [node name="CostLabel" type="Label" parent="Panel/VBox/TopBar" unique_id=999000009]
 layout_mode = 2
 theme_override_font_sizes/font_size = 8
-text = "  |  转职: 800G"
+text = "  |  转职: 0G"
 
 [node name="HintLabel" type="Label" parent="Panel/VBox" unique_id=999000010]
 modulate = Color(0.75, 0.75, 0.75, 1)

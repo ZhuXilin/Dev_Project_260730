@@ -3,12 +3,8 @@ extends Node
 var _classes : Dictionary = {}         # class_id → AdvancedClassData
 var _by_unit : Dictionary = {}         # unit_key → Array[AdvancedClassData]
 
-var COST_PER_CLASS : int = 800
-
 
 func _ready():
-	COST_PER_CLASS = int(GameConfigManager.get_value(
-		"progression_config.json", "advanced_class_cost", 800))
 	load_classes()
 
 
@@ -40,7 +36,7 @@ func get_class_data(class_id: String) -> AdvancedClassData:
 
 
 ## 返回该单位的可选分支（用于 HeroShrine 二选一 UI）
-## ★ 隐藏分支：只有剧情解锁（GameState.npc_dialogue_flags 中含对应 flag）才出现
+## 隐藏分支：只有剧情解锁（GameState.npc_dialogue_flags 中含对应 flag）才出现
 func get_branches_for_unit(unit_type: String) -> Array:
 	var key : String = UnitDataManager.normalize_unit_key(unit_type)
 	var all_branches : Array = (_by_unit.get(key, []) as Array)
@@ -60,10 +56,6 @@ func get_class_for_unit(unit_type: String) -> AdvancedClassData:
 	return branches[0] if not branches.is_empty() else null
 
 
-func get_cost_per_class() -> int:
-	return COST_PER_CLASS
-
-
 func get_display_name(class_id: String) -> String:
 	var c = get_class_data(class_id)
 	return c.name if c else class_id
@@ -72,10 +64,6 @@ func get_display_name(class_id: String) -> String:
 # ============================================================
 #  隐藏分支解锁检查
 # ============================================================
-## StoryManager._apply_unlock() 对每个 unlock 都会写一条 flag：
-##     "unlocked_<npc_id>_<uid>"
-## 我们只需扫 GameState.npc_dialogue_flags 里有没有以
-##     "unlocked_" 开头、以 "_<branch_id>" 结尾的字符串。
 func _is_branch_unlocked(branch_id: String) -> bool:
 	if branch_id == "":
 		return false

@@ -6,7 +6,7 @@
 	"archer",
     "cleric"
   ],
-  "initial_candidates": [],
+  "initial_candidates": ["archer", "cleric", "mage"],
   "map_unlock_mapping": {
 	"armored": [
 	  "archer",

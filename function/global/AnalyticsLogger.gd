@@ -1,9 +1,8 @@
 extends Node
 
 # ============================================================
-#  AnalyticsLogger — 本地数据埋点（v4.1）
+#  AnalyticsLogger — 本地数据埋点（v4.5）
 #  仅 debug 版启用。每局结束写一行 JSON 到 user://analytics.log
-#  用途：试玩后回看"设计文档第八节"的 7 项风险指标
 # ============================================================
 
 const LOG_PATH : String = "user://analytics.log"
@@ -37,6 +36,13 @@ func begin_run():
 		"sf_samples_zero": 0,
 		"sf_peak_ratio": 0.0,
 		"sf_lowest_ratio": 1.0,
+
+		# v4.5 新增
+		"high_reward_node_available": 0,
+		"high_reward_node_enter": 0,
+		"high_reward_win": 0,
+		"relic_refine_count": 0,
+		"relic_refined_id_distribution": {},
 	}
 
 
@@ -115,6 +121,35 @@ func record_day_reached(day : int):
 
 
 # ============================================================
+#  v4.5 新增埋点
+# ============================================================
+func record_high_reward_node_available():
+	if not ENABLED: return
+	if _current.is_empty(): return
+	_current["high_reward_node_available"] += 1
+
+
+func record_high_reward_node_enter():
+	if not ENABLED: return
+	if _current.is_empty(): return
+	_current["high_reward_node_enter"] += 1
+
+
+func record_high_reward_win():
+	if not ENABLED: return
+	if _current.is_empty(): return
+	_current["high_reward_win"] += 1
+
+
+func record_relic_refine(relic_id : String):
+	if not ENABLED: return
+	if _current.is_empty(): return
+	_current["relic_refine_count"] += 1
+	var dist : Dictionary = _current["relic_refined_id_distribution"]
+	dist[relic_id] = int(dist.get(relic_id, 0)) + 1
+
+
+# ============================================================
 #  竞技场结果即时打点
 # ============================================================
 func record_arena_result(reason : String, success : bool):
@@ -163,10 +198,7 @@ func _write_line(dict : Dictionary):
 
 
 # ============================================================
-#  ★ 第十一批：导出 CSV
-#  生成两个文件：
-#    user://analytics_runs.csv   —— finish_run 记录（每局一行）
-#    user://analytics_arena.csv  —— record_arena_result 记录（每次结算一行）
+#  导出 CSV
 # ============================================================
 func export_csv():
 	if not FileAccess.file_exists(LOG_PATH):
@@ -192,6 +224,8 @@ func export_csv():
 		"sacrifice_count", "talent_unlock_count",
 		"sf_samples_total", "sf_time_in_burning", "sf_time_in_depleted", "sf_time_in_zero",
 		"sf_peak_ratio", "sf_lowest_ratio",
+		"high_reward_node_available", "high_reward_node_enter", "high_reward_win",
+		"relic_refine_count", "relic_refined_id_distribution",
 	]
 	var arena_keys : Array = ["timestamp", "reason", "success"]
 
@@ -239,9 +273,7 @@ func _csv_escape(v : Variant) -> String:
 
 
 # ============================================================
-#  调用方式：
-#    - GM 控制台：`analytics`
-#    - 直接代码：AnalyticsLogger.dump_summary()
+#  汇总
 # ============================================================
 func dump_summary():
 	if not FileAccess.file_exists(LOG_PATH):
@@ -271,6 +303,11 @@ func dump_summary():
 	var arena_success : int = 0
 	var arena_by_reason : Dictionary = {}
 
+	var high_avail_total : int = 0
+	var high_enter_total : int = 0
+	var high_win_total : int = 0
+	var relic_refine_total : int = 0
+
 	for line in lines:
 		var s : String = line.strip_edges()
 		if s == "":
@@ -278,7 +315,6 @@ func dump_summary():
 		var d = JSON.parse_string(s)
 		if not (d is Dictionary):
 			continue
-		# arena_result 事件单独统计
 		if d.has("event") and str(d["event"]) == "arena_result":
 			arena_records += 1
 			if bool(d.get("success", false)):
@@ -287,7 +323,6 @@ func dump_summary():
 			arena_by_reason[reason] = int(arena_by_reason.get(reason, 0)) + 1
 			continue
 
-		# run 结算记录
 		total += 1
 		if bool(d.get("win", false)):
 			wins += 1
@@ -302,6 +337,10 @@ func dump_summary():
 		dispatch_match_total += int(d.get("dispatch_tag_match_count", 0))
 		sacrifice_total += int(d.get("sacrifice_count", 0))
 		day_reached_max = maxi(day_reached_max, int(d.get("day_reached", 1)))
+		high_avail_total += int(d.get("high_reward_node_available", 0))
+		high_enter_total += int(d.get("high_reward_node_enter", 0))
+		high_win_total += int(d.get("high_reward_win", 0))
+		relic_refine_total += int(d.get("relic_refine_count", 0))
 
 	var total_f : float = maxf(1.0, float(total))
 
@@ -324,6 +363,10 @@ func dump_summary():
 		100.0 * float(dispatch_match_total) / maxf(1.0, float(dispatch_total))])
 	print("献祭：共 %d（局均 %.2f）" % [
 		sacrifice_total, float(sacrifice_total) / total_f])
+	print("高收益节点：可用 %d，进入 %d，胜利 %d" % [
+		high_avail_total, high_enter_total, high_win_total])
+	print("遗物精炼：共 %d 次（局均 %.2f）" % [
+		relic_refine_total, float(relic_refine_total) / total_f])
 	print("竞技场：%d 场（成功 %d）" % [arena_records, arena_success])
 	for r in arena_by_reason:
 		print("  - %s: %d" % [r, arena_by_reason[r]])

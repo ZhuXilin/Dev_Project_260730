@@ -46,6 +46,7 @@ func register_event(event_id: String, event_def: Dictionary):
 	else:
 		print("事件已存在，跳过注册: ", event_id)
 
+
 func trigger_event(event_id: String, unit: Unit = null, default_music: AudioStream = null):
 	if not _events.has(event_id):
 		push_error("未知事件: ", event_id)
@@ -150,7 +151,6 @@ func trigger_event(event_id: String, unit: Unit = null, default_music: AudioStre
 					else:
 						Globals.unlock_item(item_id)
 
-
 			"heal":
 				if unit == null:
 					print("警告: 无单位，跳过 heal")
@@ -179,6 +179,26 @@ func trigger_event(event_id: String, unit: Unit = null, default_music: AudioStre
 						unit.queue_free()
 						TurnManager.check_victory()
 
+			# v4.5 新增：金币奖励
+			"gold":
+				var amount_g = action.get("amount", 0)
+				if amount_g > 0:
+					EconomyManager.add_temp_gold(amount_g)
+					SoundManager.play_get_item_sound()
+				elif amount_g < 0:
+					EconomyManager.subtract_temp_gold(-amount_g)
+				await get_tree().create_timer(0.2).timeout
+
+			# v4.5 新增：魂奖励
+			"soul":
+				var amount_s = action.get("amount", 0)
+				if amount_s > 0:
+					GameState.soul += amount_s
+				elif amount_s < 0:
+					GameState.soul = maxi(0, GameState.soul + amount_s)
+				SaveManager.auto_save()
+				await get_tree().create_timer(0.2).timeout
+
 			"wait":
 				var seconds = action.get("seconds", 0.5)
 				await get_tree().create_timer(seconds).timeout
@@ -192,7 +212,6 @@ func trigger_event(event_id: String, unit: Unit = null, default_music: AudioStre
 					if u != "" and u != null:
 						raw_list.append(u)
 
-				# ★ 走「地图解锁单位 → 可唤醒单位」映射
 				var resolved : Array = Globals.resolve_map_unlock_units(raw_list)
 
 				var newly : Array = []
@@ -202,7 +221,6 @@ func trigger_event(event_id: String, unit: Unit = null, default_music: AudioStre
 					Globals.make_unit_eligible(u)
 
 				if not newly.is_empty():
-					# ★ 文案从「解锁单位」改为「残魂资格」
 					show_unit_eligible_popup(newly)
 
 			"unlock_talent":

@@ -158,7 +158,8 @@ func _roll_gold_option() -> Dictionary:
 	var soul : int = soul_base + randi() % maxi(1, soul_var)
 
 	if _is_premium:
-		soul += 2
+		# v4.5 修复：魂也按 ×1.8 缩放，与文档 4.6/6.11 一致
+		soul = int(soul * 1.8)
 
 	return {"kind": "gold", "gold": gold, "soul": soul}
 

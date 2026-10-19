@@ -33,16 +33,16 @@
 	}
   },
   "whisper_keeper_ember_fusion": {
-	"id": "whisper_keeper_ember_fusion",
-	"speaker": "守火者",
-	"text": "我感觉到你身上有余烬的味道。",
-	"priority": 8,
-	"condition": {},
-	"effect": {
-	  "type": "fusion_hint",
-	  "params": { "hint": "余烬熔合：不灭薪火（魂火上限 +5，开战 +2）" }
-	}
-  },
+  "id": "whisper_keeper_ember_fusion",
+  "speaker": "守火者",
+  "text": "我感觉到你身上有余烬的味道。",
+  "priority": 8,
+  "condition": { "min_tag_count": { "tag": "余烬", "count": 2 } },
+  "effect": {
+	"type": "fusion_hint",
+	"params": { "hint": "余烬熔合：不灭薪火（魂火上限 +5，开战 +2）" }
+  }
+},
   "whisper_gladiator_rating": {
 	"id": "whisper_gladiator_rating",
 	"speaker": "角斗士",

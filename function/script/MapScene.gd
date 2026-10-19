@@ -449,6 +449,11 @@ func generate_map(day: int):
 	GameState.map_snapshot = MapSnapshot.serialize(map_data)
 	print("地图快照已保存，节点数：", GameState.map_snapshot.get("nodes", []).size())
 
+	# v4.5 埋点：统计本张地图的高收益节点数量
+	for node in map_data.nodes:
+		if node.map_data and node.map_data.reward_multiplier > 1.0:
+			AnalyticsLogger.record_high_reward_node_available()
+
 	_apply_visited_state()
 	_draw_connections()
 	_create_node_buttons()
@@ -502,14 +507,18 @@ func on_node_selected(node: MapNode):
 	_is_loading_combat = true
 
 	var key = "%d_%d" % [node.position.x, node.position.y]
-	
+
 	var real_type : int = node.node_type
 	if node.node_type == MapNode.NodeType.QUESTION and node.hidden_node_type != -1:
 		real_type = node.hidden_node_type
-		
+
 	GameState.last_selected_node_type = real_type
 	print("进入节点: ", key, " 类型: ", real_type)
-	
+
+	# v4.5 埋点：进入高收益节点
+	if node.map_data and node.map_data.reward_multiplier > 1.0:
+		AnalyticsLogger.record_high_reward_node_enter()
+
 	if real_type in [
 		MapNode.NodeType.START,
 		MapNode.NodeType.NORMAL,

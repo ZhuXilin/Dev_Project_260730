@@ -1,10 +1,14 @@
 extends Node
 
 # ============================================================
-#  ForgeWhisperManager — FORGE 低语（v4.4）
+#  ForgeWhisperManager — FORGE 低语（v4.5）
 #  - 每局首次进 FORGE 抽 1 条
 #  - 可跳过、可手动重看
-#  - effect 三类：shop_tag_weight_boost / reveal_boss_intel / fusion_hint / none
+#  - effect：shop_tag_weight_boost / reveal_boss_intel / fusion_hint
+#            / grant_flag / unlock_relic / unlock_route / none
+#  - condition 支持：min_run_count / min_altar_level / min_initial_level
+#    / min_weapon_max_level / min_dispatch_count / min_arena_clear
+#    / flags / min_tag_count
 #  - v4.5：状态持久化 + 汇总展示
 # ============================================================
 
@@ -20,9 +24,6 @@ func _ready():
 	load_whispers()
 
 
-# ============================================================
-#  加载
-# ============================================================
 func load_whispers():
 	var path : String = Config.PATHS.FORGE_WHISPER_DATA
 	if not FileAccess.file_exists(path):
@@ -104,7 +105,7 @@ func get_shop_tag_boost(tag : String) -> int:
 
 
 # ============================================================
-#  v4.5：状态序列化（存档用）
+#  状态序列化（存档用）
 # ============================================================
 func export_state() -> Dictionary:
 	return {
@@ -192,6 +193,21 @@ func _check_condition(cond : Dictionary) -> bool:
 		for flag in cond["flags"]:
 			if not (flag in GameState.npc_dialogue_flags):
 				return false
+	# v4.5 新增：队伍标签计数条件
+	# 格式：{"tag": "余烬", "count": 2}
+	if cond.has("min_tag_count"):
+		var tc : Variant = cond["min_tag_count"]
+		if tc is Dictionary:
+			var tag : String = str((tc as Dictionary).get("tag", ""))
+			var need : int = int((tc as Dictionary).get("count", 0))
+			var have : int = 0
+			for ud in GameState.party:
+				if ud.is_dead:
+					continue
+				if tag in ud.tags:
+					have += 1
+			if have < need:
+				return false
 	return true
 
 
@@ -227,5 +243,21 @@ func _apply_effect(whisper : Dictionary):
 			var h : String = str(params.get("hint", ""))
 			if h != "" and not (h in _fusion_hints):
 				_fusion_hints.append(h)
+		# v4.5 新增：低语可给 flag / 解锁内容
+		"grant_flag":
+			var flag : String = str(params.get("flag", ""))
+			if flag != "" and not (flag in GameState.npc_dialogue_flags):
+				GameState.npc_dialogue_flags.append(flag)
+				print("[ForgeWhisper] 授予 flag：%s" % flag)
+		"unlock_relic":
+			var rid : String = str(params.get("relic_id", ""))
+			if rid != "":
+				RelicManager.unlock_relic(rid)
+				print("[ForgeWhisper] 解锁遗物：%s" % rid)
+		"unlock_route":
+			var route_id : String = str(params.get("route_id", ""))
+			if route_id != "":
+				DispatchManager.unlock_route(route_id)
+				print("[ForgeWhisper] 解锁派遣路线：%s" % route_id)
 		_:
 			pass

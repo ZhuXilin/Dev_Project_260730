@@ -28,7 +28,8 @@ const VALID_UNLOCK_TYPES : Array = ["unit", "relic", "aura", "route", "talent", 
 const VALID_ACTION_TYPES : Array = [
 	"dialog", "give_item", "heal", "damage", "wait",
 	"complete", "unlock_unit", "unlock_talent",
-	"unlock_equipment", "unlock_relics"
+	"unlock_equipment", "unlock_relics",
+	"gold", "soul",
 ]
 const VALID_QUALITIES : Array = ["common", "rare", "epic", "legendary"]
 const MAX_CAP_LEVEL : int = 3

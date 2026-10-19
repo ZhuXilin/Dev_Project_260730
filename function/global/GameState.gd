@@ -312,6 +312,7 @@ func refine_relic(relic_id: String) -> bool:
 	soul -= REFINE_COST
 	relic_levels[relic_id] = 1
 	SaveManager.auto_save()
+	AnalyticsLogger.record_relic_refine(relic_id)
 	return true
 
 var pending_save_slot : int = -1

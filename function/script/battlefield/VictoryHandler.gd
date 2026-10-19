@@ -50,13 +50,11 @@ func _compute_rating() -> String:
 		hp_loss_ratio /= float(total_start)
 
 	var turns : int = Globals.current_battle_turn
-	# 波次战斗的回合分按总波次归一化
 	var wave_mult : int = 1
 	if GameState.current_map_data:
 		wave_mult = maxi(1, GameState.current_map_data.max_waves)
 	var turn_score : float = clampf(1.0 - float(turns) / (20.0 * float(wave_mult)), 0.0, 1.0)
 
-	# 按目标类型分叉评级公式
 	var obj_type : int = MapData.ObjectiveType.ANNIHILATE
 	if ObjectiveManager != null:
 		obj_type = ObjectiveManager.get_objective_type()
@@ -64,7 +62,6 @@ func _compute_rating() -> String:
 	var score : float = 0.0
 	match obj_type:
 		MapData.ObjectiveType.CAPTURE:
-			# 占领：核心看"最少额外回合完成占点"
 			var hold_turns : int = 3
 			if ObjectiveManager != null:
 				hold_turns = maxi(1, ObjectiveManager.get_capture_hold_turns())
@@ -73,15 +70,12 @@ func _compute_rating() -> String:
 			score = alive_ratio * 0.2 + (1.0 - hp_loss_ratio) * 0.2 + hold_score * 0.6
 
 		MapData.ObjectiveType.FLAG:
-			# 夺旗：回合权重最高，鼓励"跑得越快越好"
 			score = alive_ratio * 0.15 + (1.0 - hp_loss_ratio) * 0.15 + turn_score * 0.7
 
 		MapData.ObjectiveType.ASSAULT:
-			# 突进：回合权重高，损失权重低（斩首就是消耗战）
 			score = alive_ratio * 0.15 + (1.0 - hp_loss_ratio) * 0.15 + turn_score * 0.7
 
 		_:
-			# 全灭：原公式
 			score = alive_ratio * 0.4 + (1.0 - hp_loss_ratio) * 0.4 + turn_score * 0.2
 
 	if score >= 0.9: return "S"
@@ -157,7 +151,6 @@ func on_request_show_victory(winning_team: int) -> void:
 			]
 
 			if not is_non_combat_node:
-				# ★ v4.5：高收益节点倍率
 				var mult : float = 1.0
 				if GameState.current_map_data != null:
 					mult = maxf(1.0, GameState.current_map_data.reward_multiplier)
@@ -177,12 +170,17 @@ func on_request_show_victory(winning_team: int) -> void:
 				EconomyManager.add_temp_gold(gold_gain)
 				SoulFireManager.add(soul_fire_gain)
 
+				# v4.5 修复：高收益节点稀有掉落数量 × multiplier
 				GameState.current_reward_rare_datas.clear()
-				var rare_drop : Dictionary = roll_rare_drop_for_node(_bf.current_node_type)
-				if not rare_drop.is_empty():
-					var rare_data : ItemData = apply_rare_drop(rare_drop)
+				var rare_drops : Array = roll_rare_drop_for_node(_bf.current_node_type)
+				for drop in rare_drops:
+					var rare_data : ItemData = apply_rare_drop(drop)
 					if rare_data:
 						GameState.current_reward_rare_datas.append(rare_data)
+
+				# v4.5 埋点：高收益节点胜利
+				if is_win and mult > 1.0:
+					AnalyticsLogger.record_high_reward_win()
 
 				print("--- 资源累加完成 ---")
 				print("temp_gold: ", GameState.temp_gold)
@@ -253,7 +251,6 @@ func on_map_victory_continue() -> void:
 	var rating : String = _compute_rating()
 	var rating_soul_bonus : int = 0
 	if rating == "S":
-		# ★ v4.5：S 评级魂也吃高收益倍率
 		var mult : float = 1.0
 		if GameState.current_map_data != null:
 			mult = maxf(1.0, GameState.current_map_data.reward_multiplier)
@@ -390,6 +387,17 @@ func on_map_victory_continue() -> void:
 		GameState.should_advance_day = true
 		print("Boss 胜利，设置 should_advance_day = true")
 
+		# v4.5 修复：按天数解锁对应遗物，补上 6.4 的两层结构
+		var relics_to_unlock : Array = []
+		match GameState.current_day:
+			1: relics_to_unlock = ["relic_attack", "relic_defense", "relic_health"]
+			2: relics_to_unlock = ["relic_strength", "relic_faith"]
+			3: relics_to_unlock = ["relic_phoenix"]
+		for rid in relics_to_unlock:
+			if not RelicManager.is_relic_unlocked(rid):
+				RelicManager.unlock_relic(rid)
+				print("[VictoryHandler] Day%d BOSS 解锁遗物：%s" % [GameState.current_day, rid])
+
 		if is_last_day:
 			print("第三天最终Boss，跳过遗物三选一和英灵殿")
 		else:
@@ -465,12 +473,13 @@ func on_retry_battle() -> void:
 
 
 # ============================================================
-#  ★ 第四批：稀有掉落单次遍历
+#  v4.5 修复：稀有掉落数量 × reward_multiplier
+#  返回 Array（0 / 1 / 2 件），调用方循环 apply_rare_drop
 # ============================================================
-func roll_rare_drop_for_node(node_type: int) -> Dictionary:
+func roll_rare_drop_for_node(node_type: int) -> Array:
 	var chance : float = RARE_DROP_CHANCE.get(node_type, 0.0)
 	if randf() > chance:
-		return {}
+		return []
 
 	var pool : Array = []
 
@@ -490,9 +499,18 @@ func roll_rare_drop_for_node(node_type: int) -> Dictionary:
 		pool.append({"type": "armor", "id": iid})
 
 	if pool.is_empty():
-		return {}
+		return []
+
+	var mult : float = 1.0
+	if GameState.current_map_data != null:
+		mult = maxf(1.0, GameState.current_map_data.reward_multiplier)
+	var count : int = 2 if mult >= 2.0 else 1
+
 	pool.shuffle()
-	return pool[0]
+	var result : Array = []
+	for i in range(mini(count, pool.size())):
+		result.append(pool[i])
+	return result
 
 
 func apply_rare_drop(drop : Dictionary) -> ItemData:
