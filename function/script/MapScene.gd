@@ -1049,9 +1049,10 @@ func _update_soul_fire_display():
 func _show_resonance_hint():
 	var r : Dictionary = LevelManager.current_resonance
 	if resonance_label:
-		resonance_label.text = "" if r.is_empty() else "★ 共鸣：" + str(r.get("display", ""))
-	if r.is_empty(): return
-	_show_floating_toast("火焰共鸣：%s" % r.get("display", ""))
+		resonance_label.text = "" if r.is_empty() else "共鸣 " + str(r.get("display", ""))
+	if r.is_empty():
+		return
+	_show_bottom_hint("共鸣：" + str(r.get("display", "")))
 
 
 func _show_floating_toast(text : String):
@@ -1070,4 +1071,38 @@ func _show_floating_toast(text : String):
 	tw.tween_property(toast, "modulate:a", 0.0, 0.3).set_delay(2.0)
 	tw.tween_callback(func():
 		if is_instance_valid(toast): toast.queue_free()
+	)
+
+
+# v4.5：底部小字提示（参考魂火视觉方案，避免遮挡）
+func _show_bottom_hint(text: String):
+	var hint := Label.new()
+	hint.text = text
+	hint.add_theme_font_size_override("font_size", 7)
+	hint.add_theme_color_override("font_color", Color(0.75, 0.72, 0.55))
+	hint.add_theme_color_override("font_outline_color", Color.BLACK)
+	hint.add_theme_constant_override("outline_size", 1)
+	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	hint.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	# 屏幕底部居中
+	hint.anchor_left = 0.5
+	hint.anchor_right = 0.5
+	hint.anchor_top = 1.0
+	hint.anchor_bottom = 1.0
+	hint.offset_left = -120
+	hint.offset_right = 120
+	hint.offset_top = -22
+	hint.offset_bottom = -10
+	hint.modulate = Color(1, 1, 1, 0)
+	hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(hint)
+
+	var tw := create_tween()
+	tw.set_ignore_time_scale(true)
+	tw.tween_property(hint, "modulate:a", 1.0, 0.15)
+	tw.tween_interval(1.5)
+	tw.tween_property(hint, "modulate:a", 0.0, 0.4)
+	tw.tween_callback(func():
+		if is_instance_valid(hint):
+			hint.queue_free()
 	)
