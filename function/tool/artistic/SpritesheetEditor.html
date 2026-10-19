@@ -2236,7 +2236,7 @@ function showCropDialog(bounds){
     + '<div class="field"><label>' + (currentLang==='zh'?'区域':'Region') + '</label>'
     + '<span style="font-family:ui-monospace,Consolas,monospace;color:#aaa">(' + bounds.x + ', ' + bounds.y + ') → (' + (bounds.x + newW) + ', ' + (bounds.y + newH) + ')</span></div>'
     + '<div style="color:#666;font-size:11px;margin-top:10px">'
-    + (currentLang==='zh'?'提示：裁切后可用 Ctrl+Z 撤销。':'Tip: You can Undo with Ctrl+Z after cropping.')
+    + (currentLang==='zh'?'提示：Enter 确认 · Esc 取消 · 裁切后可用 Ctrl+Z 撤销。':'Tip: Enter to confirm · Esc to cancel · Undo with Ctrl+Z after cropping.')
     + '</div>';
   showModal(
     currentLang==='zh'?'裁切图片':'Crop Image',
@@ -2583,7 +2583,8 @@ function onCanvasMouseDown(e){
     pickAt({x:m.px,y:m.py}); e.preventDefault(); return;
   }
 
-  if((vDown || mDown) && doc.hasSelection && isSelected(m.px, m.py) && !e.shiftKey && !e.altKey && !modCtrl){
+  /* ★ V/M 按住拖动 → 只移动选区（Shift 用于锁定直线，与移动像素一致） */
+  if((vDown || mDown) && doc.hasSelection && isSelected(m.px, m.py) && !e.altKey && !modCtrl){
     if(vDown) vDragged = true;
     if(mDown) mDragged = true;
     drag.mode = 'move-sel';
@@ -2735,9 +2736,14 @@ function onCanvasMouseMove(e){
     setStatus((currentLang==='zh'?'移动 ':'Move ')+'dx='+dx+', dy='+dy);
     requestRender(); return;
   }
+  /* ★ move-sel：与 move 一致的 Shift 轴锁定 */
   if(drag.mode === 'move-sel' && drag.selBackup && drag.selBackupBounds){
     var ddx = m.px - drag.moveSelOrigin.x;
     var ddy = m.py - drag.moveSelOrigin.y;
+    if(e.shiftKey){
+      if(Math.abs(ddx) >= Math.abs(ddy)) ddy = 0;
+      else ddx = 0;
+    }
     drag.lastDx = ddx; drag.lastDy = ddy;
     var W = doc.width, H = doc.height;
     var bb = drag.selBackupBounds;
@@ -2754,7 +2760,9 @@ function onCanvasMouseMove(e){
       }
     }
     recalcBounds();
-    setStatus((currentLang==='zh'?'仅移动选区 ':'Move selection ')+'dx='+ddx+', dy='+ddy);
+    setStatus((currentLang==='zh'?'仅移动选区 ':'Move selection ')
+      +'dx='+ddx+', dy='+ddy
+      +(e.shiftKey?(currentLang==='zh'?' · 锁定':' · locked'):''));
     requestRender(); return;
   }
   if(drag.mode === 'lasso' && drag.lassoPoints){
@@ -2884,6 +2892,17 @@ function onKeyDown(e){
     }
   }
 
+  /* ★ 数字键 1~4：打开 PNG / 另存 PNG / 打开工程 / 另存工程
+     （原 1~7 切换工具的数字快捷键已移除，工具由字母键 V/M/B/E/I/G/J/C 负责） */
+  if(!e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey && !e.repeat){
+    switch(e.code){
+      case 'Digit1': case 'Numpad1': e.preventDefault(); openPng();          return;
+      case 'Digit2': case 'Numpad2': e.preventDefault(); savePng(true);      return;
+      case 'Digit3': case 'Numpad3': e.preventDefault(); openProject();      return;
+      case 'Digit4': case 'Numpad4': e.preventDefault(); saveProject(true);  return;
+    }
+  }
+
   /* 裁切：C 键（无修饰键） */
   if(!e.ctrlKey && !e.metaKey && !e.altKey && (k === 'c' || k === 'C')){
     e.preventDefault();
@@ -2935,13 +2954,6 @@ function onKeyDown(e){
     case 'i': case 'I': setTool(TOOL.PICKER); break;
     case 'g': case 'G': setTool(TOOL.BUCKET); break;
     case 'j': case 'J': setTool(TOOL.REPLACE); break;
-    case '1': setTool(TOOL.SELECT); break;
-    case '2': setTool(TOOL.PENCIL); break;
-    case '3': setTool(TOOL.ERASER); break;
-    case '4': setTool(TOOL.BUCKET); break;
-    case '5': setTool(TOOL.PICKER); break;
-    case '6': setTool(TOOL.REPLACE); break;
-    case '7': setTool(TOOL.LASSO); break;
     case 'ArrowLeft':
       if(doc.floating){
         doc.floating.x--;
@@ -3888,15 +3900,23 @@ function showModal(title, bodyHTML, onOK, okLabel){
     if(closed) return;
     closed = true;
     if(back.parentNode) document.body.removeChild(back);
-    document.removeEventListener('keydown', onEscCapture, true);
+    document.removeEventListener('keydown', onModalKey, true);
   };
-  var onEscCapture = function(ev){
+  // ★ 统一支持：Enter 确认 / Esc 取消（capture 阶段拦截，避免触发全局快捷键）
+  function onModalKey(ev){
     if(ev.key === 'Escape'){
       ev.preventDefault(); ev.stopPropagation();
       close();
+      return;
     }
-  };
-  document.addEventListener('keydown', onEscCapture, true);
+    if(ev.key === 'Enter' || ev.key === 'NumpadEnter'){
+      ev.preventDefault(); ev.stopPropagation();
+      if(closed) return;
+      var okBtn = back.querySelector('.ok');
+      if(okBtn) okBtn.click();
+    }
+  }
+  document.addEventListener('keydown', onModalKey, true);
   back.querySelector('.cancel').addEventListener('click', close);
   back.querySelector('.ok').addEventListener('click', function(){
     var result = onOK(back);
@@ -3922,6 +3942,9 @@ function showResizeDialog(){
     + '<div class="anchor-cell" data-a="0"></div><div class="anchor-cell" data-a="1"></div><div class="anchor-cell" data-a="2"></div>'
     + '<div class="anchor-cell" data-a="3"></div><div class="anchor-cell active" data-a="4"></div><div class="anchor-cell" data-a="5"></div>'
     + '<div class="anchor-cell" data-a="6"></div><div class="anchor-cell" data-a="7"></div><div class="anchor-cell" data-a="8"></div>'
+    + '</div>'
+    + '<div style="color:#666;font-size:11px;margin-top:6px">'
+    + (currentLang==='zh'?'提示：Enter 确认 · Esc 取消':'Tip: Enter to confirm · Esc to cancel')
     + '</div>';
   var el = showModal(currentLang==='zh'?'调整画布尺寸':'Resize Canvas', bodyHTML,
     function(dlg){
@@ -4075,7 +4098,7 @@ var I18N = {
   'menu.selCell': {zh:'选择当前格', en:'Select Current Cell'},
   'menu.crop': {zh:'裁切到选区', en:'Crop to Selection'},
   'menu.delSel': {zh:'删除选中像素', en:'Delete Selected Pixels'},
-  'status.ready': {zh:'就绪 — V 选择 · M 套索 · C 裁切 · B 铅笔 · R 旋转 · Q 视图切换 · ←/→ A/D 逐帧 · 空格播放', en:'Ready — V Select · M Lasso · C Crop · B Pencil · R Rotate · Q View Mode · ←/→ A/D Frame · Space Play'}
+  'status.ready': {zh:'就绪 — 1 打开 PNG · 2 另存 PNG · 3 打开工程 · 4 另存工程 · V 选择 · M 套索 · C 裁切 · B 铅笔 · R 旋转 · Q 视图切换 · ←/→ A/D 逐帧 · 空格播放', en:'Ready — 1 Open PNG · 2 Save-As PNG · 3 Open Project · 4 Save-As Project · V Select · M Lasso · C Crop · B Pencil · R Rotate · Q View Mode · ←/→ A/D Frame · Space Play'}
 };
 
 var I18N_TITLE = {
@@ -4084,8 +4107,8 @@ var I18N_TITLE = {
     en:'Drag top ruler down → horizontal guide\nDrag left ruler right → vertical guide\nCtrl + drag near guide → move it\nAuto-snap to cell edges / centers while dragging\nDouble-click guide → delete\nWhen hidden, snapping is disabled'
   },
   'help.sel': {
-    zh:'选择工具 (V)：Shift=正方形 · Ctrl=加选 · Alt=减选\n套索工具 (M)：Shift=正圆 · Ctrl=加选 · Alt=减选\n按住 V 或 M 拖动选区内 → 仅移动选区\n普通拖动选区内 → 浮起像素并移动（Shift 锁轴）\n按住 R + 鼠标移动 → 围绕选区中心旋转（Shift=45°）\nC → 裁切图片到选区\nQ → 切换单格/全图显示\n← → / A D → 切换动画帧（长按连续播放，释放停住）\n空格 → 播放 / 暂停；空格 + 拖动 → 平移画布\nCtrl+C 复制 · Ctrl+X 剪切 · Ctrl+V 粘贴 · Ctrl+Shift+V 粘贴为新图层',
-    en:'Select (V): Shift=Square · Ctrl=Add · Alt=Subtract\nLasso (M): Shift=Circle · Ctrl=Add · Alt=Subtract\nHold V or M and drag inside → move selection only\nNormal drag inside → float pixels & move (Shift=lock axis)\nHold R + move mouse → rotate around selection center (Shift=45°)\nC → Crop image to selection\nQ → Toggle single cell / full canvas\n← → / A D → step animation frames (hold = continuous, release = stop)\nSpace → play/pause; Space + drag → pan\nCtrl+C Copy · Ctrl+X Cut · Ctrl+V Paste · Ctrl+Shift+V Paste as new layer'
+    zh:'选择工具 (V)：Shift=正方形 · Ctrl=加选 · Alt=减选\n套索工具 (M)：Shift=正圆 · Ctrl=加选 · Alt=减选\n按住 V 或 M 拖动选区内 → 仅移动选区（Shift=锁定水平/垂直）\n普通拖动选区内 → 浮起像素并移动（Shift 锁轴）\n按住 R + 鼠标移动 → 围绕选区中心旋转（Shift=45°）\nC → 裁切图片到选区\nQ → 切换单格/全图显示\n← → / A D → 切换动画帧（长按连续播放，释放停住）\n空格 → 播放 / 暂停；空格 + 拖动 → 平移画布\nCtrl+C 复制 · Ctrl+X 剪切 · Ctrl+V 粘贴 · Ctrl+Shift+V 粘贴为新图层\n1 打开 PNG · 2 另存 PNG · 3 打开工程 · 4 另存工程',
+    en:'Select (V): Shift=Square · Ctrl=Add · Alt=Subtract\nLasso (M): Shift=Circle · Ctrl=Add · Alt=Subtract\nHold V or M and drag inside → move selection only (Shift=lock axis)\nNormal drag inside → float pixels & move (Shift=lock axis)\nHold R + move mouse → rotate around selection center (Shift=45°)\nC → Crop image to selection\nQ → Toggle single cell / full canvas\n← → / A D → step animation frames (hold = continuous, release = stop)\nSpace → play/pause; Space + drag → pan\nCtrl+C Copy · Ctrl+X Cut · Ctrl+V Paste · Ctrl+Shift+V Paste as new layer\n1 Open PNG · 2 Save-As PNG · 3 Open Project · 4 Save-As Project'
   },
   'tt.rotCcw': {zh:'逆时针旋转 90°', en:'Rotate 90° CCW'},
   'tt.rotCw':  {zh:'顺时针旋转 90°', en:'Rotate 90° CW'},
