@@ -177,54 +177,37 @@ func _generate_default_terrain(map_size: Vector2i) -> void:
 # ============================================================
 func _extract_map_unit_placers(node: Node) -> void:
 	_bf.map_functions.clear()
-	var battle_start_event = ""
-	var tool_nodes : Array[Node] = []
-
+	var tool_nodes: Array[Node] = []
 	_find_tools(node, tool_nodes)
 
 	for tool in tool_nodes:
 		var cfg = tool.export_config()
-		var cell : Vector2i
-		if cfg is Dictionary:
-			if cfg.has("position"):
-				cell = cfg["position"]
-			else:
-				continue
-		else:
+		if not (cfg is Dictionary):
 			continue
+		var cd: Dictionary = cfg
+		if not cd.has("position"):
+			continue
+		var cell: Vector2i = cd["position"]
+		var entry: Dictionary = {"triggered": false}
 
-		var entry = {"triggered": false}
-
-		match cfg.get("type", ""):
+		match str(cd.get("type", "")):
 			"event_trigger":
-				var event_id = cfg.get("event_id", "")
+				var event_id: String = str(cd.get("event_id", ""))
 				if event_id != "":
 					entry["event_id"] = event_id
 					_bf.map_functions[cell] = entry
-					print("功能格: 位置 ", cell, " 事件ID: ", event_id)
-
 			"hp_function":
-				var amount = cfg.get("hp_amount", 0)
+				var amount: int = int(cd.get("hp_amount", 0))
 				if amount != 0:
-					var generated_id = "hp_%d_%d" % [cell.x, cell.y]
-					var action_type = "heal" if amount > 0 else "damage"
-					var actions = [{ "type": action_type, "amount": amount }]
-					EventManager.register_event(generated_id, { "actions": actions, "once": false })
-					entry["event_id"] = generated_id
+					var gen_id: String = "hp_%d_%d" % [cell.x, cell.y]
+					var atype: String = "heal" if amount > 0 else "damage"
+					EventManager.register_event(gen_id, {
+						"actions": [{"type": atype, "amount": amount}],
+						"once": false,
+					})
+					entry["event_id"] = gen_id
 					_bf.map_functions[cell] = entry
-					print("功能格: 位置 ", cell, " HP事件: ", generated_id)
-
-			"battle_start":
-				var event_id = cfg.get("event_id", "")
-				if event_id != "":
-					battle_start_event = event_id
-					print("战斗开始事件: ", event_id)
-
-			_:
-				pass
-
-	_bf._battle_start_event_id = battle_start_event
-	print("共提取 ", _bf.map_functions.size(), " 个功能格，战斗开始事件: ", battle_start_event)
+			# v4.6：battle_start 类型已删除，不处理
 
 	for tool in tool_nodes:
 		if is_instance_valid(tool):
@@ -232,7 +215,8 @@ func _extract_map_unit_placers(node: Node) -> void:
 
 
 func _find_tools(node: Node, result: Array) -> void:
-	if node is EventTrigger or node is HpFunction or node is BattleStartEvent:
+	# v4.6：BattleStartEvent 已删除，只保留两类
+	if node is EventTrigger or node is HpFunction:
 		result.append(node)
 	for child in node.get_children():
 		_find_tools(child, result)

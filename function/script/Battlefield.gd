@@ -60,7 +60,6 @@ var _damage_popup_layer : CanvasLayer = null
 
 var map_grid_size : Vector2i = MapConst.DEFAULT_MAP_SIZE
 var _initialized : bool = false
-var _battle_start_event_id : String = ""
 var map_functions : Dictionary = {}
 var is_non_combat_mode: bool = false
 var non_combat_back_button: Button = null
@@ -252,14 +251,9 @@ func _ready():
 		_panel_manager.update_relic_icons()
 		return
 
-	if _battle_start_event_id != "":
-		var music = MusicManager.config.battle_start_dialogue_music if MusicManager.config else null
-		if EventManager and EventManager.has_event(_battle_start_event_id):
-			await EventManager.trigger_event(_battle_start_event_id, null, music)
-		else:
-			if DialogueManager.has_dialogue(_battle_start_event_id):
-				DialogueManager.start_dialogue(_battle_start_event_id, music)
-				await DialogueManager.dialogue_finished
+	var battle_ctx: Dictionary = _build_battle_start_context()
+	if StoryManager.trigger("battle_start", battle_ctx):
+		await DialogueManager.dialogue_finished
 
 	if MusicManager:
 		MusicManager.stop_music()
@@ -353,6 +347,34 @@ func _ready():
 
 	_marked_targets.clear()
 	print("Battlefield _ready 完成")
+
+
+func _build_battle_start_context() -> Dictionary:
+	var md: MapData = GameState.current_map_data
+	var node_type: int = md.node_type if md != null else MapNode.NodeType.NORMAL
+	var is_boss: bool = (node_type == MapNode.NodeType.BOSS)
+	var is_elite: bool = (node_type == MapNode.NodeType.ELITE)
+	var is_start: bool = (node_type == MapNode.NodeType.START)
+
+	var tags: Array = []
+	for ud in GameState.party:
+		if ud.is_dead:
+			continue
+		for t in ud.tags:
+			if not (t in tags):
+				tags.append(t)
+
+	return {
+		"node_type": node_type,
+		"is_boss": is_boss,
+		"is_elite": is_elite,
+		"is_start": is_start,
+		"current_day": GameState.current_day,
+		"map_name": md.map_name if md != null else "",
+		"tutorial_stage": GameState.tutorial_stage,
+		"total_run_count": GameState.total_run_count,
+		"team_tags": tags,
+	}
 
 
 # ============================================================
@@ -1135,13 +1157,11 @@ func _deferred_show_boss_intel():
 	await get_tree().create_timer(2.5, true, false, true).timeout
 	if not is_inside_tree():
 		return
-	if ForgeWhisperManager == null:
-		return
 	if GameState.current_map_data == null:
 		return
 	if GameState.current_map_data.node_type != MapNode.NodeType.BOSS:
 		return
-	var intels : Array = ForgeWhisperManager.get_revealed_intel()
+	var intels : Array = GameState.revealed_intel
 	if intels.is_empty():
 		return
 	_show_intel_banner(str(intels[0]))

@@ -298,10 +298,49 @@ var soul_fire_threshold_override : float:
 	get: return resource_state.soul_fire_threshold_override
 	set(value): resource_state.soul_fire_threshold_override = value
 
-# ★ v4.5：遗物精炼
 var relic_levels: Dictionary:
 	get: return resource_state.relic_levels
 	set(value): resource_state.relic_levels = value
+
+var npc_interact_counts: Dictionary:
+	get: return resource_state.npc_interact_counts
+	set(value): resource_state.npc_interact_counts = value
+
+var dialogue_play_counts: Dictionary:
+	get: return resource_state.dialogue_play_counts
+	set(value): resource_state.dialogue_play_counts = value
+
+var active_narrative_effects: Array:
+	get: return resource_state.active_narrative_effects
+	set(value): resource_state.active_narrative_effects = value
+
+var revealed_intel: Array:
+	get: return resource_state.revealed_intel
+	set(value): resource_state.revealed_intel = value
+
+var fusion_hints: Array:
+	get: return resource_state.fusion_hints
+	set(value): resource_state.fusion_hints = value
+
+
+## 商店标签权重查询（替代 ForgeWhisperManager.get_shop_tag_boost）
+func get_shop_tag_boost(tag: String) -> int:
+	var total: int = 0
+	for e in active_narrative_effects:
+		if not (e is Dictionary):
+			continue
+		var ed: Dictionary = e
+		if ed.get("type", "") == "shop_tag_weight_boost" and ed.get("tag", "") == tag:
+			total += int(ed.get("amount", 0))
+	return total
+
+
+## 清空本局 effect（进新局时调）
+func clear_narrative_effects_for_new_run() -> void:
+	active_narrative_effects.clear()
+	revealed_intel.clear()
+	fusion_hints.clear()
+
 
 func is_relic_refined(relic_id: String) -> bool:
 	return int(relic_levels.get(relic_id, 0)) >= 1
@@ -499,8 +538,7 @@ func start_new_cycle():
 	SoulFireManager.reset_for_new_run()
 	if BossMechanicManager:
 		BossMechanicManager.setup_for_node(false)
-	if ForgeWhisperManager:
-		ForgeWhisperManager.reset_for_new_run()
+	clear_narrative_effects_for_new_run()
 	SaveManager.auto_save()
 	AnalyticsLogger.begin_run()
 

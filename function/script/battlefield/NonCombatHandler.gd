@@ -22,21 +22,22 @@ func setup_non_combat_mode() -> void:
 		music_stream = MusicManager.config.map_music
 	if music_stream:
 		MusicManager.play_music(music_stream)
-		
+
 	if _bf.setting_panel: _bf.setting_panel.visible = false
 
-	if _bf._battle_start_event_id != "":
-		print("检测到非战斗地图事件：", _bf._battle_start_event_id)
-		var music = MusicManager.config.battle_start_dialogue_music if MusicManager.config else null
-		if EventManager and EventManager.has_event(_bf._battle_start_event_id):
-			await EventManager.trigger_event(_bf._battle_start_event_id, null, music)
-		else:
-			if DialogueManager.has_dialogue(_bf._battle_start_event_id):
-				DialogueManager.start_dialogue(_bf._battle_start_event_id, music)
-				await DialogueManager.dialogue_finished
-			else:
-				print("警告：非战斗地图事件/对话不存在: ", _bf._battle_start_event_id)
-		print("非战斗地图事件结束")
+	# v4.6：map_enter 事件驱动（有匹配才弹，没有就算了）
+	var md : MapData = GameState.current_map_data
+	var ctx : Dictionary = {
+		"node_type": md.node_type if md != null else -1,
+		"current_day": GameState.current_day,
+		"map_name": md.map_name if md != null else "",
+		"tutorial_stage": GameState.tutorial_stage,
+		"total_run_count": GameState.total_run_count,
+	}
+	if StoryManager.trigger("map_enter", ctx):
+		print("[NonCombat] 触发 map_enter 对话")
+		await DialogueManager.dialogue_finished
+		print("[NonCombat] map_enter 对话结束")
 
 	print("非战斗模式设置完成，回合系统已启动，等待玩家操作")
 

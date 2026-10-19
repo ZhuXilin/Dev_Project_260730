@@ -1,57 +1,36 @@
 extends Node
 
+# ============================================================
+#  DialogueManager — 纯播放器
+#  职责：接收 lines / choices，驱动 DialogueUI
+#  数据加载、条件判断、去重、effect 全部由 StoryManager 负责
+#  对外唯一入口：
+#    start_inline_dialogue(lines, music_stream)
+#    start_inline_dialogue_with_choices(lines, choices, music_stream)
+# ============================================================
+
 @export var music_transition_delay : float = 0.5
-@export var json_path : String = Config.PATHS.DIALOGUE_DATA
 
 var dialogue_ui : CanvasLayer = null
 var dialogue_panel : Panel = null
 var name_label : Label = null
 var text_label : Label = null
 var _choice_container : VBoxContainer = null
-var _dialogues : Dictionary = {}
-var current_dialogue_id : String = ""
+
+# v4.6：当前播放的台词列表（不再依赖 _dialogues 字典）
+var _current_entries : Array = []
 var current_index : int = 0
 var is_active : bool = false
 var can_interact : bool = false
 
 var _pending_choices : Array = []
 
-var _default_dialogue = [{"speaker": "???", "text": "......"}]
-
 signal dialogue_finished
 signal choice_selected(index: int, data: Dictionary)
 
 
 func _ready():
-	_load_dialogues()
 	call_deferred("_load_ui")
-
-
-func _load_dialogues():
-	if not FileAccess.file_exists(json_path):
-		push_error("对话 JSON 文件不存在: ", json_path)
-		return
-	var file = FileAccess.open(json_path, FileAccess.READ)
-	var content = file.get_as_text()
-	file.close()
-	var data = JSON.parse_string(content)
-	if data == null or not data is Dictionary:
-		push_error("JSON 解析失败或格式错误")
-		return
-	_dialogues = data
-	print("成功加载 ", _dialogues.size(), " 个对话事件")
-
-
-func _get_dialogue_entries(dialogue_id: String) -> Array:
-	if _dialogues.has(dialogue_id) and _dialogues[dialogue_id].size() > 0:
-		return _dialogues[dialogue_id]
-	else:
-		print("警告：对话 ", dialogue_id, " 不存在，使用默认对话")
-		return _default_dialogue
-
-
-func has_dialogue(dialogues_id: String) -> bool:
-	return _dialogues.has(dialogues_id) and _dialogues[dialogues_id].size() > 0
 
 
 func has_pending_choices() -> bool:
@@ -59,50 +38,8 @@ func has_pending_choices() -> bool:
 
 
 # ============================================================
-#  启动
+#  启动（唯一入口）
 # ============================================================
-func start_dialogue(dialogues_id: String, music_stream: AudioStream = null):
-	if not dialogue_ui or not is_instance_valid(dialogue_ui):
-		_load_ui()
-		if not dialogue_ui or not is_instance_valid(dialogue_ui):
-			push_error("Dialogue UI 未加载，无法启动对话")
-			return
-
-	var entries = _get_dialogue_entries(dialogues_id)
-	if entries.is_empty():
-		print("警告：对话 ", dialogues_id, " 无条目，跳过")
-		dialogue_finished.emit()
-		return
-
-	if is_active:
-		return
-
-	SignalBus.request_hide_info.emit()
-	SignalBus.request_clear_highlight.emit()
-	SignalBus.request_clear_highlight_unit.emit()
-
-	is_active = true
-	can_interact = false
-	Globals.is_dialogue_active = true
-
-	if dialogue_panel and is_instance_valid(dialogue_panel):
-		PanelRevealer.show_panel(dialogue_panel)
-	else:
-		dialogue_ui.visible = true
-
-	MusicManager.pause_and_save()
-	await get_tree().create_timer(music_transition_delay, true, false, true).timeout
-	if music_stream != null:
-		MusicManager.play_music(music_stream)
-	else:
-		MusicManager.play_dialogue_music()
-
-	current_dialogue_id = dialogues_id
-	current_index = 0
-	_show_entry(0)
-	can_interact = true
-
-
 func start_inline_dialogue(entries: Array, music_stream: AudioStream = null):
 	if entries.is_empty():
 		dialogue_finished.emit()
@@ -111,7 +48,7 @@ func start_inline_dialogue(entries: Array, music_stream: AudioStream = null):
 	if not dialogue_ui or not is_instance_valid(dialogue_ui):
 		_load_ui()
 		if not dialogue_ui or not is_instance_valid(dialogue_ui):
-			push_error("Dialogue UI 未加载，无法启动对话")
+			push_error("[DialogueManager] DialogueUI 未加载，无法启动对话")
 			return
 
 	if is_active:
@@ -137,8 +74,7 @@ func start_inline_dialogue(entries: Array, music_stream: AudioStream = null):
 	else:
 		MusicManager.play_dialogue_music()
 
-	current_dialogue_id = "__inline__"
-	_dialogues["__inline__"] = entries
+	_current_entries = entries
 	current_index = 0
 	_show_entry(0)
 	can_interact = true
@@ -150,15 +86,32 @@ func start_inline_dialogue_with_choices(entries: Array, choices: Array, music_st
 
 
 # ============================================================
+#  兼容接口（废弃，重定向到 StoryManager）
+# ============================================================
+func start_dialogue(dialogues_id: String, _music_stream: AudioStream = null):
+	push_warning("[DialogueManager] start_dialogue 已废弃，请用 StoryManager.play_dialogue_by_id：%s" % dialogues_id)
+	if StoryManager and StoryManager.has_method("play_dialogue_by_id"):
+		StoryManager.play_dialogue_by_id(dialogues_id)
+
+
+func has_dialogue(dialogues_id: String) -> bool:
+	if StoryManager and StoryManager.has_method("has_dialogue"):
+		return StoryManager.has_dialogue(dialogues_id)
+	return false
+
+
+# ============================================================
 #  显示
 # ============================================================
 func _show_entry(index: int):
-	var entries = _get_dialogue_entries(current_dialogue_id)
-	if index < entries.size():
-		var entry = entries[index]
+	if index < 0 or index >= _current_entries.size():
+		return
+	var entry : Variant = _current_entries[index]
+	if entry is Dictionary:
+		var e : Dictionary = entry
 		if name_label and text_label:
-			name_label.text = entry.get("speaker", "???")
-			text_label.text = entry.get("text", "......")
+			name_label.text = str(e.get("speaker", "???"))
+			text_label.text = str(e.get("text", "......"))
 
 
 # ============================================================
@@ -168,12 +121,11 @@ func _input(event: InputEvent):
 	if not is_active or not can_interact:
 		return
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-		var entries = _get_dialogue_entries(current_dialogue_id)
-		if entries.is_empty():
+		if _current_entries.is_empty():
 			_close_dialogue()
 			return
 		current_index += 1
-		if current_index < entries.size():
+		if current_index < _current_entries.size():
 			_show_entry(current_index)
 		else:
 			_close_dialogue()
@@ -224,6 +176,12 @@ func _on_choice_pressed(index: int):
 		text_label.visible = true
 	_pending_choices = []
 	can_interact = true
+
+	# 记录 flag（如果有）—— 委托给 StoryManager
+	var flag : String = str(c.get("flag", ""))
+	if flag != "" and StoryManager and StoryManager.has_method("record_choice"):
+		StoryManager.record_choice("", flag)
+
 	choice_selected.emit(index, c)
 	_do_close()
 
@@ -251,6 +209,8 @@ func _do_close():
 	MusicManager.stop_music()
 	await get_tree().create_timer(music_transition_delay, true, false, true).timeout
 	MusicManager.resume_saved()
+	_current_entries = []
+	current_index = 0
 	dialogue_finished.emit()
 
 
@@ -260,7 +220,7 @@ func reset():
 	is_active = false
 	can_interact = false
 	Globals.is_dialogue_active = false
-	current_dialogue_id = ""
+	_current_entries = []
 	current_index = 0
 	_pending_choices = []
 	if _choice_container and is_instance_valid(_choice_container):
@@ -276,7 +236,7 @@ func reset():
 	elif dialogue_ui and is_instance_valid(dialogue_ui):
 		dialogue_ui.visible = false
 
-	print("DialogueManager 已重置")
+	print("[DialogueManager] 已重置")
 
 
 # ============================================================
@@ -296,14 +256,14 @@ func _load_ui():
 		_choice_container = dialogue_ui.get_node_or_null("DialoguePanel/ChoiceContainer") as VBoxContainer
 		if name_label and text_label and dialogue_panel:
 			PanelRevealer.force_hide(dialogue_panel)
-			print("DialogueManager: 复用已存在的 DialogueUI")
+			print("[DialogueManager] 复用已存在的 DialogueUI")
 			return
 		existing.queue_free()
 		dialogue_ui = null
 
 	var ui_scene = load(Config.PATHS.DIALOGUE_UI)
 	if not ui_scene:
-		push_error("无法加载 DialogueUI.tscn，请确保路径正确")
+		push_error("[DialogueManager] 无法加载 DialogueUI.tscn")
 		return
 
 	dialogue_ui = ui_scene.instantiate()
@@ -316,10 +276,10 @@ func _load_ui():
 	dialogue_panel = dialogue_ui.get_node("DialoguePanel") as Panel
 	_choice_container = dialogue_ui.get_node_or_null("DialoguePanel/ChoiceContainer") as VBoxContainer
 	if not name_label or not text_label or not dialogue_panel:
-		push_error("DialogueUI 缺少必要节点")
+		push_error("[DialogueManager] DialogueUI 缺少必要节点")
 		dialogue_ui.queue_free()
 		dialogue_ui = null
 		return
 
 	PanelRevealer.force_hide(dialogue_panel)
-	print("DialogueManager: 创建 DialogueUI 实例（挂到 root 下）")
+	print("[DialogueManager] 创建 DialogueUI 实例（挂到 root 下）")

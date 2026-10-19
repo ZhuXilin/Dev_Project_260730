@@ -81,6 +81,13 @@ func add_reward_item(item_id: String):
 func clear_reward_items():
 	reward_items.clear()
 
+# ---- 对话系统 ----
+var npc_interact_counts: Dictionary = {}      # {npc_id: int}
+var dialogue_play_counts: Dictionary = {}     # {dialogue_id: int}
+var active_narrative_effects: Array = []      # [{type, tag, amount, ...}]
+var revealed_intel: Array = []                # ["text1", "text2", ...]
+var fusion_hints: Array = []                  # ["hint1", ...]
+
 func clear_current_reward():
 	current_reward_gold = 0
 	current_reward_soul = 0

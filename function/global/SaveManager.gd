@@ -161,8 +161,11 @@ func _build_save_data() -> SaveData:
 	save.total_run_count = GameState.total_run_count
 	save.total_dispatch_count = GameState.total_dispatch_count
 	save.npc_affinity = GameState.npc_affinity.duplicate(true)
-	if ForgeWhisperManager:
-		save.forge_whisper_state = ForgeWhisperManager.export_state()
+	GameState.npc_interact_counts = _safe_dict(save.npc_interact_counts)
+	GameState.dialogue_play_counts = _safe_dict(save.dialogue_play_counts)
+	GameState.active_narrative_effects = _safe_array(save.active_narrative_effects)
+	GameState.revealed_intel = _safe_array(save.revealed_intel)
+	GameState.fusion_hints = _safe_array(save.fusion_hints)
 
 	save.save_time = Time.get_unix_time_from_system()
 	return save

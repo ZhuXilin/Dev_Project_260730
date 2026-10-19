@@ -2,7 +2,6 @@
 
 [ext_resource type="TileSet" uid="uid://bmko3nha5eqoa" path="res://content/scenes/tilemap/TerrainTileSet01.tres" id="1_xh40a"]
 [ext_resource type="Script" uid="uid://cjvddjaj43chx" path="res://function/tool/UnitPlacer.gd" id="2_bug8j"]
-[ext_resource type="Script" uid="uid://coxiwl5phg87a" path="res://function/tool/BattleStartEvent.gd" id="3_fif11"]
 [ext_resource type="Script" uid="uid://bwbaxyrughsfk" path="res://function/tool/HpFunction.gd" id="4_hcjvo"]
 [ext_resource type="Script" uid="uid://d4b5iewm1v2pe" path="res://function/tool/EventTrigger.gd" id="5_vdtsq"]
 
@@ -61,11 +60,6 @@ script = ExtResource("2_bug8j")
 unit_type = 5
 team = 1
 metadata/_custom_type_script = "uid://cjvddjaj43chx"
-
-[node name="BattleStartEvent" type="Node2D" parent="." unique_id=32031953]
-script = ExtResource("3_fif11")
-event_id = "battle_intro_2"
-metadata/_custom_type_script = "uid://coxiwl5phg87a"
 
 [node name="HpFunction" type="Node2D" parent="." unique_id=85655960]
 position = Vector2(112, 112)

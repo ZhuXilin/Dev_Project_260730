@@ -129,6 +129,8 @@ input[type=checkbox]{accent-color:#2d6cdf;margin-right:4px}
     <button class="tool-btn active" data-tool="1" data-i18n="tool.select" title="Select (V)">Sel</button>
     <button class="tool-btn" data-tool="7" data-i18n="tool.lasso" title="Lasso (M)">Lasso</button>
     <button id="btn-crop" data-i18n="btn.crop" title="Crop to Selection (C)">Crop</button>
+    <button id="btn-transform" data-i18n="btn.transform" title="Transform / Lattice (T)">Trans</button>
+    <button id="btn-transform-grid" style="display:none; background:#2d6cdf; border-color:#4a8cf5" title="Toggle Grid (1x1 / 3x3)">3x3</button>
     <button class="tool-btn" data-tool="2" data-i18n="tool.pencil" title="Pencil (B)">Pen</button>
     <button class="tool-btn" data-tool="3" data-i18n="tool.eraser" title="Eraser (E)">Era</button>
     <button class="tool-btn" data-tool="5" data-i18n="tool.picker" title="Picker (I)">Pick</button>
@@ -446,6 +448,7 @@ var cpTarget = 'primary';
 var cpActive = false;
 var cpState = { h: 0, s: 0, v: 0 };
 var pickerOverlay = null;
+var transformState = null;
 
 var highlightColor = null;
 var _highlightMask = null;
@@ -729,6 +732,7 @@ function isBusyDrag(){
       || drag.mode === 'guide' || drag.mode === 'move-sel' || drag.mode === 'lasso';
 }
 function doUndo(){
+  if(transformState) { cancelTransform(); return; }
   if(isBusyDrag()){ setStatus(currentLang==='zh'?'请先松开鼠标再撤销':'Release mouse first'); return; }
   clearTimeout(gridHistTimer);
   if(historyIndex <= 0) return;
@@ -737,6 +741,7 @@ function doUndo(){
   updateUndoButtons();
 }
 function doRedo(){
+  if(transformState) { cancelTransform(); return; }
   if(isBusyDrag()){ setStatus(currentLang==='zh'?'请先松开鼠标再重做':'Release mouse first'); return; }
   clearTimeout(gridHistTimer);
   if(historyIndex >= historyStack.length-1) return;
@@ -1576,6 +1581,207 @@ function drawBackground(g,x,y,w,h){
     g.fillRect(x,y,w,h);
   }
 }
+
+function inverseBilinear(px, py, p0, p1, p2, p3) {
+  var u = 0.5, v = 0.5;
+  for (var i = 0; i < 6; i++) {
+    var bx = (1-u)*(1-v)*p0.x + u*(1-v)*p1.x + u*v*p2.x + (1-u)*v*p3.x;
+    var by = (1-u)*(1-v)*p0.y + u*(1-v)*p1.y + u*v*p2.y + (1-u)*v*p3.y;
+    var dx = px - bx;
+    var dy = py - by;
+    if (Math.abs(dx) < 0.1 && Math.abs(dy) < 0.1) break;
+
+    var dx_du = -(1-v)*p0.x + (1-v)*p1.x + v*p2.x - v*p3.x;
+    var dy_du = -(1-v)*p0.y + (1-v)*p1.y + v*p2.y - v*p3.y;
+    var dx_dv = -(1-u)*p0.x - u*p1.x + u*p2.x + (1-u)*p3.x;
+    var dy_dv = -(1-u)*p0.y - u*p1.y + u*p2.y + (1-u)*p3.y;
+
+    var det = dx_du * dy_dv - dy_du * dx_dv;
+    if (Math.abs(det) < 1e-6) break;
+
+    var du = (dx * dy_dv - dy * dx_dv) / det;
+    var dv = (dy_du * dx - dx_du * dy) / det;
+
+    u += du;
+    v += dv;
+  }
+  if (u >= -0.05 && u <= 1.05 && v >= -0.05 && v <= 1.05) {
+    return { u: Math.max(0, Math.min(1, u)), v: Math.max(0, Math.min(1, v)) };
+  }
+  return null;
+}
+
+function renderTransform(ctx, ox, oy, z) {
+  var t = transformState;
+  var bw = t.bounds.w, bh = t.bounds.h;
+  var sd = t.srcData;
+  var pts = t.gridMode === 1 ? t.corners : t.points;
+
+  var minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  for (var i = 0; i < pts.length; i++) {
+    minX = Math.min(minX, pts[i].x);
+    maxX = Math.max(maxX, pts[i].x);
+    minY = Math.min(minY, pts[i].y);
+    maxY = Math.max(maxY, pts[i].y);
+  }
+  minX = Math.floor(minX) - 1;
+  maxX = Math.ceil(maxX) + 1;
+  minY = Math.floor(minY) - 1;
+  maxY = Math.ceil(maxY) + 1;
+
+  var tw = maxX - minX + 1;
+  var th = maxY - minY + 1;
+  if (tw <= 0 || th <= 0) return;
+
+  if (!_tmpCanvas || _tmpCanvas.width !== tw || _tmpCanvas.height !== th) {
+    _tmpCanvas = document.createElement('canvas');
+    _tmpCanvas.width = tw; _tmpCanvas.height = th;
+    _tmpCtx = _tmpCanvas.getContext('2d');
+  }
+  var id = _tmpCtx.createImageData(tw, th);
+  var data = id.data;
+
+  for (var y = minY; y <= maxY; y++) {
+    for (var x = minX; x <= maxX; x++) {
+      var uv = null;
+      if (t.gridMode === 1) {
+        uv = inverseBilinear(x, y, t.corners[0], t.corners[1], t.corners[2], t.corners[3]);
+      } else if (t.gridMode === 3) {
+        for (var iy = 0; iy < 3; iy++) {
+          for (var ix = 0; ix < 3; ix++) {
+            var p0 = t.points[iy * 4 + ix];
+            var p1 = t.points[iy * 4 + ix + 1];
+            var p2 = t.points[(iy + 1) * 4 + ix + 1];
+            var p3 = t.points[(iy + 1) * 4 + ix];
+            var res = inverseBilinear(x, y, p0, p1, p2, p3);
+            if (res) {
+              uv = { u: (ix + res.u) / 3, v: (iy + res.v) / 3 };
+              break;
+            }
+          }
+          if (uv) break;
+        }
+      }
+
+      if (uv) {
+        var u = uv.u, v = uv.v;
+        if (u >= 0 && u <= 1 && v >= 0 && v <= 1) {
+          var fx = u * (bw - 1);
+          var fy = v * (bh - 1);
+          var x0 = Math.floor(fx);
+          var y0 = Math.floor(fy);
+          var x1 = Math.min(x0 + 1, bw - 1);
+          var y1 = Math.min(y0 + 1, bh - 1);
+          var tx = fx - x0;
+          var ty = fy - y0;
+
+          var si00 = (y0 * bw + x0) * 4;
+          var si10 = (y0 * bw + x1) * 4;
+          var si01 = (y1 * bw + x0) * 4;
+          var si11 = (y1 * bw + x1) * 4;
+
+          var a00 = sd[si00 + 3], a10 = sd[si10 + 3], a01 = sd[si01 + 3], a11 = sd[si11 + 3];
+          var outA = a00 * (1-tx)*(1-ty) + a10 * tx*(1-ty) + a01 * (1-tx)*ty + a11 * tx*ty;
+
+          if (outA > 0.1) {
+            var r = (sd[si00] * (1-tx)*(1-ty) + sd[si10] * tx*(1-ty) + sd[si01] * (1-tx)*ty + sd[si11] * tx*ty) / outA;
+            var g = (sd[si00+1] * (1-tx)*(1-ty) + sd[si10+1] * tx*(1-ty) + sd[si01+1] * (1-tx)*ty + sd[si11+1] * tx*ty) / outA;
+            var b = (sd[si00+2] * (1-tx)*(1-ty) + sd[si10+2] * tx*(1-ty) + sd[si01+2] * (1-tx)*ty + sd[si11+2] * tx*ty) / outA;
+            
+            var di = ((y - minY) * tw + (x - minX)) * 4;
+            data[di] = r;
+            data[di + 1] = g;
+            data[di + 2] = b;
+            data[di + 3] = outA;
+          }
+        }
+      }
+    }
+  }
+  _tmpCtx.putImageData(id, 0, 0);
+  ctx.drawImage(_tmpCanvas, ox + minX * z, oy + minY * z, tw * z, th * z);
+}
+
+function drawTransformUI(ctx, ox, oy, z) {
+  var t = transformState;
+  ctx.save();
+  
+  if (t.gridMode === 1) {
+    ctx.strokeStyle = 'rgba(0, 255, 0, 0.8)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(ox + t.corners[0].x*z, oy + t.corners[0].y*z);
+    ctx.lineTo(ox + t.corners[1].x*z, oy + t.corners[1].y*z);
+    ctx.lineTo(ox + t.corners[2].x*z, oy + t.corners[2].y*z);
+    ctx.lineTo(ox + t.corners[3].x*z, oy + t.corners[3].y*z);
+    ctx.closePath();
+    ctx.stroke();
+
+    for(var i=0; i<4; i++){
+      drawHandle(ctx, ox + t.corners[i].x*z, oy + t.corners[i].y*z);
+    }
+
+    var edges = [[0,1], [1,2], [2,3], [3,0]];
+    for(var i=0; i<4; i++){
+      var p0 = t.corners[edges[i][0]];
+      var p1 = t.corners[edges[i][1]];
+      var mx = (p0.x + p1.x) / 2;
+      var my = (p0.y + p1.y) / 2;
+      drawHandle(ctx, ox + mx*z, oy + my*z, '#ffd23c');
+    }
+
+    var topMid = { x: (t.corners[0].x + t.corners[1].x)/2, y: (t.corners[0].y + t.corners[1].y)/2 };
+    var dx = t.corners[1].x - t.corners[0].x;
+    var dy = t.corners[1].y - t.corners[0].y;
+    var len = Math.sqrt(dx*dx + dy*dy);
+    if (len > 0) {
+      var nx = dy / len;
+      var ny = -dx / len;
+      var rotX = topMid.x + nx * 30 / z;
+      var rotY = topMid.y + ny * 30 / z;
+      ctx.beginPath();
+      ctx.moveTo(ox + topMid.x*z, oy + topMid.y*z);
+      ctx.lineTo(ox + rotX*z, oy + rotY*z);
+      ctx.strokeStyle = 'rgba(0, 255, 0, 0.5)';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      
+      drawHandle(ctx, ox + rotX*z, oy + rotY*z, '#00bfff');
+    }
+
+  } else if (t.gridMode === 3) {
+    ctx.strokeStyle = 'rgba(0, 255, 0, 0.4)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    for(var i=0; i<4; i++){
+      ctx.moveTo(ox + t.points[i*4+0].x*z, oy + t.points[i*4+0].y*z);
+      for(var j=1; j<4; j++){
+        ctx.lineTo(ox + t.points[i*4+j].x*z, oy + t.points[i*4+j].y*z);
+      }
+      ctx.moveTo(ox + t.points[0*4+i].x*z, oy + t.points[0*4+i].y*z);
+      for(var j=1; j<4; j++){
+        ctx.lineTo(ox + t.points[j*4+i].x*z, oy + t.points[j*4+i].y*z);
+      }
+    }
+    ctx.stroke();
+
+    for(var i=0; i<16; i++){
+      drawHandle(ctx, ox + t.points[i].x*z, oy + t.points[i].y*z);
+    }
+  }
+  ctx.restore();
+}
+
+function drawHandle(ctx, x, y, color) {
+  ctx.beginPath();
+  ctx.arc(x, y, 5, 0, Math.PI*2);
+  ctx.fillStyle = color || '#fff';
+  ctx.fill();
+  ctx.strokeStyle = '#000';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+}
+
 function render(){
   var dpr = window.devicePixelRatio || 1;
   ctx.setTransform(dpr,0,0,dpr,0,0);
@@ -1629,6 +1835,15 @@ function render(){
     ctx.clip();
     ctx.drawImage(doc.floatCanvas, ox + f.x*z, oy + f.y*z, f.w*z, f.h*z);
     ctx.restore();
+  }
+
+  try {
+    if (transformState && transformState.active) {
+      renderTransform(ctx, ox, oy, z);
+      drawTransformUI(ctx, ox, oy, z);
+    }
+  } catch(err) {
+    console.error('Transform render error:', err);
   }
 
   ctx.strokeStyle = 'rgba(120,120,140,0.9)';
@@ -1846,6 +2061,11 @@ function drawSelection(z,ox,oy){
 function drawCursor(z,ox,oy){
   if(!mouse.inside) return;
   if(mouse.inRulerTop || mouse.inRulerLeft) return;
+  if(transformState && transformState.active){
+    if(transformState.dragType) canvas.style.cursor = 'grabbing';
+    else canvas.style.cursor = 'crosshair';
+    return;
+  }
   if(rotState){
     if(!doc.floating) return;
     var f = doc.floating;
@@ -2327,6 +2547,212 @@ function applyCrop(bounds){
   setStatus((currentLang==='zh'?'已裁切为 ':'Cropped to ') + W + ' × ' + H + ' px');
 }
 
+/* ===== 晶格变形（Transform） ===== */
+function startTransform(){
+  if(!hasImage || transformState) return;
+  if(doc.floating){ commitFloat(); commitHistory(); }
+  if(!doc.hasSelection){
+    setStatus(currentLang==='zh'?'请先选择区域':'Select an area first');
+    return;
+  }
+  var b = doc.selBounds;
+  if(b.w <= 0 || b.h <= 0) return;
+
+  if(ui.singleCell){
+    ui.singleCell = false;
+    updateViewModeButton();
+  }
+  fitToView();
+
+  var backup = {
+    w: doc.width, h: doc.height,
+    imageData: new ImageData(new Uint8ClampedArray(doc.imageData.data), doc.width, doc.height),
+    selMask: new Uint8Array(doc.selMask),
+    hasSel: doc.hasSelection,
+    bounds: { x: b.x, y: b.y, w: b.w, h: b.h }
+  };
+
+  var srcData = new Uint8ClampedArray(b.w * b.h * 4);
+  var d = doc.imageData.data, W = doc.width;
+  for(var y=0;y<b.h;y++) for(var x=0;x<b.w;x++){
+    var sx = b.x+x, sy = b.y+y;
+    if(doc.selMask[sy*W+sx]){
+      var si = (sy*W+sx)*4, di = (y*b.w+x)*4;
+      srcData[di]=d[si]; srcData[di+1]=d[si+1]; srcData[di+2]=d[si+2]; srcData[di+3]=d[si+3];
+      // 不在这里清空原图像素
+    }
+  }
+
+  transformState = {
+    active: true,
+    gridMode: 1,
+    bounds: { x: b.x, y: b.y, w: b.w, h: b.h },
+    corners: [
+      { x: b.x, y: b.y },
+      { x: b.x + b.w, y: b.y },
+      { x: b.x + b.w, y: b.y + b.h },
+      { x: b.x, y: b.y + b.h }
+    ],
+    points: [],
+    dragType: null,
+    dragIdx: -1,
+    srcData: srcData,
+    backup: backup
+  };
+
+  var btn = document.getElementById('btn-transform');
+  if(btn) btn.classList.add('active');
+  var gridBtn = document.getElementById('btn-transform-grid');
+  if(gridBtn) {
+    gridBtn.style.display = 'inline-block';
+    gridBtn.textContent = '3x3';
+  }
+
+  // 移除其它工具按钮的高亮，避免视觉冲突
+  var toolBtns = document.querySelectorAll('.tool-btn');
+  for(var i=0;i<toolBtns.length;i++) toolBtns[i].classList.remove('active');
+
+  doc.selMask.fill(0);
+  doc.hasSelection = false;
+  doc.selBounds = {x:0,y:0,w:0,h:0};
+  doc.imageDirty = true;
+  requestRender();
+  setStatus(currentLang==='zh'?'晶格变形：拖动控制点，Enter 确认，Esc 取消':'Transform: drag handles, Enter to apply, Esc to cancel');
+}
+
+function applyTransform(){
+  if(!transformState || !transformState.active) return;
+
+  var W = doc.width, H = doc.height;
+  var d = doc.imageData.data;
+  var b = transformState.bounds;
+  var bw = b.w, bh = b.h;
+  var sd = transformState.srcData;
+  var pts = transformState.gridMode === 1 ? transformState.corners : transformState.points;
+
+  // 真正挖空原来的区域
+  for (var y = b.y; y < b.y + b.h; y++) {
+    for (var x = b.x; x < b.x + b.w; x++) {
+      if (x >= 0 && x < W && y >= 0 && y < H) {
+        var di = (y * W + x) * 4;
+        d[di] = 0; d[di+1] = 0; d[di+2] = 0; d[di+3] = 0;
+      }
+    }
+  }
+
+  var minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  for (var i = 0; i < pts.length; i++) {
+    minX = Math.min(minX, pts[i].x);
+    maxX = Math.max(maxX, pts[i].x);
+    minY = Math.min(minY, pts[i].y);
+    maxY = Math.max(maxY, pts[i].y);
+  }
+  minX = Math.max(0, Math.floor(minX));
+  maxX = Math.min(W - 1, Math.ceil(maxX));
+  minY = Math.max(0, Math.floor(minY));
+  maxY = Math.min(H - 1, Math.ceil(maxY));
+
+  for (var y = minY; y <= maxY; y++) {
+    for (var x = minX; x <= maxX; x++) {
+      var uv = null;
+      if (transformState.gridMode === 1) {
+        uv = inverseBilinear(x, y, transformState.corners[0], transformState.corners[1], transformState.corners[2], transformState.corners[3]);
+      } else if (transformState.gridMode === 3) {
+        for (var iy = 0; iy < 3; iy++) {
+          for (var ix = 0; ix < 3; ix++) {
+            var p0 = transformState.points[iy * 4 + ix];
+            var p1 = transformState.points[iy * 4 + ix + 1];
+            var p2 = transformState.points[(iy + 1) * 4 + ix + 1];
+            var p3 = transformState.points[(iy + 1) * 4 + ix];
+            var res = inverseBilinear(x, y, p0, p1, p2, p3);
+            if (res) {
+              uv = { u: (ix + res.u) / 3, v: (iy + res.v) / 3 };
+              break;
+            }
+          }
+          if (uv) break;
+        }
+      }
+
+      if (uv) {
+        var u = uv.u, v = uv.v;
+        if (u >= 0 && u <= 1 && v >= 0 && v <= 1) {
+          var fx = u * (bw - 1);
+          var fy = v * (bh - 1);
+          var x0 = Math.floor(fx);
+          var y0 = Math.floor(fy);
+          var x1 = Math.min(x0 + 1, bw - 1);
+          var y1 = Math.min(y0 + 1, bh - 1);
+          var tx = fx - x0;
+          var ty = fy - y0;
+
+          var si00 = (y0 * bw + x0) * 4;
+          var si10 = (y0 * bw + x1) * 4;
+          var si01 = (y1 * bw + x0) * 4;
+          var si11 = (y1 * bw + x1) * 4;
+
+          var a00 = sd[si00 + 3], a10 = sd[si10 + 3], a01 = sd[si01 + 3], a11 = sd[si11 + 3];
+          var outA = a00 * (1-tx)*(1-ty) + a10 * tx*(1-ty) + a01 * (1-tx)*ty + a11 * tx*ty;
+
+          if (outA > 0.1) {
+            var r = (sd[si00] * (1-tx)*(1-ty) + sd[si10] * tx*(1-ty) + sd[si01] * (1-tx)*ty + sd[si11] * tx*ty) / outA;
+            var g = (sd[si00+1] * (1-tx)*(1-ty) + sd[si10+1] * tx*(1-ty) + sd[si01+1] * (1-tx)*ty + sd[si11+1] * tx*ty) / outA;
+            var bl = (sd[si00+2] * (1-tx)*(1-ty) + sd[si10+2] * tx*(1-ty) + sd[si01+2] * (1-tx)*ty + sd[si11+2] * tx*ty) / outA;
+            
+            var di = (y * W + x) * 4;
+            d[di] = r;
+            d[di+1] = g;
+            d[di+2] = bl;
+            d[di+3] = outA;
+          }
+        }
+      }
+    }
+  }
+
+  var btn = document.getElementById('btn-transform');
+  if(btn) btn.classList.remove('active');
+  var gridBtn = document.getElementById('btn-transform-grid');
+  if(gridBtn) gridBtn.style.display = 'none';
+
+  // 恢复工具按钮高亮
+  var toolBtns = document.querySelectorAll('.tool-btn');
+  for(var i=0;i<toolBtns.length;i++) {
+    toolBtns[i].classList.toggle('active', +toolBtns[i].dataset.tool === ui.tool);
+  }
+
+  transformState = null;
+  doc.imageDirty = true;
+  commitHistory();
+  requestRender();
+  setStatus(currentLang==='zh'?'变形已应用':'Transform applied');
+}
+
+function cancelTransform(){
+  if(!transformState || !transformState.active) return;
+  var backup = transformState.backup;
+  doc.imageData.data.set(backup.imageData.data);
+  doc.selMask = new Uint8Array(backup.selMask);
+  doc.hasSelection = backup.hasSel;
+  doc.selBounds = backup.bounds;
+
+  var btn = document.getElementById('btn-transform');
+  if(btn) btn.classList.remove('active');
+  var gridBtn = document.getElementById('btn-transform-grid');
+  if(gridBtn) gridBtn.style.display = 'none';
+
+  // 恢复工具按钮高亮
+  var toolBtns = document.querySelectorAll('.tool-btn');
+  for(var i=0;i<toolBtns.length;i++) {
+    toolBtns[i].classList.toggle('active', +toolBtns[i].dataset.tool === ui.tool);
+  }
+
+  transformState = null;
+  doc.imageDirty = true;
+  requestRender();
+  setStatus(currentLang==='zh'?'变形已取消':'Transform cancelled');
+}
+
 /* ===== 动画快捷键 ===== */
 function animStepFrame(dir){
   if(!hasImage){
@@ -2527,9 +2953,98 @@ function onCanvasMouseDown(e){
   if(rotState) { e.preventDefault(); return; }
 
   var m = getMouse(e);
+  if (isNaN(m.px) || isNaN(m.py)) return;
+
   var inRulerTop = m.sy < RULER && m.sx >= RULER;
   var inRulerLeft = m.sx < RULER && m.sy >= RULER;
   var modCtrl = e.ctrlKey || e.metaKey;
+
+  if (transformState && transformState.active) {
+    e.preventDefault();
+    var t = transformState;
+    var hitRadius = 15 / view.zoom;
+    
+    if (t.gridMode === 1) {
+      var topMid = { x: (t.corners[0].x + t.corners[1].x)/2, y: (t.corners[0].y + t.corners[1].y)/2 };
+      var dx = t.corners[1].x - t.corners[0].x;
+      var dy = t.corners[1].y - t.corners[0].y;
+      var len = Math.sqrt(dx*dx + dy*dy);
+      if (len > 0) {
+        var nx = dy / len;
+        var ny = -dx / len;
+        var rotX = topMid.x + nx * 30 / view.zoom;
+        var rotY = topMid.y + ny * 30 / view.zoom;
+        if (Math.abs(m.px - rotX) < hitRadius && Math.abs(m.py - rotY) < hitRadius) {
+          t.dragType = 'rotate';
+          t.dragStart = {x: m.px, y: m.py};
+          t.cornersBackup = t.corners.map(function(c){ return {x:c.x, y:c.y}; });
+          t.center = {x: (t.corners[0].x + t.corners[2].x)/2, y: (t.corners[0].y + t.corners[2].y)/2};
+          t.rotateStartAng = Math.atan2(m.py - t.center.y, m.px - t.center.x);
+          return;
+        }
+      }
+
+      for(var i=0; i<4; i++){
+        if (Math.abs(m.px - t.corners[i].x) < hitRadius && Math.abs(m.py - t.corners[i].y) < hitRadius) {
+          t.dragType = 'corner'; t.dragIdx = i;
+          t.dragStart = {x: m.px, y: m.py};
+          t.cornersBackup = t.corners.map(function(c){ return {x:c.x, y:c.y}; });
+          return;
+        }
+      }
+      
+      var edges = [[0,1], [1,2], [2,3], [3,0]];
+      for(var i=0; i<4; i++){
+        var p0 = t.corners[edges[i][0]];
+        var p1 = t.corners[edges[i][1]];
+        var mx = (p0.x + p1.x) / 2;
+        var my = (p0.y + p1.y) / 2;
+        if (Math.abs(m.px - mx) < hitRadius && Math.abs(m.py - my) < hitRadius) {
+          t.dragType = 'edge'; t.dragIdx = i;
+          t.dragStart = {x: m.px, y: m.py};
+          t.cornersBackup = t.corners.map(function(c){ return {x:c.x, y:c.y}; });
+          return;
+        }
+      }
+    } else {
+      for(var i=0; i<16; i++){
+        if (Math.abs(m.px - t.points[i].x) < hitRadius && Math.abs(m.py - t.points[i].y) < hitRadius) {
+          t.dragType = 'point'; t.dragIdx = i;
+          t.dragStart = {x: m.px, y: m.py};
+          t.pointsBackup = t.points.map(function(p){ return {x:p.x, y:p.y}; });
+          return;
+        }
+      }
+    }
+
+    var uv = null;
+    if (t.gridMode === 1) {
+      uv = inverseBilinear(m.px, m.py, t.corners[0], t.corners[1], t.corners[2], t.corners[3]);
+    } else {
+      for (var iy = 0; iy < 3; iy++) {
+        for (var ix = 0; ix < 3; ix++) {
+          var p0 = t.points[iy * 4 + ix];
+          var p1 = t.points[iy * 4 + ix + 1];
+          var p2 = t.points[(iy + 1) * 4 + ix + 1];
+          var p3 = t.points[(iy + 1) * 4 + ix];
+          if (inverseBilinear(m.px, m.py, p0, p1, p2, p3)) {
+            uv = true;
+            break;
+          }
+        }
+        if (uv) break;
+      }
+    }
+
+    if (uv) {
+      t.dragType = 'move';
+      t.dragStart = {x: m.px, y: m.py};
+      var pts = t.gridMode === 1 ? t.corners : t.points;
+      t.pointsBackup = pts.map(function(p){ return {x:p.x, y:p.y}; });
+      return;
+    }
+    return;
+  }
 
   if(e.button===0 && inRulerTop){
     drag.mode = 'guide'; drag.guideAxis = 1;
@@ -2583,7 +3098,6 @@ function onCanvasMouseDown(e){
     pickAt({x:m.px,y:m.py}); e.preventDefault(); return;
   }
 
-  /* ★ V/M 按住拖动 → 只移动选区（Shift 用于锁定直线，与移动像素一致） */
   if((vDown || mDown) && doc.hasSelection && isSelected(m.px, m.py) && !e.altKey && !modCtrl){
     if(vDown) vDragged = true;
     if(mDown) mDragged = true;
@@ -2660,6 +3174,8 @@ function onCanvasMouseDown(e){
 }
 function onCanvasMouseMove(e){
   var m = getMouse(e);
+  if (isNaN(m.px) || isNaN(m.py)) return;
+
   mouse.inside = true; mouse.sx = m.sx; mouse.sy = m.sy;
   mouse.px = m.px; mouse.py = m.py;
   mouse.hasValidPos = true;
@@ -2670,6 +3186,63 @@ function onCanvasMouseMove(e){
   if(rotState){
     updateRotateFromMouse(e);
     requestRender();
+    return;
+  }
+
+  if (transformState && transformState.active) {
+    var t = transformState;
+    if (t.dragType) {
+      var dx = m.px - t.dragStart.x;
+      var dy = m.py - t.dragStart.y;
+
+      if (t.dragType === 'corner') {
+        t.corners[t.dragIdx].x = t.cornersBackup[t.dragIdx].x + dx;
+        t.corners[t.dragIdx].y = t.cornersBackup[t.dragIdx].y + dy;
+      } else if (t.dragType === 'edge') {
+        if (t.dragIdx === 0) {
+          t.corners[0].x = t.cornersBackup[0].x + dx/2;
+          t.corners[1].x = t.cornersBackup[1].x + dx/2;
+          t.corners[0].y = t.cornersBackup[0].y + dy;
+          t.corners[1].y = t.cornersBackup[1].y + dy;
+        } else if (t.dragIdx === 1) {
+          t.corners[1].y = t.cornersBackup[1].y + dy/2;
+          t.corners[2].y = t.cornersBackup[2].y + dy/2;
+          t.corners[1].x = t.cornersBackup[1].x + dx;
+          t.corners[2].x = t.cornersBackup[2].x + dx;
+        } else if (t.dragIdx === 2) {
+          t.corners[2].x = t.cornersBackup[2].x + dx/2;
+          t.corners[3].x = t.cornersBackup[3].x + dx/2;
+          t.corners[2].y = t.cornersBackup[2].y + dy;
+          t.corners[3].y = t.cornersBackup[3].y + dy;
+        } else if (t.dragIdx === 3) {
+          t.corners[3].y = t.cornersBackup[3].y + dy/2;
+          t.corners[0].y = t.cornersBackup[0].y + dy/2;
+          t.corners[3].x = t.cornersBackup[3].x + dx;
+          t.corners[0].x = t.cornersBackup[0].x + dx;
+        }
+      } else if (t.dragType === 'rotate') {
+        var cx = t.center.x, cy = t.center.y;
+        var ang = Math.atan2(m.py - cy, m.px - cx);
+        var delta = ang - t.rotateStartAng;
+        for(var i=0; i<4; i++){
+          var dx0 = t.cornersBackup[i].x - cx;
+          var dy0 = t.cornersBackup[i].y - cy;
+          t.corners[i].x = cx + dx0 * Math.cos(delta) - dy0 * Math.sin(delta);
+          t.corners[i].y = cy + dx0 * Math.sin(delta) + dy0 * Math.cos(delta);
+        }
+      } else if (t.dragType === 'move') {
+        var pts = t.gridMode === 1 ? t.corners : t.points;
+        for(var i=0; i<pts.length; i++){
+          pts[i].x = t.pointsBackup[i].x + dx;
+          pts[i].y = t.pointsBackup[i].y + dy;
+        }
+      } else if (t.dragType === 'point') {
+        t.points[t.dragIdx].x = t.pointsBackup[t.dragIdx].x + dx;
+        t.points[t.dragIdx].y = t.pointsBackup[t.dragIdx].y + dy;
+      }
+      requestRender();
+      return;
+    }
     return;
   }
 
@@ -2736,7 +3309,6 @@ function onCanvasMouseMove(e){
     setStatus((currentLang==='zh'?'移动 ':'Move ')+'dx='+dx+', dy='+dy);
     requestRender(); return;
   }
-  /* ★ move-sel：与 move 一致的 Shift 轴锁定 */
   if(drag.mode === 'move-sel' && drag.selBackup && drag.selBackupBounds){
     var ddx = m.px - drag.moveSelOrigin.x;
     var ddy = m.py - drag.moveSelOrigin.y;
@@ -2789,6 +3361,16 @@ function onCanvasMouseMove(e){
 }
 function onCanvasMouseUp(e){
   spaceDragged = false;
+
+  if (transformState && transformState.active) {
+    if (transformState.dragType) {
+      transformState.dragType = null;
+      transformState.dragIdx = -1;
+      requestRender();
+    }
+    return;
+  }
+
   if(!drag.mode) return;
   if(drag.mode === 'select'){
     var r = rectFromPoints(drag.selStart,drag.selCur,drag.square);
@@ -2844,6 +3426,15 @@ function onKeyDown(e){
     }
   }
 
+  if (transformState && transformState.active) {
+    if (k === 'Enter' || k === 'Escape') {
+      e.preventDefault();
+      if (k === 'Enter') applyTransform();
+      else cancelTransform();
+    }
+    return;
+  }
+
   if(k === ' ' && !e.repeat){
     spaceDown = true;
     spaceDragged = false;
@@ -2892,8 +3483,7 @@ function onKeyDown(e){
     }
   }
 
-  /* ★ 数字键 1~4：打开 PNG / 另存 PNG / 打开工程 / 另存工程
-     （原 1~7 切换工具的数字快捷键已移除，工具由字母键 V/M/B/E/I/G/J/C 负责） */
+  /* ★ 数字键 1~4：打开 PNG / 另存 PNG / 打开工程 / 另存工程 */
   if(!e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey && !e.repeat){
     switch(e.code){
       case 'Digit1': case 'Numpad1': e.preventDefault(); openPng();          return;
@@ -2903,10 +3493,17 @@ function onKeyDown(e){
     }
   }
 
-  /* 裁切：C 键（无修饰键） */
+  /* 裁切：C 键 */
   if(!e.ctrlKey && !e.metaKey && !e.altKey && (k === 'c' || k === 'C')){
     e.preventDefault();
     if(!e.repeat) cropToSelection();
+    return;
+  }
+
+  /* 晶格变形：T 键 */
+  if(!e.ctrlKey && !e.metaKey && !e.altKey && (k === 't' || k === 'T')){
+    e.preventDefault();
+    if(!transformState) startTransform();
     return;
   }
 
@@ -3178,6 +3775,7 @@ function animUpdateFromEvent(e){
 }
 
 function setTool(t){
+  if(transformState) cancelTransform();
   ui.tool = t;
   var btns = document.querySelectorAll('.tool-btn');
   for(var i=0;i<btns.length;i++){
@@ -3345,21 +3943,18 @@ function openColorPicker(target, anchorEl) {
   popup.style.left = left + 'px';
   popup.style.top = top + 'px';
   
-  // ★ 打开调色板时，直接设置画布光标为十字准星
   canvas.style.cursor = 'crosshair';
 }
 function closeColorPicker() {
   if (!cpActive) return;
   cpActive = false;
   document.getElementById('color-picker-popup').classList.remove('open');
-  // ★ 恢复画布光标
   if(ui.tool===TOOL.PENCIL || ui.tool===TOOL.ERASER) canvas.style.cursor = 'none';
   else canvas.style.cursor = 'crosshair';
 }
 function startPickingColor() {
   if (pickerOverlay) return;
   
-  // 尝试原生 EyeDropper
   if (typeof window.EyeDropper === 'function') {
     try {
       var eyeDropper = new EyeDropper();
@@ -3369,13 +3964,11 @@ function startPickingColor() {
         closeColorPicker();
         setStatus(currentLang==='zh'?'已取色':'Color picked');
       }).catch(function(){
-        // 用户按 Esc 取消原生吸管，保持调色板打开
       });
       return;
     } catch(e) { }
   }
 
-  // Fallback: 画布内吸色
   closeColorPicker();
   
   pickerOverlay = document.createElement('div');
@@ -3522,7 +4115,6 @@ function bindColorPicker() {
     var popup = document.getElementById('color-picker-popup');
     if (popup.contains(e.target)) return;
     if (e.target.id === 'chip-primary' || e.target.id === 'chip-secondary') return;
-    // 移除针对 canvas 的排除，点击画布也关闭调色板
     closeColorPicker();
   }, true);
 }
@@ -3902,7 +4494,6 @@ function showModal(title, bodyHTML, onOK, okLabel){
     if(back.parentNode) document.body.removeChild(back);
     document.removeEventListener('keydown', onModalKey, true);
   };
-  // ★ 统一支持：Enter 确认 / Esc 取消（capture 阶段拦截，避免触发全局快捷键）
   function onModalKey(ev){
     if(ev.key === 'Escape'){
       ev.preventDefault(); ev.stopPropagation();
@@ -4021,6 +4612,7 @@ var I18N = {
   'tool.bucket': {zh:'桶', en:'Fill'},
   'tool.replace': {zh:'换', en:'Rep'},
   'btn.crop': {zh:'裁切', en:'Crop'},
+  'btn.transform': {zh:'变形', en:'Trans'},
   'btn.undo': {zh:'撤销', en:'Undo'},
   'btn.redo': {zh:'重做', en:'Redo'},
   'btn.fit': {zh:'适应', en:'Fit'},
@@ -4098,7 +4690,7 @@ var I18N = {
   'menu.selCell': {zh:'选择当前格', en:'Select Current Cell'},
   'menu.crop': {zh:'裁切到选区', en:'Crop to Selection'},
   'menu.delSel': {zh:'删除选中像素', en:'Delete Selected Pixels'},
-  'status.ready': {zh:'就绪 — 1 打开 PNG · 2 另存 PNG · 3 打开工程 · 4 另存工程 · V 选择 · M 套索 · C 裁切 · B 铅笔 · R 旋转 · Q 视图切换 · ←/→ A/D 逐帧 · 空格播放', en:'Ready — 1 Open PNG · 2 Save-As PNG · 3 Open Project · 4 Save-As Project · V Select · M Lasso · C Crop · B Pencil · R Rotate · Q View Mode · ←/→ A/D Frame · Space Play'}
+  'status.ready': {zh:'就绪 — 1 打开 PNG · 2 另存 PNG · 3 打开工程 · 4 另存工程 · V 选择 · M 套索 · C 裁切 · T 变形 · B 铅笔 · R 旋转 · Q 视图切换 · ←/→ A/D 逐帧 · 空格播放', en:'Ready — 1 Open PNG · 2 Save-As PNG · 3 Open Project · 4 Save-As Project · V Select · M Lasso · C Crop · T Transform · B Pencil · R Rotate · Q View Mode · ←/→ A/D Frame · Space Play'}
 };
 
 var I18N_TITLE = {
@@ -4107,8 +4699,8 @@ var I18N_TITLE = {
     en:'Drag top ruler down → horizontal guide\nDrag left ruler right → vertical guide\nCtrl + drag near guide → move it\nAuto-snap to cell edges / centers while dragging\nDouble-click guide → delete\nWhen hidden, snapping is disabled'
   },
   'help.sel': {
-    zh:'选择工具 (V)：Shift=正方形 · Ctrl=加选 · Alt=减选\n套索工具 (M)：Shift=正圆 · Ctrl=加选 · Alt=减选\n按住 V 或 M 拖动选区内 → 仅移动选区（Shift=锁定水平/垂直）\n普通拖动选区内 → 浮起像素并移动（Shift 锁轴）\n按住 R + 鼠标移动 → 围绕选区中心旋转（Shift=45°）\nC → 裁切图片到选区\nQ → 切换单格/全图显示\n← → / A D → 切换动画帧（长按连续播放，释放停住）\n空格 → 播放 / 暂停；空格 + 拖动 → 平移画布\nCtrl+C 复制 · Ctrl+X 剪切 · Ctrl+V 粘贴 · Ctrl+Shift+V 粘贴为新图层\n1 打开 PNG · 2 另存 PNG · 3 打开工程 · 4 另存工程',
-    en:'Select (V): Shift=Square · Ctrl=Add · Alt=Subtract\nLasso (M): Shift=Circle · Ctrl=Add · Alt=Subtract\nHold V or M and drag inside → move selection only (Shift=lock axis)\nNormal drag inside → float pixels & move (Shift=lock axis)\nHold R + move mouse → rotate around selection center (Shift=45°)\nC → Crop image to selection\nQ → Toggle single cell / full canvas\n← → / A D → step animation frames (hold = continuous, release = stop)\nSpace → play/pause; Space + drag → pan\nCtrl+C Copy · Ctrl+X Cut · Ctrl+V Paste · Ctrl+Shift+V Paste as new layer\n1 Open PNG · 2 Save-As PNG · 3 Open Project · 4 Save-As Project'
+    zh:'选择工具 (V)：Shift=正方形 · Ctrl=加选 · Alt=减选\n套索工具 (M)：Shift=正圆 · Ctrl=加选 · Alt=减选\n按住 V 或 M 拖动选区内 → 仅移动选区（Shift=锁定水平/垂直）\n普通拖动选区内 → 浮起像素并移动（Shift 锁轴）\n按住 R + 鼠标移动 → 围绕选区中心旋转（Shift=45°）\nC → 裁切图片到选区\nT → 晶格变形（拉伸、斜切）\nQ → 切换单格/全图显示\n← → / A D → 切换动画帧（长按连续播放，释放停住）\n空格 → 播放 / 暂停；空格 + 拖动 → 平移画布\nCtrl+C 复制 · Ctrl+X 剪切 · Ctrl+V 粘贴 · Ctrl+Shift+V 粘贴为新图层\n1 打开 PNG · 2 另存 PNG · 3 打开工程 · 4 另存工程',
+    en:'Select (V): Shift=Square · Ctrl=Add · Alt=Subtract\nLasso (M): Shift=Circle · Ctrl=Add · Alt=Subtract\nHold V or M and drag inside → move selection only (Shift=lock axis)\nNormal drag inside → float pixels & move (Shift=lock axis)\nHold R + move mouse → rotate around selection center (Shift=45°)\nC → Crop image to selection\nT → Transform / Lattice (stretch, skew)\nQ → Toggle single cell / full canvas\n← → / A D → step animation frames (hold = continuous, release = stop)\nSpace → play/pause; Space + drag → pan\nCtrl+C Copy · Ctrl+X Cut · Ctrl+V Paste · Ctrl+Shift+V Paste as new layer\n1 Open PNG · 2 Save-As PNG · 3 Open Project · 4 Save-As Project'
   },
   'tt.rotCcw': {zh:'逆时针旋转 90°', en:'Rotate 90° CCW'},
   'tt.rotCw':  {zh:'顺时针旋转 90°', en:'Rotate 90° CW'},
@@ -4126,12 +4718,11 @@ function applyLanguage(lang) {
     if(!entry) return;
     var txt = entry[lang];
     if(txt === undefined) txt = entry.zh;
-    if(el.id === 'btn-bg' || el.id === 'btn-view-mode' || el.id === 'btn-guides-toggle') return;
+    if(el.id === 'btn-bg' || el.id === 'btn-view-mode' || el.id === 'btn-guides-toggle' || el.id === 'btn-transform-grid') return;
     if(el.id === 'btn-play' && ui.playing) return;
     var small = el.querySelector('small');
     var sc = el.querySelector('.sc');
     if(sc){
-      /* menu item with shortcut span: keep .sc child */
       var nodes = el.childNodes;
       for(var i=0;i<nodes.length;i++){
         if(nodes[i].nodeType === 3 && nodes[i].nodeValue.trim()){
@@ -4265,7 +4856,34 @@ function bindUI(){
 
   /* 裁切按钮 */
   document.getElementById('btn-crop').addEventListener('click', cropToSelection);
+  document.getElementById('btn-transform').addEventListener('click', startTransform);
   document.getElementById('btn-crop-sel').addEventListener('click', cropToSelection);
+
+  document.getElementById('btn-transform-grid').addEventListener('click', function() {
+    if (transformState) {
+      if (transformState.gridMode === 1) {
+        transformState.gridMode = 3;
+        transformState.points = [];
+        for (var iy = 0; iy <= 3; iy++) {
+          for (var ix = 0; ix <= 3; ix++) {
+            var u = ix / 3, v = iy / 3;
+            var px = (1-u)*(1-v)*transformState.corners[0].x + u*(1-v)*transformState.corners[1].x + u*v*transformState.corners[2].x + (1-u)*v*transformState.corners[3].x;
+            var py = (1-u)*(1-v)*transformState.corners[0].y + u*(1-v)*transformState.corners[1].y + u*v*transformState.corners[2].y + (1-u)*v*transformState.corners[3].y;
+            transformState.points.push({x: px, y: py});
+          }
+        }
+        this.textContent = '1x1';
+      } else {
+        transformState.gridMode = 1;
+        transformState.corners[0] = { x: transformState.points[0].x, y: transformState.points[0].y };
+        transformState.corners[1] = { x: transformState.points[3].x, y: transformState.points[3].y };
+        transformState.corners[2] = { x: transformState.points[15].x, y: transformState.points[15].y };
+        transformState.corners[3] = { x: transformState.points[12].x, y: transformState.points[12].y };
+        this.textContent = '3x3';
+      }
+      requestRender();
+    }
+  });
 
   document.getElementById('btn-rot-ccw').addEventListener('click', function(){ rotateInteger(-90); });
   document.getElementById('btn-rot-cw').addEventListener('click', function(){ rotateInteger(90); });
@@ -4403,7 +5021,7 @@ function mainLoop(now){
     tickAnim(now);
     if(animPreviewDirty) renderAnimPreview();
     if(doc.hasSelection || doc.floating || (drag.mode === 'select' && drag.selStart)
-       || (drag.mode === 'lasso' && drag.lassoPoints) || rotState){
+       || (drag.mode === 'lasso' && drag.lassoPoints) || rotState || transformState){
       dashOffset = (now * 0.02) % 8;
       needsRender = true;
     }

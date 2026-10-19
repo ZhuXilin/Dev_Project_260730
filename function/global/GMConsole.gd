@@ -847,25 +847,24 @@ func _cmd_key(args: Array):
 
 
 func _cmd_whisper(_args: Array):
-	var w = ForgeWhisperManager.get_current_whisper()
-	if w.is_empty():
-		_out("本局尚未抽取低语", "yellow")
-	else:
-		_out("当前低语: %s - %s" % [w.get("speaker", "?"), w.get("text", "")], "cyan")
-		_out("效果: " + str(w.get("effect", {})), "white")
+	var intel : Array = GameState.revealed_intel
+	var hints : Array = GameState.fusion_hints
+	var effects : Array = GameState.active_narrative_effects
 
-	var effects : Array = ForgeWhisperManager.get_active_effects()
-	_out("生效中效果: %d" % effects.size(), "white")
-	for e in effects:
-		_out("  - " + str(e), "white")
+	if intel.is_empty() and hints.is_empty() and effects.is_empty():
+		_out("本局尚无低语 / 情报 / 熔合提示", "yellow")
+		return
 
-	var intel : Array = ForgeWhisperManager.get_revealed_intel()
+	if not effects.is_empty():
+		_out("生效中效果: %d" % effects.size(), "white")
+		for e in effects:
+			_out("  - " + str(e), "white")
+
 	if not intel.is_empty():
 		_out("Boss 情报: %d 条" % intel.size(), "yellow")
 		for t in intel:
 			_out("  · " + str(t), "yellow")
 
-	var hints : Array = ForgeWhisperManager.get_fusion_hints()
 	if not hints.is_empty():
 		_out("熔合提示: %d 条" % hints.size(), "yellow")
 		for h in hints:
@@ -873,8 +872,10 @@ func _cmd_whisper(_args: Array):
 
 
 func _cmd_whisper_reset(_args: Array):
-	ForgeWhisperManager.reset_for_new_run()
-	_out("已重置本局低语", "green")
+	GameState.active_narrative_effects.clear()
+	GameState.revealed_intel.clear()
+	GameState.fusion_hints.clear()
+	_out("已清空本局低语效果 / 情报 / 熔合提示", "green")
 
 
 func _cmd_wave(args: Array):

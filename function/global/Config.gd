@@ -9,16 +9,14 @@ const PATHS : Dictionary = {
 	"RELIC_DATA":       "res://content/data/relic_data.json",
 	"RELIC_UNLOCK":     "res://content/data/relic_unlock.json",
 	"TALENT_DATA":      "res://content/data/talents.json",
-	"DIALOGUE_DATA":    "res://content/data/dialogues.json",
 	"EVENT_DATA":       "res://content/data/events.json",
 	"RECIPE_DATA":      "res://content/data/recipes.json",
-	"STORY_DATA":       "res://content/data/stories.json",
 	"ARENA_ENEMIES":    "res://content/data/arena_enemies.json",
 	"AURA_DATA":        "res://content/data/auras.json",
 	"AFFIX_DATA":       "res://content/data/affixes.json",
 	"SET_BONUS_DATA":   "res://content/data/set_bonuses.json",
 	"TREASURE_REWARDS": "res://content/data/treasure_rewards.json",
-	"FORGE_WHISPER_DATA": "res://content/data/forge_whispers.json",
+	"NARRATIVE_DATA":   "res://content/data/narrative.json",
 
 	# 配置资源
 	"MUSIC_CONFIG":     "res://content/scenes/levels/MusicConfig.tres",

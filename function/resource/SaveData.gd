@@ -109,4 +109,10 @@ const CURRENT_VERSION = 11
 @export var temp_soul_legacy: int = 0
 
 @export var npc_affinity: Dictionary = {}
-@export var forge_whisper_state: Dictionary = {}
+
+# ---- 对话系统 ----
+@export var npc_interact_counts: Dictionary = {}
+@export var dialogue_play_counts: Dictionary = {}
+@export var active_narrative_effects: Array = []
+@export var revealed_intel: Array = []
+@export var fusion_hints: Array = []

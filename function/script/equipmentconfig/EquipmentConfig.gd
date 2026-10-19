@@ -27,9 +27,9 @@ var _talent : EquipmentConfigTalent = null
 var _upgrade_shop_btn : Button = null
 var _aura_tab_btn : Button = null
 
-var _whisper_icon : Button = null
-var _whisper_panel : PanelContainer = null
-var _whisper_auto_shown : bool = false
+# v4.6：FORGE 对话系统（替代原 ForgeWhisperManager 低语面板）
+var _forge_recall_btn : Button = null
+var _forge_enter_done : bool = false
 
 const ShopManagerScript = preload(Config.PATHS.SHOP_MANAGER_SCRIPT)
 
@@ -154,6 +154,9 @@ func init(units: Array, slot: int, mode: int, context: EquipContext = null):
 
 	if is_shop_rest_mode():
 		current_tab = "arena_shop"
+
+	# v4.6：每次进入 UI 重置 forge_enter 一次性标记
+	_forge_enter_done = false
 
 	_copy_party_data()
 	_build_ui()
@@ -288,7 +291,7 @@ func _build_ui_inner():
 	talent_tab_btn.visible = false
 	if sacrifice_tab_btn: sacrifice_tab_btn.visible = false
 	if furnace_tab_btn: furnace_tab_btn.visible = false
-	if _aura_tab_btn: _aura_tab_btn.visible = false   # ★ v4.2
+	if _aura_tab_btn: _aura_tab_btn.visible = false
 
 	var left_column : VBoxContainer = $VBoxContainer/MainHBox/LeftVBox
 	if left_column:
@@ -401,7 +404,7 @@ func _build_ui_inner():
 			if sacrifice_tab_btn:
 				sacrifice_tab_btn.visible = true
 				sacrifice_tab_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-			if _aura_tab_btn:                        # ★ v4.2
+			if _aura_tab_btn:
 				_aura_tab_btn.visible = true
 				_aura_tab_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 
@@ -423,7 +426,7 @@ func _build_ui_inner():
 					shop_container.visible = true
 					reset_btn.visible = false
 					discard_zone.visible = true
-				"aura":                                    # ★ v4.2
+				"aura":
 					_build_aura_panel()
 					shop_container.visible = true
 					reset_btn.visible = false
@@ -455,7 +458,7 @@ func _build_ui_inner():
 			if sacrifice_tab_btn:
 				sacrifice_tab_btn.visible = true
 				sacrifice_tab_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-			if _aura_tab_btn:                            # ★ v4.2
+			if _aura_tab_btn:
 				_aura_tab_btn.visible = true
 				_aura_tab_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 
@@ -485,17 +488,18 @@ func _build_ui_inner():
 					shop_container.visible = true
 					reset_btn.visible = false
 					discard_zone.visible = true
-				"aura":                                    # ★ v4.2
+				"aura":
 					_build_aura_panel()
 					shop_container.visible = true
 					reset_btn.visible = false
 					discard_zone.visible = true
 
 			if left_column: left_column.size_flags_vertical = Control.SIZE_EXPAND_FILL
-			
+
+	# v4.6：FORGE 对话入口（替换原 _init_whisper_ui）
 	if current_mode == Mode.FORGE or is_shop_rest_mode():
-		_init_whisper_ui()
-		
+		_setup_forge_narrative_ui()
+
 	close_btn.add_theme_font_size_override("font_size", Style.FONT_LARGE)
 	confirm_btn.add_theme_font_size_override("font_size", Style.FONT_LARGE)
 	reset_btn.add_theme_font_size_override("font_size", Style.FONT_LARGE)
@@ -559,7 +563,6 @@ func _build_aura_panel():
 		shop_container.add_child(hint0)
 		return
 
-	# ---- 已装备区 ----
 	if not equipped.is_empty():
 		var eq_title := Label.new()
 		eq_title.text = "— 已装备（可卸下） —"
@@ -570,7 +573,6 @@ func _build_aura_panel():
 		for aid in equipped:
 			shop_container.add_child(_make_equipped_aura_row(aid))
 
-	# ---- 候选区 ----
 	var cand_title := Label.new()
 	cand_title.text = "— 候选（花魂火购买） —"
 	cand_title.add_theme_font_size_override("font_size", 7)
@@ -699,7 +701,6 @@ func _make_aura_row(aid : String, empty_slot : int, is_equipped : bool) -> HBoxC
 	row.add_child(desc_lb)
 
 	if is_equipped:
-		# ★ 已装备 → 显示"卸下"
 		var tag_lb := Label.new()
 		tag_lb.text = "✦ 已装备"
 		tag_lb.add_theme_font_size_override("font_size", 6)
@@ -715,7 +716,6 @@ func _make_aura_row(aid : String, empty_slot : int, is_equipped : bool) -> HBoxC
 		unequip_btn.pressed.connect(_on_unequip_aura.bind(aid))
 		row.add_child(unequip_btn)
 	else:
-		# 未装备 → 显示"购买"
 		var buy_btn := Button.new()
 		buy_btn.text = "购买 %d◆" % buy_cost
 		buy_btn.add_theme_font_size_override("font_size", 7)
@@ -1253,7 +1253,6 @@ func _create_passive_button(inst: Variant, slot_index: int) -> Button:
 		var item_inst : ItemInstance = inst
 		var data : Dictionary = RelicManager.get_relic_data(item_inst.item_id)
 		if not data.is_empty():
-			# ★ v4.5：已精炼加 ★ 前缀
 			var prefix : String = "★ " if GameState.is_relic_refined(item_inst.item_id) else ""
 			btn.text = prefix + data.get("name", "?")
 			btn.set_meta("item_id", item_inst.item_id)
@@ -1640,7 +1639,7 @@ func _switch_tab(tab: String):
 		"sacrifice":
 			_build_sacrifice_panel()
 			if reset_btn: reset_btn.visible = false
-		"aura":                                         # ★ v4.2
+		"aura":
 			_build_aura_panel()
 			if reset_btn: reset_btn.visible = false
 	shop_container.visible = true
@@ -1664,7 +1663,7 @@ func _force_relayout():
 func _refresh_bottom_buttons():
 	var in_sacrifice : bool = (current_tab == "sacrifice")
 	var in_arena_forge : bool = (current_tab == "arena_forge")
-	var in_aura : bool = (current_tab == "aura")          # ★ v4.2
+	var in_aura : bool = (current_tab == "aura")
 
 	if in_sacrifice or in_arena_forge or in_aura:
 		close_btn.disabled = true
@@ -1926,319 +1925,92 @@ func _create_advanced_talent_button(unit: UnitData, unit_idx: int) -> Button:
 
 
 # ============================================================
-#  v4.4：FORGE 低语
+#  v4.6：FORGE 对话入口（统一走 StoryManager）
+#  替代原 ForgeWhisperManager 的自定义低语面板
 # ============================================================
-func _init_whisper_ui():
-	if _whisper_icon and is_instance_valid(_whisper_icon):
-		# 图标已存在 → 不重复创建
-		if not _whisper_auto_shown and ForgeWhisperManager.should_show_this_run():
-			_whisper_auto_shown = true
-			call_deferred("_auto_show_whisper")
-		return
+func _setup_forge_narrative_ui() -> void:
+	# 1. 首次进 FORGE 自动触发一次 forge_enter 对话（有匹配才弹）
+	if not _forge_enter_done:
+		_forge_enter_done = true
+		call_deferred("_trigger_forge_enter")
 
+	# 2. 加"问铁匠"按钮（代替旧 ◈ 图标 + 情报面板）
+	_ensure_forge_recall_button()
+
+
+func _trigger_forge_enter() -> void:
+	if not is_inside_tree():
+		return
+	var ctx := _build_forge_context()
+	StoryManager.trigger("forge_enter", ctx)
+
+
+func _ensure_forge_recall_button() -> void:
+	if _forge_recall_btn and is_instance_valid(_forge_recall_btn):
+		return
 	var canvas : Node = get_parent()
 	if not canvas or not (canvas is CanvasLayer):
 		return
-
-	_whisper_icon = Button.new()
-	_whisper_icon.name = "WhisperIcon"
-	_whisper_icon.text = "◈"
-	_whisper_icon.focus_mode = Control.FOCUS_NONE
-	_whisper_icon.add_theme_font_size_override("font_size", 14)
-	_whisper_icon.add_theme_color_override("font_color", Color(0.9, 0.75, 0.95))
-	_whisper_icon.add_theme_color_override("font_hover_color", Color(1.0, 0.9, 1.0))
-	_whisper_icon.add_theme_color_override("font_pressed_color", Color(0.7, 0.55, 0.8))
-
-	var empty := StyleBoxEmpty.new()
-	_whisper_icon.add_theme_stylebox_override("normal", empty)
-	_whisper_icon.add_theme_stylebox_override("hover", empty)
-	_whisper_icon.add_theme_stylebox_override("pressed", empty)
-	_whisper_icon.add_theme_stylebox_override("focus", empty)
-
-	_whisper_icon.size = Vector2(20, 20)
-	_whisper_icon.position = Vector2(374, 110)
-	_whisper_icon.tooltip_text = "低语"
-	_whisper_icon.z_index = 100
-	_whisper_icon.pressed.connect(_on_whisper_icon_pressed)
-	canvas.add_child(_whisper_icon)
-
-	# 首次自动弹
-	if not _whisper_auto_shown and ForgeWhisperManager.should_show_this_run():
-		_whisper_auto_shown = true
-		call_deferred("_auto_show_whisper")
+	_forge_recall_btn = Button.new()
+	_forge_recall_btn.name = "ForgeRecallBtn"
+	_forge_recall_btn.text = "问铁匠"
+	_forge_recall_btn.focus_mode = Control.FOCUS_NONE
+	_forge_recall_btn.add_theme_font_size_override("font_size", 8)
+	_forge_recall_btn.size = Vector2(60, 18)
+	_forge_recall_btn.position = Vector2(326, 110)
+	_forge_recall_btn.z_index = 100
+	_forge_recall_btn.tooltip_text = "查看当前商店倾向 / 魂火状态 / 低语效果"
+	_forge_recall_btn.pressed.connect(_on_forge_recall_pressed)
+	canvas.add_child(_forge_recall_btn)
 
 
-func _auto_show_whisper():
+func _on_forge_recall_pressed() -> void:
 	if not is_inside_tree():
 		return
-	var w : Dictionary = ForgeWhisperManager.pick_for_current_run()
-	if w.is_empty():
-		return
-	_show_whisper_panel(w)
-	_regenerate_shop_if_needed()
+	var ctx := _build_forge_context()
+	StoryManager.trigger("forge_recall", ctx)
 
 
-func _on_whisper_icon_pressed():
-	# 首次点击时若本局还没抽，先抽一条
-	if ForgeWhisperManager.should_show_this_run():
-		ForgeWhisperManager.pick_for_current_run()
-		_regenerate_shop_if_needed()
+func _build_forge_context() -> Dictionary:
+	# 商店标签偏向
+	var hint_tags : Array = []
+	for tag in ["守护", "烈焰", "灰烬", "轮回", "献祭", "余烬"]:
+		var boost : int = GameState.get_shop_tag_boost(tag)
+		if boost > 0:
+			hint_tags.append("%s(+%d)" % [tag, boost])
+	if hint_tags.is_empty():
+		hint_tags = ["无偏向"]
 
-	_show_intel_summary_panel()
+	# 当前生效的低语效果
+	var effect_lines : Array = []
+	for e in GameState.active_narrative_effects:
+		if not (e is Dictionary):
+			continue
+		var ed : Dictionary = e
+		if ed.get("type", "") == "shop_tag_weight_boost":
+			effect_lines.append("· 商店偏向：%s（+%d）" % [ed.get("tag", ""), int(ed.get("amount", 0))])
+	if effect_lines.is_empty():
+		effect_lines.append("· 本局无低语效果")
 
+	# 魂火状态
+	var sf_state_text : String = "正常"
+	match SoulFireManager.get_state():
+		SoulFireManager.State.BURNING:  sf_state_text = "燃烧"
+		SoulFireManager.State.DEPLETED: sf_state_text = "枯竭"
+		SoulFireManager.State.ZERO:     sf_state_text = "归零"
 
-func _show_whisper_panel(whisper : Dictionary):
-	if _whisper_panel and is_instance_valid(_whisper_panel):
-		_whisper_panel.queue_free()
+	var shop_lv : int = 0
+	if _context != null:
+		shop_lv = _context.get_shop_level()
 
-	var canvas : Node = get_parent()
-	if not canvas:
-		return
-
-	_whisper_panel = PanelContainer.new()
-	_whisper_panel.name = "WhisperPanel"
-
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = Color(0.05, 0.03, 0.1, 0.94)
-	sb.border_color = Color(0.6, 0.5, 0.8, 0.85)
-	sb.border_width_left = 1
-	sb.border_width_right = 1
-	sb.border_width_top = 1
-	sb.border_width_bottom = 1
-	sb.content_margin_left = 6
-	sb.content_margin_right = 6
-	sb.content_margin_top = 4
-	sb.content_margin_bottom = 4
-	_whisper_panel.add_theme_stylebox_override("panel", sb)
-
-	_whisper_panel.z_index = 101
-	_whisper_panel.position = Vector2(240, 100)
-	_whisper_panel.custom_minimum_size = Vector2(130, 0)
-	canvas.add_child(_whisper_panel)
-
-	var vbox := VBoxContainer.new()
-	vbox.add_theme_constant_override("separation", 2)
-	_whisper_panel.add_child(vbox)
-
-	var speaker_lb := Label.new()
-	speaker_lb.text = whisper.get("speaker", "低语")
-	speaker_lb.add_theme_font_size_override("font_size", 7)
-	speaker_lb.add_theme_color_override("font_color", Color(0.85, 0.75, 1.0))
-	vbox.add_child(speaker_lb)
-
-	var text_lb := Label.new()
-	text_lb.text = whisper.get("text", "")
-	text_lb.add_theme_font_size_override("font_size", 7)
-	text_lb.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	text_lb.custom_minimum_size = Vector2(118, 0)
-	vbox.add_child(text_lb)
-
-	var effect_hint : String = _whisper_effect_hint(whisper)
-	if effect_hint != "":
-		var eff_lb := Label.new()
-		eff_lb.text = effect_hint
-		eff_lb.add_theme_font_size_override("font_size", 6)
-		eff_lb.add_theme_color_override("font_color", Color(0.9, 0.9, 0.6))
-		eff_lb.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		eff_lb.custom_minimum_size = Vector2(118, 0)
-		vbox.add_child(eff_lb)
-
-	var close_whisper_btn := Button.new()
-	close_whisper_btn.text = "关闭"
-	close_whisper_btn.add_theme_font_size_override("font_size", 6)
-	close_whisper_btn.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	close_whisper_btn.pressed.connect(_close_whisper_panel)
-	vbox.add_child(close_whisper_btn)
-
-	# 5 秒后自动关闭
-	var tw := create_tween()
-	tw.set_ignore_time_scale(true)
-	tw.tween_property(_whisper_panel, "modulate:a", 0.0, 0.5).set_delay(5.0)
-	tw.tween_callback(_close_whisper_panel)
-
-
-func _close_whisper_panel():
-	if _whisper_panel and is_instance_valid(_whisper_panel):
-		_whisper_panel.queue_free()
-	_whisper_panel = null
-
-
-func _whisper_effect_hint(whisper : Dictionary) -> String:
-	var effect : Dictionary = whisper.get("effect", {})
-	if effect.is_empty():
-		return ""
-	var t : String = effect.get("type", "")
-	var params : Dictionary = effect.get("params", {})
-	match t:
-		"shop_tag_weight_boost":
-			return "本局商店偏向：" + str(params.get("tag", ""))
-		"reveal_boss_intel":
-			return "★ 记入 Boss 情报"
-		"fusion_hint":
-			return "★ 记入熔合提示"
-	return ""
-
-
-func _has_shop_weight_effect() -> bool:
-	for e in ForgeWhisperManager.get_active_effects():
-		if e.get("type", "") == "shop_tag_weight_boost":
-			return true
-	return false
-
-
-func _regenerate_shop_if_needed():
-	if not _has_shop_weight_effect():
-		return
-	if shop_manager == null:
-		return
-	shop_manager.generate_shop_items()
-	shop_manager.shop_updated.emit()
-
-
-# ============================================================
-#  v4.5：情报汇总面板（低语 + Boss 情报 + 熔合提示）
-# ============================================================
-var _intel_summary_panel : PanelContainer = null
-
-
-func _show_intel_summary_panel():
-	if _intel_summary_panel and is_instance_valid(_intel_summary_panel):
-		_intel_summary_panel.queue_free()
-
-	var canvas : Node = get_parent()
-	if not canvas:
-		return
-
-	_intel_summary_panel = PanelContainer.new()
-	_intel_summary_panel.name = "IntelSummaryPanel"
-
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = Color(0.05, 0.03, 0.1, 0.95)
-	sb.border_color = Color(0.6, 0.5, 0.8, 0.85)
-	sb.border_width_left = 1
-	sb.border_width_right = 1
-	sb.border_width_top = 1
-	sb.border_width_bottom = 1
-	sb.content_margin_left = 8
-	sb.content_margin_right = 8
-	sb.content_margin_top = 6
-	sb.content_margin_bottom = 6
-	_intel_summary_panel.add_theme_stylebox_override("panel", sb)
-
-	_intel_summary_panel.z_index = 102
-	_intel_summary_panel.anchor_left = 0.5
-	_intel_summary_panel.anchor_right = 0.5
-	_intel_summary_panel.anchor_top = 0.5
-	_intel_summary_panel.anchor_bottom = 0.5
-	_intel_summary_panel.offset_left = -100
-	_intel_summary_panel.offset_right = 100
-	_intel_summary_panel.offset_top = -80
-	_intel_summary_panel.offset_bottom = 80
-	canvas.add_child(_intel_summary_panel)
-
-	var vbox := VBoxContainer.new()
-	vbox.add_theme_constant_override("separation", 4)
-	_intel_summary_panel.add_child(vbox)
-
-	var title_lb := Label.new()
-	title_lb.text = "情报簿"
-	title_lb.add_theme_font_size_override("font_size", 9)
-	title_lb.add_theme_color_override("font_color", Color(0.9, 0.8, 1.0))
-	title_lb.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	vbox.add_child(title_lb)
-
-	var scroll := ScrollContainer.new()
-	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	vbox.add_child(scroll)
-
-	var content := VBoxContainer.new()
-	content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	content.add_theme_constant_override("separation", 3)
-	scroll.add_child(content)
-
-	# 1. 当前低语
-	var cur_w : Dictionary = ForgeWhisperManager.get_current_whisper()
-	var section_any : bool = false
-	if not cur_w.is_empty():
-		section_any = true
-		var sec := Label.new()
-		sec.text = "◈ 低语"
-		sec.add_theme_font_size_override("font_size", 7)
-		sec.add_theme_color_override("font_color", Color(0.85, 0.75, 1.0))
-		content.add_child(sec)
-
-		var w_lb := Label.new()
-		w_lb.text = "%s：%s" % [
-			cur_w.get("speaker", "低语"),
-			cur_w.get("text", "")
-		]
-		w_lb.add_theme_font_size_override("font_size", 7)
-		w_lb.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		w_lb.custom_minimum_size = Vector2(170, 0)
-		content.add_child(w_lb)
-
-		var hint : String = _whisper_effect_hint(cur_w)
-		if hint != "":
-			var h_lb := Label.new()
-			h_lb.text = "[" + hint + "]"
-			h_lb.add_theme_font_size_override("font_size", 6)
-			h_lb.add_theme_color_override("font_color", Color(0.9, 0.9, 0.6))
-			h_lb.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-			h_lb.custom_minimum_size = Vector2(170, 0)
-			content.add_child(h_lb)
-
-	# 2. Boss 情报
-	var intels : Array = ForgeWhisperManager.get_revealed_intel()
-	if not intels.is_empty():
-		section_any = true
-		var sec2 := Label.new()
-		sec2.text = "⚡ 情报"
-		sec2.add_theme_font_size_override("font_size", 7)
-		sec2.add_theme_color_override("font_color", Color(0.7, 0.85, 1.0))
-		content.add_child(sec2)
-		for i in intels:
-			var l := Label.new()
-			l.text = "· " + str(i)
-			l.add_theme_font_size_override("font_size", 6)
-			l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-			l.custom_minimum_size = Vector2(170, 0)
-			content.add_child(l)
-
-	# 3. 熔合提示
-	var hints : Array = ForgeWhisperManager.get_fusion_hints()
-	if not hints.is_empty():
-		section_any = true
-		var sec3 := Label.new()
-		sec3.text = "✦ 熔合提示"
-		sec3.add_theme_font_size_override("font_size", 7)
-		sec3.add_theme_color_override("font_color", Color(1.0, 0.85, 0.5))
-		content.add_child(sec3)
-		for h in hints:
-			var l2 := Label.new()
-			l2.text = "· " + str(h)
-			l2.add_theme_font_size_override("font_size", 6)
-			l2.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-			l2.custom_minimum_size = Vector2(170, 0)
-			content.add_child(l2)
-
-	if not section_any:
-		var empty_lb := Label.new()
-		empty_lb.text = "（暂无情报）"
-		empty_lb.add_theme_font_size_override("font_size", 7)
-		empty_lb.modulate = Color(0.6, 0.6, 0.6)
-		empty_lb.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		content.add_child(empty_lb)
-
-	var close_intel_btn := Button.new()
-	close_intel_btn.text = "关闭"
-	close_intel_btn.add_theme_font_size_override("font_size", 7)
-	close_intel_btn.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	close_intel_btn.pressed.connect(_close_intel_summary_panel)
-	vbox.add_child(close_intel_btn)
-
-
-func _close_intel_summary_panel():
-	if _intel_summary_panel and is_instance_valid(_intel_summary_panel):
-		_intel_summary_panel.queue_free()
-	_intel_summary_panel = null
+	return {
+		"npc_id": "forge",
+		"current_day": GameState.current_day,
+		"shop_level": shop_lv,
+		"shop_tag_hint": "、".join(hint_tags),
+		"active_effects": "\n".join(effect_lines),
+		"soul_fire_state": sf_state_text,
+		"soul_fire_current": SoulFireManager.current,
+		"soul_fire_max": SoulFireManager.get_max_carried(),
+		"npc_interact_count": StoryManager.get_npc_interact_count("forge"),
+	}

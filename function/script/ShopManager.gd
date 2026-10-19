@@ -87,9 +87,10 @@ func reset_shop() -> int:
 
 
 func _get_team_tag_weights() -> Dictionary:
-	var weights : Dictionary = {}
+	var weights: Dictionary = {}
 	for ud in GameState.party:
-		if ud.is_dead: continue
+		if ud.is_dead:
+			continue
 		for tag in ud.tags:
 			if tag not in ARMOR_TAGS:
 				continue
@@ -97,17 +98,17 @@ func _get_team_tag_weights() -> Dictionary:
 	for tag in GameState.tag_purchase_count:
 		if tag not in ARMOR_TAGS:
 			continue
-		var cnt : int = min(int(GameState.tag_purchase_count[tag]), TAG_PURCHASE_WEIGHT_CAP)
+		var cnt: int = min(int(GameState.tag_purchase_count[tag]), TAG_PURCHASE_WEIGHT_CAP)
 		weights[tag] = weights.get(tag, 0) + cnt
 
-	# FORGE 低语
+	# v4.6：低语效果从 GameState 读
 	for tag in ARMOR_TAGS:
-		var boost : int = ForgeWhisperManager.get_shop_tag_boost(tag)
+		var boost: int = GameState.get_shop_tag_boost(tag)
 		if boost > 0:
 			weights[tag] = weights.get(tag, 0) + boost
 
-	# 隐藏商人标签定向器（压倒性权重）
-	var pin : String = GameState.active_tag_pin
+	# 隐藏商人标签定向器
+	var pin: String = GameState.active_tag_pin
 	if pin != "" and pin in ARMOR_TAGS:
 		weights[pin] = weights.get(pin, 0) + 200
 

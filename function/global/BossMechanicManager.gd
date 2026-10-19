@@ -163,6 +163,10 @@ func on_boss_defeated(defender : Unit) -> bool:
 	SignalBus.request_hint_override.emit(
 		"★ %s 觉醒第 %d 形态！魂火上限 -3" % [
 			defender.unit_stats.unit_name, _three_forms_stage + 1], 2.0)
+	StoryManager.trigger("boss_revive", {
+		"current_day": GameState.current_day,
+		"stage": _three_forms_stage + 1,
+	})
 	boss_mechanic_triggered.emit("three_forms", "魂火上限降低")
 	print("[Boss] 三形态 → 第 %d 形态，魂火上限 %d → %d" % [
 		_three_forms_stage + 1, old_max_sf, SoulFireManager.get_max_carried()])

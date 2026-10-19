@@ -47,7 +47,7 @@ func register_event(event_id: String, event_def: Dictionary):
 		print("事件已存在，跳过注册: ", event_id)
 
 
-func trigger_event(event_id: String, unit: Unit = null, default_music: AudioStream = null):
+func trigger_event(event_id: String, unit: Unit = null, _default_music: AudioStream = null):
 	if not _events.has(event_id):
 		push_error("未知事件: ", event_id)
 		return
@@ -63,115 +63,73 @@ func trigger_event(event_id: String, unit: Unit = null, default_music: AudioStre
 		var action_type = action.get("type", "")
 		match action_type:
 			"complete":
-				print("非战斗地图完成事件触发")
 				SignalBus.non_combat_complete.emit()
 				await get_tree().process_frame
 
 			"dialog":
-				var dialog_id = action.get("dialog_id", "")
-				var music_stream = action.get("music", default_music)
+				var dialog_id: String = str(action.get("dialog_id", ""))
 				if dialog_id != "":
-					if DialogueManager.is_active:
-						print("对话已激活，等待结束后再播放新对话: ", dialog_id)
+					if StoryManager.play_dialogue_by_id(dialog_id):
 						await DialogueManager.dialogue_finished
-					DialogueManager.start_dialogue(dialog_id, music_stream)
-					await DialogueManager.dialogue_finished
 
 			"give_item":
 				if unit == null:
-					print("警告: 无单位，跳过 give_item")
 					continue
-				var item_id = action.get("item_id", "")
-				var count = action.get("count", 1)
-				var equip = action.get("equip", false)
+				var item_id: String = str(action.get("item_id", ""))
+				var count: int = int(action.get("count", 1))
+				var equip: bool = bool(action.get("equip", false))
 				if item_id == "":
-					push_error("give_item 动作缺少 item_id")
 					continue
-
-				# ---- 1. 检查是否为遗物 ----
-				var relic_data = RelicManager.get_relic_data(item_id)
+				var relic_data: Dictionary = RelicManager.get_relic_data(item_id)
 				if not relic_data.is_empty():
 					RelicManager.unlock_relic(item_id)
 					GameState.add_reward_item(item_id)
-					var inst = ItemInstance.new()
+					var inst := ItemInstance.new()
 					inst.item_id = item_id
 					inst.count = 1
-					if not GameState.add_relic_to_passive_slot(inst):
-						print("被动槽已满，遗物 %s 未能装备（已解锁）" % item_id)
+					GameState.add_relic_to_passive_slot(inst)
 					await show_item_get_popup(item_id, count)
 					continue
-
-				# ---- 2. 非遗物：使用 ItemManager 获取数据 ----
 				var item_data = ItemManager.get_item_data(item_id)
 				if not item_data:
-					print("警告：道具数据不存在: ", item_id)
 					continue
-
-				# ---- 3. 消耗品禁用 ----
 				if item_data.type in ["heal", "cure", "buff", "attack"]:
-					print("警告：消耗品 %s 已被禁用，忽略给予" % item_id)
 					continue
-
-				# ---- 4. 武器/防具解锁（仅当是武器或防具时） ----
 				if item_data.type in ["weapon", "armor"]:
 					Globals.unlock_item(item_id)
 					GameState.add_reward_item(item_id)
-
-				# ---- 5. 装备型道具（武器/防具），且 equip 为 true ----
 				if equip:
-					var inst = ItemInstance.new()
-					inst.item_id = item_id
-					inst.count = 1
+					var inst2 := ItemInstance.new()
+					inst2.item_id = item_id
+					inst2.count = 1
 					if item_data.equipment_slot == "weapon":
-						unit.weapon_slot = inst
-						print("单位 %s 装备了武器: %s" % [unit.unit_stats.unit_name, item_data.name])
+						unit.weapon_slot = inst2
 					elif item_data.equipment_slot == "armor":
-						var equipped = false
 						for i in range(unit.armor_slots.size()):
 							if unit.armor_slots[i] == null:
-								unit.armor_slots[i] = inst
-								equipped = true
-								print("单位 %s 装备了防具: %s (槽 %d)" % [unit.unit_stats.unit_name, item_data.name, i+1])
+								unit.armor_slots[i] = inst2
 								break
-						if not equipped:
-							print("警告：单位 %s 防具槽已满，无法装备 %s" % [unit.unit_stats.unit_name, item_data.name])
-					else:
-						print("警告：未知装备槽位: %s" % item_data.equipment_slot)
-				else:
-					print("道具已解锁（未装备）: %s" % item_data.name)
-
 				await show_item_get_popup(item_id, count)
-
-			"unlock_equipment":
-				var item_id = action.get("item_id", "")
-				if item_id != "":
-					var relic_data = RelicManager.get_relic_data(item_id)
-					if not relic_data.is_empty():
-						RelicManager.unlock_relic(item_id)
-					else:
-						Globals.unlock_item(item_id)
 
 			"heal":
 				if unit == null:
-					print("警告: 无单位，跳过 heal")
 					continue
-				var amount = action.get("amount", 0)
-				if amount > 0:
-					unit.hit_points = min(unit.hit_points + amount, unit.unit_stats.max_hp)
+				var amt: int = int(action.get("amount", 0))
+				if amt > 0:
+					unit.hit_points = min(unit.hit_points + amt, unit.unit_stats.max_hp)
 					unit.update_hp_label()
-					SignalBus.request_damage_popup.emit(unit.global_position, amount, false, false, true)
+					SignalBus.request_damage_popup.emit(unit.global_position, amt, false, false, true)
 					SoundManager.play_heal_sound()
 					await get_tree().create_timer(0.3).timeout
 
 			"damage":
 				if unit == null:
-					print("警告: 无单位，跳过 damage")
 					continue
-				var amount = action.get("amount", 0)
-				if amount < 0:
-					unit.hit_points = max(unit.hit_points + amount, 0)
+				var amt2: int = int(action.get("amount", 0))
+				if amt2 < 0:
+					unit.hit_points = max(unit.hit_points + amt2, 0)
 					unit.update_hp_label()
-					SignalBus.request_damage_popup.emit(unit.global_position, abs(amount), false, false, false)
+					SignalBus.request_damage_popup.emit(unit.global_position, abs(amt2), false, false, false)
 					SoundManager.play_hit_sound()
 					await get_tree().create_timer(0.3).timeout
 					if unit.hit_points <= 0:
@@ -179,56 +137,29 @@ func trigger_event(event_id: String, unit: Unit = null, default_music: AudioStre
 						unit.queue_free()
 						TurnManager.check_victory()
 
-			# v4.5 新增：金币奖励
 			"gold":
-				var amount_g = action.get("amount", 0)
-				if amount_g > 0:
-					EconomyManager.add_temp_gold(amount_g)
+				var g: int = int(action.get("amount", 0))
+				if g > 0:
+					EconomyManager.add_temp_gold(g)
 					SoundManager.play_get_item_sound()
-				elif amount_g < 0:
-					EconomyManager.subtract_temp_gold(-amount_g)
+				elif g < 0:
+					EconomyManager.subtract_temp_gold(-g)
 				await get_tree().create_timer(0.2).timeout
 
-			# v4.5 新增：魂奖励
 			"soul":
-				var amount_s = action.get("amount", 0)
-				if amount_s > 0:
-					GameState.soul += amount_s
-				elif amount_s < 0:
-					GameState.soul = maxi(0, GameState.soul + amount_s)
+				var s: int = int(action.get("amount", 0))
+				if s > 0:
+					GameState.soul += s
+				elif s < 0:
+					GameState.soul = maxi(0, GameState.soul + s)
 				SaveManager.auto_save()
 				await get_tree().create_timer(0.2).timeout
 
 			"wait":
-				var seconds = action.get("seconds", 0.5)
-				await get_tree().create_timer(seconds).timeout
+				await get_tree().create_timer(float(action.get("seconds", 0.5))).timeout
 
-			"unlock_unit":
-				var units = action.get("units", [])
-				if units is String:
-					units = [units]
-				var raw_list : Array = []
-				for u in units:
-					if u != "" and u != null:
-						raw_list.append(u)
-
-				var resolved : Array = Globals.resolve_map_unlock_units(raw_list)
-
-				var newly : Array = []
-				for u in resolved:
-					if not Globals.is_unit_unlocked(u) and not Globals.is_unit_eligible(u):
-						newly.append(u)
-					Globals.make_unit_eligible(u)
-
-				if not newly.is_empty():
-					show_unit_eligible_popup(newly)
-
-			"unlock_talent":
-				var talent_id = action.get("talent_id", "")
-				if talent_id != "":
-					Globals.unlock_talent(talent_id)
 			_:
-				push_error("未知动作类型: ", action_type)
+				push_warning("[EventManager] 未知 action: " + action_type)
 
 	if event_def.get("once", true):
 		mark_event_completed(event_id)
