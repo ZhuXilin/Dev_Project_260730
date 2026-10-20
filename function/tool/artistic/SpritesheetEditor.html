@@ -732,7 +732,24 @@ function isBusyDrag(){
       || drag.mode === 'guide' || drag.mode === 'move-sel' || drag.mode === 'lasso';
 }
 function doUndo(){
-  if(transformState) { cancelTransform(); return; }
+  if(transformState) {
+    if(transformState.historyIndex > 0) {
+      transformState.historyIndex--;
+      var state = transformState.history[transformState.historyIndex];
+      transformState.gridMode = state.mode;
+      if(transformState.gridMode === 1) {
+        transformState.corners = JSON.parse(JSON.stringify(state.pts));
+      } else {
+        transformState.points = JSON.parse(JSON.stringify(state.pts));
+      }
+      var gridBtn = document.getElementById('btn-transform-grid');
+      if (gridBtn) gridBtn.textContent = transformState.gridMode === 1 ? '3x3' : '1x1';
+      
+      requestRender();
+      setStatus(currentLang==='zh'?'已撤销一步':'Undo step');
+    }
+    return;
+  }
   if(isBusyDrag()){ setStatus(currentLang==='zh'?'请先松开鼠标再撤销':'Release mouse first'); return; }
   clearTimeout(gridHistTimer);
   if(historyIndex <= 0) return;
@@ -741,7 +758,24 @@ function doUndo(){
   updateUndoButtons();
 }
 function doRedo(){
-  if(transformState) { cancelTransform(); return; }
+  if(transformState) {
+    if(transformState.historyIndex < transformState.history.length - 1) {
+      transformState.historyIndex++;
+      var state = transformState.history[transformState.historyIndex];
+      transformState.gridMode = state.mode;
+      if(transformState.gridMode === 1) {
+        transformState.corners = JSON.parse(JSON.stringify(state.pts));
+      } else {
+        transformState.points = JSON.parse(JSON.stringify(state.pts));
+      }
+      var gridBtn = document.getElementById('btn-transform-grid');
+      if (gridBtn) gridBtn.textContent = transformState.gridMode === 1 ? '3x3' : '1x1';
+      
+      requestRender();
+      setStatus(currentLang==='zh'?'已重做一步':'Redo step');
+    }
+    return;
+  }
   if(isBusyDrag()){ setStatus(currentLang==='zh'?'请先松开鼠标再重做':'Release mouse first'); return; }
   clearTimeout(gridHistTimer);
   if(historyIndex >= historyStack.length-1) return;
@@ -1582,31 +1616,32 @@ function drawBackground(g,x,y,w,h){
   }
 }
 
-function inverseBilinear(px, py, p0, p1, p2, p3) {
+function inverseBilinear(x, y, p0, p1, p2, p3) {
   var u = 0.5, v = 0.5;
-  for (var i = 0; i < 6; i++) {
-    var bx = (1-u)*(1-v)*p0.x + u*(1-v)*p1.x + u*v*p2.x + (1-u)*v*p3.x;
-    var by = (1-u)*(1-v)*p0.y + u*(1-v)*p1.y + u*v*p2.y + (1-u)*v*p3.y;
-    var dx = px - bx;
-    var dy = py - by;
-    if (Math.abs(dx) < 0.1 && Math.abs(dy) < 0.1) break;
-
-    var dx_du = -(1-v)*p0.x + (1-v)*p1.x + v*p2.x - v*p3.x;
-    var dy_du = -(1-v)*p0.y + (1-v)*p1.y + v*p2.y - v*p3.y;
-    var dx_dv = -(1-u)*p0.x - u*p1.x + u*p2.x + (1-u)*p3.x;
-    var dy_dv = -(1-u)*p0.y - u*p1.y + u*p2.y + (1-u)*p3.y;
-
-    var det = dx_du * dy_dv - dy_du * dx_dv;
-    if (Math.abs(det) < 1e-6) break;
-
-    var du = (dx * dy_dv - dy * dx_dv) / det;
-    var dv = (dy_du * dx - dx_du * dy) / det;
-
-    u += du;
-    v += dv;
+  for (var i = 0; i < 8; i++) {
+    var px = (1-u)*(1-v)*p0.x + u*(1-v)*p1.x + u*v*p2.x + (1-u)*v*p3.x;
+    var py = (1-u)*(1-v)*p0.y + u*(1-v)*p1.y + u*v*p2.y + (1-u)*v*p3.y;
+    var du = px - x;
+    var dv = py - y;
+    if (Math.abs(du) < 1e-4 && Math.abs(dv) < 1e-4) break;
+    
+    var dpx_du = (1-v)*(p1.x - p0.x) + v*(p2.x - p3.x);
+    var dpx_dv = (1-u)*(p3.x - p0.x) + u*(p2.x - p1.x);
+    var dpy_du = (1-v)*(p1.y - p0.y) + v*(p2.y - p3.y);
+    var dpy_dv = (1-u)*(p3.y - p0.y) + u*(p2.y - p1.y);
+    
+    var det = dpx_du * dpy_dv - dpx_dv * dpy_du;
+    if (Math.abs(det) < 1e-6) return null;
+    
+    u -= (du * dpy_dv - dv * dpx_dv) / det;
+    v -= (dv * dpx_du - du * dpy_du) / det;
   }
-  if (u >= -0.05 && u <= 1.05 && v >= -0.05 && v <= 1.05) {
-    return { u: Math.max(0, Math.min(1, u)), v: Math.max(0, Math.min(1, v)) };
+  if (u >= -0.01 && u <= 1.01 && v >= -0.01 && v <= 1.01) {
+    var vx = (1-u)*(1-v)*p0.x + u*(1-v)*p1.x + u*v*p2.x + (1-u)*v*p3.x;
+    var vy = (1-u)*(1-v)*p0.y + u*(1-v)*p1.y + u*v*p2.y + (1-u)*v*p3.y;
+    if (Math.abs(vx - x) < 0.5 && Math.abs(vy - y) < 0.5) {
+      return {u: u, v: v};
+    }
   }
   return null;
 }
@@ -1624,10 +1659,12 @@ function renderTransform(ctx, ox, oy, z) {
     minY = Math.min(minY, pts[i].y);
     maxY = Math.max(maxY, pts[i].y);
   }
-  minX = Math.floor(minX) - 1;
-  maxX = Math.ceil(maxX) + 1;
-  minY = Math.floor(minY) - 1;
-  maxY = Math.ceil(maxY) + 1;
+  minX = Math.max(0, Math.floor(minX) - 1);
+  maxX = Math.min(doc.width - 1, Math.ceil(maxX) + 1);
+  minY = Math.max(0, Math.floor(minY) - 1);
+  maxY = Math.min(doc.height - 1, Math.ceil(maxY) + 1);
+
+  if (maxX - minX > 5000 || maxY - minY > 5000) return;
 
   var tw = maxX - minX + 1;
   var th = maxY - minY + 1;
@@ -1645,7 +1682,7 @@ function renderTransform(ctx, ox, oy, z) {
     for (var x = minX; x <= maxX; x++) {
       var uv = null;
       if (t.gridMode === 1) {
-        uv = inverseBilinear(x, y, t.corners[0], t.corners[1], t.corners[2], t.corners[3]);
+        uv = inverseBilinear(x + 0.5, y + 0.5, t.corners[0], t.corners[1], t.corners[2], t.corners[3]);
       } else if (t.gridMode === 3) {
         for (var iy = 0; iy < 3; iy++) {
           for (var ix = 0; ix < 3; ix++) {
@@ -1653,9 +1690,9 @@ function renderTransform(ctx, ox, oy, z) {
             var p1 = t.points[iy * 4 + ix + 1];
             var p2 = t.points[(iy + 1) * 4 + ix + 1];
             var p3 = t.points[(iy + 1) * 4 + ix];
-            var res = inverseBilinear(x, y, p0, p1, p2, p3);
-            if (res) {
-              uv = { u: (ix + res.u) / 3, v: (iy + res.v) / 3 };
+            var res = inverseBilinear(x + 0.5, y + 0.5, p0, p1, p2, p3);
+            if (res && res.u >= -0.001 && res.u <= 1.001 && res.v >= -0.001 && res.v <= 1.001) {
+              uv = { u: (ix + Math.max(0, Math.min(1, res.u))) / 3, v: (iy + Math.max(0, Math.min(1, res.v))) / 3 };
               break;
             }
           }
@@ -1665,41 +1702,36 @@ function renderTransform(ctx, ox, oy, z) {
 
       if (uv) {
         var u = uv.u, v = uv.v;
-        if (u >= 0 && u <= 1 && v >= 0 && v <= 1) {
-          var fx = u * (bw - 1);
-          var fy = v * (bh - 1);
-          var x0 = Math.floor(fx);
-          var y0 = Math.floor(fy);
-          var x1 = Math.min(x0 + 1, bw - 1);
-          var y1 = Math.min(y0 + 1, bh - 1);
-          var tx = fx - x0;
-          var ty = fy - y0;
-
-          var si00 = (y0 * bw + x0) * 4;
-          var si10 = (y0 * bw + x1) * 4;
-          var si01 = (y1 * bw + x0) * 4;
-          var si11 = (y1 * bw + x1) * 4;
-
-          var a00 = sd[si00 + 3], a10 = sd[si10 + 3], a01 = sd[si01 + 3], a11 = sd[si11 + 3];
-          var outA = a00 * (1-tx)*(1-ty) + a10 * tx*(1-ty) + a01 * (1-tx)*ty + a11 * tx*ty;
-
-          if (outA > 0.1) {
-            var r = (sd[si00] * (1-tx)*(1-ty) + sd[si10] * tx*(1-ty) + sd[si01] * (1-tx)*ty + sd[si11] * tx*ty) / outA;
-            var g = (sd[si00+1] * (1-tx)*(1-ty) + sd[si10+1] * tx*(1-ty) + sd[si01+1] * (1-tx)*ty + sd[si11+1] * tx*ty) / outA;
-            var b = (sd[si00+2] * (1-tx)*(1-ty) + sd[si10+2] * tx*(1-ty) + sd[si01+2] * (1-tx)*ty + sd[si11+2] * tx*ty) / outA;
-            
-            var di = ((y - minY) * tw + (x - minX)) * 4;
-            data[di] = r;
-            data[di + 1] = g;
-            data[di + 2] = b;
-            data[di + 3] = outA;
-          }
+        if (u >= -0.01 && u <= 1.01 && v >= -0.01 && v <= 1.01) {
+          var sx = Math.floor(u * bw);
+          var sy = Math.floor(v * bh);
+          if (sx < 0) sx = 0;
+          if (sy < 0) sy = 0;
+          if (sx >= bw) sx = bw - 1;
+          if (sy >= bh) sy = bh - 1;
+          
+          var si = (sy * bw + sx) * 4;
+          var di = ((y - minY) * tw + (x - minX)) * 4;
+          data[di] = sd[si];
+          data[di+1] = sd[si+1];
+          data[di+2] = sd[si+2];
+          data[di+3] = sd[si+3];
         }
       }
     }
   }
   _tmpCtx.putImageData(id, 0, 0);
   ctx.drawImage(_tmpCanvas, ox + minX * z, oy + minY * z, tw * z, th * z);
+}
+
+function drawHandle(ctx, x, y, color) {
+  ctx.beginPath();
+  ctx.arc(x, y, 5, 0, Math.PI*2);
+  ctx.fillStyle = color || '#fff';
+  ctx.fill();
+  ctx.strokeStyle = '#000';
+  ctx.lineWidth = 1;
+  ctx.stroke();
 }
 
 function drawTransformUI(ctx, ox, oy, z) {
@@ -1710,45 +1742,44 @@ function drawTransformUI(ctx, ox, oy, z) {
     ctx.strokeStyle = 'rgba(0, 255, 0, 0.8)';
     ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.moveTo(ox + t.corners[0].x*z, oy + t.corners[0].y*z);
-    ctx.lineTo(ox + t.corners[1].x*z, oy + t.corners[1].y*z);
-    ctx.lineTo(ox + t.corners[2].x*z, oy + t.corners[2].y*z);
-    ctx.lineTo(ox + t.corners[3].x*z, oy + t.corners[3].y*z);
+    ctx.moveTo(ox + t.corners[0].x * z, oy + t.corners[0].y * z);
+    ctx.lineTo(ox + t.corners[1].x * z, oy + t.corners[1].y * z);
+    ctx.lineTo(ox + t.corners[2].x * z, oy + t.corners[2].y * z);
+    ctx.lineTo(ox + t.corners[3].x * z, oy + t.corners[3].y * z);
     ctx.closePath();
     ctx.stroke();
 
-    for(var i=0; i<4; i++){
-      drawHandle(ctx, ox + t.corners[i].x*z, oy + t.corners[i].y*z);
+    for (var i = 0; i < 4; i++) {
+      drawHandle(ctx, ox + t.corners[i].x * z, oy + t.corners[i].y * z);
     }
 
-    var edges = [[0,1], [1,2], [2,3], [3,0]];
-    for(var i=0; i<4; i++){
+    var edges = [[0, 1], [1, 2], [2, 3], [3, 0]];
+    for (var i = 0; i < 4; i++) {
       var p0 = t.corners[edges[i][0]];
       var p1 = t.corners[edges[i][1]];
       var mx = (p0.x + p1.x) / 2;
       var my = (p0.y + p1.y) / 2;
-      drawHandle(ctx, ox + mx*z, oy + my*z, '#ffd23c');
+      drawHandle(ctx, ox + mx * z, oy + my * z, '#ffd23c');
     }
 
-    var topMid = { x: (t.corners[0].x + t.corners[1].x)/2, y: (t.corners[0].y + t.corners[1].y)/2 };
+    var topMid = { x: (t.corners[0].x + t.corners[1].x) / 2, y: (t.corners[0].y + t.corners[1].y) / 2 };
     var dx = t.corners[1].x - t.corners[0].x;
     var dy = t.corners[1].y - t.corners[0].y;
-    var len = Math.sqrt(dx*dx + dy*dy);
+    var len = Math.sqrt(dx * dx + dy * dy);
     if (len > 0) {
       var nx = dy / len;
       var ny = -dx / len;
       var rotX = topMid.x + nx * 30 / z;
       var rotY = topMid.y + ny * 30 / z;
       ctx.beginPath();
-      ctx.moveTo(ox + topMid.x*z, oy + topMid.y*z);
-      ctx.lineTo(ox + rotX*z, oy + rotY*z);
+      ctx.moveTo(ox + topMid.x * z, oy + topMid.y * z);
+      ctx.lineTo(ox + rotX * z, oy + rotY * z);
       ctx.strokeStyle = 'rgba(0, 255, 0, 0.5)';
       ctx.lineWidth = 1;
       ctx.stroke();
       
-      drawHandle(ctx, ox + rotX*z, oy + rotY*z, '#00bfff');
+      drawHandle(ctx, ox + rotX * z, oy + rotY * z, '#00bfff');
     }
-
   } else if (t.gridMode === 3) {
     ctx.strokeStyle = 'rgba(0, 255, 0, 0.4)';
     ctx.lineWidth = 1;
@@ -1770,16 +1801,6 @@ function drawTransformUI(ctx, ox, oy, z) {
     }
   }
   ctx.restore();
-}
-
-function drawHandle(ctx, x, y, color) {
-  ctx.beginPath();
-  ctx.arc(x, y, 5, 0, Math.PI*2);
-  ctx.fillStyle = color || '#fff';
-  ctx.fill();
-  ctx.strokeStyle = '#000';
-  ctx.lineWidth = 1;
-  ctx.stroke();
 }
 
 function render(){
@@ -2421,6 +2442,7 @@ function updateRotateFromMouse(e){
 
 /* ===== 裁切（Crop） ===== */
 function cropToSelection(){
+  if(transformState) cancelTransform();
   if(!hasImage){
     setStatus(currentLang==='zh'?'请先打开图片':'Open an image first');
     return;
@@ -2548,6 +2570,42 @@ function applyCrop(bounds){
 }
 
 /* ===== 晶格变形（Transform） ===== */
+function switchTransformGrid() {
+  if (!transformState) return;
+  var pts = transformState.gridMode === 1 ? transformState.corners : transformState.points;
+  if (transformState.historyIndex < transformState.history.length - 1) {
+    transformState.history.length = transformState.historyIndex + 1;
+  }
+  
+  if (transformState.gridMode === 1) {
+    transformState.gridMode = 3;
+    transformState.points = [];
+    for (var iy = 0; iy <= 3; iy++) {
+      for (var ix = 0; ix <= 3; ix++) {
+        var u = ix / 3, v = iy / 3;
+        var px = (1-u)*(1-v)*transformState.corners[0].x + u*(1-v)*transformState.corners[1].x + u*v*transformState.corners[2].x + (1-u)*v*transformState.corners[3].x;
+        var py = (1-u)*(1-v)*transformState.corners[0].y + u*(1-v)*transformState.corners[1].y + u*v*transformState.corners[2].y + (1-u)*v*transformState.corners[3].y;
+        transformState.points.push({x: px, y: py});
+      }
+    }
+    transformState.history.push({ mode: 3, pts: JSON.parse(JSON.stringify(transformState.points)) });
+    transformState.historyIndex++;
+    var gridBtn = document.getElementById('btn-transform-grid');
+    if (gridBtn) gridBtn.textContent = '1x1';
+  } else {
+    transformState.gridMode = 1;
+    transformState.corners[0] = { x: transformState.points[0].x, y: transformState.points[0].y };
+    transformState.corners[1] = { x: transformState.points[3].x, y: transformState.points[3].y };
+    transformState.corners[2] = { x: transformState.points[15].x, y: transformState.points[15].y };
+    transformState.corners[3] = { x: transformState.points[12].x, y: transformState.points[12].y };
+    transformState.history.push({ mode: 1, pts: JSON.parse(JSON.stringify(transformState.corners)) });
+    transformState.historyIndex++;
+    var gridBtn = document.getElementById('btn-transform-grid');
+    if (gridBtn) gridBtn.textContent = '3x3';
+  }
+  requestRender();
+}
+
 function startTransform(){
   if(!hasImage || transformState) return;
   if(doc.floating){ commitFloat(); commitHistory(); }
@@ -2562,7 +2620,6 @@ function startTransform(){
     ui.singleCell = false;
     updateViewModeButton();
   }
-  fitToView();
 
   var backup = {
     w: doc.width, h: doc.height,
@@ -2579,25 +2636,34 @@ function startTransform(){
     if(doc.selMask[sy*W+sx]){
       var si = (sy*W+sx)*4, di = (y*b.w+x)*4;
       srcData[di]=d[si]; srcData[di+1]=d[si+1]; srcData[di+2]=d[si+2]; srcData[di+3]=d[si+3];
-      // 不在这里清空原图像素
+      // 挖空原图！
+      d[si]=0; d[si+1]=0; d[si+2]=0; d[si+3]=0;
     }
   }
+  
+  // 关键：重新构建底图
+  doc.imageDirty = true;
+  syncImageCanvas();
+
+  var initCorners = [
+    { x: b.x, y: b.y },
+    { x: b.x + b.w, y: b.y },
+    { x: b.x + b.w, y: b.y + b.h },
+    { x: b.x, y: b.y + b.h }
+  ];
 
   transformState = {
     active: true,
     gridMode: 1,
     bounds: { x: b.x, y: b.y, w: b.w, h: b.h },
-    corners: [
-      { x: b.x, y: b.y },
-      { x: b.x + b.w, y: b.y },
-      { x: b.x + b.w, y: b.y + b.h },
-      { x: b.x, y: b.y + b.h }
-    ],
+    corners: JSON.parse(JSON.stringify(initCorners)),
     points: [],
     dragType: null,
     dragIdx: -1,
     srcData: srcData,
-    backup: backup
+    backup: backup,
+    history: [{ mode: 1, pts: JSON.parse(JSON.stringify(initCorners)) }],
+    historyIndex: 0
   };
 
   var btn = document.getElementById('btn-transform');
@@ -2617,7 +2683,7 @@ function startTransform(){
   doc.selBounds = {x:0,y:0,w:0,h:0};
   doc.imageDirty = true;
   requestRender();
-  setStatus(currentLang==='zh'?'晶格变形：拖动控制点，Enter 确认，Esc 取消':'Transform: drag handles, Enter to apply, Esc to cancel');
+  setStatus(currentLang==='zh'?'晶格变形：拖动控制点，Enter 确认，Esc 取消，Ctrl+Z 撤销':'Transform: drag handles, Enter to apply, Esc to cancel, Ctrl+Z to undo');
 }
 
 function applyTransform(){
@@ -2630,16 +2696,6 @@ function applyTransform(){
   var sd = transformState.srcData;
   var pts = transformState.gridMode === 1 ? transformState.corners : transformState.points;
 
-  // 真正挖空原来的区域
-  for (var y = b.y; y < b.y + b.h; y++) {
-    for (var x = b.x; x < b.x + b.w; x++) {
-      if (x >= 0 && x < W && y >= 0 && y < H) {
-        var di = (y * W + x) * 4;
-        d[di] = 0; d[di+1] = 0; d[di+2] = 0; d[di+3] = 0;
-      }
-    }
-  }
-
   var minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
   for (var i = 0; i < pts.length; i++) {
     minX = Math.min(minX, pts[i].x);
@@ -2647,16 +2703,16 @@ function applyTransform(){
     minY = Math.min(minY, pts[i].y);
     maxY = Math.max(maxY, pts[i].y);
   }
-  minX = Math.max(0, Math.floor(minX));
-  maxX = Math.min(W - 1, Math.ceil(maxX));
-  minY = Math.max(0, Math.floor(minY));
-  maxY = Math.min(H - 1, Math.ceil(maxY));
+  minX = Math.max(0, Math.floor(minX) - 1);
+  maxX = Math.min(doc.width - 1, Math.ceil(maxX) + 1);
+  minY = Math.max(0, Math.floor(minY) - 1);
+  maxY = Math.min(doc.height - 1, Math.ceil(maxY) + 1);
 
   for (var y = minY; y <= maxY; y++) {
     for (var x = minX; x <= maxX; x++) {
       var uv = null;
       if (transformState.gridMode === 1) {
-        uv = inverseBilinear(x, y, transformState.corners[0], transformState.corners[1], transformState.corners[2], transformState.corners[3]);
+        uv = inverseBilinear(x + 0.5, y + 0.5, transformState.corners[0], transformState.corners[1], transformState.corners[2], transformState.corners[3]);
       } else if (transformState.gridMode === 3) {
         for (var iy = 0; iy < 3; iy++) {
           for (var ix = 0; ix < 3; ix++) {
@@ -2664,9 +2720,9 @@ function applyTransform(){
             var p1 = transformState.points[iy * 4 + ix + 1];
             var p2 = transformState.points[(iy + 1) * 4 + ix + 1];
             var p3 = transformState.points[(iy + 1) * 4 + ix];
-            var res = inverseBilinear(x, y, p0, p1, p2, p3);
-            if (res) {
-              uv = { u: (ix + res.u) / 3, v: (iy + res.v) / 3 };
+            var res = inverseBilinear(x + 0.5, y + 0.5, p0, p1, p2, p3);
+            if (res && res.u >= -0.001 && res.u <= 1.001 && res.v >= -0.001 && res.v <= 1.001) {
+              uv = { u: (ix + Math.max(0, Math.min(1, res.u))) / 3, v: (iy + Math.max(0, Math.min(1, res.v))) / 3 };
               break;
             }
           }
@@ -2676,34 +2732,21 @@ function applyTransform(){
 
       if (uv) {
         var u = uv.u, v = uv.v;
-        if (u >= 0 && u <= 1 && v >= 0 && v <= 1) {
-          var fx = u * (bw - 1);
-          var fy = v * (bh - 1);
-          var x0 = Math.floor(fx);
-          var y0 = Math.floor(fy);
-          var x1 = Math.min(x0 + 1, bw - 1);
-          var y1 = Math.min(y0 + 1, bh - 1);
-          var tx = fx - x0;
-          var ty = fy - y0;
-
-          var si00 = (y0 * bw + x0) * 4;
-          var si10 = (y0 * bw + x1) * 4;
-          var si01 = (y1 * bw + x0) * 4;
-          var si11 = (y1 * bw + x1) * 4;
-
-          var a00 = sd[si00 + 3], a10 = sd[si10 + 3], a01 = sd[si01 + 3], a11 = sd[si11 + 3];
-          var outA = a00 * (1-tx)*(1-ty) + a10 * tx*(1-ty) + a01 * (1-tx)*ty + a11 * tx*ty;
-
-          if (outA > 0.1) {
-            var r = (sd[si00] * (1-tx)*(1-ty) + sd[si10] * tx*(1-ty) + sd[si01] * (1-tx)*ty + sd[si11] * tx*ty) / outA;
-            var g = (sd[si00+1] * (1-tx)*(1-ty) + sd[si10+1] * tx*(1-ty) + sd[si01+1] * (1-tx)*ty + sd[si11+1] * tx*ty) / outA;
-            var bl = (sd[si00+2] * (1-tx)*(1-ty) + sd[si10+2] * tx*(1-ty) + sd[si01+2] * (1-tx)*ty + sd[si11+2] * tx*ty) / outA;
-            
+        if (u >= -0.01 && u <= 1.01 && v >= -0.01 && v <= 1.01) {
+          var sx = Math.floor(u * bw);
+          var sy = Math.floor(v * bh);
+          if (sx < 0) sx = 0;
+          if (sy < 0) sy = 0;
+          if (sx >= bw) sx = bw - 1;
+          if (sy >= bh) sy = bh - 1;
+          
+          var si = (sy * bw + sx) * 4;
+          if (sd[si+3] > 0) {
             var di = (y * W + x) * 4;
-            d[di] = r;
-            d[di+1] = g;
-            d[di+2] = bl;
-            d[di+3] = outA;
+            d[di] = sd[si];
+            d[di+1] = sd[si+1];
+            d[di+2] = sd[si+2];
+            d[di+3] = sd[si+3];
           }
         }
       }
@@ -2855,13 +2898,13 @@ function calcPasteOrigin(w, h){
   if(oy < 0) oy = 0;
   return {x: ox, y: oy};
 }
-function applyPastedImageData(imageData, asLayer){
+function applyPastedImageData(imageData, asLayer, originOverride){
   if(!imageData) return;
   var rw = imageData.width, rh = imageData.height;
   var rdata = imageData.data;
   if(doc.floating){ commitFloat(); commitHistory(); }
   var W = doc.width, H = doc.height;
-  var org = calcPasteOrigin(rw, rh);
+  var org = originOverride || calcPasteOrigin(rw, rh);
 
   if(asLayer){
     var id = new ImageData(W, H);
@@ -2959,16 +3002,34 @@ function onCanvasMouseDown(e){
   var inRulerLeft = m.sx < RULER && m.sy >= RULER;
   var modCtrl = e.ctrlKey || e.metaKey;
 
+  // 优先处理右键和中键
+  if(e.button===2){
+    if (transformState) {
+      cancelTransform();
+      e.preventDefault();
+      return;
+    }
+    if(doc.hasSelection){ deselectAll(); e.preventDefault(); return; }
+    pickAt({x:m.px,y:m.py}); e.preventDefault(); return;
+  }
+
+  if(e.button===1 || (e.button===0 && spaceDown)){
+    spaceDragged = true;
+    drag.mode = 'pan'; drag.startX = m.sx; drag.startY = m.sy;
+    drag.panStartX = view.panX; drag.panStartY = view.panY;
+    e.preventDefault(); return;
+  }
+
   if (transformState && transformState.active) {
     e.preventDefault();
     var t = transformState;
     var hitRadius = 15 / view.zoom;
     
     if (t.gridMode === 1) {
-      var topMid = { x: (t.corners[0].x + t.corners[1].x)/2, y: (t.corners[0].y + t.corners[1].y)/2 };
+      var topMid = { x: (t.corners[0].x + t.corners[1].x) / 2, y: (t.corners[0].y + t.corners[1].y) / 2 };
       var dx = t.corners[1].x - t.corners[0].x;
       var dy = t.corners[1].y - t.corners[0].y;
-      var len = Math.sqrt(dx*dx + dy*dy);
+      var len = Math.sqrt(dx * dx + dy * dy);
       if (len > 0) {
         var nx = dy / len;
         var ny = -dx / len;
@@ -2976,42 +3037,45 @@ function onCanvasMouseDown(e){
         var rotY = topMid.y + ny * 30 / view.zoom;
         if (Math.abs(m.px - rotX) < hitRadius && Math.abs(m.py - rotY) < hitRadius) {
           t.dragType = 'rotate';
-          t.dragStart = {x: m.px, y: m.py};
-          t.cornersBackup = t.corners.map(function(c){ return {x:c.x, y:c.y}; });
-          t.center = {x: (t.corners[0].x + t.corners[2].x)/2, y: (t.corners[0].y + t.corners[2].y)/2};
+          t.dragStart = { x: m.px, y: m.py };
+          t.cornersBackup = t.corners.map(function(c) { return { x: c.x, y: c.y }; });
+          t.center = { x: (t.corners[0].x + t.corners[2].x) / 2, y: (t.corners[0].y + t.corners[2].y) / 2 };
           t.rotateStartAng = Math.atan2(m.py - t.center.y, m.px - t.center.x);
           return;
         }
       }
 
-      for(var i=0; i<4; i++){
+      for (var i = 0; i < 4; i++) {
         if (Math.abs(m.px - t.corners[i].x) < hitRadius && Math.abs(m.py - t.corners[i].y) < hitRadius) {
-          t.dragType = 'corner'; t.dragIdx = i;
-          t.dragStart = {x: m.px, y: m.py};
-          t.cornersBackup = t.corners.map(function(c){ return {x:c.x, y:c.y}; });
+          t.dragType = 'corner';
+          t.dragIdx = i;
+          t.dragStart = { x: m.px, y: m.py };
+          t.cornersBackup = t.corners.map(function(c) { return { x: c.x, y: c.y }; });
           return;
         }
       }
       
-      var edges = [[0,1], [1,2], [2,3], [3,0]];
-      for(var i=0; i<4; i++){
+      var edges = [[0, 1], [1, 2], [2, 3], [3, 0]];
+      for (var i = 0; i < 4; i++) {
         var p0 = t.corners[edges[i][0]];
         var p1 = t.corners[edges[i][1]];
         var mx = (p0.x + p1.x) / 2;
         var my = (p0.y + p1.y) / 2;
         if (Math.abs(m.px - mx) < hitRadius && Math.abs(m.py - my) < hitRadius) {
-          t.dragType = 'edge'; t.dragIdx = i;
-          t.dragStart = {x: m.px, y: m.py};
-          t.cornersBackup = t.corners.map(function(c){ return {x:c.x, y:c.y}; });
+          t.dragType = 'edge';
+          t.dragIdx = i;
+          t.dragStart = { x: m.px, y: m.py };
+          t.cornersBackup = t.corners.map(function(c) { return { x: c.x, y: c.y }; });
           return;
         }
       }
     } else {
-      for(var i=0; i<16; i++){
+      for (var i = 0; i < 16; i++) {
         if (Math.abs(m.px - t.points[i].x) < hitRadius && Math.abs(m.py - t.points[i].y) < hitRadius) {
-          t.dragType = 'point'; t.dragIdx = i;
-          t.dragStart = {x: m.px, y: m.py};
-          t.pointsBackup = t.points.map(function(p){ return {x:p.x, y:p.y}; });
+          t.dragType = 'point';
+          t.dragIdx = i;
+          t.dragStart = { x: m.px, y: m.py };
+          t.pointsBackup = t.points.map(function(p) { return { x: p.x, y: p.y }; });
           return;
         }
       }
@@ -3019,7 +3083,7 @@ function onCanvasMouseDown(e){
 
     var uv = null;
     if (t.gridMode === 1) {
-      uv = inverseBilinear(m.px, m.py, t.corners[0], t.corners[1], t.corners[2], t.corners[3]);
+      uv = inverseBilinear(m.px + 0.5, m.py + 0.5, t.corners[0], t.corners[1], t.corners[2], t.corners[3]);
     } else {
       for (var iy = 0; iy < 3; iy++) {
         for (var ix = 0; ix < 3; ix++) {
@@ -3027,7 +3091,7 @@ function onCanvasMouseDown(e){
           var p1 = t.points[iy * 4 + ix + 1];
           var p2 = t.points[(iy + 1) * 4 + ix + 1];
           var p3 = t.points[(iy + 1) * 4 + ix];
-          if (inverseBilinear(m.px, m.py, p0, p1, p2, p3)) {
+          if (inverseBilinear(m.px + 0.5, m.py + 0.5, p0, p1, p2, p3)) {
             uv = true;
             break;
           }
@@ -3038,9 +3102,9 @@ function onCanvasMouseDown(e){
 
     if (uv) {
       t.dragType = 'move';
-      t.dragStart = {x: m.px, y: m.py};
+      t.dragStart = { x: m.px, y: m.py };
       var pts = t.gridMode === 1 ? t.corners : t.points;
-      t.pointsBackup = pts.map(function(p){ return {x:p.x, y:p.y}; });
+      t.pointsBackup = pts.map(function(p) { return { x: p.x, y: p.y }; });
       return;
     }
     return;
@@ -3072,16 +3136,6 @@ function onCanvasMouseDown(e){
   }
   if(inRulerTop || inRulerLeft){ e.preventDefault(); return; }
 
-  if(e.button===1 || (e.button===0 && spaceDown)){
-    spaceDragged = true;
-    drag.mode = 'pan'; drag.startX = m.sx; drag.startY = m.sy;
-    drag.panStartX = view.panX; drag.panStartY = view.panY;
-    e.preventDefault(); return;
-  }
-  if(e.button===2){
-    if(doc.hasSelection){ deselectAll(); e.preventDefault(); return; }
-    pickAt({x:m.px,y:m.py}); e.preventDefault(); return;
-  }
   if(e.button !== 0) return;
 
   if(modCtrl && !spaceDown && ui.showGuides){
@@ -3183,6 +3237,12 @@ function onCanvasMouseMove(e){
   mouse.inRulerLeft = m.sx < RULER && m.sy >= RULER;
   var modCtrl = e.ctrlKey || e.metaKey;
 
+  if(drag.mode === 'pan'){
+    view.panX = drag.panStartX + (m.sx-drag.startX);
+    view.panY = drag.panStartY + (m.sy-drag.startY);
+    requestRender(); return;
+  }
+
   if(rotState){
     updateRotateFromMouse(e);
     requestRender();
@@ -3196,47 +3256,141 @@ function onCanvasMouseMove(e){
       var dy = m.py - t.dragStart.y;
 
       if (t.dragType === 'corner') {
-        t.corners[t.dragIdx].x = t.cornersBackup[t.dragIdx].x + dx;
-        t.corners[t.dragIdx].y = t.cornersBackup[t.dragIdx].y + dy;
+        var idx = t.dragIdx;
+        var oppIdx = (idx + 2) % 4;
+        var pOpp = t.cornersBackup[oppIdx];
+        var pCur = t.cornersBackup[idx];
+        var cx = (t.cornersBackup[0].x + t.cornersBackup[2].x) / 2;
+        var cy = (t.cornersBackup[0].y + t.cornersBackup[2].y) / 2;
+
+        if (e.altKey && e.ctrlKey) {
+          // Alt+Ctrl: 中心等比缩放
+          var targetX = pCur.x + dx;
+          var targetY = pCur.y + dy;
+          var dCX = pCur.x - cx;
+          var dCY = pCur.y - cy;
+          var distTarget = Math.sqrt((targetX - cx) * (targetX - cx) + (targetY - cy) * (targetY - cy));
+          var distOrig = Math.sqrt(dCX * dCX + dCY * dCY);
+          if (distOrig > 1e-6) {
+            var scale = distTarget / distOrig;
+            for (var i = 0; i < 4; i++) {
+              t.corners[i].x = cx + (t.cornersBackup[i].x - cx) * scale;
+              t.corners[i].y = cy + (t.cornersBackup[i].y - cy) * scale;
+            }
+          }
+        } else if (e.altKey && e.shiftKey) {
+          // Alt+Shift: 中心水平/垂直对称缩放
+          var targetX = pCur.x + dx;
+          var targetY = pCur.y + dy;
+          var dCX = pCur.x - cx;
+          var dCY = pCur.y - cy;
+          if (Math.abs(dx) > Math.abs(dy)) {
+            // 水平方向主导
+            var scaleX = (targetX - cx) / (dCX || 1e-6);
+            for (var i = 0; i < 4; i++) {
+              t.corners[i].x = cx + (t.cornersBackup[i].x - cx) * scaleX;
+              t.corners[i].y = t.cornersBackup[i].y;
+            }
+          } else {
+            // 垂直方向主导
+            var scaleY = (targetY - cy) / (dCY || 1e-6);
+            for (var i = 0; i < 4; i++) {
+              t.corners[i].x = t.cornersBackup[i].x;
+              t.corners[i].y = cy + (t.cornersBackup[i].y - cy) * scaleY;
+            }
+          }
+        } else if (e.shiftKey) {
+          // Shift: 对角点为中心等比缩放
+          var targetX = pCur.x + dx;
+          var targetY = pCur.y + dy;
+          var dOppX = pCur.x - pOpp.x;
+          var dOppY = pCur.y - pOpp.y;
+          var scaleX = (targetX - pOpp.x) / (dOppX || 1e-6);
+          var scaleY = (targetY - pOpp.y) / (dOppY || 1e-6);
+          var scale = Math.max(Math.abs(scaleX), Math.abs(scaleY));
+          if (Math.abs(dOppX) < 1e-6) scale = Math.abs(scaleY);
+          if (Math.abs(dOppY) < 1e-6) scale = Math.abs(scaleX);
+          if (scaleX < 0) scale = -scale;
+          for (var i = 0; i < 4; i++) {
+            t.corners[i].x = pOpp.x + (t.cornersBackup[i].x - pOpp.x) * scale;
+            t.corners[i].y = pOpp.y + (t.cornersBackup[i].y - pOpp.y) * scale;
+          }
+        } else if (e.ctrlKey) {
+          // Ctrl: 对角点为中心非等比缩放
+          var targetX = pCur.x + dx;
+          var targetY = pCur.y + dy;
+          var scaleX = (targetX - pOpp.x) / (pCur.x - pOpp.x || 1e-6);
+          var scaleY = (targetY - pOpp.y) / (pCur.y - pOpp.y || 1e-6);
+          for (var i = 0; i < 4; i++) {
+            t.corners[i].x = pOpp.x + (t.cornersBackup[i].x - pOpp.x) * scaleX;
+            t.corners[i].y = pOpp.y + (t.cornersBackup[i].y - pOpp.y) * scaleY;
+          }
+        } else {
+          // 自由缩放
+          t.corners[idx].x = pCur.x + dx;
+          t.corners[idx].y = pCur.y + dy;
+        }
       } else if (t.dragType === 'edge') {
-        if (t.dragIdx === 0) {
-          t.corners[0].x = t.cornersBackup[0].x + dx/2;
-          t.corners[1].x = t.cornersBackup[1].x + dx/2;
+        var idx = t.dragIdx;
+        if (e.shiftKey) {
+          if (Math.abs(dx) > Math.abs(dy)) {
+            dy = 0;
+          } else {
+            dx = 0;
+          }
+        }
+        if (idx === 0) {
+          t.corners[0].x = t.cornersBackup[0].x + dx;
+          t.corners[1].x = t.cornersBackup[1].x + dx;
           t.corners[0].y = t.cornersBackup[0].y + dy;
           t.corners[1].y = t.cornersBackup[1].y + dy;
-        } else if (t.dragIdx === 1) {
-          t.corners[1].y = t.cornersBackup[1].y + dy/2;
-          t.corners[2].y = t.cornersBackup[2].y + dy/2;
+        } else if (idx === 1) {
           t.corners[1].x = t.cornersBackup[1].x + dx;
           t.corners[2].x = t.cornersBackup[2].x + dx;
-        } else if (t.dragIdx === 2) {
-          t.corners[2].x = t.cornersBackup[2].x + dx/2;
-          t.corners[3].x = t.cornersBackup[3].x + dx/2;
+          t.corners[1].y = t.cornersBackup[1].y + dy;
           t.corners[2].y = t.cornersBackup[2].y + dy;
-          t.corners[3].y = t.cornersBackup[3].y + dy;
-        } else if (t.dragIdx === 3) {
-          t.corners[3].y = t.cornersBackup[3].y + dy/2;
-          t.corners[0].y = t.cornersBackup[0].y + dy/2;
+        } else if (idx === 2) {
           t.corners[3].x = t.cornersBackup[3].x + dx;
+          t.corners[2].x = t.cornersBackup[2].x + dx;
+          t.corners[3].y = t.cornersBackup[3].y + dy;
+          t.corners[2].y = t.cornersBackup[2].y + dy;
+        } else if (idx === 3) {
           t.corners[0].x = t.cornersBackup[0].x + dx;
+          t.corners[3].x = t.cornersBackup[3].x + dx;
+          t.corners[0].y = t.cornersBackup[0].y + dy;
+          t.corners[3].y = t.cornersBackup[3].y + dy;
         }
       } else if (t.dragType === 'rotate') {
         var cx = t.center.x, cy = t.center.y;
         var ang = Math.atan2(m.py - cy, m.px - cx);
         var delta = ang - t.rotateStartAng;
-        for(var i=0; i<4; i++){
+        if (e.shiftKey) {
+          delta = Math.round(delta / (Math.PI / 12)) * (Math.PI / 12);
+        }
+        for (var i = 0; i < 4; i++) {
           var dx0 = t.cornersBackup[i].x - cx;
           var dy0 = t.cornersBackup[i].y - cy;
           t.corners[i].x = cx + dx0 * Math.cos(delta) - dy0 * Math.sin(delta);
           t.corners[i].y = cy + dx0 * Math.sin(delta) + dy0 * Math.cos(delta);
         }
       } else if (t.dragType === 'move') {
+        if (e.shiftKey) {
+          if (Math.abs(dx) > Math.abs(dy)) {
+            dy = 0;
+          } else {
+            dx = 0;
+          }
+        }
         var pts = t.gridMode === 1 ? t.corners : t.points;
-        for(var i=0; i<pts.length; i++){
+        for (var i = 0; i < pts.length; i++) {
           pts[i].x = t.pointsBackup[i].x + dx;
           pts[i].y = t.pointsBackup[i].y + dy;
         }
       } else if (t.dragType === 'point') {
+        if (e.shiftKey) {
+          if (Math.abs(dx) > Math.abs(dy)) dy = 0;
+          else dx = 0;
+        }
         t.points[t.dragIdx].x = t.pointsBackup[t.dragIdx].x + dx;
         t.points[t.dragIdx].y = t.pointsBackup[t.dragIdx].y + dy;
       }
@@ -3271,11 +3425,6 @@ function onCanvasMouseMove(e){
     coordEl.textContent = m.px+' , '+m.py+'  ['+(currentLang==='zh'?'格':'cell')+' '+ci+']';
   }
 
-  if(drag.mode === 'pan'){
-    view.panX = drag.panStartX + (m.sx-drag.startX);
-    view.panY = drag.panStartY + (m.sy-drag.startY);
-    requestRender(); return;
-  }
   if(drag.mode === 'guide' && drag.guideIdx >= 0){
     var gg = doc.guides[drag.guideIdx];
     if(!gg) return;
@@ -3362,10 +3511,24 @@ function onCanvasMouseMove(e){
 function onCanvasMouseUp(e){
   spaceDragged = false;
 
+  if(drag.mode === 'pan'){
+    drag.mode = null;
+    requestRender();
+    return;
+  }
+
   if (transformState && transformState.active) {
     if (transformState.dragType) {
       transformState.dragType = null;
       transformState.dragIdx = -1;
+      
+      var pts = transformState.gridMode === 1 ? transformState.corners : transformState.points;
+      if (transformState.historyIndex < transformState.history.length - 1) {
+        transformState.history.length = transformState.historyIndex + 1;
+      }
+      transformState.history.push({ mode: transformState.gridMode, pts: JSON.parse(JSON.stringify(pts)) });
+      transformState.historyIndex++;
+      
       requestRender();
     }
     return;
@@ -3427,12 +3590,37 @@ function onKeyDown(e){
   }
 
   if (transformState && transformState.active) {
+    if (e.ctrlKey || e.metaKey) {
+      if (k === 'z' || k === 'Z') {
+        e.preventDefault();
+        if (e.shiftKey) doRedo();
+        else doUndo();
+        return;
+      }
+      if (k === 'y' || k === 'Y') {
+        e.preventDefault();
+        doRedo();
+        return;
+      }
+    }
     if (k === 'Enter' || k === 'Escape') {
       e.preventDefault();
       if (k === 'Enter') applyTransform();
       else cancelTransform();
+      return;
     }
-    return;
+    
+    var isToolKey = ['v', 'V', 'm', 'M', 'b', 'B', 'e', 'E', 'i', 'I', 'g', 'G', 'j', 'J', 'c', 'C', 'q', 'Q'].includes(k);
+    if (isToolKey) {
+      cancelTransform();
+      // 继续往下走，让下面的 switch/if 处理快捷键
+    } else if (k === 't' || k === 'T') {
+      e.preventDefault();
+      switchTransformGrid();
+      return;
+    } else {
+      return;
+    }
   }
 
   if(k === ' ' && !e.repeat){
@@ -3480,6 +3668,17 @@ function onKeyDown(e){
       case 'c': e.preventDefault(); doCopy(); return;
       case 'x': e.preventDefault(); doCut(); return;
       case 's': e.preventDefault(); savePng(false); return;
+      case 'v':
+        if (e.shiftKey) {
+          e.preventDefault();
+          if (clipboard) {
+            var id = new ImageData(clipboard.w, clipboard.h);
+            id.data.set(clipboard.data);
+            applyPastedImageData(id, false, {x: clipboard.x, y: clipboard.y});
+            setStatus(currentLang==='zh'?'已粘贴在原位置':'Pasted at original position');
+          }
+        }
+        return;
     }
   }
 
@@ -4801,6 +5000,7 @@ function initMenus(){
   }
 }
 function handleMenuAction(act){
+  if(transformState) cancelTransform();
   switch(act){
     case 'new':
       var w = parseInt(prompt('Width:', doc.width),10);
@@ -4859,37 +5059,13 @@ function bindUI(){
   document.getElementById('btn-transform').addEventListener('click', startTransform);
   document.getElementById('btn-crop-sel').addEventListener('click', cropToSelection);
 
-  document.getElementById('btn-transform-grid').addEventListener('click', function() {
-    if (transformState) {
-      if (transformState.gridMode === 1) {
-        transformState.gridMode = 3;
-        transformState.points = [];
-        for (var iy = 0; iy <= 3; iy++) {
-          for (var ix = 0; ix <= 3; ix++) {
-            var u = ix / 3, v = iy / 3;
-            var px = (1-u)*(1-v)*transformState.corners[0].x + u*(1-v)*transformState.corners[1].x + u*v*transformState.corners[2].x + (1-u)*v*transformState.corners[3].x;
-            var py = (1-u)*(1-v)*transformState.corners[0].y + u*(1-v)*transformState.corners[1].y + u*v*transformState.corners[2].y + (1-u)*v*transformState.corners[3].y;
-            transformState.points.push({x: px, y: py});
-          }
-        }
-        this.textContent = '1x1';
-      } else {
-        transformState.gridMode = 1;
-        transformState.corners[0] = { x: transformState.points[0].x, y: transformState.points[0].y };
-        transformState.corners[1] = { x: transformState.points[3].x, y: transformState.points[3].y };
-        transformState.corners[2] = { x: transformState.points[15].x, y: transformState.points[15].y };
-        transformState.corners[3] = { x: transformState.points[12].x, y: transformState.points[12].y };
-        this.textContent = '3x3';
-      }
-      requestRender();
-    }
-  });
+  document.getElementById('btn-transform-grid').addEventListener('click', switchTransformGrid);
 
-  document.getElementById('btn-rot-ccw').addEventListener('click', function(){ rotateInteger(-90); });
-  document.getElementById('btn-rot-cw').addEventListener('click', function(){ rotateInteger(90); });
-  document.getElementById('btn-rot-180').addEventListener('click', function(){ rotateInteger(180); });
-  document.getElementById('btn-flip-h').addEventListener('click', function(){ flipInteger('h'); });
-  document.getElementById('btn-flip-v').addEventListener('click', function(){ flipInteger('v'); });
+  document.getElementById('btn-rot-ccw').addEventListener('click', function(){ if(transformState) cancelTransform(); rotateInteger(-90); });
+  document.getElementById('btn-rot-cw').addEventListener('click', function(){ if(transformState) cancelTransform(); rotateInteger(90); });
+  document.getElementById('btn-rot-180').addEventListener('click', function(){ if(transformState) cancelTransform(); rotateInteger(180); });
+  document.getElementById('btn-flip-h').addEventListener('click', function(){ if(transformState) cancelTransform(); flipInteger('h'); });
+  document.getElementById('btn-flip-v').addEventListener('click', function(){ if(transformState) cancelTransform(); flipInteger('v'); });
 
   document.getElementById('btn-color-usage-refresh').addEventListener('click', function(){
     refreshColorUsage();
@@ -4935,7 +5111,7 @@ function bindUI(){
     view.panX = cx - ipx*view.zoom; view.panY = cy - ipy*view.zoom;
     updateZoomLabel(); requestRender();
   });
-  document.getElementById('btn-fit').addEventListener('click', fitToView);
+  document.getElementById('btn-fit').addEventListener('click', function(){ if(transformState) cancelTransform(); fitToView(); });
 
   gridWEl.addEventListener('input', onGridWHChanged);
   gridHEl.addEventListener('input', onGridWHChanged);
@@ -4943,7 +5119,7 @@ function bindUI(){
   gridRowsEl.addEventListener('input', onGridNMChanged);
   document.getElementById('show-grid').addEventListener('change', function(e){ ui.showGrid = e.target.checked; requestRender(); });
   document.getElementById('show-pixel-grid').addEventListener('change', function(e){ ui.showPixelGrid = e.target.checked; requestRender(); });
-  document.getElementById('btn-resize').addEventListener('click', showResizeDialog);
+  document.getElementById('btn-resize').addEventListener('click', function(){ if(transformState) cancelTransform(); showResizeDialog(); });
 
   document.getElementById('btn-play').addEventListener('click', function(){
     if(ui.playing) stopPlay(); else startPlay();
@@ -5014,6 +5190,15 @@ function bindUI(){
       e.preventDefault();
     });
   });
+  
+  /* ★ 在变形编辑中用按钮切其他工具视作esc */
+  document.querySelectorAll('#toolbar button, aside button').forEach(function(btn) {
+    if (btn.id !== 'btn-transform' && btn.id !== 'btn-transform-grid') {
+      btn.addEventListener('mousedown', function() {
+        if (transformState) cancelTransform();
+      });
+    }
+  });
 }
 
 function mainLoop(now){
@@ -5076,6 +5261,11 @@ function init(){
     window.addEventListener('mouseup', function(e){ if(drag.mode) onCanvasMouseUp(e); });
     canvas.addEventListener('mouseleave', function(){ mouse.inside = false; requestRender(); });
     canvas.addEventListener('dblclick', function(e){
+      if (transformState && transformState.active) {
+        applyTransform();
+        e.preventDefault();
+        return;
+      }
       var m = getMouse(e);
       if(m.sx < RULER && m.sy < RULER) return;
       if(ui.showGuides){
