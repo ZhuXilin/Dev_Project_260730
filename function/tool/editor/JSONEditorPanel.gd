@@ -3,12 +3,11 @@ extends VBoxContainer
 
 # ============================================================
 #  JSONEditorPanel — 通用 JSON 编辑器（手动保存）
-#  v4.3：对齐 ChipMusicEditor 的界面主题（细滚动条 + 紧凑 SpinBox）
+#  v4.6：增加英文字段名自动转中文；flavor 使用多行文本框
 # ============================================================
 
 signal saved(path : String)
 
-# ---- ChipMusicEditor 风格字号 ----
 const FS_BUTTON : int = 6
 const FS_LABEL  : int = 6
 const FS_SMALL  : int = 5
@@ -22,6 +21,42 @@ const COL_TIP_BG : Color = Color(0.15, 0.15, 0.15, 0.92)
 
 const SPIN_H : int = 13
 const ROW_H : int = 13
+
+# ★ 新增：英文字段名 → 中文显示
+const FIELD_TRANSLATIONS : Dictionary = {
+	"id": "编号",
+	"name": "名称",
+	"display_name": "显示名",
+	"description": "简介",
+	"flavor": "叙事",
+	"type": "类型",
+	"quality": "品质",
+	"min_quality": "最低品质",
+	"price": "价格",
+	"value_min": "最小值",
+	"value_max": "最大值",
+	"icon": "图标",
+	"tags": "标签",
+	"stats": "属性",
+	"effects": "效果",
+	"params": "参数",
+	"unlock_type": "解锁类型",
+	"tutorial_stage": "教程阶段",
+	"soul_cost": "魂消耗",
+	"research_time": "研究时长",
+	"unlock_cost": "解锁消耗",
+	"buy_cost": "购买消耗",
+	"tag": "标签",
+	"max_level": "最大等级",
+	"attack_per_level": "每级攻击",
+	"defense_per_level": "每级防御",
+	"attack_percent": "攻击百分比",
+	"damage_reduction": "减伤",
+	"counter_bonus": "反击加成",
+	"soul_fire_gain": "魂火获取",
+	"heal_percent": "治疗百分比",
+	"effect": "效果代码",
+}
 
 var _path : String = ""
 var _cfg : Dictionary = {}
@@ -44,7 +79,7 @@ func setup(path : String, title : String = ""):
 
 
 # ============================================================
-#  ★ 全局主题（ChipMusicEditor 风格）
+#  全局主题
 # ============================================================
 func _apply_compact_theme():
 	var t := Theme.new()
@@ -54,8 +89,6 @@ func _apply_compact_theme():
 	var btn_empty := StyleBoxEmpty.new()
 	btn_empty.content_margin_left = 1
 	btn_empty.content_margin_right = 1
-	btn_empty.content_margin_top = 0
-	btn_empty.content_margin_bottom = 0
 	t.set_stylebox("normal", "Button", btn_empty)
 	t.set_stylebox("hover", "Button", btn_empty)
 	t.set_stylebox("pressed", "Button", btn_empty)
@@ -67,8 +100,9 @@ func _apply_compact_theme():
 	var label_empty := StyleBoxEmpty.new()
 	t.set_stylebox("normal", "Label", label_empty)
 
-	# ---- LineEdit ----
+	# ---- LineEdit / TextEdit ----
 	t.set_font_size("font_size", "LineEdit", FS_BUTTON)
+	t.set_font_size("font_size", "TextEdit", FS_BUTTON)
 	var le_empty := StyleBoxEmpty.new()
 	le_empty.content_margin_left = 2
 	le_empty.content_margin_right = 2
@@ -291,9 +325,12 @@ func _render_group(parent : Node, dict : Dictionary, path : String, depth : int)
 	panel.add_child(vb)
 
 	var title := Label.new()
-	title.text = "▼ " + (path if path != "" else "根")
+	# ★ 汉化显示
+	var display_path = FIELD_TRANSLATIONS.get(path, path)
+	title.text = "▼ " + (display_path if path != "" else "根目录")
 	title.add_theme_font_size_override("font_size", FS_PANEL)
 	title.modulate = Color(0.85, 0.85, 1.0)
+	title.tooltip_text = path # 悬停显示原英文路径
 	vb.add_child(title)
 
 	var content := VBoxContainer.new()
@@ -303,7 +340,7 @@ func _render_group(parent : Node, dict : Dictionary, path : String, depth : int)
 	title.gui_input.connect(func(e):
 		if e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_LEFT:
 			content.visible = not content.visible
-			title.text = ("▼ " if content.visible else "▶ ") + (path if path != "" else "根")
+			title.text = ("▼ " if content.visible else "▶ ") + (display_path if path != "" else "根目录")
 	)
 	_render_dict(content, dict, path, depth + 1)
 
@@ -335,9 +372,11 @@ func _render_array(parent : Node, target_dict : Dictionary, key : String, arr : 
 	panel.add_child(vb)
 
 	var title := Label.new()
-	title.text = "▼ %s [%d]" % [path, arr.size()]
+	var display_path = FIELD_TRANSLATIONS.get(path, path)
+	title.text = "▼ %s [%d]" % [display_path, arr.size()]
 	title.add_theme_font_size_override("font_size", FS_PANEL)
 	title.modulate = Color(0.85, 0.85, 1.0)
+	title.tooltip_text = path
 	vb.add_child(title)
 
 	var content := VBoxContainer.new()
@@ -385,9 +424,11 @@ func _render_array_item_dict(parent : Node, arr : Array, idx : int, path : Strin
 	sub.add_child(vb)
 
 	var title := Label.new()
-	title.text = "▼ " + path
+	var display_path = FIELD_TRANSLATIONS.get(path, path)
+	title.text = "▼ " + display_path
 	title.add_theme_font_size_override("font_size", FS_SMALL)
 	title.modulate = Color(0.8, 0.8, 0.95)
+	title.tooltip_text = path
 	vb.add_child(title)
 
 	var content := VBoxContainer.new()
@@ -409,7 +450,9 @@ func _render_simple_array(parent : Node, _target_dict : Dictionary, _key : Strin
 	parent.add_child(row)
 
 	var lb := Label.new()
-	lb.text = path
+	var display_path = FIELD_TRANSLATIONS.get(path, path)
+	lb.text = display_path
+	lb.tooltip_text = path
 	lb.custom_minimum_size = Vector2(110, 0)
 	lb.clip_text = true
 	row.add_child(lb)
@@ -445,8 +488,11 @@ func _render_array_index_editor(parent : Node, arr : Array, i : int, path : Stri
 	parent.add_child(row)
 
 	var lb := Label.new()
-	lb.text = path
+	var display_path = FIELD_TRANSLATIONS.get(path, path)
+	lb.text = display_path
+	lb.tooltip_text = path
 	lb.custom_minimum_size = Vector2(110, 0)
+	lb.clip_text = true
 	row.add_child(lb)
 
 	var v = arr[i]
@@ -472,9 +518,11 @@ func _render_simple_row(parent : Node, target_dict : Dictionary, key : String, v
 	parent.add_child(row)
 
 	var lb := Label.new()
-	lb.text = key
+	# ★ 汉化显示
+	var display_key = FIELD_TRANSLATIONS.get(key, key)
+	lb.text = display_key
+	lb.tooltip_text = path # 悬停仍显示原始路径，方便查错
 	lb.custom_minimum_size = Vector2(110, 0)
-	lb.tooltip_text = path
 	lb.clip_text = true
 	row.add_child(lb)
 
@@ -501,13 +549,27 @@ func _render_simple_row(parent : Node, target_dict : Dictionary, key : String, v
 			)
 			row.add_child(cb)
 		TYPE_STRING:
-			var le := LineEdit.new()
-			le.text = str(value)
-			le.custom_minimum_size = Vector2(100, ROW_H)
-			le.text_changed.connect(func(t2):
-				target_dict[key] = t2; _dirty = true
-			)
-			row.add_child(le)
+			# ★ 如果是 flavor（叙事），使用多行 TextEdit，并修复左侧 Label 被挤压的问题
+			if key == "flavor":
+				var te := TextEdit.new()
+				te.text = str(value)
+				te.custom_minimum_size = Vector2(200, 64) # 加大高度
+				te.wrap_mode = TextEdit.LINE_WRAPPING_BOUNDARY
+				te.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+				te.add_theme_font_size_override("font_size", FS_BUTTON)
+				te.text_changed.connect(func():
+					target_dict[key] = te.text
+					_dirty = true
+				)
+				row.add_child(te)
+			else:
+				var le := LineEdit.new()
+				le.text = str(value)
+				le.custom_minimum_size = Vector2(100, ROW_H)
+				le.text_changed.connect(func(t2):
+					target_dict[key] = t2; _dirty = true
+				)
+				row.add_child(le)
 		_:
 			var lb2 := Label.new()
 			lb2.text = str(value)
@@ -521,7 +583,9 @@ func _render_simple_row_widget(parent : Node, label : String, initial : String, 
 	parent.add_child(row)
 
 	var lb := Label.new()
-	lb.text = label
+	var display_label = FIELD_TRANSLATIONS.get(label, label)
+	lb.text = display_label
+	lb.tooltip_text = label
 	lb.custom_minimum_size = Vector2(110, 0)
 	row.add_child(lb)
 

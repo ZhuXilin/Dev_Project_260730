@@ -40,6 +40,7 @@ static func load_talent_data():
 		talent.id = dict.get("id", key)
 		talent.display_name = dict.get("display_name", key)
 		talent.description = dict.get("description", "")
+		talent.flavor = dict.get("flavor", "") # ★ 新增
 		talent.school = dict.get("school", "")
 		talent.rarity = dict.get("rarity", "common")
 		talent.accumulation_threshold = dict.get("accumulation_threshold", 3)

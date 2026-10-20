@@ -702,6 +702,7 @@ func _on_request_damage_popup(world_pos: Vector2, damage: int, is_crit: bool, is
 # ============================================================
 func _on_request_show_info(unit: Unit):
 	if unit == null:
+		# ---- 地形信息显示 ----
 		var mouse_pos = get_global_mouse_position()
 		var t_cell = world_to_grid(mouse_pos)
 		var t_type = TerrainManager.get_terrain(t_cell)
@@ -709,6 +710,7 @@ func _on_request_show_info(unit: Unit):
 		var t_def = TerrainManager.TERRAIN_DATA[t_type]["def_bonus"]
 		var t_mdef = TerrainManager.TERRAIN_DATA[t_type]["magic_defense_bonus"]
 		var t_avoid = TerrainManager.TERRAIN_DATA[t_type]["avoid_bonus"]
+		
 		info_text_label.text = "地形: " + t_name \
 			+ "\n防御+" + str(t_def) \
 			+ " 魔防+" + str(t_mdef) \
@@ -718,13 +720,17 @@ func _on_request_show_info(unit: Unit):
 
 	if not is_instance_valid(unit):
 		return
+
 	if unit.unit_stats == null:
 		return
 
+	# ---- 单位信息显示 ----
 	var lines : Array = []
+
 	var display_name = unit.unit_stats.display_name if unit.unit_stats.display_name != "" else unit.unit_stats.unit_name
 	var type_name = UnitDataManager.get_unit_type_display_name(unit.unit_stats.unit_name)
 	lines.append(display_name + " | " + unit.unit_stats.faction + " | " + type_name)
+
 	lines.append("HP: " + str(unit.hit_points) + "/" + str(unit.unit_stats.max_hp))
 
 	var status_str : String = ""

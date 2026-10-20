@@ -146,14 +146,12 @@ func show_item(item_id: String, affixes: Array = []):
 		_hover_ref = {"kind": "relic", "id": item_id}
 		return
 
-	# ★ 叙事模式
 	if FlavorManager.is_narrative_mode():
 		var data : ItemData = ItemManager.get_item_data(item_id)
 		if not data:
 			show_in_zone("（未知物品）")
 			return
-		var category_key : String = _category_key_for_item(data)
-		var flavor : String = FlavorManager.get_flavor(category_key, item_id)
+		var flavor : String = FlavorManager.get_flavor("items", item_id)
 		if flavor == "":
 			flavor = "（暂无叙事）"
 		show_in_zone(flavor)

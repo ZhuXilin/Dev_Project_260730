@@ -919,23 +919,7 @@ func show_node_info(node: MapNode) -> void:
 		return
 	if not node:
 		return
-	_info_ref_node = node
-
-	# ★ 碎片化叙事分支
-	if FlavorManager.is_narrative_mode():
-		var type_key : String = str(int(node.node_type))
-		var flavor : String = FlavorManager.get_flavor("node_types", type_key)
-		if flavor == "":
-			# 若有地图名，也尝试用地图名作 key
-			if node.map_data and node.map_data.map_name != "":
-				flavor = FlavorManager.get_flavor("maps", node.map_data.map_name)
-		if flavor == "":
-			flavor = "（暂无叙事）"
-		info_label.text = flavor
-		info_panel.visible = true
-		return
-
-	# ---- 玩法模式（原逻辑）----
+	# 恢复纯数值描述，移除叙事模式分支
 	info_label.text = _get_node_description(node)
 	info_panel.visible = true
 

@@ -2,7 +2,6 @@ extends Control
 
 # ============================================================
 #  GameDataEditor — 单位 / 战斗模拟 / 数值 / 套装 / 词条池 / 光环 / 单位解锁 / 校验
-#  v4.4：新增单位解锁面板；修复 UI 刷新逻辑
 # ============================================================
 
 const UNIT_DATA_PATH : String = "res://content/data/unit_data.json"
@@ -14,6 +13,7 @@ const SET_BONUS_PATH : String = "res://content/data/set_bonuses.json"
 const AFFIX_PATH : String = "res://content/data/affixes.json"
 const AURA_PATH : String = "res://content/data/auras.json"
 const UNIT_UNLOCK_PATH : String = "res://content/data/unit_unlock.json"
+const AVATAR_DIR : String = "res://content/images/characters/avatar/"
 
 const JSON_EDITOR_SCRIPT : String = "res://function/tool/editor/JSONEditorPanel.gd"
 
@@ -36,37 +36,52 @@ const COL_VSEP   : Color = Color(0.36, 0.36, 0.42)
 const COL_TIP_BG : Color = Color(0.15, 0.15, 0.15, 0.92)
 
 const EDITABLE_ATTRS : Array = [
-	{"key": "max_hp",       "label": "HP",   "min": 1, "max": 999},
-	{"key": "strength",     "label": "力",   "min": 0, "max": 99},
-	{"key": "dexterity",    "label": "灵",   "min": 0, "max": 99},
-	{"key": "intelligence", "label": "智",   "min": 0, "max": 99},
-	{"key": "faith",        "label": "信",   "min": 0, "max": 99},
-	{"key": "arcane",       "label": "感",   "min": 0, "max": 99},
-	{"key": "move_range",   "label": "移",   "min": 0, "max": 20},
+	{"key": "max_hp",       "label": "生命",   "min": 1, "max": 999},
+	{"key": "strength",     "label": "力量",   "min": 0, "max": 99},
+	{"key": "dexterity",    "label": "灵巧",   "min": 0, "max": 99},
+	{"key": "intelligence", "label": "智力",   "min": 0, "max": 99},
+	{"key": "faith",        "label": "信仰",   "min": 0, "max": 99},
+	{"key": "arcane",       "label": "感应",   "min": 0, "max": 99},
+	{"key": "move_range",   "label": "移动",   "min": 0, "max": 20},
 ]
 
 const UNIT_TAGS : Array = ["烈焰", "轮回", "灰烬", "守护", "献祭", "余烬"]
-const CORE_TRAITS : Array = ["", "charge", "dragon_might", "bulwark"]
+const CORE_TRAITS : Array = ["", "蓄力", "龙威", "壁垒"]
+const CORE_TRAITS_MAP : Dictionary = {
+	"": "（无）",
+	"charge": "蓄力",
+	"dragon_might": "龙威",
+	"bulwark": "壁垒"
+}
 const SAC_BUFF_TYPES : Array = [
 	"", "attack_percent", "crit_damage_bonus", "defense_flat",
 	"damage_reduction", "heal_bonus", "counter_damage_bonus"
 ]
+const SAC_BUFF_TYPES_CN : Dictionary = {
+	"": "（无）",
+	"attack_percent": "全队攻击",
+	"crit_damage_bonus": "全队暴伤",
+	"defense_flat": "全队防御",
+	"damage_reduction": "全队减伤",
+	"heal_bonus": "全队治疗",
+	"counter_damage_bonus": "全队反击"
+}
 
 const CAP_ATTRS : Array = [
 	"vitality", "strength", "dexterity",
 	"intelligence", "faith", "arcane"
 ]
 const CAP_ATTR_LABELS : Dictionary = {
-	"vitality": "HP", "strength": "力", "dexterity": "灵",
-	"intelligence": "智", "faith": "信", "arcane": "感"
+	"vitality": "生命", "strength": "力量", "dexterity": "灵巧",
+	"intelligence": "智力", "faith": "信仰", "arcane": "感应"
 }
 const BRANCH_STAT_KEYS : Array = [
 	"max_hp", "strength", "dexterity",
 	"intelligence", "faith", "arcane", "move_range"
 ]
 const BRANCH_STAT_LABELS : Dictionary = {
-	"max_hp": "HP", "strength": "力", "dexterity": "灵",
-	"intelligence": "智", "faith": "信", "arcane": "感", "move_range": "移"
+	"max_hp": "生命", "strength": "力量", "dexterity": "灵巧",
+	"intelligence": "智力", "faith": "信仰", "arcane": "感应", "move_range": "移动"
 }
 const CAP_MAX_LEVEL : int = 3
 
@@ -80,6 +95,7 @@ var _refine_keys : Array = []
 var _weapon_ids : Array = []
 var _armor_ids : Array = []
 var _talent_ids : Array = []
+var _avatar_ids : Array = []
 var _current_unit_key : String = ""
 
 # ---- 通用 UI ----
@@ -92,6 +108,8 @@ var _edit_status : Label = null
 var _edit_name_edit : LineEdit = null
 var _edit_faction_edit : LineEdit = null
 var _edit_desc_edit : TextEdit = null
+var _edit_flavor_edit : TextEdit = null
+var _edit_avatar_opt : OptionButton = null
 var _edit_attr_spins : Dictionary = {}
 var _edit_weapon_opt : OptionButton = null
 var _edit_armor_opts : Array = []
@@ -162,7 +180,7 @@ func _ready():
 
 
 # ============================================================
-#  ★ ChipMusicEditor 风格全局主题
+#  全局主题
 # ============================================================
 func _apply_compact_theme():
 	var t := Theme.new()
@@ -189,8 +207,9 @@ func _apply_compact_theme():
 	label_empty.content_margin_bottom = 0
 	t.set_stylebox("normal", "Label", label_empty)
 
-	# ---- LineEdit ----
+	# ---- LineEdit / TextEdit ----
 	t.set_font_size("font_size", "LineEdit", FS_BUTTON)
+	t.set_font_size("font_size", "TextEdit", FS_BUTTON)
 	var le_empty := StyleBoxEmpty.new()
 	le_empty.content_margin_left = 2
 	le_empty.content_margin_right = 2
@@ -202,7 +221,7 @@ func _apply_compact_theme():
 
 	# ---- OptionButton ----
 	t.set_font_size("font_size", "OptionButton", FS_BUTTON)
-
+	
 	# ---- PopupMenu ----
 	t.set_font_size("font_size", "PopupMenu", FS_SMALL)
 	t.set_font_size("font_separator_size", "PopupMenu", FS_SMALL)
@@ -211,7 +230,6 @@ func _apply_compact_theme():
 	t.set_constant("v_separation", "PopupMenu", 0)
 	t.set_constant("h_separation", "PopupMenu", 0)
 	t.set_constant("icon_max_width", "PopupMenu", 6)
-	t.set_constant("outline_size", "PopupMenu", 0)
 
 	var popup_panel := StyleBoxFlat.new()
 	popup_panel.bg_color = Color(0.13, 0.13, 0.16, 1)
@@ -237,7 +255,7 @@ func _apply_compact_theme():
 	tip_sb.content_margin_bottom = 1
 	t.set_stylebox("panel", "TooltipPanel", tip_sb)
 
-	# ---- VSeparator ----
+	# ---- VSeparator / HSeparator ----
 	var sep_sb := StyleBoxLine.new()
 	sep_sb.color = COL_VSEP
 	sep_sb.thickness = 1
@@ -246,7 +264,6 @@ func _apply_compact_theme():
 	sep_sb.grow_end = 2
 	t.set_stylebox("separator", "VSeparator", sep_sb)
 
-	# ---- HSeparator ----
 	var hsep_sb := StyleBoxLine.new()
 	hsep_sb.color = COL_VSEP
 	hsep_sb.thickness = 1
@@ -256,17 +273,10 @@ func _apply_compact_theme():
 	# ---- SpinBox ----
 	t.set_font_size("font_size", "SpinBox", FS_BUTTON)
 
-	# ---- CheckBox / CheckButton ----
+	# ---- CheckBox ----
 	t.set_font_size("font_size", "CheckBox", FS_LABEL)
-	t.set_font_size("font_size", "CheckButton", FS_LABEL)
 
-	# ---- TextEdit ----
-	t.set_font_size("font_size", "TextEdit", FS_BUTTON)
-
-	# ---- 细滚动条 ----
 	_setup_scrollbar_theme(t)
-
-	# ---- 细滑杆 ----
 	_setup_slider_theme(t)
 
 	theme = t
@@ -359,6 +369,19 @@ func _load_all_data():
 	_weapon_ids.sort()
 	_armor_ids.sort()
 	_talent_ids = TalentManager.get_all_talent_ids()
+	
+	_avatar_ids.clear()
+	if DirAccess.dir_exists_absolute(AVATAR_DIR):
+		var dir = DirAccess.open(AVATAR_DIR)
+		if dir:
+			dir.list_dir_begin()
+			var fname = dir.get_next()
+			while fname != "":
+				if not dir.current_is_dir() and fname.ends_with(".png"):
+					_avatar_ids.append(fname.get_basename())
+				fname = dir.get_next()
+			dir.list_dir_end()
+	_avatar_ids.sort()
 
 
 func _load_json(path : String) -> Dictionary:
@@ -454,7 +477,7 @@ func _build_edit_tab(parent : Control) -> Control:
 	left.add_theme_constant_override("separation", 1)
 	panel.add_child(left)
 
-	left.add_child(_section("— 单位 —"))
+	left.add_child(_section("— 单位列表 —"))
 
 	var l_scroll := ScrollContainer.new()
 	l_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -483,22 +506,33 @@ func _build_edit_tab(parent : Control) -> Control:
 	r_scroll.add_child(content)
 
 	# ---- 基础信息 ----
-	content.add_child(_section("— 基础 —"))
-	_edit_name_edit = _add_edit_row(content, "名字")
+	content.add_child(_section("— 基础信息 —"))
+	_edit_name_edit = _add_edit_row(content, "显示名")
 	_edit_faction_edit = _add_edit_row(content, "阵营")
+	_edit_avatar_opt = _add_option_row(content, "头像", _avatar_ids, "（无）")
 
 	var desc_row := HBoxContainer.new()
 	desc_row.add_theme_constant_override("separation", 3)
 	content.add_child(desc_row)
-	desc_row.add_child(_lbl("描述", 40))
+	desc_row.add_child(_lbl("简介", 40))
 	_edit_desc_edit = TextEdit.new()
 	_edit_desc_edit.custom_minimum_size = Vector2(0, 40)
 	_edit_desc_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_edit_desc_edit.wrap_mode = TextEdit.LINE_WRAPPING_BOUNDARY
 	desc_row.add_child(_edit_desc_edit)
+	
+	var flavor_row := HBoxContainer.new()
+	flavor_row.add_theme_constant_override("separation", 3)
+	content.add_child(flavor_row)
+	flavor_row.add_child(_lbl("叙事", 40))
+	_edit_flavor_edit = TextEdit.new()
+	_edit_flavor_edit.custom_minimum_size = Vector2(0, 60)
+	_edit_flavor_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_edit_flavor_edit.wrap_mode = TextEdit.LINE_WRAPPING_BOUNDARY
+	flavor_row.add_child(_edit_flavor_edit)
 
 	# ---- 属性 ----
-	content.add_child(_section("— 属性 —"))
+	content.add_child(_section("— 基础属性 —"))
 	var attr_grid := GridContainer.new()
 	attr_grid.columns = 2
 	attr_grid.add_theme_constant_override("h_separation", 6)
@@ -517,7 +551,7 @@ func _build_edit_tab(parent : Control) -> Control:
 		_edit_attr_spins[a["key"]] = sp
 
 	# ---- 标签 ----
-	content.add_child(_section("— 标签 —"))
+	content.add_child(_section("— 单位标签 —"))
 	var tag_flow := HFlowContainer.new()
 	tag_flow.add_theme_constant_override("h_separation", 8)
 	tag_flow.add_theme_constant_override("v_separation", 2)
@@ -537,15 +571,14 @@ func _build_edit_tab(parent : Control) -> Control:
 	ct_row.add_child(_lbl("特性", 40))
 	_edit_core_opt = OptionButton.new()
 	_edit_core_opt.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_edit_core_opt.add_item("（无）", 0)
-	_edit_core_opt.set_item_metadata(0, "")
-	for i in range(1, CORE_TRAITS.size()):
-		_edit_core_opt.add_item(CORE_TRAITS[i], i)
-		_edit_core_opt.set_item_metadata(i, CORE_TRAITS[i])
+	for i in range(CORE_TRAITS.size()):
+		var k = CORE_TRAITS[i]
+		_edit_core_opt.add_item(CORE_TRAITS_MAP.get(k, k), i)
+		_edit_core_opt.set_item_metadata(i, k)
 	ct_row.add_child(_edit_core_opt)
 
 	# ---- 献祭 buff ----
-	content.add_child(_section("— 献祭 buff —"))
+	content.add_child(_section("— 献祭 Buff —"))
 	var sac_type_row := HBoxContainer.new()
 	sac_type_row.add_theme_constant_override("separation", 3)
 	content.add_child(sac_type_row)
@@ -553,8 +586,8 @@ func _build_edit_tab(parent : Control) -> Control:
 	_edit_sac_type_opt = OptionButton.new()
 	_edit_sac_type_opt.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	for i in range(SAC_BUFF_TYPES.size()):
-		var t : String = SAC_BUFF_TYPES[i]
-		_edit_sac_type_opt.add_item(t if t != "" else "（无）", i)
+		var t = SAC_BUFF_TYPES[i]
+		_edit_sac_type_opt.add_item(SAC_BUFF_TYPES_CN.get(t, t), i)
 		_edit_sac_type_opt.set_item_metadata(i, t)
 	sac_type_row.add_child(_edit_sac_type_opt)
 
@@ -573,16 +606,16 @@ func _build_edit_tab(parent : Control) -> Control:
 	var sac_disp_row := HBoxContainer.new()
 	sac_disp_row.add_theme_constant_override("separation", 3)
 	content.add_child(sac_disp_row)
-	sac_disp_row.add_child(_lbl("显示", 40))
+	sac_disp_row.add_child(_lbl("提示", 40))
 	_edit_sac_display_edit = LineEdit.new()
 	_edit_sac_display_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	sac_disp_row.add_child(_edit_sac_display_edit)
 
-	# ---- 默认装备 / 默认防具 / 默认特技 ----
+	# ---- 默认装备 ----
 	content.add_child(_section("— 默认装备 —"))
 	_edit_weapon_opt = _add_option_row(content, "武器", _weapon_ids, "（无）")
 
-	content.add_child(_section("— 默认防具（最多 2）—"))
+	content.add_child(_section("— 默认防具 —"))
 	_edit_armor_opts.clear()
 	for i in range(2):
 		_edit_armor_opts.append(_add_option_row(content, "防具%d" % (i + 1), _armor_ids, "（无）"))
@@ -595,7 +628,7 @@ func _build_edit_tab(parent : Control) -> Control:
 	content.add_child(HSeparator.new())
 
 	# ---- 属性上限 ----
-	content.add_child(_section("— 属性上限（每级净增）—"))
+	content.add_child(_section("— 属性上限（净增）—"))
 	_rebuild_attr_cap_grid(content)
 
 	content.add_child(HSeparator.new())
@@ -649,7 +682,6 @@ func _build_edit_tab(parent : Control) -> Control:
 # ============================================================
 func _rebuild_attr_cap_grid(parent : Node):
 	_edit_cap_spins.clear()
-
 	var grid := GridContainer.new()
 	grid.columns = 1 + CAP_MAX_LEVEL
 	grid.add_theme_constant_override("h_separation", 6)
@@ -662,7 +694,6 @@ func _rebuild_attr_cap_grid(parent : Node):
 
 	for attr in CAP_ATTRS:
 		grid.add_child(_lbl(CAP_ATTR_LABELS.get(attr, attr), 30))
-
 		var lv_spins : Dictionary = {}
 		for lv in range(CAP_MAX_LEVEL):
 			var sp := SpinBox.new()
@@ -763,7 +794,7 @@ func _add_branch_card_with_data(d : Dictionary, is_new : bool = false):
 	var head := HBoxContainer.new()
 	head.add_theme_constant_override("separation", 3)
 	vbox.add_child(head)
-	head.add_child(_lbl("id:", 20))
+	head.add_child(_lbl("代码ID:", 40))
 	var id_edit := LineEdit.new()
 	id_edit.text = d.get("id", "")
 	id_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -771,9 +802,9 @@ func _add_branch_card_with_data(d : Dictionary, is_new : bool = false):
 	card_refs["id"] = id_edit
 
 	var del_btn := Button.new()
-	del_btn.text = "×"
+	del_btn.text = "删除分支"
 	del_btn.modulate = Color(1.0, 0.5, 0.5)
-	del_btn.custom_minimum_size = Vector2(16, 16)
+	del_btn.custom_minimum_size = Vector2(50, 16)
 	del_btn.pressed.connect(func():
 		_edit_branch_cards.erase(card_refs)
 		card.queue_free()
@@ -784,7 +815,7 @@ func _add_branch_card_with_data(d : Dictionary, is_new : bool = false):
 	var name_row := HBoxContainer.new()
 	name_row.add_theme_constant_override("separation", 3)
 	vbox.add_child(name_row)
-	name_row.add_child(_lbl("name", 40))
+	name_row.add_child(_lbl("职业名", 40))
 	var name_edit := LineEdit.new()
 	name_edit.text = d.get("name", "")
 	name_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -795,7 +826,7 @@ func _add_branch_card_with_data(d : Dictionary, is_new : bool = false):
 	var desc_row := HBoxContainer.new()
 	desc_row.add_theme_constant_override("separation", 3)
 	vbox.add_child(desc_row)
-	desc_row.add_child(_lbl("desc", 40))
+	desc_row.add_child(_lbl("简介", 40))
 	var desc_edit := LineEdit.new()
 	desc_edit.text = d.get("description", "")
 	desc_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -806,7 +837,7 @@ func _add_branch_card_with_data(d : Dictionary, is_new : bool = false):
 	var tal_row := HBoxContainer.new()
 	tal_row.add_theme_constant_override("separation", 3)
 	vbox.add_child(tal_row)
-	tal_row.add_child(_lbl("特技", 40))
+	tal_row.add_child(_lbl("赋予特技", 40))
 	var tal_opt := OptionButton.new()
 	tal_opt.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	tal_opt.add_item("（无）", 0)
@@ -834,7 +865,7 @@ func _add_branch_card_with_data(d : Dictionary, is_new : bool = false):
 	var sprite_row := HBoxContainer.new()
 	sprite_row.add_theme_constant_override("separation", 3)
 	vbox.add_child(sprite_row)
-	sprite_row.add_child(_lbl("精灵", 40))
+	sprite_row.add_child(_lbl("精灵图", 40))
 	var sprite_edit := LineEdit.new()
 	sprite_edit.text = d.get("sprite_frames_path", "")
 	sprite_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -846,7 +877,7 @@ func _add_branch_card_with_data(d : Dictionary, is_new : bool = false):
 	var flavor_row := HBoxContainer.new()
 	flavor_row.add_theme_constant_override("separation", 3)
 	vbox.add_child(flavor_row)
-	flavor_row.add_child(_lbl("flavor", 40))
+	flavor_row.add_child(_lbl("风味文", 40))
 	var flavor_edit := LineEdit.new()
 	flavor_edit.text = d.get("flavor", "")
 	flavor_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -854,7 +885,7 @@ func _add_branch_card_with_data(d : Dictionary, is_new : bool = false):
 	card_refs["flavor"] = flavor_edit
 
 	# stat_bonus
-	vbox.add_child(_section("stat_bonus"))
+	vbox.add_child(_section("属性加成 (stat_bonus)"))
 	var stat_row := HFlowContainer.new()
 	stat_row.add_theme_constant_override("h_separation", 6)
 	stat_row.add_theme_constant_override("v_separation", 2)
@@ -879,7 +910,7 @@ func _add_branch_card_with_data(d : Dictionary, is_new : bool = false):
 	card_refs["stat_spins"] = stat_spins
 
 	# tags
-	vbox.add_child(_section("tags"))
+	vbox.add_child(_section("标签 (tags)"))
 	var tag_flow := HFlowContainer.new()
 	tag_flow.add_theme_constant_override("h_separation", 8)
 	tag_flow.add_theme_constant_override("v_separation", 2)
@@ -960,6 +991,10 @@ func _select_edit_unit(key : String):
 	_edit_name_edit.text = d.get("display_name", key)
 	_edit_faction_edit.text = d.get("faction", "")
 	_edit_desc_edit.text = d.get("description", "")
+	_edit_flavor_edit.text = d.get("flavor", "")
+
+	if _edit_avatar_opt:
+		_select_option_by_meta(_edit_avatar_opt, d.get("avatar", ""))
 
 	for a in EDITABLE_ATTRS:
 		_edit_attr_spins[a["key"]].value = d.get(a["key"], 0)
@@ -1020,6 +1055,14 @@ func _save_unit_db():
 	d["display_name"] = _edit_name_edit.text
 	d["faction"] = _edit_faction_edit.text
 	d["description"] = _edit_desc_edit.text
+	d["flavor"] = _edit_flavor_edit.text
+	
+	if _edit_avatar_opt:
+		var a_id = _get_meta(_edit_avatar_opt)
+		if a_id != "":
+			d["avatar"] = a_id
+		else:
+			d.erase("avatar")
 
 	for a in EDITABLE_ATTRS:
 		d[a["key"]] = int(_edit_attr_spins[a["key"]].value)
@@ -1131,13 +1174,13 @@ func _build_sim_side(title : String, is_player : bool) -> VBoxContainer:
 
 	_add_sep_label(inner, "装备")
 	var weapon_opt := _add_option_row(inner, "武器", _weapon_ids, "默认")
-	var up_lv_opt := _add_int_option_row(inner, "武器+", 0, 5)
-	var a1 := _add_option_row(inner, "防1", _armor_ids, "默认")
-	var a2 := _add_option_row(inner, "防2", _armor_ids, "默认")
+	var up_lv_opt := _add_int_option_row(inner, "武器强化", 0, 5)
+	var a1 := _add_option_row(inner, "防具1", _armor_ids, "默认")
+	var a2 := _add_option_row(inner, "防具2", _armor_ids, "默认")
 
 	_add_sep_label(inner, "特技")
-	var t1 := _add_option_row(inner, "特1", _talent_ids, "默认")
-	var t2 := _add_option_row(inner, "特2", _talent_ids, "默认")
+	var t1 := _add_option_row(inner, "特技1", _talent_ids, "默认")
+	var t2 := _add_option_row(inner, "特技2", _talent_ids, "默认")
 
 	_add_sep_label(inner, "遗物")
 	var relic_checks : Array = []
@@ -1231,12 +1274,12 @@ func _build_sim_center() -> VBoxContainer:
 	vbox.add_child(ctrl)
 
 	_sim_talent_cb = CheckBox.new()
-	_sim_talent_cb.text = "词条"
+	_sim_talent_cb.text = "词条生效"
 	_sim_talent_cb.button_pressed = true
 	ctrl.add_child(_sim_talent_cb)
 
 	_sim_counter_cb = CheckBox.new()
-	_sim_counter_cb.text = "反击"
+	_sim_counter_cb.text = "开启反击"
 	_sim_counter_cb.button_pressed = true
 	ctrl.add_child(_sim_counter_cb)
 
@@ -1265,7 +1308,7 @@ func _build_sim_center() -> VBoxContainer:
 	btn_row.add_child(start_btn)
 
 	var clear_btn := Button.new()
-	clear_btn.text = "清空"
+	clear_btn.text = "清空日志"
 	clear_btn.pressed.connect(func(): _sim_log.clear())
 	btn_row.add_child(clear_btn)
 
@@ -1566,7 +1609,6 @@ func _refresh_unit_unlock_mapping():
 		else:
 			available_units.append(uid)
 
-	# 1. 渲染自由可选的单位
 	for uid in available_units:
 		var dict : Dictionary = UnitDataManager.get_unit_data(uid)
 		var display : String = dict.get("display_name", uid)
@@ -1582,14 +1624,12 @@ func _refresh_unit_unlock_mapping():
 			cb.text = "%s (%s) [%s]" % [display, uid, faction]
 			cb.add_theme_color_override("font_color", Color(0.85, 0.85, 0.85))
 		else:
-			# 提示勾选后将自动同步阵营
 			cb.text = "%s (%s) [%s → %s]" % [display, uid, faction, src_faction]
-			cb.add_theme_color_override("font_color", Color(1.0, 0.8, 0.5)) # 橙色提示
+			cb.add_theme_color_override("font_color", Color(1.0, 0.8, 0.5))
 			cb.tooltip_text = "勾选后，将自动把该单位的阵营同步为「%s」" % src_faction
 
 		_unit_unlock_mapping_box.add_child(cb)
 
-	# 2. 渲染已经被其他源抢占的单位
 	if transferred_units.size() > 0:
 		var sep := HSeparator.new()
 		sep.modulate = Color(0.4, 0.4, 0.4)
@@ -1645,7 +1685,6 @@ func _on_mapping_toggled(pressed : bool, source_unit : String, target_unit : Str
 		if target_unit not in arr:
 			arr.append(target_unit)
 			
-		# ★ 自动同步阵营
 		var src_faction : String = ""
 		if _unit_db.has(source_unit):
 			src_faction = _unit_db[source_unit].get("faction", "")
@@ -1658,7 +1697,6 @@ func _on_mapping_toggled(pressed : bool, source_unit : String, target_unit : Str
 				if _unit_unlock_status:
 					_unit_unlock_status.text = "⚠ 自动同步：%s 阵营 → %s（未保存）" % [target_unit, src_faction]
 
-		# 互斥：从其他源移除
 		for other_src in mapping.keys():
 			if other_src == source_unit: continue
 			var other_arr: Variant = mapping[other_src]
@@ -1670,10 +1708,8 @@ func _on_mapping_toggled(pressed : bool, source_unit : String, target_unit : Str
 	mapping[source_unit] = arr
 	_unit_unlock_data["map_unlock_mapping"] = mapping
 	
-	# 刷新 UI
 	_refresh_unit_unlock_ui()
 	
-	# 如果状态栏没被同步提示占用，则显示常规提示
 	if _unit_unlock_status and not _unit_unlock_status.text.begins_with("⚠ 自动同步"):
 		_unit_unlock_status.text = "已修改（未保存）"
 
@@ -1757,13 +1793,12 @@ func _save_unit_unlock_config():
 	f.store_string(JSON.stringify(_unit_unlock_data, "  "))
 	f.close()
 	
-	# 2. 如果有自动同步的阵营，一并保存到 unit_data.json
 	if _unit_db_dirty:
 		var f2 := FileAccess.open(UNIT_DATA_PATH, FileAccess.WRITE)
 		if f2 != null:
 			f2.store_string(JSON.stringify(_unit_db, "  "))
 			f2.close()
-			UnitDataManager.reload_all() # 让运行时数据立即生效
+			UnitDataManager.reload_all()
 			_unit_db_dirty = false
 			if _unit_unlock_status: 
 				_unit_unlock_status.text = "✓ 已保存(含阵营同步)"
@@ -2202,22 +2237,3 @@ func _compact_spin_arrow_button(btn : Button):
 	btn.add_theme_stylebox_override("pressed", empty)
 	btn.add_theme_stylebox_override("focus", empty)
 	btn.add_theme_stylebox_override("disabled", empty)
-
-
-func _setup_spin(sp : SpinBox):
-	if not is_instance_valid(sp): return
-	var le := sp.get_line_edit()
-	if le:
-		le.add_theme_font_size_override("font_size", FS_BUTTON)
-		le.select_all_on_focus = true
-	var btns : Array[Node] = sp.find_children("*", "Button", true, false)
-	for b in btns:
-		_compact_spin_arrow_button(b as Button)
-		var btn := b as Button
-		if not btn.gui_input.is_connected(_on_spin_arrow_gui):
-			btn.gui_input.connect(_on_spin_arrow_gui)
-
-
-func _on_spin_arrow_gui(e : InputEvent):
-	if e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_LEFT:
-		pass

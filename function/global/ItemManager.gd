@@ -30,6 +30,7 @@ func load_items():
 		if dict.has("icon") and ResourceLoader.exists(dict.icon):
 			item.icon = load(dict.icon)
 		item.description = dict.get("description", "")
+		item.flavor = dict.get("flavor", "") # ★ 新增
 		item.category = dict.get("category", "")
 		item.equipment_slot = dict.get("equipment_slot", "")
 		item.price = dict.get("price", 0)
@@ -51,7 +52,6 @@ func load_items():
 		item.stats = dict.get("stats", {})
 		item.use_effect = dict.get("use_effect", {})
 
-		# ★ 标签（批次 3）
 		item.tags.clear()
 		var tags_raw : Variant = dict.get("tags", [])
 		if tags_raw is Array:
@@ -59,7 +59,6 @@ func load_items():
 				if t is String:
 					item.tags.append(t)
 
-		# ★ 熔合（批次 4）
 		item.fusion_id = dict.get("fusion_id", "")
 		item.fusion_effect = dict.get("fusion_effect", "")
 

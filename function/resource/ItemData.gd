@@ -7,6 +7,7 @@ class_name ItemData
 @export var use_type: String
 @export var icon: Texture2D
 @export var description: String
+@export var flavor: String = ""
 @export var category: String = ""
 @export var equipment_slot: String = ""
 
@@ -34,9 +35,7 @@ class_name ItemData
 @export var use_effect: Dictionary = {}
 @export var price: int = 0
 
-# ★ 批次 3：装备标签
 @export var tags: Array[String] = []
 
-# ★ 批次 4：熔合产物
 @export var fusion_id: String = ""
 @export var fusion_effect: String = ""
