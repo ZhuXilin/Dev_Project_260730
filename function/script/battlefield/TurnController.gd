@@ -134,17 +134,21 @@ func _get_center_position() -> Vector2:
 # ============================================================
 #  战斗开始 buff
 # ============================================================
+# function/script/battlefield/TurnController.gd
+
 func apply_team_buffs() -> void:
 	var relic_stats = GameState.get_global_relic_stats()
+	# ★ v4.5：get_global_relic_effects 内部只对"已装备"的遗物计入精炼加成
 	var relic_effects = GameState.get_global_relic_effects()
 
-	# ★ v4.2：先把 GameState 里的光环同步到每个 unit
+	# 先把 GameState 里的光环同步到每个 unit
 	_sync_auras_to_units()
 
 	for unit in UnitManager.unit_list:
 		if unit.unit_stats.team_id != 0:
 			continue
 
+		# ---- 献祭 buff ----
 		var sac_buffs : Dictionary = unit.unit_stats.get_sacrifice_buffs()
 		for btype in sac_buffs:
 			var bvalue : float = sac_buffs[btype]
@@ -157,6 +161,7 @@ func apply_team_buffs() -> void:
 				"counter_damage_bonus": unit.relic_counter_damage_bonus += bvalue
 				_: pass
 
+		# ---- 遗物 stats（max_hp / 力量 / 灵巧 / ...） ----
 		var s = unit.unit_stats
 		var old_max = s.max_hp
 		s.max_hp       += int(relic_stats.get("max_hp", 0))
@@ -176,6 +181,7 @@ func apply_team_buffs() -> void:
 		if unit.hit_points > s.max_hp:
 			unit.hit_points = s.max_hp
 
+		# ---- 遗物 effects（布尔 / 百分比类） ----
 		unit.relic_first_attack_crit_available = bool(relic_effects.get("first_attack_crit", false))
 		unit.relic_low_hp_damage_reduce = float(relic_effects.get("low_hp_damage_reduce", 0.0))
 		unit.relic_kill_grants_extra_move = int(relic_effects.get("kill_grants_extra_move", 0))
@@ -186,32 +192,35 @@ func apply_team_buffs() -> void:
 		unit.relic_heal_bonus = float(relic_effects.get("heal_bonus", 0.0))
 		unit.relic_auto_revive_available = bool(relic_effects.get("auto_revive_once", false))
 
-		# ★ v4.5：精炼相关初始化（加固）
+		# ★ v4.5 精炼初始化：只对已装备且已精炼的遗物生效
+		#   注意：relic_first_attack_crit_available 已经只会在装备了力量遗物时为 true，
+		#         这里再判断一次 is_relic_equipped_and_refined 是为了区分 1 次 vs 2 次
 		if unit.relic_first_attack_crit_available:
-			unit.relic_first_attack_crit_remaining = 2 if GameState.is_relic_refined("relic_attack") else 1
+			unit.relic_first_attack_crit_remaining = 2 if GameState.is_relic_equipped_and_refined("relic_attack") else 1
 		else:
 			unit.relic_first_attack_crit_remaining = 0
 
 		if unit.relic_first_spell_free_available:
-			unit.relic_first_spell_free_remaining = 2 if GameState.is_relic_refined("relic_magic") else 1
+			unit.relic_first_spell_free_remaining = 2 if GameState.is_relic_equipped_and_refined("relic_magic") else 1
 		else:
 			unit.relic_first_spell_free_remaining = 0
 
-		unit.relic_low_hp_threshold = 0.4 if GameState.is_relic_refined("relic_defense") else 0.3
-		unit.relic_phoenix_revive_attack_bonus = 0.2 if GameState.is_relic_refined("relic_phoenix") else 0.0
+		unit.relic_low_hp_threshold = 0.4 if GameState.is_relic_equipped_and_refined("relic_defense") else 0.3
+		unit.relic_phoenix_revive_attack_bonus = 0.2 if GameState.is_relic_equipped_and_refined("relic_phoenix") else 0.0
 
 		unit.update_hp_label()
 
-	_apply_flame_resonance()
-	_apply_aura_buffs()
-	_apply_affix_buffs()
-	_apply_set_bonuses()
-	_apply_cross_bonuses()
-	_apply_fusion_battle_start()
-	_apply_core_trait_auras()
+	# ---- 结算顺序很重要 ----
+	_apply_flame_resonance()      # 火焰共鸣
+	_apply_aura_buffs()           # 光环（已装备的光环）
+	_apply_affix_buffs()          # 词条（hp / move / 护盾）
+	_apply_set_bonuses()          # 套装（3 件同标签）
+	_apply_cross_bonuses()        # 交叉套装（2 标签各 2 件）
+	_apply_fusion_battle_start()  # 熔合产物（不灭薪火）
+	_apply_core_trait_auras()     # 核心特性光环（龙威 / 壁垒）
 
 
-func _sync_auras_to_units():
+func _sync_auras_to_units() -> void:
 	var aura_ids : Array = GameState.get_auras_from_passives()
 	for unit in UnitManager.unit_list:
 		if unit.unit_stats.team_id != 0:
@@ -224,7 +233,7 @@ func _sync_auras_to_units():
 # ============================================================
 #  火焰共鸣
 # ============================================================
-func _apply_flame_resonance():
+func _apply_flame_resonance() -> void:
 	var resonance : Dictionary = LevelManager.current_resonance
 	if resonance.is_empty():
 		return
@@ -244,7 +253,7 @@ func _apply_flame_resonance():
 # ============================================================
 #  光环被动
 # ============================================================
-func _apply_aura_buffs():
+func _apply_aura_buffs() -> void:
 	for unit in UnitManager.unit_list:
 		if unit.unit_stats.team_id != 0:
 			continue
@@ -254,26 +263,28 @@ func _apply_aura_buffs():
 			_apply_aura_passive(unit, aid)
 
 
-func _apply_aura_passive(unit : Unit, aura_id : String):
+func _apply_aura_passive(unit : Unit, aura_id : String) -> void:
 	var d : Dictionary = AuraManager.get_aura(aura_id)
 	if d.is_empty():
 		return
 	var params : Dictionary = d.get("params", {})
 	match d.get("effect", ""):
-		"attack_plus_and_consume":
+		"attack_plus":
+			# ★ v4.5：焚身改为纯被动 +15%，不再每次攻击消耗魂火
 			unit.buff_attack_percent += float(params.get("attack_percent", 0.15))
 		"damage_reduce_and_counter":
 			unit.buff_damage_reduction += float(params.get("damage_reduction", 0.10))
 			unit.relic_counter_damage_bonus += float(params.get("counter_bonus", 0.30))
 		"defense_flat":
 			unit.buff_defense_flat += int(params.get("defense_flat", 3))
-		_: pass
+		_:
+			pass
 
 
 # ============================================================
 #  词条 HP/移动/护盾
 # ============================================================
-func _apply_affix_buffs():
+func _apply_affix_buffs() -> void:
 	for unit in UnitManager.unit_list:
 		if unit.unit_stats.team_id != 0:
 			continue
@@ -300,7 +311,7 @@ func _apply_affix_buffs():
 # ============================================================
 #  套装 buff
 # ============================================================
-func _apply_set_bonuses():
+func _apply_set_bonuses() -> void:
 	for unit in UnitManager.unit_list:
 		if unit.unit_stats.team_id != 0:
 			continue

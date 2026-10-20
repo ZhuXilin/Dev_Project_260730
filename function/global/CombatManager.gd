@@ -127,6 +127,8 @@ func attempt_attack_after_move(unit: Unit):
 # ============================================================
 #  伤害公式
 # ============================================================
+# function/global/CombatManager.gd
+
 func calculate_damage(attacker: Unit, defender: Unit) -> int:
 	var weapon_data = attacker.get_weapon_data()
 	if not weapon_data:
@@ -151,8 +153,7 @@ func calculate_damage(attacker: Unit, defender: Unit) -> int:
 		var str_val = attacker.unit_stats.get_effective_attr("strength")
 		total_attack *= (1.0 + str_val * attacker.relic_strength_scale_damage)
 
-	# ★ v4.2：防具升级系统未实现（armor_slots 上无 upgrade 逻辑），
-	#          此处直接读 item_data.defense，不再走 slot.upgrade_level 死代码
+	# ★ v4.2：防具升级系统未实现，此处直接读 item_data.defense
 	var armor_defense : float = 0.0
 	for slot in defender.armor_slots:
 		if slot:
@@ -165,6 +166,15 @@ func calculate_damage(attacker: Unit, defender: Unit) -> int:
 	def_value += defender.buff_defense_flat
 
 	var damage = max(1, int(total_attack - def_value))
+
+	# ★ v4.5：heavy 武器倍率（在 affix 加成之前应用，让 affix 的固定值不享受倍率）
+	if not weapon_data.heavy_attack.is_empty():
+		var mult : float = 1.0
+		if attacker.has_core_trait("charge") and attacker.charge_stacks > 0:
+			mult = float(weapon_data.heavy_attack.get("charge_multiplier", 1.0))
+		else:
+			mult = float(weapon_data.heavy_attack.get("damage_multiplier", 1.0))
+		damage = int(damage * mult)
 
 	var def_armor_bonus : int = 0
 	for slot in defender.armor_slots:
@@ -251,6 +261,10 @@ func execute_attack(attacker: Unit, defender: Unit) -> bool:
 	await _play_lunge_attack(attacker, defender)
 
 	var damage = calculate_damage(attacker, defender)
+
+	#charge 是"蓄力一刀"，攻击时消耗所有 charge_stacks
+	if attacker.has_core_trait("charge") and attacker.charge_stacks > 0:
+		attacker.charge_stacks = 0
 
 	var active_skill_id : String = ""
 	var active_skill_data = null

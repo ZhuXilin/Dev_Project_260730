@@ -47,6 +47,8 @@ func register_event(event_id: String, event_def: Dictionary):
 		print("事件已存在，跳过注册: ", event_id)
 
 
+# function/global/EventManager.gd
+
 func trigger_event(event_id: String, unit: Unit = null, _default_music: AudioStream = null):
 	if not _events.has(event_id):
 		push_error("未知事件: ", event_id)
@@ -157,6 +159,33 @@ func trigger_event(event_id: String, unit: Unit = null, _default_music: AudioStr
 
 			"wait":
 				await get_tree().create_timer(float(action.get("seconds", 0.5))).timeout
+
+			# ★ v4.5：补齐 DataValidator 中声明但未实现的 4 种 action
+			"unlock_unit":
+				var units_arr : Array = action.get("units", [])
+				for u in units_arr:
+					var uk : String = str(u)
+					if uk != "":
+						Globals.make_unit_eligible(uk)
+				await get_tree().create_timer(0.2).timeout
+
+			"unlock_talent":
+				var tid : String = str(action.get("talent_id", ""))
+				if tid != "":
+					Globals.unlock_talent(tid)
+				await get_tree().create_timer(0.2).timeout
+
+			"unlock_equipment":
+				var iid : String = str(action.get("item_id", ""))
+				if iid != "":
+					Globals.unlock_item(iid)
+				await get_tree().create_timer(0.2).timeout
+
+			"unlock_relics":
+				var rids : Array = action.get("relics", [])
+				if not rids.is_empty():
+					RelicManager.unlock_relics_by_ids(rids)
+				await get_tree().create_timer(0.2).timeout
 
 			_:
 				push_warning("[EventManager] 未知 action: " + action_type)

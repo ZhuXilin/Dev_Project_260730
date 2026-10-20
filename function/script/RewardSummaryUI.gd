@@ -101,11 +101,14 @@ func setup_reward(gold: int, soul: int, items: Array, hide_gold: bool = false, t
 		material_list_container.add_child(hbox)
 
 
+# function/script/RewardSummaryUI.gd
+
 func open():
 	confirm_button.disabled = false
 	_confirmed_guard = false
 	visible = true
-	# ---- 保护性断言：显示时按钮必须是可点的 ----
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE    # ★
+	Globals.is_reward_summary_active = true        # ★
 	if confirm_button.disabled:
 		push_warning("[RewardSummaryUI] open() 后按钮仍 disabled，检查调用方")
 
@@ -114,10 +117,12 @@ func close():
 	visible = false
 	confirm_button.disabled = false
 	_confirmed_guard = false
+	Globals.is_reward_summary_active = false       # ★
 
 
 func hide_panel():
 	visible = false
+	Globals.is_reward_summary_active = false       # ★ 面板被强制隐藏时也清标志
 
 
 func _on_confirm_pressed():
@@ -125,6 +130,7 @@ func _on_confirm_pressed():
 		return
 	_confirmed_guard = true
 	visible = false
+	Globals.is_reward_summary_active = false       # ★
 	confirmed.emit()
 
 

@@ -69,7 +69,6 @@ func reload_all():
 	_after_reload("")
 
 
-# ★ 第九批：重载后联动通知各 Manager 刷新本地缓存
 func _after_reload(fname : String):
 	print("[GameConfigManager] reload('%s')，通知缓存管理器" % fname)
 	# economy → 影响 EconomyManager / AuraManager / ShopManager / EquipmentConfigForge
@@ -82,12 +81,9 @@ func _after_reload(fname : String):
 	if fname == "" or fname == "combat_config.json":
 		if has_node("/root/CombatManager"):
 			CombatManager.reload_config()
-	# progression → 影响 AdvancedClassManager / TalentManager / 祝福配置
+	# progression → 影响 TalentManager 的 EXP 阈值
+	# （AdvancedClassManager 没有 COST_PER_CLASS 字段，v4.5 转职已免费，不再联动）
 	if fname == "" or fname == "progression_config.json":
-		if has_node("/root/AdvancedClassManager"):
-			AdvancedClassManager.COST_PER_CLASS = int(get_value(
-				"progression_config.json", "advanced_class_cost", 800))
-		# TalentManager 的 EXP_THRESHOLDS 是静态的，强制刷新
 		if TalentManager:
 			TalentManager._exp_thresholds_loaded = false
 			TalentManager._ensure_exp_thresholds()

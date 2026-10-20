@@ -247,14 +247,14 @@ func on_map_victory_continue() -> void:
 
 	var reward_gold = GameState.current_reward_gold
 	var reward_soul = GameState.current_reward_soul
-
 	var rating : String = _compute_rating()
 	var rating_soul_bonus : int = 0
 	if rating == "S":
 		var mult : float = 1.0
 		if GameState.current_map_data != null:
 			mult = maxf(1.0, GameState.current_map_data.reward_multiplier)
-		rating_soul_bonus = int(round(3.0 * mult))
+		# ★ v4.5：用 sqrt 让"高收益 + S"是两条独立增益路径，避免成为唯一最优解
+		rating_soul_bonus = int(round(3.0 * sqrt(mult)))
 	reward_soul += rating_soul_bonus
 	print("[评级] %s（额外 +%d 魂）" % [rating, rating_soul_bonus])
 

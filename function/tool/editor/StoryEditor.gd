@@ -5,11 +5,11 @@ extends Control
 #  StoryEditor — NPC 剧情 / 独立对话 / 地图事件 统一编辑器
 #  v4.4：修 _setup_spin 里 for 迭代变量 name 与 Node.name 冲突
 # ============================================================
-
-const STORY_PATH : String = "res://content/data/stories.json"
-const DIALOGUE_PATH : String = "res://content/data/dialogues.json"
 const EVENT_PATH : String = "res://content/data/events.json"
 const MAP_DIR : String = "res://content/scenes/maps/"
+const NARRATIVE_PATH : String = "res://content/data/narrative.json"
+var _narrative_extra : Dictionary = {}
+var _event_graph : StoryEventGraph = null
 
 const UNLOCK_TYPES : Array = ["unit", "relic", "aura", "route", "talent", "transform_branch"]
 const NUM_CONDITIONS : Array = [
@@ -711,8 +711,22 @@ func _refresh_undo_buttons():
 #  数据加载 / 保存
 # ============================================================
 func _load_all():
-	_stories = _load_json(STORY_PATH)
-	_dialogues = _load_json(DIALOGUE_PATH)
+	var narrative : Dictionary = _load_json(NARRATIVE_PATH)
+	_stories.clear()
+	_dialogues.clear()
+	_narrative_extra.clear()
+
+	var raw_npcs : Dictionary = narrative.get("npcs", {})
+	for k in raw_npcs:
+		_stories[k] = raw_npcs[k]
+
+	_dialogues = narrative.get("standalone", {}).duplicate(true)
+
+	# 保留 __meta__ 等非 npcs/standalone 的顶层字段
+	for k in narrative:
+		if k != "npcs" and k != "standalone":
+			_narrative_extra[k] = narrative[k]
+
 	_events = _load_json(EVENT_PATH)
 	_dirty = false
 	_undo_stack.clear()
@@ -734,9 +748,16 @@ func _load_json(path : String) -> Dictionary:
 
 func _on_save():
 	var ok := true
-	if not _save_json(STORY_PATH, _stories): ok = false
-	if not _save_json(DIALOGUE_PATH, _dialogues): ok = false
-	if not _save_json(EVENT_PATH, _events): ok = false
+	if not _save_json(EVENT_PATH, _events):
+		ok = false
+
+	# ★ 合并 npcs 与 standalone 写回 narrative.json，保留 __meta__ / __mechanics__ 等字段
+	var narrative : Dictionary = _narrative_extra.duplicate(true)
+	narrative["npcs"] = _stories
+	narrative["standalone"] = _dialogues
+	if not _save_json(NARRATIVE_PATH, narrative):
+		ok = false
+
 	if ok:
 		_dirty = false
 		_set_status("✓ 已保存")
@@ -1712,48 +1733,95 @@ func _on_event_selected(event_id : String):
 	_right_title.text = "— 编辑区 —"
 
 
+# function/tool/editor/StoryEditor.gd —— 完全替换 _build_event_action_list()
+
 func _build_event_action_list():
-	_clear_container(_mid_list)
-	if _current_event_id == "" or not _events.has(_current_event_id): return
-	var ev : Dictionary = _events[_current_event_id]
+	# ★ v4.5：中间栏改为节点图（事件节点 + action 子节点）
+	if _event_graph == null or not is_instance_valid(_event_graph):
+		_event_graph = StoryEventGraph.new()
+		_event_graph.custom_minimum_size = Vector2(0, 100)
+		_event_graph.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		_event_graph.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		_event_graph.mouse_filter = Control.MOUSE_FILTER_STOP
+		_event_graph.event_node_clicked.connect(_on_event_node_clicked)
+		_event_graph.action_node_clicked.connect(_on_action_node_clicked)
+		_mid_list.get_parent().add_child(_event_graph)
+		_event_graph.name = "StoryEventGraph"
 
-	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 2)
-	_mid_list.add_child(row)
+	# 隐藏原线性列表
+	_mid_list.visible = false
 
-	var aa := _mk_btn("+ action", _add_new_action)
-	aa.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	row.add_child(aa)
+	# 刷新图
+	_event_graph.set_events_ref(_events)
+	if _current_event_id == "":
+		_event_graph.show_event("")
+	else:
+		_event_graph.show_event(_current_event_id)
+		_event_graph.set_selected_action(_current_action_idx)
 
-	var oc := _mk_checkbox("once", bool(ev.get("once", true)))
-	oc.tooltip_text = "勾选后此事件只触发一次"
-	oc.toggled.connect(func(p):
+
+func _on_event_node_clicked():
+	# 点击事件节点 → 右侧显示事件元信息
+	_clear_container(_right_container)
+	_current_action_idx = -1
+	_build_event_meta_form()
+
+
+func _on_action_node_clicked(idx : int):
+	_current_action_idx = idx
+	_build_action_form()
+
+
+# 新函数：事件元信息编辑
+func _build_event_meta_form():
+	if _current_event_id == "":
+		_right_title.text = "— 编辑区 —"
+		return
+	_right_title.text = "事件：" + _current_event_id
+	var ev : Dictionary = _events.get(_current_event_id, {})
+	if ev.is_empty():
+		return
+
+	_right_container.add_child(_mk_section("— 事件元信息 —"))
+
+	var id_row := _mk_row()
+	_right_container.add_child(id_row)
+	id_row.add_child(_mk_label("event_id:"))
+	var id_le := _mk_line_edit(_current_event_id)
+	id_le.custom_minimum_size = Vector2(120, ROW_H)
+	id_le.editable = false
+	id_le.tooltip_text = "重命名会破坏所有地图节点引用，暂不支持"
+	id_row.add_child(id_le)
+
+	var once_row := _mk_row()
+	_right_container.add_child(once_row)
+	var once_cb := _mk_checkbox("once（只触发一次）", bool(ev.get("once", true)))
+	once_cb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	once_cb.toggled.connect(func(p):
 		_push_undo()
 		ev["once"] = p
 		_dirty = true
+		if _event_graph: _event_graph.show_event(_current_event_id)
 	)
-	row.add_child(oc)
+	once_row.add_child(once_cb)
 
-	_mid_list.add_child(_mk_section("— actions —"))
+	var cnt_lb := _mk_label("action 数量：%d" % (ev.get("actions", []) as Array).size())
+	cnt_lb.modulate = Color(0.75, 0.8, 0.9)
+	_right_container.add_child(cnt_lb)
 
-	var actions : Array = ev.get("actions", [])
-	for i in range(actions.size()):
-		var a : Dictionary = actions[i]
-		var at : String = a.get("type", "?")
-		var ex : String = ""
-		if at == "dialog": ex = a.get("dialog_id", "")
-		elif at == "give_item": ex = a.get("item_id", "")
-		elif at == "heal" or at == "damage": ex = str(a.get("amount", 0))
-		elif at == "unlock_unit":
-			var us : Array = a.get("units", [])
-			ex = ",".join(us) if not us.is_empty() else ""
-		var btn := _mk_btn("%d. [%s] %s" % [i, at, ex])
-		_stretch_btn(btn)
-		btn.toggle_mode = true
-		btn.button_pressed = (i == _current_action_idx)
-		btn.modulate = Color.WHITE if i == _current_action_idx else Color(0.8, 0.8, 0.8, 1)
-		btn.pressed.connect(_on_action_selected.bind(i))
-		_mid_list.add_child(btn)
+	var hint := _mk_label("点击下方 action 节点可编辑其字段", FS_SMALL)
+	hint.modulate = Color(0.6, 0.6, 0.6)
+	_right_container.add_child(hint)
+
+	# 添加 / 删除 action 按钮
+	var btn_row := _mk_row()
+	_right_container.add_child(btn_row)
+	var add_btn := _mk_btn("+ 新 action", _add_new_action)
+	btn_row.add_child(add_btn)
+
+	var del_btn := _mk_btn("删除选中 action", _delete_current_action)
+	del_btn.modulate = Color(1.0, 0.6, 0.6)
+	btn_row.add_child(del_btn)
 
 
 func _on_action_selected(idx : int):

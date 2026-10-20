@@ -155,8 +155,12 @@ func init(units: Array, slot: int, mode: int, context: EquipContext = null):
 	if is_shop_rest_mode():
 		current_tab = "arena_shop"
 
-	# v4.6：每次进入 UI 重置 forge_enter 一次性标记
-	_forge_enter_done = false
+	# ★ v4.5：forge_enter 只在局内 FORGE / MAP_SHOP_REST 时重置；
+	#          竞技场（ARENA_REST）不触发 forge_enter，直接标记为已完成
+	if current_mode == Mode.FORGE or current_mode == Mode.MAP_SHOP_REST:
+		_forge_enter_done = false
+	else:
+		_forge_enter_done = true
 
 	_copy_party_data()
 	_build_ui()
@@ -256,7 +260,9 @@ func _build_ui():
 	_is_building_ui = true
 	_build_ui_inner()
 	_is_building_ui = false
-
+	# FORGE 对话入口——只在局内 FORGE / MAP_SHOP_REST 触发；竞技场不触发
+	if current_mode == Mode.FORGE or current_mode == Mode.MAP_SHOP_REST:
+		_setup_forge_narrative_ui()
 
 func _build_ui_inner():
 	var main_hbox = $VBoxContainer/MainHBox

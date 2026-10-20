@@ -13,6 +13,7 @@ const STORY_PATH : String = "res://content/data/stories.json"
 const EVENT_PATH : String = "res://content/data/events.json"
 const DIALOGUE_PATH : String = "res://content/data/dialogues.json"
 const UNIT_UNLOCK_PATH : String = "res://content/data/unit_unlock.json"
+const NARRATIVE_PATH : String = "res://content/data/narrative.json"
 
 const VALID_UNIT_TAGS : Array = ["物理", "法术", "烈焰", "轮回", "灰烬", "守护", "献祭", "余烬"]
 const VALID_SET_TAGS : Array = ["烈焰", "轮回", "灰烬", "守护", "献祭", "余烬"]
@@ -92,10 +93,13 @@ func _load_all():
 	_set_bonus_db = _load_json(SET_BONUS_PATH)
 	_aura_db = _load_json(AURA_DATA_PATH)
 	_recipe_db = _load_json(RECIPE_PATH)
-	_story_db = _load_json(STORY_PATH)
 	_event_db = _load_json(EVENT_PATH)
-	_dialogue_db = _load_json(DIALOGUE_PATH)
 	_unit_unlock_db = _load_json(UNIT_UNLOCK_PATH)
+
+	# ★ 从 narrative.json 拆分出 npcs / standalone
+	var narrative : Dictionary = _load_json(NARRATIVE_PATH)
+	_story_db = narrative.get("npcs", {})
+	_dialogue_db = narrative.get("standalone", {})
 
 
 func _load_json(path : String) -> Dictionary:
@@ -548,6 +552,19 @@ func _branch_exists(branch_id : String) -> bool:
 	return false
 
 
+func _has_dialogue_id(did : String) -> bool:
+	if did == "":
+		return false
+	if _dialogue_db.has(did):
+		return true
+	for npc_id in _story_db:
+		var npc : Dictionary = _story_db[npc_id]
+		for d in npc.get("dialogues", []):
+			if d is Dictionary and str((d as Dictionary).get("id", "")) == did:
+				return true
+	return false
+
+
 func _validate_events():
 	var fname := "events.json"
 	for eid in _event_db:
@@ -577,7 +594,7 @@ func _validate_events():
 					var did : String = str(ad.get("dialog_id", ""))
 					if did == "":
 						_error(fname, "%s.actions[%d].dialog_id" % [eid, i], "dialog_id 为空")
-					elif not _dialogue_db.has(did):
+					elif not _has_dialogue_id(did):
 						_error(fname, "%s.actions[%d].dialog_id" % [eid, i], "对话不存在: %s" % did)
 				"give_item":
 					var iid : String = str(ad.get("item_id", ""))

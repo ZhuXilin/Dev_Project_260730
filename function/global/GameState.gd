@@ -459,11 +459,25 @@ func get_global_relic_stats() -> Dictionary:
 			bonus[key] = bonus.get(key, 0) + stats[key]
 	return bonus
 
+# function/global/GameState.gd
+
+## ★ v4.5：某遗物是否"既已精炼、又装备在被动槽里"
+func is_relic_equipped_and_refined(relic_id : String) -> bool:
+	if not is_relic_refined(relic_id):
+		return false
+	for relic in get_relics_from_passives():
+		if relic.item_id == relic_id:
+			return true
+	return false
+
+
 func get_global_relic_effects() -> Dictionary:
 	var effects := {}
+	var equipped_ids : Dictionary = {}
 	for relic in get_relics_from_passives():
 		var data = RelicManager.get_relic_data(relic.item_id)
 		if data.is_empty(): continue
+		equipped_ids[relic.item_id] = true
 		var e : Dictionary = data.get("effects", {})
 		for key in e:
 			var add = e[key]
@@ -476,16 +490,16 @@ func get_global_relic_effects() -> Dictionary:
 				elif cur is float or add is float: effects[key] = float(cur) + float(add)
 				else: effects[key] = add
 
-	# ★ v4.5：遗物精炼——数值型加成
-	if is_relic_refined("relic_speed"):
+	# ★ v4.5：遗物精炼——只对**已装备**的遗物生效
+	if equipped_ids.has("relic_speed") and is_relic_refined("relic_speed"):
 		effects["kill_grants_extra_move"] = int(effects.get("kill_grants_extra_move", 2)) + 1
-	if is_relic_refined("relic_health"):
+	if equipped_ids.has("relic_health") and is_relic_refined("relic_health"):
 		effects["turn_first_hit_regen"] = 0.5
-	if is_relic_refined("relic_strength"):
+	if equipped_ids.has("relic_strength") and is_relic_refined("relic_strength"):
 		effects["strength_scale_damage"] = 0.03
-	if is_relic_refined("relic_dexterity"):
+	if equipped_ids.has("relic_dexterity") and is_relic_refined("relic_dexterity"):
 		effects["counter_damage_bonus"] = 0.8
-	if is_relic_refined("relic_faith"):
+	if equipped_ids.has("relic_faith") and is_relic_refined("relic_faith"):
 		effects["heal_bonus"] = 0.8
 	return effects
 

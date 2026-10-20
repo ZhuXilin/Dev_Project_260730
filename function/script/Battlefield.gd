@@ -126,10 +126,6 @@ func _ready():
 	_drag_move_controller = DragMoveController.new(self)
 	add_child(_drag_move_controller)
 	_drag_move_controller.setup()
-
-	_drag_move_controller = DragMoveController.new(self)
-	add_child(_drag_move_controller)
-	_drag_move_controller.setup()
 	
 	# ★ 新增魂火视觉反馈控制器
 	var visual_ctrl = SoulFireVisualController.new()

@@ -319,30 +319,36 @@ func _on_secret_merchant_pressed():
 		GameState.npc_dialogue_flags.append(flag)
 		SaveManager.auto_save()
 
-	# ★ 1. 播放隐藏商人专属音乐
-	MusicManager.play_secret_merchant_music()
-
-	# 先播对话（DialogueManager 会自动暂停当前音乐，并在对话结束后恢复）
+	# ★ 不再对话前切到 secret_merchant 音乐：让 DialogueManager 走正常的"暂停/恢复"
+	#   对话结束后由 SecretMerchantUI._ready() 播商人音乐
 	var played : bool = StoryManager.play_next_dialogue("secret_merchant")
 	if played:
 		await DialogueManager.dialogue_finished
 	if not is_inside_tree():
 		return
 
-	# 再弹交易 UI
+	# 再弹交易 UI（UI 内部 _ready() 播 secret_merchant 音乐）
 	var scene = load("res://content/scenes/ui/SecretMerchantUI.tscn")
 	if not scene:
 		push_warning("[Camp] SecretMerchantUI.tscn 未找到")
 		return
 	var ui = scene.instantiate()
+	ui.name = "SecretMerchantUI"
 	add_child(ui)
+
+	# ★ 防止同名残留：如果已经有一个同名 CanvasLayer（极少见），先清掉
+	var stale = get_node_or_null("SecretMerchantUI")
+	if stale and stale != ui:
+		stale.queue_free()
+
 	await ui.closed
 
 	if not is_inside_tree():
 		return
+	# ★ 检查 ui 是否真的关闭：ui 已被 queue_free 但引用仍在，下一帧才会失效
+	#   这里强制把引用断开，防止后续 is_instance_valid 误判
+	ui = null
 	update_display()
-
-	# ★ 2. 交易完成后，恢复营地原有音乐
 	_restore_camp_music()
 
 	# 交易完成后移除商人，箭头恢复

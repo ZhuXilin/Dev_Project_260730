@@ -167,12 +167,12 @@ func start_turn(team: Team):
 	if team == Team.ENEMY and current_turn_team == Team.PLAYER:
 		if ObjectiveManager:
 			ObjectiveManager.on_player_turn_end()
-		
+
 		# ★ v4.5 修复冲突：如果目标已经完成，直接胜利，不再推进下一波
 		check_victory()
 		if is_game_over:
 			return
-			
+
 		if WaveManager:
 			WaveManager.on_player_turn_end()
 		check_victory()
@@ -205,16 +205,19 @@ func start_turn(team: Team):
 		if unit.hit_points > 0 and unit.unit_stats.team_id == team:
 			unit.accumulate_all_talents()
 
-	for unit in UnitManager.unit_list:
-		if unit.hit_points > 0 and unit.unit_stats.team_id == team:
-			unit.reset_turn()
-
+	# ★ v4.5：charge 累积必须在 reset_turn 之前（此时 has_attacked 是上一回合状态）
 	if team == Team.PLAYER:
 		SoulFireManager.tick_turn_start(UnitManager.unit_list)
 		_apply_turn_start_regen()
 		_apply_turn_start_auras()
 		_apply_turn_start_fusion()
 		_apply_charge_stacks()
+
+	for unit in UnitManager.unit_list:
+		if unit.hit_points > 0 and unit.unit_stats.team_id == team:
+			unit.reset_turn()
+
+	if team == Team.PLAYER:
 		BossMechanicManager.on_player_turn_start()
 	else:
 		BossMechanicManager.on_enemy_turn_start()
@@ -313,6 +316,7 @@ func _apply_turn_start_fusion():
 
 
 func _apply_charge_stacks():
+	#此函数在 reset_turn() 之前调用，此时 has_attacked 是**上一回合**的值
 	for u in UnitManager.unit_list:
 		if u.unit_stats.team_id != 0 or u.hit_points <= 0:
 			continue

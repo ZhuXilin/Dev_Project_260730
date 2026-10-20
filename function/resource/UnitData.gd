@@ -277,8 +277,6 @@ static func from_dict(d: Dictionary) -> UnitData:
 			t_inst.cooldown_remaining = 0
 		data.advanced_talent_inst = t_inst
 
-	# ★ v4.5：运行时精炼字段保持默认值（0 / 0.3 / 0.0），
-	#          由 TurnController.apply_team_buffs() 在战斗开始时重新赋值
 	return data
 
 

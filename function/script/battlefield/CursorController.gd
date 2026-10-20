@@ -70,6 +70,14 @@ func clear_attack_indicator() -> void:
 #  主更新
 # ============================================================
 func update_cursor_and_mouse() -> void:
+	# ★ 最高优先级：任何模态 UI 弹出时，强制让系统鼠标可见
+	#   覆盖 ConfirmUI / RewardSummaryUI（以及以后可能新增的模态层）
+	if Globals.is_confirm_ui_active or Globals.is_reward_summary_active:
+		_set_hovered_unit(null)
+		_bf.cursor.visible = false
+		_use_system_mouse()
+		return
+
 	if _bf._is_reward_ui_active:
 		_set_hovered_unit(null)
 		_bf.cursor.visible = false

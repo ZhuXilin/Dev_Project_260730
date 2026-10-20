@@ -57,9 +57,10 @@ input[type=checkbox]{accent-color:#2d6cdf;margin-right:4px}
 #anim-preview{display:block;image-rendering:pixelated;pointer-events:none}
 #anim-cursor{position:absolute;border:2px solid #ffd23c;pointer-events:none;box-shadow:0 0 0 1px #000 inset,0 0 0 1px #000;display:none;box-sizing:border-box}
 #anim-label{color:#ffd23c;font-family:ui-monospace,Consolas,monospace;font-size:11px;font-weight:600;letter-spacing:.3px;flex-shrink:0}
-#statusbar{flex:0 0 auto;display:flex;justify-content:space-between;align-items:center;padding:5px 12px;background:#26262b;border-top:1px solid #111;font-size:12px;color:#a7aeb9}
-#status{color:#a7aeb9}
-#coord{font-family:ui-monospace,Consolas,monospace;color:#888}
+#statusbar{flex:0 0 auto;display:flex;align-items:center;padding:5px 12px;background:#26262b;border-top:1px solid #111;font-size:12px;color:#a7aeb9}
+#status{color:#a7aeb9;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+#tool-hint{color:#a7aeb9;margin-left:16px;white-space:nowrap;opacity:0.8;}
+#coord{font-family:ui-monospace,Consolas,monospace;color:#888;margin-left:auto;white-space:nowrap;}
 .modal-back{position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;z-index:2000}
 .modal{background:#2a2a30;border:1px solid #444;border-radius:6px;padding:16px 20px;min-width:340px;box-shadow:0 10px 40px rgba(0,0,0,.7)}
 .modal h2{margin:0 0 12px 0;font-size:14px;color:#ddd;font-weight:600}
@@ -121,21 +122,21 @@ input[type=checkbox]{accent-color:#2d6cdf;margin-right:4px}
     <button class="menu-btn" data-menu="file" data-i18n="menu.file">File ▾</button>
     <button class="menu-btn" data-menu="edit" data-i18n="menu.edit">Edit ▾</button>
     <span class="sep"></span>
-    <button id="btn-open-png" data-i18n="btn.openPng">Open PNG</button>
-    <button id="btn-open-proj" data-i18n="btn.openProj">Open Project</button>
-    <button id="btn-save-as-png" data-i18n="btn.savePng">Save As PNG</button>
-    <button id="btn-save-as-proj" data-i18n="btn.saveProj">Save As Project</button>
+    <button id="btn-open-png" data-i18n="btn.openPng" data-i18n-title="tt.openPng" title="Open PNG">Open PNG</button>
+    <button id="btn-open-proj" data-i18n="btn.openProj" data-i18n-title="tt.openProj" title="Open Project">Open Project</button>
+    <button id="btn-save-as-png" data-i18n="btn.savePng" data-i18n-title="tt.savePng" title="Save As PNG">Save As PNG</button>
+    <button id="btn-save-as-proj" data-i18n="btn.saveProj" data-i18n-title="tt.saveProj" title="Save As Project">Save As Project</button>
     <span class="sep"></span>
-    <button class="tool-btn active" data-tool="1" data-i18n="tool.select" title="Select (V)">Sel</button>
-    <button class="tool-btn" data-tool="7" data-i18n="tool.lasso" title="Lasso (M)">Lasso</button>
-    <button id="btn-crop" data-i18n="btn.crop" title="Crop to Selection (C)">Crop</button>
-    <button id="btn-transform" data-i18n="btn.transform" title="Transform / Lattice (T)">Trans</button>
-    <button id="btn-transform-grid" style="display:none; background:#2d6cdf; border-color:#4a8cf5" title="Toggle Grid (1x1 / 3x3)">3x3</button>
-    <button class="tool-btn" data-tool="2" data-i18n="tool.pencil" title="Pencil (B)">Pen</button>
-    <button class="tool-btn" data-tool="3" data-i18n="tool.eraser" title="Eraser (E)">Era</button>
-    <button class="tool-btn" data-tool="5" data-i18n="tool.picker" title="Picker (I)">Pick</button>
-    <button class="tool-btn" data-tool="4" data-i18n="tool.bucket" title="Bucket (G)">Fill</button>
-    <button class="tool-btn" data-tool="6" data-i18n="tool.replace" title="Replace (J)">Rep</button>
+    <button class="tool-btn active" data-tool="1" data-i18n="tool.select" data-i18n-title="tt.select" title="Select (V)">Sel</button>
+    <button class="tool-btn" data-tool="7" data-i18n="tool.lasso" data-i18n-title="tt.lasso" title="Lasso (M)">Lasso</button>
+    <button id="btn-crop" data-i18n="btn.crop" data-i18n-title="tt.crop" title="Crop to Selection (C)">Crop</button>
+    <button id="btn-transform" data-i18n="btn.transform" data-i18n-title="tt.transform" title="Transform / Lattice (T)">Trans</button>
+    <button id="btn-transform-grid" style="display:none; background:#2d6cdf; border-color:#4a8cf5" data-i18n-title="tt.grid" title="Toggle Grid (1x1 / 3x3)">3x3</button>
+    <button class="tool-btn" data-tool="2" data-i18n="tool.pencil" data-i18n-title="tt.pencil" title="Pencil (B)">Pen</button>
+    <button class="tool-btn" data-tool="3" data-i18n="tool.eraser" data-i18n-title="tt.eraser" title="Eraser (E)">Era</button>
+    <button class="tool-btn" data-tool="5" data-i18n="tool.picker" data-i18n-title="tt.picker" title="Picker (I)">Pick</button>
+    <button class="tool-btn" data-tool="4" data-i18n="tool.bucket" data-i18n-title="tt.bucket" title="Bucket (G)">Fill</button>
+    <button class="tool-btn" data-tool="6" data-i18n="tool.replace" data-i18n-title="tt.replace" title="Replace (H)">Rep</button>
     <span class="sep"></span>
     <button id="btn-undo" data-i18n="btn.undo">Undo</button>
     <button id="btn-redo" data-i18n="btn.redo">Redo</button>
@@ -307,6 +308,7 @@ input[type=checkbox]{accent-color:#2d6cdf;margin-right:4px}
 
   <div id="statusbar">
     <span id="status"></span>
+    <span id="tool-hint"></span>
     <span id="coord">— , —</span>
   </div>
 </div>
@@ -2507,7 +2509,6 @@ function applyCrop(bounds){
     return;
   }
 
-  // 每个图层提取选区
   for(var li = 0; li < doc.layers.length; li++){
     var L = doc.layers[li];
     var oldData = L.imageData.data;
@@ -2531,7 +2532,6 @@ function applyCrop(bounds){
     L.imageData = new ImageData(newData, W, H);
   }
 
-  // 更新画布尺寸
   doc.width = W;
   doc.height = H;
   doc.imageData = doc.layers[doc.activeLayer].imageData;
@@ -2541,7 +2541,6 @@ function applyCrop(bounds){
   doc.imageCanvas.height = H;
   doc.imageCtx = doc.imageCanvas.getContext('2d');
 
-  // 清空选区
   doc.selMask = new Uint8Array(W * H);
   doc.hasSelection = false;
   doc.selBounds = {x:0, y:0, w:0, h:0};
@@ -2603,6 +2602,7 @@ function switchTransformGrid() {
     var gridBtn = document.getElementById('btn-transform-grid');
     if (gridBtn) gridBtn.textContent = '3x3';
   }
+  updateToolHint();
   requestRender();
 }
 
@@ -2636,12 +2636,10 @@ function startTransform(){
     if(doc.selMask[sy*W+sx]){
       var si = (sy*W+sx)*4, di = (y*b.w+x)*4;
       srcData[di]=d[si]; srcData[di+1]=d[si+1]; srcData[di+2]=d[si+2]; srcData[di+3]=d[si+3];
-      // 挖空原图！
       d[si]=0; d[si+1]=0; d[si+2]=0; d[si+3]=0;
     }
   }
   
-  // 关键：重新构建底图
   doc.imageDirty = true;
   syncImageCanvas();
 
@@ -2674,7 +2672,6 @@ function startTransform(){
     gridBtn.textContent = '3x3';
   }
 
-  // 移除其它工具按钮的高亮，避免视觉冲突
   var toolBtns = document.querySelectorAll('.tool-btn');
   for(var i=0;i<toolBtns.length;i++) toolBtns[i].classList.remove('active');
 
@@ -2683,6 +2680,7 @@ function startTransform(){
   doc.selBounds = {x:0,y:0,w:0,h:0};
   doc.imageDirty = true;
   requestRender();
+  updateToolHint();
   setStatus(currentLang==='zh'?'晶格变形：拖动控制点，Enter 确认，Esc 取消，Ctrl+Z 撤销':'Transform: drag handles, Enter to apply, Esc to cancel, Ctrl+Z to undo');
 }
 
@@ -2758,7 +2756,6 @@ function applyTransform(){
   var gridBtn = document.getElementById('btn-transform-grid');
   if(gridBtn) gridBtn.style.display = 'none';
 
-  // 恢复工具按钮高亮
   var toolBtns = document.querySelectorAll('.tool-btn');
   for(var i=0;i<toolBtns.length;i++) {
     toolBtns[i].classList.toggle('active', +toolBtns[i].dataset.tool === ui.tool);
@@ -2768,6 +2765,7 @@ function applyTransform(){
   doc.imageDirty = true;
   commitHistory();
   requestRender();
+  updateToolHint();
   setStatus(currentLang==='zh'?'变形已应用':'Transform applied');
 }
 
@@ -2784,7 +2782,6 @@ function cancelTransform(){
   var gridBtn = document.getElementById('btn-transform-grid');
   if(gridBtn) gridBtn.style.display = 'none';
 
-  // 恢复工具按钮高亮
   var toolBtns = document.querySelectorAll('.tool-btn');
   for(var i=0;i<toolBtns.length;i++) {
     toolBtns[i].classList.toggle('active', +toolBtns[i].dataset.tool === ui.tool);
@@ -2793,6 +2790,7 @@ function cancelTransform(){
   transformState = null;
   doc.imageDirty = true;
   requestRender();
+  updateToolHint();
   setStatus(currentLang==='zh'?'变形已取消':'Transform cancelled');
 }
 
@@ -3002,7 +3000,6 @@ function onCanvasMouseDown(e){
   var inRulerLeft = m.sx < RULER && m.sy >= RULER;
   var modCtrl = e.ctrlKey || e.metaKey;
 
-  // 优先处理右键和中键
   if(e.button===2){
     if (transformState) {
       cancelTransform();
@@ -3264,7 +3261,6 @@ function onCanvasMouseMove(e){
         var cy = (t.cornersBackup[0].y + t.cornersBackup[2].y) / 2;
 
         if (e.altKey && e.ctrlKey) {
-          // Alt+Ctrl: 中心等比缩放
           var targetX = pCur.x + dx;
           var targetY = pCur.y + dy;
           var dCX = pCur.x - cx;
@@ -3279,20 +3275,17 @@ function onCanvasMouseMove(e){
             }
           }
         } else if (e.altKey && e.shiftKey) {
-          // Alt+Shift: 中心水平/垂直对称缩放
           var targetX = pCur.x + dx;
           var targetY = pCur.y + dy;
           var dCX = pCur.x - cx;
           var dCY = pCur.y - cy;
           if (Math.abs(dx) > Math.abs(dy)) {
-            // 水平方向主导
             var scaleX = (targetX - cx) / (dCX || 1e-6);
             for (var i = 0; i < 4; i++) {
               t.corners[i].x = cx + (t.cornersBackup[i].x - cx) * scaleX;
               t.corners[i].y = t.cornersBackup[i].y;
             }
           } else {
-            // 垂直方向主导
             var scaleY = (targetY - cy) / (dCY || 1e-6);
             for (var i = 0; i < 4; i++) {
               t.corners[i].x = t.cornersBackup[i].x;
@@ -3300,7 +3293,6 @@ function onCanvasMouseMove(e){
             }
           }
         } else if (e.shiftKey) {
-          // Shift: 对角点为中心等比缩放
           var targetX = pCur.x + dx;
           var targetY = pCur.y + dy;
           var dOppX = pCur.x - pOpp.x;
@@ -3316,7 +3308,6 @@ function onCanvasMouseMove(e){
             t.corners[i].y = pOpp.y + (t.cornersBackup[i].y - pOpp.y) * scale;
           }
         } else if (e.ctrlKey) {
-          // Ctrl: 对角点为中心非等比缩放
           var targetX = pCur.x + dx;
           var targetY = pCur.y + dy;
           var scaleX = (targetX - pOpp.x) / (pCur.x - pOpp.x || 1e-6);
@@ -3326,7 +3317,6 @@ function onCanvasMouseMove(e){
             t.corners[i].y = pOpp.y + (t.cornersBackup[i].y - pOpp.y) * scaleY;
           }
         } else {
-          // 自由缩放
           t.corners[idx].x = pCur.x + dx;
           t.corners[idx].y = pCur.y + dy;
         }
@@ -3610,10 +3600,9 @@ function onKeyDown(e){
       return;
     }
     
-    var isToolKey = ['v', 'V', 'm', 'M', 'b', 'B', 'e', 'E', 'i', 'I', 'g', 'G', 'j', 'J', 'c', 'C', 'q', 'Q'].includes(k);
+    var isToolKey = ['v', 'V', 'm', 'M', 'b', 'B', 'e', 'E', 'i', 'I', 'g', 'G', 'h', 'H', 'c', 'C', 'q', 'Q'].indexOf(k) >= 0;
     if (isToolKey) {
       cancelTransform();
-      // 继续往下走，让下面的 switch/if 处理快捷键
     } else if (k === 't' || k === 'T') {
       e.preventDefault();
       switchTransformGrid();
@@ -3648,7 +3637,6 @@ function onKeyDown(e){
     return;
   }
   
-  // ★ Q键切换单格/全图显示
   if ((k === 'q' || k === 'Q') && !e.ctrlKey && !e.metaKey && !e.altKey) {
     e.preventDefault();
     ui.singleCell = !ui.singleCell;
@@ -3682,7 +3670,6 @@ function onKeyDown(e){
     }
   }
 
-  /* ★ 数字键 1~4：打开 PNG / 另存 PNG / 打开工程 / 另存工程 */
   if(!e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey && !e.repeat){
     switch(e.code){
       case 'Digit1': case 'Numpad1': e.preventDefault(); openPng();          return;
@@ -3692,21 +3679,18 @@ function onKeyDown(e){
     }
   }
 
-  /* 裁切：C 键 */
   if(!e.ctrlKey && !e.metaKey && !e.altKey && (k === 'c' || k === 'C')){
     e.preventDefault();
     if(!e.repeat) cropToSelection();
     return;
   }
 
-  /* 晶格变形：T 键 */
   if(!e.ctrlKey && !e.metaKey && !e.altKey && (k === 't' || k === 'T')){
     e.preventDefault();
     if(!transformState) startTransform();
     return;
   }
 
-  /* 动画逐帧：← → / A D */
   if(!e.ctrlKey && !e.metaKey && !e.altKey){
     var isPrev = (k === 'ArrowLeft' || k === 'a' || k === 'A');
     var isNext = (k === 'ArrowRight'|| k === 'd' || k === 'D');
@@ -3749,7 +3733,7 @@ function onKeyDown(e){
     case 'e': case 'E': setTool(TOOL.ERASER); break;
     case 'i': case 'I': setTool(TOOL.PICKER); break;
     case 'g': case 'G': setTool(TOOL.BUCKET); break;
-    case 'j': case 'J': setTool(TOOL.REPLACE); break;
+    case 'h': case 'H': setTool(TOOL.REPLACE); break;
     case 'ArrowLeft':
       if(doc.floating){
         doc.floating.x--;
@@ -3973,6 +3957,31 @@ function animUpdateFromEvent(e){
   }
 }
 
+/* ★ 新增：状态栏工具快捷键提示（支持中英文切换） */
+function updateToolHint(){
+  var el = document.getElementById('tool-hint');
+  if(!el) return;
+  if(transformState && transformState.active) {
+    el.textContent = currentLang === 'zh' ? '晶格变形 (Enter 确认 / Esc 取消)' : 'Transform (Enter / Esc)';
+    return;
+  }
+  var key = '';
+  switch(ui.tool){
+    case TOOL.SELECT: key = 'tool.hints.select'; break;
+    case TOOL.LASSO: key = 'tool.hints.lasso'; break;
+    case TOOL.PENCIL: key = 'tool.hints.pencil'; break;
+    case TOOL.ERASER: key = 'tool.hints.eraser'; break;
+    case TOOL.PICKER: key = 'tool.hints.picker'; break;
+    case TOOL.BUCKET: key = 'tool.hints.bucket'; break;
+    case TOOL.REPLACE: key = 'tool.hints.replace'; break;
+  }
+  if(key && I18N[key]) {
+    el.textContent = I18N[key][currentLang] || I18N[key]['en'];
+  } else {
+    el.textContent = '';
+  }
+}
+
 function setTool(t){
   if(transformState) cancelTransform();
   ui.tool = t;
@@ -3982,6 +3991,7 @@ function setTool(t){
   }
   if(t === TOOL.PENCIL || t === TOOL.ERASER) canvas.style.cursor = 'none';
   else canvas.style.cursor = 'crosshair';
+  updateToolHint();
   requestRender();
 }
 function setBrushSize(n){
@@ -4810,6 +4820,13 @@ var I18N = {
   'tool.picker': {zh:'吸', en:'Pick'},
   'tool.bucket': {zh:'桶', en:'Fill'},
   'tool.replace': {zh:'换', en:'Rep'},
+  'tool.hints.select': {zh: '选择 (V)', en: 'Select (V)'},
+  'tool.hints.lasso': {zh: '套索 (M)', en: 'Lasso (M)'},
+  'tool.hints.pencil': {zh: '铅笔 (B)', en: 'Pencil (B)'},
+  'tool.hints.eraser': {zh: '橡皮 (E)', en: 'Eraser (E)'},
+  'tool.hints.picker': {zh: '取色 (I)', en: 'Picker (I)'},
+  'tool.hints.bucket': {zh: '填充 (G)', en: 'Bucket (G)'},
+  'tool.hints.replace': {zh: '替换 (H)', en: 'Replace (H)'},
   'btn.crop': {zh:'裁切', en:'Crop'},
   'btn.transform': {zh:'变形', en:'Trans'},
   'btn.undo': {zh:'撤销', en:'Undo'},
@@ -4893,6 +4910,20 @@ var I18N = {
 };
 
 var I18N_TITLE = {
+  'tt.openPng': {zh:'打开 PNG', en:'Open PNG'},
+  'tt.openProj': {zh:'打开工程', en:'Open Project'},
+  'tt.savePng': {zh:'另存 PNG', en:'Save As PNG'},
+  'tt.saveProj': {zh:'另存工程', en:'Save As Project'},
+  'tt.select': {zh:'选择 (V)', en:'Select (V)'},
+  'tt.lasso': {zh:'套索 (M)', en:'Lasso (M)'},
+  'tt.crop': {zh:'裁切到选区 (C)', en:'Crop to Selection (C)'},
+  'tt.transform': {zh:'变形 / 晶格 (T)', en:'Transform / Lattice (T)'},
+  'tt.grid': {zh:'切换网格 (1x1 / 3x3)', en:'Toggle Grid (1x1 / 3x3)'},
+  'tt.pencil': {zh:'铅笔 (B)', en:'Pencil (B)'},
+  'tt.eraser': {zh:'橡皮 (E)', en:'Eraser (E)'},
+  'tt.picker': {zh:'取色 (I)', en:'Picker (I)'},
+  'tt.bucket': {zh:'填充 (G)', en:'Bucket (G)'},
+  'tt.replace': {zh:'替换 (H)', en:'Replace (H)'},
   'help.guides': {
     zh:'顶部标尺往下拖 → 水平参考线\n左侧标尺往右拖 → 垂直参考线\nCtrl + 鼠标靠近参考线拖动 → 移动\n拖动时自动吸附到格子边沿 / 中心\n双击参考线 → 删除\n隐藏参考线后不吸附、不可拖动',
     en:'Drag top ruler down → horizontal guide\nDrag left ruler right → vertical guide\nCtrl + drag near guide → move it\nAuto-snap to cell edges / centers while dragging\nDouble-click guide → delete\nWhen hidden, snapping is disabled'
@@ -4957,6 +4988,7 @@ function applyLanguage(lang) {
     if(p) p.textContent = lang==='zh'?'播放':'Play';
   }
   langBtn.textContent = lang === 'zh' ? 'CH' : 'EN';
+  updateToolHint();
   setStatus(I18N['status.ready'][lang]);
 }
 
@@ -5054,7 +5086,6 @@ function bindUI(){
   document.getElementById('btn-save-as-proj').addEventListener('click', function(){ saveProject(true); });
   document.getElementById('btn-bg').addEventListener('click', cycleBackground);
 
-  /* 裁切按钮 */
   document.getElementById('btn-crop').addEventListener('click', cropToSelection);
   document.getElementById('btn-transform').addEventListener('click', startTransform);
   document.getElementById('btn-crop-sel').addEventListener('click', cropToSelection);
@@ -5184,14 +5215,12 @@ function bindUI(){
     });
   });
 
-  /* ★ 所有 button 的 mousedown 阻止默认行为，避免抢走焦点 */
   document.querySelectorAll('button').forEach(function(b){
     b.addEventListener('mousedown', function(e){
       e.preventDefault();
     });
   });
   
-  /* ★ 在变形编辑中用按钮切其他工具视作esc */
   document.querySelectorAll('#toolbar button, aside button').forEach(function(btn) {
     if (btn.id !== 'btn-transform' && btn.id !== 'btn-transform-grid') {
       btn.addEventListener('mousedown', function() {

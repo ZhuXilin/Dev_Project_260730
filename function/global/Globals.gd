@@ -45,6 +45,9 @@ var is_map_mode: bool = false
 var is_non_combat_mode: bool = false
 var current_battle_turn: int = 0
 
+var is_confirm_ui_active : bool = false
+var is_reward_summary_active : bool = false
+
 var _last_increment_time: float = 0.0
 var pending_save_slot: int = -1
 

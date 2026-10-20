@@ -26,9 +26,11 @@ const INTEL_OPTIONS : Array = [
 var _item_list : VBoxContainer = null
 var _tag_picker_overlay : Control = null
 
+var _closed : bool = false
 
 func _ready():
 	layer = 25
+	MusicManager.play_secret_merchant_music()   # ★ 由 UI 自己负责播放
 	_build_item_list()
 	_refresh_ui()
 
@@ -360,21 +362,14 @@ func _on_intel_selected(text : String, flag : String):
 		_close_overlay()
 		return
 	GameState.soul -= INTEL_COST
-	GameState.npc_dialogue_flags.append(flag)
-	ForgeWhisperManager.add_revealed_intel(text)
+	if not (flag in GameState.npc_dialogue_flags):
+		GameState.npc_dialogue_flags.append(flag)
+	if not (text in GameState.revealed_intel):
+		GameState.revealed_intel.append(text)
 	SaveManager.auto_save()
 	_close_overlay()
 	_show_hint("★ 已记入情报簿：%s" % text)
 	_refresh_ui()
-
-
-# ============================================================
-#  辅助
-# ============================================================
-func _close_overlay():
-	if _tag_picker_overlay and is_instance_valid(_tag_picker_overlay):
-		_tag_picker_overlay.queue_free()
-	_tag_picker_overlay = null
 
 
 func _show_hint(text : String):
@@ -383,7 +378,19 @@ func _show_hint(text : String):
 		hint_label.modulate = Color(0.7, 1.0, 0.7)
 
 
+func _close_overlay():
+	if _tag_picker_overlay and is_instance_valid(_tag_picker_overlay):
+		# ★ 立即 free 而非 queue_free：避免同一帧内 overlay 继续拦点击
+		if _tag_picker_overlay.get_parent():
+			_tag_picker_overlay.get_parent().remove_child(_tag_picker_overlay)
+		_tag_picker_overlay.free()
+	_tag_picker_overlay = null
+
+
 func _on_back_pressed():
+	if _closed:
+		return
+	_closed = true
 	_close_overlay()
 	closed.emit()
 	queue_free()

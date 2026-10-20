@@ -7,8 +7,14 @@ extends CanvasLayer
 var confirm_callback: Callable
 var cancel_callback: Callable
 
+# function/script/ConfirmUI.gd
+
 func _ready():
-	# ★ 去除按钮的焦点高亮（防止默认出现白框）
+	# ★ 强制显示系统鼠标：ConfirmUI 可能在战斗场景（鼠标被 CursorController 隐藏）弹出
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	Globals.is_confirm_ui_active = true
+
+	# 去除按钮的焦点高亮（防止默认出现白框）
 	confirm_button.focus_mode = Control.FOCUS_NONE
 	cancel_button.focus_mode = Control.FOCUS_NONE
 
@@ -19,6 +25,23 @@ func _ready():
 
 	confirm_button.pressed.connect(_on_confirm_button_pressed)
 	cancel_button.pressed.connect(_on_cancel_button_pressed)
+
+
+func _on_confirm_button_pressed() -> void:
+	visible = false
+	Globals.is_confirm_ui_active = false   # ★ 先清标志，再触发 callback
+	SoundManager.play_select_sound()
+	if confirm_callback.is_valid():
+		confirm_callback.call()
+	queue_free.call_deferred()
+
+
+func _on_cancel_button_pressed() -> void:
+	visible = false
+	Globals.is_confirm_ui_active = false   # ★
+	if cancel_callback.is_valid():
+		cancel_callback.call()
+	queue_free.call_deferred()
 
 func _input(event):
 	if not visible:
@@ -56,16 +79,3 @@ func show_confirm(message: String, confirm_text: String = "确定", cancel_text:
 		cancel_button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	else:
 		confirm_button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-
-func _on_confirm_button_pressed() -> void:
-	visible = false
-	SoundManager.play_select_sound()
-	if confirm_callback.is_valid():
-		confirm_callback.call()
-	queue_free.call_deferred()
-
-func _on_cancel_button_pressed() -> void:
-	visible = false
-	if cancel_callback.is_valid():
-		cancel_callback.call()
-	queue_free.call_deferred()
