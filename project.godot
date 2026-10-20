@@ -54,6 +54,7 @@ GmConsole="*uid://q5yaycxpkkua"
 TestRegistry="*uid://uqtcmpoqfoyf"
 TestHarness="*uid://dmji7n6utrcoj"
 AnalyticsLogger="*uid://6tr6ydnchi6o"
+FlavorManager="*uid://mkdcyy8d04ac"
 
 [display]
 

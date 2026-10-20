@@ -28,6 +28,7 @@ var selected_node: MapNode = null
 var level_list: Array[MapData] = []
 var _equipment_config_instance = null
 var _detail_popup = null
+var _info_ref_node : MapNode = null
 var _ready_guard : bool = false
 
 # ★ 节点点击防抖
@@ -232,6 +233,16 @@ func _ready():
 
 	if not SoulFireManager.soul_fire_changed.is_connected(_on_soul_fire_changed):
 		SoulFireManager.soul_fire_changed.connect(_on_soul_fire_changed)
+
+
+func _input(event: InputEvent):
+	# ★ 碎片化叙事：hover 节点上右键切换
+	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT:
+		if _info_ref_node != null:
+			Globals.toggle_info_mode()
+			show_node_info(_info_ref_node)
+			get_viewport().set_input_as_handled()
+			return
 
 
 func _save_game():
@@ -908,6 +919,23 @@ func show_node_info(node: MapNode) -> void:
 		return
 	if not node:
 		return
+	_info_ref_node = node
+
+	# ★ 碎片化叙事分支
+	if FlavorManager.is_narrative_mode():
+		var type_key : String = str(int(node.node_type))
+		var flavor : String = FlavorManager.get_flavor("node_types", type_key)
+		if flavor == "":
+			# 若有地图名，也尝试用地图名作 key
+			if node.map_data and node.map_data.map_name != "":
+				flavor = FlavorManager.get_flavor("maps", node.map_data.map_name)
+		if flavor == "":
+			flavor = "（暂无叙事）"
+		info_label.text = flavor
+		info_panel.visible = true
+		return
+
+	# ---- 玩法模式（原逻辑）----
 	info_label.text = _get_node_description(node)
 	info_panel.visible = true
 
@@ -915,6 +943,21 @@ func show_node_info(node: MapNode) -> void:
 func hide_node_info() -> void:
 	if info_panel:
 		info_panel.visible = false
+	_info_ref_node = null
+
+
+# ★ 碎片化叙事：InfoPanel 面板区右键切换
+func _on_map_info_right_click(event: InputEvent):
+	if not (event is InputEventMouseButton):
+		return
+	var mb : InputEventMouseButton = event
+	if not (mb.pressed and mb.button_index == MOUSE_BUTTON_RIGHT):
+		return
+	if _info_ref_node == null:
+		return
+	Globals.toggle_info_mode()
+	show_node_info(_info_ref_node)
+	info_panel.accept_event()
 
 
 func _get_node_description(node: MapNode) -> String:

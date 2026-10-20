@@ -4,6 +4,9 @@ var selected_units: Array[String] = []
 var max_selection: int = 3
 var _equipment_config_instance = null
 
+# ★ 碎片化叙事：记录当前 hover 的单位类型
+var _info_ref_unit_type : String = ""
+
 @onready var unit_buttons = $UnitListContainer/VBoxContainer
 @onready var main_label = $MainUnitLabel
 @onready var slot1_label = $Slot1Label
@@ -34,6 +37,16 @@ func _ready():
 	_update_labels()
 
 
+func _input(event: InputEvent):
+	# ★ 碎片化叙事：hover 单位按钮上右键切换
+	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT:
+		if _info_ref_unit_type != "":
+			Globals.toggle_info_mode()
+			_on_unit_hover(_info_ref_unit_type)
+			get_viewport().set_input_as_handled()
+			return
+
+
 func _make_label_clickable(label: Label, index: int):
 	label.mouse_filter = Control.MOUSE_FILTER_STOP
 	label.gui_input.connect(func(event):
@@ -44,7 +57,7 @@ func _make_label_clickable(label: Label, index: int):
 
 
 # ============================================================
-#  单位按钮（v4.1：派遣中显示但禁用）
+#  单位按钮
 # ============================================================
 func _setup_unit_buttons():
 	for child in unit_buttons.get_children():
@@ -56,7 +69,6 @@ func _setup_unit_buttons():
 	var dispatched : Array = DispatchManager.get_dispatched_unit_names()
 
 	for unit_name in unlocked:
-		# ★ 第七批：数据防护，改成 print（正常防护日志，不该刷警告）
 		var dict : Dictionary = UnitDataManager.get_unit_data(unit_name)
 		if dict.is_empty():
 			print("[UnitSelectUI] 跳过未定义单位：%s" % unit_name)
@@ -89,10 +101,21 @@ func _setup_unit_buttons():
 
 
 # ============================================================
-#  悬停显示详情
+#  悬停显示详情（★ 碎片化叙事：按模式分支）
 # ============================================================
 func _on_unit_hover(unit_name: String):
 	if not info_name: return
+	_info_ref_unit_type = unit_name
+
+	if FlavorManager.is_narrative_mode():
+		var flavor : String = FlavorManager.get_flavor("units", unit_name)
+		if flavor == "":
+			flavor = "（暂无叙事）"
+		info_name.text = ""
+		info_stats.text = ""
+		info_desc.text = flavor
+		return
+
 	var unit_dict = UnitDataManager.get_unit_data(unit_name)
 	if unit_dict.is_empty():
 		info_name.text = "（无数据）"
@@ -115,17 +138,16 @@ func _on_unit_hover(unit_name: String):
 	lines.append("感应    %d" % unit_dict.get("arcane", 0))
 	lines.append("移动力  %d" % unit_dict.get("move_range", 0))
 
-	# ★ 显示派遣状态提示
 	if DispatchManager.is_unit_dispatched(unit_name):
 		lines.append("")
 		lines.append("【派遣中，本局不能出战】")
 
 	info_stats.text = "\n".join(lines)
-
 	info_desc.text = unit_dict.get("description", "")
 
 
 func _on_unit_hover_exit():
+	_info_ref_unit_type = ""
 	if not info_name: return
 	info_name.text = "选择单位查看详情"
 	info_stats.text = ""

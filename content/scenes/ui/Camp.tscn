@@ -15,6 +15,7 @@ grow_vertical = 2
 color = Color(0.08, 0.07, 0.06, 1)
 
 [node name="Title" type="Label" parent="." unique_id=936389542]
+modulate = Color(0.7, 0.65, 0.55, 1)
 anchors_preset = 10
 anchor_right = 1.0
 offset_top = 6.0
@@ -23,7 +24,6 @@ grow_horizontal = 2
 theme_override_font_sizes/font_size = 10
 text = "祭 祀 场"
 horizontal_alignment = 1
-modulate = Color(0.7, 0.65, 0.55, 1)
 
 [node name="ResourcePanel" type="VBoxContainer" parent="." unique_id=1974261780]
 offset_left = 8.0
@@ -57,7 +57,7 @@ offset_right = 224.0
 offset_bottom = 66.0
 
 [node name="GateLabel" type="Label" parent="EntranceGate" unique_id=2000000003]
-anchors_preset = 5
+layout_mode = 0
 anchor_left = 0.5
 anchor_right = 0.5
 offset_left = -44.0
@@ -70,6 +70,7 @@ text = "三天战斗入口"
 horizontal_alignment = 1
 
 [node name="NpcGrid" type="Control" parent="." unique_id=2000000004]
+layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
@@ -78,13 +79,14 @@ grow_vertical = 2
 mouse_filter = 2
 
 [node name="SoulKeeperBtn" type="TextureButton" parent="NpcGrid" unique_id=2000000010]
+layout_mode = 0
 offset_left = 52.0
 offset_top = 56.0
 offset_right = 108.0
 offset_bottom = 128.0
 
 [node name="NamePlate" type="Label" parent="NpcGrid/SoulKeeperBtn" unique_id=2000000011]
-anchors_preset = 7
+layout_mode = 0
 anchor_left = 0.5
 anchor_top = 1.0
 anchor_right = 0.5
@@ -100,13 +102,14 @@ text = "守火者"
 horizontal_alignment = 1
 
 [node name="BlacksmithBtn" type="TextureButton" parent="NpcGrid" unique_id=2000000020]
+layout_mode = 0
 offset_left = 292.0
 offset_top = 56.0
 offset_right = 348.0
 offset_bottom = 128.0
 
 [node name="NamePlate" type="Label" parent="NpcGrid/BlacksmithBtn" unique_id=2000000021]
-anchors_preset = 7
+layout_mode = 0
 anchor_left = 0.5
 anchor_top = 1.0
 anchor_right = 0.5
@@ -122,13 +125,14 @@ text = "灰烬铁匠"
 horizontal_alignment = 1
 
 [node name="GuideBtn" type="TextureButton" parent="NpcGrid" unique_id=2000000030]
+layout_mode = 0
 offset_left = 82.0
 offset_top = 142.0
 offset_right = 138.0
 offset_bottom = 214.0
 
 [node name="NamePlate" type="Label" parent="NpcGrid/GuideBtn" unique_id=2000000031]
-anchors_preset = 7
+layout_mode = 0
 anchor_left = 0.5
 anchor_top = 1.0
 anchor_right = 0.5
@@ -144,13 +148,14 @@ text = "游魂向导"
 horizontal_alignment = 1
 
 [node name="GladiatorBtn" type="TextureButton" parent="NpcGrid" unique_id=2000000040]
+layout_mode = 0
 offset_left = 262.0
 offset_top = 142.0
 offset_right = 318.0
 offset_bottom = 214.0
 
 [node name="NamePlate" type="Label" parent="NpcGrid/GladiatorBtn" unique_id=2000000041]
-anchors_preset = 7
+layout_mode = 0
 anchor_left = 0.5
 anchor_top = 1.0
 anchor_right = 0.5
@@ -171,9 +176,9 @@ anchor_left = 1.0
 anchor_top = 1.0
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = -88.0
+offset_left = -240.0
 offset_top = -32.0
-offset_right = -8.0
+offset_right = -160.0
 offset_bottom = -8.0
 grow_horizontal = 0
 grow_vertical = 0

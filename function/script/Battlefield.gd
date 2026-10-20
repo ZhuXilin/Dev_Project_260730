@@ -126,7 +126,7 @@ func _ready():
 	_drag_move_controller = DragMoveController.new(self)
 	add_child(_drag_move_controller)
 	_drag_move_controller.setup()
-	
+
 	# ★ 新增魂火视觉反馈控制器
 	var visual_ctrl = SoulFireVisualController.new()
 	add_child(visual_ctrl)
@@ -567,7 +567,7 @@ func _process(_delta):
 		Globals.is_performing_action or
 		Globals.is_dialogue_active or
 		Globals.is_item_get_popup_active or
-		camera_controller.is_smooth_moving()   # ★ 第十批：用 getter
+		camera_controller.is_smooth_moving()
 	)
 	camera_controller.set_paused(should_pause)
 
@@ -634,6 +634,13 @@ func _input(event: InputEvent):
 	if Globals.is_dialogue_active or Globals.is_item_get_popup_active:
 		return
 
+	# ★ 修复穿透：只要打开了任何菜单面板，就不响应战斗左键点击，但允许右键关闭菜单
+	if setting_panel.visible or setting_menu_panel.visible or team_view_panel.visible or item_list_panel.visible:
+		if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT:
+			_on_request_setting_right_click()
+			get_viewport().set_input_as_handled()
+		return
+
 	if _drag_move_controller and _drag_move_controller.handle_input(event):
 		return
 
@@ -647,12 +654,6 @@ func _input(event: InputEvent):
 
 	if event is InputEventMouseButton and event.pressed:
 		if event.button_index == MOUSE_BUTTON_WHEEL_UP or event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
-			if (setting_panel.visible or
-				setting_menu_panel.visible or
-				team_view_panel.visible or
-				item_list_panel.visible or
-				InputManager.interaction_phase == InputManager.Phase.DRAGGING_MOVE):
-				return
 			if TurnManager.is_game_over:
 				return
 			if TurnManager.current_turn_team == TurnManager.Team.PLAYER and not TurnManager.is_moving and not TurnManager.is_ai_moving and not Globals.is_performing_action:
@@ -677,7 +678,7 @@ func _input(event: InputEvent):
 			InputManager.handle_click(clicked_cell)
 	else:
 		InputManager.handle_input(event, map_grid_size, MapConst.CELL_SIZE)
-
+		
 
 # ============================================================
 #  其他信号
@@ -697,7 +698,7 @@ func _on_request_damage_popup(world_pos: Vector2, damage: int, is_crit: bool, is
 
 
 # ============================================================
-#  InfoPanel
+#  InfoPanel (纯数值版)
 # ============================================================
 func _on_request_show_info(unit: Unit):
 	if unit == null:
@@ -717,17 +718,13 @@ func _on_request_show_info(unit: Unit):
 
 	if not is_instance_valid(unit):
 		return
-
-	# ★ 第六批：加 nil 保护，避免某个 unit_stats 未初始化时崩溃
 	if unit.unit_stats == null:
 		return
 
 	var lines : Array = []
-
 	var display_name = unit.unit_stats.display_name if unit.unit_stats.display_name != "" else unit.unit_stats.unit_name
 	var type_name = UnitDataManager.get_unit_type_display_name(unit.unit_stats.unit_name)
 	lines.append(display_name + " | " + unit.unit_stats.faction + " | " + type_name)
-
 	lines.append("HP: " + str(unit.hit_points) + "/" + str(unit.unit_stats.max_hp))
 
 	var status_str : String = ""
@@ -755,7 +752,6 @@ func _on_request_show_info(unit: Unit):
 	else:
 		lines.append("武器: 无")
 
-	# ★ 第六批：armor_slots 加 null 保护
 	var armor_slots : Array = unit.get_armor_slots()
 	if armor_slots != null:
 		var armor_lines : Array = []
@@ -794,8 +790,8 @@ func _on_request_show_info(unit: Unit):
 	if talent_names.size() > 0:
 		lines.append("词条: " + ", ".join(talent_names))
 
-	var cell = unit.grid_cell
-	var terrain_type = TerrainManager.get_terrain(cell)
+	var unit_cell = unit.grid_cell
+	var terrain_type = TerrainManager.get_terrain(unit_cell)
 	var terrain_name = TerrainManager.get_terrain_name(terrain_type)
 	lines.append("地形: " + terrain_name)
 
@@ -935,14 +931,13 @@ func _is_any_ui_active() -> bool:
 	)
 
 
-# 修改1：点击回营地时，关闭所有菜单，清除选中状态，然后再弹确认框
 func _on_back_camp_pressed():
 	# 关闭所有菜单
 	PanelRevealer.force_hide(setting_panel)
 	PanelRevealer.force_hide(team_view_panel)
 	PanelRevealer.force_hide(item_list_panel)
 	PanelRevealer.force_hide(setting_menu_panel)
-	
+
 	# 重置输入状态
 	InputManager.selected_unit = null
 	InputManager.interaction_phase = InputManager.Phase.IDLE
@@ -950,20 +945,21 @@ func _on_back_camp_pressed():
 	SignalBus.request_clear_highlight.emit()
 	SignalBus.request_hide_info.emit()
 
-	SoundManager.play_select_sound() # ★ 补上点击音效
+	SoundManager.play_select_sound()
 	GameState.show_abandon_confirmation(self)
+
 
 func _on_back_to_menu_pressed():
 	PanelRevealer.force_hide(setting_panel)
 	PanelRevealer.force_hide(team_view_panel)
 	PanelRevealer.force_hide(item_list_panel)
 	PanelRevealer.force_hide(setting_menu_panel)
-	
+
 	InputManager.selected_unit = null
 	InputManager.interaction_phase = InputManager.Phase.IDLE
 	InputManager.current_empty_cell = Vector2i(-1, -1)
-	SoundManager.play_select_sound() # ★ 补上点击音效
-	
+	SoundManager.play_select_sound()
+
 	var current_scene = get_tree().current_scene
 	var scene_path : String = ""
 	if current_scene:
@@ -979,9 +975,7 @@ func _on_back_to_menu_pressed():
 	get_tree().change_scene_to_file("res://content/scenes/ui/MainMenu.tscn")
 
 
-# 修改3：统一右键撤回逻辑和音效
 func _on_request_setting_right_click():
-	# 如果有子面板打开，优先关闭子面板
 	if team_view_panel.visible:
 		_panel_manager.on_team_view_btn_pressed()
 		SoundManager.play_cancel_sound()
@@ -995,8 +989,7 @@ func _on_request_setting_right_click():
 		SoundManager.play_cancel_sound()
 		return
 
-	# 如果只有最外层 SettingPanel，右键关闭它
-	SoundManager.play_cancel_sound() 
+	SoundManager.play_cancel_sound()
 	SignalBus.request_hide_setting.emit()
 	SignalBus.request_hide_info.emit()
 	InputManager.interaction_phase = InputManager.Phase.IDLE
@@ -1004,7 +997,7 @@ func _on_request_setting_right_click():
 
 
 # ============================================================
-#  v4.4：胜利目标可视化 + 状态 HUD
+#  胜利目标可视化 + 状态 HUD
 # ============================================================
 var _objective_marker_layer : Node2D = null
 var _objective_status_label : Label = null
@@ -1053,7 +1046,6 @@ func _render_flag_markers():
 
 
 func _render_assault_marker():
-	# 突进：目标单位会移动，状态 HUD 文字提示即可，不做世界坐标标记
 	pass
 
 
@@ -1144,7 +1136,7 @@ func _refresh_objective_status():
 
 
 # ============================================================
-#  v4.5：Boss 情报 banner
+#  Boss 情报 banner
 # ============================================================
 var _intel_banner : Label = null
 

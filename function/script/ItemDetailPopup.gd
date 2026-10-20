@@ -27,6 +27,24 @@ func show_item(item_id: String, _unit: Unit = null):
 		hide_popup()
 		return
 
+	# ★ 碎片化叙事分支
+	if FlavorManager.is_narrative_mode():
+		var cat : String = "weapons" if data.type == "weapon" else ("armors" if data.type == "armor" else "items")
+		var flavor : String = FlavorManager.get_flavor(cat, item_id)
+		if flavor == "":
+			flavor = "（暂无叙事）"
+		if data.icon:
+			icon.texture = data.icon
+			icon.visible = true
+		else:
+			icon.visible = false
+		name_label.text = data.name
+		desc_label.text = flavor
+		stats_label.text = ""
+		_show_panel_animated()
+		return
+
+	# ---- 玩法模式（原逻辑）----
 	if data.icon:
 		icon.texture = data.icon
 		icon.visible = true
@@ -54,10 +72,20 @@ func show_item(item_id: String, _unit: Unit = null):
 
 
 func _show_relic_detail(data: Dictionary, item_id: String = ""):
+	if FlavorManager.is_narrative_mode():
+		var flavor : String = FlavorManager.get_flavor("relics", item_id)
+		if flavor == "":
+			flavor = "（暂无叙事）"
+		icon.visible = false
+		name_label.text = data.get("name", "") if not GameState.is_relic_refined(item_id) else ("★ " + data.get("name", ""))
+		desc_label.text = flavor
+		stats_label.text = ""
+		_show_panel_animated()
+		return
+
 	icon.visible = false
 	var name_text : String = data.get("name", "")
 	var desc_text : String = data.get("description", "")
-	# ★ v4.5：精炼状态
 	if item_id != "" and GameState.is_relic_refined(item_id):
 		name_text = "★ " + name_text
 		desc_text += "\n（已精炼）"

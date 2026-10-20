@@ -1,5 +1,9 @@
 extends Node
 
+# —— 碎片化叙事：信息面板模式 ——
+enum InfoMode { GAMEPLAY, NARRATIVE }
+var info_mode : InfoMode = InfoMode.GAMEPLAY
+
 const BASE_WIDTH : int = 400
 const BASE_HEIGHT : int = 240
 const DEFAULT_SCALE : int = 2
@@ -538,3 +542,8 @@ func get_unit_unlock_cost(unit_type: String) -> int:
 	var key : String = UnitDataManager.normalize_unit_key(unit_type)
 	var costs = unlock_config.get("unlock_costs", {})
 	return int(costs.get(key, 50))
+
+
+func toggle_info_mode():
+	info_mode = InfoMode.NARRATIVE if info_mode == InfoMode.GAMEPLAY else InfoMode.GAMEPLAY
+	SignalBus.info_mode_changed.emit(info_mode)

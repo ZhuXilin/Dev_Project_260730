@@ -32,6 +32,7 @@ var _forge_recall_btn : Button = null
 var _forge_enter_done : bool = false
 
 const ShopManagerScript = preload(Config.PATHS.SHOP_MANAGER_SCRIPT)
+const DETAIL_ZONE_PATH : String = "VBoxContainer/MainHBox/LeftInfoColumn/DetailZone"
 
 @onready var mode_label = $VBoxContainer/TopBar/ModeLabel
 @onready var gold_label = $VBoxContainer/GoldLabel
@@ -68,7 +69,11 @@ func _ready():
 	if sacrifice_tab_btn:
 		sacrifice_tab_btn.visible = false
 	_ensure_aura_tab_btn()
-
+	
+	# 确保子 Label 不拦截事件
+	var detail_label : Label = get_node_or_null(DETAIL_ZONE_PATH + "/DetailLabel")
+	if detail_label:
+		detail_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 
 # ============================================================
 #  ★ v4.2：光环 tab 动态创建
@@ -1114,65 +1119,8 @@ func _disable_button(btn: Button):
 func _on_unit_hover_entered(unit_idx: int) -> void:
 	if unit_idx < 0 or unit_idx >= party.size(): return
 	var unit : UnitData = party[unit_idx]
-
-	var display : String = unit.display_name if unit.display_name != "" else unit.unit_name
-	var type_name : String = UnitDataManager.get_unit_type_display_name(unit.unit_name)
-
-	var lines : Array = []
-	lines.append("%s（%s）" % [display, type_name])
-	if unit.is_dead:
-		lines.append("【已冻结】可通过圣坛或复活圣油解冻")
-	lines.append("")
-
-	lines.append("HP: %d / %d" % [unit.hit_points, unit.max_hp])
-	lines.append("力量: %d    灵巧: %d" % [unit.strength, unit.dexterity])
-	lines.append("智力: %d    信仰: %d" % [unit.intelligence, unit.faith])
-	lines.append("感应: %d    移动力: %d" % [unit.arcane, unit.move_range])
-
-	lines.append("")
-	if unit.weapon_slot:
-		var wdata : ItemData = ItemManager.get_item_data(unit.weapon_slot.item_id)
-		if wdata:
-			var lv_txt : String = ""
-			if unit.weapon_slot.upgrade_level > 0:
-				lv_txt = "+%d" % unit.weapon_slot.upgrade_level
-			lines.append("武器: %s%s" % [wdata.name, lv_txt])
-			if wdata.type == "weapon":
-				lines.append("  攻击 %d  射程 %d~%d" % [
-					wdata.base_attack, wdata.min_attack_range, wdata.attack_range])
-	else:
-		lines.append("武器: 无")
-
-	var armor_names : Array = []
-	for s in unit.armor_slots:
-		if s:
-			var adata : ItemData = ItemManager.get_item_data(s.item_id)
-			if adata:
-				armor_names.append(adata.name)
-	if armor_names.size() > 0:
-		lines.append("防具: " + ", ".join(armor_names))
-	else:
-		lines.append("防具: 无")
-
-	var talent_names : Array = []
-	for t in unit.talent_slots:
-		if t and t.is_active:
-			var tdata : TalentData = TalentManager.get_talent_data(t.talent_id)
-			if tdata:
-				talent_names.append(tdata.display_name)
-	if talent_names.size() > 0:
-		lines.append("特技: " + ", ".join(talent_names))
-
-	if unit.advanced_talent_id != "":
-		var adv_data : TalentData = TalentManager.get_talent_data(unit.advanced_talent_id)
-		if adv_data:
-			var lv : int = TalentManager.get_talent_level(unit.unit_name, unit.advanced_talent_id)
-			if TalentManager.is_talent_max_level(unit.unit_name, unit.advanced_talent_id):
-				lines.append("职业: %s Lv%d MAX" % [adv_data.display_name, lv])
-			else:
-				lines.append("职业: %s Lv%d" % [adv_data.display_name, lv])
-
-	_show_detail_in_zone("\n".join(lines))
+	# 直接委托给 Detail 模块处理（它内部会记录 _hover_ref，并区分叙事/玩法模式）
+	_detail.show_unit(unit)
 
 
 func _on_unit_hover_exited() -> void:
@@ -1736,6 +1684,15 @@ func _update_tab_style():
 # ============================================================
 func _input(event: InputEvent):
 	if _has_active_confirm_ui(): return
+
+	# ★ 碎片化叙事：hover 触发区上右键切换（包括单位头像）
+	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT:
+		if _detail != null and _detail.has_hover():
+			Globals.toggle_info_mode()
+			_detail.refresh()
+			get_viewport().set_input_as_handled()
+			return
+			
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
 		var mouse_pos : Vector2 = get_global_mouse_position()
 		var btn : Control = _drag._find_control_at_position(mouse_pos)

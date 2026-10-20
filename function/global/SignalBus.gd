@@ -1,6 +1,8 @@
 extends Node
 
 @warning_ignore("unused_signal")
+signal info_mode_changed(mode: int)
+@warning_ignore("unused_signal")
 signal unit_moved(unit)
 @warning_ignore("unused_signal")
 signal turn_changed(team)

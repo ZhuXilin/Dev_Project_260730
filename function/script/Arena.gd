@@ -54,6 +54,9 @@ var _total_paid : int = 0
 var _retreat_fee : int = 0
 var _arena_passives : Array = [null, null, null, null]
 
+# ★ 碎片化叙事：记录当前 hover 的单位类型，供左键切换后重新渲染
+var _info_ref_unit_type : String = ""
+
 # ============================================================
 #  节点引用
 # ============================================================
@@ -72,6 +75,16 @@ func _ready():
 	_build_unit_list()
 	_refresh_center_panel()
 	_refresh_streak_label()
+
+
+func _input(event: InputEvent):
+	# ★ 碎片化叙事：hover 单位按钮上右键切换
+	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT:
+		if _info_ref_unit_type != "":
+			Globals.toggle_info_mode()
+			_on_unit_hover(_info_ref_unit_type)
+			get_viewport().set_input_as_handled()
+			return
 
 
 func _refresh_hint_label():
@@ -130,17 +143,35 @@ func _on_unit_selected(unit_type: String):
 
 
 # ============================================================
-#  悬停显示单位属性
+#  悬停显示单位属性（★ 碎片化叙事：按模式分支）
 # ============================================================
 func _on_unit_hover(unit_type: String):
 	if _phase != Phase.IDLE:
 		return
+	_info_ref_unit_type = unit_type
+
+	if FlavorManager.is_narrative_mode():
+		var flavor : String = FlavorManager.get_flavor("units", unit_type)
+		if flavor == "":
+			flavor = "（暂无叙事）"
+		if unit_stats_label:
+			unit_stats_label.text = flavor
+		return
+
 	_refresh_unit_stats(unit_type)
 
 
 func _on_unit_hover_exit():
+	_info_ref_unit_type = ""
 	if _current_player_data:
-		_refresh_unit_stats(_current_player_data.unit_name)
+		if FlavorManager.is_narrative_mode():
+			var flavor : String = FlavorManager.get_flavor("units", _current_player_data.unit_name)
+			if flavor == "":
+				flavor = "（暂无叙事）"
+			if unit_stats_label:
+				unit_stats_label.text = flavor
+		else:
+			_refresh_unit_stats(_current_player_data.unit_name)
 	else:
 		if unit_stats_label:
 			unit_stats_label.text = ""
@@ -169,8 +200,18 @@ func _refresh_unit_stats(unit_type: String):
 	unit_stats_label.text = "\n".join(lines)
 
 
+func _input(event: InputEvent):
+	# ★ 碎片化叙事：hover 单位按钮上右键切换
+	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT:
+		if _info_ref_unit_type != "":
+			Globals.toggle_info_mode()
+			_on_unit_hover(_info_ref_unit_type)
+			get_viewport().set_input_as_handled()
+			return
+
+
 # ============================================================
-#  显示刷新
+#  显示刷新（★ 碎片化叙事：属性面板按模式分支）
 # ============================================================
 func _refresh_center_panel():
 	if not _current_player_data:
@@ -186,7 +227,15 @@ func _refresh_center_panel():
 		display, _current_player_data.hit_points, _current_player_data.max_hp, slots
 	]
 
-	_refresh_unit_stats(_current_player_data.unit_name)
+	# ★ 碎片化叙事：属性面板默认展示也跟随当前模式
+	if FlavorManager.is_narrative_mode():
+		var flavor : String = FlavorManager.get_flavor("units", _current_player_data.unit_name)
+		if flavor == "":
+			flavor = "（暂无叙事）"
+		if unit_stats_label:
+			unit_stats_label.text = flavor
+	else:
+		_refresh_unit_stats(_current_player_data.unit_name)
 
 	var talent_id : String = GameState.arena_target_talents.get(_current_player_data.unit_name, "")
 	if talent_id != "":
@@ -579,7 +628,6 @@ func _do_one_battle() -> int:
 		_streak_active = true
 		SaveManager.auto_save()
 
-		# ★ 传入统计数据
 		await _show_battle_rewards(gold_gain, soul_gain, talent_results, battle_index, result)
 		if not is_inside_tree():
 			return 1
@@ -630,7 +678,6 @@ func _show_battle_rewards(gold_gain: int, soul_gain: int,
 
 	var items : Array = []
 
-	# ★ 展示战斗统计
 	if not stats.is_empty():
 		var stat_item := ItemData.new()
 		stat_item.id = "arena_stats"
@@ -642,7 +689,6 @@ func _show_battle_rewards(gold_gain: int, soul_gain: int,
 		stat_item.description = "竞技场纯 Build 验证数据"
 		items.append(stat_item)
 
-	# 词条经验展示
 	for r in talent_results:
 		var tid : String = r["talent_id"]
 		var data : TalentData = TalentManager.get_talent_data(tid)
@@ -650,10 +696,9 @@ func _show_battle_rewards(gold_gain: int, soul_gain: int,
 		var old_lv : int = r["old_level"]
 		var new_lv : int = r["new_level"]
 		var exp_gain : int = r["exp_gain"]
-		
+
 		var exp_item := ItemData.new()
 		exp_item.id = "arena_exp_" + tid
-		# ★ 修复：在这里使用了 old_lv
 		exp_item.name = "%s Lv%d→Lv%d (+%d)" % [tname, old_lv, new_lv, exp_gain]
 		if data:
 			exp_item.description = data.description
@@ -822,7 +867,7 @@ func _show_clear_panel() -> String:
 
 
 # ============================================================
-#  结算（★ 第八批：加埋点）
+#  结算
 # ============================================================
 func _show_summary(success: bool, reason: String, skip_music: bool = false):
 	AnalyticsLogger.record_arena_result(reason, success)
@@ -925,7 +970,7 @@ func _return_to_idle():
 	_refresh_streak_label()
 
 
-func _show_hint(text: String):
+func _show_hint(text : String):
 	info_label.text = text
 	await get_tree().create_timer(1.5, true, false, true).timeout
 	if is_instance_valid(info_label) and is_inside_tree():
