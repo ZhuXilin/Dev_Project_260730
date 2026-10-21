@@ -3,7 +3,7 @@ extends PanelContainer
 var current_unit_name : String = ""
 var show_mode : int = 1 # 1=强制玩法, 2=强制叙事
 
-@onready var avatar_rect = get_node_or_null("VBox/AvatarRect")
+@onready var avatar_rect = get_node_or_null("VBox/AvatarBg/AvatarRect")
 @onready var avatar_bg = get_node_or_null("VBox/AvatarBg")
 @onready var info_name = get_node_or_null("VBox/InfoName")
 @onready var scroll_box = get_node_or_null("VBox/Scroll")
@@ -29,7 +29,7 @@ func toggle_mode():
 
 func refresh():
 	if current_unit_name == "":
-		if info_name: info_name.text = "选择单位查看详情"
+		if info_name: info_name.text = ""
 		if info_stats: info_stats.text = ""
 		if info_desc: info_desc.text = ""
 		if scroll_box: scroll_box.visible = false
@@ -73,10 +73,13 @@ func refresh():
 	lines.append("信仰    %d" % unit_dict.get("faith", 0))
 	lines.append("感应    %d" % unit_dict.get("arcane", 0))
 	lines.append("移动力  %d" % unit_dict.get("move_range", 0))
+	
+	# ★ 增加空行
+	lines.append("")
 
 	if DispatchManager.is_unit_dispatched(current_unit_name):
-		lines.append("")
 		lines.append("【派遣中，本局不能出战】")
+		lines.append("")
 
 	if info_stats:
 		info_stats.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
@@ -103,7 +106,6 @@ func _update_avatar(unit_name: String):
 			
 	if has_avatar:
 		avatar_rect.custom_minimum_size = Vector2(48, 48)
-		avatar_rect.size = Vector2(48, 48)
 		avatar_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		
 		if not avatar_bg.visible:

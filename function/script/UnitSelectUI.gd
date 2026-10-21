@@ -3,15 +3,19 @@ extends CanvasLayer
 var selected_units: Array[String] = []
 var max_selection: int = 3
 var _equipment_config_instance = null
-var _hover_unit : String = ""
 
-@onready var unit_buttons = $UnitListContainer/VBoxContainer
-@onready var main_label = $MainUnitLabel
-@onready var slot1_label = $Slot1Label
-@onready var slot2_label = $Slot2Label
-@onready var confirm_btn = $BottomBar/ConfirmButton
-@onready var back_btn = $BottomBar/BackButton
-@onready var info_panel = $InfoPanelContainer
+var _hover_unit : String = ""
+var _hover_exit_serial : int = 0
+var _last_hover_unit : String = ""
+
+# 使用 get_node_or_null 防止场景没覆盖时报错
+@onready var unit_buttons = get_node_or_null("UnitListContainer/VBoxContainer")
+@onready var main_label = get_node_or_null("MainUnitLabel")
+@onready var slot1_label = get_node_or_null("Slot1Label")
+@onready var slot2_label = get_node_or_null("Slot2Label")
+@onready var confirm_btn = get_node_or_null("BottomBar/ConfirmButton")
+@onready var back_btn = get_node_or_null("BottomBar/BackButton")
+@onready var info_panel = get_node_or_null("InfoPanelContainer")
 
 const EquipmentConfig = preload(Config.PATHS.EQUIPMENT_CONFIG_SCRIPT)
 const COLOR_DISPATCHED : Color = Color(0.4, 0.4, 0.4, 1)
@@ -21,15 +25,18 @@ const COLOR_NORMAL     : Color = Color.WHITE
 func _ready():
 	if MusicManager.config and MusicManager.config.unit_select_music:
 		MusicManager.play_music(MusicManager.config.unit_select_music)
-	_make_label_clickable(main_label, 0)
-	_make_label_clickable(slot1_label, 1)
-	_make_label_clickable(slot2_label, 2)
+	
+	# 加入空值保护
+	if main_label: _make_label_clickable(main_label, 0)
+	if slot1_label: _make_label_clickable(slot1_label, 1)
+	if slot2_label: _make_label_clickable(slot2_label, 2)
+	
 	_setup_unit_buttons()
 	_update_labels()
 
 func _input(event: InputEvent):
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT:
-		if _hover_unit != "":
+		if _hover_unit != "" and info_panel:
 			info_panel.toggle_mode()
 			get_viewport().set_input_as_handled()
 			return
@@ -42,6 +49,7 @@ func _make_label_clickable(label: Label, index: int):
 	)
 
 func _setup_unit_buttons():
+	if not unit_buttons: return
 	for child in unit_buttons.get_children(): child.queue_free()
 	var unlocked = Globals.get_unlocked_units(); unlocked.sort()
 	var dispatched : Array = DispatchManager.get_dispatched_unit_names()
@@ -62,15 +70,28 @@ func _setup_unit_buttons():
 			btn.disabled = false; btn.modulate = COLOR_NORMAL
 			btn.pressed.connect(_on_unit_selected.bind(unit_name, btn))
 
-		btn.mouse_entered.connect(func():
-			_hover_unit = unit_name
-			info_panel.set_unit(unit_name)
-		)
-		btn.mouse_exited.connect(func():
-			_hover_unit = ""
-			info_panel.clear_info()
-		)
+		btn.mouse_entered.connect(_on_unit_hover.bind(unit_name))
+		btn.mouse_exited.connect(_on_unit_hover_exit)
 		unit_buttons.add_child(btn)
+
+func _on_unit_hover(unit_name: String):
+	_hover_exit_serial += 1
+	_hover_unit = unit_name
+	_last_hover_unit = unit_name
+	if info_panel: info_panel.set_unit(unit_name)
+
+func _on_unit_hover_exit():
+	_hover_unit = ""
+	_hover_exit_serial += 1
+	var current_serial = _hover_exit_serial
+	
+	await get_tree().create_timer(0.1).timeout
+	if current_serial == _hover_exit_serial and info_panel:
+		# ★ 彻底统一：绝对优先显示最后划过的，没有才显示选中的
+		if _last_hover_unit != "":
+			info_panel.set_unit(_last_hover_unit)
+		elif selected_units.size() > 0:
+			info_panel.set_unit(selected_units[0])
 
 func _on_unit_selected(unit_name: String, btn: Button):
 	if unit_name in selected_units:
@@ -88,14 +109,16 @@ func _on_slot_clicked(index: int):
 		_update_labels()
 
 func _update_labels():
+	if not main_label: return
 	var slots = ["主单位", "辅助1", "辅助2"]
 	var labels = [main_label, slot1_label, slot2_label]
 	for i in range(max_selection):
+		if labels[i] == null: continue
 		if i < selected_units.size():
 			labels[i].text = slots[i] + ": " + UnitDataManager.get_display_name(selected_units[i])
 		else:
 			labels[i].text = slots[i] + ": (未选择)"
-	confirm_btn.disabled = selected_units.size() < max_selection
+	if confirm_btn: confirm_btn.disabled = selected_units.size() < max_selection
 
 func _on_confirm_pressed():
 	if selected_units.size() < max_selection: return

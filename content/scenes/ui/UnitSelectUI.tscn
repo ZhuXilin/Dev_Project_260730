@@ -1,7 +1,7 @@
 [gd_scene format=3 uid="uid://bptstmfff1cag"]
 
 [ext_resource type="Script" uid="uid://3b1ayiblxvbo" path="res://function/script/UnitSelectUI.gd" id="1"]
-[ext_resource type="PackedScene" uid="uid://b7q8tu58vu4gu" path="res://content/scenes/ui/components/UnitInfoPanel.tscn" id="3_info"]
+[ext_resource type="PackedScene" uid="uid://dinsoae8vsksx" path="res://content/scenes/ui/components/UnitInfoPanel.tscn" id="3_info"]
 
 [node name="UnitSelectUI" type="CanvasLayer" unique_id=206783988]
 layer = 10
@@ -13,7 +13,7 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-color = Color(0, 0, 0, 1)
+color = Color(0.10980392, 0.10980392, 0.10980392, 1)
 
 [node name="TitleLabel" type="Label" parent="." unique_id=17888508]
 anchors_preset = 10
@@ -32,7 +32,7 @@ anchor_bottom = 1.0
 offset_left = 24.0
 offset_top = 48.0
 offset_right = -272.0
-offset_bottom = -16.0
+offset_bottom = -64.0
 grow_horizontal = 2
 grow_vertical = 2
 horizontal_scroll_mode = 0
@@ -41,60 +41,45 @@ horizontal_scroll_mode = 0
 layout_mode = 2
 theme_override_constants/separation = 4
 
-[node name="InfoPanelContainer" parent="." unique_id=556677889 instance=ExtResource("3_info")]
-anchors_preset = 11
-anchor_left = 1.0
-anchor_right = 1.0
-anchor_bottom = 1.0
-offset_left = -120.0
-offset_top = 16.0
-offset_right = -16.0
-offset_bottom = -16.0
-grow_horizontal = 0
-grow_vertical = 2
-
 [node name="MainUnitLabel" type="Label" parent="." unique_id=816189382]
-anchors_preset = 11
-anchor_left = 1.0
+anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = -256.0
+offset_left = 128.0
 offset_top = 64.0
-offset_right = -144.0
-offset_bottom = -144.0
-grow_horizontal = 0
+offset_right = -136.0
+offset_bottom = -152.0
+grow_horizontal = 2
 grow_vertical = 2
-theme_override_font_sizes/font_size = 8
+theme_override_font_sizes/font_size = 9
 text = "主单位: (未选择)"
 horizontal_alignment = 1
 
 [node name="Slot1Label" type="Label" parent="." unique_id=393011117]
-anchors_preset = 11
-anchor_left = 1.0
+anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = -256.0
+offset_left = 128.0
 offset_top = 96.0
-offset_right = -144.0
-offset_bottom = -112.0
-grow_horizontal = 0
+offset_right = -136.0
+offset_bottom = -120.0
+grow_horizontal = 2
 grow_vertical = 2
-theme_override_font_sizes/font_size = 8
+theme_override_font_sizes/font_size = 9
 text = "辅助1: (未选择)"
 horizontal_alignment = 1
 
 [node name="Slot2Label" type="Label" parent="." unique_id=1115523376]
-anchors_preset = 11
-anchor_left = 1.0
+anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = -256.0
+offset_left = 128.0
 offset_top = 128.0
-offset_right = -144.0
-offset_bottom = -80.0
-grow_horizontal = 0
+offset_right = -136.0
+offset_bottom = -88.0
+grow_horizontal = 2
 grow_vertical = 2
-theme_override_font_sizes/font_size = 8
+theme_override_font_sizes/font_size = 9
 text = "辅助2: (未选择)"
 horizontal_alignment = 1
 
@@ -103,11 +88,11 @@ anchors_preset = 12
 anchor_top = 1.0
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_top = -32.0
-offset_bottom = -8.0
+offset_top = -40.0
+offset_bottom = -16.0
 grow_horizontal = 2
 grow_vertical = 0
-theme_override_constants/separation = 20
+theme_override_constants/separation = 30
 alignment = 1
 
 [node name="RerollButton" type="Button" parent="BottomBar" unique_id=1874622026]
@@ -128,6 +113,19 @@ layout_mode = 2
 size_flags_horizontal = 4
 theme_override_font_sizes/font_size = 8
 text = "返回"
+
+[node name="InfoPanelContainer" parent="." unique_id=556677889 instance=ExtResource("3_info")]
+anchors_preset = 6
+anchor_left = 1.0
+anchor_top = 0.5
+anchor_right = 1.0
+anchor_bottom = 0.5
+offset_left = -112.0
+offset_top = -112.0
+offset_right = -8.0
+offset_bottom = 112.0
+grow_horizontal = 0
+grow_vertical = 2
 
 [connection signal="pressed" from="BottomBar/ConfirmButton" to="." method="_on_confirm_pressed"]
 [connection signal="pressed" from="BottomBar/BackButton" to="." method="_on_back_pressed"]

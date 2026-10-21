@@ -1,8 +1,8 @@
 [gd_scene format=3 uid="uid://bd2ognlao06r6"]
 
-[ext_resource type="Script" path="res://function/script/DispatchUI.gd" id="1_script"]
-[ext_resource type="StyleBox" path="res://content/resource/stylebox/8bit_style_box_flat.tres" id="2_style"]
-[ext_resource type="PackedScene" path="res://content/scenes/ui/components/UnitInfoPanel.tscn" id="3_info"]
+[ext_resource type="Script" uid="uid://cq3jet1k8pm07" path="res://function/script/DispatchUI.gd" id="1_script"]
+[ext_resource type="StyleBox" uid="uid://6qbsaxkfwg3o" path="res://content/resource/stylebox/8bit_style_box_flat.tres" id="2_style"]
+[ext_resource type="PackedScene" uid="uid://dinsoae8vsksx" path="res://content/scenes/ui/components/UnitInfoPanel.tscn" id="3_info"]
 
 [node name="DispatchUI" type="CanvasLayer" unique_id=300000001]
 layer = 20
@@ -35,7 +35,7 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 offset_left = 6.0
 offset_top = 6.0
-offset_right = -6.0
+offset_right = -140.0
 offset_bottom = -6.0
 grow_horizontal = 2
 grow_vertical = 2
@@ -97,15 +97,6 @@ layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 2
 
-[node name="RightVBox" type="VBoxContainer" parent="Panel/VBox/MainHBox" unique_id=300000023]
-custom_minimum_size = Vector2(110, 0)
-layout_mode = 2
-theme_override_constants/separation = 4
-
-[node name="InfoPanel" parent="Panel/VBox/MainHBox/RightVBox" instance=ExtResource("3_info") unique_id=300000024]
-layout_mode = 2
-size_flags_vertical = 3
-
 [node name="ActiveTitle" type="Label" parent="Panel/VBox" unique_id=300000015]
 layout_mode = 2
 theme_override_font_sizes/font_size = 7
@@ -149,3 +140,16 @@ theme_override_styles/hover = ExtResource("2_style")
 theme_override_styles/disabled = ExtResource("2_style")
 theme_override_styles/focus = ExtResource("2_style")
 text = "返回"
+
+[node name="InfoPanelContainer" parent="." unique_id=1929269653 instance=ExtResource("3_info")]
+anchors_preset = 6
+anchor_left = 1.0
+anchor_top = 0.5
+anchor_right = 1.0
+anchor_bottom = 0.5
+offset_left = -112.0
+offset_top = -112.0
+offset_right = -8.0
+offset_bottom = 112.0
+grow_horizontal = 0
+grow_vertical = 2

@@ -1,63 +1,65 @@
-[gd_scene format=3]
+[gd_scene format=3 uid="uid://dinsoae8vsksx"]
 
-[ext_resource type="Script" path="res://function/script/ui/UnitInfoPanel.gd" id="1_script"]
-[ext_resource type="StyleBox" path="res://content/resource/stylebox/8bit_style_box_flat.tres" id="2_style"]
+[ext_resource type="Script" uid="uid://njfmfvhm12v4" path="res://function/script/ui/UnitInfoPanel.gd" id="1_script"]
+[ext_resource type="StyleBox" uid="uid://6qbsaxkfwg3o" path="res://content/resource/stylebox/8bit_style_box_flat.tres" id="2_style"]
 
-[node name="UnitInfoPanel" type="PanelContainer"]
-custom_minimum_size = Vector2(116, 200)
-size_flags_horizontal = 0
-size_flags_vertical = 0
+[node name="UnitInfoPanel" type="PanelContainer" unique_id=1929269653]
+custom_minimum_size = Vector2(104, 224)
+offset_right = 104.0
+offset_bottom = 224.0
+size_flags_horizontal = 4
+size_flags_vertical = 4
 theme_override_styles/panel = ExtResource("2_style")
 script = ExtResource("1_script")
 
-[node name="VBox" type="VBoxContainer" parent="."]
+[node name="VBox" type="VBoxContainer" parent="." unique_id=857892585]
 layout_mode = 2
-alignment = 0
-theme_override_constants/separation = 4
+theme_override_constants/separation = 2
 
-[node name="AvatarBg" type="Panel" parent="VBox"]
-visible = false
-custom_minimum_size = Vector2(54, 54)
-layout_mode = 2
-size_flags_horizontal = 4
-size_flags_vertical = 0
-theme_override_styles/panel = ExtResource("2_style")
-
-[node name="AvatarRect" type="TextureRect" parent="VBox"]
+[node name="AvatarBg" type="Panel" parent="VBox" unique_id=751819492]
 visible = false
 custom_minimum_size = Vector2(48, 48)
 layout_mode = 2
 size_flags_horizontal = 4
 size_flags_vertical = 0
+theme_override_styles/panel = ExtResource("2_style")
+
+[node name="AvatarRect" type="TextureRect" parent="VBox/AvatarBg" unique_id=1603980859]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
 expand_mode = 1
 stretch_mode = 5
 
-[node name="InfoName" type="Label" parent="VBox"]
+[node name="InfoName" type="Label" parent="VBox" unique_id=55086123]
 layout_mode = 2
-theme_override_font_sizes/font_size = 10
-text = "选择单位查看详情"
+theme_override_font_sizes/font_size = 8
 horizontal_alignment = 1
 autowrap_mode = 3
 
-[node name="HSep" type="HSeparator" parent="VBox"]
+[node name="HSep" type="HSeparator" parent="VBox" unique_id=399214293]
 layout_mode = 2
 
-[node name="Scroll" type="ScrollContainer" parent="VBox"]
+[node name="Scroll" type="ScrollContainer" parent="VBox" unique_id=287650074]
 layout_mode = 2
 size_flags_vertical = 3
 horizontal_scroll_mode = 0
+vertical_scroll_mode = 3
 
-[node name="ContentVBox" type="VBoxContainer" parent="VBox/Scroll"]
+[node name="ContentVBox" type="VBoxContainer" parent="VBox/Scroll" unique_id=71844190]
 layout_mode = 2
 size_flags_horizontal = 3
-theme_override_constants/separation = 2
+theme_override_constants/separation = 1
 
-[node name="InfoStats" type="Label" parent="VBox/Scroll/ContentVBox"]
-layout_mode = 2
-theme_override_font_sizes/font_size = 8
-horizontal_alignment = 0
-
-[node name="InfoDesc" type="Label" parent="VBox/Scroll/ContentVBox"]
+[node name="InfoStats" type="Label" parent="VBox/Scroll/ContentVBox" unique_id=747999088]
 layout_mode = 2
 theme_override_font_sizes/font_size = 6
+
+[node name="InfoDesc" type="Label" parent="VBox/Scroll/ContentVBox" unique_id=1429015572]
+layout_mode = 2
+theme_override_font_sizes/font_size = 5
 autowrap_mode = 3

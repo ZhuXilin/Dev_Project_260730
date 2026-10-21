@@ -12,12 +12,14 @@ signal closed
 @onready var dispatch_btn : Button = $Panel/VBox/BottomBar/DispatchBtn
 @onready var back_btn : Button = $Panel/VBox/BottomBar/BackBtn
 
-# 这里路径修正为直接获取实例化的组件
-@onready var info_panel = $Panel/VBox/MainHBox/RightVBox/InfoPanel
+# ★ 修复：根据你的场景截图，节点名是 InfoPanelContainer
+@onready var info_panel = $InfoPanelContainer
 
 var _selected_unit : String = ""
 var _selected_route : String = ""
 var _hover_unit : String = ""
+var _hover_exit_serial : int = 0
+var _last_hover_unit : String = ""
 
 const COLOR_UNIT_ON : Color = Color(0.4, 0.9, 0.5, 1)
 const COLOR_UNIT_OFF : Color = Color(0.85, 0.85, 0.85, 1)
@@ -38,7 +40,7 @@ func _ready():
 
 func _input(event: InputEvent):
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT:
-		if _hover_unit != "":
+		if _hover_unit != "" and info_panel:
 			info_panel.toggle_mode()
 			get_viewport().set_input_as_handled()
 			return
@@ -49,8 +51,12 @@ func _refresh():
 	_refresh_active()
 	_refresh_dispatch_btn()
 	_refresh_hint()
-	if _hover_unit == "": 
-		info_panel.set_unit(_selected_unit)
+	if _hover_unit == "" and info_panel: 
+		# 优先显示最后划过的，没有才显示选中的
+		if _last_hover_unit != "":
+			info_panel.set_unit(_last_hover_unit)
+		elif _selected_unit != "":
+			info_panel.set_unit(_selected_unit)
 
 func _refresh_hint():
 	if not hint_label: return
@@ -123,18 +129,28 @@ func _on_unit_clicked(unit_key : String):
 	_refresh_units()
 	_refresh_dispatch_btn()
 	_refresh_hint()
-	if _hover_unit == "":
+	if _hover_unit == "" and info_panel:
 		info_panel.set_unit(_selected_unit)
 
 func _on_unit_hover(unit_key: String):
-	if DispatchManager.is_unit_dispatched(unit_key):
-		return
+	if DispatchManager.is_unit_dispatched(unit_key): return
+	_hover_exit_serial += 1
 	_hover_unit = unit_key
-	info_panel.set_unit(unit_key)
+	_last_hover_unit = unit_key
+	if info_panel: info_panel.set_unit(unit_key)
 
 func _on_unit_hover_exit():
 	_hover_unit = ""
-	info_panel.set_unit(_selected_unit)
+	_hover_exit_serial += 1
+	var current_serial = _hover_exit_serial
+	
+	await get_tree().create_timer(0.1).timeout
+	if current_serial == _hover_exit_serial and info_panel:
+		# 优先显示最后划过的，没有则显示选中的
+		if _last_hover_unit != "":
+			info_panel.set_unit(_last_hover_unit)
+		elif _selected_unit != "":
+			info_panel.set_unit(_selected_unit)
 
 func _refresh_routes():
 	for c in route_row.get_children():

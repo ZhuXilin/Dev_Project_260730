@@ -16,6 +16,9 @@ var _retreat_fee : int = 0
 var _arena_passives : Array = [null, null, null, null]
 var _info_ref_unit_type : String = ""
 
+var _hover_exit_serial : int = 0
+var _last_hover_unit : String = ""
+
 var CLEAR_TARGET : int = 4
 var SURVIVAL_ROUNDS : int = 3
 var ENTRY_COST_MINI_BOSS : int = 1
@@ -34,7 +37,7 @@ static var _arena_enemy_cache : Dictionary = {}
 
 @onready var unit_list : VBoxContainer = $Panel/VBox/MainHBox/UnitListScroll/UnitList
 @onready var selected_unit_label : Label = $Panel/VBox/MainHBox/CenterPanel/SelectedUnitLabel
-@onready var info_panel = $Panel/InfoPanelContainer
+@onready var info_panel = $InfoPanelContainer
 @onready var info_label : Label = $Panel/VBox/MainHBox/CenterPanel/InfoLabel
 @onready var streak_label : Label = $Panel/VBox/MainHBox/CenterPanel/StreakLabel
 @onready var start_btn : Button = $Panel/VBox/BottomBar/StartBtn
@@ -46,6 +49,15 @@ func _ready():
 	MusicManager.play_arena_music()
 	_refresh_hint_label()
 	_build_unit_list()
+	
+	if selected_unit_label: selected_unit_label.visible = false
+	if info_label: info_label.visible = false
+	
+	# ★ 防止右侧悬浮面板遮挡左侧信息
+	var main_hbox = $Panel/VBox/MainHBox
+	if main_hbox:
+		main_hbox.offset_right = -140
+	
 	_refresh_center_panel()
 	_refresh_streak_label()
 	
@@ -56,7 +68,7 @@ func _ready():
 
 func _input(event: InputEvent):
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT:
-		if _info_ref_unit_type != "":
+		if _info_ref_unit_type != "" and info_panel:
 			info_panel.toggle_mode()
 			get_viewport().set_input_as_handled()
 			return
@@ -77,7 +89,8 @@ func _apply_config():
 	HERO_SHRINE_DEFAULT_COST = int(cfg.get("hero_shrine_default_cost", HERO_SHRINE_DEFAULT_COST))
 
 func _show_hint(text : String):
-	info_label.text = text
+	if info_label:
+		info_label.text = text
 	await get_tree().create_timer(1.5, true, false, true).timeout
 	if is_instance_valid(info_label) and is_inside_tree():
 		_refresh_center_panel()
@@ -631,56 +644,40 @@ func _on_unit_selected(unit_type: String):
 
 func _on_unit_hover(unit_type: String):
 	if _phase != Phase.IDLE: return
+	_hover_exit_serial += 1
 	_info_ref_unit_type = unit_type
+	_last_hover_unit = unit_type
 	info_panel.set_unit(unit_type)
 
 func _on_unit_hover_exit():
 	_info_ref_unit_type = ""
-	if _current_player_data:
-		info_panel.set_unit(_current_player_data.unit_name)
-	else:
-		info_panel.clear_info()
+	_hover_exit_serial += 1
+	var current_serial = _hover_exit_serial
+	
+	await get_tree().create_timer(0.1).timeout
+	if current_serial == _hover_exit_serial and info_panel:
+		if _last_hover_unit != "":
+			info_panel.set_unit(_last_hover_unit)
+		elif _current_player_data:
+			info_panel.set_unit(_current_player_data.unit_name)
 
 func _refresh_center_panel():
 	if not _current_player_data:
-		selected_unit_label.text = "（未选择单位）"
-		info_label.text = ""
-		info_panel.clear_info()
+		if info_panel: info_panel.clear_info()
 		return
-
-	var display : String = UnitDataManager.get_unit_type_display_name(_current_player_data.unit_name)
-	var slots : int = _current_player_data.max_armor_slots
-	selected_unit_label.text = "%s  HP %d/%d  防具槽 %d" % [display, _current_player_data.hit_points, _current_player_data.max_hp, slots]
-
-	info_panel.set_unit(_current_player_data.unit_name)
-
-	var talent_id : String = GameState.arena_target_talents.get(_current_player_data.unit_name, "")
-	if talent_id != "":
-		var data : TalentData = TalentManager.get_talent_data(talent_id)
-		if data:
-			var lv : int = TalentManager.get_talent_level(_current_player_data.unit_name, talent_id)
-			if TalentManager.is_talent_max_level(_current_player_data.unit_name, talent_id):
-				info_label.text = "目标词条：Lv.%d %s（MAX）" % [lv, data.display_name]
-			else:
-				var cur_exp : int = TalentManager.get_talent_exp_in_level(_current_player_data.unit_name, talent_id)
-				var need_exp : int = TalentManager.get_level_required_exp(_current_player_data.unit_name, talent_id)
-				info_label.text = "目标词条：Lv.%d %s（%d/%d）" % [lv, data.display_name, cur_exp, need_exp]
-		else:
-			info_label.text = ""
-	else:
-		info_label.text = "目标词条：未设置（可在商店配置）"
+	if info_panel: info_panel.set_unit(_current_player_data.unit_name)
 
 func _refresh_streak_label():
 	var gold_hint : String = "（退出失效）"
 	if _phase == Phase.IDLE:
-		streak_label.text = "金币：%d %s   |   通关：%d 次   |   当前魂：%d" % [_arena_gold, gold_hint, GameState.arena_clear_count, GameState.soul]
+		streak_label.text = "金币：%d %s\n通关次数：%d\n当前魂：%d" % [_arena_gold, gold_hint, GameState.arena_clear_count, GameState.soul]
 	elif _phase == Phase.SURVIVAL:
-		streak_label.text = "金币：%d %s   |   生存：%d / %d（不可撤离）   |   本局净：%+d 魂" % [_arena_gold, gold_hint, _survival_round, SURVIVAL_ROUNDS, _get_net_gain()]
+		streak_label.text = "金币：%d %s\n生存：%d / %d\n本局净：%+d 魂" % [_arena_gold, gold_hint, _survival_round, SURVIVAL_ROUNDS, _get_net_gain()]
 	else:
 		var next_type : String = "普通"
 		if _streak == 2: next_type = "★ 小Boss（付 %d 魂）" % ENTRY_COST_MINI_BOSS
 		elif _streak == 3: next_type = "★ 精英"
-		streak_label.text = "金币：%d %s   |   进度：%d / %d   |   下一战：%s   |   本局净：%+d 魂" % [_arena_gold, gold_hint, _streak, CLEAR_TARGET, next_type, _get_net_gain()]
+		streak_label.text = "金币：%d %s\n进度：%d / %d\n下一战：%s\n本局净：%+d 魂" % [_arena_gold, gold_hint, _streak, CLEAR_TARGET, next_type, _get_net_gain()]
 
 func _get_net_gain() -> int:
 	return _earned_soul - _total_paid - _retreat_fee
