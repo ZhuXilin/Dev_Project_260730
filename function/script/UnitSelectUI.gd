@@ -8,7 +8,6 @@ var _hover_unit : String = ""
 var _hover_exit_serial : int = 0
 var _last_hover_unit : String = ""
 
-# 使用 get_node_or_null 防止场景没覆盖时报错
 @onready var unit_buttons = get_node_or_null("UnitListContainer/VBoxContainer")
 @onready var main_label = get_node_or_null("MainUnitLabel")
 @onready var slot1_label = get_node_or_null("Slot1Label")
@@ -26,16 +25,50 @@ func _ready():
 	if MusicManager.config and MusicManager.config.unit_select_music:
 		MusicManager.play_music(MusicManager.config.unit_select_music)
 	
-	# 加入空值保护
+	# ★ 确保左侧 VBoxContainer 内容左对齐
+	if unit_buttons:
+		unit_buttons.alignment = BoxContainer.ALIGNMENT_BEGIN
+	
 	if main_label: _make_label_clickable(main_label, 0)
 	if slot1_label: _make_label_clickable(slot1_label, 1)
 	if slot2_label: _make_label_clickable(slot2_label, 2)
+	
+	# ★ 修复：强制在代码中连接信号，避免场景文件中未连接或连接丢失导致报错
+	if confirm_btn:
+		for conn in confirm_btn.pressed.get_connections():
+			confirm_btn.pressed.disconnect(conn.callable)
+		confirm_btn.pressed.connect(_on_confirm_pressed)
+		
+	if back_btn:
+		for conn in back_btn.pressed.get_connections():
+			back_btn.pressed.disconnect(conn.callable)
+		back_btn.pressed.connect(_on_back_pressed)
 	
 	_setup_unit_buttons()
 	_update_labels()
 
 func _input(event: InputEvent):
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT:
+		var mp = get_viewport().get_mouse_position()
+		
+		# 1. 检查是否右键点击了槽位标签（取消出战）
+		var labels = [main_label, slot1_label, slot2_label]
+		for i in range(max_selection):
+			var lbl = labels[i]
+			if lbl and lbl.visible and lbl.get_global_rect().has_point(mp):
+				_on_slot_clicked(i)
+				get_viewport().set_input_as_handled()
+				return
+				
+		# 2. 检查是否右键点击了单位按钮（取消出战）
+		if unit_buttons:
+			for btn in unit_buttons.get_children():
+				if btn is Button and btn.visible and not btn.disabled and btn.get_global_rect().has_point(mp):
+					_remove_unit(btn.get_meta("unit_name"))
+					get_viewport().set_input_as_handled()
+					return
+					
+		# 3. 如果既没点到标签也没点到按钮，且鼠标悬停在单位上，则切换面板模式
 		if _hover_unit != "" and info_panel:
 			info_panel.toggle_mode()
 			get_viewport().set_input_as_handled()
@@ -44,8 +77,10 @@ func _input(event: InputEvent):
 func _make_label_clickable(label: Label, index: int):
 	label.mouse_filter = Control.MOUSE_FILTER_STOP
 	label.gui_input.connect(func(event):
-		if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-			_on_slot_clicked(index)
+		if event is InputEventMouseButton and event.pressed:
+			# 左键点击槽位标签，取消出战
+			if event.button_index == MOUSE_BUTTON_LEFT:
+				_on_slot_clicked(index)
 	)
 
 func _setup_unit_buttons():
@@ -60,12 +95,17 @@ func _setup_unit_buttons():
 		btn.text = UnitDataManager.get_display_name_full(unit_name)
 		btn.set_meta("unit_name", unit_name)
 		btn.add_theme_font_size_override("font_size", 8)
-		btn.size = Vector2(100, 30)
+		
+		# ★ 左对齐并撑满宽度
+		btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		btn.custom_minimum_size = Vector2(0, 30)
 
 		if unit_name in dispatched:
 			btn.text += "  [派遣中]"; btn.disabled = true; btn.modulate = COLOR_DISPATCHED
 		elif unit_name in selected_units:
-			btn.disabled = true; btn.modulate = COLOR_DISABLED
+			btn.disabled = false; btn.modulate = COLOR_DISABLED
+			btn.pressed.connect(_on_unit_selected.bind(unit_name, btn))
 		else:
 			btn.disabled = false; btn.modulate = COLOR_NORMAL
 			btn.pressed.connect(_on_unit_selected.bind(unit_name, btn))
@@ -87,25 +127,36 @@ func _on_unit_hover_exit():
 	
 	await get_tree().create_timer(0.1).timeout
 	if current_serial == _hover_exit_serial and info_panel:
-		# ★ 彻底统一：绝对优先显示最后划过的，没有才显示选中的
 		if _last_hover_unit != "":
 			info_panel.set_unit(_last_hover_unit)
 		elif selected_units.size() > 0:
 			info_panel.set_unit(selected_units[0])
 
-func _on_unit_selected(unit_name: String, btn: Button):
+func _on_unit_selected(unit_name: String, _btn: Button):
 	if unit_name in selected_units:
-		selected_units.erase(unit_name); btn.disabled = false; btn.modulate = COLOR_NORMAL; _update_labels(); return
+		_remove_unit(unit_name)
+		return
 	if selected_units.size() >= max_selection: return
-	selected_units.append(unit_name); btn.disabled = true; btn.modulate = COLOR_DISABLED; _update_labels()
+	
+	# ★ 播放选中音效
+	SoundManager.play_select_sound()
+	
+	selected_units.append(unit_name)
+	_setup_unit_buttons()
+	_update_labels()
 
 func _on_slot_clicked(index: int):
 	if index < selected_units.size():
 		var unit_name = selected_units[index]
-		selected_units.remove_at(index)
-		for child in unit_buttons.get_children():
-			if child is Button and child.get_meta("unit_name") == unit_name:
-				child.disabled = false; child.modulate = COLOR_NORMAL; break
+		_remove_unit(unit_name)
+
+func _remove_unit(unit_name: String):
+	if unit_name in selected_units:
+		# ★ 播放取消音效
+		SoundManager.play_cancel_sound()
+		
+		selected_units.erase(unit_name)
+		_setup_unit_buttons()
 		_update_labels()
 
 func _update_labels():

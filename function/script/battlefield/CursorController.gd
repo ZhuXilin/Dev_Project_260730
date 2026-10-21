@@ -71,7 +71,6 @@ func clear_attack_indicator() -> void:
 # ============================================================
 func update_cursor_and_mouse() -> void:
 	# ★ 最高优先级：任何模态 UI 弹出时，强制让系统鼠标可见
-	#   覆盖 ConfirmUI / RewardSummaryUI（以及以后可能新增的模态层）
 	if Globals.is_confirm_ui_active or Globals.is_reward_summary_active:
 		_set_hovered_unit(null)
 		_bf.cursor.visible = false
@@ -84,6 +83,7 @@ func update_cursor_and_mouse() -> void:
 		_use_system_mouse()
 		return
 
+	# ★ 核心修改：移除了 _bf.camera_controller.is_smooth_moving()，防止滚轮选人时相机平滑移动导致系统鼠标弹出
 	var force_hide_cursor = (
 		Globals.is_dialogue_active or
 		Globals.is_performing_action or
@@ -93,8 +93,7 @@ func update_cursor_and_mouse() -> void:
 		TurnManager.is_ai_moving or
 		TurnManager.is_moving or
 		Globals.is_fading or
-		Globals.is_transitioning or
-		_bf.camera_controller.is_smooth_moving()
+		Globals.is_transitioning
 	)
 	if force_hide_cursor:
 		_set_hovered_unit(null)

@@ -154,6 +154,10 @@ func handle_wheel(delta: int):
 		camera.smooth_move_to(new_unit.global_position, 0.2, true)
 	elif camera and camera.has_method("force_position"):
 		camera.force_position(new_unit.global_position)
+		
+	# ★ 新增：滚轮选中后，将物理鼠标直接移动到该单位的屏幕位置，方便直接拖拽
+	var screen_pos = get_viewport().get_canvas_transform() * new_unit.global_position
+	get_viewport().warp_mouse(screen_pos)
 
 
 func handle_input(event: InputEvent, _map_grid_size: Vector2i, _cell_size: int):

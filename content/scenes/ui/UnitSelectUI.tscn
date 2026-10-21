@@ -39,49 +39,50 @@ horizontal_scroll_mode = 0
 
 [node name="VBoxContainer" type="VBoxContainer" parent="UnitListContainer" unique_id=605372863]
 layout_mode = 2
+size_flags_horizontal = 0
 theme_override_constants/separation = 4
 
 [node name="MainUnitLabel" type="Label" parent="." unique_id=816189382]
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = 128.0
+offset_left = 168.0
 offset_top = 64.0
-offset_right = -136.0
+offset_right = -160.0
 offset_bottom = -152.0
 grow_horizontal = 2
 grow_vertical = 2
+size_flags_horizontal = 0
 theme_override_font_sizes/font_size = 9
 text = "主单位: (未选择)"
-horizontal_alignment = 1
 
 [node name="Slot1Label" type="Label" parent="." unique_id=393011117]
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = 128.0
+offset_left = 168.0
 offset_top = 96.0
-offset_right = -136.0
+offset_right = -160.0
 offset_bottom = -120.0
 grow_horizontal = 2
 grow_vertical = 2
+size_flags_horizontal = 0
 theme_override_font_sizes/font_size = 9
 text = "辅助1: (未选择)"
-horizontal_alignment = 1
 
 [node name="Slot2Label" type="Label" parent="." unique_id=1115523376]
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = 128.0
+offset_left = 168.0
 offset_top = 128.0
-offset_right = -136.0
+offset_right = -160.0
 offset_bottom = -88.0
 grow_horizontal = 2
 grow_vertical = 2
+size_flags_horizontal = 0
 theme_override_font_sizes/font_size = 9
 text = "辅助2: (未选择)"
-horizontal_alignment = 1
 
 [node name="BottomBar" type="HBoxContainer" parent="." unique_id=859913434]
 anchors_preset = 12

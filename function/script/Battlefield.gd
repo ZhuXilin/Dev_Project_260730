@@ -69,8 +69,8 @@ var map_functions : Dictionary = {}
 var is_non_combat_mode: bool = false
 var non_combat_back_button: Button = null
 var current_node_type: int = MapNode.NodeType.NORMAL
-var _victory_processed: bool = false
-var _is_reward_ui_active: bool = false
+var _victory_processed : bool = false
+var _is_reward_ui_active : bool = false
 
 var _hint_override_text : String = ""
 var _hint_override_until : float = 0.0
@@ -746,7 +746,10 @@ func _on_request_show_info(unit: Unit):
 				path = "res://content/images/characters/avatar/%s.png" % avatar_id
 				
 			if path != "" and ResourceLoader.exists(path):
-				avatar_rect.texture = load(path)
+				var tex = load(path)
+				# ★ 加上纹理缓存判断，避免重复赋值导致重绘闪烁
+				if avatar_rect.texture != tex:
+					avatar_rect.texture = tex
 				avatar_rect.custom_minimum_size = Vector2(48, 48)
 				avatar_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 				_show_avatar(avatar_rect, avatar_bg)
@@ -919,18 +922,22 @@ func _on_request_hide_info():
 
 func _show_avatar(avatar_rect: TextureRect, bg_rect: Panel):
 	if avatar_rect and is_instance_valid(avatar_rect):
-		avatar_rect.visible = true
-		PanelRevealer.show_panel(avatar_rect)
+		if not avatar_rect.visible:
+			avatar_rect.visible = true
+			PanelRevealer.show_panel(avatar_rect)
 	if bg_rect and is_instance_valid(bg_rect):
-		bg_rect.visible = true
-		PanelRevealer.show_panel(bg_rect)
+		if not bg_rect.visible:
+			bg_rect.visible = true
+			PanelRevealer.show_panel(bg_rect)
 
 
 func _hide_avatar(avatar_rect: TextureRect, bg_rect: Panel):
 	if avatar_rect and is_instance_valid(avatar_rect):
-		PanelRevealer.hide_panel(avatar_rect)
+		if avatar_rect.visible:
+			PanelRevealer.hide_panel(avatar_rect)
 	if bg_rect and is_instance_valid(bg_rect):
-		PanelRevealer.hide_panel(bg_rect)
+		if bg_rect.visible:
+			PanelRevealer.hide_panel(bg_rect)
 
 
 # ============================================================
@@ -1424,7 +1431,9 @@ func _update_unit_display_info(unit_type: String, stats_text: String, avatar_bg:
 	if avatar_id != "":
 		var path = "res://content/images/characters/avatar/%s.png" % avatar_id
 		if ResourceLoader.exists(path):
-			avatar_rect.texture = load(path)
+			var tex = load(path)
+			if avatar_rect.texture != tex:
+				avatar_rect.texture = tex
 			has_avatar = true
 			
 	# 3. 控制显示/隐藏与排版

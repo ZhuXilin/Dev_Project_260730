@@ -87,6 +87,41 @@ func refresh():
 	if info_desc:
 		info_desc.text = unit_dict.get("description", "")
 
+# ★ 新增：兼容 EquipmentConfigDetail.gd 的调用（装备界面/物品详情的显示）
+func show_info(data: Dictionary):
+	current_unit_name = ""  # 清空单位名称，避免与 unit 逻辑冲突
+	
+	if info_name:
+		info_name.text = data.get("name", "")
+		info_name.add_theme_color_override("font_color", data.get("name_color", Color.WHITE))
+	
+	if info_stats:
+		info_stats.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+		info_stats.text = data.get("stats", "")
+		info_stats.add_theme_color_override("font_color", Color.WHITE)
+		
+	if info_desc:
+		info_desc.text = data.get("desc", "")
+
+	# 处理图标 (兼容新老结构)
+	var icon_tex = data.get("icon")
+	if icon_tex and avatar_rect and avatar_bg:
+		avatar_rect.texture = icon_tex
+		avatar_rect.custom_minimum_size = Vector2(48, 48)
+		avatar_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		if not avatar_bg.visible:
+			avatar_bg.visible = true
+			PanelRevealer.show_panel(avatar_bg)
+		if not avatar_rect.visible:
+			avatar_rect.visible = true
+			PanelRevealer.show_panel(avatar_rect)
+	else:
+		if avatar_bg: avatar_bg.visible = false
+		if avatar_rect: avatar_rect.visible = false
+		
+	if scroll_box: scroll_box.visible = true
+	if hsep: hsep.visible = true
+
 func _update_avatar(unit_name: String):
 	if not avatar_rect or not avatar_bg: return
 	
@@ -101,7 +136,10 @@ func _update_avatar(unit_name: String):
 	if avatar_id != "":
 		var path = "res://content/images/characters/avatar/%s.png" % avatar_id
 		if ResourceLoader.exists(path):
-			avatar_rect.texture = load(path)
+			var tex = load(path)
+			# ★ 加上纹理缓存判断
+			if avatar_rect.texture != tex:
+				avatar_rect.texture = tex
 			has_avatar = true
 			
 	if has_avatar:

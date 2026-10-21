@@ -130,13 +130,22 @@ func _on_left_press() -> bool:
 	var cell = _bf.world_to_grid(world_pos)
 	var unit = UnitManager.get_unit_at_cell(cell)
 
+	# ★ 如果鼠标没点在单位上，但当前有被选中的单位（比如通过滚轮选中的）
+	# 则直接判定为点击该选中单位，并同步物理鼠标到该单位位置
+	if unit == null and InputManager.selected_unit != null and is_instance_valid(InputManager.selected_unit):
+		unit = InputManager.selected_unit
+		var screen_pos = _bf.get_viewport().get_canvas_transform() * unit.global_position
+		_bf.get_viewport().warp_mouse(screen_pos)
+		_press_start_screen = screen_pos
+	else:
+		_press_start_screen = _bf.get_viewport().get_mouse_position()
+
 	if unit == null or unit.unit_stats.team_id != 0:
 		return false
 
 	_is_pressing = true
 	_is_dragging = false
 	_pressing_unit = unit
-	_press_start_screen = _bf.get_viewport().get_mouse_position()
 	return true
 
 
