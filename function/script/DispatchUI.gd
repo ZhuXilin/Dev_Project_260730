@@ -12,7 +12,6 @@ signal closed
 @onready var dispatch_btn : Button = $Panel/VBox/BottomBar/DispatchBtn
 @onready var back_btn : Button = $Panel/VBox/BottomBar/BackBtn
 
-# 新增的信息栏节点
 @onready var info_name : Label = $Panel/VBox/MainHBox/RightVBox/InfoPanel/InfoVBox/InfoName
 @onready var info_stats : Label = $Panel/VBox/MainHBox/RightVBox/InfoPanel/InfoVBox/Scroll/ContentVBox/InfoStats
 @onready var info_desc : Label = $Panel/VBox/MainHBox/RightVBox/InfoPanel/InfoVBox/Scroll/ContentVBox/InfoDesc
@@ -28,7 +27,6 @@ const COLOR_ROUTE_ON : Color = Color(0.4, 0.9, 0.5, 1)
 
 const BTN_HEIGHT : int = 20
 
-
 func _ready():
 	layer = 24
 	MusicManager.play_dispatch_music()
@@ -40,6 +38,13 @@ func _ready():
 		
 	_refresh()
 
+func _input(event: InputEvent):
+	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT:
+		if _hover_unit != "":
+			Globals.toggle_info_mode()
+			_update_info_panel()
+			get_viewport().set_input_as_handled()
+			return
 
 func _refresh():
 	_refresh_units()
@@ -48,7 +53,6 @@ func _refresh():
 	_refresh_dispatch_btn()
 	_refresh_hint()
 	_update_info_panel()
-
 
 func _refresh_hint():
 	if not hint_label: return
@@ -62,7 +66,6 @@ func _refresh_hint():
 	else:
 		var rn : String = DispatchManager.ROUTES.get(_selected_route, {}).get("name", _selected_route)
 		hint_label.text = "%s → 「%s」，点【派遣】确认" % [_get_unit_display(_selected_unit), rn]
-
 
 func _refresh_units():
 	for c in unit_row.get_children():
@@ -102,19 +105,16 @@ func _refresh_units():
 			btn.modulate = COLOR_UNIT_ON if is_selected else COLOR_UNIT_OFF
 			btn.pressed.connect(_on_unit_clicked.bind(unit_key))
 			
-		# ★ 悬停事件
 		btn.mouse_entered.connect(_on_unit_hover.bind(unit_key))
 		btn.mouse_exited.connect(_on_unit_hover_exit)
 
 		unit_row.add_child(btn)
 		
-	# 默认选中第一个可用单位
 	if _selected_unit == "":
 		for u in all_unlocked:
 			if u not in dispatched:
 				_selected_unit = u
 				break
-
 
 func _on_unit_clicked(unit_key : String):
 	if _selected_unit == unit_key:
@@ -128,8 +128,6 @@ func _on_unit_clicked(unit_key : String):
 	if _hover_unit == "":
 		_update_info_panel()
 
-
-# ★ 悬停事件
 func _on_unit_hover(unit_key: String):
 	if DispatchManager.is_unit_dispatched(unit_key):
 		return
@@ -139,7 +137,6 @@ func _on_unit_hover(unit_key: String):
 func _on_unit_hover_exit():
 	_hover_unit = ""
 	_update_info_panel()
-
 
 func _refresh_routes():
 	for c in route_row.get_children():
@@ -182,7 +179,6 @@ func _refresh_routes():
 
 		route_row.add_child(btn)
 
-
 func _on_route_clicked(route_id : String):
 	if _selected_route == route_id:
 		_selected_route = ""
@@ -192,7 +188,6 @@ func _on_route_clicked(route_id : String):
 	_refresh_routes()
 	_refresh_dispatch_btn()
 	_refresh_hint()
-
 
 func _refresh_active():
 	for c in active_list.get_children():
@@ -228,7 +223,6 @@ func _refresh_active():
 			lb.modulate = Color(1.0, 0.85, 0.3)
 		active_list.add_child(lb)
 
-
 func _refresh_dispatch_btn():
 	if not dispatch_btn: return
 	var has_unit : bool = _selected_unit != ""
@@ -238,7 +232,6 @@ func _refresh_dispatch_btn():
 	var ok : bool = has_unit and has_route and not route_busy and not unit_busy
 	dispatch_btn.disabled = not ok
 
-
 func _do_dispatch():
 	if _selected_unit == "" or _selected_route == "": return
 	if DispatchManager.dispatch(_selected_unit, _selected_route):
@@ -247,19 +240,13 @@ func _do_dispatch():
 		_refresh()
 		SoundManager.play_select_sound()
 
-
 func _on_back_pressed():
 	closed.emit()
 	queue_free()
 
-
 func _get_unit_display(unit_key : String) -> String:
 	return UnitDataManager.get_display_name(unit_key)
 
-
-# ============================================================
-#  信息栏刷新 (头像 + 属性)
-# ============================================================
 func _update_info_panel():
 	var target_unit = ""
 	if _hover_unit != "":
@@ -267,14 +254,14 @@ func _update_info_panel():
 	elif _selected_unit != "":
 		target_unit = _selected_unit
 		
-	var avatar_rect = $Panel/VBox/MainHBox/RightVBox/InfoPanel/InfoVBox/AvatarRect as TextureRect
-	var avatar_bg = $Panel/VBox/MainHBox/RightVBox/InfoPanel/InfoVBox/AvatarBg as Panel
+	var bg = $Panel/VBox/MainHBox/RightVBox/InfoPanel/InfoVBox/AvatarBg as Panel
+	var rect = $Panel/VBox/MainHBox/RightVBox/InfoPanel/InfoVBox/AvatarRect as TextureRect
 
 	if target_unit == "":
 		info_name.text = "选择单位"
 		info_stats.text = ""
 		info_desc.text = ""
-		_update_avatar("", avatar_rect, avatar_bg)
+		_update_avatar("")
 		return
 
 	var unit_dict = UnitDataManager.get_unit_data(target_unit)
@@ -282,10 +269,10 @@ func _update_info_panel():
 		info_name.text = "（无数据）"
 		info_stats.text = ""
 		info_desc.text = ""
-		_update_avatar("", avatar_rect, avatar_bg)
+		_update_avatar("")
 		return
 
-	_update_avatar(target_unit, avatar_rect, avatar_bg)
+	_update_avatar(target_unit)
 
 	var display = unit_dict.get("display_name", target_unit)
 	var faction = unit_dict.get("faction", "无")
@@ -310,13 +297,14 @@ func _update_info_panel():
 	info_stats.text = "\n".join(lines)
 	info_desc.text = unit_dict.get("description", "")
 
-
-func _update_avatar(unit_name: String, avatar_rect: TextureRect, avatar_bg: Panel):
-	if not avatar_rect or not avatar_bg: return
+func _update_avatar(unit_name: String):
+	var bg = $Panel/VBox/MainHBox/RightVBox/InfoPanel/InfoVBox/AvatarBg as Panel
+	var rect = $Panel/VBox/MainHBox/RightVBox/InfoPanel/InfoVBox/AvatarRect as TextureRect
+	if not bg or not rect: return
 	
 	if unit_name == "":
-		if avatar_bg.visible: PanelRevealer.hide_panel(avatar_bg)
-		if avatar_rect.visible: PanelRevealer.hide_panel(avatar_rect)
+		if bg.visible: PanelRevealer.hide_panel(bg)
+		if rect.visible: PanelRevealer.hide_panel(rect)
 		return
 
 	var avatar_id = GameState.get_unit_avatar(unit_name)
@@ -325,19 +313,20 @@ func _update_avatar(unit_name: String, avatar_rect: TextureRect, avatar_bg: Pane
 	if avatar_id != "":
 		var path = "res://content/images/characters/avatar/%s.png" % avatar_id
 		if ResourceLoader.exists(path):
-			avatar_rect.texture = load(path)
+			rect.texture = load(path)
 			has_avatar = true
 			
 	if has_avatar:
-		avatar_rect.custom_minimum_size = Vector2(48, 48)
-		avatar_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		rect.custom_minimum_size = Vector2(48, 48)
+		rect.size = Vector2(48, 48)
+		rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		
-		if not avatar_bg.visible:
-			avatar_bg.visible = true
-			PanelRevealer.show_panel(avatar_bg)
-		if not avatar_rect.visible:
-			avatar_rect.visible = true
-			PanelRevealer.show_panel(avatar_rect)
+		if not bg.visible:
+			bg.visible = true
+			PanelRevealer.show_panel(bg)
+		if not rect.visible:
+			rect.visible = true
+			PanelRevealer.show_panel(rect)
 	else:
-		if avatar_bg.visible: PanelRevealer.hide_panel(avatar_bg)
-		if avatar_rect.visible: PanelRevealer.hide_panel(avatar_rect)
+		if bg.visible: PanelRevealer.hide_panel(bg)
+		if rect.visible: PanelRevealer.hide_panel(rect)

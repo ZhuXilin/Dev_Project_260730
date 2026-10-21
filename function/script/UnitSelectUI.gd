@@ -3,8 +3,6 @@ extends CanvasLayer
 var selected_units: Array[String] = []
 var max_selection: int = 3
 var _equipment_config_instance = null
-
-# ★ 碎片化叙事：记录当前 hover 的单位类型
 var _info_ref_unit_type : String = ""
 
 @onready var unit_buttons = $UnitListContainer/VBoxContainer
@@ -17,13 +15,14 @@ var _info_ref_unit_type : String = ""
 @onready var info_name  : Label = $InfoPanel/InfoVBox/InfoName
 @onready var info_stats : Label = $InfoPanel/InfoVBox/Scroll/ContentVBox/InfoStats
 @onready var info_desc  : Label = $InfoPanel/InfoVBox/Scroll/ContentVBox/InfoDesc
+@onready var avatar_rect = $InfoPanel/InfoVBox/AvatarRect as TextureRect
+@onready var avatar_bg = $InfoPanel/InfoVBox/AvatarBg as Panel
 
 const EquipmentConfig = preload(Config.PATHS.EQUIPMENT_CONFIG_SCRIPT)
 
 const COLOR_DISPATCHED : Color = Color(0.4, 0.4, 0.4, 1)
 const COLOR_DISABLED   : Color = Color(0.5, 0.5, 0.5, 1)
 const COLOR_NORMAL     : Color = Color.WHITE
-
 
 func _ready():
 	if MusicManager.config and MusicManager.config.unit_select_music:
@@ -36,15 +35,13 @@ func _ready():
 	_setup_unit_buttons()
 	_update_labels()
 
-
 func _input(event: InputEvent):
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT:
 		if _info_ref_unit_type != "":
 			Globals.toggle_info_mode()
-			_on_unit_hover(_info_ref_unit_type)
+			_update_display_info(_info_ref_unit_type)
 			get_viewport().set_input_as_handled()
 			return
-
 
 func _make_label_clickable(label: Label, index: int):
 	label.mouse_filter = Control.MOUSE_FILTER_STOP
@@ -54,14 +51,12 @@ func _make_label_clickable(label: Label, index: int):
 	)
 	label.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 
-
 func _setup_unit_buttons():
 	for child in unit_buttons.get_children():
 		child.queue_free()
 
 	var unlocked = Globals.get_unlocked_units()
 	unlocked.sort()
-
 	var dispatched : Array = DispatchManager.get_dispatched_unit_names()
 
 	for unit_name in unlocked:
@@ -93,18 +88,23 @@ func _setup_unit_buttons():
 		btn.mouse_exited.connect(_on_unit_hover_exit)
 		unit_buttons.add_child(btn)
 
-
 func _on_unit_hover(unit_name: String):
-	if not info_name: return
 	_info_ref_unit_type = unit_name
-	
-	var avatar_rect = get_node_or_null("InfoPanel/InfoVBox/AvatarRect") as TextureRect
-	var avatar_bg = get_node_or_null("InfoPanel/InfoVBox/AvatarBg") as Panel
+	_update_display_info(unit_name)
+
+func _on_unit_hover_exit():
+	_info_ref_unit_type = ""
+	_clear_display_info()
+
+func _update_display_info(unit_name: String):
+	if unit_name == "":
+		_clear_display_info()
+		return
 
 	if FlavorManager.is_narrative_mode():
 		var flavor : String = FlavorManager.get_flavor("units", unit_name)
 		if flavor == "": flavor = "（暂无叙事）"
-		_update_avatar(unit_name, avatar_rect, avatar_bg)
+		_update_avatar(unit_name)
 		info_name.text = ""
 		info_stats.text = ""
 		info_desc.text = flavor
@@ -112,13 +112,13 @@ func _on_unit_hover(unit_name: String):
 
 	var unit_dict = UnitDataManager.get_unit_data(unit_name)
 	if unit_dict.is_empty():
-		_update_avatar("", avatar_rect, avatar_bg)
+		_update_avatar("")
 		info_name.text = "（无数据）"
 		info_stats.text = ""
 		info_desc.text = "该单位在 unit_data.json 中未定义。"
 		return
 
-	_update_avatar(unit_name, avatar_rect, avatar_bg)
+	_update_avatar(unit_name)
 
 	var display = unit_dict.get("display_name", unit_name)
 	var faction = unit_dict.get("faction", "无")
@@ -143,21 +143,13 @@ func _on_unit_hover(unit_name: String):
 	info_stats.text = "\n".join(lines)
 	info_desc.text = unit_dict.get("description", "")
 
-
-func _on_unit_hover_exit():
-	_info_ref_unit_type = ""
-	if not info_name: return
-	
-	var avatar_rect = get_node_or_null("InfoPanel/InfoVBox/AvatarRect") as TextureRect
-	var avatar_bg = get_node_or_null("InfoPanel/InfoVBox/AvatarBg") as Panel
-	_update_avatar("", avatar_rect, avatar_bg)
-	
+func _clear_display_info():
+	_update_avatar("")
 	info_name.text = "选择单位查看详情"
 	info_stats.text = ""
 	info_desc.text = ""
 
-
-func _update_avatar(unit_name: String, avatar_rect: TextureRect, avatar_bg: Panel):
+func _update_avatar(unit_name: String):
 	if not avatar_rect or not avatar_bg: return
 	
 	if unit_name == "":
@@ -176,6 +168,7 @@ func _update_avatar(unit_name: String, avatar_rect: TextureRect, avatar_bg: Pane
 			
 	if has_avatar:
 		avatar_rect.custom_minimum_size = Vector2(48, 48)
+		avatar_rect.size = Vector2(48, 48)
 		avatar_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		
 		if not avatar_bg.visible:
@@ -187,7 +180,6 @@ func _update_avatar(unit_name: String, avatar_rect: TextureRect, avatar_bg: Pane
 	else:
 		if avatar_bg.visible: PanelRevealer.hide_panel(avatar_bg)
 		if avatar_rect.visible: PanelRevealer.hide_panel(avatar_rect)
-
 
 func _on_unit_selected(unit_name: String, btn: Button):
 	if unit_name in selected_units:
@@ -208,7 +200,6 @@ func _on_unit_selected(unit_name: String, btn: Button):
 	_update_labels()
 	SoundManager.play_select_sound()
 
-
 func _on_slot_clicked(index: int):
 	if index < selected_units.size():
 		var unit_name = selected_units[index]
@@ -221,7 +212,6 @@ func _on_slot_clicked(index: int):
 		_update_labels()
 		SoundManager.play_cancel_sound()
 
-
 func _update_labels():
 	var slots = ["主单位", "辅助1", "辅助2"]
 	var labels = [main_label, slot1_label, slot2_label]
@@ -233,31 +223,18 @@ func _update_labels():
 			labels[i].text = slots[i] + ": (未选择)"
 	confirm_btn.disabled = selected_units.size() < max_selection
 
-
 func _on_confirm_pressed():
+	if selected_units.size() < max_selection: return
 	var main_unit_name = selected_units[0]
 	var selected_unit_names = selected_units.duplicate()
-	var main_index = 0
-	GameState.initialize_party(selected_unit_names, main_index)
-	var main_unit_data = UnitDataManager.get_unit_data(main_unit_name)
-	var faction = main_unit_data.get("faction", "王国")
-	GameState.current_faction = faction
+	GameState.initialize_party(selected_unit_names, 0)
+	GameState.current_faction = UnitDataManager.get_unit_data(main_unit_name).get("faction", "王国")
 	LevelManager._reload_all_levels()
 
-	var target_slot = -1
-	if SaveManager.current_slot != -1:
-		target_slot = SaveManager.current_slot
-	elif Globals.pending_save_slot != -1:
-		target_slot = Globals.pending_save_slot
-	else:
-		target_slot = SaveManager.find_empty_slot()
-		if target_slot == -1:
-			Globals.show_confirm(
-				self,
-				"所有存档槽已满，请先删除一个存档。",
-				"确定", "", func(): pass, func(): pass, false
-			)
-			return
+	var target_slot = SaveManager.current_slot if SaveManager.current_slot != -1 else (Globals.pending_save_slot if Globals.pending_save_slot != -1 else SaveManager.find_empty_slot())
+	if target_slot == -1:
+		Globals.show_confirm(self, "存档槽满", "确定", "", func():pass, func():pass, false)
+		return
 
 	if _equipment_config_instance != null:
 		_equipment_config_instance.show()
@@ -272,13 +249,8 @@ func _on_confirm_pressed():
 	var config = load(Config.PATHS.EQUIPMENT_CONFIG).instantiate()
 	add_child(config)
 	_equipment_config_instance = config
-	var panel = config.get_node("MainPanel")
-	panel.init(selected_units, target_slot, EquipmentConfig.Mode.DEPLOY)
-
-	config.tree_exited.connect(func():
-		_equipment_config_instance = null
-	)
-
+	config.get_node("MainPanel").init(selected_units, target_slot, EquipmentConfig.Mode.DEPLOY)
+	config.tree_exited.connect(func(): _equipment_config_instance = null)
 
 func _on_back_pressed():
 	MusicManager.stop_music()

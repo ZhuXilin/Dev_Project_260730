@@ -1,7 +1,20 @@
 extends CanvasLayer
-
 signal closed
 
+enum Phase { IDLE, NORMAL, CLEAR, SURVIVAL, END }
+var _phase : Phase = Phase.IDLE
+var _arena_gold : int = 0
+var _arena_shop_level : int = 0
+var _streak : int = 0
+var _survival_round : int = 0
+var _current_player_data : UnitData = null
+var _locked_talent_id : String = ""
+var _streak_active : bool = false
+var _earned_soul : int = 0
+var _total_paid : int = 0
+var _retreat_fee : int = 0
+var _arena_passives : Array = [null, null, null, null]
+var _info_ref_unit_type : String = ""
 
 var CLEAR_TARGET : int = 4
 var SURVIVAL_ROUNDS : int = 3
@@ -16,6 +29,38 @@ var ENEMY_SCALE_BY_STREAK : Array = [1.0, 1.2, 1.6, 1.9]
 var ENEMY_SCALE_SURVIVAL : Array = [1.8, 2.1, 2.4]
 var HERO_SHRINE_DEFAULT_COST : int = 800
 
+const EquipmentConfigClass = preload(Config.PATHS.EQUIPMENT_CONFIG_SCRIPT)
+static var _arena_enemy_cache : Dictionary = {}
+
+@onready var unit_list : VBoxContainer = $Panel/VBox/MainHBox/UnitListScroll/UnitList
+@onready var selected_unit_label : Label = $Panel/VBox/MainHBox/CenterPanel/SelectedUnitLabel
+@onready var unit_stats_label : Label = $Panel/VBox/MainHBox/CenterPanel/UnitStatsPanel/ScrollContainer/VBox/UnitStatsLabel
+@onready var info_label : Label = $Panel/VBox/MainHBox/CenterPanel/InfoLabel
+@onready var streak_label : Label = $Panel/VBox/MainHBox/CenterPanel/StreakLabel
+@onready var start_btn : Button = $Panel/VBox/BottomBar/StartBtn
+@onready var back_btn : Button = $Panel/VBox/BottomBar/BackButton
+@onready var hint_label : Label = $Panel/VBox/TitleBar/HintLabel
+
+func _ready():
+	_apply_config()
+	MusicManager.play_arena_music()
+	_refresh_hint_label()
+	_build_unit_list()
+	_refresh_center_panel()
+	_refresh_streak_label()
+	
+	if not start_btn.pressed.is_connected(_on_start_pressed):
+		start_btn.pressed.connect(_on_start_pressed)
+	if not back_btn.pressed.is_connected(_on_back_pressed):
+		back_btn.pressed.connect(_on_back_pressed)
+
+func _input(event: InputEvent):
+	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT:
+		if _info_ref_unit_type != "":
+			Globals.toggle_info_mode()
+			_on_unit_hover(_info_ref_unit_type)
+			get_viewport().set_input_as_handled()
+			return
 
 func _apply_config():
 	var cfg := GameConfigManager.get_file("arena_config.json")
@@ -32,71 +77,520 @@ func _apply_config():
 	ENEMY_SCALE_SURVIVAL = cfg.get("enemy_scale_survival", ENEMY_SCALE_SURVIVAL).duplicate()
 	HERO_SHRINE_DEFAULT_COST = int(cfg.get("hero_shrine_default_cost", HERO_SHRINE_DEFAULT_COST))
 
-enum Phase { IDLE, NORMAL, CLEAR, SURVIVAL, END }
-const HERO_SHRINE_SCRIPT_PATH : String = "res://function/script/HeroShrineUI.gd"
-const EquipmentConfigClass = preload(Config.PATHS.EQUIPMENT_CONFIG_SCRIPT)
+func _show_hint(text : String):
+	info_label.text = text
+	await get_tree().create_timer(1.5, true, false, true).timeout
+	if is_instance_valid(info_label) and is_inside_tree():
+		_refresh_center_panel()
 
-static var _arena_enemy_cache : Dictionary = {}
+func _on_start_pressed():
+	if _phase != Phase.IDLE: return
+	if not _current_player_data:
+		_show_hint("请先选择单位")
+		return
 
-# ============================================================
-#  局内状态
-# ============================================================
-var _phase : Phase = Phase.IDLE
-var _arena_gold : int = 0
-var _arena_shop_level : int = 0
-var _streak : int = 0
-var _survival_round : int = 0
-var _current_player_data : UnitData = null
-var _locked_talent_id : String = ""
-var _streak_active : bool = false
-var _earned_soul : int = 0
-var _total_paid : int = 0
-var _retreat_fee : int = 0
-var _arena_passives : Array = [null, null, null, null]
+	GameState.arena_total_runs += 1
+	SaveManager.auto_save()
 
-# ★ 碎片化叙事：记录当前 hover 的单位类型，供左键切换后重新渲染
-var _info_ref_unit_type : String = ""
+	_init_arena_state()
+	_run_battle_loop()
 
-# ============================================================
-#  节点引用
-# ============================================================
-@onready var unit_list : VBoxContainer = $Panel/VBox/MainHBox/UnitListScroll/UnitList
-@onready var selected_unit_label : Label = $Panel/VBox/MainHBox/CenterPanel/SelectedUnitLabel
-@onready var unit_stats_label : Label = $Panel/VBox/MainHBox/CenterPanel/UnitStatsPanel/ScrollContainer/VBox/UnitStatsLabel
-@onready var info_label : Label = $Panel/VBox/MainHBox/CenterPanel/InfoLabel
-@onready var streak_label : Label = $Panel/VBox/MainHBox/CenterPanel/StreakLabel
-@onready var start_btn : Button = $Panel/VBox/BottomBar/StartBtn
-@onready var back_btn : Button = $Panel/VBox/BottomBar/BackButton
-@onready var hint_label : Label = $Panel/VBox/TitleBar/HintLabel
+func _init_arena_state():
+	_phase = Phase.NORMAL
+	_arena_gold = 0
+	_arena_shop_level = 0
+	_streak = 0
+	_survival_round = 0
+	_streak_active = false
+	_earned_soul = 0
+	_total_paid = 0
+	_retreat_fee = 0
+	_arena_passives = [null, null, null, null]
+	_locked_talent_id = ""
 
-func _ready():
-	MusicManager.play_arena_music()
-	_refresh_hint_label()
+	_current_player_data.reset_combat_buffs()
+	_current_player_data.hit_points = _current_player_data.max_hp
+	_current_player_data.max_armor_slots = 2
+	_current_player_data.armor_slots = [null, null]
+
+	var saved_talent : String = GameState.arena_target_talents.get(_current_player_data.unit_name, "")
+	if saved_talent != "":
+		_locked_talent_id = saved_talent
+
+	_current_player_data.hit_points = _current_player_data.max_hp
+
+func _run_battle_loop():
+	while _phase != Phase.END:
+		var entry_choice : String = await _check_entry_fee()
+		if not is_inside_tree(): return
+		if entry_choice == "decline":
+			_show_summary(true, "及时止损")
+			return
+
+		var shop_action : String = await _show_shop()
+		if not is_inside_tree(): return
+		if shop_action == "quit":
+			if _streak == 0:
+				_return_to_idle()
+			else:
+				_show_summary(true, "放弃")
+			return
+
+		var winner : int = await _do_one_battle()
+		if not is_inside_tree(): return
+
+		if winner != 0:
+			_show_summary(false, "失败", true)
+			return
+
+		_restore_arena_music()
+
+		if _phase == Phase.NORMAL:
+			_streak += 1
+			_grant_progress_rewards()
+
+			if _streak >= CLEAR_TARGET:
+				_phase = Phase.CLEAR
+				var choice : String = await _show_clear_panel()
+				if not is_inside_tree(): return
+				if choice == "survival":
+					await _open_hero_shrine()
+					if not is_inside_tree(): return
+					_phase = Phase.SURVIVAL
+					_survival_round = 0
+				else:
+					_apply_retreat_fee(RETREAT_FEE_AFTER_STREAK_4)
+					_show_summary(true, "撤离")
+					return
+
+		elif _phase == Phase.SURVIVAL:
+			_survival_round += 1
+			if _survival_round >= SURVIVAL_ROUNDS:
+				_show_summary(true, "生存通过", true)
+				return
+
+		SaveManager.auto_save()
+
+func _apply_retreat_fee(fee: int):
+	if fee <= 0: return
+	if GameState.soul >= fee:
+		GameState.soul -= fee
+		_retreat_fee += fee
+	else:
+		_retreat_fee += GameState.soul
+		GameState.soul = 0
+
+func _can_pay_soul(cost: int) -> bool:
+	return GameState.soul >= cost
+
+func _pay_soul(cost: int) -> bool:
+	if GameState.soul < cost: return false
+	GameState.soul -= cost
+	_total_paid += cost
+	return true
+
+func _check_entry_fee() -> String:
+	if _phase != Phase.NORMAL: return "accept"
+	var cost : int = 0
+	if _streak == 2:
+		cost = ENTRY_COST_MINI_BOSS
+		if StoryManager.get_affinity("gladiator") >= 10:
+			cost = int(cost * 0.5)
+	else:
+		return "accept"
+
+	var choice : String = await _show_entry_fee_panel(cost)
+	if choice != "accept": return "decline"
+	if not _pay_soul(cost): return "decline"
+	
+	_current_player_data.max_armor_slots += 1
+	while _current_player_data.armor_slots.size() < _current_player_data.max_armor_slots:
+		_current_player_data.armor_slots.append(null)
+
+	SaveManager.auto_save()
+	return "accept"
+
+func _show_entry_fee_panel(cost: int) -> String:
+	var scene = load(Config.PATHS.CONFIRM_UI)
+	if not scene: return "decline"
+	var ui = scene.instantiate()
+	add_child(ui)
+
+	var soul_now : int = GameState.soul
+	var can_afford : bool = soul_now >= cost
+	var reward_soul : int = SOUL_BY_STREAK[2]
+
+	var msg : String = "关键节点 · 小Boss\n"
+	msg += "下一战难度提升\n\n"
+	msg += "支付即得：+1 防具槽（可立即购物）\n"
+	msg += "胜利奖励：+%d 魂 +金币\n" % reward_soul
+	msg += "参与费：%d 魂\n" % cost
+	msg += "当前魂：%d   金币：%d\n" % [soul_now, _arena_gold]
+
+	var holder := {"value": ""}
+	if can_afford:
+		msg += "\n是否支付并继续？"
+		ui.show_confirm(msg, "支付 %d 魂" % cost, "撤退",
+			func(): holder["value"] = "accept",
+			func(): holder["value"] = "decline", true, 8)
+	else:
+		msg += "\n\n⚠ 魂不足，本局结束"
+		ui.show_confirm(msg, "放弃", "", func(): holder["value"] = "decline", func(): pass, false, 8)
+
+	while is_instance_valid(ui) and holder["value"] == "":
+		await get_tree().process_frame
+	await get_tree().process_frame
+	return holder["value"]
+
+func _show_shop() -> String:
+	_restore_arena_music()
+	var ctx := ArenaEquipContext.new()
+	ctx.arena_gold = _arena_gold
+	ctx.player_data = _current_player_data
+	ctx.passives = _arena_passives.duplicate()
+	ctx.locked_talent_id = _locked_talent_id
+	ctx.shop_level = _arena_shop_level
+
+	var scene = load(Config.PATHS.EQUIPMENT_CONFIG)
+	if not scene: return "quit"
+	var config = scene.instantiate()
+	add_child(config)
+	var panel = config.get_node("MainPanel")
+
+	var mode : int = EquipmentConfigClass.Mode.DEPLOY if _streak == 0 else EquipmentConfigClass.Mode.ARENA_REST
+	panel.init([_current_player_data.unit_name], -1, mode, ctx)
+
+	await panel.tree_exited
+	if not is_inside_tree(): return "quit"
+
+	_arena_gold = ctx.arena_gold
+	_arena_shop_level = ctx.shop_level
+	_arena_passives = ctx.passives.duplicate()
+	_locked_talent_id = ctx.locked_talent_id
+
+	if _locked_talent_id != "" and _current_player_data:
+		GameState.arena_target_talents[_current_player_data.unit_name] = _locked_talent_id
+
+	_refresh_streak_label()
+	if ctx.was_cancelled(): return "quit"
+	return "go"
+
+func _do_one_battle() -> int:
+	if not is_inside_tree(): return 1
+	await get_tree().process_frame
+	if not is_inside_tree(): return 1
+
+	var enemy_type : String = _roll_enemy()
+	if enemy_type == "":
+		push_error("敌人池为空")
+		return 1
+
+	var enemy_data : UnitData = UnitDataManager.create_unit_data(enemy_type)
+	_apply_enemy_scaling(enemy_data)
+
+	var gold_gain : int = _calc_gold_reward()
+	var soul_gain : int = _calc_soul_reward()
+	var exp_gain : int = _calc_exp_gain(enemy_type)
+
+	var battle_index : int = _streak + 1
+	if _phase == Phase.SURVIVAL: battle_index = 100 + _survival_round + 1
+
+	var scene = load(Config.PATHS.ARENA_BATTLE_UI)
+	if not scene: return 1
+
+	var battle = scene.instantiate()
+	add_child.call_deferred(battle)
+	await get_tree().process_frame
+	if not is_inside_tree(): return 1
+	battle.setup(_current_player_data, enemy_data, 0, battle_index)
+	var result : Dictionary = await battle.closed
+
+	if not is_inside_tree(): return 1
+
+	if result.get("winner_team", 1) == 0:
+		_arena_gold += gold_gain
+		if soul_gain > 0:
+			GameState.soul += soul_gain
+			_earned_soul += soul_gain
+
+		var talent_results : Array = _add_talent_exp_to_all(exp_gain)
+		_current_player_data.hit_points = _current_player_data.max_hp
+		_streak_active = true
+		SaveManager.auto_save()
+
+		await _show_battle_rewards(gold_gain, soul_gain, talent_results, battle_index, result)
+		if not is_inside_tree(): return 1
+		return 0
+	else:
+		return 1
+
+func _calc_gold_reward() -> int:
+	if _phase == Phase.SURVIVAL:
+		var idx : int = mini(_survival_round, 2)
+		return GOLD_SURVIVAL[idx]
+	return GOLD_BY_STREAK[mini(_streak, GOLD_BY_STREAK.size() - 1)]
+
+func _calc_soul_reward() -> int:
+	if _phase == Phase.SURVIVAL:
+		var idx : int = mini(_survival_round, 2)
+		return SOUL_SURVIVAL[idx]
+	return SOUL_BY_STREAK[mini(_streak, SOUL_BY_STREAK.size() - 1)]
+
+func _calc_exp_gain(enemy_type: String) -> int:
+	var base : int = _get_enemy_arena_exp(enemy_type)
+	if _phase == Phase.SURVIVAL: return int(base * 2.5)
+	if _is_mini_boss_battle(): return int(base * 2.0)
+	if _is_elite_battle(): return int(base * 2.5)
+	return base
+
+func _show_battle_rewards(gold_gain: int, soul_gain: int, talent_results: Array, battle_index: int, stats: Dictionary = {}):
+	var summary = Globals.get_reward_summary()
+	if not summary: return
+
+	var items : Array = []
+	if not stats.is_empty():
+		var stat_item := ItemData.new()
+		stat_item.id = "arena_stats"
+		stat_item.name = "伤害:%d | 承伤:%d | 暴击:%d次" % [
+			stats.get("total_damage_dealt", 0), stats.get("total_damage_taken", 0), stats.get("crit_count", 0)
+		]
+		stat_item.description = "竞技场纯 Build 验证数据"
+		items.append(stat_item)
+
+	for r in talent_results:
+		var tid : String = r["talent_id"]
+		var data : TalentData = TalentManager.get_talent_data(tid)
+		var tname : String = data.display_name if data else tid
+		var exp_item := ItemData.new()
+		exp_item.id = "arena_exp_" + tid
+		exp_item.name = "%s Lv%d→Lv%d (+%d)" % [tname, r["old_level"], r["new_level"], r["exp_gain"]]
+		if data: exp_item.description = data.description
+		items.append(exp_item)
+
+	var title : String = "第 %d 战胜利" % battle_index
+	if _phase == Phase.SURVIVAL: title = "生存 %d / %d 胜利" % [_survival_round + 1, SURVIVAL_ROUNDS]
+
+	summary.setup_reward(gold_gain, soul_gain, items, false, title)
+	summary.open()
+	await summary.confirmed
+	summary.close()
+
+func _grant_progress_rewards():
+	if _phase != Phase.NORMAL: return
+	if _streak == 4:
+		if _current_player_data.max_armor_slots < GameState.MAX_ARMOR_SLOTS_CAP:
+			_current_player_data.max_armor_slots += 1
+			while _current_player_data.armor_slots.size() < _current_player_data.max_armor_slots:
+				_current_player_data.armor_slots.append(null)
+
+func _is_elite_battle() -> bool: return _phase == Phase.NORMAL and _streak == 3
+func _is_mini_boss_battle() -> bool: return _phase == Phase.NORMAL and _streak == 2
+
+func _roll_enemy() -> String:
+	if _arena_enemy_cache.is_empty(): _load_arena_enemy_cache()
+	if _arena_enemy_cache.is_empty(): return ""
+
+	var pool_key : String = "easy"
+	if _phase == Phase.SURVIVAL: pool_key = "elite" if _survival_round == 0 else "boss"
+	elif _streak == 0: pool_key = "easy"
+	elif _streak == 1: pool_key = "normal"
+	elif _streak == 2: pool_key = "hard"
+	else: pool_key = "elite"
+
+	var pool : Array = _arena_enemy_cache.get(pool_key, [])
+	if pool.is_empty(): pool = _arena_enemy_cache.get("normal", [])
+	if pool.is_empty(): pool = _arena_enemy_cache.get("easy", [])
+	if pool.is_empty(): return ""
+	return pool[randi() % pool.size()]
+
+static func _load_arena_enemy_cache():
+	var path : String = Config.PATHS.ARENA_ENEMIES
+	if not FileAccess.file_exists(path): return
+	var file = FileAccess.open(path, FileAccess.READ)
+	var content : String = file.get_as_text()
+	file.close()
+	var data : Variant = JSON.parse_string(content)
+	if data == null or not (data is Dictionary): return
+	_arena_enemy_cache = data
+
+func _apply_enemy_scaling(enemy_data: UnitData):
+	var mult : float = 1.0
+	if _phase == Phase.SURVIVAL:
+		mult = ENEMY_SCALE_SURVIVAL[mini(_survival_round, ENEMY_SCALE_SURVIVAL.size() - 1)]
+	else:
+		mult = ENEMY_SCALE_BY_STREAK[mini(_streak, ENEMY_SCALE_BY_STREAK.size() - 1)]
+	enemy_data.max_hp = int(enemy_data.max_hp * mult)
+	enemy_data.hit_points = enemy_data.max_hp
+	var attr_mult : float = 1.0 + (mult - 1.0) * 0.4
+	enemy_data.strength = int(enemy_data.strength * attr_mult)
+	enemy_data.dexterity = int(enemy_data.dexterity * attr_mult)
+
+func _get_enemy_arena_exp(enemy_type: String) -> int:
+	return int(UnitDataManager.get_unit_data(enemy_type).get("arena_exp", 30))
+
+func _show_clear_panel() -> String:
+	var scene = load(Config.PATHS.CONFIRM_UI)
+	if not scene: return "settle"
+	var ui = scene.instantiate()
+	add_child(ui)
+
+	var soul_now : int = GameState.soul
+	var can_afford : bool = soul_now >= ENTRY_COST_SURVIVAL
+	var survival_soul_total : int = SOUL_SURVIVAL[0] + SOUL_SURVIVAL[1] + SOUL_SURVIVAL[2]
+	var retreat_fee : int = RETREAT_FEE_AFTER_STREAK_4
+
+	var msg : String = "4 连胜达成！\n\n已赚：+%d 魂  已付：-%d 魂\n" % [_earned_soul, _total_paid]
+	msg += "当前魂：%d\n\n撤离：结算（-%d 魂手续费）\n" % [soul_now, retreat_fee]
+	msg += "生存：付 %d 魂，3 连 Boss\n通过后本局再 +%d 魂\n" % [ENTRY_COST_SURVIVAL, survival_soul_total]
+	if not can_afford: msg += "\n⚠ 魂不足（需 %d）" % ENTRY_COST_SURVIVAL
+
+	var holder := {"value": ""}
+	if can_afford:
+		ui.show_confirm(msg, "付 %d 魂进入" % ENTRY_COST_SURVIVAL, "撤离（-%d 魂）" % retreat_fee,
+			func(): holder["value"] = "survival", func(): holder["value"] = "settle", true, 8)
+	else:
+		ui.show_confirm(msg, "撤离（-%d 魂）" % retreat_fee, "", func(): holder["value"] = "settle", func(): pass, false, 8)
+
+	while is_instance_valid(ui) and holder["value"] == "":
+		await get_tree().process_frame
+	await get_tree().process_frame
+
+	if holder["value"] == "survival":
+		_pay_soul(ENTRY_COST_SURVIVAL)
+		SaveManager.auto_save()
+	return holder["value"]
+
+func _show_summary(success: bool, reason: String, skip_music: bool = false):
+	AnalyticsLogger.record_arena_result(reason, success)
+	if not skip_music:
+		if success: MusicManager.play_victory_music()
+		else: MusicManager.play_defeat_music()
+
+	if success and reason in ["撤离", "生存通过"]: GameState.arena_clear_count += 1
+	if success and reason == "生存通过": GameState.arena_survival_clear += 1
+	if _phase == Phase.SURVIVAL:
+		GameState.arena_survival_best = maxi(GameState.arena_survival_best, _survival_round)
+
+	GameState.arena_total_crystals += _earned_soul
+	SaveManager.auto_save()
+
+	var summary = Globals.get_reward_summary()
+	if not summary:
+		_return_to_idle()
+		return
+
+	var net_gain : int = _get_net_gain()
+	var items : Array = []
+
+	if _earned_soul > 0:
+		var i1 := ItemData.new(); i1.id = "arena_earned"; i1.name = "本局已赚 +%d 魂" % _earned_soul; items.append(i1)
+	if _total_paid > 0:
+		var i2 := ItemData.new(); i2.id = "arena_paid"; i2.name = "参与费 -%d 魂" % _total_paid; items.append(i2)
+	if _retreat_fee > 0:
+		var i3 := ItemData.new(); i3.id = "arena_fee"; i3.name = "撤离手续费 -%d 魂" % _retreat_fee; items.append(i3)
+
+	var tail_hint : String = ""
+	match reason:
+		"及时止损": tail_hint = "✅ 明智撤退，零损失"
+		"撤离": tail_hint = "已提前离场，扣手续费 %d 魂" % _retreat_fee
+		"生存通过": tail_hint = "★ 生存全通，硬核 Build 验证成功"
+		"失败": tail_hint = "再来一次，试试不同 Build"
+		"放弃": tail_hint = "已放弃本局，本局收益保留"
+	if tail_hint != "":
+		var hint_item := ItemData.new(); hint_item.id = "arena_hint"; hint_item.name = tail_hint; items.append(hint_item)
+
+	var title : String = "斗技场 · %s（净 %+d 魂）" % [reason, net_gain]
+	summary.setup_reward(0, net_gain, items, true, title)
+	summary.open()
+	await summary.confirmed
+	summary.close()
+
+	if not is_inside_tree(): return
+	if success and reason in ["撤离", "生存通过"]:
+		await _open_talent_unlock()
+		if not is_inside_tree(): return
+	_return_to_idle()
+
+func _return_to_idle():
+	if not is_inside_tree(): return
+	_phase = Phase.IDLE
+	_current_player_data = null
+	_arena_passives = [null, null, null, null]
+	_earned_soul = 0
+	_total_paid = 0
+	_retreat_fee = 0
+	_restore_arena_music()
 	_build_unit_list()
 	_refresh_center_panel()
 	_refresh_streak_label()
 
+func _restore_arena_music():
+	if MusicManager.config and MusicManager.config.arena_music:
+		MusicManager.play_arena_music()
 
-func _input(event: InputEvent):
-	# ★ 碎片化叙事：hover 单位按钮上右键切换
-	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT:
-		if _info_ref_unit_type != "":
-			Globals.toggle_info_mode()
-			_on_unit_hover(_info_ref_unit_type)
-			get_viewport().set_input_as_handled()
-			return
+func _add_talent_exp_to_all(exp_gain: int) -> Array:
+	var results : Array = []
+	if not _current_player_data: return results
+	var unit_name : String = _current_player_data.unit_name
 
+	for inst in _current_player_data.talent_slots:
+		if not inst or not inst.is_active: continue
+		var r : Dictionary = _add_one_talent_exp(unit_name, inst.talent_id, exp_gain)
+		if not r.is_empty(): results.append(r)
+
+	if _current_player_data.advanced_talent_id != "":
+		var r2 : Dictionary = _add_one_talent_exp(unit_name, _current_player_data.advanced_talent_id, exp_gain)
+		if not r2.is_empty(): results.append(r2)
+	return results
+
+func _open_talent_unlock():
+	var remaining : int = 0
+	for tid in TalentManager.get_all_talent_ids():
+		if tid not in Globals.unlocked_talents: remaining += 1
+	if remaining == 0: return
+	if not ResourceLoader.exists(Config.PATHS.TALENT_UNLOCK_UI): return
+
+	var scene = load(Config.PATHS.TALENT_UNLOCK_UI)
+	var ui = scene.instantiate()
+	add_child(ui)
+	await ui.closed
+
+func _add_one_talent_exp(unit_name: String, tid: String, exp_gain: int) -> Dictionary:
+	var old_lv : int = TalentManager.get_talent_level(unit_name, tid)
+	var old_in : int = TalentManager.get_talent_exp_in_level(unit_name, tid)
+	var old_need : int = TalentManager.get_level_required_exp(unit_name, tid)
+	var actual : int = TalentManager.add_talent_exp(unit_name, tid, exp_gain)
+	if actual <= 0: return {}
+	return {
+		"talent_id": tid, "exp_gain": actual, "old_level": old_lv, "old_in": old_in, "old_need": old_need,
+		"new_level": TalentManager.get_talent_level(unit_name, tid),
+		"new_in": TalentManager.get_talent_exp_in_level(unit_name, tid),
+		"new_need": TalentManager.get_level_required_exp(unit_name, tid),
+	}
+
+func _open_hero_shrine():
+	if not _current_player_data: return
+	if _current_player_data.advanced_class != "": return
+	var hero_shrine_scene = load(Config.PATHS.HERO_SHRINE_UI)
+	if not hero_shrine_scene: return
+	var hero_shrine = hero_shrine_scene.instantiate()
+	add_child(hero_shrine)
+	hero_shrine.setup_arena(self, _current_player_data)
+	await hero_shrine.closed
+
+func _on_back_pressed():
+	if _phase != Phase.IDLE:
+		_show_hint("挑战中无法退出")
+		return
+	if MusicManager.config and MusicManager.config.camp_music:
+		MusicManager.play_music(MusicManager.config.camp_music)
+	closed.emit()
+	queue_free()
 
 func _refresh_hint_label():
 	if hint_label:
-		hint_label.text = "免费入场 · %d 胜通关 · 生存 %d 魂入场" % [
-			CLEAR_TARGET, ENTRY_COST_SURVIVAL
-		]
+		hint_label.text = "免费入场 · %d 胜通关 · 生存 %d 魂入场" % [CLEAR_TARGET, ENTRY_COST_SURVIVAL]
 
-
-# ============================================================
-#  单位选择
-# ============================================================
 func _build_unit_list():
 	for child in unit_list.get_children():
 		unit_list.remove_child(child)
@@ -121,46 +615,30 @@ func _build_unit_list():
 		btn.mouse_exited.connect(_on_unit_hover_exit)
 		unit_list.add_child(btn)
 
-	if unlocked_list.size() > 0:
-		_on_unit_selected(unlocked_list[0])
+	if unlocked_list.size() > 0: _on_unit_selected(unlocked_list[0])
 	else:
 		_current_player_data = null
 		_refresh_center_panel()
 
-
 func _on_unit_selected(unit_type: String):
-	if _phase != Phase.IDLE:
-		return
+	if _phase != Phase.IDLE: return
 	_current_player_data = UnitDataManager.create_unit_data(unit_type)
 	_current_player_data.hit_points = _current_player_data.max_hp
-
 	for child in unit_list.get_children():
 		if child is Button:
 			var ut : String = child.get_meta("unit_type", "")
 			child.modulate = Color.WHITE if ut == unit_type else Color(0.6, 0.6, 0.6, 1)
-
 	_refresh_center_panel()
 
-
-# ============================================================
-#  悬停显示单位属性（★ 碎片化叙事：按模式分支）
-# ============================================================
 func _on_unit_hover(unit_type: String):
 	if _phase != Phase.IDLE: return
 	_info_ref_unit_type = unit_type
-	
-	# 1. 刷新头像
 	_update_avatar(unit_type)
-
-	# 2. 刷新文字
 	if FlavorManager.is_narrative_mode():
 		var flavor : String = FlavorManager.get_flavor("units", unit_type)
-		if flavor == "":
-			flavor = "（暂无叙事）"
-		if unit_stats_label:
-			unit_stats_label.text = flavor
+		if flavor == "": flavor = "（暂无叙事）"
+		if unit_stats_label: unit_stats_label.text = flavor
 		return
-
 	_refresh_unit_stats(unit_type)
 
 func _on_unit_hover_exit():
@@ -169,895 +647,34 @@ func _on_unit_hover_exit():
 		_update_avatar(_current_player_data.unit_name)
 		if FlavorManager.is_narrative_mode():
 			var flavor : String = FlavorManager.get_flavor("units", _current_player_data.unit_name)
-			if flavor == "":
-				flavor = "（暂无叙事）"
-			if unit_stats_label:
-				unit_stats_label.text = flavor
+			if flavor == "": flavor = "（暂无叙事）"
+			if unit_stats_label: unit_stats_label.text = flavor
 		else:
 			_refresh_unit_stats(_current_player_data.unit_name)
 	else:
-		if unit_stats_label:
-			unit_stats_label.text = ""
-		_update_avatar("") # 传入空字符串隐藏头像
+		if unit_stats_label: unit_stats_label.text = ""
+		_update_avatar("")
 
-func _refresh_streak_label():
-	var gold_hint : String = "（退出失效）"
-	if _phase == Phase.IDLE:
-		streak_label.text = "金币：%d %s   |   通关：%d 次   |   当前魂：%d" % [
-			_arena_gold, gold_hint, GameState.arena_clear_count, GameState.soul
-		]
-	elif _phase == Phase.SURVIVAL:
-		streak_label.text = "金币：%d %s   |   生存：%d / %d（不可撤离）   |   本局净：%+d 魂" % [
-			_arena_gold, gold_hint, _survival_round, SURVIVAL_ROUNDS, _get_net_gain()
-		]
-	else:
-		var next_type : String = "普通"
-		if _streak == 2:
-			next_type = "★ 小Boss（付 %d 魂）" % ENTRY_COST_MINI_BOSS
-		elif _streak == 3:
-			next_type = "★ 精英"
-		streak_label.text = "金币：%d %s   |   进度：%d / %d   |   下一战：%s   |   本局净：%+d 魂" % [
-			_arena_gold, gold_hint, _streak, CLEAR_TARGET, next_type, _get_net_gain()
-		]
-
-
-func _get_net_gain() -> int:
-	return _earned_soul - _total_paid - _retreat_fee
-
-
-# ============================================================
-#  音乐辅助
-# ============================================================
-func _restore_arena_music():
-	if MusicManager.config and MusicManager.config.arena_music:
-		MusicManager.play_arena_music()
-
-
-# ============================================================
-#  开始
-# ============================================================
-func _on_start_pressed():
-	if _phase != Phase.IDLE:
-		return
-	if not _current_player_data:
-		_show_hint("请先选择单位")
+func _refresh_unit_stats(unit_type: String):
+	if not unit_stats_label: return
+	var dict : Dictionary = UnitDataManager.get_unit_data(unit_type)
+	if dict.is_empty():
+		unit_stats_label.text = ""
 		return
 
-	GameState.arena_total_runs += 1
-	SaveManager.auto_save()
-
-	_init_arena_state()
-	_run_battle_loop()
-
-
-func _on_back_pressed():
-	if _phase != Phase.IDLE:
-		_show_hint("挑战中无法退出")
-		return
-	if MusicManager.config and MusicManager.config.camp_music:
-		MusicManager.play_music(MusicManager.config.camp_music)
-	closed.emit()
-	queue_free()
-
-
-func _init_arena_state():
-	_phase = Phase.NORMAL
-	_arena_gold = 0
-	_arena_shop_level = 0
-	_streak = 0
-	_survival_round = 0
-	_streak_active = false
-	_earned_soul = 0
-	_total_paid = 0
-	_retreat_fee = 0
-	# ★ 第六批：显式构建纯 null 数组，避免共享引用
-	_arena_passives.clear()
-	for i in range(4):
-		_arena_passives.append(null)
-	_locked_talent_id = ""
-
-	_current_player_data.reset_combat_buffs()
-	_current_player_data.hit_points = _current_player_data.max_hp
-	_current_player_data.max_armor_slots = 2
-	_current_player_data.armor_slots = [null, null]
-
-	var saved_talent : String = GameState.arena_target_talents.get(_current_player_data.unit_name, "")
-	if saved_talent != "":
-		_locked_talent_id = saved_talent
-
-	_current_player_data.hit_points = _current_player_data.max_hp
-
-
-func _grant_armor_slot_for_entry() -> void:
-	if _current_player_data == null: return
-	if _current_player_data.max_armor_slots >= GameState.MAX_ARMOR_SLOTS_CAP: return
-	_current_player_data.max_armor_slots += 1
-	while _current_player_data.armor_slots.size() < _current_player_data.max_armor_slots:
-		_current_player_data.armor_slots.append(null)
-	print("[Arena] 支付参与费：防具槽 → %d" % _current_player_data.max_armor_slots)
-
-
-# ============================================================
-#  主循环
-# ============================================================
-func _run_battle_loop():
-	while _phase != Phase.END:
-		var entry_choice : String = await _check_entry_fee()
-		if not is_inside_tree():
-			return
-		if entry_choice == "decline":
-			_show_summary(true, "及时止损")
-			return
-
-		var shop_action : String = await _show_shop()
-		if not is_inside_tree():
-			return
-		if shop_action == "quit":
-			if _streak == 0:
-				_return_to_idle()
-			else:
-				_show_summary(true, "放弃")
-			return
-
-		var winner : int = await _do_one_battle()
-		if not is_inside_tree():
-			return
-
-		if winner != 0:
-			_show_summary(false, "失败", true)
-			return
-
-		_restore_arena_music()
-
-		if _phase == Phase.NORMAL:
-			_streak += 1
-			_grant_progress_rewards()
-
-			if _streak >= CLEAR_TARGET:
-				_phase = Phase.CLEAR
-				var choice : String = await _show_clear_panel()
-				if not is_inside_tree():
-					return
-				if choice == "survival":
-					await _open_hero_shrine()
-					if not is_inside_tree():
-						return
-					_phase = Phase.SURVIVAL
-					_survival_round = 0
-				else:
-					_apply_retreat_fee(RETREAT_FEE_AFTER_STREAK_4)
-					_show_summary(true, "撤离")
-					return
-
-		elif _phase == Phase.SURVIVAL:
-			_survival_round += 1
-			if _survival_round >= SURVIVAL_ROUNDS:
-				_show_summary(true, "生存通过", true)
-				return
-
-		SaveManager.auto_save()
-
-
-func _apply_retreat_fee(fee: int):
-	if fee <= 0:
-		return
-	if GameState.soul >= fee:
-		GameState.soul -= fee
-		_retreat_fee += fee
-	else:
-		_retreat_fee += GameState.soul
-		GameState.soul = 0
-
-
-# ============================================================
-#  魂支付
-# ============================================================
-func _can_pay_soul(cost: int) -> bool:
-	return GameState.soul >= cost
-
-
-func _pay_soul(cost: int) -> bool:
-	if GameState.soul < cost:
-		return false
-	GameState.soul -= cost
-	_total_paid += cost
-	return true
-
-
-# ============================================================
-#  关键节点参与费
-# ============================================================
-func _check_entry_fee() -> String:
-	if _phase != Phase.NORMAL:
-		return "accept"
-
-	var cost : int = 0
-	if _streak == 2:
-		cost = ENTRY_COST_MINI_BOSS
-		if StoryManager.get_affinity("gladiator") >= 10:
-			cost = int(cost * 0.5)
-	else:
-		return "accept"
-
-	var choice : String = await _show_entry_fee_panel(cost)
-	if choice != "accept":
-		return "decline"
-
-	if not _pay_soul(cost):
-		return "decline"
-
-	_grant_armor_slot_for_entry()
-
-	SaveManager.auto_save()
-	return "accept"
-
-
-func _show_entry_fee_panel(cost: int) -> String:
-	var scene = load(Config.PATHS.CONFIRM_UI)
-	if not scene:
-		return "decline"
-
-	var ui = scene.instantiate()
-	add_child(ui)
-
-	var soul_now : int = GameState.soul
-	var can_afford : bool = soul_now >= cost
-	var reward_soul : int = SOUL_BY_STREAK[2]
-
-	var msg : String = ""
-	msg += "关键节点 · 小Boss\n"
-	msg += "下一战难度提升\n\n"
-	msg += "支付即得：+1 防具槽（可立即购物）\n"
-	msg += "胜利奖励：+%d 魂 +金币\n" % reward_soul
-	msg += "参与费：%d 魂\n" % cost
-	msg += "当前魂：%d   金币：%d\n" % [soul_now, _arena_gold]
-
-	var holder := {"value": ""}
-
-	if can_afford:
-		msg += "\n是否支付并继续？"
-		ui.show_confirm(
-			msg,
-			"支付 %d 魂" % cost,
-			"撤退",
-			func(): holder["value"] = "accept",
-			func(): holder["value"] = "decline",
-			true,
-			8
-		)
-	else:
-		msg += "\n\n⚠ 魂不足，本局结束"
-		ui.show_confirm(
-			msg,
-			"放弃",
-			"",
-			func(): holder["value"] = "decline",
-			func(): pass,
-			false,
-			8
-		)
-
-	while is_instance_valid(ui) and holder["value"] == "":
-		await get_tree().process_frame
-	await get_tree().process_frame
-	return holder["value"]
-
-
-# ============================================================
-#  商店
-# ============================================================
-func _show_shop() -> String:
-	_restore_arena_music()
-
-	var ctx := ArenaEquipContext.new()
-	ctx.arena_gold = _arena_gold
-	ctx.player_data = _current_player_data
-	ctx.passives = _arena_passives.duplicate()
-	ctx.locked_talent_id = _locked_talent_id
-	ctx.shop_level = _arena_shop_level
-
-	var scene = load(Config.PATHS.EQUIPMENT_CONFIG)
-	if not scene:
-		push_error("EquipmentConfig 未找到")
-		return "quit"
-
-	var config = scene.instantiate()
-	add_child(config)
-	var panel = config.get_node("MainPanel")
-
-	var mode : int
-	if _streak == 0:
-		mode = EquipmentConfigClass.Mode.DEPLOY
-	else:
-		mode = EquipmentConfigClass.Mode.ARENA_REST
-
-	panel.init(
-		[_current_player_data.unit_name],
-		-1,
-		mode,
-		ctx
-	)
-
-	await panel.tree_exited
-	if not is_inside_tree():
-		return "quit"
-
-	_arena_gold = ctx.arena_gold
-	_arena_shop_level = ctx.shop_level
-	_arena_passives = ctx.passives.duplicate()
-	_locked_talent_id = ctx.locked_talent_id
-
-	if _locked_talent_id != "" and _current_player_data:
-		GameState.arena_target_talents[_current_player_data.unit_name] = _locked_talent_id
-
-	_refresh_streak_label()
-
-	if ctx.was_cancelled():
-		return "quit"
-
-	return "go"
-
-
-# ============================================================
-#  单场战斗
-# ============================================================
-func _do_one_battle() -> int:
-	if not is_inside_tree():
-		return 1
-	await get_tree().process_frame
-	if not is_inside_tree():
-		return 1
-
-	var enemy_type : String = _roll_enemy()
-	if enemy_type == "":
-		push_error("敌人池为空")
-		return 1
-
-	var enemy_data : UnitData = UnitDataManager.create_unit_data(enemy_type)
-	_apply_enemy_scaling(enemy_data)
-
-	var gold_gain : int = _calc_gold_reward()
-	var soul_gain : int = _calc_soul_reward()
-	var exp_gain : int = _calc_exp_gain(enemy_type)
-
-	var battle_index : int = _streak + 1
-	if _phase == Phase.SURVIVAL:
-		battle_index = 100 + _survival_round + 1
-
-	var scene = load(Config.PATHS.ARENA_BATTLE_UI)
-	if not scene:
-		push_error("ArenaBattle 未找到")
-		return 1
-
-	var battle = scene.instantiate()
-	add_child.call_deferred(battle)
-	if not is_inside_tree():
-		return 1
-	await get_tree().process_frame
-	if not is_inside_tree():
-		return 1
-	battle.setup(_current_player_data, enemy_data, 0, battle_index)
-	var result : Dictionary = await battle.closed
-
-	if not is_inside_tree():
-		return 1
-
-	if result.get("winner_team", 1) == 0:
-		_arena_gold += gold_gain
-		if soul_gain > 0:
-			GameState.soul += soul_gain
-			_earned_soul += soul_gain
-
-		var talent_results : Array = _add_talent_exp_to_all(exp_gain)
-
-		_current_player_data.hit_points = _current_player_data.max_hp
-		_streak_active = true
-		SaveManager.auto_save()
-
-		await _show_battle_rewards(gold_gain, soul_gain, talent_results, battle_index, result)
-		if not is_inside_tree():
-			return 1
-
-		return 0
-	else:
-		return 1
-
-
-# ============================================================
-#  奖励查表
-# ============================================================
-func _calc_gold_reward() -> int:
-	if _phase == Phase.SURVIVAL:
-		var idx : int = mini(_survival_round, 2)
-		return GOLD_SURVIVAL[idx]
-	var i : int = mini(_streak, GOLD_BY_STREAK.size() - 1)
-	return GOLD_BY_STREAK[i]
-
-
-func _calc_soul_reward() -> int:
-	if _phase == Phase.SURVIVAL:
-		var idx : int = mini(_survival_round, 2)
-		return SOUL_SURVIVAL[idx]
-	var i : int = mini(_streak, SOUL_BY_STREAK.size() - 1)
-	return SOUL_BY_STREAK[i]
-
-
-func _calc_exp_gain(enemy_type: String) -> int:
-	var base : int = _get_enemy_arena_exp(enemy_type)
-	if _phase == Phase.SURVIVAL:
-		return int(base * 2.5)
-	if _is_mini_boss_battle():
-		return int(base * 2.0)
-	if _is_elite_battle():
-		return int(base * 2.5)
-	return base
-
-
-# ============================================================
-#  战斗奖励弹窗
-# ============================================================
-func _show_battle_rewards(gold_gain: int, soul_gain: int,
-		talent_results: Array, battle_index: int, stats: Dictionary = {}):
-	var summary = Globals.get_reward_summary()
-	if not summary:
-		return
-
-	var items : Array = []
-
-	if not stats.is_empty():
-		var stat_item := ItemData.new()
-		stat_item.id = "arena_stats"
-		stat_item.name = "伤害:%d | 承伤:%d | 暴击:%d次" % [
-			stats.get("total_damage_dealt", 0),
-			stats.get("total_damage_taken", 0),
-			stats.get("crit_count", 0)
-		]
-		stat_item.description = "竞技场纯 Build 验证数据"
-		items.append(stat_item)
-
-	for r in talent_results:
-		var tid : String = r["talent_id"]
-		var data : TalentData = TalentManager.get_talent_data(tid)
-		var tname : String = data.display_name if data else tid
-		var old_lv : int = r["old_level"]
-		var new_lv : int = r["new_level"]
-		var exp_gain : int = r["exp_gain"]
-
-		var exp_item := ItemData.new()
-		exp_item.id = "arena_exp_" + tid
-		exp_item.name = "%s Lv%d→Lv%d (+%d)" % [tname, old_lv, new_lv, exp_gain]
-		if data:
-			exp_item.description = data.description
-		items.append(exp_item)
-
-	var title : String = "第 %d 战胜利" % battle_index
-	if _phase == Phase.SURVIVAL:
-		title = "生存 %d / %d 胜利" % [_survival_round + 1, SURVIVAL_ROUNDS]
-
-	summary.setup_reward(gold_gain, soul_gain, items, false, title)
-	summary.open()
-	await summary.confirmed
-	summary.close()
-
-
-# ============================================================
-#  进度奖励
-# ============================================================
-func _grant_progress_rewards():
-	if _phase != Phase.NORMAL:
-		return
-	if _streak == 4:
-		if _current_player_data.max_armor_slots < GameState.MAX_ARMOR_SLOTS_CAP:
-			_current_player_data.max_armor_slots += 1
-			while _current_player_data.armor_slots.size() < _current_player_data.max_armor_slots:
-				_current_player_data.armor_slots.append(null)
-			print("[Arena] 精英胜利：防具槽 → %d" % _current_player_data.max_armor_slots)
-
-
-func _is_elite_battle() -> bool:
-	return _phase == Phase.NORMAL and _streak == 3
-
-
-func _is_mini_boss_battle() -> bool:
-	return _phase == Phase.NORMAL and _streak == 2
-
-
-# ============================================================
-#  敌人
-# ============================================================
-func _roll_enemy() -> String:
-	if _arena_enemy_cache.is_empty():
-		_load_arena_enemy_cache()
-
-	if _arena_enemy_cache.is_empty():
-		return ""
-
-	var pool_key : String = "easy"
-	if _phase == Phase.SURVIVAL:
-		if _survival_round == 0:
-			pool_key = "elite"
-		else:
-			pool_key = "boss"
-	elif _streak == 0:
-		pool_key = "easy"
-	elif _streak == 1:
-		pool_key = "normal"
-	elif _streak == 2:
-		pool_key = "hard"
-	else:
-		pool_key = "elite"
-
-	var pool : Array = _arena_enemy_cache.get(pool_key, [])
-	if pool.is_empty():
-		pool = _arena_enemy_cache.get("normal", [])
-		if pool.is_empty():
-			pool = _arena_enemy_cache.get("easy", [])
-		if pool.is_empty():
-			return ""
-	return pool[randi() % pool.size()]
-
-static func _load_arena_enemy_cache():
-	var path : String = Config.PATHS.ARENA_ENEMIES
-	if not FileAccess.file_exists(path):
-		push_error("Arena 敌人池不存在: " + path)
-		return
-	var file = FileAccess.open(path, FileAccess.READ)
-	var content : String = file.get_as_text()
-	file.close()
-	var data : Variant = JSON.parse_string(content)
-	if data == null or not (data is Dictionary):
-		push_error("Arena 敌人池解析失败")
-		return
-	_arena_enemy_cache = data
-	print("[Arena] 敌人池已加载：", _arena_enemy_cache.keys())
-
-
-func _apply_enemy_scaling(enemy_data: UnitData):
-	var mult : float = 1.0
-	if _phase == Phase.SURVIVAL:
-		var idx : int = mini(_survival_round, ENEMY_SCALE_SURVIVAL.size() - 1)
-		mult = ENEMY_SCALE_SURVIVAL[idx]
-	else:
-		var idx2 : int = mini(_streak, ENEMY_SCALE_BY_STREAK.size() - 1)
-		mult = ENEMY_SCALE_BY_STREAK[idx2]
-
-	enemy_data.max_hp = int(enemy_data.max_hp * mult)
-	enemy_data.hit_points = enemy_data.max_hp
-	var attr_mult : float = 1.0 + (mult - 1.0) * 0.4
-	enemy_data.strength = int(enemy_data.strength * attr_mult)
-	enemy_data.dexterity = int(enemy_data.dexterity * attr_mult)
-
-
-func _get_enemy_arena_exp(enemy_type: String) -> int:
-	var unit_dict : Dictionary = UnitDataManager.get_unit_data(enemy_type)
-	return int(unit_dict.get("arena_exp", 30))
-
-
-# ============================================================
-#  通关面板
-# ============================================================
-func _show_clear_panel() -> String:
-	var scene = load(Config.PATHS.CONFIRM_UI)
-	if not scene:
-		return "settle"
-
-	var ui = scene.instantiate()
-	add_child(ui)
-
-	var soul_now : int = GameState.soul
-	var can_afford : bool = soul_now >= ENTRY_COST_SURVIVAL
-	var survival_soul_total : int = SOUL_SURVIVAL[0] + SOUL_SURVIVAL[1] + SOUL_SURVIVAL[2]
-	var retreat_fee : int = RETREAT_FEE_AFTER_STREAK_4
-
-	var msg : String = ""
-	msg += "4 连胜达成！\n\n"
-	msg += "已赚：+%d 魂  已付：-%d 魂\n" % [_earned_soul, _total_paid]
-	msg += "当前魂：%d\n\n" % soul_now
-	msg += "撤离：结算（-%d 魂手续费）\n" % retreat_fee
-	msg += "生存：付 %d 魂，3 连 Boss\n" % ENTRY_COST_SURVIVAL
-	msg += "通过后本局再 +%d 魂\n" % survival_soul_total
-	if not can_afford:
-		msg += "\n⚠ 魂不足（需 %d）" % ENTRY_COST_SURVIVAL
-
-	var holder := {"value": ""}
-	if can_afford:
-		ui.show_confirm(
-			msg,
-			"付 %d 魂进入" % ENTRY_COST_SURVIVAL,
-			"撤离（-%d 魂）" % retreat_fee,
-			func(): holder["value"] = "survival",
-			func(): holder["value"] = "settle",
-			true,
-			8
-		)
-	else:
-		ui.show_confirm(
-			msg,
-			"撤离（-%d 魂）" % retreat_fee,
-			"",
-			func(): holder["value"] = "settle",
-			func(): pass,
-			false,
-			8
-		)
-
-	while is_instance_valid(ui) and holder["value"] == "":
-		await get_tree().process_frame
-	await get_tree().process_frame
-
-	if holder["value"] == "survival":
-		_pay_soul(ENTRY_COST_SURVIVAL)
-		SaveManager.auto_save()
-
-	return holder["value"]
-
-
-# ============================================================
-#  结算
-# ============================================================
-func _show_summary(success: bool, reason: String, skip_music: bool = false):
-	AnalyticsLogger.record_arena_result(reason, success)
-
-	if not skip_music:
-		if success:
-			MusicManager.play_victory_music()
-		else:
-			MusicManager.play_defeat_music()
-
-	if success and reason in ["撤离", "生存通过"]:
-		GameState.arena_clear_count += 1
-	if success and reason == "生存通过":
-		GameState.arena_survival_clear += 1
-	if _phase == Phase.SURVIVAL:
-		GameState.arena_survival_best = maxi(GameState.arena_survival_best, _survival_round)
-
-	GameState.arena_total_crystals += _earned_soul
-
-	SaveManager.auto_save()
-
-	var summary = Globals.get_reward_summary()
-	if not summary:
-		_return_to_idle()
-		return
-
-	var net_gain : int = _get_net_gain()
-
-	var items : Array = []
-
-	if _earned_soul > 0:
-		var i1 := ItemData.new()
-		i1.id = "arena_earned"
-		i1.name = "本局已赚 +%d 魂" % _earned_soul
-		items.append(i1)
-
-	if _total_paid > 0:
-		var i2 := ItemData.new()
-		i2.id = "arena_paid"
-		i2.name = "参与费 -%d 魂" % _total_paid
-		items.append(i2)
-
-	if _retreat_fee > 0:
-		var i3 := ItemData.new()
-		i3.id = "arena_fee"
-		i3.name = "撤离手续费 -%d 魂" % _retreat_fee
-		items.append(i3)
-
-	var tail_hint : String = ""
-	match reason:
-		"及时止损":
-			tail_hint = "✅ 明智撤退，零损失"
-		"撤离":
-			tail_hint = "已提前离场，扣手续费 %d 魂" % _retreat_fee
-		"生存通过":
-			tail_hint = "★ 生存全通，硬核 Build 验证成功"
-		"失败":
-			tail_hint = "再来一次，试试不同 Build"
-		"放弃":
-			tail_hint = "已放弃本局，本局收益保留"
-	if tail_hint != "":
-		var hint_item := ItemData.new()
-		hint_item.id = "arena_hint"
-		hint_item.name = tail_hint
-		items.append(hint_item)
-
-	var title : String = "斗技场 · %s（净 %+d 魂）" % [reason, net_gain]
-
-	summary.setup_reward(0, net_gain, items, true, title)
-	summary.open()
-	await summary.confirmed
-	summary.close()
-
-	if not is_inside_tree():
-		return
-
-	if success and reason in ["撤离", "生存通过"]:
-		await _open_talent_unlock()
-		if not is_inside_tree():
-			return
-
-	_return_to_idle()
-
-
-func _return_to_idle():
-	if not is_inside_tree():
-		return
-	_phase = Phase.IDLE
-	_current_player_data = null
-	# ★ 第六批：显式构建纯 null 数组
-	_arena_passives.clear()
-	for i in range(4):
-		_arena_passives.append(null)
-	_earned_soul = 0
-	_total_paid = 0
-	_retreat_fee = 0
-	_restore_arena_music()
-	_build_unit_list()
-	_refresh_center_panel()
-	_refresh_streak_label()
-
-
-func _show_hint(text : String):
-	info_label.text = text
-	await get_tree().create_timer(1.5, true, false, true).timeout
-	if is_instance_valid(info_label) and is_inside_tree():
-		_refresh_center_panel()
-
-
-# ============================================================
-#  词条经验
-# ============================================================
-func _add_talent_exp_to_all(exp_gain: int) -> Array:
-	var results : Array = []
-	if not _current_player_data:
-		return results
-	var unit_name : String = _current_player_data.unit_name
-
-	for inst in _current_player_data.talent_slots:
-		if not inst or not inst.is_active: continue
-		var r : Dictionary = _add_one_talent_exp(unit_name, inst.talent_id, exp_gain)
-		if not r.is_empty(): results.append(r)
-
-	if _current_player_data.advanced_talent_id != "":
-		var r2 : Dictionary = _add_one_talent_exp(unit_name, _current_player_data.advanced_talent_id, exp_gain)
-		if not r2.is_empty(): results.append(r2)
-
-	return results
-
-
-# ============================================================
-#  词条解锁面板（竞技场通关奖励）
-# ============================================================
-func _open_talent_unlock():
-	var remaining : int = 0
-	for tid in TalentManager.get_all_talent_ids():
-		if tid not in Globals.unlocked_talents:
-			remaining += 1
-	if remaining == 0:
-		print("[Arena] 所有词条已解锁，跳过选择面板")
-		return
-
-	if not ResourceLoader.exists(Config.PATHS.TALENT_UNLOCK_UI):
-		push_warning("[Arena] TalentUnlockUI 未找到: " + Config.PATHS.TALENT_UNLOCK_UI)
-		return
-
-	var scene = load(Config.PATHS.TALENT_UNLOCK_UI)
-	var ui = scene.instantiate()
-	add_child(ui)
-	await ui.closed
-	print("[Arena] 词条选择完成")
-
-
-func _add_one_talent_exp(unit_name: String, tid: String, exp_gain: int) -> Dictionary:
-	var old_lv : int = TalentManager.get_talent_level(unit_name, tid)
-	var old_in : int = TalentManager.get_talent_exp_in_level(unit_name, tid)
-	var old_need : int = TalentManager.get_level_required_exp(unit_name, tid)
-	var actual : int = TalentManager.add_talent_exp(unit_name, tid, exp_gain)
-	if actual <= 0: return {}
-	return {
-		"talent_id": tid,
-		"exp_gain": actual,
-		"old_level": old_lv,
-		"old_in": old_in,
-		"old_need": old_need,
-		"new_level": TalentManager.get_talent_level(unit_name, tid),
-		"new_in": TalentManager.get_talent_exp_in_level(unit_name, tid),
-		"new_need": TalentManager.get_level_required_exp(unit_name, tid),
-	}
-
-
-# ============================================================
-#  英灵殿
-# ============================================================
-func _open_hero_shrine():
-	if not _current_player_data:
-		return
-	if _current_player_data.advanced_class != "":
-		return
-
-	var hero_shrine_scene = load(Config.PATHS.HERO_SHRINE_UI)
-	if not hero_shrine_scene:
-		push_warning("HeroShrineUI 场景未找到")
-		return
-
-	var hero_shrine = hero_shrine_scene.instantiate()
-	add_child(hero_shrine)
-	hero_shrine.setup_arena(self, _current_player_data)
-	await hero_shrine.closed
-	print("[Arena] 英灵殿关闭")
-
-
-# 用于挂载/更新头像和文字
-func _update_unit_display_info(unit_type: String, stats_text: String, avatar_bg: Panel, avatar_rect: TextureRect, stats_label: Label):
-	# 1. 设置文字
-	if stats_label:
-		stats_label.text = stats_text
-
-	# 2. 判断是否显示头像（支持全局头像覆写）
-	var avatar_id = GameState.get_unit_avatar(unit_type)
-	var has_avatar = false
-	
-	if avatar_id != "":
-		var path = "res://content/images/characters/avatar/%s.png" % avatar_id
-		if ResourceLoader.exists(path):
-			avatar_rect.texture = load(path)
-			has_avatar = true
-			
-	# 3. 控制显示/隐藏与排版
-	if has_avatar:
-		# 设置 50x50 留边：容器是 54x54，内边距 2px
-		avatar_rect.custom_minimum_size = Vector2(50, 50)
-		avatar_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-		avatar_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-		
-		# 用 PanelRevealer 刷出
-		if not avatar_bg.visible:
-			avatar_bg.visible = true
-			PanelRevealer.show_panel(avatar_bg)
-		if not avatar_rect.visible:
-			avatar_rect.visible = true
-			PanelRevealer.show_panel(avatar_rect)
-	else:
-		# 没头像就隐藏
-		if avatar_bg.visible:
-			PanelRevealer.hide_panel(avatar_bg)
-		if avatar_rect.visible:
-			PanelRevealer.hide_panel(avatar_rect)
-
-
-func _update_avatar(unit_type: String):
-	var avatar_rect = get_node_or_null("Panel/VBox/MainHBox/CenterPanel/UnitStatsPanel/ScrollContainer/VBox/AvatarRect") as TextureRect
-	var avatar_bg = get_node_or_null("Panel/VBox/MainHBox/CenterPanel/UnitStatsPanel/ScrollContainer/VBox/AvatarBg") as Panel
-	if not avatar_rect: return
-	
-	if unit_type == "":
-		if is_instance_valid(avatar_bg) and avatar_bg.visible: PanelRevealer.hide_panel(avatar_bg)
-		if avatar_rect.visible: PanelRevealer.hide_panel(avatar_rect)
-		return
-
-	var avatar_id = GameState.get_unit_avatar(unit_type)
-	var has_avatar = false
-	
-	if avatar_id != "":
-		var path = "res://content/images/characters/avatar/%s.png" % avatar_id
-		if ResourceLoader.exists(path):
-			avatar_rect.texture = load(path)
-			has_avatar = true
-			
-	if has_avatar:
-		avatar_rect.custom_minimum_size = Vector2(48, 48)
-		avatar_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-		
-		if is_instance_valid(avatar_bg):
-			if not avatar_bg.visible:
-				avatar_bg.visible = true
-				PanelRevealer.show_panel(avatar_bg)
-				
-		if not avatar_rect.visible:
-			avatar_rect.visible = true
-			PanelRevealer.show_panel(avatar_rect)
-	else:
-		if is_instance_valid(avatar_bg) and avatar_bg.visible: PanelRevealer.hide_panel(avatar_bg)
-		if avatar_rect.visible: PanelRevealer.hide_panel(avatar_rect)
+	var lines : Array = []
+	lines.append("HP      %d" % dict.get("max_hp", 0))
+	lines.append("力量    %d" % dict.get("strength", 0))
+	lines.append("灵巧    %d" % dict.get("dexterity", 0))
+	lines.append("智力    %d" % dict.get("intelligence", 0))
+	lines.append("信仰    %d" % dict.get("faith", 0))
+	lines.append("感应    %d" % dict.get("arcane", 0))
+	lines.append("移动力  %d" % dict.get("move_range", 0))
+	lines.append("")
+	lines.append(dict.get("description", ""))
+
+	unit_stats_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	unit_stats_label.text = "\n".join(lines)
 
 func _refresh_center_panel():
 	if not _current_player_data:
@@ -1069,9 +686,7 @@ func _refresh_center_panel():
 
 	var display : String = UnitDataManager.get_unit_type_display_name(_current_player_data.unit_name)
 	var slots : int = _current_player_data.max_armor_slots
-	selected_unit_label.text = "%s  HP %d/%d  防具槽 %d" % [
-		display, _current_player_data.hit_points, _current_player_data.max_hp, slots
-	]
+	selected_unit_label.text = "%s  HP %d/%d  防具槽 %d" % [display, _current_player_data.hit_points, _current_player_data.max_hp, slots]
 
 	_update_avatar(_current_player_data.unit_name)
 
@@ -1098,24 +713,50 @@ func _refresh_center_panel():
 	else:
 		info_label.text = "目标词条：未设置（可在商店配置）"
 
-
-func _refresh_unit_stats(unit_type: String):
-	if not unit_stats_label: return
-	var dict : Dictionary = UnitDataManager.get_unit_data(unit_type)
-	if dict.is_empty():
-		unit_stats_label.text = ""
+func _update_avatar(unit_type: String):
+	var bg = get_node_or_null("Panel/VBox/MainHBox/CenterPanel/UnitStatsPanel/ScrollContainer/VBox/AvatarBg") as Panel
+	var rect = get_node_or_null("Panel/VBox/MainHBox/CenterPanel/UnitStatsPanel/ScrollContainer/VBox/AvatarRect") as TextureRect
+	if not bg or not rect: return
+	
+	if unit_type == "":
+		if bg.visible: PanelRevealer.hide_panel(bg)
+		if rect.visible: PanelRevealer.hide_panel(rect)
 		return
 
-	var lines : Array = []
-	lines.append("HP      %d" % dict.get("max_hp", 0))
-	lines.append("力量    %d" % dict.get("strength", 0))
-	lines.append("灵巧    %d" % dict.get("dexterity", 0))
-	lines.append("智力    %d" % dict.get("intelligence", 0))
-	lines.append("信仰    %d" % dict.get("faith", 0))
-	lines.append("感应    %d" % dict.get("arcane", 0))
-	lines.append("移动力  %d" % dict.get("move_range", 0))
-	lines.append("")
-	lines.append(dict.get("description", ""))
-	
-	unit_stats_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-	unit_stats_label.text = "\n".join(lines)
+	var avatar_id = GameState.get_unit_avatar(unit_type)
+	var has_avatar = false
+	if avatar_id != "":
+		var path = "res://content/images/characters/avatar/%s.png" % avatar_id
+		if ResourceLoader.exists(path):
+			rect.texture = load(path)
+			has_avatar = true
+			
+	if has_avatar:
+		rect.custom_minimum_size = Vector2(48, 48)
+		rect.size = Vector2(48, 48)
+		rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		
+		if not bg.visible:
+			bg.visible = true
+			PanelRevealer.show_panel(bg)
+		if not rect.visible:
+			rect.visible = true
+			PanelRevealer.show_panel(rect)
+	else:
+		if bg.visible: PanelRevealer.hide_panel(bg)
+		if rect.visible: PanelRevealer.hide_panel(rect)
+
+func _refresh_streak_label():
+	var gold_hint : String = "（退出失效）"
+	if _phase == Phase.IDLE:
+		streak_label.text = "金币：%d %s   |   通关：%d 次   |   当前魂：%d" % [_arena_gold, gold_hint, GameState.arena_clear_count, GameState.soul]
+	elif _phase == Phase.SURVIVAL:
+		streak_label.text = "金币：%d %s   |   生存：%d / %d（不可撤离）   |   本局净：%+d 魂" % [_arena_gold, gold_hint, _survival_round, SURVIVAL_ROUNDS, _get_net_gain()]
+	else:
+		var next_type : String = "普通"
+		if _streak == 2: next_type = "★ 小Boss（付 %d 魂）" % ENTRY_COST_MINI_BOSS
+		elif _streak == 3: next_type = "★ 精英"
+		streak_label.text = "金币：%d %s   |   进度：%d / %d   |   下一战：%s   |   本局净：%+d 魂" % [_arena_gold, gold_hint, _streak, CLEAR_TARGET, next_type, _get_net_gain()]
+
+func _get_net_gain() -> int:
+	return _earned_soul - _total_paid - _retreat_fee
