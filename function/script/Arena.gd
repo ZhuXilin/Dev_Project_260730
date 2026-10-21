@@ -180,75 +180,6 @@ func _on_unit_hover_exit():
 			unit_stats_label.text = ""
 		_update_avatar("") # 传入空字符串隐藏头像
 
-func _refresh_center_panel():
-	if not _current_player_data:
-		selected_unit_label.text = "（未选择单位）"
-		if unit_stats_label:
-			unit_stats_label.text = ""
-		info_label.text = ""
-		_update_avatar("")
-		return
-
-	var display : String = UnitDataManager.get_unit_type_display_name(_current_player_data.unit_name)
-	var slots : int = _current_player_data.max_armor_slots
-	selected_unit_label.text = "%s  HP %d/%d  防具槽 %d" % [
-		display, _current_player_data.hit_points, _current_player_data.max_hp, slots
-	]
-
-	# 刷新头像
-	_update_avatar(_current_player_data.unit_name)
-
-	# 刷新文本
-	if FlavorManager.is_narrative_mode():
-		var flavor : String = FlavorManager.get_flavor("units", _current_player_data.unit_name)
-		if flavor == "":
-			flavor = "（暂无叙事）"
-		if unit_stats_label:
-			unit_stats_label.text = flavor
-	else:
-		_refresh_unit_stats(_current_player_data.unit_name)
-
-	# 刷新目标词条信息
-	var talent_id : String = GameState.arena_target_talents.get(_current_player_data.unit_name, "")
-	if talent_id != "":
-		var data : TalentData = TalentManager.get_talent_data(talent_id)
-		if data:
-			var lv : int = TalentManager.get_talent_level(_current_player_data.unit_name, talent_id)
-			if TalentManager.is_talent_max_level(_current_player_data.unit_name, talent_id):
-				info_label.text = "目标词条：Lv.%d %s（MAX）" % [lv, data.display_name]
-			else:
-				var cur_exp : int = TalentManager.get_talent_exp_in_level(_current_player_data.unit_name, talent_id)
-				var need_exp : int = TalentManager.get_level_required_exp(_current_player_data.unit_name, talent_id)
-				info_label.text = "目标词条：Lv.%d %s（%d/%d）" % [lv, data.display_name, cur_exp, need_exp]
-		else:
-			info_label.text = ""
-	else:
-		info_label.text = "目标词条：未设置（可在商店配置）"
-
-
-func _refresh_unit_stats(unit_type: String):
-	if not unit_stats_label:
-		return
-	var dict : Dictionary = UnitDataManager.get_unit_data(unit_type)
-	if dict.is_empty():
-		unit_stats_label.text = ""
-		return
-
-	var display : String = dict.get("display_name", unit_type)
-	var type_cn : String = UnitDataManager.get_unit_type_display_name(unit_type)
-
-	var lines : Array = []
-	lines.append("【%s｜%s】" % [display, type_cn])
-	lines.append("HP %d   移动 %d   力 %d   灵 %d" % [
-		dict.get("max_hp", 0), dict.get("move_range", 0),
-		dict.get("strength", 0), dict.get("dexterity", 0)])
-	lines.append("智 %d   信 %d   感 %d" % [
-		dict.get("intelligence", 0), dict.get("faith", 0), dict.get("arcane", 0)])
-	lines.append(dict.get("description", ""))
-
-	unit_stats_label.text = "\n".join(lines)
-	
-
 func _refresh_streak_label():
 	var gold_hint : String = "（退出失效）"
 	if _phase == Phase.IDLE:
@@ -1094,10 +1025,14 @@ func _update_unit_display_info(unit_type: String, stats_text: String, avatar_bg:
 
 
 func _update_avatar(unit_type: String):
-	var avatar_bg := get_node_or_null("Panel/VBox/MainHBox/CenterPanel/UnitStatsPanel/ScrollContainer/VBox/AvatarBg") as Panel
-	var avatar_rect := get_node_or_null("Panel/VBox/MainHBox/CenterPanel/UnitStatsPanel/ScrollContainer/VBox/AvatarRect") as TextureRect
+	var avatar_rect = get_node_or_null("Panel/VBox/MainHBox/CenterPanel/UnitStatsPanel/ScrollContainer/VBox/AvatarRect") as TextureRect
+	var avatar_bg = get_node_or_null("Panel/VBox/MainHBox/CenterPanel/UnitStatsPanel/ScrollContainer/VBox/AvatarBg") as Panel
+	if not avatar_rect: return
 	
-	if not avatar_bg or not avatar_rect: return
+	if unit_type == "":
+		if is_instance_valid(avatar_bg) and avatar_bg.visible: PanelRevealer.hide_panel(avatar_bg)
+		if avatar_rect.visible: PanelRevealer.hide_panel(avatar_rect)
+		return
 
 	var avatar_id = GameState.get_unit_avatar(unit_type)
 	var has_avatar = false
@@ -1109,20 +1044,78 @@ func _update_avatar(unit_type: String):
 			has_avatar = true
 			
 	if has_avatar:
-		# 设置内部图片稍小，以实现 2px 的留边效果
-		avatar_rect.custom_minimum_size = Vector2(50, 50)
+		avatar_rect.custom_minimum_size = Vector2(48, 48)
 		avatar_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		
-		# 走 PanelRevealer 刷新显示
-		if not avatar_bg.visible:
-			avatar_bg.visible = true
-			PanelRevealer.show_panel(avatar_bg)
+		if is_instance_valid(avatar_bg):
+			if not avatar_bg.visible:
+				avatar_bg.visible = true
+				PanelRevealer.show_panel(avatar_bg)
+				
 		if not avatar_rect.visible:
 			avatar_rect.visible = true
 			PanelRevealer.show_panel(avatar_rect)
 	else:
-		# 走 PanelRevealer 隐藏
-		if avatar_bg.visible:
-			PanelRevealer.hide_panel(avatar_bg)
-		if avatar_rect.visible:
-			PanelRevealer.hide_panel(avatar_rect)
+		if is_instance_valid(avatar_bg) and avatar_bg.visible: PanelRevealer.hide_panel(avatar_bg)
+		if avatar_rect.visible: PanelRevealer.hide_panel(avatar_rect)
+
+func _refresh_center_panel():
+	if not _current_player_data:
+		selected_unit_label.text = "（未选择单位）"
+		if unit_stats_label: unit_stats_label.text = ""
+		info_label.text = ""
+		_update_avatar("")
+		return
+
+	var display : String = UnitDataManager.get_unit_type_display_name(_current_player_data.unit_name)
+	var slots : int = _current_player_data.max_armor_slots
+	selected_unit_label.text = "%s  HP %d/%d  防具槽 %d" % [
+		display, _current_player_data.hit_points, _current_player_data.max_hp, slots
+	]
+
+	_update_avatar(_current_player_data.unit_name)
+
+	if FlavorManager.is_narrative_mode():
+		var flavor : String = FlavorManager.get_flavor("units", _current_player_data.unit_name)
+		if flavor == "": flavor = "（暂无叙事）"
+		if unit_stats_label: unit_stats_label.text = flavor
+	else:
+		_refresh_unit_stats(_current_player_data.unit_name)
+
+	var talent_id : String = GameState.arena_target_talents.get(_current_player_data.unit_name, "")
+	if talent_id != "":
+		var data : TalentData = TalentManager.get_talent_data(talent_id)
+		if data:
+			var lv : int = TalentManager.get_talent_level(_current_player_data.unit_name, talent_id)
+			if TalentManager.is_talent_max_level(_current_player_data.unit_name, talent_id):
+				info_label.text = "目标词条：Lv.%d %s（MAX）" % [lv, data.display_name]
+			else:
+				var cur_exp : int = TalentManager.get_talent_exp_in_level(_current_player_data.unit_name, talent_id)
+				var need_exp : int = TalentManager.get_level_required_exp(_current_player_data.unit_name, talent_id)
+				info_label.text = "目标词条：Lv.%d %s（%d/%d）" % [lv, data.display_name, cur_exp, need_exp]
+		else:
+			info_label.text = ""
+	else:
+		info_label.text = "目标词条：未设置（可在商店配置）"
+
+
+func _refresh_unit_stats(unit_type: String):
+	if not unit_stats_label: return
+	var dict : Dictionary = UnitDataManager.get_unit_data(unit_type)
+	if dict.is_empty():
+		unit_stats_label.text = ""
+		return
+
+	var lines : Array = []
+	lines.append("HP      %d" % dict.get("max_hp", 0))
+	lines.append("力量    %d" % dict.get("strength", 0))
+	lines.append("灵巧    %d" % dict.get("dexterity", 0))
+	lines.append("智力    %d" % dict.get("intelligence", 0))
+	lines.append("信仰    %d" % dict.get("faith", 0))
+	lines.append("感应    %d" % dict.get("arcane", 0))
+	lines.append("移动力  %d" % dict.get("move_range", 0))
+	lines.append("")
+	lines.append(dict.get("description", ""))
+	
+	unit_stats_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	unit_stats_label.text = "\n".join(lines)

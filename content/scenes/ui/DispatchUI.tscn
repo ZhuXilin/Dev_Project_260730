@@ -55,40 +55,117 @@ horizontal_alignment = 1
 [node name="Separator1" type="HSeparator" parent="Panel/VBox" unique_id=300000007]
 layout_mode = 2
 
-[node name="UnitTitle" type="Label" parent="Panel/VBox" unique_id=300000008]
+[node name="MainHBox" type="HBoxContainer" parent="Panel/VBox" unique_id=300000021]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 6
+
+[node name="LeftVBox" type="VBoxContainer" parent="Panel/VBox/MainHBox" unique_id=300000022]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 2
+
+[node name="UnitTitle" type="Label" parent="Panel/VBox/MainHBox/LeftVBox" unique_id=300000008]
 layout_mode = 2
 theme_override_font_sizes/font_size = 7
 text = "选择单位"
 
-[node name="UnitScroll" type="ScrollContainer" parent="Panel/VBox" unique_id=300000009]
+[node name="UnitScroll" type="ScrollContainer" parent="Panel/VBox/MainHBox/LeftVBox" unique_id=300000009]
 custom_minimum_size = Vector2(0, 40)
 layout_mode = 2
 size_flags_vertical = 3
 horizontal_scroll_mode = 0
 
-[node name="UnitRow" type="VBoxContainer" parent="Panel/VBox/UnitScroll" unique_id=300000010]
+[node name="UnitRow" type="VBoxContainer" parent="Panel/VBox/MainHBox/LeftVBox/UnitScroll" unique_id=300000010]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 2
 
-[node name="RouteTitle" type="Label" parent="Panel/VBox" unique_id=300000011]
+[node name="RouteTitle" type="Label" parent="Panel/VBox/MainHBox/LeftVBox" unique_id=300000011]
 layout_mode = 2
 theme_override_font_sizes/font_size = 7
 text = "选择路线"
 
-[node name="RouteScroll" type="ScrollContainer" parent="Panel/VBox" unique_id=300000012]
+[node name="RouteScroll" type="ScrollContainer" parent="Panel/VBox/MainHBox/LeftVBox" unique_id=300000012]
 custom_minimum_size = Vector2(0, 30)
 layout_mode = 2
 size_flags_vertical = 3
 horizontal_scroll_mode = 0
 
-[node name="RouteRow" type="VBoxContainer" parent="Panel/VBox/RouteScroll" unique_id=300000013]
+[node name="RouteRow" type="VBoxContainer" parent="Panel/VBox/MainHBox/LeftVBox/RouteScroll" unique_id=300000013]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 2
 
-[node name="Separator2" type="HSeparator" parent="Panel/VBox" unique_id=300000014]
+[node name="RightVBox" type="VBoxContainer" parent="Panel/VBox/MainHBox" unique_id=300000023]
+custom_minimum_size = Vector2(100, 0)
 layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="InfoPanel" type="Panel" parent="Panel/VBox/MainHBox/RightVBox" unique_id=300000024]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_styles/panel = ExtResource("2_style")
+
+[node name="InfoVBox" type="VBoxContainer" parent="Panel/VBox/MainHBox/RightVBox/InfoPanel" unique_id=300000025]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 4.0
+offset_top = 4.0
+offset_right = -4.0
+offset_bottom = -4.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 4
+
+[node name="AvatarBg" type="Panel" parent="Panel/VBox/MainHBox/RightVBox/InfoPanel/InfoVBox" unique_id=300000026]
+visible = false
+custom_minimum_size = Vector2(54, 54)
+layout_mode = 2
+size_flags_horizontal = 4
+size_flags_vertical = 0
+theme_override_styles/panel = ExtResource("2_style")
+
+[node name="AvatarRect" type="TextureRect" parent="Panel/VBox/MainHBox/RightVBox/InfoPanel/InfoVBox" unique_id=300000027]
+visible = false
+custom_minimum_size = Vector2(48, 48)
+layout_mode = 2
+size_flags_horizontal = 4
+size_flags_vertical = 0
+expand_mode = 1
+stretch_mode = 5
+
+[node name="InfoName" type="Label" parent="Panel/VBox/MainHBox/RightVBox/InfoPanel/InfoVBox" unique_id=300000028]
+layout_mode = 2
+theme_override_font_sizes/font_size = 9
+text = "选择单位"
+horizontal_alignment = 1
+autowrap_mode = 3
+
+[node name="HSep" type="HSeparator" parent="Panel/VBox/MainHBox/RightVBox/InfoPanel/InfoVBox" unique_id=300000029]
+layout_mode = 2
+
+[node name="Scroll" type="ScrollContainer" parent="Panel/VBox/MainHBox/RightVBox/InfoPanel/InfoVBox" unique_id=300000030]
+layout_mode = 2
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+
+[node name="ContentVBox" type="VBoxContainer" parent="Panel/VBox/MainHBox/RightVBox/InfoPanel/InfoVBox/Scroll" unique_id=300000031]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 2
+
+[node name="InfoStats" type="Label" parent="Panel/VBox/MainHBox/RightVBox/InfoPanel/InfoVBox/Scroll/ContentVBox" unique_id=300000032]
+layout_mode = 2
+theme_override_font_sizes/font_size = 8
+
+[node name="InfoDesc" type="Label" parent="Panel/VBox/MainHBox/RightVBox/InfoPanel/InfoVBox/Scroll/ContentVBox" unique_id=300000033]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_font_sizes/font_size = 6
+autowrap_mode = 3
 
 [node name="ActiveTitle" type="Label" parent="Panel/VBox" unique_id=300000015]
 layout_mode = 2

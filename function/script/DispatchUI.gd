@@ -6,21 +6,26 @@ signal closed
 @onready var panel : Panel = $Panel
 @onready var title_label : Label = $Panel/VBox/Title
 @onready var hint_label : Label = $Panel/VBox/Hint
-@onready var unit_row : VBoxContainer = $Panel/VBox/UnitScroll/UnitRow
-@onready var route_row : VBoxContainer = $Panel/VBox/RouteScroll/RouteRow
+@onready var unit_row : VBoxContainer = $Panel/VBox/MainHBox/LeftVBox/UnitScroll/UnitRow
+@onready var route_row : VBoxContainer = $Panel/VBox/MainHBox/LeftVBox/RouteScroll/RouteRow
 @onready var active_list : VBoxContainer = $Panel/VBox/ActiveScroll/ActiveList
 @onready var dispatch_btn : Button = $Panel/VBox/BottomBar/DispatchBtn
 @onready var back_btn : Button = $Panel/VBox/BottomBar/BackBtn
 
+# 新增的信息栏节点
+@onready var info_name : Label = $Panel/VBox/MainHBox/RightVBox/InfoPanel/InfoVBox/InfoName
+@onready var info_stats : Label = $Panel/VBox/MainHBox/RightVBox/InfoPanel/InfoVBox/Scroll/ContentVBox/InfoStats
+@onready var info_desc : Label = $Panel/VBox/MainHBox/RightVBox/InfoPanel/InfoVBox/Scroll/ContentVBox/InfoDesc
+
 var _selected_unit : String = ""
 var _selected_route : String = ""
+var _hover_unit : String = ""
 
 const COLOR_UNIT_ON : Color = Color(0.4, 0.9, 0.5, 1)
 const COLOR_UNIT_OFF : Color = Color(0.85, 0.85, 0.85, 1)
 const COLOR_UNIT_DISABLED : Color = Color(0.45, 0.45, 0.45, 1)
 const COLOR_ROUTE_ON : Color = Color(0.4, 0.9, 0.5, 1)
 
-## ★ v4.1：按钮高度压缩到 20
 const BTN_HEIGHT : int = 20
 
 
@@ -32,6 +37,7 @@ func _ready():
 		back_btn.pressed.connect(_on_back_pressed)
 	if dispatch_btn and not dispatch_btn.pressed.is_connected(_do_dispatch):
 		dispatch_btn.pressed.connect(_do_dispatch)
+		
 	_refresh()
 
 
@@ -41,6 +47,7 @@ func _refresh():
 	_refresh_active()
 	_refresh_dispatch_btn()
 	_refresh_hint()
+	_update_info_panel()
 
 
 func _refresh_hint():
@@ -57,9 +64,6 @@ func _refresh_hint():
 		hint_label.text = "%s → 「%s」，点【派遣】确认" % [_get_unit_display(_selected_unit), rn]
 
 
-# ============================================================
-#  单位列表
-# ============================================================
 func _refresh_units():
 	for c in unit_row.get_children():
 		unit_row.remove_child(c); c.queue_free()
@@ -97,8 +101,19 @@ func _refresh_units():
 			btn.text = "  " + display_name
 			btn.modulate = COLOR_UNIT_ON if is_selected else COLOR_UNIT_OFF
 			btn.pressed.connect(_on_unit_clicked.bind(unit_key))
+			
+		# ★ 悬停事件
+		btn.mouse_entered.connect(_on_unit_hover.bind(unit_key))
+		btn.mouse_exited.connect(_on_unit_hover_exit)
 
 		unit_row.add_child(btn)
+		
+	# 默认选中第一个可用单位
+	if _selected_unit == "":
+		for u in all_unlocked:
+			if u not in dispatched:
+				_selected_unit = u
+				break
 
 
 func _on_unit_clicked(unit_key : String):
@@ -110,11 +125,22 @@ func _on_unit_clicked(unit_key : String):
 	_refresh_units()
 	_refresh_dispatch_btn()
 	_refresh_hint()
+	if _hover_unit == "":
+		_update_info_panel()
 
 
-# ============================================================
-#  路线列表
-# ============================================================
+# ★ 悬停事件
+func _on_unit_hover(unit_key: String):
+	if DispatchManager.is_unit_dispatched(unit_key):
+		return
+	_hover_unit = unit_key
+	_update_info_panel()
+
+func _on_unit_hover_exit():
+	_hover_unit = ""
+	_update_info_panel()
+
+
 func _refresh_routes():
 	for c in route_row.get_children():
 		route_row.remove_child(c); c.queue_free()
@@ -168,9 +194,6 @@ func _on_route_clicked(route_id : String):
 	_refresh_hint()
 
 
-# ============================================================
-#  进行中列表
-# ============================================================
 func _refresh_active():
 	for c in active_list.get_children():
 		active_list.remove_child(c); c.queue_free()
@@ -206,9 +229,6 @@ func _refresh_active():
 		active_list.add_child(lb)
 
 
-# ============================================================
-#  派遣按钮状态
-# ============================================================
 func _refresh_dispatch_btn():
 	if not dispatch_btn: return
 	var has_unit : bool = _selected_unit != ""
@@ -233,8 +253,91 @@ func _on_back_pressed():
 	queue_free()
 
 
-# ============================================================
-#  辅助
-# ============================================================
 func _get_unit_display(unit_key : String) -> String:
 	return UnitDataManager.get_display_name(unit_key)
+
+
+# ============================================================
+#  信息栏刷新 (头像 + 属性)
+# ============================================================
+func _update_info_panel():
+	var target_unit = ""
+	if _hover_unit != "":
+		target_unit = _hover_unit
+	elif _selected_unit != "":
+		target_unit = _selected_unit
+		
+	var avatar_rect = $Panel/VBox/MainHBox/RightVBox/InfoPanel/InfoVBox/AvatarRect as TextureRect
+	var avatar_bg = $Panel/VBox/MainHBox/RightVBox/InfoPanel/InfoVBox/AvatarBg as Panel
+
+	if target_unit == "":
+		info_name.text = "选择单位"
+		info_stats.text = ""
+		info_desc.text = ""
+		_update_avatar("", avatar_rect, avatar_bg)
+		return
+
+	var unit_dict = UnitDataManager.get_unit_data(target_unit)
+	if unit_dict.is_empty():
+		info_name.text = "（无数据）"
+		info_stats.text = ""
+		info_desc.text = ""
+		_update_avatar("", avatar_rect, avatar_bg)
+		return
+
+	_update_avatar(target_unit, avatar_rect, avatar_bg)
+
+	var display = unit_dict.get("display_name", target_unit)
+	var faction = unit_dict.get("faction", "无")
+	var type_cn = UnitDataManager.get_unit_type_display_name(target_unit)
+
+	info_name.text = "%s\n（%s｜%s）" % [display, faction, type_cn]
+
+	var lines : Array = []
+	lines.append("HP      %d" % unit_dict.get("max_hp", 0))
+	lines.append("力量    %d" % unit_dict.get("strength", 0))
+	lines.append("灵巧    %d" % unit_dict.get("dexterity", 0))
+	lines.append("智力    %d" % unit_dict.get("intelligence", 0))
+	lines.append("信仰    %d" % unit_dict.get("faith", 0))
+	lines.append("感应    %d" % unit_dict.get("arcane", 0))
+	lines.append("移动力  %d" % unit_dict.get("move_range", 0))
+
+	if DispatchManager.is_unit_dispatched(target_unit):
+		lines.append("")
+		lines.append("【派遣中，本局不能出战】")
+
+	info_stats.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	info_stats.text = "\n".join(lines)
+	info_desc.text = unit_dict.get("description", "")
+
+
+func _update_avatar(unit_name: String, avatar_rect: TextureRect, avatar_bg: Panel):
+	if not avatar_rect or not avatar_bg: return
+	
+	if unit_name == "":
+		if avatar_bg.visible: PanelRevealer.hide_panel(avatar_bg)
+		if avatar_rect.visible: PanelRevealer.hide_panel(avatar_rect)
+		return
+
+	var avatar_id = GameState.get_unit_avatar(unit_name)
+	var has_avatar = false
+	
+	if avatar_id != "":
+		var path = "res://content/images/characters/avatar/%s.png" % avatar_id
+		if ResourceLoader.exists(path):
+			avatar_rect.texture = load(path)
+			has_avatar = true
+			
+	if has_avatar:
+		avatar_rect.custom_minimum_size = Vector2(48, 48)
+		avatar_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		
+		if not avatar_bg.visible:
+			avatar_bg.visible = true
+			PanelRevealer.show_panel(avatar_bg)
+		if not avatar_rect.visible:
+			avatar_rect.visible = true
+			PanelRevealer.show_panel(avatar_rect)
+	else:
+		if avatar_bg.visible: PanelRevealer.hide_panel(avatar_bg)
+		if avatar_rect.visible: PanelRevealer.hide_panel(avatar_rect)

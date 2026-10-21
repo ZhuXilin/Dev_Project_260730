@@ -15,8 +15,8 @@ var _info_ref_unit_type : String = ""
 @onready var back_btn = $BottomBar/BackButton
 
 @onready var info_name  : Label = $InfoPanel/InfoVBox/InfoName
-@onready var info_stats : Label = $InfoPanel/InfoVBox/InfoStats
-@onready var info_desc  : Label = $InfoPanel/InfoVBox/InfoDesc
+@onready var info_stats : Label = $InfoPanel/InfoVBox/Scroll/ContentVBox/InfoStats
+@onready var info_desc  : Label = $InfoPanel/InfoVBox/Scroll/ContentVBox/InfoDesc
 
 const EquipmentConfig = preload(Config.PATHS.EQUIPMENT_CONFIG_SCRIPT)
 
@@ -38,7 +38,6 @@ func _ready():
 
 
 func _input(event: InputEvent):
-	# ★ 碎片化叙事：hover 单位按钮上右键切换
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT:
 		if _info_ref_unit_type != "":
 			Globals.toggle_info_mode()
@@ -56,9 +55,6 @@ func _make_label_clickable(label: Label, index: int):
 	label.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 
 
-# ============================================================
-#  单位按钮
-# ============================================================
 func _setup_unit_buttons():
 	for child in unit_buttons.get_children():
 		child.queue_free()
@@ -70,9 +66,7 @@ func _setup_unit_buttons():
 
 	for unit_name in unlocked:
 		var dict : Dictionary = UnitDataManager.get_unit_data(unit_name)
-		if dict.is_empty():
-			print("[UnitSelectUI] 跳过未定义单位：%s" % unit_name)
-			continue
+		if dict.is_empty(): continue
 
 		var display_name = UnitDataManager.get_display_name_full(unit_name)
 		var is_dispatched : bool = unit_name in dispatched
@@ -100,9 +94,6 @@ func _setup_unit_buttons():
 		unit_buttons.add_child(btn)
 
 
-# ============================================================
-#  悬停显示详情（★ 碎片化叙事：按模式分支）
-# ============================================================
 func _on_unit_hover(unit_name: String):
 	if not info_name: return
 	_info_ref_unit_type = unit_name
@@ -112,8 +103,7 @@ func _on_unit_hover(unit_name: String):
 
 	if FlavorManager.is_narrative_mode():
 		var flavor : String = FlavorManager.get_flavor("units", unit_name)
-		if flavor == "":
-			flavor = "（暂无叙事）"
+		if flavor == "": flavor = "（暂无叙事）"
 		_update_avatar(unit_name, avatar_rect, avatar_bg)
 		info_name.text = ""
 		info_stats.text = ""
@@ -128,7 +118,6 @@ func _on_unit_hover(unit_name: String):
 		info_desc.text = "该单位在 unit_data.json 中未定义。"
 		return
 
-	# --- 刷新头像 ---
 	_update_avatar(unit_name, avatar_rect, avatar_bg)
 
 	var display = unit_dict.get("display_name", unit_name)
@@ -150,6 +139,7 @@ func _on_unit_hover(unit_name: String):
 		lines.append("")
 		lines.append("【派遣中，本局不能出战】")
 
+	info_stats.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	info_stats.text = "\n".join(lines)
 	info_desc.text = unit_dict.get("description", "")
 
@@ -167,9 +157,38 @@ func _on_unit_hover_exit():
 	info_desc.text = ""
 
 
-# ============================================================
-#  选择 / 取消选择
-# ============================================================
+func _update_avatar(unit_name: String, avatar_rect: TextureRect, avatar_bg: Panel):
+	if not avatar_rect or not avatar_bg: return
+	
+	if unit_name == "":
+		if avatar_bg.visible: PanelRevealer.hide_panel(avatar_bg)
+		if avatar_rect.visible: PanelRevealer.hide_panel(avatar_rect)
+		return
+
+	var avatar_id = GameState.get_unit_avatar(unit_name)
+	var has_avatar = false
+	
+	if avatar_id != "":
+		var path = "res://content/images/characters/avatar/%s.png" % avatar_id
+		if ResourceLoader.exists(path):
+			avatar_rect.texture = load(path)
+			has_avatar = true
+			
+	if has_avatar:
+		avatar_rect.custom_minimum_size = Vector2(48, 48)
+		avatar_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		
+		if not avatar_bg.visible:
+			avatar_bg.visible = true
+			PanelRevealer.show_panel(avatar_bg)
+		if not avatar_rect.visible:
+			avatar_rect.visible = true
+			PanelRevealer.show_panel(avatar_rect)
+	else:
+		if avatar_bg.visible: PanelRevealer.hide_panel(avatar_bg)
+		if avatar_rect.visible: PanelRevealer.hide_panel(avatar_rect)
+
+
 func _on_unit_selected(unit_name: String, btn: Button):
 	if unit_name in selected_units:
 		selected_units.erase(unit_name)
@@ -215,41 +234,6 @@ func _update_labels():
 	confirm_btn.disabled = selected_units.size() < max_selection
 
 
-func _update_avatar(unit_name: String, avatar_rect: TextureRect, avatar_bg: Panel):
-	if not avatar_rect or not avatar_bg: return
-	
-	if unit_name == "":
-		if avatar_bg.visible: PanelRevealer.hide_panel(avatar_bg)
-		if avatar_rect.visible: PanelRevealer.hide_panel(avatar_rect)
-		return
-
-	var avatar_id = GameState.get_unit_avatar(unit_name)
-	var has_avatar = false
-	
-	if avatar_id != "":
-		var path = "res://content/images/characters/avatar/%s.png" % avatar_id
-		if ResourceLoader.exists(path):
-			avatar_rect.texture = load(path)
-			has_avatar = true
-			
-	if has_avatar:
-		avatar_rect.custom_minimum_size = Vector2(50, 50)
-		avatar_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-		
-		if not avatar_bg.visible:
-			avatar_bg.visible = true
-			PanelRevealer.show_panel(avatar_bg)
-		if not avatar_rect.visible:
-			avatar_rect.visible = true
-			PanelRevealer.show_panel(avatar_rect)
-	else:
-		if avatar_bg.visible: PanelRevealer.hide_panel(avatar_bg)
-		if avatar_rect.visible: PanelRevealer.hide_panel(avatar_rect)
-
-
-# ============================================================
-#  确认 / 返回
-# ============================================================
 func _on_confirm_pressed():
 	var main_unit_name = selected_units[0]
 	var selected_unit_names = selected_units.duplicate()

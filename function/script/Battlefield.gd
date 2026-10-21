@@ -722,6 +722,7 @@ func _on_request_show_info(unit: Unit):
 		var t_def = TerrainManager.TERRAIN_DATA[t_type]["def_bonus"]
 		var t_mdef = TerrainManager.TERRAIN_DATA[t_type]["magic_defense_bonus"]
 		var t_avoid = TerrainManager.TERRAIN_DATA[t_type]["avoid_bonus"]
+		
 		info_text_label.text = "地形: " + t_name \
 			+ "\n防御+" + str(t_def) \
 			+ " 魔防+" + str(t_mdef) \
@@ -737,10 +738,8 @@ func _on_request_show_info(unit: Unit):
 	# ==========================================
 	if avatar_rect and avatar_bg:
 		if unit.unit_stats.team_id != 0:
-			# 敌人/中立：隐藏头像和底板
 			_hide_avatar(avatar_rect, avatar_bg)
 		else:
-			# 玩家：判断是否有头像并显示
 			var avatar_id = GameState.get_unit_avatar(unit.unit_stats.unit_name)
 			var path := ""
 			if avatar_id != "":
@@ -748,13 +747,14 @@ func _on_request_show_info(unit: Unit):
 				
 			if path != "" and ResourceLoader.exists(path):
 				avatar_rect.texture = load(path)
+				avatar_rect.custom_minimum_size = Vector2(48, 48)
+				avatar_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 				_show_avatar(avatar_rect, avatar_bg)
 			else:
-				# 玩家但没找到对应图片资源时，隐藏
 				_hide_avatar(avatar_rect, avatar_bg)
 
 	# ==========================================
-	# 3. 文本拼接与刷新
+	# 3. 文本拼接 (恢复完整的 lines 构造)
 	# ==========================================
 	var lines : Array = []
 	var display_name = unit.unit_stats.display_name if unit.unit_stats.display_name != "" else unit.unit_stats.unit_name
@@ -838,28 +838,20 @@ func _on_request_show_info(unit: Unit):
 	_adjust_info_panel(info_text_label, info_panel, unit)
 
 
-func _on_request_hide_info():
-	PanelRevealer.hide_panel(info_panel)
-	var avatar_rect := get_node_or_null("Info/AvatarRect") as TextureRect
-	var avatar_bg := get_node_or_null("Info/AvatarBg") as Panel
-	_hide_avatar(avatar_rect, avatar_bg)
-
-
-# ============================================================
-#  InfoPanel 位置 + 高度
-# ============================================================
 func _adjust_info_panel(label: Label, panel: PanelContainer, ref_unit: Unit = null):
 	var vp_size := get_viewport().get_visible_rect().size
 	var avatar_rect := get_node_or_null("Info/AvatarRect") as TextureRect
 	var avatar_bg := get_node_or_null("Info/AvatarBg") as Panel
 	var avatar_visible : bool = (avatar_rect != null and avatar_rect.visible)
 
-	# ---- 信息框贴哪边 ----
+	# ---- 1. 判定贴左还是贴右 ----
 	var align_left_side : bool = false
 	if ref_unit != null and is_instance_valid(ref_unit):
 		var xform := get_viewport().get_canvas_transform()
 		var screen_x : float = (xform * ref_unit.global_position).x
 		align_left_side = (screen_x < vp_size.x * 0.5)
+	else:
+		align_left_side = false # 默认贴右
 
 	if align_left_side:
 		panel.offset_left = INFO_PANEL_MARGIN
@@ -870,7 +862,7 @@ func _adjust_info_panel(label: Label, panel: PanelContainer, ref_unit: Unit = nu
 
 	panel.offset_top = INFO_PANEL_MARGIN
 
-	# ---- 文本布局 ----
+	# ---- 2. 文本宽度与面板高度计算 ----
 	label.vertical_alignment = VERTICAL_ALIGNMENT_TOP
 	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -889,32 +881,40 @@ func _adjust_info_panel(label: Label, panel: PanelContainer, ref_unit: Unit = nu
 	var panel_height = label_min_height + margin_top + margin_bottom
 	panel.offset_bottom = panel.offset_top + panel_height
 
-	# ---- Avatar 底色与头像位置 (54x54) ----
+	# ---- 3. 头像排版 ----
 	if avatar_visible:
-		# 两个都设为 54x54
-		avatar_bg.size = Vector2(AVATAR_SIZE, AVATAR_SIZE)
-		avatar_rect.size = Vector2(AVATAR_SIZE, AVATAR_SIZE)
-
-		# 计算横向位置
+		avatar_bg.size = Vector2(54, 54)
+		avatar_rect.size = Vector2(48, 48)
+		
 		var target_x : float
 		if align_left_side:
-			target_x = panel.offset_right + AVATAR_GAP
+			target_x = panel.offset_right + 4.0
 		else:
-			target_x = panel.offset_left - AVATAR_GAP - AVATAR_SIZE
+			target_x = panel.offset_left - 4.0 - 54.0
 
-		# 应用横向和纵向（上端对齐 info 面板上沿）
-		for ctrl in [avatar_bg, avatar_rect]:
-			ctrl.offset_left = target_x
-			ctrl.offset_right = target_x + AVATAR_SIZE
-			ctrl.offset_top = INFO_PANEL_MARGIN
-			ctrl.offset_bottom = INFO_PANEL_MARGIN + AVATAR_SIZE
+		avatar_bg.offset_left = target_x
+		avatar_bg.offset_right = target_x + 54.0
+		avatar_bg.offset_top = INFO_PANEL_MARGIN
+		avatar_bg.offset_bottom = INFO_PANEL_MARGIN + 54.0
+		
+		avatar_rect.offset_left = target_x + 3.0
+		avatar_rect.offset_right = target_x + 54.0 - 3.0
+		avatar_rect.offset_top = INFO_PANEL_MARGIN + 3.0
+		avatar_rect.offset_bottom = INFO_PANEL_MARGIN + 54.0 - 3.0
 
-	# ---- 确保全部显示触发（第一次调用时） ----
+	# ---- 4. 触发显示 ----
 	if not panel.visible:
 		PanelRevealer.show_panel(panel)
 	if avatar_visible and not avatar_bg.visible:
 		PanelRevealer.show_panel(avatar_bg)
 		PanelRevealer.show_panel(avatar_rect)
+
+
+func _on_request_hide_info():
+	PanelRevealer.hide_panel(info_panel)
+	var avatar_rect := get_node_or_null("Info/AvatarRect") as TextureRect
+	var avatar_bg := get_node_or_null("Info/AvatarBg") as Panel
+	_hide_avatar(avatar_rect, avatar_bg)
 
 
 func _show_avatar(avatar_rect: TextureRect, bg_rect: Panel):
