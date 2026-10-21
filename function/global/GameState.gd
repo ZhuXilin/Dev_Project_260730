@@ -38,6 +38,10 @@ var equipped_passives : Array:
 	get: return party_state.equipped_passives
 	set(value): party_state.equipped_passives = value
 
+var unlocked_avatars : Dictionary:
+	get: return resource_state.unlocked_avatars
+	set(value): resource_state.unlocked_avatars = value
+
 func init_passive_slots(): party_state.init_passive_slots()
 func get_passives() -> Array: return party_state.get_passives()
 func set_passive_at_slot(idx: int, value): party_state.set_passive_at_slot(idx, value)
@@ -653,3 +657,22 @@ func remove_aura_candidate(aid: String):
 
 
 func apply_relic_stats_to_unit(_unit_data: UnitData): pass
+
+
+# 获取单位最终显示的头像
+func get_unit_avatar(unit_name: String) -> String:
+	# 1. 优先检查是否被事件替换过
+	if unlocked_avatars.has(unit_name):
+		return unlocked_avatars[unit_name]
+	# 2. 其次检查基础配置
+	var dict = UnitDataManager.get_unit_data(unit_name)
+	return dict.get("avatar", "")
+
+# 替换头像
+func set_unit_avatar(unit_name: String, avatar_id: String):
+	unlocked_avatars[unit_name] = avatar_id
+	SaveManager.auto_save()
+	# 如果当前战场有这个单位，实时刷新
+	for u in UnitManager.unit_list:
+		if u.unit_stats.unit_name == unit_name:
+			u.unit_stats.avatar = avatar_id

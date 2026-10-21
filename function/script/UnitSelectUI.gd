@@ -106,11 +106,15 @@ func _setup_unit_buttons():
 func _on_unit_hover(unit_name: String):
 	if not info_name: return
 	_info_ref_unit_type = unit_name
+	
+	var avatar_rect = get_node_or_null("InfoPanel/InfoVBox/AvatarRect") as TextureRect
+	var avatar_bg = get_node_or_null("InfoPanel/InfoVBox/AvatarBg") as Panel
 
 	if FlavorManager.is_narrative_mode():
 		var flavor : String = FlavorManager.get_flavor("units", unit_name)
 		if flavor == "":
 			flavor = "（暂无叙事）"
+		_update_avatar(unit_name, avatar_rect, avatar_bg)
 		info_name.text = ""
 		info_stats.text = ""
 		info_desc.text = flavor
@@ -118,10 +122,14 @@ func _on_unit_hover(unit_name: String):
 
 	var unit_dict = UnitDataManager.get_unit_data(unit_name)
 	if unit_dict.is_empty():
+		_update_avatar("", avatar_rect, avatar_bg)
 		info_name.text = "（无数据）"
 		info_stats.text = ""
 		info_desc.text = "该单位在 unit_data.json 中未定义。"
 		return
+
+	# --- 刷新头像 ---
+	_update_avatar(unit_name, avatar_rect, avatar_bg)
 
 	var display = unit_dict.get("display_name", unit_name)
 	var faction = unit_dict.get("faction", "无")
@@ -149,6 +157,11 @@ func _on_unit_hover(unit_name: String):
 func _on_unit_hover_exit():
 	_info_ref_unit_type = ""
 	if not info_name: return
+	
+	var avatar_rect = get_node_or_null("InfoPanel/InfoVBox/AvatarRect") as TextureRect
+	var avatar_bg = get_node_or_null("InfoPanel/InfoVBox/AvatarBg") as Panel
+	_update_avatar("", avatar_rect, avatar_bg)
+	
 	info_name.text = "选择单位查看详情"
 	info_stats.text = ""
 	info_desc.text = ""
@@ -200,6 +213,38 @@ func _update_labels():
 		else:
 			labels[i].text = slots[i] + ": (未选择)"
 	confirm_btn.disabled = selected_units.size() < max_selection
+
+
+func _update_avatar(unit_name: String, avatar_rect: TextureRect, avatar_bg: Panel):
+	if not avatar_rect or not avatar_bg: return
+	
+	if unit_name == "":
+		if avatar_bg.visible: PanelRevealer.hide_panel(avatar_bg)
+		if avatar_rect.visible: PanelRevealer.hide_panel(avatar_rect)
+		return
+
+	var avatar_id = GameState.get_unit_avatar(unit_name)
+	var has_avatar = false
+	
+	if avatar_id != "":
+		var path = "res://content/images/characters/avatar/%s.png" % avatar_id
+		if ResourceLoader.exists(path):
+			avatar_rect.texture = load(path)
+			has_avatar = true
+			
+	if has_avatar:
+		avatar_rect.custom_minimum_size = Vector2(50, 50)
+		avatar_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		
+		if not avatar_bg.visible:
+			avatar_bg.visible = true
+			PanelRevealer.show_panel(avatar_bg)
+		if not avatar_rect.visible:
+			avatar_rect.visible = true
+			PanelRevealer.show_panel(avatar_rect)
+	else:
+		if avatar_bg.visible: PanelRevealer.hide_panel(avatar_bg)
+		if avatar_rect.visible: PanelRevealer.hide_panel(avatar_rect)
 
 
 # ============================================================

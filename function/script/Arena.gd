@@ -62,7 +62,7 @@ var _info_ref_unit_type : String = ""
 # ============================================================
 @onready var unit_list : VBoxContainer = $Panel/VBox/MainHBox/UnitListScroll/UnitList
 @onready var selected_unit_label : Label = $Panel/VBox/MainHBox/CenterPanel/SelectedUnitLabel
-@onready var unit_stats_label : Label = $Panel/VBox/MainHBox/CenterPanel/UnitStatsPanel/UnitStatsLabel
+@onready var unit_stats_label : Label = $Panel/VBox/MainHBox/CenterPanel/UnitStatsPanel/ScrollContainer/VBox/UnitStatsLabel
 @onready var info_label : Label = $Panel/VBox/MainHBox/CenterPanel/InfoLabel
 @onready var streak_label : Label = $Panel/VBox/MainHBox/CenterPanel/StreakLabel
 @onready var start_btn : Button = $Panel/VBox/BottomBar/StartBtn
@@ -146,10 +146,13 @@ func _on_unit_selected(unit_type: String):
 #  悬停显示单位属性（★ 碎片化叙事：按模式分支）
 # ============================================================
 func _on_unit_hover(unit_type: String):
-	if _phase != Phase.IDLE:
-		return
+	if _phase != Phase.IDLE: return
 	_info_ref_unit_type = unit_type
+	
+	# 1. 刷新头像
+	_update_avatar(unit_type)
 
+	# 2. 刷新文字
 	if FlavorManager.is_narrative_mode():
 		var flavor : String = FlavorManager.get_flavor("units", unit_type)
 		if flavor == "":
@@ -160,10 +163,10 @@ func _on_unit_hover(unit_type: String):
 
 	_refresh_unit_stats(unit_type)
 
-
 func _on_unit_hover_exit():
 	_info_ref_unit_type = ""
 	if _current_player_data:
+		_update_avatar(_current_player_data.unit_name)
 		if FlavorManager.is_narrative_mode():
 			var flavor : String = FlavorManager.get_flavor("units", _current_player_data.unit_name)
 			if flavor == "":
@@ -175,6 +178,52 @@ func _on_unit_hover_exit():
 	else:
 		if unit_stats_label:
 			unit_stats_label.text = ""
+		_update_avatar("") # 传入空字符串隐藏头像
+
+func _refresh_center_panel():
+	if not _current_player_data:
+		selected_unit_label.text = "（未选择单位）"
+		if unit_stats_label:
+			unit_stats_label.text = ""
+		info_label.text = ""
+		_update_avatar("")
+		return
+
+	var display : String = UnitDataManager.get_unit_type_display_name(_current_player_data.unit_name)
+	var slots : int = _current_player_data.max_armor_slots
+	selected_unit_label.text = "%s  HP %d/%d  防具槽 %d" % [
+		display, _current_player_data.hit_points, _current_player_data.max_hp, slots
+	]
+
+	# 刷新头像
+	_update_avatar(_current_player_data.unit_name)
+
+	# 刷新文本
+	if FlavorManager.is_narrative_mode():
+		var flavor : String = FlavorManager.get_flavor("units", _current_player_data.unit_name)
+		if flavor == "":
+			flavor = "（暂无叙事）"
+		if unit_stats_label:
+			unit_stats_label.text = flavor
+	else:
+		_refresh_unit_stats(_current_player_data.unit_name)
+
+	# 刷新目标词条信息
+	var talent_id : String = GameState.arena_target_talents.get(_current_player_data.unit_name, "")
+	if talent_id != "":
+		var data : TalentData = TalentManager.get_talent_data(talent_id)
+		if data:
+			var lv : int = TalentManager.get_talent_level(_current_player_data.unit_name, talent_id)
+			if TalentManager.is_talent_max_level(_current_player_data.unit_name, talent_id):
+				info_label.text = "目标词条：Lv.%d %s（MAX）" % [lv, data.display_name]
+			else:
+				var cur_exp : int = TalentManager.get_talent_exp_in_level(_current_player_data.unit_name, talent_id)
+				var need_exp : int = TalentManager.get_level_required_exp(_current_player_data.unit_name, talent_id)
+				info_label.text = "目标词条：Lv.%d %s（%d/%d）" % [lv, data.display_name, cur_exp, need_exp]
+		else:
+			info_label.text = ""
+	else:
+		info_label.text = "目标词条：未设置（可在商店配置）"
 
 
 func _refresh_unit_stats(unit_type: String):
@@ -198,61 +247,7 @@ func _refresh_unit_stats(unit_type: String):
 	lines.append(dict.get("description", ""))
 
 	unit_stats_label.text = "\n".join(lines)
-
-
-func _input(event: InputEvent):
-	# ★ 碎片化叙事：hover 单位按钮上右键切换
-	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT:
-		if _info_ref_unit_type != "":
-			Globals.toggle_info_mode()
-			_on_unit_hover(_info_ref_unit_type)
-			get_viewport().set_input_as_handled()
-			return
-
-
-# ============================================================
-#  显示刷新（★ 碎片化叙事：属性面板按模式分支）
-# ============================================================
-func _refresh_center_panel():
-	if not _current_player_data:
-		selected_unit_label.text = "（未选择单位）"
-		if unit_stats_label:
-			unit_stats_label.text = ""
-		info_label.text = ""
-		return
-
-	var display : String = UnitDataManager.get_unit_type_display_name(_current_player_data.unit_name)
-	var slots : int = _current_player_data.max_armor_slots
-	selected_unit_label.text = "%s  HP %d/%d  防具槽 %d" % [
-		display, _current_player_data.hit_points, _current_player_data.max_hp, slots
-	]
-
-	# ★ 碎片化叙事：属性面板默认展示也跟随当前模式
-	if FlavorManager.is_narrative_mode():
-		var flavor : String = FlavorManager.get_flavor("units", _current_player_data.unit_name)
-		if flavor == "":
-			flavor = "（暂无叙事）"
-		if unit_stats_label:
-			unit_stats_label.text = flavor
-	else:
-		_refresh_unit_stats(_current_player_data.unit_name)
-
-	var talent_id : String = GameState.arena_target_talents.get(_current_player_data.unit_name, "")
-	if talent_id != "":
-		var data : TalentData = TalentManager.get_talent_data(talent_id)
-		if data:
-			var lv : int = TalentManager.get_talent_level(_current_player_data.unit_name, talent_id)
-			if TalentManager.is_talent_max_level(_current_player_data.unit_name, talent_id):
-				info_label.text = "目标词条：Lv.%d %s（MAX）" % [lv, data.display_name]
-			else:
-				var cur_exp : int = TalentManager.get_talent_exp_in_level(_current_player_data.unit_name, talent_id)
-				var need_exp : int = TalentManager.get_level_required_exp(_current_player_data.unit_name, talent_id)
-				info_label.text = "目标词条：Lv.%d %s（%d/%d）" % [lv, data.display_name, cur_exp, need_exp]
-		else:
-			info_label.text = ""
-	else:
-		info_label.text = "目标词条：未设置（可在商店配置）"
-
+	
 
 func _refresh_streak_label():
 	var gold_hint : String = "（退出失效）"
@@ -1058,3 +1053,76 @@ func _open_hero_shrine():
 	hero_shrine.setup_arena(self, _current_player_data)
 	await hero_shrine.closed
 	print("[Arena] 英灵殿关闭")
+
+
+# 用于挂载/更新头像和文字
+func _update_unit_display_info(unit_type: String, stats_text: String, avatar_bg: Panel, avatar_rect: TextureRect, stats_label: Label):
+	# 1. 设置文字
+	if stats_label:
+		stats_label.text = stats_text
+
+	# 2. 判断是否显示头像（支持全局头像覆写）
+	var avatar_id = GameState.get_unit_avatar(unit_type)
+	var has_avatar = false
+	
+	if avatar_id != "":
+		var path = "res://content/images/characters/avatar/%s.png" % avatar_id
+		if ResourceLoader.exists(path):
+			avatar_rect.texture = load(path)
+			has_avatar = true
+			
+	# 3. 控制显示/隐藏与排版
+	if has_avatar:
+		# 设置 50x50 留边：容器是 54x54，内边距 2px
+		avatar_rect.custom_minimum_size = Vector2(50, 50)
+		avatar_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		avatar_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		
+		# 用 PanelRevealer 刷出
+		if not avatar_bg.visible:
+			avatar_bg.visible = true
+			PanelRevealer.show_panel(avatar_bg)
+		if not avatar_rect.visible:
+			avatar_rect.visible = true
+			PanelRevealer.show_panel(avatar_rect)
+	else:
+		# 没头像就隐藏
+		if avatar_bg.visible:
+			PanelRevealer.hide_panel(avatar_bg)
+		if avatar_rect.visible:
+			PanelRevealer.hide_panel(avatar_rect)
+
+
+func _update_avatar(unit_type: String):
+	var avatar_bg := get_node_or_null("Panel/VBox/MainHBox/CenterPanel/UnitStatsPanel/ScrollContainer/VBox/AvatarBg") as Panel
+	var avatar_rect := get_node_or_null("Panel/VBox/MainHBox/CenterPanel/UnitStatsPanel/ScrollContainer/VBox/AvatarRect") as TextureRect
+	
+	if not avatar_bg or not avatar_rect: return
+
+	var avatar_id = GameState.get_unit_avatar(unit_type)
+	var has_avatar = false
+	
+	if avatar_id != "":
+		var path = "res://content/images/characters/avatar/%s.png" % avatar_id
+		if ResourceLoader.exists(path):
+			avatar_rect.texture = load(path)
+			has_avatar = true
+			
+	if has_avatar:
+		# 设置内部图片稍小，以实现 2px 的留边效果
+		avatar_rect.custom_minimum_size = Vector2(50, 50)
+		avatar_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		
+		# 走 PanelRevealer 刷新显示
+		if not avatar_bg.visible:
+			avatar_bg.visible = true
+			PanelRevealer.show_panel(avatar_bg)
+		if not avatar_rect.visible:
+			avatar_rect.visible = true
+			PanelRevealer.show_panel(avatar_rect)
+	else:
+		# 走 PanelRevealer 隐藏
+		if avatar_bg.visible:
+			PanelRevealer.hide_panel(avatar_bg)
+		if avatar_rect.visible:
+			PanelRevealer.hide_panel(avatar_rect)

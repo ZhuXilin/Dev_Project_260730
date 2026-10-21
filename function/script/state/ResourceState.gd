@@ -73,6 +73,7 @@ var npc_dialogue_flags : Array = []
 var total_run_count : int = 0
 var total_dispatch_count : int = 0
 
+var unlocked_avatars : Dictionary = {}
 
 func add_reward_item(item_id: String):
 	if item_id not in reward_items:

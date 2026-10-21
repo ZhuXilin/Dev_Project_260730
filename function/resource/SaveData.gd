@@ -116,3 +116,5 @@ const CURRENT_VERSION = 11
 @export var active_narrative_effects: Array = []
 @export var revealed_intel: Array = []
 @export var fusion_hints: Array = []
+
+@export var unlocked_avatars: Dictionary = {}

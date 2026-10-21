@@ -20,7 +20,7 @@ const BOSS_NODE_TYPE = 6
 @onready var camera_controller : CameraController = $Camera2D
 @onready var menu_blocker : ColorRect = $MenuBlocker
 @onready var info_panel : PanelContainer = $Info/InfoPanel
-@onready var info_text_label : Label = $Info/InfoPanel/InfoTextLabel
+@onready var info_text_label : Label = $Info/InfoPanel/VBox/InfoTextLabel
 
 @onready var setting_panel : PanelContainer = $SettingBar/SettingPanel
 @onready var back_camp_btn : Button = $SettingBar/SettingPanel/SettingContainer/BackCampBtn
@@ -45,6 +45,11 @@ const BOSS_NODE_TYPE = 6
 
 const PERFORMANCE_DURATION : float = 0.5
 const ItemGetPopupScene = preload(Config.PATHS.ITEM_GET_POPUP)
+const INFO_PANEL_WIDTH : float = 72.0
+const INFO_PANEL_MARGIN : float = 8.0
+
+const AVATAR_SIZE : float = 54.0
+const AVATAR_GAP : float = 4.0
 
 var _map_loader : MapLoader = null
 var _non_combat_handler : NonCombatHandler = null
@@ -701,8 +706,15 @@ func _on_request_damage_popup(world_pos: Vector2, damage: int, is_crit: bool, is
 #  InfoPanel (纯数值版)
 # ============================================================
 func _on_request_show_info(unit: Unit):
+	var avatar_rect := get_node_or_null("Info/AvatarRect") as TextureRect
+	var avatar_bg := get_node_or_null("Info/AvatarBg") as Panel
+
+	# ==========================================
+	# 1. 地形信息 (unit == null)
+	# ==========================================
 	if unit == null:
-		# ---- 地形信息显示 ----
+		_hide_avatar(avatar_rect, avatar_bg)
+		
 		var mouse_pos = get_global_mouse_position()
 		var t_cell = world_to_grid(mouse_pos)
 		var t_type = TerrainManager.get_terrain(t_cell)
@@ -710,7 +722,6 @@ func _on_request_show_info(unit: Unit):
 		var t_def = TerrainManager.TERRAIN_DATA[t_type]["def_bonus"]
 		var t_mdef = TerrainManager.TERRAIN_DATA[t_type]["magic_defense_bonus"]
 		var t_avoid = TerrainManager.TERRAIN_DATA[t_type]["avoid_bonus"]
-		
 		info_text_label.text = "地形: " + t_name \
 			+ "\n防御+" + str(t_def) \
 			+ " 魔防+" + str(t_mdef) \
@@ -718,19 +729,37 @@ func _on_request_show_info(unit: Unit):
 		_adjust_info_panel(info_text_label, info_panel, null)
 		return
 
-	if not is_instance_valid(unit):
+	if not is_instance_valid(unit) or unit.unit_stats == null:
 		return
 
-	if unit.unit_stats == null:
-		return
+	# ==========================================
+	# 2. 头像显示逻辑 (敌人不显示，玩家显示带底色)
+	# ==========================================
+	if avatar_rect and avatar_bg:
+		if unit.unit_stats.team_id != 0:
+			# 敌人/中立：隐藏头像和底板
+			_hide_avatar(avatar_rect, avatar_bg)
+		else:
+			# 玩家：判断是否有头像并显示
+			var avatar_id = GameState.get_unit_avatar(unit.unit_stats.unit_name)
+			var path := ""
+			if avatar_id != "":
+				path = "res://content/images/characters/avatar/%s.png" % avatar_id
+				
+			if path != "" and ResourceLoader.exists(path):
+				avatar_rect.texture = load(path)
+				_show_avatar(avatar_rect, avatar_bg)
+			else:
+				# 玩家但没找到对应图片资源时，隐藏
+				_hide_avatar(avatar_rect, avatar_bg)
 
-	# ---- 单位信息显示 ----
+	# ==========================================
+	# 3. 文本拼接与刷新
+	# ==========================================
 	var lines : Array = []
-
 	var display_name = unit.unit_stats.display_name if unit.unit_stats.display_name != "" else unit.unit_stats.unit_name
 	var type_name = UnitDataManager.get_unit_type_display_name(unit.unit_stats.unit_name)
 	lines.append(display_name + " | " + unit.unit_stats.faction + " | " + type_name)
-
 	lines.append("HP: " + str(unit.hit_points) + "/" + str(unit.unit_stats.max_hp))
 
 	var status_str : String = ""
@@ -802,37 +831,46 @@ func _on_request_show_info(unit: Unit):
 	lines.append("地形: " + terrain_name)
 
 	info_text_label.text = "\n".join(lines)
+	
+	# ==========================================
+	# 4. 调用自适应位置计算
+	# ==========================================
 	_adjust_info_panel(info_text_label, info_panel, unit)
 
 
 func _on_request_hide_info():
 	PanelRevealer.hide_panel(info_panel)
+	var avatar_rect := get_node_or_null("Info/AvatarRect") as TextureRect
+	var avatar_bg := get_node_or_null("Info/AvatarBg") as Panel
+	_hide_avatar(avatar_rect, avatar_bg)
 
 
 # ============================================================
 #  InfoPanel 位置 + 高度
 # ============================================================
-const INFO_PANEL_WIDTH : float = 72.0
-const INFO_PANEL_MARGIN : float = 8.0
-
 func _adjust_info_panel(label: Label, panel: PanelContainer, ref_unit: Unit = null):
 	var vp_size := get_viewport().get_visible_rect().size
+	var avatar_rect := get_node_or_null("Info/AvatarRect") as TextureRect
+	var avatar_bg := get_node_or_null("Info/AvatarBg") as Panel
+	var avatar_visible : bool = (avatar_rect != null and avatar_rect.visible)
 
+	# ---- 信息框贴哪边 ----
+	var align_left_side : bool = false
 	if ref_unit != null and is_instance_valid(ref_unit):
 		var xform := get_viewport().get_canvas_transform()
 		var screen_x : float = (xform * ref_unit.global_position).x
-		if screen_x < vp_size.x * 0.5:
-			panel.offset_right = vp_size.x - INFO_PANEL_MARGIN
-			panel.offset_left = panel.offset_right - INFO_PANEL_WIDTH
-		else:
-			panel.offset_left = INFO_PANEL_MARGIN
-			panel.offset_right = panel.offset_left + INFO_PANEL_WIDTH
+		align_left_side = (screen_x < vp_size.x * 0.5)
+
+	if align_left_side:
+		panel.offset_left = INFO_PANEL_MARGIN
+		panel.offset_right = panel.offset_left + INFO_PANEL_WIDTH
 	else:
 		panel.offset_right = vp_size.x - INFO_PANEL_MARGIN
 		panel.offset_left = panel.offset_right - INFO_PANEL_WIDTH
 
 	panel.offset_top = INFO_PANEL_MARGIN
 
+	# ---- 文本布局 ----
 	label.vertical_alignment = VERTICAL_ALIGNMENT_TOP
 	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -851,8 +889,48 @@ func _adjust_info_panel(label: Label, panel: PanelContainer, ref_unit: Unit = nu
 	var panel_height = label_min_height + margin_top + margin_bottom
 	panel.offset_bottom = panel.offset_top + panel_height
 
+	# ---- Avatar 底色与头像位置 (54x54) ----
+	if avatar_visible:
+		# 两个都设为 54x54
+		avatar_bg.size = Vector2(AVATAR_SIZE, AVATAR_SIZE)
+		avatar_rect.size = Vector2(AVATAR_SIZE, AVATAR_SIZE)
+
+		# 计算横向位置
+		var target_x : float
+		if align_left_side:
+			target_x = panel.offset_right + AVATAR_GAP
+		else:
+			target_x = panel.offset_left - AVATAR_GAP - AVATAR_SIZE
+
+		# 应用横向和纵向（上端对齐 info 面板上沿）
+		for ctrl in [avatar_bg, avatar_rect]:
+			ctrl.offset_left = target_x
+			ctrl.offset_right = target_x + AVATAR_SIZE
+			ctrl.offset_top = INFO_PANEL_MARGIN
+			ctrl.offset_bottom = INFO_PANEL_MARGIN + AVATAR_SIZE
+
+	# ---- 确保全部显示触发（第一次调用时） ----
 	if not panel.visible:
 		PanelRevealer.show_panel(panel)
+	if avatar_visible and not avatar_bg.visible:
+		PanelRevealer.show_panel(avatar_bg)
+		PanelRevealer.show_panel(avatar_rect)
+
+
+func _show_avatar(avatar_rect: TextureRect, bg_rect: Panel):
+	if avatar_rect and is_instance_valid(avatar_rect):
+		avatar_rect.visible = true
+		PanelRevealer.show_panel(avatar_rect)
+	if bg_rect and is_instance_valid(bg_rect):
+		bg_rect.visible = true
+		PanelRevealer.show_panel(bg_rect)
+
+
+func _hide_avatar(avatar_rect: TextureRect, bg_rect: Panel):
+	if avatar_rect and is_instance_valid(avatar_rect):
+		PanelRevealer.hide_panel(avatar_rect)
+	if bg_rect and is_instance_valid(bg_rect):
+		PanelRevealer.hide_panel(bg_rect)
 
 
 # ============================================================
@@ -1331,3 +1409,41 @@ func _show_objective_banner():
 		if _objective_banner == lb:
 			_objective_banner = null
 	)
+
+
+# 用于挂载/更新头像和文字
+func _update_unit_display_info(unit_type: String, stats_text: String, avatar_bg: Panel, avatar_rect: TextureRect, stats_label: Label):
+	# 1. 设置文字
+	if stats_label:
+		stats_label.text = stats_text
+
+	# 2. 判断是否显示头像（支持全局头像覆写）
+	var avatar_id = GameState.get_unit_avatar(unit_type)
+	var has_avatar = false
+	
+	if avatar_id != "":
+		var path = "res://content/images/characters/avatar/%s.png" % avatar_id
+		if ResourceLoader.exists(path):
+			avatar_rect.texture = load(path)
+			has_avatar = true
+			
+	# 3. 控制显示/隐藏与排版
+	if has_avatar:
+		# 设置 50x50 留边：容器是 54x54，内边距 2px
+		avatar_rect.custom_minimum_size = Vector2(50, 50)
+		avatar_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		avatar_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		
+		# 用 PanelRevealer 刷出
+		if not avatar_bg.visible:
+			avatar_bg.visible = true
+			PanelRevealer.show_panel(avatar_bg)
+		if not avatar_rect.visible:
+			avatar_rect.visible = true
+			PanelRevealer.show_panel(avatar_rect)
+	else:
+		# 没头像就隐藏
+		if avatar_bg.visible:
+			PanelRevealer.hide_panel(avatar_bg)
+		if avatar_rect.visible:
+			PanelRevealer.hide_panel(avatar_rect)

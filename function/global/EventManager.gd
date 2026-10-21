@@ -47,8 +47,6 @@ func register_event(event_id: String, event_def: Dictionary):
 		print("事件已存在，跳过注册: ", event_id)
 
 
-# function/global/EventManager.gd
-
 func trigger_event(event_id: String, unit: Unit = null, _default_music: AudioStream = null):
 	if not _events.has(event_id):
 		push_error("未知事件: ", event_id)
@@ -160,7 +158,6 @@ func trigger_event(event_id: String, unit: Unit = null, _default_music: AudioStr
 			"wait":
 				await get_tree().create_timer(float(action.get("seconds", 0.5))).timeout
 
-			# ★ v4.5：补齐 DataValidator 中声明但未实现的 4 种 action
 			"unlock_unit":
 				var units_arr : Array = action.get("units", [])
 				for u in units_arr:
@@ -185,6 +182,15 @@ func trigger_event(event_id: String, unit: Unit = null, _default_music: AudioStr
 				var rids : Array = action.get("relics", [])
 				if not rids.is_empty():
 					RelicManager.unlock_relics_by_ids(rids)
+				await get_tree().create_timer(0.2).timeout
+
+			# ★ 新增：头像替换事件
+			"unlock_avatar":
+				var target_unit : String = str(action.get("unit_name", ""))
+				var new_avatar : String = str(action.get("avatar_id", ""))
+				if target_unit != "" and new_avatar != "":
+					GameState.set_unit_avatar(target_unit, new_avatar)
+					print("[Event] 单位 %s 头像已更新为 %s" % [target_unit, new_avatar])
 				await get_tree().create_timer(0.2).timeout
 
 			_:

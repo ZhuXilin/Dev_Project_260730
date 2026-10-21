@@ -91,7 +91,32 @@ layout_mode = 2
 size_flags_vertical = 3
 theme_override_styles/panel = ExtResource("2_style")
 
-[node name="UnitStatsLabel" type="Label" parent="Panel/VBox/MainHBox/CenterPanel/UnitStatsPanel" unique_id=1148970145]
+[node name="ScrollContainer" type="ScrollContainer" parent="Panel/VBox/MainHBox/CenterPanel/UnitStatsPanel" unique_id=1148970145]
+layout_mode = 2
+horizontal_scroll_mode = 0
+
+[node name="VBox" type="VBoxContainer" parent="Panel/VBox/MainHBox/CenterPanel/UnitStatsPanel/ScrollContainer" unique_id=1148970146]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 4
+
+[node name="AvatarBg" type="Panel" parent="Panel/VBox/MainHBox/CenterPanel/UnitStatsPanel/ScrollContainer/VBox" unique_id=1148970147]
+visible = false
+custom_minimum_size = Vector2(54, 54)
+layout_mode = 2
+size_flags_horizontal = 4
+theme_override_styles/panel = ExtResource("2_style")
+
+[node name="AvatarRect" type="TextureRect" parent="Panel/VBox/MainHBox/CenterPanel/UnitStatsPanel/ScrollContainer/VBox" unique_id=1148970148]
+visible = false
+custom_minimum_size = Vector2(50, 50)
+layout_mode = 2
+size_flags_horizontal = 4
+size_flags_vertical = 4
+expand_mode = 1
+stretch_mode = 5
+
+[node name="UnitStatsLabel" type="Label" parent="Panel/VBox/MainHBox/CenterPanel/UnitStatsPanel/ScrollContainer/VBox" unique_id=1148970149]
 layout_mode = 2
 theme_override_font_sizes/font_size = 7
 horizontal_alignment = 1

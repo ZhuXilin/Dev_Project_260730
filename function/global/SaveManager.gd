@@ -130,7 +130,8 @@ func _build_save_data() -> SaveData:
 	save.unlocked_talents = Globals.unlocked_talents.duplicate()
 	save.unlocked_recipes = GameState.unlocked_recipes.duplicate()
 	save.unlocked_stories = GameState.unlocked_stories.duplicate()
-
+	save.unlocked_avatars = GameState.unlocked_avatars.duplicate()
+	
 	save.eligible_units = GameState.eligible_units.duplicate()
 	save.current_node_unlock_relics = GameState.current_node_unlock_relics.duplicate()
 	save.current_node_unlock_units = GameState.current_node_unlock_units.duplicate()
@@ -237,7 +238,8 @@ func _apply_save_data(save: SaveData):
 	RelicManager.set_unlocked_relics(_safe_array(save.unlocked_relics))
 	Globals.unlocked_units = _filter_valid_unit_keys(_safe_array(save.unlocked_units))
 	Globals.unlocked_items = _safe_array(save.unlocked_items)
-
+	GameState.unlocked_avatars = _safe_dict(save.unlocked_avatars)
+	
 	if Globals.unlocked_units.is_empty():
 		print("[SaveManager] unlocked_units 为空，回退默认解锁")
 		Globals._load_unlock_config()

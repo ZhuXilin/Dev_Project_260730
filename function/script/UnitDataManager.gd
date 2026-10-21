@@ -189,6 +189,7 @@ static func create_unit_data(unit_name: String) -> UnitData:
 				data.tags.append(t)
 
 	data.core_trait = dict.get("core_trait", "")
+	data.avatar = dict.get("avatar", "")
 
 	var default_weapon = get_default_weapon_id(key)
 	if default_weapon != "":
