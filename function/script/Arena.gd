@@ -34,7 +34,7 @@ static var _arena_enemy_cache : Dictionary = {}
 
 @onready var unit_list : VBoxContainer = $Panel/VBox/MainHBox/UnitListScroll/UnitList
 @onready var selected_unit_label : Label = $Panel/VBox/MainHBox/CenterPanel/SelectedUnitLabel
-@onready var unit_stats_label : Label = $Panel/VBox/MainHBox/CenterPanel/UnitStatsPanel/ScrollContainer/VBox/UnitStatsLabel
+@onready var info_panel = $Panel/InfoPanelContainer
 @onready var info_label : Label = $Panel/VBox/MainHBox/CenterPanel/InfoLabel
 @onready var streak_label : Label = $Panel/VBox/MainHBox/CenterPanel/StreakLabel
 @onready var start_btn : Button = $Panel/VBox/BottomBar/StartBtn
@@ -57,8 +57,7 @@ func _ready():
 func _input(event: InputEvent):
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT:
 		if _info_ref_unit_type != "":
-			Globals.toggle_info_mode()
-			_on_unit_hover(_info_ref_unit_type)
+			info_panel.toggle_mode()
 			get_viewport().set_input_as_handled()
 			return
 
@@ -633,69 +632,27 @@ func _on_unit_selected(unit_type: String):
 func _on_unit_hover(unit_type: String):
 	if _phase != Phase.IDLE: return
 	_info_ref_unit_type = unit_type
-	_update_avatar(unit_type)
-	if FlavorManager.is_narrative_mode():
-		var flavor : String = FlavorManager.get_flavor("units", unit_type)
-		if flavor == "": flavor = "（暂无叙事）"
-		if unit_stats_label: unit_stats_label.text = flavor
-		return
-	_refresh_unit_stats(unit_type)
+	info_panel.set_unit(unit_type)
 
 func _on_unit_hover_exit():
 	_info_ref_unit_type = ""
 	if _current_player_data:
-		_update_avatar(_current_player_data.unit_name)
-		if FlavorManager.is_narrative_mode():
-			var flavor : String = FlavorManager.get_flavor("units", _current_player_data.unit_name)
-			if flavor == "": flavor = "（暂无叙事）"
-			if unit_stats_label: unit_stats_label.text = flavor
-		else:
-			_refresh_unit_stats(_current_player_data.unit_name)
+		info_panel.set_unit(_current_player_data.unit_name)
 	else:
-		if unit_stats_label: unit_stats_label.text = ""
-		_update_avatar("")
-
-func _refresh_unit_stats(unit_type: String):
-	if not unit_stats_label: return
-	var dict : Dictionary = UnitDataManager.get_unit_data(unit_type)
-	if dict.is_empty():
-		unit_stats_label.text = ""
-		return
-
-	var lines : Array = []
-	lines.append("HP      %d" % dict.get("max_hp", 0))
-	lines.append("力量    %d" % dict.get("strength", 0))
-	lines.append("灵巧    %d" % dict.get("dexterity", 0))
-	lines.append("智力    %d" % dict.get("intelligence", 0))
-	lines.append("信仰    %d" % dict.get("faith", 0))
-	lines.append("感应    %d" % dict.get("arcane", 0))
-	lines.append("移动力  %d" % dict.get("move_range", 0))
-	lines.append("")
-	lines.append(dict.get("description", ""))
-
-	unit_stats_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-	unit_stats_label.text = "\n".join(lines)
+		info_panel.clear_info()
 
 func _refresh_center_panel():
 	if not _current_player_data:
 		selected_unit_label.text = "（未选择单位）"
-		if unit_stats_label: unit_stats_label.text = ""
 		info_label.text = ""
-		_update_avatar("")
+		info_panel.clear_info()
 		return
 
 	var display : String = UnitDataManager.get_unit_type_display_name(_current_player_data.unit_name)
 	var slots : int = _current_player_data.max_armor_slots
 	selected_unit_label.text = "%s  HP %d/%d  防具槽 %d" % [display, _current_player_data.hit_points, _current_player_data.max_hp, slots]
 
-	_update_avatar(_current_player_data.unit_name)
-
-	if FlavorManager.is_narrative_mode():
-		var flavor : String = FlavorManager.get_flavor("units", _current_player_data.unit_name)
-		if flavor == "": flavor = "（暂无叙事）"
-		if unit_stats_label: unit_stats_label.text = flavor
-	else:
-		_refresh_unit_stats(_current_player_data.unit_name)
+	info_panel.set_unit(_current_player_data.unit_name)
 
 	var talent_id : String = GameState.arena_target_talents.get(_current_player_data.unit_name, "")
 	if talent_id != "":
@@ -712,39 +669,6 @@ func _refresh_center_panel():
 			info_label.text = ""
 	else:
 		info_label.text = "目标词条：未设置（可在商店配置）"
-
-func _update_avatar(unit_type: String):
-	var bg = get_node_or_null("Panel/VBox/MainHBox/CenterPanel/UnitStatsPanel/ScrollContainer/VBox/AvatarBg") as Panel
-	var rect = get_node_or_null("Panel/VBox/MainHBox/CenterPanel/UnitStatsPanel/ScrollContainer/VBox/AvatarRect") as TextureRect
-	if not bg or not rect: return
-	
-	if unit_type == "":
-		if bg.visible: PanelRevealer.hide_panel(bg)
-		if rect.visible: PanelRevealer.hide_panel(rect)
-		return
-
-	var avatar_id = GameState.get_unit_avatar(unit_type)
-	var has_avatar = false
-	if avatar_id != "":
-		var path = "res://content/images/characters/avatar/%s.png" % avatar_id
-		if ResourceLoader.exists(path):
-			rect.texture = load(path)
-			has_avatar = true
-			
-	if has_avatar:
-		rect.custom_minimum_size = Vector2(48, 48)
-		rect.size = Vector2(48, 48)
-		rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-		
-		if not bg.visible:
-			bg.visible = true
-			PanelRevealer.show_panel(bg)
-		if not rect.visible:
-			rect.visible = true
-			PanelRevealer.show_panel(rect)
-	else:
-		if bg.visible: PanelRevealer.hide_panel(bg)
-		if rect.visible: PanelRevealer.hide_panel(rect)
 
 func _refresh_streak_label():
 	var gold_hint : String = "（退出失效）"

@@ -2,6 +2,7 @@
 
 [ext_resource type="Script" uid="uid://ch06ikl42g0ou" path="res://function/script/Arena.gd" id="1_script"]
 [ext_resource type="StyleBox" uid="uid://6qbsaxkfwg3o" path="res://content/resource/stylebox/8bit_style_box_flat.tres" id="2_style"]
+[ext_resource type="PackedScene" path="res://content/scenes/ui/components/UnitInfoPanel.tscn" id="3_info"]
 
 [node name="Arena" type="CanvasLayer" unique_id=938146822]
 layer = 20
@@ -86,43 +87,6 @@ text = "选择单位"
 horizontal_alignment = 1
 autowrap_mode = 3
 
-[node name="UnitStatsPanel" type="PanelContainer" parent="Panel/VBox/MainHBox/CenterPanel" unique_id=1148970144]
-layout_mode = 2
-size_flags_vertical = 3
-theme_override_styles/panel = ExtResource("2_style")
-
-[node name="ScrollContainer" type="ScrollContainer" parent="Panel/VBox/MainHBox/CenterPanel/UnitStatsPanel" unique_id=1148970145]
-layout_mode = 2
-horizontal_scroll_mode = 0
-
-[node name="VBox" type="VBoxContainer" parent="Panel/VBox/MainHBox/CenterPanel/UnitStatsPanel/ScrollContainer" unique_id=1148970146]
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_constants/separation = 4
-
-[node name="AvatarBg" type="Panel" parent="Panel/VBox/MainHBox/CenterPanel/UnitStatsPanel/ScrollContainer/VBox" unique_id=1148970147]
-visible = false
-custom_minimum_size = Vector2(54, 54)
-layout_mode = 2
-size_flags_horizontal = 4
-theme_override_styles/panel = ExtResource("2_style")
-
-[node name="AvatarRect" type="TextureRect" parent="Panel/VBox/MainHBox/CenterPanel/UnitStatsPanel/ScrollContainer/VBox" unique_id=1148970148]
-visible = false
-custom_minimum_size = Vector2(48, 48)
-layout_mode = 2
-size_flags_horizontal = 4
-size_flags_vertical = 4
-expand_mode = 1
-stretch_mode = 5
-
-[node name="UnitStatsLabel" type="Label" parent="Panel/VBox/MainHBox/CenterPanel/UnitStatsPanel/ScrollContainer/VBox" unique_id=1148970149]
-layout_mode = 2
-theme_override_font_sizes/font_size = 7
-horizontal_alignment = 1
-vertical_alignment = 1
-autowrap_mode = 3
-
 [node name="InfoLabel" type="Label" parent="Panel/VBox/MainHBox/CenterPanel" unique_id=576548730]
 layout_mode = 2
 size_flags_vertical = 0
@@ -165,6 +129,21 @@ theme_override_styles/hover = ExtResource("2_style")
 theme_override_styles/disabled = ExtResource("2_style")
 theme_override_styles/focus = ExtResource("2_style")
 text = "返回"
+
+[node name="InfoPanelContainer" parent="." unique_id=1148970144 instance=ExtResource("3_info")]
+layout_mode = 3
+anchors_preset = 11
+anchor_left = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -132.0
+offset_top = 32.0
+offset_right = -16.0
+offset_bottom = -8.0
+grow_horizontal = 0
+grow_vertical = 2
+size_flags_horizontal = 1
+size_flags_vertical = 1
 
 [connection signal="pressed" from="Panel/VBox/BottomBar/StartBtn" to="." method="_on_start_pressed"]
 [connection signal="pressed" from="Panel/VBox/BottomBar/BackButton" to="." method="_on_back_pressed"]

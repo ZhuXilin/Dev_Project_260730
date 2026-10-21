@@ -235,16 +235,6 @@ func _ready():
 		SoulFireManager.soul_fire_changed.connect(_on_soul_fire_changed)
 
 
-func _input(event: InputEvent):
-	# ★ 碎片化叙事：hover 节点上右键切换
-	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT:
-		if _info_ref_node != null:
-			Globals.toggle_info_mode()
-			show_node_info(_info_ref_node)
-			get_viewport().set_input_as_handled()
-			return
-
-
 func _save_game():
 	if Globals.pending_save_slot != -1:
 		SaveManager.save_game(Globals.pending_save_slot)
@@ -919,7 +909,6 @@ func show_node_info(node: MapNode) -> void:
 		return
 	if not node:
 		return
-	# 恢复纯数值描述，移除叙事模式分支
 	info_label.text = _get_node_description(node)
 	info_panel.visible = true
 
@@ -928,20 +917,6 @@ func hide_node_info() -> void:
 	if info_panel:
 		info_panel.visible = false
 	_info_ref_node = null
-
-
-# ★ 碎片化叙事：InfoPanel 面板区右键切换
-func _on_map_info_right_click(event: InputEvent):
-	if not (event is InputEventMouseButton):
-		return
-	var mb : InputEventMouseButton = event
-	if not (mb.pressed and mb.button_index == MOUSE_BUTTON_RIGHT):
-		return
-	if _info_ref_node == null:
-		return
-	Globals.toggle_info_mode()
-	show_node_info(_info_ref_node)
-	info_panel.accept_event()
 
 
 func _get_node_description(node: MapNode) -> String:

@@ -1,4 +1,4 @@
-[gd_resource type="Resource" script_class="MapLayout" format=3 uid="uid://dlglkbw7vaux6"]
+[gd_resource type="Resource" script_class="MapLayout" format=3 uid="uid://byntvgkoeju0r"]
 
 [ext_resource type="Script" uid="uid://bxty2awrl8vnm" path="res://function/resource/MapLayout.gd" id="1_layout"]
 [ext_resource type="Script" uid="uid://4nvpnev86piy" path="res://function/resource/MapLayoutDay.gd" id="2_day"]

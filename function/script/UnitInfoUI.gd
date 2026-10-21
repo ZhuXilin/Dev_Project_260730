@@ -1,10 +1,7 @@
 extends PanelContainer
 
 @onready var unit_list = $VBoxContainer/HBoxContainer/ScrollContainer/UnitList
-@onready var sprite_container = $VBoxContainer/HBoxContainer/InfoPanel/SpriteContainer
-@onready var unit_sprite = $VBoxContainer/HBoxContainer/InfoPanel/SpriteContainer/UnitSprite
-@onready var detail_label = $VBoxContainer/HBoxContainer/InfoPanel/InfoHBox/DetailLabel
-@onready var desc_label = $VBoxContainer/HBoxContainer/InfoPanel/InfoHBox/DescLabel
+@onready var info_panel = $VBoxContainer/HBoxContainer/InfoPanel
 
 func _ready():
 	populate_list()
@@ -22,54 +19,11 @@ func populate_list():
 		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		btn.add_theme_font_size_override("font_size", 8)
 		btn.pressed.connect(_on_unit_selected.bind(unit_name))
+		btn.mouse_entered.connect(_on_unit_selected.bind(unit_name))
 		unit_list.add_child(btn)
 
 func _on_unit_selected(unit_name: String):
-	# ---- 更新精灵 ----
-	var frames_path = UnitDataManager.get_sprite_frames_path(unit_name)
-	if frames_path != "" and ResourceLoader.exists(frames_path):
-		var frames = load(frames_path) as SpriteFrames
-		if frames:
-			unit_sprite.sprite_frames = frames
-			unit_sprite.visible = true
-			if frames.has_animation("idle"):
-				unit_sprite.play("idle")
-			else:
-				var anims = frames.get_animation_names()
-				if anims.size() > 0:
-					unit_sprite.play(anims[0])
-
-			var frame = unit_sprite.sprite_frames.get_frame_texture("idle", 0)
-			if frame:
-				var sprite_size = frame.get_size()
-				# ★ 用 sprite 尺寸撑开面板，并让 sprite 居中
-				sprite_container.custom_minimum_size = sprite_size
-				unit_sprite.centered = true
-				unit_sprite.position = sprite_size / 2.0
-			else:
-				sprite_container.custom_minimum_size = Vector2.ZERO
-				unit_sprite.position = Vector2.ZERO
-		else:
-			unit_sprite.visible = false
-			sprite_container.custom_minimum_size = Vector2.ZERO
-	else:
-		unit_sprite.visible = false
-		sprite_container.custom_minimum_size = Vector2.ZERO
-
-	# ---- 更新详情标签（新5属性） ----
-	var unit_data = UnitDataManager.get_unit_data(unit_name)
-	var text = ""
-	text += "HP：%d\n" % unit_data.get("max_hp", 0)
-	text += "力量：%d\n" % unit_data.get("strength", 0)
-	text += "敏捷：%d\n" % unit_data.get("dexterity", 0)
-	text += "智力：%d\n" % unit_data.get("intelligence", 0)
-	text += "信仰：%d\n" % unit_data.get("faith", 0)
-	text += "感应：%d\n" % unit_data.get("arcane", 0)
-	text += "移动力：%d\n" % unit_data.get("move_range", 0)
-	detail_label.text = text
-
-	var desc = unit_data.get("description", "暂无描述")
-	desc_label.text = desc
+	info_panel.set_unit(unit_name)
 
 func _on_back_button_pressed():
 	queue_free()

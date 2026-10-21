@@ -3,7 +3,7 @@ extends CanvasLayer
 var selected_units: Array[String] = []
 var max_selection: int = 3
 var _equipment_config_instance = null
-var _info_ref_unit_type : String = ""
+var _hover_unit : String = ""
 
 @onready var unit_buttons = $UnitListContainer/VBoxContainer
 @onready var main_label = $MainUnitLabel
@@ -11,15 +11,9 @@ var _info_ref_unit_type : String = ""
 @onready var slot2_label = $Slot2Label
 @onready var confirm_btn = $BottomBar/ConfirmButton
 @onready var back_btn = $BottomBar/BackButton
-
-@onready var info_name  : Label = $InfoPanel/InfoVBox/InfoName
-@onready var info_stats : Label = $InfoPanel/InfoVBox/Scroll/ContentVBox/InfoStats
-@onready var info_desc  : Label = $InfoPanel/InfoVBox/Scroll/ContentVBox/InfoDesc
-@onready var avatar_rect = $InfoPanel/InfoVBox/AvatarRect as TextureRect
-@onready var avatar_bg = $InfoPanel/InfoVBox/AvatarBg as Panel
+@onready var info_panel = $InfoPanelContainer
 
 const EquipmentConfig = preload(Config.PATHS.EQUIPMENT_CONFIG_SCRIPT)
-
 const COLOR_DISPATCHED : Color = Color(0.4, 0.4, 0.4, 1)
 const COLOR_DISABLED   : Color = Color(0.5, 0.5, 0.5, 1)
 const COLOR_NORMAL     : Color = Color.WHITE
@@ -27,19 +21,16 @@ const COLOR_NORMAL     : Color = Color.WHITE
 func _ready():
 	if MusicManager.config and MusicManager.config.unit_select_music:
 		MusicManager.play_music(MusicManager.config.unit_select_music)
-
 	_make_label_clickable(main_label, 0)
 	_make_label_clickable(slot1_label, 1)
 	_make_label_clickable(slot2_label, 2)
-
 	_setup_unit_buttons()
 	_update_labels()
 
 func _input(event: InputEvent):
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT:
-		if _info_ref_unit_type != "":
-			Globals.toggle_info_mode()
-			_update_display_info(_info_ref_unit_type)
+		if _hover_unit != "":
+			info_panel.toggle_mode()
 			get_viewport().set_input_as_handled()
 			return
 
@@ -49,156 +40,43 @@ func _make_label_clickable(label: Label, index: int):
 		if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
 			_on_slot_clicked(index)
 	)
-	label.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 
 func _setup_unit_buttons():
-	for child in unit_buttons.get_children():
-		child.queue_free()
-
-	var unlocked = Globals.get_unlocked_units()
-	unlocked.sort()
+	for child in unit_buttons.get_children(): child.queue_free()
+	var unlocked = Globals.get_unlocked_units(); unlocked.sort()
 	var dispatched : Array = DispatchManager.get_dispatched_unit_names()
 
 	for unit_name in unlocked:
-		var dict : Dictionary = UnitDataManager.get_unit_data(unit_name)
-		if dict.is_empty(): continue
-
-		var display_name = UnitDataManager.get_display_name_full(unit_name)
-		var is_dispatched : bool = unit_name in dispatched
-
+		if UnitDataManager.get_unit_data(unit_name).is_empty(): continue
 		var btn = Button.new()
-		btn.text = display_name
+		btn.text = UnitDataManager.get_display_name_full(unit_name)
 		btn.set_meta("unit_name", unit_name)
 		btn.add_theme_font_size_override("font_size", 8)
 		btn.size = Vector2(100, 30)
 
-		if is_dispatched:
-			btn.text = display_name + "  [派遣中]"
-			btn.disabled = true
-			btn.modulate = COLOR_DISPATCHED
+		if unit_name in dispatched:
+			btn.text += "  [派遣中]"; btn.disabled = true; btn.modulate = COLOR_DISPATCHED
 		elif unit_name in selected_units:
-			btn.disabled = true
-			btn.modulate = COLOR_DISABLED
+			btn.disabled = true; btn.modulate = COLOR_DISABLED
 		else:
-			btn.disabled = false
-			btn.modulate = COLOR_NORMAL
+			btn.disabled = false; btn.modulate = COLOR_NORMAL
 			btn.pressed.connect(_on_unit_selected.bind(unit_name, btn))
 
-		btn.mouse_entered.connect(_on_unit_hover.bind(unit_name))
-		btn.mouse_exited.connect(_on_unit_hover_exit)
+		btn.mouse_entered.connect(func():
+			_hover_unit = unit_name
+			info_panel.set_unit(unit_name)
+		)
+		btn.mouse_exited.connect(func():
+			_hover_unit = ""
+			info_panel.clear_info()
+		)
 		unit_buttons.add_child(btn)
-
-func _on_unit_hover(unit_name: String):
-	_info_ref_unit_type = unit_name
-	_update_display_info(unit_name)
-
-func _on_unit_hover_exit():
-	_info_ref_unit_type = ""
-	_clear_display_info()
-
-func _update_display_info(unit_name: String):
-	if unit_name == "":
-		_clear_display_info()
-		return
-
-	if FlavorManager.is_narrative_mode():
-		var flavor : String = FlavorManager.get_flavor("units", unit_name)
-		if flavor == "": flavor = "（暂无叙事）"
-		_update_avatar(unit_name)
-		info_name.text = ""
-		info_stats.text = ""
-		info_desc.text = flavor
-		return
-
-	var unit_dict = UnitDataManager.get_unit_data(unit_name)
-	if unit_dict.is_empty():
-		_update_avatar("")
-		info_name.text = "（无数据）"
-		info_stats.text = ""
-		info_desc.text = "该单位在 unit_data.json 中未定义。"
-		return
-
-	_update_avatar(unit_name)
-
-	var display = unit_dict.get("display_name", unit_name)
-	var faction = unit_dict.get("faction", "无")
-	var type_cn = UnitDataManager.get_unit_type_display_name(unit_name)
-
-	info_name.text = "%s\n（%s｜%s）" % [display, faction, type_cn]
-
-	var lines : Array = []
-	lines.append("HP      %d" % unit_dict.get("max_hp", 0))
-	lines.append("力量    %d" % unit_dict.get("strength", 0))
-	lines.append("灵巧    %d" % unit_dict.get("dexterity", 0))
-	lines.append("智力    %d" % unit_dict.get("intelligence", 0))
-	lines.append("信仰    %d" % unit_dict.get("faith", 0))
-	lines.append("感应    %d" % unit_dict.get("arcane", 0))
-	lines.append("移动力  %d" % unit_dict.get("move_range", 0))
-
-	if DispatchManager.is_unit_dispatched(unit_name):
-		lines.append("")
-		lines.append("【派遣中，本局不能出战】")
-
-	info_stats.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-	info_stats.text = "\n".join(lines)
-	info_desc.text = unit_dict.get("description", "")
-
-func _clear_display_info():
-	_update_avatar("")
-	info_name.text = "选择单位查看详情"
-	info_stats.text = ""
-	info_desc.text = ""
-
-func _update_avatar(unit_name: String):
-	if not avatar_rect or not avatar_bg: return
-	
-	if unit_name == "":
-		if avatar_bg.visible: PanelRevealer.hide_panel(avatar_bg)
-		if avatar_rect.visible: PanelRevealer.hide_panel(avatar_rect)
-		return
-
-	var avatar_id = GameState.get_unit_avatar(unit_name)
-	var has_avatar = false
-	
-	if avatar_id != "":
-		var path = "res://content/images/characters/avatar/%s.png" % avatar_id
-		if ResourceLoader.exists(path):
-			avatar_rect.texture = load(path)
-			has_avatar = true
-			
-	if has_avatar:
-		avatar_rect.custom_minimum_size = Vector2(48, 48)
-		avatar_rect.size = Vector2(48, 48)
-		avatar_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-		
-		if not avatar_bg.visible:
-			avatar_bg.visible = true
-			PanelRevealer.show_panel(avatar_bg)
-		if not avatar_rect.visible:
-			avatar_rect.visible = true
-			PanelRevealer.show_panel(avatar_rect)
-	else:
-		if avatar_bg.visible: PanelRevealer.hide_panel(avatar_bg)
-		if avatar_rect.visible: PanelRevealer.hide_panel(avatar_rect)
 
 func _on_unit_selected(unit_name: String, btn: Button):
 	if unit_name in selected_units:
-		selected_units.erase(unit_name)
-		btn.disabled = false
-		btn.modulate = COLOR_NORMAL
-		_update_labels()
-		SoundManager.play_cancel_sound()
-		return
-
-	if selected_units.size() >= max_selection:
-		SoundManager.play_invalid_sound()
-		return
-
-	selected_units.append(unit_name)
-	btn.disabled = true
-	btn.modulate = COLOR_DISABLED
-	_update_labels()
-	SoundManager.play_select_sound()
+		selected_units.erase(unit_name); btn.disabled = false; btn.modulate = COLOR_NORMAL; _update_labels(); return
+	if selected_units.size() >= max_selection: return
+	selected_units.append(unit_name); btn.disabled = true; btn.modulate = COLOR_DISABLED; _update_labels()
 
 func _on_slot_clicked(index: int):
 	if index < selected_units.size():
@@ -206,44 +84,29 @@ func _on_slot_clicked(index: int):
 		selected_units.remove_at(index)
 		for child in unit_buttons.get_children():
 			if child is Button and child.get_meta("unit_name") == unit_name:
-				child.disabled = false
-				child.modulate = COLOR_NORMAL
-				break
+				child.disabled = false; child.modulate = COLOR_NORMAL; break
 		_update_labels()
-		SoundManager.play_cancel_sound()
 
 func _update_labels():
 	var slots = ["主单位", "辅助1", "辅助2"]
 	var labels = [main_label, slot1_label, slot2_label]
 	for i in range(max_selection):
 		if i < selected_units.size():
-			var unit_name = selected_units[i]
-			labels[i].text = slots[i] + ": " + UnitDataManager.get_display_name(unit_name)
+			labels[i].text = slots[i] + ": " + UnitDataManager.get_display_name(selected_units[i])
 		else:
 			labels[i].text = slots[i] + ": (未选择)"
 	confirm_btn.disabled = selected_units.size() < max_selection
 
 func _on_confirm_pressed():
 	if selected_units.size() < max_selection: return
-	var main_unit_name = selected_units[0]
-	var selected_unit_names = selected_units.duplicate()
-	GameState.initialize_party(selected_unit_names, 0)
-	GameState.current_faction = UnitDataManager.get_unit_data(main_unit_name).get("faction", "王国")
+	GameState.initialize_party(selected_units, 0)
+	GameState.current_faction = UnitDataManager.get_unit_data(selected_units[0]).get("faction", "王国")
 	LevelManager._reload_all_levels()
-
-	var target_slot = SaveManager.current_slot if SaveManager.current_slot != -1 else (Globals.pending_save_slot if Globals.pending_save_slot != -1 else SaveManager.find_empty_slot())
-	if target_slot == -1:
-		Globals.show_confirm(self, "存档槽满", "确定", "", func():pass, func():pass, false)
-		return
-
-	if _equipment_config_instance != null:
-		_equipment_config_instance.show()
-		_equipment_config_instance.move_to_front()
-		return
+	var target_slot = SaveManager.current_slot if SaveManager.current_slot != -1 else SaveManager.find_empty_slot()
+	if target_slot == -1: return
 
 	Globals.pending_save_slot = target_slot
-	GameState.start_new_cycle()
-	GameState.reset_progress()
+	GameState.start_new_cycle(); GameState.reset_progress()
 	GameState.interrupt_state = GameState.InterruptState.MAP
 
 	var config = load(Config.PATHS.EQUIPMENT_CONFIG).instantiate()

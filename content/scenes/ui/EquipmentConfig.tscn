@@ -1,7 +1,8 @@
 [gd_scene format=3 uid="uid://c8xq5y207f3g1"]
 
-[ext_resource type="Script" uid="uid://d31iuj7lsa4c6" path="res://function/script/equipmentconfig/EquipmentConfig.gd" id="1"]
-[ext_resource type="StyleBox" uid="uid://6qbsaxkfwg3o" path="res://content/resource/stylebox/8bit_style_box_flat.tres" id="2"]
+[ext_resource type="Script" path="res://function/script/equipmentconfig/EquipmentConfig.gd" id="1"]
+[ext_resource type="StyleBox" path="res://content/resource/stylebox/8bit_style_box_flat.tres" id="2"]
+[ext_resource type="PackedScene" path="res://content/scenes/ui/components/ItemInfoPanel.tscn" id="3_item"]
 
 [node name="EquipmentConfig" type="CanvasLayer" unique_id=7633716]
 layer = 10
@@ -83,20 +84,13 @@ size_flags_vertical = 3
 mouse_filter = 2
 theme_override_styles/panel = ExtResource("2")
 
-[node name="DetailLabel" type="Label" parent="MainPanel/VBoxContainer/MainHBox/LeftInfoColumn/DetailZone" unique_id=367650213]
+[node name="ItemInfoPanel" parent="MainPanel/VBoxContainer/MainHBox/LeftInfoColumn/DetailZone" instance=ExtResource("3_item") unique_id=367650213]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = 8.0
-offset_top = 8.0
-offset_right = -8.0
-offset_bottom = -7.0
 grow_horizontal = 2
 grow_vertical = 2
-theme_override_font_sizes/font_size = 6
-text = "选中物品详情"
-autowrap_mode = 3
 
 [node name="LeftVBox" type="VBoxContainer" parent="MainPanel/VBoxContainer/MainHBox" unique_id=1748417651]
 custom_minimum_size = Vector2(140, 0)

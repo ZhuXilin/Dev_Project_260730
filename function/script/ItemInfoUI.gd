@@ -3,10 +3,7 @@ extends PanelContainer
 @onready var weapon_list = $VBoxContainer/HBoxContainer/LeftPanel/HBoxContainer/WeaponScroll/WeaponList
 @onready var armor_list = $VBoxContainer/HBoxContainer/LeftPanel/HBoxContainer/ArmorScroll/ArmorList
 @onready var relic_list = $VBoxContainer/HBoxContainer/LeftPanel/HBoxContainer/RelicScroll/RelicList
-
-@onready var item_icon = $VBoxContainer/HBoxContainer/RightPanel/ItemIcon
-@onready var item_name = $VBoxContainer/HBoxContainer/RightPanel/ItemName
-@onready var item_detail = $VBoxContainer/HBoxContainer/RightPanel/ItemDetail
+@onready var info_panel = $VBoxContainer/HBoxContainer/InfoPanel
 
 var _current_filter : String = ""
 
@@ -14,26 +11,18 @@ func _ready():
 	_build_filter_bar()
 	_refresh_list()
 
-
 func _build_filter_bar():
 	if $VBoxContainer.has_node("FilterBar"):
 		return
-
 	var filter_bar = HBoxContainer.new()
 	filter_bar.name = "FilterBar"
 	filter_bar.add_theme_constant_override("separation", 4)
 
-	var options = [
-		["全部", ""],
-		["普通", "common"],
-		["稀有", "rare"],
-		["史诗", "epic"],
-		["传说", "legendary"],
-	]
+	var options = [["全部", ""], ["普通", "common"], ["稀有", "rare"], ["史诗", "epic"], ["传说", "legendary"]]
 	for opt in options:
 		var btn = Button.new()
 		btn.text = opt[0]
-		btn.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_SMALL)
+		btn.add_theme_font_size_override("font_size", 6)
 		btn.pressed.connect(_on_filter_pressed.bind(opt[1]))
 		filter_bar.add_child(btn)
 
@@ -41,204 +30,107 @@ func _build_filter_bar():
 	vbox.add_child(filter_bar)
 	vbox.move_child(filter_bar, 1)
 
-
 func _on_filter_pressed(quality: String):
 	_current_filter = quality
 	_refresh_list()
 
-
 func _matches_filter(data) -> bool:
-	if _current_filter == "":
-		return true
-	var q = ""
-	if data is Dictionary:
-		q = data.get("quality", "")
-	else:
-		q = data.quality if "quality" in data else ""
+	if _current_filter == "": return true
+	var q = data.get("quality", "") if data is Dictionary else data.quality
 	return q == _current_filter
-
 
 func _refresh_list():
 	for list in [weapon_list, armor_list, relic_list]:
 		if list:
-			for child in list.get_children():
-				child.queue_free()
+			for child in list.get_children(): child.queue_free()
 
 	_fill_weapon_column()
 	_fill_armor_column()
 	_fill_relic_column()
 
-
 func _fill_weapon_column():
-	var title = Label.new()
-	title.text = "武器"
-	title.add_theme_font_size_override("font_size", 9)
+	var title = Label.new(); title.text = "武器"; title.add_theme_font_size_override("font_size", 9)
 	weapon_list.add_child(title)
-
-	var unlocked_ids : Array = []
-	var locked_ids : Array = []
 	for item_id in ItemManager._item_db.keys():
 		var data = ItemManager.get_item_data(item_id)
-		if not data or data.type != "weapon":
-			continue
-		if not _matches_filter(data):
-			continue
-		if Globals.is_item_unlocked(item_id):
-			unlocked_ids.append(item_id)
-		else:
-			locked_ids.append(item_id)
-
-	for item_id in unlocked_ids:
-		var data = ItemManager.get_item_data(item_id)
+		if not data or data.type != "weapon" or not _matches_filter(data): continue
 		weapon_list.add_child(_make_item_button(data, true))
 
-	for item_id in locked_ids:
-		var data = ItemManager.get_item_data(item_id)
-		weapon_list.add_child(_make_item_button(data, false))
-
-
 func _fill_armor_column():
-	var title = Label.new()
-	title.text = "防具"
-	title.add_theme_font_size_override("font_size", 9)
+	var title = Label.new(); title.text = "防具"; title.add_theme_font_size_override("font_size", 9)
 	armor_list.add_child(title)
-
-	var unlocked_ids : Array = []
-	var locked_ids : Array = []
 	for item_id in ItemManager._item_db.keys():
 		var data = ItemManager.get_item_data(item_id)
-		if not data or data.type != "armor":
-			continue
-		if not _matches_filter(data):
-			continue
-		if item_id in GameState.unlocked_recipes:
-			unlocked_ids.append(item_id)
-		else:
-			locked_ids.append(item_id)
-
-	for item_id in unlocked_ids:
-		var data = ItemManager.get_item_data(item_id)
+		if not data or data.type != "armor" or not _matches_filter(data): continue
 		armor_list.add_child(_make_item_button(data, true))
 
-	for item_id in locked_ids:
-		var data = ItemManager.get_item_data(item_id)
-		armor_list.add_child(_make_item_button(data, false))
-
-
 func _fill_relic_column():
-	var title = Label.new()
-	title.text = "遗物"
-	title.add_theme_font_size_override("font_size", 9)
+	var title = Label.new(); title.text = "遗物"; title.add_theme_font_size_override("font_size", 9)
 	relic_list.add_child(title)
-
-	var unlocked_ids : Array = []
-	var locked_ids : Array = []
-	var all_ids = RelicManager.get_all_relic_ids()
-	for relic_id in all_ids:
+	for relic_id in RelicManager.get_all_relic_ids():
 		var data = RelicManager.get_relic_data(relic_id)
-		if data.is_empty():
-			continue
-		if not _matches_filter(data):
-			continue
-		if RelicManager.is_relic_unlocked(relic_id):
-			unlocked_ids.append(relic_id)
-		else:
-			locked_ids.append(relic_id)
-
-	for relic_id in unlocked_ids:
-		var data = RelicManager.get_relic_data(relic_id)
+		if data.is_empty() or not _matches_filter(data): continue
 		relic_list.add_child(_make_relic_button(relic_id, data, true))
-
-	for relic_id in locked_ids:
-		var data = RelicManager.get_relic_data(relic_id)
-		relic_list.add_child(_make_relic_button(relic_id, data, false))
-
 
 func _make_item_button(data, unlocked: bool) -> Button:
 	var btn = Button.new()
+	btn.text = data.name
 	btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	btn.add_theme_font_size_override("font_size", 8)
 	btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
-
-	btn.text = data.name
-	if unlocked:
-		btn.pressed.connect(_show_item_detail.bind(data))
-	else:
-		btn.modulate = Color(0.4, 0.4, 0.4, 1)
-		btn.disabled = true
-
+	btn.pressed.connect(_show_item_detail.bind(data))
+	btn.mouse_entered.connect(_show_item_detail.bind(data))
 	return btn
-
 
 func _make_relic_button(relic_id: String, data: Dictionary, unlocked: bool) -> Button:
 	var btn = Button.new()
+	var prefix : String = "★ " if GameState.is_relic_refined(relic_id) else ""
+	btn.text = prefix + data.get("name", relic_id)
 	btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	btn.add_theme_font_size_override("font_size", 8)
 	btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
-
-	var prefix : String = "★ " if GameState.is_relic_refined(relic_id) else ""
-	btn.text = prefix + data.get("name", relic_id)
-	if unlocked:
-		btn.pressed.connect(_show_relic_detail.bind(data, relic_id))
-	else:
-		btn.modulate = Color(0.4, 0.4, 0.4, 1)
-		btn.disabled = true
-
+	btn.pressed.connect(_show_relic_detail.bind(relic_id))
+	btn.mouse_entered.connect(_show_relic_detail.bind(relic_id))
 	return btn
 
-
 func _show_item_detail(data):
-	if data.icon:
-		item_icon.texture = data.icon
-		item_icon.visible = true
-	else:
-		item_icon.visible = false
+	if not info_panel: return
+	var type_str = ""
+	if data.quality: type_str += _quality_display(data.quality) + " "
+	if data.tags: type_str += "[" + "/".join(data.tags) + "]"
 
-	item_name.text = data.name
-	var q_color = UIConst.QUALITY_COLORS.get(data.quality, Color.WHITE)
-	item_name.add_theme_color_override("font_color", q_color)
-
-	var lines = []
-	lines.append("品质: " + _quality_display(data.quality))
-	if data.description:
-		lines.append(data.description)
-
+	var stats_arr : Array = []
 	if data.type == "weapon":
-		lines.append("基础攻击: " + str(data.base_attack))
-		lines.append("射程: " + str(data.min_attack_range) + "~" + str(data.attack_range))
-		if data.modifier and not data.modifier.is_empty():
-			var parts = []
-			for key in data.modifier:
-				parts.append(_attr_display(key) + "+" + str(data.modifier[key]))
-			lines.append("补正: " + " ".join(parts))
+		stats_arr.append("攻击: %d" % data.base_attack)
+		stats_arr.append("射程: %d~%d" % [data.min_attack_range, data.attack_range])
 	elif data.type == "armor":
-		if data.defense > 0:
-			lines.append("防御: +" + str(data.defense))
+		if data.defense > 0: stats_arr.append("防御: +%d" % data.defense)
 
-	item_detail.text = "\n".join(lines)
+	info_panel.show_info({
+		"name": data.name,
+		"name_color": UIConst.QUALITY_COLORS.get(data.quality, Color.WHITE),
+		"type_str": type_str,
+		"desc": data.description,
+		"stats": "\n".join(stats_arr),
+		"icon": data.icon
+	})
 
+func _show_relic_detail(relic_id: String):
+	if not info_panel: return
+	var data = RelicManager.get_relic_data(relic_id)
+	var prefix : String = "★ " if GameState.is_relic_refined(relic_id) else ""
+	var icon = null
+	var path = data.get("icon", "")
+	if path != "" and ResourceLoader.exists(path): icon = load(path)
 
-func _show_relic_detail(data: Dictionary, _relic_id: String):
-	item_icon.visible = false
-	var name_text : String = data.get("name", "")
-	if GameState.is_relic_refined(_relic_id):
-		name_text = "★ " + name_text
-	item_name.text = name_text
-	item_name.remove_theme_color_override("font_color")
-
-	var lines = []
-	lines.append(data.get("description", "无描述"))
-	if GameState.is_relic_refined(_relic_id):
-		lines.append("")
-		lines.append("（已精炼）")
-	var stats = data.get("stats", {})
-	if not stats.is_empty():
-		lines.append("")
-		lines.append("属性加成：")
-		for key in stats:
-			lines.append("  " + _attr_display(key) + " +" + str(stats[key]))
-	item_detail.text = "\n".join(lines)
-
+	info_panel.show_info({
+		"name": prefix + data.get("name", relic_id),
+		"name_color": Color(1.0, 0.85, 0.3),
+		"type_str": "遗物",
+		"desc": data.get("description", ""),
+		"stats": "",
+		"icon": icon
+	})
 
 func _quality_display(q: String) -> String:
 	match q:
@@ -246,18 +138,7 @@ func _quality_display(q: String) -> String:
 		"rare": return "稀有"
 		"epic": return "史诗"
 		"legendary": return "传说"
-		_: return q
-
-
-func _attr_display(key: String) -> String:
-	var names = {
-		"strength": "力量", "dexterity": "灵巧", "intelligence": "智力",
-		"faith": "信仰", "arcane": "感应",
-		"attack": "攻击", "defense": "防御", "magic_attack": "魔法攻击",
-		"move_range": "移动力",
-	}
-	return names.get(key, key)
-
+	return q
 
 func _on_back_button_pressed():
 	queue_free()
