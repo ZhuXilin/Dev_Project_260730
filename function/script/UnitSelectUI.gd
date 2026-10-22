@@ -47,11 +47,12 @@ func _ready():
 	_setup_unit_buttons()
 	_update_labels()
 
+
 func _input(event: InputEvent):
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT:
 		var mp = get_viewport().get_mouse_position()
-		
-		# 1. 检查是否右键点击了槽位标签（取消出战）
+
+		# 1. 右键槽位标签 → 取消出战（保留）
 		var labels = [main_label, slot1_label, slot2_label]
 		for i in range(max_selection):
 			var lbl = labels[i]
@@ -59,20 +60,13 @@ func _input(event: InputEvent):
 				_on_slot_clicked(i)
 				get_viewport().set_input_as_handled()
 				return
-				
-		# 2. 检查是否右键点击了单位按钮（取消出战）
-		if unit_buttons:
-			for btn in unit_buttons.get_children():
-				if btn is Button and btn.visible and not btn.disabled and btn.get_global_rect().has_point(mp):
-					_remove_unit(btn.get_meta("unit_name"))
-					get_viewport().set_input_as_handled()
-					return
-					
-		# 3. 如果既没点到标签也没点到按钮，且鼠标悬停在单位上，则切换面板模式
+
+		# 3. 右键悬停单位 → 切换信息面板模式（叙事 / 玩法）
 		if _hover_unit != "" and info_panel:
 			info_panel.toggle_mode()
 			get_viewport().set_input_as_handled()
 			return
+
 
 func _make_label_clickable(label: Label, index: int):
 	label.mouse_filter = Control.MOUSE_FILTER_STOP
