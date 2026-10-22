@@ -26,10 +26,10 @@ const HIGHLIGHT_HP_DAMAGE : Color = Color(1.0, 0.0, 0.0, 0.3)
 # ============================================================
 #  地图节点 / 连线颜色
 # ============================================================
-const MAP_LINE_COLOR : Color = Color(0.5, 0.5, 0.5, 0.6)
+const MAP_LINE_COLOR : Color = Color.WHITE
 const MAP_LINE_WIDTH : float = 2.0
-const MAP_NODE_VISITED : Color = Color(0.4, 0.4, 0.4)
-const MAP_NODE_UNAVAILABLE : Color = Color(0.3, 0.3, 0.3)
+const MAP_NODE_VISITED : Color = Color(0.6, 0.6, 0.6)
+const MAP_NODE_UNAVAILABLE : Color = Color(0.7, 0.7, 0.7)
 const MAP_NODE_AVAILABLE : Color = Color.WHITE
 
 

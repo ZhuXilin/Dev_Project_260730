@@ -362,7 +362,7 @@ func _create_directed_line(from_pos: Vector2, to_pos: Vector2):
 
 	var arrow := Polygon2D.new()
 	arrow.polygon = PackedVector2Array([tip, left, right])
-	arrow.color = MapConst.MAP_LINE_COLOR.lightened(0.3)
+	arrow.color = MapConst.MAP_LINE_COLOR
 	line_container.add_child(arrow)
 
 

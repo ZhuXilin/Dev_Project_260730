@@ -19,18 +19,25 @@ func setup(node_data: MapNode, map_scene: CanvasLayer, override_pos: Vector2 = V
 	add_theme_font_size_override("font_size", MapConst.MAP_NODE_FONT_SIZE)
 	mouse_filter = Control.MOUSE_FILTER_STOP
 
-	add_theme_color_override("font_color", Color.WHITE)
-	add_theme_color_override("font_color_disabled", Color.WHITE)
-	add_theme_color_override("font_color_hover", Color.WHITE)
-	add_theme_color_override("font_color_pressed", Color.WHITE)
+	# ★ 修改：白底黑字，并加 1px 黑边
+	var white_sb := StyleBoxFlat.new()
+	white_sb.bg_color = Color.WHITE
+	white_sb.border_width_left = 1
+	white_sb.border_width_right = 1
+	white_sb.border_width_top = 1
+	white_sb.border_width_bottom = 1
+	white_sb.border_color = Color.BLACK
+	
+	add_theme_stylebox_override("normal", white_sb)
+	add_theme_stylebox_override("pressed", white_sb)
+	add_theme_stylebox_override("hover", white_sb)
+	add_theme_stylebox_override("disabled", white_sb)
+	add_theme_stylebox_override("focus", white_sb)
 
-	var stylebox = load(Config.PATHS.STYLEBOX_8BIT)
-	if stylebox:
-		add_theme_stylebox_override("normal", stylebox)
-		add_theme_stylebox_override("pressed", stylebox)
-		add_theme_stylebox_override("hover", stylebox)
-		add_theme_stylebox_override("disabled", stylebox)
-		add_theme_stylebox_override("focus", stylebox)
+	add_theme_color_override("font_color", Color.BLACK)
+	add_theme_color_override("font_color_disabled", Color.BLACK)
+	add_theme_color_override("font_color_hover", Color.BLACK)
+	add_theme_color_override("font_color_pressed", Color.BLACK)
 
 	if pressed.is_connected(_on_clicked):
 		pressed.disconnect(_on_clicked)

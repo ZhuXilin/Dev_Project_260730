@@ -26,7 +26,8 @@ func _draw():
 			draw_string(font, Vector2(2, y - 2), "L%d" % i,
 				HORIZONTAL_ALIGNMENT_LEFT, -1, 7, Color(0.5, 0.5, 0.5, 0.7))
 
-	var link_color : Color = Color(0.35, 0.35, 0.35, 0.9) if in_test else Color(0.6, 0.6, 0.6, 0.9)
+	# ★ 连线颜色：测试模式纯白，编辑模式原样灰
+	var link_color : Color = Color.WHITE if in_test else Color(0.6, 0.6, 0.6, 0.9)
 	for i in range(day_layout.nodes.size()):
 		var node = day_layout.nodes[i]
 		for target in node.connects_to:
@@ -43,8 +44,9 @@ func _draw():
 			Vector2(editor.NODE_W, editor.NODE_H)
 		)
 		if in_test:
-			draw_rect(rect, Color(0.1, 0.1, 0.1, 1), true)
-			draw_rect(rect, Color(0.4, 0.4, 0.4, 1), false, 1)
+			# ★ 测试模式：白底黑字黑边（与游戏内同步）
+			draw_rect(rect, Color.WHITE, true)
+			draw_rect(rect, Color.BLACK, false, 1)
 			var label : String = editor._test_map_assignment.get(node, "")
 			if label == "":
 				label = MapConst.get_node_display_name(node.node_type)
@@ -57,8 +59,9 @@ func _draw():
 			var descent : float = font.get_descent(font_size)
 			var baseline_y : float = pos.y + (ascent - descent) / 2.0
 			draw_string(font, Vector2(pos.x - text_size.x / 2.0, baseline_y),
-				label, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, Color(0.85, 0.85, 0.85))
+				label, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, Color.BLACK)
 		else:
+			# 编辑模式：保持原样，彩色节点填充
 			var color : Color = _node_color(node)
 			draw_rect(rect, color, true)
 			var label2 : String = _node_label(node)
