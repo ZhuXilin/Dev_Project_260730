@@ -51,19 +51,20 @@ expand_mode = 1
 stretch_mode = 5
 
 [node name="EntranceGate" type="TextureButton" parent="." unique_id=2000000002]
-offset_left = 176.0
-offset_top = 26.0
-offset_right = 224.0
-offset_bottom = 66.0
+offset_left = 281.0
+offset_top = 16.0
+offset_right = 345.0
+offset_bottom = 80.0
 
 [node name="GateLabel" type="Label" parent="EntranceGate" unique_id=2000000003]
-layout_mode = 0
+layout_mode = 1
+anchors_preset = 5
 anchor_left = 0.5
 anchor_right = 0.5
-offset_left = -44.0
-offset_top = 42.0
-offset_right = 44.0
-offset_bottom = 56.0
+offset_left = -32.0
+offset_top = 64.0
+offset_right = 32.0
+offset_bottom = 80.0
 grow_horizontal = 2
 theme_override_font_sizes/font_size = 7
 text = "三天战斗入口"
@@ -80,10 +81,10 @@ mouse_filter = 2
 
 [node name="SoulKeeperBtn" type="TextureButton" parent="NpcGrid" unique_id=2000000010]
 layout_mode = 0
-offset_left = 52.0
-offset_top = 56.0
-offset_right = 108.0
-offset_bottom = 128.0
+offset_left = 291.0
+offset_top = 112.0
+offset_right = 347.0
+offset_bottom = 167.0
 
 [node name="NamePlate" type="Label" parent="NpcGrid/SoulKeeperBtn" unique_id=2000000011]
 layout_mode = 0
@@ -103,10 +104,10 @@ horizontal_alignment = 1
 
 [node name="BlacksmithBtn" type="TextureButton" parent="NpcGrid" unique_id=2000000020]
 layout_mode = 0
-offset_left = 292.0
-offset_top = 56.0
-offset_right = 348.0
-offset_bottom = 128.0
+offset_left = 176.0
+offset_top = 32.0
+offset_right = 232.0
+offset_bottom = 88.0
 
 [node name="NamePlate" type="Label" parent="NpcGrid/BlacksmithBtn" unique_id=2000000021]
 layout_mode = 0
@@ -126,10 +127,10 @@ horizontal_alignment = 1
 
 [node name="GuideBtn" type="TextureButton" parent="NpcGrid" unique_id=2000000030]
 layout_mode = 0
-offset_left = 82.0
-offset_top = 142.0
-offset_right = 138.0
-offset_bottom = 214.0
+offset_left = 224.0
+offset_top = 157.0
+offset_right = 280.0
+offset_bottom = 211.0
 
 [node name="NamePlate" type="Label" parent="NpcGrid/GuideBtn" unique_id=2000000031]
 layout_mode = 0
@@ -149,10 +150,10 @@ horizontal_alignment = 1
 
 [node name="GladiatorBtn" type="TextureButton" parent="NpcGrid" unique_id=2000000040]
 layout_mode = 0
-offset_left = 262.0
-offset_top = 142.0
-offset_right = 318.0
-offset_bottom = 214.0
+offset_left = 41.0
+offset_top = 164.0
+offset_right = 97.0
+offset_bottom = 221.0
 
 [node name="NamePlate" type="Label" parent="NpcGrid/GladiatorBtn" unique_id=2000000041]
 layout_mode = 0
@@ -176,9 +177,9 @@ anchor_left = 1.0
 anchor_top = 1.0
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = -240.0
-offset_top = -32.0
-offset_right = -160.0
+offset_left = -224.0
+offset_top = -28.0
+offset_right = -176.0
 offset_bottom = -8.0
 grow_horizontal = 0
 grow_vertical = 0

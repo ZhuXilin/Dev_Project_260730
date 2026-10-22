@@ -92,6 +92,30 @@ func _setup_scroll_world():
 	_screen_center.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_world.add_child(_screen_center)
 
+	# 3.5 ★ 中屏背景（随 world 一起左右滑动）
+	#     先添加 → 处于 _screen_center 子节点第 0 位 → 最底层，
+	#     后续移入的 FireSprite / EntranceGate / NpcGrid 会覆盖在其上。
+	var center_bg_path : String = "res://content/images/ui/camp_001.png"
+	if ResourceLoader.exists(center_bg_path):
+		var center_bg_tex := TextureRect.new()
+		center_bg_tex.name = "CampBackground"
+		center_bg_tex.texture = load(center_bg_path)
+		center_bg_tex.size = Vector2(_screen_w, _screen_h)
+		center_bg_tex.position = Vector2.ZERO
+		center_bg_tex.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		center_bg_tex.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+		center_bg_tex.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_screen_center.add_child(center_bg_tex)
+	else:
+		# 兜底：缺图时使用纯色，保持原 Camp.tscn 的底色
+		var center_bg_rect := ColorRect.new()
+		center_bg_rect.name = "CampBackground"
+		center_bg_rect.color = Color(0.08, 0.07, 0.06, 1)
+		center_bg_rect.size = Vector2(_screen_w, _screen_h)
+		center_bg_rect.position = Vector2.ZERO
+		center_bg_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_screen_center.add_child(center_bg_rect)
+
 	# 4. 把可滑动的场景节点从 Camp 移入中央屏
 	for nname in ["FireSprite", "EntranceGate", "NpcGrid"]:
 		var node = get_node_or_null(nname)
@@ -124,11 +148,30 @@ func _build_explore_room(side : int, title : String, bg_color : Color):
 	room.position = Vector2(0 if side < 0 else _screen_w * 2, 0)
 	room.mouse_filter = Control.MOUSE_FILTER_IGNORE
 
-	var bg := ColorRect.new()
-	bg.color = bg_color
-	bg.size = Vector2(_screen_w, _screen_h)
-	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	room.add_child(bg)
+	# ★ 背景：左屏 background_002.png，右屏 background_003.png
+	var bg_path : String = ""
+	if side < 0:
+		bg_path = "res://content/images/ui/camp_002.png"
+	else:
+		bg_path = "res://content/images/ui/camp_003.png"
+
+	if bg_path != "" and ResourceLoader.exists(bg_path):
+		var bg_tex := TextureRect.new()
+		bg_tex.name = "RoomBackground"
+		bg_tex.texture = load(bg_path)
+		bg_tex.size = Vector2(_screen_w, _screen_h)
+		bg_tex.position = Vector2.ZERO
+		bg_tex.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		bg_tex.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+		bg_tex.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		room.add_child(bg_tex)
+	else:
+		# 兜底：缺图时回退到原纯色
+		var bg := ColorRect.new()
+		bg.color = bg_color
+		bg.size = Vector2(_screen_w, _screen_h)
+		bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		room.add_child(bg)
 
 	var title_lb := Label.new()
 	title_lb.text = title

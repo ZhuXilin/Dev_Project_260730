@@ -469,6 +469,9 @@ func _setup_ui():
 	Globals.reset_battle_turn()
 	info_panel.visible = false
 	day_label.text = "第 %d 天" % current_day
+	
+	_update_map_background()
+	
 	if MusicManager.config and MusicManager.config.map_music:
 		MusicManager.play_music(MusicManager.config.map_music)
 	_update_soul_fire_display()
@@ -1108,3 +1111,30 @@ func _show_bottom_hint(text: String):
 		if is_instance_valid(hint):
 			hint.queue_free()
 	)
+
+
+func _update_map_background():
+	var bg_rect = get_node_or_null("Background")
+	if bg_rect == null:
+		return
+	
+	# 根据当前天数生成路径
+	var bg_path : String = "res://content/images/ui/mapscene_%03d.png" % current_day
+	
+	# 查找是否已创建过背景纹理节点
+	var tex_rect : TextureRect = bg_rect.get_node_or_null("MapBgTexture")
+	if tex_rect == null:
+		tex_rect = TextureRect.new()
+		tex_rect.name = "MapBgTexture"
+		# 铺满整个 Background
+		tex_rect.set_anchors_preset(Control.PRESET_FULL_RECT)
+		tex_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		tex_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+		tex_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		bg_rect.add_child(tex_rect)
+		
+	if ResourceLoader.exists(bg_path):
+		tex_rect.texture = load(bg_path)
+		tex_rect.visible = true
+	else:
+		tex_rect.visible = false
