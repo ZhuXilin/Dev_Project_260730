@@ -57,7 +57,7 @@ func _add_objective_badge(node: MapNode):
 	if existing:
 		existing.queue_free()
 
-	# ★ v4.5：问号节点不显示徽章，避免泄露 hidden_node_type
+	# ★ 问号节点不显示徽章，避免泄露 hidden_node_type
 	if node == null or node.node_type == MapNode.NodeType.QUESTION:
 		return
 	if node.map_data == null:
@@ -65,10 +65,10 @@ func _add_objective_badge(node: MapNode):
 
 	var parts : Array = []
 
-	if node.node_type == MapNode.NodeType.ELITE or node.node_type == MapNode.NodeType.BOSS:
-		var int_text : String = _intensity_badge_text(node.map_data.intensity)
-		if int_text != "":
-			parts.append(int_text)
+	# ★ 修复：强度徽章不再限制 ELITE / BOSS，只要 intensity > 0 就显示
+	var int_text : String = _intensity_badge_text(node.map_data.intensity)
+	if int_text != "":
+		parts.append(int_text)
 
 	var obj_text : String = _objective_badge_text(node.map_data.objective_type)
 	if obj_text != "":

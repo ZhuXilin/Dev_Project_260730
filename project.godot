@@ -16,7 +16,7 @@ run/main_scene="uid://bwmyhb2qc6n21"
 config/features=PackedStringArray("4.7", "GL Compatibility")
 boot_splash/bg_color=Color(0.08, 0.08, 0.08, 1)
 boot_splash/stretch_mode=0
-boot_splash/image="res://content/images/system/主菜单背景.png"
+boot_splash/image="res://content/images/ui/background_000.png"
 
 [autoload]
 

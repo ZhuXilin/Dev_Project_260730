@@ -65,5 +65,5 @@ const PATHS : Dictionary = {
 	"EQUIPMENT_CONFIG_SCRIPT":  "res://function/script/equipmentconfig/EquipmentConfig.gd",
 
 	# 图片 / 纹理
-	"CURSOR_TEXTURE":       "res://content/images/system/选择框.png",
+	"CURSOR_TEXTURE":       "res://content/images/system/cursor_001.png",
 }

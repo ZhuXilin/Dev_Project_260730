@@ -3424,13 +3424,13 @@ function onCanvasMouseMove(e){
     gg.pos = clamp(snapped, 0, maxPos);
     requestRender(); return;
   }
-  if(drag.mode === 'select'){
+   if(drag.mode === 'select'){
     var snapPt = snapSelPointToGuides(m.px, m.py);
     var clamped = clampSelPointToCell(snapPt.x, snapPt.y);
     drag.selCur = {x: clamped.x, y: clamped.y};
     drag.square = e.shiftKey;
-    var r = rectFromPoints(drag.selStart, drag.selCur, drag.square);
-    setStatus((currentLang==='zh'?'选区 ':'Selection ')+r.w+' × '+r.h+' px'+(drag.square?' (1:1)':''));
+    var pb = getPreviewMask().bounds;
+    setStatus((currentLang==='zh'?'选区 ':'Selection ')+pb.w+' × '+pb.h+' px'+(drag.square?' (1:1)':''));
     requestRender(); return;
   }
   if(drag.mode === 'move' && doc.floating){
@@ -3472,7 +3472,7 @@ function onCanvasMouseMove(e){
     }
     recalcBounds();
     setStatus((currentLang==='zh'?'仅移动选区 ':'Move selection ')
-      +'dx='+ddx+', dy='+ddy
+      +doc.selBounds.w+' × '+doc.selBounds.h+' px'
       +(e.shiftKey?(currentLang==='zh'?' · 锁定':' · locked'):''));
     requestRender(); return;
   }

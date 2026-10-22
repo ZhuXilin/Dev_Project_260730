@@ -1,6 +1,6 @@
 {
   "reward_gold": { "START": 75, "NORMAL": 175, "ELITE": 350, "BOSS": 750 },
-  "boss_extra_soul": 5,
+  "boss_extra_soul": 2,
 
   "shop": {
 	"size": 9,

@@ -154,7 +154,7 @@ body{font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Mi
     <span id="stZoom"></span>
     <span class="sel-info" id="stSel"></span>
     <span class="hist" id="stHist"></span>
-    <span class="hint" id="stHint" data-i18n="hint.toolbar">Wheel zoom · Drag empty to pan · Shift=Square · Ctrl=Add · Alt=Subtract</span>
+    <span class="hint" id="stHint" data-i18n="hint.toolbar">Wheel zoom · Drag empty to pan · Shift=Square · Ctrl=Add · Alt=Subtract · Hold V/M in selection to move it</span>
     <span class="spacer"></span>
     <span class="msg" id="stMsg"></span>
     <span id="coord">— , —</span>
@@ -317,6 +317,10 @@ body{font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Mi
   var snapPixels = true;
   var lassoMode = false;
   var lassoDrag = null;
+  /* ===== 新增：V/M 选区移动状态 ===== */
+  var vDown = false, vDragged = false;
+  var mDown = false, mDragged = false;
+  var moveSelDrag = null;
 
   var stage, wrap, cv, ctx, selCv, selCtx, placeholder, fileInput;
   var inW, inH, lockRatio, stOrig, stCur, stZoom, stSel, stHist, stMsg;
@@ -351,8 +355,8 @@ body{font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Mi
     'btn.merge':     {zh:'合并相似色…',en:'Merge Similar…'},
     'btn.delColor':  {zh:'删除/替换颜色…', en:'Delete/Replace Color…'},
     'btn.split':     {zh:'拆分导出…',  en:'Split Export…'},
-    'hint.toolbar':  {zh:'滚轮缩放 · 拖空白平移 · Shift=正方形 · Ctrl=加选 · Alt=减选 · M=套索',
-                      en:'Wheel zoom · Drag empty to pan · Shift=Square · Ctrl=Add · Alt=Subtract · M=Lasso'},
+    'hint.toolbar':  {zh:'滚轮缩放 · 拖空白平移 · Shift=正方形 · Ctrl=加选 · Alt=减选 · M=套索 · 按住 V/M 拖选区内=移动选区',
+                      en:'Wheel zoom · Drag empty to pan · Shift=Square · Ctrl=Add · Alt=Subtract · M=Lasso · Hold V/M in selection to move it'},
     'placeholder':   {zh:'把图片拖到这里，或点击「打开图片」',
                       en:'Drop image here or click Open Image'},
     'dc.title':      {zh:'删除/替换颜色',   en:'Delete / Replace Color'},
@@ -451,13 +455,13 @@ body{font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Mi
   }
   function undo(){
     if(pixelBackup){ setMsg(tr('请先应用或取消像素转换','Apply or cancel pixel conversion first'),1600); return; }
-    if(drag || selDrag || lassoDrag){ setMsg(tr('请先松开鼠标再撤销','Release mouse to undo'),1600); return; }
+    if(drag || selDrag || lassoDrag || moveSelDrag){ setMsg(tr('请先松开鼠标再撤销','Release mouse to undo'),1600); return; }
     if(!hasImage||histIndex<=0) return;
     histIndex--; applyHistoryEntry(history[histIndex]); setMsg(tr('撤销','Undo'),1200);
   }
   function redo(){
     if(pixelBackup){ setMsg(tr('请先应用或取消像素转换','Apply or cancel pixel conversion first'),1600); return; }
-    if(drag || selDrag || lassoDrag){ setMsg(tr('请先松开鼠标再重做','Release mouse to redo'),1600); return; }
+    if(drag || selDrag || lassoDrag || moveSelDrag){ setMsg(tr('请先松开鼠标再重做','Release mouse to redo'),1600); return; }
     if(!hasImage||histIndex>=history.length-1) return;
     histIndex++; applyHistoryEntry(history[histIndex]); setMsg(tr('重做','Redo'),1200);
   }
@@ -525,7 +529,7 @@ body{font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Mi
   function forceReapply(){ cacheImgData=null; cacheW=0; cacheH=0; applyResize(true); render(); }
 
   function resetSelMask(){ selMask=new Uint8Array(targetW*targetH); hasSelection=false; selBounds={x:0,y:0,w:0,h:0}; _previewMask=null; }
-  function clearSelection(u){ if(selMask) selMask.fill(0); hasSelection=false; selBounds={x:0,y:0,w:0,h:0}; selDrag=null; lassoDrag=null; if(u!==false){ updateSelectUI(); renderSelectionOverlay(); } }
+  function clearSelection(u){ if(selMask) selMask.fill(0); hasSelection=false; selBounds={x:0,y:0,w:0,h:0}; selDrag=null; lassoDrag=null; moveSelDrag=null; if(u!==false){ updateSelectUI(); renderSelectionOverlay(); } }
   function recalcBounds(){
     if(!selMask){ hasSelection=false; return; }
     var W=targetW,H=targetH,minx=W,miny=H,maxx=-1,maxy=-1;
@@ -618,6 +622,69 @@ body{font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Mi
       setMsg(tr('矩形选区 ','Rectangle ')+selBounds.w+' × '+selBounds.h+mn,1400);
     } else {
       setMsg(tr('选区为空','Empty selection'),1200);
+    }
+  }
+
+  /* ===== 新增：仅移动选区（参考 SpritesheetEditor 的 move-sel） ===== */
+  function startMoveSelectionDrag(e){
+    if(!hasImage || !hasSelection || !selMask) return;
+    var p = stagePointFromEvent(e);
+    moveSelDrag = {
+      startX: p.px,
+      startY: p.py,
+      dx: 0, dy: 0,
+      backup: new Uint8Array(selMask),
+      backupBounds: {x:selBounds.x, y:selBounds.y, w:selBounds.w, h:selBounds.h}
+    };
+    stSel.textContent = tr('仅移动选区 ','Move selection ')
+      + selBounds.w + ' × ' + selBounds.h
+      + '  dx=0, dy=0';
+    requestRender();
+  }
+  function updateMoveSelectionDrag(e){
+    if(!moveSelDrag) return;
+    var p = stagePointFromEvent(e);
+    var ddx = Math.round(p.px - moveSelDrag.startX);
+    var ddy = Math.round(p.py - moveSelDrag.startY);
+    if(e.shiftKey){
+      if(Math.abs(ddx) >= Math.abs(ddy)) ddy = 0;
+      else ddx = 0;
+    }
+    if(ddx === moveSelDrag.dx && ddy === moveSelDrag.dy) return;
+    moveSelDrag.dx = ddx; moveSelDrag.dy = ddy;
+
+    var W = targetW, H = targetH;
+    var bb = moveSelDrag.backupBounds;
+    var backup = moveSelDrag.backup;
+    if(!selMask || selMask.length !== W*H) selMask = new Uint8Array(W*H);
+    selMask.fill(0);
+    for(var yy = bb.y; yy < bb.y + bb.h; yy++){
+      for(var xx = bb.x; xx < bb.x + bb.w; xx++){
+        if(backup[yy*W+xx]){
+          var nx = xx + ddx, ny = yy + ddy;
+          if(nx >= 0 && nx < W && ny >= 0 && ny < H){
+            selMask[ny*W+nx] = 1;
+          }
+        }
+      }
+    }
+    recalcBounds();
+    stSel.textContent = tr('仅移动选区 ','Move selection ')
+      + selBounds.w + ' × ' + selBounds.h
+      + '  dx=' + ddx + ', dy=' + ddy
+      + (e.shiftKey ? tr(' · 锁定',' · locked') : '');
+    renderSelectionOverlay();
+  }
+  function endMoveSelectionDrag(){
+    if(!moveSelDrag) return;
+    var dx = moveSelDrag.dx, dy = moveSelDrag.dy;
+    moveSelDrag = null;
+    recalcBounds();
+    updateSelectUI();
+    renderSelectionOverlay();
+    if(dx !== 0 || dy !== 0){
+      pushHistory();
+      setMsg(tr('已移动选区 ','Selection moved ')+'dx='+dx+', dy='+dy, 1200);
     }
   }
 
@@ -1601,7 +1668,7 @@ body{font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Mi
     fileHandle=null; cacheImgData=null; cacheW=0; cacheH=0;
     cv.width=0; cv.height=0;
     selCv.classList.remove('on');
-    selMask=null; hasSelection=false; selBounds={x:0,y:0,w:0,h:0}; selDrag=null; lassoDrag=null; _previewMask=null;
+    selMask=null; hasSelection=false; selBounds={x:0,y:0,w:0,h:0}; selDrag=null; lassoDrag=null; moveSelDrag=null; _previewMask=null;
     closeDeleteColorPanel(); closeMergePanel(); closeSplitPanel();
     wrap.classList.remove('on'); wrap.style.width='0px'; wrap.style.height='0px';
     placeholder.style.display='';
@@ -1940,6 +2007,19 @@ body{font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Mi
       }
       if(e.button!==0) return;
       e.preventDefault();
+
+      /* ===== 新增：按住 V / M 且在选区内点击 → 仅移动选区 ===== */
+      if(hasSelection && selMask && (vDown || mDown) && !e.altKey && !e.ctrlKey && !e.metaKey){
+        var sp = stagePointFromEvent(e);
+        var hx = Math.floor(sp.px), hy = Math.floor(sp.py);
+        if(hx>=0 && hy>=0 && hx<targetW && hy<targetH && selMask[hy*targetW+hx]){
+          if(vDown) vDragged = true;
+          if(mDown) mDragged = true;
+          startMoveSelectionDrag(e);
+          return;
+        }
+      }
+
       if(lassoMode){
         beginLassoDrag(e);
       } else {
@@ -1969,11 +2049,13 @@ body{font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Mi
     });
 
     document.addEventListener('mousemove',function(e){
+      if(moveSelDrag){ updateMoveSelectionDrag(e); return; }
       if(lassoDrag){ updateLassoDrag(e); return; }
       if(selDrag){ updateSelectDrag(e); return; }
       if(panDrag){ panX=panDrag.px+(e.clientX-panDrag.sx); panY=panDrag.py+(e.clientY-panDrag.sy); render(); }
     });
     document.addEventListener('mouseup',function(){
+      if(moveSelDrag) endMoveSelectionDrag();
       if(lassoDrag) endLassoDrag();
       if(selDrag) endSelectDrag();
       if(panDrag) panDrag=null;
@@ -1996,6 +2078,17 @@ body{font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Mi
     document.addEventListener('keydown',function(e){
       if(e.target.tagName==='INPUT') return;
       if(e.key===' '&&!e.repeat) spaceDown=true;
+
+      /* ===== 新增：V / M 键状态（用于"按住拖选区内移动选区"） ===== */
+      if((e.key==='v'||e.key==='V') && !e.ctrlKey && !e.metaKey && !e.altKey){
+        if(!e.repeat){ vDown = true; vDragged = false; }
+        return;
+      }
+      if((e.key==='m'||e.key==='M') && !e.ctrlKey && !e.metaKey && !e.altKey){
+        if(!e.repeat){ mDown = true; mDragged = false; }
+        return;
+      }
+
       if(e.ctrlKey||e.metaKey){
         switch(e.key.toLowerCase()){
           case 'z': e.preventDefault(); if(e.shiftKey) redo(); else undo(); return;
@@ -2007,18 +2100,9 @@ body{font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Mi
           case 's': e.preventDefault(); doSave(); return;
         }
       }
-      /* 套索模式开关：M */
-      if((e.key==='m'||e.key==='M') && !e.ctrlKey && !e.metaKey && !e.altKey){
-        e.preventDefault();
-        lassoMode = !lassoMode;
-        stage.classList.toggle('lasso-mode', lassoMode);
-        setMsg(lassoMode
-          ? tr('套索模式：开（再按 M 切回矩形）','Lasso mode: ON (press M again for rectangle)')
-          : tr('矩形选择模式','Rectangle selection'), 1800);
-        return;
-      }
       if(e.key==='Escape'){
         e.preventDefault();
+        if(moveSelDrag){ moveSelDrag = null; recalcBounds(); updateSelectUI(); renderSelectionOverlay(); return; }
         if(lassoMode && lassoDrag){
           lassoDrag = null; renderSelectionOverlay(); setMsg(tr('已取消套索','Lasso cancelled'), 1200); return;
         }
@@ -2037,7 +2121,39 @@ body{font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Mi
       if(e.key==='Delete'&&hasSelection&&!pixelBackup){ e.preventDefault(); deleteSelectionAsTransparent(); }
       if(e.key==='f'||e.key==='F'){ e.preventDefault(); fitView(); }
     });
-    document.addEventListener('keyup',function(e){ if(e.key===' ') spaceDown=false; });
+    document.addEventListener('keyup',function(e){
+      if(e.key===' ') spaceDown=false;
+
+      /* ===== 新增：V / M 键松开——未拖动则切换模式（单击语义） ===== */
+      if((e.key==='v'||e.key==='V') && !e.ctrlKey && !e.metaKey && !e.altKey){
+        vDown = false;
+        if(!vDragged && lassoMode){
+          lassoMode = false;
+          stage.classList.remove('lasso-mode');
+          setMsg(tr('矩形选择模式','Rectangle selection'), 1200);
+        }
+        vDragged = false;
+        return;
+      }
+      if((e.key==='m'||e.key==='M') && !e.ctrlKey && !e.metaKey && !e.altKey){
+        mDown = false;
+        if(!mDragged && !lassoMode){
+          lassoMode = true;
+          stage.classList.add('lasso-mode');
+          setMsg(tr('套索模式：开（再按 M 切回矩形）','Lasso mode: ON (press M again for rectangle)'), 1800);
+        }
+        mDragged = false;
+        return;
+      }
+    });
+
+    /* ===== 新增：窗口失焦重置 V/M 状态 ===== */
+    window.addEventListener('blur', function(){
+      vDown = false; vDragged = false;
+      mDown = false; mDragged = false;
+      spaceDown = false;
+      if(moveSelDrag) endMoveSelectionDrag();
+    });
 
     ['dragenter','dragover'].forEach(function(t){ document.addEventListener(t,function(e){ e.preventDefault(); }); });
     document.addEventListener('drop',function(e){

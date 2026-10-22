@@ -127,8 +127,6 @@ func attempt_attack_after_move(unit: Unit):
 # ============================================================
 #  伤害公式
 # ============================================================
-# function/global/CombatManager.gd
-
 func calculate_damage(attacker: Unit, defender: Unit) -> int:
 	var weapon_data = attacker.get_weapon_data()
 	if not weapon_data:
@@ -168,10 +166,13 @@ func calculate_damage(attacker: Unit, defender: Unit) -> int:
 	var damage = max(1, int(total_attack - def_value))
 
 	# ★ v4.5：heavy 武器倍率（在 affix 加成之前应用，让 affix 的固定值不享受倍率）
+	# ★ 修复：charge 特性按层数线性叠加，每层 +0.2，5 层达到 charge_multiplier（默认 2.0）
 	if not weapon_data.heavy_attack.is_empty():
 		var mult : float = 1.0
-		if attacker.has_core_trait("charge") and attacker.charge_stacks > 0:
-			mult = float(weapon_data.heavy_attack.get("charge_multiplier", 1.0))
+		if attacker.has_core_trait("charge"):
+			var per_stack : float = 0.2
+			var max_mult : float = float(weapon_data.heavy_attack.get("charge_multiplier", 2.0))
+			mult = minf(1.0 + per_stack * float(attacker.charge_stacks), max_mult)
 		else:
 			mult = float(weapon_data.heavy_attack.get("damage_multiplier", 1.0))
 		damage = int(damage * mult)
@@ -635,18 +636,10 @@ func _apply_burning_splash(attacker : Unit, center : Unit, base_damage : int, pe
 
 
 # ============================================================
-#  光环攻击消耗
+#  光环攻击消耗（v4.5 已废弃：光环改为纯被动，不再消耗魂火）
 # ============================================================
-func _apply_aura_attack_cost(attacker : Unit):
-	for aid in attacker.active_auras:
-		if not attacker.active_auras[aid]:
-			continue
-		var d : Dictionary = AuraManager.get_aura(aid)
-		if d.get("effect", "") != "attack_plus_and_consume":
-			continue
-		var cost : int = int(d.get("params", {}).get("soul_fire_cost_per_attack", 1))
-		if SoulFireManager.current > 0:
-			SoulFireManager.spend(cost)
+func _apply_aura_attack_cost(_attacker : Unit):
+	pass
 
 
 # ============================================================
@@ -810,6 +803,16 @@ func _on_kill(attacker: Unit, _defender: Unit) -> bool:
 				attacker.update_hp_label()
 				SignalBus.request_damage_popup.emit(attacker.global_position, actual2, false, false, true)
 				print("[套装] 血之回响 +%d HP" % actual2)
+
+	# ★ 新增：交叉套装 kill_soul_fire（血脉沸腾：献祭 + 烈焰各 2 件，击杀 +1 魂火）
+	var cross_bonuses : Array = SetBonusManager.get_active_cross_bonuses()
+	for entry in cross_bonuses:
+		var cb : Dictionary = entry.get("data", {})
+		if cb.get("effect", "") == "kill_soul_fire":
+			var val : int = int(cb.get("value", 0))
+			if val > 0:
+				SoulFireManager.add(val)
+				print("[交叉套装] %s：击杀 +%d 魂火" % [cb.get("name", ""), val])
 
 	if attacker.unit_stats.team_id == 0:
 		SoulFireManager.on_kill()
