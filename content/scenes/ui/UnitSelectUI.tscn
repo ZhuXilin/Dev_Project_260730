@@ -1,6 +1,7 @@
 [gd_scene format=3 uid="uid://bptstmfff1cag"]
 
 [ext_resource type="Script" uid="uid://3b1ayiblxvbo" path="res://function/script/UnitSelectUI.gd" id="1"]
+[ext_resource type="Texture2D" uid="uid://cqtl3phepbfvd" path="res://content/images/ui/subui_unitselect_01.png" id="2_istsf"]
 [ext_resource type="PackedScene" uid="uid://dinsoae8vsksx" path="res://content/scenes/ui/components/UnitInfoPanel.tscn" id="3_info"]
 
 [node name="UnitSelectUI" type="CanvasLayer" unique_id=206783988]
@@ -14,6 +15,11 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 color = Color(0.10980392, 0.10980392, 0.10980392, 1)
+
+[node name="BackgroundImage" type="TextureRect" parent="." unique_id=928300177]
+offset_right = 400.0
+offset_bottom = 240.0
+texture = ExtResource("2_istsf")
 
 [node name="TitleLabel" type="Label" parent="." unique_id=17888508]
 anchors_preset = 10
