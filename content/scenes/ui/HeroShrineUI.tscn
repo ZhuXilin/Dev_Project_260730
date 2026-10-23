@@ -145,12 +145,11 @@ grow_vertical = 2
 theme_override_constants/separation = 8
 alignment = 1
 
-[node name="SpriteBox" type="Panel" parent="PerformanceLayer/CenterBox" unique_id=999000019]
+[node name="SpriteBox" type="Control" parent="PerformanceLayer/CenterBox" unique_id=999000019]
 custom_minimum_size = Vector2(64, 64)
 layout_mode = 2
 size_flags_horizontal = 4
 mouse_filter = 2
-theme_override_styles/panel = ExtResource("2_style")
 
 [node name="UnitSprite" type="AnimatedSprite2D" parent="PerformanceLayer/CenterBox/SpriteBox" unique_id=999000020]
 position = Vector2(32, 32)

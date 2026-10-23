@@ -60,14 +60,13 @@ theme_override_font_sizes/font_size = 8
 text = "22/22"
 horizontal_alignment = 1
 
-[node name="EnemySpriteContainer" type="Panel" parent="Panel" unique_id=709862708]
+[node name="EnemySpriteContainer" type="Control" parent="Panel" unique_id=709862708]
 layout_mode = 0
 offset_left = 84.0
 offset_top = 66.0
 offset_right = 108.0
 offset_bottom = 90.0
 mouse_filter = 2
-theme_override_styles/panel = ExtResource("2_style")
 
 [node name="EnemySprite" type="AnimatedSprite2D" parent="Panel/EnemySpriteContainer" unique_id=1127230796]
 position = Vector2(12, 12)
@@ -114,14 +113,13 @@ theme_override_font_sizes/font_size = 8
 text = "22/22"
 horizontal_alignment = 1
 
-[node name="PlayerSpriteContainer" type="Panel" parent="Panel" unique_id=523498768]
+[node name="PlayerSpriteContainer" type="Control" parent="Panel" unique_id=523498768]
 layout_mode = 0
 offset_left = 260.0
 offset_top = 66.0
 offset_right = 284.0
 offset_bottom = 90.0
 mouse_filter = 2
-theme_override_styles/panel = ExtResource("2_style")
 
 [node name="PlayerSprite" type="AnimatedSprite2D" parent="Panel/PlayerSpriteContainer" unique_id=1649377204]
 position = Vector2(12, 12)
