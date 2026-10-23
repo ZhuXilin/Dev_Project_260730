@@ -244,7 +244,10 @@ func _try_boss_revive(defender : Unit, _attacker : Unit) -> bool:
 # ============================================================
 #  攻击主流程
 # ============================================================
-func execute_attack(attacker: Unit, defender: Unit) -> bool:
+# ============================================================
+#  攻击主流程
+# ============================================================
+func execute_attack(attacker: Unit, defender: Unit, forced_skill_id: String = "") -> bool:
 	if attacker.get_equipped_weapon_id() == "":
 		print("错误：攻击者没有装备武器")
 		Globals.is_performing_action = false
@@ -255,7 +258,7 @@ func execute_attack(attacker: Unit, defender: Unit) -> bool:
 	print(attacker.unit_stats.unit_name + " 攻击 " + defender.unit_stats.unit_name)
 
 	if attacker.get_weapon_type() == "staff":
-		await _execute_heal(attacker, defender)
+		await _execute_heal(attacker, defender, forced_skill_id)
 		Globals.is_performing_action = false
 		return true
 
@@ -269,20 +272,21 @@ func execute_attack(attacker: Unit, defender: Unit) -> bool:
 
 	var active_skill_id : String = ""
 	var active_skill_data = null
-	var ready_skills : Array = TalentManager.get_ready_active_skills(attacker)
-	if ready_skills.size() > 0:
-		var sid : String = ready_skills[0]
-		var sdata = TalentManager.get_talent_data(sid)
+	
+	# ★ 核心修改：只有在明确传入了技能 ID 时，才尝试触发主动技能
+	if forced_skill_id != "":
+		var sdata = TalentManager.get_talent_data(forced_skill_id)
 		if sdata:
 			var cost : int = _get_active_skill_cost(sdata)
 			if SoulFireManager.can_spend(cost):
-				active_skill_id = sid
+				active_skill_id = forced_skill_id
 				active_skill_data = sdata
 				print("[主动技能] %s 触发：%s（消耗 %d 魂火）" % [
 					attacker.unit_stats.unit_name, sdata.display_name, cost])
 			else:
-				print("[主动技能] %s 魂火不足（需 %d，现有 %d）" % [
-					attacker.unit_stats.unit_name, cost, SoulFireManager.current])
+				print("[主动技能] %s 魂火不足，强制转为普攻" % attacker.unit_stats.unit_name)
+	else:
+		print("[主动技能] 玩家选择普通攻击（无消耗）")
 
 	var force_crit : bool = false
 	var ignore_def : bool = false
@@ -347,7 +351,6 @@ func execute_attack(attacker: Unit, defender: Unit) -> bool:
 		print("暴击词条触发！Lv.%d 倍率 %.1f" % [lv_crit, crit_mult])
 		TalentManager.reset_talent(attacker, "crit")
 	elif attacker.relic_first_attack_crit_remaining > 0:
-		# ★ v4.5：精炼后的剩余次数逻辑
 		crit_mult += attacker.buff_crit_damage_bonus
 		is_crit = true
 		attacker.relic_first_attack_crit_remaining -= 1
@@ -417,7 +420,6 @@ func execute_attack(attacker: Unit, defender: Unit) -> bool:
 
 	await get_tree().create_timer(POST_DAMAGE_DELAY, true, false, true).timeout
 
-	# ★ v4.2：parry / 溅射可能打死 attacker，此处统一拦截
 	if not _is_alive(attacker):
 		print("[攻击流程] attacker 已阵亡，提前结束")
 		Globals.is_performing_action = false
@@ -487,7 +489,6 @@ func execute_attack(attacker: Unit, defender: Unit) -> bool:
 
 		await get_tree().create_timer(EXTRA_HIT_DELAY, true, false, true).timeout
 
-		# ★ v4.2：await 后再次检查
 		if not _is_alive(attacker):
 			print("[攻击流程] 二次攻击前 attacker 已阵亡")
 			Globals.is_performing_action = false
@@ -523,7 +524,6 @@ func execute_attack(attacker: Unit, defender: Unit) -> bool:
 			Globals.is_performing_action = false
 			return true
 
-	# ★ v4.2：二次攻击后检查
 	if not _is_alive(attacker):
 		Globals.is_performing_action = false
 		return true
@@ -554,7 +554,6 @@ func execute_attack(attacker: Unit, defender: Unit) -> bool:
 
 				await get_tree().create_timer(EXTRA_HIT_DELAY, true, false, true).timeout
 
-				# ★ v4.2：await 后再次检查
 				if not _is_alive(attacker):
 					Globals.is_performing_action = false
 					return true
@@ -589,7 +588,6 @@ func execute_attack(attacker: Unit, defender: Unit) -> bool:
 					Globals.is_performing_action = false
 					return true
 
-	# ★ v4.2：法术连击后检查
 	if not _is_alive(attacker):
 		Globals.is_performing_action = false
 		return true
@@ -598,7 +596,6 @@ func execute_attack(attacker: Unit, defender: Unit) -> bool:
 	if _can_counter_attack(attacker, defender):
 		await _execute_counter(attacker, defender)
 
-	# ★ v4.2：反击的 parry 可能打死 attacker
 	if not _is_alive(attacker):
 		print("[攻击流程] 反击后 attacker 已阵亡")
 		Globals.is_performing_action = false
@@ -609,6 +606,77 @@ func execute_attack(attacker: Unit, defender: Unit) -> bool:
 	Globals.is_performing_action = false
 	return true
 
+
+# ============================================================
+#  治疗
+# ============================================================
+func _execute_heal(attacker: Unit, defender: Unit, forced_skill_id: String = "") -> bool:
+	if defender.unit_stats.team_id != attacker.unit_stats.team_id:
+		print("错误：治疗不能对敌方！")
+		Globals.is_performing_action = false
+		return false
+
+	var weapon_data = attacker.get_weapon_data()
+	var heal_amount = weapon_data.heal_effect.get("base_heal", 0)
+	var faith_bonus = attacker.unit_stats.faith * weapon_data.heal_effect.get("faith_multiplier", 1.0)
+	var total_heal = int(heal_amount + faith_bonus)
+
+	if attacker.relic_heal_bonus > 0.0:
+		total_heal = int(total_heal * (1.0 + attacker.relic_heal_bonus))
+
+	var heal_affix_bonus : float = 0.0
+	for slot in attacker.armor_slots:
+		if slot:
+			heal_affix_bonus += slot.get_affix_value_float("heal_boost")
+	total_heal = int(total_heal * (1.0 + heal_affix_bonus))
+
+	if TalentManager.is_talent_ready(attacker, "heal_boost"):
+		var level = _get_effective_talent_level(attacker, "heal_boost")
+		var mult = HEAL_BOOST_MULT[level - 1]
+		total_heal = int(total_heal * mult)
+		print("治愈强化触发！Lv.%d 治疗量 ×%.1f" % [level, mult])
+		TalentManager.reset_talent(attacker, "heal_boost")
+
+	var old_hp = defender.hit_points
+	defender.hit_points = min(defender.hit_points + total_heal, defender.unit_stats.max_hp)
+	var actual_heal = defender.hit_points - old_hp
+	print("治疗 ", actual_heal, " 点 HP")
+
+	defender.update_hp_label()
+	SignalBus.request_damage_popup.emit(defender.global_position, actual_heal, false, false, true)
+	SoundManager.play_heal_sound()
+
+	# ★ 修改：群体治愈，仅当玩家主动选择该技能时触发
+	if forced_skill_id != "":
+		var skill_data = TalentManager.get_talent_data(forced_skill_id)
+		if skill_data:
+			var mass_pct = float(skill_data.effect_params.get("mass_heal_percent", 0.0))
+			if mass_pct > 0.0:
+				var cost : int = _get_active_skill_cost(skill_data)
+				if SoulFireManager.can_spend(cost):
+					var mass_heal = int(actual_heal * mass_pct)
+					for u in UnitManager.unit_list:
+						if u.unit_stats.team_id != attacker.unit_stats.team_id:
+							continue
+						if u == defender or u.hit_points <= 0:
+							continue
+						var old = u.hit_points
+						u.hit_points = mini(u.hit_points + mass_heal, u.unit_stats.max_hp)
+						var real = u.hit_points - old
+						if real > 0:
+							u.update_hp_label()
+							SignalBus.request_damage_popup.emit(u.global_position, real, false, false, true)
+					print("[群体治愈] 其他友军回复 %d HP（消耗 %d 魂火）" % [mass_heal, cost])
+
+					TalentManager.consume_active_skill(attacker, forced_skill_id)
+					SoulFireManager.spend(cost)
+
+	await get_tree().create_timer(PERFORMANCE_DURATION, true, false, true).timeout
+
+	var free_action : bool = _consume_first_spell_free(attacker)
+	_finish_attack(attacker, defender, free_action)
+	Globals.is_performing_action = false
+	return true
 
 # ============================================================
 #  燃烧溅射（批次 8）
@@ -886,89 +954,6 @@ func _apply_aoe(attacker: Unit, center: Unit, base_damage: int, percent: float, 
 			await _play_death_animation(target)
 			UnitManager.unregister_unit(target)
 			target.queue_free()
-
-
-# ============================================================
-#  治疗
-# ============================================================
-func _execute_heal(attacker: Unit, defender: Unit) -> bool:
-	if defender.unit_stats.team_id != attacker.unit_stats.team_id:
-		print("错误：治疗不能对敌方！")
-		Globals.is_performing_action = false
-		return false
-
-	var weapon_data = attacker.get_weapon_data()
-	var heal_amount = weapon_data.heal_effect.get("base_heal", 0)
-	var faith_bonus = attacker.unit_stats.faith * weapon_data.heal_effect.get("faith_multiplier", 1.0)
-	var total_heal = int(heal_amount + faith_bonus)
-
-	if attacker.relic_heal_bonus > 0.0:
-		total_heal = int(total_heal * (1.0 + attacker.relic_heal_bonus))
-
-	var heal_affix_bonus : float = 0.0
-	for slot in attacker.armor_slots:
-		if slot:
-			heal_affix_bonus += slot.get_affix_value_float("heal_boost")
-	total_heal = int(total_heal * (1.0 + heal_affix_bonus))
-
-	if TalentManager.is_talent_ready(attacker, "heal_boost"):
-		var level = _get_effective_talent_level(attacker, "heal_boost")
-		var mult = HEAL_BOOST_MULT[level - 1]
-		total_heal = int(total_heal * mult)
-		print("治愈强化触发！Lv.%d 治疗量 ×%.1f" % [level, mult])
-		TalentManager.reset_talent(attacker, "heal_boost")
-
-	var old_hp = defender.hit_points
-	defender.hit_points = min(defender.hit_points + total_heal, defender.unit_stats.max_hp)
-	var actual_heal = defender.hit_points - old_hp
-	print("治疗 ", actual_heal, " 点 HP")
-
-	defender.update_hp_label()
-	SignalBus.request_damage_popup.emit(defender.global_position, actual_heal, false, false, true)
-	SoundManager.play_heal_sound()
-
-	# ★ v4.2：群体治愈（active_mass_heal）
-	#         原代码没有检查魂火/扣魂火，导致群体治愈免费。
-	#         现在与 execute_attack 对齐：先检查能否支付，成功才触发并扣费。
-	var ready_heal : Array = TalentManager.get_ready_active_skills(attacker)
-	for skill_id in ready_heal:
-		var skill_data = TalentManager.get_talent_data(skill_id)
-		if not skill_data:
-			continue
-		var mass_pct = float(skill_data.effect_params.get("mass_heal_percent", 0.0))
-		if mass_pct <= 0.0:
-			continue
-
-		var cost : int = _get_active_skill_cost(skill_data)
-		if not SoulFireManager.can_spend(cost):
-			print("[群体治愈] %s 魂火不足（需 %d，现有 %d），跳过" % [
-				attacker.unit_stats.unit_name, cost, SoulFireManager.current])
-			continue
-
-		var mass_heal = int(actual_heal * mass_pct)
-		for u in UnitManager.unit_list:
-			if u.unit_stats.team_id != attacker.unit_stats.team_id:
-				continue
-			if u == defender or u.hit_points <= 0:
-				continue
-			var old = u.hit_points
-			u.hit_points = mini(u.hit_points + mass_heal, u.unit_stats.max_hp)
-			var real = u.hit_points - old
-			if real > 0:
-				u.update_hp_label()
-				SignalBus.request_damage_popup.emit(u.global_position, real, false, false, true)
-		print("[群体治愈] 其他友军回复 %d HP（消耗 %d 魂火）" % [mass_heal, cost])
-
-		TalentManager.consume_active_skill(attacker, skill_id)
-		SoulFireManager.spend(cost)
-		break
-
-	await get_tree().create_timer(PERFORMANCE_DURATION, true, false, true).timeout
-
-	var free_action : bool = _consume_first_spell_free(attacker)
-	_finish_attack(attacker, defender, free_action)
-	Globals.is_performing_action = false
-	return true
 
 
 # ============================================================

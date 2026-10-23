@@ -46,7 +46,6 @@ func get_drag_hint() -> String:
 		var is_healer = (_pressing_unit.get_weapon_type() == "staff")
 		if is_healer:
 			return "释放左键回复 HP"
-		# 判断是原地还是移动后攻击
 		if _is_target_in_range(_hovered_target):
 			return "释放左键攻击"
 		return "释放左键移动并攻击"
@@ -99,7 +98,6 @@ func handle_input(event : InputEvent) -> bool:
 				return _on_left_release()
 		elif mb.button_index == MOUSE_BUTTON_RIGHT:
 			if _is_dragging or _is_pressing:
-				# ★ 撤销拖拽：播撤销音 + 提示
 				SoundManager.play_cancel_sound()
 				SignalBus.request_hint_override.emit("已撤销操作", 1.0)
 				_cancel()
@@ -130,8 +128,6 @@ func _on_left_press() -> bool:
 	var cell = _bf.world_to_grid(world_pos)
 	var unit = UnitManager.get_unit_at_cell(cell)
 
-	# ★ 如果鼠标没点在单位上，但当前有被选中的单位（比如通过滚轮选中的）
-	# 则直接判定为点击该选中单位，并同步物理鼠标到该单位位置
 	if unit == null and InputManager.selected_unit != null and is_instance_valid(InputManager.selected_unit):
 		unit = InputManager.selected_unit
 		var screen_pos = _bf.get_viewport().get_canvas_transform() * unit.global_position
@@ -180,7 +176,6 @@ func _on_left_release() -> bool:
 			hovered_any = null
 
 		if hovered_any != null:
-			# ---- 悬停在单位身上 ----
 			if not _is_valid_target(hovered_any):
 				SoundManager.play_cancel_sound()
 				SignalBus.request_hint_override.emit("操作失败", 1.0)
@@ -188,32 +183,27 @@ func _on_left_release() -> bool:
 				_reset_state()
 				return true
 
-			# 原地攻击？
 			if _is_target_in_range(hovered_any):
 				_execute_attack_or_heal(hovered_any)
 				_reset_state()
 				return true
 
-			# ★ 二合一：移动 + 攻击
 			var path = _find_attack_path(hovered_any)
 			if path.size() > 0:
 				_execute_move_and_attack(path, hovered_any)
 				_reset_state()
 				return true
 
-			# 都不行
 			SoundManager.play_cancel_sound()
 			SignalBus.request_hint_override.emit("操作失败", 1.0)
 			_cancel()
 			_reset_state()
 			return true
 
-		# ---- 悬停在空格 ----
 		_execute_move()
 		_reset_state()
 		return true
 
-	# ---- 纯点击 ----
 	var unit = _pressing_unit
 	var now := Time.get_ticks_msec()
 
@@ -274,7 +264,6 @@ func _start_drag():
 
 
 func _update_drag():
-	# 鼠标出视口检查
 	var vp_size = _bf.get_viewport().get_visible_rect().size
 	var mouse_screen = _bf.get_viewport().get_mouse_position()
 	if mouse_screen.x < 0 or mouse_screen.x > vp_size.x \
@@ -291,7 +280,6 @@ func _update_drag():
 	if hovered == _pressing_unit:
 		hovered = null
 
-	# ---- 悬停在单位身上 ----
 	if hovered != null:
 		var is_valid = _is_valid_target(hovered)
 		var can_attack_now = _is_target_in_range(hovered)
@@ -311,10 +299,8 @@ func _update_drag():
 			_current_target_cell = cell
 			_current_path = []
 			_arrow.hide_path()
-			# 红格保持上一帧（最后一次经过空格时的范围）
 		return
 
-	# ---- 悬停在空格 ----
 	_hovered_target = null
 
 	if not _reachable.has(cell):
@@ -401,8 +387,6 @@ func _is_valid_target(target : Unit) -> bool:
 		return not same_team
 
 
-## 找一条能攻击到 target 的最短路径（移动后能攻击）
-## 返回 [] 表示找不到
 func _find_attack_path(target : Unit) -> Array:
 	var unit = _pressing_unit
 	if unit == null: return []
@@ -432,6 +416,7 @@ func _find_attack_path(target : Unit) -> Array:
 	return best_path
 
 
+# ★ 核心修改：触发攻击前弹窗
 func _execute_attack_or_heal(target : Unit) -> void:
 	var unit = _pressing_unit
 	if unit == null or not is_instance_valid(unit): return
@@ -442,14 +427,14 @@ func _execute_attack_or_heal(target : Unit) -> void:
 	InputManager.interaction_phase = InputManager.Phase.IDLE
 	InputManager.selected_unit = null
 
-	call_deferred("_do_combat_async", unit, target)
+	_show_attack_menu(unit, target, false)
 
 
-func _do_combat_async(attacker : Unit, defender : Unit):
-	await CombatManager.execute_attack(attacker, defender)
+func _do_combat_async(attacker : Unit, defender : Unit, forced_skill_id: String = ""):
+	await CombatManager.execute_attack(attacker, defender, forced_skill_id)
 
 
-## ★ 二合一：先移动，再攻击
+# ★ 核心修改：先移动，再弹窗
 func _execute_move_and_attack(path : Array, target : Unit) -> void:
 	var unit = _pressing_unit
 	if unit == null or not is_instance_valid(unit): return
@@ -465,23 +450,80 @@ func _execute_move_and_attack(path : Array, target : Unit) -> void:
 
 
 func _do_move_and_attack_async(unit : Unit, path : Array, target : Unit):
-	# 1. 移动
 	TurnManager.start_movement(unit, path)
 	await TurnManager.move_completed
 
 	if not is_instance_valid(unit): return
 	if unit.hit_points <= 0: return
 
-	# 2. 攻击
 	if is_instance_valid(target) and target.hit_points > 0:
-		# 二次确认射程（防止中途状态变化）
 		var weapon = unit.get_weapon_data()
 		if weapon:
 			var dist = abs(unit.grid_cell.x - target.grid_cell.x) \
 					+ abs(unit.grid_cell.y - target.grid_cell.y)
 			if dist >= weapon.min_attack_range and dist <= weapon.attack_range:
-				await CombatManager.execute_attack(unit, target)
+				_show_attack_menu(unit, target, true)
 
+
+# 攻击方式选择菜单
+# ★ 新增：攻击方式选择菜单
+func _show_attack_menu(attacker: Unit, target: Unit, is_after_move: bool) -> void:
+	# 获取当前就绪的主动技能
+	var ready_skills = TalentManager.get_ready_active_skills(attacker)
+	var available_skills = []
+	for sid in ready_skills:
+		var sdata = TalentManager.get_talent_data(sid)
+		var cost = CombatManager._get_active_skill_cost(sdata)
+		if SoulFireManager.can_spend(cost):
+			available_skills.append(sdata)
+
+	# 如果没有任何可用技能，或者玩家魂火不足，直接执行普攻
+	if available_skills.is_empty():
+		call_deferred("_do_combat_async", attacker, target, "")
+		return
+
+	# 构建菜单
+	var popup := PopupMenu.new()
+	_bf.add_child(popup)
+	
+	popup.add_item("普通攻击 (无消耗)", 0)
+	
+	for i in range(available_skills.size()):
+		var sdata = available_skills[i]
+		var cost = CombatManager._get_active_skill_cost(sdata)
+		popup.add_item("%s (消耗 %d 魂火)" % [sdata.display_name, cost], i + 1)
+		popup.set_item_metadata(i + 1, sdata.id)
+
+	# ★ 核心修复：用字典记录状态，绕过 GDScript lambda 的值捕获限制
+	var state = {"confirmed": false}
+	
+	popup.id_pressed.connect(func(id):
+		state["confirmed"] = true
+		var chosen_skill_id = ""
+		if id > 0:
+			chosen_skill_id = popup.get_item_metadata(id)
+		
+		popup.queue_free()
+		call_deferred("_do_combat_async", attacker, target, chosen_skill_id)
+	)
+	
+	popup.popup_hide.connect(func():
+		if not state["confirmed"]:
+			# 如果玩家点空白处取消
+			popup.queue_free()
+			if is_after_move:
+				# 因为已经走过去了，为了不让玩家白白浪费移动，直接默认普攻
+				call_deferred("_do_combat_async", attacker, target, "")
+			else:
+				# 原地取消，不做任何操作（回合尚未结束，玩家可以继续选中他）
+				pass
+	)
+
+	# 在鼠标当前位置弹出
+	var mouse_pos = _bf.get_viewport().get_mouse_position()
+	popup.position = Vector2i(mouse_pos)
+	popup.popup()
+	
 
 # ============================================================
 #  攻击范围显示
