@@ -28,16 +28,16 @@ const HIGHLIGHT_HP_DAMAGE : Color = Color(1.0, 0.0, 0.0, 0.3)
 # ============================================================
 const MAP_LINE_COLOR : Color = Color.WHITE
 const MAP_LINE_WIDTH : float = 2.0
-const MAP_NODE_VISITED : Color = Color(0.6, 0.6, 0.6)
-const MAP_NODE_UNAVAILABLE : Color = Color(0.7, 0.7, 0.7)
+const MAP_NODE_VISITED : Color = Color(0.75, 0.75, 0.75)
+const MAP_NODE_UNAVAILABLE : Color = Color(0.85, 0.85, 0.85)
 const MAP_NODE_AVAILABLE : Color = Color.WHITE
 
 
 # ============================================================
 #  地图节点按钮尺寸 / 字号
 # ============================================================
-const MAP_NODE_SIZE : Vector2 = Vector2(40, 20)
-const MAP_NODE_FONT_SIZE : int = 5
+const MAP_NODE_SIZE : Vector2 = Vector2(48, 20)
+const MAP_NODE_FONT_SIZE : int = 7
 
 
 # ============================================================

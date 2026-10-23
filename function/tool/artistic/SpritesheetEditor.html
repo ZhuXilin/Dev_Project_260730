@@ -60,6 +60,7 @@ input[type=checkbox]{accent-color:#2d6cdf;margin-right:4px}
 #statusbar{flex:0 0 auto;display:flex;align-items:center;padding:5px 12px;background:#26262b;border-top:1px solid #111;font-size:12px;color:#a7aeb9}
 #status{color:#a7aeb9;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 #tool-hint{color:#a7aeb9;margin-left:16px;white-space:nowrap;opacity:0.8;}
+#brush-info{color:#a7aeb9;margin-left:16px;white-space:nowrap;opacity:0.8;}
 #coord{font-family:ui-monospace,Consolas,monospace;color:#888;margin-left:auto;white-space:nowrap;}
 .modal-back{position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;z-index:2000}
 .modal{background:#2a2a30;border:1px solid #444;border-radius:6px;padding:16px 20px;min-width:340px;box-shadow:0 10px 40px rgba(0,0,0,.7)}
@@ -309,6 +310,7 @@ input[type=checkbox]{accent-color:#2d6cdf;margin-right:4px}
   <div id="statusbar">
     <span id="status"></span>
     <span id="tool-hint"></span>
+    <span id="brush-info"></span>
     <span id="coord">— , —</span>
   </div>
 </div>
@@ -3646,6 +3648,20 @@ function onKeyDown(e){
     return;
   }
 
+  // ★ 笔刷大小快捷键 [ 和 ]
+  if(!e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey){
+    if(k === '[' || k === '{'){
+      e.preventDefault();
+      setBrushSize(ui.brushSize - 1);
+      return;
+    }
+    if(k === ']' || k === '}'){
+      e.preventDefault();
+      setBrushSize(ui.brushSize + 1);
+      return;
+    }
+  }
+
   if(e.ctrlKey || e.metaKey){
     switch(k.toLowerCase()){
       case 'z': e.preventDefault(); if(e.shiftKey) doRedo(); else doUndo(); return;
@@ -3982,6 +3998,12 @@ function updateToolHint(){
   }
 }
 
+function updateBrushInfo(){
+  if(brushInfoEl) {
+    brushInfoEl.textContent = (currentLang==='zh'?'笔刷 ':'Brush ') + ui.brushSize + 'px';
+  }
+}
+
 function setTool(t){
   if(transformState) cancelTransform();
   ui.tool = t;
@@ -3996,6 +4018,7 @@ function setTool(t){
 }
 function setBrushSize(n){
   ui.brushSize = clamp(n,1,64);
+  updateBrushInfo();
   requestRender();
 }
 function syncColorInputs(){
@@ -4822,8 +4845,8 @@ var I18N = {
   'tool.replace': {zh:'换', en:'Rep'},
   'tool.hints.select': {zh: '选择 (V)', en: 'Select (V)'},
   'tool.hints.lasso': {zh: '套索 (M)', en: 'Lasso (M)'},
-  'tool.hints.pencil': {zh: '铅笔 (B)', en: 'Pencil (B)'},
-  'tool.hints.eraser': {zh: '橡皮 (E)', en: 'Eraser (E)'},
+  'tool.hints.pencil': {zh: '铅笔 (B) · [ ] 调节大小', en: 'Pencil (B) · [ ] Size'},
+  'tool.hints.eraser': {zh: '橡皮 (E) · [ ] 调节大小', en: 'Eraser (E) · [ ] Size'},
   'tool.hints.picker': {zh: '取色 (I)', en: 'Picker (I)'},
   'tool.hints.bucket': {zh: '填充 (G)', en: 'Bucket (G)'},
   'tool.hints.replace': {zh: '替换 (H)', en: 'Replace (H)'},
@@ -4989,6 +5012,7 @@ function applyLanguage(lang) {
   }
   langBtn.textContent = lang === 'zh' ? 'CH' : 'EN';
   updateToolHint();
+  updateBrushInfo();
   setStatus(I18N['status.ready'][lang]);
 }
 

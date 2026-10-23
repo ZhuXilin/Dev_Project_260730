@@ -2,6 +2,7 @@
 
 [ext_resource type="Script" uid="uid://b6s4gamqusww5" path="res://function/script/ArenaBattle.gd" id="1_script"]
 [ext_resource type="StyleBox" uid="uid://6qbsaxkfwg3o" path="res://content/resource/stylebox/8bit_style_box_flat.tres" id="2_style"]
+[ext_resource type="Texture2D" uid="uid://cvorst4lx4vqi" path="res://content/images/ui/subui_arena_02.png" id="3_mj7ca"]
 
 [node name="ArenaBattle" type="CanvasLayer" unique_id=880540422]
 layer = 25
@@ -29,12 +30,20 @@ grow_horizontal = 2
 grow_vertical = 2
 theme_override_styles/panel = ExtResource("2_style")
 
+[node name="BackgroundImage" type="TextureRect" parent="Panel" unique_id=699606776]
+layout_mode = 0
+offset_left = -16.0
+offset_top = -16.0
+offset_right = 384.0
+offset_bottom = 224.0
+texture = ExtResource("3_mj7ca")
+
 [node name="EnemyName" type="Label" parent="Panel" unique_id=238628371]
 layout_mode = 0
 offset_left = 36.0
-offset_top = 12.0
+offset_top = 46.0
 offset_right = 156.0
-offset_bottom = 30.0
+offset_bottom = 64.0
 theme_override_font_sizes/font_size = 10
 text = "Enemy"
 horizontal_alignment = 1
@@ -44,28 +53,28 @@ custom_minimum_size = Vector2(0, 6)
 custom_maximum_size = Vector2(120, 6)
 layout_mode = 0
 offset_left = 36.0
-offset_top = 34.0
+offset_top = 68.0
 offset_right = 156.0
-offset_bottom = 42.0
+offset_bottom = 74.0
 theme_override_font_sizes/font_size = 6
 value = 100.0
 
 [node name="EnemyHpLabel" type="Label" parent="Panel" unique_id=860391396]
 layout_mode = 0
 offset_left = 36.0
-offset_top = 44.0
+offset_top = 78.0
 offset_right = 156.0
-offset_bottom = 62.0
+offset_bottom = 96.0
 theme_override_font_sizes/font_size = 8
 text = "22/22"
 horizontal_alignment = 1
 
 [node name="EnemySpriteContainer" type="Control" parent="Panel" unique_id=709862708]
-layout_mode = 0
+anchors_preset = 0
 offset_left = 84.0
-offset_top = 66.0
+offset_top = 100.0
 offset_right = 108.0
-offset_bottom = 90.0
+offset_bottom = 124.0
 mouse_filter = 2
 
 [node name="EnemySprite" type="AnimatedSprite2D" parent="Panel/EnemySpriteContainer" unique_id=1127230796]
@@ -74,9 +83,9 @@ position = Vector2(12, 12)
 [node name="VSLabel" type="Label" parent="Panel" unique_id=1259350508]
 layout_mode = 0
 offset_left = 164.0
-offset_top = 34.0
+offset_top = 42.0
 offset_right = 204.0
-offset_bottom = 56.0
+offset_bottom = 64.0
 theme_override_font_sizes/font_size = 12
 text = "VS"
 horizontal_alignment = 1
@@ -85,9 +94,9 @@ vertical_alignment = 1
 [node name="PlayerName" type="Label" parent="Panel" unique_id=1054483902]
 layout_mode = 0
 offset_left = 212.0
-offset_top = 12.0
+offset_top = 46.0
 offset_right = 332.0
-offset_bottom = 30.0
+offset_bottom = 64.0
 theme_override_font_sizes/font_size = 10
 text = "Player"
 horizontal_alignment = 1
@@ -97,28 +106,28 @@ custom_minimum_size = Vector2(0, 6)
 custom_maximum_size = Vector2(120, 6)
 layout_mode = 0
 offset_left = 212.0
-offset_top = 34.0
+offset_top = 68.0
 offset_right = 332.0
-offset_bottom = 42.0
+offset_bottom = 74.0
 theme_override_font_sizes/font_size = 6
 value = 100.0
 
 [node name="PlayerHpLabel" type="Label" parent="Panel" unique_id=1335907742]
 layout_mode = 0
 offset_left = 212.0
-offset_top = 44.0
+offset_top = 78.0
 offset_right = 332.0
-offset_bottom = 62.0
+offset_bottom = 96.0
 theme_override_font_sizes/font_size = 8
 text = "22/22"
 horizontal_alignment = 1
 
 [node name="PlayerSpriteContainer" type="Control" parent="Panel" unique_id=523498768]
-layout_mode = 0
+anchors_preset = 0
 offset_left = 260.0
-offset_top = 66.0
+offset_top = 100.0
 offset_right = 284.0
-offset_bottom = 90.0
+offset_bottom = 124.0
 mouse_filter = 2
 
 [node name="PlayerSprite" type="AnimatedSprite2D" parent="Panel/PlayerSpriteContainer" unique_id=1649377204]
@@ -126,10 +135,10 @@ position = Vector2(12, 12)
 
 [node name="LogLabel" type="Label" parent="Panel" unique_id=1639529829]
 layout_mode = 0
-offset_left = 12.0
-offset_top = 98.0
-offset_right = 356.0
-offset_bottom = 138.0
+offset_left = 120.0
+offset_top = 96.0
+offset_right = 248.0
+offset_bottom = 136.0
 theme_override_font_sizes/font_size = 8
 text = "战斗开始！"
 horizontal_alignment = 1
@@ -138,22 +147,23 @@ autowrap_mode = 3
 
 [node name="ResultLabel" type="Label" parent="Panel" unique_id=1028902625]
 layout_mode = 0
-offset_left = 12.0
-offset_top = 142.0
-offset_right = 356.0
-offset_bottom = 162.0
+offset_left = 120.0
+offset_top = 144.0
+offset_right = 248.0
+offset_bottom = 184.0
 theme_override_font_sizes/font_size = 12
 horizontal_alignment = 1
 vertical_alignment = 1
 
 [node name="BottomBar" type="HBoxContainer" parent="Panel" unique_id=680634986]
-layout_mode = 0
+layout_mode = 1
+anchors_preset = 7
 anchor_left = 0.5
 anchor_top = 1.0
 anchor_right = 0.5
 anchor_bottom = 1.0
-offset_top = -34.0
-offset_bottom = -10.0
+offset_top = -16.0
+offset_bottom = 8.0
 grow_horizontal = 2
 grow_vertical = 0
 theme_override_constants/separation = 16

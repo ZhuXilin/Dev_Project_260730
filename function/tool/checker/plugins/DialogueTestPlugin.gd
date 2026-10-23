@@ -53,9 +53,9 @@ func _play_dialogue():
 	if harness:
 		harness.visible = false
 
-	# 播放对话
-	DialogueManager.start_dialogue(_selected_id)
-	await DialogueManager.dialogue_finished
+	# 播放对话（v4.6 起统一走 StoryManager）
+	if StoryManager.play_dialogue_by_id(_selected_id):
+		await DialogueManager.dialogue_finished
 
 	# ★ 恢复 TestHarness
 	if harness and is_instance_valid(harness):
@@ -72,15 +72,45 @@ func launch():
 
 
 func _load_ids() -> Array:
-	var path = Config.PATHS.DIALOGUE_DATA
+	# ★ 终极修复：直接硬编码路径，彻底绕开 Config.PATHS 缺失 Key 的问题
+	var path = "res://content/data/narrative.json"
+	
 	if not FileAccess.file_exists(path):
+		push_warning("[DialogueTestPlugin] 找不到文件: " + path)
 		return []
+		
 	var file = FileAccess.open(path, FileAccess.READ)
+	if file == null:
+		return []
+		
 	var data = JSON.parse_string(file.get_as_text())
 	file.close()
+	
 	if not (data is Dictionary):
 		return []
-	var ids : Array = data.keys()
+	
+	var ids : Array = []
+	
+	# 1. 读取独立对话 standalone
+	var standalone = data.get("standalone", {})
+	if standalone is Dictionary:
+		for k in standalone:
+			ids.append(k)
+			
+	# 2. 读取 NPC 对话树中的 dialogues
+	var npcs = data.get("npcs", {})
+	if npcs is Dictionary:
+		for npc_id in npcs:
+			var npc = npcs[npc_id]
+			if npc is Dictionary:
+				var dialogues = npc.get("dialogues", [])
+				if dialogues is Array:
+					for d in dialogues:
+						if d is Dictionary:
+							var did = str(d.get("id", ""))
+							if did != "" and did not in ids:
+								ids.append(did)
+	
 	ids.sort()
 	return ids
 

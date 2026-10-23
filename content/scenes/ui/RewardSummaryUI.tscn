@@ -2,6 +2,7 @@
 
 [ext_resource type="Script" uid="uid://bg2ifrj8qlbcv" path="res://function/script/RewardSummaryUI.gd" id="1"]
 [ext_resource type="StyleBox" uid="uid://6qbsaxkfwg3o" path="res://content/resource/stylebox/8bit_style_box_flat.tres" id="2"]
+[ext_resource type="Texture2D" uid="uid://damc5su6pig37" path="res://content/images/ui/subui_reward_01.png" id="3_qc04u"]
 
 [node name="RewardSummaryUI" type="CanvasLayer" unique_id=1189025735]
 layer = 30
@@ -12,7 +13,7 @@ anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 mouse_filter = 2
-color = Color(0, 0, 0, 0.7)
+color = Color(0.10980392, 0.10980392, 0.10980392, 1)
 
 [node name="Panel" type="Panel" parent="." unique_id=1816788705]
 anchors_preset = 8
@@ -27,6 +28,21 @@ offset_bottom = 120.0
 grow_horizontal = 2
 grow_vertical = 2
 theme_override_styles/panel = ExtResource("2")
+
+[node name="BackgroundTexture" type="TextureRect" parent="Panel" unique_id=1375861179]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -200.0
+offset_top = -120.0
+offset_right = 200.0
+offset_bottom = 120.0
+grow_horizontal = 2
+grow_vertical = 2
+texture = ExtResource("3_qc04u")
 
 [node name="VBoxContainer" type="VBoxContainer" parent="Panel" unique_id=1776822015]
 layout_mode = 1
