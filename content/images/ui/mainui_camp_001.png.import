@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://bmi62a7xf40aj"
-path="res://.godot/imported/camp_002.png-507ce7a50bbf51083db376e74e5c0c8f.ctex"
+uid="uid://ch2l2vr0uw075"
+path="res://.godot/imported/mainui_camp_001.png-9237de84ca7a4a084b6cb99dfdbc19f6.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://content/images/ui/camp_002.png"
-dest_files=["res://.godot/imported/camp_002.png-507ce7a50bbf51083db376e74e5c0c8f.ctex"]
+source_file="res://content/images/ui/mainui_camp_001.png"
+dest_files=["res://.godot/imported/mainui_camp_001.png-9237de84ca7a4a084b6cb99dfdbc19f6.ctex"]
 
 [params]
 

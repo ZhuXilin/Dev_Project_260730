@@ -3,6 +3,7 @@
 [ext_resource type="Script" uid="uid://ch06ikl42g0ou" path="res://function/script/Arena.gd" id="1_script"]
 [ext_resource type="StyleBox" uid="uid://6qbsaxkfwg3o" path="res://content/resource/stylebox/8bit_style_box_flat.tres" id="2_style"]
 [ext_resource type="PackedScene" uid="uid://dinsoae8vsksx" path="res://content/scenes/ui/components/UnitInfoPanel.tscn" id="3_info"]
+[ext_resource type="Texture2D" uid="uid://b7uf7o2w50jp7" path="res://content/images/ui/subui_arena_01.png" id="3_pfvru"]
 
 [node name="Arena" type="CanvasLayer" unique_id=938146822]
 layer = 20
@@ -28,6 +29,14 @@ grow_horizontal = 2
 grow_vertical = 2
 theme_override_styles/panel = ExtResource("2_style")
 
+[node name="BackgroundImage" type="TextureRect" parent="Panel" unique_id=1531394169]
+layout_mode = 0
+offset_left = -8.0
+offset_top = -6.0
+offset_right = 32.0
+offset_bottom = 34.0
+texture = ExtResource("3_pfvru")
+
 [node name="VBox" type="VBoxContainer" parent="Panel" unique_id=185697285]
 layout_mode = 1
 anchors_preset = 15
@@ -35,7 +44,7 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 offset_left = 8.0
 offset_top = 6.0
-offset_right = -136.0
+offset_right = -120.0
 offset_bottom = -6.0
 grow_horizontal = 2
 grow_vertical = 2

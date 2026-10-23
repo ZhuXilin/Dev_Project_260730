@@ -95,7 +95,7 @@ func _setup_scroll_world():
 	# 3.5 ★ 中屏背景（随 world 一起左右滑动）
 	#     先添加 → 处于 _screen_center 子节点第 0 位 → 最底层，
 	#     后续移入的 FireSprite / EntranceGate / NpcGrid 会覆盖在其上。
-	var center_bg_path : String = "res://content/images/ui/camp_001.png"
+	var center_bg_path : String = "res://content/images/ui/mainui_camp_001.png"
 	if ResourceLoader.exists(center_bg_path):
 		var center_bg_tex := TextureRect.new()
 		center_bg_tex.name = "CampBackground"
@@ -151,9 +151,9 @@ func _build_explore_room(side : int, title : String, bg_color : Color):
 	# ★ 背景：左屏 background_002.png，右屏 background_003.png
 	var bg_path : String = ""
 	if side < 0:
-		bg_path = "res://content/images/ui/camp_002.png"
+		bg_path = "res://content/images/ui/mainui_camp_002.png"
 	else:
-		bg_path = "res://content/images/ui/camp_003.png"
+		bg_path = "res://content/images/ui/mainui_camp_003.png"
 
 	if bg_path != "" and ResourceLoader.exists(bg_path):
 		var bg_tex := TextureRect.new()

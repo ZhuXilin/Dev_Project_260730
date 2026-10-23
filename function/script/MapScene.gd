@@ -1119,7 +1119,7 @@ func _update_map_background():
 		return
 	
 	# 根据当前天数生成路径
-	var bg_path : String = "res://content/images/ui/mapscene_%03d.png" % current_day
+	var bg_path : String = "res://content/images/ui/mapui_scene_%03d.png" % current_day
 	
 	# 查找是否已创建过背景纹理节点
 	var tex_rect : TextureRect = bg_rect.get_node_or_null("MapBgTexture")

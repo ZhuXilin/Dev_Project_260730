@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://3q6hlbkindik"
-path="res://.godot/imported/mapscene_001.png-ca5a80331f60d43b28f73370567e1590.ctex"
+uid="uid://bmi62a7xf40aj"
+path="res://.godot/imported/mainui_camp_002.png-e9c594f80f0518f0d52c623c8363788b.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://content/images/ui/mapscene_001.png"
-dest_files=["res://.godot/imported/mapscene_001.png-ca5a80331f60d43b28f73370567e1590.ctex"]
+source_file="res://content/images/ui/mainui_camp_002.png"
+dest_files=["res://.godot/imported/mainui_camp_002.png-e9c594f80f0518f0d52c623c8363788b.ctex"]
 
 [params]
 

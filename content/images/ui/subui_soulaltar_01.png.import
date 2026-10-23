@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://bf5hm14hq86u1"
-path="res://.godot/imported/mapscene_003.png-be9ff698e56343643dd33e36a9a258cd.ctex"
+uid="uid://dsv0lkhq5lvn2"
+path="res://.godot/imported/subui_soulaltar_01.png-e327426c83cc2137d563e8196a9ac6bb.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://content/images/ui/mapscene_003.png"
-dest_files=["res://.godot/imported/mapscene_003.png-be9ff698e56343643dd33e36a9a258cd.ctex"]
+source_file="res://content/images/ui/subui_soulaltar_01.png"
+dest_files=["res://.godot/imported/subui_soulaltar_01.png-e327426c83cc2137d563e8196a9ac6bb.ctex"]
 
 [params]
 
