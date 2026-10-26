@@ -10,12 +10,12 @@ enum TerrainType {
 }
 
 const TERRAIN_DATA = {
-	TerrainType.PLAIN:    { "move_cost": 1, "def_bonus": 0, "magic_defense_bonus": 0, "avoid_bonus": 0,  "passable": true },
-	TerrainType.FOREST:   { "move_cost": 2, "def_bonus": 1, "magic_defense_bonus": 0, "avoid_bonus": 10, "passable": true },
-	TerrainType.MOUNTAIN: { "move_cost": 3, "def_bonus": 2, "magic_defense_bonus": 0, "avoid_bonus": 20, "passable": false },
-	TerrainType.BUILDING: { "move_cost": 1, "def_bonus": 3, "magic_defense_bonus": 2, "avoid_bonus": 0,  "passable": true },
-	TerrainType.IMPASSABLE:{ "move_cost": 0, "def_bonus": 0, "magic_defense_bonus": 0, "avoid_bonus": 0,  "passable": false },
-	TerrainType.IMPASSABLE_ALL:{ "move_cost": 0, "def_bonus": 0, "magic_defense_bonus": 0, "avoid_bonus": 0,  "passable": false }
+	TerrainType.PLAIN:    { "move_cost": 1, "physical_reduction": 0.00, "magic_reduction": 0.00, "passable": true },
+	TerrainType.FOREST:   { "move_cost": 2, "physical_reduction": 0.10, "magic_reduction": 0.00, "passable": true },
+	TerrainType.MOUNTAIN: { "move_cost": 3, "physical_reduction": 0.20, "magic_reduction": 0.00, "passable": false },
+	TerrainType.BUILDING: { "move_cost": 1, "physical_reduction": 0.25, "magic_reduction": 0.15, "passable": true },
+	TerrainType.IMPASSABLE:{ "move_cost": 0, "physical_reduction": 0.00, "magic_reduction": 0.00, "passable": false },
+	TerrainType.IMPASSABLE_ALL:{ "move_cost": 0, "physical_reduction": 0.00, "magic_reduction": 0.00, "passable": false }
 }
 
 var terrain_grid : Array = []

@@ -44,7 +44,6 @@ var _is_loading_combat : bool = false
 @onready var soul_label = $TopBar/SoulLabel
 @onready var gold_label = $TopBar/GoldLabel
 @onready var soul_fire_label = $TopBar/SoulFireLabel
-@onready var state_label = $TopBar/StateLabel
 @onready var resonance_label = $TopBar/ResonanceLabel
 
 
@@ -252,8 +251,6 @@ func update_all_displays():
 		gold_label.add_theme_font_size_override("font_size", FONT_SIZE)
 	if soul_fire_label:
 		soul_fire_label.add_theme_font_size_override("font_size", FONT_SIZE)
-	if state_label:
-		state_label.add_theme_font_size_override("font_size", FONT_SIZE)
 
 	var local_label = $TopBar/LocalResourcesLabel
 	if local_label:
@@ -1046,20 +1043,6 @@ func _update_soul_fire_display():
 	var cur : int = SoulFireManager.current
 	var mx : int = SoulFireManager.get_max_carried()
 	soul_fire_label.text = "魂火: %d / %d" % [cur, mx]
-	if state_label:
-		match SoulFireManager.get_state():
-			SoulFireManager.State.BURNING:
-				state_label.text = "[燃烧]"
-				state_label.modulate = Color(1.0, 0.6, 0.2, 1)
-			SoulFireManager.State.DEPLETED:
-				state_label.text = "[枯竭]"
-				state_label.modulate = Color(0.7, 0.3, 1.0, 1)
-			SoulFireManager.State.ZERO:
-				state_label.text = "[归零]"
-				state_label.modulate = Color(1.0, 0.3, 0.3, 1)
-			_:
-				state_label.text = ""
-				state_label.modulate = Color.WHITE
 
 
 func _show_resonance_hint():

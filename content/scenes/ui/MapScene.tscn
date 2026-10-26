@@ -36,10 +36,6 @@ layout_mode = 2
 theme_override_font_sizes/font_size = 8
 text = "魂火: 0 / 5"
 
-[node name="StateLabel" type="Label" parent="TopBar" unique_id=797733900]
-layout_mode = 2
-theme_override_font_sizes/font_size = 7
-
 [node name="ResonanceLabel" type="Label" parent="TopBar" unique_id=797733901]
 modulate = Color(0.68, 0.66, 0.52, 1)
 layout_mode = 2

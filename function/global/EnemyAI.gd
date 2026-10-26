@@ -69,11 +69,29 @@ func _decide_action(unit: Unit):
 
 	var hp_ratio = float(unit.hit_points) / float(unit.unit_stats.max_hp)
 
-	# 1. 治疗者优先治疗队友
+	# 1. 治疗者：能治疗就治疗
 	if unit.get_weapon_type() == "staff":
 		var heal_action = _decide_healer_action(unit)
 		if heal_action:
 			return heal_action
+
+		# 1a. 低血量优先保命（撤退到高防御地形 / 远离敌人）
+		if hp_ratio < 0.4:
+			var healer_survive = _evaluate_survival_move(unit)
+			if healer_survive:
+				return healer_survive
+
+		# 1b. 无治疗目标 → 主动攻击敌人（v4.6 修复：staff 射程 4，faith 补正有实伤）
+		var healer_attack = _evaluate_attack(unit, true)
+		if healer_attack:
+			return healer_attack
+
+		# 1c. 无攻击目标 → 移动找位置（_evaluate_move 里 _can_attack_from_cell 会加分）
+		var healer_move = _evaluate_move(unit)
+		if healer_move:
+			return healer_move
+
+		return {"type": "wait", "unit": unit}
 
 	# 2. 低血量优先生存（回血点/治疗者）
 	if hp_ratio < 0.4:
@@ -137,10 +155,11 @@ func _decide_healer_action(unit: Unit):
 
 # ============================================================
 #  攻击评估（仅使用当前装备武器）
+#  allow_healer=true 时允许治疗者攻击敌人（v4.6 修复：无治疗目标时主动攻击）
 # ============================================================
-func _evaluate_attack(unit: Unit):
+func _evaluate_attack(unit: Unit, allow_healer: bool = false):
 	var is_healer = (unit.get_weapon_type() == "staff")
-	if is_healer:
+	if is_healer and not allow_healer:
 		return null
 
 	var weapon_id = unit.get_equipped_weapon_id()
@@ -205,7 +224,6 @@ func _evaluate_attack(unit: Unit):
 	var picked : Dictionary = _pick_target_by_weight(candidates)
 	var best_target : Unit = picked["target"]
 	return {"type": "attack", "unit": unit, "target": best_target, "weapon_id": weapon_id}
-
 
 # ============================================================
 #  移动评估（含回血点检测）
@@ -299,9 +317,10 @@ func _evaluate_move(unit: Unit):
 		best_score = -999
 		for cell in reachable.keys():
 			var terrain = TerrainManager.get_terrain(cell)
-			var def_bonus = TerrainManager.TERRAIN_DATA[terrain]["def_bonus"]
-			var avoid_bonus = TerrainManager.TERRAIN_DATA[terrain]["avoid_bonus"]
-			var score = def_bonus * 2 + avoid_bonus
+			var td : Dictionary = TerrainManager.TERRAIN_DATA.get(terrain, {})
+			var phys_red : float = float(td.get("physical_reduction", 0.0))
+			var mag_red : float = float(td.get("magic_reduction", 0.0))
+			var score : int = int((phys_red + mag_red) * 100.0)
 			# 远离敌人
 			var dist_to_enemy = 999
 			for p in UnitManager.unit_list:
@@ -336,9 +355,10 @@ func _evaluate_move(unit: Unit):
 	best_score = -999
 	for cell in reachable.keys():
 		var terrain = TerrainManager.get_terrain(cell)
-		var def_bonus = TerrainManager.TERRAIN_DATA[terrain]["def_bonus"]
-		var avoid_bonus = TerrainManager.TERRAIN_DATA[terrain]["avoid_bonus"]
-		var score = def_bonus * 2 + avoid_bonus
+		var td : Dictionary = TerrainManager.TERRAIN_DATA.get(terrain, {})
+		var phys_red : float = float(td.get("physical_reduction", 0.0))
+		var mag_red : float = float(td.get("magic_reduction", 0.0))
+		var score : int = int((phys_red + mag_red) * 100.0)
 		# 友军邻近
 		var ally_near = false
 		for dir in [Vector2i(1,0), Vector2i(-1,0), Vector2i(0,1), Vector2i(0,-1)]:
@@ -356,7 +376,7 @@ func _evaluate_move(unit: Unit):
 				var d = abs(cell.x - p.grid_cell.x) + abs(cell.y - p.grid_cell.y)
 				if d < dist_to_player:
 					dist_to_player = d
-		score += (10 - dist_to_player) * 0.5
+		score += int((10 - dist_to_player) * 0.5)
 
 		# ★ 移动后能攻击目标 → 大幅加分（鼓励 AI 主动贴近可攻击位置）
 		if _can_attack_from_cell(unit, cell):
@@ -466,9 +486,10 @@ func _evaluate_survival_move(unit: Unit):
 	best_score = -999
 	for cell in reachable.keys():
 		var terrain = TerrainManager.get_terrain(cell)
-		var def_bonus = TerrainManager.TERRAIN_DATA[terrain]["def_bonus"]
-		var avoid_bonus = TerrainManager.TERRAIN_DATA[terrain]["avoid_bonus"]
-		var score = def_bonus * 2 + avoid_bonus
+		var td : Dictionary = TerrainManager.TERRAIN_DATA.get(terrain, {})
+		var phys_red : float = float(td.get("physical_reduction", 0.0))
+		var mag_red : float = float(td.get("magic_reduction", 0.0))
+		var score : int = int((phys_red + mag_red) * 100.0)
 		# 远离敌人
 		var dist_to_enemy = 999
 		for p in UnitManager.unit_list:
@@ -566,10 +587,12 @@ func _retry_find_path(unit: Unit) -> Array:
 		# 越近越高分（负距离）
 		var score : int = -nearest_enemy_dist * 10
 
-		# 地形加成
+		# 地形加成（v4.6：减伤率口径）
 		var terrain = TerrainManager.get_terrain(cell)
-		score += TerrainManager.TERRAIN_DATA[terrain]["def_bonus"] * 3
-		score += TerrainManager.TERRAIN_DATA[terrain]["avoid_bonus"]
+		var td : Dictionary = TerrainManager.TERRAIN_DATA.get(terrain, {})
+		var phys_red : float = float(td.get("physical_reduction", 0.0))
+		var mag_red : float = float(td.get("magic_reduction", 0.0))
+		score += int((phys_red + mag_red) * 100.0) * 3
 
 		# 队友邻近小加分
 		for dir in [Vector2i(1,0), Vector2i(-1,0), Vector2i(0,1), Vector2i(0,-1)]:

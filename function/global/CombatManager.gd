@@ -160,11 +160,18 @@ func _calc_reduction(defender: Unit, is_magic: bool) -> float:
 	var buff_bonus : float = (defender.buff_magic_reduction if is_magic else defender.buff_physical_reduction)
 	buff_bonus += defender.buff_damage_reduction
 
+	# ★ v4.6：地形减伤（与面板减伤加法叠加，受 75% 上限约束）
+	var terrain_bonus : float = 0.0
+	if defender != null and defender.grid_cell.x >= 0 and defender.grid_cell.y >= 0:
+		var t : int = TerrainManager.get_terrain(defender.grid_cell)
+		var td : Dictionary = TerrainManager.TERRAIN_DATA.get(t, {})
+		terrain_bonus = float(td.get("magic_reduction" if is_magic else "physical_reduction", 0.0))
+
 	var shred : float = 0.0
 	if not is_magic:
 		shred = defender.buff_defense_shred
 
-	var total : float = base + armor_bonus + affix_bonus + low_hp_bonus + buff_bonus - shred
+	var total : float = base + armor_bonus + affix_bonus + low_hp_bonus + buff_bonus + terrain_bonus - shred
 	return clampf(total, 0.0, REDUCTION_CAP)
 
 

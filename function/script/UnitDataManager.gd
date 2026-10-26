@@ -90,6 +90,7 @@ static func get_default_stats(unit_name: String) -> UnitData:
 	var dict = get_unit_data(unit_name)
 	var data = UnitData.new()
 	data.max_hp = dict.get("max_hp", 20)
+	data.hit_points = data.max_hp
 	data.strength = dict.get("strength", 5)
 	data.dexterity = dict.get("dexterity", 5)
 	data.intelligence = dict.get("intelligence", 3)

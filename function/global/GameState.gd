@@ -421,6 +421,7 @@ func start_new_cycle():
 		unit_data.armor_slots.clear()
 		unit_data.max_armor_slots = 2
 		unit_data.is_dead = false
+		unit_data.hit_points = unit_data.max_hp
 		var default_weapon = UnitDataManager.get_default_weapon_id(unit_data.unit_name)
 		if default_weapon != "":
 			var inst = ItemInstance.new()

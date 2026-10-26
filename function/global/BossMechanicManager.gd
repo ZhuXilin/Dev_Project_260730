@@ -75,11 +75,12 @@ func _name() -> String:
 # ============================================================
 func on_player_turn_start():
 	if _current != Mechanic.SOUL_DRAIN: return
-	if SoulFireManager.current >= 2:
-		SoulFireManager.spend(2)
-		SignalBus.request_hint_override.emit("★ Boss 汲取了 2 魂火", 1.5)
-		boss_mechanic_triggered.emit("soul_drain", "吸取 2 魂火")
-		print("[Boss] 魂火窃贼吸取 2 魂火")
+	# ★ v4.6 平衡：吸取 2 → 吸取 1，5 上限可撑 5 回合，给玩家操作空间
+	if SoulFireManager.current >= 1:
+		SoulFireManager.spend(1)
+		SignalBus.request_hint_override.emit("★ Boss 汲取了 1 魂火（剩余 %d）" % SoulFireManager.current, 2.0)
+		boss_mechanic_triggered.emit("soul_drain", "吸取 1 魂火")
+		print("[Boss] 魂火窃贼吸取 1 魂火")
 	else:
 		# ★ v4.2：先收集死亡单位，再统一清理，避免幽灵单位
 		var killed : Array = []

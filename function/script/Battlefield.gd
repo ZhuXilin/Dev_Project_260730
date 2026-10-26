@@ -86,8 +86,9 @@ var _objective_banner : Label = null
 func _ready():
 	TurnManager.set_battle_ready(false)
 
-	# ★ 新战斗开始 → 清除上次的 Boss 临时上限惩罚
 	SoulFireManager.reset_boss_penalty()
+	SoulFireManager.current = clampi(
+		GameState.soul_fire_current, 0, SoulFireManager.get_max_carried())
 
 	# 魂火 HUD 绑定
 	if not SoulFireManager.soul_fire_changed.is_connected(_on_soul_fire_changed):
@@ -140,10 +141,6 @@ func _ready():
 	_drag_move_controller = DragMoveController.new(self)
 	add_child(_drag_move_controller)
 	_drag_move_controller.setup()
-
-	# ★ 新增魂火视觉反馈控制器
-	var visual_ctrl = SoulFireVisualController.new()
-	add_child(visual_ctrl)
 
 	_damage_popup_layer = CanvasLayer.new()
 	_damage_popup_layer.name = "DamagePopupLayer"
@@ -727,13 +724,12 @@ func _on_request_show_info(unit: Unit):
 		var t_cell = world_to_grid(mouse_pos)
 		var t_type = TerrainManager.get_terrain(t_cell)
 		var t_name = TerrainManager.get_terrain_name(t_type)
-		var t_def = TerrainManager.TERRAIN_DATA[t_type]["def_bonus"]
-		var t_mdef = TerrainManager.TERRAIN_DATA[t_type]["magic_defense_bonus"]
-		var t_avoid = TerrainManager.TERRAIN_DATA[t_type]["avoid_bonus"]
+		var td : Dictionary = TerrainManager.TERRAIN_DATA.get(t_type, {})
+		var hover_phys : float = float(td.get("physical_reduction", 0.0))
+		var hover_mag  : float = float(td.get("magic_reduction", 0.0))
 		info_text_label.text = "地形: " + t_name \
-			+ "\n防御+" + str(t_def) \
-			+ " 魔防+" + str(t_mdef) \
-			+ " 回避+" + str(t_avoid)
+			+ "\n物减 +%d%%" % int(hover_phys * 100) \
+			+ "  魔减 +%d%%" % int(hover_mag * 100)
 		_adjust_info_panel(info_text_label, info_panel, null)
 		return
 
@@ -833,7 +829,10 @@ func _on_request_show_info(unit: Unit):
 	var unit_cell = unit.grid_cell
 	var terrain_type = TerrainManager.get_terrain(unit_cell)
 	var terrain_name = TerrainManager.get_terrain_name(terrain_type)
-	lines.append("地形: " + terrain_name)
+	var td_u : Dictionary = TerrainManager.TERRAIN_DATA.get(terrain_type, {})
+	var t_phys : float = float(td_u.get("physical_reduction", 0.0))
+	var t_mag  : float = float(td_u.get("magic_reduction", 0.0))
+	lines.append("地形: " + terrain_name + "（物减+%d%% 魔减+%d%%）" % [int(t_phys * 100), int(t_mag * 100)])
 
 	info_text_label.text = "\n".join(lines)
 	_adjust_info_panel(info_text_label, info_panel, unit)

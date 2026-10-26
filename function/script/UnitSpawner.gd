@@ -37,15 +37,18 @@ static func _create_unit_stats(cfg: UnitConfig) -> UnitData:
 
 	if cfg.team_id == 1 and GameState.current_map_data != null:
 		var mult := 1.0
-		match GameState.current_map_data.node_type:
-			MapNode.NodeType.ELITE: mult = 1.5
-			MapNode.NodeType.BOSS:  mult = 2.0
-			_: mult = 1.0
+		if cfg.is_boss:
+			mult = 2.0                          # ★ Boss 本体：×2.0
+		else:
+			match GameState.current_map_data.node_type:
+				MapNode.NodeType.ELITE: mult = 1.5
+				MapNode.NodeType.BOSS:  mult = 1.2   # ★ Boss 战杂兵：×1.2（不再 ×2.0）
+				_: mult = 1.0
 		var extra_hp : float = maxf(1.0, GameState.current_map_data.enemy_hp_multiplier)
 		stats.max_hp = int(stats.max_hp * mult * extra_hp)
 		stats.hit_points = stats.max_hp
 
-		# v4.7：敌人属性按天数温和增长（攻击力曲线，不缩放武器）
+		# 日数倍率保持不变
 		var day_mult : float = 1.0
 		match GameState.current_day:
 			1: day_mult = 0.8
@@ -109,6 +112,7 @@ static func spawn_party_from_gamestate(parent: Node, grid_to_world_func: Callabl
 	for i in range(count):
 		var unit_data = alive[i]
 		var spawn_cell = spawn_points[i]
+		unit_data.hit_points = unit_data.max_hp
 		var unit = load(UNIT_PATH).instantiate()
 		unit.restore_from_unit_data(unit_data, spawn_cell)
 

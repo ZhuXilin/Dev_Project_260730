@@ -174,7 +174,10 @@ func on_request_show_victory(winning_team: int) -> void:
 
 				EconomyManager.add_temp_gold(gold_gain)
 				SoulFireManager.add(soul_fire_gain)
-
+				
+				# ★ v4.6：战斗胜利，把战斗层魂火写回持久层
+				GameState.soul_fire_current = SoulFireManager.current
+				
 				GameState.current_reward_rare_datas.clear()
 				var rare_drops : Array = roll_rare_drop_for_node(_bf.current_node_type)
 				for drop in rare_drops:

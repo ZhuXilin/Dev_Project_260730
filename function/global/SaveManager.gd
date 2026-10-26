@@ -106,7 +106,7 @@ func _build_save_data() -> SaveData:
 
 	save.relic_levels = GameState.relic_levels.duplicate(true)
 
-	save.soul_fire_current = SoulFireManager.current
+	save.soul_fire_current = GameState.soul_fire_current
 	save.soul_fire_altar_level = SoulFireManager.altar_level
 	save.soul_fire_initial_level = GameState.soul_fire_initial_level
 	save.unit_attr_cap = GameState.unit_attr_cap.duplicate(true)
@@ -216,6 +216,7 @@ func _apply_save_data(save: SaveData):
 
 	GameState.relic_levels = _safe_dict(save.relic_levels)
 
+	GameState.soul_fire_current = save.soul_fire_current
 	SoulFireManager.current = save.soul_fire_current
 	SoulFireManager.altar_level = save.soul_fire_altar_level
 	GameState.soul_fire_initial_level = save.soul_fire_initial_level

@@ -147,6 +147,7 @@ func settle() -> int:
 	var gained : int = current
 	GameState.soul += gained
 	current = 0
+	GameState.soul_fire_current = 0
 	_emit_changes()
 	return gained
 
@@ -154,6 +155,7 @@ func settle() -> int:
 func reset_for_new_run():
 	current = get_initial_soul_fire()
 	_boss_penalty = 0
+	GameState.soul_fire_current = current
 	_emit_changes()
 
 
