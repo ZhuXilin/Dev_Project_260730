@@ -23,20 +23,20 @@ anchor_left = 0.5
 anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
-offset_left = -184.0
-offset_top = -104.0
-offset_right = 184.0
-offset_bottom = 104.0
+offset_left = -190.0
+offset_top = -115.0
+offset_right = 190.0
+offset_bottom = 115.0
 grow_horizontal = 2
 grow_vertical = 2
 theme_override_styles/panel = ExtResource("2_style")
 
 [node name="BackgroundImage" type="TextureRect" parent="Panel" unique_id=180050290]
 layout_mode = 0
-offset_left = -16.0
-offset_top = -16.0
-offset_right = 384.0
-offset_bottom = 224.0
+offset_left = -10.0
+offset_top = -5.0
+offset_right = 390.0
+offset_bottom = 235.0
 texture = ExtResource("3_ue3lo")
 
 [node name="VBox" type="VBoxContainer" parent="Panel" unique_id=999000004]
@@ -44,13 +44,13 @@ layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = 10.0
-offset_top = 10.0
-offset_right = -10.0
-offset_bottom = -10.0
+offset_left = 6.0
+offset_top = 3.0
+offset_right = -6.0
+offset_bottom = -3.0
 grow_horizontal = 2
 grow_vertical = 2
-theme_override_constants/separation = 6
+theme_override_constants/separation = 4
 
 [node name="TopBar" type="HBoxContainer" parent="Panel/VBox" unique_id=999000005]
 layout_mode = 2
@@ -81,16 +81,34 @@ theme_override_font_sizes/font_size = 8
 text = "选择一名单位接受英灵祝福（不可撤销）"
 horizontal_alignment = 1
 
-[node name="Separator1" type="HSeparator" parent="Panel/VBox" unique_id=999000011]
+[node name="ChapelActions" type="HBoxContainer" parent="Panel/VBox" unique_id=1342602151]
+visible = false
 layout_mode = 2
-
-[node name="UnitRow" type="HBoxContainer" parent="Panel/VBox" unique_id=999000012]
-layout_mode = 2
-size_flags_vertical = 3
 theme_override_constants/separation = 8
 alignment = 1
 
+[node name="ReviveBtn" type="Button" parent="Panel/VBox/ChapelActions" unique_id=127438541]
+layout_mode = 2
+theme_override_font_sizes/font_size = 8
+theme_override_styles/normal = ExtResource("2_style")
+theme_override_styles/pressed = ExtResource("2_style")
+theme_override_styles/hover = ExtResource("2_style")
+text = "复活阵亡单位"
+
+[node name="Separator1" type="HSeparator" parent="Panel/VBox" unique_id=999000011]
+modulate = Color(0.5, 0.5, 0.5, 0.5)
+layout_mode = 2
+
+[node name="UnitRow" type="HBoxContainer" parent="Panel/VBox" unique_id=999000012]
+custom_minimum_size = Vector2(380, 0)
+custom_maximum_size = Vector2(380, -1)
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 4
+alignment = 1
+
 [node name="Separator2" type="HSeparator" parent="Panel/VBox" unique_id=999000013]
+modulate = Color(0.5, 0.5, 0.5, 0.5)
 layout_mode = 2
 
 [node name="BottomBar" type="HBoxContainer" parent="Panel/VBox" unique_id=999000014]

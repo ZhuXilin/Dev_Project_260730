@@ -184,13 +184,20 @@ func trigger_event(event_id: String, unit: Unit = null, _default_music: AudioStr
 					RelicManager.unlock_relics_by_ids(rids)
 				await get_tree().create_timer(0.2).timeout
 
-			# ★ 新增：头像替换事件
 			"unlock_avatar":
 				var target_unit : String = str(action.get("unit_name", ""))
 				var new_avatar : String = str(action.get("avatar_id", ""))
 				if target_unit != "" and new_avatar != "":
 					GameState.set_unit_avatar(target_unit, new_avatar)
 					print("[Event] 单位 %s 头像已更新为 %s" % [target_unit, new_avatar])
+				await get_tree().create_timer(0.2).timeout
+
+			"unlock_npc_avatar":
+				var target_npc : String = str(action.get("npc_id", ""))
+				var new_avatar : String = str(action.get("avatar_id", ""))
+				if target_npc != "" and new_avatar != "":
+					GameState.set_npc_avatar(target_npc, new_avatar)
+					print("[Event] NPC %s 头像已更新为 %s" % [target_npc, new_avatar])
 				await get_tree().create_timer(0.2).timeout
 
 			_:

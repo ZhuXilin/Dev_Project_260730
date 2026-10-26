@@ -817,7 +817,7 @@ func _show_type_picker_popup(node_idx: int):
 		[MapNode.NodeType.TREASURE, "宝箱"],
 		[MapNode.NodeType.BOSS, "首领"],
 		[MapNode.NodeType.FORGE, "铁匠铺"],
-		[MapNode.NodeType.CHAPEL, "圣坛"],
+		[MapNode.NodeType.CHAPEL, "英灵殿"],
 		[MapNode.NodeType.QUESTION, "未知"],
 	]
 

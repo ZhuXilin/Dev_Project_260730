@@ -201,6 +201,8 @@ func _action_preview(a : Dictionary) -> String:
 		"unlock_relics":
 			var rs : Array = a.get("relics", [])
 			return ",".join(rs).substr(0, 20) if not rs.is_empty() else ""
+		"unlock_npc_avatar":
+			return str(a.get("npc_id", "")) + " → " + str(a.get("avatar_id", ""))
 	return ""
 
 

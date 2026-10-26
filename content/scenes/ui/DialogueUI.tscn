@@ -19,6 +19,27 @@ grow_horizontal = 2
 grow_vertical = 0
 theme_override_styles/panel = ExtResource("1_q0had")
 
+[node name="AvatarBg" type="Panel" parent="DialoguePanel" unique_id=800000002]
+visible = false
+layout_mode = 0
+offset_left = 6.0
+offset_top = 6.0
+offset_right = 54.0
+offset_bottom = 54.0
+mouse_filter = 2
+theme_override_styles/panel = ExtResource("1_q0had")
+
+[node name="AvatarRect" type="TextureRect" parent="DialoguePanel/AvatarBg" unique_id=800000003]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+expand_mode = 1
+stretch_mode = 5
+
 [node name="NameLabel" type="Label" parent="DialoguePanel" unique_id=753210977]
 layout_mode = 0
 offset_left = 16.0

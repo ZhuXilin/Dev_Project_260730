@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://ck56ypv8pqvcb"
-path="res://.godot/imported/avatar_002.png-11427e446f8ea303ff9fcd2a1bf9ce21.ctex"
+uid="uid://cu8om5kg2qc3v"
+path="res://.godot/imported/npc_forge.png-11e9c7d97554d9fbd634201b90990bbe.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://content/images/characters/avatar/avatar_002.png"
-dest_files=["res://.godot/imported/avatar_002.png-11427e446f8ea303ff9fcd2a1bf9ce21.ctex"]
+source_file="res://content/images/characters/avatar/npc_forge.png"
+dest_files=["res://.godot/imported/npc_forge.png-11e9c7d97554d9fbd634201b90990bbe.ctex"]
 
 [params]
 

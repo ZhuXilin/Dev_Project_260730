@@ -131,6 +131,7 @@ func _build_save_data() -> SaveData:
 	save.unlocked_recipes = GameState.unlocked_recipes.duplicate()
 	save.unlocked_stories = GameState.unlocked_stories.duplicate()
 	save.unlocked_avatars = GameState.unlocked_avatars.duplicate()
+	save.unlocked_npc_avatars = GameState.unlocked_npc_avatars.duplicate()
 	
 	save.eligible_units = GameState.eligible_units.duplicate()
 	save.current_node_unlock_relics = GameState.current_node_unlock_relics.duplicate()
@@ -239,6 +240,7 @@ func _apply_save_data(save: SaveData):
 	Globals.unlocked_units = _filter_valid_unit_keys(_safe_array(save.unlocked_units))
 	Globals.unlocked_items = _safe_array(save.unlocked_items)
 	GameState.unlocked_avatars = _safe_dict(save.unlocked_avatars)
+	GameState.unlocked_npc_avatars = _safe_dict(save.unlocked_npc_avatars)
 	
 	if Globals.unlocked_units.is_empty():
 		print("[SaveManager] unlocked_units 为空，回退默认解锁")

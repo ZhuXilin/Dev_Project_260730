@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://cu8om5kg2qc3v"
-path="res://.godot/imported/avatar_019.png-7bf8a2a4b5813a096f27c9ad7d70cadd.ctex"
+uid="uid://cjpvs6konomwn"
+path="res://.godot/imported/npc_gladiator.png-c149ad953ef42f1b0657b574c5ccb632.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://content/images/characters/avatar/avatar_019.png"
-dest_files=["res://.godot/imported/avatar_019.png-7bf8a2a4b5813a096f27c9ad7d70cadd.ctex"]
+source_file="res://content/images/characters/avatar/npc_gladiator.png"
+dest_files=["res://.godot/imported/npc_gladiator.png-c149ad953ef42f1b0657b574c5ccb632.ctex"]
 
 [params]
 

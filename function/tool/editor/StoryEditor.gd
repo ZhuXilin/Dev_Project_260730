@@ -1847,6 +1847,7 @@ const ACTION_TYPES : Array = [
 	"dialog", "give_item", "heal", "damage", "wait",
 	"complete", "unlock_unit", "unlock_talent",
 	"unlock_equipment", "unlock_relics",
+	"unlock_npc_avatar",
 ]
 
 func _build_action_form():
@@ -1941,7 +1942,8 @@ func _build_dynamic_fields(a : Dictionary):
 	var priority : Array = [
 		"dialog_id", "item_id", "count", "equip",
 		"amount", "seconds",
-		"units", "talent_id", "relic_id", "relic_ids", "music"
+		"units", "talent_id", "relic_id", "relic_ids", "music",
+		"npc_id", "avatar_id"
 	]
 	var visited : Dictionary = {"type": true}
 	for k in priority:
@@ -2015,6 +2017,36 @@ func _build_one_field(a : Dictionary, key : String):
 	lb.custom_minimum_size = Vector2(60, 0)
 	lb.tooltip_text = key
 	row.add_child(lb)
+
+	# ★ 新增：针对 npc_id 和 avatar_id 使用下拉框
+	if key == "npc_id":
+		var opt := _mk_option_button()
+		var npcs : Array = _get_all_npc_ids()
+		for i in range(npcs.size()):
+			opt.add_item(npcs[i], i)
+			if npcs[i] == str(value): opt.selected = i
+		opt.item_selected.connect(func(idx):
+			a[key] = npcs[idx]
+			_dirty = true
+			if _event_graph: _event_graph.show_event(_current_event_id)
+		)
+		row.add_child(opt)
+		return
+		
+	if key == "avatar_id":
+		var opt := _mk_option_button()
+		var avatars : Array = _get_all_avatar_ids()
+		for i in range(avatars.size()):
+			opt.add_item(avatars[i], i)
+			if avatars[i] == str(value): opt.selected = i
+		opt.item_selected.connect(func(idx):
+			a[key] = avatars[idx]
+			_dirty = true
+			if _event_graph: _event_graph.show_event(_current_event_id)
+		)
+		row.add_child(opt)
+		return
+	# ★ 拦截结束
 
 	var t : int = typeof(value)
 	if t == TYPE_BOOL:
@@ -2151,3 +2183,31 @@ func _input(event : InputEvent):
 	elif ke.keycode == KEY_ESCAPE:
 		_on_quit()
 		get_viewport().set_input_as_handled()
+
+
+func _get_all_npc_ids() -> Array:
+	var result : Array = []
+	if StoryManager:
+		# 反射获取 StoryManager 的私有变量 _npcs
+		var npcs = StoryManager.get("_npcs")
+		if npcs is Dictionary:
+			for k in npcs:
+				result.append(k)
+	result.sort()
+	return result
+
+func _get_all_avatar_ids() -> Array:
+	var result : Array = []
+	var dir_path = "res://content/images/characters/avatar/"
+	if DirAccess.dir_exists_absolute(dir_path):
+		var dir = DirAccess.open(dir_path)
+		if dir:
+			dir.list_dir_begin()
+			var fname = dir.get_next()
+			while fname != "":
+				if not dir.current_is_dir() and fname.ends_with(".png"):
+					result.append(fname.get_basename())
+				fname = dir.get_next()
+			dir.list_dir_end()
+	result.sort()
+	return result

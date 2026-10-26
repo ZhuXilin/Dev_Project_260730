@@ -118,3 +118,4 @@ const CURRENT_VERSION = 11
 @export var fusion_hints: Array = []
 
 @export var unlocked_avatars: Dictionary = {}
+@export var unlocked_npc_avatars: Dictionary = {}

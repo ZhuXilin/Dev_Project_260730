@@ -7,6 +7,7 @@
   "npcs": {
 	"soul_keeper": {
 	  "name": "守火者",
+	  "avatar": "npc_soul_keeper",
 	  "default_trigger_type": "npc_interact",
 	  "dialogues": [
 		{
@@ -178,6 +179,7 @@
 
 	"blacksmith": {
 	  "name": "灰烬铁匠",
+	  "avatar": "npc_blacksmith",
 	  "default_trigger_type": "npc_interact",
 	  "dialogues": [
 		{
@@ -327,6 +329,7 @@
 
 	"guide": {
 	  "name": "游魂向导",
+	  "avatar": "npc_guide",
 	  "default_trigger_type": "npc_interact",
 	  "dialogues": [
 		{
@@ -482,6 +485,7 @@
 
 	"gladiator": {
 	  "name": "角斗士",
+	  "avatar": "npc_gladiator",
 	  "default_trigger_type": "npc_interact",
 	  "dialogues": [
 		{
@@ -641,6 +645,7 @@
 
 	"secret_merchant": {
 	  "name": "兜帽商人",
+	  "avatar": "npc_secret_merchant",
 	  "default_trigger_type": "npc_interact",
 	  "dialogues": [
 		{
@@ -671,6 +676,7 @@
 
 	"forge": {
 	  "name": "铁砧酒馆",
+	  "avatar": "npc_forge",
 	  "default_trigger_type": "forge_recall",
 	  "dialogues": [
 		{
@@ -782,6 +788,7 @@
 
 	"__mechanics__": {
 	  "name": "机制事件",
+	  "avatar": "npc_mechanics",
 	  "default_trigger_type": "battle_start",
 	  "dialogues": [
 		{

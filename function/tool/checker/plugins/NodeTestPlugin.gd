@@ -348,10 +348,16 @@ func _open_treasure():
 
 
 func _open_chapel():
-	var scene = load(Config.PATHS.CHAPEL_UI)
+	# 替换为加载合并后的英灵殿
+	var scene = load(Config.PATHS.HERO_SHRINE_UI)
 	if not scene: return
 	var ui = scene.instantiate()
 	_attach_to_root(ui)
+	
+	# ★ 激活英灵殿模式（显示复活按钮）
+	if ui.has_method("setup_as_chapel"):
+		ui.setup_as_chapel()
+		
 	await ui.closed
 
 

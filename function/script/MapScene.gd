@@ -636,7 +636,7 @@ func _open_treasure(node: MapNode):
 
 
 func _open_chapel(node: MapNode):
-	print("=== 打开圣坛 ===")
+	print("=== 打开英灵殿（合并至英灵殿） ===")
 
 	var key = "%d_%d" % [node.position.x, node.position.y]
 	GameState.visited_nodes[key] = true
@@ -647,13 +647,18 @@ func _open_chapel(node: MapNode):
 	_update_availability(map_data.root_node)
 	_save_game()
 
-	var scene = load(Config.PATHS.CHAPEL_UI)
+	# ★ 改为加载 HeroShrineUI
+	var scene = load(Config.PATHS.HERO_SHRINE_UI)
 	if not scene:
-		push_error("ChapelUI 未找到")
+		push_error("HeroShrineUI 未找到")
 		_is_loading_combat = false
 		return
 	var ui = scene.instantiate()
 	add_child(ui)
+	
+	# ★ 设为英灵殿模式，激活复活按钮
+	ui.setup_as_chapel()
+	
 	await ui.closed
 
 	if not is_inside_tree():
@@ -668,7 +673,7 @@ func _open_chapel(node: MapNode):
 
 func _open_chapel_revive_dialog(dead_units: Array, healed_count: int):
 	var dlg := AcceptDialog.new()
-	dlg.title = "圣坛 · 复活"
+	dlg.title = "英灵殿 · 复活"
 	dlg.dialog_hide_on_ok = true
 	dlg.ok_button_text = "离开"
 
@@ -702,7 +707,7 @@ func _on_chapel_revive_unit(unit_name: String, display_name: String, dlg: Window
 			dlg.queue_free()
 		Globals.show_confirm(
 			self,
-			"%s 已在圣坛的祝福中复活！\nHP 全满。" % display_name,
+			"%s 已在英灵殿的祝福中复活！\nHP 全满。" % display_name,
 			"确定",
 			"",
 			func(): pass,
@@ -941,7 +946,7 @@ func _get_node_description(node: MapNode) -> String:
 		MapNode.NodeType.BOSS:
 			base = "首领战"
 		MapNode.NodeType.CHAPEL:
-			base = "圣坛\n全队回满 HP，复活一名阵亡单位"
+			base = "英灵殿\n全队回满 HP，复活一名阵亡单位"
 		_:
 			base = "未知节点"
 

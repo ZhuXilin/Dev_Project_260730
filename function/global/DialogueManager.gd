@@ -11,6 +11,15 @@ extends Node
 
 @export var music_transition_delay : float = 0.5
 
+const NPC_AVATAR_MAP : Dictionary = {
+	"守火者": "soul_keeper",
+	"灰烬铁匠": "blacksmith",
+	"游魂向导": "guide",
+	"角斗士": "gladiator",
+	"兜帽商人": "secret_merchant",
+	"村长": "villager", # 如果有对应图片
+}
+
 var dialogue_ui : CanvasLayer = null
 var dialogue_panel : Panel = null
 var name_label : Label = null
@@ -103,6 +112,7 @@ func has_dialogue(dialogues_id: String) -> bool:
 # ============================================================
 #  显示
 # ============================================================
+# 1. 修改 _show_entry 函数
 func _show_entry(index: int):
 	if index < 0 or index >= _current_entries.size():
 		return
@@ -110,8 +120,67 @@ func _show_entry(index: int):
 	if entry is Dictionary:
 		var e : Dictionary = entry
 		if name_label and text_label:
-			name_label.text = str(e.get("speaker", "???"))
+			var speaker : String = str(e.get("speaker", "???"))
+			name_label.text = speaker
 			text_label.text = str(e.get("text", "......"))
+			_update_dialogue_avatar(speaker) # ★ 调用头像更新
+
+# 2. 新增头像更新与排版逻辑
+func _update_dialogue_avatar(speaker: String):
+	var avatar_bg = dialogue_panel.get_node_or_null("AvatarBg")
+	var avatar_rect = dialogue_panel.get_node_or_null("AvatarBg/AvatarRect")
+	if not avatar_bg or not avatar_rect:
+		return
+		
+	var tex : Texture2D = _resolve_speaker_avatar(speaker)
+	
+	if tex:
+		avatar_rect.texture = tex
+		avatar_bg.visible = true
+		# 头像显示时，文本向右偏移留出空间
+		name_label.offset_left = 62.0
+		text_label.offset_left = 62.0
+		if _choice_container:
+			_choice_container.offset_left = 62.0
+	else:
+		avatar_bg.visible = false
+		# 没有头像时，文本占满全屏
+		name_label.offset_left = 16.0
+		text_label.offset_left = 16.0
+		if _choice_container:
+			_choice_container.offset_left = 16.0
+
+# 3. 新增头像资源智能加载逻辑
+func _resolve_speaker_avatar(speaker: String) -> Texture2D:
+	# 过滤掉没有实体的说话者
+	if speaker == "" or speaker == "???" or speaker == "系统" or speaker == "指挥官":
+		return null
+		
+	var avatar_id := ""
+	
+	# 策略 1：优先查是不是可上阵单位（如 艾琳、罗兰）
+	var unit_key = UnitDataManager.normalize_unit_key(speaker)
+	if not UnitDataManager.get_unit_data(unit_key).is_empty():
+		avatar_id = GameState.get_unit_avatar(unit_key)
+	else:
+		# 策略 2：如果不是单位，查是不是剧情 NPC（如 守火者、铁匠）
+		avatar_id = StoryManager.get_npc_avatar_id(speaker)
+		
+	if avatar_id == "":
+		return null
+		
+	# 加载统一路径的头像
+	var path = "res://content/images/characters/avatar/%s.png" % avatar_id
+	print("[对话头像] 说话者: ", speaker, " | 尝试加载: ", avatar_id)
+	if ResourceLoader.exists(path):
+		return load(path)
+		
+	# 兼容：如果是旧的 sanctuary 目录下的 NPC 图，也支持读取
+	var backup_path = "res://content/images/sanctuary/%s.png" % avatar_id
+	if ResourceLoader.exists(backup_path):
+		return load(backup_path)
+		
+	return null
 
 
 # ============================================================

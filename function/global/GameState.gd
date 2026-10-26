@@ -326,6 +326,9 @@ var fusion_hints: Array:
 	get: return resource_state.fusion_hints
 	set(value): resource_state.fusion_hints = value
 
+var unlocked_npc_avatars : Dictionary:
+	get: return resource_state.unlocked_npc_avatars
+	set(value): resource_state.unlocked_npc_avatars = value
 
 ## 商店标签权重查询（替代 ForgeWhisperManager.get_shop_tag_boost）
 func get_shop_tag_boost(tag: String) -> int:
@@ -676,3 +679,14 @@ func set_unit_avatar(unit_name: String, avatar_id: String):
 	for u in UnitManager.unit_list:
 		if u.unit_stats.unit_name == unit_name:
 			u.unit_stats.avatar = avatar_id
+
+# 获取 NPC 最终显示的头像（优先查覆写）
+func get_npc_avatar(npc_id: String) -> String:
+	return str(unlocked_npc_avatars.get(npc_id, ""))
+
+# 替换 NPC 头像
+func set_npc_avatar(npc_id: String, avatar_id: String):
+	if npc_id == "" or avatar_id == "":
+		return
+	unlocked_npc_avatars[npc_id] = avatar_id
+	SaveManager.auto_save()

@@ -6,7 +6,8 @@ extends Node
 #  - npc_interact / forge_recall 计入 npc_interact_counts
 #  - 所有 trigger 均计入 dialogue_play_counts
 #  - 动态信息通过 {xxx} 占位符替换
-#  - effect 应用结果存入 GameState（替代 ForgeWhisperManager）
+#  - effect 应用结果存入 GameState
+#  - v4.6：新增 NPC 头像缓存
 # ============================================================
 
 const AFFINITY_TIER_1 := 5
@@ -18,7 +19,8 @@ const INTERACT_TRIGGERS: Array = ["npc_interact", "forge_recall"]
 var _npcs: Dictionary = {}
 var _standalone: Dictionary = {}
 var _dialogue_index: Dictionary = {}   # dialogue_id → {"dialogue": Dictionary, "npc_id": String}
-
+var _npc_avatars: Dictionary = {}      # npc_id / 中文名 → avatar_id
+var _npc_name_to_id: Dictionary = {}
 
 func _ready() -> void:
 	load_narrative()
@@ -28,6 +30,8 @@ func load_narrative() -> void:
 	_npcs.clear()
 	_standalone.clear()
 	_dialogue_index.clear()
+	_npc_avatars.clear()
+	_npc_name_to_id.clear() # ★ 清理映射
 
 	var path: String = Config.PATHS.NARRATIVE_DATA
 	if not FileAccess.file_exists(path):
@@ -46,6 +50,23 @@ func load_narrative() -> void:
 
 	_npcs = (data.get("npcs", {}) as Dictionary).duplicate(true)
 	_standalone = (data.get("standalone", {}) as Dictionary).duplicate(true)
+	
+	# ★ 缓存 NPC 头像，并建立 中文名 -> npc_id 的映射
+	for npc_id in _npcs:
+		var npc_data: Dictionary = _npcs[npc_id]
+		
+		# 1. 建立名字到ID的映射
+		var display_name := str(npc_data.get("name", ""))
+		if display_name != "":
+			_npc_name_to_id[display_name] = npc_id
+			
+		# 2. 缓存静态头像配置（支持通过 NPC ID 或中文名直接查）
+		var avatar_id := str(npc_data.get("avatar", ""))
+		if avatar_id != "":
+			_npc_avatars[npc_id] = avatar_id
+			if display_name != "":
+				_npc_avatars[display_name] = avatar_id
+
 	_rebuild_index()
 	print("[StoryManager] 已加载 %d NPC / %d 独立对话 / 索引 %d 条" % [
 		_npcs.size(), _standalone.size(), _dialogue_index.size()])
@@ -71,8 +92,6 @@ func _rebuild_index() -> void:
 # ============================================================
 #  核心接口
 # ============================================================
-## 触发一次对话；返回 true 表示有对话启动。
-## 无匹配 → false（"有事件的时候触发，没有就算了"）
 func trigger(trigger_type: String, context: Dictionary = {}) -> bool:
 	var candidates: Array = get_available_dialogues(trigger_type, context)
 	if candidates.is_empty():
@@ -82,7 +101,6 @@ func trigger(trigger_type: String, context: Dictionary = {}) -> bool:
 	return true
 
 
-## 按 id 直接播放（events.json 的 dialog action 用）
 func play_dialogue_by_id(dialogue_id: String) -> bool:
 	if dialogue_id == "":
 		return false
@@ -102,7 +120,6 @@ func play_dialogue_by_id(dialogue_id: String) -> bool:
 	return true
 
 
-## 返回所有匹配的对话（按 priority 降序）
 func get_available_dialogues(trigger_type: String, context: Dictionary) -> Array:
 	var result: Array = []
 	for npc_id in _npcs:
@@ -126,9 +143,22 @@ func get_available_dialogues(trigger_type: String, context: Dictionary) -> Array
 	return result
 
 
-## 查询当前 NPC 的 interact 次数（供外部 UI 显示）
 func get_npc_interact_count(npc_id: String) -> int:
 	return int(GameState.npc_interact_counts.get(npc_id, 0))
+
+
+func get_npc_avatar_id(speaker_or_npc_id: String) -> String:
+	# 1. 将中文名统一解析为 npc_id
+	var target_id := speaker_or_npc_id
+	if _npc_name_to_id.has(speaker_or_npc_id):
+		target_id = _npc_name_to_id[speaker_or_npc_id]
+		
+	# 2. 优先读取事件覆盖的头像
+	if GameState.unlocked_npc_avatars.has(target_id):
+		return str(GameState.unlocked_npc_avatars[target_id])
+		
+	# 3. 兜底读取静态配置
+	return _npc_avatars.get(speaker_or_npc_id, "")
 
 
 # ============================================================
@@ -205,6 +235,8 @@ func _record_play(d: Dictionary, npc_id: String, trigger_type: String) -> void:
 			var seen: Array = GameState.npc_dialogue_seen[npc_id]
 			if not (did in seen):
 				seen.append(did)
+				
+	# ★ v4.6：记录亲密度（暂缓实装，但保留接口扩展位）
 
 	SaveManager.auto_save()
 
@@ -246,8 +278,7 @@ func _apply_effect(effect: Dictionary) -> void:
 
 
 # ============================================================
-#  兼容接口：老的 play_next_dialogue（营地 NPC 点击）
-#  —— 现在统一走 trigger("npc_interact")
+#  兼容接口
 # ============================================================
 func play_next_dialogue(npc_id: String) -> bool:
 	var ctx: Dictionary = {
@@ -259,10 +290,6 @@ func play_next_dialogue(npc_id: String) -> bool:
 	return trigger("npc_interact", ctx)
 
 
-# ============================================================
-#  兼容接口：check_and_apply_unlocks（unlocks 已迁移到 MapData）
-#  —— 保留空实现，避免 Camp.gd 报错
-# ============================================================
 func check_and_apply_unlocks(npc_id: String) -> Array:
 	var result: Array = []
 	if not _npcs.has(npc_id):
@@ -304,7 +331,6 @@ func _check_unlock_conditions(npc_id: String, cond: Dictionary) -> bool:
 		var seen_count: int = (GameState.npc_dialogue_seen.get(npc_id, []) as Array).size()
 		if seen_count < int(cond["min_dialogue_count"]):
 			return false
-	# 其余条件复用 ConditionHelper
 	return ConditionHelper.check(cond, {}, npc_id)
 
 

@@ -54,7 +54,7 @@ func show_unit(unit : UnitData):
 	var type_name : String = UnitDataManager.get_unit_type_display_name(unit.unit_name)
 
 	var desc = ""
-	if unit.is_dead: desc += "【已冻结】可通过圣坛或复活圣油解冻\n"
+	if unit.is_dead: desc += "【已冻结】可通过英灵殿或复活圣油解冻\n"
 	
 	var stats : Array = []
 	stats.append("HP: %d / %d" % [unit.hit_points, unit.max_hp])

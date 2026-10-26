@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://cjpvs6konomwn"
-path="res://.godot/imported/avatar_015.png-862f81d45e8686e001bb13fde9260662.ctex"
+uid="uid://bymhb26y3sesk"
+path="res://.godot/imported/npc_blacksmith.png-439effcefc77c882d3b45e6a2325f4ab.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://content/images/characters/avatar/avatar_015.png"
-dest_files=["res://.godot/imported/avatar_015.png-862f81d45e8686e001bb13fde9260662.ctex"]
+source_file="res://content/images/characters/avatar/npc_blacksmith.png"
+dest_files=["res://.godot/imported/npc_blacksmith.png-439effcefc77c882d3b45e6a2325f4ab.ctex"]
 
 [params]
 

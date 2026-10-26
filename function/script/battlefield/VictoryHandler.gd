@@ -138,7 +138,12 @@ func on_request_show_victory(winning_team: int) -> void:
 	var player_units = []
 	for unit in UnitManager.unit_list:
 		if unit.unit_stats.team_id == 0 and unit.hit_points > 0:
+			# ★ 核心修改：活着的单位战后直接满血
+			unit.hit_points = unit.unit_stats.max_hp
+			unit.update_hp_label()
 			player_units.append(unit)
+	
+	# 将满血状态同步回局外队伍，阵亡的会自动标记 is_dead = true
 	GameState.sync_units_from_battlefield(player_units)
 
 	if Globals.is_map_mode:
@@ -170,7 +175,6 @@ func on_request_show_victory(winning_team: int) -> void:
 				EconomyManager.add_temp_gold(gold_gain)
 				SoulFireManager.add(soul_fire_gain)
 
-				# v4.5 修复：高收益节点稀有掉落数量 × multiplier
 				GameState.current_reward_rare_datas.clear()
 				var rare_drops : Array = roll_rare_drop_for_node(_bf.current_node_type)
 				for drop in rare_drops:
@@ -178,7 +182,6 @@ func on_request_show_victory(winning_team: int) -> void:
 					if rare_data:
 						GameState.current_reward_rare_datas.append(rare_data)
 
-				# v4.5 埋点：高收益节点胜利
 				if is_win and mult > 1.0:
 					AnalyticsLogger.record_high_reward_win()
 

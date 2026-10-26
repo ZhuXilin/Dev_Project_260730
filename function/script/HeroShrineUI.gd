@@ -28,6 +28,7 @@ var _custom_party : Array = []
 var _max_conversions : int = 1
 var _converted_count : int = 0
 
+var _is_chapel_mode : bool = false
 
 # ============================================================
 #  上下文设置
@@ -84,9 +85,75 @@ func _ready():
 	performance_layer.visible = false
 	cost_label.text = "  |  转职：免费"
 	
+	# ★ 绑定英灵殿复活按钮
+	var revive_btn = get_node_or_null("Panel/VBox/ChapelActions/ReviveBtn")
+	var actions_box = get_node_or_null("Panel/VBox/ChapelActions")
+	
+	if actions_box:
+		actions_box.visible = _is_chapel_mode
+	if revive_btn:
+		revive_btn.pressed.connect(_on_chapel_revive)
+
 	MusicManager.play_hero_shrine_music()
 	_refresh_soul_display()
 	_build_unit_row()
+
+
+## 由 MapScene 调用，标记为英灵殿模式
+func setup_as_chapel():
+	_is_chapel_mode = true
+	if is_node_ready():
+		var actions_box = get_node_or_null("Panel/VBox/ChapelActions")
+		if actions_box: actions_box.visible = true
+	if hint_label:
+		hint_label.text = "英灵殿赐福：可免费复活或转职一次"
+
+
+func _on_chapel_revive():
+	var dead : Array = GameState.get_dead_party()
+	if dead.is_empty():
+		if hint_label:
+			hint_label.text = "当前没有阵亡单位需要复活"
+		return
+		
+	_show_revive_submenu()
+
+
+func _show_revive_submenu():
+	for child in unit_row.get_children():
+		unit_row.remove_child(child)
+		child.queue_free()
+		
+	if hint_label:
+		hint_label.text = "选择一名单位复活"
+		
+	var dead_units : Array = GameState.get_dead_party()
+	for ud in dead_units:
+		var btn := Button.new()
+		btn.text = "%s（%s）" % [
+			ud.display_name,
+			UnitDataManager.get_unit_type_display_name(ud.unit_name)
+		]
+		btn.custom_minimum_size = Vector2(100, 40)
+		btn.add_theme_font_size_override("font_size", 8)
+		btn.pressed.connect(_on_revive_unit.bind(ud.unit_name, ud.display_name))
+		unit_row.add_child(btn)
+
+	var back := Button.new()
+	back.text = "返回转职"
+	back.custom_minimum_size = Vector2(80, 40)
+	back.add_theme_font_size_override("font_size", 8)
+	back.pressed.connect(_build_unit_row)
+	unit_row.add_child(back)
+
+
+func _on_revive_unit(unit_name: String, display_name: String):
+	if GameState.revive_unit(unit_name, display_name):
+		SaveManager.auto_save()
+		if hint_label:
+			hint_label.text = "%s 已复活" % display_name
+		_build_unit_row()
+		SoundManager.play_heal_sound()
 
 
 func _refresh_soul_display():

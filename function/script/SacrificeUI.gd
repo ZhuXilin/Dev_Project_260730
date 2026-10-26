@@ -20,7 +20,7 @@ func setup(party_ref: Array, panel_ref) -> void:
 	_party = party_ref
 	_panel_ref = panel_ref
 	if hint_label:
-		hint_label.text = "选择一个单位熔铸：次数越多奖励越丰厚\n熔铸后单位装备保留，可通过圣坛或复活圣油取回"
+		hint_label.text = "选择一个单位熔铸：次数越多奖励越丰厚\n熔铸后单位装备保留，可通过英灵殿或复活圣油取回"
 	_build_cards()
 
 
@@ -175,7 +175,7 @@ func _on_sacrifice(u: UnitData):
 
 	var msg : String = ""
 	if equip_count > 0:
-		msg += "该单位仍有 %d 件装备，熔铸后将永久锁定（可通过圣坛或复活圣油取回）。\n\n" % equip_count
+		msg += "该单位仍有 %d 件装备，熔铸后将永久锁定（可通过英灵殿或复活圣油取回）。\n\n" % equip_count
 	var next_count : int = GameState.sacrifice_count + 1
 	var reward_sf : int = 5
 	var reward_relic : bool = false
