@@ -122,7 +122,15 @@ func play_dialogue_by_id(dialogue_id: String) -> bool:
 
 func get_available_dialogues(trigger_type: String, context: Dictionary) -> Array:
 	var result: Array = []
+	
+	# ★ 核心修复：获取上下文中的 npc_id，如果是点 NPC 触发的，只筛选这个 NPC 的对话
+	var filter_npc_id: String = str(context.get("npc_id", ""))
+	
 	for npc_id in _npcs:
+		# 如果指定了 npc_id，且和当前遍历的不符，直接跳过
+		if filter_npc_id != "" and npc_id != filter_npc_id:
+			continue
+			
 		var npc: Dictionary = _npcs[npc_id]
 		for d in npc.get("dialogues", []):
 			if not (d is Dictionary):
@@ -136,6 +144,7 @@ func get_available_dialogues(trigger_type: String, context: Dictionary) -> Array
 			if not _is_playable(dd):
 				continue
 			result.append({"dialogue": dd, "npc_id": npc_id})
+			
 	result.sort_custom(func(a, b):
 		return int((a.dialogue as Dictionary).get("priority", 0)) \
 			> int((b.dialogue as Dictionary).get("priority", 0))

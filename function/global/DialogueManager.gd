@@ -71,6 +71,11 @@ func start_inline_dialogue(entries: Array, music_stream: AudioStream = null):
 	can_interact = false
 	Globals.is_dialogue_active = true
 
+	# ★ 核心修复：先把当前数据放进去，并渲染第一句（刷新头像），再显示面板
+	_current_entries = entries
+	current_index = 0
+	_show_entry(0)
+
 	if dialogue_panel and is_instance_valid(dialogue_panel):
 		PanelRevealer.show_panel(dialogue_panel)
 	else:
@@ -83,9 +88,6 @@ func start_inline_dialogue(entries: Array, music_stream: AudioStream = null):
 	else:
 		MusicManager.play_dialogue_music()
 
-	_current_entries = entries
-	current_index = 0
-	_show_entry(0)
 	can_interact = true
 
 
@@ -274,6 +276,12 @@ func _do_close():
 		PanelRevealer.hide_panel(dialogue_panel)
 	elif dialogue_ui and is_instance_valid(dialogue_ui):
 		dialogue_ui.visible = false
+
+	# ★ 防御性清理：重置文本和头像，防止下次动画开头闪烁残留数据
+	if name_label: name_label.text = ""
+	if text_label: text_label.text = ""
+	var avatar_bg = dialogue_panel.get_node_or_null("AvatarBg") if dialogue_panel else null
+	if avatar_bg: avatar_bg.visible = false
 
 	MusicManager.stop_music()
 	await get_tree().create_timer(music_transition_delay, true, false, true).timeout

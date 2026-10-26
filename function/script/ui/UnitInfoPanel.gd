@@ -34,7 +34,7 @@ func refresh():
 		if info_desc: info_desc.text = ""
 		if scroll_box: scroll_box.visible = false
 		if hsep: hsep.visible = false
-		_update_avatar("")
+		_hide_avatar_both()
 		return
 	else:
 		if scroll_box: scroll_box.visible = true
@@ -51,7 +51,7 @@ func refresh():
 
 	var unit_dict = UnitDataManager.get_unit_data(current_unit_name)
 	if unit_dict.is_empty():
-		_update_avatar("")
+		_hide_avatar_both()
 		if info_name: info_name.text = "（无数据）"
 		if info_stats: info_stats.text = ""
 		if info_desc: info_desc.text = "该单位在 unit_data.json 中未定义。"
@@ -74,7 +74,6 @@ func refresh():
 	lines.append("感应    %d" % unit_dict.get("arcane", 0))
 	lines.append("移动力  %d" % unit_dict.get("move_range", 0))
 	
-	# ★ 增加空行
 	lines.append("")
 
 	if DispatchManager.is_unit_dispatched(current_unit_name):
@@ -87,9 +86,9 @@ func refresh():
 	if info_desc:
 		info_desc.text = unit_dict.get("description", "")
 
-# ★ 新增：兼容 EquipmentConfigDetail.gd 的调用（装备界面/物品详情的显示）
+# ★ 兼容装备界面/物品详情的显示
 func show_info(data: Dictionary):
-	current_unit_name = ""  # 清空单位名称，避免与 unit 逻辑冲突
+	current_unit_name = "" 
 	
 	if info_name:
 		info_name.text = data.get("name", "")
@@ -103,21 +102,14 @@ func show_info(data: Dictionary):
 	if info_desc:
 		info_desc.text = data.get("desc", "")
 
-	# 处理图标 (兼容新老结构)
 	var icon_tex = data.get("icon")
 	if icon_tex and avatar_rect and avatar_bg:
 		avatar_rect.texture = icon_tex
 		avatar_rect.custom_minimum_size = Vector2(48, 48)
 		avatar_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-		if not avatar_bg.visible:
-			avatar_bg.visible = true
-			PanelRevealer.show_panel(avatar_bg)
-		if not avatar_rect.visible:
-			avatar_rect.visible = true
-			PanelRevealer.show_panel(avatar_rect)
+		_show_avatar_raw()
 	else:
-		if avatar_bg: avatar_bg.visible = false
-		if avatar_rect: avatar_rect.visible = false
+		_hide_avatar_both()
 		
 	if scroll_box: scroll_box.visible = true
 	if hsep: hsep.visible = true
@@ -126,8 +118,7 @@ func _update_avatar(unit_name: String):
 	if not avatar_rect or not avatar_bg: return
 	
 	if unit_name == "":
-		if avatar_bg.visible: PanelRevealer.hide_panel(avatar_bg)
-		if avatar_rect.visible: PanelRevealer.hide_panel(avatar_rect)
+		_hide_avatar_both()
 		return
 
 	var avatar_id = GameState.get_unit_avatar(unit_name)
@@ -137,7 +128,6 @@ func _update_avatar(unit_name: String):
 		var path = "res://content/images/characters/avatar/%s.png" % avatar_id
 		if ResourceLoader.exists(path):
 			var tex = load(path)
-			# ★ 加上纹理缓存判断
 			if avatar_rect.texture != tex:
 				avatar_rect.texture = tex
 			has_avatar = true
@@ -145,13 +135,24 @@ func _update_avatar(unit_name: String):
 	if has_avatar:
 		avatar_rect.custom_minimum_size = Vector2(48, 48)
 		avatar_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-		
-		if not avatar_bg.visible:
-			avatar_bg.visible = true
-			PanelRevealer.show_panel(avatar_bg)
-		if not avatar_rect.visible:
-			avatar_rect.visible = true
-			PanelRevealer.show_panel(avatar_rect)
+		_show_avatar_raw()
 	else:
-		if avatar_bg.visible: PanelRevealer.hide_panel(avatar_bg)
-		if avatar_rect.visible: PanelRevealer.hide_panel(avatar_rect)
+		_hide_avatar_both()
+
+# 暴力显示，剥离所有可能残留的 Shader 和动画
+func _show_avatar_raw():
+	if avatar_bg:
+		avatar_bg.material = null
+		avatar_bg.visible = true
+	if avatar_rect:
+		avatar_rect.material = null
+		avatar_rect.visible = true
+
+# 暴力隐藏，剥离所有可能残留的 Shader 和动画
+func _hide_avatar_both():
+	if avatar_bg:
+		avatar_bg.material = null
+		avatar_bg.visible = false
+	if avatar_rect:
+		avatar_rect.material = null
+		avatar_rect.visible = false
