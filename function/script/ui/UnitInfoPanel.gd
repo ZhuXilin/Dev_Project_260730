@@ -27,6 +27,7 @@ func toggle_mode():
 	elif show_mode == 2: show_mode = 1
 	refresh()
 
+
 func refresh():
 	if current_unit_name == "":
 		if info_name: info_name.text = ""
@@ -71,9 +72,8 @@ func refresh():
 	lines.append("灵巧    %d" % unit_dict.get("dexterity", 0))
 	lines.append("智力    %d" % unit_dict.get("intelligence", 0))
 	lines.append("信仰    %d" % unit_dict.get("faith", 0))
-	lines.append("感应    %d" % unit_dict.get("arcane", 0))
 	lines.append("移动力  %d" % unit_dict.get("move_range", 0))
-	
+
 	lines.append("")
 
 	if DispatchManager.is_unit_dispatched(current_unit_name):
@@ -85,6 +85,7 @@ func refresh():
 		info_stats.text = "\n".join(lines)
 	if info_desc:
 		info_desc.text = unit_dict.get("description", "")
+
 
 # ★ 兼容装备界面/物品详情的显示
 func show_info(data: Dictionary):

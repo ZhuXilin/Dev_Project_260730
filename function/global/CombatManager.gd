@@ -163,10 +163,21 @@ func _calc_reduction(defender: Unit, is_magic: bool) -> float:
 	return clampf(total, 0.0, REDUCTION_CAP)
 
 func _calc_penetration(attacker: Unit, is_magic: bool) -> float:
+	if attacker == null:
+		return 0.0
 	var wdata = attacker.get_weapon_data()
-	if not wdata: return 0.0
-	var w_pen : float = wdata.magic_penetration if is_magic else wdata.physical_penetration
-	return w_pen
+	var weapon_pen : float = 0.0
+	if wdata:
+		weapon_pen = wdata.magic_penetration if is_magic else wdata.physical_penetration
+
+	var affix_pen : float = 0.0
+	if is_magic:
+		affix_pen = attacker.get_total_affix_value_float("magic_penetration")
+	else:
+		affix_pen = attacker.get_total_affix_value_float("physical_penetration")
+
+	return weapon_pen + affix_pen
+
 
 func calculate_damage(attacker: Unit, defender: Unit) -> int:
 	var weapon_data = attacker.get_weapon_data()
@@ -186,9 +197,14 @@ func calculate_damage(attacker: Unit, defender: Unit) -> int:
 		var str_val = attacker.unit_stats.get_effective_attr("strength")
 		total_attack *= (1.0 + str_val * attacker.relic_strength_scale_damage)
 
-	var reduction : float = _calc_reduction(defender, is_magic)
-	var penetration : float = _calc_penetration(attacker, is_magic)
-	var effective_reduction : float = clampf(reduction - penetration, 0.0, 1.0)
+	# ★ v4.6 修复：magic_attack.ignore_defense 真正跳过减伤
+	var ignore_def : bool = weapon_data.magic_attack.get("ignore_defense", false)
+	var effective_reduction : float = 0.0
+	if not ignore_def:
+		var reduction : float = _calc_reduction(defender, is_magic)
+		var penetration : float = _calc_penetration(attacker, is_magic)
+		effective_reduction = clampf(reduction - penetration, 0.0, 1.0)
+
 	var damage_raw : float = total_attack * (1.0 - effective_reduction)
 	var floor_raw : float = total_attack * MIN_DAMAGE_FLOOR
 	var damage : int = max(1, int(max(damage_raw, floor_raw)))
@@ -212,6 +228,7 @@ func calculate_damage(attacker: Unit, defender: Unit) -> int:
 		var taken_mult : float = SoulFireManager.get_damage_taken_mult()
 		if taken_mult > 1.0: damage = int(damage * taken_mult)
 	return max(1, damage)
+
 
 # ============================================================
 #  ★ v4.6 新增：无视防御版伤害计算
@@ -344,8 +361,6 @@ func execute_attack(attacker: Unit, defender: Unit, forced_skill_id: String = ""
 		hp_cost_percent = float(ep.get("hp_cost_percent", 0.0))
 		taunt_rounds = int(ep.get("taunt_rounds", 0))
 
-	# ★ v4.6：charge_stacks 在两条 damage 路径都跑完之后统一清 0，
-	#   防止 heavy 武器的蓄力倍率在“无视防御”路径里被提前清零
 	if attacker.has_core_trait("charge") and attacker.charge_stacks > 0:
 		attacker.charge_stacks = 0
 

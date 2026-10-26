@@ -402,6 +402,7 @@ func clear_current_reward():
 	resource_state.clear_current_reward()
 	current_reward_rare_datas.clear()
 
+
 func start_new_cycle():
 	total_run_count += 1
 	temp_gold = 0
@@ -409,7 +410,6 @@ func start_new_cycle():
 	sacrifice_count = 0
 	cycle_start_soul = soul
 	keys = 0
-	keys_bought = 0
 	if pending_tag_pin != "":
 		active_tag_pin = pending_tag_pin
 		pending_tag_pin = ""
@@ -437,6 +437,7 @@ func start_new_cycle():
 	clear_narrative_effects_for_new_run()
 	SaveManager.auto_save()
 	AnalyticsLogger.begin_run()
+
 
 func finish_day(grant_slot: bool = true):
 	soul += SoulFireManager.settle()

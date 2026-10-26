@@ -84,66 +84,24 @@ func _finish_research(aura_id: String):
 		GameState.unlocked_auras.append(aura_id)
 	GameState.active_aura_research = {}
 
-
-## 本场战斗中激活光环：从被动槽移除，效果立即应用到所有友军并标记为本场激活
-func activate_aura_for_battle(aura_id: String) -> bool:
-	if aura_id == "":
-		return false
-	if not aura_id in GameState.get_auras_from_passives():
-		return false
-	var d : Dictionary = get_aura(aura_id)
-	if d.is_empty():
-		return false
-	for u in UnitManager.unit_list:
-		if not is_instance_valid(u):
-			continue
-		if u.unit_stats.team_id != 0:
-			continue
-		u.active_auras[aura_id] = true
-		_apply_aura_buff_to_unit(u, aura_id)
-	GameState.remove_aura_from_passives(aura_id)
-	if SaveManager:
-		SaveManager.auto_save()
-	print("[AuraManager] 光环已激活并消耗: " + aura_id)
-	return true
-
-
-func _apply_aura_buff_to_unit(u : Unit, aura_id : String):
-	var d : Dictionary = get_aura(aura_id)
-	if d.is_empty(): return
-	var params : Dictionary = d.get("params", {})
-	match d.get("effect", ""):
-		"attack_plus":
-			u.buff_attack_percent += float(params.get("attack_percent", 0.15))
-		"damage_reduce_and_counter":
-			u.buff_damage_reduction += float(params.get("damage_reduction", 0.10))
-			u.relic_counter_damage_bonus += float(params.get("counter_bonus", 0.30))
-		"flat_reduction":
-			u.buff_physical_reduction += float(params.get("physical_reduction", 0.10))
-			u.buff_magic_reduction += float(params.get("magic_reduction", 0.10))
-		_:
-			pass
-
-
 ## 战场内点击使用光环：立即生效，然后从被动槽中移除（用完即毁）
 func use_aura_in_battle(aura_id: String) -> bool:
 	if aura_id == "" or not aura_id in GameState.get_auras_from_passives():
 		return false
-		
+
 	var d : Dictionary = get_aura(aura_id)
 	if d.is_empty():
 		return false
-		
+
 	var params : Dictionary = d.get("params", {})
 	var effect_type : String = d.get("effect", "")
-	
-	# 对全场友军施加效果 / 挂载持续状态
+
 	for u in UnitManager.unit_list:
 		if not is_instance_valid(u) or u.unit_stats.team_id != 0 or u.hit_points <= 0:
 			continue
-			
+
 		u.active_auras[aura_id] = true
-		
+
 		match effect_type:
 			"attack_plus":
 				u.buff_attack_percent += float(params.get("attack_percent", 0.15))
@@ -153,16 +111,13 @@ func use_aura_in_battle(aura_id: String) -> bool:
 			"flat_reduction":
 				u.buff_physical_reduction += float(params.get("physical_reduction", 0.10))
 				u.buff_magic_reduction += float(params.get("magic_reduction", 0.10))
-			"instant_soul_fire":
-				# 兼容如果有直接加魂火的配置
-				SoulFireManager.add(int(params.get("soul_fire_gain", 3)))
 			"turn_start_gain_soul_fire", "kill_gain_soul_fire", "kill_heal_percent":
-				# 这些会由 TurnManager/CombatManager 根据 active_auras 钩子自动触发
+				# 这些由 TurnManager/CombatManager 根据 active_auras 钩子自动触发
 				pass
-				
+
 	# 用完即毁：从被动槽中移除
 	GameState.remove_aura_from_passives(aura_id)
 	SaveManager.auto_save()
-	
+
 	print("[AuraManager] 光环已激活并消耗: " + aura_id)
 	return true

@@ -23,7 +23,8 @@ const VALID_CAP_ATTRS : Array = ["vitality", "strength", "dexterity", "intellige
 const VALID_AFFIX_TYPES : Array = [
 	"attack_flat", "defense_flat", "hp_flat", "crit_chance", "crit_damage",
 	"dodge", "lifesteal", "counter", "soul_fire_gain", "heal_boost",
-	"flame_damage", "move_flat", "turn_regen", "start_shield"
+	"flame_damage", "move_flat", "turn_regen", "start_shield",
+	"physical_penetration", "magic_penetration"
 ]
 const VALID_UNLOCK_TYPES : Array = ["unit", "relic", "aura", "route", "talent", "transform_branch"]
 const VALID_ACTION_TYPES : Array = [

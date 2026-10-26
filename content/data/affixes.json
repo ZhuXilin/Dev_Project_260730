@@ -12,5 +12,7 @@
   "affix_flame_damage": {"id": "affix_flame_damage", "name": "焚身", "description": "对敌造成额外 {v} 火焰伤害", "type": "flame_damage", "value_min": 2, "value_max": 5, "min_quality": "rare", "tags": ["烈焰"]},
   "affix_move": {"id": "affix_move", "name": "疾行", "description": "移动力 +{v}", "type": "move_flat", "value_min": 1, "value_max": 1, "min_quality": "rare", "tags": ["灰烬"]},
   "affix_cycle_regen": {"id": "affix_cycle_regen", "name": "轮回", "description": "每回合回复 {v}% 最大 HP", "type": "turn_regen", "value_min": 3, "value_max": 6, "min_quality": "epic", "tags": ["轮回"]},
-  "affix_guard_shield": {"id": "affix_guard_shield", "name": "护盾", "description": "战斗开始获得 {v} 点护盾", "type": "start_shield", "value_min": 2, "value_max": 5, "min_quality": "epic", "tags": ["守护"]}
+  "affix_guard_shield": {"id": "affix_guard_shield", "name": "护盾", "description": "战斗开始获得 {v} 点护盾", "type": "start_shield", "value_min": 2, "value_max": 5, "min_quality": "epic", "tags": ["守护"]},
+  "affix_pierce_physical": {"id": "affix_pierce_physical", "name": "破甲", "description": "物理穿透 +{v}%", "type": "physical_penetration", "value_min": 5, "value_max": 10, "min_quality": "epic", "tags": ["烈焰"]},
+  "affix_pierce_magic": {"id": "affix_pierce_magic", "name": "奥术穿透", "description": "魔法穿透 +{v}%", "type": "magic_penetration", "value_min": 5, "value_max": 10, "min_quality": "epic", "tags": ["轮回"]}
 }

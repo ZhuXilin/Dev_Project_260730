@@ -253,11 +253,7 @@ func get_weapon_stats() -> Dictionary:
 	var data = get_weapon_data()
 	if not data: return default_stats
 
-	var quality_mult := 1.0
-	match data.quality:
-		"rare": quality_mult = 1.25
-		"epic": quality_mult = 1.5
-		"legendary": quality_mult = 1.8
+	var quality_mult : float = CombatManager.QUALITY_MULT.get(data.quality, 1.0)   # ★ 统一走 CombatManager
 
 	var upgrade_bonus = weapon_slot.upgrade_level if weapon_slot else 0
 	var stats := default_stats.duplicate()
@@ -369,11 +365,7 @@ func get_total_stats() -> Dictionary:
 	if weapon_slot:
 		var data = ItemManager.get_item_data(weapon_slot.item_id)
 		if data:
-			var quality_mult := 1.0
-			match data.quality:
-				"rare": quality_mult = 1.25
-				"epic": quality_mult = 1.5
-				"legendary": quality_mult = 1.8
+			var quality_mult : float = CombatManager.QUALITY_MULT.get(data.quality, 1.0)   # ★ 统一走 CombatManager
 			var upgrade_bonus = weapon_slot.upgrade_level
 			total["attack"] = int((data.base_attack + upgrade_bonus) * quality_mult)
 			total["attack_range"] = WeaponUpgradeHelper.get_effective_attack_range(data, upgrade_bonus)

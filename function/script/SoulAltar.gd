@@ -629,14 +629,13 @@ func _attr_cn(key: String) -> String:
 		"dexterity":    return "灵巧"
 		"intelligence": return "智力"
 		"faith":        return "信仰"
-		"arcane":       return "感应"
 		"move_range":   return "移动"
 		_: return key
 
 
 func _format_bonus_dict(dict : Dictionary) -> String:
 	var parts : Array = []
-	var order : Array = ["strength", "dexterity", "intelligence", "faith", "arcane", "vitality"]
+	var order : Array = ["strength", "dexterity", "intelligence", "faith", "vitality"]
 	for k in order:
 		if dict.has(k):
 			parts.append("%s +%d" % [_attr_cn(k), int(dict[k])])

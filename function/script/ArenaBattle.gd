@@ -9,6 +9,8 @@ var CRIT_CHANCE_BY_QUALITY : Dictionary = {"common":0.0,"rare":0.03,"epic":0.05,
 var CRIT_DAMAGE_MULT : float = 1.5
 var QUALITY_MULT : Dictionary = {"common":1.0,"rare":1.25,"epic":1.5,"legendary":1.8}
 var STRENGTH_DEF_FACTOR : float = 0.3
+var REDUCTION_CAP : float = 0.75
+var MIN_DAMAGE_FLOOR : float = 0.10
 var BLEED_MAX_STACKS : int = 5
 var BLEED_BASE_PERCENT : float = 0.15
 var BLEED_PER_LEVEL : float = 0.05
@@ -82,6 +84,8 @@ func _apply_config():
 	CRIT_DAMAGE_MULT = float(cfg.get("crit_damage_mult", CRIT_DAMAGE_MULT))
 	QUALITY_MULT = cfg.get("quality_mult", QUALITY_MULT).duplicate()
 	STRENGTH_DEF_FACTOR = float(cfg.get("strength_def_factor", STRENGTH_DEF_FACTOR))
+	REDUCTION_CAP = float(cfg.get("reduction_cap", REDUCTION_CAP))
+	MIN_DAMAGE_FLOOR = float(cfg.get("min_damage_floor", MIN_DAMAGE_FLOOR))
 	BLEED_MAX_STACKS = int(cfg.get("bleed_max_stacks", BLEED_MAX_STACKS))
 	BLEED_BASE_PERCENT = float(cfg.get("bleed_base_percent", BLEED_BASE_PERCENT))
 	BLEED_PER_LEVEL = float(cfg.get("bleed_per_level", BLEED_PER_LEVEL))
@@ -537,38 +541,70 @@ func _do_attack(attacker: UnitData, defender: UnitData):
 
 
 func _calc_damage(attacker: UnitData, defender: UnitData) -> int:
+	if attacker == null or defender == null:
+		return 0
 	var wdata = null
 	if attacker.weapon_slot:
 		wdata = ItemManager.get_item_data(attacker.weapon_slot.item_id)
 	if not wdata:
 		return 1
 
-	var quality_mult = QUALITY_MULT.get(wdata.quality, 1.0)
+	# 是否魔法攻击（与主线 CombatManager._is_magic_attack 一致口径）
+	var is_magic : bool = (wdata.attack_style == "magic") \
+		or (wdata.category == "staff") \
+		or wdata.magic_attack.get("ignore_defense", false)
+
+	# ---- 1. 攻击力 ----
+	var quality_mult : float = QUALITY_MULT.get(wdata.quality, 1.0)
 	var upgrade_lv : int = attacker.weapon_slot.upgrade_level if attacker.weapon_slot else 0
-	var base_attack : int = WeaponUpgradeHelper.get_effective_base_attack(wdata, upgrade_lv) * quality_mult
+	var base_attack : float = WeaponUpgradeHelper.get_effective_base_attack(wdata, upgrade_lv) * quality_mult
 
-	var atk_bonus = 0.0
+	var atk_bonus : float = 0.0
 	for attr in wdata.modifier:
-		var val = attacker.get_effective_attr(attr)
-		atk_bonus += val * wdata.modifier[attr]
+		atk_bonus += attacker.get_effective_attr(attr) * wdata.modifier[attr]
 
-	var total_attack = base_attack + atk_bonus
+	var total_attack : float = base_attack + atk_bonus + attacker.buff_attack_flat
+	if is_magic:
+		total_attack += attacker.buff_magic_attack_flat
 	total_attack *= (1.0 + attacker.buff_attack_percent)
 
-	var armor_defense : float = 0.0
+	# ---- 2. 减伤率（乘法核心，与主线对齐） ----
+	var base_reduction : float = defender.magic_reduction if is_magic else defender.physical_reduction
+
+	var armor_reduction : float = 0.0
+	for slot in defender.armor_slots:
+		if slot == null:
+			continue
+		var idata = ItemManager.get_item_data(slot.item_id)
+		if idata == null:
+			continue
+		var aq : float = QUALITY_MULT.get(idata.quality, 1.0)
+		armor_reduction += (idata.magic_reduction if is_magic else idata.physical_reduction) * aq
+
+	var affix_reduction : float = 0.0
 	for slot in defender.armor_slots:
 		if slot:
-			var idata = ItemManager.get_item_data(slot.item_id)
-			if idata:
-				var aq : float = QUALITY_MULT.get(idata.quality, 1.0)
-				var armor_lv : int = slot.upgrade_level
-				armor_defense += WeaponUpgradeHelper.get_effective_defense(idata, armor_lv) * aq
+			affix_reduction += slot.get_affix_value("defense_flat") * 0.01
 
-	var def_value = defender.get_effective_attr("strength") * STRENGTH_DEF_FACTOR + armor_defense
-	var damage = max(1, int(total_attack - def_value))
+	var buff_reduction : float = (defender.buff_magic_reduction if is_magic else defender.buff_physical_reduction) \
+		+ defender.buff_damage_reduction
+	var total_reduction : float = clampf(
+		base_reduction + armor_reduction + affix_reduction + buff_reduction,
+		0.0, REDUCTION_CAP)
 
-	if defender.buff_damage_reduction > 0:
-		damage = max(1, int(damage * (1.0 - defender.buff_damage_reduction)))
+	# ---- 3. 穿透 ----
+	var weapon_pen : float = wdata.magic_penetration if is_magic else wdata.physical_penetration
+	var affix_pen : float = 0.0
+	for slot in attacker.armor_slots:
+		if slot:
+			affix_pen += slot.get_affix_value_float("magic_penetration" if is_magic else "physical_penetration")
+	var total_pen : float = weapon_pen + affix_pen
+
+	# ---- 4. 伤害结算（乘法 + 10% 保底） ----
+	var effective_reduction : float = clampf(total_reduction - total_pen, 0.0, 1.0)
+	var damage_raw : float = total_attack * (1.0 - effective_reduction)
+	var floor_raw : float = total_attack * MIN_DAMAGE_FLOOR
+	var damage : int = max(1, int(max(damage_raw, floor_raw)))
 
 	return damage
 
