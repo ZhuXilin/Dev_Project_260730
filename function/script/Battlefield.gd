@@ -21,6 +21,10 @@ const BOSS_NODE_TYPE = 6
 @onready var menu_blocker : ColorRect = $MenuBlocker
 @onready var info_panel : PanelContainer = $Info/InfoPanel
 @onready var info_text_label : Label = $Info/InfoPanel/VBox/InfoTextLabel
+@onready var soul_fire_bar : ProgressBar = $HUD/SoulFireHUD/SoulFireBar
+@onready var soul_fire_label : Label = $HUD/SoulFireHUD/SoulFireLabel
+@onready var soul_fire_state_label : Label = $HUD/SoulFireHUD/StateLabel
+
 
 @onready var setting_panel : PanelContainer = $SettingBar/SettingPanel
 @onready var back_camp_btn : Button = $SettingBar/SettingPanel/SettingContainer/BackCampBtn
@@ -84,6 +88,11 @@ func _ready():
 
 	# ★ 新战斗开始 → 清除上次的 Boss 临时上限惩罚
 	SoulFireManager.reset_boss_penalty()
+
+	# 魂火 HUD 绑定
+	if not SoulFireManager.soul_fire_changed.is_connected(_on_soul_fire_changed):
+		SoulFireManager.soul_fire_changed.connect(_on_soul_fire_changed)
+	_on_soul_fire_changed(SoulFireManager.current, SoulFireManager.get_max_carried())
 
 	if victory_panel:
 		victory_panel.visible = false
@@ -545,6 +554,9 @@ func _exit_tree():
 	if SoulFireManager:
 		SoulFireManager.reset_boss_penalty()
 
+	if SoulFireManager and SoulFireManager.soul_fire_changed.is_connected(_on_soul_fire_changed):
+		SoulFireManager.soul_fire_changed.disconnect(_on_soul_fire_changed)
+
 	if ObjectiveManager:
 		ObjectiveManager.setup_for_node(null)
 
@@ -939,6 +951,26 @@ func _on_request_hide_setting():
 	PanelRevealer.hide_panel(item_list_panel)
 	PanelRevealer.hide_panel(setting_menu_panel)
 
+func _on_soul_fire_changed(current: int, max_carried: int):
+	if soul_fire_bar and is_instance_valid(soul_fire_bar):
+		soul_fire_bar.max_value = max_carried
+		soul_fire_bar.value = current
+	if soul_fire_label and is_instance_valid(soul_fire_label):
+		soul_fire_label.text = "%d/%d" % [current, max_carried]
+	if soul_fire_state_label and is_instance_valid(soul_fire_state_label):
+		match SoulFireManager.get_state():
+			SoulFireManager.State.BURNING:
+				soul_fire_state_label.text = "[燃烧]"
+				soul_fire_state_label.modulate = Color(1.0, 0.6, 0.2, 1)
+			SoulFireManager.State.DEPLETED:
+				soul_fire_state_label.text = "[枯竭]"
+				soul_fire_state_label.modulate = Color(0.7, 0.3, 1.0, 1)
+			SoulFireManager.State.ZERO:
+				soul_fire_state_label.text = "[归零]"
+				soul_fire_state_label.modulate = Color(1.0, 0.3, 0.3, 1)
+			_:
+				soul_fire_state_label.text = ""
+				soul_fire_state_label.modulate = Color.WHITE
 
 func _on_speed_changed(new_speed: int):
 	if speed_indicator == null: return

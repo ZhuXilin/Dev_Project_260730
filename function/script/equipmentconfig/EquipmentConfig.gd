@@ -27,7 +27,6 @@ var _talent : EquipmentConfigTalent = null
 var _upgrade_shop_btn : Button = null
 var _aura_tab_btn : Button = null
 
-var _forge_recall_btn : Button = null
 var _forge_enter_done : bool = false
 
 const ShopManagerScript = preload(Config.PATHS.SHOP_MANAGER_SCRIPT)
@@ -1775,79 +1774,14 @@ func _setup_forge_narrative_ui() -> void:
 		_forge_enter_done = true
 		call_deferred("_trigger_forge_enter")
 
-	_ensure_forge_recall_button()
-
 
 func _trigger_forge_enter() -> void:
 	if not is_inside_tree():
 		return
-	var ctx := _build_forge_context()
-	StoryManager.trigger("forge_enter", ctx)
-
-
-func _ensure_forge_recall_button() -> void:
-	if _forge_recall_btn and is_instance_valid(_forge_recall_btn):
-		return
-	var canvas : Node = get_parent()
-	if not canvas or not (canvas is CanvasLayer):
-		return
-	_forge_recall_btn = Button.new()
-	_forge_recall_btn.name = "ForgeRecallBtn"
-	_forge_recall_btn.text = "问移动铁匠"
-	_forge_recall_btn.focus_mode = Control.FOCUS_NONE
-	_forge_recall_btn.add_theme_font_size_override("font_size", 8)
-	_forge_recall_btn.size = Vector2(60, 18)
-	_forge_recall_btn.position = Vector2(326, 110)
-	_forge_recall_btn.z_index = 100
-	_forge_recall_btn.tooltip_text = "查看当前商店倾向 / 魂火状态 / 低语效果"
-	_forge_recall_btn.pressed.connect(_on_forge_recall_pressed)
-	canvas.add_child(_forge_recall_btn)
-
-
-func _on_forge_recall_pressed() -> void:
-	if not is_inside_tree():
-		return
-	var ctx := _build_forge_context()
-	StoryManager.trigger("forge_recall", ctx)
-
-
-func _build_forge_context() -> Dictionary:
-	var hint_tags : Array = []
-	for tag in ["守护", "烈焰", "灰烬", "轮回", "献祭", "余烬"]:
-		var boost : int = GameState.get_shop_tag_boost(tag)
-		if boost > 0:
-			hint_tags.append("%s(+%d)" % [tag, boost])
-	if hint_tags.is_empty():
-		hint_tags = ["无偏向"]
-
-	var effect_lines : Array = []
-	for e in GameState.active_narrative_effects:
-		if not (e is Dictionary):
-			continue
-		var ed : Dictionary = e
-		if ed.get("type", "") == "shop_tag_weight_boost":
-			effect_lines.append("· 商店偏向：%s（+%d）" % [ed.get("tag", ""), int(ed.get("amount", 0))])
-	if effect_lines.is_empty():
-		effect_lines.append("· 本局无低语效果")
-
-	var sf_state_text : String = "正常"
-	match SoulFireManager.get_state():
-		SoulFireManager.State.BURNING:  sf_state_text = "燃烧"
-		SoulFireManager.State.DEPLETED: sf_state_text = "枯竭"
-		SoulFireManager.State.ZERO:     sf_state_text = "归零"
-
-	var shop_lv : int = 0
-	if _context != null:
-		shop_lv = _context.get_shop_level()
-
-	return {
+	# 直接构建基础上下文，不再调用 _build_forge_context()
+	var ctx := {
 		"npc_id": "forge",
 		"current_day": GameState.current_day,
-		"shop_level": shop_lv,
-		"shop_tag_hint": "、".join(hint_tags),
-		"active_effects": "\n".join(effect_lines),
-		"soul_fire_state": sf_state_text,
-		"soul_fire_current": SoulFireManager.current,
-		"soul_fire_max": SoulFireManager.get_max_carried(),
 		"npc_interact_count": StoryManager.get_npc_interact_count("forge"),
 	}
+	StoryManager.trigger("forge_enter", ctx)

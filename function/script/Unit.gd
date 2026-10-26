@@ -32,6 +32,13 @@ var buff_attack_flat : int = 0
 var buff_magic_attack_flat : int = 0
 var buff_lifesteal_percent : float = 0.0
 
+# ---- v4.7 临时穿透（由 CombatManager 在主动技能期间临时设置）----
+var temp_physical_penetration : float = 0.0
+var temp_magic_penetration : float = 0.0
+
+# ---- v4.7 暴击削防（crit 天赋触发时累加，本场持续）----
+var buff_defense_shred : float = 0.0
+
 # ★ 兼容旧字段（不参与计算）
 var buff_defense_flat : int = 0
 
@@ -809,6 +816,9 @@ func reset_combat_buffs():
 	buff_attack_flat = 0
 	buff_magic_attack_flat = 0
 	buff_defense_flat = 0
+	temp_physical_penetration = 0.0
+	temp_magic_penetration = 0.0
+	buff_defense_shred = 0.0
 	charge_stacks = 0
 	active_auras.clear()
 

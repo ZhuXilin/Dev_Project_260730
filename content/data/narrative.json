@@ -769,19 +769,6 @@
 			{"speaker": "守火者", "text": "火记得你来过几次。"}
 		  ]
 		},
-		{
-		  "id": "forge_recall_status",
-		  "trigger_type": "forge_recall",
-		  "priority": 0,
-		  "repeatable": true,
-		  "condition": {},
-		  "lines": [
-			{"speaker": "移动铁匠", "text": "今天想打点什么？"},
-			{"speaker": "移动铁匠", "text": "商店偏向：{shop_tag_hint}"},
-			{"speaker": "移动铁匠", "text": "当前魂火：{soul_fire_state}（{soul_fire_current}/{soul_fire_max}）"},
-			{"speaker": "移动铁匠", "text": "本局效果：\n{active_effects}"}
-		  ]
-		}
 	  ],
 	  "unlocks": []
 	},

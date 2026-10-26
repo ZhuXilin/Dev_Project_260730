@@ -215,12 +215,12 @@ func _evaluate_move(unit: Unit):
 	if reachable.is_empty():
 		return null
 
-	var hp_ratio = float(unit.hit_points) / float(unit.unit_stats.max_hp)
 	var best_cell = unit.grid_cell   # 统一在开头声明
 	var best_score = -999           # 统一在开头声明
 
-	# 1. 始终优先寻找未触发的回血点
-	if _turn_manager != null:
+	# 1. 寻找未触发的回血点（仅当血量低于 70% 时）
+	var hp_ratio = float(unit.hit_points) / float(unit.unit_stats.max_hp)
+	if hp_ratio < 0.7 and _turn_manager != null:
 		var heal_cells = []
 		for cell in reachable.keys():
 			if cell == unit.grid_cell:

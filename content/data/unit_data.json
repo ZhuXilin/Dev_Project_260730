@@ -43,7 +43,7 @@
 	]
   },
   "spearman": {
-	"max_hp": 40, "strength": 8, "dexterity": 5,
+	"max_hp": 38, "strength": 8, "dexterity": 5,
 	"intelligence": 2, "faith": 2, "arcane": 3, "move_range": 7,
 	"physical_reduction": 0.12, "magic_reduction": 0.05,
 	"ignore_terrain_cost": false,
@@ -80,9 +80,9 @@
 	]
   },
   "axeman": {
-	"max_hp": 25, "strength": 10, "dexterity": 4,
+	"max_hp": 28, "strength": 10, "dexterity": 4,
 	"intelligence": 1, "faith": 1, "arcane": 2, "move_range": 4,
-	"physical_reduction": 0.08, "magic_reduction": 0.03,
+	"physical_reduction": 0.10, "magic_reduction": 0.03,
 	"ignore_terrain_cost": false,
 	"sprite_frames_path": "res://content/images/characters/unit_axeman_frames.tres",
 	"description": "狂战士，高攻击力但命中率低，适合破甲。",
@@ -117,9 +117,9 @@
 	]
   },
   "archer": {
-	"max_hp": 21, "strength": 4, "dexterity": 9,
+	"max_hp": 24, "strength": 4, "dexterity": 9,
 	"intelligence": 2, "faith": 2, "arcane": 4, "move_range": 5,
-	"physical_reduction": 0.05, "magic_reduction": 0.05,
+	"physical_reduction": 0.10, "magic_reduction": 0.05,
 	"ignore_terrain_cost": false,
 	"sprite_frames_path": "res://content/images/characters/unit_crossbow_frames.tres",
 	"description": "远程物理单位，可攻击远处敌人。",
@@ -153,9 +153,9 @@
 	]
   },
   "pegasus": {
-	"max_hp": 36, "strength": 6, "dexterity": 7,
+	"max_hp": 34, "strength": 6, "dexterity": 7,
 	"intelligence": 2, "faith": 2, "arcane": 5, "move_range": 7,
-	"physical_reduction": 0.08, "magic_reduction": 0.08,
+	"physical_reduction": 0.10, "magic_reduction": 0.08,
 	"ignore_terrain_cost": true,
 	"sprite_frames_path": "res://content/images/characters/unit_pegasus_frames.tres",
 	"description": "飞行骑兵，无视地形移动，机动性极强。",
@@ -191,7 +191,7 @@
   "mage": {
 	"max_hp": 27, "strength": 3, "dexterity": 5,
 	"intelligence": 10, "faith": 3, "arcane": 6, "move_range": 5,
-	"physical_reduction": 0.05, "magic_reduction": 0.15,
+	"physical_reduction": 0.10, "magic_reduction": 0.15,
 	"ignore_terrain_cost": false,
 	"sprite_frames_path": "res://content/images/characters/unit_mage_frames.tres",
 	"description": "魔法攻击单位，拥有魔法防御力，攻击力较高。",
@@ -225,9 +225,9 @@
 	]
   },
   "cleric": {
-	"max_hp": 21, "strength": 2, "dexterity": 4,
+	"max_hp": 24, "strength": 2, "dexterity": 4,
 	"intelligence": 5, "faith": 10, "arcane": 4, "move_range": 4,
-	"physical_reduction": 0.05, "magic_reduction": 0.12,
+	"physical_reduction": 0.10, "magic_reduction": 0.15,
 	"ignore_terrain_cost": false,
 	"sprite_frames_path": "res://content/images/characters/unit_cleric_frames.tres",
 	"description": "治疗单位，可恢复队友生命值，魔法防御高。",

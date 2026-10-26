@@ -1,10 +1,11 @@
 {
   "crit": {
-	"id": "crit", "display_name": "暴击", "description": "攻击时造成双倍伤害",
+	"id": "crit", "display_name": "暴击", "description": "攻击时造成 1.5 倍伤害，并削弱目标 20% 物理减伤（持续本场，最多叠 50%）",
 	"flavor": "「你相信直觉吗？」\n「不。」\n「那你为什么总在关键时刻闭上眼？」",
 	"school": "敏捷", "rarity": "rare",
 	"accumulation_threshold": 3, "cooldown_after_trigger": 0,
-	"effect_type": "attack", "effect_params": { "damage_multiplier": 2.0 },
+	"effect_type": "attack",
+	"effect_params": { "damage_multiplier": 1.5, "defense_shred": 0.20, "shred_cap": 0.50 },
 	"compatible_units": ["swordsman", "archer", "pegasus", "axeman"],
 	"unlock_type": "default", "tutorial_stage": 0
   },
@@ -168,13 +169,13 @@
 	"unlock_type": "soul", "soul_cost": 60, "tutorial_stage": 3
   },
   "active_snipe": {
-	"id": "active_snipe", "display_name": "狙击", "description": "下次攻击必定暴击且无视防御",
+	"id": "active_snipe", "display_name": "狙击", "description": "下次攻击必定暴击，无视 30% 物理减伤",
 	"flavor": "",
 	"school": "敏捷", "rarity": "epic",
 	"is_active_skill": true, "skill_cooldown": 3,
 	"accumulation_threshold": 1, "cooldown_after_trigger": 3,
 	"effect_type": "attack",
-	"effect_params": { "force_crit": true, "ignore_defense": true, "soul_fire_cost": 3 },
+	"effect_params": { "force_crit": true, "physical_penetration": 0.30, "soul_fire_cost": 3 },
 	"compatible_units": ["archer", "pegasus"],
 	"unlock_type": "soul", "soul_cost": 60, "tutorial_stage": 3
   },

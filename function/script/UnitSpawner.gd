@@ -35,7 +35,6 @@ static func _create_unit_stats(cfg: UnitConfig) -> UnitData:
 	if cfg.immobile and cfg.team_id == 1:
 		stats.move_range = 0
 
-	# ★ 敌方 HP 缩放（节点自带 × 高收益负面）
 	if cfg.team_id == 1 and GameState.current_map_data != null:
 		var mult := 1.0
 		match GameState.current_map_data.node_type:
@@ -45,6 +44,16 @@ static func _create_unit_stats(cfg: UnitConfig) -> UnitData:
 		var extra_hp : float = maxf(1.0, GameState.current_map_data.enemy_hp_multiplier)
 		stats.max_hp = int(stats.max_hp * mult * extra_hp)
 		stats.hit_points = stats.max_hp
+
+		# v4.7：敌人属性按天数温和增长（攻击力曲线，不缩放武器）
+		var day_mult : float = 1.0
+		match GameState.current_day:
+			1: day_mult = 0.8
+			2: day_mult = 1.0
+			3: day_mult = 1.2
+			_: day_mult = 1.0
+		stats.strength = maxi(1, int(stats.strength * day_mult))
+		stats.dexterity = maxi(1, int(stats.dexterity * day_mult))
 
 	return stats
 
