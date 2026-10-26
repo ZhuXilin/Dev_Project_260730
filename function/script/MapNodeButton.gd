@@ -27,8 +27,8 @@ func setup(node_data: MapNode, map_scene: CanvasLayer, override_pos: Vector2 = V
 
 	# 根据状态决定底色
 	var bg_color := Color.WHITE
-	if node_data.is_visited:
-		bg_color = Color(0.6, 0.6, 0.6) # 已访问：深灰色
+	if node_data.is_visited or node_data.is_passed:
+		bg_color = Color(0.6, 0.6, 0.6)   # ★ 已访问 / 已经过：深灰
 	elif not node_data.is_available:
 		bg_color = Color(0.85, 0.85, 0.85) # 不可用：浅灰色
 
@@ -168,8 +168,8 @@ func _get_node_label(node: MapNode) -> String:
 
 
 func _on_clicked():
-	if map_node.is_visited or not map_node.is_available:
-		print("节点已访问或不可用，忽略点击")
+	if map_node.is_visited or map_node.is_passed or not map_node.is_available:
+		print("节点已访问/已经过/不可用，忽略点击")
 		return
 	print("地图按钮被点击: ", _get_node_label(map_node))
 	if map_scene_ref and map_scene_ref.has_method("on_node_selected"):

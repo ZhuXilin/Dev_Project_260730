@@ -403,8 +403,13 @@ func _update_availability(_start_node: MapNode):
 			max_visited_layer = node.layer
 	print("最大已访问层: ", max_visited_layer)
 
+	# ★ 修复：经过的层（layer <= max_visited_layer）所有未访问节点也标为"已过"
 	for node in map_data.nodes:
 		node.is_available = false
+		node.is_passed = false
+	for node in map_data.nodes:
+		if node.layer <= max_visited_layer and not node.is_visited:
+			node.is_passed = true
 
 	if max_visited_layer == -1:
 		for node in map_data.nodes:
@@ -505,7 +510,7 @@ func _select_node_by_id(node_id: String):
 func on_node_selected(node: MapNode):
 	if _is_loading_combat:
 		return
-	if not node.is_available or node.is_visited:
+	if not node.is_available or node.is_visited or node.is_passed:   # ★ 加 is_passed
 		return
 
 	_is_loading_combat = true
@@ -757,6 +762,7 @@ func _apply_visited_state():
 		else:
 			node.is_visited = false
 			node.is_available = false
+			node.is_passed = false
 	var visited_count = 0
 	for node in map_data.nodes:
 		if node.is_visited:

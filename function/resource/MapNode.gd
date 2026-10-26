@@ -30,6 +30,7 @@ static var _node_counter : int = 0
 
 var connected_nodes: Array = []
 var is_completed: bool = false
+var is_passed: bool = false
 
 func _init():
 	if node_id.is_empty():
