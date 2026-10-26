@@ -3,7 +3,6 @@
 [ext_resource type="TileSet" uid="uid://bmko3nha5eqoa" path="res://content/scenes/tilemap/TerrainTileSet01.tres" id="1_sqwdt"]
 [ext_resource type="Script" uid="uid://cjvddjaj43chx" path="res://function/tool/UnitPlacer.gd" id="2_roqpf"]
 [ext_resource type="Script" uid="uid://bwbaxyrughsfk" path="res://function/tool/HpFunction.gd" id="4_17ilx"]
-[ext_resource type="Script" uid="uid://d4b5iewm1v2pe" path="res://function/tool/EventTrigger.gd" id="5_pdv2w"]
 
 [node name="Level01" type="Node2D" unique_id=1730342054]
 
@@ -19,37 +18,17 @@ unit_type = 6
 team = 1
 metadata/_custom_type_script = "uid://cjvddjaj43chx"
 
-[node name="Enemy02" type="Node2D" parent="." unique_id=42826125]
-position = Vector2(224, 144)
-script = ExtResource("2_roqpf")
-team = 1
-metadata/_custom_type_script = "uid://cjvddjaj43chx"
-
 [node name="Enemy03" type="Node2D" parent="." unique_id=852935361]
-position = Vector2(208, 144)
+position = Vector2(192, 160)
 script = ExtResource("2_roqpf")
 unit_type = 3
 team = 1
 metadata/_custom_type_script = "uid://cjvddjaj43chx"
 
 [node name="Enemy04" type="Node2D" parent="." unique_id=1144367768]
-position = Vector2(224, 112)
-script = ExtResource("2_roqpf")
-unit_type = 2
-team = 1
-metadata/_custom_type_script = "uid://cjvddjaj43chx"
-
-[node name="Enemy05" type="Node2D" parent="." unique_id=591530711]
-position = Vector2(208, 128)
-script = ExtResource("2_roqpf")
-unit_type = 1
-team = 1
-metadata/_custom_type_script = "uid://cjvddjaj43chx"
-
-[node name="Enemy06" type="Node2D" parent="." unique_id=1128483700]
 position = Vector2(208, 112)
 script = ExtResource("2_roqpf")
-unit_type = 4
+unit_type = 2
 team = 1
 metadata/_custom_type_script = "uid://cjvddjaj43chx"
 
@@ -70,12 +49,6 @@ metadata/_custom_type_script = "uid://bwbaxyrughsfk"
 position = Vector2(304, 160)
 script = ExtResource("4_17ilx")
 metadata/_custom_type_script = "uid://bwbaxyrughsfk"
-
-[node name="EventTrigger" type="Node2D" parent="." unique_id=668569711]
-position = Vector2(288, 128)
-script = ExtResource("5_pdv2w")
-event_id = "village_gossip_event"
-metadata/_custom_type_script = "uid://d4b5iewm1v2pe"
 
 [node name="SpawnPoint_0" type="Node2D" parent="." unique_id=1899670799]
 position = Vector2(320, 144)

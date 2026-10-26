@@ -86,7 +86,7 @@ func _decide_action(unit: Unit):
 		if healer_attack:
 			return healer_attack
 
-		# 1c. 无攻击目标 → 移动找位置（_evaluate_move 里 _can_attack_from_cell 会加分）
+		# 1c. 无攻击目标 → 移动找位置（_evaluate_move 里远程分支会站射程外沿）
 		var healer_move = _evaluate_move(unit)
 		if healer_move:
 			return healer_move
@@ -112,6 +112,22 @@ func _decide_action(unit: Unit):
 	return {"type": "wait", "unit": unit}
 
 # ============================================================
+#  辅助：远程 / 距离
+# ============================================================
+func _is_ranged_unit(unit: Unit) -> bool:
+	var wt = unit.get_weapon_type()
+	return wt in ["bow", "crossbow", "spellbook", "staff"]
+
+func _nearest_player_dist(cell: Vector2i) -> int:
+	var best : int = 999
+	for p in UnitManager.unit_list:
+		if p.unit_stats.team_id == 0 and p.hit_points > 0:
+			var d = abs(cell.x - p.grid_cell.x) + abs(cell.y - p.grid_cell.y)
+			if d < best:
+				best = d
+	return best
+
+# ============================================================
 #  治疗者决策（法杖治疗）
 # ============================================================
 func _decide_healer_action(unit: Unit):
@@ -119,28 +135,43 @@ func _decide_healer_action(unit: Unit):
 	var heal_range = weapon_data.attack_range if weapon_data else 0
 	var min_heal_range = weapon_data.min_attack_range if weapon_data else 0
 
-	var best_ally = null
+	# ★ v4.6：治疗者濒死（< 30%）时优先自愈，保住治疗单位本身
+	# 目的：修女如果自己快死了还去救别人，下一击就会被秒，队友也跟着完
+	var self_hp_ratio = float(unit.hit_points) / float(max(1, unit.unit_stats.max_hp))
+	if self_hp_ratio < 0.3 and unit.hit_points < unit.unit_stats.max_hp:
+		return {"type": "attack", "unit": unit, "target": unit}
+
+	# ★ v4.6：所有受伤友军（含自己）都参与候选
+	# 自己到自己的距离是 0，staff 的 min_attack_range = 0，所以自己在射程内
+	var best_target = null
 	var max_hp_loss = 0
 	for ally in UnitManager.unit_list:
-		if ally.unit_stats.team_id == 1 and ally.hit_points > 0 and ally != unit:
-			var dist = abs(unit.grid_cell.x - ally.grid_cell.x) + abs(unit.grid_cell.y - ally.grid_cell.y)
-			if dist >= min_heal_range and dist <= heal_range:
-				var hp_loss = ally.unit_stats.max_hp - ally.hit_points
-				if hp_loss > max_hp_loss:
-					max_hp_loss = hp_loss
-					best_ally = ally
+		if ally.unit_stats.team_id != 1: continue
+		if ally.hit_points <= 0: continue
+		# ★ 不再排除自己；self 距离自己 = 0
+		var dist = abs(unit.grid_cell.x - ally.grid_cell.x) + abs(unit.grid_cell.y - ally.grid_cell.y)
+		if dist < min_heal_range or dist > heal_range: continue
+		var hp_loss = ally.unit_stats.max_hp - ally.hit_points
+		if hp_loss <= 0: continue
+		if hp_loss > max_hp_loss:
+			max_hp_loss = hp_loss
+			best_target = ally
 
-	if best_ally:
-		return {"type": "attack", "unit": unit, "target": best_ally}
+	if best_target:
+		return {"type": "attack", "unit": unit, "target": best_target}
 
+	# ---- 没有在射程内的受伤单位 → 移动到受伤最严重的队友附近 ----
+	# ★ 注意：移动分支仍排除自己（"自己到自己的距离是 0"，已经在自己脚下，不需要移动过去）
 	var wounded_ally = null
 	max_hp_loss = 0
 	for ally in UnitManager.unit_list:
-		if ally.unit_stats.team_id == 1 and ally.hit_points > 0 and ally != unit:
-			var loss = ally.unit_stats.max_hp - ally.hit_points
-			if loss > max_hp_loss:
-				max_hp_loss = loss
-				wounded_ally = ally
+		if ally.unit_stats.team_id != 1: continue
+		if ally.hit_points <= 0: continue
+		if ally == unit: continue   # ★ 移动分支排除自己
+		var loss = ally.unit_stats.max_hp - ally.hit_points
+		if loss > max_hp_loss:
+			max_hp_loss = loss
+			wounded_ally = ally
 
 	if wounded_ally:
 		var path_to_heal = _find_best_move_to_target(unit, wounded_ally.grid_cell, min_heal_range, heal_range)
@@ -312,7 +343,7 @@ func _evaluate_move(unit: Unit):
 					if path.size() > 0:
 						return {"type": "move", "unit": unit, "path": path}
 
-		# 2b. 寻找高防御/回避的地形
+		# 2b. 寻找高防御地形（v4.6：减伤率口径）
 		best_cell = unit.grid_cell
 		best_score = -999
 		for cell in reachable.keys():
@@ -350,15 +381,18 @@ func _evaluate_move(unit: Unit):
 				return {"type": "move", "unit": unit, "path": path}
 		return null
 
-	# 3. 正常情况：选择有利地形（兼顾防御和队友）
+	# 3. 正常情况：近战 / 远程差异化
 	best_cell = unit.grid_cell
 	best_score = -999
+	var is_ranged := _is_ranged_unit(unit)
 	for cell in reachable.keys():
 		var terrain = TerrainManager.get_terrain(cell)
 		var td : Dictionary = TerrainManager.TERRAIN_DATA.get(terrain, {})
 		var phys_red : float = float(td.get("physical_reduction", 0.0))
 		var mag_red : float = float(td.get("magic_reduction", 0.0))
-		var score : int = int((phys_red + mag_red) * 100.0)
+		var terrain_score : int = int((phys_red + mag_red) * 100.0)
+		var score : int = 0
+
 		# 友军邻近
 		var ally_near = false
 		for dir in [Vector2i(1,0), Vector2i(-1,0), Vector2i(0,1), Vector2i(0,-1)]:
@@ -367,20 +401,31 @@ func _evaluate_move(unit: Unit):
 			if neighbor_unit and neighbor_unit.unit_stats.team_id == unit.unit_stats.team_id:
 				ally_near = true
 				break
+
+		if is_ranged:
+			var can_attack := _can_attack_from_cell(unit, cell)
+			if can_attack:
+				score = 100 + int(terrain_score / 2.0)     # ★ 改成 / 2.0 + int()
+				var nd := _nearest_player_dist(cell)
+				if nd < 999:
+					score += nd * 15
+			else:
+				score = -40 + int(terrain_score / 2.0)     # ★ 改成 / 2.0 + int()
+		else:
+			# 近战：保持原逻辑（主动贴上去打）
+			score = terrain_score
+			var dist_to_player = 999
+			for p in UnitManager.unit_list:
+				if p.unit_stats.team_id == 0 and p.hit_points > 0:
+					var d = abs(cell.x - p.grid_cell.x) + abs(cell.y - p.grid_cell.y)
+					if d < dist_to_player:
+						dist_to_player = d
+			score += int((10 - dist_to_player) * 0.5)
+			if _can_attack_from_cell(unit, cell):
+				score += 50
+
 		if ally_near:
 			score += 5
-		# 远离玩家
-		var dist_to_player = 999
-		for p in UnitManager.unit_list:
-			if p.unit_stats.team_id == 0 and p.hit_points > 0:
-				var d = abs(cell.x - p.grid_cell.x) + abs(cell.y - p.grid_cell.y)
-				if d < dist_to_player:
-					dist_to_player = d
-		score += int((10 - dist_to_player) * 0.5)
-
-		# ★ 移动后能攻击目标 → 大幅加分（鼓励 AI 主动贴近可攻击位置）
-		if _can_attack_from_cell(unit, cell):
-			score += 50
 
 		if score > best_score:
 			best_score = score
@@ -481,7 +526,7 @@ func _evaluate_survival_move(unit: Unit):
 				if path.size() > 0:
 					return {"type": "move", "unit": unit, "path": path}
 
-	# 没有治疗者，寻找高防御/回避地形
+	# 没有治疗者，寻找高防御地形（v4.6：减伤率口径）
 	best_cell = unit.grid_cell
 	best_score = -999
 	for cell in reachable.keys():
@@ -557,7 +602,7 @@ func _greedy_move_towards(unit: Unit, target_cell: Vector2i) -> Array:
 
 	return UnitManager.calculate_path(unit.grid_cell, best_cell, unit)
 
-## 路径失效时的重寻路：从当前可达格中挑一个「离敌人最近 + 地形最优」的空格
+## 路径失效时的重寻路：近战贴敌人 / 远程站射程外沿（v4.6 差异化）
 func _retry_find_path(unit: Unit) -> Array:
 	var reachable = UnitManager.get_reachable_cells(unit.grid_cell, unit.unit_stats.move_range, unit)
 	if reachable.is_empty():
@@ -566,6 +611,7 @@ func _retry_find_path(unit: Unit) -> Array:
 	var best_cell = unit.grid_cell
 	var best_score = -999999
 	var has_candidate = false
+	var is_ranged := _is_ranged_unit(unit)
 
 	for cell in reachable.keys():
 		if cell == unit.grid_cell:
@@ -573,7 +619,7 @@ func _retry_find_path(unit: Unit) -> Array:
 		if UnitManager.is_cell_occupied(cell):
 			continue
 
-		# 距最近敌人的距离（越近越好）
+		# 距最近敌人的距离
 		var nearest_enemy_dist : int = 9999
 		for enemy in UnitManager.unit_list:
 			if enemy.unit_stats.team_id == unit.unit_stats.team_id:
@@ -584,8 +630,17 @@ func _retry_find_path(unit: Unit) -> Array:
 			if d < nearest_enemy_dist:
 				nearest_enemy_dist = d
 
-		# 越近越高分（负距离）
-		var score : int = -nearest_enemy_dist * 10
+		var score : int = 0
+		if is_ranged:
+			# ★ 远程：能攻击最优先（+1000）+ 射程外沿（nd 越大分越高）
+			if _can_attack_from_cell(unit, cell):
+				score = 1000 + nearest_enemy_dist * 15
+			else:
+				# 打不到玩家：远离（但不至于完全脱离战场）
+				score = -nearest_enemy_dist * 5
+		else:
+			# 近战：越近越好
+			score = -nearest_enemy_dist * 10
 
 		# 地形加成（v4.6：减伤率口径）
 		var terrain = TerrainManager.get_terrain(cell)
@@ -636,9 +691,11 @@ func _process_ai_queue():
 			"attack":
 				var target = task["target"]
 				if is_instance_valid(target) and target.hit_points > 0:
-					# ★ 第六批：合并为一行
-					print("[AI] %s 攻击 %s" % [
-						unit.unit_stats.unit_name, target.unit_stats.unit_name])
+					if target == unit:
+						print("[AI] %s 自愈" % unit.unit_stats.unit_name)
+					else:
+						print("[AI] %s 攻击 %s" % [
+							unit.unit_stats.unit_name, target.unit_stats.unit_name])
 					SignalBus.request_highlight_unit.emit(target)
 					await get_tree().create_timer(0.3).timeout
 					await CombatManager.execute_attack(unit, target)
@@ -656,7 +713,6 @@ func _process_ai_queue():
 				_turn_manager.start_ai_movement(unit, path)
 				await _turn_manager.move_completed
 			"wait":
-				# 待机不再单独打印
 				unit.can_act_this_turn = false
 				unit.set_gray(true)
 		processed += 1

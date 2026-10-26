@@ -2,25 +2,8 @@
 
 [ext_resource type="TileSet" uid="uid://bmko3nha5eqoa" path="res://content/scenes/tilemap/TerrainTileSet01.tres" id="1_4t7b0"]
 [ext_resource type="Script" uid="uid://cjvddjaj43chx" path="res://function/tool/UnitPlacer.gd" id="2_v07jm"]
-[ext_resource type="Script" uid="uid://2m8vla0xoar" path="res://function/script/ItemEntry.gd" id="3_5fxkr"]
 [ext_resource type="Script" uid="uid://bwbaxyrughsfk" path="res://function/tool/HpFunction.gd" id="5_pypuo"]
 [ext_resource type="Script" uid="uid://d4b5iewm1v2pe" path="res://function/tool/EventTrigger.gd" id="6_jwue4"]
-
-[sub_resource type="Resource" id="Resource_m45wx"]
-script = ExtResource("3_5fxkr")
-item_id = "javelin"
-metadata/_custom_type_script = "uid://2m8vla0xoar"
-
-[sub_resource type="Resource" id="Resource_uiwtq"]
-script = ExtResource("3_5fxkr")
-item_id = "potion"
-count = 3
-metadata/_custom_type_script = "uid://2m8vla0xoar"
-
-[sub_resource type="Resource" id="Resource_auwcq"]
-script = ExtResource("3_5fxkr")
-item_id = "javelin"
-metadata/_custom_type_script = "uid://2m8vla0xoar"
 
 [node name="Level01" type="Node2D" unique_id=1730342054]
 
@@ -49,14 +32,6 @@ position = Vector2(160, 64)
 script = ExtResource("2_v07jm")
 unit_type = 4
 team = 1
-initial_items = Array[ExtResource("3_5fxkr")]([SubResource("Resource_m45wx"), SubResource("Resource_uiwtq")])
-metadata/_custom_type_script = "uid://cjvddjaj43chx"
-
-[node name="Enemy04" type="Node2D" parent="." unique_id=121289861]
-position = Vector2(144, 128)
-script = ExtResource("2_v07jm")
-unit_type = 7
-team = 1
 metadata/_custom_type_script = "uid://cjvddjaj43chx"
 
 [node name="Enemy05" type="Node2D" parent="." unique_id=42826125]
@@ -64,7 +39,6 @@ position = Vector2(160, 112)
 script = ExtResource("2_v07jm")
 unit_type = 8
 team = 1
-initial_items = Array[ExtResource("3_5fxkr")]([SubResource("Resource_auwcq")])
 metadata/_custom_type_script = "uid://cjvddjaj43chx"
 
 [node name="HpFunction" type="Node2D" parent="." unique_id=1782810974]

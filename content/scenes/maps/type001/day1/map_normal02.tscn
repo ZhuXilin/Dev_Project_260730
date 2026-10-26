@@ -12,30 +12,10 @@ tile_map_data = PackedByteArray("AAACAAAAAQABAAMAAAACAAEAAQABAAMAAAACAAIAAQABAAM
 tile_set = ExtResource("1_e0mqq")
 collision_enabled = false
 
-[node name="Enemy01" type="Node2D" parent="." unique_id=1755657792]
-position = Vector2(176, 128)
-script = ExtResource("2_660gu")
-unit_type = 6
-team = 1
-metadata/_custom_type_script = "uid://cjvddjaj43chx"
-
-[node name="Enemy02" type="Node2D" parent="." unique_id=42826125]
-position = Vector2(224, 144)
-script = ExtResource("2_660gu")
-team = 1
-metadata/_custom_type_script = "uid://cjvddjaj43chx"
-
 [node name="Enemy03" type="Node2D" parent="." unique_id=852935361]
 position = Vector2(208, 144)
 script = ExtResource("2_660gu")
 unit_type = 3
-team = 1
-metadata/_custom_type_script = "uid://cjvddjaj43chx"
-
-[node name="Enemy04" type="Node2D" parent="." unique_id=1144367768]
-position = Vector2(224, 112)
-script = ExtResource("2_660gu")
-unit_type = 2
 team = 1
 metadata/_custom_type_script = "uid://cjvddjaj43chx"
 

@@ -45,6 +45,9 @@ func get_drag_hint() -> String:
 	if _hovered_target != null:
 		var is_healer = (_pressing_unit.get_weapon_type() == "staff")
 		if is_healer:
+			# ★ v4.6：拖到自己 → 自愈
+			if _hovered_target == _pressing_unit:
+				return "释放左键治疗自身"
 			if _hovered_target.unit_stats.team_id == _pressing_unit.unit_stats.team_id:
 				return "释放左键回复 HP"
 			if _is_target_in_range(_hovered_target):
@@ -177,7 +180,14 @@ func _on_left_release() -> bool:
 		var cell = _bf.world_to_grid(world_pos)
 		var hovered_any = UnitManager.get_unit_at_cell(cell)
 		if hovered_any == _pressing_unit:
-			hovered_any = null
+			# ★ v4.6：修女拖到自己 → 自愈（仅当自己受伤时）
+			var pressing = _pressing_unit
+			if pressing.get_weapon_type() == "staff" \
+					and pressing.hit_points < pressing.unit_stats.max_hp:
+				# 保留 hovered_any（自己），走治疗流程
+				pass
+			else:
+				hovered_any = null
 
 		if hovered_any != null:
 			if not _is_valid_target(hovered_any):
@@ -282,7 +292,14 @@ func _update_drag():
 
 	var hovered = UnitManager.get_unit_at_cell(cell)
 	if hovered == _pressing_unit:
-		hovered = null
+		# ★ v4.6：修女拖到自己 → 自愈目标（仅当自己受伤时）
+		var pressing = _pressing_unit
+		if pressing.get_weapon_type() == "staff" \
+				and pressing.hit_points < pressing.unit_stats.max_hp:
+			# 保留 hovered（自己），走治疗流程
+			pass
+		else:
+			hovered = null
 
 	if hovered != null:
 		var is_valid = _is_valid_target(hovered)
@@ -469,6 +486,11 @@ func _do_move_and_attack_async(unit : Unit, path : Array, target : Unit):
 # 攻击方式选择菜单
 # ★ 新增：攻击方式选择菜单
 func _show_attack_menu(attacker: Unit, target: Unit, is_after_move: bool) -> void:
+	# ★ v4.6：自愈时跳过技能菜单，直接走 _execute_heal
+	if attacker == target:
+		call_deferred("_do_combat_async", attacker, target, "")
+		return
+
 	# 获取当前就绪的主动技能
 	var ready_skills = TalentManager.get_ready_active_skills(attacker)
 	var available_skills = []

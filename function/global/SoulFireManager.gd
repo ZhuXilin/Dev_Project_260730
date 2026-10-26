@@ -30,8 +30,6 @@ const COST_SHOP_RESET : int = 5
 
 var current : int = 0
 var altar_level : int = 0
-
-# ★ Boss 三形态的临时上限惩罚（本局战斗内有效，战斗结束清零）
 var _boss_penalty : int = 0
 
 signal soul_fire_changed(current: int, max_carried: int)
@@ -178,21 +176,14 @@ func upgrade_initial() -> bool:
 	return true
 
 
-func tick_turn_start(units: Array) -> void:
-	if get_state() != State.ZERO: return
-	var killed : Array = []
-	for unit in units:
-		if unit.unit_stats.team_id != 0 or unit.hit_points <= 0: continue
-		var dmg : int = int(unit.unit_stats.max_hp * 0.05)
-		var dead : bool = unit.apply_damage(dmg)
-		depleted_damage_taken.emit(dmg)
-		if dead:
-			killed.append(unit)
-	for unit in killed:
-		if is_instance_valid(unit) and unit in UnitManager.unit_list:
-			print("[魂火归零] %s 阵亡" % unit.unit_stats.unit_name)
-			UnitManager.unregister_unit(unit)
-			unit.queue_free()
+# ============================================================
+#  回合开始钩子
+#  v4.6：去掉"归零扣 5% max HP"惩罚。归零不再有战斗惩罚，
+#  只保留 State.ZERO 状态用于 UI 显示"魂火耗尽"。
+#  保留函数签名，TurnManager 继续调它，行为为空。
+# ============================================================
+func tick_turn_start(_units: Array) -> void:
+	pass
 
 
 func on_kill() -> void:
