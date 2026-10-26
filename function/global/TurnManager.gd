@@ -8,17 +8,12 @@ var current_turn_team : Team = Team.PLAYER
 var is_game_over : bool = false
 var is_moving : bool = false
 var is_ai_moving : bool = false
-
 var last_player_unit : Unit = null
 var all_acted : bool = false
-
 var last_moved_unit : Unit = null
-
 var enemy_ai : EnemyAI = null
 var map_functions: Dictionary = {}
-
 var _battle_ready : bool = false
-
 
 func _ready():
 	UnitManager.unit_removed.connect(_on_unit_removed)
@@ -27,100 +22,64 @@ func _ready():
 	enemy_ai.initialize(self)
 	enemy_ai.ai_queue_finished.connect(_on_ai_queue_finished)
 
-
 func set_battle_ready(value : bool):
 	var was_ready : bool = _battle_ready
 	_battle_ready = value
-	print("[TurnManager] set_battle_ready(", value, ")")
 	if value and not was_ready:
 		call_deferred("check_victory")
-
 
 func is_battle_ready() -> bool:
 	return _battle_ready
 
-
 func _on_unit_removed(unit: Unit, team: int):
-	if not _battle_ready:
-		return
-	if is_game_over:
-		return
-	if ObjectiveManager:
-		ObjectiveManager.on_unit_removed(unit, team)
+	if not _battle_ready: return
+	if is_game_over: return
+	if ObjectiveManager: ObjectiveManager.on_unit_removed(unit, team)
 	check_victory()
 
-
 func check_victory():
-	if not _battle_ready:
-		return
+	if not _battle_ready: return
 	var player_count = 0
 	var enemy_count = 0
 	for u in UnitManager.unit_list:
 		if u.hit_points > 0:
-			if u.unit_stats.team_id == 0:
-				player_count += 1
-			else:
-				enemy_count += 1
-
-	if player_count == 0 and enemy_count == 0:
-		return
-
-	# 玩家全灭 → 任何目标都是失败
+			if u.unit_stats.team_id == 0: player_count += 1
+			else: enemy_count += 1
+	if player_count == 0 and enemy_count == 0: return
 	if player_count == 0:
 		_trigger_victory(1)
 		return
-
-	# 目标完成 → 胜利
 	if ObjectiveManager and ObjectiveManager.is_completed():
 		_trigger_victory(0)
 		return
-
-	# 全灭目标：敌人全灭 → 胜利
 	if (not ObjectiveManager) or ObjectiveManager.is_annihilate():
 		if enemy_count == 0:
-			# ★ v4.5：如果还有待入场的波次，不判胜利
-			if WaveManager and WaveManager.has_pending_waves():
-				return
+			if WaveManager and WaveManager.has_pending_waves(): return
 			_trigger_victory(0)
 
-
 func _trigger_victory(winning_team: int):
-	if is_game_over:
-		return
+	if is_game_over: return
 	is_game_over = true
 	SignalBus.request_show_victory.emit(winning_team)
 	SignalBus.request_clear_highlight.emit()
 
-
-# ============================================================
-#  移动
-# ============================================================
 func start_movement(unit: Unit, path: Array):
-	if is_game_over or is_moving:
-		return
-	if path.size() == 0:
-		return
+	if is_game_over or is_moving: return
+	if path.size() == 0: return
 	unit.save_previous_position()
-	var move_cost = path.size()
-	unit.consume_move(move_cost)
+	unit.consume_move(path.size())
 	unit.moves_since_act += 1
 	SignalBus.request_move_along_path.emit(unit, path)
 	is_moving = true
 
-
 func start_ai_movement(unit: Unit, path: Array):
-	if is_game_over:
-		return
-	if path.size() == 0:
-		return
-	if UnitManager.is_cell_occupied(path[-1]):
-		return
+	if is_game_over: return
+	if path.size() == 0: return
+	if UnitManager.is_cell_occupied(path[-1]): return
 	unit.save_previous_position()
-	var move_cost = path.size()
-	unit.consume_move(move_cost)
+	unit.consume_move(path.size())
 	SignalBus.request_ai_move_along_path.emit(unit, path)
 	is_ai_moving = true
-
 
 func on_movement_finished(unit: Unit):
 	is_moving = false
@@ -132,7 +91,6 @@ func on_movement_finished(unit: Unit):
 	SignalBus.request_clear_highlight.emit()
 	SignalBus.request_hide_info.emit()
 	move_completed.emit()
-
 
 func on_ai_movement_finished(unit: Unit):
 	is_ai_moving = false
@@ -146,38 +104,19 @@ func on_ai_movement_finished(unit: Unit):
 	await get_tree().create_timer(1.0).timeout
 	move_completed.emit()
 
-
-# ============================================================
-#  回合启动
-# ============================================================
 func start_turn(team: Team):
-	print("TurnManager.start_turn 被调用，team:", team)
-	if is_game_over or is_moving:
-		return
-
-	if not _battle_ready:
-		_battle_ready = true
-		print("[TurnManager] 战场就绪")
-
+	if is_game_over or is_moving: return
+	if not _battle_ready: _battle_ready = true
 	if Globals.is_non_combat_mode and team == Team.ENEMY:
 		start_turn(Team.PLAYER)
 		return
-
-	# 玩家回合 → 敌人回合边界，检查胜利目标 + 推进波次
 	if team == Team.ENEMY and current_turn_team == Team.PLAYER:
-		if ObjectiveManager:
-			ObjectiveManager.on_player_turn_end()
-
-		# ★ v4.5 修复冲突：如果目标已经完成，直接胜利，不再推进下一波
+		if ObjectiveManager: ObjectiveManager.on_player_turn_end()
 		check_victory()
-		if is_game_over:
-			return
-
-		if WaveManager:
-			WaveManager.on_player_turn_end()
+		if is_game_over: return
+		if WaveManager: WaveManager.on_player_turn_end()
 		check_victory()
-		if is_game_over:
-			return
+		if is_game_over: return
 
 	current_turn_team = team
 	all_acted = false
@@ -196,8 +135,7 @@ func start_turn(team: Team):
 		if unit.hit_points > 0:
 			unit.is_gray = false
 			unit.update_color()
-			if unit.animated_sprite:
-				unit.animated_sprite.queue_redraw()
+			if unit.animated_sprite: unit.animated_sprite.queue_redraw()
 
 	call_deferred("_refresh_all_unit_colors")
 
@@ -205,7 +143,6 @@ func start_turn(team: Team):
 		if unit.hit_points > 0 and unit.unit_stats.team_id == team:
 			unit.accumulate_all_talents()
 
-	# ★ v4.5：charge 累积必须在 reset_turn 之前（此时 has_attacked 是上一回合状态）
 	if team == Team.PLAYER:
 		SoulFireManager.tick_turn_start(UnitManager.unit_list)
 		_apply_turn_start_regen()
@@ -217,54 +154,36 @@ func start_turn(team: Team):
 		if unit.hit_points > 0 and unit.unit_stats.team_id == team:
 			unit.reset_turn()
 
-	if team == Team.PLAYER:
-		BossMechanicManager.on_player_turn_start()
-	else:
-		BossMechanicManager.on_enemy_turn_start()
+	if team == Team.PLAYER: BossMechanicManager.on_player_turn_start()
+	else: BossMechanicManager.on_enemy_turn_start()
 
 	SignalBus.turn_changed.emit(team)
-
 
 func _refresh_all_unit_colors():
 	for unit in UnitManager.unit_list:
 		if unit.hit_points > 0 and unit.animated_sprite:
 			unit.animated_sprite.queue_redraw()
 
-
-# ============================================================
-#  回合开始效果 · 词条 + 套装（★ 第四批：同类型取 max + 15% 上限）
-# ============================================================
 func _apply_turn_start_regen():
 	for u in UnitManager.unit_list:
-		if u.unit_stats.team_id != 0 or u.hit_points <= 0:
-			continue
-
-		# 1. 词条（可叠，因为是不同部位不同词条）
+		if u.unit_stats.team_id != 0 or u.hit_points <= 0: continue
 		var regen_from_affix : float = 0.0
 		for slot in u.armor_slots:
-			if slot:
-				regen_from_affix += slot.get_affix_value_float("turn_regen")
-
-		# 2. 套装（取 max）
+			if slot: regen_from_affix += slot.get_affix_value_float("turn_regen")
 		var regen_from_set : float = 0.0
 		var active : Array = SetBonusManager.get_active_sets_for_unit(u)
 		for entry in active:
 			var b : Dictionary = entry["bonus"]
 			if b.get("effect", "") == "turn_regen":
 				regen_from_set = maxf(regen_from_set, float(b.get("value", 0.0)))
-
-		# 3. 交叉效果（取 max）
 		var regen_from_cross : float = 0.0
 		var cross_active : Array = SetBonusManager.get_active_cross_bonuses()
 		for entry in cross_active:
 			var b2 : Dictionary = entry["data"]
 			if b2.get("effect", "") == "turn_regen":
 				regen_from_cross = maxf(regen_from_cross, float(b2.get("value", 0.03)))
-
-		# ★ 组合：词条可叠 + (套装与交叉取 max)，且总上限 15%
 		var regen_pct : float = regen_from_affix + maxf(regen_from_set, regen_from_cross)
 		regen_pct = minf(regen_pct, 0.15)
-
 		if regen_pct > 0.0:
 			var heal : int = int(u.unit_stats.max_hp * regen_pct)
 			if heal > 0:
@@ -275,79 +194,49 @@ func _apply_turn_start_regen():
 					u.update_hp_label()
 					SignalBus.request_damage_popup.emit(u.global_position, actual, false, false, true)
 
-
 func _apply_turn_start_auras():
-	# ★ v4.2：先收集全队激活的光环并去重，再按 effect 分发，
-	#          避免同一光环因挂在多个单位上被重复触发
 	var active_auras : Dictionary = {}
 	for u in UnitManager.unit_list:
-		if u.unit_stats.team_id != 0 or u.hit_points <= 0:
-			continue
+		if u.unit_stats.team_id != 0 or u.hit_points <= 0: continue
 		for aid in u.active_auras:
-			if u.active_auras[aid]:
-				active_auras[aid] = true
-
+			if u.active_auras[aid]: active_auras[aid] = true
 	for aid in active_auras:
 		_apply_turn_start_aura_effect(aid)
 
-
 func _apply_turn_start_aura_effect(aid : String):
 	var d : Dictionary = AuraManager.get_aura(aid)
-	if d.is_empty():
-		return
+	if d.is_empty(): return
 	match d.get("effect", ""):
 		"turn_start_gain_soul_fire":
 			var gain : int = int(d.get("params", {}).get("soul_fire_gain", 1))
 			SoulFireManager.add(gain)
-			print("[光环] %s：回合开始 +%d 魂火" % [d.get("name", aid), gain])
 		_: pass
 
-
 func _apply_turn_start_fusion():
-	if SoulFireManager.current > 0:
-		return
+	if SoulFireManager.current > 0: return
 	for u in UnitManager.unit_list:
-		if u.unit_stats.team_id != 0 or u.hit_points <= 0:
-			continue
+		if u.unit_stats.team_id != 0 or u.hit_points <= 0: continue
 		if u.has_fusion_effect("sacrifice_zero_recover"):
 			SoulFireManager.add(1)
-			print("[不灭余烬] 魂火归零，回合开始 +1 魂火")
 			return
 
-
 func _apply_charge_stacks():
-	#此函数在 reset_turn() 之前调用，此时 has_attacked 是**上一回合**的值
 	for u in UnitManager.unit_list:
-		if u.unit_stats.team_id != 0 or u.hit_points <= 0:
-			continue
+		if u.unit_stats.team_id != 0 or u.hit_points <= 0: continue
 		if u.has_core_trait("charge") and not u.has_attacked:
 			u.charge_stacks = mini(u.charge_stacks + 1, 5)
-			print("[蓄力] %s 累积至 %d 层" % [u.unit_stats.unit_name, u.charge_stacks])
 
-
-# ============================================================
-#  AI
-# ============================================================
 func run_enemy_ai():
-	if is_game_over or is_moving:
-		return
-	if enemy_ai:
-		enemy_ai.run_enemy_ai()
-
+	if is_game_over or is_moving: return
+	if enemy_ai: enemy_ai.run_enemy_ai()
 
 func _on_ai_queue_finished():
 	await get_tree().create_timer(1.5).timeout
 	start_turn(Team.PLAYER)
 
-
-# ============================================================
-#  单位行动结束
-# ============================================================
 func finish_unit_action(unit: Unit):
-	if is_game_over or is_moving:
-		return
-	if unit.unit_stats.team_id == 0:
-		last_player_unit = unit
+	if is_game_over or is_moving: return
+	if unit.unit_stats.team_id == 0: last_player_unit = unit
 	unit.can_act_this_turn = false
 	unit.set_gray(true)
 	SignalBus.request_clear_highlight.emit()
@@ -356,27 +245,21 @@ func finish_unit_action(unit: Unit):
 	InputManager.current_highlight_cells = {}
 	check_all_acted()
 
-
 func cancel_movement(unit: Unit):
-	if is_game_over:
-		return
-	if unit.unit_stats.team_id == 0:
-		last_player_unit = unit
+	if is_game_over: return
+	if unit.unit_stats.team_id == 0: last_player_unit = unit
 	unit.revert_to_previous_position()
 	unit.has_moved = false
 	unit.can_act_this_turn = true
 	unit.set_gray(false)
-	if last_moved_unit == unit:
-		last_moved_unit = null
+	if last_moved_unit == unit: last_moved_unit = null
 	SignalBus.request_move_unit.emit(unit, unit.grid_cell)
 	SignalBus.request_clear_highlight.emit()
 	InputManager.selected_unit = null
 	InputManager.interaction_phase = InputManager.Phase.IDLE
 
-
 func check_all_acted():
-	if not _battle_ready:
-		return
+	if not _battle_ready: return
 	var all_acted_local = true
 	for unit in UnitManager.unit_list:
 		if unit.unit_stats.team_id == current_turn_team and unit.hit_points > 0:
@@ -387,26 +270,19 @@ func check_all_acted():
 	if all_acted_local and current_turn_team == Team.PLAYER:
 		auto_end_turn()
 
-
 func auto_end_turn():
-	if is_game_over or is_moving:
-		return
+	if is_game_over or is_moving: return
 	if current_turn_team == Team.PLAYER:
 		start_turn(Team.ENEMY)
 
-
 func clear_ai_state():
-	if enemy_ai:
-		enemy_ai.clear_state()
+	if enemy_ai: enemy_ai.clear_state()
 	is_ai_moving = false
 	is_moving = false
-
 
 func get_last_player_unit() -> Unit:
 	return last_player_unit
 
-
 func get_first_enemy_unit() -> Unit:
-	if enemy_ai:
-		return enemy_ai.first_ai_unit
+	if enemy_ai: return enemy_ai.first_ai_unit
 	return null

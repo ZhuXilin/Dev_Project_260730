@@ -709,12 +709,8 @@ func _on_request_show_info(unit: Unit):
 	var avatar_rect := get_node_or_null("Info/AvatarRect") as TextureRect
 	var avatar_bg := get_node_or_null("Info/AvatarBg") as Panel
 
-	# ==========================================
-	# 1. 地形信息 (unit == null)
-	# ==========================================
 	if unit == null:
 		_hide_avatar(avatar_rect, avatar_bg)
-		
 		var mouse_pos = get_global_mouse_position()
 		var t_cell = world_to_grid(mouse_pos)
 		var t_type = TerrainManager.get_terrain(t_cell)
@@ -722,7 +718,6 @@ func _on_request_show_info(unit: Unit):
 		var t_def = TerrainManager.TERRAIN_DATA[t_type]["def_bonus"]
 		var t_mdef = TerrainManager.TERRAIN_DATA[t_type]["magic_defense_bonus"]
 		var t_avoid = TerrainManager.TERRAIN_DATA[t_type]["avoid_bonus"]
-		
 		info_text_label.text = "地形: " + t_name \
 			+ "\n防御+" + str(t_def) \
 			+ " 魔防+" + str(t_mdef) \
@@ -730,35 +725,24 @@ func _on_request_show_info(unit: Unit):
 		_adjust_info_panel(info_text_label, info_panel, null)
 		return
 
-	if not is_instance_valid(unit) or unit.unit_stats == null:
-		return
+	if not is_instance_valid(unit) or unit.unit_stats == null: return
 
-	# ==========================================
-	# 2. 头像显示逻辑 (敌人不显示，玩家显示带底色)
-	# ==========================================
 	if avatar_rect and avatar_bg:
 		if unit.unit_stats.team_id != 0:
 			_hide_avatar(avatar_rect, avatar_bg)
 		else:
 			var avatar_id = GameState.get_unit_avatar(unit.unit_stats.unit_name)
 			var path := ""
-			if avatar_id != "":
-				path = "res://content/images/characters/avatar/%s.png" % avatar_id
-				
+			if avatar_id != "": path = "res://content/images/characters/avatar/%s.png" % avatar_id
 			if path != "" and ResourceLoader.exists(path):
 				var tex = load(path)
-				# ★ 加上纹理缓存判断，避免重复赋值导致重绘闪烁
-				if avatar_rect.texture != tex:
-					avatar_rect.texture = tex
+				if avatar_rect.texture != tex: avatar_rect.texture = tex
 				avatar_rect.custom_minimum_size = Vector2(48, 48)
 				avatar_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 				_show_avatar(avatar_rect, avatar_bg)
 			else:
 				_hide_avatar(avatar_rect, avatar_bg)
 
-	# ==========================================
-	# 3. 文本拼接 (恢复完整的 lines 构造)
-	# ==========================================
 	var lines : Array = []
 	var display_name = unit.unit_stats.display_name if unit.unit_stats.display_name != "" else unit.unit_stats.unit_name
 	var type_name = UnitDataManager.get_unit_type_display_name(unit.unit_stats.unit_name)
@@ -766,14 +750,10 @@ func _on_request_show_info(unit: Unit):
 	lines.append("HP: " + str(unit.hit_points) + "/" + str(unit.unit_stats.max_hp))
 
 	var status_str : String = ""
-	if unit.hit_points <= 0:
-		status_str = "【已阵亡】"
-	elif unit.has_acted or not unit.can_act_this_turn:
-		status_str = "【单位待机】"
-	elif unit.has_attacked:
-		status_str = "【已攻击】"
-	else:
-		status_str = "【可行动】"
+	if unit.hit_points <= 0: status_str = "【已阵亡】"
+	elif unit.has_acted or not unit.can_act_this_turn: status_str = "【单位待机】"
+	elif unit.has_attacked: status_str = "【已攻击】"
+	else: status_str = "【可行动】"
 	lines.append("状态: " + status_str)
 
 	var weapon_data = unit.get_weapon_data()
@@ -782,11 +762,11 @@ func _on_request_show_info(unit: Unit):
 		if unit.weapon_slot and unit.weapon_slot.upgrade_level > 0:
 			wname += "+" + str(unit.weapon_slot.upgrade_level)
 		lines.append("武器: " + wname)
-		if weapon_data.base_attack > 0:
-			lines.append("  攻击+" + str(weapon_data.base_attack))
-		if not weapon_data.heal_effect.is_empty():
-			lines.append("  治疗+" + str(weapon_data.heal_effect.get("base_heal", 0)))
+		if weapon_data.base_attack > 0: lines.append("  攻击+" + str(weapon_data.base_attack))
+		if not weapon_data.heal_effect.is_empty(): lines.append("  治疗+" + str(weapon_data.heal_effect.get("base_heal", 0)))
 		lines.append("  射程: " + str(weapon_data.min_attack_range) + "~" + str(weapon_data.attack_range))
+		if weapon_data.physical_penetration > 0.0: lines.append("  物理穿透: " + str(int(weapon_data.physical_penetration*100)) + "%")
+		if weapon_data.magic_penetration > 0.0: lines.append("  魔法穿透: " + str(int(weapon_data.magic_penetration*100)) + "%")
 	else:
 		lines.append("武器: 无")
 
@@ -797,12 +777,9 @@ func _on_request_show_info(unit: Unit):
 			var inst = armor_slots[i]
 			if inst:
 				var data = ItemManager.get_item_data(inst.item_id)
-				if data:
-					armor_lines.append("  槽" + str(i+1) + ": " + data.name)
-				else:
-					armor_lines.append("  槽" + str(i+1) + ": （未知）")
-			else:
-				armor_lines.append("  槽" + str(i+1) + ": （空）")
+				if data: armor_lines.append("  槽" + str(i+1) + ": " + data.name)
+				else: armor_lines.append("  槽" + str(i+1) + ": （未知）")
+			else: armor_lines.append("  槽" + str(i+1) + ": （空）")
 		if armor_lines.size() > 0:
 			lines.append("防具:")
 			lines.append_array(armor_lines)
@@ -811,20 +788,33 @@ func _on_request_show_info(unit: Unit):
 		+ " | 灵巧 " + str(unit.unit_stats.dexterity) \
 		+ " | 智力 " + str(unit.unit_stats.intelligence))
 	lines.append("信仰 " + str(unit.unit_stats.faith) \
-		+ " | 感应 " + str(unit.unit_stats.arcane) \
 		+ " | 移动 " + str(unit.unit_stats.move_range))
+
+	# ★ v4.6 减伤率显示
+	var phys_red : float = unit.unit_stats.physical_reduction
+	var mag_red : float = unit.unit_stats.magic_reduction
+	for slot in unit.armor_slots:
+		if slot:
+			var d : ItemData = ItemManager.get_item_data(slot.item_id)
+			if d:
+				var qm : float = CombatManager.QUALITY_MULT.get(d.quality, 1.0)
+				phys_red += d.physical_reduction * qm
+				mag_red += d.magic_reduction * qm
+	phys_red += unit.buff_physical_reduction + unit.buff_damage_reduction
+	mag_red += unit.buff_magic_reduction + unit.buff_damage_reduction
+	phys_red = clampf(phys_red, 0.0, 0.75)
+	mag_red = clampf(mag_red, 0.0, 0.75)
+	lines.append("物减 %d%% | 魔减 %d%%" % [int(phys_red*100), int(mag_red*100)])
 
 	var talent_names : Array = []
 	if unit.talent_slots != null:
 		for inst in unit.talent_slots:
 			if inst and inst.is_active:
 				var tdata = TalentManager.get_talent_data(inst.talent_id)
-				if tdata:
-					talent_names.append(tdata.display_name)
+				if tdata: talent_names.append(tdata.display_name)
 	if unit.advanced_talent_inst and unit.advanced_talent_inst.is_active:
 		var adv_tdata = TalentManager.get_talent_data(unit.advanced_talent_inst.talent_id)
-		if adv_tdata:
-			talent_names.append("★" + adv_tdata.display_name)
+		if adv_tdata: talent_names.append("★" + adv_tdata.display_name)
 	if talent_names.size() > 0:
 		lines.append("词条: " + ", ".join(talent_names))
 
@@ -834,10 +824,6 @@ func _on_request_show_info(unit: Unit):
 	lines.append("地形: " + terrain_name)
 
 	info_text_label.text = "\n".join(lines)
-	
-	# ==========================================
-	# 4. 调用自适应位置计算
-	# ==========================================
 	_adjust_info_panel(info_text_label, info_panel, unit)
 
 

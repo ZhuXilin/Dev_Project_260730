@@ -141,19 +141,15 @@ static func is_talent_ready(unit, talent_id: String) -> bool:
 
 
 static func reset_talent(unit, talent_id: String):
-	if unit == null:
-		return
+	if unit == null: return
 	var inst = unit.get_talent_instance(talent_id)
-	if not inst:
-		return
+	if not inst: return
 	inst.reset()
 	var cd = get_cooldown_after_trigger(talent_id)
-
-	# ★ 传说武器：master_sword 使 active_charge 冷却 -1（最低 0）
-	#   对应文档 6.2：大师剑的“居合斩冷却 -1 回合”
-	if unit.weapon_slot and unit.weapon_slot.item_id == "master_sword" and talent_id == "active_charge":
-		cd = maxi(0, cd - 1)
-
+	var data = get_talent_data(talent_id)
+	if data:
+		var reduction : int = int(data.effect_params.get("cooldown_reduction", 0))
+		cd = maxi(0, cd - reduction)
 	if cd > 0:
 		inst.cooldown_remaining = cd
 

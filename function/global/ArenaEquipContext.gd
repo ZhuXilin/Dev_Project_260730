@@ -1,4 +1,3 @@
-# function/global/ArenaEquipContext.gd
 class_name ArenaEquipContext
 extends EquipContext
 
@@ -35,6 +34,10 @@ func remove_passive_at_slot(idx: int) -> void:
 	if idx < 0 or idx >= passives.size(): return
 	passives[idx] = null
 
+# ---- 光环：竞技场不支持（回退到原设计） ----
+func add_aura_to_passive_slot(_aura_id: String) -> bool:
+	return false
+
 # ---- 铁匠铺 ----
 func has_forge() -> bool: return true
 
@@ -59,7 +62,7 @@ func get_talent_swap_cost() -> int:
 func on_confirm() -> void:
 	pass
 
-var shop_level : int = 0   # ★ 新增字段
+var shop_level : int = 0
 
 func get_shop_level() -> int:
 	return shop_level

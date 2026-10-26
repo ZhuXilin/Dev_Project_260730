@@ -2,6 +2,7 @@
   "swordsman": {
 	"max_hp": 22, "strength": 5, "dexterity": 8,
 	"intelligence": 3, "faith": 3, "arcane": 4, "move_range": 5,
+	"physical_reduction": 0.10, "magic_reduction": 0.05,
 	"ignore_terrain_cost": false,
 	"sprite_frames_path": "res://content/images/characters/unit_swordsmen_frames.tres",
 	"description": "平衡型近战单位，擅长剑术，攻守兼备。",
@@ -38,13 +39,13 @@
 		"granted_talent": "lifesteal",
 		"flavor": "唯有在斗技场见证过千场血战的人，才能走上这条路。",
 		"sprite_frames_path": "res://content/images/characters/unit_swordsmen_frames.tres",
-		"tags": ["物理", "余烬"],
-		"hidden": true }
+		"tags": ["物理", "余烬"], "hidden": true }
 	]
   },
   "spearman": {
 	"max_hp": 27, "strength": 8, "dexterity": 5,
 	"intelligence": 2, "faith": 2, "arcane": 3, "move_range": 7,
+	"physical_reduction": 0.12, "magic_reduction": 0.05,
 	"ignore_terrain_cost": false,
 	"sprite_frames_path": "res://content/images/characters/unit_knight_frames.tres",
 	"description": "长枪兵，攻击力高，移动距离远。",
@@ -81,6 +82,7 @@
   "axeman": {
 	"max_hp": 17, "strength": 10, "dexterity": 4,
 	"intelligence": 1, "faith": 1, "arcane": 2, "move_range": 4,
+	"physical_reduction": 0.08, "magic_reduction": 0.03,
 	"ignore_terrain_cost": false,
 	"sprite_frames_path": "res://content/images/characters/unit_axeman_frames.tres",
 	"description": "狂战士，高攻击力但命中率低，适合破甲。",
@@ -117,6 +119,7 @@
   "archer": {
 	"max_hp": 14, "strength": 4, "dexterity": 9,
 	"intelligence": 2, "faith": 2, "arcane": 4, "move_range": 5,
+	"physical_reduction": 0.05, "magic_reduction": 0.05,
 	"ignore_terrain_cost": false,
 	"sprite_frames_path": "res://content/images/characters/unit_crossbow_frames.tres",
 	"description": "远程物理单位，可攻击远处敌人。",
@@ -152,6 +155,7 @@
   "pegasus": {
 	"max_hp": 24, "strength": 6, "dexterity": 7,
 	"intelligence": 2, "faith": 2, "arcane": 5, "move_range": 7,
+	"physical_reduction": 0.08, "magic_reduction": 0.08,
 	"ignore_terrain_cost": true,
 	"sprite_frames_path": "res://content/images/characters/unit_pegasus_frames.tres",
 	"description": "飞行骑兵，无视地形移动，机动性极强。",
@@ -187,6 +191,7 @@
   "mage": {
 	"max_hp": 18, "strength": 3, "dexterity": 5,
 	"intelligence": 10, "faith": 3, "arcane": 6, "move_range": 5,
+	"physical_reduction": 0.05, "magic_reduction": 0.15,
 	"ignore_terrain_cost": false,
 	"sprite_frames_path": "res://content/images/characters/unit_mage_frames.tres",
 	"description": "魔法攻击单位，拥有魔法防御力，攻击力较高。",
@@ -222,6 +227,7 @@
   "cleric": {
 	"max_hp": 14, "strength": 2, "dexterity": 4,
 	"intelligence": 5, "faith": 10, "arcane": 4, "move_range": 4,
+	"physical_reduction": 0.05, "magic_reduction": 0.12,
 	"ignore_terrain_cost": false,
 	"sprite_frames_path": "res://content/images/characters/unit_cleric_frames.tres",
 	"description": "治疗单位，可恢复队友生命值，魔法防御高。",
@@ -257,6 +263,7 @@
   "dragonborn": {
 	"max_hp": 30, "strength": 8, "dexterity": 3,
 	"intelligence": 6, "faith": 4, "arcane": 9, "move_range": 3,
+	"physical_reduction": 0.15, "magic_reduction": 0.15,
 	"ignore_terrain_cost": false,
 	"sprite_frames_path": "res://content/images/characters/unit_dragonborn_frames.tres",
 	"description": "龙族后裔，拥有极高防御和魔法防御，移动缓慢但顽强。",
@@ -293,6 +300,7 @@
   "armored": {
 	"max_hp": 30, "strength": 9, "dexterity": 3,
 	"intelligence": 2, "faith": 4, "arcane": 3, "move_range": 3,
+	"physical_reduction": 0.20, "magic_reduction": 0.05,
 	"ignore_terrain_cost": false,
 	"sprite_frames_path": "res://content/images/characters/unit_heavyarmored_frames.tres",
 	"description": "重装步兵，高物理防御和生命值，移动力较低。",

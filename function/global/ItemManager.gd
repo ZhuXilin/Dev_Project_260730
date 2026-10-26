@@ -30,7 +30,7 @@ func load_items():
 		if dict.has("icon") and ResourceLoader.exists(dict.icon):
 			item.icon = load(dict.icon)
 		item.description = dict.get("description", "")
-		item.flavor = dict.get("flavor", "") # ★ 新增
+		item.flavor = dict.get("flavor", "")
 		item.category = dict.get("category", "")
 		item.equipment_slot = dict.get("equipment_slot", "")
 		item.price = dict.get("price", 0)
@@ -40,10 +40,19 @@ func load_items():
 		item.attack_range = dict.get("attack_range", 1)
 		item.min_attack_range = dict.get("min_attack_range", 1)
 		item.modifier = dict.get("modifier", {})
+
+		# ★ v4.6 穿透
+		item.physical_penetration = float(dict.get("physical_penetration", 0.0))
+		item.magic_penetration = float(dict.get("magic_penetration", 0.0))
+
+		# ★ v4.6 减伤率（替代 defense）
 		item.armor_type = dict.get("armor_type", "medium")
-		item.defense = dict.get("defense", 0)
+		item.defense = dict.get("defense", 0)                     # 废弃字段，保留兼容
+		item.physical_reduction = float(dict.get("physical_reduction", 0.0))
+		item.magic_reduction = float(dict.get("magic_reduction", 0.0))
 		item.slot_count = dict.get("slot_count", 1)
 		item.craft_cost = dict.get("craft_cost", 0)
+
 		item.heavy_attack = dict.get("heavy_attack", {})
 		item.magic_attack = dict.get("magic_attack", {})
 		item.heal_effect = dict.get("heal_effect", {})
@@ -84,7 +93,6 @@ func get_armors() -> Array[ItemData]: return get_items_by_type("armor")
 func get_all_item_ids() -> Array: return _item_db.keys()
 
 
-## 创建带词条的装备实例（批次 6A）
 func create_instance_with_affixes(item_id: String) -> ItemInstance:
 	var data : ItemData = get_item_data(item_id)
 	if not data:
@@ -98,7 +106,6 @@ func create_instance_with_affixes(item_id: String) -> ItemInstance:
 	return inst
 
 
-## 熔合产物映射（批次 4）
 func get_fusion_product(tag: String) -> ItemData:
 	var mapping : Dictionary = {
 		"烈焰": "phoenix_feather",

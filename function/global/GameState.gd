@@ -51,7 +51,6 @@ func add_relic_to_passive_slot(inst: ItemInstance) -> bool:
 	return party_state.add_relic_to_passive_slot(inst)
 func get_relics_from_passives() -> Array: return party_state.get_relics_from_passives()
 
-# ★ v4.2：光环槽转发
 func add_aura_to_passive_slot(aura_id: String) -> bool:
 	return party_state.add_aura_to_passive_slot(aura_id)
 func get_auras_from_passives() -> Array:
@@ -59,62 +58,48 @@ func get_auras_from_passives() -> Array:
 func is_aura_equipped(aura_id: String) -> bool:
 	return party_state.is_aura_equipped(aura_id)
 
-
 # ============================================================
 #  ProgressState 转发
 # ============================================================
 var current_day : int:
 	get: return progress_state.current_day
 	set(value): progress_state.current_day = value
-
 var current_map_index : int:
 	get: return progress_state.current_map_index
 	set(value): progress_state.current_map_index = value
-
 var visited_nodes : Dictionary:
 	get: return progress_state.visited_nodes
 	set(value): progress_state.visited_nodes = value
-
 var current_node_key : String:
 	get: return progress_state.current_node_key
 	set(value): progress_state.current_node_key = value
-
 var is_map_mode : bool:
 	get: return progress_state.is_map_mode
 	set(value): progress_state.is_map_mode = value
-
 var resume_node_id : String:
 	get: return progress_state.resume_node_id
 	set(value): progress_state.resume_node_id = value
-
 var last_selected_node_type : int:
 	get: return progress_state.last_selected_node_type
 	set(value): progress_state.last_selected_node_type = value
-
 var should_advance_day : bool:
 	get: return progress_state.should_advance_day
 	set(value): progress_state.should_advance_day = value
-
 var cached_map_level_data : MapLevelData:
 	get: return progress_state.cached_map_level_data
 	set(value): progress_state.cached_map_level_data = value
-
 var cached_day : int:
 	get: return progress_state.cached_day
 	set(value): progress_state.cached_day = value
-
 var current_map_data : MapData:
 	get: return progress_state.current_map_data
 	set(value): progress_state.current_map_data = value
-
 var map_snapshot : Dictionary:
 	get: return progress_state.map_snapshot
 	set(value): progress_state.map_snapshot = value
-
 var interrupt_state : InterruptState:
 	get: return progress_state.interrupt_state as InterruptState
 	set(value): progress_state.interrupt_state = value
-
 var battlefield_data : Dictionary:
 	get: return progress_state.battlefield_data
 	set(value): progress_state.battlefield_data = value
@@ -125,229 +110,173 @@ var battlefield_data : Dictionary:
 var soul : int:
 	get: return resource_state.soul
 	set(value): resource_state.soul = value
-
 var temp_gold : int:
 	get: return resource_state.temp_gold
 	set(value): resource_state.temp_gold = value
-
 var soul_fire_current : int:
 	get: return resource_state.soul_fire_current
 	set(value): resource_state.soul_fire_current = value
-
 var soul_fire_altar_level : int:
 	get: return resource_state.soul_fire_altar_level
 	set(value): resource_state.soul_fire_altar_level = value
-
 var soul_fire_initial_level : int:
 	get: return resource_state.soul_fire_initial_level
 	set(value): resource_state.soul_fire_initial_level = value
-
 var unit_attr_cap : Dictionary:
 	get: return resource_state.unit_attr_cap
 	set(value): resource_state.unit_attr_cap = value
-
 var unit_attr_points : Dictionary:
 	get: return resource_state.unit_attr_points
 	set(value): resource_state.unit_attr_points = value
-
 var tag_purchase_count : Dictionary:
 	get: return resource_state.tag_purchase_count
 	set(value): resource_state.tag_purchase_count = value
-
 var unlocked_auras : Array:
 	get: return resource_state.unlocked_auras
 	set(value): resource_state.unlocked_auras = value
-
 var active_aura_research : Dictionary:
 	get: return resource_state.active_aura_research
 	set(value): resource_state.active_aura_research = value
-
 var aura_research_progress : Dictionary:
 	get: return resource_state.aura_research_progress
 	set(value): resource_state.aura_research_progress = value
-
 var cycle_start_soul : int:
 	get: return resource_state.cycle_start_soul
 	set(value): resource_state.cycle_start_soul = value
-
 var reward_items : Array:
 	get: return resource_state.reward_items
 	set(value): resource_state.reward_items = value
-
 var current_reward_gold : int:
 	get: return resource_state.current_reward_gold
 	set(value): resource_state.current_reward_gold = value
-
 var current_reward_soul : int:
 	get: return resource_state.current_reward_soul
 	set(value): resource_state.current_reward_soul = value
-
 var current_reward_materials : Dictionary:
 	get: return resource_state.current_reward_materials
 	set(value): resource_state.current_reward_materials = value
-
 var current_reward_rare_datas : Array:
 	get: return resource_state.current_reward_rare_datas
 	set(value): resource_state.current_reward_rare_datas = value
-
 var unlocked_recipes : Array:
 	get: return resource_state.unlocked_recipes
 	set(value): resource_state.unlocked_recipes = value
-
 var unlocked_stories : Array:
 	get: return resource_state.unlocked_stories
 	set(value): resource_state.unlocked_stories = value
-
 var unit_growth : Dictionary:
 	get: return resource_state.unit_growth
 	set(value): resource_state.unit_growth = value
-
 var unit_blessings : Dictionary:
 	get: return resource_state.unit_blessings
 	set(value): resource_state.unit_blessings = value
-
 var talent_exp : Dictionary:
 	get: return resource_state.talent_exp
 	set(value): resource_state.talent_exp = value
-
 var arena_target_talents : Dictionary:
 	get: return resource_state.arena_target_talents
 	set(value): resource_state.arena_target_talents = value
-
 var eligible_units : Array:
 	get: return resource_state.eligible_units
 	set(value): resource_state.eligible_units = value
-
 var tutorial_stage : int:
 	get: return resource_state.tutorial_stage
 	set(value): resource_state.tutorial_stage = value
-
 var pending_sacrifice_rewards : Array:
 	get: return resource_state.pending_sacrifice_rewards
 	set(value): resource_state.pending_sacrifice_rewards = value
-
 var pending_forge_rewards : Array:
 	get: return resource_state.pending_forge_rewards
 	set(value): resource_state.pending_forge_rewards = value
-
 var arena_best_streak : int:
 	get: return resource_state.arena_best_streak
 	set(value): resource_state.arena_best_streak = value
-
 var arena_clear_count : int:
 	get: return resource_state.arena_clear_count
 	set(value): resource_state.arena_clear_count = value
-
 var arena_survival_clear : int:
 	get: return resource_state.arena_survival_clear
 	set(value): resource_state.arena_survival_clear = value
-
 var arena_survival_best : int:
 	get: return resource_state.arena_survival_best
 	set(value): resource_state.arena_survival_best = value
-
 var arena_total_crystals : int:
 	get: return resource_state.arena_total_crystals
 	set(value): resource_state.arena_total_crystals = value
-
 var arena_total_runs : int:
 	get: return resource_state.arena_total_runs
 	set(value): resource_state.arena_total_runs = value
-
 var sacrifice_count : int:
 	get: return resource_state.sacrifice_count
 	set(value): resource_state.sacrifice_count = value
-
 var current_node_unlock_relics : Array:
 	get: return progress_state.current_node_unlock_relics
 	set(value): progress_state.current_node_unlock_relics.assign(value)
-
 var current_node_unlock_units : Array:
 	get: return progress_state.current_node_unlock_units
 	set(value): progress_state.current_node_unlock_units.assign(value)
-
 var npc_dialogue_seen : Dictionary:
 	get: return resource_state.npc_dialogue_seen
 	set(value): resource_state.npc_dialogue_seen = value
-
 var npc_dialogue_flags : Array:
 	get: return resource_state.npc_dialogue_flags
 	set(value): resource_state.npc_dialogue_flags = value
-
 var total_run_count : int:
 	get: return resource_state.total_run_count
 	set(value): resource_state.total_run_count = value
-
 var total_dispatch_count : int:
 	get: return resource_state.total_dispatch_count
 	set(value): resource_state.total_dispatch_count = value
-
 var keys : int:
 	get: return resource_state.keys
 	set(value): resource_state.keys = value
-
 var keys_bought : int:
 	get: return resource_state.keys_bought
 	set(value): resource_state.keys_bought = value
-
 var pending_tag_pin : String:
 	get: return resource_state.pending_tag_pin
 	set(value): resource_state.pending_tag_pin = value
-
 var active_tag_pin : String:
 	get: return resource_state.active_tag_pin
 	set(value): resource_state.active_tag_pin = value
-
 var soul_fire_threshold_override : float:
 	get: return resource_state.soul_fire_threshold_override
 	set(value): resource_state.soul_fire_threshold_override = value
-
 var relic_levels: Dictionary:
 	get: return resource_state.relic_levels
 	set(value): resource_state.relic_levels = value
-
 var npc_interact_counts: Dictionary:
 	get: return resource_state.npc_interact_counts
 	set(value): resource_state.npc_interact_counts = value
-
 var dialogue_play_counts: Dictionary:
 	get: return resource_state.dialogue_play_counts
 	set(value): resource_state.dialogue_play_counts = value
-
 var active_narrative_effects: Array:
 	get: return resource_state.active_narrative_effects
 	set(value): resource_state.active_narrative_effects = value
-
 var revealed_intel: Array:
 	get: return resource_state.revealed_intel
 	set(value): resource_state.revealed_intel = value
-
 var fusion_hints: Array:
 	get: return resource_state.fusion_hints
 	set(value): resource_state.fusion_hints = value
-
 var unlocked_npc_avatars : Dictionary:
 	get: return resource_state.unlocked_npc_avatars
 	set(value): resource_state.unlocked_npc_avatars = value
 
-## 商店标签权重查询（替代 ForgeWhisperManager.get_shop_tag_boost）
 func get_shop_tag_boost(tag: String) -> int:
 	var total: int = 0
 	for e in active_narrative_effects:
-		if not (e is Dictionary):
-			continue
+		if not (e is Dictionary): continue
 		var ed: Dictionary = e
 		if ed.get("type", "") == "shop_tag_weight_boost" and ed.get("tag", "") == tag:
 			total += int(ed.get("amount", 0))
 	return total
 
-
-## 清空本局 effect（进新局时调）
 func clear_narrative_effects_for_new_run() -> void:
 	active_narrative_effects.clear()
 	revealed_intel.clear()
 	fusion_hints.clear()
-
 
 func is_relic_refined(relic_id: String) -> bool:
 	return int(relic_levels.get(relic_id, 0)) >= 1
@@ -363,35 +292,22 @@ func refine_relic(relic_id: String) -> bool:
 
 var pending_save_slot : int = -1
 
-# ============================================================
-#  队伍
-# ============================================================
 func initialize_party(selected_units: Array[String], main_index: int):
 	party_state.initialize_party(selected_units, main_index)
 
 func get_party_units() -> Array[UnitData]: return party_state.get_party_units()
-
 func get_main_unit() -> UnitData: return party_state.get_main_unit()
-
 func sync_units_from_battlefield(battle_units: Array):
 	party_state.sync_units_from_battlefield(battle_units)
 
-# ============================================================
-#  待领取
-# ============================================================
 func has_pending_sacrifice_rewards() -> bool:
 	return not resource_state.pending_sacrifice_rewards.is_empty()
-
 func has_pending_forge_rewards() -> bool:
 	return not resource_state.pending_forge_rewards.is_empty()
-
 func has_any_pending_rewards() -> bool:
 	return has_pending_sacrifice_rewards() or has_pending_forge_rewards()
-
 func clear_pending_sacrifice_rewards(): resource_state.pending_sacrifice_rewards.clear()
-
 func clear_pending_forge_rewards(): resource_state.pending_forge_rewards.clear()
-
 func clear_all_pending_rewards():
 	resource_state.pending_sacrifice_rewards.clear()
 	resource_state.pending_forge_rewards.clear()
@@ -400,9 +316,6 @@ var npc_affinity : Dictionary:
 	get: return resource_state.npc_affinity
 	set(value): resource_state.npc_affinity = value
 
-# ============================================================
-#  死亡 / 复活
-# ============================================================
 func is_unit_dead(unit_name: String, display_name: String) -> bool:
 	for ud in party:
 		if ud.unit_name == unit_name and ud.display_name == display_name:
@@ -421,10 +334,6 @@ func revive_unit(unit_name: String, display_name: String) -> bool:
 				if m.sacrifice_buff_sources.has(key):
 					m.sacrifice_buff_sources.erase(key)
 					removed += 1
-			if removed > 0:
-				print("[复活] %s 满血复活（清理 %d 个单位的熔铸 buff）" % [ud.display_name, removed])
-			else:
-				print("[复活] %s 满血复活" % ud.display_name)
 			return true
 	return false
 
@@ -453,9 +362,6 @@ func has_any_dead_unit() -> bool:
 		if ud.is_dead: return true
 	return false
 
-# ============================================================
-#  遗物统计
-# ============================================================
 func get_global_relic_stats() -> Dictionary:
 	var bonus = {}
 	for relic in get_relics_from_passives():
@@ -466,17 +372,11 @@ func get_global_relic_stats() -> Dictionary:
 			bonus[key] = bonus.get(key, 0) + stats[key]
 	return bonus
 
-# function/global/GameState.gd
-
-## ★ v4.5：某遗物是否"既已精炼、又装备在被动槽里"
 func is_relic_equipped_and_refined(relic_id : String) -> bool:
-	if not is_relic_refined(relic_id):
-		return false
+	if not is_relic_refined(relic_id): return false
 	for relic in get_relics_from_passives():
-		if relic.item_id == relic_id:
-			return true
+		if relic.item_id == relic_id: return true
 	return false
-
 
 func get_global_relic_effects() -> Dictionary:
 	var effects := {}
@@ -496,8 +396,6 @@ func get_global_relic_effects() -> Dictionary:
 				elif cur is int and add is int: effects[key] = cur + add
 				elif cur is float or add is float: effects[key] = float(cur) + float(add)
 				else: effects[key] = add
-
-	# ★ v4.5：遗物精炼——只对**已装备**的遗物生效
 	if equipped_ids.has("relic_speed") and is_relic_refined("relic_speed"):
 		effects["kill_grants_extra_move"] = int(effects.get("kill_grants_extra_move", 2)) + 1
 	if equipped_ids.has("relic_health") and is_relic_refined("relic_health"):
@@ -512,16 +410,12 @@ func get_global_relic_effects() -> Dictionary:
 
 func reset_progress(): progress_state.reset_progress()
 func undo_battle_entry(): progress_state.undo_battle_entry()
-
 func add_reward_item(item_id: String): resource_state.add_reward_item(item_id)
 func clear_reward_items(): resource_state.clear_reward_items()
 func clear_current_reward():
 	resource_state.clear_current_reward()
 	current_reward_rare_datas.clear()
 
-# ============================================================
-#  编排
-# ============================================================
 func start_new_cycle():
 	total_run_count += 1
 	temp_gold = 0
@@ -530,17 +424,12 @@ func start_new_cycle():
 	cycle_start_soul = soul
 	keys = 0
 	keys_bought = 0
-
-	# 标签定向器 pending → active
 	if pending_tag_pin != "":
 		active_tag_pin = pending_tag_pin
 		pending_tag_pin = ""
 	else:
 		active_tag_pin = ""
 	soul_fire_threshold_override = 0.0
-	# reforge_tickets 已删除（v4.5）
-	# relic_levels 跨局保留（不清空）
-
 	for unit_data in party:
 		unit_data.sacrifice_buff_sources.clear()
 		unit_data.armor_slots.clear()
@@ -594,13 +483,11 @@ func abandon_and_return_to_camp():
 	get_tree().change_scene_to_file(Config.PATHS.CAMP)
 
 func show_abandon_confirmation(parent: Node):
-	Globals.show_confirm(
-		parent,
+	Globals.show_confirm(parent,
 		"确定放弃本局游戏吗？进度将丢失，已获得的临时资源将丢弃。",
 		"放弃", "取消",
 		abandon_and_return_to_camp,
-		func(): pass
-	)
+		func(): pass)
 
 func _reset_common():
 	party.clear()
@@ -623,11 +510,9 @@ func _reset_common():
 	sacrifice_count = 0
 	shop_level = 0
 
-
 func reset_for_new_cycle():
 	_reset_common()
 	LevelManager.reset()
-
 
 func reset_all():
 	_reset_common()
@@ -635,58 +520,41 @@ func reset_all():
 	is_map_mode = false
 	LevelManager.reset()
 
-
-# ============================================================
-#  光环候选（v4.2：FORGE 每局抽 3 个，排除已装备）
-# ============================================================
 var current_aura_candidates : Array = []
 
 func refresh_aura_candidates():
 	var equipped : Array = get_auras_from_passives()
 	var pool : Array = []
 	for aid in unlocked_auras:
-		if aid in equipped:
-			continue
+		if aid in equipped: continue
 		pool.append(aid)
 	pool.shuffle()
 	var picked : Array = []
 	for i in range(mini(3, pool.size())):
 		picked.append(pool[i])
 	current_aura_candidates = picked
-	print("[GameState] 光环候选刷新：%s" % [picked])
 
 func remove_aura_candidate(aid: String):
 	current_aura_candidates.erase(aid)
 
-
 func apply_relic_stats_to_unit(_unit_data: UnitData): pass
 
-
-# 获取单位最终显示的头像
 func get_unit_avatar(unit_name: String) -> String:
-	# 1. 优先检查是否被事件替换过
 	if unlocked_avatars.has(unit_name):
 		return unlocked_avatars[unit_name]
-	# 2. 其次检查基础配置
-	var dict = UnitDataManager.get_unit_data(unit_name)
-	return dict.get("avatar", "")
+	return UnitDataManager.get_unit_data(unit_name).get("avatar", "")
 
-# 替换头像
 func set_unit_avatar(unit_name: String, avatar_id: String):
 	unlocked_avatars[unit_name] = avatar_id
 	SaveManager.auto_save()
-	# 如果当前战场有这个单位，实时刷新
 	for u in UnitManager.unit_list:
 		if u.unit_stats.unit_name == unit_name:
 			u.unit_stats.avatar = avatar_id
 
-# 获取 NPC 最终显示的头像（优先查覆写）
 func get_npc_avatar(npc_id: String) -> String:
 	return str(unlocked_npc_avatars.get(npc_id, ""))
 
-# 替换 NPC 头像
 func set_npc_avatar(npc_id: String, avatar_id: String):
-	if npc_id == "" or avatar_id == "":
-		return
+	if npc_id == "" or avatar_id == "": return
 	unlocked_npc_avatars[npc_id] = avatar_id
 	SaveManager.auto_save()

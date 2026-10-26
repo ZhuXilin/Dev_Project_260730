@@ -58,10 +58,8 @@ func get_max_carried() -> int:
 		set_bonus = int(b.get("value", 3))
 	base += maxi(flame_bonus, set_bonus)
 
-	# ★ 方向 6：守火者亲密度
 	if StoryManager.get_affinity("soul_keeper") >= 10:
 		base += 1
-	# ★ Boss 三形态临时惩罚
 	return maxi(0, base - _boss_penalty)
 
 
@@ -69,7 +67,6 @@ func get_initial_soul_fire() -> int:
 	var base : int = INITIAL_LEVELS[clampi(GameState.soul_fire_initial_level, 0, INITIAL_LEVELS.size() - 1)]
 	if LevelManager.current_resonance.get("type", "") == "soul_fire_initial":
 		base += int(LevelManager.current_resonance.get("value", 0))
-	# ★ 方向 6：守火者亲密度
 	if StoryManager.get_affinity("soul_keeper") >= 15:
 		base += 1
 	return base
@@ -85,7 +82,6 @@ func get_state() -> State:
 		return State.ZERO
 	var r : float = get_ratio()
 
-	# ★ v4.6：魂火阈值调节器
 	var burning_threshold : float = 0.5
 	var depleted_threshold : float = 0.2
 	var override : float = GameState.soul_fire_threshold_override
@@ -157,7 +153,7 @@ func settle() -> int:
 
 func reset_for_new_run():
 	current = get_initial_soul_fire()
-	_boss_penalty = 0   # ★ 清除 Boss 惩罚
+	_boss_penalty = 0
 	_emit_changes()
 
 
@@ -182,7 +178,6 @@ func upgrade_initial() -> bool:
 
 func tick_turn_start(units: Array) -> void:
 	if get_state() != State.ZERO: return
-	# ★ v4.2：先收集，再处理 —— 避免在遍历 unit_list 时改动它
 	var killed : Array = []
 	for unit in units:
 		if unit.unit_stats.team_id != 0 or unit.hit_points <= 0: continue
@@ -191,7 +186,6 @@ func tick_turn_start(units: Array) -> void:
 		depleted_damage_taken.emit(dmg)
 		if dead:
 			killed.append(unit)
-	# ★ v4.2：清理死于魂火归零的单位，避免幽灵单位
 	for unit in killed:
 		if is_instance_valid(unit) and unit in UnitManager.unit_list:
 			print("[魂火归零] %s 阵亡" % unit.unit_stats.unit_name)
@@ -200,12 +194,10 @@ func tick_turn_start(units: Array) -> void:
 
 
 func on_kill() -> void:
-	# 常规击杀回魂火 +1，受 reward_multiplier 影响
 	var mult : float = 1.0
 	if GameState.current_map_data != null:
 		mult = maxf(1.0, GameState.current_map_data.reward_multiplier)
 	var gain : int = maxi(1, int(round(1.0 * mult)))
-	# 归零时额外 +1
 	if get_state() == State.ZERO:
 		gain += 1
 	add(gain)
@@ -221,11 +213,10 @@ func _has_eternal_flame() -> bool:
 
 
 # ============================================================
-#  ★ Boss 三形态：临时上限惩罚
+#  Boss 三形态：临时上限惩罚
 # ============================================================
 func add_boss_penalty(amount: int) -> void:
 	_boss_penalty += amount
-	# 立刻压低当前魂火到新上限
 	current = mini(current, get_max_carried())
 	_emit_changes()
 	print("[SoulFire] Boss 惩罚 +%d，本场上限 → %d" % [amount, get_max_carried()])

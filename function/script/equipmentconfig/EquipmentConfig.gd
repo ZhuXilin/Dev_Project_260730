@@ -27,7 +27,6 @@ var _talent : EquipmentConfigTalent = null
 var _upgrade_shop_btn : Button = null
 var _aura_tab_btn : Button = null
 
-# v4.6：FORGE 对话系统（替代原 ForgeWhisperManager 低语面板）
 var _forge_recall_btn : Button = null
 var _forge_enter_done : bool = false
 
@@ -69,15 +68,12 @@ func _ready():
 	if sacrifice_tab_btn:
 		sacrifice_tab_btn.visible = false
 	_ensure_aura_tab_btn()
-	
-	# 确保子 Label 不拦截事件
+
 	var detail_label : Label = get_node_or_null(DETAIL_ZONE_PATH + "/DetailLabel")
 	if detail_label:
 		detail_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 
-# ============================================================
-#  ★ v4.2：光环 tab 动态创建
-# ============================================================
+
 func _ensure_aura_tab_btn():
 	if _aura_tab_btn and is_instance_valid(_aura_tab_btn):
 		return
@@ -102,9 +98,6 @@ func _on_aura_tab_pressed():
 	_switch_tab("aura")
 
 
-# ============================================================
-#  Mode 辅助
-# ============================================================
 func is_forge_mode() -> bool:
 	return current_mode == Mode.FORGE
 
@@ -141,7 +134,6 @@ func init(units: Array, slot: int, mode: int, context: EquipContext = null):
 	current_mode = mode as Mode
 	_context = context if context else MainGameEquipContext.new()
 
-	# ★ 修复：进入 FORGE / 商店休息时，必须重新刷新光环候选
 	if current_mode == Mode.FORGE or is_shop_rest_mode():
 		GameState.refresh_aura_candidates()
 
@@ -160,8 +152,6 @@ func init(units: Array, slot: int, mode: int, context: EquipContext = null):
 	if is_shop_rest_mode():
 		current_tab = "arena_shop"
 
-	# ★ v4.5：forge_enter 只在局内 FORGE / MAP_SHOP_REST 时重置；
-	#          竞技场（ARENA_REST）不触发 forge_enter，直接标记为已完成
 	if current_mode == Mode.FORGE or current_mode == Mode.MAP_SHOP_REST:
 		_forge_enter_done = false
 	else:
@@ -256,18 +246,15 @@ func _check_pending_before_leave() -> bool:
 	return true
 
 
-# ============================================================
-#  UI 构建
-# ============================================================
 func _build_ui():
 	if _is_closing: return
 	if _is_building_ui: return
 	_is_building_ui = true
 	_build_ui_inner()
 	_is_building_ui = false
-	# FORGE 对话入口——只在局内 FORGE / MAP_SHOP_REST 触发；竞技场不触发
 	if current_mode == Mode.FORGE or current_mode == Mode.MAP_SHOP_REST:
 		_setup_forge_narrative_ui()
+
 
 func _build_ui_inner():
 	var main_hbox = $VBoxContainer/MainHBox
@@ -507,7 +494,6 @@ func _build_ui_inner():
 
 			if left_column: left_column.size_flags_vertical = Control.SIZE_EXPAND_FILL
 
-	# v4.6：FORGE 对话入口（替换原 _init_whisper_ui）
 	if current_mode == Mode.FORGE or is_shop_rest_mode():
 		_setup_forge_narrative_ui()
 
@@ -534,9 +520,6 @@ func _update_gold_display():
 		gold_label.text = "金币: " + str(_context.get_gold())
 
 
-# ============================================================
-#  光环面板
-# ============================================================
 func _build_aura_panel():
 	_clear_container(shop_container)
 	shop_container.columns = 1
@@ -548,6 +531,16 @@ func _build_aura_panel():
 		shop_scroll.custom_minimum_size = Vector2(0, 0)
 		shop_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 		shop_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+
+	if _context.get_context_id() == "arena":
+		var hint0 := Label.new()
+		hint0.text = "竞技场不支持光环\n（光环为局内被动，仅主游戏可用）"
+		hint0.add_theme_font_size_override("font_size", 7)
+		hint0.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		hint0.modulate = Color(0.7, 0.7, 0.7)
+		hint0.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		shop_container.add_child(hint0)
+		return
 
 	var unlocked : Array = GameState.unlocked_auras.duplicate()
 	var equipped : Array = GameState.get_auras_from_passives()
@@ -617,7 +610,6 @@ func _build_aura_panel():
 func _make_equipped_aura_row(aid: String) -> HBoxContainer:
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 6)
-
 	var ad : Dictionary = AuraManager.get_aura(aid)
 	var name_lb := Label.new()
 	name_lb.text = "【%s】%s" % [ad.get("tag", ""), ad.get("name", aid)]
@@ -646,11 +638,9 @@ func _make_equipped_aura_row(aid: String) -> HBoxContainer:
 func _make_aura_candidate_row(aid: String, empty_slot: int) -> HBoxContainer:
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 6)
-
 	var ad : Dictionary = AuraManager.get_aura(aid)
 	var buy_cost : int = int(ad.get("buy_cost", 0))
-	if buy_cost <= 0:
-		buy_cost = 6
+	if buy_cost <= 0: buy_cost = 6
 
 	var name_lb := Label.new()
 	name_lb.text = "【%s】%s" % [ad.get("tag", ""), ad.get("name", aid)]
@@ -681,62 +671,8 @@ func _make_aura_candidate_row(aid: String, empty_slot: int) -> HBoxContainer:
 func _get_first_empty_passive_slot() -> int:
 	var passives : Array = _context.get_passives()
 	for i in range(passives.size()):
-		if passives[i] == null:
-			return i
+		if passives[i] == null: return i
 	return -1
-
-
-func _make_aura_row(aid : String, empty_slot : int, is_equipped : bool) -> HBoxContainer:
-	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 6)
-
-	var ad : Dictionary = AuraManager.get_aura(aid)
-	var buy_cost : int = int(ad.get("buy_cost", 0))
-	if buy_cost <= 0:
-		buy_cost = 6
-
-	var name_lb := Label.new()
-	name_lb.text = "【%s】%s" % [ad.get("tag", ""), ad.get("name", aid)]
-	name_lb.add_theme_font_size_override("font_size", 8)
-	name_lb.custom_minimum_size = Vector2(90, 0)
-	name_lb.clip_text = true
-	if is_equipped:
-		name_lb.modulate = Color(0.7, 1.0, 0.7)
-	row.add_child(name_lb)
-
-	var desc_lb := Label.new()
-	desc_lb.text = ad.get("description", "")
-	desc_lb.add_theme_font_size_override("font_size", 6)
-	desc_lb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	desc_lb.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	row.add_child(desc_lb)
-
-	if is_equipped:
-		var tag_lb := Label.new()
-		tag_lb.text = "✦ 已装备"
-		tag_lb.add_theme_font_size_override("font_size", 6)
-		tag_lb.modulate = Color(0.7, 1.0, 0.7)
-		tag_lb.custom_minimum_size = Vector2(50, 0)
-		tag_lb.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		row.add_child(tag_lb)
-
-		var unequip_btn := Button.new()
-		unequip_btn.text = "卸下"
-		unequip_btn.add_theme_font_size_override("font_size", 7)
-		unequip_btn.custom_minimum_size = Vector2(70, 20)
-		unequip_btn.pressed.connect(_on_unequip_aura.bind(aid))
-		row.add_child(unequip_btn)
-	else:
-		var buy_btn := Button.new()
-		buy_btn.text = "购买 %d◆" % buy_cost
-		buy_btn.add_theme_font_size_override("font_size", 7)
-		buy_btn.custom_minimum_size = Vector2(70, 20)
-		var can_buy : bool = SoulFireManager.current >= buy_cost and empty_slot >= 0
-		buy_btn.disabled = not can_buy
-		if can_buy:
-			buy_btn.pressed.connect(_on_buy_aura.bind(aid, buy_cost))
-		row.add_child(buy_btn)
-	return row
 
 
 func _on_buy_aura(aid: String, cost: int):
@@ -771,9 +707,6 @@ func _on_unequip_aura(aid: String):
 	_show_detail_in_zone("已卸下光环：%s\n（不返还魂火，下次进 FORGE 时可能重新抽到）" % AuraManager.get_display_name(aid))
 
 
-# ============================================================
-#  待领取区
-# ============================================================
 func _ensure_pending_section():
 	if _pending_container and is_instance_valid(_pending_container):
 		return
@@ -853,9 +786,6 @@ func _create_pending_button(inst: ItemInstance, idx: int, src: String) -> Button
 	return btn
 
 
-# ============================================================
-#  熔铸
-# ============================================================
 func _build_sacrifice_panel():
 	_clear_container(shop_container)
 	shop_container.columns = 1
@@ -944,9 +874,6 @@ func _do_sacrifice(u: UnitData, _armors_ignored: Array, _discard_count: int):
 	_schedule_build_ui()
 
 
-# ============================================================
-#  领取待领取
-# ============================================================
 func _equip_pending_reward(data: Dictionary, target: Control):
 	var pending_idx : int = data.get("pending_idx", -1)
 	var pending_src : String = data.get("pending_src", "sacrifice")
@@ -1004,9 +931,6 @@ func _discard_pending_reward(data: Dictionary):
 		_build_sacrifice_panel()
 
 
-# ============================================================
-#  单位图标
-# ============================================================
 func _create_unit_icon(unit: UnitData, unit_idx: int) -> Control:
 	var icon_size : float = 32
 	var y_offset : float = -8
@@ -1065,9 +989,6 @@ func _attach_idle_animator(tex_rect: TextureRect, frames: SpriteFrames):
 	)
 
 
-# ============================================================
-#  单位列
-# ============================================================
 func _build_unit_columns():
 	for child in unit_container.get_children():
 		unit_container.remove_child(child); child.free()
@@ -1119,7 +1040,6 @@ func _disable_button(btn: Button):
 func _on_unit_hover_entered(unit_idx: int) -> void:
 	if unit_idx < 0 or unit_idx >= party.size(): return
 	var unit : UnitData = party[unit_idx]
-	# 直接委托给 Detail 模块处理（它内部会记录 _hover_ref，并区分叙事/玩法模式）
 	_detail.show_unit(unit)
 
 
@@ -1181,9 +1101,6 @@ func _create_talent_button(inst: TalentInstance, unit_idx: int, slot_idx: int) -
 	return btn
 
 
-# ============================================================
-#  被动槽
-# ============================================================
 func _build_passive_slots():
 	if not relic_container: return
 	for child in relic_container.get_children(): relic_container.remove_child(child); child.free()
@@ -1228,9 +1145,6 @@ func _create_passive_button(inst: Variant, slot_index: int) -> Button:
 	return btn
 
 
-# ============================================================
-#  格数预算
-# ============================================================
 func _inst_slots(inst: ItemInstance) -> int:
 	return 0 if inst == null else 1
 
@@ -1266,9 +1180,6 @@ func _get_item_name(inst: ItemInstance) -> String:
 	return data.name if data else inst.item_id
 
 
-# ============================================================
-#  合法性
-# ============================================================
 func _is_valid_drop(data: Dictionary, target: Control) -> bool:
 	var source_type : String = data["slot_type"]
 	var target_type : String = target.get_meta("slot_type", "")
@@ -1383,9 +1294,6 @@ func _check_armor_swap_budget(data: Dictionary, target: Control) -> bool:
 	return true
 
 
-# ============================================================
-#  执行 drop
-# ============================================================
 func _execute_drop(data: Dictionary, target: Control):
 	var source_type : String = data.get("slot_type", "")
 	var target_type : String = target.get_meta("slot_type", "")
@@ -1448,9 +1356,6 @@ func _discard_item(data: Dictionary):
 	_sync_all(); _schedule_build_ui()
 
 
-# ============================================================
-#  确认
-# ============================================================
 func _on_confirm_pressed():
 	if not _check_pending_before_leave():
 		return
@@ -1495,9 +1400,6 @@ func _on_confirm_pressed():
 	else: queue_free()
 
 
-# ============================================================
-#  数据拷贝 / 同步
-# ============================================================
 func _copy_party_data():
 	party.clear()
 	var units : Array = _context.get_units()
@@ -1541,9 +1443,6 @@ func _sync_all():
 		tu.advanced_talent_id = u.advanced_talent_id
 
 
-# ============================================================
-#  深拷贝
-# ============================================================
 static func _clone_item_inst(src: ItemInstance) -> ItemInstance:
 	if src == null: return null
 	var inst = ItemInstance.new()
@@ -1559,9 +1458,6 @@ static func _clone_inst_array(src: Array) -> Array:
 	return out
 
 
-# ============================================================
-#  Tab 切换
-# ============================================================
 func _switch_tab(tab: String):
 	if not _check_pending_before_leave():
 		return
@@ -1679,20 +1575,16 @@ func _update_tab_style():
 	if _aura_tab_btn: _aura_tab_btn.visible = false
 
 
-# ============================================================
-#  输入
-# ============================================================
 func _input(event: InputEvent):
 	if _has_active_confirm_ui(): return
 
-	# ★ 碎片化叙事：hover 触发区上右键切换（包括单位头像）
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT:
 		if _detail != null and _detail.has_hover():
 			Globals.toggle_info_mode()
 			_detail.refresh()
 			get_viewport().set_input_as_handled()
 			return
-			
+
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
 		var mouse_pos : Vector2 = get_global_mouse_position()
 		var btn : Control = _drag._find_control_at_position(mouse_pos)
@@ -1707,9 +1599,6 @@ func _process(_delta):
 	if _drag.is_dragging: _drag.update_drag_preview()
 
 
-# ============================================================
-#  辅助
-# ============================================================
 func _show_buy_failure_message(reason: String):
 	var msg : String = ""
 	match reason:
@@ -1740,9 +1629,6 @@ func _has_active_confirm_ui() -> bool:
 	return false
 
 
-# ============================================================
-#  转发
-# ============================================================
 func _build_shop_items(): _shop.build_shop_items()
 func _build_weapon_grid(container: GridContainer): _shop.build_weapon_grid(container)
 func _on_reset_shop_pressed(): _shop.on_reset_shop_pressed()
@@ -1800,9 +1686,6 @@ func _quality_cn(q : String) -> String:
 		_: return q
 
 
-# ============================================================
-#  商店升级
-# ============================================================
 func _ensure_upgrade_shop_btn():
 	if _upgrade_shop_btn and is_instance_valid(_upgrade_shop_btn):
 		return
@@ -1887,17 +1770,11 @@ func _create_advanced_talent_button(unit: UnitData, unit_idx: int) -> Button:
 	return btn
 
 
-# ============================================================
-#  v4.6：FORGE 对话入口（统一走 StoryManager）
-#  替代原 ForgeWhisperManager 的自定义低语面板
-# ============================================================
 func _setup_forge_narrative_ui() -> void:
-	# 1. 首次进 FORGE 自动触发一次 forge_enter 对话（有匹配才弹）
 	if not _forge_enter_done:
 		_forge_enter_done = true
 		call_deferred("_trigger_forge_enter")
 
-	# 2. 加"问铁匠"按钮（代替旧 ◈ 图标 + 情报面板）
 	_ensure_forge_recall_button()
 
 
@@ -1935,7 +1812,6 @@ func _on_forge_recall_pressed() -> void:
 
 
 func _build_forge_context() -> Dictionary:
-	# 商店标签偏向
 	var hint_tags : Array = []
 	for tag in ["守护", "烈焰", "灰烬", "轮回", "献祭", "余烬"]:
 		var boost : int = GameState.get_shop_tag_boost(tag)
@@ -1944,7 +1820,6 @@ func _build_forge_context() -> Dictionary:
 	if hint_tags.is_empty():
 		hint_tags = ["无偏向"]
 
-	# 当前生效的低语效果
 	var effect_lines : Array = []
 	for e in GameState.active_narrative_effects:
 		if not (e is Dictionary):
@@ -1955,7 +1830,6 @@ func _build_forge_context() -> Dictionary:
 	if effect_lines.is_empty():
 		effect_lines.append("· 本局无低语效果")
 
-	# 魂火状态
 	var sf_state_text : String = "正常"
 	match SoulFireManager.get_state():
 		SoulFireManager.State.BURNING:  sf_state_text = "燃烧"

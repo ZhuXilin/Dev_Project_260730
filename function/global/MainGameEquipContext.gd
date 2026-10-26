@@ -1,4 +1,3 @@
-# function/global/MainGameEquipContext.gd
 class_name MainGameEquipContext
 extends EquipContext
 
@@ -33,7 +32,7 @@ func set_passive_at_slot(idx: int, value) -> void:
 func remove_passive_at_slot(idx: int) -> void:
 	GameState.remove_passive_at_slot(idx)
 
-# ★ v4.2：光环购买
+# ---- 光环（v4.6：占被动槽） ----
 func add_aura_to_passive_slot(aura_id: String) -> bool:
 	return GameState.add_aura_to_passive_slot(aura_id)
 

@@ -28,10 +28,10 @@
   },
   "aura_guardian": {
 	"id": "aura_guardian", "name": "铁壁", "tag": "守护",
-	"description": "全队防御 +3",
+	"description": "全队物理/魔法减伤 +10%",
 	"flavor": "铁壁。全队防御增加。\n\n——当有人愿意为你站成一堵墙，你才明白铁壁不是墙。",
-	"effect": "defense_flat",
-	"params": { "defense_flat": 3 },
+	"effect": "flat_reduction",
+	"params": { "physical_reduction": 0.10, "magic_reduction": 0.10 },
 	"research_time": 2, "unlock_cost": 100,
 	"buy_cost": 4
   },

@@ -1,4 +1,3 @@
-# function/global/EquipContext.gd
 class_name EquipContext
 extends RefCounted
 
@@ -25,12 +24,12 @@ func show_gold() -> bool: return true
 # ---- 单位列表 ----
 func get_units() -> Array: return []
 
-# ---- 被动槽 ----
+# ---- 被动槽（遗物 + 光环共享 4 格） ----
 func get_passives() -> Array: return []
 func set_passive_at_slot(_idx: int, _value) -> void: pass
 func remove_passive_at_slot(_idx: int) -> void: pass
 
-# ★ v4.2：光环购买（默认不支持，MainGameEquipContext 覆写）
+# ---- 光环（v4.6：占被动槽） ----
 func add_aura_to_passive_slot(_aura_id: String) -> bool: return false
 
 # ---- 铁匠铺 ----

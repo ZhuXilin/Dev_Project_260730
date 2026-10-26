@@ -23,9 +23,6 @@ func save_game(slot: int, auto: bool = false) -> bool:
 	var save = _build_save_data()
 	if not save: return false
 	save.save_time = Time.get_unix_time_from_system()
-	# ★ 第九批：不再计算 checksum —— JSON.stringify 的键顺序不稳定，
-	# 每次加载都会误报"checksum 不匹配"。单人游戏手改存档无副作用。
-	# save.checksum 字段保留（兼容旧档），但不再写入新值。
 	var path = _get_slot_path(slot)
 	var err = ResourceSaver.save(save, path)
 	if err != OK:
@@ -107,7 +104,6 @@ func _build_save_data() -> SaveData:
 	save.cycle_start_soul = GameState.cycle_start_soul
 	save.temp_gold = GameState.temp_gold
 
-	# ★ v4.5：遗物精炼
 	save.relic_levels = GameState.relic_levels.duplicate(true)
 
 	save.soul_fire_current = SoulFireManager.current
@@ -132,7 +128,7 @@ func _build_save_data() -> SaveData:
 	save.unlocked_stories = GameState.unlocked_stories.duplicate()
 	save.unlocked_avatars = GameState.unlocked_avatars.duplicate()
 	save.unlocked_npc_avatars = GameState.unlocked_npc_avatars.duplicate()
-	
+
 	save.eligible_units = GameState.eligible_units.duplicate()
 	save.current_node_unlock_relics = GameState.current_node_unlock_relics.duplicate()
 	save.current_node_unlock_units = GameState.current_node_unlock_units.duplicate()
@@ -218,7 +214,6 @@ func _apply_save_data(save: SaveData):
 	GameState.cycle_start_soul = save.cycle_start_soul
 	GameState.temp_gold = save.temp_gold
 
-	# ★ v4.5：遗物精炼
 	GameState.relic_levels = _safe_dict(save.relic_levels)
 
 	SoulFireManager.current = save.soul_fire_current
@@ -241,7 +236,7 @@ func _apply_save_data(save: SaveData):
 	Globals.unlocked_items = _safe_array(save.unlocked_items)
 	GameState.unlocked_avatars = _safe_dict(save.unlocked_avatars)
 	GameState.unlocked_npc_avatars = _safe_dict(save.unlocked_npc_avatars)
-	
+
 	if Globals.unlocked_units.is_empty():
 		print("[SaveManager] unlocked_units 为空，回退默认解锁")
 		Globals._load_unlock_config()
@@ -398,7 +393,7 @@ func _deserialize_passive(d) -> Variant:
 
 
 # ============================================================
-#  校验（★ 第九批：只校验版本，不再校验 checksum）
+#  校验
 # ============================================================
 func _validate_save(save: SaveData) -> bool:
 	if not save: return false
@@ -424,7 +419,6 @@ func clean_invalid_progress(slot: int):
 	save.selected_node_id = ""
 	save.interrupt_state = 1
 	save.temp_gold = 0
-	# ★ 第九批：不再算 checksum
 	ResourceSaver.save(save, _get_slot_path(slot))
 
 

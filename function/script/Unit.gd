@@ -22,13 +22,18 @@ var previous_flip_h : bool = false
 var used_non_attack_item_this_turn : bool = false
 var moves_since_act: int = 0
 
-# ---- Buff ----
+# ---- Buff（v4.6：减伤率） ----
 var buff_attack_percent : float = 0.0
 var buff_crit_damage_bonus : float = 0.0
-var buff_defense_flat : int = 0
+var buff_physical_reduction : float = 0.0
+var buff_magic_reduction : float = 0.0
 var buff_damage_reduction : float = 0.0
 var buff_attack_flat : int = 0
 var buff_magic_attack_flat : int = 0
+var buff_lifesteal_percent : float = 0.0
+
+# ★ 兼容旧字段（不参与计算）
+var buff_defense_flat : int = 0
 
 # ---- 主动技能 ----
 var active_skill_ready_consumed: Dictionary = {}
@@ -50,7 +55,6 @@ var relic_counter_damage_bonus: float = 0.0
 var relic_heal_bonus: float = 0.0
 var relic_auto_revive_available: bool = false
 
-# ★ v4.5：遗物精炼运行时状态
 var relic_first_attack_crit_remaining : int = 0
 var relic_first_spell_free_remaining : int = 0
 var relic_low_hp_threshold : float = 0.3
@@ -75,7 +79,7 @@ var max_talent_slots: int = 1
 var combo_last_target: String = ""
 var combo_count: int = 0
 
-# ★ 批次 5A：本场激活的光环
+# ---- 光环（v4.6：常驻被动，从被动槽同步） ----
 var active_auras : Dictionary = {}
 var charge_stacks : int = 0
 
@@ -218,7 +222,6 @@ func reset_relic_effects():
 	relic_counter_damage_bonus = 0.0
 	relic_heal_bonus = 0.0
 	relic_auto_revive_available = false
-	# ★ v4.5
 	relic_first_attack_crit_remaining = 0
 	relic_first_spell_free_remaining = 0
 	relic_low_hp_threshold = 0.3
@@ -359,7 +362,6 @@ func get_total_stats() -> Dictionary:
 		"faith": unit_stats.faith,
 		"arcane": unit_stats.arcane,
 		"move_range": unit_stats.move_range,
-		"defense": 0, "magic_defense": 0,
 		"attack": 0, "magic_attack": 0, "heal_amount": 0,
 		"attack_range": 0, "min_attack_range": 0, "attack_style": "standard"
 	}
@@ -381,12 +383,6 @@ func get_total_stats() -> Dictionary:
 				total["magic_attack"] = int((data.base_attack + upgrade_bonus) * quality_mult)
 			if not data.heal_effect.is_empty():
 				total["heal_amount"] = data.heal_effect.get("base_heal", 0)
-
-	for slot in armor_slots:
-		if slot:
-			var data = ItemManager.get_item_data(slot.item_id)
-			if data:
-				total["defense"] += data.defense
 
 	var armor_mod := unit_stats.get_armor_modifier_bonus()
 	for key in armor_mod:
@@ -815,10 +811,12 @@ func get_talent_slots() -> Array[TalentInstance]: return talent_slots
 func reset_combat_buffs():
 	buff_attack_percent = 0.0
 	buff_crit_damage_bonus = 0.0
-	buff_defense_flat = 0
+	buff_physical_reduction = 0.0
+	buff_magic_reduction = 0.0
 	buff_damage_reduction = 0.0
 	buff_attack_flat = 0
 	buff_magic_attack_flat = 0
+	buff_defense_flat = 0
 	charge_stacks = 0
 	active_auras.clear()
 

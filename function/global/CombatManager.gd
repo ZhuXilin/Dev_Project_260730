@@ -1,11 +1,13 @@
 extends Node
 
 var QUALITY_MULT : Dictionary = {"common":1.0,"rare":1.25,"epic":1.5,"legendary":1.8}
-var STRENGTH_DEF_FACTOR : float = 0.3
 var CRIT_BASE_CHANCE : float = 0.05
 var CRIT_PER_DEXTERITY : float = 0.005
 var CRIT_CHANCE_BY_QUALITY : Dictionary = {"common":0.0,"rare":0.03,"epic":0.05,"legendary":0.08}
 var CRIT_DAMAGE_MULT : float = 1.5
+var REDUCTION_CAP : float = 0.75
+var MIN_DAMAGE_FLOOR : float = 0.10
+var FOLLOW_UP_DEX_GAP : int = 4
 
 var DOUBLE_ATTACK_MULT : Array = [0.8, 0.9, 1.0]
 var BLEED_DAMAGE_PERCENT : Array = [0.15, 0.20, 0.25]
@@ -25,19 +27,19 @@ const PRE_DAMAGE_DELAY : float = 0.10
 const POST_DAMAGE_DELAY : float = 0.28
 const EXTRA_HIT_DELAY : float = 0.15
 
-
 func _ready():
 	reload_config()
-
 
 func reload_config():
 	var cfg := GameConfigManager.get_file("combat_config.json")
 	QUALITY_MULT = cfg.get("quality_mult", QUALITY_MULT).duplicate()
-	STRENGTH_DEF_FACTOR = float(cfg.get("strength_def_factor", STRENGTH_DEF_FACTOR))
 	CRIT_BASE_CHANCE = float(cfg.get("crit_base_chance", CRIT_BASE_CHANCE))
 	CRIT_PER_DEXTERITY = float(cfg.get("crit_per_dexterity", CRIT_PER_DEXTERITY))
 	CRIT_CHANCE_BY_QUALITY = cfg.get("crit_chance_by_quality", CRIT_CHANCE_BY_QUALITY).duplicate()
 	CRIT_DAMAGE_MULT = float(cfg.get("crit_damage_mult", CRIT_DAMAGE_MULT))
+	REDUCTION_CAP = float(cfg.get("reduction_cap", REDUCTION_CAP))
+	MIN_DAMAGE_FLOOR = float(cfg.get("min_damage_floor", MIN_DAMAGE_FLOOR))
+	FOLLOW_UP_DEX_GAP = int(cfg.get("follow_up_dex_gap", FOLLOW_UP_DEX_GAP))
 
 	var tp : Dictionary = cfg.get("talent_params", {})
 	DOUBLE_ATTACK_MULT = tp.get("double_attack_mult", DOUBLE_ATTACK_MULT).duplicate()
@@ -53,13 +55,8 @@ func reload_config():
 	ZEAL_MAX_STACKS = int(tp.get("zeal_max_stacks", ZEAL_MAX_STACKS))
 	print("[CombatManager] 已加载")
 
-
-# ============================================================
-#  主动技能射程
-# ============================================================
 func get_active_skill_range_bonus(unit: Unit) -> int:
-	if unit == null:
-		return 0
+	if unit == null: return 0
 	var ready_skills : Array = TalentManager.get_ready_active_skills(unit)
 	var bonus : int = 0
 	for skill_id in ready_skills:
@@ -68,105 +65,107 @@ func get_active_skill_range_bonus(unit: Unit) -> int:
 			bonus = maxi(bonus, int(data.effect_params.get("range_bonus", 0)))
 	return bonus
 
-
-# ============================================================
-#  目标查询
-# ============================================================
 func get_attackable_targets(unit: Unit) -> Array:
 	var weapon_data = unit.get_weapon_data()
 	if not weapon_data: return []
-
 	var up_lv : int = unit.weapon_slot.upgrade_level if unit.weapon_slot else 0
 	var max_range : int = WeaponUpgradeHelper.get_effective_attack_range(weapon_data, up_lv)
 	var min_range : int = weapon_data.min_attack_range
-
 	max_range += get_active_skill_range_bonus(unit)
-
 	var is_healer = (weapon_data.category == "staff" or weapon_data.attack_style == "heal")
-
 	var targets = []
 	for x in range(-max_range, max_range+1):
 		for y in range(-max_range, max_range+1):
 			var dist = abs(x) + abs(y)
-			if dist < min_range or dist > max_range:
-				continue
+			if dist < min_range or dist > max_range: continue
 			var cell = unit.grid_cell + Vector2i(x, y)
-			if cell.x < 0 or cell.x >= TerrainManager.grid_size.x or cell.y < 0 or cell.y >= TerrainManager.grid_size.y:
-				continue
+			if cell.x < 0 or cell.x >= TerrainManager.grid_size.x or cell.y < 0 or cell.y >= TerrainManager.grid_size.y: continue
 			var target = UnitManager.get_unit_at_cell(cell)
-			if not target or target.hit_points <= 0:
-				continue
+			if not target or target.hit_points <= 0: continue
 			if is_healer:
-				if target.unit_stats.team_id == unit.unit_stats.team_id:
-					targets.append(target)
+				if target.unit_stats.team_id == unit.unit_stats.team_id: targets.append(target)
 			else:
-				if target.unit_stats.team_id != unit.unit_stats.team_id:
-					targets.append(target)
-
+				if target.unit_stats.team_id != unit.unit_stats.team_id: targets.append(target)
 	if is_healer:
 		targets.sort_custom(func(a, b):
-			var loss_a = a.unit_stats.max_hp - a.hit_points
-			var loss_b = b.unit_stats.max_hp - b.hit_points
-			return loss_a > loss_b
-		)
+			return (a.unit_stats.max_hp - a.hit_points) > (b.unit_stats.max_hp - b.hit_points))
 	else:
 		targets.sort_custom(func(a, b):
 			var da = abs(a.grid_cell.x - unit.grid_cell.x) + abs(a.grid_cell.y - unit.grid_cell.y)
 			var db = abs(b.grid_cell.x - unit.grid_cell.x) + abs(b.grid_cell.y - unit.grid_cell.y)
-			return da < db
-		)
+			return da < db)
 	return targets
-
 
 func attempt_attack_after_move(unit: Unit):
 	var targets = get_attackable_targets(unit)
 	if targets.size() > 0:
 		await execute_attack(unit, targets[0])
 
+func _is_magic_attack(weapon_data: ItemData) -> bool:
+	if weapon_data == null: return false
+	if weapon_data.attack_style == "magic": return true
+	if weapon_data.magic_attack.get("ignore_defense", false): return true
+	return false
 
-# ============================================================
-#  伤害公式
-# ============================================================
+func _calc_reduction(defender: Unit, is_magic: bool) -> float:
+	var s = defender.unit_stats
+	var base : float = s.magic_reduction if is_magic else s.physical_reduction
+	var armor_bonus : float = 0.0
+	for slot in defender.armor_slots:
+		if slot:
+			var d : ItemData = ItemManager.get_item_data(slot.item_id)
+			if d:
+				var qm : float = QUALITY_MULT.get(d.quality, 1.0)
+				armor_bonus += (d.magic_reduction if is_magic else d.physical_reduction) * qm
+
+	var affix_bonus : float = 0.0
+	for slot in defender.armor_slots:
+		if slot:
+			affix_bonus += float(slot.get_affix_value("defense_flat")) * 0.01
+
+	var low_hp_bonus : float = 0.0
+	if defender.relic_low_hp_damage_reduce > 0.0:
+		var hp_ratio = float(defender.hit_points) / float(max(1, s.max_hp))
+		if hp_ratio < defender.relic_low_hp_threshold:
+			low_hp_bonus = defender.relic_low_hp_damage_reduce
+
+	var buff_bonus : float = (defender.buff_magic_reduction if is_magic else defender.buff_physical_reduction)
+	buff_bonus += defender.buff_damage_reduction
+
+	var total : float = base + armor_bonus + affix_bonus + low_hp_bonus + buff_bonus
+	return clampf(total, 0.0, REDUCTION_CAP)
+
+func _calc_penetration(attacker: Unit, is_magic: bool) -> float:
+	var wdata = attacker.get_weapon_data()
+	if not wdata: return 0.0
+	var w_pen : float = wdata.magic_penetration if is_magic else wdata.physical_penetration
+	return w_pen
+
 func calculate_damage(attacker: Unit, defender: Unit) -> int:
 	var weapon_data = attacker.get_weapon_data()
-	if not weapon_data:
-		return 0
-
-	var quality_mult = QUALITY_MULT.get(weapon_data.quality, 1.0)
+	if not weapon_data: return 0
+	var is_magic : bool = _is_magic_attack(weapon_data)
+	var quality_mult : float = QUALITY_MULT.get(weapon_data.quality, 1.0)
 	var upgrade_lv : int = attacker.weapon_slot.upgrade_level if attacker.weapon_slot else 0
-	var base_attack : int = WeaponUpgradeHelper.get_effective_base_attack(weapon_data, upgrade_lv) * quality_mult
-
+	var base_attack : float = WeaponUpgradeHelper.get_effective_base_attack(weapon_data, upgrade_lv) * quality_mult
 	var modifier = weapon_data.modifier
 	var atk_bonus = 0.0
 	for attr in modifier:
-		var val = attacker.unit_stats.get_effective_attr(attr)
-		atk_bonus += val * modifier[attr]
-
+		atk_bonus += attacker.unit_stats.get_effective_attr(attr) * modifier[attr]
 	var total_attack = base_attack + atk_bonus + attacker.buff_attack_flat
-	if weapon_data.magic_attack.get("ignore_defense", false):
-		total_attack += attacker.buff_magic_attack_flat
+	if is_magic: total_attack += attacker.buff_magic_attack_flat
 	total_attack *= (1.0 + attacker.buff_attack_percent)
-
 	if attacker.relic_strength_scale_damage > 0.0:
 		var str_val = attacker.unit_stats.get_effective_attr("strength")
 		total_attack *= (1.0 + str_val * attacker.relic_strength_scale_damage)
 
-	# ★ v4.2：防具升级系统未实现，此处直接读 item_data.defense
-	var armor_defense : float = 0.0
-	for slot in defender.armor_slots:
-		if slot:
-			var item_data = ItemManager.get_item_data(slot.item_id)
-			if item_data:
-				var armor_quality_mult = QUALITY_MULT.get(item_data.quality, 1.0)
-				armor_defense += item_data.defense * armor_quality_mult
+	var reduction : float = _calc_reduction(defender, is_magic)
+	var penetration : float = _calc_penetration(attacker, is_magic)
+	var effective_reduction : float = clampf(reduction - penetration, 0.0, 1.0)
+	var damage_raw : float = total_attack * (1.0 - effective_reduction)
+	var floor_raw : float = total_attack * MIN_DAMAGE_FLOOR
+	var damage : int = max(1, int(max(damage_raw, floor_raw)))
 
-	var def_value = defender.unit_stats.get_effective_attr("strength") * STRENGTH_DEF_FACTOR + armor_defense
-	def_value += defender.buff_defense_flat
-
-	var damage = max(1, int(total_attack - def_value))
-
-	# ★ v4.5：heavy 武器倍率（在 affix 加成之前应用，让 affix 的固定值不享受倍率）
-	# ★ 修复：charge 特性按层数线性叠加，每层 +0.2，5 层达到 charge_multiplier（默认 2.0）
 	if not weapon_data.heavy_attack.is_empty():
 		var mult : float = 1.0
 		if attacker.has_core_trait("charge"):
@@ -177,85 +176,50 @@ func calculate_damage(attacker: Unit, defender: Unit) -> int:
 			mult = float(weapon_data.heavy_attack.get("damage_multiplier", 1.0))
 		damage = int(damage * mult)
 
-	var def_armor_bonus : int = 0
-	for slot in defender.armor_slots:
-		if slot:
-			def_armor_bonus += slot.get_affix_value("defense_flat")
-	damage = max(1, damage - def_armor_bonus)
-
 	var atk_affix_bonus : int = 0
 	for slot in attacker.armor_slots:
-		if slot:
-			atk_affix_bonus += slot.get_affix_value("attack_flat")
+		if slot: atk_affix_bonus += slot.get_affix_value("attack_flat")
 	damage += atk_affix_bonus
 
 	if defender.unit_stats.team_id == 0:
 		var taken_mult : float = SoulFireManager.get_damage_taken_mult()
-		if taken_mult > 1.0:
-			damage = int(damage * taken_mult)
+		if taken_mult > 1.0: damage = int(damage * taken_mult)
+	return max(1, damage)
 
-	if defender.buff_damage_reduction > 0:
-		damage = max(1, int(damage * (1.0 - defender.buff_damage_reduction)))
-
-	return damage
-
-
-# ============================================================
-#  暴击
-# ============================================================
 func _roll_crit(attacker: Unit) -> bool:
 	var chance : float = CRIT_BASE_CHANCE
 	chance += attacker.unit_stats.get_effective_attr("dexterity") * CRIT_PER_DEXTERITY
 	var wdata = attacker.get_weapon_data()
-	if wdata:
-		chance += CRIT_CHANCE_BY_QUALITY.get(wdata.quality, 0.0)
+	if wdata: chance += CRIT_CHANCE_BY_QUALITY.get(wdata.quality, 0.0)
 	chance += attacker.get_total_affix_value_float("crit_chance")
 	return randf() < chance
 
+func _can_follow_up(attacker: Unit, defender: Unit) -> bool:
+	if attacker == null or defender == null: return false
+	if defender.hit_points <= 0: return false
+	var atk_dex : int = attacker.unit_stats.get_effective_attr("dexterity")
+	var def_dex : int = defender.unit_stats.get_effective_attr("dexterity")
+	return atk_dex >= def_dex + FOLLOW_UP_DEX_GAP
 
-# ============================================================
-#  主动技能消耗
-# ============================================================
 func _get_active_skill_cost(sdata) -> int:
-	if sdata == null:
-		return SoulFireManager.COST_SKILL_MIN
+	if sdata == null: return SoulFireManager.COST_SKILL_MIN
 	var ep : Dictionary = sdata.effect_params if sdata.effect_params else {}
 	var explicit : int = int(ep.get("soul_fire_cost", 0))
-	if explicit > 0:
-		return explicit
-	if sdata.effect_type == "heal":
-		return SoulFireManager.COST_SKILL_MAX
+	if explicit > 0: return explicit
+	if sdata.effect_type == "heal": return SoulFireManager.COST_SKILL_MAX
 	return SoulFireManager.COST_SKILL_MIN
 
-
-# ============================================================
-#  ★ Boss 三形态拦截辅助（Day3）
-#  返回 true 表示 Boss 已复活，调用方应跳过死亡流程
-# ============================================================
 func _try_boss_revive(defender : Unit, _attacker : Unit) -> bool:
-	if not BossMechanicManager.on_boss_defeated(defender):
-		return false
-	# 屏幕震一下，给玩家"这不是普通死亡"的反馈
+	if not BossMechanicManager.on_boss_defeated(defender): return false
 	SignalBus.request_screen_shake.emit(0.4, 8.0, Vector2.ZERO)
-	print("[CombatManager] Boss 三形态复活成功")
 	return true
 
-
-# ============================================================
-#  攻击主流程
-# ============================================================
-# ============================================================
-#  攻击主流程
-# ============================================================
 func execute_attack(attacker: Unit, defender: Unit, forced_skill_id: String = "") -> bool:
 	if attacker.get_equipped_weapon_id() == "":
-		print("错误：攻击者没有装备武器")
 		Globals.is_performing_action = false
 		return false
-
 	_face_each_other(attacker, defender)
 	Globals.is_performing_action = true
-	print(attacker.unit_stats.unit_name + " 攻击 " + defender.unit_stats.unit_name)
 
 	if attacker.get_weapon_type() == "staff":
 		await _execute_heal(attacker, defender, forced_skill_id)
@@ -263,17 +227,12 @@ func execute_attack(attacker: Unit, defender: Unit, forced_skill_id: String = ""
 		return true
 
 	await _play_lunge_attack(attacker, defender)
-
 	var damage = calculate_damage(attacker, defender)
-
-	#charge 是"蓄力一刀"，攻击时消耗所有 charge_stacks
 	if attacker.has_core_trait("charge") and attacker.charge_stacks > 0:
 		attacker.charge_stacks = 0
 
 	var active_skill_id : String = ""
 	var active_skill_data = null
-	
-	# ★ 核心修改：只有在明确传入了技能 ID 时，才尝试触发主动技能
 	if forced_skill_id != "":
 		var sdata = TalentManager.get_talent_data(forced_skill_id)
 		if sdata:
@@ -281,12 +240,8 @@ func execute_attack(attacker: Unit, defender: Unit, forced_skill_id: String = ""
 			if SoulFireManager.can_spend(cost):
 				active_skill_id = forced_skill_id
 				active_skill_data = sdata
-				print("[主动技能] %s 触发：%s（消耗 %d 魂火）" % [
-					attacker.unit_stats.unit_name, sdata.display_name, cost])
 			else:
-				print("[主动技能] %s 魂火不足，强制转为普攻" % attacker.unit_stats.unit_name)
-	else:
-		print("[主动技能] 玩家选择普通攻击（无消耗）")
+				print("[主动技能] %s 魂火不足" % attacker.unit_stats.unit_name)
 
 	var force_crit : bool = false
 	var ignore_def : bool = false
@@ -294,7 +249,6 @@ func execute_attack(attacker: Unit, defender: Unit, forced_skill_id: String = ""
 	var aoe_percent : float = 0.0
 	var hp_cost_percent : float = 0.0
 	var taunt_rounds : int = 0
-
 	if active_skill_data:
 		var ep : Dictionary = active_skill_data.effect_params
 		damage = int(damage * float(ep.get("damage_mult", 1.0)))
@@ -311,13 +265,10 @@ func execute_attack(attacker: Unit, defender: Unit, forced_skill_id: String = ""
 	else:
 		attacker.zeal_target = target_key
 		attacker.zeal_stacks = 1
-
 	if attacker.zeal_stacks > 1 and TalentManager.is_talent_ready(attacker, "zeal"):
 		var lv_zeal = _get_effective_talent_level(attacker, "zeal")
 		var per = ZEAL_PER_STACK[clampi(lv_zeal - 1, 0, ZEAL_PER_STACK.size() - 1)]
-		var bonus = 1.0 + (attacker.zeal_stacks - 1) * per
-		damage = int(damage * bonus)
-		print("狂热触发！Lv.%d 第 %d 次攻击 倍率×%.2f" % [lv_zeal, attacker.zeal_stacks, bonus])
+		damage = int(damage * (1.0 + (attacker.zeal_stacks - 1) * per))
 		TalentManager.reset_talent(attacker, "zeal")
 
 	if attacker.combo_last_target == target_key:
@@ -325,30 +276,24 @@ func execute_attack(attacker: Unit, defender: Unit, forced_skill_id: String = ""
 	else:
 		attacker.combo_last_target = target_key
 		attacker.combo_count = 1
-
 	if attacker.combo_count > 1 and TalentManager.is_talent_ready(attacker, "combo"):
 		var lv_combo = _get_effective_talent_level(attacker, "combo")
 		var per_hit = COMBO_MULT_PER_HIT[clampi(lv_combo - 1, 0, COMBO_MULT_PER_HIT.size() - 1)]
-		var bonus = 1.0 + (attacker.combo_count - 1) * per_hit
-		damage = int(damage * bonus)
-		print("连击触发！Lv.%d 第 %d 次攻击 倍率×%.2f" % [lv_combo, attacker.combo_count, bonus])
+		damage = int(damage * (1.0 + (attacker.combo_count - 1) * per_hit))
 		TalentManager.reset_talent(attacker, "combo")
 
 	var is_crit := false
 	var crit_mult : float = CRIT_DAMAGE_MULT
-	if attacker.unit_stats.team_id == 0:
-		crit_mult += SoulFireManager.get_crit_damage_bonus()
+	if attacker.unit_stats.team_id == 0: crit_mult += SoulFireManager.get_crit_damage_bonus()
 	crit_mult += attacker.get_total_affix_value_float("crit_damage")
 
 	if force_crit:
 		is_crit = true
-		print("主动技能：强制暴击")
 	elif TalentManager.is_talent_ready(attacker, "crit"):
 		var lv_crit = _get_effective_talent_level(attacker, "crit")
 		crit_mult = 2.0 + (lv_crit - 1) * 0.5 + attacker.buff_crit_damage_bonus
 		crit_mult += attacker.get_total_affix_value_float("crit_damage")
 		is_crit = true
-		print("暴击词条触发！Lv.%d 倍率 %.1f" % [lv_crit, crit_mult])
 		TalentManager.reset_talent(attacker, "crit")
 	elif attacker.relic_first_attack_crit_remaining > 0:
 		crit_mult += attacker.buff_crit_damage_bonus
@@ -356,40 +301,19 @@ func execute_attack(attacker: Unit, defender: Unit, forced_skill_id: String = ""
 		attacker.relic_first_attack_crit_remaining -= 1
 		if attacker.relic_first_attack_crit_remaining <= 0:
 			attacker.relic_first_attack_crit_available = false
-		print("力量遗物：必暴击（剩 %d 次）！" % attacker.relic_first_attack_crit_remaining)
 	elif _roll_crit(attacker):
 		crit_mult += attacker.buff_crit_damage_bonus
 		is_crit = true
-		print("暴击！倍率 %.2f" % crit_mult)
 
-	if is_crit:
-		damage = int(damage * crit_mult)
-
-	if ignore_def and active_skill_data:
-		var wdata_tmp = attacker.get_weapon_data()
-		if wdata_tmp:
-			var wd_lv : int = attacker.weapon_slot.upgrade_level if attacker.weapon_slot else 0
-			var base_only = WeaponUpgradeHelper.get_effective_base_attack(wdata_tmp, wd_lv) * QUALITY_MULT.get(wdata_tmp.quality, 1.0)
-			var atk_bonus_tmp = 0.0
-			for attr in wdata_tmp.modifier:
-				atk_bonus_tmp += attacker.unit_stats.get_effective_attr(attr) * wdata_tmp.modifier[attr]
-			var no_def_dmg = int((base_only + atk_bonus_tmp + attacker.buff_attack_flat) * (1.0 + attacker.buff_attack_percent))
-			no_def_dmg = int(no_def_dmg * float(active_skill_data.effect_params.get("damage_mult", 1.0)))
-			if is_crit:
-				no_def_dmg = int(no_def_dmg * crit_mult)
-			damage = max(damage, no_def_dmg)
+	if is_crit: damage = int(damage * crit_mult)
 
 	if hp_cost_percent > 0.0:
 		var hp_cost = int(attacker.unit_stats.max_hp * hp_cost_percent)
 		attacker.hit_points = max(1, attacker.hit_points - hp_cost)
 		attacker.update_hp_label()
 		SignalBus.request_damage_popup.emit(attacker.global_position, hp_cost, false, false, false)
-		print("龙息：消耗 %d HP" % hp_cost)
 
 	await get_tree().create_timer(PRE_DAMAGE_DELAY, true, false, true).timeout
-
-	print("造成伤害: ", damage)
-
 	var defeated = _apply_damage_with_effects(defender, damage, attacker, is_crit)
 
 	if attacker.weapon_slot:
@@ -399,68 +323,51 @@ func execute_attack(attacker: Unit, defender: Unit, forced_skill_id: String = ""
 				defender.can_act_this_turn = false
 				defender.set_gray(true)
 				SignalBus.request_hint_override.emit("★ 眩晕！%s 无法行动" % defender.unit_stats.unit_name, 1.0)
-				print("[武器特效] %s 眩晕了 %s" % [attacker.unit_stats.unit_name, defender.unit_stats.unit_name])
 
 	var flame_bonus : int = 0
 	for slot in attacker.armor_slots:
-		if slot:
-			flame_bonus += slot.get_affix_value("flame_damage")
+		if slot: flame_bonus += slot.get_affix_value("flame_damage")
 	if flame_bonus > 0 and defender.hit_points > 0:
 		var extra_flame_dead : bool = defender.apply_damage(flame_bonus)
 		SignalBus.request_damage_popup.emit(defender.global_position, flame_bonus, false, false, false)
-		print("[词条] 焚身：附加 %d 火焰伤害" % flame_bonus)
-		if extra_flame_dead:
-			defeated = true
+		if extra_flame_dead: defeated = true
 
 	var splash_sf : float = SoulFireManager.get_splash_percent()
 	if splash_sf > 0.0 and attacker.unit_stats.team_id == 0 and defender.hit_points > 0:
 		await _apply_burning_splash(attacker, defender, damage, splash_sf)
 
-	_apply_aura_attack_cost(attacker)
-
 	await get_tree().create_timer(POST_DAMAGE_DELAY, true, false, true).timeout
-
 	if not _is_alive(attacker):
-		print("[攻击流程] attacker 已阵亡，提前结束")
 		Globals.is_performing_action = false
 		return true
 
 	if active_skill_data:
-		if splash_percent > 0.0:
-			await _apply_splash(attacker, defender, damage, splash_percent, is_crit)
-		if aoe_percent > 0.0:
-			await _apply_aoe(attacker, defender, damage, aoe_percent, is_crit)
+		if splash_percent > 0.0: await _apply_splash(attacker, defender, damage, splash_percent, is_crit)
+		if aoe_percent > 0.0: await _apply_aoe(attacker, defender, damage, aoe_percent, is_crit)
 		if taunt_rounds > 0:
 			attacker.taunt_rounds = taunt_rounds
-			var dirs_t = [Vector2i(1,0), Vector2i(-1,0), Vector2i(0,1), Vector2i(0,-1)]
-			for d in dirs_t:
+			for d in [Vector2i(1,0), Vector2i(-1,0), Vector2i(0,1), Vector2i(0,-1)]:
 				var c = attacker.grid_cell + d
 				var e = UnitManager.get_unit_at_cell(c)
 				if e and e.unit_stats.team_id != attacker.unit_stats.team_id and e.hit_points > 0:
 					e.taunt_by = attacker
 					e.taunt_rounds_left = taunt_rounds
-			print("[嘲讽] %s 周围敌人下回合强制攻击他" % attacker.unit_stats.unit_name)
 		TalentManager.consume_active_skill(attacker, active_skill_id)
-		var skill_cost : int = _get_active_skill_cost(active_skill_data)
-		SoulFireManager.spend(skill_cost)
+		SoulFireManager.spend(_get_active_skill_cost(active_skill_data))
 
 	if defeated:
 		if _try_boss_revive(defender, attacker):
 			_finish_attack(attacker, defender)
 			Globals.is_performing_action = false
 			return true
-
-		print(defender.unit_stats.unit_name + " 阵亡！")
 		var cleave_triggered := _on_kill(attacker, defender)
 		await _play_death_animation(defender)
 		UnitManager.unregister_unit(defender)
 		defender.queue_free()
-
 		if cleave_triggered:
 			_show_menu_after_action(attacker)
 			Globals.is_performing_action = false
 			return true
-
 		_finish_attack(attacker, defender)
 		Globals.is_performing_action = false
 		return true
@@ -476,50 +383,36 @@ func execute_attack(attacker: Unit, defender: Unit, forced_skill_id: String = ""
 		if actual > 0:
 			attacker.update_hp_label()
 			SignalBus.request_damage_popup.emit(attacker.global_position, actual, false, false, true)
-			print("吸血触发！Lv.%d 恢复 %d HP" % [lv_ls, actual])
 		TalentManager.reset_talent(attacker, "lifesteal")
 
-	# ---- 二次攻击 ----
 	if TalentManager.is_talent_ready(attacker, "double_attack"):
 		var level = _get_effective_talent_level(attacker, "double_attack")
 		var mult = DOUBLE_ATTACK_MULT[level - 1]
 		var extra_damage = int(damage * mult)
-		print("二次攻击触发！Lv.%d 额外 %d 伤害" % [level, extra_damage])
 		TalentManager.reset_talent(attacker, "double_attack")
-
 		await get_tree().create_timer(EXTRA_HIT_DELAY, true, false, true).timeout
-
 		if not _is_alive(attacker):
-			print("[攻击流程] 二次攻击前 attacker 已阵亡")
 			Globals.is_performing_action = false
 			return true
-
 		await _play_lunge_attack(attacker, defender)
 		await get_tree().create_timer(PRE_DAMAGE_DELAY, true, false, true).timeout
-
 		var extra_dead = defender.apply_damage(extra_damage)
 		_play_hurt_effect(defender, attacker)
 		SignalBus.request_damage_popup.emit(defender.global_position, extra_damage, false, false, false)
-
 		await get_tree().create_timer(POST_DAMAGE_DELAY, true, false, true).timeout
-
 		if extra_dead:
 			if _try_boss_revive(defender, attacker):
 				_finish_attack(attacker, defender)
 				Globals.is_performing_action = false
 				return true
-
-			print(defender.unit_stats.unit_name + " 阵亡！")
 			var cleave_triggered := _on_kill(attacker, defender)
 			await _play_death_animation(defender)
 			UnitManager.unregister_unit(defender)
 			defender.queue_free()
-
 			if cleave_triggered:
 				_show_menu_after_action(attacker)
 				Globals.is_performing_action = false
 				return true
-
 			_finish_attack(attacker, defender)
 			Globals.is_performing_action = false
 			return true
@@ -528,14 +421,11 @@ func execute_attack(attacker: Unit, defender: Unit, forced_skill_id: String = ""
 		Globals.is_performing_action = false
 		return true
 
-	# ---- 法术连击 ----
 	if TalentManager.is_talent_ready(attacker, "spell_chain"):
 		if attacker.get_weapon_type() == "spellbook" or attacker.get_weapon_type() == "staff":
 			var level = _get_effective_talent_level(attacker, "spell_chain")
 			var mult = SPELL_CHAIN_MULT[level - 1]
-
 			if attacker.get_weapon_type() == "staff":
-				print("法术连击触发！Lv.%d 额外治疗" % level)
 				TalentManager.reset_talent(attacker, "spell_chain")
 				await get_tree().create_timer(EXTRA_HIT_DELAY, true, false, true).timeout
 				var weapon_data = attacker.get_weapon_data()
@@ -549,41 +439,30 @@ func execute_attack(attacker: Unit, defender: Unit, forced_skill_id: String = ""
 				SignalBus.request_damage_popup.emit(defender.global_position, actual, false, false, true)
 			else:
 				var extra_damage = int(damage * mult)
-				print("法术连击触发！Lv.%d 额外 %d 伤害" % [level, extra_damage])
 				TalentManager.reset_talent(attacker, "spell_chain")
-
 				await get_tree().create_timer(EXTRA_HIT_DELAY, true, false, true).timeout
-
 				if not _is_alive(attacker):
 					Globals.is_performing_action = false
 					return true
-
 				await _play_lunge_attack(attacker, defender)
 				await get_tree().create_timer(PRE_DAMAGE_DELAY, true, false, true).timeout
-
 				var extra_dead = defender.apply_damage(extra_damage)
 				_play_hurt_effect(defender, attacker)
 				SignalBus.request_damage_popup.emit(defender.global_position, extra_damage, false, false, false)
-
 				await get_tree().create_timer(POST_DAMAGE_DELAY, true, false, true).timeout
-
 				if extra_dead:
 					if _try_boss_revive(defender, attacker):
 						_finish_attack(attacker, defender)
 						Globals.is_performing_action = false
 						return true
-
-					print(defender.unit_stats.unit_name + " 阵亡！")
 					var cleave_triggered := _on_kill(attacker, defender)
 					await _play_death_animation(defender)
 					UnitManager.unregister_unit(defender)
 					defender.queue_free()
-
 					if cleave_triggered:
 						_show_menu_after_action(attacker)
 						Globals.is_performing_action = false
 						return true
-
 					_finish_attack(attacker, defender)
 					Globals.is_performing_action = false
 					return true
@@ -592,12 +471,27 @@ func execute_attack(attacker: Unit, defender: Unit, forced_skill_id: String = ""
 		Globals.is_performing_action = false
 		return true
 
-	# ---- 反击 ----
+	# ★ v4.6 追击
+	if _is_alive(attacker) and _is_alive(defender) and _can_follow_up(attacker, defender):
+		var follow_dmg : int = calculate_damage(attacker, defender)
+		await get_tree().create_timer(EXTRA_HIT_DELAY, true, false, true).timeout
+		if _is_alive(attacker):
+			await _play_lunge_attack(attacker, defender)
+			await get_tree().create_timer(PRE_DAMAGE_DELAY, true, false, true).timeout
+			var follow_dead = defender.apply_damage(follow_dmg)
+			_play_hurt_effect(defender, attacker)
+			SignalBus.request_damage_popup.emit(defender.global_position, follow_dmg, false, false, false)
+			await get_tree().create_timer(POST_DAMAGE_DELAY, true, false, true).timeout
+			if follow_dead:
+				if not _try_boss_revive(defender, attacker):
+					_on_kill(attacker, defender)
+					await _play_death_animation(defender)
+					UnitManager.unregister_unit(defender)
+					defender.queue_free()
+
 	if _can_counter_attack(attacker, defender):
 		await _execute_counter(attacker, defender)
-
 	if not _is_alive(attacker):
-		print("[攻击流程] 反击后 attacker 已阵亡")
 		Globals.is_performing_action = false
 		return true
 
@@ -606,47 +500,31 @@ func execute_attack(attacker: Unit, defender: Unit, forced_skill_id: String = ""
 	Globals.is_performing_action = false
 	return true
 
+# ...（其余 _execute_heal / _apply_burning_splash / _play_lunge_attack / _play_hurt_effect / _play_death_animation / _on_kill / _apply_splash / _apply_aoe / _apply_damage_with_effects / _consume_first_spell_free / _try_revive / _get_effective_talent_level / _can_counter_attack / _execute_counter / _is_alive / _finish_attack / _show_menu_after_action / _post_attack_check / _face_each_other / get_unit_attack_stats 保持上一轮完整版本一致）
 
-# ============================================================
-#  治疗
-# ============================================================
 func _execute_heal(attacker: Unit, defender: Unit, forced_skill_id: String = "") -> bool:
 	if defender.unit_stats.team_id != attacker.unit_stats.team_id:
-		print("错误：治疗不能对敌方！")
 		Globals.is_performing_action = false
 		return false
-
 	var weapon_data = attacker.get_weapon_data()
 	var heal_amount = weapon_data.heal_effect.get("base_heal", 0)
 	var faith_bonus = attacker.unit_stats.faith * weapon_data.heal_effect.get("faith_multiplier", 1.0)
 	var total_heal = int(heal_amount + faith_bonus)
-
-	if attacker.relic_heal_bonus > 0.0:
-		total_heal = int(total_heal * (1.0 + attacker.relic_heal_bonus))
-
+	if attacker.relic_heal_bonus > 0.0: total_heal = int(total_heal * (1.0 + attacker.relic_heal_bonus))
 	var heal_affix_bonus : float = 0.0
 	for slot in attacker.armor_slots:
-		if slot:
-			heal_affix_bonus += slot.get_affix_value_float("heal_boost")
+		if slot: heal_affix_bonus += slot.get_affix_value_float("heal_boost")
 	total_heal = int(total_heal * (1.0 + heal_affix_bonus))
-
 	if TalentManager.is_talent_ready(attacker, "heal_boost"):
 		var level = _get_effective_talent_level(attacker, "heal_boost")
-		var mult = HEAL_BOOST_MULT[level - 1]
-		total_heal = int(total_heal * mult)
-		print("治愈强化触发！Lv.%d 治疗量 ×%.1f" % [level, mult])
+		total_heal = int(total_heal * HEAL_BOOST_MULT[level - 1])
 		TalentManager.reset_talent(attacker, "heal_boost")
-
 	var old_hp = defender.hit_points
 	defender.hit_points = min(defender.hit_points + total_heal, defender.unit_stats.max_hp)
 	var actual_heal = defender.hit_points - old_hp
-	print("治疗 ", actual_heal, " 点 HP")
-
 	defender.update_hp_label()
 	SignalBus.request_damage_popup.emit(defender.global_position, actual_heal, false, false, true)
 	SoundManager.play_heal_sound()
-
-	# ★ 修改：群体治愈，仅当玩家主动选择该技能时触发
 	if forced_skill_id != "":
 		var skill_data = TalentManager.get_talent_data(forced_skill_id)
 		if skill_data:
@@ -656,168 +534,102 @@ func _execute_heal(attacker: Unit, defender: Unit, forced_skill_id: String = "")
 				if SoulFireManager.can_spend(cost):
 					var mass_heal = int(actual_heal * mass_pct)
 					for u in UnitManager.unit_list:
-						if u.unit_stats.team_id != attacker.unit_stats.team_id:
-							continue
-						if u == defender or u.hit_points <= 0:
-							continue
+						if u.unit_stats.team_id != attacker.unit_stats.team_id: continue
+						if u == defender or u.hit_points <= 0: continue
 						var old = u.hit_points
 						u.hit_points = mini(u.hit_points + mass_heal, u.unit_stats.max_hp)
 						var real = u.hit_points - old
 						if real > 0:
 							u.update_hp_label()
 							SignalBus.request_damage_popup.emit(u.global_position, real, false, false, true)
-					print("[群体治愈] 其他友军回复 %d HP（消耗 %d 魂火）" % [mass_heal, cost])
-
 					TalentManager.consume_active_skill(attacker, forced_skill_id)
 					SoulFireManager.spend(cost)
-
 	await get_tree().create_timer(PERFORMANCE_DURATION, true, false, true).timeout
-
 	var free_action : bool = _consume_first_spell_free(attacker)
 	_finish_attack(attacker, defender, free_action)
 	Globals.is_performing_action = false
 	return true
 
-# ============================================================
-#  燃烧溅射（批次 8）
-# ============================================================
 func _apply_burning_splash(attacker : Unit, center : Unit, base_damage : int, percent : float):
-	var dirs = [Vector2i(1,0), Vector2i(-1,0), Vector2i(0,1), Vector2i(0,-1)]
-	for d in dirs:
-		var cell : Vector2i = center.grid_cell + d
-		var t : Unit = UnitManager.get_unit_at_cell(cell)
-		if not t or t.hit_points <= 0:
-			continue
-		if t.unit_stats.team_id == attacker.unit_stats.team_id:
-			continue
+	for d in [Vector2i(1,0), Vector2i(-1,0), Vector2i(0,1), Vector2i(0,-1)]:
+		var t : Unit = UnitManager.get_unit_at_cell(center.grid_cell + d)
+		if not t or t.hit_points <= 0: continue
+		if t.unit_stats.team_id == attacker.unit_stats.team_id: continue
 		var splash_dmg : int = maxi(1, int(base_damage * percent))
 		var dead : bool = _apply_damage_with_effects(t, splash_dmg, attacker, false)
-		print("[燃烧溅射] %d 伤害给 %s" % [splash_dmg, t.unit_stats.unit_name])
 		if dead:
-			# ★ Boss 三形态拦截
-			if _try_boss_revive(t, attacker):
-				continue
+			if _try_boss_revive(t, attacker): continue
 			_on_kill(attacker, t)
 			await _play_death_animation(t)
 			UnitManager.unregister_unit(t)
 			t.queue_free()
 
-
-# ============================================================
-#  光环攻击消耗（v4.5 已废弃：光环改为纯被动，不再消耗魂火）
-# ============================================================
-func _apply_aura_attack_cost(_attacker : Unit):
-	pass
-
-
-# ============================================================
-#  攻击者前冲
-# ============================================================
 func _play_lunge_attack(attacker: Unit, defender: Unit) -> void:
-	if not is_instance_valid(attacker) or not is_instance_valid(defender):
-		return
-	if not attacker.animated_sprite:
-		return
-
+	if not is_instance_valid(attacker) or not is_instance_valid(defender): return
+	if not attacker.animated_sprite: return
 	var snd_tween = attacker.create_tween()
 	snd_tween.set_ignore_time_scale(true)
-	snd_tween.tween_callback(
-		func(): SoundManager.play_attack_sound()
-	).set_delay(LUNGE_DURATION * 0.35)
-
+	snd_tween.tween_callback(func(): SoundManager.play_attack_sound()).set_delay(LUNGE_DURATION * 0.35)
 	var mat = attacker.animated_sprite.material as ShaderMaterial
 	if not mat:
 		await get_tree().create_timer(0.08, true, false, true).timeout
 		return
-
 	var dir = (defender.global_position - attacker.global_position)
-	if dir.length() < 0.001:
-		return
+	if dir.length() < 0.001: return
 	dir = dir.normalized()
-
 	mat.set_shader_parameter("hit_offset_amount", dir * 6.0)
 	mat.set_shader_parameter("hit_duration", LUNGE_DURATION)
 	mat.set_shader_parameter("hit_elapsed", 0.0)
 	mat.set_shader_parameter("hit_flash_color", Color.WHITE)
 	mat.set_shader_parameter("hit_enable_flash", false)
-
 	var tween = attacker.create_tween()
 	tween.set_ignore_time_scale(true)
-	tween.tween_method(
-		func(val):
-			if is_instance_valid(mat):
-				mat.set_shader_parameter("hit_elapsed", val),
-		0.0, LUNGE_DURATION, LUNGE_DURATION
-	)
+	tween.tween_method(func(val):
+		if is_instance_valid(mat): mat.set_shader_parameter("hit_elapsed", val),
+		0.0, LUNGE_DURATION, LUNGE_DURATION)
 	tween.tween_callback(func():
 		if is_instance_valid(mat):
 			mat.set_shader_parameter("hit_elapsed", 0.0)
-			mat.set_shader_parameter("hit_offset_amount", Vector2.ZERO)
-	)
+			mat.set_shader_parameter("hit_offset_amount", Vector2.ZERO))
 	await tween.finished
 
-
 func _play_hurt_effect(defender: Unit, attacker: Unit) -> void:
-	if not is_instance_valid(defender):
-		return
+	if not is_instance_valid(defender): return
 	var hit_dir = Vector2(1, 0)
 	if is_instance_valid(attacker):
 		var d = defender.global_position - attacker.global_position
-		if d.length() > 0.001:
-			hit_dir = d.normalized()
+		if d.length() > 0.001: hit_dir = d.normalized()
 	defender.play_hit_effect(hit_dir, true)
 	SignalBus.request_screen_shake.emit(0.15, 4.0, hit_dir)
-
 	var snd_tween = defender.create_tween()
 	snd_tween.set_ignore_time_scale(true)
-	snd_tween.tween_callback(
-		func(): SoundManager.play_hit_sound()
-	).set_delay(MapConst.HIT_OFFSET_DURATION * 0.35)
-
+	snd_tween.tween_callback(func(): SoundManager.play_hit_sound()).set_delay(MapConst.HIT_OFFSET_DURATION * 0.35)
 
 func _play_death_animation(unit: Unit) -> void:
-	if not is_instance_valid(unit):
-		return
-
+	if not is_instance_valid(unit): return
 	var snd_tween = unit.create_tween()
 	snd_tween.set_ignore_time_scale(true)
-	snd_tween.tween_callback(
-		func(): SoundManager.play_death_sound()
-	).set_delay(0.05)
-
+	snd_tween.tween_callback(func(): SoundManager.play_death_sound()).set_delay(0.05)
 	var hp_label = unit.get_node_or_null("HPLabel")
-	if hp_label:
-		hp_label.visible = false
-
-	if not unit.animated_sprite:
-		return
-
+	if hp_label: hp_label.visible = false
+	if not unit.animated_sprite: return
 	var mat = unit.animated_sprite.material as ShaderMaterial
 	if mat:
 		mat.set_shader_parameter("hit_flash_color", Color(1.0, 1.0, 1.0))
 		mat.set_shader_parameter("hit_duration", 1.0)
 		mat.set_shader_parameter("hit_elapsed", 0.0)
 		mat.set_shader_parameter("hit_offset_amount", Vector2.ZERO)
-
 		for i in range(3):
 			mat.set_shader_parameter("hit_enable_flash", true)
 			await get_tree().create_timer(0.08, true, false, true).timeout
 			mat.set_shader_parameter("hit_enable_flash", false)
 			await get_tree().create_timer(0.08, true, false, true).timeout
-
 		mat.set_shader_parameter("hit_enable_flash", false)
-
 	unit.animated_sprite.visible = false
 	await get_tree().create_timer(0.1, true, false, true).timeout
 
-
-# ============================================================
-#  击杀连锁
-# ============================================================
 func _on_kill(attacker: Unit, _defender: Unit) -> bool:
-	if not is_instance_valid(attacker):
-		return false
-
+	if not is_instance_valid(attacker): return false
 	if TalentManager.is_talent_ready(attacker, "blood_rage"):
 		var lv = _get_effective_talent_level(attacker, "blood_rage")
 		var pct = BLOOD_RAGE_HEAL_PERCENT[clampi(lv - 1, 0, BLOOD_RAGE_HEAL_PERCENT.size() - 1)]
@@ -828,7 +640,6 @@ func _on_kill(attacker: Unit, _defender: Unit) -> bool:
 		if actual > 0:
 			attacker.update_hp_label()
 			SignalBus.request_damage_popup.emit(attacker.global_position, actual, false, false, true)
-			print("血怒触发！Lv.%d 恢复 %d HP" % [lv, actual])
 		TalentManager.reset_talent(attacker, "blood_rage")
 
 	var cleave_triggered := false
@@ -836,27 +647,21 @@ func _on_kill(attacker: Unit, _defender: Unit) -> bool:
 		attacker.has_attacked = false
 		attacker.has_acted = false
 		attacker.movement_after_attack = false
-		print("连斩触发！可再次行动")
 		TalentManager.reset_talent(attacker, "cleave")
 		cleave_triggered = true
 
 	if attacker.relic_kill_grants_extra_move > 0:
 		attacker.remaining_move += attacker.relic_kill_grants_extra_move
 		attacker.has_moved = false
-		print("疾风遗物：额外移动 %d 格" % attacker.relic_kill_grants_extra_move)
 
 	for aid in attacker.active_auras:
-		if not attacker.active_auras[aid]:
-			continue
+		if not attacker.active_auras[aid]: continue
 		_apply_aura_kill_effect(attacker, aid)
 
 	var bonus_sf : int = 0
 	for slot in attacker.armor_slots:
-		if slot:
-			bonus_sf += slot.get_affix_value("soul_fire_gain")
-	if bonus_sf > 0:
-		SoulFireManager.add(bonus_sf)
-		print("[词条] 余烬：击杀 +%d 魂火" % bonus_sf)
+		if slot: bonus_sf += slot.get_affix_value("soul_fire_gain")
+	if bonus_sf > 0: SoulFireManager.add(bonus_sf)
 
 	var active_sets : Array = SetBonusManager.get_active_sets_for_unit(attacker)
 	for entry in active_sets:
@@ -870,34 +675,25 @@ func _on_kill(attacker: Unit, _defender: Unit) -> bool:
 			if actual2 > 0:
 				attacker.update_hp_label()
 				SignalBus.request_damage_popup.emit(attacker.global_position, actual2, false, false, true)
-				print("[套装] 血之回响 +%d HP" % actual2)
 
-	# ★ 新增：交叉套装 kill_soul_fire（血脉沸腾：献祭 + 烈焰各 2 件，击杀 +1 魂火）
 	var cross_bonuses : Array = SetBonusManager.get_active_cross_bonuses()
 	for entry in cross_bonuses:
 		var cb : Dictionary = entry.get("data", {})
 		if cb.get("effect", "") == "kill_soul_fire":
 			var val : int = int(cb.get("value", 0))
-			if val > 0:
-				SoulFireManager.add(val)
-				print("[交叉套装] %s：击杀 +%d 魂火" % [cb.get("name", ""), val])
+			if val > 0: SoulFireManager.add(val)
 
-	if attacker.unit_stats.team_id == 0:
-		SoulFireManager.on_kill()
-
+	if attacker.unit_stats.team_id == 0: SoulFireManager.on_kill()
 	return cleave_triggered
-
 
 func _apply_aura_kill_effect(attacker : Unit, aura_id : String):
 	var d : Dictionary = AuraManager.get_aura(aura_id)
-	if d.is_empty():
-		return
+	if d.is_empty(): return
 	var params : Dictionary = d.get("params", {})
 	match d.get("effect", ""):
 		"kill_gain_soul_fire":
 			var gain : int = int(params.get("soul_fire_gain", 1))
 			SoulFireManager.add(gain)
-			print("[光环] %s：击杀 +%d 魂火" % [d.get("name", aura_id), gain])
 		"kill_heal_percent":
 			var pct : float = float(params.get("heal_percent", 0.15))
 			var heal : int = int(attacker.unit_stats.max_hp * pct)
@@ -907,58 +703,35 @@ func _apply_aura_kill_effect(attacker : Unit, aura_id : String):
 			if actual > 0:
 				attacker.update_hp_label()
 				SignalBus.request_damage_popup.emit(attacker.global_position, actual, false, false, true)
-				print("[光环] %s：击杀 +%d HP" % [d.get("name", aura_id), actual])
 
-
-# ============================================================
-#  溅射
-# ============================================================
 func _apply_splash(attacker: Unit, defender: Unit, base_damage: int, percent: float, is_crit: bool = false) -> void:
-	var dir = defender.grid_cell - attacker.grid_cell
-	var behind = defender.grid_cell + dir
+	var behind = defender.grid_cell + (defender.grid_cell - attacker.grid_cell)
 	var splash_target = UnitManager.get_unit_at_cell(behind)
-	if not splash_target or splash_target.hit_points <= 0:
-		return
-	if splash_target.unit_stats.team_id == attacker.unit_stats.team_id:
-		return
+	if not splash_target or splash_target.hit_points <= 0: return
+	if splash_target.unit_stats.team_id == attacker.unit_stats.team_id: return
 	var splash_dmg = int(base_damage * percent)
 	var dead = _apply_damage_with_effects(splash_target, splash_dmg, attacker, is_crit)
-	print("[贯穿] 溅射 %d 伤害给 %s" % [splash_dmg, splash_target.unit_stats.unit_name])
 	if dead:
-		# ★ Boss 三形态拦截
-		if _try_boss_revive(splash_target, attacker):
-			return
+		if _try_boss_revive(splash_target, attacker): return
 		_on_kill(attacker, splash_target)
 		await _play_death_animation(splash_target)
 		UnitManager.unregister_unit(splash_target)
 		splash_target.queue_free()
 
-
 func _apply_aoe(attacker: Unit, center: Unit, base_damage: int, percent: float, is_crit: bool = false) -> void:
-	var dirs = [Vector2i(1,0), Vector2i(-1,0), Vector2i(0,1), Vector2i(0,-1)]
-	for d in dirs:
-		var cell = center.grid_cell + d
-		var target = UnitManager.get_unit_at_cell(cell)
-		if not target or target.hit_points <= 0:
-			continue
-		if target.unit_stats.team_id == attacker.unit_stats.team_id:
-			continue
+	for d in [Vector2i(1,0), Vector2i(-1,0), Vector2i(0,1), Vector2i(0,-1)]:
+		var target = UnitManager.get_unit_at_cell(center.grid_cell + d)
+		if not target or target.hit_points <= 0: continue
+		if target.unit_stats.team_id == attacker.unit_stats.team_id: continue
 		var aoe_dmg = int(base_damage * percent)
 		var dead = _apply_damage_with_effects(target, aoe_dmg, attacker, is_crit)
-		print("[火球] AOE %d 伤害给 %s" % [aoe_dmg, target.unit_stats.unit_name])
 		if dead:
-			# ★ Boss 三形态拦截
-			if _try_boss_revive(target, attacker):
-				continue
+			if _try_boss_revive(target, attacker): continue
 			_on_kill(attacker, target)
 			await _play_death_animation(target)
 			UnitManager.unregister_unit(target)
 			target.queue_free()
 
-
-# ============================================================
-#  伤害应用 + 词条效果
-# ============================================================
 func _apply_damage_with_effects(defender: Unit, damage: int, attacker: Unit, is_crit: bool = false) -> bool:
 	if TalentManager.is_talent_ready(defender, "parry"):
 		var level = _get_effective_talent_level(defender, "parry")
@@ -967,54 +740,39 @@ func _apply_damage_with_effects(defender: Unit, damage: int, attacker: Unit, is_
 		var parry_damage = max(1, int(parry_base * reflect_mult))
 		attacker.apply_damage(parry_damage)
 		SignalBus.request_damage_popup.emit(attacker.global_position, parry_damage, false, false, false)
-		print("盾反触发！Lv.%d 反弹 %d 伤害" % [level, parry_damage])
 		TalentManager.reset_talent(defender, "parry")
 
 	if TalentManager.is_talent_ready(defender, "block"):
 		var level = _get_effective_talent_level(defender, "block")
 		var reduction = 0.5 + (level - 1) * 0.1
 		damage = int(damage * (1.0 - reduction))
-		print("格挡触发！Lv.%d 减伤 %d%%" % [level, int(reduction * 100)])
 		TalentManager.reset_talent(defender, "block")
 
 	if TalentManager.is_talent_ready(attacker, "bleed"):
 		if defender.unit_stats.team_id != attacker.unit_stats.team_id:
 			defender.bleed_stacks += 1
-			print("出血累积！%s 当前 %d 层" % [defender.unit_stats.unit_name, defender.bleed_stacks])
 			TalentManager.reset_talent(attacker, "bleed")
-
 			if defender.bleed_stacks >= BLEED_MAX_STACKS:
 				var level = _get_effective_talent_level(attacker, "bleed")
 				var percent = BLEED_DAMAGE_PERCENT[level - 1]
 				var bleed_damage = int(defender.unit_stats.max_hp * percent)
-				print("出血爆发！%d 层触发 %d 伤害" % [BLEED_MAX_STACKS, bleed_damage])
 				SignalBus.request_damage_popup.emit(defender.global_position, bleed_damage, false, false, false)
 				var bleed_dead = defender.apply_damage(bleed_damage)
 				defender.bleed_stacks = 0
 				if bleed_dead:
-					if _try_revive(defender):
-						return false
+					if _try_revive(defender): return false
 					return true
-
-	if defender.relic_low_hp_damage_reduce > 0.0:
-		var hp_ratio = float(defender.hit_points) / float(defender.unit_stats.max_hp)
-		# ★ v4.5：使用精炼后的阈值
-		if hp_ratio < defender.relic_low_hp_threshold:
-			damage = max(1, int(damage * (1.0 - defender.relic_low_hp_damage_reduce)))
-			print("守护遗物：低血量减伤 %d%%" % int(defender.relic_low_hp_damage_reduce * 100))
 
 	if BossMechanicManager:
 		damage = BossMechanicManager.modify_damage_to_boss(attacker, defender, damage)
 
 	var defeated = defender.apply_damage(damage)
-
 	SignalBus.request_damage_popup.emit(defender.global_position, damage, is_crit, false, false)
 	_play_hurt_effect(defender, attacker)
 
 	var ls_bonus : float = 0.0
 	for slot in attacker.armor_slots:
-		if slot:
-			ls_bonus += slot.get_affix_value_float("lifesteal")
+		if slot: ls_bonus += slot.get_affix_value_float("lifesteal")
 	if ls_bonus > 0.0 and damage > 0:
 		var heal : int = int(damage * ls_bonus)
 		var old : int = attacker.hit_points
@@ -1023,7 +781,6 @@ func _apply_damage_with_effects(defender: Unit, damage: int, attacker: Unit, is_
 		if actual > 0:
 			attacker.update_hp_label()
 			SignalBus.request_damage_popup.emit(attacker.global_position, actual, false, false, true)
-			print("[词条] 吸血 +%d" % actual)
 
 	if not defeated and defender.relic_turn_first_hit_regen > 0.0 and not defender.relic_turn_first_hit_regen_used:
 		var regen = int(damage * defender.relic_turn_first_hit_regen)
@@ -1031,7 +788,6 @@ func _apply_damage_with_effects(defender: Unit, damage: int, attacker: Unit, is_
 			defender.hit_points = mini(defender.hit_points + regen, defender.unit_stats.max_hp)
 			defender.update_hp_label()
 			SignalBus.request_damage_popup.emit(defender.global_position, regen, false, false, true)
-			print("生命遗物：本回合首次受伤回复 %d HP" % regen)
 		defender.relic_turn_first_hit_regen_used = true
 
 	if defeated and defender.relic_auto_revive_available:
@@ -1039,134 +795,77 @@ func _apply_damage_with_effects(defender: Unit, damage: int, attacker: Unit, is_
 		defender.update_hp_label()
 		SignalBus.request_damage_popup.emit(defender.global_position, defender.hit_points, false, false, true)
 		defender.relic_auto_revive_available = false
-		# ★ v4.5：凤凰精炼——复活后攻击 +20%
 		if defender.relic_phoenix_revive_attack_bonus > 0.0:
 			defender.buff_attack_percent += defender.relic_phoenix_revive_attack_bonus
-			print("[凤凰精炼] %s 复活后攻击 +%d%%" % [
-				defender.unit_stats.unit_name,
-				int(defender.relic_phoenix_revive_attack_bonus * 100)])
-		print("[凤凰之羽] %s 满血复活" % defender.unit_stats.unit_name)
 		return false
 
-	if defeated and _try_revive(defender):
-		return false
-
+	if defeated and _try_revive(defender): return false
 	return defeated
 
-
 func _consume_first_spell_free(attacker: Unit) -> bool:
-	if attacker == null:
-		return false
-	if not attacker.relic_first_spell_free_available:
-		return false
-	# ★ v4.5：剩余次数用尽就视为不可用
+	if attacker == null: return false
+	if not attacker.relic_first_spell_free_available: return false
 	if attacker.relic_first_spell_free_remaining <= 0:
 		attacker.relic_first_spell_free_available = false
 		return false
 	var wt : String = attacker.get_weapon_type()
-	if wt != "spellbook" and wt != "staff":
-		return false
-
+	if wt != "spellbook" and wt != "staff": return false
 	attacker.relic_first_spell_free_remaining -= 1
 	if attacker.relic_first_spell_free_remaining <= 0:
 		attacker.relic_first_spell_free_available = false
-
-	print("[魔力遗物] %s 施法免费（剩 %d 次）" % [
-		attacker.unit_stats.unit_name, attacker.relic_first_spell_free_remaining])
 	return true
 
-
 func _try_revive(defender: Unit) -> bool:
-	if not TalentManager.is_talent_ready(defender, "revive"):
-		return false
+	if not TalentManager.is_talent_ready(defender, "revive"): return false
 	defender.hit_points = defender.unit_stats.max_hp
 	defender.update_hp_label()
 	SignalBus.request_damage_popup.emit(defender.global_position, defender.hit_points, false, false, true)
-	print("复活触发！%s 满血复活" % defender.unit_stats.unit_name)
 	TalentManager.reset_talent(defender, "revive")
 	return true
 
-
-# ============================================================
-#  等级读取
-# ============================================================
 func _get_effective_talent_level(unit: Unit, talent_id: String) -> int:
-	if unit.unit_stats.team_id != 0:
-		return 1
+	if unit.unit_stats.team_id != 0: return 1
 	return TalentManager.get_talent_level(unit.unit_stats.unit_name, talent_id)
 
-
-# ============================================================
-#  反击
-# ============================================================
 func _can_counter_attack(attacker: Unit, defender: Unit) -> bool:
-	if not defender.can_counter():
-		return false
-
+	if not defender.can_counter(): return false
 	var def_weapon_type = defender.get_weapon_type()
-	if def_weapon_type == "" or def_weapon_type == "staff":
-		return false
-
+	if def_weapon_type == "" or def_weapon_type == "staff": return false
 	var defender_weapon = defender.get_weapon_data()
-	if not defender_weapon:
-		return false
-
+	if not defender_weapon: return false
 	var def_min_range = defender_weapon.min_attack_range
 	var def_max_range = defender_weapon.attack_range
 	var dist = abs(defender.grid_cell.x - attacker.grid_cell.x) + abs(defender.grid_cell.y - attacker.grid_cell.y)
-
 	return dist >= def_min_range and dist <= def_max_range
 
-
 func _execute_counter(attacker: Unit, defender: Unit) -> void:
-	print(defender.unit_stats.unit_name + " 反击!")
 	var counter_damage = calculate_damage(defender, attacker)
-
 	if defender.relic_counter_damage_bonus > 0.0:
 		counter_damage = int(counter_damage * (1.0 + defender.relic_counter_damage_bonus))
-
 	var counter_bonus : float = 0.0
 	for slot in defender.armor_slots:
-		if slot:
-			counter_bonus += slot.get_affix_value_float("counter")
+		if slot: counter_bonus += slot.get_affix_value_float("counter")
 	counter_damage = int(counter_damage * (1.0 + counter_bonus))
-
 	if TalentManager.is_talent_ready(defender, "counter_boost"):
 		var level = _get_effective_talent_level(defender, "counter_boost")
-		var mult = COUNTER_BOOST_MULT[level - 1]
-		counter_damage = int(counter_damage * mult)
-		print("反击强化触发！Lv.%d 倍率 ×%.2f" % [level, mult])
+		counter_damage = int(counter_damage * COUNTER_BOOST_MULT[level - 1])
 		TalentManager.reset_talent(defender, "counter_boost")
-
-	print("反击伤害: ", counter_damage)
-
 	await _play_lunge_attack(defender, attacker)
 	await get_tree().create_timer(PRE_DAMAGE_DELAY, true, false, true).timeout
-
 	var attacker_dead = attacker.apply_damage(counter_damage)
 	_play_hurt_effect(attacker, defender)
 	SignalBus.request_damage_popup.emit(attacker.global_position, counter_damage, false, false, false)
-
 	await get_tree().create_timer(POST_DAMAGE_DELAY, true, false, true).timeout
-
 	if attacker_dead:
-		# ★ Boss 三形态拦截（Day3）——被反击方是 Boss 时也走复活
-		if _try_boss_revive(attacker, defender):
-			return
-		print(attacker.unit_stats.unit_name + " 阵亡！")
+		if _try_boss_revive(attacker, defender): return
 		_on_kill(defender, attacker)
 		await _play_death_animation(attacker)
 		UnitManager.unregister_unit(attacker)
 		attacker.queue_free()
 
-
 func _is_alive(u: Unit) -> bool:
 	return u != null and is_instance_valid(u) and u.hit_points > 0
 
-
-# ============================================================
-#  攻击结束处理
-# ============================================================
 func _finish_attack(attacker: Unit, _defender: Unit, free_action: bool = false) -> void:
 	if free_action:
 		attacker.has_attacked = true
@@ -1176,38 +875,28 @@ func _finish_attack(attacker: Unit, _defender: Unit, free_action: bool = false) 
 		attacker.mark_attacked()
 	_post_attack_check(attacker)
 
-
 func _show_menu_after_action(unit: Unit):
 	_post_attack_check(unit)
 
-
 func _post_attack_check(unit: Unit):
-	if TurnManager.current_turn_team != TurnManager.Team.PLAYER:
-		return
-	if unit.unit_stats.team_id != 0:
-		return
-	if unit.remaining_move < 0:
-		unit.remaining_move = 0
-
+	if TurnManager.current_turn_team != TurnManager.Team.PLAYER: return
+	if unit.unit_stats.team_id != 0: return
+	if unit.remaining_move < 0: unit.remaining_move = 0
 	if unit.has_acted or not unit.can_act_this_turn:
 		TurnManager.finish_unit_action(unit)
 		InputManager.selected_unit = null
 		InputManager.interaction_phase = InputManager.Phase.IDLE
 		return
-
 	InputManager.selected_unit = unit
 	InputManager.interaction_phase = InputManager.Phase.IDLE
 	SignalBus.request_show_info.emit(unit)
 
-
 func _face_each_other(attacker: Unit, defender: Unit):
-	if not is_instance_valid(attacker) or not is_instance_valid(defender):
-		return
+	if not is_instance_valid(attacker) or not is_instance_valid(defender): return
 	var dir = defender.grid_cell - attacker.grid_cell
 	if dir.x != 0:
 		attacker.set_facing_direction(Vector2(sign(dir.x), 0))
 		defender.set_facing_direction(Vector2(-sign(dir.x), 0))
-
 
 func get_unit_attack_stats(unit: Unit) -> Dictionary:
 	var weapon = unit.get_weapon_data()
@@ -1225,7 +914,5 @@ func get_unit_attack_stats(unit: Unit) -> Dictionary:
 			stats["heal_amount"] = weapon.heal_effect.get("base_heal", 0)
 		return stats
 	else:
-		return {
-			"attack": 0, "magic_attack": 0, "heal_amount": 0,
-			"attack_range": 0, "min_attack_range": 0, "attack_style": "standard"
-		}
+		return {"attack": 0, "magic_attack": 0, "heal_amount": 0,
+			"attack_range": 0, "min_attack_range": 0, "attack_style": "standard"}
