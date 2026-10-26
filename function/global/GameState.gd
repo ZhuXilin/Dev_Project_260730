@@ -322,20 +322,6 @@ func is_unit_dead(unit_name: String, display_name: String) -> bool:
 			return ud.is_dead
 	return false
 
-func revive_unit(unit_name: String, display_name: String) -> bool:
-	var key : String = "%s|%s" % [unit_name, display_name]
-	for ud in party:
-		if ud.unit_name == unit_name and ud.display_name == display_name:
-			if not ud.is_dead: return false
-			ud.is_dead = false
-			ud.hit_points = ud.max_hp
-			var removed : int = 0
-			for m in party:
-				if m.sacrifice_buff_sources.has(key):
-					m.sacrifice_buff_sources.erase(key)
-					removed += 1
-			return true
-	return false
 
 func revive_all_units():
 	for ud in party:
@@ -558,3 +544,6 @@ func set_npc_avatar(npc_id: String, avatar_id: String):
 	if npc_id == "" or avatar_id == "": return
 	unlocked_npc_avatars[npc_id] = avatar_id
 	SaveManager.auto_save()
+
+func remove_aura_from_passives(aura_id: String) -> bool:
+	return party_state.remove_aura_from_passives(aura_id)

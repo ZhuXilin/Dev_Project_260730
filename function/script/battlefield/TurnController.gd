@@ -183,12 +183,9 @@ func apply_team_buffs() -> void:
 	_apply_core_trait_auras()
 
 func _sync_auras_to_units() -> void:
-	var aura_ids : Array = GameState.get_auras_from_passives()
-	for unit in UnitManager.unit_list:
-		if unit.unit_stats.team_id != 0: continue
-		unit.active_auras.clear()
-		for aid in aura_ids:
-			unit.active_auras[aid] = true
+	# ★ 光环改为战场一次性使用：不再把被动槽里的光环自动同步到 active_auras
+	# 玩家通过 HUD 的「光环」按钮手动激活（见 Battlefield._on_aura_button_pressed）
+	pass
 
 func _apply_flame_resonance() -> void:
 	var resonance : Dictionary = LevelManager.current_resonance

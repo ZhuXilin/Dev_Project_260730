@@ -940,7 +940,7 @@ func _get_node_description(node: MapNode) -> String:
 		MapNode.NodeType.ELITE:
 			base = "精英战斗\n敌人更强，奖励更好"
 		MapNode.NodeType.FORGE:
-			base = "铁匠铺\n合成防具 / 升级武器"
+			base = "移动铁匠\n合成防具 / 升级武器"
 		MapNode.NodeType.TREASURE:
 			base = "宝箱"
 		MapNode.NodeType.BOSS:

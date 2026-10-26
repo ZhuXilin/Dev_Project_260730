@@ -416,9 +416,13 @@ func on_relic_view_btn_pressed() -> void:
 	SoundManager.play_select_sound() # ★
 
 
-# ============================================================
-#  遗物图标
-# ============================================================
+func _on_aura_icon_clicked(aid: String):
+	if AuraManager.use_aura_in_battle(aid):
+		SignalBus.request_hint_override.emit("★ 光环生效：%s" % AuraManager.get_display_name(aid), 1.5)
+		SoundManager.play_get_item_sound()
+		update_relic_icons() # 刷新 UI，光环消失，槽位空出
+
+
 func update_relic_icons() -> void:
 	for child in _bf.relic_icon_container.get_children():
 		child.queue_free()
@@ -447,19 +451,25 @@ func update_relic_icons() -> void:
 			btn.tooltip_text = data.get("description", "")
 			_bf.relic_icon_container.add_child(btn)
 			has_any = true
+			
 		elif p is Dictionary and p.get("type", "") == "aura":
 			var aid : String = p.get("aura_id", "")
 			var ad : Dictionary = AuraManager.get_aura(aid)
 			if ad.is_empty():
 				continue
+				
 			var btn2 := Button.new()
 			btn2.add_theme_font_size_override("font_size", 6)
 			btn2.focus_mode = Control.FOCUS_NONE
 			btn2.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 			btn2.custom_minimum_size = Vector2(0, 14)
 			btn2.text = "✦ " + ad.get("name", aid)
-			btn2.disabled = true
-			btn2.tooltip_text = ad.get("description", "")
+			
+			# ★ 允许点击使用
+			btn2.disabled = false
+			btn2.tooltip_text = ad.get("description", "") + "\n\n点击使用（立即生效，本场消耗）"
+			btn2.pressed.connect(_on_aura_icon_clicked.bind(aid))
+			
 			_bf.relic_icon_container.add_child(btn2)
 			has_any = true
 

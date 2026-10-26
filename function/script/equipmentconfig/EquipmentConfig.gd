@@ -385,7 +385,7 @@ func _build_ui_inner():
 			if left_column: left_column.size_flags_vertical = Control.SIZE_EXPAND_FILL
 
 		Mode.MAP_SHOP_REST:
-			mode_label.text = "铁匠商店"
+			mode_label.text = "移动铁匠 · 商店"
 			close_btn.visible = true
 			close_btn.text = "继续探索"
 			confirm_btn.visible = false
@@ -440,7 +440,7 @@ func _build_ui_inner():
 			if left_column: left_column.size_flags_vertical = Control.SIZE_EXPAND_FILL
 
 		Mode.FORGE:
-			mode_label.text = "铁匠铺"
+			mode_label.text = "移动铁匠"
 			close_btn.visible = true
 			close_btn.text = "继续探索"
 			confirm_btn.visible = false
@@ -1793,7 +1793,7 @@ func _ensure_forge_recall_button() -> void:
 		return
 	_forge_recall_btn = Button.new()
 	_forge_recall_btn.name = "ForgeRecallBtn"
-	_forge_recall_btn.text = "问铁匠"
+	_forge_recall_btn.text = "问移动铁匠"
 	_forge_recall_btn.focus_mode = Control.FOCUS_NONE
 	_forge_recall_btn.add_theme_font_size_override("font_size", 8)
 	_forge_recall_btn.size = Vector2(60, 18)

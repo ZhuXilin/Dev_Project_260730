@@ -115,3 +115,12 @@ func is_aura_equipped(aura_id: String) -> bool:
 		if p is Dictionary and p.get("type", "") == "aura" and p.get("aura_id", "") == aura_id:
 			return true
 	return false
+
+func remove_aura_from_passives(aura_id: String) -> bool:
+	if aura_id == "": return false
+	for i in range(MAX_PASSIVE_SLOTS):
+		var p : Variant = equipped_passives[i]
+		if p is Dictionary and p.get("type", "") == "aura" and p.get("aura_id", "") == aura_id:
+			equipped_passives[i] = null
+			return true
+	return false

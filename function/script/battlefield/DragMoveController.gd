@@ -45,7 +45,11 @@ func get_drag_hint() -> String:
 	if _hovered_target != null:
 		var is_healer = (_pressing_unit.get_weapon_type() == "staff")
 		if is_healer:
-			return "释放左键回复 HP"
+			if _hovered_target.unit_stats.team_id == _pressing_unit.unit_stats.team_id:
+				return "释放左键回复 HP"
+			if _is_target_in_range(_hovered_target):
+				return "释放左键魔法攻击"
+			return "释放左键移动并魔法攻击"
 		if _is_target_in_range(_hovered_target):
 			return "释放左键攻击"
 		return "释放左键移动并攻击"
@@ -379,13 +383,10 @@ func _is_target_in_range(target : Unit) -> bool:
 func _is_valid_target(target : Unit) -> bool:
 	var unit = _pressing_unit
 	if unit == null or target == null: return false
-	var is_healer = (unit.get_weapon_type() == "staff")
-	var same_team = (target.unit_stats.team_id == unit.unit_stats.team_id)
-	if is_healer:
-		return same_team
-	else:
-		return not same_team
-
+	if unit.get_weapon_type() == "staff":
+		return true   # ★ 友军治疗 / 敌军魔法攻击
+	return target.unit_stats.team_id != unit.unit_stats.team_id
+	
 
 func _find_attack_path(target : Unit) -> Array:
 	var unit = _pressing_unit

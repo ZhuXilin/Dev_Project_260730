@@ -65,6 +65,9 @@ func get_active_skill_range_bonus(unit: Unit) -> int:
 			bonus = maxi(bonus, int(data.effect_params.get("range_bonus", 0)))
 	return bonus
 
+# ============================================================
+#  ★ v4.6：法杖双用 —— 伤友军优先治疗，无伤友军时打敌人，无敌人时不返回满血友军
+# ============================================================
 func get_attackable_targets(unit: Unit) -> Array:
 	var weapon_data = unit.get_weapon_data()
 	if not weapon_data: return []
@@ -73,7 +76,9 @@ func get_attackable_targets(unit: Unit) -> Array:
 	var min_range : int = weapon_data.min_attack_range
 	max_range += get_active_skill_range_bonus(unit)
 	var is_healer = (weapon_data.category == "staff" or weapon_data.attack_style == "heal")
-	var targets = []
+
+	var heal_targets : Array = []
+	var attack_targets : Array = []
 	for x in range(-max_range, max_range+1):
 		for y in range(-max_range, max_range+1):
 			var dist = abs(x) + abs(y)
@@ -83,27 +88,49 @@ func get_attackable_targets(unit: Unit) -> Array:
 			var target = UnitManager.get_unit_at_cell(cell)
 			if not target or target.hit_points <= 0: continue
 			if is_healer:
-				if target.unit_stats.team_id == unit.unit_stats.team_id: targets.append(target)
+				if target.unit_stats.team_id == unit.unit_stats.team_id:
+					heal_targets.append(target)
+				else:
+					attack_targets.append(target)
 			else:
-				if target.unit_stats.team_id != unit.unit_stats.team_id: targets.append(target)
+				if target.unit_stats.team_id != unit.unit_stats.team_id:
+					attack_targets.append(target)
+
 	if is_healer:
-		targets.sort_custom(func(a, b):
-			return (a.unit_stats.max_hp - a.hit_points) > (b.unit_stats.max_hp - b.hit_points))
-	else:
-		targets.sort_custom(func(a, b):
-			var da = abs(a.grid_cell.x - unit.grid_cell.x) + abs(a.grid_cell.y - unit.grid_cell.y)
-			var db = abs(b.grid_cell.x - unit.grid_cell.x) + abs(b.grid_cell.y - unit.grid_cell.y)
-			return da < db)
-	return targets
+		# 优先：伤友军 → 治疗（按血量损失从高到低）
+		var wounded = heal_targets.filter(func(t): return t.hit_points < t.unit_stats.max_hp)
+		if not wounded.is_empty():
+			wounded.sort_custom(func(a, b):
+				return (a.unit_stats.max_hp - a.hit_points) > (b.unit_stats.max_hp - b.hit_points))
+			return wounded
+		# 其次：敌人 → 魔法攻击（按距离从近到远）
+		if not attack_targets.is_empty():
+			attack_targets.sort_custom(func(a, b):
+				var da = abs(a.grid_cell.x - unit.grid_cell.x) + abs(a.grid_cell.y - unit.grid_cell.y)
+				var db = abs(b.grid_cell.x - unit.grid_cell.x) + abs(b.grid_cell.y - unit.grid_cell.y)
+				return da < db)
+			return attack_targets
+		# 最后：没有伤友军也没有敌人 → 空数组（不治疗满血友军，避免浪费回合）
+		return []
+
+	attack_targets.sort_custom(func(a, b):
+		var da = abs(a.grid_cell.x - unit.grid_cell.x) + abs(a.grid_cell.y - unit.grid_cell.y)
+		var db = abs(b.grid_cell.x - unit.grid_cell.x) + abs(b.grid_cell.y - unit.grid_cell.y)
+		return da < db)
+	return attack_targets
 
 func attempt_attack_after_move(unit: Unit):
 	var targets = get_attackable_targets(unit)
 	if targets.size() > 0:
 		await execute_attack(unit, targets[0])
 
+# ============================================================
+#  ★ v4.6：法杖（category = staff）对敌按魔法结算
+# ============================================================
 func _is_magic_attack(weapon_data: ItemData) -> bool:
 	if weapon_data == null: return false
 	if weapon_data.attack_style == "magic": return true
+	if weapon_data.category == "staff": return true
 	if weapon_data.magic_attack.get("ignore_defense", false): return true
 	return false
 
@@ -186,6 +213,64 @@ func calculate_damage(attacker: Unit, defender: Unit) -> int:
 		if taken_mult > 1.0: damage = int(damage * taken_mult)
 	return max(1, damage)
 
+# ============================================================
+#  ★ v4.6 新增：无视防御版伤害计算
+#  与 calculate_damage 的差异：跳过 _calc_reduction / _calc_penetration，
+#  直接把“总攻击力”当伤害（保底 1 点）。其余步骤完全一致。
+#  保留 BossMechanicManager.modify_damage_to_boss（由 _apply_damage_with_effects 调用）
+#  保留 parry / block / heavy_attack 倍率 / 玩家枯竭受伤倍率。
+# ============================================================
+func _calculate_damage_ignore_defense(attacker: Unit, defender: Unit) -> int:
+	if attacker == null or defender == null:
+		return 0
+	var weapon_data = attacker.get_weapon_data()
+	if not weapon_data:
+		return 1
+	var is_magic : bool = _is_magic_attack(weapon_data)
+	var quality_mult : float = QUALITY_MULT.get(weapon_data.quality, 1.0)
+	var upgrade_lv : int = attacker.weapon_slot.upgrade_level if attacker.weapon_slot else 0
+	var base_attack : float = WeaponUpgradeHelper.get_effective_base_attack(weapon_data, upgrade_lv) * quality_mult
+	var modifier = weapon_data.modifier
+	var atk_bonus : float = 0.0
+	for attr in modifier:
+		atk_bonus += attacker.unit_stats.get_effective_attr(attr) * modifier[attr]
+	var total_attack : float = base_attack + atk_bonus + attacker.buff_attack_flat
+	if is_magic:
+		total_attack += attacker.buff_magic_attack_flat
+	total_attack *= (1.0 + attacker.buff_attack_percent)
+	if attacker.relic_strength_scale_damage > 0.0:
+		var str_val : int = attacker.unit_stats.get_effective_attr("strength")
+		total_attack *= (1.0 + str_val * attacker.relic_strength_scale_damage)
+
+	# 核心差异：不做减伤率、不做穿透、不做 10% 保底 —— 直接按总攻击力结算
+	var damage : int = max(1, int(total_attack))
+
+	# heavy 武器倍率（与 calculate_damage 完全一致）
+	if not weapon_data.heavy_attack.is_empty():
+		var mult : float = 1.0
+		if attacker.has_core_trait("charge"):
+			var per_stack : float = 0.2
+			var max_mult : float = float(weapon_data.heavy_attack.get("charge_multiplier", 2.0))
+			mult = minf(1.0 + per_stack * float(attacker.charge_stacks), max_mult)
+		else:
+			mult = float(weapon_data.heavy_attack.get("damage_multiplier", 1.0))
+		damage = int(damage * mult)
+
+	# 攻击方防具词条的固定攻击（与 calculate_damage 一致）
+	var atk_affix_bonus : int = 0
+	for slot in attacker.armor_slots:
+		if slot:
+			atk_affix_bonus += slot.get_affix_value("attack_flat")
+	damage += atk_affix_bonus
+
+	# 玩家侧枯竭受伤倍率：走最终乘区（与 calculate_damage 一致）
+	if defender.unit_stats.team_id == 0:
+		var taken_mult : float = SoulFireManager.get_damage_taken_mult()
+		if taken_mult > 1.0:
+			damage = int(damage * taken_mult)
+
+	return max(1, damage)
+
 func _roll_crit(attacker: Unit) -> bool:
 	var chance : float = CRIT_BASE_CHANCE
 	chance += attacker.unit_stats.get_effective_attr("dexterity") * CRIT_PER_DEXTERITY
@@ -221,15 +306,14 @@ func execute_attack(attacker: Unit, defender: Unit, forced_skill_id: String = ""
 	_face_each_other(attacker, defender)
 	Globals.is_performing_action = true
 
-	if attacker.get_weapon_type() == "staff":
+	# ★ v4.6：法杖仅对友军走治疗；对敌军走下面的攻击流程（魔法伤害）
+	if attacker.get_weapon_type() == "staff" and defender.unit_stats.team_id == attacker.unit_stats.team_id:
 		await _execute_heal(attacker, defender, forced_skill_id)
 		Globals.is_performing_action = false
 		return true
 
 	await _play_lunge_attack(attacker, defender)
 	var damage = calculate_damage(attacker, defender)
-	if attacker.has_core_trait("charge") and attacker.charge_stacks > 0:
-		attacker.charge_stacks = 0
 
 	var active_skill_id : String = ""
 	var active_skill_data = null
@@ -244,20 +328,26 @@ func execute_attack(attacker: Unit, defender: Unit, forced_skill_id: String = ""
 				print("[主动技能] %s 魂火不足" % attacker.unit_stats.unit_name)
 
 	var force_crit : bool = false
-	var ignore_def : bool = false
 	var splash_percent : float = 0.0
 	var aoe_percent : float = 0.0
 	var hp_cost_percent : float = 0.0
 	var taunt_rounds : int = 0
 	if active_skill_data:
 		var ep : Dictionary = active_skill_data.effect_params
+		# ★ v4.6：无视防御 —— 用绕开减伤率的重算版本覆盖 damage
+		if bool(ep.get("ignore_defense", false)):
+			damage = _calculate_damage_ignore_defense(attacker, defender)
 		damage = int(damage * float(ep.get("damage_mult", 1.0)))
 		force_crit = bool(ep.get("force_crit", false))
-		ignore_def = bool(ep.get("ignore_defense", false))
 		splash_percent = float(ep.get("splash_percent", 0.0))
 		aoe_percent = float(ep.get("aoe_percent", 0.0))
 		hp_cost_percent = float(ep.get("hp_cost_percent", 0.0))
 		taunt_rounds = int(ep.get("taunt_rounds", 0))
+
+	# ★ v4.6：charge_stacks 在两条 damage 路径都跑完之后统一清 0，
+	#   防止 heavy 武器的蓄力倍率在“无视防御”路径里被提前清零
+	if attacker.has_core_trait("charge") and attacker.charge_stacks > 0:
+		attacker.charge_stacks = 0
 
 	var target_key = "%s_%d_%d" % [defender.unit_stats.unit_name, defender.grid_cell.x, defender.grid_cell.y]
 	if attacker.zeal_target == target_key:
@@ -499,8 +589,6 @@ func execute_attack(attacker: Unit, defender: Unit, forced_skill_id: String = ""
 	_finish_attack(attacker, defender, free_action)
 	Globals.is_performing_action = false
 	return true
-
-# ...（其余 _execute_heal / _apply_burning_splash / _play_lunge_attack / _play_hurt_effect / _play_death_animation / _on_kill / _apply_splash / _apply_aoe / _apply_damage_with_effects / _consume_first_spell_free / _try_revive / _get_effective_talent_level / _can_counter_attack / _execute_counter / _is_alive / _finish_attack / _show_menu_after_action / _post_attack_check / _face_each_other / get_unit_attack_stats 保持上一轮完整版本一致）
 
 func _execute_heal(attacker: Unit, defender: Unit, forced_skill_id: String = "") -> bool:
 	if defender.unit_stats.team_id != attacker.unit_stats.team_id:
