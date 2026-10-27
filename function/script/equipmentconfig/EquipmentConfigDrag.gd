@@ -22,13 +22,17 @@ func _init(p):
 func start_drag(btn: Button):
 	if btn.disabled: return
 	var slot_type : String = btn.get_meta("slot_type", "")
+	
+	# ★ 彻底拦截武器相关拖拽
+	if slot_type == "weapon" or slot_type == "library_weapon":
+		return
+		
 	if panel.current_mode == panel.Mode.DEPLOY and slot_type == "armor": return
 	var item_id : String = btn.get_meta("item_id", "")
 	var talent_id : String = btn.get_meta("talent_id", "")
 	var refine_id : String = btn.get_meta("refine_id", "")
 	if slot_type == "passive_slot" and item_id == "" and refine_id == "": return
 	if slot_type in ["library_talent", "talent"] and talent_id == "": return
-	if slot_type in ["library_weapon", "weapon"] and item_id == "": return
 	if slot_type == "shop_item" and item_id == "": return
 	if slot_type == "forge_slot" and item_id == "": return
 	if slot_type == "armor" and item_id == "": return
@@ -59,11 +63,10 @@ func start_drag(btn: Button):
 					var entry_dict : Dictionary = entry
 					drag_meta["item_data"] = entry_dict["item_data"]
 					drag_meta["item_price"] = entry_dict["price"]
-	if slot_type == "weapon" and (panel.current_mode == panel.Mode.FORGE or (panel._is_shop_rest_mode() and panel.current_tab == "arena_forge")):
-		panel._forge.update_upgrade_slot_for_drag(btn.get_meta("unit_idx", -1))
+					
+	# ★ 修复偏移：计算鼠标相对于按钮左上角的距离
 	var btn_rect : Rect2 = btn.get_global_rect()
-	var btn_center : Vector2 = btn_rect.position + btn_rect.size / 2
-	drag_grab_offset = panel.get_global_mouse_position() - btn_center
+	drag_grab_offset = panel.get_global_mouse_position() - btn_rect.position
 	_begin_dragging()
 
 
@@ -72,31 +75,25 @@ func _begin_dragging():
 	is_dragging = true
 	var btn : Button = drag_source
 	if not btn: return
-	btn.set_meta("_original_disabled", btn.disabled)
-	btn.set_meta("_original_modulate", btn.modulate)
-	btn.set_meta("_original_text", btn.text)
-	btn.set_meta("_original_custom_minimum_size", btn.custom_minimum_size)
-	var current_size : Vector2 = btn.custom_minimum_size
-	if current_size == Vector2.ZERO or current_size.y < 10: current_size = btn.size
-	if current_size.y < 10: current_size.y = 16
-	btn.custom_minimum_size = current_size
-	btn.disabled = true
-	btn.modulate = Color(0.3, 0.3, 0.3, 1.0)
-	btn.text = "空"
+	
+	# 1. 创建预览图
 	drag_preview = Style.create_drag_preview(btn)
 	var canvas : Node = panel.get_parent()
 	if canvas and canvas is CanvasLayer: canvas.add_child(drag_preview)
 	else: panel.add_child(drag_preview)
+	
+	# 2. 只把原按钮变暗，不修改任何尺寸、不清空文字，彻底防止 UI 重排
+	btn.set_meta("_original_modulate", btn.modulate)
+	btn.modulate = Color(0.3, 0.3, 0.3, 1.0) 
+	
 	update_drag_preview()
 	_update_targets_visuals()
 
-
-func update_drag_preview():
-	if not drag_preview: return
-	var mouse_pos : Vector2 = panel.get_global_mouse_position()
-	var preview_center : Vector2 = mouse_pos - drag_grab_offset
-	drag_preview.position = preview_center - drag_preview.size / 2
-	drag_preview.z_index = 100
+func _restore_drag_source():
+	if not is_instance_valid(drag_source): return
+	var orig_mod : Variant = drag_source.get_meta("_original_modulate", Color.WHITE)
+	drag_source.modulate = orig_mod
+	drag_source.remove_meta("_original_modulate")
 
 
 func end_drag():
@@ -107,15 +104,19 @@ func end_drag():
 		_reset_targets_visuals(); _restore_drag_source()
 		drag_source = null; drag_meta = {}
 		return
+		
 	var mouse_pos : Vector2 = panel.get_global_mouse_position()
 	var target : Control = _get_target_from_position(mouse_pos)
 	var valid : bool = (target != null) and panel._is_valid_drop(drag_meta, target)
 	var drop_data : Dictionary = drag_meta.duplicate()
 	var source_type : String = drop_data.get("slot_type", "")
+	
+	# 清理拖拽视觉
 	if drag_preview: drag_preview.queue_free(); drag_preview = null
 	is_dragging = false
 	_reset_targets_visuals()
-	_restore_drag_source()
+	_restore_drag_source() # 恢复原按钮的亮度，不改变尺寸
+	
 	if valid:
 		panel._execute_drop.call_deferred(drop_data, target)
 		SoundManager.play_select_sound()
@@ -132,11 +133,21 @@ func end_drag():
 			SoundManager.play_cancel_sound()
 			if source_type == "shop_item":
 				_hint_shop_purchase_failed(drop_data, target)
-			panel._schedule_build_ui()
+				
+			# ★ 移除：panel._schedule_build_ui()，防止无意义的重新排版引起整个画面跳动
+			
 	if source_type == "weapon" and (panel.current_mode == panel.Mode.FORGE or (panel._is_shop_rest_mode() and panel.current_tab == "arena_forge")):
 		panel._forge.refresh_forge_upgrade_ui()
+		
 	drag_source = null
 	drag_meta = {}
+
+
+func update_drag_preview():
+	if not drag_preview: return
+	# 根据鼠标的全局坐标减去抓取偏移量，确保图片与鼠标完美贴合
+	drag_preview.global_position = panel.get_global_mouse_position() - drag_grab_offset
+	drag_preview.z_index = 100
 
 
 func _hint_shop_purchase_failed(data: Dictionary, target: Control) -> void:
@@ -162,15 +173,12 @@ func _hint_shop_purchase_failed(data: Dictionary, target: Control) -> void:
 		var free : int = unit.max_armor_slots - used
 		panel._show_detail_in_zone("无法购买 %s\n需要 %d 格，单位只剩 %d 格" % [item_name, need, free]); return
 	if ttype == "weapon":
-		if item_data.type != "weapon":
-			panel._show_detail_in_zone("无法购买 %s\n该物品不是武器" % item_name); return
-		panel._show_detail_in_zone("无法购买 %s" % item_name); return
+		panel._show_detail_in_zone("无法购买 %s\n该物品不是防具，且不支持武器" % item_name); return
 	panel._show_detail_in_zone("无法购买 %s\n请拖到对应的单位槽位" % item_name)
 
 
 # ============================================================
-#  ★ 第十一批：统一目标收集（按优先级从"具体"到"一般"）
-#  返回一个按点击优先级排序的目标数组，两个调用者共享。
+#  目标收集（按优先级从"具体"到"一般"）
 # ============================================================
 func _collect_targets() -> Array:
 	var targets : Array = []
@@ -182,7 +190,6 @@ func _collect_targets() -> Array:
 		targets.append(panel.discard_zone)
 
 	# ---- 2. 单位列（含 armor_group 嵌套）----
-	# ★ 新增判空，防止节点被改丢时报错
 	if panel.unit_container == null:
 		return targets
 	
@@ -224,27 +231,11 @@ func _collect_targets() -> Array:
 	return targets
 
 
-func _restore_drag_source():
-	if not is_instance_valid(drag_source): return
-	drag_source.disabled = drag_source.get_meta("_original_disabled", false)
-	var orig_mod : Variant = drag_source.get_meta("_original_modulate", Color.WHITE)
-	drag_source.modulate = orig_mod
-	var orig_text : Variant = drag_source.get_meta("_original_text", "")
-	drag_source.text = orig_text
-	var orig_size : Variant = drag_source.get_meta("_original_custom_minimum_size", Vector2.ZERO)
-	drag_source.custom_minimum_size = orig_size
-	drag_source.remove_meta("_original_disabled")
-	drag_source.remove_meta("_original_modulate")
-	drag_source.remove_meta("_original_text")
-	drag_source.remove_meta("_original_custom_minimum_size")
-
-
 # ============================================================
 #  目标收集
 # ============================================================
 func _get_all_target_controls() -> Array[Control]:
 	var targets : Array[Control] = []
-	# ★ 单位列（含 armor_group 嵌套）
 	for col in panel.unit_container.get_children():
 		for child in col.get_children():
 			if child is Button:
@@ -255,32 +246,25 @@ func _get_all_target_controls() -> Array[Control]:
 	if panel.relic_container:
 		for btn in panel.relic_container.get_children():
 			if btn is Button: targets.append(btn)
-	# 待领取区作为丢弃目标
 	if panel._pending_container and panel._pending_section and panel._pending_section.visible:
 		for btn in panel._pending_container.get_children():
 			if btn is Button: targets.append(btn)
-	# DEPLOY / MAP
 	if (panel.current_mode == panel.Mode.DEPLOY or panel.current_mode == panel.Mode.MAP) and panel.shop_container.visible:
 		for btn in panel.shop_container.get_children():
 			if btn is Button and not btn.disabled: targets.append(btn)
-	# Arena shop
 	if panel._is_shop_rest_mode() and panel.current_tab == "arena_shop" and panel.shop_container.visible:
 		for btn in panel.shop_container.get_children():
 			if btn is Button and not btn.disabled: targets.append(btn)
-	# FORGE / arena_forge
 	if (panel.current_mode == panel.Mode.FORGE or (panel._is_shop_rest_mode() and panel.current_tab == "arena_forge")) and panel.shop_container.visible:
 		for btn in panel.shop_container.get_children():
 			if btn is Button and btn.get_meta("slot_type", "") == "forge_slot":
 				targets.append(btn)
-	# 武器升级按钮
 	if (panel.current_mode == panel.Mode.FORGE or (panel._is_shop_rest_mode() and panel.current_tab == "arena_forge")) \
 			and panel._forge.forge_upgrade_btn and is_instance_valid(panel._forge.forge_upgrade_btn):
 		if not panel._forge.forge_upgrade_btn.disabled: targets.append(panel._forge.forge_upgrade_btn)
-	# 紫装重铸槽
 	if (panel.current_mode == panel.Mode.FORGE or (panel._is_shop_rest_mode() and panel.current_tab == "arena_forge")) \
 			and panel._forge.forge_reforge_btn and is_instance_valid(panel._forge.forge_reforge_btn):
 		if not panel._forge.forge_reforge_btn.disabled: targets.append(panel._forge.forge_reforge_btn)
-	# 丢弃区
 	if panel.discard_zone.visible: targets.append(panel.discard_zone)
 	return targets
 
@@ -316,7 +300,6 @@ func _find_control_at_position(pos: Vector2) -> Control:
 			continue
 		if t is Button:
 			var b : Button = t
-			# 拖拽源不能是 disabled（与落点查找行为分离）
 			if b.disabled:
 				continue
 		if t.get_global_rect().grow(BUFFER).has_point(pos):
@@ -329,7 +312,6 @@ func _get_target_from_position(global_pos: Vector2) -> Control:
 	for t in _collect_targets():
 		if t == null or not is_instance_valid(t):
 			continue
-		# forge_slot 允许空槽（即使 disabled 也能接收）
 		if t is Button:
 			var b : Button = t
 			var st : String = b.get_meta("slot_type", "")

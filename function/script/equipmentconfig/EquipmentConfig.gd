@@ -56,6 +56,9 @@ var _pending_container : HBoxContainer = null
 
 
 func _ready():
+	# ★ 强制自身铺满全屏，防止被其他容器拉伸或超出
+	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	
 	_forge = EquipmentConfigForge.new(self)
 	_drag = EquipmentConfigDrag.new(self)
 	_detail = EquipmentConfigDetail.new(self)
@@ -260,14 +263,94 @@ func _build_ui():
 
 
 func _build_ui_inner():
-	var main_hbox = $VBoxContainer/MainHBox
-	var bottom_hbox = $VBoxContainer/BottomHBox
+	var vbox = $VBoxContainer
+	if vbox:
+		vbox.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		vbox.offset_left = 2
+		vbox.offset_top = 2
+		vbox.offset_right = -2
+		vbox.offset_bottom = -2
+		vbox.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		vbox.add_theme_constant_override("separation", 2)
+
+	var top_bar = get_node_or_null("VBoxContainer/TopBar")
+	if top_bar:
+		top_bar.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+		top_bar.custom_minimum_size = Vector2(0, 16)
+
+	var gold_lbl = get_node_or_null("VBoxContainer/GoldLabel")
+	if gold_lbl:
+		gold_lbl.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+		gold_lbl.custom_minimum_size = Vector2(0, 12)
+
+	var main_hbox = get_node_or_null("VBoxContainer/MainHBox")
 	if main_hbox:
 		main_hbox.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		main_hbox.custom_minimum_size = Vector2(0, 0) 
+		main_hbox.clip_contents = true
+
+	var bottom_hbox = get_node_or_null("VBoxContainer/BottomHBox")
 	if bottom_hbox:
-		bottom_hbox.custom_minimum_size = Vector2(0, 24)
-		bottom_hbox.size_flags_vertical = Control.SIZE_FILL
+		bottom_hbox.size_flags_vertical = Control.SIZE_SHRINK_END
+		bottom_hbox.custom_minimum_size = Vector2(0, 20)
 		bottom_hbox.alignment = BoxContainer.ALIGNMENT_CENTER
+
+	# ★ 锁死左侧信息栏宽度，防止文字变长挤爆中间
+	var left_info = get_node_or_null("VBoxContainer/MainHBox/LeftInfoColumn")
+	if left_info:
+		left_info.custom_minimum_size = Vector2(130, 0) 
+		left_info.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		left_info.size_flags_horizontal = Control.SIZE_FILL
+
+	var detail_zone = get_node_or_null("VBoxContainer/MainHBox/LeftInfoColumn/DetailZone")
+	if detail_zone:
+		# ★ 锁死左侧面板高度，防止换行文字把整个 HBox 撑高
+		detail_zone.custom_minimum_size = Vector2(130, 150) 
+		detail_zone.size_flags_vertical = Control.SIZE_FILL 
+		detail_zone.clip_contents = true
+
+	var left_vbox = get_node_or_null("VBoxContainer/MainHBox/LeftVBox")
+	if left_vbox:
+		left_vbox.custom_minimum_size = Vector2(0, 0)
+		left_vbox.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		left_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		left_vbox.clip_contents = true
+
+	# ★ 锁死右侧信息栏宽度，解决切换 Tab 导致的左右抖动
+	var right_scroll = get_node_or_null("VBoxContainer/MainHBox/RightScroll")
+	if right_scroll and right_scroll is ScrollContainer:
+		right_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+		right_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+		right_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		right_scroll.custom_minimum_size = Vector2(140, 0) 
+		right_scroll.size_flags_horizontal = Control.SIZE_FILL
+		
+	if right_container:
+		right_container.custom_minimum_size = Vector2(0, 0)
+		right_container.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		right_container.size_flags_horizontal = Control.SIZE_FILL
+
+	if shop_scroll:
+		shop_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+		shop_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		shop_scroll.custom_minimum_size = Vector2(0, 0)
+
+	if tab_bar:
+		tab_bar.size_flags_horizontal = Control.SIZE_FILL
+		for child in tab_bar.get_children():
+			if child is Button:
+				child.clip_text = false 
+				child.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+
+	if reset_btn:
+		reset_btn.custom_minimum_size = Vector2(120, 20)
+		reset_btn.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		reset_btn.size_flags_vertical = Control.SIZE_SHRINK_END
+		reset_btn.clip_text = false 
+		
+	if discard_zone:
+		discard_zone.size_flags_vertical = Control.SIZE_SHRINK_END
+		discard_zone.custom_minimum_size = Vector2(0, 20)
 
 	var show_passive : bool = (_context.get_context_id() != "arena")
 	if relic_section: relic_section.visible = show_passive
@@ -283,8 +366,6 @@ func _build_ui_inner():
 	_update_gold_display()
 
 	shop_container.visible = false
-	discard_zone.visible = false
-	reset_btn.visible = false
 	tab_bar.visible = false
 	right_container.visible = true
 
@@ -306,18 +387,15 @@ func _build_ui_inner():
 			gold_label.visible = _context.show_gold()
 			tab_bar.visible = true
 			tab_bar.alignment = BoxContainer.ALIGNMENT_BEGIN
-			weapon_tab_btn.visible = true
-			weapon_tab_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-			weapon_tab_btn.text = "武器库"
+			weapon_tab_btn.visible = false
 			talent_tab_btn.visible = true
 			talent_tab_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 			talent_tab_btn.disabled = false
 			talent_tab_btn.text = "特技库"
-			if current_tab == "" or current_tab.begins_with("arena_") or current_tab == "sacrifice" or current_tab == "aura":
-				current_tab = "weapon"
+			if current_tab == "weapon" or current_tab == "":
+				current_tab = "talent"
 			_update_tab_style()
-			if current_tab == "weapon": _build_weapon_grid(shop_container)
-			else: _build_talent_grid(shop_container)
+			_build_talent_grid(shop_container)
 			shop_container.visible = true
 
 		Mode.MAP:
@@ -337,7 +415,6 @@ func _build_ui_inner():
 			_update_tab_style()
 			_build_talent_grid(shop_container)
 			shop_container.visible = true
-			discard_zone.visible = true
 
 		Mode.ARENA_REST:
 			mode_label.text = "魂之竞技场 · 备战"
@@ -365,18 +442,12 @@ func _build_ui_inner():
 				confirm_btn.modulate = Color(0.5, 0.5, 0.5)
 				_forge.build_forge_slots()
 				shop_container.visible = true
-				reset_btn.visible = false
 				_forge.display_recipe_info()
-				discard_zone.visible = false
 			else:
 				confirm_btn.disabled = false
 				confirm_btn.modulate = Color.WHITE
 				_build_shop_items()
 				shop_container.visible = true
-				reset_btn.visible = true
-				if shop_manager:
-					reset_btn.text = "刷新商店 (" + str(shop_manager.get_reset_cost()) + "G)"
-				discard_zone.visible = true
 
 		Mode.MAP_SHOP_REST:
 			mode_label.text = "移动铁匠 · 商店"
@@ -409,26 +480,16 @@ func _build_ui_inner():
 				"arena_forge":
 					_forge.build_forge_slots()
 					shop_container.visible = true
-					reset_btn.visible = false
 					_forge.display_recipe_info()
-					discard_zone.visible = false
 				"sacrifice":
 					_build_sacrifice_panel()
 					shop_container.visible = true
-					reset_btn.visible = false
-					discard_zone.visible = true
 				"aura":
 					_build_aura_panel()
 					shop_container.visible = true
-					reset_btn.visible = false
-					discard_zone.visible = true
 				_:
 					_build_shop_items()
 					shop_container.visible = true
-					reset_btn.visible = true
-					if shop_manager:
-						reset_btn.text = "刷新商店 (" + str(shop_manager.get_reset_cost()) + "G)"
-					discard_zone.visible = true
 
 		Mode.FORGE:
 			mode_label.text = "移动铁匠"
@@ -451,8 +512,9 @@ func _build_ui_inner():
 				_aura_tab_btn.visible = true
 				_aura_tab_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 
+			# ★ 默认加载商店内容
 			if current_tab == "" or (not current_tab in ["arena_shop", "arena_forge", "sacrifice", "aura"]):
-				current_tab = "arena_forge"
+				current_tab = "arena_shop"
 
 			_update_tab_style()
 			_forge.cleanup()
@@ -461,26 +523,22 @@ func _build_ui_inner():
 				"arena_shop":
 					_build_shop_items()
 					shop_container.visible = true
-					reset_btn.visible = true
-					if shop_manager:
-						reset_btn.text = "刷新商店 (" + str(shop_manager.get_reset_cost()) + "G)"
-					discard_zone.visible = true
 				"arena_forge":
 					_forge.build_forge_slots()
 					shop_container.visible = true
-					reset_btn.visible = false
-					discard_zone.visible = false
 					_forge.display_recipe_info()
 				"sacrifice":
 					_build_sacrifice_panel()
 					shop_container.visible = true
-					reset_btn.visible = false
-					discard_zone.visible = true
 				"aura":
 					_build_aura_panel()
 					shop_container.visible = true
-					reset_btn.visible = false
-					discard_zone.visible = true
+
+	reset_btn.visible = (current_tab == "arena_shop")
+	if reset_btn.visible and shop_manager:
+		reset_btn.text = "刷新商店 (" + str(shop_manager.get_reset_cost()) + "G)"
+		
+	discard_zone.visible = (current_tab != "arena_forge" and current_tab != "sacrifice" and current_tab != "aura")
 
 	if current_mode == Mode.FORGE or is_shop_rest_mode():
 		_setup_forge_narrative_ui()
@@ -491,7 +549,7 @@ func _build_ui_inner():
 
 	if reset_btn:
 		reset_btn.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-		reset_btn.clip_text = true
+		reset_btn.clip_text = false
 
 	_ensure_upgrade_shop_btn()
 	_refresh_upgrade_shop_btn()
@@ -603,13 +661,23 @@ func _make_equipped_aura_row(aid: String) -> HBoxContainer:
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 6)
 	var ad : Dictionary = AuraManager.get_aura(aid)
-	var name_lb := Label.new()
-	name_lb.text = "【%s】%s" % [ad.get("tag", ""), ad.get("name", aid)]
-	name_lb.add_theme_font_size_override("font_size", 8)
-	name_lb.custom_minimum_size = Vector2(90, 0)
-	name_lb.clip_text = true
-	name_lb.modulate = Color(0.7, 1.0, 0.7)
-	row.add_child(name_lb)
+	
+	var icon = ad.get("icon")
+	if icon is Texture2D:
+		var tex_rect = TextureRect.new()
+		tex_rect.texture = icon
+		tex_rect.custom_minimum_size = Vector2(16, 16)
+		tex_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		tex_rect.stretch_mode = TextureRect.STRETCH_KEEP_CENTERED
+		row.add_child(tex_rect)
+	else:
+		var name_lb := Label.new()
+		name_lb.text = "【%s】%s" % [ad.get("tag", ""), ad.get("name", aid)]
+		name_lb.add_theme_font_size_override("font_size", 8)
+		name_lb.custom_minimum_size = Vector2(90, 0)
+		name_lb.clip_text = true
+		name_lb.modulate = Color(0.7, 1.0, 0.7)
+		row.add_child(name_lb)
 
 	var desc_lb := Label.new()
 	desc_lb.text = ad.get("description", "")
@@ -634,12 +702,21 @@ func _make_aura_candidate_row(aid: String, empty_slot: int) -> HBoxContainer:
 	var buy_cost : int = int(ad.get("buy_cost", 0))
 	if buy_cost <= 0: buy_cost = 6
 
-	var name_lb := Label.new()
-	name_lb.text = "【%s】%s" % [ad.get("tag", ""), ad.get("name", aid)]
-	name_lb.add_theme_font_size_override("font_size", 8)
-	name_lb.custom_minimum_size = Vector2(90, 0)
-	name_lb.clip_text = true
-	row.add_child(name_lb)
+	var icon = ad.get("icon")
+	if icon is Texture2D:
+		var tex_rect = TextureRect.new()
+		tex_rect.texture = icon
+		tex_rect.custom_minimum_size = Vector2(16, 16)
+		tex_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		tex_rect.stretch_mode = TextureRect.STRETCH_KEEP_CENTERED
+		row.add_child(tex_rect)
+	else:
+		var name_lb := Label.new()
+		name_lb.text = "【%s】%s" % [ad.get("tag", ""), ad.get("name", aid)]
+		name_lb.add_theme_font_size_override("font_size", 8)
+		name_lb.custom_minimum_size = Vector2(90, 0)
+		name_lb.clip_text = true
+		row.add_child(name_lb)
 
 	var desc_lb := Label.new()
 	desc_lb.text = ad.get("description", "")
@@ -761,14 +838,20 @@ func _build_pending_slots():
 
 func _create_pending_button(inst: ItemInstance, idx: int, src: String) -> Button:
 	var btn : Button = Style.create_styled_button(Style.FONT_SMALL, Style.BTN_ITEM_SIZE)
+	btn.expand_icon = true
 	btn.set_meta("slot_type", "pending_reward")
 	btn.set_meta("pending_idx", idx)
 	btn.set_meta("pending_src", src)
 	btn.clip_text = true
-	btn.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	
 	if inst:
 		var data : ItemData = ItemManager.get_item_data(inst.item_id)
-		btn.text = data.name if data else inst.item_id
+		if data and data.icon:
+			btn.icon = data.icon
+			btn.text = ""
+		else:
+			btn.text = data.name if data else inst.item_id
+			
 		btn.set_meta("item_id", inst.item_id)
 		if data:
 			btn.modulate = UIConst.QUALITY_COLORS.get(data.quality, Color.WHITE)
@@ -884,7 +967,7 @@ func _equip_pending_reward(data: Dictionary, target: Control):
 	if not item_data: return
 
 	if target_type == "weapon":
-		return # ★ 修改：不处理武器
+		return
 	elif target_type == "armor":
 		if item_data.type != "armor": return
 		var slot_idx : int = target.get_meta("slot_idx", -1)
@@ -963,7 +1046,8 @@ func _build_unit_columns():
 		var col := VBoxContainer.new()
 		col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		col.size_flags_vertical = Control.SIZE_EXPAND_FILL
-		col.add_theme_constant_override("separation", 0)
+		col.add_theme_constant_override("separation", 6)
+		col.alignment = BoxContainer.ALIGNMENT_CENTER
 		unit_container.add_child(col)
 
 		var icon_ctrl : Control = _create_unit_icon(unit, i)
@@ -974,17 +1058,17 @@ func _build_unit_columns():
 		var weapon_inst : ItemInstance = unit.weapon_slot
 		var weapon_btn : Button = _create_item_button(weapon_inst, "weapon", i, -1)
 		if unit.is_dead: _disable_button(weapon_btn)
-		weapon_btn.mouse_filter = Control.MOUSE_FILTER_IGNORE # ★ 修改：武器不可拖拽
 		col.add_child(weapon_btn)
 
 		col.add_child(Style.create_label(Style.SEPARATOR_TEXT, Style.FONT_SMALL))
 
 		var armor_group := VBoxContainer.new()
-		armor_group.add_theme_constant_override("separation", 2)
+		armor_group.add_theme_constant_override("separation", 6)
+		armor_group.alignment = BoxContainer.ALIGNMENT_CENTER
 		col.add_child(armor_group)
+		
 		for slot_idx in range(unit.armor_slots.size()):
 			var armor_btn : Button = _create_item_button(unit.armor_slots[slot_idx], "armor", i, slot_idx)
-			if current_mode == Mode.DEPLOY: armor_btn.disabled = true
 			if unit.is_dead: _disable_button(armor_btn)
 			armor_group.add_child(armor_btn)
 
@@ -1015,12 +1099,32 @@ func _on_unit_hover_exited() -> void:
 
 func _create_item_button(inst: ItemInstance, slot_type: String, unit_idx: int, slot_idx: int) -> Button:
 	var btn : Button = Style.create_styled_button(Style.FONT_SMALL, Style.BTN_ITEM_SIZE)
+	btn.expand_icon = true
+	btn.alignment = HORIZONTAL_ALIGNMENT_CENTER
+	
+	# ★ 核心修复：统一去除默认内边距，让图标能像商店一样撑满 20x20 的框
+	var empty_sb := StyleBoxEmpty.new()
+	empty_sb.content_margin_left = 0
+	empty_sb.content_margin_right = 0
+	empty_sb.content_margin_top = 0
+	empty_sb.content_margin_bottom = 0
+	btn.add_theme_stylebox_override("normal", empty_sb)
+	btn.add_theme_stylebox_override("hover", empty_sb)
+	btn.add_theme_stylebox_override("pressed", empty_sb)
+	btn.add_theme_stylebox_override("focus", empty_sb)
+	btn.add_theme_stylebox_override("disabled", empty_sb)
+	
 	if inst:
 		var base_name : String = _get_item_name(inst)
-		if slot_type == "weapon" and inst.upgrade_level > 0:
-			btn.text = base_name + "+" + str(inst.upgrade_level)
+		var data = ItemManager.get_item_data(inst.item_id)
+		if data and data.icon:
+			btn.icon = data.icon
+			btn.text = ""
 		else:
-			btn.text = base_name
+			if slot_type == "weapon" and inst.upgrade_level > 0:
+				btn.text = base_name + "+" + str(inst.upgrade_level)
+			else:
+				btn.text = base_name
 	else:
 		btn.text = "空"
 	btn.set_meta("slot_type", slot_type)
@@ -1080,9 +1184,11 @@ func _build_passive_slots():
 func _create_passive_button(inst: Variant, slot_index: int) -> Button:
 	var btn : Button = Style.create_styled_button(Style.FONT_SMALL, Style.BTN_RELIC_SIZE)
 	btn.clip_text = true
-	btn.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	btn.expand_icon = true
+	btn.alignment = HORIZONTAL_ALIGNMENT_CENTER
 	btn.set_meta("slot_type", "passive_slot")
 	btn.set_meta("passive_index", slot_index)
+	
 	if inst == null:
 		btn.text = "空"
 		btn.set_meta("item_id", "")
@@ -1091,7 +1197,13 @@ func _create_passive_button(inst: Variant, slot_index: int) -> Button:
 		var data : Dictionary = RelicManager.get_relic_data(item_inst.item_id)
 		if not data.is_empty():
 			var prefix : String = "★ " if GameState.is_relic_refined(item_inst.item_id) else ""
-			btn.text = prefix + data.get("name", "?")
+			var icon = data.get("icon")
+			if icon is Texture2D:
+				btn.icon = icon
+				btn.text = ""
+				# ★ 不设置 tooltip_text
+			else:
+				btn.text = prefix + data.get("name", "?")
 			btn.set_meta("item_id", item_inst.item_id)
 			btn.mouse_entered.connect(_on_relic_hover_entered.bind(item_inst.item_id))
 			btn.mouse_exited.connect(_on_relic_hover_exited)
@@ -1101,9 +1213,13 @@ func _create_passive_button(inst: Variant, slot_index: int) -> Button:
 	elif inst is Dictionary and inst.get("type", "") == "aura":
 		var aid : String = inst.get("aura_id", "")
 		var ad : Dictionary = AuraManager.get_aura(aid)
-		btn.text = "✦ " + ad.get("name", aid)
+		var icon = ad.get("icon")
+		if icon is Texture2D:
+			btn.icon = icon
+			btn.text = ""
+		else:
+			btn.text = "✦ " + ad.get("name", aid)
 		btn.set_meta("item_id", "")
-		btn.tooltip_text = ad.get("description", "")
 		btn.modulate = Color(0.7, 0.9, 1.0)
 	else:
 		btn.text = "空"
@@ -1180,7 +1296,7 @@ func _is_valid_drop(data: Dictionary, target: Control) -> bool:
 		var idata = ItemManager.get_item_data(inst.item_id)
 		if not idata: return false
 		if target_type == "weapon":
-			return false # ★ 修改：武器不可替换
+			return false
 		elif target_type == "armor":
 			if idata.type != "armor": return false
 			var ts_p : int = target.get_meta("slot_idx", -1)
@@ -1204,9 +1320,8 @@ func _is_valid_drop(data: Dictionary, target: Control) -> bool:
 
 	if current_mode == Mode.DEPLOY:
 		if discard: return false
-		# ★ 修改：武器库的武器不可拖拽到单位身上
 		if source_type == "library_weapon": return false
-		if source_type == "weapon" and target_type == "weapon": return false # ★ 修改：武器不可互换
+		if source_type == "weapon" and target_type == "weapon": return false
 		if source_type == "library_talent" and target_type == "talent": return _talent.check_talent_compatibility(data, target)
 		if source_type == "talent" and target_type == "talent": return _talent.check_talent_compatibility(data, target)
 		return false
@@ -1215,7 +1330,6 @@ func _is_valid_drop(data: Dictionary, target: Control) -> bool:
 		if discard:
 			if source_type == "armor": return true
 			return false
-		# ★ 修改：武器不可互换
 		if source_type == "weapon" and target_type == "weapon": return false 
 		if source_type == "armor" and target_type == "armor":
 			return _check_armor_swap_budget(data, target)
@@ -1237,13 +1351,12 @@ func _is_valid_drop(data: Dictionary, target: Control) -> bool:
 			var tu2 : int = target.get_meta("unit_idx", -1)
 			var ts2 : int = target.get_meta("slot_idx", -1)
 			if item_data.type == "weapon":
-				return false # ★ 修改：商店不卖武器，或者说武器不能买/买不能换
+				return false
 			elif item_data.type == "armor":
 				if target_type != "armor": return false
 				if tu2 < 0 or ts2 < 0: return false
 				return _can_equip_armor_to(tu2, item_data.id, ts2)
 			return false
-		# ★ 修改：武器不可互换
 		if source_type == "weapon" and target_type == "weapon": return false
 		if source_type == "armor" and target_type == "armor":
 			return _check_armor_swap_budget(data, target)
@@ -1289,8 +1402,6 @@ func _execute_drop(data: Dictionary, target: Control):
 	if source_type == "library_weapon": _shop.library_to_weapon(data, target); return
 	if source_type == "library_talent" and target_type == "talent": _talent.execute_talent_drop(data, target); return
 	if source_type == "talent" and target_type == "talent": _talent.execute_talent_drop(data, target); return
-	# ★ 修改：去掉武器互换的执行
-	# if source_type == "weapon" and target_type == "weapon": _shop.swap_weapons(data, target)
 	if source_type == "armor" and target_type == "armor": _shop.swap_armor(data, target)
 
 
@@ -1427,15 +1538,19 @@ static func _clone_inst_array(src: Array) -> Array:
 
 
 func _switch_tab(tab: String):
+	SoundManager.play_select_sound()
+	
 	if not _check_pending_before_leave():
 		return
 	if current_tab == tab: return
+	
 	if (current_mode == Mode.FORGE or is_shop_rest_mode()) and current_tab == "arena_forge":
 		var unresolved : int = _forge.return_all_forge_slots()
 		_build_unit_columns()
 		if unresolved > 0:
 			_show_detail_in_zone("有 %d 件防具无法归还，请先腾出空间" % unresolved)
 			return
+			
 	current_tab = tab
 	_update_tab_style()
 	_clear_container(shop_container)
@@ -1449,20 +1564,21 @@ func _switch_tab(tab: String):
 			if shop_manager and shop_manager.get_shop_items().is_empty():
 				shop_manager.generate_shop_items()
 			_shop.build_shop_items()
-			if reset_btn and shop_manager:
-				reset_btn.text = "刷新商店 (" + str(shop_manager.get_reset_cost()) + "G)"
 		"arena_forge":
 			_forge.build_forge_slots()
-			if reset_btn: reset_btn.visible = false
 		"sacrifice":
 			_build_sacrifice_panel()
-			if reset_btn: reset_btn.visible = false
 		"aura":
 			_build_aura_panel()
-			if reset_btn: reset_btn.visible = false
 	shop_container.visible = true
-	if is_shop_rest_mode():
-		discard_zone.visible = (tab != "arena_forge")
+	
+	# ★ 确保按钮在正确的 tab 显示
+	reset_btn.visible = (tab == "arena_shop")
+	if reset_btn.visible and shop_manager:
+		reset_btn.text = "刷新商店 (" + str(shop_manager.get_reset_cost()) + "G)"
+		
+	discard_zone.visible = (tab != "arena_forge" and tab != "sacrifice" and tab != "aura")
+	
 	_refresh_bottom_buttons()
 	_refresh_upgrade_shop_btn()
 
@@ -1659,8 +1775,9 @@ func _ensure_upgrade_shop_btn():
 		return
 	if not reset_btn: return
 
-	_upgrade_shop_btn = Style.create_styled_button(Style.FONT_LARGE, Vector2(0, 16))
+	_upgrade_shop_btn = Style.create_styled_button(Style.FONT_LARGE, Vector2(120, 24))
 	_upgrade_shop_btn.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	_upgrade_shop_btn.size_flags_vertical = Control.SIZE_SHRINK_END
 	_upgrade_shop_btn.pressed.connect(_on_upgrade_shop_pressed)
 	right_container.add_child(_upgrade_shop_btn)
 	var reset_idx : int = reset_btn.get_index()
@@ -1680,20 +1797,19 @@ func _refresh_upgrade_shop_btn():
 	)
 	if not is_shop_tab:
 		_upgrade_shop_btn.visible = false
-		return
-
-	_upgrade_shop_btn.visible = true
-	var lv : int = shop_manager.get_shop_level()
-	var cost : int = shop_manager.get_upgrade_cost()
-	if cost < 0:
-		_upgrade_shop_btn.text = "商店 Lv%d（满级）" % lv
-		_upgrade_shop_btn.disabled = true
-		_upgrade_shop_btn.modulate = Color(0.5, 0.5, 0.5)
 	else:
-		_upgrade_shop_btn.text = "升级商店 Lv%d→%d（%dG）" % [lv, lv + 1, cost]
-		var afford : bool = _context.get_gold() >= cost
-		_upgrade_shop_btn.disabled = not afford
-		_upgrade_shop_btn.modulate = Color.WHITE if afford else Color(1.0, 0.6, 0.6)
+		_upgrade_shop_btn.visible = true
+		var lv : int = shop_manager.get_shop_level()
+		var cost : int = shop_manager.get_upgrade_cost()
+		if cost < 0:
+			_upgrade_shop_btn.text = "商店 Lv%d（满级）" % lv
+			_upgrade_shop_btn.disabled = true
+			_upgrade_shop_btn.modulate = Color(0.5, 0.5, 0.5)
+		else:
+			_upgrade_shop_btn.text = "升级商店 Lv%d→%d（%dG）" % [lv, lv + 1, cost]
+			var afford : bool = _context.get_gold() >= cost
+			_upgrade_shop_btn.disabled = not afford
+			_upgrade_shop_btn.modulate = Color.WHITE if afford else Color(1.0, 0.6, 0.6)
 
 
 func _on_upgrade_shop_pressed():

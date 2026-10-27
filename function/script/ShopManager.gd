@@ -171,6 +171,7 @@ func generate_shop_items():
 		total_weight = 100
 
 	var order : Array = ["common", "rare", "epic", "legendary"]
+	var generated_ids : Dictionary = {} # ★ 记录本页已生成，防止刷出同款
 
 	for i in range(SHOP_SIZE):
 		var quality : String = "common"
@@ -199,9 +200,26 @@ func generate_shop_items():
 		if pool.is_empty():
 			shop_items.append(null)
 			continue
+			
+		# ★ 剔除当前页面已经刷出来的物品
+		var valid_pool : Array = []
+		for p in pool:
+			if not generated_ids.has(p.id):
+				valid_pool.append(p)
+		if valid_pool.is_empty():
+			valid_pool = pool
 
-		var pick : ItemData = pool[randi() % pool.size()]
-		shop_items.append({"item_data": pick, "price": pick.price})
+		var pick : ItemData = valid_pool[randi() % valid_pool.size()]
+		generated_ids[pick.id] = true
+		
+		# ★ 生成带随机词条的装备实例
+		var inst : ItemInstance = ItemManager.create_instance_with_affixes(pick.id)
+		if inst == null:
+			inst = ItemInstance.new()
+			inst.item_id = pick.id
+			inst.count = 1
+			
+		shop_items.append({"item_data": pick, "item_instance": inst, "price": pick.price})
 
 
 func buy_shop_item(index: int) -> Dictionary:
@@ -211,6 +229,7 @@ func buy_shop_item(index: int) -> Dictionary:
 	if entry == null:
 		return {"success": false, "reason": "empty_slot"}
 	var item_data = entry["item_data"]
+	var item_instance = entry["item_instance"]
 	var price = entry["price"]
 	if _get_gold() < price:
 		return {"success": false, "reason": "not_enough_gold"}
@@ -222,7 +241,7 @@ func buy_shop_item(index: int) -> Dictionary:
 
 	shop_items[index] = null
 	shop_updated.emit()
-	return {"success": true, "item_data": item_data, "price": price, "index": index}
+	return {"success": true, "item_data": item_data, "item_instance": item_instance, "price": price, "index": index}
 
 
 func get_shop_items() -> Array: return shop_items.duplicate()

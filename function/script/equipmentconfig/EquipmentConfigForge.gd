@@ -187,18 +187,19 @@ func build_forge_slots():
 	panel.shop_container.add_theme_constant_override("h_separation", 2)
 	panel.shop_container.add_theme_constant_override("v_separation", 2)
 
-	# 3. 设置滚动容器：高度彻底自适应，禁用内部滚动条
+	# 3. 设置滚动容器：允许滚动，防止溢出
 	if panel.shop_scroll:
 		panel.shop_scroll.custom_minimum_size = Vector2.ZERO
-		panel.shop_scroll.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+		panel.shop_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 		panel.shop_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		panel.shop_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+		panel.shop_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
 		panel.shop_scroll.scroll_vertical = 0
 
 	# 4. 生成 9 个槽位按钮
 	for i in range(MAX_SLOTS):
 		var slot_btn : Button = Style.create_styled_button(Style.FONT_SMALL, Style.BTN_ITEM_SIZE)
 		slot_btn.clip_text = true
+		slot_btn.expand_icon = true
 		slot_btn.set_meta("slot_type", "forge_slot")
 		slot_btn.set_meta("forge_slot_index", i)
 		slot_btn.text = "空槽 %d" % (i + 1)
@@ -210,7 +211,12 @@ func build_forge_slots():
 			var inst : ItemInstance = entry_dict["inst"]
 			var data : ItemData = ItemManager.get_item_data(inst.item_id)
 
-			slot_btn.text = data.name if data else inst.item_id
+			if data and data.icon:
+				slot_btn.icon = data.icon
+				slot_btn.text = ""
+			else:
+				slot_btn.text = data.name if data else inst.item_id
+				
 			slot_btn.set_meta("item_id", inst.item_id)
 
 			if data:
@@ -412,12 +418,10 @@ func refresh_forge_upgrade_ui():
 	if not forge_upgrade_btn or not is_instance_valid(forge_upgrade_btn):
 		return
 
-	# 默认文字
 	forge_upgrade_btn.text = "拖拽武器到此升级"
 	forge_upgrade_btn.disabled = true
 	forge_upgrade_btn.modulate = Color(0.5, 0.5, 0.5)
 
-	# 只在拖拽过武器时才显示具体信息，并直接显示在按钮上（含金币和攻击力）
 	var idx : int = _last_drag_unit_idx
 	if idx >= 0 and idx < panel.party.size():
 		var u : UnitData = panel.party[idx]
@@ -670,7 +674,6 @@ func is_valid_forge_drop(data: Dictionary, target: Control) -> bool:
 		if weapon_inst.upgrade_level >= max_lv: return false
 		return true
 
-	# ★ 修改：武器不可互换
 	if src_type == "weapon" and tgt_type == "weapon":
 		return false
 

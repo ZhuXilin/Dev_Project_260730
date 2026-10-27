@@ -58,6 +58,17 @@ func _build_candidates():
 		vbox.add_theme_constant_override("separation", 4)
 		vbox.size_flags_vertical = Control.SIZE_EXPAND_FILL
 
+		# 统一加载图标
+		var icon = data.get("icon")
+		if icon is Texture2D:
+			var icon_rect = TextureRect.new()
+			icon_rect.texture = icon
+			icon_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+			icon_rect.stretch_mode = TextureRect.STRETCH_KEEP_CENTERED
+			icon_rect.custom_minimum_size = Vector2(32, 32)
+			icon_rect.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+			vbox.add_child(icon_rect)
+
 		var name_label = Label.new()
 		name_label.text = data.get("name", "?")
 		name_label.add_theme_font_size_override("font_size", 10)

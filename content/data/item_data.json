@@ -80,7 +80,7 @@
   },
   "healing_staff": {
 	"id": "healing_staff", "name": "治愈法杖", "type": "weapon", "use_type": "infinite",
-	"icon": "item_047",
+	"icon": "item_046",
 	"description": "装备后治疗+8，范围4，魔法穿透+10%",
 	"flavor": "法杖顶端的那块水晶，是某个人的最后一块骨头磨成的。\n\n握着它的人从不说这件。",
 	"category": "staff", "equipment_slot": "weapon",

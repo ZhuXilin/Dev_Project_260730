@@ -244,11 +244,55 @@ func _build_options():
 	var card_height : int = maxi(90, max_lines * 11 + 20)
 
 	for i in range(_reward_options.size()):
+		var option = _reward_options[i]
+		var items = option.get("items", [])
+		
 		var btn := Button.new()
 		btn.custom_minimum_size = Vector2(150, card_height)
 		btn.add_theme_font_size_override("font_size", 7)
-		btn.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		btn.text = texts[i]
+		
+		# ★ 获取图标
+		var icon_tex: Texture2D = null
+		if items.size() == 1:
+			var item_id = items[0]
+			var data = ItemManager.get_item_data(item_id)
+			if data and data.icon:
+				icon_tex = data.icon
+			else:
+				var rd = RelicManager.get_relic_data(item_id)
+				var r_icon = rd.get("icon")
+				if r_icon is Texture2D:
+					icon_tex = r_icon
+					
+		if icon_tex:
+			# ★ 有图标时，按钮文字清空，内嵌 16x16 图标和文本
+			btn.text = ""
+			var vbox = VBoxContainer.new()
+			vbox.set_anchors_preset(Control.PRESET_FULL_RECT)
+			vbox.alignment = BoxContainer.ALIGNMENT_CENTER
+			vbox.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			
+			var tex_rect = TextureRect.new()
+			tex_rect.texture = icon_tex
+			tex_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+			tex_rect.stretch_mode = TextureRect.STRETCH_KEEP_CENTERED
+			tex_rect.custom_minimum_size = Vector2(16, 16)
+			tex_rect.size = Vector2(16, 16)
+			tex_rect.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+			vbox.add_child(tex_rect)
+			
+			var label = Label.new()
+			label.text = texts[i]
+			label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			label.add_theme_font_size_override("font_size", 7)
+			vbox.add_child(label)
+			
+			btn.add_child(vbox)
+		else:
+			# 无图标，维持原样
+			btn.text = texts[i]
+			btn.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			
 		if _is_premium:
 			btn.modulate = Color(1.0, 0.9, 0.6)
 		btn.pressed.connect(_on_option_selected.bind(i))
@@ -372,9 +416,10 @@ func _show_popup(option : Dictionary):
 				var virtual_data = ItemData.new()
 				virtual_data.id = item_id
 				virtual_data.name = rd.get("name", "未知遗物")
-				var icon_path = rd.get("icon", "")
-				if icon_path != "" and ResourceLoader.exists(icon_path):
-					virtual_data.icon = load(icon_path)
+				
+				# ★ 修复：直接取 icon 对象，不要与字符串比较
+				virtual_data.icon = rd.get("icon") 
+				
 				item_datas.append(virtual_data)
 
 	var summary = Globals.get_reward_summary()

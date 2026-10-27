@@ -504,12 +504,22 @@ func _build_relic_refine_panel():
 
 		var is_refined : bool = GameState.is_relic_refined(rid)
 
-		var name_lb := Label.new()
-		name_lb.text = ("★ " if is_refined else "") + rd.get("name", rid)
-		name_lb.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_SMALL)
-		name_lb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		row.add_child(name_lb)
-
+		# 图标展示
+		var icon = rd.get("icon")
+		if icon is Texture2D:
+			var icon_rect = TextureRect.new()
+			icon_rect.texture = icon
+			icon_rect.custom_minimum_size = Vector2(20, 20)
+			icon_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+			icon_rect.stretch_mode = TextureRect.STRETCH_KEEP_CENTERED
+			icon_rect.tooltip_text = rd.get("name", rid)
+			row.add_child(icon_rect)
+		else:
+			var name_lb := Label.new()
+			name_lb.text = ("★ " if is_refined else "") + rd.get("name", rid)
+			name_lb.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_SMALL)
+			row.add_child(name_lb)
+			
 		if is_refined:
 			var tag := Label.new()
 			tag.text = "已精炼"

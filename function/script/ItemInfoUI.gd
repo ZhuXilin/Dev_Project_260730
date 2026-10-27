@@ -74,8 +74,14 @@ func _fill_relic_column():
 
 func _make_item_button(data, unlocked: bool) -> Button:
 	var btn = Button.new()
-	btn.text = data.name
 	btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	btn.custom_minimum_size = Vector2(20, 20)
+	btn.expand_icon = true
+	if data.icon:
+		btn.icon = data.icon
+		btn.tooltip_text = data.name
+	else:
+		btn.text = data.name
 	btn.add_theme_font_size_override("font_size", 8)
 	btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
 	btn.pressed.connect(_show_item_detail.bind(data))
@@ -84,9 +90,16 @@ func _make_item_button(data, unlocked: bool) -> Button:
 
 func _make_relic_button(relic_id: String, data: Dictionary, unlocked: bool) -> Button:
 	var btn = Button.new()
-	var prefix : String = "★ " if GameState.is_relic_refined(relic_id) else ""
-	btn.text = prefix + data.get("name", relic_id)
 	btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	btn.custom_minimum_size = Vector2(20, 20)
+	btn.expand_icon = true
+	var icon = data.get("icon")
+	if icon is Texture2D:
+		btn.icon = icon
+		btn.tooltip_text = data.get("name", relic_id)
+	else:
+		var prefix : String = "★ " if GameState.is_relic_refined(relic_id) else ""
+		btn.text = prefix + data.get("name", relic_id)
 	btn.add_theme_font_size_override("font_size", 8)
 	btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
 	btn.pressed.connect(_show_relic_detail.bind(relic_id))

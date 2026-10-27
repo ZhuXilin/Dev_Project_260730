@@ -13,7 +13,6 @@ func _init(p):
 # ============================================================
 #  商店列表
 # ============================================================
-
 func build_shop_items():
 	if not panel.shop_manager: return
 
@@ -35,6 +34,7 @@ func build_shop_items():
 		panel.shop_scroll.custom_minimum_size = Vector2.ZERO
 		panel.shop_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		panel.shop_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		panel.shop_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
 		panel.shop_scroll.scroll_vertical = 0
 		panel.shop_scroll.scroll_horizontal = 0
 
@@ -57,21 +57,51 @@ func build_shop_items():
 	for i in range(items.size()):
 		var entry : Variant = items[i]
 		var btn : Button = Style.create_styled_button(Style.FONT_SMALL, Style.BTN_SHOP_SIZE)
-		btn.autowrap_mode = TextServer.AUTOWRAP_OFF
+		btn.expand_icon = true
 		btn.clip_text = true
-		btn.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 		btn.disabled = false
 
 		if entry != null:
 			var entry_dict : Dictionary = entry
 			var item_data : ItemData = entry_dict["item_data"]
 			var price : int = entry_dict["price"]
-			btn.text = item_data.name + " " + str(price) + "G"
-			if item_data.icon: btn.icon = item_data.icon
+			
+			if item_data.icon:
+				btn.icon = item_data.icon
+				btn.text = ""
+				
+				# ★ 仅针对带图标的商品按钮清除默认内边距，让16x16图片完美居中
+				var empty_sb := StyleBoxEmpty.new()
+				empty_sb.content_margin_left = 0
+				empty_sb.content_margin_right = 0
+				empty_sb.content_margin_top = 0
+				empty_sb.content_margin_bottom = 0
+				btn.add_theme_stylebox_override("normal", empty_sb)
+				btn.add_theme_stylebox_override("hover", empty_sb)
+				btn.add_theme_stylebox_override("pressed", empty_sb)
+				btn.add_theme_stylebox_override("focus", empty_sb)
+				btn.add_theme_stylebox_override("disabled", empty_sb)
+				
+				var price_label = Label.new()
+				price_label.text = str(price)
+				price_label.add_theme_font_size_override("font_size", 6) 
+				price_label.add_theme_color_override("font_color", Color.WHITE)
+				price_label.add_theme_color_override("font_outline_color", Color.BLACK)
+				price_label.add_theme_constant_override("outline_size", 3)
+				price_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+				price_label.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
+				price_label.set_anchors_preset(Control.PRESET_FULL_RECT)
+				price_label.offset_bottom = 1
+				price_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+				btn.add_child(price_label)
+			else:
+				btn.text = str(price) + "G"
+				
 			btn.set_meta("shop_index", i)
 			btn.set_meta("slot_type", "shop_item")
 			btn.set_meta("item_price", price)
 			btn.set_meta("item_id", item_data.id)
+			
 			btn.mouse_entered.connect(panel._on_button_hover_entered.bind(item_data.id))
 			btn.mouse_exited.connect(panel._on_button_hover_exited)
 		else:
@@ -99,7 +129,13 @@ func build_weapon_grid(container: GridContainer):
 		var data : ItemData = ItemManager.get_item_data(item_id)
 		if data and data.type == "weapon":
 			var btn : Button = Style.create_styled_button(Style.FONT_SMALL, Style.BTN_LIBRARY_SIZE)
-			btn.text = data.name
+			btn.expand_icon = true
+			if data.icon:
+				btn.icon = data.icon
+				btn.text = ""
+				btn.tooltip_text = data.name
+			else:
+				btn.text = data.name
 			btn.set_meta("slot_type", "library_weapon")
 			btn.set_meta("item_id", item_id)
 			btn.mouse_entered.connect(panel._on_button_hover_entered.bind(item_id))
@@ -145,12 +181,9 @@ func buy_shop_item(data: Dictionary, target: Control):
 		panel._show_buy_failure_message(buy_result.get("reason", "unknown"))
 		return
 
-	var inst := ItemInstance.new()
-	inst.item_id = item_data.id
-	inst.count = 1
-	if item_data.type == "weapon":
-		pass # ★ 修改
-	elif item_data.type == "armor":
+	var inst : ItemInstance = buy_result["item_instance"]
+
+	if item_data.type == "armor":
 		var tu2 : UnitData = panel.party[target_unit_idx]
 		tu2.armor_slots[target_slot_idx] = inst
 

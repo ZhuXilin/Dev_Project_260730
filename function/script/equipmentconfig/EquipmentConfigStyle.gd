@@ -4,39 +4,52 @@ extends RefCounted
 # ============================================================
 #  字号 / 尺寸常量
 # ============================================================
-# ★ 第九批：明确语义分层
-#   TINY   —— 极小文本（塔罗牌角标、最紧凑的标签）
-#   SMALL  —— 一般按钮/标签
-#   NORMAL —— 中等强调（与 SMALL 合并，避免视觉碎片）
-#   LARGE  —— 主按钮 / 顶层标题
-#   TITLE  —— 保留给未来使用（当前 UI 未用）
 const FONT_TINY   = 4
 const FONT_SMALL  = 6
 const FONT_NORMAL = 6
-const FONT_LARGE  = 8      # ★ 第九批：原来也是 6，与 NORMAL 完全重复；
-						   #   提升到 8 给"主按钮/顶层标题"用，避免"看起来都一样"
-const FONT_TITLE  = 10     # 预留
+const FONT_LARGE  = 8
+const FONT_TITLE  = 10
 
-const BTN_ITEM_SIZE = Vector2(28, 16)
-const BTN_TALENT_SIZE = Vector2(28, 18)
-const BTN_SHOP_SIZE = Vector2(28, 16)
-const BTN_LIBRARY_SIZE = Vector2(28, 16)
-const BTN_RELIC_SIZE = Vector2(22, 16)
+# ★ 统一插槽为 20x20 正方形
+const BTN_ITEM_SIZE = Vector2(20, 20)
+const BTN_TALENT_SIZE = Vector2(20, 20)
+const BTN_SHOP_SIZE = Vector2(20, 20)
+const BTN_LIBRARY_SIZE = Vector2(20, 20)
+const BTN_RELIC_SIZE = Vector2(20, 20)
 
 const SEPARATOR_TEXT = "──────"
 
 
-# ============================================================
-#  UI 工厂
-# ============================================================
 static func create_styled_button(font_size: int, min_size: Vector2) -> Button:
 	var btn := Button.new()
-	btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	btn.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	btn.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	btn.add_theme_font_size_override("font_size", font_size)
 	btn.custom_minimum_size = min_size
 	btn.focus_mode = Control.FOCUS_NONE
 	btn.mouse_filter = Control.MOUSE_FILTER_STOP
+	
+	# ★ 移除了强制的 StyleBoxEmpty，恢复默认的内边距，保证文字按钮能正常显示
 	return btn
+
+static func create_drag_preview(btn: Button) -> Control:
+	if btn.icon:
+		var tex_rect = TextureRect.new()
+		tex_rect.texture = btn.icon
+		tex_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		tex_rect.stretch_mode = TextureRect.STRETCH_SCALE 
+		tex_rect.custom_minimum_size = btn.custom_minimum_size
+		tex_rect.size = btn.custom_minimum_size 
+		tex_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		tex_rect.modulate = btn.get_meta("_original_modulate", Color.WHITE)
+		return tex_rect
+	else:
+		var label = Label.new()
+		label.text = btn.get_meta("_original_text", "")
+		label.add_theme_font_size_override("font_size", FONT_SMALL)
+		label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		label.modulate = btn.get_meta("_original_modulate", Color.WHITE)
+		return label
 
 
 static func create_label(text: String, font_size: int, center: bool = true) -> Label:
@@ -49,57 +62,6 @@ static func create_label(text: String, font_size: int, center: bool = true) -> L
 	return label
 
 
-static func create_drag_preview(btn: Button) -> Label:
-	var preview := Label.new()
-	var orig_text : Variant = btn.get_meta("_original_text", "")
-	preview.text = orig_text
-	var font_size : int = btn.get_theme_font_size("font_size")
-	if font_size > 0:
-		preview.add_theme_font_size_override("font_size", font_size)
-	preview.autowrap_mode = btn.autowrap_mode
-	preview.horizontal_alignment = btn.alignment
-	preview.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	var font_color : Color = btn.get_theme_color("font_color")
-	if font_color:
-		preview.add_theme_color_override("font_color", font_color)
-	var orig_mod : Variant = btn.get_meta("_original_modulate", Color.WHITE)
-	preview.modulate = orig_mod
-	var preview_size : Vector2 = btn.custom_minimum_size
-	if preview_size == Vector2.ZERO or preview_size.y < 10:
-		preview_size = btn.size
-	if preview_size == Vector2.ZERO or preview_size.y < 10:
-		preview_size = Vector2(50, 20)
-	if preview_size.y < 14:
-		preview_size.y = 14
-	preview.size = preview_size
-	var original_style : StyleBox = btn.get_theme_stylebox("normal")
-	if original_style:
-		var new_style := StyleBoxFlat.new()
-		if original_style is StyleBoxFlat:
-			var fs : StyleBoxFlat = original_style
-			new_style.bg_color = fs.bg_color
-			new_style.border_width_left = fs.border_width_left
-			new_style.border_width_right = fs.border_width_right
-			new_style.border_width_top = fs.border_width_top
-			new_style.border_width_bottom = fs.border_width_bottom
-			new_style.border_color = fs.border_color
-		else:
-			new_style.bg_color = Color(0.1, 0.1, 0.1, 1.0)
-			new_style.border_width_left = 1
-			new_style.border_width_right = 1
-			new_style.border_width_top = 1
-			new_style.border_width_bottom = 1
-			new_style.border_color = Color(0.5, 0.5, 0.5, 1.0)
-		preview.add_theme_stylebox_override("normal", new_style)
-	preview.text_overrun_behavior = btn.text_overrun_behavior
-	preview.clip_text = btn.clip_text
-	preview.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	return preview
-
-
-# ============================================================
-#  显示辅助（纯函数）
-# ============================================================
 static func get_rarity_color(rarity: String) -> Color:
 	match rarity:
 		"common":    return Color(1.0, 1.0, 1.0, 1.0)
@@ -108,7 +70,6 @@ static func get_rarity_color(rarity: String) -> Color:
 		"legendary": return Color(1.0, 0.7, 0.0, 1.0)
 		_:           return Color.WHITE
 
-
 static func get_quality_display_name(quality: String) -> String:
 	match quality:
 		"common":    return "普通"
@@ -116,7 +77,6 @@ static func get_quality_display_name(quality: String) -> String:
 		"epic":      return "史诗"
 		"legendary": return "传说"
 		_:           return quality
-
 
 static func get_attr_display_name(attr: String) -> String:
 	match attr:
