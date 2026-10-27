@@ -186,14 +186,16 @@ func build_forge_slots():
 	panel.shop_container.columns = 3
 	panel.shop_container.visible = true
 	panel.shop_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	panel.shop_container.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	# ★ 取消垂直拉伸，让高度自适应内容
+	panel.shop_container.size_flags_vertical = 0 
 	panel.shop_container.add_theme_constant_override("h_separation", 2)
 	panel.shop_container.add_theme_constant_override("v_separation", 2)
 
-	# 3. 设置滚动容器：占据剩余空间，允许自适应
+	# 3. 设置滚动容器：只占内容高度，不撑大父级
 	if panel.shop_scroll:
 		panel.shop_scroll.custom_minimum_size = Vector2(0, 70)
-		panel.shop_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		# ★ 从 EXPAND_FILL 改为 SHRINK_BEGIN，防止把下面的按钮挤走
+		panel.shop_scroll.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 		panel.shop_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		panel.shop_scroll.scroll_vertical = 0
 
@@ -237,7 +239,7 @@ func build_forge_slots():
 		forge_upgrade_label = null
 	_ensure_forge_upgrade_ui()
 
-	# 8. 刷新合成按钮状态并添加底部占位
+	# 8. 刷新合成按钮状态并添加底部占位（把出售区推到底部）
 	_refresh_inline_craft_btn()
 	_ensure_forge_bottom_spacer()
 
