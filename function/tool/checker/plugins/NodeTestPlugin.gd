@@ -298,7 +298,7 @@ func launch():
 			MapNode.NodeType.FORGE:    await _open_forge()
 			MapNode.NodeType.TREASURE: await _open_treasure()
 			MapNode.NodeType.CHAPEL:   await _open_chapel()
-		MusicManager.play_main_menu_music()
+		
 		return
 
 	# ---------- 战斗节点：切 Loading → Battlefield ----------

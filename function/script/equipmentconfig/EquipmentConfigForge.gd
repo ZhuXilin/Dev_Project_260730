@@ -168,60 +168,76 @@ func reforge_instance(inst : ItemInstance) -> bool:
 #  构建铁匠铺 UI
 # ============================================================
 func build_forge_slots():
+	# 1. 清理之前的残留节点
 	for child in panel.right_container.get_children():
 		if "Forge" in child.name:
 			panel.right_container.remove_child(child)
 			child.queue_free()
+			
 	forge_result_label = null
 	forge_upgrade_btn = null
 	forge_upgrade_label = null
 	inline_craft_btn = null
 
+	# 2. 清理容器并重置属性
 	panel._clear_container(panel.shop_container)
 	inline_craft_btn = null
 
 	panel.shop_container.columns = 3
 	panel.shop_container.visible = true
 	panel.shop_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	panel.shop_container.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	panel.shop_container.add_theme_constant_override("h_separation", 2)
 	panel.shop_container.add_theme_constant_override("v_separation", 2)
 
+	# 3. 设置滚动容器：占据剩余空间，允许自适应
 	if panel.shop_scroll:
-		panel.shop_scroll.custom_minimum_size = Vector2(0, 60)
-		panel.shop_scroll.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+		panel.shop_scroll.custom_minimum_size = Vector2(0, 70)
+		panel.shop_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 		panel.shop_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		panel.shop_scroll.scroll_vertical = 0
 
+	# 4. 确保结果标签存在
 	_ensure_forge_result_label()
 
+	# 5. 生成 9 个槽位按钮
 	for i in range(MAX_SLOTS):
 		var slot_btn : Button = Style.create_styled_button(Style.FONT_SMALL, Style.BTN_ITEM_SIZE)
 		slot_btn.set_meta("slot_type", "forge_slot")
 		slot_btn.set_meta("forge_slot_index", i)
 		slot_btn.text = "空槽 %d" % (i + 1)
 		slot_btn.modulate = Color(0.5, 0.5, 0.5)
+		
 		var entry : Variant = forge_slots[i] if i < forge_slots.size() else null
 		if entry != null:
 			var entry_dict : Dictionary = entry
 			var inst : ItemInstance = entry_dict["inst"]
 			var data : ItemData = ItemManager.get_item_data(inst.item_id)
+			
 			slot_btn.text = data.name if data else inst.item_id
 			slot_btn.set_meta("item_id", inst.item_id)
+			
 			if data:
 				slot_btn.modulate = UIConst.QUALITY_COLORS.get(data.quality, Color.WHITE)
+				
 			slot_btn.mouse_entered.connect(panel._on_button_hover_entered.bind(inst.item_id))
 			slot_btn.mouse_exited.connect(panel._on_button_hover_exited)
 		else:
 			slot_btn.set_meta("item_id", "")
+			
 		panel.shop_container.add_child(slot_btn)
 
+	# 6. 更新结果标签、构建合成按钮行
 	_update_forge_result_label()
 	_ensure_forge_craft_row()
 
+	# 7. 确保升级 UI 存在并刷新
 	if not forge_upgrade_btn or not is_instance_valid(forge_upgrade_btn) or not forge_upgrade_btn.is_inside_tree():
 		forge_upgrade_btn = null
 		forge_upgrade_label = null
 	_ensure_forge_upgrade_ui()
 
+	# 8. 刷新合成按钮状态并添加底部占位
 	_refresh_inline_craft_btn()
 	_ensure_forge_bottom_spacer()
 
@@ -437,9 +453,10 @@ func _ensure_forge_upgrade_ui():
 			panel.right_container.remove_child(old)
 			old.queue_free()
 
+	# ★ 去掉多余占位：或者高度设为 0，依靠 VBox 的 separation 来控制间距
 	var spacer1 := Control.new()
 	spacer1.name = "ForgeUpgradeSpacer1"
-	spacer1.custom_minimum_size = Vector2(0, 12)
+	spacer1.custom_minimum_size = Vector2(0, 0)
 	panel.right_container.add_child(spacer1)
 
 	forge_upgrade_label = Label.new()
@@ -457,12 +474,12 @@ func _ensure_forge_upgrade_ui():
 
 	var spacer2 := Control.new()
 	spacer2.name = "ForgeUpgradeSpacer2"
-	spacer2.custom_minimum_size = Vector2(0, 8)
+	spacer2.custom_minimum_size = Vector2(0, 0)
 	panel.right_container.add_child(spacer2)
 
 	var reforge_spacer := Control.new()
 	reforge_spacer.name = "ForgeReforgeSpacer"
-	reforge_spacer.custom_minimum_size = Vector2(0, 8)
+	reforge_spacer.custom_minimum_size = Vector2(0, 0)
 	panel.right_container.add_child(reforge_spacer)
 
 	forge_reforge_label = Label.new()

@@ -182,6 +182,10 @@ func _collect_targets() -> Array:
 		targets.append(panel.discard_zone)
 
 	# ---- 2. 单位列（含 armor_group 嵌套）----
+	# ★ 新增判空，防止节点被改丢时报错
+	if panel.unit_container == null:
+		return targets
+	
 	for col in panel.unit_container.get_children():
 		for child in col.get_children():
 			if child is Button:

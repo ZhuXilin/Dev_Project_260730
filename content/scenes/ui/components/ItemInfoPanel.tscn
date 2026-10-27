@@ -3,8 +3,8 @@
 [ext_resource type="Script" path="res://function/script/ui/UnitInfoPanel.gd" id="1_script"]
 [ext_resource type="StyleBox" path="res://content/resource/stylebox/8bit_style_box_flat.tres" id="2_style"]
 
-[node name="UnitInfoPanel" type="PanelContainer"]
-custom_minimum_size = Vector2(110, 0)
+[node name="ItemInfoPanel" type="PanelContainer"]
+custom_minimum_size = Vector2(120, 0)
 theme_override_styles/panel = ExtResource("2_style")
 script = ExtResource("1_script")
 
@@ -44,6 +44,7 @@ layout_mode = 2
 layout_mode = 2
 size_flags_vertical = 3
 horizontal_scroll_mode = 0
+vertical_scroll_mode = 3
 
 [node name="ContentVBox" type="VBoxContainer" parent="VBox/Scroll"]
 layout_mode = 2
@@ -52,10 +53,13 @@ theme_override_constants/separation = 2
 
 [node name="InfoStats" type="Label" parent="VBox/Scroll/ContentVBox"]
 layout_mode = 2
+size_flags_horizontal = 3
 theme_override_font_sizes/font_size = 8
 horizontal_alignment = 0
+autowrap_mode = 3
 
 [node name="InfoDesc" type="Label" parent="VBox/Scroll/ContentVBox"]
 layout_mode = 2
+size_flags_horizontal = 3
 theme_override_font_sizes/font_size = 6
 autowrap_mode = 3

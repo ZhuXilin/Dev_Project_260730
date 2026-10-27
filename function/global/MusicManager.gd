@@ -140,6 +140,8 @@ func _play_slot(slot_name: String, fallback_stream: AudioStream):
 
 func _play_chip(json_path: String) -> bool:
 	var song: ChipSong = _chip_song_cache.get(json_path)
+	if _chip_player == null or not _chip_player.is_inside_tree():
+		return false
 	if song == null:
 		song = ChipSong.from_json(json_path)
 		if song == null:
@@ -167,11 +169,9 @@ func play_music(stream: AudioStream):
 		push_error("尝试播放空音乐流")
 		return
 
-	# ★ 停 chip
-	if _chip_player and _chip_player.is_playing():
-		_chip_player.stop()
-	_chip_current_path = ""
-	_chip_current_slot = ""
+	# ★ 防报错保护：如果当前播放器节点不在场景树中（如正在切换场景），直接跳过
+	if player == null or not player.is_inside_tree():
+		return
 
 	print("播放音乐：", stream.resource_path if stream.resource_path else "未命名流")
 	if player.stream == stream and player.playing:
@@ -180,6 +180,7 @@ func play_music(stream: AudioStream):
 	player.stop()
 	player.stream = stream
 	player.play()
+	
 	var vol = Globals.music_volume
 	var db = linear_to_db(vol) if vol > 0 else -80.0
 	player.volume_db = db

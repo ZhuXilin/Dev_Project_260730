@@ -32,23 +32,23 @@ var _forge_enter_done : bool = false
 const ShopManagerScript = preload(Config.PATHS.SHOP_MANAGER_SCRIPT)
 const DETAIL_ZONE_PATH : String = "VBoxContainer/MainHBox/LeftInfoColumn/DetailZone"
 
-@onready var mode_label = $VBoxContainer/TopBar/ModeLabel
-@onready var gold_label = $VBoxContainer/GoldLabel
-@onready var close_btn = $VBoxContainer/BottomHBox/CloseBtn
-@onready var confirm_btn = $VBoxContainer/BottomHBox/ConfirmBtn
-@onready var unit_container = $VBoxContainer/MainHBox/LeftVBox/UnitContainer
-@onready var right_container = $VBoxContainer/MainHBox/RightContainer
-@onready var shop_scroll: ScrollContainer = $VBoxContainer/MainHBox/RightContainer/ShopScroll
-@onready var shop_container: GridContainer = $VBoxContainer/MainHBox/RightContainer/ShopScroll/ShopContainer
-@onready var reset_btn = $VBoxContainer/MainHBox/RightContainer/ResetBtn
-@onready var discard_zone = $VBoxContainer/MainHBox/RightContainer/DiscardZone
-@onready var tab_bar = $VBoxContainer/MainHBox/RightContainer/TabBar
-@onready var weapon_tab_btn = $VBoxContainer/MainHBox/RightContainer/TabBar/WeaponTabBtn
-@onready var talent_tab_btn = $VBoxContainer/MainHBox/RightContainer/TabBar/TalentTabBtn
-@onready var relic_section: VBoxContainer = $VBoxContainer/MainHBox/LeftInfoColumn/RelicSection
-@onready var relic_container: HBoxContainer = $VBoxContainer/MainHBox/LeftInfoColumn/RelicSection/RelicContainer
-@onready var sacrifice_tab_btn : Button = $VBoxContainer/MainHBox/RightContainer/TabBar/SacrificeTabBtn
-@onready var furnace_tab_btn : Button = $VBoxContainer/MainHBox/RightContainer/TabBar/FurnaceTabBtn
+@onready var mode_label = get_node_or_null("VBoxContainer/TopBar/ModeLabel")
+@onready var gold_label = get_node_or_null("VBoxContainer/GoldLabel")
+@onready var close_btn = get_node_or_null("VBoxContainer/BottomHBox/CloseBtn")
+@onready var confirm_btn = get_node_or_null("VBoxContainer/BottomHBox/ConfirmBtn")
+@onready var unit_container = get_node_or_null("VBoxContainer/MainHBox/LeftVBox/UnitContainer")
+@onready var right_container = get_node_or_null("VBoxContainer/MainHBox/RightContainer")
+@onready var shop_scroll: ScrollContainer = get_node_or_null("VBoxContainer/MainHBox/RightContainer/ShopScroll")
+@onready var shop_container: GridContainer = get_node_or_null("VBoxContainer/MainHBox/RightContainer/ShopScroll/ShopContainer")
+@onready var reset_btn = get_node_or_null("VBoxContainer/MainHBox/RightContainer/ResetBtn")
+@onready var discard_zone = get_node_or_null("VBoxContainer/MainHBox/RightContainer/DiscardZone")
+@onready var tab_bar = get_node_or_null("VBoxContainer/MainHBox/RightContainer/TabBar")
+@onready var weapon_tab_btn = get_node_or_null("VBoxContainer/MainHBox/RightContainer/TabBar/WeaponTabBtn")
+@onready var talent_tab_btn = get_node_or_null("VBoxContainer/MainHBox/RightContainer/TabBar/TalentTabBtn")
+@onready var relic_section: VBoxContainer = get_node_or_null("VBoxContainer/MainHBox/LeftInfoColumn/RelicSection")
+@onready var relic_container: HBoxContainer = get_node_or_null("VBoxContainer/MainHBox/LeftInfoColumn/RelicSection/RelicContainer")
+@onready var sacrifice_tab_btn : Button = get_node_or_null("VBoxContainer/MainHBox/RightContainer/TabBar/SacrificeTabBtn")
+@onready var furnace_tab_btn : Button = get_node_or_null("VBoxContainer/MainHBox/RightContainer/TabBar/FurnaceTabBtn")
 
 var _pending_section : VBoxContainer = null
 var _pending_container : HBoxContainer = null
@@ -88,6 +88,7 @@ func _ensure_aura_tab_btn():
 	_aura_tab_btn.add_theme_font_size_override("font_size", 8)
 	_aura_tab_btn.focus_mode = Control.FOCUS_NONE
 	_aura_tab_btn.visible = false
+	_aura_tab_btn.clip_text = true
 	_aura_tab_btn.pressed.connect(_on_aura_tab_pressed)
 	parent.add_child(_aura_tab_btn)
 	parent.move_child(_aura_tab_btn, sacrifice_tab_btn.get_index() + 1)
@@ -499,6 +500,10 @@ func _build_ui_inner():
 	close_btn.add_theme_font_size_override("font_size", Style.FONT_LARGE)
 	confirm_btn.add_theme_font_size_override("font_size", Style.FONT_LARGE)
 	reset_btn.add_theme_font_size_override("font_size", Style.FONT_LARGE)
+
+	if reset_btn:
+		reset_btn.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		reset_btn.clip_text = true
 
 	_ensure_upgrade_shop_btn()
 	_refresh_upgrade_shop_btn()
@@ -940,10 +945,8 @@ func _create_unit_icon(unit: UnitData, unit_idx: int) -> Control:
 	wrapper.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 	wrapper.mouse_filter = Control.MOUSE_FILTER_STOP
 
-	# ★ 统一调用：获取带 idle 动画的 TextureRect
 	var texture_rect = UnitDataManager.create_idle_texture_rect(unit.unit_name, Vector2(icon_size, icon_size))
 	
-	# ★ 恢复原有锚点位置，确保图标在列的正上方居中
 	texture_rect.anchor_left = 0.5
 	texture_rect.anchor_right = 0.5
 	texture_rect.offset_left = -icon_size / 2.0
@@ -961,25 +964,10 @@ func _create_unit_icon(unit: UnitData, unit_idx: int) -> Control:
 	return wrapper
 
 
-func _attach_idle_animator(tex_rect: TextureRect, frames: SpriteFrames):
-	var timer := Timer.new()
-	timer.wait_time = 0.25
-	timer.autostart = true
-	tex_rect.add_child(timer)
-
-	var frame_count := frames.get_frame_count("idle")
-	var idx := {"value": 0}
-	timer.timeout.connect(func():
-		if not is_instance_valid(tex_rect):
-			return
-		idx["value"] = (idx["value"] + 1) % frame_count
-		var t = frames.get_frame_texture("idle", idx["value"])
-		if t:
-			tex_rect.texture = t
-	)
-
-
 func _build_unit_columns():
+	if not unit_container: return
+	unit_container.alignment = BoxContainer.ALIGNMENT_CENTER # ★ 确保每次重建都居中
+
 	for child in unit_container.get_children():
 		unit_container.remove_child(child); child.free()
 
@@ -1769,7 +1757,6 @@ func _setup_forge_narrative_ui() -> void:
 func _trigger_forge_enter() -> void:
 	if not is_inside_tree():
 		return
-	# 直接构建基础上下文，不再调用 _build_forge_context()
 	var ctx := {
 		"npc_id": "forge",
 		"current_day": GameState.current_day,
