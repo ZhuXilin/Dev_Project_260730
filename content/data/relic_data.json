@@ -2,7 +2,7 @@
   "relic_attack": {
 	"id": "relic_attack",
 	"name": "力量遗物",
-	"icon": "res://content/images/items/relic.png",
+	"icon": "item_021",
 	"description": "全队每场战斗第一次攻击必定暴击",
 	"flavor": "力量遗物。每一次战斗，第一次攻击必定命中要害。\n\n有人说，这是死者的祝福。",
 	"effects": { "first_attack_crit": true },
@@ -11,7 +11,7 @@
   "relic_defense": {
 	"id": "relic_defense",
 	"name": "守护遗物",
-	"icon": "res://content/images/items/relic.png",
+	"icon": "item_052",
 	"description": "全队单位 HP<30% 时，受到伤害 -50%",
 	"flavor": "守护遗物。它会让血在最深的伤口处凝固。\n\n代价是：你会记得每一次受伤。",
 	"effects": { "low_hp_damage_reduce": 0.5 },
@@ -20,7 +20,7 @@
   "relic_speed": {
 	"id": "relic_speed",
 	"name": "疾风遗物",
-	"icon": "res://content/images/items/relic.png",
+	"icon": "item_003",
 	"description": "全队击杀敌人后，本回合可再移动 2 格",
 	"flavor": "一枚古老的纹章。握着它时，脚步会变得轻盈。\n\n不是魔法。是有人记得你走过的路。",
 	"effects": { "kill_grants_extra_move": 2 },
@@ -29,7 +29,7 @@
   "relic_magic": {
 	"id": "relic_magic",
 	"name": "魔力遗物",
-	"icon": "res://content/images/items/relic.png",
+	"icon": "item_073",
 	"description": "全队每场战斗第一次施法不消耗行动",
 	"flavor": "魔力遗物。第一次施法不需要言语。\n\n——「这是谁的？」\n——「一个不会说话的人。」",
 	"effects": { "first_spell_free": true },
@@ -38,7 +38,7 @@
   "relic_health": {
 	"id": "relic_health",
 	"name": "生命遗物",
-	"icon": "res://content/images/items/relic.png",
+	"icon": "item_067",
 	"description": "全队每回合首次受伤，回复该伤害 30%",
 	"flavor": "生命遗物。受第一次伤时，它会还你三成血。\n\n剩下的七成，要自己扛。",
 	"effects": { "turn_first_hit_regen": 0.3 },
@@ -47,7 +47,7 @@
   "relic_strength": {
 	"id": "relic_strength",
 	"name": "巨力遗物",
-	"icon": "res://content/images/items/relic.png",
+	"icon": "item_071",
 	"description": "全队攻击时，每 1 点力量额外 +2% 伤害",
 	"flavor": "巨力遗物。它不会让你变强，只会让你记得自己有多强。\n\n——很多人都不记得。",
 	"effects": { "strength_scale_damage": 0.02 },
@@ -56,7 +56,7 @@
   "relic_dexterity": {
 	"id": "relic_dexterity",
 	"name": "迅捷遗物",
-	"icon": "res://content/images/items/relic.png",
+	"icon": "item_022",
 	"description": "全队反击伤害 +50%",
 	"flavor": "迅捷遗物。反击时，你的手比你的意识更快。\n\n——手没有忘记。",
 	"effects": { "counter_damage_bonus": 0.5 },
@@ -65,7 +65,7 @@
   "relic_faith": {
 	"id": "relic_faith",
 	"name": "信仰遗物",
-	"icon": "res://content/images/items/relic.png",
+	"icon": "item_017",
 	"description": "全队治疗量 +50%",
 	"flavor": "信仰遗物。治疗时，光更亮了一点。\n\n——是有人在替你祈祷。",
 	"effects": { "heal_bonus": 0.5 },
@@ -74,7 +74,7 @@
   "relic_phoenix": {
 	"id": "relic_phoenix",
 	"name": "凤凰之羽",
-	"icon": "res://content/images/items/relic.png",
+	"icon": "item_057",
 	"description": "每个单位每场战斗首次阵亡后，满血复活一次",
 	"flavor": "凤凰之羽。第一次阵亡，会满血复活。\n\n第二次不会。",
 	"effects": { "auto_revive_once": true },

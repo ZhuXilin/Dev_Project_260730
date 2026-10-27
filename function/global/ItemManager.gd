@@ -27,8 +27,10 @@ func load_items():
 		item.name = dict.get("name", "")
 		item.type = dict.get("type", "")
 		item.use_type = dict.get("use_type", "equipment")
-		if dict.has("icon") and ResourceLoader.exists(dict.icon):
-			item.icon = load(dict.icon)
+		
+		# ★ 核心修改：统一走 IconManager
+		item.icon = IconManager.get_icon(dict.get("icon", ""))
+		
 		item.description = dict.get("description", "")
 		item.flavor = dict.get("flavor", "")
 		item.category = dict.get("category", "")
@@ -41,13 +43,11 @@ func load_items():
 		item.min_attack_range = dict.get("min_attack_range", 1)
 		item.modifier = dict.get("modifier", {})
 
-		# ★ v4.6 穿透
 		item.physical_penetration = float(dict.get("physical_penetration", 0.0))
 		item.magic_penetration = float(dict.get("magic_penetration", 0.0))
 
-		# ★ v4.6 减伤率（替代 defense）
 		item.armor_type = dict.get("armor_type", "medium")
-		item.defense = dict.get("defense", 0)                     # 废弃字段，保留兼容
+		item.defense = dict.get("defense", 0) 
 		item.physical_reduction = float(dict.get("physical_reduction", 0.0))
 		item.magic_reduction = float(dict.get("magic_reduction", 0.0))
 		item.slot_count = dict.get("slot_count", 1)

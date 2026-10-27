@@ -15,29 +15,29 @@ collision_enabled = false
 [node name="Enemy01" type="Node2D" parent="." unique_id=718192537]
 position = Vector2(112, 112)
 script = ExtResource("2_660gu")
-unit_type = 6
 team = 1
+unit_type = 6
 metadata/_custom_type_script = "uid://cjvddjaj43chx"
 
 [node name="Enemy02" type="Node2D" parent="." unique_id=801576404]
 position = Vector2(128, 96)
 script = ExtResource("2_660gu")
-unit_type = 3
 team = 1
+unit_type = 3
 metadata/_custom_type_script = "uid://cjvddjaj43chx"
 
 [node name="Enemy03" type="Node2D" parent="." unique_id=241437663]
 position = Vector2(160, 64)
 script = ExtResource("2_660gu")
-unit_type = 4
 team = 1
+unit_type = 4
 metadata/_custom_type_script = "uid://cjvddjaj43chx"
 
 [node name="Enemy05" type="Node2D" parent="." unique_id=42826125]
 position = Vector2(160, 112)
 script = ExtResource("2_660gu")
-unit_type = 1
 team = 1
+unit_type = 1
 metadata/_custom_type_script = "uid://cjvddjaj43chx"
 
 [node name="HpFunction" type="Node2D" parent="." unique_id=1782810974]

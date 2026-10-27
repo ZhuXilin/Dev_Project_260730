@@ -38,7 +38,7 @@ func build_shop_items():
 		panel.shop_scroll.scroll_vertical = 0
 		panel.shop_scroll.scroll_horizontal = 0
 
-	# ---- 3. ★ 立即清空 shop_container（free 而非 queue_free） ----
+	# ---- 3. 立即清空 shop_container ----
 	if panel.shop_container:
 		for child in panel.shop_container.get_children():
 			panel.shop_container.remove_child(child)
@@ -60,7 +60,7 @@ func build_shop_items():
 		btn.autowrap_mode = TextServer.AUTOWRAP_OFF
 		btn.clip_text = true
 		btn.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-		btn.disabled = false    # ★ 显式重置 disabled
+		btn.disabled = false
 
 		if entry != null:
 			var entry_dict : Dictionary = entry
@@ -77,7 +77,7 @@ func build_shop_items():
 		else:
 			btn.text = "空位"
 			btn.disabled = true
-			btn.set_meta("slot_type", "")    # ★ 清空 meta，防止被拖拽源查找命中
+			btn.set_meta("slot_type", "")
 			btn.set_meta("shop_index", i)
 		panel.shop_container.add_child(btn)
 
@@ -132,8 +132,7 @@ func buy_shop_item(data: Dictionary, target: Control):
 	var target_slot_idx : int = target.get_meta("slot_idx", -1)
 
 	if item_data.type == "weapon":
-		if target_type != "weapon": return
-		if target_unit_idx < 0: return
+		return # ★ 修改：不能买武器
 	elif item_data.type == "armor":
 		if target_type != "armor": return
 		if target_unit_idx < 0 or target_slot_idx < 0: return
@@ -150,8 +149,7 @@ func buy_shop_item(data: Dictionary, target: Control):
 	inst.item_id = item_data.id
 	inst.count = 1
 	if item_data.type == "weapon":
-		var tu : UnitData = panel.party[target_unit_idx]
-		tu.weapon_slot = inst
+		pass # ★ 修改
 	elif item_data.type == "armor":
 		var tu2 : UnitData = panel.party[target_unit_idx]
 		tu2.armor_slots[target_slot_idx] = inst
@@ -163,37 +161,8 @@ func buy_shop_item(data: Dictionary, target: Control):
 
 
 # ============================================================
-#  武器库 → 武器槽
-# ============================================================
-func library_to_weapon(data: Dictionary, target: Control):
-	var item_id : String = data["item_id"]
-	var unit_idx : int = target.get_meta("unit_idx", -1)
-	if unit_idx == -1: return
-	var inst := ItemInstance.new()
-	inst.item_id = item_id
-	inst.count = 1
-	var u : UnitData = panel.party[unit_idx]
-	u.weapon_slot = inst
-	panel._build_unit_columns()
-	panel._sync_all(); panel._schedule_build_ui()
-
-
-# ============================================================
 #  交换
 # ============================================================
-func swap_weapons(data: Dictionary, target: Control):
-	var src_unit : int = data["unit_idx"]
-	var tgt_unit : int = target.get_meta("unit_idx", -1)
-	if tgt_unit == -1: return
-	var su : UnitData = panel.party[src_unit]
-	var tu : UnitData = panel.party[tgt_unit]
-	var temp : ItemInstance = su.weapon_slot
-	su.weapon_slot = tu.weapon_slot
-	tu.weapon_slot = temp
-	panel._build_unit_columns()
-	panel._sync_all(); panel._schedule_build_ui()
-
-
 func swap_armor(data: Dictionary, target: Control):
 	var src_unit : int = data["unit_idx"]
 	var src_slot : int = data["slot_idx"]

@@ -24,6 +24,13 @@ func load_relics():
 		push_error("遗物 JSON 解析失败")
 		return
 	_relic_db = data
+	
+	# ★ 核心修改：在加载时直接替换 icon 为 Texture2D
+	for key in _relic_db:
+		var d : Dictionary = _relic_db[key]
+		var icon_str = d.get("icon", "")
+		d["icon"] = IconManager.get_icon(icon_str)
+		
 	print("成功加载 ", _relic_db.size(), " 个遗物")
 
 

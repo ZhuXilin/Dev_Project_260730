@@ -8,7 +8,7 @@ func _ready():
 	_load_config()
 
 func load_auras():
-	var path : String = Config.PATHS.AURA_DATA
+	var path: String = Config.PATHS.AURA_DATA
 	if not FileAccess.file_exists(path):
 		push_error("光环数据不存在: " + path); return
 	var f := FileAccess.open(path, FileAccess.READ)
@@ -16,6 +16,13 @@ func load_auras():
 	f.close()
 	if not (data is Dictionary): return
 	_auras = data
+	
+	# ★ 核心修改：在加载时直接替换 icon 为 Texture2D
+	for key in _auras:
+		var d : Dictionary = _auras[key]
+		var icon_str = d.get("icon", "")
+		d["icon"] = IconManager.get_icon(icon_str)
+		
 	print("[AuraManager] 加载 %d 个光环" % _auras.size())
 
 func _load_config():

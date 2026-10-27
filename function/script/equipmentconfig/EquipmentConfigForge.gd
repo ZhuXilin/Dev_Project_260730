@@ -670,12 +670,9 @@ func is_valid_forge_drop(data: Dictionary, target: Control) -> bool:
 		if weapon_inst.upgrade_level >= max_lv: return false
 		return true
 
+	# ★ 修改：武器不可互换
 	if src_type == "weapon" and tgt_type == "weapon":
-		var src_unit : int = data.get("unit_idx", -1)
-		var tgt_unit : int = target.get_meta("unit_idx", -1)
-		if src_unit < 0 or tgt_unit < 0: return false
-		if src_unit == tgt_unit: return false
-		return true
+		return false
 
 	if src_type == "weapon" and target == panel.discard_zone:
 		return false
@@ -789,8 +786,6 @@ func execute_forge_drop(data: Dictionary, target: Control):
 		panel._schedule_build_ui()
 		return
 
-	if src_type == "weapon" and tgt_type == "weapon":
-		panel._shop.swap_weapons(data, target); return
 	if src_type == "armor" and tgt_type == "armor":
 		panel._shop.swap_armor(data, target); return
 

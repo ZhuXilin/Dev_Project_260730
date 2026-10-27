@@ -38,7 +38,6 @@ const DETAIL_ZONE_PATH : String = "VBoxContainer/MainHBox/LeftInfoColumn/DetailZ
 @onready var confirm_btn = get_node_or_null("VBoxContainer/BottomHBox/ConfirmBtn")
 @onready var unit_container = get_node_or_null("VBoxContainer/MainHBox/LeftVBox/UnitContainer")
 
-# ★ 关键修改：所有路径加入 RightScroll 层级
 @onready var right_container = get_node_or_null("VBoxContainer/MainHBox/RightScroll/RightContainer")
 @onready var shop_scroll: ScrollContainer = get_node_or_null("VBoxContainer/MainHBox/RightScroll/RightContainer/ShopScroll")
 @onready var shop_container: GridContainer = get_node_or_null("VBoxContainer/MainHBox/RightScroll/RightContainer/ShopScroll/ShopContainer")
@@ -366,7 +365,7 @@ func _build_ui_inner():
 				confirm_btn.modulate = Color(0.5, 0.5, 0.5)
 				_forge.build_forge_slots()
 				shop_container.visible = true
-				reset_btn.visible = false # ★ 修改为 false
+				reset_btn.visible = false
 				_forge.display_recipe_info()
 				discard_zone.visible = false
 			else:
@@ -410,7 +409,7 @@ func _build_ui_inner():
 				"arena_forge":
 					_forge.build_forge_slots()
 					shop_container.visible = true
-					reset_btn.visible = false # ★ 修改为 false
+					reset_btn.visible = false
 					_forge.display_recipe_info()
 					discard_zone.visible = false
 				"sacrifice":
@@ -469,7 +468,7 @@ func _build_ui_inner():
 				"arena_forge":
 					_forge.build_forge_slots()
 					shop_container.visible = true
-					reset_btn.visible = false # ★ 修改为 false
+					reset_btn.visible = false
 					discard_zone.visible = false
 					_forge.display_recipe_info()
 				"sacrifice":
@@ -885,8 +884,7 @@ func _equip_pending_reward(data: Dictionary, target: Control):
 	if not item_data: return
 
 	if target_type == "weapon":
-		if item_data.type != "weapon": return
-		u.weapon_slot = inst
+		return # ★ 修改：不处理武器
 	elif target_type == "armor":
 		if item_data.type != "armor": return
 		var slot_idx : int = target.get_meta("slot_idx", -1)
@@ -976,6 +974,7 @@ func _build_unit_columns():
 		var weapon_inst : ItemInstance = unit.weapon_slot
 		var weapon_btn : Button = _create_item_button(weapon_inst, "weapon", i, -1)
 		if unit.is_dead: _disable_button(weapon_btn)
+		weapon_btn.mouse_filter = Control.MOUSE_FILTER_IGNORE # ★ 修改：武器不可拖拽
 		col.add_child(weapon_btn)
 
 		col.add_child(Style.create_label(Style.SEPARATOR_TEXT, Style.FONT_SMALL))
@@ -1181,7 +1180,7 @@ func _is_valid_drop(data: Dictionary, target: Control) -> bool:
 		var idata = ItemManager.get_item_data(inst.item_id)
 		if not idata: return false
 		if target_type == "weapon":
-			return idata.type == "weapon"
+			return false # ★ 修改：武器不可替换
 		elif target_type == "armor":
 			if idata.type != "armor": return false
 			var ts_p : int = target.get_meta("slot_idx", -1)
@@ -1205,8 +1204,9 @@ func _is_valid_drop(data: Dictionary, target: Control) -> bool:
 
 	if current_mode == Mode.DEPLOY:
 		if discard: return false
-		if source_type == "library_weapon": return target_type == "weapon"
-		if source_type == "weapon" and target_type == "weapon": return true
+		# ★ 修改：武器库的武器不可拖拽到单位身上
+		if source_type == "library_weapon": return false
+		if source_type == "weapon" and target_type == "weapon": return false # ★ 修改：武器不可互换
 		if source_type == "library_talent" and target_type == "talent": return _talent.check_talent_compatibility(data, target)
 		if source_type == "talent" and target_type == "talent": return _talent.check_talent_compatibility(data, target)
 		return false
@@ -1215,7 +1215,8 @@ func _is_valid_drop(data: Dictionary, target: Control) -> bool:
 		if discard:
 			if source_type == "armor": return true
 			return false
-		if source_type == "weapon" and target_type == "weapon": return true
+		# ★ 修改：武器不可互换
+		if source_type == "weapon" and target_type == "weapon": return false 
 		if source_type == "armor" and target_type == "armor":
 			return _check_armor_swap_budget(data, target)
 		if source_type == "library_talent" and target_type == "talent": return _talent.check_talent_compatibility(data, target)
@@ -1236,15 +1237,14 @@ func _is_valid_drop(data: Dictionary, target: Control) -> bool:
 			var tu2 : int = target.get_meta("unit_idx", -1)
 			var ts2 : int = target.get_meta("slot_idx", -1)
 			if item_data.type == "weapon":
-				if target_type != "weapon": return false
-				if tu2 < 0: return false
-				return true
+				return false # ★ 修改：商店不卖武器，或者说武器不能买/买不能换
 			elif item_data.type == "armor":
 				if target_type != "armor": return false
 				if tu2 < 0 or ts2 < 0: return false
 				return _can_equip_armor_to(tu2, item_data.id, ts2)
 			return false
-		if source_type == "weapon" and target_type == "weapon": return true
+		# ★ 修改：武器不可互换
+		if source_type == "weapon" and target_type == "weapon": return false
 		if source_type == "armor" and target_type == "armor":
 			return _check_armor_swap_budget(data, target)
 		return false
@@ -1289,8 +1289,9 @@ func _execute_drop(data: Dictionary, target: Control):
 	if source_type == "library_weapon": _shop.library_to_weapon(data, target); return
 	if source_type == "library_talent" and target_type == "talent": _talent.execute_talent_drop(data, target); return
 	if source_type == "talent" and target_type == "talent": _talent.execute_talent_drop(data, target); return
-	if source_type == "weapon" and target_type == "weapon": _shop.swap_weapons(data, target)
-	elif source_type == "armor" and target_type == "armor": _shop.swap_armor(data, target)
+	# ★ 修改：去掉武器互换的执行
+	# if source_type == "weapon" and target_type == "weapon": _shop.swap_weapons(data, target)
+	if source_type == "armor" and target_type == "armor": _shop.swap_armor(data, target)
 
 
 func _discard_passive(data: Dictionary):
@@ -1452,7 +1453,7 @@ func _switch_tab(tab: String):
 				reset_btn.text = "刷新商店 (" + str(shop_manager.get_reset_cost()) + "G)"
 		"arena_forge":
 			_forge.build_forge_slots()
-			if reset_btn: reset_btn.visible = false # ★ 修改为 false
+			if reset_btn: reset_btn.visible = false
 		"sacrifice":
 			_build_sacrifice_panel()
 			if reset_btn: reset_btn.visible = false
