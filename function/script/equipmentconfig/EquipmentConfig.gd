@@ -38,7 +38,7 @@ const DETAIL_ZONE_PATH : String = "VBoxContainer/MainHBox/LeftInfoColumn/DetailZ
 @onready var confirm_btn = get_node_or_null("VBoxContainer/BottomHBox/ConfirmBtn")
 @onready var unit_container = get_node_or_null("VBoxContainer/MainHBox/LeftVBox/UnitContainer")
 
-# ★ 关键修改 1：路径改为 RightScroll/RightContainer
+# ★ 关键修改：所有路径加入 RightScroll 层级
 @onready var right_container = get_node_or_null("VBoxContainer/MainHBox/RightScroll/RightContainer")
 @onready var shop_scroll: ScrollContainer = get_node_or_null("VBoxContainer/MainHBox/RightScroll/RightContainer/ShopScroll")
 @onready var shop_container: GridContainer = get_node_or_null("VBoxContainer/MainHBox/RightScroll/RightContainer/ShopScroll/ShopContainer")
@@ -366,8 +366,7 @@ func _build_ui_inner():
 				confirm_btn.modulate = Color(0.5, 0.5, 0.5)
 				_forge.build_forge_slots()
 				shop_container.visible = true
-				reset_btn.visible = true
-				reset_btn.text = "清空插槽"
+				reset_btn.visible = false # ★ 修改为 false
 				_forge.display_recipe_info()
 				discard_zone.visible = false
 			else:
@@ -411,10 +410,8 @@ func _build_ui_inner():
 				"arena_forge":
 					_forge.build_forge_slots()
 					shop_container.visible = true
-					reset_btn.visible = true
-					reset_btn.text = "清空插槽"
+					reset_btn.visible = false # ★ 修改为 false
 					_forge.display_recipe_info()
-					# ★ 关键修改 2：铁匠铺标签下隐藏出售区，节省 40px 高度
 					discard_zone.visible = false
 				"sacrifice":
 					_build_sacrifice_panel()
@@ -472,9 +469,7 @@ func _build_ui_inner():
 				"arena_forge":
 					_forge.build_forge_slots()
 					shop_container.visible = true
-					reset_btn.visible = true
-					reset_btn.text = "清空插槽"
-					# ★ 关键修改 3：铁匠铺标签下隐藏出售区
+					reset_btn.visible = false # ★ 修改为 false
 					discard_zone.visible = false
 					_forge.display_recipe_info()
 				"sacrifice":
@@ -1457,7 +1452,7 @@ func _switch_tab(tab: String):
 				reset_btn.text = "刷新商店 (" + str(shop_manager.get_reset_cost()) + "G)"
 		"arena_forge":
 			_forge.build_forge_slots()
-			if reset_btn: reset_btn.text = "清空插槽"
+			if reset_btn: reset_btn.visible = false # ★ 修改为 false
 		"sacrifice":
 			_build_sacrifice_panel()
 			if reset_btn: reset_btn.visible = false

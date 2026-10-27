@@ -23,10 +23,9 @@ var CRAFT_QUALITY_TABLE : Array = []
 var panel = null
 var forge_slots : Array = []
 var forge_matched_recipe : String = ""
-var forge_result_label : Label = null
-var forge_upgrade_btn : Button = null
 var inline_craft_btn : Button = null
 var _last_drag_unit_idx : int = -1
+var forge_upgrade_btn : Button = null
 var forge_reforge_btn : Button = null
 
 
@@ -172,7 +171,6 @@ func build_forge_slots():
 			panel.right_container.remove_child(child)
 			child.queue_free()
 
-	forge_result_label = null
 	forge_upgrade_btn = null
 	inline_craft_btn = null
 	forge_reforge_btn = null
@@ -189,7 +187,7 @@ func build_forge_slots():
 	panel.shop_container.add_theme_constant_override("h_separation", 2)
 	panel.shop_container.add_theme_constant_override("v_separation", 2)
 
-	# 3. 设置滚动容器：高度自适应，禁用内部滚动条，交给外层 RightScroll 处理
+	# 3. 设置滚动容器：高度彻底自适应，禁用内部滚动条
 	if panel.shop_scroll:
 		panel.shop_scroll.custom_minimum_size = Vector2.ZERO
 		panel.shop_scroll.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
@@ -197,10 +195,7 @@ func build_forge_slots():
 		panel.shop_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 		panel.shop_scroll.scroll_vertical = 0
 
-	# 4. 确保结果标签存在
-	_ensure_forge_result_label()
-
-	# 5. 生成 9 个槽位按钮
+	# 4. 生成 9 个槽位按钮
 	for i in range(MAX_SLOTS):
 		var slot_btn : Button = Style.create_styled_button(Style.FONT_SMALL, Style.BTN_ITEM_SIZE)
 		slot_btn.clip_text = true
@@ -228,18 +223,10 @@ func build_forge_slots():
 
 		panel.shop_container.add_child(slot_btn)
 
-	# 6. 更新结果标签、构建合成按钮行
-	_update_forge_result_label()
+	# 5. 构建合成+清空行，以及升级+重铸按钮
 	_ensure_forge_craft_row()
-
-	# 7. 确保升级 UI 存在并刷新
-	if not forge_upgrade_btn or not is_instance_valid(forge_upgrade_btn) or not forge_upgrade_btn.is_inside_tree():
-		forge_upgrade_btn = null
 	_ensure_forge_upgrade_ui()
-
-	# 8. 刷新合成按钮状态并添加底部占位
 	_refresh_inline_craft_btn()
-	_ensure_forge_bottom_spacer()
 
 
 func _ensure_forge_craft_row():
@@ -257,6 +244,7 @@ func _ensure_forge_craft_row():
 		row.name = "ForgeCraftRow"
 		row.alignment = BoxContainer.ALIGNMENT_CENTER
 		row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		row.add_theme_constant_override("separation", 4)
 		panel.right_container.add_child(row)
 		var scroll_idx : int = panel.shop_scroll.get_index()
 		panel.right_container.move_child(row, scroll_idx + 1)
@@ -264,32 +252,24 @@ func _ensure_forge_craft_row():
 	for c in row.get_children():
 		c.queue_free()
 
+	# 合成按钮（既当信息展示，又当点击按钮）
 	inline_craft_btn = Style.create_styled_button(Style.FONT_SMALL, Style.BTN_ITEM_SIZE)
 	inline_craft_btn.clip_text = true
-	inline_craft_btn.custom_minimum_size = Vector2(72, 16)
-	inline_craft_btn.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	inline_craft_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	inline_craft_btn.custom_minimum_size = Vector2(0, 16)
 	inline_craft_btn.text = "合成"
 	inline_craft_btn.set_meta("slot_type", "forge_craft_btn")
 	inline_craft_btn.pressed.connect(on_forge_craft_pressed)
 	row.add_child(inline_craft_btn)
 
-	_refresh_inline_craft_btn()
-
-
-func _ensure_forge_result_label():
-	if forge_result_label and is_instance_valid(forge_result_label) and forge_result_label.is_inside_tree():
-		return
-	forge_result_label = Label.new()
-	forge_result_label.name = "ForgeResultLabel"
-	forge_result_label.add_theme_font_size_override("font_size", Style.FONT_SMALL)
-	forge_result_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	forge_result_label.modulate = Color(0.5, 0.5, 0.5)
-	forge_result_label.text = "合成结果：—"
-	forge_result_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	forge_result_label.custom_minimum_size = Vector2(0, 0)
-	panel.right_container.add_child(forge_result_label)
-	var scroll_idx : int = panel.shop_scroll.get_index()
-	panel.right_container.move_child(forge_result_label, scroll_idx + 1)
+	# 清空按钮（取代外部的 ResetBtn，节省一行）
+	var clear_btn := Style.create_styled_button(Style.FONT_SMALL, Style.BTN_ITEM_SIZE)
+	clear_btn.clip_text = true
+	clear_btn.custom_minimum_size = Vector2(40, 16)
+	clear_btn.size_flags_horizontal = Control.SIZE_SHRINK_END
+	clear_btn.text = "清空"
+	clear_btn.pressed.connect(on_forge_clear_pressed)
+	row.add_child(clear_btn)
 
 
 func display_recipe_info():
@@ -305,7 +285,7 @@ func display_recipe_info():
 	if input_ids.is_empty():
 		panel._show_detail_in_zone("将防具拖入插槽以匹配配方\n或放入任意防具进行通用合成")
 		forge_matched_recipe = ""
-		_update_forge_result_label()
+		_refresh_inline_craft_btn()
 		return
 
 	forge_matched_recipe = RecipeManager.match_recipe(input_ids)
@@ -324,7 +304,7 @@ func display_recipe_info():
 		lines.append("金币: %dG" % CRAFT_COST)
 		lines.append("→ 产物: " + (out_data.name if out_data else forge_matched_recipe) + "（固定）")
 		panel._show_detail_in_zone("\n".join(lines))
-		_update_forge_result_label()
+		_refresh_inline_craft_btn()
 		return
 
 	var score : int = _calc_input_score(input_insts)
@@ -348,7 +328,7 @@ func display_recipe_info():
 	lines2.append("")
 	lines2.append("金币: %dG" % CRAFT_COST)
 	panel._show_detail_in_zone("\n".join(lines2))
-	_update_forge_result_label()
+	_refresh_inline_craft_btn()
 
 
 func _refresh_inline_craft_btn():
@@ -362,7 +342,7 @@ func _refresh_inline_craft_btn():
 			break
 
 	if not has_input:
-		inline_craft_btn.text = "合成"
+		inline_craft_btn.text = "需放入防具"
 		inline_craft_btn.disabled = true
 		inline_craft_btn.modulate = Color(0.5, 0.5, 0.5)
 		return
@@ -376,74 +356,33 @@ func _refresh_inline_craft_btn():
 
 	var btn_cost : int = CRAFT_COST
 	if fusion.get("ok", false):
-		inline_craft_btn.text = "熔合 %dG" % FUSION_COST
+		var product : ItemData = ItemManager.get_item_data(fusion["product_id"])
+		var pname : String = product.name if product else fusion["product_id"]
+		inline_craft_btn.text = "熔合：%s（%dG）" % [pname, FUSION_COST]
 		btn_cost = FUSION_COST
+		inline_craft_btn.modulate = Color(1.0, 0.6, 0.2)
 	elif forge_matched_recipe != "":
-		inline_craft_btn.text = "合成 %dG" % CRAFT_COST
+		var out_data : ItemData = ItemManager.get_item_data(forge_matched_recipe)
+		var out_name : String = out_data.name if out_data else forge_matched_recipe
+		inline_craft_btn.text = "合成：%s（%dG）" % [out_name, CRAFT_COST]
+		btn_cost = CRAFT_COST
+		inline_craft_btn.modulate = Color.WHITE
 	else:
-		inline_craft_btn.text = "通用合成 %dG" % CRAFT_COST
+		var score : int = _calc_input_score(input_insts)
+		inline_craft_btn.text = "通用合成（评分 %d，%dG）" % [score, CRAFT_COST]
+		btn_cost = CRAFT_COST
+		inline_craft_btn.modulate = Color(1.0, 0.85, 0.3)
 
 	var can_afford : bool = panel._context.get_gold() >= btn_cost
 	inline_craft_btn.disabled = not can_afford
-	inline_craft_btn.modulate = Color.WHITE if can_afford else Color(0.5, 0.5, 0.5)
-
-
-func _update_forge_result_label():
-	if not forge_result_label or not is_instance_valid(forge_result_label):
-		return
-
-	var input_insts : Array = []
-	for entry in forge_slots:
-		if entry != null:
-			var entry_dict : Dictionary = entry
-			input_insts.append(entry_dict["inst"])
-	var fusion : Dictionary = _check_fusion(input_insts)
-	if fusion.get("ok", false):
-		var product : ItemData = ItemManager.get_item_data(fusion["product_id"])
-		var pname : String = product.name if product else fusion["product_id"]
-		forge_result_label.text = "★ 熔合：%s（%dG）" % [pname, FUSION_COST]
-		forge_result_label.modulate = Color(1.0, 0.6, 0.2)
-		_refresh_inline_craft_btn()
-		return
-
-	if forge_matched_recipe != "":
-		var out_data : ItemData = ItemManager.get_item_data(forge_matched_recipe)
-		var out_name : String = out_data.name if out_data else forge_matched_recipe
-		forge_result_label.text = "合成结果：%s（%dG）" % [out_name, CRAFT_COST]
-		if out_data:
-			forge_result_label.modulate = UIConst.QUALITY_COLORS.get(out_data.quality, Color.WHITE)
-		else:
-			forge_result_label.modulate = Color.WHITE
-	else:
-		var has_input : bool = false
-		var score : int = 0
-		for entry in forge_slots:
-			if entry != null:
-				has_input = true
-				var entry_dict : Dictionary = entry
-				var inst : ItemInstance = entry_dict["inst"]
-				var d : ItemData = ItemManager.get_item_data(inst.item_id)
-				if d:
-					score += int(QUALITY_SCORE.get(d.quality, 1))
-		if has_input:
-			forge_result_label.text = "合成结果：随机（评分 %d，%dG）" % [score, CRAFT_COST]
-			forge_result_label.modulate = Color(1.0, 0.85, 0.3)
-		else:
-			forge_result_label.text = "合成结果：—"
-			forge_result_label.modulate = Color(0.5, 0.5, 0.5)
-
-	_refresh_inline_craft_btn()
+	if not can_afford:
+		inline_craft_btn.modulate = Color(0.5, 0.5, 0.5)
 
 
 func _ensure_forge_upgrade_ui():
 	if forge_upgrade_btn and is_instance_valid(forge_upgrade_btn) and forge_upgrade_btn.is_inside_tree():
 		refresh_forge_upgrade_ui()
 		return
-
-	if forge_upgrade_btn != null and not is_instance_valid(forge_upgrade_btn):
-		forge_upgrade_btn = null
-	if forge_reforge_btn != null and not is_instance_valid(forge_reforge_btn):
-		forge_reforge_btn = null
 
 	for n_name in ["ForgeUpgradeLabel", "ForgeUpgradeBtn", "ForgeUpgradeSpacer1", "ForgeUpgradeSpacer2",
 				   "ForgeReforgeSpacer", "ForgeReforgeLabel", "ForgeReforgeBtn"]:
@@ -452,11 +391,6 @@ func _ensure_forge_upgrade_ui():
 			panel.right_container.remove_child(old)
 			old.queue_free()
 
-	var spacer1 := Control.new()
-	spacer1.name = "ForgeUpgradeSpacer1"
-	spacer1.custom_minimum_size = Vector2(0, 2)
-	panel.right_container.add_child(spacer1)
-
 	forge_upgrade_btn = Style.create_styled_button(Style.FONT_SMALL, Style.BTN_ITEM_SIZE)
 	forge_upgrade_btn.name = "ForgeUpgradeBtn"
 	forge_upgrade_btn.clip_text = true
@@ -464,24 +398,12 @@ func _ensure_forge_upgrade_ui():
 	forge_upgrade_btn.set_meta("slot_type", "forge_upgrade_slot")
 	panel.right_container.add_child(forge_upgrade_btn)
 
-	var spacer2 := Control.new()
-	spacer2.name = "ForgeUpgradeSpacer2"
-	spacer2.custom_minimum_size = Vector2(0, 2)
-	panel.right_container.add_child(spacer2)
-
 	forge_reforge_btn = Style.create_styled_button(Style.FONT_SMALL, Style.BTN_ITEM_SIZE)
 	forge_reforge_btn.name = "ForgeReforgeBtn"
 	forge_reforge_btn.clip_text = true
 	forge_reforge_btn.custom_minimum_size = Vector2(0, 16)
 	forge_reforge_btn.set_meta("slot_type", "forge_reforge_slot")
 	panel.right_container.add_child(forge_reforge_btn)
-
-	if panel.tab_bar and is_instance_valid(panel.tab_bar):
-		var tab_idx : int = panel.tab_bar.get_index()
-		panel.right_container.move_child(spacer1, tab_idx + 1)
-		panel.right_container.move_child(forge_upgrade_btn, tab_idx + 2)
-		panel.right_container.move_child(spacer2, tab_idx + 3)
-		panel.right_container.move_child(forge_reforge_btn, tab_idx + 4)
 
 	refresh_forge_upgrade_ui()
 
@@ -495,7 +417,7 @@ func refresh_forge_upgrade_ui():
 	forge_upgrade_btn.disabled = true
 	forge_upgrade_btn.modulate = Color(0.5, 0.5, 0.5)
 
-	# 只在拖拽过武器时才显示具体信息，合并到按钮上
+	# 只在拖拽过武器时才显示具体信息，并直接显示在按钮上（含金币和攻击力）
 	var idx : int = _last_drag_unit_idx
 	if idx >= 0 and idx < panel.party.size():
 		var u : UnitData = panel.party[idx]
@@ -528,25 +450,12 @@ func update_upgrade_slot_for_drag(unit_idx: int) -> void:
 	refresh_forge_upgrade_ui()
 
 
-func _ensure_forge_bottom_spacer():
-	var spacer : Control = panel.right_container.get_node_or_null("ForgeBottomSpacer")
-	if spacer == null:
-		spacer = Control.new()
-		spacer.name = "ForgeBottomSpacer"
-		panel.right_container.add_child(spacer)
-	spacer.custom_minimum_size = Vector2(0, 4)
-	spacer.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
-
-
 func cleanup():
-	for n_name in ["ForgeResultLabel", "ForgeCraftRow", "ForgeUpgradeBtn",
-					"ForgeUpgradeSpacer1", "ForgeUpgradeSpacer2", "ForgeBottomSpacer",
-					"ForgeReforgeBtn"]:
+	for n_name in ["ForgeCraftRow", "ForgeUpgradeBtn", "ForgeReforgeBtn"]:
 		var n : Node = panel.right_container.get_node_or_null(n_name)
 		if n:
 			panel.right_container.remove_child(n)
 			n.queue_free()
-	forge_result_label = null
 	forge_upgrade_btn = null
 	forge_reforge_btn = null
 	inline_craft_btn = null
