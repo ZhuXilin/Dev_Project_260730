@@ -1,22 +1,18 @@
 extends Label
 
-# ============================================================
-#  DamagePopup — 伤害跳字（NES 风格）
-#  锚定世界坐标，每帧重算屏幕位置（跟随摄像机）
-# ============================================================
-
 const RISE_TIME : float = 0.3
 const RISE_DISTANCE : float = 12.0
 const HOLD_TIME : float = 0.15
 const POPUP_SIZE : Vector2 = Vector2(60, 24)
 
-# ★ 世界坐标 + 上浮偏移
 var _world_pos : Vector2 = Vector2.ZERO
 var _rise_offset : float = 0.0
+var _base_offset : float = 0.0          # ★ 新增：同位置多个跳字的纵向错开
 
-
-func setup(world_pos: Vector2, damage: int, is_crit: bool, is_miss: bool, is_heal: bool):
+func setup(world_pos: Vector2, damage: int, is_crit: bool, is_miss: bool, is_heal: bool,
+		vertical_offset: float = 0.0):   # ★ 新增参数
 	_world_pos = world_pos
+	_base_offset = vertical_offset
 
 	z_index = 100
 	z_as_relative = false
@@ -60,7 +56,6 @@ func setup(world_pos: Vector2, damage: int, is_crit: bool, is_miss: bool, is_hea
 
 
 func _process(_delta):
-	# 每帧重算屏幕坐标 → 跟随摄像机
 	_update_screen_position()
 
 
@@ -75,4 +70,4 @@ func _update_screen_position():
 		return
 	var canvas_xform := vp.get_canvas_transform()
 	var screen_pos := canvas_xform * _world_pos
-	position = screen_pos - POPUP_SIZE / 2 + Vector2(0, -12 + _rise_offset)
+	position = screen_pos - POPUP_SIZE / 2 + Vector2(0, -12 + _base_offset + _rise_offset)

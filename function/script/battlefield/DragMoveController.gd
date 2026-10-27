@@ -484,18 +484,25 @@ func _do_move_and_attack_async(unit : Unit, path : Array, target : Unit):
 
 
 # 攻击方式选择菜单
-# ★ 新增：攻击方式选择菜单
 func _show_attack_menu(attacker: Unit, target: Unit, is_after_move: bool) -> void:
 	# ★ v4.6：自愈时跳过技能菜单，直接走 _execute_heal
 	if attacker == target:
 		call_deferred("_do_combat_async", attacker, target, "")
 		return
 
-	# 获取当前就绪的主动技能
+	# ★ v4.6：白名单，治疗 / 增益类技能只能对友军释放
+	var ally_only_effects : Array = ["heal", "buff"]
+	var target_is_ally : bool = (target.unit_stats.team_id == attacker.unit_stats.team_id)
+
 	var ready_skills = TalentManager.get_ready_active_skills(attacker)
 	var available_skills = []
 	for sid in ready_skills:
 		var sdata = TalentManager.get_talent_data(sid)
+		if sdata == null:
+			continue
+		# ★ 白名单过滤
+		if sdata.effect_type in ally_only_effects and not target_is_ally:
+			continue
 		var cost = CombatManager._get_active_skill_cost(sdata)
 		if SoulFireManager.can_spend(cost):
 			available_skills.append(sdata)
@@ -508,9 +515,9 @@ func _show_attack_menu(attacker: Unit, target: Unit, is_after_move: bool) -> voi
 	# 构建菜单
 	var popup := PopupMenu.new()
 	_bf.add_child(popup)
-	
+
 	popup.add_item("普通攻击 (无消耗)", 0)
-	
+
 	for i in range(available_skills.size()):
 		var sdata = available_skills[i]
 		var cost = CombatManager._get_active_skill_cost(sdata)
@@ -519,17 +526,17 @@ func _show_attack_menu(attacker: Unit, target: Unit, is_after_move: bool) -> voi
 
 	# ★ 核心修复：用字典记录状态，绕过 GDScript lambda 的值捕获限制
 	var state = {"confirmed": false}
-	
+
 	popup.id_pressed.connect(func(id):
 		state["confirmed"] = true
 		var chosen_skill_id = ""
 		if id > 0:
 			chosen_skill_id = popup.get_item_metadata(id)
-		
+
 		popup.queue_free()
 		call_deferred("_do_combat_async", attacker, target, chosen_skill_id)
 	)
-	
+
 	popup.popup_hide.connect(func():
 		if not state["confirmed"]:
 			# 如果玩家点空白处取消

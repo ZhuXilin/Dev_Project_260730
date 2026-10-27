@@ -331,6 +331,21 @@ func revive_all_units():
 	for m in party:
 		m.sacrifice_buff_sources.clear()
 
+
+# 单单位复活（英灵殿 / 圣坛 / 竞技场用）
+# 与 revive_all_units 的区别：不清 sacrifice_buff_sources（其他阵亡单位的 buff 仍生效）
+# 调用方负责 SaveManager.auto_save()
+func revive_unit(unit_name: String, display_name: String) -> bool:
+	for ud in party:
+		if ud.unit_name == unit_name and ud.display_name == display_name:
+			if not ud.is_dead:
+				return false
+			ud.is_dead = false
+			ud.hit_points = ud.max_hp
+			return true
+	return false
+	
+
 func get_alive_party() -> Array:
 	var result : Array = []
 	for ud in party:

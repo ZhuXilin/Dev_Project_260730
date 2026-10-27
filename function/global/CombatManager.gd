@@ -341,13 +341,17 @@ func execute_attack(attacker: Unit, defender: Unit, forced_skill_id: String = ""
 	if forced_skill_id != "":
 		var sdata = TalentManager.get_talent_data(forced_skill_id)
 		if sdata:
-			var cost : int = _get_active_skill_cost(sdata)
-			if SoulFireManager.can_spend(cost):
-				active_skill_id = forced_skill_id
-				active_skill_data = sdata
-				has_skill = true
+			# ★ v4.6：治疗型技能只能对友军释放，对敌人时拒绝（走普攻）
+			if sdata.effect_type == "heal" and defender.unit_stats.team_id != attacker.unit_stats.team_id:
+				print("[主动技能] %s 是治疗技能，不能对敌人释放，已回退为普攻" % sdata.display_name)
 			else:
-				print("[主动技能] %s 魂火不足" % attacker.unit_stats.unit_name)
+				var cost : int = _get_active_skill_cost(sdata)
+				if SoulFireManager.can_spend(cost):
+					active_skill_id = forced_skill_id
+					active_skill_data = sdata
+					has_skill = true
+				else:
+					print("[主动技能] %s 魂火不足" % attacker.unit_stats.unit_name)
 
 	var heavy_mult : float = 1.0
 	var wdata = attacker.get_weapon_data()

@@ -55,6 +55,11 @@ const INFO_PANEL_MARGIN : float = 8.0
 const AVATAR_SIZE : float = 54.0
 const AVATAR_GAP : float = 4.0
 
+# ★ v4.6：伤害跳字队列参数
+const POPUP_QUEUE_INTERVAL : float = 0.15
+const POPUP_STACK_HEIGHT : float = 14.0
+const POPUP_MAX_STACK : int = 3
+
 var _map_loader : MapLoader = null
 var _non_combat_handler : NonCombatHandler = null
 var _function_handler : FunctionHandler = null
@@ -66,6 +71,10 @@ var _victory_handler : VictoryHandler = null
 var _drag_move_controller : DragMoveController = null
 
 var _damage_popup_layer : CanvasLayer = null
+
+# ★ v4.6：伤害跳字队列（同位置串行显示）
+var _damage_popup_queue : Dictionary = {}
+var _damage_popup_busy : Dictionary = {}
 
 var map_grid_size : Vector2i = MapConst.DEFAULT_MAP_SIZE
 var _initialized : bool = false
@@ -86,7 +95,11 @@ var _objective_banner : Label = null
 func _ready():
 	TurnManager.set_battle_ready(false)
 
+	# ★ 新战斗开始 → 清除上次的 Boss 临时上限惩罚
 	SoulFireManager.reset_boss_penalty()
+
+	# ★ v4.6：进战斗时，从持久层同步魂火到战斗层
+	# 保证"中途退出再进战斗"从战斗前的值开始，而不是上次残留值
 	SoulFireManager.current = clampi(
 		GameState.soul_fire_current, 0, SoulFireManager.get_max_carried())
 
@@ -703,12 +716,47 @@ func _on_request_screen_shake(duration: float, intensity: float, direction: Vect
 		shake_node.shake(duration, intensity, direction)
 
 
+# ★ v4.6：伤害跳字队列 —— 同位置串行 + 轻微错开
 func _on_request_damage_popup(world_pos: Vector2, damage: int, is_crit: bool, is_miss: bool, is_heal: bool):
 	if _damage_popup_layer == null:
 		return
-	var popup = preload(Config.PATHS.DAMAGE_POPUP_SCRIPT).new()
-	_damage_popup_layer.add_child(popup)
-	popup.setup(world_pos, damage, is_crit, is_miss, is_heal)
+	# 用 4 像素容差做 key，避免同一格因浮点误差被当成两个位置
+	var key := "%d_%d" % [int(world_pos.x / 4.0), int(world_pos.y / 4.0)]
+	if not _damage_popup_queue.has(key):
+		_damage_popup_queue[key] = []
+	_damage_popup_queue[key].append({
+		"world_pos": world_pos,
+		"damage": damage,
+		"is_crit": is_crit,
+		"is_miss": is_miss,
+		"is_heal": is_heal,
+	})
+	if _damage_popup_busy.get(key, false):
+		return
+	_damage_popup_busy[key] = true
+	_process_popup_queue(key)
+
+
+func _process_popup_queue(key: String) -> void:
+	var queue : Array = _damage_popup_queue.get(key, [])
+	var index : int = 0
+	while queue.size() > 0:
+		if not is_inside_tree():
+			break
+		var data : Dictionary = queue.pop_front()
+		var popup = preload(Config.PATHS.DAMAGE_POPUP_SCRIPT).new()
+		_damage_popup_layer.add_child(popup)
+		var stack : int = index % (POPUP_MAX_STACK + 1)
+		var offset : float = -float(stack) * POPUP_STACK_HEIGHT
+		popup.setup(
+			data.world_pos, data.damage,
+			data.is_crit, data.is_miss, data.is_heal,
+			offset
+		)
+		index += 1
+		await get_tree().create_timer(POPUP_QUEUE_INTERVAL, true, false, true).timeout
+	_damage_popup_busy[key] = false
+	_damage_popup_queue.erase(key)
 
 
 # ============================================================
@@ -724,6 +772,7 @@ func _on_request_show_info(unit: Unit):
 		var t_cell = world_to_grid(mouse_pos)
 		var t_type = TerrainManager.get_terrain(t_cell)
 		var t_name = TerrainManager.get_terrain_name(t_type)
+		# ★ v4.6：地形减伤率口径（悬停地形时用 hover_* 前缀，避免与下方有单位时的 t_* 撞名）
 		var td : Dictionary = TerrainManager.TERRAIN_DATA.get(t_type, {})
 		var hover_phys : float = float(td.get("physical_reduction", 0.0))
 		var hover_mag  : float = float(td.get("magic_reduction", 0.0))
@@ -826,6 +875,7 @@ func _on_request_show_info(unit: Unit):
 	if talent_names.size() > 0:
 		lines.append("词条: " + ", ".join(talent_names))
 
+	# ★ v4.6：地形减伤率口径（有单位时用 t_phys/t_mag，与上方 hover_* 不冲突）
 	var unit_cell = unit.grid_cell
 	var terrain_type = TerrainManager.get_terrain(unit_cell)
 	var terrain_name = TerrainManager.get_terrain_name(terrain_type)

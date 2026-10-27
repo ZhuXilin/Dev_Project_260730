@@ -34,7 +34,6 @@ var _boss_penalty : int = 0
 
 signal soul_fire_changed(current: int, max_carried: int)
 signal state_changed(new_state: State)
-signal depleted_damage_taken(damage: int)
 
 
 func _ready():
