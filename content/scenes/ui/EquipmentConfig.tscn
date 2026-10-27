@@ -15,10 +15,10 @@ anchor_bottom = 1.0
 color = Color(0, 0, 0, 1)
 
 [node name="MainPanel" type="Panel" parent="." unique_id=149435678]
+clip_contents = true
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
-clip_contents = true
 script = ExtResource("1")
 
 [node name="BackgroundImage" type="TextureRect" parent="MainPanel" unique_id=1558984242]
@@ -28,13 +28,16 @@ offset_bottom = 240.0
 texture = ExtResource("1_vuhrr")
 
 [node name="VBoxContainer" type="VBoxContainer" parent="MainPanel" unique_id=2060060510]
-layout_mode = 0
+layout_mode = 1
+anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = 10.0
-offset_top = 6.0
-offset_right = -10.0
+offset_left = 8.0
+offset_top = 8.0
+offset_right = -8.0
 offset_bottom = -6.0
+grow_horizontal = 2
+grow_vertical = 2
 theme_override_constants/separation = 4
 
 [node name="TopBar" type="HBoxContainer" parent="MainPanel/VBoxContainer" unique_id=1117543554]
@@ -61,7 +64,7 @@ size_flags_vertical = 3
 theme_override_constants/separation = 8
 
 [node name="LeftInfoColumn" type="VBoxContainer" parent="MainPanel/VBoxContainer/MainHBox" unique_id=54697173]
-custom_minimum_size = Vector2(100, 160)
+custom_minimum_size = Vector2(120, 160)
 layout_mode = 2
 size_flags_horizontal = 0
 size_flags_vertical = 0
@@ -99,10 +102,9 @@ grow_horizontal = 2
 grow_vertical = 2
 
 [node name="LeftVBox" type="VBoxContainer" parent="MainPanel/VBoxContainer/MainHBox" unique_id=1748417651]
-custom_minimum_size = Vector2(140, 160)
 layout_mode = 2
 size_flags_horizontal = 3
-size_flags_vertical = 0
+size_flags_vertical = 3
 
 [node name="UnitContainer" type="HBoxContainer" parent="MainPanel/VBoxContainer/MainHBox/LeftVBox" unique_id=1892609125]
 layout_mode = 2
@@ -110,19 +112,25 @@ size_flags_horizontal = 3
 size_flags_vertical = 3
 alignment = 1
 
-[node name="RightContainer" type="VBoxContainer" parent="MainPanel/VBoxContainer/MainHBox" unique_id=100985939]
-custom_minimum_size = Vector2(140, 160)
+[node name="RightScroll" type="ScrollContainer" parent="MainPanel/VBoxContainer/MainHBox" unique_id=2000000000]
+custom_minimum_size = Vector2(120, 160)
+layout_mode = 2
+size_flags_horizontal = 0
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+
+[node name="RightContainer" type="VBoxContainer" parent="MainPanel/VBoxContainer/MainHBox/RightScroll" unique_id=100985939]
 layout_mode = 2
 size_flags_horizontal = 3
-size_flags_vertical = 0
+size_flags_vertical = 3
 
-[node name="TabBar" type="HBoxContainer" parent="MainPanel/VBoxContainer/MainHBox/RightContainer" unique_id=2064598299]
+[node name="TabBar" type="HBoxContainer" parent="MainPanel/VBoxContainer/MainHBox/RightScroll/RightContainer" unique_id=2064598299]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 0
 theme_override_constants/separation = 4
 
-[node name="WeaponTabBtn" type="Button" parent="MainPanel/VBoxContainer/MainHBox/RightContainer/TabBar" unique_id=2012573030]
+[node name="WeaponTabBtn" type="Button" parent="MainPanel/VBoxContainer/MainHBox/RightScroll/RightContainer/TabBar" unique_id=2012573030]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_font_sizes/font_size = 8
@@ -134,7 +142,7 @@ theme_override_styles/focus = ExtResource("2")
 text = "武器库"
 clip_text = true
 
-[node name="TalentTabBtn" type="Button" parent="MainPanel/VBoxContainer/MainHBox/RightContainer/TabBar" unique_id=394019195]
+[node name="TalentTabBtn" type="Button" parent="MainPanel/VBoxContainer/MainHBox/RightScroll/RightContainer/TabBar" unique_id=394019195]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_font_sizes/font_size = 8
@@ -146,7 +154,7 @@ theme_override_styles/focus = ExtResource("2")
 text = "特技库"
 clip_text = true
 
-[node name="SacrificeTabBtn" type="Button" parent="MainPanel/VBoxContainer/MainHBox/RightContainer/TabBar" unique_id=1672096032]
+[node name="SacrificeTabBtn" type="Button" parent="MainPanel/VBoxContainer/MainHBox/RightScroll/RightContainer/TabBar" unique_id=1672096032]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_font_sizes/font_size = 8
@@ -158,7 +166,7 @@ theme_override_styles/focus = ExtResource("2")
 text = "熔铸"
 clip_text = true
 
-[node name="FurnaceTabBtn" type="Button" parent="MainPanel/VBoxContainer/MainHBox/RightContainer/TabBar" unique_id=1672096033]
+[node name="FurnaceTabBtn" type="Button" parent="MainPanel/VBoxContainer/MainHBox/RightScroll/RightContainer/TabBar" unique_id=1672096033]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_font_sizes/font_size = 8
@@ -170,20 +178,20 @@ theme_override_styles/focus = ExtResource("2")
 text = "熔炉"
 clip_text = true
 
-[node name="ShopScroll" type="ScrollContainer" parent="MainPanel/VBoxContainer/MainHBox/RightContainer" unique_id=1871335401]
-custom_minimum_size = Vector2(0, 70)
+[node name="ShopScroll" type="ScrollContainer" parent="MainPanel/VBoxContainer/MainHBox/RightScroll/RightContainer" unique_id=1871335401]
+custom_minimum_size = Vector2(0, 40)
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 horizontal_scroll_mode = 0
 
-[node name="ShopContainer" type="GridContainer" parent="MainPanel/VBoxContainer/MainHBox/RightContainer/ShopScroll" unique_id=114385080]
+[node name="ShopContainer" type="GridContainer" parent="MainPanel/VBoxContainer/MainHBox/RightScroll/RightContainer/ShopScroll" unique_id=114385080]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 0
 columns = 3
 
-[node name="ResetBtn" type="Button" parent="MainPanel/VBoxContainer/MainHBox/RightContainer" unique_id=1000859501]
+[node name="ResetBtn" type="Button" parent="MainPanel/VBoxContainer/MainHBox/RightScroll/RightContainer" unique_id=1000859501]
 layout_mode = 2
 size_flags_horizontal = 4
 theme_override_font_sizes/font_size = 8
@@ -195,14 +203,14 @@ theme_override_styles/focus = ExtResource("2")
 text = "重置商店"
 clip_text = true
 
-[node name="DiscardZone" type="Panel" parent="MainPanel/VBoxContainer/MainHBox/RightContainer" unique_id=488561366]
-custom_minimum_size = Vector2(0, 40)
+[node name="DiscardZone" type="Panel" parent="MainPanel/VBoxContainer/MainHBox/RightScroll/RightContainer" unique_id=488561366]
+custom_minimum_size = Vector2(0, 30)
 layout_mode = 2
 size_flags_vertical = 8
 mouse_filter = 2
 theme_override_styles/panel = ExtResource("2")
 
-[node name="DiscardLabel" type="Label" parent="MainPanel/VBoxContainer/MainHBox/RightContainer/DiscardZone" unique_id=1171672736]
+[node name="DiscardLabel" type="Label" parent="MainPanel/VBoxContainer/MainHBox/RightScroll/RightContainer/DiscardZone" unique_id=1171672736]
 layout_mode = 0
 anchor_right = 1.0
 anchor_bottom = 1.0
@@ -238,7 +246,7 @@ theme_override_styles/disabled = ExtResource("2")
 theme_override_styles/focus = ExtResource("2")
 text = "返回"
 
-[connection signal="pressed" from="MainPanel/VBoxContainer/MainHBox/RightContainer/TabBar/SacrificeTabBtn" to="MainPanel" method="_on_sacrifice_tab_pressed"]
-[connection signal="pressed" from="MainPanel/VBoxContainer/MainHBox/RightContainer/ResetBtn" to="MainPanel" method="_on_reset_shop_pressed"]
+[connection signal="pressed" from="MainPanel/VBoxContainer/MainHBox/RightScroll/RightContainer/TabBar/SacrificeTabBtn" to="MainPanel" method="_on_sacrifice_tab_pressed"]
+[connection signal="pressed" from="MainPanel/VBoxContainer/MainHBox/RightScroll/RightContainer/ResetBtn" to="MainPanel" method="_on_reset_shop_pressed"]
 [connection signal="pressed" from="MainPanel/VBoxContainer/BottomHBox/ConfirmBtn" to="MainPanel" method="_on_confirm_pressed"]
 [connection signal="pressed" from="MainPanel/VBoxContainer/BottomHBox/CloseBtn" to="MainPanel" method="_on_close_pressed"]

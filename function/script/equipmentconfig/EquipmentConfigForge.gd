@@ -12,7 +12,7 @@ var MAX_SLOTS : int = 9
 var WEAPON_UPGRADE_MAX : int = 5
 var UPGRADE_BASE_COST : int = 50
 var UPGRADE_GROWTH : float = 2.0
-var UPGRADE_COST_TABLE : Array = []   # ★ 第四批：与 AnvilTavern 共用同一张表
+var UPGRADE_COST_TABLE : Array = []
 var CRAFT_COST : int = 200
 var QUALITY_SCORE : Dictionary = {"common": 1, "rare": 3, "epic": 6, "legendary": 10}
 var LUCKY_CHANCE : float = 0.05
@@ -24,12 +24,10 @@ var panel = null
 var forge_slots : Array = []
 var forge_matched_recipe : String = ""
 var forge_result_label : Label = null
-var forge_upgrade_label : Label = null
 var forge_upgrade_btn : Button = null
 var inline_craft_btn : Button = null
 var _last_drag_unit_idx : int = -1
 var forge_reforge_btn : Button = null
-var forge_reforge_label : Label = null
 
 
 func _init(p):
@@ -43,7 +41,6 @@ func reload_config():
 	WEAPON_UPGRADE_MAX = int(cfg.get("weapon_upgrade_max", 5))
 	UPGRADE_BASE_COST = int(cfg.get("upgrade_base_cost", 50))
 	UPGRADE_GROWTH = float(cfg.get("upgrade_growth", 2.0))
-	# ★ 第四批：读升级成本表
 	UPGRADE_COST_TABLE = cfg.get("upgrade_cost_table", []).duplicate()
 	CRAFT_COST = int(cfg.get("craft_cost", 200))
 	REFORGE_COST = int(cfg.get("reforge_cost", 500))
@@ -68,6 +65,7 @@ func init_slots():
 	for i in range(MAX_SLOTS):
 		forge_slots.append(null)
 	forge_matched_recipe = ""
+	_last_drag_unit_idx = -1
 
 
 func has_pending() -> bool:
@@ -98,7 +96,7 @@ func _check_fusion(input_insts : Array) -> Dictionary:
 	return {"ok": false}
 
 
-func _do_fusion(product_id: String, cost: int):
+func _do_fusion(product_id : String, cost : int):
 	panel._context.subtract_gold(cost)
 	for i in range(forge_slots.size()):
 		forge_slots[i] = null
@@ -173,11 +171,11 @@ func build_forge_slots():
 		if "Forge" in child.name:
 			panel.right_container.remove_child(child)
 			child.queue_free()
-			
+
 	forge_result_label = null
 	forge_upgrade_btn = null
-	forge_upgrade_label = null
 	inline_craft_btn = null
+	forge_reforge_btn = null
 
 	# 2. 清理容器并重置属性
 	panel._clear_container(panel.shop_container)
@@ -186,17 +184,17 @@ func build_forge_slots():
 	panel.shop_container.columns = 3
 	panel.shop_container.visible = true
 	panel.shop_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	# ★ 取消垂直拉伸，让高度自适应内容
-	panel.shop_container.size_flags_vertical = 0 
+	panel.shop_container.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+
 	panel.shop_container.add_theme_constant_override("h_separation", 2)
 	panel.shop_container.add_theme_constant_override("v_separation", 2)
 
-	# 3. 设置滚动容器：只占内容高度，不撑大父级
+	# 3. 设置滚动容器：高度自适应，禁用内部滚动条，交给外层 RightScroll 处理
 	if panel.shop_scroll:
-		panel.shop_scroll.custom_minimum_size = Vector2(0, 70)
-		# ★ 从 EXPAND_FILL 改为 SHRINK_BEGIN，防止把下面的按钮挤走
+		panel.shop_scroll.custom_minimum_size = Vector2.ZERO
 		panel.shop_scroll.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 		panel.shop_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		panel.shop_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 		panel.shop_scroll.scroll_vertical = 0
 
 	# 4. 确保结果标签存在
@@ -205,28 +203,29 @@ func build_forge_slots():
 	# 5. 生成 9 个槽位按钮
 	for i in range(MAX_SLOTS):
 		var slot_btn : Button = Style.create_styled_button(Style.FONT_SMALL, Style.BTN_ITEM_SIZE)
+		slot_btn.clip_text = true
 		slot_btn.set_meta("slot_type", "forge_slot")
 		slot_btn.set_meta("forge_slot_index", i)
 		slot_btn.text = "空槽 %d" % (i + 1)
 		slot_btn.modulate = Color(0.5, 0.5, 0.5)
-		
+
 		var entry : Variant = forge_slots[i] if i < forge_slots.size() else null
 		if entry != null:
 			var entry_dict : Dictionary = entry
 			var inst : ItemInstance = entry_dict["inst"]
 			var data : ItemData = ItemManager.get_item_data(inst.item_id)
-			
+
 			slot_btn.text = data.name if data else inst.item_id
 			slot_btn.set_meta("item_id", inst.item_id)
-			
+
 			if data:
 				slot_btn.modulate = UIConst.QUALITY_COLORS.get(data.quality, Color.WHITE)
-				
+
 			slot_btn.mouse_entered.connect(panel._on_button_hover_entered.bind(inst.item_id))
 			slot_btn.mouse_exited.connect(panel._on_button_hover_exited)
 		else:
 			slot_btn.set_meta("item_id", "")
-			
+
 		panel.shop_container.add_child(slot_btn)
 
 	# 6. 更新结果标签、构建合成按钮行
@@ -236,10 +235,9 @@ func build_forge_slots():
 	# 7. 确保升级 UI 存在并刷新
 	if not forge_upgrade_btn or not is_instance_valid(forge_upgrade_btn) or not forge_upgrade_btn.is_inside_tree():
 		forge_upgrade_btn = null
-		forge_upgrade_label = null
 	_ensure_forge_upgrade_ui()
 
-	# 8. 刷新合成按钮状态并添加底部占位（把出售区推到底部）
+	# 8. 刷新合成按钮状态并添加底部占位
 	_refresh_inline_craft_btn()
 	_ensure_forge_bottom_spacer()
 
@@ -267,6 +265,7 @@ func _ensure_forge_craft_row():
 		c.queue_free()
 
 	inline_craft_btn = Style.create_styled_button(Style.FONT_SMALL, Style.BTN_ITEM_SIZE)
+	inline_craft_btn.clip_text = true
 	inline_craft_btn.custom_minimum_size = Vector2(72, 16)
 	inline_craft_btn.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	inline_craft_btn.text = "合成"
@@ -286,6 +285,8 @@ func _ensure_forge_result_label():
 	forge_result_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	forge_result_label.modulate = Color(0.5, 0.5, 0.5)
 	forge_result_label.text = "合成结果：—"
+	forge_result_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	forge_result_label.custom_minimum_size = Vector2(0, 0)
 	panel.right_container.add_child(forge_result_label)
 	var scroll_idx : int = panel.shop_scroll.get_index()
 	panel.right_container.move_child(forge_result_label, scroll_idx + 1)
@@ -441,12 +442,8 @@ func _ensure_forge_upgrade_ui():
 
 	if forge_upgrade_btn != null and not is_instance_valid(forge_upgrade_btn):
 		forge_upgrade_btn = null
-	if forge_upgrade_label != null and not is_instance_valid(forge_upgrade_label):
-		forge_upgrade_label = null
 	if forge_reforge_btn != null and not is_instance_valid(forge_reforge_btn):
 		forge_reforge_btn = null
-	if forge_reforge_label != null and not is_instance_valid(forge_reforge_label):
-		forge_reforge_label = null
 
 	for n_name in ["ForgeUpgradeLabel", "ForgeUpgradeBtn", "ForgeUpgradeSpacer1", "ForgeUpgradeSpacer2",
 				   "ForgeReforgeSpacer", "ForgeReforgeLabel", "ForgeReforgeBtn"]:
@@ -455,57 +452,36 @@ func _ensure_forge_upgrade_ui():
 			panel.right_container.remove_child(old)
 			old.queue_free()
 
-	# ★ 去掉多余占位：或者高度设为 0，依靠 VBox 的 separation 来控制间距
 	var spacer1 := Control.new()
 	spacer1.name = "ForgeUpgradeSpacer1"
-	spacer1.custom_minimum_size = Vector2(0, 0)
+	spacer1.custom_minimum_size = Vector2(0, 2)
 	panel.right_container.add_child(spacer1)
-
-	forge_upgrade_label = Label.new()
-	forge_upgrade_label.name = "ForgeUpgradeLabel"
-	forge_upgrade_label.add_theme_font_size_override("font_size", Style.FONT_SMALL)
-	forge_upgrade_label.text = "拖拽武器到此升级"
-	forge_upgrade_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	forge_upgrade_label.modulate = Color(0.7, 0.7, 0.7)
-	panel.right_container.add_child(forge_upgrade_label)
 
 	forge_upgrade_btn = Style.create_styled_button(Style.FONT_SMALL, Style.BTN_ITEM_SIZE)
 	forge_upgrade_btn.name = "ForgeUpgradeBtn"
+	forge_upgrade_btn.clip_text = true
+	forge_upgrade_btn.custom_minimum_size = Vector2(0, 16)
 	forge_upgrade_btn.set_meta("slot_type", "forge_upgrade_slot")
 	panel.right_container.add_child(forge_upgrade_btn)
 
 	var spacer2 := Control.new()
 	spacer2.name = "ForgeUpgradeSpacer2"
-	spacer2.custom_minimum_size = Vector2(0, 0)
+	spacer2.custom_minimum_size = Vector2(0, 2)
 	panel.right_container.add_child(spacer2)
-
-	var reforge_spacer := Control.new()
-	reforge_spacer.name = "ForgeReforgeSpacer"
-	reforge_spacer.custom_minimum_size = Vector2(0, 0)
-	panel.right_container.add_child(reforge_spacer)
-
-	forge_reforge_label = Label.new()
-	forge_reforge_label.name = "ForgeReforgeLabel"
-	forge_reforge_label.add_theme_font_size_override("font_size", Style.FONT_SMALL)
-	forge_reforge_label.text = "紫装重铸"
-	forge_reforge_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	forge_reforge_label.modulate = Color(0.7, 0.7, 0.7)
-	panel.right_container.add_child(forge_reforge_label)
 
 	forge_reforge_btn = Style.create_styled_button(Style.FONT_SMALL, Style.BTN_ITEM_SIZE)
 	forge_reforge_btn.name = "ForgeReforgeBtn"
+	forge_reforge_btn.clip_text = true
+	forge_reforge_btn.custom_minimum_size = Vector2(0, 16)
 	forge_reforge_btn.set_meta("slot_type", "forge_reforge_slot")
 	panel.right_container.add_child(forge_reforge_btn)
 
 	if panel.tab_bar and is_instance_valid(panel.tab_bar):
 		var tab_idx : int = panel.tab_bar.get_index()
 		panel.right_container.move_child(spacer1, tab_idx + 1)
-		panel.right_container.move_child(forge_upgrade_label, tab_idx + 2)
-		panel.right_container.move_child(forge_upgrade_btn, tab_idx + 3)
-		panel.right_container.move_child(spacer2, tab_idx + 4)
-		panel.right_container.move_child(reforge_spacer, tab_idx + 5)
-		panel.right_container.move_child(forge_reforge_label, tab_idx + 6)
-		panel.right_container.move_child(forge_reforge_btn, tab_idx + 7)
+		panel.right_container.move_child(forge_upgrade_btn, tab_idx + 2)
+		panel.right_container.move_child(spacer2, tab_idx + 3)
+		panel.right_container.move_child(forge_reforge_btn, tab_idx + 4)
 
 	refresh_forge_upgrade_ui()
 
@@ -513,56 +489,38 @@ func _ensure_forge_upgrade_ui():
 func refresh_forge_upgrade_ui():
 	if not forge_upgrade_btn or not is_instance_valid(forge_upgrade_btn):
 		return
-	if not forge_upgrade_label or not is_instance_valid(forge_upgrade_label):
-		return
 
-	forge_upgrade_btn.text = "拖拽武器升级"
+	# 默认文字
+	forge_upgrade_btn.text = "拖拽武器到此升级"
+	forge_upgrade_btn.disabled = true
+	forge_upgrade_btn.modulate = Color(0.5, 0.5, 0.5)
 
+	# 只在拖拽过武器时才显示具体信息，合并到按钮上
 	var idx : int = _last_drag_unit_idx
-	if idx < 0 or idx >= panel.party.size():
-		idx = -1
-		for i in range(panel.party.size()):
-			if panel.party[i].weapon_slot != null and not panel.party[i].is_dead:
-				idx = i
-				break
-
-	if idx < 0:
-		forge_upgrade_label.text = "拖拽武器到此升级"
-		forge_upgrade_btn.disabled = true
-		forge_upgrade_btn.modulate = Color(0.5, 0.5, 0.5)
-	else:
+	if idx >= 0 and idx < panel.party.size():
 		var u : UnitData = panel.party[idx]
-		if u.weapon_slot == null or u.is_dead:
-			forge_upgrade_label.text = "拖拽武器到此升级"
-			forge_upgrade_btn.disabled = true
-			forge_upgrade_btn.modulate = Color(0.5, 0.5, 0.5)
-		else:
+		if u.weapon_slot != null and not u.is_dead:
 			var wname : String = panel._get_item_name(u.weapon_slot)
 			var lv : int = u.weapon_slot.upgrade_level
 			var wdata = ItemManager.get_item_data(u.weapon_slot.item_id)
 			var max_lv : int = WeaponUpgradeHelper.get_max_level(wdata)
 			if lv >= max_lv:
-				forge_upgrade_label.text = "%s 已满级 +%d" % [wname, lv]
-				forge_upgrade_btn.disabled = true
-				forge_upgrade_btn.modulate = Color(0.5, 0.5, 0.5)
+				forge_upgrade_btn.text = "%s 已满级 +%d" % [wname, lv]
 			else:
 				var cost : int = _get_weapon_upgrade_cost(lv)
 				var afford : bool = panel._context.get_gold() >= cost
 				var eff_now : int = WeaponUpgradeHelper.get_effective_base_attack(wdata, lv)
 				var eff_next : int = WeaponUpgradeHelper.get_effective_base_attack(wdata, lv + 1)
-				forge_upgrade_label.text = "%s +%d→+%d（%dG）| 攻击 %d→%d" % [
+				forge_upgrade_btn.text = "升级：%s +%d→+%d（%dG） 攻 %d→%d" % [
 					wname, lv, lv + 1, cost, eff_now, eff_next]
 				forge_upgrade_btn.disabled = not afford
 				forge_upgrade_btn.modulate = Color.WHITE if afford else Color(1.0, 0.6, 0.6)
 
-	# ★ v4.5：重铸纯金币
 	if forge_reforge_btn and is_instance_valid(forge_reforge_btn):
 		var afford_r : bool = panel._context.get_gold() >= REFORGE_COST
 		forge_reforge_btn.text = "拖拽紫装重铸（%dG）" % REFORGE_COST
 		forge_reforge_btn.disabled = not afford_r
 		forge_reforge_btn.modulate = Color.WHITE if afford_r else Color(1.0, 0.6, 0.6)
-		if forge_reforge_label:
-			forge_reforge_label.text = "史诗词条重 roll（%dG）" % REFORGE_COST
 
 
 func update_upgrade_slot_for_drag(unit_idx: int) -> void:
@@ -576,23 +534,23 @@ func _ensure_forge_bottom_spacer():
 		spacer = Control.new()
 		spacer.name = "ForgeBottomSpacer"
 		panel.right_container.add_child(spacer)
-	spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	spacer.custom_minimum_size = Vector2(0, 4)
+	spacer.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 
 
 func cleanup():
-	for n_name in ["ForgeResultLabel", "ForgeCraftRow", "ForgeUpgradeLabel", "ForgeUpgradeBtn",
+	for n_name in ["ForgeResultLabel", "ForgeCraftRow", "ForgeUpgradeBtn",
 					"ForgeUpgradeSpacer1", "ForgeUpgradeSpacer2", "ForgeBottomSpacer",
-					"ForgeReforgeLabel", "ForgeReforgeBtn", "ForgeReforgeSpacer"]:
+					"ForgeReforgeBtn"]:
 		var n : Node = panel.right_container.get_node_or_null(n_name)
 		if n:
 			panel.right_container.remove_child(n)
 			n.queue_free()
 	forge_result_label = null
 	forge_upgrade_btn = null
-	forge_upgrade_label = null
 	forge_reforge_btn = null
-	forge_reforge_label = null
 	inline_craft_btn = null
+	_last_drag_unit_idx = -1
 
 
 # ============================================================
@@ -700,7 +658,6 @@ func on_forge_craft_pressed():
 	else:
 		result = _compute_random_craft(input_insts)
 
-	# ★ 第四批：空产出保护
 	var out_ids : Array = result["item_ids"]
 	if out_ids.is_empty():
 		panel._show_detail_in_zone("合成失败：无可产出防具")
@@ -764,7 +721,6 @@ func on_forge_craft_pressed():
 
 
 func _get_weapon_upgrade_cost(level: int) -> int:
-	# ★ 第四批：优先查表，与 AnvilTavern 保持一致
 	if not UPGRADE_COST_TABLE.is_empty():
 		if level < 0 or level >= UPGRADE_COST_TABLE.size():
 			return -1
@@ -1022,7 +978,6 @@ func _compute_random_craft(input_insts : Array) -> Dictionary:
 		quality = QUALITY_ORDER[QUALITY_ORDER.find(quality) - 1]
 		_collect_armor_candidates(quality, candidates)
 
-	# ★ 第四批：动态兜底，不再硬编码 wooden_shield
 	if candidates.is_empty():
 		for iid in ItemManager.get_all_item_ids():
 			var d : ItemData = ItemManager.get_item_data(iid)

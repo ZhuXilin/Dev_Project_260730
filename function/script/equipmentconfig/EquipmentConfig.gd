@@ -37,18 +37,20 @@ const DETAIL_ZONE_PATH : String = "VBoxContainer/MainHBox/LeftInfoColumn/DetailZ
 @onready var close_btn = get_node_or_null("VBoxContainer/BottomHBox/CloseBtn")
 @onready var confirm_btn = get_node_or_null("VBoxContainer/BottomHBox/ConfirmBtn")
 @onready var unit_container = get_node_or_null("VBoxContainer/MainHBox/LeftVBox/UnitContainer")
-@onready var right_container = get_node_or_null("VBoxContainer/MainHBox/RightContainer")
-@onready var shop_scroll: ScrollContainer = get_node_or_null("VBoxContainer/MainHBox/RightContainer/ShopScroll")
-@onready var shop_container: GridContainer = get_node_or_null("VBoxContainer/MainHBox/RightContainer/ShopScroll/ShopContainer")
-@onready var reset_btn = get_node_or_null("VBoxContainer/MainHBox/RightContainer/ResetBtn")
-@onready var discard_zone = get_node_or_null("VBoxContainer/MainHBox/RightContainer/DiscardZone")
-@onready var tab_bar = get_node_or_null("VBoxContainer/MainHBox/RightContainer/TabBar")
-@onready var weapon_tab_btn = get_node_or_null("VBoxContainer/MainHBox/RightContainer/TabBar/WeaponTabBtn")
-@onready var talent_tab_btn = get_node_or_null("VBoxContainer/MainHBox/RightContainer/TabBar/TalentTabBtn")
+
+# ★ 关键修改 1：路径改为 RightScroll/RightContainer
+@onready var right_container = get_node_or_null("VBoxContainer/MainHBox/RightScroll/RightContainer")
+@onready var shop_scroll: ScrollContainer = get_node_or_null("VBoxContainer/MainHBox/RightScroll/RightContainer/ShopScroll")
+@onready var shop_container: GridContainer = get_node_or_null("VBoxContainer/MainHBox/RightScroll/RightContainer/ShopScroll/ShopContainer")
+@onready var reset_btn = get_node_or_null("VBoxContainer/MainHBox/RightScroll/RightContainer/ResetBtn")
+@onready var discard_zone = get_node_or_null("VBoxContainer/MainHBox/RightScroll/RightContainer/DiscardZone")
+@onready var tab_bar = get_node_or_null("VBoxContainer/MainHBox/RightScroll/RightContainer/TabBar")
+@onready var weapon_tab_btn = get_node_or_null("VBoxContainer/MainHBox/RightScroll/RightContainer/TabBar/WeaponTabBtn")
+@onready var talent_tab_btn = get_node_or_null("VBoxContainer/MainHBox/RightScroll/RightContainer/TabBar/TalentTabBtn")
 @onready var relic_section: VBoxContainer = get_node_or_null("VBoxContainer/MainHBox/LeftInfoColumn/RelicSection")
 @onready var relic_container: HBoxContainer = get_node_or_null("VBoxContainer/MainHBox/LeftInfoColumn/RelicSection/RelicContainer")
-@onready var sacrifice_tab_btn : Button = get_node_or_null("VBoxContainer/MainHBox/RightContainer/TabBar/SacrificeTabBtn")
-@onready var furnace_tab_btn : Button = get_node_or_null("VBoxContainer/MainHBox/RightContainer/TabBar/FurnaceTabBtn")
+@onready var sacrifice_tab_btn : Button = get_node_or_null("VBoxContainer/MainHBox/RightScroll/RightContainer/TabBar/SacrificeTabBtn")
+@onready var furnace_tab_btn : Button = get_node_or_null("VBoxContainer/MainHBox/RightScroll/RightContainer/TabBar/FurnaceTabBtn")
 
 var _pending_section : VBoxContainer = null
 var _pending_container : HBoxContainer = null
@@ -113,10 +115,12 @@ func _on_weapon_tab_pressed():
 	elif current_mode == Mode.FORGE: _switch_tab("arena_shop")
 	else: _switch_tab("weapon")
 
+
 func _on_talent_tab_pressed():
 	if is_shop_rest_mode(): _switch_tab("arena_forge")
 	elif current_mode == Mode.FORGE: _switch_tab("arena_forge")
 	else: _switch_tab("talent")
+
 
 func _on_sacrifice_tab_pressed(): _switch_tab("sacrifice")
 
@@ -291,10 +295,6 @@ func _build_ui_inner():
 	if furnace_tab_btn: furnace_tab_btn.visible = false
 	if _aura_tab_btn: _aura_tab_btn.visible = false
 
-	var left_column : VBoxContainer = $VBoxContainer/MainHBox/LeftVBox
-	if left_column:
-		left_column.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-
 	match current_mode:
 		Mode.DEPLOY:
 			mode_label.text = "装备配置 - 战前准备" if _context.get_title() == "" else _context.get_title()
@@ -320,7 +320,6 @@ func _build_ui_inner():
 			if current_tab == "weapon": _build_weapon_grid(shop_container)
 			else: _build_talent_grid(shop_container)
 			shop_container.visible = true
-			if left_column: left_column.size_flags_vertical = Control.SIZE_EXPAND_FILL
 
 		Mode.MAP:
 			mode_label.text = "装备配置"
@@ -340,7 +339,6 @@ func _build_ui_inner():
 			_build_talent_grid(shop_container)
 			shop_container.visible = true
 			discard_zone.visible = true
-			if left_column: left_column.size_flags_vertical = Control.SIZE_EXPAND_FILL
 
 		Mode.ARENA_REST:
 			mode_label.text = "魂之竞技场 · 备战"
@@ -382,8 +380,6 @@ func _build_ui_inner():
 					reset_btn.text = "刷新商店 (" + str(shop_manager.get_reset_cost()) + "G)"
 				discard_zone.visible = true
 
-			if left_column: left_column.size_flags_vertical = Control.SIZE_EXPAND_FILL
-
 		Mode.MAP_SHOP_REST:
 			mode_label.text = "移动铁匠 · 商店"
 			close_btn.visible = true
@@ -418,7 +414,8 @@ func _build_ui_inner():
 					reset_btn.visible = true
 					reset_btn.text = "清空插槽"
 					_forge.display_recipe_info()
-					discard_zone.visible = true
+					# ★ 关键修改 2：铁匠铺标签下隐藏出售区，节省 40px 高度
+					discard_zone.visible = false
 				"sacrifice":
 					_build_sacrifice_panel()
 					shop_container.visible = true
@@ -436,8 +433,6 @@ func _build_ui_inner():
 					if shop_manager:
 						reset_btn.text = "刷新商店 (" + str(shop_manager.get_reset_cost()) + "G)"
 					discard_zone.visible = true
-
-			if left_column: left_column.size_flags_vertical = Control.SIZE_EXPAND_FILL
 
 		Mode.FORGE:
 			mode_label.text = "移动铁匠"
@@ -479,7 +474,8 @@ func _build_ui_inner():
 					shop_container.visible = true
 					reset_btn.visible = true
 					reset_btn.text = "清空插槽"
-					discard_zone.visible = true
+					# ★ 关键修改 3：铁匠铺标签下隐藏出售区
+					discard_zone.visible = false
 					_forge.display_recipe_info()
 				"sacrifice":
 					_build_sacrifice_panel()
@@ -491,8 +487,6 @@ func _build_ui_inner():
 					shop_container.visible = true
 					reset_btn.visible = false
 					discard_zone.visible = true
-
-			if left_column: left_column.size_flags_vertical = Control.SIZE_EXPAND_FILL
 
 	if current_mode == Mode.FORGE or is_shop_rest_mode():
 		_setup_forge_narrative_ui()
@@ -966,7 +960,7 @@ func _create_unit_icon(unit: UnitData, unit_idx: int) -> Control:
 
 func _build_unit_columns():
 	if not unit_container: return
-	unit_container.alignment = BoxContainer.ALIGNMENT_CENTER # ★ 确保每次重建都居中
+	unit_container.alignment = BoxContainer.ALIGNMENT_CENTER
 
 	for child in unit_container.get_children():
 		unit_container.remove_child(child); child.free()
@@ -1472,7 +1466,7 @@ func _switch_tab(tab: String):
 			if reset_btn: reset_btn.visible = false
 	shop_container.visible = true
 	if is_shop_rest_mode():
-		discard_zone.visible = true
+		discard_zone.visible = (tab != "arena_forge")
 	_refresh_bottom_buttons()
 	_refresh_upgrade_shop_btn()
 
@@ -1515,7 +1509,7 @@ func _refresh_bottom_buttons():
 		close_btn.visible = true
 		close_btn.text = "继续探索"
 		confirm_btn.visible = false
-		discard_zone.visible = true
+		discard_zone.visible = (current_tab != "arena_forge")
 
 
 func _update_tab_style():
