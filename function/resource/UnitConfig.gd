@@ -9,7 +9,13 @@ class_name UnitConfig
 @export var override_stats : Dictionary = {}
 @export var immobile : bool = false
 @export var initial_items : Array[ItemEntry] = []
-@export var is_boss : bool = false   # ★ 新增
+@export var is_boss : bool = false
+
+@export var wave: int = 1
+
+@export var is_random_pool: bool = false
+@export var pool_key: String = ""
+@export var enemy_pool: Array[String] = []
 
 func apply_override(stats: UnitData):
 	if override_stats.has("max_hp"):

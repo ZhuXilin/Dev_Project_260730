@@ -85,6 +85,14 @@ func _ready():
 	performance_layer.visible = false
 	cost_label.text = "  |  转职：免费"
 	
+	# ★ 调整转职演出界面：放大3倍并居中
+	var sprite_box = get_node_or_null("PerformanceLayer/CenterBox/SpriteBox")
+	if sprite_box:
+		sprite_box.custom_minimum_size = Vector2(96, 96)
+	if perf_sprite:
+		perf_sprite.position = Vector2(48, 48)
+		perf_sprite.scale = Vector2(1, 1)
+
 	# ★ 绑定英灵殿复活按钮
 	var revive_btn = get_node_or_null("Panel/VBox/ChapelActions/ReviveBtn")
 	var actions_box = get_node_or_null("Panel/VBox/ChapelActions")
@@ -191,6 +199,28 @@ func _build_unit_card(unit_idx: int) -> PanelContainer:
 	vbox.add_theme_constant_override("separation", 3)
 	card.add_child(vbox)
 
+	# ★ 新增：单位图标（32x32，含 idle 动画）
+	var sprite_wrapper := Control.new()
+	sprite_wrapper.custom_minimum_size = Vector2(32, 32)
+	sprite_wrapper.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	vbox.add_child(sprite_wrapper)
+
+	var texture_rect := TextureRect.new()
+	texture_rect.set_anchors_preset(Control.PRESET_FULL_RECT)
+	texture_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	texture_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	texture_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	sprite_wrapper.add_child(texture_rect)
+
+	var frames_path = UnitDataManager.get_sprite_frames_path(unit.unit_name)
+	if unit.override_sprite_path != "":
+		frames_path = unit.override_sprite_path
+	if frames_path != "" and ResourceLoader.exists(frames_path):
+		var frames = load(frames_path) as SpriteFrames
+		if frames and frames.has_animation("idle") and frames.get_frame_count("idle") > 0:
+			texture_rect.texture = frames.get_frame_texture("idle", 0)
+			_attach_idle_animator(texture_rect, frames)
+
 	var name_lb = Label.new()
 	name_lb.add_theme_font_size_override("font_size", 9)
 	name_lb.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -219,6 +249,7 @@ func _build_unit_card(unit_idx: int) -> PanelContainer:
 		status_lb.text = "★ " + adv_name + "\n" + suffix
 		status_lb.modulate = dim_color
 		card.modulate = card_color
+		sprite_wrapper.modulate = card_color
 		return card
 
 	# ---- 阵亡 ----
@@ -228,6 +259,7 @@ func _build_unit_card(unit_idx: int) -> PanelContainer:
 		status_lb.text = "已阵亡 / 已熔铸"
 		status_lb.modulate = Color(0.4, 0.4, 0.4, 1)
 		card.modulate = Color(0.5, 0.5, 0.5, 1)
+		sprite_wrapper.modulate = Color(0.4, 0.4, 0.4, 1)
 		return card
 
 	# ---- 无进阶定义 ----
@@ -246,7 +278,6 @@ func _build_unit_card(unit_idx: int) -> PanelContainer:
 		branch_names.append("★ " + b.name)
 	status_lb.text = "可转职：\n" + "\n".join(branch_names) + "\n（点击查看）"
 
-	# ★ 因为费用是 0，这里 can_afford 永远为 true
 	var _can_afford : bool = true 
 	var reached : bool = _reached_limit()
 
@@ -318,53 +349,94 @@ func _show_branch_picker(unit : UnitData, branches : Array):
 	add_child(picker)
 
 
-# ★ 注意：overlay / picker_panel 避免遮蔽 CanvasLayer.layer 和 @onready panel
 func _make_picker_panel(unit : UnitData, branches : Array) -> Control:
 	var overlay := Control.new()
 	overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
 	overlay.mouse_filter = Control.MOUSE_FILTER_STOP
 
+	# ★ 修复边沿问题：使用完全纯色覆盖，彻底遮住底层的原界面
 	var bg := ColorRect.new()
-	bg.color = Color(0, 0, 0, 0.75)
+	bg.color = Color(0.06, 0.06, 0.08, 1) 
 	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
 	overlay.add_child(bg)
 
+	var center_box := CenterContainer.new()
+	center_box.set_anchors_preset(Control.PRESET_FULL_RECT)
+	center_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	overlay.add_child(center_box)
+
 	var picker_panel := PanelContainer.new()
-	picker_panel.set_anchors_preset(Control.PRESET_CENTER)
-	picker_panel.offset_left = -160
-	picker_panel.offset_top = -80
-	picker_panel.offset_right = 160
-	picker_panel.offset_bottom = 80
+	picker_panel.custom_minimum_size = Vector2(440, 0)
+	
 	var sb := StyleBoxFlat.new()
-	sb.bg_color = Color(0.06, 0.06, 0.08)
-	sb.content_margin_left = 12
-	sb.content_margin_right = 12
-	sb.content_margin_top = 10
-	sb.content_margin_bottom = 10
+	# ★ 去掉背景和所有边框，只作为纯排版容器使用
+	sb.bg_color = Color(0, 0, 0, 0)
+	sb.border_width_left = 0
+	sb.border_width_right = 0
+	sb.border_width_top = 0
+	sb.border_width_bottom = 0
+	sb.content_margin_left = 16
+	sb.content_margin_right = 16
+	sb.content_margin_top = 12
+	sb.content_margin_bottom = 12
 	picker_panel.add_theme_stylebox_override("panel", sb)
-	overlay.add_child(picker_panel)
+	center_box.add_child(picker_panel)
 
 	var vbox := VBoxContainer.new()
-	vbox.add_theme_constant_override("separation", 8)
+	vbox.add_theme_constant_override("separation", 10)
 	picker_panel.add_child(vbox)
 
 	var title := Label.new()
 	title.text = "选择转职方向"
-	title.add_theme_font_size_override("font_size", 11)
+	title.add_theme_font_size_override("font_size", 12)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	vbox.add_child(title)
 
 	var row := HBoxContainer.new()
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
-	row.add_theme_constant_override("separation", 12)
+	row.add_theme_constant_override("separation", 20)
 	vbox.add_child(row)
+
+	# 基础单位 sprite（回退用）
+	var base_path : String = UnitDataManager.get_sprite_frames_path(unit.unit_name)
+	if unit.override_sprite_path != "":
+		base_path = unit.override_sprite_path
 
 	for b in branches:
 		var adv : AdvancedClassData = b
 		var col := VBoxContainer.new()
 		col.custom_minimum_size = Vector2(130, 0)
-		col.add_theme_constant_override("separation", 4)
+		col.add_theme_constant_override("separation", 6)
+		col.alignment = BoxContainer.ALIGNMENT_BEGIN
+		
+		# ---- 1. 单位图标 (32x32) ----
+		var sprite_wrapper := Control.new()
+		sprite_wrapper.custom_minimum_size = Vector2(32, 32) 
+		sprite_wrapper.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		col.add_child(sprite_wrapper)
 
+		var texture_rect := TextureRect.new()
+		texture_rect.set_anchors_preset(Control.PRESET_FULL_RECT)
+		texture_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		texture_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		texture_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		sprite_wrapper.add_child(texture_rect)
+
+		var preview_path : String = adv.sprite_frames_path
+		if preview_path == "" or not ResourceLoader.exists(preview_path):
+			preview_path = base_path
+
+		var preview_loaded : bool = false
+		if preview_path != "" and ResourceLoader.exists(preview_path):
+			var frames = load(preview_path) as SpriteFrames
+			if frames and frames.has_animation("idle") and frames.get_frame_count("idle") > 0:
+				texture_rect.texture = frames.get_frame_texture("idle", 0)
+				_attach_idle_animator(texture_rect, frames)
+				preview_loaded = true
+		if not preview_loaded:
+			texture_rect.visible = false
+			
+		# ---- 2. 文字与属性信息 ----
 		var name_lb := Label.new()
 		name_lb.text = "★ " + adv.name
 		name_lb.add_theme_font_size_override("font_size", 10)
@@ -388,9 +460,17 @@ func _make_picker_panel(unit : UnitData, branches : Array) -> Control:
 		stats_lb.modulate = Color(0.7, 0.9, 0.7)
 		col.add_child(stats_lb)
 
+		# ★ 占位区：推底对齐
+		var spacer := Control.new()
+		spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		col.add_child(spacer)
+
+		# ---- 3. 按钮 ----
 		var btn := Button.new()
 		btn.text = "选择"
 		btn.add_theme_font_size_override("font_size", 9)
+		btn.custom_minimum_size = Vector2(80, 22)
+		btn.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 		btn.pressed.connect(func():
 			overlay.queue_free()
 			_begin_convert(unit, adv)
@@ -403,10 +483,30 @@ func _make_picker_panel(unit : UnitData, branches : Array) -> Control:
 	cancel.text = "取消"
 	cancel.add_theme_font_size_override("font_size", 8)
 	cancel.custom_minimum_size = Vector2(80, 20)
+	cancel.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	cancel.pressed.connect(func(): overlay.queue_free())
 	vbox.add_child(cancel)
 
 	return overlay
+
+
+# ★ 新增：idle 动画播放器（复用 SacrificeUI 的实现思路）
+func _attach_idle_animator(tex_rect: TextureRect, frames: SpriteFrames):
+	var timer := Timer.new()
+	timer.wait_time = 0.25
+	timer.autostart = true
+	tex_rect.add_child(timer)
+
+	var frame_count := frames.get_frame_count("idle")
+	var idx := {"value": 0}
+	timer.timeout.connect(func():
+		if not is_instance_valid(tex_rect):
+			return
+		idx["value"] = (idx["value"] + 1) % frame_count
+		var t = frames.get_frame_texture("idle", idx["value"])
+		if t:
+			tex_rect.texture = t
+	)
 
 
 # ============================================================

@@ -1,86 +1,86 @@
-[gd_scene format=3]
+[gd_scene format=3 uid="uid://dkoufwsb44wry"]
 
-[ext_resource type="Script" path="res://function/script/ItemInfoUI.gd" id="1"]
-[ext_resource type="StyleBox" path="res://content/resource/stylebox/8bit_style_box_flat.tres" id="2"]
+[ext_resource type="Script" uid="uid://iyg1ok5wntbj" path="res://function/script/ItemInfoUI.gd" id="1"]
+[ext_resource type="StyleBox" uid="uid://6qbsaxkfwg3o" path="res://content/resource/stylebox/8bit_style_box_flat.tres" id="2"]
 [ext_resource type="PackedScene" path="res://content/scenes/ui/components/ItemInfoPanel.tscn" id="3_item"]
 
-[node name="ItemInfoUI" type="PanelContainer"]
+[node name="ItemInfoUI" type="PanelContainer" unique_id=1052308406]
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 theme_override_styles/panel = ExtResource("2")
 script = ExtResource("1")
 
-[node name="VBoxContainer" type="VBoxContainer" parent="."]
+[node name="VBoxContainer" type="VBoxContainer" parent="." unique_id=849526849]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_override_constants/separation = 4
 
-[node name="Title" type="Label" parent="VBoxContainer"]
+[node name="Title" type="Label" parent="VBoxContainer" unique_id=714119265]
 layout_mode = 2
 theme_override_font_sizes/font_size = 10
 text = "道具图鉴"
 horizontal_alignment = 1
 
-[node name="HBoxContainer" type="HBoxContainer" parent="VBoxContainer"]
+[node name="HBoxContainer" type="HBoxContainer" parent="VBoxContainer" unique_id=1153314154]
 layout_mode = 2
 size_flags_vertical = 3
 theme_override_constants/separation = 8
 
-[node name="LeftPanel" type="VBoxContainer" parent="VBoxContainer/HBoxContainer"]
+[node name="LeftPanel" type="VBoxContainer" parent="VBoxContainer/HBoxContainer" unique_id=487720201]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 
-[node name="HBoxContainer" type="HBoxContainer" parent="VBoxContainer/HBoxContainer/LeftPanel"]
+[node name="HBoxContainer" type="HBoxContainer" parent="VBoxContainer/HBoxContainer/LeftPanel" unique_id=1768504192]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_override_constants/separation = 4
 
-[node name="WeaponScroll" type="ScrollContainer" parent="VBoxContainer/HBoxContainer/LeftPanel/HBoxContainer"]
+[node name="WeaponScroll" type="ScrollContainer" parent="VBoxContainer/HBoxContainer/LeftPanel/HBoxContainer" unique_id=583472127]
 custom_minimum_size = Vector2(80, 0)
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 horizontal_scroll_mode = 0
 
-[node name="WeaponList" type="VBoxContainer" parent="VBoxContainer/HBoxContainer/LeftPanel/HBoxContainer/WeaponScroll"]
+[node name="WeaponList" type="VBoxContainer" parent="VBoxContainer/HBoxContainer/LeftPanel/HBoxContainer/WeaponScroll" unique_id=346204336]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 
-[node name="ArmorScroll" type="ScrollContainer" parent="VBoxContainer/HBoxContainer/LeftPanel/HBoxContainer"]
+[node name="ArmorScroll" type="ScrollContainer" parent="VBoxContainer/HBoxContainer/LeftPanel/HBoxContainer" unique_id=2080540731]
 custom_minimum_size = Vector2(80, 0)
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 horizontal_scroll_mode = 0
 
-[node name="ArmorList" type="VBoxContainer" parent="VBoxContainer/HBoxContainer/LeftPanel/HBoxContainer/ArmorScroll"]
+[node name="ArmorList" type="VBoxContainer" parent="VBoxContainer/HBoxContainer/LeftPanel/HBoxContainer/ArmorScroll" unique_id=1890796174]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 
-[node name="RelicScroll" type="ScrollContainer" parent="VBoxContainer/HBoxContainer/LeftPanel/HBoxContainer"]
+[node name="RelicScroll" type="ScrollContainer" parent="VBoxContainer/HBoxContainer/LeftPanel/HBoxContainer" unique_id=30920987]
 custom_minimum_size = Vector2(80, 0)
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 horizontal_scroll_mode = 0
 
-[node name="RelicList" type="VBoxContainer" parent="VBoxContainer/HBoxContainer/LeftPanel/HBoxContainer/RelicScroll"]
+[node name="RelicList" type="VBoxContainer" parent="VBoxContainer/HBoxContainer/LeftPanel/HBoxContainer/RelicScroll" unique_id=1522321578]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 
-[node name="InfoPanel" parent="VBoxContainer/HBoxContainer" instance=ExtResource("3_item")]
+[node name="InfoPanel" parent="VBoxContainer/HBoxContainer" unique_id=278466128 instance=ExtResource("3_item")]
 layout_mode = 2
 size_flags_horizontal = 2
 size_flags_vertical = 3
 
-[node name="BackButton" type="Button" parent="VBoxContainer"]
+[node name="BackButton" type="Button" parent="VBoxContainer" unique_id=1809470363]
 layout_mode = 2
 size_flags_vertical = 0
 theme_override_font_sizes/font_size = 8

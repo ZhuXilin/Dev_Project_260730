@@ -1,9 +1,10 @@
 extends Node
 
 # ============================================================
-#  WaveManager — 波次与增援（v4.5）
+#  WaveManager — 波次与增援（v4.6）
 #  敌人分批入场：第 1 波直接在场上，后续波次隐藏等激活
 #  增援：每波激活时额外从地图边缘生成
+#  v4.6：支持 UnitPlacer 显式 wave 字段（meta "wave"）
 # ============================================================
 
 var _type_total_waves : int = 1
@@ -28,10 +29,8 @@ func setup_for_node(map_data : MapData, battlefield : Node2D = null) -> void:
 	_battlefield = battlefield
 	if map_data == null:
 		return
-	if map_data.max_waves <= 1:
-		return
 
-	_type_total_waves = map_data.max_waves
+	_type_total_waves = maxi(1, map_data.max_waves)
 	_current_wave = 1
 	_pending_groups.clear()
 	_next_wave_delay = 0
@@ -74,12 +73,9 @@ func get_pending_count() -> int:
 
 
 # ============================================================
-#  分组算法
+#  分组算法：优先显式 wave（meta），回退到距离分组
 # ============================================================
 func _build_groups():
-	if _type_total_waves <= 1:
-		return
-
 	# 收集场上敌人
 	var enemies : Array = []
 	for u in UnitManager.unit_list:
@@ -93,9 +89,26 @@ func _build_groups():
 
 	if enemies.is_empty():
 		return
+
+	# ★ v4.6：检测显式波次（meta wave > 1）
+	var explicit_map : Dictionary = {}
+	var has_explicit : bool = false
+	for u in enemies:
+		var w : int = int(u.get_meta("wave", 0))
+		if w > 1:
+			has_explicit = true
+			if not explicit_map.has(w):
+				explicit_map[w] = []
+			explicit_map[w].append(u)
+
+	if has_explicit:
+		_build_groups_by_explicit_wave(explicit_map)
+		return
+
+	# ---- 原有：按 map_data.max_waves 距离分组 ----
+	if _type_total_waves <= 1:
+		return
 	if enemies.size() <= _type_total_waves:
-		# 敌人数量 <= 波次数 → 每波至少 1 个，但实际没意义
-		# 直接不分组，按老逻辑
 		_type_total_waves = 1
 		return
 
@@ -161,9 +174,7 @@ func _build_groups():
 				break
 
 		if boss_group_idx >= 0 and boss_group_idx != n - 1:
-			# 从原组移除 boss
 			(groups[boss_group_idx] as Array).remove_at(boss_pos_in_group)
-			# 从最后一组拿一个非 boss 来补位
 			var last_group : Array = groups[n - 1]
 			var swap_unit : Unit = null
 			for u in last_group:
@@ -173,7 +184,6 @@ func _build_groups():
 			if swap_unit != null:
 				last_group.erase(swap_unit)
 				(groups[boss_group_idx] as Array).append(swap_unit)
-			# boss 放最后一组
 			last_group.append(boss_unit)
 
 	# 第 1 组直接在场，第 2..N 组隐藏
@@ -187,7 +197,6 @@ func _build_groups():
 			u.can_act_this_turn = false
 			u.remaining_move = 0
 			u.hit_points = u.unit_stats.max_hp
-			# 不让这些单位参与碰撞/查找
 			if u is CollisionObject2D:
 				(u as CollisionObject2D).set_collision_layer_value(1, false)
 		_pending_groups.append(g)
@@ -198,6 +207,35 @@ func _build_groups():
 
 	print("[Wave] 初始化 %d 波，共 %d 敌人。当前波 %d / %d" % [
 		_type_total_waves, enemies.size(), _current_wave, _type_total_waves])
+	wave_advanced.emit(_current_wave, _type_total_waves)
+
+
+# ★ v4.6：显式波次分组
+func _build_groups_by_explicit_wave(wave_map: Dictionary):
+	var sorted_waves : Array = wave_map.keys()
+	sorted_waves.sort()
+	var max_wave : int = sorted_waves[sorted_waves.size() - 1]
+
+	_type_total_waves = maxi(max_wave, 1)
+	_current_wave = 1
+	_pending_groups.clear()
+	_next_wave_delay = 0
+	_warning_shown = false
+
+	for w in sorted_waves:
+		var group : Array = wave_map[w]
+		for u in group:
+			if not is_instance_valid(u): continue
+			u.visible = false
+			u.process_mode = Node.PROCESS_MODE_DISABLED
+			u.can_act_this_turn = false
+			u.remaining_move = 0
+			u.hit_points = u.unit_stats.max_hp
+			if u is CollisionObject2D:
+				(u as CollisionObject2D).set_collision_layer_value(1, false)
+		_pending_groups.append(group)
+
+	print("[Wave] 显式波次模式：%d 波 / %d 组" % [_type_total_waves, _pending_groups.size()])
 	wave_advanced.emit(_current_wave, _type_total_waves)
 
 
@@ -325,6 +363,8 @@ func _spawn_reinforcements(count : int):
 
 		var unit = unit_scene.instantiate()
 		unit.setup_unit(stats, cell)
+		# 增援归入当前波（已经出场）
+		unit.set_meta("wave", _current_wave)
 		_battlefield.add_child(unit)
 		unit.position = _battlefield.grid_to_world(cell)
 		UnitManager.register_unit(unit)

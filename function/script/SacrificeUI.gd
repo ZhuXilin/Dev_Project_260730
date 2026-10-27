@@ -58,7 +58,7 @@ func _build_unit_card(u: UnitData) -> Control:
 
 	# ---- 单位图标（含 idle 动画） ----
 	var texture_rect := TextureRect.new()
-	texture_rect.custom_minimum_size = Vector2(48, 48)
+	texture_rect.custom_minimum_size = Vector2(32, 32)
 	texture_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	texture_rect.stretch_mode = TextureRect.STRETCH_KEEP_CENTERED
 	texture_rect.size_flags_horizontal = Control.SIZE_SHRINK_CENTER

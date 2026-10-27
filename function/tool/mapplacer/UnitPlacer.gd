@@ -5,7 +5,8 @@ class_name UnitPlacerTool
 # ---- 放置模式 ----
 enum PlacementMode {
 	FIXED_UNIT,
-	SPAWN_POINT
+	SPAWN_POINT,
+	RANDOM_POOL,    # ★ 新增：从随机池抽敌人放入此格
 }
 
 # ---- 单位类型 ----
@@ -52,7 +53,6 @@ enum Team {
 		elif immobile != value:
 			immobile = value
 
-# ★ 新增：仅对敌方单位生效。勾选后此单位被标记为 Boss（Day3 三形态）
 @export var is_boss : bool = false
 
 @export var initial_items : Array[ItemEntry] = []
@@ -61,6 +61,31 @@ enum Team {
 @export var spawn_index: int = 0:
 	set(value):
 		spawn_index = value
+		if Engine.is_editor_hint():
+			call_deferred("_build_preview")
+
+# ★ 新增：波次（1-based，1 = 第一波，此场战斗第 N 波才出现）
+# 显式波次会被 WaveManager 消费；如果所有敌人都是 wave = 1，等价于现有行为
+@export var wave: int = 1:
+	set(value):
+		wave = maxi(1, value)
+		if Engine.is_editor_hint():
+			call_deferred("_build_preview")
+
+# ★ 新增：随机池 - 组标识
+# 多个 RANDOM_POOL 格子使用相同 pool_key 时共享池子（取组内第一个非空 enemy_pool）
+# 为空时只用自身 enemy_pool（每个格子独立池）
+@export var pool_key: String = "":
+	set(value):
+		pool_key = value
+		if Engine.is_editor_hint():
+			call_deferred("_build_preview")
+
+# ★ 新增：随机池 - 敌人类型列表（可重复，重复次数 = 权重）
+# 每个格子会从这里独立随机抽 1 个敌人
+@export var enemy_pool: Array[String] = []:
+	set(value):
+		enemy_pool = value
 		if Engine.is_editor_hint():
 			call_deferred("_build_preview")
 
@@ -87,10 +112,13 @@ func _build_preview():
 	if not Engine.is_editor_hint():
 		return
 	_clear_all_children()
-	if placement_mode == PlacementMode.SPAWN_POINT:
-		_build_spawn_point_preview()
-	else:
-		_build_unit_preview()
+	match placement_mode:
+		PlacementMode.SPAWN_POINT:
+			_build_spawn_point_preview()
+		PlacementMode.RANDOM_POOL:
+			_build_random_pool_preview()
+		_:
+			_build_unit_preview()
 
 func _get_configuration_warnings() -> PackedStringArray:
 	var warnings = PackedStringArray()
@@ -118,6 +146,11 @@ func _get_configuration_warnings() -> PackedStringArray:
 		elif placement_mode == PlacementMode.SPAWN_POINT:
 			if spawn_index < 0 or spawn_index > 5:
 				warnings.append("spawn_index 应在 0~5 范围内（通常对应队伍人数）")
+		elif placement_mode == PlacementMode.RANDOM_POOL:
+			if pool_key == "" and enemy_pool.is_empty():
+				warnings.append("RANDOM_POOL 格子没有池子：要么填 pool_key（与其他格子共享），要么填 enemy_pool（自包含）")
+			if team == Team.玩家:
+				warnings.append("RANDOM_POOL 一般用于敌方。玩家单位请用 FIXED_UNIT / SPAWN_POINT")
 	return warnings
 
 func _build_spawn_point_preview():
@@ -138,6 +171,35 @@ func _build_spawn_point_preview():
 	label.position = Vector2(MapConst.CELL_SIZE/2.0, MapConst.CELL_SIZE/2.0) - label.size / 2
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(label)
+
+func _build_random_pool_preview():
+	var bg = ColorRect.new()
+	bg.size = Vector2(MapConst.CELL_SIZE, MapConst.CELL_SIZE)
+	bg.position = Vector2(MapConst.CELL_SIZE/2.0, MapConst.CELL_SIZE/2.0) - bg.size / 2
+	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	bg.z_index = -1
+	bg.color = Color(0.9, 0.5, 0.1, 0.35)
+	add_child(bg)
+
+	var label = Label.new()
+	var key_text = pool_key if pool_key != "" else "内联"
+	label.text = "R%s\nW%d" % [key_text, wave]
+	label.add_theme_font_size_override("font_size", 8)
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	label.size = Vector2(MapConst.CELL_SIZE, MapConst.CELL_SIZE)
+	label.position = Vector2(MapConst.CELL_SIZE/2.0, MapConst.CELL_SIZE/2.0) - label.size / 2
+	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(label)
+
+	if not enemy_pool.is_empty():
+		var sub = Label.new()
+		sub.text = "池%d" % enemy_pool.size()
+		sub.add_theme_font_size_override("font_size", 6)
+		sub.modulate = Color(1.0, 0.8, 0.4)
+		sub.position = Vector2(0, MapConst.CELL_SIZE + 2)
+		sub.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		add_child(sub)
 
 func _build_unit_preview():
 	var bg = ColorRect.new()
@@ -246,38 +308,49 @@ func export_config() -> Variant:
 			"position": grid_pos,
 			"spawn_index": spawn_index
 		}
-	else:
-		var cfg = UnitConfig.new()
-		cfg.unit_name = _get_json_key()
-		cfg.team_id = 0 if team == Team.玩家 else 1
-		cfg.override_stats = {}
-		cfg.immobile = (team == Team.敌人 and immobile)
-		cfg.is_boss  = (team == Team.敌人 and is_boss)   # ★ 新增
 
-		var items_to_export = initial_items.duplicate()
-		var default_id = UnitDataManager.get_default_weapon_id(cfg.unit_name)
-		if default_id != "":
-			var already_has = false
-			for entry in items_to_export:
-				if entry and entry.item_id == default_id:
-					already_has = true
-					break
-			if not already_has:
-				var weapon_entry = ItemEntry.new()
-				weapon_entry.item_id = default_id
-				weapon_entry.count = 1
-				items_to_export.insert(0, weapon_entry)
+	# FIXED_UNIT 和 RANDOM_POOL 都返回 UnitConfig
+	var cfg = UnitConfig.new()
+	cfg.position = grid_pos
+	cfg.team_id = 0 if team == Team.玩家 else 1
+	cfg.wave = wave
+	cfg.is_boss = (team == Team.敌人 and is_boss)
+	cfg.immobile = (team == Team.敌人 and immobile)
 
-		if items_to_export.size() > 5:
-			var dropped = items_to_export.slice(5)
-			var dropped_names = []
-			for entry in dropped:
-				var data = ItemManager.get_item_data(entry.item_id)
-				dropped_names.append(data.name if data else entry.item_id)
-			if Engine.is_editor_hint():
-				push_warning("UnitPlacer: 初始道具（含默认武器）超过5种，丢弃了：%s" % ", ".join(dropped_names))
-			items_to_export = items_to_export.slice(0, 5)
-
-		cfg.initial_items = items_to_export
-		cfg.position = grid_pos
+	if placement_mode == PlacementMode.RANDOM_POOL:
+		cfg.unit_name = ""   # 占位，加载时由池子抽
+		cfg.is_random_pool = true
+		cfg.pool_key = pool_key
+		cfg.enemy_pool = enemy_pool.duplicate()
 		return cfg
+
+	# FIXED_UNIT
+	cfg.unit_name = _get_json_key()
+	cfg.override_stats = {}
+
+	var items_to_export = initial_items.duplicate()
+	var default_id = UnitDataManager.get_default_weapon_id(cfg.unit_name)
+	if default_id != "":
+		var already_has = false
+		for entry in items_to_export:
+			if entry and entry.item_id == default_id:
+				already_has = true
+				break
+		if not already_has:
+			var weapon_entry = ItemEntry.new()
+			weapon_entry.item_id = default_id
+			weapon_entry.count = 1
+			items_to_export.insert(0, weapon_entry)
+
+	if items_to_export.size() > 5:
+		var dropped = items_to_export.slice(5)
+		var dropped_names = []
+		for entry in dropped:
+			var data = ItemManager.get_item_data(entry.item_id)
+			dropped_names.append(data.name if data else entry.item_id)
+		if Engine.is_editor_hint():
+			push_warning("UnitPlacer: 初始道具（含默认武器）超过5种，丢弃了：%s" % ", ".join(dropped_names))
+		items_to_export = items_to_export.slice(0, 5)
+
+	cfg.initial_items = items_to_export
+	return cfg

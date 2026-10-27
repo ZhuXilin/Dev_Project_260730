@@ -1,10 +1,10 @@
 [gd_scene format=4 uid="uid://dxgf5hh4ubrlb"]
 
 [ext_resource type="TileSet" uid="uid://bmko3nha5eqoa" path="res://content/scenes/tilemap/TerrainTileSet01.tres" id="1_l3a24"]
-[ext_resource type="Script" uid="uid://cjvddjaj43chx" path="res://function/tool/UnitPlacer.gd" id="2_j01ar"]
+[ext_resource type="Script" uid="uid://cjvddjaj43chx" path="res://function/tool/mapplacer/UnitPlacer.gd" id="2_j01ar"]
 [ext_resource type="Script" uid="uid://2m8vla0xoar" path="res://function/script/ItemEntry.gd" id="3_qaaah"]
-[ext_resource type="Script" uid="uid://bwbaxyrughsfk" path="res://function/tool/HpFunction.gd" id="5_shpuq"]
-[ext_resource type="Script" uid="uid://d4b5iewm1v2pe" path="res://function/tool/EventTrigger.gd" id="6_s1lvw"]
+[ext_resource type="Script" uid="uid://bwbaxyrughsfk" path="res://function/tool/mapplacer/HpFunction.gd" id="5_shpuq"]
+[ext_resource type="Script" uid="uid://d4b5iewm1v2pe" path="res://function/tool/mapplacer/EventTrigger.gd" id="6_s1lvw"]
 
 [sub_resource type="Resource" id="Resource_m45wx"]
 script = ExtResource("3_qaaah")

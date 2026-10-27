@@ -1,14 +1,7 @@
 extends CanvasLayer
 
-# ============================================================
-#  MapScene — 局内地图
-#  v4.3：ChipMusicEditor 风格主题 + 细滚动条 + 节点点击防抖
-#  v4.4：修复 CanvasLayer 无 theme 属性的问题
-# ============================================================
-
 const FONT_SIZE = 8
 
-# ---- ChipMusicEditor 风格字号 ----
 const FS_BUTTON : int = 6
 const FS_LABEL  : int = 6
 const FS_SMALL  : int = 5
@@ -34,6 +27,9 @@ var _ready_guard : bool = false
 # ★ 节点点击防抖
 var _is_loading_combat : bool = false
 
+# ★ v4.6：节点战力评估缓存（node_id → PowerEvaluator 结果）
+var _node_power_cache : Dictionary = {}
+
 @onready var node_container = $NodeContainer
 @onready var line_container = $NodeContainer/LineContainer
 @onready var info_panel = $InfoPanel
@@ -47,10 +43,6 @@ var _is_loading_combat : bool = false
 @onready var resonance_label = $TopBar/ResonanceLabel
 
 
-# ============================================================
-#  ★ 全局主题（ChipMusicEditor 风格）
-#  ★ 修复：CanvasLayer 没有 theme 属性，改为递归给所有 Control 子节点设 theme
-# ============================================================
 func _apply_compact_theme():
 	var t := Theme.new()
 
@@ -100,7 +92,6 @@ func _apply_compact_theme():
 	grab_hl.corner_radius_bottom_left = 2
 	grab_hl.corner_radius_bottom_right = 2
 
-	# OptionButton 小箭头
 	var arrow_img := Image.create(7, 4, false, Image.FORMAT_RGBA8)
 	arrow_img.fill(Color(0, 0, 0, 0))
 	for y in range(4):
@@ -128,11 +119,9 @@ func _apply_compact_theme():
 	t.set_constant("minimum_grab_size", "HScrollBar", 6)
 	t.set_constant("scroll_height", "HScrollBar", 4)
 
-	# ★ 修复：CanvasLayer 没有 theme 属性，递归应用到所有 Control 子节点
 	_apply_theme_to_all_controls(self, t)
 
 
-# ★ 新增：递归把所有 Control 子节点的 theme 设置成同一个，模拟全局主题
 func _apply_theme_to_all_controls(node: Node, t: Theme) -> void:
 	for child in node.get_children():
 		if child is Control:
@@ -400,7 +389,6 @@ func _update_availability(_start_node: MapNode):
 			max_visited_layer = node.layer
 	print("最大已访问层: ", max_visited_layer)
 
-	# ★ 修复：经过的层（layer <= max_visited_layer）所有未访问节点也标为"已过"
 	for node in map_data.nodes:
 		node.is_available = false
 		node.is_passed = false
@@ -446,6 +434,9 @@ func generate_map(day: int):
 		get_tree().change_scene_to_file(Config.PATHS.CAMP)
 		return
 
+	# ★ v4.6：清空战力缓存
+	_node_power_cache.clear()
+
 	GameState.cached_map_level_data = map_data
 	GameState.cached_day = day
 
@@ -471,9 +462,9 @@ func _setup_ui():
 	Globals.reset_battle_turn()
 	info_panel.visible = false
 	day_label.text = "第 %d 天" % current_day
-	
+
 	_update_map_background()
-	
+
 	if MusicManager.config and MusicManager.config.map_music:
 		MusicManager.play_music(MusicManager.config.map_music)
 	_update_soul_fire_display()
@@ -507,7 +498,7 @@ func _select_node_by_id(node_id: String):
 func on_node_selected(node: MapNode):
 	if _is_loading_combat:
 		return
-	if not node.is_available or node.is_visited or node.is_passed:   # ★ 加 is_passed
+	if not node.is_available or node.is_visited or node.is_passed:
 		return
 
 	_is_loading_combat = true
@@ -556,7 +547,6 @@ func _load_combat_for_node(node: MapNode):
 
 	var map_to_load = node.map_data
 	if not map_to_load:
-		# ... (保留原逻辑)
 		return
 	_load_combat(map_to_load)
 
@@ -657,10 +647,10 @@ func _open_chapel(node: MapNode):
 		return
 	var ui = scene.instantiate()
 	add_child(ui)
-	
+
 	# ★ 设为英灵殿模式，激活复活按钮
 	ui.setup_as_chapel()
-	
+
 	await ui.closed
 
 	if not is_inside_tree():
@@ -826,6 +816,9 @@ func _restore_map_from_snapshot():
 		generate_map(current_day)
 		return
 
+	# ★ v4.6：清空战力缓存
+	_node_power_cache.clear()
+
 	_validate_restored_map_data(map_data)
 
 	GameState.cached_map_level_data = map_data
@@ -953,7 +946,15 @@ func _get_node_description(node: MapNode) -> String:
 		_:
 			base = "未知节点"
 
-	# v4.5：强度显示（任何节点都可配，但通常只在 ELITE/BOSS 上有意义）
+	# ★ v4.6：战力评估（模糊星级）——仅对未访问且可战斗的节点显示
+	if node.map_data and node.map_data.scene and not node.is_visited:
+		var pw = _get_node_power(node)
+		var stars : int = int(pw.get("stars", 0))
+		if stars > 0:
+			var stars_str : String = PowerEvaluator.format_stars(stars)
+			base += "\n战力评估：%s（%s）" % [stars_str, str(pw.get("label", ""))]
+
+	# v4.5：强度显示
 	if node.map_data and node.map_data.intensity > 0:
 		var int_str : String = _intensity_display(node.map_data.intensity)
 		if int_str != "":
@@ -974,6 +975,17 @@ func _get_node_description(node: MapNode) -> String:
 			base += "\n⚠ 负面：敌人 HP ×%.1f" % node.map_data.enemy_hp_multiplier
 
 	return base
+
+
+# ★ v4.6：战力评估（带缓存）
+func _get_node_power(node: MapNode) -> Dictionary:
+	if node == null:
+		return {}
+	if _node_power_cache.has(node.node_id):
+		return _node_power_cache[node.node_id]
+	var result : Dictionary = PowerEvaluator.evaluate_map_node(node.map_data)
+	_node_power_cache[node.node_id] = result
+	return result
 
 
 func _objective_display_name(t: int) -> String:
@@ -1073,7 +1085,6 @@ func _show_floating_toast(text : String):
 	)
 
 
-# v4.5：底部小字提示（参考魂火视觉方案，避免遮挡）
 func _show_bottom_hint(text: String):
 	var hint := Label.new()
 	hint.text = text
@@ -1083,7 +1094,6 @@ func _show_bottom_hint(text: String):
 	hint.add_theme_constant_override("outline_size", 1)
 	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	hint.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	# 屏幕底部居中
 	hint.anchor_left = 0.5
 	hint.anchor_right = 0.5
 	hint.anchor_top = 1.0
@@ -1111,22 +1121,19 @@ func _update_map_background():
 	var bg_rect = get_node_or_null("Background")
 	if bg_rect == null:
 		return
-	
-	# 根据当前天数生成路径
+
 	var bg_path : String = "res://content/images/ui/mapui_scene_%03d.png" % current_day
-	
-	# 查找是否已创建过背景纹理节点
+
 	var tex_rect : TextureRect = bg_rect.get_node_or_null("MapBgTexture")
 	if tex_rect == null:
 		tex_rect = TextureRect.new()
 		tex_rect.name = "MapBgTexture"
-		# 铺满整个 Background
 		tex_rect.set_anchors_preset(Control.PRESET_FULL_RECT)
 		tex_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		tex_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
 		tex_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		bg_rect.add_child(tex_rect)
-		
+
 	if ResourceLoader.exists(bg_path):
 		tex_rect.texture = load(bg_path)
 		tex_rect.visible = true
