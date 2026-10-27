@@ -149,3 +149,88 @@ func _get_material_color(material_name: String) -> Color:
 		"秘银": return Color(0.3, 0.8, 0.7, 1.0)
 		"龙鳞": return Color(0.8, 0.6, 0.1, 1.0)
 		_: return Color.WHITE
+
+# 新增：轻量化弹窗，用于替代 ItemGetPopup
+func show_simple_item(item_id: String, count: int):
+	var data = ItemManager.get_item_data(item_id)
+	if not data and not RelicManager.get_relic_data(item_id).is_empty():
+		var rd = RelicManager.get_relic_data(item_id)
+		data = ItemData.new()
+		data.id = item_id
+		data.name = rd.get("name", item_id)
+		data.icon = load(rd.get("icon", "")) if rd.get("icon", "") != "" else null
+		
+	if not data:
+		return
+		
+	title_label.text = "获得道具"
+	gold_label.visible = false
+	soul_label.visible = false
+	
+	for child in material_list_container.get_children():
+		if child != empty_label:
+			child.queue_free()
+	empty_label.visible = false
+	
+	var hbox = HBoxContainer.new()
+	hbox.add_theme_constant_override("separation", 8)
+	hbox.alignment = BoxContainer.ALIGNMENT_CENTER
+	
+	var icon = TextureRect.new()
+	if data.icon: icon.texture = data.icon
+	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	icon.stretch_mode = TextureRect.STRETCH_KEEP_CENTERED
+	icon.custom_minimum_size = Vector2(24, 24)
+	hbox.add_child(icon)
+	
+	var label = Label.new()
+	label.text = data.name + (" x" + str(count) if count > 1 else "")
+	label.add_theme_font_size_override("font_size", 10)
+	hbox.add_child(label)
+	
+	material_list_container.add_child(hbox)
+	
+	# 改为 2 秒后自动关闭，不显示确认按钮
+	confirm_button.visible = false
+	visible = true
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	Globals.is_reward_summary_active = true
+	Globals.is_item_get_popup_active = true
+	
+	await get_tree().create_timer(2.0, true, false, true).timeout
+	if is_instance_valid(self) and visible:
+		visible = false
+		Globals.is_reward_summary_active = false
+		Globals.is_item_get_popup_active = false
+		confirmed.emit()
+
+
+func show_text(text: String):
+	title_label.text = "提示"
+	gold_label.visible = false
+	soul_label.visible = false
+	
+	for child in material_list_container.get_children():
+		if child != empty_label:
+			child.queue_free()
+	empty_label.visible = false
+	
+	var label = Label.new()
+	label.text = text
+	label.add_theme_font_size_override("font_size", 9)
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	material_list_container.add_child(label)
+	
+	confirm_button.visible = false
+	visible = true
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	Globals.is_reward_summary_active = true
+	Globals.is_item_get_popup_active = true
+	
+	await get_tree().create_timer(2.0, true, false, true).timeout
+	if is_instance_valid(self) and visible:
+		visible = false
+		Globals.is_reward_summary_active = false
+		Globals.is_item_get_popup_active = false
+		confirmed.emit()

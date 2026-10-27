@@ -16,6 +16,7 @@ var _panel_ref = null   # EquipmentConfig 引用
 func _ready():
 	layer = 25
 
+
 func setup(party_ref: Array, panel_ref) -> void:
 	_party = party_ref
 	_panel_ref = panel_ref
@@ -49,28 +50,16 @@ func _build_cards():
 
 func _build_unit_card(u: UnitData) -> Control:
 	var card := PanelContainer.new()
-	card.custom_minimum_size = Vector2(100, 160)   # ★ 略加高容纳溢出提示
+	card.custom_minimum_size = Vector2(100, 160)
 	card.mouse_filter = Control.MOUSE_FILTER_STOP
 
 	var vbox := VBoxContainer.new()
 	vbox.add_theme_constant_override("separation", 3)
 	card.add_child(vbox)
 
-	# ---- 单位图标（含 idle 动画） ----
-	var texture_rect := TextureRect.new()
-	texture_rect.custom_minimum_size = Vector2(32, 32)
-	texture_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	texture_rect.stretch_mode = TextureRect.STRETCH_KEEP_CENTERED
+	# ---- 单位图标（含 idle 动画）- 统一调用管理类 ----
+	var texture_rect = UnitDataManager.create_idle_texture_rect(u.unit_name, Vector2(32, 32))
 	texture_rect.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-
-	var frames_path = UnitDataManager.get_sprite_frames_path(u.unit_name)
-	if u.override_sprite_path != "":
-		frames_path = u.override_sprite_path
-	if frames_path != "" and ResourceLoader.exists(frames_path):
-		var frames = load(frames_path) as SpriteFrames
-		if frames and frames.has_animation("idle") and frames.get_frame_count("idle") > 0:
-			texture_rect.texture = frames.get_frame_texture("idle", 0)
-			_attach_idle_animator(texture_rect, frames)
 	vbox.add_child(texture_rect)
 
 	# ---- 名字 ----
@@ -143,24 +132,6 @@ func _build_unit_card(u: UnitData) -> Control:
 	vbox.add_child(btn)
 
 	return card
-
-
-func _attach_idle_animator(tex_rect: TextureRect, frames: SpriteFrames):
-	var timer := Timer.new()
-	timer.wait_time = 0.25
-	timer.autostart = true
-	tex_rect.add_child(timer)
-
-	var frame_count := frames.get_frame_count("idle")
-	var idx := {"value": 0}
-	timer.timeout.connect(func():
-		if not is_instance_valid(tex_rect):
-			return
-		idx["value"] = (idx["value"] + 1) % frame_count
-		var t = frames.get_frame_texture("idle", idx["value"])
-		if t:
-			tex_rect.texture = t
-	)
 
 
 func _on_sacrifice(u: UnitData):

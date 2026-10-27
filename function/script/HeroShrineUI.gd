@@ -2,7 +2,6 @@ extends CanvasLayer
 
 signal closed
 
-# ★ 从 const 改为 var，_ready() 里从配置读
 var COST_PER_CLASS : int = 0
 
 const PERFORMANCE_DURATION : float = 2.0
@@ -64,7 +63,6 @@ func _get_party() -> Array:
 	return GameState.party
 
 
-# ★ 统一用魂
 func _get_soul() -> int:
 	return GameState.soul
 
@@ -91,7 +89,7 @@ func _ready():
 		sprite_box.custom_minimum_size = Vector2(96, 96)
 	if perf_sprite:
 		perf_sprite.position = Vector2(48, 48)
-		perf_sprite.scale = Vector2(1, 1)
+		perf_sprite.scale = Vector2(2, 2)
 
 	# ★ 绑定英灵殿复活按钮
 	var revive_btn = get_node_or_null("Panel/VBox/ChapelActions/ReviveBtn")
@@ -107,7 +105,6 @@ func _ready():
 	_build_unit_row()
 
 
-## 由 MapScene 调用，标记为英灵殿模式
 func setup_as_chapel():
 	_is_chapel_mode = true
 	if is_node_ready():
@@ -199,27 +196,10 @@ func _build_unit_card(unit_idx: int) -> PanelContainer:
 	vbox.add_theme_constant_override("separation", 3)
 	card.add_child(vbox)
 
-	# ★ 新增：单位图标（32x32，含 idle 动画）
-	var sprite_wrapper := Control.new()
-	sprite_wrapper.custom_minimum_size = Vector2(32, 32)
-	sprite_wrapper.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	vbox.add_child(sprite_wrapper)
-
-	var texture_rect := TextureRect.new()
-	texture_rect.set_anchors_preset(Control.PRESET_FULL_RECT)
-	texture_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	texture_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	texture_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	sprite_wrapper.add_child(texture_rect)
-
-	var frames_path = UnitDataManager.get_sprite_frames_path(unit.unit_name)
-	if unit.override_sprite_path != "":
-		frames_path = unit.override_sprite_path
-	if frames_path != "" and ResourceLoader.exists(frames_path):
-		var frames = load(frames_path) as SpriteFrames
-		if frames and frames.has_animation("idle") and frames.get_frame_count("idle") > 0:
-			texture_rect.texture = frames.get_frame_texture("idle", 0)
-			_attach_idle_animator(texture_rect, frames)
+	# ★ 统一调用 32x32 idle 动画
+	var texture_rect = UnitDataManager.create_idle_texture_rect(unit.unit_name, Vector2(32, 32))
+	texture_rect.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	vbox.add_child(texture_rect)
 
 	var name_lb = Label.new()
 	name_lb.add_theme_font_size_override("font_size", 9)
@@ -249,7 +229,7 @@ func _build_unit_card(unit_idx: int) -> PanelContainer:
 		status_lb.text = "★ " + adv_name + "\n" + suffix
 		status_lb.modulate = dim_color
 		card.modulate = card_color
-		sprite_wrapper.modulate = card_color
+		texture_rect.modulate = card_color
 		return card
 
 	# ---- 阵亡 ----
@@ -259,7 +239,7 @@ func _build_unit_card(unit_idx: int) -> PanelContainer:
 		status_lb.text = "已阵亡 / 已熔铸"
 		status_lb.modulate = Color(0.4, 0.4, 0.4, 1)
 		card.modulate = Color(0.5, 0.5, 0.5, 1)
-		sprite_wrapper.modulate = Color(0.4, 0.4, 0.4, 1)
+		texture_rect.modulate = Color(0.4, 0.4, 0.4, 1)
 		return card
 
 	# ---- 无进阶定义 ----
@@ -354,12 +334,13 @@ func _make_picker_panel(unit : UnitData, branches : Array) -> Control:
 	overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
 	overlay.mouse_filter = Control.MOUSE_FILTER_STOP
 
-	# ★ 修复边沿问题：使用完全纯色覆盖，彻底遮住底层的原界面
+	# ★ 完全不透明黑底，彻底遮住底层界面防错位
 	var bg := ColorRect.new()
-	bg.color = Color(0.06, 0.06, 0.08, 1) 
+	bg.color = Color(0.06, 0.06, 0.08, 1)
 	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
 	overlay.add_child(bg)
 
+	# 绝对居中
 	var center_box := CenterContainer.new()
 	center_box.set_anchors_preset(Control.PRESET_FULL_RECT)
 	center_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -369,9 +350,8 @@ func _make_picker_panel(unit : UnitData, branches : Array) -> Control:
 	picker_panel.custom_minimum_size = Vector2(440, 0)
 	
 	var sb := StyleBoxFlat.new()
-	# ★ 去掉背景和所有边框，只作为纯排版容器使用
-	sb.bg_color = Color(0, 0, 0, 0)
-	sb.border_width_left = 0
+	sb.bg_color = Color(0, 0, 0, 0) # 去掉背景
+	sb.border_width_left = 0        # 去掉边框
 	sb.border_width_right = 0
 	sb.border_width_top = 0
 	sb.border_width_bottom = 0
@@ -397,11 +377,6 @@ func _make_picker_panel(unit : UnitData, branches : Array) -> Control:
 	row.add_theme_constant_override("separation", 20)
 	vbox.add_child(row)
 
-	# 基础单位 sprite（回退用）
-	var base_path : String = UnitDataManager.get_sprite_frames_path(unit.unit_name)
-	if unit.override_sprite_path != "":
-		base_path = unit.override_sprite_path
-
 	for b in branches:
 		var adv : AdvancedClassData = b
 		var col := VBoxContainer.new()
@@ -409,34 +384,44 @@ func _make_picker_panel(unit : UnitData, branches : Array) -> Control:
 		col.add_theme_constant_override("separation", 6)
 		col.alignment = BoxContainer.ALIGNMENT_BEGIN
 		
-		# ---- 1. 单位图标 (32x32) ----
+		# 1. 单位图标
 		var sprite_wrapper := Control.new()
 		sprite_wrapper.custom_minimum_size = Vector2(32, 32) 
 		sprite_wrapper.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 		col.add_child(sprite_wrapper)
 
-		var texture_rect := TextureRect.new()
-		texture_rect.set_anchors_preset(Control.PRESET_FULL_RECT)
-		texture_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-		texture_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-		texture_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		var texture_rect = null
+		# 如果转职有独立贴图，这里临时加载转职贴图，否则使用原单位贴图
+		if adv.sprite_frames_path != "" and ResourceLoader.exists(adv.sprite_frames_path):
+			var frames = load(adv.sprite_frames_path) as SpriteFrames
+			if frames:
+				texture_rect = TextureRect.new()
+				texture_rect.custom_minimum_size = Vector2(32, 32)
+				texture_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+				texture_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+				texture_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+				# 借用动画
+				if frames.has_animation("idle"):
+					texture_rect.texture = frames.get_frame_texture("idle", 0)
+					var timer := Timer.new()
+					timer.wait_time = 0.25
+					timer.autostart = true
+					texture_rect.add_child(timer)
+					var frame_count := frames.get_frame_count("idle")
+					var idx := {"value": 0}
+					timer.timeout.connect(func():
+						if not is_instance_valid(texture_rect): return
+						idx["value"] = (idx["value"] + 1) % frame_count
+						var t = frames.get_frame_texture("idle", idx["value"])
+						if t: texture_rect.texture = t
+					)
+		
+		if not texture_rect:
+			texture_rect = UnitDataManager.create_idle_texture_rect(unit.unit_name, Vector2(32, 32))
+
 		sprite_wrapper.add_child(texture_rect)
 
-		var preview_path : String = adv.sprite_frames_path
-		if preview_path == "" or not ResourceLoader.exists(preview_path):
-			preview_path = base_path
-
-		var preview_loaded : bool = false
-		if preview_path != "" and ResourceLoader.exists(preview_path):
-			var frames = load(preview_path) as SpriteFrames
-			if frames and frames.has_animation("idle") and frames.get_frame_count("idle") > 0:
-				texture_rect.texture = frames.get_frame_texture("idle", 0)
-				_attach_idle_animator(texture_rect, frames)
-				preview_loaded = true
-		if not preview_loaded:
-			texture_rect.visible = false
-			
-		# ---- 2. 文字与属性信息 ----
+		# 2. 文字
 		var name_lb := Label.new()
 		name_lb.text = "★ " + adv.name
 		name_lb.add_theme_font_size_override("font_size", 10)
@@ -460,12 +445,11 @@ func _make_picker_panel(unit : UnitData, branches : Array) -> Control:
 		stats_lb.modulate = Color(0.7, 0.9, 0.7)
 		col.add_child(stats_lb)
 
-		# ★ 占位区：推底对齐
 		var spacer := Control.new()
 		spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
 		col.add_child(spacer)
 
-		# ---- 3. 按钮 ----
+		# 3. 按钮 (水平居中)
 		var btn := Button.new()
 		btn.text = "选择"
 		btn.add_theme_font_size_override("font_size", 9)
@@ -488,25 +472,6 @@ func _make_picker_panel(unit : UnitData, branches : Array) -> Control:
 	vbox.add_child(cancel)
 
 	return overlay
-
-
-# ★ 新增：idle 动画播放器（复用 SacrificeUI 的实现思路）
-func _attach_idle_animator(tex_rect: TextureRect, frames: SpriteFrames):
-	var timer := Timer.new()
-	timer.wait_time = 0.25
-	timer.autostart = true
-	tex_rect.add_child(timer)
-
-	var frame_count := frames.get_frame_count("idle")
-	var idx := {"value": 0}
-	timer.timeout.connect(func():
-		if not is_instance_valid(tex_rect):
-			return
-		idx["value"] = (idx["value"] + 1) % frame_count
-		var t = frames.get_frame_texture("idle", idx["value"])
-		if t:
-			tex_rect.texture = t
-	)
 
 
 # ============================================================

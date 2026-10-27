@@ -43,7 +43,6 @@ const PATHS : Dictionary = {
 	"ITEM_INFO_UI":         "res://content/scenes/ui/ItemInfoUI.tscn",
 	"CONFIRM_UI":           "res://content/scenes/ui/ConfirmUI.tscn",
 	"DIALOGUE_UI":          "res://content/scenes/ui/DialogueUI.tscn",
-	"ITEM_GET_POPUP":       "res://content/scenes/ui/ItemGetPopup.tscn",
 	"ITEM_DETAIL_POPUP":    "res://content/scenes/ui/ItemDetailPopup.tscn",
 	"RELIC_SELECT_UI":      "res://content/scenes/ui/RelicSelectUI.tscn",
 	"REWARD_SUMMARY_UI":    "res://content/scenes/ui/RewardSummaryUI.tscn",

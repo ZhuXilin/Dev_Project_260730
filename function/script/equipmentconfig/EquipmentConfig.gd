@@ -940,7 +940,10 @@ func _create_unit_icon(unit: UnitData, unit_idx: int) -> Control:
 	wrapper.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 	wrapper.mouse_filter = Control.MOUSE_FILTER_STOP
 
-	var texture_rect := TextureRect.new()
+	# ★ 统一调用：获取带 idle 动画的 TextureRect
+	var texture_rect = UnitDataManager.create_idle_texture_rect(unit.unit_name, Vector2(icon_size, icon_size))
+	
+	# ★ 恢复原有锚点位置，确保图标在列的正上方居中
 	texture_rect.anchor_left = 0.5
 	texture_rect.anchor_right = 0.5
 	texture_rect.offset_left = -icon_size / 2.0
@@ -949,19 +952,7 @@ func _create_unit_icon(unit: UnitData, unit_idx: int) -> Control:
 	texture_rect.anchor_bottom = 0.0
 	texture_rect.offset_top = y_offset
 	texture_rect.offset_bottom = y_offset + icon_size
-
-	texture_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	texture_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	texture_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
-
-	var frames_path = UnitDataManager.get_sprite_frames_path(unit.unit_name)
-	if unit.override_sprite_path != "":
-		frames_path = unit.override_sprite_path
-	if frames_path != "" and ResourceLoader.exists(frames_path):
-		var frames = load(frames_path) as SpriteFrames
-		if frames and frames.has_animation("idle") and frames.get_frame_count("idle") > 0:
-			texture_rect.texture = frames.get_frame_texture("idle", 0)
-			_attach_idle_animator(texture_rect, frames)
+	
 	wrapper.add_child(texture_rect)
 
 	wrapper.mouse_entered.connect(_on_unit_hover_entered.bind(unit_idx))

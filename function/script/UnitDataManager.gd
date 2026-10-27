@@ -334,3 +334,68 @@ static func apply_growth(stats: UnitData, unit_type: String) -> void:
 	stats.intelligence += int(g.get("intelligence", 0))
 	stats.faith += int(g.get("faith", 0))
 	stats.arcane += int(g.get("arcane", 0))
+
+
+# ============================================================
+#  ★ 新增：统一的单位贴图（SpriteFrames）和 UI 图标管理
+# ============================================================
+static var _sprite_frames_cache : Dictionary = {}
+static var _idle_texture_cache : Dictionary = {}
+
+# 获取统一的 SpriteFrames（带缓存，供战斗使用）
+static func get_sprite_frames(unit_name: String) -> SpriteFrames:
+	var key := normalize_unit_key(unit_name)
+	if _sprite_frames_cache.has(key):
+		return _sprite_frames_cache[key]
+		
+	var path = get_sprite_frames_path(key)
+	if path != "" and ResourceLoader.exists(path):
+		var sf = load(path) as SpriteFrames
+		if sf:
+			_sprite_frames_cache[key] = sf
+			return sf
+	return null
+
+# 获取 idle 第一帧作为静态图标（带缓存）
+static func get_idle_texture(unit_name: String) -> Texture2D:
+	var key := normalize_unit_key(unit_name)
+	if _idle_texture_cache.has(key):
+		return _idle_texture_cache[key]
+		
+	var sf = get_sprite_frames(key)
+	if sf and sf.has_animation("idle") and sf.get_frame_count("idle") > 0:
+		var tex = sf.get_frame_texture("idle", 0)
+		_idle_texture_cache[key] = tex
+		return tex
+	return null
+
+# 一键生成带有 idle 动画的 TextureRect 节点（供 UI 卡片使用）
+static func create_idle_texture_rect(unit_name: String, icon_size: Vector2 = Vector2(32, 32)) -> TextureRect:
+	var rect := TextureRect.new()
+	rect.custom_minimum_size = icon_size
+	rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	
+	var sf = get_sprite_frames(unit_name)
+	if sf and sf.has_animation("idle") and sf.get_frame_count("idle") > 0:
+		rect.texture = sf.get_frame_texture("idle", 0)
+		
+		# 挂载定时器播放动画
+		var timer := Timer.new()
+		timer.wait_time = 0.25
+		timer.autostart = true
+		rect.add_child(timer)
+		
+		var frame_count := sf.get_frame_count("idle")
+		var idx := {"value": 0}
+		timer.timeout.connect(func():
+			if not is_instance_valid(rect): return
+			idx["value"] = (idx["value"] + 1) % frame_count
+			var t = sf.get_frame_texture("idle", idx["value"])
+			if t: rect.texture = t
+		)
+	else:
+		rect.visible = false
+		
+	return rect

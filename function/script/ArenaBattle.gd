@@ -129,23 +129,18 @@ func setup(player_data: UnitData, enemy_data: UnitData, crystal_reward: int = 0,
 
 
 func _setup_unit_sprite(sprite: AnimatedSprite2D, unit_data: UnitData, team_id: int) -> ShaderMaterial:
-	var frames_path = UnitDataManager.get_sprite_frames_path(unit_data.unit_name)
-	if unit_data.override_sprite_path != "" and ResourceLoader.exists(unit_data.override_sprite_path):
-		frames_path = unit_data.override_sprite_path
-	var loaded_ok = false
-	if frames_path != "" and ResourceLoader.exists(frames_path):
-		var frames = load(frames_path) as SpriteFrames
-		if frames:
-			sprite.sprite_frames = frames
-			if frames.has_animation("idle"):
-				sprite.play("idle")
-			else:
-				var anims = frames.get_animation_names()
-				if anims.size() > 0:
-					sprite.play(anims[0])
-			loaded_ok = true
-
-	if not loaded_ok:
+	# ★ 统一调用缓存
+	var frames = UnitDataManager.get_sprite_frames(unit_data.unit_name)
+	
+	if frames:
+		sprite.sprite_frames = frames
+		if frames.has_animation("idle"):
+			sprite.play("idle")
+		else:
+			var anims = frames.get_animation_names()
+			if anims.size() > 0: sprite.play(anims[0])
+	else:
+		# 兜底：洋红色方块
 		var image = Image.create(16, 16, false, Image.FORMAT_RGBA8)
 		image.fill(Color.MAGENTA)
 		var placeholder = ImageTexture.create_from_image(image)

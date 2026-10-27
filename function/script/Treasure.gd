@@ -263,14 +263,12 @@ func _on_option_selected(idx : int):
 
 	_applied = true
 	var option : Dictionary = _reward_options[idx]
-	_apply_reward(option)
-
-	# 移除遗留的碎片逻辑，单纯展示高级物品
 	
-	var blocker : ColorRect = _create_input_blocker()
+	# 先发放奖励
+	_apply_reward(option)
+	
+	# 等待结算面板确认
 	await _show_popup(option)
-	if is_instance_valid(blocker):
-		blocker.queue_free()
 
 	closed.emit()
 	queue_free()
@@ -358,28 +356,32 @@ func _grant_item(item_id: String):
 
 
 func _show_popup(option : Dictionary):
-	if Globals.is_item_get_popup_active:
-		return
+	var gold : int = int(option.get("gold", 0))
+	var soul : int = int(option.get("soul", 0))
+	var item_ids : Array = option.get("items", [])
+	
+	var item_datas : Array = []
+	for item_id in item_ids:
+		var data = ItemManager.get_item_data(item_id)
+		if data:
+			item_datas.append(data)
+		else:
+			var rd = RelicManager.get_relic_data(item_id)
+			if not rd.is_empty():
+				# 对于遗物，虚拟化一个 ItemData 供面板显示
+				var virtual_data = ItemData.new()
+				virtual_data.id = item_id
+				virtual_data.name = rd.get("name", "未知遗物")
+				var icon_path = rd.get("icon", "")
+				if icon_path != "" and ResourceLoader.exists(icon_path):
+					virtual_data.icon = load(icon_path)
+				item_datas.append(virtual_data)
 
-	var scene = load(Config.PATHS.ITEM_GET_POPUP)
-	if not scene:
-		return
-
-	var popup = scene.instantiate()
-	get_tree().root.add_child(popup)
-	popup.show_text(_format_option_text(option))
-
-	if popup.has_signal("closed"):
-		await popup.closed
+	var summary = Globals.get_reward_summary()
+	if summary:
+		summary.setup_reward(gold, soul, item_datas, false, "宝箱奖励")
+		summary.open()
+		await summary.confirmed
+		summary.close()
 	else:
-		await get_tree().create_timer(3.5, true, false, true).timeout
-
-
-func _create_input_blocker() -> ColorRect:
-	var blocker := ColorRect.new()
-	blocker.color = Color(0, 0, 0, 0)
-	blocker.mouse_filter = Control.MOUSE_FILTER_STOP
-	blocker.set_anchors_preset(Control.PRESET_FULL_RECT)
-	blocker.z_index = 100
-	add_child(blocker)
-	return blocker
+		await get_tree().create_timer(1.5, true, false, true).timeout

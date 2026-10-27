@@ -2,8 +2,6 @@ extends Node
 
 signal event_completed(event_id: String)
 
-const ItemGetPopupScene = preload("res://content/scenes/ui/ItemGetPopup.tscn")
-
 var _events: Dictionary = {}
 var _completed: Dictionary = {}
 
@@ -207,17 +205,6 @@ func trigger_event(event_id: String, unit: Unit = null, _default_music: AudioStr
 		mark_event_completed(event_id)
 
 
-func show_item_get_popup(item_id: String, count: int):
-	if Globals.is_item_get_popup_active:
-		return
-	var root = get_tree().root
-	if not root:
-		return
-	var popup = ItemGetPopupScene.instantiate()
-	root.add_child(popup)
-	popup.show_item(item_id, count)
-
-
 # ============================================================
 #  辅助方法
 # ============================================================
@@ -226,24 +213,25 @@ func _get_ui_manager() -> UIManager:
 	if battlefield and battlefield.ui_manager:
 		return battlefield.ui_manager
 	return null
+	
+
+func show_item_get_popup(item_id: String, count: int):
+	if Globals.is_item_get_popup_active:
+		return
+	var summary = Globals.get_reward_summary()
+	if summary:
+		summary.show_simple_item(item_id, count)
 
 func show_unit_unlock_popup(units: Array):
 	if Globals.is_item_get_popup_active:
 		return
-	var root = get_tree().root
-	if not root:
-		return
-	var popup = ItemGetPopupScene.instantiate()
-	root.add_child(popup)
-	popup.show_unit_unlock(units)
-
+	var summary = Globals.get_reward_summary()
+	if summary:
+		summary.show_text("★ 解锁单位：\n" + ", ".join(units))
 
 func show_unit_eligible_popup(units: Array):
 	if Globals.is_item_get_popup_active:
 		return
-	var root = get_tree().root
-	if not root:
-		return
-	var popup = ItemGetPopupScene.instantiate()
-	root.add_child(popup)
-	popup.show_text("★ 新残魂资格：\n" + ", ".join(units))
+	var summary = Globals.get_reward_summary()
+	if summary:
+		summary.show_text("★ 新残魂资格：\n" + ", ".join(units))

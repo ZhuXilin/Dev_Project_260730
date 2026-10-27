@@ -48,7 +48,6 @@ const BOSS_NODE_TYPE = 6
 @onready var relic_icon_container = $HUD/RelicIconContainer
 
 const PERFORMANCE_DURATION : float = 0.5
-const ItemGetPopupScene = preload(Config.PATHS.ITEM_GET_POPUP)
 const INFO_PANEL_WIDTH : float = 72.0
 const INFO_PANEL_MARGIN : float = 8.0
 
