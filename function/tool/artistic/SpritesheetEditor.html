@@ -115,6 +115,24 @@ input[type=checkbox]{accent-color:#2d6cdf;margin-right:4px}
 #btn-lang-toggle{margin-left:auto;min-width:46px;font-weight:600;letter-spacing:.5px}
 .xform-btn{font-size:14px;padding:5px 0;line-height:1}
 .xform-btn small{font-size:10px;color:#bbb}
+/* 删除/替换颜色面板 */
+.del-rep-popup{position:fixed;z-index:3000;background:#2d2d34;border:1px solid #444;border-radius:6px;padding:12px;width:240px;box-shadow:0 8px 30px rgba(0,0,0,.75);display:none}
+.del-rep-popup.open{display:block}
+.del-rep-header{font-size:11px;color:#6fb8ff;font-weight:600;margin-bottom:10px;letter-spacing:.5px}
+.dc-color-row{display:flex;align-items:center;gap:8px;margin-bottom:10px;background:#1a1a20;padding:6px 8px;border-radius:4px;border:1px solid #333}
+.dc-swatch{width:22px;height:22px;border-radius:3px;border:1px solid #555;background:#222;flex-shrink:0}
+.dc-hex{font-family:ui-monospace,Consolas,monospace;color:#bcc;font-size:12px}
+.dc-slider-row{display:flex;align-items:center;gap:8px;color:#aaa;font-size:12px;margin-bottom:8px}
+.dc-slider-row span:first-child{width:60px;flex-shrink:0}
+.dc-slider-row input[type=range]{flex:1;accent-color:#3b82f6;height:14px}
+.dc-slider-row .val{min-width:24px;text-align:right;color:#6fb0ff;font-family:ui-monospace,Consolas,monospace;font-size:11px}
+.dc-count-line{font-size:12px;color:#aaa;margin:8px 0;padding:6px 8px;background:#1a1a20;border-radius:4px;border:1px solid #333}
+.dc-count-line b{color:#ff8b8b;font-size:14px}
+.dc-actions{display:flex;gap:6px;margin-top:10px}
+.dc-actions button{flex:1;font:inherit;padding:6px 0;color:#ddd;background:#3a3a42;border:1px solid #444;border-radius:4px;cursor:pointer;font-size:12px}
+.dc-actions button:hover{background:#4a4a54}
+.dc-actions button.apply{background:#2d6cdf;border-color:#4a8cf5;color:#fff}
+.dc-actions button.apply:hover{background:#3a7ce8}
 </style>
 </head>
 <body>
@@ -229,6 +247,7 @@ input[type=checkbox]{accent-color:#2d6cdf;margin-right:4px}
           <div class="color-chip" id="chip-primary" title="Primary"></div>
           <div class="color-chip" id="chip-secondary" title="Secondary"></div>
           <button id="btn-replace-color" data-i18n="btn.replaceAll" style="flex:1">Replace All</button>
+          <button id="btn-del-replace-color" data-i18n="btn.delReplace" style="flex:1">Del/Rep…</button>
         </div>
       </div>
 
@@ -367,6 +386,30 @@ input[type=checkbox]{accent-color:#2d6cdf;margin-right:4px}
   <button class="cp-pick-btn" id="cp-pick">Eyedropper (full screen)</button>
 </div>
 
+<div class="del-rep-popup" id="del-rep-popup">
+  <div class="del-rep-header" data-i18n="dc.title">Delete / Replace Color</div>
+  <div class="dc-color-row">
+    <div class="dc-swatch" id="dc-color-swatch"></div>
+    <div class="dc-hex" id="dc-color-hex">—</div>
+  </div>
+  <div class="dc-slider-row">
+    <span data-i18n="dc.threshold">Similarity</span>
+    <input type="range" id="dc-threshold" min="0" max="255" value="0">
+    <span class="val" id="dc-thresh-val">0</span>
+  </div>
+  <div class="dc-slider-row" style="margin-top:8px">
+    <span data-i18n="dc.replaceWith">Replace:</span>
+    <input type="color" id="dc-replace-color" value="#808080" style="width:32px;height:24px;padding:0;border:1px solid #444;border-radius:3px;background:#222;cursor:pointer">
+  </div>
+  <div class="dc-count-line"><span data-i18n="dc.willProcess">Will process</span> <b id="dc-count">0</b> <span data-i18n="dc.pixels">pixels</span></div>
+  <div class="dc-actions">
+    <button id="dc-cancel" data-i18n="common.cancel">Cancel</button>
+    <button id="dc-action-select" data-i18n="dc.select">Select</button>
+    <button id="dc-action-delete" data-i18n="dc.delete">Delete</button>
+    <button id="dc-action-replace" class="apply" data-i18n="dc.replace">Replace</button>
+  </div>
+</div>
+
 <script>
 'use strict';
 (function(){
@@ -419,7 +462,7 @@ var ui = {
   onionPrev:false,
   onionNext:false,
   onionOpacity:0.4,
-  fixedSel: { enabled: false, w: 32, h: 32 } // 新增固定选框状态
+  fixedSel: { enabled: false, w: 32, h: 32 }
 };
 var drag = {
   mode:null, startX:0, startY:0, panStartX:0, panStartY:0,
@@ -486,6 +529,16 @@ var animStartEl, animEndEl;
 
 var currentLang = 'en';
 var langBtn;
+
+var deleteColorMode = {
+  active: false,
+  targetPacked: 0,
+  targetR: 0, targetG: 0, targetB: 0,
+  threshold: 0,
+  matchedMask: null,
+  matchedCount: 0,
+  hasTarget: false
+};
 
 function setStatus(s){ if(statusEl) statusEl.textContent = s; }
 function requestRender(){ needsRender = true; }
@@ -1478,7 +1531,6 @@ function paintMarchingAnts(g,mask,W,H,bounds,ox,oy,z,offset){
   g.setLineDash([]);
 }
 function getEffectiveSelCur(){
-  // 处理固定尺寸推挤逻辑
   if (drag.fixedW != null && drag.fixedH != null) {
     var a = drag.selStart, b = drag.selCur;
     var sx = b.x >= a.x ? 1 : -1;
@@ -1493,7 +1545,6 @@ function getEffectiveSelCur(){
         minY = cr.y; maxY = cr.y + cr.h;
       }
     }
-    // 如果超出边界，向内侧推挤起点
     if (sx > 0) {
       if (a.x + w > maxX) a.x = Math.max(minX, maxX - w);
     } else {
@@ -1939,6 +1990,24 @@ function render(){
       }
       ctx.restore();
     }
+  }
+
+  // 删除/替换颜色的高亮预览
+  if (deleteColorMode.active && deleteColorMode.hasTarget && deleteColorMode.matchedMask) {
+    ctx.save();
+    ctx.fillStyle = 'rgba(255, 80, 80, 0.55)';
+    var hx0 = srcX, hy0 = srcY;
+    var hx1 = srcX + srcW, hy1 = srcY + srcH;
+    for (var y = hy0; y < hy1; y++) {
+      var row = y * doc.width;
+      var sy = oy + y * z;
+      for (var x = hx0; x < hx1; x++) {
+        if (deleteColorMode.matchedMask[row + x]) {
+          ctx.fillRect(ox + x * z, sy, z, z);
+        }
+      }
+    }
+    ctx.restore();
   }
 
   drawSelection(z,ox,oy);
@@ -3050,6 +3119,25 @@ function onCanvasMouseDown(e){
   var inRulerLeft = m.sx < RULER && m.sy >= RULER;
   var modCtrl = e.ctrlKey || e.metaKey;
 
+  if(deleteColorMode.active) {
+    if (e.button !== 0) return;
+    var c = getPixel(m.px, m.py);
+    if (c[3] > 0) {
+      deleteColorMode.targetPacked = (c[3] << 24) | (c[2] << 16) | (c[1] << 8) | c[0];
+      deleteColorMode.targetR = c[0];
+      deleteColorMode.targetG = c[1];
+      deleteColorMode.targetB = c[2];
+      deleteColorMode.hasTarget = true;
+      computeColorMatch();
+      document.getElementById('dc-color-swatch').style.background = rgbToHex(c);
+      document.getElementById('dc-color-hex').textContent = rgbToHex(c);
+      requestRender();
+    } else {
+      setStatus(currentLang === 'zh' ? '该像素透明，请另选' : 'Transparent pixel, pick another');
+    }
+    return;
+  }
+
   if(e.button===2){
     if (transformState) {
       cancelTransform();
@@ -3784,6 +3872,7 @@ function onKeyDown(e){
       if(doc.hasSelection){ deleteSelection(); commitHistory(); refreshColorUsage(); }
       e.preventDefault(); break;
     case 'Escape':
+      if (deleteColorMode.active) { closeDeleteColorMode(); e.preventDefault(); break; }
       if(cpActive){ closeColorPicker(); e.preventDefault(); break; }
       if(drag.mode === 'move' && doc.floating){
         drag.mode = null;
@@ -4211,6 +4300,7 @@ function cpCommitFromHsv() {
   cpUpdateFields();
 }
 function openColorPicker(target, anchorEl) {
+  if (deleteColorMode.active) closeDeleteColorMode();
   cpTarget = target;
   cpActive = true;
   var color = cpGetColor();
@@ -4953,6 +5043,16 @@ var I18N = {
   'label.next': {zh:'后帧', en:'Next'},
   'section.color': {zh:'颜色', en:'Color'},
   'btn.replaceAll': {zh:'全图替换', en:'Replace All'},
+  'btn.delReplace': {zh:'删除/替换…', en:'Del/Rep…'},
+  'dc.title': {zh:'删除/替换颜色', en:'Delete/Replace Color'},
+  'dc.threshold': {zh:'相似阈值', en:'Similarity'},
+  'dc.replaceWith': {zh:'替换为', en:'Replace:'},
+  'dc.willProcess': {zh:'将处理', en:'Will process'},
+  'dc.pixels': {zh:'个像素', en:'pixels'},
+  'dc.delete': {zh:'删除', en:'Delete'},
+  'dc.replace': {zh:'替换', en:'Replace'},
+  'dc.select': {zh:'设为选区', en:'Select'},
+  'common.notSelected': {zh:'— 未选择 —', en:'— Not selected —'},
   'section.nes': {zh:'NES 色板', en:'NES Palette'},
   'hint.nes': {zh:'（只读 · NTSC 2C02）', en:'(read-only · NTSC 2C02)'},
   'section.custom': {zh:'自定义色板', en:'Custom Palette'},
@@ -5323,6 +5423,26 @@ function bindUI(){
     updateToolHint();
   });
 
+  // 删除/替换颜色功能绑定
+  document.getElementById('btn-del-replace-color').addEventListener('click', function() {
+    if (deleteColorMode.active) { closeDeleteColorMode(); return; }
+    openDeleteColorMode();
+  });
+
+  document.getElementById('dc-threshold').addEventListener('input', function() {
+    deleteColorMode.threshold = parseInt(this.value, 10) || 0;
+    document.getElementById('dc-thresh-val').textContent = deleteColorMode.threshold;
+    if (deleteColorMode.hasTarget) {
+      computeColorMatch();
+      requestRender();
+    }
+  });
+
+  document.getElementById('dc-action-delete').addEventListener('click', function() { applyDeleteColor('delete'); });
+  document.getElementById('dc-action-select').addEventListener('click', function() { applyDeleteColor('select'); });
+  document.getElementById('dc-action-replace').addEventListener('click', function() { applyDeleteColor('replace'); });
+  document.getElementById('dc-cancel').addEventListener('click', closeDeleteColorMode);
+
   langBtn = document.getElementById('btn-lang-toggle');
   langBtn.addEventListener('click', toggleLanguage);
 
@@ -5348,6 +5468,128 @@ function bindUI(){
       });
     }
   });
+}
+
+function openDeleteColorMode() {
+  if (cpActive) closeColorPicker();
+  if (transformState) cancelTransform();
+  deleteColorMode.active = true;
+  deleteColorMode.hasTarget = false;
+  deleteColorMode.matchedMask = null;
+  
+  document.getElementById('dc-color-swatch').style.background = '#222';
+  document.getElementById('dc-color-hex').textContent = I18N['common.notSelected'][currentLang];
+  document.getElementById('dc-count').textContent = '0';
+  document.getElementById('dc-threshold').value = 0;
+  document.getElementById('dc-thresh-val').textContent = '0';
+  deleteColorMode.threshold = 0;
+
+  var popup = document.getElementById('del-rep-popup');
+  var sidebarRect = document.getElementById('sidebar').getBoundingClientRect();
+  var left = sidebarRect.left - 260;
+  if (left < 10) left = 10;
+  popup.style.left = left + 'px';
+  popup.style.top = '120px';
+  popup.classList.add('open');
+
+  document.getElementById('btn-del-replace-color').classList.add('active');
+  canvas.style.cursor = 'crosshair';
+  setStatus(currentLang === 'zh' ? '删除/替换颜色：请在画布上点击要选择的颜色' : 'Delete/Replace: Click on canvas to pick a color');
+  requestRender();
+}
+
+function closeDeleteColorMode() {
+  deleteColorMode.active = false;
+  deleteColorMode.hasTarget = false;
+  deleteColorMode.matchedMask = null;
+  document.getElementById('del-rep-popup').classList.remove('open');
+  document.getElementById('btn-del-replace-color').classList.remove('active');
+  setStatus(I18N['status.ready'][currentLang]);
+  requestRender();
+}
+
+function computeColorMatch() {
+  if (!deleteColorMode.hasTarget) return;
+  var tR = deleteColorMode.targetR, tG = deleteColorMode.targetG, tB = deleteColorMode.targetB;
+  var th = deleteColorMode.threshold, t2 = th * th;
+  var W = doc.width, H = doc.height;
+  var d = doc.imageData.data;
+  
+  if (!deleteColorMode.matchedMask || deleteColorMode.matchedMask.length !== W * H) {
+    deleteColorMode.matchedMask = new Uint8Array(W * H);
+  }
+  var mask = deleteColorMode.matchedMask;
+  var count = 0;
+
+  for (var i = 0; i < W * H; i++) {
+    var di = i * 4;
+    if (d[di + 3] === 0) { mask[i] = 0; continue; }
+    // 如果在选区外，则不处理
+    if (doc.hasSelection && !doc.selMask[i]) { mask[i] = 0; continue; }
+    
+    var r = d[di], g = d[di + 1], b = d[di + 2];
+    var dr = r - tR, dg = g - tG, db = b - tB;
+    if (dr * dr + dg * dg + db * db <= t2) {
+      mask[i] = 1;
+      count++;
+    } else {
+      mask[i] = 0;
+    }
+  }
+  deleteColorMode.matchedCount = count;
+  document.getElementById('dc-count').textContent = count;
+}
+
+function applyDeleteColor(action) {
+  if (!deleteColorMode.active || !deleteColorMode.hasTarget) return;
+
+  var W = doc.width, H = doc.height;
+  var d = doc.imageData.data;
+  var mask = deleteColorMode.matchedMask;
+  var count = 0;
+
+  if (action === 'select') {
+    if (!doc.selMask) doc.selMask = new Uint8Array(W * H);
+    doc.selMask.fill(0);
+    for (var i = 0; i < W * H; i++) {
+      if (mask[i]) doc.selMask[i] = 1;
+    }
+    recalcBounds();
+    commitHistory();
+    closeDeleteColorMode();
+    setStatus(currentLang === 'zh' ? '已将该颜色区域设为选区' : 'Selected color region');
+    return;
+  }
+
+  if (action === 'replace') {
+    var hex = document.getElementById('dc-replace-color').value || '#000000';
+    var r = parseInt(hex.substr(1, 2), 16);
+    var g = parseInt(hex.substr(3, 2), 16);
+    var b = parseInt(hex.substr(5, 2), 16);
+    for (var i = 0; i < W * H; i++) {
+      if (mask[i]) {
+        var di = i * 4;
+        d[di] = r; d[di + 1] = g; d[di + 2] = b; d[di + 3] = 255;
+        count++;
+      }
+    }
+  } else {
+    for (var i = 0; i < W * H; i++) {
+      if (mask[i]) {
+        var di = i * 4;
+        d[di] = 0; d[di + 1] = 0; d[di + 2] = 0; d[di + 3] = 0;
+        count++;
+      }
+    }
+  }
+
+  doc.imageDirty = true;
+  _highlightDirty = true;
+  commitHistory();
+  refreshColorUsage();
+  requestRender();
+  closeDeleteColorMode();
+  setStatus(currentLang === 'zh' ? '已处理 ' + count + ' 个像素' : 'Processed ' + count + ' pixels');
 }
 
 function mainLoop(now){
