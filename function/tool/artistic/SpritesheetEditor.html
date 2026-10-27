@@ -128,6 +128,16 @@ input[type=checkbox]{accent-color:#2d6cdf;margin-right:4px}
     <button id="btn-save-as-png" data-i18n="btn.savePng" data-i18n-title="tt.savePng" title="Save As PNG">Save As PNG</button>
     <button id="btn-save-as-proj" data-i18n="btn.saveProj" data-i18n-title="tt.saveProj" title="Save As Project">Save As Project</button>
     <span class="sep"></span>
+    
+    <!-- 固定尺寸选框控件 -->
+    <label class="toolbar-label" style="display:flex; align-items:center; gap:4px; font-size:12px; color:#ddd; user-select:none; flex-shrink:0;">
+      <input type="checkbox" id="sel-fixed-toggle" style="margin:0 2px 0 0;">
+      <span data-i18n="label.fixedSize">Fixed</span>
+      <input type="number" id="sel-fixed-w" min="1" max="4096" value="32" style="width:40px; padding:2px 4px; font-size:12px; height:24px; border:1px solid #444; border-radius:3px; background:#2a2a30; color:#ddd; text-align:center;">
+      <span style="color:#666;">×</span>
+      <input type="number" id="sel-fixed-h" min="1" max="4096" value="32" style="width:40px; padding:2px 4px; font-size:12px; height:24px; border:1px solid #444; border-radius:3px; background:#2a2a30; color:#ddd; text-align:center;">
+    </label>
+
     <button class="tool-btn active" data-tool="1" data-i18n="tool.select" data-i18n-title="tt.select" title="Select (V)">Sel</button>
     <button class="tool-btn" data-tool="7" data-i18n="tool.lasso" data-i18n-title="tt.lasso" title="Lasso (M)">Lasso</button>
     <button id="btn-crop" data-i18n="btn.crop" data-i18n-title="tt.crop" title="Crop to Selection (C)">Crop</button>
@@ -408,11 +418,13 @@ var ui = {
   playing:false, animTimer:0, animFrame:0, animLastT:0,
   onionPrev:false,
   onionNext:false,
-  onionOpacity:0.4
+  onionOpacity:0.4,
+  fixedSel: { enabled: false, w: 32, h: 32 } // 新增固定选框状态
 };
 var drag = {
   mode:null, startX:0, startY:0, panStartX:0, panStartY:0,
   selStart:{x:0,y:0}, selCur:{x:0,y:0}, selMode:SEL_REPLACE, square:false,
+  fixedW:null, fixedH:null,
   lastPx:null, drawErase:false,
   moveOrigin:{x:0,y:0}, floatOrigin:{x:0,y:0},
   guideIdx:-1, guideAxis:0, guideStart:0,
@@ -1355,8 +1367,8 @@ function commitFloat(){
             d[di+2] = Math.round((f.data[si+2] * sa + d[di+2] * da * (1 - sa)) / outA);
             d[di+3] = Math.round(outA * 255);
         }
-        doc.selMask[dy*W+dx] = 1;
     }
+    doc.selMask[dy*W+dx] = 1; // 修复：无论是否透明，都重新框选
   }
   doc.floating = null; doc.floatCanvas = null; doc.imageDirty = true; _highlightDirty = true;
   recalcBounds(); requestRender();
@@ -1466,6 +1478,37 @@ function paintMarchingAnts(g,mask,W,H,bounds,ox,oy,z,offset){
   g.setLineDash([]);
 }
 function getEffectiveSelCur(){
+  // 处理固定尺寸推挤逻辑
+  if (drag.fixedW != null && drag.fixedH != null) {
+    var a = drag.selStart, b = drag.selCur;
+    var sx = b.x >= a.x ? 1 : -1;
+    var sy = b.y >= a.y ? 1 : -1;
+    var w = drag.fixedW, h = drag.fixedH;
+    var minX = 0, maxX = doc.width;
+    var minY = 0, maxY = doc.height;
+    if (ui.singleCell) {
+      var cr = cellRect(ui.currentCell);
+      if (cr) {
+        minX = cr.x; maxX = cr.x + cr.w;
+        minY = cr.y; maxY = cr.y + cr.h;
+      }
+    }
+    // 如果超出边界，向内侧推挤起点
+    if (sx > 0) {
+      if (a.x + w > maxX) a.x = Math.max(minX, maxX - w);
+    } else {
+      if (a.x - w + 1 < minX) a.x = Math.min(maxX - 1, minX + w - 1);
+    }
+    if (sy > 0) {
+      if (a.y + h > maxY) a.y = Math.max(minY, maxY - h);
+    } else {
+      if (a.y - h + 1 < minY) a.y = Math.min(maxY - 1, minY + h - 1);
+    }
+    drag.selStart.x = a.x;
+    drag.selStart.y = a.y;
+    return { x: a.x + (w - 1) * sx, y: a.y + (h - 1) * sy };
+  }
+  
   if(!drag.square) return drag.selCur;
   var a = drag.selStart, b = drag.selCur;
   var dx = b.x - a.x, dy = b.y - a.y;
@@ -2994,6 +3037,11 @@ function getMouse(e){
 }
 function onCanvasMouseDown(e){
   if(rotState) { e.preventDefault(); return; }
+  
+  var ae = document.activeElement;
+  if(ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA')) {
+    ae.blur();
+  }
 
   var m = getMouse(e);
   if (isNaN(m.px) || isNaN(m.py)) return;
@@ -3201,7 +3249,10 @@ function onCanvasMouseDown(e){
         drag.selStart = {x: sp.x, y: sp.y};
         drag.selCur = {x: sp.x, y: sp.y};
         drag.selMode = selMode;
-        drag.square = e.shiftKey;
+        drag.square = e.shiftKey && !ui.fixedSel.enabled;
+        // 设置固定尺寸
+        drag.fixedW = ui.fixedSel.enabled ? ui.fixedSel.w : null;
+        drag.fixedH = ui.fixedSel.enabled ? ui.fixedSel.h : null;
       }
       break;
     case TOOL.PENCIL:
@@ -3430,7 +3481,7 @@ function onCanvasMouseMove(e){
     var snapPt = snapSelPointToGuides(m.px, m.py);
     var clamped = clampSelPointToCell(snapPt.x, snapPt.y);
     drag.selCur = {x: clamped.x, y: clamped.y};
-    drag.square = e.shiftKey;
+    drag.square = e.shiftKey && !drag.fixedW; // 固定大小时忽略正方形锁定
     var pb = getPreviewMask().bounds;
     setStatus((currentLang==='zh'?'选区 ':'Selection ')+pb.w+' × '+pb.h+' px'+(drag.square?' (1:1)':''));
     requestRender(); return;
@@ -3528,7 +3579,9 @@ function onCanvasMouseUp(e){
 
   if(!drag.mode) return;
   if(drag.mode === 'select'){
-    var r = rectFromPoints(drag.selStart,drag.selCur,drag.square);
+    // 修复：这里使用计算后的实际终点，以确保固定尺寸生效
+    var actualCur = getEffectiveSelCur();
+    var r = rectFromPoints(drag.selStart, actualCur, drag.square);
     applyRectSelection(r, drag.selMode);
     commitHistory();
   } else if(drag.mode === 'move'){
@@ -3536,6 +3589,10 @@ function onCanvasMouseUp(e){
   } else if(drag.mode === 'move-sel'){
     if(drag.lastDx !== 0 || drag.lastDy !== 0){
       recalcBounds();
+      if(!doc.hasSelection) {
+        doc.selMask.set(drag.selBackup);
+        recalcBounds();
+      }
       commitHistory();
     }
     drag.selBackup = null;
@@ -3562,6 +3619,7 @@ function onCanvasMouseUp(e){
     if(needCommit) commitHistory();
   }
   drag.mode = null; drag.guideIdx = -1; drag.lastPx = null; drag.guideNew = false;
+  drag.fixedW = null; drag.fixedH = null; // 清理固定尺寸
   requestRender();
 }
 
@@ -3973,7 +4031,7 @@ function animUpdateFromEvent(e){
   }
 }
 
-/* ★ 新增：状态栏工具快捷键提示（支持中英文切换） */
+/* ★ 状态栏工具快捷键提示（支持中英文切换） */
 function updateToolHint(){
   var el = document.getElementById('tool-hint');
   if(!el) return;
@@ -3993,6 +4051,11 @@ function updateToolHint(){
   }
   if(key && I18N[key]) {
     el.textContent = I18N[key][currentLang] || I18N[key]['en'];
+    if (ui.tool === TOOL.SELECT && ui.fixedSel.enabled) {
+      el.textContent += currentLang === 'zh' 
+        ? ` [固定 ${ui.fixedSel.w}×${ui.fixedSel.h}]` 
+        : ` [Fixed ${ui.fixedSel.w}×${ui.fixedSel.h}]`;
+    }
   } else {
     el.textContent = '';
   }
@@ -4499,7 +4562,8 @@ function saveProject(saveAs){
     onionOpacity: ui.onionOpacity,
     paletteCustom:ui.paletteCustom.map(function(c){ return rgbToHex(c); }),
     primary:rgbToHex(ui.primary), secondary:rgbToHex(ui.secondary),
-    brushSize:ui.brushSize
+    brushSize:ui.brushSize,
+    fixedSel: ui.fixedSel
   };
   var blob = new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
   if(saveAs && window.showSaveFilePicker){
@@ -4626,6 +4690,17 @@ async function loadProjectData(data){
   if(data.primary) ui.primary = hexToRgb(data.primary);
   if(data.secondary) ui.secondary = hexToRgb(data.secondary);
   if(data.brushSize) setBrushSize(data.brushSize);
+  
+  if(data.fixedSel) {
+    ui.fixedSel.enabled = !!data.fixedSel.enabled;
+    ui.fixedSel.w = Math.max(1, data.fixedSel.w || 32);
+    ui.fixedSel.h = Math.max(1, data.fixedSel.h || 32);
+    document.getElementById('sel-fixed-toggle').checked = ui.fixedSel.enabled;
+    document.getElementById('sel-fixed-w').value = ui.fixedSel.w;
+    document.getElementById('sel-fixed-h').value = ui.fixedSel.h;
+    updateToolHint();
+  }
+
   syncColorInputs();
 
   resetHistory();
@@ -4850,6 +4925,7 @@ var I18N = {
   'tool.hints.picker': {zh: '取色 (I)', en: 'Picker (I)'},
   'tool.hints.bucket': {zh: '填充 (G)', en: 'Bucket (G)'},
   'tool.hints.replace': {zh: '替换 (H)', en: 'Replace (H)'},
+  'label.fixedSize': {zh:'固定', en:'Fixed'},
   'btn.crop': {zh:'裁切', en:'Crop'},
   'btn.transform': {zh:'变形', en:'Trans'},
   'btn.undo': {zh:'撤销', en:'Undo'},
@@ -5225,6 +5301,26 @@ function bindUI(){
     doc.guides = [];
     commitHistory();
     requestRender();
+  });
+
+  // 固定选框交互逻辑
+  var fixedToggle = document.getElementById('sel-fixed-toggle');
+  var fixedWEl = document.getElementById('sel-fixed-w');
+  var fixedHEl = document.getElementById('sel-fixed-h');
+  
+  fixedToggle.addEventListener('change', function(e) {
+    ui.fixedSel.enabled = e.target.checked;
+    updateToolHint();
+  });
+  fixedWEl.addEventListener('change', function(e) {
+    ui.fixedSel.w = Math.max(1, parseInt(e.target.value) || 32);
+    e.target.value = ui.fixedSel.w;
+    updateToolHint();
+  });
+  fixedHEl.addEventListener('change', function(e) {
+    ui.fixedSel.h = Math.max(1, parseInt(e.target.value) || 32);
+    e.target.value = ui.fixedSel.h;
+    updateToolHint();
   });
 
   langBtn = document.getElementById('btn-lang-toggle');
