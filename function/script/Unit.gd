@@ -22,6 +22,15 @@ var previous_flip_h : bool = false
 var used_non_attack_item_this_turn : bool = false
 var moves_since_act: int = 0
 
+# ★ 新增：记录完整的 4 向朝向（用于未来的背击判定）
+var facing_dir : Vector2i = Vector2i(1, 0) 
+
+# ---- 血条节点引用 ----
+@onready var hp_bar_container = $HPBar
+@onready var hp_bar_fill = $HPBar/Fill
+@onready var hp_bar_bg = $HPBar/Background
+var _hp_bar_visible : bool = true
+
 # ---- Buff（v4.6：减伤率） ----
 var buff_attack_percent : float = 0.0
 var buff_crit_damage_bonus : float = 0.0
@@ -113,6 +122,9 @@ func _ready():
 		animated_sprite.play("idle")
 		animated_sprite.visible = true
 		animated_sprite.z_index = 2
+	
+	if hp_bar_container:
+		hp_bar_container.visible = _hp_bar_visible
 
 
 func _resolve_sprite_path() -> String:
@@ -145,6 +157,7 @@ func setup_unit(stats_data: UnitData, start_cell: Vector2i, initial_items: Array
 	used_move = 0
 	previous_remaining_move = get_total_move_range()
 	is_gray = false
+	facing_dir = Vector2i(-1, 0) if unit_stats.team_id == 1 else Vector2i(1, 0) # 默认朝向
 
 	weapon_slot = null
 	max_armor_slots = stats_data.max_armor_slots
@@ -216,7 +229,9 @@ func setup_unit(stats_data: UnitData, start_cell: Vector2i, initial_items: Array
 	taunt_rounds_left = 0
 
 	_initialized = true
-
+	
+	update_hp_bar()
+	if hp_bar_container: hp_bar_container.visible = _hp_bar_visible # 强制同步
 
 func reset_relic_effects():
 	relic_first_attack_crit_available = false
@@ -260,7 +275,7 @@ func get_weapon_stats() -> Dictionary:
 	var data = get_weapon_data()
 	if not data: return default_stats
 
-	var quality_mult : float = CombatManager.QUALITY_MULT.get(data.quality, 1.0)   # ★ 统一走 CombatManager
+	var quality_mult : float = CombatManager.QUALITY_MULT.get(data.quality, 1.0)
 
 	var upgrade_bonus = weapon_slot.upgrade_level if weapon_slot else 0
 	var stats := default_stats.duplicate()
@@ -372,7 +387,7 @@ func get_total_stats() -> Dictionary:
 	if weapon_slot:
 		var data = ItemManager.get_item_data(weapon_slot.item_id)
 		if data:
-			var quality_mult : float = CombatManager.QUALITY_MULT.get(data.quality, 1.0)   # ★ 统一走 CombatManager
+			var quality_mult : float = CombatManager.QUALITY_MULT.get(data.quality, 1.0)
 			var upgrade_bonus = weapon_slot.upgrade_level
 			total["attack"] = int((data.base_attack + upgrade_bonus) * quality_mult)
 			total["attack_range"] = WeaponUpgradeHelper.get_effective_attack_range(data, upgrade_bonus)
@@ -428,6 +443,7 @@ func restore_from_unit_data(data: UnitData, cell: Vector2i):
 	has_moved = false
 	has_attacked = false
 	has_acted = false
+	facing_dir = Vector2i(-1, 0) if unit_stats.team_id == 1 else Vector2i(1, 0) # 默认朝向
 
 	if data.weapon_slot:
 		var inst := ItemInstance.new()
@@ -507,6 +523,8 @@ func restore_from_unit_data(data: UnitData, cell: Vector2i):
 
 	_initialized = true
 
+	update_hp_bar()
+	if hp_bar_container: hp_bar_container.visible = _hp_bar_visible # 强制同步
 
 func mark_attacked():
 	has_attacked = true
@@ -574,6 +592,7 @@ func apply_damage(damage_amount : int) -> bool:
 	hit_points -= damage_amount
 	if hit_points < 0: hit_points = 0
 	update_hp_label()
+	update_hp_bar() # ★ 扣血刷新血条
 	return hit_points <= 0
 
 
@@ -593,6 +612,13 @@ func play_animation(anim_name: String, force: bool = false):
 
 func set_facing_direction(dir: Vector2):
 	if dir == Vector2.ZERO or not animated_sprite: return
+	
+	# 记录完整的四向朝向（用于背击计算）
+	if abs(dir.x) >= abs(dir.y):
+		facing_dir = Vector2i(sign(dir.x), 0)
+	else:
+		facing_dir = Vector2i(0, sign(dir.y))
+
 	if dir.x != 0:
 		animated_sprite.flip_h = (dir.x > 0)
 		facing_flip_h = animated_sprite.flip_h
@@ -668,6 +694,22 @@ func update_hp_label():
 	var hp_label = $HPLabel
 	if hp_label:
 		hp_label.text = str(hit_points) + "/" + str(unit_stats.max_hp)
+
+
+func update_hp_bar():
+	if not is_instance_valid(hp_bar_container) or unit_stats == null: return
+	# 计算血量比例调整长度
+	var ratio = float(hit_points) / float(max(1, unit_stats.max_hp))
+	hp_bar_fill.size.x = 16.0 * clampf(ratio, 0.0, 1.0)
+	# ★ 统一使用鲜红色，不再根据残血变色
+	hp_bar_fill.color = Color(0.9, 0.1, 0.1)
+
+
+# ★ 核心新增：全局血条显隐开关
+func set_hp_bar_visible(v : bool):
+	_hp_bar_visible = v
+	if is_instance_valid(hp_bar_container):
+		hp_bar_container.visible = v
 
 
 func show_hp_label(v: bool) -> void:

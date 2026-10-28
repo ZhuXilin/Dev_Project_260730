@@ -2019,7 +2019,6 @@ function drawGuides(z, ox, oy, W, H){
 }
 function drawSelection(z,ox,oy){
   var W = doc.width, H = doc.height;
-  var screenW = canvas.clientWidth, screenH = canvas.clientHeight;
 
   if(doc.floating){
     var b = {x:doc.floating.x,y:doc.floating.y,w:doc.floating.w,h:doc.floating.h};
@@ -2050,21 +2049,6 @@ function drawSelection(z,ox,oy){
     return;
   }
   if(drag.mode === 'select' && drag.selStart && drag.selCur){
-    if(doc.hasSelection && drag.selMode !== SEL_REPLACE && doc.selBounds.w > 0){
-      ensureSelTint();
-      ctx.save();
-      if(ui.singleCell){
-        var cr0 = cellRect(ui.currentCell);
-        if(cr0){ ctx.beginPath(); ctx.rect(view.panX, view.panY, cr0.w*z, cr0.h*z); ctx.clip(); }
-      } else { ctx.beginPath(); ctx.rect(view.panX, view.panY, W*z, H*z); ctx.clip(); }
-      ctx.imageSmoothingEnabled = false;
-      var sx0 = Math.max(0, -ox/z), sy0 = Math.max(0, -oy/z);
-      var sx1 = Math.min(W, (screenW-ox)/z), sy1 = Math.min(H, (screenH-oy)/z);
-      if(sx1 > sx0 && sy1 > sy0){
-        ctx.drawImage(_selTintCanvas, sx0, sy0, sx1-sx0, sy1-sy0, ox+sx0*z, oy+sy0*z, (sx1-sx0)*z, (sy1-sy0)*z);
-      }
-      ctx.restore();
-    }
     var a = drag.selStart, b = getEffectiveSelCur();
     var x0 = Math.min(a.x, b.x), y0 = Math.min(a.y, b.y);
     var x1 = Math.max(a.x, b.x), y1 = Math.max(a.y, b.y);
@@ -2076,6 +2060,7 @@ function drawSelection(z,ox,oy){
       var cr1 = cellRect(ui.currentCell);
       if(cr1){ ctx.beginPath(); ctx.rect(view.panX, view.panY, cr1.w*z, cr1.h*z); ctx.clip(); }
     } else { ctx.beginPath(); ctx.rect(view.panX, view.panY, W*z, H*z); ctx.clip(); }
+    // 拖拽中的临时预览保留淡淡填充（仅拖拽时可见，不影响调色）
     if(drag.selMode === SEL_SUB) ctx.fillStyle = 'rgba(255,80,80,0.15)';
     else ctx.fillStyle = 'rgba(80,180,255,0.15)';
     ctx.fillRect(ox + x0*z, oy + y0*z, (x1-x0)*z, (y1-y0)*z);
@@ -2088,18 +2073,12 @@ function drawSelection(z,ox,oy){
   }
   if(!doc.hasSelection || !doc.selMask) return;
   if(doc.selBounds.w <= 0 || doc.selBounds.h <= 0) return;
-  ensureSelTint();
+  // ★ 已有选区不再填充任何颜色，只画边缘框（无色透明，不影响色彩判断）
   ctx.save();
   if(ui.singleCell){
     var cr2 = cellRect(ui.currentCell);
     if(cr2){ ctx.beginPath(); ctx.rect(view.panX, view.panY, cr2.w*z, cr2.h*z); ctx.clip(); }
   } else { ctx.beginPath(); ctx.rect(view.panX, view.panY, W*z, H*z); ctx.clip(); }
-  ctx.imageSmoothingEnabled = false;
-  var sx0b = Math.max(0, -ox/z), sy0b = Math.max(0, -oy/z);
-  var sx1b = Math.min(W, (screenW-ox)/z), sy1b = Math.min(H, (screenH-oy)/z);
-  if(sx1b > sx0b && sy1b > sy0b){
-    ctx.drawImage(_selTintCanvas, sx0b, sy0b, sx1b-sx0b, sy1b-sy0b, ox+sx0b*z, oy+sy0b*z, (sx1b-sx0b)*z, (sy1b-sy0b)*z);
-  }
   var segs = buildSelEdgeSegs();
   drawMarchingAntsSegs(segs, ox, oy, z, dashOffset);
   ctx.restore();
@@ -3481,7 +3460,7 @@ function onCanvasMouseDown(e){
     drag.lastDx = 0; drag.lastDy = 0;
     requestRender(); e.preventDefault(); return;
   }
-  if(doc.hasSelection && isSelected(m.px, m.py) && selModeOverride === SEL_REPLACE && !e.altKey && !modCtrl){
+  if((ui.tool === TOOL.SELECT || ui.tool === TOOL.LASSO) && doc.hasSelection && isSelected(m.px, m.py) && selModeOverride === SEL_REPLACE && !e.altKey && !modCtrl){
     beginFloat();
     if(doc.floating){
       drag.mode = 'move';

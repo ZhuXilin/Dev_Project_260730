@@ -11,6 +11,10 @@ var _current_tab : Tab = Tab.SOUL_FIRE
 var _current_unit_type : String = ""
 var unit_unlock_tab_btn : Button = null
 var relic_refine_tab_btn : Button = null
+var _info_panel : Control = null
+var _hover_type : String = ""
+var _hover_id : String = ""
+var _current_hover_data : Dictionary = {}
 
 @onready var soul_label : Label = $Panel/VBox/TitleBar/SoulLabel
 @onready var soul_fire_tab_btn : Button = $Panel/VBox/TabBar/SoulFireTabBtn
@@ -53,9 +57,143 @@ func _ready():
 		relic_refine_tab_btn.add_theme_font_size_override("font_size", 7)
 		tab_bar.add_child(relic_refine_tab_btn)
 		relic_refine_tab_btn.pressed.connect(_on_relic_refine_tab_pressed)
-
+		
+	_ensure_layout()
 	_refresh_soul()
 	_switch_tab(Tab.SOUL_FIRE)
+
+
+func _ensure_layout():
+	var vbox : VBoxContainer = $Panel/VBox
+	var main_hbox : HBoxContainer = $Panel/VBox/MainHBox
+	if main_hbox.has_node("RightInfoContainer"): return
+	
+	# 在 MainHBox 最右侧强行插入 InfoPanel
+	var info_scene = load("res://content/scenes/ui/components/ItemInfoPanel.tscn")
+	if info_scene:
+		_info_panel = info_scene.instantiate()
+		_info_panel.name = "RightInfoContainer"
+		_info_panel.custom_minimum_size = Vector2(130, 0)
+		_info_panel.size_flags_horizontal = Control.SIZE_SHRINK_END
+		_info_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		main_hbox.add_child(_info_panel)
+		if _info_panel.has_method("clear_info"): _info_panel.clear_info()
+
+# ★ 支持右键切换叙事
+func _input(event: InputEvent):
+	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT:
+		if _info_panel and _hover_type != "":
+			Globals.toggle_info_mode()
+			_refresh_info_panel()
+			get_viewport().set_input_as_handled()
+
+# 修改遗物界面 _build_relic_refine_panel 的循环部分
+func _build_relic_refine_panel():
+	_clear_attr_container()
+	unit_sprite.visible = false
+	unit_name_label.text = "遗物精炼"
+	unit_desc_label.text = "精炼需消耗魂；每件遗物只能精炼 1 次"
+	attr_container.add_child(_make_info("当前魂：%d" % GameState.soul))
+	attr_container.add_child(HSeparator.new())
+
+	var unlocked : Array = RelicManager.get_unlocked_relics()
+	if unlocked.is_empty():
+		attr_container.add_child(_make_info("（暂无可精炼遗物）"))
+		return
+
+	for rid in unlocked:
+		var rd : Dictionary = RelicManager.get_relic_data(rid)
+		if rd.is_empty(): continue
+		
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 8)
+		row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		
+		var is_refined : bool = GameState.is_relic_refined(rid)
+		
+		# ★ 图标改为 20x20，支持悬停显示右侧面板
+		var icon_wrap := Control.new()
+		icon_wrap.custom_minimum_size = Vector2(20, 20)
+		icon_wrap.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		var icon_rect = TextureRect.new()
+		if rd.get("icon") is Texture2D: icon_rect.texture = rd.get("icon")
+		icon_rect.set_anchors_preset(Control.PRESET_FULL_RECT)
+		icon_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		icon_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		icon_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		icon_wrap.add_child(icon_rect)
+		icon_wrap.mouse_entered.connect(_on_relic_hover.bind(rid, is_refined))
+		icon_wrap.mouse_exited.connect(_on_info_hover_exit)
+		row.add_child(icon_wrap)
+		
+		var name_lb := Label.new()
+		name_lb.text = ("★ " if is_refined else "") + rd.get("name", rid)
+		name_lb.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_SMALL)
+		name_lb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		name_lb.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		row.add_child(name_lb)
+		
+		if is_refined:
+			var tag := Label.new()
+			tag.text = "已精炼"
+			tag.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_SMALL)
+			tag.modulate = Color(0.7, 1.0, 0.7)
+			tag.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+			row.add_child(tag)
+		else:
+			var btn := Button.new()
+			btn.text = "精炼(%d)" % GameState.REFINE_COST
+			btn.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_SMALL)
+			btn.custom_minimum_size = Vector2(70, 0)
+			btn.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+			btn.disabled = GameState.soul < GameState.REFINE_COST
+			if not btn.disabled: btn.pressed.connect(_on_refine_relic.bind(rid))
+			row.add_child(btn)
+			
+		attr_container.add_child(row)
+
+	attr_container.add_child(HSeparator.new())
+	attr_container.add_child(_make_info("精炼说明已移至右侧面板查看。"))
+
+# 加入悬停与右键逻辑
+func _on_relic_hover(rid: String, is_refined: bool):
+	_hover_type = "relic"
+	_hover_id = rid
+	_current_hover_data = {"rid": rid, "is_refined": is_refined}
+	_refresh_info_panel()
+
+func _on_info_hover_exit():
+	_hover_type = ""
+	_hover_id = ""
+	if _info_panel and _info_panel.has_method("clear_info"): _info_panel.clear_info()
+
+func _refresh_info_panel():
+	if not _info_panel or _hover_type == "": return
+	var is_narrative = FlavorManager.is_narrative_mode()
+	
+	if _hover_type == "relic":
+		var rid = _current_hover_data.rid
+		var is_refined = _current_hover_data.is_refined
+		var rd = RelicManager.get_relic_data(rid)
+		
+		if is_narrative:
+			var flavor = FlavorManager.get_flavor("relics", rid)
+			_info_panel.show_info({"name": rd.get("name", rid), "desc": flavor, "icon": rd.get("icon")})
+			return
+			
+		var desc = rd.get("description", "")
+		if is_refined: desc += "\n\n★ 已精炼强化"
+		_info_panel.show_info({
+			"name": rd.get("name", rid), "name_color": Color(1.0, 0.85, 0.3),
+			"desc": desc, "icon": rd.get("icon")
+		})
+
+# 修改 _clear_attr_container 清理面板
+func _clear_attr_container():
+	_hover_type = ""
+	if _info_panel and _info_panel.has_method("clear_info"): _info_panel.clear_info()
+	for c in attr_container.get_children():
+		attr_container.remove_child(c); c.queue_free()
 
 
 func _on_soul_fire_tab_pressed(): _switch_tab(Tab.SOUL_FIRE)
@@ -488,84 +626,6 @@ func _on_unlock_unit_pressed():
 	_refresh_unit_unlock_panel()
 
 
-# ============================================================
-#  Tab 4 · 遗物精炼 (v4.5)
-# ============================================================
-func _build_relic_refine_panel():
-	_clear_attr_container()
-	unit_sprite.visible = false
-	unit_name_label.text = "遗物精炼"
-	unit_desc_label.text = "精炼需消耗魂；每件遗物只能精炼 1 次"
-
-	attr_container.add_child(_make_title("— 精炼消耗 —"))
-	attr_container.add_child(_make_info("每次精炼消耗：%d 魂" % GameState.REFINE_COST))
-	attr_container.add_child(_make_info("当前魂：%d" % GameState.soul))
-	attr_container.add_child(HSeparator.new())
-
-	attr_container.add_child(_make_title("— 已解锁遗物 —"))
-
-	var unlocked : Array = RelicManager.get_unlocked_relics()
-	if unlocked.is_empty():
-		attr_container.add_child(_make_info("（暂无可精炼遗物）"))
-		return
-
-	for rid in unlocked:
-		var rd : Dictionary = RelicManager.get_relic_data(rid)
-		if rd.is_empty():
-			continue
-
-		var row := HBoxContainer.new()
-		row.add_theme_constant_override("separation", 4)
-
-		var is_refined : bool = GameState.is_relic_refined(rid)
-
-		# 图标展示
-		var icon = rd.get("icon")
-		if icon is Texture2D:
-			var icon_rect = TextureRect.new()
-			icon_rect.texture = icon
-			icon_rect.custom_minimum_size = Vector2(20, 20)
-			icon_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-			icon_rect.stretch_mode = TextureRect.STRETCH_KEEP_CENTERED
-			icon_rect.tooltip_text = rd.get("name", rid)
-			row.add_child(icon_rect)
-		else:
-			var name_lb := Label.new()
-			name_lb.text = ("★ " if is_refined else "") + rd.get("name", rid)
-			name_lb.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_SMALL)
-			row.add_child(name_lb)
-			
-		if is_refined:
-			var tag := Label.new()
-			tag.text = "已精炼"
-			tag.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_SMALL)
-			tag.modulate = Color(0.7, 1.0, 0.7)
-			row.add_child(tag)
-		else:
-			var btn := Button.new()
-			btn.text = "精炼（%d 魂）" % GameState.REFINE_COST
-			btn.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_SMALL)
-			btn.custom_minimum_size = Vector2(80, 0)
-			btn.disabled = GameState.soul < GameState.REFINE_COST
-			if not btn.disabled:
-				btn.pressed.connect(_on_refine_relic.bind(rid))
-			row.add_child(btn)
-
-		attr_container.add_child(row)
-
-	attr_container.add_child(HSeparator.new())
-	attr_container.add_child(_make_title("— 精炼说明 —"))
-	attr_container.add_child(_make_info("力量遗物：首击必暴 → 前两次必暴"))
-	attr_container.add_child(_make_info("守护遗物：低血减伤阈值 30% → 40%"))
-	attr_container.add_child(_make_info("疾风遗物：击杀 +2 移动 → +3 移动"))
-	attr_container.add_child(_make_info("魔力遗物：首次施法免费 → 前两次免费"))
-	attr_container.add_child(_make_info("生命遗物：回合首伤回复 30% → 50%"))
-	attr_container.add_child(_make_info("巨力遗物：力量 ×2% 伤害 → ×3% 伤害"))
-	attr_container.add_child(_make_info("迅捷遗物：反击 +50% → +80%"))
-	attr_container.add_child(_make_info("信仰遗物：治疗 +50% → +80%"))
-	attr_container.add_child(_make_info("凤凰之羽：复活后攻击 +20%（本场）"))
-
-
 func _on_refine_relic(rid: String):
 	if GameState.refine_relic(rid):
 		_refresh_soul()
@@ -616,11 +676,6 @@ func _make_upgrade_row(label_text: String, cost: int, cb: Callable) -> HBoxConta
 
 func _refresh_soul():
 	soul_label.text = "魂: " + str(GameState.soul)
-
-
-func _clear_attr_container():
-	for c in attr_container.get_children():
-		attr_container.remove_child(c); c.queue_free()
 
 
 func _load_unit_sprite(unit_type: String):

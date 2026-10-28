@@ -300,7 +300,7 @@ func _update_drag():
 			pass
 		else:
 			hovered = null
-
+	
 	if hovered != null:
 		var is_valid = _is_valid_target(hovered)
 		var can_attack_now = _is_target_in_range(hovered)
@@ -317,12 +317,19 @@ func _update_drag():
 		_mouse_out_of_range = false
 
 		if new_target != null:
+			# ★ 核心调用：如果现在就能打到，立刻弹面板
+			if can_attack_now:
+				_bf.show_damage_preview(_pressing_unit, new_target)
+			else:
+				_bf.hide_damage_preview()
+				
 			_current_target_cell = cell
 			_current_path = []
 			_arrow.hide_path()
 		return
 
 	_hovered_target = null
+	_bf.hide_damage_preview() # ★ 鼠标移出敌人，立刻隐藏
 
 	if not _reachable.has(cell):
 		_mouse_out_of_range = true
@@ -382,7 +389,8 @@ func _reset_state():
 	_current_target_cell = Vector2i(-1, -1)
 	if _arrow:
 		_arrow.hide_path()
-
+	if _bf:
+		_bf.hide_damage_preview() # ★ 核心调用：强制清理面板
 
 # ============================================================
 #  攻击 / 治疗判定
@@ -434,7 +442,6 @@ func _find_attack_path(target : Unit) -> Array:
 	return best_path
 
 
-# ★ 核心修改：触发攻击前弹窗
 func _execute_attack_or_heal(target : Unit) -> void:
 	var unit = _pressing_unit
 	if unit == null or not is_instance_valid(unit): return
@@ -445,8 +452,11 @@ func _execute_attack_or_heal(target : Unit) -> void:
 	InputManager.interaction_phase = InputManager.Phase.IDLE
 	InputManager.selected_unit = null
 
-	_show_attack_menu(unit, target, false)
+	if _bf:
+		_bf.hide_damage_preview()
 
+	_show_attack_menu(unit, target, false)
+	
 
 func _do_combat_async(attacker : Unit, defender : Unit, forced_skill_id: String = ""):
 	await CombatManager.execute_attack(attacker, defender, forced_skill_id)
@@ -483,7 +493,6 @@ func _do_move_and_attack_async(unit : Unit, path : Array, target : Unit):
 				_show_attack_menu(unit, target, true)
 
 
-# 攻击方式选择菜单
 # 攻击方式选择菜单
 func _show_attack_menu(attacker: Unit, target: Unit, is_after_move: bool) -> void:
 	# ★ v4.6：自愈时跳过技能菜单，直接走 _execute_heal

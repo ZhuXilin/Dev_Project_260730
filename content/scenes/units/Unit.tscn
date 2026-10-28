@@ -12,13 +12,28 @@ sprite_frames = ExtResource("4_qkgtl")
 animation = &"idle"
 autoplay = "idle"
 
+[node name="HPBar" type="Node2D" parent="." unique_id=1111111111]
+visible = false
+z_index = 10
+position = Vector2(-6, 9)
+
+[node name="Background" type="ColorRect" parent="HPBar" unique_id=-2072745074]
+offset_right = 12.0
+offset_bottom = 1.0
+color = Color(0.427493, 0.42749307, 0.42749307, 1)
+
+[node name="Fill" type="ColorRect" parent="HPBar" unique_id=-961633963]
+offset_right = 12.0
+offset_bottom = 1.0
+color = Color(0, 0.36019146, 0.7086734, 1)
+
 [node name="HPLabel" type="Label" parent="." unique_id=1464611416]
 visible = false
 z_index = 9
 offset_left = -8.0
-offset_top = -16.0
+offset_top = -24.0
 offset_right = 8.0
-offset_bottom = -8.0
+offset_bottom = -16.0
 theme_override_colors/font_color = Color(1, 1, 1, 1)
 theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
 theme_override_constants/outline_size = 3

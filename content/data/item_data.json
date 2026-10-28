@@ -1,7 +1,7 @@
 {
   "iron_sword": {
 	"id": "iron_sword", "name": "铁剑", "type": "weapon", "use_type": "infinite",
-	"icon": "item_001",
+	"icon": "item_039",
 	"description": "装备后攻击+4，射程1",
 	"flavor": "一把普通的铁剑。剑柄缠着褪色的布。\n\n「谁用过它？」\n「很多人。都死了。」",
 	"category": "sword", "equipment_slot": "weapon",
@@ -14,7 +14,7 @@
   },
   "steel_sword": {
 	"id": "steel_sword", "name": "钢剑", "type": "weapon", "use_type": "infinite",
-	"icon": "item_039",
+	"icon": "item_048",
 	"description": "装备后攻击+6，射程1",
 	"flavor": "钢剑。锻造时炉火三次熄灭，铁匠骂了三次。\n\n第四次点燃时，他没有骂。",
 	"category": "sword", "equipment_slot": "weapon",

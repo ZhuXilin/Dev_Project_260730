@@ -49,7 +49,6 @@ const INFO_PANEL_MARGIN : float = 8.0
 const AVATAR_SIZE : float = 54.0
 const AVATAR_GAP : float = 4.0
 
-# ★ v4.6：伤害跳字队列参数
 const POPUP_QUEUE_INTERVAL : float = 0.15
 const POPUP_STACK_HEIGHT : float = 14.0
 const POPUP_MAX_STACK : int = 3
@@ -65,10 +64,10 @@ var _victory_handler : VictoryHandler = null
 var _drag_move_controller : DragMoveController = null
 
 var _damage_popup_layer : CanvasLayer = null
-
-# ★ v4.6：伤害跳字队列（同位置串行显示）
 var _damage_popup_queue : Dictionary = {}
 var _damage_popup_busy : Dictionary = {}
+var _damage_preview_panel : PanelContainer = null
+var _damage_preview_label : Label = null
 
 var map_grid_size : Vector2i = MapConst.DEFAULT_MAP_SIZE
 var _initialized : bool = false
@@ -85,6 +84,7 @@ var _hint_override_until : float = 0.0
 var _marked_targets : Dictionary = {}
 var _objective_banner : Label = null
 
+var _show_all_hp_bars : bool = true
 
 func _ready():
 	TurnManager.set_battle_ready(false)
@@ -358,7 +358,7 @@ func _ready():
 
 	_marked_targets.clear()
 	print("Battlefield _ready 完成")
-
+	_create_damage_preview_panel()
 
 func _build_battle_start_context() -> Dictionary:
 	var md: MapData = GameState.current_map_data
@@ -666,6 +666,15 @@ func _input(event: InputEvent):
 		if TurnManager.current_turn_team == TurnManager.Team.PLAYER and not Globals.is_fading and not Globals.is_transitioning and not Globals.is_dialogue_active:
 			_end_player_turn()
 			return
+
+	if event is InputEventKey and event.keycode == KEY_TAB:
+		if event.pressed and not event.echo:
+			_show_all_hp_bars = not _show_all_hp_bars
+			for u in UnitManager.unit_list:
+				if is_instance_valid(u):
+					u.set_hp_bar_visible(_show_all_hp_bars)
+			get_viewport().set_input_as_handled()
+		return
 
 	if Globals.is_transitioning or Globals.is_fading:
 		return
@@ -1522,3 +1531,64 @@ func _update_unit_display_info(unit_type: String, stats_text: String, avatar_bg:
 			PanelRevealer.hide_panel(avatar_bg)
 		if avatar_rect.visible:
 			PanelRevealer.hide_panel(avatar_rect)
+
+func _create_damage_preview_panel():
+	var canvas = CanvasLayer.new()
+	canvas.layer = 10
+	add_child(canvas)
+	
+	_damage_preview_panel = PanelContainer.new()
+	var stylebox = load(Config.PATHS.STYLEBOX_8BIT)
+	if stylebox: 
+		_damage_preview_panel.add_theme_stylebox_override("panel", stylebox)
+	_damage_preview_panel.visible = false
+	_damage_preview_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE # 防止鼠标挡视线
+	canvas.add_child(_damage_preview_panel)
+	
+	var margin = MarginContainer.new()
+	margin.add_theme_constant_override("margin_left", 6)
+	margin.add_theme_constant_override("margin_top", 4)
+	margin.add_theme_constant_override("margin_right", 6)
+	margin.add_theme_constant_override("margin_bottom", 4)
+	_damage_preview_panel.add_child(margin)
+	
+	_damage_preview_label = Label.new()
+	_damage_preview_label.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_SMALL)
+	_damage_preview_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_damage_preview_label.add_theme_color_override("font_color", Color.WHITE)
+	margin.add_child(_damage_preview_label)
+
+func show_damage_preview(attacker: Unit, defender: Unit):
+	if _damage_preview_panel == null or not is_instance_valid(attacker) or not is_instance_valid(defender):
+		return
+		
+	# 1. 计算伤害
+	var dmg = CombatManager.calculate_damage(attacker, defender)
+	var text = "预计伤害: %d" % dmg
+	
+	# 2. 计算反击（如果防守方能反击，且用的是非法杖武器）
+	if defender.can_counter() and defender.get_weapon_type() != "staff":
+		var counter_dmg = CombatManager.calculate_damage(defender, attacker)
+		text += "\n反击受伤: %d" % counter_dmg
+		
+	_damage_preview_label.text = text
+	
+	# 3. 强制刷新尺寸（必须先显示，或者强制调用 update，否则 get_combined_minimum_size 不准确）
+	_damage_preview_panel.size = _damage_preview_panel.get_combined_minimum_size()
+	_damage_preview_panel.visible = true
+	
+	# 4. 屏幕坐标转换与位置限制
+	var screen_pos = get_viewport().get_canvas_transform() * defender.global_position
+	var target_pos = screen_pos + Vector2(-_damage_preview_panel.size.x / 2.0, -45)
+	
+	# 防止超出屏幕左右边界
+	var vp_size = get_viewport().get_visible_rect().size
+	if target_pos.x < 4.0: target_pos.x = 4.0
+	if target_pos.x + _damage_preview_panel.size.x > vp_size.x - 4.0: 
+		target_pos.x = vp_size.x - _damage_preview_panel.size.x - 4.0
+		
+	_damage_preview_panel.global_position = target_pos
+
+func hide_damage_preview():
+	if _damage_preview_panel:
+		_damage_preview_panel.visible = false
