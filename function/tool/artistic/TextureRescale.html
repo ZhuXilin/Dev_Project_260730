@@ -317,10 +317,20 @@ body{font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Mi
   var snapPixels = true;
   var lassoMode = false;
   var lassoDrag = null;
-  /* ===== 新增：V/M 选区移动状态 ===== */
   var vDown = false, vDragged = false;
   var mDown = false, mDragged = false;
   var moveSelDrag = null;
+
+  /* ===== 性能：选区渲染缓存 ===== */
+  var _selTintCanvas = null, _selTintVersion = -1, _selMaskVersion = 0;
+  var _selEdgeSegs = null, _selEdgeVersion = -1;
+  /* ===== 性能：历史快照 CoW ===== */
+  var _sharedSrc32 = new WeakSet();
+  var _sharedSelMask = new WeakSet();
+  /* ===== 性能：删除颜色预览缓存 ===== */
+  var _dcPreviewCanvas = null, _dcPreviewVersion = -1, _dcVersion = 0;
+  /* ===== 笔设备状态 ===== */
+  var penActive = false, penPressure = 1;
 
   var stage, wrap, cv, ctx, selCv, selCtx, placeholder, fileInput;
   var inW, inH, lockRatio, stOrig, stCur, stZoom, stSel, stHist, stMsg;
@@ -335,6 +345,29 @@ body{font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Mi
   function setMsg(t,ac){ if(!stMsg) return; stMsg.textContent=t||''; clearTimeout(msgTimer); if(t&&ac) msgTimer=setTimeout(function(){ stMsg.textContent=''; },ac); }
   function fmtZoom(z){ var p=z*100; if(p>=100) return p.toFixed(0)+'%'; if(p>=10) return p.toFixed(1)+'%'; return p.toFixed(2)+'%'; }
   function rgbToHex(r,g,b){ return '#'+r.toString(16).padStart(2,'0')+g.toString(16).padStart(2,'0')+b.toString(16).padStart(2,'0'); }
+
+  function resolvePointerButton(e){
+    var btn = e.button;
+    var btns = (typeof e.buttons === 'number') ? e.buttons : (1 << (btn || 0));
+    if (e.pointerType === 'pen' && btn === 0 && !(btns & 1)) {
+      if (btns & 2) btn = 2;
+      else if (btns & 4) btn = 1;
+    }
+    return btn;
+  }
+
+  function _ensureSrc32Writable(){
+    if(!src32) return;
+    if(_sharedSrc32.has(src32)){
+      src32 = new Uint32Array(src32);
+    }
+  }
+  function _ensureSelMaskWritable(){
+    if(!selMask) return;
+    if(_sharedSelMask.has(selMask)){
+      selMask = new Uint8Array(selMask);
+    }
+  }
 
   var I18N = {
     'btn.open':      {zh:'打开图片',   en:'Open Image'},
@@ -416,8 +449,10 @@ body{font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Mi
   }
 
   function makeEntry(w,h,arr,sw,sh){
-    return {w:w,h:h,src32:new Uint32Array(arr),srcW:sw,srcH:sh,
-      selMask:selMask?new Uint8Array(selMask):null,hasSel:hasSelection,
+    _sharedSrc32.add(arr);
+    if(selMask) _sharedSelMask.add(selMask);
+    return {w:w,h:h,src32:arr,srcW:sw,srcH:sh,
+      selMask:selMask?selMask:null,hasSel:hasSelection,
       selBounds:{x:selBounds.x,y:selBounds.y,w:selBounds.w,h:selBounds.h}};
   }
   function resetHistory(){ history=[makeEntry(srcW,srcH,src32,srcW,srcH)]; histIndex=0; updateHistoryUI(); }
@@ -428,12 +463,7 @@ body{font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Mi
     while(history.length>MAX_HISTORY+1) history.shift();
     histIndex=history.length-1; updateHistoryUI();
   }
-  function markSrcModified(){
-    var e=history[histIndex];
-    if(e && e.src32===src32){
-      history[histIndex]={w:e.w,h:e.h,srcW:e.srcW,srcH:e.srcH,src32:new Uint32Array(src32),selMask:e.selMask,hasSel:e.hasSel,selBounds:e.selBounds};
-    }
-  }
+  function markSrcModified(){ _ensureSrc32Writable(); }
   function updateHistoryUI(){
     if(!stHist) return;
     $('btnUndo').disabled=!hasImage||histIndex<=0;
@@ -446,10 +476,17 @@ body{font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Mi
   }
   function applyHistoryEntry(e){
     targetW=e.w; targetH=e.h; src32=e.src32; srcW=e.srcW; srcH=e.srcH;
+    _sharedSrc32.add(src32);
     if(e.selMask && e.selMask.length===targetW*targetH){
-      selMask=new Uint8Array(e.selMask); hasSelection=e.hasSel;
+      selMask=e.selMask;
+      _sharedSelMask.add(selMask);
+      hasSelection=e.hasSel;
       selBounds={x:e.selBounds.x,y:e.selBounds.y,w:e.selBounds.w,h:e.selBounds.h};
-    } else { if(selMask) selMask.fill(0); hasSelection=false; selBounds={x:0,y:0,w:0,h:0}; }
+    } else {
+      selMask=new Uint8Array(targetW*targetH);
+      hasSelection=false; selBounds={x:0,y:0,w:0,h:0};
+    }
+    _selMaskVersion++;
     _previewMask=null; cacheImgData=null; cacheW=0; cacheH=0;
     syncInputs(); forceReapply(); updateHistoryUI(); updateSelectUI();
   }
@@ -528,19 +565,33 @@ body{font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Mi
   }
   function forceReapply(){ cacheImgData=null; cacheW=0; cacheH=0; applyResize(true); render(); }
 
-  function resetSelMask(){ selMask=new Uint8Array(targetW*targetH); hasSelection=false; selBounds={x:0,y:0,w:0,h:0}; _previewMask=null; }
-  function clearSelection(u){ if(selMask) selMask.fill(0); hasSelection=false; selBounds={x:0,y:0,w:0,h:0}; selDrag=null; lassoDrag=null; moveSelDrag=null; if(u!==false){ updateSelectUI(); renderSelectionOverlay(); } }
+  function resetSelMask(){
+    selMask=new Uint8Array(targetW*targetH);
+    hasSelection=false; selBounds={x:0,y:0,w:0,h:0};
+    _previewMask=null;
+    _selMaskVersion++;
+  }
+  function clearSelection(u){
+    _ensureSelMaskWritable();
+    if(selMask) selMask.fill(0);
+    hasSelection=false; selBounds={x:0,y:0,w:0,h:0};
+    selDrag=null; lassoDrag=null; moveSelDrag=null;
+    _selMaskVersion++;
+    if(u!==false){ updateSelectUI(); renderSelectionOverlay(); }
+  }
   function recalcBounds(){
-    if(!selMask){ hasSelection=false; return; }
+    if(!selMask){ hasSelection=false; _selMaskVersion++; return; }
     var W=targetW,H=targetH,minx=W,miny=H,maxx=-1,maxy=-1;
     for(var y=0;y<H;y++){ var row=y*W; for(var x=0;x<W;x++) if(selMask[row+x]){
       if(x<minx) minx=x; if(x>maxx) maxx=x; if(y<miny) miny=y; if(y>maxy) maxy=y;
     }}
     if(maxx<0){ hasSelection=false; selBounds={x:0,y:0,w:0,h:0}; }
     else { hasSelection=true; selBounds={x:minx,y:miny,w:maxx-minx+1,h:maxy-miny+1}; }
+    _selMaskVersion++;
   }
   function applyRectToSelMask(x0,y0,x1,y1,mode){
     if(!selMask) resetSelMask();
+    else _ensureSelMaskWritable();
     var W=targetW,H=targetH;
     x0=Math.floor(x0); y0=Math.floor(y0);
     x1=Math.ceil(x1);   y1=Math.ceil(y1);
@@ -551,10 +602,22 @@ body{font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Mi
       if(mode==='sub') selMask[row+x]=0; else selMask[row+x]=1;
     }}
   }
-  function selectAll(){ if(!hasImage) return; if(!selMask) resetSelMask(); selMask.fill(1); recalcBounds(); updateSelectUI(); renderSelectionOverlay(); pushHistory(); setMsg(tr('全选','Select All'),1200); }
-  function deselectAll(noH){ if(!hasImage) return; var had=hasSelection; clearSelection(true); if(!noH&&had) pushHistory(); if(!noH) setMsg(tr('取消选择','Deselect'),1200); }
+  function selectAll(){
+    if(!hasImage) return;
+    if(!selMask) resetSelMask(); else _ensureSelMaskWritable();
+    selMask.fill(1); recalcBounds(); updateSelectUI(); renderSelectionOverlay();
+    pushHistory(); setMsg(tr('全选','Select All'),1200);
+  }
+  function deselectAll(noH){
+    if(!hasImage) return;
+    var had=hasSelection;
+    clearSelection(true);
+    if(!noH&&had) pushHistory();
+    if(!noH) setMsg(tr('取消选择','Deselect'),1200);
+  }
   function invertSelection(){
-    if(!hasImage) return; if(!selMask) resetSelMask();
+    if(!hasImage) return;
+    if(!selMask) resetSelMask(); else _ensureSelMaskWritable();
     for(var i=0;i<selMask.length;i++) selMask[i]=selMask[i]?0:1;
     recalcBounds(); updateSelectUI(); renderSelectionOverlay(); pushHistory();
     setMsg(hasSelection?tr('反选','Inverted'):tr('反选后为空','Empty after invert'),1200);
@@ -625,16 +688,17 @@ body{font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Mi
     }
   }
 
-  /* ===== 新增：仅移动选区（参考 SpritesheetEditor 的 move-sel） ===== */
   function startMoveSelectionDrag(e){
     if(!hasImage || !hasSelection || !selMask) return;
+    _ensureSelMaskWritable();
     var p = stagePointFromEvent(e);
     moveSelDrag = {
       startX: p.px,
       startY: p.py,
       dx: 0, dy: 0,
       backup: new Uint8Array(selMask),
-      backupBounds: {x:selBounds.x, y:selBounds.y, w:selBounds.w, h:selBounds.h}
+      backupBounds: {x:selBounds.x, y:selBounds.y, w:selBounds.w, h:selBounds.h},
+      lastBB: {x:selBounds.x, y:selBounds.y, w:selBounds.w, h:selBounds.h}
     };
     stSel.textContent = tr('仅移动选区 ','Move selection ')
       + selBounds.w + ' × ' + selBounds.h
@@ -651,24 +715,37 @@ body{font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Mi
       else ddx = 0;
     }
     if(ddx === moveSelDrag.dx && ddy === moveSelDrag.dy) return;
-    moveSelDrag.dx = ddx; moveSelDrag.dy = ddy;
 
     var W = targetW, H = targetH;
-    var bb = moveSelDrag.backupBounds;
     var backup = moveSelDrag.backup;
-    if(!selMask || selMask.length !== W*H) selMask = new Uint8Array(W*H);
-    selMask.fill(0);
-    for(var yy = bb.y; yy < bb.y + bb.h; yy++){
-      for(var xx = bb.x; xx < bb.x + bb.w; xx++){
-        if(backup[yy*W+xx]){
-          var nx = xx + ddx, ny = yy + ddy;
-          if(nx >= 0 && nx < W && ny >= 0 && ny < H){
-            selMask[ny*W+nx] = 1;
-          }
-        }
+    var bb = moveSelDrag.backupBounds;
+    var oldBB = moveSelDrag.lastBB;
+
+    for(var yy=oldBB.y; yy<oldBB.y+oldBB.h; yy++){
+      var row = yy*W;
+      for(var xx=oldBB.x; xx<oldBB.x+oldBB.w; xx++) selMask[row+xx] = 0;
+    }
+    for(var y2=bb.y; y2<bb.y+bb.h; y2++){
+      for(var x2=bb.x; x2<bb.x+bb.w; x2++){
+        if(!backup[y2*W+x2]) continue;
+        var nx = x2 + ddx, ny = y2 + ddy;
+        if(nx < 0 || ny < 0 || nx >= W || ny >= H) continue;
+        selMask[ny*W+nx] = 1;
       }
     }
-    recalcBounds();
+    var nb = {x:0,y:0,w:0,h:0};
+    nb.x = Math.max(0, bb.x + ddx);
+    nb.y = Math.max(0, bb.y + ddy);
+    var nbX1 = Math.min(W, bb.x + bb.w + ddx);
+    var nbY1 = Math.min(H, bb.y + bb.h + ddy);
+    nb.w = Math.max(0, nbX1 - nb.x);
+    nb.h = Math.max(0, nbY1 - nb.y);
+
+    moveSelDrag.lastBB = nb;
+    moveSelDrag.dx = ddx; moveSelDrag.dy = ddy;
+    selBounds = nb; hasSelection = (nb.w > 0 && nb.h > 0);
+    _selMaskVersion++;
+
     stSel.textContent = tr('仅移动选区 ','Move selection ')
       + selBounds.w + ' × ' + selBounds.h
       + '  dx=' + ddx + ', dy=' + ddy
@@ -688,7 +765,6 @@ body{font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Mi
     }
   }
 
-  /* ---- 套索 ---- */
   function beginLassoDrag(e){
     var p = stagePointFromEvent(e);
     var mode = 'replace';
@@ -716,6 +792,7 @@ body{font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Mi
   }
   function applyLassoToSelMask(points, mode, isCircle){
     if(!selMask) resetSelMask();
+    else _ensureSelMaskWritable();
     var W = targetW, H = targetH;
     var c = document.createElement('canvas');
     c.width = W; c.height = H;
@@ -775,46 +852,69 @@ body{font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Mi
     }
   }
 
-  function paintMarchingAnts(g,mask,W,H,bounds,ox,oy,z,offset){
-    g.beginPath();
-    var y,x,row,prevRow,nextRow,runStart,isEdge,sx,sy;
-    for(y=bounds.y;y<bounds.y+bounds.h;y++){ row=y*W; prevRow=(y-1)*W; runStart=-1;
-      for(x=bounds.x;x<=bounds.x+bounds.w;x++){
-        isEdge=false;
-        if(x<bounds.x+bounds.w) isEdge=mask[row+x]!==0&&(y===0||!mask[prevRow+x]);
-        if(isEdge){ if(runStart===-1) runStart=x; }
-        else if(runStart!==-1){ sy=oy+y*z; g.moveTo(ox+runStart*z,sy); g.lineTo(ox+x*z,sy); runStart=-1; }
+  function ensureSelTint(){
+    if(_selTintVersion === _selMaskVersion && _selTintCanvas) return;
+    var W = targetW, H = targetH;
+    if(!_selTintCanvas || _selTintCanvas.width !== W || _selTintCanvas.height !== H){
+      _selTintCanvas = document.createElement('canvas');
+      _selTintCanvas.width = W;
+      _selTintCanvas.height = H;
+      _selTintVersion = -1;
+    }
+    if(_selTintVersion === _selMaskVersion) return;
+    var g = _selTintCanvas.getContext('2d');
+    g.clearRect(0, 0, W, H);
+    var b = selBounds;
+    if(hasSelection && b && b.w > 0 && b.h > 0){
+      var id = g.createImageData(b.w, b.h);
+      var d = id.data, mask = selMask;
+      for(var y = 0; y < b.h; y++){
+        var row = (b.y + y) * W + b.x;
+        var dRow = y * b.w;
+        for(var x = 0; x < b.w; x++){
+          if(mask[row + x]){
+            var di = (dRow + x) * 4;
+            d[di] = 80; d[di+1] = 180; d[di+2] = 255; d[di+3] = 31;
+          }
+        }
+      }
+      g.putImageData(id, b.x, b.y);
+    }
+    _selTintVersion = _selMaskVersion;
+  }
+
+  function buildSelEdgeSegs(){
+    if(_selEdgeVersion === _selMaskVersion && _selEdgeSegs) return _selEdgeSegs;
+    var W = targetW, H = targetH, mask = selMask, b = selBounds;
+    var segs = [];
+    if(!hasSelection || !b || b.w <= 0 || b.h <= 0){
+      _selEdgeSegs = segs; _selEdgeVersion = _selMaskVersion; return segs;
+    }
+    var y, x, row, prevRow, nextRow;
+    for(y = b.y; y < b.y + b.h; y++){
+      row = y * W; prevRow = (y - 1) * W;
+      for(x = b.x; x < b.x + b.w; x++){
+        if(mask[row + x] && (y === 0 || !mask[prevRow + x])) segs.push([x, y, x+1, y]);
       }
     }
-    for(y=bounds.y;y<bounds.y+bounds.h;y++){ row=y*W; nextRow=(y+1)*W; runStart=-1;
-      for(x=bounds.x;x<=bounds.x+bounds.w;x++){
-        isEdge=false;
-        if(x<bounds.x+bounds.w) isEdge=mask[row+x]!==0&&(y===H-1||!mask[nextRow+x]);
-        if(isEdge){ if(runStart===-1) runStart=x; }
-        else if(runStart!==-1){ sy=oy+(y+1)*z; g.moveTo(ox+runStart*z,sy); g.lineTo(ox+x*z,sy); runStart=-1; }
+    for(y = b.y + b.h - 1; y >= b.y; y--){
+      row = y * W; nextRow = (y + 1) * W;
+      for(x = b.x; x < b.x + b.w; x++){
+        if(mask[row + x] && (y === H - 1 || !mask[nextRow + x])) segs.push([x, y+1, x+1, y+1]);
       }
     }
-    for(x=bounds.x;x<bounds.x+bounds.w;x++){ runStart=-1;
-      for(y=bounds.y;y<=bounds.y+bounds.h;y++){
-        isEdge=false;
-        if(y<bounds.y+bounds.h) isEdge=mask[y*W+x]!==0&&(x===0||!mask[y*W+x-1]);
-        if(isEdge){ if(runStart===-1) runStart=y; }
-        else if(runStart!==-1){ sx=ox+x*z; g.moveTo(sx,oy+runStart*z); g.lineTo(sx,oy+y*z); runStart=-1; }
+    for(x = b.x; x < b.x + b.w; x++){
+      for(y = b.y; y < b.y + b.h; y++){
+        if(mask[y * W + x] && (x === 0 || !mask[y * W + x - 1])) segs.push([x, y, x, y+1]);
       }
     }
-    for(x=bounds.x;x<bounds.x+bounds.w;x++){ runStart=-1;
-      for(y=bounds.y;y<=bounds.y+bounds.h;y++){
-        isEdge=false;
-        if(y<bounds.y+bounds.h) isEdge=mask[y*W+x]!==0&&(x===W-1||!mask[y*W+x+1]);
-        if(isEdge){ if(runStart===-1) runStart=y; }
-        else if(runStart!==-1){ sx=ox+(x+1)*z; g.moveTo(sx,oy+runStart*z); g.lineTo(sx,oy+y*z); runStart=-1; }
+    for(x = b.x + b.w - 1; x >= b.x; x--){
+      for(y = b.y; y < b.y + b.h; y++){
+        if(mask[y * W + x] && (x === W - 1 || !mask[y * W + x + 1])) segs.push([x+1, y, x+1, y+1]);
       }
     }
-    var dashLen=4, gapLen=4;
-    g.setLineDash([dashLen,gapLen]);
-    g.lineDashOffset=-offset; g.strokeStyle='rgba(255,255,255,0.95)'; g.lineWidth=2; g.stroke();
-    g.lineDashOffset=-offset+dashLen; g.strokeStyle='rgba(0,0,0,0.85)'; g.stroke();
-    g.setLineDash([]);
+    _selEdgeSegs = segs; _selEdgeVersion = _selMaskVersion;
+    return segs;
   }
 
   function drawPixelGridOverlay(){
@@ -862,17 +962,54 @@ body{font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Mi
 
     if(deleteColorMode.active){ renderDeleteColorPreview(); return; }
 
-    if(selMask && hasSelection){
-      var drawMask = selMask;
-      var drawBounds = selBounds;
-      selCtx.fillStyle='rgba(80,180,255,0.12)';
-      for(var y=drawBounds.y;y<drawBounds.y+drawBounds.h;y++){
-        var row=y*targetW; var sy=panY+y*zoom;
-        for(var x=drawBounds.x;x<drawBounds.x+drawBounds.w;x++){
-          if(drawMask[row+x]) selCtx.fillRect(panX+x*zoom,sy,zoom,zoom);
-        }
+    if(selMask && hasSelection && selBounds.w > 0 && selBounds.h > 0){
+      ensureSelTint();
+      var visX0 = Math.max(0, -panX/zoom);
+      var visY0 = Math.max(0, -panY/zoom);
+      var visX1 = Math.min(targetW, (W - panX)/zoom);
+      var visY1 = Math.min(targetH, (H - panY)/zoom);
+      if(visX1 > visX0 && visY1 > visY0 && _selTintCanvas){
+        selCtx.save();
+        selCtx.imageSmoothingEnabled = false;
+        selCtx.drawImage(
+          _selTintCanvas,
+          visX0, visY0, visX1 - visX0, visY1 - visY0,
+          panX + visX0*zoom, panY + visY0*zoom,
+          (visX1 - visX0)*zoom, (visY1 - visY0)*zoom
+        );
+        selCtx.restore();
       }
-      paintMarchingAnts(selCtx,drawMask,targetW,targetH,drawBounds,panX,panY,zoom,dashOffset);
+      /* ★ 弱化蚂蚁线：单层暗色实线 + 单层淡蓝白慢速虚线 */
+      var segs = buildSelEdgeSegs();
+      if(segs.length > 0){
+        var mX0 = -panX/zoom - 2, mY0 = -panY/zoom - 2;
+        var mX1 = (W - panX)/zoom + 2, mY1 = (H - panY)/zoom + 2;
+        selCtx.save();
+        selCtx.beginPath();
+        for(var si = 0; si < segs.length; si++){
+          var s = segs[si];
+          var ax = s[0], ay = s[1], bx = s[2], by = s[3];
+          var sxa = ax < bx ? ax : bx;
+          var sya = ay < by ? ay : by;
+          var sxb = ax < bx ? bx : ax;
+          var syb = ay < by ? by : ay;
+          if(sxb < mX0 || sxa > mX1 || syb < mY0 || sya > mY1) continue;
+          selCtx.moveTo(panX + ax*zoom, panY + ay*zoom);
+          selCtx.lineTo(panX + bx*zoom, panY + by*zoom);
+        }
+        selCtx.lineWidth = 1;
+        selCtx.setLineDash([]);
+        selCtx.strokeStyle = 'rgba(0,0,0,0.38)';
+        selCtx.stroke();
+		selCtx.lineWidth = 3;
+		selCtx.setLineDash([]);
+		selCtx.strokeStyle = 'rgba(0,0,0,0.28)';
+		selCtx.stroke();
+		selCtx.lineWidth = 1;
+		selCtx.strokeStyle = 'rgba(140,200,255,0.95)';
+		selCtx.stroke();
+        selCtx.restore();
+      }
     }
 
     if(selDrag){
@@ -925,12 +1062,52 @@ body{font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Mi
     }
   }
 
+  function ensureDeleteColorPreview(){
+    if(_dcPreviewVersion === _dcVersion && _dcPreviewCanvas &&
+       _dcPreviewCanvas.width === targetW && _dcPreviewCanvas.height === targetH) return;
+    if(!_dcPreviewCanvas || _dcPreviewCanvas.width !== targetW || _dcPreviewCanvas.height !== targetH){
+      _dcPreviewCanvas = document.createElement('canvas');
+      _dcPreviewCanvas.width = targetW;
+      _dcPreviewCanvas.height = targetH;
+      _dcPreviewVersion = -1;
+    }
+    if(_dcPreviewVersion === _dcVersion) return;
+    var g = _dcPreviewCanvas.getContext('2d');
+    g.clearRect(0, 0, targetW, targetH);
+    var mask = deleteColorMode.matchedMask;
+    if(mask && mask.length === targetW*targetH){
+      var id = g.createImageData(targetW, targetH);
+      var d = id.data;
+      for(var i = 0; i < mask.length; i++){
+        if(mask[i]){
+          var di = i*4;
+          d[di]=255; d[di+1]=80; d[di+2]=80; d[di+3]=140;
+        }
+      }
+      g.putImageData(id, 0, 0);
+    }
+    _dcPreviewVersion = _dcVersion;
+  }
   function renderDeleteColorPreview(){
-    var mask=deleteColorMode.matchedMask; if(!mask) return;
-    var W=targetW,H=targetH;
-    selCtx.fillStyle='rgba(255,80,80,0.55)';
-    for(var y=0;y<H;y++){ var row=y*W; var sy=panY+y*zoom;
-      for(var x=0;x<W;x++) if(mask[row+x]) selCtx.fillRect(panX+x*zoom,sy,zoom,zoom);
+    if(!deleteColorMode.matchedMask) return;
+    ensureDeleteColorPreview();
+    if(!_dcPreviewCanvas) return;
+    var rect = stage.getBoundingClientRect();
+    var W = rect.width, H = rect.height;
+    var visX0 = Math.max(0, -panX/zoom);
+    var visY0 = Math.max(0, -panY/zoom);
+    var visX1 = Math.min(targetW, (W - panX)/zoom);
+    var visY1 = Math.min(targetH, (H - panY)/zoom);
+    if(visX1 > visX0 && visY1 > visY0){
+      selCtx.save();
+      selCtx.imageSmoothingEnabled = false;
+      selCtx.drawImage(
+        _dcPreviewCanvas,
+        visX0, visY0, visX1 - visX0, visY1 - visY0,
+        panX + visX0*zoom, panY + visY0*zoom,
+        (visX1 - visX0)*zoom, (visY1 - visY0)*zoom
+      );
+      selCtx.restore();
     }
   }
 
@@ -955,6 +1132,7 @@ body{font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Mi
       }
     }
     deleteColorMode.matchedCount=count;
+    _dcVersion++;
     $('dcCount').textContent=count;
   }
   function openDeleteColorPanel(){
@@ -963,6 +1141,7 @@ body{font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Mi
     deleteColorMode.active=true; deleteColorMode.hasTarget=false;
     deleteColorMode.targetPacked=0; deleteColorMode.targetR=0; deleteColorMode.targetG=0; deleteColorMode.targetB=0;
     deleteColorMode.threshold=0; deleteColorMode.matchedMask=null; deleteColorMode.matchedCount=0;
+    _dcVersion++; _dcPreviewVersion = -1;
     $('dcThreshold').value=0; $('dcThresholdLabel').textContent='0';
     $('dcColorHex').textContent=t('common.notSelected'); $('dcColorSwatch').style.background='#222';
     $('dcCount').textContent='0'; $('dcApply').disabled=true;
@@ -976,6 +1155,7 @@ body{font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Mi
   function closeDeleteColorPanel(){
     deleteColorMode.active=false; deleteColorMode.hasTarget=false;
     deleteColorMode.matchedMask=null; deleteColorMode.matchedCount=0;
+    _dcVersion++; _dcPreviewVersion = -1;
     $('deleteColorPanel').style.display='none';
     stage.classList.remove('picking'); updateSelectUI(); renderSelectionOverlay();
   }
@@ -992,7 +1172,6 @@ body{font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Mi
       var rr2 = parseInt(hex.substr(1,2), 16) || 0;
       var gg2 = parseInt(hex.substr(3,2), 16) || 0;
       var bb2 = parseInt(hex.substr(5,2), 16) || 0;
-      /* 内部小端序：A<<24 | B<<16 | G<<8 | R */
       replacePacked = (255 << 24) | (bb2 << 16) | (gg2 << 8) | rr2;
     }
 
@@ -1462,6 +1641,7 @@ body{font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Mi
     targetW = res.w; targetH = res.h;
     selMask = new Uint8Array(targetW * targetH);
     hasSelection = false; selBounds = {x:0, y:0, w:0, h:0};
+    _selMaskVersion++;
     cacheImgData = null; cacheW = 0; cacheH = 0;
     applyResize(true);
     syncInputs();
@@ -1509,6 +1689,7 @@ body{font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Mi
       zoom = pixelBackup.zoom; panX = pixelBackup.panX; panY = pixelBackup.panY;
       selMask = pixelBackup.selMask; hasSelection = pixelBackup.hasSelection;
       selBounds = pixelBackup.selBounds;
+      _selMaskVersion++;
       cacheImgData = null; cacheW = 0; cacheH = 0;
       applyResize(true);
       syncInputs(); updateSelectUI(); render();
@@ -1669,6 +1850,7 @@ body{font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Mi
     cv.width=0; cv.height=0;
     selCv.classList.remove('on');
     selMask=null; hasSelection=false; selBounds={x:0,y:0,w:0,h:0}; selDrag=null; lassoDrag=null; moveSelDrag=null; _previewMask=null;
+    _selMaskVersion++;
     closeDeleteColorPanel(); closeMergePanel(); closeSplitPanel();
     wrap.classList.remove('on'); wrap.style.width='0px'; wrap.style.height='0px';
     placeholder.style.display='';
@@ -1751,14 +1933,6 @@ body{font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Mi
       if(hasImage) render();
       else updateStatus();
       needsRender = false;
-    }
-    if(hasImage && !deleteColorMode.active && (hasSelection||selDrag||lassoDrag)){
-      var now = performance.now();
-      if(now - _lastDashFrame > 16){
-        dashOffset = (now * 0.02) % 8;
-        renderSelectionOverlay();
-        _lastDashFrame = now;
-      }
     }
     requestAnimationFrame(mainLoop);
   }
@@ -1921,7 +2095,6 @@ body{font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Mi
       var on = this.checked;
       $('dcReplaceColor').disabled = !on;
     });
-    /* 初始禁用替换色输入 */
     $('dcReplaceColor').disabled = true;
 
     $('mergeThreshold').addEventListener('input',function(){
@@ -1972,13 +2145,23 @@ body{font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Mi
       render(); syncInputs();
     });
     document.addEventListener('pointerup',function(){
-      if(drag){ drag=null; if(cv.width!==targetW||cv.height!==targetH) applyResize(true); render(); pushHistory(); }
+      if(drag){
+        drag=null;
+        var needReapply = (cv.width!==targetW||cv.height!==targetH);
+        if(needReapply){
+          resetSelMask();
+          applyResize(true);
+        }
+        render(); pushHistory();
+      }
     });
 
     function handleStageMousedown(e){
       if(!hasImage) return;
       if(pixelBackup) return;
-      if(e.button===0 && deleteColorMode.active){
+      var btn = resolvePointerButton(e);
+
+      if(btn === 0 && deleteColorMode.active){
         e.preventDefault();
         var r=stage.getBoundingClientRect();
         var mx=e.clientX-r.left, my=e.clientY-r.top;
@@ -1997,18 +2180,17 @@ body{font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Mi
         setMsg(tr('目标色已选：','Target: ')+rgbToHex(rr,gg,bb), 1500);
         return;
       }
-      if(e.button===1||(e.button===0&&spaceDown)){
+      if(btn === 1 || (btn === 0 && spaceDown)){
         e.preventDefault(); panDrag={sx:e.clientX,sy:e.clientY,px:panX,py:panY}; return;
       }
-      if(e.button===2){
+      if(btn === 2){
         e.preventDefault();
         if(hasSelection) deselectAll(false);
         return;
       }
-      if(e.button!==0) return;
+      if(btn !== 0) return;
       e.preventDefault();
 
-      /* ===== 新增：按住 V / M 且在选区内点击 → 仅移动选区 ===== */
       if(hasSelection && selMask && (vDown || mDown) && !e.altKey && !e.ctrlKey && !e.metaKey){
         var sp = stagePointFromEvent(e);
         var hx = Math.floor(sp.px), hy = Math.floor(sp.py);
@@ -2027,14 +2209,28 @@ body{font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Mi
       }
       return;
     }
+
     stage.addEventListener('contextmenu',function(e){ e.preventDefault(); });
-    stage.addEventListener('mousedown',function(e){
+
+    stage.addEventListener('pointerdown', function(e){
       if(e.target && e.target.closest && e.target.closest('.handle')) return;
+      if(e.pointerType === 'pen'){
+        var isPenTip = (e.button === 0 && ((e.buttons||1) & 1));
+        penActive = isPenTip;
+        penPressure = (e.pressure > 0) ? e.pressure : 0.5;
+      } else {
+        penActive = false;
+        penPressure = 1;
+      }
+      try { stage.setPointerCapture(e.pointerId); } catch(ex){}
       handleStageMousedown(e);
     });
 
-    stage.addEventListener('mousemove', function(e){
+    stage.addEventListener('pointermove', function(e){
       if(!hasImage){ coordEl.textContent = '— , —'; return; }
+      if(e.pointerType === 'pen' && e.pressure > 0){
+        penPressure = e.pressure;
+      }
       var r = stage.getBoundingClientRect();
       var px = Math.floor((e.clientX - r.left - panX) / zoom);
       var py = Math.floor((e.clientY - r.top - panY) / zoom);
@@ -2044,17 +2240,27 @@ body{font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Mi
         coordEl.textContent = px + ' , ' + py;
       }
     });
-    stage.addEventListener('mouseleave', function(){
+    stage.addEventListener('pointerleave', function(){
       coordEl.textContent = '— , —';
     });
 
-    document.addEventListener('mousemove',function(e){
+    document.addEventListener('pointermove',function(e){
       if(moveSelDrag){ updateMoveSelectionDrag(e); return; }
       if(lassoDrag){ updateLassoDrag(e); return; }
       if(selDrag){ updateSelectDrag(e); return; }
       if(panDrag){ panX=panDrag.px+(e.clientX-panDrag.sx); panY=panDrag.py+(e.clientY-panDrag.sy); render(); }
     });
-    document.addEventListener('mouseup',function(){
+    document.addEventListener('pointerup',function(e){
+      try { if(stage.hasPointerCapture && stage.hasPointerCapture(e.pointerId)) stage.releasePointerCapture(e.pointerId); } catch(ex){}
+      if(e.pointerType === 'pen'){ penActive = false; penPressure = 1; }
+      if(moveSelDrag) endMoveSelectionDrag();
+      if(lassoDrag) endLassoDrag();
+      if(selDrag) endSelectDrag();
+      if(panDrag) panDrag=null;
+    });
+    document.addEventListener('pointercancel',function(e){
+      try { if(stage.hasPointerCapture && stage.hasPointerCapture(e.pointerId)) stage.releasePointerCapture(e.pointerId); } catch(ex){}
+      if(e.pointerType === 'pen'){ penActive = false; penPressure = 1; }
       if(moveSelDrag) endMoveSelectionDrag();
       if(lassoDrag) endLassoDrag();
       if(selDrag) endSelectDrag();
@@ -2079,7 +2285,6 @@ body{font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Mi
       if(e.target.tagName==='INPUT') return;
       if(e.key===' '&&!e.repeat) spaceDown=true;
 
-      /* ===== 新增：V / M 键状态（用于"按住拖选区内移动选区"） ===== */
       if((e.key==='v'||e.key==='V') && !e.ctrlKey && !e.metaKey && !e.altKey){
         if(!e.repeat){ vDown = true; vDragged = false; }
         return;
@@ -2124,7 +2329,6 @@ body{font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Mi
     document.addEventListener('keyup',function(e){
       if(e.key===' ') spaceDown=false;
 
-      /* ===== 新增：V / M 键松开——未拖动则切换模式（单击语义） ===== */
       if((e.key==='v'||e.key==='V') && !e.ctrlKey && !e.metaKey && !e.altKey){
         vDown = false;
         if(!vDragged && lassoMode){
@@ -2147,7 +2351,6 @@ body{font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Mi
       }
     });
 
-    /* ===== 新增：窗口失焦重置 V/M 状态 ===== */
     window.addEventListener('blur', function(){
       vDown = false; vDragged = false;
       mDown = false; mDragged = false;

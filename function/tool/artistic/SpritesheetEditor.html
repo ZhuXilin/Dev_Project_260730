@@ -29,7 +29,7 @@ button:disabled{opacity:.35;cursor:default}
 .menu>hr{border:none;border-top:1px solid #444;margin:4px 0}
 #workarea{flex:1;display:flex;min-height:0}
 #canvas-wrap{flex:1;position:relative;overflow:hidden;background:#141418;min-width:0}
-#canvas{position:absolute;inset:0;display:block;cursor:crosshair}
+#canvas{position:absolute;inset:0;display:block;cursor:crosshair;touch-action:none}
 #sidebar{width:340px;flex-shrink:0;overflow-y:auto;background:#232328;border-left:1px solid #111;padding:10px 12px 40px}
 #sidebar::-webkit-scrollbar{width:8px}
 #sidebar::-webkit-scrollbar-thumb{background:#444;border-radius:4px}
@@ -150,6 +150,7 @@ input[type=checkbox]{accent-color:#2d6cdf;margin-right:4px}
 .float-panel .fp-actions button:hover{background:#4a4a54}
 .float-panel .fp-actions button.fp-ok{background:#2d6cdf;border-color:#4a8cf5;color:#fff}
 .float-panel .fp-actions button.fp-ok:hover{background:#3a7ce8}
+.tb-label{display:flex;align-items:center;gap:4px;font-size:12px;color:#ddd;user-select:none;flex-shrink:0;padding:0 4px;border:1px solid #444;border-radius:4px;background:#2f2f36;height:28px}
 </style>
 </head>
 <body>
@@ -163,12 +164,12 @@ input[type=checkbox]{accent-color:#2d6cdf;margin-right:4px}
     <button id="btn-save-as-png" data-i18n="btn.savePng" data-i18n-title="tt.savePng" title="Save As PNG">Save As PNG</button>
     <button id="btn-save-as-proj" data-i18n="btn.saveProj" data-i18n-title="tt.saveProj" title="Save As Project">Save As Project</button>
     <span class="sep"></span>
-    <label class="toolbar-label" style="display:flex; align-items:center; gap:4px; font-size:12px; color:#ddd; user-select:none; flex-shrink:0;">
+    <label class="tb-label">
       <input type="checkbox" id="sel-fixed-toggle" style="margin:0 2px 0 0;">
       <span data-i18n="label.fixedSize">Fixed</span>
-      <input type="number" id="sel-fixed-w" min="1" max="4096" value="32" style="width:40px; padding:2px 4px; font-size:12px; height:24px; border:1px solid #444; border-radius:3px; background:#2a2a30; color:#ddd; text-align:center;">
+      <input type="number" id="sel-fixed-w" min="1" max="4096" value="32" style="width:40px; padding:2px 4px; font-size:12px; height:22px; border:1px solid #444; border-radius:3px; background:#2a2a30; color:#ddd; text-align:center;">
       <span style="color:#666;">×</span>
-      <input type="number" id="sel-fixed-h" min="1" max="4096" value="32" style="width:40px; padding:2px 4px; font-size:12px; height:24px; border:1px solid #444; border-radius:3px; background:#2a2a30; color:#ddd; text-align:center;">
+      <input type="number" id="sel-fixed-h" min="1" max="4096" value="32" style="width:40px; padding:2px 4px; font-size:12px; height:22px; border:1px solid #444; border-radius:3px; background:#2a2a30; color:#ddd; text-align:center;">
     </label>
     <button class="tool-btn active" data-tool="1" data-i18n="tool.select" data-i18n-title="tt.select" title="Select (V)">Sel</button>
     <button class="tool-btn" data-tool="7" data-i18n="tool.lasso" data-i18n-title="tt.lasso" title="Lasso (M)">Lasso</button>
@@ -180,6 +181,10 @@ input[type=checkbox]{accent-color:#2d6cdf;margin-right:4px}
     <button class="tool-btn" data-tool="5" data-i18n="tool.picker" data-i18n-title="tt.picker" title="Picker (I)">Pick</button>
     <button class="tool-btn" data-tool="4" data-i18n="tool.bucket" data-i18n-title="tt.bucket" title="Bucket (G)">Fill</button>
     <button class="tool-btn" data-tool="6" data-i18n="tool.replace" data-i18n-title="tt.replace" title="Replace (H)">Rep</button>
+    <label class="tb-label" title="Wacom / tablet pen pressure (uses pointer events)">
+      <input type="checkbox" id="pen-pressure-toggle" checked style="margin:0 2px 0 0;">
+      <span data-i18n="label.penPressure">Pressure</span>
+    </label>
     <span class="sep"></span>
     <button id="btn-undo" data-i18n="btn.undo">Undo</button>
     <button id="btn-redo" data-i18n="btn.redo">Redo</button>
@@ -470,7 +475,8 @@ var ui = {
   paletteNES:[], paletteCustom:[],
   playing:false, animTimer:0, animFrame:0, animLastT:0,
   onionPrev:false, onionNext:false, onionOpacity:0.4,
-  fixedSel: { enabled: false, w: 32, h: 32 }
+  fixedSel: { enabled: false, w: 32, h: 32 },
+  penPressureSize: true
 };
 var drag = {
   mode:null, startX:0, startY:0, panStartX:0, panStartY:0,
@@ -482,7 +488,8 @@ var drag = {
   guideNew:false, guideStartPos:0,
   moveSelOrigin:{x:0,y:0}, selBackup:null, selBackupBounds:null,
   lastDx:0, lastDy:0,
-  lassoPoints:null, lassoMode:SEL_REPLACE, lassoShift:false
+  lassoPoints:null, lassoMode:SEL_REPLACE, lassoShift:false,
+  lastPenPressure: undefined
 };
 var vDown = false, vDragged = false, mDown = false, mDragged = false, rDown = false;
 var rotState = null;
@@ -511,6 +518,12 @@ var _selTintCanvas = null, _selTintVersion = 0, _selMaskVersion = 0;
 var _selEdgeSegs = null, _selEdgeVersion = -1;
 var _adjustId = null;
 var _floatPanel = null;
+
+/* ★ 数位板压感状态 */
+var penPressure = 1;
+var penActive = false;
+var penSeen = false;
+var _lastBrushInfoUpdate = 0;
 
 var deleteColorMode = {
   active: false, targetPacked: 0, targetR: 0, targetG: 0, targetB: 0,
@@ -738,7 +751,7 @@ function makeSnapshot(){
 }
 function restoreSnapshot(s){
   drag.mode = null; drag.guideIdx = -1; drag.lastPx = null; drag.guideNew = false;
-  drag.lassoPoints = null; drag.selBackup = null;
+  drag.lassoPoints = null; drag.selBackup = null; drag.lastPenPressure = undefined;
   if(s.w !== doc.width || s.h !== doc.height){
     doc.width = s.w; doc.height = s.h;
     doc.imageCanvas = document.createElement('canvas');
@@ -853,6 +866,16 @@ function getBrushOutline(size){
   }
   brushOutlineCache[size] = segs; return segs;
 }
+
+/* ★ 压感笔刷尺寸 */
+function getPressureBrushSizeFor(p){
+  if (!ui.penPressureSize || !penActive) return ui.brushSize;
+  if (p === undefined || p === null || isNaN(p)) p = 0.5;
+  p = Math.max(0.02, Math.min(1, p));
+  var curve = Math.pow(p, 1.2);
+  return Math.max(1, Math.round(ui.brushSize * curve));
+}
+function getPressureBrushSize(){ return getPressureBrushSizeFor(penPressure); }
 
 function newDoc(w,h){
   w=Math.max(1,w|0); h=Math.max(1,h|0);
@@ -1413,7 +1436,7 @@ function fitToView(){
   updateZoomLabel(); requestRender();
 }
 
-/* ============ 选区渲染优化：缓存着色层 & 边缘 ============ */
+/* ============ 选区渲染优化 ============ */
 function ensureSelTint(){
   if(_selTintVersion === _selMaskVersion && _selTintCanvas) return;
   var W = doc.width, H = doc.height;
@@ -1455,36 +1478,30 @@ function buildSelEdgeSegs(){
   for(y=b.y;y<b.y+b.h;y++){
     row = y*W; prevRow = (y-1)*W;
     for(x=b.x;x<b.x+b.w;x++){
-      if(mask[row+x] && (y===0 || !mask[prevRow+x])){
-        segs.push({x0:x,y0:y,x1:x+1,y1:y});
-      }
+      if(mask[row+x] && (y===0 || !mask[prevRow+x])) segs.push({x0:x,y0:y,x1:x+1,y1:y});
     }
   }
   for(y=b.y+b.h-1;y>=b.y;y--){
     row = y*W; nextRow = (y+1)*W;
     for(x=b.x;x<b.x+b.w;x++){
-      if(mask[row+x] && (y===H-1 || !mask[nextRow+x])){
-        segs.push({x0:x,y0:y+1,x1:x+1,y1:y+1});
-      }
+      if(mask[row+x] && (y===H-1 || !mask[nextRow+x])) segs.push({x0:x,y0:y+1,x1:x+1,y1:y+1});
     }
   }
   for(x=b.x;x<b.x+b.w;x++){
     for(y=b.y;y<b.y+b.h;y++){
-      if(mask[y*W+x] && (x===0 || !mask[y*W+x-1])){
-        segs.push({x0:x,y0:y,x1:x,y1:y+1});
-      }
+      if(mask[y*W+x] && (x===0 || !mask[y*W+x-1])) segs.push({x0:x,y0:y,x1:x,y1:y+1});
     }
   }
   for(x=b.x+b.w-1;x>=b.x;x--){
     for(y=b.y;y<b.y+b.h;y++){
-      if(mask[y*W+x] && (x===W-1 || !mask[y*W+x+1])){
-        segs.push({x0:x+1,y0:y,x1:x+1,y1:y+1});
-      }
+      if(mask[y*W+x] && (x===W-1 || !mask[y*W+x+1])) segs.push({x0:x+1,y0:y,x1:x+1,y1:y+1});
     }
   }
   _selEdgeSegs = segs; _selEdgeVersion = _selMaskVersion;
   return segs;
 }
+
+/* ★ 静态选择框（不闪烁）：1px 暗色轮廓 + 1px 淡蓝实线 */
 function drawMarchingAntsSegs(segs, ox, oy, z, offset){
   if(!segs || segs.length === 0) return;
   ctx.beginPath();
@@ -1493,14 +1510,15 @@ function drawMarchingAntsSegs(segs, ox, oy, z, offset){
     ctx.moveTo(ox+s.x0*z, oy+s.y0*z);
     ctx.lineTo(ox+s.x1*z, oy+s.y1*z);
   }
-  ctx.setLineDash([4,4]);
-  ctx.lineDashOffset = -offset;
-  ctx.strokeStyle = 'rgba(255,255,255,0.95)';
-  ctx.lineWidth = 2; ctx.stroke();
-  ctx.lineDashOffset = -offset + 4;
-  ctx.strokeStyle = 'rgba(0,0,0,0.85)';
-  ctx.stroke();
   ctx.setLineDash([]);
+  // 外轮廓（3px 暗色，铺在下方作为阴影，让蓝色更清晰）
+  ctx.lineWidth = 3;
+  ctx.strokeStyle = 'rgba(0,0,0,0.28)';
+  ctx.stroke();
+  // 主色（1px 淡蓝实线）
+  ctx.lineWidth = 1;
+  ctx.strokeStyle = 'rgba(140,200,255,0.95)';
+  ctx.stroke();
 }
 
 function getEffectiveSelCur(){
@@ -1811,11 +1829,12 @@ function render(){
   ctx.clip();
   drawBackground(ctx,dstX,dstY,dstW,dstH);
   ctx.restore();
-  if(ui.showPixelGrid && z >= 4) drawPixelGrid(z, dstX, dstY, srcW, srcH);
-  if(ui.showGrid && !ui.singleCell) drawGridLines(z,px,py);
+
   if(ui.singleCell && (ui.onionPrev || ui.onionNext)) drawOnionSkin(z, ox, oy);
+
   ctx.imageSmoothingEnabled = false;
   ctx.drawImage(doc.imageCanvas, srcX,srcY,srcW,srcH, dstX,dstY,dstW,dstH);
+  
   if(doc.floating){
     if(doc.floatDirty) rebuildFloatCanvas();
     var f = doc.floating;
@@ -1826,6 +1845,9 @@ function render(){
     ctx.drawImage(doc.floatCanvas, ox + f.x*z, oy + f.y*z, f.w*z, f.h*z);
     ctx.restore();
   }
+
+  if(ui.showPixelGrid && z >= 3) drawPixelGrid(z, dstX, dstY, srcW, srcH);
+  if(ui.showGrid && !ui.singleCell) drawGridLines(z,px,py);
   try {
     if (transformState && transformState.active) {
       renderTransform(ctx, ox, oy, z);
@@ -1896,20 +1918,32 @@ function drawLassoPreview(z,ox,oy){
 }
 function drawPixelGrid(z, ox, oy, gw, gh){
   if(gw <= 0 || gh <= 0) return;
-  if(gw + gh > 2000) return;
+  if(z < 1) return;
+  // 视口裁剪：只画可见范围内的线，大图也秒画
+  var dpr = window.devicePixelRatio || 1;
+  var W = canvas.width / dpr;
+  var H = canvas.height / dpr;
+  var vx0 = Math.max(0, Math.floor((RULER - ox) / z));
+  var vy0 = Math.max(0, Math.floor((RULER - oy) / z));
+  var vx1 = Math.min(gw, Math.ceil((W - ox) / z));
+  var vy1 = Math.min(gh, Math.ceil((H - oy) / z));
+  if(vx1 <= vx0 || vy1 <= vy0) return;
   ctx.save();
   ctx.beginPath();
-  ctx.rect(ox, oy, gw*z, gh*z); ctx.clip();
-  ctx.strokeStyle = 'rgba(255,255,255,0.07)';
+  ctx.rect(ox, oy, gw*z, gh*z);
+  ctx.clip();
+  // 中性灰：白底、黑底、彩底都能看清
+  ctx.strokeStyle = 'rgba(150,150,160,0.38)';
   ctx.lineWidth = 1;
   ctx.beginPath();
-  var x0 = ox, y0 = oy, x1 = x0 + gw*z, y1 = y0 + gh*z;
-  for(var i=0;i<=gw;i++){
-    var sx = Math.round(x0 + i*z) + 0.5;
+  var x0 = ox + vx0*z, x1 = ox + vx1*z;
+  var y0 = oy + vy0*z, y1 = oy + vy1*z;
+  for(var i = vx0; i <= vx1; i++){
+    var sx = Math.round(ox + i*z) + 0.5;
     ctx.moveTo(sx, y0); ctx.lineTo(sx, y1);
   }
-  for(var j=0;j<=gh;j++){
-    var sy = Math.round(y0 + j*z) + 0.5;
+  for(var j = vy0; j <= vy1; j++){
+    var sy = Math.round(oy + j*z) + 0.5;
     ctx.moveTo(x0, sy); ctx.lineTo(x1, sy);
   }
   ctx.stroke();
@@ -2015,10 +2049,7 @@ function drawSelection(z,ox,oy){
     }
     return;
   }
-
-  // 拖拽预览：只画矩形，避免逐像素填充
   if(drag.mode === 'select' && drag.selStart && drag.selCur){
-    // 显示原始选区（若为 ADD/SUB 模式）
     if(doc.hasSelection && drag.selMode !== SEL_REPLACE && doc.selBounds.w > 0){
       ensureSelTint();
       ctx.save();
@@ -2048,17 +2079,13 @@ function drawSelection(z,ox,oy){
     if(drag.selMode === SEL_SUB) ctx.fillStyle = 'rgba(255,80,80,0.15)';
     else ctx.fillStyle = 'rgba(80,180,255,0.15)';
     ctx.fillRect(ox + x0*z, oy + y0*z, (x1-x0)*z, (y1-y0)*z);
-    ctx.setLineDash([4,4]);
-    ctx.lineDashOffset = -dashOffset;
-    ctx.strokeStyle = 'rgba(255,255,255,0.9)';
+    ctx.setLineDash([]);
+    ctx.strokeStyle = 'rgba(140,200,255,0.95)';
     ctx.lineWidth = 1;
     ctx.strokeRect(ox + x0*z + 0.5, oy + y0*z + 0.5, (x1-x0)*z - 1, (y1-y0)*z - 1);
-    ctx.setLineDash([]);
     ctx.restore();
     return;
   }
-
-  // 已确认的选区：用缓存 + drawImage 绘制
   if(!doc.hasSelection || !doc.selMask) return;
   if(doc.selBounds.w <= 0 || doc.selBounds.h <= 0) return;
   ensureSelTint();
@@ -2099,7 +2126,8 @@ function drawCursor(z,ox,oy){
     return;
   }
   if(ui.tool !== TOOL.PENCIL && ui.tool !== TOOL.ERASER) return;
-  var segs = getBrushOutline(ui.brushSize);
+  var curSize = (penActive && ui.penPressureSize) ? getPressureBrushSize() : ui.brushSize;
+  var segs = getBrushOutline(curSize);
   ctx.save();
   ctx.lineCap = 'square';
   ctx.beginPath();
@@ -2139,7 +2167,7 @@ function drawRulers(z,px,py,W,H){
     ctx.moveTo(Math.round(sx)+0.5,RULER-6); ctx.lineTo(Math.round(sx)+0.5,RULER); ctx.stroke();
     ctx.fillText(ix, Math.round(sx)+2, 2);
   }
-  var yStartPx = Math.max(0, Math.floor((RULER-py)/z/step)*step);
+  var yStartPx = Math.max(0, Math.round((RULER-py)/z/step)*step);
   for(var iy=yStartPx; ; iy+=step){
     var sy = py+iy*z;
     if(sy>H) break; if(sy<RULER) continue;
@@ -2155,9 +2183,10 @@ function drawRulers(z,px,py,W,H){
   ctx.strokeRect(0.5,0.5,RULER-1,RULER-1);
 }
 
-function stampBrush(cxp,cyp,rgba){
+function stampBrush(cxp,cyp,rgba,sizeOverride){
   ensureWritable();
-  var pts = getBrushMask(ui.brushSize), useSel = doc.hasSelection;
+  var size = sizeOverride || ui.brushSize;
+  var pts = getBrushMask(size), useSel = doc.hasSelection;
   for(var i=0;i<pts.length;i++){
     var p = pts[i], tx = cxp+p.x, ty = cyp+p.y;
     if(tx<0||ty<0||tx>=doc.width||ty>=doc.height) continue;
@@ -2604,7 +2633,7 @@ function cancelTransform(){
   setStatus(currentLang==='zh'?'变形已取消':'Transform cancelled');
 }
 
-/* ============ 调色核心（复用缓冲区，写时复制 ImageData） ============ */
+/* ============ 调色核心 ============ */
 function getAdjustId(){
   if(!_adjustId || _adjustId.width !== doc.width || _adjustId.height !== doc.height){
     _adjustId = new ImageData(doc.width, doc.height);
@@ -2790,7 +2819,6 @@ function canOpenAdjust(){
   return true;
 }
 
-/* ============ 浮动面板（可拖拽，无遮罩） ============ */
 function closeFloatingPanel(){
   if(_floatPanel && _floatPanel.parentNode) _floatPanel.parentNode.removeChild(_floatPanel);
   _floatPanel = null;
@@ -2810,8 +2838,6 @@ function showFloatingPanel(title, bodyHTML, onOK, okLabel, onCancel){
   panel.querySelector('.fp-cancel').textContent = cancelTxt;
   panel.querySelector('.fp-ok').textContent = okLabel || 'OK';
   document.body.appendChild(panel);
-
-  // 初始位置：画布左上区域，避免居中遮挡
   var cr = canvasWrap.getBoundingClientRect();
   var pw = panel.offsetWidth || 340, ph = panel.offsetHeight || 300;
   var left = Math.max(8, cr.left + 20);
@@ -2820,11 +2846,8 @@ function showFloatingPanel(title, bodyHTML, onOK, okLabel, onCancel){
   if(top + ph > window.innerHeight - 8) top = window.innerHeight - ph - 8;
   panel.style.left = left + 'px';
   panel.style.top = top + 'px';
-
   modalOpen = true;
   _floatPanel = panel;
-
-  // 拖拽
   var dragging = false, startX = 0, startY = 0, origLeft = 0, origTop = 0;
   var titleEl = panel.querySelector('.fp-title');
   function onMove(e){
@@ -2847,7 +2870,6 @@ function showFloatingPanel(title, bodyHTML, onOK, okLabel, onCancel){
     document.addEventListener('mouseup', onUp);
     e.preventDefault();
   });
-
   var closed = false;
   function onKey(ev){
     if(ev.key === 'Escape'){ ev.preventDefault(); ev.stopPropagation(); close(false); }
@@ -2872,7 +2894,6 @@ function showFloatingPanel(title, bodyHTML, onOK, okLabel, onCancel){
   return panel;
 }
 
-/* ============ 各调色对话框 ============ */
 function openBrightnessContrastDialog(){
   if(!canOpenAdjust()) return;
   beginAdjustSession();
@@ -3284,6 +3305,15 @@ function getMouse(e){
   var p = screenToPixel(sx,sy);
   return {sx:sx,sy:sy,px:p.x,py:p.y};
 }
+function resolvePointerButton(e){
+  var btn = e.button;
+  var btns = (typeof e.buttons === 'number') ? e.buttons : (1 << (btn || 0));
+  if (e.pointerType === 'pen' && btn === 0 && !(btns & 1)) {
+    if (btns & 2) btn = 2;
+    else if (btns & 4) btn = 1;
+  }
+  return btn;
+}
 function onCanvasMouseDown(e){
   if(rotState) { e.preventDefault(); return; }
   var ae = document.activeElement;
@@ -3291,9 +3321,10 @@ function onCanvasMouseDown(e){
   var m = getMouse(e);
   if (isNaN(m.px) || isNaN(m.py)) return;
 
-  // 调色浮动画板打开时：只允许平移查看，其他绘制操作屏蔽
+  var btn = resolvePointerButton(e);
+
   if(modalOpen){
-    if(e.button===1 || (e.button===0 && spaceDown)){
+    if(btn === 1 || (btn === 0 && spaceDown)){
       spaceDragged = true;
       drag.mode = 'pan'; drag.startX = m.sx; drag.startY = m.sy;
       drag.panStartX = view.panX; drag.panStartY = view.panY;
@@ -3307,7 +3338,7 @@ function onCanvasMouseDown(e){
   var modCtrl = e.ctrlKey || e.metaKey;
 
   if(deleteColorMode.active) {
-    if (e.button !== 0) return;
+    if (btn !== 0) return;
     var c = getPixel(m.px, m.py);
     if (c[3] > 0) {
       deleteColorMode.targetPacked = (c[3] << 24) | (c[2] << 16) | (c[1] << 8) | c[0];
@@ -3322,12 +3353,12 @@ function onCanvasMouseDown(e){
     }
     return;
   }
-  if(e.button===2){
+  if(btn === 2){
     if (transformState) { cancelTransform(); e.preventDefault(); return; }
     if(doc.hasSelection){ deselectAll(); e.preventDefault(); return; }
     pickAt({x:m.px,y:m.py}); e.preventDefault(); return;
   }
-  if(e.button===1 || (e.button===0 && spaceDown)){
+  if(btn === 1 || (btn === 0 && spaceDown)){
     spaceDragged = true;
     drag.mode = 'pan'; drag.startX = m.sx; drag.startY = m.sy;
     drag.panStartX = view.panX; drag.panStartY = view.panY;
@@ -3403,7 +3434,7 @@ function onCanvasMouseDown(e){
     }
     return;
   }
-  if(e.button===0 && inRulerTop){
+  if(btn === 0 && inRulerTop){
     drag.mode = 'guide'; drag.guideAxis = 1;
     var gs = clamp(Math.round((m.sy-view.panY)/view.zoom),0,doc.height);
     gs = clamp(Math.round(snapGuideToGrid(1, gs)), 0, doc.height);
@@ -3414,7 +3445,7 @@ function onCanvasMouseDown(e){
     if(!ui.showGuides){ ui.showGuides = true; updateGuidesToggleButton(); }
     requestRender(); e.preventDefault(); return;
   }
-  if(e.button===0 && inRulerLeft){
+  if(btn === 0 && inRulerLeft){
     drag.mode = 'guide'; drag.guideAxis = 0;
     var gs2 = clamp(Math.round((m.sx-view.panX)/view.zoom),0,doc.width);
     gs2 = clamp(Math.round(snapGuideToGrid(0, gs2)), 0, doc.width);
@@ -3426,7 +3457,7 @@ function onCanvasMouseDown(e){
     requestRender(); e.preventDefault(); return;
   }
   if(inRulerTop || inRulerLeft){ e.preventDefault(); return; }
-  if(e.button !== 0) return;
+  if(btn !== 0) return;
   if(modCtrl && !spaceDown && ui.showGuides){
     var gi = guideAt(m.px, m.py);
     if(gi >= 0){
@@ -3487,11 +3518,15 @@ function onCanvasMouseDown(e){
     case TOOL.PENCIL:
       drag.mode = 'draw'; drag.drawErase = false;
       drag.lastPx = {x:m.px,y:m.py};
-      stampBrush(m.px,m.py,ui.primary); requestRender(); break;
+      drag.lastPenPressure = penPressure;
+      stampBrush(m.px, m.py, ui.primary, getPressureBrushSize());
+      requestRender(); break;
     case TOOL.ERASER:
       drag.mode = 'draw'; drag.drawErase = true;
       drag.lastPx = {x:m.px,y:m.py};
-      stampBrush(m.px,m.py,[0,0,0,0]); requestRender(); break;
+      drag.lastPenPressure = penPressure;
+      stampBrush(m.px, m.py, [0,0,0,0], getPressureBrushSize());
+      requestRender(); break;
     case TOOL.BUCKET:
       if(floodFill({x:m.px,y:m.py})){ commitHistory(); refreshColorUsage(); }
       break;
@@ -3700,7 +3735,21 @@ function onCanvasMouseMove(e){
     if(now.x !== drag.lastPx.x || now.y !== drag.lastPx.y){
       var col = drag.drawErase ? [0,0,0,0] : ui.primary;
       var pts = bresenham(drag.lastPx, now);
-      for(var i=0;i<pts.length;i++) stampBrush(pts[i].x,pts[i].y,col);
+      var usePen = penActive && ui.penPressureSize;
+      if (usePen) {
+        var pStart = (drag.lastPenPressure !== undefined && drag.lastPenPressure !== null) ? drag.lastPenPressure : penPressure;
+        var pEnd = penPressure;
+        var n = pts.length;
+        for(var i=0;i<n;i++){
+          var t = n > 1 ? i / (n - 1) : 1;
+          var pp = pStart + (pEnd - pStart) * t;
+          var sz = getPressureBrushSizeFor(pp);
+          stampBrush(pts[i].x, pts[i].y, col, sz);
+        }
+      } else {
+        for(var i2=0;i2<pts.length;i2++) stampBrush(pts[i2].x, pts[i2].y, col);
+      }
+      drag.lastPenPressure = penPressure;
       drag.lastPx = now;
       requestRender();
     }
@@ -3758,12 +3807,12 @@ function onCanvasMouseUp(e){
   }
   drag.mode = null; drag.guideIdx = -1; drag.lastPx = null; drag.guideNew = false;
   drag.fixedW = null; drag.fixedH = null;
+  drag.lastPenPressure = undefined;
   requestRender();
 }
 
 function onKeyDown(e){
   if(modalOpen){
-    // 面板打开时允许 space 平移画布
     if(e.key === ' ' && !e.repeat){
       var tg0 = (e.target && e.target.tagName) ? e.target.tagName : '';
       if(tg0 === 'INPUT' || tg0 === 'TEXTAREA') return;
@@ -4049,7 +4098,14 @@ function updateToolHint(){
   } else el.textContent = '';
 }
 function updateBrushInfo(){
-  if(brushInfoEl) brushInfoEl.textContent = (currentLang==='zh'?'笔刷 ':'Brush ') + ui.brushSize + 'px';
+  if(!brushInfoEl) return;
+  var size = ui.brushSize;
+  if (penActive && ui.penPressureSize) {
+    size = getPressureBrushSize();
+    brushInfoEl.textContent = (currentLang==='zh'?'笔刷 ':'Brush ') + size + ' / ' + ui.brushSize + 'px';
+  } else {
+    brushInfoEl.textContent = (currentLang==='zh'?'笔刷 ':'Brush ') + size + 'px';
+  }
 }
 function setTool(t){
   if(transformState) cancelTransform();
@@ -4416,7 +4472,7 @@ function saveProject(saveAs){
   var defName = getBaseName()+'.pxproj';
   var layers = doc.layers.map(function(L){ return {name:L.name,visible:L.visible,opacity:L.opacity,png:imageDataToDataURL(L.imageData)}; });
   var data = {
-    app:'pxedit', version:7, width:doc.width, height:doc.height,
+    app:'pxedit', version:9, width:doc.width, height:doc.height,
     layers:layers, activeLayer:doc.activeLayer,
     grid:{w:doc.grid.w,h:doc.grid.h}, guides:doc.guides.slice(),
     showGuides: ui.showGuides, singleCell:ui.singleCell, currentCell:ui.currentCell,
@@ -4425,7 +4481,8 @@ function saveProject(saveAs){
     onionPrev: ui.onionPrev, onionNext: ui.onionNext, onionOpacity: ui.onionOpacity,
     paletteCustom:ui.paletteCustom.map(function(c){ return rgbToHex(c); }),
     primary:rgbToHex(ui.primary), secondary:rgbToHex(ui.secondary),
-    brushSize:ui.brushSize, fixedSel: ui.fixedSel
+    brushSize:ui.brushSize, fixedSel: ui.fixedSel,
+    penPressureSize: ui.penPressureSize
   };
   var blob = new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
   if(saveAs && window.showSaveFilePicker){
@@ -4531,6 +4588,11 @@ async function loadProjectData(data){
     document.getElementById('sel-fixed-h').value = ui.fixedSel.h;
     updateToolHint();
   }
+  if(data.penPressureSize != null) {
+    ui.penPressureSize = !!data.penPressureSize;
+    var pt = document.getElementById('pen-pressure-toggle');
+    if(pt) pt.checked = ui.penPressureSize;
+  }
   syncColorInputs();
   resetHistory(); refreshLayerList(); refreshColorUsage(); fitToView(); updateAnimCursor(); requestRender();
 }
@@ -4602,7 +4664,6 @@ function refreshPaletteCustom(){
   }
 }
 
-/* 模态框（用于裁切 / 调整画布等） */
 function showModal(title, bodyHTML, onOK, okLabel, onCancel){
   var back = document.createElement('div');
   back.className = 'modal-back';
@@ -4724,6 +4785,7 @@ var I18N = {
   'tool.hints.bucket': {zh: '填充 (G)', en: 'Bucket (G)'},
   'tool.hints.replace': {zh: '替换 (H)', en: 'Replace (H)'},
   'label.fixedSize': {zh:'固定', en:'Fixed'},
+  'label.penPressure': {zh:'笔压', en:'Pen Pressure'},
   'btn.crop': {zh:'裁切', en:'Crop'}, 'btn.transform': {zh:'变形', en:'Trans'},
   'btn.undo': {zh:'撤销', en:'Undo'}, 'btn.redo': {zh:'重做', en:'Redo'},
   'btn.fit': {zh:'适应', en:'Fit'},
@@ -4813,8 +4875,8 @@ var I18N_TITLE = {
     en:'Drag top ruler down → horizontal guide\nDrag left ruler right → vertical guide\nCtrl + drag near guide → move it\nAuto-snap to cell edges / centers while dragging\nDouble-click guide → delete\nWhen hidden, snapping is disabled'
   },
   'help.sel': {
-    zh:'选择工具 (V)：Shift=正方形 · Ctrl=加选 · Alt=减选\n套索工具 (M)：Shift=正圆 · Ctrl=加选 · Alt=减选\n按住 V 或 M 拖动选区内 → 仅移动选区（Shift=锁定水平/垂直）\n普通拖动选区内 → 浮起像素并移动（Shift 锁轴）\n按住 R + 鼠标移动 → 围绕选区中心旋转（Shift=45°）\nC → 裁切图片到选区 · T → 晶格变形 · Q → 切换单格/全图\n← → / A D → 切换动画帧 · 空格 → 播放 / 暂停；空格 + 拖动 → 平移画布',
-    en:'Select (V): Shift=Square · Ctrl=Add · Alt=Subtract\nLasso (M): Shift=Circle · Ctrl=Add · Alt=Subtract\nHold V or M and drag inside → move selection only (Shift=lock axis)\nNormal drag inside → float pixels & move (Shift=lock axis)\nHold R + move mouse → rotate around selection center (Shift=45°)\nC → Crop · T → Transform · Q → Toggle single cell / full canvas\n← → / A D → step animation frames · Space → play/pause; Space + drag → pan'
+    zh:'选择工具 (V)：Shift=正方形 · Ctrl=加选 · Alt=减选\n套索工具 (M)：Shift=正圆 · Ctrl=加选 · Alt=减选\n按住 V 或 M 拖动选区内 → 仅移动选区（Shift=锁定水平/垂直）\n普通拖动选区内 → 浮起像素并移动（Shift 锁轴）\n按住 R + 鼠标移动 → 围绕选区中心旋转（Shift=45°）\nC → 裁切图片到选区 · T → 晶格变形 · Q → 切换单格/全图',
+    en:'Select (V): Shift=Square · Ctrl=Add · Alt=Subtract\nLasso (M): Shift=Circle · Ctrl=Add · Alt=Subtract\nHold V or M and drag inside → move selection only (Shift=lock axis)\nNormal drag inside → float pixels & move (Shift=lock axis)\nHold R + move mouse → rotate around selection center (Shift=45°)\nC → Crop · T → Transform · Q → Toggle single cell / full canvas'
   },
   'tt.rotCcw': {zh:'逆时针旋转 90°', en:'Rotate 90° CCW'},
   'tt.rotCw': {zh:'顺时针旋转 90°', en:'Rotate 90° CW'},
@@ -5047,6 +5109,14 @@ function bindUI(){
   fixedToggle.addEventListener('change', function(e) { ui.fixedSel.enabled = e.target.checked; updateToolHint(); });
   fixedWEl.addEventListener('change', function(e) { ui.fixedSel.w = Math.max(1, parseInt(e.target.value) || 32); e.target.value = ui.fixedSel.w; updateToolHint(); });
   fixedHEl.addEventListener('change', function(e) { ui.fixedSel.h = Math.max(1, parseInt(e.target.value) || 32); e.target.value = ui.fixedSel.h; updateToolHint(); });
+  var penToggle = document.getElementById('pen-pressure-toggle');
+  if (penToggle) {
+    penToggle.addEventListener('change', function(e) {
+      ui.penPressureSize = e.target.checked;
+      updateBrushInfo();
+      requestRender();
+    });
+  }
   document.getElementById('btn-del-replace-color').addEventListener('click', function() {
     if (deleteColorMode.active) { closeDeleteColorMode(); return; }
     openDeleteColorMode();
@@ -5172,7 +5242,7 @@ function mainLoop(now){
     if(animPreviewDirty) renderAnimPreview();
     if(doc.hasSelection || doc.floating || (drag.mode === 'select' && drag.selStart)
        || (drag.mode === 'lasso' && drag.lassoPoints) || rotState || transformState){
-      dashOffset = (now * 0.02) % 8;
+      // 静态选择框：不再每帧更新 dashOffset，但仍需在状态变化时渲染
       needsRender = true;
     }
     if(needsRender){ render(); needsRender = false; }
@@ -5216,10 +5286,70 @@ function init(){
     applyLanguage('en');
 
     canvas.addEventListener('contextmenu', function(e){ e.preventDefault(); });
-    canvas.addEventListener('mousedown', onCanvasMouseDown);
-    canvas.addEventListener('mousemove', onCanvasMouseMove);
-    canvas.addEventListener('mouseup', onCanvasMouseUp);
-    window.addEventListener('mouseup', function(e){ if(drag.mode) onCanvasMouseUp(e); });
+
+    function onPointerDown(e){
+      var btns = (typeof e.buttons === 'number') ? e.buttons : (1 << (e.button || 0));
+      var isPenTip = (e.pointerType === 'pen' && e.button === 0 && (btns & 1));
+      if (e.pointerType === 'pen') {
+        penSeen = true;
+        if (isPenTip) {
+          penActive = true;
+          penPressure = (e.pressure > 0) ? e.pressure : 0.5;
+        } else {
+          penActive = false;
+          penPressure = 1;
+        }
+        updateBrushInfo();
+      } else {
+        penActive = false;
+        penPressure = 1;
+      }
+      try { canvas.setPointerCapture(e.pointerId); } catch(ex) {}
+      onCanvasMouseDown(e);
+    }
+    function onPointerMove(e){
+      if (e.pointerType === 'pen') {
+        penSeen = true;
+        if (e.buttons > 0 || penActive) {
+          penActive = true;
+          if (e.pressure > 0) penPressure = e.pressure;
+          var tnow = performance.now();
+          if (tnow - _lastBrushInfoUpdate > 50) {
+            _lastBrushInfoUpdate = tnow;
+            updateBrushInfo();
+          }
+        }
+      } else {
+        penActive = false;
+        penPressure = 1;
+      }
+      onCanvasMouseMove(e);
+    }
+    function onPointerUp(e){
+      if (e.pointerType === 'pen') {
+        penActive = false;
+        penPressure = 1;
+        updateBrushInfo();
+      }
+      try { canvas.releasePointerCapture(e.pointerId); } catch(ex) {}
+      onCanvasMouseUp(e);
+    }
+
+    if (window.PointerEvent) {
+      canvas.addEventListener('pointerdown', onPointerDown);
+      canvas.addEventListener('pointermove', onPointerMove);
+      canvas.addEventListener('pointerup', onPointerUp);
+      canvas.addEventListener('pointercancel', onPointerUp);
+      window.addEventListener('pointerup', function(e){ if (drag.mode) onCanvasMouseUp(e); });
+      window.addEventListener('pointercancel', function(e){ if (drag.mode) onCanvasMouseUp(e); });
+    } else {
+      canvas.addEventListener('mousedown', onCanvasMouseDown);
+      canvas.addEventListener('mousemove', onCanvasMouseMove);
+      canvas.addEventListener('mouseup', onCanvasMouseUp);
+      window.addEventListener('mouseup', function(e){ if (drag.mode) onCanvasMouseUp(e); });
+    }
+
+    canvas.addEventListener('pointerleave', function(){ mouse.inside = false; requestRender(); });
     canvas.addEventListener('mouseleave', function(){ mouse.inside = false; requestRender(); });
     canvas.addEventListener('dblclick', function(e){
       if (transformState && transformState.active) { applyTransform(); e.preventDefault(); return; }
