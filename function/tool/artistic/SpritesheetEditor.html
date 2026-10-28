@@ -216,7 +216,10 @@ input[type=checkbox]{accent-color:#2d6cdf;margin-right:4px}
           <label><input type="checkbox" id="show-grid" checked> <span data-i18n="label.showGrid">Show cell grid</span></label>
           <label><input type="checkbox" id="show-pixel-grid" checked> <span data-i18n="label.showPixelGrid">Show pixel grid</span></label>
         </div>
-        <div class="row"><button id="btn-resize" data-i18n="btn.resize" style="flex:1">Resize Canvas…</button></div>
+        <div class="row">
+          <button id="btn-resize" data-i18n="btn.resize" style="flex:1">Resize Canvas…</button>
+          <button id="btn-split-export" data-i18n="btn.splitExport" style="flex:1">Split Export…</button>
+        </div>
       </div>
       <div class="section">
         <h3><span data-i18n="section.xform">Transform</span><span class="hint" data-i18n="hint.rotR">(hold R to rotate)</span></h3>
@@ -1436,37 +1439,7 @@ function fitToView(){
   updateZoomLabel(); requestRender();
 }
 
-/* ============ 选区渲染优化 ============ */
-function ensureSelTint(){
-  if(_selTintVersion === _selMaskVersion && _selTintCanvas) return;
-  var W = doc.width, H = doc.height;
-  if(!_selTintCanvas || _selTintCanvas.width !== W || _selTintCanvas.height !== H){
-    _selTintCanvas = document.createElement('canvas');
-    _selTintCanvas.width = W;
-    _selTintCanvas.height = H;
-    _selTintVersion = -1;
-  }
-  if(_selTintVersion === _selMaskVersion) return;
-  var g = _selTintCanvas.getContext('2d');
-  g.clearRect(0,0,W,H);
-  var b = doc.selBounds;
-  if(doc.hasSelection && b && b.w > 0 && b.h > 0){
-    var id = g.createImageData(b.w, b.h);
-    var d = id.data, mask = doc.selMask;
-    for(var y=0;y<b.h;y++){
-      var row = (b.y+y)*W + b.x;
-      var dRow = y*b.w;
-      for(var x=0;x<b.w;x++){
-        if(mask[row+x]){
-          var di = (dRow+x)*4;
-          d[di]=80; d[di+1]=180; d[di+2]=255; d[di+3]=30;
-        }
-      }
-    }
-    g.putImageData(id, b.x, b.y);
-  }
-  _selTintVersion = _selMaskVersion;
-}
+/* ============ 选区边缘缓存 ============ */
 function buildSelEdgeSegs(){
   if(_selEdgeVersion === _selMaskVersion && _selEdgeSegs) return _selEdgeSegs;
   var W = doc.width, H = doc.height, mask = doc.selMask, b = doc.selBounds;
@@ -1500,8 +1473,7 @@ function buildSelEdgeSegs(){
   _selEdgeSegs = segs; _selEdgeVersion = _selMaskVersion;
   return segs;
 }
-
-/* ★ 静态选择框（不闪烁）：1px 暗色轮廓 + 1px 淡蓝实线 */
+/* ★ 静态选择框：1px 暗色轮廓 + 1px 淡蓝实线 */
 function drawMarchingAntsSegs(segs, ox, oy, z, offset){
   if(!segs || segs.length === 0) return;
   ctx.beginPath();
@@ -1511,11 +1483,9 @@ function drawMarchingAntsSegs(segs, ox, oy, z, offset){
     ctx.lineTo(ox+s.x1*z, oy+s.y1*z);
   }
   ctx.setLineDash([]);
-  // 外轮廓（3px 暗色，铺在下方作为阴影，让蓝色更清晰）
   ctx.lineWidth = 3;
   ctx.strokeStyle = 'rgba(0,0,0,0.28)';
   ctx.stroke();
-  // 主色（1px 淡蓝实线）
   ctx.lineWidth = 1;
   ctx.strokeStyle = 'rgba(140,200,255,0.95)';
   ctx.stroke();
@@ -1834,7 +1804,6 @@ function render(){
 
   ctx.imageSmoothingEnabled = false;
   ctx.drawImage(doc.imageCanvas, srcX,srcY,srcW,srcH, dstX,dstY,dstW,dstH);
-  
   if(doc.floating){
     if(doc.floatDirty) rebuildFloatCanvas();
     var f = doc.floating;
@@ -1846,8 +1815,10 @@ function render(){
     ctx.restore();
   }
 
-  if(ui.showPixelGrid && z >= 3) drawPixelGrid(z, dstX, dstY, srcW, srcH);
+  // ★ 网格必须画在图像之后（之前的位置会被图像盖住）
+  if(ui.showPixelGrid && z >= 4) drawPixelGrid(z, dstX, dstY, srcW, srcH);
   if(ui.showGrid && !ui.singleCell) drawGridLines(z,px,py);
+
   try {
     if (transformState && transformState.active) {
       renderTransform(ctx, ox, oy, z);
@@ -1919,7 +1890,7 @@ function drawLassoPreview(z,ox,oy){
 function drawPixelGrid(z, ox, oy, gw, gh){
   if(gw <= 0 || gh <= 0) return;
   if(z < 1) return;
-  // 视口裁剪：只画可见范围内的线，大图也秒画
+  // 视口裁剪：只画可见范围内的线，大图也能秒画
   var dpr = window.devicePixelRatio || 1;
   var W = canvas.width / dpr;
   var H = canvas.height / dpr;
@@ -1932,8 +1903,7 @@ function drawPixelGrid(z, ox, oy, gw, gh){
   ctx.beginPath();
   ctx.rect(ox, oy, gw*z, gh*z);
   ctx.clip();
-  // 中性灰：白底、黑底、彩底都能看清
-  ctx.strokeStyle = 'rgba(150,150,160,0.38)';
+  ctx.strokeStyle = 'rgba(255,255,255,0.07)';
   ctx.lineWidth = 1;
   ctx.beginPath();
   var x0 = ox + vx0*z, x1 = ox + vx1*z;
@@ -2060,7 +2030,7 @@ function drawSelection(z,ox,oy){
       var cr1 = cellRect(ui.currentCell);
       if(cr1){ ctx.beginPath(); ctx.rect(view.panX, view.panY, cr1.w*z, cr1.h*z); ctx.clip(); }
     } else { ctx.beginPath(); ctx.rect(view.panX, view.panY, W*z, H*z); ctx.clip(); }
-    // 拖拽中的临时预览保留淡淡填充（仅拖拽时可见，不影响调色）
+    // 拖拽中的临时预览保留淡淡填充（仅拖拽时可见）
     if(drag.selMode === SEL_SUB) ctx.fillStyle = 'rgba(255,80,80,0.15)';
     else ctx.fillStyle = 'rgba(80,180,255,0.15)';
     ctx.fillRect(ox + x0*z, oy + y0*z, (x1-x0)*z, (y1-y0)*z);
@@ -2610,6 +2580,174 @@ function cancelTransform(){
   doc.imageDirty = true;
   requestRender(); updateToolHint();
   setStatus(currentLang==='zh'?'变形已取消':'Transform cancelled');
+}
+
+/* ============ 拆分导出 ============ */
+function showSplitExportDialog(){
+  if(!hasImage){ setStatus(currentLang==='zh'?'请先打开图片':'Open an image first'); return; }
+  if(modalOpen) return;
+  var cc = cellCount();
+  var cols = cc.x, rows = cc.y;
+  var cw = doc.grid.w, ch = doc.grid.h;
+  var defaultBase = (doc.fileName || 'sprite').replace(/\.(png|pxproj|json)$/i, '') || 'sprite';
+  if(!defaultBase) defaultBase = 'sprite';
+
+  var bodyHTML = ''
+    + '<div style="width:360px">'
+    + '  <div style="color:#a7aeb9;font-size:12px;margin-bottom:12px;padding:8px 10px;background:#1a1a20;border-radius:4px;border:1px solid #333">'
+    +      cols + ' × ' + rows + ' = ' + (cols*rows) + ' files &nbsp;·&nbsp; each ' + cw + ' × ' + ch + ' px'
+    + '  </div>'
+    + '  <div class="field"><label>' + (currentLang==='zh'?'名字':'Base name') + '</label>'
+    + '    <input id="split-base" type="text" style="flex:1" maxlength="100"></div>'
+    + '  <div class="field"><label>' + (currentLang==='zh'?'起始序号':'Start index') + '</label>'
+    + '    <input id="split-start" type="number" min="0" max="999999" value="1" style="width:100px"></div>'
+    + '  <div class="field"><label>' + (currentLang==='zh'?'序号位数':'Digits') + '</label>'
+    + '    <input id="split-pad" type="number" min="1" max="8" value="3" style="width:100px"></div>'
+    + '  <div class="field" style="margin-bottom:8px">'
+    + '    <label style="width:auto"><input type="checkbox" id="split-sep" checked> '
+    + (currentLang==='zh'?'用下划线隔开':'Use underscore separator') + '</label></div>'
+    + '  <div style="font-family:ui-monospace,Consolas,monospace;color:#6fb0ff;font-size:12px;padding:8px 10px;background:#1a1a20;border-radius:4px;border:1px solid #333">'
+    + '    ' + (currentLang==='zh'?'预览：':'Preview: ') + '<span id="split-preview">sprite_001.png</span>'
+    + '  </div>'
+    + '</div>';
+
+  var modal = showModal(currentLang==='zh'?'拆分导出':'Split Export', bodyHTML, function(dlg){
+    var base = (dlg.querySelector('#split-base').value || '').trim();
+    if(!base) base = defaultBase;
+    base = base.replace(/[\\/:*?"<>|]/g, '_');
+    var start = Math.max(0, parseInt(dlg.querySelector('#split-start').value, 10) || 0);
+    var pad = Math.max(1, Math.min(8, parseInt(dlg.querySelector('#split-pad').value, 10) || 3));
+    var sep = dlg.querySelector('#split-sep').checked;
+
+    // 立即同步调用 showDirectoryPicker（保留 user gesture），随后异步处理
+    var handlePromise = null;
+    if(typeof window.showDirectoryPicker === 'function'){
+      try {
+        handlePromise = window.showDirectoryPicker({ mode: 'readwrite' });
+      } catch(err){
+        handlePromise = null;
+      }
+    }
+
+    (async function(){
+      var dirHandle = null;
+      if(handlePromise){
+        try {
+          dirHandle = await handlePromise;
+        } catch(err){
+          if(err && err.name === 'AbortError'){
+            setStatus(currentLang==='zh'?'已取消导出':'Export cancelled');
+            return;
+          }
+          dirHandle = null;
+        }
+      }
+      await doSplitExport({ base: base, start: start, pad: pad, sep: sep, dirHandle: dirHandle });
+    })();
+
+    return true;
+  }, currentLang==='zh'?'导出':'Export');
+
+  var baseEl = modal.querySelector('#split-base');
+  var startEl = modal.querySelector('#split-start');
+  var padEl = modal.querySelector('#split-pad');
+  var sepEl = modal.querySelector('#split-sep');
+  baseEl.value = defaultBase;
+
+  function updatePreview(){
+    var b = (baseEl.value || '').trim() || defaultBase;
+    b = b.replace(/[\\/:*?"<>|]/g, '_');
+    var s = Math.max(0, parseInt(startEl.value, 10) || 0);
+    var p = Math.max(1, Math.min(8, parseInt(padEl.value, 10) || 3));
+    var sp = sepEl.checked ? '_' : '';
+    var numStr = String(s).padStart(p, '0');
+    modal.querySelector('#split-preview').textContent = b + sp + numStr + '.png';
+  }
+  baseEl.addEventListener('input', updatePreview);
+  startEl.addEventListener('input', updatePreview);
+  padEl.addEventListener('input', updatePreview);
+  sepEl.addEventListener('change', updatePreview);
+  updatePreview();
+  baseEl.focus();
+  baseEl.select();
+}
+
+async function doSplitExport(opts){
+  if(!hasImage) return;
+  var cc = cellCount();
+  var cols = cc.x, rows = cc.y;
+  var cw = doc.grid.w, ch = doc.grid.h;
+  var W = doc.width, H = doc.height;
+
+  syncImageCanvas();
+  var srcCanvas = doc.imageCanvas;
+
+  var total = 0;
+  for(var r0 = 0; r0 < rows; r0++){
+    for(var c0 = 0; c0 < cols; c0++){
+      var cr0 = cellRect(r0 * cols + c0);
+      if(!cr0) continue;
+      if(cr0.x >= W || cr0.y >= H) continue;
+      total++;
+    }
+  }
+  if(total === 0){
+    setStatus(currentLang==='zh'?'没有可导出的格子':'No cells to export');
+    return;
+  }
+
+  setStatus((currentLang==='zh'?'正在导出 ':'Exporting ') + '0 / ' + total + ' …');
+
+  var done = 0;
+  for(var r = 0; r < rows; r++){
+    for(var c = 0; c < cols; c++){
+      var cr = cellRect(r * cols + c);
+      if(!cr) continue;
+      if(cr.x >= W || cr.y >= H) continue;
+      var sw = Math.min(cw, W - cr.x);
+      var sh = Math.min(ch, H - cr.y);
+      if(sw <= 0 || sh <= 0) continue;
+
+      var piece = document.createElement('canvas');
+      piece.width = sw;
+      piece.height = sh;
+      var pctx = piece.getContext('2d');
+      pctx.imageSmoothingEnabled = false;
+      pctx.drawImage(srcCanvas, cr.x, cr.y, sw, sh, 0, 0, sw, sh);
+
+      var n = opts.start + done;
+      var numStr = String(n).padStart(opts.pad, '0');
+      var fname = opts.base + (opts.sep ? '_' : '') + numStr + '.png';
+
+      var blob = await new Promise(function(res){ piece.toBlob(res, 'image/png'); });
+      if(!blob) continue;
+
+      if(opts.dirHandle){
+        try {
+          var fh = await opts.dirHandle.getFileHandle(fname, { create: true });
+          var writable = await fh.createWritable();
+          await writable.write(blob);
+          await writable.close();
+        } catch(err){
+          console.error('write failed:', err);
+          setStatus((currentLang==='zh'?'写入失败：':'Write failed: ') + fname);
+          return;
+        }
+      } else {
+        download(blob, fname);
+        await new Promise(function(res){ setTimeout(res, 120); });
+      }
+
+      done++;
+      setStatus((currentLang==='zh'?'正在导出 ':'Exporting ') + done + ' / ' + total + ' …');
+    }
+  }
+
+  if(opts.dirHandle){
+    setStatus((currentLang==='zh'?'已导出 ':'Exported ') + done + (currentLang==='zh'?' 个文件到所选文件夹':' files to folder'));
+  } else {
+    setStatus((currentLang==='zh'?'已触发下载 ':'Triggered ') + done + (currentLang==='zh'?' 个文件（请检查浏览器下载）':' downloads (check browser)'));
+  }
 }
 
 /* ============ 调色核心 ============ */
@@ -3460,6 +3598,7 @@ function onCanvasMouseDown(e){
     drag.lastDx = 0; drag.lastDy = 0;
     requestRender(); e.preventDefault(); return;
   }
+  // ★ 仅选择/套索工具下，点击选区内才浮起移动像素
   if((ui.tool === TOOL.SELECT || ui.tool === TOOL.LASSO) && doc.hasSelection && isSelected(m.px, m.py) && selModeOverride === SEL_REPLACE && !e.altKey && !modCtrl){
     beginFloat();
     if(doc.floating){
@@ -4451,7 +4590,7 @@ function saveProject(saveAs){
   var defName = getBaseName()+'.pxproj';
   var layers = doc.layers.map(function(L){ return {name:L.name,visible:L.visible,opacity:L.opacity,png:imageDataToDataURL(L.imageData)}; });
   var data = {
-    app:'pxedit', version:9, width:doc.width, height:doc.height,
+    app:'pxedit', version:10, width:doc.width, height:doc.height,
     layers:layers, activeLayer:doc.activeLayer,
     grid:{w:doc.grid.w,h:doc.grid.h}, guides:doc.guides.slice(),
     showGuides: ui.showGuides, singleCell:ui.singleCell, currentCell:ui.currentCell,
@@ -4752,6 +4891,7 @@ var I18N = {
   'btn.openProj': {zh:'打开工程', en:'Open Project'},
   'btn.savePng': {zh:'另存 PNG', en:'Save As PNG'},
   'btn.saveProj': {zh:'另存工程', en:'Save As Project'},
+  'btn.splitExport': {zh:'拆分导出…', en:'Split Export…'},
   'tool.select': {zh:'选', en:'Sel'}, 'tool.lasso': {zh:'套', en:'Lasso'},
   'tool.pencil': {zh:'笔', en:'Pen'}, 'tool.eraser': {zh:'擦', en:'Era'},
   'tool.picker': {zh:'吸', en:'Pick'}, 'tool.bucket': {zh:'桶', en:'Fill'},
@@ -4962,6 +5102,14 @@ function handleMenuAction(act){
   }
 }
 
+var ALL_BTN = ['btnSave','btnSaveAs','btnClose','btnReset','btnFit','btnOne','inW','inH','btnHalf','btnQuart','btnEighth','btnDouble','btnPixelate','btnClean','btnColors','btnMergeSimilar','btnDeleteColor','btnSplitExport','btnBg','chkPixelGrid'];
+function setEnabled(on){
+  ALL_BTN.forEach(function(id){ var el=$(id); if(el) el.disabled=!on; });
+  updateHistoryUI(); updateSelectUI();
+}
+
+function $(id){ return document.getElementById(id); }
+
 function bindUI(){
   var toolBtns = document.querySelectorAll('.tool-btn');
   for(var i=0;i<toolBtns.length;i++){
@@ -5045,6 +5193,7 @@ function bindUI(){
   document.getElementById('show-grid').addEventListener('change', function(e){ ui.showGrid = e.target.checked; requestRender(); });
   document.getElementById('show-pixel-grid').addEventListener('change', function(e){ ui.showPixelGrid = e.target.checked; requestRender(); });
   document.getElementById('btn-resize').addEventListener('click', function(){ if(transformState) cancelTransform(); showResizeDialog(); });
+  document.getElementById('btn-split-export').addEventListener('click', function(){ if(transformState) cancelTransform(); showSplitExportDialog(); });
   document.getElementById('btn-play').addEventListener('click', function(){ if(ui.playing) stopPlay(); else startPlay(); });
   document.getElementById('btn-stop').addEventListener('click', stopPlay);
   document.getElementById('btn-anim-all').addEventListener('click', function(){
@@ -5221,7 +5370,6 @@ function mainLoop(now){
     if(animPreviewDirty) renderAnimPreview();
     if(doc.hasSelection || doc.floating || (drag.mode === 'select' && drag.selStart)
        || (drag.mode === 'lasso' && drag.lassoPoints) || rotState || transformState){
-      // 静态选择框：不再每帧更新 dashOffset，但仍需在状态变化时渲染
       needsRender = true;
     }
     if(needsRender){ render(); needsRender = false; }
