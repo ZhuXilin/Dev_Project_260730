@@ -250,8 +250,19 @@ static func has_attr_cap_levels(unit_type: String) -> bool:
 static func get_attr_cap_total_bonus(unit_type: String, cur_lv: int) -> Dictionary:
 	var levels : Array = get_attr_cap_levels(unit_type)
 	var total : Dictionary = {}
-	for i in range(mini(cur_lv, levels.size())):
-		var lv_dict : Dictionary = levels[i]
+	for i in range(cur_lv):
+		var lv_dict : Dictionary = {}
+		
+		if i < levels.size():
+			lv_dict = levels[i]
+		elif not levels.is_empty():
+			# ★ 核心修改：如果超出了 JSON 配置的最大等级，以最后一级为基准，属性按倍数膨胀
+			# 比如 JSON 有 3 级，第 4 级倍率 1.5，第 5 级倍率 2.0
+			var base_dict : Dictionary = levels.back()
+			var mult : float = 1.0 + (i - levels.size() + 1) * 0.5 
+			for k in base_dict:
+				lv_dict[k] = int(base_dict[k] * mult)
+		
 		for k in lv_dict:
 			total[k] = total.get(k, 0) + int(lv_dict[k])
 	return total

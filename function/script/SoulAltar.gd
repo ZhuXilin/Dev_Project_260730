@@ -4,7 +4,8 @@ signal closed
 
 enum Tab { SOUL_FIRE, ATTR_CAP, UNIT_UNLOCK, RELIC_REFINE }
 
-const ATTR_CAP_COSTS : Array[int] = [20, 50, 120]
+# ★ 修改：扩展属性上限等级到 5 级（对应消耗）
+const ATTR_CAP_COSTS : Array[int] = [20, 50, 120, 250, 500]
 
 var _current_tab : Tab = Tab.SOUL_FIRE
 var _current_unit_type : String = ""
@@ -175,8 +176,9 @@ func _build_unit_list():
 		var btn = Button.new()
 		var type_display = UnitDataManager.get_unit_type_display_name(unit_type)
 		var cap_lv : int = int(GameState.unit_attr_cap.get(unit_type, 0))
-		var levels : Array = UnitDataManager.get_attr_cap_levels(unit_type)
-		btn.text = "%s  [Lv %d/%d]" % [type_display, cap_lv, levels.size()]
+		# ★ 修改：最大等级改为 ATTR_CAP_COSTS.size()
+		var max_lv : int = ATTR_CAP_COSTS.size()
+		btn.text = "%s  [Lv %d/%d]" % [type_display, cap_lv, max_lv]
 		btn.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_SMALL)
 		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
@@ -222,8 +224,9 @@ func _refresh_attr_cap_panel():
 	var display : String = UnitDataManager.get_unit_type_display_name(_current_unit_type)
 	var dict : Dictionary = UnitDataManager.get_unit_data(_current_unit_type)
 	var cur_lv : int = int(GameState.unit_attr_cap.get(_current_unit_type, 0))
-	var levels : Array = UnitDataManager.get_attr_cap_levels(_current_unit_type)
-	var max_lv : int = levels.size()
+	
+	# ★ 修改：最大等级强制使用 ATTR_CAP_COSTS.size() (5)
+	var max_lv : int = ATTR_CAP_COSTS.size()
 
 	unit_name_label.text = "%s   上限 Lv %d / %d" % [display, cur_lv, max_lv]
 	unit_desc_label.text = dict.get("description", "")
@@ -238,11 +241,19 @@ func _refresh_attr_cap_panel():
 		attr_container.add_child(_make_info(_format_bonus_dict(total)))
 
 	if cur_lv < max_lv:
-		var next_dict : Dictionary = levels[cur_lv]
+		# ★ 修改：预览计算改为动态对比差值，防止 JSON 只有 3 级时读取越界
+		var current_total := UnitDataManager.get_attr_cap_total_bonus(_current_unit_type, cur_lv)
+		var next_total := UnitDataManager.get_attr_cap_total_bonus(_current_unit_type, cur_lv + 1)
+		var diff : Dictionary = {}
+		for k in next_total:
+			var d = next_total[k] - current_total.get(k, 0)
+			if d > 0:
+				diff[k] = d
+				
 		attr_container.add_child(_make_title("— 下一级 Lv%d 预览 —" % (cur_lv + 1)))
-		attr_container.add_child(_make_info(_format_bonus_dict(next_dict)))
+		attr_container.add_child(_make_info(_format_bonus_dict(diff)))
 
-		var cost : int = ATTR_CAP_COSTS[cur_lv] if cur_lv < ATTR_CAP_COSTS.size() else -1
+		var cost : int = ATTR_CAP_COSTS[cur_lv] if cur_lv < ATTR_CAP_COSTS.size() else 1000
 		if cost > 0:
 			attr_container.add_child(_make_upgrade_row("升级", cost,
 				func(): _on_upgrade_attr_cap()))
@@ -253,6 +264,7 @@ func _refresh_attr_cap_panel():
 	attr_container.add_child(_make_title("— 不可升级 —"))
 	var all_attrs : Array = ["vitality", "strength", "dexterity", "intelligence", "faith", "arcane"]
 	var upgradable : Dictionary = {}
+	var levels : Array = UnitDataManager.get_attr_cap_levels(_current_unit_type)
 	for lv_dict in levels:
 		if lv_dict is Dictionary:
 			for k in lv_dict:
@@ -283,9 +295,12 @@ func _refresh_attr_cap_panel():
 
 func _on_upgrade_attr_cap():
 	if _current_unit_type == "": return
-	var levels : Array = UnitDataManager.get_attr_cap_levels(_current_unit_type)
+	
 	var cur_lv : int = int(GameState.unit_attr_cap.get(_current_unit_type, 0))
-	if cur_lv >= levels.size(): return
+	
+	# ★ 修改：上限检查改为 ATTR_CAP_COSTS.size()
+	if cur_lv >= ATTR_CAP_COSTS.size(): return
+	
 	var cost : int = ATTR_CAP_COSTS[cur_lv] if cur_lv < ATTR_CAP_COSTS.size() else -1
 	if cost <= 0 or GameState.soul < cost: return
 

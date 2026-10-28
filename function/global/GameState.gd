@@ -423,7 +423,6 @@ func start_new_cycle():
 	temp_gold = 0
 	shop_level = 0
 	sacrifice_count = 0
-	cycle_start_soul = soul
 	keys = 0
 	if pending_tag_pin != "":
 		active_tag_pin = pending_tag_pin
@@ -431,6 +430,19 @@ func start_new_cycle():
 	else:
 		active_tag_pin = ""
 	soul_fire_threshold_override = 0.0
+	
+	# ★ 核心修改：新手期专属福利
+	if tutorial_stage == 0:
+		# 1. 自动解锁两个基础光环供新手直接体验
+		if "aura_flame" not in unlocked_auras:
+			unlocked_auras.append("aura_flame")
+		if "aura_guardian" not in unlocked_auras:
+			unlocked_auras.append("aura_guardian")
+		
+		# 2. 赠送 300 启动魂（前两局有效，足够在营地体验局外升级）
+		if total_run_count <= 2:
+			soul += 300
+			
 	for unit_data in party:
 		unit_data.sacrifice_buff_sources.clear()
 		unit_data.armor_slots.clear()
