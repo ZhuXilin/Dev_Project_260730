@@ -40,7 +40,7 @@ static func load_talent_data():
 		talent.id = dict.get("id", key)
 		talent.display_name = dict.get("display_name", key)
 		talent.description = dict.get("description", "")
-		talent.flavor = dict.get("flavor", "") # ★ 新增
+		talent.flavor = dict.get("flavor", "")
 		talent.school = dict.get("school", "")
 		talent.rarity = dict.get("rarity", "common")
 		talent.accumulation_threshold = dict.get("accumulation_threshold", 3)
@@ -58,9 +58,6 @@ static func load_talent_data():
 	print("成功加载 ", _talent_db.size(), " 个词条")
 
 
-# ============================================================
-#  ★ 新增：让静态缓存失效，下次读取时重载
-# ============================================================
 static func reload_all() -> void:
 	_talent_data_loaded = false
 	_talent_db.clear()
@@ -71,6 +68,15 @@ static func reload_all() -> void:
 static func get_talent_data(talent_id: String) -> TalentData:
 	load_talent_data()
 	return _talent_db.get(talent_id)
+
+
+static func get_talent_icon(talent_id: String) -> Texture2D:
+	if talent_id == "":
+		return null
+	var data = get_talent_data(talent_id)
+	if data and data.icon_path != "":
+		return IconManager.get_icon(data.icon_path)
+	return null
 
 
 static func get_talents_by_school(school: String) -> Array[TalentData]:
@@ -91,9 +97,6 @@ static func get_all_talent_ids() -> Array:
 	return ids
 
 
-# ============================================================
-#  解锁查询
-# ============================================================
 static func get_default_unlocked_talents() -> Array:
 	load_talent_data()
 	var result : Array = []
@@ -130,9 +133,6 @@ static func get_soul_cost(talent_id: String) -> int:
 	return data.soul_cost
 
 
-# ============================================================
-#  战斗触发
-# ============================================================
 static func is_talent_ready(unit, talent_id: String) -> bool:
 	if unit == null:
 		return false
@@ -222,9 +222,6 @@ static func get_ready_active_skills(unit) -> Array:
 	return result
 
 
-# ============================================================
-#  兼容性
-# ============================================================
 static func get_talent_compatible_units(talent_id: String) -> Array:
 	load_talent_data()
 	var data = _talent_db.get(talent_id)
@@ -233,12 +230,16 @@ static func get_talent_compatible_units(talent_id: String) -> Array:
 	return data.compatible_units if data.compatible_units != null else []
 
 
-static func is_talent_compatible_with_unit(talent_id: String, unit_name: String) -> bool:
+static func is_talent_compatible_with_unit(talent_id: String, unit_name: String, adv_class: String = "") -> bool:
 	var compatible = get_talent_compatible_units(talent_id)
 	if compatible.is_empty():
 		return true
 	var key = UnitDataManager.normalize_unit_key(unit_name)
-	return key in compatible
+	if key in compatible:
+		return true
+	if adv_class != "" and adv_class in compatible:
+		return true
+	return false
 
 
 static func get_talent_exp(unit_type: String, talent_id: String) -> int:

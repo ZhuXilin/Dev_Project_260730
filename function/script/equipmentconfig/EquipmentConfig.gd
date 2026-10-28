@@ -572,15 +572,21 @@ func _update_gold_display():
 
 func _build_aura_panel():
 	_clear_container(shop_container)
-	shop_container.columns = 1
-	shop_container.add_theme_constant_override("h_separation", 4)
-	shop_container.add_theme_constant_override("v_separation", 4)
+	# ★ 改为和商店一致的 3 列网格布局
+	shop_container.columns = 3
+	shop_container.add_theme_constant_override("h_separation", 2)
+	shop_container.add_theme_constant_override("v_separation", 2)
 	shop_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	shop_container.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	shop_container.visible = true
 
 	if shop_scroll:
 		shop_scroll.custom_minimum_size = Vector2(0, 0)
 		shop_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 		shop_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		shop_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+		shop_scroll.scroll_vertical = 0
+		shop_scroll.scroll_horizontal = 0
 
 	if _context.get_context_id() == "arena":
 		var hint0 := Label.new()
@@ -596,16 +602,7 @@ func _build_aura_panel():
 	var equipped : Array = GameState.get_auras_from_passives()
 	var candidates : Array = GameState.current_aura_candidates.duplicate()
 	var cur_sf : int = SoulFireManager.current
-	var cap : int = SoulFireManager.get_max_carried()
 	var empty_slot : int = _get_first_empty_passive_slot()
-
-	var info := Label.new()
-	info.text = "已解锁 %d / 已装备 %d / 魂火 %d/%d" % [
-		unlocked.size(), equipped.size(), cur_sf, cap
-	]
-	info.add_theme_font_size_override("font_size", 7)
-	info.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	shop_container.add_child(info)
 
 	if unlocked.is_empty():
 		var hint0 := Label.new()
@@ -617,124 +614,88 @@ func _build_aura_panel():
 		shop_container.add_child(hint0)
 		return
 
-	if not equipped.is_empty():
-		var eq_title := Label.new()
-		eq_title.text = "— 已装备（可卸下） —"
-		eq_title.add_theme_font_size_override("font_size", 7)
-		eq_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		eq_title.modulate = Color(0.7, 1.0, 0.7)
-		shop_container.add_child(eq_title)
-		for aid in equipped:
-			shop_container.add_child(_make_equipped_aura_row(aid))
+	# 1. 已装备的光环（点击可卸下）
+	for aid in equipped:
+		var btn := _make_aura_icon_btn(aid, cur_sf, true, empty_slot)
+		shop_container.add_child(btn)
 
-	var cand_title := Label.new()
-	cand_title.text = "— 候选（花魂火购买） —"
-	cand_title.add_theme_font_size_override("font_size", 7)
-	cand_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	cand_title.modulate = Color(0.8, 0.8, 0.9)
-	shop_container.add_child(cand_title)
+	# 2. 候选购买的光环（点击购买）
+	for aid in candidates:
+		var btn := _make_aura_icon_btn(aid, cur_sf, false, empty_slot)
+		shop_container.add_child(btn)
 
-	if candidates.is_empty():
-		var hint := Label.new()
-		hint.text = "暂无可购买候选\n（下次进入 FORGE 时重新抽取）"
-		hint.add_theme_font_size_override("font_size", 7)
-		hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		hint.modulate = Color(0.6, 0.6, 0.6)
-		hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		shop_container.add_child(hint)
-		return
-
-	if empty_slot < 0:
+	# 3. 提示信息（如果满槽且还有候选）
+	if empty_slot < 0 and not candidates.is_empty():
 		var warn := Label.new()
-		warn.text = "被动槽已满（%d/%d），卸下一个后可以再购买" % [MAX_PASSIVE_SLOTS, MAX_PASSIVE_SLOTS]
-		warn.add_theme_font_size_override("font_size", 7)
+		warn.text = "被动槽已满\n需先卸下光环"
+		warn.add_theme_font_size_override("font_size", 6)
 		warn.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		warn.modulate = Color(1.0, 0.6, 0.6)
 		warn.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		warn.custom_minimum_size = Vector2(40, 0)
 		shop_container.add_child(warn)
 
-	for aid in candidates:
-		shop_container.add_child(_make_aura_candidate_row(aid, empty_slot))
 
-
-func _make_equipped_aura_row(aid: String) -> HBoxContainer:
-	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 6)
-	var ad : Dictionary = AuraManager.get_aura(aid)
+func _make_aura_icon_btn(aid: String, cur_sf: int, is_equipped: bool, empty_slot: int) -> Button:
+	var btn : Button = Style.create_styled_button(Style.FONT_SMALL, Style.BTN_SHOP_SIZE)
+	btn.expand_icon = true
+	btn.clip_text = true
+	btn.alignment = HORIZONTAL_ALIGNMENT_CENTER
 	
+	var empty_sb := StyleBoxEmpty.new()
+	empty_sb.content_margin_left = 0
+	empty_sb.content_margin_right = 0
+	empty_sb.content_margin_top = 0
+	empty_sb.content_margin_bottom = 0
+	btn.add_theme_stylebox_override("normal", empty_sb)
+	btn.add_theme_stylebox_override("hover", empty_sb)
+	btn.add_theme_stylebox_override("pressed", empty_sb)
+	btn.add_theme_stylebox_override("focus", empty_sb)
+	btn.add_theme_stylebox_override("disabled", empty_sb)
+	
+	var ad : Dictionary = AuraManager.get_aura(aid)
 	var icon = ad.get("icon")
 	if icon is Texture2D:
-		var tex_rect = TextureRect.new()
-		tex_rect.texture = icon
-		tex_rect.custom_minimum_size = Vector2(16, 16)
-		tex_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-		tex_rect.stretch_mode = TextureRect.STRETCH_KEEP_CENTERED
-		row.add_child(tex_rect)
+		btn.icon = icon
+		btn.text = ""
 	else:
-		var name_lb := Label.new()
-		name_lb.text = "【%s】%s" % [ad.get("tag", ""), ad.get("name", aid)]
-		name_lb.add_theme_font_size_override("font_size", 8)
-		name_lb.custom_minimum_size = Vector2(90, 0)
-		name_lb.clip_text = true
-		name_lb.modulate = Color(0.7, 1.0, 0.7)
-		row.add_child(name_lb)
+		btn.text = ad.get("name", aid).substr(0, 2)
 
-	var desc_lb := Label.new()
-	desc_lb.text = ad.get("description", "")
-	desc_lb.add_theme_font_size_override("font_size", 6)
-	desc_lb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	desc_lb.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	row.add_child(desc_lb)
-
-	var unequip_btn := Button.new()
-	unequip_btn.text = "卸下"
-	unequip_btn.add_theme_font_size_override("font_size", 7)
-	unequip_btn.custom_minimum_size = Vector2(70, 20)
-	unequip_btn.pressed.connect(_on_unequip_aura.bind(aid))
-	row.add_child(unequip_btn)
-	return row
-
-
-func _make_aura_candidate_row(aid: String, empty_slot: int) -> HBoxContainer:
-	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 6)
-	var ad : Dictionary = AuraManager.get_aura(aid)
 	var buy_cost : int = int(ad.get("buy_cost", 0))
 	if buy_cost <= 0: buy_cost = 6
 
-	var icon = ad.get("icon")
-	if icon is Texture2D:
-		var tex_rect = TextureRect.new()
-		tex_rect.texture = icon
-		tex_rect.custom_minimum_size = Vector2(16, 16)
-		tex_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-		tex_rect.stretch_mode = TextureRect.STRETCH_KEEP_CENTERED
-		row.add_child(tex_rect)
+	# 价格 / 状态文字
+	var label = Label.new()
+	label.add_theme_font_size_override("font_size", 6)
+	label.add_theme_color_override("font_outline_color", Color.BLACK)
+	label.add_theme_constant_override("outline_size", 3)
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
+	label.set_anchors_preset(Control.PRESET_FULL_RECT)
+	label.offset_bottom = 1
+	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	
+	if is_equipped:
+		label.text = "已装"
+		label.add_theme_color_override("font_color", Color(0.7, 1.0, 0.7))
+		btn.pressed.connect(_on_unequip_aura.bind(aid))
 	else:
-		var name_lb := Label.new()
-		name_lb.text = "【%s】%s" % [ad.get("tag", ""), ad.get("name", aid)]
-		name_lb.add_theme_font_size_override("font_size", 8)
-		name_lb.custom_minimum_size = Vector2(90, 0)
-		name_lb.clip_text = true
-		row.add_child(name_lb)
+		label.text = "%d魂" % buy_cost
+		label.add_theme_color_override("font_color", Color.WHITE)
+		# 如果钱不够或者槽满，不可点击且变灰
+		if cur_sf < buy_cost or empty_slot < 0:
+			btn.modulate = Color(0.5, 0.5, 0.5)
+			btn.disabled = true
+		else:
+			btn.pressed.connect(_on_buy_aura.bind(aid, buy_cost))
 
-	var desc_lb := Label.new()
-	desc_lb.text = ad.get("description", "")
-	desc_lb.add_theme_font_size_override("font_size", 6)
-	desc_lb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	desc_lb.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	row.add_child(desc_lb)
-
-	var buy_btn := Button.new()
-	buy_btn.text = "购买 %d◆" % buy_cost
-	buy_btn.add_theme_font_size_override("font_size", 7)
-	buy_btn.custom_minimum_size = Vector2(70, 20)
-	var can_buy : bool = SoulFireManager.current >= buy_cost and empty_slot >= 0
-	buy_btn.disabled = not can_buy
-	if can_buy:
-		buy_btn.pressed.connect(_on_buy_aura.bind(aid, buy_cost))
-	row.add_child(buy_btn)
-	return row
+	btn.add_child(label)
+	
+	# 悬停触发右侧信息面板
+	btn.mouse_entered.connect(_on_aura_hover_entered.bind(aid))
+	btn.mouse_exited.connect(_on_aura_hover_exited)
+	
+	return btn
 
 
 func _get_first_empty_passive_slot() -> int:
@@ -1015,7 +976,7 @@ func _create_unit_icon(unit: UnitData, unit_idx: int) -> Control:
 	wrapper.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 	wrapper.mouse_filter = Control.MOUSE_FILTER_STOP
 
-	var texture_rect = UnitDataManager.create_idle_texture_rect(unit.unit_name, Vector2(icon_size, icon_size))
+	var texture_rect = UnitDataManager.create_idle_texture_rect(unit.unit_name, Vector2(icon_size, icon_size), unit.override_sprite_path)
 	
 	texture_rect.anchor_left = 0.5
 	texture_rect.anchor_right = 0.5
@@ -1138,36 +1099,52 @@ func _create_item_button(inst: ItemInstance, slot_type: String, unit_idx: int, s
 	return btn
 
 
+# 与 _create_item_button 完全一致的图标按钮基础样式
+func _apply_icon_button_style(btn: Button):
+	btn.expand_icon = true
+	btn.alignment = HORIZONTAL_ALIGNMENT_CENTER
+	btn.clip_text = true
+	var empty_sb := StyleBoxEmpty.new()
+	empty_sb.content_margin_left = 0
+	empty_sb.content_margin_right = 0
+	empty_sb.content_margin_top = 0
+	empty_sb.content_margin_bottom = 0
+	btn.add_theme_stylebox_override("normal", empty_sb)
+	btn.add_theme_stylebox_override("hover", empty_sb)
+	btn.add_theme_stylebox_override("pressed", empty_sb)
+	btn.add_theme_stylebox_override("focus", empty_sb)
+	btn.add_theme_stylebox_override("disabled", empty_sb)
+
+
 func _create_talent_button(inst: TalentInstance, unit_idx: int, slot_idx: int) -> Button:
-	var btn : Button = Style.create_styled_button(Style.FONT_TINY, Style.BTN_TALENT_SIZE)
-	btn.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	var btn : Button = Style.create_styled_button(Style.FONT_TINY, Style.BTN_ITEM_SIZE)
+	_apply_icon_button_style(btn)
 	btn.set_meta("slot_type", "talent")
 	btn.set_meta("unit_idx", unit_idx)
 	btn.set_meta("slot_idx", slot_idx)
+
 	if inst and inst.is_active:
 		var data : TalentData = TalentManager.get_talent_data(inst.talent_id)
 		if data:
-			var unit_name : String = ""
-			if unit_idx >= 0 and unit_idx < party.size():
-				unit_name = party[unit_idx].unit_name
-			if unit_name != "":
-				var lv : int = TalentManager.get_talent_level(unit_name, inst.talent_id)
-				if TalentManager.is_talent_max_level(unit_name, inst.talent_id):
-					btn.text = "%s Lv%d MAX" % [data.display_name, lv]
-				else:
-					var cur_exp : int = TalentManager.get_talent_exp_in_level(unit_name, inst.talent_id)
-					var need_exp : int = TalentManager.get_level_required_exp(unit_name, inst.talent_id)
-					btn.text = "%s Lv%d %d/%d" % [data.display_name, lv, cur_exp, need_exp]
+			var icon : Texture2D = TalentManager.get_talent_icon(inst.talent_id)
+			if icon:
+				btn.icon = icon
+				btn.text = ""
 			else:
-				btn.text = data.display_name
-			btn.modulate = Style.get_rarity_color(data.rarity)
+				# 兜底：极端情况下没有图标，取前两个字，避免完全空白
+				btn.text = data.display_name.substr(0, mini(2, data.display_name.length()))
+			# ★ 不染色，保留图标原色（与防具图标一致）
 			btn.set_meta("talent_id", inst.talent_id)
 			btn.mouse_entered.connect(_on_talent_hover_entered.bind(inst.talent_id))
 			btn.mouse_exited.connect(_on_talent_hover_exited)
 		else:
-			btn.text = "空"; btn.modulate = Color(0.5, 0.5, 0.5, 1); btn.set_meta("talent_id", "")
+			btn.text = "空"
+			btn.modulate = Color(0.5, 0.5, 0.5, 1)
+			btn.set_meta("talent_id", "")
 	else:
-		btn.text = "空"; btn.modulate = Color(0.5, 0.5, 0.5, 1); btn.set_meta("talent_id", "")
+		btn.text = "空"
+		btn.modulate = Color(0.5, 0.5, 0.5, 1)
+		btn.set_meta("talent_id", "")
 	return btn
 
 
@@ -1182,13 +1159,26 @@ func _build_passive_slots():
 
 
 func _create_passive_button(inst: Variant, slot_index: int) -> Button:
-	var btn : Button = Style.create_styled_button(Style.FONT_SMALL, Style.BTN_RELIC_SIZE)
+	# 强制使用和其他防具相同的 BTN_ITEM_SIZE (20x20)
+	var btn : Button = Style.create_styled_button(Style.FONT_SMALL, Style.BTN_ITEM_SIZE)
 	btn.clip_text = true
 	btn.expand_icon = true
 	btn.alignment = HORIZONTAL_ALIGNMENT_CENTER
 	btn.set_meta("slot_type", "passive_slot")
 	btn.set_meta("passive_index", slot_index)
 	
+	# ★ 核心修复：清除默认内边距，让图标撑满 20x20
+	var empty_sb := StyleBoxEmpty.new()
+	empty_sb.content_margin_left = 0
+	empty_sb.content_margin_right = 0
+	empty_sb.content_margin_top = 0
+	empty_sb.content_margin_bottom = 0
+	btn.add_theme_stylebox_override("normal", empty_sb)
+	btn.add_theme_stylebox_override("hover", empty_sb)
+	btn.add_theme_stylebox_override("pressed", empty_sb)
+	btn.add_theme_stylebox_override("focus", empty_sb)
+	btn.add_theme_stylebox_override("disabled", empty_sb)
+
 	if inst == null:
 		btn.text = "空"
 		btn.set_meta("item_id", "")
@@ -1201,7 +1191,6 @@ func _create_passive_button(inst: Variant, slot_index: int) -> Button:
 			if icon is Texture2D:
 				btn.icon = icon
 				btn.text = ""
-				# ★ 不设置 tooltip_text
 			else:
 				btn.text = prefix + data.get("name", "?")
 			btn.set_meta("item_id", item_inst.item_id)
@@ -1734,6 +1723,12 @@ func hide_item_detail(): _detail.clear_zone()
 func _on_button_hover_entered(item_id: String): _detail.on_button_hover_entered(item_id)
 func _on_button_hover_exited(): _detail.on_button_hover_exited()
 func _on_talent_hover_entered(talent_id: String): _detail.on_talent_hover_entered(talent_id)
+func _on_aura_hover_entered(aura_id: String) -> void:
+	if _detail:
+		_detail.show_aura(aura_id)
+func _on_aura_hover_exited() -> void:
+	if _detail:
+		_detail.clear_zone()
 func _on_talent_hover_exited(): _detail.on_talent_hover_exited()
 func _on_relic_hover_entered(relic_id: String): _detail.on_relic_hover_entered(relic_id)
 func _on_relic_hover_exited(): _detail.on_relic_hover_exited()
@@ -1823,10 +1818,11 @@ func _on_upgrade_shop_pressed():
 
 
 func _create_advanced_talent_button(unit: UnitData, unit_idx: int) -> Button:
-	var btn : Button = Style.create_styled_button(Style.FONT_TINY, Style.BTN_TALENT_SIZE)
-	btn.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	var btn : Button = Style.create_styled_button(Style.FONT_TINY, Style.BTN_ITEM_SIZE)
+	_apply_icon_button_style(btn)
 	btn.set_meta("slot_type", "advanced_talent")
 	btn.set_meta("unit_idx", unit_idx)
+	# ★ 保留 disabled：转职专属词条不可替换/拖拽（功能不变）
 	btn.disabled = true
 
 	if unit.advanced_talent_id == "":
@@ -1840,14 +1836,14 @@ func _create_advanced_talent_button(unit: UnitData, unit_idx: int) -> Button:
 		btn.modulate = Color(0.5, 0.5, 0.5, 1)
 		return btn
 
-	var lv : int = TalentManager.get_talent_level(unit.unit_name, unit.advanced_talent_id)
-	if TalentManager.is_talent_max_level(unit.unit_name, unit.advanced_talent_id):
-		btn.text = "%s Lv%d MAX" % [data.display_name, lv]
+	var icon : Texture2D = TalentManager.get_talent_icon(unit.advanced_talent_id)
+	if icon:
+		btn.icon = icon
+		btn.text = ""
 	else:
-		var cur_exp : int = TalentManager.get_talent_exp_in_level(unit.unit_name, unit.advanced_talent_id)
-		var need_exp : int = TalentManager.get_level_required_exp(unit.unit_name, unit.advanced_talent_id)
-		btn.text = "%s Lv%d %d/%d" % [data.display_name, lv, cur_exp, need_exp]
-	btn.modulate = Style.get_rarity_color(data.rarity)
+		btn.text = data.display_name.substr(0, mini(2, data.display_name.length()))
+
+	# ★ 不染色；disabled 状态由引擎自动做暗化，视觉上就能区分"不可操作"
 	btn.set_meta("talent_id", unit.advanced_talent_id)
 	btn.mouse_entered.connect(_on_talent_hover_entered.bind(unit.advanced_talent_id))
 	btn.mouse_exited.connect(_on_talent_hover_exited)

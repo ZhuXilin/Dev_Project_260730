@@ -179,6 +179,8 @@ func _on_aura_icon_clicked(aid: String):
 		update_relic_icons()
 
 
+# ============ PanelManager.gd ============
+
 func update_relic_icons() -> void:
 	for child in _bf.relic_icon_container.get_children():
 		child.queue_free()
@@ -186,23 +188,50 @@ func update_relic_icons() -> void:
 	var passives = GameState.get_passives()
 	var has_any = false
 
+	# ★ 统一使用 20x20 方形图标
+	var icon_size = Vector2(20, 20)
+
 	for i in range(passives.size()):
 		var p = passives[i]
 		if p == null: continue
 
-		if p is ItemInstance:
-			var btn := Button.new()
-			btn.add_theme_font_size_override("font_size", 6)
-			btn.focus_mode = Control.FOCUS_NONE
-			btn.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-			btn.custom_minimum_size = Vector2(0, 14)
+		var btn := Button.new()
+		btn.custom_minimum_size = icon_size
+		btn.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		btn.focus_mode = Control.FOCUS_NONE
+		btn.expand_icon = true
+		btn.alignment = HORIZONTAL_ALIGNMENT_CENTER
+		
+		# 清除内边距和默认背景，确保纯图标显示，不灰暗
+		var empty_sb := StyleBoxEmpty.new()
+		empty_sb.content_margin_left = 0
+		empty_sb.content_margin_right = 0
+		empty_sb.content_margin_top = 0
+		empty_sb.content_margin_bottom = 0
+		btn.add_theme_stylebox_override("normal", empty_sb)
+		btn.add_theme_stylebox_override("hover", empty_sb)
+		btn.add_theme_stylebox_override("pressed", empty_sb)
+		btn.add_theme_stylebox_override("focus", empty_sb)
+		btn.add_theme_stylebox_override("disabled", empty_sb)
 
+		if p is ItemInstance:
 			var data = RelicManager.get_relic_data(p.item_id)
 			if data.is_empty(): continue
-			var prefix : String = "★ " if GameState.is_relic_refined(p.item_id) else "◆ "
-			btn.text = prefix + data.get("name", "?")
-			btn.disabled = true
-			btn.tooltip_text = data.get("description", "")
+			
+			var icon = data.get("icon")
+			if icon is Texture2D:
+				btn.icon = icon
+				btn.text = ""
+			else:
+				var prefix : String = "★ " if GameState.is_relic_refined(p.item_id) else ""
+				btn.text = prefix + data.get("name", "?").substr(0, 2)
+				
+			# ★ 修复：不使用 disabled，避免半透明。移除原生 tooltip
+			btn.tooltip_text = ""
+			var r_id = p.item_id
+			btn.mouse_entered.connect(func(): _show_relic_hover_info(r_id))
+			btn.mouse_exited.connect(_hide_relic_hover_info)
+			
 			_bf.relic_icon_container.add_child(btn)
 			has_any = true
 			
@@ -211,17 +240,19 @@ func update_relic_icons() -> void:
 			var ad : Dictionary = AuraManager.get_aura(aid)
 			if ad.is_empty(): continue
 				
-			var btn2 := Button.new()
-			btn2.add_theme_font_size_override("font_size", 6)
-			btn2.focus_mode = Control.FOCUS_NONE
-			btn2.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-			btn2.custom_minimum_size = Vector2(0, 14)
-			btn2.text = "✦ " + ad.get("name", aid)
-			btn2.disabled = false
-			btn2.tooltip_text = ad.get("description", "") + "\n\n点击使用（立即生效，本场消耗）"
-			btn2.pressed.connect(_on_aura_icon_clicked.bind(aid))
+			var icon = ad.get("icon")
+			if icon is Texture2D:
+				btn.icon = icon
+				btn.text = ""
+			else:
+				btn.text = ad.get("name", aid).substr(0, 2)
+				
+			btn.tooltip_text = ""
+			btn.pressed.connect(_on_aura_icon_clicked.bind(aid))
+			btn.mouse_entered.connect(func(): _show_aura_hover_info(aid))
+			btn.mouse_exited.connect(_hide_relic_hover_info)
 			
-			_bf.relic_icon_container.add_child(btn2)
+			_bf.relic_icon_container.add_child(btn)
 			has_any = true
 
 	if not has_any:
@@ -229,6 +260,40 @@ func update_relic_icons() -> void:
 		label.text = "无遗物"
 		label.add_theme_font_size_override("font_size", 6)
 		_bf.relic_icon_container.add_child(label)
+
+# ★ 新增：遗物悬浮显示到左上角统一信息面板
+func _show_relic_hover_info(relic_id: String):
+	if not _bf or not _bf.info_text_label or not _bf.info_panel: return
+	var data = RelicManager.get_relic_data(relic_id)
+	if data.is_empty(): return
+	
+	var lines = []
+	var name_text = data.get("name", "未知遗物")
+	if GameState.is_relic_refined(relic_id): name_text = "★ " + name_text
+	lines.append(name_text)
+	lines.append("遗物")
+	lines.append(data.get("description", ""))
+	
+	_bf.info_text_label.text = "\n".join(lines)
+	_bf._adjust_info_panel(_bf.info_text_label, _bf.info_panel, null)
+
+# ★ 新增：光环悬浮显示到统一信息面板
+func _show_aura_hover_info(aid: String):
+	if not _bf or not _bf.info_text_label or not _bf.info_panel: return
+	var ad = AuraManager.get_aura(aid)
+	if ad.is_empty(): return
+	
+	var lines = []
+	lines.append(ad.get("name", aid))
+	lines.append("光环 [" + str(ad.get("tag", "")) + "]")
+	lines.append(ad.get("description", ""))
+	
+	_bf.info_text_label.text = "\n".join(lines)
+	_bf._adjust_info_panel(_bf.info_text_label, _bf.info_panel, null)
+
+func _hide_relic_hover_info():
+	if _bf:
+		_bf._on_request_hide_info()
 
 
 func create_scroll_container(child: Control, parent: Node, container_name: String) -> ScrollContainer:

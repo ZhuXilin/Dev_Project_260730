@@ -9,7 +9,6 @@ var _hover_ref : Dictionary = {}   # {"kind": "item/relic/talent/aura/unit", "id
 
 func _init(p):
 	panel = p
-	# 获取新挂载的通用面板
 	_info_ui = panel.get_node_or_null("VBoxContainer/MainHBox/LeftInfoColumn/DetailZone/ItemInfoPanel")
 
 func has_hover() -> bool:
@@ -39,9 +38,6 @@ func clear_zone():
 	if _info_ui and _info_ui.has_method("clear_info"):
 		_info_ui.clear_info()
 
-# ============================================================
-#  单位 (这里保留纯文本，或者你也可以复用之前的 UnitInfoPanel)
-# ============================================================
 func show_unit(unit : UnitData):
 	_hover_ref = {"kind": "unit", "unit_data": unit}
 	if FlavorManager.is_narrative_mode():
@@ -52,6 +48,10 @@ func show_unit(unit : UnitData):
 
 	var display : String = unit.display_name if unit.display_name != "" else unit.unit_name
 	var type_name : String = UnitDataManager.get_unit_type_display_name(unit.unit_name)
+	
+	# ★ 修复：如果已经转职，显示进阶职业名称
+	if unit.advanced_class != "":
+		type_name = AdvancedClassManager.get_display_name(unit.advanced_class)
 
 	var desc = ""
 	if unit.is_dead: desc += "【已冻结】可通过英灵殿或复活圣油解冻\n"
@@ -70,9 +70,6 @@ func show_unit(unit : UnitData):
 
 	_show_raw(display, type_name, desc, "", "\n".join(stats))
 
-# ============================================================
-#  物品
-# ============================================================
 func show_item(item_id: String, affixes: Array = []):
 	_hover_ref = {"kind": "item", "id": item_id}
 
@@ -93,7 +90,6 @@ func show_item(item_id: String, affixes: Array = []):
 		_show_raw(data.name, "", "", flavor, "", data.icon)
 		return
 
-	# 玩法模式数据拼装
 	var type_str = ""
 	if data.quality: type_str += Style.get_quality_display_name(data.quality) + " "
 	if data.tags: type_str += "[" + "/".join(data.tags) + "]"
@@ -125,9 +121,6 @@ func show_item(item_id: String, affixes: Array = []):
 
 	_show_raw(data.name, type_str, desc, "", "\n".join(stats_arr), data.icon, UIConst.QUALITY_COLORS.get(data.quality, Color.WHITE))
 
-# ============================================================
-#  遗物
-# ============================================================
 func show_relic(data: Dictionary, item_id: String = ""):
 	_hover_ref = {"kind": "relic", "id": item_id}
 
@@ -143,15 +136,16 @@ func show_relic(data: Dictionary, item_id: String = ""):
 	var desc = data.get("description", "")
 	if item_id != "" and GameState.is_relic_refined(item_id): desc += "\n（已精炼）"
 	
-	var icon = null
-	var path = data.get("icon", "")
-	if path != "" and ResourceLoader.exists(path): icon = load(path)
+	# ★ 修复：RelicManager 里已经存成 Texture2D 了，做一下类型兼容判断
+	var icon : Texture2D = null
+	var icon_data = data.get("icon", null)
+	if icon_data is Texture2D:
+		icon = icon_data
+	elif icon_data is String and icon_data != "":
+		icon = IconManager.get_icon_or_null(icon_data)
 	
 	_show_raw(name_text, "遗物", desc, "", "", icon, Color(1.0, 0.85, 0.3))
 
-# ============================================================
-#  特技
-# ============================================================
 func show_talent(data: TalentData):
 	_hover_ref = {"kind": "talent", "id": data.id}
 
@@ -173,14 +167,11 @@ func show_talent(data: TalentData):
 	else:
 		stats += "\n可装备: 全部"
 
-	var icon = null
-	if data.icon_path != "" and ResourceLoader.exists(data.icon_path): icon = load(data.icon_path)
+	# ★ 统一调用
+	var icon : Texture2D = TalentManager.get_talent_icon(data.id)
 
 	_show_raw(data.display_name, type_str, data.description, "", stats, icon, Style.get_rarity_color(data.rarity))
 
-# ============================================================
-#  光环
-# ============================================================
 func show_aura(aura_id: String):
 	_hover_ref = {"kind": "aura", "id": aura_id}
 
@@ -196,13 +187,11 @@ func show_aura(aura_id: String):
 		return
 
 	var type_str = "光环 [" + str(ad.get("tag", "")) + "]"
-	var stats = "研究时长: %d 天\n购买价: %d◆" % [int(ad.get("research_time", 2)), int(ad.get("buy_cost", 6))]
+	# ★ 修改：单位变成“魂火”
+	var stats = "研究时长: %d 天\n购买价: %d 魂火" % [int(ad.get("research_time", 2)), int(ad.get("buy_cost", 6))]
 	
 	_show_raw(ad.get("name", aura_id), type_str, ad.get("description", ""), "", stats, null, Color(0.7, 0.9, 1.0))
 
-# ============================================================
-#  辅助工具
-# ============================================================
 func _show_raw(name: String, type_str: String, desc: String, flavor: String, stats: String, icon: Texture2D = null, name_color: Color = Color.WHITE):
 	if not _info_ui: return
 	
@@ -225,7 +214,6 @@ func _build_set_hint(data : ItemData) -> String:
 	if parts.is_empty(): return ""
 	return "--- 套装（3件）---\n" + "\n".join(parts)
 
-# 兼容老接口
 func show_in_zone(text: String):
 	if _info_ui: _info_ui.show_info({"name": "", "desc": text})
 

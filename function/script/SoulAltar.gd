@@ -64,7 +64,6 @@ func _ready():
 
 
 func _ensure_layout():
-	var vbox : VBoxContainer = $Panel/VBox
 	var main_hbox : HBoxContainer = $Panel/VBox/MainHBox
 	if main_hbox.has_node("RightInfoContainer"): return
 	

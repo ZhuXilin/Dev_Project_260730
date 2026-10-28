@@ -154,35 +154,22 @@ func _update_dialogue_avatar(speaker: String):
 
 # 3. 新增头像资源智能加载逻辑
 func _resolve_speaker_avatar(speaker: String) -> Texture2D:
-	# 过滤掉没有实体的说话者
 	if speaker == "" or speaker == "???" or speaker == "系统" or speaker == "指挥官":
 		return null
 		
 	var avatar_id := ""
-	
-	# 策略 1：优先查是不是可上阵单位（如 艾琳、罗兰）
 	var unit_key = UnitDataManager.normalize_unit_key(speaker)
 	if not UnitDataManager.get_unit_data(unit_key).is_empty():
 		avatar_id = GameState.get_unit_avatar(unit_key)
 	else:
-		# 策略 2：如果不是单位，查是不是剧情 NPC（如 守火者、铁匠）
 		avatar_id = StoryManager.get_npc_avatar_id(speaker)
 		
 	if avatar_id == "":
 		return null
 		
-	# 加载统一路径的头像
-	var path = "res://content/images/characters/avatar/%s.png" % avatar_id
 	print("[对话头像] 说话者: ", speaker, " | 尝试加载: ", avatar_id)
-	if ResourceLoader.exists(path):
-		return load(path)
-		
-	# 兼容：如果是旧的 sanctuary 目录下的 NPC 图，也支持读取
-	var backup_path = "res://content/images/sanctuary/%s.png" % avatar_id
-	if ResourceLoader.exists(backup_path):
-		return load(backup_path)
-		
-	return null
+	# ★ 直接交由 IconManager 全局搜索
+	return IconManager.get_icon_or_null(avatar_id)
 
 
 # ============================================================

@@ -107,24 +107,47 @@ var _color_material : ShaderMaterial = null
 
 var _initialized: bool = false
 
+
 func _ready():
-	if _initialized: return
-	if not animated_sprite:
-		animated_sprite = $Sprite as AnimatedSprite2D
-	if animated_sprite and not animated_sprite.sprite_frames:
-		var image = Image.create(MapConst.CELL_SIZE, MapConst.CELL_SIZE, false, Image.FORMAT_RGBA8)
-		image.fill(Color.MAGENTA)
-		var placeholder = ImageTexture.create_from_image(image)
-		var frames = SpriteFrames.new()
-		frames.add_animation("idle")
-		frames.add_frame("idle", placeholder)
-		animated_sprite.sprite_frames = frames
-		animated_sprite.play("idle")
-		animated_sprite.visible = true
-		animated_sprite.z_index = 2
-	
+	if not _initialized:
+		if not animated_sprite:
+			animated_sprite = $Sprite as AnimatedSprite2D
+		if animated_sprite and not animated_sprite.sprite_frames:
+			var image = Image.create(MapConst.CELL_SIZE, MapConst.CELL_SIZE, false, Image.FORMAT_RGBA8)
+			image.fill(Color.MAGENTA)
+			var placeholder = ImageTexture.create_from_image(image)
+			var frames = SpriteFrames.new()
+			frames.add_animation("idle")
+			frames.add_frame("idle", placeholder)
+			animated_sprite.sprite_frames = frames
+			animated_sprite.play("idle")
+			animated_sprite.visible = true
+			animated_sprite.z_index = 2
+		_initialized = true
+
+	# ★ 核心修复：不管 setup_unit 中是否已经设置过 _initialized，
+	# _ready 执行时 @onready 必定已经就绪，这里强制刷新一次 UI
+	update_hp_bar()
+	update_hp_label()
 	if hp_bar_container:
 		hp_bar_container.visible = _hp_bar_visible
+
+
+func update_hp_label():
+	var hp_label = $HPLabel
+	if hp_label:
+		hp_label.text = str(hit_points) + "/" + str(unit_stats.max_hp)
+	# ★ 核心修复：让文字和血条联动，只要修改血量调用了 update_hp_label，血条就同步刷新
+	update_hp_bar()
+
+
+func update_hp_bar():
+	if not is_instance_valid(hp_bar_container) or unit_stats == null: return
+	var ratio = float(hit_points) / float(max(1, unit_stats.max_hp))
+	# ★ 修复：基础宽度从 16.0 改为 12.0，与 .tscn 里的 Background 宽度一致，避免溢出
+	hp_bar_fill.size.x = 12.0 * clampf(ratio, 0.0, 1.0)
+	# ★ 统一使用鲜红色
+	hp_bar_fill.color = Color(0.9, 0.1, 0.1)
 
 
 func _resolve_sprite_path() -> String:
@@ -229,9 +252,7 @@ func setup_unit(stats_data: UnitData, start_cell: Vector2i, initial_items: Array
 	taunt_rounds_left = 0
 
 	_initialized = true
-	
-	update_hp_bar()
-	if hp_bar_container: hp_bar_container.visible = _hp_bar_visible # 强制同步
+
 
 func reset_relic_effects():
 	relic_first_attack_crit_available = false
@@ -688,21 +709,6 @@ func play_hit_effect(direction: Vector2, is_hit: bool):
 		if is_instance_valid(_color_material):
 			_color_material.set_shader_parameter("hit_enable_flash", false)
 	).set_delay(MapConst.HIT_FLASH_DURATION)
-
-
-func update_hp_label():
-	var hp_label = $HPLabel
-	if hp_label:
-		hp_label.text = str(hit_points) + "/" + str(unit_stats.max_hp)
-
-
-func update_hp_bar():
-	if not is_instance_valid(hp_bar_container) or unit_stats == null: return
-	# 计算血量比例调整长度
-	var ratio = float(hit_points) / float(max(1, unit_stats.max_hp))
-	hp_bar_fill.size.x = 16.0 * clampf(ratio, 0.0, 1.0)
-	# ★ 统一使用鲜红色，不再根据残血变色
-	hp_bar_fill.color = Color(0.9, 0.1, 0.1)
 
 
 # ★ 核心新增：全局血条显隐开关

@@ -23,7 +23,6 @@ const BOSS_NODE_TYPE = 6
 @onready var info_text_label : Label = $Info/InfoPanel/VBox/InfoTextLabel
 @onready var soul_fire_bar : ProgressBar = $HUD/SoulFireHUD/SoulFireBar
 @onready var soul_fire_label : Label = $HUD/SoulFireHUD/SoulFireLabel
-@onready var soul_fire_state_label : Label = $HUD/SoulFireHUD/StateLabel
 
 
 @onready var setting_panel : PanelContainer = $SettingBar/SettingPanel
@@ -789,10 +788,9 @@ func _on_request_show_info(unit: Unit):
 			_hide_avatar(avatar_rect, avatar_bg)
 		else:
 			var avatar_id = GameState.get_unit_avatar(unit.unit_stats.unit_name)
-			var path := ""
-			if avatar_id != "": path = "res://content/images/characters/avatar/%s.png" % avatar_id
-			if path != "" and ResourceLoader.exists(path):
-				var tex = load(path)
+			# ★ 替换硬编码路径
+			var tex = IconManager.get_icon_or_null(avatar_id)
+			if tex:
 				if avatar_rect.texture != tex: avatar_rect.texture = tex
 				avatar_rect.custom_minimum_size = Vector2(48, 48)
 				avatar_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
@@ -1008,20 +1006,17 @@ func _on_soul_fire_changed(current: int, max_carried: int):
 		soul_fire_bar.value = current
 	if soul_fire_label and is_instance_valid(soul_fire_label):
 		soul_fire_label.text = "%d/%d" % [current, max_carried]
-	if soul_fire_state_label and is_instance_valid(soul_fire_state_label):
+		
+		# ★ 将原本 StateLabel 的状态颜色变化，直接应用在数字文本上
 		match SoulFireManager.get_state():
 			SoulFireManager.State.BURNING:
-				soul_fire_state_label.text = "[燃烧]"
-				soul_fire_state_label.modulate = Color(1.0, 0.6, 0.2, 1)
+				soul_fire_label.modulate = Color(1.0, 0.302, 0.302, 1.0) # 燃烧（橙色）
 			SoulFireManager.State.DEPLETED:
-				soul_fire_state_label.text = "[枯竭]"
-				soul_fire_state_label.modulate = Color(0.7, 0.3, 1.0, 1)
+				soul_fire_label.modulate = Color(0.708, 0.499, 0.0, 1.0) # 枯竭（紫色）
 			SoulFireManager.State.ZERO:
-				soul_fire_state_label.text = "[归零]"
-				soul_fire_state_label.modulate = Color(1.0, 0.3, 0.3, 1)
+				soul_fire_label.modulate = Color(1.0, 1.0, 1.0, 1.0) # 归零（红色）
 			_:
-				soul_fire_state_label.text = ""
-				soul_fire_state_label.modulate = Color.WHITE
+				soul_fire_label.modulate = Color.WHITE # 正常（白色）
 
 func _on_speed_changed(new_speed: int):
 	if speed_indicator == null: return
@@ -1504,9 +1499,9 @@ func _update_unit_display_info(unit_type: String, stats_text: String, avatar_bg:
 	var has_avatar = false
 	
 	if avatar_id != "":
-		var path = "res://content/images/characters/avatar/%s.png" % avatar_id
-		if ResourceLoader.exists(path):
-			var tex = load(path)
+		# ★ 替换硬编码路径
+		var tex = IconManager.get_icon_or_null(avatar_id)
+		if tex:
 			if avatar_rect.texture != tex:
 				avatar_rect.texture = tex
 			has_avatar = true

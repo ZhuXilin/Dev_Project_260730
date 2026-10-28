@@ -380,19 +380,24 @@ static func get_idle_texture(unit_name: String) -> Texture2D:
 		return tex
 	return null
 
-# 一键生成带有 idle 动画的 TextureRect 节点（供 UI 卡片使用）
-static func create_idle_texture_rect(unit_name: String, icon_size: Vector2 = Vector2(32, 32)) -> TextureRect:
+
+static func create_idle_texture_rect(unit_name: String, icon_size: Vector2 = Vector2(32, 32), override_path: String = "") -> TextureRect:
 	var rect := TextureRect.new()
 	rect.custom_minimum_size = icon_size
 	rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	
-	var sf = get_sprite_frames(unit_name)
+	var sf: SpriteFrames = null
+	# ★ 修复：优先读取转职后的覆盖贴图
+	if override_path != "" and ResourceLoader.exists(override_path):
+		sf = load(override_path) as SpriteFrames
+	else:
+		sf = get_sprite_frames(unit_name)
+		
 	if sf and sf.has_animation("idle") and sf.get_frame_count("idle") > 0:
 		rect.texture = sf.get_frame_texture("idle", 0)
 		
-		# 挂载定时器播放动画
 		var timer := Timer.new()
 		timer.wait_time = 0.25
 		timer.autostart = true

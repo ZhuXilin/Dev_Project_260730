@@ -126,9 +126,9 @@ func _update_avatar(unit_name: String):
 	var has_avatar = false
 	
 	if avatar_id != "":
-		var path = "res://content/images/characters/avatar/%s.png" % avatar_id
-		if ResourceLoader.exists(path):
-			var tex = load(path)
+		# ★ 替换硬编码路径
+		var tex = IconManager.get_icon_or_null(avatar_id)
+		if tex:
 			if avatar_rect.texture != tex:
 				avatar_rect.texture = tex
 			has_avatar = true

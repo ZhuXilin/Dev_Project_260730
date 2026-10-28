@@ -51,8 +51,8 @@ func get_drag_hint() -> String:
 			if _hovered_target.unit_stats.team_id == _pressing_unit.unit_stats.team_id:
 				return "释放左键回复 HP"
 			if _is_target_in_range(_hovered_target):
-				return "释放左键魔法攻击"
-			return "释放左键移动并魔法攻击"
+				return "释放左键攻击"
+			return "释放左键移动并攻击"
 		if _is_target_in_range(_hovered_target):
 			return "释放左键攻击"
 		return "释放左键移动并攻击"
@@ -303,13 +303,10 @@ func _update_drag():
 	
 	if hovered != null:
 		var is_valid = _is_valid_target(hovered)
-		var can_attack_now = _is_target_in_range(hovered)
-		var can_attack_after_move = false
-
-		if is_valid and not can_attack_now:
-			can_attack_after_move = (_find_attack_path(hovered).size() > 0)
-
-		var new_target : Unit = hovered if (is_valid and (can_attack_now or can_attack_after_move)) else null
+		
+		# ★ 核心修改：只要目标合法（比如是敌人），就视为悬停目标，直接显示预估面板
+		# （即便移动过去也够不着，玩家也需要看伤害来做战斗计划）
+		var new_target : Unit = hovered if is_valid else null
 
 		if new_target != null and _hovered_target != new_target:
 			SoundManager.play_select_sound()
@@ -317,12 +314,10 @@ func _update_drag():
 		_mouse_out_of_range = false
 
 		if new_target != null:
-			# ★ 核心调用：如果现在就能打到，立刻弹面板
-			if can_attack_now:
-				_bf.show_damage_preview(_pressing_unit, new_target)
-			else:
-				_bf.hide_damage_preview()
-				
+			# 只要悬停在敌军上，无论能否打得到，都弹出伤害预估面板
+			_bf.show_damage_preview(_pressing_unit, new_target)
+			
+			# 因为够不着（或者不想走过去），所以隐藏路径箭头
 			_current_target_cell = cell
 			_current_path = []
 			_arrow.hide_path()
@@ -400,16 +395,19 @@ func _is_target_in_range(target : Unit) -> bool:
 	if unit == null or target == null: return false
 	var weapon = unit.get_weapon_data()
 	if not weapon: return false
+	# ★ 使用升级后的有效射程
+	var up_lv : int = unit.weapon_slot.upgrade_level if unit.weapon_slot else 0
+	var max_range : int = WeaponUpgradeHelper.get_effective_attack_range(weapon, up_lv)
 	var dist = abs(unit.grid_cell.x - target.grid_cell.x) \
 			+ abs(unit.grid_cell.y - target.grid_cell.y)
-	return dist >= weapon.min_attack_range and dist <= weapon.attack_range
+	return dist >= weapon.min_attack_range and dist <= max_range
 
 
 func _is_valid_target(target : Unit) -> bool:
 	var unit = _pressing_unit
 	if unit == null or target == null: return false
 	if unit.get_weapon_type() == "staff":
-		return true   # ★ 友军治疗 / 敌军魔法攻击
+		return true   # ★ 友军治疗 / 敌军攻击
 	return target.unit_stats.team_id != unit.unit_stats.team_id
 	
 
@@ -420,7 +418,9 @@ func _find_attack_path(target : Unit) -> Array:
 	if not weapon: return []
 
 	var min_range : int = weapon.min_attack_range
-	var max_range : int = weapon.attack_range
+	# ★ 同上：升级后射程
+	var up_lv : int = unit.weapon_slot.upgrade_level if unit.weapon_slot else 0
+	var max_range : int = WeaponUpgradeHelper.get_effective_attack_range(weapon, up_lv)
 
 	var reachable = UnitManager.get_reachable_cells(
 		unit.grid_cell, unit.remaining_move, unit)
