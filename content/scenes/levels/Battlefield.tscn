@@ -14,7 +14,6 @@
 [ext_resource type="PackedScene" uid="uid://cncy326mv2dec" path="res://content/scenes/ui/battlefield/HUD.tscn" id="26_hud"]
 [ext_resource type="PackedScene" uid="uid://coywhlbv4e5xs" path="res://content/scenes/ui/battlefield/SettingBar.tscn" id="30_settingbar"]
 [ext_resource type="PackedScene" uid="uid://bwskxaknuph6w" path="res://content/scenes/ui/battlefield/TeamViewLayer.tscn" id="31_teamviewlayer"]
-[ext_resource type="PackedScene" uid="uid://cined60rlvxl5" path="res://content/scenes/ui/battlefield/ItemListLayer.tscn" id="32_itemlistlayer"]
 [ext_resource type="PackedScene" uid="uid://dnpuqss31s4ae" path="res://content/scenes/ui/battlefield/SettingMenuLayer.tscn" id="33_settingmenulayer"]
 
 [node name="Battlefield" type="Node2D" unique_id=1906074632]
@@ -33,8 +32,6 @@ script = ExtResource("1_s4k4j")
 [node name="SettingBar" parent="." unique_id=1938508011 instance=ExtResource("30_settingbar")]
 
 [node name="TeamViewLayer" parent="." unique_id=890728464 instance=ExtResource("31_teamviewlayer")]
-
-[node name="ItemListLayer" parent="." unique_id=820011087 instance=ExtResource("32_itemlistlayer")]
 
 [node name="SettingMenuLayer" parent="." unique_id=1082519316 instance=ExtResource("33_settingmenulayer")]
 

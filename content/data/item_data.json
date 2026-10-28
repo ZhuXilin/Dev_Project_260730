@@ -54,7 +54,7 @@
   },
   "longbow": {
 	"id": "longbow", "name": "长弓", "type": "weapon", "use_type": "infinite",
-	"icon": "item_077",
+	"icon": "item_081",
 	"description": "装备后攻击+4，射程2-3",
 	"flavor": "长弓用了七年。弓弦换过九次，弓身没换过。\n\n「为什么不换弓？」\n「弓会记住拉弓的人。」",
 	"category": "bow", "equipment_slot": "weapon",
@@ -67,7 +67,7 @@
   },
   "light_crossbow": {
 	"id": "light_crossbow", "name": "轻弩", "type": "weapon", "use_type": "infinite",
-	"icon": "item_064",
+	"icon": "item_082",
 	"description": "装备后攻击+4，射程2-3",
 	"flavor": "",
 	"category": "crossbow", "equipment_slot": "weapon",

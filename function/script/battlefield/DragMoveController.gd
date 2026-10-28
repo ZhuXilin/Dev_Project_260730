@@ -484,6 +484,7 @@ func _do_move_and_attack_async(unit : Unit, path : Array, target : Unit):
 
 
 # 攻击方式选择菜单
+# 攻击方式选择菜单
 func _show_attack_menu(attacker: Unit, target: Unit, is_after_move: bool) -> void:
 	# ★ v4.6：自愈时跳过技能菜单，直接走 _execute_heal
 	if attacker == target:
@@ -514,6 +515,15 @@ func _show_attack_menu(attacker: Unit, target: Unit, is_after_move: bool) -> voi
 
 	# 构建菜单
 	var popup := PopupMenu.new()
+	
+	# ★ 核心修改：统一 8bit 风格和字体
+	var stylebox = load(Config.PATHS.STYLEBOX_8BIT)
+	if stylebox:
+		popup.add_theme_stylebox_override("panel", stylebox)
+	popup.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_NORMAL)
+	popup.add_theme_constant_override("v_separation", 4)
+	popup.add_theme_constant_override("h_separation", 4)
+	
 	_bf.add_child(popup)
 
 	popup.add_item("普通攻击 (无消耗)", 0)
@@ -553,7 +563,7 @@ func _show_attack_menu(attacker: Unit, target: Unit, is_after_move: bool) -> voi
 	var mouse_pos = _bf.get_viewport().get_mouse_position()
 	popup.position = Vector2i(mouse_pos)
 	popup.popup()
-	
+
 
 # ============================================================
 #  攻击范围显示

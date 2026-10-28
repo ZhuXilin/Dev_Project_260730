@@ -31,14 +31,9 @@ const BOSS_NODE_TYPE = 6
 @onready var back_to_menu_btn : Button = $SettingBar/SettingPanel/SettingContainer/BackToMenuBtn
 @onready var setting_btn : Button = $SettingBar/SettingPanel/SettingContainer/SettingBtn
 @onready var team_view_btn : Button = $SettingBar/SettingPanel/SettingContainer/TeamViewBtn
-@onready var item_list_btn : Button = $SettingBar/SettingPanel/SettingContainer/ItemListBtn
-@onready var relic_view_btn : Button = $SettingBar/SettingPanel/SettingContainer/RelicViewBtn
 
 @onready var team_view_panel : PanelContainer = $TeamViewLayer/TeamViewPanel
 @onready var team_view_container : VBoxContainer = $TeamViewLayer/TeamViewPanel/TeamViewContainer
-
-@onready var item_list_panel : PanelContainer = $ItemListLayer/ItemListPanel
-@onready var item_list_container : VBoxContainer = $ItemListLayer/ItemListPanel/ItemListContainer
 
 @onready var setting_menu_panel : Panel = $SettingMenuLayer/SettingMenuPanel
 
@@ -174,7 +169,6 @@ func _ready():
 	_cursor_controller.init_cursor()
 
 	team_view_panel.visible = false
-	item_list_panel.visible = false
 	setting_menu_panel.visible = false
 
 	if victory_panel:
@@ -359,8 +353,6 @@ func _ready():
 		PanelRevealer.force_hide(setting_menu_panel)
 	if team_view_panel:
 		PanelRevealer.force_hide(team_view_panel)
-	if item_list_panel:
-		PanelRevealer.force_hide(item_list_panel)
 	if victory_panel:
 		PanelRevealer.force_hide(victory_panel)
 
@@ -660,8 +652,8 @@ func _input(event: InputEvent):
 	if Globals.is_dialogue_active or Globals.is_item_get_popup_active:
 		return
 
-	# ★ 修复穿透：只要打开了任何菜单面板，就不响应战斗左键点击，但允许右键关闭菜单
-	if setting_panel.visible or setting_menu_panel.visible or team_view_panel.visible or item_list_panel.visible:
+	# ★ 核心修改：全面拦截右键，交由 _on_request_setting_right_click 统一处理
+	if team_view_panel.visible or setting_panel.visible or setting_menu_panel.visible:
 		if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT:
 			_on_request_setting_right_click()
 			get_viewport().set_input_as_handled()
@@ -704,7 +696,7 @@ func _input(event: InputEvent):
 			InputManager.handle_click(clicked_cell)
 	else:
 		InputManager.handle_input(event, map_grid_size, MapConst.CELL_SIZE)
-		
+
 
 # ============================================================
 #  其他信号
@@ -991,12 +983,14 @@ func _hide_avatar(avatar_rect: TextureRect, bg_rect: Panel):
 # ============================================================
 func _on_request_show_setting():
 	PanelRevealer.show_panel(setting_panel)
+	# ★ 核心修复：打开设置时，强制关掉队伍查看面板
+	if team_view_panel.visible:
+		PanelRevealer.hide_panel(team_view_panel)
 
 
 func _on_request_hide_setting():
 	PanelRevealer.hide_panel(setting_panel)
 	PanelRevealer.hide_panel(team_view_panel)
-	PanelRevealer.hide_panel(item_list_panel)
 	PanelRevealer.hide_panel(setting_menu_panel)
 
 func _on_soul_fire_changed(current: int, max_carried: int):
@@ -1092,7 +1086,6 @@ func _on_back_camp_pressed():
 	# 关闭所有菜单
 	PanelRevealer.force_hide(setting_panel)
 	PanelRevealer.force_hide(team_view_panel)
-	PanelRevealer.force_hide(item_list_panel)
 	PanelRevealer.force_hide(setting_menu_panel)
 
 	# 重置输入状态
@@ -1109,7 +1102,6 @@ func _on_back_camp_pressed():
 func _on_back_to_menu_pressed():
 	PanelRevealer.force_hide(setting_panel)
 	PanelRevealer.force_hide(team_view_panel)
-	PanelRevealer.force_hide(item_list_panel)
 	PanelRevealer.force_hide(setting_menu_panel)
 
 	InputManager.selected_unit = null
@@ -1133,24 +1125,32 @@ func _on_back_to_menu_pressed():
 
 
 func _on_request_setting_right_click():
-	if team_view_panel.visible:
-		_panel_manager.on_team_view_btn_pressed()
-		SoundManager.play_cancel_sound()
-		return
-	if item_list_panel.visible:
-		_panel_manager.on_item_list_btn_pressed()
-		SoundManager.play_cancel_sound()
-		return
-	if setting_menu_panel.visible:
-		PanelRevealer.hide_panel(setting_menu_panel)
-		SoundManager.play_cancel_sound()
-		return
+	var is_tv_open = team_view_panel.visible and team_view_panel.mouse_filter == Control.MOUSE_FILTER_STOP
+	var is_sm_open = setting_menu_panel.visible and setting_menu_panel.mouse_filter == Control.MOUSE_FILTER_STOP
+	var is_setting_open = setting_panel.visible and setting_panel.mouse_filter == Control.MOUSE_FILTER_STOP
 
-	SoundManager.play_cancel_sound()
-	SignalBus.request_hide_setting.emit()
-	SignalBus.request_hide_info.emit()
-	InputManager.interaction_phase = InputManager.Phase.IDLE
-	InputManager.current_empty_cell = Vector2i(-1, -1)
+	# 1. 队伍面板开着 → 关闭队伍面板，恢复竖条栏
+	if is_tv_open:
+		PanelRevealer.hide_panel(team_view_panel)
+		PanelRevealer.show_panel(setting_panel)
+		SoundManager.play_cancel_sound()
+		return
+		
+	# 2. 大设置菜单开着 → 关闭大菜单，恢复竖条栏（★ 修复了这里之前丢失的恢复逻辑）
+	if is_sm_open:
+		PanelRevealer.hide_panel(setting_menu_panel)
+		PanelRevealer.show_panel(setting_panel)
+		SoundManager.play_cancel_sound()
+		return
+		
+	# 3. 竖条栏开着 → 全关，彻底回到游戏
+	if is_setting_open:
+		PanelRevealer.hide_panel(setting_panel)
+		SignalBus.request_hide_info.emit()
+		SoundManager.play_cancel_sound()
+		InputManager.interaction_phase = InputManager.Phase.IDLE
+		InputManager.current_empty_cell = Vector2i(-1, -1)
+		return
 
 
 # ============================================================

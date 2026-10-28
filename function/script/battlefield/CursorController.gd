@@ -105,7 +105,6 @@ func update_cursor_and_mouse() -> void:
 	var panel_open = (
 		_bf.setting_panel.visible or
 		_bf.team_view_panel.visible or
-		_bf.item_list_panel.visible or
 		_bf.setting_menu_panel.visible
 	)
 	if panel_open:

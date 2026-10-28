@@ -39,10 +39,7 @@ func _initialize_managers() -> void:
 func _connect_panel_buttons() -> void:
 	var pm : PanelManager = _bf._panel_manager
 	_safe_connect(_bf.setting_btn.pressed, pm.on_setting_btn_pressed)
-	_safe_connect(_bf.item_list_btn.pressed, pm.on_item_list_btn_pressed)
 	_safe_connect(_bf.team_view_btn.pressed, pm.on_team_view_btn_pressed)
-	if _bf.relic_view_btn:
-		_safe_connect(_bf.relic_view_btn.pressed, pm.on_relic_view_btn_pressed)
 
 
 # ============================================================

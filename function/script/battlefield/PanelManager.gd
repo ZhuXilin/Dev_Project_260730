@@ -2,28 +2,104 @@ class_name PanelManager
 extends Node
 
 var _bf : Node2D
-var _is_showing_relics : bool = false
-var _detail_popup = null
 var _unit_icon_cache : Dictionary = {}
-
 
 func _init(bf: Node2D):
 	_bf = bf
 
-
 func init() -> void:
-	_detail_popup = load(Config.PATHS.ITEM_DETAIL_POPUP).instantiate()
-	_bf.add_child(_detail_popup)
-	_detail_popup.visible = false
-	if _detail_popup.has_method("get_panel"):
-		var p = _detail_popup.get_panel()
-		if p:
-			PanelRevealer.force_hide(p)
+	pass
+
+func format_unit_talents(unit) -> String:
+	var parts: Array = []
+	for inst in unit.talent_slots:
+		if not inst or not inst.is_active:
+			continue
+		var data = TalentManager.get_talent_data(inst.talent_id)
+		if not data:
+			continue
+		var status := ""
+		if inst.talent_id == "vengeance":
+			status = ""
+		elif data.is_active_skill:
+			if inst.is_ready: status = "(就绪★)"
+			else: status = "(冷%d)" % inst.cooldown_remaining
+		elif inst.cooldown_remaining >= 9999:
+			status = "(R)"
+		elif inst.cooldown_remaining > 0:
+			status = "(冷%d)" % inst.cooldown_remaining
+		elif inst.is_ready:
+			status = "(就绪)"
+		else:
+			var remain = max(0, data.accumulation_threshold - inst.current_stack)
+			status = "(%d)" % remain
+		if status == "":
+			parts.append(data.display_name)
+		else:
+			parts.append(data.display_name + status)
+	return " ".join(parts)
 
 
-# ============================================================
-#  队伍查看
-# ============================================================
+func on_team_member_selected(unit) -> void:
+	# 强制清理 UI 状态，防止动画冲突
+	_bf.setting_menu_panel.visible = false
+	_bf.team_view_panel.visible = false
+	PanelRevealer.force_hide(_bf.team_view_panel)
+	PanelRevealer.force_hide(_bf.setting_menu_panel)
+	PanelRevealer.force_hide(_bf.info_panel)
+	SignalBus.request_hide_setting.emit()
+	
+	InputManager.selected_unit = unit
+	InputManager.interaction_phase = InputManager.Phase.IDLE
+	
+	SignalBus.request_show_info.emit(unit)
+	SoundManager.play_select_sound()
+	SignalBus.request_clear_highlight.emit()
+	_bf.camera_controller.smooth_move_to(_bf.grid_to_world(unit.grid_cell), 0.3, true)
+	InputManager.current_highlight_cells = {}
+	InputManager.current_move_attack_targets = {}
+
+
+# ---- 大设置菜单 ----
+func on_setting_btn_pressed() -> void:
+	if _bf.team_view_panel.visible:
+		PanelRevealer.hide_panel(_bf.team_view_panel)
+	
+	var is_menu_open = _bf.setting_menu_panel.visible and _bf.setting_menu_panel.mouse_filter == Control.MOUSE_FILTER_STOP
+	
+	if is_menu_open:
+		# ★ 关闭大菜单，恢复竖条栏
+		PanelRevealer.hide_panel(_bf.setting_menu_panel)
+		PanelRevealer.show_panel(_bf.setting_panel)
+		SoundManager.play_cancel_sound()
+	else:
+		# ★ 打开大菜单，隐藏竖条栏
+		PanelRevealer.hide_panel(_bf.setting_panel)
+		PanelRevealer.show_panel(_bf.setting_menu_panel)
+		SoundManager.play_select_sound()
+
+
+# ---- 队伍查看 ----
+func on_team_view_btn_pressed() -> void:
+	SoundManager.play_select_sound()
+	
+	var is_tv_open = _bf.team_view_panel.visible and _bf.team_view_panel.mouse_filter == Control.MOUSE_FILTER_STOP
+	
+	if is_tv_open:
+		# ★ 关闭队伍面板，恢复竖条栏
+		PanelRevealer.hide_panel(_bf.team_view_panel)
+		PanelRevealer.show_panel(_bf.setting_panel)
+	else:
+		# ★ 打开队伍面板，隐藏竖条栏
+		PanelRevealer.hide_panel(_bf.setting_panel)
+		if _bf.setting_menu_panel.visible:
+			PanelRevealer.hide_panel(_bf.setting_menu_panel)
+		
+		PanelRevealer.force_hide(_bf.team_view_panel)
+		refresh_team_view()
+		PanelRevealer.show_panel(_bf.team_view_panel)
+
+
 func refresh_team_view() -> void:
 	for child in _bf.team_view_container.get_children():
 		child.queue_free()
@@ -95,332 +171,12 @@ func refresh_team_view() -> void:
 		scroll = create_scroll_container(_bf.team_view_container, parent, "TeamViewScroll")
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 
-	await get_tree().process_frame
-	var content_height = _bf.team_view_container.get_minimum_size().y
-	var viewport_height = get_viewport().get_visible_rect().size.y
-	var max_height = viewport_height * 0.8
-	var panel_height = clamp(content_height + 16, 20, max_height)
-	_bf.team_view_panel.size.y = panel_height
-
-
-func format_unit_talents(unit) -> String:
-	var parts: Array = []
-	for inst in unit.talent_slots:
-		if not inst or not inst.is_active:
-			continue
-		var data = TalentManager.get_talent_data(inst.talent_id)
-		if not data:
-			continue
-		var status := ""
-
-		if inst.talent_id == "vengeance":
-			status = ""
-		elif data.is_active_skill:
-			if inst.is_ready:
-				status = "(就绪★)"
-			else:
-				status = "(冷%d)" % inst.cooldown_remaining
-		elif inst.cooldown_remaining >= 9999:
-			status = "(R)"
-		elif inst.cooldown_remaining > 0:
-			status = "(冷%d)" % inst.cooldown_remaining
-		elif inst.is_ready:
-			status = "(就绪)"
-		else:
-			var remain = max(0, data.accumulation_threshold - inst.current_stack)
-			status = "(%d)" % remain
-
-		if status == "":
-			parts.append(data.display_name)
-		else:
-			parts.append(data.display_name + status)
-	return " ".join(parts)
-
-
-func on_team_member_selected(unit) -> void:
-	_bf.setting_menu_panel.visible = false
-	_bf.team_view_panel.visible = false
-	SignalBus.request_hide_setting.emit()
-	SignalBus.request_hide_info.emit()
-
-	InputManager.selected_unit = unit
-	InputManager.interaction_phase = InputManager.Phase.IDLE
-	if unit.can_act_this_turn and unit.hit_points > 0:
-		SignalBus.request_show_info.emit(unit)
-
-	SignalBus.request_show_info.emit(unit)
-	SoundManager.play_select_sound()
-	SignalBus.request_clear_highlight.emit()
-	_bf.camera_controller.smooth_move_to(_bf.grid_to_world(unit.grid_cell), 0.3, true)
-	InputManager.current_highlight_cells = {}
-	InputManager.current_move_attack_targets = {}
-
-
-# ============================================================
-#  道具列表
-# ============================================================
-func refresh_item_list() -> void:
-	_bf.item_list_panel.size = Vector2(120, 20)
-	for child in _bf.item_list_container.get_children():
-		child.queue_free()
-
-	_bf.item_list_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_bf.item_list_container.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-
-	var parent = _bf.item_list_container.get_parent()
-	var scroll = parent as ScrollContainer
-	if not scroll:
-		scroll = create_scroll_container(_bf.item_list_container, parent, "ItemListScroll")
-	scroll.size = _bf.item_list_panel.size
-	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
-
-	var entries = []
-
-	for unit in UnitManager.unit_list:
-		if unit.unit_stats.team_id == 0 and unit.hit_points > 0:
-			var unit_name = unit.unit_stats.display_name if unit.unit_stats.display_name != "" else unit.unit_stats.unit_name
-
-			var weapon = unit.get_weapon()
-			if weapon:
-				var data = ItemManager.get_item_data(weapon.item_id)
-				if data:
-					var type_display = ""
-					if data.category != "":
-						type_display = UnitDataManager.get_weapon_category_display(data.category)
-					else:
-						type_display = get_type_display_name(data.type)
-					entries.append({
-						"item_name": data.name,
-						"type_display": type_display,
-						"source": unit_name,
-						"slot": "武器",
-						"is_equipped": true,
-						"data": data
-					})
-
-			var armor_slots = unit.get_armor_slots()
-			for i in range(armor_slots.size()):
-				var inst = armor_slots[i]
-				if inst:
-					var data = ItemManager.get_item_data(inst.item_id)
-					if data:
-						entries.append({
-							"item_name": data.name,
-							"type_display": "",
-							"source": unit_name,
-							"slot": "防具槽" + str(i+1),
-							"is_equipped": true,
-							"data": data
-						})
-
-	if entries.is_empty():
-		var label = Label.new()
-		label.text = "没有装备"
-		label.add_theme_font_size_override("font_size", 6)
-		_bf.item_list_container.add_child(label)
-	else:
-		entries.sort_custom(func(a, b):
-			if a["source"] != b["source"]:
-				return a["source"] < b["source"]
-			return a["slot"] < b["slot"]
-		)
-
-		for entry in entries:
-			var btn = Button.new()
-			var data = entry["data"]
-			if data.icon:
-				btn.icon = data.icon
-
-			var equipped_str = " [已装备]" if entry["is_equipped"] else ""
-			var type_str = "[" + entry["type_display"] + "]" if entry["type_display"] != "" else ""
-			btn.text = entry["item_name"] + " " + type_str + equipped_str + " (" + entry["source"] + " " + entry["slot"] + ")"
-			btn.add_theme_font_size_override("font_size", 6)
-			btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-			btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
-			btn.clip_text = true
-			btn.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-			btn.disabled = true
-
-			btn.mouse_entered.connect(on_item_hover_entered.bind(entry["data"].id))
-			btn.mouse_exited.connect(on_item_hover_exited)
-
-			_bf.item_list_container.add_child(btn)
-
-	await get_tree().process_frame
-
-	var viewport_size = get_viewport().get_visible_rect().size
-	var max_panel_width = viewport_size.x * 0.4
-	var min_panel_width = 120
-	var content_width = min_panel_width
-	for child in _bf.item_list_container.get_children():
-		if child is Button:
-			var w = child.size.x
-			if w > content_width:
-				content_width = w
-	content_width += 16
-	var panel_width = clamp(content_width, min_panel_width, max_panel_width)
-
-	var content_height = _bf.item_list_container.get_minimum_size().y
-	var padding = 16
-	var max_height = viewport_size.y * 0.9
-	var final_height = clamp(content_height + padding, 20, max_height)
-
-	_bf.item_list_panel.size = Vector2(panel_width, final_height)
-	scroll.size = _bf.item_list_panel.size
-	_bf.item_list_container.size = scroll.size
-
-
-func on_item_hover_entered(item_id: String) -> void:
-	show_item_detail(item_id)
-
-
-func on_item_hover_exited() -> void:
-	hide_item_detail()
-
-
-func find_unit_by_name(display_name: String):
-	for unit in UnitManager.unit_list:
-		var unit_name = unit.unit_stats.display_name if unit.unit_stats.display_name != "" else unit.unit_stats.unit_name
-		if unit_name == display_name:
-			return unit
-	return null
-
-
-# ============================================================
-#  遗物列表
-# ============================================================
-func refresh_relic_list() -> void:
-	for child in _bf.item_list_container.get_children():
-		child.queue_free()
-
-	var relics = GameState.get_relics_from_passives()
-	if relics.is_empty():
-		var label := Label.new()
-		label.text = "暂无遗物"
-		label.add_theme_font_size_override("font_size", 6)
-		_bf.item_list_container.add_child(label)
-		return
-
-	for relic in relics:
-		var data = RelicManager.get_relic_data(relic.item_id)
-		if data.is_empty():
-			continue
-		var btn := Button.new()
-		var prefix : String = "★ " if GameState.is_relic_refined(relic.item_id) else ""
-		btn.text = prefix + data.get("name", "未知遗物")
-		var icon_path = data.get("icon", "")
-		if icon_path != "" and ResourceLoader.exists(icon_path):
-			btn.icon = load(icon_path)
-		btn.add_theme_font_size_override("font_size", 6)
-		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
-		btn.disabled = true
-
-		var item_id = relic.item_id
-		btn.mouse_entered.connect(on_relic_hover_entered.bind(item_id))
-		btn.mouse_exited.connect(on_relic_hover_exited)
-
-		_bf.item_list_container.add_child(btn)
-
-	await get_tree().process_frame
-	var content_height = _bf.item_list_container.get_minimum_size().y
-	var viewport_size = get_viewport().get_visible_rect().size
-	var max_height = viewport_size.y * 0.9
-	var panel_height = clamp(content_height + 16, 20, max_height)
-	var panel_width = clamp(120, 80, viewport_size.x * 0.4)
-	_bf.item_list_panel.size = Vector2(panel_width, panel_height)
-
-	var parent = _bf.item_list_container.get_parent()
-	var scroll = parent as ScrollContainer
-	if not scroll:
-		scroll = create_scroll_container(_bf.item_list_container, parent, "ItemListScroll")
-	scroll.size = _bf.item_list_panel.size
-
-
-func on_relic_hover_entered(item_id: String) -> void:
-	show_item_detail(item_id)
-
-
-func on_relic_hover_exited() -> void:
-	hide_item_detail()
-
-
-# ---- 设置菜单 ----
-func on_setting_btn_pressed() -> void:
-	if _bf.team_view_panel.visible:
-		PanelRevealer.hide_panel(_bf.team_view_panel)
-	if _bf.item_list_panel.visible:
-		PanelRevealer.hide_panel(_bf.item_list_panel)
-		
-	if _bf.setting_menu_panel.visible:
-		PanelRevealer.hide_panel(_bf.setting_menu_panel)
-		SoundManager.play_cancel_sound() # ★ 播放取消音
-	else:
-		PanelRevealer.show_panel(_bf.setting_menu_panel)
-		SoundManager.play_select_sound() # ★ 播放选中音
-
-# ---- 队伍查看 ----
-func on_team_view_btn_pressed() -> void:
-	if _bf.setting_menu_panel.visible:
-		PanelRevealer.hide_panel(_bf.setting_menu_panel)
-	if _bf.item_list_panel.visible:
-		PanelRevealer.hide_panel(_bf.item_list_panel)
-		
-	if _bf.team_view_panel.visible:
-		PanelRevealer.hide_panel(_bf.team_view_panel)
-		SoundManager.play_cancel_sound() # ★
-	else:
-		PanelRevealer.show_panel(_bf.team_view_panel)
-		refresh_team_view()
-		SoundManager.play_select_sound() # ★
-
-# ---- 道具装备 ----
-func on_item_list_btn_pressed() -> void:
-	if _bf.setting_menu_panel.visible:
-		PanelRevealer.hide_panel(_bf.setting_menu_panel)
-	if _bf.team_view_panel.visible:
-		PanelRevealer.hide_panel(_bf.team_view_panel)
-		
-	if _is_showing_relics:
-		PanelRevealer.hide_panel(_bf.item_list_panel)
-		_is_showing_relics = false
-		SoundManager.play_cancel_sound() # ★
-		return
-		
-	if _bf.item_list_panel.visible:
-		PanelRevealer.hide_panel(_bf.item_list_panel)
-		SoundManager.play_cancel_sound() # ★
-	else:
-		PanelRevealer.show_panel(_bf.item_list_panel)
-		refresh_item_list()
-		_is_showing_relics = false
-		SoundManager.play_select_sound() # ★
-
-# ---- 遗物查看 ----
-func on_relic_view_btn_pressed() -> void:
-	if _bf.setting_menu_panel.visible:
-		PanelRevealer.hide_panel(_bf.setting_menu_panel)
-	if _bf.team_view_panel.visible:
-		PanelRevealer.hide_panel(_bf.team_view_panel)
-		
-	if _bf.item_list_panel.visible and _is_showing_relics:
-		PanelRevealer.hide_panel(_bf.item_list_panel)
-		_is_showing_relics = false
-		SoundManager.play_cancel_sound() # ★
-		return
-
-	PanelRevealer.show_panel(_bf.item_list_panel)
-	refresh_relic_list()
-	_is_showing_relics = true
-	SoundManager.play_select_sound() # ★
-
 
 func _on_aura_icon_clicked(aid: String):
 	if AuraManager.use_aura_in_battle(aid):
 		SignalBus.request_hint_override.emit("★ 光环生效：%s" % AuraManager.get_display_name(aid), 1.5)
 		SoundManager.play_get_item_sound()
-		update_relic_icons() # 刷新 UI，光环消失，槽位空出
+		update_relic_icons()
 
 
 func update_relic_icons() -> void:
@@ -432,8 +188,7 @@ func update_relic_icons() -> void:
 
 	for i in range(passives.size()):
 		var p = passives[i]
-		if p == null:
-			continue
+		if p == null: continue
 
 		if p is ItemInstance:
 			var btn := Button.new()
@@ -443,8 +198,7 @@ func update_relic_icons() -> void:
 			btn.custom_minimum_size = Vector2(0, 14)
 
 			var data = RelicManager.get_relic_data(p.item_id)
-			if data.is_empty():
-				continue
+			if data.is_empty(): continue
 			var prefix : String = "★ " if GameState.is_relic_refined(p.item_id) else "◆ "
 			btn.text = prefix + data.get("name", "?")
 			btn.disabled = true
@@ -455,8 +209,7 @@ func update_relic_icons() -> void:
 		elif p is Dictionary and p.get("type", "") == "aura":
 			var aid : String = p.get("aura_id", "")
 			var ad : Dictionary = AuraManager.get_aura(aid)
-			if ad.is_empty():
-				continue
+			if ad.is_empty(): continue
 				
 			var btn2 := Button.new()
 			btn2.add_theme_font_size_override("font_size", 6)
@@ -464,8 +217,6 @@ func update_relic_icons() -> void:
 			btn2.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 			btn2.custom_minimum_size = Vector2(0, 14)
 			btn2.text = "✦ " + ad.get("name", aid)
-			
-			# ★ 允许点击使用
 			btn2.disabled = false
 			btn2.tooltip_text = ad.get("description", "") + "\n\n点击使用（立即生效，本场消耗）"
 			btn2.pressed.connect(_on_aura_icon_clicked.bind(aid))
@@ -478,32 +229,6 @@ func update_relic_icons() -> void:
 		label.text = "无遗物"
 		label.add_theme_font_size_override("font_size", 6)
 		_bf.relic_icon_container.add_child(label)
-
-
-# ============================================================
-#  详情弹窗
-# ============================================================
-func show_item_detail(item_id: String) -> void:
-	if _detail_popup:
-		_detail_popup.show_item(item_id)
-		_detail_popup.visible = true
-
-
-func hide_item_detail() -> void:
-	if _detail_popup:
-		_detail_popup.hide_popup()
-
-
-# ============================================================
-#  辅助
-# ============================================================
-func get_type_display_name(type: String) -> String:
-	match type:
-		"weapon": return "武器"
-		"armor": return "防具"
-		"relic": return "遗物"
-		_:
-			return type
 
 
 func create_scroll_container(child: Control, parent: Node, container_name: String) -> ScrollContainer:

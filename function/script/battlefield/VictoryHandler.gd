@@ -119,8 +119,6 @@ func on_request_show_victory(winning_team: int) -> void:
 		PanelRevealer.hide_panel(_bf.team_view_panel)
 	if is_instance_valid(_bf.setting_menu_panel):
 		PanelRevealer.hide_panel(_bf.setting_menu_panel)
-	if is_instance_valid(_bf.item_list_panel):
-		PanelRevealer.hide_panel(_bf.item_list_panel)
 
 	InputManager.selected_unit = null
 	InputManager.interaction_phase = InputManager.Phase.IDLE
