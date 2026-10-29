@@ -57,6 +57,9 @@ const DOUBLE_CLICK_MS: int = 300
 var _cached_info_unit: Unit = null
 var _cached_info_cell: Vector2i = Vector2i(-999, -999)
 
+var _terrain_info_panel : PanelContainer = null
+var _terrain_info_label : Label = null
+
 var _map_loader : MapLoader = null
 var _non_combat_handler : NonCombatHandler = null
 var _function_handler : FunctionHandler = null
@@ -341,6 +344,7 @@ func _ready():
 
 	_marked_targets.clear()
 	print("Battlefield _ready 完成")
+	_create_terrain_info_panel()
 	_create_damage_preview_panel()
 
 
@@ -386,10 +390,12 @@ func _update_hint_label():
 
 	var now := Time.get_ticks_msec() / 1000.0
 
+	# 0. 强制覆盖提示
 	if now < _hint_override_until and _hint_override_text != "":
 		hint_label.text = _hint_override_text
 		return
 
+	# 1. 拖拽中提示
 	if _drag_move_controller and _drag_move_controller.is_dragging():
 		var hint := _drag_move_controller.get_drag_hint()
 		if hint == "":
@@ -397,12 +403,42 @@ func _update_hint_label():
 		hint_label.text = hint
 		return
 
+	# ★ 新增：检测场上是否有可撤销的操作（已移动且未攻击）
+	var last_moved = TurnManager.last_moved_unit
+	var can_undo = last_moved != null and is_instance_valid(last_moved) and last_moved.has_moved and not last_moved.has_attacked
+
+	# 2. 已选中单位（旧逻辑兼容保留）
 	var sel = InputManager.selected_unit
 	if sel != null and is_instance_valid(sel) and sel.hit_points > 0:
 		if sel.unit_stats.team_id != 0:
 			hint_label.text = "不可操作单位"
 		else:
-			hint_label.text = "按住左键拖拽单位"
+			if not sel.can_act_this_turn or sel.has_acted:
+				hint_label.text = "该单位已行动"
+			elif sel.remaining_move <= 0:
+				hint_label.text = "双击待机 / 拖拽攻击"
+			else:
+				hint_label.text = "按住左键拖拽单位"
+		return
+
+	# 3. 鼠标悬停单位
+	var mouse_cell := world_to_grid(get_global_mouse_position())
+	var hover_unit := UnitManager.get_unit_at_cell(mouse_cell)
+	if hover_unit != null and is_instance_valid(hover_unit) and hover_unit.hit_points > 0:
+		if hover_unit.unit_stats.team_id != 0:
+			hint_label.text = "不可操作单位"
+		else:
+			if not hover_unit.can_act_this_turn or hover_unit.has_acted:
+				hint_label.text = "该单位已行动"
+			elif hover_unit.remaining_move <= 0:
+				hint_label.text = "双击待机 / 拖拽攻击"
+			else:
+				hint_label.text = "按住左键拖拽单位"
+		return
+
+	# 4. 空地 / 兜底
+	if can_undo:
+		hint_label.text = "右键撤销"
 		return
 
 	hint_label.text = "双击中键结束回合"
@@ -765,17 +801,18 @@ func _on_request_show_info(unit: Unit):
 
 	var is_dragging := _drag_move_controller != null and _drag_move_controller.is_dragging()
 
-	# 缓存判断：同一目标 + 面板处于稳定显示态 → 跳过
+	# 缓存判断
 	if unit != null:
 		if unit == _cached_info_unit and _is_panel_stable(info_panel):
 			return
 	else:
 		var mouse_pos = get_global_mouse_position()
 		var t_cell = world_to_grid(mouse_pos)
-		if t_cell == _cached_info_cell and _is_panel_stable(info_panel) and _cached_info_unit == null:
+		if t_cell == _cached_info_cell and _cached_info_unit == null \
+				and _is_panel_stable(_terrain_info_panel):
 			return
 
-	# 类型切换（单位 ⇄ 地形）→ 强制所有面板重扫入
+	# 类型切换（单位 ⇄ 地形）→ 强制重扫
 	var prev_is_unit : bool = (_cached_info_unit != null)
 	var curr_is_unit : bool = (unit != null)
 	var force_replay : bool = (prev_is_unit != curr_is_unit)
@@ -793,19 +830,21 @@ func _on_request_show_info(unit: Unit):
 
 	# ---- 地形 ----
 	if unit == null:
+		# ★ 单位面板 + 头像一起扫出
+		_hide_unit_info_panel()
 		_hide_avatar(avatar_rect, avatar_bg)
 
+		# ★ 地形信息走独立面板（同款 stylebox + 同款 PanelRevealer）
 		var t_type = TerrainManager.get_terrain(_cached_info_cell)
 		var t_name = TerrainManager.get_terrain_name(t_type)
 		var td : Dictionary = TerrainManager.TERRAIN_DATA.get(t_type, {})
 		var hover_phys : float = float(td.get("physical_reduction", 0.0))
 		var hover_mag  : float = float(td.get("magic_reduction", 0.0))
-		info_text_label.text = "地形: " + t_name \
+		_terrain_info_label.text = "地形: " + t_name \
 			+ "\n物减 +%d%%" % int(hover_phys * 100) \
 			+ "  魔减 +%d%%" % int(hover_mag * 100)
-		_adjust_info_panel(info_text_label, info_panel, null, false, force_replay)
+		_adjust_terrain_info_panel(force_replay)
 
-		# 悬停空地：清空高亮
 		if not is_dragging:
 			highlight_manager.clear_highlight()
 		return
@@ -814,6 +853,9 @@ func _on_request_show_info(unit: Unit):
 		return
 
 	# ---- 单位 ----
+	# ★ 单位面板接管，地形面板扫出
+	_hide_terrain_info_panel()
+
 	var show_avatar : bool = false
 	if unit.unit_stats.team_id == 0:
 		var avatar_id = GameState.get_unit_avatar(unit.unit_stats.unit_name)
@@ -915,12 +957,9 @@ func _on_request_show_info(unit: Unit):
 	info_text_label.text = "\n".join(lines)
 	_adjust_info_panel(info_text_label, info_panel, unit, show_avatar, force_replay)
 
-	# 悬停单位：显示移动/攻击范围（拖拽中由拖拽控制）
 	if not is_dragging:
 		_show_unit_ranges(unit)
 
-
-# 排版 + 触发 panel 扫入
 func _adjust_info_panel(label: Label, panel: PanelContainer,
 		ref_unit: Unit = null, show_avatar: bool = false, force_replay: bool = false):
 	var vp_size := get_viewport().get_visible_rect().size
@@ -931,11 +970,13 @@ func _adjust_info_panel(label: Label, panel: PanelContainer,
 	if avatar_bg: avatar_bg.set_anchors_preset(Control.PRESET_TOP_LEFT)
 	if avatar_rect: avatar_rect.set_anchors_preset(Control.PRESET_TOP_LEFT)
 
+	# ★ 修复：原逻辑把"单位在屏幕左侧"判断为面板也放左侧，结果正好挡住单位附近的视野。
+	#   正确做法：单位在哪一侧，面板就放到**对侧**，让单位附近的画面保持清爽。
 	var align_left_side : bool = false
 	if ref_unit != null and is_instance_valid(ref_unit):
 		var xform := get_viewport().get_canvas_transform()
 		var screen_x : float = (xform * ref_unit.global_position).x
-		align_left_side = (screen_x < vp_size.x * 0.5)
+		align_left_side = (screen_x >= vp_size.x * 0.5)
 	else:
 		align_left_side = false
 
@@ -993,23 +1034,14 @@ func _adjust_info_panel(label: Label, panel: PanelContainer,
 	if force_replay or not panel.visible or _is_panel_fading_out(panel):
 		PanelRevealer.show_panel(panel)
 
-
 func _on_request_hide_info():
-	if _is_panel_stable(info_panel):
-		PanelRevealer.hide_panel(info_panel)
-
-	var avatar_rect := get_node_or_null("Info/AvatarRect") as TextureRect
-	var avatar_bg := get_node_or_null("Info/AvatarBg") as Panel
-	if _is_panel_stable(avatar_bg):
-		PanelRevealer.hide_panel(avatar_bg)
-	if _is_panel_stable(avatar_rect):
-		PanelRevealer.hide_panel(avatar_rect)
+	_hide_unit_info_panel()
+	_hide_terrain_info_panel()
 
 	# 重置缓存，以便再次悬停时重新触发
 	_cached_info_unit = null
 	_cached_info_cell = Vector2i(-999, -999)
 
-	# 清空高亮（拖拽中由拖拽控制）
 	if _drag_move_controller == null or not _drag_move_controller.is_dragging():
 		highlight_manager.clear_highlight()
 
@@ -1049,9 +1081,12 @@ func _on_request_show_setting():
 	if _is_panel_stable(setting_panel):
 		return
 
-	# info_panel 走扫出动画（与 setting_panel 不重叠）
+	# info_panel 走扫出动画
 	if _is_panel_stable(info_panel):
 		PanelRevealer.hide_panel(info_panel)
+
+	# ★ 地形面板与 setting_panel 位置可能重叠，必须瞬间消失（和 avatar 同款 force_hide）
+	_force_hide_terrain_info_panel()
 
 	# avatar 与 setting_panel 位置重叠，必须瞬间消失
 	var avatar_rect := get_node_or_null("Info/AvatarRect") as TextureRect
@@ -1583,6 +1618,96 @@ func _update_unit_display_info(unit_type: String, stats_text: String, avatar_bg:
 		_show_avatar(avatar_rect, avatar_bg)
 	else:
 		_hide_avatar(avatar_rect, avatar_bg)
+
+
+# ============================================================
+#  地形信息面板（与单位信息面板同款样式 + PanelRevealer 开关）
+# ============================================================
+func _create_terrain_info_panel():
+	var info_root = get_node_or_null("Info")
+	if info_root == null:
+		push_warning("[Battlefield] 未找到 Info 节点，地形信息面板无法创建")
+		return
+
+	_terrain_info_panel = PanelContainer.new()
+	_terrain_info_panel.name = "TerrainInfoPanel"
+	_terrain_info_panel.visible = false
+	_terrain_info_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var stylebox = load(Config.PATHS.STYLEBOX_8BIT)
+	if stylebox:
+		_terrain_info_panel.add_theme_stylebox_override("panel", stylebox)
+	info_root.add_child(_terrain_info_panel)
+
+	var vbox := VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 2)
+	_terrain_info_panel.add_child(vbox)
+
+	_terrain_info_label = Label.new()
+	_terrain_info_label.add_theme_font_size_override("font_size", 6)
+	_terrain_info_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_terrain_info_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_terrain_info_label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	vbox.add_child(_terrain_info_label)
+
+
+func _adjust_terrain_info_panel(force_replay: bool = false):
+	if _terrain_info_panel == null or not is_instance_valid(_terrain_info_panel):
+		return
+	if _terrain_info_label == null or not is_instance_valid(_terrain_info_label):
+		return
+
+	var vp_size := get_viewport().get_visible_rect().size
+
+	_terrain_info_panel.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	# 地形面板固定在右侧（地形无 "位置焦点"，固定一侧避免与单位面板扫动画重叠）
+	_terrain_info_panel.offset_right = vp_size.x - INFO_PANEL_MARGIN
+	_terrain_info_panel.offset_left = _terrain_info_panel.offset_right - INFO_PANEL_WIDTH
+	_terrain_info_panel.offset_top = INFO_PANEL_MARGIN
+
+	_terrain_info_label.vertical_alignment = VERTICAL_ALIGNMENT_TOP
+	_terrain_info_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_terrain_info_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_terrain_info_label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+
+	var panel_style = _terrain_info_panel.get_theme_stylebox("panel")
+	var margin_top = panel_style.get_margin(SIDE_TOP) if panel_style else 0.0
+	var margin_bottom = panel_style.get_margin(SIDE_BOTTOM) if panel_style else 0.0
+	var margin_left = panel_style.get_margin(SIDE_LEFT) if panel_style else 0.0
+	var margin_right = panel_style.get_margin(SIDE_RIGHT) if panel_style else 0.0
+
+	var panel_width = _terrain_info_panel.offset_right - _terrain_info_panel.offset_left - margin_left - margin_right
+	_terrain_info_label.size.x = panel_width
+
+	var label_min_height = _terrain_info_label.get_minimum_size().y
+	var panel_height = maxf(label_min_height + margin_top + margin_bottom, 28.0)
+	_terrain_info_panel.offset_bottom = _terrain_info_panel.offset_top + panel_height
+
+	if force_replay or not _terrain_info_panel.visible or _is_panel_fading_out(_terrain_info_panel):
+		PanelRevealer.show_panel(_terrain_info_panel)
+
+
+func _hide_terrain_info_panel():
+	if _terrain_info_panel and is_instance_valid(_terrain_info_panel):
+		if _is_panel_stable(_terrain_info_panel):
+			PanelRevealer.hide_panel(_terrain_info_panel)
+
+
+func _force_hide_terrain_info_panel():
+	if _terrain_info_panel and is_instance_valid(_terrain_info_panel):
+		PanelRevealer.force_hide(_terrain_info_panel)
+
+
+## 隐藏单位信息面板 + 头像（走扫出，与地形面板显示对称）
+func _hide_unit_info_panel():
+	if info_panel and is_instance_valid(info_panel):
+		if _is_panel_stable(info_panel):
+			PanelRevealer.hide_panel(info_panel)
+	var avatar_rect := get_node_or_null("Info/AvatarRect") as TextureRect
+	var avatar_bg := get_node_or_null("Info/AvatarBg") as Panel
+	if _is_panel_stable(avatar_bg):
+		PanelRevealer.hide_panel(avatar_bg)
+	if _is_panel_stable(avatar_rect):
+		PanelRevealer.hide_panel(avatar_rect)
 
 
 func _create_damage_preview_panel():
