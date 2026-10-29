@@ -3,19 +3,6 @@ extends CanvasLayer
 
 signal closed
 
-const KEY_COST : int = 200
-const PIN_COST : int = 100
-const THRESHOLD_COST : int = 120
-const INTEL_COST : int = 40
-
-const ARMOR_TAGS : Array = ["守护", "烈焰", "灰烬", "轮回", "献祭", "余烬"]
-
-const INTEL_OPTIONS : Array = [
-	{ "text": "Day1 魂火窃贼：不足 2 魂火时全队 -10% HP", "flag": "intel_day1_boss" },
-	{ "text": "Day2 灰烬护盾：破盾需 1 魂火，最多叠 3 层", "flag": "intel_day2_boss" },
-	{ "text": "Day3 三形态：每次复活临时扣 3 魂火上限", "flag": "intel_day3_boss" },
-]
-
 @onready var soul_label : Label = $Panel/VBox/TitleBar/SoulLabel
 @onready var hint_label : Label = $Panel/VBox/HintLabel
 @onready var back_btn : Button = $Panel/VBox/BackBtn
@@ -27,20 +14,41 @@ var _closed : bool = false
 
 var _hover_item : Dictionary = {}
 var _hover_type : String = ""
+var _special_items : Dictionary = {}
 
 func _ready():
 	layer = 25
 	MusicManager.play_secret_merchant_music()
+	
+	# 加载特殊道具数据
+	_special_items = _load_special_items()
+	
 	_build_layout()
 	_refresh_ui()
 
 	if not back_btn.pressed.is_connected(_on_back_pressed):
 		back_btn.pressed.connect(_on_back_pressed)
 
+
+func _load_special_items() -> Dictionary:
+	var path : String = Config.PATHS.SPECIAL_ITEM_DATA
+	if not FileAccess.file_exists(path):
+		push_error("特殊道具数据不存在: " + path)
+		return {}
+	var f := FileAccess.open(path, FileAccess.READ)
+	if f == null: return {}
+	var data = JSON.parse_string(f.get_as_text())
+	f.close()
+	if not (data is Dictionary):
+		push_error("特殊道具 JSON 解析失败")
+		return {}
+	return data
+
+
 func _build_layout():
 	var panel = $Panel
 	
-	# ★ 核心修复：恢复居中锚点，设定一个合适的固定宽高，让背景图回到原位
+	# 恢复居中锚点
 	panel.anchor_top = 0.5
 	panel.anchor_bottom = 0.5
 	panel.anchor_left = 0.5
@@ -52,7 +60,6 @@ func _build_layout():
 
 	var bg = panel.get_node_or_null("BackgroundImage")
 	if bg:
-		# 确保背景图覆盖面板区域
 		bg.set_anchors_preset(Control.PRESET_FULL_RECT)
 		bg.offset_left = 0
 		bg.offset_top = 0
@@ -60,7 +67,6 @@ func _build_layout():
 		bg.offset_bottom = 0
 
 	var vbox = panel.get_node("VBox")
-	# 留出下边距，让离开按钮不要太贴边
 	vbox.offset_bottom = -8
 	
 	var old_buy_btn = vbox.get_node_or_null("BuyBtn")
@@ -94,7 +100,7 @@ func _build_layout():
 	_item_list = VBoxContainer.new()
 	_item_list.name = "ItemList"
 	_item_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL 
-	_item_list.add_theme_constant_override("separation", 2) # 缩小商品间距
+	_item_list.add_theme_constant_override("separation", 2)
 	scroll.add_child(_item_list)
 
 	var info_scene = load("res://content/scenes/ui/components/UnitInfoPanel.tscn")
@@ -106,14 +112,12 @@ func _build_layout():
 		_info_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
 		hbox.add_child(_info_panel)
 		
-		# 强制内部 VBox 撑开，防止背景断截
 		var inner_vbox = _info_panel.get_node_or_null("VBox")
 		if inner_vbox:
 			inner_vbox.size_flags_vertical = Control.SIZE_EXPAND_FILL
 		
 		if _info_panel.has_method("clear_info"): _info_panel.clear_info()
 
-	# 调整按钮和提示的层级，保证在最下方
 	if hint_label:
 		vbox.remove_child(hint_label)
 		vbox.add_child(hint_label)
@@ -124,12 +128,14 @@ func _build_layout():
 		back_btn.size_flags_vertical = Control.SIZE_SHRINK_END
 		back_btn.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 
+
 func _input(event: InputEvent):
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT:
 		if _hover_type != "" and _info_panel:
 			Globals.toggle_info_mode()
 			_refresh_info_panel()
 			get_viewport().set_input_as_handled()
+
 
 func _refresh_ui():
 	soul_label.text = "当前魂: %d" % GameState.soul
@@ -139,40 +145,45 @@ func _refresh_ui():
 		_item_list.remove_child(c)
 		c.queue_free()
 
-	_add_item_row(
-		"死眠之钥", "可在宝箱高级隐藏开启，单局1把",
-		KEY_COST, GameState.keys < 1 and GameState.soul >= KEY_COST,
-		"已达上限" if GameState.keys >= 1 else "魂不足",
-		_on_buy_key, {"kind": "key", "name": "死眠之钥", "desc": "可以在开启宝箱时使用，必出史诗防具或极高概率出遗物。", "stats": "单局最多持有 1 把。"}
-	)
+	for item_id in _special_items:
+		var item_data : Dictionary = _special_items[item_id]
+		var price : int = int(item_data.get("price", 0))
+		
+		var can_buy : bool = true
+		var disabled_reason : String = str(item_data.get("disabled_reason", "无法购买"))
 
-	var pin_active : bool = GameState.pending_tag_pin != ""
-	var pin_label : String = "标签定向器"
-	if pin_active: pin_label += "（已挂起：%s）" % GameState.pending_tag_pin
-	_add_item_row(
-		pin_label, "下一局商店前7格偏向指定标签",
-		PIN_COST, not pin_active and GameState.soul >= PIN_COST,
-		"已挂起" if pin_active else "魂不足",
-		_on_buy_tag_pin, {"kind": "pin", "name": "标签定向器", "desc": "在下一局游戏的商店中，大幅提高所选标签防具的出现概率。", "stats": "不可叠加。"}
-	)
+		# 判断购买状态
+		match item_id:
+			"key_of_sleep":
+				if GameState.keys >= 1:
+					can_buy = false
+			"tag_pin":
+				if GameState.pending_tag_pin != "":
+					can_buy = false
+					disabled_reason = "已挂起: %s" % GameState.pending_tag_pin
+			"sf_threshold":
+				if GameState.soul_fire_threshold_override > 0.0:
+					can_buy = false
+			"boss_intel":
+				# 如果所有情报都买了，就不能再买了
+				var all_bought := true
+				var options : Array = item_data.get("options", [])
+				for opt in options:
+					if not (str(opt.get("flag", "")) in GameState.npc_dialogue_flags):
+						all_bought = false
+						break
+				if all_bought:
+					can_buy = false
+					disabled_reason = "已全部购买"
 
-	var threshold_active : bool = GameState.soul_fire_threshold_override > 0.0
-	_add_item_row(
-		"魂火阈值调节器", "本局燃烧线50%→40%（更易进入燃烧）",
-		THRESHOLD_COST, not threshold_active and GameState.soul >= THRESHOLD_COST,
-		"已使用" if threshold_active else "魂不足",
-		_on_buy_threshold, {"kind": "threshold", "name": "魂火阈值调节器", "desc": "下调进入【燃烧】状态所需的魂火比例，让高爆发更容易触发。", "stats": "仅对当前局有效。"}
-	)
+		if can_buy and GameState.soul < price:
+			can_buy = false
+			disabled_reason = "魂不足"
 
-	_add_item_row(
-		"Boss 情报", "揭示一条 Boss 机制（Day1/2/3）",
-		INTEL_COST, GameState.soul >= INTEL_COST,
-		"魂不足",
-		_on_buy_intel, {"kind": "intel", "name": "Boss 情报", "desc": "从黑市买来的小道消息，或许能让你在面对首领时占得先机。", "stats": "购买后永久记录。"}
-	)
+		_add_item_row(item_data, can_buy, disabled_reason)
 
-func _add_item_row(title : String, desc : String, price : int, can_buy : bool, disabled_reason : String, cb : Callable, hover_data : Dictionary):
-	# ★ 进一步压缩行高，显示更多物品
+
+func _add_item_row(item_data : Dictionary, can_buy : bool, disabled_reason : String):
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 4)
 	row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -185,14 +196,7 @@ func _add_item_row(title : String, desc : String, price : int, can_buy : bool, d
 	icon_rect.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	icon_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	
-	var icon_path = ""
-	var kind = hover_data.get("kind", "")
-	match kind:
-		"key": icon_path = "item/item_021"
-		"pin": icon_path = "item/item_054"
-		"threshold": icon_path = "item/item_045"
-		"intel": icon_path = "item/item_100"
-	
+	var icon_path = str(item_data.get("icon", ""))
 	if icon_path != "":
 		icon_rect.texture = IconManager.get_icon_or_null(icon_path)
 	row.add_child(icon_rect)
@@ -204,13 +208,13 @@ func _add_item_row(title : String, desc : String, price : int, can_buy : bool, d
 	row.add_child(info)
 
 	var title_lb := Label.new()
-	title_lb.text = title
+	title_lb.text = str(item_data.get("name", ""))
 	title_lb.add_theme_font_size_override("font_size", 8)
 	title_lb.clip_text = true
 	info.add_child(title_lb)
 
 	var desc_lb := Label.new()
-	desc_lb.text = desc
+	desc_lb.text = str(item_data.get("desc", ""))
 	desc_lb.add_theme_font_size_override("font_size", 6)
 	desc_lb.modulate = Color(0.7, 0.7, 0.7)
 	desc_lb.autowrap_mode = TextServer.AUTOWRAP_OFF
@@ -222,17 +226,19 @@ func _add_item_row(title : String, desc : String, price : int, can_buy : bool, d
 	buy_btn.custom_minimum_size = Vector2(54, 18)
 	buy_btn.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	buy_btn.size_flags_horizontal = Control.SIZE_SHRINK_END
+	
+	var price : int = int(item_data.get("price", 0))
 	if can_buy:
 		buy_btn.text = "%d 魂" % price
 		buy_btn.disabled = false
-		buy_btn.pressed.connect(cb)
+		buy_btn.pressed.connect(_on_buy_item.bind(item_data))
 	else:
 		buy_btn.text = disabled_reason
 		buy_btn.disabled = true
 		buy_btn.modulate = Color(0.5, 0.5, 0.5)
 	row.add_child(buy_btn)
 	
-	row.mouse_entered.connect(_on_item_hover.bind(hover_data))
+	row.mouse_entered.connect(_on_item_hover.bind(item_data))
 	row.mouse_exited.connect(_on_item_exit)
 	title_lb.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	desc_lb.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -240,15 +246,18 @@ func _add_item_row(title : String, desc : String, price : int, can_buy : bool, d
 	_item_list.add_child(row)
 	
 	if _item_list.get_child_count() == 1:
-		_on_item_hover(hover_data)
+		_on_item_hover(item_data)
+
 
 func _on_item_hover(data: Dictionary):
-	_hover_type = data.get("kind", "")
+	_hover_type = str(data.get("id", ""))
 	_hover_item = data
 	_refresh_info_panel()
 
+
 func _on_item_exit():
 	_hover_type = ""
+
 
 func _refresh_info_panel():
 	if not _info_panel: return
@@ -259,40 +268,52 @@ func _refresh_info_panel():
 		
 	_info_panel.show_info({
 		"name": _hover_item.get("name", "未知"),
-		"type_str": "黑市商品",
+		"type_str": "特殊道具",
 		"desc": _hover_item.get("desc", ""),
-		"stats": _hover_item.get("stats", "")
+		"stats": "价格: %d 魂" % int(_hover_item.get("price", 0))
 	})
 
-func _on_buy_key():
-	if GameState.keys >= 1 or GameState.soul < KEY_COST: return
-	GameState.soul -= KEY_COST
+
+# ============================================================
+#  购买入口分发
+# ============================================================
+func _on_buy_item(item_data : Dictionary):
+	var price : int = int(item_data.get("price", 0))
+	if GameState.soul < price: return
+
+	match str(item_data.get("effect_type", "")):
+		"grant_key":
+			_do_buy_key(item_data)
+		"tag_pin":
+			_show_option_picker(item_data)
+		"sf_threshold":
+			_do_buy_threshold(item_data)
+		"boss_intel":
+			_show_option_picker(item_data)
+
+
+func _do_buy_key(item_data : Dictionary):
+	GameState.soul -= int(item_data.get("price", 0))
 	GameState.keys = 1
 	GameState.keys_bought += 1
 	SaveManager.auto_save()
 	_show_hint("★ 已获得死眠之钥！")
 	_refresh_ui()
 
-func _on_buy_tag_pin():
-	if GameState.pending_tag_pin != "" or GameState.soul < PIN_COST: return
-	_show_tag_picker()
 
-func _on_buy_threshold():
-	if GameState.soul_fire_threshold_override > 0.0 or GameState.soul < THRESHOLD_COST: return
-	GameState.soul -= THRESHOLD_COST
-	GameState.soul_fire_threshold_override = 0.4
+func _do_buy_threshold(item_data : Dictionary):
+	GameState.soul -= int(item_data.get("price", 0))
+	GameState.soul_fire_threshold_override = float(item_data.get("override_value", 0.4))
 	SaveManager.auto_save()
-	_show_hint("★ 本局燃烧线已降至 40%。")
+	_show_hint("★ 本局燃烧线已降至 %d%%。" % int(GameState.soul_fire_threshold_override * 100))
 	_refresh_ui()
 
-func _on_buy_intel():
-	if GameState.soul < INTEL_COST: return
-	_show_intel_picker()
 
 func _show_hint(text : String):
 	if hint_label:
 		hint_label.text = text
 		hint_label.modulate = Color(0.7, 1.0, 0.7)
+
 
 func _close_overlay():
 	if _tag_picker_overlay and is_instance_valid(_tag_picker_overlay):
@@ -301,81 +322,11 @@ func _close_overlay():
 		_tag_picker_overlay.queue_free()
 	_tag_picker_overlay = null
 
-func _show_tag_picker():
-	_close_overlay()
-	_tag_picker_overlay = Control.new()
-	_tag_picker_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_tag_picker_overlay.mouse_filter = Control.MOUSE_FILTER_STOP
-	add_child(_tag_picker_overlay)
 
-	var bg := ColorRect.new()
-	bg.color = Color(0, 0, 0, 0.75)
-	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_tag_picker_overlay.add_child(bg)
-
-	var panel := PanelContainer.new()
-	panel.set_anchors_preset(Control.PRESET_CENTER)
-	panel.offset_left = -120
-	panel.offset_right = 120
-	panel.offset_top = -80
-	panel.offset_bottom = 80
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = Color(0.08, 0.05, 0.12)
-	sb.border_color = Color(0.6, 0.5, 0.8)
-	sb.border_width_left = 1
-	sb.border_width_right = 1
-	sb.border_width_top = 1
-	sb.border_width_bottom = 1
-	sb.content_margin_left = 10
-	sb.content_margin_right = 10
-	sb.content_margin_top = 8
-	sb.content_margin_bottom = 8
-	panel.add_theme_stylebox_override("panel", sb)
-	_tag_picker_overlay.add_child(panel)
-
-	var vbox := VBoxContainer.new()
-	vbox.add_theme_constant_override("separation", 4)
-	panel.add_child(vbox)
-
-	var title := Label.new()
-	title.text = "选择定向标签（下一局商店前 7 格）"
-	title.add_theme_font_size_override("font_size", 9)
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	vbox.add_child(title)
-
-	var grid := GridContainer.new()
-	grid.columns = 2
-	grid.add_theme_constant_override("h_separation", 4)
-	grid.add_theme_constant_override("v_separation", 3)
-	vbox.add_child(grid)
-
-	for tag in ARMOR_TAGS:
-		var btn := Button.new()
-		btn.text = tag
-		btn.add_theme_font_size_override("font_size", 8)
-		btn.custom_minimum_size = Vector2(80, 24)
-		btn.pressed.connect(_on_tag_selected.bind(tag))
-		grid.add_child(btn)
-
-	var cancel := Button.new()
-	cancel.text = "取消"
-	cancel.add_theme_font_size_override("font_size", 7)
-	cancel.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	cancel.pressed.connect(_close_overlay)
-	vbox.add_child(cancel)
-
-func _on_tag_selected(tag : String):
-	if GameState.soul < PIN_COST:
-		_close_overlay()
-		return
-	GameState.soul -= PIN_COST
-	GameState.pending_tag_pin = tag
-	SaveManager.auto_save()
-	_close_overlay()
-	_show_hint("★ 已挂起标签定向器：%s。下一局商店生效。" % tag)
-	_refresh_ui()
-
-func _show_intel_picker():
+# ============================================================
+#  通用选项弹窗（用于标签定向器和 Boss 情报）
+# ============================================================
+func _show_option_picker(item_data : Dictionary):
 	_close_overlay()
 	_tag_picker_overlay = Control.new()
 	_tag_picker_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -412,27 +363,46 @@ func _show_intel_picker():
 	panel.add_child(vbox)
 
 	var title := Label.new()
-	title.text = "选择要购买的情报（每条只买一次）"
+	title.text = "选择：%s" % item_data.get("name", "")
 	title.add_theme_font_size_override("font_size", 9)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	vbox.add_child(title)
 
-	for opt in INTEL_OPTIONS:
-		var text : String = opt.get("text", "")
-		var flag : String = opt.get("flag", "")
-		var already : bool = flag in GameState.npc_dialogue_flags
+	var scroll := ScrollContainer.new()
+	scroll.custom_minimum_size = Vector2(260, 100)
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	vbox.add_child(scroll)
 
+	var list_vbox := VBoxContainer.new()
+	list_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	list_vbox.add_theme_constant_override("separation", 4)
+	scroll.add_child(list_vbox)
+
+	var options : Array = item_data.get("options", [])
+	for opt in options:
 		var btn := Button.new()
-		btn.text = text + ("（已购）" if already else "")
-		btn.add_theme_font_size_override("font_size", 7)
+		btn.add_theme_font_size_override("font_size", 8)
+		btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		btn.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		btn.custom_minimum_size = Vector2(240, 28)
-		btn.disabled = already
-		if already:
-			btn.modulate = Color(0.5, 0.5, 0.5)
-		else:
-			btn.pressed.connect(_on_intel_selected.bind(text, flag))
-		vbox.add_child(btn)
+		
+		if opt is String:
+			# 字符串类型（如标签）
+			btn.text = opt
+			btn.pressed.connect(_on_option_selected.bind(item_data, opt, ""))
+		elif opt is Dictionary:
+			# 字典类型（如 Boss 情报）
+			var text : String = str(opt.get("text", ""))
+			var flag : String = str(opt.get("flag", ""))
+			var already : bool = flag in GameState.npc_dialogue_flags
+			btn.text = text + ("（已购）" if already else "")
+			btn.disabled = already
+			if already:
+				btn.modulate = Color(0.5, 0.5, 0.5)
+			else:
+				btn.pressed.connect(_on_option_selected.bind(item_data, text, flag))
+		
+		list_vbox.add_child(btn)
 
 	var cancel := Button.new()
 	cancel.text = "取消"
@@ -441,19 +411,31 @@ func _show_intel_picker():
 	cancel.pressed.connect(_close_overlay)
 	vbox.add_child(cancel)
 
-func _on_intel_selected(text : String, flag : String):
-	if GameState.soul < INTEL_COST:
+
+func _on_option_selected(item_data : Dictionary, text_or_tag : String, flag : String):
+	var price : int = int(item_data.get("price", 0))
+	if GameState.soul < price:
 		_close_overlay()
 		return
-	GameState.soul -= INTEL_COST
-	if not (flag in GameState.npc_dialogue_flags):
-		GameState.npc_dialogue_flags.append(flag)
-	if not (text in GameState.revealed_intel):
-		GameState.revealed_intel.append(text)
-	SaveManager.auto_save()
+		
+	GameState.soul -= price
 	_close_overlay()
-	_show_hint("★ 已记入情报簿：%s" % text)
+	
+	var effect_type = str(item_data.get("effect_type", ""))
+	if effect_type == "tag_pin":
+		GameState.pending_tag_pin = text_or_tag
+		SaveManager.auto_save()
+		_show_hint("★ 已挂起标签定向器：%s。下一局商店生效。" % text_or_tag)
+	elif effect_type == "boss_intel":
+		if not (flag in GameState.npc_dialogue_flags):
+			GameState.npc_dialogue_flags.append(flag)
+		if not (text_or_tag in GameState.revealed_intel):
+			GameState.revealed_intel.append(text_or_tag)
+		SaveManager.auto_save()
+		_show_hint("★ 已记入情报簿：%s" % text_or_tag)
+		
 	_refresh_ui()
+
 
 func _on_back_pressed():
 	if _closed: return

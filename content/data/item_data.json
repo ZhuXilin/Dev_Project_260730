@@ -186,7 +186,7 @@
   },
   "knight_armor": {
 	"id": "knight_armor", "name": "骑士甲", "type": "armor", "use_type": "equipment",
-	"icon": "item_008",
+	"icon": "item_066",
 	"description": "物理减伤 +22%，魔法减伤 +8%",
 	"flavor": "骑士甲。肩甲上刻着一句失传的誓言。\n\n没人认得全，但所有穿过它的人，都懂。",
 	"equipment_slot": "armor",
@@ -294,7 +294,7 @@
   },
   "dragon_scale_armor": {
 	"id": "dragon_scale_armor", "name": "龙鳞甲", "type": "armor", "use_type": "equipment",
-	"icon": "item_066",
+	"icon": "item_008",
 	"description": "以龙鳞打造的重甲，物减 +22%，魔减 +15%",
 	"flavor": "",
 	"equipment_slot": "armor",

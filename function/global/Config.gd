@@ -4,6 +4,7 @@ const PATHS : Dictionary = {
 	# JSON 数据
 	"ITEM_DATA":        "res://content/data/item_data.json",
 	"ITEM_UNLOCK":      "res://content/data/item_unlock.json",
+	"SPECIAL_ITEM_DATA": "res://content/data/special_items.json",
 	"UNIT_DATA":        "res://content/data/unit_data.json",
 	"UNIT_UNLOCK":      "res://content/data/unit_unlock.json",
 	"RELIC_DATA":       "res://content/data/relic_data.json",

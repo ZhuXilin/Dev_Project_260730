@@ -1,0 +1,46 @@
+{
+  "key_of_sleep": {
+	"id": "key_of_sleep",
+	"name": "死眠之钥",
+	"icon": "item_083",
+	"desc": "可在宝箱高级隐藏开启，单局1把",
+	"price": 200,
+	"effect_type": "grant_key",
+	"max_stack": 1,
+	"disabled_reason": "已达上限"
+  },
+  "tag_pin": {
+	"id": "tag_pin",
+	"name": "标签定向器",
+	"icon": "item_084",
+	"desc": "下一局商店前7格偏向指定标签",
+	"price": 100,
+	"effect_type": "tag_pin",
+	"options": ["守护", "烈焰", "灰烬", "轮回", "献祭", "余烬"],
+	"disabled_reason": "已挂起"
+  },
+  "sf_threshold": {
+	"id": "sf_threshold",
+	"name": "魂火阈值调节器",
+	"icon": "item_085",
+	"desc": "本局燃烧线50%→40%（更易进入燃烧）",
+	"price": 120,
+	"effect_type": "sf_threshold",
+	"override_value": 0.4,
+	"disabled_reason": "已使用"
+  },
+  "boss_intel": {
+	"id": "boss_intel",
+	"name": "Boss 情报",
+	"icon": "item_086",
+	"desc": "揭示一条 Boss 机制（Day1/2/3）",
+	"price": 40,
+	"effect_type": "boss_intel",
+	"options": [
+	  { "text": "Day1 魂火窃贼：不足 2 魂火时全队 -10% HP", "flag": "intel_day1_boss" },
+	  { "text": "Day2 灰烬护盾：破盾需 1 魂火，最多叠 3 层", "flag": "intel_day2_boss" },
+	  { "text": "Day3 三形态：每次复活临时扣 3 魂火上限", "flag": "intel_day3_boss" }
+	],
+	"disabled_reason": "魂不足"
+  }
+}
