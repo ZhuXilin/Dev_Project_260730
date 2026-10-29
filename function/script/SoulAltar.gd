@@ -4,7 +4,6 @@ signal closed
 
 enum Tab { SOUL_FIRE, ATTR_CAP, UNIT_UNLOCK, RELIC_REFINE }
 
-# ★ 修改：扩展属性上限等级到 5 级（对应消耗）
 const ATTR_CAP_COSTS : Array[int] = [20, 50, 120, 250, 500]
 
 var _current_tab : Tab = Tab.SOUL_FIRE
@@ -64,6 +63,7 @@ func _ready():
 
 
 func _ensure_layout():
+	var vbox : VBoxContainer = $Panel/VBox
 	var main_hbox : HBoxContainer = $Panel/VBox/MainHBox
 	if main_hbox.has_node("RightInfoContainer"): return
 	
@@ -86,7 +86,6 @@ func _input(event: InputEvent):
 			_refresh_info_panel()
 			get_viewport().set_input_as_handled()
 
-# 修改遗物界面 _build_relic_refine_panel 的循环部分
 func _build_relic_refine_panel():
 	_clear_attr_container()
 	unit_sprite.visible = false
@@ -154,7 +153,12 @@ func _build_relic_refine_panel():
 	attr_container.add_child(HSeparator.new())
 	attr_container.add_child(_make_info("精炼说明已移至右侧面板查看。"))
 
-# 加入悬停与右键逻辑
+# 加入单位悬停
+func _on_unit_hover(unit_type: String):
+	_hover_type = "unit"
+	_hover_id = unit_type
+	_refresh_info_panel()
+
 func _on_relic_hover(rid: String, is_refined: bool):
 	_hover_type = "relic"
 	_hover_id = rid
@@ -170,7 +174,35 @@ func _refresh_info_panel():
 	if not _info_panel or _hover_type == "": return
 	var is_narrative = FlavorManager.is_narrative_mode()
 	
-	if _hover_type == "relic":
+	if _hover_type == "unit":
+		var u_data = UnitDataManager.get_unit_data(_hover_id)
+		var display = u_data.get("display_name", _hover_id)
+		var type_name = UnitDataManager.get_unit_type_display_name(_hover_id)
+		
+		if is_narrative:
+			var flavor = FlavorManager.get_flavor("units", _hover_id)
+			if flavor == "": flavor = "（暂无叙事）"
+			var avatar_id = u_data.get("avatar", "")
+			var icon = IconManager.get_icon_or_null(avatar_id)
+			_info_panel.show_info({"name": display, "desc": flavor, "icon": icon})
+			return
+			
+		var stats = []
+		stats.append("HP: %d" % u_data.get("max_hp", 0))
+		stats.append("力量 %d | 灵巧 %d" % [u_data.get("strength", 0), u_data.get("dexterity", 0)])
+		stats.append("智力 %d | 信仰 %d" % [u_data.get("intelligence", 0), u_data.get("faith", 0)])
+		stats.append("移动力: %d" % u_data.get("move_range", 0))
+		
+		var desc = u_data.get("description", "")
+		var avatar_id = u_data.get("avatar", "")
+		var icon = IconManager.get_icon_or_null(avatar_id)
+		_info_panel.show_info({
+			"name": display, "type_str": type_name, "desc": desc,
+			"stats": "\n".join(stats), "icon": icon
+		})
+		return
+
+	elif _hover_type == "relic":
 		var rid = _current_hover_data.rid
 		var is_refined = _current_hover_data.is_refined
 		var rd = RelicManager.get_relic_data(rid)
@@ -187,7 +219,6 @@ func _refresh_info_panel():
 			"desc": desc, "icon": rd.get("icon")
 		})
 
-# 修改 _clear_attr_container 清理面板
 func _clear_attr_container():
 	_hover_type = ""
 	if _info_panel and _info_panel.has_method("clear_info"): _info_panel.clear_info()
@@ -239,10 +270,6 @@ func _clear_unit_list():
 	for c in unit_list.get_children():
 		unit_list.remove_child(c); c.queue_free()
 
-
-# ============================================================
-#  Tab 1 · 魂火
-# ============================================================
 func _refresh_soul_fire_panel():
 	_clear_attr_container()
 	unit_sprite.visible = false
@@ -298,9 +325,6 @@ func _on_upgrade_soul_fire_initial():
 		_show_msg("初始魂火已提升")
 
 
-# ============================================================
-#  Tab 2 · 属性上限
-# ============================================================
 func _build_unit_list():
 	for c in unit_list.get_children():
 		unit_list.remove_child(c); c.queue_free()
@@ -313,7 +337,6 @@ func _build_unit_list():
 		var btn = Button.new()
 		var type_display = UnitDataManager.get_unit_type_display_name(unit_type)
 		var cap_lv : int = int(GameState.unit_attr_cap.get(unit_type, 0))
-		# ★ 修改：最大等级改为 ATTR_CAP_COSTS.size()
 		var max_lv : int = ATTR_CAP_COSTS.size()
 		btn.text = "%s  [Lv %d/%d]" % [type_display, cap_lv, max_lv]
 		btn.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_SMALL)
@@ -322,6 +345,9 @@ func _build_unit_list():
 		btn.set_meta("unit_type", unit_type)
 		btn.modulate = Color.WHITE if unit_type == _current_unit_type else Color(0.7, 0.7, 0.7, 1)
 		btn.pressed.connect(_on_unit_selected.bind(unit_type))
+		# ★ 悬停
+		btn.mouse_entered.connect(_on_unit_hover.bind(unit_type))
+		btn.mouse_exited.connect(_on_info_hover_exit)
 		unit_list.add_child(btn)
 
 	if _current_unit_type == "" or not _is_unit_in_list(_current_unit_type):
@@ -362,7 +388,6 @@ func _refresh_attr_cap_panel():
 	var dict : Dictionary = UnitDataManager.get_unit_data(_current_unit_type)
 	var cur_lv : int = int(GameState.unit_attr_cap.get(_current_unit_type, 0))
 	
-	# ★ 修改：最大等级强制使用 ATTR_CAP_COSTS.size() (5)
 	var max_lv : int = ATTR_CAP_COSTS.size()
 
 	unit_name_label.text = "%s   上限 Lv %d / %d" % [display, cur_lv, max_lv]
@@ -378,7 +403,6 @@ func _refresh_attr_cap_panel():
 		attr_container.add_child(_make_info(_format_bonus_dict(total)))
 
 	if cur_lv < max_lv:
-		# ★ 修改：预览计算改为动态对比差值，防止 JSON 只有 3 级时读取越界
 		var current_total := UnitDataManager.get_attr_cap_total_bonus(_current_unit_type, cur_lv)
 		var next_total := UnitDataManager.get_attr_cap_total_bonus(_current_unit_type, cur_lv + 1)
 		var diff : Dictionary = {}
@@ -435,7 +459,6 @@ func _on_upgrade_attr_cap():
 	
 	var cur_lv : int = int(GameState.unit_attr_cap.get(_current_unit_type, 0))
 	
-	# ★ 修改：上限检查改为 ATTR_CAP_COSTS.size()
 	if cur_lv >= ATTR_CAP_COSTS.size(): return
 	
 	var cost : int = ATTR_CAP_COSTS[cur_lv] if cur_lv < ATTR_CAP_COSTS.size() else -1
@@ -452,9 +475,6 @@ func _on_upgrade_attr_cap():
 		UnitDataManager.get_unit_type_display_name(_current_unit_type), cur_lv + 1])
 
 
-# ============================================================
-#  Tab 3 · 唤醒残魂
-# ============================================================
 func _build_locked_unit_list():
 	for c in unit_list.get_children():
 		unit_list.remove_child(c); c.queue_free()
@@ -497,6 +517,9 @@ func _build_locked_unit_list():
 		btn.set_meta("unit_type", unit_type)
 		btn.modulate = Color.WHITE if unit_type == _current_unit_type else Color(0.7, 0.7, 0.7, 1)
 		btn.pressed.connect(_on_locked_unit_selected.bind(unit_type))
+		# ★ 悬停
+		btn.mouse_entered.connect(_on_unit_hover.bind(unit_type))
+		btn.mouse_exited.connect(_on_info_hover_exit)
 		unit_list.add_child(btn)
 
 	if _current_unit_type == "" or Globals.is_unit_unlocked(_current_unit_type):
@@ -571,10 +594,8 @@ func _refresh_unit_unlock_panel():
 	attr_container.add_child(_make_info("HP：%d" % int(dict.get("max_hp", 0))))
 	attr_container.add_child(_make_info("力量：%d    灵巧：%d" % [
 		int(dict.get("strength", 0)), int(dict.get("dexterity", 0))]))
-	attr_container.add_child(_make_info("智力：%d    信仰：%d    感应：%d" % [
-		int(dict.get("intelligence", 0)),
-		int(dict.get("faith", 0)),
-		int(dict.get("arcane", 0))]))
+	attr_container.add_child(_make_info("智力：%d    信仰：%d" % [
+		int(dict.get("intelligence", 0)), int(dict.get("faith", 0))]))
 	attr_container.add_child(_make_info("移动力：%d" % int(dict.get("move_range", 0))))
 
 	attr_container.add_child(HSeparator.new())
@@ -633,9 +654,7 @@ func _on_refine_relic(rid: String):
 
 func RelManagerName(rid): return RelicManager.get_relic_data(rid).get("name", rid)
 
-# ============================================================
-#  辅助
-# ============================================================
+
 func _make_title(text: String) -> Label:
 	var lb = Label.new()
 	lb.text = text

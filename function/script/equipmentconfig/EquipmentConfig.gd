@@ -262,6 +262,8 @@ func _build_ui():
 		_setup_forge_narrative_ui()
 
 
+# ============ EquipmentConfig.gd ============
+
 func _build_ui_inner():
 	var vbox = $VBoxContainer
 	if vbox:
@@ -295,7 +297,7 @@ func _build_ui_inner():
 		bottom_hbox.custom_minimum_size = Vector2(0, 20)
 		bottom_hbox.alignment = BoxContainer.ALIGNMENT_CENTER
 
-	# ★ 锁死左侧信息栏宽度，防止文字变长挤爆中间
+	# ★ 修复：锁死左侧信息栏宽度，防止文字变长挤爆中间
 	var left_info = get_node_or_null("VBoxContainer/MainHBox/LeftInfoColumn")
 	if left_info:
 		left_info.custom_minimum_size = Vector2(130, 0) 
@@ -304,7 +306,7 @@ func _build_ui_inner():
 
 	var detail_zone = get_node_or_null("VBoxContainer/MainHBox/LeftInfoColumn/DetailZone")
 	if detail_zone:
-		# ★ 锁死左侧面板高度，防止换行文字把整个 HBox 撑高
+		# ★ 修复：锁死左侧面板高度，防止换行文字把整个 HBox 撑高
 		detail_zone.custom_minimum_size = Vector2(130, 150) 
 		detail_zone.size_flags_vertical = Control.SIZE_FILL 
 		detail_zone.clip_contents = true
@@ -312,7 +314,8 @@ func _build_ui_inner():
 	var left_vbox = get_node_or_null("VBoxContainer/MainHBox/LeftVBox")
 	if left_vbox:
 		left_vbox.custom_minimum_size = Vector2(0, 0)
-		left_vbox.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		# ★ 修复：限制单位栏不能无限撑高，防止整体 UI 上下被挤出
+		left_vbox.size_flags_vertical = Control.SIZE_FILL 
 		left_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		left_vbox.clip_contents = true
 
@@ -512,7 +515,6 @@ func _build_ui_inner():
 				_aura_tab_btn.visible = true
 				_aura_tab_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 
-			# ★ 默认加载商店内容
 			if current_tab == "" or (not current_tab in ["arena_shop", "arena_forge", "sacrifice", "aura"]):
 				current_tab = "arena_shop"
 
@@ -557,12 +559,56 @@ func _build_ui_inner():
 	_build_unit_columns()
 	visible = true
 
-	if shop_container:
-		shop_container.queue_sort()
-	if right_container:
-		right_container.queue_sort()
-	if tab_bar:
-		tab_bar.queue_sort()
+	if shop_container: shop_container.queue_sort()
+	if right_container: right_container.queue_sort()
+	if tab_bar: tab_bar.queue_sort()
+
+
+func _build_unit_columns():
+	if not unit_container: return
+	unit_container.alignment = BoxContainer.ALIGNMENT_CENTER
+	for child in unit_container.get_children():
+		unit_container.remove_child(child); child.free()
+
+	for i in range(party.size()):
+		var unit : UnitData = party[i]
+		var col := VBoxContainer.new()
+		col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		# ★ 修复：强制从顶部排列，不撑高，防止 UI 溢出
+		col.size_flags_vertical = Control.SIZE_SHRINK_BEGIN 
+		col.add_theme_constant_override("separation", 2) # ★ 从 6 改小为 2，压缩高度
+		col.alignment = BoxContainer.ALIGNMENT_CENTER
+		unit_container.add_child(col)
+
+		var icon_ctrl : Control = _create_unit_icon(unit, i)
+		if unit.is_dead: icon_ctrl.modulate = Color(0.4, 0.4, 0.4, 1)
+		col.add_child(icon_ctrl)
+
+		var weapon_inst : ItemInstance = unit.weapon_slot
+		var weapon_btn : Button = _create_item_button(weapon_inst, "weapon", i, -1)
+		if unit.is_dead: _disable_button(weapon_btn)
+		col.add_child(weapon_btn)
+
+		col.add_child(Style.create_label(Style.SEPARATOR_TEXT, Style.FONT_SMALL))
+
+		var armor_group := VBoxContainer.new()
+		armor_group.add_theme_constant_override("separation", 2) # ★ 从 6 改小为 2
+		armor_group.alignment = BoxContainer.ALIGNMENT_CENTER
+		col.add_child(armor_group)
+		
+		for slot_idx in range(unit.armor_slots.size()):
+			var armor_btn : Button = _create_item_button(unit.armor_slots[slot_idx], "armor", i, slot_idx)
+			if unit.is_dead: _disable_button(armor_btn)
+			armor_group.add_child(armor_btn)
+
+		var talent_inst : TalentInstance = unit.talent_slots[0] if unit.talent_slots.size() > 0 else null
+		var talent_btn : Button = _create_talent_button(talent_inst, i, 0)
+		if unit.is_dead: _disable_button(talent_btn)
+		col.add_child(talent_btn)
+
+		var adv_btn : Button = _create_advanced_talent_button(unit, i)
+		if unit.is_dead: _disable_button(adv_btn)
+		col.add_child(adv_btn)
 
 
 func _update_gold_display():
@@ -993,54 +1039,6 @@ func _create_unit_icon(unit: UnitData, unit_idx: int) -> Control:
 	wrapper.mouse_exited.connect(_on_unit_hover_exited)
 
 	return wrapper
-
-
-func _build_unit_columns():
-	if not unit_container: return
-	unit_container.alignment = BoxContainer.ALIGNMENT_CENTER
-
-	for child in unit_container.get_children():
-		unit_container.remove_child(child); child.free()
-
-	for i in range(party.size()):
-		var unit : UnitData = party[i]
-		var col := VBoxContainer.new()
-		col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		col.size_flags_vertical = Control.SIZE_EXPAND_FILL
-		col.add_theme_constant_override("separation", 6)
-		col.alignment = BoxContainer.ALIGNMENT_CENTER
-		unit_container.add_child(col)
-
-		var icon_ctrl : Control = _create_unit_icon(unit, i)
-		if unit.is_dead:
-			icon_ctrl.modulate = Color(0.4, 0.4, 0.4, 1)
-		col.add_child(icon_ctrl)
-
-		var weapon_inst : ItemInstance = unit.weapon_slot
-		var weapon_btn : Button = _create_item_button(weapon_inst, "weapon", i, -1)
-		if unit.is_dead: _disable_button(weapon_btn)
-		col.add_child(weapon_btn)
-
-		col.add_child(Style.create_label(Style.SEPARATOR_TEXT, Style.FONT_SMALL))
-
-		var armor_group := VBoxContainer.new()
-		armor_group.add_theme_constant_override("separation", 6)
-		armor_group.alignment = BoxContainer.ALIGNMENT_CENTER
-		col.add_child(armor_group)
-		
-		for slot_idx in range(unit.armor_slots.size()):
-			var armor_btn : Button = _create_item_button(unit.armor_slots[slot_idx], "armor", i, slot_idx)
-			if unit.is_dead: _disable_button(armor_btn)
-			armor_group.add_child(armor_btn)
-
-		var talent_inst : TalentInstance = unit.talent_slots[0] if unit.talent_slots.size() > 0 else null
-		var talent_btn : Button = _create_talent_button(talent_inst, i, 0)
-		if unit.is_dead: _disable_button(talent_btn)
-		col.add_child(talent_btn)
-
-		var adv_btn : Button = _create_advanced_talent_button(unit, i)
-		if unit.is_dead: _disable_button(adv_btn)
-		col.add_child(adv_btn)
 
 
 func _disable_button(btn: Button):
