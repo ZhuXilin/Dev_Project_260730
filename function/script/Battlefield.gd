@@ -51,11 +51,9 @@ const POPUP_QUEUE_INTERVAL : float = 0.15
 const POPUP_STACK_HEIGHT : float = 14.0
 const POPUP_MAX_STACK : int = 3
 
-# 双击结束回合相关
 var _last_middle_click_time: int = 0
 const DOUBLE_CLICK_MS: int = 300
 
-# 面板缓存防抖
 var _cached_info_unit: Unit = null
 var _cached_info_cell: Vector2i = Vector2i(-999, -999)
 
@@ -91,6 +89,7 @@ var _marked_targets : Dictionary = {}
 var _objective_banner : Label = null
 
 var _show_all_hp_bars : bool = true
+
 
 func _ready():
 	TurnManager.set_battle_ready(false)
@@ -343,6 +342,7 @@ func _ready():
 	_marked_targets.clear()
 	print("Battlefield _ready 完成")
 	_create_damage_preview_panel()
+
 
 func _build_battle_start_context() -> Dictionary:
 	var md: MapData = GameState.current_map_data
@@ -749,36 +749,58 @@ func _process_popup_queue(key: String) -> void:
 
 # ============================================================
 #  InfoPanel
+#
+#  统一约定：
+#    · info_panel / AvatarBg / AvatarRect 全部由 PanelRevealer 统一扫入扫出。
+#    · "稳定显示" = visible && mouse_filter == STOP
+#      "扫出中"   = visible && mouse_filter == IGNORE
+#    · 所有 hide_panel 调用必须先检查 STOP —— 否则 CursorController 每帧
+#      emit request_hide_info 会导致 tween 被每帧重置，面板卡在扫出中途。
+#    · setting_panel 显示时，force_hide info_panel / avatar，避免视觉重叠。
 # ============================================================
+func _is_panel_stable(panel: Control) -> bool:
+	return panel != null and panel.visible and panel.mouse_filter == Control.MOUSE_FILTER_STOP
+
+
+func _is_panel_fading_out(panel: Control) -> bool:
+	return panel != null and panel.visible and panel.mouse_filter == Control.MOUSE_FILTER_IGNORE
+
+
 func _on_request_show_info(unit: Unit):
-	var was_unit_type = (_cached_info_unit != null)
-	var is_unit_type = (unit != null)
-	
+	# 失效引用兜底
+	if not is_instance_valid(_cached_info_unit):
+		_cached_info_unit = null
+
+	# 缓存判断：同一目标 + 面板处于稳定显示态 → 跳过
 	if unit != null:
-		if unit == _cached_info_unit and info_panel.visible:
+		if unit == _cached_info_unit and _is_panel_stable(info_panel):
 			return
-		_cached_info_unit = unit
-		_cached_info_cell = Vector2i(-999, -999)
 	else:
 		var mouse_pos = get_global_mouse_position()
 		var t_cell = world_to_grid(mouse_pos)
-		if t_cell == _cached_info_cell and info_panel.visible and _cached_info_unit == null:
+		if t_cell == _cached_info_cell and _is_panel_stable(info_panel) and _cached_info_unit == null:
 			return
-		_cached_info_cell = t_cell
-		_cached_info_unit = null
 
-	# 强制重播面板扫入动画
-	if was_unit_type != is_unit_type and info_panel.visible:
-		PanelRevealer.force_hide(info_panel)
-		var avatar_rect := get_node_or_null("Info/AvatarRect") as TextureRect
-		var avatar_bg := get_node_or_null("Info/AvatarBg") as Panel
-		_hide_avatar(avatar_rect, avatar_bg)
+	# 类型切换（单位 ⇄ 地形）→ 强制所有面板重扫入，保持进入/扫出表现一致
+	var prev_is_unit : bool = (_cached_info_unit != null)
+	var curr_is_unit : bool = (unit != null)
+	var force_replay : bool = (prev_is_unit != curr_is_unit)
+
+	# 更新缓存
+	if unit != null:
+		_cached_info_unit = unit
+		_cached_info_cell = Vector2i(-999, -999)
+	else:
+		_cached_info_cell = world_to_grid(get_global_mouse_position())
+		_cached_info_unit = null
 
 	var avatar_rect := get_node_or_null("Info/AvatarRect") as TextureRect
 	var avatar_bg := get_node_or_null("Info/AvatarBg") as Panel
 
+	# ---- 地形 ----
 	if unit == null:
 		_hide_avatar(avatar_rect, avatar_bg)
+
 		var t_type = TerrainManager.get_terrain(_cached_info_cell)
 		var t_name = TerrainManager.get_terrain_name(t_type)
 		var td : Dictionary = TerrainManager.TERRAIN_DATA.get(t_type, {})
@@ -787,24 +809,28 @@ func _on_request_show_info(unit: Unit):
 		info_text_label.text = "地形: " + t_name \
 			+ "\n物减 +%d%%" % int(hover_phys * 100) \
 			+ "  魔减 +%d%%" % int(hover_mag * 100)
-		_adjust_info_panel(info_text_label, info_panel, null)
+		_adjust_info_panel(info_text_label, info_panel, null, false, force_replay)
 		return
 
-	if not is_instance_valid(unit) or unit.unit_stats == null: return
+	if not is_instance_valid(unit) or unit.unit_stats == null:
+		return
 
-	if avatar_rect and avatar_bg:
-		if unit.unit_stats.team_id != 0:
-			_hide_avatar(avatar_rect, avatar_bg)
-		else:
-			var avatar_id = GameState.get_unit_avatar(unit.unit_stats.unit_name)
-			var tex = IconManager.get_icon_or_null(avatar_id)
-			if tex:
-				if avatar_rect.texture != tex: avatar_rect.texture = tex
-				avatar_rect.custom_minimum_size = Vector2(48, 48)
-				avatar_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-				_show_avatar(avatar_rect, avatar_bg)
-			else:
-				_hide_avatar(avatar_rect, avatar_bg)
+	# ---- 单位 ----
+	var show_avatar : bool = false
+	if unit.unit_stats.team_id == 0:
+		var avatar_id = GameState.get_unit_avatar(unit.unit_stats.unit_name)
+		var tex = IconManager.get_icon_or_null(avatar_id)
+		if tex:
+			if avatar_rect.texture != tex:
+				avatar_rect.texture = tex
+			avatar_rect.custom_minimum_size = Vector2(48, 48)
+			avatar_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+			show_avatar = true
+
+	if show_avatar:
+		_show_avatar(avatar_rect, avatar_bg, force_replay)
+	else:
+		_hide_avatar(avatar_rect, avatar_bg)
 
 	var lines : Array = []
 	var display_name = unit.unit_stats.display_name if unit.unit_stats.display_name != "" else unit.unit_stats.unit_name
@@ -889,14 +915,20 @@ func _on_request_show_info(unit: Unit):
 	lines.append("地形: " + terrain_name + "（物减+%d%% 魔减+%d%%）" % [int(t_phys * 100), int(t_mag * 100)])
 
 	info_text_label.text = "\n".join(lines)
-	_adjust_info_panel(info_text_label, info_panel, unit)
+	_adjust_info_panel(info_text_label, info_panel, unit, show_avatar, force_replay)
 
 
-func _adjust_info_panel(label: Label, panel: PanelContainer, ref_unit: Unit = null):
+# 排版 + 触发 panel 扫入（头像显隐已由 _show_avatar / _hide_avatar 处理）
+func _adjust_info_panel(label: Label, panel: PanelContainer,
+		ref_unit: Unit = null, show_avatar: bool = false, force_replay: bool = false):
 	var vp_size := get_viewport().get_visible_rect().size
 	var avatar_rect := get_node_or_null("Info/AvatarRect") as TextureRect
 	var avatar_bg := get_node_or_null("Info/AvatarBg") as Panel
-	var avatar_visible : bool = (avatar_rect != null and avatar_rect.visible)
+
+	# 绝对定位，与扫描动画解耦
+	panel.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	if avatar_bg: avatar_bg.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	if avatar_rect: avatar_rect.set_anchors_preset(Control.PRESET_TOP_LEFT)
 
 	var align_left_side : bool = false
 	if ref_unit != null and is_instance_valid(ref_unit):
@@ -930,77 +962,121 @@ func _adjust_info_panel(label: Label, panel: PanelContainer, ref_unit: Unit = nu
 	label.size.x = panel_width
 
 	var label_min_height = label.get_minimum_size().y
-	# ★ 设定最小高度 36，防止地形面板过扁导致扫入动画极短、视觉突兀
 	var panel_height = maxf(label_min_height + margin_top + margin_bottom, 36.0)
 	panel.offset_bottom = panel.offset_top + panel_height
 
-	if avatar_visible:
-		avatar_bg.size = Vector2(54, 54)
-		avatar_rect.size = Vector2(48, 48)
-		
-		var target_x : float
-		if align_left_side:
-			target_x = panel.offset_right + 4.0
-		else:
-			target_x = panel.offset_left - 4.0 - 54.0
+	# 头像位置排版
+	if show_avatar:
+		if avatar_bg:
+			avatar_bg.size = Vector2(AVATAR_SIZE, AVATAR_SIZE)
+			var target_x : float
+			if align_left_side:
+				target_x = panel.offset_right + AVATAR_GAP
+			else:
+				target_x = panel.offset_left - AVATAR_GAP - AVATAR_SIZE
+			avatar_bg.offset_left = target_x
+			avatar_bg.offset_right = target_x + AVATAR_SIZE
+			avatar_bg.offset_top = INFO_PANEL_MARGIN
+			avatar_bg.offset_bottom = INFO_PANEL_MARGIN + AVATAR_SIZE
+		if avatar_rect:
+			avatar_rect.size = Vector2(48, 48)
+			var target_x2 : float
+			if align_left_side:
+				target_x2 = panel.offset_right + AVATAR_GAP + 3.0
+			else:
+				target_x2 = panel.offset_left - AVATAR_GAP - AVATAR_SIZE + 3.0
+			avatar_rect.offset_left = target_x2
+			avatar_rect.offset_right = target_x2 + 48.0
+			avatar_rect.offset_top = INFO_PANEL_MARGIN + 3.0
+			avatar_rect.offset_bottom = INFO_PANEL_MARGIN + 3.0 + 48.0
 
-		avatar_bg.offset_left = target_x
-		avatar_bg.offset_right = target_x + 54.0
-		avatar_bg.offset_top = INFO_PANEL_MARGIN
-		avatar_bg.offset_bottom = INFO_PANEL_MARGIN + 54.0
-		
-		avatar_rect.offset_left = target_x + 3.0
-		avatar_rect.offset_right = target_x + 54.0 - 3.0
-		avatar_rect.offset_top = INFO_PANEL_MARGIN + 3.0
-		avatar_rect.offset_bottom = INFO_PANEL_MARGIN + 54.0 - 3.0
-
-	if not panel.visible:
+	# 触发 panel 扫入：
+	#   · force_replay（类型切换）
+	#   · 未显示（首次）
+	#   · 扫出中（打断扫出）
+	if force_replay or not panel.visible or _is_panel_fading_out(panel):
 		PanelRevealer.show_panel(panel)
-	if avatar_visible and not avatar_bg.visible:
-		PanelRevealer.show_panel(avatar_bg)
-		PanelRevealer.show_panel(avatar_rect)
 
 
 func _on_request_hide_info():
-	PanelRevealer.hide_panel(info_panel)
+	# ★ 关键：仅当 panel 处于稳定显示（STOP）时才启动扫出，
+	#   否则 CursorController 每帧 emit 会反复 kill/reset tween 导致卡在扫出中途。
+	if _is_panel_stable(info_panel):
+		PanelRevealer.hide_panel(info_panel)
+
 	var avatar_rect := get_node_or_null("Info/AvatarRect") as TextureRect
 	var avatar_bg := get_node_or_null("Info/AvatarBg") as Panel
-	_hide_avatar(avatar_rect, avatar_bg)
+	if _is_panel_stable(avatar_bg):
+		PanelRevealer.hide_panel(avatar_bg)
+	if _is_panel_stable(avatar_rect):
+		PanelRevealer.hide_panel(avatar_rect)
 
 
-func _show_avatar(avatar_rect: TextureRect, bg_rect: Panel):
+# ============================================================
+#  头像显隐 —— 走 PanelRevealer 扫入扫出，与 info_panel 保持一致
+#  同样加 STOP 判断，避免扫出动画被每帧重置。
+# ============================================================
+func _show_avatar(avatar_rect: TextureRect, bg_rect: Panel, force_replay: bool = false):
 	if avatar_rect and is_instance_valid(avatar_rect):
-		if not avatar_rect.visible:
+		var need_show := force_replay \
+			or not avatar_rect.visible \
+			or _is_panel_fading_out(avatar_rect)
+		if need_show:
 			avatar_rect.visible = true
 			PanelRevealer.show_panel(avatar_rect)
+
 	if bg_rect and is_instance_valid(bg_rect):
-		if not bg_rect.visible:
+		var need_show2 := force_replay \
+			or not bg_rect.visible \
+			or _is_panel_fading_out(bg_rect)
+		if need_show2:
 			bg_rect.visible = true
 			PanelRevealer.show_panel(bg_rect)
 
 
 func _hide_avatar(avatar_rect: TextureRect, bg_rect: Panel):
-	if avatar_rect and is_instance_valid(avatar_rect):
-		if avatar_rect.visible:
-			PanelRevealer.hide_panel(avatar_rect)
-	if bg_rect and is_instance_valid(bg_rect):
-		if bg_rect.visible:
-			PanelRevealer.hide_panel(bg_rect)
+	# ★ 关键：仅当 panel 处于稳定显示（STOP）时才启动扫出
+	if _is_panel_stable(avatar_rect):
+		PanelRevealer.hide_panel(avatar_rect)
+	if _is_panel_stable(bg_rect):
+		PanelRevealer.hide_panel(bg_rect)
 
 
 # ============================================================
 #  设置栏
 # ============================================================
 func _on_request_show_setting():
-	PanelRevealer.show_panel(setting_panel)
-	if team_view_panel.visible:
+	# 已稳定显示：不重复触发
+	if _is_panel_stable(setting_panel):
+		return
+
+	# ★ 强制隐藏可能和 setting_panel 位置重叠的信息面板（避免叠加）
+	if info_panel:
+		PanelRevealer.force_hide(info_panel)
+	var avatar_rect := get_node_or_null("Info/AvatarRect") as TextureRect
+	var avatar_bg := get_node_or_null("Info/AvatarBg") as Panel
+	if avatar_rect:
+		PanelRevealer.force_hide(avatar_rect)
+	if avatar_bg:
+		PanelRevealer.force_hide(avatar_bg)
+
+	# 其他设置类面板走扫出动画（位置不重叠，可以保留动画）
+	if team_view_panel and team_view_panel.visible:
 		PanelRevealer.hide_panel(team_view_panel)
+	if setting_menu_panel and setting_menu_panel.visible:
+		PanelRevealer.hide_panel(setting_menu_panel)
+
+	PanelRevealer.show_panel(setting_panel)
 
 
 func _on_request_hide_setting():
-	PanelRevealer.hide_panel(setting_panel)
-	PanelRevealer.hide_panel(team_view_panel)
-	PanelRevealer.hide_panel(setting_menu_panel)
+	if _is_panel_stable(setting_panel):
+		PanelRevealer.hide_panel(setting_panel)
+	if _is_panel_stable(team_view_panel):
+		PanelRevealer.hide_panel(team_view_panel)
+	if _is_panel_stable(setting_menu_panel):
+		PanelRevealer.hide_panel(setting_menu_panel)
+
 
 func _on_soul_fire_changed(current: int, max_carried: int):
 	if soul_fire_bar and is_instance_valid(soul_fire_bar):
@@ -1008,16 +1084,17 @@ func _on_soul_fire_changed(current: int, max_carried: int):
 		soul_fire_bar.value = current
 	if soul_fire_label and is_instance_valid(soul_fire_label):
 		soul_fire_label.text = "%d/%d" % [current, max_carried]
-		
+
 		match SoulFireManager.get_state():
 			SoulFireManager.State.BURNING:
-				soul_fire_label.modulate = Color(1.0, 0.302, 0.302, 1.0) # 燃烧（橙色）
+				soul_fire_label.modulate = Color(1.0, 0.302, 0.302, 1.0)
 			SoulFireManager.State.DEPLETED:
-				soul_fire_label.modulate = Color(0.708, 0.499, 0.0, 1.0) # 枯竭（紫色）
+				soul_fire_label.modulate = Color(0.708, 0.499, 0.0, 1.0)
 			SoulFireManager.State.ZERO:
-				soul_fire_label.modulate = Color(1.0, 1.0, 1.0, 1.0) # 归零（红色）
+				soul_fire_label.modulate = Color(1.0, 1.0, 1.0, 1.0)
 			_:
-				soul_fire_label.modulate = Color.WHITE # 正常（白色）
+				soul_fire_label.modulate = Color.WHITE
+
 
 func _on_speed_changed(new_speed: int):
 	if speed_indicator == null: return
@@ -1128,22 +1205,22 @@ func _on_back_to_menu_pressed():
 
 
 func _on_request_setting_right_click():
-	var is_tv_open = team_view_panel.visible and team_view_panel.mouse_filter == Control.MOUSE_FILTER_STOP
-	var is_sm_open = setting_menu_panel.visible and setting_menu_panel.mouse_filter == Control.MOUSE_FILTER_STOP
-	var is_setting_open = setting_panel.visible and setting_panel.mouse_filter == Control.MOUSE_FILTER_STOP
+	var is_tv_open = _is_panel_stable(team_view_panel)
+	var is_sm_open = _is_panel_stable(setting_menu_panel)
+	var is_setting_open = _is_panel_stable(setting_panel)
 
 	if is_tv_open:
 		PanelRevealer.hide_panel(team_view_panel)
 		PanelRevealer.show_panel(setting_panel)
 		SoundManager.play_cancel_sound()
 		return
-		
+
 	if is_sm_open:
 		PanelRevealer.hide_panel(setting_menu_panel)
 		PanelRevealer.show_panel(setting_panel)
 		SoundManager.play_cancel_sound()
 		return
-		
+
 	if is_setting_open:
 		PanelRevealer.hide_panel(setting_panel)
 		SignalBus.request_hide_info.emit()
@@ -1491,82 +1568,76 @@ func _update_unit_display_info(unit_type: String, stats_text: String, avatar_bg:
 
 	var avatar_id = GameState.get_unit_avatar(unit_type)
 	var has_avatar = false
-	
+
 	if avatar_id != "":
 		var tex = IconManager.get_icon_or_null(avatar_id)
 		if tex:
 			if avatar_rect.texture != tex:
 				avatar_rect.texture = tex
 			has_avatar = true
-			
+
 	if has_avatar:
 		avatar_rect.custom_minimum_size = Vector2(50, 50)
 		avatar_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		avatar_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-		
-		if not avatar_bg.visible:
-			avatar_bg.visible = true
-			PanelRevealer.show_panel(avatar_bg)
-		if not avatar_rect.visible:
-			avatar_rect.visible = true
-			PanelRevealer.show_panel(avatar_rect)
+		_show_avatar(avatar_rect, avatar_bg)
 	else:
-		if avatar_bg.visible:
-			PanelRevealer.hide_panel(avatar_bg)
-		if avatar_rect.visible:
-			PanelRevealer.hide_panel(avatar_rect)
+		_hide_avatar(avatar_rect, avatar_bg)
+
 
 func _create_damage_preview_panel():
 	var canvas = CanvasLayer.new()
 	canvas.layer = 10
 	add_child(canvas)
-	
+
 	_damage_preview_panel = PanelContainer.new()
 	var stylebox = load(Config.PATHS.STYLEBOX_8BIT)
-	if stylebox: 
+	if stylebox:
 		_damage_preview_panel.add_theme_stylebox_override("panel", stylebox)
 	_damage_preview_panel.visible = false
-	_damage_preview_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE 
+	_damage_preview_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	canvas.add_child(_damage_preview_panel)
-	
+
 	var margin = MarginContainer.new()
 	margin.add_theme_constant_override("margin_left", 6)
 	margin.add_theme_constant_override("margin_top", 4)
 	margin.add_theme_constant_override("margin_right", 6)
 	margin.add_theme_constant_override("margin_bottom", 4)
 	_damage_preview_panel.add_child(margin)
-	
+
 	_damage_preview_label = Label.new()
 	_damage_preview_label.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_SMALL)
 	_damage_preview_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_damage_preview_label.add_theme_color_override("font_color", Color.WHITE)
 	margin.add_child(_damage_preview_label)
 
+
 func show_damage_preview(attacker: Unit, defender: Unit):
 	if _damage_preview_panel == null or not is_instance_valid(attacker) or not is_instance_valid(defender):
 		return
-		
+
 	var dmg = CombatManager.calculate_damage(attacker, defender)
 	var text = "预计伤害: %d" % dmg
-	
+
 	if defender.can_counter() and defender.get_weapon_type() != "staff":
 		var counter_dmg = CombatManager.calculate_damage(defender, attacker)
 		text += "\n反击受伤: %d" % counter_dmg
-		
+
 	_damage_preview_label.text = text
-	
+
 	_damage_preview_panel.size = _damage_preview_panel.get_combined_minimum_size()
 	_damage_preview_panel.visible = true
-	
+
 	var screen_pos = get_viewport().get_canvas_transform() * defender.global_position
 	var target_pos = screen_pos + Vector2(-_damage_preview_panel.size.x / 2.0, -45)
-	
+
 	var vp_size = get_viewport().get_visible_rect().size
 	if target_pos.x < 4.0: target_pos.x = 4.0
-	if target_pos.x + _damage_preview_panel.size.x > vp_size.x - 4.0: 
+	if target_pos.x + _damage_preview_panel.size.x > vp_size.x - 4.0:
 		target_pos.x = vp_size.x - _damage_preview_panel.size.x - 4.0
-		
+
 	_damage_preview_panel.global_position = target_pos
+
 
 func hide_damage_preview():
 	if _damage_preview_panel:
