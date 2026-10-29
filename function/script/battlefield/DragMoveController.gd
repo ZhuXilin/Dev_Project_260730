@@ -207,6 +207,15 @@ func _on_left_release() -> bool:
 				_execute_move_and_attack(path, hovered_any)
 				_reset_state()
 				return true
+				
+			# ★ 打不到敌人时，自动寻找离该敌人最近的可达格子并移动过去（只传1个参数）
+			var closest_cell = _find_closest_reachable_cell(hovered_any.grid_cell)
+			if closest_cell != _pressing_unit.grid_cell:
+				var move_path = UnitManager.calculate_path(_pressing_unit.grid_cell, closest_cell, _pressing_unit)
+				if move_path.size() > 0:
+					_execute_move_only(move_path)
+					_reset_state()
+					return true
 
 			SoundManager.play_cancel_sound()
 			SignalBus.request_hint_override.emit("操作失败", 1.0)
@@ -348,22 +357,56 @@ func _update_drag():
 
 	_update_attack_preview(cell, false)
 
-
 func _execute_move():
 	var unit = _pressing_unit
 	if unit == null or not is_instance_valid(unit):
 		return
 
+	# 如果当前路径为空（说明拖到了不可达的空地）
+	if _current_target_cell != unit.grid_cell and _current_path.is_empty():
+		# ★ 寻找最近的可达格（这里原来传了2个参数，修正为传1个）
+		var closest_cell = _find_closest_reachable_cell(_current_target_cell)
+		if closest_cell != unit.grid_cell:
+			var path = UnitManager.calculate_path(unit.grid_cell, closest_cell, unit)
+			if path.size() > 0:
+				SignalBus.request_clear_highlight.emit()
+				InputManager.interaction_phase = InputManager.Phase.IDLE
+				InputManager.selected_unit = null
+				TurnManager.start_movement(unit, path)
+				return
+				
+	# 如果原地，或者找不到路径，取消操作
 	if _current_target_cell == unit.grid_cell or _current_path.is_empty():
 		InputManager.interaction_phase = InputManager.Phase.IDLE
 		InputManager.selected_unit = null
 		SignalBus.request_clear_highlight.emit()
 		return
-
+		
+	# 正常路径移动
 	SignalBus.request_clear_highlight.emit()
 	InputManager.interaction_phase = InputManager.Phase.IDLE
 	InputManager.selected_unit = null
 	TurnManager.start_movement(unit, _current_path)
+
+# 新增辅助函数：找离目标最近的可达格
+func _find_closest_reachable_cell(target_cell: Vector2i) -> Vector2i:
+	var best_cell = _pressing_unit.grid_cell
+	var min_dist = 9999
+	for cell in _reachable.keys():
+		if UnitManager.is_cell_occupied(cell) and cell != _pressing_unit.grid_cell:
+			continue
+		var dist = abs(cell.x - target_cell.x) + abs(cell.y - target_cell.y)
+		if dist < min_dist:
+			min_dist = dist
+			best_cell = cell
+	return best_cell
+
+# 新增辅助函数：仅执行移动（不触发攻击）
+func _execute_move_only(path: Array):
+	SignalBus.request_clear_highlight.emit()
+	InputManager.interaction_phase = InputManager.Phase.IDLE
+	InputManager.selected_unit = null
+	TurnManager.start_movement(_pressing_unit, path)
 
 
 func _cancel():

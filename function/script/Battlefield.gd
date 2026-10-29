@@ -51,6 +51,7 @@ const AVATAR_GAP : float = 4.0
 const POPUP_QUEUE_INTERVAL : float = 0.15
 const POPUP_STACK_HEIGHT : float = 14.0
 const POPUP_MAX_STACK : int = 3
+const DOUBLE_CLICK_MS: int = 300
 
 var _map_loader : MapLoader = null
 var _non_combat_handler : NonCombatHandler = null
@@ -84,6 +85,10 @@ var _marked_targets : Dictionary = {}
 var _objective_banner : Label = null
 
 var _show_all_hp_bars : bool = true
+var _last_middle_click_time: int = 0
+
+var _cached_info_unit: Unit = null
+var _cached_info_cell: Vector2i = Vector2i(-999, -999)
 
 func _ready():
 	TurnManager.set_battle_ready(false)
@@ -420,7 +425,7 @@ func _update_hint_label():
 			hint_label.text = "按住左键拖拽单位"
 		return
 
-	hint_label.text = "中键结束回合"
+	hint_label.text = "双击中键结束回合"
 
 
 # ============================================================
@@ -663,7 +668,14 @@ func _input(event: InputEvent):
 
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_MIDDLE:
 		if TurnManager.current_turn_team == TurnManager.Team.PLAYER and not Globals.is_fading and not Globals.is_transitioning and not Globals.is_dialogue_active:
-			_end_player_turn()
+			var now = Time.get_ticks_msec()
+			if now - _last_middle_click_time < DOUBLE_CLICK_MS:
+				_last_middle_click_time = 0 # 重置
+				_end_player_turn()
+			else:
+				_last_middle_click_time = now
+				# 提示玩家双击
+				SignalBus.request_hint_override.emit("双击中键结束回合", 0.5)
 			return
 
 	if event is InputEventKey and event.keycode == KEY_TAB:
@@ -762,16 +774,27 @@ func _process_popup_queue(key: String) -> void:
 #  InfoPanel (纯数值版)
 # ============================================================
 func _on_request_show_info(unit: Unit):
+	# ★ 缓存检查：如果单位和格子都没变，直接跳过
+	if unit != null:
+		if unit == _cached_info_unit and info_panel.visible:
+			return
+		_cached_info_unit = unit
+		_cached_info_cell = Vector2i(-999, -999)
+	else:
+		var mouse_pos = get_global_mouse_position()
+		var t_cell = world_to_grid(mouse_pos)
+		if t_cell == _cached_info_cell and info_panel.visible and _cached_info_unit == null:
+			return
+		_cached_info_cell = t_cell
+		_cached_info_unit = null
+
 	var avatar_rect := get_node_or_null("Info/AvatarRect") as TextureRect
 	var avatar_bg := get_node_or_null("Info/AvatarBg") as Panel
 
 	if unit == null:
 		_hide_avatar(avatar_rect, avatar_bg)
-		var mouse_pos = get_global_mouse_position()
-		var t_cell = world_to_grid(mouse_pos)
-		var t_type = TerrainManager.get_terrain(t_cell)
+		var t_type = TerrainManager.get_terrain(_cached_info_cell)
 		var t_name = TerrainManager.get_terrain_name(t_type)
-		# ★ v4.6：地形减伤率口径（悬停地形时用 hover_* 前缀，避免与下方有单位时的 t_* 撞名）
 		var td : Dictionary = TerrainManager.TERRAIN_DATA.get(t_type, {})
 		var hover_phys : float = float(td.get("physical_reduction", 0.0))
 		var hover_mag  : float = float(td.get("magic_reduction", 0.0))
@@ -788,7 +811,6 @@ func _on_request_show_info(unit: Unit):
 			_hide_avatar(avatar_rect, avatar_bg)
 		else:
 			var avatar_id = GameState.get_unit_avatar(unit.unit_stats.unit_name)
-			# ★ 替换硬编码路径
 			var tex = IconManager.get_icon_or_null(avatar_id)
 			if tex:
 				if avatar_rect.texture != tex: avatar_rect.texture = tex

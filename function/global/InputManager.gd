@@ -36,19 +36,19 @@ func handle_click(clicked_cell: Vector2i):
 
 	# ---- 点空地 ----
 	if interaction_phase == Phase.SETTING:
-		SignalBus.request_show_info.emit(null)
+		# ★ 移除 SignalBus.request_show_info.emit(null)
 		current_empty_cell = clicked_cell
 		return
 
 	if selected_unit == null:
-		SignalBus.request_show_info.emit(null)
+		# ★ 移除 SignalBus.request_show_info.emit(null)
 		SignalBus.request_show_setting.emit()
 		SoundManager.play_select_sound()
 		interaction_phase = Phase.SETTING
 		SignalBus.request_clear_highlight.emit()
 		current_empty_cell = clicked_cell
 	else:
-		SignalBus.request_hide_info.emit()
+		# ★ 移除 SignalBus.request_hide_info.emit()，面板由悬停接管
 		SignalBus.request_clear_highlight.emit()
 		selected_unit = null
 		interaction_phase = Phase.IDLE

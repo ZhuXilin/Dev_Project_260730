@@ -213,15 +213,46 @@ func _update_hovered_unit_from_mouse() -> void:
 			or grid_pos.y < 0 or grid_pos.y >= _bf.map_grid_size.y:
 		_set_hovered_unit(null)
 		return
+		
 	var new_unit = UnitManager.get_unit_at_cell(grid_pos)
-	_set_hovered_unit(new_unit)
+	
+	# 更新 HP 显示
+	if _hovered_unit != new_unit:
+		if _hovered_unit and is_instance_valid(_hovered_unit):
+			_hovered_unit.show_hp_label(false)
+		if new_unit and is_instance_valid(new_unit) and new_unit.hit_points > 0:
+			new_unit.show_hp_label(true)
+		_hovered_unit = new_unit
+		
+	# ★ 如果不是拖拽中，就持续请求显示信息
+	if not (_bf._drag_move_controller and _bf._drag_move_controller.is_dragging()):
+		if new_unit and is_instance_valid(new_unit) and new_unit.hit_points > 0:
+			SignalBus.request_show_info.emit(new_unit)
+		else:
+			if InputManager.selected_unit != null and is_instance_valid(InputManager.selected_unit):
+				SignalBus.request_show_info.emit(InputManager.selected_unit)
+			else:
+				SignalBus.request_show_info.emit(null)
 
 
 func _set_hovered_unit(new_unit: Unit) -> void:
 	if new_unit == _hovered_unit:
 		return
+		
+	# 隐藏上一个单位的 HP 和 面板
 	if _hovered_unit and is_instance_valid(_hovered_unit):
 		_hovered_unit.show_hp_label(false)
+		
+	# 显示新单位的 HP 和 面板
 	if new_unit and is_instance_valid(new_unit) and new_unit.hit_points > 0:
 		new_unit.show_hp_label(true)
+		# ★ 新增：悬停时直接请求显示详情
+		SignalBus.request_show_info.emit(new_unit)
+	else:
+		# 如果移动到空地，且当前有选中的单位，就显示选中单位的；否则隐藏面板
+		if InputManager.selected_unit != null and is_instance_valid(InputManager.selected_unit):
+			SignalBus.request_show_info.emit(InputManager.selected_unit)
+		else:
+			SignalBus.request_hide_info.emit()
+			
 	_hovered_unit = new_unit
