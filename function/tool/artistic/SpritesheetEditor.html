@@ -2159,8 +2159,8 @@ function bresenham(a,b){
 function floodFill(start){
   if(start.x<0||start.y<0||start.x>=doc.width||start.y>=doc.height) return false;
   var target = getPixel(start.x,start.y);
-  if(target[3] === 0) return false;
   var repl = ui.primary;
+  // 起始色与替换色相同 → 无需改动（注意：透明区域是合法目标，不再拒绝）
   if(colorsEqual(target,repl)) return false;
   ensureWritable();
   var W = doc.width, H = doc.height;
@@ -3633,18 +3633,25 @@ function onCanvasMouseDown(e){
         drag.fixedH = ui.fixedSel.enabled ? ui.fixedSel.h : null;
       }
       break;
-    case TOOL.PENCIL:
+    case TOOL.PENCIL: {
       drag.mode = 'draw'; drag.drawErase = false;
       drag.lastPx = {x:m.px,y:m.py};
-      drag.lastPenPressure = penPressure;
-      stampBrush(m.px, m.py, ui.primary, getPressureBrushSize());
+      // 首笔最小尺寸不小于全尺寸 30%（避免起笔压力极小时看不见）
+      var initP = Math.max(penPressure, 0.3);
+      var initSz = getPressureBrushSizeFor(initP);
+      drag.lastPenPressure = initP;
+      stampBrush(m.px, m.py, ui.primary, initSz);
       requestRender(); break;
-    case TOOL.ERASER:
+    }
+    case TOOL.ERASER: {
       drag.mode = 'draw'; drag.drawErase = true;
       drag.lastPx = {x:m.px,y:m.py};
-      drag.lastPenPressure = penPressure;
-      stampBrush(m.px, m.py, [0,0,0,0], getPressureBrushSize());
+      var initP2 = Math.max(penPressure, 0.3);
+      var initSz2 = getPressureBrushSizeFor(initP2);
+      drag.lastPenPressure = initP2;
+      stampBrush(m.px, m.py, [0,0,0,0], initSz2);
       requestRender(); break;
+    }
     case TOOL.BUCKET:
       if(floodFill({x:m.px,y:m.py})){ commitHistory(); refreshColorUsage(); }
       break;
@@ -3849,28 +3856,56 @@ function onCanvasMouseMove(e){
     requestRender(); return;
   }
   if(drag.mode === 'draw' && drag.lastPx){
-    var now = {x:m.px,y:m.py};
-    if(now.x !== drag.lastPx.x || now.y !== drag.lastPx.y){
-      var col = drag.drawErase ? [0,0,0,0] : ui.primary;
-      var pts = bresenham(drag.lastPx, now);
-      var usePen = penActive && ui.penPressureSize;
+    // ★ 关键改进：用 getCoalescedEvents 取回笔的所有高频采样点
+    var evs = null;
+    if (e.getCoalescedEvents) {
+      try { evs = e.getCoalescedEvents(); } catch(ex) { evs = null; }
+    }
+    if (!evs || evs.length === 0) evs = [e];
+
+    // 缓存 canvas 位置，避免每个 coalesced event 都触发一次 DOM 布局计算
+    var canvasRect = canvas.getBoundingClientRect();
+    var col = drag.drawErase ? [0,0,0,0] : ui.primary;
+    var usePen = penActive && ui.penPressureSize;
+
+    for (var ei = 0; ei < evs.length; ei++) {
+      var ce = evs[ei];
+      var cePx, cePy;
+      if (ce === e) {
+        cePx = m.px; cePy = m.py;
+      } else {
+        var ceSx = ce.clientX - canvasRect.left;
+        var ceSy = ce.clientY - canvasRect.top;
+        cePx = Math.floor((ceSx - view.panX) / view.zoom);
+        cePy = Math.floor((ceSy - view.panY) / view.zoom);
+        if (ui.singleCell) {
+          var crc = cellRect(ui.currentCell);
+          if (crc) { cePx += crc.x; cePy += crc.y; }
+        }
+      }
+      if (cePx === drag.lastPx.x && cePy === drag.lastPx.y) continue;
+
+      // 每个 coalesced 点带自己的压力值
+      var cp = penPressure;
+      if (ce.pointerType === 'pen' && ce.pressure > 0) cp = ce.pressure;
+
+      var pts = bresenham(drag.lastPx, {x: cePx, y: cePy});
       if (usePen) {
-        var pStart = (drag.lastPenPressure !== undefined && drag.lastPenPressure !== null) ? drag.lastPenPressure : penPressure;
-        var pEnd = penPressure;
+        var pStart = (drag.lastPenPressure !== undefined && drag.lastPenPressure !== null) ? drag.lastPenPressure : cp;
         var n = pts.length;
-        for(var i=0;i<n;i++){
+        for (var i = 0; i < n; i++) {
           var t = n > 1 ? i / (n - 1) : 1;
-          var pp = pStart + (pEnd - pStart) * t;
+          var pp = pStart + (cp - pStart) * t;
           var sz = getPressureBrushSizeFor(pp);
           stampBrush(pts[i].x, pts[i].y, col, sz);
         }
       } else {
-        for(var i2=0;i2<pts.length;i2++) stampBrush(pts[i2].x, pts[i2].y, col);
+        for (var i2 = 0; i2 < pts.length; i2++) stampBrush(pts[i2].x, pts[i2].y, col);
       }
-      drag.lastPenPressure = penPressure;
-      drag.lastPx = now;
-      requestRender();
+      drag.lastPenPressure = cp;
+      drag.lastPx = {x: cePx, y: cePy};
     }
+    requestRender();
     return;
   }
   requestRender();
