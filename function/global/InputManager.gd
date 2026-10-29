@@ -29,30 +29,25 @@ func handle_click(clicked_cell: Vector2i):
 
 	var clicked_unit = UnitManager.get_unit_at_cell(clicked_cell)
 
+	# ★ 点击单位：不触发选中，直接返回
 	if clicked_unit != null:
-		if clicked_unit.unit_stats.team_id != 0:
-			SignalBus.request_select_unit.emit(clicked_unit)
 		return
 
 	# ---- 点空地 ----
 	if interaction_phase == Phase.SETTING:
-		# ★ 移除 SignalBus.request_show_info.emit(null)
 		current_empty_cell = clicked_cell
 		return
 
-	if selected_unit == null:
-		# ★ 移除 SignalBus.request_show_info.emit(null)
-		SignalBus.request_show_setting.emit()
-		SoundManager.play_select_sound()
-		interaction_phase = Phase.SETTING
-		SignalBus.request_clear_highlight.emit()
-		current_empty_cell = clicked_cell
-	else:
-		# ★ 移除 SignalBus.request_hide_info.emit()，面板由悬停接管
-		SignalBus.request_clear_highlight.emit()
+	# ★ 清空可能由滚轮设置的 selected_unit
+	if selected_unit != null:
 		selected_unit = null
 		interaction_phase = Phase.IDLE
-		current_empty_cell = clicked_cell
+
+	SignalBus.request_show_setting.emit()
+	SoundManager.play_select_sound()
+	interaction_phase = Phase.SETTING
+	SignalBus.request_clear_highlight.emit()
+	current_empty_cell = clicked_cell
 
 
 func _handle_right_click():

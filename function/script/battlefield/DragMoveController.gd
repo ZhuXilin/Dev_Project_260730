@@ -234,8 +234,7 @@ func _on_left_release() -> bool:
 			and now - _last_click_ms < DOUBLE_CLICK_MS:
 		_last_click_ms = 0
 		_last_click_unit = null
-		if InputManager.selected_unit == unit \
-				and unit.can_act_this_turn and not unit.has_acted:
+		if unit.can_act_this_turn and not unit.has_acted:
 			_do_wait(unit)
 		_reset_state()
 		return true
@@ -243,8 +242,7 @@ func _on_left_release() -> bool:
 	_last_click_ms = now
 	_last_click_unit = unit
 	_reset_state()
-	if unit and is_instance_valid(unit):
-		_do_select(unit)
+	# ★ 取消左键单击选中单位（不再调用 _do_select）
 	return true
 
 

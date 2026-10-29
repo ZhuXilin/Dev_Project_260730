@@ -431,7 +431,7 @@ func deselect_unit():
 
 
 # ============================================================
-#  范围显示
+#  范围显示（由悬停调用，不再依赖选中）
 # ============================================================
 func _show_unit_ranges(unit: Unit):
 	var move_range : int = unit.remaining_move
@@ -748,15 +748,7 @@ func _process_popup_queue(key: String) -> void:
 
 
 # ============================================================
-#  InfoPanel
-#
-#  统一约定：
-#    · info_panel / AvatarBg / AvatarRect 全部由 PanelRevealer 统一扫入扫出。
-#    · "稳定显示" = visible && mouse_filter == STOP
-#      "扫出中"   = visible && mouse_filter == IGNORE
-#    · 所有 hide_panel 调用必须先检查 STOP —— 否则 CursorController 每帧
-#      emit request_hide_info 会导致 tween 被每帧重置，面板卡在扫出中途。
-#    · setting_panel 显示时，force_hide info_panel / avatar，避免视觉重叠。
+#  InfoPanel —— 悬停即显示信息 + 移动范围/攻击范围高亮
 # ============================================================
 func _is_panel_stable(panel: Control) -> bool:
 	return panel != null and panel.visible and panel.mouse_filter == Control.MOUSE_FILTER_STOP
@@ -771,6 +763,8 @@ func _on_request_show_info(unit: Unit):
 	if not is_instance_valid(_cached_info_unit):
 		_cached_info_unit = null
 
+	var is_dragging := _drag_move_controller != null and _drag_move_controller.is_dragging()
+
 	# 缓存判断：同一目标 + 面板处于稳定显示态 → 跳过
 	if unit != null:
 		if unit == _cached_info_unit and _is_panel_stable(info_panel):
@@ -781,7 +775,7 @@ func _on_request_show_info(unit: Unit):
 		if t_cell == _cached_info_cell and _is_panel_stable(info_panel) and _cached_info_unit == null:
 			return
 
-	# 类型切换（单位 ⇄ 地形）→ 强制所有面板重扫入，保持进入/扫出表现一致
+	# 类型切换（单位 ⇄ 地形）→ 强制所有面板重扫入
 	var prev_is_unit : bool = (_cached_info_unit != null)
 	var curr_is_unit : bool = (unit != null)
 	var force_replay : bool = (prev_is_unit != curr_is_unit)
@@ -810,6 +804,10 @@ func _on_request_show_info(unit: Unit):
 			+ "\n物减 +%d%%" % int(hover_phys * 100) \
 			+ "  魔减 +%d%%" % int(hover_mag * 100)
 		_adjust_info_panel(info_text_label, info_panel, null, false, force_replay)
+
+		# 悬停空地：清空高亮
+		if not is_dragging:
+			highlight_manager.clear_highlight()
 		return
 
 	if not is_instance_valid(unit) or unit.unit_stats == null:
@@ -917,15 +915,18 @@ func _on_request_show_info(unit: Unit):
 	info_text_label.text = "\n".join(lines)
 	_adjust_info_panel(info_text_label, info_panel, unit, show_avatar, force_replay)
 
+	# 悬停单位：显示移动/攻击范围（拖拽中由拖拽控制）
+	if not is_dragging:
+		_show_unit_ranges(unit)
 
-# 排版 + 触发 panel 扫入（头像显隐已由 _show_avatar / _hide_avatar 处理）
+
+# 排版 + 触发 panel 扫入
 func _adjust_info_panel(label: Label, panel: PanelContainer,
 		ref_unit: Unit = null, show_avatar: bool = false, force_replay: bool = false):
 	var vp_size := get_viewport().get_visible_rect().size
 	var avatar_rect := get_node_or_null("Info/AvatarRect") as TextureRect
 	var avatar_bg := get_node_or_null("Info/AvatarBg") as Panel
 
-	# 绝对定位，与扫描动画解耦
 	panel.set_anchors_preset(Control.PRESET_TOP_LEFT)
 	if avatar_bg: avatar_bg.set_anchors_preset(Control.PRESET_TOP_LEFT)
 	if avatar_rect: avatar_rect.set_anchors_preset(Control.PRESET_TOP_LEFT)
@@ -965,7 +966,6 @@ func _adjust_info_panel(label: Label, panel: PanelContainer,
 	var panel_height = maxf(label_min_height + margin_top + margin_bottom, 36.0)
 	panel.offset_bottom = panel.offset_top + panel_height
 
-	# 头像位置排版
 	if show_avatar:
 		if avatar_bg:
 			avatar_bg.size = Vector2(AVATAR_SIZE, AVATAR_SIZE)
@@ -990,17 +990,11 @@ func _adjust_info_panel(label: Label, panel: PanelContainer,
 			avatar_rect.offset_top = INFO_PANEL_MARGIN + 3.0
 			avatar_rect.offset_bottom = INFO_PANEL_MARGIN + 3.0 + 48.0
 
-	# 触发 panel 扫入：
-	#   · force_replay（类型切换）
-	#   · 未显示（首次）
-	#   · 扫出中（打断扫出）
 	if force_replay or not panel.visible or _is_panel_fading_out(panel):
 		PanelRevealer.show_panel(panel)
 
 
 func _on_request_hide_info():
-	# ★ 关键：仅当 panel 处于稳定显示（STOP）时才启动扫出，
-	#   否则 CursorController 每帧 emit 会反复 kill/reset tween 导致卡在扫出中途。
 	if _is_panel_stable(info_panel):
 		PanelRevealer.hide_panel(info_panel)
 
@@ -1011,10 +1005,17 @@ func _on_request_hide_info():
 	if _is_panel_stable(avatar_rect):
 		PanelRevealer.hide_panel(avatar_rect)
 
+	# 重置缓存，以便再次悬停时重新触发
+	_cached_info_unit = null
+	_cached_info_cell = Vector2i(-999, -999)
+
+	# 清空高亮（拖拽中由拖拽控制）
+	if _drag_move_controller == null or not _drag_move_controller.is_dragging():
+		highlight_manager.clear_highlight()
+
 
 # ============================================================
-#  头像显隐 —— 走 PanelRevealer 扫入扫出，与 info_panel 保持一致
-#  同样加 STOP 判断，避免扫出动画被每帧重置。
+#  头像显隐
 # ============================================================
 func _show_avatar(avatar_rect: TextureRect, bg_rect: Panel, force_replay: bool = false):
 	if avatar_rect and is_instance_valid(avatar_rect):
@@ -1035,7 +1036,6 @@ func _show_avatar(avatar_rect: TextureRect, bg_rect: Panel, force_replay: bool =
 
 
 func _hide_avatar(avatar_rect: TextureRect, bg_rect: Panel):
-	# ★ 关键：仅当 panel 处于稳定显示（STOP）时才启动扫出
 	if _is_panel_stable(avatar_rect):
 		PanelRevealer.hide_panel(avatar_rect)
 	if _is_panel_stable(bg_rect):
@@ -1046,13 +1046,14 @@ func _hide_avatar(avatar_rect: TextureRect, bg_rect: Panel):
 #  设置栏
 # ============================================================
 func _on_request_show_setting():
-	# 已稳定显示：不重复触发
 	if _is_panel_stable(setting_panel):
 		return
 
-	# ★ 强制隐藏可能和 setting_panel 位置重叠的信息面板（避免叠加）
-	if info_panel:
-		PanelRevealer.force_hide(info_panel)
+	# info_panel 走扫出动画（与 setting_panel 不重叠）
+	if _is_panel_stable(info_panel):
+		PanelRevealer.hide_panel(info_panel)
+
+	# avatar 与 setting_panel 位置重叠，必须瞬间消失
 	var avatar_rect := get_node_or_null("Info/AvatarRect") as TextureRect
 	var avatar_bg := get_node_or_null("Info/AvatarBg") as Panel
 	if avatar_rect:
@@ -1060,10 +1061,9 @@ func _on_request_show_setting():
 	if avatar_bg:
 		PanelRevealer.force_hide(avatar_bg)
 
-	# 其他设置类面板走扫出动画（位置不重叠，可以保留动画）
-	if team_view_panel and team_view_panel.visible:
+	if _is_panel_stable(team_view_panel):
 		PanelRevealer.hide_panel(team_view_panel)
-	if setting_menu_panel and setting_menu_panel.visible:
+	if _is_panel_stable(setting_menu_panel):
 		PanelRevealer.hide_panel(setting_menu_panel)
 
 	PanelRevealer.show_panel(setting_panel)

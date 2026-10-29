@@ -185,10 +185,8 @@ func _update_hovered_unit_from_mouse() -> void:
 		if new_unit and is_instance_valid(new_unit) and new_unit.hit_points > 0:
 			SignalBus.request_show_info.emit(new_unit)
 		else:
-			if InputManager.selected_unit != null and is_instance_valid(InputManager.selected_unit):
-				SignalBus.request_show_info.emit(InputManager.selected_unit)
-			else:
-				SignalBus.request_show_info.emit(null)
+			# ★ 悬停空地直接发送 null，不再回退到 selected_unit
+			SignalBus.request_show_info.emit(null)
 
 
 func _set_hovered_unit(new_unit: Unit) -> void:
