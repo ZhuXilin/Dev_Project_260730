@@ -395,6 +395,11 @@ func _update_hint_label():
 		hint_label.text = _hint_override_text
 		return
 
+	# ★ 新增：非玩家回合 / AI行动中 / 播放动画时，统一显示"不可操作"
+	if TurnManager.current_turn_team != TurnManager.Team.PLAYER or TurnManager.is_ai_moving or Globals.is_performing_action:
+		hint_label.text = "不可操作"
+		return
+
 	# 1. 拖拽中提示
 	if _drag_move_controller and _drag_move_controller.is_dragging():
 		var hint := _drag_move_controller.get_drag_hint()
@@ -403,22 +408,23 @@ func _update_hint_label():
 		hint_label.text = hint
 		return
 
-	# ★ 新增：检测场上是否有可撤销的操作（已移动且未攻击）
+	# ★ 检测场上是否有可撤销的操作（已移动且未攻击）
 	var last_moved = TurnManager.last_moved_unit
 	var can_undo = last_moved != null and is_instance_valid(last_moved) and last_moved.has_moved and not last_moved.has_attacked
+	var undo_suffix = " / 右键撤销" if can_undo else ""
 
 	# 2. 已选中单位（旧逻辑兼容保留）
 	var sel = InputManager.selected_unit
 	if sel != null and is_instance_valid(sel) and sel.hit_points > 0:
 		if sel.unit_stats.team_id != 0:
-			hint_label.text = "不可操作单位"
+			hint_label.text = "不可操作单位" + undo_suffix
 		else:
 			if not sel.can_act_this_turn or sel.has_acted:
-				hint_label.text = "该单位已行动"
+				hint_label.text = "该单位已行动" + undo_suffix
 			elif sel.remaining_move <= 0:
-				hint_label.text = "双击待机 / 拖拽攻击"
+				hint_label.text = "双击待机 / 拖拽攻击" + undo_suffix
 			else:
-				hint_label.text = "按住左键拖拽单位"
+				hint_label.text = "按住左键拖拽单位" + undo_suffix
 		return
 
 	# 3. 鼠标悬停单位
@@ -426,14 +432,14 @@ func _update_hint_label():
 	var hover_unit := UnitManager.get_unit_at_cell(mouse_cell)
 	if hover_unit != null and is_instance_valid(hover_unit) and hover_unit.hit_points > 0:
 		if hover_unit.unit_stats.team_id != 0:
-			hint_label.text = "不可操作单位"
+			hint_label.text = "不可操作单位" + undo_suffix
 		else:
 			if not hover_unit.can_act_this_turn or hover_unit.has_acted:
-				hint_label.text = "该单位已行动"
+				hint_label.text = "该单位已行动" + undo_suffix
 			elif hover_unit.remaining_move <= 0:
-				hint_label.text = "双击待机 / 拖拽攻击"
+				hint_label.text = "双击待机 / 拖拽攻击" + undo_suffix
 			else:
-				hint_label.text = "按住左键拖拽单位"
+				hint_label.text = "按住左键拖拽单位" + undo_suffix
 		return
 
 	# 4. 空地 / 兜底

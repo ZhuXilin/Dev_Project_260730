@@ -81,26 +81,52 @@ func _decide_action(unit: Unit):
 			if healer_survive:
 				return healer_survive
 
-		# 1b. 无治疗目标 → 主动攻击敌人（v4.6 修复：staff 射程 4，faith 补正有实伤）
+		# 1b. 无治疗目标 → 主动攻击敌人
 		var healer_attack = _evaluate_attack(unit, true)
 		if healer_attack:
 			return healer_attack
 
-		# 1c. 无攻击目标 → 移动找位置（_evaluate_move 里远程分支会站射程外沿）
+		# 1c. 无攻击目标 → 移动找位置
 		var healer_move = _evaluate_move(unit)
 		if healer_move:
 			return healer_move
 
 		return {"type": "wait", "unit": unit}
 
-	# 2. 低血量优先生存（回血点/治疗者）
+	# ★ 强化 1：先评估能否发动攻击
+	var attack_action = _evaluate_attack(unit)
+
+	# 2. 低血量时的特殊战术评估（是否要拼死一搏）
 	if hp_ratio < 0.4:
+		if attack_action:
+			var target = attack_action["target"]
+			var damage = CombatManager.calculate_damage(unit, target)
+			var target_hp_ratio = float(target.hit_points) / float(max(1, target.unit_stats.max_hp))
+			
+			# 如果能一击必杀，直接换命不亏
+			if damage >= target.hit_points:
+				return attack_action
+			
+			# 如果对面也是残血（容易被抢人头或者反打），宁可死也要带走
+			if target_hp_ratio < 0.3:
+				return attack_action
+				
+			# 如果周围被敌人包围（>=3人），跑也跑不掉，直接打
+			var enemies_around = 0
+			for p in UnitManager.unit_list:
+				if p.unit_stats.team_id != unit.unit_stats.team_id and p.hit_points > 0:
+					var d = abs(unit.grid_cell.x - p.grid_cell.x) + abs(unit.grid_cell.y - p.grid_cell.y)
+					if d <= unit.unit_stats.move_range + 2:
+						enemies_around += 1
+			if enemies_around >= 3:
+				return attack_action
+
+		# 如果打不出好收益且能跑，再选择生存移动
 		var survival_move = _evaluate_survival_move(unit)
 		if survival_move:
 			return survival_move
 
-	# 3. 攻击评估（仅使用当前装备武器）
-	var attack_action = _evaluate_attack(unit)
+	# 3. 正常情况：直接攻击
 	if attack_action:
 		return attack_action
 
@@ -220,9 +246,26 @@ func _evaluate_attack(unit: Unit, allow_healer: bool = false):
 			continue
 
 		var score = damage * 2
+		
+		# ★ 强化 2.1：大幅提高击杀分，鼓励 AI 争夺人头
 		if damage >= enemy.hit_points:
+			score += 120
+			
+		# ★ 强化 2.2：优先攻击血量低的弱势单位（痛打落水狗）
+		var target_hp_ratio = float(enemy.hit_points) / float(max(1, enemy.unit_stats.max_hp))
+		if target_hp_ratio < 0.3:
 			score += 50
+		elif target_hp_ratio < 0.5:
+			score += 25
+			
+		# ★ 强化 2.3：优先击杀高威胁 / 辅助单位
+		var enemy_wt = enemy.get_weapon_type()
+		if enemy_wt == "staff":
+			score += 40  # 奶妈集火优先级极高
+		elif enemy_wt == "spellbook":
+			score += 20  # 法师高爆发
 
+		# 反击判定
 		var can_counter = false
 		var enemy_weapon_type = enemy.get_weapon_type()
 		if enemy_weapon_type != "" and enemy_weapon_type != "staff":
@@ -234,17 +277,18 @@ func _evaluate_attack(unit: Unit, allow_healer: bool = false):
 				if dist_to_attacker >= enemy_min and dist_to_attacker <= enemy_max:
 					can_counter = true
 
+		# 欺负不能还手的
 		if not can_counter:
 			score += 30
 			
-		# ★ 修复：AI感知玩家的精炼力量遗物（前两刀必暴），如果玩家还有暴击次数，AI谨慎打分
+		# 修正：AI感知玩家的精炼力量遗物（前两刀必暴），如果玩家还有暴击次数，AI谨慎打分
 		if can_counter and unit.hit_points < unit.unit_stats.max_hp * 0.4:
 			var counter_dmg = CombatManager.calculate_damage(enemy, unit)
-			# 如果玩家有精炼暴击次数，反伤期望极高
 			if enemy.relic_first_attack_crit_remaining > 0:
 				counter_dmg = int(counter_dmg * 1.5) 
 			
-			if counter_dmg >= unit.hit_points:
+			# ★ 强化 2.4：换命判定。如果我方残血，但一刀能把对面带走，硬顶着暴击反伤也要打
+			if counter_dmg >= unit.hit_points and damage < enemy.hit_points:
 				score -= 100
 
 		candidates.append({"target": enemy, "score": score})
