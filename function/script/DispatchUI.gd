@@ -12,7 +12,6 @@ signal closed
 @onready var dispatch_btn : Button = $Panel/VBox/BottomBar/DispatchBtn
 @onready var back_btn : Button = $Panel/VBox/BottomBar/BackBtn
 
-# ★ 修复：根据你的场景截图，节点名是 InfoPanelContainer
 @onready var info_panel = $InfoPanelContainer
 
 var _selected_unit : String = ""
@@ -21,15 +20,18 @@ var _hover_unit : String = ""
 var _hover_exit_serial : int = 0
 var _last_hover_unit : String = ""
 
-const COLOR_UNIT_ON : Color = Color(0.4, 0.9, 0.5, 1)
-const COLOR_UNIT_OFF : Color = Color(0.85, 0.85, 0.85, 1)
-const COLOR_UNIT_DISABLED : Color = Color(0.45, 0.45, 0.45, 1)
+const COLOR_UNIT_ON : Color = Color(1.0, 1.0, 1.0, 1)
+const COLOR_UNIT_OFF : Color = Color(0.4, 0.4, 0.4, 1)
+const COLOR_UNIT_DISABLED : Color = Color(0.2, 0.2, 0.2, 1)
 const COLOR_ROUTE_ON : Color = Color(0.4, 0.9, 0.5, 1)
-const BTN_HEIGHT : int = 20
+const BTN_HEIGHT : int = 36
 
 func _ready():
 	layer = 24
 	MusicManager.play_dispatch_music()
+	
+	# ★ 新增：运行时重构布局，利用中间空间，解决上下溢出
+	_rebuild_layout()
 	
 	if back_btn and not back_btn.pressed.is_connected(_on_back_pressed):
 		back_btn.pressed.connect(_on_back_pressed)
@@ -37,6 +39,44 @@ func _ready():
 		dispatch_btn.pressed.connect(_do_dispatch)
 		
 	_refresh()
+
+# ★ 新增：重新排版函数
+func _rebuild_layout():
+	var main_hbox = $Panel/VBox/MainHBox
+	var left_vbox = $Panel/VBox/MainHBox/LeftVBox
+	var root_vbox = $Panel/VBox
+	
+	# 1. 创建中栏，用来放路线和派遣状态
+	var mid_vbox = VBoxContainer.new()
+	mid_vbox.name = "MidVBox"
+	mid_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	mid_vbox.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	mid_vbox.add_theme_constant_override("separation", 4)
+	main_hbox.add_child(mid_vbox)
+	main_hbox.move_child(mid_vbox, left_vbox.get_index() + 1)
+	
+	# 2. 将左侧的路线栏移到中栏
+	var route_title = left_vbox.get_node("RouteTitle")
+	var route_scroll = left_vbox.get_node("RouteScroll")
+	left_vbox.remove_child(route_title)
+	left_vbox.remove_child(route_scroll)
+	mid_vbox.add_child(route_title)
+	mid_vbox.add_child(route_scroll)
+	
+	# 3. 将底部的进行中派遣移到中栏
+	var active_title = root_vbox.get_node("ActiveTitle")
+	var active_scroll = root_vbox.get_node("ActiveScroll")
+	root_vbox.remove_child(active_title)
+	root_vbox.remove_child(active_scroll)
+	mid_vbox.add_child(active_title)
+	mid_vbox.add_child(active_scroll)
+	
+	# 4. 调整左侧单位栏的宽度比例
+	left_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	left_vbox.custom_minimum_size = Vector2(120, 0)
+	
+	# 5. 给右侧信息面板留出空间
+	main_hbox.offset_right = -112
 
 func _input(event: InputEvent):
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT:
@@ -52,7 +92,6 @@ func _refresh():
 	_refresh_dispatch_btn()
 	_refresh_hint()
 	if _hover_unit == "" and info_panel: 
-		# 优先显示最后划过的，没有才显示选中的
 		if _last_hover_unit != "":
 			info_panel.set_unit(_last_hover_unit)
 		elif _selected_unit != "":
@@ -86,39 +125,44 @@ func _refresh_units():
 		unit_row.add_child(lb)
 		return
 
-	for unit_key in all_unlocked:
-		var btn := Button.new()
-		var display_name : String = UnitDataManager.get_display_name(unit_key)
-		var is_dispatched : bool = unit_key in dispatched
-		var is_selected : bool = unit_key == _selected_unit
-
-		btn.toggle_mode = true
-		btn.custom_minimum_size = Vector2(0, BTN_HEIGHT)
-		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
-		btn.add_theme_font_size_override("font_size", 7)
-		btn.focus_mode = Control.FOCUS_NONE
-
-		if is_dispatched:
-			btn.disabled = true
-			btn.text = "  " + display_name + "  (派遣中)"
-			btn.modulate = COLOR_UNIT_DISABLED
-		else:
-			btn.button_pressed = is_selected
-			btn.text = "  " + display_name
-			btn.modulate = COLOR_UNIT_ON if is_selected else COLOR_UNIT_OFF
-			btn.pressed.connect(_on_unit_clicked.bind(unit_key))
-			
-		btn.mouse_entered.connect(_on_unit_hover.bind(unit_key))
-		btn.mouse_exited.connect(_on_unit_hover_exit)
-
-		unit_row.add_child(btn)
-		
+	# ★ 核心修复：把默认选中的逻辑提前到生成按钮之前，解决第一次不亮的问题
 	if _selected_unit == "":
 		for u in all_unlocked:
 			if u not in dispatched:
 				_selected_unit = u
 				break
+
+	for unit_key in all_unlocked:
+		var hbox := HBoxContainer.new()
+		hbox.custom_minimum_size = Vector2(0, BTN_HEIGHT)
+		hbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		
+		var btn = UnitDataManager.create_unit_icon_button(unit_key, Vector2(32, 32))
+		btn.custom_minimum_size = Vector2(32, 32)
+		btn.toggle_mode = true
+		btn.set_meta("unit_key", unit_key)
+		
+		var is_dispatched : bool = unit_key in dispatched
+		var is_selected : bool = unit_key == _selected_unit
+
+		if is_dispatched:
+			btn.disabled = true
+			btn.modulate = COLOR_UNIT_DISABLED
+		else:
+			btn.button_pressed = is_selected
+			btn.modulate = COLOR_UNIT_ON if is_selected else COLOR_UNIT_OFF
+			btn.pressed.connect(_on_unit_clicked.bind(unit_key))
+			
+		btn.mouse_entered.connect(_on_unit_hover.bind(unit_key))
+		btn.mouse_exited.connect(_on_unit_hover_exit)
+		
+		hbox.add_child(btn)
+		var spacer = Control.new()
+		spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		hbox.add_child(spacer)
+		
+		unit_row.add_child(hbox)
 
 func _on_unit_clicked(unit_key : String):
 	if _selected_unit == unit_key:
@@ -126,7 +170,16 @@ func _on_unit_clicked(unit_key : String):
 	else:
 		_selected_unit = unit_key
 	SoundManager.play_select_sound()
-	_refresh_units()
+	
+	for child in unit_row.get_children():
+		if child.get_child_count() > 0 and child.get_child(0) is Button:
+			var btn = child.get_child(0)
+			var ut = btn.get_meta("unit_key", "")
+			var is_sel = (ut == _selected_unit)
+			if not btn.disabled:
+				btn.modulate = COLOR_UNIT_ON if is_sel else COLOR_UNIT_OFF
+				btn.button_pressed = is_sel
+
 	_refresh_dispatch_btn()
 	_refresh_hint()
 	if _hover_unit == "" and info_panel:
@@ -146,7 +199,6 @@ func _on_unit_hover_exit():
 	
 	await get_tree().create_timer(0.1).timeout
 	if current_serial == _hover_exit_serial and info_panel:
-		# 优先显示最后划过的，没有则显示选中的
 		if _last_hover_unit != "":
 			info_panel.set_unit(_last_hover_unit)
 		elif _selected_unit != "":
@@ -178,7 +230,7 @@ func _refresh_routes():
 		btn.text = "  " + label_text
 		btn.toggle_mode = true
 		btn.button_pressed = is_selected
-		btn.custom_minimum_size = Vector2(0, BTN_HEIGHT)
+		btn.custom_minimum_size = Vector2(0, 24)
 		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
 		btn.add_theme_font_size_override("font_size", 7)

@@ -1,49 +1,37 @@
 extends PanelContainer
 
-@onready var icon_bg = $VBox/IconBg as Panel
-@onready var icon_rect = $VBox/IconRect as TextureRect
-@onready var name_label = $VBox/NameLabel as Label
-@onready var type_label = $VBox/TypeLabel as Label
-@onready var desc_label = $VBox/Scroll/ContentVBox/DescLabel as Label
-@onready var stats_label = $VBox/Scroll/ContentVBox/StatsLabel as Label
+@onready var name_label = get_node_or_null("VBox/NameLabel")
+@onready var type_label = get_node_or_null("VBox/TypeLabel")
+@onready var scroll_box = get_node_or_null("VBox/Scroll")
+@onready var desc_label = get_node_or_null("VBox/Scroll/ContentVBox/DescLabel")
+@onready var stats_label = get_node_or_null("VBox/Scroll/ContentVBox/StatsLabel")
+@onready var hsep = get_node_or_null("VBox/HSep")
 
-# 供外部调用：清空界面
+func _ready():
+	clear_info()
+
 func clear_info():
-	name_label.text = "选中物品详情"
-	type_label.text = ""
-	desc_label.text = ""
-	stats_label.text = ""
-	_hide_icon()
+	if name_label: name_label.text = "选中物品详情"
+	if type_label: type_label.text = ""
+	if desc_label: desc_label.text = ""
+	if stats_label: stats_label.text = ""
+	if scroll_box: scroll_box.visible = false
+	if hsep: hsep.visible = false
 
-# 供外部调用：展示物品信息
 func show_info(data: Dictionary):
-	name_label.text = data.get("name", "未知")
-	name_label.add_theme_color_override("font_color", data.get("name_color", Color.WHITE))
+	if name_label:
+		name_label.text = data.get("name", "")
+		name_label.add_theme_color_override("font_color", data.get("name_color", Color.WHITE))
 	
-	type_label.text = data.get("type_str", "")
-	type_label.modulate = Color(0.7, 0.7, 0.7)
+	if type_label:
+		type_label.text = data.get("type_str", "")
+		type_label.modulate = Color(0.7, 0.7, 0.7)
 	
-	desc_label.text = data.get("desc", "")
-	stats_label.text = data.get("stats", "")
-	
-	var icon: Texture2D = data.get("icon")
-	_update_icon(icon)
-
-func _update_icon(tex: Texture2D):
-	if tex != null:
-		icon_rect.texture = tex
-		icon_rect.custom_minimum_size = Vector2(48, 48)
-		icon_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	if desc_label:
+		desc_label.text = data.get("desc", "")
 		
-		if not icon_bg.visible:
-			icon_bg.visible = true
-			PanelRevealer.show_panel(icon_bg)
-		if not icon_rect.visible:
-			icon_rect.visible = true
-			PanelRevealer.show_panel(icon_rect)
-	else:
-		_hide_icon()
-
-func _hide_icon():
-	if icon_bg.visible: PanelRevealer.hide_panel(icon_bg)
-	if icon_rect.visible: PanelRevealer.hide_panel(icon_rect)
+	if stats_label:
+		stats_label.text = data.get("stats", "")
+		
+	if scroll_box: scroll_box.visible = true
+	if hsep: hsep.visible = true

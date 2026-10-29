@@ -53,7 +53,6 @@ func _ready():
 	if selected_unit_label: selected_unit_label.visible = false
 	if info_label: info_label.visible = false
 	
-	# ★ 防止右侧悬浮面板遮挡左侧信息
 	var main_hbox = $Panel/VBox/MainHBox
 	if main_hbox:
 		main_hbox.offset_right = -140
@@ -603,6 +602,8 @@ func _refresh_hint_label():
 	if hint_label:
 		hint_label.text = "免费入场 · %d 胜通关 · 生存 %d 魂入场" % [CLEAR_TARGET, ENTRY_COST_SURVIVAL]
 
+# function/script/Arena.gd
+
 func _build_unit_list():
 	for child in unit_list.get_children():
 		unit_list.remove_child(child)
@@ -615,51 +616,65 @@ func _build_unit_list():
 			unlocked_list.append(unit_type)
 
 	for unit_type in unlocked_list:
-		var btn := Button.new()
-		btn.text = UnitDataManager.get_unit_type_display_name(unit_type)
-		btn.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_NORMAL)
-		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		var hbox := HBoxContainer.new()
+		hbox.custom_minimum_size = Vector2(0, 36) # ★ 增大到 36
+		hbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		
+		# ★ 32x32 统一
+		var btn = UnitDataManager.create_unit_icon_button(unit_type, Vector2(32, 32))
+		btn.custom_minimum_size = Vector2(32, 32)
+		btn.toggle_mode = true
 		btn.set_meta("unit_type", unit_type)
-		btn.modulate = Color.WHITE
-		btn.pressed.connect(_on_unit_selected.bind(unit_type))
-		btn.mouse_entered.connect(_on_unit_hover.bind(unit_type))
-		btn.mouse_exited.connect(_on_unit_hover_exit)
-		unit_list.add_child(btn)
+		
+		var is_selected = _current_player_data and _current_player_data.unit_name == unit_type
+		btn.button_pressed = is_selected
+		btn.modulate = Color.WHITE if is_selected else Color(0.4, 0.4, 0.4, 1)
+		
+		UnitDataManager.bind_unit_icon_hover(btn, unit_type, info_panel, self, _on_unit_selected.bind(unit_type))
+		
+		hbox.add_child(btn)
+		var spacer = Control.new()
+		spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		hbox.add_child(spacer)
+		
+		unit_list.add_child(hbox)
 
-	if unlocked_list.size() > 0: _on_unit_selected(unlocked_list[0])
-	else:
+	if unlocked_list.size() > 0 and not _current_player_data: _on_unit_selected(unlocked_list[0])
+	elif unlocked_list.is_empty():
 		_current_player_data = null
 		_refresh_center_panel()
+
+func _on_icon_hover_entered(unit_id: String, panel: Control):
+	if _phase != Phase.IDLE: return
+	_hover_exit_serial += 1
+	_info_ref_unit_type = unit_id
+	_last_hover_unit = unit_id
+	if panel: panel.set_unit(unit_id)
+
+func _on_icon_hover_exited(panel: Control):
+	if _phase != Phase.IDLE: return
+	_info_ref_unit_type = ""
+	_hover_exit_serial += 1
+	var current_serial = _hover_exit_serial
+	
+	await get_tree().create_timer(0.1).timeout
+	if current_serial == _hover_exit_serial and panel:
+		if _last_hover_unit != "":
+			panel.set_unit(_last_hover_unit)
+		elif _current_player_data:
+			panel.set_unit(_current_player_data.unit_name)
 
 func _on_unit_selected(unit_type: String):
 	if _phase != Phase.IDLE: return
 	_current_player_data = UnitDataManager.create_unit_data(unit_type)
 	_current_player_data.hit_points = _current_player_data.max_hp
 	for child in unit_list.get_children():
-		if child is Button:
-			var ut : String = child.get_meta("unit_type", "")
-			child.modulate = Color.WHITE if ut == unit_type else Color(0.6, 0.6, 0.6, 1)
+		if child.get_child_count() > 0 and child.get_child(0) is Button:
+			var btn = child.get_child(0)
+			var ut = btn.get_meta("unit_type", "")
+			btn.modulate = Color.WHITE if ut == unit_type else Color(0.4, 0.4, 0.4, 1)
+			btn.button_pressed = (ut == unit_type)
 	_refresh_center_panel()
-
-func _on_unit_hover(unit_type: String):
-	if _phase != Phase.IDLE: return
-	_hover_exit_serial += 1
-	_info_ref_unit_type = unit_type
-	_last_hover_unit = unit_type
-	info_panel.set_unit(unit_type)
-
-func _on_unit_hover_exit():
-	_info_ref_unit_type = ""
-	_hover_exit_serial += 1
-	var current_serial = _hover_exit_serial
-	
-	await get_tree().create_timer(0.1).timeout
-	if current_serial == _hover_exit_serial and info_panel:
-		if _last_hover_unit != "":
-			info_panel.set_unit(_last_hover_unit)
-		elif _current_player_data:
-			info_panel.set_unit(_current_player_data.unit_name)
 
 func _refresh_center_panel():
 	if not _current_player_data:

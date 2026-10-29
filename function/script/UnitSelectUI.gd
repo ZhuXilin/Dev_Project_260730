@@ -17,15 +17,14 @@ var _last_hover_unit : String = ""
 @onready var info_panel = get_node_or_null("InfoPanelContainer")
 
 const EquipmentConfig = preload(Config.PATHS.EQUIPMENT_CONFIG_SCRIPT)
-const COLOR_DISPATCHED : Color = Color(0.4, 0.4, 0.4, 1)
-const COLOR_DISABLED   : Color = Color(0.5, 0.5, 0.5, 1)
+const COLOR_DISPATCHED : Color = Color(0.2, 0.2, 0.2, 1)
+const COLOR_DISABLED   : Color = Color(0.4, 0.4, 0.4, 1)
 const COLOR_NORMAL     : Color = Color.WHITE
 
 func _ready():
 	if MusicManager.config and MusicManager.config.unit_select_music:
 		MusicManager.play_music(MusicManager.config.unit_select_music)
 	
-	# ★ 确保左侧 VBoxContainer 内容左对齐
 	if unit_buttons:
 		unit_buttons.alignment = BoxContainer.ALIGNMENT_BEGIN
 	
@@ -33,7 +32,6 @@ func _ready():
 	if slot1_label: _make_label_clickable(slot1_label, 1)
 	if slot2_label: _make_label_clickable(slot2_label, 2)
 	
-	# ★ 修复：强制在代码中连接信号，避免场景文件中未连接或连接丢失导致报错
 	if confirm_btn:
 		for conn in confirm_btn.pressed.get_connections():
 			confirm_btn.pressed.disconnect(conn.callable)
@@ -47,12 +45,10 @@ func _ready():
 	_setup_unit_buttons()
 	_update_labels()
 
-
 func _input(event: InputEvent):
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT:
 		var mp = get_viewport().get_mouse_position()
 
-		# 1. 右键槽位标签 → 取消出战（保留）
 		var labels = [main_label, slot1_label, slot2_label]
 		for i in range(max_selection):
 			var lbl = labels[i]
@@ -61,18 +57,15 @@ func _input(event: InputEvent):
 				get_viewport().set_input_as_handled()
 				return
 
-		# 3. 右键悬停单位 → 切换信息面板模式（叙事 / 玩法）
 		if _hover_unit != "" and info_panel:
 			info_panel.toggle_mode()
 			get_viewport().set_input_as_handled()
 			return
 
-
 func _make_label_clickable(label: Label, index: int):
 	label.mouse_filter = Control.MOUSE_FILTER_STOP
 	label.gui_input.connect(func(event):
 		if event is InputEventMouseButton and event.pressed:
-			# 左键点击槽位标签，取消出战
 			if event.button_index == MOUSE_BUTTON_LEFT:
 				_on_slot_clicked(index)
 	)
@@ -85,28 +78,37 @@ func _setup_unit_buttons():
 
 	for unit_name in unlocked:
 		if UnitDataManager.get_unit_data(unit_name).is_empty(): continue
-		var btn = Button.new()
-		btn.text = UnitDataManager.get_display_name_full(unit_name)
-		btn.set_meta("unit_name", unit_name)
-		btn.add_theme_font_size_override("font_size", 8)
 		
-		# ★ 左对齐并撑满宽度
-		btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
-		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		btn.custom_minimum_size = Vector2(0, 30)
-
+		var hbox := HBoxContainer.new()
+		hbox.custom_minimum_size = Vector2(0, 36) # ★ 增大高度
+		hbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		
+		# ★ 统一使用 32x32 图标
+		var btn = UnitDataManager.create_unit_icon_button(unit_name, Vector2(32, 32))
+		btn.custom_minimum_size = Vector2(32, 32)
+		btn.set_meta("unit_name", unit_name)
+		
 		if unit_name in dispatched:
-			btn.text += "  [派遣中]"; btn.disabled = true; btn.modulate = COLOR_DISPATCHED
+			btn.disabled = true
+			btn.modulate = COLOR_DISPATCHED
 		elif unit_name in selected_units:
-			btn.disabled = false; btn.modulate = COLOR_DISABLED
+			btn.disabled = false
+			btn.modulate = COLOR_NORMAL
 			btn.pressed.connect(_on_unit_selected.bind(unit_name, btn))
 		else:
-			btn.disabled = false; btn.modulate = COLOR_NORMAL
+			btn.disabled = false
+			btn.modulate = COLOR_DISABLED
 			btn.pressed.connect(_on_unit_selected.bind(unit_name, btn))
 
 		btn.mouse_entered.connect(_on_unit_hover.bind(unit_name))
 		btn.mouse_exited.connect(_on_unit_hover_exit)
-		unit_buttons.add_child(btn)
+		
+		hbox.add_child(btn)
+		var spacer = Control.new()
+		spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		hbox.add_child(spacer)
+		
+		unit_buttons.add_child(hbox)
 
 func _on_unit_hover(unit_name: String):
 	_hover_exit_serial += 1
@@ -126,19 +128,28 @@ func _on_unit_hover_exit():
 		elif selected_units.size() > 0:
 			info_panel.set_unit(selected_units[0])
 
+# ★ 修复：不重建 UI，直接更新颜色
 func _on_unit_selected(unit_name: String, _btn: Button):
 	if unit_name in selected_units:
 		_remove_unit(unit_name)
 		return
 	if selected_units.size() >= max_selection: return
 	
-	# ★ 播放选中音效
 	SoundManager.play_select_sound()
-	
 	selected_units.append(unit_name)
-	_setup_unit_buttons()
+	
+	for child in unit_buttons.get_children():
+		if child.get_child_count() > 0 and child.get_child(0) is Button:
+			var btn = child.get_child(0)
+			var ut = btn.get_meta("unit_name", "")
+			if ut != "":
+				if ut in selected_units:
+					btn.modulate = COLOR_NORMAL
+				else:
+					btn.modulate = COLOR_DISABLED
 	_update_labels()
 
+# ★ 修复：直接更新颜色
 func _on_slot_clicked(index: int):
 	if index < selected_units.size():
 		var unit_name = selected_units[index]
@@ -146,11 +157,18 @@ func _on_slot_clicked(index: int):
 
 func _remove_unit(unit_name: String):
 	if unit_name in selected_units:
-		# ★ 播放取消音效
 		SoundManager.play_cancel_sound()
-		
 		selected_units.erase(unit_name)
-		_setup_unit_buttons()
+		
+		for child in unit_buttons.get_children():
+			if child.get_child_count() > 0 and child.get_child(0) is Button:
+				var btn = child.get_child(0)
+				var ut = btn.get_meta("unit_name", "")
+				if ut != "":
+					if ut in selected_units:
+						btn.modulate = COLOR_NORMAL
+					else:
+						btn.modulate = COLOR_DISABLED
 		_update_labels()
 
 func _update_labels():

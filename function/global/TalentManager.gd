@@ -133,16 +133,25 @@ static func get_soul_cost(talent_id: String) -> int:
 	return data.soul_cost
 
 
-static func is_talent_ready(unit, talent_id: String) -> bool:
-	if unit == null:
-		return false
-	var inst = unit.get_talent_instance(talent_id)
-	return inst and inst.is_ready and inst.is_active
+static func get_talent_instance(unit, talent_id: String):
+	if unit == null: return null
+	if unit is UnitData:
+		for inst in unit.talent_slots:
+			if inst and inst.talent_id == talent_id and inst.is_active:
+				return inst
+		if unit.advanced_talent_inst and unit.advanced_talent_inst.talent_id == talent_id and unit.advanced_talent_inst.is_active:
+			return unit.advanced_talent_inst
+		return null
+	else:
+		return unit.get_talent_instance(talent_id)
 
+static func is_talent_ready(unit, talent_id: String) -> bool:
+	var inst = get_talent_instance(unit, talent_id)
+	return inst != null and inst.is_ready and inst.is_active
 
 static func reset_talent(unit, talent_id: String):
 	if unit == null: return
-	var inst = unit.get_talent_instance(talent_id)
+	var inst = get_talent_instance(unit, talent_id)
 	if not inst: return
 	inst.reset()
 	var cd = get_cooldown_after_trigger(talent_id)

@@ -9,7 +9,6 @@ static func _ensure_growth_config():
 	_growth_loaded = true
 	GROWTH_HP_PER_POINT = int(GameConfigManager.get_value("progression_config.json", "growth_hp_per_point", 1))
 
-
 static var _weapon_category_display: Dictionary = {
 	"sword": "剑", "spear": "枪", "axe": "斧", "bow": "弓",
 	"shield": "盾", "crossbow": "弩", "staff": "法杖",
@@ -49,16 +48,11 @@ static func _load_unit_data():
 	_unit_data_cache = data
 
 
-# ============================================================
-#  ★ 让静态缓存失效，下次读取时重载
-#  正确位置：这里（RefCounted class_name），不是 UnitManager.gd（Node autoload）
-# ============================================================
 static func reload_all() -> void:
 	_data_loaded = false
 	_unit_data_cache.clear()
 	_load_unit_data()
 	print("[UnitDataManager] 数据已重载，共 %d 个单位" % _unit_data_cache.size())
-	# 联动刷新 TalentManager（如果它可用）
 	if TalentManager:
 		TalentManager.reload_all()
 
@@ -126,15 +120,10 @@ static func get_display_name(unit_name: String) -> String:
 	return display
 
 
-# ============================================================
-#  ★ 第六批：缺数据时也保持 name|faction|type 格式，避免 UI split 崩
-# ============================================================
 static func get_display_name_full(unit_name: String) -> String:
 	var key = _normalize_unit_key(unit_name)
 	var data = get_unit_data(key)
 	if data.is_empty():
-		# ★ 修复：原来返回裸 key，格式与其他分支不一致
-		# 现在统一为 "display|faction|type" 格式
 		var fallback_display : String = _unit_display_name.get(key, key)
 		return "%s|无|%s" % [fallback_display, key]
 	var display = data.get("display_name", "")
@@ -166,9 +155,6 @@ static func get_all_unit_ids() -> Array:
 	return ids
 
 
-# ============================================================
-#  创建单位
-# ============================================================
 static func create_unit_data(unit_name: String) -> UnitData:
 	var key = _normalize_unit_key(unit_name)
 	var dict = get_unit_data(key)
@@ -231,9 +217,6 @@ static func create_unit_data(unit_name: String) -> UnitData:
 	return data
 
 
-# ============================================================
-#  单位属性上限
-# ============================================================
 static func get_attr_cap_levels(unit_type: String) -> Array:
 	var key : String = normalize_unit_key(unit_type)
 	var dict : Dictionary = get_unit_data(key)
@@ -256,8 +239,6 @@ static func get_attr_cap_total_bonus(unit_type: String, cur_lv: int) -> Dictiona
 		if i < levels.size():
 			lv_dict = levels[i]
 		elif not levels.is_empty():
-			# ★ 核心修改：如果超出了 JSON 配置的最大等级，以最后一级为基准，属性按倍数膨胀
-			# 比如 JSON 有 3 级，第 4 级倍率 1.5，第 5 级倍率 2.0
 			var base_dict : Dictionary = levels.back()
 			var mult : float = 1.0 + (i - levels.size() + 1) * 0.5 
 			for k in base_dict:
@@ -302,9 +283,6 @@ static func _apply_one_attr(data: UnitData, attr_key: String, amount: int):
 		"move_range":   data.move_range += amount
 
 
-# ============================================================
-#  辅助
-# ============================================================
 static func get_total_attr_points(unit_key: String) -> int:
 	var total : int = 0
 	var d : Dictionary = GameState.unit_attr_points.get(unit_key, {})
@@ -347,13 +325,9 @@ static func apply_growth(stats: UnitData, unit_type: String) -> void:
 	stats.arcane += int(g.get("arcane", 0))
 
 
-# ============================================================
-#  ★ 新增：统一的单位贴图（SpriteFrames）和 UI 图标管理
-# ============================================================
 static var _sprite_frames_cache : Dictionary = {}
 static var _idle_texture_cache : Dictionary = {}
 
-# 获取统一的 SpriteFrames（带缓存，供战斗使用）
 static func get_sprite_frames(unit_name: String) -> SpriteFrames:
 	var key := normalize_unit_key(unit_name)
 	if _sprite_frames_cache.has(key):
@@ -367,7 +341,6 @@ static func get_sprite_frames(unit_name: String) -> SpriteFrames:
 			return sf
 	return null
 
-# 获取 idle 第一帧作为静态图标（带缓存）
 static func get_idle_texture(unit_name: String) -> Texture2D:
 	var key := normalize_unit_key(unit_name)
 	if _idle_texture_cache.has(key):
@@ -389,7 +362,6 @@ static func create_idle_texture_rect(unit_name: String, icon_size: Vector2 = Vec
 	rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	
 	var sf: SpriteFrames = null
-	# ★ 修复：优先读取转职后的覆盖贴图
 	if override_path != "" and ResourceLoader.exists(override_path):
 		sf = load(override_path) as SpriteFrames
 	else:
@@ -415,3 +387,48 @@ static func create_idle_texture_rect(unit_name: String, icon_size: Vector2 = Vec
 		rect.visible = false
 		
 	return rect
+
+
+static func create_unit_icon_button(unit_name: String, icon_size: Vector2 = Vector2(24, 24), override_path: String = "") -> Button:
+	var btn := Button.new()
+	btn.custom_minimum_size = icon_size
+	btn.focus_mode = Control.FOCUS_NONE
+	
+	var empty_sb := StyleBoxEmpty.new()
+	empty_sb.content_margin_left = 0
+	empty_sb.content_margin_right = 0
+	empty_sb.content_margin_top = 0
+	empty_sb.content_margin_bottom = 0
+	btn.add_theme_stylebox_override("normal", empty_sb)
+	btn.add_theme_stylebox_override("hover", empty_sb)
+	btn.add_theme_stylebox_override("pressed", empty_sb)
+	btn.add_theme_stylebox_override("focus", empty_sb)
+	btn.add_theme_stylebox_override("disabled", empty_sb)
+
+	var icon_rect = create_idle_texture_rect(unit_name, icon_size, override_path)
+	icon_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	icon_rect.set_anchors_preset(Control.PRESET_FULL_RECT)
+	btn.add_child(icon_rect)
+	
+	return btn
+
+
+static func bind_unit_icon_hover(btn: Button, unit_id: String, info_panel: Control, hover_manager: Node, click_cb: Callable = Callable()):
+	if click_cb.is_valid():
+		btn.pressed.connect(click_cb)
+		btn.pressed.connect(func(): SoundManager.play_select_sound())
+
+	if not hover_manager.has_method("_on_icon_hover_entered"):
+		push_error("hover_manager 缺少 _on_icon_hover_entered 方法")
+		return
+		
+	btn.mouse_entered.connect(func(): hover_manager._on_icon_hover_entered(unit_id, info_panel))
+	btn.mouse_exited.connect(func(): hover_manager._on_icon_hover_exited(info_panel))
+	
+	btn.gui_input.connect(func(event):
+		if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT:
+			if info_panel and info_panel.visible:
+				info_panel.toggle_mode()
+				# ★ 修复：由于 UnitDataManager 是 RefCounted，没有 get_viewport()，需通过 btn 获取
+				btn.get_viewport().set_input_as_handled()
+	)

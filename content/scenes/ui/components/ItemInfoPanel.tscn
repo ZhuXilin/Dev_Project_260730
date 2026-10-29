@@ -1,65 +1,56 @@
-[gd_scene format=3]
+[gd_scene format=3 uid="uid://c41l2ybryfqfh"]
 
-[ext_resource type="Script" path="res://function/script/ui/UnitInfoPanel.gd" id="1_script"]
-[ext_resource type="StyleBox" path="res://content/resource/stylebox/8bit_style_box_flat.tres" id="2_style"]
+[ext_resource type="Script" uid="uid://c7g4rpghr64yd" path="res://function/script/ui/ItemInfoPanel.gd" id="1_script"]
+[ext_resource type="StyleBox" uid="uid://6qbsaxkfwg3o" path="res://content/resource/stylebox/8bit_style_box_flat.tres" id="2_style"]
 
-[node name="ItemInfoPanel" type="PanelContainer"]
-custom_minimum_size = Vector2(120, 0)
+[node name="ItemInfoPanel" type="PanelContainer" unique_id=1590245498]
+custom_minimum_size = Vector2(100, 0)
 theme_override_styles/panel = ExtResource("2_style")
 script = ExtResource("1_script")
 
-[node name="VBox" type="VBoxContainer" parent="."]
+[node name="VBox" type="VBoxContainer" parent="." unique_id=1672220750]
 layout_mode = 2
 size_flags_vertical = 3
 theme_override_constants/separation = 4
 
-[node name="AvatarBg" type="Panel" parent="VBox"]
-visible = false
-custom_minimum_size = Vector2(54, 54)
-layout_mode = 2
-size_flags_horizontal = 4
-size_flags_vertical = 0
-theme_override_styles/panel = ExtResource("2_style")
-
-[node name="AvatarRect" type="TextureRect" parent="VBox"]
-visible = false
-custom_minimum_size = Vector2(48, 48)
-layout_mode = 2
-size_flags_horizontal = 4
-size_flags_vertical = 0
-expand_mode = 1
-stretch_mode = 5
-
-[node name="InfoName" type="Label" parent="VBox"]
+[node name="NameLabel" type="Label" parent="VBox" unique_id=1413592662]
 layout_mode = 2
 theme_override_font_sizes/font_size = 10
-text = "选择单位查看详情"
+text = "物品名称"
 horizontal_alignment = 1
 autowrap_mode = 3
 
-[node name="HSep" type="HSeparator" parent="VBox"]
+[node name="TypeLabel" type="Label" parent="VBox" unique_id=424158476]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.7, 0.7, 0.7, 1)
+theme_override_font_sizes/font_size = 6
+text = "类型"
+horizontal_alignment = 1
+autowrap_mode = 3
+
+[node name="HSep" type="HSeparator" parent="VBox" unique_id=1190088821]
 layout_mode = 2
 
-[node name="Scroll" type="ScrollContainer" parent="VBox"]
+[node name="Scroll" type="ScrollContainer" parent="VBox" unique_id=1022955996]
 layout_mode = 2
 size_flags_vertical = 3
 horizontal_scroll_mode = 0
 vertical_scroll_mode = 3
 
-[node name="ContentVBox" type="VBoxContainer" parent="VBox/Scroll"]
+[node name="ContentVBox" type="VBoxContainer" parent="VBox/Scroll" unique_id=1499174435]
 layout_mode = 2
 size_flags_horizontal = 3
-theme_override_constants/separation = 2
+theme_override_constants/separation = 4
 
-[node name="InfoStats" type="Label" parent="VBox/Scroll/ContentVBox"]
+[node name="DescLabel" type="Label" parent="VBox/Scroll/ContentVBox" unique_id=1445382018]
 layout_mode = 2
 size_flags_horizontal = 3
-theme_override_font_sizes/font_size = 8
-horizontal_alignment = 0
+theme_override_font_sizes/font_size = 6
 autowrap_mode = 3
 
-[node name="InfoDesc" type="Label" parent="VBox/Scroll/ContentVBox"]
+[node name="StatsLabel" type="Label" parent="VBox/Scroll/ContentVBox" unique_id=248620684]
 layout_mode = 2
 size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.6, 0.9, 0.6, 1)
 theme_override_font_sizes/font_size = 6
 autowrap_mode = 3

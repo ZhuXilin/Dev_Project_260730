@@ -177,9 +177,6 @@ func _build_unit_row():
 		unit_row.add_child(_build_unit_card(i))
 
 
-# ============================================================
-#  单位卡片
-# ============================================================
 func _build_unit_card(unit_idx: int) -> PanelContainer:
 	var party : Array = _get_party()
 	if unit_idx < 0 or unit_idx >= party.size():
@@ -196,8 +193,8 @@ func _build_unit_card(unit_idx: int) -> PanelContainer:
 	vbox.add_theme_constant_override("separation", 3)
 	card.add_child(vbox)
 
-	# ★ 统一调用 32x32 idle 动画
-	var texture_rect = UnitDataManager.create_idle_texture_rect(unit.unit_name, Vector2(32, 32))
+	# ★ 修复：传入 unit.override_sprite_path，确保转职后刷新外观
+	var texture_rect = UnitDataManager.create_idle_texture_rect(unit.unit_name, Vector2(32, 32), unit.override_sprite_path)
 	texture_rect.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	vbox.add_child(texture_rect)
 
@@ -258,7 +255,6 @@ func _build_unit_card(unit_idx: int) -> PanelContainer:
 		branch_names.append("★ " + b.name)
 	status_lb.text = "可转职：\n" + "\n".join(branch_names) + "\n（点击查看）"
 
-	var _can_afford : bool = true 
 	var reached : bool = _reached_limit()
 
 	if reached:
@@ -417,7 +413,7 @@ func _make_picker_panel(unit : UnitData, branches : Array) -> Control:
 					)
 		
 		if not texture_rect:
-			texture_rect = UnitDataManager.create_idle_texture_rect(unit.unit_name, Vector2(32, 32))
+			texture_rect = UnitDataManager.create_idle_texture_rect(unit.unit_name, Vector2(32, 32), unit.override_sprite_path)
 
 		sprite_wrapper.add_child(texture_rect)
 

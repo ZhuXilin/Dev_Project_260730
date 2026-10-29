@@ -25,7 +25,6 @@ var _tag_picker_overlay : Control = null
 var _info_panel : Control = null
 var _closed : bool = false
 
-# 记录悬停的商品信息
 var _hover_item : Dictionary = {}
 var _hover_type : String = ""
 
@@ -39,49 +38,91 @@ func _ready():
 		back_btn.pressed.connect(_on_back_pressed)
 
 func _build_layout():
-	# 1. 左侧商品列表（滚动）
+	var panel = $Panel
+	
+	# ★ 核心修复：恢复居中锚点，设定一个合适的固定宽高，让背景图回到原位
+	panel.anchor_top = 0.5
+	panel.anchor_bottom = 0.5
+	panel.anchor_left = 0.5
+	panel.anchor_right = 0.5
+	panel.offset_left = -170
+	panel.offset_right = 170
+	panel.offset_top = -105
+	panel.offset_bottom = 105
+
+	var bg = panel.get_node_or_null("BackgroundImage")
+	if bg:
+		# 确保背景图覆盖面板区域
+		bg.set_anchors_preset(Control.PRESET_FULL_RECT)
+		bg.offset_left = 0
+		bg.offset_top = 0
+		bg.offset_right = 0
+		bg.offset_bottom = 0
+
+	var vbox = panel.get_node("VBox")
+	# 留出下边距，让离开按钮不要太贴边
+	vbox.offset_bottom = -8
+	
+	var old_buy_btn = vbox.get_node_or_null("BuyBtn")
+	if old_buy_btn: old_buy_btn.queue_free()
+	var old_desc = vbox.get_node_or_null("DescLabel")
+	if old_desc: old_desc.queue_free()
+
+	var title_bar = vbox.get_node_or_null("TitleBar")
+	if title_bar:
+		title_bar.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+
+	var hbox = HBoxContainer.new()
+	hbox.name = "MainHBox"
+	hbox.size_flags_vertical = Control.SIZE_EXPAND_FILL 
+	hbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	hbox.add_theme_constant_override("separation", 4)
+	vbox.add_child(hbox)
+	
+	var idx = 1
+	if title_bar:
+		idx = title_bar.get_index() + 1
+	vbox.move_child(hbox, idx)
+
 	var scroll := ScrollContainer.new()
 	scroll.name = "ItemScroll"
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	$Panel/VBox.add_child(scroll)
-	
-	var vbox = $Panel/VBox
-	var desc_idx : int = 0
-	for i in range(vbox.get_child_count()):
-		if vbox.get_child(i).name == "DescLabel":
-			desc_idx = i
-			break
-	vbox.move_child(scroll, desc_idx + 1)
+	hbox.add_child(scroll)
 
 	_item_list = VBoxContainer.new()
 	_item_list.name = "ItemList"
-	_item_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_item_list.add_theme_constant_override("separation", 3)
+	_item_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL 
+	_item_list.add_theme_constant_override("separation", 2) # 缩小商品间距
 	scroll.add_child(_item_list)
 
-	# 2. 右侧信息面板
-	var info_scene = load("res://content/scenes/ui/components/ItemInfoPanel.tscn")
+	var info_scene = load("res://content/scenes/ui/components/UnitInfoPanel.tscn")
 	if info_scene:
 		_info_panel = info_scene.instantiate()
 		_info_panel.name = "RightInfoPanel"
-		_info_panel.custom_minimum_size = Vector2(110, 0)
+		_info_panel.custom_minimum_size = Vector2(105, 0)
 		_info_panel.size_flags_horizontal = Control.SIZE_SHRINK_END
 		_info_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
-		
-		var hbox = HBoxContainer.new()
-		hbox.name = "MainHBox"
-		hbox.size_flags_vertical = Control.SIZE_EXPAND_FILL
-		hbox.add_theme_constant_override("separation", 8)
-		vbox.add_child(hbox)
-		
-		vbox.remove_child(scroll)
-		hbox.add_child(scroll)
 		hbox.add_child(_info_panel)
 		
-		var back_idx = back_btn.get_index()
-		vbox.move_child(hbox, back_idx) # 放在返回按钮上面
+		# 强制内部 VBox 撑开，防止背景断截
+		var inner_vbox = _info_panel.get_node_or_null("VBox")
+		if inner_vbox:
+			inner_vbox.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		
+		if _info_panel.has_method("clear_info"): _info_panel.clear_info()
+
+	# 调整按钮和提示的层级，保证在最下方
+	if hint_label:
+		vbox.remove_child(hint_label)
+		vbox.add_child(hint_label)
+		hint_label.size_flags_vertical = Control.SIZE_SHRINK_END
+	if back_btn:
+		vbox.remove_child(back_btn)
+		vbox.add_child(back_btn)
+		back_btn.size_flags_vertical = Control.SIZE_SHRINK_END
+		back_btn.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 
 func _input(event: InputEvent):
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT:
@@ -93,39 +134,36 @@ func _input(event: InputEvent):
 func _refresh_ui():
 	soul_label.text = "当前魂: %d" % GameState.soul
 	if _item_list == null: return
+	
 	for c in _item_list.get_children():
 		_item_list.remove_child(c)
 		c.queue_free()
 
-	# 1. 死眠之钥
 	_add_item_row(
-		"死眠之钥", "可在宝箱高级隐藏开启，单局 1 把",
+		"死眠之钥", "可在宝箱高级隐藏开启，单局1把",
 		KEY_COST, GameState.keys < 1 and GameState.soul >= KEY_COST,
-		"已达携带上限" if GameState.keys >= 1 else "魂不足",
+		"已达上限" if GameState.keys >= 1 else "魂不足",
 		_on_buy_key, {"kind": "key", "name": "死眠之钥", "desc": "可以在开启宝箱时使用，必出史诗防具或极高概率出遗物。", "stats": "单局最多持有 1 把。"}
 	)
 
-	# 2. 标签定向器
 	var pin_active : bool = GameState.pending_tag_pin != ""
 	var pin_label : String = "标签定向器"
 	if pin_active: pin_label += "（已挂起：%s）" % GameState.pending_tag_pin
 	_add_item_row(
-		pin_label, "下一局商店前 7 格偏向指定标签",
+		pin_label, "下一局商店前7格偏向指定标签",
 		PIN_COST, not pin_active and GameState.soul >= PIN_COST,
 		"已挂起" if pin_active else "魂不足",
 		_on_buy_tag_pin, {"kind": "pin", "name": "标签定向器", "desc": "在下一局游戏的商店中，大幅提高所选标签防具的出现概率。", "stats": "不可叠加。"}
 	)
 
-	# 3. 魂火阈值调节器
 	var threshold_active : bool = GameState.soul_fire_threshold_override > 0.0
 	_add_item_row(
-		"魂火阈值调节器", "本局燃烧线 50% → 40%（更易进入燃烧）",
+		"魂火阈值调节器", "本局燃烧线50%→40%（更易进入燃烧）",
 		THRESHOLD_COST, not threshold_active and GameState.soul >= THRESHOLD_COST,
-		"本局已使用" if threshold_active else "魂不足",
+		"已使用" if threshold_active else "魂不足",
 		_on_buy_threshold, {"kind": "threshold", "name": "魂火阈值调节器", "desc": "下调进入【燃烧】状态所需的魂火比例，让高爆发更容易触发。", "stats": "仅对当前局有效。"}
 	)
 
-	# 4. Boss 情报
 	_add_item_row(
 		"Boss 情报", "揭示一条 Boss 机制（Day1/2/3）",
 		INTEL_COST, GameState.soul >= INTEL_COST,
@@ -134,30 +172,56 @@ func _refresh_ui():
 	)
 
 func _add_item_row(title : String, desc : String, price : int, can_buy : bool, disabled_reason : String, cb : Callable, hover_data : Dictionary):
+	# ★ 进一步压缩行高，显示更多物品
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 4)
 	row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.custom_minimum_size = Vector2(0, 26) 
+
+	var icon_rect := TextureRect.new()
+	icon_rect.custom_minimum_size = Vector2(18, 18)
+	icon_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	icon_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	icon_rect.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	icon_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	
+	var icon_path = ""
+	var kind = hover_data.get("kind", "")
+	match kind:
+		"key": icon_path = "item/item_021"
+		"pin": icon_path = "item/item_054"
+		"threshold": icon_path = "item/item_045"
+		"intel": icon_path = "item/item_100"
+	
+	if icon_path != "":
+		icon_rect.texture = IconManager.get_icon_or_null(icon_path)
+	row.add_child(icon_rect)
 
 	var info := VBoxContainer.new()
 	info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	info.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	info.add_theme_constant_override("separation", 0)
 	row.add_child(info)
 
 	var title_lb := Label.new()
 	title_lb.text = title
 	title_lb.add_theme_font_size_override("font_size", 8)
+	title_lb.clip_text = true
 	info.add_child(title_lb)
 
 	var desc_lb := Label.new()
 	desc_lb.text = desc
 	desc_lb.add_theme_font_size_override("font_size", 6)
-	desc_lb.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	desc_lb.modulate = Color(0.7, 0.7, 0.7)
+	desc_lb.autowrap_mode = TextServer.AUTOWRAP_OFF
+	desc_lb.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	info.add_child(desc_lb)
 
 	var buy_btn := Button.new()
 	buy_btn.add_theme_font_size_override("font_size", 7)
-	buy_btn.custom_minimum_size = Vector2(70, 24)
+	buy_btn.custom_minimum_size = Vector2(54, 18)
+	buy_btn.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	buy_btn.size_flags_horizontal = Control.SIZE_SHRINK_END
 	if can_buy:
 		buy_btn.text = "%d 魂" % price
 		buy_btn.disabled = false
@@ -168,14 +232,15 @@ func _add_item_row(title : String, desc : String, price : int, can_buy : bool, d
 		buy_btn.modulate = Color(0.5, 0.5, 0.5)
 	row.add_child(buy_btn)
 	
-	# 悬停绑定
 	row.mouse_entered.connect(_on_item_hover.bind(hover_data))
 	row.mouse_exited.connect(_on_item_exit)
-	# 给子节点也绑定，确保全覆盖
 	title_lb.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	desc_lb.mouse_filter = Control.MOUSE_FILTER_IGNORE
 
 	_item_list.add_child(row)
+	
+	if _item_list.get_child_count() == 1:
+		_on_item_hover(hover_data)
 
 func _on_item_hover(data: Dictionary):
 	_hover_type = data.get("kind", "")
@@ -184,13 +249,10 @@ func _on_item_hover(data: Dictionary):
 
 func _on_item_exit():
 	_hover_type = ""
-	if _info_panel and _info_panel.has_method("clear_info"):
-		_info_panel.clear_info()
 
 func _refresh_info_panel():
 	if not _info_panel: return
 	if FlavorManager.is_narrative_mode():
-		# 用一段模糊的叙事替代
 		var flavor = "这是一件不应存在于现世的东西。\n商人说，每一件货物都有自己的代价。"
 		_info_panel.show_info({"name": _hover_item.get("name", "未知"), "desc": flavor})
 		return
@@ -206,7 +268,7 @@ func _on_buy_key():
 	if GameState.keys >= 1 or GameState.soul < KEY_COST: return
 	GameState.soul -= KEY_COST
 	GameState.keys = 1
-	GameState.keys_bought += 1 # ★ 文档要求：跨局累计
+	GameState.keys_bought += 1
 	SaveManager.auto_save()
 	_show_hint("★ 已获得死眠之钥！")
 	_refresh_ui()
@@ -236,12 +298,11 @@ func _close_overlay():
 	if _tag_picker_overlay and is_instance_valid(_tag_picker_overlay):
 		if _tag_picker_overlay.get_parent():
 			_tag_picker_overlay.get_parent().remove_child(_tag_picker_overlay)
-		_tag_picker_overlay.free()
+		_tag_picker_overlay.queue_free()
 	_tag_picker_overlay = null
 
 func _show_tag_picker():
 	_close_overlay()
-
 	_tag_picker_overlay = Control.new()
 	_tag_picker_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_tag_picker_overlay.mouse_filter = Control.MOUSE_FILTER_STOP
@@ -316,7 +377,6 @@ func _on_tag_selected(tag : String):
 
 func _show_intel_picker():
 	_close_overlay()
-
 	_tag_picker_overlay = Control.new()
 	_tag_picker_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_tag_picker_overlay.mouse_filter = Control.MOUSE_FILTER_STOP
