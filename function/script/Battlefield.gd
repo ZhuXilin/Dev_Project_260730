@@ -24,7 +24,6 @@ const BOSS_NODE_TYPE = 6
 @onready var soul_fire_bar : ProgressBar = $HUD/SoulFireHUD/SoulFireBar
 @onready var soul_fire_label : Label = $HUD/SoulFireHUD/SoulFireLabel
 
-
 @onready var setting_panel : PanelContainer = $SettingBar/SettingPanel
 @onready var back_camp_btn : Button = $SettingBar/SettingPanel/SettingContainer/BackCampBtn
 @onready var back_to_menu_btn : Button = $SettingBar/SettingPanel/SettingContainer/BackToMenuBtn
@@ -51,7 +50,14 @@ const AVATAR_GAP : float = 4.0
 const POPUP_QUEUE_INTERVAL : float = 0.15
 const POPUP_STACK_HEIGHT : float = 14.0
 const POPUP_MAX_STACK : int = 3
+
+# 双击结束回合相关
+var _last_middle_click_time: int = 0
 const DOUBLE_CLICK_MS: int = 300
+
+# 面板缓存防抖
+var _cached_info_unit: Unit = null
+var _cached_info_cell: Vector2i = Vector2i(-999, -999)
 
 var _map_loader : MapLoader = null
 var _non_combat_handler : NonCombatHandler = null
@@ -85,23 +91,13 @@ var _marked_targets : Dictionary = {}
 var _objective_banner : Label = null
 
 var _show_all_hp_bars : bool = true
-var _last_middle_click_time: int = 0
-
-var _cached_info_unit: Unit = null
-var _cached_info_cell: Vector2i = Vector2i(-999, -999)
 
 func _ready():
 	TurnManager.set_battle_ready(false)
 
-	# ★ 新战斗开始 → 清除上次的 Boss 临时上限惩罚
 	SoulFireManager.reset_boss_penalty()
+	SoulFireManager.current = clampi(GameState.soul_fire_current, 0, SoulFireManager.get_max_carried())
 
-	# ★ v4.6：进战斗时，从持久层同步魂火到战斗层
-	# 保证"中途退出再进战斗"从战斗前的值开始，而不是上次残留值
-	SoulFireManager.current = clampi(
-		GameState.soul_fire_current, 0, SoulFireManager.get_max_carried())
-
-	# 魂火 HUD 绑定
 	if not SoulFireManager.soul_fire_changed.is_connected(_on_soul_fire_changed):
 		SoulFireManager.soul_fire_changed.connect(_on_soul_fire_changed)
 	_on_soul_fire_changed(SoulFireManager.current, SoulFireManager.get_max_carried())
@@ -113,7 +109,6 @@ func _ready():
 	_victory_processed = false
 	_is_reward_ui_active = false
 
-	# 节点检查
 	var node_list = {
 		"victory_panel": victory_panel,
 		"turn_overlay": turn_overlay,
@@ -128,7 +123,6 @@ func _ready():
 		if not node_list[node_name]:
 			print("警告：节点 '", node_name, "' 未找到！")
 
-	# 模块初始化
 	_cursor_controller = CursorController.new(self)
 	add_child(_cursor_controller)
 	_panel_manager = PanelManager.new(self)
@@ -158,14 +152,13 @@ func _ready():
 	_damage_popup_layer.layer = 0
 	add_child(_damage_popup_layer)
 
-	# 单位信号
 	if not UnitManager.unit_removed.is_connected(_on_unit_removed_death):
 		UnitManager.unit_removed.connect(_on_unit_removed_death)
 	if not UnitManager.unit_removed.is_connected(_on_unit_removed_for_vengeance):
 		UnitManager.unit_removed.connect(_on_unit_removed_for_vengeance)
 
 	if hint_label:
-		hint_label.text = "中键结束回合"
+		hint_label.text = "双击中键结束回合"
 
 	if _initialized:
 		return
@@ -184,7 +177,6 @@ func _ready():
 		turn_overlay.modulate = Color(1, 1, 1, 0)
 		Globals.is_fading = false
 
-	# 地图加载
 	if GameState.current_map_data:
 		var map_to_load = GameState.current_map_data
 		if not map_to_load.scene:
@@ -233,10 +225,8 @@ func _ready():
 		menu_blocker.position = Vector2.ZERO
 		menu_blocker.z_index = UIConst.MENU_BLOCKER_Z_INDEX
 
-	# ★ 提前计算 is_boss（两条路径都要用）
 	var is_boss : bool = GameState.current_map_data and GameState.current_map_data.node_type == MapNode.NodeType.BOSS
 
-	# 非战斗/战斗分支
 	var is_non_combat = GameState.current_map_data and GameState.current_map_data.node_type in [
 		MapNode.NodeType.TREASURE,
 		MapNode.NodeType.FORGE,
@@ -259,7 +249,6 @@ func _ready():
 			back_to_menu_btn.pressed.connect(_on_back_to_menu_pressed)
 			back_to_menu_btn.text = "中断游戏"
 
-		# ★ 非战斗节点重置 Boss 机制和目标状态
 		BossMechanicManager.setup_for_node(false)
 		if ObjectiveManager:
 			ObjectiveManager.setup_for_node(null)
@@ -277,31 +266,24 @@ func _ready():
 		MusicManager._saved_stream = null
 		MusicManager._saved_position = 0.0
 
-	# Boss 机制设置必须在 start_turn 之前
-	# 否则 start_turn 会调 on_player_turn_start() 用上一场的旧机制
 	BossMechanicManager.setup_for_node(is_boss)
 
-	# 胜利目标初始化
 	if ObjectiveManager:
 		ObjectiveManager.setup_for_node(GameState.current_map_data)
 
-	# 波次初始化（先连接信号，再 setup）
 	if WaveManager:
 		_connect_wave_signals()
 		WaveManager.setup_for_node(GameState.current_map_data, self)
 
-	# 目标可视化 + 状态 HUD
 	_render_objective_markers()
 	_create_objective_status_label()
 
 	await get_tree().process_frame
 	TurnManager.start_turn(TurnManager.Team.PLAYER)
 
-	# 显示目标 banner（延迟避开 turn overlay）
 	if ObjectiveManager and not ObjectiveManager.is_annihilate():
 		call_deferred("_deferred_show_objective_banner")
 
-	# BOSS 战前显示 Boss 情报
 	call_deferred("_deferred_show_boss_intel")
 
 	if back_camp_btn:
@@ -338,7 +320,6 @@ func _ready():
 			await get_tree().process_frame
 			SignalBus.request_show_victory.emit(1)
 			return
-		# ★ 敌人已全灭（GM 提前清场 / 布阵异常），直接胜利
 		if alive_enemy == 0:
 			TurnManager.is_game_over = true
 			await get_tree().process_frame
@@ -350,7 +331,6 @@ func _ready():
 	if _victory_handler:
 		_victory_handler.record_battle_start_hp()
 
-	# 预热面板
 	if setting_panel:
 		PanelRevealer.force_hide(setting_panel)
 	if setting_menu_panel:
@@ -451,7 +431,7 @@ func deselect_unit():
 
 
 # ============================================================
-#  范围显示（威胁版）
+#  范围显示
 # ============================================================
 func _show_unit_ranges(unit: Unit):
 	var move_range : int = unit.remaining_move
@@ -656,7 +636,6 @@ func _input(event: InputEvent):
 	if Globals.is_dialogue_active or Globals.is_item_get_popup_active:
 		return
 
-	# ★ 核心修改：全面拦截右键，交由 _on_request_setting_right_click 统一处理
 	if team_view_panel.visible or setting_panel.visible or setting_menu_panel.visible:
 		if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT:
 			_on_request_setting_right_click()
@@ -666,15 +645,15 @@ func _input(event: InputEvent):
 	if _drag_move_controller and _drag_move_controller.handle_input(event):
 		return
 
+	# ★ 中键双击结束回合
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_MIDDLE:
 		if TurnManager.current_turn_team == TurnManager.Team.PLAYER and not Globals.is_fading and not Globals.is_transitioning and not Globals.is_dialogue_active:
 			var now = Time.get_ticks_msec()
 			if now - _last_middle_click_time < DOUBLE_CLICK_MS:
-				_last_middle_click_time = 0 # 重置
+				_last_middle_click_time = 0
 				_end_player_turn()
 			else:
 				_last_middle_click_time = now
-				# 提示玩家双击
 				SignalBus.request_hint_override.emit("双击中键结束回合", 0.5)
 			return
 
@@ -727,11 +706,9 @@ func _on_request_screen_shake(duration: float, intensity: float, direction: Vect
 		shake_node.shake(duration, intensity, direction)
 
 
-# ★ v4.6：伤害跳字队列 —— 同位置串行 + 轻微错开
 func _on_request_damage_popup(world_pos: Vector2, damage: int, is_crit: bool, is_miss: bool, is_heal: bool):
 	if _damage_popup_layer == null:
 		return
-	# 用 4 像素容差做 key，避免同一格因浮点误差被当成两个位置
 	var key := "%d_%d" % [int(world_pos.x / 4.0), int(world_pos.y / 4.0)]
 	if not _damage_popup_queue.has(key):
 		_damage_popup_queue[key] = []
@@ -771,10 +748,12 @@ func _process_popup_queue(key: String) -> void:
 
 
 # ============================================================
-#  InfoPanel (纯数值版)
+#  InfoPanel
 # ============================================================
 func _on_request_show_info(unit: Unit):
-	# ★ 缓存检查：如果单位和格子都没变，直接跳过
+	var was_unit_type = (_cached_info_unit != null)
+	var is_unit_type = (unit != null)
+	
 	if unit != null:
 		if unit == _cached_info_unit and info_panel.visible:
 			return
@@ -787,6 +766,13 @@ func _on_request_show_info(unit: Unit):
 			return
 		_cached_info_cell = t_cell
 		_cached_info_unit = null
+
+	# 强制重播面板扫入动画
+	if was_unit_type != is_unit_type and info_panel.visible:
+		PanelRevealer.force_hide(info_panel)
+		var avatar_rect := get_node_or_null("Info/AvatarRect") as TextureRect
+		var avatar_bg := get_node_or_null("Info/AvatarBg") as Panel
+		_hide_avatar(avatar_rect, avatar_bg)
 
 	var avatar_rect := get_node_or_null("Info/AvatarRect") as TextureRect
 	var avatar_bg := get_node_or_null("Info/AvatarBg") as Panel
@@ -867,7 +853,6 @@ func _on_request_show_info(unit: Unit):
 	lines.append("信仰 " + str(unit.unit_stats.faith) \
 		+ " | 移动 " + str(unit.unit_stats.move_range))
 
-	# ★ v4.6 减伤率显示
 	var phys_red : float = unit.unit_stats.physical_reduction
 	var mag_red : float = unit.unit_stats.magic_reduction
 	for slot in unit.armor_slots:
@@ -895,7 +880,6 @@ func _on_request_show_info(unit: Unit):
 	if talent_names.size() > 0:
 		lines.append("词条: " + ", ".join(talent_names))
 
-	# ★ v4.6：地形减伤率口径（有单位时用 t_phys/t_mag，与上方 hover_* 不冲突）
 	var unit_cell = unit.grid_cell
 	var terrain_type = TerrainManager.get_terrain(unit_cell)
 	var terrain_name = TerrainManager.get_terrain_name(terrain_type)
@@ -914,14 +898,13 @@ func _adjust_info_panel(label: Label, panel: PanelContainer, ref_unit: Unit = nu
 	var avatar_bg := get_node_or_null("Info/AvatarBg") as Panel
 	var avatar_visible : bool = (avatar_rect != null and avatar_rect.visible)
 
-	# ---- 1. 判定贴左还是贴右 ----
 	var align_left_side : bool = false
 	if ref_unit != null and is_instance_valid(ref_unit):
 		var xform := get_viewport().get_canvas_transform()
 		var screen_x : float = (xform * ref_unit.global_position).x
 		align_left_side = (screen_x < vp_size.x * 0.5)
 	else:
-		align_left_side = false # 默认贴右
+		align_left_side = false
 
 	if align_left_side:
 		panel.offset_left = INFO_PANEL_MARGIN
@@ -932,7 +915,6 @@ func _adjust_info_panel(label: Label, panel: PanelContainer, ref_unit: Unit = nu
 
 	panel.offset_top = INFO_PANEL_MARGIN
 
-	# ---- 2. 文本宽度与面板高度计算 ----
 	label.vertical_alignment = VERTICAL_ALIGNMENT_TOP
 	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -948,10 +930,10 @@ func _adjust_info_panel(label: Label, panel: PanelContainer, ref_unit: Unit = nu
 	label.size.x = panel_width
 
 	var label_min_height = label.get_minimum_size().y
-	var panel_height = label_min_height + margin_top + margin_bottom
+	# ★ 设定最小高度 36，防止地形面板过扁导致扫入动画极短、视觉突兀
+	var panel_height = maxf(label_min_height + margin_top + margin_bottom, 36.0)
 	panel.offset_bottom = panel.offset_top + panel_height
 
-	# ---- 3. 头像排版 ----
 	if avatar_visible:
 		avatar_bg.size = Vector2(54, 54)
 		avatar_rect.size = Vector2(48, 48)
@@ -972,7 +954,6 @@ func _adjust_info_panel(label: Label, panel: PanelContainer, ref_unit: Unit = nu
 		avatar_rect.offset_top = INFO_PANEL_MARGIN + 3.0
 		avatar_rect.offset_bottom = INFO_PANEL_MARGIN + 54.0 - 3.0
 
-	# ---- 4. 触发显示 ----
 	if not panel.visible:
 		PanelRevealer.show_panel(panel)
 	if avatar_visible and not avatar_bg.visible:
@@ -1012,7 +993,6 @@ func _hide_avatar(avatar_rect: TextureRect, bg_rect: Panel):
 # ============================================================
 func _on_request_show_setting():
 	PanelRevealer.show_panel(setting_panel)
-	# ★ 核心修复：打开设置时，强制关掉队伍查看面板
 	if team_view_panel.visible:
 		PanelRevealer.hide_panel(team_view_panel)
 
@@ -1029,7 +1009,6 @@ func _on_soul_fire_changed(current: int, max_carried: int):
 	if soul_fire_label and is_instance_valid(soul_fire_label):
 		soul_fire_label.text = "%d/%d" % [current, max_carried]
 		
-		# ★ 将原本 StateLabel 的状态颜色变化，直接应用在数字文本上
 		match SoulFireManager.get_state():
 			SoulFireManager.State.BURNING:
 				soul_fire_label.modulate = Color(1.0, 0.302, 0.302, 1.0) # 燃烧（橙色）
@@ -1109,12 +1088,10 @@ func _is_any_ui_active() -> bool:
 
 
 func _on_back_camp_pressed():
-	# 关闭所有菜单
 	PanelRevealer.force_hide(setting_panel)
 	PanelRevealer.force_hide(team_view_panel)
 	PanelRevealer.force_hide(setting_menu_panel)
 
-	# 重置输入状态
 	InputManager.selected_unit = null
 	InputManager.interaction_phase = InputManager.Phase.IDLE
 	InputManager.current_empty_cell = Vector2i(-1, -1)
@@ -1155,21 +1132,18 @@ func _on_request_setting_right_click():
 	var is_sm_open = setting_menu_panel.visible and setting_menu_panel.mouse_filter == Control.MOUSE_FILTER_STOP
 	var is_setting_open = setting_panel.visible and setting_panel.mouse_filter == Control.MOUSE_FILTER_STOP
 
-	# 1. 队伍面板开着 → 关闭队伍面板，恢复竖条栏
 	if is_tv_open:
 		PanelRevealer.hide_panel(team_view_panel)
 		PanelRevealer.show_panel(setting_panel)
 		SoundManager.play_cancel_sound()
 		return
 		
-	# 2. 大设置菜单开着 → 关闭大菜单，恢复竖条栏（★ 修复了这里之前丢失的恢复逻辑）
 	if is_sm_open:
 		PanelRevealer.hide_panel(setting_menu_panel)
 		PanelRevealer.show_panel(setting_panel)
 		SoundManager.play_cancel_sound()
 		return
 		
-	# 3. 竖条栏开着 → 全关，彻底回到游戏
 	if is_setting_open:
 		PanelRevealer.hide_panel(setting_panel)
 		SignalBus.request_hide_info.emit()
@@ -1221,7 +1195,7 @@ func _render_capture_marker():
 
 func _render_flag_markers():
 	var flag_cell : Vector2i = ObjectiveManager.get_flag_cell()
-	var goal_cell : Vector2i = ObjectiveManager.get_flag_goal_cell()
+	var goal_cell : Vector2i = ObjectiveManager.get_goal_cell()
 	if flag_cell != Vector2i(-1, -1):
 		_draw_cell_marker(flag_cell, Color(0.9, 0.3, 0.3, 0.4), "旗", Color(1.0, 0.4, 0.4))
 	if goal_cell != Vector2i(-1, -1):
@@ -1512,30 +1486,24 @@ func _show_objective_banner():
 
 # 用于挂载/更新头像和文字
 func _update_unit_display_info(unit_type: String, stats_text: String, avatar_bg: Panel, avatar_rect: TextureRect, stats_label: Label):
-	# 1. 设置文字
 	if stats_label:
 		stats_label.text = stats_text
 
-	# 2. 判断是否显示头像（支持全局头像覆写）
 	var avatar_id = GameState.get_unit_avatar(unit_type)
 	var has_avatar = false
 	
 	if avatar_id != "":
-		# ★ 替换硬编码路径
 		var tex = IconManager.get_icon_or_null(avatar_id)
 		if tex:
 			if avatar_rect.texture != tex:
 				avatar_rect.texture = tex
 			has_avatar = true
 			
-	# 3. 控制显示/隐藏与排版
 	if has_avatar:
-		# 设置 50x50 留边：容器是 54x54，内边距 2px
 		avatar_rect.custom_minimum_size = Vector2(50, 50)
 		avatar_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		avatar_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		
-		# 用 PanelRevealer 刷出
 		if not avatar_bg.visible:
 			avatar_bg.visible = true
 			PanelRevealer.show_panel(avatar_bg)
@@ -1543,7 +1511,6 @@ func _update_unit_display_info(unit_type: String, stats_text: String, avatar_bg:
 			avatar_rect.visible = true
 			PanelRevealer.show_panel(avatar_rect)
 	else:
-		# 没头像就隐藏
 		if avatar_bg.visible:
 			PanelRevealer.hide_panel(avatar_bg)
 		if avatar_rect.visible:
@@ -1559,7 +1526,7 @@ func _create_damage_preview_panel():
 	if stylebox: 
 		_damage_preview_panel.add_theme_stylebox_override("panel", stylebox)
 	_damage_preview_panel.visible = false
-	_damage_preview_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE # 防止鼠标挡视线
+	_damage_preview_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE 
 	canvas.add_child(_damage_preview_panel)
 	
 	var margin = MarginContainer.new()
@@ -1579,26 +1546,21 @@ func show_damage_preview(attacker: Unit, defender: Unit):
 	if _damage_preview_panel == null or not is_instance_valid(attacker) or not is_instance_valid(defender):
 		return
 		
-	# 1. 计算伤害
 	var dmg = CombatManager.calculate_damage(attacker, defender)
 	var text = "预计伤害: %d" % dmg
 	
-	# 2. 计算反击（如果防守方能反击，且用的是非法杖武器）
 	if defender.can_counter() and defender.get_weapon_type() != "staff":
 		var counter_dmg = CombatManager.calculate_damage(defender, attacker)
 		text += "\n反击受伤: %d" % counter_dmg
 		
 	_damage_preview_label.text = text
 	
-	# 3. 强制刷新尺寸（必须先显示，或者强制调用 update，否则 get_combined_minimum_size 不准确）
 	_damage_preview_panel.size = _damage_preview_panel.get_combined_minimum_size()
 	_damage_preview_panel.visible = true
 	
-	# 4. 屏幕坐标转换与位置限制
 	var screen_pos = get_viewport().get_canvas_transform() * defender.global_position
 	var target_pos = screen_pos + Vector2(-_damage_preview_panel.size.x / 2.0, -45)
 	
-	# 防止超出屏幕左右边界
 	var vp_size = get_viewport().get_visible_rect().size
 	if target_pos.x < 4.0: target_pos.x = 4.0
 	if target_pos.x + _damage_preview_panel.size.x > vp_size.x - 4.0: 
