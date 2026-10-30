@@ -675,7 +675,7 @@
 	},
 
 	"forge": {
-	  "name": "移动铁匠",
+	  "name": "魂栈侍从",
 	  "avatar": "npc_forge",
 	  "default_trigger_type": "forge_recall",
 	  "dialogues": [
@@ -686,7 +686,7 @@
 		  "repeatable": false,
 		  "condition": {},
 		  "lines": [
-			{"speaker": "移动铁匠", "text": "今天炉火偏守护。"}
+			{"speaker": "魂栈侍从", "text": "炉火正旺。"}
 		  ],
 		  "effect": {
 			"type": "shop_tag_weight_boost",
@@ -700,7 +700,7 @@
 		  "repeatable": false,
 		  "condition": {},
 		  "lines": [
-			{"speaker": "移动铁匠", "text": "轮回的道，我今天想打一件。"}
+			{"speaker": "魂栈侍从", "text": "轮回的道，我今天想打一件。"}
 		  ],
 		  "effect": {
 			"type": "shop_tag_weight_boost",
@@ -836,7 +836,7 @@
 		  "repeatable": false,
 		  "condition": {"node_type": 5},
 		  "lines": [
-			{"speaker": "移动铁匠", "text": "进来吧。炉火正好。"}
+			{"speaker": "魂栈侍从", "text": "进来吧。炉火正好。"}
 		  ]
 		}
 	  ],

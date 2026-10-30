@@ -453,7 +453,7 @@ func _build_ui_inner():
 				shop_container.visible = true
 
 		Mode.MAP_SHOP_REST:
-			mode_label.text = "移动铁匠 · 商店"
+			mode_label.text = "魂栈 · 魂栈侍从"
 			close_btn.visible = true
 			close_btn.text = "继续探索"
 			confirm_btn.visible = false
@@ -495,7 +495,7 @@ func _build_ui_inner():
 					shop_container.visible = true
 
 		Mode.FORGE:
-			mode_label.text = "移动铁匠"
+			mode_label.text = "魂栈"
 			close_btn.visible = true
 			close_btn.text = "继续探索"
 			confirm_btn.visible = false
