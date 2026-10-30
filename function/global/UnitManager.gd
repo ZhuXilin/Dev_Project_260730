@@ -23,6 +23,8 @@ func unregister_unit(unit: Unit):
 
 func get_unit_at_cell(cell: Vector2i) -> Unit:
 	for unit in unit_list:
+		# ★ 必须加上这句！跳过已经被 free 的单位
+		if not is_instance_valid(unit): continue
 		if unit.grid_cell == cell and unit.hit_points > 0 and unit.visible:
 			return unit
 	return null

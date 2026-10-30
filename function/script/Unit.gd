@@ -309,8 +309,14 @@ func get_weapon_stats() -> Dictionary:
 
 	if data.magic_attack.get("ignore_defense", false):
 		stats["magic_attack"] = int((data.base_attack + upgrade_bonus) * quality_mult)
-	if not data.heal_effect.is_empty():
-		stats["heal_amount"] = data.heal_effect.get("base_heal", 0)
+		if not data.heal_effect.is_empty():
+			if data.heal_effect.get("base_heal_percent", 0.0) > 0.0:
+				var pct : float = float(data.heal_effect["base_heal_percent"])
+				var faith_pct : float = float(data.heal_effect.get("faith_percent_per_point", 0.01))
+				var ref_pct : float = pct + unit_stats.faith * faith_pct
+				stats["heal_amount"] = int(unit_stats.max_hp * ref_pct)
+			else:
+				stats["heal_amount"] = data.heal_effect.get("base_heal", 0)
 
 	return stats
 

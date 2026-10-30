@@ -26,9 +26,9 @@
   },
   "献祭": {
 	"name": "血之回响",
-	"description": "击杀时回复 15% 最大 HP",
-	"effect": "kill_heal",
-	"value": 0.15
+	"description": "造成伤害的 8% 回复为 HP",
+	"effect": "damage_lifesteal",
+	"value": 0.08
   },
   "余烬": {
 	"name": "不灭薪火",

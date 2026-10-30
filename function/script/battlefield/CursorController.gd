@@ -171,33 +171,48 @@ func _update_hovered_unit_from_mouse() -> void:
 		return
 		
 	var new_unit = UnitManager.get_unit_at_cell(grid_pos)
+	if not is_instance_valid(new_unit):
+		new_unit = null
 
-	var suppressed : Unit = _bf.get_suppressed_range_unit()
+	# ★ 关键修复：这里绝对不能写 var suppressed : Unit，否则强类型接收废弃实例直接崩溃
+	var suppressed = _bf.get_suppressed_range_unit()
+	if not is_instance_valid(suppressed):
+		suppressed = null
+		
 	if suppressed != null and new_unit != suppressed:
 		_bf.clear_suppressed_range()
 	
+	if not is_instance_valid(_hovered_unit):
+		_hovered_unit = null
+		
 	# 更新 HP 标签显隐
 	if _hovered_unit != new_unit:
-		if _hovered_unit and is_instance_valid(_hovered_unit):
+		if is_instance_valid(_hovered_unit):
 			_hovered_unit.show_hp_label(false)
-		if new_unit and is_instance_valid(new_unit) and new_unit.hit_points > 0:
+		if is_instance_valid(new_unit) and new_unit.hit_points > 0:
 			new_unit.show_hp_label(true)
 		_hovered_unit = new_unit
 		
 	# 持续发送面板显示请求（拖拽时除外）
 	if not (_bf._drag_move_controller and _bf._drag_move_controller.is_dragging()):
-		if new_unit and is_instance_valid(new_unit) and new_unit.hit_points > 0:
+		if is_instance_valid(new_unit) and new_unit.hit_points > 0:
 			SignalBus.request_show_info.emit(new_unit)
 		else:
-			# ★ 悬停空地直接发送 null，不再回退到 selected_unit
-			SignalBus.request_show_info.emit(null)
+			SignalBus.request_hide_info.emit() # 这里的 null 改为直接发 hide
 
 
 func _set_hovered_unit(new_unit: Unit) -> void:
+	# ★ 核心修复：两边都先净化，再比较
+	if not is_instance_valid(new_unit):
+		new_unit = null
+	if not is_instance_valid(_hovered_unit):
+		_hovered_unit = null
+
 	if new_unit == _hovered_unit:
 		return
-	if _hovered_unit and is_instance_valid(_hovered_unit):
+		
+	if is_instance_valid(_hovered_unit):
 		_hovered_unit.show_hp_label(false)
-	if new_unit and is_instance_valid(new_unit) and new_unit.hit_points > 0:
+	if is_instance_valid(new_unit) and new_unit.hit_points > 0:
 		new_unit.show_hp_label(true)
 	_hovered_unit = new_unit

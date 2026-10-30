@@ -6,7 +6,7 @@ extends Node
 
 enum State { NORMAL, BURNING, DEPLETED, ZERO }
 
-const MAX_CARRIED_LEVELS : Array[int] = [5, 8, 12, 18, 25, 33, 42]
+const MAX_CARRIED_LEVELS : Array[int] = [8, 12, 16, 22, 30, 40, 50]
 const UPGRADE_COSTS      : Array[int] = [0, 30, 80, 180, 350, 600, 1000]
 const INITIAL_LEVELS     : Array[int] = [0, 1, 2, 3]
 const INITIAL_COSTS      : Array[int] = [0, 50, 200, 800]
@@ -120,6 +120,13 @@ func get_initial_upgrade_cost() -> int:
 	if lv >= INITIAL_LEVELS.size() - 1:
 		return -1
 	return INITIAL_COSTS[lv + 1]
+
+
+## 急救的魂火消耗：按当前上限算固定值，不按当前拥有量算百分比。
+## 上限 8→2 / 12→2 / 16→3 / 22→4 / 30→5 / 40→6 / 50→8
+func get_emergency_heal_cost() -> int:
+	var cap : int = get_max_carried()
+	return maxi(2, int(ceil(float(cap) * 0.15)))
 
 
 func add(amount: int) -> int:

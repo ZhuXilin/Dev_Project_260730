@@ -8,11 +8,21 @@ class_name HpFunction
 		if Engine.is_editor_hint():
 			_update_preview()
 
+## 为 true 时，hp_amount 表示百分比（-100 ~ 100）；
+## 为 false 时，hp_amount 表示绝对值。
+@export var is_percent: bool = false:
+	set(value):
+		is_percent = value
+		if Engine.is_editor_hint():
+			_update_preview()
+
+
 func _ready():
 	if Engine.is_editor_hint():
 		_update_preview()
 	else:
 		hide()
+
 
 func _update_preview():
 	for child in get_children():
@@ -28,7 +38,7 @@ func _update_preview():
 	add_child(rect)
 
 	var label = Label.new()
-	label.text = str(hp_amount)
+	label.text = (str(hp_amount) + "%") if is_percent else str(hp_amount)
 	label.add_theme_font_size_override("font_size", 10)
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
@@ -37,28 +47,33 @@ func _update_preview():
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(label)
 
+
 func _get_configuration_warnings():
 	var warnings = PackedStringArray()
-	
+
 	if hp_amount == 0:
 		warnings.append("hp_amount 为 0 无效果")
-	
-	# ---- 网格顶点对齐检查 ----
+
+	if is_percent and (hp_amount < -100 or hp_amount > 100):
+		warnings.append("百分比模式下 hp_amount 建议在 -100 ~ 100 之间")
+
 	var pos = position
 	var cell_size = MapConst.CELL_SIZE
 	var x_mod = fmod(pos.x, cell_size)
 	var y_mod = fmod(pos.y, cell_size)
 	var x_aligned = abs(x_mod) < 0.01
 	var y_aligned = abs(y_mod) < 0.01
-	
+
 	if not x_aligned or not y_aligned:
 		warnings.append("节点位置未对齐到网格顶点（应位于格子角点，坐标应为 %d 的整数倍）。建议使用网格吸附功能。" % MapConst.CELL_SIZE)
-	
+
 	return warnings
+
 
 func export_config() -> Dictionary:
 	return {
 		"type": "hp_function",
 		"hp_amount": hp_amount,
+		"is_percent": is_percent,
 		"position": Vector2i(floor(position.x / MapConst.CELL_SIZE), floor(position.y / MapConst.CELL_SIZE))
 	}

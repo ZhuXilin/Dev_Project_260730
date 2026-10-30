@@ -113,10 +113,14 @@ func trigger_event(event_id: String, unit: Unit = null, _default_music: AudioStr
 				if unit == null:
 					continue
 				var amt: int = int(action.get("amount", 0))
+				var is_pct_h : bool = bool(action.get("percent", false))
 				if amt > 0:
-					unit.hit_points = min(unit.hit_points + amt, unit.unit_stats.max_hp)
+					var heal_val : int = amt
+					if is_pct_h:
+						heal_val = maxi(1, int(unit.unit_stats.max_hp * float(amt) / 100.0))
+					unit.hit_points = min(unit.hit_points + heal_val, unit.unit_stats.max_hp)
 					unit.update_hp_label()
-					SignalBus.request_damage_popup.emit(unit.global_position, amt, false, false, true)
+					SignalBus.request_damage_popup.emit(unit.global_position, heal_val, false, false, true)
 					SoundManager.play_heal_sound()
 					await get_tree().create_timer(0.3).timeout
 
@@ -124,10 +128,14 @@ func trigger_event(event_id: String, unit: Unit = null, _default_music: AudioStr
 				if unit == null:
 					continue
 				var amt2: int = int(action.get("amount", 0))
+				var is_pct_d : bool = bool(action.get("percent", false))
 				if amt2 < 0:
-					unit.hit_points = max(unit.hit_points + amt2, 0)
+					var dmg_val : int = abs(amt2)
+					if is_pct_d:
+						dmg_val = maxi(1, int(unit.unit_stats.max_hp * float(dmg_val) / 100.0))
+					unit.hit_points = max(unit.hit_points - dmg_val, 0)
 					unit.update_hp_label()
-					SignalBus.request_damage_popup.emit(unit.global_position, abs(amt2), false, false, false)
+					SignalBus.request_damage_popup.emit(unit.global_position, dmg_val, false, false, false)
 					SoundManager.play_hit_sound()
 					await get_tree().create_timer(0.3).timeout
 					if unit.hit_points <= 0:

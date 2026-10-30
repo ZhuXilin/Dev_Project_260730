@@ -87,7 +87,7 @@
 	"price": 120, "quality": "rare", "attack_style": "heal",
 	"base_attack": 0, "attack_range": 4, "min_attack_range": 0,
 	"modifier": { "faith": 0.8, "intelligence": 0.2 },
-	"heal_effect": { "base_heal": 8, "faith_multiplier": 1.0 },
+	"heal_effect": { "base_heal_percent": 0.2, "faith_percent_per_point": 0.01 },
 	"physical_penetration": 0.0, "magic_penetration": 0.10,
 	"tags": ["法术", "献祭"],
 	"upgrade_stats": { "max_level": 5, "attack_per_level": 0, "heal_per_level": 2 }

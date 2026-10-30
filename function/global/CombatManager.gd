@@ -325,10 +325,26 @@ func execute_attack(attacker: Unit, defender: Unit, forced_skill_id: String = ""
 	if attacker.get_equipped_weapon_id() == "":
 		Globals.is_performing_action = false
 		return false
+
+	# ★ 友军保护：非 staff 打友军 = 攻击，禁止
+	if defender.unit_stats.team_id == attacker.unit_stats.team_id:
+		if attacker.get_weapon_type() != "staff":
+			Globals.is_performing_action = false
+			SoundManager.play_cancel_sound()
+			SignalBus.request_hint_override.emit("不能攻击友军", 1.0)
+			return false
+
 	_face_each_other(attacker, defender)
 	Globals.is_performing_action = true
 
-	if attacker.get_weapon_type() == "staff" and defender.unit_stats.team_id == attacker.unit_stats.team_id:
+	if attacker.get_weapon_type() == "staff" \
+			and defender.unit_stats.team_id == attacker.unit_stats.team_id:
+		# 满血友军拦截
+		if defender.hit_points >= defender.unit_stats.max_hp:
+			Globals.is_performing_action = false
+			SoundManager.play_cancel_sound()
+			SignalBus.request_hint_override.emit("目标未受伤", 1.0)
+			return false
 		await _execute_heal(attacker, defender, forced_skill_id)
 		Globals.is_performing_action = false
 		return true
@@ -590,51 +606,41 @@ func execute_attack(attacker: Unit, defender: Unit, forced_skill_id: String = ""
 		Globals.is_performing_action = false
 		return true
 
+	# ★ 修正 A：spell_chain 在 execute_attack 中只处理「法术书」的额外伤害链。
+	#   staff 走到此处意味着"staff 打敌人"（治疗场景已在函数开头提前返回），
+	#   原代码用治疗量给敌人回血属于逻辑 bug，已移除。staff 的 spell_chain 由 _execute_heal 处理。
 	if TalentManager.is_talent_ready(attacker, "spell_chain"):
-		if attacker.get_weapon_type() == "spellbook" or attacker.get_weapon_type() == "staff":
+		if attacker.get_weapon_type() == "spellbook":
 			var level = _get_effective_talent_level(attacker, "spell_chain")
 			var mult = SPELL_CHAIN_MULT[level - 1]
-			if attacker.get_weapon_type() == "staff":
-				TalentManager.reset_talent(attacker, "spell_chain")
-				await get_tree().create_timer(EXTRA_HIT_DELAY, true, false, true).timeout
-				var weapon_data = attacker.get_weapon_data()
-				var base_heal = weapon_data.heal_effect.get("base_heal", 0)
-				var faith_bonus = attacker.unit_stats.faith * weapon_data.heal_effect.get("faith_multiplier", 1.0)
-				var extra_heal = int((base_heal + faith_bonus) * mult)
-				var old_hp = defender.hit_points
-				defender.hit_points = min(defender.hit_points + extra_heal, defender.unit_stats.max_hp)
-				var actual = defender.hit_points - old_hp
-				defender.update_hp_label()
-				SignalBus.request_damage_popup.emit(defender.global_position, actual, false, false, true)
-			else:
-				var extra_damage = int(damage * mult)
-				TalentManager.reset_talent(attacker, "spell_chain")
-				await get_tree().create_timer(EXTRA_HIT_DELAY, true, false, true).timeout
-				if not _is_alive(attacker):
-					Globals.is_performing_action = false
-					return true
-				await _play_lunge_attack(attacker, defender)
-				await get_tree().create_timer(PRE_DAMAGE_DELAY, true, false, true).timeout
-				var extra_dead = defender.apply_damage(extra_damage)
-				_play_hurt_effect(defender, attacker)
-				SignalBus.request_damage_popup.emit(defender.global_position, extra_damage, false, false, false)
-				await get_tree().create_timer(POST_DAMAGE_DELAY, true, false, true).timeout
-				if extra_dead:
-					if _try_boss_revive(defender, attacker):
-						_finish_attack(attacker, defender)
-						Globals.is_performing_action = false
-						return true
-					var cleave_triggered := _on_kill(attacker, defender)
-					await _play_death_animation(defender)
-					UnitManager.unregister_unit(defender)
-					defender.queue_free()
-					if cleave_triggered:
-						_show_menu_after_action(attacker)
-						Globals.is_performing_action = false
-						return true
+			var extra_damage = int(damage * mult)
+			TalentManager.reset_talent(attacker, "spell_chain")
+			await get_tree().create_timer(EXTRA_HIT_DELAY, true, false, true).timeout
+			if not _is_alive(attacker):
+				Globals.is_performing_action = false
+				return true
+			await _play_lunge_attack(attacker, defender)
+			await get_tree().create_timer(PRE_DAMAGE_DELAY, true, false, true).timeout
+			var extra_dead = defender.apply_damage(extra_damage)
+			_play_hurt_effect(defender, attacker)
+			SignalBus.request_damage_popup.emit(defender.global_position, extra_damage, false, false, false)
+			await get_tree().create_timer(POST_DAMAGE_DELAY, true, false, true).timeout
+			if extra_dead:
+				if _try_boss_revive(defender, attacker):
 					_finish_attack(attacker, defender)
 					Globals.is_performing_action = false
 					return true
+				var cleave_triggered := _on_kill(attacker, defender)
+				await _play_death_animation(defender)
+				UnitManager.unregister_unit(defender)
+				defender.queue_free()
+				if cleave_triggered:
+					_show_menu_after_action(attacker)
+					Globals.is_performing_action = false
+					return true
+				_finish_attack(attacker, defender)
+				Globals.is_performing_action = false
+				return true
 
 	if not _is_alive(attacker):
 		Globals.is_performing_action = false
@@ -673,25 +679,26 @@ func _execute_heal(attacker: Unit, defender: Unit, forced_skill_id: String = "")
 	if defender.unit_stats.team_id != attacker.unit_stats.team_id:
 		Globals.is_performing_action = false
 		return false
-	var weapon_data = attacker.get_weapon_data()
-	var heal_amount = weapon_data.heal_effect.get("base_heal", 0)
-	var faith_bonus = attacker.unit_stats.faith * weapon_data.heal_effect.get("faith_multiplier", 1.0)
-	var total_heal = int(heal_amount + faith_bonus)
-	if attacker.relic_heal_bonus > 0.0: total_heal = int(total_heal * (1.0 + attacker.relic_heal_bonus))
-	var heal_affix_bonus : float = 0.0
-	for slot in attacker.armor_slots:
-		if slot: heal_affix_bonus += slot.get_affix_value_float("heal_boost")
-	total_heal = int(total_heal * (1.0 + heal_affix_bonus))
+
+	# ★ 满血直接拒绝：播取消音 + 提示 + 不消耗行动
+	if defender.hit_points >= defender.unit_stats.max_hp:
+		SoundManager.play_cancel_sound()
+		SignalBus.request_hint_override.emit("目标未受伤", 1.0)
+		Globals.is_performing_action = false
+		return false
+
+	var total_heal : int = get_expected_heal_amount(attacker, defender)
+
 	if TalentManager.is_talent_ready(attacker, "heal_boost"):
-		var level = _get_effective_talent_level(attacker, "heal_boost")
-		total_heal = int(total_heal * HEAL_BOOST_MULT[level - 1])
 		TalentManager.reset_talent(attacker, "heal_boost")
+
 	var old_hp = defender.hit_points
-	defender.hit_points = min(defender.hit_points + total_heal, defender.unit_stats.max_hp)
+	defender.hit_points = mini(defender.hit_points + total_heal, defender.unit_stats.max_hp)
 	var actual_heal = defender.hit_points - old_hp
 	defender.update_hp_label()
 	SignalBus.request_damage_popup.emit(defender.global_position, actual_heal, false, false, true)
 	SoundManager.play_heal_sound()
+
 	if forced_skill_id != "":
 		var skill_data = TalentManager.get_talent_data(forced_skill_id)
 		if skill_data:
@@ -711,7 +718,28 @@ func _execute_heal(attacker: Unit, defender: Unit, forced_skill_id: String = "")
 							SignalBus.request_damage_popup.emit(u.global_position, real, false, false, true)
 					TalentManager.consume_active_skill(attacker, forced_skill_id)
 					SoulFireManager.spend(cost)
+
 	await get_tree().create_timer(PERFORMANCE_DURATION, true, false, true).timeout
+
+	# ★ 修正 B：staff 的 spell_chain 二次治疗（真正治疗友军时触发）
+	if TalentManager.is_talent_ready(attacker, "spell_chain"):
+		if attacker.get_weapon_type() == "staff":
+			var level = _get_effective_talent_level(attacker, "spell_chain")
+			var mult = SPELL_CHAIN_MULT[level - 1]
+			TalentManager.reset_talent(attacker, "spell_chain")
+			await get_tree().create_timer(EXTRA_HIT_DELAY, true, false, true).timeout
+			if not _is_alive(attacker):
+				Globals.is_performing_action = false
+				return true
+			var base_heal_val : int = _calc_staff_heal(attacker, defender)
+			var extra_heal : int = int(base_heal_val * mult)
+			var old_hp2 : int = defender.hit_points
+			defender.hit_points = mini(defender.hit_points + extra_heal, defender.unit_stats.max_hp)
+			var actual2 : int = defender.hit_points - old_hp2
+			if actual2 > 0:
+				defender.update_hp_label()
+				SignalBus.request_damage_popup.emit(defender.global_position, actual2, false, false, true)
+
 	var free_action : bool = _consume_first_spell_free(attacker)
 	_finish_attack(attacker, defender, free_action)
 	Globals.is_performing_action = false
@@ -802,6 +830,11 @@ func _play_death_animation(unit: Unit) -> void:
 
 func _on_kill(attacker: Unit, _defender: Unit) -> bool:
 	if not is_instance_valid(attacker): return false
+
+	# ★ 敌方死亡生成血球
+	if is_instance_valid(_defender) and _defender.unit_stats.team_id == 1:
+		SignalBus.request_spawn_blood_orb.emit(_defender.grid_cell)
+
 	if TalentManager.is_talent_ready(attacker, "blood_rage"):
 		var lv = _get_effective_talent_level(attacker, "blood_rage")
 		var pct = BLOOD_RAGE_HEAL_PERCENT[clampi(lv - 1, 0, BLOOD_RAGE_HEAL_PERCENT.size() - 1)]
@@ -984,6 +1017,22 @@ func _apply_damage_with_effects(defender: Unit, damage: int, attacker: Unit, is_
 		return false
 
 	if defeated and _try_revive(defender): return false
+	
+	if damage > 0 and is_instance_valid(attacker):
+		var active_sets : Array = SetBonusManager.get_active_sets_for_unit(attacker)
+		for entry in active_sets:
+			var b : Dictionary = entry["bonus"]
+			if b.get("effect", "") == "damage_lifesteal":
+				var pct : float = float(b.get("value", 0.0))
+				var heal : int = int(damage * pct)
+				if heal > 0:
+					var old_hp : int = attacker.hit_points
+					attacker.hit_points = mini(attacker.hit_points + heal, attacker.unit_stats.max_hp)
+					var actual : int = attacker.hit_points - old_hp
+					if actual > 0:
+						attacker.update_hp_label()
+						SignalBus.request_damage_popup.emit(attacker.global_position, actual, false, false, true)
+	
 	return defeated
 
 
@@ -1111,3 +1160,89 @@ func get_unit_attack_stats(unit: Unit) -> Dictionary:
 	else:
 		return {"attack": 0, "magic_attack": 0, "heal_amount": 0,
 			"attack_range": 0, "min_attack_range": 0, "attack_style": "standard"}
+
+
+## 修女基础治疗量：目标 max_hp × (基础% + faith × 每点%)
+## 新格式：heal_effect = { "base_heal_percent": 0.2, "faith_percent_per_point": 0.01 }
+## 兼容旧格式：heal_effect = { "base_heal": 8, "faith_multiplier": 1.0 }
+func _calc_staff_heal(attacker: Unit, defender: Unit) -> int:
+	var weapon_data = attacker.get_weapon_data()
+	if weapon_data == null:
+		return 0
+	var base_pct : float = float(weapon_data.heal_effect.get("base_heal_percent", 0.0))
+	if base_pct > 0.0:
+		var faith_pct : float = float(weapon_data.heal_effect.get("faith_percent_per_point", 0.01))
+		var heal_pct : float = base_pct + attacker.unit_stats.faith * faith_pct
+		return maxi(1, int(defender.unit_stats.max_hp * heal_pct))
+	# 旧格式回退
+	var base_heal : int = int(weapon_data.heal_effect.get("base_heal", 0))
+	var faith_bonus : float = attacker.unit_stats.faith * float(weapon_data.heal_effect.get("faith_multiplier", 1.0))
+	return maxi(1, int(base_heal + faith_bonus))
+
+
+## 获取包含遗物、词条、天赋在内的最终治疗量（供预估面板和实际执行共用）
+func get_expected_heal_amount(attacker: Unit, defender: Unit) -> int:
+	var total_heal : int = _calc_staff_heal(attacker, defender)
+	
+	if attacker.relic_heal_bonus > 0.0:
+		total_heal = int(total_heal * (1.0 + attacker.relic_heal_bonus))
+		
+	var heal_affix_bonus : float = 0.0
+	for slot in attacker.armor_slots:
+		if slot: heal_affix_bonus += slot.get_affix_value_float("heal_boost")
+	total_heal = int(total_heal * (1.0 + heal_affix_bonus))
+	
+	if TalentManager.is_talent_ready(attacker, "heal_boost"):
+		var level = _get_effective_talent_level(attacker, "heal_boost")
+		total_heal = int(total_heal * HEAL_BOOST_MULT[level - 1])
+		
+	return total_heal
+	
+
+## 急救：任何单位可用，消耗行动 + 魂火，治疗受伤友军。
+## 返回 true 表示施放成功。
+func execute_emergency_heal(attacker: Unit, target: Unit) -> bool:
+	if not is_instance_valid(attacker) or not is_instance_valid(target):
+		return false
+	if attacker.unit_stats.team_id != 0 or target.unit_stats.team_id != 0:
+		return false
+	if target.hit_points >= target.unit_stats.max_hp:
+		SignalBus.request_hint_override.emit("目标未受伤", 1.0)
+		return false
+
+	var cost : int = SoulFireManager.get_emergency_heal_cost()
+	if not SoulFireManager.can_spend(cost):
+		SignalBus.request_hint_override.emit("魂火不足（需 %d）" % cost, 1.2)
+		return false
+
+	SoulFireManager.spend(cost)
+
+	Globals.is_performing_action = true
+
+	var heal_pct : float = 0.15 + attacker.unit_stats.faith * 0.005
+	var heal_amount : int = maxi(1, int(target.unit_stats.max_hp * heal_pct))
+
+	# 受遗物 / 词条加成
+	if attacker.relic_heal_bonus > 0.0:
+		heal_amount = int(heal_amount * (1.0 + attacker.relic_heal_bonus))
+	var heal_affix_bonus : float = 0.0
+	for slot in attacker.armor_slots:
+		if slot: heal_affix_bonus += slot.get_affix_value_float("heal_boost")
+	heal_amount = int(heal_amount * (1.0 + heal_affix_bonus))
+
+	var old_hp : int = target.hit_points
+	target.hit_points = mini(target.hit_points + heal_amount, target.unit_stats.max_hp)
+	var actual : int = target.hit_points - old_hp
+
+	target.update_hp_label()
+	SignalBus.request_damage_popup.emit(target.global_position, actual, false, false, true)
+	SignalBus.request_hint_override.emit("急救 +%d（-%d 魂火）" % [actual, cost], 1.5)
+	SoundManager.play_heal_sound()
+
+	# 消耗行动
+	attacker.mark_attacked()
+	_finish_attack(attacker, target)
+
+	await get_tree().create_timer(PERFORMANCE_DURATION, true, false, true).timeout
+	Globals.is_performing_action = false
+	return true

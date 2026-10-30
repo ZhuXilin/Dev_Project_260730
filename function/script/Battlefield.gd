@@ -54,6 +54,10 @@ const POPUP_MAX_STACK : int = 3
 var _last_middle_click_time: int = 0
 const DOUBLE_CLICK_MS: int = 300
 
+var _blood_orbs : Dictionary = {}   # cell -> Node2D
+const BLOOD_ORB_ICON_ID : String = "item_079"
+const BLOOD_ORB_HEAL_PERCENT : float = 0.10
+
 var _cached_info_unit: Unit = null
 var _cached_info_cell: Vector2i = Vector2i(-999, -999)
 
@@ -174,6 +178,13 @@ func _ready():
 		victory_panel.visible = false
 
 	_ui_binder.bind_all()
+
+	if not SignalBus.request_spawn_blood_orb.is_connected(_on_spawn_blood_orb):
+		SignalBus.request_spawn_blood_orb.connect(_on_spawn_blood_orb)
+	if not SignalBus.request_clear_blood_orbs.is_connected(_on_clear_blood_orbs):
+		SignalBus.request_clear_blood_orbs.connect(_on_clear_blood_orbs)
+	if not SignalBus.turn_changed.is_connected(_on_turn_changed_blood_orbs):
+		SignalBus.turn_changed.connect(_on_turn_changed_blood_orbs)
 
 	if turn_overlay:
 		turn_overlay.modulate = Color(1, 1, 1, 0)
@@ -590,7 +601,8 @@ func _exit_tree():
 	if WaveManager:
 		WaveManager.reset()
 		_disconnect_wave_signals()
-
+		
+	_on_clear_blood_orbs()
 
 # ============================================================
 #  主循环
@@ -641,6 +653,7 @@ func _on_player_movement_finished(unit: Unit):
 	TurnManager.on_movement_finished(unit)
 	camera_controller.follow_mouse()
 	SignalBus.request_clear_highlight.emit()
+	_try_pickup_blood_orb(unit)
 
 
 func _on_ai_movement_finished(unit: Unit):
@@ -804,12 +817,12 @@ func suppress_range_for_unit(unit: Unit) -> void:
 	if is_instance_valid(unit):
 		_suppressed_range_unit = unit
 
-
 func clear_suppressed_range() -> void:
 	_suppressed_range_unit = null
 
-
 func get_suppressed_range_unit() -> Unit:
+	if not is_instance_valid(_suppressed_range_unit):
+		_suppressed_range_unit = null
 	return _suppressed_range_unit
 
 
@@ -1765,18 +1778,50 @@ func show_damage_preview(attacker: Unit, defender: Unit):
 	if _damage_preview_panel == null or not is_instance_valid(attacker) or not is_instance_valid(defender):
 		return
 
-	var dmg = CombatManager.calculate_damage(attacker, defender)
-	var text = "预计伤害: %d" % dmg
+	var text = ""
+	
+	if attacker.unit_stats.team_id == defender.unit_stats.team_id:
+		# ★ 友军分支
+		var is_healer : bool = (attacker.get_weapon_type() == "staff")
+		
+		if is_healer:
+			# 修女：必定能普通治疗（无消耗）
+			var heal_amt : int = CombatManager.get_expected_heal_amount(attacker, defender)
+			var actual_heal : int = mini(defender.hit_points + heal_amt, defender.unit_stats.max_hp) - defender.hit_points
+			text = "预计治疗: +%d" % actual_heal
+			
+			# 如果修女魂火足够，顺便把急救选项的回复量也显示出来
+			var emergency_cost : int = SoulFireManager.get_emergency_heal_cost()
+			if SoulFireManager.can_spend(emergency_cost):
+				var heal_pct : float = 0.15 + attacker.unit_stats.faith * 0.005
+				var em_amt : int = maxi(1, int(defender.unit_stats.max_hp * heal_pct))
+				var actual_em : int = mini(defender.hit_points + em_amt, defender.unit_stats.max_hp) - defender.hit_points
+				text += "\n急救(耗%d魂火): +%d" % [emergency_cost, actual_em]
+		else:
+			# 非修女：只能使用魂火急救
+			var emergency_cost : int = SoulFireManager.get_emergency_heal_cost()
+			if SoulFireManager.can_spend(emergency_cost):
+				var heal_pct : float = 0.15 + attacker.unit_stats.faith * 0.005
+				var heal_amt : int = maxi(1, int(defender.unit_stats.max_hp * heal_pct))
+				var actual_heal : int = mini(defender.hit_points + heal_amt, defender.unit_stats.max_hp) - defender.hit_points
+				text = "预计急救: +%d\n(消耗 %d 魂火)" % [actual_heal, emergency_cost]
+			else:
+				# ★ 缺魂火，只显示这四个字
+				text = "魂火不足"
+	else:
+		# ★ 敌军分支：计算伤害
+		var dmg = CombatManager.calculate_damage(attacker, defender)
+		text = "预计伤害: %d" % dmg
+		if defender.can_counter() and defender.get_weapon_type() != "staff":
+			var counter_dmg = CombatManager.calculate_damage(defender, attacker)
+			text += "\n反击受伤: %d" % counter_dmg
 
-	if defender.can_counter() and defender.get_weapon_type() != "staff":
-		var counter_dmg = CombatManager.calculate_damage(defender, attacker)
-		text += "\n反击受伤: %d" % counter_dmg
-
+	# 更新文本和界面
 	_damage_preview_label.text = text
-
 	_damage_preview_panel.size = _damage_preview_panel.get_combined_minimum_size()
 	_damage_preview_panel.visible = true
 
+	# 位置计算
 	var screen_pos = get_viewport().get_canvas_transform() * defender.global_position
 	var target_pos = screen_pos + Vector2(-_damage_preview_panel.size.x / 2.0, -45)
 
@@ -1791,3 +1836,57 @@ func show_damage_preview(attacker: Unit, defender: Unit):
 func hide_damage_preview():
 	if _damage_preview_panel:
 		_damage_preview_panel.visible = false
+
+
+func _on_spawn_blood_orb(cell: Vector2i) -> void:
+	if _blood_orbs.has(cell):
+		return
+	var sprite := Sprite2D.new()
+	var tex : Texture2D = IconManager.get_icon_or_null(BLOOD_ORB_ICON_ID)
+	if tex:
+		sprite.texture = tex
+		sprite.scale = Vector2(0.5, 0.5)  # item 图是 16x16，缩到 8x8 左右
+	else:
+		# 兜底：无图时用白色方块，避免完全隐形
+		var img := Image.create(8, 8, false, Image.FORMAT_RGBA8)
+		img.fill(Color(1.0, 0.3, 0.3, 0.9))
+		sprite.texture = ImageTexture.create_from_image(img)
+	sprite.position = grid_to_world(cell)
+	sprite.z_index = 5
+	add_child(sprite)
+	_blood_orbs[cell] = sprite
+
+
+func _on_clear_blood_orbs() -> void:
+	for cell in _blood_orbs:
+		var s = _blood_orbs[cell]
+		if is_instance_valid(s):
+			s.queue_free()
+	_blood_orbs.clear()
+
+
+func _on_turn_changed_blood_orbs(team: int) -> void:
+	# 我方回合结束时（切到敌方）清理血球
+	if team == TurnManager.Team.ENEMY:
+		_on_clear_blood_orbs()
+
+
+## 单位移动结束 / 落地后检测是否踩到血球；只对我方单位生效
+func _try_pickup_blood_orb(unit: Unit) -> void:
+	if not is_instance_valid(unit) or unit.unit_stats.team_id != 0:
+		return
+	if not _blood_orbs.has(unit.grid_cell):
+		return
+	var s = _blood_orbs[unit.grid_cell]
+	_blood_orbs.erase(unit.grid_cell)
+	if is_instance_valid(s):
+		s.queue_free()
+
+	var heal : int = maxi(1, int(unit.unit_stats.max_hp * BLOOD_ORB_HEAL_PERCENT))
+	var old : int = unit.hit_points
+	unit.hit_points = mini(unit.hit_points + heal, unit.unit_stats.max_hp)
+	var actual : int = unit.hit_points - old
+	if actual > 0:
+		unit.update_hp_label()
+		SignalBus.request_damage_popup.emit(unit.global_position, actual, false, false, true)
+		SoundManager.play_heal_sound()

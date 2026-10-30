@@ -198,16 +198,20 @@ func _extract_map_unit_placers(node: Node) -> void:
 					_bf.map_functions[cell] = entry
 			"hp_function":
 				var amount: int = int(cd.get("hp_amount", 0))
+				var is_pct : bool = bool(cd.get("is_percent", false))
 				if amount != 0:
 					var gen_id: String = "hp_%d_%d" % [cell.x, cell.y]
 					var atype: String = "heal" if amount > 0 else "damage"
 					EventManager.register_event(gen_id, {
-						"actions": [{"type": atype, "amount": amount}],
+						"actions": [{
+							"type": atype,
+							"amount": amount,
+							"percent": is_pct,
+						}],
 						"once": false,
 					})
 					entry["event_id"] = gen_id
 					_bf.map_functions[cell] = entry
-			# v4.6：battle_start 类型已删除，不处理
 
 	for tool in tool_nodes:
 		if is_instance_valid(tool):
