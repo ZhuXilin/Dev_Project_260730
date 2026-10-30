@@ -495,8 +495,8 @@ func _show_unit_ranges(unit: Unit):
 
 	var weapon = unit.get_weapon_data()
 	if weapon == null:
-		highlight_manager.clear_highlight()
-		highlight_manager.show_move_highlight(reachable, MapConst.HIGHLIGHT_MOVE, -1, true)
+		highlight_manager.clear_highlight(unit.grid_cell)
+		highlight_manager.show_move_highlight(reachable, MapConst.HIGHLIGHT_MOVE, -1, true, unit.grid_cell)
 		return
 
 	var max_range : int = weapon.attack_range
@@ -508,28 +508,22 @@ func _show_unit_ranges(unit: Unit):
 		for x in range(-max_range, max_range + 1):
 			for y in range(-max_range, max_range + 1):
 				var dist = abs(x) + abs(y)
-				if dist < min_range or dist > max_range:
-					continue
+				if dist < min_range or dist > max_range: continue
 				var c = move_cell + Vector2i(x, y)
-				if c.x < 0 or c.x >= TerrainManager.grid_size.x:
-					continue
-				if c.y < 0 or c.y >= TerrainManager.grid_size.y:
-					continue
+				if c.x < 0 or c.x >= TerrainManager.grid_size.x: continue
+				if c.y < 0 or c.y >= TerrainManager.grid_size.y: continue
 
 				var tt : int = TerrainManager.get_terrain(c)
-				if tt == TerrainManager.TerrainType.IMPASSABLE_ALL:
-					continue
-
-				if reachable.has(c):
-					continue
+				if tt == TerrainManager.TerrainType.IMPASSABLE_ALL: continue
+				if reachable.has(c): continue
 				var occ = UnitManager.get_unit_at_cell(c)
-				if occ != null and not UnitManager.is_attack_target_of(unit, occ):
-					continue
+				if occ != null and not UnitManager.is_attack_target_of(unit, occ): continue
 				threat_cells[c] = true
 
 	var color = MapConst.HIGHLIGHT_HEAL if is_healer else MapConst.HIGHLIGHT_ATTACK
-	highlight_manager.clear_highlight()
-	highlight_manager.show_enemy_preview(reachable, threat_cells, color)
+	# ★ 核心修复：清理和显示，全以单位为中心
+	highlight_manager.clear_highlight(unit.grid_cell)
+	highlight_manager.show_enemy_preview(reachable, threat_cells, color, unit.grid_cell)
 
 
 # ============================================================
@@ -559,6 +553,9 @@ func _on_unit_removed_death(unit: Unit, team: int):
 			ud.hit_points = 0
 			break
 
+func _on_request_clear_highlight():
+	var mouse_cell = world_to_grid(get_global_mouse_position())
+	highlight_manager.clear_highlight(mouse_cell)
 
 func _exit_tree():
 	Globals.is_fading = false
@@ -1080,7 +1077,7 @@ func _on_request_hide_info():
 	_cached_info_cell = Vector2i(-999, -999)
 
 	if _drag_move_controller == null or not _drag_move_controller.is_dragging():
-		highlight_manager.clear_highlight()
+		highlight_manager.clear_highlight() # ★ 不传参数，它会自动使用上面记录的中心点
 
 
 # ============================================================

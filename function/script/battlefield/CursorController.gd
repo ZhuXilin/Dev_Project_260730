@@ -193,12 +193,11 @@ func _update_hovered_unit_from_mouse() -> void:
 			new_unit.show_hp_label(true)
 		_hovered_unit = new_unit
 		
-	# 持续发送面板显示请求（拖拽时除外）
-	if not (_bf._drag_move_controller and _bf._drag_move_controller.is_dragging()):
-		if is_instance_valid(new_unit) and new_unit.hit_points > 0:
-			SignalBus.request_show_info.emit(new_unit)
-		else:
-			SignalBus.request_hide_info.emit() # 这里的 null 改为直接发 hide
+	# ★ 核心修复：去掉拖拽时的面板拦截，恢复地形面板的显示
+	if is_instance_valid(new_unit) and new_unit.hit_points > 0:
+		SignalBus.request_show_info.emit(new_unit)
+	else:
+		SignalBus.request_show_info.emit(null) # 发送 null 会触发 Battlefield 显示地形信息
 
 
 func _set_hovered_unit(new_unit: Unit) -> void:

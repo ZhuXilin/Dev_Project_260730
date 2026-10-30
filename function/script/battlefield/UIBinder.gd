@@ -66,7 +66,7 @@ func _connect_signal_bus() -> void:
 	_safe_connect(SignalBus.request_select_unit, _bf.select_unit)
 
 	# ---- 子模块 ----
-	_safe_connect(SignalBus.request_clear_highlight, _bf.highlight_manager.clear_highlight)
+	_safe_connect(SignalBus.request_clear_highlight, _bf._on_request_clear_highlight)
 	_safe_connect(SignalBus.non_combat_complete, _bf._non_combat_handler.on_non_combat_complete)
 	_safe_connect(SignalBus.request_dialogue_check, _bf._function_handler.on_dialogue_check)
 	_safe_connect(SignalBus.request_highlight_unit, _bf._cursor_controller.show_attack_indicator)

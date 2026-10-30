@@ -20,6 +20,7 @@ var _mouse_out_of_range : bool = false
 var _last_click_ms : int = 0
 var _last_click_unit : Unit = null
 
+var _is_show_original_range : bool = false
 
 func _init(bf : Node2D):
 	_bf = bf
@@ -298,11 +299,14 @@ func _start_drag():
 
 	SignalBus.request_hide_info.emit()
 	_bf.highlight_manager.show_move_highlight(
-		_reachable, MapConst.HIGHLIGHT_MOVE, 0, true)
+		_reachable, MapConst.HIGHLIGHT_MOVE, 0, true, unit.grid_cell)
 
 	_current_target_cell = unit.grid_cell
 	_current_path = []
 	_arrow.hide_path()
+	
+	# ★ 核心修复：拖拽起步，立刻显示局部的攻击红框
+	_update_attack_preview(unit.grid_cell, true)
 
 
 func _update_drag():
@@ -320,35 +324,46 @@ func _update_drag():
 
 	var hovered = UnitManager.get_unit_at_cell(cell)
 	
-	# ★ 删掉了对 hovered == _pressing_unit 的特判，直接进入正常逻辑
+	_hovered_target = hovered
 	
+	# ---- 目标锁定状态（只要悬停在单位上，不论敌我、不论死活，全锁定） ----
 	if hovered != null:
-		var is_valid = _is_valid_target(hovered)
-		_hovered_target = hovered # 始终记录悬停单位
 		_mouse_out_of_range = false
-
-		if is_valid:
-			if _hovered_target != hovered:
-				SoundManager.play_select_sound()
+		_is_show_original_range = false
+		
+		# 只有合法的目标才弹面板
+		if _is_valid_target(hovered):
 			_bf.show_damage_preview(_pressing_unit, hovered)
-			_current_target_cell = cell
-			_current_path = []
-			_arrow.hide_path()
 		else:
-			# 不合法（如满血友军），不显示伤害/治疗面板
 			_bf.hide_damage_preview()
-			_current_path = []
-			_arrow.hide_path()
+			
+		_current_target_cell = cell
+		_current_path = []
+		_arrow.hide_path()
+		
+		# ★ 核心：清空白框和其他所有红框，只亮起目标脚下的单格
+		var single_cell_dict = {cell: true}
+		var color = MapConst.HIGHLIGHT_HEAL if hovered.unit_stats.team_id == _pressing_unit.unit_stats.team_id else MapConst.HIGHLIGHT_ATTACK
+		
+		# 传入空字典作为 move_cells，这样白框就会被瞬间清空
+		_bf.highlight_manager.show_enemy_preview({}, single_cell_dict, color, cell, true)
 		return
 
-	_hovered_target = null
+	# ---- 非锁定状态（空地、框外） ----
 	_bf.hide_damage_preview()
-
+	
 	if not _reachable.has(cell):
 		_mouse_out_of_range = true
+		if not _is_show_original_range:
+			_is_show_original_range = true
+			_bf._show_unit_ranges(_pressing_unit)
+		_arrow.hide_path()
 		return
 
-	_mouse_out_of_range = false
+	if _mouse_out_of_range or _is_show_original_range:
+		_mouse_out_of_range = false
+		_is_show_original_range = false
+		_current_target_cell = Vector2i(-999, -999)
 
 	if cell == _current_target_cell:
 		return
@@ -369,36 +384,35 @@ func _update_drag():
 
 func _execute_move():
 	var unit = _pressing_unit
-	if unit == null or not is_instance_valid(unit):
-		return
+	if unit == null or not is_instance_valid(unit): return
 
-	# 如果当前路径为空（说明拖到了不可达的空地）
+	# ★ 记录移动前的坐标，用来作为白框消失中心
+	var start_cell = unit.grid_cell 
+
 	if _current_target_cell != unit.grid_cell and _current_path.is_empty():
 		var closest_cell = _find_closest_reachable_cell(_current_target_cell)
 		if closest_cell != unit.grid_cell:
 			var path = UnitManager.calculate_path(unit.grid_cell, closest_cell, unit)
 			if path.size() > 0:
-				SignalBus.request_clear_highlight.emit()
+				_bf.highlight_manager.clear_highlight_split(start_cell, closest_cell)
 				InputManager.interaction_phase = InputManager.Phase.IDLE
 				InputManager.selected_unit = null
 				TurnManager.start_movement(unit, path)
 				return
-
-	# 如果原地，或者找不到路径，取消操作
+				
 	if _current_target_cell == unit.grid_cell or _current_path.is_empty():
-		# ★ 新增：无有效行为 → 取消音 + 提示
+		_bf.highlight_manager.clear_highlight_split(start_cell, _current_target_cell)
 		SoundManager.play_cancel_sound()
 		SignalBus.request_hint_override.emit("操作失败", 1.0)
 		InputManager.interaction_phase = InputManager.Phase.IDLE
 		InputManager.selected_unit = null
-		SignalBus.request_clear_highlight.emit()
 		return
-
-	# 正常路径移动
-	SignalBus.request_clear_highlight.emit()
+		
+	_bf.highlight_manager.clear_highlight_split(start_cell, _current_target_cell)
 	InputManager.interaction_phase = InputManager.Phase.IDLE
 	InputManager.selected_unit = null
 	TurnManager.start_movement(unit, _current_path)
+
 
 # 新增辅助函数：找离目标最近的可达格
 func _find_closest_reachable_cell(target_cell: Vector2i) -> Vector2i:
@@ -413,20 +427,24 @@ func _find_closest_reachable_cell(target_cell: Vector2i) -> Vector2i:
 			best_cell = cell
 	return best_cell
 
-# 新增辅助函数：仅执行移动（不触发攻击）
 func _execute_move_only(path: Array):
-	SignalBus.request_clear_highlight.emit()
+	var end_cell = path[-1] if path.size() > 0 else _pressing_unit.grid_cell
+	_bf.highlight_manager.clear_highlight_split(_pressing_unit.grid_cell, end_cell)
 	InputManager.interaction_phase = InputManager.Phase.IDLE
 	InputManager.selected_unit = null
 	TurnManager.start_movement(_pressing_unit, path)
 
-
 func _cancel():
+	var unit = _pressing_unit
+	var t_cell = _current_target_cell
 	_reset_state()
-	SignalBus.request_clear_highlight.emit()
+	
+	if unit and is_instance_valid(unit):
+		var final_t_cell = t_cell if t_cell != Vector2i(-1, -1) and t_cell != Vector2i(-999, -999) else unit.grid_cell
+		_bf.highlight_manager.clear_highlight_split(unit.grid_cell, final_t_cell)
+
 	InputManager.interaction_phase = InputManager.Phase.IDLE
 	InputManager.selected_unit = null
-
 
 func _reset_state():
 	_is_pressing = false
@@ -434,13 +452,15 @@ func _reset_state():
 	_pressing_unit = null
 	_hovered_target = null
 	_mouse_out_of_range = false
+	_is_show_original_range = false
 	_reachable.clear()
 	_current_path.clear()
 	_current_target_cell = Vector2i(-1, -1)
 	if _arrow:
 		_arrow.hide_path()
 	if _bf:
-		_bf.hide_damage_preview() # ★ 核心调用：强制清理面板
+		_bf.hide_damage_preview()
+
 
 # ============================================================
 #  攻击 / 治疗判定
@@ -514,14 +534,12 @@ func _find_attack_path(target : Unit) -> Array:
 
 	return best_path
 
-
 func _execute_attack_or_heal(target : Unit) -> void:
 	var unit = _pressing_unit
 	if unit == null or not is_instance_valid(unit): return
 	if target == null or not is_instance_valid(target): return
 
-	SignalBus.request_clear_highlight.emit()
-	_bf.highlight_manager.clear_highlight()
+	_bf.highlight_manager.clear_highlight_split(unit.grid_cell, target.grid_cell)
 	InputManager.interaction_phase = InputManager.Phase.IDLE
 	InputManager.selected_unit = null
 
@@ -529,7 +547,6 @@ func _execute_attack_or_heal(target : Unit) -> void:
 		_bf.hide_damage_preview()
 
 	_show_attack_menu(unit, target, false)
-	
 
 func _do_combat_async(attacker : Unit, defender : Unit, forced_skill_id: String = ""):
 	await CombatManager.execute_attack(attacker, defender, forced_skill_id)
@@ -707,7 +724,7 @@ func _update_attack_preview(unit_cell : Vector2i, from_self : bool = false):
 	if unit == null: return
 	var weapon = unit.get_weapon_data()
 	if not weapon:
-		_redraw_highlights({})
+		_redraw_highlights({}, _pressing_unit.grid_cell)
 		return
 
 	var max_range : int = weapon.attack_range
@@ -715,33 +732,40 @@ func _update_attack_preview(unit_cell : Vector2i, from_self : bool = false):
 	var origin_cell : Vector2i = unit.grid_cell if from_self else unit_cell
 
 	var attack_cells : Dictionary = {}
+	
 	for x in range(-max_range, max_range + 1):
 		for y in range(-max_range, max_range + 1):
 			var dist = abs(x) + abs(y)
 			if dist < min_range or dist > max_range:
 				continue
 			var c = origin_cell + Vector2i(x, y)
-			if c.x < 0 or c.x >= TerrainManager.grid_size.x:
-				continue
-			if c.y < 0 or c.y >= TerrainManager.grid_size.y:
-				continue
-			if c == origin_cell:
-				continue
+			
+			# 边界检查
+			if c.x < 0 or c.x >= TerrainManager.grid_size.x: continue
+			if c.y < 0 or c.y >= TerrainManager.grid_size.y: continue
+			if c == origin_cell: continue
+			
+			var tt = TerrainManager.get_terrain(c)
+			if tt == TerrainManager.TerrainType.IMPASSABLE_ALL: continue
 
-			var occupant = UnitManager.get_unit_at_cell(c)
-			if occupant != null and not UnitManager.is_attack_target_of(unit, occupant):
+			var occ = UnitManager.get_unit_at_cell(c)
+			# 如果格子有友军，不覆盖
+			if occ != null and not UnitManager.is_attack_target_of(unit, occ):
 				continue
-
+				
+			# ★ 核心修复：没有任何判断，只要是射程内的空地和敌人，全部标红！
 			attack_cells[c] = true
 
-	_redraw_highlights(attack_cells)
+	_redraw_highlights(attack_cells, origin_cell)
 
 
-func _redraw_highlights(attack_cells : Dictionary):
+func _redraw_highlights(attack_cells : Dictionary, origin_cell: Vector2i):
 	var color = MapConst.HIGHLIGHT_ATTACK
 	if _pressing_unit and _pressing_unit.get_weapon_type() == "staff":
 		color = MapConst.HIGHLIGHT_HEAL
-	_bf.highlight_manager.show_enemy_preview(_reachable, attack_cells, color)
+		
+	# ★ 传入 true，拖拽中的红框硬切，不卡顿
+	_bf.highlight_manager.show_enemy_preview(_reachable, attack_cells, color, origin_cell, true)
 
 
 func _do_emergency_heal_async(attacker : Unit, target : Unit):
