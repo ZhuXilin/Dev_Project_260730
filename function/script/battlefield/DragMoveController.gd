@@ -143,8 +143,16 @@ func _on_left_press() -> bool:
 	else:
 		_press_start_screen = _bf.get_viewport().get_mouse_position()
 
-	if unit == null or unit.unit_stats.team_id != 0:
+	if unit == null:
 		return false
+
+	# 单击敌方单位：消费事件，不选中、不播放音效，和单击我方单位保持统一
+	if unit.unit_stats.team_id != 0:
+		return true
+
+	# 待机单位不可拖拽、不可通过拖拽释放变成选中
+	if not unit.can_act_this_turn or unit.has_acted:
+		return true
 
 	_is_pressing = true
 	_is_dragging = false
@@ -191,6 +199,8 @@ func _on_left_release() -> bool:
 
 		if hovered_any != null:
 			if not _is_valid_target(hovered_any):
+				# 鼠标仍在该友军/无效目标上时，不显示它的范围；移开再悬停才恢复
+				_bf.suppress_range_for_unit(hovered_any)
 				SoundManager.play_cancel_sound()
 				SignalBus.request_hint_override.emit("操作失败", 1.0)
 				_cancel()
@@ -501,6 +511,8 @@ func _execute_attack_or_heal(target : Unit) -> void:
 
 func _do_combat_async(attacker : Unit, defender : Unit, forced_skill_id: String = ""):
 	await CombatManager.execute_attack(attacker, defender, forced_skill_id)
+	if is_instance_valid(defender):
+		_bf.suppress_range_for_unit(defender)
 
 
 # ★ 核心修改：先移动，再弹窗

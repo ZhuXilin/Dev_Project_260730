@@ -171,6 +171,10 @@ func _update_hovered_unit_from_mouse() -> void:
 		return
 		
 	var new_unit = UnitManager.get_unit_at_cell(grid_pos)
+
+	var suppressed : Unit = _bf.get_suppressed_range_unit()
+	if suppressed != null and new_unit != suppressed:
+		_bf.clear_suppressed_range()
 	
 	# 更新 HP 标签显隐
 	if _hovered_unit != new_unit:
