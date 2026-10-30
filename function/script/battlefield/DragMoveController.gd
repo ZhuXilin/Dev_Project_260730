@@ -326,8 +326,9 @@ func _update_drag():
 	
 	_hovered_target = hovered
 	
-	# ---- 目标锁定状态（只要悬停在单位上，不论敌我、不论死活，全锁定） ----
-	if hovered != null:
+	# ---- 1. 目标锁定状态（悬停在“其他”单位上） ----
+	# ★ 排除 _pressing_unit 自己，保证起步时红圈不被吃掉
+	if hovered != null and hovered != _pressing_unit:
 		_mouse_out_of_range = false
 		_is_show_original_range = false
 		
@@ -341,15 +342,18 @@ func _update_drag():
 		_current_path = []
 		_arrow.hide_path()
 		
-		# ★ 核心：清空白框和其他所有红框，只亮起目标脚下的单格
+		# 清空白框和其他所有红框，只亮起目标脚下的单格
 		var single_cell_dict = {cell: true}
 		var color = MapConst.HIGHLIGHT_HEAL if hovered.unit_stats.team_id == _pressing_unit.unit_stats.team_id else MapConst.HIGHLIGHT_ATTACK
 		
-		# 传入空字典作为 move_cells，这样白框就会被瞬间清空
 		_bf.highlight_manager.show_enemy_preview({}, single_cell_dict, color, cell, true)
 		return
 
-	# ---- 非锁定状态（空地、框外） ----
+	# ---- 2. 非锁定状态（空地、框外、或者悬停在自己身上） ----
+	# 如果是自己，把 _hovered_target 置空，防止底部提示错误
+	if hovered == _pressing_unit:
+		_hovered_target = null
+		
 	_bf.hide_damage_preview()
 	
 	if not _reachable.has(cell):
