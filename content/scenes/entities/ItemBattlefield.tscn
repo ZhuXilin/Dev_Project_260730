@@ -1,0 +1,11 @@
+[gd_scene format=3 uid="uid://cnojklatu1oyp"]
+
+[ext_resource type="Script" uid="uid://13xja1aqssfq" path="res://function/script/ItemBattlefield.gd" id="1_script"]
+[ext_resource type="Texture2D" uid="uid://b7j4014ialie2" path="res://content/images/item/item_089.png" id="1_td3ip"]
+
+[node name="ItemBattlefield" type="Area2D" unique_id=1361125922]
+z_index = 2
+script = ExtResource("1_script")
+
+[node name="Sprite" type="Sprite2D" parent="." unique_id=996246873]
+texture = ExtResource("1_td3ip")

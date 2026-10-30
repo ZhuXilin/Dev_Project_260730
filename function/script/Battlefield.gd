@@ -55,7 +55,7 @@ var _last_middle_click_time: int = 0
 const DOUBLE_CLICK_MS: int = 300
 
 var _blood_orbs : Dictionary = {}   # cell -> Node2D
-const BLOOD_ORB_ICON_ID : String = "item_079"
+const BLOOD_ORB_ICON_ID : String = "item_089"
 const BLOOD_ORB_HEAL_PERCENT : float = 0.10
 
 var _cached_info_unit: Unit = null
@@ -352,6 +352,9 @@ func _ready():
 		PanelRevealer.force_hide(team_view_panel)
 	if victory_panel:
 		PanelRevealer.force_hide(victory_panel)
+
+	if not ItemBattlefieldManager:
+		pass
 
 	_marked_targets.clear()
 	print("Battlefield _ready 完成")
@@ -650,7 +653,7 @@ func _on_player_movement_finished(unit: Unit):
 	TurnManager.on_movement_finished(unit)
 	camera_controller.follow_mouse()
 	SignalBus.request_clear_highlight.emit()
-	_try_pickup_blood_orb(unit)
+	ItemBattlefieldManager.try_pickup(unit)
 
 
 func _on_ai_movement_finished(unit: Unit):

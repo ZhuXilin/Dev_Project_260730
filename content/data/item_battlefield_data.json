@@ -1,0 +1,6 @@
+{
+  "drop_chance": 0.3,
+  "heal_percent": 0.25,
+  "icon_id": "item_079",
+  "despawn_turns": 999
+}

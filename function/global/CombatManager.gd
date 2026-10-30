@@ -833,7 +833,7 @@ func _on_kill(attacker: Unit, _defender: Unit) -> bool:
 
 	# ★ 敌方死亡生成血球
 	if is_instance_valid(_defender) and _defender.unit_stats.team_id == 1:
-		SignalBus.request_spawn_blood_orb.emit(_defender.grid_cell)
+		ItemBattlefieldManager.try_spawn_orb(_defender.grid_cell)
 
 	if TalentManager.is_talent_ready(attacker, "blood_rage"):
 		var lv = _get_effective_talent_level(attacker, "blood_rage")
@@ -1219,7 +1219,7 @@ func execute_emergency_heal(attacker: Unit, target: Unit) -> bool:
 
 	Globals.is_performing_action = true
 
-	var heal_pct : float = 0.15 + attacker.unit_stats.faith * 0.005
+	var heal_pct : float = 0.5 # ★ 改成固定 50%
 	var heal_amount : int = maxi(1, int(target.unit_stats.max_hp * heal_pct))
 
 	# 受遗物 / 词条加成

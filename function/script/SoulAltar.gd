@@ -92,17 +92,10 @@ func _ready():
 		unit_desc_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 		unit_desc_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 
-	_setup_hover_manager()
 	_ensure_layout()
 	_refresh_soul()
 	_switch_tab(Tab.SOUL_FIRE)
 
-func _setup_hover_manager():
-	var main_hbox = $Panel/VBox/MainHBox
-	if main_hbox:
-		main_hbox.offset_right = -140
-
-# ★ 核心修复：严格按照 UnitSelectUI 里的锚点配置，让面板大小一致
 func _ensure_layout():
 	var info_scene = load("res://content/scenes/ui/components/UnitInfoPanel.tscn")
 	if info_scene and not _unit_info_panel:
@@ -135,7 +128,7 @@ func _ensure_layout():
 		_item_info_panel.anchor_right = 1.0
 		_item_info_panel.anchor_top = 0.5
 		_item_info_panel.anchor_bottom = 0.5
-		_item_info_panel.offset_left = -96.0
+		_item_info_panel.offset_left = -104.0 
 		_item_info_panel.offset_right = -8.0
 		_item_info_panel.offset_top = -72.0
 		_item_info_panel.offset_bottom = 72.0
@@ -236,6 +229,7 @@ func _on_relic_refine_tab_pressed(): _switch_tab(Tab.RELIC_REFINE)
 
 func _switch_tab(tab: Tab):
 	_current_tab = tab
+	
 	soul_fire_tab_btn.modulate = Color.WHITE if tab == Tab.SOUL_FIRE else Color(0.5, 0.5, 0.5, 1)
 	attr_cap_tab_btn.modulate = Color.WHITE if tab == Tab.ATTR_CAP else Color(0.5, 0.5, 0.5, 1)
 	if unit_unlock_tab_btn:
@@ -250,6 +244,25 @@ func _switch_tab(tab: Tab):
 	if _item_info_panel: 
 		_item_info_panel.visible = false
 		if _item_info_panel.has_method("clear_info"): _item_info_panel.clear_info()
+
+	# ★ 核心：在右侧直接填一块空面板（占位），挤压中间内容
+	var main_hbox = get_node_or_null("Panel/VBox/MainHBox")
+	if main_hbox:
+		var right_spacer = main_hbox.get_node_or_null("RightSpacer")
+		if tab == Tab.RELIC_REFINE:
+			if not right_spacer:
+				right_spacer = Control.new()
+				right_spacer.name = "RightSpacer"
+				right_spacer.custom_minimum_size = Vector2(120, 0) # 留出 120px 空间
+				right_spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+				main_hbox.add_child(right_spacer)
+		else:
+			if right_spacer:
+				right_spacer.queue_free()
+	
+	var info_panel = get_node_or_null("Panel/VBox/MainHBox/InfoPanel")
+	if info_panel and info_panel is Control:
+		info_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 
 	if tab == Tab.SOUL_FIRE:
 		left_title.text = "— 魂火 —"
@@ -661,6 +674,15 @@ func _format_bonus_dict(dict : Dictionary) -> String:
 
 func _build_relic_refine_panel():
 	_clear_attr_container()
+	
+	var attr_scroll = get_node_or_null("Panel/VBox/MainHBox/InfoPanel/AttrScroll")
+	if attr_scroll:
+		attr_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		attr_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+		
+	if attr_container:
+		attr_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		
 	unit_sprite.visible = false
 	unit_name_label.text = "遗物精炼"
 	unit_desc_label.text = "每件遗物限精炼一次"
@@ -682,12 +704,14 @@ func _build_relic_refine_panel():
 		var row := HBoxContainer.new()
 		row.add_theme_constant_override("separation", 6)
 		row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		row.custom_minimum_size = Vector2(0, 20)
 		
 		var is_refined : bool = GameState.is_relic_refined(rid)
 		if first_rid == "":
 			first_rid = rid
 			first_refined = is_refined
 		
+		# 图标
 		var icon_wrap := Control.new()
 		icon_wrap.custom_minimum_size = Vector2(20, 20)
 		icon_wrap.size_flags_vertical = Control.SIZE_SHRINK_CENTER
@@ -702,13 +726,16 @@ func _build_relic_refine_panel():
 		icon_wrap.mouse_entered.connect(_on_relic_hover.bind(rid, is_refined))
 		row.add_child(icon_wrap)
 		
+		# 名称
 		var name_lb := Label.new()
 		name_lb.text = ("★ " if is_refined else "") + rd.get("name", rid)
 		name_lb.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_SMALL)
 		name_lb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		name_lb.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		name_lb.clip_text = true
 		row.add_child(name_lb)
 		
+		# 状态/按钮
 		if is_refined:
 			var tag := Label.new()
 			tag.text = "已精炼"
@@ -720,10 +747,15 @@ func _build_relic_refine_panel():
 			var btn := Button.new()
 			btn.text = "精炼(%d)" % GameState.REFINE_COST
 			btn.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_SMALL)
-			btn.custom_minimum_size = Vector2(60, 16)
+			btn.custom_minimum_size = Vector2(56, 16) 
+			btn.size_flags_horizontal = Control.SIZE_SHRINK_END
 			btn.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-			btn.disabled = GameState.soul < GameState.REFINE_COST
-			if not btn.disabled: btn.pressed.connect(_on_refine_relic.bind(rid))
+			
+			# 直接使用默认样式，和升级按钮完全一致
+			var can_afford := GameState.soul >= GameState.REFINE_COST
+			btn.disabled = not can_afford
+			if can_afford: 
+				btn.pressed.connect(_on_refine_relic.bind(rid))
 			row.add_child(btn)
 			
 		attr_container.add_child(row)

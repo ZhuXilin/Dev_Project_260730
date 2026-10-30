@@ -55,6 +55,7 @@ TestRegistry="*uid://uqtcmpoqfoyf"
 TestHarness="*uid://dmji7n6utrcoj"
 AnalyticsLogger="*uid://6tr6ydnchi6o"
 FlavorManager="*uid://mkdcyy8d04ac"
+ItemBattlefieldManager="*uid://bqepos6k3ngk7"
 
 [display]
 
