@@ -231,7 +231,7 @@ func run_enemy_ai():
 	if enemy_ai: enemy_ai.run_enemy_ai()
 
 func _on_ai_queue_finished():
-	await get_tree().create_timer(1.5).timeout
+	await get_tree().create_timer(0.75).timeout
 	start_turn(Team.PLAYER)
 
 func finish_unit_action(unit: Unit):

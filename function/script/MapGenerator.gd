@@ -267,20 +267,21 @@ static func _apply_objective_from_layout(nodes: Array, day_layout: MapLayoutDay)
 		if real_type in NON_COMBAT_TYPES:
 			continue
 
-		# ★ v4.4 修复：只有 layout 显式配置目标时才覆盖 .tres
-		# "显式"= 非默认类型 OR 参数非空
+		# 显式目标：仅当 layout 显式配置了具体类型或参数时才覆盖 .tres
 		var has_explicit : bool = (
 			layout_node.objective_type != MapData.ObjectiveType.ANNIHILATE
 			or not layout_node.objective_params.is_empty()
 		)
-		if not has_explicit:
-			continue
+		if has_explicit:
+			map_node.map_data.objective_type = layout_node.objective_type
+			if layout_node.objective_params.is_empty():
+				map_node.map_data.objective_params = {}
+			else:
+				map_node.map_data.objective_params = layout_node.objective_params.duplicate(true)
 
-		map_node.map_data.objective_type = layout_node.objective_type
-		if layout_node.objective_params.is_empty():
-			map_node.map_data.objective_params = {}
-		else:
-			map_node.map_data.objective_params = layout_node.objective_params.duplicate(true)
+		# ★ v4.7：动态目标配置（无论是否显式目标，都要传递）
+		map_node.map_data.allow_dynamic_objective = layout_node.allow_dynamic_objective
+		map_node.map_data.dynamic_objective_pool = layout_node.dynamic_objective_pool.duplicate()
 
 
 # ============================================================

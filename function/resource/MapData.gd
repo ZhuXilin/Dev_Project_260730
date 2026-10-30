@@ -21,6 +21,15 @@ enum ObjectiveType {
 @export var objective_type: ObjectiveType = ObjectiveType.ANNIHILATE
 @export var objective_params: Dictionary = {}
 
+## v4.7：是否允许该战斗节点动态分配目标。
+## 默认 false —— 战斗节点强制全灭，除非显式开启。
+@export var allow_dynamic_objective: bool = false
+
+## v4.7：动态目标的候选池（ObjectiveType 整数值）。
+## 空数组 = 使用默认池 [CAPTURE, FLAG, ASSAULT]。
+## 仅当 allow_dynamic_objective = true 时生效。
+@export var dynamic_objective_pool: Array[int] = []
+
 @export var max_waves: int = 1
 @export var reinforcement_count: int = 0
 @export var reinforcement_pool: Array[String] = []

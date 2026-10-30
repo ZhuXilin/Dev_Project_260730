@@ -34,7 +34,7 @@ const FONT_SIZE_TITLE : int = 12
 const DIALOGUE_MUSIC_DELAY : float = 0.5
 
 ## 回合过渡总时长
-const TURN_TRANSITION_DURATION : float = 1.0
+const TURN_TRANSITION_DURATION : float = 0.5
 
 ## 道具获得弹窗自动关闭时长
 const ITEM_POPUP_DURATION : float = 2.0

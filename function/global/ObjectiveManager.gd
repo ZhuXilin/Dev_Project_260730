@@ -39,30 +39,21 @@ func setup_for_node(map_data : MapData) -> void:
 	else:
 		_params = {}
 
-	# ★ 修复：判断传入的 map_data 是否“未显式配置目标”
-	#   未显式配置 = ANNIHILATE 且 objective_params 为空
-	#   此时根据队伍主标签动态分配
-	if _type == MapData.ObjectiveType.ANNIHILATE and _params.is_empty():
-		var tag_counts : Dictionary = {}
-		for ud in GameState.party:
-			if ud.is_dead: continue
-			for tag in ud.tags:
-				tag_counts[tag] = tag_counts.get(tag, 0) + 1
+	# ★ v4.7：动态目标改为"显式开启"。
+	#   必须同时满足：
+	#     1) map_data.allow_dynamic_objective == true
+	#     2) 未显式配置具体目标（_type == ANNIHILATE）
+	#     3) objective_params 为空
+	#   否则战斗节点一律全灭。
+	var allows_dynamic : bool = (
+		map_data.allow_dynamic_objective
+		and _type == MapData.ObjectiveType.ANNIHILATE
+		and _params.is_empty()
+	)
 
-		var main_tag = ""
-		var max_c = -1
-		for t in tag_counts:
-			if tag_counts[t] > max_c:
-				max_c = tag_counts[t]
-				main_tag = t
-
-		if main_tag == "守护" or main_tag == "献祭":
-			_type = MapData.ObjectiveType.CAPTURE
-		elif main_tag == "烈焰" or main_tag == "灰烬":
-			_type = MapData.ObjectiveType.ASSAULT
-		elif main_tag == "轮回" or main_tag == "余烬":
-			if randf() < 0.5:
-				_type = MapData.ObjectiveType.FLAG
+	if allows_dynamic:
+		_type = _roll_dynamic_objective(map_data.dynamic_objective_pool)
+		print("[Objective] 动态目标已启用，roll 结果：%s" % _type_name())
 
 	_state = State.ACTIVE
 
@@ -77,6 +68,51 @@ func setup_for_node(map_data : MapData) -> void:
 			pass
 
 	print("[Objective] 目标：%s — %s" % [_type_name(), get_description()])
+
+
+func _roll_dynamic_objective(pool : Array) -> int:
+	var actual_pool : Array = []
+	for v in pool:
+		var t : int = int(v)
+		if t == MapData.ObjectiveType.CAPTURE \
+				or t == MapData.ObjectiveType.FLAG \
+				or t == MapData.ObjectiveType.ASSAULT:
+			actual_pool.append(t)
+	if actual_pool.is_empty():
+		actual_pool = [
+			MapData.ObjectiveType.CAPTURE,
+			MapData.ObjectiveType.FLAG,
+			MapData.ObjectiveType.ASSAULT,
+		]
+
+	# 队伍主标签
+	var tag_counts : Dictionary = {}
+	for ud in GameState.party:
+		if ud.is_dead: continue
+		for tag in ud.tags:
+			tag_counts[tag] = tag_counts.get(tag, 0) + 1
+
+	var main_tag : String = ""
+	var max_c : int = -1
+	for t in tag_counts:
+		if tag_counts[t] > max_c:
+			max_c = tag_counts[t]
+			main_tag = t
+
+	# 主标签偏好
+	var preferred : int = -1
+	if main_tag == "守护" or main_tag == "献祭":
+		preferred = MapData.ObjectiveType.CAPTURE
+	elif main_tag == "烈焰" or main_tag == "灰烬":
+		preferred = MapData.ObjectiveType.ASSAULT
+	elif main_tag == "轮回" or main_tag == "余烬":
+		preferred = MapData.ObjectiveType.FLAG
+
+	# 偏好目标在池里 → 直接用；否则池里随机
+	if preferred != -1 and preferred in actual_pool:
+		return preferred
+
+	return actual_pool[randi() % actual_pool.size()]
 
 
 func _reset() -> void:

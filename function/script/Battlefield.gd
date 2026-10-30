@@ -4,8 +4,8 @@ class_name Battlefield
 const BOSS_NODE_TYPE = 6
 
 @export var map_data : MapData = null
-@export var transition_delay_before_fade : float = 1.0
-@export var transition_delay_after_fade : float = 1.0
+@export var transition_delay_before_fade : float = 0.5
+@export var transition_delay_after_fade : float = 0.5
 
 @onready var victory_panel : Panel = $VictoryLayer/VictoryPanel
 @onready var victory_label : Label = $VictoryLayer/VictoryPanel/VictoryLabel

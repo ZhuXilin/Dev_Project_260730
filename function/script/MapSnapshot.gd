@@ -72,6 +72,8 @@ static func _serialize_map_data(map_data: MapData) -> Dictionary:
 		"reward_multiplier": float(map_data.reward_multiplier),
 		"enemy_hp_multiplier": float(map_data.enemy_hp_multiplier),
 		"intensity": int(map_data.intensity),
+		"allow_dynamic_objective": map_data.allow_dynamic_objective,
+		"dynamic_objective_pool": map_data.dynamic_objective_pool.duplicate(),
 	}
 
 
@@ -144,6 +146,14 @@ static func _deserialize_map_data(data: Dictionary) -> MapData:
 	map.reward_multiplier = maxf(1.0, float(data.get("reward_multiplier", 1.0)))
 	map.enemy_hp_multiplier = maxf(1.0, float(data.get("enemy_hp_multiplier", 1.0)))
 	map.intensity = clampi(int(data.get("intensity", 0)), 0, 3)
+
+	map.allow_dynamic_objective = bool(data.get("allow_dynamic_objective", false))
+	var raw_dyn_pool : Array = data.get("dynamic_objective_pool", [])
+	var dyn_pool_arr : Array[int] = []
+	for v in raw_dyn_pool:
+		if v is int or v is float:
+			dyn_pool_arr.append(int(v))
+	map.dynamic_objective_pool = dyn_pool_arr
 
 	var scene_path = data.get("scene_path", "")
 	if scene_path != "" and ResourceLoader.exists(scene_path):

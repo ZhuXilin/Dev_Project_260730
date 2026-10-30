@@ -385,6 +385,9 @@ func _snapshot_current() -> Dictionary:
 		cp.reward_multiplier = n.reward_multiplier
 		cp.enemy_hp_multiplier = n.enemy_hp_multiplier
 		cp.intensity = n.intensity
+		# ★ 修复：补齐动态目标字段，避免撤销/重做丢失
+		cp.allow_dynamic_objective = n.allow_dynamic_objective
+		cp.dynamic_objective_pool = n.dynamic_objective_pool.duplicate()
 		nodes_copy.append(cp)
 	return {
 		"day": _current_day,
@@ -773,26 +776,48 @@ func _show_type_picker_popup(node_idx: int):
 	panel.offset_bottom = -8
 	_popup_layer.add_child(panel)
 
-	var vbox := VBoxContainer.new()
-	vbox.add_theme_constant_override("separation", 3)
-	panel.add_child(vbox)
+	var margin := MarginContainer.new()
+	margin.add_theme_constant_override("margin_left", 4)
+	margin.add_theme_constant_override("margin_right", 4)
+	margin.add_theme_constant_override("margin_top", 4)
+	margin.add_theme_constant_override("margin_bottom", 4)
+	panel.add_child(margin)
+
+	var outer_vbox := VBoxContainer.new()
+	outer_vbox.add_theme_constant_override("separation", 4)
+	margin.add_child(outer_vbox)
 
 	var title_lb := Label.new()
 	title_lb.text = "节点配置"
 	title_lb.add_theme_font_size_override("font_size", 8)
 	title_lb.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	vbox.add_child(title_lb)
+	outer_vbox.add_child(title_lb)
 
+	var main_scroll := ScrollContainer.new()
+	main_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	main_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	main_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+	outer_vbox.add_child(main_scroll)
+
+	var vbox := VBoxContainer.new()
+	vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	vbox.add_theme_constant_override("separation", 4)
+	main_scroll.add_child(vbox)
+
+	# ============================================================
+	# 创建主 HBox 容器（包含左、右、单位三列）
+	# ============================================================
 	var main := HBoxContainer.new()
-	main.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	main.alignment = BoxContainer.ALIGNMENT_CENTER
 	main.add_theme_constant_override("separation", 8)
-	vbox.add_child(main)
+	if main.get_parent() == null:
+		vbox.add_child(main)
 
 	var left_box := VBoxContainer.new()
 	left_box.custom_minimum_size = Vector2(90, 0)
-	left_box.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	left_box.add_theme_constant_override("separation", 2)
+	if left_box.get_parent() == null:
+		main.add_child(left_box)
 
 	var left_title := Label.new()
 	left_title.text = "类型"
@@ -800,9 +825,9 @@ func _show_type_picker_popup(node_idx: int):
 	left_box.add_child(left_title)
 
 	var type_scroll := ScrollContainer.new()
-	type_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	type_scroll.custom_minimum_size = Vector2(0, 120)
+	type_scroll.custom_minimum_size = Vector2(0, 80)
 	type_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	type_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
 	left_box.add_child(type_scroll)
 
 	var type_list := VBoxContainer.new()
@@ -816,7 +841,7 @@ func _show_type_picker_popup(node_idx: int):
 		[MapNode.NodeType.ELITE, "精英"],
 		[MapNode.NodeType.TREASURE, "宝箱"],
 		[MapNode.NodeType.BOSS, "首领"],
-		[MapNode.NodeType.FORGE, "铁匠铺"],
+		[MapNode.NodeType.FORGE, "魂栈"],
 		[MapNode.NodeType.CHAPEL, "英灵殿"],
 		[MapNode.NodeType.QUESTION, "未知"],
 	]
@@ -857,14 +882,13 @@ func _show_type_picker_popup(node_idx: int):
 		type_list.add_child(btn)
 		checks.append(btn)
 
-	main.add_child(left_box)
-
 	var can_unlock : bool = _node_can_unlock_relics(node)
 
 	var right_box := VBoxContainer.new()
 	right_box.custom_minimum_size = Vector2(90, 0)
-	right_box.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	right_box.add_theme_constant_override("separation", 2)
+	if right_box.get_parent() == null:
+		main.add_child(right_box)
 
 	var right_title := Label.new()
 	right_title.text = "解锁遗物"
@@ -879,15 +903,15 @@ func _show_type_picker_popup(node_idx: int):
 		disabled_hint.add_theme_font_size_override("font_size", 7)
 		disabled_hint.modulate = Color(0.6, 0.6, 0.6)
 		disabled_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		disabled_hint.custom_minimum_size = Vector2(0, 60)
+		disabled_hint.custom_minimum_size = Vector2(0, 80)
 		disabled_hint.vertical_alignment = VERTICAL_ALIGNMENT_TOP
 		right_box.add_child(disabled_hint)
 	else:
 		var relic_scroll := ScrollContainer.new()
-		relic_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		relic_scroll.custom_minimum_size = Vector2(0, 80)
 		relic_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		relic_scroll.custom_minimum_size = Vector2(0, 120)
 		relic_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+		relic_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
 		right_box.add_child(relic_scroll)
 
 		var relic_list := VBoxContainer.new()
@@ -943,12 +967,11 @@ func _show_type_picker_popup(node_idx: int):
 				orphan_lb.tooltip_text = "该 id 在 relic_data.json 里不存在"
 				relic_list.add_child(orphan_lb)
 
-	main.add_child(right_box)
-
 	var unit_box := VBoxContainer.new()
 	unit_box.custom_minimum_size = Vector2(90, 0)
-	unit_box.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	unit_box.add_theme_constant_override("separation", 2)
+	if unit_box.get_parent() == null:
+		main.add_child(unit_box)
 
 	var unit_title := Label.new()
 	unit_title.text = "解锁单位"
@@ -963,15 +986,15 @@ func _show_type_picker_popup(node_idx: int):
 		unit_hint.add_theme_font_size_override("font_size", 7)
 		unit_hint.modulate = Color(0.6, 0.6, 0.6)
 		unit_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		unit_hint.custom_minimum_size = Vector2(0, 60)
+		unit_hint.custom_minimum_size = Vector2(0, 80)
 		unit_hint.vertical_alignment = VERTICAL_ALIGNMENT_TOP
 		unit_box.add_child(unit_hint)
 	else:
 		var unit_scroll := ScrollContainer.new()
-		unit_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		unit_scroll.custom_minimum_size = Vector2(0, 80)
 		unit_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		unit_scroll.custom_minimum_size = Vector2(0, 120)
 		unit_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+		unit_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
 		unit_box.add_child(unit_scroll)
 
 		var unit_list := VBoxContainer.new()
@@ -1041,17 +1064,20 @@ func _show_type_picker_popup(node_idx: int):
 				unit_list.add_child(btn_o)
 				unit_checks.append(btn_o)
 
-	main.add_child(unit_box)
-
 	# ============================================================
-	#  ★ v4.5：目标、波次、奖励、倍率行（应用压扁字号与尺寸）
+	# 目标、波次、奖励、倍率行
 	# ============================================================
 	var obj_row := HBoxContainer.new()
 	obj_row.add_theme_constant_override("separation", 4)
 	obj_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	vbox.add_child(obj_row)
 
-	# v4.5：强度 I/II/III（独立于波次/HP 倍率，纯展示）
+	var dyn_row := HBoxContainer.new()
+	dyn_row.add_theme_constant_override("separation", 4)
+	dyn_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	vbox.add_child(dyn_row)
+	vbox.move_child(dyn_row, obj_row.get_index() + 1)
+
 	var intensity_row := HBoxContainer.new()
 	intensity_row.add_theme_constant_override("separation", 4)
 	intensity_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -1087,7 +1113,7 @@ func _show_type_picker_popup(node_idx: int):
 	obj_opt.add_item("突进", int(MapData.ObjectiveType.ASSAULT))
 	obj_opt.selected = int(node.objective_type)
 	obj_opt.disabled = not can_unlock
-	obj_opt.custom_minimum_size = Vector2(56, 16) # 限制高度
+	obj_opt.custom_minimum_size = Vector2(56, 16)
 	obj_row.add_child(obj_opt)
 
 	var obj_param_lb := Label.new()
@@ -1099,7 +1125,7 @@ func _show_type_picker_popup(node_idx: int):
 
 	var obj_param_edit := LineEdit.new()
 	obj_param_edit.add_theme_font_size_override("font_size", 7)
-	obj_param_edit.custom_minimum_size = Vector2(0, 16) # 限制高度
+	obj_param_edit.custom_minimum_size = Vector2(0, 16)
 	obj_param_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	obj_param_edit.editable = can_unlock
 	obj_param_edit.placeholder_text = "JSON，如 {\"target_cell\": [10, 7], \"hold_turns\": 3}"
@@ -1108,6 +1134,40 @@ func _show_type_picker_popup(node_idx: int):
 		obj_param_edit.text = JSON.stringify(node.objective_params)
 	obj_row.add_child(obj_param_edit)
 
+	var dyn_cb := CheckBox.new()
+	dyn_cb.text = "允许动态目标"
+	dyn_cb.add_theme_font_size_override("font_size", 7)
+	dyn_cb.button_pressed = node.allow_dynamic_objective
+	dyn_cb.disabled = not can_unlock
+	dyn_cb.tooltip_text = "开启后，未显式配置目标的节点会从候选池中按队伍主标签分配目标"
+	dyn_row.add_child(dyn_cb)
+
+	var dyn_pool_lb := Label.new()
+	dyn_pool_lb.text = "候选池:"
+	dyn_pool_lb.add_theme_font_size_override("font_size", 7)
+	dyn_pool_lb.custom_minimum_size = Vector2(0, 16)
+	dyn_pool_lb.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	dyn_row.add_child(dyn_pool_lb)
+
+	var dyn_pool_edit := LineEdit.new()
+	dyn_pool_edit.add_theme_font_size_override("font_size", 7)
+	dyn_pool_edit.custom_minimum_size = Vector2(0, 16)
+	dyn_pool_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	dyn_pool_edit.editable = can_unlock and node.allow_dynamic_objective
+	dyn_pool_edit.placeholder_text = "CAPTURE,FLAG,ASSAULT（空=全部）"
+	dyn_pool_edit.tooltip_text = "逗号分隔，可选 CAPTURE / FLAG / ASSAULT"
+	var dyn_init_parts : Array = []
+	for v in node.dynamic_objective_pool:
+		match int(v):
+			MapData.ObjectiveType.CAPTURE: dyn_init_parts.append("CAPTURE")
+			MapData.ObjectiveType.FLAG: dyn_init_parts.append("FLAG")
+			MapData.ObjectiveType.ASSAULT: dyn_init_parts.append("ASSAULT")
+	dyn_pool_edit.text = ",".join(dyn_init_parts)
+	dyn_row.add_child(dyn_pool_edit)
+
+	dyn_cb.toggled.connect(func(p):
+		dyn_pool_edit.editable = p and can_unlock
+	)
 
 	var wave_lb := Label.new()
 	wave_lb.text = "波次:"
@@ -1241,10 +1301,11 @@ func _show_type_picker_popup(node_idx: int):
 	)
 	preset_row.add_child(preset_clear)
 
+	# ★ 底部按钮固定在外层
 	var btns := HBoxContainer.new()
 	btns.alignment = BoxContainer.ALIGNMENT_CENTER
 	btns.add_theme_constant_override("separation", 8)
-	vbox.add_child(btns)
+	outer_vbox.add_child(btns)
 
 	var ok := Button.new()
 	ok.text = "确定"
@@ -1297,6 +1358,22 @@ func _show_type_picker_popup(node_idx: int):
 			node.unlock_units = new_units
 		else:
 			node.unlock_units.clear()
+
+		if can_unlock:
+			var new_pool : Array[int] = []
+			var raw_pool : String = dyn_pool_edit.text.strip_edges()
+			if raw_pool != "":
+				for part in raw_pool.split(",", false):
+					var s : String = part.strip_edges().to_upper()
+					match s:
+						"CAPTURE": new_pool.append(MapData.ObjectiveType.CAPTURE)
+						"FLAG": new_pool.append(MapData.ObjectiveType.FLAG)
+						"ASSAULT": new_pool.append(MapData.ObjectiveType.ASSAULT)
+			node.allow_dynamic_objective = dyn_cb.button_pressed
+			node.dynamic_objective_pool = new_pool
+		else:
+			node.allow_dynamic_objective = false
+			node.dynamic_objective_pool = []
 
 		if can_unlock:
 			node.objective_type = obj_opt.selected as MapData.ObjectiveType
@@ -2010,6 +2087,19 @@ func _run_layout_validation():
 				if node.reward_multiplier > 1.0 and node.enemy_hp_multiplier <= 1.0:
 					errors.append("Day%d V%d Node[%d]%s  有奖励倍率但没有负面代价，建议配 enemy_hp_multiplier"
 						% [day_num, vi, ni, pos_str])
+
+				# ★ v4.7：动态目标校验
+				if node.allow_dynamic_objective:
+					for v in node.dynamic_objective_pool:
+						var ot : int = int(v)
+						if ot != MapData.ObjectiveType.CAPTURE \
+								and ot != MapData.ObjectiveType.FLAG \
+								and ot != MapData.ObjectiveType.ASSAULT:
+							errors.append("Day%d V%d Node[%d]%s  动态目标池含非法值: %d"
+								% [day_num, vi, ni, pos_str, ot])
+					if node.objective_type != MapData.ObjectiveType.ANNIHILATE:
+						print("[校验][MapLayoutEditor] ⚠ Day%d V%d Node[%d]%s  已显式配置目标，动态开关将被忽略"
+							% [day_num, vi, ni, pos_str])
 
 				for rid in node.unlock_relics:
 					if not valid_relics.has(rid):

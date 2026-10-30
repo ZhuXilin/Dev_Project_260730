@@ -13,6 +13,12 @@ class_name MapLayoutNode
 @export var objective_type: MapData.ObjectiveType = MapData.ObjectiveType.ANNIHILATE
 @export var objective_params: Dictionary = {}
 
+## v4.7：允许该节点动态分配目标（默认关闭）。
+@export var allow_dynamic_objective: bool = false
+
+## v4.7：动态目标的候选池（ObjectiveType 整数值，空=全部）。
+@export var dynamic_objective_pool: Array[int] = []
+
 @export var max_waves: int = 1
 @export var reinforcement_count: int = 0
 

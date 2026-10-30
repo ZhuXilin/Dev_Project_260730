@@ -159,9 +159,10 @@ func _clone_map_data(src: MapData, node_type: int) -> MapData:
 	copy.max_waves = src.max_waves
 	copy.reinforcement_count = src.reinforcement_count
 	copy.reinforcement_pool = src.reinforcement_pool.duplicate()
-	# ★ v4.5
 	copy.reward_multiplier = src.reward_multiplier
 	copy.enemy_hp_multiplier = src.enemy_hp_multiplier
+	copy.allow_dynamic_objective = src.allow_dynamic_objective
+	copy.dynamic_objective_pool = src.dynamic_objective_pool.duplicate()
 	return copy
 
 
