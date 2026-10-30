@@ -416,7 +416,7 @@ func _update_hint_label():
 
 	# 0.5 自动战斗提示（放在所有临时提示之后、状态机之前）
 	if Globals.is_auto_battle:
-		hint_label.text = "自动战斗中 · 按 F 关闭"
+		hint_label.text = "自动战斗中"
 		return
 
 	# 1. 非玩家回合 / AI行动中 / 播放动画时，统一显示"不可操作"
@@ -701,10 +701,14 @@ func _input(event: InputEvent):
 	if TurnManager and not TurnManager.is_battle_ready():
 		return
 
-	# ★ 自动战斗开关：F 键（任何非对话状态都响应）
+	# ★ 自动战斗开关：Space 键（任何非对话状态都响应）
 	if event is InputEventKey and event.pressed and not event.echo \
-			and event.keycode == KEY_F:
+			and event.keycode == KEY_SPACE:
 		if Globals.is_dialogue_active or Globals.is_item_get_popup_active:
+			return
+		# 输入框内交给输入框处理
+		var focus = get_viewport().gui_get_focus_owner()
+		if focus is LineEdit or focus is TextEdit:
 			return
 		_toggle_auto_battle()
 		get_viewport().set_input_as_handled()
@@ -1942,12 +1946,12 @@ func _toggle_auto_battle():
 	if next_on:
 		# 非玩家回合不允许开启
 		if TurnManager.current_turn_team != TurnManager.Team.PLAYER:
-			SignalBus.request_hint_override.emit("仅在我方回合可开启自动战斗", 1.5)
+			SignalBus.request_hint_override.emit("我方回合可开启自动战斗", 1.5)
 			return
 		if TurnManager.is_game_over:
 			return
 		_auto_battle_manager.set_enabled(true)
-		SignalBus.request_hint_override.emit("★ 自动战斗 已开启（F 关闭）", 1.5)
+		SignalBus.request_hint_override.emit("自动战斗 开启", 1.5)
 	else:
 		_auto_battle_manager.set_enabled(false)
-		SignalBus.request_hint_override.emit("自动战斗 已关闭", 1.5)
+		SignalBus.request_hint_override.emit("自动战斗 关闭", 1.5)

@@ -5,7 +5,7 @@ extends Node
 #  AllyAutoBattleManager — 我方自动战斗流水线
 #
 #  语义：
-#    Globals.is_auto_battle = 玩家意愿开关（按 F 才变，回合切换不动）
+#    Globals.is_auto_battle = 玩家意愿开关（按 Space 才变，回合切换不动）
 #    _running                = 当前这一波 AI 是否在跑（回合切换时归零）
 #
 #  回合流程：
@@ -14,6 +14,10 @@ extends Node
 #    切到敌方回合 → _run_serial++ → 主循环立即退出，_running = false
 #    敌方回合结束 → 切回玩家回合 → is_auto_battle 仍 true → 自动恢复
 #    胜利/失败 → VictoryHandler 主动把 is_auto_battle = false
+#
+#  集火：
+#    同一波 AI 内，被前面单位瞄准的目标会给后面单位加权（EnemyAI 内部维护）
+#    每次 _start_player_turn_auto 开始都会清空集火记录
 #
 #  原则：只发指令，不碰动画。全部走 TurnManager / CombatManager。
 # ============================================================
@@ -40,12 +44,12 @@ func _ready():
 
 
 # ============================================================
-#  外部接口（Battlefield 按 F 调用）
+#  外部接口（Battlefield 按 Space 调用 set_enabled）
 # ============================================================
 func set_enabled(v: bool) -> void:
 	if v:
 		if TurnManager.current_turn_team != TurnManager.Team.PLAYER:
-			SignalBus.request_hint_override.emit("仅在我方回合可开启自动战斗", 1.5)
+			SignalBus.request_hint_override.emit("我方回合可开启自动战斗", 1.5)
 			return
 		if TurnManager.is_game_over:
 			return
@@ -65,16 +69,15 @@ func cancel() -> void:
 
 
 # ============================================================
-#  回合切换监听（★ 关键：开关不动，只切 _running）
+#  回合切换监听
+#  玩家 → 敌方：中断 AI，保留开关（下一玩家回合自动恢复）
+#  敌方 → 玩家：开关还在就跑起来
 # ============================================================
 func _on_turn_changed(team: int) -> void:
 	if team == TurnManager.Team.PLAYER:
-		# ★ 玩家回合开始：如果玩家开关还在，自动恢复
 		if Globals.is_auto_battle and not _running:
 			_start_player_turn_auto()
 	else:
-		# ★ 敌方回合开始：中断当前 AI，但保留 is_auto_battle
-		#    已开始的单次动作（攻击/移动动画）会自然跑完，主循环在下一检查点退出
 		if _running:
 			_run_serial += 1
 			_running = false
@@ -88,6 +91,10 @@ func _start_player_turn_auto() -> void:
 	_running = true
 	_run_serial += 1
 	var my_serial : int = _run_serial
+
+	# ★ 新回合开始，清空上回合集火记录
+	if _enemy_ai and _enemy_ai.has_method("begin_ally_turn_focus"):
+		_enemy_ai.begin_ally_turn_focus()
 
 	_clear_player_interaction_state()
 
@@ -105,7 +112,6 @@ func _start_player_turn_auto() -> void:
 			_running = false; return
 		if waited >= MAX_WAIT:
 			push_warning("[AutoBattle] 等待超时，本回合跳过（开关保留）")
-			# ★ 超时也不关开关，下一玩家回合再试
 			_running = false; return
 		await get_tree().create_timer(WAIT_POLL, true, false, true).timeout
 		waited += WAIT_POLL
@@ -176,6 +182,11 @@ func _act_one_unit(unit: Unit) -> void:
 		return
 
 	var act : Dictionary = _enemy_ai.decide_action_for(unit)
+
+	# ★ 记录瞄准目标，让后续单位集火（不含自愈）
+	if str(act.get("type", "")) == "attack":
+		_record_focus(unit, act.get("target", null))
+
 	match str(act.get("type", "wait")):
 		"attack":
 			await _exec_attack(unit, act.get("target", null))
@@ -199,18 +210,34 @@ func _exec_move(unit: Unit, path: Array) -> void:
 	if path.is_empty():
 		_finish_unit(unit)
 		return
+
 	TurnManager.start_movement(unit, path)
 	await TurnManager.move_completed
+
 	if not is_instance_valid(unit) or unit.hit_points <= 0:
 		return
+
+	# 移动后：能打就打，并记录集火目标
 	var targets : Array = CombatManager.get_attackable_targets(unit)
 	if not targets.is_empty():
-		await CombatManager.execute_attack(unit, targets[0])
+		var follow_target = targets[0]
+		_record_focus(unit, follow_target)
+		await CombatManager.execute_attack(unit, follow_target)
 		if is_instance_valid(unit) and unit.hit_points > 0 and unit.can_act_this_turn:
 			SignalBus.request_hide_info.emit()
 			TurnManager.finish_unit_action(unit)
 	else:
 		_finish_unit(unit)
+
+
+# ★ 统一集火记录入口：过滤自愈 / 无效目标
+func _record_focus(attacker: Unit, target) -> void:
+	if not is_instance_valid(target): return
+	if target == attacker: return                       # 自愈不计
+	if target.hit_points <= 0: return
+	if _enemy_ai == null: return
+	if not _enemy_ai.has_method("record_focus_target"): return
+	_enemy_ai.record_focus_target(target)
 
 
 func _finish_unit(unit: Unit) -> void:
