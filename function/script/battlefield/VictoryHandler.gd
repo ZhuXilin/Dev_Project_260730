@@ -85,6 +85,9 @@ func _compute_rating() -> String:
 
 
 func on_request_show_victory(winning_team: int) -> void:
+	# ★ 战斗结束（无论胜负），关闭自动战斗
+	Globals.is_auto_battle = false
+
 	print("=== _on_request_show_victory 被调用, _victory_processed: ", _bf._victory_processed)
 	await _bf._wait_for_ui_clear()
 

@@ -98,6 +98,8 @@ var _objective_banner : Label = null
 var _show_all_hp_bars : bool = true
 var _suppressed_range_unit : Unit = null
 
+var _auto_battle_manager : AllyAutoBattleManager = null
+
 func _ready():
 	TurnManager.set_battle_ready(false)
 
@@ -152,6 +154,11 @@ func _ready():
 	_drag_move_controller = DragMoveController.new(self)
 	add_child(_drag_move_controller)
 	_drag_move_controller.setup()
+
+	# ★ 自动战斗调度
+	_auto_battle_manager = AllyAutoBattleManager.new(self)
+	add_child(_auto_battle_manager)
+	Globals.is_auto_battle = false
 
 	_damage_popup_layer = CanvasLayer.new()
 	_damage_popup_layer.name = "DamagePopupLayer"
@@ -399,14 +406,17 @@ func _set_hint_override(text : String, duration : float = 1.0):
 
 
 func _update_hint_label():
-	if hint_label == null:
-		return
-
+	if hint_label == null: return
 	var now := Time.get_ticks_msec() / 1000.0
 
-	# 0. 强制覆盖提示
+	# 0. 强制覆盖
 	if now < _hint_override_until and _hint_override_text != "":
 		hint_label.text = _hint_override_text
+		return
+
+	# 0.5 自动战斗提示（放在所有临时提示之后、状态机之前）
+	if Globals.is_auto_battle:
+		hint_label.text = "自动战斗中 · 按 F 关闭"
 		return
 
 	# 1. 非玩家回合 / AI行动中 / 播放动画时，统一显示"不可操作"
@@ -601,7 +611,10 @@ func _exit_tree():
 	if WaveManager:
 		WaveManager.reset()
 		_disconnect_wave_signals()
-		
+
+	if Globals.is_auto_battle:
+		Globals.is_auto_battle = false
+
 	_on_clear_blood_orbs()
 
 # ============================================================
@@ -688,21 +701,41 @@ func _input(event: InputEvent):
 	if TurnManager and not TurnManager.is_battle_ready():
 		return
 
+	# ★ 自动战斗开关：F 键（任何非对话状态都响应）
+	if event is InputEventKey and event.pressed and not event.echo \
+			and event.keycode == KEY_F:
+		if Globals.is_dialogue_active or Globals.is_item_get_popup_active:
+			return
+		_toggle_auto_battle()
+		get_viewport().set_input_as_handled()
+		return
+
 	if Globals.is_dialogue_active or Globals.is_item_get_popup_active:
 		return
 
+	# ---- 面板打开时：只处理右键关闭，其他（含键盘 TAB/上下/GM）全部放行 ----
 	if team_view_panel.visible or setting_panel.visible or setting_menu_panel.visible:
-		if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT:
+		if event is InputEventMouseButton and event.pressed \
+				and event.button_index == MOUSE_BUTTON_RIGHT:
 			_on_request_setting_right_click()
 			get_viewport().set_input_as_handled()
+		return
+
+	# ★ 自动战斗期间：只拦「直接操纵战场」的鼠标事件
+	#   键盘（TAB / 上下键 / GM 快捷键 / ESC）全部放行给对应处理器
+	if Globals.is_auto_battle and event is InputEventMouseButton:
+		get_viewport().set_input_as_handled()
 		return
 
 	if _drag_move_controller and _drag_move_controller.handle_input(event):
 		return
 
-	# ★ 中键双击结束回合
-	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_MIDDLE:
-		if TurnManager.current_turn_team == TurnManager.Team.PLAYER and not Globals.is_fading and not Globals.is_transitioning and not Globals.is_dialogue_active:
+	# ---- 中键双击结束回合（此时自动战斗已开启则进不来）----
+	if event is InputEventMouseButton and event.pressed \
+			and event.button_index == MOUSE_BUTTON_MIDDLE:
+		if TurnManager.current_turn_team == TurnManager.Team.PLAYER \
+				and not Globals.is_fading and not Globals.is_transitioning \
+				and not Globals.is_dialogue_active:
 			var now = Time.get_ticks_msec()
 			if now - _last_middle_click_time < DOUBLE_CLICK_MS:
 				_last_middle_click_time = 0
@@ -712,6 +745,7 @@ func _input(event: InputEvent):
 				SignalBus.request_hint_override.emit("双击中键结束回合", 0.5)
 			return
 
+	# ---- TAB 切换 HP 显示（自动战斗时也能用）----
 	if event is InputEventKey and event.keycode == KEY_TAB:
 		if event.pressed and not event.echo:
 			_show_all_hp_bars = not _show_all_hp_bars
@@ -724,11 +758,15 @@ func _input(event: InputEvent):
 	if Globals.is_transitioning or Globals.is_fading:
 		return
 
+	# ---- 滚轮切换单位（自动战斗时被上面的鼠标拦截挡住）----
 	if event is InputEventMouseButton and event.pressed:
-		if event.button_index == MOUSE_BUTTON_WHEEL_UP or event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
+		if event.button_index == MOUSE_BUTTON_WHEEL_UP \
+				or event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
 			if TurnManager.is_game_over:
 				return
-			if TurnManager.current_turn_team == TurnManager.Team.PLAYER and not TurnManager.is_moving and not TurnManager.is_ai_moving and not Globals.is_performing_action:
+			if TurnManager.current_turn_team == TurnManager.Team.PLAYER \
+					and not TurnManager.is_moving and not TurnManager.is_ai_moving \
+					and not Globals.is_performing_action:
 				var direction = -1 if event.button_index == MOUSE_BUTTON_WHEEL_UP else 1
 				InputManager.handle_wheel(direction)
 			return
@@ -750,7 +788,7 @@ func _input(event: InputEvent):
 			InputManager.handle_click(clicked_cell)
 	else:
 		InputManager.handle_input(event, map_grid_size, MapConst.CELL_SIZE)
-
+		
 
 # ============================================================
 #  其他信号
@@ -1779,34 +1817,40 @@ func show_damage_preview(attacker: Unit, defender: Unit):
 		return
 
 	var text = ""
-	
+
 	if attacker.unit_stats.team_id == defender.unit_stats.team_id:
 		# ★ 友军分支
 		var is_healer : bool = (attacker.get_weapon_type() == "staff")
-		
+		var is_full_hp : bool = defender.hit_points >= defender.unit_stats.max_hp
+		var emergency_cost : int = SoulFireManager.get_emergency_heal_cost()
+		var emergency_ready : bool = SoulFireManager.can_spend(emergency_cost) and not is_full_hp
+
 		if is_healer:
-			# 修女：必定能普通治疗（无消耗）
-			var heal_amt : int = CombatManager.get_expected_heal_amount(attacker, defender)
-			var actual_heal : int = mini(defender.hit_points + heal_amt, defender.unit_stats.max_hp) - defender.hit_points
-			text = "预计治疗: +%d" % actual_heal
-			
-			# 如果修女魂火足够，顺便把急救选项的回复量也显示出来
-			var emergency_cost : int = SoulFireManager.get_emergency_heal_cost()
-			if SoulFireManager.can_spend(emergency_cost):
-				var heal_pct : float = 0.15 + attacker.unit_stats.faith * 0.005
-				var em_amt : int = maxi(1, int(defender.unit_stats.max_hp * heal_pct))
+			# ---- 普通治疗（原有逻辑，公式本身正确无需改）----
+			if is_full_hp:
+				text = "目标满血"
+			else:
+				var heal_amt : int = CombatManager.get_expected_heal_amount(attacker, defender)
+				var actual_heal : int = mini(defender.hit_points + heal_amt, defender.unit_stats.max_hp) - defender.hit_points
+				text = "预计治疗: +%d" % actual_heal
+
+			# ---- 急救选项（★ 改用统一函数）----
+			if emergency_ready:
+				var em_amt : int = CombatManager.get_expected_emergency_heal(attacker, defender)
 				var actual_em : int = mini(defender.hit_points + em_amt, defender.unit_stats.max_hp) - defender.hit_points
-				text += "\n急救(耗%d魂火): +%d" % [emergency_cost, actual_em]
+				if text == "":
+					text = "急救(耗%d魂火): +%d" % [emergency_cost, actual_em]
+				else:
+					text += "\n急救(耗%d魂火): +%d" % [emergency_cost, actual_em]
 		else:
-			# 非修女：只能使用魂火急救
-			var emergency_cost : int = SoulFireManager.get_emergency_heal_cost()
-			if SoulFireManager.can_spend(emergency_cost):
-				var heal_pct : float = 0.15 + attacker.unit_stats.faith * 0.005
-				var heal_amt : int = maxi(1, int(defender.unit_stats.max_hp * heal_pct))
+			# ---- 非修女：只能急救 ----
+			if is_full_hp:
+				text = "目标满血"
+			elif emergency_ready:
+				var heal_amt : int = CombatManager.get_expected_emergency_heal(attacker, defender)
 				var actual_heal : int = mini(defender.hit_points + heal_amt, defender.unit_stats.max_hp) - defender.hit_points
 				text = "预计急救: +%d\n(消耗 %d 魂火)" % [actual_heal, emergency_cost]
 			else:
-				# ★ 缺魂火，只显示这四个字
 				text = "魂火不足"
 	else:
 		# ★ 敌军分支：计算伤害
@@ -1890,3 +1934,20 @@ func _try_pickup_blood_orb(unit: Unit) -> void:
 		unit.update_hp_label()
 		SignalBus.request_damage_popup.emit(unit.global_position, actual, false, false, true)
 		SoundManager.play_heal_sound()
+
+func _toggle_auto_battle():
+	if _auto_battle_manager == null:
+		return
+	var next_on : bool = not Globals.is_auto_battle
+	if next_on:
+		# 非玩家回合不允许开启
+		if TurnManager.current_turn_team != TurnManager.Team.PLAYER:
+			SignalBus.request_hint_override.emit("仅在我方回合可开启自动战斗", 1.5)
+			return
+		if TurnManager.is_game_over:
+			return
+		_auto_battle_manager.set_enabled(true)
+		SignalBus.request_hint_override.emit("★ 自动战斗 已开启（F 关闭）", 1.5)
+	else:
+		_auto_battle_manager.set_enabled(false)
+		SignalBus.request_hint_override.emit("自动战斗 已关闭", 1.5)

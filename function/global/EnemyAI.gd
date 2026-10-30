@@ -19,6 +19,31 @@ func initialize(turn_manager: TurnManager):
 	if _turn_manager:
 		_turn_manager.move_completed.connect(_on_move_completed)
 
+
+# ============================================================
+#  ★ 公共入口：供 AllyAutoBattleManager 复用（不进入敌方队列）
+#  返回值约定：
+#    {"type": "attack", "unit": Unit, "target": Unit, "weapon_id": String}
+#    {"type": "move",   "unit": Unit, "path": Array[Vector2i]}
+#    {"type": "wait",   "unit": Unit}
+# ============================================================
+func decide_action_for(unit: Unit) -> Dictionary:
+	if unit == null or not is_instance_valid(unit) or unit.hit_points <= 0:
+		return {"type": "wait", "unit": unit}
+	var act = _decide_action(unit)
+	if act == null or act.is_empty():
+		return {"type": "wait", "unit": unit}
+	# 防御：自愈但非 staff（理论上不会发生，因为 _decide_healer_action 只在 staff 分支）
+	if str(act.get("type", "")) == "attack":
+		var target = act.get("target", null)
+		if target == unit and unit.get_weapon_type() != "staff":
+			return {"type": "wait", "unit": unit}
+	return act
+
+
+# ============================================================
+#  敌方 AI 主循环（保持原有逻辑）
+# ============================================================
 func run_enemy_ai():
 	if _turn_manager == null:
 		return
@@ -56,8 +81,9 @@ func run_enemy_ai():
 
 	_process_ai_queue()
 
+
 # ============================================================
-#  决策统一入口
+#  决策统一入口（敌我通用）
 # ============================================================
 func _decide_action(unit: Unit):
 	# 0. 嘲讽：强制攻击嘲讽者
@@ -102,15 +128,15 @@ func _decide_action(unit: Unit):
 			var target = attack_action["target"]
 			var damage = CombatManager.calculate_damage(unit, target)
 			var target_hp_ratio = float(target.hit_points) / float(max(1, target.unit_stats.max_hp))
-			
+
 			# 如果能一击必杀，直接换命不亏
 			if damage >= target.hit_points:
 				return attack_action
-			
+
 			# 如果对面也是残血（容易被抢人头或者反打），宁可死也要带走
 			if target_hp_ratio < 0.3:
 				return attack_action
-				
+
 			# 如果周围被敌人包围（>=3人），跑也跑不掉，直接打
 			var enemies_around = 0
 			for p in UnitManager.unit_list:
@@ -137,6 +163,7 @@ func _decide_action(unit: Unit):
 
 	return {"type": "wait", "unit": unit}
 
+
 # ============================================================
 #  辅助：远程 / 距离
 # ============================================================
@@ -144,14 +171,22 @@ func _is_ranged_unit(unit: Unit) -> bool:
 	var wt = unit.get_weapon_type()
 	return wt in ["bow", "crossbow", "spellbook", "staff"]
 
-func _nearest_player_dist(cell: Vector2i) -> int:
+# ★ 通用化：返回「离 unit 最近的敌对单位」的距离
+# 对敌方 AI 完全等价于原来的 _nearest_player_dist（敌方视角敌人就是 team_id==0 的单位）
+# 对我方 AI 则返回离我方最近的敌方单位距离
+func _nearest_enemy_dist(unit: Unit, cell: Vector2i) -> int:
 	var best : int = 999
 	for p in UnitManager.unit_list:
-		if p.unit_stats.team_id == 0 and p.hit_points > 0:
+		if p == unit:
+			continue
+		if p.hit_points <= 0:
+			continue
+		if p.unit_stats.team_id != unit.unit_stats.team_id:
 			var d = abs(cell.x - p.grid_cell.x) + abs(cell.y - p.grid_cell.y)
 			if d < best:
 				best = d
 	return best
+
 
 # ============================================================
 #  治疗者决策（法杖治疗）
@@ -172,7 +207,8 @@ func _decide_healer_action(unit: Unit):
 	var best_target = null
 	var max_hp_loss = 0
 	for ally in UnitManager.unit_list:
-		if ally.unit_stats.team_id != 1: continue
+		# ★ 通用化：友军判定改为「和 unit 同阵营」（原：team_id != 1 跳过）
+		if ally.unit_stats.team_id != unit.unit_stats.team_id: continue
 		if ally.hit_points <= 0: continue
 		# ★ 不再排除自己；self 距离自己 = 0
 		var dist = abs(unit.grid_cell.x - ally.grid_cell.x) + abs(unit.grid_cell.y - ally.grid_cell.y)
@@ -191,7 +227,8 @@ func _decide_healer_action(unit: Unit):
 	var wounded_ally = null
 	max_hp_loss = 0
 	for ally in UnitManager.unit_list:
-		if ally.unit_stats.team_id != 1: continue
+		# ★ 通用化：友军判定改为「和 unit 同阵营」
+		if ally.unit_stats.team_id != unit.unit_stats.team_id: continue
 		if ally.hit_points <= 0: continue
 		if ally == unit: continue   # ★ 移动分支排除自己
 		var loss = ally.unit_stats.max_hp - ally.hit_points
@@ -209,6 +246,7 @@ func _decide_healer_action(unit: Unit):
 		return {"type": "move", "unit": unit, "path": greedy_path}
 
 	return null
+
 
 # ============================================================
 #  攻击评估（仅使用当前装备武器）
@@ -246,18 +284,18 @@ func _evaluate_attack(unit: Unit, allow_healer: bool = false):
 			continue
 
 		var score = damage * 2
-		
+
 		# ★ 强化 2.1：大幅提高击杀分，鼓励 AI 争夺人头
 		if damage >= enemy.hit_points:
 			score += 120
-			
+
 		# ★ 强化 2.2：优先攻击血量低的弱势单位（痛打落水狗）
 		var target_hp_ratio = float(enemy.hit_points) / float(max(1, enemy.unit_stats.max_hp))
 		if target_hp_ratio < 0.3:
 			score += 50
 		elif target_hp_ratio < 0.5:
 			score += 25
-			
+
 		# ★ 强化 2.3：优先击杀高威胁 / 辅助单位
 		var enemy_wt = enemy.get_weapon_type()
 		if enemy_wt == "staff":
@@ -280,13 +318,13 @@ func _evaluate_attack(unit: Unit, allow_healer: bool = false):
 		# 欺负不能还手的
 		if not can_counter:
 			score += 30
-			
+
 		# 修正：AI感知玩家的精炼力量遗物（前两刀必暴），如果玩家还有暴击次数，AI谨慎打分
 		if can_counter and unit.hit_points < unit.unit_stats.max_hp * 0.4:
 			var counter_dmg = CombatManager.calculate_damage(enemy, unit)
 			if enemy.relic_first_attack_crit_remaining > 0:
-				counter_dmg = int(counter_dmg * 1.5) 
-			
+				counter_dmg = int(counter_dmg * 1.5)
+
 			# ★ 强化 2.4：换命判定。如果我方残血，但一刀能把对面带走，硬顶着暴击反伤也要打
 			if counter_dmg >= unit.hit_points and damage < enemy.hit_points:
 				score -= 100
@@ -299,6 +337,7 @@ func _evaluate_attack(unit: Unit, allow_healer: bool = false):
 	var picked : Dictionary = _pick_target_by_weight(candidates)
 	var best_target : Unit = picked["target"]
 	return {"type": "attack", "unit": unit, "target": best_target, "weapon_id": weapon_id}
+
 
 # ============================================================
 #  移动评估（含回血点检测）
@@ -450,7 +489,7 @@ func _evaluate_move(unit: Unit):
 			var can_attack := _can_attack_from_cell(unit, cell)
 			if can_attack:
 				score = 100 + int(terrain_score / 2.0)     # ★ 改成 / 2.0 + int()
-				var nd := _nearest_player_dist(cell)
+				var nd := _nearest_enemy_dist(unit, cell)   # ★ 通用化
 				if nd < 999:
 					score += nd * 15
 			else:
@@ -460,7 +499,8 @@ func _evaluate_move(unit: Unit):
 			score = terrain_score
 			var dist_to_player = 999
 			for p in UnitManager.unit_list:
-				if p.unit_stats.team_id == 0 and p.hit_points > 0:
+				# ★ 通用化：找离「非己方阵营」最近的单位（原：team_id == 0）
+				if p.unit_stats.team_id != unit.unit_stats.team_id and p.hit_points > 0:
 					var d = abs(cell.x - p.grid_cell.x) + abs(cell.y - p.grid_cell.y)
 					if d < dist_to_player:
 						dist_to_player = d
@@ -608,7 +648,8 @@ func _evaluate_survival_move(unit: Unit):
 			return {"type": "move", "unit": unit, "path": path}
 
 	return null
-	
+
+
 # ---- 辅助移动函数 ----
 func _find_best_move_to_target(unit: Unit, target_cell: Vector2i, min_range: int, max_range: int) -> Array:
 	var reachable = UnitManager.get_reachable_cells(unit.grid_cell, unit.unit_stats.move_range, unit)
@@ -710,8 +751,9 @@ func _retry_find_path(unit: Unit) -> Array:
 
 	return UnitManager.calculate_path(unit.grid_cell, best_cell, unit)
 
+
 # ============================================================
-#  AI 队列执行
+#  AI 队列执行（仅敌方走此路径；我方走 AllyAutoBattleManager）
 # ============================================================
 func _process_ai_queue():
 	var total_tasks : int = ai_queue.size()
@@ -770,7 +812,7 @@ func _process_ai_queue():
 	_processing = false
 	print("[AI] 队列处理完毕（处理 %d / %d）" % [processed, total_tasks])
 	ai_queue_finished.emit()
-	
+
 
 func _on_move_completed():
 	pass

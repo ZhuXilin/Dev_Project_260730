@@ -39,6 +39,7 @@ const REWARD_SUMMARY_NODE_NAME = "RewardSummaryUI_Instance"
 var _reward_summary_instance: CanvasLayer = null
 
 var is_fading : bool = false
+var is_auto_battle : bool = false
 var is_performing_action : bool = false
 var is_transitioning : bool = false
 var is_dialogue_active : bool = false

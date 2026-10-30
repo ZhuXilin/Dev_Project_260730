@@ -128,14 +128,11 @@ func handle_input(event : InputEvent) -> bool:
 
 
 func _can_handle() -> bool:
-	if TurnManager.current_turn_team != TurnManager.Team.PLAYER:
-		return false
-	if TurnManager.is_game_over or TurnManager.all_acted or TurnManager.is_moving:
-		return false
-	if Globals.is_fading or Globals.is_transitioning or Globals.is_performing_action:
-		return false
-	if Globals.is_dialogue_active or Globals.is_item_get_popup_active:
-		return false
+	if TurnManager.current_turn_team != TurnManager.Team.PLAYER: return false
+	if TurnManager.is_game_over or TurnManager.all_acted or TurnManager.is_moving: return false
+	if Globals.is_fading or Globals.is_transitioning or Globals.is_performing_action: return false
+	if Globals.is_dialogue_active or Globals.is_item_get_popup_active: return false
+	if Globals.is_auto_battle: return false   # ★ 新增
 	return true
 
 
@@ -590,6 +587,7 @@ func _do_move_and_attack_async(unit : Unit, path : Array, target : Unit):
 
 
 # 攻击方式选择菜单
+# 攻击方式选择菜单
 func _show_attack_menu(attacker: Unit, target: Unit, is_after_move: bool) -> void:
 	# 自愈分支
 	if attacker == target:
@@ -690,8 +688,10 @@ func _show_attack_menu(attacker: Unit, target: Unit, is_after_move: bool) -> voi
 		next_id += 1
 
 	if emergency_available:
-		var heal_pct_display : int = int(round((0.15 + attacker.unit_stats.faith * 0.005) * 100))
-		popup.add_item("急救 (+%d%% HP，消耗 %d 魂火)" % [heal_pct_display, emergency_cost], next_id)
+		# ★ 核心修复：改用统一函数，显示具体 HP 数（与实际执行完全一致）
+		var em_amt : int = CombatManager.get_expected_emergency_heal(attacker, target)
+		var actual_em : int = mini(target.hit_points + em_amt, target.unit_stats.max_hp) - target.hit_points
+		popup.add_item("急救 (+%d HP，消耗 %d 魂火)" % [actual_em, emergency_cost], next_id)
 		meta_by_id[next_id] = {"kind": "emergency_heal"}
 		next_id += 1
 
@@ -718,7 +718,7 @@ func _show_attack_menu(attacker: Unit, target: Unit, is_after_move: bool) -> voi
 	var mouse_pos = _bf.get_viewport().get_mouse_position()
 	popup.position = Vector2i(mouse_pos)
 	popup.popup()
-
+	
 
 # ============================================================
 #  攻击范围显示

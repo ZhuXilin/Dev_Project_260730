@@ -1216,11 +1216,10 @@ func execute_emergency_heal(attacker: Unit, target: Unit) -> bool:
 		return false
 
 	SoulFireManager.spend(cost)
-
 	Globals.is_performing_action = true
 
-	var heal_pct : float = 0.5 # ★ 改成固定 50%
-	var heal_amount : int = maxi(1, int(target.unit_stats.max_hp * heal_pct))
+	var heal_amount : int = get_expected_emergency_heal(attacker, target)   # ★ 替换原公式
+	var old_hp : int = target.hit_points
 
 	# 受遗物 / 词条加成
 	if attacker.relic_heal_bonus > 0.0:
@@ -1230,7 +1229,6 @@ func execute_emergency_heal(attacker: Unit, target: Unit) -> bool:
 		if slot: heal_affix_bonus += slot.get_affix_value_float("heal_boost")
 	heal_amount = int(heal_amount * (1.0 + heal_affix_bonus))
 
-	var old_hp : int = target.hit_points
 	target.hit_points = mini(target.hit_points + heal_amount, target.unit_stats.max_hp)
 	var actual : int = target.hit_points - old_hp
 
@@ -1246,3 +1244,18 @@ func execute_emergency_heal(attacker: Unit, target: Unit) -> bool:
 	await get_tree().create_timer(PERFORMANCE_DURATION, true, false, true).timeout
 	Globals.is_performing_action = false
 	return true
+
+## 预估急救回复量（与实际执行共用同一公式，避免两处公式漂移）
+func get_expected_emergency_heal(attacker: Unit, target: Unit) -> int:
+	if not is_instance_valid(attacker) or not is_instance_valid(target):
+		return 0
+	var heal_pct : float = 0.5
+	var heal_amount : int = maxi(1, int(target.unit_stats.max_hp * heal_pct))
+	if attacker.relic_heal_bonus > 0.0:
+		heal_amount = int(heal_amount * (1.0 + attacker.relic_heal_bonus))
+	var affix_bonus : float = 0.0
+	for slot in attacker.armor_slots:
+		if slot:
+			affix_bonus += slot.get_affix_value_float("heal_boost")
+	heal_amount = int(heal_amount * (1.0 + affix_bonus))
+	return heal_amount
