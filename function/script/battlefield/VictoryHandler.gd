@@ -321,12 +321,13 @@ func on_map_victory_continue() -> void:
 			virtual_data.id = "unlock_relic_" + rid
 			virtual_data.name = "★ 新遗物：" + rd.get("name", rid)
 			virtual_data.description = rd.get("description", "")
-			var icon_path : String = rd.get("icon", "")
-			if icon_path != "" and ResourceLoader.exists(icon_path):
-				virtual_data.icon = load(icon_path)
+			# ★ 修复类型报错：兼容 Texture2D 和 String
+			var icon_res = rd.get("icon", null)
+			if icon_res is Texture2D:
+				virtual_data.icon = icon_res
+			elif icon_res is String and icon_res != "" and ResourceLoader.exists(icon_res):
+				virtual_data.icon = load(icon_res)
 			reward_item_datas.append(virtual_data)
-		if not newly.is_empty():
-			print("[Battlefield] 本节点解锁 %d 个遗物" % newly.size())
 
 	GameState.current_node_unlock_relics.clear()
 
@@ -541,10 +542,12 @@ func apply_rare_drop(drop : Dictionary) -> ItemData:
 			virtual_data.id = "rare_relic_" + rid
 			virtual_data.name = "★ 遗物：" + rd.get("name", rid)
 			virtual_data.description = rd.get("description", "")
-			var icon_path : String = rd.get("icon", "")
-			if icon_path != "" and ResourceLoader.exists(icon_path):
-				virtual_data.icon = load(icon_path)
-			print("[稀有掉落] 遗物 %s" % rid)
+			# ★ 修复类型报错：兼容 Texture2D 和 String
+			var icon_res2 = rd.get("icon", null)
+			if icon_res2 is Texture2D:
+				virtual_data.icon = icon_res2
+			elif icon_res2 is String and icon_res2 != "" and ResourceLoader.exists(icon_res2):
+				virtual_data.icon = load(icon_res2)
 
 		"armor":
 			var d : ItemData = ItemManager.get_item_data(rid)

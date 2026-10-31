@@ -73,6 +73,9 @@ func clear_attack_indicator() -> void:
 # ============================================================
 #  主更新
 # ============================================================
+# ============================================================
+#  主更新
+# ============================================================
 func update_cursor_and_mouse() -> void:
 	# 确保系统鼠标始终可见
 	if Input.mouse_mode != Input.MOUSE_MODE_VISIBLE:
@@ -86,6 +89,9 @@ func update_cursor_and_mouse() -> void:
 	elif Globals.is_dialogue_active or Globals.is_performing_action or Globals.is_item_get_popup_active or _bf.victory_panel.visible or TurnManager.current_turn_team == TurnManager.Team.ENEMY or TurnManager.is_ai_moving or TurnManager.is_moving or Globals.is_fading or Globals.is_transitioning:
 		force_hide = true
 	elif _bf.setting_panel.visible or _bf.team_view_panel.visible or _bf.setting_menu_panel.visible:
+		force_hide = true
+	# ★ 核心修复：滚轮切换期间（相机在平移+鼠标瞬移）强制隐藏光标
+	elif InputManager.is_wheel_cooldown():
 		force_hide = true
 
 	# 遗物悬停

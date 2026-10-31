@@ -183,7 +183,6 @@ func _act_one_unit(unit: Unit) -> void:
 
 	var act : Dictionary = _enemy_ai.decide_action_for(unit)
 
-	# ★ 记录瞄准目标，让后续单位集火（不含自愈）
 	if str(act.get("type", "")) == "attack":
 		_record_focus(unit, act.get("target", null))
 
@@ -191,8 +190,13 @@ func _act_one_unit(unit: Unit) -> void:
 		"attack":
 			await _exec_attack(unit, act.get("target", null))
 		"move":
-			await _exec_move(unit, act.get("path", []))
+			if unit.remaining_move <= 0:
+				_finish_unit(unit)
+			else:
+				await _exec_move(unit, act.get("path", []))
 		_:
+			# ★ 待机前先检查脚下有没有血球可以吃
+			ItemBattlefieldManager.try_pickup(unit)
 			_finish_unit(unit)
 
 
@@ -203,6 +207,8 @@ func _exec_attack(unit: Unit, target) -> void:
 	await CombatManager.execute_attack(unit, target)
 	if is_instance_valid(unit) and unit.hit_points > 0 and unit.can_act_this_turn:
 		SignalBus.request_hide_info.emit()
+		# ★ 攻击完如果敌人掉血球在脚下，顺手吃掉
+		ItemBattlefieldManager.try_pickup(unit)
 		TurnManager.finish_unit_action(unit)
 
 

@@ -1,4 +1,4 @@
-[gd_resource type="Resource" script_class="MapLayout" format=3 uid="uid://byntvgkoeju0r"]
+[gd_resource type="Resource" script_class="MapLayout" format=3 uid="uid://cpibq0ooddmkm"]
 
 [ext_resource type="Script" uid="uid://bxty2awrl8vnm" path="res://function/resource/MapLayout.gd" id="1_layout"]
 [ext_resource type="Script" uid="uid://4nvpnev86piy" path="res://function/resource/MapLayoutDay.gd" id="2_day"]
@@ -36,7 +36,7 @@ random_pool = Array[int]([2, 6])
 position = Vector2(133.33333, 90)
 layer = 3
 connects_to = Array[int]([6])
-max_waves = 3
+max_waves = 2
 reward_multiplier = 2.0
 enemy_hp_multiplier = 1.2
 
@@ -47,7 +47,7 @@ random_pool = Array[int]([2, 3])
 position = Vector2(266.66666, 90)
 layer = 3
 connects_to = Array[int]([6])
-max_waves = 3
+max_waves = 2
 reward_multiplier = 2.0
 enemy_hp_multiplier = 1.2
 

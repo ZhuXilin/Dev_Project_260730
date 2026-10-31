@@ -28,6 +28,10 @@ var _warp_serial : int = 0
 const WHEEL_COOLDOWN_MS : int = 220
 
 
+func is_wheel_cooldown() -> bool:
+	return _wheel_cooldown_active
+
+
 func handle_click(clicked_cell: Vector2i):
 	if not TurnManager.is_battle_ready():
 		return
@@ -60,10 +64,14 @@ func handle_click(clicked_cell: Vector2i):
 func _handle_right_click():
 	if not TurnManager.is_battle_ready():
 		return
+	# ★ 核心修复：任何动画表演、过场、AI行动期间，直接拦截右键！
+	if Globals.is_performing_action or Globals.is_transitioning or Globals.is_fading or TurnManager.is_moving or TurnManager.is_ai_moving:
+		return
 
 	if interaction_phase == Phase.SETTING:
 		SignalBus.request_setting_right_click.emit()
 		return
+	# ... (后面保持原样)
 
 	if selected_unit != null and is_instance_valid(selected_unit):
 		SoundManager.play_cancel_sound()
@@ -76,7 +84,8 @@ func _handle_right_click():
 		return
 
 	var m : Unit = TurnManager.last_moved_unit
-	if m != null and is_instance_valid(m) and m.has_moved and not m.has_attacked:
+	# ★ 核心修复：只有在【未攻击】【未行动】【仍可行动】的情况下，才允许撤销移动
+	if m != null and is_instance_valid(m) and m.has_moved and not m.has_attacked and not m.has_acted and m.can_act_this_turn:
 		SoundManager.play_cancel_sound()
 		TurnManager.cancel_movement(m)
 		m.moves_since_act -= 1

@@ -43,6 +43,10 @@ func play_transition(team: int, callback: Callable = Callable()):
 			_text_label.text = UIConst.TURN_TEXT_PLAYER % turn_num
 		else:
 			_text_label.text = UIConst.TURN_TEXT_ENEMY % turn_num
+			# ★ 核心修改：判断如果当前激活了波次，就把“增援”信息播报出来
+			if WaveManager and WaveManager.is_active() and WaveManager.get_current_wave() > 1:
+				_text_label.text += "\n第 %d 波增援" % WaveManager.get_current_wave()
+				
 		_text_label.visible = true
 		_text_label.modulate.a = 1.0
 

@@ -11,8 +11,13 @@ class_name AdvancedClassData
 @export var sprite_frames_path: String = ""
 @export var tags: Array[String] = []
 
-# ★ 新增：隐藏分支。true 时默认不出现在英雄殿，需剧情 unlock 才可见
+# ★ 隐藏分支
 @export var hidden: bool = false
+
+# ★ 预留：若非空，则本进阶指向 unit_data.json 里一份独立条目，
+#   加载时不再叠加 stat_bonus，只保留外观与专属词条。
+#   空字符串表示走"基础 + 补丁"（默认行为）。
+@export var standalone_unit_id: String = ""
 
 static func from_dict(d: Dictionary, base_unit_key: String = "") -> AdvancedClassData:
 	var r = AdvancedClassData.new()
@@ -24,7 +29,8 @@ static func from_dict(d: Dictionary, base_unit_key: String = "") -> AdvancedClas
 	r.granted_talent = d.get("granted_talent", "")
 	r.flavor = d.get("flavor", "")
 	r.sprite_frames_path = d.get("sprite_frames_path", "")
-	r.hidden = bool(d.get("hidden", false))     # ★ 读 hidden 字段
+	r.hidden = bool(d.get("hidden", false))
+	r.standalone_unit_id = d.get("standalone_unit_id", "")
 	var tags_raw : Variant = d.get("tags", [])
 	if tags_raw is Array:
 		for t in tags_raw:

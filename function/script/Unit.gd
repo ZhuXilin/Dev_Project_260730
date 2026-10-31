@@ -180,14 +180,26 @@ func setup_unit(stats_data: UnitData, start_cell: Vector2i, initial_items: Array
 	used_move = 0
 	previous_remaining_move = get_total_move_range()
 	is_gray = false
-	facing_dir = Vector2i(-1, 0) if unit_stats.team_id == 1 else Vector2i(1, 0) # 默认朝向
+	facing_dir = Vector2i(-1, 0) if unit_stats.team_id == 1 else Vector2i(1, 0)
 
-	weapon_slot = null
+	# ★ 优先继承 stats 的武器/防具
+	if stats_data.weapon_slot != null:
+		weapon_slot = stats_data.weapon_slot
+	else:
+		weapon_slot = null
+
 	max_armor_slots = stats_data.max_armor_slots
 	armor_slots.clear()
-	for _i in range(max_armor_slots):
-		armor_slots.append(null)
+	if not stats_data.armor_slots.is_empty():
+		for s in stats_data.armor_slots:
+			armor_slots.append(s)
+		while armor_slots.size() < max_armor_slots:
+			armor_slots.append(null)
+	else:
+		for _i in range(max_armor_slots):
+			armor_slots.append(null)
 
+	# initial_items 作为额外覆盖
 	for entry in initial_items:
 		if entry and entry.item_id != "":
 			var data = ItemManager.get_item_data(entry.item_id)
@@ -206,6 +218,15 @@ func setup_unit(stats_data: UnitData, start_cell: Vector2i, initial_items: Array
 						inst.count = 1
 						armor_slots[i] = inst
 						break
+
+	# ★ 终极兜底：如果经过以上步骤依然没有武器，且该单位有默认武器，强制装配
+	if weapon_slot == null:
+		var def_w : String = UnitDataManager.get_default_weapon_id(unit_stats.unit_name)
+		if def_w != "":
+			var inst = ItemInstance.new()
+			inst.item_id = def_w
+			inst.count = 1
+			weapon_slot = inst
 
 	_init_talent_slots_from_data(stats_data)
 

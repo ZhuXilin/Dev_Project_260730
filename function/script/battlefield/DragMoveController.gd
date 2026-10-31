@@ -53,17 +53,14 @@ func get_drag_hint() -> String:
 		var is_ally = (target.unit_stats.team_id == unit.unit_stats.team_id)
 		
 		if is_ally:
-			# 友军
 			if target.hit_points >= target.unit_stats.max_hp:
 				return "不可释放"
 			
 			if is_healer:
 				return "释放左键回复 HP"
 			else:
-				# ★ 不论魂火是否足够，统一显示动作意图
 				return "释放左键使用急救"
 		else:
-			# 敌军
 			if _is_target_in_range(target):
 				return "释放左键攻击"
 			return "释放左键移动并攻击"
@@ -88,6 +85,7 @@ func _notification(what):
 #  输入入口
 # ============================================================
 func handle_input(event : InputEvent) -> bool:
+	# 只要有任何一个全局锁开启，直接拒绝处理任何输入
 	if not _can_handle():
 		return false
 
@@ -128,11 +126,16 @@ func handle_input(event : InputEvent) -> bool:
 
 
 func _can_handle() -> bool:
-	if TurnManager.current_turn_team != TurnManager.Team.PLAYER: return false
-	if TurnManager.is_game_over or TurnManager.all_acted or TurnManager.is_moving: return false
-	if Globals.is_fading or Globals.is_transitioning or Globals.is_performing_action: return false
-	if Globals.is_dialogue_active or Globals.is_item_get_popup_active: return false
-	if Globals.is_auto_battle: return false   # ★ 新增
+	if TurnManager.current_turn_team != TurnManager.Team.PLAYER:
+		return false
+	if TurnManager.is_game_over or TurnManager.all_acted or TurnManager.is_moving:
+		return false
+	if Globals.is_fading or Globals.is_transitioning or Globals.is_performing_action:
+		return false
+	if Globals.is_dialogue_active or Globals.is_item_get_popup_active:
+		return false
+	if Globals.is_auto_battle:
+		return false
 	return true
 
 
@@ -140,6 +143,9 @@ func _can_handle() -> bool:
 #  按下 / 移动 / 松开
 # ============================================================
 func _on_left_press() -> bool:
+	# 再次强校验，防止在这极短的瞬间状态被改变
+	if not _can_handle(): return true
+	
 	var world_pos = _bf.get_global_mouse_position()
 	var cell = _bf.world_to_grid(world_pos)
 	var unit = UnitManager.get_unit_at_cell(cell)
@@ -155,11 +161,9 @@ func _on_left_press() -> bool:
 	if unit == null:
 		return false
 
-	# 单击敌方单位：消费事件，不选中、不播放音效，和单击我方单位保持统一
 	if unit.unit_stats.team_id != 0:
 		return true
 
-	# 待机单位不可拖拽、不可通过拖拽释放变成选中
 	if not unit.can_act_this_turn or unit.has_acted:
 		return true
 
@@ -197,8 +201,6 @@ func _on_left_release() -> bool:
 		var cell = _bf.world_to_grid(world_pos)
 		var hovered_any = UnitManager.get_unit_at_cell(cell)
 
-		# ★ 删掉了 hovered_any == _pressing_unit 的特判，统一走 _is_valid_target
-
 		if hovered_any != null:
 			if not _is_valid_target(hovered_any):
 				_bf.suppress_range_for_unit(hovered_any)
@@ -215,9 +217,16 @@ func _on_left_release() -> bool:
 			
 			# 不在射程内
 			if hovered_any.unit_stats.team_id == _pressing_unit.unit_stats.team_id:
-				# ★ 友军不在射程内：直接取消，绝对不允许移动过去
+				# ★ 友军不在射程内：尝试寻找移动过去治疗的路径
+				var heal_path = _find_heal_path(hovered_any)
+				if heal_path.size() > 0:
+					_execute_move_and_heal(heal_path, hovered_any)
+					_reset_state()
+					return true
+				
+				# 实在找不到位置
 				SoundManager.play_cancel_sound()
-				SignalBus.request_hint_override.emit("目标不在施法范围内", 1.0)
+				SignalBus.request_hint_override.emit("无法到达施法位置", 1.0)
 				_cancel()
 				_reset_state()
 				return true
@@ -302,7 +311,6 @@ func _start_drag():
 	_current_path = []
 	_arrow.hide_path()
 	
-	# ★ 核心修复：拖拽起步，立刻显示局部的攻击红框
 	_update_attack_preview(unit.grid_cell, true)
 
 
@@ -323,13 +331,10 @@ func _update_drag():
 	
 	_hovered_target = hovered
 	
-	# ---- 1. 目标锁定状态（悬停在“其他”单位上） ----
-	# ★ 排除 _pressing_unit 自己，保证起步时红圈不被吃掉
 	if hovered != null and hovered != _pressing_unit:
 		_mouse_out_of_range = false
 		_is_show_original_range = false
 		
-		# 只有合法的目标才弹面板
 		if _is_valid_target(hovered):
 			_bf.show_damage_preview(_pressing_unit, hovered)
 		else:
@@ -339,15 +344,12 @@ func _update_drag():
 		_current_path = []
 		_arrow.hide_path()
 		
-		# 清空白框和其他所有红框，只亮起目标脚下的单格
 		var single_cell_dict = {cell: true}
 		var color = MapConst.HIGHLIGHT_HEAL if hovered.unit_stats.team_id == _pressing_unit.unit_stats.team_id else MapConst.HIGHLIGHT_ATTACK
 		
 		_bf.highlight_manager.show_enemy_preview({}, single_cell_dict, color, cell, true)
 		return
 
-	# ---- 2. 非锁定状态（空地、框外、或者悬停在自己身上） ----
-	# 如果是自己，把 _hovered_target 置空，防止底部提示错误
 	if hovered == _pressing_unit:
 		_hovered_target = null
 		
@@ -387,7 +389,6 @@ func _execute_move():
 	var unit = _pressing_unit
 	if unit == null or not is_instance_valid(unit): return
 
-	# ★ 记录移动前的坐标，用来作为白框消失中心
 	var start_cell = unit.grid_cell 
 
 	if _current_target_cell != unit.grid_cell and _current_path.is_empty():
@@ -415,7 +416,6 @@ func _execute_move():
 	TurnManager.start_movement(unit, _current_path)
 
 
-# 新增辅助函数：找离目标最近的可达格
 func _find_closest_reachable_cell(target_cell: Vector2i) -> Vector2i:
 	var best_cell = _pressing_unit.grid_cell
 	var min_dist = 9999
@@ -428,12 +428,14 @@ func _find_closest_reachable_cell(target_cell: Vector2i) -> Vector2i:
 			best_cell = cell
 	return best_cell
 
+
 func _execute_move_only(path: Array):
 	var end_cell = path[-1] if path.size() > 0 else _pressing_unit.grid_cell
 	_bf.highlight_manager.clear_highlight_split(_pressing_unit.grid_cell, end_cell)
 	InputManager.interaction_phase = InputManager.Phase.IDLE
 	InputManager.selected_unit = null
 	TurnManager.start_movement(_pressing_unit, path)
+
 
 func _cancel():
 	var unit = _pressing_unit
@@ -446,6 +448,7 @@ func _cancel():
 
 	InputManager.interaction_phase = InputManager.Phase.IDLE
 	InputManager.selected_unit = null
+
 
 func _reset_state():
 	_is_pressing = false
@@ -471,7 +474,6 @@ func _is_target_in_range(target : Unit) -> bool:
 	if unit == null or target == null: return false
 
 	if target.unit_stats.team_id == unit.unit_stats.team_id:
-		# 友军治疗/急救
 		if unit.get_weapon_type() == "staff":
 			var weapon = unit.get_weapon_data()
 			if not weapon: return false
@@ -480,11 +482,9 @@ func _is_target_in_range(target : Unit) -> bool:
 			var dist = abs(unit.grid_cell.x - target.grid_cell.x) + abs(unit.grid_cell.y - target.grid_cell.y)
 			return dist >= weapon.min_attack_range and dist <= max_range
 		else:
-			# 非修女急救：限定贴身 1 格以内（包含自己距离 0）
 			var dist = abs(unit.grid_cell.x - target.grid_cell.x) + abs(unit.grid_cell.y - target.grid_cell.y)
 			return dist <= 1
 	else:
-		# 敌军攻击，走武器射程
 		var weapon = unit.get_weapon_data()
 		if not weapon: return false
 		var up_lv : int = unit.weapon_slot.upgrade_level if unit.weapon_slot else 0
@@ -497,11 +497,9 @@ func _is_valid_target(target : Unit) -> bool:
 	var unit = _pressing_unit
 	if unit == null or target == null: return false
 
-	# 友军：只有受伤才有意义（包含拖拽到自己）
 	if target.unit_stats.team_id == unit.unit_stats.team_id:
 		return target.hit_points < target.unit_stats.max_hp
 
-	# 敌军：攻击目标
 	return true
 
 
@@ -512,7 +510,6 @@ func _find_attack_path(target : Unit) -> Array:
 	if not weapon: return []
 
 	var min_range : int = weapon.min_attack_range
-	# ★ 同上：升级后射程
 	var up_lv : int = unit.weapon_slot.upgrade_level if unit.weapon_slot else 0
 	var max_range : int = WeaponUpgradeHelper.get_effective_attack_range(weapon, up_lv)
 
@@ -535,6 +532,44 @@ func _find_attack_path(target : Unit) -> Array:
 
 	return best_path
 
+
+func _find_heal_path(target : Unit) -> Array:
+	var unit = _pressing_unit
+	if unit == null: return []
+	
+	var min_range : int = 0
+	var max_range : int = 0
+	
+	if unit.get_weapon_type() == "staff":
+		var weapon = unit.get_weapon_data()
+		if not weapon: return []
+		var up_lv : int = unit.weapon_slot.upgrade_level if unit.weapon_slot else 0
+		max_range = WeaponUpgradeHelper.get_effective_attack_range(weapon, up_lv)
+		min_range = weapon.min_attack_range
+	else:
+		max_range = 1
+		min_range = 0
+
+	var reachable = UnitManager.get_reachable_cells(
+		unit.grid_cell, unit.remaining_move, unit)
+
+	var best_path : Array = []
+	var best_len : int = 9999
+
+	for cell in reachable.keys():
+		if cell == unit.grid_cell: continue
+		var dist = abs(cell.x - target.grid_cell.x) + abs(cell.y - target.grid_cell.y)
+		if dist < min_range or dist > max_range: continue
+		if UnitManager.is_cell_occupied(cell): continue
+		var path = UnitManager.calculate_path(unit.grid_cell, cell, unit)
+		if path.size() == 0: continue
+		if path.size() < best_len:
+			best_len = path.size()
+			best_path = path
+
+	return best_path
+
+
 func _execute_attack_or_heal(target : Unit) -> void:
 	var unit = _pressing_unit
 	if unit == null or not is_instance_valid(unit): return
@@ -549,13 +584,13 @@ func _execute_attack_or_heal(target : Unit) -> void:
 
 	_show_attack_menu(unit, target, false)
 
+
 func _do_combat_async(attacker : Unit, defender : Unit, forced_skill_id: String = ""):
 	await CombatManager.execute_attack(attacker, defender, forced_skill_id)
 	if is_instance_valid(defender):
 		_bf.suppress_range_for_unit(defender)
 
 
-# ★ 核心修改：先移动，再弹窗
 func _execute_move_and_attack(path : Array, target : Unit) -> void:
 	var unit = _pressing_unit
 	if unit == null or not is_instance_valid(unit): return
@@ -586,10 +621,51 @@ func _do_move_and_attack_async(unit : Unit, path : Array, target : Unit):
 				_show_attack_menu(unit, target, true)
 
 
-# 攻击方式选择菜单
+func _execute_move_and_heal(path : Array, target : Unit) -> void:
+	var unit = _pressing_unit
+	if unit == null or not is_instance_valid(unit): return
+	if path.size() == 0: return
+	if target == null or not is_instance_valid(target): return
+
+	SignalBus.request_clear_highlight.emit()
+	_bf.highlight_manager.clear_highlight()
+	InputManager.interaction_phase = InputManager.Phase.IDLE
+	InputManager.selected_unit = null
+
+	call_deferred("_do_move_and_heal_async", unit, path, target)
+
+
+func _do_move_and_heal_async(unit : Unit, path : Array, target : Unit):
+	TurnManager.start_movement(unit, path)
+	await TurnManager.move_completed
+
+	if not is_instance_valid(unit): return
+	if unit.hit_points <= 0: return
+
+	if is_instance_valid(target) and target.hit_points > 0:
+		var dist = abs(unit.grid_cell.x - target.grid_cell.x) + abs(unit.grid_cell.y - target.grid_cell.y)
+		var in_range = false
+		
+		if unit.get_weapon_type() == "staff":
+			var weapon = unit.get_weapon_data()
+			if weapon:
+				var up_lv : int = unit.weapon_slot.upgrade_level if unit.weapon_slot else 0
+				var max_r = WeaponUpgradeHelper.get_effective_attack_range(weapon, up_lv)
+				if dist >= weapon.min_attack_range and dist <= max_r:
+					in_range = true
+		else:
+			if dist <= 1:
+				in_range = true
+				
+		if in_range:
+			_show_attack_menu(unit, target, true)
+		else:
+			_bf.suppress_range_for_unit(target)
+			TurnManager.finish_unit_action(unit)
+
+
 # 攻击方式选择菜单
 func _show_attack_menu(attacker: Unit, target: Unit, is_after_move: bool) -> void:
-	# 自愈分支
 	if attacker == target:
 		if attacker.hit_points >= attacker.unit_stats.max_hp:
 			SoundManager.play_cancel_sound()
@@ -602,7 +678,6 @@ func _show_attack_menu(attacker: Unit, target: Unit, is_after_move: bool) -> voi
 	var target_is_ally : bool = (target.unit_stats.team_id == attacker.unit_stats.team_id)
 	var target_wounded : bool = target.hit_points < target.unit_stats.max_hp
 
-	# ---- 主动技能 ----
 	var ally_only_effects : Array = ["heal", "buff"]
 	var ready_skills = TalentManager.get_ready_active_skills(attacker)
 	var available_skills = []
@@ -614,36 +689,30 @@ func _show_attack_menu(attacker: Unit, target: Unit, is_after_move: bool) -> voi
 		if SoulFireManager.can_spend(cost):
 			available_skills.append(sdata)
 
-	# ---- 急救可用？ ----
 	var emergency_cost : int = SoulFireManager.get_emergency_heal_cost()
 	var emergency_available : bool = target_is_ally and target_wounded \
 		and SoulFireManager.can_spend(emergency_cost)
 
-	# ---- 普通攻击/治疗可用？ ----
-	var normal_attack_available : bool = not target_is_ally       # 只对敌军
+	var normal_attack_available : bool = not target_is_ally
 	var normal_heal_available : bool = is_healer and target_is_ally and target_wounded
-	# ★ 这行是必须的，防止报错
 	var normal_available : bool = normal_attack_available or normal_heal_available
 
-	# ---- 选项计数 ----
 	var total_options : int = 0
 	if normal_available: total_options += 1
 	total_options += available_skills.size()
 	if emergency_available: total_options += 1
 
-	# ★★ 0 项 → 友军时直接报魂火不足，敌军直接普攻
 	if total_options == 0:
 		if target_is_ally:
 			SoundManager.play_cancel_sound()
 			if not target_wounded:
 				SignalBus.request_hint_override.emit("目标未受伤", 1.0)
 			else:
-				SignalBus.request_hint_override.emit("魂火不足", 1.0) # 统一提示
+				SignalBus.request_hint_override.emit("魂火不足", 1.0)
 			return
 		call_deferred("_do_combat_async", attacker, target, "")
 		return
 
-	# ★★ 只一项 → 直接执行，不弹菜单
 	if total_options == 1:
 		if emergency_available and available_skills.is_empty() \
 				and not normal_attack_available and not normal_heal_available:
@@ -653,11 +722,9 @@ func _show_attack_menu(attacker: Unit, target: Unit, is_after_move: bool) -> voi
 				and not normal_attack_available and not normal_heal_available:
 			call_deferred("_do_combat_async", attacker, target, available_skills[0].id)
 			return
-		# 只剩普攻 / 普治疗
 		call_deferred("_do_combat_async", attacker, target, "")
 		return
 
-	# ---- 多选项才构建菜单 ----
 	var popup := PopupMenu.new()
 	var stylebox = load(Config.PATHS.STYLEBOX_8BIT)
 	if stylebox:
@@ -688,7 +755,6 @@ func _show_attack_menu(attacker: Unit, target: Unit, is_after_move: bool) -> voi
 		next_id += 1
 
 	if emergency_available:
-		# ★ 核心修复：改用统一函数，显示具体 HP 数（与实际执行完全一致）
 		var em_amt : int = CombatManager.get_expected_emergency_heal(attacker, target)
 		var actual_em : int = mini(target.hit_points + em_amt, target.unit_stats.max_hp) - target.hit_points
 		popup.add_item("急救 (+%d HP，消耗 %d 魂火)" % [actual_em, emergency_cost], next_id)
@@ -718,11 +784,8 @@ func _show_attack_menu(attacker: Unit, target: Unit, is_after_move: bool) -> voi
 	var mouse_pos = _bf.get_viewport().get_mouse_position()
 	popup.position = Vector2i(mouse_pos)
 	popup.popup()
-	
 
-# ============================================================
-#  攻击范围显示
-# ============================================================
+
 func _update_attack_preview(unit_cell : Vector2i, from_self : bool = false):
 	var unit = _pressing_unit
 	if unit == null: return
@@ -744,7 +807,6 @@ func _update_attack_preview(unit_cell : Vector2i, from_self : bool = false):
 				continue
 			var c = origin_cell + Vector2i(x, y)
 			
-			# 边界检查
 			if c.x < 0 or c.x >= TerrainManager.grid_size.x: continue
 			if c.y < 0 or c.y >= TerrainManager.grid_size.y: continue
 			if c == origin_cell: continue
@@ -753,11 +815,9 @@ func _update_attack_preview(unit_cell : Vector2i, from_self : bool = false):
 			if tt == TerrainManager.TerrainType.IMPASSABLE_ALL: continue
 
 			var occ = UnitManager.get_unit_at_cell(c)
-			# 如果格子有友军，不覆盖
 			if occ != null and not UnitManager.is_attack_target_of(unit, occ):
 				continue
 				
-			# ★ 核心修复：没有任何判断，只要是射程内的空地和敌人，全部标红！
 			attack_cells[c] = true
 
 	_redraw_highlights(attack_cells, origin_cell)
@@ -768,7 +828,6 @@ func _redraw_highlights(attack_cells : Dictionary, origin_cell: Vector2i):
 	if _pressing_unit and _pressing_unit.get_weapon_type() == "staff":
 		color = MapConst.HIGHLIGHT_HEAL
 		
-	# ★ 传入 true，拖拽中的红框硬切，不卡顿
 	_bf.highlight_manager.show_enemy_preview(_reachable, attack_cells, color, origin_cell, true)
 
 
@@ -776,6 +835,5 @@ func _do_emergency_heal_async(attacker : Unit, target : Unit):
 	if not is_instance_valid(attacker) or not is_instance_valid(target):
 		return
 	await CombatManager.execute_emergency_heal(attacker, target)
-	# 施放后鼠标仍可能停在目标身上 → 抑制它的范围高亮
 	if is_instance_valid(target):
 		_bf.suppress_range_for_unit(target)

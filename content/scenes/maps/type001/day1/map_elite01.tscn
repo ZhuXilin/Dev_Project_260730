@@ -24,7 +24,7 @@ metadata/_custom_type_script = "uid://cjvddjaj43chx"
 position = Vector2(128, 96)
 script = ExtResource("2_v07jm")
 team = 1
-unit_type = 1
+unit_type = 3
 metadata/_custom_type_script = "uid://cjvddjaj43chx"
 
 [node name="Enemy03" type="Node2D" parent="." unique_id=241437663]
@@ -32,13 +32,22 @@ position = Vector2(160, 64)
 script = ExtResource("2_v07jm")
 team = 1
 unit_type = 4
+wave_idx = 1
+metadata/_custom_type_script = "uid://cjvddjaj43chx"
+
+[node name="Enemy04" type="Node2D" parent="." unique_id=471206864]
+position = Vector2(176, 64)
+script = ExtResource("2_v07jm")
+team = 1
+unit_type = 4
+wave_idx = 1
 metadata/_custom_type_script = "uid://cjvddjaj43chx"
 
 [node name="Enemy05" type="Node2D" parent="." unique_id=42826125]
 position = Vector2(160, 112)
 script = ExtResource("2_v07jm")
 team = 1
-unit_type = 8
+unit_type = 5
 metadata/_custom_type_script = "uid://cjvddjaj43chx"
 
 [node name="HpFunction" type="Node2D" parent="." unique_id=1782810974]

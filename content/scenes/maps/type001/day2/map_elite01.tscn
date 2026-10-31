@@ -2,25 +2,8 @@
 
 [ext_resource type="TileSet" uid="uid://bmko3nha5eqoa" path="res://content/scenes/tilemap/TerrainTileSet01.tres" id="1_47gnj"]
 [ext_resource type="Script" uid="uid://cjvddjaj43chx" path="res://function/tool/mapplacer/UnitPlacer.gd" id="2_jb1u7"]
-[ext_resource type="Script" uid="uid://2m8vla0xoar" path="res://function/script/ItemEntry.gd" id="3_pmyt2"]
 [ext_resource type="Script" uid="uid://bwbaxyrughsfk" path="res://function/tool/mapplacer/HpFunction.gd" id="5_ptjd0"]
 [ext_resource type="Script" uid="uid://d4b5iewm1v2pe" path="res://function/tool/mapplacer/EventTrigger.gd" id="6_70hek"]
-
-[sub_resource type="Resource" id="Resource_m45wx"]
-script = ExtResource("3_pmyt2")
-item_id = "javelin"
-metadata/_custom_type_script = "uid://2m8vla0xoar"
-
-[sub_resource type="Resource" id="Resource_uiwtq"]
-script = ExtResource("3_pmyt2")
-item_id = "potion"
-count = 3
-metadata/_custom_type_script = "uid://2m8vla0xoar"
-
-[sub_resource type="Resource" id="Resource_auwcq"]
-script = ExtResource("3_pmyt2")
-item_id = "javelin"
-metadata/_custom_type_script = "uid://2m8vla0xoar"
 
 [node name="Level01" type="Node2D" unique_id=1730342054]
 
@@ -32,39 +15,38 @@ collision_enabled = false
 [node name="Enemy01" type="Node2D" parent="." unique_id=718192537]
 position = Vector2(112, 112)
 script = ExtResource("2_jb1u7")
-unit_type = 6
 team = 1
+unit_type = 6
 immobile = true
 metadata/_custom_type_script = "uid://cjvddjaj43chx"
 
 [node name="Enemy02" type="Node2D" parent="." unique_id=801576404]
 position = Vector2(128, 96)
 script = ExtResource("2_jb1u7")
+team = 1
+unit_type = 3
+metadata/_custom_type_script = "uid://cjvddjaj43chx"
+
+[node name="Enemy05" type="Node2D" parent="." unique_id=101885428]
+position = Vector2(128, 128)
+script = ExtResource("2_jb1u7")
+team = 1
 unit_type = 1
-team = 1
 metadata/_custom_type_script = "uid://cjvddjaj43chx"
 
-[node name="Enemy03" type="Node2D" parent="." unique_id=241437663]
-position = Vector2(160, 64)
+[node name="Enemy04" type="Node2D" parent="." unique_id=1450815186]
+position = Vector2(176, 64)
 script = ExtResource("2_jb1u7")
+team = 1
 unit_type = 4
-team = 1
-initial_items = Array[ExtResource("3_pmyt2")]([SubResource("Resource_m45wx"), SubResource("Resource_uiwtq")])
+wave_idx = 1
 metadata/_custom_type_script = "uid://cjvddjaj43chx"
 
-[node name="Enemy04" type="Node2D" parent="." unique_id=121289861]
-position = Vector2(144, 128)
+[node name="Enemy06" type="Node2D" parent="." unique_id=154256203]
+position = Vector2(96, 80)
 script = ExtResource("2_jb1u7")
-unit_type = 7
 team = 1
-metadata/_custom_type_script = "uid://cjvddjaj43chx"
-
-[node name="Enemy05" type="Node2D" parent="." unique_id=42826125]
-position = Vector2(160, 112)
-script = ExtResource("2_jb1u7")
-unit_type = 8
-team = 1
-initial_items = Array[ExtResource("3_pmyt2")]([SubResource("Resource_auwcq")])
+wave_idx = 2
 metadata/_custom_type_script = "uid://cjvddjaj43chx"
 
 [node name="HpFunction" type="Node2D" parent="." unique_id=1782810974]

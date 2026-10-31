@@ -51,6 +51,8 @@ const POPUP_QUEUE_INTERVAL : float = 0.15
 const POPUP_STACK_HEIGHT : float = 14.0
 const POPUP_MAX_STACK : int = 3
 
+const ENEMY_THREAT_INCLUDE_OCCUPIED : bool = false
+
 var _last_middle_click_time: int = 0
 const DOUBLE_CLICK_MS: int = 300
 
@@ -495,7 +497,9 @@ func deselect_unit():
 	SignalBus.request_hide_info.emit()
 	SignalBus.request_clear_highlight.emit()
 
-
+# ============================================================
+#  范围显示（由悬停调用，不再依赖选中）
+# ============================================================
 # ============================================================
 #  范围显示（由悬停调用，不再依赖选中）
 # ============================================================
@@ -508,6 +512,7 @@ func _show_unit_ranges(unit: Unit):
 
 	var weapon = unit.get_weapon_data()
 	if weapon == null:
+		# 无武器：仅显示移动范围
 		highlight_manager.clear_highlight(unit.grid_cell)
 		highlight_manager.show_move_highlight(reachable, MapConst.HIGHLIGHT_MOVE, -1, true, unit.grid_cell)
 		return
@@ -528,13 +533,16 @@ func _show_unit_ranges(unit: Unit):
 
 				var tt : int = TerrainManager.get_terrain(c)
 				if tt == TerrainManager.TerrainType.IMPASSABLE_ALL: continue
+
+				# ★ 统一逻辑：跳过可达格，白格优先显示
 				if reachable.has(c): continue
+
 				var occ = UnitManager.get_unit_at_cell(c)
+				# 如果是友军/非攻击目标，也不标红
 				if occ != null and not UnitManager.is_attack_target_of(unit, occ): continue
 				threat_cells[c] = true
 
 	var color = MapConst.HIGHLIGHT_HEAL if is_healer else MapConst.HIGHLIGHT_ATTACK
-	# ★ 核心修复：清理和显示，全以单位为中心
 	highlight_manager.clear_highlight(unit.grid_cell)
 	highlight_manager.show_enemy_preview(reachable, threat_cells, color, unit.grid_cell)
 
@@ -873,6 +881,10 @@ func _on_request_show_info(unit: Unit):
 	if not is_instance_valid(_cached_info_unit):
 		_cached_info_unit = null
 
+	# ★ 节点缺失保护
+	if info_text_label == null or info_panel == null:
+		return
+
 	var is_dragging := _drag_move_controller != null and _drag_move_controller.is_dragging()
 
 	# 缓存判断
@@ -909,6 +921,8 @@ func _on_request_show_info(unit: Unit):
 		_hide_avatar(avatar_rect, avatar_bg)
 
 		# ★ 地形信息走独立面板（同款 stylebox + 同款 PanelRevealer）
+		if _terrain_info_label == null:
+			return
 		var t_type = TerrainManager.get_terrain(_cached_info_cell)
 		var t_name = TerrainManager.get_terrain_name(t_type)
 		var td : Dictionary = TerrainManager.TERRAIN_DATA.get(t_type, {})
@@ -927,12 +941,17 @@ func _on_request_show_info(unit: Unit):
 		return
 
 	# ---- 单位 ----
-	# ★ 单位面板接管，地形面板扫出
 	_hide_terrain_info_panel()
 
+	# ★ 头像：我方走存档逻辑，敌方只认 avatar_override（无则空白）
 	var show_avatar : bool = false
+	var avatar_id : String = ""
 	if unit.unit_stats.team_id == 0:
-		var avatar_id = GameState.get_unit_avatar(unit.unit_stats.unit_name)
+		avatar_id = GameState.get_unit_avatar(unit.unit_stats.unit_name)
+	else:
+		avatar_id = unit.unit_stats.avatar_override
+
+	if avatar_id != "" and avatar_rect != null:
 		var tex = IconManager.get_icon_or_null(avatar_id)
 		if tex:
 			if avatar_rect.texture != tex:

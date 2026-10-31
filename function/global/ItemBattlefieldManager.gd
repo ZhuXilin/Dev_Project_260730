@@ -83,3 +83,10 @@ func clear_all():
 		if is_instance_valid(_orbs[cell]):
 			_orbs[cell].queue_free()
 	_orbs.clear()
+
+func get_active_orbs() -> Array[Vector2i]:
+	var result : Array[Vector2i] = []
+	for cell in _orbs.keys():
+		if is_instance_valid(_orbs[cell]):
+			result.append(cell)
+	return result

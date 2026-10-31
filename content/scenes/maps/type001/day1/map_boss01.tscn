@@ -15,41 +15,24 @@ collision_enabled = false
 position = Vector2(176, 128)
 script = ExtResource("2_roqpf")
 team = 1
-unit_type = 6
-pool_key = null
-enemy_pool = null
-wave = null
+unit_type = 3
 metadata/_custom_type_script = "uid://cjvddjaj43chx"
 
 [node name="Enemy03" type="Node2D" parent="." unique_id=852935361]
 position = Vector2(192, 160)
 script = ExtResource("2_roqpf")
 team = 1
-unit_type = 3
-pool_key = null
-enemy_pool = null
-wave = null
-metadata/_custom_type_script = "uid://cjvddjaj43chx"
-
-[node name="Enemy04" type="Node2D" parent="." unique_id=1144367768]
-position = Vector2(208, 112)
-script = ExtResource("2_roqpf")
-team = 1
 unit_type = 2
-pool_key = null
-enemy_pool = null
-wave = null
 metadata/_custom_type_script = "uid://cjvddjaj43chx"
 
-[node name="Enemy07" type="Node2D" parent="." unique_id=933968204]
+[node name="Boss01" type="Node2D" parent="." unique_id=933968204]
 position = Vector2(176, 144)
 script = ExtResource("2_roqpf")
 team = 1
 unit_type = 5
+advanced_class_idx = 1
+avatar_idx = 16
 is_boss = true
-pool_key = null
-enemy_pool = null
-wave = null
 metadata/_custom_type_script = "uid://cjvddjaj43chx"
 
 [node name="HpFunction" type="Node2D" parent="." unique_id=85655960]
@@ -66,9 +49,6 @@ metadata/_custom_type_script = "uid://bwbaxyrughsfk"
 position = Vector2(320, 144)
 script = ExtResource("2_roqpf")
 placement_mode = 1
-pool_key = null
-enemy_pool = null
-wave = null
 metadata/_custom_type_script = "uid://cjvddjaj43chx"
 
 [node name="SpawnPoint_1" type="Node2D" parent="." unique_id=906086980]
@@ -76,9 +56,6 @@ position = Vector2(320, 128)
 script = ExtResource("2_roqpf")
 placement_mode = 1
 spawn_index = 1
-pool_key = null
-enemy_pool = null
-wave = null
 metadata/_custom_type_script = "uid://cjvddjaj43chx"
 
 [node name="SpawnPoint_2" type="Node2D" parent="." unique_id=1671942297]
@@ -86,7 +63,4 @@ position = Vector2(320, 160)
 script = ExtResource("2_roqpf")
 placement_mode = 1
 spawn_index = 2
-pool_key = null
-enemy_pool = null
-wave = null
 metadata/_custom_type_script = "uid://cjvddjaj43chx"

@@ -12,13 +12,6 @@ tile_map_data = PackedByteArray("AAASAAYAAQAAAAAAAAARAAcAAQAAAAAAAAASAAUAAQAAAAA
 tile_set = ExtResource("1_e0mqq")
 collision_enabled = false
 
-[node name="Enemy01" type="Node2D" parent="." unique_id=718192537]
-position = Vector2(112, 112)
-script = ExtResource("2_660gu")
-team = 1
-unit_type = 6
-metadata/_custom_type_script = "uid://cjvddjaj43chx"
-
 [node name="Enemy02" type="Node2D" parent="." unique_id=801576404]
 position = Vector2(128, 96)
 script = ExtResource("2_660gu")

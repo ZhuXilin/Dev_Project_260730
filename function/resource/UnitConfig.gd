@@ -8,7 +8,6 @@ class_name UnitConfig
 @export var position : Vector2i = Vector2i.ZERO
 @export var override_stats : Dictionary = {}
 @export var immobile : bool = false
-@export var initial_items : Array[ItemEntry] = []
 @export var is_boss : bool = false
 
 @export var wave: int = 1
@@ -16,6 +15,12 @@ class_name UnitConfig
 @export var is_random_pool: bool = false
 @export var pool_key: String = ""
 @export var enemy_pool: Array[String] = []
+
+# 进阶职业
+@export var advanced_class_id: String = ""
+
+# 头像覆盖（仅敌方使用）
+@export var avatar_override: String = ""
 
 func apply_override(stats: UnitData):
 	if override_stats.has("max_hp"):

@@ -1,10 +1,13 @@
 extends Node
 
 # ============================================================
-#  WaveManager — 波次与增援（v4.6）
-#  敌人分批入场：第 1 波直接在场上，后续波次隐藏等激活
-#  增援：每波激活时额外从地图边缘生成
-#  v4.6：支持 UnitPlacer 显式 wave 字段（meta "wave"）
+#  WaveManager — 波次与增援（保底修复版）
+#
+#  保底原则：
+#    1. 显式 wave 模式下，第 1 组不再被错误隐藏
+#    2. 有效组 ≤ 1 时直接降级为单波（is_active() = false）
+#    3. _activate_next_wave 跳过空组，不会出场空阵容
+#    4. 所有组清空但仍未胜利时，由 TurnManager.check_victory 兜底
 # ============================================================
 
 var _type_total_waves : int = 1
@@ -36,7 +39,6 @@ func setup_for_node(map_data : MapData, battlefield : Node2D = null) -> void:
 	_next_wave_delay = 0
 	_warning_shown = false
 
-	# 延迟到所有单位注册完之后再分组
 	call_deferred("_build_groups")
 
 
@@ -73,24 +75,20 @@ func get_pending_count() -> int:
 
 
 # ============================================================
-#  分组算法：优先显式 wave（meta），回退到距离分组
+#  分组算法
 # ============================================================
 func _build_groups():
-	# 收集场上敌人
 	var enemies : Array = []
 	for u in UnitManager.unit_list:
-		if not is_instance_valid(u):
-			continue
-		if u.unit_stats.team_id != 1:
-			continue
-		if u.hit_points <= 0:
-			continue
+		if not is_instance_valid(u): continue
+		if u.unit_stats.team_id != 1: continue
+		if u.hit_points <= 0: continue
 		enemies.append(u)
 
 	if enemies.is_empty():
 		return
 
-	# ★ v4.6：检测显式波次（meta wave > 1）
+	# 检测显式 wave
 	var explicit_map : Dictionary = {}
 	var has_explicit : bool = false
 	for u in enemies:
@@ -101,26 +99,30 @@ func _build_groups():
 				explicit_map[w] = []
 			explicit_map[w].append(u)
 
+	# ★ 有 wave=1 的也要进 explicit_map，避免第 1 波被遗漏
 	if has_explicit:
+		var w1_units : Array = []
+		for u in enemies:
+			var w : int = int(u.get_meta("wave", 0))
+			if w == 1:
+				w1_units.append(u)
+		if not w1_units.is_empty() and not explicit_map.has(1):
+			explicit_map[1] = w1_units
 		_build_groups_by_explicit_wave(explicit_map)
 		return
 
-	# ---- 原有：按 map_data.max_waves 距离分组 ----
+	# ---- 隐式：按距离分 N 组 ----
 	if _type_total_waves <= 1:
 		return
 	if enemies.size() <= _type_total_waves:
 		_type_total_waves = 1
 		return
 
-	# 玩家中心
 	var player_units : Array = []
 	for u in UnitManager.unit_list:
-		if not is_instance_valid(u):
-			continue
-		if u.unit_stats.team_id != 0:
-			continue
-		if u.hit_points <= 0:
-			continue
+		if not is_instance_valid(u): continue
+		if u.unit_stats.team_id != 0: continue
+		if u.hit_points <= 0: continue
 		player_units.append(u)
 
 	var player_center : Vector2 = Vector2.ZERO
@@ -128,15 +130,11 @@ func _build_groups():
 		for u in player_units:
 			player_center += u.global_position
 		player_center /= float(player_units.size())
-	else:
-		player_center = Vector2.ZERO
 
-	# 按距离玩家从近到远排序
 	enemies.sort_custom(func(a, b):
 		return a.global_position.distance_to(player_center) < b.global_position.distance_to(player_center)
 	)
 
-	# 按 N 等分
 	var n : int = _type_total_waves
 	var total : int = enemies.size()
 	var groups : Array = []
@@ -150,15 +148,14 @@ func _build_groups():
 			g.append(enemies[j])
 		groups.append(g)
 
-	# 把 boss 挪到最后一组
+	# Boss 挪到最后一组
 	var boss_unit : Unit = null
 	for g in groups:
 		for u in g:
 			if u.unit_stats.is_boss:
 				boss_unit = u
 				break
-		if boss_unit != null:
-			break
+		if boss_unit != null: break
 
 	if boss_unit != null:
 		var boss_group_idx : int = -1
@@ -170,8 +167,7 @@ func _build_groups():
 					boss_group_idx = gi
 					boss_pos_in_group = ui
 					break
-			if boss_group_idx >= 0:
-				break
+			if boss_group_idx >= 0: break
 
 		if boss_group_idx >= 0 and boss_group_idx != n - 1:
 			(groups[boss_group_idx] as Array).remove_at(boss_pos_in_group)
@@ -186,61 +182,84 @@ func _build_groups():
 				(groups[boss_group_idx] as Array).append(swap_unit)
 			last_group.append(boss_unit)
 
-	# 第 1 组直接在场，第 2..N 组隐藏
 	for gi in range(1, groups.size()):
 		var g : Array = groups[gi]
 		for u in g:
-			if not is_instance_valid(u):
-				continue
-			u.visible = false
-			u.process_mode = Node.PROCESS_MODE_DISABLED
-			u.can_act_this_turn = false
-			u.remaining_move = 0
-			u.hit_points = u.unit_stats.max_hp
-			if u is CollisionObject2D:
-				(u as CollisionObject2D).set_collision_layer_value(1, false)
+			if not is_instance_valid(u): continue
+			_hide_unit(u)
 		_pending_groups.append(g)
 
 	_current_wave = 1
 	_next_wave_delay = 0
 	_warning_shown = false
 
-	print("[Wave] 初始化 %d 波，共 %d 敌人。当前波 %d / %d" % [
-		_type_total_waves, enemies.size(), _current_wave, _type_total_waves])
+	print("[Wave] 初始化 %d 波，共 %d 敌人" % [_type_total_waves, enemies.size()])
 	wave_advanced.emit(_current_wave, _type_total_waves)
 
 
-# ★ v4.6：显式波次分组
+# ★ 显式波次分组（保底修复）
 func _build_groups_by_explicit_wave(wave_map: Dictionary):
 	var sorted_waves : Array = wave_map.keys()
 	sorted_waves.sort()
-	var max_wave : int = sorted_waves[sorted_waves.size() - 1]
 
-	_type_total_waves = maxi(max_wave, 1)
+	# 只保留非空组
+	var groups : Array = []
+	for w in sorted_waves:
+		var g : Array = wave_map[w]
+		if not g.is_empty():
+			groups.append(g)
+
 	_current_wave = 1
 	_pending_groups.clear()
 	_next_wave_delay = 0
 	_warning_shown = false
 
-	for w in sorted_waves:
-		var group : Array = wave_map[w]
-		for u in group:
-			if not is_instance_valid(u): continue
-			u.visible = false
-			u.process_mode = Node.PROCESS_MODE_DISABLED
-			u.can_act_this_turn = false
-			u.remaining_move = 0
-			u.hit_points = u.unit_stats.max_hp
-			if u is CollisionObject2D:
-				(u as CollisionObject2D).set_collision_layer_value(1, false)
-		_pending_groups.append(group)
+	# ★ 保底：只有 0 组或 1 组 → 视为单波
+	if groups.size() <= 1:
+		_type_total_waves = 1
+		print("[Wave] 显式波次（仅 %d 组有效），降级为单波" % groups.size())
+		wave_advanced.emit(1, 1)
+		return
 
-	print("[Wave] 显式波次模式：%d 波 / %d 组" % [_type_total_waves, _pending_groups.size()])
-	wave_advanced.emit(_current_wave, _type_total_waves)
+	# ★ 第 1 组保持原状（可见、可行动），第 2 组起隐藏
+	for gi in range(1, groups.size()):
+		var g : Array = groups[gi]
+		for u in g:
+			if not is_instance_valid(u): continue
+			_hide_unit(u)
+		_pending_groups.append(g)
+
+	_type_total_waves = groups.size()
+	print("[Wave] 显式波次：%d 波 / %d 组（第1组已入场）" % [_type_total_waves, _pending_groups.size()])
+	wave_advanced.emit(1, _type_total_waves)
+
+
+func _hide_unit(u: Unit):
+	u.visible = false
+	u.process_mode = Node.PROCESS_MODE_DISABLED
+	u.can_act_this_turn = false
+	u.remaining_move = 0
+	u.hit_points = u.unit_stats.max_hp
+	if u is CollisionObject2D:
+		(u as CollisionObject2D).set_collision_layer_value(1, false)
+
+
+func _show_unit(u: Unit):
+	u.visible = true
+	u.process_mode = Node.PROCESS_MODE_INHERIT
+	u.hit_points = u.unit_stats.max_hp
+	u.can_act_this_turn = true
+	u.has_moved = false
+	u.has_attacked = false
+	u.has_acted = false
+	u.remaining_move = u.get_total_move_range()
+	u.set_gray(false)
+	if u is CollisionObject2D:
+		(u as CollisionObject2D).set_collision_layer_value(1, true)
 
 
 # ============================================================
-#  玩家回合结束钩子（由 TurnManager 调用）
+#  玩家回合结束钩子
 # ============================================================
 func on_player_turn_end() -> void:
 	if not is_active():
@@ -250,14 +269,10 @@ func on_player_turn_end() -> void:
 
 	var alive_enemies : int = 0
 	for u in UnitManager.unit_list:
-		if not is_instance_valid(u):
-			continue
-		if u.unit_stats.team_id != 1:
-			continue
-		if u.hit_points <= 0:
-			continue
-		if u.visible == false:
-			continue
+		if not is_instance_valid(u): continue
+		if u.unit_stats.team_id != 1: continue
+		if u.hit_points <= 0: continue
+		if u.visible == false: continue
 		alive_enemies += 1
 
 	if alive_enemies > 0:
@@ -277,55 +292,53 @@ func on_player_turn_end() -> void:
 		_activate_next_wave()
 
 
+# ★ 保底：跳过空组，若全部为空则静默退出
 func _activate_next_wave():
-	if _pending_groups.is_empty():
-		return
-	var next_group : Array = _pending_groups.pop_front()
-	for u in next_group:
-		if not is_instance_valid(u):
-			continue
-		u.visible = true
-		u.process_mode = Node.PROCESS_MODE_INHERIT
-		u.hit_points = u.unit_stats.max_hp
-		u.can_act_this_turn = true
-		u.has_moved = false
-		u.has_attacked = false
-		u.has_acted = false
-		u.remaining_move = u.get_total_move_range()
-		u.set_gray(false)
-		if u is CollisionObject2D:
-			(u as CollisionObject2D).set_collision_layer_value(1, true)
+	while not _pending_groups.is_empty():
+		var next_group : Array = _pending_groups.pop_front()
+		_current_wave += 1
 
-	_current_wave += 1
+		var activated : Array = []
+		for u in next_group:
+			if not is_instance_valid(u): continue
+			if u.hit_points <= 0: continue
+			_show_unit(u)
+			activated.append(u)
+
+		if activated.is_empty():
+			# 空组：跳过，_current_wave 已递增，继续下一组
+			print("[Wave] 第 %d 波为空，跳过" % _current_wave)
+			continue
+
+		_warning_shown = false
+		_next_wave_delay = 0
+		print("[Wave] 第 %d / %d 波入场（%d 个敌人）" % [
+			_current_wave, _type_total_waves, activated.size()])
+		wave_advanced.emit(_current_wave, _type_total_waves)
+
+		if _map_data != null and _map_data.reinforcement_count > 0:
+			_spawn_reinforcements(_map_data.reinforcement_count)
+		return
+
+	# 所有组清空
 	_warning_shown = false
 	_next_wave_delay = 0
-	print("[Wave] 第 %d / %d 波入场（%d 个敌人）" % [
-		_current_wave, _type_total_waves, next_group.size()])
-	wave_advanced.emit(_current_wave, _type_total_waves)
-
-	# 增援
-	if _map_data != null and _map_data.reinforcement_count > 0:
-		_spawn_reinforcements(_map_data.reinforcement_count)
+	print("[Wave] 无更多可用波次")
 
 
 # ============================================================
-#  增援生成
+#  增援生成（走 UnitSpawner 倍率函数）
 # ============================================================
 func _spawn_reinforcements(count : int):
-	if count <= 0:
-		return
-	if _battlefield == null or not is_instance_valid(_battlefield):
-		return
-	if not ("grid_to_world" in _battlefield):
-		return
+	if count <= 0: return
+	if _battlefield == null or not is_instance_valid(_battlefield): return
+	if not ("grid_to_world" in _battlefield): return
 
 	var pool : Array = _map_data.reinforcement_pool.duplicate() if _map_data else []
 	if pool.is_empty():
 		for u in UnitManager.unit_list:
-			if not is_instance_valid(u):
-				continue
-			if u.unit_stats.team_id != 1:
-				continue
+			if not is_instance_valid(u): continue
+			if u.unit_stats.team_id != 1: continue
 			var tn : String = u.unit_stats.unit_name
 			if tn != "" and not (tn in pool):
 				pool.append(tn)
@@ -337,33 +350,27 @@ func _spawn_reinforcements(count : int):
 		return
 
 	var unit_path : String = Config.PATHS.UNIT_SCENE
-	if not ResourceLoader.exists(unit_path):
-		return
+	if not ResourceLoader.exists(unit_path): return
 	var unit_scene = load(unit_path)
-	if unit_scene == null:
-		return
+	if unit_scene == null: return
 
-	# ★ v4.5：增援也吃高收益节点的负面 HP 倍率
-	var extra_hp : float = 1.0
-	if _map_data != null:
-		extra_hp = maxf(1.0, _map_data.enemy_hp_multiplier)
+	# ★ 统一走 UnitSpawner 的倍率函数
+	var node_type : int = _map_data.node_type if _map_data else MapNode.NodeType.NORMAL
+	var hp_mult : float = UnitSpawner.get_enemy_hp_mult(node_type, false) * UnitSpawner.get_enemy_hp_extra()
+	var day_mult : float = UnitSpawner.get_day_attr_mult(GameState.current_day)
 
 	for i in range(mini(count, spawn_cells.size())):
 		var cell : Vector2i = spawn_cells[i]
 		var tname : String = pool[randi() % pool.size()]
 		var stats : UnitData = UnitDataManager.create_unit_data(tname)
 		stats.team_id = 1
-		if _map_data and _map_data.node_type == MapNode.NodeType.BOSS:
-			stats.max_hp = int(stats.max_hp * 2.0 * extra_hp)
-		elif _map_data and _map_data.node_type == MapNode.NodeType.ELITE:
-			stats.max_hp = int(stats.max_hp * 1.5 * extra_hp)
-		else:
-			stats.max_hp = int(stats.max_hp * extra_hp)
+		stats.max_hp = int(stats.max_hp * hp_mult)
 		stats.hit_points = stats.max_hp
+		stats.strength = maxi(1, int(stats.strength * day_mult))
+		stats.dexterity = maxi(1, int(stats.dexterity * day_mult))
 
 		var unit = unit_scene.instantiate()
 		unit.setup_unit(stats, cell)
-		# 增援归入当前波（已经出场）
 		unit.set_meta("wave", _current_wave)
 		_battlefield.add_child(unit)
 		unit.position = _battlefield.grid_to_world(cell)
@@ -383,16 +390,12 @@ func _find_edge_spawn_cells(count : int) -> Array:
 	for x in range(sz.x):
 		for y in range(sz.y):
 			var is_edge : bool = (x == 0 or x == sz.x - 1 or y == 0 or y == sz.y - 1)
-			if not is_edge:
-				continue
+			if not is_edge: continue
 			var cell : Vector2i = Vector2i(x, y)
-			if UnitManager.is_cell_occupied(cell):
-				continue
+			if UnitManager.is_cell_occupied(cell): continue
 			var terrain : int = TerrainManager.get_terrain(cell)
-			if not TerrainManager.TERRAIN_DATA[terrain]["passable"]:
-				continue
-			if terrain == TerrainManager.TerrainType.IMPASSABLE_ALL:
-				continue
+			if not TerrainManager.TERRAIN_DATA[terrain]["passable"]: continue
+			if terrain == TerrainManager.TerrainType.IMPASSABLE_ALL: continue
 			candidates.append(cell)
 
 	if candidates.is_empty():

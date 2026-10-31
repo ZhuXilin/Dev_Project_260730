@@ -370,7 +370,11 @@ func _evaluate_attack(unit: Unit, allow_healer: bool = false):
 #  移动评估
 # ============================================================
 func _evaluate_move(unit: Unit):
-	var reachable = UnitManager.get_reachable_cells(unit.grid_cell, unit.unit_stats.move_range, unit)
+	# ★ 核心修复：使用剩余移动力，若没移动力直接跳过
+	var move_mv : int = unit.remaining_move
+	if move_mv <= 0:
+		return null
+	var reachable = UnitManager.get_reachable_cells(unit.grid_cell, move_mv, unit)
 	if reachable.is_empty():
 		return null
 
@@ -578,12 +582,24 @@ func _can_attack_from_cell(unit: Unit, cell: Vector2i) -> bool:
 
 # ---- 低血量生存移动 ----
 func _evaluate_survival_move(unit: Unit):
-	var reachable = UnitManager.get_reachable_cells(unit.grid_cell, unit.unit_stats.move_range, unit)
+	var move_mv : int = unit.remaining_move
+	if move_mv <= 0:
+		return null
+	var reachable = UnitManager.get_reachable_cells(unit.grid_cell, move_mv, unit)
 	if reachable.is_empty():
 		return null
 
 	var best_cell = unit.grid_cell
 	var best_score = -999
+
+	# ★ 优先踩血球
+	var orbs = ItemBattlefieldManager.get_active_orbs()
+	if not orbs.is_empty():
+		for cell in reachable.keys():
+			if cell in orbs:
+				var path = UnitManager.calculate_path(unit.grid_cell, cell, unit)
+				if path.size() > 0:
+					return {"type": "move", "unit": unit, "path": path}
 
 	# 优先回血点
 	if _turn_manager != null:
@@ -606,7 +622,7 @@ func _evaluate_survival_move(unit: Unit):
 							if path.size() > 0:
 								return {"type": "move", "unit": unit, "path": path}
 
-	# 治疗者
+	# 其次治疗者
 	var healers = []
 	for ally in UnitManager.unit_list:
 		if ally.unit_stats.team_id == unit.unit_stats.team_id and ally != unit and ally.hit_points > 0:
@@ -646,11 +662,15 @@ func _evaluate_survival_move(unit: Unit):
 				if path.size() > 0:
 					return {"type": "move", "unit": unit, "path": path}
 
-	# 高防御地形（封顶）
+	# 没有治疗者，寻找高防御地形（v4.6：减伤率口径）
 	best_cell = unit.grid_cell
 	best_score = -999
 	for cell in reachable.keys():
-		var score : int = _terrain_score(cell)
+		var terrain = TerrainManager.get_terrain(cell)
+		var td : Dictionary = TerrainManager.TERRAIN_DATA.get(terrain, {})
+		var phys_red : float = float(td.get("physical_reduction", 0.0))
+		var mag_red : float = float(td.get("magic_reduction", 0.0))
+		var score : int = int((phys_red + mag_red) * 100.0)
 		var dist_to_enemy = 999
 		for p in UnitManager.unit_list:
 			if p.unit_stats.team_id != unit.unit_stats.team_id and p.hit_points > 0:
@@ -667,6 +687,7 @@ func _evaluate_survival_move(unit: Unit):
 				break
 		if ally_near:
 			score += 5
+
 		if score > best_score:
 			best_score = score
 			best_cell = cell
@@ -681,7 +702,11 @@ func _evaluate_survival_move(unit: Unit):
 
 # ---- 辅助移动函数 ----
 func _find_best_move_to_target(unit: Unit, target_cell: Vector2i, min_range: int, max_range: int) -> Array:
-	var reachable = UnitManager.get_reachable_cells(unit.grid_cell, unit.unit_stats.move_range, unit)
+	# ★ 核心修复：使用剩余移动力
+	var move_mv : int = unit.remaining_move
+	if move_mv <= 0:
+		return []
+	var reachable = UnitManager.get_reachable_cells(unit.grid_cell, move_mv, unit)
 	var best_cell = unit.grid_cell
 	var best_dist = -1
 	var found = false
@@ -697,7 +722,11 @@ func _find_best_move_to_target(unit: Unit, target_cell: Vector2i, min_range: int
 	return []
 
 func _greedy_move_towards(unit: Unit, target_cell: Vector2i) -> Array:
-	var reachable = UnitManager.get_reachable_cells(unit.grid_cell, unit.unit_stats.move_range, unit)
+	# ★ 核心修复：使用剩余移动力
+	var move_mv : int = unit.remaining_move
+	if move_mv <= 0:
+		return []
+	var reachable = UnitManager.get_reachable_cells(unit.grid_cell, move_mv, unit)
 	if reachable.is_empty():
 		return []
 	var best_cell = unit.grid_cell
@@ -715,7 +744,11 @@ func _greedy_move_towards(unit: Unit, target_cell: Vector2i) -> Array:
 
 
 func _retry_find_path(unit: Unit) -> Array:
-	var reachable = UnitManager.get_reachable_cells(unit.grid_cell, unit.unit_stats.move_range, unit)
+	# ★ 核心修复：使用剩余移动力
+	var move_mv : int = unit.remaining_move
+	if move_mv <= 0:
+		return []
+	var reachable = UnitManager.get_reachable_cells(unit.grid_cell, move_mv, unit)
 	if reachable.is_empty():
 		return []
 
