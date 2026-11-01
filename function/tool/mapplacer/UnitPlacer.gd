@@ -19,8 +19,21 @@ enum Team {
 const WAVE_LABELS : Array = ["首发", "第2波", "第3波", "第4波", "第5波", "第6波"]
 
 const UNIT_SCENE_PATH = Config.PATHS.UNIT_SCENE
+const UNIT_DATA_PATH = "res://content/data/unit_data.json"
 
 static var _avatar_file_cache : PackedStringArray = []
+static var _editor_unit_db : Dictionary = {} # 编辑器兜底缓存
+
+
+# ============================================================
+#  核心工具：清理 Godot 自动拼接的脏数据
+#  (例如把 "armored:重甲兵" 变成 "armored")
+# ============================================================
+func _clean_id(raw_id: String) -> String:
+	if raw_id == "（无）" or raw_id == "": return ""
+	if raw_id.contains(":"): 
+		return raw_id.split(":")[0]
+	return raw_id
 
 
 # ============================================================
@@ -47,28 +60,24 @@ static var _avatar_file_cache : PackedStringArray = []
 		if Engine.is_editor_hint():
 			_update_visibility()
 
-
 @export_category("固定单位设置")
 
-# 用 unit_name 替代硬编码 enum UnitType
 @export var unit_name : String = "swordsman":
 	set(value):
 		if unit_name != value:
 			unit_name = value
-			advanced_class_id = ""   # 换单位时清空转职，避免跨单位残留
+			advanced_class_id = "（无）"   # 换单位时重置为"（无）"
 			notify_property_list_changed()
 			if Engine.is_editor_hint():
 				call_deferred("_build_preview")
 
-# 用 advanced_class_id 替代 advanced_class_idx
-@export var advanced_class_id : String = "":
+@export var advanced_class_id : String = "（无）":
 	set(value):
 		if advanced_class_id != value:
 			advanced_class_id = value
 			if Engine.is_editor_hint():
 				call_deferred("_build_preview")
 
-# 用 avatar_id 替代 avatar_idx
 @export var avatar_id : String = "":
 	set(value):
 		if avatar_id != value:
@@ -91,14 +100,12 @@ var avatar_preview_display : Texture2D = null
 
 @export var is_boss : bool = false
 
-
 @export_category("出生点设置")
 @export var spawn_index: int = 0:
 	set(value):
 		spawn_index = value
 		if Engine.is_editor_hint():
 			call_deferred("_build_preview")
-
 
 @export_category("随机池设置")
 @export var pool_key: String = "":
@@ -107,17 +114,14 @@ var avatar_preview_display : Texture2D = null
 		if Engine.is_editor_hint():
 			call_deferred("_build_preview")
 
-# 格式："swordsman" 或 "swordsman:swordsman_berserker"
 @export var enemy_pool: Array[String] = []:
 	set(value):
 		enemy_pool = value
 		if Engine.is_editor_hint():
 			call_deferred("_build_preview")
 
-# 弹窗入口
 @export_tool_button("编辑随机池", "Edit")
 var edit_pool_btn: Callable = _open_pool_editor
-
 
 @export_category("波次设置")
 @export var wave_idx : int = 0:
@@ -139,7 +143,6 @@ func _refresh_avatar_preview():
 		avatar_preview_display = null
 	else:
 		avatar_preview_display = IconManager.get_icon_or_null(avatar_id)
-
 
 func _ensure_avatar_file_cache():
 	if not _avatar_file_cache.is_empty(): return
@@ -166,7 +169,7 @@ func _validate_property(property : Dictionary) -> void:
 	match property.name:
 		"spawn_index":
 			if placement_mode != PlacementMode.SPAWN_POINT: hide_it = true
-		"pool_key", "enemy_pool", "edit_pool_btn":  # 把 _edit_pool_btn 改成 edit_pool_btn
+		"pool_key", "enemy_pool", "edit_pool_btn":
 			if placement_mode != PlacementMode.RANDOM_POOL: hide_it = true
 
 		"unit_name", "advanced_class_id", "immobile", "is_boss", "avatar_id":
@@ -192,19 +195,24 @@ func _validate_property(property : Dictionary) -> void:
 		property.hint = PROPERTY_HINT_ENUM
 		property.hint_string = ",".join(WAVE_LABELS)
 
-	# unit_name：从 unit_data.json 动态拉取，"key:中文"
 	if property.name == "unit_name":
 		var items : PackedStringArray = []
+		var fallback_names = {
+			"swordsman": "剑士", "spearman": "枪兵", "axeman": "斧兵",
+			"archer": "弓兵", "pegasus": "飞马", "mage": "法师",
+			"cleric": "修女", "dragonborn": "龙人", "armored": "重甲兵"
+		}
 		for k in UnitDataManager.get_all_unit_ids():
 			var cn : String = UnitDataManager.get_unit_type_display_name(k)
+			if cn == "" or cn == k: cn = fallback_names.get(k, k)
 			items.append("%s:%s" % [k, cn])
 		property.hint = PROPERTY_HINT_ENUM
 		property.hint_string = ",".join(items)
 
-	# advanced_class_id：根据当前 unit_name 拉取该单位的分支
 	if property.name == "advanced_class_id":
-		var items : PackedStringArray = [":（无）"]
-		var branches : Array = _get_branches_for_unit(unit_name)
+		var items : PackedStringArray = ["（无）"]
+		var clean_unit = _clean_id(unit_name) # ★ 清理脏数据
+		var branches : Array = _get_branches_for_unit(clean_unit)
 		for b in branches:
 			if b is Dictionary:
 				var bid : String = str(b.get("id", ""))
@@ -214,21 +222,35 @@ func _validate_property(property : Dictionary) -> void:
 		property.hint = PROPERTY_HINT_ENUM
 		property.hint_string = ",".join(items)
 
-	# avatar_id：从 avatar 目录动态拉取
 	if property.name == "avatar_id":
 		_ensure_avatar_file_cache()
-		var items : PackedStringArray = [":（无头像）"]
+		var items : PackedStringArray = ["（无）"]
 		for f in _avatar_file_cache:
-			items.append("%s:%s" % [f, f])
+			items.append(f)
 		property.hint = PROPERTY_HINT_ENUM
 		property.hint_string = ",".join(items)
 
 
 func _get_branches_for_unit(unit_key : String) -> Array:
-	var ud : Dictionary = UnitDataManager.get_unit_data(unit_key)
+	var clean_key = _clean_id(unit_key)
+	var ud : Dictionary = UnitDataManager.get_unit_data(clean_key)
+	
+	if ud.is_empty():
+		# 编辑器下直接读 JSON 兜底
+		if _editor_unit_db.is_empty():
+			if FileAccess.file_exists(UNIT_DATA_PATH):
+				var f = FileAccess.open(UNIT_DATA_PATH, FileAccess.READ)
+				if f:
+					var data = JSON.parse_string(f.get_as_text())
+					f.close()
+					if data is Dictionary:
+						_editor_unit_db = data
+		ud = _editor_unit_db.get(clean_key, {})
+
 	if ud.is_empty(): return []
 	var raw : Variant = ud.get("advanced_branches", [])
 	if not (raw is Array): return []
+	
 	var result : Array = []
 	for b in raw:
 		if b is Dictionary:
@@ -252,34 +274,31 @@ func _get_configuration_warnings() -> PackedStringArray:
 		var pos = position
 		var cell_size = MapConst.CELL_SIZE
 		if abs(fmod(pos.x, cell_size)) >= 0.01 or abs(fmod(pos.y, cell_size)) >= 0.01:
-			warnings.append("节点位置未对齐到网格顶点（应位于格子角点，坐标应为 %d 的整数倍）。建议使用网格吸附功能。" % MapConst.CELL_SIZE)
+			warnings.append("节点位置未对齐到网格顶点。")
 
 		if placement_mode == PlacementMode.FIXED_UNIT:
-			var branches : Array = _get_branches_for_unit(unit_name)
-			if advanced_class_id != "":
+			var clean_unit = _clean_id(unit_name)
+			var clean_adv = _clean_id(advanced_class_id)
+			var branches : Array = _get_branches_for_unit(clean_unit)
+			if clean_adv != "":
 				var found : bool = false
 				for b in branches:
-					if b is Dictionary and str(b.get("id", "")) == advanced_class_id:
+					if b is Dictionary and str(b.get("id", "")) == clean_adv:
 						found = true
 						break
 				if not found:
-					warnings.append("advanced_class_id=%s 不属于 %s 的转职分支，会自动视为「无」" % [advanced_class_id, unit_name])
+					warnings.append("advanced_class_id=%s 不属于 %s 的转职分支" % [clean_adv, clean_unit])
 			if avatar_id != "":
 				var p : String = "res://content/images/characters/avatar/%s.png" % avatar_id
 				if not ResourceLoader.exists(p):
 					warnings.append("头像文件不存在: " + p)
 
-		elif placement_mode == PlacementMode.SPAWN_POINT:
-			if spawn_index < 0 or spawn_index > 5:
-				warnings.append("spawn_index 应在 0~5 范围内（通常对应队伍人数）")
-
 		elif placement_mode == PlacementMode.RANDOM_POOL:
 			if pool_key == "" and enemy_pool.is_empty():
-				warnings.append("RANDOM_POOL 格子没有池子：要么填 pool_key（与其他格子共享），要么点「编辑随机池」按钮添加。")
+				warnings.append("RANDOM_POOL 格子没有池子。")
 			if team == Team.玩家:
-				warnings.append("RANDOM_POOL 一般用于敌方。玩家单位请用 FIXED_UNIT / SPAWN_POINT")
-
-			# 校验池里每一项
+				warnings.append("RANDOM_POOL 一般用于敌方。")
+				
 			var all_unit_ids : Array = UnitDataManager.get_all_unit_ids()
 			for entry in enemy_pool:
 				if entry == "": continue
@@ -323,7 +342,7 @@ func _build_spawn_point_preview():
 
 	var label = Label.new()
 	label.text = "S" + str(spawn_index)
-	label.add_theme_font_size_override("font_size", 6) # ★ 统一字号
+	label.add_theme_font_size_override("font_size", 6)
 	label.add_theme_color_override("font_color", Color.WHITE)
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
@@ -343,7 +362,6 @@ func _build_random_pool_preview():
 	bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	control.add_child(bg)
 
-	# ---- 居中的 W 和 RU 字样 ----
 	var lines : Array[String] = []
 	if wave_idx >= 1:
 		lines.append("W%d" % (wave_idx + 1))
@@ -361,30 +379,25 @@ func _build_random_pool_preview():
 	ru_label.clip_text = true 
 	control.add_child(ru_label)
 
-	# ---- 左上角悬浮的 Pool Key 名字 ----
 	if pool_key != "":
 		var key_label := Label.new()
 		key_label.text = pool_key
-		key_label.add_theme_font_size_override("font_size", 4) # 极小字号
-		key_label.add_theme_color_override("font_color", Color(1.0, 0.9, 0.3)) # 浅黄色
-		
+		key_label.add_theme_font_size_override("font_size", 4) 
+		key_label.add_theme_color_override("font_color", Color(1.0, 0.9, 0.3)) 
 		key_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT 
 		key_label.vertical_alignment = VERTICAL_ALIGNMENT_TOP
-		
-		# 宽度放宽防止截断，Y轴负值抵消字体留白，死死贴住顶端
 		key_label.size = Vector2(MapConst.CELL_SIZE * 2, 8)
 		key_label.position = Vector2(0, -2) 
-		
 		key_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		key_label.clip_text = true
-		key_label.z_index = 30 # 确保浮于上层
+		key_label.z_index = 30 
 		control.add_child(key_label)
 
 
 func _build_unit_preview():
 	var bg = ColorRect.new()
 	bg.size = Vector2(MapConst.CELL_SIZE, MapConst.CELL_SIZE)
-	bg.position = Vector2(MapConst.CELL_SIZE/2.0, MapConst.CELL_SIZE/2.0) - bg.size / 2
+	bg.position = Vector2.ZERO
 	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	bg.z_index = -1
 	add_child(bg)
@@ -399,15 +412,17 @@ func _build_unit_preview():
 	unit_instance.input_pickable = false
 	add_child(unit_instance)
 
-	var json_key = _get_json_key()
-	var data = UnitDataManager.get_unit_data(json_key)
-
+	var clean_unit = _clean_id(unit_name)
+	var clean_adv = _clean_id(advanced_class_id)
+	
+	var data = UnitDataManager.get_unit_data(clean_unit)
 	var frames_path : String = data.get("sprite_frames_path", "")
 	var adv_hp_bonus : int = 0
-	if advanced_class_id != "":
-		var branches : Array = _get_branches_for_unit(unit_name)
+	
+	if clean_adv != "":
+		var branches : Array = _get_branches_for_unit(clean_unit)
 		for b in branches:
-			if b is Dictionary and str(b.get("id", "")) == advanced_class_id:
+			if b is Dictionary and str(b.get("id", "")) == clean_adv:
 				var bd : Dictionary = b
 				var adv_path : String = str(bd.get("sprite_frames_path", ""))
 				if adv_path != "" and ResourceLoader.exists(adv_path):
@@ -440,7 +455,6 @@ func _build_unit_preview():
 
 	unit_instance.visible = true
 
-	# ★ 编辑器里显示 W / BO 标签（盖在精灵上方）
 	_add_editor_badge_label()
 
 	_update_visibility()
@@ -467,8 +481,8 @@ func _add_editor_badge_label():
 
 	var label := Label.new()
 	label.text = text
-	label.add_theme_font_size_override("font_size", 6) # ★ 缩小字号
-	label.add_theme_constant_override("line_spacing", -2) # ★ 压缩行距
+	label.add_theme_font_size_override("font_size", 6) 
+	label.add_theme_constant_override("line_spacing", -2) 
 	label.add_theme_color_override("font_color", Color.WHITE)
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
@@ -503,9 +517,6 @@ func _clear_all_children():
 
 func _update_visibility():
 	for child in get_children(): child.visible = show_preview
-
-func _get_json_key() -> String:
-	return unit_name if unit_name != "" else "swordsman"
 
 
 # ============================================================
@@ -578,8 +589,9 @@ func export_config() -> Variant:
 				cfg.enemy_pool.append(e)
 		return cfg
 
-	cfg.unit_name = _get_json_key()
+	# ★ 导出时使用清理后的纯 ID
+	cfg.unit_name = _clean_id(unit_name)
 	cfg.override_stats = {}
-	cfg.advanced_class_id = advanced_class_id
+	cfg.advanced_class_id = _clean_id(advanced_class_id)
 	cfg.avatar_override = avatar_id
 	return cfg

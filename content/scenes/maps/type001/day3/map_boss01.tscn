@@ -15,9 +15,9 @@ collision_enabled = false
 position = Vector2(176, 128)
 script = ExtResource("2_bug8j")
 team = 1
-unit_name = "armored"
-advanced_class_id = "armored_paladin"
-avatar_id = "avatar_011"
+unit_name = "armored:重甲兵"
+advanced_class_id = "armored_paladin:圣骑士"
+avatar_id = "avatar_010"
 is_boss = true
 metadata/_custom_type_script = "uid://cjvddjaj43chx"
 
@@ -26,6 +26,7 @@ position = Vector2(208, 144)
 script = ExtResource("2_bug8j")
 team = 1
 unit_name = "archer"
+advanced_class_id = ""
 metadata/_custom_type_script = "uid://cjvddjaj43chx"
 
 [node name="Enemy05" type="Node2D" parent="." unique_id=591530711]
@@ -33,6 +34,7 @@ position = Vector2(208, 128)
 script = ExtResource("2_bug8j")
 team = 1
 unit_name = "spearman"
+advanced_class_id = ""
 metadata/_custom_type_script = "uid://cjvddjaj43chx"
 
 [node name="Enemy06" type="Node2D" parent="." unique_id=1128483700]
@@ -40,6 +42,7 @@ position = Vector2(208, 112)
 script = ExtResource("2_bug8j")
 team = 1
 unit_name = "pegasus"
+advanced_class_id = ""
 metadata/_custom_type_script = "uid://cjvddjaj43chx"
 
 [node name="Enemy07" type="Node2D" parent="." unique_id=933968204]
@@ -47,6 +50,7 @@ position = Vector2(176, 144)
 script = ExtResource("2_bug8j")
 team = 1
 unit_name = "mage"
+advanced_class_id = ""
 metadata/_custom_type_script = "uid://cjvddjaj43chx"
 
 [node name="HpFunction" type="Node2D" parent="." unique_id=85655960]
@@ -63,12 +67,14 @@ metadata/_custom_type_script = "uid://bwbaxyrughsfk"
 position = Vector2(320, 144)
 script = ExtResource("2_bug8j")
 placement_mode = 1
+advanced_class_id = ""
 metadata/_custom_type_script = "uid://cjvddjaj43chx"
 
 [node name="SpawnPoint_1" type="Node2D" parent="." unique_id=906086980]
 position = Vector2(320, 128)
 script = ExtResource("2_bug8j")
 placement_mode = 1
+advanced_class_id = ""
 spawn_index = 1
 metadata/_custom_type_script = "uid://cjvddjaj43chx"
 
@@ -76,5 +82,6 @@ metadata/_custom_type_script = "uid://cjvddjaj43chx"
 position = Vector2(320, 160)
 script = ExtResource("2_bug8j")
 placement_mode = 1
+advanced_class_id = ""
 spawn_index = 2
 metadata/_custom_type_script = "uid://cjvddjaj43chx"

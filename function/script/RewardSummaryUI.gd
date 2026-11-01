@@ -10,7 +10,7 @@ signal confirmed
 @onready var confirm_button = $Panel/VBoxContainer/ConfirmButton
 
 var _confirmed_guard : bool = false
-
+var rating_label : Label = null # ★ 新增：独立的评级标签
 
 func _ready():
 	visible = false
@@ -19,6 +19,22 @@ func _ready():
 	confirm_button.pressed.connect(_on_confirm_pressed)
 	confirm_button.disabled = false
 	_confirmed_guard = false
+	
+	# ★ 动态创建评级标签，并放在物品列表和横线下方
+	var vbox = $Panel/VBoxContainer
+	rating_label = vbox.get_node_or_null("RatingLabel")
+	if not rating_label:
+		rating_label = Label.new()
+		rating_label.name = "RatingLabel"
+		rating_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		rating_label.add_theme_font_size_override("font_size", 10)
+		vbox.add_child(rating_label)
+		
+		# 确保它放在 ConfirmButton 之前（也就是在第三条横线附近）
+		var idx = vbox.get_children().find(confirm_button)
+		if idx > 0:
+			vbox.move_child(rating_label, idx - 1)
+	rating_label.visible = false
 
 
 func setup_reward(gold: int, soul: int, items: Array, hide_gold: bool = false, title: String = "关卡结算"):
@@ -41,13 +57,32 @@ func setup_reward(gold: int, soul: int, items: Array, hide_gold: bool = false, t
 
 	empty_label.visible = true
 
-	if items.is_empty():
-		return
-
-	var merged_items = {}
+	# ★ 从 items 里挑出评级，不放进物品栏
+	var rating_text := ""
+	var filtered_items := []
 	for item_data in items:
 		if not item_data:
 			continue
+		if item_data.id == "rating":
+			rating_text = item_data.name
+		else:
+			filtered_items.append(item_data)
+
+	# 更新独立的评级标签
+	if rating_label:
+		if rating_text != "":
+			rating_label.text = rating_text
+			rating_label.visible = true
+		else:
+			rating_label.visible = false
+
+	# 处理剩下的物品图标（横向居中排列）
+	if filtered_items.is_empty():
+		empty_label.visible = false
+		return
+
+	var merged_items = {}
+	for item_data in filtered_items:
 		var id = item_data.id
 		if merged_items.has(id):
 			merged_items[id]["count"] += 1
@@ -60,10 +95,11 @@ func setup_reward(gold: int, soul: int, items: Array, hide_gold: bool = false, t
 		var entry = merged_items[key]
 		var data = entry["data"]
 		var count = entry["count"]
+		
 		var hbox = HBoxContainer.new()
 		hbox.add_theme_constant_override("separation", 4)
 		hbox.alignment = BoxContainer.ALIGNMENT_CENTER
-		hbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		hbox.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 
 		var icon = TextureRect.new()
 		if data.icon:
@@ -75,12 +111,10 @@ func setup_reward(gold: int, soul: int, items: Array, hide_gold: bool = false, t
 		else:
 			icon.visible = false
 			
-		# 如果没有图标，才显示文字
 		if not data.icon:
 			var name_label = Label.new()
 			name_label.text = data.name
 			name_label.add_theme_font_size_override("font_size", 8)
-			name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 			name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 
 			if data.id and data.id.begins_with("material_"):
@@ -108,8 +142,6 @@ func open():
 	visible = true
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	Globals.is_reward_summary_active = true
-	if confirm_button.disabled:
-		push_warning("[RewardSummaryUI] open() 后按钮仍 disabled，检查调用方")
 
 
 func close():
@@ -135,9 +167,6 @@ func _on_confirm_pressed():
 
 func set_interactable(enabled: bool):
 	confirm_button.disabled = not enabled
-	if not enabled:
-		print("[RewardSummaryUI] set_interactable(false) 被调用，堆栈：")
-		print_stack()
 
 
 func _get_material_color(material_name: String) -> Color:
@@ -148,8 +177,9 @@ func _get_material_color(material_name: String) -> Color:
 		"龙鳞": return Color(0.8, 0.6, 0.1, 1.0)
 		_: return Color.WHITE
 
-# 新增：轻量化弹窗，用于替代 ItemGetPopup
+
 func show_simple_item(item_id: String, count: int):
+	if rating_label: rating_label.visible = false
 	var data = ItemManager.get_item_data(item_id)
 	if not data and not RelicManager.get_relic_data(item_id).is_empty():
 		var rd = RelicManager.get_relic_data(item_id)
@@ -173,6 +203,7 @@ func show_simple_item(item_id: String, count: int):
 	var hbox = HBoxContainer.new()
 	hbox.add_theme_constant_override("separation", 8)
 	hbox.alignment = BoxContainer.ALIGNMENT_CENTER
+	hbox.size_flags_horizontal = Control.SIZE_SHRINK_CENTER 
 	
 	var icon = TextureRect.new()
 	if data.icon:
@@ -195,7 +226,6 @@ func show_simple_item(item_id: String, count: int):
 	
 	material_list_container.add_child(hbox)
 	
-	# 改为 2 秒后自动关闭，不显示确认按钮
 	confirm_button.visible = false
 	visible = true
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
@@ -211,6 +241,7 @@ func show_simple_item(item_id: String, count: int):
 
 
 func show_text(text: String):
+	if rating_label: rating_label.visible = false
 	title_label.text = "提示"
 	gold_label.visible = false
 	soul_label.visible = false
@@ -225,6 +256,7 @@ func show_text(text: String):
 	label.add_theme_font_size_override("font_size", 9)
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	material_list_container.add_child(label)
 	
 	confirm_button.visible = false

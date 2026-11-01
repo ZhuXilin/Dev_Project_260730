@@ -1,13 +1,14 @@
 extends Node
 
 # ============================================================
-#  WaveManager — 波次与增援（保底修复版）
+#  WaveManager — 波次与增援（纯净版）
 #
-#  保底原则：
-#    1. 显式 wave 模式下，第 1 组不再被错误隐藏
-#    2. 有效组 ≤ 1 时直接降级为单波（is_active() = false）
-#    3. _activate_next_wave 跳过空组，不会出场空阵容
-#    4. 所有组清空但仍未胜利时，由 TurnManager.check_victory 兜底
+#  功能：
+#    1. 显式 wave 模式下，第 1 组正常入场
+#    2. 有效组 ≤ 1 时直接降级为单波
+#    3. _activate_next_wave 跳过空组
+#    4. 出场时若出生点被占，自动推挤到最近的空格子
+#    5. 所有的 W1/BO 等调试字串只在 UnitPlacer 的编辑器模式下生成
 # ============================================================
 
 var _type_total_waves : int = 1
@@ -18,7 +19,6 @@ var _warning_shown : bool = false
 
 var _map_data : MapData = null
 var _battlefield : Node2D = null
-var _wave_badges : Dictionary = {}  # Unit -> Node2D
 
 signal wave_advanced(current_wave: int, total_waves: int)
 signal wave_warning(current_wave: int, total_waves: int)
@@ -41,7 +41,6 @@ func setup_for_node(map_data : MapData, battlefield : Node2D = null) -> void:
 	_warning_shown = false
 
 	call_deferred("_build_groups")
-	call_deferred("_deferred_add_boss_badges")
 
 
 func reset() -> void:
@@ -52,12 +51,6 @@ func reset() -> void:
 	_warning_shown = false
 	_map_data = null
 	_battlefield = null
-
-	# ★ 新增：清理所有波次徽章
-	for badge in _wave_badges.values():
-		if is_instance_valid(badge):
-			badge.queue_free()
-	_wave_badges.clear()
 
 
 # ============================================================
@@ -107,7 +100,7 @@ func _build_groups():
 				explicit_map[w] = []
 			explicit_map[w].append(u)
 
-	# ★ 有 wave=1 的也要进 explicit_map，避免第 1 波被遗漏
+	# 有 wave=1 的也要进 explicit_map，避免第 1 波被遗漏
 	if has_explicit:
 		var w1_units : Array = []
 		for u in enemies:
@@ -205,7 +198,6 @@ func _build_groups():
 	wave_advanced.emit(_current_wave, _type_total_waves)
 
 
-# ★ 显式波次分组（保底修复）
 func _build_groups_by_explicit_wave(wave_map: Dictionary):
 	var sorted_waves : Array = wave_map.keys()
 	sorted_waves.sort()
@@ -222,14 +214,14 @@ func _build_groups_by_explicit_wave(wave_map: Dictionary):
 	_next_wave_delay = 0
 	_warning_shown = false
 
-	# ★ 保底：只有 0 组或 1 组 → 视为单波
+	# 只有 0 组或 1 组 → 视为单波
 	if groups.size() <= 1:
 		_type_total_waves = 1
 		print("[Wave] 显式波次（仅 %d 组有效），降级为单波" % groups.size())
 		wave_advanced.emit(1, 1)
 		return
 
-	# ★ 第 1 组保持原状（可见、可行动），第 2 组起隐藏
+	# 第 1 组保持原状，第 2 组起隐藏
 	for gi in range(1, groups.size()):
 		var g : Array = groups[gi]
 		for u in g:
@@ -242,72 +234,6 @@ func _build_groups_by_explicit_wave(wave_map: Dictionary):
 	wave_advanced.emit(1, _type_total_waves)
 
 
-# ============================================================
-#  ★ 统一补 Boss 徽章（首发 Boss 在 _hide_unit 里不会被调用）
-# ============================================================
-func _deferred_add_boss_badges():
-	if _battlefield == null or not is_instance_valid(_battlefield):
-		return
-	for u in UnitManager.unit_list:
-		if not is_instance_valid(u): continue
-		if u.unit_stats.team_id != 1: continue
-		if u.hit_points <= 0: continue
-		if not u.unit_stats.is_boss: continue
-		_add_wave_badge(u)
-
-
-# ============================================================
-#  ★ 波次徽章：W2-W6 显示在隐藏单位格子上
-#  不用 u.add_child 的原因：u.visible=false 会连子节点一起隐藏
-#  所以作为 _battlefield 的子节点，用世界坐标定位
-# ============================================================
-func _add_wave_badge(u: Unit):
-	if not is_instance_valid(u): return
-	if _battlefield == null or not is_instance_valid(_battlefield): return
-
-	var wave_num : int = int(u.get_meta("wave", 1))
-	var is_boss : bool = u.unit_stats.is_boss
-	if wave_num <= 1 and not is_boss: return
-
-	if _wave_badges.has(u) and is_instance_valid(_wave_badges[u]):
-		_wave_badges[u].queue_free()
-
-	var badge := Node2D.new()
-	badge.name = "WaveBadge"
-	badge.z_index = 100
-	badge.z_as_relative = false
-	badge.position = _battlefield.grid_to_world(u.grid_cell)
-	_battlefield.add_child(badge)
-
-	var badges_text : Array[String] = []
-	if wave_num >= 2: badges_text.append("W%d" % wave_num)
-	if is_boss: badges_text.append("BO")
-
-	var label := Label.new()
-	label.text = " ".join(badges_text)
-	label.add_theme_font_size_override("font_size", 8)
-	label.add_theme_color_override("font_color",
-		Color(1.0, 0.3, 0.3) if is_boss else Color(1.0, 0.85, 0.3))
-	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	label.size = Vector2(48, MapConst.CELL_SIZE)
-	# 宽48高16的中心在(24,8)，向左上偏移让中心对准原点 (0,0)
-	label.position = Vector2(-24, -MapConst.CELL_SIZE / 2.0)
-	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	badge.add_child(label)
-
-	_wave_badges[u] = badge
-
-
-func _remove_wave_badge(u: Unit):
-	if not _wave_badges.has(u):
-		return
-	var badge = _wave_badges[u]
-	if is_instance_valid(badge):
-		badge.queue_free()
-	_wave_badges.erase(u)
-
-
 func _hide_unit(u: Unit):
 	u.visible = false
 	u.process_mode = Node.PROCESS_MODE_DISABLED
@@ -316,18 +242,13 @@ func _hide_unit(u: Unit):
 	u.hit_points = u.unit_stats.max_hp
 	if u is CollisionObject2D:
 		(u as CollisionObject2D).set_collision_layer_value(1, false)
-	# ★ 新增：显示 W2-W6 波次徽章
-	_add_wave_badge(u)
 
 
 func _show_unit(u: Unit):
 	if not is_instance_valid(u):
 		return
 
-	# ★ 新增：先移除波次徽章
-	_remove_wave_badge(u)
-
-	# ★ 目标格若已被其他单位（含隐藏）占用，推到最近空位
+	# 目标格若已被其他单位（含隐藏）占用，推到最近空位
 	var conflicting : Unit = null
 	for other in UnitManager.unit_list:
 		if not is_instance_valid(other): continue
@@ -402,7 +323,6 @@ func on_player_turn_end() -> void:
 		_activate_next_wave()
 
 
-# ★ 保底：跳过空组，若全部为空则静默退出
 func _activate_next_wave():
 	while not _pending_groups.is_empty():
 		var next_group : Array = _pending_groups.pop_front()
@@ -437,7 +357,7 @@ func _activate_next_wave():
 
 
 # ============================================================
-#  增援生成（走 UnitSpawner 倍率函数）
+#  增援生成
 # ============================================================
 func _spawn_reinforcements(count : int):
 	if count <= 0: return
@@ -464,7 +384,6 @@ func _spawn_reinforcements(count : int):
 	var unit_scene = load(unit_path)
 	if unit_scene == null: return
 
-	# ★ 统一走 UnitSpawner 的倍率函数
 	var node_type : int = _map_data.node_type if _map_data else MapNode.NodeType.NORMAL
 	var hp_mult : float = UnitSpawner.get_enemy_hp_mult(node_type, false) * UnitSpawner.get_enemy_hp_extra()
 	var day_mult : float = UnitSpawner.get_day_attr_mult(GameState.current_day)
@@ -502,7 +421,7 @@ func _find_edge_spawn_cells(count : int) -> Array:
 			var is_edge : bool = (x == 0 or x == sz.x - 1 or y == 0 or y == sz.y - 1)
 			if not is_edge: continue
 			var cell : Vector2i = Vector2i(x, y)
-			# ★ 修复：包含隐藏单位，避免增援生到波次敌人头上
+			# 包含隐藏单位，避免增援生到波次敌人头上
 			if UnitManager.is_cell_occupied_including_hidden(cell): continue
 			var terrain : int = TerrainManager.get_terrain(cell)
 			if not TerrainManager.TERRAIN_DATA[terrain]["passable"]: continue
