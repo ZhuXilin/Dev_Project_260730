@@ -3,7 +3,6 @@
 [ext_resource type="TileSet" uid="uid://bmko3nha5eqoa" path="res://content/scenes/tilemap/TerrainTileSet01.tres" id="1_47gnj"]
 [ext_resource type="Script" uid="uid://cjvddjaj43chx" path="res://function/tool/mapplacer/UnitPlacer.gd" id="2_jb1u7"]
 [ext_resource type="Script" uid="uid://bwbaxyrughsfk" path="res://function/tool/mapplacer/HpFunction.gd" id="5_ptjd0"]
-[ext_resource type="Script" uid="uid://d4b5iewm1v2pe" path="res://function/tool/mapplacer/EventTrigger.gd" id="6_70hek"]
 
 [node name="Level01" type="Node2D" unique_id=1730342054]
 
@@ -16,7 +15,7 @@ collision_enabled = false
 position = Vector2(112, 112)
 script = ExtResource("2_jb1u7")
 team = 1
-unit_type = 6
+unit_name = "cleric"
 immobile = true
 metadata/_custom_type_script = "uid://cjvddjaj43chx"
 
@@ -24,28 +23,41 @@ metadata/_custom_type_script = "uid://cjvddjaj43chx"
 position = Vector2(128, 96)
 script = ExtResource("2_jb1u7")
 team = 1
-unit_type = 3
+unit_name = "archer"
 metadata/_custom_type_script = "uid://cjvddjaj43chx"
 
 [node name="Enemy05" type="Node2D" parent="." unique_id=101885428]
 position = Vector2(128, 128)
 script = ExtResource("2_jb1u7")
 team = 1
-unit_type = 1
+unit_name = "spearman"
 metadata/_custom_type_script = "uid://cjvddjaj43chx"
 
 [node name="Enemy04" type="Node2D" parent="." unique_id=1450815186]
 position = Vector2(176, 64)
 script = ExtResource("2_jb1u7")
 team = 1
-unit_type = 4
+unit_name = "pegasus"
 wave_idx = 1
 metadata/_custom_type_script = "uid://cjvddjaj43chx"
 
 [node name="Enemy06" type="Node2D" parent="." unique_id=154256203]
 position = Vector2(96, 80)
 script = ExtResource("2_jb1u7")
+placement_mode = 2
 team = 1
+pool_key = "P1"
+enemy_pool = Array[String](["archer", "axeman", "spearman"])
+wave_idx = 2
+metadata/_custom_type_script = "uid://cjvddjaj43chx"
+
+[node name="Enemy07" type="Node2D" parent="." unique_id=910917582]
+position = Vector2(112, 80)
+script = ExtResource("2_jb1u7")
+placement_mode = 2
+team = 1
+pool_key = "P1"
+enemy_pool = Array[String](["archer", "axeman", "spearman"])
 wave_idx = 2
 metadata/_custom_type_script = "uid://cjvddjaj43chx"
 
@@ -58,18 +70,6 @@ metadata/_custom_type_script = "uid://bwbaxyrughsfk"
 position = Vector2(224, 128)
 script = ExtResource("5_ptjd0")
 metadata/_custom_type_script = "uid://bwbaxyrughsfk"
-
-[node name="EventTrigger" type="Node2D" parent="." unique_id=118071860]
-position = Vector2(224, 112)
-script = ExtResource("6_70hek")
-event_id = "village_encounter"
-metadata/_custom_type_script = "uid://d4b5iewm1v2pe"
-
-[node name="EventTrigger4" type="Node2D" parent="." unique_id=535324203]
-position = Vector2(352, 176)
-script = ExtResource("6_70hek")
-event_id = "healer_advice_event"
-metadata/_custom_type_script = "uid://d4b5iewm1v2pe"
 
 [node name="SpawnPoint_0" type="Node2D" parent="." unique_id=1093141604]
 position = Vector2(320, 144)

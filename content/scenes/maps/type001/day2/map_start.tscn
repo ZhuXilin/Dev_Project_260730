@@ -3,7 +3,6 @@
 [ext_resource type="TileSet" uid="uid://bmko3nha5eqoa" path="res://content/scenes/tilemap/TerrainTileSet01.tres" id="1_ujyms"]
 [ext_resource type="Script" uid="uid://cjvddjaj43chx" path="res://function/tool/mapplacer/UnitPlacer.gd" id="2_li2ro"]
 [ext_resource type="Script" uid="uid://bwbaxyrughsfk" path="res://function/tool/mapplacer/HpFunction.gd" id="5_wmtur"]
-[ext_resource type="Script" uid="uid://d4b5iewm1v2pe" path="res://function/tool/mapplacer/EventTrigger.gd" id="6_oslrw"]
 
 [node name="Level01" type="Node2D" unique_id=1730342054]
 
@@ -16,21 +15,21 @@ collision_enabled = false
 position = Vector2(128, 96)
 script = ExtResource("2_li2ro")
 team = 1
-unit_type = 3
+unit_name = "archer"
 metadata/_custom_type_script = "uid://cjvddjaj43chx"
 
 [node name="Enemy04" type="Node2D" parent="." unique_id=121289861]
 position = Vector2(144, 128)
 script = ExtResource("2_li2ro")
 team = 1
-unit_type = 5
+unit_name = "mage"
 metadata/_custom_type_script = "uid://cjvddjaj43chx"
 
 [node name="Enemy05" type="Node2D" parent="." unique_id=42826125]
 position = Vector2(160, 112)
 script = ExtResource("2_li2ro")
 team = 1
-unit_type = 1
+unit_name = "spearman"
 metadata/_custom_type_script = "uid://cjvddjaj43chx"
 
 [node name="HpFunction" type="Node2D" parent="." unique_id=1782810974]
@@ -42,18 +41,6 @@ metadata/_custom_type_script = "uid://bwbaxyrughsfk"
 position = Vector2(224, 128)
 script = ExtResource("5_wmtur")
 metadata/_custom_type_script = "uid://bwbaxyrughsfk"
-
-[node name="EventTrigger" type="Node2D" parent="." unique_id=118071860]
-position = Vector2(224, 112)
-script = ExtResource("6_oslrw")
-event_id = "village_encounter"
-metadata/_custom_type_script = "uid://d4b5iewm1v2pe"
-
-[node name="EventTrigger4" type="Node2D" parent="." unique_id=535324203]
-position = Vector2(352, 176)
-script = ExtResource("6_oslrw")
-event_id = "healer_advice_event"
-metadata/_custom_type_script = "uid://d4b5iewm1v2pe"
 
 [node name="SpawnPoint_0" type="Node2D" parent="." unique_id=1257336336]
 position = Vector2(304, 128)

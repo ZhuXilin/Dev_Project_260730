@@ -3,7 +3,6 @@
 [ext_resource type="TileSet" uid="uid://bmko3nha5eqoa" path="res://content/scenes/tilemap/TerrainTileSet01.tres" id="1_0gms0"]
 [ext_resource type="Script" uid="uid://cjvddjaj43chx" path="res://function/tool/mapplacer/UnitPlacer.gd" id="2_bsw5k"]
 [ext_resource type="Script" uid="uid://bwbaxyrughsfk" path="res://function/tool/mapplacer/HpFunction.gd" id="4_qiadl"]
-[ext_resource type="Script" uid="uid://d4b5iewm1v2pe" path="res://function/tool/mapplacer/EventTrigger.gd" id="5_y456x"]
 
 [node name="Level01" type="Node2D" unique_id=1730342054]
 
@@ -16,7 +15,7 @@ collision_enabled = false
 position = Vector2(176, 128)
 script = ExtResource("2_bsw5k")
 team = 1
-unit_type = 6
+unit_name = "cleric"
 metadata/_custom_type_script = "uid://cjvddjaj43chx"
 
 [node name="Enemy02" type="Node2D" parent="." unique_id=42826125]
@@ -29,16 +28,16 @@ metadata/_custom_type_script = "uid://cjvddjaj43chx"
 position = Vector2(208, 144)
 script = ExtResource("2_bsw5k")
 team = 1
-unit_type = 3
+unit_name = "archer"
 metadata/_custom_type_script = "uid://cjvddjaj43chx"
 
 [node name="Boss01" type="Node2D" parent="." unique_id=591530711]
 position = Vector2(208, 128)
 script = ExtResource("2_bsw5k")
 team = 1
-unit_type = 1
-advanced_class_idx = 2
-avatar_idx = 17
+unit_name = "spearman"
+advanced_class_id = "spearman_ironshield"
+is_boss = true
 metadata/_custom_type_script = "uid://cjvddjaj43chx"
 
 [node name="HpFunction" type="Node2D" parent="." unique_id=85655960]
@@ -50,12 +49,6 @@ metadata/_custom_type_script = "uid://bwbaxyrughsfk"
 position = Vector2(304, 160)
 script = ExtResource("4_qiadl")
 metadata/_custom_type_script = "uid://bwbaxyrughsfk"
-
-[node name="EventTrigger" type="Node2D" parent="." unique_id=668569711]
-position = Vector2(288, 128)
-script = ExtResource("5_y456x")
-event_id = "village_gossip_event"
-metadata/_custom_type_script = "uid://d4b5iewm1v2pe"
 
 [node name="SpawnPoint_0" type="Node2D" parent="." unique_id=1899670799]
 position = Vector2(320, 144)

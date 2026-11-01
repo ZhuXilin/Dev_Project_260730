@@ -3,7 +3,6 @@
 [ext_resource type="TileSet" uid="uid://bmko3nha5eqoa" path="res://content/scenes/tilemap/TerrainTileSet01.tres" id="1_hdbnc"]
 [ext_resource type="Script" uid="uid://cjvddjaj43chx" path="res://function/tool/mapplacer/UnitPlacer.gd" id="2_x4gy0"]
 [ext_resource type="Script" uid="uid://bwbaxyrughsfk" path="res://function/tool/mapplacer/HpFunction.gd" id="4_jr7jh"]
-[ext_resource type="Script" uid="uid://d4b5iewm1v2pe" path="res://function/tool/mapplacer/EventTrigger.gd" id="5_1rib1"]
 
 [node name="Level01" type="Node2D" unique_id=1730342054]
 
@@ -16,40 +15,34 @@ collision_enabled = false
 position = Vector2(208, 144)
 script = ExtResource("2_x4gy0")
 team = 1
-unit_type = 3
+unit_name = "archer"
 metadata/_custom_type_script = "uid://cjvddjaj43chx"
 
 [node name="Enemy04" type="Node2D" parent="." unique_id=1144367768]
 position = Vector2(224, 112)
 script = ExtResource("2_x4gy0")
 team = 1
-unit_type = 2
+unit_name = "axeman"
 metadata/_custom_type_script = "uid://cjvddjaj43chx"
 
 [node name="Enemy05" type="Node2D" parent="." unique_id=591530711]
 position = Vector2(208, 128)
 script = ExtResource("2_x4gy0")
 team = 1
-unit_type = 1
+unit_name = "spearman"
 metadata/_custom_type_script = "uid://cjvddjaj43chx"
 
 [node name="Enemy07" type="Node2D" parent="." unique_id=933968204]
 position = Vector2(176, 144)
 script = ExtResource("2_x4gy0")
 team = 1
-unit_type = 5
+unit_name = "mage"
 metadata/_custom_type_script = "uid://cjvddjaj43chx"
 
 [node name="HpFunction2" type="Node2D" parent="." unique_id=561272170]
 position = Vector2(304, 160)
 script = ExtResource("4_jr7jh")
 metadata/_custom_type_script = "uid://bwbaxyrughsfk"
-
-[node name="EventTrigger" type="Node2D" parent="." unique_id=668569711]
-position = Vector2(288, 128)
-script = ExtResource("5_1rib1")
-event_id = "village_gossip_event"
-metadata/_custom_type_script = "uid://d4b5iewm1v2pe"
 
 [node name="SpawnPoint_0" type="Node2D" parent="." unique_id=1977183684]
 position = Vector2(320, 144)

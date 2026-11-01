@@ -273,7 +273,8 @@ static func spawn_test_units(parent: Node, grid_to_world_func: Callable):
 	spawn_units_from_configs(parent, configs, grid_to_world_func)
 
 
-static func spawn_party_from_gamestate(parent: Node, grid_to_world_func: Callable, spawn_points: Array[Vector2i]):
+static func spawn_party_from_gamestate(parent: Node, grid_to_world_func: Callable,
+		spawn_points: Array[Vector2i]):
 	var party = GameState.get_party_units()
 	var alive : Array = []
 	for u in party:
@@ -286,6 +287,19 @@ static func spawn_party_from_gamestate(parent: Node, grid_to_world_func: Callabl
 	for i in range(count):
 		var unit_data = alive[i]
 		var spawn_cell = spawn_points[i]
+
+		# ★ 关键修复：出生点可能被隐藏的波次敌人 / 其他单位占用 → 推到最近空位
+		#   注意：is_cell_occupied_including_hidden 会随循环中 register_unit 实时更新，
+		#   已经出生的玩家单位也会被正确识别为占用。
+		if UnitManager.is_cell_occupied_including_hidden(spawn_cell):
+			var new_cell : Vector2i = UnitManager.find_nearest_empty_cell(spawn_cell, 10)
+			if new_cell == Vector2i(-1, -1):
+				push_warning("[UnitSpawner] %s 找不到空位出生，跳过" % unit_data.unit_name)
+				continue
+			print("[UnitSpawner] %s 的出生点 %s 被占，推到 %s" % [
+				unit_data.unit_name, str(spawn_cell), str(new_cell)])
+			spawn_cell = new_cell
+
 		unit_data.hit_points = unit_data.max_hp
 		var unit = load(UNIT_PATH).instantiate()
 		unit.restore_from_unit_data(unit_data, spawn_cell)

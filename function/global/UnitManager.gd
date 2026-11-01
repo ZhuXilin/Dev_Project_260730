@@ -167,3 +167,68 @@ func is_attack_target_of(attacker : Unit, occupant : Unit) -> bool:
 		return same_team
 	else:
 		return not same_team
+
+
+# ============================================================
+#  ★ v4.7 新增：波次 / 出生点冲突检测（含隐藏单位）
+# ============================================================
+
+## 不管 visible，只要 hit_points > 0 且在该格就算占用。
+## 用于波次出场 / 玩家出生前检测"隐藏的波次敌人占坑"。
+func get_unit_at_cell_including_hidden(cell: Vector2i) -> Unit:
+	for unit in unit_list:
+		if not is_instance_valid(unit): continue
+		if unit.grid_cell == cell and unit.hit_points > 0:
+			return unit
+	return null
+
+
+func is_cell_occupied_including_hidden(cell: Vector2i) -> bool:
+	return get_unit_at_cell_including_hidden(cell) != null
+
+
+## 从 start_cell 出发做 BFS，返回最近的"没有单位（含隐藏）+ 地形可通行"格。
+## avoid_cells 里列出的格子也视为不可用（用于玩家出生时批量避开已分配格）。
+## 找不到返回 Vector2i(-1, -1)。
+func find_nearest_empty_cell(start_cell: Vector2i, max_radius: int = 8,
+		avoid_cells: Dictionary = {}) -> Vector2i:
+	# 起点本身可用就直接返回
+	if _is_cell_passable(start_cell) \
+			and not avoid_cells.has(start_cell) \
+			and not is_cell_occupied_including_hidden(start_cell):
+		return start_cell
+
+	var visited : Dictionary = { start_cell: true }
+	var queue : Array = [start_cell]
+	var dirs : Array = [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]
+
+	while not queue.is_empty():
+		var cur : Vector2i = queue.pop_front()
+		for d in dirs:
+			var n : Vector2i = cur + d
+			if visited.has(n): continue
+			visited[n] = true
+
+			if n.x < 0 or n.x >= TerrainManager.grid_size.x \
+					or n.y < 0 or n.y >= TerrainManager.grid_size.y:
+				continue
+			if abs(n.x - start_cell.x) + abs(n.y - start_cell.y) > max_radius:
+				continue
+			if not _is_cell_passable(n):
+				continue
+			if avoid_cells.has(n):
+				continue
+			if is_cell_occupied_including_hidden(n):
+				continue
+
+			return n
+
+	return Vector2i(-1, -1)
+
+
+func _is_cell_passable(cell: Vector2i) -> bool:
+	var t : int = TerrainManager.get_terrain(cell)
+	if t == TerrainManager.TerrainType.IMPASSABLE_ALL:
+		return false
+	var td : Dictionary = TerrainManager.TERRAIN_DATA.get(t, {})
+	return bool(td.get("passable", true))

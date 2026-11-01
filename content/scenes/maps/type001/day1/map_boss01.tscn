@@ -15,23 +15,23 @@ collision_enabled = false
 position = Vector2(176, 128)
 script = ExtResource("2_roqpf")
 team = 1
-unit_type = 3
+unit_name = "archer"
 metadata/_custom_type_script = "uid://cjvddjaj43chx"
 
 [node name="Enemy03" type="Node2D" parent="." unique_id=852935361]
 position = Vector2(192, 160)
 script = ExtResource("2_roqpf")
 team = 1
-unit_type = 2
+unit_name = "axeman"
 metadata/_custom_type_script = "uid://cjvddjaj43chx"
 
 [node name="Boss01" type="Node2D" parent="." unique_id=933968204]
 position = Vector2(176, 144)
 script = ExtResource("2_roqpf")
 team = 1
-unit_type = 5
-advanced_class_idx = 1
-avatar_idx = 16
+unit_name = "mage"
+advanced_class_id = "mage_archmage"
+avatar_id = "avatar_023"
 is_boss = true
 metadata/_custom_type_script = "uid://cjvddjaj43chx"
 
