@@ -23,7 +23,7 @@ func start_drag(btn: Button):
 	if btn.disabled: return
 	var slot_type : String = btn.get_meta("slot_type", "")
 	
-	# ★ 彻底拦截武器相关拖拽
+	# ★ 拦截武器相关拖拽
 	if slot_type == "weapon" or slot_type == "library_weapon":
 		return
 		
@@ -31,6 +31,21 @@ func start_drag(btn: Button):
 	var item_id : String = btn.get_meta("item_id", "")
 	var talent_id : String = btn.get_meta("talent_id", "")
 	var refine_id : String = btn.get_meta("refine_id", "")
+	
+	# ★ 新增：光环拖拽
+	if slot_type in ["aura_shop", "aura_equipped"]:
+		drag_source = btn
+		drag_meta = {
+			"slot_type": slot_type,
+			"aura_id": btn.get_meta("aura_id", ""),
+			"aura_price": btn.get_meta("aura_price", 0),
+			"source_control": btn,
+		}
+		var btn_rect : Rect2 = btn.get_global_rect()
+		drag_grab_offset = panel.get_global_mouse_position() - btn_rect.position
+		_begin_dragging()
+		return
+		
 	if slot_type == "passive_slot" and item_id == "" and refine_id == "": return
 	if slot_type in ["library_talent", "talent"] and talent_id == "": return
 	if slot_type == "shop_item" and item_id == "": return
@@ -64,9 +79,8 @@ func start_drag(btn: Button):
 					drag_meta["item_data"] = entry_dict["item_data"]
 					drag_meta["item_price"] = entry_dict["price"]
 					
-	# ★ 修复偏移：计算鼠标相对于按钮左上角的距离
-	var btn_rect : Rect2 = btn.get_global_rect()
-	drag_grab_offset = panel.get_global_mouse_position() - btn_rect.position
+	var btn_rect2 : Rect2 = btn.get_global_rect()
+	drag_grab_offset = panel.get_global_mouse_position() - btn_rect2.position
 	_begin_dragging()
 
 

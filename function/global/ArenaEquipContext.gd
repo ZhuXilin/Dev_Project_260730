@@ -14,10 +14,15 @@ func get_title() -> String: return "魂之竞技场"
 
 # ---- 货币 ----
 func get_gold() -> int: return arena_gold
+
 func subtract_gold(amount: int) -> bool:
 	if arena_gold < amount: return false
 	arena_gold -= amount
 	return true
+
+func add_gold(amount: int) -> void:
+	arena_gold += amount
+
 func show_gold() -> bool: return true
 
 # ---- 单位 ----

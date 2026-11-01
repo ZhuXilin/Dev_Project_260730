@@ -120,9 +120,13 @@ func _handle_hotkey(keycode: int):
 	elif k == KEY_KP_5: k = KEY_5
 	elif k == KEY_KP_6: k = KEY_6
 	elif k == KEY_KP_7: k = KEY_7
+	elif k == KEY_KP_8: k = KEY_8
 	elif k == KEY_KP_9: k = KEY_9
 
 	match k:
+		KEY_2:
+			_cmd_god([])
+			get_viewport().set_input_as_handled()
 		KEY_5:
 			_hotkey_soul()
 			get_viewport().set_input_as_handled()
@@ -132,12 +136,40 @@ func _handle_hotkey(keycode: int):
 		KEY_7:
 			_hotkey_soul_fire()
 			get_viewport().set_input_as_handled()
+		KEY_8:
+			_hotkey_lose()
+			get_viewport().set_input_as_handled()
+		KEY_9:
+			_hotkey_kill_wave()
+			get_viewport().set_input_as_handled()
 		KEY_0:
 			_hotkey_win()
 			get_viewport().set_input_as_handled()
-		KEY_9:
-			_hotkey_lose()
-			get_viewport().set_input_as_handled()
+
+
+func _hotkey_kill_wave():
+	var n = _do_kill_visible_enemies()
+	print("[GM] 击杀当前波次可见敌人 %d 个" % n)
+	TurnManager.check_victory()
+	_refresh_all_ui()
+
+func _do_kill_visible_enemies() -> int:
+	var targets : Array = []
+	for u in UnitManager.unit_list:
+		if not is_instance_valid(u): continue
+		if u.unit_stats.team_id != 1: continue
+		if u.hit_points <= 0: continue
+		if not u.visible: continue  # ★ 核心：只杀当前场上可见的，不杀隐藏的后续波次
+		targets.append(u)
+
+	var n = 0
+	for u in targets:
+		if not is_instance_valid(u): continue
+		u.apply_damage(u.hit_points)
+		UnitManager.unregister_unit(u)
+		u.queue_free()
+		n += 1
+	return n
 
 
 func _toggle(force: Variant = null):
@@ -609,11 +641,9 @@ func _cmd_god(_args: Array):
 	for u in UnitManager.unit_list:
 		if not is_instance_valid(u): continue
 		if u.unit_stats.team_id == 0:
-			u.unit_stats.max_hp = 9999
-			u.hit_points = 9999
-			u.update_hp_label()
+			u.set_meta("gm_god", true)
 			n += 1
-	_out("我方 %d 个单位已无敌" % n, "yellow")
+	_out("我方 %d 个单位已开启无敌模式（仅本场生效）" % n, "yellow")
 
 
 func _cmd_goto(args: Array):

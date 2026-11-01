@@ -32,13 +32,6 @@ team = 1
 unit_name = "mage"
 metadata/_custom_type_script = "uid://cjvddjaj43chx"
 
-[node name="Enemy05" type="Node2D" parent="." unique_id=42826125]
-position = Vector2(160, 112)
-script = ExtResource("2_5uvjn")
-team = 1
-unit_name = "spearman"
-metadata/_custom_type_script = "uid://cjvddjaj43chx"
-
 [node name="HpFunction" type="Node2D" parent="." unique_id=1782810974]
 position = Vector2(48, 96)
 script = ExtResource("5_lu5jf")

@@ -15,6 +15,9 @@ func subtract_gold(amount: int) -> bool:
 	EconomyManager.subtract_temp_gold(amount)
 	return true
 
+func add_gold(amount: int) -> void:
+	EconomyManager.add_temp_gold(amount)
+
 func show_gold() -> bool:
 	return true
 

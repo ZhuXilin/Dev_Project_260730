@@ -21,7 +21,6 @@ var _map_data : MapData = null
 var _battlefield : Node2D = null
 
 signal wave_advanced(current_wave: int, total_waves: int)
-signal wave_warning(current_wave: int, total_waves: int)
 
 
 # ============================================================
@@ -309,18 +308,10 @@ func on_player_turn_end() -> void:
 	if alive_enemies > 0:
 		return
 
-	if not _warning_shown:
-		_warning_shown = true
-		_next_wave_delay = 1
-		print("[Wave] 第 %d 波清空，警告即将增援" % _current_wave)
-		wave_warning.emit(_current_wave + 1, _type_total_waves)
-		return
-
-	if _next_wave_delay > 0:
-		_next_wave_delay -= 1
-		if _next_wave_delay > 0:
-			return
-		_activate_next_wave()
+	# ★ 修改：只要当前没活着的敌人，直接激活下一波（移除之前的等待逻辑）
+	_warning_shown = false
+	_next_wave_delay = 0
+	_activate_next_wave()
 
 
 func _activate_next_wave():

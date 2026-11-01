@@ -14,6 +14,7 @@ var last_moved_unit : Unit = null
 var enemy_ai : EnemyAI = null
 var map_functions: Dictionary = {}
 var _battle_ready : bool = false
+var _wave_clear_notified : bool = false
 
 func _ready():
 	UnitManager.unit_removed.connect(_on_unit_removed)
@@ -36,6 +37,7 @@ func _on_unit_removed(unit: Unit, team: int):
 	if is_game_over: return
 	if ObjectiveManager: ObjectiveManager.on_unit_removed(unit, team)
 	check_victory()
+	
 
 func check_victory():
 	if not _battle_ready: return
@@ -49,13 +51,24 @@ func check_victory():
 	if player_count == 0:
 		_trigger_victory(1)
 		return
+		
 	if ObjectiveManager and ObjectiveManager.is_completed():
 		_trigger_victory(0)
 		return
+		
 	if (not ObjectiveManager) or ObjectiveManager.is_annihilate():
 		if enemy_count == 0:
-			if WaveManager and WaveManager.has_pending_waves(): return
+			if WaveManager and WaveManager.has_pending_waves():
+				if not _wave_clear_notified:
+					_wave_clear_notified = true
+					# ★ 改用非常显眼的居中标语，防止错漏
+					SignalBus.request_hint_override.emit("★ 当前波次清空，敌方增援即将抵达（请结束回合）", 4.0)
+					SignalBus.request_screen_shake.emit(0.4, 3.0, Vector2.ZERO)
+					# 4 秒后自动重置提示状态
+					get_tree().create_timer(4.0).timeout.connect(func(): _wave_clear_notified = false)
+				return
 			_trigger_victory(0)
+
 
 func _trigger_victory(winning_team: int):
 	if is_game_over: return

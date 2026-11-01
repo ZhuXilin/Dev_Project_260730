@@ -120,7 +120,8 @@ static func _roll_enemy_for_config(cfg: UnitConfig, pool_map: Dictionary) -> Dic
 		push_warning("[UnitSpawner] RANDOM_POOL 格子没有可用池子，pos=%s pool_key=%s" % [
 			str(cfg.position), cfg.pool_key])
 		return {}
-	var entry : String = str(pool[randi() % pool.size()])
+	# ★ 修复：使用 pick_random 保证分布均匀，且每次独立抽取
+	var entry : String = str(pool.pick_random())
 	return parse_pool_entry(entry)
 
 

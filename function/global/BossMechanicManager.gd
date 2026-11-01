@@ -154,8 +154,17 @@ func on_boss_defeated(defender : Unit) -> bool:
 	defender.hit_points = defender.unit_stats.max_hp
 	defender.unit_stats.strength += 3
 	defender.unit_stats.dexterity += 2
+	
+	# ★ 修复：复活后必须重置变灰和行动状态，否则看起来像死了
+	defender.set_gray(false)
+	defender.can_act_this_turn = true
+	defender.has_acted = false
+	defender.has_attacked = false
+	defender.has_moved = false
+	
 	defender.update_hp_label()
 	defender.update_color()
+	
 	print("[Boss] 复活：max_hp %d → %d，力+3 灵+2" % [old_max, defender.unit_stats.max_hp])
 
 	var old_max_sf : int = SoulFireManager.get_max_carried()

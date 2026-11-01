@@ -18,13 +18,6 @@ team = 1
 unit_name = "archer"
 metadata/_custom_type_script = "uid://cjvddjaj43chx"
 
-[node name="Enemy03" type="Node2D" parent="." unique_id=241437663]
-position = Vector2(160, 64)
-script = ExtResource("2_660gu")
-team = 1
-unit_name = "pegasus"
-metadata/_custom_type_script = "uid://cjvddjaj43chx"
-
 [node name="Enemy05" type="Node2D" parent="." unique_id=42826125]
 position = Vector2(160, 112)
 script = ExtResource("2_660gu")

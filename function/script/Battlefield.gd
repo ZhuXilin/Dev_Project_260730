@@ -297,16 +297,8 @@ func _ready():
 		_connect_wave_signals()
 		WaveManager.setup_for_node(GameState.current_map_data, self)
 
-	_render_objective_markers()
-	_create_objective_status_label()
-
 	await get_tree().process_frame
 	TurnManager.start_turn(TurnManager.Team.PLAYER)
-
-	if ObjectiveManager and not ObjectiveManager.is_annihilate():
-		call_deferred("_deferred_show_objective_banner")
-
-	call_deferred("_deferred_show_boss_intel")
 
 	if back_camp_btn:
 		for conn in back_camp_btn.pressed.get_connections():
@@ -783,6 +775,15 @@ func _input(event: InputEvent):
 				InputManager.handle_wheel(direction)
 			return
 
+	# ★ 核心修复：如果鼠标悬停在 UI 上，拦截左键/右键，不让它们穿透到地图点击逻辑
+	if event is InputEventMouseButton and event.pressed:
+		if event.button_index == MOUSE_BUTTON_LEFT or event.button_index == MOUSE_BUTTON_RIGHT:
+			var hovered = get_viewport().gui_get_hovered_control()
+			if hovered != null:
+				# 排除特定的穿透层（MenuBlocker用于取消选中，Cursor是鼠标指示器）
+				if hovered.name not in ["MenuBlocker", "Cursor"]:
+					return
+
 	if TurnManager.current_turn_team != TurnManager.Team.PLAYER:
 		return
 	if TurnManager.all_acted:
@@ -800,7 +801,7 @@ func _input(event: InputEvent):
 			InputManager.handle_click(clicked_cell)
 	else:
 		InputManager.handle_input(event, map_grid_size, MapConst.CELL_SIZE)
-		
+
 
 # ============================================================
 #  其他信号
@@ -1509,17 +1510,7 @@ var _intel_banner : Label = null
 
 
 func _deferred_show_boss_intel():
-	await get_tree().create_timer(2.5, true, false, true).timeout
-	if not is_inside_tree():
-		return
-	if GameState.current_map_data == null:
-		return
-	if GameState.current_map_data.node_type != MapNode.NodeType.BOSS:
-		return
-	var intels : Array = GameState.revealed_intel
-	if intels.is_empty():
-		return
-	_show_intel_banner(str(intels[0]))
+	return # ★ 关闭显示
 
 
 func _show_intel_banner(text : String):
@@ -1565,22 +1556,10 @@ var _wave_warning_banner : Label = null
 
 
 func _connect_wave_signals():
-	if WaveManager == null:
-		return
-	if not WaveManager.wave_advanced.is_connected(_on_wave_advanced):
-		WaveManager.wave_advanced.connect(_on_wave_advanced)
-	if not WaveManager.wave_warning.is_connected(_on_wave_warning):
-		WaveManager.wave_warning.connect(_on_wave_warning)
-
+	pass # ★ 已废弃：不再需要波次 UI 提示
 
 func _disconnect_wave_signals():
-	if WaveManager == null:
-		return
-	if WaveManager.wave_advanced.is_connected(_on_wave_advanced):
-		WaveManager.wave_advanced.disconnect(_on_wave_advanced)
-	if WaveManager.wave_warning.is_connected(_on_wave_warning):
-		WaveManager.wave_warning.disconnect(_on_wave_warning)
-
+	pass # ★ 已废弃：不再需要波次 UI 提示
 
 func _ensure_wave_hud():
 	if _wave_hud_label and is_instance_valid(_wave_hud_label):
@@ -1598,21 +1577,11 @@ func _ensure_wave_hud():
 	add_child(_wave_hud_label)
 
 
-func _on_wave_advanced(current : int, total : int):
-	if not is_inside_tree():
-		return
-	if total <= 1:
-		return
-	_ensure_wave_hud()
-	if _wave_hud_label and is_instance_valid(_wave_hud_label):
-		_wave_hud_label.text = "波次 %d / %d" % [current, total]
-		_wave_hud_label.visible = true
+func _on_wave_advanced(_current : int, _total : int):
+	return # ★ 用户要求：不在战场上显示跟随地图的文字
 
-
-func _on_wave_warning(next_wave : int, total : int):
-	if not is_inside_tree():
-		return
-	_show_wave_warning_banner("⚠ 增援即将到达（%d / %d）" % [next_wave, total])
+func _on_wave_warning(_next_wave : int, _total : int):
+	return # ★ 用户要求：不在战场上显示跟随地图的文字
 
 
 func _show_wave_warning_banner(text : String):
@@ -1651,12 +1620,7 @@ func _show_wave_warning_banner(text : String):
 
 
 func _deferred_show_objective_banner():
-	await get_tree().create_timer(1.5, true, false, true).timeout
-	if not is_inside_tree():
-		return
-	if ObjectiveManager == null or ObjectiveManager.is_annihilate():
-		return
-	_show_objective_banner()
+	return # ★ 关闭显示
 
 
 func _show_objective_banner():

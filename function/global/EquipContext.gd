@@ -19,6 +19,7 @@ func get_title() -> String: return ""
 # ---- 货币 ----
 func get_gold() -> int: return 0
 func subtract_gold(_amount: int) -> bool: return false
+func add_gold(_amount: int) -> void: pass
 func show_gold() -> bool: return true
 
 # ---- 单位列表 ----

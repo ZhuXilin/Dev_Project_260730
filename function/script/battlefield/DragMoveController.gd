@@ -665,7 +665,8 @@ func _do_move_and_heal_async(unit : Unit, path : Array, target : Unit):
 
 
 # 攻击方式选择菜单
-func _show_attack_menu(attacker: Unit, target: Unit, is_after_move: bool) -> void:
+# 替换原有的 _show_attack_menu
+func _show_attack_menu(attacker: Unit, target: Unit, _is_after_move: bool) -> void:
 	if attacker == target:
 		if attacker.hit_points >= attacker.unit_stats.max_hp:
 			SoundManager.play_cancel_sound()
@@ -738,26 +739,24 @@ func _show_attack_menu(attacker: Unit, target: Unit, is_after_move: bool) -> voi
 	var next_id : int = 0
 	var meta_by_id : Dictionary = {}
 
+	# 简化选项文字
 	if normal_attack_available:
-		popup.add_item("普通攻击 (无消耗)", next_id)
+		popup.add_item("普通攻击", next_id)
 		meta_by_id[next_id] = {"kind": "attack", "skill_id": ""}
 		next_id += 1
 
 	if normal_heal_available:
-		popup.add_item("普通治疗 (无消耗)", next_id)
+		popup.add_item("普通治疗", next_id)
 		meta_by_id[next_id] = {"kind": "attack", "skill_id": ""}
 		next_id += 1
 
 	for sdata in available_skills:
-		var cost : int = CombatManager._get_active_skill_cost(sdata)
-		popup.add_item("%s (消耗 %d 魂火)" % [sdata.display_name, cost], next_id)
+		popup.add_item(sdata.display_name, next_id)
 		meta_by_id[next_id] = {"kind": "attack", "skill_id": sdata.id}
 		next_id += 1
 
 	if emergency_available:
-		var em_amt : int = CombatManager.get_expected_emergency_heal(attacker, target)
-		var actual_em : int = mini(target.hit_points + em_amt, target.unit_stats.max_hp) - target.hit_points
-		popup.add_item("急救 (+%d HP，消耗 %d 魂火)" % [actual_em, emergency_cost], next_id)
+		popup.add_item("急救", next_id)
 		meta_by_id[next_id] = {"kind": "emergency_heal"}
 		next_id += 1
 
@@ -774,17 +773,30 @@ func _show_attack_menu(attacker: Unit, target: Unit, is_after_move: bool) -> voi
 			call_deferred("_do_combat_async", attacker, target, skill_id)
 	)
 
+	# ★ 修复：点击外部空白处或右键关闭时，直接取消操作
 	popup.popup_hide.connect(func():
 		if not state["confirmed"]:
 			popup.queue_free()
-			if is_after_move:
-				call_deferred("_do_combat_async", attacker, target, "")
+			_on_attack_canceled(attacker)
 	)
 
 	var mouse_pos = _bf.get_viewport().get_mouse_position()
 	popup.position = Vector2i(mouse_pos)
 	popup.popup()
 
+
+# 处理取消攻击后的状态复位
+func _on_attack_canceled(attacker: Unit):
+	SoundManager.play_cancel_sound()
+	SignalBus.request_clear_highlight.emit()
+	SignalBus.request_clear_highlight_unit.emit()
+	SignalBus.request_hide_info.emit()
+	InputManager.interaction_phase = InputManager.Phase.IDLE
+	InputManager.selected_unit = null
+	
+	if is_instance_valid(attacker) and attacker.can_act_this_turn:
+		_bf.suppress_range_for_unit(attacker)
+		
 
 func _update_attack_preview(unit_cell : Vector2i, from_self : bool = false):
 	var unit = _pressing_unit

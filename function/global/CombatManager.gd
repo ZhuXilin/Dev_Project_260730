@@ -522,6 +522,26 @@ func execute_attack(attacker: Unit, defender: Unit, forced_skill_id: String = ""
 		await _apply_burning_splash(attacker, defender, damage, splash_sf)
 
 	await get_tree().create_timer(POST_DAMAGE_DELAY, true, false, true).timeout
+	
+	# ★ 核心修复：只要击败了，无论如何都要结算（哪怕攻击者已死）
+	if defeated:
+		if _try_boss_revive(defender, attacker):
+			_finish_attack(attacker, defender)
+			Globals.is_performing_action = false
+			return true
+			
+		var cleave_triggered := _on_kill(attacker, defender)
+		await _play_death_animation(defender)
+		UnitManager.unregister_unit(defender)
+		defender.queue_free()
+		if cleave_triggered:
+			_show_menu_after_action(attacker)
+			Globals.is_performing_action = false
+			return true
+		_finish_attack(attacker, defender)
+		Globals.is_performing_action = false
+		return true
+
 	if not _is_alive(attacker):
 		Globals.is_performing_action = false
 		return true
@@ -539,23 +559,6 @@ func execute_attack(attacker: Unit, defender: Unit, forced_skill_id: String = ""
 					e.taunt_rounds_left = taunt_rounds
 		TalentManager.consume_active_skill(attacker, active_skill_id)
 		SoulFireManager.spend(_get_active_skill_cost(active_skill_data))
-
-	if defeated:
-		if _try_boss_revive(defender, attacker):
-			_finish_attack(attacker, defender)
-			Globals.is_performing_action = false
-			return true
-		var cleave_triggered := _on_kill(attacker, defender)
-		await _play_death_animation(defender)
-		UnitManager.unregister_unit(defender)
-		defender.queue_free()
-		if cleave_triggered:
-			_show_menu_after_action(attacker)
-			Globals.is_performing_action = false
-			return true
-		_finish_attack(attacker, defender)
-		Globals.is_performing_action = false
-		return true
 
 	if TalentManager.is_talent_ready(attacker, "lifesteal"):
 		var lv_ls = _get_effective_talent_level(attacker, "lifesteal")
@@ -942,6 +945,10 @@ func _apply_aoe(attacker: Unit, center: Unit, base_damage: int, percent: float, 
 
 
 func _apply_damage_with_effects(defender: Unit, damage: int, attacker: Unit, is_crit: bool = false) -> bool:
+	# ★ GM 无敌拦截
+	if defender.unit_stats.team_id == 0 and defender.get_meta("gm_god", false):
+		damage = 0
+
 	if TalentManager.is_talent_ready(defender, "parry"):
 		var level = _get_effective_talent_level(defender, "parry")
 		var reflect_mult = 0.5 + (level - 1) * 0.15

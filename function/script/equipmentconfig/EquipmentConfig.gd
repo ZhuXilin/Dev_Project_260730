@@ -682,7 +682,7 @@ func _build_aura_panel():
 		shop_container.add_child(warn)
 
 
-func _make_aura_icon_btn(aid: String, cur_sf: int, is_equipped: bool, empty_slot: int) -> Button:
+func _make_aura_icon_btn(aid: String, cur_sf: int, is_equipped: bool, _empty_slot: int) -> Button:
 	var btn : Button = Style.create_styled_button(Style.FONT_SMALL, Style.BTN_SHOP_SIZE)
 	btn.expand_icon = true
 	btn.clip_text = true
@@ -724,20 +724,22 @@ func _make_aura_icon_btn(aid: String, cur_sf: int, is_equipped: bool, empty_slot
 	if is_equipped:
 		label.text = "已装"
 		label.add_theme_color_override("font_color", Color(0.7, 1.0, 0.7))
-		btn.pressed.connect(_on_unequip_aura.bind(aid))
+		btn.set_meta("slot_type", "aura_equipped")
+		btn.set_meta("aura_id", aid)
 	else:
 		label.text = "%d魂" % buy_cost
 		label.add_theme_color_override("font_color", Color.WHITE)
 		# 如果钱不够或者槽满，不可点击且变灰
-		if cur_sf < buy_cost or empty_slot < 0:
+		if cur_sf < buy_cost:
 			btn.modulate = Color(0.5, 0.5, 0.5)
 			btn.disabled = true
 		else:
-			btn.pressed.connect(_on_buy_aura.bind(aid, buy_cost))
+			btn.set_meta("slot_type", "aura_shop")
+			btn.set_meta("aura_id", aid)
+			btn.set_meta("aura_price", buy_cost)
 
 	btn.add_child(label)
 	
-	# 悬停触发右侧信息面板
 	btn.mouse_entered.connect(_on_aura_hover_entered.bind(aid))
 	btn.mouse_exited.connect(_on_aura_hover_exited)
 	
@@ -1254,6 +1256,15 @@ func _is_valid_drop(data: Dictionary, target: Control) -> bool:
 	var target_type : String = target.get_meta("slot_type", "")
 	var discard : bool = target == discard_zone
 
+	# ★ 新增：光环只能拖拽到空的被动槽，拖拽到空白处（丢弃区）无效
+	if source_type in ["aura_shop", "aura_equipped"]:
+		if target_type == "passive_slot":
+			var tgt_idx = target.get_meta("passive_index", -1)
+			var passives = _context.get_passives()
+			if tgt_idx >= 0 and tgt_idx < passives.size() and passives[tgt_idx] == null:
+				return true
+		return false
+
 	if source_type == "talent" and target_type == "library_talent":
 		return true
 
@@ -1365,6 +1376,12 @@ func _execute_drop(data: Dictionary, target: Control):
 	var source_type : String = data.get("slot_type", "")
 	var target_type : String = target.get_meta("slot_type", "")
 
+	# ★ 新增光环处理
+	if source_type == "aura_shop" and target_type == "passive_slot":
+		_buy_and_equip_aura(data, target); return
+	if source_type == "aura_equipped" and target_type == "passive_slot":
+		_swap_aura(data, target); return
+
 	if source_type == "pending_reward" and target_type in ["weapon", "armor"]:
 		_equip_pending_reward(data, target); return
 	if source_type == "pending_reward" and target == discard_zone:
@@ -1392,6 +1409,49 @@ func _execute_drop(data: Dictionary, target: Control):
 	if source_type == "armor" and target_type == "armor": _shop.swap_armor(data, target)
 
 
+func _buy_and_equip_aura(data: Dictionary, target: Control):
+	var aid : String = data.get("aura_id", "")
+	var cost : int = data.get("aura_price", 0)
+	var tgt_idx : int = target.get_meta("passive_index", -1)
+	if tgt_idx < 0 or aid == "": return
+	
+	var passives : Array = _context.get_passives()
+	if passives[tgt_idx] != null: return
+	
+	if not SoulFireManager.spend(cost):
+		return
+		
+	_context.set_passive_at_slot(tgt_idx, {"type": "aura", "aura_id": aid})
+	GameState.remove_aura_candidate(aid)
+	SoundManager.play_get_item_sound()
+	_sync_all()
+	_update_gold_display()
+	_schedule_build_ui()
+	_show_detail_in_zone("已购买并装备光环：%s" % AuraManager.get_display_name(aid))
+
+func _swap_aura(data: Dictionary, target: Control):
+	var aid : String = data.get("aura_id", "")
+	var tgt_idx : int = target.get_meta("passive_index", -1)
+	if tgt_idx < 0: return
+	
+	var passives : Array = _context.get_passives()
+	var src_idx : int = -1
+	for i in range(passives.size()):
+		var p : Variant = passives[i]
+		if p is Dictionary and p.get("type", "") == "aura" and p.get("aura_id", "") == aid:
+			src_idx = i
+			break
+			
+	if src_idx == -1 or src_idx == tgt_idx: return
+	if passives[tgt_idx] != null: return
+	
+	_context.set_passive_at_slot(tgt_idx, passives[src_idx])
+	_context.set_passive_at_slot(src_idx, null)
+	SoundManager.play_select_sound()
+	_sync_all()
+	_schedule_build_ui()
+
+
 func _discard_passive(data: Dictionary):
 	var idx : int = data.get("passive_index", -1)
 	if idx < 0: return
@@ -1416,8 +1476,19 @@ func _discard_item(data: Dictionary):
 	var unit_idx : int = data["unit_idx"]
 	var slot_idx : int = data["slot_idx"]
 	var u : UnitData = party[unit_idx]
-	if source_type == "armor": u.armor_slots[slot_idx] = null
-	elif source_type == "talent": _talent.discard_talent(data)
+	
+	if source_type == "armor":
+		var inst : ItemInstance = u.armor_slots[slot_idx]
+		if inst != null:
+			var sell_price = inst.get_sell_price()
+			if sell_price > 0:
+				_context.add_gold(sell_price)
+				_show_detail_in_zone("出售防具，获得 %d 金币" % sell_price)
+		u.armor_slots[slot_idx] = null
+	elif source_type == "talent": 
+		_talent.discard_talent(data)
+		
+	_update_gold_display()
 	_build_unit_columns()
 	_sync_all(); _schedule_build_ui()
 

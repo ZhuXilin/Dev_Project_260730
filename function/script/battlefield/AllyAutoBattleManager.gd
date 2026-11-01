@@ -3,23 +3,6 @@ extends Node
 
 # ============================================================
 #  AllyAutoBattleManager — 我方自动战斗流水线
-#
-#  语义：
-#    Globals.is_auto_battle = 玩家意愿开关（按 Space 才变，回合切换不动）
-#    _running                = 当前这一波 AI 是否在跑（回合切换时归零）
-#
-#  回合流程：
-#    玩家回合开始 → is_auto_battle 为 true → _start_player_turn_auto()
-#    AI 打完所有单位 → auto_end_turn → 敌方回合
-#    切到敌方回合 → _run_serial++ → 主循环立即退出，_running = false
-#    敌方回合结束 → 切回玩家回合 → is_auto_battle 仍 true → 自动恢复
-#    胜利/失败 → VictoryHandler 主动把 is_auto_battle = false
-#
-#  集火：
-#    同一波 AI 内，被前面单位瞄准的目标会给后面单位加权（EnemyAI 内部维护）
-#    每次 _start_player_turn_auto 开始都会清空集火记录
-#
-#  原则：只发指令，不碰动画。全部走 TurnManager / CombatManager。
 # ============================================================
 
 const ACTION_DELAY       : float = 0.35   # 每单位行动前的思考延迟
@@ -32,6 +15,7 @@ var _bf : Node2D = null
 var _enemy_ai : EnemyAI = null
 var _running : bool = false
 var _run_serial : int = 0                  # 协程序列号，用于取消过期执行
+var _stuck_timer : float = 0.0
 
 
 func _init(bf: Node2D):
@@ -44,7 +28,7 @@ func _ready():
 
 
 # ============================================================
-#  外部接口（Battlefield 按 Space 调用 set_enabled）
+#  外部接口
 # ============================================================
 func set_enabled(v: bool) -> void:
 	if v:
@@ -58,10 +42,8 @@ func set_enabled(v: bool) -> void:
 			_start_player_turn_auto()
 	else:
 		Globals.is_auto_battle = false
-		# 不打断当前正在跑的动作，让 _should_continue 自然退出
 
 
-## 强制取消（切场景用）
 func cancel() -> void:
 	Globals.is_auto_battle = false
 	_run_serial += 1
@@ -70,8 +52,6 @@ func cancel() -> void:
 
 # ============================================================
 #  回合切换监听
-#  玩家 → 敌方：中断 AI，保留开关（下一玩家回合自动恢复）
-#  敌方 → 玩家：开关还在就跑起来
 # ============================================================
 func _on_turn_changed(team: int) -> void:
 	if team == TurnManager.Team.PLAYER:
@@ -92,17 +72,14 @@ func _start_player_turn_auto() -> void:
 	_run_serial += 1
 	var my_serial : int = _run_serial
 
-	# ★ 新回合开始，清空上回合集火记录
 	if _enemy_ai and _enemy_ai.has_method("begin_ally_turn_focus"):
 		_enemy_ai.begin_ally_turn_focus()
 
 	_clear_player_interaction_state()
 
-	# 等回合切换动画播完
 	await get_tree().create_timer(TURN_START_DELAY, true, false, true).timeout
 	if my_serial != _run_serial: return
 
-	# ★ 有界轮询：容忍过渡动画 / apply_map_functions 耗时 / 临时面板
 	var waited : float = 0.0
 	while not _should_continue():
 		if my_serial != _run_serial: return
@@ -123,6 +100,21 @@ func _start_player_turn_auto() -> void:
 		if not Globals.is_auto_battle: break
 		if TurnManager.is_game_over: break
 		if TurnManager.current_turn_team != TurnManager.Team.PLAYER: break
+		
+		# ★ 防止死锁：如果系统认为在移动，但实际上卡住了，强制解锁
+		if TurnManager.is_moving:
+			_stuck_timer += 0.1
+			if _stuck_timer > 2.0: # 2秒还在移动，视为卡死
+				TurnManager.is_moving = false
+				TurnManager.is_ai_moving = false
+				SignalBus.request_clear_highlight.emit()
+				push_warning("[AutoBattle] 检测到移动卡死，强制解锁")
+				_stuck_timer = 0.0
+			await get_tree().create_timer(0.1, true, false, true).timeout
+			continue
+		else:
+			_stuck_timer = 0.0
+
 		var unit := _pick_next_actor()
 		if unit == null: break
 		await _act_one_unit(unit)
@@ -135,7 +127,6 @@ func _start_player_turn_auto() -> void:
 	if TurnManager.is_game_over: return
 	if TurnManager.current_turn_team != TurnManager.Team.PLAYER: return
 
-	# 兜底：把剩余未行动单位强制待机，防止卡死
 	for u in UnitManager.unit_list:
 		if is_instance_valid(u) and u.hit_points > 0 \
 				and u.unit_stats.team_id == 0 and u.can_act_this_turn:
@@ -181,6 +172,11 @@ func _act_one_unit(unit: Unit) -> void:
 	if not is_instance_valid(unit) or unit.hit_points <= 0:
 		return
 
+	# 1. 优先检查急救
+	if await _try_ai_emergency_heal(unit):
+		return
+
+	# 2. 正常决策
 	var act : Dictionary = _enemy_ai.decide_action_for(unit)
 
 	if str(act.get("type", "")) == "attack":
@@ -190,32 +186,133 @@ func _act_one_unit(unit: Unit) -> void:
 		"attack":
 			await _exec_attack(unit, act.get("target", null))
 		"move":
-			if unit.remaining_move <= 0:
+			var path = act.get("path", [])
+			if path.is_empty() or unit.remaining_move <= 0:
+				path = _enemy_ai._retry_find_path(unit)
+				
+			if path.is_empty():
 				_finish_unit(unit)
 			else:
-				await _exec_move(unit, act.get("path", []))
+				await _exec_move(unit, path)
 		_:
-			# ★ 待机前先检查脚下有没有血球可以吃
+			# ★ 如果 AI 决定待机，但能移动且敌人存在，强制往敌人走
+			if unit.remaining_move > 0:
+				var fallback_path = _enemy_ai._retry_find_path(unit)
+				if fallback_path.size() > 0:
+					await _exec_move(unit, fallback_path)
+					ItemBattlefieldManager.try_pickup(unit)
+					_finish_unit(unit)
+					return
+			
 			ItemBattlefieldManager.try_pickup(unit)
 			_finish_unit(unit)
 
 
+# ============================================================
+#  智能急救判断
+# ============================================================
+func _try_ai_emergency_heal(unit: Unit) -> bool:
+	var cost : int = SoulFireManager.get_emergency_heal_cost()
+	if not SoulFireManager.can_spend(cost):
+		return false
+		
+	var best_target: Unit = null
+	var lowest_ratio: float = 1.0
+	for u in UnitManager.unit_list:
+		if u.unit_stats.team_id != 0: continue
+		if u.hit_points <= 0: continue
+		if u == unit: continue
+		var ratio = float(u.hit_points) / float(u.unit_stats.max_hp)
+		if ratio < lowest_ratio:
+			lowest_ratio = ratio
+			best_target = u
+			
+	if best_target == null or lowest_ratio >= 0.5:
+		return false
+		
+	var dist = abs(unit.grid_cell.x - best_target.grid_cell.x) + abs(unit.grid_cell.y - best_target.grid_cell.y)
+	
+	if unit.get_weapon_type() == "staff":
+		var weapon = unit.get_weapon_data()
+		if weapon and dist >= weapon.min_attack_range and dist <= weapon.attack_range:
+			return false
+			
+	if dist == 1:
+		await CombatManager.execute_emergency_heal(unit, best_target)
+		if is_instance_valid(unit) and unit.hit_points > 0 and unit.can_act_this_turn:
+			SignalBus.request_hide_info.emit()
+			ItemBattlefieldManager.try_pickup(unit)
+			TurnManager.finish_unit_action(unit)
+		return true
+		
+	if unit.remaining_move > 0:
+		var reachable = UnitManager.get_reachable_cells(unit.grid_cell, unit.remaining_move, unit)
+		var best_cell = Vector2i(-1, -1)
+		for cell in reachable:
+			if UnitManager.is_cell_occupied(cell): continue
+			var d = abs(cell.x - best_target.grid_cell.x) + abs(cell.y - best_target.grid_cell.y)
+			if d == 1:
+				best_cell = cell
+				break
+				
+		if best_cell != Vector2i(-1, -1):
+			var path = UnitManager.calculate_path(unit.grid_cell, best_cell, unit)
+			if not path.is_empty():
+				TurnManager.start_movement(unit, path)
+				await TurnManager.move_completed
+				if is_instance_valid(unit) and unit.hit_points > 0 and is_instance_valid(best_target):
+					await CombatManager.execute_emergency_heal(unit, best_target)
+					if unit.can_act_this_turn:
+						SignalBus.request_hide_info.emit()
+						ItemBattlefieldManager.try_pickup(unit)
+						TurnManager.finish_unit_action(unit)
+					return true
+					
+	return false
+
+
+# ============================================================
+#  执行攻击
+# ============================================================
 func _exec_attack(unit: Unit, target) -> void:
 	if not is_instance_valid(target) or target.hit_points <= 0:
 		_finish_unit(unit)
 		return
-	await CombatManager.execute_attack(unit, target)
+	
+	var skill_id := ""
+	var ready_skills := TalentManager.get_ready_active_skills(unit)
+	for sid in ready_skills:
+		var sdata = TalentManager.get_talent_data(sid)
+		if sdata == null: continue
+		if sdata.effect_type == "heal": continue 
+		
+		var cost : int = CombatManager._get_active_skill_cost(sdata)
+		if SoulFireManager.can_spend(cost):
+			skill_id = sid
+			break
+			
+	await CombatManager.execute_attack(unit, target, skill_id)
+	
 	if is_instance_valid(unit) and unit.hit_points > 0 and unit.can_act_this_turn:
 		SignalBus.request_hide_info.emit()
-		# ★ 攻击完如果敌人掉血球在脚下，顺手吃掉
 		ItemBattlefieldManager.try_pickup(unit)
 		TurnManager.finish_unit_action(unit)
 
 
+# ============================================================
+#  执行移动
+# ============================================================
 func _exec_move(unit: Unit, path: Array) -> void:
 	if path.is_empty():
 		_finish_unit(unit)
 		return
+
+	if UnitManager.is_cell_occupied(path[-1]):
+		var retry = _enemy_ai._retry_find_path(unit)
+		if retry.is_empty() or UnitManager.is_cell_occupied(retry[-1]):
+			_finish_unit(unit)
+			return
+		path = retry
 
 	TurnManager.start_movement(unit, path)
 	await TurnManager.move_completed
@@ -223,23 +320,21 @@ func _exec_move(unit: Unit, path: Array) -> void:
 	if not is_instance_valid(unit) or unit.hit_points <= 0:
 		return
 
-	# 移动后：能打就打，并记录集火目标
 	var targets : Array = CombatManager.get_attackable_targets(unit)
 	if not targets.is_empty():
 		var follow_target = targets[0]
 		_record_focus(unit, follow_target)
-		await CombatManager.execute_attack(unit, follow_target)
-		if is_instance_valid(unit) and unit.hit_points > 0 and unit.can_act_this_turn:
-			SignalBus.request_hide_info.emit()
-			TurnManager.finish_unit_action(unit)
+		await _exec_attack(unit, follow_target)
 	else:
 		_finish_unit(unit)
 
 
-# ★ 统一集火记录入口：过滤自愈 / 无效目标
+# ============================================================
+#  辅助函数
+# ============================================================
 func _record_focus(attacker: Unit, target) -> void:
 	if not is_instance_valid(target): return
-	if target == attacker: return                       # 自愈不计
+	if target == attacker: return
 	if target.hit_points <= 0: return
 	if _enemy_ai == null: return
 	if not _enemy_ai.has_method("record_focus_target"): return
