@@ -52,6 +52,7 @@ class_name UnitData
 @export var hidden_from_roster: bool = false
 @export var boss_mechanic_id: String = ""
 @export var boss_mechanic_params: Dictionary = {}
+@export var boss_dialogue_hooks: Dictionary = {}
 @export var phases: Array = []
 
 @export var tags: Array[String] = []
@@ -267,7 +268,7 @@ func to_dict() -> Dictionary:
 		"advanced_class": advanced_class,
 		"advanced_talent_id": advanced_talent_id,
 		"override_sprite_path": override_sprite_path,
-		"avatar_override": avatar_override, # ★ 修复：补全头像保存
+		"avatar_override": avatar_override,
 		"is_dead": is_dead,
 		"sacrifice_buff_sources": sacrifice_buff_sources.duplicate(),
 		"tags": tags.duplicate(),
@@ -276,10 +277,10 @@ func to_dict() -> Dictionary:
 		"hidden_from_roster": hidden_from_roster,
 		"boss_mechanic_id": boss_mechanic_id,
 		"boss_mechanic_params": boss_mechanic_params.duplicate(true),
-		"phases": normalize_phases(phases)
+		"boss_dialogue_hooks": boss_dialogue_hooks.duplicate(true),   # ★ 新增
+		"phases": normalize_phases(phases),
 	}
 	return d
-
 
 static func from_dict(d: Dictionary) -> UnitData:
 	var data := UnitData.new()
@@ -310,6 +311,9 @@ static func from_dict(d: Dictionary) -> UnitData:
 	data.boss_mechanic_id = str(d.get("boss_mechanic_id", ""))
 	var bmp: Variant = d.get("boss_mechanic_params", {})
 	data.boss_mechanic_params = (bmp as Dictionary).duplicate(true) if bmp is Dictionary else {}
+	# ★ 新增：读取对话钩子
+	var bdh: Variant = d.get("boss_dialogue_hooks", {})
+	data.boss_dialogue_hooks = (bdh as Dictionary).duplicate(true) if bdh is Dictionary else {}
 	data.phases = normalize_phases(d.get("phases", []))
 
 	var adv_raw = d.get("advanced_class", "")
@@ -321,7 +325,7 @@ static func from_dict(d: Dictionary) -> UnitData:
 		data.advanced_class = ""
 	data.advanced_talent_id = d.get("advanced_talent_id", "")
 	data.override_sprite_path = d.get("override_sprite_path", "")
-	data.avatar_override = d.get("avatar_override", "") # ★ 修复：补全头像读取
+	data.avatar_override = d.get("avatar_override", "")
 	data.is_dead = d.get("is_dead", false)
 
 	var buff_arr : Variant = d.get("sacrifice_buff_sources", [])

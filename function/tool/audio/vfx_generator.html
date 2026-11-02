@@ -75,6 +75,9 @@ main{display:grid;grid-template-columns:340px 1fr;gap:14px;align-items:start}
   letter-spacing:1.2px;text-transform:uppercase}
 
 /* 音效标签 */
+.tag-tabs{display:flex;gap:5px;margin-bottom:7px}
+.tag-tabs button{flex:1;font-size:10px;padding:4px 2px;color:var(--dim);letter-spacing:.3px}
+.tag-tabs button.active{font-weight:600}
 .tag-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:5px}
 .tag-grid button{
   font-size:10px;padding:5px 2px;line-height:1.25;color:var(--dim);
@@ -196,6 +199,10 @@ select{background:#0c1017;border:1px solid var(--line);border-radius:5px;color:v
 
       <div class="param-group">
         <h3>音效标签 · 点击即生成</h3>
+        <div class="tag-tabs" id="tag-tabs">
+          <button data-cat="game" class="active">🎮 游戏音效</button>
+          <button data-cat="ui">🖱 界面 UI</button>
+        </div>
         <div class="tag-grid" id="tag-btns"></div>
       </div>
 
@@ -573,21 +580,40 @@ const rnd = (a,b) => a + Math.random() * (b - a);
 const pickOne = arr => arr[Math.floor(Math.random() * arr.length)];
 
 const TAG_LIST = [
-  { id:'jump',    icon:'⬆', label:'跳跃' },
-  { id:'coin',    icon:'◎', label:'金币' },
-  { id:'laser',   icon:'»', label:'激光' },
-  { id:'boom',    icon:'✦', label:'爆炸' },
-  { id:'hurt',    icon:'✖', label:'受伤' },
-  { id:'pick',    icon:'◈', label:'拾取' },
-  { id:'power',   icon:'▲', label:'升级' },
-  { id:'shoot',   icon:'▸', label:'射击' },
-  { id:'hit',     icon:'●', label:'打击' },
-  { id:'zap',     icon:'⚡', label:'电击' },
-  { id:'sparkle', icon:'✧', label:'闪现' },
-  { id:'blip',    icon:'▪', label:'提示' }
+  /* ---------------- 游戏音效 ---------------- */
+  { id:'jump',    cat:'game', icon:'⬆', label:'跳跃' },
+  { id:'coin',    cat:'game', icon:'◎', label:'金币' },
+  { id:'laser',   cat:'game', icon:'»', label:'激光' },
+  { id:'boom',    cat:'game', icon:'✦', label:'爆炸' },
+  { id:'hurt',    cat:'game', icon:'✖', label:'受伤' },
+  { id:'pick',    cat:'game', icon:'◈', label:'拾取' },
+  { id:'power',   cat:'game', icon:'▲', label:'升级' },
+  { id:'shoot',   cat:'game', icon:'▸', label:'射击' },
+  { id:'hit',     cat:'game', icon:'●', label:'打击' },
+  { id:'zap',     cat:'game', icon:'⚡', label:'电击' },
+  { id:'sparkle', cat:'game', icon:'✧', label:'闪现' },
+  { id:'blip',    cat:'game', icon:'▪', label:'提示' },
+
+  /* ---------------- 界面 / UI 音效 ---------------- */
+  { id:'ui_click',      cat:'ui', icon:'◉', label:'点击' },
+  { id:'ui_hover',      cat:'ui', icon:'○', label:'悬停' },
+  { id:'ui_cursor',     cat:'ui', icon:'›', label:'光标' },
+  { id:'ui_confirm',    cat:'ui', icon:'✔', label:'确认' },
+  { id:'ui_cancel',     cat:'ui', icon:'↩', label:'取消' },
+  { id:'ui_error',      cat:'ui', icon:'✖', label:'失败' },
+  { id:'ui_warn',       cat:'ui', icon:'⚠', label:'警告' },
+  { id:'ui_toggle',     cat:'ui', icon:'⇅', label:'开关' },
+  { id:'ui_menu_open',  cat:'ui', icon:'▣', label:'开菜单' },
+  { id:'ui_menu_close', cat:'ui', icon:'▢', label:'关菜单' },
+  { id:'ui_type',       cat:'ui', icon:'⌨', label:'打字' },
+  { id:'ui_notify',     cat:'ui', icon:'✧', label:'通知' },
+  { id:'ui_success',    cat:'ui', icon:'★', label:'成功' },
+  { id:'ui_disable',    cat:'ui', icon:'⊘', label:'禁用' }
 ];
 
 const TAG_BUILDERS = {
+  /* ================= 游戏音效 ================= */
+
   /* 跳跃：短促上滑 */
   jump: () => ({
     wave: pickOne(['pulse_25','pulse_50','square']),
@@ -677,35 +703,178 @@ const TAG_BUILDERS = {
     wave: pickOne(['pulse_50','square']),
     env: { a:0.001, d:rnd(0.02,0.04), s:rnd(0.50,0.90), r:rnd(0.02,0.05) },
     fx:  { slide:0, vibDepth:0, vibRate:0, arp:[], noiseFreq:0.5 }
+  }),
+
+  /* ================= 界面 / UI 操作音效 ================= */
+
+  /* 点击：极短高频脉冲，可选微小下扫 */
+  ui_click: () => ({
+    wave: pickOne(['pulse_25','pulse_50','square']),
+    env: { a:0.001, d:rnd(0.015,0.030), s:rnd(0.15,0.35), r:rnd(0.012,0.025) },
+    fx:  { slide: -Math.round(rnd(0,10)), vibDepth:0, vibRate:0, arp:[], noiseFreq:0.5 },
+    dur: 0.12
+  }),
+
+  /* 悬停：极轻提示音 */
+  ui_hover: () => ({
+    wave: pickOne(['pulse_12','triangle']),
+    env: { a:0.001, d:rnd(0.008,0.018), s:rnd(0.10,0.25), r:rnd(0.008,0.016) },
+    fx:  { slide:0, vibDepth:0, vibRate:0, arp:[], noiseFreq:0.5 },
+    dur: 0.09
+  }),
+
+  /* 光标：短促移动音，可上可下 */
+  ui_cursor: () => ({
+    wave: pickOne(['pulse_12','pulse_25']),
+    env: { a:0.001, d:rnd(0.010,0.020), s:rnd(0.20,0.40), r:rnd(0.010,0.020) },
+    fx:  { slide: Math.round(rnd(-4,6)), vibDepth:0, vibRate:0, arp:[], noiseFreq:0.5 },
+    dur: 0.10
+  }),
+
+  /* 确认：明亮上行两音 */
+  ui_confirm: () => ({
+    wave: pickOne(['pulse_25','pulse_50']),
+    env: { a:0.001, d:rnd(0.025,0.045), s:rnd(0.65,0.85), r:rnd(0.04,0.08) },
+    fx:  { slide:0, vibDepth:0, vibRate:0,
+           arp: pickOne([[0,7],[0,12],[0,5],[0,4]]), noiseFreq:0.5 },
+    dur: 0.12
+  }),
+
+  /* 取消 / 返回：下行短滑音 */
+  ui_cancel: () => ({
+    wave: pickOne(['pulse_25','square']),
+    env: { a:0.001, d:rnd(0.040,0.080), s:rnd(0.20,0.40), r:rnd(0.030,0.060) },
+    fx:  { slide: -Math.round(rnd(10,24)), vibDepth:0, vibRate:0, arp:[], noiseFreq:0.5 },
+    dur: 0.16
+  }),
+
+  /* 失败：低沉粗糙蜂鸣 */
+  ui_error: () => ({
+    wave: pickOne(['square','pulse_12','pulse_25']),
+    env: { a:0.002, d:rnd(0.09,0.18), s:rnd(0.35,0.60), r:rnd(0.05,0.12) },
+    fx:  { slide: -Math.round(rnd(2,10)),
+           vibDepth: rnd(0.4,1.2), vibRate: rnd(9,18), arp:[], noiseFreq:0.5 },
+    dur: 0.24
+  }),
+
+  /* 警告：高低交替的急促音 */
+  ui_warn: () => ({
+    wave: pickOne(['pulse_50','square']),
+    env: { a:0.001, d:rnd(0.03,0.06), s:rnd(0.50,0.75), r:rnd(0.03,0.06) },
+    fx:  { slide:0, vibDepth:0, vibRate:0,
+           arp: pickOne([[0,-12],[0,-5],[0,12]]), noiseFreq:0.5 },
+    dur: 0.24
+  }),
+
+  /* 开关：短促上滑 */
+  ui_toggle: () => ({
+    wave: pickOne(['pulse_25','pulse_50']),
+    env: { a:0.001, d:rnd(0.020,0.040), s:rnd(0.30,0.50), r:rnd(0.020,0.040) },
+    fx:  { slide: Math.round(rnd(5,14)), vibDepth:0, vibRate:0, arp:[], noiseFreq:0.5 },
+    dur: 0.12
+  }),
+
+  /* 打开菜单：上行琶音 */
+  ui_menu_open: () => ({
+    wave: pickOne(['pulse_25','pulse_12']),
+    env: { a:0.001, d:rnd(0.035,0.070), s:rnd(0.55,0.75), r:rnd(0.05,0.10) },
+    fx:  { slide:0, vibDepth:0, vibRate:0,
+           arp: pickOne([[0,4,7],[0,5,9],[0,7,12],[0,12]]), noiseFreq:0.5 },
+    dur: 0.15
+  }),
+
+  /* 关闭菜单：下行琶音 */
+  ui_menu_close: () => ({
+    wave: pickOne(['pulse_25','pulse_12']),
+    env: { a:0.001, d:rnd(0.035,0.070), s:rnd(0.45,0.65), r:rnd(0.04,0.09) },
+    fx:  { slide:0, vibDepth:0, vibRate:0,
+           arp: pickOne([[7,4,0],[12,7,0],[9,5,0],[12,0]]), noiseFreq:0.5 },
+    dur: 0.15
+  }),
+
+  /* 打字：极短噪声颗粒 */
+  ui_type: () => ({
+    wave: 'noise',
+    env: { a:0.001, d:rnd(0.008,0.018), s:0, r:rnd(0.008,0.015) },
+    fx:  { slide:0, vibDepth:0, vibRate:0, arp:[], noiseFreq: rnd(0.60,0.95) },
+    dur: 0.06
+  }),
+
+  /* 通知：双音叮咚 */
+  ui_notify: () => ({
+    wave: pickOne(['triangle','pulse_50']),
+    env: { a:0.002, d:rnd(0.045,0.085), s:rnd(0.60,0.80), r:rnd(0.08,0.16) },
+    fx:  { slide:0, vibDepth:0, vibRate:0,
+           arp: pickOne([[0,12],[0,7],[0,9],[0,7,12]]), noiseFreq:0.5 },
+    dur: 0.20
+  }),
+
+  /* 成功：明亮上行大琶音 */
+  ui_success: () => ({
+    wave: pickOne(['pulse_25','pulse_50']),
+    env: { a:0.002, d:rnd(0.045,0.080), s:rnd(0.70,0.90), r:rnd(0.10,0.18) },
+    fx:  { slide:0, vibDepth:0, vibRate:0,
+           arp: pickOne([[0,4,7,12],[0,4,7,12,16],[0,5,9,12]]), noiseFreq:0.5 },
+    dur: 0.20
+  }),
+
+  /* 禁用：低沉阻断音 */
+  ui_disable: () => ({
+    wave: pickOne(['square','pulse_12']),
+    env: { a:0.001, d:rnd(0.05,0.10), s:rnd(0.20,0.40), r:rnd(0.03,0.07) },
+    fx:  { slide: -Math.round(rnd(6,16)), vibDepth:rnd(0,0.4), vibRate:rnd(6,14),
+           arp:[], noiseFreq:0.5 },
+    dur: 0.16
   })
 };
 
-function buildTags(){
+/* ---------- 标签面板 ---------- */
+let tagCat = 'game';
+
+function renderTagButtons(){
   const box = $('#tag-btns');
-  TAG_LIST.forEach(t => {
+  box.innerHTML = '';
+  TAG_LIST.filter(t => t.cat === tagCat).forEach(t => {
     const b = document.createElement('button');
     b.dataset.tag = t.id;
     b.innerHTML = '<span class="ico">' + t.icon + '</span>' + t.label;
     box.appendChild(b);
   });
+  $$('#tag-tabs button').forEach(b =>
+    b.classList.toggle('active', b.dataset.cat === tagCat));
+}
 
-  box.addEventListener('click', e => {
+function buildTags(){
+  $('#tag-tabs').addEventListener('click', e => {
+    const b = e.target.closest('button[data-cat]');
+    if (!b || b.dataset.cat === tagCat) return;
+    tagCat = b.dataset.cat;
+    renderTagButtons();
+  });
+
+  $('#tag-btns').addEventListener('click', e => {
     const b = e.target.closest('button[data-tag]');
     if (!b) return;
     applyTag(b.dataset.tag);
   });
+
+  renderTagButtons();
 }
 
 function applyTag(id){
   const build = TAG_BUILDERS[id];
   if (!build) return;
-  const g = build();
+  const g  = build();
   const ch = state.channels[state.editCh];
   ch.preset = mkPreset(g.wave, g.env, g.fx);
   renderDesigner();
   refreshChannelLabel(state.editCh);
   Sound.playPreset(ch.preset, {
-    note: state.previewNote, vel: 110, dur: 0.45, vol: ch.volume, pan: ch.pan
+    note: state.previewNote,
+    vel: 110,
+    dur: g.dur != null ? g.dur : 0.45,
+    vol: ch.volume,
+    pan: ch.pan
   });
 }
 
@@ -781,9 +950,10 @@ function buildDesigner(){
     });
   });
 
-  // 随机：从标签库里随机选一个，再在该标签范围内随机
+  // 随机：在当前分类的标签库里随机选一个，再在该标签范围内随机
   $('#btn-random').addEventListener('click', () => {
-    const tag = pickOne(TAG_LIST);
+    const pool = TAG_LIST.filter(t => t.cat === tagCat);
+    const tag  = pickOne(pool.length ? pool : TAG_LIST);
     applyTag(tag.id);
     toast('随机 · ' + tag.label);
   });

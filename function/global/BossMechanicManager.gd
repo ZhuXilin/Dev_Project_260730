@@ -50,22 +50,26 @@ func _apply_phase(unit: Unit, phase_idx: int) -> void:
 		if new_stats != null:
 			new_stats.team_id = unit.unit_stats.team_id
 			new_stats.is_boss = true
-			
+
 			# ★ 核心修复 1：若新形态没配阵营，继承老阵营
 			if new_stats.faction == "":
 				new_stats.faction = unit.unit_stats.faction
-				
+
 			# ★ 核心修复 2：若新形态没配名字，继承老名字
 			if new_stats.display_name == "":
 				new_stats.display_name = unit.unit_stats.display_name
-				
+
 			# ★ 核心修复 3：强制继承地图配置的 Boss 头像
 			if unit.unit_stats.avatar_override != "":
 				new_stats.avatar_override = unit.unit_stats.avatar_override
-				
+
 			# 继承阶段数组，确保后续还能继续切阶段
 			new_stats.phases = unit.unit_stats.phases
-			
+
+			# ★ 继承对话钩子，确保 stage 2/3 也能读到原始 boss 的配置
+			if new_stats.boss_dialogue_hooks.is_empty():
+				new_stats.boss_dialogue_hooks = unit.unit_stats.boss_dialogue_hooks.duplicate(true)
+
 			# 覆盖本阶段机制参数
 			new_stats.boss_mechanic_id = str(p.get("mechanic_id", ""))
 			var mp: Variant = p.get("mechanic_params", {})
@@ -106,6 +110,24 @@ func _apply_phase(unit: Unit, phase_idx: int) -> void:
 	SignalBus.request_screen_shake.emit(0.4, 8.0, Vector2.ZERO)
 	SignalBus.request_hint_override.emit(
 		"★ %s 进入第 %d 形态！" % [unit.unit_stats.display_name, phase_idx + 1], 2.0)
+
+	# ★ 触发转阶段对话
+	# phase_idx == 0 是初始形态（setup_for_node 时调用），不播转阶段对话
+	# 优先读 unit_data.json 的 boss_dialogue_hooks.phase_N
+	# 回退到 narrative.json 的 boss_phase
+	if phase_idx > 0:
+		var hook_key : String = "phase_%d" % (phase_idx + 1)
+		var dlg_id : String = str(new_stats.boss_dialogue_hooks.get(hook_key, ""))
+		if dlg_id != "" and StoryManager.play_dialogue_by_id(dlg_id):
+			await DialogueManager.dialogue_finished
+		else:
+			var ctx : Dictionary = {
+				"unit_name": unit.unit_stats.unit_name,
+				"phase_idx": phase_idx,
+				"current_day": GameState.current_day
+			}
+			if StoryManager.trigger("boss_phase", ctx):
+				await DialogueManager.dialogue_finished
 
 
 func _apply_override_dict(stats: UnitData, ov: Dictionary) -> void:

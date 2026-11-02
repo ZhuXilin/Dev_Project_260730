@@ -3,6 +3,7 @@ extends Control
 # ============================================================
 #  GameDataEditor — 单位 / 战斗模拟 / 数值 / 套装 / 词条池 / 光环 / 单位解锁 / 校验
 #  已补全：Boss 元字段 + phases 阶段编辑器（新格式）
+#  已移除：Boss 对话钩子（boss_dialogue_hooks）编辑 UI
 # ============================================================
 
 const UNIT_DATA_PATH : String = "res://content/data/unit_data.json"
@@ -172,7 +173,7 @@ var _unit_unlock_mapping_box : VBoxContainer = null
 var _unit_unlock_status : Label = null
 var _unit_unlock_right_title : Label = null
 var _unit_db_dirty : bool = false
-
+var _edit_boss_dialogue_opts : Dictionary = {}
 
 func _ready():
 	_apply_compact_theme()
@@ -688,6 +689,46 @@ func _build_edit_tab(parent : Control) -> Control:
 	_edit_boss_phases_box = VBoxContainer.new()
 	_edit_boss_phases_box.add_theme_constant_override("separation", 4)
 	content.add_child(_edit_boss_phases_box)
+
+	content.add_child(HSeparator.new())
+
+	var dlg_header := HBoxContainer.new()
+	dlg_header.add_theme_constant_override("separation", 4)
+	content.add_child(dlg_header)
+	dlg_header.add_child(_section("— Boss 对话钩子（unit_data.json）—"))
+
+	var dlg_box := VBoxContainer.new()
+	dlg_box.add_theme_constant_override("separation", 2)
+	content.add_child(dlg_box)
+
+	var hook_types : Array = [
+		{"key": "battle_start", "label": "战前对话"},
+		{"key": "phase_2", "label": "转阶段 2"},
+		{"key": "phase_3", "label": "转阶段 3"},
+		{"key": "on_death", "label": "死亡对话"}
+	]
+
+	var all_dlg_ids := _get_all_dialogue_ids()
+
+	for h in hook_types:
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 4)
+		dlg_box.add_child(row)
+
+		var lb := Label.new()
+		lb.text = h["label"]
+		lb.custom_minimum_size = Vector2(80, 0)
+		row.add_child(lb)
+
+		var opt := OptionButton.new()
+		opt.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		opt.add_item("（无）", 0)
+		opt.set_item_metadata(0, "")
+		for i in range(all_dlg_ids.size()):
+			opt.add_item(all_dlg_ids[i], i + 1)
+			opt.set_item_metadata(i + 1, all_dlg_ids[i])
+		row.add_child(opt)
+		_edit_boss_dialogue_opts[h["key"]] = opt
 
 	var btn_row := HBoxContainer.new()
 	btn_row.alignment = BoxContainer.ALIGNMENT_END
@@ -1368,7 +1409,12 @@ func _select_edit_unit(key : String):
 	_fill_attr_cap_levels(d.get("attr_cap_levels", []))
 	_rebuild_branches(d.get("advanced_branches", []))
 	_rebuild_boss_phases(d.get("phases", []))
-
+	# 填充对话钩子
+	var hooks : Dictionary = d.get("boss_dialogue_hooks", {})
+	for k in _edit_boss_dialogue_opts:
+		var opt : OptionButton = _edit_boss_dialogue_opts[k]
+		var target_id = str(hooks.get(k, ""))
+		_select_option_by_meta(opt, target_id)
 
 func _select_option_by_meta(opt : OptionButton, target_id : String):
 	if opt == null: return
@@ -1463,6 +1509,17 @@ func _save_unit_db():
 		var tid : String = _get_meta(opt)
 		if tid != "": talent_ids.append(tid)
 	d["default_talents"] = talent_ids
+
+	var new_hooks : Dictionary = {}
+	for k in _edit_boss_dialogue_opts:
+		var opt : OptionButton = _edit_boss_dialogue_opts[k]
+		var v = _get_meta(opt)
+		if v != "":
+			new_hooks[k] = v
+	if not new_hooks.is_empty():
+		d["boss_dialogue_hooks"] = new_hooks
+	else:
+		d.erase("boss_dialogue_hooks")
 
 	d["attr_cap_levels"] = _read_attr_cap_levels()
 
@@ -2598,3 +2655,11 @@ func _compact_spin_arrow_button(btn : Button):
 	btn.add_theme_stylebox_override("pressed", empty)
 	btn.add_theme_stylebox_override("focus", empty)
 	btn.add_theme_stylebox_override("disabled", empty)
+
+func _get_all_dialogue_ids() -> Array:
+	var ids : Array = []
+	if StoryManager:
+		for k in StoryManager._dialogue_index:
+			ids.append(k)
+	ids.sort()
+	return ids

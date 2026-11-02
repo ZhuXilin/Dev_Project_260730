@@ -253,6 +253,13 @@
 	  {},
 	  {}
 	],
+	"avatar": "avatar_022",
+	"boss_dialogue_hooks": {
+	  "battle_start": "boss_intro_day3",
+	  "on_death": "boss_three_forms_first",
+	  "phase_2": "boss_three_forms_first",
+	  "phase_3": "boss_three_forms_first"
+	},
 	"core_trait": "dragon_might",
 	"default_armors": [],
 	"default_talents": [],
@@ -272,7 +279,7 @@
 	"phases": [
 	  {
 		"form_unit_id": "",
-		"hp_mode": "full",
+		"hp_mode": "keep_ratio",
 		"mechanic_id": "",
 		"mechanic_params": {},
 		"min_hp": 1,
@@ -285,8 +292,11 @@
 	  {
 		"form_unit_id": "boss_dragonlord_form2",
 		"hp_mode": "keep_ratio",
-		"mechanic_id": "",
-		"mechanic_params": {},
+		"mechanic_id": "ash_shield",
+		"mechanic_params": {
+		  "damage_reduction": 0.5,
+		  "max_stacks": 3.0
+		},
 		"min_hp": 1,
 		"override": {},
 		"preserve_buffs": true,
@@ -297,8 +307,10 @@
 	  {
 		"form_unit_id": "boss_dragonlord_form3",
 		"hp_mode": "keep_ratio",
-		"mechanic_id": "",
-		"mechanic_params": {},
+		"mechanic_id": "soul_drain",
+		"mechanic_params": {
+		  "drain_amount": 2.0
+		},
 		"min_hp": 1,
 		"override": {},
 		"preserve_buffs": true,
@@ -322,6 +334,7 @@
 	  {},
 	  {}
 	],
+	"avatar": "avatar_022",
 	"core_trait": "dragon_might",
 	"default_armors": [],
 	"default_talents": [],
@@ -353,6 +366,7 @@
 	  {},
 	  {}
 	],
+	"avatar": "avatar_022",
 	"core_trait": "dragon_might",
 	"default_armors": [],
 	"default_talents": [],

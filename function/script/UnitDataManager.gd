@@ -100,6 +100,9 @@ static func get_default_stats(unit_name: String) -> UnitData:
 	data.boss_mechanic_id = str(dict.get("boss_mechanic_id", ""))
 	var bmp: Variant = dict.get("boss_mechanic_params", {})
 	data.boss_mechanic_params = (bmp as Dictionary).duplicate(true) if bmp is Dictionary else {}
+	# ★ 新增：读取对话钩子
+	var bdh: Variant = dict.get("boss_dialogue_hooks", {})
+	data.boss_dialogue_hooks = (bdh as Dictionary).duplicate(true) if bdh is Dictionary else {}
 	data.phases = UnitData.normalize_phases(dict.get("phases", []))
 	return data
 

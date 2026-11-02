@@ -530,7 +530,7 @@ func execute_attack(attacker: Unit, defender: Unit, forced_skill_id: String = ""
 			Globals.is_performing_action = false
 			return true
 			
-		var cleave_triggered := _on_kill(attacker, defender)
+		var cleave_triggered: bool = await _on_kill(attacker, defender)
 		await _play_death_animation(defender)
 		UnitManager.unregister_unit(defender)
 		defender.queue_free()
@@ -593,7 +593,7 @@ func execute_attack(attacker: Unit, defender: Unit, forced_skill_id: String = ""
 				_finish_attack(attacker, defender)
 				Globals.is_performing_action = false
 				return true
-			var cleave_triggered := _on_kill(attacker, defender)
+			var cleave_triggered: bool = await _on_kill(attacker, defender) 
 			await _play_death_animation(defender)
 			UnitManager.unregister_unit(defender)
 			defender.queue_free()
@@ -633,7 +633,7 @@ func execute_attack(attacker: Unit, defender: Unit, forced_skill_id: String = ""
 					_finish_attack(attacker, defender)
 					Globals.is_performing_action = false
 					return true
-				var cleave_triggered := _on_kill(attacker, defender)
+				var cleave_triggered: bool = await _on_kill(attacker, defender)
 				await _play_death_animation(defender)
 				UnitManager.unregister_unit(defender)
 				defender.queue_free()
@@ -837,6 +837,21 @@ func _on_kill(attacker: Unit, _defender: Unit) -> bool:
 	# ★ 敌方死亡生成血球
 	if is_instance_valid(_defender) and _defender.unit_stats.team_id == 1:
 		ItemBattlefieldManager.try_spawn_orb(_defender.grid_cell)
+
+	# ★ 触发 Boss 死亡对话
+	# 优先读 unit_data.json 的 boss_dialogue_hooks.on_death
+	# 回退到 narrative.json 的 boss_death
+	if is_instance_valid(_defender) and _defender.unit_stats.is_boss:
+		var hook_id : String = str(_defender.unit_stats.boss_dialogue_hooks.get("on_death", ""))
+		if hook_id != "" and StoryManager.play_dialogue_by_id(hook_id):
+			await DialogueManager.dialogue_finished
+		else:
+			var ctx : Dictionary = {
+				"unit_name": _defender.unit_stats.unit_name,
+				"current_day": GameState.current_day
+			}
+			if StoryManager.trigger("boss_death", ctx):
+				await DialogueManager.dialogue_finished
 
 	if TalentManager.is_talent_ready(attacker, "blood_rage"):
 		var lv = _get_effective_talent_level(attacker, "blood_rage")

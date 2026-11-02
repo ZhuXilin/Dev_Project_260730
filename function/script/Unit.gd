@@ -637,10 +637,14 @@ func update_position(new_cell: Vector2i): grid_cell = new_cell
 
 
 func apply_damage(damage_amount : int) -> bool:
+	# ★ 核心修复：如果是无敌状态，直接免疫所有伤害（包括反伤、流血、陷阱等）
+	if get_meta("gm_god", false):
+		return hit_points <= 0
+		
 	hit_points -= damage_amount
 	if hit_points < 0: hit_points = 0
 	update_hp_label()
-	update_hp_bar() # ★ 扣血刷新血条
+	update_hp_bar()
 	return hit_points <= 0
 
 
