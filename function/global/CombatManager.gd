@@ -320,13 +320,11 @@ func _try_boss_revive(defender : Unit, _attacker : Unit) -> bool:
 	SignalBus.request_screen_shake.emit(0.4, 8.0, Vector2.ZERO)
 	return true
 
-
 func execute_attack(attacker: Unit, defender: Unit, forced_skill_id: String = "") -> bool:
 	if attacker.get_equipped_weapon_id() == "":
 		Globals.is_performing_action = false
 		return false
 
-	# ★ 友军保护：非 staff 打友军 = 攻击，禁止
 	if defender.unit_stats.team_id == attacker.unit_stats.team_id:
 		if attacker.get_weapon_type() != "staff":
 			Globals.is_performing_action = false
@@ -339,7 +337,6 @@ func execute_attack(attacker: Unit, defender: Unit, forced_skill_id: String = ""
 
 	if attacker.get_weapon_type() == "staff" \
 			and defender.unit_stats.team_id == attacker.unit_stats.team_id:
-		# 满血友军拦截
 		if defender.hit_points >= defender.unit_stats.max_hp:
 			Globals.is_performing_action = false
 			SoundManager.play_cancel_sound()
@@ -357,7 +354,6 @@ func execute_attack(attacker: Unit, defender: Unit, forced_skill_id: String = ""
 	if forced_skill_id != "":
 		var sdata = TalentManager.get_talent_data(forced_skill_id)
 		if sdata:
-			# ★ v4.6：治疗型技能只能对友军释放，对敌人时拒绝（走普攻）
 			if sdata.effect_type == "heal" and defender.unit_stats.team_id != attacker.unit_stats.team_id:
 				print("[主动技能] %s 是治疗技能，不能对敌人释放，已回退为普攻" % sdata.display_name)
 			else:
@@ -500,6 +496,7 @@ func execute_attack(attacker: Unit, defender: Unit, forced_skill_id: String = ""
 
 	await get_tree().create_timer(PRE_DAMAGE_DELAY, true, false, true).timeout
 	var defeated = _apply_damage_with_effects(defender, damage, attacker, is_crit)
+	await _wait_dialogue()   # ★ 新增：转阶段对话可能在这一步触发
 
 	if attacker.weapon_slot:
 		var up_lv : int = attacker.weapon_slot.upgrade_level
@@ -522,14 +519,14 @@ func execute_attack(attacker: Unit, defender: Unit, forced_skill_id: String = ""
 		await _apply_burning_splash(attacker, defender, damage, splash_sf)
 
 	await get_tree().create_timer(POST_DAMAGE_DELAY, true, false, true).timeout
-	
-	# ★ 核心修复：只要击败了，无论如何都要结算（哪怕攻击者已死）
+	await _wait_dialogue()   # ★ 新增：Boss 死亡对话可能在这一步触发
+
 	if defeated:
 		if _try_boss_revive(defender, attacker):
 			_finish_attack(attacker, defender)
 			Globals.is_performing_action = false
 			return true
-			
+
 		var cleave_triggered: bool = await _on_kill(attacker, defender)
 		await _play_death_animation(defender)
 		UnitManager.unregister_unit(defender)
@@ -579,6 +576,7 @@ func execute_attack(attacker: Unit, defender: Unit, forced_skill_id: String = ""
 		var extra_damage = int(damage * mult)
 		TalentManager.reset_talent(attacker, "double_attack")
 		await get_tree().create_timer(EXTRA_HIT_DELAY, true, false, true).timeout
+		await _wait_dialogue()   # ★ 新增
 		if not _is_alive(attacker):
 			Globals.is_performing_action = false
 			return true
@@ -609,9 +607,6 @@ func execute_attack(attacker: Unit, defender: Unit, forced_skill_id: String = ""
 		Globals.is_performing_action = false
 		return true
 
-	# ★ 修正 A：spell_chain 在 execute_attack 中只处理「法术书」的额外伤害链。
-	#   staff 走到此处意味着"staff 打敌人"（治疗场景已在函数开头提前返回），
-	#   原代码用治疗量给敌人回血属于逻辑 bug，已移除。staff 的 spell_chain 由 _execute_heal 处理。
 	if TalentManager.is_talent_ready(attacker, "spell_chain"):
 		if attacker.get_weapon_type() == "spellbook":
 			var level = _get_effective_talent_level(attacker, "spell_chain")
@@ -619,6 +614,7 @@ func execute_attack(attacker: Unit, defender: Unit, forced_skill_id: String = ""
 			var extra_damage = int(damage * mult)
 			TalentManager.reset_talent(attacker, "spell_chain")
 			await get_tree().create_timer(EXTRA_HIT_DELAY, true, false, true).timeout
+			await _wait_dialogue()   # ★ 新增
 			if not _is_alive(attacker):
 				Globals.is_performing_action = false
 				return true
@@ -652,6 +648,7 @@ func execute_attack(attacker: Unit, defender: Unit, forced_skill_id: String = ""
 	if _is_alive(attacker) and _is_alive(defender) and _can_follow_up(attacker, defender):
 		var follow_dmg : int = int(calculate_damage(attacker, defender) * FOLLOW_UP_DAMAGE_MULT)
 		await get_tree().create_timer(EXTRA_HIT_DELAY, true, false, true).timeout
+		await _wait_dialogue()   # ★ 新增
 		if _is_alive(attacker):
 			await _play_lunge_attack(attacker, defender)
 			await get_tree().create_timer(PRE_DAMAGE_DELAY, true, false, true).timeout
@@ -676,7 +673,6 @@ func execute_attack(attacker: Unit, defender: Unit, forced_skill_id: String = ""
 	_finish_attack(attacker, defender, free_action)
 	Globals.is_performing_action = false
 	return true
-
 
 func _execute_heal(attacker: Unit, defender: Unit, forced_skill_id: String = "") -> bool:
 	if defender.unit_stats.team_id != attacker.unit_stats.team_id:
@@ -747,22 +743,6 @@ func _execute_heal(attacker: Unit, defender: Unit, forced_skill_id: String = "")
 	_finish_attack(attacker, defender, free_action)
 	Globals.is_performing_action = false
 	return true
-
-
-func _apply_burning_splash(attacker : Unit, center : Unit, base_damage : int, percent : float):
-	for d in [Vector2i(1,0), Vector2i(-1,0), Vector2i(0,1), Vector2i(0,-1)]:
-		var t : Unit = UnitManager.get_unit_at_cell(center.grid_cell + d)
-		if not t or t.hit_points <= 0: continue
-		if t.unit_stats.team_id == attacker.unit_stats.team_id: continue
-		var splash_dmg : int = maxi(1, int(base_damage * percent))
-		var dead : bool = _apply_damage_with_effects(t, splash_dmg, attacker, false)
-		if dead:
-			if _try_boss_revive(t, attacker): continue
-			_on_kill(attacker, t)
-			await _play_death_animation(t)
-			UnitManager.unregister_unit(t)
-			t.queue_free()
-
 
 func _play_lunge_attack(attacker: Unit, defender: Unit) -> void:
 	if not is_instance_valid(attacker) or not is_instance_valid(defender): return
@@ -929,6 +909,22 @@ func _apply_aura_kill_effect(attacker : Unit, aura_id : String):
 				SignalBus.request_damage_popup.emit(attacker.global_position, actual, false, false, true)
 
 
+func _apply_burning_splash(attacker : Unit, center : Unit, base_damage : int, percent : float):
+	for d in [Vector2i(1,0), Vector2i(-1,0), Vector2i(0,1), Vector2i(0,-1)]:
+		var t : Unit = UnitManager.get_unit_at_cell(center.grid_cell + d)
+		if not t or t.hit_points <= 0: continue
+		if t.unit_stats.team_id == attacker.unit_stats.team_id: continue
+		var splash_dmg : int = maxi(1, int(base_damage * percent))
+		var dead : bool = _apply_damage_with_effects(t, splash_dmg, attacker, false)
+		await _wait_dialogue()   # ★ 新增
+		if dead:
+			if _try_boss_revive(t, attacker): continue
+			_on_kill(attacker, t)
+			await _play_death_animation(t)
+			UnitManager.unregister_unit(t)
+			t.queue_free()
+
+
 func _apply_splash(attacker: Unit, defender: Unit, base_damage: int, percent: float, is_crit: bool = false) -> void:
 	var behind = defender.grid_cell + (defender.grid_cell - attacker.grid_cell)
 	var splash_target = UnitManager.get_unit_at_cell(behind)
@@ -936,6 +932,7 @@ func _apply_splash(attacker: Unit, defender: Unit, base_damage: int, percent: fl
 	if splash_target.unit_stats.team_id == attacker.unit_stats.team_id: return
 	var splash_dmg = int(base_damage * percent)
 	var dead = _apply_damage_with_effects(splash_target, splash_dmg, attacker, is_crit)
+	await _wait_dialogue()   # ★ 新增
 	if dead:
 		if _try_boss_revive(splash_target, attacker): return
 		_on_kill(attacker, splash_target)
@@ -951,6 +948,7 @@ func _apply_aoe(attacker: Unit, center: Unit, base_damage: int, percent: float, 
 		if target.unit_stats.team_id == attacker.unit_stats.team_id: continue
 		var aoe_dmg = int(base_damage * percent)
 		var dead = _apply_damage_with_effects(target, aoe_dmg, attacker, is_crit)
+		await _wait_dialogue()   # ★ 新增
 		if dead:
 			if _try_boss_revive(target, attacker): continue
 			_on_kill(attacker, target)
@@ -1134,6 +1132,11 @@ func _execute_counter(attacker: Unit, defender: Unit) -> void:
 func _is_alive(u: Unit) -> bool:
 	return u != null and is_instance_valid(u) and u.hit_points > 0
 
+func _wait_dialogue() -> void:
+	while Globals.is_dialogue_active:
+		await get_tree().process_frame
+		if not is_instance_valid(self):
+			return
 
 func _finish_attack(attacker: Unit, _defender: Unit, free_action: bool = false) -> void:
 	if free_action:

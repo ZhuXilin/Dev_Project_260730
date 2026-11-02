@@ -459,3 +459,21 @@ static func bind_unit_icon_hover(btn: Button, unit_id: String, info_panel: Contr
 				# ★ 修复：由于 UnitDataManager 是 RefCounted，没有 get_viewport()，需通过 btn 获取
 				btn.get_viewport().set_input_as_handled()
 	)
+
+
+## 按 speaker 字符串反查 unit_data.json 里的 avatar 字段。
+## 支持两种写法：display_name（如"深渊龙主"）或 unit_key（如"boss_dragonlord"）。
+static func get_avatar_by_speaker(speaker: String) -> String:
+	_load_unit_data()
+	if speaker == "":
+		return ""
+	# 1. 先按 display_name 精确匹配（敌人常规写法）
+	for key in _unit_data_cache:
+		var d : Dictionary = _unit_data_cache[key]
+		if str(d.get("display_name", "")) == speaker:
+			return str(d.get("avatar", ""))
+	# 2. 再按 unit_key 匹配（直接写 id）
+	if _unit_data_cache.has(speaker):
+		var d2 : Dictionary = _unit_data_cache[speaker]
+		return str(d2.get("avatar", ""))
+	return ""

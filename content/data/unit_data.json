@@ -256,9 +256,9 @@
 	"avatar": "avatar_022",
 	"boss_dialogue_hooks": {
 	  "battle_start": "boss_intro_day3",
-	  "on_death": "boss_three_forms_first",
-	  "phase_2": "boss_three_forms_first",
-	  "phase_3": "boss_three_forms_first"
+	  "on_death": "boss_dragonlord_death",
+	  "phase_2": "boss_dragonlord_phase_2",
+	  "phase_3": "boss_dragonlord_phase_3"
 	},
 	"core_trait": "dragon_might",
 	"default_armors": [],

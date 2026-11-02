@@ -792,6 +792,13 @@ func _process_ai_queue():
 	var processed : int = 0
 	while ai_queue.size() > 0:
 		await get_tree().create_timer(0.5).timeout
+
+		# ★ 新增：等待对话（转阶段 / 死亡对话等）
+		while Globals.is_dialogue_active:
+			await get_tree().process_frame
+			if not is_instance_valid(self): return
+			if _turn_manager == null or _turn_manager.is_game_over: return
+
 		if _turn_manager.is_game_over:
 			_processing = false
 			print("[AI] 游戏结束，终止")
@@ -804,7 +811,6 @@ func _process_ai_queue():
 		if not is_instance_valid(unit) or unit.hit_points <= 0:
 			continue
 
-		# 阶段已变化 → 丢弃旧决策，重新决策
 		if task.has("phase_version") \
 				and int(task["phase_version"]) != int(unit.get_meta("boss_phase_version", 0)):
 			var new_action = _decide_action(unit)

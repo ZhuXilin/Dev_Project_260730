@@ -172,6 +172,15 @@ func _act_one_unit(unit: Unit) -> void:
 	if not is_instance_valid(unit) or unit.hit_points <= 0:
 		return
 
+	# ★ 新增：等待对话（转阶段 / 死亡对话等）
+	while Globals.is_dialogue_active:
+		await get_tree().process_frame
+		if not is_instance_valid(self): return
+		if not is_instance_valid(unit) or unit.hit_points <= 0: return
+		if not Globals.is_auto_battle: return
+		if TurnManager.is_game_over: return
+		if TurnManager.current_turn_team != TurnManager.Team.PLAYER: return
+
 	# 1. 优先检查急救
 	if await _try_ai_emergency_heal(unit):
 		return
@@ -189,13 +198,12 @@ func _act_one_unit(unit: Unit) -> void:
 			var path = act.get("path", [])
 			if path.is_empty() or unit.remaining_move <= 0:
 				path = _enemy_ai._retry_find_path(unit)
-				
+
 			if path.is_empty():
 				_finish_unit(unit)
 			else:
 				await _exec_move(unit, path)
 		_:
-			# ★ 如果 AI 决定待机，但能移动且敌人存在，强制往敌人走
 			if unit.remaining_move > 0:
 				var fallback_path = _enemy_ai._retry_find_path(unit)
 				if fallback_path.size() > 0:
@@ -203,7 +211,7 @@ func _act_one_unit(unit: Unit) -> void:
 					ItemBattlefieldManager.try_pickup(unit)
 					_finish_unit(unit)
 					return
-			
+
 			ItemBattlefieldManager.try_pickup(unit)
 			_finish_unit(unit)
 

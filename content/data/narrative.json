@@ -805,18 +805,48 @@
 		  "repeatable": false,
 		  "condition": {"is_boss": true, "current_day": 3},
 		  "lines": [
-			{"speaker": "指挥官", "text": "（Day3 BOSS 战前对话，待补充）"}
+			{"speaker": "深渊龙主", "text": "……又是你们。"},
+			{"speaker": "深渊龙主", "text": "每次都是一样的结局，你们却每次都来。"},
+			{"speaker": "指挥官", "text": "这一次不会。"},
+			{"speaker": "深渊龙主", "text": "（低笑）那就让我看看——你凭什么。"}
 		  ]
 		},
 		{
-		  "id": "boss_three_forms_first",
+		  "id": "boss_dragonlord_phase_2",
 		  "trigger_type": "boss_revive",
 		  "priority": 10,
 		  "repeatable": false,
 		  "condition": {"current_day": 3},
 		  "lines": [
-			{"speaker": "???", "text": "它还没死透……"},
-			{"speaker": "指挥官", "text": "准备——再来一轮！"}
+			{"speaker": "深渊龙主", "text": "不错……你的剑，沾到了我的血。"},
+			{"speaker": "深渊龙主", "text": "那么，你也该看看——我真正的样子。"},
+			{"speaker": "指挥官", "text": "翼焰……果然还藏着这一手。"}
+		  ]
+		},
+		{
+		  "id": "boss_dragonlord_phase_3",
+		  "trigger_type": "boss_revive",
+		  "priority": 10,
+		  "repeatable": false,
+		  "condition": {"current_day": 3},
+		  "lines": [
+			{"speaker": "深渊龙主", "text": "灰烬……在烧。我能听见。"},
+			{"speaker": "深渊龙主", "text": "你的魂火，也是从灰烬里爬出来的吧？"},
+			{"speaker": "指挥官", "text": "（紧握武器）……终结它。"},
+			{"speaker": "深渊龙主", "text": "那就让灰烬，把我们两个一起吞掉。"}
+		  ]
+		},
+		{
+		  "id": "boss_dragonlord_death",
+		  "trigger_type": "boss_death",
+		  "priority": 10,
+		  "repeatable": false,
+		  "condition": {"current_day": 3},
+		  "lines": [
+			{"speaker": "深渊龙主", "text": "原来……灰烬，也会发光啊。"},
+			{"speaker": "深渊龙主", "text": "（缓缓倒下）这一把火……我烧了很久……"},
+			{"speaker": "指挥官", "text": "……结束了。"},
+			{"speaker": "守火者", "text": "（远处传来声音）不，还没有。火还没熄。"}
 		  ]
 		},
 		{

@@ -160,16 +160,40 @@ func _resolve_speaker_avatar(speaker: String) -> Texture2D:
 	var avatar_id := ""
 	var unit_key = UnitDataManager.normalize_unit_key(speaker)
 	if not UnitDataManager.get_unit_data(unit_key).is_empty():
+		# 玩家单位：存档解锁头像优先，fallback 到 JSON avatar
 		avatar_id = GameState.get_unit_avatar(unit_key)
 	else:
-		avatar_id = StoryManager.get_npc_avatar_id(speaker)
+		# 敌方 / NPC 单位走下面三条路径
+		# ① 运行时单位实例上的 avatar_override（地图编辑器里配的，优先级最高）
+		avatar_id = _find_enemy_avatar_override(speaker)
+		# ② unit_data.json 里 display_name/unit_key 反查 avatar
+		if avatar_id == "":
+			avatar_id = UnitDataManager.get_avatar_by_speaker(speaker)
+		# ③ NPC 头像
+		if avatar_id == "":
+			avatar_id = StoryManager.get_npc_avatar_id(speaker)
 		
 	if avatar_id == "":
 		return null
 		
-	print("[对话头像] 说话者: ", speaker, " | 尝试加载: ", avatar_id)
-	# ★ 直接交由 IconManager 全局搜索
+	print("[对话头像] 说话者: ", speaker, " | 解析到: ", avatar_id)
 	return IconManager.get_icon_or_null(avatar_id)
+
+
+## 在运行时单位列表里找匹配 speaker 的敌方单位，返回其 avatar_override / avatar。
+## 用于「地图编辑器里给 boss 单独配了头像」的场景；override 优先。
+func _find_enemy_avatar_override(speaker: String) -> String:
+	for u in UnitManager.unit_list:
+		if not is_instance_valid(u):
+			continue
+		if u.unit_stats == null:
+			continue
+		if u.unit_stats.display_name == speaker or u.unit_stats.unit_name == speaker:
+			if u.unit_stats.avatar_override != "":
+				return u.unit_stats.avatar_override
+			if u.unit_stats.avatar != "":
+				return u.unit_stats.avatar
+	return ""
 
 
 # ============================================================
