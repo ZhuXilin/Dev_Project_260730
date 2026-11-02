@@ -31,7 +31,7 @@ script = ExtResource("2_roqpf")
 team = 1
 unit_name = "mage"
 advanced_class_id = "mage_archmage"
-avatar_id = "avatar_023"
+avatar_id = "avatar_024"
 is_boss = true
 metadata/_custom_type_script = "uid://cjvddjaj43chx"
 
