@@ -17,7 +17,7 @@
           "lines": [
             {
               "speaker": "暗黑神官",
-              "text": "你们终于来了，不幸的人"
+              "text": "你们终于来了，不幸的家伙"
             },
             {
               "speaker": "暗黑神官",
@@ -1697,6 +1697,12 @@
         "text": "好了好了，都闭嘴。前面有敌情。"
       }
     ],
+    "new_dialogue": [
+      {
+        "speaker": "剑带来了吗？",
+        "text": "..."
+      }
+    ],
     "post_battle": [
       {
         "speaker": "指挥官",
@@ -1759,6 +1765,12 @@
       {
         "speaker": "指挥官",
         "text": "这正是我们需要的！"
+      }
+    ],
+    "swordsman_vision_dialog": [
+      {
+        "speaker": "剑带来了吗？",
+        "text": "..."
       }
     ],
     "tavern_talk": [

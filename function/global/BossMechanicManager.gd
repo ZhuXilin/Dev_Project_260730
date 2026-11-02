@@ -88,6 +88,12 @@ func _apply_phase(unit: Unit, phase_idx: int) -> void:
 	if new_stats == null:
 		return
 
+	# ★ 核心修复：强制继承头像，防止新形态漏配导致头像消失
+	if new_stats.avatar == "":
+		new_stats.avatar = unit.unit_stats.avatar
+	if new_stats.avatar_override == "":
+		new_stats.avatar_override = unit.unit_stats.avatar_override
+
 	var hp_mode: String = str(p.get("hp_mode", "full"))
 	var min_hp: int = int(p.get("min_hp", 1))
 	var reset_turn: bool = bool(p.get("reset_turn_state", false))
@@ -107,27 +113,19 @@ func _apply_phase(unit: Unit, phase_idx: int) -> void:
 	var version: int = int(unit.get_meta("boss_phase_version", 0)) + 1
 	unit.set_meta("boss_phase_version", version)
 
-	SignalBus.request_screen_shake.emit(0.4, 8.0, Vector2.ZERO)
-	SignalBus.request_hint_override.emit(
-		"★ %s 进入第 %d 形态！" % [unit.unit_stats.display_name, phase_idx + 1], 2.0)
+	# ★ 核心修改：只有真正在战斗中“转阶段”（phase_idx > 0）时，才触发震屏和提示。
+	# 如果是初始阶段（0），直接跳过，避免对话一结束就莫名其妙震动。
+	if phase_idx > 0:
+		SignalBus.request_screen_shake.emit(0.4, 8.0, Vector2.ZERO)
+		SignalBus.request_hint_override.emit(
+			"★ %s 进入第 %d 形态！" % [unit.unit_stats.display_name, phase_idx + 1], 2.0)
 
 	# ★ 触发转阶段对话
-	# phase_idx == 0 是初始形态（setup_for_node 时调用），不播转阶段对话
-	# 优先读 unit_data.json 的 boss_dialogue_hooks.phase_N
-	# 回退到 narrative.json 的 boss_phase
 	if phase_idx > 0:
 		var hook_key : String = "phase_%d" % (phase_idx + 1)
 		var dlg_id : String = str(new_stats.boss_dialogue_hooks.get(hook_key, ""))
 		if dlg_id != "" and StoryManager.play_dialogue_by_id(dlg_id):
 			await DialogueManager.dialogue_finished
-		else:
-			var ctx : Dictionary = {
-				"unit_name": unit.unit_stats.unit_name,
-				"phase_idx": phase_idx,
-				"current_day": GameState.current_day
-			}
-			if StoryManager.trigger("boss_phase", ctx):
-				await DialogueManager.dialogue_finished
 
 	# ★ 新增：对话结束后，强制刷新血条和左侧面板
 	if is_instance_valid(unit):

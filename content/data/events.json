@@ -1,143 +1,143 @@
 {
   "awaken_swordsman_vision": {
-    "actions": [
-      {
-        "dialog_id": "swordsman_vision_dialog",
-        "type": "dialog"
-      },
-      {
-        "avatar_id": "avatar_010",
-        "type": "unlock_avatar",
-        "unit_name": "swordsman"
-      }
-    ],
-    "once": true
+	"actions": [
+	  {
+		"dialog_id": "swordsman_vision_dialog",
+		"type": "dialog"
+	  },
+	  {
+		"avatar_id": "avatar_010",
+		"type": "unlock_avatar",
+		"unit_name": "swordsman"
+	  }
+	],
+	"once": true
   },
   "complete_node": {
-    "actions": [
-      {
-        "dialog_id": "complete_dialog",
-        "type": "dialog"
-      },
-      {
-        "type": "complete"
-      }
-    ],
-    "once": false
+	"actions": [
+	  {
+		"dialog_id": "complete_dialog",
+		"type": "dialog"
+	  },
+	  {
+		"type": "complete"
+	  }
+	],
+	"once": false
   },
   "direct_get_knight_armor": {
-    "actions": [
-      {
-        "count": 1.0,
-        "item_id": "knight_armor",
-        "type": "give_item"
-      }
-    ],
-    "once": true
+	"actions": [
+	  {
+		"count": 1.0,
+		"item_id": "knight_armor",
+		"type": "give_item"
+	  }
+	],
+	"once": true
   },
   "direct_get_master_sword": {
-    "actions": [
-      {
-        "count": 1.0,
-        "item_id": "master_sword",
-        "type": "give_item"
-      }
-    ],
-    "once": true
+	"actions": [
+	  {
+		"count": 1.0,
+		"item_id": "master_sword",
+		"type": "give_item"
+	  }
+	],
+	"once": true
   },
   "direct_get_power_ring": {
-    "actions": [
-      {
-        "count": 1.0,
-        "item_id": "power_ring",
-        "type": "give_item"
-      }
-    ],
-    "once": true
+	"actions": [
+	  {
+		"count": 1.0,
+		"item_id": "power_ring",
+		"type": "give_item"
+	  }
+	],
+	"once": true
   },
   "direct_get_speed_boots": {
-    "actions": [
-      {
-        "count": 1.0,
-        "item_id": "speed_boots",
-        "type": "give_item"
-      }
-    ],
-    "once": true
+	"actions": [
+	  {
+		"count": 1.0,
+		"item_id": "speed_boots",
+		"type": "give_item"
+	  }
+	],
+	"once": true
   },
   "direct_get_steel_armor": {
-    "actions": [
-      {
-        "count": 1.0,
-        "item_id": "steel_armor",
-        "type": "give_item"
-      }
-    ],
-    "once": true
+	"actions": [
+	  {
+		"count": 1.0,
+		"item_id": "steel_armor",
+		"type": "give_item"
+	  }
+	],
+	"once": true
   },
   "heal_spot": {
-    "actions": [
-      {
-        "amount": 10.0,
-        "type": "heal"
-      }
-    ],
-    "once": false
+	"actions": [
+	  {
+		"amount": 10.0,
+		"type": "heal"
+	  }
+	],
+	"once": false
   },
   "healer_advice_event": {
-    "actions": [
-      {
-        "dialog_id": "healer_advice",
-        "type": "dialog"
-      }
-    ],
-    "once": true
+	"actions": [
+	  {
+		"dialog_id": "healer_advice",
+		"type": "dialog"
+	  }
+	],
+	"once": true
   },
   "obtain_longbow": {
-    "actions": [
-      {
-        "count": 1.0,
-        "item_id": "longbow",
-        "type": "give_item"
-      }
-    ],
-    "once": true
+	"actions": [
+	  {
+		"count": 1.0,
+		"item_id": "longbow",
+		"type": "give_item"
+	  }
+	],
+	"once": true
   },
   "obtain_steel_sword": {
-    "actions": [
-      {
-        "count": 1.0,
-        "item_id": "steel_sword",
-        "type": "give_item"
-      }
-    ],
-    "once": true
+	"actions": [
+	  {
+		"count": 1.0,
+		"item_id": "steel_sword",
+		"type": "give_item"
+	  }
+	],
+	"once": true
   },
   "trap_hp": {
-    "actions": [
-      {
-        "amount": -5.0,
-        "type": "damage"
-      }
-    ],
-    "once": true
+	"actions": [
+	  {
+		"amount": -5.0,
+		"type": "damage"
+	  }
+	],
+	"once": true
   },
   "village_encounter": {
-    "actions": [
-      {
-        "dialog_id": "village_encounter_dlg",
-        "type": "dialog"
-      }
-    ],
-    "once": true
+	"actions": [
+	  {
+		"dialog_id": "village_encounter_dlg",
+		"type": "dialog"
+	  }
+	],
+	"once": true
   },
   "village_gossip_event": {
-    "actions": [
-      {
-        "dialog_id": "village_gossip",
-        "type": "dialog"
-      }
-    ],
-    "once": true
+	"actions": [
+	  {
+		"dialog_id": "village_gossip",
+		"type": "dialog"
+	  }
+	],
+	"once": true
   }
 }

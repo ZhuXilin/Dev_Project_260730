@@ -279,10 +279,7 @@ func _ready():
 		_panel_manager.update_relic_icons()
 		return
 
-	# ★ 触发 Boss 战前专属对话
-	# 优先读 unit_data.json 的 boss_dialogue_hooks.battle_start
-	# 如果钩子已播放，就不再走 narrative.json 的 battle_start（避免双播）
-	var battle_start_hook_played : bool = false
+	# ★ 触发 Boss 战前专属对话（仅限 unit_data.json 配置的钩子）
 	if is_boss:
 		for u in UnitManager.unit_list:
 			if not is_instance_valid(u):
@@ -293,14 +290,8 @@ func _ready():
 				continue
 			var hook_id : String = str(u.unit_stats.boss_dialogue_hooks.get("battle_start", ""))
 			if hook_id != "" and StoryManager.play_dialogue_by_id(hook_id):
-				battle_start_hook_played = true
 				await DialogueManager.dialogue_finished
 			break
-
-	if not battle_start_hook_played:
-		var battle_ctx: Dictionary = _build_battle_start_context()
-		if StoryManager.trigger("battle_start", battle_ctx):
-			await DialogueManager.dialogue_finished
 
 	if MusicManager:
 		MusicManager.stop_music()

@@ -24,14 +24,14 @@ const VALID_AFFIX_TYPES : Array = [
 	"attack_flat", "defense_flat", "hp_flat", "crit_chance", "crit_damage",
 	"dodge", "lifesteal", "counter", "soul_fire_gain", "heal_boost",
 	"flame_damage", "move_flat", "turn_regen", "start_shield",
-	"physical_penetration", "magic_penetration"
+	"physical_penetration", "magic_penetration", "anti_crit"
 ]
 const VALID_UNLOCK_TYPES : Array = ["unit", "relic", "aura", "route", "talent", "transform_branch"]
 const VALID_ACTION_TYPES : Array = [
 	"dialog", "give_item", "heal", "damage", "wait",
 	"complete", "unlock_unit", "unlock_talent",
 	"unlock_equipment", "unlock_relics",
-	"gold", "soul",
+	"gold", "soul", "unlock_avatar", "unlock_npc_avatar"
 ]
 const VALID_QUALITIES : Array = ["common", "rare", "epic", "legendary"]
 const MAX_CAP_LEVEL : int = 3
@@ -181,8 +181,8 @@ func _validate_units():
 					continue
 				var d : Dictionary = lv_dict
 				if d.is_empty():
-					_warn(fname, "%s.attr_cap_levels[%d]" % [unit_key, lv_idx],
-						"该级为空（无加成）")
+					# Boss 或特殊单位不需要属性上限成长，直接跳过不报警
+					continue
 				for k in d:
 					if k not in VALID_CAP_ATTRS:
 						_warn(fname, "%s.attr_cap_levels[%d].%s" % [unit_key, lv_idx, k],

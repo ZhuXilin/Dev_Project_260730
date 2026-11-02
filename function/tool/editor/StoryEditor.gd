@@ -363,8 +363,8 @@ func _build_ui():
 
 	_status_label = Label.new()
 	_status_label.add_theme_font_size_override("font_size", FS_HINT)
-	_status_label.modulate = Color(0.75, 0.9, 0.75)
-	_status_label.text = "就绪"
+	_status_label.modulate = Color(0.6, 1.0, 0.6) # 初始绿色
+	_status_label.text = "✓ 已保存"
 	_status_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_status_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	bottom_bar.add_child(_status_label)
@@ -420,6 +420,16 @@ func _mk_line_edit(text : String, placeholder : String = "") -> LineEdit:
 	le.add_theme_font_size_override("font_size", FS_BUTTON)
 	le.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	le.custom_minimum_size = Vector2(0, ROW_H)
+	
+	# ★ 回车结束输入，自动释放焦点，并触发刷新
+	le.text_submitted.connect(func(_t):
+		le.release_focus()
+		_mark_dirty()
+	)
+	le.focus_exited.connect(func():
+		_mark_dirty()
+	)
+	
 	return le
 
 
@@ -435,6 +445,7 @@ func _mk_spin(value : int, min_v : int, max_v : int, w : int = SPIN_W) -> SpinBo
 	sp.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	sp.add_theme_font_size_override("font_size", FS_BUTTON)
 	sp.add_theme_constant_override("separation", 0)
+	sp.value_changed.connect(func(_v): _mark_dirty())
 	sp.ready.connect(func(): _setup_spin(sp), CONNECT_ONE_SHOT)
 	return sp
 
@@ -484,6 +495,7 @@ func _mk_option_button() -> OptionButton:
 	opt.add_theme_font_size_override("font_size", FS_BUTTON)
 	opt.custom_minimum_size = Vector2(60, BTN_H)
 	opt.clip_text = true
+	opt.item_selected.connect(func(_idx): _mark_dirty())
 	return opt
 
 
@@ -499,6 +511,7 @@ func _mk_checkbox(text : String, pressed : bool) -> Button:
 	b.custom_minimum_size = Vector2(0, ROW_H)
 	b.toggled.connect(func(p):
 		b.text = ("☑ " if p else "☐ ") + text
+		_mark_dirty()
 	)
 	return b
 
@@ -534,6 +547,13 @@ func _clear_container(node : Node):
 		node.remove_child(c)
 		c.queue_free()
 
+
+# ★ 新增：统一处理"未保存"状态
+func _mark_dirty():
+	_dirty = true
+	if _status_label:
+		_status_label.text = "⚠️ 有未保存的修改"
+		_status_label.modulate = Color(1.0, 0.8, 0.4) # 黄色警告
 
 func _set_status(text : String):
 	if _status_label:
@@ -578,7 +598,7 @@ func _push_undo():
 	if _undo_stack.size() > MAX_UNDO:
 		_undo_stack.pop_front()
 	_redo_stack.clear()
-	_dirty = true
+	_mark_dirty()
 	_refresh_undo_buttons()
 
 
@@ -596,7 +616,7 @@ func _apply_snapshot(snap : Dictionary):
 	_current_event_id = str(snap.get("event", ""))
 	_current_action_idx = int(snap.get("action_idx", -1))
 
-	_dirty = true
+	_mark_dirty()
 	_rebuild_all_panels()
 	_suppress_undo = false
 	_refresh_undo_buttons()
@@ -688,7 +708,8 @@ func _load_all():
 	_undo_stack.clear()
 	_redo_stack.clear()
 	_refresh_undo_buttons()
-	_set_status("已加载：%d NPC / %d 对话 / %d 事件" % [_stories.size(), _dialogues.size(), _events.size()])
+	_status_label.text = "✓ 数据已加载"
+	_status_label.modulate = Color(0.6, 1.0, 0.6)
 
 
 func _load_json(path : String) -> Dictionary:
@@ -715,13 +736,15 @@ func _on_save():
 
 	if ok:
 		_dirty = false
-		_set_status("✓ 已保存")
+		_status_label.text = "✓ 已保存"
+		_status_label.modulate = Color(0.6, 1.0, 0.6)
 
 
 func _save_json(path : String, data : Dictionary) -> bool:
 	var f := FileAccess.open(path, FileAccess.WRITE)
 	if f == null:
-		_set_status("✗ 无法写入：%s" % path)
+		_status_label.text = "✗ 无法写入：%s" % path
+		_status_label.modulate = Color(1.0, 0.5, 0.5)
 		return false
 	f.store_string(JSON.stringify(data, "  "))
 	f.close()
@@ -735,7 +758,10 @@ func _on_reload():
 
 
 func _on_quit():
-	get_tree().quit()
+	if _dirty:
+		Globals.show_confirm(self, "有未保存的修改，确定要退出吗？", "退出", "取消", func(): get_tree().quit(), func(): pass)
+	else:
+		get_tree().quit()
 
 
 # ============================================================
@@ -793,11 +819,9 @@ func _switch_tab(tab : String):
 	_tab_dialogues_btn.modulate = Color.WHITE if tab == "dialogues" else Color(0.55, 0.55, 0.55, 1)
 	_tab_events_btn.modulate = Color.WHITE if tab == "events" else Color(0.55, 0.55, 0.55, 1)
 
-	# ★ 清理事件图节点，防止切页后挡住 UI
 	if _event_graph != null and is_instance_valid(_event_graph):
 		_event_graph.queue_free()
 		_event_graph = null
-	# ★ 恢复中间列表的可见性
 	_mid_list.visible = true
 
 	_clear_container(_left_list)
@@ -935,7 +959,7 @@ func _build_dialogue_form():
 
 	_right_title.text = "编辑：" + _current_dialogue_id
 
-	# 1. 顶部操作按钮区（强制高度，避免被挤压隐形）
+	# 1. 顶部操作按钮区（强制高度，确保可见）
 	var head := HBoxContainer.new()
 	head.add_theme_constant_override("separation", 6)
 	head.custom_minimum_size = Vector2(0, 24)
@@ -951,7 +975,6 @@ func _build_dialogue_form():
 	dup.pressed.connect(_duplicate_current_dialogue)
 	head.add_child(dup)
 
-	# 红色的删除按钮
 	var dl := _mk_btn("✖ 删除对话")
 	dl.add_theme_color_override("font_color", Color(1.0, 0.4, 0.4))
 	dl.custom_minimum_size = Vector2(64, 20)
@@ -993,7 +1016,6 @@ func _build_dialogue_form():
 		if int(v) == int(d.get("priority", 0)): return
 		_push_undo()
 		d["priority"] = int(v)
-		_dirty = true
 		_build_mid_list()
 	)
 	pri_row.add_child(ps)
@@ -1008,7 +1030,6 @@ func _build_dialogue_form():
 		_push_undo()
 		if nc.is_empty(): d.erase("condition")
 		else: d["condition"] = nc
-		_dirty = true
 	)
 
 	# 5. 台词区
@@ -1018,6 +1039,7 @@ func _build_dialogue_form():
 	# 6. 选项区
 	_right_container.add_child(_mk_section("— choices —"))
 	_build_choices_editor(d)
+
 
 func _duplicate_current_dialogue():
 	if _current_npc == "" or _current_dialogue_id == "": return
@@ -1045,7 +1067,6 @@ func _duplicate_current_dialogue():
 			break
 	dlist.insert(insert_at, new_d)
 
-	_dirty = true
 	_current_dialogue_id = new_id
 	_current_unlock_idx = -1
 	_build_mid_list()
@@ -1081,7 +1102,6 @@ func _rename_dialogue(old_id : String, new_id : String):
 		if d is Dictionary and d.get("id", "") == old_id:
 			d["id"] = new_id
 			_current_dialogue_id = new_id
-			_dirty = true
 			_set_status("重命名：%s → %s" % [old_id, new_id])
 			_build_mid_list()
 			_build_dialogue_form()
@@ -1101,7 +1121,6 @@ func _delete_current_dialogue():
 			for i in range(dlist.size()):
 				if dlist[i] is Dictionary and dlist[i].get("id", "") == _current_dialogue_id:
 					dlist.remove_at(i)
-					_dirty = true
 					_current_dialogue_id = ""
 					_build_mid_list()
 					_clear_container(_right_container)
@@ -1127,7 +1146,6 @@ func _add_new_dialogue():
 		"id": nid, "priority": 0,
 		"lines": [{"speaker": "???", "text": "..."}]
 	})
-	_dirty = true
 	_current_dialogue_id = nid
 	_current_unlock_idx = -1
 	_build_mid_list()
@@ -1159,7 +1177,6 @@ func _build_unlock_form():
 		_push_undo()
 		u["type"] = UNLOCK_TYPES[idx]
 		u["id"] = ""
-		_dirty = true
 		_build_mid_list()
 		_build_unlock_form()
 	)
@@ -1176,7 +1193,6 @@ func _build_unlock_form():
 		_push_undo()
 		if nc.is_empty(): u.erase("conditions")
 		else: u["conditions"] = nc
-		_dirty = true
 	)
 
 	var del := _mk_btn("✖ 删除此解锁", _delete_current_unlock)
@@ -1194,7 +1210,6 @@ func _build_unlock_id_editor(u : Dictionary) -> Control:
 		le.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		le.text_changed.connect(func(t):
 			u["id"] = t
-			_dirty = true
 			_build_mid_list()
 		)
 		return le
@@ -1221,7 +1236,6 @@ func _build_unlock_id_editor(u : Dictionary) -> Control:
 		_push_undo()
 		var v = opt.get_item_metadata(idx)
 		u["id"] = str(v if v != null else "")
-		_dirty = true
 		_build_mid_list()
 	)
 	return opt
@@ -1274,7 +1288,6 @@ func _delete_current_unlock():
 	if _current_unlock_idx < 0 or _current_unlock_idx >= unlocks.size(): return
 	_push_undo()
 	unlocks.remove_at(_current_unlock_idx)
-	_dirty = true
 	_current_unlock_idx = -1
 	_build_mid_list()
 	_clear_container(_right_container)
@@ -1288,7 +1301,6 @@ func _add_new_unlock():
 	var npc : Dictionary = _stories[_current_npc]
 	if not npc.has("unlocks"): npc["unlocks"] = []
 	npc["unlocks"].append({"type": "route", "id": "", "conditions": {}})
-	_dirty = true
 	_current_unlock_idx = npc["unlocks"].size() - 1
 	_current_dialogue_id = ""
 	_build_mid_list()
@@ -1327,7 +1339,9 @@ func _build_condition_editor(cond : Dictionary, on_change : Callable):
 			elif t.is_valid_int():
 				work[key] = int(t)
 			on_change.call(work)
+			_mark_dirty()
 		)
+		le.text_submitted.connect(func(_t): le.release_focus())
 		row.add_child(le)
 
 		cb.toggled.connect(func(p : bool):
@@ -1376,6 +1390,7 @@ func _build_condition_editor(cond : Dictionary, on_change : Callable):
 		var v = ad_opt.get_item_metadata(idx)
 		work["after_dialogue"] = str(v if v != null else "")
 		on_change.call(work)
+		_mark_dirty()
 	)
 	ad_row.add_child(ad_opt)
 	ad_cb.toggled.connect(func(p : bool):
@@ -1409,6 +1424,7 @@ func _build_condition_editor(cond : Dictionary, on_change : Callable):
 		if parts.is_empty(): work.erase("flags")
 		else: work["flags"] = parts
 		on_change.call(work)
+		_mark_dirty()
 	)
 	fr.add_child(fe)
 
@@ -1442,7 +1458,7 @@ func _build_lines_editor(d : Dictionary):
 		sp.size_flags_horizontal = Control.SIZE_FILL
 		sp.text_changed.connect(func(t):
 			line["speaker"] = t
-			_dirty = true
+			_mark_dirty()
 		)
 		row.add_child(sp)
 
@@ -1450,7 +1466,7 @@ func _build_lines_editor(d : Dictionary):
 		tx.custom_minimum_size = Vector2(100, ROW_H)
 		tx.text_changed.connect(func(t):
 			line["text"] = t
-			_dirty = true
+			_mark_dirty()
 		)
 		row.add_child(tx)
 
@@ -1459,7 +1475,6 @@ func _build_lines_editor(d : Dictionary):
 		_push_undo()
 		if not d.has("lines"): d["lines"] = []
 		d["lines"].append({"speaker": "???", "text": ""})
-		_dirty = true
 		_build_dialogue_form()
 	)
 	_right_container.add_child(add)
@@ -1473,7 +1488,6 @@ func _move_line(d : Dictionary, idx : int, dir : int):
 	var t = lines[idx]
 	lines[idx] = lines[ni]
 	lines[ni] = t
-	_dirty = true
 	_build_dialogue_form()
 
 
@@ -1482,7 +1496,6 @@ func _delete_line(d : Dictionary, idx : int):
 	if idx < 0 or idx >= lines.size(): return
 	_push_undo()
 	lines.remove_at(idx)
-	_dirty = true
 	_build_dialogue_form()
 
 
@@ -1492,7 +1505,6 @@ func _build_choices_editor(d : Dictionary):
 		init.pressed.connect(func():
 			_push_undo()
 			d["choices"] = [{"text": "", "flag": ""}]
-			_dirty = true
 			_build_dialogue_form()
 		)
 		_right_container.add_child(init)
@@ -1509,7 +1521,6 @@ func _build_choices_editor(d : Dictionary):
 			_push_undo()
 			choices.remove_at(idx)
 			if choices.is_empty(): d.erase("choices")
-			_dirty = true
 			_build_dialogue_form()
 		)
 		row.add_child(dl)
@@ -1518,7 +1529,7 @@ func _build_choices_editor(d : Dictionary):
 		tx.custom_minimum_size = Vector2(100, ROW_H)
 		tx.text_changed.connect(func(t):
 			c["text"] = t
-			_dirty = true
+			_mark_dirty()
 		)
 		row.add_child(tx)
 
@@ -1527,7 +1538,7 @@ func _build_choices_editor(d : Dictionary):
 		fl.size_flags_horizontal = Control.SIZE_FILL
 		fl.text_changed.connect(func(t):
 			c["flag"] = t
-			_dirty = true
+			_mark_dirty()
 		)
 		row.add_child(fl)
 
@@ -1535,7 +1546,6 @@ func _build_choices_editor(d : Dictionary):
 	add.pressed.connect(func():
 		_push_undo()
 		choices.append({"text": "", "flag": ""})
-		_dirty = true
 		_build_dialogue_form()
 	)
 	_right_container.add_child(add)
@@ -1623,7 +1633,6 @@ func _build_flat_form():
 		_dialogues[new_id] = _dialogues[_current_flat_id]
 		_dialogues.erase(_current_flat_id)
 		_current_flat_id = new_id
-		_dirty = true
 		_build_flat_id_list()
 		_build_flat_form()
 		_set_status("已重命名：" + new_id)
@@ -1644,7 +1653,6 @@ func _build_flat_form():
 		dl2.pressed.connect(func():
 			_push_undo()
 			lines.remove_at(idx)
-			_dirty = true
 			_build_flat_form()
 		)
 		row.add_child(dl2)
@@ -1656,7 +1664,6 @@ func _build_flat_form():
 				var t = lines[idx]
 				lines[idx] = lines[idx - 1]
 				lines[idx - 1] = t
-				_dirty = true
 				_build_flat_form()
 		)
 		row.add_child(up)
@@ -1668,7 +1675,6 @@ func _build_flat_form():
 				var t = lines[idx]
 				lines[idx] = lines[idx + 1]
 				lines[idx + 1] = t
-				_dirty = true
 				_build_flat_form()
 		)
 		row.add_child(dn)
@@ -1678,7 +1684,7 @@ func _build_flat_form():
 		sp.size_flags_horizontal = Control.SIZE_FILL
 		sp.text_changed.connect(func(t):
 			line["speaker"] = t
-			_dirty = true
+			_mark_dirty()
 		)
 		row.add_child(sp)
 
@@ -1686,7 +1692,7 @@ func _build_flat_form():
 		tx.custom_minimum_size = Vector2(100, ROW_H)
 		tx.text_changed.connect(func(t):
 			line["text"] = t
-			_dirty = true
+			_mark_dirty()
 		)
 		row.add_child(tx)
 
@@ -1695,7 +1701,6 @@ func _build_flat_form():
 	add.pressed.connect(func():
 		_push_undo()
 		lines.append({"speaker": "???", "text": ""})
-		_dirty = true
 		_build_flat_form()
 	)
 	_right_container.add_child(add)
@@ -1710,7 +1715,6 @@ func _add_new_flat():
 		nid = "%s_%d" % [base, n]
 	_push_undo()
 	_dialogues[nid] = [{"speaker": "???", "text": "..."}]
-	_dirty = true
 	_current_flat_id = nid
 	_clear_container(_left_list)
 	_build_flat_id_list()
@@ -1739,7 +1743,6 @@ func _duplicate_flat_dialogue():
 		new_id = "%s_copy%d" % [base, n]
 
 	_dialogues[new_id] = new_lines
-	_dirty = true
 	_current_flat_id = new_id
 	_clear_container(_left_list)
 	_build_flat_id_list()
@@ -1757,7 +1760,6 @@ func _delete_flat():
 		func():
 			_push_undo()
 			_dialogues.erase(_current_flat_id)
-			_dirty = true
 			_current_flat_id = ""
 			_clear_container(_left_list)
 			_clear_container(_right_container)
@@ -1864,7 +1866,6 @@ func _build_event_meta_form():
 	once_cb.toggled.connect(func(p):
 		_push_undo()
 		ev["once"] = p
-		_dirty = true
 		if _event_graph: _event_graph.show_event(_current_event_id)
 	)
 	once_row.add_child(once_cb)
@@ -1899,7 +1900,6 @@ func _add_new_action():
 	var ev : Dictionary = _events[_current_event_id]
 	if not ev.has("actions"): ev["actions"] = []
 	ev["actions"].append({"type": "dialog", "dialog_id": ""})
-	_dirty = true
 	_current_action_idx = ev["actions"].size() - 1
 	_build_event_action_list()
 	_build_action_form()
@@ -1910,7 +1910,7 @@ const ACTION_TYPES : Array = [
 	"dialog", "give_item", "heal", "damage", "wait",
 	"complete", "unlock_unit", "unlock_talent",
 	"unlock_equipment", "unlock_relics",
-	"unlock_npc_avatar",
+	"unlock_npc_avatar", "unlock_avatar"
 ]
 
 func _build_action_form():
@@ -1948,7 +1948,6 @@ func _build_action_form():
 	opt.item_selected.connect(func(idx):
 		_push_undo()
 		if idx < ACTION_TYPES.size(): a["type"] = ACTION_TYPES[idx]
-		_dirty = true
 		_build_event_action_list()
 		_build_action_form()
 	)
@@ -1983,7 +1982,6 @@ func _move_action(dir : int):
 	actions[_current_action_idx] = actions[ni]
 	actions[ni] = t
 	_current_action_idx = ni
-	_dirty = true
 	_build_event_action_list()
 	_build_action_form()
 
@@ -1993,7 +1991,6 @@ func _delete_current_action():
 	if _current_action_idx < 0 or _current_action_idx >= actions.size(): return
 	_push_undo()
 	actions.remove_at(_current_action_idx)
-	_dirty = true
 	_current_action_idx = -1
 	_build_event_action_list()
 	_clear_container(_right_container)
@@ -2006,7 +2003,7 @@ func _build_dynamic_fields(a : Dictionary):
 		"dialog_id", "item_id", "count", "equip",
 		"amount", "seconds",
 		"units", "talent_id", "relic_id", "relic_ids", "music",
-		"npc_id", "avatar_id"
+		"npc_id", "avatar_id", "unit_name"
 	]
 	var visited : Dictionary = {"type": true}
 	for k in priority:
@@ -2036,7 +2033,6 @@ func _build_dynamic_fields(a : Dictionary):
 		if k == "" or k == "type": return
 		_push_undo()
 		a[k] = _parse_value(ve.text)
-		_dirty = true
 		_build_event_action_list()
 		_build_action_form()
 	)
@@ -2070,7 +2066,6 @@ func _build_one_field(a : Dictionary, key : String):
 	dl.pressed.connect(func():
 		_push_undo()
 		a.erase(key)
-		_dirty = true
 		_build_event_action_list()
 		_build_action_form()
 	)
@@ -2089,7 +2084,7 @@ func _build_one_field(a : Dictionary, key : String):
 			if npcs[i] == str(value): opt.selected = i
 		opt.item_selected.connect(func(idx):
 			a[key] = npcs[idx]
-			_dirty = true
+			_mark_dirty()
 			if _event_graph: _event_graph.show_event(_current_event_id)
 		)
 		row.add_child(opt)
@@ -2103,7 +2098,7 @@ func _build_one_field(a : Dictionary, key : String):
 			if avatars[i] == str(value): opt.selected = i
 		opt.item_selected.connect(func(idx):
 			a[key] = avatars[idx]
-			_dirty = true
+			_mark_dirty()
 			if _event_graph: _event_graph.show_event(_current_event_id)
 		)
 		row.add_child(opt)
@@ -2115,14 +2110,12 @@ func _build_one_field(a : Dictionary, key : String):
 		cb.toggled.connect(func(p):
 			_push_undo()
 			a[key] = p
-			_dirty = true
 		)
 		row.add_child(cb)
 	elif t == TYPE_INT:
 		var sp := _mk_spin(int(value), -99999, 99999)
 		sp.value_changed.connect(func(v):
 			a[key] = int(v)
-			_dirty = true
 			_build_event_action_list()
 		)
 		row.add_child(sp)
@@ -2131,7 +2124,7 @@ func _build_one_field(a : Dictionary, key : String):
 		le.custom_minimum_size = Vector2(60, ROW_H)
 		le.text_changed.connect(func(s):
 			if s.is_valid_float(): a[key] = float(s)
-			_dirty = true
+			_mark_dirty()
 		)
 		row.add_child(le)
 	elif t == TYPE_ARRAY:
@@ -2148,7 +2141,7 @@ func _build_one_field(a : Dictionary, key : String):
 				if ps.is_valid_int(): parts.append(int(ps))
 				else: parts.append(ps)
 			a[key] = parts
-			_dirty = true
+			_mark_dirty()
 			_build_event_action_list()
 		)
 		row.add_child(le)
@@ -2157,7 +2150,7 @@ func _build_one_field(a : Dictionary, key : String):
 		le.custom_minimum_size = Vector2(80, ROW_H)
 		le.text_changed.connect(func(s):
 			a[key] = s
-			_dirty = true
+			_mark_dirty()
 			_build_event_action_list()
 		)
 		row.add_child(le)
@@ -2172,7 +2165,6 @@ func _add_new_event():
 		nid = "%s_%d" % [base, n]
 	_push_undo()
 	_events[nid] = {"actions": [{"type": "dialog", "dialog_id": ""}], "once": true}
-	_dirty = true
 	_current_event_id = nid
 	_current_action_idx = -1
 	_clear_container(_left_list)

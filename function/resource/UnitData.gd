@@ -251,6 +251,7 @@ func to_dict() -> Dictionary:
 	var d: Dictionary = {
 		"unit_name": unit_name, "display_name": display_name,
 		"faction": faction, "team_id": team_id,
+		"avatar": avatar,
 		"max_hp": max_hp, "hit_points": hit_points,
 		"strength": strength, "dexterity": dexterity,
 		"intelligence": intelligence, "faith": faith, "arcane": arcane,
@@ -288,6 +289,7 @@ static func from_dict(d: Dictionary) -> UnitData:
 	data.display_name = d.get("display_name", "")
 	data.faction = d.get("faction", "")
 	data.team_id = d.get("team_id", 0)
+	data.avatar = str(d.get("avatar", ""))
 	data.max_hp = d.get("max_hp", 20)
 	data.hit_points = d.get("hit_points", data.max_hp)
 	data.strength = d.get("strength", 5)

@@ -202,13 +202,23 @@ static func spawn_units_from_configs(parent: Node, configs: Array[UnitConfig], g
 		if stats == null: continue
 
 		var unit = load(UNIT_PATH).instantiate()
-		# ★ 只传两个参数，去掉 initial_items
 		unit.setup_unit(stats, cfg.position)
 		unit.set_meta("wave", cfg.wave)
+		
+		# ★ 核心修复：只要不是首发波次，在加入场景前强制隐藏并禁用处理
+		if cfg.wave > 1:
+			unit.visible = false
+			unit.process_mode = Node.PROCESS_MODE_DISABLED
+			unit.can_act_this_turn = false
+			unit.remaining_move = 0
+			unit.hit_points = unit.unit_stats.max_hp
+			# 禁用碰撞层，防止提前触发任何物理判定
+			if unit is CollisionObject2D:
+				(unit as CollisionObject2D).set_collision_layer_value(1, false)
+			
 		parent.add_child(unit)
 		unit.position = grid_to_world_func.call(cfg.position)
 		UnitManager.register_unit(unit)
-
 
 static func _create_unit_stats(cfg: UnitConfig, base_name: String, adv_id: String) -> UnitData:
 	var name_key : String = base_name if base_name != "" else cfg.unit_name
