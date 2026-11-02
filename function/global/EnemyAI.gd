@@ -95,6 +95,8 @@ func run_enemy_ai():
 	var can_act : bool = false
 	for enemy in enemies:
 		var action = _decide_action(enemy)
+		if action:
+			action["phase_version"] = int(enemy.get_meta("boss_phase_version", 0))
 		cached_actions.append(action)
 		if action and action["type"] != "wait":
 			can_act = true
@@ -800,6 +802,15 @@ func _process_ai_queue():
 		var task = ai_queue.pop_front()
 		var unit = task["unit"]
 		if not is_instance_valid(unit) or unit.hit_points <= 0:
+			continue
+
+		# 阶段已变化 → 丢弃旧决策，重新决策
+		if task.has("phase_version") \
+				and int(task["phase_version"]) != int(unit.get_meta("boss_phase_version", 0)):
+			var new_action = _decide_action(unit)
+			if new_action and new_action["type"] != "wait":
+				new_action["phase_version"] = int(unit.get_meta("boss_phase_version", 0))
+				ai_queue.push_front(new_action)
 			continue
 
 		match task["type"]:

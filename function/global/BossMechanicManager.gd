@@ -1,202 +1,223 @@
 extends Node
 
-enum Mechanic { NONE, SOUL_DRAIN, ASH_SHIELD, THREE_FORMS }
+var _boss_states: Dictionary = {}
 
-var _current : Mechanic = Mechanic.NONE
-var _ash_shield_stacks : int = 0
-var _three_forms_stage : int = 0
-var _boss_unit : Unit = null
-
-signal boss_mechanic_triggered(name: String, description: String)
+const TRIGGER_INITIAL := "initial"
+const TRIGGER_HP_BELOW := "hp_below"
+const TRIGGER_ON_DEATH := "on_death"
 
 
-func setup_for_node(is_boss: bool):
-	if not is_boss:
-		_current = Mechanic.NONE
-		_boss_unit = null
-		# ★ 修复：进入非 Boss 节点时清魂火上限惩罚（双保险）
-		if SoulFireManager:
-			SoulFireManager.reset_boss_penalty()
+func setup_for_node(_is_boss: bool) -> void:
+	_boss_states.clear()
+	if SoulFireManager:
+		SoulFireManager.reset_boss_penalty()
+
+	for u in UnitManager.unit_list:
+		if not is_instance_valid(u):
+			continue
+		if u.unit_stats.team_id != 1:
+			continue
+		if not u.unit_stats.is_boss:
+			continue
+		if u.unit_stats.phases.is_empty():
+			continue
+
+		_boss_states[u] = {
+			"current_phase": 0,
+			"triggered": {0: true},
+			"current_mechanic_id": "",
+			"current_mechanic_params": {},
+			"ash_shield_stacks": 0
+		}
+		_apply_phase(u, 0)
+		print("[Boss] 初始化多阶段单位：%s，总阶段 %d" % [u.unit_stats.display_name, u.unit_stats.phases.size()])
+
+
+func _apply_phase(unit: Unit, phase_idx: int) -> void:
+	if not _boss_states.has(unit):
 		return
-	var day : int = GameState.current_day
-	match day:
-		1: _current = Mechanic.SOUL_DRAIN
-		2: _current = Mechanic.ASH_SHIELD
-		3: _current = Mechanic.THREE_FORMS
-		_: _current = Mechanic.NONE
-	_ash_shield_stacks = 0
-	_three_forms_stage = 0
+	var st: Dictionary = _boss_states[unit]
+	var phases: Array = unit.unit_stats.phases
+	if phase_idx < 0 or phase_idx >= phases.size():
+		return
+	var p: Dictionary = phases[phase_idx]
 
-	if _current == Mechanic.THREE_FORMS:
-		_boss_unit = _find_boss_unit()
-		print("[Boss] 机制设置：%s（day=%d，boss=%s）" % [
-			_name(), day,
-			_boss_unit.unit_stats.unit_name if is_instance_valid(_boss_unit) else "无"])
+	var form_id: String = str(p.get("form_unit_id", ""))
+	var new_stats: UnitData = null
+
+	if form_id != "" and form_id != "self":
+		new_stats = UnitDataManager.create_unit_data(form_id, true)
+		if new_stats != null:
+			new_stats.team_id = unit.unit_stats.team_id
+			new_stats.is_boss = true
+			
+			# ★ 核心修复 1：若新形态没配阵营，继承老阵营
+			if new_stats.faction == "":
+				new_stats.faction = unit.unit_stats.faction
+				
+			# ★ 核心修复 2：若新形态没配名字，继承老名字
+			if new_stats.display_name == "":
+				new_stats.display_name = unit.unit_stats.display_name
+				
+			# ★ 核心修复 3：强制继承地图配置的 Boss 头像
+			if unit.unit_stats.avatar_override != "":
+				new_stats.avatar_override = unit.unit_stats.avatar_override
+				
+			# 继承阶段数组，确保后续还能继续切阶段
+			new_stats.phases = unit.unit_stats.phases
+			
+			# 覆盖本阶段机制参数
+			new_stats.boss_mechanic_id = str(p.get("mechanic_id", ""))
+			var mp: Variant = p.get("mechanic_params", {})
+			new_stats.boss_mechanic_params = (mp as Dictionary).duplicate(true) if mp is Dictionary else {}
 	else:
-		_boss_unit = null
-		print("[Boss] 机制设置：%s（day=%d）" % [_name(), day])
+		new_stats = UnitData.from_dict(unit.unit_stats.to_dict())
+		var ov: Variant = p.get("override", {})
+		if ov is Dictionary:
+			_apply_override_dict(new_stats, ov)
+		if p.has("mechanic_id"):
+			new_stats.boss_mechanic_id = str(p.get("mechanic_id", ""))
+		if p.has("mechanic_params"):
+			var mp2: Variant = p.get("mechanic_params", {})
+			new_stats.boss_mechanic_params = (mp2 as Dictionary).duplicate(true) if mp2 is Dictionary else {}
 
+	if new_stats == null:
+		return
 
-func _find_boss_unit() -> Unit:
-	for u in UnitManager.unit_list:
-		if not is_instance_valid(u): continue
-		if u.unit_stats.team_id != 1: continue
-		if u.hit_points <= 0: continue
-		if u.unit_stats.is_boss:
-			print("[Boss] 找到标记单位：%s" % u.unit_stats.unit_name)
-			return u
-	push_warning("[Boss] 场上没有 is_boss 标记的单位，回退到 max_hp 判断")
-	var best : Unit = null
-	var best_hp : int = -1
-	for u in UnitManager.unit_list:
-		if not is_instance_valid(u): continue
-		if u.unit_stats.team_id != 1: continue
-		if u.hit_points <= 0: continue
-		if u.unit_stats.max_hp > best_hp:
-			best_hp = u.unit_stats.max_hp
-			best = u
-	return best
+	var hp_mode: String = str(p.get("hp_mode", "full"))
+	var min_hp: int = int(p.get("min_hp", 1))
+	var reset_turn: bool = bool(p.get("reset_turn_state", false))
+	var preserve: bool = bool(p.get("preserve_buffs", true))
 
+	unit.apply_boss_form(new_stats, hp_mode, min_hp, reset_turn, preserve)
 
-func is_boss_unit(u : Unit) -> bool:
-	return is_instance_valid(_boss_unit) and u == _boss_unit
-
-
-func _name() -> String:
-	match _current:
-		Mechanic.SOUL_DRAIN: return "魂火窃贼"
-		Mechanic.ASH_SHIELD: return "灰烬护盾"
-		Mechanic.THREE_FORMS: return "三形态"
-		_: return "无"
-
-
-# ============================================================
-#  Day1 · 魂火窃贼
-# ============================================================
-func on_player_turn_start():
-	if _current != Mechanic.SOUL_DRAIN: return
-	# ★ v4.6 平衡：吸取 2 → 吸取 1，5 上限可撑 5 回合，给玩家操作空间
-	if SoulFireManager.current >= 1:
-		SoulFireManager.spend(1)
-		SignalBus.request_hint_override.emit("★ Boss 汲取了 1 魂火（剩余 %d）" % SoulFireManager.current, 2.0)
-		boss_mechanic_triggered.emit("soul_drain", "吸取 1 魂火")
-		print("[Boss] 魂火窃贼吸取 1 魂火")
+	st["current_phase"] = phase_idx
+	st["triggered"][phase_idx] = true
+	st["current_mechanic_id"] = new_stats.boss_mechanic_id
+	st["current_mechanic_params"] = new_stats.boss_mechanic_params
+	if new_stats.boss_mechanic_id == "ash_shield":
+		st["ash_shield_stacks"] = int(new_stats.boss_mechanic_params.get("max_stacks", 3))
 	else:
-		# ★ v4.2：先收集死亡单位，再统一清理，避免幽灵单位
-		var killed : Array = []
-		for u in UnitManager.unit_list:
-			if u.unit_stats.team_id == 0 and u.hit_points > 0:
-				var dmg : int = int(u.unit_stats.max_hp * 0.1)
-				var dead : bool = u.apply_damage(dmg)
-				SignalBus.request_damage_popup.emit(u.global_position, dmg, false, false, false)
-				if dead:
-					killed.append(u)
-		for u in killed:
-			if is_instance_valid(u) and u in UnitManager.unit_list:
-				print("[Boss 汲取失败] %s 阵亡" % u.unit_stats.unit_name)
-				UnitManager.unregister_unit(u)
-				u.queue_free()
-		SignalBus.request_hint_override.emit("★ Boss 汲取失败，全队受伤", 1.5)
-		boss_mechanic_triggered.emit("soul_drain_fail", "全队受伤")
-		print("[Boss] 魂火窃贼未能吸取，全队受伤")
+		st["ash_shield_stacks"] = 0
 
+	var version: int = int(unit.get_meta("boss_phase_version", 0)) + 1
+	unit.set_meta("boss_phase_version", version)
 
-# ============================================================
-#  Day2 · 灰烬护盾
-# ============================================================
-func on_enemy_turn_start():
-	if _current != Mechanic.ASH_SHIELD: return
-	_ash_shield_stacks = mini(_ash_shield_stacks + 1, 3)
-	SignalBus.request_hint_override.emit("★ 灰烬护盾 +1（%d 层）" % _ash_shield_stacks, 1.5)
-	boss_mechanic_triggered.emit("ash_shield_gain", "护盾 +1")
-	print("[Boss] 灰烬护盾层数：%d" % _ash_shield_stacks)
-
-
-func modify_damage_to_boss(attacker : Unit, defender : Unit, damage : int) -> int:
-	if _current != Mechanic.ASH_SHIELD:
-		return damage
-	if _ash_shield_stacks <= 0:
-		return damage
-	if attacker == null or attacker.unit_stats.team_id != 0:
-		return damage
-	# ★ v4.2：必须打在 Boss 身上才触发（普通敌人不受影响）
-	if not is_boss_unit(defender):
-		return damage
-
-	if SoulFireManager.can_spend(1):
-		SoulFireManager.spend(1)
-		_ash_shield_stacks -= 1
-		SignalBus.request_hint_override.emit("★ 破盾！剩余 %d 层" % _ash_shield_stacks, 1.0)
-		boss_mechanic_triggered.emit("ash_shield_break", "破盾")
-		print("[Boss] 破盾，剩余层数：%d" % _ash_shield_stacks)
-		return damage
-	else:
-		var reduced : int = maxi(1, int(damage * 0.5))
-		print("[Boss] 护盾抵挡，伤害 %d → %d" % [damage, reduced])
-		return reduced
-
-
-# ============================================================
-#  Day3 · 三形态
-# ============================================================
-func on_boss_defeated(defender : Unit) -> bool:
-	if _current != Mechanic.THREE_FORMS:
-		return false
-	if _three_forms_stage >= 2:
-		return false
-	if not is_boss_unit(defender):
-		return false
-
-	_three_forms_stage += 1
-
-	var old_max : int = defender.unit_stats.max_hp
-	defender.unit_stats.max_hp = int(defender.unit_stats.max_hp * 1.2)
-	defender.hit_points = defender.unit_stats.max_hp
-	defender.unit_stats.strength += 3
-	defender.unit_stats.dexterity += 2
-	
-	# ★ 修复：复活后必须重置变灰和行动状态，否则看起来像死了
-	defender.set_gray(false)
-	defender.can_act_this_turn = true
-	defender.has_acted = false
-	defender.has_attacked = false
-	defender.has_moved = false
-	
-	defender.update_hp_label()
-	defender.update_color()
-	
-	print("[Boss] 复活：max_hp %d → %d，力+3 灵+2" % [old_max, defender.unit_stats.max_hp])
-
-	var old_max_sf : int = SoulFireManager.get_max_carried()
-	SoulFireManager.add_boss_penalty(3)
-
+	SignalBus.request_screen_shake.emit(0.4, 8.0, Vector2.ZERO)
 	SignalBus.request_hint_override.emit(
-		"★ %s 觉醒第 %d 形态！魂火上限 -3" % [
-			defender.unit_stats.unit_name, _three_forms_stage + 1], 2.0)
-	StoryManager.trigger("boss_revive", {
-		"current_day": GameState.current_day,
-		"stage": _three_forms_stage + 1,
-	})
-	boss_mechanic_triggered.emit("three_forms", "魂火上限降低")
-	print("[Boss] 三形态 → 第 %d 形态，魂火上限 %d → %d" % [
-		_three_forms_stage + 1, old_max_sf, SoulFireManager.get_max_carried()])
-	return true
+		"★ %s 进入第 %d 形态！" % [unit.unit_stats.display_name, phase_idx + 1], 2.0)
 
 
-# ============================================================
-#  查询
-# ============================================================
-func get_mechanic_name() -> String:
-	return _name()
+func _apply_override_dict(stats: UnitData, ov: Dictionary) -> void:
+	for k in ov:
+		var v: Variant = ov[k]
+		match k:
+			"max_hp": stats.max_hp = int(v)
+			"strength": stats.strength = int(v)
+			"dexterity": stats.dexterity = int(v)
+			"intelligence": stats.intelligence = int(v)
+			"faith": stats.faith = int(v)
+			"arcane": stats.arcane = int(v)
+			"move_range": stats.move_range = int(v)
+			"physical_reduction": stats.physical_reduction = float(v)
+			"magic_reduction": stats.magic_reduction = float(v)
+			"sprite_frames_path": stats.override_sprite_path = str(v)
+			"weapon_id":
+				var inst := ItemInstance.new()
+				inst.item_id = str(v)
+				inst.count = 1
+				stats.weapon_slot = inst
+			"tags":
+				stats.tags.clear()
+				if v is Array:
+					for t in v:
+						if t is String:
+							stats.tags.append(t)
+			"core_trait": stats.core_trait = str(v)
 
-func get_ash_shield_stacks() -> int:
-	return _ash_shield_stacks
 
-func get_three_forms_stage() -> int:
-	return _three_forms_stage
+func process_damage_phase(unit: Unit, _attacker: Unit, _damage: int) -> Dictionary:
+	if not _boss_states.has(unit):
+		return {}
+	var st: Dictionary = _boss_states[unit]
+	var phases: Array = unit.unit_stats.phases
+	var next_idx: int = int(st.get("current_phase", 0)) + 1
+	if next_idx >= phases.size():
+		return {}
 
-func get_current_mechanic() -> int:
-	return _current
+	var p: Dictionary = phases[next_idx]
+	if str(p.get("trigger", "")) != TRIGGER_HP_BELOW:
+		return {}
+	if bool(st.get("triggered", {}).get(next_idx, false)):
+		return {}
 
-func get_boss_unit() -> Unit:
-	return _boss_unit
+	var ratio: float = float(unit.hit_points) / float(maxi(1, unit.unit_stats.max_hp))
+	if ratio > float(p.get("threshold", 0.5)):
+		return {}
+
+	_apply_phase(unit, next_idx)
+	if unit.hit_points <= 0:
+		unit.hit_points = maxi(1, int(p.get("min_hp", 1)))
+		unit.update_hp_label()
+	return {"transitioned": true, "prevent_death": unit.hit_points > 0}
+
+
+func on_boss_defeated(defender: Unit) -> bool:
+	if not _boss_states.has(defender):
+		return false
+	var st: Dictionary = _boss_states[defender]
+	var phases: Array = defender.unit_stats.phases
+	var next_idx: int = int(st.get("current_phase", 0)) + 1
+	if next_idx >= phases.size():
+		return false
+
+	var p: Dictionary = phases[next_idx]
+	var trigger: String = str(p.get("trigger", TRIGGER_ON_DEATH))
+
+	if trigger == TRIGGER_HP_BELOW and not bool(st.get("triggered", {}).get(next_idx, false)):
+		_apply_phase(defender, next_idx)
+		defender.hit_points = maxi(1, int(p.get("min_hp", 1)))
+		defender.update_hp_label()
+		return true
+
+	if trigger == TRIGGER_ON_DEATH:
+		_apply_phase(defender, next_idx)
+		return true
+
+	return false
+
+
+func on_player_turn_start() -> void:
+	for u in _boss_states.keys():
+		if not is_instance_valid(u):
+			continue
+		var st: Dictionary = _boss_states[u]
+		var mid: String = str(st.get("current_mechanic_id", ""))
+		var mp: Dictionary = st.get("current_mechanic_params", {})
+		if mid == "soul_drain":
+			var amount: int = int(mp.get("drain_amount", 1))
+			if SoulFireManager.current >= amount:
+				SoulFireManager.spend(amount)
+				SignalBus.request_hint_override.emit("★ 汲取了 %d 魂火！" % amount, 1.5)
+
+
+func on_enemy_turn_start() -> void:
+	# 预留给敌方回合开始的阶段机制（例如护盾层数刷新）
+	pass
+
+
+func modify_damage_to_boss(_attacker: Unit, defender: Unit, damage: int) -> int:
+	if not _boss_states.has(defender):
+		return damage
+	var st: Dictionary = _boss_states[defender]
+	var mid: String = str(st.get("current_mechanic_id", ""))
+	if mid == "ash_shield":
+		var stacks: int = int(st.get("ash_shield_stacks", 0))
+		if stacks > 0:
+			var mp: Dictionary = st.get("current_mechanic_params", {})
+			var dr: float = float(mp.get("damage_reduction", 0.5))
+			damage = maxi(1, int(damage * (1.0 - dr)))
+			st["ash_shield_stacks"] = stacks - 1
+			if stacks - 1 <= 0:
+				SignalBus.request_hint_override.emit("★ %s 的灰烬护盾破碎！" % defender.unit_stats.display_name, 1.2)
+	return damage

@@ -1,31 +1,22 @@
 extends Node
 
 # ============================================================
-#  WaveManager — 波次与增援（纯净版）
-#
-#  功能：
-#    1. 显式 wave 模式下，第 1 组正常入场
-#    2. 有效组 ≤ 1 时直接降级为单波
-#    3. _activate_next_wave 跳过空组
-#    4. 出场时若出生点被占，自动推挤到最近的空格子
-#    5. 所有的 W1/BO 等调试字串只在 UnitPlacer 的编辑器模式下生成
+#  WaveManager — 波次与增援（智能推导版）
 # ============================================================
 
 var _type_total_waves : int = 1
 var _current_wave : int = 1
 var _pending_groups : Array = []          # Array[Array[Unit]]
-var _next_wave_delay : int = 0             # 剩余等待回合数
+var _next_wave_delay : int = 0
 var _warning_shown : bool = false
 
 var _map_data : MapData = null
 var _battlefield : Node2D = null
 
 signal wave_advanced(current_wave: int, total_waves: int)
+signal wave_warning(current_wave: int, total_waves: int)
 
 
-# ============================================================
-#  初始化
-# ============================================================
 func setup_for_node(map_data : MapData, battlefield : Node2D = null) -> void:
 	reset()
 	_map_data = map_data
@@ -33,12 +24,8 @@ func setup_for_node(map_data : MapData, battlefield : Node2D = null) -> void:
 	if map_data == null:
 		return
 
-	_type_total_waves = maxi(1, map_data.max_waves)
-	_current_wave = 1
-	_pending_groups.clear()
-	_next_wave_delay = 0
-	_warning_shown = false
-
+	# 注意：这里不再直接读取 map_data.max_waves 作为总数
+	# 留给 _build_groups 进行动态推导
 	call_deferred("_build_groups")
 
 
@@ -52,9 +39,6 @@ func reset() -> void:
 	_battlefield = null
 
 
-# ============================================================
-#  查询
-# ============================================================
 func get_current_wave() -> int:
 	return _current_wave
 
@@ -67,15 +51,9 @@ func has_pending_waves() -> bool:
 func is_active() -> bool:
 	return _type_total_waves > 1
 
-func get_pending_count() -> int:
-	var n : int = 0
-	for g in _pending_groups:
-		n += (g as Array).size()
-	return n
-
 
 # ============================================================
-#  分组算法
+#  分组核心算法
 # ============================================================
 func _build_groups():
 	var enemies : Array = []
@@ -88,139 +66,45 @@ func _build_groups():
 	if enemies.is_empty():
 		return
 
-	# 检测显式 wave
 	var explicit_map : Dictionary = {}
-	var has_explicit : bool = false
+	var max_wave_in_scene : int = 1
+	
 	for u in enemies:
-		var w : int = int(u.get_meta("wave", 0))
-		if w > 1:
-			has_explicit = true
-			if not explicit_map.has(w):
-				explicit_map[w] = []
-			explicit_map[w].append(u)
+		var w : int = int(u.get_meta("wave", 1))
+		max_wave_in_scene = maxi(max_wave_in_scene, w)
+		if not explicit_map.has(w):
+			explicit_map[w] = []
+		explicit_map[w].append(u)
 
-	# 有 wave=1 的也要进 explicit_map，避免第 1 波被遗漏
-	if has_explicit:
-		var w1_units : Array = []
-		for u in enemies:
-			var w : int = int(u.get_meta("wave", 0))
-			if w == 1:
-				w1_units.append(u)
-		if not w1_units.is_empty() and not explicit_map.has(1):
-			explicit_map[1] = w1_units
-		_build_groups_by_explicit_wave(explicit_map)
-		return
+	# ★ 核心：结合地图配置与场景实际波次
+	var target_total : int = max_wave_in_scene
+	if _map_data != null:
+		target_total = maxi(max_wave_in_scene, _map_data.max_waves)
 
-	# ---- 隐式：按距离分 N 组 ----
-	if _type_total_waves <= 1:
-		return
-	if enemies.size() <= _type_total_waves:
-		_type_total_waves = 1
-		return
-
-	var player_units : Array = []
-	for u in UnitManager.unit_list:
-		if not is_instance_valid(u): continue
-		if u.unit_stats.team_id != 0: continue
-		if u.hit_points <= 0: continue
-		player_units.append(u)
-
-	var player_center : Vector2 = Vector2.ZERO
-	if not player_units.is_empty():
-		for u in player_units:
-			player_center += u.global_position
-		player_center /= float(player_units.size())
-
-	enemies.sort_custom(func(a, b):
-		return a.global_position.distance_to(player_center) < b.global_position.distance_to(player_center)
-	)
-
-	var n : int = _type_total_waves
-	var total : int = enemies.size()
-	var groups : Array = []
-	for i in range(n):
-		var from_idx : int = int(float(i) * float(total) / float(n))
-		var to_idx : int = int(float(i + 1) * float(total) / float(n))
-		if to_idx <= from_idx:
-			to_idx = from_idx + 1
-		var g : Array = []
-		for j in range(from_idx, mini(to_idx, total)):
-			g.append(enemies[j])
-		groups.append(g)
-
-	# Boss 挪到最后一组
-	var boss_unit : Unit = null
-	for g in groups:
-		for u in g:
-			if u.unit_stats.is_boss:
-				boss_unit = u
-				break
-		if boss_unit != null: break
-
-	if boss_unit != null:
-		var boss_group_idx : int = -1
-		var boss_pos_in_group : int = -1
-		for gi in range(groups.size()):
-			var g : Array = groups[gi]
-			for ui in range(g.size()):
-				if g[ui] == boss_unit:
-					boss_group_idx = gi
-					boss_pos_in_group = ui
-					break
-			if boss_group_idx >= 0: break
-
-		if boss_group_idx >= 0 and boss_group_idx != n - 1:
-			(groups[boss_group_idx] as Array).remove_at(boss_pos_in_group)
-			var last_group : Array = groups[n - 1]
-			var swap_unit : Unit = null
-			for u in last_group:
-				if not u.unit_stats.is_boss:
-					swap_unit = u
-					break
-			if swap_unit != null:
-				last_group.erase(swap_unit)
-				(groups[boss_group_idx] as Array).append(swap_unit)
-			last_group.append(boss_unit)
-
-	for gi in range(1, groups.size()):
-		var g : Array = groups[gi]
-		for u in g:
-			if not is_instance_valid(u): continue
-			_hide_unit(u)
-		_pending_groups.append(g)
-
-	_current_wave = 1
-	_next_wave_delay = 0
-	_warning_shown = false
-
-	print("[Wave] 初始化 %d 波，共 %d 敌人" % [_type_total_waves, enemies.size()])
-	wave_advanced.emit(_current_wave, _type_total_waves)
+	_build_groups_by_target(explicit_map, target_total)
 
 
-func _build_groups_by_explicit_wave(wave_map: Dictionary):
+func _build_groups_by_target(wave_map: Dictionary, target_total: int):
 	var sorted_waves : Array = wave_map.keys()
 	sorted_waves.sort()
 
-	# 只保留非空组
 	var groups : Array = []
 	for w in sorted_waves:
-		var g : Array = wave_map[w]
-		if not g.is_empty():
-			groups.append(g)
+		groups.append(wave_map[w])
 
 	_current_wave = 1
 	_pending_groups.clear()
 	_next_wave_delay = 0
 	_warning_shown = false
 
-	# 只有 0 组或 1 组 → 视为单波
-	if groups.size() <= 1:
-		_type_total_waves = 1
-		print("[Wave] 显式波次（仅 %d 组有效），降级为单波" % groups.size())
+	_type_total_waves = maxi(1, target_total)
+
+	# 如果只有 1 波，不开启波次隐藏
+	if _type_total_waves <= 1:
 		wave_advanced.emit(1, 1)
 		return
 
-	# 第 1 组保持原状，第 2 组起隐藏
+	# 隐藏第 2 波及以后的所有单位
 	for gi in range(1, groups.size()):
 		var g : Array = groups[gi]
 		for u in g:
@@ -228,8 +112,13 @@ func _build_groups_by_explicit_wave(wave_map: Dictionary):
 			_hide_unit(u)
 		_pending_groups.append(g)
 
-	_type_total_waves = groups.size()
-	print("[Wave] 显式波次：%d 波 / %d 组（第1组已入场）" % [_type_total_waves, _pending_groups.size()])
+	# ★ 如果地图要求的总波次 > 场景里实际摆的波次，补空组（触发动态增援）
+	var missing_waves : int = _type_total_waves - groups.size()
+	for i in range(missing_waves):
+		_pending_groups.append([]) # 空组，在激活时会调用 _spawn_reinforcements
+
+	print("[Wave] 场景摆放最高 %d 波，地图要求 %d 波，实际生成 %d 个待命组" % [
+		groups.size(), _type_total_waves, _pending_groups.size()])
 	wave_advanced.emit(1, _type_total_waves)
 
 
@@ -247,7 +136,7 @@ func _show_unit(u: Unit):
 	if not is_instance_valid(u):
 		return
 
-	# 目标格若已被其他单位（含隐藏）占用，推到最近空位
+	# 冲突推挤逻辑
 	var conflicting : Unit = null
 	for other in UnitManager.unit_list:
 		if not is_instance_valid(other): continue
@@ -259,21 +148,12 @@ func _show_unit(u: Unit):
 	if conflicting != null:
 		var new_cell : Vector2i = UnitManager.find_nearest_empty_cell(u.grid_cell)
 		if new_cell == Vector2i(-1, -1):
-			push_warning("[Wave] %s 找不到空位出场，本波跳过（保持隐藏）" % u.unit_stats.unit_name)
+			push_warning("[Wave] %s 找不到空位出场，本波跳过" % u.unit_stats.unit_name)
 			u.hit_points = 0
 			return
-		print("[Wave] %s 的出生点 %s 被 %s 占用，推到 %s" % [
-			u.unit_stats.unit_name, str(u.grid_cell),
-			conflicting.unit_stats.unit_name, str(new_cell)])
 		u.grid_cell = new_cell
-		if _battlefield != null and is_instance_valid(_battlefield) \
-				and _battlefield.has_method("grid_to_world"):
+		if _battlefield != null and _battlefield.has_method("grid_to_world"):
 			u.position = _battlefield.grid_to_world(new_cell)
-		else:
-			u.position = Vector2(
-				new_cell.x * MapConst.CELL_SIZE + MapConst.CELL_SIZE / 2.0,
-				new_cell.y * MapConst.CELL_SIZE + MapConst.CELL_SIZE / 2.0
-			)
 
 	u.visible = true
 	u.process_mode = Node.PROCESS_MODE_INHERIT
@@ -289,12 +169,10 @@ func _show_unit(u: Unit):
 
 
 # ============================================================
-#  玩家回合结束钩子
+#  回合结束钩子（触发下一波）
 # ============================================================
 func on_player_turn_end() -> void:
-	if not is_active():
-		return
-	if _pending_groups.is_empty():
+	if not is_active() or _pending_groups.is_empty():
 		return
 
 	var alive_enemies : int = 0
@@ -308,10 +186,17 @@ func on_player_turn_end() -> void:
 	if alive_enemies > 0:
 		return
 
-	# ★ 修改：只要当前没活着的敌人，直接激活下一波（移除之前的等待逻辑）
-	_warning_shown = false
-	_next_wave_delay = 0
-	_activate_next_wave()
+	if not _warning_shown:
+		_warning_shown = true
+		_next_wave_delay = 1
+		wave_warning.emit(_current_wave + 1, _type_total_waves)
+		return
+
+	if _next_wave_delay > 0:
+		_next_wave_delay -= 1
+		if _next_wave_delay > 0:
+			return
+		_activate_next_wave()
 
 
 func _activate_next_wave():
@@ -327,28 +212,40 @@ func _activate_next_wave():
 			activated.append(u)
 
 		if activated.is_empty():
-			# 空组：跳过，_current_wave 已递增，继续下一组
-			print("[Wave] 第 %d 波为空，跳过" % _current_wave)
-			continue
+			# ★ 核心：空组意味着这是由地图配置触发的“动态增援波”
+			print("[Wave] 第 %d 波触发动态增援（空组）" % _current_wave)
+			var spawn_count : int = 3 # 这里可以根据难度或天数配置
+			_spawn_reinforcements(spawn_count)
+			
+			# 检查是否真的生成了
+			var spawned_check = false
+			for u in UnitManager.unit_list:
+				if is_instance_valid(u) and u.unit_stats.team_id == 1 and u.visible and u.hit_points > 0:
+					spawned_check = true
+					break
+					
+			if spawned_check:
+				_warning_shown = false
+				_next_wave_delay = 0
+				wave_advanced.emit(_current_wave, _type_total_waves)
+				return
+			else:
+				continue # 增援失败（可能是没位置），继续下一组
 
 		_warning_shown = false
 		_next_wave_delay = 0
-		print("[Wave] 第 %d / %d 波入场（%d 个敌人）" % [
-			_current_wave, _type_total_waves, activated.size()])
 		wave_advanced.emit(_current_wave, _type_total_waves)
 
 		if _map_data != null and _map_data.reinforcement_count > 0:
 			_spawn_reinforcements(_map_data.reinforcement_count)
 		return
 
-	# 所有组清空
 	_warning_shown = false
 	_next_wave_delay = 0
-	print("[Wave] 无更多可用波次")
 
 
 # ============================================================
-#  增援生成
+#  增援生成（供空组和额外增援调用）
 # ============================================================
 func _spawn_reinforcements(count : int):
 	if count <= 0: return
@@ -381,7 +278,7 @@ func _spawn_reinforcements(count : int):
 
 	for i in range(mini(count, spawn_cells.size())):
 		var cell : Vector2i = spawn_cells[i]
-		var tname : String = pool[randi() % pool.size()]
+		var tname : String = pool.pick_random()
 		var stats : UnitData = UnitDataManager.create_unit_data(tname)
 		stats.team_id = 1
 		stats.max_hp = int(stats.max_hp * hp_mult)
@@ -395,7 +292,6 @@ func _spawn_reinforcements(count : int):
 		_battlefield.add_child(unit)
 		unit.position = _battlefield.grid_to_world(cell)
 		UnitManager.register_unit(unit)
-		print("[Wave] 增援 %s → %s" % [tname, str(cell)])
 
 
 func _find_edge_spawn_cells(count : int) -> Array:
@@ -412,7 +308,6 @@ func _find_edge_spawn_cells(count : int) -> Array:
 			var is_edge : bool = (x == 0 or x == sz.x - 1 or y == 0 or y == sz.y - 1)
 			if not is_edge: continue
 			var cell : Vector2i = Vector2i(x, y)
-			# 包含隐藏单位，避免增援生到波次敌人头上
 			if UnitManager.is_cell_occupied_including_hidden(cell): continue
 			var terrain : int = TerrainManager.get_terrain(cell)
 			if not TerrainManager.TERRAIN_DATA[terrain]["passable"]: continue

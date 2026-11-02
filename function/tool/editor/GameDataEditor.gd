@@ -2,6 +2,7 @@ extends Control
 
 # ============================================================
 #  GameDataEditor — 单位 / 战斗模拟 / 数值 / 套装 / 词条池 / 光环 / 单位解锁 / 校验
+#  已补全：Boss 元字段 + phases 阶段编辑器（新格式）
 # ============================================================
 
 const UNIT_DATA_PATH : String = "res://content/data/unit_data.json"
@@ -17,7 +18,6 @@ const AVATAR_DIR : String = "res://content/images/characters/avatar/"
 
 const JSON_EDITOR_SCRIPT : String = "res://function/tool/editor/JSONEditorPanel.gd"
 
-# ---- 字号（对齐 ChipMusicEditor）----
 const FS_BUTTON : int = 6
 const FS_LABEL  : int = 6
 const FS_SMALL  : int = 5
@@ -46,7 +46,7 @@ const EDITABLE_ATTRS : Array = [
 ]
 
 const UNIT_TAGS : Array = ["烈焰", "轮回", "灰烬", "守护", "献祭", "余烬"]
-const CORE_TRAITS : Array = ["", "蓄力", "龙威", "壁垒"]
+const CORE_TRAITS : Array = ["", "charge", "dragon_might", "bulwark"]
 const CORE_TRAITS_MAP : Dictionary = {
 	"": "（无）",
 	"charge": "蓄力",
@@ -85,7 +85,10 @@ const BRANCH_STAT_LABELS : Dictionary = {
 }
 const CAP_MAX_LEVEL : int = 3
 
-# ---- 数据 ----
+const BOSS_TRIGGERS : Array = ["initial", "hp_below", "on_death"]
+const BOSS_HP_MODES : Array = ["full", "keep_ratio", "keep_absolute", "custom_ratio"]
+const BOSS_MECHANICS : Array = ["", "ash_shield", "soul_drain", "three_forms"]
+
 var _unit_db : Dictionary = {}
 var _unit_keys : Array = []
 var _relic_db : Dictionary = {}
@@ -98,11 +101,9 @@ var _talent_ids : Array = []
 var _avatar_ids : Array = []
 var _current_unit_key : String = ""
 
-# ---- 通用 UI ----
 var _tab_btns : Array = []
 var _tab_panels : Array = []
 
-# ---- 单位编辑 UI ----
 var _edit_unit_list : VBoxContainer = null
 var _edit_status : Label = null
 var _edit_name_edit : LineEdit = null
@@ -110,6 +111,11 @@ var _edit_faction_edit : LineEdit = null
 var _edit_desc_edit : TextEdit = null
 var _edit_flavor_edit : TextEdit = null
 var _edit_avatar_opt : OptionButton = null
+var _edit_unit_category_edit : LineEdit = null
+var _edit_hidden_cb : CheckBox = null
+var _edit_is_boss_cb : CheckBox = null
+var _edit_boss_mechanic_edit : LineEdit = null
+var _edit_boss_mechanic_params_edit : LineEdit = null
 var _edit_attr_spins : Dictionary = {}
 var _edit_weapon_opt : OptionButton = null
 var _edit_armor_opts : Array = []
@@ -122,8 +128,9 @@ var _edit_sac_display_edit : LineEdit = null
 var _edit_cap_spins : Dictionary = {}
 var _edit_branches_box : VBoxContainer = null
 var _edit_branch_cards : Array = []
+var _edit_boss_phases_box : VBoxContainer = null
+var _edit_boss_phase_cards : Array = []
 
-# ---- 战斗模拟 UI ----
 var _sim_player_opt : OptionButton = null
 var _sim_enemy_opt : OptionButton = null
 var _sim_log : RichTextLabel = null
@@ -153,13 +160,11 @@ var _sim_counter_cb : CheckBox = null
 
 var _cfg_tab_panels : Dictionary = {}
 
-# ---- 校验 UI ----
 var _validator_output : RichTextLabel = null
 var _validator_status : Label = null
 var _validator_last_errors : int = 0
 var _validator_last_warns : int = 0
 
-# ---- 单位解锁 UI ----
 var _unit_unlock_data : Dictionary = {}
 var _unit_unlock_selected : String = ""
 var _unit_unlock_list_box : VBoxContainer = null
@@ -167,6 +172,7 @@ var _unit_unlock_mapping_box : VBoxContainer = null
 var _unit_unlock_status : Label = null
 var _unit_unlock_right_title : Label = null
 var _unit_db_dirty : bool = false
+
 
 func _ready():
 	_apply_compact_theme()
@@ -179,13 +185,9 @@ func _ready():
 	call_deferred("_auto_validate")
 
 
-# ============================================================
-#  全局主题
-# ============================================================
 func _apply_compact_theme():
 	var t := Theme.new()
 
-	# ---- Button ----
 	t.set_font_size("font_size", "Button", FS_BUTTON)
 	var btn_empty := StyleBoxEmpty.new()
 	btn_empty.content_margin_left = 1
@@ -198,7 +200,6 @@ func _apply_compact_theme():
 	t.set_stylebox("focus", "Button", btn_empty)
 	t.set_stylebox("disabled", "Button", btn_empty)
 
-	# ---- Label ----
 	t.set_font_size("font_size", "Label", FS_LABEL)
 	var label_empty := StyleBoxEmpty.new()
 	label_empty.content_margin_left = 0
@@ -207,7 +208,6 @@ func _apply_compact_theme():
 	label_empty.content_margin_bottom = 0
 	t.set_stylebox("normal", "Label", label_empty)
 
-	# ---- LineEdit / TextEdit ----
 	t.set_font_size("font_size", "LineEdit", FS_BUTTON)
 	t.set_font_size("font_size", "TextEdit", FS_BUTTON)
 	var le_empty := StyleBoxEmpty.new()
@@ -219,10 +219,7 @@ func _apply_compact_theme():
 	t.set_stylebox("focus", "LineEdit", le_empty)
 	t.set_stylebox("read_only", "LineEdit", le_empty)
 
-	# ---- OptionButton ----
 	t.set_font_size("font_size", "OptionButton", FS_BUTTON)
-	
-	# ---- PopupMenu ----
 	t.set_font_size("font_size", "PopupMenu", FS_SMALL)
 	t.set_font_size("font_separator_size", "PopupMenu", FS_SMALL)
 	t.set_constant("item_start_padding", "PopupMenu", 3)
@@ -244,7 +241,6 @@ func _apply_compact_theme():
 	popup_panel.content_margin_bottom = 2
 	t.set_stylebox("panel", "PopupMenu", popup_panel)
 
-	# ---- Tooltip ----
 	t.set_font_size("font_size", "TooltipLabel", FS_SMALL)
 	t.set_font_size("font_size", "TooltipPanel", FS_SMALL)
 	var tip_sb := StyleBoxFlat.new()
@@ -255,7 +251,6 @@ func _apply_compact_theme():
 	tip_sb.content_margin_bottom = 1
 	t.set_stylebox("panel", "TooltipPanel", tip_sb)
 
-	# ---- VSeparator / HSeparator ----
 	var sep_sb := StyleBoxLine.new()
 	sep_sb.color = COL_VSEP
 	sep_sb.thickness = 1
@@ -270,10 +265,7 @@ func _apply_compact_theme():
 	hsep_sb.vertical = false
 	t.set_stylebox("separator", "HSeparator", hsep_sb)
 
-	# ---- SpinBox ----
 	t.set_font_size("font_size", "SpinBox", FS_BUTTON)
-
-	# ---- CheckBox ----
 	t.set_font_size("font_size", "CheckBox", FS_LABEL)
 
 	_setup_scrollbar_theme(t)
@@ -341,9 +333,6 @@ func _setup_slider_theme(t : Theme):
 	t.set_constant("grabber_offset", "HSlider", 0)
 
 
-# ============================================================
-#  数据加载
-# ============================================================
 func _load_all_data():
 	_unit_db = _load_json(UNIT_DATA_PATH)
 	_unit_keys = _unit_db.keys()
@@ -369,7 +358,7 @@ func _load_all_data():
 	_weapon_ids.sort()
 	_armor_ids.sort()
 	_talent_ids = TalentManager.get_all_talent_ids()
-	
+
 	_avatar_ids.clear()
 	if DirAccess.dir_exists_absolute(AVATAR_DIR):
 		var dir = DirAccess.open(AVATAR_DIR)
@@ -397,9 +386,6 @@ func _load_json(path : String) -> Dictionary:
 	return data
 
 
-# ============================================================
-#  主 UI
-# ============================================================
 func _build_ui():
 	var bg := ColorRect.new()
 	bg.color = COL_BG
@@ -463,9 +449,6 @@ func _switch_tab(idx : int):
 		_tab_panels[i].visible = (i == idx)
 
 
-# ============================================================
-#  Tab 1：单位编辑
-# ============================================================
 func _build_edit_tab(parent : Control) -> Control:
 	var panel := HBoxContainer.new()
 	panel.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -505,11 +488,29 @@ func _build_edit_tab(parent : Control) -> Control:
 	content.add_theme_constant_override("separation", 2)
 	r_scroll.add_child(content)
 
-	# ---- 基础信息 ----
 	content.add_child(_section("— 基础信息 —"))
 	_edit_name_edit = _add_edit_row(content, "显示名")
 	_edit_faction_edit = _add_edit_row(content, "阵营")
 	_edit_avatar_opt = _add_option_row(content, "头像", _avatar_ids, "（无）")
+
+	content.add_child(_section("— Boss / 分类元字段 —"))
+	_edit_unit_category_edit = _add_edit_row(content, "unit_category")
+	_edit_unit_category_edit.placeholder_text = "boss / elite / summon / form（空=普通）"
+
+	var flags_row := HBoxContainer.new()
+	flags_row.add_theme_constant_override("separation", 8)
+	content.add_child(flags_row)
+	_edit_hidden_cb = CheckBox.new()
+	_edit_hidden_cb.text = "hidden_from_roster"
+	flags_row.add_child(_edit_hidden_cb)
+	_edit_is_boss_cb = CheckBox.new()
+	_edit_is_boss_cb.text = "is_boss"
+	flags_row.add_child(_edit_is_boss_cb)
+
+	_edit_boss_mechanic_edit = _add_edit_row(content, "boss_mechanic_id")
+	_edit_boss_mechanic_edit.placeholder_text = "ash_shield / soul_drain / three_forms（空=无）"
+	_edit_boss_mechanic_params_edit = _add_edit_row(content, "boss_mechanic_params")
+	_edit_boss_mechanic_params_edit.placeholder_text = 'JSON，如 {"max_stacks":3,"damage_reduction":0.5}'
 
 	var desc_row := HBoxContainer.new()
 	desc_row.add_theme_constant_override("separation", 3)
@@ -520,7 +521,7 @@ func _build_edit_tab(parent : Control) -> Control:
 	_edit_desc_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_edit_desc_edit.wrap_mode = TextEdit.LINE_WRAPPING_BOUNDARY
 	desc_row.add_child(_edit_desc_edit)
-	
+
 	var flavor_row := HBoxContainer.new()
 	flavor_row.add_theme_constant_override("separation", 3)
 	content.add_child(flavor_row)
@@ -531,7 +532,6 @@ func _build_edit_tab(parent : Control) -> Control:
 	_edit_flavor_edit.wrap_mode = TextEdit.LINE_WRAPPING_BOUNDARY
 	flavor_row.add_child(_edit_flavor_edit)
 
-	# ---- 属性 ----
 	content.add_child(_section("— 基础属性 —"))
 	var attr_grid := GridContainer.new()
 	attr_grid.columns = 2
@@ -550,7 +550,6 @@ func _build_edit_tab(parent : Control) -> Control:
 		_style_spin(sp)
 		_edit_attr_spins[a["key"]] = sp
 
-	# ---- 标签 ----
 	content.add_child(_section("— 单位标签 —"))
 	var tag_flow := HFlowContainer.new()
 	tag_flow.add_theme_constant_override("h_separation", 8)
@@ -563,7 +562,6 @@ func _build_edit_tab(parent : Control) -> Control:
 		tag_flow.add_child(cb)
 		_edit_tags_cbs[tag] = cb
 
-	# ---- 核心特性 ----
 	content.add_child(_section("— 核心特性 —"))
 	var ct_row := HBoxContainer.new()
 	ct_row.add_theme_constant_override("separation", 3)
@@ -577,7 +575,6 @@ func _build_edit_tab(parent : Control) -> Control:
 		_edit_core_opt.set_item_metadata(i, k)
 	ct_row.add_child(_edit_core_opt)
 
-	# ---- 献祭 buff ----
 	content.add_child(_section("— 献祭 Buff —"))
 	var sac_type_row := HBoxContainer.new()
 	sac_type_row.add_theme_constant_override("separation", 3)
@@ -611,7 +608,6 @@ func _build_edit_tab(parent : Control) -> Control:
 	_edit_sac_display_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	sac_disp_row.add_child(_edit_sac_display_edit)
 
-	# ---- 默认装备 ----
 	content.add_child(_section("— 默认装备 —"))
 	_edit_weapon_opt = _add_option_row(content, "武器", _weapon_ids, "（无）")
 
@@ -627,13 +623,11 @@ func _build_edit_tab(parent : Control) -> Control:
 
 	content.add_child(HSeparator.new())
 
-	# ---- 属性上限 ----
 	content.add_child(_section("— 属性上限（净增）—"))
 	_rebuild_attr_cap_grid(content)
 
 	content.add_child(HSeparator.new())
 
-	# ---- 转职分支 ----
 	var branch_header := HBoxContainer.new()
 	branch_header.add_theme_constant_override("separation", 4)
 	content.add_child(branch_header)
@@ -654,7 +648,47 @@ func _build_edit_tab(parent : Control) -> Control:
 	_edit_branches_box.add_theme_constant_override("separation", 4)
 	content.add_child(_edit_branches_box)
 
-	# ---- 底部按钮 ----
+	content.add_child(HSeparator.new())
+
+	var boss_header := HBoxContainer.new()
+	boss_header.add_theme_constant_override("separation", 4)
+	content.add_child(boss_header)
+	boss_header.add_child(_section("— Boss 阶段（phases 新格式）—"))
+
+	var add_boss_btn := Button.new()
+	add_boss_btn.text = "+ 添加阶段"
+	add_boss_btn.pressed.connect(_add_boss_phase_card)
+	boss_header.add_child(add_boss_btn)
+
+	var auto_boss_btn := Button.new()
+	auto_boss_btn.text = "一键生成标准三阶段"
+	auto_boss_btn.modulate = Color(0.6, 1.0, 0.6)
+	auto_boss_btn.pressed.connect(func():
+		# 清理旧数据
+		for c in _edit_boss_phases_box.get_children():
+			_edit_boss_phases_box.remove_child(c)
+			c.queue_free()
+		_edit_boss_phase_cards.clear()
+		
+		# 阶段1
+		_add_boss_phase_card_with_data({"trigger": "initial", "hp_mode": "full", "reset_turn_state": true}, false)
+		# 阶段2
+		_add_boss_phase_card_with_data({"trigger": "hp_below", "threshold": 0.5, "hp_mode": "full", "preserve_buffs": true}, false)
+		# 阶段3
+		_add_boss_phase_card_with_data({"trigger": "hp_below", "threshold": 0.25, "hp_mode": "full", "preserve_buffs": true}, false)
+	)
+	boss_header.add_child(auto_boss_btn)
+
+	var clear_boss_btn := Button.new()
+	clear_boss_btn.text = "清空全部"
+	clear_boss_btn.modulate = Color(1.0, 0.6, 0.6)
+	clear_boss_btn.pressed.connect(_clear_all_boss_phases)
+	boss_header.add_child(clear_boss_btn)
+
+	_edit_boss_phases_box = VBoxContainer.new()
+	_edit_boss_phases_box.add_theme_constant_override("separation", 4)
+	content.add_child(_edit_boss_phases_box)
+
 	var btn_row := HBoxContainer.new()
 	btn_row.alignment = BoxContainer.ALIGNMENT_END
 	btn_row.add_theme_constant_override("separation", 4)
@@ -677,9 +711,6 @@ func _build_edit_tab(parent : Control) -> Control:
 	return panel
 
 
-# ============================================================
-#  属性上限表
-# ============================================================
 func _rebuild_attr_cap_grid(parent : Node):
 	_edit_cap_spins.clear()
 	var grid := GridContainer.new()
@@ -734,9 +765,6 @@ func _fill_attr_cap_levels(data : Array):
 			sp.value = v
 
 
-# ============================================================
-#  转职分支卡片
-# ============================================================
 func _rebuild_branches(data : Array):
 	for c in _edit_branches_box.get_children():
 		_edit_branches_box.remove_child(c)
@@ -790,7 +818,6 @@ func _add_branch_card_with_data(d : Dictionary, is_new : bool = false):
 
 	var card_refs : Dictionary = {}
 
-	# id
 	var head := HBoxContainer.new()
 	head.add_theme_constant_override("separation", 3)
 	vbox.add_child(head)
@@ -811,7 +838,6 @@ func _add_branch_card_with_data(d : Dictionary, is_new : bool = false):
 	)
 	head.add_child(del_btn)
 
-	# name
 	var name_row := HBoxContainer.new()
 	name_row.add_theme_constant_override("separation", 3)
 	vbox.add_child(name_row)
@@ -822,7 +848,6 @@ func _add_branch_card_with_data(d : Dictionary, is_new : bool = false):
 	name_row.add_child(name_edit)
 	card_refs["name"] = name_edit
 
-	# desc
 	var desc_row := HBoxContainer.new()
 	desc_row.add_theme_constant_override("separation", 3)
 	vbox.add_child(desc_row)
@@ -833,7 +858,6 @@ func _add_branch_card_with_data(d : Dictionary, is_new : bool = false):
 	desc_row.add_child(desc_edit)
 	card_refs["description"] = desc_edit
 
-	# granted_talent
 	var tal_row := HBoxContainer.new()
 	tal_row.add_theme_constant_override("separation", 3)
 	vbox.add_child(tal_row)
@@ -861,7 +885,6 @@ func _add_branch_card_with_data(d : Dictionary, is_new : bool = false):
 	tal_row.add_child(tal_opt)
 	card_refs["granted_talent"] = tal_opt
 
-	# sprite_frames_path
 	var sprite_row := HBoxContainer.new()
 	sprite_row.add_theme_constant_override("separation", 3)
 	vbox.add_child(sprite_row)
@@ -873,7 +896,6 @@ func _add_branch_card_with_data(d : Dictionary, is_new : bool = false):
 	sprite_row.add_child(sprite_edit)
 	card_refs["sprite_frames_path"] = sprite_edit
 
-	# flavor
 	var flavor_row := HBoxContainer.new()
 	flavor_row.add_theme_constant_override("separation", 3)
 	vbox.add_child(flavor_row)
@@ -884,7 +906,6 @@ func _add_branch_card_with_data(d : Dictionary, is_new : bool = false):
 	flavor_row.add_child(flavor_edit)
 	card_refs["flavor"] = flavor_edit
 
-	# stat_bonus
 	vbox.add_child(_section("属性加成 (stat_bonus)"))
 	var stat_row := HFlowContainer.new()
 	stat_row.add_theme_constant_override("h_separation", 6)
@@ -909,7 +930,6 @@ func _add_branch_card_with_data(d : Dictionary, is_new : bool = false):
 		stat_spins[key] = sp
 	card_refs["stat_spins"] = stat_spins
 
-	# tags
 	vbox.add_child(_section("标签 (tags)"))
 	var tag_flow := HFlowContainer.new()
 	tag_flow.add_theme_constant_override("h_separation", 8)
@@ -960,6 +980,319 @@ func _read_branches() -> Array:
 
 
 # ============================================================
+#  Boss phases 编辑
+# ============================================================
+func _rebuild_boss_phases(data : Array):
+	for c in _edit_boss_phases_box.get_children():
+		_edit_boss_phases_box.remove_child(c)
+		c.queue_free()
+	_edit_boss_phase_cards.clear()
+
+	for phase in data:
+		if phase is Dictionary:
+			_add_boss_phase_card_with_data(phase, false)
+
+
+func _add_boss_phase_card():
+	_add_boss_phase_card_with_data({
+		"form_unit_id": "",
+		"trigger": "on_death",
+		"threshold": 0.5,
+		"hp_mode": "full",
+		"min_hp": 1,
+		"reset_turn_state": false,
+		"preserve_buffs": true,
+		"mechanic_id": "",
+		"mechanic_params": {},
+		"override": {}
+	}, true)
+
+
+func _clear_all_boss_phases():
+	if _edit_boss_phase_cards.is_empty():
+		return
+	Globals.show_confirm(
+		self,
+		"确定清空该单位的所有 Boss 阶段吗？\n（保存后写入 JSON 生效）",
+		"清空", "取消",
+		func():
+			for c in _edit_boss_phases_box.get_children():
+				_edit_boss_phases_box.remove_child(c)
+				c.queue_free()
+			_edit_boss_phase_cards.clear(),
+		func(): pass
+	)
+
+
+func _make_boss_unit_option(current_id : String) -> OptionButton:
+	var opt := OptionButton.new()
+	opt.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	opt.add_item("（空：用 override 覆盖当前单位）", 0)
+	opt.set_item_metadata(0, "")
+	var selected : bool = current_id == ""
+	for i in range(_unit_keys.size()):
+		var uid : String = _unit_keys[i]
+		var ud : Dictionary = _unit_db.get(uid, {})
+		var dn : String = str(ud.get("display_name", uid))
+		var suffix : String = ""
+		if bool(ud.get("hidden_from_roster", false)):
+			suffix = " [隐藏]"
+		opt.add_item("%s (%s)%s" % [dn, uid, suffix], i + 1)
+		opt.set_item_metadata(i + 1, uid)
+		if uid == current_id:
+			opt.selected = i + 1
+			selected = true
+	if not selected and current_id != "":
+		opt.add_item("（当前）" + current_id, _unit_keys.size() + 1)
+		opt.set_item_metadata(_unit_keys.size() + 1, current_id)
+		opt.selected = _unit_keys.size() + 1
+	return opt
+
+
+func _add_boss_phase_card_with_data(d : Dictionary, _is_new : bool = false):
+	var card := PanelContainer.new()
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(0.12, 0.12, 0.15, 1)
+	sb.border_color = Color(0.35, 0.30, 0.25, 1)
+	sb.border_width_left = 1
+	sb.border_width_right = 1
+	sb.border_width_top = 1
+	sb.border_width_bottom = 1
+	sb.content_margin_left = 4
+	sb.content_margin_right = 4
+	sb.content_margin_top = 3
+	sb.content_margin_bottom = 3
+	card.add_theme_stylebox_override("panel", sb)
+	_edit_boss_phases_box.add_child(card)
+
+	var vbox := VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 2)
+	card.add_child(vbox)
+
+	var card_refs : Dictionary = {}
+
+	var head := HBoxContainer.new()
+	head.add_theme_constant_override("separation", 4)
+	vbox.add_child(head)
+
+	var is_first : bool = _edit_boss_phase_cards.is_empty()
+	
+	var title := Label.new()
+	title.text = "阶段 #%d %s" % [_edit_boss_phase_cards.size() + 1, "（初始形态）" if is_first else ""]
+	title.add_theme_font_size_override("font_size", FS_PANEL)
+	title.modulate = Color(0.9, 0.8, 0.6)
+	head.add_child(title)
+
+	var spacer := Control.new()
+	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	head.add_child(spacer)
+
+	var del_btn := Button.new()
+	del_btn.text = "删除阶段"
+	del_btn.modulate = Color(1.0, 0.5, 0.5)
+	del_btn.disabled = is_first # 不允许删除第一阶段
+	del_btn.pressed.connect(func():
+		_edit_boss_phase_cards.erase(card_refs)
+		card.queue_free()
+	)
+	head.add_child(del_btn)
+
+	# ---- 目标形态 ----
+	var form_row := HBoxContainer.new()
+	form_row.add_theme_constant_override("separation", 4)
+	vbox.add_child(form_row)
+	form_row.add_child(_lbl("变身为", 80))
+	var form_opt := _make_boss_unit_option(str(d.get("form_unit_id", "")))
+	form_opt.disabled = is_first # 第一阶段不能变身
+	form_row.add_child(form_opt)
+	card_refs["form_opt"] = form_opt
+
+	# ---- 触发条件 ----
+	var trig_row := HBoxContainer.new()
+	trig_row.add_theme_constant_override("separation", 4)
+	vbox.add_child(trig_row)
+	trig_row.add_child(_lbl("触发条件", 80))
+	
+	var trig_text := Label.new()
+	trig_text.add_theme_font_size_override("font_size", FS_BUTTON)
+	if is_first:
+		trig_text.text = "初始状态（出生即生效）"
+		trig_text.modulate = Color(0.6, 0.8, 1.0)
+		card_refs["trigger_opt"] = null
+	else:
+		var trig_opt := OptionButton.new()
+		trig_opt.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		trig_opt.add_item("HP 降至阈值", 0)
+		trig_opt.set_item_metadata(0, "hp_below")
+		trig_opt.add_item("死亡时", 1)
+		trig_opt.set_item_metadata(1, "on_death")
+		_select_option_by_meta(trig_opt, str(d.get("trigger", "hp_below")))
+		trig_row.add_child(trig_opt)
+		card_refs["trigger_opt"] = trig_opt
+		trig_text = null
+		
+	if trig_text != null:
+		trig_row.add_child(trig_text)
+
+	# ---- 阈值与血量模式 ----
+	var threshold_row := HBoxContainer.new()
+	threshold_row.add_theme_constant_override("separation", 4)
+	vbox.add_child(threshold_row)
+	threshold_row.add_child(_lbl("血量阈值", 80))
+	
+	var threshold_spin := SpinBox.new()
+	threshold_spin.min_value = 0.05
+	threshold_spin.max_value = 0.95
+	threshold_spin.step = 0.05
+	threshold_spin.value = float(d.get("threshold", 0.5))
+	threshold_spin.custom_minimum_size = Vector2(70, 16)
+	threshold_row.add_child(threshold_spin)
+	_style_spin(threshold_spin)
+	card_refs["threshold_spin"] = threshold_spin
+	card_refs["threshold_row"] = threshold_row
+
+	var hp_row := HBoxContainer.new()
+	hp_row.add_theme_constant_override("separation", 4)
+	vbox.add_child(hp_row)
+	hp_row.add_child(_lbl("切换后血量", 80))
+	var hp_opt := OptionButton.new()
+	hp_opt.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	hp_opt.add_item("回满血", 0)
+	hp_opt.set_item_metadata(0, "full")
+	hp_opt.add_item("保持当前比例", 1)
+	hp_opt.set_item_metadata(1, "keep_ratio")
+	_select_option_by_meta(hp_opt, str(d.get("hp_mode", "full")))
+	hp_row.add_child(hp_opt)
+	card_refs["hp_mode_opt"] = hp_opt
+
+	# ---- 其他机制（折叠） ----
+	var advanced_cb := CheckBox.new()
+	advanced_cb.text = "展开高级设置 (机制/保留状态)"
+	advanced_cb.add_theme_font_size_override("font_size", FS_SMALL)
+	vbox.add_child(advanced_cb)
+
+	var adv_box := VBoxContainer.new()
+	adv_box.visible = false
+	adv_box.add_theme_constant_override("separation", 2)
+	vbox.add_child(adv_box)
+
+	advanced_cb.toggled.connect(func(pressed): adv_box.visible = pressed)
+
+	var flag_row := HBoxContainer.new()
+	flag_row.add_theme_constant_override("separation", 8)
+	adv_box.add_child(flag_row)
+	var reset_cb := CheckBox.new()
+	reset_cb.text = "重置行动"
+	reset_cb.button_pressed = bool(d.get("reset_turn_state", false))
+	flag_row.add_child(reset_cb)
+	card_refs["reset_cb"] = reset_cb
+
+	var preserve_cb := CheckBox.new()
+	preserve_cb.text = "保留Buff"
+	preserve_cb.button_pressed = bool(d.get("preserve_buffs", true))
+	flag_row.add_child(preserve_cb)
+	card_refs["preserve_cb"] = preserve_cb
+
+	var mech_row := HBoxContainer.new()
+	mech_row.add_theme_constant_override("separation", 4)
+	adv_box.add_child(mech_row)
+	mech_row.add_child(_lbl("机制ID", 80))
+	var mech_opt := OptionButton.new()
+	mech_opt.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	for i in range(BOSS_MECHANICS.size()):
+		mech_opt.add_item(BOSS_MECHANICS[i] if BOSS_MECHANICS[i] != "" else "（无）", i)
+		mech_opt.set_item_metadata(i, BOSS_MECHANICS[i])
+	_select_option_by_meta(mech_opt, str(d.get("mechanic_id", "")))
+	mech_row.add_child(mech_opt)
+	card_refs["mechanic_opt"] = mech_opt
+	
+	var mp_row := HBoxContainer.new()
+	mp_row.add_theme_constant_override("separation", 4)
+	adv_box.add_child(mp_row)
+	mp_row.add_child(_lbl("机制参数", 80))
+	var mp_edit := LineEdit.new()
+	mp_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	mp_edit.placeholder_text = 'JSON，如 {"max_stacks":3}'
+	var mp : Dictionary = d.get("mechanic_params", {})
+	if mp is Dictionary and not (mp as Dictionary).is_empty():
+		mp_edit.text = JSON.stringify(mp)
+	mp_row.add_child(mp_edit)
+	card_refs["mechanic_params_edit"] = mp_edit
+	
+	var ov_row := HBoxContainer.new()
+	ov_row.add_theme_constant_override("separation", 4)
+	adv_box.add_child(ov_row)
+	ov_row.add_child(_lbl("字段覆盖", 80))
+	var ov_edit := LineEdit.new()
+	ov_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	ov_edit.placeholder_text = 'JSON，如 {"max_hp":200}'
+	var ov : Dictionary = d.get("override", {})
+	if ov is Dictionary and not (ov as Dictionary).is_empty():
+		ov_edit.text = JSON.stringify(ov)
+	ov_row.add_child(ov_edit)
+	card_refs["override_edit"] = ov_edit
+
+	# 智能联动：如果选了 on_death，隐藏阈值
+	if card_refs.get("trigger_opt") != null:
+		card_refs["trigger_opt"].item_selected.connect(func(idx):
+			var meta = card_refs["trigger_opt"].get_item_metadata(idx)
+			var is_hp_below = (meta == "hp_below")
+			threshold_row.visible = is_hp_below
+		)
+		# 初始化可见性
+		var current_trig = card_refs["trigger_opt"].get_item_metadata(card_refs["trigger_opt"].selected)
+		threshold_row.visible = (current_trig == "hp_below")
+	else:
+		# ★ 修复点：如果是第一阶段（没有 trigger_opt），直接隐藏血量阈值行
+		threshold_row.visible = false
+
+	_edit_boss_phase_cards.append(card_refs)
+
+
+func _read_boss_phases() -> Array:
+	var result : Array = []
+	for card in _edit_boss_phase_cards:
+		if not is_instance_valid(card.get("form_opt", null)):
+			continue
+		var phase : Dictionary = {
+			"form_unit_id": str(_get_meta(card["form_opt"])),
+			"trigger": str(_get_meta(card["trigger_opt"])) if card.get("trigger_opt") != null else "initial",
+			"threshold": float(card["threshold_spin"].value) if card.get("threshold_spin") != null else 0.5,
+			"hp_mode": str(_get_meta(card["hp_mode_opt"])),
+			"min_hp": 1, # ★ 修复：没有输入框了，默认保底 1 血
+			"reset_turn_state": card["reset_cb"].button_pressed,
+			"preserve_buffs": card["preserve_cb"].button_pressed,
+			"mechanic_id": str(_get_meta(card["mechanic_opt"])),
+			"mechanic_params": _parse_json_dict(card["mechanic_params_edit"].text) if card.has("mechanic_params_edit") else {},
+			"override": _parse_json_dict(card["override_edit"].text) if card.has("override_edit") else {}
+		}
+		
+		# 确保第一阶段强制为 initial
+		if result.is_empty():
+			phase["trigger"] = "initial"
+			
+		result.append(phase)
+
+	return result
+
+
+func _parse_json_dict(text : String) -> Dictionary:
+	var s : String = text.strip_edges()
+	if s == "":
+		return {}
+	var parsed = JSON.parse_string(s)
+	if parsed is Dictionary:
+		return (parsed as Dictionary).duplicate(true)
+	_set_edit_status("JSON 解析失败，已按空字典处理")
+	return {}
+
+
+func _set_edit_status(text : String):
+	if _edit_status:
+		_edit_status.text = text
+
+
+# ============================================================
 #  单位列表 / 加载 / 保存
 # ============================================================
 func _refresh_unit_list():
@@ -993,6 +1326,16 @@ func _select_edit_unit(key : String):
 	_edit_desc_edit.text = d.get("description", "")
 	_edit_flavor_edit.text = d.get("flavor", "")
 
+	_edit_unit_category_edit.text = str(d.get("unit_category", ""))
+	_edit_hidden_cb.button_pressed = bool(d.get("hidden_from_roster", false))
+	_edit_is_boss_cb.button_pressed = bool(d.get("is_boss", false))
+	_edit_boss_mechanic_edit.text = str(d.get("boss_mechanic_id", ""))
+	var bmp : Dictionary = d.get("boss_mechanic_params", {})
+	if bmp is Dictionary and not (bmp as Dictionary).is_empty():
+		_edit_boss_mechanic_params_edit.text = JSON.stringify(bmp)
+	else:
+		_edit_boss_mechanic_params_edit.text = ""
+
 	if _edit_avatar_opt:
 		_select_option_by_meta(_edit_avatar_opt, d.get("avatar", ""))
 
@@ -1024,6 +1367,7 @@ func _select_edit_unit(key : String):
 
 	_fill_attr_cap_levels(d.get("attr_cap_levels", []))
 	_rebuild_branches(d.get("advanced_branches", []))
+	_rebuild_boss_phases(d.get("phases", []))
 
 
 func _select_option_by_meta(opt : OptionButton, target_id : String):
@@ -1056,7 +1400,23 @@ func _save_unit_db():
 	d["faction"] = _edit_faction_edit.text
 	d["description"] = _edit_desc_edit.text
 	d["flavor"] = _edit_flavor_edit.text
-	
+
+	d["unit_category"] = _edit_unit_category_edit.text.strip_edges()
+	d["hidden_from_roster"] = _edit_hidden_cb.button_pressed
+	d["is_boss"] = _edit_is_boss_cb.button_pressed
+
+	var mid : String = _edit_boss_mechanic_edit.text.strip_edges()
+	if mid == "":
+		d.erase("boss_mechanic_id")
+	else:
+		d["boss_mechanic_id"] = mid
+
+	var mp : Dictionary = _parse_json_dict(_edit_boss_mechanic_params_edit.text)
+	if mp.is_empty():
+		d.erase("boss_mechanic_params")
+	else:
+		d["boss_mechanic_params"] = mp
+
 	if _edit_avatar_opt:
 		var a_id = _get_meta(_edit_avatar_opt)
 		if a_id != "":
@@ -1112,6 +1472,12 @@ func _save_unit_db():
 	else:
 		d["advanced_branches"] = branches
 
+	var phases : Array = _read_boss_phases()
+	if phases.is_empty():
+		d.erase("phases")
+	else:
+		d["phases"] = phases
+
 	var f := FileAccess.open(UNIT_DATA_PATH, FileAccess.WRITE)
 	if f == null:
 		_edit_status.text = "❌ 保存失败"
@@ -1135,7 +1501,7 @@ func _get_meta(opt : OptionButton) -> String:
 
 
 # ============================================================
-#  Tab 2：战斗模拟
+#  战斗模拟
 # ============================================================
 func _build_sim_tab(parent : Control) -> Control:
 	var panel := HBoxContainer.new()
@@ -1321,7 +1687,7 @@ func _build_sim_center() -> VBoxContainer:
 
 
 # ============================================================
-#  Tab 3：数值编辑
+#  数值编辑
 # ============================================================
 func _build_cfg_tab(parent : Control) -> Control:
 	var panel := VBoxContainer.new()
@@ -1406,7 +1772,7 @@ func _build_aura_tab(parent : Control) -> Control:
 
 
 # ============================================================
-#  Tab 7：单位解锁（地图解锁单位 → 可唤醒单位）
+#  单位解锁
 # ============================================================
 func _build_unit_unlock_tab(parent : Control) -> Control:
 	var panel := HBoxContainer.new()
@@ -1414,7 +1780,6 @@ func _build_unit_unlock_tab(parent : Control) -> Control:
 	panel.add_theme_constant_override("separation", 12)
 	parent.add_child(panel)
 
-	# ================= 左列：地图解锁池 =================
 	var left := VBoxContainer.new()
 	left.custom_minimum_size = Vector2(180, 0)
 	left.add_theme_constant_override("separation", 4)
@@ -1425,7 +1790,7 @@ func _build_unit_unlock_tab(parent : Control) -> Control:
 	l_title.add_theme_font_size_override("font_size", FS_PANEL)
 	l_title.modulate = Color(0.85, 0.85, 1.0)
 	left.add_child(l_title)
-	
+
 	var l_hint := Label.new()
 	l_hint.text = "只有这里的单位，才能配给地图节点。\n点下方【+ 添加】把新单位放入池中。"
 	l_hint.add_theme_font_size_override("font_size", FS_SMALL)
@@ -1460,7 +1825,6 @@ func _build_unit_unlock_tab(parent : Control) -> Control:
 	del_btn.pressed.connect(_on_unit_unlock_remove)
 	l_btns.add_child(del_btn)
 
-	# ================= 右列：可唤醒单位映射 =================
 	var right := VBoxContainer.new()
 	right.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	right.add_theme_constant_override("separation", 4)
@@ -1519,14 +1883,13 @@ func _refresh_unit_unlock_ui():
 
 func _refresh_unit_unlock_list():
 	if _unit_unlock_list_box == null: return
-	
 	for c in _unit_unlock_list_box.get_children():
 		_unit_unlock_list_box.remove_child(c)
 		c.queue_free()
 
 	if not _unit_unlock_data.has("map_unlock_units"):
 		_unit_unlock_data["map_unlock_units"] = []
-		
+
 	var map_units: Array = _unit_unlock_data["map_unlock_units"]
 	var mapping: Dictionary = _unit_unlock_data.get("map_unlock_mapping", {})
 
@@ -1545,7 +1908,7 @@ func _refresh_unit_unlock_list():
 		var faction : String = dict.get("faction", "无阵营")
 		var mapped_count: int = mapping.get(uid, []).size()
 		var suffix : String = " [%s]" % faction if mapped_count > 0 else ""
-		
+
 		var btn := Button.new()
 		btn.text = "%s (%s)%s" % [display, uid, suffix]
 		btn.toggle_mode = true
@@ -1572,7 +1935,6 @@ func _on_unit_unlock_selected(uid : String):
 
 func _refresh_unit_unlock_mapping():
 	if _unit_unlock_mapping_box == null: return
-
 	for c in _unit_unlock_mapping_box.get_children():
 		_unit_unlock_mapping_box.remove_child(c)
 		c.queue_free()
@@ -1584,7 +1946,7 @@ func _refresh_unit_unlock_mapping():
 	var src_dict : Dictionary = UnitDataManager.get_unit_data(_unit_unlock_selected)
 	var display_src : String = src_dict.get("display_name", _unit_unlock_selected)
 	var src_faction : String = src_dict.get("faction", "无阵营")
-	
+
 	_unit_unlock_right_title.text = "打地图获得「%s」(阵营: %s) 时，唤醒列表出现：" % [display_src, src_faction]
 
 	var mapping: Dictionary = _unit_unlock_data.get("map_unlock_mapping", {})
@@ -1599,11 +1961,10 @@ func _refresh_unit_unlock_mapping():
 	var available_units := []
 	var transferred_units := []
 	var all_unit_ids := UnitDataManager.get_all_unit_ids()
-	
+
 	for uid in all_unit_ids:
 		var other_src = assigned_to_other.get(uid, "")
 		var is_checked = uid in current_list
-		
 		if other_src != "" and not is_checked:
 			transferred_units.append({"uid": uid, "by": other_src})
 		else:
@@ -1613,12 +1974,12 @@ func _refresh_unit_unlock_mapping():
 		var dict : Dictionary = UnitDataManager.get_unit_data(uid)
 		var display : String = dict.get("display_name", uid)
 		var faction : String = dict.get("faction", "无阵营")
-		
+
 		var cb := CheckBox.new()
 		cb.add_theme_font_size_override("font_size", FS_LABEL)
 		cb.button_pressed = (uid in current_list)
 		cb.toggled.connect(_on_mapping_toggled.bind(_unit_unlock_selected, uid))
-		
+
 		var is_faction_match : bool = (faction == src_faction)
 		if is_faction_match:
 			cb.text = "%s (%s) [%s]" % [display, uid, faction]
@@ -1645,18 +2006,18 @@ func _refresh_unit_unlock_mapping():
 		for entry in transferred_units:
 			var row := HBoxContainer.new()
 			row.add_theme_constant_override("separation", 4)
-			
+
 			var lb := Label.new()
 			lb.text = "%s (%s)  [已被 %s 分配]" % [
-				UnitDataManager.get_display_name(entry.uid), 
-				entry.uid, 
+				UnitDataManager.get_display_name(entry.uid),
+				entry.uid,
 				UnitDataManager.get_display_name(entry.by)
 			]
 			lb.add_theme_font_size_override("font_size", FS_LABEL)
 			lb.modulate = Color(0.5, 0.5, 0.5)
 			lb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 			row.add_child(lb)
-			
+
 			var steal_btn := Button.new()
 			steal_btn.text = "抢占"
 			steal_btn.add_theme_font_size_override("font_size", FS_SMALL)
@@ -1672,10 +2033,10 @@ func _on_mapping_toggled(pressed : bool, source_unit : String, target_unit : Str
 	if not _unit_unlock_data.has("map_unlock_mapping"):
 		_unit_unlock_data["map_unlock_mapping"] = {}
 	var mapping: Dictionary = _unit_unlock_data["map_unlock_mapping"]
-	
+
 	if not mapping.has(source_unit):
 		mapping[source_unit] = []
-		
+
 	var arr: Variant = mapping[source_unit]
 	if not (arr is Array):
 		arr = []
@@ -1684,11 +2045,11 @@ func _on_mapping_toggled(pressed : bool, source_unit : String, target_unit : Str
 	if pressed:
 		if target_unit not in arr:
 			arr.append(target_unit)
-			
+
 		var src_faction : String = ""
 		if _unit_db.has(source_unit):
 			src_faction = _unit_db[source_unit].get("faction", "")
-		
+
 		if src_faction != "" and _unit_db.has(target_unit):
 			var tgt_faction : String = _unit_db[target_unit].get("faction", "")
 			if tgt_faction != src_faction:
@@ -1707,9 +2068,9 @@ func _on_mapping_toggled(pressed : bool, source_unit : String, target_unit : Str
 
 	mapping[source_unit] = arr
 	_unit_unlock_data["map_unlock_mapping"] = mapping
-	
+
 	_refresh_unit_unlock_ui()
-	
+
 	if _unit_unlock_status and not _unit_unlock_status.text.begins_with("⚠ 自动同步"):
 		_unit_unlock_status.text = "已修改（未保存）"
 
@@ -1718,12 +2079,12 @@ func _on_unit_unlock_add():
 	var dialog := AcceptDialog.new()
 	dialog.title = "添加单位到地图解锁池"
 	dialog.ok_button_text = "关闭"
-	
+
 	var scroll := ScrollContainer.new()
 	scroll.custom_minimum_size = Vector2(280, 360)
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	dialog.add_child(scroll)
-	
+
 	var list := VBoxContainer.new()
 	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	list.add_theme_constant_override("separation", 2)
@@ -1731,7 +2092,7 @@ func _on_unit_unlock_add():
 
 	var all_unit_ids := UnitDataManager.get_all_unit_ids()
 	var current: Array = _unit_unlock_data.get("map_unlock_units", [])
-	
+
 	var available := []
 	for uid in all_unit_ids:
 		if uid not in current:
@@ -1773,11 +2134,11 @@ func _on_unit_unlock_remove():
 	var current: Array = _unit_unlock_data.get("map_unlock_units", [])
 	current.erase(_unit_unlock_selected)
 	_unit_unlock_data["map_unlock_units"] = current
-	
+
 	var mapping: Dictionary = _unit_unlock_data.get("map_unlock_mapping", {})
 	mapping.erase(_unit_unlock_selected)
 	_unit_unlock_data["map_unlock_mapping"] = mapping
-	
+
 	_unit_unlock_selected = ""
 	_refresh_unit_unlock_ui()
 	if _unit_unlock_status:
@@ -1792,7 +2153,7 @@ func _save_unit_unlock_config():
 		return
 	f.store_string(JSON.stringify(_unit_unlock_data, "  "))
 	f.close()
-	
+
 	if _unit_db_dirty:
 		var f2 := FileAccess.open(UNIT_DATA_PATH, FileAccess.WRITE)
 		if f2 != null:
@@ -1800,7 +2161,7 @@ func _save_unit_unlock_config():
 			f2.close()
 			UnitDataManager.reload_all()
 			_unit_db_dirty = false
-			if _unit_unlock_status: 
+			if _unit_unlock_status:
 				_unit_unlock_status.text = "✓ 已保存(含阵营同步)"
 			Globals._load_unlock_config()
 			return
@@ -1812,7 +2173,7 @@ func _save_unit_unlock_config():
 
 
 # ============================================================
-#  Tab 8：跨表校验
+#  校验
 # ============================================================
 func _build_validator_tab(parent : Control) -> Control:
 	var panel := VBoxContainer.new()
@@ -2168,7 +2529,7 @@ func _add_edit_row(parent : Node, label : String) -> LineEdit:
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 3)
 	parent.add_child(row)
-	row.add_child(_lbl(label, 40))
+	row.add_child(_lbl(label, 90))
 	var le := LineEdit.new()
 	le.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_child(le)

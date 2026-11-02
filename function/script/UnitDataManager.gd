@@ -92,6 +92,92 @@ static func get_default_stats(unit_name: String) -> UnitData:
 	data.arcane = dict.get("arcane", 3)
 	data.move_range = dict.get("move_range", 5)
 	data.ignore_terrain_cost = dict.get("ignore_terrain_cost", false)
+	data.physical_reduction = float(dict.get("physical_reduction", 0.0))
+	data.magic_reduction = float(dict.get("magic_reduction", 0.0))
+	data.unit_category = str(dict.get("unit_category", ""))
+	data.hidden_from_roster = bool(dict.get("hidden_from_roster", false))
+	data.is_boss = bool(dict.get("is_boss", false))
+	data.boss_mechanic_id = str(dict.get("boss_mechanic_id", ""))
+	var bmp: Variant = dict.get("boss_mechanic_params", {})
+	data.boss_mechanic_params = (bmp as Dictionary).duplicate(true) if bmp is Dictionary else {}
+	data.phases = UnitData.normalize_phases(dict.get("phases", []))
+	return data
+
+
+static func create_unit_data(unit_name: String, for_boss: bool = false) -> UnitData:
+	var key = _normalize_unit_key(unit_name)
+	var dict = get_unit_data(key)
+	var data = get_default_stats(key)
+	data.unit_name = key
+	data.display_name = dict.get("display_name", "")
+	if data.display_name == "":
+		data.display_name = _unit_display_name.get(key, key)
+	data.faction = dict.get("faction", "")
+	data.team_id = 0
+	data.experience = 0
+	data.level = 1
+
+	data.tags.clear()
+	var tags_raw: Variant = dict.get("tags", [])
+	if tags_raw is Array:
+		for t in tags_raw:
+			if t is String:
+				data.tags.append(t)
+
+	data.core_trait = dict.get("core_trait", "")
+	data.avatar = dict.get("avatar", "")
+
+	var default_weapon = get_default_weapon_id(key)
+	if default_weapon != "":
+		var inst = ItemInstance.new()
+		inst.item_id = default_weapon
+		inst.count = 1
+		if not for_boss and GameState.unit_growth.has(key):
+			var lv: int = int(GameState.unit_growth[key].get("weapon_lv_" + default_weapon, 0))
+			inst.upgrade_level = lv
+		data.weapon_slot = inst
+
+	data.max_armor_slots = int(dict.get("max_armor_slots", 2))
+	data.armor_slots.clear()
+	for i in range(data.max_armor_slots):
+		data.armor_slots.append(null)
+	var default_armors: Array = dict.get("default_armors", [])
+	for aid in default_armors:
+		if not (aid is String) or aid == "":
+			continue
+		var armor_inst := ItemInstance.new()
+		armor_inst.item_id = aid
+		armor_inst.count = 1
+		for i in range(data.armor_slots.size()):
+			if data.armor_slots[i] == null:
+				data.armor_slots[i] = armor_inst
+				break
+
+	data.talent_slots.clear()
+	var default_talents = dict.get("default_talents", [])
+	var talent_cap: int = int(dict.get("max_talent_slots", 1))
+	for talent_id in default_talents:
+		if data.talent_slots.size() >= talent_cap:
+			break
+		var talent_inst = TalentInstance.new()
+		talent_inst.talent_id = talent_id
+		talent_inst.current_stack = 0
+		talent_inst.is_active = true
+		var tdata = TalentManager.get_talent_data(talent_id)
+		if tdata and tdata.is_active_skill:
+			talent_inst.is_ready = true
+			talent_inst.cooldown_remaining = 0
+		else:
+			talent_inst.is_ready = false
+		data.talent_slots.append(talent_inst)
+	while data.talent_slots.size() < talent_cap:
+		data.talent_slots.append(null)
+
+	data.max_talent_slots = talent_cap
+
+	if not for_boss:
+		_apply_attr_points_to_unit(key, data)
+		_apply_attr_cap_bonus(key, data)
 	return data
 
 
@@ -153,68 +239,6 @@ static func get_all_unit_ids() -> Array:
 		ids.append(key)
 	ids.sort()
 	return ids
-
-
-static func create_unit_data(unit_name: String) -> UnitData:
-	var key = _normalize_unit_key(unit_name)
-	var dict = get_unit_data(key)
-	var data = get_default_stats(key)
-	data.unit_name = key
-	data.display_name = dict.get("display_name", "")
-	if data.display_name == "":
-		data.display_name = _unit_display_name.get(key, key)
-	data.faction = dict.get("faction", "")
-	data.team_id = 0
-	data.experience = 0
-	data.level = 1
-
-	data.tags.clear()
-	var tags_raw : Variant = dict.get("tags", [])
-	if tags_raw is Array:
-		for t in tags_raw:
-			if t is String:
-				data.tags.append(t)
-
-	data.core_trait = dict.get("core_trait", "")
-	data.avatar = dict.get("avatar", "")
-
-	var default_weapon = get_default_weapon_id(key)
-	if default_weapon != "":
-		var inst = ItemInstance.new()
-		inst.item_id = default_weapon
-		inst.count = 1
-		if GameState.unit_growth.has(key):
-			var lv : int = int(GameState.unit_growth[key].get("weapon_lv_" + default_weapon, 0))
-			inst.upgrade_level = lv
-		data.weapon_slot = inst
-
-	data.talent_slots.clear()
-	var default_talents = dict.get("default_talents", [])
-	var talent_cap : int = int(dict.get("max_talent_slots", 1))
-	for talent_id in default_talents:
-		if data.talent_slots.size() >= talent_cap:
-			break
-		var talent_inst = TalentInstance.new()
-		talent_inst.talent_id = talent_id
-		talent_inst.current_stack = 0
-		talent_inst.is_active = true
-		var tdata = TalentManager.get_talent_data(talent_id)
-		if tdata and tdata.is_active_skill:
-			talent_inst.is_ready = true
-			talent_inst.cooldown_remaining = 0
-		else:
-			talent_inst.is_ready = false
-		data.talent_slots.append(talent_inst)
-	while data.talent_slots.size() < talent_cap:
-		data.talent_slots.append(null)
-
-	data.armor_slots = [null, null]
-	data.max_armor_slots = 2
-	data.max_talent_slots = talent_cap
-
-	_apply_attr_points_to_unit(key, data)
-	_apply_attr_cap_bonus(key, data)
-	return data
 
 
 static func get_attr_cap_levels(unit_type: String) -> Array:

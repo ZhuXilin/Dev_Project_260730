@@ -1,0 +1,1317 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NES 音效工坊 · 8-bit SFX Generator</title>
+<style>
+:root{
+  --bg:#0a0c11; --panel:#141821; --panel2:#1b2130; --line:#293144;
+  --text:#d8e0ee; --dim:#7b88a0;
+  --accent:#ffd23f; --accent2:#4de2c5; --danger:#ff5c7a; --blue:#5aa9ff;
+  --font: -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  --mono: "SF Mono", "Cascadia Code", Consolas, "Courier New", monospace;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0; min-height:100vh; color:var(--text); font-family:var(--font); font-size:13px;
+  background:radial-gradient(1100px 600px at 50% -15%, #1b2436 0%, #0a0c11 62%) fixed;
+}
+button{font-family:inherit;font-size:12px;color:var(--text);background:var(--panel2);
+  border:1px solid var(--line);border-radius:6px;padding:5px 10px;cursor:pointer;
+  transition:.12s; user-select:none}
+button:hover{background:#232c3f;border-color:#3c4a66}
+button:active{transform:translateY(1px)}
+button.primary{background:linear-gradient(180deg,#ffd85e,#f0b81c);color:#1a1200;border-color:#f0b81c;font-weight:700}
+button.primary:hover{filter:brightness(1.08)}
+button.active{background:rgba(255,210,63,.15);border-color:var(--accent);color:var(--accent)}
+button.x{background:transparent;border-color:transparent;color:var(--dim);padding:2px 6px}
+button.x:hover{color:var(--danger);background:rgba(255,92,122,.12)}
+
+.app{max-width:1560px;margin:0 auto;padding:16px 18px 60px}
+
+/* ---------- header ---------- */
+header{
+  display:flex;flex-wrap:wrap;gap:14px;align-items:center;justify-content:space-between;
+  padding:12px 16px;margin-bottom:14px;border:1px solid var(--line);border-radius:12px;
+  background:linear-gradient(180deg,#161c28,#10141c);
+}
+.brand{display:flex;align-items:baseline;gap:10px}
+.brand h1{font-size:16px;margin:0;letter-spacing:.5px}
+.brand .logo{color:var(--accent);font-size:15px}
+.brand .sub{font-size:11px;color:var(--dim);font-family:var(--mono)}
+.meta-bar{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.meta-bar label{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--dim)}
+.meta-bar input{width:56px;background:#0c1017;border:1px solid var(--line);border-radius:5px;
+  color:var(--text);padding:4px 6px;font-family:var(--mono);font-size:11px;text-align:center}
+.meta-bar input#m-title{width:96px;text-align:left}
+.actions{display:flex;gap:8px;flex-wrap:wrap}
+
+/* transport */
+.transport{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+.progress{flex:1;height:3px;background:#11161f;border-radius:2px;overflow:hidden}
+.progress-bar{height:100%;width:0;background:linear-gradient(90deg,var(--accent),var(--accent2));
+  box-shadow:0 0 8px var(--accent);transition:width .05s linear}
+.pos-readout{font-family:var(--mono);font-size:11px;color:var(--dim);min-width:74px;
+  text-align:right;white-space:nowrap}
+
+/* ---------- layout ---------- */
+main{display:grid;grid-template-columns:340px 1fr;gap:14px;align-items:start}
+@media(max-width:980px){main{grid-template-columns:1fr}}
+.panel{background:linear-gradient(180deg,#151a24,#11151d);border:1px solid var(--line);
+  border-radius:12px;padding:14px}
+
+/* ---------- designer ---------- */
+.designer{position:sticky;top:14px}
+@media(max-width:980px){.designer{position:static}}
+.sec-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+.sec-head h2{font-size:13px;margin:0;letter-spacing:.5px}
+.ch-tag{font-family:var(--mono);font-size:11px;color:var(--accent2);
+  background:rgba(77,226,197,.1);border:1px solid rgba(77,226,197,.3);
+  padding:2px 8px;border-radius:20px}
+.param-group{margin-bottom:14px}
+.param-group h3{font-size:11px;color:var(--dim);margin:0 0 8px;font-weight:600;
+  letter-spacing:1.2px;text-transform:uppercase}
+
+/* 音效标签 */
+.tag-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:5px}
+.tag-grid button{
+  font-size:10px;padding:5px 2px;line-height:1.25;color:var(--dim);
+  display:flex;flex-direction:column;align-items:center;gap:2px;
+}
+.tag-grid button .ico{font-size:13px;line-height:1;color:var(--accent2)}
+.tag-grid button:hover{color:var(--text)}
+.tag-grid button:hover .ico{color:var(--accent)}
+
+.wave-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:14px}
+.wave-grid button{font-size:11px;padding:7px 4px;font-family:var(--mono)}
+.slider-row{display:grid;grid-template-columns:64px 1fr 52px;gap:8px;align-items:center;margin-bottom:7px}
+.sl-label{font-size:11px;color:var(--dim)}
+.sl-val{font-family:var(--mono);font-size:11px;color:var(--accent);text-align:right}
+input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:4px;border-radius:2px;
+  background:#252d3d;outline:none;cursor:pointer}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;height:13px;border-radius:50%;
+  background:var(--accent);box-shadow:0 0 7px rgba(255,210,63,.55);cursor:pointer}
+input[type=range]::-moz-range-thumb{width:13px;height:13px;border:0;border-radius:50%;
+  background:var(--accent);box-shadow:0 0 7px rgba(255,210,63,.55);cursor:pointer}
+select{background:#0c1017;border:1px solid var(--line);border-radius:5px;color:var(--text);
+  padding:5px 7px;font-family:var(--mono);font-size:11px;width:100%}
+.designer-actions{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:4px}
+.designer-actions .full{grid-column:1/-1}
+
+/* ---------- channels ---------- */
+.channels{display:grid;grid-template-columns:repeat(auto-fit,minmax(430px,1fr));gap:12px}
+@media(max-width:520px){.channels{grid-template-columns:1fr}}
+.ch-card{background:linear-gradient(180deg,#151a24,#10141b);border:1px solid var(--line);
+  border-radius:12px;padding:12px;transition:.15s}
+.ch-card.editing{border-color:rgba(255,210,63,.55);box-shadow:0 0 0 1px rgba(255,210,63,.15),0 0 22px -8px var(--accent)}
+.ch-head{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+.ch-num{font-family:var(--mono);font-size:10px;font-weight:700;color:#0a0c11;
+  background:var(--accent);border-radius:4px;padding:2px 6px}
+.ch-name{font-size:12px;font-weight:600}
+.ch-wave{font-family:var(--mono);font-size:10px;color:var(--accent2);
+  border:1px solid rgba(77,226,197,.3);border-radius:12px;padding:1px 8px;
+  background:rgba(77,226,197,.08)}
+.ch-head .spacer{flex:1}
+.ch-head button{font-size:11px;padding:3px 8px}
+.ch-mix{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
+.mix-row{display:grid;grid-template-columns:34px 1fr 34px;gap:6px;align-items:center}
+.mix-row span{font-size:10px;color:var(--dim)}
+.mix-row em{font-family:var(--mono);font-size:10px;font-style:normal;color:var(--dim);text-align:right}
+
+.ev-head,.ev-row{display:grid;grid-template-columns:20px 54px 54px 40px 54px 48px 22px;
+  gap:5px;align-items:center}
+.ev-head{font-size:9px;color:#5b6a84;letter-spacing:.5px;margin-bottom:4px;padding-left:2px}
+.ev-list{max-height:190px;overflow-y:auto;margin-bottom:8px}
+.ev-list::-webkit-scrollbar{width:6px}
+.ev-list::-webkit-scrollbar-thumb{background:#2a3346;border-radius:3px}
+.ev-row{margin-bottom:4px}
+.ev-idx{font-family:var(--mono);font-size:10px;color:#4c5a73}
+.ev-note{font-family:var(--mono);font-size:10px;color:var(--blue)}
+.ev-row input{width:100%;background:#0b0e15;border:1px solid #232b3c;border-radius:4px;
+  color:var(--text);padding:3px 4px;font-family:var(--mono);font-size:11px;text-align:center}
+.ev-row input:focus{outline:none;border-color:var(--accent);background:#0e131c}
+.ev-row input::-webkit-outer-spin-button,.ev-row input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.add-ev{width:100%;font-size:11px;border-style:dashed;color:var(--dim)}
+.add-ev:hover{color:var(--accent);border-color:var(--accent)}
+.empty{font-size:11px;color:#4c5a73;padding:8px 2px;text-align:center}
+
+/* ---------- modal ---------- */
+.modal{position:fixed;inset:0;background:rgba(5,7,11,.78);backdrop-filter:blur(3px);
+  display:flex;align-items:center;justify-content:center;padding:20px;z-index:50}
+.modal.hidden{display:none}
+.modal-box{background:#12161f;border:1px solid var(--line);border-radius:14px;width:min(760px,100%);
+  max-height:86vh;display:flex;flex-direction:column;overflow:hidden;
+  box-shadow:0 30px 80px -20px #000}
+.modal-head{display:flex;justify-content:space-between;align-items:center;padding:13px 16px;
+  border-bottom:1px solid var(--line)}
+.modal-head h2{margin:0;font-size:13px}
+#export-text{flex:1;min-height:340px;background:#0a0d13;color:#9fe8d8;border:0;padding:14px 16px;
+  font-family:var(--mono);font-size:11.5px;line-height:1.55;resize:none;outline:none}
+.modal-foot{display:flex;gap:8px;justify-content:flex-end;padding:12px 16px;border-top:1px solid var(--line)}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);
+  background:var(--accent);color:#1a1200;font-weight:700;font-size:12px;padding:8px 18px;
+  border-radius:20px;opacity:0;pointer-events:none;transition:.25s;z-index:99}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <header>
+    <div class="brand">
+      <span class="logo">▶▶</span>
+      <h1>NES 音效工坊</h1>
+      <span class="sub">8-bit SFX Generator</span>
+    </div>
+    <div class="meta-bar">
+      <label>标题 <input id="m-title" value="demo"></label>
+      <label>BPM <input id="m-bpm" type="number" value="120" min="20" max="400"></label>
+      <label>拍/小节 <input id="m-bpb" type="number" value="4" min="1" max="16"></label>
+      <label>Tick/拍 <input id="m-tpb" type="number" value="4" min="1" max="16"></label>
+      <label>总Tick <input id="m-total" type="number" value="16" min="1" max="512"></label>
+      <label>Loop起 <input id="m-ls" type="number" value="0" min="0"></label>
+      <label>Loop止 <input id="m-le" type="number" value="16" min="0"></label>
+    </div>
+    <div class="actions">
+      <button id="btn-play" class="primary">▶ 播放</button>
+      <button id="btn-stop">■ 停止</button>
+      <button id="btn-loop" title="循环播放（区间 = Loop起 ~ Loop止）">🔁 循环</button>
+      <button id="btn-export">⬇ 导出 JSON</button>
+    </div>
+  </header>
+
+  <div class="transport">
+    <div class="progress"><div class="progress-bar" id="progress-bar"></div></div>
+    <span class="pos-readout" id="playhead-tick">tick 0 / 16</span>
+  </div>
+
+  <main>
+    <aside class="panel designer">
+      <div class="sec-head">
+        <h2>音效设计器</h2>
+        <div class="ch-tag" id="editing-ch">CH1 · lead</div>
+      </div>
+
+      <div class="param-group">
+        <h3>音效标签 · 点击即生成</h3>
+        <div class="tag-grid" id="tag-btns"></div>
+      </div>
+
+      <div class="param-group">
+        <h3>波形 Waveform</h3>
+        <div class="wave-grid" id="wave-btns">
+          <button data-wave="pulse_12">Pulse 12.5%</button>
+          <button data-wave="pulse_25">Pulse 25%</button>
+          <button data-wave="pulse_50">Pulse 50%</button>
+          <button data-wave="triangle">三角 Tri</button>
+          <button data-wave="noise">噪声 Noise</button>
+          <button data-wave="square">方波 Sq</button>
+        </div>
+      </div>
+
+      <div id="param-groups"></div>
+
+      <div class="param-group">
+        <h3>琶音 Arpeggio</h3>
+        <select id="p-arp">
+          <option value="">无</option>
+          <option value="0,4,7">大三和弦 0-4-7</option>
+          <option value="0,3,7">小三和弦 0-3-7</option>
+          <option value="0,7,12">五度 + 八度</option>
+          <option value="0,12">八度跳</option>
+          <option value="0,1,12">半音刮奏</option>
+        </select>
+      </div>
+
+      <div class="param-group">
+        <h3>试听</h3>
+        <div class="slider-row">
+          <span class="sl-label">音高</span>
+          <input type="range" id="preview-note" min="24" max="96" step="1" value="72">
+          <span class="sl-val" id="preview-note-val">C5</span>
+        </div>
+      </div>
+
+      <div class="designer-actions">
+        <button id="btn-preview">▶ 试听</button>
+        <button id="btn-random">🎲 随机</button>
+        <button id="btn-reset" class="full">↺ 重置为默认</button>
+      </div>
+    </aside>
+
+    <section class="channels" id="channels"></section>
+  </main>
+</div>
+
+<!-- 导出弹窗 -->
+<div class="modal hidden" id="modal">
+  <div class="modal-box">
+    <div class="modal-head">
+      <h2>导出 · chip_music_v1</h2>
+      <button id="modal-close" class="x">✕</button>
+    </div>
+    <textarea id="export-text" readonly spellcheck="false"></textarea>
+    <div class="modal-foot">
+      <button id="btn-copy">📋 复制到剪贴板</button>
+      <button id="btn-download" class="primary">⬇ 下载 .json</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* =========================================================
+   基础工具
+   ========================================================= */
+const $  = s => document.querySelector(s);
+const $$ = s => Array.from(document.querySelectorAll(s));
+const clamp = (v,a,b) => Math.min(b, Math.max(a, v));
+const round = (v,n=4) => Math.round(v * Math.pow(10,n)) / Math.pow(10,n);
+
+const NOTE_NAMES = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+const noteName = n => NOTE_NAMES[((n % 12) + 12) % 12] + (Math.floor(n / 12) - 1);
+
+const CH_NAMES  = ['lead','harmony','bass','drum'];
+const CH_LABELS = ['主旋律','和声','低音','鼓组'];
+
+let toastTimer = null;
+function toast(msg){
+  const t = $('#toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>t.classList.remove('show'), 1500);
+}
+
+/* =========================================================
+   音频引擎  (WebAudio 模拟 NES 2A03 四通道)
+   ========================================================= */
+const Sound = {
+  ctx: null,
+  master: null,
+  waves: {},
+  noiseBuf: null,
+  active: [],
+
+  init(){
+    if (this.ctx) return this.ctx;
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    this.ctx = new Ctx();
+
+    const master = this.ctx.createGain();
+    master.gain.value = 0.75;
+
+    // 轻微软削波，模仿老主机的粗糙感
+    const shaper = this.ctx.createWaveShaper();
+    const N = 2048;
+    const curve = new Float32Array(N);
+    for (let i = 0; i < N; i++){
+      const x = (i / (N - 1)) * 2 - 1;
+      curve[i] = Math.tanh(x * 1.4);
+    }
+    shaper.curve = curve;
+    shaper.oversample = '2x';
+
+    master.connect(shaper);
+    shaper.connect(this.ctx.destination);
+    this.master = master;
+
+    // 白噪声缓冲（2 秒，循环使用）
+    const len = Math.floor(this.ctx.sampleRate * 2);
+    const buf = this.ctx.createBuffer(1, len, this.ctx.sampleRate);
+    const d = buf.getChannelData(0);
+    for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+    this.noiseBuf = buf;
+
+    return this.ctx;
+  },
+
+  /* 用傅里叶级数构造指定占空比的脉冲波 */
+  pulseWave(duty){
+    const key = 'p' + duty;
+    if (this.waves[key]) return this.waves[key];
+    const n = 64;
+    const real = new Float32Array(n);
+    const imag = new Float32Array(n);
+    for (let i = 1; i < n; i++){
+      const a = Math.PI * i * duty;
+      real[i] = Math.sin(2 * a) / (Math.PI * i);
+      imag[i] = (1 - Math.cos(2 * a)) / (Math.PI * i);
+    }
+    const w = this.ctx.createPeriodicWave(real, imag);
+    this.waves[key] = w;
+    return w;
+  },
+
+  /**
+   * 播放一个音效
+   * preset: { wave, env:{attack,decay,sustain,release}, fx:{slide,vibDepth,vibRate,arp,noiseFreq} }
+   */
+  playPreset(preset, opt){
+    const ctx = this.init();
+    if (ctx.state === 'suspended') ctx.resume();
+
+    const o     = opt || {};
+    const note  = o.note  ?? 60;
+    const vel   = o.vel   ?? 100;
+    const dur   = Math.max(0.03, o.dur ?? 0.2);
+    const when  = o.when  ?? 0;
+    const vol   = o.vol   ?? 1;
+    const pan   = o.pan   ?? 0;
+
+    const env = preset.env;
+    const fx  = preset.fx || {};
+    const t0  = ctx.currentTime + when;
+    const freq = 440 * Math.pow(2, (note - 69) / 12);
+
+    // --- 包络 ---
+    const peak  = Math.max(0.0001, (vel / 127) * 0.9 * vol);
+    const a     = Math.max(0.002, env.attack);
+    const dcy   = Math.max(0.002, env.decay);
+    const sus   = Math.max(0.0001, peak * clamp(env.sustain, 0, 1));
+    const rel   = Math.max(0.012, env.release);
+    const endT  = t0 + dur;
+    const stopAt= endT + rel + 0.06;
+
+    // --- 输出链 ---
+    const out = ctx.createGain();
+    out.gain.value = 1;
+    let tail = out;
+    if (ctx.createStereoPanner && Math.abs(pan) > 0.001){
+      const p = ctx.createStereoPanner();
+      p.pan.value = clamp(pan, -1, 1);
+      out.connect(p);
+      tail = p;
+    }
+    tail.connect(this.master);
+
+    const g = ctx.createGain();
+    g.connect(out);
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.linearRampToValueAtTime(peak,  t0 + a);
+    g.gain.linearRampToValueAtTime(sus,   t0 + a + dcy);
+    g.gain.linearRampToValueAtTime(sus,   endT);
+    g.gain.linearRampToValueAtTime(0.0001, endT + rel);
+
+    const track = (src) => {
+      this.active.push(src);
+      src.onended = () => {
+        try { g.disconnect(); out.disconnect(); tail.disconnect(); } catch(e){}
+        const i = this.active.indexOf(src);
+        if (i >= 0) this.active.splice(i, 1);
+      };
+    };
+
+    /* ---------- 噪声通道 ---------- */
+    if (preset.wave === 'noise'){
+      const src = ctx.createBufferSource();
+      src.buffer = this.noiseBuf;
+      src.loop = true;
+      const nf = clamp(fx.noiseFreq ?? 0.5, 0, 1);
+      const rate = Math.pow(2, -6 + nf * 7);           // 0.0156 ~ 2.0
+      src.playbackRate.setValueAtTime(rate, t0);
+      if (fx.slide){
+        const tgt = rate * Math.pow(2, fx.slide / 24);
+        src.playbackRate.exponentialRampToValueAtTime(Math.max(0.001, tgt), endT);
+      }
+      src.connect(g);
+      src.start(t0);
+      src.stop(stopAt);
+      track(src);
+      return;
+    }
+
+    /* ---------- 音调通道 ---------- */
+    const osc = ctx.createOscillator();
+    const w = preset.wave;
+    if      (w === 'pulse_12') osc.setPeriodicWave(this.pulseWave(0.125));
+    else if (w === 'pulse_25') osc.setPeriodicWave(this.pulseWave(0.25));
+    else if (w === 'pulse_50') osc.setPeriodicWave(this.pulseWave(0.5));
+    else if (w === 'triangle') osc.type = 'triangle';
+    else if (w === 'sawtooth') osc.type = 'sawtooth';
+    else                       osc.type = 'square';
+
+    osc.frequency.setValueAtTime(freq, t0);
+
+    // 琶音 > 滑音
+    const arp = fx.arp;
+    if (arp && arp.length){
+      const step = 0.035;
+      let i = 0;
+      for (let t = t0; t < endT; t += step){
+        osc.frequency.setValueAtTime(freq * Math.pow(2, arp[i % arp.length] / 12), t);
+        i++;
+      }
+      osc.frequency.setValueAtTime(freq * Math.pow(2, arp[0] / 12), endT);
+    } else if (fx.slide){
+      const tgt = freq * Math.pow(2, fx.slide / 12);
+      osc.frequency.exponentialRampToValueAtTime(Math.max(8, tgt), endT);
+    }
+
+    // 颤音
+    if (fx.vibDepth > 0 && fx.vibRate > 0){
+      const lfo = ctx.createOscillator();
+      lfo.type = 'sine';
+      lfo.frequency.setValueAtTime(fx.vibRate, t0);
+      const lg = ctx.createGain();
+      lg.gain.setValueAtTime(fx.vibDepth * 100, t0);   // 半音 -> 音分
+      lfo.connect(lg);
+      lg.connect(osc.detune);
+      lfo.start(t0);
+      lfo.stop(stopAt);
+      lfo.onended = () => { try{ lg.disconnect(); }catch(e){} };
+    }
+
+    osc.connect(g);
+    osc.start(t0);
+    osc.stop(stopAt);
+    track(osc);
+  },
+
+  stopAll(){
+    this.active.forEach(n => { try{ n.stop(); }catch(e){} });
+    this.active = [];
+  }
+};
+
+/* =========================================================
+   状态
+   ========================================================= */
+function mkPreset(wave, env, fx){
+  return {
+    wave,
+    env: {
+      attack:  env.a ?? 0.005,
+      decay:   env.d ?? 0.05,
+      sustain: env.s ?? 0.7,
+      release: env.r ?? 0.05
+    },
+    fx: Object.assign({ slide:0, vibDepth:0, vibRate:0, arp:[], noiseFreq:0.5 }, fx || {})
+  };
+}
+
+const DEFAULT_PRESETS = [
+  mkPreset('pulse_25', {a:0.005,d:0.05,s:0.7,r:0.05}),
+  mkPreset('pulse_12', {a:0.010,d:0.05,s:0.6,r:0.05}),
+  mkPreset('triangle', {a:0.010,d:0.10,s:0.8,r:0.10}),
+  mkPreset('noise',    {a:0.001,d:0.05,s:0.0,r:0.02})
+];
+
+const state = {
+  meta: {
+    title:'demo', bpm:120, beats_per_bar:4, ticks_per_beat:4,
+    total_ticks:16, loop_start:0, loop_end:16, source:'manual'
+  },
+  editCh: 0,
+  previewNote: 72,
+  channels: [
+    { preset: JSON.parse(JSON.stringify(DEFAULT_PRESETS[0])), volume:0.8, pan:0 },
+    { preset: JSON.parse(JSON.stringify(DEFAULT_PRESETS[1])), volume:0.6, pan:0 },
+    { preset: JSON.parse(JSON.stringify(DEFAULT_PRESETS[2])), volume:0.7, pan:0 },
+    { preset: JSON.parse(JSON.stringify(DEFAULT_PRESETS[3])), volume:0.4, pan:0 }
+  ],
+  events: [
+    { ch:0, tick:0,  note:60, vel:100, dur:4 },
+    { ch:0, tick:4,  note:64, vel:100, dur:4 },
+    { ch:0, tick:8,  note:67, vel:100, dur:4 },
+    { ch:0, tick:12, note:72, vel:100, dur:4 },
+    { ch:1, tick:0,  note:64, vel:80,  dur:16 },
+    { ch:2, tick:0,  note:36, vel:100, dur:16 },
+    { ch:3, tick:0,  note:40, vel:110, dur:1 },
+    { ch:3, tick:4,  note:40, vel:110, dur:1 },
+    { ch:3, tick:8,  note:40, vel:110, dur:1 },
+    { ch:3, tick:12, note:40, vel:110, dur:1 }
+  ]
+};
+
+/* =========================================================
+   参数定义
+   ========================================================= */
+const PARAM_GROUPS = [
+  {
+    title: '包络 ADSR',
+    items: [
+      { key:'attack',  label:'起音 A', min:0, max:0.5, step:0.005 },
+      { key:'decay',   label:'衰减 D', min:0, max:0.5, step:0.005 },
+      { key:'sustain', label:'持续 S', min:0, max:1,   step:0.01  },
+      { key:'release', label:'释音 R', min:0, max:0.5, step:0.005 }
+    ]
+  },
+  {
+    title: '音高调制',
+    items: [
+      { key:'slide',    label:'滑音',     min:-48, max:48, step:1    },
+      { key:'vibDepth', label:'颤音深度', min:0,   max:2,  step:0.05 },
+      { key:'vibRate',  label:'颤音速率', min:0,   max:30, step:0.5  }
+    ]
+  },
+  {
+    title: '噪声 (Noise 通道)',
+    items: [
+      { key:'noiseFreq', label:'噪声频率', min:0, max:1, step:0.01 }
+    ]
+  }
+];
+const ALL_ITEMS = PARAM_GROUPS.flatMap(g => g.items);
+
+const getParam = (p, k) => (k in p.env) ? p.env[k] : p.fx[k];
+const setParam = (p, k, v) => { if (k in p.env) p.env[k] = v; else p.fx[k] = v; };
+
+function fmtVal(v, it){
+  if (it.step < 0.01) return v.toFixed(3);
+  if (it.step < 1)    return v.toFixed(2);
+  return String(Math.round(v));
+}
+
+/* =========================================================
+   音效标签库 —— 每个标签在自己的"风格范围"内随机
+   ========================================================= */
+const rnd = (a,b) => a + Math.random() * (b - a);
+const pickOne = arr => arr[Math.floor(Math.random() * arr.length)];
+
+const TAG_LIST = [
+  { id:'jump',    icon:'⬆', label:'跳跃' },
+  { id:'coin',    icon:'◎', label:'金币' },
+  { id:'laser',   icon:'»', label:'激光' },
+  { id:'boom',    icon:'✦', label:'爆炸' },
+  { id:'hurt',    icon:'✖', label:'受伤' },
+  { id:'pick',    icon:'◈', label:'拾取' },
+  { id:'power',   icon:'▲', label:'升级' },
+  { id:'shoot',   icon:'▸', label:'射击' },
+  { id:'hit',     icon:'●', label:'打击' },
+  { id:'zap',     icon:'⚡', label:'电击' },
+  { id:'sparkle', icon:'✧', label:'闪现' },
+  { id:'blip',    icon:'▪', label:'提示' }
+];
+
+const TAG_BUILDERS = {
+  /* 跳跃：短促上滑 */
+  jump: () => ({
+    wave: pickOne(['pulse_25','pulse_50','square']),
+    env: { a:0.002, d:rnd(0.05,0.10), s:rnd(0.10,0.35), r:rnd(0.03,0.07) },
+    fx:  { slide: Math.round(rnd(14,32)), vibDepth:0, vibRate:0, arp:[], noiseFreq:0.5 }
+  }),
+
+  /* 金币：高音快速上行琶音 */
+  coin: () => ({
+    wave: pickOne(['pulse_50','square']),
+    env: { a:0.001, d:rnd(0.03,0.06), s:0.85, r:rnd(0.08,0.18) },
+    fx:  { slide:0, vibDepth:0, vibRate:0,
+           arp: pickOne([[0,7,12],[0,12],[0,4,7,12]]), noiseFreq:0.5 }
+  }),
+
+  /* 激光：快速下滑 */
+  laser: () => ({
+    wave: pickOne(['pulse_12','pulse_25']),
+    env: { a:0.001, d:rnd(0.08,0.18), s:rnd(0.10,0.40), r:rnd(0.05,0.12) },
+    fx:  { slide: -Math.round(rnd(18,40)), vibDepth:rnd(0,0.3), vibRate:rnd(15,25),
+           arp:[], noiseFreq:0.5 }
+  }),
+
+  /* 爆炸：噪声 + 下扫 */
+  boom: () => ({
+    wave: 'noise',
+    env: { a:0.001, d:rnd(0.18,0.35), s:0, r:rnd(0.10,0.20) },
+    fx:  { slide: -Math.round(rnd(8,24)), vibDepth:0, vibRate:0,
+           arp:[], noiseFreq: rnd(0.15,0.45) }
+  }),
+
+  /* 受伤：刺耳中频短音 */
+  hurt: () => ({
+    wave: pickOne(['noise','pulse_12']),
+    env: { a:0.001, d:rnd(0.08,0.18), s:rnd(0.10,0.30), r:rnd(0.05,0.12) },
+    fx:  { slide: -Math.round(rnd(10,20)), vibDepth:rnd(0,0.8), vibRate:rnd(8,16),
+           arp:[], noiseFreq: rnd(0.40,0.75) }
+  }),
+
+  /* 拾取：明亮小琶音 */
+  pick: () => ({
+    wave: 'pulse_25',
+    env: { a:0.001, d:rnd(0.03,0.06), s:0.7, r:rnd(0.06,0.12) },
+    fx:  { slide:0, vibDepth:0, vibRate:0,
+           arp: pickOne([[0,7],[0,12],[0,5,12]]), noiseFreq:0.5 }
+  }),
+
+  /* 升级：上行大琶音 */
+  power: () => ({
+    wave: 'pulse_25',
+    env: { a:0.005, d:0.06, s:0.8, r:0.15 },
+    fx:  { slide:0, vibDepth:0, vibRate:0,
+           arp: pickOne([[0,4,7,12],[0,4,7,12,16,19],[0,7,12,19]]), noiseFreq:0.5 }
+  }),
+
+  /* 射击：极短下滑 */
+  shoot: () => ({
+    wave: pickOne(['pulse_12','pulse_25']),
+    env: { a:0.001, d:rnd(0.05,0.10), s:rnd(0.20,0.50), r:rnd(0.03,0.08) },
+    fx:  { slide: -Math.round(rnd(12,28)), vibDepth:0, vibRate:0, arp:[], noiseFreq:0.5 }
+  }),
+
+  /* 打击：噪声爆点 */
+  hit: () => ({
+    wave: 'noise',
+    env: { a:0.001, d:rnd(0.04,0.09), s:0, r:rnd(0.02,0.05) },
+    fx:  { slide:0, vibDepth:0, vibRate:0, arp:[], noiseFreq: rnd(0.50,0.90) }
+  }),
+
+  /* 电击：强颤音 */
+  zap: () => ({
+    wave: 'pulse_12',
+    env: { a:0.001, d:rnd(0.10,0.22), s:rnd(0.20,0.50), r:rnd(0.05,0.12) },
+    fx:  { slide:0, vibDepth:rnd(0.8,2.0), vibRate:rnd(16,30), arp:[], noiseFreq:0.5 }
+  }),
+
+  /* 闪现：三角波 + 小颤音 */
+  sparkle: () => ({
+    wave: pickOne(['triangle','pulse_12']),
+    env: { a:0.002, d:rnd(0.05,0.10), s:rnd(0.30,0.60), r:rnd(0.10,0.20) },
+    fx:  { slide:0, vibDepth:rnd(0.2,0.8), vibRate:rnd(6,14),
+           arp: pickOne([[0,12],[0,7,12],[0,4,9,12]]), noiseFreq:0.5 }
+  }),
+
+  /* 提示：干净短促单音 */
+  blip: () => ({
+    wave: pickOne(['pulse_50','square']),
+    env: { a:0.001, d:rnd(0.02,0.04), s:rnd(0.50,0.90), r:rnd(0.02,0.05) },
+    fx:  { slide:0, vibDepth:0, vibRate:0, arp:[], noiseFreq:0.5 }
+  })
+};
+
+function buildTags(){
+  const box = $('#tag-btns');
+  TAG_LIST.forEach(t => {
+    const b = document.createElement('button');
+    b.dataset.tag = t.id;
+    b.innerHTML = '<span class="ico">' + t.icon + '</span>' + t.label;
+    box.appendChild(b);
+  });
+
+  box.addEventListener('click', e => {
+    const b = e.target.closest('button[data-tag]');
+    if (!b) return;
+    applyTag(b.dataset.tag);
+  });
+}
+
+function applyTag(id){
+  const build = TAG_BUILDERS[id];
+  if (!build) return;
+  const g = build();
+  const ch = state.channels[state.editCh];
+  ch.preset = mkPreset(g.wave, g.env, g.fx);
+  renderDesigner();
+  refreshChannelLabel(state.editCh);
+  Sound.playPreset(ch.preset, {
+    note: state.previewNote, vel: 110, dur: 0.45, vol: ch.volume, pan: ch.pan
+  });
+}
+
+/* =========================================================
+   构建设计器 UI
+   ========================================================= */
+function buildDesigner(){
+  const box = $('#param-groups');
+  PARAM_GROUPS.forEach(g => {
+    const sec = document.createElement('div');
+    sec.className = 'param-group';
+    const h = document.createElement('h3');
+    h.textContent = g.title;
+    sec.appendChild(h);
+    g.items.forEach(it => {
+      const row = document.createElement('div');
+      row.className = 'slider-row';
+      row.innerHTML =
+        '<span class="sl-label">' + it.label + '</span>' +
+        '<input type="range" id="p-' + it.key + '" min="' + it.min +
+        '" max="' + it.max + '" step="' + it.step + '">' +
+        '<span class="sl-val" id="v-' + it.key + '"></span>';
+      sec.appendChild(row);
+    });
+    box.appendChild(sec);
+  });
+
+  // 滑杆输入
+  box.addEventListener('input', e => {
+    const id = e.target.id;
+    if (!id.startsWith('p-')) return;
+    const key = id.slice(2);
+    const it = ALL_ITEMS.find(i => i.key === key);
+    if (!it) return;
+    const v = parseFloat(e.target.value);
+    setParam(currentPreset(), key, v);
+    const outEl = document.getElementById('v-' + key);
+    if (outEl) outEl.textContent = fmtVal(v, it);
+    refreshChannelLabel(state.editCh);
+  });
+
+  // 波形按钮
+  $('#wave-btns').addEventListener('click', e => {
+    const b = e.target.closest('button[data-wave]');
+    if (!b) return;
+    currentPreset().wave = b.dataset.wave;
+    renderDesigner();
+    refreshChannelLabel(state.editCh);
+  });
+
+  // 琶音
+  $('#p-arp').addEventListener('change', e => {
+    const v = e.target.value;
+    currentPreset().fx.arp = v ? v.split(',').map(Number) : [];
+  });
+
+  // 试听音高
+  const pn = $('#preview-note');
+  pn.addEventListener('input', () => {
+    state.previewNote = +pn.value;
+    $('#preview-note-val').textContent = noteName(state.previewNote);
+  });
+
+  // 试听 / 随机 / 重置
+  $('#btn-preview').addEventListener('click', () => {
+    const ch = state.channels[state.editCh];
+    Sound.playPreset(ch.preset, {
+      note: state.previewNote,
+      vel: 110,
+      dur: 0.5,
+      vol: ch.volume,
+      pan: ch.pan
+    });
+  });
+
+  // 随机：从标签库里随机选一个，再在该标签范围内随机
+  $('#btn-random').addEventListener('click', () => {
+    const tag = pickOne(TAG_LIST);
+    applyTag(tag.id);
+    toast('随机 · ' + tag.label);
+  });
+
+  $('#btn-reset').addEventListener('click', () => {
+    state.channels[state.editCh].preset =
+      JSON.parse(JSON.stringify(DEFAULT_PRESETS[state.editCh]));
+    renderDesigner();
+    refreshChannelLabel(state.editCh);
+  });
+}
+
+function currentPreset(){
+  return state.channels[state.editCh].preset;
+}
+
+/* 把 state 里的预设同步到设计器 UI */
+function renderDesigner(){
+  const p = currentPreset();
+  $('#editing-ch').textContent = 'CH' + (state.editCh + 1) + ' · ' + CH_NAMES[state.editCh];
+
+  $$('#wave-btns button').forEach(b =>
+    b.classList.toggle('active', b.dataset.wave === p.wave));
+
+  ALL_ITEMS.forEach(it => {
+    const inp = document.getElementById('p-' + it.key);
+    const out = document.getElementById('v-' + it.key);
+    if (!inp) return;
+    const v = getParam(p, it.key);
+    inp.value = v;
+    if (out) out.textContent = fmtVal(v, it);
+  });
+
+  $('#p-arp').value = (p.fx.arp || []).join(',');
+}
+
+/* =========================================================
+   通道卡片渲染
+   ========================================================= */
+function renderChannels(){
+  const wrap = $('#channels');
+  wrap.innerHTML = '';
+
+  state.channels.forEach((ch, i) => {
+    const card = document.createElement('div');
+    card.className = 'ch-card' + (i === state.editCh ? ' editing' : '');
+    card.dataset.ch = i;
+
+    /* --- 头部 --- */
+    const head = document.createElement('div');
+    head.className = 'ch-head';
+    head.innerHTML =
+      '<span class="ch-num">CH' + (i + 1) + '</span>' +
+      '<span class="ch-name">' + CH_NAMES[i] + ' · ' + CH_LABELS[i] + '</span>' +
+      '<span class="ch-wave">' + ch.preset.wave + '</span>' +
+      '<span class="spacer"></span>' +
+      '<button data-act="edit">编辑</button>' +
+      '<button data-act="audition">▶</button>';
+    card.appendChild(head);
+
+    /* --- 混音 --- */
+    const mix = document.createElement('div');
+    mix.className = 'ch-mix';
+    mix.innerHTML =
+      '<div class="mix-row"><span>音量</span>' +
+        '<input type="range" data-mix="volume" min="0" max="1" step="0.01" value="' + ch.volume + '">' +
+        '<em data-out="volume">' + ch.volume.toFixed(2) + '</em></div>' +
+      '<div class="mix-row"><span>声像</span>' +
+        '<input type="range" data-mix="pan" min="-1" max="1" step="0.05" value="' + ch.pan + '">' +
+        '<em data-out="pan">' + ch.pan.toFixed(2) + '</em></div>';
+    card.appendChild(mix);
+
+    /* --- 事件列表 --- */
+    const headRow = document.createElement('div');
+    headRow.className = 'ev-head';
+    headRow.innerHTML = '<span>#</span><span>TICK</span><span>NOTE</span><span>音名</span><span>VEL</span><span>DUR</span><span></span>';
+    card.appendChild(headRow);
+
+    const list = document.createElement('div');
+    list.className = 'ev-list';
+    const mine = state.events
+      .map((e, idx) => ({ e, idx }))
+      .filter(o => o.e.ch === i)
+      .sort((a, b) => a.e.tick - b.e.tick);
+
+    if (!mine.length){
+      const empty = document.createElement('div');
+      empty.className = 'empty';
+      empty.textContent = '暂无事件';
+      list.appendChild(empty);
+    }
+
+    mine.forEach((o, n) => {
+      const ev = o.e;
+      const row = document.createElement('div');
+      row.className = 'ev-row';
+      row.dataset.idx = o.idx;
+      row.innerHTML =
+        '<span class="ev-idx">' + (n + 1) + '</span>' +
+        '<input type="number" data-ev="tick" value="' + ev.tick + '" min="0" max="511">' +
+        '<input type="number" data-ev="note" value="' + ev.note + '" min="0" max="127">' +
+        '<span class="ev-note">' + noteName(ev.note) + '</span>' +
+        '<input type="number" data-ev="vel" value="' + ev.vel + '" min="1" max="127">' +
+        '<input type="number" data-ev="dur" value="' + ev.dur + '" min="1" max="512">' +
+        '<button class="x" data-act="del">✕</button>';
+      list.appendChild(row);
+    });
+
+    card.appendChild(list);
+
+    const addBtn = document.createElement('button');
+    addBtn.className = 'add-ev';
+    addBtn.dataset.act = 'add';
+    addBtn.textContent = '+ 添加事件';
+    card.appendChild(addBtn);
+
+    wrap.appendChild(card);
+  });
+}
+
+function refreshChannelLabel(i){
+  const card = document.querySelector('.ch-card[data-ch="' + i + '"]');
+  if (!card) return;
+  card.querySelector('.ch-wave').textContent = state.channels[i].preset.wave;
+}
+
+/* =========================================================
+   通道卡片交互（事件委托）
+   ========================================================= */
+$('#channels').addEventListener('click', e => {
+  const card = e.target.closest('.ch-card');
+  if (!card) return;
+  const ci = +card.dataset.ch;
+  const act = e.target.dataset.act;
+
+  if (act === 'edit'){
+    state.editCh = ci;
+    renderDesigner();
+    renderChannels();
+    return;
+  }
+
+  if (act === 'audition'){
+    const ch = state.channels[ci];
+    Sound.playPreset(ch.preset, {
+      note: state.previewNote, vel: 110, dur: 0.5, vol: ch.volume, pan: ch.pan
+    });
+    return;
+  }
+
+  if (act === 'add'){
+    let maxTick = 0;
+    state.events.forEach(ev => { if (ev.ch === ci) maxTick = Math.max(maxTick, ev.tick + ev.dur); });
+    state.events.push({ ch: ci, tick: maxTick, note: 60, vel: 100, dur: 2 });
+    renderChannels();
+    return;
+  }
+
+  if (act === 'del'){
+    const row = e.target.closest('.ev-row');
+    if (!row) return;
+    state.events.splice(+row.dataset.idx, 1);
+    renderChannels();
+    return;
+  }
+});
+
+$('#channels').addEventListener('input', e => {
+  const card = e.target.closest('.ch-card');
+  if (!card) return;
+  const ci = +card.dataset.ch;
+
+  // 混音
+  const mixKey = e.target.dataset.mix;
+  if (mixKey){
+    const v = parseFloat(e.target.value);
+    state.channels[ci][mixKey] = v;
+    const out = card.querySelector('[data-out="' + mixKey + '"]');
+    if (out) out.textContent = v.toFixed(2);
+    return;
+  }
+
+  // 事件字段
+  const row = e.target.closest('.ev-row');
+  const field = e.target.dataset.ev;
+  if (!row || !field) return;
+  const idx = +row.dataset.idx;
+  let v = parseFloat(e.target.value);
+  if (isNaN(v)) return;
+
+  if (field === 'note'){
+    v = clamp(Math.round(v), 0, 127);
+    row.querySelector('.ev-note').textContent = noteName(v);
+  }
+  if (field === 'tick') v = clamp(Math.round(v), 0, 511);
+  if (field === 'vel')  v = clamp(Math.round(v), 1, 127);
+  if (field === 'dur')  v = clamp(Math.round(v), 1, 512);
+
+  state.events[idx][field] = v;
+});
+
+/* =========================================================
+   Meta 输入
+   ========================================================= */
+function bindMeta(){
+  const m = state.meta;
+  const bindNum = (sel, key, def, min, max) => {
+    $(sel).addEventListener('input', e => {
+      const raw = e.target.value;
+      const n = raw === '' ? def : parseFloat(raw);
+      if (isNaN(n)) return;
+      m[key] = clamp(Math.round(n), min, max);
+    });
+  };
+
+  $('#m-title').addEventListener('input', e => m.title = e.target.value);
+  bindNum('#m-bpm',   'bpm',            120, 20, 400);
+  bindNum('#m-bpb',   'beats_per_bar',    4,  1,  16);
+  bindNum('#m-tpb',   'ticks_per_beat',   4,  1,  16);
+  bindNum('#m-total', 'total_ticks',     16,  1, 512);
+  bindNum('#m-ls',    'loop_start',       0,  0, 512);
+  bindNum('#m-le',    'loop_end',        16,  0, 512);
+
+  $('#m-title').value = m.title;
+  $('#m-bpm').value   = m.bpm;
+  $('#m-bpb').value   = m.beats_per_bar;
+  $('#m-tpb').value   = m.ticks_per_beat;
+  $('#m-total').value = m.total_ticks;
+  $('#m-ls').value    = m.loop_start;
+  $('#m-le').value    = m.loop_end;
+}
+
+/* =========================================================
+   播放引擎
+   ========================================================= */
+const Player = {
+  playing: false,
+  loop: false,
+  spt: 0,
+  anchor: 0,
+  ls: 0,
+  le: 0,
+  schedSec: 0,
+  passIndex: 0,
+  timer: null,
+  raf: null
+};
+
+function stopPlayback(){
+  Player.playing = false;
+  if (Player.timer){ clearInterval(Player.timer); Player.timer = null; }
+  if (Player.raf) cancelAnimationFrame(Player.raf);
+  Player.raf = null;
+  Sound.stopAll();
+  $('#progress-bar').style.width = '0%';
+  updateReadout(0, state.meta.total_ticks);
+}
+
+function updateReadout(tick, total){
+  $('#playhead-tick').textContent =
+    'tick ' + Math.max(0, Math.round(tick)) + ' / ' + total;
+}
+
+/* 排一个区间的音符 */
+function schedulePass(fromTick, toTick, anchorTime){
+  const spt = Player.spt;
+  const now = Sound.ctx.currentTime;
+
+  for (const ev of state.events){
+    if (ev.tick < fromTick || ev.tick >= toTick) continue;
+    const ch = state.channels[ev.ch];
+    if (!ch) continue;
+
+    const when = anchorTime + (ev.tick - fromTick) * spt - now;
+    if (when < -0.1) continue;                  // 已经来不及了
+
+    // 音符时长在循环边界处截断，保证无缝循环
+    const durTicks = Math.max(1, Math.min(ev.dur, toTick - ev.tick));
+
+    Sound.playPreset(ch.preset, {
+      note: ev.note,
+      vel:  ev.vel,
+      dur:  Math.max(0.03, durTicks * spt),
+      when: Math.max(0, when),
+      vol:  ch.volume,
+      pan:  ch.pan
+    });
+  }
+}
+
+/* 前瞻调度：保持未来 0.7s 的音符已排入音频线程 */
+function scheduleBlock(first){
+  if (!Player.playing) return;
+  const spt = Player.spt;
+
+  if (!Player.loop){
+    if (!first) return;
+    schedulePass(0, Player.le, Player.anchor);
+    Player.schedSec = Player.le * spt;
+    return;
+  }
+
+  const horizon = Sound.ctx.currentTime - Player.anchor + 0.7;
+  let guard = 0;
+
+  while (Player.schedSec < horizon && guard++ < 500){
+    const fromTick = Player.passIndex === 0 ? 0 : Player.ls;
+    const toTick   = Player.le;
+    const len = (toTick - fromTick) * spt;
+    if (len <= 0.0001) return;
+
+    schedulePass(fromTick, toTick, Player.anchor + Player.schedSec);
+    Player.schedSec += len;
+    Player.passIndex++;
+  }
+}
+
+function startPlayback(){
+  stopPlayback();
+  Sound.init();
+  if (Sound.ctx.state === 'suspended') Sound.ctx.resume();
+
+  const m = state.meta;
+  const spt = 60 / m.bpm / m.ticks_per_beat;
+  const total = clamp(m.total_ticks, 1, 512);
+
+  // 循环区间
+  let ls = clamp(m.loop_start, 0, total);
+  let le = clamp(m.loop_end, 0, total);
+  if (le <= ls){ ls = 0; le = total; }
+
+  Player.loop = $('#btn-loop').classList.contains('active');
+  Player.spt = spt;
+  Player.ls = Player.loop ? ls : 0;
+  Player.le = Player.loop ? le : total;
+  Player.anchor = Sound.ctx.currentTime + 0.06;
+  Player.schedSec = 0;
+  Player.passIndex = 0;
+  Player.playing = true;
+
+  scheduleBlock(true);
+
+  if (Player.loop){
+    Player.timer = setInterval(() => scheduleBlock(false), 150);
+  }
+
+  runPlayhead();
+}
+
+function runPlayhead(){
+  if (Player.raf) cancelAnimationFrame(Player.raf);
+  const bar = $('#progress-bar');
+  const total = state.meta.total_ticks;
+
+  const introSec = Player.le * Player.spt;
+  const cycSec   = (Player.le - Player.ls) * Player.spt;
+
+  const step = () => {
+    if (!Player.playing) return;
+    const t = Sound.ctx.currentTime - Player.anchor;
+
+    if (t < 0){
+      bar.style.width = '0%';
+      Player.raf = requestAnimationFrame(step);
+      return;
+    }
+
+    if (!Player.loop){
+      const p = t / introSec;
+      if (p >= 1){
+        bar.style.width = '100%';
+        updateReadout(total, total);
+        Player.playing = false;
+        if (Player.timer){ clearInterval(Player.timer); Player.timer = null; }
+        return;
+      }
+      bar.style.width = (p * 100) + '%';
+      updateReadout(Math.min(total, Math.floor(t / Player.spt)), total);
+    } else {
+      if (t < introSec){
+        bar.style.width = ((t / introSec) * 100) + '%';
+        updateReadout(Math.floor(t / Player.spt), total);
+      } else {
+        const rel = cycSec > 0 ? (t - introSec) % cycSec : 0;
+        bar.style.width = ((rel / cycSec) * 100) + '%';
+        updateReadout(Math.floor(Player.ls + rel / Player.spt), total);
+      }
+    }
+    Player.raf = requestAnimationFrame(step);
+  };
+  step();
+}
+
+$('#btn-play').addEventListener('click', startPlayback);
+$('#btn-stop').addEventListener('click', stopPlayback);
+
+$('#btn-loop').addEventListener('click', () => {
+  const on = $('#btn-loop').classList.toggle('active');
+  toast(on ? '循环播放：开' : '循环播放：关');
+  if (Player.playing) startPlayback();
+});
+
+/* =========================================================
+   导出 chip_music_v1
+   ========================================================= */
+function buildExportObject(){
+  const presets = {};
+  const channels = [];
+
+  state.channels.forEach((ch, i) => {
+    const key = CH_NAMES[i];
+    const p = ch.preset;
+
+    const out = {
+      wave: p.wave,
+      env: {
+        attack:  round(p.env.attack, 4),
+        decay:   round(p.env.decay, 4),
+        sustain: round(p.env.sustain, 3),
+        release: round(p.env.release, 4)
+      }
+    };
+
+    // 扩展字段：仅在有实际值时写出，保持核心格式干净
+    const fx = {};
+    if (Math.abs(p.fx.slide) > 0.001) fx.slide = round(p.fx.slide, 3);
+    if (p.fx.vibDepth > 0.001){
+      fx.vibDepth = round(p.fx.vibDepth, 3);
+      fx.vibRate  = round(p.fx.vibRate, 3);
+    }
+    if (p.fx.arp && p.fx.arp.length) fx.arp = p.fx.arp.slice();
+    if (p.wave === 'noise') fx.noiseFreq = round(p.fx.noiseFreq, 3);
+    if (Object.keys(fx).length) out.fx = fx;
+
+    presets[key] = out;
+    channels.push({
+      preset: key,
+      volume: round(ch.volume, 3),
+      pan:    round(ch.pan, 3)
+    });
+  });
+
+  const events = state.events
+    .filter(e => e.tick < state.meta.total_ticks)
+    .slice()
+    .sort((a, b) => (a.tick - b.tick) || (a.ch - b.ch))
+    .map(e => ({
+      ch:   e.ch,
+      tick: e.tick,
+      note: e.note,
+      vel:  e.vel,
+      dur:  e.dur
+    }));
+
+  return {
+    format: 'chip_music_v1',
+    meta: {
+      title:         state.meta.title,
+      bpm:           state.meta.bpm,
+      beats_per_bar: state.meta.beats_per_bar,
+      ticks_per_beat:state.meta.ticks_per_beat,
+      total_ticks:   state.meta.total_ticks,
+      loop_start:    state.meta.loop_start,
+      loop_end:      state.meta.loop_end,
+      source:        'manual'
+    },
+    presets,
+    channels,
+    events
+  };
+}
+
+$('#btn-export').addEventListener('click', () => {
+  const json = JSON.stringify(buildExportObject(), null, 2);
+  $('#export-text').value = json;
+  $('#modal').classList.remove('hidden');
+});
+
+$('#modal-close').addEventListener('click', () => $('#modal').classList.add('hidden'));
+$('#modal').addEventListener('click', e => {
+  if (e.target.id === 'modal') $('#modal').classList.add('hidden');
+});
+
+$('#btn-copy').addEventListener('click', async () => {
+  const ta = $('#export-text');
+  try {
+    await navigator.clipboard.writeText(ta.value);
+    toast('已复制到剪贴板');
+  } catch (err){
+    ta.select();
+    document.execCommand('copy');
+    toast('已复制到剪贴板');
+  }
+});
+
+$('#btn-download').addEventListener('click', () => {
+  const json = $('#export-text').value;
+  const name = (state.meta.title || 'chip_music').replace(/[^\w\u4e00-\u9fa5-]+/g, '_');
+  const blob = new Blob([json], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = name + '.json';
+  a.click();
+  URL.revokeObjectURL(url);
+  toast('已下载 ' + name + '.json');
+});
+
+/* =========================================================
+   启动
+   ========================================================= */
+function boot(){
+  buildDesigner();
+  buildTags();
+  bindMeta();
+  renderDesigner();
+  renderChannels();
+
+  // 快捷键：空格试听
+  document.addEventListener('keydown', e => {
+    if (e.code === 'Space' && !/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)){
+      e.preventDefault();
+      $('#btn-preview').click();
+    }
+  });
+}
+
+boot();
+</script>
+</body>
+</html>

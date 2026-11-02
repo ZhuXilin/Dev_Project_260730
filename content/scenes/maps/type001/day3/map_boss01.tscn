@@ -15,9 +15,8 @@ collision_enabled = false
 position = Vector2(176, 128)
 script = ExtResource("2_bug8j")
 team = 1
-unit_name = "armored:重甲兵"
-advanced_class_id = "armored_paladin:圣骑士"
-avatar_id = "avatar_010"
+unit_name = "boss_dragonlord:boss_dragonlord"
+avatar_id = "avatar_022"
 is_boss = true
 metadata/_custom_type_script = "uid://cjvddjaj43chx"
 

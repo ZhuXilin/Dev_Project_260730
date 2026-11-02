@@ -61,11 +61,9 @@ func check_victory():
 			if WaveManager and WaveManager.has_pending_waves():
 				if not _wave_clear_notified:
 					_wave_clear_notified = true
-					# ★ 改用非常显眼的居中标语，防止错漏
-					SignalBus.request_hint_override.emit("★ 当前波次清空，敌方增援即将抵达（请结束回合）", 4.0)
-					SignalBus.request_screen_shake.emit(0.4, 3.0, Vector2.ZERO)
-					# 4 秒后自动重置提示状态
-					get_tree().create_timer(4.0).timeout.connect(func(): _wave_clear_notified = false)
+					# ★ 使用较长的覆盖提示，并且重置周期设为 5 秒
+					SignalBus.request_hint_override.emit("★ 当前波次清空，敌方增援即将抵达（请结束回合）", 5.0)
+					get_tree().create_timer(5.0).timeout.connect(func(): _wave_clear_notified = false)
 				return
 			_trigger_victory(0)
 

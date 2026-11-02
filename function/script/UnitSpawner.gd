@@ -215,12 +215,21 @@ static func _create_unit_stats(cfg: UnitConfig, base_name: String, adv_id: Strin
 	var stats = UnitDataManager.get_default_stats(name_key)
 	stats.unit_name = name_key
 
+	# ★ 修复点 1：display_name 的覆盖逻辑
 	if cfg.is_random_pool:
+		# 随机池单位强制用英文 ID 作为名字（或者后续被转职名覆盖）
 		stats.display_name = name_key
-	else:
-		stats.display_name = cfg.display_name if cfg.display_name != "" else name_key
+	elif cfg.display_name != "":
+		# 只有当编辑器里明确填了名字，才覆盖 JSON 里的名字
+		stats.display_name = cfg.display_name
+	# 否则：保留 UnitDataManager.get_default_stats 里从 JSON 读到的 display_name（如“深渊龙主”）
 
-	stats.faction = cfg.faction
+	# ★ 修复点 2：faction 的覆盖逻辑
+	if cfg.faction != "":
+		# 只有明确填了阵营，才覆盖 JSON 里的阵营
+		stats.faction = cfg.faction
+
+	# 应用编辑器里的其他覆盖配置
 	cfg.apply_override(stats)
 	stats.team_id = cfg.team_id
 	stats.is_boss = cfg.is_boss

@@ -994,6 +994,13 @@ func _apply_damage_with_effects(defender: Unit, damage: int, attacker: Unit, is_
 	SignalBus.request_damage_popup.emit(defender.global_position, damage, is_crit, false, false)
 	_play_hurt_effect(defender, attacker)
 
+	if BossMechanicManager and BossMechanicManager.has_method("process_damage_phase"):
+		var phase_result: Dictionary = BossMechanicManager.process_damage_phase(defender, attacker, damage)
+		if phase_result.get("prevent_death", false):
+			defeated = false
+		elif defender.hit_points > 0:
+			defeated = false
+
 	var ls_bonus : float = 0.0
 	for slot in attacker.armor_slots:
 		if slot: ls_bonus += slot.get_affix_value_float("lifesteal")

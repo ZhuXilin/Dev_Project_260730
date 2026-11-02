@@ -203,8 +203,12 @@ func _validate_property(property : Dictionary) -> void:
 			"cleric": "修女", "dragonborn": "龙人", "armored": "重甲兵"
 		}
 		for k in UnitDataManager.get_all_unit_ids():
-			var cn : String = UnitDataManager.get_unit_type_display_name(k)
-			if cn == "" or cn == k: cn = fallback_names.get(k, k)
+			var ud: Dictionary = UnitDataManager.get_unit_data(k)
+			if bool(ud.get("hidden_from_roster", false)):
+				continue
+			var cn: String = UnitDataManager.get_unit_type_display_name(k)
+			if cn == "" or cn == k:
+				cn = fallback_names.get(k, k)
 			items.append("%s:%s" % [k, cn])
 		property.hint = PROPERTY_HINT_ENUM
 		property.hint_string = ",".join(items)

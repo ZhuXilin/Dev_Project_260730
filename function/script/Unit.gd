@@ -912,3 +912,71 @@ func get_total_move_range() -> int:
 	if unit_stats.team_id == 0:
 		base += SoulFireManager.get_move_bonus()
 	return base
+
+
+func apply_boss_form(new_stats: UnitData, hp_mode: String, min_hp: int,
+		reset_turn_state: bool, preserve_buffs: bool) -> void:
+	var old_max: int = maxi(1, unit_stats.max_hp)
+	var old_hp: int = hit_points
+	var ratio: float = float(old_hp) / float(old_max)
+
+	unit_stats = new_stats
+
+	match hp_mode:
+		"full":
+			hit_points = unit_stats.max_hp
+		"keep_ratio":
+			hit_points = clampi(int(round(float(unit_stats.max_hp) * ratio)), min_hp, unit_stats.max_hp)
+		"keep_absolute":
+			hit_points = clampi(old_hp, min_hp, unit_stats.max_hp)
+		"custom_ratio":
+			hit_points = clampi(int(round(float(unit_stats.max_hp) * 0.5)), min_hp, unit_stats.max_hp)
+		_:
+			hit_points = unit_stats.max_hp
+
+	if unit_stats.weapon_slot != null:
+		weapon_slot = unit_stats.weapon_slot
+	else:
+		var def_w: String = UnitDataManager.get_default_weapon_id(unit_stats.unit_name)
+		if def_w != "":
+			var inst := ItemInstance.new()
+			inst.item_id = def_w
+			inst.count = 1
+			weapon_slot = inst
+		else:
+			weapon_slot = null
+
+	max_armor_slots = unit_stats.max_armor_slots
+	armor_slots.clear()
+	for s in unit_stats.armor_slots:
+		armor_slots.append(s)
+	while armor_slots.size() < max_armor_slots:
+		armor_slots.append(null)
+
+	_init_talent_slots_from_data(unit_stats)
+
+	var frames_path: String = _resolve_sprite_path()
+	if frames_path != "" and ResourceLoader.exists(frames_path):
+		var frames := load(frames_path) as SpriteFrames
+		if frames:
+			animated_sprite.sprite_frames = frames
+			animated_sprite.play("idle")
+			animated_sprite.visible = true
+			animated_sprite.z_index = 2
+
+	if not preserve_buffs:
+		reset_combat_buffs()
+
+	if reset_turn_state:
+		can_act_this_turn = true
+		has_moved = false
+		has_attacked = false
+		has_acted = false
+		remaining_move = get_total_move_range()
+		used_move = 0
+		moves_since_act = 0
+		previous_remaining_move = remaining_move
+
+	update_hp_label()
+	update_color()
+	set_gray(has_acted)

@@ -389,11 +389,18 @@ func _get_party_unit_names() -> Array[String]:
 
 
 func _get_day() -> int:
-	if _levellist_path == "":
-		return 1
-	var fname : String = _levellist_path.get_file().to_lower()
-	if "day3" in fname: return 3
-	if "day2" in fname: return 2
+	# ★ 优先从 LevelList 路径推断
+	if _levellist_path != "":
+		var fname : String = _levellist_path.get_file().to_lower()
+		if "day3" in fname: return 3
+		if "day2" in fname: return 2
+		
+	# ★ 其次从选中的地图场景路径推断（防止没选 LevelList 时默认成 day1）
+	if _selected_map != null and _selected_map.scene != null:
+		var path = _selected_map.scene.resource_path.to_lower()
+		if "day3" in path: return 3
+		if "day2" in path: return 2
+		
 	return 1
 
 

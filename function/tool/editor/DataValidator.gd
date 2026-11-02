@@ -237,6 +237,7 @@ func _validate_units():
 					_warn(fname, "%s.advanced_branches[%d].tags[%d]" % [unit_key, i, j],
 						"未知标签: %s" % tag2)
 
+		_validate_boss_phases(fname, unit_key, u)
 
 func _validate_unit_unlock():
 	var fname := "unit_unlock.json"
@@ -624,3 +625,46 @@ func _validate_events():
 				"unlock_relics":
 					_warn(fname, "%s.actions[%d]" % [eid, i],
 						"unlock_relics action 已废弃（遗物统一走 BOSS 节点）")
+
+func _validate_boss_phases(fname: String, unit_key: String, u: Dictionary) -> void:
+	var raw: Variant = u.get("phases", [])
+	if not (raw is Array) or (raw as Array).is_empty():
+		return
+	var arr: Array = raw
+	var valid_triggers: Array = ["initial", "hp_below", "on_death"]
+	var valid_hp_modes: Array = ["full", "keep_ratio", "keep_absolute", "custom_ratio"]
+	var seen_trigger: Dictionary = {}
+
+	for i in range(arr.size()):
+		var p: Variant = arr[i]
+		if not (p is Dictionary):
+			_error(fname, "%s.phases[%d]" % [unit_key, i], "不是 Dictionary")
+			continue
+		var d: Dictionary = p
+		var trig: String = str(d.get("trigger", ""))
+		if trig not in valid_triggers:
+			_error(fname, "%s.phases[%d].trigger" % [unit_key, i], "未知触发: %s" % trig)
+		if i == 0 and trig != "initial":
+			_error(fname, "%s.phases[0].trigger" % unit_key, "第一阶段必须是 initial")
+		if i > 0 and trig == "initial":
+			_error(fname, "%s.phases[%d].trigger" % [unit_key, i], "initial 只能出现在第一阶段")
+		if trig in seen_trigger and trig != "hp_below":
+			_warn(fname, "%s.phases[%d].trigger" % [unit_key, i], "重复触发类型: %s" % trig)
+		seen_trigger[trig] = true
+
+		var hm: String = str(d.get("hp_mode", "full"))
+		if hm not in valid_hp_modes:
+			_error(fname, "%s.phases[%d].hp_mode" % [unit_key, i], "未知 HP 模式: %s" % hm)
+		if trig == "hp_below":
+			var th: float = float(d.get("threshold", 0.5))
+			if th <= 0.0 or th >= 1.0:
+				_error(fname, "%s.phases[%d].threshold" % [unit_key, i], "阈值必须在 (0,1) 内")
+
+		var form_id: String = str(d.get("form_unit_id", d.get("form", "")))
+		if form_id != "" and form_id != "self":
+			if not _unit_db.has(form_id):
+				_error(fname, "%s.phases[%d].form_unit_id" % [unit_key, i], "形态单位不存在: %s" % form_id)
+
+		var mid: String = str(d.get("mechanic_id", ""))
+		if mid != "" and mid not in ["ash_shield", "soul_drain", "three_forms"]:
+			_warn(fname, "%s.phases[%d].mechanic_id" % [unit_key, i], "未注册的机制: %s" % mid)

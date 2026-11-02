@@ -1,338 +1,901 @@
 {
-  "swordsman": {
-	"max_hp": 33, "strength": 5, "dexterity": 8,
-	"intelligence": 3, "faith": 3, "arcane": 4, "move_range": 5,
-	"physical_reduction": 0.10, "magic_reduction": 0.05,
-	"ignore_terrain_cost": false,
-	"sprite_frames_path": "res://content/images/characters/unit_swordsmen_frames.tres",
-	"description": "平衡型近战单位，擅长剑术，攻守兼备。",
-	"flavor": "她记得第一次握住剑时，手心全是汗。现在不会了。\n\n——「艾琳，你的剑在抖。」\n——「是风吹的。」",
-	"display_name": "艾琳", "faction": "王国",
-	"avatar": "avatar_003",
-	"default_weapon": "iron_sword",
-	"default_talents": ["crit"],
-	"max_talent_slots": 1,
-	"arena_exp": 30,
-	"tags": ["物理", "守护"],
-	"sacrifice_buff": { "type": "attack_percent", "value": 0.20, "display": "全队攻击 +20%" },
-	"attr_cap_levels": [
-	  { "strength": 1, "vitality": 1 },
-	  { "strength": 1, "dexterity": 1 },
-	  { "strength": 1, "dexterity": 1, "vitality": 2 }
-	],
-	"advanced_branches": [
-	  { "id": "swordsman_berserker", "name": "狂战士",
-		"description": "烈焰形态，攻击 +50%，每次攻击消耗 1 魂火",
-		"stat_bonus": { "max_hp": 5, "strength": 5, "dexterity": 1 },
-		"granted_talent": "active_charge",
-		"flavor": "血已沸腾，唯有杀戮能平。",
-		"sprite_frames_path": "res://content/images/characters/unit_berserker_frames.tres", "tags": ["物理", "烈焰"] },
-	  { "id": "swordsman_guardian", "name": "盾卫",
-		"description": "守护形态，嘲讽 + 护盾，受击 30% 回 1 魂火",
-		"stat_bonus": { "max_hp": 8, "strength": 2, "faith": 2 },
-		"granted_talent": "active_taunt",
-		"flavor": "我的盾，就是同伴的墙。",
-		"sprite_frames_path": "res://content/images/characters/unit_guardian_frames.tres", "tags": ["物理", "守护"] },
-	  { "id": "swordsman_hidden_branch", "name": "灰烬剑圣",
-		"description": "隐藏质变：角斗士传承。全属性强化，攻击附加吸血",
-		"stat_bonus": { "max_hp": 6, "strength": 3, "dexterity": 3, "faith": 2 },
-		"granted_talent": "lifesteal",
-		"flavor": "唯有在斗技场见证过千场血战的人，才能走上这条路。",
-		"sprite_frames_path": "res://content/images/characters/unit_swordsmen_frames.tres",
-		"tags": ["物理", "余烬"], "hidden": true }
-	]
-  },
-  "spearman": {
-	"max_hp": 38, "strength": 8, "dexterity": 5,
-	"intelligence": 2, "faith": 2, "arcane": 3, "move_range": 7,
-	"physical_reduction": 0.12, "magic_reduction": 0.05,
-	"ignore_terrain_cost": false,
-	"sprite_frames_path": "res://content/images/characters/unit_knight_frames.tres",
-	"description": "长枪兵，攻击力高，移动距离远。",
-	"flavor": "罗兰的枪比他的身高还长。他把枪当作丈量身高的尺子，从七岁量到十七岁。\n\n枪尖刻着两行字，是他自己刻的：「向前，不要回头。」",
-	"display_name": "罗兰", "faction": "王国",
-	"avatar": "avatar_008",
-	"default_weapon": "steel_spear",
-	"default_talents": ["crit"],
-	"max_talent_slots": 1,
-	"arena_exp": 35,
-	"tags": ["物理", "守护"],
-	"sacrifice_buff": { "type": "counter_damage_bonus", "value": 0.40, "display": "全队反击伤害 +40%" },
-	"attr_cap_levels": [
-	  { "strength": 1, "vitality": 2 },
-	  { "strength": 1, "dexterity": 1 },
-	  { "strength": 1, "dexterity": 1, "vitality": 2 }
-	],
-	"advanced_branches": [
-	  { "id": "spearman_dragoon", "name": "龙骑将",
-		"description": "跃击破空，反击强化",
-		"stat_bonus": { "max_hp": 4, "strength": 3, "dexterity": 2 },
-		"granted_talent": "active_pierce",
-		"flavor": "长枪所指，便是雷光落处。",
-		"sprite_frames_path": "res://content/images/characters/unit_spearmandragoon_frames.tres",
-		"tags": ["物理", "烈焰"] },
-	  { "id": "spearman_ironshield", "name": "铁壁枪兵",
-		"description": "防御态势，受击回魂火",
-		"stat_bonus": { "max_hp": 6, "strength": 3, "faith": 2 },
-		"granted_talent": "parry",
-		"flavor": "枪如林，盾如墙。",
-		"sprite_frames_path": "res://content/images/characters/unit_heavyknight_frames.tres", "tags": ["物理", "守护"] }
-	]
-  },
-  "axeman": {
-	"max_hp": 28, "strength": 10, "dexterity": 4,
-	"intelligence": 1, "faith": 1, "arcane": 2, "move_range": 4,
-	"physical_reduction": 0.10, "magic_reduction": 0.03,
-	"ignore_terrain_cost": false,
-	"sprite_frames_path": "res://content/images/characters/unit_axeman_frames.tres",
-	"description": "狂战士，高攻击力但命中率低，适合破甲。",
-	"flavor": "格伦的斧头没有名字。他说，给杀人的东西起名字是活人才干的蠢事。\n\n但他每天晚上都用那块旧布擦它，擦得很仔细。",
-	"display_name": "格伦", "faction": "海盗",
-	"avatar": "avatar_020",
-	"default_weapon": "battle_axe",
-	"default_talents": ["block"],
-	"max_talent_slots": 1,
-	"arena_exp": 25,
-	"tags": ["物理", "烈焰"],
-	"core_trait": "charge",
-	"sacrifice_buff": { "type": "crit_damage_bonus", "value": 0.40, "display": "全队暴击伤害 +40%" },
-	"attr_cap_levels": [
-	  { "strength": 2, "vitality": 1 },
-	  { "strength": 1, "vitality": 2 },
-	  { "vitality": 4 }
-	],
-	"advanced_branches": [
-	  { "id": "axeman_berserker", "name": "狂战士",
-		"description": "血战不休，攻击吸血",
-		"stat_bonus": { "max_hp": 6, "strength": 3 },
-		"granted_talent": "lifesteal",
-		"flavor": "血已沸腾，唯有杀戮能平。",
-		"sprite_frames_path": "res://content/images/characters/unit_pirate_frames.tres", "tags": ["物理", "烈焰"] },
-	  { "id": "axeman_ashcleaver", "name": "灰烬劈砍者",
-		"description": "灰烬形态，暴击即回魂火",
-		"stat_bonus": { "max_hp": 5, "strength": 4, "dexterity": 1 },
-		"granted_talent": "active_heavy_slash",
-		"flavor": "斧过之处，只剩灰烬。",
-		"sprite_frames_path": "res://content/images/characters/unit_ashcleaver_frames.tres", "tags": ["物理", "灰烬"] }
-	]
-  },
   "archer": {
-	"max_hp": 24, "strength": 4, "dexterity": 9,
-	"intelligence": 2, "faith": 2, "arcane": 4, "move_range": 5,
-	"physical_reduction": 0.10, "magic_reduction": 0.05,
-	"ignore_terrain_cost": false,
-	"sprite_frames_path": "res://content/images/characters/unit_crossbow_frames.tres",
-	"description": "远程物理单位，可攻击远处敌人。",
-	"flavor": "莉安娜闭着眼射箭。不是装的，是真射得好。\n\n她说：眼睛会骗人，风不会。",
-	"display_name": "莉安娜", "faction": "王国",
-	"avatar": "avatar_013",
-	"default_weapon": "longbow",
-	"default_talents": ["crit"],
-	"max_talent_slots": 1,
-	"arena_exp": 30,
-	"tags": ["物理", "灰烬"],
-	"sacrifice_buff": { "type": "crit_damage_bonus", "value": 0.20, "display": "全队暴击伤害 +20%" },
-	"attr_cap_levels": [
-	  { "dexterity": 1, "vitality": 1 },
-	  { "dexterity": 2 },
-	  { "dexterity": 1, "strength": 1, "vitality": 1 }
-	],
 	"advanced_branches": [
-	  { "id": "archer_sniper", "name": "神射手",
+	  {
 		"description": "一击必中，二次攻击",
-		"stat_bonus": { "max_hp": 3, "dexterity": 4 },
-		"granted_talent": "active_snipe",
 		"flavor": "风，停了。",
-		"sprite_frames_path": "res://content/images/characters/unit_sniper_frames.tres", "tags": ["物理", "灰烬"] },
-	  { "id": "archer_hunter", "name": "猎杀者",
+		"granted_talent": "active_snipe",
+		"id": "archer_sniper",
+		"name": "神射手",
+		"sprite_frames_path": "res://content/images/characters/unit_sniper_frames.tres",
+		"stat_bonus": {
+		  "dexterity": 4.0,
+		  "max_hp": 3.0
+		},
+		"tags": [
+		  "物理",
+          "灰烬"
+		]
+	  },
+	  {
 		"description": "追击残敌，连续击杀",
-		"stat_bonus": { "max_hp": 4, "dexterity": 3, "strength": 2 },
-		"granted_talent": "double_attack",
 		"flavor": "猎人与猎物，只有一步之差。",
-		"sprite_frames_path": "res://content/images/characters/unit_archer_frames.tres", "tags": ["物理"] }
-	]
-  },
-  "pegasus": {
-	"max_hp": 34, "strength": 6, "dexterity": 7,
-	"intelligence": 2, "faith": 2, "arcane": 5, "move_range": 7,
-	"physical_reduction": 0.10, "magic_reduction": 0.08,
-	"ignore_terrain_cost": true,
-	"sprite_frames_path": "res://content/images/characters/unit_pegasus_frames.tres",
-	"description": "飞行骑兵，无视地形移动，机动性极强。",
-	"flavor": "塞拉的天马叫「灰烬」。因为它的第一任主人是在灰烬里找到它的。\n\n「灰烬，走。」她说。天马回应一声低鸣。",
-	"display_name": "塞拉", "faction": "海盗",
-	"avatar": "avatar_005",
-	"default_weapon": "steel_spear",
-	"default_talents": ["crit"],
-	"max_talent_slots": 1,
-	"arena_exp": 40,
-	"tags": ["物理", "守护"],
-	"sacrifice_buff": { "type": "counter_damage_bonus", "value": 0.25, "display": "全队反击伤害 +25%" },
-	"attr_cap_levels": [
-	  { "dexterity": 1, "vitality": 2 },
-	  { "dexterity": 1, "strength": 1 },
-	  { "dexterity": 1, "vitality": 2 }
-	],
-	"advanced_branches": [
-	  { "id": "pegasus_valkyrie", "name": "女武神",
-		"description": "天空之主，暴击猎手",
-		"stat_bonus": { "max_hp": 5, "dexterity": 3, "strength": 1 },
-		"granted_talent": "active_dive",
-		"flavor": "天马嘶鸣，是死者的战歌。",
-		"sprite_frames_path": "res://content/images/characters/unit_flyingdragon_frames.tres", "tags": ["物理", "守护"] },
-	  { "id": "pegasus_windrider", "name": "疾风骑士",
-		"description": "驰风掠影，移动如风",
-		"stat_bonus": { "max_hp": 3, "dexterity": 4, "move_range": 1 },
 		"granted_talent": "double_attack",
-		"flavor": "你只看到风的痕迹。",
-		"sprite_frames_path": "res://content/images/characters/unit_flyingdragon_frames.tres", "tags": ["物理", "灰烬"] }
-	]
-  },
-  "mage": {
-	"max_hp": 27, "strength": 3, "dexterity": 5,
-	"intelligence": 10, "faith": 3, "arcane": 6, "move_range": 5,
-	"physical_reduction": 0.10, "magic_reduction": 0.15,
-	"ignore_terrain_cost": false,
-	"sprite_frames_path": "res://content/images/characters/unit_mage_frames.tres",
-	"description": "魔法攻击单位，拥有魔法防御力，攻击力较高。",
-	"flavor": "梅林的魔法书是手抄的。抄书的人已经死了。\n\n「你在读什么？」\n「别人的命。」",
-	"display_name": "梅林", "faction": "王国",
-	"avatar": "avatar_009",
-	"default_weapon": "fire_spellbook",
-	"default_talents": ["spell_chain"],
-	"max_talent_slots": 1,
-	"arena_exp": 35,
-	"tags": ["法术", "烈焰"],
-	"sacrifice_buff": { "type": "attack_percent", "value": 0.25, "display": "全队攻击 +25%" },
-	"attr_cap_levels": [
-	  { "intelligence": 1, "faith": 1 },
-	  { "intelligence": 2 },
-	  { "intelligence": 1, "faith": 1, "vitality": 1 }
+		"id": "archer_hunter",
+		"name": "猎杀者",
+		"sprite_frames_path": "res://content/images/characters/unit_archer_frames.tres",
+		"stat_bonus": {
+		  "dexterity": 3.0,
+		  "max_hp": 4.0,
+		  "strength": 2.0
+		},
+		"tags": [
+          "物理"
+		]
+	  }
 	],
-	"advanced_branches": [
-	  { "id": "mage_archmage", "name": "大魔导",
-		"description": "奥术极致，法术连击",
-		"stat_bonus": { "max_hp": 3, "intelligence": 4, "faith": 1 },
-		"granted_talent": "active_fireball",
-		"flavor": "元素皆是我意志的延伸。",
-		"sprite_frames_path": "res://content/images/characters/unit_priest_frames.tres", "tags": ["法术", "烈焰"] },
-	  { "id": "mage_curser", "name": "咒术师",
-		"description": "诅咒敌人，击杀回魂火",
-		"stat_bonus": { "max_hp": 4, "intelligence": 3, "arcane": 2 },
-		"granted_talent": "spell_chain",
-		"flavor": "命运从不仁慈，我只是替它开口。",
-		"sprite_frames_path": "res://content/images/characters/unit_curser_frames.tres", "tags": ["法术", "轮回"] }
-	]
-  },
-  "cleric": {
-	"max_hp": 24, "strength": 2, "dexterity": 4,
-	"intelligence": 5, "faith": 10, "arcane": 4, "move_range": 4,
-	"physical_reduction": 0.10, "magic_reduction": 0.15,
-	"ignore_terrain_cost": false,
-	"sprite_frames_path": "res://content/images/characters/unit_cleric_frames.tres",
-	"description": "治疗单位，可恢复队友生命值，魔法防御高。",
-	"flavor": "菲奥娜的治疗不需要咒语。她只是把手放在伤口上，然后等待。\n\n「你不念咒吗？」\n「光比咒语更快。」",
-	"display_name": "菲奥娜", "faction": "王国",
-	"avatar": "avatar_007",
-	"default_weapon": "healing_staff",
-	"default_talents": ["heal_boost"],
-	"max_talent_slots": 1,
-	"arena_exp": 30,
-	"tags": ["法术", "献祭"],
-	"sacrifice_buff": { "type": "heal_bonus", "value": 0.40, "display": "全队治疗量 +40%" },
+	"arcane": 4.0,
+	"arena_exp": 30.0,
 	"attr_cap_levels": [
-	  { "faith": 1, "intelligence": 1 },
-	  { "faith": 2 },
-	  { "faith": 1, "intelligence": 1, "vitality": 2 }
+	  {
+		"dexterity": 1.0,
+		"vitality": 1.0
+	  },
+	  {
+		"dexterity": 2.0
+	  },
+	  {
+		"dexterity": 1.0,
+		"strength": 1.0,
+		"vitality": 1.0
+	  }
 	],
-	"advanced_branches": [
-	  { "id": "cleric_saint", "name": "圣者",
-		"description": "神恩眷顾，治疗强化",
-		"stat_bonus": { "max_hp": 5, "faith": 4, "intelligence": 1 },
-		"granted_talent": "active_mass_heal",
-		"flavor": "以我血肉，换你重生。",
-		"sprite_frames_path": "res://content/images/characters/unit_saint_frames.tres", "tags": ["法术", "献祭"] },
-	  { "id": "cleric_guardian", "name": "守护者",
-		"description": "护盾加身，队友减伤",
-		"stat_bonus": { "max_hp": 6, "faith": 3, "strength": 1 },
-		"granted_talent": "block",
-		"flavor": "我不能拯救所有人，但我可以守护你。",
-		"sprite_frames_path": "res://content/images/characters/unit_thief_frames.tres", "tags": ["法术", "守护"] }
-	]
-  },
-  "dragonborn": {
-	"max_hp": 45, "strength": 8, "dexterity": 3,
-	"intelligence": 6, "faith": 4, "arcane": 9, "move_range": 3,
-	"physical_reduction": 0.15, "magic_reduction": 0.15,
+	"avatar": "avatar_013",
+	"default_talents": [
+      "crit"
+	],
+	"default_weapon": "longbow",
+	"description": "远程物理单位，可攻击远处敌人。",
+	"dexterity": 9.0,
+	"display_name": "莉安娜",
+	"faction": "王国",
+	"faith": 2.0,
+	"flavor": "莉安娜闭着眼射箭。不是装的，是真射得好。\n\n她说：眼睛会骗人，风不会。",
 	"ignore_terrain_cost": false,
-	"sprite_frames_path": "res://content/images/characters/unit_dragonborn_frames.tres",
-	"description": "龙族后裔，拥有极高防御和魔法防御，移动缓慢但顽强。",
-	"flavor": "拉兹从不提他的父亲。但每次战斗前，他会低语一句谁也听不懂的话。\n\n那是龙语。翻译过来是：「我来晚了。」",
-	"display_name": "拉兹", "faction": "龙族",
-	"avatar": "avatar_022",
-	"default_weapon": "fire_dragonstone",
-	"default_talents": ["parry"],
-	"max_talent_slots": 1,
-	"arena_exp": 60,
-	"tags": ["法术", "余烬"],
-	"core_trait": "dragon_might",
-	"sacrifice_buff": { "type": "damage_reduction", "value": 0.15, "display": "全队减伤 +15%" },
-	"attr_cap_levels": [
-	  { "strength": 1, "faith": 1 },
-	  { "faith": 1, "vitality": 3 },
-	  { "strength": 1, "faith": 2, "intelligence": 1 }
-	],
-	"advanced_branches": [
-	  { "id": "dragonborn_dragonlord", "name": "龙领主",
-		"description": "龙威降临，铁壁坚守",
-		"stat_bonus": { "max_hp": 10, "strength": 3, "arcane": 2 },
-		"granted_talent": "active_dragon_breath",
-		"flavor": "吾乃龙之血脉，不灭之躯。",
-		"sprite_frames_path": "res://content/images/characters/unit_dragonlord_frames.tres", "tags": ["法术", "余烬"] },
-	  { "id": "dragonborn_ashtongue", "name": "灰烬吐息者",
-		"description": "焚尽一切，代价自受",
-		"stat_bonus": { "max_hp": 6, "arcane": 4, "dexterity": 2 },
-		"granted_talent": "active_fireball",
-		"flavor": "以灰烬为食，以烈火为语。",
-		"sprite_frames_path": "res://content/images/characters/unit_dragonlord_frames.tres", "tags": ["法术", "灰烬"] }
+	"intelligence": 2.0,
+	"magic_reduction": 0.05,
+	"max_hp": 24.0,
+	"max_talent_slots": 1.0,
+	"move_range": 5.0,
+	"physical_reduction": 0.1,
+	"sacrifice_buff": {
+	  "display": "全队暴击伤害 +20%",
+	  "type": "crit_damage_bonus",
+	  "value": 0.2
+	},
+	"sprite_frames_path": "res://content/images/characters/unit_crossbow_frames.tres",
+	"strength": 4.0,
+	"tags": [
+	  "物理",
+      "灰烬"
 	]
   },
   "armored": {
-	"max_hp": 45, "strength": 9, "dexterity": 3,
-	"intelligence": 2, "faith": 4, "arcane": 3, "move_range": 3,
-	"physical_reduction": 0.20, "magic_reduction": 0.05,
-	"ignore_terrain_cost": false,
-	"sprite_frames_path": "res://content/images/characters/unit_heavyarmored_frames.tres",
-	"description": "重装步兵，高物理防御和生命值，移动力较低。",
-	"flavor": "巴尔的铠甲有一道旧裂缝，在左肋。没人知道那是哪场战斗留下的。\n\n他自己记得。",
-	"display_name": "巴尔", "faction": "王国",
-	"avatar": "avatar_010",
-	"default_weapon": "iron_sword",
-	"default_talents": ["block"],
-	"max_talent_slots": 1,
-	"arena_exp": 55,
-	"tags": ["物理", "守护"],
-	"core_trait": "bulwark",
-	"sacrifice_buff": { "type": "defense_flat", "value": 3, "display": "全队防御 +3" },
-	"attr_cap_levels": [
-	  { "strength": 1, "vitality": 3 },
-	  { "strength": 1, "faith": 1 },
-	  { "vitality": 5, "faith": 1 }
-	],
 	"advanced_branches": [
-	  { "id": "armored_paladin", "name": "圣骑士",
+	  {
 		"description": "神盾铁壁，反弹一切",
-		"stat_bonus": { "max_hp": 12, "strength": 3, "faith": 2 },
-		"granted_talent": "active_taunt",
 		"flavor": "我的盾，就是神的旨意。",
+		"granted_talent": "active_taunt",
+		"id": "armored_paladin",
+		"name": "圣骑士",
 		"sprite_frames_path": "res://content/images/characters/unit_general_frames.tres",
-		"tags": ["物理", "守护"] },
-	  { "id": "armored_flamebearer", "name": "焚身者",
+		"stat_bonus": {
+		  "faith": 2.0,
+		  "max_hp": 12.0,
+		  "strength": 3.0
+		},
+		"tags": [
+		  "物理",
+          "守护"
+		]
+	  },
+	  {
 		"description": "烈焰附身，攻守兼备",
-		"stat_bonus": { "max_hp": 8, "strength": 4, "arcane": 2 },
-		"granted_talent": "active_heavy_slash",
 		"flavor": "熔炉之中，我成为火。",
-		"sprite_frames_path": "res://content/images/characters/unit_flamebearer_frames.tres", "tags": ["物理", "烈焰"] }
+		"granted_talent": "active_heavy_slash",
+		"id": "armored_flamebearer",
+		"name": "焚身者",
+		"sprite_frames_path": "res://content/images/characters/unit_flamebearer_frames.tres",
+		"stat_bonus": {
+		  "arcane": 2.0,
+		  "max_hp": 8.0,
+		  "strength": 4.0
+		},
+		"tags": [
+		  "物理",
+          "烈焰"
+		]
+	  }
+	],
+	"arcane": 3.0,
+	"arena_exp": 55.0,
+	"attr_cap_levels": [
+	  {
+		"strength": 1.0,
+		"vitality": 3.0
+	  },
+	  {
+		"faith": 1.0,
+		"strength": 1.0
+	  },
+	  {
+		"faith": 1.0,
+		"vitality": 5.0
+	  }
+	],
+	"avatar": "avatar_010",
+	"core_trait": "bulwark",
+	"default_talents": [
+      "block"
+	],
+	"default_weapon": "iron_sword",
+	"description": "重装步兵，高物理防御和生命值，移动力较低。",
+	"dexterity": 3.0,
+	"display_name": "巴尔",
+	"faction": "王国",
+	"faith": 4.0,
+	"flavor": "巴尔的铠甲有一道旧裂缝，在左肋。没人知道那是哪场战斗留下的。\n\n他自己记得。",
+	"ignore_terrain_cost": false,
+	"intelligence": 2.0,
+	"magic_reduction": 0.05,
+	"max_hp": 45.0,
+	"max_talent_slots": 1.0,
+	"move_range": 3.0,
+	"physical_reduction": 0.2,
+	"sacrifice_buff": {
+	  "display": "全队防御 +3",
+	  "type": "defense_flat",
+	  "value": 3.0
+	},
+	"sprite_frames_path": "res://content/images/characters/unit_heavyarmored_frames.tres",
+	"strength": 9.0,
+	"tags": [
+	  "物理",
+      "守护"
+	]
+  },
+  "axeman": {
+	"advanced_branches": [
+	  {
+		"description": "血战不休，攻击吸血",
+		"flavor": "血已沸腾，唯有杀戮能平。",
+		"granted_talent": "lifesteal",
+		"id": "axeman_berserker",
+		"name": "狂战士",
+		"sprite_frames_path": "res://content/images/characters/unit_pirate_frames.tres",
+		"stat_bonus": {
+		  "max_hp": 6.0,
+		  "strength": 3.0
+		},
+		"tags": [
+		  "物理",
+          "烈焰"
+		]
+	  },
+	  {
+		"description": "灰烬形态，暴击即回魂火",
+		"flavor": "斧过之处，只剩灰烬。",
+		"granted_talent": "active_heavy_slash",
+		"id": "axeman_ashcleaver",
+		"name": "灰烬劈砍者",
+		"sprite_frames_path": "res://content/images/characters/unit_ashcleaver_frames.tres",
+		"stat_bonus": {
+		  "dexterity": 1.0,
+		  "max_hp": 5.0,
+		  "strength": 4.0
+		},
+		"tags": [
+		  "物理",
+          "灰烬"
+		]
+	  }
+	],
+	"arcane": 2.0,
+	"arena_exp": 25.0,
+	"attr_cap_levels": [
+	  {
+		"strength": 2.0,
+		"vitality": 1.0
+	  },
+	  {
+		"strength": 1.0,
+		"vitality": 2.0
+	  },
+	  {
+		"vitality": 4.0
+	  }
+	],
+	"avatar": "avatar_020",
+	"core_trait": "charge",
+	"default_talents": [
+      "block"
+	],
+	"default_weapon": "battle_axe",
+	"description": "狂战士，高攻击力但命中率低，适合破甲。",
+	"dexterity": 4.0,
+	"display_name": "格伦",
+	"faction": "海盗",
+	"faith": 1.0,
+	"flavor": "格伦的斧头没有名字。他说，给杀人的东西起名字是活人才干的蠢事。\n\n但他每天晚上都用那块旧布擦它，擦得很仔细。",
+	"ignore_terrain_cost": false,
+	"intelligence": 1.0,
+	"magic_reduction": 0.03,
+	"max_hp": 28.0,
+	"max_talent_slots": 1.0,
+	"move_range": 4.0,
+	"physical_reduction": 0.1,
+	"sacrifice_buff": {
+	  "display": "全队暴击伤害 +40%",
+	  "type": "crit_damage_bonus",
+	  "value": 0.4
+	},
+	"sprite_frames_path": "res://content/images/characters/unit_axeman_frames.tres",
+	"strength": 10.0,
+	"tags": [
+	  "物理",
+      "烈焰"
+	]
+  },
+  "boss_dragonlord": {
+	"arcane": 10,
+	"attr_cap_levels": [
+	  {},
+	  {},
+	  {}
+	],
+	"core_trait": "dragon_might",
+	"default_armors": [],
+	"default_talents": [],
+	"default_weapon": "fire_dragonstone",
+	"description": "",
+	"dexterity": 6,
+	"display_name": "深渊龙主",
+	"faction": "龙族",
+	"faith": 4,
+	"flavor": "",
+	"hidden_from_roster": false,
+	"intelligence": 8,
+	"is_boss": true,
+	"magic_reduction": 0.15,
+	"max_hp": 120,
+	"move_range": 3,
+	"phases": [
+	  {
+		"form_unit_id": "",
+		"hp_mode": "full",
+		"mechanic_id": "",
+		"mechanic_params": {},
+		"min_hp": 1,
+		"override": {},
+		"preserve_buffs": true,
+		"reset_turn_state": true,
+		"threshold": 0.5,
+		"trigger": "initial"
+	  },
+	  {
+		"form_unit_id": "boss_dragonlord_form2",
+		"hp_mode": "keep_ratio",
+		"mechanic_id": "",
+		"mechanic_params": {},
+		"min_hp": 1,
+		"override": {},
+		"preserve_buffs": true,
+		"reset_turn_state": false,
+		"threshold": 0.5,
+		"trigger": "hp_below"
+	  },
+	  {
+		"form_unit_id": "boss_dragonlord_form3",
+		"hp_mode": "keep_ratio",
+		"mechanic_id": "",
+		"mechanic_params": {},
+		"min_hp": 1,
+		"override": {},
+		"preserve_buffs": true,
+		"reset_turn_state": false,
+		"threshold": 0.25,
+		"trigger": "hp_below"
+	  }
+	],
+	"physical_reduction": 0.15,
+	"sprite_frames_path": "res://content/images/characters/unit_dragonborn_frames.tres",
+	"strength": 12,
+	"tags": [
+      "余烬"
+	],
+	"unit_category": "boss"
+  },
+  "boss_dragonlord_form2": {
+	"arcane": 12.0,
+	"attr_cap_levels": [
+	  {},
+	  {},
+	  {}
+	],
+	"core_trait": "dragon_might",
+	"default_armors": [],
+	"default_talents": [],
+	"default_weapon": "master_sword",
+	"description": "",
+	"dexterity": 8.0,
+	"display_name": "深渊龙主·翼焰",
+	"faction": "龙族",
+	"faith": 4.0,
+	"flavor": "",
+	"hidden_from_roster": true,
+	"intelligence": 8.0,
+	"is_boss": true,
+	"magic_reduction": 0.2,
+	"max_hp": 160.0,
+	"move_range": 4.0,
+	"physical_reduction": 0.15,
+	"sprite_frames_path": "res://content/images/characters/unit_flyingdragon_frames.tres",
+	"strength": 16.0,
+	"tags": [
+      "烈焰"
+	],
+	"unit_category": ""
+  },
+  "boss_dragonlord_form3": {
+	"arcane": 14.0,
+	"attr_cap_levels": [
+	  {},
+	  {},
+	  {}
+	],
+	"core_trait": "dragon_might",
+	"default_armors": [],
+	"default_talents": [],
+	"default_weapon": "fire_dragonstone",
+	"description": "",
+	"dexterity": 10.0,
+	"display_name": "深渊龙主·终焉",
+	"faction": "龙族",
+	"faith": 4.0,
+	"flavor": "",
+	"hidden_from_roster": true,
+	"intelligence": 10.0,
+	"is_boss": true,
+	"magic_reduction": 0.2,
+	"max_hp": 220.0,
+	"move_range": 3.0,
+	"physical_reduction": 0.2,
+	"sprite_frames_path": "res://content/images/characters/unit_dragonlord_frames.tres",
+	"strength": 20.0,
+	"tags": [
+      "余烬"
+	],
+	"unit_category": ""
+  },
+  "cleric": {
+	"advanced_branches": [
+	  {
+		"description": "神恩眷顾，治疗强化",
+		"flavor": "以我血肉，换你重生。",
+		"granted_talent": "active_mass_heal",
+		"id": "cleric_saint",
+		"name": "圣者",
+		"sprite_frames_path": "res://content/images/characters/unit_saint_frames.tres",
+		"stat_bonus": {
+		  "faith": 4.0,
+		  "intelligence": 1.0,
+		  "max_hp": 5.0
+		},
+		"tags": [
+		  "法术",
+          "献祭"
+		]
+	  },
+	  {
+		"description": "护盾加身，队友减伤",
+		"flavor": "我不能拯救所有人，但我可以守护你。",
+		"granted_talent": "block",
+		"id": "cleric_guardian",
+		"name": "守护者",
+		"sprite_frames_path": "res://content/images/characters/unit_thief_frames.tres",
+		"stat_bonus": {
+		  "faith": 3.0,
+		  "max_hp": 6.0,
+		  "strength": 1.0
+		},
+		"tags": [
+		  "法术",
+          "守护"
+		]
+	  }
+	],
+	"arcane": 4.0,
+	"arena_exp": 30.0,
+	"attr_cap_levels": [
+	  {
+		"faith": 1.0,
+		"intelligence": 1.0
+	  },
+	  {
+		"faith": 2.0
+	  },
+	  {
+		"faith": 1.0,
+		"intelligence": 1.0,
+		"vitality": 2.0
+	  }
+	],
+	"avatar": "avatar_007",
+	"default_talents": [
+      "heal_boost"
+	],
+	"default_weapon": "healing_staff",
+	"description": "治疗单位，可恢复队友生命值，魔法防御高。",
+	"dexterity": 4.0,
+	"display_name": "菲奥娜",
+	"faction": "王国",
+	"faith": 10.0,
+	"flavor": "菲奥娜的治疗不需要咒语。她只是把手放在伤口上，然后等待。\n\n「你不念咒吗？」\n「光比咒语更快。」",
+	"ignore_terrain_cost": false,
+	"intelligence": 5.0,
+	"magic_reduction": 0.15,
+	"max_hp": 24.0,
+	"max_talent_slots": 1.0,
+	"move_range": 4.0,
+	"physical_reduction": 0.1,
+	"sacrifice_buff": {
+	  "display": "全队治疗量 +40%",
+	  "type": "heal_bonus",
+	  "value": 0.4
+	},
+	"sprite_frames_path": "res://content/images/characters/unit_cleric_frames.tres",
+	"strength": 2.0,
+	"tags": [
+	  "法术",
+      "献祭"
+	]
+  },
+  "dragonborn": {
+	"advanced_branches": [
+	  {
+		"description": "龙威降临，铁壁坚守",
+		"flavor": "吾乃龙之血脉，不灭之躯。",
+		"granted_talent": "active_dragon_breath",
+		"id": "dragonborn_dragonlord",
+		"name": "龙领主",
+		"sprite_frames_path": "res://content/images/characters/unit_dragonlord_frames.tres",
+		"stat_bonus": {
+		  "arcane": 2.0,
+		  "max_hp": 10.0,
+		  "strength": 3.0
+		},
+		"tags": [
+		  "法术",
+          "余烬"
+		]
+	  },
+	  {
+		"description": "焚尽一切，代价自受",
+		"flavor": "以灰烬为食，以烈火为语。",
+		"granted_talent": "active_fireball",
+		"id": "dragonborn_ashtongue",
+		"name": "灰烬吐息者",
+		"sprite_frames_path": "res://content/images/characters/unit_dragonlord_frames.tres",
+		"stat_bonus": {
+		  "arcane": 4.0,
+		  "dexterity": 2.0,
+		  "max_hp": 6.0
+		},
+		"tags": [
+		  "法术",
+          "灰烬"
+		]
+	  }
+	],
+	"arcane": 9.0,
+	"arena_exp": 60.0,
+	"attr_cap_levels": [
+	  {
+		"faith": 1.0,
+		"strength": 1.0
+	  },
+	  {
+		"faith": 1.0,
+		"vitality": 3.0
+	  },
+	  {
+		"faith": 2.0,
+		"intelligence": 1.0,
+		"strength": 1.0
+	  }
+	],
+	"avatar": "avatar_022",
+	"core_trait": "dragon_might",
+	"default_talents": [
+      "parry"
+	],
+	"default_weapon": "fire_dragonstone",
+	"description": "龙族后裔，拥有极高防御和魔法防御，移动缓慢但顽强。",
+	"dexterity": 3.0,
+	"display_name": "拉兹",
+	"faction": "龙族",
+	"faith": 4.0,
+	"flavor": "拉兹从不提他的父亲。但每次战斗前，他会低语一句谁也听不懂的话。\n\n那是龙语。翻译过来是：「我来晚了。」",
+	"ignore_terrain_cost": false,
+	"intelligence": 6.0,
+	"magic_reduction": 0.15,
+	"max_hp": 45.0,
+	"max_talent_slots": 1.0,
+	"move_range": 3.0,
+	"physical_reduction": 0.15,
+	"sacrifice_buff": {
+	  "display": "全队减伤 +15%",
+	  "type": "damage_reduction",
+	  "value": 0.15
+	},
+	"sprite_frames_path": "res://content/images/characters/unit_dragonborn_frames.tres",
+	"strength": 8.0,
+	"tags": [
+	  "法术",
+      "余烬"
+	]
+  },
+  "mage": {
+	"advanced_branches": [
+	  {
+		"description": "奥术极致，法术连击",
+		"flavor": "元素皆是我意志的延伸。",
+		"granted_talent": "active_fireball",
+		"id": "mage_archmage",
+		"name": "大魔导",
+		"sprite_frames_path": "res://content/images/characters/unit_priest_frames.tres",
+		"stat_bonus": {
+		  "faith": 1.0,
+		  "intelligence": 4.0,
+		  "max_hp": 3.0
+		},
+		"tags": [
+		  "法术",
+          "烈焰"
+		]
+	  },
+	  {
+		"description": "诅咒敌人，击杀回魂火",
+		"flavor": "命运从不仁慈，我只是替它开口。",
+		"granted_talent": "spell_chain",
+		"id": "mage_curser",
+		"name": "咒术师",
+		"sprite_frames_path": "res://content/images/characters/unit_curser_frames.tres",
+		"stat_bonus": {
+		  "arcane": 2.0,
+		  "intelligence": 3.0,
+		  "max_hp": 4.0
+		},
+		"tags": [
+		  "法术",
+          "轮回"
+		]
+	  }
+	],
+	"arcane": 6.0,
+	"arena_exp": 35.0,
+	"attr_cap_levels": [
+	  {
+		"faith": 1.0,
+		"intelligence": 1.0
+	  },
+	  {
+		"intelligence": 2.0
+	  },
+	  {
+		"faith": 1.0,
+		"intelligence": 1.0,
+		"vitality": 1.0
+	  }
+	],
+	"avatar": "avatar_009",
+	"default_talents": [
+      "spell_chain"
+	],
+	"default_weapon": "fire_spellbook",
+	"description": "魔法攻击单位，拥有魔法防御力，攻击力较高。",
+	"dexterity": 5.0,
+	"display_name": "梅林",
+	"faction": "王国",
+	"faith": 3.0,
+	"flavor": "梅林的魔法书是手抄的。抄书的人已经死了。\n\n「你在读什么？」\n「别人的命。」",
+	"ignore_terrain_cost": false,
+	"intelligence": 10.0,
+	"magic_reduction": 0.15,
+	"max_hp": 27.0,
+	"max_talent_slots": 1.0,
+	"move_range": 5.0,
+	"physical_reduction": 0.1,
+	"sacrifice_buff": {
+	  "display": "全队攻击 +25%",
+	  "type": "attack_percent",
+	  "value": 0.25
+	},
+	"sprite_frames_path": "res://content/images/characters/unit_mage_frames.tres",
+	"strength": 3.0,
+	"tags": [
+	  "法术",
+      "烈焰"
+	]
+  },
+  "pegasus": {
+	"advanced_branches": [
+	  {
+		"description": "天空之主，暴击猎手",
+		"flavor": "天马嘶鸣，是死者的战歌。",
+		"granted_talent": "active_dive",
+		"id": "pegasus_valkyrie",
+		"name": "女武神",
+		"sprite_frames_path": "res://content/images/characters/unit_flyingdragon_frames.tres",
+		"stat_bonus": {
+		  "dexterity": 3.0,
+		  "max_hp": 5.0,
+		  "strength": 1.0
+		},
+		"tags": [
+		  "物理",
+          "守护"
+		]
+	  },
+	  {
+		"description": "驰风掠影，移动如风",
+		"flavor": "你只看到风的痕迹。",
+		"granted_talent": "double_attack",
+		"id": "pegasus_windrider",
+		"name": "疾风骑士",
+		"sprite_frames_path": "res://content/images/characters/unit_flyingdragon_frames.tres",
+		"stat_bonus": {
+		  "dexterity": 4.0,
+		  "max_hp": 3.0,
+		  "move_range": 1.0
+		},
+		"tags": [
+		  "物理",
+          "灰烬"
+		]
+	  }
+	],
+	"arcane": 5.0,
+	"arena_exp": 40.0,
+	"attr_cap_levels": [
+	  {
+		"dexterity": 1.0,
+		"vitality": 2.0
+	  },
+	  {
+		"dexterity": 1.0,
+		"strength": 1.0
+	  },
+	  {
+		"dexterity": 1.0,
+		"vitality": 2.0
+	  }
+	],
+	"avatar": "avatar_005",
+	"default_talents": [
+      "crit"
+	],
+	"default_weapon": "steel_spear",
+	"description": "飞行骑兵，无视地形移动，机动性极强。",
+	"dexterity": 7.0,
+	"display_name": "塞拉",
+	"faction": "海盗",
+	"faith": 2.0,
+	"flavor": "塞拉的天马叫「灰烬」。因为它的第一任主人是在灰烬里找到它的。\n\n「灰烬，走。」她说。天马回应一声低鸣。",
+	"ignore_terrain_cost": true,
+	"intelligence": 2.0,
+	"magic_reduction": 0.08,
+	"max_hp": 34.0,
+	"max_talent_slots": 1.0,
+	"move_range": 7.0,
+	"physical_reduction": 0.1,
+	"sacrifice_buff": {
+	  "display": "全队反击伤害 +25%",
+	  "type": "counter_damage_bonus",
+	  "value": 0.25
+	},
+	"sprite_frames_path": "res://content/images/characters/unit_pegasus_frames.tres",
+	"strength": 6.0,
+	"tags": [
+	  "物理",
+      "守护"
+	]
+  },
+  "spearman": {
+	"advanced_branches": [
+	  {
+		"description": "跃击破空，反击强化",
+		"flavor": "长枪所指，便是雷光落处。",
+		"granted_talent": "active_pierce",
+		"id": "spearman_dragoon",
+		"name": "龙骑将",
+		"sprite_frames_path": "res://content/images/characters/unit_spearmandragoon_frames.tres",
+		"stat_bonus": {
+		  "dexterity": 2.0,
+		  "max_hp": 4.0,
+		  "strength": 3.0
+		},
+		"tags": [
+		  "物理",
+          "烈焰"
+		]
+	  },
+	  {
+		"description": "防御态势，受击回魂火",
+		"flavor": "枪如林，盾如墙。",
+		"granted_talent": "parry",
+		"id": "spearman_ironshield",
+		"name": "铁壁枪兵",
+		"sprite_frames_path": "res://content/images/characters/unit_heavyknight_frames.tres",
+		"stat_bonus": {
+		  "faith": 2.0,
+		  "max_hp": 6.0,
+		  "strength": 3.0
+		},
+		"tags": [
+		  "物理",
+          "守护"
+		]
+	  }
+	],
+	"arcane": 3.0,
+	"arena_exp": 35.0,
+	"attr_cap_levels": [
+	  {
+		"strength": 1.0,
+		"vitality": 2.0
+	  },
+	  {
+		"dexterity": 1.0,
+		"strength": 1.0
+	  },
+	  {
+		"dexterity": 1.0,
+		"strength": 1.0,
+		"vitality": 2.0
+	  }
+	],
+	"avatar": "avatar_008",
+	"default_talents": [
+      "crit"
+	],
+	"default_weapon": "steel_spear",
+	"description": "长枪兵，攻击力高，移动距离远。",
+	"dexterity": 5.0,
+	"display_name": "罗兰",
+	"faction": "王国",
+	"faith": 2.0,
+	"flavor": "罗兰的枪比他的身高还长。他把枪当作丈量身高的尺子，从七岁量到十七岁。\n\n枪尖刻着两行字，是他自己刻的：「向前，不要回头。」",
+	"ignore_terrain_cost": false,
+	"intelligence": 2.0,
+	"magic_reduction": 0.05,
+	"max_hp": 38.0,
+	"max_talent_slots": 1.0,
+	"move_range": 7.0,
+	"physical_reduction": 0.12,
+	"sacrifice_buff": {
+	  "display": "全队反击伤害 +40%",
+	  "type": "counter_damage_bonus",
+	  "value": 0.4
+	},
+	"sprite_frames_path": "res://content/images/characters/unit_knight_frames.tres",
+	"strength": 8.0,
+	"tags": [
+	  "物理",
+      "守护"
+	]
+  },
+  "swordsman": {
+	"advanced_branches": [
+	  {
+		"description": "烈焰形态，攻击 +50%，每次攻击消耗 1 魂火",
+		"flavor": "血已沸腾，唯有杀戮能平。",
+		"granted_talent": "active_charge",
+		"id": "swordsman_berserker",
+		"name": "狂战士",
+		"sprite_frames_path": "res://content/images/characters/unit_berserker_frames.tres",
+		"stat_bonus": {
+		  "dexterity": 1.0,
+		  "max_hp": 5.0,
+		  "strength": 5.0
+		},
+		"tags": [
+		  "物理",
+          "烈焰"
+		]
+	  },
+	  {
+		"description": "守护形态，嘲讽 + 护盾，受击 30% 回 1 魂火",
+		"flavor": "我的盾，就是同伴的墙。",
+		"granted_talent": "active_taunt",
+		"id": "swordsman_guardian",
+		"name": "盾卫",
+		"sprite_frames_path": "res://content/images/characters/unit_guardian_frames.tres",
+		"stat_bonus": {
+		  "faith": 2.0,
+		  "max_hp": 8.0,
+		  "strength": 2.0
+		},
+		"tags": [
+		  "物理",
+          "守护"
+		]
+	  },
+	  {
+		"description": "隐藏质变：角斗士传承。全属性强化，攻击附加吸血",
+		"flavor": "唯有在斗技场见证过千场血战的人，才能走上这条路。",
+		"granted_talent": "lifesteal",
+		"hidden": true,
+		"id": "swordsman_hidden_branch",
+		"name": "灰烬剑圣",
+		"sprite_frames_path": "res://content/images/characters/unit_swordsmen_frames.tres",
+		"stat_bonus": {
+		  "dexterity": 3.0,
+		  "faith": 2.0,
+		  "max_hp": 6.0,
+		  "strength": 3.0
+		},
+		"tags": [
+		  "物理",
+          "余烬"
+		]
+	  }
+	],
+	"arcane": 4.0,
+	"arena_exp": 30.0,
+	"attr_cap_levels": [
+	  {
+		"strength": 1.0,
+		"vitality": 1.0
+	  },
+	  {
+		"dexterity": 1.0,
+		"strength": 1.0
+	  },
+	  {
+		"dexterity": 1.0,
+		"strength": 1.0,
+		"vitality": 2.0
+	  }
+	],
+	"avatar": "avatar_003",
+	"default_talents": [
+      "crit"
+	],
+	"default_weapon": "iron_sword",
+	"description": "平衡型近战单位，擅长剑术，攻守兼备。",
+	"dexterity": 8.0,
+	"display_name": "艾琳",
+	"faction": "王国",
+	"faith": 3.0,
+	"flavor": "她记得第一次握住剑时，手心全是汗。现在不会了。\n\n——「艾琳，你的剑在抖。」\n——「是风吹的。」",
+	"ignore_terrain_cost": false,
+	"intelligence": 3.0,
+	"magic_reduction": 0.05,
+	"max_hp": 33.0,
+	"max_talent_slots": 1.0,
+	"move_range": 5.0,
+	"physical_reduction": 0.1,
+	"sacrifice_buff": {
+	  "display": "全队攻击 +20%",
+	  "type": "attack_percent",
+	  "value": 0.2
+	},
+	"sprite_frames_path": "res://content/images/characters/unit_swordsmen_frames.tres",
+	"strength": 5.0,
+	"tags": [
+	  "物理",
+      "守护"
 	]
   }
 }

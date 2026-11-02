@@ -1,6 +1,29 @@
 extends Resource
 class_name UnitData
 
+# ============================================================
+#  UnitData — 单位数据（玩家 / 敌人 / Boss / Boss 形态）
+#
+#  新增 Boss 阶段字段：
+#    unit_category       : "" / "boss" / "elite" / "summon" / "form"
+#    hidden_from_roster  : 是否从玩家图鉴 / 地图编辑器单位下拉中隐藏
+#    boss_mechanic_id    : 当前形态的机制代码（ash_shield / soul_drain / three_forms ...）
+#    boss_mechanic_params: 该机制的参数
+#    phases              : Array[Dictionary]，Boss 多阶段定义
+#
+#  phases[i] 字段：
+#    form_unit_id  : "" = 字段覆盖模式；否则指向另一个 UnitData 完整形态
+#    trigger       : "initial" / "hp_below" / "on_death"
+#    threshold     : 仅在 hp_below 时有效，当前 HP 比例 ≤ threshold 触发
+#    hp_mode       : "full" / "keep_ratio" / "keep_absolute" / "custom_ratio"
+#    min_hp        : 切换后的保底 HP
+#    reset_turn_state : 切换后是否重置行动状态
+#    preserve_buffs   : 切换后是否保留战斗 Buff
+#    mechanic_id      : 本形态激活的机制
+#    mechanic_params  : 机制参数
+#    override         : form_unit_id 为空时，按字段覆盖当前 UnitData
+# ============================================================
+
 @export var unit_name: String = "战士"
 @export var display_name: String = ""
 @export var faction: String = ""
@@ -23,9 +46,16 @@ class_name UnitData
 @export var sacrifice_buff_sources : Array = []
 @export var core_trait: String = ""
 @export var is_boss: bool = false
+
+# ---- Boss / 分类 ----
+@export var unit_category: String = ""
+@export var hidden_from_roster: bool = false
+@export var boss_mechanic_id: String = ""
+@export var boss_mechanic_params: Dictionary = {}
+@export var phases: Array = []
+
 @export var tags: Array[String] = []
 @export var avatar: String = ""
-
 var avatar_override: String = ""
 
 # ---- 战斗 Buff ----
@@ -38,7 +68,7 @@ var buff_attack_flat : int = 0
 var buff_magic_attack_flat : int = 0
 var buff_lifesteal_percent : float = 0.0
 
-# ★ v4.6：兼容旧字段（不参与计算）
+# ★ 兼容旧字段（不参与计算）
 var buff_defense_flat : int = 0
 
 var relic_first_attack_crit_available : bool = false
@@ -65,6 +95,10 @@ var zeal_stacks : int = 0
 
 @export var advanced_class: String = ""
 @export var override_sprite_path: String = ""
+
+const VALID_BOSS_TRIGGERS : Array = ["initial", "hp_below", "on_death"]
+const VALID_BOSS_HP_MODES : Array = ["full", "keep_ratio", "keep_absolute", "custom_ratio"]
+
 
 func reset_combat_buffs():
 	buff_attack_percent = 0.0
@@ -114,6 +148,56 @@ var advanced_talent_inst : TalentInstance = null
 	"hp_bonus": 0, "atk_bonus": 0, "def_bonus": 0, "spd_bonus": 0
 }
 
+
+# ============================================================
+#  phases 规范化
+# ============================================================
+static func normalize_phases(raw: Variant) -> Array:
+	var result: Array = []
+	if not (raw is Array):
+		return result
+	var arr: Array = raw
+	for i in range(arr.size()):
+		var p: Variant = arr[i]
+		if not (p is Dictionary):
+			continue
+		var d: Dictionary = p
+
+		var trig: String = str(d.get("trigger", "on_death"))
+		if trig not in VALID_BOSS_TRIGGERS:
+			trig = "on_death"
+
+		var hp_mode: String = str(d.get("hp_mode", "full"))
+		if hp_mode not in VALID_BOSS_HP_MODES:
+			hp_mode = "full"
+
+		var mp_raw: Variant = d.get("mechanic_params", {})
+		var ov_raw: Variant = d.get("override", {})
+
+		var phase: Dictionary = {
+			"form_unit_id": str(d.get("form_unit_id", d.get("form", ""))),
+			"trigger": trig,
+			"threshold": clampf(float(d.get("threshold", 0.5)), 0.05, 0.95),
+			"hp_mode": hp_mode,
+			"min_hp": maxi(0, int(d.get("min_hp", 1))),
+			"reset_turn_state": bool(d.get("reset_turn_state", false)),
+			"preserve_buffs": bool(d.get("preserve_buffs", true)),
+			"mechanic_id": str(d.get("mechanic_id", "")),
+			"mechanic_params": (mp_raw as Dictionary).duplicate(true) if mp_raw is Dictionary else {},
+			"override": (ov_raw as Dictionary).duplicate(true) if ov_raw is Dictionary else {}
+		}
+
+		if i == 0:
+			phase["trigger"] = "initial"
+			phase["hp_mode"] = "full"
+
+		result.append(phase)
+	return result
+
+
+# ============================================================
+#  装备 / 属性
+# ============================================================
 func get_armor_modifier_bonus() -> Dictionary:
 	var bonus : Dictionary = {}
 	for slot_v in armor_slots:
@@ -127,11 +211,13 @@ func get_armor_modifier_bonus() -> Dictionary:
 			bonus[key] = cur + add
 	return bonus
 
+
 func count_used_armor_slots() -> int:
 	var used : int = 0
 	for slot_v in armor_slots:
 		if slot_v != null: used += 1
 	return used
+
 
 func can_equip_armor(_item_id: String, exclude_slot_idx: int = -1) -> bool:
 	if exclude_slot_idx >= 0 and exclude_slot_idx < armor_slots.size():
@@ -139,6 +225,7 @@ func can_equip_armor(_item_id: String, exclude_slot_idx: int = -1) -> bool:
 	for slot_v in armor_slots:
 		if slot_v == null: return true
 	return false
+
 
 func get_effective_attr(attr_name: String) -> int:
 	var base : int = 0
@@ -155,8 +242,12 @@ func get_effective_attr(attr_name: String) -> int:
 	var bonus_val : int = int(bonus.get(attr_name, 0))
 	return base + bonus_val
 
+
+# ============================================================
+#  序列化
+# ============================================================
 func to_dict() -> Dictionary:
-	return {
+	var d: Dictionary = {
 		"unit_name": unit_name, "display_name": display_name,
 		"faction": faction, "team_id": team_id,
 		"max_hp": max_hp, "hit_points": hit_points,
@@ -176,11 +267,19 @@ func to_dict() -> Dictionary:
 		"advanced_class": advanced_class,
 		"advanced_talent_id": advanced_talent_id,
 		"override_sprite_path": override_sprite_path,
+		"avatar_override": avatar_override, # ★ 修复：补全头像保存
 		"is_dead": is_dead,
 		"sacrifice_buff_sources": sacrifice_buff_sources.duplicate(),
 		"tags": tags.duplicate(),
 		"core_trait": core_trait, "is_boss": is_boss,
+		"unit_category": unit_category,
+		"hidden_from_roster": hidden_from_roster,
+		"boss_mechanic_id": boss_mechanic_id,
+		"boss_mechanic_params": boss_mechanic_params.duplicate(true),
+		"phases": normalize_phases(phases)
 	}
+	return d
+
 
 static func from_dict(d: Dictionary) -> UnitData:
 	var data := UnitData.new()
@@ -206,6 +305,13 @@ static func from_dict(d: Dictionary) -> UnitData:
 	data.core_trait = d.get("core_trait", "")
 	data.is_boss = d.get("is_boss", false)
 
+	data.unit_category = str(d.get("unit_category", ""))
+	data.hidden_from_roster = bool(d.get("hidden_from_roster", false))
+	data.boss_mechanic_id = str(d.get("boss_mechanic_id", ""))
+	var bmp: Variant = d.get("boss_mechanic_params", {})
+	data.boss_mechanic_params = (bmp as Dictionary).duplicate(true) if bmp is Dictionary else {}
+	data.phases = normalize_phases(d.get("phases", []))
+
 	var adv_raw = d.get("advanced_class", "")
 	if adv_raw is String:
 		data.advanced_class = adv_raw
@@ -215,6 +321,7 @@ static func from_dict(d: Dictionary) -> UnitData:
 		data.advanced_class = ""
 	data.advanced_talent_id = d.get("advanced_talent_id", "")
 	data.override_sprite_path = d.get("override_sprite_path", "")
+	data.avatar_override = d.get("avatar_override", "") # ★ 修复：补全头像读取
 	data.is_dead = d.get("is_dead", false)
 
 	var buff_arr : Variant = d.get("sacrifice_buff_sources", [])
@@ -264,6 +371,7 @@ static func from_dict(d: Dictionary) -> UnitData:
 		data.advanced_talent_inst = t_inst
 	return data
 
+
 static func _item_instance_to_dict(inst: ItemInstance) -> Dictionary:
 	if not inst: return {}
 	return {
@@ -271,6 +379,7 @@ static func _item_instance_to_dict(inst: ItemInstance) -> Dictionary:
 		"upgrade_level": inst.upgrade_level,
 		"affixes": inst.affixes.duplicate(true),
 	}
+
 
 static func _dict_to_item_instance(d: Dictionary) -> ItemInstance:
 	if d.is_empty(): return null
@@ -288,11 +397,13 @@ static func _dict_to_item_instance(d: Dictionary) -> ItemInstance:
 				inst.affixes.append({"id": a.get("id", ""), "value": int(a.get("value", 0))})
 	return inst
 
+
 static func _item_instance_array_to_array(arr: Array) -> Array:
 	var result : Array = []
 	for inst in arr:
 		result.append(_item_instance_to_dict(inst))
 	return result
+
 
 static func _array_to_item_instance_array(arr: Array) -> Array:
 	var result : Array = []
@@ -303,6 +414,7 @@ static func _array_to_item_instance_array(arr: Array) -> Array:
 			result.append(null)
 	return result
 
+
 static func _talent_instance_to_dict(inst) -> Dictionary:
 	if not inst or not (inst is TalentInstance): return {}
 	if not (inst as TalentInstance).is_active: return {}
@@ -312,6 +424,7 @@ static func _talent_instance_to_dict(inst) -> Dictionary:
 		"is_ready": inst.is_ready,
 		"is_active": inst.is_active,
 	}
+
 
 static func _dict_to_talent_instance(d: Dictionary) -> TalentInstance:
 	if d.is_empty(): return null
@@ -324,11 +437,13 @@ static func _dict_to_talent_instance(d: Dictionary) -> TalentInstance:
 	inst.is_active = d.get("is_active", true)
 	return inst
 
+
 static func _talent_instance_array_to_array(arr: Array) -> Array:
 	var result : Array = []
 	for inst in arr:
 		result.append(_talent_instance_to_dict(inst))
 	return result
+
 
 static func _array_to_talent_instance_array(arr: Array) -> Array:
 	var result : Array = []
@@ -339,8 +454,13 @@ static func _array_to_talent_instance_array(arr: Array) -> Array:
 			result.append(null)
 	return result
 
+
+# ============================================================
+#  献祭 Buff
+# ============================================================
 func get_sacrifice_buff_count() -> int:
 	return sacrifice_buff_sources.size()
+
 
 func get_sacrifice_buffs() -> Dictionary:
 	var result : Dictionary = {}
@@ -354,6 +474,7 @@ func get_sacrifice_buffs() -> Dictionary:
 		if btype == "": continue
 		result[btype] = result.get(btype, 0.0) + bvalue
 	return result
+
 
 static func make_sacrifice_key(unit: UnitData) -> String:
 	return "%s|%s" % [unit.unit_name, unit.display_name]
