@@ -180,8 +180,7 @@ func _resolve_speaker_avatar(speaker: String) -> Texture2D:
 	return IconManager.get_icon_or_null(avatar_id)
 
 
-## 在运行时单位列表里找匹配 speaker 的敌方单位，返回其 avatar_override / avatar。
-## 用于「地图编辑器里给 boss 单独配了头像」的场景；override 优先。
+## 在运行时单位列表里找匹配 speaker 的敌方单位，返回其头像。
 func _find_enemy_avatar_override(speaker: String) -> String:
 	for u in UnitManager.unit_list:
 		if not is_instance_valid(u):
@@ -189,8 +188,10 @@ func _find_enemy_avatar_override(speaker: String) -> String:
 		if u.unit_stats == null:
 			continue
 		if u.unit_stats.display_name == speaker or u.unit_stats.unit_name == speaker:
+			# 优先找覆盖头像
 			if u.unit_stats.avatar_override != "":
 				return u.unit_stats.avatar_override
+			# ★ 新增：其次找单位自带头像
 			if u.unit_stats.avatar != "":
 				return u.unit_stats.avatar
 	return ""

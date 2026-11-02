@@ -963,13 +963,17 @@ func _on_request_show_info(unit: Unit):
 	# ---- 单位 ----
 	_hide_terrain_info_panel()
 
-	# ★ 头像：我方走存档逻辑，敌方只认 avatar_override（无则空白）
+	# ★ 头像：我方走存档逻辑，敌方只有 Boss 才显示
 	var show_avatar : bool = false
 	var avatar_id : String = ""
 	if unit.unit_stats.team_id == 0:
 		avatar_id = GameState.get_unit_avatar(unit.unit_stats.unit_name)
 	else:
-		avatar_id = unit.unit_stats.avatar_override
+		# 只有 Boss 才允许读取头像配置，杂兵强行置空
+		if unit.unit_stats.is_boss:
+			avatar_id = unit.unit_stats.avatar_override
+			if avatar_id == "":
+				avatar_id = unit.unit_stats.avatar
 
 	if avatar_id != "" and avatar_rect != null:
 		var tex = IconManager.get_icon_or_null(avatar_id)
@@ -986,9 +990,36 @@ func _on_request_show_info(unit: Unit):
 		_hide_avatar(avatar_rect, avatar_bg)
 
 	var lines : Array = []
-	var display_name = unit.unit_stats.display_name if unit.unit_stats.display_name != "" else unit.unit_stats.unit_name
-	var type_name = UnitDataManager.get_unit_type_display_name(unit.unit_stats.unit_name)
-	lines.append(display_name + " | " + unit.unit_stats.faction + " | " + type_name)
+	var display_name = UnitDataManager.get_display_name(unit.unit_stats.unit_name)
+	var unit_key = unit.unit_stats.unit_name
+	var type_name = UnitDataManager.get_unit_type_display_name(unit_key)
+	var faction = unit.unit_stats.faction
+	
+	# 如果单位数据里自带自定义 display_name，优先用它（比如你在编辑器里填的中文名）
+	if unit.unit_stats.display_name != "" and unit.unit_stats.display_name != unit_key:
+		display_name = unit.unit_stats.display_name
+		
+	if display_name == unit_key:
+		display_name = "未知单位"
+		
+	if faction == "":
+		faction = "无阵营"
+		
+	var header_str : String = ""
+	
+	# ★ 核心逻辑：如果是敌方(team_id=1)且不是 Boss，强制只显示职业名（比如“弓兵”）
+	if unit.unit_stats.team_id == 1 and not unit.unit_stats.is_boss:
+		header_str = type_name if type_name != unit_key else display_name
+	else:
+		# 我方或 Boss 显示完整信息
+		header_str = display_name
+		if faction != "无阵营":
+			header_str += " | " + faction
+		# 如果职业名和显示名不重复，才拼上去
+		if type_name != display_name and type_name != unit_key:
+			header_str += " | " + type_name
+		
+	lines.append(header_str)
 	lines.append("HP: " + str(unit.hit_points) + "/" + str(unit.unit_stats.max_hp))
 
 	var status_str : String = ""

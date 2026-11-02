@@ -3,7 +3,6 @@ extends Control
 
 # ============================================================
 #  StoryEditor — NPC 剧情 / 独立对话 / 地图事件 统一编辑器
-#  v4.4：修 _setup_spin 里 for 迭代变量 name 与 Node.name 冲突
 # ============================================================
 const EVENT_PATH : String = "res://content/data/events.json"
 const MAP_DIR : String = "res://content/scenes/maps/"
@@ -114,8 +113,8 @@ func _apply_compact_theme():
 
 	t.set_font_size("font_size", "Button", FS_BUTTON)
 	var btn_empty := StyleBoxEmpty.new()
-	btn_empty.content_margin_left = 1
-	btn_empty.content_margin_right = 1
+	btn_empty.content_margin_left = 2
+	btn_empty.content_margin_right = 2
 	btn_empty.content_margin_top = 0
 	btn_empty.content_margin_bottom = 0
 	t.set_stylebox("normal", "Button", btn_empty)
@@ -182,11 +181,7 @@ func _apply_compact_theme():
 
 	var scroll_track := StyleBoxFlat.new()
 	scroll_track.bg_color = Color(0.08, 0.08, 0.10, 1)
-	scroll_track.content_margin_left = 0
-	scroll_track.content_margin_right = 0
-	scroll_track.content_margin_top = 0
-	scroll_track.content_margin_bottom = 0
-
+	
 	var grabber_off := StyleBoxFlat.new()
 	grabber_off.bg_color = Color(0.32, 0.32, 0.38, 1)
 	grabber_off.corner_radius_top_left = 2
@@ -208,36 +203,6 @@ func _apply_compact_theme():
 	t.set_stylebox("grabber_pressed", "VScrollBar", grabber_hl)
 	t.set_constant("minimum_grab_size", "VScrollBar", 6)
 	t.set_constant("scroll_width", "VScrollBar", 4)
-
-	t.set_stylebox("scroll", "HScrollBar", scroll_track)
-	t.set_stylebox("scroll_focus", "HScrollBar", scroll_track)
-	t.set_stylebox("grabber", "HScrollBar", grabber_off)
-	t.set_stylebox("grabber_highlight", "HScrollBar", grabber_hl)
-	t.set_stylebox("grabber_pressed", "HScrollBar", grabber_hl)
-	t.set_constant("minimum_grab_size", "HScrollBar", 6)
-	t.set_constant("scroll_height", "HScrollBar", 4)
-
-	var slider_track := StyleBoxFlat.new()
-	slider_track.bg_color = Color(0.20, 0.20, 0.24, 1)
-	slider_track.content_margin_top = 1.5
-	slider_track.content_margin_bottom = 1.5
-	t.set_stylebox("slider", "HSlider", slider_track)
-
-	var slider_grab := StyleBoxFlat.new()
-	slider_grab.bg_color = Color(0.5, 0.5, 0.55, 1)
-	slider_grab.content_margin_top = 1.5
-	slider_grab.content_margin_bottom = 1.5
-	t.set_stylebox("grabber_area", "HSlider", slider_grab)
-	t.set_stylebox("grabber_area_highlight", "HSlider", slider_grab)
-
-	var img := Image.create(2, 4, false, Image.FORMAT_RGBA8)
-	img.fill(Color(0.78, 0.78, 0.82, 1.0))
-	var tex := ImageTexture.create_from_image(img)
-	t.set_icon("grabber", "HSlider", tex)
-	t.set_icon("grabber_highlight", "HSlider", tex)
-	t.set_icon("grabber_disabled", "HSlider", tex)
-	t.set_constant("center_grabber", "HSlider", 1)
-	t.set_constant("grabber_offset", "HSlider", 0)
 
 	var arrow_img := Image.create(7, 4, false, Image.FORMAT_RGBA8)
 	arrow_img.fill(Color(0, 0, 0, 0))
@@ -305,21 +270,9 @@ func _build_ui():
 	_redo_btn.pressed.connect(_redo)
 	top.add_child(_redo_btn)
 
-	top.add_child(_make_vsep())
-
 	var sp := Control.new()
 	sp.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	top.add_child(sp)
-
-	var save_btn := _mk_btn("保存", _on_save)
-	save_btn.tooltip_text = "Ctrl+S"
-	top.add_child(save_btn)
-
-	var reload_btn := _mk_btn("重载", _on_reload)
-	top.add_child(reload_btn)
-
-	var quit_btn := _mk_btn("退出", _on_quit)
-	top.add_child(quit_btn)
 
 	var outer_split := HSplitContainer.new()
 	outer_split.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -402,22 +355,28 @@ func _build_ui():
 	_right_container.add_theme_constant_override("separation", 1)
 	right_scroll.add_child(_right_container)
 
-	var status_bar := PanelContainer.new()
-	status_bar.custom_minimum_size = Vector2(0, 14)
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = COL_PANEL
-	sb.content_margin_left = 4
-	sb.content_margin_right = 4
-	sb.content_margin_top = 0
-	sb.content_margin_bottom = 0
-	status_bar.add_theme_stylebox_override("panel", sb)
-	main.add_child(status_bar)
+	# ★ 底部操作栏 (状态 + 保存 + 重置)
+	var bottom_bar := HBoxContainer.new()
+	bottom_bar.custom_minimum_size = Vector2(0, 24)
+	bottom_bar.add_theme_constant_override("separation", 8)
+	main.add_child(bottom_bar)
 
 	_status_label = Label.new()
 	_status_label.add_theme_font_size_override("font_size", FS_HINT)
 	_status_label.modulate = Color(0.75, 0.9, 0.75)
 	_status_label.text = "就绪"
-	status_bar.add_child(_status_label)
+	_status_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_status_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	bottom_bar.add_child(_status_label)
+
+	var reload_btn_bot := _mk_btn("重置 (重载)", _on_reload)
+	reload_btn_bot.custom_minimum_size = Vector2(60, 20)
+	bottom_bar.add_child(reload_btn_bot)
+
+	var save_btn_bot := _mk_btn("保存修改 (Ctrl+S)", _on_save)
+	save_btn_bot.custom_minimum_size = Vector2(80, 20)
+	save_btn_bot.modulate = Color(0.6, 1.0, 0.6)
+	bottom_bar.add_child(save_btn_bot)
 
 
 # ============================================================
@@ -490,11 +449,9 @@ func _setup_spin(sp : SpinBox):
 		le.editable = true
 		le.select_all_on_focus = true
 		le.context_menu_enabled = false
-	# ★ 用 find_children 兜底；迭代变量改名 arrow_btn，避免与 Node.name 冲突
 	var arrow_btns : Array[Node] = sp.find_children("*", "Button", true, false)
 	for arrow_btn in arrow_btns:
 		_compact_spin_arrow_button(arrow_btn as Button)
-	# 兼容性：按节点名直接拿
 	if arrow_btns.is_empty():
 		for arrow_name in ["up", "down"]:
 			var b2 = sp.get_node_or_null(arrow_name)
@@ -722,7 +679,6 @@ func _load_all():
 
 	_dialogues = narrative.get("standalone", {}).duplicate(true)
 
-	# 保留 __meta__ 等非 npcs/standalone 的顶层字段
 	for k in narrative:
 		if k != "npcs" and k != "standalone":
 			_narrative_extra[k] = narrative[k]
@@ -751,7 +707,6 @@ func _on_save():
 	if not _save_json(EVENT_PATH, _events):
 		ok = false
 
-	# ★ 合并 npcs 与 standalone 写回 narrative.json，保留 __meta__ / __mechanics__ 等字段
 	var narrative : Dictionary = _narrative_extra.duplicate(true)
 	narrative["npcs"] = _stories
 	narrative["standalone"] = _dialogues
@@ -837,6 +792,13 @@ func _switch_tab(tab : String):
 	_tab_stories_btn.modulate = Color.WHITE if tab == "stories" else Color(0.55, 0.55, 0.55, 1)
 	_tab_dialogues_btn.modulate = Color.WHITE if tab == "dialogues" else Color(0.55, 0.55, 0.55, 1)
 	_tab_events_btn.modulate = Color.WHITE if tab == "events" else Color(0.55, 0.55, 0.55, 1)
+
+	# ★ 清理事件图节点，防止切页后挡住 UI
+	if _event_graph != null and is_instance_valid(_event_graph):
+		_event_graph.queue_free()
+		_event_graph = null
+	# ★ 恢复中间列表的可见性
+	_mid_list.visible = true
 
 	_clear_container(_left_list)
 	_clear_container(_mid_list)
@@ -973,39 +935,60 @@ func _build_dialogue_form():
 
 	_right_title.text = "编辑：" + _current_dialogue_id
 
+	# 1. 顶部操作按钮区（强制高度，避免被挤压隐形）
 	var head := HBoxContainer.new()
-	head.add_theme_constant_override("separation", 2)
+	head.add_theme_constant_override("separation", 6)
+	head.custom_minimum_size = Vector2(0, 24)
 	_right_container.add_child(head)
 
 	var pv := _mk_btn("▶ 预览")
+	pv.custom_minimum_size = Vector2(50, 20)
 	pv.pressed.connect(_preview_dialogue.bind(d))
 	head.add_child(pv)
 
 	var dup := _mk_btn("复制")
-	dup.tooltip_text = "复制为一份新对话（id 加 _copy 后缀）"
+	dup.custom_minimum_size = Vector2(40, 20)
 	dup.pressed.connect(_duplicate_current_dialogue)
 	head.add_child(dup)
 
-	var dl := _mk_btn("删除", _delete_current_dialogue)
-	dl.modulate = Color(1.0, 0.6, 0.6)
+	# 红色的删除按钮
+	var dl := _mk_btn("✖ 删除对话")
+	dl.add_theme_color_override("font_color", Color(1.0, 0.4, 0.4))
+	dl.custom_minimum_size = Vector2(64, 20)
+	dl.pressed.connect(_delete_current_dialogue)
 	head.add_child(dl)
 
-	var id_row := _mk_row()
+	# 2. ID 输入区
+	var id_row := HBoxContainer.new()
+	id_row.add_theme_constant_override("separation", 4)
+	id_row.custom_minimum_size = Vector2(0, 20)
 	_right_container.add_child(id_row)
-	id_row.add_child(_mk_label("ID:"))
+
+	var id_lbl := _mk_label("ID:")
+	id_lbl.custom_minimum_size = Vector2(16, 0)
+	id_row.add_child(id_lbl)
+
 	var id_edit := _mk_line_edit(_current_dialogue_id)
-	id_edit.custom_minimum_size = Vector2(80, ROW_H)
+	id_edit.custom_minimum_size = Vector2(80, 18)
 	id_edit.tooltip_text = "对话唯一 ID（同 NPC 内不可重复）"
 	id_edit.text_submitted.connect(func(n):
 		_rename_dialogue(_current_dialogue_id, n)
 	)
 	id_row.add_child(id_edit)
 
-	var pri_row := _mk_row()
+	# 3. Priority 输入区
+	var pri_row := HBoxContainer.new()
+	pri_row.add_theme_constant_override("separation", 4)
+	pri_row.custom_minimum_size = Vector2(0, 20)
 	_right_container.add_child(pri_row)
-	pri_row.add_child(_mk_label("priority:"))
-	var ps := _mk_spin(int(d.get("priority", 0)), -100, 100)
-	ps.tooltip_text = "满足 condition 的多个对话中，选 priority 最高的播放"
+
+	var pri_lbl := _mk_label("优先级:")
+	pri_lbl.custom_minimum_size = Vector2(32, 0)
+	pri_row.add_child(pri_lbl)
+
+	var ps := _mk_spin(int(d.get("priority", 0)), -100, 100, 50)
+	ps.custom_minimum_size = Vector2(50, 18)
+	ps.tooltip_text = "满足 condition 的多个对话中，选优先级最高的播放"
 	ps.value_changed.connect(func(v):
 		if int(v) == int(d.get("priority", 0)): return
 		_push_undo()
@@ -1014,8 +997,12 @@ func _build_dialogue_form():
 		_build_mid_list()
 	)
 	pri_row.add_child(ps)
-	pri_row.add_child(_mk_label("（大者优先）", FS_SMALL))
+	
+	var hint_lbl := _mk_label("（大者优先）", FS_SMALL)
+	hint_lbl.modulate = Color(0.6, 0.6, 0.6)
+	pri_row.add_child(hint_lbl)
 
+	# 4. 条件编辑区
 	_right_container.add_child(_mk_section("— condition（全部满足才触发）—"))
 	_build_condition_editor(d.get("condition", {}), func(nc):
 		_push_undo()
@@ -1024,12 +1011,13 @@ func _build_dialogue_form():
 		_dirty = true
 	)
 
+	# 5. 台词区
 	_right_container.add_child(_mk_section("— lines —"))
 	_build_lines_editor(d)
 
+	# 6. 选项区
 	_right_container.add_child(_mk_section("— choices —"))
 	_build_choices_editor(d)
-
 
 func _duplicate_current_dialogue():
 	if _current_npc == "" or _current_dialogue_id == "": return
@@ -1102,18 +1090,26 @@ func _rename_dialogue(old_id : String, new_id : String):
 
 func _delete_current_dialogue():
 	if _current_npc == "" or _current_dialogue_id == "": return
-	_push_undo()
-	var dlist : Array = _stories[_current_npc].get("dialogues", [])
-	for i in range(dlist.size()):
-		if dlist[i] is Dictionary and dlist[i].get("id", "") == _current_dialogue_id:
-			dlist.remove_at(i)
-			_dirty = true
-			_current_dialogue_id = ""
-			_build_mid_list()
-			_clear_container(_right_container)
-			_right_title.text = "— 编辑区 —"
-			_set_status("已删除对话")
-			return
+	
+	Globals.show_confirm(
+		self,
+		"确定要删除对话【%s】吗？\n点击底部保存后永久生效。" % _current_dialogue_id,
+		"删除", "取消",
+		func():
+			_push_undo()
+			var dlist : Array = _stories[_current_npc].get("dialogues", [])
+			for i in range(dlist.size()):
+				if dlist[i] is Dictionary and dlist[i].get("id", "") == _current_dialogue_id:
+					dlist.remove_at(i)
+					_dirty = true
+					_current_dialogue_id = ""
+					_build_mid_list()
+					_clear_container(_right_container)
+					_right_title.text = "— 编辑区 —"
+					_set_status("已删除对话，请记得保存！")
+					return,
+		func(): pass
+	)
 
 
 func _add_new_dialogue():
@@ -1183,8 +1179,8 @@ func _build_unlock_form():
 		_dirty = true
 	)
 
-	var del := _mk_btn("删除此解锁", _delete_current_unlock)
-	del.modulate = Color(1.0, 0.6, 0.6)
+	var del := _mk_btn("✖ 删除此解锁", _delete_current_unlock)
+	del.add_theme_color_override("font_color", Color(1.0, 0.5, 0.5))
 	_right_container.add_child(del)
 
 
@@ -1236,7 +1232,6 @@ func _candidates(ut : String) -> Array:
 	match ut:
 		"unit":
 			for k in UnitDataManager.get_all_unit_ids():
-				# 加上“（资格）”提示，说明剧情这里只解锁守火者候选
 				arr.append({
 					"id": k, 
 					"name": "%s (资格)" % UnitDataManager.get_display_name(k)
@@ -1582,23 +1577,62 @@ func _build_flat_form():
 	_right_title.text = "对话：" + _current_flat_id
 	var lines : Array = _dialogues[_current_flat_id]
 
+	# 1. 顶部操作按钮区（强制高度，确保可见）
 	var head := HBoxContainer.new()
-	head.add_theme_constant_override("separation", 2)
+	head.add_theme_constant_override("separation", 6)
+	head.custom_minimum_size = Vector2(0, 24)
 	_right_container.add_child(head)
 
 	var pv := _mk_btn("▶ 预览")
+	pv.custom_minimum_size = Vector2(50, 20)
 	pv.pressed.connect(func(): DialogueManager.start_inline_dialogue(lines))
 	head.add_child(pv)
 
 	var dup := _mk_btn("复制")
-	dup.tooltip_text = "复制为一份新对话（id 加 _copy 后缀）"
+	dup.custom_minimum_size = Vector2(40, 20)
 	dup.pressed.connect(_duplicate_flat_dialogue)
 	head.add_child(dup)
 
-	var dl := _mk_btn("删除", _delete_flat)
-	dl.modulate = Color(1.0, 0.6, 0.6)
+	var dl := _mk_btn("✖ 删除对话")
+	dl.add_theme_color_override("font_color", Color(1.0, 0.4, 0.4))
+	dl.custom_minimum_size = Vector2(64, 20)
+	dl.pressed.connect(_delete_flat)
 	head.add_child(dl)
 
+	# 2. ID 输入区
+	var id_row := HBoxContainer.new()
+	id_row.add_theme_constant_override("separation", 4)
+	id_row.custom_minimum_size = Vector2(0, 20)
+	_right_container.add_child(id_row)
+
+	var id_lbl := _mk_label("ID:")
+	id_lbl.custom_minimum_size = Vector2(16, 0)
+	id_row.add_child(id_lbl)
+
+	var id_edit := _mk_line_edit(_current_flat_id)
+	id_edit.custom_minimum_size = Vector2(100, 18)
+	id_edit.tooltip_text = "独立对话的唯一 ID"
+	id_edit.text_submitted.connect(func(new_id : String):
+		new_id = new_id.strip_edges()
+		if new_id == "" or new_id == _current_flat_id: return
+		if _dialogues.has(new_id):
+			_set_status("✗ ID 已存在：%s" % new_id)
+			_build_flat_form() # 恢复原来的文字
+			return
+		_push_undo()
+		_dialogues[new_id] = _dialogues[_current_flat_id]
+		_dialogues.erase(_current_flat_id)
+		_current_flat_id = new_id
+		_dirty = true
+		_build_flat_id_list()
+		_build_flat_form()
+		_set_status("已重命名：" + new_id)
+	)
+	id_row.add_child(id_edit)
+
+	_right_container.add_child(_mk_section("— lines —"))
+
+	# 3. 台词列表
 	for i in range(lines.size()):
 		var line : Dictionary = lines[i]
 		var row := _mk_row()
@@ -1606,6 +1640,7 @@ func _build_flat_form():
 		var idx : int = i
 
 		var dl2 := _mk_icon_btn("-", true)
+		dl2.tooltip_text = "删除此行"
 		dl2.pressed.connect(func():
 			_push_undo()
 			lines.remove_at(idx)
@@ -1613,6 +1648,30 @@ func _build_flat_form():
 			_build_flat_form()
 		)
 		row.add_child(dl2)
+
+		var up := _mk_icon_btn("↑")
+		up.pressed.connect(func():
+			if idx > 0:
+				_push_undo()
+				var t = lines[idx]
+				lines[idx] = lines[idx - 1]
+				lines[idx - 1] = t
+				_dirty = true
+				_build_flat_form()
+		)
+		row.add_child(up)
+
+		var dn := _mk_icon_btn("↓")
+		dn.pressed.connect(func():
+			if idx < lines.size() - 1:
+				_push_undo()
+				var t = lines[idx]
+				lines[idx] = lines[idx + 1]
+				lines[idx + 1] = t
+				_dirty = true
+				_build_flat_form()
+		)
+		row.add_child(dn)
 
 		var sp := _mk_line_edit(str(line.get("speaker", "")), "说话者")
 		sp.custom_minimum_size = Vector2(50, ROW_H)
@@ -1632,6 +1691,7 @@ func _build_flat_form():
 		row.add_child(tx)
 
 	var add := _mk_btn("+ 添加台词")
+	add.custom_minimum_size = Vector2(0, 20)
 	add.pressed.connect(func():
 		_push_undo()
 		lines.append({"speaker": "???", "text": ""})
@@ -1689,14 +1749,23 @@ func _duplicate_flat_dialogue():
 
 func _delete_flat():
 	if _current_flat_id == "": return
-	_push_undo()
-	_dialogues.erase(_current_flat_id)
-	_dirty = true
-	_current_flat_id = ""
-	_clear_container(_left_list)
-	_clear_container(_right_container)
-	_right_title.text = "— 编辑区 —"
-	_build_flat_id_list()
+	
+	Globals.show_confirm(
+		self,
+		"确定要删除独立对话【%s】吗？\n保存后无法恢复。" % _current_flat_id,
+		"删除", "取消",
+		func():
+			_push_undo()
+			_dialogues.erase(_current_flat_id)
+			_dirty = true
+			_current_flat_id = ""
+			_clear_container(_left_list)
+			_clear_container(_right_container)
+			_right_title.text = "— 编辑区 —"
+			_build_flat_id_list()
+			_set_status("已删除对话，请记得保存！"),
+		func(): pass
+	)
 
 
 # ============================================================
@@ -1733,25 +1802,22 @@ func _on_event_selected(event_id : String):
 	_right_title.text = "— 编辑区 —"
 
 
-# function/tool/editor/StoryEditor.gd —— 完全替换 _build_event_action_list()
-
 func _build_event_action_list():
-	# ★ v4.5：中间栏改为节点图（事件节点 + action 子节点）
-	if _event_graph == null or not is_instance_valid(_event_graph):
-		_event_graph = StoryEventGraph.new()
-		_event_graph.custom_minimum_size = Vector2(0, 100)
-		_event_graph.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		_event_graph.size_flags_vertical = Control.SIZE_EXPAND_FILL
-		_event_graph.mouse_filter = Control.MOUSE_FILTER_STOP
-		_event_graph.event_node_clicked.connect(_on_event_node_clicked)
-		_event_graph.action_node_clicked.connect(_on_action_node_clicked)
-		_mid_list.get_parent().add_child(_event_graph)
-		_event_graph.name = "StoryEventGraph"
+	if _event_graph != null and is_instance_valid(_event_graph):
+		_event_graph.queue_free()
+		
+	_event_graph = StoryEventGraph.new()
+	_event_graph.custom_minimum_size = Vector2(0, 100)
+	_event_graph.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_event_graph.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_event_graph.mouse_filter = Control.MOUSE_FILTER_STOP
+	_event_graph.event_node_clicked.connect(_on_event_node_clicked)
+	_event_graph.action_node_clicked.connect(_on_action_node_clicked)
+	_mid_list.get_parent().add_child(_event_graph)
+	_event_graph.name = "StoryEventGraph"
 
-	# 隐藏原线性列表
 	_mid_list.visible = false
 
-	# 刷新图
 	_event_graph.set_events_ref(_events)
 	if _current_event_id == "":
 		_event_graph.show_event("")
@@ -1761,7 +1827,6 @@ func _build_event_action_list():
 
 
 func _on_event_node_clicked():
-	# 点击事件节点 → 右侧显示事件元信息
 	_clear_container(_right_container)
 	_current_action_idx = -1
 	_build_event_meta_form()
@@ -1772,7 +1837,6 @@ func _on_action_node_clicked(idx : int):
 	_build_action_form()
 
 
-# 新函数：事件元信息编辑
 func _build_event_meta_form():
 	if _current_event_id == "":
 		_right_title.text = "— 编辑区 —"
@@ -1813,14 +1877,13 @@ func _build_event_meta_form():
 	hint.modulate = Color(0.6, 0.6, 0.6)
 	_right_container.add_child(hint)
 
-	# 添加 / 删除 action 按钮
 	var btn_row := _mk_row()
 	_right_container.add_child(btn_row)
 	var add_btn := _mk_btn("+ 新 action", _add_new_action)
 	btn_row.add_child(add_btn)
 
-	var del_btn := _mk_btn("删除选中 action", _delete_current_action)
-	del_btn.modulate = Color(1.0, 0.6, 0.6)
+	var del_btn := _mk_btn("✖ 删除选中 action", _delete_current_action)
+	del_btn.add_theme_color_override("font_color", Color(1.0, 0.5, 0.5))
 	btn_row.add_child(del_btn)
 
 
@@ -1903,8 +1966,8 @@ func _build_action_form():
 	db.pressed.connect(_move_action.bind(1))
 	head.add_child(db)
 
-	var dl := _mk_btn("删除", _delete_current_action)
-	dl.modulate = Color(1.0, 0.6, 0.6)
+	var dl := _mk_btn("✖ 删除", _delete_current_action)
+	dl.add_theme_color_override("font_color", Color(1.0, 0.5, 0.5))
 	head.add_child(dl)
 
 	_right_container.add_child(_mk_section("— 字段 —"))
@@ -2018,7 +2081,6 @@ func _build_one_field(a : Dictionary, key : String):
 	lb.tooltip_text = key
 	row.add_child(lb)
 
-	# ★ 新增：针对 npc_id 和 avatar_id 使用下拉框
 	if key == "npc_id":
 		var opt := _mk_option_button()
 		var npcs : Array = _get_all_npc_ids()
@@ -2046,7 +2108,6 @@ func _build_one_field(a : Dictionary, key : String):
 		)
 		row.add_child(opt)
 		return
-	# ★ 拦截结束
 
 	var t : int = typeof(value)
 	if t == TYPE_BOOL:
@@ -2188,7 +2249,6 @@ func _input(event : InputEvent):
 func _get_all_npc_ids() -> Array:
 	var result : Array = []
 	if StoryManager:
-		# 反射获取 StoryManager 的私有变量 _npcs
 		var npcs = StoryManager.get("_npcs")
 		if npcs is Dictionary:
 			for k in npcs:

@@ -174,6 +174,8 @@ var _unit_unlock_status : Label = null
 var _unit_unlock_right_title : Label = null
 var _unit_db_dirty : bool = false
 var _edit_boss_dialogue_opts : Dictionary = {}
+var _edit_right_content : VBoxContainer = null
+var _validator_raw_log : String = ""
 
 func _ready():
 	_apply_compact_theme()
@@ -463,6 +465,29 @@ func _build_edit_tab(parent : Control) -> Control:
 
 	left.add_child(_section("— 单位列表 —"))
 
+	# ★ 新增：刷新按钮
+	var refresh_btn := Button.new()
+	refresh_btn.text = "🔄 刷新列表"
+	refresh_btn.add_theme_font_size_override("font_size", 7)
+	refresh_btn.modulate = Color(0.8, 0.9, 1.0)
+	refresh_btn.pressed.connect(func():
+		_unit_db = _load_json(UNIT_DATA_PATH)
+		_unit_keys = _unit_db.keys()
+		_unit_keys.sort()
+		_refresh_unit_list()
+		_refresh_sim_unit_lists()
+		_set_edit_status("已从硬盘重载列表")
+	)
+	left.add_child(refresh_btn)
+
+	# ★ 新增：新建单位按钮
+	var add_unit_btn := Button.new()
+	add_unit_btn.text = "+ 新建单位"
+	add_unit_btn.add_theme_font_size_override("font_size", 7)
+	add_unit_btn.modulate = Color(0.6, 1.0, 0.6)
+	add_unit_btn.pressed.connect(_on_add_unit_pressed)
+	left.add_child(add_unit_btn)
+
 	var l_scroll := ScrollContainer.new()
 	l_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	l_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
@@ -488,9 +513,17 @@ func _build_edit_tab(parent : Control) -> Control:
 	content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	content.add_theme_constant_override("separation", 2)
 	r_scroll.add_child(content)
-
+	_edit_right_content = content
+	
 	content.add_child(_section("— 基础信息 —"))
+	
 	_edit_name_edit = _add_edit_row(content, "显示名")
+	# ★ 绑定回车：按下回车自动保存并释放焦点，左侧列表自动刷新
+	_edit_name_edit.text_submitted.connect(func(_t):
+		_save_unit_db()
+		_edit_name_edit.release_focus()
+	)
+	
 	_edit_faction_edit = _add_edit_row(content, "阵营")
 	_edit_avatar_opt = _add_option_row(content, "头像", _avatar_ids, "（无）")
 
@@ -729,11 +762,18 @@ func _build_edit_tab(parent : Control) -> Control:
 			opt.set_item_metadata(i + 1, all_dlg_ids[i])
 		row.add_child(opt)
 		_edit_boss_dialogue_opts[h["key"]] = opt
-
+	
 	var btn_row := HBoxContainer.new()
 	btn_row.alignment = BoxContainer.ALIGNMENT_END
 	btn_row.add_theme_constant_override("separation", 4)
 	right.add_child(btn_row)
+
+	# ★ 新增：删除单位按钮
+	var delete_btn := Button.new()
+	delete_btn.text = "删除单位"
+	delete_btn.modulate = Color(1.0, 0.5, 0.5)
+	delete_btn.pressed.connect(_on_delete_unit_pressed)
+	btn_row.add_child(delete_btn)
 
 	var reset_btn := Button.new()
 	reset_btn.text = "重置"
@@ -1544,7 +1584,10 @@ func _save_unit_db():
 
 	UnitDataManager.reload_all()
 	_refresh_sim_unit_lists()
-
+	
+	# ★ 新增这一行：刷新左侧列表和按钮文字
+	_refresh_unit_list()
+	
 	_edit_status.text = "✓ 已保存"
 	print("[GameDataEditor] unit_data.json 已保存")
 
@@ -2247,6 +2290,13 @@ func _build_validator_tab(parent : Control) -> Control:
 	run_btn.pressed.connect(_run_validation)
 	bar.add_child(run_btn)
 
+	# ★ 新增：自动修复按钮
+	var fix_btn := Button.new()
+	fix_btn.text = "🪄 一键修复"
+	fix_btn.modulate = Color(0.6, 1.0, 1.0)
+	fix_btn.pressed.connect(_on_auto_fix_pressed)
+	bar.add_child(fix_btn)
+
 	var clear_btn := Button.new()
 	clear_btn.text = "清空"
 	clear_btn.pressed.connect(func():
@@ -2254,6 +2304,19 @@ func _build_validator_tab(parent : Control) -> Control:
 		if _validator_status: _validator_status.text = ""
 	)
 	bar.add_child(clear_btn)
+
+	var copy_btn := Button.new()
+	copy_btn.text = "复制日志"
+	copy_btn.pressed.connect(func():
+		if _validator_raw_log != "":
+			DisplayServer.clipboard_set(_validator_raw_log)
+			_validator_status.text = "✓ 日志已复制到剪贴板"
+			_validator_status.modulate = Color(0.6, 1.0, 0.6)
+		else:
+			_validator_status.text = "（无日志可复制，请先运行校验）"
+			_validator_status.modulate = Color(1.0, 0.6, 0.6)
+	)
+	bar.add_child(copy_btn)
 
 	_validator_status = Label.new()
 	_validator_status.modulate = Color(0.85, 0.85, 0.85)
@@ -2280,6 +2343,12 @@ func _build_validator_tab(parent : Control) -> Control:
 	_validator_output.scroll_following = true
 	_validator_output.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_validator_output.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	# 强制指定较小的字体，解决字体过大问题
+	_validator_output.add_theme_font_size_override("normal_font_size", 8)
+	_validator_output.add_theme_font_size_override("bold_font_size", 8)
+	_validator_output.add_theme_font_size_override("italics_font_size", 8)
+	_validator_output.add_theme_font_size_override("mono_font_size", 8)
+	
 	scroll.add_child(_validator_output)
 
 	return panel
@@ -2288,6 +2357,7 @@ func _build_validator_tab(parent : Control) -> Control:
 func _run_validation():
 	if _validator_output == null: return
 	_validator_output.clear()
+	_validator_raw_log = "" # 清空原始日志
 	_validator_last_errors = 0
 	_validator_last_warns = 0
 	if _validator_status:
@@ -2302,6 +2372,7 @@ func _run_validation():
 
 	if results.is_empty():
 		_validator_output.append_text("[color=#7FBF7F]✓ 全部通过，未发现问题[/color]\n")
+		_validator_raw_log = "✓ 全部通过，未发现问题\n"
 		if _validator_status:
 			_validator_status.text = "✓ 0 错误 / 0 警告"
 			_validator_status.modulate = Color(0.85, 0.85, 0.85)
@@ -2319,6 +2390,7 @@ func _run_validation():
 	files.sort()
 	for fname in files:
 		_validator_output.append_text("[b]%s[/b]\n" % fname)
+		_validator_raw_log += fname + "\n"
 		var entries : Array = by_file[fname]
 		for r in entries:
 			var path : String = r["path"]
@@ -2326,10 +2398,13 @@ func _run_validation():
 			if r["level"] == DataValidator.Level.ERROR:
 				_validator_output.append_text(
 					"  [color=#FF6B6B]✗[/color] [color=#888]%s[/color]  %s\n" % [path, msg])
+				_validator_raw_log += "  [X] " + path + "  " + msg + "\n"
 			else:
 				_validator_output.append_text(
 					"  [color=#FFD966]⚠[/color] [color=#888]%s[/color]  %s\n" % [path, msg])
+				_validator_raw_log += "  [!] " + path + "  " + msg + "\n"
 		_validator_output.append_text("\n")
+		_validator_raw_log += "\n"
 
 	if _validator_status:
 		var msg_text : String = "%d 错误 / %d 警告" % [err_count, warn_count]
@@ -2663,3 +2738,413 @@ func _get_all_dialogue_ids() -> Array:
 			ids.append(k)
 	ids.sort()
 	return ids
+
+
+func _on_add_unit_pressed():
+	# 防止重复点击
+	var existing = get_node_or_null("AddUnitOverlay")
+	if existing: return
+
+	var overlay := Control.new()
+	overlay.name = "AddUnitOverlay"
+	overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+	overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+	add_child(overlay)
+
+	# 半透明黑色背景
+	var bg := ColorRect.new()
+	bg.color = Color(0, 0, 0, 0.7)
+	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
+	overlay.add_child(bg)
+
+	# 居中面板
+	var panel := PanelContainer.new()
+	panel.set_anchors_preset(Control.PRESET_CENTER)
+	panel.offset_left = -180
+	panel.offset_right = 180
+	panel.offset_top = -110
+	panel.offset_bottom = 110
+	
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(0.12, 0.12, 0.15, 1)
+	sb.border_color = Color(0.4, 0.4, 0.5, 1)
+	sb.border_width_left = 1
+	sb.border_width_right = 1
+	sb.border_width_top = 1
+	sb.border_width_bottom = 1
+	sb.corner_radius_top_left = 4
+	sb.corner_radius_top_right = 4
+	sb.corner_radius_bottom_left = 4
+	sb.corner_radius_bottom_right = 4
+	sb.content_margin_left = 16
+	sb.content_margin_right = 16
+	sb.content_margin_top = 16
+	sb.content_margin_bottom = 16
+	panel.add_theme_stylebox_override("panel", sb)
+	overlay.add_child(panel)
+
+	var vbox := VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 10)
+	panel.add_child(vbox)
+
+	var title := Label.new()
+	title.text = "新建单位"
+	title.add_theme_font_size_override("font_size", 12)
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vbox.add_child(title)
+
+	# 第一行：ID 输入
+	var id_row := HBoxContainer.new()
+	id_row.add_theme_constant_override("separation", 8)
+	vbox.add_child(id_row)
+	
+	var id_lb := Label.new()
+	id_lb.text = "唯一ID:"
+	id_lb.custom_minimum_size = Vector2(60, 0)
+	id_lb.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	id_row.add_child(id_lb)
+
+	var le := LineEdit.new()
+	le.placeholder_text = "例如: boss_new"
+	le.custom_minimum_size = Vector2(0, 24)
+	le.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	le.select_all_on_focus = true
+	id_row.add_child(le)
+
+	# 第二行：职业模板下拉列表
+	var tpl_row := HBoxContainer.new()
+	tpl_row.add_theme_constant_override("separation", 8)
+	vbox.add_child(tpl_row)
+	
+	var tpl_lb := Label.new()
+	tpl_lb.text = "模板:"
+	tpl_lb.custom_minimum_size = Vector2(60, 0)
+	tpl_lb.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	tpl_row.add_child(tpl_lb)
+
+	var opt := OptionButton.new()
+	opt.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	opt.custom_minimum_size = Vector2(0, 24)
+	opt.add_theme_font_size_override("font_size", 8)
+	tpl_row.add_child(opt)
+
+	# 填充下拉列表（基础单位 + 进阶分支）
+	for uk in _unit_keys:
+		var ud : Dictionary = _unit_db.get(uk, {})
+		if ud.is_empty(): continue
+		
+		var dn : String = ud.get("display_name", uk)
+		opt.add_item("%s (%s)" % [dn, uk])
+		opt.set_item_metadata(opt.item_count - 1, {"type": "base", "key": uk})
+		
+		# 加入它的转职分支
+		var branches : Array = ud.get("advanced_branches", [])
+		for b in branches:
+			if b is Dictionary and b.get("id", "") != "":
+				var bid : String = b.get("id")
+				var bname : String = b.get("name", bid)
+				opt.add_item("  └ %s (%s)" % [bname, bid])
+				opt.set_item_metadata(opt.item_count - 1, {"type": "branch", "base_key": uk, "branch_data": b})
+
+	var hint := Label.new()
+	hint.text = "提示：选择基础单位或转职分支后，将自动复制其属性、贴图和默认装备。"
+	hint.add_theme_font_size_override("font_size", 7)
+	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	hint.modulate = Color(0.6, 0.6, 0.6)
+	vbox.add_child(hint)
+
+	var err_label := Label.new()
+	err_label.modulate = Color(1.0, 0.5, 0.5)
+	err_label.add_theme_font_size_override("font_size", 8)
+	err_label.visible = false
+	vbox.add_child(err_label)
+
+	var btns := HBoxContainer.new()
+	btns.alignment = BoxContainer.ALIGNMENT_CENTER
+	btns.add_theme_constant_override("separation", 16)
+	vbox.add_child(btns)
+
+	var ok_btn := Button.new()
+	ok_btn.text = "确认创建"
+	ok_btn.add_theme_font_size_override("font_size", 9)
+	ok_btn.custom_minimum_size = Vector2(90, 24)
+	ok_btn.modulate = Color(0.6, 1.0, 0.6)
+	btns.add_child(ok_btn)
+
+	var cancel_btn := Button.new()
+	cancel_btn.text = "取消"
+	cancel_btn.add_theme_font_size_override("font_size", 9)
+	cancel_btn.custom_minimum_size = Vector2(90, 24)
+	cancel_btn.pressed.connect(func(): overlay.queue_free())
+	btns.add_child(cancel_btn)
+
+	le.grab_focus()
+	le.text_submitted.connect(func(_t): ok_btn.emit_signal("pressed"))
+
+	ok_btn.pressed.connect(func():
+		var new_key : String = le.text.strip_edges()
+		if new_key == "":
+			err_label.text = "❌ ID 不能为空"
+			err_label.visible = true
+			return
+		if new_key in _unit_db:
+			err_label.text = "❌ ID 已存在，请换一个"
+			err_label.visible = true
+			return
+		
+		var meta = opt.get_item_metadata(opt.selected)
+		var new_data: Dictionary = {}
+		
+		if meta != null:
+			if meta.type == "base":
+				new_data = _unit_db[meta.key].duplicate(true)
+			elif meta.type == "branch":
+				new_data = _unit_db[meta.base_key].duplicate(true)
+				var br: Dictionary = meta.branch_data
+				
+				# 叠加转职属性
+				var sb_dict: Dictionary = br.get("stat_bonus", {})
+				for k in sb_dict:
+					new_data[k] = int(new_data.get(k, 0)) + int(sb_dict[k])
+				
+				# 替换贴图
+				var sp: String = br.get("sprite_frames_path", "")
+				if sp != "": new_data["sprite_frames_path"] = sp
+				
+				# 赋予特技
+				var gt: String = br.get("granted_talent", "")
+				if gt != "": new_data["default_talents"] = [gt]
+				
+				# 覆盖标签
+				var b_tags: Array = br.get("tags", [])
+				if not b_tags.is_empty(): new_data["tags"] = b_tags.duplicate()
+				
+				# 清除原来的进阶分支，防止嵌套，并标记为已转职状态
+				new_data.erase("advanced_branches")
+				new_data["advanced_class"] = meta.branch_data.get("id", "")
+		
+		# 覆盖和重置新单位的特定字段
+		new_data["display_name"] = new_key.replace("_", " ").capitalize()
+		new_data["is_boss"] = false
+		new_data["unit_category"] = ""
+		new_data["hidden_from_roster"] = false
+		new_data["phases"] = []
+		new_data["boss_dialogue_hooks"] = {}
+		new_data["boss_mechanic_id"] = ""
+		new_data["boss_mechanic_params"] = {}
+		
+		_unit_db[new_key] = new_data
+		_unit_keys.append(new_key)
+		_unit_keys.sort()
+		
+		# 保存到文件
+		var f := FileAccess.open(UNIT_DATA_PATH, FileAccess.WRITE)
+		if f == null:
+			err_label.text = "❌ 无法写入文件"
+			err_label.visible = true
+			return
+		f.store_string(JSON.stringify(_unit_db, "  "))
+		f.close()
+		
+		UnitDataManager.reload_all()
+		
+		# 刷新并选中新建的单位
+		_refresh_unit_list()
+		_refresh_sim_unit_lists()
+		_select_edit_unit(new_key)
+		
+		overlay.queue_free()
+	)
+
+func _on_delete_unit_pressed():
+	if _current_unit_key == "":
+		return
+		
+	var check_key = _current_unit_key
+	var dn = _unit_db[check_key].get("display_name", check_key)
+	
+	Globals.show_confirm(
+		self,
+		"确定要删除单位【%s (%s)】吗？\n\n⚠ 警告：如果其他单位（如 Boss 阶段）或地图节点引用了该单位，\n将会导致引用丢失并可能在游戏中报错！" % [dn, check_key],
+		"删除", "取消",
+		func():
+			# 从字典和列表中移除
+			_unit_db.erase(check_key)
+			_unit_keys.erase(check_key)
+			
+			# 保存到文件
+			var f := FileAccess.open(UNIT_DATA_PATH, FileAccess.WRITE)
+			if f != null:
+				f.store_string(JSON.stringify(_unit_db, "  "))
+				f.close()
+				
+			UnitDataManager.reload_all()
+			
+			# 重置当前选中状态并刷新左侧列表
+			_current_unit_key = ""
+			_refresh_unit_list()
+			_refresh_sim_unit_lists()
+			_set_edit_status("已删除单位: " + check_key)
+			
+			# 如果还有其他单位，自动选中第一个；如果没有，清空右侧面板
+			if not _unit_keys.is_empty():
+				_select_edit_unit(_unit_keys[0])
+			else:
+				if _edit_right_content:
+					_clear_container(_edit_right_content)
+					var hint := Label.new()
+					hint.text = "（无单位，请新建）"
+					hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+					_edit_right_content.add_child(hint),
+		func(): pass
+	)
+
+func _clear_container(container: Node):
+	if not container: return
+	for child in container.get_children():
+		container.remove_child(child)
+		child.queue_free()
+
+
+# ============================================================
+#  自动修复逻辑
+# ============================================================
+# ============================================================
+#  自动修复逻辑
+# ============================================================
+func _on_auto_fix_pressed():
+	var fix_logs : Array = []
+	
+	# 1. 扫描单位
+	for uk in _unit_db:
+		var ud : Dictionary = _unit_db[uk]
+		if ud.is_empty(): continue
+		
+		# 默认武器
+		var dw : String = str(ud.get("default_weapon", ""))
+		if dw != "" and ItemManager.get_item_data(dw) == null:
+			fix_logs.append("单位 [%s] 的默认武器不存在 (%s)，将移除该武器" % [uk, dw])
+			ud["default_weapon"] = ""
+			
+		# 默认防具
+		var armors : Array = ud.get("default_armors", [])
+		var valid_armors : Array = []
+		var armor_removed = false
+		for aid in armors:
+			if ItemManager.get_item_data(aid) != null: 
+				valid_armors.append(aid)
+			else: 
+				armor_removed = true
+		if armor_removed:
+			ud["default_armors"] = valid_armors
+			fix_logs.append("单位 [%s] 的默认防具包含无效引用，已清理" % uk)
+			
+		# 默认特技
+		var talents : Array = ud.get("default_talents", [])
+		var valid_talents : Array = []
+		var talent_removed = false
+		for tid in talents:
+			if tid in _talent_ids: 
+				valid_talents.append(tid)
+			else: 
+				talent_removed = true
+		if talent_removed:
+			ud["default_talents"] = valid_talents
+			fix_logs.append("单位 [%s] 的默认特技包含无效引用，已清理" % uk)
+			
+		# 转职分支的特技
+		var branches : Array = ud.get("advanced_branches", [])
+		for b in branches:
+			if b is Dictionary:
+				var gt : String = str(b.get("granted_talent", ""))
+				if gt != "" and gt not in _talent_ids:
+					b["granted_talent"] = ""
+					fix_logs.append("单位 [%s] 的转职分支赋予特技不存在 (%s)，已清空" % [uk, gt])
+					
+		# Boss 阶段指向
+		var phases : Array = ud.get("phases", [])
+		for i in range(phases.size()):
+			var p : Dictionary = phases[i]
+			var fid : String = str(p.get("form_unit_id", ""))
+			if fid != "" and fid != "self" and not _unit_db.has(fid):
+				p["form_unit_id"] = ""
+				fix_logs.append("单位 [%s] 的阶段 %d 指向的变身单位不存在 (%s)，已重置为覆盖模式" % [uk, i+1, fid])
+	
+	# 2. 扫描 unit_unlock.json
+	if _unit_unlock_data.has("map_unlock_units"):
+		var mu : Array = _unit_unlock_data["map_unlock_units"]
+		var valid_mu : Array = []
+		var mu_removed = false
+		for u in mu:
+			if _unit_db.has(u): valid_mu.append(u)
+			else: mu_removed = true
+		if mu_removed:
+			_unit_unlock_data["map_unlock_units"] = valid_mu
+			fix_logs.append("地图解锁池包含无效单位，已清理")
+			
+	if _unit_unlock_data.has("map_unlock_mapping"):
+		var mapping : Dictionary = _unit_unlock_data["map_unlock_mapping"]
+		var new_mapping : Dictionary = {}
+		var map_removed = false
+		for k in mapping:
+			if not _unit_db.has(k):
+				map_removed = true
+				continue # 源单位都不存在了，直接跳过
+				
+			var targets : Array = mapping[k]
+			var valid_tg : Array = []
+			for tg in targets:
+				if _unit_db.has(tg): valid_tg.append(tg)
+				else: map_removed = true
+			
+			if not valid_tg.is_empty():
+				new_mapping[k] = valid_tg
+				
+		if map_removed:
+			_unit_unlock_data["map_unlock_mapping"] = new_mapping
+			fix_logs.append("地图解锁映射包含无效单位，已清理")
+
+	# 3. 根据结果弹窗确认
+	if fix_logs.is_empty():
+		Globals.show_confirm(self, "✓ 没有发现可以自动修复的问题。", "确定", "", func(): pass, func(): pass, false)
+		return
+		
+	var msg = "发现 %d 处可以安全修复的问题：\n\n" % fix_logs.size()
+	var show_count = mini(fix_logs.size(), 15)
+	for i in range(show_count):
+		msg += "· " + fix_logs[i] + "\n"
+	if fix_logs.size() > show_count:
+		msg += "... (还有 %d 处)\n" % (fix_logs.size() - show_count)
+	msg += "\n是否立即执行修复并保存？"
+
+	Globals.show_confirm(
+		self,
+		msg,
+		"执行修复", "取消",
+		func():
+			# 保存单位数据
+			var f1 := FileAccess.open(UNIT_DATA_PATH, FileAccess.WRITE)
+			if f1:
+				f1.store_string(JSON.stringify(_unit_db, "  "))
+				f1.close()
+			
+			# 保存解锁数据
+			var f2 := FileAccess.open(UNIT_UNLOCK_PATH, FileAccess.WRITE)
+			if f2:
+				f2.store_string(JSON.stringify(_unit_unlock_data, "  "))
+				f2.close()
+				
+			UnitDataManager.reload_all()
+			Globals._load_unlock_config()
+			_refresh_unit_list()
+			_refresh_sim_unit_lists()
+			
+			# 重新加载当前选中的单位面板
+			if _current_unit_key != "" and _unit_db.has(_current_unit_key):
+				_select_edit_unit(_current_unit_key)
+				
+			_run_validation() # 修复完自动再跑一次校验
+			_validator_status.text = "✓ 自动修复完成"
+			_validator_status.modulate = Color(0.6, 1.0, 0.6),
+		func(): pass
+	)

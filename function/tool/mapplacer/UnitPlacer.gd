@@ -167,20 +167,19 @@ func _validate_property(property : Dictionary) -> void:
 	var hide_it : bool = false
 
 	match property.name:
+		"avatar_id", "avatar_preview_display":
+			hide_it = true
 		"spawn_index":
 			if placement_mode != PlacementMode.SPAWN_POINT: hide_it = true
 		"pool_key", "enemy_pool", "edit_pool_btn":
 			if placement_mode != PlacementMode.RANDOM_POOL: hide_it = true
-
-		"unit_name", "advanced_class_id", "immobile", "is_boss", "avatar_id":
+		"unit_name", "advanced_class_id", "immobile", "is_boss":
 			if placement_mode == PlacementMode.RANDOM_POOL \
 					or placement_mode == PlacementMode.SPAWN_POINT:
 				hide_it = true
-
-		"avatar_id", "avatar_preview_display", "is_boss", "immobile":
+		"is_boss", "immobile":
 			if team == Team.玩家:
 				hide_it = true
-
 		"wave_idx":
 			if placement_mode == PlacementMode.SPAWN_POINT:
 				hide_it = true
@@ -202,20 +201,38 @@ func _validate_property(property : Dictionary) -> void:
 			"archer": "弓兵", "pegasus": "飞马", "mage": "法师",
 			"cleric": "修女", "dragonborn": "龙人", "armored": "重甲兵"
 		}
-		for k in UnitDataManager.get_all_unit_ids():
-			var ud: Dictionary = UnitDataManager.get_unit_data(k)
+		
+		# ★ 强制重读最新 JSON，绕过引擎缓存
+		if Engine.is_editor_hint() and FileAccess.file_exists(UNIT_DATA_PATH):
+			var f = FileAccess.open(UNIT_DATA_PATH, FileAccess.READ)
+			if f:
+				var data = JSON.parse_string(f.get_as_text())
+				f.close()
+				if data is Dictionary:
+					_editor_unit_db = data
+					
+		var source_dict = _editor_unit_db if Engine.is_editor_hint() else UnitDataManager.get_all_unit_data()
+		
+		for k in source_dict.keys():
+			var ud: Dictionary = source_dict.get(k, {})
 			if bool(ud.get("hidden_from_roster", false)):
 				continue
-			var cn: String = UnitDataManager.get_unit_type_display_name(k)
+			
+			# ★ 优先使用 json 里的 display_name (解决Boss名不显示)
+			var cn: String = str(ud.get("display_name", ""))
+			if cn == "":
+				cn = UnitDataManager.get_unit_type_display_name(k)
 			if cn == "" or cn == k:
 				cn = fallback_names.get(k, k)
+				
 			items.append("%s:%s" % [k, cn])
+			
 		property.hint = PROPERTY_HINT_ENUM
 		property.hint_string = ",".join(items)
 
 	if property.name == "advanced_class_id":
 		var items : PackedStringArray = ["（无）"]
-		var clean_unit = _clean_id(unit_name) # ★ 清理脏数据
+		var clean_unit = _clean_id(unit_name)
 		var branches : Array = _get_branches_for_unit(clean_unit)
 		for b in branches:
 			if b is Dictionary:
@@ -226,30 +243,16 @@ func _validate_property(property : Dictionary) -> void:
 		property.hint = PROPERTY_HINT_ENUM
 		property.hint_string = ",".join(items)
 
-	if property.name == "avatar_id":
-		_ensure_avatar_file_cache()
-		var items : PackedStringArray = ["（无）"]
-		for f in _avatar_file_cache:
-			items.append(f)
-		property.hint = PROPERTY_HINT_ENUM
-		property.hint_string = ",".join(items)
-
 
 func _get_branches_for_unit(unit_key : String) -> Array:
 	var clean_key = _clean_id(unit_key)
-	var ud : Dictionary = UnitDataManager.get_unit_data(clean_key)
+	var ud : Dictionary = {}
 	
-	if ud.is_empty():
-		# 编辑器下直接读 JSON 兜底
-		if _editor_unit_db.is_empty():
-			if FileAccess.file_exists(UNIT_DATA_PATH):
-				var f = FileAccess.open(UNIT_DATA_PATH, FileAccess.READ)
-				if f:
-					var data = JSON.parse_string(f.get_as_text())
-					f.close()
-					if data is Dictionary:
-						_editor_unit_db = data
+	# ★ 编辑器下优先从刚加载的 _editor_unit_db 取
+	if Engine.is_editor_hint():
 		ud = _editor_unit_db.get(clean_key, {})
+	else:
+		ud = UnitDataManager.get_unit_data(clean_key)
 
 	if ud.is_empty(): return []
 	var raw : Variant = ud.get("advanced_branches", [])
@@ -260,7 +263,6 @@ func _get_branches_for_unit(unit_key : String) -> Array:
 		if b is Dictionary:
 			result.append(b)
 	return result
-
 
 # ============================================================
 #  生命周期 / 预览 / 警告
@@ -419,7 +421,13 @@ func _build_unit_preview():
 	var clean_unit = _clean_id(unit_name)
 	var clean_adv = _clean_id(advanced_class_id)
 	
-	var data = UnitDataManager.get_unit_data(clean_unit)
+	# ★ 编辑器下强制读取本地缓存的 JSON 数据
+	var data : Dictionary = {}
+	if Engine.is_editor_hint():
+		data = _editor_unit_db.get(clean_unit, {})
+	else:
+		data = UnitDataManager.get_unit_data(clean_unit)
+		
 	var frames_path : String = data.get("sprite_frames_path", "")
 	var adv_hp_bonus : int = 0
 	
@@ -445,7 +453,8 @@ func _build_unit_preview():
 				anim_sprite.visible = true
 				anim_sprite.z_index = 1
 				loaded_ok = true
-		if not loaded_ok: anim_sprite.visible = false
+		if not loaded_ok: 
+			anim_sprite.visible = false
 
 		var team_id = 0 if team == Team.玩家 else 1
 		_apply_shader_to_sprite(anim_sprite, team_id)
@@ -597,5 +606,8 @@ func export_config() -> Variant:
 	cfg.unit_name = _clean_id(unit_name)
 	cfg.override_stats = {}
 	cfg.advanced_class_id = _clean_id(advanced_class_id)
-	cfg.avatar_override = avatar_id
+	
+	# ★ 彻底废弃 UnitPlacer 的头像覆盖，交由 unit_data.json 的 avatar 统一管理
+	cfg.avatar_override = ""
+	
 	return cfg

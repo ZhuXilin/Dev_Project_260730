@@ -91,7 +91,6 @@ func _relayout() -> void:
 		var start_x : float = (w - row_w) * 0.5
 		var y : float = action_top + row * (NODE_H + NODE_GAP_Y)
 		for j in range(count_in_row):
-			var idx : int = from_idx + j
 			var rx : float = start_x + j * (NODE_W + NODE_GAP_X)
 			_action_rects.append(Rect2(rx, y, NODE_W, NODE_H))
 
@@ -115,7 +114,6 @@ func _draw() -> void:
 		_relayout()
 
 	var actions : Array = ev.get("actions", [])
-	var font : Font = ThemeDB.fallback_font
 
 	# ---- 连线 ----
 	var event_bottom := _event_rect.position + Vector2(_event_rect.size.x * 0.5, _event_rect.size.y)

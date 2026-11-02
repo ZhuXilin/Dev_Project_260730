@@ -59,7 +59,7 @@ func _apply_phase(unit: Unit, phase_idx: int) -> void:
 			if new_stats.display_name == "":
 				new_stats.display_name = unit.unit_stats.display_name
 
-			# ★ 核心修复 3：强制继承地图配置的 Boss 头像
+			# ★ 核心修复 3：强制继承地图配置的 Boss 头像 (虽然现在统一由json管理，但保留此逻辑以防万一)
 			if unit.unit_stats.avatar_override != "":
 				new_stats.avatar_override = unit.unit_stats.avatar_override
 
@@ -128,6 +128,12 @@ func _apply_phase(unit: Unit, phase_idx: int) -> void:
 			}
 			if StoryManager.trigger("boss_phase", ctx):
 				await DialogueManager.dialogue_finished
+
+	# ★ 新增：对话结束后，强制刷新血条和左侧面板
+	if is_instance_valid(unit):
+		unit.update_hp_label()
+		# 强制派发信号，打破左侧面板的缓存机制，确保显示最新形态数据
+		SignalBus.request_show_info.emit(unit)
 
 
 func _apply_override_dict(stats: UnitData, ov: Dictionary) -> void:
