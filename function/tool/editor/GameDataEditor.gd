@@ -142,7 +142,6 @@ var _edit_boss_phases_box : VBoxContainer = null
 var _edit_boss_phase_cards : Array = []
 
 # ---- 新增：头像 / SpriteFrames / 战斗属性 ----
-var _edit_avatar_preview : TextureRect = null
 var _edit_sprite_frames_path : LineEdit = null
 var _edit_sprite_frames_preview : TextureRect = null
 var _edit_phys_reduction_spin : SpinBox = null
@@ -549,18 +548,6 @@ func _build_edit_tab(parent : Control) -> Control:
 	_edit_faction_edit = _add_edit_row(content, "阵营")
 
 	_edit_avatar_opt = _add_avatar_option_row(content, "头像")
-	_edit_avatar_opt.item_selected.connect(_on_avatar_selected)
-
-	var av_prev_row := HBoxContainer.new()
-	av_prev_row.add_theme_constant_override("separation", 3)
-	content.add_child(av_prev_row)
-	av_prev_row.add_child(_lbl("头像预览", 40))
-	_edit_avatar_preview = TextureRect.new()
-	_edit_avatar_preview.custom_minimum_size = Vector2(32, 32)
-	_edit_avatar_preview.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	_edit_avatar_preview.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	_edit_avatar_preview.modulate = Color(0.5, 0.5, 0.5, 1)
-	av_prev_row.add_child(_edit_avatar_preview)
 
 	content.add_child(_section("— Boss / 分类元字段 —"))
 
@@ -1519,7 +1506,6 @@ func _select_edit_unit(key : String):
 	if _edit_avatar_opt:
 		var cur_avatar : String = str(d.get("avatar", ""))
 		_select_option_by_meta(_edit_avatar_opt, cur_avatar)
-		_update_avatar_preview(cur_avatar)
 
 	for a in EDITABLE_ATTRS:
 		_edit_attr_spins[a["key"]].value = d.get(a["key"], 0)
@@ -3214,11 +3200,17 @@ func _on_rename_unit_pressed():
 	le.select_all_on_focus = true
 	vbox.add_child(le)
 
+	var report_scroll := ScrollContainer.new()
+	report_scroll.custom_minimum_size = Vector2(400, 180)
+	report_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	vbox.add_child(report_scroll)
+
 	var report := RichTextLabel.new()
 	report.bbcode_enabled = true
-	report.custom_minimum_size = Vector2(400, 220)
+	report.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	report.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	report.add_theme_font_size_override("normal_font_size", 8)
-	vbox.add_child(report)
+	report_scroll.add_child(report)
 
 	var refresh_report := func(new_id : String):
 		report.clear()
@@ -3264,7 +3256,7 @@ func _on_rename_unit_pressed():
 	dialog.popup_centered(Vector2(460, 380))
 
 
-func _collect_unit_references(old_id : String, new_id : String = "") -> Dictionary:
+func _collect_unit_references(old_id : String) -> Dictionary:
 	var result : Dictionary = {
 		"phases": [], "branches": [], "unlock": [],
 		"maps": [], "events": [], "total": 0
@@ -3458,6 +3450,11 @@ func _add_avatar_option_row(parent : Node, label : String) -> OptionButton:
 	var opt := OptionButton.new()
 	opt.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	opt.add_theme_font_size_override("font_size", FS_BUTTON)
+	# 让按钮上显示的头像图标为 32×32（与原来的预览尺寸一致）
+	opt.add_theme_constant_override("icon_max_width", 32)
+	var popup := opt.get_popup()
+	if popup:
+		popup.add_theme_constant_override("icon_max_width", 32)
 	opt.add_item("（无）", 0)
 	opt.set_item_metadata(0, "")
 
@@ -3472,29 +3469,6 @@ func _add_avatar_option_row(parent : Node, label : String) -> OptionButton:
 
 	row.add_child(opt)
 	return opt
-
-
-func _on_avatar_selected(idx : int):
-	if _edit_avatar_opt == null: return
-	var aid = _edit_avatar_opt.get_item_metadata(idx)
-	_update_avatar_preview(str(aid) if aid != null else "")
-
-
-func _update_avatar_preview(aid : String):
-	if _edit_avatar_preview == null or not is_instance_valid(_edit_avatar_preview):
-		return
-	if aid == "":
-		_edit_avatar_preview.texture = null
-		_edit_avatar_preview.modulate = Color(0.4, 0.4, 0.4, 1)
-		return
-	var tex := IconManager.get_icon_or_null(aid)
-	if tex:
-		_edit_avatar_preview.texture = tex
-		_edit_avatar_preview.modulate = Color.WHITE
-	else:
-		_edit_avatar_preview.texture = null
-		_edit_avatar_preview.modulate = Color(1.0, 0.4, 0.4, 1)
-
 
 func _add_sprite_frames_path_row(parent : Node, label : String) -> Dictionary:
 	var row := HBoxContainer.new()
