@@ -173,12 +173,7 @@ func _apply_save_data(save: SaveData):
 	Globals.music_volume = save.music_volume
 	Globals.sound_volume = save.sound_volume
 	Globals.set_game_speed(save.game_speed)
-	if save.window_mode == 1:
-		DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_FULLSCREEN)
-	else:
-		DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED)
-		DisplayServer.window_set_size(save.window_size)
-
+	
 	GameState.current_day = save.current_day
 	LevelManager.current_day = save.current_day - 1
 	GameState.main_unit_name = save.main_unit_name

@@ -6,7 +6,9 @@ var info_mode : InfoMode = InfoMode.GAMEPLAY
 
 const BASE_WIDTH : int = 400
 const BASE_HEIGHT : int = 240
-const DEFAULT_SCALE : int = 2
+const DEFAULT_SCALE : int = 4 # ★ 修改为 4 倍
+
+const DISPLAY_CONFIG_PATH : String = "user://display.cfg" # ★ 窗口配置独立保存
 
 const TARGET_COLOR_1 = Color(0.1216, 0.2196, 0.9373)
 const TARGET_COLOR_2 = Color(1.0, 0.7490, 0.6863)
@@ -61,7 +63,7 @@ var current_map_day: int = -1
 
 
 func _ready():
-	_set_default_window()
+	_load_display_settings() # ★ 启动时加载窗口设置，替代原来的强制设置
 	_apply_game_speed()
 	_load_unlock_config()
 	_load_item_unlock_config()
@@ -69,14 +71,38 @@ func _ready():
 
 
 # ============================================================
-#  窗口 / 速度
+#  窗口尺寸读取与保存
 # ============================================================
-func _set_default_window():
-	var current_mode = DisplayServer.window_get_mode()
-	if current_mode == DisplayServer.WINDOW_MODE_FULLSCREEN:
-		return
-	DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED)
-	DisplayServer.window_set_size(Vector2i(BASE_WIDTH * DEFAULT_SCALE, BASE_HEIGHT * DEFAULT_SCALE))
+func _notification(what):
+	# 监听窗口大小改变，如果是普通窗口模式，则实时保存
+	if what == NOTIFICATION_WM_SIZE_CHANGED:
+		if DisplayServer.window_get_mode() == DisplayServer.WINDOW_MODE_WINDOWED:
+			save_display_settings()
+
+func save_display_settings():
+	var config = ConfigFile.new()
+	config.set_value("display", "window_width", DisplayServer.window_get_size().x)
+	config.set_value("display", "window_height", DisplayServer.window_get_size().y)
+	config.save(DISPLAY_CONFIG_PATH)
+	print("窗口尺寸已保存: ", DisplayServer.window_get_size())
+
+func _load_display_settings():
+	var config = ConfigFile.new()
+	var err = config.load(DISPLAY_CONFIG_PATH)
+	
+	var default_w = BASE_WIDTH * DEFAULT_SCALE
+	var default_h = BASE_HEIGHT * DEFAULT_SCALE
+	
+	if err == OK:
+		var w = config.get_value("display", "window_width", default_w)
+		var h = config.get_value("display", "window_height", default_h)
+		# 防止玩家缩得比基础分辨率还小导致 UI 挤爆
+		w = maxi(w, BASE_WIDTH)
+		h = maxi(h, BASE_HEIGHT)
+		DisplayServer.window_set_size(Vector2i(w, h))
+	else:
+		# 首次运行，应用默认 4 倍尺寸
+		DisplayServer.window_set_size(Vector2i(default_w, default_h))
 
 
 func _input(event: InputEvent):
@@ -254,7 +280,6 @@ func get_eligible_units() -> Array:
 #  地图解锁单位 → 可唤醒单位映射
 # ============================================================
 
-## 地图编辑器可选的地图解锁单位池（只有这些单位能配到节点 unlock_units）
 func get_map_unlock_units() -> Array:
 	var raw : Array = unlock_config.get("map_unlock_units", [])
 	var result : Array = []
@@ -272,7 +297,6 @@ func is_map_unlock_unit(unit_name: String) -> bool:
 	return key in get_map_unlock_units()
 
 
-## 返回 { 地图解锁单位 key : [可唤醒单位 key, ...] }
 func get_map_unlock_mapping() -> Dictionary:
 	var raw : Variant = unlock_config.get("map_unlock_mapping", {})
 	if not (raw is Dictionary):
@@ -295,7 +319,6 @@ func get_map_unlock_mapping() -> Dictionary:
 	return result
 
 
-## 守火者「初始候选」——不依赖地图即可见的可唤醒单位
 func get_initial_candidates() -> Array:
 	var raw : Variant = unlock_config.get("initial_candidates", [])
 	var result : Array = []
@@ -309,10 +332,6 @@ func get_initial_candidates() -> Array:
 	return result
 
 
-## 把「地图解锁单位」列表解析成「实际要加入 eligible_units 的可用单位」列表
-## 规则：
-##   - 若 mapping 有 X → 返回 mapping[X]
-##   - 否则默认返回 [X]（即 X 自己）
 func resolve_map_unlock_units(map_unlock_ids: Array) -> Array:
 	var mapping : Dictionary = get_map_unlock_mapping()
 	var result : Array = []
@@ -322,7 +341,6 @@ func resolve_map_unlock_units(map_unlock_ids: Array) -> Array:
 		var key : String = UnitDataManager.normalize_unit_key(raw)
 		var to_unlock : Array = []
 		
-		# ★ 修复：如果有配映射，且映射非空，取映射；否则默认取自己
 		if mapping.has(key) and not mapping[key].is_empty():
 			for u in mapping[key]:
 				to_unlock.append(u)
@@ -378,7 +396,7 @@ func get_unlocked_items() -> Array:
 
 
 # ============================================================
-#  特技解锁（从 TalentManager 读取 default，按 tutorial_stage 过滤）
+#  特技解锁
 # ============================================================
 func _load_talent_unlock_config():
 	unlocked_talents.clear()
@@ -437,26 +455,22 @@ func is_talent_story_locked(talent_id: String) -> bool:
 	return data.unlock_type == "story"
 
 
-## 重新计算 default 词条解锁（保留魂解锁 / 剧情 / GM 解锁的）
 func reload_talent_unlock():
 	var stage : int = GameState.tutorial_stage
 	var default_talents : Array = TalentManager.get_default_unlocked_talents()
 
-	# 1. 保留非 default 的解锁
 	var preserved : Array = []
 	for tid in unlocked_talents:
 		var data = TalentManager.get_talent_data(tid)
 		if data and data.unlock_type != "default":
 			preserved.append(tid)
 
-	# 2. 重建 default
 	unlocked_talents.clear()
 	for tid in default_talents:
 		var data = TalentManager.get_talent_data(tid)
 		if data and data.tutorial_stage <= stage:
 			unlocked_talents.append(tid)
 
-	# 3. 恢复非 default
 	for tid in preserved:
 		if tid not in unlocked_talents:
 			unlocked_talents.append(tid)

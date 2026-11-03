@@ -139,7 +139,14 @@ func refresh_team_view() -> void:
 				if not _unit_icon_cache.has(cache_key):
 					var image = icon_texture.get_image()
 					image.resize(16, 16, Image.INTERPOLATE_NEAREST)
-					_unit_icon_cache[cache_key] = ImageTexture.create_from_image(image)
+					
+					# ★ 创建一个透明画布，将原图向下平移 2 像素
+					# 这样在按钮内垂直居中时，人物视觉上就会微微上移
+					var final_img = Image.create(16, 16, false, Image.FORMAT_RGBA8)
+					final_img.fill(Color(0, 0, 0, 0))
+					final_img.blit_rect(image, Rect2i(0, 0, 16, 16), Vector2i(0, -3))
+					
+					_unit_icon_cache[cache_key] = ImageTexture.create_from_image(final_img)
 				btn.icon = _unit_icon_cache[cache_key]
 				btn.add_theme_constant_override("hseparation", 4)
 
@@ -160,6 +167,7 @@ func refresh_team_view() -> void:
 			if talent_line != "":
 				btn.text += "  [ " + talent_line + " ]"
 			btn.add_theme_font_size_override("font_size", 6)
+			btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
 			if color != Color.WHITE:
 				btn.add_theme_color_override("font_color", color)
 			btn.pressed.connect(on_team_member_selected.bind(unit))

@@ -538,6 +538,9 @@ func _update_visibility():
 func _open_pool_editor():
 	if not Engine.is_editor_hint():
 		return
+	# 确保 EditorInterface 单例可用（安全防范）
+	if not Engine.has_singleton("EditorInterface"):
+		return
 
 	var script_path : String = "res://function/tool/mapplacer/UnitPoolEditor.gd"
 	if not ResourceLoader.exists(script_path):
@@ -569,7 +572,12 @@ func _open_pool_editor():
 			call_deferred("_build_preview")
 	)
 
-	EditorInterface.get_base_control().add_child(editor)
+	# 必须用动态获取单例的方式，避免包体内编译报错
+	var ei = Engine.get_singleton("EditorInterface")
+	if ei:
+		ei.get_base_control().add_child(editor)
+	else:
+		editor.queue_free()
 
 
 # ============================================================

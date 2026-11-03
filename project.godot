@@ -61,7 +61,13 @@ ItemBattlefieldManager="*uid://bqepos6k3ngk7"
 
 window/size/viewport_width=400
 window/size/viewport_height=240
+window/size/window_width_override=1600
+window/size/window_height_override=960
 window/stretch/mode="canvas_items"
+
+[gui]
+
+theme/custom_font="uid://d3ka60uto3wcg"
 
 [rendering]
 

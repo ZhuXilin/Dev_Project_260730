@@ -109,3 +109,4 @@ func _apply_window_size(index: int):
 		var width = BASE_WIDTH * multiplier
 		var height = BASE_HEIGHT * multiplier
 		DisplayServer.window_set_size(Vector2i(width, height))
+	Globals.save_display_settings()
