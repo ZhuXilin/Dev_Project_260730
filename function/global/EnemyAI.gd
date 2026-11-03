@@ -48,8 +48,9 @@ func _terrain_score(cell: Vector2i) -> int:
 	var td : Dictionary = TerrainManager.TERRAIN_DATA.get(t, {})
 	var phys : float = float(td.get("physical_reduction", 0.0))
 	var mag : float = float(td.get("magic_reduction", 0.0))
-	var effective : float = minf(phys + mag, 0.10)
-	return int(effective * 100.0)
+	# 去掉了原先的限制，将减伤比例放大到 300 倍。
+	# 这样树林加 30 分，建筑加 (25% + 15%)*300 = 120 分，非常可观
+	return int((phys + mag) * 300.0)
 
 
 # ============================================================
@@ -504,16 +505,20 @@ func _evaluate_move(unit: Unit):
 		if is_ranged:
 			var can_attack := _can_attack_from_cell(unit, cell)
 			if can_attack:
+				# 能攻击到，加分
 				score = 100 + int(terrain_score / 2.0)
 				var nd := _nearest_enemy_dist(unit, cell)
 				if nd < 999:
-					score += nd * 15
+					# 【核心修改】：距离越远，评分越高（鼓励在极限射程输出）
+					score += nd * 25 
 			else:
-				score = -40 + int(terrain_score / 2.0)
+				# 攻击不到，且靠近前线的惩罚加重
+				score = -80 + int(terrain_score / 2.0) 
 
 			var ally_dist := _nearest_ally_dist(unit, cell)
 			if ally_dist < 999:
-				score += maxi(-5, 8 - ally_dist * 2)
+				# 如果离友军太远，有被切后排的风险
+				score += maxi(-15, 10 - ally_dist * 3) 
 		else:
 			score = terrain_score
 
@@ -523,11 +528,18 @@ func _evaluate_move(unit: Unit):
 					var d = abs(cell.x - p.grid_cell.x) + abs(cell.y - p.grid_cell.y)
 					if d < dist_to_enemy:
 						dist_to_enemy = d
-			score += int((10 - dist_to_enemy) * 0.5)
+			
+			# 倾向保持 2-3 格的安全距离，避免第一回合无意义互换血量
+			if dist_to_enemy <= 1:
+				score += 20
+			elif dist_to_enemy <= 3:
+				score += 50 
+			else:
+				score += int((10 - dist_to_enemy) * 1.0)
 
 			var ally_dist := _nearest_ally_dist(unit, cell)
 			if ally_dist < 999:
-				# 大幅增加向友军靠拢的倾向，防止落单
+				# 【核心修改】：鼓励抱团，离友军越近分越高
 				score += maxi(0, 10 - ally_dist) * 10 
 
 			var enemies_around = 0
@@ -539,9 +551,10 @@ func _evaluate_move(unit: Unit):
 						allies_around += 1
 					else:
 						enemies_around += 1
+			
 			if enemies_around > allies_around:
-				# 增加被围攻的惩罚，防止单一冲锋
-				score -= 25 * (enemies_around - allies_around)
+				# 【核心修改】：如果走到这个位置会被敌人多打少，往死里扣分
+				score -= 40 * (enemies_around - allies_around)
 
 			if _can_attack_from_cell(unit, cell):
 				score += 50

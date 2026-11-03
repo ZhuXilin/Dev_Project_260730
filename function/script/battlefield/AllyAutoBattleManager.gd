@@ -239,11 +239,13 @@ func _try_ai_emergency_heal(unit: Unit) -> bool:
 			lowest_ratio = ratio
 			best_target = u
 			
-	if best_target == null or lowest_ratio >= 0.5:
+	# 只要有人掉血到 60% 以下，就可以考虑急救
+	if best_target == null or lowest_ratio >= 0.6:
 		return false
 		
 	var dist = abs(unit.grid_cell.x - best_target.grid_cell.x) + abs(unit.grid_cell.y - best_target.grid_cell.y)
 	
+	# 【核心修改】如果自己是纯正的奶妈，且目标在技能射程内，让 AI 正常治疗即可，不要乱花魂火
 	if unit.get_weapon_type() == "staff":
 		var weapon = unit.get_weapon_data()
 		if weapon and dist >= weapon.min_attack_range and dist <= weapon.attack_range:
