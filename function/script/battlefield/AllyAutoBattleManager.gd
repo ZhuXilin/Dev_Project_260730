@@ -32,16 +32,20 @@ func _ready():
 # ============================================================
 func set_enabled(v: bool) -> void:
 	if v:
-		if TurnManager.current_turn_team != TurnManager.Team.PLAYER:
-			SignalBus.request_hint_override.emit("我方回合可开启自动战斗", 1.5)
-			return
 		if TurnManager.is_game_over:
 			return
 		Globals.is_auto_battle = true
-		if not _running:
-			_start_player_turn_auto()
+		if TurnManager.current_turn_team == TurnManager.Team.PLAYER:
+			if not _running:
+				_start_player_turn_auto()
+		else:
+			SignalBus.request_hint_override.emit("自动战斗已开启，下回合生效", 1.5)
 	else:
 		Globals.is_auto_battle = false
+		if _running:
+			_run_serial += 1
+			_running = false
+		SignalBus.request_hint_override.emit("自动战斗 关闭", 1.5)
 
 
 func cancel() -> void:

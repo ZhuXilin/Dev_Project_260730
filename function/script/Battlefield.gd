@@ -1967,15 +1967,4 @@ func _toggle_auto_battle():
 	if _auto_battle_manager == null:
 		return
 	var next_on : bool = not Globals.is_auto_battle
-	if next_on:
-		# 非玩家回合不允许开启
-		if TurnManager.current_turn_team != TurnManager.Team.PLAYER:
-			SignalBus.request_hint_override.emit("我方回合可开启自动战斗", 1.5)
-			return
-		if TurnManager.is_game_over:
-			return
-		_auto_battle_manager.set_enabled(true)
-		SignalBus.request_hint_override.emit("自动战斗 开启", 1.5)
-	else:
-		_auto_battle_manager.set_enabled(false)
-		SignalBus.request_hint_override.emit("自动战斗 关闭", 1.5)
+	_auto_battle_manager.set_enabled(next_on)

@@ -320,10 +320,13 @@ func _evaluate_attack(unit: Unit, allow_healer: bool = false):
 			score += 150
 
 		var target_hp_ratio = float(enemy.hit_points) / float(max(1, enemy.unit_stats.max_hp))
+		var hp_loss = enemy.unit_stats.max_hp - enemy.hit_points
+		# 增加“被扣血多”和“残血”的权重，使得 AI 更倾向集火弱势单位
+		score += int(hp_loss * 1.5) 
 		if target_hp_ratio < 0.3:
-			score += 70
+			score += 100
 		elif target_hp_ratio < 0.5:
-			score += 35
+			score += 50
 
 		var enemy_wt = enemy.get_weapon_type()
 		if enemy_wt == "staff":
@@ -524,7 +527,8 @@ func _evaluate_move(unit: Unit):
 
 			var ally_dist := _nearest_ally_dist(unit, cell)
 			if ally_dist < 999:
-				score += int((4 - ally_dist) * 3)
+				# 大幅增加向友军靠拢的倾向，防止落单
+				score += maxi(0, 10 - ally_dist) * 10 
 
 			var enemies_around = 0
 			var allies_around = 0
@@ -536,7 +540,8 @@ func _evaluate_move(unit: Unit):
 					else:
 						enemies_around += 1
 			if enemies_around > allies_around:
-				score -= 10 * (enemies_around - allies_around)
+				# 增加被围攻的惩罚，防止单一冲锋
+				score -= 25 * (enemies_around - allies_around)
 
 			if _can_attack_from_cell(unit, cell):
 				score += 50

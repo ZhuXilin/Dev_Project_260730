@@ -3201,7 +3201,7 @@ func _on_rename_unit_pressed():
 	vbox.add_child(le)
 
 	var report_scroll := ScrollContainer.new()
-	report_scroll.custom_minimum_size = Vector2(400, 180)
+	report_scroll.custom_minimum_size = Vector2(280, 100)
 	report_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	vbox.add_child(report_scroll)
 
@@ -3253,7 +3253,7 @@ func _on_rename_unit_pressed():
 		dialog.queue_free()
 	)
 	dialog.canceled.connect(func(): dialog.queue_free())
-	dialog.popup_centered(Vector2(460, 380))
+	dialog.popup_centered(Vector2(320, 200))
 
 
 func _collect_unit_references(old_id : String) -> Dictionary:
@@ -3603,13 +3603,14 @@ func _on_new_sprite_frames_template(le : LineEdit):
 	vbox.add_child(_lbl("文件名（不含目录）:", 8))
 	var name_edit := LineEdit.new()
 	name_edit.text = default_name
-	name_edit.custom_minimum_size = Vector2(260, 24)
+	name_edit.custom_minimum_size = Vector2(240, 24)
 	vbox.add_child(name_edit)
 
 	var hint := Label.new()
 	hint.text = "将创建空白 SpriteFrames，含 idle / down / up / side 四个动画（0 帧）。\n保存到 res://content/images/characters/ 后，请到 Godot 编辑器里打开并拖入图集帧。"
 	hint.add_theme_font_size_override("font_size", 7)
 	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	hint.custom_minimum_size = Vector2(240, 40)
 	vbox.add_child(hint)
 
 	add_child(dialog)
@@ -3633,7 +3634,7 @@ func _on_new_sprite_frames_template(le : LineEdit):
 		dialog.queue_free()
 	)
 	dialog.canceled.connect(func(): dialog.queue_free())
-	dialog.popup_centered(Vector2(340, 200))
+	dialog.popup_centered(Vector2(280, 160))
 
 
 func _create_blank_sprite_frames(full_path : String) -> int:
