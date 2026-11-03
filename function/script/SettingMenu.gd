@@ -40,6 +40,7 @@ func _ready():
 	if current_mode == DisplayServer.WINDOW_MODE_FULLSCREEN:
 		screen_size_option.selected = 5
 	else:
+		# ★ 只进行尺寸匹配，如果玩家是手动拖拽的任意尺寸，不再强行改回默认大小！
 		var current_size = DisplayServer.window_get_size()
 		var found = false
 		for i in range(5):
@@ -49,17 +50,20 @@ func _ready():
 				found = true
 				break
 		if not found:
-			var default_scale = Globals.DEFAULT_SCALE
-			screen_size_option.selected = default_scale - 1
-			_apply_window_size(default_scale - 1)
+			# 如果不是标准的倍数，默认选中 4 倍（仅 UI 显示，不改变实际窗口）
+			screen_size_option.selected = Globals.DEFAULT_SCALE - 1
 
-	# ---- 信号 ----
-	music_volume_slider.value_changed.connect(_on_music_volume_changed)
-	sound_volume_slider.value_changed.connect(_on_sound_volume_changed)
-	speed_slider.value_changed.connect(_on_speed_changed)
-	screen_size_option.item_selected.connect(_on_screen_size_selected)
-
-	SignalBus.speed_changed.connect(_on_speed_changed_from_global)
+	# ---- 信号连接 ----
+	if not music_volume_slider.value_changed.is_connected(_on_music_volume_changed):
+		music_volume_slider.value_changed.connect(_on_music_volume_changed)
+	if not sound_volume_slider.value_changed.is_connected(_on_sound_volume_changed):
+		sound_volume_slider.value_changed.connect(_on_sound_volume_changed)
+	if not speed_slider.value_changed.is_connected(_on_speed_changed):
+		speed_slider.value_changed.connect(_on_speed_changed)
+	if not screen_size_option.item_selected.is_connected(_on_screen_size_selected):
+		screen_size_option.item_selected.connect(_on_screen_size_selected)
+	if not SignalBus.speed_changed.is_connected(_on_speed_changed_from_global):
+		SignalBus.speed_changed.connect(_on_speed_changed_from_global)
 
 	visible = false
 
@@ -109,4 +113,7 @@ func _apply_window_size(index: int):
 		var width = BASE_WIDTH * multiplier
 		var height = BASE_HEIGHT * multiplier
 		DisplayServer.window_set_size(Vector2i(width, height))
+	
+	# ★ 核心：玩家手动修改完尺寸后，立刻保存到本地配置文件
+	# 这样切场景、退出游戏再进，都会维持这个设置
 	Globals.save_display_settings()

@@ -50,12 +50,10 @@ func handle_turn_change_async(team : int) -> void:
 	var target_pos = null
 	if team == TurnManager.Team.PLAYER:
 		var last_unit = TurnManager.get_last_player_unit()
-		if is_instance_valid(last_unit):
-			target_pos = _bf.grid_to_world(last_unit.grid_cell)
+		if is_instance_valid(last_unit): target_pos = _bf.grid_to_world(last_unit.grid_cell)
 	else:
 		var first_enemy = TurnManager.get_first_enemy_unit()
-		if is_instance_valid(first_enemy):
-			target_pos = _bf.grid_to_world(first_enemy.grid_cell)
+		if is_instance_valid(first_enemy): target_pos = _bf.grid_to_world(first_enemy.grid_cell)
 
 	if target_pos:
 		_bf.camera_controller.smooth_move_to(target_pos, _bf.turnlayer_manager.transition_duration, true)
@@ -80,21 +78,42 @@ func handle_turn_change_async(team : int) -> void:
 			else: MusicManager.play_enemy_turn_music()
 	else:
 		var music_stream = null
-		if MusicManager.config and MusicManager.config.non_combat_music:
-			music_stream = MusicManager.config.non_combat_music
-		elif MusicManager.config and MusicManager.config.map_music:
-			music_stream = MusicManager.config.map_music
+		if MusicManager.config and MusicManager.config.non_combat_music: music_stream = MusicManager.config.non_combat_music
+		elif MusicManager.config and MusicManager.config.map_music: music_stream = MusicManager.config.map_music
 		if music_stream:
 			var player = MusicManager.player
-			if not player.playing or player.stream != music_stream:
-				MusicManager.play_music(music_stream)
+			if not player.playing or player.stream != music_stream: MusicManager.play_music(music_stream)
 
 	await _bf._function_handler.apply_map_functions(team)
 	_bf._panel_manager.update_relic_icons()
 	Globals.is_transitioning = false
 	_turn_changed_locked = false
 
+	# ★ 核心修复：开局或对话结束后，处理光标传送与解锁
+	if team == TurnManager.Team.PLAYER and not _bf.is_non_combat_mode:
+		_bf._cursor_controller.set_locked(false)
+		
+		if _bf.is_first_turn:
+			_bf.is_first_turn = false
+			var first_unit : Unit = null
+			# 寻找我方第一个存活的单位
+			for u in UnitManager.unit_list:
+				if is_instance_valid(u) and u.unit_stats.team_id == 0 and u.hit_points > 0:
+					first_unit = u
+					break
+			
+			if first_unit != null:
+				# 强制将鼠标瞬移到我方单位上
+				var world_pos = _bf.grid_to_world(first_unit.grid_cell)
+				var screen_pos = _bf.get_viewport().get_canvas_transform() * world_pos
+				_bf.get_viewport().warp_mouse(screen_pos)
+				
+				# 主动触发面板显示
+				SignalBus.request_show_info.emit(first_unit)
+
 	if team == TurnManager.Team.ENEMY and not _bf.is_non_combat_mode:
+		# 敌方回合开始，重新锁定光标
+		_bf._cursor_controller.set_locked(true)
 		TurnManager.run_enemy_ai()
 
 func _get_center_position() -> Vector2:
@@ -109,6 +128,7 @@ func _get_center_position() -> Vector2:
 #  战斗开始 buff（含光环）
 # ============================================================
 func apply_team_buffs() -> void:
+	# ... (此部分代码保持不变，请保留你原有的 apply_team_buffs 及后续所有的 sub 函数)
 	var relic_stats = GameState.get_global_relic_stats()
 	var relic_effects = GameState.get_global_relic_effects()
 	_sync_auras_to_units()
@@ -182,8 +202,6 @@ func apply_team_buffs() -> void:
 	_apply_core_trait_auras()
 
 func _sync_auras_to_units() -> void:
-	# ★ 光环改为战场一次性使用：不再把被动槽里的光环自动同步到 active_auras
-	# 玩家通过 HUD 的「光环」按钮手动激活（见 Battlefield._on_aura_button_pressed）
 	pass
 
 func _apply_flame_resonance() -> void:

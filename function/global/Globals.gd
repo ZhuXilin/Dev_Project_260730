@@ -74,7 +74,6 @@ func _ready():
 #  窗口尺寸读取与保存
 # ============================================================
 func _notification(what):
-	# 监听窗口大小改变，如果是普通窗口模式，则实时保存
 	if what == NOTIFICATION_WM_SIZE_CHANGED:
 		if DisplayServer.window_get_mode() == DisplayServer.WINDOW_MODE_WINDOWED:
 			save_display_settings()

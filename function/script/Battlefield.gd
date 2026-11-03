@@ -90,6 +90,7 @@ var non_combat_back_button: Button = null
 var current_node_type: int = MapNode.NodeType.NORMAL
 var _victory_processed : bool = false
 var _is_reward_ui_active : bool = false
+var is_first_turn : bool = true
 
 var _hint_override_text : String = ""
 var _hint_override_until : float = 0.0
@@ -135,6 +136,7 @@ func _ready():
 
 	_cursor_controller = CursorController.new(self)
 	add_child(_cursor_controller)
+	_cursor_controller.set_locked(true)
 	_panel_manager = PanelManager.new(self)
 	add_child(_panel_manager)
 	_panel_manager.init()
@@ -371,7 +373,8 @@ func _ready():
 	print("Battlefield _ready 完成")
 	_create_terrain_info_panel()
 	_create_damage_preview_panel()
-
+	
+	is_first_turn = true
 
 func _build_battle_start_context() -> Dictionary:
 	var md: MapData = GameState.current_map_data
@@ -888,6 +891,10 @@ func get_suppressed_range_unit() -> Unit:
 
 
 func _on_request_show_info(unit: Unit):
+	# ★ 核心修复：如果光标被锁定，或者在开场过渡中，绝对不处理任何悬停请求，防止 Boss 头像闪烁
+	if _cursor_controller and _cursor_controller.is_locked:
+		return
+	
 	# 失效引用兜底
 	if not is_instance_valid(_cached_info_unit):
 		_cached_info_unit = null
