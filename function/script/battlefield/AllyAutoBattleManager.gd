@@ -176,7 +176,7 @@ func _act_one_unit(unit: Unit) -> void:
 	if not is_instance_valid(unit) or unit.hit_points <= 0:
 		return
 
-	# ★ 新增：等待对话（转阶段 / 死亡对话等）
+	# 等待对话（转阶段 / 死亡对话等）
 	while Globals.is_dialogue_active:
 		await get_tree().process_frame
 		if not is_instance_valid(self): return
@@ -197,7 +197,21 @@ func _act_one_unit(unit: Unit) -> void:
 
 	match str(act.get("type", "wait")):
 		"attack":
-			await _exec_attack(unit, act.get("target", null))
+			var target = act.get("target", null)
+			# ★ 新增：如果决策的目标已经死了，立刻重新决策一次
+			if not is_instance_valid(target) or target.hit_points <= 0:
+				var retry_act = _enemy_ai.decide_action_for(unit)
+				if retry_act and retry_act["type"] != "wait":
+					if retry_act["type"] == "attack":
+						await _exec_attack(unit, retry_act.get("target", null))
+					elif retry_act["type"] == "move":
+						await _exec_move(unit, retry_act.get("path", []))
+					else:
+						_finish_unit(unit)
+				else:
+					_finish_unit(unit)
+				return
+			await _exec_attack(unit, target)
 		"move":
 			var path = act.get("path", [])
 			if path.is_empty() or unit.remaining_move <= 0:
@@ -239,13 +253,13 @@ func _try_ai_emergency_heal(unit: Unit) -> bool:
 			lowest_ratio = ratio
 			best_target = u
 			
-	# 只要有人掉血到 60% 以下，就可以考虑急救
-	if best_target == null or lowest_ratio >= 0.6:
+	# 只要有人掉血到 45% 以下，就可以考虑急救
+	if best_target == null or lowest_ratio >= 0.45:
 		return false
 		
 	var dist = abs(unit.grid_cell.x - best_target.grid_cell.x) + abs(unit.grid_cell.y - best_target.grid_cell.y)
 	
-	# 【核心修改】如果自己是纯正的奶妈，且目标在技能射程内，让 AI 正常治疗即可，不要乱花魂火
+	# 如果自己是纯正的奶妈，且目标在技能射程内，让 AI 正常治疗即可，不要乱花魂火
 	if unit.get_weapon_type() == "staff":
 		var weapon = unit.get_weapon_data()
 		if weapon and dist >= weapon.min_attack_range and dist <= weapon.attack_range:

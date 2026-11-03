@@ -346,6 +346,10 @@ func execute_attack(attacker: Unit, defender: Unit, forced_skill_id: String = ""
 		Globals.is_performing_action = false
 		return true
 
+	# ★ 新增：走到这里说明是攻击（非治疗），玩家方每次攻击动作 +1 魂火
+	if attacker.unit_stats.team_id == 0:
+		SoulFireManager.add(1)
+
 	await _play_lunge_attack(attacker, defender)
 
 	var has_skill : bool = false
@@ -496,7 +500,7 @@ func execute_attack(attacker: Unit, defender: Unit, forced_skill_id: String = ""
 
 	await get_tree().create_timer(PRE_DAMAGE_DELAY, true, false, true).timeout
 	var defeated = _apply_damage_with_effects(defender, damage, attacker, is_crit)
-	await _wait_dialogue()   # ★ 新增：转阶段对话可能在这一步触发
+	await _wait_dialogue()
 
 	if attacker.weapon_slot:
 		var up_lv : int = attacker.weapon_slot.upgrade_level
@@ -519,7 +523,7 @@ func execute_attack(attacker: Unit, defender: Unit, forced_skill_id: String = ""
 		await _apply_burning_splash(attacker, defender, damage, splash_sf)
 
 	await get_tree().create_timer(POST_DAMAGE_DELAY, true, false, true).timeout
-	await _wait_dialogue()   # ★ 新增：Boss 死亡对话可能在这一步触发
+	await _wait_dialogue()
 
 	if defeated:
 		if _try_boss_revive(defender, attacker):
@@ -576,7 +580,7 @@ func execute_attack(attacker: Unit, defender: Unit, forced_skill_id: String = ""
 		var extra_damage = int(damage * mult)
 		TalentManager.reset_talent(attacker, "double_attack")
 		await get_tree().create_timer(EXTRA_HIT_DELAY, true, false, true).timeout
-		await _wait_dialogue()   # ★ 新增
+		await _wait_dialogue()
 		if not _is_alive(attacker):
 			Globals.is_performing_action = false
 			return true
@@ -591,7 +595,7 @@ func execute_attack(attacker: Unit, defender: Unit, forced_skill_id: String = ""
 				_finish_attack(attacker, defender)
 				Globals.is_performing_action = false
 				return true
-			var cleave_triggered: bool = await _on_kill(attacker, defender) 
+			var cleave_triggered: bool = await _on_kill(attacker, defender)
 			await _play_death_animation(defender)
 			UnitManager.unregister_unit(defender)
 			defender.queue_free()
@@ -614,7 +618,7 @@ func execute_attack(attacker: Unit, defender: Unit, forced_skill_id: String = ""
 			var extra_damage = int(damage * mult)
 			TalentManager.reset_talent(attacker, "spell_chain")
 			await get_tree().create_timer(EXTRA_HIT_DELAY, true, false, true).timeout
-			await _wait_dialogue()   # ★ 新增
+			await _wait_dialogue()
 			if not _is_alive(attacker):
 				Globals.is_performing_action = false
 				return true
@@ -648,7 +652,7 @@ func execute_attack(attacker: Unit, defender: Unit, forced_skill_id: String = ""
 	if _is_alive(attacker) and _is_alive(defender) and _can_follow_up(attacker, defender):
 		var follow_dmg : int = int(calculate_damage(attacker, defender) * FOLLOW_UP_DAMAGE_MULT)
 		await get_tree().create_timer(EXTRA_HIT_DELAY, true, false, true).timeout
-		await _wait_dialogue()   # ★ 新增
+		await _wait_dialogue()
 		if _is_alive(attacker):
 			await _play_lunge_attack(attacker, defender)
 			await get_tree().create_timer(PRE_DAMAGE_DELAY, true, false, true).timeout
