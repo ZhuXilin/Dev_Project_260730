@@ -5,7 +5,6 @@ class_name UnitData
 #  UnitData — 单位数据（玩家 / 敌人 / Boss / Boss 形态）
 #
 #  新增 Boss 阶段字段：
-#    unit_category       : "" / "boss" / "elite" / "summon" / "form"
 #    hidden_from_roster  : 是否从玩家图鉴 / 地图编辑器单位下拉中隐藏
 #    boss_mechanic_id    : 当前形态的机制代码（ash_shield / soul_drain / three_forms ...）
 #    boss_mechanic_params: 该机制的参数
@@ -48,7 +47,7 @@ class_name UnitData
 @export var is_boss: bool = false
 
 # ---- Boss / 分类 ----
-@export var unit_category: String = ""
+# ★ 修改 2：unit_category 已删除（全项目无逻辑依赖）
 @export var hidden_from_roster: bool = false
 @export var boss_mechanic_id: String = ""
 @export var boss_mechanic_params: Dictionary = {}
@@ -274,14 +273,15 @@ func to_dict() -> Dictionary:
 		"sacrifice_buff_sources": sacrifice_buff_sources.duplicate(),
 		"tags": tags.duplicate(),
 		"core_trait": core_trait, "is_boss": is_boss,
-		"unit_category": unit_category,
+		# ★ 修改 2：移除 "unit_category"
 		"hidden_from_roster": hidden_from_roster,
 		"boss_mechanic_id": boss_mechanic_id,
 		"boss_mechanic_params": boss_mechanic_params.duplicate(true),
-		"boss_dialogue_hooks": boss_dialogue_hooks.duplicate(true),   # ★ 新增
+		"boss_dialogue_hooks": boss_dialogue_hooks.duplicate(true),
 		"phases": normalize_phases(phases),
 	}
 	return d
+
 
 static func from_dict(d: Dictionary) -> UnitData:
 	var data := UnitData.new()
@@ -308,12 +308,11 @@ static func from_dict(d: Dictionary) -> UnitData:
 	data.core_trait = d.get("core_trait", "")
 	data.is_boss = d.get("is_boss", false)
 
-	data.unit_category = str(d.get("unit_category", ""))
+	# ★ 修改 2：移除 data.unit_category = str(d.get("unit_category", ""))
 	data.hidden_from_roster = bool(d.get("hidden_from_roster", false))
 	data.boss_mechanic_id = str(d.get("boss_mechanic_id", ""))
 	var bmp: Variant = d.get("boss_mechanic_params", {})
 	data.boss_mechanic_params = (bmp as Dictionary).duplicate(true) if bmp is Dictionary else {}
-	# ★ 新增：读取对话钩子
 	var bdh: Variant = d.get("boss_dialogue_hooks", {})
 	data.boss_dialogue_hooks = (bdh as Dictionary).duplicate(true) if bdh is Dictionary else {}
 	data.phases = normalize_phases(d.get("phases", []))

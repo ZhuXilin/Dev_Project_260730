@@ -1,1849 +1,1849 @@
 {
   "__meta__": {
-    "description": "所有 NPC 对话、独立对话、事件触发对话。trigger_type 由 NPC.default_trigger_type 继承；每条对话可覆盖 trigger_type；repeatable:false 表示跨局一次性；repeatable:true 表示可重复；带 max_per_run 表示每局最多播放 N 次。",
-    "version": 1.0
+	"description": "所有 NPC 对话、独立对话、事件触发对话。trigger_type 由 NPC.default_trigger_type 继承；每条对话可覆盖 trigger_type；repeatable:false 表示跨局一次性；repeatable:true 表示可重复；带 max_per_run 表示每局最多播放 N 次。",
+	"version": 1.0
   },
   "npcs": {
-    "__mechanics__": {
-      "avatar": "npc_mechanics",
-      "default_trigger_type": "battle_start",
-      "dialogues": [
-        {
-          "condition": {
-            "current_day": 1.0,
-            "is_boss": true
-          },
-          "id": "boss_intro_day1",
-          "lines": [
-            {
-              "speaker": "暗黑神官",
-              "text": "你们终于来了，不幸的家伙"
-            },
-            {
-              "speaker": "暗黑神官",
-              "text": "看看你们带了什么灵魂"
-            }
-          ],
-          "priority": 10.0,
-          "repeatable": false,
-          "trigger_type": "battle_start"
-        },
-        {
-          "condition": {
-            "current_day": 2.0,
-            "is_boss": true
-          },
-          "id": "boss_intro_day2",
-          "lines": [
-            {
-              "speaker": "铁砧黑骑士",
-              "text": "不用废话，一起上吧！"
-            }
-          ],
-          "priority": 10.0,
-          "repeatable": false,
-          "trigger_type": "battle_start"
-        },
-        {
-          "condition": {
-            "current_day": 3.0,
-            "is_boss": true
-          },
-          "id": "boss_intro_day3",
-          "lines": [
-            {
-              "speaker": "深渊龙主",
-              "text": "……又是你们。"
-            },
-            {
-              "speaker": "深渊龙主",
-              "text": "每次都是一样的结局，你们却每次都来。"
-            },
-            {
-              "speaker": "指挥官",
-              "text": "这一次不会。"
-            },
-            {
-              "speaker": "深渊龙主",
-              "text": "（低笑）那就让我看看——你凭什么。"
-            }
-          ],
-          "priority": 10.0,
-          "repeatable": false,
-          "trigger_type": "battle_start"
-        },
-        {
-          "condition": {
-            "current_day": 3.0
-          },
-          "id": "boss_dragonlord_phase_2",
-          "lines": [
-            {
-              "speaker": "深渊龙主",
-              "text": "不错……你的剑，沾到了我的血。"
-            },
-            {
-              "speaker": "深渊龙主",
-              "text": "那么，你也该看看——我真正的样子。"
-            },
-            {
-              "speaker": "指挥官",
-              "text": "翼焰……果然还藏着这一手。"
-            }
-          ],
-          "priority": 10.0,
-          "repeatable": false,
-          "trigger_type": "boss_revive"
-        },
-        {
-          "condition": {
-            "current_day": 3.0
-          },
-          "id": "boss_dragonlord_phase_3",
-          "lines": [
-            {
-              "speaker": "深渊龙主",
-              "text": "灰烬……在烧。我能听见。"
-            },
-            {
-              "speaker": "深渊龙主",
-              "text": "你的魂火，也是从灰烬里爬出来的吧？"
-            },
-            {
-              "speaker": "指挥官",
-              "text": "（紧握武器）……终结它。"
-            },
-            {
-              "speaker": "深渊龙主",
-              "text": "那就让灰烬，把我们两个一起吞掉。"
-            }
-          ],
-          "priority": 10.0,
-          "repeatable": false,
-          "trigger_type": "boss_revive"
-        },
-        {
-          "condition": {
-            "current_day": 3.0
-          },
-          "id": "boss_dragonlord_death",
-          "lines": [
-            {
-              "speaker": "深渊龙主",
-              "text": "原来……灰烬，也会发光啊。"
-            },
-            {
-              "speaker": "深渊龙主",
-              "text": "（缓缓倒下）这一把火……我烧了很久……"
-            },
-            {
-              "speaker": "指挥官",
-              "text": "……结束了。"
-            },
-            {
-              "speaker": "守火者",
-              "text": "（远处传来声音）不，还没有。火还没熄。"
-            }
-          ],
-          "priority": 10.0,
-          "repeatable": false,
-          "trigger_type": "boss_death"
-        },
-        {
-          "condition": {
-            "node_type": 3.0
-          },
-          "id": "map_enter_treasure_first",
-          "lines": [
-            {
-              "speaker": "指挥官",
-              "text": "这里有个宝箱。"
-            }
-          ],
-          "priority": 5.0,
-          "repeatable": false,
-          "trigger_type": "map_enter"
-        },
-        {
-          "condition": {
-            "node_type": 5.0
-          },
-          "id": "map_enter_forge_first",
-          "lines": [
-            {
-              "speaker": "魂栈侍从",
-              "text": "进来吧。炉火正好。"
-            }
-          ],
-          "priority": 5.0,
-          "repeatable": false,
-          "trigger_type": "map_enter"
-        },
-        {
-          "id": "boss_day1_death",
-          "lines": [
-            {
-              "speaker": "暗黑神官",
-              "text": "怎么可能..."
-            },
-            {
-              "speaker": "暗黑神官",
-              "text": "下次...还有下次..."
-            }
-          ],
-          "priority": 10.0
-        },
-        {
-          "id": "boss_day2_death",
-          "lines": [
-            {
-              "speaker": "铁砧黑骑士",
-              "text": "铁枪永存！"
-            }
-          ],
-          "priority": 10.0
-        }
-      ],
-      "name": "机制事件",
-      "unlocks": []
-    },
-    "blacksmith": {
-      "avatar": "npc_blacksmith",
-      "default_trigger_type": "npc_interact",
-      "dialogues": [
-        {
-          "condition": {},
-          "id": "smith_00",
-          "lines": [
-            {
-              "speaker": "灰烬铁匠",
-              "text": "又来了？这次带什么材料……"
-            },
-            {
-              "speaker": "灰烬铁匠",
-              "text": "哦，你什么都没有。行吧，拿魂来。"
-            }
-          ],
-          "priority": 0.0,
-          "repeatable": false
-        },
-        {
-          "condition": {
-            "min_weapon_max_level": 1.0
-          },
-          "id": "smith_01",
-          "lines": [
-            {
-              "speaker": "灰烬铁匠",
-              "text": "这把武器还没死透，再烧烧。"
-            }
-          ],
-          "priority": 0.0,
-          "repeatable": false
-        },
-        {
-          "condition": {
-            "min_weapon_max_level": 2.0
-          },
-          "id": "smith_02",
-          "lines": [
-            {
-              "speaker": "灰烬铁匠",
-              "text": "旧世界的东西……比现在结实多了。"
-            }
-          ],
-          "priority": 1.0,
-          "repeatable": false
-        },
-        {
-          "condition": {},
-          "id": "smith_chat_1",
-          "lines": [
-            {
-              "speaker": "灰烬铁匠",
-              "text": "你看看我这只手。"
-            },
-            {
-              "speaker": "灰烬铁匠",
-              "text": "灰烬做的。能打铁，但不能握刀了。"
-            }
-          ],
-          "priority": 0.0,
-          "repeatable": false
-        },
-        {
-          "condition": {},
-          "id": "smith_chat_2",
-          "lines": [
-            {
-              "speaker": "灰烬铁匠",
-              "text": "打铁要听声音。"
-            },
-            {
-              "speaker": "灰烬铁匠",
-              "text": "声音不对，火候就错了。"
-            }
-          ],
-          "priority": 0.0,
-          "repeatable": false
-        },
-        {
-          "condition": {
-            "min_run_count": 5.0
-          },
-          "id": "smith_chat_3",
-          "lines": [
-            {
-              "speaker": "灰烬铁匠",
-              "text": "五趟了？你这小子挺能扛。"
-            },
-            {
-              "speaker": "灰烬铁匠",
-              "text": "……别死在外面。我还缺个学徒。"
-            }
-          ],
-          "priority": 0.0,
-          "repeatable": false
-        },
-        {
-          "condition": {
-            "min_run_count": 10.0
-          },
-          "id": "smith_chat_4",
-          "lines": [
-            {
-              "speaker": "灰烬铁匠",
-              "text": "我年轻的时候，一拳能砸碎铁砧。"
-            },
-            {
-              "speaker": "灰烬铁匠",
-              "text": "现在……嘿，还能砸碎你的脑袋。"
-            }
-          ],
-          "priority": 0.0,
-          "repeatable": false
-        },
-        {
-          "condition": {
-            "min_weapon_max_level": 3.0
-          },
-          "id": "smith_chat_5",
-          "lines": [
-            {
-              "speaker": "灰烬铁匠",
-              "text": "你这把武器……有意思。"
-            },
-            {
-              "speaker": "灰烬铁匠",
-              "text": "里面有个声音，在烧。"
-            }
-          ],
-          "priority": 0.0,
-          "repeatable": false
-        },
-        {
-          "choices": [
-            {
-              "flag": "smith_asked_old_world",
-              "text": "旧世界是什么样的？"
-            },
-            {
-              "flag": "smith_silent",
-              "text": "没什么。"
-            }
-          ],
-          "condition": {
-            "min_weapon_max_level": 2.0
-          },
-          "id": "smith_curious",
-          "lines": [
-            {
-              "speaker": "灰烬铁匠",
-              "text": "你怎么老盯着我的铁砧？"
-            }
-          ],
-          "priority": 5.0,
-          "repeatable": false
-        },
-        {
-          "condition": {
-            "flags": [
+	"__mechanics__": {
+	  "avatar": "npc_mechanics",
+	  "default_trigger_type": "battle_start",
+	  "dialogues": [
+		{
+		  "condition": {
+			"current_day": 1.0,
+			"is_boss": true
+		  },
+		  "id": "boss_intro_day1",
+		  "lines": [
+			{
+			  "speaker": "暗黑神官",
+			  "text": "你们终于来了，不幸的家伙"
+			},
+			{
+			  "speaker": "暗黑神官",
+			  "text": "看看你们带了什么灵魂"
+			}
+		  ],
+		  "priority": 10.0,
+		  "repeatable": false,
+		  "trigger_type": "battle_start"
+		},
+		{
+		  "condition": {
+			"current_day": 2.0,
+			"is_boss": true
+		  },
+		  "id": "boss_intro_day2",
+		  "lines": [
+			{
+			  "speaker": "铁砧黑骑士",
+			  "text": "不用废话，一起上吧！"
+			}
+		  ],
+		  "priority": 10.0,
+		  "repeatable": false,
+		  "trigger_type": "battle_start"
+		},
+		{
+		  "condition": {
+			"current_day": 3.0,
+			"is_boss": true
+		  },
+		  "id": "boss_intro_day3",
+		  "lines": [
+			{
+			  "speaker": "深渊龙主",
+			  "text": "……又是你们。"
+			},
+			{
+			  "speaker": "深渊龙主",
+			  "text": "每次都是一样的结局，你们却每次都来。"
+			},
+			{
+			  "speaker": "指挥官",
+			  "text": "这一次不会。"
+			},
+			{
+			  "speaker": "深渊龙主",
+			  "text": "（低笑）那就让我看看——你凭什么。"
+			}
+		  ],
+		  "priority": 10.0,
+		  "repeatable": false,
+		  "trigger_type": "battle_start"
+		},
+		{
+		  "condition": {
+			"current_day": 3.0
+		  },
+		  "id": "boss_dragonlord_phase_2",
+		  "lines": [
+			{
+			  "speaker": "深渊龙主",
+			  "text": "不错……你的剑，沾到了我的血。"
+			},
+			{
+			  "speaker": "深渊龙主",
+			  "text": "那么，你也该看看——我真正的样子。"
+			},
+			{
+			  "speaker": "指挥官",
+			  "text": "翼焰……果然还藏着这一手。"
+			}
+		  ],
+		  "priority": 10.0,
+		  "repeatable": false,
+		  "trigger_type": "boss_revive"
+		},
+		{
+		  "condition": {
+			"current_day": 3.0
+		  },
+		  "id": "boss_dragonlord_phase_3",
+		  "lines": [
+			{
+			  "speaker": "深渊龙主",
+			  "text": "灰烬……在烧。我能听见。"
+			},
+			{
+			  "speaker": "深渊龙主",
+			  "text": "你的魂火，也是从灰烬里爬出来的吧？"
+			},
+			{
+			  "speaker": "指挥官",
+			  "text": "（紧握武器）……终结它。"
+			},
+			{
+			  "speaker": "深渊龙主",
+			  "text": "那就让灰烬，把我们两个一起吞掉。"
+			}
+		  ],
+		  "priority": 10.0,
+		  "repeatable": false,
+		  "trigger_type": "boss_revive"
+		},
+		{
+		  "condition": {
+			"current_day": 3.0
+		  },
+		  "id": "boss_dragonlord_death",
+		  "lines": [
+			{
+			  "speaker": "深渊龙主",
+			  "text": "原来……灰烬，也会发光啊。"
+			},
+			{
+			  "speaker": "深渊龙主",
+			  "text": "（缓缓倒下）这一把火……我烧了很久……"
+			},
+			{
+			  "speaker": "指挥官",
+			  "text": "……结束了。"
+			},
+			{
+			  "speaker": "守火者",
+			  "text": "（远处传来声音）不，还没有。火还没熄。"
+			}
+		  ],
+		  "priority": 10.0,
+		  "repeatable": false,
+		  "trigger_type": "boss_death"
+		},
+		{
+		  "condition": {
+			"node_type": 3.0
+		  },
+		  "id": "map_enter_treasure_first",
+		  "lines": [
+			{
+			  "speaker": "指挥官",
+			  "text": "这里有个宝箱。"
+			}
+		  ],
+		  "priority": 5.0,
+		  "repeatable": false,
+		  "trigger_type": "map_enter"
+		},
+		{
+		  "condition": {
+			"node_type": 5.0
+		  },
+		  "id": "map_enter_forge_first",
+		  "lines": [
+			{
+			  "speaker": "魂栈侍从",
+			  "text": "进来吧。炉火正好。"
+			}
+		  ],
+		  "priority": 5.0,
+		  "repeatable": false,
+		  "trigger_type": "map_enter"
+		},
+		{
+		  "id": "boss_day1_death",
+		  "lines": [
+			{
+			  "speaker": "暗黑神官",
+			  "text": "怎么可能..."
+			},
+			{
+			  "speaker": "暗黑神官",
+			  "text": "下次...还有下次..."
+			}
+		  ],
+		  "priority": 10.0
+		},
+		{
+		  "id": "boss_day2_death",
+		  "lines": [
+			{
+			  "speaker": "铁砧黑骑士",
+			  "text": "铁枪永存！"
+			}
+		  ],
+		  "priority": 10.0
+		}
+	  ],
+	  "name": "机制事件",
+	  "unlocks": []
+	},
+	"blacksmith": {
+	  "avatar": "npc_blacksmith",
+	  "default_trigger_type": "npc_interact",
+	  "dialogues": [
+		{
+		  "condition": {},
+		  "id": "smith_00",
+		  "lines": [
+			{
+			  "speaker": "灰烬铁匠",
+			  "text": "又来了？这次带什么材料……"
+			},
+			{
+			  "speaker": "灰烬铁匠",
+			  "text": "哦，你什么都没有。行吧，拿魂来。"
+			}
+		  ],
+		  "priority": 0.0,
+		  "repeatable": false
+		},
+		{
+		  "condition": {
+			"min_weapon_max_level": 1.0
+		  },
+		  "id": "smith_01",
+		  "lines": [
+			{
+			  "speaker": "灰烬铁匠",
+			  "text": "这把武器还没死透，再烧烧。"
+			}
+		  ],
+		  "priority": 0.0,
+		  "repeatable": false
+		},
+		{
+		  "condition": {
+			"min_weapon_max_level": 2.0
+		  },
+		  "id": "smith_02",
+		  "lines": [
+			{
+			  "speaker": "灰烬铁匠",
+			  "text": "旧世界的东西……比现在结实多了。"
+			}
+		  ],
+		  "priority": 1.0,
+		  "repeatable": false
+		},
+		{
+		  "condition": {},
+		  "id": "smith_chat_1",
+		  "lines": [
+			{
+			  "speaker": "灰烬铁匠",
+			  "text": "你看看我这只手。"
+			},
+			{
+			  "speaker": "灰烬铁匠",
+			  "text": "灰烬做的。能打铁，但不能握刀了。"
+			}
+		  ],
+		  "priority": 0.0,
+		  "repeatable": false
+		},
+		{
+		  "condition": {},
+		  "id": "smith_chat_2",
+		  "lines": [
+			{
+			  "speaker": "灰烬铁匠",
+			  "text": "打铁要听声音。"
+			},
+			{
+			  "speaker": "灰烬铁匠",
+			  "text": "声音不对，火候就错了。"
+			}
+		  ],
+		  "priority": 0.0,
+		  "repeatable": false
+		},
+		{
+		  "condition": {
+			"min_run_count": 5.0
+		  },
+		  "id": "smith_chat_3",
+		  "lines": [
+			{
+			  "speaker": "灰烬铁匠",
+			  "text": "五趟了？你这小子挺能扛。"
+			},
+			{
+			  "speaker": "灰烬铁匠",
+			  "text": "……别死在外面。我还缺个学徒。"
+			}
+		  ],
+		  "priority": 0.0,
+		  "repeatable": false
+		},
+		{
+		  "condition": {
+			"min_run_count": 10.0
+		  },
+		  "id": "smith_chat_4",
+		  "lines": [
+			{
+			  "speaker": "灰烬铁匠",
+			  "text": "我年轻的时候，一拳能砸碎铁砧。"
+			},
+			{
+			  "speaker": "灰烬铁匠",
+			  "text": "现在……嘿，还能砸碎你的脑袋。"
+			}
+		  ],
+		  "priority": 0.0,
+		  "repeatable": false
+		},
+		{
+		  "condition": {
+			"min_weapon_max_level": 3.0
+		  },
+		  "id": "smith_chat_5",
+		  "lines": [
+			{
+			  "speaker": "灰烬铁匠",
+			  "text": "你这把武器……有意思。"
+			},
+			{
+			  "speaker": "灰烬铁匠",
+			  "text": "里面有个声音，在烧。"
+			}
+		  ],
+		  "priority": 0.0,
+		  "repeatable": false
+		},
+		{
+		  "choices": [
+			{
+			  "flag": "smith_asked_old_world",
+			  "text": "旧世界是什么样的？"
+			},
+			{
+			  "flag": "smith_silent",
+			  "text": "没什么。"
+			}
+		  ],
+		  "condition": {
+			"min_weapon_max_level": 2.0
+		  },
+		  "id": "smith_curious",
+		  "lines": [
+			{
+			  "speaker": "灰烬铁匠",
+			  "text": "你怎么老盯着我的铁砧？"
+			}
+		  ],
+		  "priority": 5.0,
+		  "repeatable": false
+		},
+		{
+		  "condition": {
+			"flags": [
               "smith_asked_old_world"
-            ],
-            "min_weapon_max_level": 3.0
-          },
-          "id": "smith_truth",
-          "lines": [
-            {
-              "speaker": "灰烬铁匠",
-              "text": "终燃之前，我是最著名的锻造师。"
-            },
-            {
-              "speaker": "灰烬铁匠",
-              "text": "现在只剩这破铁砧了。"
-            }
-          ],
-          "priority": 10.0,
-          "repeatable": false
-        },
-        {
-          "condition": {
-            "flags": [
+			],
+			"min_weapon_max_level": 3.0
+		  },
+		  "id": "smith_truth",
+		  "lines": [
+			{
+			  "speaker": "灰烬铁匠",
+			  "text": "终燃之前，我是最著名的锻造师。"
+			},
+			{
+			  "speaker": "灰烬铁匠",
+			  "text": "现在只剩这破铁砧了。"
+			}
+		  ],
+		  "priority": 10.0,
+		  "repeatable": false
+		},
+		{
+		  "condition": {
+			"flags": [
               "smith_asked_old_world"
-            ],
-            "min_run_count": 8.0
-          },
-          "id": "smith_truth_2",
-          "lines": [
-            {
-              "speaker": "灰烬铁匠",
-              "text": "我锻过一把剑，给一位将军。"
-            },
-            {
-              "speaker": "灰烬铁匠",
-              "text": "那把剑现在在哪……谁知道呢。"
-            },
-            {
-              "speaker": "灰烬铁匠",
-              "text": "也许就在你身后。"
-            }
-          ],
-          "priority": 10.0,
-          "repeatable": false
-        },
-        {
-          "condition": {
-            "flags": [
+			],
+			"min_run_count": 8.0
+		  },
+		  "id": "smith_truth_2",
+		  "lines": [
+			{
+			  "speaker": "灰烬铁匠",
+			  "text": "我锻过一把剑，给一位将军。"
+			},
+			{
+			  "speaker": "灰烬铁匠",
+			  "text": "那把剑现在在哪……谁知道呢。"
+			},
+			{
+			  "speaker": "灰烬铁匠",
+			  "text": "也许就在你身后。"
+			}
+		  ],
+		  "priority": 10.0,
+		  "repeatable": false
+		},
+		{
+		  "condition": {
+			"flags": [
               "smith_asked_old_world"
-            ],
-            "min_weapon_max_level": 4.0
-          },
-          "id": "smith_final",
-          "lines": [
-            {
-              "speaker": "灰烬铁匠",
-              "text": "拿着——这是最后一炉。"
-            },
-            {
-              "speaker": "灰烬铁匠",
-              "text": "别弄丢。"
-            }
-          ],
-          "priority": 15.0,
-          "repeatable": false
-        },
-        {
-          "condition": {},
-          "id": "smith_default",
-          "lines": [
-            {
-              "speaker": "灰烬铁匠",
-              "text": "拿魂来，我什么都能打。"
-            }
-          ],
-          "priority": -1.0,
-          "repeatable": true
-        }
-      ],
-      "name": "灰烬铁匠",
-      "unlocks": [
-        {
-          "conditions": {
-            "flags": [
+			],
+			"min_weapon_max_level": 4.0
+		  },
+		  "id": "smith_final",
+		  "lines": [
+			{
+			  "speaker": "灰烬铁匠",
+			  "text": "拿着——这是最后一炉。"
+			},
+			{
+			  "speaker": "灰烬铁匠",
+			  "text": "别弄丢。"
+			}
+		  ],
+		  "priority": 15.0,
+		  "repeatable": false
+		},
+		{
+		  "condition": {},
+		  "id": "smith_default",
+		  "lines": [
+			{
+			  "speaker": "灰烬铁匠",
+			  "text": "拿魂来，我什么都能打。"
+			}
+		  ],
+		  "priority": -1.0,
+		  "repeatable": true
+		}
+	  ],
+	  "name": "灰烬铁匠",
+	  "unlocks": [
+		{
+		  "conditions": {
+			"flags": [
               "smith_asked_old_world"
-            ],
-            "min_dialogue_count": 5.0,
-            "min_weapon_max_level": 4.0
-          },
-          "id": "relic_phoenix",
-          "type": "relic"
-        }
-      ]
-    },
-    "forge": {
-      "avatar": "npc_forge",
-      "default_trigger_type": "forge_recall",
-      "dialogues": [
-        {
-          "condition": {},
-          "effect": {
-            "params": {
-              "amount": 8.0,
-              "tag": "守护"
-            },
-            "type": "shop_tag_weight_boost"
-          },
-          "id": "whisper_blacksmith_guard",
-          "lines": [
-            {
-              "speaker": "魂栈侍从",
-              "text": "炉火正旺。"
-            }
-          ],
-          "priority": 10.0,
-          "repeatable": false,
-          "trigger_type": "forge_enter"
-        },
-        {
-          "condition": {},
-          "effect": {
-            "params": {
-              "amount": 6.0,
-              "tag": "轮回"
-            },
-            "type": "shop_tag_weight_boost"
-          },
-          "id": "whisper_blacksmith_ember",
-          "lines": [
-            {
-              "speaker": "魂栈侍从",
-              "text": "轮回的道，我今天想打一件。"
-            }
-          ],
-          "priority": 9.0,
-          "repeatable": false,
-          "trigger_type": "forge_enter"
-        },
-        {
-          "condition": {
-            "min_altar_level": 2.0
-          },
-          "effect": {
-            "params": {
-              "text": "Day3 三形态 Boss：每次复活临时扣 3 魂火上限"
-            },
-            "type": "reveal_boss_intel"
-          },
-          "id": "whisper_guide_three_forms",
-          "lines": [
-            {
-              "speaker": "游魂向导",
-              "text": "三形态第三次复活，会再扣 3 点上限。"
-            }
-          ],
-          "priority": 10.0,
-          "repeatable": false,
-          "trigger_type": "forge_enter"
-        },
-        {
-          "condition": {
-            "min_tag_count": {
-              "count": 2.0,
-              "tag": "余烬"
-            }
-          },
-          "effect": {
-            "params": {
-              "hint": "余烬熔合：不灭薪火（魂火上限 +5，开战 +2）"
-            },
-            "type": "fusion_hint"
-          },
-          "id": "whisper_keeper_ember_fusion",
-          "lines": [
-            {
-              "speaker": "守火者",
-              "text": "我感觉到你身上有余烬的味道。"
-            }
-          ],
-          "priority": 8.0,
-          "repeatable": false,
-          "trigger_type": "forge_enter"
-        },
-        {
-          "condition": {
-            "min_dispatch_count": 3.0
-          },
-          "effect": {
-            "params": {
-              "amount": 6.0,
-              "tag": "烈焰"
-            },
-            "type": "shop_tag_weight_boost"
-          },
-          "id": "whisper_guide_flame_tag",
-          "lines": [
-            {
-              "speaker": "游魂向导",
-              "text": "今天的风向偏烈焰。"
-            }
-          ],
-          "priority": 7.0,
-          "repeatable": false,
-          "trigger_type": "forge_enter"
-        },
-        {
-          "condition": {
-            "min_arena_clear": 1.0
-          },
-          "id": "whisper_gladiator_rating",
-          "lines": [
-            {
-              "speaker": "角斗士",
-              "text": "打得快，比打得好更重要。"
-            }
-          ],
-          "priority": 5.0,
-          "repeatable": false,
-          "trigger_type": "forge_enter"
-        },
-        {
-          "condition": {
-            "min_run_count": 5.0
-          },
-          "id": "whisper_keeper_deep",
-          "lines": [
-            {
-              "speaker": "守火者",
-              "text": "火记得你来过几次。"
-            }
-          ],
-          "priority": 3.0,
-          "repeatable": false,
-          "trigger_type": "forge_enter"
-        }
-      ],
-      "name": "魂栈侍从",
-      "unlocks": []
-    },
-    "gladiator": {
-      "avatar": "npc_gladiator",
-      "default_trigger_type": "npc_interact",
-      "dialogues": [
-        {
-          "condition": {},
-          "id": "glad_00",
-          "lines": [
-            {
-              "speaker": "角斗士",
-              "text": "你回来了。手还稳吗？"
-            }
-          ],
-          "priority": 0.0,
-          "repeatable": false
-        },
-        {
-          "condition": {
-            "min_arena_clear": 1.0
-          },
-          "id": "glad_01",
-          "lines": [
-            {
-              "speaker": "角斗士",
-              "text": "上次那个Boss，你打得不错。"
-            },
-            {
-              "speaker": "角斗士",
-              "text": "但下次会更难。"
-            }
-          ],
-          "priority": 0.0,
-          "repeatable": false
-        },
-        {
-          "condition": {
-            "min_arena_clear": 2.0
-          },
-          "id": "glad_02",
-          "lines": [
-            {
-              "speaker": "角斗士",
-              "text": "规则变了。这次不能用魂火。"
-            },
-            {
-              "speaker": "角斗士",
-              "text": "你怕吗？"
-            }
-          ],
-          "priority": 1.0,
-          "repeatable": false
-        },
-        {
-          "condition": {},
-          "id": "glad_chat_1",
-          "lines": [
-            {
-              "speaker": "角斗士",
-              "text": "斗技场不是为了荣耀。"
-            },
-            {
-              "speaker": "角斗士",
-              "text": "是为了知道自己还能站着。"
-            }
-          ],
-          "priority": 0.0,
-          "repeatable": false
-        },
-        {
-          "condition": {},
-          "id": "glad_chat_2",
-          "lines": [
-            {
-              "speaker": "角斗士",
-              "text": "绷带下面？"
-            },
-            {
-              "speaker": "角斗士",
-              "text": "……你不想看的。"
-            }
-          ],
-          "priority": 0.0,
-          "repeatable": false
-        },
-        {
-          "condition": {
-            "min_arena_clear": 1.0
-          },
-          "id": "glad_chat_3",
-          "lines": [
-            {
-              "speaker": "角斗士",
-              "text": "赢了就笑，输了就骂。"
-            },
-            {
-              "speaker": "角斗士",
-              "text": "别憋着。憋着的人打不出好拳。"
-            }
-          ],
-          "priority": 0.0,
-          "repeatable": false
-        },
-        {
-          "condition": {
-            "min_arena_clear": 3.0
-          },
-          "id": "glad_chat_4",
-          "lines": [
-            {
-              "speaker": "角斗士",
-              "text": "你打得不像是为了赢。"
-            },
-            {
-              "speaker": "角斗士",
-              "text": "……也不像是我。"
-            }
-          ],
-          "priority": 0.0,
-          "repeatable": false
-        },
-        {
-          "condition": {
-            "min_run_count": 15.0
-          },
-          "id": "glad_chat_5",
-          "lines": [
-            {
-              "speaker": "角斗士",
-              "text": "十五趟了。"
-            },
-            {
-              "speaker": "角斗士",
-              "text": "你不是在打仗。你是在走一条路。"
-            }
-          ],
-          "priority": 0.0,
-          "repeatable": false
-        },
-        {
-          "choices": [
-            {
-              "flag": "glad_asked_past",
-              "text": "你以前也是燃薪者？"
-            },
-            {
-              "flag": "glad_silent",
-              "text": "没什么。"
-            }
-          ],
-          "condition": {
-            "min_arena_clear": 2.0
-          },
-          "id": "glad_curious",
-          "lines": [
-            {
-              "speaker": "角斗士",
-              "text": "你打得不像是为了赢。"
-            },
-            {
-              "speaker": "角斗士",
-              "text": "你在找什么？"
-            }
-          ],
-          "priority": 5.0,
-          "repeatable": false
-        },
-        {
-          "condition": {
-            "flags": [
+			],
+			"min_dialogue_count": 5.0,
+			"min_weapon_max_level": 4.0
+		  },
+		  "id": "relic_phoenix",
+		  "type": "relic"
+		}
+	  ]
+	},
+	"forge": {
+	  "avatar": "npc_forge",
+	  "default_trigger_type": "forge_recall",
+	  "dialogues": [
+		{
+		  "condition": {},
+		  "effect": {
+			"params": {
+			  "amount": 8.0,
+			  "tag": "守护"
+			},
+			"type": "shop_tag_weight_boost"
+		  },
+		  "id": "whisper_blacksmith_guard",
+		  "lines": [
+			{
+			  "speaker": "魂栈侍从",
+			  "text": "炉火正旺。"
+			}
+		  ],
+		  "priority": 10.0,
+		  "repeatable": false,
+		  "trigger_type": "forge_enter"
+		},
+		{
+		  "condition": {},
+		  "effect": {
+			"params": {
+			  "amount": 6.0,
+			  "tag": "轮回"
+			},
+			"type": "shop_tag_weight_boost"
+		  },
+		  "id": "whisper_blacksmith_ember",
+		  "lines": [
+			{
+			  "speaker": "魂栈侍从",
+			  "text": "轮回的道，我今天想打一件。"
+			}
+		  ],
+		  "priority": 9.0,
+		  "repeatable": false,
+		  "trigger_type": "forge_enter"
+		},
+		{
+		  "condition": {
+			"min_altar_level": 2.0
+		  },
+		  "effect": {
+			"params": {
+			  "text": "Day3 三形态 Boss：每次复活临时扣 3 魂火上限"
+			},
+			"type": "reveal_boss_intel"
+		  },
+		  "id": "whisper_guide_three_forms",
+		  "lines": [
+			{
+			  "speaker": "游魂向导",
+			  "text": "三形态第三次复活，会再扣 3 点上限。"
+			}
+		  ],
+		  "priority": 10.0,
+		  "repeatable": false,
+		  "trigger_type": "forge_enter"
+		},
+		{
+		  "condition": {
+			"min_tag_count": {
+			  "count": 2.0,
+			  "tag": "余烬"
+			}
+		  },
+		  "effect": {
+			"params": {
+			  "hint": "余烬熔合：不灭薪火（魂火上限 +5，开战 +2）"
+			},
+			"type": "fusion_hint"
+		  },
+		  "id": "whisper_keeper_ember_fusion",
+		  "lines": [
+			{
+			  "speaker": "守火者",
+			  "text": "我感觉到你身上有余烬的味道。"
+			}
+		  ],
+		  "priority": 8.0,
+		  "repeatable": false,
+		  "trigger_type": "forge_enter"
+		},
+		{
+		  "condition": {
+			"min_dispatch_count": 3.0
+		  },
+		  "effect": {
+			"params": {
+			  "amount": 6.0,
+			  "tag": "烈焰"
+			},
+			"type": "shop_tag_weight_boost"
+		  },
+		  "id": "whisper_guide_flame_tag",
+		  "lines": [
+			{
+			  "speaker": "游魂向导",
+			  "text": "今天的风向偏烈焰。"
+			}
+		  ],
+		  "priority": 7.0,
+		  "repeatable": false,
+		  "trigger_type": "forge_enter"
+		},
+		{
+		  "condition": {
+			"min_arena_clear": 1.0
+		  },
+		  "id": "whisper_gladiator_rating",
+		  "lines": [
+			{
+			  "speaker": "角斗士",
+			  "text": "打得快，比打得好更重要。"
+			}
+		  ],
+		  "priority": 5.0,
+		  "repeatable": false,
+		  "trigger_type": "forge_enter"
+		},
+		{
+		  "condition": {
+			"min_run_count": 5.0
+		  },
+		  "id": "whisper_keeper_deep",
+		  "lines": [
+			{
+			  "speaker": "守火者",
+			  "text": "火记得你来过几次。"
+			}
+		  ],
+		  "priority": 3.0,
+		  "repeatable": false,
+		  "trigger_type": "forge_enter"
+		}
+	  ],
+	  "name": "魂栈侍从",
+	  "unlocks": []
+	},
+	"gladiator": {
+	  "avatar": "npc_gladiator",
+	  "default_trigger_type": "npc_interact",
+	  "dialogues": [
+		{
+		  "condition": {},
+		  "id": "glad_00",
+		  "lines": [
+			{
+			  "speaker": "角斗士",
+			  "text": "你回来了。手还稳吗？"
+			}
+		  ],
+		  "priority": 0.0,
+		  "repeatable": false
+		},
+		{
+		  "condition": {
+			"min_arena_clear": 1.0
+		  },
+		  "id": "glad_01",
+		  "lines": [
+			{
+			  "speaker": "角斗士",
+			  "text": "上次那个Boss，你打得不错。"
+			},
+			{
+			  "speaker": "角斗士",
+			  "text": "但下次会更难。"
+			}
+		  ],
+		  "priority": 0.0,
+		  "repeatable": false
+		},
+		{
+		  "condition": {
+			"min_arena_clear": 2.0
+		  },
+		  "id": "glad_02",
+		  "lines": [
+			{
+			  "speaker": "角斗士",
+			  "text": "规则变了。这次不能用魂火。"
+			},
+			{
+			  "speaker": "角斗士",
+			  "text": "你怕吗？"
+			}
+		  ],
+		  "priority": 1.0,
+		  "repeatable": false
+		},
+		{
+		  "condition": {},
+		  "id": "glad_chat_1",
+		  "lines": [
+			{
+			  "speaker": "角斗士",
+			  "text": "斗技场不是为了荣耀。"
+			},
+			{
+			  "speaker": "角斗士",
+			  "text": "是为了知道自己还能站着。"
+			}
+		  ],
+		  "priority": 0.0,
+		  "repeatable": false
+		},
+		{
+		  "condition": {},
+		  "id": "glad_chat_2",
+		  "lines": [
+			{
+			  "speaker": "角斗士",
+			  "text": "绷带下面？"
+			},
+			{
+			  "speaker": "角斗士",
+			  "text": "……你不想看的。"
+			}
+		  ],
+		  "priority": 0.0,
+		  "repeatable": false
+		},
+		{
+		  "condition": {
+			"min_arena_clear": 1.0
+		  },
+		  "id": "glad_chat_3",
+		  "lines": [
+			{
+			  "speaker": "角斗士",
+			  "text": "赢了就笑，输了就骂。"
+			},
+			{
+			  "speaker": "角斗士",
+			  "text": "别憋着。憋着的人打不出好拳。"
+			}
+		  ],
+		  "priority": 0.0,
+		  "repeatable": false
+		},
+		{
+		  "condition": {
+			"min_arena_clear": 3.0
+		  },
+		  "id": "glad_chat_4",
+		  "lines": [
+			{
+			  "speaker": "角斗士",
+			  "text": "你打得不像是为了赢。"
+			},
+			{
+			  "speaker": "角斗士",
+			  "text": "……也不像是我。"
+			}
+		  ],
+		  "priority": 0.0,
+		  "repeatable": false
+		},
+		{
+		  "condition": {
+			"min_run_count": 15.0
+		  },
+		  "id": "glad_chat_5",
+		  "lines": [
+			{
+			  "speaker": "角斗士",
+			  "text": "十五趟了。"
+			},
+			{
+			  "speaker": "角斗士",
+			  "text": "你不是在打仗。你是在走一条路。"
+			}
+		  ],
+		  "priority": 0.0,
+		  "repeatable": false
+		},
+		{
+		  "choices": [
+			{
+			  "flag": "glad_asked_past",
+			  "text": "你以前也是燃薪者？"
+			},
+			{
+			  "flag": "glad_silent",
+			  "text": "没什么。"
+			}
+		  ],
+		  "condition": {
+			"min_arena_clear": 2.0
+		  },
+		  "id": "glad_curious",
+		  "lines": [
+			{
+			  "speaker": "角斗士",
+			  "text": "你打得不像是为了赢。"
+			},
+			{
+			  "speaker": "角斗士",
+			  "text": "你在找什么？"
+			}
+		  ],
+		  "priority": 5.0,
+		  "repeatable": false
+		},
+		{
+		  "condition": {
+			"flags": [
               "glad_asked_past"
-            ],
-            "min_arena_clear": 3.0
-          },
-          "id": "glad_truth",
-          "lines": [
-            {
-              "speaker": "角斗士",
-              "text": "终燃之战……我是将军。"
-            },
-            {
-              "speaker": "角斗士",
-              "text": "我输了。所有人都输了。"
-            }
-          ],
-          "priority": 10.0,
-          "repeatable": false
-        },
-        {
-          "condition": {
-            "flags": [
+			],
+			"min_arena_clear": 3.0
+		  },
+		  "id": "glad_truth",
+		  "lines": [
+			{
+			  "speaker": "角斗士",
+			  "text": "终燃之战……我是将军。"
+			},
+			{
+			  "speaker": "角斗士",
+			  "text": "我输了。所有人都输了。"
+			}
+		  ],
+		  "priority": 10.0,
+		  "repeatable": false
+		},
+		{
+		  "condition": {
+			"flags": [
               "glad_asked_past"
-            ],
-            "min_arena_clear": 4.0
-          },
-          "id": "glad_truth_2",
-          "lines": [
-            {
-              "speaker": "角斗士",
-              "text": "我下令撤退。有一半人没听到。"
-            },
-            {
-              "speaker": "角斗士",
-              "text": "……有时候我还能听到他们在喊我的名字。"
-            }
-          ],
-          "priority": 10.0,
-          "repeatable": false
-        },
-        {
-          "condition": {
-            "flags": [
+			],
+			"min_arena_clear": 4.0
+		  },
+		  "id": "glad_truth_2",
+		  "lines": [
+			{
+			  "speaker": "角斗士",
+			  "text": "我下令撤退。有一半人没听到。"
+			},
+			{
+			  "speaker": "角斗士",
+			  "text": "……有时候我还能听到他们在喊我的名字。"
+			}
+		  ],
+		  "priority": 10.0,
+		  "repeatable": false
+		},
+		{
+		  "condition": {
+			"flags": [
               "glad_asked_past"
-            ],
-            "min_arena_clear": 5.0
-          },
-          "id": "glad_truth_3",
-          "lines": [
-            {
-              "speaker": "角斗士",
-              "text": "你让我想起一件事。"
-            },
-            {
-              "speaker": "角斗士",
-              "text": "每次我打倒一个对手，我都记下他的名字。"
-            },
-            {
-              "speaker": "角斗士",
-              "text": "……都记在这儿了。"
-            }
-          ],
-          "priority": 10.0,
-          "repeatable": false
-        },
-        {
-          "condition": {
-            "flags": [
+			],
+			"min_arena_clear": 5.0
+		  },
+		  "id": "glad_truth_3",
+		  "lines": [
+			{
+			  "speaker": "角斗士",
+			  "text": "你让我想起一件事。"
+			},
+			{
+			  "speaker": "角斗士",
+			  "text": "每次我打倒一个对手，我都记下他的名字。"
+			},
+			{
+			  "speaker": "角斗士",
+			  "text": "……都记在这儿了。"
+			}
+		  ],
+		  "priority": 10.0,
+		  "repeatable": false
+		},
+		{
+		  "condition": {
+			"flags": [
               "glad_asked_past"
-            ],
-            "min_arena_clear": 5.0
-          },
-          "id": "glad_final",
-          "lines": [
-            {
-              "speaker": "角斗士",
-              "text": "你让我想起了当年的自己。"
-            },
-            {
-              "speaker": "角斗士",
-              "text": "去告诉火——有人还站着。"
-            }
-          ],
-          "priority": 15.0,
-          "repeatable": false
-        },
-        {
-          "condition": {},
-          "id": "glad_default",
-          "lines": [
-            {
-              "speaker": "角斗士",
-              "text": "手还稳吗？"
-            }
-          ],
-          "priority": -1.0,
-          "repeatable": true
-        }
-      ],
-      "name": "角斗士",
-      "unlocks": [
-        {
-          "conditions": {
-            "flags": [
+			],
+			"min_arena_clear": 5.0
+		  },
+		  "id": "glad_final",
+		  "lines": [
+			{
+			  "speaker": "角斗士",
+			  "text": "你让我想起了当年的自己。"
+			},
+			{
+			  "speaker": "角斗士",
+			  "text": "去告诉火——有人还站着。"
+			}
+		  ],
+		  "priority": 15.0,
+		  "repeatable": false
+		},
+		{
+		  "condition": {},
+		  "id": "glad_default",
+		  "lines": [
+			{
+			  "speaker": "角斗士",
+			  "text": "手还稳吗？"
+			}
+		  ],
+		  "priority": -1.0,
+		  "repeatable": true
+		}
+	  ],
+	  "name": "角斗士",
+	  "unlocks": [
+		{
+		  "conditions": {
+			"flags": [
               "glad_asked_past"
-            ],
-            "min_arena_clear": 5.0,
-            "min_dialogue_count": 5.0
-          },
-          "id": "swordsman_hidden_branch",
-          "type": "transform_branch"
-        }
-      ]
-    },
-    "guide": {
-      "avatar": "npc_guide",
-      "default_trigger_type": "npc_interact",
-      "dialogues": [
-        {
-          "condition": {},
-          "id": "guide_00",
-          "lines": [
-            {
-              "speaker": "游魂向导",
-              "text": "北边的灰烬矿脉？我去过。"
-            },
-            {
-              "speaker": "游魂向导",
-              "text": "那里风很大，魂很轻。"
-            }
-          ],
-          "priority": 0.0,
-          "repeatable": false
-        },
-        {
-          "condition": {
-            "min_dispatch_count": 1.0
-          },
-          "id": "guide_01",
-          "lines": [
-            {
-              "speaker": "游魂向导",
-              "text": "你派谁去？那个刺客？"
-            },
-            {
-              "speaker": "游魂向导",
-              "text": "他脚程快，但话少。我喜欢话少的。"
-            }
-          ],
-          "priority": 0.0,
-          "repeatable": false
-        },
-        {
-          "condition": {
-            "min_dispatch_count": 5.0
-          },
-          "id": "guide_02",
-          "lines": [
-            {
-              "speaker": "游魂向导",
-              "text": "今天路不好走，有些道被封了。你挑别的吧。"
-            }
-          ],
-          "priority": 1.0,
-          "repeatable": false
-        },
-        {
-          "condition": {},
-          "id": "guide_chat_1",
-          "lines": [
-            {
-              "speaker": "游魂向导",
-              "text": "你见过会走路的树吗？"
-            },
-            {
-              "speaker": "游魂向导",
-              "text": "我见过。在终燃之后的第一个冬天。"
-            }
-          ],
-          "priority": 0.0,
-          "repeatable": false
-        },
-        {
-          "condition": {},
-          "id": "guide_chat_2",
-          "lines": [
-            {
-              "speaker": "游魂向导",
-              "text": "地图是活的。今天走的道，明天可能就没了。"
-            },
-            {
-              "speaker": "游魂向导",
-              "text": "所以我不画地图。我记风。"
-            }
-          ],
-          "priority": 0.0,
-          "repeatable": false
-        },
-        {
-          "condition": {
-            "min_dispatch_count": 3.0
-          },
-          "id": "guide_chat_3",
-          "lines": [
-            {
-              "speaker": "游魂向导",
-              "text": "你知道吗？派遣出去的人……"
-            },
-            {
-              "speaker": "游魂向导",
-              "text": "有时候会带回奇怪的东西。上回一个士兵带回了一块糖。"
-            }
-          ],
-          "priority": 0.0,
-          "repeatable": false
-        },
-        {
-          "condition": {
-            "min_dispatch_count": 6.0
-          },
-          "id": "guide_chat_4",
-          "lines": [
-            {
-              "speaker": "游魂向导",
-              "text": "你问我不累吗？"
-            },
-            {
-              "speaker": "游魂向导",
-              "text": "我是游魂。累是活人才有的感觉。"
-            }
-          ],
-          "priority": 0.0,
-          "repeatable": false
-        },
-        {
-          "condition": {
-            "min_run_count": 15.0
-          },
-          "id": "guide_chat_5",
-          "lines": [
-            {
-              "speaker": "游魂向导",
-              "text": "你走了十五趟。"
-            },
-            {
-              "speaker": "游魂向导",
-              "text": "我见过很多人走到第十趟就……不走了。"
-            }
-          ],
-          "priority": 0.0,
-          "repeatable": false
-        },
-        {
-          "choices": [
-            {
-              "flag": "guide_asked_past",
-              "text": "你以前是做什么的？"
-            },
-            {
-              "flag": "guide_silent",
-              "text": "没什么。"
-            }
-          ],
-          "condition": {
-            "min_dispatch_count": 5.0
-          },
-          "id": "guide_curious",
-          "lines": [
-            {
-              "speaker": "游魂向导",
-              "text": "你走神了。在想什么？"
-            }
-          ],
-          "priority": 5.0,
-          "repeatable": false
-        },
-        {
-          "condition": {
-            "flags": [
+			],
+			"min_arena_clear": 5.0,
+			"min_dialogue_count": 5.0
+		  },
+		  "id": "swordsman_hidden_branch",
+		  "type": "transform_branch"
+		}
+	  ]
+	},
+	"guide": {
+	  "avatar": "npc_guide",
+	  "default_trigger_type": "npc_interact",
+	  "dialogues": [
+		{
+		  "condition": {},
+		  "id": "guide_00",
+		  "lines": [
+			{
+			  "speaker": "游魂向导",
+			  "text": "北边的灰烬矿脉？我去过。"
+			},
+			{
+			  "speaker": "游魂向导",
+			  "text": "那里风很大，魂很轻。"
+			}
+		  ],
+		  "priority": 0.0,
+		  "repeatable": false
+		},
+		{
+		  "condition": {
+			"min_dispatch_count": 1.0
+		  },
+		  "id": "guide_01",
+		  "lines": [
+			{
+			  "speaker": "游魂向导",
+			  "text": "你派谁去？那个刺客？"
+			},
+			{
+			  "speaker": "游魂向导",
+			  "text": "他脚程快，但话少。我喜欢话少的。"
+			}
+		  ],
+		  "priority": 0.0,
+		  "repeatable": false
+		},
+		{
+		  "condition": {
+			"min_dispatch_count": 5.0
+		  },
+		  "id": "guide_02",
+		  "lines": [
+			{
+			  "speaker": "游魂向导",
+			  "text": "今天路不好走，有些道被封了。你挑别的吧。"
+			}
+		  ],
+		  "priority": 1.0,
+		  "repeatable": false
+		},
+		{
+		  "condition": {},
+		  "id": "guide_chat_1",
+		  "lines": [
+			{
+			  "speaker": "游魂向导",
+			  "text": "你见过会走路的树吗？"
+			},
+			{
+			  "speaker": "游魂向导",
+			  "text": "我见过。在终燃之后的第一个冬天。"
+			}
+		  ],
+		  "priority": 0.0,
+		  "repeatable": false
+		},
+		{
+		  "condition": {},
+		  "id": "guide_chat_2",
+		  "lines": [
+			{
+			  "speaker": "游魂向导",
+			  "text": "地图是活的。今天走的道，明天可能就没了。"
+			},
+			{
+			  "speaker": "游魂向导",
+			  "text": "所以我不画地图。我记风。"
+			}
+		  ],
+		  "priority": 0.0,
+		  "repeatable": false
+		},
+		{
+		  "condition": {
+			"min_dispatch_count": 3.0
+		  },
+		  "id": "guide_chat_3",
+		  "lines": [
+			{
+			  "speaker": "游魂向导",
+			  "text": "你知道吗？派遣出去的人……"
+			},
+			{
+			  "speaker": "游魂向导",
+			  "text": "有时候会带回奇怪的东西。上回一个士兵带回了一块糖。"
+			}
+		  ],
+		  "priority": 0.0,
+		  "repeatable": false
+		},
+		{
+		  "condition": {
+			"min_dispatch_count": 6.0
+		  },
+		  "id": "guide_chat_4",
+		  "lines": [
+			{
+			  "speaker": "游魂向导",
+			  "text": "你问我不累吗？"
+			},
+			{
+			  "speaker": "游魂向导",
+			  "text": "我是游魂。累是活人才有的感觉。"
+			}
+		  ],
+		  "priority": 0.0,
+		  "repeatable": false
+		},
+		{
+		  "condition": {
+			"min_run_count": 15.0
+		  },
+		  "id": "guide_chat_5",
+		  "lines": [
+			{
+			  "speaker": "游魂向导",
+			  "text": "你走了十五趟。"
+			},
+			{
+			  "speaker": "游魂向导",
+			  "text": "我见过很多人走到第十趟就……不走了。"
+			}
+		  ],
+		  "priority": 0.0,
+		  "repeatable": false
+		},
+		{
+		  "choices": [
+			{
+			  "flag": "guide_asked_past",
+			  "text": "你以前是做什么的？"
+			},
+			{
+			  "flag": "guide_silent",
+			  "text": "没什么。"
+			}
+		  ],
+		  "condition": {
+			"min_dispatch_count": 5.0
+		  },
+		  "id": "guide_curious",
+		  "lines": [
+			{
+			  "speaker": "游魂向导",
+			  "text": "你走神了。在想什么？"
+			}
+		  ],
+		  "priority": 5.0,
+		  "repeatable": false
+		},
+		{
+		  "condition": {
+			"flags": [
               "guide_asked_past"
-            ],
-            "min_dispatch_count": 8.0
-          },
-          "id": "guide_truth",
-          "lines": [
-            {
-              "speaker": "游魂向导",
-              "text": "终燃之前，我是探险家。"
-            },
-            {
-              "speaker": "游魂向导",
-              "text": "现在……只剩风还记得我的名字。"
-            }
-          ],
-          "priority": 10.0,
-          "repeatable": false
-        },
-        {
-          "condition": {
-            "flags": [
+			],
+			"min_dispatch_count": 8.0
+		  },
+		  "id": "guide_truth",
+		  "lines": [
+			{
+			  "speaker": "游魂向导",
+			  "text": "终燃之前，我是探险家。"
+			},
+			{
+			  "speaker": "游魂向导",
+			  "text": "现在……只剩风还记得我的名字。"
+			}
+		  ],
+		  "priority": 10.0,
+		  "repeatable": false
+		},
+		{
+		  "condition": {
+			"flags": [
               "guide_asked_past"
-            ],
-            "min_dispatch_count": 12.0
-          },
-          "id": "guide_truth_2",
-          "lines": [
-            {
-              "speaker": "游魂向导",
-              "text": "我去过一个地方，那里还有一朵花。"
-            },
-            {
-              "speaker": "游魂向导",
-              "text": "真的花。不是我这种风。"
-            },
-            {
-              "speaker": "游魂向导",
-              "text": "……我一直想再去看一眼。"
-            }
-          ],
-          "priority": 10.0,
-          "repeatable": false
-        },
-        {
-          "condition": {
-            "flags": [
+			],
+			"min_dispatch_count": 12.0
+		  },
+		  "id": "guide_truth_2",
+		  "lines": [
+			{
+			  "speaker": "游魂向导",
+			  "text": "我去过一个地方，那里还有一朵花。"
+			},
+			{
+			  "speaker": "游魂向导",
+			  "text": "真的花。不是我这种风。"
+			},
+			{
+			  "speaker": "游魂向导",
+			  "text": "……我一直想再去看一眼。"
+			}
+		  ],
+		  "priority": 10.0,
+		  "repeatable": false
+		},
+		{
+		  "condition": {
+			"flags": [
               "guide_asked_past"
-            ],
-            "min_dispatch_count": 10.0
-          },
-          "id": "guide_final",
-          "lines": [
-            {
-              "speaker": "游魂向导",
-              "text": "有一条路，我一直没告诉你。"
-            },
-            {
-              "speaker": "游魂向导",
-              "text": "终燃之眼——去了可能回不来。"
-            }
-          ],
-          "priority": 15.0,
-          "repeatable": false
-        },
-        {
-          "condition": {},
-          "id": "guide_default",
-          "lines": [
-            {
-              "speaker": "游魂向导",
-              "text": "风停了。要出发了吗？"
-            }
-          ],
-          "priority": -1.0,
-          "repeatable": true
-        }
-      ],
-      "name": "游魂向导",
-      "unlocks": [
-        {
-          "conditions": {
-            "after_dialogue": "guide_00"
-          },
-          "id": "mine",
-          "type": "route"
-        },
-        {
-          "conditions": {
-            "after_dialogue": "guide_chat_2"
-          },
-          "id": "forest",
-          "type": "route"
-        },
-        {
-          "conditions": {
-            "after_dialogue": "guide_curious"
-          },
-          "id": "shrine",
-          "type": "route"
-        },
-        {
-          "conditions": {
-            "after_dialogue": "guide_truth_2"
-          },
-          "id": "volcano",
-          "type": "route"
-        },
-        {
-          "conditions": {
-            "after_dialogue": "guide_final"
-          },
-          "id": "abyss",
-          "type": "route"
-        },
-        {
-          "conditions": {
-            "flags": [
+			],
+			"min_dispatch_count": 10.0
+		  },
+		  "id": "guide_final",
+		  "lines": [
+			{
+			  "speaker": "游魂向导",
+			  "text": "有一条路，我一直没告诉你。"
+			},
+			{
+			  "speaker": "游魂向导",
+			  "text": "终燃之眼——去了可能回不来。"
+			}
+		  ],
+		  "priority": 15.0,
+		  "repeatable": false
+		},
+		{
+		  "condition": {},
+		  "id": "guide_default",
+		  "lines": [
+			{
+			  "speaker": "游魂向导",
+			  "text": "风停了。要出发了吗？"
+			}
+		  ],
+		  "priority": -1.0,
+		  "repeatable": true
+		}
+	  ],
+	  "name": "游魂向导",
+	  "unlocks": [
+		{
+		  "conditions": {
+			"after_dialogue": "guide_00"
+		  },
+		  "id": "mine",
+		  "type": "route"
+		},
+		{
+		  "conditions": {
+			"after_dialogue": "guide_chat_2"
+		  },
+		  "id": "forest",
+		  "type": "route"
+		},
+		{
+		  "conditions": {
+			"after_dialogue": "guide_curious"
+		  },
+		  "id": "shrine",
+		  "type": "route"
+		},
+		{
+		  "conditions": {
+			"after_dialogue": "guide_truth_2"
+		  },
+		  "id": "volcano",
+		  "type": "route"
+		},
+		{
+		  "conditions": {
+			"after_dialogue": "guide_final"
+		  },
+		  "id": "abyss",
+		  "type": "route"
+		},
+		{
+		  "conditions": {
+			"flags": [
               "guide_asked_past"
-            ],
-            "min_dialogue_count": 5.0,
-            "min_dispatch_count": 10.0
-          },
-          "id": "relic_speed",
-          "type": "relic"
-        }
-      ]
-    },
-    "secret_merchant": {
-      "avatar": "npc_secret_merchant",
-      "default_trigger_type": "npc_interact",
-      "dialogues": [
-        {
-          "condition": {},
-          "id": "merchant_first",
-          "lines": [
-            {
-              "speaker": "兜帽商人",
-              "text": "嘘……你终于找到这里了。"
-            },
-            {
-              "speaker": "兜帽商人",
-              "text": "我看过太多人死在不该死的地方。"
-            },
-            {
-              "speaker": "兜帽商人",
-              "text": "我有一把钥匙，能让你在死眠中看见真相。"
-            },
-            {
-              "speaker": "兜帽商人",
-              "text": "代价不菲……但你会需要它的。"
-            }
-          ],
-          "priority": 10.0,
-          "repeatable": false
-        },
-        {
-          "condition": {},
-          "id": "merchant_repeat",
-          "lines": [
-            {
-              "speaker": "兜帽商人",
-              "text": "又是你。"
-            },
-            {
-              "speaker": "兜帽商人",
-              "text": "这一次……你攒够了吗？"
-            }
-          ],
-          "priority": 0.0,
-          "repeatable": true
-        }
-      ],
-      "name": "兜帽商人",
-      "unlocks": []
-    },
-    "soul_keeper": {
-      "avatar": "npc_soul_keeper",
-      "default_trigger_type": "npc_interact",
-      "dialogues": [
-        {
-          "condition": {},
-          "id": "keeper_00",
-          "lines": [
-            {
-              "speaker": "守火者",
-              "text": "火……又旺了一点。"
-            },
-            {
-              "speaker": "守火者",
-              "text": "你带回来的魂，我收到了。"
-            }
-          ],
-          "priority": 0.0,
-          "repeatable": false
-        },
-        {
-          "condition": {
-            "min_altar_level": 1.0
-          },
-          "id": "keeper_01",
-          "lines": [
-            {
-              "speaker": "守火者",
-              "text": "别急。火要慢慢烧，才烧得久。"
-            }
-          ],
-          "priority": 0.0,
-          "repeatable": false
-        },
-        {
-          "condition": {
-            "min_altar_level": 2.0
-          },
-          "id": "keeper_02",
-          "lines": [
-            {
-              "speaker": "守火者",
-              "text": "又一个灵魂……被火记住了。"
-            }
-          ],
-          "priority": 1.0,
-          "repeatable": false
-        },
-        {
-          "condition": {},
-          "id": "keeper_chat_1",
-          "lines": [
-            {
-              "speaker": "守火者",
-              "text": "火需要柴。人也需要。"
-            },
-            {
-              "speaker": "守火者",
-              "text": "……你多久没吃东西了？"
-            }
-          ],
-          "priority": 0.0,
-          "repeatable": false
-        },
-        {
-          "condition": {},
-          "id": "keeper_chat_2",
-          "lines": [
-            {
-              "speaker": "守火者",
-              "text": "灰烬里有时能捡到旧世界的东西。"
-            },
-            {
-              "speaker": "守火者",
-              "text": "上次我捡到一枚戒指。没有主人了。"
-            }
-          ],
-          "priority": 0.0,
-          "repeatable": false
-        },
-        {
-          "condition": {},
-          "id": "keeper_chat_3",
-          "lines": [
-            {
-              "speaker": "守火者",
-              "text": "你走的时候，火会小一点。"
-            },
-            {
-              "speaker": "守火者",
-              "text": "你回来的时候，火会大一点。"
-            }
-          ],
-          "priority": 0.0,
-          "repeatable": false
-        },
-        {
-          "condition": {
-            "min_run_count": 5.0
-          },
-          "id": "keeper_chat_4",
-          "lines": [
-            {
-              "speaker": "守火者",
-              "text": "你走了五趟了。"
-            },
-            {
-              "speaker": "守火者",
-              "text": "……我数着的。"
-            }
-          ],
-          "priority": 0.0,
-          "repeatable": false
-        },
-        {
-          "condition": {
-            "min_run_count": 10.0
-          },
-          "id": "keeper_chat_5",
-          "lines": [
-            {
-              "speaker": "守火者",
-              "text": "我叫不出你的名字。"
-            },
-            {
-              "speaker": "守火者",
-              "text": "但我记得你每一次回来。"
-            }
-          ],
-          "priority": 0.0,
-          "repeatable": false
-        },
-        {
-          "condition": {
-            "min_run_count": 20.0
-          },
-          "id": "keeper_chat_6",
-          "lines": [
-            {
-              "speaker": "守火者",
-              "text": "燃薪者……"
-            },
-            {
-              "speaker": "守火者",
-              "text": "不，你不是燃薪者了。"
-            },
-            {
-              "speaker": "守火者",
-              "text": "你已经是火本身。"
-            }
-          ],
-          "priority": 0.0,
-          "repeatable": false
-        },
-        {
-          "choices": [
-            {
-              "flag": "keeper_asked_why",
-              "text": "你为什么守着火？"
-            },
-            {
-              "flag": "keeper_silent",
-              "text": "……没什么。"
-            }
-          ],
-          "condition": {
-            "min_altar_level": 2.0
-          },
-          "id": "keeper_curious",
-          "lines": [
-            {
-              "speaker": "守火者",
-              "text": "……"
-            },
-            {
-              "speaker": "守火者",
-              "text": "你在看我？"
-            }
-          ],
-          "priority": 5.0,
-          "repeatable": false
-        },
-        {
-          "condition": {
-            "flags": [
+			],
+			"min_dialogue_count": 5.0,
+			"min_dispatch_count": 10.0
+		  },
+		  "id": "relic_speed",
+		  "type": "relic"
+		}
+	  ]
+	},
+	"secret_merchant": {
+	  "avatar": "npc_secret_merchant",
+	  "default_trigger_type": "npc_interact",
+	  "dialogues": [
+		{
+		  "condition": {},
+		  "id": "merchant_first",
+		  "lines": [
+			{
+			  "speaker": "兜帽商人",
+			  "text": "嘘……你终于找到这里了。"
+			},
+			{
+			  "speaker": "兜帽商人",
+			  "text": "我看过太多人死在不该死的地方。"
+			},
+			{
+			  "speaker": "兜帽商人",
+			  "text": "我有一把钥匙，能让你在死眠中看见真相。"
+			},
+			{
+			  "speaker": "兜帽商人",
+			  "text": "代价不菲……但你会需要它的。"
+			}
+		  ],
+		  "priority": 10.0,
+		  "repeatable": false
+		},
+		{
+		  "condition": {},
+		  "id": "merchant_repeat",
+		  "lines": [
+			{
+			  "speaker": "兜帽商人",
+			  "text": "又是你。"
+			},
+			{
+			  "speaker": "兜帽商人",
+			  "text": "这一次……你攒够了吗？"
+			}
+		  ],
+		  "priority": 0.0,
+		  "repeatable": true
+		}
+	  ],
+	  "name": "兜帽商人",
+	  "unlocks": []
+	},
+	"soul_keeper": {
+	  "avatar": "npc_soul_keeper",
+	  "default_trigger_type": "npc_interact",
+	  "dialogues": [
+		{
+		  "condition": {},
+		  "id": "keeper_00",
+		  "lines": [
+			{
+			  "speaker": "守火者",
+			  "text": "火……又旺了一点。"
+			},
+			{
+			  "speaker": "守火者",
+			  "text": "你带回来的魂，我收到了。"
+			}
+		  ],
+		  "priority": 0.0,
+		  "repeatable": false
+		},
+		{
+		  "condition": {
+			"min_altar_level": 1.0
+		  },
+		  "id": "keeper_01",
+		  "lines": [
+			{
+			  "speaker": "守火者",
+			  "text": "别急。火要慢慢烧，才烧得久。"
+			}
+		  ],
+		  "priority": 0.0,
+		  "repeatable": false
+		},
+		{
+		  "condition": {
+			"min_altar_level": 2.0
+		  },
+		  "id": "keeper_02",
+		  "lines": [
+			{
+			  "speaker": "守火者",
+			  "text": "又一个灵魂……被火记住了。"
+			}
+		  ],
+		  "priority": 1.0,
+		  "repeatable": false
+		},
+		{
+		  "condition": {},
+		  "id": "keeper_chat_1",
+		  "lines": [
+			{
+			  "speaker": "守火者",
+			  "text": "火需要柴。人也需要。"
+			},
+			{
+			  "speaker": "守火者",
+			  "text": "……你多久没吃东西了？"
+			}
+		  ],
+		  "priority": 0.0,
+		  "repeatable": false
+		},
+		{
+		  "condition": {},
+		  "id": "keeper_chat_2",
+		  "lines": [
+			{
+			  "speaker": "守火者",
+			  "text": "灰烬里有时能捡到旧世界的东西。"
+			},
+			{
+			  "speaker": "守火者",
+			  "text": "上次我捡到一枚戒指。没有主人了。"
+			}
+		  ],
+		  "priority": 0.0,
+		  "repeatable": false
+		},
+		{
+		  "condition": {},
+		  "id": "keeper_chat_3",
+		  "lines": [
+			{
+			  "speaker": "守火者",
+			  "text": "你走的时候，火会小一点。"
+			},
+			{
+			  "speaker": "守火者",
+			  "text": "你回来的时候，火会大一点。"
+			}
+		  ],
+		  "priority": 0.0,
+		  "repeatable": false
+		},
+		{
+		  "condition": {
+			"min_run_count": 5.0
+		  },
+		  "id": "keeper_chat_4",
+		  "lines": [
+			{
+			  "speaker": "守火者",
+			  "text": "你走了五趟了。"
+			},
+			{
+			  "speaker": "守火者",
+			  "text": "……我数着的。"
+			}
+		  ],
+		  "priority": 0.0,
+		  "repeatable": false
+		},
+		{
+		  "condition": {
+			"min_run_count": 10.0
+		  },
+		  "id": "keeper_chat_5",
+		  "lines": [
+			{
+			  "speaker": "守火者",
+			  "text": "我叫不出你的名字。"
+			},
+			{
+			  "speaker": "守火者",
+			  "text": "但我记得你每一次回来。"
+			}
+		  ],
+		  "priority": 0.0,
+		  "repeatable": false
+		},
+		{
+		  "condition": {
+			"min_run_count": 20.0
+		  },
+		  "id": "keeper_chat_6",
+		  "lines": [
+			{
+			  "speaker": "守火者",
+			  "text": "燃薪者……"
+			},
+			{
+			  "speaker": "守火者",
+			  "text": "不，你不是燃薪者了。"
+			},
+			{
+			  "speaker": "守火者",
+			  "text": "你已经是火本身。"
+			}
+		  ],
+		  "priority": 0.0,
+		  "repeatable": false
+		},
+		{
+		  "choices": [
+			{
+			  "flag": "keeper_asked_why",
+			  "text": "你为什么守着火？"
+			},
+			{
+			  "flag": "keeper_silent",
+			  "text": "……没什么。"
+			}
+		  ],
+		  "condition": {
+			"min_altar_level": 2.0
+		  },
+		  "id": "keeper_curious",
+		  "lines": [
+			{
+			  "speaker": "守火者",
+			  "text": "……"
+			},
+			{
+			  "speaker": "守火者",
+			  "text": "你在看我？"
+			}
+		  ],
+		  "priority": 5.0,
+		  "repeatable": false
+		},
+		{
+		  "condition": {
+			"flags": [
               "keeper_silent"
-            ]
-          },
-          "id": "keeper_silent_branch",
-          "lines": [
-            {
-              "speaker": "守火者",
-              "text": "……算了。你不想听，我不说。"
-            }
-          ],
-          "priority": 3.0,
-          "repeatable": false
-        },
-        {
-          "condition": {
-            "flags": [
+			]
+		  },
+		  "id": "keeper_silent_branch",
+		  "lines": [
+			{
+			  "speaker": "守火者",
+			  "text": "……算了。你不想听，我不说。"
+			}
+		  ],
+		  "priority": 3.0,
+		  "repeatable": false
+		},
+		{
+		  "condition": {
+			"flags": [
               "keeper_asked_why"
-            ],
-            "min_altar_level": 3.0
-          },
-          "id": "keeper_truth",
-          "lines": [
-            {
-              "speaker": "守火者",
-              "text": "火里有人在等我。"
-            },
-            {
-              "speaker": "守火者",
-              "text": "一个被封印的灵魂。"
-            },
-            {
-              "speaker": "守火者",
-              "text": "……我终究还是告诉你了。"
-            }
-          ],
-          "priority": 10.0,
-          "repeatable": false
-        },
-        {
-          "condition": {
-            "flags": [
+			],
+			"min_altar_level": 3.0
+		  },
+		  "id": "keeper_truth",
+		  "lines": [
+			{
+			  "speaker": "守火者",
+			  "text": "火里有人在等我。"
+			},
+			{
+			  "speaker": "守火者",
+			  "text": "一个被封印的灵魂。"
+			},
+			{
+			  "speaker": "守火者",
+			  "text": "……我终究还是告诉你了。"
+			}
+		  ],
+		  "priority": 10.0,
+		  "repeatable": false
+		},
+		{
+		  "condition": {
+			"flags": [
               "keeper_asked_why"
-            ],
-            "min_run_count": 8.0
-          },
-          "id": "keeper_truth_2",
-          "lines": [
-            {
-              "speaker": "守火者",
-              "text": "她被封印了多久……我不记得了。"
-            },
-            {
-              "speaker": "守火者",
-              "text": "我只记得她最后说的话。"
-            },
-            {
-              "speaker": "守火者",
-              "text": "她说：火不会灭的。"
-            }
-          ],
-          "priority": 10.0,
-          "repeatable": false
-        },
-        {
-          "condition": {
-            "flags": [
+			],
+			"min_run_count": 8.0
+		  },
+		  "id": "keeper_truth_2",
+		  "lines": [
+			{
+			  "speaker": "守火者",
+			  "text": "她被封印了多久……我不记得了。"
+			},
+			{
+			  "speaker": "守火者",
+			  "text": "我只记得她最后说的话。"
+			},
+			{
+			  "speaker": "守火者",
+			  "text": "她说：火不会灭的。"
+			}
+		  ],
+		  "priority": 10.0,
+		  "repeatable": false
+		},
+		{
+		  "condition": {
+			"flags": [
               "keeper_asked_why"
-            ],
-            "min_altar_level": 5.0
-          },
-          "id": "keeper_truth_3",
-          "lines": [
-            {
-              "speaker": "守火者",
-              "text": "你在变强。"
-            },
-            {
-              "speaker": "守火者",
-              "text": "强到也许能解开封印。"
-            }
-          ],
-          "priority": 10.0,
-          "repeatable": false
-        },
-        {
-          "condition": {
-            "flags": [
+			],
+			"min_altar_level": 5.0
+		  },
+		  "id": "keeper_truth_3",
+		  "lines": [
+			{
+			  "speaker": "守火者",
+			  "text": "你在变强。"
+			},
+			{
+			  "speaker": "守火者",
+			  "text": "强到也许能解开封印。"
+			}
+		  ],
+		  "priority": 10.0,
+		  "repeatable": false
+		},
+		{
+		  "condition": {
+			"flags": [
               "keeper_asked_why"
-            ],
-            "min_altar_level": 4.0
-          },
-          "id": "keeper_final",
-          "lines": [
-            {
-              "speaker": "守火者",
-              "text": "你的影子……开始像火了。"
-            },
-            {
-              "speaker": "守火者",
-              "text": "去唤醒它吧。"
-            }
-          ],
-          "priority": 15.0,
-          "repeatable": false
-        },
-        {
-          "condition": {},
-          "id": "keeper_default",
-          "lines": [
-            {
-              "speaker": "守火者",
-              "text": "火还烧着。"
-            }
-          ],
-          "priority": -1.0,
-          "repeatable": true
-        }
-      ],
-      "name": "守火者",
-      "unlocks": []
-    }
+			],
+			"min_altar_level": 4.0
+		  },
+		  "id": "keeper_final",
+		  "lines": [
+			{
+			  "speaker": "守火者",
+			  "text": "你的影子……开始像火了。"
+			},
+			{
+			  "speaker": "守火者",
+			  "text": "去唤醒它吧。"
+			}
+		  ],
+		  "priority": 15.0,
+		  "repeatable": false
+		},
+		{
+		  "condition": {},
+		  "id": "keeper_default",
+		  "lines": [
+			{
+			  "speaker": "守火者",
+			  "text": "火还烧着。"
+			}
+		  ],
+		  "priority": -1.0,
+		  "repeatable": true
+		}
+	  ],
+	  "name": "守火者",
+	  "unlocks": []
+	}
   },
   "standalone": {
-    "ambush": [
-      {
-        "speaker": "斥候",
-        "text": "报告！前方树林里发现埋伏！"
-      },
-      {
-        "speaker": "指挥官",
-        "text": "多少人？"
-      },
-      {
-        "speaker": "斥候",
-        "text": "至少二十个，还有弓箭手。"
-      },
-      {
-        "speaker": "指挥官",
-        "text": "听我命令：枪兵和盾牌手上前，弓箭手压制，法师准备范围法术。"
-      },
-      {
-        "speaker": "斧兵",
-        "text": "终于可以大干一场了！"
-      },
-      {
-        "speaker": "指挥官",
-        "text": "别冲动，听我信号。"
-      },
-      {
-        "speaker": "斥候",
-        "text": "等等，他们好像……在互相扔石头？"
-      },
-      {
-        "speaker": "指挥官",
-        "text": "……他们在内讧？"
-      },
-      {
-        "speaker": "斥候",
-        "text": "好像是……因为分赃不均。"
-      },
-      {
-        "speaker": "指挥官",
-        "text": "好机会！我们绕后包抄，一个不留！"
-      }
-    ],
-    "battle_01": [
-      {
-        "speaker": "指挥官",
-        "text": "敌人正在逼近！"
-      },
-      {
-        "speaker": "指挥官",
-        "text": "准备战斗！"
-      }
-    ],
-    "battle_start_1": [
-      {
-        "speaker": "指挥官",
-        "text": "前方有敌人！"
-      },
-      {
-        "speaker": "指挥官",
-        "text": "全体注意！"
-      }
-    ],
-    "battle_start_2": [
-      {
-        "speaker": "指挥官",
-        "text": "等等，前面有动静！"
-      },
-      {
-        "speaker": "指挥官",
-        "text": "全员，列阵！"
-      }
-    ],
-    "complete_dialog": [
-      {
-        "speaker": "系统",
-        "text": "恭喜你完成了这个区域！可以继续前进了。"
-      }
-    ],
-    "enemy_taunt": [
-      {
-        "speaker": "敌方首领",
-        "text": "哈！你们这群乌合之众也敢来挑战我们？"
-      },
-      {
-        "speaker": "指挥官",
-        "text": "我们只是来取回被盗的物资，把东西交出来，我们可以谈谈。"
-      },
-      {
-        "speaker": "敌方首领",
-        "text": "谈？好啊，等我先把你们的腿打断，我们再慢慢谈！"
-      },
-      {
-        "speaker": "法师",
-        "text": "队长，我可以直接把他变成青蛙吗？"
-      },
-      {
-        "speaker": "指挥官",
-        "text": "……留他一命，我还要问话。"
-      }
-    ],
-    "healer_advice": [
-      {
-        "speaker": "修女",
-        "text": "队长，我看你脸色不太好，是不是又熬夜了？"
-      },
-      {
-        "speaker": "指挥官",
-        "text": "没……只是研究了一晚上地图。"
-      },
-      {
-        "speaker": "修女",
-        "text": "研究地图能研究出黑眼圈？我这儿有提神药草，你拿去泡水喝。"
-      },
-      {
-        "speaker": "指挥官",
-        "text": "……谢谢。不过你确定那草不是上次给马吃的那个？"
-      },
-      {
-        "speaker": "修女",
-        "text": "哎呀，效果差不多啦！"
-      }
-    ],
-    "intro_01": [
-      {
-        "speaker": "村长",
-        "text": "欢迎来到我们的村庄！"
-      },
-      {
-        "speaker": "指挥官",
-        "text": "我们准备前进！"
-      },
-      {
-        "speaker": "村长",
-        "text": "前方有敌人，请小心。"
-      }
-    ],
-    "merc_banter": [
-      {
-        "speaker": "剑士",
-        "text": "队长，你说我们这次能拿多少赏金？"
-      },
-      {
-        "speaker": "指挥官",
-        "text": "够你买十把新剑的，前提是你别再砍坏我的盾牌。"
-      },
-      {
-        "speaker": "剑士",
-        "text": "那是意外！上次是那斧头自己滑了一下……"
-      },
-      {
-        "speaker": "枪兵",
-        "text": "我作证，那斧头确实滑了，因为剑士根本没拿稳。"
-      },
-      {
-        "speaker": "剑士",
-        "text": "喂！你到底是哪边的？！"
-      },
-      {
-        "speaker": "指挥官",
-        "text": "好了好了，都闭嘴。前面有敌情。"
-      }
-    ],
-    "new_dialogue": [
-      {
-        "speaker": "剑带来了吗？",
-        "text": "..."
-      }
-    ],
-    "post_battle": [
-      {
-        "speaker": "指挥官",
-        "text": "大家辛苦了，这一仗打得很漂亮。"
-      },
-      {
-        "speaker": "弓兵",
-        "text": "队长，我射中了七个！"
-      },
-      {
-        "speaker": "飞马",
-        "text": "我救了你三次，你居然只记得自己射箭？"
-      },
-      {
-        "speaker": "弓兵",
-        "text": "……好吧，你救了我三次，但我也射中了七个！"
-      },
-      {
-        "speaker": "指挥官",
-        "text": "行了，回去再慢慢吹，先清点伤员。"
-      }
-    ],
-    "relic_attack_dialog": [
-      {
-        "speaker": "神秘商人",
-        "text": "年轻人，你看起来很有潜力。"
-      },
-      {
-        "speaker": "神秘商人",
-        "text": "这是力量遗物，它能增强你全队的战斗力。"
-      },
-      {
-        "speaker": "指挥官",
-        "text": "多谢！这份恩情我会记住的。"
-      }
-    ],
-    "relic_defense_dialog": [
-      {
-        "speaker": "老铁匠",
-        "text": "你身上的铠甲太破了。"
-      },
-      {
-        "speaker": "老铁匠",
-        "text": "拿着这个守护遗物吧，它能保护你的战友。"
-      },
-      {
-        "speaker": "指挥官",
-        "text": "老先生，这份大礼我受之有愧……"
-      }
-    ],
-    "relic_magic_dialog": [
-      {
-        "speaker": "法师",
-        "text": "我在遗迹中找到了这个。"
-      },
-      {
-        "speaker": "法师",
-        "text": "魔力遗物能增强魔法攻击，对法师们会有帮助。"
-      },
-      {
-        "speaker": "指挥官",
-        "text": "这正是我们需要的！"
-      }
-    ],
-    "swordsman_vision_dialog": [
-      {
-        "speaker": "剑带来了吗？",
-        "text": "..."
-      }
-    ],
-    "tavern_talk": [
-      {
-        "speaker": "酒馆老板",
-        "text": "哟，旅行者，来一杯麦酒吧！"
-      },
-      {
-        "speaker": "指挥官",
-        "text": "多谢，不过我们还有任务在身。"
-      },
-      {
-        "speaker": "酒馆老板",
-        "text": "别急嘛，听说南边那座桥上最近闹鬼，你们可要当心。"
-      },
-      {
-        "speaker": "指挥官",
-        "text": "闹鬼？具体是什么情况？"
-      },
-      {
-        "speaker": "酒馆老板",
-        "text": "半夜总有人看到穿白衣服的影子在桥上晃荡，还发出呜呜的哭声。"
-      },
-      {
-        "speaker": "指挥官",
-        "text": "…………那不是鬼，那是我们的斥候在练习新的信号暗号。"
-      }
-    ],
-    "treasure_hunt": [
-      {
-        "speaker": "盗贼",
-        "text": "老大，前面有个古墓，听说里面全是宝贝！"
-      },
-      {
-        "speaker": "指挥官",
-        "text": "我们是正规军，不是盗墓贼。"
-      },
-      {
-        "speaker": "盗贼",
-        "text": "我已经挖到入口了！"
-      },
-      {
-        "speaker": "指挥官",
-        "text": "……你什么时候挖的？！"
-      }
-    ],
-    "village_encounter_dlg": [
-      {
-        "speaker": "村民",
-        "text": "欢迎来到村庄！"
-      },
-      {
-        "speaker": "村民",
-        "text": "送你一把斧头吧！"
-      }
-    ],
-    "village_gossip": [
-      {
-        "speaker": "村民甲",
-        "text": "听说了吗？东边的森林里出现了会说话的猫！"
-      },
-      {
-        "speaker": "村民乙",
-        "text": "真的假的？那猫说什么了？"
-      },
-      {
-        "speaker": "村民甲",
-        "text": "它说……‘你们村子的面包太好吃了，我打算搬来住！’"
-      },
-      {
-        "speaker": "村民乙",
-        "text": "……这猫是不是从隔壁镇子来的？"
-      }
-    ]
+	"ambush": [
+	  {
+		"speaker": "斥候",
+		"text": "报告！前方树林里发现埋伏！"
+	  },
+	  {
+		"speaker": "指挥官",
+		"text": "多少人？"
+	  },
+	  {
+		"speaker": "斥候",
+		"text": "至少二十个，还有弓箭手。"
+	  },
+	  {
+		"speaker": "指挥官",
+		"text": "听我命令：枪兵和盾牌手上前，弓箭手压制，法师准备范围法术。"
+	  },
+	  {
+		"speaker": "斧兵",
+		"text": "终于可以大干一场了！"
+	  },
+	  {
+		"speaker": "指挥官",
+		"text": "别冲动，听我信号。"
+	  },
+	  {
+		"speaker": "斥候",
+		"text": "等等，他们好像……在互相扔石头？"
+	  },
+	  {
+		"speaker": "指挥官",
+		"text": "……他们在内讧？"
+	  },
+	  {
+		"speaker": "斥候",
+		"text": "好像是……因为分赃不均。"
+	  },
+	  {
+		"speaker": "指挥官",
+		"text": "好机会！我们绕后包抄，一个不留！"
+	  }
+	],
+	"battle_01": [
+	  {
+		"speaker": "指挥官",
+		"text": "敌人正在逼近！"
+	  },
+	  {
+		"speaker": "指挥官",
+		"text": "准备战斗！"
+	  }
+	],
+	"battle_start_1": [
+	  {
+		"speaker": "指挥官",
+		"text": "前方有敌人！"
+	  },
+	  {
+		"speaker": "指挥官",
+		"text": "全体注意！"
+	  }
+	],
+	"battle_start_2": [
+	  {
+		"speaker": "指挥官",
+		"text": "等等，前面有动静！"
+	  },
+	  {
+		"speaker": "指挥官",
+		"text": "全员，列阵！"
+	  }
+	],
+	"complete_dialog": [
+	  {
+		"speaker": "系统",
+		"text": "恭喜你完成了这个区域！可以继续前进了。"
+	  }
+	],
+	"enemy_taunt": [
+	  {
+		"speaker": "敌方首领",
+		"text": "哈！你们这群乌合之众也敢来挑战我们？"
+	  },
+	  {
+		"speaker": "指挥官",
+		"text": "我们只是来取回被盗的物资，把东西交出来，我们可以谈谈。"
+	  },
+	  {
+		"speaker": "敌方首领",
+		"text": "谈？好啊，等我先把你们的腿打断，我们再慢慢谈！"
+	  },
+	  {
+		"speaker": "法师",
+		"text": "队长，我可以直接把他变成青蛙吗？"
+	  },
+	  {
+		"speaker": "指挥官",
+		"text": "……留他一命，我还要问话。"
+	  }
+	],
+	"healer_advice": [
+	  {
+		"speaker": "修女",
+		"text": "队长，我看你脸色不太好，是不是又熬夜了？"
+	  },
+	  {
+		"speaker": "指挥官",
+		"text": "没……只是研究了一晚上地图。"
+	  },
+	  {
+		"speaker": "修女",
+		"text": "研究地图能研究出黑眼圈？我这儿有提神药草，你拿去泡水喝。"
+	  },
+	  {
+		"speaker": "指挥官",
+		"text": "……谢谢。不过你确定那草不是上次给马吃的那个？"
+	  },
+	  {
+		"speaker": "修女",
+		"text": "哎呀，效果差不多啦！"
+	  }
+	],
+	"intro_01": [
+	  {
+		"speaker": "村长",
+		"text": "欢迎来到我们的村庄！"
+	  },
+	  {
+		"speaker": "指挥官",
+		"text": "我们准备前进！"
+	  },
+	  {
+		"speaker": "村长",
+		"text": "前方有敌人，请小心。"
+	  }
+	],
+	"merc_banter": [
+	  {
+		"speaker": "剑士",
+		"text": "队长，你说我们这次能拿多少赏金？"
+	  },
+	  {
+		"speaker": "指挥官",
+		"text": "够你买十把新剑的，前提是你别再砍坏我的盾牌。"
+	  },
+	  {
+		"speaker": "剑士",
+		"text": "那是意外！上次是那斧头自己滑了一下……"
+	  },
+	  {
+		"speaker": "枪兵",
+		"text": "我作证，那斧头确实滑了，因为剑士根本没拿稳。"
+	  },
+	  {
+		"speaker": "剑士",
+		"text": "喂！你到底是哪边的？！"
+	  },
+	  {
+		"speaker": "指挥官",
+		"text": "好了好了，都闭嘴。前面有敌情。"
+	  }
+	],
+	"new_dialogue": [
+	  {
+		"speaker": "剑带来了吗？",
+		"text": "..."
+	  }
+	],
+	"post_battle": [
+	  {
+		"speaker": "指挥官",
+		"text": "大家辛苦了，这一仗打得很漂亮。"
+	  },
+	  {
+		"speaker": "弓兵",
+		"text": "队长，我射中了七个！"
+	  },
+	  {
+		"speaker": "飞马",
+		"text": "我救了你三次，你居然只记得自己射箭？"
+	  },
+	  {
+		"speaker": "弓兵",
+		"text": "……好吧，你救了我三次，但我也射中了七个！"
+	  },
+	  {
+		"speaker": "指挥官",
+		"text": "行了，回去再慢慢吹，先清点伤员。"
+	  }
+	],
+	"relic_attack_dialog": [
+	  {
+		"speaker": "神秘商人",
+		"text": "年轻人，你看起来很有潜力。"
+	  },
+	  {
+		"speaker": "神秘商人",
+		"text": "这是力量遗物，它能增强你全队的战斗力。"
+	  },
+	  {
+		"speaker": "指挥官",
+		"text": "多谢！这份恩情我会记住的。"
+	  }
+	],
+	"relic_defense_dialog": [
+	  {
+		"speaker": "老铁匠",
+		"text": "你身上的铠甲太破了。"
+	  },
+	  {
+		"speaker": "老铁匠",
+		"text": "拿着这个守护遗物吧，它能保护你的战友。"
+	  },
+	  {
+		"speaker": "指挥官",
+		"text": "老先生，这份大礼我受之有愧……"
+	  }
+	],
+	"relic_magic_dialog": [
+	  {
+		"speaker": "法师",
+		"text": "我在遗迹中找到了这个。"
+	  },
+	  {
+		"speaker": "法师",
+		"text": "魔力遗物能增强魔法攻击，对法师们会有帮助。"
+	  },
+	  {
+		"speaker": "指挥官",
+		"text": "这正是我们需要的！"
+	  }
+	],
+	"swordsman_vision_dialog": [
+	  {
+		"speaker": "剑带来了吗？",
+		"text": "..."
+	  }
+	],
+	"tavern_talk": [
+	  {
+		"speaker": "酒馆老板",
+		"text": "哟，旅行者，来一杯麦酒吧！"
+	  },
+	  {
+		"speaker": "指挥官",
+		"text": "多谢，不过我们还有任务在身。"
+	  },
+	  {
+		"speaker": "酒馆老板",
+		"text": "别急嘛，听说南边那座桥上最近闹鬼，你们可要当心。"
+	  },
+	  {
+		"speaker": "指挥官",
+		"text": "闹鬼？具体是什么情况？"
+	  },
+	  {
+		"speaker": "酒馆老板",
+		"text": "半夜总有人看到穿白衣服的影子在桥上晃荡，还发出呜呜的哭声。"
+	  },
+	  {
+		"speaker": "指挥官",
+		"text": "…………那不是鬼，那是我们的斥候在练习新的信号暗号。"
+	  }
+	],
+	"treasure_hunt": [
+	  {
+		"speaker": "盗贼",
+		"text": "老大，前面有个古墓，听说里面全是宝贝！"
+	  },
+	  {
+		"speaker": "指挥官",
+		"text": "我们是正规军，不是盗墓贼。"
+	  },
+	  {
+		"speaker": "盗贼",
+		"text": "我已经挖到入口了！"
+	  },
+	  {
+		"speaker": "指挥官",
+		"text": "……你什么时候挖的？！"
+	  }
+	],
+	"village_encounter_dlg": [
+	  {
+		"speaker": "村民",
+		"text": "欢迎来到村庄！"
+	  },
+	  {
+		"speaker": "村民",
+		"text": "送你一把斧头吧！"
+	  }
+	],
+	"village_gossip": [
+	  {
+		"speaker": "村民甲",
+		"text": "听说了吗？东边的森林里出现了会说话的猫！"
+	  },
+	  {
+		"speaker": "村民乙",
+		"text": "真的假的？那猫说什么了？"
+	  },
+	  {
+		"speaker": "村民甲",
+		"text": "它说……‘你们村子的面包太好吃了，我打算搬来住！’"
+	  },
+	  {
+		"speaker": "村民乙",
+		"text": "……这猫是不是从隔壁镇子来的？"
+	  }
+	]
   }
 }

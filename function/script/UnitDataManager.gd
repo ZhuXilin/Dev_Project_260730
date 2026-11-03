@@ -94,23 +94,21 @@ static func get_default_stats(unit_name: String) -> UnitData:
 	data.ignore_terrain_cost = dict.get("ignore_terrain_cost", false)
 	data.physical_reduction = float(dict.get("physical_reduction", 0.0))
 	data.magic_reduction = float(dict.get("magic_reduction", 0.0))
-	data.unit_category = str(dict.get("unit_category", ""))
-	data.hidden_from_roster = bool(dict.get("hidden_from_roster", false))
+	data.hidden_from_roster = bool(dict.get("hidden_from_roster", false))   # ← unit_category 已删
 	data.is_boss = bool(dict.get("is_boss", false))
 	data.boss_mechanic_id = str(dict.get("boss_mechanic_id", ""))
-	
+
 	# ★ 读取基础头像
 	data.avatar = str(dict.get("avatar", ""))
-	
-	# ★ 用类型判断替代 Variant 的 as 强转，消除未使用警告
+
 	var bmp_data = dict.get("boss_mechanic_params", {})
 	if bmp_data is Dictionary:
 		data.boss_mechanic_params = bmp_data.duplicate(true)
-		
+
 	var bdh_data = dict.get("boss_dialogue_hooks", {})
 	if bdh_data is Dictionary:
 		data.boss_dialogue_hooks = bdh_data.duplicate(true)
-		
+
 	data.phases = UnitData.normalize_phases(dict.get("phases", []))
 	return data
 

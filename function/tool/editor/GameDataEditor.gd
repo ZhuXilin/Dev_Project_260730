@@ -2,8 +2,14 @@ extends Control
 
 # ============================================================
 #  GameDataEditor — 单位 / 战斗模拟 / 数值 / 套装 / 词条池 / 光环 / 单位解锁 / 校验
-#  已补全：Boss 元字段 + phases 阶段编辑器（新格式）
-#  已移除：Boss 对话钩子（boss_dialogue_hooks）编辑 UI
+#  v4.8：
+#    - 单位列表带 idle 缩略图
+#    - 头像下拉带图标 + 预览
+#    - SpriteFrames 路径行（选择/新建/复制/打开）+ idle 预览
+#    - 新建单位支持「空白单位」，可选自动创建空白 SpriteFrames
+#    - 重命名 ID：扫描 unit_data / unit_unlock / 地图 .tscn / events.json
+#    - 删除单位：列出所有引用
+#    - 新增字段：物理减伤/魔法减伤/无视地形/防具槽/特技槽/竞技场经验
 # ============================================================
 
 const UNIT_DATA_PATH : String = "res://content/data/unit_data.json"
@@ -15,7 +21,10 @@ const SET_BONUS_PATH : String = "res://content/data/set_bonuses.json"
 const AFFIX_PATH : String = "res://content/data/affixes.json"
 const AURA_PATH : String = "res://content/data/auras.json"
 const UNIT_UNLOCK_PATH : String = "res://content/data/unit_unlock.json"
+const EVENT_PATH_FOR_EDITOR : String = "res://content/data/events.json"
 const AVATAR_DIR : String = "res://content/images/characters/avatar/"
+const MAP_ROOT_DIR : String = "res://content/scenes/maps/"
+const SPRITE_FRAMES_DIR : String = "res://content/images/characters/"
 
 const JSON_EDITOR_SCRIPT : String = "res://function/tool/editor/JSONEditorPanel.gd"
 
@@ -100,6 +109,7 @@ var _weapon_ids : Array = []
 var _armor_ids : Array = []
 var _talent_ids : Array = []
 var _avatar_ids : Array = []
+var _events_db : Dictionary = {}
 var _current_unit_key : String = ""
 
 var _tab_btns : Array = []
@@ -112,7 +122,6 @@ var _edit_faction_edit : LineEdit = null
 var _edit_desc_edit : TextEdit = null
 var _edit_flavor_edit : TextEdit = null
 var _edit_avatar_opt : OptionButton = null
-var _edit_unit_category_edit : LineEdit = null
 var _edit_hidden_cb : CheckBox = null
 var _edit_is_boss_cb : CheckBox = null
 var _edit_boss_mechanic_edit : LineEdit = null
@@ -132,6 +141,19 @@ var _edit_branch_cards : Array = []
 var _edit_boss_phases_box : VBoxContainer = null
 var _edit_boss_phase_cards : Array = []
 
+# ---- 新增：头像 / SpriteFrames / 战斗属性 ----
+var _edit_avatar_preview : TextureRect = null
+var _edit_sprite_frames_path : LineEdit = null
+var _edit_sprite_frames_preview : TextureRect = null
+var _edit_phys_reduction_spin : SpinBox = null
+var _edit_mag_reduction_spin : SpinBox = null
+var _edit_ignore_terrain_cb : CheckBox = null
+var _edit_max_armor_spin : SpinBox = null
+var _edit_max_talent_spin : SpinBox = null
+var _edit_arena_exp_spin : SpinBox = null
+var _frames_texture_cache : Dictionary = {}
+
+# ---- 战斗模拟 ----
 var _sim_player_opt : OptionButton = null
 var _sim_enemy_opt : OptionButton = null
 var _sim_log : RichTextLabel = null
@@ -176,6 +198,7 @@ var _unit_db_dirty : bool = false
 var _edit_boss_dialogue_opts : Dictionary = {}
 var _edit_right_content : VBoxContainer = null
 var _validator_raw_log : String = ""
+
 
 func _ready():
 	_apply_compact_theme()
@@ -229,7 +252,7 @@ func _apply_compact_theme():
 	t.set_constant("item_end_padding", "PopupMenu", 3)
 	t.set_constant("v_separation", "PopupMenu", 0)
 	t.set_constant("h_separation", "PopupMenu", 0)
-	t.set_constant("icon_max_width", "PopupMenu", 6)
+	t.set_constant("icon_max_width", "PopupMenu", 16)
 
 	var popup_panel := StyleBoxFlat.new()
 	popup_panel.bg_color = Color(0.13, 0.13, 0.16, 1)
@@ -273,21 +296,18 @@ func _apply_compact_theme():
 
 	_setup_scrollbar_theme(t)
 	_setup_slider_theme(t)
-
 	theme = t
 
 
 func _setup_scrollbar_theme(t : Theme):
 	var track := StyleBoxFlat.new()
 	track.bg_color = Color(0.08, 0.08, 0.10, 1)
-
 	var grab_off := StyleBoxFlat.new()
 	grab_off.bg_color = Color(0.32, 0.32, 0.38, 1)
 	grab_off.corner_radius_top_left = 2
 	grab_off.corner_radius_top_right = 2
 	grab_off.corner_radius_bottom_left = 2
 	grab_off.corner_radius_bottom_right = 2
-
 	var grab_hl := StyleBoxFlat.new()
 	grab_hl.bg_color = Color(0.55, 0.55, 0.65, 1)
 	grab_hl.corner_radius_top_left = 2
@@ -350,6 +370,7 @@ func _load_all_data():
 	_refine_keys.sort()
 
 	_unit_unlock_data = _load_json(UNIT_UNLOCK_PATH)
+	_events_db = _load_json(EVENT_PATH_FOR_EDITOR)
 
 	_weapon_ids.clear()
 	_armor_ids.clear()
@@ -452,6 +473,9 @@ func _switch_tab(idx : int):
 		_tab_panels[i].visible = (i == idx)
 
 
+# ============================================================
+#  单位编辑
+# ============================================================
 func _build_edit_tab(parent : Control) -> Control:
 	var panel := HBoxContainer.new()
 	panel.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -465,7 +489,6 @@ func _build_edit_tab(parent : Control) -> Control:
 
 	left.add_child(_section("— 单位列表 —"))
 
-	# ★ 新增：刷新按钮
 	var refresh_btn := Button.new()
 	refresh_btn.text = "🔄 刷新列表"
 	refresh_btn.add_theme_font_size_override("font_size", 7)
@@ -474,13 +497,13 @@ func _build_edit_tab(parent : Control) -> Control:
 		_unit_db = _load_json(UNIT_DATA_PATH)
 		_unit_keys = _unit_db.keys()
 		_unit_keys.sort()
+		_frames_texture_cache.clear()
 		_refresh_unit_list()
 		_refresh_sim_unit_lists()
 		_set_edit_status("已从硬盘重载列表")
 	)
 	left.add_child(refresh_btn)
 
-	# ★ 新增：新建单位按钮
 	var add_unit_btn := Button.new()
 	add_unit_btn.text = "+ 新建单位"
 	add_unit_btn.add_theme_font_size_override("font_size", 7)
@@ -514,22 +537,32 @@ func _build_edit_tab(parent : Control) -> Control:
 	content.add_theme_constant_override("separation", 2)
 	r_scroll.add_child(content)
 	_edit_right_content = content
-	
+
 	content.add_child(_section("— 基础信息 —"))
-	
+
 	_edit_name_edit = _add_edit_row(content, "显示名")
-	# ★ 绑定回车：按下回车自动保存并释放焦点，左侧列表自动刷新
 	_edit_name_edit.text_submitted.connect(func(_t):
 		_save_unit_db()
 		_edit_name_edit.release_focus()
 	)
-	
+
 	_edit_faction_edit = _add_edit_row(content, "阵营")
-	_edit_avatar_opt = _add_option_row(content, "头像", _avatar_ids, "（无）")
+
+	_edit_avatar_opt = _add_avatar_option_row(content, "头像")
+	_edit_avatar_opt.item_selected.connect(_on_avatar_selected)
+
+	var av_prev_row := HBoxContainer.new()
+	av_prev_row.add_theme_constant_override("separation", 3)
+	content.add_child(av_prev_row)
+	av_prev_row.add_child(_lbl("头像预览", 40))
+	_edit_avatar_preview = TextureRect.new()
+	_edit_avatar_preview.custom_minimum_size = Vector2(32, 32)
+	_edit_avatar_preview.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_edit_avatar_preview.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	_edit_avatar_preview.modulate = Color(0.5, 0.5, 0.5, 1)
+	av_prev_row.add_child(_edit_avatar_preview)
 
 	content.add_child(_section("— Boss / 分类元字段 —"))
-	_edit_unit_category_edit = _add_edit_row(content, "unit_category")
-	_edit_unit_category_edit.placeholder_text = "boss / elite / summon / form（空=普通）"
 
 	var flags_row := HBoxContainer.new()
 	flags_row.add_theme_constant_override("separation", 8)
@@ -583,6 +616,63 @@ func _build_edit_tab(parent : Control) -> Control:
 		attr_grid.add_child(sp)
 		_style_spin(sp)
 		_edit_attr_spins[a["key"]] = sp
+
+	content.add_child(_section("— 战斗属性 —"))
+	var combat_grid := GridContainer.new()
+	combat_grid.columns = 2
+	combat_grid.add_theme_constant_override("h_separation", 6)
+	combat_grid.add_theme_constant_override("v_separation", 1)
+	content.add_child(combat_grid)
+
+	combat_grid.add_child(_lbl("物理减伤", 50))
+	_edit_phys_reduction_spin = SpinBox.new()
+	_edit_phys_reduction_spin.min_value = 0.0
+	_edit_phys_reduction_spin.max_value = 0.75
+	_edit_phys_reduction_spin.step = 0.01
+	_edit_phys_reduction_spin.custom_minimum_size = Vector2(60, 16)
+	combat_grid.add_child(_edit_phys_reduction_spin)
+	_style_spin(_edit_phys_reduction_spin)
+
+	combat_grid.add_child(_lbl("魔法减伤", 50))
+	_edit_mag_reduction_spin = SpinBox.new()
+	_edit_mag_reduction_spin.min_value = 0.0
+	_edit_mag_reduction_spin.max_value = 0.75
+	_edit_mag_reduction_spin.step = 0.01
+	_edit_mag_reduction_spin.custom_minimum_size = Vector2(60, 16)
+	combat_grid.add_child(_edit_mag_reduction_spin)
+	_style_spin(_edit_mag_reduction_spin)
+
+	combat_grid.add_child(_lbl("无视地形", 50))
+	_edit_ignore_terrain_cb = CheckBox.new()
+	_edit_ignore_terrain_cb.text = "ignore_terrain_cost"
+	combat_grid.add_child(_edit_ignore_terrain_cb)
+
+	combat_grid.add_child(_lbl("防具槽", 50))
+	_edit_max_armor_spin = SpinBox.new()
+	_edit_max_armor_spin.min_value = 0
+	_edit_max_armor_spin.max_value = 10
+	_edit_max_armor_spin.step = 1
+	_edit_max_armor_spin.custom_minimum_size = Vector2(60, 16)
+	combat_grid.add_child(_edit_max_armor_spin)
+	_style_spin(_edit_max_armor_spin)
+
+	combat_grid.add_child(_lbl("特技槽", 50))
+	_edit_max_talent_spin = SpinBox.new()
+	_edit_max_talent_spin.min_value = 0
+	_edit_max_talent_spin.max_value = 5
+	_edit_max_talent_spin.step = 1
+	_edit_max_talent_spin.custom_minimum_size = Vector2(60, 16)
+	combat_grid.add_child(_edit_max_talent_spin)
+	_style_spin(_edit_max_talent_spin)
+
+	combat_grid.add_child(_lbl("竞技场经验", 50))
+	_edit_arena_exp_spin = SpinBox.new()
+	_edit_arena_exp_spin.min_value = 0
+	_edit_arena_exp_spin.max_value = 999
+	_edit_arena_exp_spin.step = 1
+	_edit_arena_exp_spin.custom_minimum_size = Vector2(60, 16)
+	combat_grid.add_child(_edit_arena_exp_spin)
+	_style_spin(_edit_arena_exp_spin)
 
 	content.add_child(_section("— 单位标签 —"))
 	var tag_flow := HFlowContainer.new()
@@ -655,13 +745,16 @@ func _build_edit_tab(parent : Control) -> Control:
 	for i in range(2):
 		_edit_talent_opts.append(_add_option_row(content, "特技%d" % (i + 1), _talent_ids, "（无）"))
 
-	content.add_child(HSeparator.new())
+	content.add_child(_section("— 精灵帧 —"))
+	var sf_row : Dictionary = _add_sprite_frames_path_row(content, "SpriteFrames")
+	_edit_sprite_frames_path = sf_row["le"]
+	_edit_sprite_frames_preview = sf_row["preview"]
 
+	content.add_child(HSeparator.new())
 	content.add_child(_section("— 属性上限（净增）—"))
 	_rebuild_attr_cap_grid(content)
 
 	content.add_child(HSeparator.new())
-
 	var branch_header := HBoxContainer.new()
 	branch_header.add_theme_constant_override("separation", 4)
 	content.add_child(branch_header)
@@ -683,7 +776,6 @@ func _build_edit_tab(parent : Control) -> Control:
 	content.add_child(_edit_branches_box)
 
 	content.add_child(HSeparator.new())
-
 	var boss_header := HBoxContainer.new()
 	boss_header.add_theme_constant_override("separation", 4)
 	content.add_child(boss_header)
@@ -698,17 +790,12 @@ func _build_edit_tab(parent : Control) -> Control:
 	auto_boss_btn.text = "一键生成标准三阶段"
 	auto_boss_btn.modulate = Color(0.6, 1.0, 0.6)
 	auto_boss_btn.pressed.connect(func():
-		# 清理旧数据
 		for c in _edit_boss_phases_box.get_children():
 			_edit_boss_phases_box.remove_child(c)
 			c.queue_free()
 		_edit_boss_phase_cards.clear()
-		
-		# 阶段1
 		_add_boss_phase_card_with_data({"trigger": "initial", "hp_mode": "full", "reset_turn_state": true}, false)
-		# 阶段2
 		_add_boss_phase_card_with_data({"trigger": "hp_below", "threshold": 0.5, "hp_mode": "full", "preserve_buffs": true}, false)
-		# 阶段3
 		_add_boss_phase_card_with_data({"trigger": "hp_below", "threshold": 0.25, "hp_mode": "full", "preserve_buffs": true}, false)
 	)
 	boss_header.add_child(auto_boss_btn)
@@ -724,7 +811,6 @@ func _build_edit_tab(parent : Control) -> Control:
 	content.add_child(_edit_boss_phases_box)
 
 	content.add_child(HSeparator.new())
-
 	var dlg_header := HBoxContainer.new()
 	dlg_header.add_theme_constant_override("separation", 4)
 	content.add_child(dlg_header)
@@ -762,13 +848,18 @@ func _build_edit_tab(parent : Control) -> Control:
 			opt.set_item_metadata(i + 1, all_dlg_ids[i])
 		row.add_child(opt)
 		_edit_boss_dialogue_opts[h["key"]] = opt
-	
+
 	var btn_row := HBoxContainer.new()
 	btn_row.alignment = BoxContainer.ALIGNMENT_END
 	btn_row.add_theme_constant_override("separation", 4)
 	right.add_child(btn_row)
 
-	# ★ 新增：删除单位按钮
+	var rename_btn := Button.new()
+	rename_btn.text = "重命名 ID"
+	rename_btn.modulate = Color(0.9, 0.85, 0.4)
+	rename_btn.pressed.connect(_on_rename_unit_pressed)
+	btn_row.add_child(rename_btn)
+
 	var delete_btn := Button.new()
 	delete_btn.text = "删除单位"
 	delete_btn.modulate = Color(1.0, 0.5, 0.5)
@@ -851,7 +942,6 @@ func _rebuild_branches(data : Array):
 		_edit_branches_box.remove_child(c)
 		c.queue_free()
 	_edit_branch_cards.clear()
-
 	for branch in data:
 		if branch is Dictionary:
 			_add_branch_card_with_data(branch, false)
@@ -966,15 +1056,11 @@ func _add_branch_card_with_data(d : Dictionary, is_new : bool = false):
 	tal_row.add_child(tal_opt)
 	card_refs["granted_talent"] = tal_opt
 
-	var sprite_row := HBoxContainer.new()
-	sprite_row.add_theme_constant_override("separation", 3)
-	vbox.add_child(sprite_row)
-	sprite_row.add_child(_lbl("精灵图", 40))
-	var sprite_edit := LineEdit.new()
+	# SpriteFrames 路径行（含预览）
+	var sprite_row_data : Dictionary = _add_sprite_frames_path_row(vbox, "精灵图")
+	var sprite_edit : LineEdit = sprite_row_data["le"]
 	sprite_edit.text = d.get("sprite_frames_path", "")
-	sprite_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	sprite_edit.placeholder_text = "res://.../*_frames.tres"
-	sprite_row.add_child(sprite_edit)
+	sprite_edit.text_changed.emit(sprite_edit.text)
 	card_refs["sprite_frames_path"] = sprite_edit
 
 	var flavor_row := HBoxContainer.new()
@@ -1061,14 +1147,13 @@ func _read_branches() -> Array:
 
 
 # ============================================================
-#  Boss phases 编辑
+#  Boss 阶段编辑
 # ============================================================
 func _rebuild_boss_phases(data : Array):
 	for c in _edit_boss_phases_box.get_children():
 		_edit_boss_phases_box.remove_child(c)
 		c.queue_free()
 	_edit_boss_phase_cards.clear()
-
 	for phase in data:
 		if phase is Dictionary:
 			_add_boss_phase_card_with_data(phase, false)
@@ -1157,7 +1242,7 @@ func _add_boss_phase_card_with_data(d : Dictionary, _is_new : bool = false):
 	vbox.add_child(head)
 
 	var is_first : bool = _edit_boss_phase_cards.is_empty()
-	
+
 	var title := Label.new()
 	title.text = "阶段 #%d %s" % [_edit_boss_phase_cards.size() + 1, "（初始形态）" if is_first else ""]
 	title.add_theme_font_size_override("font_size", FS_PANEL)
@@ -1171,29 +1256,27 @@ func _add_boss_phase_card_with_data(d : Dictionary, _is_new : bool = false):
 	var del_btn := Button.new()
 	del_btn.text = "删除阶段"
 	del_btn.modulate = Color(1.0, 0.5, 0.5)
-	del_btn.disabled = is_first # 不允许删除第一阶段
+	del_btn.disabled = is_first
 	del_btn.pressed.connect(func():
 		_edit_boss_phase_cards.erase(card_refs)
 		card.queue_free()
 	)
 	head.add_child(del_btn)
 
-	# ---- 目标形态 ----
 	var form_row := HBoxContainer.new()
 	form_row.add_theme_constant_override("separation", 4)
 	vbox.add_child(form_row)
 	form_row.add_child(_lbl("变身为", 80))
 	var form_opt := _make_boss_unit_option(str(d.get("form_unit_id", "")))
-	form_opt.disabled = is_first # 第一阶段不能变身
+	form_opt.disabled = is_first
 	form_row.add_child(form_opt)
 	card_refs["form_opt"] = form_opt
 
-	# ---- 触发条件 ----
 	var trig_row := HBoxContainer.new()
 	trig_row.add_theme_constant_override("separation", 4)
 	vbox.add_child(trig_row)
 	trig_row.add_child(_lbl("触发条件", 80))
-	
+
 	var trig_text := Label.new()
 	trig_text.add_theme_font_size_override("font_size", FS_BUTTON)
 	if is_first:
@@ -1211,16 +1294,15 @@ func _add_boss_phase_card_with_data(d : Dictionary, _is_new : bool = false):
 		trig_row.add_child(trig_opt)
 		card_refs["trigger_opt"] = trig_opt
 		trig_text = null
-		
+
 	if trig_text != null:
 		trig_row.add_child(trig_text)
 
-	# ---- 阈值与血量模式 ----
 	var threshold_row := HBoxContainer.new()
 	threshold_row.add_theme_constant_override("separation", 4)
 	vbox.add_child(threshold_row)
 	threshold_row.add_child(_lbl("血量阈值", 80))
-	
+
 	var threshold_spin := SpinBox.new()
 	threshold_spin.min_value = 0.05
 	threshold_spin.max_value = 0.95
@@ -1242,11 +1324,28 @@ func _add_boss_phase_card_with_data(d : Dictionary, _is_new : bool = false):
 	hp_opt.set_item_metadata(0, "full")
 	hp_opt.add_item("保持当前比例", 1)
 	hp_opt.set_item_metadata(1, "keep_ratio")
+	hp_opt.add_item("保持当前绝对值", 2)
+	hp_opt.set_item_metadata(2, "keep_absolute")
+	hp_opt.add_item("自定义比例", 3)
+	hp_opt.set_item_metadata(3, "custom_ratio")
 	_select_option_by_meta(hp_opt, str(d.get("hp_mode", "full")))
 	hp_row.add_child(hp_opt)
 	card_refs["hp_mode_opt"] = hp_opt
 
-	# ---- 其他机制（折叠） ----
+	var min_hp_row := HBoxContainer.new()
+	min_hp_row.add_theme_constant_override("separation", 4)
+	vbox.add_child(min_hp_row)
+	min_hp_row.add_child(_lbl("保底 HP", 80))
+	var min_hp_spin := SpinBox.new()
+	min_hp_spin.min_value = 0
+	min_hp_spin.max_value = 99999
+	min_hp_spin.step = 1
+	min_hp_spin.value = int(d.get("min_hp", 1))
+	min_hp_spin.custom_minimum_size = Vector2(70, 16)
+	min_hp_row.add_child(min_hp_spin)
+	_style_spin(min_hp_spin)
+	card_refs["min_hp_spin"] = min_hp_spin
+
 	var advanced_cb := CheckBox.new()
 	advanced_cb.text = "展开高级设置 (机制/保留状态)"
 	advanced_cb.add_theme_font_size_override("font_size", FS_SMALL)
@@ -1286,7 +1385,7 @@ func _add_boss_phase_card_with_data(d : Dictionary, _is_new : bool = false):
 	_select_option_by_meta(mech_opt, str(d.get("mechanic_id", "")))
 	mech_row.add_child(mech_opt)
 	card_refs["mechanic_opt"] = mech_opt
-	
+
 	var mp_row := HBoxContainer.new()
 	mp_row.add_theme_constant_override("separation", 4)
 	adv_box.add_child(mp_row)
@@ -1299,7 +1398,7 @@ func _add_boss_phase_card_with_data(d : Dictionary, _is_new : bool = false):
 		mp_edit.text = JSON.stringify(mp)
 	mp_row.add_child(mp_edit)
 	card_refs["mechanic_params_edit"] = mp_edit
-	
+
 	var ov_row := HBoxContainer.new()
 	ov_row.add_theme_constant_override("separation", 4)
 	adv_box.add_child(ov_row)
@@ -1313,18 +1412,15 @@ func _add_boss_phase_card_with_data(d : Dictionary, _is_new : bool = false):
 	ov_row.add_child(ov_edit)
 	card_refs["override_edit"] = ov_edit
 
-	# 智能联动：如果选了 on_death，隐藏阈值
 	if card_refs.get("trigger_opt") != null:
 		card_refs["trigger_opt"].item_selected.connect(func(idx):
 			var meta = card_refs["trigger_opt"].get_item_metadata(idx)
 			var is_hp_below = (meta == "hp_below")
 			threshold_row.visible = is_hp_below
 		)
-		# 初始化可见性
 		var current_trig = card_refs["trigger_opt"].get_item_metadata(card_refs["trigger_opt"].selected)
 		threshold_row.visible = (current_trig == "hp_below")
 	else:
-		# ★ 修复点：如果是第一阶段（没有 trigger_opt），直接隐藏血量阈值行
 		threshold_row.visible = false
 
 	_edit_boss_phase_cards.append(card_refs)
@@ -1340,20 +1436,16 @@ func _read_boss_phases() -> Array:
 			"trigger": str(_get_meta(card["trigger_opt"])) if card.get("trigger_opt") != null else "initial",
 			"threshold": float(card["threshold_spin"].value) if card.get("threshold_spin") != null else 0.5,
 			"hp_mode": str(_get_meta(card["hp_mode_opt"])),
-			"min_hp": 1, # ★ 修复：没有输入框了，默认保底 1 血
+			"min_hp": int(card["min_hp_spin"].value) if card.has("min_hp_spin") else 1,
 			"reset_turn_state": card["reset_cb"].button_pressed,
 			"preserve_buffs": card["preserve_cb"].button_pressed,
 			"mechanic_id": str(_get_meta(card["mechanic_opt"])),
 			"mechanic_params": _parse_json_dict(card["mechanic_params_edit"].text) if card.has("mechanic_params_edit") else {},
 			"override": _parse_json_dict(card["override_edit"].text) if card.has("override_edit") else {}
 		}
-		
-		# 确保第一阶段强制为 initial
 		if result.is_empty():
 			phase["trigger"] = "initial"
-			
 		result.append(phase)
-
 	return result
 
 
@@ -1381,13 +1473,21 @@ func _refresh_unit_list():
 		_edit_unit_list.remove_child(c)
 		c.queue_free()
 	for key in _unit_keys:
+		var d : Dictionary = _unit_db[key]
 		var btn := Button.new()
-		btn.text = _unit_db[key].get("display_name", key)
+		btn.text = str(d.get("display_name", key))
 		btn.toggle_mode = true
 		btn.focus_mode = Control.FOCUS_NONE
 		btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
 		btn.clip_text = true
 		btn.set_meta("unit_key", key)
+
+		var frames_path : String = str(d.get("sprite_frames_path", ""))
+		var idle_tex := _get_idle_first_frame(frames_path)
+		if idle_tex:
+			btn.icon = idle_tex
+			btn.add_theme_constant_override("icon_max_width", 16)
+
 		btn.pressed.connect(func(): _select_edit_unit(key))
 		_edit_unit_list.add_child(btn)
 
@@ -1407,7 +1507,6 @@ func _select_edit_unit(key : String):
 	_edit_desc_edit.text = d.get("description", "")
 	_edit_flavor_edit.text = d.get("flavor", "")
 
-	_edit_unit_category_edit.text = str(d.get("unit_category", ""))
 	_edit_hidden_cb.button_pressed = bool(d.get("hidden_from_roster", false))
 	_edit_is_boss_cb.button_pressed = bool(d.get("is_boss", false))
 	_edit_boss_mechanic_edit.text = str(d.get("boss_mechanic_id", ""))
@@ -1418,10 +1517,25 @@ func _select_edit_unit(key : String):
 		_edit_boss_mechanic_params_edit.text = ""
 
 	if _edit_avatar_opt:
-		_select_option_by_meta(_edit_avatar_opt, d.get("avatar", ""))
+		var cur_avatar : String = str(d.get("avatar", ""))
+		_select_option_by_meta(_edit_avatar_opt, cur_avatar)
+		_update_avatar_preview(cur_avatar)
 
 	for a in EDITABLE_ATTRS:
 		_edit_attr_spins[a["key"]].value = d.get(a["key"], 0)
+
+	if _edit_phys_reduction_spin:
+		_edit_phys_reduction_spin.value = float(d.get("physical_reduction", 0.0))
+	if _edit_mag_reduction_spin:
+		_edit_mag_reduction_spin.value = float(d.get("magic_reduction", 0.0))
+	if _edit_ignore_terrain_cb:
+		_edit_ignore_terrain_cb.button_pressed = bool(d.get("ignore_terrain_cost", false))
+	if _edit_max_armor_spin:
+		_edit_max_armor_spin.value = int(d.get("max_armor_slots", 2))
+	if _edit_max_talent_spin:
+		_edit_max_talent_spin.value = int(d.get("max_talent_slots", 1))
+	if _edit_arena_exp_spin:
+		_edit_arena_exp_spin.value = int(d.get("arena_exp", 30))
 
 	var unit_tags : Array = d.get("tags", [])
 	for tag in UNIT_TAGS:
@@ -1446,15 +1560,21 @@ func _select_edit_unit(key : String):
 		var tid : String = talent_list[i] if i < talent_list.size() else ""
 		_select_option_by_meta(_edit_talent_opts[i], tid)
 
+	if _edit_sprite_frames_path:
+		var sf_path : String = str(d.get("sprite_frames_path", ""))
+		_edit_sprite_frames_path.text = sf_path
+		if _edit_sprite_frames_preview:
+			_update_sprite_frames_preview(_edit_sprite_frames_preview, sf_path)
+
 	_fill_attr_cap_levels(d.get("attr_cap_levels", []))
 	_rebuild_branches(d.get("advanced_branches", []))
 	_rebuild_boss_phases(d.get("phases", []))
-	# 填充对话钩子
 	var hooks : Dictionary = d.get("boss_dialogue_hooks", {})
 	for k in _edit_boss_dialogue_opts:
 		var opt : OptionButton = _edit_boss_dialogue_opts[k]
 		var target_id = str(hooks.get(k, ""))
 		_select_option_by_meta(opt, target_id)
+
 
 func _select_option_by_meta(opt : OptionButton, target_id : String):
 	if opt == null: return
@@ -1470,6 +1590,7 @@ func _reset_unit_db():
 	_unit_db = _load_json(UNIT_DATA_PATH)
 	_unit_keys = _unit_db.keys()
 	_unit_keys.sort()
+	_frames_texture_cache.clear()
 	_refresh_unit_list()
 	_refresh_sim_unit_lists()
 	UnitDataManager.reload_all()
@@ -1482,12 +1603,12 @@ func _save_unit_db():
 	if _current_unit_key == "": return
 	var d : Dictionary = _unit_db[_current_unit_key]
 
+	d["unit_name"] = _current_unit_key
 	d["display_name"] = _edit_name_edit.text
 	d["faction"] = _edit_faction_edit.text
 	d["description"] = _edit_desc_edit.text
 	d["flavor"] = _edit_flavor_edit.text
 
-	d["unit_category"] = _edit_unit_category_edit.text.strip_edges()
 	d["hidden_from_roster"] = _edit_hidden_cb.button_pressed
 	d["is_boss"] = _edit_is_boss_cb.button_pressed
 
@@ -1512,6 +1633,19 @@ func _save_unit_db():
 
 	for a in EDITABLE_ATTRS:
 		d[a["key"]] = int(_edit_attr_spins[a["key"]].value)
+
+	if _edit_phys_reduction_spin:
+		d["physical_reduction"] = float(_edit_phys_reduction_spin.value)
+	if _edit_mag_reduction_spin:
+		d["magic_reduction"] = float(_edit_mag_reduction_spin.value)
+	if _edit_ignore_terrain_cb:
+		d["ignore_terrain_cost"] = _edit_ignore_terrain_cb.button_pressed
+	if _edit_max_armor_spin:
+		d["max_armor_slots"] = int(_edit_max_armor_spin.value)
+	if _edit_max_talent_spin:
+		d["max_talent_slots"] = int(_edit_max_talent_spin.value)
+	if _edit_arena_exp_spin:
+		d["arena_exp"] = int(_edit_arena_exp_spin.value)
 
 	var tags : Array = []
 	for tag in UNIT_TAGS:
@@ -1550,6 +1684,13 @@ func _save_unit_db():
 		if tid != "": talent_ids.append(tid)
 	d["default_talents"] = talent_ids
 
+	if _edit_sprite_frames_path:
+		var sf_path : String = _edit_sprite_frames_path.text.strip_edges()
+		if sf_path != "":
+			d["sprite_frames_path"] = sf_path
+		else:
+			d.erase("sprite_frames_path")
+
 	var new_hooks : Dictionary = {}
 	for k in _edit_boss_dialogue_opts:
 		var opt : OptionButton = _edit_boss_dialogue_opts[k]
@@ -1583,21 +1724,28 @@ func _save_unit_db():
 	f.close()
 
 	UnitDataManager.reload_all()
+	_frames_texture_cache.clear()
 	_refresh_sim_unit_lists()
-	
-	# ★ 新增这一行：刷新左侧列表和按钮文字
 	_refresh_unit_list()
-	
 	_edit_status.text = "✓ 已保存"
+
+	var warn : String = ""
+	var sf_path2 : String = str(d.get("sprite_frames_path", ""))
+	if sf_path2 != "":
+		if not ResourceLoader.exists(sf_path2):
+			warn = "  ⚠ SpriteFrames 路径不存在"
+		else:
+			var sf = load(sf_path2)
+			if not (sf is SpriteFrames):
+				warn = "  ⚠ SpriteFrames 类型错误"
+			else:
+				for anim in ["idle", "down", "up", "side"]:
+					if not sf.has_animation(anim) or sf.get_frame_count(anim) == 0:
+						warn = "  ⚠ %s 无帧" % anim
+						break
+	if warn != "":
+		_edit_status.text += warn
 	print("[GameDataEditor] unit_data.json 已保存")
-
-
-func _get_meta(opt : OptionButton) -> String:
-	if opt == null: return ""
-	var idx : int = opt.selected
-	if idx < 0: return ""
-	var m = opt.get_item_metadata(idx)
-	return str(m) if m != null else ""
 
 
 # ============================================================
@@ -2290,7 +2438,6 @@ func _build_validator_tab(parent : Control) -> Control:
 	run_btn.pressed.connect(_run_validation)
 	bar.add_child(run_btn)
 
-	# ★ 新增：自动修复按钮
 	var fix_btn := Button.new()
 	fix_btn.text = "🪄 一键修复"
 	fix_btn.modulate = Color(0.6, 1.0, 1.0)
@@ -2343,12 +2490,10 @@ func _build_validator_tab(parent : Control) -> Control:
 	_validator_output.scroll_following = true
 	_validator_output.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_validator_output.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	# 强制指定较小的字体，解决字体过大问题
 	_validator_output.add_theme_font_size_override("normal_font_size", 8)
 	_validator_output.add_theme_font_size_override("bold_font_size", 8)
 	_validator_output.add_theme_font_size_override("italics_font_size", 8)
 	_validator_output.add_theme_font_size_override("mono_font_size", 8)
-	
 	scroll.add_child(_validator_output)
 
 	return panel
@@ -2357,7 +2502,7 @@ func _build_validator_tab(parent : Control) -> Control:
 func _run_validation():
 	if _validator_output == null: return
 	_validator_output.clear()
-	_validator_raw_log = "" # 清空原始日志
+	_validator_raw_log = ""
 	_validator_last_errors = 0
 	_validator_last_warns = 0
 	if _validator_status:
@@ -2731,6 +2876,7 @@ func _compact_spin_arrow_button(btn : Button):
 	btn.add_theme_stylebox_override("focus", empty)
 	btn.add_theme_stylebox_override("disabled", empty)
 
+
 func _get_all_dialogue_ids() -> Array:
 	var ids : Array = []
 	if StoryManager:
@@ -2740,8 +2886,25 @@ func _get_all_dialogue_ids() -> Array:
 	return ids
 
 
+func _clear_container(container: Node):
+	if not container: return
+	for child in container.get_children():
+		container.remove_child(child)
+		child.queue_free()
+
+
+func _get_meta(opt : OptionButton) -> String:
+	if opt == null: return ""
+	var idx : int = opt.selected
+	if idx < 0: return ""
+	var m = opt.get_item_metadata(idx)
+	return str(m) if m != null else ""
+
+
+# ============================================================
+#  新建 / 删除 / 重命名
+# ============================================================
 func _on_add_unit_pressed():
-	# 防止重复点击
 	var existing = get_node_or_null("AddUnitOverlay")
 	if existing: return
 
@@ -2751,20 +2914,18 @@ func _on_add_unit_pressed():
 	overlay.mouse_filter = Control.MOUSE_FILTER_STOP
 	add_child(overlay)
 
-	# 半透明黑色背景
 	var bg := ColorRect.new()
 	bg.color = Color(0, 0, 0, 0.7)
 	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
 	overlay.add_child(bg)
 
-	# 居中面板
 	var panel := PanelContainer.new()
 	panel.set_anchors_preset(Control.PRESET_CENTER)
-	panel.offset_left = -180
-	panel.offset_right = 180
-	panel.offset_top = -110
-	panel.offset_bottom = 110
-	
+	panel.offset_left = -190
+	panel.offset_right = 190
+	panel.offset_top = -140
+	panel.offset_bottom = 140
+
 	var sb := StyleBoxFlat.new()
 	sb.bg_color = Color(0.12, 0.12, 0.15, 1)
 	sb.border_color = Color(0.4, 0.4, 0.5, 1)
@@ -2784,7 +2945,7 @@ func _on_add_unit_pressed():
 	overlay.add_child(panel)
 
 	var vbox := VBoxContainer.new()
-	vbox.add_theme_constant_override("separation", 10)
+	vbox.add_theme_constant_override("separation", 8)
 	panel.add_child(vbox)
 
 	var title := Label.new()
@@ -2793,17 +2954,14 @@ func _on_add_unit_pressed():
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	vbox.add_child(title)
 
-	# 第一行：ID 输入
 	var id_row := HBoxContainer.new()
 	id_row.add_theme_constant_override("separation", 8)
 	vbox.add_child(id_row)
-	
 	var id_lb := Label.new()
 	id_lb.text = "唯一ID:"
 	id_lb.custom_minimum_size = Vector2(60, 0)
 	id_lb.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	id_row.add_child(id_lb)
-
 	var le := LineEdit.new()
 	le.placeholder_text = "例如: boss_new"
 	le.custom_minimum_size = Vector2(0, 24)
@@ -2811,43 +2969,47 @@ func _on_add_unit_pressed():
 	le.select_all_on_focus = true
 	id_row.add_child(le)
 
-	# 第二行：职业模板下拉列表
 	var tpl_row := HBoxContainer.new()
 	tpl_row.add_theme_constant_override("separation", 8)
 	vbox.add_child(tpl_row)
-	
 	var tpl_lb := Label.new()
 	tpl_lb.text = "模板:"
 	tpl_lb.custom_minimum_size = Vector2(60, 0)
 	tpl_lb.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	tpl_row.add_child(tpl_lb)
-
 	var opt := OptionButton.new()
 	opt.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	opt.custom_minimum_size = Vector2(0, 24)
 	opt.add_theme_font_size_override("font_size", 8)
 	tpl_row.add_child(opt)
 
-	# 填充下拉列表（基础单位 + 进阶分支）
+	# ★ 第一项：空白单位
+	opt.add_item("★ 空白单位（从零开始）")
+	opt.set_item_metadata(opt.item_count - 1, {"type": "blank"})
+
 	for uk in _unit_keys:
 		var ud : Dictionary = _unit_db.get(uk, {})
 		if ud.is_empty(): continue
-		
 		var dn : String = ud.get("display_name", uk)
-		opt.add_item("%s (%s)" % [dn, uk])
+		opt.add_item("复制：%s (%s)" % [dn, uk])
 		opt.set_item_metadata(opt.item_count - 1, {"type": "base", "key": uk})
-		
-		# 加入它的转职分支
+
 		var branches : Array = ud.get("advanced_branches", [])
 		for b in branches:
 			if b is Dictionary and b.get("id", "") != "":
 				var bid : String = b.get("id")
 				var bname : String = b.get("name", bid)
-				opt.add_item("  └ %s (%s)" % [bname, bid])
+				opt.add_item("  └ 复制分支：%s (%s)" % [bname, bid])
 				opt.set_item_metadata(opt.item_count - 1, {"type": "branch", "base_key": uk, "branch_data": b})
 
+	var create_frames_cb := CheckBox.new()
+	create_frames_cb.text = "同时创建空白 SpriteFrames 模板（unit_<id>_frames.tres）"
+	create_frames_cb.button_pressed = true
+	create_frames_cb.add_theme_font_size_override("font_size", 7)
+	vbox.add_child(create_frames_cb)
+
 	var hint := Label.new()
-	hint.text = "提示：选择基础单位或转职分支后，将自动复制其属性、贴图和默认装备。"
+	hint.text = "提示：空白单位所有字段为默认值；创建后请到 Godot 编辑器里补帧、配头像、配默认装备。"
 	hint.add_theme_font_size_override("font_size", 7)
 	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	hint.modulate = Color(0.6, 0.6, 0.6)
@@ -2891,53 +3053,44 @@ func _on_add_unit_pressed():
 			err_label.text = "❌ ID 已存在，请换一个"
 			err_label.visible = true
 			return
-		
+
 		var meta = opt.get_item_metadata(opt.selected)
 		var new_data: Dictionary = {}
-		
-		if meta != null:
-			if meta.type == "base":
-				new_data = _unit_db[meta.key].duplicate(true)
-			elif meta.type == "branch":
-				new_data = _unit_db[meta.base_key].duplicate(true)
-				var br: Dictionary = meta.branch_data
-				
-				# 叠加转职属性
-				var sb_dict: Dictionary = br.get("stat_bonus", {})
-				for k in sb_dict:
-					new_data[k] = int(new_data.get(k, 0)) + int(sb_dict[k])
-				
-				# 替换贴图
-				var sp: String = br.get("sprite_frames_path", "")
-				if sp != "": new_data["sprite_frames_path"] = sp
-				
-				# 赋予特技
-				var gt: String = br.get("granted_talent", "")
-				if gt != "": new_data["default_talents"] = [gt]
-				
-				# 覆盖标签
-				var b_tags: Array = br.get("tags", [])
-				if not b_tags.is_empty(): new_data["tags"] = b_tags.duplicate()
-				
-				# 清除原来的进阶分支，防止嵌套，并标记为已转职状态
-				new_data.erase("advanced_branches")
-				new_data["advanced_class"] = meta.branch_data.get("id", "")
-		
-		# 覆盖和重置新单位的特定字段
+
+		if meta != null and meta.get("type", "") == "blank":
+			new_data = _make_blank_unit_data(new_key)
+		elif meta != null and meta.get("type", "") == "base":
+			new_data = _unit_db[meta.key].duplicate(true)
+		elif meta != null and meta.get("type", "") == "branch":
+			new_data = _unit_db[meta.base_key].duplicate(true)
+			var br: Dictionary = meta.branch_data
+			var sb_dict: Dictionary = br.get("stat_bonus", {})
+			for k in sb_dict:
+				new_data[k] = int(new_data.get(k, 0)) + int(sb_dict[k])
+			var sp: String = br.get("sprite_frames_path", "")
+			if sp != "": new_data["sprite_frames_path"] = sp
+			var gt: String = br.get("granted_talent", "")
+			if gt != "": new_data["default_talents"] = [gt]
+			var b_tags: Array = br.get("tags", [])
+			if not b_tags.is_empty(): new_data["tags"] = b_tags.duplicate()
+			new_data.erase("advanced_branches")
+			new_data["advanced_class"] = br.get("id", "")
+
+		new_data["unit_name"] = new_key
 		new_data["display_name"] = new_key.replace("_", " ").capitalize()
-		new_data["is_boss"] = false
-		new_data["unit_category"] = ""
-		new_data["hidden_from_roster"] = false
-		new_data["phases"] = []
-		new_data["boss_dialogue_hooks"] = {}
-		new_data["boss_mechanic_id"] = ""
-		new_data["boss_mechanic_params"] = {}
-		
+
+		if create_frames_cb.button_pressed and str(new_data.get("sprite_frames_path", "")) == "":
+			var fname : String = "unit_%s_frames.tres" % new_key
+			var full_path : String = SPRITE_FRAMES_DIR + fname
+			if not ResourceLoader.exists(full_path):
+				var err := _create_blank_sprite_frames(full_path)
+				if err == OK:
+					new_data["sprite_frames_path"] = full_path
+
 		_unit_db[new_key] = new_data
 		_unit_keys.append(new_key)
 		_unit_keys.sort()
-		
-		# 保存到文件
+
 		var f := FileAccess.open(UNIT_DATA_PATH, FileAccess.WRITE)
 		if f == null:
 			err_label.text = "❌ 无法写入文件"
@@ -2945,48 +3098,87 @@ func _on_add_unit_pressed():
 			return
 		f.store_string(JSON.stringify(_unit_db, "  "))
 		f.close()
-		
+
 		UnitDataManager.reload_all()
-		
-		# 刷新并选中新建的单位
+		_frames_texture_cache.clear()
 		_refresh_unit_list()
 		_refresh_sim_unit_lists()
 		_select_edit_unit(new_key)
-		
 		overlay.queue_free()
 	)
 
+
+func _make_blank_unit_data(unit_key : String) -> Dictionary:
+	return {
+		"unit_name": unit_key,
+		"display_name": unit_key,
+		"faction": "",
+		"max_hp": 20,
+		"strength": 5,
+		"dexterity": 5,
+		"intelligence": 3,
+		"faith": 3,
+		"arcane": 3,
+		"move_range": 5,
+		"ignore_terrain_cost": false,
+		"physical_reduction": 0.0,
+		"magic_reduction": 0.0,
+		"max_armor_slots": 2,
+		"max_talent_slots": 1,
+		"arena_exp": 30,
+		"is_boss": false,
+		"hidden_from_roster": false,
+		"core_trait": "",
+		"tags": [],
+		"avatar": "",
+		"description": "",
+		"flavor": "",
+		"sprite_frames_path": "",
+		"default_weapon": "",
+		"default_armors": [],
+		"default_talents": [],
+		"attr_cap_levels": [{}, {}, {}],
+		"advanced_branches": [],
+		"phases": [],
+		"boss_dialogue_hooks": {},
+	}
+
+
 func _on_delete_unit_pressed():
-	if _current_unit_key == "":
-		return
-		
+	if _current_unit_key == "": return
 	var check_key = _current_unit_key
 	var dn = _unit_db[check_key].get("display_name", check_key)
-	
+
+	var refs = _collect_unit_references(check_key)
+	var lines : Array = []
+	if refs.total == 0:
+		lines.append("（无其他引用）")
+	else:
+		lines.append("被以下位置引用（删除后需手动修复）：")
+		if not refs.phases.is_empty(): lines.append("  unit_data.phases: " + ", ".join(refs.phases))
+		if not refs.branches.is_empty(): lines.append("  unit_data.advanced_branches: " + ", ".join(refs.branches))
+		if not refs.unlock.is_empty(): lines.append("  unit_unlock: " + ", ".join(refs.unlock))
+		if not refs.maps.is_empty(): lines.append("  地图 .tscn: " + ", ".join(refs.maps))
+		if not refs.events.is_empty(): lines.append("  events: " + ", ".join(refs.events))
+	var refs_text : String = "\n".join(lines)
+
 	Globals.show_confirm(
 		self,
-		"确定要删除单位【%s (%s)】吗？\n\n⚠ 警告：如果其他单位（如 Boss 阶段）或地图节点引用了该单位，\n将会导致引用丢失并可能在游戏中报错！" % [dn, check_key],
+		"确定要删除单位【%s (%s)】吗？\n\n%s" % [dn, check_key, refs_text],
 		"删除", "取消",
 		func():
-			# 从字典和列表中移除
 			_unit_db.erase(check_key)
 			_unit_keys.erase(check_key)
-			
-			# 保存到文件
 			var f := FileAccess.open(UNIT_DATA_PATH, FileAccess.WRITE)
-			if f != null:
+			if f:
 				f.store_string(JSON.stringify(_unit_db, "  "))
 				f.close()
-				
 			UnitDataManager.reload_all()
-			
-			# 重置当前选中状态并刷新左侧列表
+			_frames_texture_cache.clear()
 			_current_unit_key = ""
 			_refresh_unit_list()
 			_refresh_sim_unit_lists()
 			_set_edit_status("已删除单位: " + check_key)
-			
-			# 如果还有其他单位，自动选中第一个；如果没有，清空右侧面板
 			if not _unit_keys.is_empty():
 				_select_edit_unit(_unit_keys[0])
 			else:
@@ -2999,60 +3191,526 @@ func _on_delete_unit_pressed():
 		func(): pass
 	)
 
-func _clear_container(container: Node):
-	if not container: return
-	for child in container.get_children():
-		container.remove_child(child)
-		child.queue_free()
+
+func _on_rename_unit_pressed():
+	if _current_unit_key == "": return
+	var old_id : String = _current_unit_key
+
+	var dialog := AcceptDialog.new()
+	dialog.title = "重命名单位 ID"
+	dialog.dialog_hide_on_ok = false
+	dialog.ok_button_text = "扫描引用并重命名"
+	dialog.add_cancel_button("取消")
+
+	var vbox := VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 6)
+	dialog.add_child(vbox)
+
+	vbox.add_child(_lbl("旧 ID: " + old_id, 8))
+	vbox.add_child(_lbl("新 ID:", 8))
+	var le := LineEdit.new()
+	le.text = old_id
+	le.custom_minimum_size = Vector2(320, 24)
+	le.select_all_on_focus = true
+	vbox.add_child(le)
+
+	var report := RichTextLabel.new()
+	report.bbcode_enabled = true
+	report.custom_minimum_size = Vector2(400, 220)
+	report.add_theme_font_size_override("normal_font_size", 8)
+	vbox.add_child(report)
+
+	var refresh_report := func(new_id : String):
+		report.clear()
+		if new_id.strip_edges() == "" or new_id.strip_edges() == old_id:
+			return
+		if new_id.strip_edges() in _unit_db:
+			report.append_text("[color=#FF6B6B]✗ 新 ID 已存在[/color]\n")
+			return
+		var refs = _collect_unit_references(old_id)
+		report.append_text("[b]将替换以下位置的 %s → %s[/b]\n\n" % [old_id, new_id.strip_edges()])
+		if not refs.phases.is_empty():
+			report.append_text("[color=#FFD966]unit_data.phases:[/color]\n")
+			for r in refs.phases: report.append_text("  · %s\n" % r)
+		if not refs.branches.is_empty():
+			report.append_text("[color=#FFD966]unit_data.advanced_branches:[/color]\n")
+			for r in refs.branches: report.append_text("  · %s\n" % r)
+		if not refs.unlock.is_empty():
+			report.append_text("[color=#FFD966]unit_unlock:[/color]\n")
+			for r in refs.unlock: report.append_text("  · %s\n" % r)
+		if not refs.maps.is_empty():
+			report.append_text("[color=#FFD966]地图 .tscn:[/color]\n")
+			for r in refs.maps: report.append_text("  · %s\n" % r)
+		if not refs.events.is_empty():
+			report.append_text("[color=#FFD966]events.json:[/color]\n")
+			for r in refs.events: report.append_text("  · %s\n" % r)
+		report.append_text("\n[color=#7FBF7F]总引用: %d[/color]\n" % refs.total)
+
+	le.text_changed.connect(func(t): refresh_report.call(t))
+	refresh_report.call(old_id)
+
+	add_child(dialog)
+	dialog.confirmed.connect(func():
+		var new_id : String = le.text.strip_edges()
+		if new_id == "" or new_id == old_id:
+			dialog.queue_free(); return
+		if new_id in _unit_db:
+			_set_edit_status("❌ 新 ID 已存在")
+			return
+		_apply_unit_rename(old_id, new_id)
+		dialog.queue_free()
+	)
+	dialog.canceled.connect(func(): dialog.queue_free())
+	dialog.popup_centered(Vector2(460, 380))
+
+
+func _collect_unit_references(old_id : String, new_id : String = "") -> Dictionary:
+	var result : Dictionary = {
+		"phases": [], "branches": [], "unlock": [],
+		"maps": [], "events": [], "total": 0
+	}
+	# 1. unit_data
+	for uk in _unit_db:
+		var ud : Dictionary = _unit_db[uk]
+		var phases : Array = ud.get("phases", [])
+		for i in range(phases.size()):
+			if phases[i] is Dictionary and str(phases[i].get("form_unit_id", "")) == old_id:
+				result["phases"].append("%s.phases[%d]" % [uk, i])
+		var branches : Array = ud.get("advanced_branches", [])
+		for i in range(branches.size()):
+			if branches[i] is Dictionary and str(branches[i].get("standalone_unit_id", "")) == old_id:
+				result["branches"].append("%s.advanced_branches[%d]" % [uk, i])
+	# 2. unit_unlock
+	var dfl : Array = _unit_unlock_data.get("default_unlocked", [])
+	for i in range(dfl.size()):
+		if str(dfl[i]) == old_id: result["unlock"].append("default_unlocked[%d]" % i)
+	var ini : Array = _unit_unlock_data.get("initial_candidates", [])
+	for i in range(ini.size()):
+		if str(ini[i]) == old_id: result["unlock"].append("initial_candidates[%d]" % i)
+	var mu : Array = _unit_unlock_data.get("map_unlock_units", [])
+	for i in range(mu.size()):
+		if str(mu[i]) == old_id: result["unlock"].append("map_unlock_units[%d]" % i)
+	var mp : Dictionary = _unit_unlock_data.get("map_unlock_mapping", {})
+	if mp.has(old_id): result["unlock"].append("map_unlock_mapping key")
+	for src in mp:
+		var arr : Array = mp[src]
+		for i in range(arr.size()):
+			if str(arr[i]) == old_id: result["unlock"].append("map_unlock_mapping.%s[%d]" % [src, i])
+	var costs : Dictionary = _unit_unlock_data.get("unlock_costs", {})
+	if costs.has(old_id): result["unlock"].append("unlock_costs key")
+	# 3. 地图 .tscn
+	_scan_map_tscn_refs(old_id, result["maps"])
+	# 4. events
+	for eid in _events_db:
+		var ev : Dictionary = _events_db[eid]
+		var actions : Array = ev.get("actions", [])
+		for i in range(actions.size()):
+			var a : Dictionary = actions[i]
+			if str(a.get("type", "")) == "unlock_unit":
+				var us : Array = a.get("units", [])
+				for j in range(us.size()):
+					if str(us[j]) == old_id:
+						result["events"].append("%s.actions[%d].units[%d]" % [eid, i, j])
+	result["total"] = result["phases"].size() + result["branches"].size() + result["unlock"].size() + result["maps"].size() + result["events"].size()
+	return result
+
+
+func _scan_map_tscn_refs(old_id : String, out : Array) -> void:
+	var dir_stack : Array = [MAP_ROOT_DIR]
+	while not dir_stack.is_empty():
+		var cur : String = dir_stack.pop_back()
+		var dir := DirAccess.open(cur)
+		if dir == null: continue
+		dir.list_dir_begin()
+		var fname := dir.get_next()
+		while fname != "":
+			if dir.current_is_dir():
+				if fname != "." and fname != "..":
+					dir_stack.append(cur + fname + "/")
+			elif fname.ends_with(".tscn"):
+				var path : String = cur + fname
+				var f := FileAccess.open(path, FileAccess.READ)
+				if f:
+					var text : String = f.get_as_text()
+					f.close()
+					if text.contains('unit_name = "' + old_id + '"'):
+						if path not in out:
+							out.append(path)
+			fname = dir.get_next()
+		dir.list_dir_end()
+
+
+func _apply_unit_rename(old_id : String, new_id : String) -> void:
+	var ud : Dictionary = _unit_db.get(old_id, {})
+	if ud.is_empty(): return
+
+	# 1. unit_data.json 内部引用
+	for uk in _unit_db:
+		var d : Dictionary = _unit_db[uk]
+		var phases : Array = d.get("phases", [])
+		for p in phases:
+			if p is Dictionary and str(p.get("form_unit_id", "")) == old_id:
+				p["form_unit_id"] = new_id
+		var branches : Array = d.get("advanced_branches", [])
+		for b in branches:
+			if b is Dictionary and str(b.get("standalone_unit_id", "")) == old_id:
+				b["standalone_unit_id"] = new_id
+
+	# 2. 主键
+	_unit_db.erase(old_id)
+	ud["unit_name"] = new_id
+	_unit_db[new_id] = ud
+	_unit_keys.erase(old_id)
+	_unit_keys.append(new_id)
+	_unit_keys.sort()
+
+	# 3. unit_unlock.json
+	var dfl : Array = _unit_unlock_data.get("default_unlocked", [])
+	for i in range(dfl.size()):
+		if str(dfl[i]) == old_id: dfl[i] = new_id
+	var ini : Array = _unit_unlock_data.get("initial_candidates", [])
+	for i in range(ini.size()):
+		if str(ini[i]) == old_id: ini[i] = new_id
+	var mu : Array = _unit_unlock_data.get("map_unlock_units", [])
+	for i in range(mu.size()):
+		if str(mu[i]) == old_id: mu[i] = new_id
+	var mp : Dictionary = _unit_unlock_data.get("map_unlock_mapping", {})
+	if mp.has(old_id):
+		var v = mp[old_id]
+		mp.erase(old_id)
+		mp[new_id] = v
+	for src in mp:
+		var arr : Array = mp[src]
+		for i in range(arr.size()):
+			if str(arr[i]) == old_id: arr[i] = new_id
+	var costs : Dictionary = _unit_unlock_data.get("unlock_costs", {})
+	if costs.has(old_id):
+		var v = costs[old_id]
+		costs.erase(old_id)
+		costs[new_id] = v
+
+	# 4. events.json
+	for eid in _events_db:
+		var ev : Dictionary = _events_db[eid]
+		var actions : Array = ev.get("actions", [])
+		for a in actions:
+			if a is Dictionary and str(a.get("type", "")) == "unlock_unit":
+				var us : Array = a.get("units", [])
+				for i in range(us.size()):
+					if str(us[i]) == old_id: us[i] = new_id
+
+	# 5. 地图 .tscn
+	_rename_in_map_tscn(old_id, new_id)
+
+	# 6. 写盘
+	var f1 := FileAccess.open(UNIT_DATA_PATH, FileAccess.WRITE)
+	if f1: f1.store_string(JSON.stringify(_unit_db, "  ")); f1.close()
+	var f2 := FileAccess.open(UNIT_UNLOCK_PATH, FileAccess.WRITE)
+	if f2: f2.store_string(JSON.stringify(_unit_unlock_data, "  ")); f2.close()
+	var f3 := FileAccess.open(EVENT_PATH_FOR_EDITOR, FileAccess.WRITE)
+	if f3: f3.store_string(JSON.stringify(_events_db, "  ")); f3.close()
+
+	UnitDataManager.reload_all()
+	Globals._load_unlock_config()
+	_frames_texture_cache.clear()
+	_current_unit_key = new_id
+	_refresh_unit_list()
+	_refresh_sim_unit_lists()
+	_select_edit_unit(new_id)
+	_set_edit_status("✓ 已重命名: %s → %s" % [old_id, new_id])
+
+
+func _rename_in_map_tscn(old_id : String, new_id : String) -> void:
+	var dir_stack : Array = [MAP_ROOT_DIR]
+	while not dir_stack.is_empty():
+		var cur : String = dir_stack.pop_back()
+		var dir := DirAccess.open(cur)
+		if dir == null: continue
+		dir.list_dir_begin()
+		var fname := dir.get_next()
+		while fname != "":
+			if dir.current_is_dir():
+				if fname != "." and fname != "..":
+					dir_stack.append(cur + fname + "/")
+			elif fname.ends_with(".tscn"):
+				var path : String = cur + fname
+				var f := FileAccess.open(path, FileAccess.READ)
+				if f:
+					var text : String = f.get_as_text()
+					f.close()
+					if text.contains('unit_name = "' + old_id + '"'):
+						text = text.replace('unit_name = "' + old_id + '"', 'unit_name = "' + new_id + '"')
+						var wf := FileAccess.open(path, FileAccess.WRITE)
+						if wf: wf.store_string(text); wf.close()
+			fname = dir.get_next()
+		dir.list_dir_end()
 
 
 # ============================================================
-#  自动修复逻辑
+#  头像 / SpriteFrames
 # ============================================================
+func _add_avatar_option_row(parent : Node, label : String) -> OptionButton:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 3)
+	parent.add_child(row)
+	row.add_child(_lbl(label, 40))
+
+	var opt := OptionButton.new()
+	opt.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	opt.add_theme_font_size_override("font_size", FS_BUTTON)
+	opt.add_item("（无）", 0)
+	opt.set_item_metadata(0, "")
+
+	for i in range(_avatar_ids.size()):
+		var aid : String = _avatar_ids[i]
+		var tex : Texture2D = IconManager.get_icon_or_null(aid)
+		if tex:
+			opt.add_icon_item(tex, aid, i + 1)
+		else:
+			opt.add_item(aid, i + 1)
+		opt.set_item_metadata(i + 1, aid)
+
+	row.add_child(opt)
+	return opt
+
+
+func _on_avatar_selected(idx : int):
+	if _edit_avatar_opt == null: return
+	var aid = _edit_avatar_opt.get_item_metadata(idx)
+	_update_avatar_preview(str(aid) if aid != null else "")
+
+
+func _update_avatar_preview(aid : String):
+	if _edit_avatar_preview == null or not is_instance_valid(_edit_avatar_preview):
+		return
+	if aid == "":
+		_edit_avatar_preview.texture = null
+		_edit_avatar_preview.modulate = Color(0.4, 0.4, 0.4, 1)
+		return
+	var tex := IconManager.get_icon_or_null(aid)
+	if tex:
+		_edit_avatar_preview.texture = tex
+		_edit_avatar_preview.modulate = Color.WHITE
+	else:
+		_edit_avatar_preview.texture = null
+		_edit_avatar_preview.modulate = Color(1.0, 0.4, 0.4, 1)
+
+
+func _add_sprite_frames_path_row(parent : Node, label : String) -> Dictionary:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 3)
+	parent.add_child(row)
+	row.add_child(_lbl(label, 40))
+
+	var le := LineEdit.new()
+	le.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	le.placeholder_text = "res://content/images/characters/unit_xxx_frames.tres"
+	row.add_child(le)
+
+	var pick_btn := Button.new()
+	pick_btn.text = "选择"
+	pick_btn.custom_minimum_size = Vector2(36, 16)
+	pick_btn.add_theme_font_size_override("font_size", 6)
+	pick_btn.pressed.connect(_on_pick_sprite_frames.bind(le))
+	row.add_child(pick_btn)
+
+	var new_btn := Button.new()
+	new_btn.text = "新建"
+	new_btn.custom_minimum_size = Vector2(36, 16)
+	new_btn.add_theme_font_size_override("font_size", 6)
+	new_btn.tooltip_text = "创建一个空白 SpriteFrames（含 idle/down/up/side），之后在 Godot 编辑器里拖帧"
+	new_btn.pressed.connect(_on_new_sprite_frames_template.bind(le))
+	row.add_child(new_btn)
+
+	var copy_btn := Button.new()
+	copy_btn.text = "复制路径"
+	copy_btn.custom_minimum_size = Vector2(52, 16)
+	copy_btn.add_theme_font_size_override("font_size", 6)
+	copy_btn.pressed.connect(func():
+		var p : String = le.text.strip_edges()
+		if p != "":
+			DisplayServer.clipboard_set(p)
+			_set_edit_status("已复制路径")
+	)
+	row.add_child(copy_btn)
+
+	var open_btn := Button.new()
+	open_btn.text = "打开目录"
+	open_btn.custom_minimum_size = Vector2(52, 16)
+	open_btn.add_theme_font_size_override("font_size", 6)
+	open_btn.pressed.connect(func():
+		var p : String = le.text.strip_edges()
+		if p != "" and p.begins_with("res://"):
+			OS.shell_show_in_file_manager(ProjectSettings.globalize_path(p.get_base_dir()))
+	)
+	row.add_child(open_btn)
+
+	var prev_row := HBoxContainer.new()
+	prev_row.add_theme_constant_override("separation", 3)
+	parent.add_child(prev_row)
+	prev_row.add_child(_lbl("预览", 40))
+
+	var tex_rect := TextureRect.new()
+	tex_rect.custom_minimum_size = Vector2(32, 32)
+	tex_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	tex_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	tex_rect.modulate = Color(0.5, 0.5, 0.5, 1)
+	prev_row.add_child(tex_rect)
+
+	le.text_changed.connect(func(t):
+		_update_sprite_frames_preview(tex_rect, t)
+	)
+	return {"le": le, "preview": tex_rect}
+
+
+func _get_idle_first_frame(frames_path : String) -> Texture2D:
+	var path : String = frames_path.strip_edges()
+	if path == "" or not ResourceLoader.exists(path):
+		return null
+	if _frames_texture_cache.has(path):
+		return _frames_texture_cache[path]
+	var sf = load(path)
+	if not (sf is SpriteFrames):
+		_frames_texture_cache[path] = null
+		return null
+	var tex : Texture2D = null
+	if sf.has_animation("idle") and sf.get_frame_count("idle") > 0:
+		tex = sf.get_frame_texture("idle", 0)
+	_frames_texture_cache[path] = tex
+	return tex
+
+
+func _update_sprite_frames_preview(tex_rect : TextureRect, path : String):
+	if tex_rect == null or not is_instance_valid(tex_rect): return
+	var tex := _get_idle_first_frame(path)
+	if tex:
+		tex_rect.texture = tex
+		tex_rect.modulate = Color.WHITE
+	else:
+		tex_rect.texture = null
+		tex_rect.modulate = Color(0.5, 0.5, 0.5, 1)
+
+
+func _on_pick_sprite_frames(le : LineEdit):
+	var fd := FileDialog.new()
+	fd.file_mode = FileDialog.FILE_MODE_OPEN_FILE
+	fd.access = FileDialog.ACCESS_RESOURCES
+	fd.add_filter("*.tres", "SpriteFrames")
+	fd.use_native_dialog = true
+	fd.current_dir = SPRITE_FRAMES_DIR
+	fd.title = "选择 SpriteFrames 资源"
+	fd.file_selected.connect(func(path):
+		le.text = path
+		le.text_changed.emit(path)
+		fd.queue_free()
+	)
+	fd.canceled.connect(func(): fd.queue_free())
+	add_child(fd)
+	fd.popup_centered(Vector2i(500, 400))
+
+
+func _on_new_sprite_frames_template(le : LineEdit):
+	var default_name : String = ""
+	if _current_unit_key != "":
+		default_name = "unit_%s_frames.tres" % _current_unit_key
+	else:
+		default_name = "unit_new_frames.tres"
+
+	var dialog := AcceptDialog.new()
+	dialog.title = "新建 SpriteFrames 模板"
+	dialog.dialog_hide_on_ok = false
+	dialog.ok_button_text = "创建"
+	dialog.add_cancel_button("取消")
+
+	var vbox := VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 6)
+	dialog.add_child(vbox)
+
+	vbox.add_child(_lbl("文件名（不含目录）:", 8))
+	var name_edit := LineEdit.new()
+	name_edit.text = default_name
+	name_edit.custom_minimum_size = Vector2(260, 24)
+	vbox.add_child(name_edit)
+
+	var hint := Label.new()
+	hint.text = "将创建空白 SpriteFrames，含 idle / down / up / side 四个动画（0 帧）。\n保存到 res://content/images/characters/ 后，请到 Godot 编辑器里打开并拖入图集帧。"
+	hint.add_theme_font_size_override("font_size", 7)
+	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	vbox.add_child(hint)
+
+	add_child(dialog)
+	dialog.confirmed.connect(func():
+		var fname : String = name_edit.text.strip_edges()
+		if fname == "":
+			return
+		if not fname.ends_with(".tres"):
+			fname += ".tres"
+		var full_path : String = SPRITE_FRAMES_DIR + fname
+		if ResourceLoader.exists(full_path):
+			_set_edit_status("❌ 文件已存在: " + full_path)
+			return
+		var err := _create_blank_sprite_frames(full_path)
+		if err != OK:
+			_set_edit_status("❌ 保存失败: %d" % err)
+			return
+		le.text = full_path
+		le.text_changed.emit(full_path)
+		_set_edit_status("✓ 已创建空白 SpriteFrames: " + fname)
+		dialog.queue_free()
+	)
+	dialog.canceled.connect(func(): dialog.queue_free())
+	dialog.popup_centered(Vector2(340, 200))
+
+
+func _create_blank_sprite_frames(full_path : String) -> int:
+	var sf := SpriteFrames.new()
+	for anim in ["idle", "down", "up", "side"]:
+		if not sf.has_animation(anim):
+			sf.add_animation(anim)
+		sf.set_animation_speed(anim, 5.0)
+		sf.set_animation_loop(anim, true)
+	return ResourceSaver.save(sf, full_path)
+
+
 # ============================================================
-#  自动修复逻辑
+#  一键修复
 # ============================================================
 func _on_auto_fix_pressed():
 	var fix_logs : Array = []
-	
-	# 1. 扫描单位
+
 	for uk in _unit_db:
 		var ud : Dictionary = _unit_db[uk]
 		if ud.is_empty(): continue
-		
-		# 默认武器
+
 		var dw : String = str(ud.get("default_weapon", ""))
 		if dw != "" and ItemManager.get_item_data(dw) == null:
 			fix_logs.append("单位 [%s] 的默认武器不存在 (%s)，将移除该武器" % [uk, dw])
 			ud["default_weapon"] = ""
-			
-		# 默认防具
+
 		var armors : Array = ud.get("default_armors", [])
 		var valid_armors : Array = []
 		var armor_removed = false
 		for aid in armors:
-			if ItemManager.get_item_data(aid) != null: 
+			if ItemManager.get_item_data(aid) != null:
 				valid_armors.append(aid)
-			else: 
+			else:
 				armor_removed = true
 		if armor_removed:
 			ud["default_armors"] = valid_armors
 			fix_logs.append("单位 [%s] 的默认防具包含无效引用，已清理" % uk)
-			
-		# 默认特技
+
 		var talents : Array = ud.get("default_talents", [])
 		var valid_talents : Array = []
 		var talent_removed = false
 		for tid in talents:
-			if tid in _talent_ids: 
+			if tid in _talent_ids:
 				valid_talents.append(tid)
-			else: 
+			else:
 				talent_removed = true
 		if talent_removed:
 			ud["default_talents"] = valid_talents
 			fix_logs.append("单位 [%s] 的默认特技包含无效引用，已清理" % uk)
-			
-		# 转职分支的特技
+
 		var branches : Array = ud.get("advanced_branches", [])
 		for b in branches:
 			if b is Dictionary:
@@ -3060,17 +3718,15 @@ func _on_auto_fix_pressed():
 				if gt != "" and gt not in _talent_ids:
 					b["granted_talent"] = ""
 					fix_logs.append("单位 [%s] 的转职分支赋予特技不存在 (%s)，已清空" % [uk, gt])
-					
-		# Boss 阶段指向
+
 		var phases : Array = ud.get("phases", [])
 		for i in range(phases.size()):
 			var p : Dictionary = phases[i]
 			var fid : String = str(p.get("form_unit_id", ""))
 			if fid != "" and fid != "self" and not _unit_db.has(fid):
 				p["form_unit_id"] = ""
-				fix_logs.append("单位 [%s] 的阶段 %d 指向的变身单位不存在 (%s)，已重置为覆盖模式" % [uk, i+1, fid])
-	
-	# 2. 扫描 unit_unlock.json
+				fix_logs.append("单位 [%s] 的阶段 %d 指向的变身单位不存在 (%s)，已重置为覆盖模式" % [uk, i + 1, fid])
+
 	if _unit_unlock_data.has("map_unlock_units"):
 		var mu : Array = _unit_unlock_data["map_unlock_units"]
 		var valid_mu : Array = []
@@ -3081,7 +3737,7 @@ func _on_auto_fix_pressed():
 		if mu_removed:
 			_unit_unlock_data["map_unlock_units"] = valid_mu
 			fix_logs.append("地图解锁池包含无效单位，已清理")
-			
+
 	if _unit_unlock_data.has("map_unlock_mapping"):
 		var mapping : Dictionary = _unit_unlock_data["map_unlock_mapping"]
 		var new_mapping : Dictionary = {}
@@ -3089,26 +3745,22 @@ func _on_auto_fix_pressed():
 		for k in mapping:
 			if not _unit_db.has(k):
 				map_removed = true
-				continue # 源单位都不存在了，直接跳过
-				
+				continue
 			var targets : Array = mapping[k]
 			var valid_tg : Array = []
 			for tg in targets:
 				if _unit_db.has(tg): valid_tg.append(tg)
 				else: map_removed = true
-			
 			if not valid_tg.is_empty():
 				new_mapping[k] = valid_tg
-				
 		if map_removed:
 			_unit_unlock_data["map_unlock_mapping"] = new_mapping
 			fix_logs.append("地图解锁映射包含无效单位，已清理")
 
-	# 3. 根据结果弹窗确认
 	if fix_logs.is_empty():
 		Globals.show_confirm(self, "✓ 没有发现可以自动修复的问题。", "确定", "", func(): pass, func(): pass, false)
 		return
-		
+
 	var msg = "发现 %d 处可以安全修复的问题：\n\n" % fix_logs.size()
 	var show_count = mini(fix_logs.size(), 15)
 	for i in range(show_count):
@@ -3122,28 +3774,26 @@ func _on_auto_fix_pressed():
 		msg,
 		"执行修复", "取消",
 		func():
-			# 保存单位数据
 			var f1 := FileAccess.open(UNIT_DATA_PATH, FileAccess.WRITE)
 			if f1:
 				f1.store_string(JSON.stringify(_unit_db, "  "))
 				f1.close()
-			
-			# 保存解锁数据
+
 			var f2 := FileAccess.open(UNIT_UNLOCK_PATH, FileAccess.WRITE)
 			if f2:
 				f2.store_string(JSON.stringify(_unit_unlock_data, "  "))
 				f2.close()
-				
+
 			UnitDataManager.reload_all()
 			Globals._load_unlock_config()
+			_frames_texture_cache.clear()
 			_refresh_unit_list()
 			_refresh_sim_unit_lists()
-			
-			# 重新加载当前选中的单位面板
+
 			if _current_unit_key != "" and _unit_db.has(_current_unit_key):
 				_select_edit_unit(_current_unit_key)
-				
-			_run_validation() # 修复完自动再跑一次校验
+
+			_run_validation()
 			_validator_status.text = "✓ 自动修复完成"
 			_validator_status.modulate = Color(0.6, 1.0, 0.6),
 		func(): pass
