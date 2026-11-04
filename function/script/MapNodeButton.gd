@@ -4,7 +4,7 @@ class_name MapNodeButton
 @export var map_node: MapNode
 var map_scene_ref: CanvasLayer
 
-var _text_label: Label = null
+var _icon_rect: TextureRect = null
 
 
 func setup(node_data: MapNode, map_scene: CanvasLayer, override_pos: Vector2 = Vector2.INF):
@@ -19,34 +19,18 @@ func setup(node_data: MapNode, map_scene: CanvasLayer, override_pos: Vector2 = V
 	position = pos - size / 2
 	disabled = not node_data.is_available
 	
-	# 保持纯白调制，底色用 box_sb 控制
-	modulate = Color.WHITE
-	
+	# ★ 核心：剥离原本的 StyleBox 背景，设为纯透明
+	var empty_sb := StyleBoxEmpty.new()
+	add_theme_stylebox_override("normal", empty_sb)
+	add_theme_stylebox_override("pressed", empty_sb)
+	add_theme_stylebox_override("hover", empty_sb)
+	add_theme_stylebox_override("disabled", empty_sb)
+	add_theme_stylebox_override("focus", empty_sb)
+
 	visible = true
 	mouse_filter = Control.MOUSE_FILTER_STOP
 
-	# 根据状态决定底色
-	var bg_color := Color.WHITE
-	if node_data.is_visited or node_data.is_passed:
-		bg_color = Color(0.6, 0.6, 0.6)   # ★ 已访问 / 已经过：深灰
-	elif not node_data.is_available:
-		bg_color = Color(0.85, 0.85, 0.85) # 不可用：浅灰色
-
-	# 强制白/灰底，黑边
-	var box_sb := StyleBoxFlat.new()
-	box_sb.bg_color = bg_color
-	box_sb.border_width_left = 1
-	box_sb.border_width_right = 1
-	box_sb.border_width_top = 1
-	box_sb.border_width_bottom = 1
-	box_sb.border_color = Color.BLACK
-	
-	add_theme_stylebox_override("normal", box_sb)
-	add_theme_stylebox_override("pressed", box_sb)
-	add_theme_stylebox_override("hover", box_sb)
-	add_theme_stylebox_override("disabled", box_sb)
-	add_theme_stylebox_override("focus", box_sb)
-
+	# 信号连接
 	if pressed.is_connected(_on_clicked):
 		pressed.disconnect(_on_clicked)
 	pressed.connect(_on_clicked)
@@ -58,36 +42,61 @@ func setup(node_data: MapNode, map_scene: CanvasLayer, override_pos: Vector2 = V
 	mouse_entered.connect(_on_hover_enter)
 	mouse_exited.connect(_on_hover_exit)
 
-	for child in get_children():
-		if child.name == "CheckLabel":
-			remove_child(child)
-			child.queue_free()
-			break
+	# ★ 创建/更新 图标
+	_ensure_icon()
+	_update_icon_visual(node_data)
 
-	# ★ 核心修复：创建专属的 Label 来显示文字，无视 Button 自带渲染
-	_ensure_label()
-	_text_label.text = _get_node_label(node_data)
-
+	# 在图片正下方添加战斗目标徽章（如果有）
 	_add_objective_badge(node_data)
 
 
-func _ensure_label():
-	if _text_label == null or not is_instance_valid(_text_label):
-		_text_label = Label.new()
-		_text_label.name = "TextLabel"
-		_text_label.set_anchors_preset(Control.PRESET_FULL_RECT)
-		_text_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		_text_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		_text_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		add_child(_text_label)
+func _ensure_icon():
+	if _icon_rect == null or not is_instance_valid(_icon_rect):
+		_icon_rect = TextureRect.new()
+		_icon_rect.name = "IconRect"
+		# ★ 关键修改 1：设置尺寸为 24x24，并默认铺满
+		_icon_rect.size = MapConst.MAP_NODE_SIZE
+		_icon_rect.position = Vector2.ZERO
+		_icon_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		_icon_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		_icon_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		
+		# ★ 关键修改 2：挂载描边 Shader
+		var mat := ShaderMaterial.new()
+		mat.shader = load("res://content/resource/shader/pixel_outline.gdshader")
+		mat.set_shader_parameter("outline_color", Color.WHITE)
+		mat.set_shader_parameter("outline_width", 1)
+		mat.set_shader_parameter("outline_enabled", true)
+		_icon_rect.material = mat
+		
+		add_child(_icon_rect)
 
-	# 强制黑字，去掉所有描边
-	_text_label.add_theme_font_size_override("font_size", MapConst.MAP_NODE_FONT_SIZE)
-	_text_label.add_theme_color_override("font_color", Color.BLACK)
-	_text_label.add_theme_color_override("font_outline_color", Color.TRANSPARENT)
-	_text_label.add_theme_constant_override("outline_size", 0)
-	_text_label.add_theme_constant_override("shadow_offset_x", 0)
-	_text_label.add_theme_constant_override("shadow_offset_y", 0)
+
+func _update_icon_visual(node: MapNode):
+	var tex = MapConst.get_node_texture(node.node_type, node.hidden_node_type)
+	
+	if tex:
+		_icon_rect.texture = tex
+		_icon_rect.visible = true
+	else:
+		# 如果图片没找到（或者还没画），用个粉色方块兜底方便调试
+		var img := Image.create(int(MapConst.MAP_NODE_SIZE.x), int(MapConst.MAP_NODE_SIZE.y), false, Image.FORMAT_RGBA8)
+		img.fill(Color.MAGENTA)
+		_icon_rect.texture = ImageTexture.create_from_image(img)
+		_icon_rect.visible = true
+
+	# ★ 根据状态设置图片的明暗
+	if node.is_visited or node.is_passed:
+		# 已访问 / 已经过：变灰、半透明
+		_icon_rect.modulate = Color(0.4, 0.4, 0.4, 0.8)
+	elif not node.is_available:
+		# 不可用：变暗
+		_icon_rect.modulate = Color(0.6, 0.6, 0.6, 1.0)
+	else:
+		# 可选：正常高亮
+		_icon_rect.modulate = Color.WHITE
+		
+	# 悬浮微调：如果可用且鼠标悬停，可以用 modulate 提亮（由 hover 逻辑控制）
 
 
 func _add_objective_badge(node: MapNode):
@@ -103,12 +112,10 @@ func _add_objective_badge(node: MapNode):
 	var parts : Array = []
 
 	var int_text : String = _intensity_badge_text(node.map_data.intensity)
-	if int_text != "":
-		parts.append(int_text)
+	if int_text != "": parts.append(int_text)
 
 	var obj_text : String = _objective_badge_text(node.map_data.objective_type)
-	if obj_text != "":
-		parts.append(obj_text)
+	if obj_text != "": parts.append(obj_text)
 
 	if node.map_data.max_waves > 1:
 		if node.map_data.reinforcement_count > 0:
@@ -124,71 +131,68 @@ func _add_objective_badge(node: MapNode):
 
 	var badge := Label.new()
 	badge.name = "ObjectiveBadge"
-	badge.text = " · ".join(parts)
+	badge.text = "·".join(parts) # 缩减间距
 	badge.add_theme_font_size_override("font_size", 6)
 	
-	# 徽章也使用纯黑字
-	badge.add_theme_color_override("font_color", Color.BLACK)
-	badge.add_theme_color_override("font_outline_color", Color.TRANSPARENT)
-	badge.add_theme_constant_override("outline_size", 0)
+	# 徽章字体：白字黑边，保证在所有地图上都能看清
+	badge.add_theme_color_override("font_color", Color.WHITE)
+	badge.add_theme_color_override("font_outline_color", Color.BLACK)
+	badge.add_theme_constant_override("outline_size", 2)
 	
 	badge.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	badge.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	badge.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	
+	# ★ 核心调整：徽章放在图片正下方
 	badge.anchor_left = 0.0
 	badge.anchor_right = 1.0
 	badge.anchor_top = 1.0
 	badge.anchor_bottom = 1.0
-	badge.offset_top = 2
+	badge.offset_top = 0 # 紧贴图片底部
 	badge.offset_bottom = 10
+	badge.offset_left = -10 # 左右稍微拉宽一点，防止文字截断
+	badge.offset_right = 10
+	
 	add_child(badge)
 
 
 func _objective_badge_text(t: int) -> String:
 	match t:
-		MapData.ObjectiveType.CAPTURE: return "★占"
-		MapData.ObjectiveType.FLAG: return "★旗"
-		MapData.ObjectiveType.ASSAULT: return "★突"
+		MapData.ObjectiveType.CAPTURE: return "占"
+		MapData.ObjectiveType.FLAG: return "旗"
+		MapData.ObjectiveType.ASSAULT: return "突"
 		_: return ""
-
-
-func _get_node_label(node: MapNode) -> String:
-	if node.node_type == MapNode.NodeType.QUESTION:
-		return "???"
-
-	if node.node_type in [
-		MapNode.NodeType.FORGE,
-		MapNode.NodeType.TREASURE,
-		MapNode.NodeType.CHAPEL,
-	]:
-		return MapConst.get_node_display_name(node.node_type)
-	if node.map_data and node.map_data.map_name != "":
-		return node.map_data.map_name
-	return MapConst.get_node_display_name(node.node_type)
 
 
 func _on_clicked():
 	if map_node.is_visited or map_node.is_passed or not map_node.is_available:
-		print("节点已访问/已经过/不可用，忽略点击")
 		return
-	print("地图按钮被点击: ", _get_node_label(map_node))
 	if map_scene_ref and map_scene_ref.has_method("on_node_selected"):
 		map_scene_ref.on_node_selected(map_node)
 
 
 func _on_hover_enter():
+	# ★ 悬停时，图标稍微放大或提亮
+	if map_node.is_available and not map_node.is_visited and not map_node.is_passed:
+		_icon_rect.modulate = Color(1.2, 1.2, 1.2) # 提亮
+		z_index = 10 # 浮在其它节点之上
+		
 	if map_scene_ref and map_scene_ref.has_method("show_node_info"):
 		map_scene_ref.show_node_info(map_node)
 
 
 func _on_hover_exit():
+	# ★ 恢复状态
+	_update_icon_visual(map_node)
+	z_index = 0
+	
 	if map_scene_ref and map_scene_ref.has_method("hide_node_info"):
 		map_scene_ref.hide_node_info()
 
 
 func _intensity_badge_text(intensity: int) -> String:
 	match intensity:
-		1: return "强度I"
-		2: return "强度II"
-		3: return "强度III"
+		1: return "I"
+		2: return "II"
+		3: return "III"
 		_: return ""

@@ -36,8 +36,15 @@ const MAP_NODE_AVAILABLE : Color = Color.WHITE
 # ============================================================
 #  地图节点按钮尺寸 / 字号
 # ============================================================
-const MAP_NODE_SIZE : Vector2 = Vector2(48, 20)
+# ★ 修改为 32x32 尺寸
+const MAP_NODE_SIZE : Vector2 = Vector2(24, 24)
 const MAP_NODE_FONT_SIZE : int = 7
+
+
+# ============================================================
+#  地图节点图片路径
+# ============================================================
+const MAP_NODE_ICON_DIR : String = "res://content/images/ui/icon/"
 
 
 # ============================================================
@@ -75,7 +82,7 @@ const AI_SCORE_TERRAIN_DEF_WEIGHT : float = 2.0
 
 
 # ============================================================
-#  节点类型显示名（★ 全项目唯一来源）
+#  节点类型显示名（全项目唯一来源）
 # ============================================================
 static func get_node_display_name(node_type: int) -> String:
 	match node_type:
@@ -88,6 +95,33 @@ static func get_node_display_name(node_type: int) -> String:
 		MapNode.NodeType.CHAPEL:   return "英灵殿"
 		MapNode.NodeType.QUESTION: return "未知"
 	return "?"
+
+
+# ============================================================
+#  节点图片资源加载
+# ============================================================
+static func get_node_texture(node_type: int, hidden_type: int = -1) -> Texture2D:
+	var real_type = node_type
+	# 如果是问号节点且已经探明，用探明后的真实类型
+	if node_type == MapNode.NodeType.QUESTION and hidden_type != -1:
+		real_type = hidden_type
+
+	# 这里根据你的美术资源命名进行对应，后续新增只需改这里
+	var icon_name := ""
+	match real_type:
+		MapNode.NodeType.START:    icon_name = "mapscene_node_001.png" # 起始
+		MapNode.NodeType.NORMAL:   icon_name = "mapscene_node_002.png" # 普通战斗
+		MapNode.NodeType.ELITE:    icon_name = "mapscene_node_003.png" # 精英
+		MapNode.NodeType.BOSS:     icon_name = "mapscene_node_004.png" # 首领
+		MapNode.NodeType.FORGE:    icon_name = "mapscene_node_005.png" # 魂栈
+		MapNode.NodeType.TREASURE: icon_name = "mapscene_node_006.png" # 宝箱
+		MapNode.NodeType.CHAPEL:   icon_name = "mapscene_node_007.png" # 英灵殿
+		MapNode.NodeType.QUESTION: icon_name = "mapscene_node_008.png" # 未知问号
+
+	var full_path = MAP_NODE_ICON_DIR + icon_name
+	if ResourceLoader.exists(full_path):
+		return load(full_path)
+	return null
 
 
 # ============================================================
