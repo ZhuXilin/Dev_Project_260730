@@ -83,13 +83,13 @@ func _ready():
 	performance_layer.visible = false
 	cost_label.text = "  |  转职：免费"
 	
-	# ★ 调整转职演出界面：放大3倍并居中
+	# ★ 修改：不再放大，与其他界面保持一致
 	var sprite_box = get_node_or_null("PerformanceLayer/CenterBox/SpriteBox")
 	if sprite_box:
-		sprite_box.custom_minimum_size = Vector2(96, 96)
+		sprite_box.custom_minimum_size = Vector2(32, 32)
 	if perf_sprite:
-		perf_sprite.position = Vector2(48, 48)
-		perf_sprite.scale = Vector2(2, 2)
+		perf_sprite.position = Vector2(16, 16) # 在 32x32 容器中居中
+		perf_sprite.scale = Vector2(1, 1) # 恢复 1 倍缩放
 
 	# ★ 绑定英灵殿复活按钮
 	var revive_btn = get_node_or_null("Panel/VBox/ChapelActions/ReviveBtn")

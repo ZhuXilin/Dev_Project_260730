@@ -300,12 +300,17 @@ func _start_drag():
 	InputManager.selected_unit = unit
 	InputManager.interaction_phase = InputManager.Phase.DRAGGING_MOVE
 
+	# ★ 拖拽开始时，强制重新计算一次敌人危险区，防止状态过期
+	_bf._enemy_danger_zones = _bf._calc_enemy_danger_zones()
+
 	_reachable = UnitManager.get_reachable_cells(
 		unit.grid_cell, unit.remaining_move, unit)
 
 	SignalBus.request_hide_info.emit()
+	
+	var danger_color = Color(MapConst.HIGHLIGHT_ATTACK.r, MapConst.HIGHLIGHT_ATTACK.g, MapConst.HIGHLIGHT_ATTACK.b, 1.0)
 	_bf.highlight_manager.show_move_highlight(
-		_reachable, MapConst.HIGHLIGHT_MOVE, 0, true, unit.grid_cell)
+		_reachable, MapConst.HIGHLIGHT_MOVE, 0, true, unit.grid_cell, _bf._enemy_danger_zones, danger_color)
 
 	_current_target_cell = unit.grid_cell
 	_current_path = []
@@ -329,11 +334,21 @@ func _update_drag():
 
 	var hovered = UnitManager.get_unit_at_cell(cell)
 	
+	# ★ 悬停危险格，且格子上没单位时，显示敌人头顶的 `!`
+	if hovered == null and _bf._enemy_danger_zones.has(cell):
+		var attackers = _bf._enemy_danger_zones[cell]
+		_bf.show_danger_indicators(attackers)
+	else:
+		_bf.clear_danger_indicators()
+	
 	_hovered_target = hovered
 	
 	if hovered != null and hovered != _pressing_unit:
 		_mouse_out_of_range = false
 		_is_show_original_range = false
+		
+		# ★ 悬停到敌人/友军身上，立刻清理游离的 `!`
+		_bf.clear_danger_indicators()
 		
 		if _is_valid_target(hovered):
 			_bf.show_damage_preview(_pressing_unit, hovered)
@@ -346,8 +361,10 @@ func _update_drag():
 		
 		var single_cell_dict = {cell: true}
 		var color = MapConst.HIGHLIGHT_HEAL if hovered.unit_stats.team_id == _pressing_unit.unit_stats.team_id else MapConst.HIGHLIGHT_ATTACK
+		var danger_color = Color(MapConst.HIGHLIGHT_ATTACK.r, MapConst.HIGHLIGHT_ATTACK.g, MapConst.HIGHLIGHT_ATTACK.b, 1.0)
 		
-		_bf.highlight_manager.show_enemy_preview({}, single_cell_dict, color, cell, true)
+		# 传入危险区和颜色，以便在目标格子上渲染小叉
+		_bf.highlight_manager.show_enemy_preview({}, single_cell_dict, color, cell, true, _bf._enemy_danger_zones, danger_color)
 		return
 
 	if hovered == _pressing_unit:
@@ -383,6 +400,16 @@ func _update_drag():
 		_arrow.show_path(_pressing_unit.grid_cell, _current_path, _bf.grid_to_world)
 
 	_update_attack_preview(cell, false)
+
+
+func _redraw_highlights(attack_cells : Dictionary, origin_cell: Vector2i):
+	var color = MapConst.HIGHLIGHT_ATTACK
+	if _pressing_unit and _pressing_unit.get_weapon_type() == "staff":
+		color = MapConst.HIGHLIGHT_HEAL
+		
+	var danger_color = Color(MapConst.HIGHLIGHT_ATTACK.r, MapConst.HIGHLIGHT_ATTACK.g, MapConst.HIGHLIGHT_ATTACK.b, 1.0)
+	# ★ 重绘攻击范围时，传入危险区数据
+	_bf.highlight_manager.show_enemy_preview(_reachable, attack_cells, color, origin_cell, true, _bf._enemy_danger_zones, danger_color)
 
 
 func _execute_move():
@@ -464,6 +491,7 @@ func _reset_state():
 		_arrow.hide_path()
 	if _bf:
 		_bf.hide_damage_preview()
+		_bf.clear_danger_indicators()
 
 
 # ============================================================
@@ -833,15 +861,6 @@ func _update_attack_preview(unit_cell : Vector2i, from_self : bool = false):
 			attack_cells[c] = true
 
 	_redraw_highlights(attack_cells, origin_cell)
-
-
-func _redraw_highlights(attack_cells : Dictionary, origin_cell: Vector2i):
-	var color = MapConst.HIGHLIGHT_ATTACK
-	if _pressing_unit and _pressing_unit.get_weapon_type() == "staff":
-		color = MapConst.HIGHLIGHT_HEAL
-		
-	_bf.highlight_manager.show_enemy_preview(_reachable, attack_cells, color, origin_cell, true)
-
 
 func _do_emergency_heal_async(attacker : Unit, target : Unit):
 	if not is_instance_valid(attacker) or not is_instance_valid(target):

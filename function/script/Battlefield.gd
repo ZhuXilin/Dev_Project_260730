@@ -60,6 +60,10 @@ var _blood_orbs : Dictionary = {}   # cell -> Node2D
 const BLOOD_ORB_ICON_ID : String = "item_089"
 const BLOOD_ORB_HEAL_PERCENT : float = 0.10
 
+# 缓存敌人危险区，避免每帧重算
+var _enemy_danger_zones : Dictionary = {}
+var _danger_indicators : Array[Node] = []
+
 var _cached_info_unit: Unit = null
 var _cached_info_cell: Vector2i = Vector2i(-999, -999)
 
@@ -501,56 +505,6 @@ func deselect_unit():
 	InputManager.interaction_phase = InputManager.Phase.IDLE
 	SignalBus.request_hide_info.emit()
 	SignalBus.request_clear_highlight.emit()
-
-# ============================================================
-#  范围显示（由悬停调用，不再依赖选中）
-# ============================================================
-# ============================================================
-#  范围显示（由悬停调用，不再依赖选中）
-# ============================================================
-func _show_unit_ranges(unit: Unit):
-	var move_range : int = unit.remaining_move
-	if unit.unit_stats.team_id != 0:
-		move_range = unit.unit_stats.move_range
-
-	var reachable = UnitManager.get_reachable_cells(unit.grid_cell, move_range, unit)
-
-	var weapon = unit.get_weapon_data()
-	if weapon == null:
-		# 无武器：仅显示移动范围
-		highlight_manager.clear_highlight(unit.grid_cell)
-		highlight_manager.show_move_highlight(reachable, MapConst.HIGHLIGHT_MOVE, -1, true, unit.grid_cell)
-		return
-
-	var max_range : int = weapon.attack_range
-	var min_range : int = weapon.min_attack_range
-	var is_healer : bool = (unit.get_weapon_type() == "staff")
-
-	var threat_cells : Dictionary = {}
-	for move_cell in reachable.keys():
-		for x in range(-max_range, max_range + 1):
-			for y in range(-max_range, max_range + 1):
-				var dist = abs(x) + abs(y)
-				if dist < min_range or dist > max_range: continue
-				var c = move_cell + Vector2i(x, y)
-				if c.x < 0 or c.x >= TerrainManager.grid_size.x: continue
-				if c.y < 0 or c.y >= TerrainManager.grid_size.y: continue
-
-				var tt : int = TerrainManager.get_terrain(c)
-				if tt == TerrainManager.TerrainType.IMPASSABLE_ALL: continue
-
-				# ★ 统一逻辑：跳过可达格，白格优先显示
-				if reachable.has(c): continue
-
-				var occ = UnitManager.get_unit_at_cell(c)
-				# 如果是友军/非攻击目标，也不标红
-				if occ != null and not UnitManager.is_attack_target_of(unit, occ): continue
-				threat_cells[c] = true
-
-	var color = MapConst.HIGHLIGHT_HEAL if is_healer else MapConst.HIGHLIGHT_ATTACK
-	highlight_manager.clear_highlight(unit.grid_cell)
-	highlight_manager.show_enemy_preview(reachable, threat_cells, color, unit.grid_cell)
-
 
 # ============================================================
 #  信号回调
@@ -1975,3 +1929,112 @@ func _toggle_auto_battle():
 		return
 	var next_on : bool = not Globals.is_auto_battle
 	_auto_battle_manager.set_enabled(next_on)
+
+# ============================================================
+# 危险区计算与提示
+# ============================================================
+func _calc_enemy_danger_zones() -> Dictionary:
+	var danger_map : Dictionary = {}
+	for u in UnitManager.unit_list:
+		if not is_instance_valid(u) or u.unit_stats.team_id != 1 or u.hit_points <= 0:
+			continue
+		var move_range = u.unit_stats.move_range
+		var reach = UnitManager.get_reachable_cells(u.grid_cell, move_range, u)
+		var weapon = u.get_weapon_data()
+		if not weapon: continue
+		
+		var max_r = weapon.attack_range
+		var min_r = weapon.min_attack_range
+		
+		for r_cell in reach.keys():
+			for x in range(-max_r, max_r + 1):
+				for y in range(-max_r, max_r + 1):
+					var dist = abs(x) + abs(y)
+					if dist >= min_r and dist <= max_r:
+						var t_cell = r_cell + Vector2i(x, y)
+						if TerrainManager.get_terrain(t_cell) != TerrainManager.TerrainType.IMPASSABLE_ALL:
+							if not danger_map.has(t_cell):
+								danger_map[t_cell] = []
+							if u not in danger_map[t_cell]:
+								danger_map[t_cell].append(u)
+	return danger_map
+
+
+func show_danger_indicators(attackers: Array) -> void:
+	clear_danger_indicators()
+	for enemy in attackers:
+		if not is_instance_valid(enemy): continue
+		var lb := Label.new()
+		lb.text = "!"
+		lb.add_theme_font_size_override("font_size", 12)
+		
+		# ★ 字体颜色：保持醒目的红色
+		lb.add_theme_color_override("font_color", Color(MapConst.HIGHLIGHT_ATTACK.r, MapConst.HIGHLIGHT_ATTACK.g, MapConst.HIGHLIGHT_ATTACK.b, 1.0))
+		
+		# ★ 描边颜色：改为纯白色
+		lb.add_theme_color_override("font_outline_color", Color.WHITE) 
+		# 描边稍微加粗一点，让白边更明显
+		lb.add_theme_constant_override("outline_size", 4) 
+		
+		lb.z_index = 100
+		lb.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		# 位置稍微往上提一点点，避免挡住敌人的血条
+		lb.position = enemy.global_position + Vector2(-4, -22)
+		add_child(lb)
+		_danger_indicators.append(lb)
+
+
+func _show_unit_ranges(unit: Unit):
+	var move_range : int = unit.remaining_move
+	if unit.unit_stats.team_id != 0:
+		move_range = unit.unit_stats.move_range
+
+	var reachable = UnitManager.get_reachable_cells(unit.grid_cell, move_range, unit)
+
+	var weapon = unit.get_weapon_data()
+	if weapon == null:
+		highlight_manager.clear_highlight(unit.grid_cell)
+		highlight_manager.show_move_highlight(reachable, MapConst.HIGHLIGHT_MOVE, -1, true, unit.grid_cell)
+		return
+
+	var max_range : int = weapon.attack_range
+	var min_range : int = weapon.min_attack_range
+	var is_healer : bool = (unit.get_weapon_type() == "staff")
+
+	var threat_cells : Dictionary = {}
+	for move_cell in reachable.keys():
+		for x in range(-max_range, max_range + 1):
+			for y in range(-max_range, max_range + 1):
+				var dist = abs(x) + abs(y)
+				if dist < min_range or dist > max_range: continue
+				var c = move_cell + Vector2i(x, y)
+				if c.x < 0 or c.x >= TerrainManager.grid_size.x: continue
+				if c.y < 0 or c.y >= TerrainManager.grid_size.y: continue
+
+				var tt : int = TerrainManager.get_terrain(c)
+				if tt == TerrainManager.TerrainType.IMPASSABLE_ALL: continue
+
+				if reachable.has(c): continue
+
+				var occ = UnitManager.get_unit_at_cell(c)
+				if occ != null and not UnitManager.is_attack_target_of(unit, occ): continue
+				threat_cells[c] = true
+
+	var color = MapConst.HIGHLIGHT_HEAL if is_healer else MapConst.HIGHLIGHT_ATTACK
+	# ★ 定义绝对固定的危险区颜色（纯红，不透明）
+	var danger_color = Color(MapConst.HIGHLIGHT_ATTACK.r, MapConst.HIGHLIGHT_ATTACK.g, MapConst.HIGHLIGHT_ATTACK.b, 1.0)
+	
+	var danger_cells = {}
+	if unit.unit_stats.team_id == 0:
+		_enemy_danger_zones = _calc_enemy_danger_zones()
+		danger_cells = _enemy_danger_zones
+		
+	highlight_manager.clear_highlight(unit.grid_cell)
+	# ★ 传入危险区和固定颜色
+	highlight_manager.show_enemy_preview(reachable, threat_cells, color, unit.grid_cell, false, danger_cells, danger_color)
+
+func clear_danger_indicators() -> void:
+	for lb in _danger_indicators:
+		if is_instance_valid(lb):
+			lb.queue_free()
+	_danger_indicators.clear()
