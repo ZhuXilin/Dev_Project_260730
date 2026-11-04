@@ -1959,30 +1959,33 @@ func _calc_enemy_danger_zones() -> Dictionary:
 								danger_map[t_cell].append(u)
 	return danger_map
 
-
 func show_danger_indicators(attackers: Array) -> void:
 	clear_danger_indicators()
 	for enemy in attackers:
 		if not is_instance_valid(enemy): continue
 		var lb := Label.new()
 		lb.text = "!"
-		lb.add_theme_font_size_override("font_size", 12)
+		# 字体稍微调大一点点，配合白边更显眼
+		lb.add_theme_font_size_override("font_size", 14) 
 		
-		# ★ 字体颜色：保持醒目的红色
 		lb.add_theme_color_override("font_color", Color(MapConst.HIGHLIGHT_ATTACK.r, MapConst.HIGHLIGHT_ATTACK.g, MapConst.HIGHLIGHT_ATTACK.b, 1.0))
-		
-		# ★ 描边颜色：改为纯白色
-		lb.add_theme_color_override("font_outline_color", Color.WHITE) 
-		# 描边稍微加粗一点，让白边更明显
-		lb.add_theme_constant_override("outline_size", 4) 
+		lb.add_theme_color_override("font_outline_color", Color.WHITE)
+		lb.add_theme_constant_override("outline_size", 4)
 		
 		lb.z_index = 100
 		lb.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		# 位置稍微往上提一点点，避免挡住敌人的血条
-		lb.position = enemy.global_position + Vector2(-4, -22)
+		
+		# ★ 核心修复：固定 Label 尺寸，并强制内容居中
+		lb.size = Vector2(16, 16)
+		lb.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		lb.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		
+		# 因为宽度是 16，所以向左偏移 8 即可水平居中。
+		# 垂直方向向上偏移 18 像素，悬浮在敌人头顶。
+		lb.position = enemy.global_position + Vector2(-8, -18)
+		
 		add_child(lb)
 		_danger_indicators.append(lb)
-
 
 func _show_unit_ranges(unit: Unit):
 	var move_range : int = unit.remaining_move
