@@ -936,15 +936,15 @@ func _get_node_description(node: MapNode) -> String:
 		MapNode.NodeType.ELITE:
 			base = "精英战斗\n敌人更强，奖励更好"
 		MapNode.NodeType.FORGE:
-			base = "移动铁匠\n合成防具 / 升级武器"
+			base = "魂栈\n合成防具 / 升级武器 / 购买道具"
 		MapNode.NodeType.TREASURE:
-			base = "宝箱"
+			base = "宝箱\n获取随机资源或装备"
 		MapNode.NodeType.BOSS:
-			base = "首领战"
+			base = "首领战\nBoss战及丰厚奖励"
 		MapNode.NodeType.CHAPEL:
 			base = "英灵殿\n全队回满 HP，复活一名阵亡单位"
 		_:
-			base = "未知节点"
+			base = "未知"
 
 	# ★ v4.6：战力评估（模糊星级）——仅对未访问且可战斗的节点显示
 	if node.map_data and node.map_data.scene and not node.is_visited:

@@ -1929,7 +1929,7 @@ func _toggle_auto_battle():
 		return
 	var next_on : bool = not Globals.is_auto_battle
 	_auto_battle_manager.set_enabled(next_on)
-
+	
 # ============================================================
 # 危险区计算与提示
 # ============================================================
@@ -1959,13 +1959,13 @@ func _calc_enemy_danger_zones() -> Dictionary:
 								danger_map[t_cell].append(u)
 	return danger_map
 
+
 func show_danger_indicators(attackers: Array) -> void:
 	clear_danger_indicators()
 	for enemy in attackers:
 		if not is_instance_valid(enemy): continue
 		var lb := Label.new()
 		lb.text = "!"
-		# 字体稍微调大一点点，配合白边更显眼
 		lb.add_theme_font_size_override("font_size", 14) 
 		
 		lb.add_theme_color_override("font_color", Color(MapConst.HIGHLIGHT_ATTACK.r, MapConst.HIGHLIGHT_ATTACK.g, MapConst.HIGHLIGHT_ATTACK.b, 1.0))
@@ -1975,17 +1975,21 @@ func show_danger_indicators(attackers: Array) -> void:
 		lb.z_index = 100
 		lb.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		
-		# ★ 核心修复：固定 Label 尺寸，并强制内容居中
 		lb.size = Vector2(16, 16)
 		lb.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		lb.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		
-		# 因为宽度是 16，所以向左偏移 8 即可水平居中。
-		# 垂直方向向上偏移 18 像素，悬浮在敌人头顶。
 		lb.position = enemy.global_position + Vector2(-8, -18)
 		
 		add_child(lb)
 		_danger_indicators.append(lb)
+
+
+func clear_danger_indicators() -> void:
+	for lb in _danger_indicators:
+		if is_instance_valid(lb):
+			lb.queue_free()
+	_danger_indicators.clear()
+
 
 func _show_unit_ranges(unit: Unit):
 	var move_range : int = unit.remaining_move
@@ -2002,7 +2006,6 @@ func _show_unit_ranges(unit: Unit):
 
 	var max_range : int = weapon.attack_range
 	var min_range : int = weapon.min_attack_range
-	var is_healer : bool = (unit.get_weapon_type() == "staff")
 
 	var threat_cells : Dictionary = {}
 	for move_cell in reachable.keys():
@@ -2023,8 +2026,8 @@ func _show_unit_ranges(unit: Unit):
 				if occ != null and not UnitManager.is_attack_target_of(unit, occ): continue
 				threat_cells[c] = true
 
-	var color = MapConst.HIGHLIGHT_HEAL if is_healer else MapConst.HIGHLIGHT_ATTACK
-	# ★ 定义绝对固定的危险区颜色（纯红，不透明）
+	# ★ 统一使用攻击红色
+	var color = MapConst.HIGHLIGHT_ATTACK
 	var danger_color = Color(MapConst.HIGHLIGHT_ATTACK.r, MapConst.HIGHLIGHT_ATTACK.g, MapConst.HIGHLIGHT_ATTACK.b, 1.0)
 	
 	var danger_cells = {}
@@ -2033,11 +2036,4 @@ func _show_unit_ranges(unit: Unit):
 		danger_cells = _enemy_danger_zones
 		
 	highlight_manager.clear_highlight(unit.grid_cell)
-	# ★ 传入危险区和固定颜色
 	highlight_manager.show_enemy_preview(reachable, threat_cells, color, unit.grid_cell, false, danger_cells, danger_color)
-
-func clear_danger_indicators() -> void:
-	for lb in _danger_indicators:
-		if is_instance_valid(lb):
-			lb.queue_free()
-	_danger_indicators.clear()

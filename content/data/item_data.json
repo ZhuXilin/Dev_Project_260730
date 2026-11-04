@@ -85,7 +85,7 @@
 	"flavor": "法杖顶端的那块水晶，是某个人的最后一块骨头磨成的。\n\n握着它的人从不说这件。",
 	"category": "staff", "equipment_slot": "weapon",
 	"price": 120, "quality": "rare", "attack_style": "heal",
-	"base_attack": 0, "attack_range": 4, "min_attack_range": 0,
+	"base_attack": 0, "attack_range": 3, "min_attack_range": 0,
 	"modifier": { "faith": 0.8, "intelligence": 0.2 },
 	"heal_effect": { "base_heal_percent": 0.2, "faith_percent_per_point": 0.01 },
 	"physical_penetration": 0.0, "magic_penetration": 0.10,

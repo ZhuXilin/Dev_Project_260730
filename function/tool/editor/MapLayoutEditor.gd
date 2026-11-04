@@ -2,8 +2,8 @@
 extends Control
 
 const LAYER_HEIGHT : float = 28.0
-const NODE_W : float = 40.0
-const NODE_H : float = 14.0
+const NODE_W : float = 24.0
+const NODE_H : float = 24.0
 const NODE_FONT_SIZE : int = 6
 const CANVAS_PADDING_TOP : float = 20.0
 const CANVAS_PADDING_BOTTOM : float = 12.0

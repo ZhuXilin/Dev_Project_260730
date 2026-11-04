@@ -3,9 +3,36 @@ extends Control
 class_name MapLayoutCanvas
 
 var editor = null
+var _hover_idx : int = -1
 
 const ARROW_LENGTH : float = 5.0
 const ARROW_WIDTH  : float = 3.5
+
+
+func _gui_input(e : InputEvent):
+	if editor == null: return
+	
+	# ★ 核心：在测试模式下追踪鼠标悬停
+	if editor._in_test_mode:
+		if e is InputEventMouseMotion:
+			var day_layout = editor._get_current_day_layout()
+			if day_layout:
+				var old_hover = _hover_idx
+				_hover_idx = -1
+				for i in range(day_layout.nodes.size()):
+					var pos : Vector2 = editor._node_pos(i)
+					var rect := Rect2(
+						pos - Vector2(editor.NODE_W / 2.0, editor.NODE_H / 2.0),
+						Vector2(editor.NODE_W, editor.NODE_H)
+					)
+					if rect.grow(4).has_point(e.position):
+						_hover_idx = i
+						break
+				if _hover_idx != old_hover:
+					queue_redraw()
+			return
+			
+	editor._on_canvas_input(e)
 
 
 func _draw():
@@ -20,11 +47,9 @@ func _draw():
 	if not in_test:
 		for i in range(max_layer + 1):
 			var y : float = editor.CANVAS_PADDING_TOP + (max_layer - i + 0.5) * editor.LAYER_HEIGHT
-			draw_line(Vector2(0, y), Vector2(canvas_w, y),
-				Color(0.3, 0.3, 0.3, 0.5), 1)
+			draw_line(Vector2(0, y), Vector2(canvas_w, y), Color(0.3, 0.3, 0.3, 0.5), 1)
 			var font : Font = ThemeDB.fallback_font
-			draw_string(font, Vector2(2, y - 2), "L%d" % i,
-				HORIZONTAL_ALIGNMENT_LEFT, -1, 7, Color(0.5, 0.5, 0.5, 0.7))
+			draw_string(font, Vector2(2, y - 2), "L%d" % i, HORIZONTAL_ALIGNMENT_LEFT, -1, 7, Color(0.5, 0.5, 0.5, 0.7))
 
 	var link_color : Color = Color.WHITE if in_test else Color(0.6, 0.6, 0.6, 0.9)
 	for i in range(day_layout.nodes.size()):
@@ -42,24 +67,53 @@ func _draw():
 			pos - Vector2(editor.NODE_W / 2.0, editor.NODE_H / 2.0),
 			Vector2(editor.NODE_W, editor.NODE_H)
 		)
+		
+		var is_pool = not node.random_pool.is_empty()
+		
 		if in_test:
-			# ★ 测试模式：白底黑字
-			draw_rect(rect, Color.WHITE, true)
-			draw_rect(rect, Color.BLACK, false, 1)
+			# ★ 测试模式：纯图标预览，不判断可用状态，不加黄框
+			var is_hovered = (i == _hover_idx)
+			var draw_rect = rect
+			var color_mod = Color.WHITE
+			
+			if is_hovered:
+				draw_rect = draw_rect.grow(2)
+				color_mod = Color(1.3, 1.3, 1.3) # 悬停稍微提亮
+				
+			# 获取该节点的纹理
+			var tex = null
+			if is_pool:
+				tex = MapConst.get_node_texture(node.random_pool[0], -1)
+			else:
+				tex = MapConst.get_node_texture(node.node_type, -1)
+
+			if tex:
+				draw_texture_rect(tex, draw_rect, false, color_mod)
+			else:
+				# 缺图兜底
+				draw_rect(draw_rect, Color.MAGENTA, true)
+
+			# 绘制分配到的地图名
 			var label : String = editor._test_map_assignment.get(node, "")
-			if label == "":
-				label = MapConst.get_node_display_name(node.node_type)
-			if label.length() > 8:
-				label = label.substr(0, 7) + "…"
-			var font : Font = ThemeDB.fallback_font
-			var font_size : int = 6 # 稍微调大
-			var text_size : Vector2 = font.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size)
-			var ascent : float = font.get_ascent(font_size)
-			var descent : float = font.get_descent(font_size)
-			var baseline_y : float = pos.y + (ascent - descent) / 2.0
-			draw_string(font, Vector2(pos.x - text_size.x / 2.0, baseline_y),
-				label, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, Color.BLACK)
+			if label != "":
+				var font : Font = ThemeDB.fallback_font
+				var font_size : int = 6
+				var text_size : Vector2 = font.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size)
+				if text_size.x > 40.0:
+					label = label.substr(0, 4) + ".."
+					text_size = font.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size)
+				
+				var bg_rect = Rect2(pos.x - text_size.x/2 - 1, pos.y + editor.NODE_H/2 + 1, text_size.x + 2, 8)
+				var text_y = pos.y + editor.NODE_H / 2.0 + 8
+				if is_hovered:
+					bg_rect = bg_rect.grow(1)
+					text_y += 2
+				
+				draw_rect(bg_rect, Color(0,0,0,0.6), true)
+				draw_string(font, Vector2(pos.x - text_size.x / 2.0, text_y),
+					label, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, Color.WHITE)
 		else:
+			# 编辑模式保持不变
 			var color : Color = _node_color(node)
 			draw_rect(rect, color, true)
 			var label2 : String = _node_label(node)
@@ -85,24 +139,11 @@ func _draw():
 						relic_line, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size_r,
 						Color(1.0, 0.82, 0.3, 1.0))
 
-	if not in_test and editor._selected_link >= 0:
-		var p : Vector2 = editor._node_pos(editor._selected_link)
-		var rect2 := Rect2(
-			p - Vector2(editor.NODE_W / 2.0 + 2, editor.NODE_H / 2.0 + 2),
-			Vector2(editor.NODE_W + 4, editor.NODE_H + 4)
-		)
-		draw_rect(rect2, Color.YELLOW, false, 2)
-
+	# 拖拽层预览
 	if not in_test and editor._dragging_idx >= 0:
 		var new_layer : int = editor._layer_at_y(editor._mouse_pos.y)
 		var preview_y : float = editor.CANVAS_PADDING_TOP + (max_layer - new_layer + 0.5) * editor.LAYER_HEIGHT
-		draw_line(Vector2(0, preview_y), Vector2(canvas_w, preview_y),
-			Color(1, 1, 0, 0.5), 1)
-
-
-func _gui_input(e : InputEvent):
-	if editor == null: return
-	editor._on_canvas_input(e)
+		draw_line(Vector2(0, preview_y), Vector2(canvas_w, preview_y), Color(1, 1, 0, 0.5), 1)
 
 
 func _draw_directed_line(from_pos: Vector2, to_pos: Vector2, color: Color, width: float = 1.0):

@@ -54,14 +54,15 @@ func _ensure_icon():
 	if _icon_rect == null or not is_instance_valid(_icon_rect):
 		_icon_rect = TextureRect.new()
 		_icon_rect.name = "IconRect"
-		# ★ 关键修改 1：设置尺寸为 24x24，并默认铺满
 		_icon_rect.size = MapConst.MAP_NODE_SIZE
 		_icon_rect.position = Vector2.ZERO
 		_icon_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		_icon_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		_icon_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		
-		# ★ 关键修改 2：挂载描边 Shader
+		# ★ 核心：设置缩放中心为图片中心，以便悬停时向四周放大
+		_icon_rect.pivot_offset = MapConst.MAP_NODE_SIZE / 2.0
+		
 		var mat := ShaderMaterial.new()
 		mat.shader = load("res://content/resource/shader/pixel_outline.gdshader")
 		mat.set_shader_parameter("outline_color", Color.WHITE)
@@ -79,24 +80,54 @@ func _update_icon_visual(node: MapNode):
 		_icon_rect.texture = tex
 		_icon_rect.visible = true
 	else:
-		# 如果图片没找到（或者还没画），用个粉色方块兜底方便调试
 		var img := Image.create(int(MapConst.MAP_NODE_SIZE.x), int(MapConst.MAP_NODE_SIZE.y), false, Image.FORMAT_RGBA8)
 		img.fill(Color.MAGENTA)
 		_icon_rect.texture = ImageTexture.create_from_image(img)
 		_icon_rect.visible = true
 
-	# ★ 根据状态设置图片的明暗
+	# ★ 核心：加深变暗程度
 	if node.is_visited or node.is_passed:
-		# 已访问 / 已经过：变灰、半透明
-		_icon_rect.modulate = Color(0.4, 0.4, 0.4, 0.8)
+		# 已访问 / 经过：极暗，接近透明
+		_icon_rect.modulate = Color(0.2, 0.2, 0.2, 0.5)
 	elif not node.is_available:
-		# 不可用：变暗
-		_icon_rect.modulate = Color(0.6, 0.6, 0.6, 1.0)
+		# 不可用（未解锁）：明显暗灰
+		_icon_rect.modulate = Color(0.35, 0.35, 0.35, 0.9)
 	else:
-		# 可选：正常高亮
+		# 可用：原色高亮
 		_icon_rect.modulate = Color.WHITE
+
+	# 复位缩放
+	_icon_rect.scale = Vector2.ONE
+
+
+func _on_hover_enter():
+	# ★ 核心：只在可用且未访问时提供悬停反馈
+	if map_node.is_available and not map_node.is_visited and not map_node.is_passed:
+		mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+		z_index = 10
 		
-	# 悬浮微调：如果可用且鼠标悬停，可以用 modulate 提亮（由 hover 逻辑控制）
+		# 放大并提亮
+		var tw = create_tween().set_parallel(true)
+		tw.tween_property(_icon_rect, "scale", Vector2(1.15, 1.15), 0.1)
+		tw.tween_property(_icon_rect, "modulate", Color(1.3, 1.3, 1.3), 0.1)
+	else:
+		mouse_default_cursor_shape = Control.CURSOR_ARROW
+		
+	if map_scene_ref and map_scene_ref.has_method("show_node_info"):
+		map_scene_ref.show_node_info(map_node)
+
+
+func _on_hover_exit():
+	mouse_default_cursor_shape = Control.CURSOR_ARROW
+	z_index = 0
+	
+	# 恢复原样
+	var tw = create_tween().set_parallel(true)
+	tw.tween_property(_icon_rect, "scale", Vector2.ONE, 0.1)
+	_update_icon_visual(map_node)
+	
+	if map_scene_ref and map_scene_ref.has_method("hide_node_info"):
+		map_scene_ref.hide_node_info()
 
 
 func _add_objective_badge(node: MapNode):
@@ -169,26 +200,6 @@ func _on_clicked():
 		return
 	if map_scene_ref and map_scene_ref.has_method("on_node_selected"):
 		map_scene_ref.on_node_selected(map_node)
-
-
-func _on_hover_enter():
-	# ★ 悬停时，图标稍微放大或提亮
-	if map_node.is_available and not map_node.is_visited and not map_node.is_passed:
-		_icon_rect.modulate = Color(1.2, 1.2, 1.2) # 提亮
-		z_index = 10 # 浮在其它节点之上
-		
-	if map_scene_ref and map_scene_ref.has_method("show_node_info"):
-		map_scene_ref.show_node_info(map_node)
-
-
-func _on_hover_exit():
-	# ★ 恢复状态
-	_update_icon_visual(map_node)
-	z_index = 0
-	
-	if map_scene_ref and map_scene_ref.has_method("hide_node_info"):
-		map_scene_ref.hide_node_info()
-
 
 func _intensity_badge_text(intensity: int) -> String:
 	match intensity:
