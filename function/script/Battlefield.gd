@@ -634,6 +634,12 @@ func _on_player_movement_finished(unit: Unit):
 	camera_controller.follow_mouse()
 	SignalBus.request_clear_highlight.emit()
 	ItemBattlefieldManager.try_pickup(unit)
+	
+	# ★ 核心新增：移动结束后，如果没有攻击/治疗目标，直接自动待机
+	if unit.unit_stats.team_id == 0 and unit.can_act_this_turn and not unit.has_attacked:
+		var targets = CombatManager.get_attackable_targets(unit)
+		if targets.is_empty():
+			TurnManager.finish_unit_action(unit)
 
 
 func _on_ai_movement_finished(unit: Unit):

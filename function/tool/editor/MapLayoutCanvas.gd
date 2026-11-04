@@ -68,32 +68,30 @@ func _draw():
 			Vector2(editor.NODE_W, editor.NODE_H)
 		)
 		
-		var is_pool = not node.random_pool.is_empty()
-		
 		if in_test:
-			# ★ 测试模式：纯图标预览，不判断可用状态，不加黄框
+			# 测试模式：显示图片
+			var is_pool = not node.random_pool.is_empty()
 			var is_hovered = (i == _hover_idx)
 			var draw_rect = rect
-			var color_mod = Color.WHITE
 			
+			# 为了模拟外描边，稍微放大画布
 			if is_hovered:
 				draw_rect = draw_rect.grow(2)
-				color_mod = Color(1.3, 1.3, 1.3) # 悬停稍微提亮
-				
-			# 获取该节点的纹理
+			
 			var tex = null
 			if is_pool:
 				tex = MapConst.get_node_texture(node.random_pool[0], -1)
 			else:
 				tex = MapConst.get_node_texture(node.node_type, -1)
 
+			# 直接画黄色外框
+			draw_rect(draw_rect.grow(1), Color(1.0, 0.8, 0.2, 1.0), true)
+
 			if tex:
-				draw_texture_rect(tex, draw_rect, false, color_mod)
+				draw_texture_rect(tex, draw_rect, false)
 			else:
-				# 缺图兜底
 				draw_rect(draw_rect, Color.MAGENTA, true)
 
-			# 绘制分配到的地图名
 			var label : String = editor._test_map_assignment.get(node, "")
 			if label != "":
 				var font : Font = ThemeDB.fallback_font
@@ -113,7 +111,7 @@ func _draw():
 				draw_string(font, Vector2(pos.x - text_size.x / 2.0, text_y),
 					label, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, Color.WHITE)
 		else:
-			# 编辑模式保持不变
+			# 编辑模式：方块样式
 			var color : Color = _node_color(node)
 			draw_rect(rect, color, true)
 			var label2 : String = _node_label(node)
@@ -139,7 +137,11 @@ func _draw():
 						relic_line, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size_r,
 						Color(1.0, 0.82, 0.3, 1.0))
 
-	# 拖拽层预览
+	if not in_test and editor._selected_link >= 0:
+		var p : Vector2 = editor._node_pos(editor._selected_link)
+		var rect2 := Rect2(p - Vector2(editor.NODE_W / 2.0 + 2, editor.NODE_H / 2.0 + 2), Vector2(editor.NODE_W + 4, editor.NODE_H + 4))
+		draw_rect(rect2, Color.YELLOW, false, 2)
+
 	if not in_test and editor._dragging_idx >= 0:
 		var new_layer : int = editor._layer_at_y(editor._mouse_pos.y)
 		var preview_y : float = editor.CANVAS_PADDING_TOP + (max_layer - new_layer + 0.5) * editor.LAYER_HEIGHT
