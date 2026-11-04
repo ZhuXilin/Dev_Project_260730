@@ -4,17 +4,21 @@ class_name HighlightManager
 var highlight_container : Node2D
 var _cells : Dictionary = {} 
 
-# ★ 时间缩短：0.15 -> 0.08， 0.08 -> 0.04
 const DELAY_TIME : float = 0.08  
 const ANIM_TIME : float = 0.04   
 
 var _last_move_center : Vector2i = Vector2i(-1, -1)
 var _last_attack_center : Vector2i = Vector2i(-1, -1)
 
+# ★ 缓存 Shader 资源，避免重复加载
+var _highlight_shader : Shader = null
+
 func initialize(container : Node2D):
 	highlight_container = container
+	_highlight_shader = load("res://content/resource/shader/range_indicator.gdshader")
 
 func clear_highlight(origin_cell: Vector2i = Vector2i(-1, -1)):
+	# ... (保持原样，省略中间代码)
 	if not highlight_container: return
 	
 	var m_center = origin_cell if origin_cell.x >= 0 else _last_move_center
@@ -49,6 +53,7 @@ func clear_highlight(origin_cell: Vector2i = Vector2i(-1, -1)):
 		data["speed"] = 1.0 / ANIM_TIME
 
 func clear_highlight_split(move_center: Vector2i, attack_center: Vector2i):
+	# ... (保持原样，和 clear_highlight 类似)
 	if not highlight_container: return
 	if move_center.x < 0 or move_center.y < 0: move_center = Vector2i.ZERO
 	if attack_center.x < 0 or attack_center.y < 0: attack_center = Vector2i.ZERO
@@ -91,7 +96,6 @@ func show_move_highlight(reachable_dict: Dictionary, color: Color = Color(0, 1, 
 		
 	_process_incoming(reachable_dict, color, z_index, safe_origin, false, false)
 
-# ★ 增加 instant 参数：是否硬切
 func show_enemy_preview(move_cells: Dictionary, attack_cells: Dictionary, attack_color: Color = Color(0.7, 0.1, 0.2, 0.7), origin_cell: Vector2i = Vector2i(-1, -1), instant: bool = false):
 	if not highlight_container: return
 	
@@ -139,11 +143,14 @@ func _process_incoming(target_cells: Dictionary, color: Color, z_index: int, ori
 			var data = _cells[cell]
 			var was_attack = data.get("is_attack", false)
 			
-			data["rect"].color = color
+			# ★ 核心：通过更新 Shader 材质来改变颜色
+			var mat : ShaderMaterial = data["rect"].material
+			if mat:
+				mat.set_shader_parameter("base_color", color)
+				
 			data["rect"].z_index = z_index
 			data["is_attack"] = is_attack_type
 			
-			# ★ 如果要求硬切，直接满透明度
 			if instant:
 				data["current_a"] = 1.0
 				data["target_a"] = 1.0
@@ -165,11 +172,17 @@ func _process_incoming(target_cells: Dictionary, color: Color, z_index: int, ori
 			data["speed"] = 1.0 / ANIM_TIME
 		else:
 			var rect = ColorRect.new()
-			rect.color = color
 			rect.size = Vector2(MapConst.CELL_SIZE, MapConst.CELL_SIZE)
 			rect.position = Vector2(cell.x * MapConst.CELL_SIZE, cell.y * MapConst.CELL_SIZE)
 			rect.z_index = z_index
 			rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			
+			# ★ 核心：为每个格子创建 ShaderMaterial
+			var mat = ShaderMaterial.new()
+			mat.shader = _highlight_shader
+			mat.set_shader_parameter("base_color", color)
+			rect.material = mat
+			
 			highlight_container.add_child(rect)
 			
 			if instant:

@@ -12,15 +12,15 @@ const DEFAULT_MAP_SIZE : Vector2i = Vector2i(20, 15)
 # ============================================================
 #  高亮 / 预览颜色
 # ============================================================
-const HIGHLIGHT_MOVE : Color = Color(1.0, 1.0, 1.0, 0.3)
-const HIGHLIGHT_ATTACK : Color = Color(0.7, 0.1, 0.2, 0.7)
-const HIGHLIGHT_HEAL : Color = Color(0.2, 0.5, 0.8, 0.7)
-const HIGHLIGHT_ENEMY_HEAL : Color = Color(0.2, 0.5, 0.4, 0.7)
+const HIGHLIGHT_MOVE : Color = Color(0.6, 0.6, 0.6, 0.5)
+const HIGHLIGHT_ATTACK : Color = Color(0.8, 0.2, 0.2, 0.5)
+const HIGHLIGHT_HEAL : Color = Color(0.2, 0.5, 0.8, 0.5)
+const HIGHLIGHT_ENEMY_HEAL : Color = Color(0.2, 0.5, 0.4, 0.5)
 const HIGHLIGHT_SPAWN : Color = Color(0.2, 0.6, 1.0, 0.4)
-const HIGHLIGHT_BATTLE_START : Color = Color(0.7, 0.3, 0.9, 0.3)
-const HIGHLIGHT_EVENT : Color = Color(0.3, 0.6, 1.0, 0.3)
-const HIGHLIGHT_HP_HEAL : Color = Color(0.0, 1.0, 0.0, 0.3)
-const HIGHLIGHT_HP_DAMAGE : Color = Color(1.0, 0.0, 0.0, 0.3)
+const HIGHLIGHT_BATTLE_START : Color = Color(0.7, 0.3, 0.9, 0.5)
+const HIGHLIGHT_EVENT : Color = Color(0.3, 0.6, 1.0, 0.5)
+const HIGHLIGHT_HP_HEAL : Color = Color(0.0, 1.0, 0.0, 0.5)
+const HIGHLIGHT_HP_DAMAGE : Color = Color(1.0, 0.0, 0.0, 0.5)
 
 
 # ============================================================
