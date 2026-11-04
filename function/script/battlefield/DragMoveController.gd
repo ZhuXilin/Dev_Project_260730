@@ -22,6 +22,9 @@ var _last_click_unit : Unit = null
 
 var _is_show_original_range : bool = false
 
+# ★ 拖拽中敌人危险区的虚拟落点缓存，避免同格重复计算
+var _last_danger_virtual_cell : Vector2i = Vector2i(-9999, -9999)
+
 func _init(bf : Node2D):
 	_bf = bf
 
@@ -289,7 +292,6 @@ func _do_wait(unit : Unit):
 	SignalBus.request_clear_highlight.emit()
 	SignalBus.request_hide_info.emit()
 
-
 # ============================================================
 #  拖拽
 # ============================================================
@@ -300,14 +302,15 @@ func _start_drag():
 	InputManager.selected_unit = unit
 	InputManager.interaction_phase = InputManager.Phase.DRAGGING_MOVE
 
-	# ★ 拖拽开始时，强制重新计算一次敌人危险区，防止状态过期
-	_bf._enemy_danger_zones = _bf._calc_enemy_danger_zones()
+	# ★ 拖拽开始时，重置缓存，按玩家单位真实位置重算一次
+	_last_danger_virtual_cell = Vector2i(-9999, -9999)
+	_refresh_danger_zones(unit.grid_cell)
 
 	_reachable = UnitManager.get_reachable_cells(
 		unit.grid_cell, unit.remaining_move, unit)
 
 	SignalBus.request_hide_info.emit()
-	
+
 	var danger_color = Color(MapConst.HIGHLIGHT_ATTACK.r, MapConst.HIGHLIGHT_ATTACK.g, MapConst.HIGHLIGHT_ATTACK.b, 1.0)
 	_bf.highlight_manager.show_move_highlight(
 		_reachable, MapConst.HIGHLIGHT_MOVE, 0, true, unit.grid_cell, _bf._enemy_danger_zones, danger_color)
@@ -315,9 +318,8 @@ func _start_drag():
 	_current_target_cell = unit.grid_cell
 	_current_path = []
 	_arrow.hide_path()
-	
-	_update_attack_preview(unit.grid_cell, true)
 
+	_update_attack_preview(unit.grid_cell, true)
 
 func _update_drag():
 	var vp_size = _bf.get_viewport().get_visible_rect().size
@@ -333,61 +335,70 @@ func _update_drag():
 	var cell = _bf.world_to_grid(world_pos)
 
 	var hovered = UnitManager.get_unit_at_cell(cell)
-	
-	# 悬停危险格，且格子上没单位时，显示敌人头顶的 `!`
+	_hovered_target = hovered
+
+	# ★ 先根据「若此刻松手会落在哪」确定虚拟落点，再重算敌人威胁区
+	var virtual_cell : Vector2i = _pressing_unit.grid_cell
+	if hovered != null and hovered != _pressing_unit:
+		# 拖到单位上：攻击 / 治疗，玩家不移动
+		virtual_cell = _pressing_unit.grid_cell
+	elif _reachable.has(cell):
+		virtual_cell = cell
+	else:
+		# 不在可达区：按「最近可达格」作为虚拟落点（和松手时的落点一致）
+		virtual_cell = _find_closest_reachable_cell(cell)
+	_refresh_danger_zones(virtual_cell)
+
+	# 悬停危险格，且格子上没单位时，显示敌人头顶的 `!`（现在用的是刷新后的危险区）
 	if hovered == null and _bf._enemy_danger_zones.has(cell):
 		var attackers = _bf._enemy_danger_zones[cell]
 		_bf.show_danger_indicators(attackers)
 	else:
 		_bf.clear_danger_indicators()
-	
-	_hovered_target = hovered
-	
+
+	# ---- 以下保持原逻辑不变 ----
 	if hovered != null and hovered != _pressing_unit:
 		_mouse_out_of_range = false
 		_is_show_original_range = false
-		
+
 		_bf.clear_danger_indicators()
-		
-		# ★ 核心修改：统一处理“拖拽到不可操作的单位”的情况（如满血友军）
+
 		if not _is_valid_target(hovered):
 			_bf.hide_damage_preview()
 			_current_target_cell = cell
 			_current_path = []
 			_arrow.hide_path()
-			# 传入两个空字典，清除所有单格指示器，表示不可操作
 			_bf.highlight_manager.show_enemy_preview({}, {}, Color.WHITE, cell, true)
 			return
-			
-		# 下面处理“有效目标”的情况（敌人，或掉血的友军）
+
 		_bf.show_damage_preview(_pressing_unit, hovered)
-			
+
 		_current_target_cell = cell
 		_current_path = []
 		_arrow.hide_path()
-		
+
 		var single_cell_dict = {cell: true}
-		
+
 		var is_ally = (hovered.unit_stats.team_id == _pressing_unit.unit_stats.team_id)
 		var is_wounded = hovered.hit_points < hovered.unit_stats.max_hp
-		
+
 		var wdata = _pressing_unit.get_weapon_data()
 		var is_healer = (wdata != null and (wdata.category == "staff" or wdata.attack_style == "heal"))
 		var can_emergency = SoulFireManager.can_spend(SoulFireManager.get_emergency_heal_cost())
-		
+
 		var is_heal_action = (is_ally and is_wounded and (is_healer or can_emergency))
-		
+
 		var color = MapConst.HIGHLIGHT_HEAL if is_heal_action else MapConst.HIGHLIGHT_ATTACK
 		var danger_color = Color(MapConst.HIGHLIGHT_ATTACK.r, MapConst.HIGHLIGHT_ATTACK.g, MapConst.HIGHLIGHT_ATTACK.b, 1.0)
-		
+
 		_bf.highlight_manager.show_enemy_preview({}, single_cell_dict, color, cell, true, _bf._enemy_danger_zones, danger_color)
 		return
 
 	if hovered == _pressing_unit:
 		_hovered_target = null
-		
+
 	_bf.hide_damage_preview()
-	
+
 	if not _reachable.has(cell):
 		_mouse_out_of_range = true
 		if not _is_show_original_range:
@@ -417,14 +428,12 @@ func _update_drag():
 
 	_update_attack_preview(cell, false)
 
-
 func _redraw_highlights(attack_cells : Dictionary, origin_cell: Vector2i):
 	# ★ 移除 staff 判断，全部使用红色
 	var color = MapConst.HIGHLIGHT_ATTACK
 	var danger_color = Color(MapConst.HIGHLIGHT_ATTACK.r, MapConst.HIGHLIGHT_ATTACK.g, MapConst.HIGHLIGHT_ATTACK.b, 1.0)
 	
 	_bf.highlight_manager.show_enemy_preview(_reachable, attack_cells, color, origin_cell, true, _bf._enemy_danger_zones, danger_color)
-
 
 func _reset_state():
 	_is_pressing = false
@@ -436,11 +445,12 @@ func _reset_state():
 	_reachable.clear()
 	_current_path.clear()
 	_current_target_cell = Vector2i(-1, -1)
+	_last_danger_virtual_cell = Vector2i(-9999, -9999)
 	if _arrow:
 		_arrow.hide_path()
 	if _bf:
 		_bf.hide_damage_preview()
-		_bf.clear_danger_indicators() # 清理感叹号
+		_bf.clear_danger_indicators()
 
 func _execute_move():
 	var unit = _pressing_unit
@@ -881,3 +891,13 @@ func _do_emergency_heal_async(attacker : Unit, target : Unit):
 	await CombatManager.execute_emergency_heal(attacker, target)
 	if is_instance_valid(target):
 		_bf.suppress_range_for_unit(target)
+
+## 根据当前拖拽虚拟落点刷新敌人威胁区。
+## 同一格只算一次；落点一旦变化就立即重算，`!` 图标与红色危险格随之刷新。
+func _refresh_danger_zones(virtual_cell : Vector2i) -> void:
+	if not is_instance_valid(_pressing_unit):
+		return
+	if virtual_cell == _last_danger_virtual_cell:
+		return
+	_last_danger_virtual_cell = virtual_cell
+	_bf._enemy_danger_zones = _bf.calc_enemy_danger_zones_with_virtual(_pressing_unit, virtual_cell)

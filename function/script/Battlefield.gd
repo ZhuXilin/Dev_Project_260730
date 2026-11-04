@@ -1936,6 +1936,21 @@ func _toggle_auto_battle():
 	var next_on : bool = not Globals.is_auto_battle
 	_auto_battle_manager.set_enabled(next_on)
 	
+	
+## 基于「虚拟位置」重算敌人危险区：把 virtual_unit 临时放到 virtual_cell 上，再调用原逻辑。
+## 仅用于拖拽预览时的实时刷新，计算是纯同步的，恢复后无副作用。
+func calc_enemy_danger_zones_with_virtual(virtual_unit: Unit, virtual_cell: Vector2i) -> Dictionary:
+	if not is_instance_valid(virtual_unit):
+		return _calc_enemy_danger_zones()
+	if virtual_cell == virtual_unit.grid_cell:
+		return _calc_enemy_danger_zones()
+	var old_cell : Vector2i = virtual_unit.grid_cell
+	virtual_unit.grid_cell = virtual_cell
+	var result : Dictionary = _calc_enemy_danger_zones()
+	virtual_unit.grid_cell = old_cell
+	return result
+	
+	
 # ============================================================
 # 危险区计算与提示
 # ============================================================
