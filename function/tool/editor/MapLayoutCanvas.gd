@@ -43,6 +43,7 @@ func _draw():
 	var max_layer : int = editor._get_max_layer()
 	var in_test : bool = editor._in_test_mode
 
+	# 编辑模式的底层辅助线
 	if not in_test:
 		for i in range(max_layer + 1):
 			var y : float = editor.CANVAS_PADDING_TOP + (max_layer - i + 0.5) * editor.LAYER_HEIGHT
@@ -68,38 +69,42 @@ func _draw():
 		)
 		
 		if in_test:
-			# 测试模式：显示图片
+			# --- 测试模式：纯粹显示图标和名字 ---
 			var is_pool = not node.random_pool.is_empty()
+			var real_type = node.node_type
+			if node.node_type == MapNode.NodeType.QUESTION and node.hidden_node_type != -1:
+				real_type = node.hidden_node_type
+				
 			var tex = null
 			if is_pool:
 				tex = MapConst.get_node_texture(node.random_pool[0], -1)
 			else:
-				tex = MapConst.get_node_texture(node.node_type, -1)
+				tex = MapConst.get_node_texture(real_type, -1)
 
-			# 删除了画实心黄色矩形底部的代码
+			# 1. 绘制图标（修复变量名冲突：draw_rect 改为 image_rect）
 			if tex:
-				draw_texture_rect(tex, rect, false)
+				var tex_size = tex.get_size()
+				var image_rect = Rect2(pos - tex_size / 2.0, tex_size)
+				draw_texture_rect(tex, image_rect, false)
 			else:
-				draw_rect(rect, Color.MAGENTA, true)
+				# 如果没图，画个明显的占位，防止看不见
+				draw_rect(rect, Color(0.8, 0.2, 0.8, 0.8), true)
 
-			# 节点下的文字保留
+			# 2. 绘制下方的文本
 			var label : String = editor._test_map_assignment.get(node, "")
 			if label != "":
 				var font : Font = ThemeDB.fallback_font
-				var font_size : int = 6
+				var font_size : int = 7
 				var text_size : Vector2 = font.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size)
-				if text_size.x > 40.0:
-					label = label.substr(0, 4) + ".."
-					text_size = font.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size)
 				
-				var bg_rect = Rect2(pos.x - text_size.x/2 - 1, pos.y + editor.NODE_H/2 + 1, text_size.x + 2, 8)
-				var text_y = pos.y + editor.NODE_H / 2.0 + 8
+				var text_y = pos.y + editor.NODE_H / 2.0 + 10
+				var text_pos = Vector2(pos.x - text_size.x / 2.0, text_y)
 				
-				draw_rect(bg_rect, Color(0,0,0,0.6), true)
-				draw_string(font, Vector2(pos.x - text_size.x / 2.0, text_y),
-					label, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, Color.WHITE)
+				draw_string_outline(font, text_pos, label, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, 3, Color.BLACK)
+				draw_string(font, text_pos, label, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, Color.WHITE)
+				
 		else:
-			# 编辑模式：方块样式（保持不变）
+			# --- 编辑模式 ---
 			var color : Color = _node_color(node)
 			draw_rect(rect, color, true)
 			var label2 : String = _node_label(node)
@@ -109,9 +114,7 @@ func _draw():
 			var ascent2 : float = font2.get_ascent(font_size2)
 			var descent2 : float = font2.get_descent(font_size2)
 			var baseline_y2 : float = pos.y + (ascent2 - descent2) / 2.0
-			draw_string(font2,
-				Vector2(pos.x - text_size2.x / 2.0, baseline_y2),
-				label2, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size2, Color.BLACK)
+			draw_string(font2, Vector2(pos.x - text_size2.x / 2.0, baseline_y2), label2, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size2, Color.BLACK)
 
 			if not node.unlock_relics.is_empty():
 				var relic_line : String = _format_relic_line(node.unlock_relics)
@@ -120,10 +123,7 @@ func _draw():
 					var font_size_r : int = 4
 					var ts_r : Vector2 = font_r.get_string_size(relic_line, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size_r)
 					var rel_y : float = pos.y + editor.NODE_H / 2.0 + 6.0
-					draw_string(font_r,
-						Vector2(pos.x - ts_r.x / 2.0, rel_y),
-						relic_line, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size_r,
-						Color(1.0, 0.82, 0.3, 1.0))
+					draw_string(font_r, Vector2(pos.x - ts_r.x / 2.0, rel_y), relic_line, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size_r, Color(1.0, 0.82, 0.3, 1.0))
 
 	if not in_test and editor._selected_link >= 0:
 		var p : Vector2 = editor._node_pos(editor._selected_link)
@@ -135,28 +135,50 @@ func _draw():
 		var preview_y : float = editor.CANVAS_PADDING_TOP + (max_layer - new_layer + 0.5) * editor.LAYER_HEIGHT
 		draw_line(Vector2(0, preview_y), Vector2(canvas_w, preview_y), Color(1, 1, 0, 0.5), 1)
 
-
-# 修改：编辑器测试模式的连线与正式游戏统一（去箭头，减小间隙）
 func _draw_directed_line(from_pos: Vector2, to_pos: Vector2, color: Color, width: float = 1.0):
-	var dir : Vector2 = to_pos - from_pos
-	var dist : float = dir.length()
-	if dist < 1.0:
-		return
-	dir = dir / dist
-
-	var hw : float = editor.NODE_W * 0.5
-	var hh : float = editor.NODE_H * 0.5
+	var dx = to_pos.x - from_pos.x
+	var dy = to_pos.y - from_pos.y
+	var points : PackedVector2Array = PackedVector2Array()
 	
-	# 与正式游戏统一：- 2.0 减小间隙
-	var gap : float = _exit_gap_distance(dir, hw, hh) - 2.0
-	var line_end : Vector2 = to_pos - dir * gap
-
-	if (line_end - from_pos).dot(dir) <= 0.0:
-		line_end = from_pos + dir * (dist * 0.5)
-		draw_line(from_pos, line_end, color, width)
-		return
-
-	draw_line(from_pos, line_end, color, width)
+	var segments : int = 24
+	
+	if abs(dx) < 2.0:
+		# 垂直直线也细分点，方便后面算切线方向
+		for i in range(segments + 1):
+			var t : float = float(i) / float(segments)
+			points.append(from_pos.lerp(to_pos, t))
+	else:
+		# S 型曲线
+		var mid_y = from_pos.y + dy * 0.5
+		var p1 = Vector2(from_pos.x, mid_y)
+		var p2 = Vector2(to_pos.x, mid_y)
+		
+		for i in range(segments + 1):
+			var t : float = float(i) / float(segments)
+			var p : Vector2 = pow(1 - t, 3) * from_pos + 3 * pow(1 - t, 2) * t * p1 + 3 * (1 - t) * pow(t, 2) * p2 + pow(t, 3) * to_pos
+			points.append(p)
+			
+	draw_polyline(points, color, width)
+	
+	# ★ 绘制箭头：放在 65% 的位置，防止被两端节点遮挡
+	var arrow_t : float = 0.65
+	var arrow_idx : int = int(segments * arrow_t)
+	var tip : Vector2 = points[arrow_idx]
+	var prev_p : Vector2 = points[arrow_idx - 1]
+	
+	var dir = (tip - prev_p).normalized()
+	if dir == Vector2.ZERO:
+		dir = (to_pos - from_pos).normalized()
+		
+	var perp = Vector2(-dir.y, dir.x)
+	var arrow_len = 6.0
+	var arrow_w = 3.0
+	
+	var base_center = tip - dir * arrow_len
+	var left = base_center + perp * arrow_w
+	var right = base_center - perp * arrow_w
+	
+	draw_colored_polygon(PackedVector2Array([tip, left, right]), color)
 
 func _exit_gap_distance(dir: Vector2, hw: float, hh: float) -> float:
 	var ax : float = abs(dir.x)

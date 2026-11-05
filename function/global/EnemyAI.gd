@@ -10,7 +10,7 @@ var first_ai_unit : Unit = null
 
 # ---- AI 随机选择参数 ----
 const AI_SCORE_TOLERANCE : int = 10
-const AI_WEIGHT_OFFSET : int = 200
+const AI_WEIGHT_OFFSET : int = 20
 
 ## ★ 本回合我方 AI 已经瞄准的目标（仅在玩家 AI 期间启用）
 var _focus_targets : Dictionary = {}
@@ -503,7 +503,21 @@ func _evaluate_attack(unit: Unit, allow_healer: bool = false):
 		if damage <= 0:
 			continue
 
+		var is_kill = damage >= enemy.hit_points
 		var score = damage * 2
+		
+		# ★ 新增：计算残血度与击杀收益
+		if is_kill:
+			score += 1000 # 只要击杀，给予绝对高的基础分
+		else:
+			var target_hp_ratio = float(enemy.hit_points) / float(max(1, enemy.unit_stats.max_hp))
+			# 越残血得分越高
+			score += int((1.0 - target_hp_ratio) * 150)
+			
+			# 这一击如果能把对方打到极低血量，也加分
+			var hp_after = enemy.hit_points - damage
+			if hp_after > 0 and hp_after < enemy.unit_stats.max_hp * 0.3:
+				score += 100
 
 		var is_threatening_backline = false
 		for ally in UnitManager.unit_list:
@@ -519,19 +533,10 @@ func _evaluate_attack(unit: Unit, allow_healer: bool = false):
 
 		var enemy_wt = enemy.get_weapon_type()
 
-		if damage >= enemy.hit_points:
-			score += 250
+		if is_kill:
 			if enemy_wt == "staff" or enemy_wt == "spellbook":
-				score += 150
+				score += 200
 		else:
-			var target_hp_ratio = float(enemy.hit_points) / float(max(1, enemy.unit_stats.max_hp))
-			var hp_loss = enemy.unit_stats.max_hp - enemy.hit_points
-			score += int(hp_loss * 1.5)
-			if target_hp_ratio < 0.3:
-				score += 100
-			elif target_hp_ratio < 0.5:
-				score += 50
-
 			if enemy_wt == "staff":
 				score += 60
 			elif enemy_wt == "spellbook":
@@ -561,15 +566,26 @@ func _evaluate_attack(unit: Unit, allow_healer: bool = false):
 			if counter_dmg >= unit.hit_points and damage < enemy.hit_points:
 				score -= 100
 
-		candidates.append({"target": enemy, "score": score})
+		candidates.append({"target": enemy, "score": score, "is_kill": is_kill})
 
 	if candidates.is_empty():
 		return null
 
-	var picked : Dictionary = _pick_target_by_weight(candidates)
-	var best_target : Unit = picked["target"]
-	return {"type": "attack", "unit": unit, "target": best_target, "weapon_id": weapon_id}
+	# ★ 核心改进：绝对斩杀过滤
+	# 如果有任何目标可以被直接击杀，就过滤掉所有无法击杀的目标
+	var kill_candidates : Array = []
+	for c in candidates:
+		if c["is_kill"]:
+			kill_candidates.append(c)
+			
+	if not kill_candidates.is_empty():
+		var picked = _pick_target_by_weight(kill_candidates)
+		return {"type": "attack", "unit": unit, "target": picked["target"], "weapon_id": weapon_id}
 
+	# 如果没有击杀目标，则走正常的加权随机
+	var picked_normal : Dictionary = _pick_target_by_weight(candidates)
+	var best_target : Unit = picked_normal["target"]
+	return {"type": "attack", "unit": unit, "target": best_target, "weapon_id": weapon_id}
 
 # ============================================================
 #  移动评估（修复远程无限后退问题）

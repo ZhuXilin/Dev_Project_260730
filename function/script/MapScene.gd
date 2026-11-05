@@ -316,33 +316,37 @@ func _draw_connections():
 			var to_pos : Vector2 = pos_map.get(conn, conn.position)
 			_create_directed_line(from_pos, to_pos)
 
-# 修改：连线绘制，去除箭头，让线条稍微深入节点内部以消除视觉间隙
 func _create_directed_line(from_pos: Vector2, to_pos: Vector2):
-	var dir : Vector2 = to_pos - from_pos
-	var dist : float = dir.length()
-	if dist < 1.0:
-		return
-	dir = dir / dist
-
-	var hw : float = MapConst.MAP_NODE_SIZE.x * 0.5
-	var hh : float = MapConst.MAP_NODE_SIZE.y * 0.5
+	var dx = to_pos.x - from_pos.x
+	var dy = to_pos.y - from_pos.y
 	
-	# 核心修改：把 + 2.0 改为 - 2.0，让线头没入节点边缘内部
-	var gap : float = _exit_gap_distance(dir, hw, hh) - 2.0
-	var line_end : Vector2 = to_pos - dir * gap
-	if (line_end - from_pos).dot(dir) <= 0.0:
-		line_end = from_pos + dir * (dist * 0.5)
-
 	var line := Line2D.new()
-	line.add_point(from_pos)
-	line.add_point(line_end)
 	line.width = MapConst.MAP_LINE_WIDTH
 	line.default_color = MapConst.MAP_LINE_COLOR
-	line_container.add_child(line)
+	line.joint_mode = Line2D.LINE_JOINT_ROUND
+	line.begin_cap_mode = Line2D.LINE_CAP_ROUND
+	line.end_cap_mode = Line2D.LINE_CAP_ROUND
 	
-	# 已删除原有的箭头绘制代码 (Polygon2D)
+	# 如果几乎垂直，直接走直线
+	if abs(dx) < 2.0:
+		line.add_point(from_pos)
+		line.add_point(to_pos)
+	else:
+		# 核心：控制点的 Y 轴设定在中点，X 轴沿两端。
+		# 这会形成经典的 S 形树枝状曲线，垂直进出节点，完美对称，绝不纠缠。
+		var mid_y = from_pos.y + dy * 0.5
+		var p1 = Vector2(from_pos.x, mid_y)
+		var p2 = Vector2(to_pos.x, mid_y)
+		
+		var segments : int = 24
+		for i in range(segments + 1):
+			var t : float = float(i) / float(segments)
+			# 三次贝塞尔公式
+			var p : Vector2 = pow(1 - t, 3) * from_pos + 3 * pow(1 - t, 2) * t * p1 + 3 * (1 - t) * pow(t, 2) * p2 + pow(t, 3) * to_pos
+			line.add_point(p)
+		
+	line_container.add_child(line)
 
-# _exit_gap_distance 保持不变，不用修改
 func _exit_gap_distance(dir: Vector2, hw: float, hh: float) -> float:
 	var ax : float = abs(dir.x)
 	var ay : float = abs(dir.y)
