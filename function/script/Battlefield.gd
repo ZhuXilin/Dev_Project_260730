@@ -419,19 +419,22 @@ func _set_hint_override(text : String, duration : float = 1.0):
 	_hint_override_text = text
 	_hint_override_until = Time.get_ticks_msec() / 1000.0 + duration
 
-
 func _update_hint_label():
 	if hint_label == null: return
 	var now := Time.get_ticks_msec() / 1000.0
 
-	# 0. 强制覆盖
+	# 0. 强制覆盖提示（优先级最高）
 	if now < _hint_override_until and _hint_override_text != "":
 		hint_label.text = _hint_override_text
 		return
 
-	# 0.5 自动战斗提示（放在所有临时提示之后、状态机之前）
+	# 0.5 自动战斗提示（轮流播报，不再提示中键）
 	if Globals.is_auto_battle:
-		hint_label.text = "自动战斗中"
+		var cycle = int(Time.get_ticks_msec() / 3000.0) % 2
+		if cycle == 0:
+			hint_label.text = "空格键取消自动战斗"
+		else:
+			hint_label.text = "自动战斗中"
 		return
 
 	# 1. 非玩家回合 / AI行动中 / 播放动画时，统一显示"不可操作"
@@ -480,14 +483,17 @@ func _update_hint_label():
 				hint_label.text = "按住左键拖拽单位"
 		return
 
-	# 5. 可撤销操作：独立提示，不与其他信息组合；优先级高于默认提示
+	# 5. 可撤销操作：独立提示，不与其他信息组合
 	if can_undo:
 		hint_label.text = "右键撤销"
 		return
 
-	# 6. 默认
-	hint_label.text = "双击中键结束回合"
-
+	# 6. 默认状态（轮流播报常规操作）
+	var cycle_default = int(Time.get_ticks_msec() / 3000.0) % 2
+	if cycle_default == 0:
+		hint_label.text = "中键双击结束回合"
+	else:
+		hint_label.text = "空格键开启自动战斗"
 
 # ============================================================
 #  选中 / 取消选中
@@ -622,14 +628,21 @@ func _input(event: InputEvent):
 			if event.button_index == MOUSE_BUTTON_MIDDLE or event.button_index == MOUSE_BUTTON_WHEEL_UP or event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
 				get_viewport().set_input_as_handled()
 				return
-		# 左右键由 blocker 处理，直接放行到后面
 
 	if TurnManager and not TurnManager.is_battle_ready():
 		return
 	if Globals.is_transitioning or Globals.is_fading or Globals.is_dialogue_active:
 		return
 
-	# 自动战斗开关：Space 键（任何非对话状态都响应）
+	# ★ 新增：回车键结束回合（且必须是玩家回合、非自动战斗时有效）
+	if event is InputEventKey and event.pressed and not event.echo:
+		if (event.keycode == KEY_ENTER or event.keycode == KEY_KP_ENTER) and not Globals.is_auto_battle:
+			if TurnManager.current_turn_team == TurnManager.Team.PLAYER:
+				_end_player_turn()
+				get_viewport().set_input_as_handled()
+				return
+
+	# 自动战斗开关：Space 键
 	if event is InputEventKey and event.pressed and not event.echo \
 			and event.keycode == KEY_SPACE:
 		if Globals.is_item_get_popup_active:
@@ -644,7 +657,7 @@ func _input(event: InputEvent):
 	if Globals.is_item_get_popup_active:
 		return
 
-	# ---- 面板打开时：只处理右键关闭，其他（含键盘 TAB/上下/GM）全部放行 ----
+	# ---- 面板打开时：只处理右键关闭，其他全部放行 ----
 	if team_view_panel.visible or setting_panel.visible or setting_menu_panel.visible:
 		if event is InputEventMouseButton and event.pressed \
 				and event.button_index == MOUSE_BUTTON_RIGHT:
@@ -660,7 +673,7 @@ func _input(event: InputEvent):
 	if _drag_move_controller and _drag_move_controller.handle_input(event):
 		return
 
-	# ---- 中键双击结束回合（此时自动战斗已开启则进不来）----
+	# ---- 中键双击结束回合（自动战斗时已被上面的鼠标拦截挡住）----
 	if event is InputEventMouseButton and event.pressed \
 			and event.button_index == MOUSE_BUTTON_MIDDLE:
 		if TurnManager.current_turn_team == TurnManager.Team.PLAYER \
@@ -675,7 +688,7 @@ func _input(event: InputEvent):
 				SignalBus.request_hint_override.emit("双击中键结束回合", 0.5)
 			return
 
-	# ---- TAB 切换 HP 显示（自动战斗时也能用）----
+	# ---- TAB 切换 HP 显示 ----
 	if event is InputEventKey and event.keycode == KEY_TAB:
 		if event.pressed and not event.echo:
 			_show_all_hp_bars = not _show_all_hp_bars
@@ -688,7 +701,7 @@ func _input(event: InputEvent):
 	if Globals.is_transitioning or Globals.is_fading:
 		return
 
-	# ---- 滚轮切换单位（自动战斗时被上面的鼠标拦截挡住）----
+	# ---- 滚轮切换单位 ----
 	if event is InputEventMouseButton and event.pressed:
 		if event.button_index == MOUSE_BUTTON_WHEEL_UP \
 				or event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
@@ -701,12 +714,11 @@ func _input(event: InputEvent):
 				InputManager.handle_wheel(direction)
 			return
 
-	# ★ 核心修复：如果鼠标悬停在 UI 上，拦截左键/右键，不让它们穿透到地图点击逻辑
+	# ★ 如果鼠标悬停在 UI 上，拦截左键/右键
 	if event is InputEventMouseButton and event.pressed:
 		if event.button_index == MOUSE_BUTTON_LEFT or event.button_index == MOUSE_BUTTON_RIGHT:
 			var hovered = get_viewport().gui_get_hovered_control()
 			if hovered != null:
-				# 排除特定的穿透层（MenuBlocker用于取消选中，Cursor是鼠标指示器）
 				if hovered.name not in ["MenuBlocker", "Cursor"]:
 					return
 
