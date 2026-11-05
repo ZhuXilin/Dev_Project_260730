@@ -11,6 +11,10 @@ func force_unlock() -> void:
 	_turn_changed_locked = false
 
 func on_turn_changed(team : int) -> void:
+	# ★ 进入此函数瞬间，立刻锁死光标，防止玩家在过场前乱点
+	if is_instance_valid(_bf._cursor_controller):
+		_bf._cursor_controller.set_locked(true)
+		
 	await _bf._wait_for_ui_clear()
 	handle_turn_change_async(team)
 
@@ -30,7 +34,11 @@ func handle_turn_change_async(team : int) -> void:
 	if TurnManager.is_game_over: return
 	if _turn_changed_locked: return
 	_turn_changed_locked = true
+	
+	# ★ 进场、切回合期间强制锁死输入与光标
 	Globals.is_transitioning = true
+	if is_instance_valid(_bf._cursor_controller):
+		_bf._cursor_controller.set_locked(true)
 
 	if is_instance_valid(_bf.menu_blocker): _bf.menu_blocker.visible = false
 	if is_instance_valid(_bf.info_panel): _bf.info_panel.visible = false
@@ -86,33 +94,29 @@ func handle_turn_change_async(team : int) -> void:
 
 	await _bf._function_handler.apply_map_functions(team)
 	_bf._panel_manager.update_relic_icons()
+	
+	# ★ 此时所有动画和前置结算完毕，解除封锁
 	Globals.is_transitioning = false
 	_turn_changed_locked = false
 
-	# ★ 核心修复：开局或对话结束后，处理光标传送与解锁
 	if team == TurnManager.Team.PLAYER and not _bf.is_non_combat_mode:
 		_bf._cursor_controller.set_locked(false)
 		
 		if _bf.is_first_turn:
 			_bf.is_first_turn = false
 			var first_unit : Unit = null
-			# 寻找我方第一个存活的单位
 			for u in UnitManager.unit_list:
 				if is_instance_valid(u) and u.unit_stats.team_id == 0 and u.hit_points > 0:
 					first_unit = u
 					break
 			
 			if first_unit != null:
-				# 强制将鼠标瞬移到我方单位上
 				var world_pos = _bf.grid_to_world(first_unit.grid_cell)
 				var screen_pos = _bf.get_viewport().get_canvas_transform() * world_pos
 				_bf.get_viewport().warp_mouse(screen_pos)
-				
-				# 主动触发面板显示
 				SignalBus.request_show_info.emit(first_unit)
 
 	if team == TurnManager.Team.ENEMY and not _bf.is_non_combat_mode:
-		# 敌方回合开始，重新锁定光标
 		_bf._cursor_controller.set_locked(true)
 		TurnManager.run_enemy_ai()
 

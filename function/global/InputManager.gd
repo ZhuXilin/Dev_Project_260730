@@ -104,6 +104,8 @@ func _handle_right_click():
 
 
 func handle_wheel(delta: int):
+	if Globals.is_dialogue_active:
+		return
 	if Globals.is_transitioning or Globals.is_fading:
 		return
 	if TurnManager.current_turn_team != TurnManager.Team.PLAYER:

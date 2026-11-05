@@ -68,7 +68,12 @@ func update_cursor_and_mouse() -> void:
 	if Input.mouse_mode != Input.MOUSE_MODE_VISIBLE:
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 
-	# ★ 最高优先级拦截：如果锁定，直接返回，不发任何悬停信号！
+	# ★ 最高优先级拦截：如果正在过场、淡入淡出、或者有对话，直接隐藏光标并拦截一切交互
+	if Globals.is_transitioning or Globals.is_fading or Globals.is_dialogue_active:
+		_bf.cursor.visible = false
+		_set_hovered_unit(null)
+		return
+
 	if is_locked:
 		_bf.cursor.visible = false
 		_set_hovered_unit(null)
@@ -77,7 +82,9 @@ func update_cursor_and_mouse() -> void:
 
 	var force_hide = false
 
-	if Globals.is_confirm_ui_active or Globals.is_reward_summary_active or _bf._is_reward_ui_active:
+	if Globals.is_attack_menu_active: # ★ 新增：拦截悬停
+		force_hide = true
+	elif Globals.is_confirm_ui_active or Globals.is_reward_summary_active or _bf._is_reward_ui_active:
 		force_hide = true
 	elif Globals.is_dialogue_active or Globals.is_performing_action or Globals.is_item_get_popup_active or _bf.victory_panel.visible or TurnManager.current_turn_team == TurnManager.Team.ENEMY or TurnManager.is_ai_moving or TurnManager.is_moving or Globals.is_fading or Globals.is_transitioning or is_locked:
 		force_hide = true

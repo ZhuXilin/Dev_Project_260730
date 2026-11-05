@@ -61,6 +61,7 @@ var pending_save_slot: int = -1
 var current_map_level_data: MapLevelData = null
 var current_map_day: int = -1
 
+var is_attack_menu_active : bool = false
 
 func _ready():
 	_load_display_settings() # ★ 启动时加载窗口设置，替代原来的强制设置

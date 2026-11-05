@@ -109,6 +109,7 @@ var _auto_battle_manager : AllyAutoBattleManager = null
 
 func _ready():
 	TurnManager.set_battle_ready(false)
+	Globals.is_transitioning = true
 
 	SoulFireManager.reset_boss_penalty()
 	SoulFireManager.current = clampi(GameState.soul_fire_current, 0, SoulFireManager.get_max_carried())
@@ -297,6 +298,9 @@ func _ready():
 			var hook_id : String = str(u.unit_stats.boss_dialogue_hooks.get("battle_start", ""))
 			if hook_id != "" and StoryManager.play_dialogue_by_id(hook_id):
 				await DialogueManager.dialogue_finished
+				# ★ 核心修改：对话一结束，立刻锁死过渡状态和光标，不给任何钻空子的机会
+				Globals.is_transitioning = true
+				_cursor_controller.set_locked(true)
 			break
 
 	if MusicManager:
@@ -603,83 +607,33 @@ func _process(_delta):
 		Globals.is_performing_action or
 		Globals.is_dialogue_active or
 		Globals.is_item_get_popup_active or
+		Globals.is_attack_menu_active or # ★ 新增：弹窗时暂停镜头
 		camera_controller.is_smooth_moving()
 	)
 	camera_controller.set_paused(should_pause)
 
-
-# ============================================================
-#  移动信号
-# ============================================================
-func _on_instant_move(unit: Unit, cell: Vector2i):
-	if is_instance_valid(unit):
-		unit.position = grid_to_world(cell)
-		unit.grid_cell = cell
-		unit.update_position(cell)
-
-
-func _on_request_move_along_path(unit: Unit, path: Array):
-	camera_controller.follow_unit(unit)
-	movement_animator.play_movement(unit, path, grid_to_world)
-
-
-func _on_ai_move_along_path(unit: Unit, path: Array):
-	camera_controller.follow_unit(unit)
-	movement_animator.play_ai_movement(unit, path, grid_to_world)
-
-
-func _on_player_movement_finished(unit: Unit):
-	_function_handler.clear_function_trigger(unit)
-	TurnManager.on_movement_finished(unit)
-	camera_controller.follow_mouse()
-	SignalBus.request_clear_highlight.emit()
-	ItemBattlefieldManager.try_pickup(unit)
-	
-	# ★ 核心新增：移动结束后，如果没有攻击/治疗目标，直接自动待机
-	if unit.unit_stats.team_id == 0 and unit.can_act_this_turn and not unit.has_attacked:
-		var targets = CombatManager.get_attackable_targets(unit)
-		if targets.is_empty():
-			TurnManager.finish_unit_action(unit)
-
-
-func _on_ai_movement_finished(unit: Unit):
-	_function_handler.clear_function_trigger(unit)
-	TurnManager.on_ai_movement_finished(unit)
-	camera_controller.follow_mouse()
-	SignalBus.request_clear_highlight.emit()
-
-
-func _on_menu_blocker_clicked(event: InputEvent):
-	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-		InputManager.selected_unit = null
-		InputManager.interaction_phase = InputManager.Phase.IDLE
-
-
-# ============================================================
-#  坐标换算
-# ============================================================
-func grid_to_world(cell: Vector2i) -> Vector2:
-	return Vector2(cell.x * MapConst.CELL_SIZE + MapConst.CELL_SIZE / 2.0,
-				   cell.y * MapConst.CELL_SIZE + MapConst.CELL_SIZE / 2.0)
-
-
-func world_to_grid(world_pos: Vector2) -> Vector2i:
-	return Vector2i(floor(world_pos.x / MapConst.CELL_SIZE), floor(world_pos.y / MapConst.CELL_SIZE))
-
-
-# ============================================================
-#  输入
-# ============================================================
 func _input(event: InputEvent):
+	# ★ 若攻击菜单激活，拦截除了鼠标点击外的所有快捷键、滚轮和中键
+	if Globals.is_attack_menu_active:
+		if event is InputEventKey and event.pressed and not event.echo:
+			get_viewport().set_input_as_handled()
+			return
+		if event is InputEventMouseButton and event.pressed:
+			if event.button_index == MOUSE_BUTTON_MIDDLE or event.button_index == MOUSE_BUTTON_WHEEL_UP or event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
+				get_viewport().set_input_as_handled()
+				return
+		# 左右键由 blocker 处理，直接放行到后面
+
 	if TurnManager and not TurnManager.is_battle_ready():
 		return
+	if Globals.is_transitioning or Globals.is_fading or Globals.is_dialogue_active:
+		return
 
-	# ★ 自动战斗开关：Space 键（任何非对话状态都响应）
+	# 自动战斗开关：Space 键（任何非对话状态都响应）
 	if event is InputEventKey and event.pressed and not event.echo \
 			and event.keycode == KEY_SPACE:
-		if Globals.is_dialogue_active or Globals.is_item_get_popup_active:
+		if Globals.is_item_get_popup_active:
 			return
-		# 输入框内交给输入框处理
 		var focus = get_viewport().gui_get_focus_owner()
 		if focus is LineEdit or focus is TextEdit:
 			return
@@ -687,7 +641,7 @@ func _input(event: InputEvent):
 		get_viewport().set_input_as_handled()
 		return
 
-	if Globals.is_dialogue_active or Globals.is_item_get_popup_active:
+	if Globals.is_item_get_popup_active:
 		return
 
 	# ---- 面板打开时：只处理右键关闭，其他（含键盘 TAB/上下/GM）全部放行 ----
@@ -699,7 +653,6 @@ func _input(event: InputEvent):
 		return
 
 	# ★ 自动战斗期间：只拦「直接操纵战场」的鼠标事件
-	#   键盘（TAB / 上下键 / GM 快捷键 / ESC）全部放行给对应处理器
 	if Globals.is_auto_battle and event is InputEventMouseButton:
 		get_viewport().set_input_as_handled()
 		return
@@ -774,6 +727,58 @@ func _input(event: InputEvent):
 			InputManager.handle_click(clicked_cell)
 	else:
 		InputManager.handle_input(event, map_grid_size, MapConst.CELL_SIZE)
+
+# ============================================================
+#  移动信号
+# ============================================================
+func _on_instant_move(unit: Unit, cell: Vector2i):
+	if is_instance_valid(unit):
+		unit.position = grid_to_world(cell)
+		unit.grid_cell = cell
+		unit.update_position(cell)
+
+
+func _on_request_move_along_path(unit: Unit, path: Array):
+	camera_controller.follow_unit(unit)
+	movement_animator.play_movement(unit, path, grid_to_world)
+
+
+func _on_ai_move_along_path(unit: Unit, path: Array):
+	camera_controller.follow_unit(unit)
+	movement_animator.play_ai_movement(unit, path, grid_to_world)
+
+
+func _on_player_movement_finished(unit: Unit):
+	_function_handler.clear_function_trigger(unit)
+	TurnManager.on_movement_finished(unit)
+	camera_controller.follow_mouse()
+	SignalBus.request_clear_highlight.emit()
+	ItemBattlefieldManager.try_pickup(unit)
+	
+
+func _on_ai_movement_finished(unit: Unit):
+	_function_handler.clear_function_trigger(unit)
+	TurnManager.on_ai_movement_finished(unit)
+	camera_controller.follow_mouse()
+	SignalBus.request_clear_highlight.emit()
+
+
+func _on_menu_blocker_clicked(event: InputEvent):
+	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+		InputManager.selected_unit = null
+		InputManager.interaction_phase = InputManager.Phase.IDLE
+
+
+# ============================================================
+#  坐标换算
+# ============================================================
+func grid_to_world(cell: Vector2i) -> Vector2:
+	return Vector2(cell.x * MapConst.CELL_SIZE + MapConst.CELL_SIZE / 2.0,
+				   cell.y * MapConst.CELL_SIZE + MapConst.CELL_SIZE / 2.0)
+
+
+func world_to_grid(world_pos: Vector2) -> Vector2i:
+	return Vector2i(floor(world_pos.x / MapConst.CELL_SIZE), floor(world_pos.y / MapConst.CELL_SIZE))
 
 
 # ============================================================
@@ -1287,12 +1292,14 @@ func _end_player_turn():
 
 func _wait_for_ui_clear(timeout_ms: int = 5000) -> void:
 	var start = Time.get_ticks_msec()
-	while _is_any_ui_active():
+	# ★ 核心修改：去除对 Globals.is_transitioning 的判断，只等待真正需要玩家交互的 UI
+	# 因为 is_transitioning 是 TurnController 接下来要自己处理的状态，不能用来阻塞自己
+	while Globals.is_dialogue_active or Globals.is_item_get_popup_active:
 		if not is_inside_tree():
 			return
 		if Time.get_ticks_msec() - start > timeout_ms:
 			push_warning("Battlefield: 等待 UI 结束超时")
-			return
+			break
 		await get_tree().process_frame
 
 
@@ -2058,3 +2065,35 @@ func _show_unit_ranges(unit: Unit):
 		
 	highlight_manager.clear_highlight(unit.grid_cell)
 	highlight_manager.show_enemy_preview(reachable, threat_cells, color, unit.grid_cell, false, danger_cells, danger_color)
+
+# ★ 新增：移动完全部单位且无目标时的结束回合确认
+func _show_end_turn_confirm():
+	if TurnManager.current_turn_team != TurnManager.Team.PLAYER:
+		return
+		
+	var popup := PopupMenu.new()
+	var stylebox = load(Config.PATHS.STYLEBOX_8BIT)
+	if stylebox:
+		popup.add_theme_stylebox_override("panel", stylebox)
+	popup.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_NORMAL)
+	popup.add_theme_constant_override("v_separation", 4)
+	popup.add_theme_constant_override("h_separation", 4)
+	add_child(popup)
+	
+	popup.add_item("移动完毕，无可攻击目标", 0)
+	popup.set_item_disabled(0, true) # 标题文本不可点击
+	popup.add_separator()
+	popup.add_item("结束回合 (进入敌方回合)", 1)
+	
+	popup.id_pressed.connect(func(id):
+		if id == 1:
+			# 确认结束回合
+			TurnManager.start_turn(TurnManager.Team.ENEMY)
+			InputManager.selected_unit = null
+			InputManager.interaction_phase = InputManager.Phase.IDLE
+	)
+	
+	# 右键或点击外部自动关闭，不做任何处理，相当于取消
+	var mouse_pos = get_viewport().get_mouse_position()
+	popup.position = Vector2i(mouse_pos)
+	popup.popup()

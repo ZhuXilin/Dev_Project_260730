@@ -72,7 +72,7 @@ func _connect_signal_bus() -> void:
 	_safe_connect(SignalBus.request_highlight_unit, _bf._cursor_controller.show_attack_indicator)
 	_safe_connect(SignalBus.request_clear_highlight_unit, _bf._cursor_controller.clear_attack_indicator)
 	_safe_connect(SignalBus.request_setting_right_click, _bf._on_request_setting_right_click)
-
+	_safe_connect(SignalBus.request_end_turn_confirm, _bf._show_end_turn_confirm)
 
 # ============================================================
 #  MovementAnimator 回调

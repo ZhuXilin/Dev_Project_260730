@@ -716,7 +716,6 @@ func _do_move_and_heal_async(unit : Unit, path : Array, target : Unit):
 
 
 # 攻击方式选择菜单
-# 替换原有的 _show_attack_menu
 func _show_attack_menu(attacker: Unit, target: Unit, _is_after_move: bool) -> void:
 	if attacker == target:
 		if attacker.hit_points >= attacker.unit_stats.max_hp:
@@ -784,39 +783,64 @@ func _show_attack_menu(attacker: Unit, target: Unit, _is_after_move: bool) -> vo
 	popup.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_NORMAL)
 	popup.add_theme_constant_override("v_separation", 4)
 	popup.add_theme_constant_override("h_separation", 4)
+	
+	Globals.is_attack_menu_active = true
+	var blocker := Control.new()
+	blocker.set_anchors_preset(Control.PRESET_FULL_RECT)
+	blocker.mouse_filter = Control.MOUSE_FILTER_STOP
+	_bf.add_child(blocker)
 	_bf.add_child(popup)
 
 	var state = {"confirmed": false}
 	var next_id : int = 0
 	var meta_by_id : Dictionary = {}
 
-	# 简化选项文字
+	# 简化选项文字，加入伤害/回复预估
 	if normal_attack_available:
-		popup.add_item("普通攻击", next_id)
+		var est_dmg = CombatManager.calculate_damage(attacker, target)
+		popup.add_item("普通攻击 (伤害: %d)" % est_dmg, next_id)
 		meta_by_id[next_id] = {"kind": "attack", "skill_id": ""}
 		next_id += 1
 
 	if normal_heal_available:
-		popup.add_item("普通治疗", next_id)
+		var est_heal = CombatManager.get_expected_heal_amount(attacker, target)
+		popup.add_item("普通治疗 (回复: %d)" % est_heal, next_id)
 		meta_by_id[next_id] = {"kind": "attack", "skill_id": ""}
 		next_id += 1
 
 	for sdata in available_skills:
-		popup.add_item(sdata.display_name, next_id)
+		var ep : Dictionary = sdata.effect_params
+		var skill_text = sdata.display_name
+		if sdata.effect_type == "heal" or ep.has("heal_multiplier"):
+			var mult = float(ep.get("heal_multiplier", 1.0))
+			var est_heal = int(CombatManager.get_expected_heal_amount(attacker, target) * mult)
+			skill_text += " (回复: %d)" % est_heal
+		else:
+			var est_dmg = CombatManager.calculate_damage(attacker, target)
+			if ep.get("ignore_defense", false):
+				est_dmg = CombatManager._calculate_damage_ignore_defense(attacker, target, false)
+			var mult = float(ep.get("damage_mult", 1.0))
+			est_dmg = int(est_dmg * mult)
+			skill_text += " (伤害: %d)" % est_dmg
+			
+		popup.add_item(skill_text, next_id)
 		meta_by_id[next_id] = {"kind": "attack", "skill_id": sdata.id}
 		next_id += 1
 
 	if emergency_available:
-		popup.add_item("急救", next_id)
+		var em_heal = CombatManager.get_expected_emergency_heal(attacker, target)
+		popup.add_item("急救 (回复: %d，耗%d魂火)" % [em_heal, emergency_cost], next_id)
 		meta_by_id[next_id] = {"kind": "emergency_heal"}
 		next_id += 1
 
 	popup.id_pressed.connect(func(id):
 		state["confirmed"] = true
+		Globals.is_attack_menu_active = false
 		var meta : Dictionary = meta_by_id.get(id, {})
 		var kind : String = str(meta.get("kind", "attack"))
 		var skill_id : String = str(meta.get("skill_id", ""))
 		popup.queue_free()
+		blocker.queue_free()
 
 		if kind == "emergency_heal":
 			call_deferred("_do_emergency_heal_async", attacker, target)
@@ -824,11 +848,27 @@ func _show_attack_menu(attacker: Unit, target: Unit, _is_after_move: bool) -> vo
 			call_deferred("_do_combat_async", attacker, target, skill_id)
 	)
 
-	# ★ 修复：点击外部空白处或右键关闭时，直接取消操作
 	popup.popup_hide.connect(func():
 		if not state["confirmed"]:
+			Globals.is_attack_menu_active = false
 			popup.queue_free()
+			blocker.queue_free()
 			_on_attack_canceled(attacker)
+	)
+
+	# ★ 核心修复 1：专门监听 PopupMenu 自身的右键（防止被原生窗口吃掉）
+	popup.window_input.connect(func(event):
+		if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT:
+			popup.hide()
+			get_viewport().set_input_as_handled()
+	)
+
+	# 点击空白处（blocker）关闭
+	blocker.gui_input.connect(func(event):
+		if event is InputEventMouseButton and event.pressed:
+			if event.button_index == MOUSE_BUTTON_RIGHT or event.button_index == MOUSE_BUTTON_LEFT:
+				popup.hide()
+				get_viewport().set_input_as_handled()
 	)
 
 	var mouse_pos = _bf.get_viewport().get_mouse_position()
@@ -845,9 +885,15 @@ func _on_attack_canceled(attacker: Unit):
 	InputManager.interaction_phase = InputManager.Phase.IDLE
 	InputManager.selected_unit = null
 	
-	if is_instance_valid(attacker) and attacker.can_act_this_turn:
-		_bf.suppress_range_for_unit(attacker)
-		
+	if is_instance_valid(attacker):
+		# ★ 核心修复 2：如果已经移动且未攻击（不论是原地发起还是拖拽发起），
+		# 取消时直接帮玩家完成回撤，连按一次右键都省了
+		if attacker.has_moved and not attacker.has_attacked and not attacker.has_acted and attacker.can_act_this_turn:
+			TurnManager.cancel_movement(attacker)
+			attacker.moves_since_act -= 1
+		else:
+			_bf.suppress_range_for_unit(attacker)
+
 
 func _update_attack_preview(unit_cell : Vector2i, from_self : bool = false):
 	var unit = _pressing_unit

@@ -112,7 +112,7 @@ func on_ai_movement_finished(unit: Unit):
 	if targets.size() > 0:
 		await CombatManager.execute_attack(unit, targets[0])
 	unit.set_gray(true)
-	await get_tree().create_timer(1.0).timeout
+	await get_tree().create_timer(0.25).timeout
 	move_completed.emit()
 
 func start_turn(team: Team):

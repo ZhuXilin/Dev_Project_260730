@@ -1093,7 +1093,7 @@ func _process_ai_queue():
 	print("[AI] 开始处理队列，共 %d 个任务" % total_tasks)
 	var processed : int = 0
 	while ai_queue.size() > 0:
-		await get_tree().create_timer(0.5).timeout
+		await get_tree().create_timer(0.25).timeout
 
 		while Globals.is_dialogue_active:
 			await get_tree().process_frame
