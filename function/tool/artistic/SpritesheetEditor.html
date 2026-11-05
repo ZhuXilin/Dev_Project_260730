@@ -1869,7 +1869,10 @@ function drawLassoPreview(z,ox,oy){
   ctx.beginPath();
   ctx.rect(RULER, RULER, canvas.width - RULER, canvas.height - RULER);
   ctx.clip();
-  ctx.strokeStyle = 'rgba(255,255,255,0.95)';
+  // ★ 按加选/减选模式着色，便于区分
+  if(drag.lassoMode === SEL_SUB) ctx.strokeStyle = 'rgba(255,110,110,0.95)';
+  else if(drag.lassoMode === SEL_ADD) ctx.strokeStyle = 'rgba(120,230,140,0.95)';
+  else ctx.strokeStyle = 'rgba(255,255,255,0.95)';
   ctx.lineWidth = 1.5;
   ctx.setLineDash([5,4]);
   ctx.beginPath();
@@ -2018,10 +2021,24 @@ function drawSelection(z,ox,oy){
     }
     return;
   }
+
+  /* ★ 已有选区边缘始终绘制（即使正在框选/套索加选或减选），
+     这样视觉上能看清原有范围，方便对位 */
+  if(doc.hasSelection && doc.selMask && doc.selBounds.w > 0 && doc.selBounds.h > 0){
+    ctx.save();
+    if(ui.singleCell){
+      var cr2 = cellRect(ui.currentCell);
+      if(cr2){ ctx.beginPath(); ctx.rect(view.panX, view.panY, cr2.w*z, cr2.h*z); ctx.clip(); }
+    } else { ctx.beginPath(); ctx.rect(view.panX, view.panY, W*z, H*z); ctx.clip(); }
+    var segs = buildSelEdgeSegs();
+    drawMarchingAntsSegs(segs, ox, oy, z, dashOffset);
+    ctx.restore();
+  }
+
   if(drag.mode === 'select' && drag.selStart && drag.selCur){
-    var a = drag.selStart, b = getEffectiveSelCur();
-    var x0 = Math.min(a.x, b.x), y0 = Math.min(a.y, b.y);
-    var x1 = Math.max(a.x, b.x), y1 = Math.max(a.y, b.y);
+    var a = drag.selStart, b2 = getEffectiveSelCur();
+    var x0 = Math.min(a.x, b2.x), y0 = Math.min(a.y, b2.y);
+    var x1 = Math.max(a.x, b2.x), y1 = Math.max(a.y, b2.y);
     x0 = clamp(x0, 0, W); y0 = clamp(y0, 0, H);
     x1 = clamp(x1 + 1, 0, W); y1 = clamp(y1 + 1, 0, H);
     if(x1 <= x0 || y1 <= y0) return;
@@ -2030,28 +2047,19 @@ function drawSelection(z,ox,oy){
       var cr1 = cellRect(ui.currentCell);
       if(cr1){ ctx.beginPath(); ctx.rect(view.panX, view.panY, cr1.w*z, cr1.h*z); ctx.clip(); }
     } else { ctx.beginPath(); ctx.rect(view.panX, view.panY, W*z, H*z); ctx.clip(); }
-    // 拖拽中的临时预览保留淡淡填充（仅拖拽时可见）
-    if(drag.selMode === SEL_SUB) ctx.fillStyle = 'rgba(255,80,80,0.15)';
-    else ctx.fillStyle = 'rgba(80,180,255,0.15)';
+    // 拖拽中的临时预览保留淡淡填充（按加/减模式区分颜色）
+    var rgbTriple = '80,180,255';
+    if(drag.selMode === SEL_ADD) rgbTriple = '120,230,140';
+    else if(drag.selMode === SEL_SUB) rgbTriple = '255,110,110';
+    ctx.fillStyle = 'rgba(' + rgbTriple + ',0.15)';
     ctx.fillRect(ox + x0*z, oy + y0*z, (x1-x0)*z, (y1-y0)*z);
     ctx.setLineDash([]);
-    ctx.strokeStyle = 'rgba(140,200,255,0.95)';
+    ctx.strokeStyle = 'rgba(' + rgbTriple + ',0.95)';
     ctx.lineWidth = 1;
     ctx.strokeRect(ox + x0*z + 0.5, oy + y0*z + 0.5, (x1-x0)*z - 1, (y1-y0)*z - 1);
     ctx.restore();
     return;
   }
-  if(!doc.hasSelection || !doc.selMask) return;
-  if(doc.selBounds.w <= 0 || doc.selBounds.h <= 0) return;
-  // ★ 已有选区不再填充任何颜色，只画边缘框（无色透明，不影响色彩判断）
-  ctx.save();
-  if(ui.singleCell){
-    var cr2 = cellRect(ui.currentCell);
-    if(cr2){ ctx.beginPath(); ctx.rect(view.panX, view.panY, cr2.w*z, cr2.h*z); ctx.clip(); }
-  } else { ctx.beginPath(); ctx.rect(view.panX, view.panY, W*z, H*z); ctx.clip(); }
-  var segs = buildSelEdgeSegs();
-  drawMarchingAntsSegs(segs, ox, oy, z, dashOffset);
-  ctx.restore();
 }
 function drawCursor(z,ox,oy){
   if(!mouse.inside) return;
@@ -2235,6 +2243,13 @@ function guideAt(x,y){
     if(g.axis===1 && Math.abs(y-g.pos) <= thr) return i;
   }
   return -1;
+}
+
+/* ★ 画笔/橡皮：右键反向操作判定（画笔右键=擦除，橡皮右键=绘制） */
+function computeDrawErase(btn){
+  var baseErase = (ui.tool === TOOL.ERASER);
+  if(btn === 2) return !baseErase;
+  return baseErase;
 }
 
 function withFloating(fn){
@@ -3472,6 +3487,20 @@ function onCanvasMouseDown(e){
   }
   if(btn === 2){
     if (transformState) { cancelTransform(); e.preventDefault(); return; }
+    /* ★ 画笔 / 橡皮：右键执行反向操作
+       画笔右键 = 擦除；橡皮右键 = 用主色绘制
+       其他工具保持原行为：取消选区 / 取色 */
+    if (ui.tool === TOOL.PENCIL || ui.tool === TOOL.ERASER) {
+      if(m.px < 0 || m.py < 0 || m.px >= doc.width || m.py >= doc.height){ e.preventDefault(); return; }
+      drag.mode = 'draw';
+      drag.drawErase = computeDrawErase(2);
+      drag.lastPx = {x:m.px, y:m.py};
+      var rp = Math.max(penPressure, 0.3);
+      drag.lastPenPressure = rp;
+      stampBrush(m.px, m.py, drag.drawErase ? [0,0,0,0] : ui.primary, getPressureBrushSizeFor(rp));
+      requestRender();
+      e.preventDefault(); return;
+    }
     if(doc.hasSelection){ deselectAll(); e.preventDefault(); return; }
     pickAt({x:m.px,y:m.py}); e.preventDefault(); return;
   }
@@ -3584,7 +3613,8 @@ function onCanvasMouseDown(e){
       e.preventDefault(); return;
     }
   }
-  if(e.altKey && (ui.tool===TOOL.PENCIL || ui.tool===TOOL.BUCKET)){
+  /* ★ Alt 吸色（画笔 / 橡皮 / 油漆桶） */
+  if(e.altKey && (ui.tool===TOOL.PENCIL || ui.tool===TOOL.ERASER || ui.tool===TOOL.BUCKET)){
     pickAt({x:m.px,y:m.py}); e.preventDefault(); return;
   }
   if((vDown || mDown) && doc.hasSelection && isSelected(m.px, m.py) && !e.altKey && !modCtrl){
@@ -3634,22 +3664,22 @@ function onCanvasMouseDown(e){
       }
       break;
     case TOOL.PENCIL: {
-      drag.mode = 'draw'; drag.drawErase = false;
+      drag.mode = 'draw'; drag.drawErase = computeDrawErase(0);
       drag.lastPx = {x:m.px,y:m.py};
       // 首笔最小尺寸不小于全尺寸 30%（避免起笔压力极小时看不见）
       var initP = Math.max(penPressure, 0.3);
       var initSz = getPressureBrushSizeFor(initP);
       drag.lastPenPressure = initP;
-      stampBrush(m.px, m.py, ui.primary, initSz);
+      stampBrush(m.px, m.py, drag.drawErase ? [0,0,0,0] : ui.primary, initSz);
       requestRender(); break;
     }
     case TOOL.ERASER: {
-      drag.mode = 'draw'; drag.drawErase = true;
+      drag.mode = 'draw'; drag.drawErase = computeDrawErase(0);
       drag.lastPx = {x:m.px,y:m.py};
       var initP2 = Math.max(penPressure, 0.3);
       var initSz2 = getPressureBrushSizeFor(initP2);
       drag.lastPenPressure = initP2;
-      stampBrush(m.px, m.py, [0,0,0,0], initSz2);
+      stampBrush(m.px, m.py, drag.drawErase ? [0,0,0,0] : ui.primary, initSz2);
       requestRender(); break;
     }
     case TOOL.BUCKET:
@@ -4933,8 +4963,8 @@ var I18N = {
   'tool.replace': {zh:'换', en:'Rep'},
   'tool.hints.select': {zh: '选择 (V)', en: 'Select (V)'},
   'tool.hints.lasso': {zh: '套索 (M)', en: 'Lasso (M)'},
-  'tool.hints.pencil': {zh: '铅笔 (B) · [ ] 调节大小', en: 'Pencil (B) · [ ] Size'},
-  'tool.hints.eraser': {zh: '橡皮 (E) · [ ] 调节大小', en: 'Eraser (E) · [ ] Size'},
+  'tool.hints.pencil': {zh: '铅笔 (B) · 左键绘制 / 右键擦除 / Alt 吸色 · [ ] 大小', en: 'Pencil (B) · LMB Paint / RMB Erase / Alt Pick · [ ] Size'},
+  'tool.hints.eraser': {zh: '橡皮 (E) · 左键擦除 / 右键绘制 / Alt 吸色 · [ ] 大小', en: 'Eraser (E) · LMB Erase / RMB Paint / Alt Pick · [ ] Size'},
   'tool.hints.picker': {zh: '取色 (I)', en: 'Picker (I)'},
   'tool.hints.bucket': {zh: '填充 (G)', en: 'Bucket (G)'},
   'tool.hints.replace': {zh: '替换 (H)', en: 'Replace (H)'},
@@ -5009,7 +5039,7 @@ var I18N = {
   'adj.brightness': {zh:'亮度/对比度…', en:'Brightness…'}, 'adj.levels': {zh:'色阶…', en:'Levels…'},
   'adj.curves': {zh:'曲线…', en:'Curves…'}, 'adj.hueSat': {zh:'色相/饱和度…', en:'Hue/Sat…'},
   'adj.balance': {zh:'色彩平衡…', en:'Color Balance…'},
-  'status.ready': {zh:'就绪 — 1 打开 PNG · 2 另存 PNG · 3 打开工程 · 4 另存工程 · V 选择 · M 套索 · C 裁切 · T 变形 · B 铅笔 · R 旋转 · Q 视图切换 · ←/→ A/D 逐帧 · 空格播放', en:'Ready — 1 Open PNG · 2 Save-As PNG · 3 Open Project · 4 Save-As Project · V Select · M Lasso · C Crop · T Transform · B Pencil · R Rotate · Q View Mode · ←/→ A/D Frame · Space Play'}
+  'status.ready': {zh:'就绪 — 1 打开 PNG · 2 另存 PNG · 3 打开工程 · 4 另存工程 · V 选择 · M 套索 · C 裁切 · T 变形 · B 铅笔 · R 旋转 · Q 视图切换 · ←/→ A/D 逐帧 · 空格播放 · 画笔右键擦除 / Alt 吸色', en:'Ready — 1 Open PNG · 2 Save-As PNG · 3 Open Project · 4 Save-As Project · V Select · M Lasso · C Crop · T Transform · B Pencil · R Rotate · Q View Mode · ←/→ A/D Frame · Space Play · Pencil RMB=Erase / Alt=Pick'}
 };
 var I18N_TITLE = {
   'tt.openPng': {zh:'打开 PNG', en:'Open PNG'},
@@ -5021,7 +5051,8 @@ var I18N_TITLE = {
   'tt.crop': {zh:'裁切到选区 (C)', en:'Crop to Selection (C)'},
   'tt.transform': {zh:'变形 / 晶格 (T)', en:'Transform / Lattice (T)'},
   'tt.grid': {zh:'切换网格 (1x1 / 3x3)', en:'Toggle Grid (1x1 / 3x3)'},
-  'tt.pencil': {zh:'铅笔 (B)', en:'Pencil (B)'}, 'tt.eraser': {zh:'橡皮 (E)', en:'Eraser (E)'},
+  'tt.pencil': {zh:'铅笔 (B) · 右键擦除 · Alt 吸色', en:'Pencil (B) · RMB Erase · Alt Pick'},
+  'tt.eraser': {zh:'橡皮 (E) · 右键绘制 · Alt 吸色', en:'Eraser (E) · RMB Paint · Alt Pick'},
   'tt.picker': {zh:'取色 (I)', en:'Picker (I)'}, 'tt.bucket': {zh:'填充 (G)', en:'Bucket (G)'},
   'tt.replace': {zh:'替换 (H)', en:'Replace (H)'},
   'help.guides': {
@@ -5029,8 +5060,8 @@ var I18N_TITLE = {
     en:'Drag top ruler down → horizontal guide\nDrag left ruler right → vertical guide\nCtrl + drag near guide → move it\nAuto-snap to cell edges / centers while dragging\nDouble-click guide → delete\nWhen hidden, snapping is disabled'
   },
   'help.sel': {
-    zh:'选择工具 (V)：Shift=正方形 · Ctrl=加选 · Alt=减选\n套索工具 (M)：Shift=正圆 · Ctrl=加选 · Alt=减选\n按住 V 或 M 拖动选区内 → 仅移动选区（Shift=锁定水平/垂直）\n普通拖动选区内 → 浮起像素并移动（Shift 锁轴）\n按住 R + 鼠标移动 → 围绕选区中心旋转（Shift=45°）\nC → 裁切图片到选区 · T → 晶格变形 · Q → 切换单格/全图',
-    en:'Select (V): Shift=Square · Ctrl=Add · Alt=Subtract\nLasso (M): Shift=Circle · Ctrl=Add · Alt=Subtract\nHold V or M and drag inside → move selection only (Shift=lock axis)\nNormal drag inside → float pixels & move (Shift=lock axis)\nHold R + move mouse → rotate around selection center (Shift=45°)\nC → Crop · T → Transform · Q → Toggle single cell / full canvas'
+    zh:'选择工具 (V)：Shift=正方形 · Ctrl=加选 · Alt=减选\n套索工具 (M)：Shift=正圆 · Ctrl=加选 · Alt=减选\n加选/减选时已有选区轮廓会保持可见，方便对位\n按住 V 或 M 拖动选区内 → 仅移动选区（Shift=锁定水平/垂直）\n普通拖动选区内 → 浮起像素并移动（Shift 锁轴）\n按住 R + 鼠标移动 → 围绕选区中心旋转（Shift=45°）\nC → 裁切图片到选区 · T → 晶格变形 · Q → 切换单格/全图',
+    en:'Select (V): Shift=Square · Ctrl=Add · Alt=Subtract\nLasso (M): Shift=Circle · Ctrl=Add · Alt=Subtract\nExisting selection outlines stay visible while adding/subtracting\nHold V or M and drag inside → move selection only (Shift=lock axis)\nNormal drag inside → float pixels & move (Shift=lock axis)\nHold R + move mouse → rotate around selection center (Shift=45°)\nC → Crop · T → Transform · Q → Toggle single cell / full canvas'
   },
   'tt.rotCcw': {zh:'逆时针旋转 90°', en:'Rotate 90° CCW'},
   'tt.rotCw': {zh:'顺时针旋转 90°', en:'Rotate 90° CW'},
