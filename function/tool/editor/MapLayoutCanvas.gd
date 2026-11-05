@@ -34,7 +34,6 @@ func _gui_input(e : InputEvent):
 			
 	editor._on_canvas_input(e)
 
-
 func _draw():
 	if editor == null: return
 	var day_layout = editor._get_current_day_layout()
@@ -71,27 +70,19 @@ func _draw():
 		if in_test:
 			# 测试模式：显示图片
 			var is_pool = not node.random_pool.is_empty()
-			var is_hovered = (i == _hover_idx)
-			var draw_rect = rect
-			
-			# 为了模拟外描边，稍微放大画布
-			if is_hovered:
-				draw_rect = draw_rect.grow(2)
-			
 			var tex = null
 			if is_pool:
 				tex = MapConst.get_node_texture(node.random_pool[0], -1)
 			else:
 				tex = MapConst.get_node_texture(node.node_type, -1)
 
-			# 直接画黄色外框
-			draw_rect(draw_rect.grow(1), Color(1.0, 0.8, 0.2, 1.0), true)
-
+			# 删除了画实心黄色矩形底部的代码
 			if tex:
-				draw_texture_rect(tex, draw_rect, false)
+				draw_texture_rect(tex, rect, false)
 			else:
-				draw_rect(draw_rect, Color.MAGENTA, true)
+				draw_rect(rect, Color.MAGENTA, true)
 
+			# 节点下的文字保留
 			var label : String = editor._test_map_assignment.get(node, "")
 			if label != "":
 				var font : Font = ThemeDB.fallback_font
@@ -103,15 +94,12 @@ func _draw():
 				
 				var bg_rect = Rect2(pos.x - text_size.x/2 - 1, pos.y + editor.NODE_H/2 + 1, text_size.x + 2, 8)
 				var text_y = pos.y + editor.NODE_H / 2.0 + 8
-				if is_hovered:
-					bg_rect = bg_rect.grow(1)
-					text_y += 2
 				
 				draw_rect(bg_rect, Color(0,0,0,0.6), true)
 				draw_string(font, Vector2(pos.x - text_size.x / 2.0, text_y),
 					label, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, Color.WHITE)
 		else:
-			# 编辑模式：方块样式
+			# 编辑模式：方块样式（保持不变）
 			var color : Color = _node_color(node)
 			draw_rect(rect, color, true)
 			var label2 : String = _node_label(node)
@@ -148,17 +136,19 @@ func _draw():
 		draw_line(Vector2(0, preview_y), Vector2(canvas_w, preview_y), Color(1, 1, 0, 0.5), 1)
 
 
+# 修改：编辑器测试模式的连线与正式游戏统一（去箭头，减小间隙）
 func _draw_directed_line(from_pos: Vector2, to_pos: Vector2, color: Color, width: float = 1.0):
 	var dir : Vector2 = to_pos - from_pos
 	var dist : float = dir.length()
 	if dist < 1.0:
 		return
 	dir = dir / dist
-	var perp : Vector2 = Vector2(-dir.y, dir.x)
 
 	var hw : float = editor.NODE_W * 0.5
 	var hh : float = editor.NODE_H * 0.5
-	var gap : float = _exit_gap_distance(dir, hw, hh) + 2.0
+	
+	# 与正式游戏统一：- 2.0 减小间隙
+	var gap : float = _exit_gap_distance(dir, hw, hh) - 2.0
 	var line_end : Vector2 = to_pos - dir * gap
 
 	if (line_end - from_pos).dot(dir) <= 0.0:
@@ -167,14 +157,6 @@ func _draw_directed_line(from_pos: Vector2, to_pos: Vector2, color: Color, width
 		return
 
 	draw_line(from_pos, line_end, color, width)
-
-	var tip : Vector2 = line_end
-	var base_center : Vector2 = line_end - dir * ARROW_LENGTH
-	var left : Vector2 = base_center + perp * ARROW_WIDTH * 0.5
-	var right : Vector2 = base_center - perp * ARROW_WIDTH * 0.5
-	var arrow_color : Color = color.lightened(0.3)
-	draw_colored_polygon(PackedVector2Array([tip, left, right]), arrow_color)
-
 
 func _exit_gap_distance(dir: Vector2, hw: float, hh: float) -> float:
 	var ax : float = abs(dir.x)

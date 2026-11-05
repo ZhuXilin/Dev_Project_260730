@@ -316,18 +316,19 @@ func _draw_connections():
 			var to_pos : Vector2 = pos_map.get(conn, conn.position)
 			_create_directed_line(from_pos, to_pos)
 
-
+# 修改：连线绘制，去除箭头，让线条稍微深入节点内部以消除视觉间隙
 func _create_directed_line(from_pos: Vector2, to_pos: Vector2):
 	var dir : Vector2 = to_pos - from_pos
 	var dist : float = dir.length()
 	if dist < 1.0:
 		return
 	dir = dir / dist
-	var perp : Vector2 = Vector2(-dir.y, dir.x)
 
 	var hw : float = MapConst.MAP_NODE_SIZE.x * 0.5
 	var hh : float = MapConst.MAP_NODE_SIZE.y * 0.5
-	var gap : float = _exit_gap_distance(dir, hw, hh) + 2.0
+	
+	# 核心修改：把 + 2.0 改为 - 2.0，让线头没入节点边缘内部
+	var gap : float = _exit_gap_distance(dir, hw, hh) - 2.0
 	var line_end : Vector2 = to_pos - dir * gap
 	if (line_end - from_pos).dot(dir) <= 0.0:
 		line_end = from_pos + dir * (dist * 0.5)
@@ -338,20 +339,10 @@ func _create_directed_line(from_pos: Vector2, to_pos: Vector2):
 	line.width = MapConst.MAP_LINE_WIDTH
 	line.default_color = MapConst.MAP_LINE_COLOR
 	line_container.add_child(line)
+	
+	# 已删除原有的箭头绘制代码 (Polygon2D)
 
-	var arrow_length : float = 5.0
-	var arrow_width  : float = 3.5
-	var tip : Vector2 = line_end
-	var base_center : Vector2 = line_end - dir * arrow_length
-	var left : Vector2 = base_center + perp * arrow_width * 0.5
-	var right : Vector2 = base_center - perp * arrow_width * 0.5
-
-	var arrow := Polygon2D.new()
-	arrow.polygon = PackedVector2Array([tip, left, right])
-	arrow.color = MapConst.MAP_LINE_COLOR
-	line_container.add_child(arrow)
-
-
+# _exit_gap_distance 保持不变，不用修改
 func _exit_gap_distance(dir: Vector2, hw: float, hh: float) -> float:
 	var ax : float = abs(dir.x)
 	var ay : float = abs(dir.y)
@@ -361,6 +352,79 @@ func _exit_gap_distance(dir: Vector2, hw: float, hh: float) -> float:
 		return hw
 	return min(hw / ax, hh / ay)
 
+func _get_node_description(node: MapNode) -> String:
+	if node.node_type == MapNode.NodeType.QUESTION:
+		return "未知领域/休整\n进入后随机触发事件"
+
+	var type_name = MapConst.get_node_display_name(node.node_type)
+	
+	# 判断是否为战斗节点
+	var is_combat = node.node_type in [
+		MapNode.NodeType.START,
+		MapNode.NodeType.NORMAL,
+		MapNode.NodeType.ELITE,
+		MapNode.NodeType.BOSS,
+	]
+	
+	var map_name = ""
+	if is_combat and node.map_data and node.map_data.map_name != "" and node.map_data.map_name != "默认地图":
+		map_name = node.map_data.map_name
+
+	# 构造第一行
+	var base : String = ""
+	if is_combat:
+		if map_name != "":
+			base = "%s/%s" % [type_name, map_name]
+		else:
+			base = type_name
+	else:
+		# 非战斗节点（休整节点）
+		base = "%s/休整" % type_name
+
+	# 后面拼接具体的描述
+	match node.node_type:
+		MapNode.NodeType.START:
+			base += "\n起始点进入战斗"
+		MapNode.NodeType.NORMAL:
+			base += "\n普通战斗"
+		MapNode.NodeType.ELITE:
+			base += "\n精英战斗，敌人更强，奖励更好"
+		MapNode.NodeType.FORGE:
+			base += "\n合成防具 / 升级武器 / 购买道具"
+		MapNode.NodeType.TREASURE:
+			base += "\n获取随机资源或装备"
+		MapNode.NodeType.BOSS:
+			base += "\nBoss战及丰厚奖励"
+		MapNode.NodeType.CHAPEL:
+			base += "\n全队回满 HP，复活一名阵亡单位"
+
+	# 保留原有的战力评估等附加信息
+	if node.map_data and node.map_data.scene and not node.is_visited:
+		var pw = _get_node_power(node)
+		var stars : int = int(pw.get("stars", 0))
+		if stars > 0:
+			var stars_str : String = PowerEvaluator.format_stars(stars)
+			base += "\n战力评估：%s（%s）" % [stars_str, str(pw.get("label", ""))]
+
+	if node.map_data and node.map_data.intensity > 0:
+		var int_str : String = _intensity_display(node.map_data.intensity)
+		if int_str != "":
+			base += "\n强度：" + int_str
+
+	if node.map_data and node.map_data.objective_type != MapData.ObjectiveType.ANNIHILATE:
+		base += "\n★ 目标：" + _objective_display_name(node.map_data.objective_type)
+
+	if node.map_data and node.map_data.max_waves > 1:
+		base += "\n波次：" + str(node.map_data.max_waves)
+		if node.map_data.reinforcement_count > 0:
+			base += "（每波增援 " + str(node.map_data.reinforcement_count) + "）"
+
+	if node.map_data and node.map_data.reward_multiplier > 1.0:
+		base += "\n★ 高收益：奖励 ×%.1f" % node.map_data.reward_multiplier
+		if node.map_data.enemy_hp_multiplier > 1.0:
+			base += "\n⚠ 负面：敌人 HP ×%.1f" % node.map_data.enemy_hp_multiplier
+
+	return base
 
 func _create_node_buttons():
 	for child in node_container.get_children():
@@ -921,61 +985,6 @@ func hide_node_info() -> void:
 	if info_panel:
 		info_panel.visible = false
 	_info_ref_node = null
-
-
-func _get_node_description(node: MapNode) -> String:
-	if node.node_type == MapNode.NodeType.QUESTION:
-		return "未知领域\n进入后随机触发事件"
-
-	var base : String = ""
-	match node.node_type:
-		MapNode.NodeType.START:
-			base = "起始点\n进入战斗"
-		MapNode.NodeType.NORMAL:
-			base = "普通战斗"
-		MapNode.NodeType.ELITE:
-			base = "精英战斗\n敌人更强，奖励更好"
-		MapNode.NodeType.FORGE:
-			base = "魂栈\n合成防具 / 升级武器 / 购买道具"
-		MapNode.NodeType.TREASURE:
-			base = "宝箱\n获取随机资源或装备"
-		MapNode.NodeType.BOSS:
-			base = "首领战\nBoss战及丰厚奖励"
-		MapNode.NodeType.CHAPEL:
-			base = "英灵殿\n全队回满 HP，复活一名阵亡单位"
-		_:
-			base = "未知"
-
-	# ★ v4.6：战力评估（模糊星级）——仅对未访问且可战斗的节点显示
-	if node.map_data and node.map_data.scene and not node.is_visited:
-		var pw = _get_node_power(node)
-		var stars : int = int(pw.get("stars", 0))
-		if stars > 0:
-			var stars_str : String = PowerEvaluator.format_stars(stars)
-			base += "\n战力评估：%s（%s）" % [stars_str, str(pw.get("label", ""))]
-
-	# v4.5：强度显示
-	if node.map_data and node.map_data.intensity > 0:
-		var int_str : String = _intensity_display(node.map_data.intensity)
-		if int_str != "":
-			base += "\n强度：" + int_str
-
-	if node.map_data and node.map_data.objective_type != MapData.ObjectiveType.ANNIHILATE:
-		base += "\n★ 目标：" + _objective_display_name(node.map_data.objective_type)
-
-	if node.map_data and node.map_data.max_waves > 1:
-		base += "\n波次：" + str(node.map_data.max_waves)
-		if node.map_data.reinforcement_count > 0:
-			base += "（每波增援 " + str(node.map_data.reinforcement_count) + "）"
-
-	# ★ v4.5：高收益 / 负面 HP
-	if node.map_data and node.map_data.reward_multiplier > 1.0:
-		base += "\n★ 高收益：奖励 ×%.1f" % node.map_data.reward_multiplier
-		if node.map_data.enemy_hp_multiplier > 1.0:
-			base += "\n⚠ 负面：敌人 HP ×%.1f" % node.map_data.enemy_hp_multiplier
-
-	return base
-
 
 # ★ v4.6：战力评估（带缓存）
 func _get_node_power(node: MapNode) -> Dictionary:
