@@ -57,7 +57,7 @@ func load_items():
 		item.magic_attack = dict.get("magic_attack", {})
 		item.heal_effect = dict.get("heal_effect", {})
 		item.legendary_effect = dict.get("legendary_effect", "")
-		item.upgrade_stats = dict.get("upgrade_stats", {})
+		# ★ 已废弃：upgrade_stats（武器升级永久移除）
 		item.stats = dict.get("stats", {})
 		item.use_effect = dict.get("use_effect", {})
 

@@ -118,7 +118,11 @@ func _on_icon_hover_entered(unit_id: String, _info_panel: Control):
 	_refresh_info_panel()
 
 func _on_icon_hover_exited(_info_panel: Control):
-	pass 
+	# ★ 修改：鼠标移开后，右侧面板恢复为当前选中的单位
+	if _current_unit_type != "":
+		_hover_type = "unit"
+		_hover_id = _current_unit_type
+		_refresh_info_panel()
 
 func _input(event: InputEvent):
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT:
@@ -152,11 +156,40 @@ func _refresh_info_panel():
 			_unit_info_panel.show_info({"name": display, "desc": flavor, "icon": icon})
 			return
 			
+		# ★ 计算当前等级上限带来的属性加成
+		var cur_cap : int = int(GameState.unit_level_cap.get(_hover_id, 3))
+		var total_bonus : Dictionary = {}
+		for lv_idx in range(cur_cap - 1):
+			var attr : Dictionary = UnitDataManager.get_attr_cap_level_bonus(_hover_id, lv_idx)
+			for k in attr:
+				total_bonus[k] = total_bonus.get(k, 0) + int(attr[k])
+
+		var hp_b = total_bonus.get("vitality", 0) + total_bonus.get("max_hp", 0)
+		var str_b = total_bonus.get("strength", 0)
+		var dex_b = total_bonus.get("dexterity", 0)
+		var int_b = total_bonus.get("intelligence", 0)
+		var fai_b = total_bonus.get("faith", 0)
+		var mov_b = total_bonus.get("move_range", 0)
+
+		# 封装一个格式化函数，自动带上 (+N)
+		var fmt = func(base_v: int, bonus_v: int) -> String:
+			if bonus_v > 0:
+				return "%d (+%d)" % [base_v, bonus_v]
+			elif bonus_v < 0:
+				return "%d (%d)" % [base_v, bonus_v]
+			return str(base_v)
+
 		var stats = []
-		stats.append("HP: %d" % u_data.get("max_hp", 0))
-		stats.append("力量 %d | 灵巧 %d" % [u_data.get("strength", 0), u_data.get("dexterity", 0)])
-		stats.append("智力 %d | 信仰 %d" % [u_data.get("intelligence", 0), u_data.get("faith", 0)])
-		stats.append("移动力: %d" % u_data.get("move_range", 0))
+		stats.append("HP: %s" % fmt.call(u_data.get("max_hp", 0), hp_b))
+		stats.append("力量 %s | 灵巧 %s" % [
+			fmt.call(u_data.get("strength", 0), str_b), 
+			fmt.call(u_data.get("dexterity", 0), dex_b)
+		])
+		stats.append("智力 %s | 信仰 %s" % [
+			fmt.call(u_data.get("intelligence", 0), int_b), 
+			fmt.call(u_data.get("faith", 0), fai_b)
+		])
+		stats.append("移动力: %s" % fmt.call(u_data.get("move_range", 0), mov_b))
 		
 		var desc = u_data.get("description", "")
 		_unit_info_panel.show_info({
@@ -256,6 +289,7 @@ func _on_unit_selected(unit_type: String):
 				btn.modulate = Color.WHITE if ut == unit_type else Color(0.4, 0.4, 0.4, 1)
 	_refresh_attr_cap_panel()
 	
+	# ★ 新增：选中单位时，右侧信息面板强制显示该单位
 	_hover_type = "unit"
 	_hover_id = unit_type
 	_refresh_info_panel()
@@ -320,6 +354,7 @@ func _on_locked_unit_selected(unit_type: String):
 				btn.modulate = Color.WHITE if ut == unit_type else Color(0.4, 0.4, 0.4, 1)
 	_refresh_unit_unlock_panel()
 	
+	# ★ 新增：选中单位时，右侧信息面板强制显示该单位
 	_hover_type = "unit"
 	_hover_id = unit_type
 	_refresh_info_panel()
@@ -388,9 +423,9 @@ func _refresh_attr_cap_panel():
 			match k:
 				"range_plus_1":                 mech_parts.append("射程 +1 (Lv%d)" % (lv_idx+2))
 				"move_plus_1":                  mech_parts.append("移动 +1 (Lv%d)" % (lv_idx+2))
-				"crit_damage_plus_20":          mech_parts.append("暴伤 +20% (Lv%d)" % (lv_idx+2))
-				"physical_penetration_plus_10": mech_parts.append("物穿 +10% (Lv%d)" % (lv_idx+2))
-				"magic_penetration_plus_10":    mech_parts.append("法穿 +10% (Lv%d)" % (lv_idx+2))
+				"crit_damage_plus_20":          mech_parts.append("暴伤 +20%% (Lv%d)" % (lv_idx+2))
+				"physical_penetration_plus_10": mech_parts.append("物穿 +10%% (Lv%d)" % (lv_idx+2))
+				"magic_penetration_plus_10":    mech_parts.append("法穿 +10%% (Lv%d)" % (lv_idx+2))
 				
 	if not mech_parts.is_empty():
 		attr_container.add_child(_make_title("— 等级解锁机制 —"))
@@ -417,15 +452,19 @@ func _add_attr_row(grid: GridContainer, attr_name: String, base_v: int, cur_v: i
 	lb2.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	grid.add_child(lb2)
 	
-	var arrow_str = "->"
-	var color = Color(0.7, 0.7, 0.7)
-	if cur_v > base_v:
-		arrow_str = "→ " + str(cur_v)
-		color = Color(0.6, 1.0, 0.6) # 提升显示为绿色
-		
-	var lb3 = _make_info(arrow_str)
-	lb3.custom_minimum_size = Vector2(40, 0)
-	lb3.modulate = color
+	# ★ 改为 +N 格式，0 显示为灰白短横线
+	var diff = cur_v - base_v
+	var lb3 = _make_info("")
+	lb3.custom_minimum_size = Vector2(30, 0)
+	if diff > 0:
+		lb3.text = "+" + str(diff)
+		lb3.modulate = Color(0.6, 1.0, 0.6) # 绿色
+	elif diff < 0:
+		lb3.text = str(diff)
+		lb3.modulate = Color(1.0, 0.4, 0.4) # 红色
+	else:
+		lb3.text = "-"
+		lb3.modulate = Color(0.5, 0.5, 0.5) # 灰色
 	grid.add_child(lb3)
 
 
@@ -460,7 +499,15 @@ func _on_upgrade_level_cap():
 
 	_refresh_soul()
 	_refresh_attr_cap_panel()
+	
+	# ★ 新增：升级成功后，强制刷新右侧信息面板
+	if _current_unit_type != "":
+		_hover_type = "unit"
+		_hover_id = _current_unit_type
+		_refresh_info_panel()
+		
 	_show_msg("%s 等级上限升至 Lv%d" % [UnitDataManager.get_unit_type_display_name(_current_unit_type), cur_cap + 1])
+
 
 func _clear_attr_container():
 	for c in attr_container.get_children():
@@ -504,12 +551,20 @@ func _on_upgrade_soul_fire_max():
 	if SoulFireManager.upgrade_altar():
 		_refresh_soul()
 		_refresh_soul_fire_panel()
+		if _current_unit_type != "":
+			_hover_type = "unit"
+			_hover_id = _current_unit_type
+			_refresh_info_panel()
 		_show_msg("魂火上限已提升")
 
 func _on_upgrade_soul_fire_initial():
 	if SoulFireManager.upgrade_initial():
 		_refresh_soul()
 		_refresh_soul_fire_panel()
+		if _current_unit_type != "":
+			_hover_type = "unit"
+			_hover_id = _current_unit_type
+			_refresh_info_panel()
 		_show_msg("初始魂火已提升")
 
 func _refresh_unit_unlock_panel():

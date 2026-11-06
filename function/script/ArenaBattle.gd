@@ -129,9 +129,8 @@ func setup(player_data: UnitData, enemy_data: UnitData, crystal_reward: int = 0,
 
 
 func _setup_unit_sprite(sprite: AnimatedSprite2D, unit_data: UnitData, team_id: int) -> ShaderMaterial:
-	# ★ 统一调用缓存
 	var frames = UnitDataManager.get_sprite_frames(unit_data.unit_name)
-	
+
 	if frames:
 		sprite.sprite_frames = frames
 		if frames.has_animation("idle"):
@@ -140,7 +139,6 @@ func _setup_unit_sprite(sprite: AnimatedSprite2D, unit_data: UnitData, team_id: 
 			var anims = frames.get_animation_names()
 			if anims.size() > 0: sprite.play(anims[0])
 	else:
-		# 兜底：洋红色方块
 		var image = Image.create(16, 16, false, Image.FORMAT_RGBA8)
 		image.fill(Color.MAGENTA)
 		var placeholder = ImageTexture.create_from_image(image)
@@ -183,9 +181,6 @@ func _apply_team_shader(sprite: AnimatedSprite2D, team_id: int) -> ShaderMateria
 	return mat
 
 
-# ============================================================
-#  词条运行时辅助
-# ============================================================
 func _is_talent_ready(data: UnitData, talent_id: String) -> bool:
 	var inst = _get_talent_inst(data, talent_id)
 	return inst != null and inst.is_ready and inst.is_active
@@ -212,9 +207,6 @@ func _get_talent_level(data: UnitData, talent_id: String) -> int:
 	return TalentManager.get_talent_level(data.unit_name, talent_id)
 
 
-# ============================================================
-#  战斗主循环
-# ============================================================
 func _run_battle():
 	if _battle_running:
 		return
@@ -253,7 +245,6 @@ func _run_battle():
 		continue_btn.visible = false
 		return_btn.visible = true
 	else:
-		# ★ 第六批：平局按 HP 比例判定
 		var p_max : int = maxi(1, _player.max_hp)
 		var e_max : int = maxi(1, _enemy.max_hp)
 		var p_ratio : float = float(_player_hp) / float(p_max)
@@ -346,7 +337,7 @@ func _do_attack(attacker: UnitData, defender: UnitData):
 	if is_crit:
 		damage = int(damage * crit_mult)
 		if is_player_attacker:
-			_crit_count += 1  # ★ 统计暴击
+			_crit_count += 1
 
 	# ---- 盾反 ----
 	if _is_talent_ready(defender, "parry"):
@@ -356,7 +347,7 @@ func _do_attack(attacker: UnitData, defender: UnitData):
 		if is_player_attacker:
 			_player_hp = max(0, _player_hp - parry_dmg)
 			player_hp_bar.value = _player_hp
-			_total_damage_taken += parry_dmg # ★ 统计承受伤害
+			_total_damage_taken += parry_dmg
 		else:
 			_enemy_hp = max(0, _enemy_hp - parry_dmg)
 			enemy_hp_bar.value = _enemy_hp
@@ -370,7 +361,7 @@ func _do_attack(attacker: UnitData, defender: UnitData):
 		if is_player_attacker:
 			_player_hp = maxi(0, _player_hp - reflect_dmg)
 			player_hp_bar.value = _player_hp
-			_total_damage_taken += reflect_dmg # ★ 统计承受伤害
+			_total_damage_taken += reflect_dmg
 		else:
 			_enemy_hp = maxi(0, _enemy_hp - reflect_dmg)
 			enemy_hp_bar.value = _enemy_hp
@@ -388,13 +379,13 @@ func _do_attack(attacker: UnitData, defender: UnitData):
 	if is_player_attacker:
 		_enemy_hp = max(0, _enemy_hp - damage)
 		enemy_hp_bar.value = _enemy_hp
-		_total_damage_dealt += damage # ★ 统计造成伤害
+		_total_damage_dealt += damage
 		_play_hit_effect(enemy_sprite, _enemy_material, Vector2(-1, 0))
 		_shake_panel(Vector2(-1, 0))
 	else:
 		_player_hp = max(0, _player_hp - damage)
 		player_hp_bar.value = _player_hp
-		_total_damage_taken += damage # ★ 统计承受伤害
+		_total_damage_taken += damage
 		_play_hit_effect(player_sprite, _player_material, Vector2(1, 0))
 		_shake_panel(Vector2(1, 0))
 
@@ -440,7 +431,7 @@ func _do_attack(attacker: UnitData, defender: UnitData):
 				_enemy_hp = maxi(0, _enemy_hp - bleed_dmg)
 				enemy_hp_bar.value = _enemy_hp
 				_enemy_bleed_stacks = 0
-				_total_damage_dealt += bleed_dmg # ★ 统计造成伤害
+				_total_damage_dealt += bleed_dmg
 				log_label.text += "  [出血爆发 -%d]" % bleed_dmg
 		else:
 			_player_bleed_stacks += 1
@@ -449,15 +440,14 @@ func _do_attack(attacker: UnitData, defender: UnitData):
 				_player_hp = maxi(0, _player_hp - bleed_dmg)
 				player_hp_bar.value = _player_hp
 				_player_bleed_stacks = 0
-				_total_damage_taken += bleed_dmg # ★ 统计承受伤害
+				_total_damage_taken += bleed_dmg
 				log_label.text += "  [出血爆发 -%d]" % bleed_dmg
 		_reset_talent(attacker, "bleed")
 		_refresh_hp_labels()
 
 	# ---- 法杖自愈 ----
-	var weapon_data = null
-	if attacker.weapon_slot:
-		weapon_data = ItemManager.get_item_data(attacker.weapon_slot.item_id)
+	# ★ v4.8：从内联字段构造虚拟 ItemData
+	var weapon_data = UnitDataManager.build_weapon_item_data(attacker)
 	if weapon_data and weapon_data.category == "staff":
 		var self_heal_pct = STAFF_SELF_HEAL_PERCENT
 		if _is_talent_ready(attacker, "heal_boost"):
@@ -490,11 +480,11 @@ func _do_attack(attacker: UnitData, defender: UnitData):
 			if is_player_attacker:
 				_enemy_hp = maxi(0, _enemy_hp - extra)
 				enemy_hp_bar.value = _enemy_hp
-				_total_damage_dealt += extra # ★ 统计造成伤害
+				_total_damage_dealt += extra
 			else:
 				_player_hp = maxi(0, _player_hp - extra)
 				player_hp_bar.value = _player_hp
-				_total_damage_taken += extra # ★ 统计承受伤害
+				_total_damage_taken += extra
 			_reset_talent(attacker, "spell_chain")
 			log_label.text += "  [法术连击 +%d]" % extra
 			_refresh_hp_labels()
@@ -525,35 +515,34 @@ func _do_attack(attacker: UnitData, defender: UnitData):
 		if is_player_attacker:
 			_enemy_hp = max(0, _enemy_hp - extra)
 			enemy_hp_bar.value = _enemy_hp
-			_total_damage_dealt += extra # ★ 统计造成伤害
+			_total_damage_dealt += extra
 		else:
 			_player_hp = max(0, _player_hp - extra)
 			player_hp_bar.value = _player_hp
-			_total_damage_taken += extra # ★ 统计承受伤害
+			_total_damage_taken += extra
 		log_label.text += "  [二次攻击 +%d]" % extra
 		_refresh_hp_labels()
 		await get_tree().create_timer(0.4, true, false, true).timeout
 
+
 func _calc_damage(attacker: UnitData, defender: UnitData) -> int:
 	if attacker == null or defender == null:
 		return 0
-	var wdata = null
-	if attacker.weapon_slot:
-		wdata = ItemManager.get_item_data(attacker.weapon_slot.item_id)
-	if not wdata:
+	# ★ v4.8：内联字段读武器
+	if attacker.weapon_id == "":
 		return 1
 
-	var is_magic : bool = (wdata.attack_style == "magic") \
-		or (wdata.category == "staff") \
-		or wdata.magic_attack.get("ignore_defense", false)
+	var is_magic : bool = (attacker.attack_style == "magic") \
+		or (attacker.weapon_category == "staff") \
+		or attacker.weapon_magic_attack.get("ignore_defense", false)
 
 	# ---- 1. 攻击力 ----
-	var quality_mult : float = QUALITY_MULT.get(wdata.quality, 1.0)
-	var base_attack : float = wdata.base_attack * quality_mult
+	var quality_mult : float = QUALITY_MULT.get(attacker.weapon_quality, 1.0)
+	var base_attack : float = attacker.base_attack * quality_mult
 
 	var atk_bonus : float = 0.0
-	for attr in wdata.modifier:
-		atk_bonus += attacker.get_effective_attr(attr) * wdata.modifier[attr]
+	for attr in attacker.weapon_modifier:
+		atk_bonus += attacker.get_effective_attr(attr) * attacker.weapon_modifier[attr]
 
 	var total_attack : float = base_attack + atk_bonus + attacker.buff_attack_flat
 	if is_magic:
@@ -585,7 +574,7 @@ func _calc_damage(attacker: UnitData, defender: UnitData) -> int:
 		0.0, REDUCTION_CAP)
 
 	# ---- 3. 穿透 ----
-	var weapon_pen : float = wdata.magic_penetration if is_magic else wdata.physical_penetration
+	var weapon_pen : float = attacker.weapon_magic_penetration if is_magic else attacker.weapon_physical_penetration
 	var affix_pen : float = 0.0
 	for slot in attacker.armor_slots:
 		if slot:
@@ -600,13 +589,13 @@ func _calc_damage(attacker: UnitData, defender: UnitData) -> int:
 
 	return damage
 
+
 func _roll_crit(attacker: UnitData) -> bool:
 	var chance : float = CRIT_BASE_CHANCE
 	chance += attacker.get_effective_attr("dexterity") * CRIT_PER_DEXTERITY
-	if attacker.weapon_slot:
-		var wdata = ItemManager.get_item_data(attacker.weapon_slot.item_id)
-		if wdata:
-			chance += CRIT_CHANCE_BY_QUALITY.get(wdata.quality, 0.0)
+	# ★ v4.8：品质从内联字段读
+	if attacker.weapon_id != "":
+		chance += CRIT_CHANCE_BY_QUALITY.get(attacker.weapon_quality, 0.0)
 	return randf() < chance
 
 

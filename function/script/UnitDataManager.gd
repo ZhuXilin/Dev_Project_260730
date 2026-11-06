@@ -94,11 +94,10 @@ static func get_default_stats(unit_name: String) -> UnitData:
 	data.ignore_terrain_cost = dict.get("ignore_terrain_cost", false)
 	data.physical_reduction = float(dict.get("physical_reduction", 0.0))
 	data.magic_reduction = float(dict.get("magic_reduction", 0.0))
-	data.hidden_from_roster = bool(dict.get("hidden_from_roster", false))   # ← unit_category 已删
+	data.hidden_from_roster = bool(dict.get("hidden_from_roster", false))
 	data.is_boss = bool(dict.get("is_boss", false))
 	data.boss_mechanic_id = str(dict.get("boss_mechanic_id", ""))
 
-	# ★ 读取基础头像
 	data.avatar = str(dict.get("avatar", ""))
 
 	var bmp_data = dict.get("boss_mechanic_params", {})
@@ -112,8 +111,7 @@ static func get_default_stats(unit_name: String) -> UnitData:
 	data.phases = UnitData.normalize_phases(dict.get("phases", []))
 	return data
 
-
-static func create_unit_data(unit_name: String, for_boss: bool = false) -> UnitData:
+static func create_unit_data(unit_name: String, _for_boss: bool = false) -> UnitData:
 	var key = _normalize_unit_key(unit_name)
 	var dict = get_unit_data(key)
 	var data = get_default_stats(key)
@@ -136,15 +134,11 @@ static func create_unit_data(unit_name: String, for_boss: bool = false) -> UnitD
 	data.core_trait = dict.get("core_trait", "")
 	data.avatar = dict.get("avatar", "")
 
+	# ★ v4.8：武器数值内联，不再创建 ItemInstance（upgrade_level 永久废弃）
 	var default_weapon = get_default_weapon_id(key)
 	if default_weapon != "":
-		var inst = ItemInstance.new()
-		inst.item_id = default_weapon
-		inst.count = 1
-		if not for_boss and GameState.unit_growth.has(key):
-			var lv: int = int(GameState.unit_growth[key].get("weapon_lv_" + default_weapon, 0))
-			inst.upgrade_level = lv
-		data.weapon_slot = inst
+		_apply_weapon_to_unit_stats(data, default_weapon)
+	data.weapon_slot = null
 
 	data.max_armor_slots = int(dict.get("max_armor_slots", 2))
 	data.armor_slots.clear()
@@ -183,13 +177,73 @@ static func create_unit_data(unit_name: String, for_boss: bool = false) -> UnitD
 		data.talent_slots.append(null)
 
 	data.max_talent_slots = talent_cap
-
 	data.level = 1
 	return data
 
 
 static func get_default_weapon_id(unit_name: String) -> String:
 	return get_unit_data(unit_name).get("default_weapon", "")
+
+
+# ============================================================
+#  ★ v4.8 武器数值内联支持
+# ============================================================
+
+## 把 ItemData 的武器数值写入 UnitData 的内联字段。
+## 覆盖所有既有内联字段；weapon_id 也会写入。武器不存在时给警告但不清空旧值。
+static func _apply_weapon_to_unit_stats(data: UnitData, weapon_id: String) -> void:
+	var wdata := ItemManager.get_item_data(weapon_id)
+	if wdata == null:
+		push_warning("[UnitDataManager] 武器不存在: %s" % weapon_id)
+		return
+	data.weapon_id = weapon_id
+	data.weapon_quality = wdata.quality
+	data.base_attack = wdata.base_attack
+	data.attack_style = wdata.attack_style
+	data.weapon_attack_range = wdata.attack_range
+	data.weapon_min_attack_range = wdata.min_attack_range
+	data.weapon_category = wdata.category
+	data.weapon_modifier = wdata.modifier.duplicate(true)
+	data.weapon_physical_penetration = wdata.physical_penetration
+	data.weapon_magic_penetration = wdata.magic_penetration
+	data.weapon_heavy_attack = wdata.heavy_attack.duplicate(true)
+	data.weapon_magic_attack = wdata.magic_attack.duplicate(true)
+	data.weapon_heal_effect = wdata.heal_effect.duplicate(true)
+
+
+## 根据 UnitData 的内联字段构造一个虚拟 ItemData（用于展示和旧代码兼容）。
+## 返回 null 表示单位没有武器。
+static func build_weapon_item_data(ud: UnitData) -> ItemData:
+	if ud == null or ud.weapon_id == "":
+		return null
+	var d := ItemData.new()
+	d.id = ud.weapon_id
+	d.quality = ud.weapon_quality
+	d.base_attack = int(ud.base_attack)
+	d.attack_style = ud.attack_style
+	d.attack_range = ud.weapon_attack_range
+	d.min_attack_range = ud.weapon_min_attack_range
+	d.category = ud.weapon_category
+	d.modifier = ud.weapon_modifier
+	d.physical_penetration = ud.weapon_physical_penetration
+	d.magic_penetration = ud.weapon_magic_penetration
+	d.heavy_attack = ud.weapon_heavy_attack
+	d.magic_attack = ud.weapon_magic_attack
+	d.heal_effect = ud.weapon_heal_effect
+	# 展示字段从原始 JSON 拿
+	var orig := ItemManager.get_item_data(ud.weapon_id)
+	if orig:
+		d.name = orig.name
+		d.icon = orig.icon
+		d.description = orig.description
+		d.flavor = orig.flavor
+		d.price = orig.price
+		d.type = orig.type
+		d.use_type = orig.use_type
+		d.equipment_slot = orig.equipment_slot
+	else:
+		d.name = ud.weapon_id
+	return d
 
 
 static func get_sacrifice_buff(unit_name: String) -> Dictionary:
@@ -266,21 +320,18 @@ static func get_attr_cap_total_bonus(unit_type: String, cur_lv: int) -> Dictiona
 	var total : Dictionary = {}
 	for i in range(cur_lv):
 		var lv_dict : Dictionary = {}
-		
 		if i < levels.size():
 			lv_dict = levels[i]
 		elif not levels.is_empty():
 			var base_dict : Dictionary = levels.back()
-			var mult : float = 1.0 + (i - levels.size() + 1) * 0.5 
+			var mult : float = 1.0 + (i - levels.size() + 1) * 0.5
 			for k in base_dict:
 				lv_dict[k] = int(base_dict[k] * mult)
-		
 		for k in lv_dict:
 			total[k] = total.get(k, 0) + int(lv_dict[k])
 	return total
 
 
-## 读取单个等级的属性加成（level_idx 从 0 起；0 = Lv1→2）
 static func get_attr_cap_level_bonus(unit_type: String, level_idx: int) -> Dictionary:
 	var levels : Array = get_attr_cap_levels(unit_type)
 	if level_idx < 0 or level_idx >= levels.size():
@@ -290,7 +341,6 @@ static func get_attr_cap_level_bonus(unit_type: String, level_idx: int) -> Dicti
 	return (levels[level_idx] as Dictionary).duplicate(true)
 
 
-## 读取单个等级的机制
 static func get_level_mechanics(unit_type: String, level_idx: int) -> Dictionary:
 	var key : String = normalize_unit_key(unit_type)
 	var dict : Dictionary = get_unit_data(key)
@@ -353,7 +403,6 @@ static func get_sprite_frames(unit_name: String) -> SpriteFrames:
 	var key := normalize_unit_key(unit_name)
 	if _sprite_frames_cache.has(key):
 		return _sprite_frames_cache[key]
-		
 	var path = get_sprite_frames_path(key)
 	if path != "" and ResourceLoader.exists(path):
 		var sf = load(path) as SpriteFrames
@@ -366,7 +415,6 @@ static func get_idle_texture(unit_name: String) -> Texture2D:
 	var key := normalize_unit_key(unit_name)
 	if _idle_texture_cache.has(key):
 		return _idle_texture_cache[key]
-		
 	var sf = get_sprite_frames(key)
 	if sf and sf.has_animation("idle") and sf.get_frame_count("idle") > 0:
 		var tex = sf.get_frame_texture("idle", 0)
@@ -381,21 +429,21 @@ static func create_idle_texture_rect(unit_name: String, icon_size: Vector2 = Vec
 	rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	
+
 	var sf: SpriteFrames = null
 	if override_path != "" and ResourceLoader.exists(override_path):
 		sf = load(override_path) as SpriteFrames
 	else:
 		sf = get_sprite_frames(unit_name)
-		
+
 	if sf and sf.has_animation("idle") and sf.get_frame_count("idle") > 0:
 		rect.texture = sf.get_frame_texture("idle", 0)
-		
+
 		var timer := Timer.new()
 		timer.wait_time = 0.25
 		timer.autostart = true
 		rect.add_child(timer)
-		
+
 		var frame_count := sf.get_frame_count("idle")
 		var idx := {"value": 0}
 		timer.timeout.connect(func():
@@ -406,7 +454,7 @@ static func create_idle_texture_rect(unit_name: String, icon_size: Vector2 = Vec
 		)
 	else:
 		rect.visible = false
-		
+
 	return rect
 
 
@@ -414,7 +462,7 @@ static func create_unit_icon_button(unit_name: String, icon_size: Vector2 = Vect
 	var btn := Button.new()
 	btn.custom_minimum_size = icon_size
 	btn.focus_mode = Control.FOCUS_NONE
-	
+
 	var empty_sb := StyleBoxEmpty.new()
 	empty_sb.content_margin_left = 0
 	empty_sb.content_margin_right = 0
@@ -430,7 +478,7 @@ static func create_unit_icon_button(unit_name: String, icon_size: Vector2 = Vect
 	icon_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	icon_rect.set_anchors_preset(Control.PRESET_FULL_RECT)
 	btn.add_child(icon_rect)
-	
+
 	return btn
 
 
@@ -442,31 +490,26 @@ static func bind_unit_icon_hover(btn: Button, unit_id: String, info_panel: Contr
 	if not hover_manager.has_method("_on_icon_hover_entered"):
 		push_error("hover_manager 缺少 _on_icon_hover_entered 方法")
 		return
-		
+
 	btn.mouse_entered.connect(func(): hover_manager._on_icon_hover_entered(unit_id, info_panel))
 	btn.mouse_exited.connect(func(): hover_manager._on_icon_hover_exited(info_panel))
-	
+
 	btn.gui_input.connect(func(event):
 		if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT:
 			if info_panel and info_panel.visible:
 				info_panel.toggle_mode()
-				# ★ 修复：由于 UnitDataManager 是 RefCounted，没有 get_viewport()，需通过 btn 获取
 				btn.get_viewport().set_input_as_handled()
 	)
 
 
-## 按 speaker 字符串反查 unit_data.json 里的 avatar 字段。
-## 支持两种写法：display_name（如"深渊龙主"）或 unit_key（如"boss_dragonlord"）。
 static func get_avatar_by_speaker(speaker: String) -> String:
 	_load_unit_data()
 	if speaker == "":
 		return ""
-	# 1. 先按 display_name 精确匹配（敌人常规写法）
 	for key in _unit_data_cache:
 		var d : Dictionary = _unit_data_cache[key]
 		if str(d.get("display_name", "")) == speaker:
 			return str(d.get("avatar", ""))
-	# 2. 再按 unit_key 匹配（直接写 id）
 	if _unit_data_cache.has(speaker):
 		var d2 : Dictionary = _unit_data_cache[speaker]
 		return str(d2.get("avatar", ""))

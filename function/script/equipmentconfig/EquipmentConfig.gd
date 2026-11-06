@@ -1215,10 +1215,8 @@ func _create_item_button(inst: ItemInstance, slot_type: String, unit_idx: int, s
 			btn.icon = data.icon
 			btn.text = ""
 		else:
-			if slot_type == "weapon" and inst.upgrade_level > 0:
-				btn.text = base_name + "+" + str(inst.upgrade_level)
-			else:
-				btn.text = base_name
+			# ★ 武器升级功能永久移除，upgrade_level 只用于防具出售价（此处不再显示）
+			btn.text = base_name
 	else:
 		btn.text = "空"
 	btn.set_meta("slot_type", slot_type)

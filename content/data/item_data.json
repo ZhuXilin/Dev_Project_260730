@@ -9,8 +9,7 @@
 	"base_attack": 4, "attack_range": 1, "min_attack_range": 1,
 	"modifier": { "strength": 0.4, "dexterity": 0.3 },
 	"physical_penetration": 0.0, "magic_penetration": 0.0,
-	"tags": ["物理"],
-	"upgrade_stats": { "max_level": 5, "attack_per_level": 1 }
+	"tags": ["物理"]
   },
   "steel_sword": {
 	"id": "steel_sword", "name": "钢剑", "type": "weapon", "use_type": "infinite",
@@ -22,8 +21,7 @@
 	"base_attack": 6, "attack_range": 1, "min_attack_range": 1,
 	"modifier": { "strength": 0.5, "dexterity": 0.35 },
 	"physical_penetration": 0.0, "magic_penetration": 0.0,
-	"tags": ["物理"],
-	"upgrade_stats": { "max_level": 5, "attack_per_level": 1 }
+	"tags": ["物理"]
   },
   "steel_spear": {
 	"id": "steel_spear", "name": "钢枪", "type": "weapon", "use_type": "infinite",
@@ -35,8 +33,7 @@
 	"base_attack": 6, "attack_range": 1, "min_attack_range": 1,
 	"modifier": { "strength": 0.5, "dexterity": 0.5 },
 	"physical_penetration": 0.0, "magic_penetration": 0.0,
-	"tags": ["物理"],
-	"upgrade_stats": { "max_level": 5, "attack_per_level": 1 }
+	"tags": ["物理"]
   },
   "battle_axe": {
 	"id": "battle_axe", "name": "战斧", "type": "weapon", "use_type": "infinite",
@@ -49,8 +46,7 @@
 	"modifier": { "strength": 0.5 },
 	"heavy_attack": { "damage_multiplier": 1.2, "charge_multiplier": 1.6 },
 	"physical_penetration": 0.10, "magic_penetration": 0.0,
-	"tags": ["物理", "烈焰"],
-	"upgrade_stats": { "max_level": 5, "attack_per_level": 2 }
+	"tags": ["物理", "烈焰"]
   },
   "longbow": {
 	"id": "longbow", "name": "长弓", "type": "weapon", "use_type": "infinite",
@@ -62,8 +58,7 @@
 	"base_attack": 4, "attack_range": 3, "min_attack_range": 2,
 	"modifier": { "dexterity": 0.5, "arcane": 0.2 },
 	"physical_penetration": 0.0, "magic_penetration": 0.0,
-	"tags": ["物理"],
-	"upgrade_stats": { "max_level": 5, "attack_per_level": 1 }
+	"tags": ["物理"]
   },
   "light_crossbow": {
 	"id": "light_crossbow", "name": "轻弩", "type": "weapon", "use_type": "infinite",
@@ -75,8 +70,7 @@
 	"base_attack": 4, "attack_range": 3, "min_attack_range": 2,
 	"modifier": { "dexterity": 0.5, "arcane": 0.15 },
 	"physical_penetration": 0.0, "magic_penetration": 0.0,
-	"tags": ["物理"],
-	"upgrade_stats": { "max_level": 5, "attack_per_level": 1 }
+	"tags": ["物理"]
   },
   "healing_staff": {
 	"id": "healing_staff", "name": "治愈法杖", "type": "weapon", "use_type": "infinite",
@@ -89,8 +83,7 @@
 	"modifier": { "faith": 0.8, "intelligence": 0.2 },
 	"heal_effect": { "base_heal_percent": 0.2, "faith_percent_per_point": 0.01 },
 	"physical_penetration": 0.0, "magic_penetration": 0.10,
-	"tags": ["法术", "献祭"],
-	"upgrade_stats": { "max_level": 5, "attack_per_level": 0, "heal_per_level": 2 }
+	"tags": ["法术", "献祭"]
   },
   "fire_spellbook": {
 	"id": "fire_spellbook", "name": "火焰魔法书", "type": "weapon", "use_type": "infinite",
@@ -103,8 +96,7 @@
 	"modifier": { "intelligence": 0.22, "arcane": 0.10 },
 	"magic_attack": { "ignore_defense": false },
 	"physical_penetration": 0.0, "magic_penetration": 0.30,
-	"tags": ["法术", "烈焰"],
-	"upgrade_stats": { "max_level": 5, "attack_per_level": 2 }
+	"tags": ["法术", "烈焰"]
   },
   "master_sword": {
 	"id": "master_sword", "name": "大师剑", "type": "weapon", "use_type": "infinite",
@@ -117,8 +109,7 @@
 	"modifier": { "strength": 0.2, "dexterity": 0.7 },
 	"legendary_effect": "居合斩冷却-1回合",
 	"physical_penetration": 0.15, "magic_penetration": 0.0,
-	"tags": ["物理"],
-	"upgrade_stats": { "max_level": 5, "attack_per_level": 2, "modifier_per_level": { "dexterity": 0.1 } }
+	"tags": ["物理"]
   },
   "javelin": {
 	"id": "javelin", "name": "投枪", "type": "weapon", "use_type": "infinite",
@@ -130,8 +121,7 @@
 	"base_attack": 4, "attack_range": 2, "min_attack_range": 1,
 	"modifier": { "strength": 0.35, "dexterity": 0.35 },
 	"physical_penetration": 0.0, "magic_penetration": 0.0,
-	"tags": ["物理"],
-	"upgrade_stats": { "max_level": 5, "attack_per_level": 1 }
+	"tags": ["物理"]
   },
   "fire_dragonstone": {
 	"id": "fire_dragonstone", "name": "火龙石", "type": "weapon", "use_type": "infinite",
@@ -145,8 +135,7 @@
 	"magic_attack": { "ignore_defense": false },
 	"legendary_effect": "龙息范围+1",
 	"physical_penetration": 0.0, "magic_penetration": 0.35,
-	"tags": ["法术", "烈焰"],
-	"upgrade_stats": { "max_level": 5, "attack_per_level": 2 }
+	"tags": ["法术", "烈焰"]
   },
   "wooden_shield": {
 	"id": "wooden_shield", "name": "木盾", "type": "armor", "use_type": "equipment",
@@ -157,8 +146,7 @@
 	"price": 30, "quality": "common",
 	"defense": 0, "physical_reduction": 0.10, "magic_reduction": 0.0,
 	"slot_count": 1,
-	"modifier": {}, "tags": ["守护"],
-	"upgrade_stats": { "max_level": 5, "defense_per_level": 1 }
+	"modifier": {}, "tags": ["守护"]
   },
   "iron_armor": {
 	"id": "iron_armor", "name": "铁甲", "type": "armor", "use_type": "equipment",
@@ -169,8 +157,7 @@
 	"price": 60, "quality": "common",
 	"defense": 0, "physical_reduction": 0.15, "magic_reduction": 0.0,
 	"slot_count": 1,
-	"modifier": {}, "tags": ["守护"],
-	"upgrade_stats": { "max_level": 5, "defense_per_level": 1 }
+	"modifier": {}, "tags": ["守护"]
   },
   "steel_armor": {
 	"id": "steel_armor", "name": "钢甲", "type": "armor", "use_type": "equipment",
@@ -181,8 +168,7 @@
 	"price": 120, "quality": "rare",
 	"defense": 0, "physical_reduction": 0.18, "magic_reduction": 0.0,
 	"slot_count": 1,
-	"modifier": { "strength": 1 }, "tags": ["守护"],
-	"upgrade_stats": { "max_level": 5, "defense_per_level": 1 }
+	"modifier": { "strength": 1 }, "tags": ["守护"]
   },
   "knight_armor": {
 	"id": "knight_armor", "name": "骑士甲", "type": "armor", "use_type": "equipment",
@@ -193,8 +179,7 @@
 	"price": 100, "quality": "epic",
 	"defense": 0, "physical_reduction": 0.22, "magic_reduction": 0.08,
 	"slot_count": 1,
-	"modifier": { "strength": 1, "faith": 1 }, "tags": ["守护"],
-	"upgrade_stats": { "max_level": 5, "defense_per_level": 2 }
+	"modifier": { "strength": 1, "faith": 1 }, "tags": ["守护"]
   },
   "power_ring": {
 	"id": "power_ring", "name": "力量戒指", "type": "armor", "use_type": "equipment",
@@ -205,8 +190,7 @@
 	"price": 80, "quality": "rare",
 	"defense": 0, "physical_reduction": 0.0, "magic_reduction": 0.0,
 	"slot_count": 1,
-	"modifier": { "strength": 2 }, "tags": ["烈焰"],
-	"upgrade_stats": { "max_level": 5, "defense_per_level": 0 }
+	"modifier": { "strength": 2 }, "tags": ["烈焰"]
   },
   "guard_ring": {
 	"id": "guard_ring", "name": "守护戒指", "type": "armor", "use_type": "equipment",
@@ -217,8 +201,7 @@
 	"price": 80, "quality": "rare",
 	"defense": 0, "physical_reduction": 0.08, "magic_reduction": 0.0,
 	"slot_count": 1,
-	"modifier": { "strength": 1 }, "tags": ["守护"],
-	"upgrade_stats": { "max_level": 5, "defense_per_level": 1 }
+	"modifier": { "strength": 1 }, "tags": ["守护"]
   },
   "speed_boots": {
 	"id": "speed_boots", "name": "疾风靴", "type": "armor", "use_type": "equipment",
@@ -229,8 +212,7 @@
 	"price": 100, "quality": "rare",
 	"defense": 0, "physical_reduction": 0.0, "magic_reduction": 0.0,
 	"slot_count": 1,
-	"modifier": { "dexterity": 1 }, "tags": ["灰烬"],
-	"upgrade_stats": { "max_level": 5, "defense_per_level": 0 }
+	"modifier": { "dexterity": 1 }, "tags": ["灰烬"]
   },
   "leather_armor": {
 	"id": "leather_armor", "name": "皮甲", "type": "armor", "use_type": "equipment",
@@ -241,8 +223,7 @@
 	"price": 25, "quality": "common",
 	"defense": 0, "physical_reduction": 0.08, "magic_reduction": 0.0,
 	"slot_count": 1,
-	"modifier": { "dexterity": 1 }, "tags": ["灰烬"],
-	"upgrade_stats": { "max_level": 5, "defense_per_level": 1 }
+	"modifier": { "dexterity": 1 }, "tags": ["灰烬"]
   },
   "iron_helmet": {
 	"id": "iron_helmet", "name": "铁盔", "type": "armor", "use_type": "equipment",
@@ -253,8 +234,7 @@
 	"price": 45, "quality": "common",
 	"defense": 0, "physical_reduction": 0.08, "magic_reduction": 0.0,
 	"slot_count": 1,
-	"modifier": {}, "tags": ["守护"],
-	"upgrade_stats": { "max_level": 5, "defense_per_level": 1 }
+	"modifier": {}, "tags": ["守护"]
   },
   "mage_robe": {
 	"id": "mage_robe", "name": "法袍", "type": "armor", "use_type": "equipment",
@@ -265,8 +245,7 @@
 	"price": 70, "quality": "rare",
 	"defense": 0, "physical_reduction": 0.05, "magic_reduction": 0.20,
 	"slot_count": 1,
-	"modifier": { "intelligence": 1, "faith": 1 }, "tags": ["轮回"],
-	"upgrade_stats": { "max_level": 5, "defense_per_level": 0 }
+	"modifier": { "intelligence": 1, "faith": 1 }, "tags": ["轮回"]
   },
   "traveler_boots": {
 	"id": "traveler_boots", "name": "旅行靴", "type": "armor", "use_type": "equipment",
@@ -277,8 +256,7 @@
 	"price": 55, "quality": "rare",
 	"defense": 0, "physical_reduction": 0.05, "magic_reduction": 0.0,
 	"slot_count": 1,
-	"modifier": { "dexterity": 1, "move_range": 1 }, "tags": ["灰烬"],
-	"upgrade_stats": { "max_level": 5, "defense_per_level": 0 }
+	"modifier": { "dexterity": 1, "move_range": 1 }, "tags": ["灰烬"]
   },
   "soul_guardian_plate": {
 	"id": "soul_guardian_plate", "name": "魂守铠", "type": "armor", "use_type": "equipment",
@@ -289,8 +267,7 @@
 	"price": 320, "quality": "legendary",
 	"defense": 0, "physical_reduction": 0.25, "magic_reduction": 0.20,
 	"slot_count": 1,
-	"modifier": { "strength": 2, "faith": 2 }, "tags": ["守护"],
-	"upgrade_stats": { "max_level": 5, "defense_per_level": 2 }
+	"modifier": { "strength": 2, "faith": 2 }, "tags": ["守护"]
   },
   "dragon_scale_armor": {
 	"id": "dragon_scale_armor", "name": "龙鳞甲", "type": "armor", "use_type": "equipment",
@@ -301,8 +278,7 @@
 	"price": 360, "quality": "legendary",
 	"defense": 0, "physical_reduction": 0.22, "magic_reduction": 0.15,
 	"slot_count": 1,
-	"modifier": { "strength": 2, "faith": 1 }, "tags": ["余烬"],
-	"upgrade_stats": { "max_level": 5, "defense_per_level": 2 }
+	"modifier": { "strength": 2, "faith": 1 }, "tags": ["余烬"]
   },
   "phoenix_cloak": {
 	"id": "phoenix_cloak", "name": "凤凰披风", "type": "armor", "use_type": "equipment",
@@ -313,8 +289,7 @@
 	"price": 280, "quality": "legendary",
 	"defense": 0, "physical_reduction": 0.12, "magic_reduction": 0.12,
 	"slot_count": 1,
-	"modifier": { "dexterity": 2, "move_range": 1 }, "tags": ["烈焰"],
-	"upgrade_stats": { "max_level": 5, "defense_per_level": 1 }
+	"modifier": { "dexterity": 2, "move_range": 1 }, "tags": ["烈焰"]
   },
   "arcane_crown": {
 	"id": "arcane_crown", "name": "奥术王冠", "type": "armor", "use_type": "equipment",
@@ -325,8 +300,7 @@
 	"price": 300, "quality": "legendary",
 	"defense": 0, "physical_reduction": 0.08, "magic_reduction": 0.20,
 	"slot_count": 1,
-	"modifier": { "intelligence": 2, "faith": 1, "arcane": 1 }, "tags": ["轮回"],
-	"upgrade_stats": { "max_level": 5, "defense_per_level": 1 }
+	"modifier": { "intelligence": 2, "faith": 1, "arcane": 1 }, "tags": ["轮回"]
   },
   "phoenix_feather": {
 	"id": "phoenix_feather", "name": "凤凰之羽", "type": "armor", "use_type": "equipment",
@@ -339,8 +313,7 @@
 	"slot_count": 1,
 	"modifier": { "dexterity": 2 }, "tags": ["烈焰"],
 	"fusion_id": "phoenix_feather",
-	"fusion_effect": "phoenix_flame_splash",
-	"upgrade_stats": { "max_level": 0 }
+	"fusion_effect": "phoenix_flame_splash"
   },
   "endless_cycle": {
 	"id": "endless_cycle", "name": "无尽轮回", "type": "armor", "use_type": "equipment",
@@ -353,8 +326,7 @@
 	"slot_count": 1,
 	"modifier": { "intelligence": 2 }, "tags": ["轮回"],
 	"fusion_id": "endless_cycle",
-	"fusion_effect": "cycle_soul_fire_bonus",
-	"upgrade_stats": { "max_level": 0 }
+	"fusion_effect": "cycle_soul_fire_bonus"
   },
   "burning_core": {
 	"id": "burning_core", "name": "爆燃之核", "type": "armor", "use_type": "equipment",
@@ -367,8 +339,7 @@
 	"slot_count": 1,
 	"modifier": { "strength": 2 }, "tags": ["灰烬"],
 	"fusion_id": "burning_core",
-	"fusion_effect": "ash_skill_amplify",
-	"upgrade_stats": { "max_level": 0 }
+	"fusion_effect": "ash_skill_amplify"
   },
   "lava_bastion": {
 	"id": "lava_bastion", "name": "熔岩壁垒", "type": "armor", "use_type": "equipment",
@@ -381,8 +352,7 @@
 	"slot_count": 1,
 	"modifier": { "strength": 2, "faith": 1 }, "tags": ["守护"],
 	"fusion_id": "lava_bastion",
-	"fusion_effect": "guard_counter_burn",
-	"upgrade_stats": { "max_level": 0 }
+	"fusion_effect": "guard_counter_burn"
   },
   "undying_ember": {
 	"id": "undying_ember", "name": "不灭余烬", "type": "armor", "use_type": "equipment",
@@ -395,8 +365,7 @@
 	"slot_count": 1,
 	"modifier": { "faith": 3 }, "tags": ["献祭"],
 	"fusion_id": "undying_ember",
-	"fusion_effect": "sacrifice_zero_recover",
-	"upgrade_stats": { "max_level": 0 }
+	"fusion_effect": "sacrifice_zero_recover"
   },
   "eternal_flame": {
 	"id": "eternal_flame", "name": "不灭薪火", "type": "armor", "use_type": "equipment",
@@ -409,8 +378,7 @@
 	"slot_count": 1,
 	"modifier": { "arcane": 2 }, "tags": ["余烬"],
 	"fusion_id": "eternal_flame",
-	"fusion_effect": "ember_max_and_start",
-	"upgrade_stats": { "max_level": 0 }
+	"fusion_effect": "ember_max_and_start"
   },
   "ember_ring": {
 	"id": "ember_ring", "name": "余烬戒指", "type": "armor", "use_type": "equipment",
@@ -421,8 +389,7 @@
 	"price": 90, "quality": "rare",
 	"defense": 0, "physical_reduction": 0.08, "magic_reduction": 0.0,
 	"slot_count": 1,
-	"modifier": {}, "tags": ["余烬"],
-	"upgrade_stats": { "max_level": 5, "defense_per_level": 1 }
+	"modifier": {}, "tags": ["余烬"]
   },
   "sacrificial_mask": {
 	"id": "sacrificial_mask", "name": "献祭面具", "type": "armor", "use_type": "equipment",
@@ -433,8 +400,7 @@
 	"price": 85, "quality": "rare",
 	"defense": 0, "physical_reduction": 0.05, "magic_reduction": 0.0,
 	"slot_count": 1,
-	"modifier": { "faith": 1 }, "tags": ["献祭"],
-	"upgrade_stats": { "max_level": 5, "defense_per_level": 1 }
+	"modifier": { "faith": 1 }, "tags": ["献祭"]
   },
   "melt_archer": {
 	"id": "melt_archer", "name": "残羽护甲", "type": "armor", "use_type": "equipment",
@@ -447,8 +413,7 @@
 	"slot_count": 1,
 	"modifier": {}, "tags": [],
 	"melt_armor_effect": { "attack_flat": 5, "special_type": "crit_damage_bonus", "special_value": 0.20 },
-	"no_affix": true, "no_fusion": true, "no_sell": true,
-	"upgrade_stats": { "max_level": 0 }
+	"no_affix": true, "no_fusion": true, "no_sell": true
   },
   "melt_armored": {
 	"id": "melt_armored", "name": "残余重铠", "type": "armor", "use_type": "equipment",
@@ -461,8 +426,7 @@
 	"slot_count": 1,
 	"modifier": {}, "tags": [],
 	"melt_armor_effect": { "attack_flat": 5, "special_type": "defense_flat", "special_value": 3.0 },
-	"no_affix": true, "no_fusion": true, "no_sell": true,
-	"upgrade_stats": { "max_level": 0 }
+	"no_affix": true, "no_fusion": true, "no_sell": true
   },
   "melt_axeman": {
 	"id": "melt_axeman", "name": "残焰胸甲", "type": "armor", "use_type": "equipment",
@@ -475,8 +439,7 @@
 	"slot_count": 1,
 	"modifier": {}, "tags": [],
 	"melt_armor_effect": { "attack_flat": 5, "special_type": "crit_damage_bonus", "special_value": 0.40 },
-	"no_affix": true, "no_fusion": true, "no_sell": true,
-	"upgrade_stats": { "max_level": 0 }
+	"no_affix": true, "no_fusion": true, "no_sell": true
   },
   "melt_cleric": {
 	"id": "melt_cleric", "name": "残光法袍", "type": "armor", "use_type": "equipment",
@@ -489,8 +452,7 @@
 	"slot_count": 1,
 	"modifier": {}, "tags": [],
 	"melt_armor_effect": { "attack_flat": 5, "special_type": "heal_bonus", "special_value": 0.40 },
-	"no_affix": true, "no_fusion": true, "no_sell": true,
-	"upgrade_stats": { "max_level": 0 }
+	"no_affix": true, "no_fusion": true, "no_sell": true
   },
   "melt_dragonborn": {
 	"id": "melt_dragonborn", "name": "残鳞鳞甲", "type": "armor", "use_type": "equipment",
@@ -503,8 +465,7 @@
 	"slot_count": 1,
 	"modifier": {}, "tags": [],
 	"melt_armor_effect": { "attack_flat": 5, "special_type": "damage_reduction", "special_value": 0.15 },
-	"no_affix": true, "no_fusion": true, "no_sell": true,
-	"upgrade_stats": { "max_level": 0 }
+	"no_affix": true, "no_fusion": true, "no_sell": true
   },
   "melt_mage": {
 	"id": "melt_mage", "name": "残智长袍", "type": "armor", "use_type": "equipment",
@@ -517,8 +478,7 @@
 	"slot_count": 1,
 	"modifier": {}, "tags": [],
 	"melt_armor_effect": { "attack_flat": 5, "special_type": "attack_percent", "special_value": 0.25 },
-	"no_affix": true, "no_fusion": true, "no_sell": true,
-	"upgrade_stats": { "max_level": 0 }
+	"no_affix": true, "no_fusion": true, "no_sell": true
   },
   "melt_pegasus": {
 	"id": "melt_pegasus", "name": "残风轻羽", "type": "armor", "use_type": "equipment",
@@ -531,8 +491,7 @@
 	"slot_count": 1,
 	"modifier": {}, "tags": [],
 	"melt_armor_effect": { "attack_flat": 5, "special_type": "counter_damage_bonus", "special_value": 0.25 },
-	"no_affix": true, "no_fusion": true, "no_sell": true,
-	"upgrade_stats": { "max_level": 0 }
+	"no_affix": true, "no_fusion": true, "no_sell": true
   },
   "melt_spearman": {
 	"id": "melt_spearman", "name": "残锋长枪甲", "type": "armor", "use_type": "equipment",
@@ -545,8 +504,7 @@
 	"slot_count": 1,
 	"modifier": {}, "tags": [],
 	"melt_armor_effect": { "attack_flat": 5, "special_type": "counter_damage_bonus", "special_value": 0.40 },
-	"no_affix": true, "no_fusion": true, "no_sell": true,
-	"upgrade_stats": { "max_level": 0 }
+	"no_affix": true, "no_fusion": true, "no_sell": true
   },
   "melt_swordsman": {
 	"id": "melt_swordsman", "name": "残锋战甲", "type": "armor", "use_type": "equipment",
@@ -559,7 +517,6 @@
 	"slot_count": 1,
 	"modifier": {}, "tags": [],
 	"melt_armor_effect": { "attack_flat": 5, "special_type": "attack_percent", "special_value": 0.20 },
-	"no_affix": true, "no_fusion": true, "no_sell": true,
-	"upgrade_stats": { "max_level": 0 }
+	"no_affix": true, "no_fusion": true, "no_sell": true
   }
 }

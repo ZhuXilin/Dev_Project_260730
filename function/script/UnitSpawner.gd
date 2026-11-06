@@ -3,9 +3,6 @@ class_name UnitSpawner
 
 const UNIT_PATH = Config.PATHS.UNIT_SCENE
 
-# ============================================================
-#  单位强度倍率总开关（当前关闭：仅靠数量与类型做强度）
-# ============================================================
 const ENABLE_STRENGTH_MULTIPLIERS : bool = false
 const BOSS_HP_MULT : float = 2.0
 const ELITE_SCRUB_HP_MULT : float = 1.5
@@ -13,9 +10,6 @@ const BOSS_SCRUB_HP_MULT : float = 1.2
 const DAY_ATTR_MULT : Dictionary = {1: 0.8, 2: 1.0, 3: 1.2}
 
 
-# ============================================================
-#  倍率查询
-# ============================================================
 static func get_enemy_hp_mult(node_type: int, is_boss: bool) -> float:
 	if not ENABLE_STRENGTH_MULTIPLIERS:
 		return 1.0
@@ -39,9 +33,6 @@ static func get_day_attr_mult(day: int) -> float:
 	return float(DAY_ATTR_MULT.get(day, 1.0))
 
 
-# ============================================================
-#  配置提取
-# ============================================================
 static func extract_configs_from_node(node: Node) -> Array[UnitConfig]:
 	var configs: Array[UnitConfig] = []
 	_find_unit_placers(node, configs)
@@ -58,14 +49,6 @@ static func _find_unit_placers(node: Node, configs: Array[UnitConfig]):
 		_find_unit_placers(child, configs)
 
 
-# ============================================================
-#  池条目解析
-#  支持：
-#    "swordsman"                      → {base="swordsman", adv=""}
-#    "swordsman:swordsman_berserker"  → {base="swordsman", adv="swordsman_berserker"}
-#    "@swordsman_berserker"           → {base="swordsman", adv="swordsman_berserker"}
-#    "@swordsman"                     → {base="swordsman", adv=""}（容错）
-# ============================================================
 static func parse_pool_entry(entry: String) -> Dictionary:
 	var s : String = entry.strip_edges()
 	if s == "":
@@ -92,9 +75,6 @@ static func parse_pool_entry(entry: String) -> Dictionary:
 	return {"base": UnitDataManager.normalize_unit_key(s), "adv": ""}
 
 
-# ============================================================
-#  随机池
-# ============================================================
 static func _build_pool_map(configs: Array[UnitConfig]) -> Dictionary:
 	var pool_map : Dictionary = {}
 	for cfg in configs:
@@ -120,14 +100,10 @@ static func _roll_enemy_for_config(cfg: UnitConfig, pool_map: Dictionary) -> Dic
 		push_warning("[UnitSpawner] RANDOM_POOL 格子没有可用池子，pos=%s pool_key=%s" % [
 			str(cfg.position), cfg.pool_key])
 		return {}
-	# ★ 修复：使用 pick_random 保证分布均匀，且每次独立抽取
 	var entry : String = str(pool.pick_random())
 	return parse_pool_entry(entry)
 
 
-# ============================================================
-#  进阶职业应用
-# ============================================================
 static func _apply_advanced_class(stats: UnitData, adv_id: String) -> void:
 	if adv_id == "": return
 	var adv = AdvancedClassManager.get_class_data(adv_id)
@@ -179,9 +155,6 @@ static func _apply_advanced_class(stats: UnitData, adv_id: String) -> void:
 	stats.advanced_class = adv.id
 
 
-# ============================================================
-#  ★ 生成单位（已彻底移除 initial_items）
-# ============================================================
 static func spawn_units_from_configs(parent: Node, configs: Array[UnitConfig], grid_to_world_func: Callable):
 	var pool_map : Dictionary = _build_pool_map(configs)
 
@@ -204,58 +177,46 @@ static func spawn_units_from_configs(parent: Node, configs: Array[UnitConfig], g
 		var unit = load(UNIT_PATH).instantiate()
 		unit.setup_unit(stats, cfg.position)
 		unit.set_meta("wave", cfg.wave)
-		
-		# ★ 核心修复：只要不是首发波次，在加入场景前强制隐藏并禁用处理
+
 		if cfg.wave > 1:
 			unit.visible = false
 			unit.process_mode = Node.PROCESS_MODE_DISABLED
 			unit.can_act_this_turn = false
 			unit.remaining_move = 0
 			unit.hit_points = unit.unit_stats.max_hp
-			# 禁用碰撞层，防止提前触发任何物理判定
 			if unit is CollisionObject2D:
 				(unit as CollisionObject2D).set_collision_layer_value(1, false)
-			
+
 		parent.add_child(unit)
 		unit.position = grid_to_world_func.call(cfg.position)
 		UnitManager.register_unit(unit)
+
 
 static func _create_unit_stats(cfg: UnitConfig, base_name: String, adv_id: String) -> UnitData:
 	var name_key : String = base_name if base_name != "" else cfg.unit_name
 	var stats = UnitDataManager.get_default_stats(name_key)
 	stats.unit_name = name_key
 
-	# ★ 修复点 1：display_name 的覆盖逻辑
 	if cfg.is_random_pool:
-		# 随机池单位强制用英文 ID 作为名字（或者后续被转职名覆盖）
 		stats.display_name = name_key
 	elif cfg.display_name != "":
-		# 只有当编辑器里明确填了名字，才覆盖 JSON 里的名字
 		stats.display_name = cfg.display_name
-	# 否则：保留 UnitDataManager.get_default_stats 里从 JSON 读到的 display_name（如“深渊龙主”）
 
-	# ★ 修复点 2：faction 的覆盖逻辑
 	if cfg.faction != "":
-		# 只有明确填了阵营，才覆盖 JSON 里的阵营
 		stats.faction = cfg.faction
 
-	# 应用编辑器里的其他覆盖配置
 	cfg.apply_override(stats)
 	stats.team_id = cfg.team_id
 	stats.is_boss = cfg.is_boss
 	if cfg.immobile and cfg.team_id == 1:
 		stats.move_range = 0
 
-	# 默认武器继承
+	# ★ v4.8：武器数值内联到 UnitData
 	var default_weapon_id : String = UnitDataManager.get_default_weapon_id(name_key)
 	if default_weapon_id != "":
-		var w_inst := ItemInstance.new()
-		w_inst.item_id = default_weapon_id
-		w_inst.count = 1
-		w_inst.upgrade_level = 0
-		stats.weapon_slot = w_inst
+		UnitDataManager._apply_weapon_to_unit_stats(stats, default_weapon_id)
+	stats.weapon_slot = null
 
-	# 进阶职业
 	if adv_id != "":
 		_apply_advanced_class(stats, adv_id)
 		if cfg.is_random_pool or cfg.display_name == "":
@@ -263,11 +224,9 @@ static func _create_unit_stats(cfg: UnitConfig, base_name: String, adv_id: Strin
 			if adv != null and adv.name != "":
 				stats.display_name = adv.name
 
-	# 头像覆盖
 	if cfg.avatar_override != "":
 		stats.avatar_override = cfg.avatar_override
 
-	# 敌方强化
 	if cfg.team_id == 1 and GameState.current_map_data != null:
 		var node_type : int = GameState.current_map_data.node_type
 		var mult : float = get_enemy_hp_mult(node_type, cfg.is_boss)
@@ -281,9 +240,6 @@ static func _create_unit_stats(cfg: UnitConfig, base_name: String, adv_id: Strin
 	return stats
 
 
-# ============================================================
-#  测试单位 / 玩家队伍（不变）
-# ============================================================
 static func spawn_test_units(parent: Node, grid_to_world_func: Callable):
 	var configs: Array[UnitConfig] = []
 	var p1 = UnitConfig.new(); p1.unit_name = "剑士"; p1.team_id = 0; p1.position = Vector2i(15, 10); configs.append(p1)
@@ -308,9 +264,6 @@ static func spawn_party_from_gamestate(parent: Node, grid_to_world_func: Callabl
 		var unit_data = alive[i]
 		var spawn_cell = spawn_points[i]
 
-		# ★ 关键修复：出生点可能被隐藏的波次敌人 / 其他单位占用 → 推到最近空位
-		#   注意：is_cell_occupied_including_hidden 会随循环中 register_unit 实时更新，
-		#   已经出生的玩家单位也会被正确识别为占用。
 		if UnitManager.is_cell_occupied_including_hidden(spawn_cell):
 			var new_cell : Vector2i = UnitManager.find_nearest_empty_cell(spawn_cell, 10)
 			if new_cell == Vector2i(-1, -1):

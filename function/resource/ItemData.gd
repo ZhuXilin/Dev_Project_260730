@@ -32,9 +32,7 @@ class_name ItemData
 @export var magic_attack: Dictionary = {}
 @export var heal_effect: Dictionary = {}
 
-@export var legendary_effect: String = ""  # 废弃字段
-
-@export var upgrade_stats: Dictionary = {}
+@export var legendary_effect: String = ""
 
 @export var stats: Dictionary = {}
 @export var use_effect: Dictionary = {}

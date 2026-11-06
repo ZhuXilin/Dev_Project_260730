@@ -2,7 +2,9 @@ class_name AnvilTavern
 extends CanvasLayer
 
 signal closed
-enum Tab { WEAPON_UPGRADE, AURA_RESEARCH, RELIC_REFINE }
+# ★ 武器升级已永久移除，枚举重排（AURA_RESEARCH=0，RELIC_REFINE=1）
+#   外部 Camp.gd 的 setup(0) 会正确落到 AURA_RESEARCH
+enum Tab { AURA_RESEARCH, RELIC_REFINE }
 
 
 var _entry_tab : int = 0
@@ -18,18 +20,15 @@ func setup(tab: int) -> void:
 	if is_node_ready():
 		_switch_tab(tab as Tab)
 
-var current_tab : Tab = Tab.WEAPON_UPGRADE
+var current_tab : Tab = Tab.AURA_RESEARCH
 
 @onready var title_label : Label = $Panel/VBox/TitleBar/TitleLabel
 @onready var materials_label : Label = $Panel/VBox/TitleBar/MaterialsLabel
 @onready var content_container : VBoxContainer = $Panel/VBox/ContentScroll/ContentContainer
 
 var _sub_tab_bar : HBoxContainer = null
-const WEAPON_MAX_LV : int = 5
-var _weapon_upgrade_costs : Array = [50, 120, 250, 500, 1000]
 
 func _ready():
-	_load_config_from_json()
 	_ensure_layout()
 	_ensure_sub_tab_bar()
 	MusicManager.play_anvil_tavern_music()
@@ -93,12 +92,6 @@ func _ensure_layout():
 	else:
 		vbox.move_child(hbox, 2) # 兜底
 
-func _load_config_from_json():
-	var cfg : Dictionary = GameConfigManager.get_value("economy_config.json", "forge", {})
-	var tbl : Array = cfg.get("upgrade_cost_table", [])
-	if not tbl.is_empty():
-		_weapon_upgrade_costs = tbl.duplicate()
-
 func _ensure_sub_tab_bar():
 	if _sub_tab_bar and is_instance_valid(_sub_tab_bar): return
 	_sub_tab_bar = HBoxContainer.new()
@@ -119,8 +112,6 @@ func _refresh_resource_label():
 	if materials_label: materials_label.text = "魂: %d" % GameState.soul
 
 func _switch_tab(tab: Tab):
-	if tab == Tab.WEAPON_UPGRADE:
-		tab = Tab.AURA_RESEARCH
 	current_tab = tab
 	_clear_content()
 	_clear_sub_tab_bar()

@@ -23,7 +23,7 @@ var used_non_attack_item_this_turn : bool = false
 var moves_since_act: int = 0
 
 # ★ 新增：记录完整的 4 向朝向（用于未来的背击判定）
-var facing_dir : Vector2i = Vector2i(1, 0) 
+var facing_dir : Vector2i = Vector2i(1, 0)
 
 # ---- 血条节点引用 ----
 @onready var hp_bar_container = $HPBar
@@ -41,11 +41,11 @@ var buff_attack_flat : int = 0
 var buff_magic_attack_flat : int = 0
 var buff_lifesteal_percent : float = 0.0
 
-# ---- v4.7 临时穿透（由 CombatManager 在主动技能期间临时设置）----
+# ---- v4.7 临时穿透 ----
 var temp_physical_penetration : float = 0.0
 var temp_magic_penetration : float = 0.0
 
-# ---- v4.7 暴击削防（crit 天赋触发时累加，本场持续）----
+# ---- v4.7 暴击削防 ----
 var buff_defense_shred : float = 0.0
 
 # ★ 兼容旧字段（不参与计算）
@@ -95,7 +95,7 @@ var max_talent_slots: int = 1
 var combo_last_target: String = ""
 var combo_count: int = 0
 
-# ---- 光环（v4.6：常驻被动，从被动槽同步） ----
+# ---- 光环 ----
 var active_auras : Dictionary = {}
 var charge_stacks : int = 0
 
@@ -105,7 +105,10 @@ var current_anim : String = "idle"
 var facing_flip_h : bool = false
 var _color_material : ShaderMaterial = null
 
-# ---- 等级 / 射程 / 穿透 / 暴伤 ---- 
+# ★ v4.8 武器虚拟 ItemData 缓存（每个 Unit 实例独立）
+var _virtual_weapon_data: ItemData = null
+
+# ---- 等级 / 射程 / 穿透 / 暴伤 ----
 var current_level: int = 1
 var bonus_attack_range: int = 0
 var bonus_static_physical_penetration: float = 0.0
@@ -132,8 +135,6 @@ func _ready():
 			animated_sprite.z_index = 2
 		_initialized = true
 
-	# ★ 核心修复：不管 setup_unit 中是否已经设置过 _initialized，
-	# _ready 执行时 @onready 必定已经就绪，这里强制刷新一次 UI
 	update_hp_bar()
 	update_hp_label()
 	if hp_bar_container:
@@ -144,16 +145,13 @@ func update_hp_label():
 	var hp_label = $HPLabel
 	if hp_label:
 		hp_label.text = str(hit_points) + "/" + str(unit_stats.max_hp)
-	# ★ 核心修复：让文字和血条联动，只要修改血量调用了 update_hp_label，血条就同步刷新
 	update_hp_bar()
 
 
 func update_hp_bar():
 	if not is_instance_valid(hp_bar_container) or unit_stats == null: return
 	var ratio = float(hit_points) / float(max(1, unit_stats.max_hp))
-	# ★ 修复：基础宽度从 16.0 改为 12.0，与 .tscn 里的 Background 宽度一致，避免溢出
 	hp_bar_fill.size.x = 12.0 * clampf(ratio, 0.0, 1.0)
-	# ★ 统一使用鲜红色
 	hp_bar_fill.color = Color(0.9, 0.1, 0.1)
 
 
@@ -189,11 +187,9 @@ func setup_unit(stats_data: UnitData, start_cell: Vector2i, initial_items: Array
 	is_gray = false
 	facing_dir = Vector2i(-1, 0) if unit_stats.team_id == 1 else Vector2i(1, 0)
 
-	# ★ 优先继承 stats 的武器/防具
-	if stats_data.weapon_slot != null:
-		weapon_slot = stats_data.weapon_slot
-	else:
-		weapon_slot = null
+	# ★ v4.8：武器数值全部从 stats_data 的内联字段读取，weapon_slot 不再装配
+	weapon_slot = null
+	_invalidate_weapon_cache()
 
 	max_armor_slots = stats_data.max_armor_slots
 	armor_slots.clear()
@@ -206,17 +202,11 @@ func setup_unit(stats_data: UnitData, start_cell: Vector2i, initial_items: Array
 		for _i in range(max_armor_slots):
 			armor_slots.append(null)
 
-	# initial_items 作为额外覆盖
 	for entry in initial_items:
 		if entry and entry.item_id != "":
 			var data = ItemManager.get_item_data(entry.item_id)
 			if not data: continue
-			if data.equipment_slot == "weapon":
-				var inst = ItemInstance.new()
-				inst.item_id = entry.item_id
-				inst.count = 1
-				weapon_slot = inst
-			elif data.equipment_slot in ["armor"]:
+			if data.equipment_slot in ["armor"]:
 				if not can_equip_armor(entry.item_id): continue
 				for i in range(armor_slots.size()):
 					if armor_slots[i] == null:
@@ -225,15 +215,6 @@ func setup_unit(stats_data: UnitData, start_cell: Vector2i, initial_items: Array
 						inst.count = 1
 						armor_slots[i] = inst
 						break
-
-	# ★ 终极兜底：如果经过以上步骤依然没有武器，且该单位有默认武器，强制装配
-	if weapon_slot == null:
-		var def_w : String = UnitDataManager.get_default_weapon_id(unit_stats.unit_name)
-		if def_w != "":
-			var inst = ItemInstance.new()
-			inst.item_id = def_w
-			inst.count = 1
-			weapon_slot = inst
 
 	_init_talent_slots_from_data(stats_data)
 
@@ -279,7 +260,6 @@ func setup_unit(stats_data: UnitData, start_cell: Vector2i, initial_items: Array
 	taunt_by = null
 	taunt_rounds_left = 0
 
-	# 新创建的单位从 stats_data 读回等级与升级加成
 	current_level = stats_data.level
 	bonus_attack_range = stats_data.attack_range_bonus
 	bonus_static_physical_penetration = stats_data.static_physical_penetration
@@ -318,12 +298,28 @@ func reset_chain_talents():
 	taunt_rounds_left = 0
 
 
-func get_weapon() -> ItemInstance: return weapon_slot
-func get_equipped_weapon_id() -> String: return weapon_slot.item_id if weapon_slot else ""
+func get_equipped_weapon_id() -> String:
+	if unit_stats != null:
+		return unit_stats.weapon_id
+	return ""
 
 func get_weapon_data() -> ItemData:
-	if not weapon_slot: return null
-	return ItemManager.get_item_data(weapon_slot.item_id)
+	# ★ v4.8：从内联字段构造虚拟 ItemData（缓存）
+	if _virtual_weapon_data != null:
+		return _virtual_weapon_data
+	if unit_stats == null:
+		return null
+	_virtual_weapon_data = UnitDataManager.build_weapon_item_data(unit_stats)
+	return _virtual_weapon_data
+
+func _invalidate_weapon_cache():
+	_virtual_weapon_data = null
+
+func get_weapon_type() -> String:
+	if unit_stats != null:
+		return unit_stats.weapon_category
+	return ""
+
 
 func get_weapon_stats() -> Dictionary:
 	var default_stats := {
@@ -354,23 +350,8 @@ func get_weapon_stats() -> Dictionary:
 
 	return stats
 
-func get_weapon_type() -> String:
-	var data = get_weapon_data()
-	if not data: return ""
-	return data.category
-
 
 func can_use_weapon(_item_id: String) -> bool: return true
-
-func equip_weapon(weapon: ItemInstance) -> ItemInstance:
-	var old = weapon_slot
-	weapon_slot = weapon
-	return old
-
-func unequip_weapon() -> ItemInstance:
-	var old = weapon_slot
-	weapon_slot = null
-	return old
 
 func get_armor_slots() -> Array[ItemInstance]: return armor_slots
 
@@ -430,6 +411,7 @@ func get_fusion_effects() -> Array[String]:
 			result.append(data.fusion_effect)
 	return result
 
+
 func get_total_stats() -> Dictionary:
 	var total = {
 		"max_hp": unit_stats.max_hp,
@@ -443,18 +425,18 @@ func get_total_stats() -> Dictionary:
 		"attack_range": 0, "min_attack_range": 0, "attack_style": "standard"
 	}
 
-	if weapon_slot:
-		var data = ItemManager.get_item_data(weapon_slot.item_id)
-		if data:
-			var quality_mult : float = CombatManager.QUALITY_MULT.get(data.quality, 1.0)
-			total["attack"] = int(data.base_attack * quality_mult)
-			total["attack_range"] = data.attack_range + bonus_attack_range
-			total["min_attack_range"] = data.min_attack_range
-			total["attack_style"] = data.attack_style
-			if data.magic_attack.get("ignore_defense", false):
-				total["magic_attack"] = int(data.base_attack * quality_mult)
-			if not data.heal_effect.is_empty():
-				total["heal_amount"] = data.heal_effect.get("base_heal", 0)
+	# ★ v4.8：武器数值从内联字段读
+	var weapon_data = get_weapon_data()
+	if weapon_data:
+		var quality_mult : float = CombatManager.QUALITY_MULT.get(weapon_data.quality, 1.0)
+		total["attack"] = int(weapon_data.base_attack * quality_mult)
+		total["attack_range"] = weapon_data.attack_range + bonus_attack_range
+		total["min_attack_range"] = weapon_data.min_attack_range
+		total["attack_style"] = weapon_data.attack_style
+		if weapon_data.magic_attack.get("ignore_defense", false):
+			total["magic_attack"] = int(weapon_data.base_attack * quality_mult)
+		if not weapon_data.heal_effect.is_empty():
+			total["heal_amount"] = weapon_data.heal_effect.get("base_heal", 0)
 
 	var armor_mod := unit_stats.get_armor_modifier_bonus()
 	for key in armor_mod:
@@ -468,13 +450,10 @@ func get_total_stats() -> Dictionary:
 
 	return total
 
+
 func serialize_inventory() -> Array[Dictionary]:
+	# ★ v4.8：武器已内联到 unit_stats，不再序列化
 	var result: Array[Dictionary] = []
-	if weapon_slot:
-		result.append({
-			"item_id": weapon_slot.item_id, "count": weapon_slot.count,
-			"upgrade_level": weapon_slot.upgrade_level, "slot": "weapon"
-		})
 	for i in range(armor_slots.size()):
 		var slot = armor_slots[i]
 		if slot:
@@ -500,17 +479,11 @@ func restore_from_unit_data(data: UnitData, cell: Vector2i):
 	has_moved = false
 	has_attacked = false
 	has_acted = false
-	facing_dir = Vector2i(-1, 0) if unit_stats.team_id == 1 else Vector2i(1, 0) # 默认朝向
+	facing_dir = Vector2i(-1, 0) if unit_stats.team_id == 1 else Vector2i(1, 0)
 
-	if data.weapon_slot:
-		var inst := ItemInstance.new()
-		inst.item_id = data.weapon_slot.item_id
-		inst.count = data.weapon_slot.count
-		inst.upgrade_level = data.weapon_slot.upgrade_level
-		inst.affixes = data.weapon_slot.affixes.duplicate(true)
-		weapon_slot = inst
-	else:
-		weapon_slot = null
+	# ★ v4.8：武器数值从 data 的内联字段读，weapon_slot 仅存档兼容
+	weapon_slot = null
+	_invalidate_weapon_cache()
 
 	armor_slots.clear()
 	for slot in data.armor_slots:
@@ -581,7 +554,8 @@ func restore_from_unit_data(data: UnitData, cell: Vector2i):
 	_initialized = true
 
 	update_hp_bar()
-	if hp_bar_container: hp_bar_container.visible = _hp_bar_visible # 强制同步
+	if hp_bar_container: hp_bar_container.visible = _hp_bar_visible
+
 
 func mark_attacked():
 	has_attacked = true
@@ -608,9 +582,6 @@ func reset_turn():
 	play_animation("idle")
 
 
-# ============================================================
-#  ★ 步 4-A/4-B：局内升级（由 GM 调试调用；正式流程走 UnitData.apply_level_up）
-# ============================================================
 func apply_level_up() -> bool:
 	if current_level >= 6:
 		return false
@@ -707,10 +678,8 @@ func update_position(new_cell: Vector2i): grid_cell = new_cell
 
 
 func apply_damage(damage_amount : int) -> bool:
-	# ★ 核心修复：如果是无敌状态，直接免疫所有伤害（包括反伤、流血、陷阱等）
 	if get_meta("gm_god", false):
 		return hit_points <= 0
-		
 	hit_points -= damage_amount
 	if hit_points < 0: hit_points = 0
 	update_hp_label()
@@ -734,8 +703,6 @@ func play_animation(anim_name: String, force: bool = false):
 
 func set_facing_direction(dir: Vector2):
 	if dir == Vector2.ZERO or not animated_sprite: return
-	
-	# 记录完整的四向朝向（用于背击计算）
 	if abs(dir.x) >= abs(dir.y):
 		facing_dir = Vector2i(sign(dir.x), 0)
 	else:
@@ -812,7 +779,6 @@ func play_hit_effect(direction: Vector2, is_hit: bool):
 	).set_delay(MapConst.HIT_FLASH_DURATION)
 
 
-# ★ 核心新增：全局血条显隐开关
 func set_hp_bar_visible(v : bool):
 	_hp_bar_visible = v
 	if is_instance_valid(hp_bar_container):
@@ -1008,17 +974,9 @@ func apply_boss_form(new_stats: UnitData, hp_mode: String, min_hp: int,
 		_:
 			hit_points = unit_stats.max_hp
 
-	if unit_stats.weapon_slot != null:
-		weapon_slot = unit_stats.weapon_slot
-	else:
-		var def_w: String = UnitDataManager.get_default_weapon_id(unit_stats.unit_name)
-		if def_w != "":
-			var inst := ItemInstance.new()
-			inst.item_id = def_w
-			inst.count = 1
-			weapon_slot = inst
-		else:
-			weapon_slot = null
+	# ★ v4.8：武器内联字段随 unit_stats 自动切换；缓存需失效
+	weapon_slot = null
+	_invalidate_weapon_cache()
 
 	max_armor_slots = unit_stats.max_armor_slots
 	armor_slots.clear()

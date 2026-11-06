@@ -119,6 +119,25 @@ func reset_combat_buffs():
 @export var armor_slots: Array = []
 @export var max_armor_slots: int = 2
 
+# ============================================================
+#  ★ v4.8 武器数值内联（武器槽位废弃，数值全部直挂单位）
+#  weapon_slot 保留仅用于旧档兼容，不再参与任何战斗计算
+#  upgrade_level 永久废弃
+# ============================================================
+@export var weapon_id: String = ""
+@export var weapon_quality: String = "common"
+@export var base_attack: float = 0.0
+@export var attack_style: String = "standard"
+@export var weapon_attack_range: int = 1
+@export var weapon_min_attack_range: int = 1
+@export var weapon_category: String = ""
+@export var weapon_modifier: Dictionary = {}
+@export var weapon_physical_penetration: float = 0.0
+@export var weapon_magic_penetration: float = 0.0
+@export var weapon_heavy_attack: Dictionary = {}
+@export var weapon_magic_attack: Dictionary = {}
+@export var weapon_heal_effect: Dictionary = {}
+
 @export var talent_slots: Array = []
 @export var max_talent_slots: int = 1
 
@@ -301,6 +320,21 @@ func to_dict() -> Dictionary:
 		"boss_mechanic_params": boss_mechanic_params.duplicate(true),
 		"boss_dialogue_hooks": boss_dialogue_hooks.duplicate(true),
 		"phases": normalize_phases(phases),
+
+		# ★ v4.8 新增内联武器字段
+		"weapon_id": weapon_id,
+		"weapon_quality": weapon_quality,
+		"base_attack": base_attack,
+		"attack_style": attack_style,
+		"weapon_attack_range": weapon_attack_range,
+		"weapon_min_attack_range": weapon_min_attack_range,
+		"weapon_category": weapon_category,
+		"weapon_modifier": weapon_modifier.duplicate(true),
+		"weapon_physical_penetration": weapon_physical_penetration,
+		"weapon_magic_penetration": weapon_magic_penetration,
+		"weapon_heavy_attack": weapon_heavy_attack.duplicate(true),
+		"weapon_magic_attack": weapon_magic_attack.duplicate(true),
+		"weapon_heal_effect": weapon_heal_effect.duplicate(true),
 	}
 	return d
 
@@ -399,6 +433,46 @@ static func from_dict(d: Dictionary) -> UnitData:
 			t_inst.is_ready = true
 			t_inst.cooldown_remaining = 0
 		data.advanced_talent_inst = t_inst
+
+	# ★ v4.8 读取内联武器字段
+	data.weapon_id = str(d.get("weapon_id", ""))
+	data.weapon_quality = str(d.get("weapon_quality", "common"))
+	data.base_attack = float(d.get("base_attack", 0.0))
+	data.attack_style = str(d.get("attack_style", "standard"))
+	data.weapon_attack_range = int(d.get("weapon_attack_range", 1))
+	data.weapon_min_attack_range = int(d.get("weapon_min_attack_range", 1))
+	data.weapon_category = str(d.get("weapon_category", ""))
+	var wm_raw : Variant = d.get("weapon_modifier", {})
+	data.weapon_modifier = (wm_raw as Dictionary).duplicate(true) if wm_raw is Dictionary else {}
+	data.weapon_physical_penetration = float(d.get("weapon_physical_penetration", 0.0))
+	data.weapon_magic_penetration = float(d.get("weapon_magic_penetration", 0.0))
+	var wh_raw : Variant = d.get("weapon_heavy_attack", {})
+	data.weapon_heavy_attack = (wh_raw as Dictionary).duplicate(true) if wh_raw is Dictionary else {}
+	var wma_raw : Variant = d.get("weapon_magic_attack", {})
+	data.weapon_magic_attack = (wma_raw as Dictionary).duplicate(true) if wma_raw is Dictionary else {}
+	var whe_raw : Variant = d.get("weapon_heal_effect", {})
+	data.weapon_heal_effect = (whe_raw as Dictionary).duplicate(true) if whe_raw is Dictionary else {}
+
+	# ★ v4.8 旧档迁移：内联字段为空但 weapon_slot 有值 → 把 ItemData 搬到内联字段
+	if data.weapon_id == "" and data.weapon_slot != null:
+		var wdata := ItemManager.get_item_data(data.weapon_slot.item_id)
+		if wdata:
+			data.weapon_id = data.weapon_slot.item_id
+			data.weapon_quality = wdata.quality
+			data.base_attack = wdata.base_attack
+			data.attack_style = wdata.attack_style
+			data.weapon_attack_range = wdata.attack_range
+			data.weapon_min_attack_range = wdata.min_attack_range
+			data.weapon_category = wdata.category
+			data.weapon_modifier = wdata.modifier.duplicate(true)
+			data.weapon_physical_penetration = wdata.physical_penetration
+			data.weapon_magic_penetration = wdata.magic_penetration
+			data.weapon_heavy_attack = wdata.heavy_attack.duplicate(true)
+			data.weapon_magic_attack = wdata.magic_attack.duplicate(true)
+			data.weapon_heal_effect = wdata.heal_effect.duplicate(true)
+			if OS.is_debug_build():
+				print("[UnitData] 旧档迁移武器：%s → 内联字段" % data.weapon_id)
+
 	return data
 
 

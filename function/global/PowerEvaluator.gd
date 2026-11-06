@@ -1,12 +1,6 @@
 class_name PowerEvaluator
 extends RefCounted
 
-# 战力评估：
-#   - 每个单位的"基础战力"= HP + (力量 + 灵巧 + 智力 + 信仰) × 3
-#   - 玩家总战力再叠加武器攻击、防具减伤、词条加成、等级
-#   - 敌人总战力再乘以节点类型的 HP 倍率（ELITE ×1.5 / BOSS 杂兵 ×1.2）
-#   - 星级 = 敌人总战力 / 玩家总战力 的比值映射
-
 static func unit_power(unit_name: String) -> int:
 	var d = UnitDataManager.get_unit_data(unit_name)
 	if d.is_empty(): return 0
@@ -23,11 +17,11 @@ static func player_party_power() -> int:
 		if ud.is_dead: continue
 		var power := unit_power(ud.unit_name)
 
-		if ud.weapon_slot:
-			var wd = ItemManager.get_item_data(ud.weapon_slot.item_id)
+		# ★ v4.8：武器数值内联，upgrade_level 永久废弃（不再计入战力）
+		if ud.weapon_id != "":
+			var wd = ItemManager.get_item_data(ud.weapon_id)
 			if wd:
 				power += wd.base_attack * 5
-				power += ud.weapon_slot.upgrade_level * 20
 
 		for slot in ud.armor_slots:
 			if slot:
@@ -53,7 +47,6 @@ static func evaluate_map_node(map_data: MapData) -> Dictionary:
 	var acc: Array = [0]
 	_eval_node(scene_inst, pool_map, acc)
 
-	# 节点类型 HP 倍率（与 UnitSpawner._create_unit_stats 对齐）
 	var type_mult := 1.0
 	match map_data.node_type:
 		MapNode.NodeType.ELITE: type_mult = 1.5
@@ -87,13 +80,13 @@ static func _eval_node(node: Node, pool_map: Dictionary, acc: Array):
 	if node is UnitPlacerTool:
 		var cfg = node.export_config()
 		if cfg is UnitConfig:
-			if cfg.team_id == 1:   # 只统计敌人
+			if cfg.team_id == 1:
 				if cfg.is_random_pool:
 					acc[0] += _eval_random_pool(cfg, pool_map)
 				else:
 					var p := unit_power(cfg.unit_name)
 					if cfg.is_boss:
-						p *= 2   # Boss 本体战力 ×2
+						p *= 2
 					acc[0] += p
 	for child in node.get_children():
 		_eval_node(child, pool_map, acc)

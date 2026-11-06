@@ -9,10 +9,6 @@ const FUSION_COST : int = 2000
 var REFORGE_COST : int = 500
 
 var MAX_SLOTS : int = 9
-var WEAPON_UPGRADE_MAX : int = 5
-var UPGRADE_BASE_COST : int = 50
-var UPGRADE_GROWTH : float = 2.0
-var UPGRADE_COST_TABLE : Array = []
 var CRAFT_COST : int = 200
 var QUALITY_SCORE : Dictionary = {"common": 1, "rare": 3, "epic": 6, "legendary": 10}
 var LUCKY_CHANCE : float = 0.05
@@ -31,14 +27,9 @@ func _init(p):
 	panel = p
 	reload_config()
 
-
 func reload_config():
 	var cfg : Dictionary = GameConfigManager.get_value("economy_config.json", "forge", {})
 	MAX_SLOTS = int(cfg.get("max_slots", 9))
-	WEAPON_UPGRADE_MAX = int(cfg.get("weapon_upgrade_max", 5))
-	UPGRADE_BASE_COST = int(cfg.get("upgrade_base_cost", 50))
-	UPGRADE_GROWTH = float(cfg.get("upgrade_growth", 2.0))
-	UPGRADE_COST_TABLE = cfg.get("upgrade_cost_table", []).duplicate()
 	CRAFT_COST = int(cfg.get("craft_cost", 200))
 	REFORGE_COST = int(cfg.get("reforge_cost", 500))
 	QUALITY_SCORE = cfg.get("quality_score", {"common":1,"rare":3,"epic":6,"legendary":10}).duplicate()
@@ -55,7 +46,6 @@ func reload_config():
 			[16, [10, 30, 40, 20]],
 			[25, [ 0, 15, 40, 45]],
 		]
-
 
 func init_slots():
 	forge_slots.clear()
@@ -602,13 +592,6 @@ func on_forge_craft_pressed():
 	panel._update_gold_display()
 	panel._show_craft_result(result)
 	panel._schedule_build_ui()
-
-func _get_weapon_upgrade_cost(level: int) -> int:
-	if not UPGRADE_COST_TABLE.is_empty():
-		if level < 0 or level >= UPGRADE_COST_TABLE.size():
-			return -1
-		return int(UPGRADE_COST_TABLE[level])
-	return int(UPGRADE_BASE_COST * pow(UPGRADE_GROWTH, level))
 
 
 # ============================================================

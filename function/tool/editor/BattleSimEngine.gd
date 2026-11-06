@@ -1,11 +1,6 @@
 class_name BattleSimEngine
 extends RefCounted
 
-# ============================================================
-#  BattleSimEngine — 1v1 战斗引擎
-#  含：主动技能 / 反击 / 全词条 / 遗物 / 精炼 / 武器升级
-# ============================================================
-
 const QUALITY_MULT : Dictionary = {"common":1.0,"rare":1.25,"epic":1.5,"legendary":1.8}
 const CRIT_QUALITY_BONUS : Dictionary = {"common":0.0,"rare":0.03,"epic":0.05,"legendary":0.08}
 const STRENGTH_DEF_FACTOR : float = 0.3
@@ -24,7 +19,6 @@ const BLOOD_RAGE_HEAL_PERCENT : Array = [0.15, 0.20, 0.25]
 const ZEAL_PER_STACK : Array = [0.10, 0.15, 0.20]
 const ZEAL_MAX_STACKS : int = 5
 
-# ---- 状态 ----
 var battle_log : Array = []
 var _p : UnitData
 var _e : UnitData
@@ -32,11 +26,9 @@ var _php : int
 var _ehp : int
 var _winner : int = -1
 
-# ---- 词条触发标记（每回合重置） ----
 var _p_used_this_turn : Dictionary = {}
 var _e_used_this_turn : Dictionary = {}
 
-# ---- 累积状态 ----
 var _p_bleed_stacks : int = 0
 var _e_bleed_stacks : int = 0
 var _p_zeal_target : String = ""
@@ -48,7 +40,6 @@ var _p_combo_count : int = 0
 var _e_combo_target : String = ""
 var _e_combo_count : int = 0
 
-# ---- 遗物 ----
 var _p_first_attack_crit : bool = false
 var _e_first_attack_crit : bool = false
 var _p_first_spell_free : bool = false
@@ -58,12 +49,10 @@ var _e_auto_revive : bool = false
 var _p_turn_first_hit_used : bool = false
 var _e_turn_first_hit_used : bool = false
 
-# ---- 手动触发策略 ----
 var _manual_triggers : Dictionary = {"p": [], "e": []}
 
-# ---- 配置 ----
-var talent_mode : String = "auto"    # "auto" / "disabled"
-var counter_enabled : bool = true    # 是否启用反击
+var talent_mode : String = "auto"
+var counter_enabled : bool = true
 
 
 func set_manual_triggers(p_list : Array, e_list : Array):
@@ -79,9 +68,6 @@ func set_counter_enabled(enabled : bool):
 	counter_enabled = enabled
 
 
-# ============================================================
-#  主入口
-# ============================================================
 func run(p : UnitData, e : UnitData) -> Array:
 	battle_log.clear()
 	_p = p
@@ -90,7 +76,6 @@ func run(p : UnitData, e : UnitData) -> Array:
 	_ehp = e.hit_points if e.hit_points > 0 else e.max_hp
 	_winner = -1
 
-	# 遗物状态初始化
 	_p_first_attack_crit = p.relic_first_attack_crit_available
 	_e_first_attack_crit = e.relic_first_attack_crit_available
 	_p_first_spell_free = p.relic_first_spell_free_available
@@ -100,7 +85,6 @@ func run(p : UnitData, e : UnitData) -> Array:
 	_p_turn_first_hit_used = false
 	_e_turn_first_hit_used = false
 
-	# 累积状态重置
 	_p_bleed_stacks = 0
 	_e_bleed_stacks = 0
 	_p_zeal_target = ""
@@ -161,9 +145,6 @@ func get_result_text() -> String:
 	return "平局"
 
 
-# ============================================================
-#  攻击（含主动技能 / 暴击 / 反击 / 词条）
-# ============================================================
 func _do_attack(atk : UnitData, dfd : UnitData, is_counter : bool):
 	if _php <= 0 or _ehp <= 0: return
 	var is_p_atk : bool = (atk == _p)
@@ -196,7 +177,6 @@ func _do_attack(atk : UnitData, dfd : UnitData, is_counter : bool):
 
 	# ---------- 词条：zeal / combo（累积型） ----------
 	if talent_mode == "auto":
-		# zeal：连续攻击同一目标
 		var target_key : String = dfd.unit_name
 		var zeal_stacks : int = _zeal_update(atk, is_p_atk, target_key)
 		if zeal_stacks > 1 and _has_talent(atk, "zeal"):
@@ -206,7 +186,6 @@ func _do_attack(atk : UnitData, dfd : UnitData, is_counter : bool):
 			dmg = int(dmg * bonus)
 			_add("[color=yellow]狂热 ×%.2f（第 %d 次）[/color]" % [bonus, zeal_stacks])
 
-		# combo：连续攻击同一目标
 		var combo_count : int = _combo_update(atk, is_p_atk, target_key)
 		if combo_count > 1 and _has_talent(atk, "combo"):
 			var lv_c = _get_talent_level(atk, "combo")
@@ -353,7 +332,6 @@ func _do_attack(atk : UnitData, dfd : UnitData, is_counter : bool):
 
 	# ---------- 击杀检查 ----------
 	if _ehp <= 0 or _php <= 0:
-		# 遗物：auto_revive
 		if _ehp <= 0 and _e_auto_revive:
 			_ehp = _e.max_hp
 			_e_auto_revive = false
@@ -363,7 +341,6 @@ func _do_attack(atk : UnitData, dfd : UnitData, is_counter : bool):
 			_p_auto_revive = false
 			_add("  [color=#DDA0DD][遗物] %s 凤凰之羽复活[/color]" % _display(_p))
 		else:
-			# 词条：revive
 			if _ehp <= 0 and talent_mode == "auto" and _try_consume_talent(_e, false, "revive"):
 				_ehp = _e.max_hp
 				_add("  [color=yellow]%s 复活词条！满血复活[/color]" % _display(_e))
@@ -371,7 +348,6 @@ func _do_attack(atk : UnitData, dfd : UnitData, is_counter : bool):
 				_php = _p.max_hp
 				_add("  [color=yellow]%s 复活词条！满血复活[/color]" % _display(_p))
 			else:
-				# 真正击杀：触发击杀词条
 				if _ehp <= 0:
 					_add("[color=green]%s 阵亡！[/color]" % _display(_e))
 					_on_kill(atk, is_p_atk)
@@ -387,11 +363,7 @@ func _do_attack(atk : UnitData, dfd : UnitData, is_counter : bool):
 			_do_attack(dfd, atk, true)
 
 
-# ============================================================
-#  反击判定
-# ============================================================
 func _can_counter(defender : UnitData) -> bool:
-	# 只有 counter_boost 词条可触发（跟原游戏一致）
 	if not _has_talent(defender, "counter_boost"):
 		return false
 	var wt : String = defender.get_weapon_type()
@@ -400,10 +372,6 @@ func _can_counter(defender : UnitData) -> bool:
 	return true
 
 
-# ============================================================
-#  词条就绪检查 / 消耗
-# ============================================================
-## 每回合每词条只触发一次
 func _try_consume_talent(unit : UnitData, is_p : bool, tid : String) -> bool:
 	if talent_mode != "auto": return false
 	if not _has_talent(unit, tid): return false
@@ -427,9 +395,6 @@ func _get_talent_level(unit : UnitData, tid : String) -> int:
 	return TalentManager.get_talent_level(unit.unit_name, tid)
 
 
-# ============================================================
-#  zeal / combo 累积
-# ============================================================
 func _zeal_update(_atk : UnitData, is_p : bool, target_key : String) -> int:
 	if is_p:
 		if _p_zeal_target == target_key:
@@ -464,9 +429,6 @@ func _combo_update(_atk : UnitData, is_p : bool, target_key : String) -> int:
 		return _e_combo_count
 
 
-# ============================================================
-#  bleed
-# ============================================================
 func _apply_bleed(atk : UnitData, dfd : UnitData, is_p_atk : bool):
 	var target_is_enemy : bool = (dfd != atk)
 	if not target_is_enemy: return
@@ -497,9 +459,6 @@ func _apply_bleed(atk : UnitData, dfd : UnitData, is_p_atk : bool):
 				_display(_p), _php, _display(_e), _ehp])
 
 
-# ============================================================
-#  击杀连锁（blood_rage / cleave）
-# ============================================================
 func _on_kill(killer : UnitData, killer_is_p : bool):
 	if talent_mode == "auto" and _has_talent(killer, "blood_rage"):
 		var lv = _get_talent_level(killer, "blood_rage")
@@ -510,9 +469,6 @@ func _on_kill(killer : UnitData, killer_is_p : bool):
 		_add("  [color=green]血怒 +%d[/color]" % heal)
 
 
-# ============================================================
-#  伤害计算
-# ============================================================
 func _calc_damage(atk : UnitData, dfd : UnitData) -> int:
 	var wd = _get_weapon_data(atk)
 	if wd == null: return 1
@@ -548,15 +504,12 @@ func _calc_damage_no_defense(atk : UnitData, damage_mult : float) -> int:
 	var total : float = (base + bonus + atk.buff_attack_flat) * (1.0 + atk.buff_attack_percent)
 	return int(total * damage_mult)
 
-# ============================================================
-#  辅助
-# ============================================================
+
 func _pick_active_skill(atk : UnitData, is_p : bool) -> String:
 	var ready : Array = _get_ready_skills(atk)
 	if ready.is_empty(): return ""
 	var manual : Array = _manual_triggers["p"] if is_p else _manual_triggers["e"]
 	if manual.is_empty():
-		# 未指定手动触发 → 默认第一个就绪技能
 		return ready[0]
 	for sid in ready:
 		if sid in manual: return sid
@@ -578,8 +531,10 @@ func _get_ready_skills(u : UnitData) -> Array:
 
 
 func _get_weapon_data(u : UnitData) -> ItemData:
-	if u.weapon_slot == null: return null
-	return ItemManager.get_item_data(u.weapon_slot.item_id)
+	# ★ v4.8：从内联字段构造虚拟 ItemData
+	if u == null or u.weapon_id == "":
+		return null
+	return UnitDataManager.build_weapon_item_data(u)
 
 
 func _display(u : UnitData) -> String:
