@@ -103,11 +103,25 @@ func show_enemy_preview(move_cells: Dictionary, attack_cells: Dictionary, attack
 	_fade_out_missing(move_cells, safe_move, false)
 	_fade_out_missing(attack_cells, safe_attack, true)
 	
+	# ★ 核心修改：将攻击范围拆分为“纯攻击”和“重叠部分”
+	var pure_attack := {}
+	var overlap := {}
+	for c in attack_cells:
+		if move_cells.has(c):
+			overlap[c] = true
+		else:
+			pure_attack[c] = true
+
+	# 1. 画底层的移动范围
 	_process_incoming(move_cells, Color(1, 1, 1, 0.3), -1, safe_move, false, instant, danger_cells, danger_color)
 	
-	# ★ 核心修复：不再使用 attack_danger 去强行覆盖，直接传入完整的 danger_cells，
-	# 让攻击范围正常保留底层的红叉。
-	_process_incoming(attack_cells, attack_color, 0, safe_attack, true, instant, danger_cells, danger_color)
+	# 2. 画纯攻击范围（无法移动到的危险区，使用原有的 attack_color 红色）
+	_process_incoming(pure_attack, attack_color, 0, safe_attack, true, instant, danger_cells, danger_color)
+	
+	# 3. 画重叠范围（既可以走到，又在攻击范围内的格子，使用浅红色警示）
+	if not overlap.is_empty():
+		var overlap_color = Color(0.9, 0.4, 0.4, 0.7) # 浅红色
+		_process_incoming(overlap, overlap_color, 0, safe_attack, true, instant, danger_cells, danger_color)
 
 func _fade_out_missing(target_cells: Dictionary, origin_cell: Vector2i, is_attack_type: bool):
 	var max_dist = 0
@@ -146,24 +160,23 @@ func _process_incoming(target_cells: Dictionary, color: Color, z_index: int, ori
 			rect.z_index = z_index
 			data["is_attack"] = is_attack_type
 			
-			# ★ 动态刷新已存在格子的叉子状态
+			# ★ 动态刷新已存在格子的点
 			var existing_cross = rect.get_node_or_null("DangerCross")
 			var should_have_cross = danger_cells.has(cell)
 			
 			if should_have_cross:
 				if existing_cross == null:
-					var cross = TextureRect.new()
-					cross.name = "DangerCross"
-					cross.texture = _get_cross_texture()
-					cross.custom_minimum_size = Vector2(4, 4)
-					cross.size = Vector2(4, 4)
-					cross.position = Vector2(6, 6)
-					cross.modulate = danger_color
-					cross.mouse_filter = Control.MOUSE_FILTER_IGNORE
-					cross.z_index = 10 # ★ 保证红叉在最上面
-					rect.add_child(cross)
+					var dot = ColorRect.new()
+					dot.name = "DangerCross"
+					dot.custom_minimum_size = Vector2(2, 2)
+					dot.size = Vector2(2, 2)
+					dot.position = Vector2(7, 7) # 在 16x16 中居中
+					dot.color = danger_color
+					dot.mouse_filter = Control.MOUSE_FILTER_IGNORE
+					dot.z_index = 10 # 保证在最上层
+					rect.add_child(dot)
 				else:
-					existing_cross.modulate = danger_color
+					existing_cross.color = danger_color
 					existing_cross.z_index = 10
 			elif not should_have_cross and existing_cross != null:
 				existing_cross.queue_free()
@@ -200,16 +213,15 @@ func _process_incoming(target_cells: Dictionary, color: Color, z_index: int, ori
 			rect.material = mat
 			
 			if danger_cells.has(cell):
-				var cross = TextureRect.new()
-				cross.name = "DangerCross"
-				cross.texture = _get_cross_texture()
-				cross.custom_minimum_size = Vector2(4, 4)
-				cross.size = Vector2(4, 4)
-				cross.position = Vector2(6, 6)
-				cross.modulate = danger_color
-				cross.mouse_filter = Control.MOUSE_FILTER_IGNORE
-				cross.z_index = 10 # ★ 保证红叉在最上面
-				rect.add_child(cross)
+				var dot = ColorRect.new()
+				dot.name = "DangerCross"
+				dot.custom_minimum_size = Vector2(2, 2)
+				dot.size = Vector2(2, 2)
+				dot.position = Vector2(7, 7) # 在 16x16 中居中
+				dot.color = danger_color
+				dot.mouse_filter = Control.MOUSE_FILTER_IGNORE
+				dot.z_index = 10
+				rect.add_child(dot)
 			
 			highlight_container.add_child(rect)
 			
