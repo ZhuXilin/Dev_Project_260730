@@ -113,8 +113,14 @@ func _apply_phase(unit: Unit, phase_idx: int) -> void:
 	var version: int = int(unit.get_meta("boss_phase_version", 0)) + 1
 	unit.set_meta("boss_phase_version", version)
 
-	# ★ 核心修改：只有真正在战斗中“转阶段”（phase_idx > 0）时，才触发震屏和提示。
-	# 如果是初始阶段（0），直接跳过，避免对话一结束就莫名其妙震动。
+	# ★ 修复：形态切换后立刻刷新血条/信息面板，避免对话期间玩家看到旧数据。
+	#   原实现把刷新放在 await 之后，导致对话播放期间面板仍显示旧形态的 max_hp / 数值。
+	if is_instance_valid(unit):
+		unit.update_hp_label()
+		SignalBus.request_show_info.emit(unit)
+
+	# ★ 只有真正"转阶段"（phase_idx > 0）时才触发震屏和提示。
+	#   初始阶段（phase_idx == 0）跳过，避免对话一结束就莫名其妙震动。
 	if phase_idx > 0:
 		SignalBus.request_screen_shake.emit(0.4, 8.0, Vector2.ZERO)
 		SignalBus.request_hint_override.emit(
@@ -127,10 +133,9 @@ func _apply_phase(unit: Unit, phase_idx: int) -> void:
 		if dlg_id != "" and StoryManager.play_dialogue_by_id(dlg_id):
 			await DialogueManager.dialogue_finished
 
-	# ★ 新增：对话结束后，强制刷新血条和左侧面板
+	# ★ 对话结束后再刷新一次（兜底：若对话期间有其他效果改变了 unit 状态）
 	if is_instance_valid(unit):
 		unit.update_hp_label()
-		# 强制派发信号，打破左侧面板的缓存机制，确保显示最新形态数据
 		SignalBus.request_show_info.emit(unit)
 
 

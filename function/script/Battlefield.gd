@@ -1,7 +1,7 @@
 extends Node2D
 class_name Battlefield
 
-const BOSS_NODE_TYPE = 6
+const BOSS_NODE_TYPE = MapNode.NodeType.BOSS
 
 @export var map_data : MapData = null
 @export var transition_delay_before_fade : float = 0.5
