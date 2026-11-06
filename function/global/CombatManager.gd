@@ -76,7 +76,7 @@ func get_active_skill_range_bonus(unit: Unit) -> int:
 func get_attackable_targets(unit: Unit) -> Array:
 	var weapon_data = unit.get_weapon_data()
 	if not weapon_data: return []
-	var max_range : int = weapon_data.attack_range
+	var max_range : int = weapon_data.attack_range + unit.bonus_attack_range
 	var min_range : int = weapon_data.min_attack_range
 	max_range += get_active_skill_range_bonus(unit)
 	var is_healer = (weapon_data.category == "staff" or weapon_data.attack_style == "heal")
@@ -191,7 +191,11 @@ func _calc_penetration(attacker: Unit, is_magic: bool) -> float:
 
 	var temp_pen : float = attacker.temp_magic_penetration if is_magic else attacker.temp_physical_penetration
 
-	return weapon_pen + affix_pen + temp_pen
+	# ★ 步 4-B：升级带来的固定穿透
+	var static_pen : float = attacker.bonus_static_magic_penetration if is_magic else attacker.bonus_static_physical_penetration
+
+	return weapon_pen + affix_pen + temp_pen + static_pen
+
 
 func calculate_damage(attacker: Unit, defender: Unit, apply_heavy: bool = true) -> int:
 	var weapon_data = attacker.get_weapon_data()
@@ -433,6 +437,7 @@ func execute_attack(attacker: Unit, defender: Unit, forced_skill_id: String = ""
 	if attacker.unit_stats.team_id == 0:
 		crit_mult += SoulFireManager.get_crit_damage_bonus()
 	crit_mult += attacker.get_total_affix_value_float("crit_damage")
+	crit_mult += attacker.static_crit_damage_bonus
 
 	var crit_talent_triggered : bool = false
 	if force_crit:
@@ -445,6 +450,7 @@ func execute_attack(attacker: Unit, defender: Unit, forced_skill_id: String = ""
 			base_mult = float(cdata.effect_params.get("damage_multiplier", 1.5))
 		crit_mult = base_mult + (lv_crit - 1) * 0.25 + attacker.buff_crit_damage_bonus
 		crit_mult += attacker.get_total_affix_value_float("crit_damage")
+		crit_mult += attacker.static_crit_damage_bonus
 		is_crit = true
 		crit_talent_triggered = true
 		TalentManager.reset_talent(attacker, "crit")

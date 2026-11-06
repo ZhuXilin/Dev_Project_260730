@@ -110,6 +110,7 @@ func _build_save_data() -> SaveData:
 	save.soul_fire_altar_level = SoulFireManager.altar_level
 	save.soul_fire_initial_level = GameState.soul_fire_initial_level
 	save.unit_attr_cap = GameState.unit_attr_cap.duplicate(true)
+	save.unit_level_cap = GameState.unit_level_cap.duplicate(true)
 	save.unit_attr_points = GameState.unit_attr_points.duplicate(true)
 	save.tag_purchase_count = GameState.tag_purchase_count.duplicate(true)
 
@@ -219,6 +220,7 @@ func _apply_save_data(save: SaveData):
 	GameState.soul_fire_initial_level = save.soul_fire_initial_level
 
 	GameState.unit_attr_cap = _safe_dict(save.unit_attr_cap)
+	GameState.unit_level_cap = _safe_dict(save.unit_level_cap)
 	GameState.unit_attr_points = _safe_dict(save.unit_attr_points)
 	GameState.tag_purchase_count = _safe_dict(save.tag_purchase_count)
 

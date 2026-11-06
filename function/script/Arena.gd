@@ -121,6 +121,14 @@ func _init_arena_state():
 
 	_current_player_data.reset_combat_buffs()
 	_current_player_data.hit_points = _current_player_data.max_hp
+	_current_player_data.level = 1
+	_current_player_data.attack_range_bonus = 0
+	_current_player_data.static_physical_penetration = 0.0
+	_current_player_data.static_magic_penetration = 0.0
+	_current_player_data.static_crit_damage_bonus = 0.0
+
+	_current_player_data.max_armor_slots = 2
+	_current_player_data.armor_slots = [null, null]
 	_current_player_data.max_armor_slots = 2
 	_current_player_data.armor_slots = [null, null]
 
@@ -685,7 +693,14 @@ func _refresh_center_panel():
 func _refresh_streak_label():
 	var gold_hint : String = "（退出失效）"
 	if _phase == Phase.IDLE:
-		streak_label.text = "金币：%d %s\n通关次数：%d\n当前魂：%d" % [_arena_gold, gold_hint, GameState.arena_clear_count, GameState.soul]
+		var lv : int = 1
+		var cap : int = 1
+		if _current_player_data:
+			lv = _current_player_data.level
+			cap = int(GameState.unit_level_cap.get(_current_player_data.unit_name, 1))
+		streak_label.text = "金币：%d %s\n通关次数：%d\n当前魂：%d\nLv %d / %d" % [
+			_arena_gold, gold_hint, GameState.arena_clear_count, GameState.soul, lv, cap
+		]
 	elif _phase == Phase.SURVIVAL:
 		streak_label.text = "金币：%d %s\n生存：%d / %d\n本局净：%+d 魂" % [_arena_gold, gold_hint, _survival_round, SURVIVAL_ROUNDS, _get_net_gain()]
 	else:

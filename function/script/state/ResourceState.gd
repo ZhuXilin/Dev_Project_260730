@@ -18,6 +18,7 @@ var soul_fire_current : int = 0
 var soul_fire_altar_level : int = 0
 var soul_fire_initial_level : int = 0
 var unit_attr_cap : Dictionary = {}
+var unit_level_cap : Dictionary = {}
 var unit_attr_points : Dictionary = {}
 var tag_purchase_count : Dictionary = {}
 

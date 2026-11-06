@@ -25,9 +25,16 @@
 	"arcane": 4.0,
 	"arena_exp": 30.0,
 	"attr_cap_levels": [
-	  { "dexterity": 1.0, "vitality": 1.0 },
-	  { "dexterity": 2.0 },
-	  { "dexterity": 1.0, "strength": 1.0, "vitality": 1.0 }
+	  { "dexterity": 1, "vitality": 1 },
+	  { "dexterity": 2 },
+	  { "dexterity": 1, "strength": 1, "vitality": 1 },
+	  { "dexterity": 2, "vitality": 1 },
+	  { "dexterity": 3, "vitality": 2 }
+	],
+	"level_mechanics": [
+	  {}, {}, {},
+	  { "range_plus_1": true },
+	  {}
 	],
 	"avatar": "avatar_013",
 	"default_talents": ["crit"],
@@ -76,9 +83,15 @@
 	"arcane": 3.0,
 	"arena_exp": 55.0,
 	"attr_cap_levels": [
-	  { "strength": 1.0, "vitality": 3.0 },
-	  { "faith": 1.0, "strength": 1.0 },
-	  { "faith": 1.0, "vitality": 5.0 }
+	  { "strength": 1, "vitality": 3 },
+	  { "faith": 1, "strength": 1 },
+	  { "faith": 1, "vitality": 5 },
+	  { "strength": 2, "vitality": 3 },
+	  { "strength": 2, "faith": 2, "vitality": 4 }
+	],
+	"level_mechanics": [
+	  {}, {}, {}, {},
+	  { "range_plus_1": true }
 	],
 	"avatar": "avatar_010",
 	"core_trait": "bulwark",
@@ -128,9 +141,15 @@
 	"arcane": 2.0,
 	"arena_exp": 25.0,
 	"attr_cap_levels": [
-	  { "strength": 2.0, "vitality": 1.0 },
-	  { "strength": 1.0, "vitality": 2.0 },
-	  { "vitality": 4.0 }
+	  { "strength": 2, "vitality": 1 },
+	  { "strength": 1, "vitality": 2 },
+	  { "vitality": 4 },
+	  { "strength": 3, "vitality": 2 },
+	  { "strength": 3, "vitality": 3 }
+	],
+	"level_mechanics": [
+	  {}, {}, {}, {},
+	  { "crit_damage_plus_20": true }
 	],
 	"avatar": "avatar_020",
 	"core_trait": "charge",
@@ -159,7 +178,8 @@
   },
   "boss_dragonlord": {
 	"arcane": 10,
-	"attr_cap_levels": [{}, {}, {}],
+	"attr_cap_levels": [{}, {}, {}, {}, {}],
+	"level_mechanics": [{}, {}, {}, {}, {}],
 	"avatar": "avatar_022",
 	"boss_dialogue_hooks": {
 	  "battle_start": "boss_intro_day3",
@@ -228,7 +248,8 @@
   },
   "boss_dragonlord_form2": {
 	"arcane": 12.0,
-	"attr_cap_levels": [{}, {}, {}],
+	"attr_cap_levels": [{}, {}, {}, {}, {}],
+	"level_mechanics": [{}, {}, {}, {}, {}],
 	"avatar": "avatar_022",
 	"core_trait": "dragon_might",
 	"default_armors": [],
@@ -253,7 +274,8 @@
   },
   "boss_dragonlord_form3": {
 	"arcane": 14.0,
-	"attr_cap_levels": [{}, {}, {}],
+	"attr_cap_levels": [{}, {}, {}, {}, {}],
+	"level_mechanics": [{}, {}, {}, {}, {}],
 	"avatar": "avatar_022",
 	"core_trait": "dragon_might",
 	"default_armors": [],
@@ -283,8 +305,11 @@
 	"attr_cap_levels": [
 	  { "strength": 1.0, "vitality": 2.0 },
 	  { "dexterity": 1.0, "strength": 1.0 },
-	  { "dexterity": 1.0, "strength": 1.0, "vitality": 2.0 }
+	  { "dexterity": 1.0, "strength": 1.0, "vitality": 2.0 },
+	  {},
+	  {}
 	],
+	"level_mechanics": [{}, {}, {}, {}, {}],
 	"avatar": "avatar_023",
 	"boss_dialogue_hooks": {
 	  "battle_start": "boss_intro_day2",
@@ -320,8 +345,11 @@
 	"attr_cap_levels": [
 	  { "faith": 1.0, "intelligence": 1.0 },
 	  { "intelligence": 2.0 },
-	  { "faith": 1.0, "intelligence": 1.0, "vitality": 1.0 }
+	  { "faith": 1.0, "intelligence": 1.0, "vitality": 1.0 },
+	  {},
+	  {}
 	],
+	"level_mechanics": [{}, {}, {}, {}, {}],
 	"avatar": "avatar_024",
 	"boss_dialogue_hooks": {
 	  "battle_start": "boss_intro_day1",
@@ -376,9 +404,15 @@
 	"arcane": 4.0,
 	"arena_exp": 30.0,
 	"attr_cap_levels": [
-	  { "faith": 1.0, "intelligence": 1.0 },
-	  { "faith": 2.0 },
-	  { "faith": 1.0, "intelligence": 1.0, "vitality": 2.0 }
+	  { "faith": 1, "intelligence": 1 },
+	  { "faith": 2 },
+	  { "faith": 1, "intelligence": 1, "vitality": 2 },
+	  { "faith": 3, "vitality": 1 },
+	  { "faith": 3, "intelligence": 2, "vitality": 2 }
+	],
+	"level_mechanics": [
+	  {}, {}, {}, {},
+	  { "move_plus_1": true }
 	],
 	"avatar": "avatar_007",
 	"default_talents": ["heal_boost"],
@@ -427,9 +461,16 @@
 	"arcane": 9.0,
 	"arena_exp": 60.0,
 	"attr_cap_levels": [
-	  { "faith": 1.0, "strength": 1.0 },
-	  { "faith": 1.0, "vitality": 3.0 },
-	  { "faith": 2.0, "intelligence": 1.0, "strength": 1.0 }
+	  { "faith": 1, "strength": 1 },
+	  { "faith": 1, "vitality": 3 },
+	  { "faith": 2, "intelligence": 1, "strength": 1 },
+	  { "faith": 2, "strength": 2, "vitality": 2 },
+	  { "faith": 3, "strength": 3, "vitality": 3 }
+	],
+	"level_mechanics": [
+	  {}, {}, {},
+	  { "physical_penetration_plus_10": true },
+	  {}
 	],
 	"avatar": "avatar_022",
 	"core_trait": "dragon_might",
@@ -479,9 +520,15 @@
 	"arcane": 6.0,
 	"arena_exp": 35.0,
 	"attr_cap_levels": [
-	  { "faith": 1.0, "intelligence": 1.0 },
-	  { "intelligence": 2.0 },
-	  { "faith": 1.0, "intelligence": 1.0, "vitality": 1.0 }
+	  { "faith": 1, "intelligence": 1 },
+	  { "intelligence": 2 },
+	  { "faith": 1, "intelligence": 1, "vitality": 1 },
+	  { "intelligence": 3, "faith": 1 },
+	  { "intelligence": 3, "faith": 2, "vitality": 2 }
+	],
+	"level_mechanics": [
+	  {}, {}, {}, {},
+	  { "magic_penetration_plus_10": true }
 	],
 	"avatar": "avatar_009",
 	"default_talents": ["spell_chain"],
@@ -530,9 +577,17 @@
 	"arcane": 5.0,
 	"arena_exp": 40.0,
 	"attr_cap_levels": [
-	  { "dexterity": 1.0, "vitality": 2.0 },
-	  { "dexterity": 1.0, "strength": 1.0 },
-	  { "dexterity": 1.0, "vitality": 2.0 }
+	  { "dexterity": 1, "vitality": 2 },
+	  { "dexterity": 1, "strength": 1 },
+	  { "dexterity": 1, "vitality": 2 },
+	  { "dexterity": 3, "vitality": 2 },
+	  { "dexterity": 4, "vitality": 2 }
+	],
+	"level_mechanics": [
+	  {}, {},
+	  { "move_plus_1": true },
+	  { "range_plus_1": true },
+	  {}
 	],
 	"avatar": "avatar_005",
 	"default_talents": ["crit"],
@@ -581,9 +636,16 @@
 	"arcane": 3.0,
 	"arena_exp": 35.0,
 	"attr_cap_levels": [
-	  { "strength": 1.0, "vitality": 2.0 },
-	  { "dexterity": 1.0, "strength": 1.0 },
-	  { "dexterity": 1.0, "strength": 1.0, "vitality": 2.0 }
+	  { "strength": 1, "vitality": 2 },
+	  { "dexterity": 1, "strength": 1 },
+	  { "dexterity": 1, "strength": 1, "vitality": 2 },
+	  { "strength": 3, "vitality": 2 },
+	  { "strength": 3, "dexterity": 2, "vitality": 2 }
+	],
+	"level_mechanics": [
+	  {}, {}, {},
+	  { "physical_penetration_plus_10": true },
+	  {}
 	],
 	"avatar": "avatar_008",
 	"default_talents": ["crit"],
@@ -643,9 +705,15 @@
 	"arcane": 4.0,
 	"arena_exp": 30.0,
 	"attr_cap_levels": [
-	  { "strength": 1.0, "vitality": 1.0 },
-	  { "dexterity": 1.0, "strength": 1.0 },
-	  { "dexterity": 1.0, "strength": 1.0, "vitality": 2.0 }
+	  { "strength": 1, "vitality": 1 },
+	  { "dexterity": 1, "strength": 1 },
+	  { "dexterity": 1, "strength": 1, "vitality": 2 },
+	  { "dexterity": 2, "strength": 2, "vitality": 1 },
+	  { "dexterity": 3, "strength": 3, "vitality": 2 }
+	],
+	"level_mechanics": [
+	  {}, {}, {}, {},
+	  { "crit_damage_plus_20": true }
 	],
 	"avatar": "avatar_003",
 	"default_talents": ["crit"],

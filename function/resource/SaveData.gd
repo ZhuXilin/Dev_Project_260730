@@ -53,6 +53,7 @@ const CURRENT_VERSION = 11
 @export var soul_fire_altar_level: int = 0
 @export var soul_fire_initial_level: int = 0
 @export var unit_attr_cap: Dictionary = {}
+@export var unit_level_cap: Dictionary = {}
 @export var unit_attr_points: Dictionary = {}
 @export var tag_purchase_count: Dictionary = {}
 

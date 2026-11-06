@@ -105,6 +105,13 @@ var current_anim : String = "idle"
 var facing_flip_h : bool = false
 var _color_material : ShaderMaterial = null
 
+# ---- 等级 / 射程 / 穿透 / 暴伤 ---- 
+var current_level: int = 1
+var bonus_attack_range: int = 0
+var bonus_static_physical_penetration: float = 0.0
+var bonus_static_magic_penetration: float = 0.0
+var static_crit_damage_bonus: float = 0.0
+
 var _initialized: bool = false
 
 
@@ -272,7 +279,17 @@ func setup_unit(stats_data: UnitData, start_cell: Vector2i, initial_items: Array
 	taunt_by = null
 	taunt_rounds_left = 0
 
+	# 新创建的单位从 stats_data 读回等级与升级加成
+	current_level = stats_data.level
+	bonus_attack_range = stats_data.attack_range_bonus
+	bonus_static_physical_penetration = stats_data.static_physical_penetration
+	bonus_static_magic_penetration = stats_data.static_magic_penetration
+	static_crit_damage_bonus = stats_data.static_crit_damage_bonus
+
 	_initialized = true
+
+	update_hp_bar()
+	if hp_bar_container: hp_bar_container.visible = _hp_bar_visible
 
 
 func reset_relic_effects():
@@ -320,7 +337,7 @@ func get_weapon_stats() -> Dictionary:
 
 	var stats := default_stats.duplicate()
 	stats["attack"] = int(data.base_attack * quality_mult)
-	stats["attack_range"] = data.attack_range
+	stats["attack_range"] = data.attack_range + bonus_attack_range
 	stats["min_attack_range"] = data.min_attack_range
 	stats["attack_style"] = data.attack_style
 
@@ -431,7 +448,7 @@ func get_total_stats() -> Dictionary:
 		if data:
 			var quality_mult : float = CombatManager.QUALITY_MULT.get(data.quality, 1.0)
 			total["attack"] = int(data.base_attack * quality_mult)
-			total["attack_range"] = data.attack_range
+			total["attack_range"] = data.attack_range + bonus_attack_range
 			total["min_attack_range"] = data.min_attack_range
 			total["attack_style"] = data.attack_style
 			if data.magic_attack.get("ignore_defense", false):
@@ -589,6 +606,67 @@ func reset_turn():
 	relic_turn_first_hit_regen_used = false
 	set_gray(false)
 	play_animation("idle")
+
+
+# ============================================================
+#  ★ 步 4-A/4-B：局内升级（由 GM 调试调用；正式流程走 UnitData.apply_level_up）
+# ============================================================
+func apply_level_up() -> bool:
+	if current_level >= 6:
+		return false
+	var unit_key : String = unit_stats.unit_name
+	var idx : int = current_level - 1
+
+	var attr : Dictionary = UnitDataManager.get_attr_cap_level_bonus(unit_key, idx)
+	for k in attr:
+		_apply_one_attr(k, int(attr[k]))
+
+	var mech : Dictionary = UnitDataManager.get_level_mechanics(unit_key, idx)
+	for mk in mech:
+		if not bool(mech[mk]): continue
+		match mk:
+			"range_plus_1":
+				bonus_attack_range += 1
+				unit_stats.attack_range_bonus = bonus_attack_range
+			"move_plus_1":
+				unit_stats.move_range += 1
+			"crit_damage_plus_20":
+				static_crit_damage_bonus += 0.20
+			"physical_penetration_plus_10":
+				bonus_static_physical_penetration += 0.10
+			"magic_penetration_plus_10":
+				bonus_static_magic_penetration += 0.10
+
+	current_level += 1
+	unit_stats.level = current_level
+	update_hp_label()
+	return true
+
+
+func _apply_one_attr(attr_key: String, amount: int) -> void:
+	if amount <= 0: return
+	match attr_key:
+		"vitality", "max_hp":
+			unit_stats.max_hp += amount
+			hit_points += amount
+		"strength":     unit_stats.strength += amount
+		"dexterity":    unit_stats.dexterity += amount
+		"intelligence": unit_stats.intelligence += amount
+		"faith":        unit_stats.faith += amount
+		"arcane":       unit_stats.arcane += amount
+		"move_range":   unit_stats.move_range += amount
+
+
+func get_effective_attack_range() -> int:
+	var wd = get_weapon_data()
+	if wd == null: return 0
+	return wd.attack_range + bonus_attack_range
+
+
+func get_effective_min_attack_range() -> int:
+	var wd = get_weapon_data()
+	if wd == null: return 0
+	return wd.min_attack_range
 
 
 func consume_move(cost: int):

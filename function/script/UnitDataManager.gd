@@ -184,9 +184,7 @@ static func create_unit_data(unit_name: String, for_boss: bool = false) -> UnitD
 
 	data.max_talent_slots = talent_cap
 
-	if not for_boss:
-		_apply_attr_points_to_unit(key, data)
-		_apply_attr_cap_bonus(key, data)
+	data.level = 1
 	return data
 
 
@@ -282,25 +280,28 @@ static func get_attr_cap_total_bonus(unit_type: String, cur_lv: int) -> Dictiona
 	return total
 
 
-static func _apply_attr_cap_bonus(unit_key: String, data: UnitData) -> void:
-	var cur_lv : int = int(GameState.unit_attr_cap.get(unit_key, 0))
-	if cur_lv <= 0: return
-	var total : Dictionary = get_attr_cap_total_bonus(unit_key, cur_lv)
-	if total.is_empty(): return
-	for k in total:
-		_apply_one_attr(data, k, int(total[k]))
-	print("[属性上限] %s 已应用 Lv%d 加成：%s" % [unit_key, cur_lv, total])
+## 读取单个等级的属性加成（level_idx 从 0 起；0 = Lv1→2）
+static func get_attr_cap_level_bonus(unit_type: String, level_idx: int) -> Dictionary:
+	var levels : Array = get_attr_cap_levels(unit_type)
+	if level_idx < 0 or level_idx >= levels.size():
+		return {}
+	if not (levels[level_idx] is Dictionary):
+		return {}
+	return (levels[level_idx] as Dictionary).duplicate(true)
 
 
-static func _apply_attr_points_to_unit(unit_key: String, data: UnitData):
-	var points_dict : Dictionary = GameState.unit_attr_points.get(unit_key, {})
-	if points_dict.is_empty():
-		return
-	for attr_key in points_dict:
-		var pts : int = int(points_dict[attr_key])
-		if pts <= 0: continue
-		_apply_one_attr(data, attr_key, pts)
-	print("[加点] %s 已应用：%s" % [unit_key, points_dict])
+## 读取单个等级的机制
+static func get_level_mechanics(unit_type: String, level_idx: int) -> Dictionary:
+	var key : String = normalize_unit_key(unit_type)
+	var dict : Dictionary = get_unit_data(key)
+	var arr : Variant = dict.get("level_mechanics", [])
+	if not (arr is Array):
+		return {}
+	if level_idx < 0 or level_idx >= (arr as Array).size():
+		return {}
+	if not ((arr as Array)[level_idx] is Dictionary):
+		return {}
+	return ((arr as Array)[level_idx] as Dictionary).duplicate(true)
 
 
 static func _apply_one_attr(data: UnitData, attr_key: String, amount: int):
@@ -314,19 +315,6 @@ static func _apply_one_attr(data: UnitData, attr_key: String, amount: int):
 		"faith":        data.faith += amount
 		"arcane":       data.arcane += amount
 		"move_range":   data.move_range += amount
-
-
-static func get_total_attr_points(unit_key: String) -> int:
-	var total : int = 0
-	var d : Dictionary = GameState.unit_attr_points.get(unit_key, {})
-	for k in d:
-		total += int(d[k])
-	return total
-
-
-static func get_attr_points_for(unit_key: String, attr_key: String) -> int:
-	var d : Dictionary = GameState.unit_attr_points.get(unit_key, {})
-	return int(d.get(attr_key, 0))
 
 
 static func get_attr_cap(unit_key: String) -> int:

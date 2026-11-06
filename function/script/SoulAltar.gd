@@ -334,37 +334,66 @@ func _refresh_attr_cap_panel():
 
 	var display : String = UnitDataManager.get_unit_type_display_name(_current_unit_type)
 	var dict : Dictionary = UnitDataManager.get_unit_data(_current_unit_type)
-	var cur_lv : int = int(GameState.unit_attr_cap.get(_current_unit_type, 0))
-	var max_lv : int = ATTR_CAP_COSTS.size()
+	var cur_cap : int = int(GameState.unit_level_cap.get(_current_unit_type, 1))
+	var max_cap : int = 6
 
-	unit_name_label.text = "%s   上限 Lv %d / %d" % [display, cur_lv, max_lv]
+	unit_name_label.text = "%s   等级上限 Lv %d / %d" % [display, cur_cap, max_cap]
 	unit_desc_label.text = dict.get("description", "")
 	unit_sprite.visible = false
 
-	attr_container.add_child(_make_title("— 已获得加成 —"))
-	var total : Dictionary = UnitDataManager.get_attr_cap_total_bonus(_current_unit_type, cur_lv)
-	if total.is_empty():
-		attr_container.add_child(_make_info("（尚无，升级后生效）"))
+	attr_container.add_child(_make_title("— 已解锁的成长 —"))
+	if cur_cap <= 1:
+		attr_container.add_child(_make_info("（尚未解锁任何成长，当前上限 Lv1）"))
 	else:
-		attr_container.add_child(_make_info(_format_bonus_dict(total)))
+		for lv_idx in range(cur_cap - 1):
+			var attr : Dictionary = UnitDataManager.get_attr_cap_level_bonus(_current_unit_type, lv_idx)
+			var mech : Dictionary = UnitDataManager.get_level_mechanics(_current_unit_type, lv_idx)
+			attr_container.add_child(_make_info(_format_level_desc(lv_idx + 2, attr, mech)))
 
-	if cur_lv < max_lv:
-		var current_total := UnitDataManager.get_attr_cap_total_bonus(_current_unit_type, cur_lv)
-		var next_total := UnitDataManager.get_attr_cap_total_bonus(_current_unit_type, cur_lv + 1)
-		var diff : Dictionary = {}
-		for k in next_total:
-			var d = next_total[k] - current_total.get(k, 0)
-			if d > 0:
-				diff[k] = d
-				
-		attr_container.add_child(_make_title("— 下一级 Lv%d 预览 —" % (cur_lv + 1)))
-		attr_container.add_child(_make_info(_format_bonus_dict(diff)))
+	if cur_cap < max_cap:
+		attr_container.add_child(_make_title("— 下一级 Lv%d 预览 —" % (cur_cap + 1)))
+		var next_attr : Dictionary = UnitDataManager.get_attr_cap_level_bonus(_current_unit_type, cur_cap - 1)
+		var next_mech : Dictionary = UnitDataManager.get_level_mechanics(_current_unit_type, cur_cap - 1)
+		attr_container.add_child(_make_info(_format_level_desc(cur_cap + 1, next_attr, next_mech)))
 
-		var cost : int = ATTR_CAP_COSTS[cur_lv] if cur_lv < ATTR_CAP_COSTS.size() else 1000
-		if cost > 0:
-			attr_container.add_child(_make_upgrade_row("升级", cost, func(): _on_upgrade_attr_cap()))
+		var cost : int = ATTR_CAP_COSTS[cur_cap - 1] if cur_cap - 1 < ATTR_CAP_COSTS.size() else 9999
+		attr_container.add_child(_make_upgrade_row("解锁 Lv%d" % (cur_cap + 1), cost, func(): _on_upgrade_level_cap()))
 	else:
-		attr_container.add_child(_make_title("— 已达最高等级 —"))
+		attr_container.add_child(_make_title("— 已达上限 Lv6 —"))
+
+
+func _format_level_desc(lv : int, attr : Dictionary, mech : Dictionary) -> String:
+	var parts : Array = []
+	for k in attr:
+		parts.append("%s +%d" % [_attr_cn(k), int(attr[k])])
+	for k in mech:
+		if not bool(mech[k]): continue
+		match k:
+			"range_plus_1":                 parts.append("射程 +1")
+			"move_plus_1":                  parts.append("移动 +1")
+			"crit_damage_plus_20":          parts.append("暴伤 +20%")
+			"physical_penetration_plus_10": parts.append("物穿 +10%")
+			"magic_penetration_plus_10":    parts.append("法穿 +10%")
+	if parts.is_empty():
+		return "Lv%d：（无加成）" % lv
+	return "Lv%d：%s" % [lv, ", ".join(parts)]
+
+
+func _on_upgrade_level_cap():
+	if _current_unit_type == "": return
+	var cur_cap : int = int(GameState.unit_level_cap.get(_current_unit_type, 1))
+	if cur_cap >= 6: return
+	if cur_cap - 1 >= ATTR_CAP_COSTS.size(): return
+	var cost : int = ATTR_CAP_COSTS[cur_cap - 1]
+	if GameState.soul < cost: return
+
+	GameState.soul -= cost
+	GameState.unit_level_cap[_current_unit_type] = cur_cap + 1
+	SaveManager.auto_save()
+
+	_refresh_soul()
+	_refresh_attr_cap_panel()
+	_show_msg("%s 等级上限升至 Lv%d" % [UnitDataManager.get_unit_type_display_name(_current_unit_type), cur_cap + 1])
 
 func _clear_attr_container():
 	for c in attr_container.get_children():
@@ -482,23 +511,6 @@ func _refresh_unit_unlock_panel():
 		btn.pressed.connect(_on_unlock_unit_pressed)
 	row.add_child(btn)
 	attr_container.add_child(row)
-
-func _on_upgrade_attr_cap():
-	if _current_unit_type == "": return
-	var cur_lv : int = int(GameState.unit_attr_cap.get(_current_unit_type, 0))
-	if cur_lv >= ATTR_CAP_COSTS.size(): return
-	
-	var cost : int = ATTR_CAP_COSTS[cur_lv] if cur_lv < ATTR_CAP_COSTS.size() else -1
-	if cost <= 0 or GameState.soul < cost: return
-
-	GameState.soul -= cost
-	GameState.unit_attr_cap[_current_unit_type] = cur_lv + 1
-	SaveManager.auto_save()
-
-	_refresh_soul()
-	_build_unit_list()
-	_refresh_attr_cap_panel()
-	_show_msg("%s 已升至 Lv%d" % [UnitDataManager.get_unit_type_display_name(_current_unit_type), cur_lv + 1])
 
 func _on_unlock_unit_pressed():
 	if _current_unit_type == "": return

@@ -1,28 +1,6 @@
 extends Resource
 class_name UnitData
 
-# ============================================================
-#  UnitData — 单位数据（玩家 / 敌人 / Boss / Boss 形态）
-#
-#  新增 Boss 阶段字段：
-#    hidden_from_roster  : 是否从玩家图鉴 / 地图编辑器单位下拉中隐藏
-#    boss_mechanic_id    : 当前形态的机制代码（ash_shield / soul_drain / three_forms ...）
-#    boss_mechanic_params: 该机制的参数
-#    phases              : Array[Dictionary]，Boss 多阶段定义
-#
-#  phases[i] 字段：
-#    form_unit_id  : "" = 字段覆盖模式；否则指向另一个 UnitData 完整形态
-#    trigger       : "initial" / "hp_below" / "on_death"
-#    threshold     : 仅在 hp_below 时有效，当前 HP 比例 ≤ threshold 触发
-#    hp_mode       : "full" / "keep_ratio" / "keep_absolute" / "custom_ratio"
-#    min_hp        : 切换后的保底 HP
-#    reset_turn_state : 切换后是否重置行动状态
-#    preserve_buffs   : 切换后是否保留战斗 Buff
-#    mechanic_id      : 本形态激活的机制
-#    mechanic_params  : 机制参数
-#    override         : form_unit_id 为空时，按字段覆盖当前 UnitData
-# ============================================================
-
 @export var unit_name: String = "战士"
 @export var display_name: String = ""
 @export var faction: String = ""
@@ -46,8 +24,6 @@ class_name UnitData
 @export var core_trait: String = ""
 @export var is_boss: bool = false
 
-# ---- Boss / 分类 ----
-# ★ 修改 2：unit_category 已删除（全项目无逻辑依赖）
 @export var hidden_from_roster: bool = false
 @export var boss_mechanic_id: String = ""
 @export var boss_mechanic_params: Dictionary = {}
@@ -68,7 +44,6 @@ var buff_attack_flat : int = 0
 var buff_magic_attack_flat : int = 0
 var buff_lifesteal_percent : float = 0.0
 
-# ★ 兼容旧字段（不参与计算）
 var buff_defense_flat : int = 0
 
 var relic_first_attack_crit_available : bool = false
@@ -95,6 +70,13 @@ var zeal_stacks : int = 0
 
 @export var advanced_class: String = ""
 @export var override_sprite_path: String = ""
+
+# ★ 步 4-B：等级 + 升级带来的持久化加成
+@export var level: int = 1
+@export var attack_range_bonus: int = 0
+@export var static_physical_penetration: float = 0.0
+@export var static_magic_penetration: float = 0.0
+@export var static_crit_damage_bonus: float = 0.0
 
 const VALID_BOSS_TRIGGERS : Array = ["initial", "hp_below", "on_death"]
 const VALID_BOSS_HP_MODES : Array = ["full", "keep_ratio", "keep_absolute", "custom_ratio"]
@@ -132,7 +114,6 @@ func reset_combat_buffs():
 
 @export var is_dead: bool = false
 @export var experience: int = 0
-@export var level: int = 1
 
 @export var weapon_slot: ItemInstance = null
 @export var armor_slots: Array = []
@@ -244,6 +225,43 @@ func get_effective_attr(attr_name: String) -> int:
 
 
 # ============================================================
+#  ★ 步 4-B：局内升级
+# ============================================================
+func apply_level_up() -> bool:
+	if level >= 6:
+		return false
+	if is_dead:
+		return false
+	var idx : int = level - 1
+	var attr : Dictionary = UnitDataManager.get_attr_cap_level_bonus(unit_name, idx)
+	for k in attr:
+		match k:
+			"vitality", "max_hp":
+				var v : int = int(attr[k])
+				max_hp += v
+				hit_points += v
+			"strength":     strength += int(attr[k])
+			"dexterity":    dexterity += int(attr[k])
+			"intelligence": intelligence += int(attr[k])
+			"faith":        faith += int(attr[k])
+			"arcane":       arcane += int(attr[k])
+			"move_range":   move_range += int(attr[k])
+
+	var mech : Dictionary = UnitDataManager.get_level_mechanics(unit_name, idx)
+	for mk in mech:
+		if not bool(mech[mk]): continue
+		match mk:
+			"range_plus_1":                 attack_range_bonus += 1
+			"move_plus_1":                  move_range += 1
+			"crit_damage_plus_20":          static_crit_damage_bonus += 0.20
+			"physical_penetration_plus_10": static_physical_penetration += 0.10
+			"magic_penetration_plus_10":    static_magic_penetration += 0.10
+
+	level += 1
+	return true
+
+
+# ============================================================
 #  序列化
 # ============================================================
 func to_dict() -> Dictionary:
@@ -258,7 +276,12 @@ func to_dict() -> Dictionary:
 		"physical_reduction": physical_reduction,
 		"magic_reduction": magic_reduction,
 		"ignore_terrain_cost": ignore_terrain_cost,
-		"experience": experience, "level": level,
+		"experience": experience,
+		"level": level,
+		"attack_range_bonus": attack_range_bonus,
+		"static_physical_penetration": static_physical_penetration,
+		"static_magic_penetration": static_magic_penetration,
+		"static_crit_damage_bonus": static_crit_damage_bonus,
 		"max_armor_slots": max_armor_slots,
 		"max_talent_slots": max_talent_slots,
 		"advancement": advancement.duplicate(),
@@ -273,7 +296,6 @@ func to_dict() -> Dictionary:
 		"sacrifice_buff_sources": sacrifice_buff_sources.duplicate(),
 		"tags": tags.duplicate(),
 		"core_trait": core_trait, "is_boss": is_boss,
-		# ★ 修改 2：移除 "unit_category"
 		"hidden_from_roster": hidden_from_roster,
 		"boss_mechanic_id": boss_mechanic_id,
 		"boss_mechanic_params": boss_mechanic_params.duplicate(true),
@@ -302,13 +324,16 @@ static func from_dict(d: Dictionary) -> UnitData:
 	data.magic_reduction = float(d.get("magic_reduction", 0.0))
 	data.ignore_terrain_cost = d.get("ignore_terrain_cost", false)
 	data.experience = d.get("experience", 0)
-	data.level = d.get("level", 1)
+	data.level = int(d.get("level", 1))
+	data.attack_range_bonus = int(d.get("attack_range_bonus", 0))
+	data.static_physical_penetration = float(d.get("static_physical_penetration", 0.0))
+	data.static_magic_penetration = float(d.get("static_magic_penetration", 0.0))
+	data.static_crit_damage_bonus = float(d.get("static_crit_damage_bonus", 0.0))
 	data.max_armor_slots = d.get("max_armor_slots", 2)
 	data.max_talent_slots = d.get("max_talent_slots", 1)
 	data.core_trait = d.get("core_trait", "")
 	data.is_boss = d.get("is_boss", false)
 
-	# ★ 修改 2：移除 data.unit_category = str(d.get("unit_category", ""))
 	data.hidden_from_roster = bool(d.get("hidden_from_roster", false))
 	data.boss_mechanic_id = str(d.get("boss_mechanic_id", ""))
 	var bmp: Variant = d.get("boss_mechanic_params", {})

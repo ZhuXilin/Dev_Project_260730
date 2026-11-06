@@ -604,6 +604,78 @@ func _build_unit_columns():
 		if unit.is_dead: _disable_button(adv_btn)
 		col.add_child(adv_btn)
 
+		if _is_level_up_enabled():
+			var level_btn : Button = _create_level_btn(unit, i)
+			if unit.is_dead: _disable_button(level_btn)
+			col.add_child(level_btn)
+
+func _is_level_up_enabled() -> bool:
+	return current_mode == Mode.FORGE \
+		or current_mode == Mode.MAP_SHOP_REST \
+		or current_mode == Mode.ARENA_REST
+
+
+func _get_level_up_cost(cur_level: int) -> int:
+	var cfg : Dictionary = GameConfigManager.get_file("economy_config.json")
+	var costs : Array = cfg.get("unit_level_up_cost", [50, 100, 250, 600, 1500])
+	var idx : int = cur_level - 1
+	if idx < 0 or idx >= costs.size():
+		return 999999
+	return int(costs[idx])
+
+
+func _create_level_btn(unit: UnitData, unit_idx: int) -> Button:
+	var btn : Button = Style.create_styled_button(Style.FONT_TINY, Style.BTN_ITEM_SIZE)
+	_apply_icon_button_style(btn)
+	btn.set_meta("slot_type", "level_btn")
+	btn.set_meta("unit_idx", unit_idx)
+
+	var cap : int = int(GameState.unit_level_cap.get(unit.unit_name, 1))
+	var cur : int = int(unit.level)
+
+	if cur >= 6:
+		btn.text = "Lv6"
+		btn.disabled = true
+		btn.modulate = Color(0.5, 0.5, 0.5)
+		return btn
+	if cur >= cap:
+		btn.text = "Lv%d" % cur
+		btn.disabled = true
+		btn.modulate = Color(0.5, 0.5, 0.5)
+		btn.tooltip_text = "等级上限 Lv%d（守火者处购买）" % cap
+		return btn
+
+	var cost : int = _get_level_up_cost(cur)
+	var has_gold : bool = _context.get_gold() >= cost
+	btn.text = "%dG" % cost
+	btn.tooltip_text = "Lv%d → Lv%d，消耗 %dG" % [cur, cur + 1, cost]
+	btn.disabled = not has_gold
+	btn.modulate = Color.WHITE if has_gold else Color(0.6, 0.5, 0.5)
+	if has_gold:
+		btn.pressed.connect(_on_level_up_pressed.bind(unit_idx))
+	return btn
+
+
+func _on_level_up_pressed(unit_idx: int):
+	if unit_idx < 0 or unit_idx >= party.size(): return
+	var u : UnitData = party[unit_idx]
+	if u.is_dead: return
+
+	var cap : int = int(GameState.unit_level_cap.get(u.unit_name, 1))
+	if u.level >= cap: return
+	if u.level >= 6: return
+
+	var cost : int = _get_level_up_cost(u.level)
+	if not _context.subtract_gold(cost): return
+
+	u.apply_level_up()
+	SoundManager.play_get_item_sound()
+	_update_gold_display()
+	_sync_all()
+	_build_unit_columns()
+	_schedule_build_ui()
+	_show_detail_in_zone("%s 升至 Lv%d" % [u.display_name, u.level])
+
 func _update_gold_display():
 	if gold_label:
 		gold_label.text = "金币: " + str(_context.get_gold())
@@ -1558,20 +1630,8 @@ func _on_confirm_pressed():
 	for tu in target_units:
 		var key : String = "%s|%s" % [tu.unit_name, tu.display_name]
 		target_map[key] = tu
-
-	for u in party:
-		var key : String = "%s|%s" % [u.unit_name, u.display_name]
-		if not target_map.has(key):
-			continue
-		var tu : UnitData = target_map[key]
-		if u.is_dead and tu.is_dead:
-			continue
-		tu.weapon_slot = _clone_item_inst(u.weapon_slot)
-		tu.armor_slots = _clone_inst_array(u.armor_slots)
-		tu.max_armor_slots = u.max_armor_slots
-		tu.talent_slots = u.talent_slots.duplicate()
-		tu.is_dead = u.is_dead
-		tu.advanced_talent_id = u.advanced_talent_id
+		
+	_sync_all()
 
 	if _context.get_context_id() == "main_game" and selected_units.size() > 0:
 		var main_data : Dictionary = UnitDataManager.get_unit_data(selected_units[0])
@@ -1626,6 +1686,19 @@ func _sync_all():
 		tu.talent_slots = _clone_talent_array(u.talent_slots)
 		tu.is_dead = u.is_dead
 		tu.advanced_talent_id = u.advanced_talent_id
+		tu.level = u.level
+		tu.attack_range_bonus = u.attack_range_bonus
+		tu.static_physical_penetration = u.static_physical_penetration
+		tu.static_magic_penetration = u.static_magic_penetration
+		tu.static_crit_damage_bonus = u.static_crit_damage_bonus
+		tu.max_hp = u.max_hp
+		tu.hit_points = u.hit_points
+		tu.strength = u.strength
+		tu.dexterity = u.dexterity
+		tu.intelligence = u.intelligence
+		tu.faith = u.faith
+		tu.arcane = u.arcane
+		tu.move_range = u.move_range
 
 static func _clone_item_inst(src: ItemInstance) -> ItemInstance:
 	if src == null: return null

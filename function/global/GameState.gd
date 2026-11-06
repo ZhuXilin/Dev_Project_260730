@@ -125,6 +125,9 @@ var soul_fire_initial_level : int:
 var unit_attr_cap : Dictionary:
 	get: return resource_state.unit_attr_cap
 	set(value): resource_state.unit_attr_cap = value
+var unit_level_cap : Dictionary:
+	get: return resource_state.unit_level_cap
+	set(value): resource_state.unit_level_cap = value
 var unit_attr_points : Dictionary:
 	get: return resource_state.unit_attr_points
 	set(value): resource_state.unit_attr_points = value
@@ -449,6 +452,11 @@ func start_new_cycle():
 		unit_data.max_armor_slots = 2
 		unit_data.is_dead = false
 		unit_data.hit_points = unit_data.max_hp
+		unit_data.level = 1              # ★ 步 4-A
+		unit_data.attack_range_bonus = 0 # ★ 步 4-A
+		unit_data.static_physical_penetration = 0.0
+		unit_data.static_magic_penetration = 0.0
+		unit_data.static_crit_damage_bonus = 0.0
 		var default_weapon = UnitDataManager.get_default_weapon_id(unit_data.unit_name)
 		if default_weapon != "":
 			var inst = ItemInstance.new()

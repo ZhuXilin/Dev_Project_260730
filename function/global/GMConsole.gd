@@ -307,7 +307,7 @@ func _register_commands():
 	register("tag_pin", _cmd_tag_pin, "tag_pin <tag|clear>  设置挂起的标签定向器")
 	register("threshold", _cmd_threshold, "threshold <0|1>  开启/关闭魂火阈值调节")
 	register("refine_relic", _cmd_refine_relic, "refine_relic <relic_id>  直接精炼指定遗物")
-
+	register("levelup", _cmd_levelup, "levelup <idx>  给队伍第 idx 个单位升 1 级（调试用，绕过金币/上限）")
 
 func _on_submit(text: String):
 	text = text.strip_edges()
@@ -643,6 +643,25 @@ func _cmd_god(_args: Array):
 			u.set_meta("gm_god", true)
 			n += 1
 	_out("我方 %d 个单位已开启无敌模式（仅本场生效）" % n, "yellow")
+
+
+func _cmd_levelup(args: Array):
+	if args.is_empty():
+		_out("用法: levelup <idx>", "red"); return
+	if not _is_in_combat():
+		_out("该场景无战斗单位", "yellow"); return
+	var idx : int = _parse_int(args[0])
+	var units : Array = []
+	for u in UnitManager.unit_list:
+		if is_instance_valid(u) and u.unit_stats.team_id == 0 and u.hit_points > 0:
+			units.append(u)
+	if idx < 0 or idx >= units.size():
+		_out("索引越界（可用 0~%d）" % (units.size() - 1), "red"); return
+	var u : Unit = units[idx]
+	if u.apply_level_up():
+		_out("%s → Lv%d" % [u.unit_stats.unit_name, u.current_level], "green")
+	else:
+		_out("已达上限（Lv6）", "yellow")
 
 
 func _cmd_goto(args: Array):

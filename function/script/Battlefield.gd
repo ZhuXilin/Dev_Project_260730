@@ -991,6 +991,10 @@ func _on_request_show_info(unit: Unit):
 	lines.append(header_str)
 	lines.append("HP: " + str(unit.hit_points) + "/" + str(unit.unit_stats.max_hp))
 
+	if unit.unit_stats.team_id == 0:
+		var cap : int = int(GameState.unit_level_cap.get(unit.unit_stats.unit_name, 1))
+		lines.append("Lv %d / %d" % [unit.current_level, cap])
+
 	var status_str : String = ""
 	if unit.hit_points <= 0: status_str = "【已阵亡】"
 	elif unit.has_acted or not unit.can_act_this_turn: status_str = "【单位待机】"
