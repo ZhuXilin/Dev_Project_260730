@@ -82,6 +82,8 @@ func _use_context_units() -> Array:
 	return []
 
 # ★ 修改：放宽 is_talent_unlocked 限制，允许装备自带的词条
+# ★ 修改：放宽 is_talent_unlocked 限制，允许装备自带的词条
+#   + 增加防御：目标单位已有同 id 进阶特技时拒绝普通槽装备
 func execute_talent_drop(data: Dictionary, target: Control):
 	var source_type : String = data.get("slot_type", "")
 	var target_type : String = target.get_meta("slot_type", "")
@@ -103,6 +105,16 @@ func execute_talent_drop(data: Dictionary, target: Control):
 					break
 		if not is_unlocked: return
 		
+		# ★ 新增防御：目标单位已有同 id 的进阶特技（转职授予），禁止重复装入普通槽
+		var target_unit : UnitData = panel.party[unit_idx]
+		if target_unit.advanced_talent_id == talent_id:
+			var tdata = TalentManager.get_talent_data(talent_id)
+			var tname : String = tdata.display_name if tdata else talent_id
+			Globals.show_confirm(panel,
+				"该单位已通过转职拥有「%s」，无法重复装备" % tname,
+				"确定", "", func(): pass, func(): pass, false)
+			return
+		
 		if is_talent_already_equipped(talent_id, unit_idx, slot_idx):
 			var equipped_unit : String = get_unit_with_talent(talent_id)
 			Globals.show_confirm(panel, "特技已被 %s 装备" % equipped_unit, "确定", "", func(): pass, func(): pass, false); return
@@ -117,8 +129,7 @@ func execute_talent_drop(data: Dictionary, target: Control):
 		var inst := TalentInstance.new()
 		inst.talent_id = talent_id
 		inst.is_active = true
-		var u : UnitData = panel.party[unit_idx]
-		u.talent_slots[slot_idx] = inst
+		target_unit.talent_slots[slot_idx] = inst
 		panel._sync_all(); panel._schedule_build_ui(); return
 
 	if source_type == "talent" and target_type == "talent":
@@ -218,6 +229,6 @@ func is_talent_equipped_anywhere(talent_id: String) -> bool:
 	for i in range(panel.party.size()):
 		var u : UnitData = panel.party[i]
 		for inst in u.talent_slots:
-			if inst and inst.is_active and inst.talent_id == talent_id: return true
-		if u.advanced_talent_id == talent_id: return true
+			if inst and inst.is_active and inst.talent_id == talent_id:
+				return true
 	return false

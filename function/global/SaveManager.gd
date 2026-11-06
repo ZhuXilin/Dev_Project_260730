@@ -159,11 +159,13 @@ func _build_save_data() -> SaveData:
 	save.total_run_count = GameState.total_run_count
 	save.total_dispatch_count = GameState.total_dispatch_count
 	save.npc_affinity = GameState.npc_affinity.duplicate(true)
-	GameState.npc_interact_counts = _safe_dict(save.npc_interact_counts)
-	GameState.dialogue_play_counts = _safe_dict(save.dialogue_play_counts)
-	GameState.active_narrative_effects = _safe_array(save.active_narrative_effects)
-	GameState.revealed_intel = _safe_array(save.revealed_intel)
-	GameState.fusion_hints = _safe_array(save.fusion_hints)
+
+	# ★ 修复：正向赋值（原先方向反了，会把 GameState 数据清空）
+	save.npc_interact_counts = GameState.npc_interact_counts.duplicate(true)
+	save.dialogue_play_counts = GameState.dialogue_play_counts.duplicate(true)
+	save.active_narrative_effects = GameState.active_narrative_effects.duplicate(true)
+	save.revealed_intel = GameState.revealed_intel.duplicate(true)
+	save.fusion_hints = GameState.fusion_hints.duplicate(true)
 
 	save.save_time = Time.get_unix_time_from_system()
 	return save
@@ -224,7 +226,7 @@ func _apply_save_data(save: SaveData):
 	GameState.active_aura_research = _safe_dict(save.active_aura_research)
 	GameState.aura_research_progress = _safe_dict(save.aura_research_progress)
 
-	GameState.interrupt_state = save.interrupt_state as GameState.InterruptState
+	GameState.interrupt_state = int(save.interrupt_state) as GameState.InterruptState
 	GameState.battlefield_data = _safe_dict(save.battlefield_data)
 
 	RelicManager.set_unlocked_relics(_safe_array(save.unlocked_relics))

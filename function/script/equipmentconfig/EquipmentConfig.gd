@@ -1403,7 +1403,6 @@ func _execute_drop(data: Dictionary, target: Control):
 		_talent.execute_talent_remove(data); return
 	if discard: _discard_item(data); return
 	if source_type == "shop_item": _shop.buy_shop_item(data, target); return
-	if source_type == "library_weapon": _shop.library_to_weapon(data, target); return
 	if source_type == "library_talent" and target_type == "talent": _talent.execute_talent_drop(data, target); return
 	if source_type == "talent" and target_type == "talent": _talent.execute_talent_drop(data, target); return
 	if source_type == "armor" and target_type == "armor": _shop.swap_armor(data, target)
@@ -1575,10 +1574,9 @@ func _sync_all():
 		tu.weapon_slot = _clone_item_inst(u.weapon_slot)
 		tu.armor_slots = _clone_inst_array(u.armor_slots)
 		tu.max_armor_slots = u.max_armor_slots
-		tu.talent_slots = u.talent_slots.duplicate()
+		tu.talent_slots = _clone_talent_array(u.talent_slots)
 		tu.is_dead = u.is_dead
 		tu.advanced_talent_id = u.advanced_talent_id
-
 
 static func _clone_item_inst(src: ItemInstance) -> ItemInstance:
 	if src == null: return null
@@ -1586,14 +1584,30 @@ static func _clone_item_inst(src: ItemInstance) -> ItemInstance:
 	inst.item_id = src.item_id
 	inst.count = src.count
 	inst.upgrade_level = src.upgrade_level
+	# ★ 修复：深拷贝词条，避免原装备与新装备共享同一数组
+	inst.affixes = src.affixes.duplicate(true)
 	return inst
-
 
 static func _clone_inst_array(src: Array) -> Array:
 	var out : Array = []
 	for s in src: out.append(_clone_item_inst(s))
 	return out
 
+# ★ 新增：TalentInstance 深拷贝
+static func _clone_talent_inst(src) -> TalentInstance:
+	if src == null or not (src is TalentInstance): return null
+	var inst := TalentInstance.new()
+	inst.talent_id = src.talent_id
+	inst.current_stack = src.current_stack
+	inst.is_ready = src.is_ready
+	inst.is_active = src.is_active
+	inst.cooldown_remaining = src.cooldown_remaining
+	return inst
+
+static func _clone_talent_array(src: Array) -> Array:
+	var out : Array = []
+	for s in src: out.append(_clone_talent_inst(s))
+	return out
 
 func _switch_tab(tab: String):
 	SoundManager.play_select_sound()

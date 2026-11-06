@@ -94,9 +94,12 @@ func _check_fusion(input_insts : Array) -> Dictionary:
 				return {"ok": true, "tag": tag, "product_id": product.id}
 	return {"ok": false}
 
-
 func _do_fusion(product_id : String, cost : int):
-	panel._context.subtract_gold(cost)
+	# ★ 修复：先检查扣金，失败则立即返回，避免白嫖产出
+	if not panel._context.subtract_gold(cost):
+		panel._show_buy_failure_message("not_enough_gold")
+		return
+
 	for i in range(forge_slots.size()):
 		forge_slots[i] = null
 
@@ -139,7 +142,6 @@ func _do_fusion(product_id : String, cost : int):
 	var name : String = out_data.name if out_data else product_id
 	panel._show_detail_in_zone("★ 熔合成功！\n产出：" + name)
 	panel._schedule_build_ui()
-
 
 # ============================================================
 #  重铸
