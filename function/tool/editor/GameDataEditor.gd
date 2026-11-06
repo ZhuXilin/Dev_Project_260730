@@ -10,6 +10,9 @@ extends Control
 #    - 重命名 ID：扫描 unit_data / unit_unlock / 地图 .tscn / events.json
 #    - 删除单位：列出所有引用
 #    - 新增字段：物理减伤/魔法减伤/无视地形/防具槽/特技槽/竞技场经验
+#  v4.9（步 5 编辑器同步）：
+#    - CAP_MAX_LEVEL 3 → 5
+#    - 新增「等级机制（布尔开关）」网格：level_mechanics
 # ============================================================
 
 const UNIT_DATA_PATH : String = "res://content/data/unit_data.json"
@@ -93,7 +96,15 @@ const BRANCH_STAT_LABELS : Dictionary = {
 	"max_hp": "生命", "strength": "力量", "dexterity": "灵巧",
 	"intelligence": "智力", "faith": "信仰", "arcane": "感应", "move_range": "移动"
 }
-const CAP_MAX_LEVEL : int = 3
+const CAP_MAX_LEVEL : int = 5
+
+const LEVEL_MECHANICS_LIST : Array = [
+	{"id": "range_plus_1",                 "label": "射程 +1"},
+	{"id": "move_plus_1",                  "label": "移动 +1"},
+	{"id": "crit_damage_plus_20",          "label": "暴伤 +20%"},
+	{"id": "physical_penetration_plus_10", "label": "物穿 +10%"},
+	{"id": "magic_penetration_plus_10",    "label": "法穿 +10%"},
+]
 
 const BOSS_TRIGGERS : Array = ["initial", "hp_below", "on_death"]
 const BOSS_HP_MODES : Array = ["full", "keep_ratio", "keep_absolute", "custom_ratio"]
@@ -136,6 +147,7 @@ var _edit_sac_type_opt : OptionButton = null
 var _edit_sac_value_spin : SpinBox = null
 var _edit_sac_display_edit : LineEdit = null
 var _edit_cap_spins : Dictionary = {}
+var _edit_mechanics_cbs : Dictionary = {}   # ★ 步 5：mechanic_id -> { level_idx: CheckBox }
 var _edit_branches_box : VBoxContainer = null
 var _edit_branch_cards : Array = []
 var _edit_boss_phases_box : VBoxContainer = null
@@ -742,6 +754,10 @@ func _build_edit_tab(parent : Control) -> Control:
 	_rebuild_attr_cap_grid(content)
 
 	content.add_child(HSeparator.new())
+	content.add_child(_section("— 等级机制（布尔开关）—"))   # ★ 步 5
+	_rebuild_level_mechanics_grid(content)
+
+	content.add_child(HSeparator.new())
 	var branch_header := HBoxContainer.new()
 	branch_header.add_theme_constant_override("separation", 4)
 	content.add_child(branch_header)
@@ -880,7 +896,7 @@ func _rebuild_attr_cap_grid(parent : Node):
 
 	grid.add_child(_lbl("", 30))
 	for lv in range(CAP_MAX_LEVEL):
-		grid.add_child(_lbl("Lv%d" % (lv + 1), 40))
+		grid.add_child(_lbl("→Lv%d" % (lv + 2), 40))
 
 	for attr in CAP_ATTRS:
 		grid.add_child(_lbl(CAP_ATTR_LABELS.get(attr, attr), 30))
@@ -896,6 +912,57 @@ func _rebuild_attr_cap_grid(parent : Node):
 			_style_spin(sp)
 			lv_spins[lv] = sp
 		_edit_cap_spins[attr] = lv_spins
+
+
+func _rebuild_level_mechanics_grid(parent : Node):
+	_edit_mechanics_cbs.clear()
+	var grid := GridContainer.new()
+	grid.columns = 1 + CAP_MAX_LEVEL
+	grid.add_theme_constant_override("h_separation", 6)
+	grid.add_theme_constant_override("v_separation", 2)
+	parent.add_child(grid)
+
+	grid.add_child(_lbl("机制", 80))
+	for lv in range(CAP_MAX_LEVEL):
+		grid.add_child(_lbl("→Lv%d" % (lv + 2), 40))
+
+	for m in LEVEL_MECHANICS_LIST:
+		var mid : String = m["id"]
+		grid.add_child(_lbl(m["label"], 80))
+		var lv_map : Dictionary = {}
+		for lv in range(CAP_MAX_LEVEL):
+			var cb := CheckBox.new()
+			cb.custom_minimum_size = Vector2(20, 20)
+			cb.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+			grid.add_child(cb)
+			lv_map[lv] = cb
+		_edit_mechanics_cbs[mid] = lv_map
+
+
+func _read_level_mechanics() -> Array:
+	var result : Array = []
+	for lv in range(CAP_MAX_LEVEL):
+		var d : Dictionary = {}
+		for m in LEVEL_MECHANICS_LIST:
+			var mid : String = m["id"]
+			var cb : CheckBox = _edit_mechanics_cbs.get(mid, {}).get(lv, null)
+			if cb and cb.button_pressed:
+				d[mid] = true
+		result.append(d)
+	return result
+
+
+func _fill_level_mechanics(data : Array):
+	for m in LEVEL_MECHANICS_LIST:
+		var mid : String = m["id"]
+		var lv_map : Dictionary = _edit_mechanics_cbs.get(mid, {})
+		for lv in range(CAP_MAX_LEVEL):
+			var cb : CheckBox = lv_map.get(lv, null)
+			if cb == null: continue
+			var v : bool = false
+			if lv < data.size() and data[lv] is Dictionary:
+				v = bool(data[lv].get(mid, false))
+			cb.button_pressed = v
 
 
 func _read_attr_cap_levels() -> Array:
@@ -1553,6 +1620,7 @@ func _select_edit_unit(key : String):
 			_update_sprite_frames_preview(_edit_sprite_frames_preview, sf_path)
 
 	_fill_attr_cap_levels(d.get("attr_cap_levels", []))
+	_fill_level_mechanics(d.get("level_mechanics", []))   # ★ 步 5
 	_rebuild_branches(d.get("advanced_branches", []))
 	_rebuild_boss_phases(d.get("phases", []))
 	var hooks : Dictionary = d.get("boss_dialogue_hooks", {})
@@ -1689,6 +1757,7 @@ func _save_unit_db():
 		d.erase("boss_dialogue_hooks")
 
 	d["attr_cap_levels"] = _read_attr_cap_levels()
+	d["level_mechanics"] = _read_level_mechanics()   # ★ 步 5
 
 	var branches : Array = _read_branches()
 	if branches.is_empty():
@@ -3123,7 +3192,8 @@ func _make_blank_unit_data(unit_key : String) -> Dictionary:
 		"default_weapon": "",
 		"default_armors": [],
 		"default_talents": [],
-		"attr_cap_levels": [{}, {}, {}],
+		"attr_cap_levels": [{}, {}, {}, {}, {}],
+		"level_mechanics": [{}, {}, {}, {}, {}],
 		"advanced_branches": [],
 		"phases": [],
 		"boss_dialogue_hooks": {},

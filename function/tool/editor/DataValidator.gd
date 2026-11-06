@@ -34,7 +34,13 @@ const VALID_ACTION_TYPES : Array = [
 	"gold", "soul", "unlock_avatar", "unlock_npc_avatar"
 ]
 const VALID_QUALITIES : Array = ["common", "rare", "epic", "legendary"]
-const MAX_CAP_LEVEL : int = 3
+const MAX_CAP_LEVEL : int = 5
+
+# ★ 步 5：新增机制白名单
+const VALID_LEVEL_MECHANICS : Array = [
+	"range_plus_1", "move_plus_1", "crit_damage_plus_20",
+	"physical_penetration_plus_10", "magic_penetration_plus_10"
+]
 
 enum Level { ERROR, WARN }
 
@@ -97,7 +103,6 @@ func _load_all():
 	_event_db = _load_json(EVENT_PATH)
 	_unit_unlock_db = _load_json(UNIT_UNLOCK_PATH)
 
-	# ★ 从 narrative.json 拆分出 npcs / standalone
 	var narrative : Dictionary = _load_json(NARRATIVE_PATH)
 	_story_db = narrative.get("npcs", {})
 	_dialogue_db = narrative.get("standalone", {})
@@ -181,7 +186,6 @@ func _validate_units():
 					continue
 				var d : Dictionary = lv_dict
 				if d.is_empty():
-					# Boss 或特殊单位不需要属性上限成长，直接跳过不报警
 					continue
 				for k in d:
 					if k not in VALID_CAP_ATTRS:
@@ -191,6 +195,28 @@ func _validate_units():
 					if not (v is int) and not (v is float):
 						_warn(fname, "%s.attr_cap_levels[%d].%s" % [unit_key, lv_idx, k],
 							"值不是数字：%s" % str(v))
+
+		# ★ 步 5：level_mechanics 校验
+		var mech : Variant = u.get("level_mechanics", [])
+		if mech is Array:
+			var mech_arr : Array = mech
+			if mech_arr.size() > MAX_CAP_LEVEL:
+				_error(fname, "%s.level_mechanics" % unit_key,
+					"级数超过 %d（当前 %d）" % [MAX_CAP_LEVEL, mech_arr.size()])
+			for lv_idx in range(mech_arr.size()):
+				var lv_dict2 : Variant = mech_arr[lv_idx]
+				if not (lv_dict2 is Dictionary):
+					_warn(fname, "%s.level_mechanics[%d]" % [unit_key, lv_idx],
+						"该级不是 Dictionary（跳过）")
+					continue
+				for mk in (lv_dict2 as Dictionary):
+					if mk not in VALID_LEVEL_MECHANICS:
+						_warn(fname, "%s.level_mechanics[%d].%s" % [unit_key, lv_idx, mk],
+							"未知机制 key: %s" % mk)
+					var mv : Variant = (lv_dict2 as Dictionary)[mk]
+					if not (mv is bool):
+						_warn(fname, "%s.level_mechanics[%d].%s" % [unit_key, lv_idx, mk],
+							"机制值应为 bool（当前：%s）" % str(mv))
 
 		var branches : Array = u.get("advanced_branches", [])
 		var seen_bid : Dictionary = {}
@@ -239,6 +265,7 @@ func _validate_units():
 
 		_validate_boss_phases(fname, unit_key, u)
 
+
 func _validate_unit_unlock():
 	var fname := "unit_unlock.json"
 	if _unit_unlock_db.is_empty():
@@ -261,7 +288,7 @@ func _validate_unit_unlock():
 			var ukey : String = _normalize_unit_key(raw_id)
 			if not _unit_db.has(ukey):
 				_error(fname, "%s[%d]" % [key, i], "单位不存在: %s" % raw_id)
-			
+
 			if key == "map_unlock_units" and _unit_db.has(ukey):
 				if valid_map_units.has(ukey):
 					_error(fname, "%s[%d]" % [key, i], "地图解锁池出现重复单位: %s" % ukey)
@@ -270,8 +297,8 @@ func _validate_unit_unlock():
 	var costs : Variant = _unit_unlock_db.get("unlock_costs", {})
 	if costs is Dictionary:
 		for raw_key in costs:
-			var ukey : String = _normalize_unit_key(raw_key)
-			if not _unit_db.has(ukey):
+			var ukey2 : String = _normalize_unit_key(raw_key)
+			if not _unit_db.has(ukey2):
 				_error(fname, "unlock_costs.%s" % raw_key, "单位不存在")
 			var c : int = int(costs[raw_key])
 			if c <= 0:
@@ -279,7 +306,7 @@ func _validate_unit_unlock():
 
 	var mapping : Variant = _unit_unlock_db.get("map_unlock_mapping", {})
 	var assigned_targets : Dictionary = {}
-	
+
 	if mapping is Dictionary:
 		for src_raw in mapping:
 			var src_key : String = _normalize_unit_key(src_raw)
@@ -291,14 +318,14 @@ func _validate_unit_unlock():
 				for i in range(targets.size()):
 					var tgt_raw : String = str(targets[i])
 					var tgt_key : String = _normalize_unit_key(tgt_raw)
-					
+
 					if not _unit_db.has(tgt_key):
 						_error(fname, "map_unlock_mapping.%s[%d]" % [src_raw, i], "目标单位不存在: %s" % tgt_raw)
 						continue
 
 					if assigned_targets.has(tgt_key):
 						var old_src : String = assigned_targets[tgt_key]
-						_warn(fname, "map_unlock_mapping.%s[%d]" % [src_raw, i], 
+						_warn(fname, "map_unlock_mapping.%s[%d]" % [src_raw, i],
 							"单位 %s 已经被 %s 分配，可能引发覆盖" % [tgt_key, old_src])
 					else:
 						assigned_targets[tgt_key] = src_key
@@ -486,8 +513,8 @@ func _validate_stories():
 		for entry in dlg_defs:
 			var my_pri : int = entry["priority"]
 			var di : int = entry["idx"]
-			var d : Dictionary = dialogues[di]
-			var cond : Dictionary = d.get("condition", {})
+			var d2 : Dictionary = dialogues[di]
+			var cond : Dictionary = d2.get("condition", {})
 			var ad : String = str(cond.get("after_dialogue", ""))
 			if ad == "":
 				continue
@@ -610,14 +637,14 @@ func _validate_events():
 						_warn(fname, "%s.actions[%d].units" % [eid, i], "unlock_unit 没有 units")
 					for j in range(us.size()):
 						var raw_name : String = str(us[j])
-						var ukey : String = _normalize_unit_key(raw_name)
-						if not _unit_db.has(ukey):
+						var ukey3 : String = _normalize_unit_key(raw_name)
+						if not _unit_db.has(ukey3):
 							_error(fname, "%s.actions[%d].units[%d]" % [eid, i, j],
 								"单位不存在: %s" % raw_name)
 				"unlock_talent":
-					var tid : String = str(ad.get("talent_id", ""))
-					if tid != "" and not _talent_db.has(tid):
-						_error(fname, "%s.actions[%d].talent_id" % [eid, i], "词条不存在: %s" % tid)
+					var tid2 : String = str(ad.get("talent_id", ""))
+					if tid2 != "" and not _talent_db.has(tid2):
+						_error(fname, "%s.actions[%d].talent_id" % [eid, i], "词条不存在: %s" % tid2)
 				"unlock_equipment":
 					var eid2 : String = str(ad.get("item_id", ""))
 					if eid2 != "" and not _item_db.has(eid2) and not _relic_db.has(eid2):
