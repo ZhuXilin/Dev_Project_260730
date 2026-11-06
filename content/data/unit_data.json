@@ -197,7 +197,7 @@
 		"trigger": "initial"
 	  },
 	  {
-		"form_unit_id": "boss_dragonlord_form3",
+		"form_unit_id": "boss_dragonlord_form2",
 		"hp_mode": "keep_ratio",
 		"mechanic_id": "ash_shield",
 		"mechanic_params": { "damage_reduction": 0.5, "max_stacks": 3.0 },
@@ -206,6 +206,18 @@
 		"preserve_buffs": true,
 		"reset_turn_state": false,
 		"threshold": 0.5,
+		"trigger": "hp_below"
+	  },
+	  {
+		"form_unit_id": "boss_dragonlord_form3",
+		"hp_mode": "keep_ratio",
+		"mechanic_id": "ash_shield",
+		"mechanic_params": { "damage_reduction": 0.5, "max_stacks": 3.0 },
+		"min_hp": 1,
+		"override": {},
+		"preserve_buffs": true,
+		"reset_turn_state": false,
+		"threshold": 0.25,
 		"trigger": "hp_below"
 	  }
 	],
@@ -316,7 +328,7 @@
 	  "on_death": "boss_day1_death"
 	},
 	"default_armors": [],
-	"default_talents": ["active_fireball"],
+	"default_talents": [],
 	"default_weapon": "fire_spellbook",
 	"description": "魔法攻击单位，拥有魔法防御力，攻击力较高。",
 	"dexterity": 5.0,

@@ -4,7 +4,6 @@
   "affix_hp": {"id": "affix_hp", "name": "坚韧", "description": "最大 HP +{v}", "type": "hp_flat", "value_min": 3, "value_max": 8, "min_quality": "rare", "tags": []},
   "affix_crit_chance": {"id": "affix_crit_chance", "name": "锐眼", "description": "暴击率 +{v}%", "type": "crit_chance", "value_min": 3, "value_max": 8, "min_quality": "epic", "tags": []},
   "affix_crit_damage": {"id": "affix_crit_damage", "name": "残暴", "description": "暴击伤害 +{v}%", "type": "crit_damage", "value_min": 10, "value_max": 25, "min_quality": "epic", "tags": []},
-  "affix_dodge": {"id": "affix_dodge", "name": "灵巧", "description": "闪避 +{v}%", "type": "dodge", "value_min": 5, "value_max": 15, "min_quality": "epic", "tags": ["灰烬"]},
   "affix_lifesteal": {"id": "affix_lifesteal", "name": "吸血", "description": "攻击时回复伤害 {v}% 的 HP", "type": "lifesteal", "value_min": 5, "value_max": 15, "min_quality": "epic", "tags": ["献祭"]},
   "affix_counter": {"id": "affix_counter", "name": "反击", "description": "反击伤害 +{v}%", "type": "counter", "value_min": 15, "value_max": 40, "min_quality": "epic", "tags": ["守护"]},
   "affix_soul_fire_gain": {"id": "affix_soul_fire_gain", "name": "余烬", "description": "击杀回魂火 +{v}", "type": "soul_fire_gain", "value_min": 1, "value_max": 1, "min_quality": "legendary", "tags": ["余烬"]},

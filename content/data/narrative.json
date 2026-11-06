@@ -191,7 +191,8 @@
 			  "text": "下次...还有下次..."
 			}
 		  ],
-		  "priority": 10.0
+		  "priority": 10.0,
+		  "trigger_type": "boss_death"
 		},
 		{
 		  "id": "boss_day2_death",
@@ -201,7 +202,8 @@
 			  "text": "铁枪永存！"
 			}
 		  ],
-		  "priority": 10.0
+		  "priority": 10.0,
+		  "trigger_type": "boss_death"
 		}
 	  ],
 	  "name": "机制事件",
@@ -1699,7 +1701,7 @@
 	],
 	"new_dialogue": [
 	  {
-		"speaker": "剑带来了吗？",
+		"speaker": "???",
 		"text": "..."
 	  }
 	],
@@ -1769,8 +1771,8 @@
 	],
 	"swordsman_vision_dialog": [
 	  {
-		"speaker": "剑带来了吗？",
-		"text": "..."
+		"speaker": "???",
+		"text": "剑带来了吗？"
 	  }
 	],
 	"tavern_talk": [
@@ -1838,7 +1840,7 @@
 	  },
 	  {
 		"speaker": "村民甲",
-		"text": "它说……‘你们村子的面包太好吃了，我打算搬来住！’"
+		"text": "它说……'你们村子的面包太好吃了，我打算搬来住！'"
 	  },
 	  {
 		"speaker": "村民乙",
