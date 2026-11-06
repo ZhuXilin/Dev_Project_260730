@@ -24,7 +24,7 @@ func _ready():
 	_line.begin_cap_mode = Line2D.LINE_CAP_NONE
 	_line.end_cap_mode = Line2D.LINE_CAP_NONE
 	_line.default_color = COLOR_FILL
-	_line.antialiased = false
+	_line.antialiased = false # ★ 新增：强制关闭抗锯齿，保证纯像素边缘
 	add_child(_line)
 
 	# 用 6x6 的圆点替代原来的三角形箭头
