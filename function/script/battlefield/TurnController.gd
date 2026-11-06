@@ -145,7 +145,9 @@ func apply_team_buffs() -> void:
 			if slot == null: continue
 			var md : ItemData = ItemManager.get_item_data(slot.item_id)
 			if md == null: continue
-			var meff : Dictionary = md.melt_armor_effect
+			var meff : Dictionary = md.get("melt_armor_effect")
+			if not meff is Dictionary or meff.is_empty(): 
+				continue
 			if meff.is_empty(): continue
 			melt_attack_flat += int(meff.get("attack_flat", 0))
 			var mstype : String = str(meff.get("special_type", ""))

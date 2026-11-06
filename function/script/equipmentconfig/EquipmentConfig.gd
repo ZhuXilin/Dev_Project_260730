@@ -59,6 +59,20 @@ func _ready():
 	# ★ 强制自身铺满全屏，防止被其他容器拉伸或超出
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	
+	# ★ 统一全局的 Tooltip 字体大小
+	var custom_theme := Theme.new()
+	custom_theme.set_font_size("font_size", "TooltipLabel", 6)
+	custom_theme.set_font_size("font_size", "TooltipPanel", 6)
+	
+	var tip_sb := StyleBoxFlat.new()
+	tip_sb.bg_color = Color(0.15, 0.15, 0.15, 0.92)
+	tip_sb.content_margin_left = 4
+	tip_sb.content_margin_right = 4
+	tip_sb.content_margin_top = 2
+	tip_sb.content_margin_bottom = 2
+	custom_theme.set_stylebox("panel", "TooltipPanel", tip_sb)
+	theme = custom_theme
+	
 	_forge = EquipmentConfigForge.new(self)
 	_drag = EquipmentConfigDrag.new(self)
 	_detail = EquipmentConfigDetail.new(self)
@@ -264,7 +278,6 @@ func _build_ui():
 
 
 # ============ EquipmentConfig.gd ============
-
 func _build_ui_inner():
 	var vbox = $VBoxContainer
 	if vbox:
@@ -286,10 +299,11 @@ func _build_ui_inner():
 		gold_lbl.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 		gold_lbl.custom_minimum_size = Vector2(0, 12)
 
+	# ★ 强行裁剪整个主面板，绝不溢出
 	var main_hbox = get_node_or_null("VBoxContainer/MainHBox")
 	if main_hbox:
 		main_hbox.size_flags_vertical = Control.SIZE_EXPAND_FILL
-		main_hbox.custom_minimum_size = Vector2(0, 0) 
+		main_hbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		main_hbox.clip_contents = true
 
 	var bottom_hbox = get_node_or_null("VBoxContainer/BottomHBox")
@@ -298,64 +312,69 @@ func _build_ui_inner():
 		bottom_hbox.custom_minimum_size = Vector2(0, 20)
 		bottom_hbox.alignment = BoxContainer.ALIGNMENT_CENTER
 
-	# ★ 修复：锁死左侧信息栏宽度，防止文字变长挤爆中间
+	# ★ 左侧：锁死 110 宽度，强行折叠文本
 	var left_info = get_node_or_null("VBoxContainer/MainHBox/LeftInfoColumn")
 	if left_info:
-		left_info.custom_minimum_size = Vector2(130, 0) 
+		left_info.custom_minimum_size = Vector2(110, 0) 
+		left_info.size_flags_horizontal = Control.SIZE_FILL 
 		left_info.size_flags_vertical = Control.SIZE_EXPAND_FILL
-		left_info.size_flags_horizontal = Control.SIZE_FILL
+		left_info.clip_contents = true
 
 	var detail_zone = get_node_or_null("VBoxContainer/MainHBox/LeftInfoColumn/DetailZone")
 	if detail_zone:
-		# ★ 修复：锁死左侧面板高度，防止换行文字把整个 HBox 撑高
-		detail_zone.custom_minimum_size = Vector2(130, 150) 
-		detail_zone.size_flags_vertical = Control.SIZE_FILL 
+		detail_zone.custom_minimum_size = Vector2(110, 150) 
+		detail_zone.size_flags_horizontal = Control.SIZE_FILL
+		detail_zone.size_flags_vertical = Control.SIZE_EXPAND_FILL 
 		detail_zone.clip_contents = true
 
+	var item_info = get_node_or_null("VBoxContainer/MainHBox/LeftInfoColumn/DetailZone/ItemInfoPanel")
+	if item_info:
+		item_info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		item_info.clip_contents = true
+		var scroll = item_info.get_node_or_null("VBox/Scroll")
+		if scroll:
+			scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+		
+		for label_path in ["VBox/NameLabel", "VBox/TypeLabel", "VBox/Scroll/ContentVBox/DescLabel", "VBox/Scroll/ContentVBox/StatsLabel"]:
+			var lb = item_info.get_node_or_null(label_path)
+			if lb:
+				lb.custom_minimum_size = Vector2(0, 0)
+				lb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+				lb.autowrap_mode = TextServer.AUTOWRAP_ARBITRARY
+
+	# ★ 中间：吃掉所有剩余空间
 	var left_vbox = get_node_or_null("VBoxContainer/MainHBox/LeftVBox")
 	if left_vbox:
 		left_vbox.custom_minimum_size = Vector2(0, 0)
-		# ★ 修复：限制单位栏不能无限撑高，防止整体 UI 上下被挤出
-		left_vbox.size_flags_vertical = Control.SIZE_FILL 
+		left_vbox.size_flags_vertical = Control.SIZE_EXPAND_FILL 
 		left_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		left_vbox.clip_contents = true
 
-	# ★ 锁死右侧信息栏宽度，解决切换 Tab 导致的左右抖动
-	var right_scroll = get_node_or_null("VBoxContainer/MainHBox/RightScroll")
-	if right_scroll and right_scroll is ScrollContainer:
-		right_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
-		right_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-		right_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-		right_scroll.custom_minimum_size = Vector2(140, 0) 
-		right_scroll.size_flags_horizontal = Control.SIZE_FILL
-		
-	if right_container:
-		right_container.custom_minimum_size = Vector2(0, 0)
-		right_container.size_flags_vertical = Control.SIZE_EXPAND_FILL
-		right_container.size_flags_horizontal = Control.SIZE_FILL
+	# ★ 右侧：锁死 130 宽度，防爆
+	var r_scroll = get_node_or_null("VBoxContainer/MainHBox/RightScroll") # ★ 改名为 r_scroll 避免警告
+	if r_scroll and r_scroll is ScrollContainer:
+		r_scroll.custom_minimum_size = Vector2(130, 0) 
+		r_scroll.size_flags_horizontal = Control.SIZE_FILL
+		r_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		r_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+		r_scroll.clip_contents = true
 
-	if shop_scroll:
-		shop_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
-		shop_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-		shop_scroll.custom_minimum_size = Vector2(0, 0)
+	var r_container = get_node_or_null("VBoxContainer/MainHBox/RightScroll/RightContainer") # ★ 改名
+	if r_container:
+		r_container.custom_minimum_size = Vector2(0, 0)
+		r_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 
-	if tab_bar:
-		tab_bar.size_flags_horizontal = Control.SIZE_FILL
-		for child in tab_bar.get_children():
+	var t_bar = get_node_or_null("VBoxContainer/MainHBox/RightScroll/RightContainer/TabBar") # ★ 改名
+	if t_bar:
+		t_bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		for child in t_bar.get_children():
 			if child is Button:
-				child.clip_text = false 
+				child.clip_text = true # ★ 强制裁切文本，这是之前被撑爆的元凶！
+				child.custom_minimum_size = Vector2(0, 16) # 绝不要求额外宽度
 				child.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 
-	if reset_btn:
-		reset_btn.custom_minimum_size = Vector2(120, 20)
-		reset_btn.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-		reset_btn.size_flags_vertical = Control.SIZE_SHRINK_END
-		reset_btn.clip_text = false 
-		
-	if discard_zone:
-		discard_zone.size_flags_vertical = Control.SIZE_SHRINK_END
-		discard_zone.custom_minimum_size = Vector2(0, 20)
-
+	# ---- 以下为原有业务逻辑，保持不变 ----
 	var show_passive : bool = (_context.get_context_id() != "arena")
 	if relic_section: relic_section.visible = show_passive
 	if relic_container: relic_container.visible = show_passive
@@ -539,20 +558,20 @@ func _build_ui_inner():
 
 	reset_btn.visible = (current_tab == "arena_shop")
 	if reset_btn.visible and shop_manager:
-		reset_btn.text = "刷新商店 (" + str(shop_manager.get_reset_cost()) + "G)"
+		reset_btn.text = "刷新 (" + str(shop_manager.get_reset_cost()) + "G)"
 		
-	discard_zone.visible = (current_tab != "arena_forge" and current_tab != "sacrifice" and current_tab != "aura")
+	discard_zone.visible = (current_tab != "arena_forge" and current_tab != "sacrifice" and current_tab != "aura" and current_mode != Mode.DEPLOY)
 
 	if current_mode == Mode.FORGE or is_shop_rest_mode():
 		_setup_forge_narrative_ui()
 
 	close_btn.add_theme_font_size_override("font_size", Style.FONT_LARGE)
 	confirm_btn.add_theme_font_size_override("font_size", Style.FONT_LARGE)
-	reset_btn.add_theme_font_size_override("font_size", Style.FONT_LARGE)
-
+	
 	if reset_btn:
+		reset_btn.add_theme_font_size_override("font_size", Style.FONT_LARGE)
 		reset_btn.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-		reset_btn.clip_text = false
+		reset_btn.clip_text = true # ★ 这里也要强制 true
 
 	_ensure_upgrade_shop_btn()
 	_refresh_upgrade_shop_btn()
@@ -579,12 +598,18 @@ func _build_unit_columns():
 		col.alignment = BoxContainer.ALIGNMENT_CENTER
 		unit_container.add_child(col)
 
+		# 1. 单位头像
 		var icon_ctrl : Control = _create_unit_icon(unit, i)
 		if unit.is_dead: icon_ctrl.modulate = Color(0.4, 0.4, 0.4, 1)
 		col.add_child(icon_ctrl)
 
-		# 武器不再显示在装备列（步 1 移除）
+		# 2. 单位升级按钮（移到头像正下方）
+		if _is_level_up_enabled():
+			var level_btn : Button = _create_level_btn(unit, i)
+			if unit.is_dead: _disable_button(level_btn)
+			col.add_child(level_btn)
 
+		# 3. 防具列
 		var armor_group := VBoxContainer.new()
 		armor_group.add_theme_constant_override("separation", 2)
 		armor_group.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -595,62 +620,71 @@ func _build_unit_columns():
 			if unit.is_dead: _disable_button(armor_btn)
 			armor_group.add_child(armor_btn)
 
+		# 4. 特技槽
 		var talent_inst : TalentInstance = unit.talent_slots[0] if unit.talent_slots.size() > 0 else null
 		var talent_btn : Button = _create_talent_button(talent_inst, i, 0)
 		if unit.is_dead: _disable_button(talent_btn)
 		col.add_child(talent_btn)
 
+		# 5. 进阶职业特技槽
 		var adv_btn : Button = _create_advanced_talent_button(unit, i)
 		if unit.is_dead: _disable_button(adv_btn)
 		col.add_child(adv_btn)
 
-		if _is_level_up_enabled():
-			var level_btn : Button = _create_level_btn(unit, i)
-			if unit.is_dead: _disable_button(level_btn)
-			col.add_child(level_btn)
 
 func _is_level_up_enabled() -> bool:
-	return current_mode == Mode.FORGE \
-		or current_mode == Mode.MAP_SHOP_REST \
-		or current_mode == Mode.ARENA_REST
+	# 仅在 局内魂栈(FORGE) / 营地休息(MAP_SHOP_REST) / 竞技场休息(ARENA_REST) 允许升级
+	return current_mode in [Mode.FORGE, Mode.MAP_SHOP_REST, Mode.ARENA_REST]
 
 
 func _get_level_up_cost(cur_level: int) -> int:
 	var cfg : Dictionary = GameConfigManager.get_file("economy_config.json")
-	var costs : Array = cfg.get("unit_level_up_cost", [50, 100, 250, 600, 1500])
+	# 保留一个简短的保底防崩溃，优先读取 JSON 里的配置
+	var costs : Array = cfg.get("unit_level_up_cost", [50, 100, 200, 400, 800])
 	var idx : int = cur_level - 1
 	if idx < 0 or idx >= costs.size():
 		return 999999
-	return int(costs[idx])
+	return int(costs[idx])	
 
 
 func _create_level_btn(unit: UnitData, unit_idx: int) -> Button:
-	var btn : Button = Style.create_styled_button(Style.FONT_TINY, Style.BTN_ITEM_SIZE)
-	_apply_icon_button_style(btn)
+	# 修改 1：尺寸放宽到 52x24，字号使用 FONT_SMALL (6)
+	var btn : Button = Style.create_styled_button(Style.FONT_SMALL, Vector2(52, 24))
 	btn.set_meta("slot_type", "level_btn")
 	btn.set_meta("unit_idx", unit_idx)
+	btn.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	btn.alignment = HORIZONTAL_ALIGNMENT_CENTER
+	btn.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	
+	var empty_sb := StyleBoxEmpty.new()
+	empty_sb.content_margin_left = 2
+	empty_sb.content_margin_right = 2
+	empty_sb.content_margin_top = 2
+	empty_sb.content_margin_bottom = 2
+	btn.add_theme_stylebox_override("normal", empty_sb)
+	btn.add_theme_stylebox_override("hover", empty_sb)
+	btn.add_theme_stylebox_override("pressed", empty_sb)
+	btn.add_theme_stylebox_override("focus", empty_sb)
+	btn.add_theme_stylebox_override("disabled", empty_sb)
 
-	var cap : int = int(GameState.unit_level_cap.get(unit.unit_name, 1))
+	var cap : int = int(GameState.unit_level_cap.get(unit.unit_name, 3))
 	var cur : int = int(unit.level)
 
-	if cur >= 6:
-		btn.text = "Lv6"
+	if cur >= 6 or cur >= cap:
+		btn.text = "L%d\n满级" % cur
 		btn.disabled = true
 		btn.modulate = Color(0.5, 0.5, 0.5)
-		return btn
-	if cur >= cap:
-		btn.text = "Lv%d" % cur
-		btn.disabled = true
-		btn.modulate = Color(0.5, 0.5, 0.5)
-		btn.tooltip_text = "等级上限 Lv%d（守火者处购买）" % cap
 		return btn
 
 	var cost : int = _get_level_up_cost(cur)
 	var has_gold : bool = _context.get_gold() >= cost
-	btn.text = "%dG" % cost
-	btn.tooltip_text = "Lv%d → Lv%d，消耗 %dG" % [cur, cur + 1, cost]
+	
+	# 两行文字：当前等级 / 升级费用
+	btn.text = "L%d\n%dG" % [cur, cost]
+	btn.tooltip_text = ""
 	btn.disabled = not has_gold
 	btn.modulate = Color.WHITE if has_gold else Color(0.6, 0.5, 0.5)
+	
 	if has_gold:
 		btn.pressed.connect(_on_level_up_pressed.bind(unit_idx))
 	return btn
@@ -661,7 +695,7 @@ func _on_level_up_pressed(unit_idx: int):
 	var u : UnitData = party[unit_idx]
 	if u.is_dead: return
 
-	var cap : int = int(GameState.unit_level_cap.get(u.unit_name, 1))
+	var cap : int = int(GameState.unit_level_cap.get(u.unit_name, 3))
 	if u.level >= cap: return
 	if u.level >= 6: return
 
@@ -672,9 +706,10 @@ func _on_level_up_pressed(unit_idx: int):
 	SoundManager.play_get_item_sound()
 	_update_gold_display()
 	_sync_all()
-	_build_unit_columns()
+	
+	call_deferred("_build_unit_columns")
 	_schedule_build_ui()
-	_show_detail_in_zone("%s 升至 Lv%d" % [u.display_name, u.level])
+
 
 func _update_gold_display():
 	if gold_label:
@@ -1771,7 +1806,7 @@ func _switch_tab(tab: String):
 	if reset_btn.visible and shop_manager:
 		reset_btn.text = "刷新商店 (" + str(shop_manager.get_reset_cost()) + "G)"
 		
-	discard_zone.visible = (tab != "arena_forge" and tab != "sacrifice" and tab != "aura")
+	discard_zone.visible = (tab != "arena_forge" and tab != "sacrifice" and tab != "aura" and current_mode != Mode.DEPLOY)
 	
 	_refresh_bottom_buttons()
 	_refresh_upgrade_shop_btn()
@@ -1978,6 +2013,7 @@ func _ensure_upgrade_shop_btn():
 	_upgrade_shop_btn = Style.create_styled_button(Style.FONT_LARGE, Vector2(120, 24))
 	_upgrade_shop_btn.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	_upgrade_shop_btn.size_flags_vertical = Control.SIZE_SHRINK_END
+	_upgrade_shop_btn.clip_text = true # ★ 确保开启裁切
 	_upgrade_shop_btn.pressed.connect(_on_upgrade_shop_pressed)
 	right_container.add_child(_upgrade_shop_btn)
 	var reset_idx : int = reset_btn.get_index()

@@ -38,6 +38,7 @@ func clear_zone():
 	if _info_ui and _info_ui.has_method("clear_info"):
 		_info_ui.clear_info()
 
+
 func show_unit(unit : UnitData):
 	_hover_ref = {"kind": "unit", "unit_data": unit}
 	if FlavorManager.is_narrative_mode():
@@ -49,26 +50,48 @@ func show_unit(unit : UnitData):
 	var display : String = unit.display_name if unit.display_name != "" else unit.unit_name
 	var type_name : String = UnitDataManager.get_unit_type_display_name(unit.unit_name)
 	
-	# ★ 修复：如果已经转职，显示进阶职业名称
 	if unit.advanced_class != "":
 		type_name = AdvancedClassManager.get_display_name(unit.advanced_class)
 
 	var desc = ""
 	if unit.is_dead: desc += "【已冻结】可通过英灵殿或复活圣油解冻\n"
 	
+	# 获取 1 级基础数据用于对比
+	var base_dict = UnitDataManager.get_unit_data(unit.unit_name)
+	var base_hp = int(base_dict.get("max_hp", 0))
+	var base_str = int(base_dict.get("strength", 0))
+	var base_dex = int(base_dict.get("dexterity", 0))
+	var base_int = int(base_dict.get("intelligence", 0))
+	var base_fai = int(base_dict.get("faith", 0))
+	var base_mov = int(base_dict.get("move_range", 0))
+
 	var stats : Array = []
-	stats.append("HP: %d / %d" % [unit.hit_points, unit.max_hp])
-	stats.append("力量: %d    灵巧: %d" % [unit.strength, unit.dexterity])
-	stats.append("智力: %d    信仰: %d" % [unit.intelligence, unit.faith])
-	stats.append("感应: %d    移动力: %d" % [unit.arcane, unit.move_range])
+	
+	var fmt_attr = func(base_v, cur_v):
+		var diff = cur_v - base_v
+		if diff > 0:
+			return "%d(+%d)" % [cur_v, diff]
+		return str(cur_v)
+
+	# 精简字段名，压缩宽度
+	stats.append("HP: %s" % fmt_attr.call(base_hp, unit.max_hp))
+	stats.append("力:%s  灵:%s" % [
+		fmt_attr.call(base_str, unit.strength), 
+		fmt_attr.call(base_dex, unit.dexterity)
+	])
+	stats.append("智:%s  信:%s" % [
+		fmt_attr.call(base_int, unit.intelligence), 
+		fmt_attr.call(base_fai, unit.faith)
+	])
+	stats.append("移动: %s" % fmt_attr.call(base_mov, unit.move_range))
 
 	if unit.weapon_slot:
 		var wdata : ItemData = ItemManager.get_item_data(unit.weapon_slot.item_id)
 		if wdata: 
-			var lv_txt = "+%d" % unit.weapon_slot.upgrade_level if unit.weapon_slot.upgrade_level > 0 else ""
-			stats.append("武器: %s%s" % [wdata.name, lv_txt])
+			stats.append("武器: %s" % wdata.name)
 
 	_show_raw(display, type_name, desc, "", "\n".join(stats))
+
 
 func show_item(item_id: String, affixes: Array = []):
 	_hover_ref = {"kind": "item", "id": item_id}

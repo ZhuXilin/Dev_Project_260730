@@ -324,6 +324,7 @@ func _on_locked_unit_selected(unit_type: String):
 	_hover_id = unit_type
 	_refresh_info_panel()
 
+
 func _refresh_attr_cap_panel():
 	_clear_attr_container()
 	if _current_unit_type == "":
@@ -334,32 +335,98 @@ func _refresh_attr_cap_panel():
 
 	var display : String = UnitDataManager.get_unit_type_display_name(_current_unit_type)
 	var dict : Dictionary = UnitDataManager.get_unit_data(_current_unit_type)
-	var cur_cap : int = int(GameState.unit_level_cap.get(_current_unit_type, 1))
+	var cur_cap : int = int(GameState.unit_level_cap.get(_current_unit_type, 3))
 	var max_cap : int = 6
 
 	unit_name_label.text = "%s   等级上限 Lv %d / %d" % [display, cur_cap, max_cap]
 	unit_desc_label.text = dict.get("description", "")
 	unit_sprite.visible = false
 
-	attr_container.add_child(_make_title("— 已解锁的成长 —"))
-	if cur_cap <= 1:
-		attr_container.add_child(_make_info("（尚未解锁任何成长，当前上限 Lv1）"))
-	else:
-		for lv_idx in range(cur_cap - 1):
-			var attr : Dictionary = UnitDataManager.get_attr_cap_level_bonus(_current_unit_type, lv_idx)
-			var mech : Dictionary = UnitDataManager.get_level_mechanics(_current_unit_type, lv_idx)
-			attr_container.add_child(_make_info(_format_level_desc(lv_idx + 2, attr, mech)))
+	# 1级基础属性
+	var base_hp = int(dict.get("max_hp", 0))
+	var base_str = int(dict.get("strength", 0))
+	var base_dex = int(dict.get("dexterity", 0))
+	var base_int = int(dict.get("intelligence", 0))
+	var base_fai = int(dict.get("faith", 0))
+	var base_mov = int(dict.get("move_range", 0))
 
+	# 累加当前上限的加成
+	var total_bonus : Dictionary = {}
+	for lv_idx in range(cur_cap - 1):
+		var attr : Dictionary = UnitDataManager.get_attr_cap_level_bonus(_current_unit_type, lv_idx)
+		for k in attr:
+			total_bonus[k] = total_bonus.get(k, 0) + int(attr[k])
+
+	var cur_hp = base_hp + total_bonus.get("vitality", 0) + total_bonus.get("max_hp", 0)
+	var cur_str = base_str + total_bonus.get("strength", 0)
+	var cur_dex = base_dex + total_bonus.get("dexterity", 0)
+	var cur_int = base_int + total_bonus.get("intelligence", 0)
+	var cur_fai = base_fai + total_bonus.get("faith", 0)
+	var cur_mov = base_mov + total_bonus.get("move_range", 0)
+
+	# 渲染对比表格
+	attr_container.add_child(_make_title("— 属性对比 (Lv1 → Lv%d) —" % cur_cap))
+	
+	var grid := GridContainer.new()
+	grid.columns = 3
+	grid.add_theme_constant_override("h_separation", 4)
+	attr_container.add_child(grid)
+
+	_add_attr_row(grid, "HP", base_hp, cur_hp)
+	if base_str > 0 or cur_str > 0: _add_attr_row(grid, "力量", base_str, cur_str)
+	if base_dex > 0 or cur_dex > 0: _add_attr_row(grid, "灵巧", base_dex, cur_dex)
+	if base_int > 0 or cur_int > 0: _add_attr_row(grid, "智力", base_int, cur_int)
+	if base_fai > 0 or cur_fai > 0: _add_attr_row(grid, "信仰", base_fai, cur_fai)
+	if base_mov > 0 or cur_mov > 0: _add_attr_row(grid, "移动", base_mov, cur_mov)
+
+	# 提取解锁的机制
+	var mech_parts: Array = []
+	for lv_idx in range(cur_cap - 1):
+		var mech : Dictionary = UnitDataManager.get_level_mechanics(_current_unit_type, lv_idx)
+		for k in mech:
+			if not bool(mech[k]): continue
+			match k:
+				"range_plus_1":                 mech_parts.append("射程 +1 (Lv%d)" % (lv_idx+2))
+				"move_plus_1":                  mech_parts.append("移动 +1 (Lv%d)" % (lv_idx+2))
+				"crit_damage_plus_20":          mech_parts.append("暴伤 +20% (Lv%d)" % (lv_idx+2))
+				"physical_penetration_plus_10": mech_parts.append("物穿 +10% (Lv%d)" % (lv_idx+2))
+				"magic_penetration_plus_10":    mech_parts.append("法穿 +10% (Lv%d)" % (lv_idx+2))
+				
+	if not mech_parts.is_empty():
+		attr_container.add_child(_make_title("— 等级解锁机制 —"))
+		for m in mech_parts:
+			attr_container.add_child(_make_info("★ " + m))
+
+	# 底部升级按钮
 	if cur_cap < max_cap:
-		attr_container.add_child(_make_title("— 下一级 Lv%d 预览 —" % (cur_cap + 1)))
-		var next_attr : Dictionary = UnitDataManager.get_attr_cap_level_bonus(_current_unit_type, cur_cap - 1)
-		var next_mech : Dictionary = UnitDataManager.get_level_mechanics(_current_unit_type, cur_cap - 1)
-		attr_container.add_child(_make_info(_format_level_desc(cur_cap + 1, next_attr, next_mech)))
-
 		var cost : int = ATTR_CAP_COSTS[cur_cap - 1] if cur_cap - 1 < ATTR_CAP_COSTS.size() else 9999
+		attr_container.add_child(HSeparator.new())
 		attr_container.add_child(_make_upgrade_row("解锁 Lv%d" % (cur_cap + 1), cost, func(): _on_upgrade_level_cap()))
 	else:
-		attr_container.add_child(_make_title("— 已达上限 Lv6 —"))
+		attr_container.add_child(HSeparator.new())
+		attr_container.add_child(_make_info("— 已达上限 Lv6 —"))
+
+
+func _add_attr_row(grid: GridContainer, attr_name: String, base_v: int, cur_v: int):
+	var lb1 = _make_info(attr_name)
+	lb1.custom_minimum_size = Vector2(30, 0)
+	grid.add_child(lb1)
+	
+	var lb2 = _make_info(str(base_v))
+	lb2.custom_minimum_size = Vector2(20, 0)
+	lb2.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	grid.add_child(lb2)
+	
+	var arrow_str = "->"
+	var color = Color(0.7, 0.7, 0.7)
+	if cur_v > base_v:
+		arrow_str = "→ " + str(cur_v)
+		color = Color(0.6, 1.0, 0.6) # 提升显示为绿色
+		
+	var lb3 = _make_info(arrow_str)
+	lb3.custom_minimum_size = Vector2(40, 0)
+	lb3.modulate = color
+	grid.add_child(lb3)
 
 
 func _format_level_desc(lv : int, attr : Dictionary, mech : Dictionary) -> String:
@@ -381,7 +448,7 @@ func _format_level_desc(lv : int, attr : Dictionary, mech : Dictionary) -> Strin
 
 func _on_upgrade_level_cap():
 	if _current_unit_type == "": return
-	var cur_cap : int = int(GameState.unit_level_cap.get(_current_unit_type, 1))
+	var cur_cap : int = int(GameState.unit_level_cap.get(_current_unit_type, 3))
 	if cur_cap >= 6: return
 	if cur_cap - 1 >= ATTR_CAP_COSTS.size(): return
 	var cost : int = ATTR_CAP_COSTS[cur_cap - 1]

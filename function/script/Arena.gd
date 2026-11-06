@@ -276,7 +276,7 @@ func _show_shop() -> String:
 	add_child(config)
 	var panel = config.get_node("MainPanel")
 
-	var mode : int = EquipmentConfigClass.Mode.DEPLOY if _streak == 0 else EquipmentConfigClass.Mode.ARENA_REST
+	var mode : int = EquipmentConfigClass.Mode.DEPLOY if (_streak == 0 or _arena_gold <= 0) else EquipmentConfigClass.Mode.ARENA_REST
 	panel.init([_current_player_data.unit_name], -1, mode, ctx)
 
 	await panel.tree_exited
@@ -693,13 +693,8 @@ func _refresh_center_panel():
 func _refresh_streak_label():
 	var gold_hint : String = "（退出失效）"
 	if _phase == Phase.IDLE:
-		var lv : int = 1
-		var cap : int = 1
-		if _current_player_data:
-			lv = _current_player_data.level
-			cap = int(GameState.unit_level_cap.get(_current_player_data.unit_name, 1))
-		streak_label.text = "金币：%d %s\n通关次数：%d\n当前魂：%d\nLv %d / %d" % [
-			_arena_gold, gold_hint, GameState.arena_clear_count, GameState.soul, lv, cap
+		streak_label.text = "通关次数：%d\n当前魂：%d" % [
+			GameState.arena_clear_count, GameState.soul
 		]
 	elif _phase == Phase.SURVIVAL:
 		streak_label.text = "金币：%d %s\n生存：%d / %d\n本局净：%+d 魂" % [_arena_gold, gold_hint, _survival_round, SURVIVAL_ROUNDS, _get_net_gain()]

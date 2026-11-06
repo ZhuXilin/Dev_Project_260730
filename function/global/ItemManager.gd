@@ -75,6 +75,9 @@ func load_items():
 		item.no_affix = bool(dict.get("no_affix", false))
 		item.no_fusion = bool(dict.get("no_fusion", false))
 		item.no_sell = bool(dict.get("no_sell", false))
+		
+		# ★ 新增：读取熔铸防具效果
+		item.melt_armor_effect = dict.get("melt_armor_effect", {})
 
 		_item_db[item.id] = item
 	print("成功加载 ", _item_db.size(), " 个道具")

@@ -138,8 +138,8 @@ func _on_talent_selected(tid : String):
 	AnalyticsLogger.record_talent_unlock()
 
 	var data = TalentManager.get_talent_data(tid)
-	var name : String = data.display_name if data else tid
-	print("[竞技场] 解锁词条：%s" % name)
+	var talent_name : String = data.display_name if data else tid
+	print("[竞技场] 解锁词条：%s" % talent_name)
 
 	SoundManager.play_get_item_sound()
 	closed.emit()

@@ -48,3 +48,5 @@ class_name ItemData
 @export var no_affix: bool = false
 @export var no_fusion: bool = false
 @export var no_sell: bool = false
+
+@export var melt_armor_effect: Dictionary = {}

@@ -50,8 +50,16 @@ func refresh():
 		if info_desc: info_desc.text = flavor
 		return
 
+	# 1. 尝试从当前局内队伍中寻找已经升级过的单位实例
+	var display_unit: UnitData = null
+	for u in GameState.party:
+		if u.unit_name == current_unit_name:
+			display_unit = u
+			break
+
+	# 2. 获取基础 JSON 数据作为后备
 	var unit_dict = UnitDataManager.get_unit_data(current_unit_name)
-	if unit_dict.is_empty():
+	if display_unit == null and unit_dict.is_empty():
 		_hide_avatar_both()
 		if info_name: info_name.text = "（无数据）"
 		if info_stats: info_stats.text = ""
@@ -60,19 +68,42 @@ func refresh():
 
 	_update_avatar(current_unit_name)
 
-	var display = unit_dict.get("display_name", current_unit_name)
-	var faction = unit_dict.get("faction", "无")
+	var display = ""
+	var faction = ""
 	var type_cn = UnitDataManager.get_unit_type_display_name(current_unit_name)
-
-	if info_name: info_name.text = "%s\n（%s｜%s）" % [display, faction, type_cn]
-
 	var lines : Array = []
-	lines.append("HP      %d" % unit_dict.get("max_hp", 0))
-	lines.append("力量    %d" % unit_dict.get("strength", 0))
-	lines.append("灵巧    %d" % unit_dict.get("dexterity", 0))
-	lines.append("智力    %d" % unit_dict.get("intelligence", 0))
-	lines.append("信仰    %d" % unit_dict.get("faith", 0))
-	lines.append("移动力  %d" % unit_dict.get("move_range", 0))
+	var desc = ""
+
+	if display_unit != null:
+		# ★ 优先显示局内队伍中实际成长后的属性
+		display = display_unit.display_name if display_unit.display_name != "" else current_unit_name
+		faction = display_unit.faction if display_unit.faction != "" else "无"
+		
+		# 在名字右侧带上当前局内等级（方便魂栈、备战时查看）
+		if info_name: info_name.text = "%s\n（%s｜%s Lv.%d）" % [display, faction, type_cn, display_unit.level]
+		
+		lines.append("HP      %d" % display_unit.max_hp)
+		lines.append("力量    %d" % display_unit.strength)
+		lines.append("灵巧    %d" % display_unit.dexterity)
+		lines.append("智力    %d" % display_unit.intelligence)
+		lines.append("信仰    %d" % display_unit.faith)
+		lines.append("移动力  %d" % display_unit.move_range)
+		
+		desc = unit_dict.get("description", "")
+	else:
+		# ★ 后备：显示 JSON 中的基础 1 级属性（用于未入队的图鉴查看）
+		display = unit_dict.get("display_name", current_unit_name)
+		faction = unit_dict.get("faction", "无")
+		if info_name: info_name.text = "%s\n（%s｜%s）" % [display, faction, type_cn]
+
+		lines.append("HP      %d" % unit_dict.get("max_hp", 0))
+		lines.append("力量    %d" % unit_dict.get("strength", 0))
+		lines.append("灵巧    %d" % unit_dict.get("dexterity", 0))
+		lines.append("智力    %d" % unit_dict.get("intelligence", 0))
+		lines.append("信仰    %d" % unit_dict.get("faith", 0))
+		lines.append("移动力  %d" % unit_dict.get("move_range", 0))
+		
+		desc = unit_dict.get("description", "")
 
 	lines.append("")
 
@@ -84,7 +115,7 @@ func refresh():
 		info_stats.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 		info_stats.text = "\n".join(lines)
 	if info_desc:
-		info_desc.text = unit_dict.get("description", "")
+		info_desc.text = desc
 
 
 # ★ 兼容装备界面/物品详情的显示
@@ -126,7 +157,6 @@ func _update_avatar(unit_name: String):
 	var has_avatar = false
 	
 	if avatar_id != "":
-		# ★ 替换硬编码路径
 		var tex = IconManager.get_icon_or_null(avatar_id)
 		if tex:
 			if avatar_rect.texture != tex:
