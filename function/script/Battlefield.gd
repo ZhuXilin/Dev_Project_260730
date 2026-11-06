@@ -2030,7 +2030,6 @@ func clear_danger_indicators() -> void:
 			lb.queue_free()
 	_danger_indicators.clear()
 
-
 func _show_unit_ranges(unit: Unit):
 	var move_range : int = unit.remaining_move
 	if unit.unit_stats.team_id != 0:
@@ -2075,8 +2074,14 @@ func _show_unit_ranges(unit: Unit):
 		_enemy_danger_zones = _calc_enemy_danger_zones()
 		danger_cells = _enemy_danger_zones
 		
+	# ★ 新增：过滤掉不在移动范围内的危险区，只显示移动范围内可能被打的格子
+	var filtered_danger = {}
+	for c in danger_cells:
+		if reachable.has(c):
+			filtered_danger[c] = danger_cells[c]
+		
 	highlight_manager.clear_highlight(unit.grid_cell)
-	highlight_manager.show_enemy_preview(reachable, threat_cells, color, unit.grid_cell, false, danger_cells, danger_color)
+	highlight_manager.show_enemy_preview(reachable, threat_cells, color, unit.grid_cell, false, filtered_danger, danger_color)
 
 # ★ 新增：移动完全部单位且无目标时的结束回合确认
 func _show_end_turn_confirm():

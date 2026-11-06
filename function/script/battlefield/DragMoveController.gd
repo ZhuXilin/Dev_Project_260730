@@ -349,8 +349,9 @@ func _update_drag():
 		virtual_cell = _find_closest_reachable_cell(cell)
 	_refresh_danger_zones(virtual_cell)
 
-	# 悬停危险格，且格子上没单位时，显示敌人头顶的 `!`（现在用的是刷新后的危险区）
-	if hovered == null and _bf._enemy_danger_zones.has(cell):
+	# 悬停危险格，且格子上没单位时，显示敌人头顶的 `!`
+	# ★ 增加 _reachable.has(cell) 条件，只有在移动范围内的格子才提示
+	if hovered == null and _bf._enemy_danger_zones.has(cell) and _reachable.has(cell):
 		var attackers = _bf._enemy_danger_zones[cell]
 		_bf.show_danger_indicators(attackers)
 	else:
@@ -433,7 +434,13 @@ func _redraw_highlights(attack_cells : Dictionary, origin_cell: Vector2i):
 	var color = MapConst.HIGHLIGHT_ATTACK
 	var danger_color = Color(MapConst.HIGHLIGHT_ATTACK.r, MapConst.HIGHLIGHT_ATTACK.g, MapConst.HIGHLIGHT_ATTACK.b, 1.0)
 	
-	_bf.highlight_manager.show_enemy_preview(_reachable, attack_cells, color, origin_cell, true, _bf._enemy_danger_zones, danger_color)
+	# ★ 核心修改：只保留存在于移动范围内的红叉，避免满屏幕都是叉
+	var filtered_danger := {}
+	for c in _bf._enemy_danger_zones:
+		if _reachable.has(c):
+			filtered_danger[c] = _bf._enemy_danger_zones[c]
+	
+	_bf.highlight_manager.show_enemy_preview(_reachable, attack_cells, color, origin_cell, true, filtered_danger, danger_color)
 
 func _reset_state():
 	_is_pressing = false

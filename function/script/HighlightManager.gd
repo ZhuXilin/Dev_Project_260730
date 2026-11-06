@@ -105,10 +105,9 @@ func show_enemy_preview(move_cells: Dictionary, attack_cells: Dictionary, attack
 	
 	_process_incoming(move_cells, Color(1, 1, 1, 0.3), -1, safe_move, false, instant, danger_cells, danger_color)
 	
-	var attack_danger = {}
-	if instant and danger_cells.has(origin_cell):
-		attack_danger[origin_cell] = true
-	_process_incoming(attack_cells, attack_color, 0, safe_attack, true, instant, attack_danger, danger_color)
+	# ★ 核心修复：不再使用 attack_danger 去强行覆盖，直接传入完整的 danger_cells，
+	# 让攻击范围正常保留底层的红叉。
+	_process_incoming(attack_cells, attack_color, 0, safe_attack, true, instant, danger_cells, danger_color)
 
 func _fade_out_missing(target_cells: Dictionary, origin_cell: Vector2i, is_attack_type: bool):
 	var max_dist = 0
@@ -151,16 +150,21 @@ func _process_incoming(target_cells: Dictionary, color: Color, z_index: int, ori
 			var existing_cross = rect.get_node_or_null("DangerCross")
 			var should_have_cross = danger_cells.has(cell)
 			
-			if should_have_cross and existing_cross == null:
-				var cross = TextureRect.new()
-				cross.name = "DangerCross"
-				cross.texture = _get_cross_texture()
-				cross.custom_minimum_size = Vector2(4, 4)
-				cross.size = Vector2(4, 4)
-				cross.position = Vector2(6, 6)
-				cross.modulate = danger_color
-				cross.mouse_filter = Control.MOUSE_FILTER_IGNORE
-				rect.add_child(cross)
+			if should_have_cross:
+				if existing_cross == null:
+					var cross = TextureRect.new()
+					cross.name = "DangerCross"
+					cross.texture = _get_cross_texture()
+					cross.custom_minimum_size = Vector2(4, 4)
+					cross.size = Vector2(4, 4)
+					cross.position = Vector2(6, 6)
+					cross.modulate = danger_color
+					cross.mouse_filter = Control.MOUSE_FILTER_IGNORE
+					cross.z_index = 10 # ★ 保证红叉在最上面
+					rect.add_child(cross)
+				else:
+					existing_cross.modulate = danger_color
+					existing_cross.z_index = 10
 			elif not should_have_cross and existing_cross != null:
 				existing_cross.queue_free()
 			
@@ -204,6 +208,7 @@ func _process_incoming(target_cells: Dictionary, color: Color, z_index: int, ori
 				cross.position = Vector2(6, 6)
 				cross.modulate = danger_color
 				cross.mouse_filter = Control.MOUSE_FILTER_IGNORE
+				cross.z_index = 10 # ★ 保证红叉在最上面
 				rect.add_child(cross)
 			
 			highlight_container.add_child(rect)
