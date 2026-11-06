@@ -2,21 +2,18 @@ extends CanvasLayer
 
 signal closed
 
-enum Tab { SOUL_FIRE, ATTR_CAP, UNIT_UNLOCK, RELIC_REFINE }
+enum Tab { SOUL_FIRE, ATTR_CAP, UNIT_UNLOCK }
 
 const ATTR_CAP_COSTS : Array[int] = [20, 50, 120, 250, 500]
 
 var _current_tab : Tab = Tab.SOUL_FIRE
 var _current_unit_type : String = ""
 var unit_unlock_tab_btn : Button = null
-var relic_refine_tab_btn : Button = null
 
 var _unit_info_panel : Control = null
-var _item_info_panel : Control = null
 
 var _hover_type : String = ""
 var _hover_id : String = ""
-var _current_hover_data : Dictionary = {}
 
 @onready var soul_label : Label = $Panel/VBox/TitleBar/SoulLabel
 @onready var soul_fire_tab_btn : Button = $Panel/VBox/TabBar/SoulFireTabBtn
@@ -56,12 +53,6 @@ func _ready():
 		unit_unlock_tab_btn.add_theme_font_size_override("font_size", 7)
 		tab_bar.add_child(unit_unlock_tab_btn)
 		unit_unlock_tab_btn.pressed.connect(_on_unit_unlock_tab_pressed)
-
-		relic_refine_tab_btn = Button.new()
-		relic_refine_tab_btn.text = "遗物精炼"
-		relic_refine_tab_btn.add_theme_font_size_override("font_size", 7)
-		tab_bar.add_child(relic_refine_tab_btn)
-		relic_refine_tab_btn.pressed.connect(_on_relic_refine_tab_pressed)
 		
 		for child in tab_bar.get_children():
 			if child is Button:
@@ -96,6 +87,7 @@ func _ready():
 	_refresh_soul()
 	_switch_tab(Tab.SOUL_FIRE)
 
+
 func _ensure_layout():
 	var info_scene = load("res://content/scenes/ui/components/UnitInfoPanel.tscn")
 	if info_scene and not _unit_info_panel:
@@ -119,27 +111,6 @@ func _ensure_layout():
 		_unit_info_panel.visible = false 
 		if _unit_info_panel.has_method("clear_info"): _unit_info_panel.clear_info()
 
-	var item_scene = load("res://content/scenes/ui/components/ItemInfoPanel.tscn")
-	if item_scene and not _item_info_panel:
-		_item_info_panel = item_scene.instantiate()
-		_item_info_panel.name = "RightItemInfo"
-		
-		_item_info_panel.anchor_left = 1.0
-		_item_info_panel.anchor_right = 1.0
-		_item_info_panel.anchor_top = 0.5
-		_item_info_panel.anchor_bottom = 0.5
-		_item_info_panel.offset_left = -104.0 
-		_item_info_panel.offset_right = -8.0
-		_item_info_panel.offset_top = -72.0
-		_item_info_panel.offset_bottom = 72.0
-		_item_info_panel.grow_horizontal = Control.GROW_DIRECTION_BEGIN
-		_item_info_panel.grow_vertical = Control.GROW_DIRECTION_BOTH
-		
-		_item_info_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		_item_info_panel.z_index = 100
-		$Panel.add_child(_item_info_panel)
-		_item_info_panel.visible = false 
-		if _item_info_panel.has_method("clear_info"): _item_info_panel.clear_info()
 
 func _on_icon_hover_entered(unit_id: String, _info_panel: Control):
 	_hover_type = "unit"
@@ -155,6 +126,7 @@ func _input(event: InputEvent):
 			Globals.toggle_info_mode()
 			_refresh_info_panel()
 			get_viewport().set_input_as_handled()
+
 
 func _refresh_info_panel():
 	if _current_tab == Tab.ATTR_CAP or _current_tab == Tab.UNIT_UNLOCK:
@@ -192,40 +164,10 @@ func _refresh_info_panel():
 			"stats": "\n".join(stats), "icon": icon
 		})
 
-	elif _current_tab == Tab.RELIC_REFINE:
-		if not _item_info_panel: return
-		if _hover_type == "": 
-			_item_info_panel.visible = false
-			return
-			
-		_item_info_panel.visible = true 
-		
-		var rid = _hover_id
-		var is_refined = _current_hover_data.get("is_refined", false)
-		var rd = RelicManager.get_relic_data(rid)
-		
-		if FlavorManager.is_narrative_mode():
-			var flavor = FlavorManager.get_flavor("relics", rid)
-			_item_info_panel.show_info({"name": rd.get("name", rid), "desc": flavor, "icon": rd.get("icon")})
-			return
-			
-		var desc = rd.get("description", "")
-		if is_refined: desc += "\n\n★ 已精炼强化"
-		_item_info_panel.show_info({
-			"name": rd.get("name", rid), "name_color": Color(1.0, 0.85, 0.3),
-			"desc": desc, "icon": rd.get("icon")
-		})
-
-func _on_relic_hover(rid: String, is_refined: bool):
-	_hover_type = "relic"
-	_hover_id = rid
-	_current_hover_data = {"rid": rid, "is_refined": is_refined}
-	_refresh_info_panel()
 
 func _on_soul_fire_tab_pressed(): _switch_tab(Tab.SOUL_FIRE)
 func _on_attr_cap_tab_pressed(): _switch_tab(Tab.ATTR_CAP)
 func _on_unit_unlock_tab_pressed(): _switch_tab(Tab.UNIT_UNLOCK)
-func _on_relic_refine_tab_pressed(): _switch_tab(Tab.RELIC_REFINE)
 
 func _switch_tab(tab: Tab):
 	_current_tab = tab
@@ -234,32 +176,12 @@ func _switch_tab(tab: Tab):
 	attr_cap_tab_btn.modulate = Color.WHITE if tab == Tab.ATTR_CAP else Color(0.5, 0.5, 0.5, 1)
 	if unit_unlock_tab_btn:
 		unit_unlock_tab_btn.modulate = Color.WHITE if tab == Tab.UNIT_UNLOCK else Color(0.5, 0.5, 0.5, 1)
-	if relic_refine_tab_btn:
-		relic_refine_tab_btn.modulate = Color.WHITE if tab == Tab.RELIC_REFINE else Color(0.5, 0.5, 0.5, 1)
 
 	_hover_type = ""
 	if _unit_info_panel: 
 		_unit_info_panel.visible = false
 		if _unit_info_panel.has_method("clear_info"): _unit_info_panel.clear_info()
-	if _item_info_panel: 
-		_item_info_panel.visible = false
-		if _item_info_panel.has_method("clear_info"): _item_info_panel.clear_info()
 
-	# ★ 核心：在右侧直接填一块空面板（占位），挤压中间内容
-	var main_hbox = get_node_or_null("Panel/VBox/MainHBox")
-	if main_hbox:
-		var right_spacer = main_hbox.get_node_or_null("RightSpacer")
-		if tab == Tab.RELIC_REFINE:
-			if not right_spacer:
-				right_spacer = Control.new()
-				right_spacer.name = "RightSpacer"
-				right_spacer.custom_minimum_size = Vector2(120, 0) # 留出 120px 空间
-				right_spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
-				main_hbox.add_child(right_spacer)
-		else:
-			if right_spacer:
-				right_spacer.queue_free()
-	
 	var info_panel = get_node_or_null("Panel/VBox/MainHBox/InfoPanel")
 	if info_panel and info_panel is Control:
 		info_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -273,15 +195,11 @@ func _switch_tab(tab: Tab):
 		_build_unit_list()
 		_refresh_attr_cap_panel()
 		if _current_unit_type != "": _on_unit_selected(_current_unit_type)
-	elif tab == Tab.UNIT_UNLOCK:
+	else:
 		left_title.text = "— 残魂 —"
 		_build_locked_unit_list()
 		_refresh_unit_unlock_panel()
 		if _current_unit_type != "": _on_locked_unit_selected(_current_unit_type)
-	else:
-		left_title.text = "— 遗物 —"
-		_clear_unit_list()
-		_build_relic_refine_panel()
 
 func _clear_unit_list():
 	for c in unit_list.get_children():
@@ -599,14 +517,6 @@ func _on_unlock_unit_pressed():
 	_build_locked_unit_list()
 	_refresh_unit_unlock_panel()
 
-func _on_refine_relic(rid: String):
-	if GameState.refine_relic(rid):
-		_refresh_soul()
-		_build_relic_refine_panel()
-		_show_msg("★ %s 已精炼" % RelManagerName(rid))
-
-func RelManagerName(rid): return RelicManager.get_relic_data(rid).get("name", rid)
-
 func _make_title(text: String) -> Label:
 	var lb = Label.new()
 	lb.text = text
@@ -671,97 +581,6 @@ func _format_bonus_dict(dict : Dictionary) -> String:
 		if dict.has(k):
 			parts.append("%s +%d" % [_attr_cn(k), int(dict[k])])
 	return "  ".join(parts)
-
-func _build_relic_refine_panel():
-	_clear_attr_container()
-	
-	var attr_scroll = get_node_or_null("Panel/VBox/MainHBox/InfoPanel/AttrScroll")
-	if attr_scroll:
-		attr_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		attr_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-		
-	if attr_container:
-		attr_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		
-	unit_sprite.visible = false
-	unit_name_label.text = "遗物精炼"
-	unit_desc_label.text = "每件遗物限精炼一次"
-	attr_container.add_child(_make_info("当前魂：%d" % GameState.soul))
-	attr_container.add_child(HSeparator.new())
-
-	var unlocked : Array = RelicManager.get_unlocked_relics()
-	if unlocked.is_empty():
-		attr_container.add_child(_make_info("（暂无可精炼遗物）"))
-		return
-
-	var first_rid = ""
-	var first_refined = false
-
-	for rid in unlocked:
-		var rd : Dictionary = RelicManager.get_relic_data(rid)
-		if rd.is_empty(): continue
-		
-		var row := HBoxContainer.new()
-		row.add_theme_constant_override("separation", 6)
-		row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		row.custom_minimum_size = Vector2(0, 20)
-		
-		var is_refined : bool = GameState.is_relic_refined(rid)
-		if first_rid == "":
-			first_rid = rid
-			first_refined = is_refined
-		
-		# 图标
-		var icon_wrap := Control.new()
-		icon_wrap.custom_minimum_size = Vector2(20, 20)
-		icon_wrap.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-		var icon_rect = TextureRect.new()
-		if rd.get("icon") is Texture2D: icon_rect.texture = rd.get("icon")
-		icon_rect.set_anchors_preset(Control.PRESET_FULL_RECT)
-		icon_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-		icon_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-		icon_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		icon_wrap.add_child(icon_rect)
-		
-		icon_wrap.mouse_entered.connect(_on_relic_hover.bind(rid, is_refined))
-		row.add_child(icon_wrap)
-		
-		# 名称
-		var name_lb := Label.new()
-		name_lb.text = ("★ " if is_refined else "") + rd.get("name", rid)
-		name_lb.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_SMALL)
-		name_lb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		name_lb.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-		name_lb.clip_text = true
-		row.add_child(name_lb)
-		
-		# 状态/按钮
-		if is_refined:
-			var tag := Label.new()
-			tag.text = "已精炼"
-			tag.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_SMALL)
-			tag.modulate = Color(0.7, 1.0, 0.7)
-			tag.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-			row.add_child(tag)
-		else:
-			var btn := Button.new()
-			btn.text = "精炼(%d)" % GameState.REFINE_COST
-			btn.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_SMALL)
-			btn.custom_minimum_size = Vector2(56, 16) 
-			btn.size_flags_horizontal = Control.SIZE_SHRINK_END
-			btn.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-			
-			# 直接使用默认样式，和升级按钮完全一致
-			var can_afford := GameState.soul >= GameState.REFINE_COST
-			btn.disabled = not can_afford
-			if can_afford: 
-				btn.pressed.connect(_on_refine_relic.bind(rid))
-			row.add_child(btn)
-			
-		attr_container.add_child(row)
-
-	if first_rid != "":
-		_on_relic_hover(first_rid, first_refined)
 
 func _on_back_pressed():
 	if MusicManager.config and MusicManager.config.camp_music:

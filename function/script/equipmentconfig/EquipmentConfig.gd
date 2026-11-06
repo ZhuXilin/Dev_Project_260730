@@ -193,10 +193,11 @@ func _on_close_pressed():
 		)
 		Globals.show_confirm(
 			self,
-			"还有 %d 件待领取奖励，离开将丢失。\n确定吗？" % total,
-			"丢弃并离开", "取消",
-			func(): _do_close_with_discard(),
-			func(): pass
+			"还有 %d 件待领取奖励。\n请先把它们装备到单位防具槽后再离开。" % total,
+			"好的", "",
+			func(): pass,
+			func(): pass,
+			false
 		)
 		return
 	_do_close_normal()
@@ -563,7 +564,6 @@ func _build_ui_inner():
 	if right_container: right_container.queue_sort()
 	if tab_bar: tab_bar.queue_sort()
 
-
 func _build_unit_columns():
 	if not unit_container: return
 	unit_container.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -574,9 +574,8 @@ func _build_unit_columns():
 		var unit : UnitData = party[i]
 		var col := VBoxContainer.new()
 		col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		# ★ 修复：强制从顶部排列，不撑高，防止 UI 溢出
-		col.size_flags_vertical = Control.SIZE_SHRINK_BEGIN 
-		col.add_theme_constant_override("separation", 2) # ★ 从 6 改小为 2，压缩高度
+		col.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+		col.add_theme_constant_override("separation", 2)
 		col.alignment = BoxContainer.ALIGNMENT_CENTER
 		unit_container.add_child(col)
 
@@ -584,15 +583,10 @@ func _build_unit_columns():
 		if unit.is_dead: icon_ctrl.modulate = Color(0.4, 0.4, 0.4, 1)
 		col.add_child(icon_ctrl)
 
-		var weapon_inst : ItemInstance = unit.weapon_slot
-		var weapon_btn : Button = _create_item_button(weapon_inst, "weapon", i, -1)
-		if unit.is_dead: _disable_button(weapon_btn)
-		col.add_child(weapon_btn)
-
-		col.add_child(Style.create_label(Style.SEPARATOR_TEXT, Style.FONT_SMALL))
+		# 武器不再显示在装备列（步 1 移除）
 
 		var armor_group := VBoxContainer.new()
-		armor_group.add_theme_constant_override("separation", 2) # ★ 从 6 改小为 2
+		armor_group.add_theme_constant_override("separation", 2)
 		armor_group.alignment = BoxContainer.ALIGNMENT_CENTER
 		col.add_child(armor_group)
 		
@@ -609,7 +603,6 @@ func _build_unit_columns():
 		var adv_btn : Button = _create_advanced_talent_button(unit, i)
 		if unit.is_dead: _disable_button(adv_btn)
 		col.add_child(adv_btn)
-
 
 func _update_gold_display():
 	if gold_label:
@@ -869,7 +862,6 @@ func _create_pending_button(inst: ItemInstance, idx: int, src: String) -> Button
 		btn.mouse_exited.connect(_on_button_hover_exited)
 	return btn
 
-
 func _build_sacrifice_panel():
 	_clear_container(shop_container)
 	shop_container.columns = 1
@@ -893,21 +885,48 @@ func _build_sacrifice_panel():
 		shop_container.add_child(hint)
 		return
 
-	var next_count : int = GameState.sacrifice_count + 1
-	var preview : Dictionary = SacrificeHelper.get_reward_preview(next_count)
-	var preview_text : String = "熔铸一个单位（第 %d 次）\n获得 %d 魂火" % [
-		next_count, preview["soul_fire"]
-	]
-	if preview["relic"]:
-		preview_text += "\n★ 额外获得 1 件遗物"
-
 	var title := Label.new()
-	title.text = preview_text
+	title.text = "熔铸一个单位\n获得该职业专属 buff 防具"
 	title.add_theme_font_size_override("font_size", 8)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	shop_container.add_child(title)
+
+	# 列出存活单位及其将获得的防具
+	var alive_names : Array = []
+	for u in party:
+		if u.is_dead: continue
+		var melt_id : String = SacrificeHelper.get_melt_item_id(u.unit_name)
+		var melt_data : ItemData = ItemManager.get_item_data(melt_id)
+		var melt_name : String = melt_data.name if melt_data else "（无产出）"
+		alive_names.append("%s → %s" % [u.display_name, melt_name])
+
+	if alive_names.is_empty():
+		var hint2 := Label.new()
+		hint2.text = "（无可熔铸单位）"
+		hint2.add_theme_font_size_override("font_size", 7)
+		hint2.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		hint2.modulate = Color(0.6, 0.6, 0.6)
+		shop_container.add_child(hint2)
+	else:
+		var list_lb := Label.new()
+		list_lb.text = "\n".join(alive_names)
+		list_lb.add_theme_font_size_override("font_size", 6)
+		list_lb.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		list_lb.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		list_lb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		list_lb.modulate = Color(1.0, 0.85, 0.3)
+		shop_container.add_child(list_lb)
+
+	var warn := Label.new()
+	warn.text = "⚠ 熔铸第 3 个单位将导致全灭，本局结束"
+	warn.add_theme_font_size_override("font_size", 6)
+	warn.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	warn.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	warn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	warn.modulate = Color(1.0, 0.5, 0.5)
+	shop_container.add_child(warn)
 
 	var btn : Button = Style.create_styled_button(Style.FONT_SMALL, Style.BTN_ITEM_SIZE)
 	btn.text = "熔铸单位"
@@ -915,7 +934,6 @@ func _build_sacrifice_panel():
 	btn.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	btn.pressed.connect(_on_open_sacrifice_ui)
 	shop_container.add_child(btn)
-
 
 func _on_open_sacrifice_ui():
 	if GameState.has_any_pending_rewards():
@@ -940,19 +958,23 @@ func _do_sacrifice(u: UnitData, _armors_ignored: Array, _discard_count: int):
 	var result : Dictionary = SacrificeHelper.do_sacrifice(party, u)
 
 	_sync_all()
+
+	# ★ 熔铸后检测存活：若全灭则本局判负回营地
+	var alive_count := 0
+	for member in party:
+		if not member.is_dead:
+			alive_count += 1
+	if alive_count <= 0:
+		GameState.abandon_and_return_to_camp()
+		return
+
 	_build_unit_columns()
 	_build_pending_slots()
 	_update_gold_display()
 
-	var msg : String = "已熔铸：%s\n获得 %d 魂火（实收 %d）" % [
-		u.display_name, result["soul_fire"], result["actual_soul_fire"]
+	var msg : String = "已熔铸：%s\n获得：%s（请在上方领取）" % [
+		u.display_name, result.get("melt_item_name", "专属防具")
 	]
-	if result["buff_display"] != "":
-		msg += "\n★ 全队获得：" + result["buff_display"]
-	if result["relic_id"] != "":
-		var rd : Dictionary = RelicManager.get_relic_data(result["relic_id"])
-		msg += "\n★ 额外遗物：%s" % rd.get("name", result["relic_id"])
-	msg += "\n请在上方领取"
 	_show_detail_in_zone(msg)
 
 	_schedule_build_ui()
@@ -1006,6 +1028,10 @@ func _discard_pending_reward(data: Dictionary):
 	if pending_idx < 0 or pending_idx >= list.size(): return
 	var inst : ItemInstance = list[pending_idx]
 	if inst == null: return
+	var idata : ItemData = ItemManager.get_item_data(inst.item_id)
+	if idata != null and idata.no_sell:
+		_show_detail_in_zone("熔铸防具不可丢弃，请装备到单位防具槽")
+		return
 	list.erase(inst)
 	SaveManager.auto_save()
 	_build_pending_slots()
@@ -1255,6 +1281,29 @@ func _is_valid_drop(data: Dictionary, target: Control) -> bool:
 	var source_type : String = data["slot_type"]
 	var target_type : String = target.get_meta("slot_type", "")
 	var discard : bool = target == discard_zone
+
+	# ★ 步 2：熔铸防具不可丢弃
+	if discard:
+		if source_type == "armor":
+			var uidx : int = data.get("unit_idx", -1)
+			var sidx : int = data.get("slot_idx", -1)
+			if uidx >= 0 and uidx < party.size() and sidx >= 0 and sidx < party[uidx].armor_slots.size():
+				var inst : ItemInstance = party[uidx].armor_slots[sidx]
+				if inst != null:
+					var idata : ItemData = ItemManager.get_item_data(inst.item_id)
+					if idata != null and idata.no_sell:
+						return false
+		elif source_type == "pending_reward":
+			var pidx : int = data.get("pending_idx", -1)
+			var psrc : String = data.get("pending_src", "sacrifice")
+			var plist : Array = (GameState.pending_sacrifice_rewards if psrc == "sacrifice"
+				else GameState.pending_forge_rewards)
+			if pidx >= 0 and pidx < plist.size():
+				var pinst : ItemInstance = plist[pidx]
+				if pinst != null:
+					var pdata : ItemData = ItemManager.get_item_data(pinst.item_id)
+					if pdata != null and pdata.no_sell:
+						return false
 
 	# ★ 新增：光环只能拖拽到空的被动槽，拖拽到空白处（丢弃区）无效
 	if source_type in ["aura_shop", "aura_equipped"]:

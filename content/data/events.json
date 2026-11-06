@@ -35,16 +35,6 @@
 	],
 	"once": true
   },
-  "direct_get_master_sword": {
-	"actions": [
-	  {
-		"count": 1.0,
-		"item_id": "master_sword",
-		"type": "give_item"
-	  }
-	],
-	"once": true
-  },
   "direct_get_power_ring": {
 	"actions": [
 	  {
@@ -89,26 +79,6 @@
 	  {
 		"dialog_id": "healer_advice",
 		"type": "dialog"
-	  }
-	],
-	"once": true
-  },
-  "obtain_longbow": {
-	"actions": [
-	  {
-		"count": 1.0,
-		"item_id": "longbow",
-		"type": "give_item"
-	  }
-	],
-	"once": true
-  },
-  "obtain_steel_sword": {
-	"actions": [
-	  {
-		"count": 1.0,
-		"item_id": "steel_sword",
-		"type": "give_item"
 	  }
 	],
 	"once": true

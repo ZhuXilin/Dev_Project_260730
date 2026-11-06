@@ -50,7 +50,6 @@ func _terrain_score(cell: Vector2i) -> int:
 	var mag : float = float(td.get("magic_reduction", 0.0))
 	return int((phys + mag) * 300.0)
 
-
 func _get_cell_danger_score(cell: Vector2i, unit: Unit) -> int:
 	var danger := 0
 	for enemy in UnitManager.unit_list:
@@ -59,14 +58,12 @@ func _get_cell_danger_score(cell: Vector2i, unit: Unit) -> int:
 		if enemy.hit_points <= 0: continue
 		var weapon = enemy.get_weapon_data()
 		if not weapon: continue
-		var up_lv : int = enemy.weapon_slot.upgrade_level if enemy.weapon_slot else 0
-		var max_range : int = WeaponUpgradeHelper.get_effective_attack_range(weapon, up_lv)
+		var max_range : int = weapon.attack_range
 		var min_range : int = weapon.min_attack_range
 		var dist = abs(cell.x - enemy.grid_cell.x) + abs(cell.y - enemy.grid_cell.y)
 		if dist >= min_range and dist <= max_range:
 			danger += int(weapon.base_attack * 8)
 	return danger
-
 
 # ============================================================
 #  修女专用辅助
@@ -79,15 +76,13 @@ func _evaluate_self_danger(unit: Unit) -> int:
 		if enemy.hit_points <= 0: continue
 		var weapon = enemy.get_weapon_data()
 		if not weapon: continue
-		var up_lv : int = enemy.weapon_slot.upgrade_level if enemy.weapon_slot else 0
-		var max_range : int = WeaponUpgradeHelper.get_effective_attack_range(weapon, up_lv)
+		var max_range : int = weapon.attack_range
 		var min_range : int = weapon.min_attack_range
 		var dist : int = abs(unit.grid_cell.x - enemy.grid_cell.x) \
 						+ abs(unit.grid_cell.y - enemy.grid_cell.y)
 		if dist >= min_range and dist <= max_range:
 			danger += 1
 	return danger
-
 
 func _get_heal_priority(u: Unit) -> float:
 	var priority := 1.0
@@ -135,12 +130,10 @@ func _is_desperate(unit: Unit) -> bool:
 
 	return false
 
-
 func _decide_desperate_action(unit: Unit) -> Dictionary:
 	var weapon_data = unit.get_weapon_data()
 	if weapon_data:
-		var up_lv : int = unit.weapon_slot.upgrade_level if unit.weapon_slot else 0
-		var max_range : int = WeaponUpgradeHelper.get_effective_attack_range(weapon_data, up_lv)
+		var max_range : int = weapon_data.attack_range
 		var min_range : int = weapon_data.min_attack_range
 
 		var best_target : Unit = null
@@ -176,7 +169,6 @@ func _decide_desperate_action(unit: Unit) -> Dictionary:
 		return _try_force_advance(unit)
 
 	return {"type": "wait", "unit": unit}
-
 
 # ============================================================
 #  公共入口
@@ -485,8 +477,7 @@ func _evaluate_attack(unit: Unit, allow_healer: bool = false):
 	if not data:
 		return null
 
-	var up_lv : int = unit.weapon_slot.upgrade_level if unit.weapon_slot else 0
-	var max_range : int = WeaponUpgradeHelper.get_effective_attack_range(data, up_lv)
+	var max_range : int = data.attack_range
 	var min_range : int = data.min_attack_range
 
 	var candidates : Array = []
@@ -506,15 +497,12 @@ func _evaluate_attack(unit: Unit, allow_healer: bool = false):
 		var is_kill = damage >= enemy.hit_points
 		var score = damage * 2
 		
-		# ★ 新增：计算残血度与击杀收益
 		if is_kill:
-			score += 1000 # 只要击杀，给予绝对高的基础分
+			score += 1000
 		else:
 			var target_hp_ratio = float(enemy.hit_points) / float(max(1, enemy.unit_stats.max_hp))
-			# 越残血得分越高
 			score += int((1.0 - target_hp_ratio) * 150)
 			
-			# 这一击如果能把对方打到极低血量，也加分
 			var hp_after = enemy.hit_points - damage
 			if hp_after > 0 and hp_after < enemy.unit_stats.max_hp * 0.3:
 				score += 100
@@ -571,8 +559,6 @@ func _evaluate_attack(unit: Unit, allow_healer: bool = false):
 	if candidates.is_empty():
 		return null
 
-	# ★ 核心改进：绝对斩杀过滤
-	# 如果有任何目标可以被直接击杀，就过滤掉所有无法击杀的目标
 	var kill_candidates : Array = []
 	for c in candidates:
 		if c["is_kill"]:
@@ -582,7 +568,6 @@ func _evaluate_attack(unit: Unit, allow_healer: bool = false):
 		var picked = _pick_target_by_weight(kill_candidates)
 		return {"type": "attack", "unit": unit, "target": picked["target"], "weapon_id": weapon_id}
 
-	# 如果没有击杀目标，则走正常的加权随机
 	var picked_normal : Dictionary = _pick_target_by_weight(candidates)
 	var best_target : Unit = picked_normal["target"]
 	return {"type": "attack", "unit": unit, "target": best_target, "weapon_id": weapon_id}
@@ -816,7 +801,6 @@ func _evaluate_move(unit: Unit):
 
 	return null
 
-
 func _find_threatened_backliner(unit: Unit) -> Unit:
 	var wt = unit.get_weapon_type()
 	if wt in ["bow", "crossbow", "staff", "spellbook"]:
@@ -842,8 +826,7 @@ func _find_threatened_backliner(unit: Unit) -> Unit:
 			if enemy.hit_points <= 0: continue
 			var weapon = enemy.get_weapon_data()
 			if not weapon: continue
-			var up_lv : int = enemy.weapon_slot.upgrade_level if enemy.weapon_slot else 0
-			var mr : int = WeaponUpgradeHelper.get_effective_attack_range(weapon, up_lv)
+			var mr : int = weapon.attack_range
 			var minr : int = weapon.min_attack_range
 			var d : int = abs(ally.grid_cell.x - enemy.grid_cell.x) \
 						+ abs(ally.grid_cell.y - enemy.grid_cell.y)
@@ -856,13 +839,11 @@ func _find_threatened_backliner(unit: Unit) -> Unit:
 				best = ally
 	return best
 
-
 func _can_attack_from_cell(unit: Unit, cell: Vector2i) -> bool:
 	var weapon_data = unit.get_weapon_data()
 	if not weapon_data:
 		return false
-	var up_lv : int = unit.weapon_slot.upgrade_level if unit.weapon_slot else 0
-	var max_range : int = WeaponUpgradeHelper.get_effective_attack_range(weapon_data, up_lv)
+	var max_range : int = weapon_data.attack_range
 	var min_range : int = weapon_data.min_attack_range
 	for enemy in UnitManager.unit_list:
 		if enemy.unit_stats.team_id == unit.unit_stats.team_id: continue
@@ -871,7 +852,6 @@ func _can_attack_from_cell(unit: Unit, cell: Vector2i) -> bool:
 		if dist >= min_range and dist <= max_range:
 			return true
 	return false
-
 
 # ---- 低血量生存移动 ----
 func _evaluate_survival_move(unit: Unit):

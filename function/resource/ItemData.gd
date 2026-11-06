@@ -44,3 +44,7 @@ class_name ItemData
 
 @export var fusion_id: String = ""
 @export var fusion_effect: String = ""
+
+@export var no_affix: bool = false
+@export var no_fusion: bool = false
+@export var no_sell: bool = false

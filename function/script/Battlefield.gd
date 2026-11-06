@@ -866,7 +866,6 @@ func get_suppressed_range_unit() -> Unit:
 		_suppressed_range_unit = null
 	return _suppressed_range_unit
 
-
 func _on_request_show_info(unit: Unit):
 	# ★ 核心修复：如果光标被锁定，或者在开场过渡中，绝对不处理任何悬停请求，防止 Boss 头像闪烁
 	if _cursor_controller and _cursor_controller.is_locked:
@@ -944,7 +943,6 @@ func _on_request_show_info(unit: Unit):
 	if unit.unit_stats.team_id == 0:
 		avatar_id = GameState.get_unit_avatar(unit.unit_stats.unit_name)
 	else:
-		# 只有 Boss 才允许读取头像配置，杂兵强行置空
 		if unit.unit_stats.is_boss:
 			avatar_id = unit.unit_stats.avatar_override
 			if avatar_id == "":
@@ -970,7 +968,6 @@ func _on_request_show_info(unit: Unit):
 	var type_name = UnitDataManager.get_unit_type_display_name(unit_key)
 	var faction = unit.unit_stats.faction
 	
-	# 如果单位数据里自带自定义 display_name，优先用它（比如你在编辑器里填的中文名）
 	if unit.unit_stats.display_name != "" and unit.unit_stats.display_name != unit_key:
 		display_name = unit.unit_stats.display_name
 		
@@ -982,15 +979,12 @@ func _on_request_show_info(unit: Unit):
 		
 	var header_str : String = ""
 	
-	# ★ 核心逻辑：如果是敌方(team_id=1)且不是 Boss，强制只显示职业名（比如“弓兵”）
 	if unit.unit_stats.team_id == 1 and not unit.unit_stats.is_boss:
 		header_str = type_name if type_name != unit_key else display_name
 	else:
-		# 我方或 Boss 显示完整信息
 		header_str = display_name
 		if faction != "无阵营":
 			header_str += " | " + faction
-		# 如果职业名和显示名不重复，才拼上去
 		if type_name != display_name and type_name != unit_key:
 			header_str += " | " + type_name
 		
@@ -1004,12 +998,10 @@ func _on_request_show_info(unit: Unit):
 	else: status_str = "【可行动】"
 	lines.append("状态: " + status_str)
 
+	# ★ 武器：无升级等级，只显示名 + 基础数值
 	var weapon_data = unit.get_weapon_data()
 	if weapon_data:
-		var wname : String = weapon_data.name
-		if unit.weapon_slot and unit.weapon_slot.upgrade_level > 0:
-			wname += "+" + str(unit.weapon_slot.upgrade_level)
-		lines.append("武器: " + wname)
+		lines.append("武器: " + weapon_data.name)
 		if weapon_data.base_attack > 0: lines.append("  攻击+" + str(weapon_data.base_attack))
 		if not weapon_data.heal_effect.is_empty(): lines.append("  治疗+" + str(weapon_data.heal_effect.get("base_heal", 0)))
 		lines.append("  射程: " + str(weapon_data.min_attack_range) + "~" + str(weapon_data.attack_range))
@@ -1077,12 +1069,10 @@ func _on_request_show_info(unit: Unit):
 	_adjust_info_panel(info_text_label, info_panel, unit, show_avatar, force_replay)
 
 	if not is_dragging:
-		# 攻击/治疗/取消操作后，鼠标仍停留在该单位上时，不显示它的移动/攻击范围
 		if unit == _suppressed_range_unit:
 			highlight_manager.clear_highlight()
 		else:
 			_show_unit_ranges(unit)
-
 
 func _adjust_info_panel(label: Label, panel: PanelContainer,
 		ref_unit: Unit = null, show_avatar: bool = false, force_replay: bool = false):

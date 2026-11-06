@@ -34,6 +34,8 @@ func get_sell_price() -> int:
 	var data : ItemData = ItemManager.get_item_data(item_id)
 	if not data:
 		return 0
+	if data.no_sell:
+		return 0
 	var base : int = int(data.price)
 	if base <= 0:
 		return 0

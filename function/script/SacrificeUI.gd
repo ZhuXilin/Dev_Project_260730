@@ -16,12 +16,11 @@ var _panel_ref = null   # EquipmentConfig 引用
 func _ready():
 	layer = 25
 
-
 func setup(party_ref: Array, panel_ref) -> void:
 	_party = party_ref
 	_panel_ref = panel_ref
 	if hint_label:
-		hint_label.text = "选择一个单位熔铸：次数越多奖励越丰厚\n熔铸后单位装备保留，可通过英灵殿或复活圣油取回"
+		hint_label.text = "选择一个单位熔铸：熔铸后获得该单位的专属 buff 防具\n熔铸第 3 个单位将导致全灭，本局结束"
 	_build_cards()
 
 
@@ -35,15 +34,16 @@ func _build_cards():
 		if not u.is_dead:
 			alive.append(u)
 
-	if alive.size() <= 1:
+	if alive.is_empty():
 		var hint := Label.new()
-		hint.text = "至少保留 1 个存活单位，无法熔铸"
+		hint.text = "没有可熔铸的单位"
 		hint.add_theme_font_size_override("font_size", 8)
 		hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		hint.modulate = Color(1.0, 0.6, 0.6)
 		unit_row.add_child(hint)
 		return
 
+	# ★ 存活 ≤ 1 时，仍然显示卡片，但提示"熔铸后将全灭"
 	for u in alive:
 		unit_row.add_child(_build_unit_card(u))
 
@@ -57,19 +57,16 @@ func _build_unit_card(u: UnitData) -> Control:
 	vbox.add_theme_constant_override("separation", 3)
 	card.add_child(vbox)
 
-	# ---- 单位图标（含 idle 动画）- 统一调用管理类 ----
 	var texture_rect = UnitDataManager.create_idle_texture_rect(u.unit_name, Vector2(32, 32))
 	texture_rect.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	vbox.add_child(texture_rect)
 
-	# ---- 名字 ----
 	var name_lb := Label.new()
 	name_lb.text = u.display_name
 	name_lb.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	name_lb.add_theme_font_size_override("font_size", 8)
 	vbox.add_child(name_lb)
 
-	# ---- 类型 ----
 	var type_lb := Label.new()
 	type_lb.text = UnitDataManager.get_unit_type_display_name(u.unit_name)
 	type_lb.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -77,54 +74,41 @@ func _build_unit_card(u: UnitData) -> Control:
 	type_lb.modulate = Color(0.7, 0.7, 0.7)
 	vbox.add_child(type_lb)
 
-	# ---- HP ----
 	var hp_lb := Label.new()
 	hp_lb.text = "HP %d/%d" % [u.hit_points, u.max_hp]
 	hp_lb.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	hp_lb.add_theme_font_size_override("font_size", 6)
 	vbox.add_child(hp_lb)
 
-	# ---- 装备数 ----
-	var equip_count : int = 0
-	if u.weapon_slot != null: equip_count += 1
-	for s in u.armor_slots:
-		if s != null: equip_count += 1
-	var equip_lb := Label.new()
-	equip_lb.text = "装备 %d 件" % equip_count
-	equip_lb.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	equip_lb.add_theme_font_size_override("font_size", 6)
-	if equip_count > 0:
-		equip_lb.modulate = Color(1.0, 0.85, 0.3)
+	# ★ 熔铸奖励预览：专属防具名 + 简述
+	var melt_id : String = SacrificeHelper.get_melt_item_id(u.unit_name)
+	var melt_data : ItemData = ItemManager.get_item_data(melt_id)
+	var reward_lb := Label.new()
+	reward_lb.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	reward_lb.add_theme_font_size_override("font_size", 6)
+	reward_lb.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	if melt_data:
+		reward_lb.text = "获得：" + melt_data.name
+		reward_lb.modulate = Color(1.0, 0.85, 0.3)
 	else:
-		equip_lb.modulate = Color(0.6, 0.6, 0.6)
-	vbox.add_child(equip_lb)
+		reward_lb.text = "（无产出）"
+		reward_lb.modulate = Color(0.6, 0.6, 0.6)
+	vbox.add_child(reward_lb)
 
-	# ★ v4.1 修复（缺口 4）：魂火溢出警告
-	var next_count : int = GameState.sacrifice_count + 1
-	var preview : Dictionary = SacrificeHelper.get_reward_preview(next_count)
-	var reward_sf : int = int(preview.get("soul_fire", 0))
-	var cur_sf : int = SoulFireManager.current
-	var max_sf : int = SoulFireManager.get_max_carried()
-	var total_after : int = cur_sf + reward_sf
-	if total_after > max_sf:
-		var overflow : int = total_after - max_sf
-		var overflow_lb := Label.new()
-		overflow_lb.text = "⚠ 溢出 %d（%d/%d）" % [overflow, cur_sf, max_sf]
-		overflow_lb.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		overflow_lb.add_theme_font_size_override("font_size", 6)
-		overflow_lb.modulate = Color(1.0, 0.55, 0.35)
-		overflow_lb.tooltip_text = "当前魂火 %d，上限 %d；本次熔铸 +%d，将浪费 %d" % [
-			cur_sf, max_sf, reward_sf, overflow]
-		vbox.add_child(overflow_lb)
-	else:
-		var gain_lb := Label.new()
-		gain_lb.text = "+%d 魂火" % reward_sf
-		gain_lb.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		gain_lb.add_theme_font_size_override("font_size", 6)
-		gain_lb.modulate = Color(0.6, 1.0, 0.6)
-		vbox.add_child(gain_lb)
+	# ★ 存活 ≤ 1 时，显示"全灭"警告
+	var alive_count := 0
+	for member in _party:
+		if not member.is_dead:
+			alive_count += 1
+	if alive_count <= 1:
+		var warn_lb := Label.new()
+		warn_lb.text = "⚠ 熔铸后全灭，本局结束"
+		warn_lb.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		warn_lb.add_theme_font_size_override("font_size", 6)
+		warn_lb.modulate = Color(1.0, 0.4, 0.4)
+		warn_lb.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		vbox.add_child(warn_lb)
 
-	# ---- 熔铸按钮 ----
 	var btn := Button.new()
 	btn.text = "熔铸"
 	btn.add_theme_font_size_override("font_size", 8)
@@ -138,28 +122,28 @@ func _on_sacrifice(u: UnitData):
 	if _panel_ref == null:
 		return
 
-	# 统计装备数，决定是否警告
+	var melt_id : String = SacrificeHelper.get_melt_item_id(u.unit_name)
+	var melt_data : ItemData = ItemManager.get_item_data(melt_id)
+	var melt_name : String = melt_data.name if melt_data else "专属防具"
+
 	var equip_count : int = 0
 	if u.weapon_slot != null: equip_count += 1
 	for s in u.armor_slots:
 		if s != null: equip_count += 1
 
+	var alive_count := 0
+	for member in _party:
+		if not member.is_dead:
+			alive_count += 1
+
 	var msg : String = ""
 	if equip_count > 0:
-		msg += "该单位仍有 %d 件装备，熔铸后将永久锁定（可通过英灵殿或复活圣油取回）。\n\n" % equip_count
-	var next_count : int = GameState.sacrifice_count + 1
-	var reward_sf : int = 5
-	var reward_relic : bool = false
-	if next_count == 2:
-		reward_sf = 8
-	elif next_count >= 3:
-		reward_sf = 10
-		reward_relic = true
+		msg += "该单位仍有 %d 件装备，熔铸后将被锁定（需通过英灵殿复活取回）。\n\n" % equip_count
 
-	msg += "确定熔铸 %s？\n将获得 %d 魂火" % [u.display_name, reward_sf]
-	if reward_relic:
-		msg += " + 1 件遗物"
-	msg += "。"
+	msg += "确定熔铸 %s？\n将获得：【%s】（请在上方领取）" % [u.display_name, melt_name]
+
+	if alive_count <= 1:
+		msg += "\n\n⚠ 熔铸后全灭，本局将结束并返回营地。"
 
 	Globals.show_confirm(
 		self,
@@ -175,10 +159,8 @@ func _do_sacrifice(u: UnitData):
 	if _panel_ref == null:
 		return
 
-	# 调用主面板逻辑（内部会立即落盘，SL 防护）
 	_panel_ref._do_sacrifice(u, [], 0)
 
-	# 关闭 SacrificeUI
 	closed.emit()
 	queue_free()
 

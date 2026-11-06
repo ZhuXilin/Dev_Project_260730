@@ -118,8 +118,6 @@ func run(p : UnitData, e : UnitData) -> Array:
 
 	_log_buffs(p, "p")
 	_log_buffs(e, "e")
-	_log_weapon_upgrade(p)
-	_log_weapon_upgrade(e)
 
 	var p_dex : int = p.get_effective_attr("dexterity")
 	var e_dex : int = e.get_effective_attr("dexterity")
@@ -156,7 +154,6 @@ func run(p : UnitData, e : UnitData) -> Array:
 		_add("[b][color=red]%s 胜利！[/color][/b]" % _display(e))
 
 	return battle_log
-
 
 func get_result_text() -> String:
 	if _winner == 0: return "%s 胜" % _display(_p)
@@ -519,12 +516,10 @@ func _on_kill(killer : UnitData, killer_is_p : bool):
 func _calc_damage(atk : UnitData, dfd : UnitData) -> int:
 	var wd = _get_weapon_data(atk)
 	if wd == null: return 1
-	var upgrade_lv : int = atk.weapon_slot.upgrade_level if atk.weapon_slot else 0
 
-	var eff_attack : int = WeaponUpgradeHelper.get_effective_base_attack(wd, upgrade_lv)
-	var eff_mod : Dictionary = WeaponUpgradeHelper.get_effective_modifier(wd, upgrade_lv)
 	var qm : float = QUALITY_MULT.get(wd.quality, 1.0)
-	var base : float = eff_attack * qm
+	var base : float = wd.base_attack * qm
+	var eff_mod : Dictionary = wd.modifier
 	var bonus : float = 0.0
 	for attr in eff_mod:
 		bonus += atk.get_effective_attr(attr) * eff_mod[attr]
@@ -541,21 +536,17 @@ func _calc_damage(atk : UnitData, dfd : UnitData) -> int:
 	def_val += dfd.buff_defense_flat
 	return max(1, int(total - def_val))
 
-
 func _calc_damage_no_defense(atk : UnitData, damage_mult : float) -> int:
 	var wd = _get_weapon_data(atk)
 	if wd == null: return 1
-	var upgrade_lv : int = atk.weapon_slot.upgrade_level if atk.weapon_slot else 0
-	var eff_attack : int = WeaponUpgradeHelper.get_effective_base_attack(wd, upgrade_lv)
-	var eff_mod : Dictionary = WeaponUpgradeHelper.get_effective_modifier(wd, upgrade_lv)
 	var qm : float = QUALITY_MULT.get(wd.quality, 1.0)
-	var base : float = eff_attack * qm
+	var base : float = wd.base_attack * qm
+	var eff_mod : Dictionary = wd.modifier
 	var bonus : float = 0.0
 	for attr in eff_mod:
 		bonus += atk.get_effective_attr(attr) * eff_mod[attr]
 	var total : float = (base + bonus + atk.buff_attack_flat) * (1.0 + atk.buff_attack_percent)
 	return int(total * damage_mult)
-
 
 # ============================================================
 #  辅助
@@ -610,14 +601,3 @@ func _log_buffs(u : UnitData, _side : String):
 	if u.buff_damage_reduction > 0.0: parts.append("减伤%.0f%%" % (u.buff_damage_reduction*100))
 	if parts.size() > 0:
 		_add("[color=#DDA0DD]%s: %s[/color]" % [_display(u), ", ".join(parts)])
-
-
-func _log_weapon_upgrade(u : UnitData):
-	if u.weapon_slot == null: return
-	if u.weapon_slot.upgrade_level <= 0: return
-	var wd = ItemManager.get_item_data(u.weapon_slot.item_id)
-	if wd == null: return
-	var per_lv : int = WeaponUpgradeHelper.get_attack_per_level(wd)
-	_add("[color=#FFD700]%s 武器 +%d（+%d 攻击）[/color]" % [
-		_display(u), u.weapon_slot.upgrade_level,
-		u.weapon_slot.upgrade_level * per_lv])

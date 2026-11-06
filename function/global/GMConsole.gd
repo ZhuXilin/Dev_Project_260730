@@ -453,8 +453,7 @@ func _cmd_sacrifice(args: Array):
 	var n : int = maxi(0, _parse_int(args[0]))
 	GameState.sacrifice_count = n
 	SaveManager.auto_save()
-	_out("献祭次数 → %d（下次奖励：%s）" % [
-		n, str(SacrificeHelper.get_reward_preview(n + 1))], "green")
+	_out("献祭次数 → %d（仅统计数据，不影响奖励）" % n, "green")
 
 
 func _cmd_affinity(args: Array):

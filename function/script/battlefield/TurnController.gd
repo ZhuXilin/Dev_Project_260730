@@ -132,7 +132,6 @@ func _get_center_position() -> Vector2:
 #  战斗开始 buff（含光环）
 # ============================================================
 func apply_team_buffs() -> void:
-	# ... (此部分代码保持不变，请保留你原有的 apply_team_buffs 及后续所有的 sub 函数)
 	var relic_stats = GameState.get_global_relic_stats()
 	var relic_effects = GameState.get_global_relic_effects()
 	_sync_auras_to_units()
@@ -140,17 +139,28 @@ func apply_team_buffs() -> void:
 	for unit in UnitManager.unit_list:
 		if unit.unit_stats.team_id != 0: continue
 
-		var sac_buffs : Dictionary = unit.unit_stats.get_sacrifice_buffs()
-		for btype in sac_buffs:
-			var bvalue : float = sac_buffs[btype]
-			match btype:
-				"attack_percent":       unit.buff_attack_percent += bvalue
-				"crit_damage_bonus":    unit.buff_crit_damage_bonus += bvalue
-				"defense_flat":         unit.buff_physical_reduction += bvalue * 0.01; unit.buff_magic_reduction += bvalue * 0.01
-				"damage_reduction":     unit.buff_damage_reduction += bvalue
-				"heal_bonus":           unit.relic_heal_bonus += bvalue
-				"counter_damage_bonus": unit.relic_counter_damage_bonus += bvalue
-				_: pass
+		# ★ 步 2：熔铸 buff 由"熔铸防具"承载
+		var melt_attack_flat : int = 0
+		for slot in unit.armor_slots:
+			if slot == null: continue
+			var md : ItemData = ItemManager.get_item_data(slot.item_id)
+			if md == null: continue
+			var meff : Dictionary = md.melt_armor_effect
+			if meff.is_empty(): continue
+			melt_attack_flat += int(meff.get("attack_flat", 0))
+			var mstype : String = str(meff.get("special_type", ""))
+			var msval : float = float(meff.get("special_value", 0))
+			match mstype:
+				"attack_percent":       unit.buff_attack_percent += msval
+				"crit_damage_bonus":    unit.buff_crit_damage_bonus += msval
+				"defense_flat":
+					unit.buff_physical_reduction += msval * 0.01
+					unit.buff_magic_reduction += msval * 0.01
+				"damage_reduction":     unit.buff_damage_reduction += msval
+				"heal_bonus":           unit.relic_heal_bonus += msval
+				"counter_damage_bonus": unit.relic_counter_damage_bonus += msval
+		if melt_attack_flat > 0:
+			unit.buff_attack_flat += melt_attack_flat
 
 		var s = unit.unit_stats
 		var old_max = s.max_hp

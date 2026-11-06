@@ -1,83 +1,41 @@
 class_name SacrificeHelper
 extends RefCounted
 
-const REWARDS : Array = [
-	{"soul_fire": 5,  "relic": false},
-	{"soul_fire": 8,  "relic": false},
-	{"soul_fire": 10, "relic": true},
-]
+# ============================================================
+#  SacrificeHelper — 熔铸（步 2 改造）
+#  熔铸单位 → 产出该职业专属 buff 防具 → 进 pending_forge_rewards
+#  ============================================================
+
+static func get_melt_item_id(unit_name: String) -> String:
+	return "melt_" + unit_name
 
 
-static func get_reward_preview(count: int) -> Dictionary:
-	if count <= 0:
-		count = 1
-	var idx : int = count - 1
-	if idx >= REWARDS.size():
-		idx = REWARDS.size() - 1
-	return REWARDS[idx].duplicate()
-
-
-static func do_sacrifice(party: Array, unit: UnitData) -> Dictionary:
+static func do_sacrifice(_party: Array, unit: UnitData) -> Dictionary:
 	unit.is_dead = true
 	unit.hit_points = 0
 
 	GameState.sacrifice_count += 1
-	# ★ v4.1：数据埋点 — 献祭
+	# ★ 数据埋点 — 熔铸
 	AnalyticsLogger.record_sacrifice()
-	var reward : Dictionary = get_reward_preview(GameState.sacrifice_count)
 
-	# ★ 改为给魂火（受上限压制，溢出浪费）
-	var actual_soul_fire : int = SoulFireManager.add(int(reward["soul_fire"]))
+	var melt_id : String = get_melt_item_id(unit.unit_name)
+	var melt_data : ItemData = ItemManager.get_item_data(melt_id)
+	if melt_data == null:
+		push_warning("[熔铸] 未找到 %s 的熔铸防具 %s，本次不产出防具" % [unit.unit_name, melt_id])
+		SaveManager.auto_save()
+		return {
+			"melt_item_id": "",
+			"melt_item_name": "",
+		}
 
-	var relic_id : String = ""
-	if reward["relic"]:
-		relic_id = _grant_random_relic()
-
-	# ★ 记录 buff 来源
-	var source_key : String = UnitData.make_sacrifice_key(unit)
-	for member in party:
-		if member == unit: continue
-		if not member.sacrifice_buff_sources.has(source_key):
-			member.sacrifice_buff_sources.append(source_key)
-
-	# ★ 该单位提供的 buff 描述
-	var buff_display : String = UnitDataManager.get_sacrifice_buff_display(unit.unit_name)
+	var inst : ItemInstance = ItemInstance.new()
+	inst.item_id = melt_id
+	inst.count = 1
+	GameState.pending_forge_rewards.append(inst)
 
 	SaveManager.auto_save()
 
 	return {
-		"soul_fire": int(reward["soul_fire"]),
-		"actual_soul_fire": actual_soul_fire,
-		"relic_id": relic_id,
-		"source_key": source_key,
-		"buff_display": buff_display,
+		"melt_item_id": melt_id,
+		"melt_item_name": melt_data.name,
 	}
-
-
-static func _grant_random_relic() -> String:
-	# ★ 优先从未拥有的遗物抽
-	var owned : Dictionary = {}
-	for relic in GameState.get_relics_from_passives():
-		owned[relic.item_id] = true
-
-	var pool : Array = []
-	for rid in RelicManager.get_unlocked_relics():
-		if not owned.has(rid):
-			pool.append(rid)
-
-	# 兜底：全部已拥有 → 退回"已解锁"池（允许重复）
-	if pool.is_empty():
-		for rid in RelicManager.get_unlocked_relics():
-			pool.append(rid)
-
-	if pool.is_empty():
-		return ""
-	pool.shuffle()
-	var pick : String = pool[0]
-	RelicManager.unlock_relic(pick)
-	var inst := ItemInstance.new()
-	inst.item_id = pick
-	inst.count = 1
-	if not GameState.add_relic_to_passive_slot(inst):
-		print("[熔铸] 遗物 %s 解锁但未入槽（槽满）" % pick)
-	return pick

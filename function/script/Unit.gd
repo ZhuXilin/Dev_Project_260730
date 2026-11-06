@@ -308,7 +308,6 @@ func get_weapon_data() -> ItemData:
 	if not weapon_slot: return null
 	return ItemManager.get_item_data(weapon_slot.item_id)
 
-
 func get_weapon_stats() -> Dictionary:
 	var default_stats := {
 		"attack": 0, "magic_attack": 0, "heal_amount": 0,
@@ -319,17 +318,14 @@ func get_weapon_stats() -> Dictionary:
 
 	var quality_mult : float = CombatManager.QUALITY_MULT.get(data.quality, 1.0)
 
-	var upgrade_bonus = weapon_slot.upgrade_level if weapon_slot else 0
 	var stats := default_stats.duplicate()
-	stats["attack"] = int((data.base_attack + upgrade_bonus) * quality_mult)
-
-	var up_lv : int = weapon_slot.upgrade_level if weapon_slot else 0
-	stats["attack_range"] = WeaponUpgradeHelper.get_effective_attack_range(data, up_lv)
+	stats["attack"] = int(data.base_attack * quality_mult)
+	stats["attack_range"] = data.attack_range
 	stats["min_attack_range"] = data.min_attack_range
 	stats["attack_style"] = data.attack_style
 
 	if data.magic_attack.get("ignore_defense", false):
-		stats["magic_attack"] = int((data.base_attack + upgrade_bonus) * quality_mult)
+		stats["magic_attack"] = int(data.base_attack * quality_mult)
 		if not data.heal_effect.is_empty():
 			if data.heal_effect.get("base_heal_percent", 0.0) > 0.0:
 				var pct : float = float(data.heal_effect["base_heal_percent"])
@@ -340,7 +336,6 @@ func get_weapon_stats() -> Dictionary:
 				stats["heal_amount"] = data.heal_effect.get("base_heal", 0)
 
 	return stats
-
 
 func get_weapon_type() -> String:
 	var data = get_weapon_data()
@@ -418,7 +413,6 @@ func get_fusion_effects() -> Array[String]:
 			result.append(data.fusion_effect)
 	return result
 
-
 func get_total_stats() -> Dictionary:
 	var total = {
 		"max_hp": unit_stats.max_hp,
@@ -436,13 +430,12 @@ func get_total_stats() -> Dictionary:
 		var data = ItemManager.get_item_data(weapon_slot.item_id)
 		if data:
 			var quality_mult : float = CombatManager.QUALITY_MULT.get(data.quality, 1.0)
-			var upgrade_bonus = weapon_slot.upgrade_level
-			total["attack"] = int((data.base_attack + upgrade_bonus) * quality_mult)
-			total["attack_range"] = WeaponUpgradeHelper.get_effective_attack_range(data, upgrade_bonus)
+			total["attack"] = int(data.base_attack * quality_mult)
+			total["attack_range"] = data.attack_range
 			total["min_attack_range"] = data.min_attack_range
 			total["attack_style"] = data.attack_style
 			if data.magic_attack.get("ignore_defense", false):
-				total["magic_attack"] = int((data.base_attack + upgrade_bonus) * quality_mult)
+				total["magic_attack"] = int(data.base_attack * quality_mult)
 			if not data.heal_effect.is_empty():
 				total["heal_amount"] = data.heal_effect.get("base_heal", 0)
 
@@ -457,7 +450,6 @@ func get_total_stats() -> Dictionary:
 			total[key] += relic_bonus[key]
 
 	return total
-
 
 func serialize_inventory() -> Array[Dictionary]:
 	var result: Array[Dictionary] = []

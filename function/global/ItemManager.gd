@@ -71,6 +71,11 @@ func load_items():
 		item.fusion_id = dict.get("fusion_id", "")
 		item.fusion_effect = dict.get("fusion_effect", "")
 
+		# ★ 步 2：熔铸防具字段
+		item.no_affix = bool(dict.get("no_affix", false))
+		item.no_fusion = bool(dict.get("no_fusion", false))
+		item.no_sell = bool(dict.get("no_sell", false))
+
 		_item_db[item.id] = item
 	print("成功加载 ", _item_db.size(), " 个道具")
 

@@ -76,8 +76,7 @@ func get_active_skill_range_bonus(unit: Unit) -> int:
 func get_attackable_targets(unit: Unit) -> Array:
 	var weapon_data = unit.get_weapon_data()
 	if not weapon_data: return []
-	var up_lv : int = unit.weapon_slot.upgrade_level if unit.weapon_slot else 0
-	var max_range : int = WeaponUpgradeHelper.get_effective_attack_range(weapon_data, up_lv)
+	var max_range : int = weapon_data.attack_range
 	var min_range : int = weapon_data.min_attack_range
 	max_range += get_active_skill_range_bonus(unit)
 	var is_healer = (weapon_data.category == "staff" or weapon_data.attack_style == "heal")
@@ -120,6 +119,7 @@ func get_attackable_targets(unit: Unit) -> Array:
 		var db = abs(b.grid_cell.x - unit.grid_cell.x) + abs(b.grid_cell.y - unit.grid_cell.y)
 		return da < db)
 	return attack_targets
+
 
 func attempt_attack_after_move(unit: Unit):
 	var targets = get_attackable_targets(unit)
@@ -193,14 +193,12 @@ func _calc_penetration(attacker: Unit, is_magic: bool) -> float:
 
 	return weapon_pen + affix_pen + temp_pen
 
-
 func calculate_damage(attacker: Unit, defender: Unit, apply_heavy: bool = true) -> int:
 	var weapon_data = attacker.get_weapon_data()
 	if not weapon_data: return 0
 	var is_magic : bool = _is_magic_attack(weapon_data)
 	var quality_mult : float = QUALITY_MULT.get(weapon_data.quality, 1.0)
-	var upgrade_lv : int = attacker.weapon_slot.upgrade_level if attacker.weapon_slot else 0
-	var base_attack : float = WeaponUpgradeHelper.get_effective_base_attack(weapon_data, upgrade_lv) * quality_mult
+	var base_attack : float = weapon_data.base_attack * quality_mult
 	var modifier = weapon_data.modifier
 	var atk_bonus = 0.0
 	for attr in modifier:
@@ -243,7 +241,6 @@ func calculate_damage(attacker: Unit, defender: Unit, apply_heavy: bool = true) 
 		if taken_mult > 1.0: damage = int(damage * taken_mult)
 	return max(1, damage)
 
-
 func _calculate_damage_ignore_defense(attacker: Unit, defender: Unit, apply_heavy: bool = true) -> int:
 	if attacker == null or defender == null:
 		return 0
@@ -252,8 +249,7 @@ func _calculate_damage_ignore_defense(attacker: Unit, defender: Unit, apply_heav
 		return 1
 	var is_magic : bool = _is_magic_attack(weapon_data)
 	var quality_mult : float = QUALITY_MULT.get(weapon_data.quality, 1.0)
-	var upgrade_lv : int = attacker.weapon_slot.upgrade_level if attacker.weapon_slot else 0
-	var base_attack : float = WeaponUpgradeHelper.get_effective_base_attack(weapon_data, upgrade_lv) * quality_mult
+	var base_attack : float = weapon_data.base_attack * quality_mult
 	var modifier = weapon_data.modifier
 	var atk_bonus : float = 0.0
 	for attr in modifier:
@@ -290,7 +286,6 @@ func _calculate_damage_ignore_defense(attacker: Unit, defender: Unit, apply_heav
 			damage = int(damage * taken_mult)
 
 	return max(1, damage)
-
 
 func _roll_crit(attacker: Unit) -> bool:
 	var chance : float = CRIT_BASE_CHANCE
@@ -501,14 +496,6 @@ func execute_attack(attacker: Unit, defender: Unit, forced_skill_id: String = ""
 	await get_tree().create_timer(PRE_DAMAGE_DELAY, true, false, true).timeout
 	var defeated = _apply_damage_with_effects(defender, damage, attacker, is_crit)
 	await _wait_dialogue()
-
-	if attacker.weapon_slot:
-		var up_lv : int = attacker.weapon_slot.upgrade_level
-		if WeaponUpgradeHelper.has_special_effect(up_lv):
-			if randf() < WeaponUpgradeHelper.SPECIAL_EFFECT_CHANCE:
-				defender.can_act_this_turn = false
-				defender.set_gray(true)
-				SignalBus.request_hint_override.emit("★ 眩晕！%s 无法行动" % defender.unit_stats.unit_name, 1.0)
 
 	var flame_bonus : int = 0
 	for slot in attacker.armor_slots:

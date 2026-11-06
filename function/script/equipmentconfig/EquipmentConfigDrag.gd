@@ -196,8 +196,6 @@ func _hint_shop_purchase_failed(data: Dictionary, target: Control) -> void:
 # ============================================================
 func _collect_targets() -> Array:
 	var targets : Array = []
-	var mode : int = panel.current_mode
-	var cur_tab : String = panel.current_tab
 
 	# ---- 1. 丢弃区（最具体区域）----
 	if panel.discard_zone and panel.discard_zone.visible:
@@ -228,15 +226,7 @@ func _collect_targets() -> Array:
 			if btn is Button:
 				targets.append(btn)
 
-	# ---- 5. 武器升级 / 紫装重铸（单个具体按钮，优先级高于商店格子）----
-	var is_forge_ctx : bool = (mode == panel.Mode.FORGE) or (panel._is_shop_rest_mode() and cur_tab == "arena_forge")
-	if is_forge_ctx:
-		if panel._forge.forge_upgrade_btn and is_instance_valid(panel._forge.forge_upgrade_btn):
-			targets.append(panel._forge.forge_upgrade_btn)
-		if panel._forge.forge_reforge_btn and is_instance_valid(panel._forge.forge_reforge_btn):
-			targets.append(panel._forge.forge_reforge_btn)
-
-	# ---- 6. 商店容器（一般目标）----
+	# ---- 5. 商店容器（一般目标）----
 	if panel.shop_container and panel.shop_container.visible:
 		for btn in panel.shop_container.get_children():
 			if btn is Button:
@@ -269,16 +259,6 @@ func _get_all_target_controls() -> Array[Control]:
 	if panel._is_shop_rest_mode() and panel.current_tab == "arena_shop" and panel.shop_container.visible:
 		for btn in panel.shop_container.get_children():
 			if btn is Button and not btn.disabled: targets.append(btn)
-	if (panel.current_mode == panel.Mode.FORGE or (panel._is_shop_rest_mode() and panel.current_tab == "arena_forge")) and panel.shop_container.visible:
-		for btn in panel.shop_container.get_children():
-			if btn is Button and btn.get_meta("slot_type", "") == "forge_slot":
-				targets.append(btn)
-	if (panel.current_mode == panel.Mode.FORGE or (panel._is_shop_rest_mode() and panel.current_tab == "arena_forge")) \
-			and panel._forge.forge_upgrade_btn and is_instance_valid(panel._forge.forge_upgrade_btn):
-		if not panel._forge.forge_upgrade_btn.disabled: targets.append(panel._forge.forge_upgrade_btn)
-	if (panel.current_mode == panel.Mode.FORGE or (panel._is_shop_rest_mode() and panel.current_tab == "arena_forge")) \
-			and panel._forge.forge_reforge_btn and is_instance_valid(panel._forge.forge_reforge_btn):
-		if not panel._forge.forge_reforge_btn.disabled: targets.append(panel._forge.forge_reforge_btn)
 	if panel.discard_zone.visible: targets.append(panel.discard_zone)
 	return targets
 

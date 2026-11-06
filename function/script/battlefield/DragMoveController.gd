@@ -535,8 +535,7 @@ func _is_target_in_range(target : Unit) -> bool:
 		if unit.get_weapon_type() == "staff":
 			var weapon = unit.get_weapon_data()
 			if not weapon: return false
-			var up_lv : int = unit.weapon_slot.upgrade_level if unit.weapon_slot else 0
-			var max_range : int = WeaponUpgradeHelper.get_effective_attack_range(weapon, up_lv)
+			var max_range : int = weapon.attack_range
 			var dist = abs(unit.grid_cell.x - target.grid_cell.x) + abs(unit.grid_cell.y - target.grid_cell.y)
 			return dist >= weapon.min_attack_range and dist <= max_range
 		else:
@@ -545,11 +544,9 @@ func _is_target_in_range(target : Unit) -> bool:
 	else:
 		var weapon = unit.get_weapon_data()
 		if not weapon: return false
-		var up_lv : int = unit.weapon_slot.upgrade_level if unit.weapon_slot else 0
-		var max_range : int = WeaponUpgradeHelper.get_effective_attack_range(weapon, up_lv)
+		var max_range : int = weapon.attack_range
 		var dist = abs(unit.grid_cell.x - target.grid_cell.x) + abs(unit.grid_cell.y - target.grid_cell.y)
 		return dist >= weapon.min_attack_range and dist <= max_range
-
 
 func _is_valid_target(target : Unit) -> bool:
 	var unit = _pressing_unit
@@ -560,7 +557,6 @@ func _is_valid_target(target : Unit) -> bool:
 
 	return true
 
-
 func _find_attack_path(target : Unit) -> Array:
 	var unit = _pressing_unit
 	if unit == null: return []
@@ -568,8 +564,7 @@ func _find_attack_path(target : Unit) -> Array:
 	if not weapon: return []
 
 	var min_range : int = weapon.min_attack_range
-	var up_lv : int = unit.weapon_slot.upgrade_level if unit.weapon_slot else 0
-	var max_range : int = WeaponUpgradeHelper.get_effective_attack_range(weapon, up_lv)
+	var max_range : int = weapon.attack_range
 
 	var reachable = UnitManager.get_reachable_cells(
 		unit.grid_cell, unit.remaining_move, unit)
@@ -590,7 +585,6 @@ func _find_attack_path(target : Unit) -> Array:
 
 	return best_path
 
-
 func _find_heal_path(target : Unit) -> Array:
 	var unit = _pressing_unit
 	if unit == null: return []
@@ -601,8 +595,7 @@ func _find_heal_path(target : Unit) -> Array:
 	if unit.get_weapon_type() == "staff":
 		var weapon = unit.get_weapon_data()
 		if not weapon: return []
-		var up_lv : int = unit.weapon_slot.upgrade_level if unit.weapon_slot else 0
-		max_range = WeaponUpgradeHelper.get_effective_attack_range(weapon, up_lv)
+		max_range = weapon.attack_range
 		min_range = weapon.min_attack_range
 	else:
 		max_range = 1
@@ -626,7 +619,6 @@ func _find_heal_path(target : Unit) -> Array:
 			best_path = path
 
 	return best_path
-
 
 func _execute_attack_or_heal(target : Unit) -> void:
 	var unit = _pressing_unit
@@ -692,7 +684,6 @@ func _execute_move_and_heal(path : Array, target : Unit) -> void:
 
 	call_deferred("_do_move_and_heal_async", unit, path, target)
 
-
 func _do_move_and_heal_async(unit : Unit, path : Array, target : Unit):
 	TurnManager.start_movement(unit, path)
 	await TurnManager.move_completed
@@ -707,8 +698,7 @@ func _do_move_and_heal_async(unit : Unit, path : Array, target : Unit):
 		if unit.get_weapon_type() == "staff":
 			var weapon = unit.get_weapon_data()
 			if weapon:
-				var up_lv : int = unit.weapon_slot.upgrade_level if unit.weapon_slot else 0
-				var max_r = WeaponUpgradeHelper.get_effective_attack_range(weapon, up_lv)
+				var max_r = weapon.attack_range
 				if dist >= weapon.min_attack_range and dist <= max_r:
 					in_range = true
 		else:
@@ -720,7 +710,6 @@ func _do_move_and_heal_async(unit : Unit, path : Array, target : Unit):
 		else:
 			_bf.suppress_range_for_unit(target)
 			TurnManager.finish_unit_action(unit)
-
 
 # 攻击方式选择菜单
 func _show_attack_menu(attacker: Unit, target: Unit, _is_after_move: bool) -> void:

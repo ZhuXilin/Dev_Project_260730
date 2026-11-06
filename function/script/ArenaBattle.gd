@@ -534,7 +534,6 @@ func _do_attack(attacker: UnitData, defender: UnitData):
 		_refresh_hp_labels()
 		await get_tree().create_timer(0.4, true, false, true).timeout
 
-
 func _calc_damage(attacker: UnitData, defender: UnitData) -> int:
 	if attacker == null or defender == null:
 		return 0
@@ -544,15 +543,13 @@ func _calc_damage(attacker: UnitData, defender: UnitData) -> int:
 	if not wdata:
 		return 1
 
-	# 是否魔法攻击（与主线 CombatManager._is_magic_attack 一致口径）
 	var is_magic : bool = (wdata.attack_style == "magic") \
 		or (wdata.category == "staff") \
 		or wdata.magic_attack.get("ignore_defense", false)
 
 	# ---- 1. 攻击力 ----
 	var quality_mult : float = QUALITY_MULT.get(wdata.quality, 1.0)
-	var upgrade_lv : int = attacker.weapon_slot.upgrade_level if attacker.weapon_slot else 0
-	var base_attack : float = WeaponUpgradeHelper.get_effective_base_attack(wdata, upgrade_lv) * quality_mult
+	var base_attack : float = wdata.base_attack * quality_mult
 
 	var atk_bonus : float = 0.0
 	for attr in wdata.modifier:
@@ -563,7 +560,7 @@ func _calc_damage(attacker: UnitData, defender: UnitData) -> int:
 		total_attack += attacker.buff_magic_attack_flat
 	total_attack *= (1.0 + attacker.buff_attack_percent)
 
-	# ---- 2. 减伤率（乘法核心，与主线对齐） ----
+	# ---- 2. 减伤率 ----
 	var base_reduction : float = defender.magic_reduction if is_magic else defender.physical_reduction
 
 	var armor_reduction : float = 0.0
@@ -595,14 +592,13 @@ func _calc_damage(attacker: UnitData, defender: UnitData) -> int:
 			affix_pen += slot.get_affix_value_float("magic_penetration" if is_magic else "physical_penetration")
 	var total_pen : float = weapon_pen + affix_pen
 
-	# ---- 4. 伤害结算（乘法 + 10% 保底） ----
+	# ---- 4. 伤害结算 ----
 	var effective_reduction : float = clampf(total_reduction - total_pen, 0.0, 1.0)
 	var damage_raw : float = total_attack * (1.0 - effective_reduction)
 	var floor_raw : float = total_attack * MIN_DAMAGE_FLOOR
 	var damage : int = max(1, int(max(damage_raw, floor_raw)))
 
 	return damage
-
 
 func _roll_crit(attacker: UnitData) -> bool:
 	var chance : float = CRIT_BASE_CHANCE

@@ -2,7 +2,8 @@ class_name AnvilTavern
 extends CanvasLayer
 
 signal closed
-enum Tab { WEAPON_UPGRADE, AURA_RESEARCH }
+enum Tab { WEAPON_UPGRADE, AURA_RESEARCH, RELIC_REFINE }
+
 
 var _entry_tab : int = 0
 var _info_panel : Control = null
@@ -29,11 +30,11 @@ var _weapon_upgrade_costs : Array = [50, 120, 250, 500, 1000]
 
 func _ready():
 	_load_config_from_json()
-	_ensure_layout()        # 先造出 hbox
-	_ensure_sub_tab_bar()   # 再把 tab 插到 TitleBar 下面
+	_ensure_layout()
+	_ensure_sub_tab_bar()
 	MusicManager.play_anvil_tavern_music()
 	_refresh_resource_label()
-	_switch_tab(_entry_tab as Tab)
+	_switch_tab(Tab.AURA_RESEARCH)
 
 # ★ 支持右键切换叙事
 func _input(event: InputEvent):
@@ -118,19 +119,16 @@ func _refresh_resource_label():
 	if materials_label: materials_label.text = "魂: %d" % GameState.soul
 
 func _switch_tab(tab: Tab):
+	if tab == Tab.WEAPON_UPGRADE:
+		tab = Tab.AURA_RESEARCH
 	current_tab = tab
 	_clear_content()
 	_clear_sub_tab_bar()
 
-	if tab == Tab.WEAPON_UPGRADE: title_label.text = "灰烬铁匠 · 武器升级"
-	else: title_label.text = "灰烬铁匠 · 光环研究"
-
-	var wb := Button.new()
-	wb.text = "武器升级"
-	wb.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_NORMAL)
-	wb.modulate = Color.WHITE if tab == Tab.WEAPON_UPGRADE else Color(0.5, 0.5, 0.5, 1)
-	wb.pressed.connect(func(): _switch_tab(Tab.WEAPON_UPGRADE))
-	_sub_tab_bar.add_child(wb)
+	if tab == Tab.AURA_RESEARCH:
+		title_label.text = "灰烬铁匠 · 光环研究"
+	else:
+		title_label.text = "灰烬铁匠 · 遗物精炼"
 
 	var ab := Button.new()
 	ab.text = "光环研究"
@@ -139,102 +137,17 @@ func _switch_tab(tab: Tab):
 	ab.pressed.connect(func(): _switch_tab(Tab.AURA_RESEARCH))
 	_sub_tab_bar.add_child(ab)
 
-	if tab == Tab.WEAPON_UPGRADE: _build_weapon_upgrade_list()
-	else: _build_aura_research_list()
+	var rb := Button.new()
+	rb.text = "遗物精炼"
+	rb.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_NORMAL)
+	rb.modulate = Color.WHITE if tab == Tab.RELIC_REFINE else Color(0.5, 0.5, 0.5, 1)
+	rb.pressed.connect(func(): _switch_tab(Tab.RELIC_REFINE))
+	_sub_tab_bar.add_child(rb)
 
-# ============================================================
-#  武器升级列表
-# ============================================================
-func _build_weapon_upgrade_list():
-	var all_units : Array = UnitDataManager.get_all_unit_ids()
-	for unit_type in all_units:
-		if not Globals.is_unit_unlocked(unit_type): continue
-		var weapon_id : String = UnitDataManager.get_default_weapon_id(unit_type)
-		if weapon_id == "": continue
-		content_container.add_child(_build_weapon_row(unit_type, weapon_id))
-
-func _build_weapon_row(unit_type: String, weapon_id: String) -> HBoxContainer:
-	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 8)
-	row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-
-	var wdata : ItemData = ItemManager.get_item_data(weapon_id)
-	if not wdata: return row
-
-	var current_lv : int = _get_weapon_level(unit_type, weapon_id)
-
-	# ★ 统一图标大小 20x20
-	var icon_wrap := Control.new()
-	icon_wrap.custom_minimum_size = Vector2(20, 20)
-	icon_wrap.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	
-	var icon_rect := TextureRect.new()
-	if wdata.icon: icon_rect.texture = wdata.icon
-	icon_rect.set_anchors_preset(Control.PRESET_FULL_RECT)
-	icon_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	icon_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	icon_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	icon_wrap.add_child(icon_rect)
-	
-	icon_wrap.mouse_entered.connect(_on_weapon_hover.bind(weapon_id, current_lv, unit_type))
-	icon_wrap.mouse_exited.connect(_on_info_hover_exit)
-	row.add_child(icon_wrap)
-
-	var name_label := Label.new()
-	name_label.text = wdata.name
-	name_label.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_SMALL)
-	name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	name_label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	name_label.clip_text = true
-	row.add_child(name_label)
-
-	var cost : int = _get_weapon_upgrade_cost(current_lv)
-	var is_maxed : bool = (current_lv >= WEAPON_MAX_LV) or (cost < 0)
-
-	var lv_label := Label.new()
-	lv_label.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_SMALL)
-	lv_label.custom_minimum_size = Vector2(50, 0)
-	lv_label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	lv_label.text = "Lv %d / %d" % [current_lv, WEAPON_MAX_LV]
-	row.add_child(lv_label)
-
-	var upgrade_btn := Button.new()
-	upgrade_btn.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_SMALL)
-	upgrade_btn.custom_minimum_size = Vector2(60, 0)
-	upgrade_btn.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	if is_maxed:
-		upgrade_btn.text = "已满级"
-		upgrade_btn.disabled = true
+	if tab == Tab.AURA_RESEARCH:
+		_build_aura_research_list()
 	else:
-		upgrade_btn.text = "%d魂" % cost
-		upgrade_btn.disabled = (GameState.soul < cost)
-		upgrade_btn.pressed.connect(_on_upgrade_weapon.bind(unit_type, weapon_id, cost))
-	row.add_child(upgrade_btn)
-
-	return row
-
-func _get_weapon_level(unit_type: String, weapon_id: String) -> int:
-	var d = GameState.unit_growth.get(unit_type, {})
-	return int(d.get("weapon_lv_" + weapon_id, 0))
-
-func _set_weapon_level(unit_type: String, weapon_id: String, lv: int):
-	if not GameState.unit_growth.has(unit_type): GameState.unit_growth[unit_type] = {}
-	GameState.unit_growth[unit_type]["weapon_lv_" + weapon_id] = lv
-
-func _get_weapon_upgrade_cost(current_lv: int) -> int:
-	if current_lv < 0 or current_lv >= _weapon_upgrade_costs.size(): return -1
-	var cost : int = int(_weapon_upgrade_costs[current_lv])
-	if StoryManager.get_affinity("blacksmith") >= 10: cost = int(cost * 0.8)
-	return cost
-
-func _on_upgrade_weapon(unit_type: String, weapon_id: String, cost: int):
-	if cost <= 0 or GameState.soul < cost: return
-	GameState.soul -= cost
-	_set_weapon_level(unit_type, weapon_id, _get_weapon_level(unit_type, weapon_id) + 1)
-	SaveManager.auto_save()
-	_refresh_resource_label()
-	_switch_tab(Tab.WEAPON_UPGRADE)
-	_on_weapon_hover(weapon_id, _get_weapon_level(unit_type, weapon_id), unit_type) # 刷新右侧面板
+		_build_relic_refine_list()
 
 # ============================================================
 #  光环研究列表
@@ -320,58 +233,52 @@ func _build_aura_row(aura_id: String) -> HBoxContainer:
 # ============================================================
 #  信息面板与右键处理
 # ============================================================
-func _on_weapon_hover(weapon_id: String, lv: int, unit_type: String):
-	_hover_type = "weapon"
-	_hover_id = weapon_id
-	_current_hover_data = {"weapon_id": weapon_id, "lv": lv, "unit_type": unit_type}
-	_refresh_info_panel()
-
 func _on_aura_hover(aura_id: String, unlocked: bool):
 	_hover_type = "aura"
 	_hover_id = aura_id
 	_current_hover_data = {"aura_id": aura_id, "unlocked": unlocked}
 	_refresh_info_panel()
 
+
 func _on_info_hover_exit():
 	_hover_type = ""
 	_hover_id = ""
 	if _info_panel and _info_panel.has_method("clear_info"): _info_panel.clear_info()
 
+
 func _refresh_info_panel():
 	if not _info_panel or _hover_type == "": return
-	
+
 	var is_narrative = FlavorManager.is_narrative_mode()
-	
-	if _hover_type == "weapon":
-		var weapon_id = _current_hover_data.weapon_id
-		var lv = _current_hover_data.lv
-		var wdata = ItemManager.get_item_data(weapon_id)
-		if not wdata: return
-		
-		if is_narrative:
-			var flavor = FlavorManager.get_flavor("items", weapon_id)
-			_info_panel.show_info({"name": wdata.name, "desc": flavor, "icon": wdata.icon})
-			return
-			
-		var stats = "攻击: %d\n射程: %d~%d" % [WeaponUpgradeHelper.get_effective_base_attack(wdata, lv), wdata.min_attack_range, WeaponUpgradeHelper.get_effective_attack_range(wdata, lv)]
-		_info_panel.show_info({
-			"name": wdata.name, "name_color": UIConst.QUALITY_COLORS.get(wdata.quality, Color.WHITE),
-			"desc": wdata.description, "stats": stats, "icon": wdata.icon
-		})
-		
-	elif _hover_type == "aura":
+
+	if _hover_type == "aura":
 		var aura_id = _current_hover_data.aura_id
 		var ad = AuraManager.get_aura(aura_id)
 		if is_narrative:
 			var flavor = FlavorManager.get_flavor("auras", aura_id)
 			_info_panel.show_info({"name": ad.get("name", aura_id), "desc": flavor, "icon": ad.get("icon")})
 			return
-			
 		var stats = "光环 [%s]\n状态: %s" % [ad.get("tag", ""), "已解锁" if _current_hover_data.unlocked else "未解锁"]
 		_info_panel.show_info({
 			"name": ad.get("name", aura_id), "name_color": Color(0.7, 0.9, 1.0),
 			"desc": ad.get("description", ""), "stats": stats, "icon": ad.get("icon")
 		})
+	elif _hover_type == "relic":
+		var rid : String = _current_hover_data.get("rid", "")
+		var is_refined : bool = _current_hover_data.get("is_refined", false)
+		var rd : Dictionary = RelicManager.get_relic_data(rid)
+		if rd.is_empty(): return
+		if is_narrative:
+			var flavor = FlavorManager.get_flavor("relics", rid)
+			_info_panel.show_info({"name": rd.get("name", rid), "desc": flavor, "icon": rd.get("icon")})
+			return
+		var desc : String = rd.get("description", "")
+		if is_refined: desc += "\n\n★ 已精炼强化"
+		_info_panel.show_info({
+			"name": rd.get("name", rid), "name_color": Color(1.0, 0.85, 0.3),
+			"desc": desc, "icon": rd.get("icon")
+		})
+
 
 func _on_start_research(aura_id: String):
 	if AuraManager.start_research(aura_id):
@@ -394,3 +301,91 @@ func _on_back_pressed():
 	if MusicManager.config and MusicManager.config.camp_music: MusicManager.play_music(MusicManager.config.camp_music)
 	closed.emit()
 	queue_free()
+
+func _build_relic_refine_list():
+	var unlocked : Array = RelicManager.get_unlocked_relics()
+	if unlocked.is_empty():
+		var hint := Label.new()
+		hint.text = "（暂无可精炼遗物）"
+		hint.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_SMALL)
+		hint.modulate = Color(0.6, 0.6, 0.6)
+		hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		content_container.add_child(hint)
+		return
+
+	var first_rid : String = ""
+	var first_refined : bool = false
+
+	for rid in unlocked:
+		var rd : Dictionary = RelicManager.get_relic_data(rid)
+		if rd.is_empty(): continue
+
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 6)
+		row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		row.custom_minimum_size = Vector2(0, 20)
+
+		var is_refined : bool = GameState.is_relic_refined(rid)
+		if first_rid == "":
+			first_rid = rid
+			first_refined = is_refined
+
+		var icon_wrap := Control.new()
+		icon_wrap.custom_minimum_size = Vector2(20, 20)
+		icon_wrap.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		var icon_rect = TextureRect.new()
+		if rd.get("icon") is Texture2D: icon_rect.texture = rd.get("icon")
+		icon_rect.set_anchors_preset(Control.PRESET_FULL_RECT)
+		icon_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		icon_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		icon_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		icon_wrap.add_child(icon_rect)
+		icon_wrap.mouse_entered.connect(_on_relic_hover_entered.bind(rid, is_refined))
+		icon_wrap.mouse_exited.connect(_on_info_hover_exit)
+		row.add_child(icon_wrap)
+
+		var name_lb := Label.new()
+		name_lb.text = ("★ " if is_refined else "") + rd.get("name", rid)
+		name_lb.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_SMALL)
+		name_lb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		name_lb.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		name_lb.clip_text = true
+		row.add_child(name_lb)
+
+		if is_refined:
+			var tag := Label.new()
+			tag.text = "已精炼"
+			tag.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_SMALL)
+			tag.modulate = Color(0.7, 1.0, 0.7)
+			tag.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+			row.add_child(tag)
+		else:
+			var btn := Button.new()
+			btn.text = "精炼(%d)" % GameState.REFINE_COST
+			btn.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_SMALL)
+			btn.custom_minimum_size = Vector2(56, 16)
+			btn.size_flags_horizontal = Control.SIZE_SHRINK_END
+			btn.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+			var can_afford := GameState.soul >= GameState.REFINE_COST
+			btn.disabled = not can_afford
+			if can_afford:
+				btn.pressed.connect(_on_refine_relic_pressed.bind(rid))
+			row.add_child(btn)
+
+		content_container.add_child(row)
+
+	if first_rid != "":
+		_on_relic_hover_entered(first_rid, first_refined)
+
+func _on_relic_hover_entered(rid: String, is_refined: bool):
+	_hover_type = "relic"
+	_hover_id = rid
+	_current_hover_data = {"rid": rid, "is_refined": is_refined}
+	_refresh_info_panel()
+
+
+func _on_refine_relic_pressed(rid: String):
+	if GameState.refine_relic(rid):
+		_refresh_resource_label()
+		_switch_tab(Tab.RELIC_REFINE)
+		SoundManager.play_select_sound()
