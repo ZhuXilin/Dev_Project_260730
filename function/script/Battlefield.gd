@@ -1008,7 +1008,7 @@ func _on_request_show_info(unit: Unit):
 		+ " | 灵巧 " + str(unit.unit_stats.dexterity) \
 		+ " | 智力 " + str(unit.unit_stats.intelligence))
 	lines.append("信仰 " + str(unit.unit_stats.faith) \
-		+ " | 移动 " + str(unit.unit_stats.move_range))
+		+ " | 移动 " + str(unit.get_total_move_range()))
 
 	# ★ 武器信息（仅显示名字，去掉冗余参数）
 	var s = unit.unit_stats
@@ -2030,9 +2030,9 @@ func clear_danger_indicators() -> void:
 	_danger_indicators.clear()
 
 func _show_unit_ranges(unit: Unit):
-	var move_range : int = unit.remaining_move
+	var move_range : int = unit.get_total_move_range()
 	if unit.unit_stats.team_id != 0:
-		move_range = unit.unit_stats.move_range
+		move_range = unit.get_total_move_range()
 
 	var reachable = UnitManager.get_reachable_cells(unit.grid_cell, move_range, unit)
 

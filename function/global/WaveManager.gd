@@ -14,7 +14,6 @@ var _map_data : MapData = null
 var _battlefield : Node2D = null
 
 signal wave_advanced(current_wave: int, total_waves: int)
-signal wave_warning(current_wave: int, total_waves: int)
 
 
 func setup_for_node(map_data : MapData, battlefield : Node2D = null) -> void:

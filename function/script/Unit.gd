@@ -625,7 +625,9 @@ func get_effective_min_attack_range() -> int:
 func consume_move(cost: int):
 	remaining_move -= cost
 	if remaining_move < 0: remaining_move = 0
-	used_move = unit_stats.move_range - remaining_move
+	# 原代码： used_move = unit_stats.move_range - remaining_move
+	# 改为：
+	used_move = get_total_move_range() - remaining_move
 	has_moved = true
 	if has_attacked:
 		movement_after_attack = true
