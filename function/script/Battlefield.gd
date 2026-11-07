@@ -866,6 +866,7 @@ func get_suppressed_range_unit() -> Unit:
 		_suppressed_range_unit = null
 	return _suppressed_range_unit
 
+
 func _on_request_show_info(unit: Unit):
 	# ★ 核心修复：如果光标被锁定，或者在开场过渡中，绝对不处理任何悬停请求，防止 Boss 头像闪烁
 	if _cursor_controller and _cursor_controller.is_locked:
@@ -1002,18 +1003,21 @@ func _on_request_show_info(unit: Unit):
 	else: status_str = "【可行动】"
 	lines.append("状态: " + status_str)
 
-	# ★ 武器：无升级等级，只显示名 + 基础数值
-	var weapon_data = unit.get_weapon_data()
-	if weapon_data:
-		lines.append("武器: " + weapon_data.name)
-		if weapon_data.base_attack > 0: lines.append("  攻击+" + str(weapon_data.base_attack))
-		if not weapon_data.heal_effect.is_empty(): lines.append("  治疗+" + str(weapon_data.heal_effect.get("base_heal", 0)))
-		lines.append("  射程: " + str(weapon_data.min_attack_range) + "~" + str(weapon_data.attack_range))
-		if weapon_data.physical_penetration > 0.0: lines.append("  物理穿透: " + str(int(weapon_data.physical_penetration*100)) + "%")
-		if weapon_data.magic_penetration > 0.0: lines.append("  魔法穿透: " + str(int(weapon_data.magic_penetration*100)) + "%")
+	# ★ 基础属性
+	lines.append("力量 " + str(unit.unit_stats.strength) \
+		+ " | 灵巧 " + str(unit.unit_stats.dexterity) \
+		+ " | 智力 " + str(unit.unit_stats.intelligence))
+	lines.append("信仰 " + str(unit.unit_stats.faith) \
+		+ " | 移动 " + str(unit.unit_stats.move_range))
+
+	# ★ 武器信息（仅显示名字，去掉冗余参数）
+	var s = unit.unit_stats
+	if s.weapon_name != "":
+		lines.append("武器: " + s.weapon_name)
 	else:
 		lines.append("武器: 无")
 
+	# 防具
 	var armor_slots : Array = unit.get_armor_slots()
 	if armor_slots != null:
 		var armor_lines : Array = []
@@ -1028,21 +1032,16 @@ func _on_request_show_info(unit: Unit):
 			lines.append("防具:")
 			lines.append_array(armor_lines)
 
-	lines.append("力量 " + str(unit.unit_stats.strength) \
-		+ " | 灵巧 " + str(unit.unit_stats.dexterity) \
-		+ " | 智力 " + str(unit.unit_stats.intelligence))
-	lines.append("信仰 " + str(unit.unit_stats.faith) \
-		+ " | 移动 " + str(unit.unit_stats.move_range))
-
+	# 减伤
 	var phys_red : float = unit.unit_stats.physical_reduction
 	var mag_red : float = unit.unit_stats.magic_reduction
 	for slot in unit.armor_slots:
 		if slot:
 			var d : ItemData = ItemManager.get_item_data(slot.item_id)
 			if d:
-				var qm : float = CombatManager.QUALITY_MULT.get(d.quality, 1.0)
-				phys_red += d.physical_reduction * qm
-				mag_red += d.magic_reduction * qm
+				var qm2 : float = CombatManager.QUALITY_MULT.get(d.quality, 1.0)
+				phys_red += d.physical_reduction * qm2
+				mag_red += d.magic_reduction * qm2
 	phys_red += unit.buff_physical_reduction + unit.buff_damage_reduction
 	mag_red += unit.buff_magic_reduction + unit.buff_damage_reduction
 	phys_red = clampf(phys_red, 0.0, 0.75)
@@ -1077,6 +1076,7 @@ func _on_request_show_info(unit: Unit):
 			highlight_manager.clear_highlight()
 		else:
 			_show_unit_ranges(unit)
+
 
 func _adjust_info_panel(label: Label, panel: PanelContainer,
 		ref_unit: Unit = null, show_avatar: bool = false, force_replay: bool = false):
@@ -1968,17 +1968,22 @@ func calc_enemy_danger_zones_with_virtual(virtual_unit: Unit, virtual_cell: Vect
 # 危险区计算与提示
 # ============================================================
 func _calc_enemy_danger_zones() -> Dictionary:
-	var danger_map : Dictionary = {}
+	var danger_map: Dictionary = {}
 	for u in UnitManager.unit_list:
 		if not is_instance_valid(u) or u.unit_stats.team_id != 1 or u.hit_points <= 0:
 			continue
-		var move_range = u.unit_stats.move_range
+			
+		# 使用 get_total_move_range 确保计入额外的移动加成
+		var move_range = u.get_total_move_range()
 		var reach = UnitManager.get_reachable_cells(u.grid_cell, move_range, u)
-		var weapon = u.get_weapon_data()
-		if not weapon: continue
 		
-		var max_r = weapon.attack_range
-		var min_r = weapon.min_attack_range
+		# ★ v4.8 修复：直接读取内联武器数据
+		var stats = u.unit_stats
+		if stats.weapon_name == "":
+			continue
+			
+		var max_r = stats.attack_range + u.bonus_attack_range
+		var min_r = stats.min_attack_range
 		
 		for r_cell in reach.keys():
 			for x in range(-max_r, max_r + 1):
@@ -2031,14 +2036,15 @@ func _show_unit_ranges(unit: Unit):
 
 	var reachable = UnitManager.get_reachable_cells(unit.grid_cell, move_range, unit)
 
-	var weapon = unit.get_weapon_data()
-	if weapon == null:
+	# ★ 修复：不再 get_weapon_data，直接读内联字段
+	var s = unit.unit_stats
+	if s == null or s.weapon_name == "":
 		highlight_manager.clear_highlight(unit.grid_cell)
 		highlight_manager.show_move_highlight(reachable, MapConst.HIGHLIGHT_MOVE, -1, true, unit.grid_cell)
 		return
 
-	var max_range : int = weapon.attack_range
-	var min_range : int = weapon.min_attack_range
+	var max_range : int = s.attack_range + unit.bonus_attack_range
+	var min_range : int = s.min_attack_range
 
 	var threat_cells : Dictionary = {}
 	for move_cell in reachable.keys():

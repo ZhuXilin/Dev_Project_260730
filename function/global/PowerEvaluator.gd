@@ -11,17 +11,16 @@ static func unit_power(unit_name: String) -> int:
 	var faith := int(d.get("faith", 3))
 	return hp + (str_ + dex + int_ + faith) * 3
 
+
 static func player_party_power() -> int:
 	var total := 0
 	for ud in GameState.party:
 		if ud.is_dead: continue
 		var power := unit_power(ud.unit_name)
 
-		# ★ v4.8：武器数值内联，upgrade_level 永久废弃（不再计入战力）
-		if ud.weapon_id != "":
-			var wd = ItemManager.get_item_data(ud.weapon_id)
-			if wd:
-				power += wd.base_attack * 5
+		# ★ v4.8：武器数值内联，weapon_id 已删除
+		if ud.weapon_name != "":
+			power += int(ud.attack) * 5
 
 		for slot in ud.armor_slots:
 			if slot:
@@ -32,6 +31,7 @@ static func player_party_power() -> int:
 		power = int(power * (1.0 + (ud.level - 1) * 0.1))
 		total += power
 	return total
+
 
 static func evaluate_map_node(map_data: MapData) -> Dictionary:
 	if map_data == null or map_data.scene == null:

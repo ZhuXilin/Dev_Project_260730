@@ -167,7 +167,7 @@ func _apply_override_dict(stats: UnitData, ov: Dictionary) -> void:
 			"core_trait": stats.core_trait = str(v)
 
 
-func process_damage_phase(unit: Unit, _attacker: Unit, _damage: int) -> Dictionary:
+func process_damage_phase(unit: Unit, _attacker: Unit, _damage: int, old_hp: int = -1) -> Dictionary:
 	if not _boss_states.has(unit):
 		return {}
 	var st: Dictionary = _boss_states[unit]
@@ -182,15 +182,26 @@ func process_damage_phase(unit: Unit, _attacker: Unit, _damage: int) -> Dictiona
 	if bool(st.get("triggered", {}).get(next_idx, false)):
 		return {}
 
-	var ratio: float = float(unit.hit_points) / float(maxi(1, unit.unit_stats.max_hp))
-	if ratio > float(p.get("threshold", 0.5)):
+	var max_hp : int = maxi(1, unit.unit_stats.max_hp)
+	var threshold : float = float(p.get("threshold", 0.5))
+	
+	# 如果扣血后的血量比例大于阈值，说明没达标，直接返回
+	if float(unit.hit_points) / float(max_hp) > threshold:
 		return {}
 
+	# ★ 核心修复 1：如果一击把血打空了（变0），为了不让 keep_ratio 计算出 0，
+	# 我们在转阶段前把血量临时恢复成扣血前的数值（这样新形态就能继承合理的百分比）。
+	if unit.hit_points <= 0 and old_hp > 0:
+		unit.hit_points = old_hp
+		
 	_apply_phase(unit, next_idx)
+	
+	# ★ 核心修复 2：如果转阶段后血量还是 <= 0，用 min_hp 兜底
 	if unit.hit_points <= 0:
 		unit.hit_points = maxi(1, int(p.get("min_hp", 1)))
 		unit.update_hp_label()
-	return {"transitioned": true, "prevent_death": unit.hit_points > 0}
+		
+	return {"transitioned": true, "prevent_death": true}
 
 
 func on_boss_defeated(defender: Unit) -> bool:

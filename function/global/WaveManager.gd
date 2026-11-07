@@ -183,21 +183,13 @@ func on_player_turn_end() -> void:
 		if u.visible == false: continue
 		alive_enemies += 1
 
+	# 只要场上还有活着的可见敌人，就不激活下一波
 	if alive_enemies > 0:
 		return
 
-	if not _warning_shown:
-		_warning_shown = true
-		_next_wave_delay = 1
-		wave_warning.emit(_current_wave + 1, _type_total_waves)
-		return
-
-	if _next_wave_delay > 0:
-		_next_wave_delay -= 1
-		if _next_wave_delay > 0:
-			return
-		_activate_next_wave()
-
+	# ★ 核心修复：直接激活下一波，移除 _warning_shown 和延迟机制
+	_activate_next_wave()
+	
 
 func _activate_next_wave():
 	while not _pending_groups.is_empty():

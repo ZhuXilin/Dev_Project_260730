@@ -81,8 +81,7 @@ var vengeance_triggered: bool = false
 var zeal_target: String = ""
 var zeal_stacks: int = 0
 
-# ---- 装备 ----
-var weapon_slot: ItemInstance = null
+# ---- 装备（★ 彻底移除 weapon_slot） ----
 var armor_slots: Array[ItemInstance] = []
 var max_armor_slots: int = 2
 
@@ -104,9 +103,6 @@ var animated_sprite : AnimatedSprite2D
 var current_anim : String = "idle"
 var facing_flip_h : bool = false
 var _color_material : ShaderMaterial = null
-
-# ★ v4.8 武器虚拟 ItemData 缓存（每个 Unit 实例独立）
-var _virtual_weapon_data: ItemData = null
 
 # ---- 等级 / 射程 / 穿透 / 暴伤 ----
 var current_level: int = 1
@@ -187,10 +183,7 @@ func setup_unit(stats_data: UnitData, start_cell: Vector2i, initial_items: Array
 	is_gray = false
 	facing_dir = Vector2i(-1, 0) if unit_stats.team_id == 1 else Vector2i(1, 0)
 
-	# ★ v4.8：武器数值全部从 stats_data 的内联字段读取，weapon_slot 不再装配
-	weapon_slot = null
-	_invalidate_weapon_cache()
-
+	# 防具槽初始化
 	max_armor_slots = stats_data.max_armor_slots
 	armor_slots.clear()
 	if not stats_data.armor_slots.is_empty():
@@ -206,7 +199,7 @@ func setup_unit(stats_data: UnitData, start_cell: Vector2i, initial_items: Array
 		if entry and entry.item_id != "":
 			var data = ItemManager.get_item_data(entry.item_id)
 			if not data: continue
-			if data.equipment_slot in ["armor"]:
+			if data.equipment_slot == "armor":
 				if not can_equip_armor(entry.item_id): continue
 				for i in range(armor_slots.size()):
 					if armor_slots[i] == null:
@@ -298,60 +291,52 @@ func reset_chain_talents():
 	taunt_rounds_left = 0
 
 
+# ★ 修改：直接返回内联的武器名
 func get_equipped_weapon_id() -> String:
 	if unit_stats != null:
-		return unit_stats.weapon_id
+		return unit_stats.weapon_name
 	return ""
 
-func get_weapon_data() -> ItemData:
-	# ★ v4.8：从内联字段构造虚拟 ItemData（缓存）
-	if _virtual_weapon_data != null:
-		return _virtual_weapon_data
-	if unit_stats == null:
-		return null
-	_virtual_weapon_data = UnitDataManager.build_weapon_item_data(unit_stats)
-	return _virtual_weapon_data
-
-func _invalidate_weapon_cache():
-	_virtual_weapon_data = null
-
+# ★ 修改：直接返回内联的武器类别
 func get_weapon_type() -> String:
 	if unit_stats != null:
 		return unit_stats.weapon_category
 	return ""
 
-
+# ★ 修改：直接通过内联属性计算武器面板数值
 func get_weapon_stats() -> Dictionary:
 	var default_stats := {
 		"attack": 0, "magic_attack": 0, "heal_amount": 0,
 		"attack_range": 0, "min_attack_range": 0, "attack_style": "standard",
 	}
-	var data = get_weapon_data()
-	if not data: return default_stats
+	if unit_stats == null or unit_stats.weapon_name == "": 
+		return default_stats
 
-	var quality_mult : float = CombatManager.QUALITY_MULT.get(data.quality, 1.0)
+	var s = unit_stats
+	var quality_mult : float = CombatManager.QUALITY_MULT.get(s.weapon_quality, 1.0)
 
 	var stats := default_stats.duplicate()
-	stats["attack"] = int(data.base_attack * quality_mult)
-	stats["attack_range"] = data.attack_range + bonus_attack_range
-	stats["min_attack_range"] = data.min_attack_range
-	stats["attack_style"] = data.attack_style
+	stats["attack"] = int(s.attack * quality_mult)
+	stats["attack_range"] = s.attack_range + bonus_attack_range
+	stats["min_attack_range"] = s.min_attack_range
+	stats["attack_style"] = s.attack_style
 
-	if data.magic_attack.get("ignore_defense", false):
-		stats["magic_attack"] = int(data.base_attack * quality_mult)
-		if not data.heal_effect.is_empty():
-			if data.heal_effect.get("base_heal_percent", 0.0) > 0.0:
-				var pct : float = float(data.heal_effect["base_heal_percent"])
-				var faith_pct : float = float(data.heal_effect.get("faith_percent_per_point", 0.01))
-				var ref_pct : float = pct + unit_stats.faith * faith_pct
-				stats["heal_amount"] = int(unit_stats.max_hp * ref_pct)
+	if s.magic_attack.get("ignore_defense", false):
+		stats["magic_attack"] = int(s.attack * quality_mult)
+		if not s.heal_effect.is_empty():
+			if s.heal_effect.get("base_heal_percent", 0.0) > 0.0:
+				var pct : float = float(s.heal_effect["base_heal_percent"])
+				var faith_pct : float = float(s.heal_effect.get("faith_percent_per_point", 0.01))
+				var ref_pct : float = pct + s.faith * faith_pct
+				stats["heal_amount"] = int(s.max_hp * ref_pct)
 			else:
-				stats["heal_amount"] = data.heal_effect.get("base_heal", 0)
+				stats["heal_amount"] = s.heal_effect.get("base_heal", 0)
 
 	return stats
 
 
 func can_use_weapon(_item_id: String) -> bool: return true
+
 
 func get_armor_slots() -> Array[ItemInstance]: return armor_slots
 
@@ -412,6 +397,7 @@ func get_fusion_effects() -> Array[String]:
 	return result
 
 
+# ★ 修改：直接通过内联属性汇总面板
 func get_total_stats() -> Dictionary:
 	var total = {
 		"max_hp": unit_stats.max_hp,
@@ -425,18 +411,17 @@ func get_total_stats() -> Dictionary:
 		"attack_range": 0, "min_attack_range": 0, "attack_style": "standard"
 	}
 
-	# ★ v4.8：武器数值从内联字段读
-	var weapon_data = get_weapon_data()
-	if weapon_data:
-		var quality_mult : float = CombatManager.QUALITY_MULT.get(weapon_data.quality, 1.0)
-		total["attack"] = int(weapon_data.base_attack * quality_mult)
-		total["attack_range"] = weapon_data.attack_range + bonus_attack_range
-		total["min_attack_range"] = weapon_data.min_attack_range
-		total["attack_style"] = weapon_data.attack_style
-		if weapon_data.magic_attack.get("ignore_defense", false):
-			total["magic_attack"] = int(weapon_data.base_attack * quality_mult)
-		if not weapon_data.heal_effect.is_empty():
-			total["heal_amount"] = weapon_data.heal_effect.get("base_heal", 0)
+	var s = unit_stats
+	if s.weapon_name != "":
+		var quality_mult : float = CombatManager.QUALITY_MULT.get(s.weapon_quality, 1.0)
+		total["attack"] = int(s.attack * quality_mult)
+		total["attack_range"] = s.attack_range + bonus_attack_range
+		total["min_attack_range"] = s.min_attack_range
+		total["attack_style"] = s.attack_style
+		if s.magic_attack.get("ignore_defense", false):
+			total["magic_attack"] = int(s.attack * quality_mult)
+		if not s.heal_effect.is_empty():
+			total["heal_amount"] = s.heal_effect.get("base_heal", 0)
 
 	var armor_mod := unit_stats.get_armor_modifier_bonus()
 	for key in armor_mod:
@@ -452,7 +437,7 @@ func get_total_stats() -> Dictionary:
 
 
 func serialize_inventory() -> Array[Dictionary]:
-	# ★ v4.8：武器已内联到 unit_stats，不再序列化
+	# ★ 彻底移除武器，不再序列化
 	var result: Array[Dictionary] = []
 	for i in range(armor_slots.size()):
 		var slot = armor_slots[i]
@@ -481,10 +466,7 @@ func restore_from_unit_data(data: UnitData, cell: Vector2i):
 	has_acted = false
 	facing_dir = Vector2i(-1, 0) if unit_stats.team_id == 1 else Vector2i(1, 0)
 
-	# ★ v4.8：武器数值从 data 的内联字段读，weapon_slot 仅存档兼容
-	weapon_slot = null
-	_invalidate_weapon_cache()
-
+	# 防具槽还原
 	armor_slots.clear()
 	for slot in data.armor_slots:
 		if slot:
@@ -629,15 +611,15 @@ func _apply_one_attr(attr_key: String, amount: int) -> void:
 
 
 func get_effective_attack_range() -> int:
-	var wd = get_weapon_data()
-	if wd == null: return 0
-	return wd.attack_range + bonus_attack_range
+	var s = unit_stats
+	if s.weapon_name == "": return 0
+	return s.attack_range + bonus_attack_range
 
 
 func get_effective_min_attack_range() -> int:
-	var wd = get_weapon_data()
-	if wd == null: return 0
-	return wd.min_attack_range
+	var s = unit_stats
+	if s.weapon_name == "": return 0
+	return s.min_attack_range
 
 
 func consume_move(cost: int):
@@ -947,8 +929,11 @@ func set_hp_label_visible(v: bool) -> void:
 	if hp: hp.visible = v
 
 
+# ============================================================
+#  ★ 修复：计算移动力时包含装备与词条的加成
+# ============================================================
 func get_total_move_range() -> int:
-	var base : int = unit_stats.move_range
+	var base : int = unit_stats.get_effective_attr("move_range")
 	if unit_stats.team_id == 0:
 		base += SoulFireManager.get_move_bonus()
 	return base
@@ -973,10 +958,6 @@ func apply_boss_form(new_stats: UnitData, hp_mode: String, min_hp: int,
 			hit_points = clampi(int(round(float(unit_stats.max_hp) * 0.5)), min_hp, unit_stats.max_hp)
 		_:
 			hit_points = unit_stats.max_hp
-
-	# ★ v4.8：武器内联字段随 unit_stats 自动切换；缓存需失效
-	weapon_slot = null
-	_invalidate_weapon_cache()
 
 	max_armor_slots = unit_stats.max_armor_slots
 	armor_slots.clear()

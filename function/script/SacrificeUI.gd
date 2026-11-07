@@ -127,7 +127,7 @@ func _on_sacrifice(u: UnitData):
 	var melt_name : String = melt_data.name if melt_data else "专属防具"
 
 	var equip_count : int = 0
-	if u.weapon_slot != null: equip_count += 1
+	# ★ v4.8 清理：weapon_slot 已被删除，武器为内联属性，不再计入熔铸丢失
 	for s in u.armor_slots:
 		if s != null: equip_count += 1
 
@@ -138,7 +138,7 @@ func _on_sacrifice(u: UnitData):
 
 	var msg : String = ""
 	if equip_count > 0:
-		msg += "该单位仍有 %d 件装备，熔铸后将被锁定（需通过英灵殿复活取回）。\n\n" % equip_count
+		msg += "该单位仍有 %d 件防具，熔铸后将被锁定（需通过英灵殿复活取回）。\n\n" % equip_count
 
 	msg += "确定熔铸 %s？\n将获得：【%s】（请在上方领取）" % [u.display_name, melt_name]
 

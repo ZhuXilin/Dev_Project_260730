@@ -457,14 +457,9 @@ func start_new_cycle():
 		unit_data.static_physical_penetration = 0.0
 		unit_data.static_magic_penetration = 0.0
 		unit_data.static_crit_damage_bonus = 0.0
-		var default_weapon = UnitDataManager.get_default_weapon_id(unit_data.unit_name)
-		if default_weapon != "":
-			var inst = ItemInstance.new()
-			inst.item_id = default_weapon
-			inst.count = 1
-			unit_data.weapon_slot = inst
-		else:
-			unit_data.weapon_slot = null
+		
+		# ★ v4.8 清理：武器数值已内联，彻底移除 weapon_slot 的创建与重置
+		
 	init_passive_slots()
 	clear_all_pending_rewards()
 	SoulFireManager.reset_for_new_run()

@@ -74,12 +74,14 @@ func get_active_skill_range_bonus(unit: Unit) -> int:
 
 
 func get_attackable_targets(unit: Unit) -> Array:
-	var weapon_data = unit.get_weapon_data()
-	if not weapon_data: return []
-	var max_range : int = weapon_data.attack_range + unit.bonus_attack_range
-	var min_range : int = weapon_data.min_attack_range
+	# ★ v4.8 修复：直接读内联数据
+	var s = unit.unit_stats
+	if s == null or s.weapon_name == "": return []
+	
+	var max_range : int = s.attack_range + unit.bonus_attack_range
+	var min_range : int = s.min_attack_range
 	max_range += get_active_skill_range_bonus(unit)
-	var is_healer = (weapon_data.category == "staff" or weapon_data.attack_style == "heal")
+	var is_healer = (s.weapon_category == "staff" or s.attack_style == "heal")
 
 	var heal_targets : Array = []
 	var attack_targets : Array = []
@@ -127,11 +129,11 @@ func attempt_attack_after_move(unit: Unit):
 		await execute_attack(unit, targets[0])
 
 
-func _is_magic_attack(weapon_data: ItemData) -> bool:
-	if weapon_data == null: return false
-	if weapon_data.attack_style == "magic": return true
-	if weapon_data.category == "staff": return true
-	if weapon_data.magic_attack.get("ignore_defense", false): return true
+func _is_magic_attack(s: UnitData) -> bool:
+	if s == null: return false
+	if s.attack_style == "magic": return true
+	if s.weapon_category == "staff": return true
+	if s.magic_attack.get("ignore_defense", false): return true
 	return false
 
 
@@ -178,10 +180,8 @@ func _calc_reduction(defender: Unit, is_magic: bool) -> float:
 func _calc_penetration(attacker: Unit, is_magic: bool) -> float:
 	if attacker == null:
 		return 0.0
-	var wdata = attacker.get_weapon_data()
-	var weapon_pen : float = 0.0
-	if wdata:
-		weapon_pen = wdata.magic_penetration if is_magic else wdata.physical_penetration
+	var s = attacker.unit_stats
+	var weapon_pen : float = s.magic_penetration if is_magic else s.physical_penetration
 
 	var affix_pen : float = 0.0
 	if is_magic:
@@ -198,23 +198,24 @@ func _calc_penetration(attacker: Unit, is_magic: bool) -> float:
 
 
 func calculate_damage(attacker: Unit, defender: Unit, apply_heavy: bool = true) -> int:
-	var weapon_data = attacker.get_weapon_data()
-	if not weapon_data: return 0
-	var is_magic : bool = _is_magic_attack(weapon_data)
-	var quality_mult : float = QUALITY_MULT.get(weapon_data.quality, 1.0)
-	var base_attack : float = weapon_data.base_attack * quality_mult
-	var modifier = weapon_data.modifier
+	var s = attacker.unit_stats
+	if s.weapon_name == "": return 0
+	
+	var is_magic : bool = _is_magic_attack(s)
+	var quality_mult : float = QUALITY_MULT.get(s.weapon_quality, 1.0)
+	var base_attack : float = s.attack * quality_mult
+	var modifier = s.modifier
 	var atk_bonus = 0.0
 	for attr in modifier:
-		atk_bonus += attacker.unit_stats.get_effective_attr(attr) * modifier[attr]
+		atk_bonus += s.get_effective_attr(attr) * modifier[attr]
 	var total_attack = base_attack + atk_bonus + attacker.buff_attack_flat
 	if is_magic: total_attack += attacker.buff_magic_attack_flat
 	total_attack *= (1.0 + attacker.buff_attack_percent)
 	if attacker.relic_strength_scale_damage > 0.0:
-		var str_val = attacker.unit_stats.get_effective_attr("strength")
+		var str_val = s.get_effective_attr("strength")
 		total_attack *= (1.0 + str_val * attacker.relic_strength_scale_damage)
 
-	var ignore_def : bool = weapon_data.magic_attack.get("ignore_defense", false)
+	var ignore_def : bool = s.magic_attack.get("ignore_defense", false)
 	var effective_reduction : float = 0.0
 	if not ignore_def:
 		var reduction : float = _calc_reduction(defender, is_magic)
@@ -225,14 +226,14 @@ func calculate_damage(attacker: Unit, defender: Unit, apply_heavy: bool = true) 
 	var floor_raw : float = total_attack * MIN_DAMAGE_FLOOR
 	var damage : int = max(1, int(max(damage_raw, floor_raw)))
 
-	if apply_heavy and not weapon_data.heavy_attack.is_empty():
+	if apply_heavy and not s.heavy_attack.is_empty():
 		var mult : float = 1.0
 		if attacker.has_core_trait("charge"):
 			var per_stack : float = 0.2
-			var max_mult : float = float(weapon_data.heavy_attack.get("charge_multiplier", 2.0))
+			var max_mult : float = float(s.heavy_attack.get("charge_multiplier", 2.0))
 			mult = minf(1.0 + per_stack * float(attacker.charge_stacks), max_mult)
 		else:
-			mult = float(weapon_data.heavy_attack.get("damage_multiplier", 1.0))
+			mult = float(s.heavy_attack.get("damage_multiplier", 1.0))
 		damage = int(damage * mult)
 
 	var atk_affix_bonus : int = 0
@@ -245,37 +246,38 @@ func calculate_damage(attacker: Unit, defender: Unit, apply_heavy: bool = true) 
 		if taken_mult > 1.0: damage = int(damage * taken_mult)
 	return max(1, damage)
 
+
 func _calculate_damage_ignore_defense(attacker: Unit, defender: Unit, apply_heavy: bool = true) -> int:
 	if attacker == null or defender == null:
 		return 0
-	var weapon_data = attacker.get_weapon_data()
-	if not weapon_data:
-		return 1
-	var is_magic : bool = _is_magic_attack(weapon_data)
-	var quality_mult : float = QUALITY_MULT.get(weapon_data.quality, 1.0)
-	var base_attack : float = weapon_data.base_attack * quality_mult
-	var modifier = weapon_data.modifier
+	var s = attacker.unit_stats
+	if s.weapon_name == "": return 1
+
+	var is_magic : bool = _is_magic_attack(s)
+	var quality_mult : float = QUALITY_MULT.get(s.weapon_quality, 1.0)
+	var base_attack : float = s.attack * quality_mult
+	var modifier = s.modifier
 	var atk_bonus : float = 0.0
 	for attr in modifier:
-		atk_bonus += attacker.unit_stats.get_effective_attr(attr) * modifier[attr]
+		atk_bonus += s.get_effective_attr(attr) * modifier[attr]
 	var total_attack : float = base_attack + atk_bonus + attacker.buff_attack_flat
 	if is_magic:
 		total_attack += attacker.buff_magic_attack_flat
 	total_attack *= (1.0 + attacker.buff_attack_percent)
 	if attacker.relic_strength_scale_damage > 0.0:
-		var str_val : int = attacker.unit_stats.get_effective_attr("strength")
+		var str_val : int = s.get_effective_attr("strength")
 		total_attack *= (1.0 + str_val * attacker.relic_strength_scale_damage)
 
 	var damage : int = max(1, int(total_attack))
 
-	if apply_heavy and not weapon_data.heavy_attack.is_empty():
+	if apply_heavy and not s.heavy_attack.is_empty():
 		var mult : float = 1.0
 		if attacker.has_core_trait("charge"):
 			var per_stack : float = 0.2
-			var max_mult : float = float(weapon_data.heavy_attack.get("charge_multiplier", 2.0))
+			var max_mult : float = float(s.heavy_attack.get("charge_multiplier", 2.0))
 			mult = minf(1.0 + per_stack * float(attacker.charge_stacks), max_mult)
 		else:
-			mult = float(weapon_data.heavy_attack.get("damage_multiplier", 1.0))
+			mult = float(s.heavy_attack.get("damage_multiplier", 1.0))
 		damage = int(damage * mult)
 
 	var atk_affix_bonus : int = 0
@@ -291,11 +293,13 @@ func _calculate_damage_ignore_defense(attacker: Unit, defender: Unit, apply_heav
 
 	return max(1, damage)
 
+
 func _roll_crit(attacker: Unit) -> bool:
 	var chance : float = CRIT_BASE_CHANCE
-	chance += attacker.unit_stats.get_effective_attr("dexterity") * CRIT_PER_DEXTERITY
-	var wdata = attacker.get_weapon_data()
-	if wdata: chance += CRIT_CHANCE_BY_QUALITY.get(wdata.quality, 0.0)
+	var s = attacker.unit_stats
+	chance += s.get_effective_attr("dexterity") * CRIT_PER_DEXTERITY
+	if s.weapon_name != "":
+		chance += CRIT_CHANCE_BY_QUALITY.get(s.weapon_quality, 0.0)
 	chance += attacker.get_total_affix_value_float("crit_chance")
 	return randf() < chance
 
@@ -318,6 +322,7 @@ func _try_boss_revive(defender : Unit, _attacker : Unit) -> bool:
 	if not BossMechanicManager.on_boss_defeated(defender): return false
 	SignalBus.request_screen_shake.emit(0.4, 8.0, Vector2.ZERO)
 	return true
+
 
 func execute_attack(attacker: Unit, defender: Unit, forced_skill_id: String = "") -> bool:
 	if attacker.get_equipped_weapon_id() == "":
@@ -345,7 +350,6 @@ func execute_attack(attacker: Unit, defender: Unit, forced_skill_id: String = ""
 		Globals.is_performing_action = false
 		return true
 
-	# ★ 新增：走到这里说明是攻击（非治疗），玩家方每次攻击动作 +1 魂火
 	if attacker.unit_stats.team_id == 0:
 		SoulFireManager.add(1)
 
@@ -368,13 +372,13 @@ func execute_attack(attacker: Unit, defender: Unit, forced_skill_id: String = ""
 				else:
 					print("[主动技能] %s 魂火不足" % attacker.unit_stats.unit_name)
 
+	var s = attacker.unit_stats
 	var heavy_mult : float = 1.0
-	var wdata = attacker.get_weapon_data()
-	if wdata and not wdata.heavy_attack.is_empty():
+	if not s.heavy_attack.is_empty():
 		if attacker.has_core_trait("charge"):
-			heavy_mult = minf(1.0 + 0.2 * float(attacker.charge_stacks), float(wdata.heavy_attack.get("charge_multiplier", 2.0)))
+			heavy_mult = minf(1.0 + 0.2 * float(attacker.charge_stacks), float(s.heavy_attack.get("charge_multiplier", 2.0)))
 		else:
-			heavy_mult = float(wdata.heavy_attack.get("damage_multiplier", 1.0))
+			heavy_mult = float(s.heavy_attack.get("damage_multiplier", 1.0))
 
 	var force_crit : bool = false
 	var splash_percent : float = 0.0
@@ -670,6 +674,7 @@ func execute_attack(attacker: Unit, defender: Unit, forced_skill_id: String = ""
 	_finish_attack(attacker, defender, free_action)
 	Globals.is_performing_action = false
 	return true
+
 
 func _execute_heal(attacker: Unit, defender: Unit, forced_skill_id: String = "") -> bool:
 	if defender.unit_stats.team_id != attacker.unit_stats.team_id:
@@ -991,12 +996,16 @@ func _apply_damage_with_effects(defender: Unit, damage: int, attacker: Unit, is_
 			attacker.get_equipped_weapon_id() if attacker else "-"
 		])
 
+	# ★ 核心修复：在扣血前记录原血量，用于多阶段血量计算
+	var old_hp : int = defender.hit_points
+
 	var defeated = defender.apply_damage(damage)
 	SignalBus.request_damage_popup.emit(defender.global_position, damage, is_crit, false, false)
 	_play_hurt_effect(defender, attacker)
 
 	if BossMechanicManager and BossMechanicManager.has_method("process_damage_phase"):
-		var phase_result: Dictionary = BossMechanicManager.process_damage_phase(defender, attacker, damage)
+		# ★ 传入 old_hp
+		var phase_result: Dictionary = BossMechanicManager.process_damage_phase(defender, attacker, damage, old_hp)
 		if phase_result.get("prevent_death", false):
 			defeated = false
 		elif defender.hit_points > 0:
@@ -1041,9 +1050,10 @@ func _apply_damage_with_effects(defender: Unit, damage: int, attacker: Unit, is_
 				var pct : float = float(b.get("value", 0.0))
 				var heal : int = int(damage * pct)
 				if heal > 0:
-					var old_hp : int = attacker.hit_points
+					# ★ 修复命名冲突：改名为 prev_hp
+					var prev_hp : int = attacker.hit_points
 					attacker.hit_points = mini(attacker.hit_points + heal, attacker.unit_stats.max_hp)
-					var actual : int = attacker.hit_points - old_hp
+					var actual : int = attacker.hit_points - prev_hp
 					if actual > 0:
 						attacker.update_hp_label()
 						SignalBus.request_damage_popup.emit(attacker.global_position, actual, false, false, true)
@@ -1163,42 +1173,40 @@ func _face_each_other(attacker: Unit, defender: Unit):
 
 
 func get_unit_attack_stats(unit: Unit) -> Dictionary:
-	var weapon = unit.get_weapon_data()
-	if weapon and weapon.type == "weapon":
-		var quality_mult = QUALITY_MULT.get(weapon.quality, 1.0)
-		var stats = {
-			"attack": int(weapon.base_attack * quality_mult),
-			"attack_range": weapon.attack_range,
-			"min_attack_range": weapon.min_attack_range,
-			"attack_style": weapon.attack_style,
-		}
-		if weapon.magic_attack.get("ignore_defense", false):
-			stats["magic_attack"] = int(weapon.base_attack * quality_mult)
-		if not weapon.heal_effect.is_empty():
-			stats["heal_amount"] = weapon.heal_effect.get("base_heal", 0)
-		return stats
-	else:
+	var s = unit.unit_stats
+	if s == null or s.weapon_name == "":
 		return {"attack": 0, "magic_attack": 0, "heal_amount": 0,
 			"attack_range": 0, "min_attack_range": 0, "attack_style": "standard"}
 
+	var quality_mult : float = QUALITY_MULT.get(s.weapon_quality, 1.0)
+	var stats = {
+		"attack": int(s.attack * quality_mult),
+		"attack_range": s.attack_range + unit.bonus_attack_range,
+		"min_attack_range": s.min_attack_range,
+		"attack_style": s.attack_style,
+	}
+	if s.magic_attack.get("ignore_defense", false):
+		stats["magic_attack"] = int(s.attack * quality_mult)
+	if not s.heal_effect.is_empty():
+		stats["heal_amount"] = s.heal_effect.get("base_heal", 0)
+	return stats
 
-## 修女基础治疗量：目标 max_hp × (基础% + faith × 每点%)
-## 新格式：heal_effect = { "base_heal_percent": 0.2, "faith_percent_per_point": 0.01 }
-## 兼容旧格式：heal_effect = { "base_heal": 8, "faith_multiplier": 1.0 }
+
 func _calc_staff_heal(attacker: Unit, defender: Unit) -> int:
-	var weapon_data = attacker.get_weapon_data()
-	if weapon_data == null:
+	var s = attacker.unit_stats
+	if s.weapon_name == "":
 		return 0
-	var base_pct : float = float(weapon_data.heal_effect.get("base_heal_percent", 0.0))
+	
+	var base_pct : float = float(s.heal_effect.get("base_heal_percent", 0.0))
 	if base_pct > 0.0:
-		var faith_pct : float = float(weapon_data.heal_effect.get("faith_percent_per_point", 0.01))
-		var heal_pct : float = base_pct + attacker.unit_stats.faith * faith_pct
+		var faith_pct : float = float(s.heal_effect.get("faith_percent_per_point", 0.01))
+		var heal_pct : float = base_pct + s.faith * faith_pct
 		return maxi(1, int(defender.unit_stats.max_hp * heal_pct))
+		
 	# 旧格式回退
-	var base_heal : int = int(weapon_data.heal_effect.get("base_heal", 0))
-	var faith_bonus : float = attacker.unit_stats.faith * float(weapon_data.heal_effect.get("faith_multiplier", 1.0))
+	var base_heal : int = int(s.heal_effect.get("base_heal", 0))
+	var faith_bonus : float = s.faith * float(s.heal_effect.get("faith_multiplier", 1.0))
 	return maxi(1, int(base_heal + faith_bonus))
-
 
 ## 获取包含遗物、词条、天赋在内的最终治疗量（供预估面板和实际执行共用）
 func get_expected_heal_amount(attacker: Unit, defender: Unit) -> int:

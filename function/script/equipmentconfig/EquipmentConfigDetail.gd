@@ -85,10 +85,8 @@ func show_unit(unit : UnitData):
 	])
 	stats.append("移动: %s" % fmt_attr.call(base_mov, unit.move_range))
 
-	if unit.weapon_slot:
-		var wdata : ItemData = ItemManager.get_item_data(unit.weapon_slot.item_id)
-		if wdata: 
-			stats.append("武器: %s" % wdata.name)
+	if unit.weapon_name != "":
+		stats.append("武器: %s" % unit.weapon_name)
 
 	_show_raw(display, type_name, desc, "", "\n".join(stats))
 

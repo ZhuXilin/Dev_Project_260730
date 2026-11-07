@@ -30,7 +30,6 @@ static var _cn_to_en_unit: Dictionary = {
 static var _unit_data_cache: Dictionary = {}
 static var _data_loaded: bool = false
 
-
 static func _load_unit_data():
 	if _data_loaded: return
 	_data_loaded = true
@@ -47,7 +46,6 @@ static func _load_unit_data():
 		return
 	_unit_data_cache = data
 
-
 static func reload_all() -> void:
 	_data_loaded = false
 	_unit_data_cache.clear()
@@ -56,29 +54,23 @@ static func reload_all() -> void:
 	if TalentManager:
 		TalentManager.reload_all()
 
-
 static func _normalize_unit_key(unit_name: String) -> String:
 	return _cn_to_en_unit.get(unit_name, unit_name)
 
-
 static func normalize_unit_key(unit_name: String) -> String:
 	return _normalize_unit_key(unit_name)
-
 
 static func get_unit_data(unit_name: String) -> Dictionary:
 	_load_unit_data()
 	var key = _normalize_unit_key(unit_name)
 	return _unit_data_cache.get(key, {})
 
-
 static func get_all_unit_data() -> Dictionary:
 	_load_unit_data()
 	return _unit_data_cache
 
-
 static func get_sprite_frames_path(unit_name: String) -> String:
 	return get_unit_data(unit_name).get("sprite_frames_path", "")
-
 
 static func get_default_stats(unit_name: String) -> UnitData:
 	var dict = get_unit_data(unit_name)
@@ -97,18 +89,36 @@ static func get_default_stats(unit_name: String) -> UnitData:
 	data.hidden_from_roster = bool(dict.get("hidden_from_roster", false))
 	data.is_boss = bool(dict.get("is_boss", false))
 	data.boss_mechanic_id = str(dict.get("boss_mechanic_id", ""))
-
 	data.avatar = str(dict.get("avatar", ""))
 
 	var bmp_data = dict.get("boss_mechanic_params", {})
 	if bmp_data is Dictionary:
 		data.boss_mechanic_params = bmp_data.duplicate(true)
-
 	var bdh_data = dict.get("boss_dialogue_hooks", {})
 	if bdh_data is Dictionary:
 		data.boss_dialogue_hooks = bdh_data.duplicate(true)
 
 	data.phases = UnitData.normalize_phases(dict.get("phases", []))
+
+	# ★ v4.8：武器数值直接内联
+	data.weapon_name = str(dict.get("weapon_name", ""))
+	data.attack = float(dict.get("attack", 0.0))
+	data.weapon_quality = str(dict.get("weapon_quality", "common"))
+	data.attack_style = str(dict.get("attack_style", "standard"))
+	data.attack_range = int(dict.get("attack_range", 1))
+	data.min_attack_range = int(dict.get("min_attack_range", 1))
+	data.weapon_category = str(dict.get("weapon_category", ""))
+	var wm_raw = dict.get("modifier", {})
+	data.modifier = (wm_raw as Dictionary).duplicate(true) if wm_raw is Dictionary else {}
+	data.physical_penetration = float(dict.get("physical_penetration", 0.0))
+	data.magic_penetration = float(dict.get("magic_penetration", 0.0))
+	var wh_raw = dict.get("heavy_attack", {})
+	data.heavy_attack = (wh_raw as Dictionary).duplicate(true) if wh_raw is Dictionary else {}
+	var wma_raw = dict.get("magic_attack", {})
+	data.magic_attack = (wma_raw as Dictionary).duplicate(true) if wma_raw is Dictionary else {}
+	var whe_raw = dict.get("heal_effect", {})
+	data.heal_effect = (whe_raw as Dictionary).duplicate(true) if whe_raw is Dictionary else {}
+
 	return data
 
 static func create_unit_data(unit_name: String, _for_boss: bool = false) -> UnitData:
@@ -128,26 +138,19 @@ static func create_unit_data(unit_name: String, _for_boss: bool = false) -> Unit
 	var tags_raw: Variant = dict.get("tags", [])
 	if tags_raw is Array:
 		for t in tags_raw:
-			if t is String:
-				data.tags.append(t)
+			if t is String: data.tags.append(t)
 
 	data.core_trait = dict.get("core_trait", "")
 	data.avatar = dict.get("avatar", "")
 
-	# ★ v4.8：武器数值内联，不再创建 ItemInstance（upgrade_level 永久废弃）
-	var default_weapon = get_default_weapon_id(key)
-	if default_weapon != "":
-		_apply_weapon_to_unit_stats(data, default_weapon)
-	data.weapon_slot = null
-
+	# 防具槽
 	data.max_armor_slots = int(dict.get("max_armor_slots", 2))
 	data.armor_slots.clear()
 	for i in range(data.max_armor_slots):
 		data.armor_slots.append(null)
 	var default_armors: Array = dict.get("default_armors", [])
 	for aid in default_armors:
-		if not (aid is String) or aid == "":
-			continue
+		if not (aid is String) or aid == "": continue
 		var armor_inst := ItemInstance.new()
 		armor_inst.item_id = aid
 		armor_inst.count = 1
@@ -156,12 +159,12 @@ static func create_unit_data(unit_name: String, _for_boss: bool = false) -> Unit
 				data.armor_slots[i] = armor_inst
 				break
 
+	# 词条
 	data.talent_slots.clear()
 	var default_talents = dict.get("default_talents", [])
 	var talent_cap: int = int(dict.get("max_talent_slots", 1))
 	for talent_id in default_talents:
-		if data.talent_slots.size() >= talent_cap:
-			break
+		if data.talent_slots.size() >= talent_cap: break
 		var talent_inst = TalentInstance.new()
 		talent_inst.talent_id = talent_id
 		talent_inst.current_stack = 0
@@ -177,216 +180,98 @@ static func create_unit_data(unit_name: String, _for_boss: bool = false) -> Unit
 		data.talent_slots.append(null)
 
 	data.max_talent_slots = talent_cap
-	data.level = 1
 	return data
 
+static func get_default_weapon_id(_unit_name: String) -> String:
+	return "" # 废弃接口保留防止报错，永远返回空
 
-static func get_default_weapon_id(unit_name: String) -> String:
-	return get_unit_data(unit_name).get("default_weapon", "")
-
-
-# ============================================================
-#  ★ v4.8 武器数值内联支持
-# ============================================================
-
-## 把 ItemData 的武器数值写入 UnitData 的内联字段。
-## 覆盖所有既有内联字段；weapon_id 也会写入。武器不存在时给警告但不清空旧值。
-static func _apply_weapon_to_unit_stats(data: UnitData, weapon_id: String) -> void:
-	var wdata := ItemManager.get_item_data(weapon_id)
-	if wdata == null:
-		push_warning("[UnitDataManager] 武器不存在: %s" % weapon_id)
-		return
-	data.weapon_id = weapon_id
-	data.weapon_quality = wdata.quality
-	data.base_attack = wdata.base_attack
-	data.attack_style = wdata.attack_style
-	data.weapon_attack_range = wdata.attack_range
-	data.weapon_min_attack_range = wdata.min_attack_range
-	data.weapon_category = wdata.category
-	data.weapon_modifier = wdata.modifier.duplicate(true)
-	data.weapon_physical_penetration = wdata.physical_penetration
-	data.weapon_magic_penetration = wdata.magic_penetration
-	data.weapon_heavy_attack = wdata.heavy_attack.duplicate(true)
-	data.weapon_magic_attack = wdata.magic_attack.duplicate(true)
-	data.weapon_heal_effect = wdata.heal_effect.duplicate(true)
-
-
-## 根据 UnitData 的内联字段构造一个虚拟 ItemData（用于展示和旧代码兼容）。
-## 返回 null 表示单位没有武器。
-static func build_weapon_item_data(ud: UnitData) -> ItemData:
-	if ud == null or ud.weapon_id == "":
-		return null
-	var d := ItemData.new()
-	d.id = ud.weapon_id
-	d.quality = ud.weapon_quality
-	d.base_attack = int(ud.base_attack)
-	d.attack_style = ud.attack_style
-	d.attack_range = ud.weapon_attack_range
-	d.min_attack_range = ud.weapon_min_attack_range
-	d.category = ud.weapon_category
-	d.modifier = ud.weapon_modifier
-	d.physical_penetration = ud.weapon_physical_penetration
-	d.magic_penetration = ud.weapon_magic_penetration
-	d.heavy_attack = ud.weapon_heavy_attack
-	d.magic_attack = ud.weapon_magic_attack
-	d.heal_effect = ud.weapon_heal_effect
-	# 展示字段从原始 JSON 拿
-	var orig := ItemManager.get_item_data(ud.weapon_id)
-	if orig:
-		d.name = orig.name
-		d.icon = orig.icon
-		d.description = orig.description
-		d.flavor = orig.flavor
-		d.price = orig.price
-		d.type = orig.type
-		d.use_type = orig.use_type
-		d.equipment_slot = orig.equipment_slot
-	else:
-		d.name = ud.weapon_id
-	return d
-
+static func build_weapon_item_data(_ud: UnitData) -> ItemData:
+	return null # 废弃接口保留防止报错，永远返回空
 
 static func get_sacrifice_buff(unit_name: String) -> Dictionary:
 	return get_unit_data(unit_name).get("sacrifice_buff", {})
 
-
 static func get_sacrifice_buff_display(unit_name: String) -> String:
 	var buff : Dictionary = get_sacrifice_buff(unit_name)
-	if buff.is_empty(): return ""
 	return buff.get("display", "")
-
 
 static func get_display_name(unit_name: String) -> String:
 	var key = _normalize_unit_key(unit_name)
 	var data = get_unit_data(key)
-	if data.is_empty():
-		return _unit_display_name.get(key, key)
+	if data.is_empty(): return _unit_display_name.get(key, key)
 	var display = data.get("display_name", "")
-	if display == "":
-		display = _unit_display_name.get(key, key)
-	return display
-
+	return display if display != "" else _unit_display_name.get(key, key)
 
 static func get_display_name_full(unit_name: String) -> String:
 	var key = _normalize_unit_key(unit_name)
 	var data = get_unit_data(key)
 	if data.is_empty():
-		var fallback_display : String = _unit_display_name.get(key, key)
-		return "%s|无|%s" % [fallback_display, key]
+		return "%s|无|%s" % [_unit_display_name.get(key, key), key]
 	var display = data.get("display_name", "")
-	if display == "":
-		display = _unit_display_name.get(key, key)
-	var faction = data.get("faction", "无")
-	var type_name = _unit_display_name.get(key, key)
-	return "%s|%s|%s" % [display, faction, type_name]
-
+	if display == "": display = _unit_display_name.get(key, key)
+	return "%s|%s|%s" % [display, data.get("faction", "无"), _unit_display_name.get(key, key)]
 
 static func get_faction(unit_name: String) -> String:
 	return get_unit_data(unit_name).get("faction", "")
 
-
 static func get_description(unit_name: String) -> String:
 	return get_unit_data(unit_name).get("description", "")
-
 
 static func get_weapon_category_display(category: String) -> String:
 	return _weapon_category_display.get(category, category)
 
-
 static func get_all_unit_ids() -> Array:
 	_load_unit_data()
 	var ids : Array = []
-	for key in _unit_data_cache.keys():
-		ids.append(key)
+	for key in _unit_data_cache.keys(): ids.append(key)
 	ids.sort()
 	return ids
 
-
 static func get_attr_cap_levels(unit_type: String) -> Array:
-	var key : String = normalize_unit_key(unit_type)
-	var dict : Dictionary = get_unit_data(key)
-	var levels : Variant = dict.get("attr_cap_levels", [])
+	var levels = get_unit_data(unit_type).get("attr_cap_levels", [])
 	if levels is Array:
 		return (levels as Array).duplicate(true)
 	return []
 
-
 static func has_attr_cap_levels(unit_type: String) -> bool:
 	return not get_attr_cap_levels(unit_type).is_empty()
-
 
 static func get_attr_cap_total_bonus(unit_type: String, cur_lv: int) -> Dictionary:
 	var levels : Array = get_attr_cap_levels(unit_type)
 	var total : Dictionary = {}
 	for i in range(cur_lv):
 		var lv_dict : Dictionary = {}
-		if i < levels.size():
-			lv_dict = levels[i]
-		elif not levels.is_empty():
-			var base_dict : Dictionary = levels.back()
-			var mult : float = 1.0 + (i - levels.size() + 1) * 0.5
-			for k in base_dict:
-				lv_dict[k] = int(base_dict[k] * mult)
-		for k in lv_dict:
-			total[k] = total.get(k, 0) + int(lv_dict[k])
+		if i < levels.size(): lv_dict = levels[i]
+		for k in lv_dict: total[k] = total.get(k, 0) + int(lv_dict[k])
 	return total
-
 
 static func get_attr_cap_level_bonus(unit_type: String, level_idx: int) -> Dictionary:
 	var levels : Array = get_attr_cap_levels(unit_type)
-	if level_idx < 0 or level_idx >= levels.size():
-		return {}
-	if not (levels[level_idx] is Dictionary):
-		return {}
-	return (levels[level_idx] as Dictionary).duplicate(true)
-
+	if level_idx >= 0 and level_idx < levels.size() and levels[level_idx] is Dictionary:
+		return (levels[level_idx] as Dictionary).duplicate(true)
+	return {}
 
 static func get_level_mechanics(unit_type: String, level_idx: int) -> Dictionary:
-	var key : String = normalize_unit_key(unit_type)
-	var dict : Dictionary = get_unit_data(key)
-	var arr : Variant = dict.get("level_mechanics", [])
-	if not (arr is Array):
-		return {}
-	if level_idx < 0 or level_idx >= (arr as Array).size():
-		return {}
-	if not ((arr as Array)[level_idx] is Dictionary):
-		return {}
-	return ((arr as Array)[level_idx] as Dictionary).duplicate(true)
-
-
-static func _apply_one_attr(data: UnitData, attr_key: String, amount: int):
-	match attr_key:
-		"vitality":
-			data.max_hp += amount
-			data.hit_points += amount
-		"strength":     data.strength += amount
-		"dexterity":    data.dexterity += amount
-		"intelligence": data.intelligence += amount
-		"faith":        data.faith += amount
-		"arcane":       data.arcane += amount
-		"move_range":   data.move_range += amount
-
+	var arr : Variant = get_unit_data(unit_type).get("level_mechanics", [])
+	if arr is Array and level_idx >= 0 and level_idx < (arr as Array).size() and (arr as Array)[level_idx] is Dictionary:
+		return ((arr as Array)[level_idx] as Dictionary).duplicate(true)
+	return {}
 
 static func get_attr_cap(unit_key: String) -> int:
 	const LEVELS : Array[int] = [0, 2, 5, 8, 12, 16, 20, 25]
 	var lv : int = int(GameState.unit_attr_cap.get(unit_key, 0))
 	return LEVELS[clampi(lv, 0, LEVELS.size() - 1)]
 
-
 static func get_display_name_from_unit(unit: Unit) -> String:
 	var display_name = unit.unit_stats.display_name if unit.unit_stats.display_name != "" else unit.unit_stats.unit_name
 	var faction = unit.unit_stats.faction if unit.unit_stats.faction != "" else "无"
 	return "%s|%s|%s" % [display_name, faction, unit.unit_stats.unit_name]
 
-
 static func get_unit_type_display_name(unit_name: String) -> String:
-	var key = _normalize_unit_key(unit_name)
-	return _unit_display_name.get(key, key)
-
+	return _unit_display_name.get(_normalize_unit_key(unit_name), unit_name)
 
 static func apply_growth(stats: UnitData, unit_type: String) -> void:
-	if GameState.unit_growth.is_empty(): return
-	if not GameState.unit_growth.has(unit_type): return
+	if GameState.unit_growth.is_empty() or not GameState.unit_growth.has(unit_type): return
 	var g = GameState.unit_growth[unit_type]
 	stats.max_hp += int(g.get("vitality", 0)) * GROWTH_HP_PER_POINT
 	stats.strength += int(g.get("strength", 0))
@@ -395,14 +280,12 @@ static func apply_growth(stats: UnitData, unit_type: String) -> void:
 	stats.faith += int(g.get("faith", 0))
 	stats.arcane += int(g.get("arcane", 0))
 
-
 static var _sprite_frames_cache : Dictionary = {}
 static var _idle_texture_cache : Dictionary = {}
 
 static func get_sprite_frames(unit_name: String) -> SpriteFrames:
 	var key := normalize_unit_key(unit_name)
-	if _sprite_frames_cache.has(key):
-		return _sprite_frames_cache[key]
+	if _sprite_frames_cache.has(key): return _sprite_frames_cache[key]
 	var path = get_sprite_frames_path(key)
 	if path != "" and ResourceLoader.exists(path):
 		var sf = load(path) as SpriteFrames
@@ -413,15 +296,13 @@ static func get_sprite_frames(unit_name: String) -> SpriteFrames:
 
 static func get_idle_texture(unit_name: String) -> Texture2D:
 	var key := normalize_unit_key(unit_name)
-	if _idle_texture_cache.has(key):
-		return _idle_texture_cache[key]
+	if _idle_texture_cache.has(key): return _idle_texture_cache[key]
 	var sf = get_sprite_frames(key)
 	if sf and sf.has_animation("idle") and sf.get_frame_count("idle") > 0:
 		var tex = sf.get_frame_texture("idle", 0)
 		_idle_texture_cache[key] = tex
 		return tex
 	return null
-
 
 static func create_idle_texture_rect(unit_name: String, icon_size: Vector2 = Vector2(32, 32), override_path: String = "") -> TextureRect:
 	var rect := TextureRect.new()
@@ -438,12 +319,10 @@ static func create_idle_texture_rect(unit_name: String, icon_size: Vector2 = Vec
 
 	if sf and sf.has_animation("idle") and sf.get_frame_count("idle") > 0:
 		rect.texture = sf.get_frame_texture("idle", 0)
-
 		var timer := Timer.new()
 		timer.wait_time = 0.25
 		timer.autostart = true
 		rect.add_child(timer)
-
 		var frame_count := sf.get_frame_count("idle")
 		var idx := {"value": 0}
 		timer.timeout.connect(func():
@@ -454,15 +333,12 @@ static func create_idle_texture_rect(unit_name: String, icon_size: Vector2 = Vec
 		)
 	else:
 		rect.visible = false
-
 	return rect
-
 
 static func create_unit_icon_button(unit_name: String, icon_size: Vector2 = Vector2(24, 24), override_path: String = "") -> Button:
 	var btn := Button.new()
 	btn.custom_minimum_size = icon_size
 	btn.focus_mode = Control.FOCUS_NONE
-
 	var empty_sb := StyleBoxEmpty.new()
 	empty_sb.content_margin_left = 0
 	empty_sb.content_margin_right = 0
@@ -473,27 +349,21 @@ static func create_unit_icon_button(unit_name: String, icon_size: Vector2 = Vect
 	btn.add_theme_stylebox_override("pressed", empty_sb)
 	btn.add_theme_stylebox_override("focus", empty_sb)
 	btn.add_theme_stylebox_override("disabled", empty_sb)
-
 	var icon_rect = create_idle_texture_rect(unit_name, icon_size, override_path)
 	icon_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	icon_rect.set_anchors_preset(Control.PRESET_FULL_RECT)
 	btn.add_child(icon_rect)
-
 	return btn
-
 
 static func bind_unit_icon_hover(btn: Button, unit_id: String, info_panel: Control, hover_manager: Node, click_cb: Callable = Callable()):
 	if click_cb.is_valid():
 		btn.pressed.connect(click_cb)
 		btn.pressed.connect(func(): SoundManager.play_select_sound())
-
 	if not hover_manager.has_method("_on_icon_hover_entered"):
 		push_error("hover_manager 缺少 _on_icon_hover_entered 方法")
 		return
-
 	btn.mouse_entered.connect(func(): hover_manager._on_icon_hover_entered(unit_id, info_panel))
 	btn.mouse_exited.connect(func(): hover_manager._on_icon_hover_exited(info_panel))
-
 	btn.gui_input.connect(func(event):
 		if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT:
 			if info_panel and info_panel.visible:
@@ -501,16 +371,16 @@ static func bind_unit_icon_hover(btn: Button, unit_id: String, info_panel: Contr
 				btn.get_viewport().set_input_as_handled()
 	)
 
-
 static func get_avatar_by_speaker(speaker: String) -> String:
 	_load_unit_data()
-	if speaker == "":
-		return ""
+	if speaker == "": return ""
 	for key in _unit_data_cache:
 		var d : Dictionary = _unit_data_cache[key]
-		if str(d.get("display_name", "")) == speaker:
-			return str(d.get("avatar", ""))
-	if _unit_data_cache.has(speaker):
-		var d2 : Dictionary = _unit_data_cache[speaker]
-		return str(d2.get("avatar", ""))
+		if str(d.get("display_name", "")) == speaker: return str(d.get("avatar", ""))
+	if _unit_data_cache.has(speaker): return str(_unit_data_cache[speaker].get("avatar", ""))
 	return ""
+
+
+static func _apply_weapon_to_unit_stats(_data: UnitData, _weapon_id: String) -> void:
+	# v4.8 废弃接口：武器数值已经内联进 unit_data.json，无需通过此函数查表
+	pass

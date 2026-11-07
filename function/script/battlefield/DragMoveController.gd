@@ -383,8 +383,7 @@ func _update_drag():
 		var is_ally = (hovered.unit_stats.team_id == _pressing_unit.unit_stats.team_id)
 		var is_wounded = hovered.hit_points < hovered.unit_stats.max_hp
 
-		var wdata = _pressing_unit.get_weapon_data()
-		var is_healer = (wdata != null and (wdata.category == "staff" or wdata.attack_style == "heal"))
+		var is_healer = (_pressing_unit.get_weapon_type() == "staff")
 		var can_emergency = SoulFireManager.can_spend(SoulFireManager.get_emergency_heal_cost())
 
 		var is_heal_action = (is_ally and is_wounded and (is_healer or can_emergency))
@@ -430,7 +429,6 @@ func _update_drag():
 	_update_attack_preview(cell, false)
 
 func _redraw_highlights(attack_cells : Dictionary, origin_cell: Vector2i):
-	# ★ 移除 staff 判断，全部使用红色
 	var color = MapConst.HIGHLIGHT_ATTACK
 	var danger_color = Color(MapConst.HIGHLIGHT_ATTACK.r, MapConst.HIGHLIGHT_ATTACK.g, MapConst.HIGHLIGHT_ATTACK.b, 1.0)
 	
@@ -525,28 +523,27 @@ func _cancel():
 
 
 # ============================================================
-#  攻击 / 治疗判定
+#  攻击 / 治疗判定 (★ 修复 get_weapon_data)
 # ============================================================
 func _is_target_in_range(target : Unit) -> bool:
 	var unit = _pressing_unit
 	if unit == null or target == null: return false
 
+	var s = unit.unit_stats
+	if s.weapon_name == "": return false
+
 	if target.unit_stats.team_id == unit.unit_stats.team_id:
-		if unit.get_weapon_type() == "staff":
-			var weapon = unit.get_weapon_data()
-			if not weapon: return false
-			var max_range : int = weapon.attack_range + unit.bonus_attack_range
+		if s.weapon_category == "staff":
+			var max_range : int = s.attack_range + unit.bonus_attack_range
 			var dist = abs(unit.grid_cell.x - target.grid_cell.x) + abs(unit.grid_cell.y - target.grid_cell.y)
-			return dist >= weapon.min_attack_range and dist <= max_range
+			return dist >= s.min_attack_range and dist <= max_range
 		else:
 			var dist = abs(unit.grid_cell.x - target.grid_cell.x) + abs(unit.grid_cell.y - target.grid_cell.y)
 			return dist <= 1
 	else:
-		var weapon = unit.get_weapon_data()
-		if not weapon: return false
-		var max_range : int = weapon.attack_range + unit.bonus_attack_range
+		var max_range : int = s.attack_range + unit.bonus_attack_range
 		var dist = abs(unit.grid_cell.x - target.grid_cell.x) + abs(unit.grid_cell.y - target.grid_cell.y)
-		return dist >= weapon.min_attack_range and dist <= max_range
+		return dist >= s.min_attack_range and dist <= max_range
 
 func _is_valid_target(target : Unit) -> bool:
 	var unit = _pressing_unit
@@ -560,11 +557,12 @@ func _is_valid_target(target : Unit) -> bool:
 func _find_attack_path(target : Unit) -> Array:
 	var unit = _pressing_unit
 	if unit == null: return []
-	var weapon = unit.get_weapon_data()
-	if not weapon: return []
+	
+	var s = unit.unit_stats
+	if s.weapon_name == "": return []
 
-	var min_range : int = weapon.min_attack_range
-	var max_range : int = weapon.attack_range + unit.bonus_attack_range
+	var min_range : int = s.min_attack_range
+	var max_range : int = s.attack_range + unit.bonus_attack_range
 
 	var reachable = UnitManager.get_reachable_cells(
 		unit.grid_cell, unit.remaining_move, unit)
@@ -592,11 +590,10 @@ func _find_heal_path(target : Unit) -> Array:
 	var min_range : int = 0
 	var max_range : int = 0
 	
-	if unit.get_weapon_type() == "staff":
-		var weapon = unit.get_weapon_data()
-		if not weapon: return []
-		max_range = weapon.attack_range + unit.bonus_attack_range
-		min_range = weapon.min_attack_range
+	var s = unit.unit_stats
+	if s.weapon_category == "staff":
+		max_range = s.attack_range + unit.bonus_attack_range
+		min_range = s.min_attack_range
 	else:
 		max_range = 1
 		min_range = 0
@@ -663,11 +660,11 @@ func _do_move_and_attack_async(unit : Unit, path : Array, target : Unit):
 	if unit.hit_points <= 0: return
 
 	if is_instance_valid(target) and target.hit_points > 0:
-		var weapon = unit.get_weapon_data()
-		if weapon:
+		var s = unit.unit_stats
+		if s.weapon_name != "":
 			var dist = abs(unit.grid_cell.x - target.grid_cell.x) \
 					+ abs(unit.grid_cell.y - target.grid_cell.y)
-			if dist >= weapon.min_attack_range and dist <= weapon.attack_range:
+			if dist >= s.min_attack_range and dist <= (s.attack_range + unit.bonus_attack_range):
 				_show_attack_menu(unit, target, true)
 
 
@@ -695,12 +692,11 @@ func _do_move_and_heal_async(unit : Unit, path : Array, target : Unit):
 		var dist = abs(unit.grid_cell.x - target.grid_cell.x) + abs(unit.grid_cell.y - target.grid_cell.y)
 		var in_range = false
 		
-		if unit.get_weapon_type() == "staff":
-			var weapon = unit.get_weapon_data()
-			if weapon:
-				var max_r = weapon.attack_range + unit.bonus_attack_range
-				if dist >= weapon.min_attack_range and dist <= max_r:
-					in_range = true
+		var s = unit.unit_stats
+		if s.weapon_category == "staff":
+			var max_r = s.attack_range + unit.bonus_attack_range
+			if dist >= s.min_attack_range and dist <= max_r:
+				in_range = true
 		else:
 			if dist <= 1:
 				in_range = true
@@ -882,25 +878,23 @@ func _on_attack_canceled(attacker: Unit):
 	InputManager.selected_unit = null
 	
 	if is_instance_valid(attacker):
-		# ★ 核心修复 2：如果已经移动且未攻击（不论是原地发起还是拖拽发起），
-		# 取消时直接帮玩家完成回撤，连按一次右键都省了
-		if attacker.has_moved and not attacker.has_attacked and not attacker.has_acted and attacker.can_act_this_turn:
-			TurnManager.cancel_movement(attacker)
-			attacker.moves_since_act -= 1
-		else:
-			_bf.suppress_range_for_unit(attacker)
+		# ★ 修复：取消攻击时，不要强制把单位瞬移回原位。
+		# 而是让单位留在当前位置，玩家如果想撤回，可以自己按右键撤销。
+		# 如果玩家不撤销而是点了其他地方，后续的右键逻辑依然能帮他撤回（因为 has_moved=true 且未攻击）。
+		_bf.suppress_range_for_unit(attacker)
 
 
 func _update_attack_preview(unit_cell : Vector2i, from_self : bool = false):
 	var unit = _pressing_unit
 	if unit == null: return
-	var weapon = unit.get_weapon_data()
-	if not weapon:
+	
+	var s = unit.unit_stats
+	if s.weapon_name == "":
 		_redraw_highlights({}, _pressing_unit.grid_cell)
 		return
 
-	var max_range : int = weapon.attack_range
-	var min_range : int = weapon.min_attack_range
+	var max_range : int = s.attack_range + unit.bonus_attack_range
+	var min_range : int = s.min_attack_range
 	var origin_cell : Vector2i = unit.grid_cell if from_self else unit_cell
 
 	var attack_cells : Dictionary = {}

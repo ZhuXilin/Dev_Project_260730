@@ -194,6 +194,7 @@ static func spawn_units_from_configs(parent: Node, configs: Array[UnitConfig], g
 
 static func _create_unit_stats(cfg: UnitConfig, base_name: String, adv_id: String) -> UnitData:
 	var name_key : String = base_name if base_name != "" else cfg.unit_name
+	# 从 UnitDataManager 拿基础数据，此时武器数值已经在 get_default_stats 内部被直接读取并赋值
 	var stats = UnitDataManager.get_default_stats(name_key)
 	stats.unit_name = name_key
 
@@ -205,17 +206,16 @@ static func _create_unit_stats(cfg: UnitConfig, base_name: String, adv_id: Strin
 	if cfg.faction != "":
 		stats.faction = cfg.faction
 
+	# 应用地图编辑器里配置的覆盖属性（如自定义 HP、移动力等）
 	cfg.apply_override(stats)
+	
 	stats.team_id = cfg.team_id
 	stats.is_boss = cfg.is_boss
 	if cfg.immobile and cfg.team_id == 1:
 		stats.move_range = 0
 
-	# ★ v4.8：武器数值内联到 UnitData
-	var default_weapon_id : String = UnitDataManager.get_default_weapon_id(name_key)
-	if default_weapon_id != "":
-		UnitDataManager._apply_weapon_to_unit_stats(stats, default_weapon_id)
-	stats.weapon_slot = null
+	# ★ 核心清理：彻底移除 weapon_slot 赋值和多余的查表逻辑
+	# 武器的 attack, range, modifier 等已经内联在 stats 里了
 
 	if adv_id != "":
 		_apply_advanced_class(stats, adv_id)
@@ -227,6 +227,7 @@ static func _create_unit_stats(cfg: UnitConfig, base_name: String, adv_id: Strin
 	if cfg.avatar_override != "":
 		stats.avatar_override = cfg.avatar_override
 
+	# 敌方难度倍率计算
 	if cfg.team_id == 1 and GameState.current_map_data != null:
 		var node_type : int = GameState.current_map_data.node_type
 		var mult : float = get_enemy_hp_mult(node_type, cfg.is_boss)

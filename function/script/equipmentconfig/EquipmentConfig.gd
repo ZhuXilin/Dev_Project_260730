@@ -1692,7 +1692,6 @@ func _clear_container(container: Node):
 		container.remove_child(child)
 		child.queue_free()
 
-
 func _sync_all():
 	var target_units : Array = _context.get_units()
 	var target_map : Dictionary = {}
@@ -1713,7 +1712,10 @@ func _sync_all():
 		var tu : UnitData = target_map[key]
 		if u.is_dead and tu.is_dead:
 			continue
-		tu.weapon_slot = _clone_item_inst(u.weapon_slot)
+		
+		# ★ v4.8 清理：彻底移除 weapon_slot 的同步
+		# tu.weapon_slot = _clone_item_inst(u.weapon_slot)
+		
 		tu.armor_slots = _clone_inst_array(u.armor_slots)
 		tu.max_armor_slots = u.max_armor_slots
 		tu.talent_slots = _clone_talent_array(u.talent_slots)

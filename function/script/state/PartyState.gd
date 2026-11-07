@@ -26,6 +26,7 @@ func get_main_unit() -> UnitData:
 		return party[main_unit_index]
 	return null
 
+
 func sync_units_from_battlefield(battle_units: Array):
 	var battle_map : Dictionary = {}
 	for bu in battle_units:
@@ -37,12 +38,13 @@ func sync_units_from_battlefield(battle_units: Array):
 		if battle_map.has(key):
 			var bu = battle_map[key]
 			party_unit.hit_points = bu.hit_points
-			party_unit.weapon_slot = bu.weapon_slot
+			# ★ v4.8 清理：weapon_slot 已被彻底删除，直接同步防具即可
 			party_unit.armor_slots = bu.armor_slots.duplicate()
 			party_unit.max_armor_slots = bu.max_armor_slots
 		else:
 			party_unit.hit_points = 0
 			party_unit.is_dead = true
+
 
 func init_passive_slots():
 	equipped_passives.clear()
