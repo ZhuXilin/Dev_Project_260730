@@ -99,7 +99,7 @@ static func compute_groups(slots: Array) -> Array:
 	var groups : Array = []
 	for root in groups_map:
 		var cell_keys : Array = groups_map[root]
-		if cell_keys.size() < 3: continue
+		if cell_keys.size() < 2: continue
 		var g := Group.new()
 		for ck in cell_keys:
 			g.cells.append(nodes[ck])
@@ -178,7 +178,7 @@ static func evaluate_groups(groups: Array) -> Dictionary:
 	var total_hp : float = 0.0
 
 	for g in groups:
-		if g.size() < 3: continue
+		if g.size() < 2: continue
 		var base_a : float = _group_attack_value(g.size())
 		var base_d : float = _group_defense_value(g.size())
 		var base_h : float = _group_hp_value(g.size())
@@ -219,20 +219,21 @@ static func evaluate_groups(groups: Array) -> Dictionary:
 
 
 static func _group_attack_value(n: int) -> float:
+	if n == 2: return 2.0
 	if n == 3: return 5.0
 	if n == 4: return 8.0
 	if n == 5: return 12.0
 	return 15.0
 
-
 static func _group_defense_value(n: int) -> float:
+	if n == 2: return 1.0
 	if n == 3: return 3.0
 	if n == 4: return 5.0
 	if n == 5: return 8.0
 	return 10.0
 
-
 static func _group_hp_value(n: int) -> float:
+	if n == 2: return 1.0
 	if n == 3: return 3.0
 	if n == 4: return 5.0
 	if n == 5: return 8.0

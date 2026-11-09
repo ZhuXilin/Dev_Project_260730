@@ -56,59 +56,59 @@ func build_shop_items():
 	var items : Array = panel.shop_manager.get_shop_items()
 	for i in range(items.size()):
 		var entry : Variant = items[i]
-		var btn : Button = Style.create_styled_button(Style.FONT_SMALL, Style.BTN_SHOP_SIZE)
-		btn.expand_icon = true
-		btn.clip_text = true
-		btn.disabled = false
-
+		var btn : Button = null
+		
 		if entry != null:
 			var entry_dict : Dictionary = entry
 			var item_data : ItemData = entry_dict["item_data"]
 			var price : int = entry_dict["price"]
 			
-			if item_data.icon:
-				btn.icon = item_data.icon
-				btn.text = ""
-				
-				# ★ 仅针对带图标的商品按钮清除默认内边距，让16x16图片完美居中
-				var empty_sb := StyleBoxEmpty.new()
-				empty_sb.content_margin_left = 0
-				empty_sb.content_margin_right = 0
-				empty_sb.content_margin_top = 0
-				empty_sb.content_margin_bottom = 0
-				btn.add_theme_stylebox_override("normal", empty_sb)
-				btn.add_theme_stylebox_override("hover", empty_sb)
-				btn.add_theme_stylebox_override("pressed", empty_sb)
-				btn.add_theme_stylebox_override("focus", empty_sb)
-				btn.add_theme_stylebox_override("disabled", empty_sb)
-				
-				var price_label = Label.new()
-				price_label.text = str(price)
-				price_label.add_theme_font_size_override("font_size", 6) 
-				price_label.add_theme_color_override("font_color", Color.WHITE)
-				price_label.add_theme_color_override("font_outline_color", Color.BLACK)
-				price_label.add_theme_constant_override("outline_size", 3)
-				price_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-				price_label.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
-				price_label.set_anchors_preset(Control.PRESET_FULL_RECT)
-				price_label.offset_bottom = 1
-				price_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-				btn.add_child(price_label)
-			else:
-				btn.text = str(price) + "G"
-				
-			btn.set_meta("shop_index", i)
+			# ★ 为商店商品临时生成方向
+			var shop_dir = 0
+			if item_data.type == "armor" and item_data.enable_direction:
+				shop_dir = Direction.roll_drop_direction()
+			
+			# 借用 panel 的生成逻辑（自带方向箭头和连通星星）
+			var temp_inst = ItemInstance.new()
+			temp_inst.item_id = item_data.id
+			temp_inst.direction = shop_dir
+			
+			btn = panel._create_item_button(temp_inst, "shop_item", -1, -1, shop_dir, true)
+			btn.custom_minimum_size = Style.BTN_SHOP_SIZE
+			btn.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+			
+			# 覆盖 meta，确保拖拽购买逻辑能找到 shop_index
 			btn.set_meta("slot_type", "shop_item")
+			btn.set_meta("shop_index", i)
 			btn.set_meta("item_price", price)
 			btn.set_meta("item_id", item_data.id)
+			btn.set_meta("shop_direction", shop_dir) # 记录方向，方便购买时读取
 			
-			btn.mouse_entered.connect(panel._on_button_hover_entered.bind(item_data.id))
-			btn.mouse_exited.connect(panel._on_button_hover_exited)
+			# 价格标签
+			var price_label = Label.new()
+			price_label.text = str(price)
+			price_label.add_theme_font_size_override("font_size", 6) 
+			price_label.add_theme_color_override("font_color", Color.WHITE)
+			price_label.add_theme_color_override("font_outline_color", Color.BLACK)
+			price_label.add_theme_constant_override("outline_size", 3)
+			price_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			price_label.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
+			price_label.set_anchors_preset(Control.PRESET_FULL_RECT)
+			price_label.offset_bottom = 1
+			price_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			btn.add_child(price_label)
+			
+			# ★ 注意：此处不要再 connect mouse_entered / mouse_exited，_create_item_button 内部已经连过了
+			
 		else:
+			btn = Style.create_styled_button(Style.FONT_SMALL, Style.BTN_SHOP_SIZE)
+			btn.expand_icon = true
+			btn.clip_text = true
 			btn.text = "空位"
 			btn.disabled = true
 			btn.set_meta("slot_type", "")
 			btn.set_meta("shop_index", i)
+			
 		panel.shop_container.add_child(btn)
 
 	# ---- 6. 强制重排 ----
@@ -168,7 +168,7 @@ func buy_shop_item(data: Dictionary, target: Control):
 	var target_slot_idx : int = target.get_meta("slot_idx", -1)
 
 	if item_data.type == "weapon":
-		return # ★ 修改：不能买武器
+		return
 	elif item_data.type == "armor":
 		if target_type != "armor": return
 		if target_unit_idx < 0 or target_slot_idx < 0: return
@@ -182,6 +182,12 @@ func buy_shop_item(data: Dictionary, target: Control):
 		return
 
 	var inst : ItemInstance = buy_result["item_instance"]
+
+	# ★ 修复：从字典读取方向
+	if data.has("shop_direction") and inst != null:
+		var sdir = int(data["shop_direction"])
+		if sdir != 0:
+			inst.direction = sdir
 
 	if item_data.type == "armor":
 		var tu2 : UnitData = panel.party[target_unit_idx]

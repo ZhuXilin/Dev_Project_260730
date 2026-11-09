@@ -50,18 +50,15 @@ static func is_diagonal(dir: int) -> bool:
 	return dir in ALL_DIAGONAL
 
 
-## 随机生成"掉落时的初始方向"
-## 返回值按概率：70% NONE / 24% 单箭头 / 3.6% 双直 / 2.4% 斜线
-## 即"总 30% 概率带箭头"
 static func roll_drop_direction() -> int:
 	var r : float = randf()
 	if r < 0.70:
 		return Value.NONE
-	elif r < 0.94:
+	elif r < 0.85:  # 15% 单箭头
 		return ALL_SINGLE[randi() % ALL_SINGLE.size()]
-	elif r < 0.976:
+	elif r < 0.90:  # 5% 直线双箭头
 		return [Value.VERTICAL, Value.HORIZONTAL][randi() % 2]
-	else:
+	else:           # 10% 斜线双箭头
 		return ALL_DIAGONAL[randi() % ALL_DIAGONAL.size()]
 
 

@@ -5,7 +5,7 @@ const Style = preload("res://function/script/equipmentconfig/EquipmentConfigStyl
 
 var panel = null
 var is_dragging : bool = false
-var drag_source : Button = null
+var drag_source : Control = null # 改为 Control 以支持单位图标
 var drag_meta : Dictionary = {}
 var drag_preview : Control = null
 var drag_grab_offset : Vector2 = Vector2.ZERO
@@ -19,8 +19,8 @@ func _init(p):
 # ============================================================
 #  启动拖拽
 # ============================================================
-func start_drag(btn: Button):
-	if btn.disabled: return
+func start_drag(btn: Control):
+	if btn is Button and btn.disabled: return
 	var slot_type : String = btn.get_meta("slot_type", "")
 	
 	# ★ 拦截武器相关拖拽
@@ -28,11 +28,27 @@ func start_drag(btn: Button):
 		return
 		
 	if panel.current_mode == panel.Mode.DEPLOY and slot_type == "armor": return
+	
 	var item_id : String = btn.get_meta("item_id", "")
 	var talent_id : String = btn.get_meta("talent_id", "")
 	var refine_id : String = btn.get_meta("refine_id", "")
 	
-	# ★ 新增：光环拖拽
+	# ★ 单位图标拖拽
+	if slot_type == "unit_icon":
+		drag_source = btn
+		drag_meta = {
+			"slot_type": slot_type,
+			"unit_idx": btn.get_meta("unit_idx", -1),
+			"source_control": btn,
+			"col_node": btn.get_parent() # 记录整列，以便生成整列预览
+		}
+		# 抓取偏移基于整列的左上角，这样拖拽时鼠标能对上整列
+		var col : Control = drag_meta["col_node"]
+		drag_grab_offset = panel.get_global_mouse_position() - col.global_position
+		_begin_dragging()
+		return
+
+	# ★ 光环拖拽
 	if slot_type in ["aura_shop", "aura_equipped"]:
 		drag_source = btn
 		drag_meta = {
@@ -41,8 +57,8 @@ func start_drag(btn: Button):
 			"aura_price": btn.get_meta("aura_price", 0),
 			"source_control": btn,
 		}
-		var btn_rect : Rect2 = btn.get_global_rect()
-		drag_grab_offset = panel.get_global_mouse_position() - btn_rect.position
+		var btn_rect2 : Rect2 = btn.get_global_rect()
+		drag_grab_offset = panel.get_global_mouse_position() - btn_rect2.position
 		_begin_dragging()
 		return
 		
@@ -68,6 +84,11 @@ func start_drag(btn: Button):
 		"pending_idx": btn.get_meta("pending_idx", -1),
 		"pending_src": btn.get_meta("pending_src", ""),
 	}
+	
+	# ★ 修复：如果拖拽的是商店物品，记录它的方向，防止购买时节点被释放导致读不到
+	if slot_type == "shop_item":
+		drag_meta["shop_direction"] = btn.get_meta("shop_direction", 0)
+		
 	if slot_type == "shop_item" and panel.shop_manager:
 		var shop_idx : int = drag_meta["shop_index"]
 		if shop_idx != -1:
@@ -79,35 +100,65 @@ func start_drag(btn: Button):
 					drag_meta["item_data"] = entry_dict["item_data"]
 					drag_meta["item_price"] = entry_dict["price"]
 					
-	var btn_rect2 : Rect2 = btn.get_global_rect()
-	drag_grab_offset = panel.get_global_mouse_position() - btn_rect2.position
+	var btn_rect3 : Rect2 = btn.get_global_rect()
+	drag_grab_offset = panel.get_global_mouse_position() - btn_rect3.position
 	_begin_dragging()
 
 
 func _begin_dragging():
 	if is_dragging: return
 	is_dragging = true
-	var btn : Button = drag_source
+	var btn : Control = drag_source
 	if not btn: return
 	
-	# 1. 创建预览图
-	drag_preview = Style.create_drag_preview(btn)
-	var canvas : Node = panel.get_parent()
-	if canvas and canvas is CanvasLayer: canvas.add_child(drag_preview)
-	else: panel.add_child(drag_preview)
+	var slot_type : String = drag_meta.get("slot_type", "")
 	
-	# 2. 只把原按钮变暗，不修改任何尺寸、不清空文字，彻底防止 UI 重排
-	btn.set_meta("_original_modulate", btn.modulate)
-	btn.modulate = Color(0.3, 0.3, 0.3, 1.0) 
+	if slot_type == "unit_icon":
+		var col : Control = drag_meta.get("col_node")
+		var u_idx : int = drag_meta.get("unit_idx", -1)
+		if col and u_idx >= 0 and u_idx < panel.party.size():
+			# ★ 直接复用原版的列生成，生成完美预览
+			drag_preview = panel._create_unit_column(u_idx, true)
+			drag_preview.custom_minimum_size = col.size
+			drag_preview.size = col.size
+			
+			var canvas : Node = panel.get_parent()
+			if canvas and canvas is CanvasLayer: canvas.add_child(drag_preview)
+			else: panel.add_child(drag_preview)
+			
+			# ★ 修复占位塌陷：改变透明度而不是隐藏，保住原有布局空间
+			btn.set_meta("_original_modulate", col.modulate)
+			col.modulate = Color(1, 1, 1, 0.15)
+	else:
+		# 原有普通拖拽逻辑
+		var btn_as_button := btn as Button
+		if btn_as_button:
+			drag_preview = Style.create_drag_preview(btn_as_button)
+			var canvas : Node = panel.get_parent()
+			if canvas and canvas is CanvasLayer: canvas.add_child(drag_preview)
+			else: panel.add_child(drag_preview)
+			btn.set_meta("_original_modulate", btn.modulate)
+			btn.modulate = Color(0.3, 0.3, 0.3, 1.0) 
 	
 	update_drag_preview()
 	_update_targets_visuals()
 
+
 func _restore_drag_source():
 	if not is_instance_valid(drag_source): return
-	var orig_mod : Variant = drag_source.get_meta("_original_modulate", Color.WHITE)
-	drag_source.modulate = orig_mod
-	drag_source.remove_meta("_original_modulate")
+	
+	if slot_type_is_unit_icon():
+		var col : Control = drag_meta.get("col_node")
+		if is_instance_valid(col):
+			col.modulate = Color(1, 1, 1, 1)
+	else:
+		if drag_source.has_meta("_original_modulate"):
+			drag_source.modulate = drag_source.get_meta("_original_modulate")
+			drag_source.remove_meta("_original_modulate")
+
+
+func slot_type_is_unit_icon() -> bool:
+	return drag_meta.get("slot_type", "") == "unit_icon"
 
 
 func end_drag():
@@ -129,13 +180,12 @@ func end_drag():
 	if drag_preview: drag_preview.queue_free(); drag_preview = null
 	is_dragging = false
 	_reset_targets_visuals()
-	_restore_drag_source() # 恢复原按钮的亮度，不改变尺寸
+	_restore_drag_source()
 	
 	if valid:
 		panel._execute_drop.call_deferred(drop_data, target)
 		SoundManager.play_select_sound()
 	else:
-		# ★ 特技拖到空白区域 → 卸下
 		if source_type == "talent" and target == null:
 			panel._talent.execute_talent_remove.call_deferred(drop_data)
 			SoundManager.play_select_sound()
@@ -147,8 +197,6 @@ func end_drag():
 			SoundManager.play_cancel_sound()
 			if source_type == "shop_item":
 				_hint_shop_purchase_failed(drop_data, target)
-				
-			# ★ 移除：panel._schedule_build_ui()，防止无意义的重新排版引起整个画面跳动
 			
 	if source_type == "weapon" and (panel.current_mode == panel.Mode.FORGE or (panel._is_shop_rest_mode() and panel.current_tab == "arena_forge")):
 		panel._forge.refresh_forge_upgrade_ui()
@@ -159,7 +207,6 @@ func end_drag():
 
 func update_drag_preview():
 	if not drag_preview: return
-	# 根据鼠标的全局坐标减去抓取偏移量，确保图片与鼠标完美贴合
 	drag_preview.global_position = panel.get_global_mouse_position() - drag_grab_offset
 	drag_preview.z_index = 100
 
@@ -201,18 +248,9 @@ func _collect_targets() -> Array:
 	if panel.discard_zone and panel.discard_zone.visible:
 		targets.append(panel.discard_zone)
 
-	# ---- 2. 单位列（含 armor_group 嵌套）----
-	if panel.unit_container == null:
-		return targets
-	
-	for col in panel.unit_container.get_children():
-		for child in col.get_children():
-			if child is Button:
-				targets.append(child)
-			elif child is VBoxContainer:
-				for sub in child.get_children():
-					if sub is Button:
-						targets.append(sub)
+	# ---- 2. 单位列（递归收集，防嵌套遗漏）----
+	if panel.unit_container:
+		_collect_controls_recursive(panel.unit_container, targets)
 
 	# ---- 3. 被动槽 ----
 	if panel.relic_container:
@@ -234,31 +272,39 @@ func _collect_targets() -> Array:
 
 	return targets
 
+# ★ 新增：递归收集子节点
+func _collect_controls_recursive(node: Node, out: Array):
+	if node is Control and (node is Button or node.get_meta("slot_type", "") == "unit_icon"):
+		out.append(node)
+	for child in node.get_children():
+		_collect_controls_recursive(child, out)
+
 
 # ============================================================
 #  目标收集
 # ============================================================
 func _get_all_target_controls() -> Array[Control]:
 	var targets : Array[Control] = []
-	for col in panel.unit_container.get_children():
-		for child in col.get_children():
-			if child is Button:
-				targets.append(child)
-			elif child is VBoxContainer:
-				for sub in child.get_children():
-					if sub is Button: targets.append(sub)
+	
+	if panel.unit_container:
+		_collect_controls_recursive(panel.unit_container, targets)
+		
 	if panel.relic_container:
 		for btn in panel.relic_container.get_children():
 			if btn is Button: targets.append(btn)
+			
 	if panel._pending_container and panel._pending_section and panel._pending_section.visible:
 		for btn in panel._pending_container.get_children():
 			if btn is Button: targets.append(btn)
+			
 	if (panel.current_mode == panel.Mode.DEPLOY or panel.current_mode == panel.Mode.MAP) and panel.shop_container.visible:
 		for btn in panel.shop_container.get_children():
 			if btn is Button and not btn.disabled: targets.append(btn)
+			
 	if panel._is_shop_rest_mode() and panel.current_tab == "arena_shop" and panel.shop_container.visible:
 		for btn in panel.shop_container.get_children():
 			if btn is Button and not btn.disabled: targets.append(btn)
+			
 	if panel.discard_zone.visible: targets.append(panel.discard_zone)
 	return targets
 

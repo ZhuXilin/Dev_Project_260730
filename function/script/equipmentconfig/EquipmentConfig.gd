@@ -287,7 +287,6 @@ func _build_ui():
 		_setup_forge_narrative_ui()
 
 
-# ============ EquipmentConfig.gd ============
 func _build_ui_inner():
 	var vbox = $VBoxContainer
 	if vbox:
@@ -325,7 +324,7 @@ func _build_ui_inner():
 	# ★ 左侧：锁死 110 宽度，强行折叠文本
 	var left_info = get_node_or_null("VBoxContainer/MainHBox/LeftInfoColumn")
 	if left_info:
-		left_info.custom_minimum_size = Vector2(110, 0) 
+		left_info.custom_minimum_size = Vector2(100, 0) 
 		left_info.size_flags_horizontal = Control.SIZE_FILL 
 		left_info.size_flags_vertical = Control.SIZE_EXPAND_FILL
 		left_info.clip_contents = true
@@ -364,7 +363,7 @@ func _build_ui_inner():
 	# ★ 右侧：锁死 130 宽度，防爆
 	var r_scroll = get_node_or_null("VBoxContainer/MainHBox/RightScroll")
 	if r_scroll and r_scroll is ScrollContainer:
-		r_scroll.custom_minimum_size = Vector2(130, 0) 
+		r_scroll.custom_minimum_size = Vector2(120, 0) 
 		r_scroll.size_flags_horizontal = Control.SIZE_FILL
 		r_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 		r_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
@@ -580,16 +579,17 @@ func _build_ui_inner():
 	
 	if reset_btn:
 		reset_btn.add_theme_font_size_override("font_size", Style.FONT_LARGE)
-		reset_btn.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		reset_btn.custom_minimum_size = Vector2(0, 20) # ★ 增加保底高度防挤没
+		reset_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL # ★ 撑满宽度
+		reset_btn.size_flags_vertical = Control.SIZE_SHRINK_END # ★ 靠底
 		reset_btn.clip_text = true
 
 	_ensure_upgrade_shop_btn()
+	
 	_refresh_upgrade_shop_btn()
 
-	# ★ v5.0：自动配装按钮
 	_ensure_auto_config_btn()
 
-	# ★ v5.0：计算连通组
 	_refresh_connectivity()
 
 	_build_unit_columns()
@@ -664,53 +664,83 @@ func _build_unit_columns():
 		unit_container.remove_child(child); child.free()
 
 	for i in range(party.size()):
-		var unit : UnitData = party[i]
-		var col := VBoxContainer.new()
-		col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		col.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
-		col.add_theme_constant_override("separation", 2)
-		col.alignment = BoxContainer.ALIGNMENT_CENTER
-		unit_container.add_child(col)
+		unit_container.add_child(_create_unit_column(i))
 
-		# 1. 单位头像
-		var icon_ctrl : Control = _create_unit_icon(unit, i)
-		if unit.is_dead: icon_ctrl.modulate = Color(0.4, 0.4, 0.4, 1)
-		col.add_child(icon_ctrl)
+func _create_unit_column(unit_idx: int, is_preview: bool = false) -> Control:
+	# ★ 用 PanelContainer 作为外层，防止在 VBox 中塞 ColorRect 导致排版错乱
+	var wrapper: PanelContainer = PanelContainer.new()
+	wrapper.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	wrapper.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	if is_preview:
+		var sb = StyleBoxFlat.new()
+		sb.bg_color = Color(0.1, 0.1, 0.15, 0.9)
+		sb.border_width_left = 1
+		sb.border_width_right = 1
+		sb.border_width_top = 1
+		sb.border_width_bottom = 1
+		sb.border_color = Color(0.6, 0.6, 0.8)
+		wrapper.add_theme_stylebox_override("panel", sb)
+	else:
+		wrapper.add_theme_stylebox_override("panel", StyleBoxEmpty.new())
 
-		# 2. 单位升级按钮（移到头像正下方）
-		if _is_level_up_enabled():
-			var level_btn : Button = _create_level_btn(unit, i)
-			if unit.is_dead: _disable_button(level_btn)
-			col.add_child(level_btn)
+	var col := VBoxContainer.new()
+	col.add_theme_constant_override("separation", 2)
+	col.alignment = BoxContainer.ALIGNMENT_CENTER
+	wrapper.add_child(col)
 
-		# 3. 防具列
-		var armor_group := VBoxContainer.new()
-		armor_group.add_theme_constant_override("separation", 2)
-		armor_group.alignment = BoxContainer.ALIGNMENT_CENTER
-		col.add_child(armor_group)
-		
-		for slot_idx in range(unit.armor_slots.size()):
-			var armor_btn : Button = _create_item_button(unit.armor_slots[slot_idx], "armor", i, slot_idx)
-			if unit.is_dead: _disable_button(armor_btn)
+	var unit = party[unit_idx]
 
-			# ★ v5.0：连通格加金色边框
-			var conn_style : StyleBox = _get_connectivity_style(i, slot_idx)
-			if conn_style != null:
-				armor_btn.add_theme_stylebox_override("normal", conn_style)
-				armor_btn.add_theme_stylebox_override("hover", conn_style)
+	# 1. 单位头像
+	var icon_ctrl = _create_unit_icon(unit, unit_idx)
+	if unit.is_dead: icon_ctrl.modulate = Color(0.4, 0.4, 0.4, 1)
+	col.add_child(icon_ctrl)
 
-			armor_group.add_child(armor_btn)
+	# 2. 单位升级按钮
+	if _is_level_up_enabled():
+		var level_btn = _create_level_btn(unit, unit_idx)
+		if unit.is_dead: _disable_button(level_btn)
+		col.add_child(level_btn)
 
-		# 4. 特技槽
-		var talent_inst : TalentInstance = unit.talent_slots[0] if unit.talent_slots.size() > 0 else null
-		var talent_btn : Button = _create_talent_button(talent_inst, i, 0)
-		if unit.is_dead: _disable_button(talent_btn)
-		col.add_child(talent_btn)
+	# 3. 防具列
+	var armor_group := VBoxContainer.new()
+	armor_group.add_theme_constant_override("separation", 2)
+	armor_group.alignment = BoxContainer.ALIGNMENT_CENTER
+	col.add_child(armor_group)
+	
+	for slot_idx in range(unit.armor_slots.size()):
+		var armor_btn = _create_item_button(unit.armor_slots[slot_idx], "armor", unit_idx, slot_idx)
+		if unit.is_dead: _disable_button(armor_btn)
+		var conn_style = _get_connectivity_style(unit_idx, slot_idx)
+		if conn_style != null:
+			armor_btn.add_theme_stylebox_override("normal", conn_style)
+			armor_btn.add_theme_stylebox_override("hover", conn_style)
+		armor_group.add_child(armor_btn)
 
-		# 5. 进阶职业特技槽
-		var adv_btn : Button = _create_advanced_talent_button(unit, i)
-		if unit.is_dead: _disable_button(adv_btn)
-		col.add_child(adv_btn)
+	# 4. 特技槽
+	var talent_inst = unit.talent_slots[0] if unit.talent_slots.size() > 0 else null
+	var talent_btn = _create_talent_button(talent_inst, unit_idx, 0)
+	if unit.is_dead: _disable_button(talent_btn)
+	col.add_child(talent_btn)
+
+	# 5. 进阶职业特技槽
+	var adv_btn = _create_advanced_talent_button(unit, unit_idx)
+	if unit.is_dead: _disable_button(adv_btn)
+	col.add_child(adv_btn)
+
+	if is_preview:
+		_disable_all_input_recursive(wrapper)
+		wrapper.modulate = Color(1, 1, 1, 0.9)
+
+	return wrapper
+
+# ★ 新增：递归禁用输入
+func _disable_all_input_recursive(node: Node):
+	if node is Control:
+		node.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		if node is Button:
+			node.disabled = true
+	for child in node.get_children():
+		_disable_all_input_recursive(child)
 
 
 func _is_level_up_enabled() -> bool:
@@ -735,16 +765,20 @@ func _create_level_btn(unit: UnitData, unit_idx: int) -> Button:
 	btn.alignment = HORIZONTAL_ALIGNMENT_CENTER
 	btn.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	
-	var empty_sb := StyleBoxEmpty.new()
-	empty_sb.content_margin_left = 2
-	empty_sb.content_margin_right = 2
-	empty_sb.content_margin_top = 2
-	empty_sb.content_margin_bottom = 2
-	btn.add_theme_stylebox_override("normal", empty_sb)
-	btn.add_theme_stylebox_override("hover", empty_sb)
-	btn.add_theme_stylebox_override("pressed", empty_sb)
-	btn.add_theme_stylebox_override("focus", empty_sb)
-	btn.add_theme_stylebox_override("disabled", empty_sb)
+	# ★ 修复：加半透明深色底，增强可读性
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(0.1, 0.1, 0.12, 0.8)
+	sb.border_color = Color(0.3, 0.3, 0.3)
+	sb.border_width_bottom = 1
+	sb.border_width_top = 1
+	sb.border_width_left = 1
+	sb.border_width_right = 1
+	sb.corner_radius_top_left = 2
+	sb.corner_radius_top_right = 2
+	sb.corner_radius_bottom_left = 2
+	sb.corner_radius_bottom_right = 2
+	btn.add_theme_stylebox_override("normal", sb)
+	btn.add_theme_stylebox_override("hover", sb)
 
 	var cap : int = int(GameState.unit_level_cap.get(unit.unit_name, 3))
 	var cur : int = int(unit.level)
@@ -1230,6 +1264,8 @@ func _create_unit_icon(unit: UnitData, unit_idx: int) -> Control:
 	wrapper.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	wrapper.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 	wrapper.mouse_filter = Control.MOUSE_FILTER_STOP
+	wrapper.set_meta("slot_type", "unit_icon")
+	wrapper.set_meta("unit_idx", unit_idx)
 
 	var texture_rect = UnitDataManager.create_idle_texture_rect(unit.unit_name, Vector2(icon_size, icon_size), unit.override_sprite_path)
 	
@@ -1241,37 +1277,8 @@ func _create_unit_icon(unit: UnitData, unit_idx: int) -> Control:
 	texture_rect.anchor_bottom = 0.0
 	texture_rect.offset_top = y_offset
 	texture_rect.offset_bottom = y_offset + icon_size
-	
+	texture_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	wrapper.add_child(texture_rect)
-
-	# ★ v5.0：单位交换按钮（⇄）
-	if party.size() > 1:
-		var swap_btn := Button.new()
-		swap_btn.name = "UnitSwapBtn"
-		swap_btn.text = "⇄"
-		swap_btn.add_theme_font_size_override("font_size", 7)
-		swap_btn.focus_mode = Control.FOCUS_NONE
-		swap_btn.custom_minimum_size = Vector2(12, 12)
-		swap_btn.size = Vector2(12, 12)
-		swap_btn.tooltip_text = "与下一个单位交换位置（循环）"
-		swap_btn.set_anchors_preset(Control.PRESET_TOP_RIGHT)
-		swap_btn.offset_left = -12
-		swap_btn.offset_top = 0
-		swap_btn.offset_right = 0
-		swap_btn.offset_bottom = 12
-		var empty_sb := StyleBoxEmpty.new()
-		empty_sb.content_margin_left = 0
-		empty_sb.content_margin_right = 0
-		empty_sb.content_margin_top = 0
-		empty_sb.content_margin_bottom = 0
-		swap_btn.add_theme_stylebox_override("normal", empty_sb)
-		swap_btn.add_theme_stylebox_override("hover", empty_sb)
-		swap_btn.add_theme_stylebox_override("pressed", empty_sb)
-		swap_btn.add_theme_stylebox_override("focus", empty_sb)
-		swap_btn.modulate = Color(0.8, 0.8, 0.9)
-		swap_btn.pressed.connect(_swap_units_cyclic.bind(unit_idx))
-		wrapper.add_child(swap_btn)
-
 	wrapper.mouse_entered.connect(_on_unit_hover_entered.bind(unit_idx))
 	wrapper.mouse_exited.connect(_on_unit_hover_exited)
 
@@ -1293,12 +1300,12 @@ func _on_unit_hover_exited() -> void:
 	_detail.clear_zone()
 
 
-func _create_item_button(inst: ItemInstance, slot_type: String, unit_idx: int, slot_idx: int) -> Button:
+func _create_item_button(inst: ItemInstance, slot_type: String, unit_idx: int, slot_idx: int, shop_dir: int = 0, is_shop: bool = false) -> Button:
 	var btn : Button = Style.create_styled_button(Style.FONT_SMALL, Style.BTN_ITEM_SIZE)
 	btn.expand_icon = true
 	btn.alignment = HORIZONTAL_ALIGNMENT_CENTER
+	btn.clip_contents = false # ★ 允许箭头在边缘不被裁切
 	
-	# ★ 核心修复：统一去除默认内边距，让图标能像商店一样撑满 20x20 的框
 	var empty_sb := StyleBoxEmpty.new()
 	empty_sb.content_margin_left = 0
 	empty_sb.content_margin_right = 0
@@ -1319,34 +1326,42 @@ func _create_item_button(inst: ItemInstance, slot_type: String, unit_idx: int, s
 		else:
 			btn.text = base_name
 
-		# ★ v5.0：方向角标（右下角）
-		if inst.direction != Direction.Value.NONE:
-			var arrow_label := Label.new()
-			arrow_label.name = "DirectionBadge"
-			arrow_label.text = Direction.get_display_symbol(inst.direction)
-			arrow_label.add_theme_font_size_override("font_size", 6)
-			arrow_label.add_theme_color_override("font_color", Color(1.0, 1.0, 0.7))
-			arrow_label.add_theme_color_override("font_outline_color", Color.BLACK)
-			arrow_label.add_theme_constant_override("outline_size", 2)
-			arrow_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-			arrow_label.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
-			arrow_label.offset_left = -8
-			arrow_label.offset_top = -8
-			arrow_label.offset_right = 0
-			arrow_label.offset_bottom = 0
-			arrow_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-			arrow_label.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
-			btn.add_child(arrow_label)
+		var dir = inst.direction
+		if is_shop and shop_dir != 0:
+			dir = shop_dir
+			btn.set_meta("shop_direction", shop_dir) # 记录下商店的随机方向，购买时要用
 
-			# ★ v5.0：右键按钮弹出重 roll
+		# ★ 修复：根据方向在 8 个角绘制箭头
+		if dir != Direction.Value.NONE:
+			_draw_direction_badges(btn, dir)
+
+		# ★ 新增：连通星星（正上方）
+		if unit_idx >= 0 and slot_idx >= 0:
+			var key : String = "%d_%d" % [unit_idx, slot_idx]
+			if _connected_cells.has(key):
+				var star := Label.new()
+				star.text = "★"
+				star.add_theme_font_size_override("font_size", 8)
+				star.add_theme_color_override("font_color", Color(1.0, 0.9, 0.2))
+				star.add_theme_color_override("font_outline_color", Color.BLACK)
+				star.add_theme_constant_override("outline_size", 2)
+				star.mouse_filter = Control.MOUSE_FILTER_IGNORE
+				star.set_anchors_preset(Control.PRESET_CENTER_TOP)
+				star.offset_left = -6
+				star.offset_right = 6
+				star.offset_top = -8
+				star.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+				btn.add_child(star)
+
+			# 右键重roll
 			btn.gui_input.connect(func(event: InputEvent):
-				if event is InputEventMouseButton and event.pressed \
-						and event.button_index == MOUSE_BUTTON_RIGHT:
+				if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT:
 					_show_direction_reroll_dialog(inst)
 					btn.get_viewport().set_input_as_handled()
 			)
 	else:
 		btn.text = "空"
+
 	btn.set_meta("slot_type", slot_type)
 	btn.set_meta("unit_idx", unit_idx)
 	btn.set_meta("slot_idx", slot_idx)
@@ -1356,6 +1371,44 @@ func _create_item_button(inst: ItemInstance, slot_type: String, unit_idx: int, s
 		btn.mouse_entered.connect(_on_button_hover_entered.bind(item_id))
 		btn.mouse_exited.connect(_on_button_hover_exited)
 	return btn
+
+# ★ 绘制 8 方位箭头辅助函数
+func _draw_direction_badges(btn: Button, dir: int):
+	var create_arrow := func(text: String, anchor: int, ox: float, oy: float):
+		var lbl := Label.new()
+		lbl.text = text
+		lbl.add_theme_font_size_override("font_size", 7)
+		lbl.add_theme_color_override("font_color", Color(1.0, 1.0, 0.7))
+		lbl.add_theme_color_override("font_outline_color", Color.BLACK)
+		lbl.add_theme_constant_override("outline_size", 2)
+		lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		lbl.set_anchors_preset(anchor)
+		lbl.offset_left = ox - 4
+		lbl.offset_right = ox + 4
+		lbl.offset_top = oy - 4
+		lbl.offset_bottom = oy + 4
+		lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		btn.add_child(lbl)
+
+	match dir:
+		Direction.Value.UP: create_arrow.call("↑", Control.PRESET_CENTER_TOP, 0, 0)
+		Direction.Value.DOWN: create_arrow.call("↓", Control.PRESET_CENTER_BOTTOM, 0, 0)
+		Direction.Value.LEFT: create_arrow.call("←", Control.PRESET_CENTER_LEFT, 0, 0)
+		Direction.Value.RIGHT: create_arrow.call("→", Control.PRESET_CENTER_RIGHT, 0, 0)
+		
+		Direction.Value.VERTICAL:
+			create_arrow.call("↑", Control.PRESET_CENTER_TOP, 0, 0)
+			create_arrow.call("↓", Control.PRESET_CENTER_BOTTOM, 0, 0)
+		Direction.Value.HORIZONTAL:
+			create_arrow.call("←", Control.PRESET_CENTER_LEFT, 0, 0)
+			create_arrow.call("→", Control.PRESET_CENTER_RIGHT, 0, 0)
+		Direction.Value.DIAG_NE_SW:
+			create_arrow.call("⤢", Control.PRESET_TOP_RIGHT, -4, 4)
+			create_arrow.call("⤡", Control.PRESET_BOTTOM_LEFT, 4, -4)
+		Direction.Value.DIAG_NW_SE:
+			create_arrow.call("⤡", Control.PRESET_TOP_LEFT, 4, 4)
+			create_arrow.call("⤢", Control.PRESET_BOTTOM_RIGHT, -4, -4)
 
 
 # 与 _create_item_button 完全一致的图标按钮基础样式
@@ -1511,6 +1564,9 @@ func _is_valid_drop(data: Dictionary, target: Control) -> bool:
 	var target_type : String = target.get_meta("slot_type", "")
 	var discard : bool = target == discard_zone
 
+	if source_type == "unit_icon":
+		return target_type == "unit_icon"
+
 	if discard:
 		if source_type == "armor":
 			var uidx : int = data.get("unit_idx", -1)
@@ -1651,6 +1707,13 @@ func _check_armor_swap_budget(data: Dictionary, target: Control) -> bool:
 func _execute_drop(data: Dictionary, target: Control):
 	var source_type : String = data.get("slot_type", "")
 	var target_type : String = target.get_meta("slot_type", "")
+
+	if source_type == "unit_icon" and target_type == "unit_icon":
+		var su : int = data.get("unit_idx", -1)
+		var tu : int = target.get_meta("unit_idx", -1)
+		if su >= 0 and tu >= 0 and su != tu:
+			_apply_unit_swap(su, tu)
+		return
 
 	if source_type == "aura_shop" and target_type == "passive_slot":
 		_buy_and_equip_aura(data, target); return
@@ -1805,6 +1868,16 @@ func _copy_party_data():
 	for unit_data in units:
 		var ud : UnitData = unit_data
 		party.append(UnitData.from_dict(ud.to_dict()))
+	_ensure_armor_directions()
+
+func _ensure_armor_directions():
+	for u in party:
+		for slot in u.armor_slots:
+			if slot == null: continue
+			if slot.direction != Direction.Value.NONE: continue
+			var data = ItemManager.get_item_data(slot.item_id)
+			if data and data.enable_direction:
+				slot.direction = Direction.roll_drop_direction()
 
 
 func _clear_container(container: Node):
@@ -2021,7 +2094,8 @@ func _input(event: InputEvent):
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
 		var mouse_pos : Vector2 = get_global_mouse_position()
 		var btn : Control = _drag._find_control_at_position(mouse_pos)
-		if btn and btn is Button: _drag.start_drag(btn as Button)
+		if btn and (btn is Button or btn.get_meta("slot_type", "") == "unit_icon"):
+			_drag.start_drag(btn)
 	elif event is InputEventMouseButton and not event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
 		_drag.end_drag()
 	elif event is InputEventMouseMotion:
@@ -2130,11 +2204,15 @@ func _ensure_upgrade_shop_btn():
 		return
 	if not reset_btn: return
 
-	_upgrade_shop_btn = Style.create_styled_button(Style.FONT_LARGE, Vector2(120, 24))
-	_upgrade_shop_btn.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	_upgrade_shop_btn.size_flags_vertical = Control.SIZE_SHRINK_END
+	_upgrade_shop_btn = Style.create_styled_button(Style.FONT_LARGE, Vector2(100, 20))
+	_upgrade_shop_btn.name = "UpgradeShopBtn" 
+	# ★ 增加保底尺寸，防止被 ShopScroll 挤扁
+	_upgrade_shop_btn.custom_minimum_size = Vector2(0, 20)
+	_upgrade_shop_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_upgrade_shop_btn.size_flags_vertical = Control.SIZE_SHRINK_END 
 	_upgrade_shop_btn.clip_text = true
 	_upgrade_shop_btn.pressed.connect(_on_upgrade_shop_pressed)
+	
 	right_container.add_child(_upgrade_shop_btn)
 	var reset_idx : int = reset_btn.get_index()
 	right_container.move_child(_upgrade_shop_btn, reset_idx)
@@ -2305,9 +2383,10 @@ func _apply_unit_swap(a: int, b: int):
 	party[b] = temp
 
 	_refresh_connectivity()
-	_build_unit_columns()
-	_sync_all()
-	_schedule_build_ui()
+	# ★ 修复：使用 call_deferred 延迟重建，避免在信号发射中 free 掉按钮
+	_build_unit_columns.call_deferred()
+	_sync_all.call_deferred()
+	_schedule_build_ui.call_deferred()
 
 	_show_detail_in_zone("已交换单位位置：%s ↔ %s" % [name_a, name_b])
 
@@ -2454,10 +2533,9 @@ func _run_simulated_annealing(base_layout: Dictionary, allow_swap: bool,
 		}
 
 		var op_roll : float = randf()
-		if op_roll < 0.5 or not allow_swap:
+		# ★ 修复：只允许交换防具位置和单位位置，不再旋转方向
+		if op_roll < 0.6 or not allow_swap:
 			_swap_items_in_layout(neighbor)
-		elif op_roll < 0.85:
-			_rotate_item_in_layout(neighbor)
 		else:
 			_swap_units_in_layout(neighbor)
 
