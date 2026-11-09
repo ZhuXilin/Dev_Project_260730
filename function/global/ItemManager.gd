@@ -27,10 +27,10 @@ func load_items():
 		item.name = dict.get("name", "")
 		item.type = dict.get("type", "")
 		item.use_type = dict.get("use_type", "equipment")
-		
+
 		# ★ 核心修改：统一走 IconManager
 		item.icon = IconManager.get_icon(dict.get("icon", ""))
-		
+
 		item.description = dict.get("description", "")
 		item.flavor = dict.get("flavor", "")
 		item.category = dict.get("category", "")
@@ -47,7 +47,7 @@ func load_items():
 		item.magic_penetration = float(dict.get("magic_penetration", 0.0))
 
 		item.armor_type = dict.get("armor_type", "medium")
-		item.defense = dict.get("defense", 0) 
+		item.defense = dict.get("defense", 0)
 		item.physical_reduction = float(dict.get("physical_reduction", 0.0))
 		item.magic_reduction = float(dict.get("magic_reduction", 0.0))
 		item.slot_count = dict.get("slot_count", 1)
@@ -56,8 +56,9 @@ func load_items():
 		item.heavy_attack = dict.get("heavy_attack", {})
 		item.magic_attack = dict.get("magic_attack", {})
 		item.heal_effect = dict.get("heal_effect", {})
+
 		item.legendary_effect = dict.get("legendary_effect", "")
-		# ★ 已废弃：upgrade_stats（武器升级永久移除）
+
 		item.stats = dict.get("stats", {})
 		item.use_effect = dict.get("use_effect", {})
 
@@ -75,12 +76,30 @@ func load_items():
 		item.no_affix = bool(dict.get("no_affix", false))
 		item.no_fusion = bool(dict.get("no_fusion", false))
 		item.no_sell = bool(dict.get("no_sell", false))
-		
+
 		# ★ 新增：读取熔铸防具效果
 		item.melt_armor_effect = dict.get("melt_armor_effect", {})
 
+		# ★ v5.0：读取方向开关（默认 true）
+		item.enable_direction = bool(dict.get("enable_direction", true))
+
 		_item_db[item.id] = item
 	print("成功加载 ", _item_db.size(), " 个道具")
+
+	# ★ v5.0：强制规则
+	#   - 非防具：无方向
+	#   - 熔铸防具 / 融合产物 / 无词条特殊装：无方向
+	for item_id in _item_db:
+		var item : ItemData = _item_db[item_id]
+		if item == null: continue
+		if item.type != "armor":
+			item.enable_direction = false
+			continue
+		if item_id.begins_with("melt_") \
+				or item.fusion_id != "" \
+				or item.no_affix \
+				or item.no_fusion:
+			item.enable_direction = false
 
 
 func get_item_data(item_id: String) -> ItemData:
@@ -111,6 +130,11 @@ func create_instance_with_affixes(item_id: String) -> ItemInstance:
 	inst.upgrade_level = 0
 	if data.type == "armor":
 		inst.affixes = AffixManager.roll_affixes(data.quality, data.tags)
+		# ★ 新增：掉落时生成方向
+		if data.enable_direction:
+			inst.direction = Direction.roll_drop_direction()
+		else:
+			inst.direction = Direction.Value.NONE
 	return inst
 
 

@@ -10,6 +10,7 @@ func _init(bf : Node2D):
 func force_unlock() -> void:
 	_turn_changed_locked = false
 
+
 func on_turn_changed(team : int) -> void:
 	# ★ 进入此函数瞬间，立刻锁死光标，防止玩家在过场前乱点
 	if is_instance_valid(_bf._cursor_controller):
@@ -17,6 +18,7 @@ func on_turn_changed(team : int) -> void:
 		
 	await _bf._wait_for_ui_clear()
 	handle_turn_change_async(team)
+
 
 func handle_turn_change_async(team : int) -> void:
 	if Globals.current_battle_turn == 0 and team == TurnManager.Team.PLAYER:
@@ -120,6 +122,7 @@ func handle_turn_change_async(team : int) -> void:
 		_bf._cursor_controller.set_locked(true)
 		TurnManager.run_enemy_ai()
 
+
 func _get_center_position() -> Vector2:
 	for unit in UnitManager.unit_list:
 		if unit.unit_stats.team_id == 0 and unit.hit_points > 0:
@@ -127,6 +130,7 @@ func _get_center_position() -> Vector2:
 	var viewport_size = get_viewport().get_visible_rect().size
 	var center = _bf.camera_controller.map_rect.position + _bf.camera_controller.map_rect.size / 2
 	return center - viewport_size / 2
+
 
 # ============================================================
 #  战斗开始 buff（含光环）
@@ -217,8 +221,13 @@ func apply_team_buffs() -> void:
 	_apply_fusion_battle_start()
 	_apply_core_trait_auras()
 
+	# ★ v5.0：防具连通组（最后应用，因为需要所有基础值已就位）
+	_apply_connected_group_buffs()
+
+
 func _sync_auras_to_units() -> void:
 	pass
+
 
 func _apply_flame_resonance() -> void:
 	var resonance : Dictionary = LevelManager.current_resonance
@@ -233,12 +242,14 @@ func _apply_flame_resonance() -> void:
 			"defense_flat":   unit.buff_physical_reduction += float(rvalue) * 0.01; unit.buff_magic_reduction += float(rvalue) * 0.01
 			"heal_bonus":     unit.relic_heal_bonus += float(rvalue)
 
+
 func _apply_aura_buffs() -> void:
 	for unit in UnitManager.unit_list:
 		if unit.unit_stats.team_id != 0: continue
 		for aid in unit.active_auras:
 			if not unit.active_auras[aid]: continue
 			_apply_aura_passive(unit, aid)
+
 
 func _apply_aura_passive(unit : Unit, aura_id : String) -> void:
 	var d : Dictionary = AuraManager.get_aura(aura_id)
@@ -255,6 +266,7 @@ func _apply_aura_passive(unit : Unit, aura_id : String) -> void:
 			unit.buff_magic_reduction += float(params.get("magic_reduction", 0.10))
 		_:
 			pass
+
 
 func _apply_affix_buffs() -> void:
 	for unit in UnitManager.unit_list:
@@ -278,6 +290,7 @@ func _apply_affix_buffs() -> void:
 			unit.buff_physical_reduction += float(shield) * 0.01
 			unit.buff_magic_reduction += float(shield) * 0.01
 
+
 func _apply_set_bonuses() -> void:
 	for unit in UnitManager.unit_list:
 		if unit.unit_stats.team_id != 0: continue
@@ -296,6 +309,7 @@ func _apply_set_bonuses() -> void:
 					unit.buff_physical_reduction += float(b.get("value", 0)) * 0.01
 					unit.buff_magic_reduction += float(b.get("value", 0)) * 0.01
 
+
 func _apply_cross_bonuses():
 	var active : Array = SetBonusManager.get_active_cross_bonuses()
 	if active.is_empty(): return
@@ -312,12 +326,14 @@ func _apply_cross_bonuses():
 					unit.hit_points += int(value)
 					unit.update_hp_label()
 
+
 func _apply_fusion_battle_start():
 	for unit in UnitManager.unit_list:
 		if unit.unit_stats.team_id != 0: continue
 		if unit.has_fusion_effect("ember_max_and_start"):
 			SoulFireManager.add(2)
 			break
+
 
 func _apply_core_trait_auras():
 	var dirs = [Vector2i(1,0), Vector2i(-1,0), Vector2i(0,1), Vector2i(0,-1)]
@@ -336,6 +352,69 @@ func _apply_core_trait_auras():
 				unit.buff_damage_reduction += 0.15
 				break
 
+
+# ============================================================
+#  ★ v5.0：防具连通组 buff
+# ============================================================
+## 说明：
+##   - 按 GameState.party 的顺序构造 slots（保持玩家在 EquipmentConfig 里定的"插槽顺序"）
+##   - 死掉/未出场的单位占位空槽（保持行对齐，跨单位连通自然断开）
+##   - 战场单位的 armor_slots 用实时数据（事件可能改变装备）
+##   - 连通 buff 独立轨：只加攻击% / 防御% / HP%，不与遗物/精炼/套装叠乘
+func _apply_connected_group_buffs():
+	if GameState.party.is_empty(): return
+
+	# 1. 构造 slots：按 party 顺序，死掉的占空
+	var slots : Array = []
+	for i in range(GameState.party.size()):
+		var pu : UnitData = GameState.party[i]
+		var battle_unit : Unit = null
+		for u in UnitManager.unit_list:
+			if not is_instance_valid(u): continue
+			if u.unit_stats.team_id != 0: continue
+			if u.unit_stats.unit_name == pu.unit_name \
+					and u.unit_stats.display_name == pu.display_name:
+				battle_unit = u
+				break
+
+		if battle_unit == null or battle_unit.hit_points <= 0:
+			var empty_slots : Array = []
+			for j in range(pu.max_armor_slots):
+				empty_slots.append(null)
+			slots.append(empty_slots)
+		else:
+			slots.append(battle_unit.armor_slots)
+
+	# 2. 计算连通组
+	var groups : Array = ConnectedGroupCalculator.compute_groups(slots)
+	if groups.is_empty(): return
+
+	var bonus : Dictionary = ConnectedGroupCalculator.evaluate_groups(groups)
+
+	# 3. 应用到所有活着的我方单位
+	for u in UnitManager.unit_list:
+		if not is_instance_valid(u): continue
+		if u.unit_stats.team_id != 0: continue
+		if u.hit_points <= 0: continue
+
+		u.buff_attack_percent += bonus["attack_pct"]
+		u.buff_physical_reduction += bonus["defense_pct"]
+		u.buff_magic_reduction += bonus["defense_pct"]
+
+		var hp_bonus : int = int(u.unit_stats.max_hp * bonus["hp_pct"])
+		if hp_bonus > 0:
+			u.unit_stats.max_hp += hp_bonus
+			u.hit_points = mini(u.hit_points + hp_bonus, u.unit_stats.max_hp)
+			u.update_hp_label()
+
+	print("[连通组] 组数=%d，跨三=%d，攻击+%.1f%% 防御+%.1f%% HP+%.1f%%" % [
+		bonus["total_groups"], bonus["cross_3_groups"],
+		bonus["attack_pct"] * 100, bonus["defense_pct"] * 100, bonus["hp_pct"] * 100])
+
+
+# ============================================================
+#  回合开始钩子
+# ============================================================
 func _apply_turn_start_auras():
 	var active_auras : Dictionary = {}
 	for u in UnitManager.unit_list:
@@ -344,6 +423,7 @@ func _apply_turn_start_auras():
 			if u.active_auras[aid]: active_auras[aid] = true
 	for aid in active_auras:
 		_apply_turn_start_aura_effect(aid)
+
 
 func _apply_turn_start_aura_effect(aid : String):
 	var d : Dictionary = AuraManager.get_aura(aid)
@@ -354,6 +434,7 @@ func _apply_turn_start_aura_effect(aid : String):
 			SoulFireManager.add(gain)
 		_: pass
 
+
 func _apply_turn_start_fusion():
 	if SoulFireManager.current > 0: return
 	for u in UnitManager.unit_list:
@@ -361,6 +442,7 @@ func _apply_turn_start_fusion():
 		if u.has_fusion_effect("sacrifice_zero_recover"):
 			SoulFireManager.add(1)
 			return
+
 
 func _apply_charge_stacks():
 	for u in UnitManager.unit_list:

@@ -22,7 +22,7 @@ class_name ItemData
 @export var magic_penetration: float = 0.0
 
 @export var armor_type: String = "medium"
-@export var defense: int = 0          # 废弃字段（不参与计算）
+@export var defense: int = 0
 @export var physical_reduction: float = 0.0
 @export var magic_reduction: float = 0.0
 @export var slot_count: int = 1
@@ -48,3 +48,11 @@ class_name ItemData
 @export var no_sell: bool = false
 
 @export var melt_armor_effect: Dictionary = {}
+
+# ============================================================
+#  ★ 新增：方向字段（仅 armor 类型有意义）
+# ============================================================
+## 是否可能在掉落时带箭头
+##   true  → 30% 概率带箭头（见 Direction.roll_drop_direction）
+##   false → 永远无箭头（熔铸防具、特殊装备用）
+@export var enable_direction: bool = true

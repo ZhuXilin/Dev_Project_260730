@@ -6,6 +6,13 @@ class_name ItemInstance
 @export var upgrade_level: int = 0
 @export var affixes: Array = []
 
+# ============================================================
+#  ★ 新增：本实例的具体方向（Direction.Value 枚举值）
+#  0 = 无箭头 / 1,2,4,8 = 单箭头 / 5,10 = 双直线 / 16,32 = 斜线
+#  重 roll 时改这个字段，不动 ItemData
+# ============================================================
+@export var direction: int = 0
+
 
 func has_affix(affix_type: String) -> bool:
 	for a in affixes:
@@ -51,4 +58,18 @@ func duplicate_instance() -> ItemInstance:
 	inst.count = count
 	inst.upgrade_level = upgrade_level
 	inst.affixes = affixes.duplicate(true)
+	inst.direction = direction
 	return inst
+
+
+## 便捷：本实例的箭头类型（"none"/"single"/"double"/"diagonal"）
+func get_arrow_type() -> String:
+	return Direction.get_arrow_type_name(direction)
+
+
+func has_arrow() -> bool:
+	return direction != Direction.Value.NONE
+
+
+func is_double_arrow() -> bool:
+	return Direction.is_double_arrow(direction)

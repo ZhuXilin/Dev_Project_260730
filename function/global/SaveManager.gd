@@ -161,7 +161,6 @@ func _build_save_data() -> SaveData:
 	save.total_dispatch_count = GameState.total_dispatch_count
 	save.npc_affinity = GameState.npc_affinity.duplicate(true)
 
-	# ★ 修复：正向赋值（原先方向反了，会把 GameState 数据清空）
 	save.npc_interact_counts = GameState.npc_interact_counts.duplicate(true)
 	save.dialogue_play_counts = GameState.dialogue_play_counts.duplicate(true)
 	save.active_narrative_effects = GameState.active_narrative_effects.duplicate(true)
@@ -346,6 +345,7 @@ func _serialize_item_instance(inst) -> Dictionary:
 			"item_id": inst.item_id, "count": inst.count,
 			"upgrade_level": inst.upgrade_level,
 			"affixes": inst.affixes.duplicate(true),
+			"direction": inst.direction,   # ★ v5.0：防具方向
 		}
 	return {}
 
@@ -364,6 +364,8 @@ func _deserialize_item_instance(d) -> Variant:
 		for a in af:
 			if a is Dictionary:
 				inst.affixes.append({"id": a.get("id", ""), "value": int(a.get("value", 0))})
+	# ★ v5.0：旧档没有 direction → 默认 0（无箭头）
+	inst.direction = int(d.get("direction", 0))
 	return inst
 
 

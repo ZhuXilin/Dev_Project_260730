@@ -397,7 +397,14 @@ static func from_dict(d: Dictionary) -> UnitData:
 
 static func _item_instance_to_dict(inst: ItemInstance) -> Dictionary:
 	if not inst: return {}
-	return {"item_id": inst.item_id, "count": inst.count, "upgrade_level": inst.upgrade_level, "affixes": inst.affixes.duplicate(true)}
+	return {
+		"item_id": inst.item_id,
+		"count": inst.count,
+		"upgrade_level": inst.upgrade_level,
+		"affixes": inst.affixes.duplicate(true),
+		"direction": inst.direction,
+	}
+	
 
 static func _dict_to_item_instance(d: Dictionary) -> ItemInstance:
 	if d.is_empty(): return null
@@ -411,7 +418,9 @@ static func _dict_to_item_instance(d: Dictionary) -> ItemInstance:
 	if af is Array:
 		inst.affixes.clear()
 		for a in af:
-			if a is Dictionary: inst.affixes.append({"id": a.get("id", ""), "value": int(a.get("value", 0))})
+			if a is Dictionary:
+				inst.affixes.append({"id": a.get("id", ""), "value": int(a.get("value", 0))})
+	inst.direction = int(d.get("direction", 0))
 	return inst
 
 static func _item_instance_array_to_array(arr: Array) -> Array:

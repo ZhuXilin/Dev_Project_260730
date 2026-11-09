@@ -26,11 +26,13 @@ var _talent : EquipmentConfigTalent = null
 
 var _upgrade_shop_btn : Button = null
 var _aura_tab_btn : Button = null
+var _auto_config_btn : Button = null
 
 var _forge_enter_done : bool = false
 
 const ShopManagerScript = preload(Config.PATHS.SHOP_MANAGER_SCRIPT)
 const DETAIL_ZONE_PATH : String = "VBoxContainer/MainHBox/LeftInfoColumn/DetailZone"
+const DIRECTION_REROLL_COST : int = 120
 
 @onready var mode_label = get_node_or_null("VBoxContainer/TopBar/ModeLabel")
 @onready var gold_label = get_node_or_null("VBoxContainer/GoldLabel")
@@ -53,6 +55,10 @@ const DETAIL_ZONE_PATH : String = "VBoxContainer/MainHBox/LeftInfoColumn/DetailZ
 
 var _pending_section : VBoxContainer = null
 var _pending_container : HBoxContainer = null
+
+# ★ v5.0：防具连通组缓存
+var _connectivity_groups : Array = []
+var _connected_cells : Dictionary = {}   # "unit_idx_slot_idx" -> group_index
 
 
 func _ready():
@@ -89,6 +95,10 @@ func _ready():
 	var detail_label : Label = get_node_or_null(DETAIL_ZONE_PATH + "/DetailLabel")
 	if detail_label:
 		detail_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+	# ★ v5.0：初始化连通组缓存
+	_connectivity_groups.clear()
+	_connected_cells.clear()
 
 
 func _ensure_aura_tab_btn():
@@ -352,7 +362,7 @@ func _build_ui_inner():
 		left_vbox.clip_contents = true
 
 	# ★ 右侧：锁死 130 宽度，防爆
-	var r_scroll = get_node_or_null("VBoxContainer/MainHBox/RightScroll") # ★ 改名为 r_scroll 避免警告
+	var r_scroll = get_node_or_null("VBoxContainer/MainHBox/RightScroll")
 	if r_scroll and r_scroll is ScrollContainer:
 		r_scroll.custom_minimum_size = Vector2(130, 0) 
 		r_scroll.size_flags_horizontal = Control.SIZE_FILL
@@ -360,18 +370,18 @@ func _build_ui_inner():
 		r_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 		r_scroll.clip_contents = true
 
-	var r_container = get_node_or_null("VBoxContainer/MainHBox/RightScroll/RightContainer") # ★ 改名
+	var r_container = get_node_or_null("VBoxContainer/MainHBox/RightScroll/RightContainer")
 	if r_container:
 		r_container.custom_minimum_size = Vector2(0, 0)
 		r_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 
-	var t_bar = get_node_or_null("VBoxContainer/MainHBox/RightScroll/RightContainer/TabBar") # ★ 改名
+	var t_bar = get_node_or_null("VBoxContainer/MainHBox/RightScroll/RightContainer/TabBar")
 	if t_bar:
 		t_bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		for child in t_bar.get_children():
 			if child is Button:
-				child.clip_text = true # ★ 强制裁切文本，这是之前被撑爆的元凶！
-				child.custom_minimum_size = Vector2(0, 16) # 绝不要求额外宽度
+				child.clip_text = true
+				child.custom_minimum_size = Vector2(0, 16)
 				child.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 
 	# ---- 以下为原有业务逻辑，保持不变 ----
@@ -571,10 +581,16 @@ func _build_ui_inner():
 	if reset_btn:
 		reset_btn.add_theme_font_size_override("font_size", Style.FONT_LARGE)
 		reset_btn.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-		reset_btn.clip_text = true # ★ 这里也要强制 true
+		reset_btn.clip_text = true
 
 	_ensure_upgrade_shop_btn()
 	_refresh_upgrade_shop_btn()
+
+	# ★ v5.0：自动配装按钮
+	_ensure_auto_config_btn()
+
+	# ★ v5.0：计算连通组
+	_refresh_connectivity()
 
 	_build_unit_columns()
 	visible = true
@@ -582,6 +598,64 @@ func _build_ui_inner():
 	if shop_container: shop_container.queue_sort()
 	if right_container: right_container.queue_sort()
 	if tab_bar: tab_bar.queue_sort()
+
+
+# ★ v5.0：自动配装按钮
+func _ensure_auto_config_btn():
+	if _auto_config_btn and is_instance_valid(_auto_config_btn):
+		return
+	var top_bar = get_node_or_null("VBoxContainer/TopBar")
+	if not top_bar:
+		return
+	_auto_config_btn = Button.new()
+	_auto_config_btn.name = "AutoConfigBtn"
+	_auto_config_btn.text = "⚙ 自动配装"
+	_auto_config_btn.add_theme_font_size_override("font_size", 7)
+	_auto_config_btn.focus_mode = Control.FOCUS_NONE
+	_auto_config_btn.custom_minimum_size = Vector2(64, 16)
+	_auto_config_btn.tooltip_text = "根据连通组 + 套装 + 属性，生成 3 个自动配置方案"
+	_auto_config_btn.pressed.connect(_open_auto_config_dialog)
+	top_bar.add_child(_auto_config_btn)
+
+
+# ★ v5.0：计算连通组
+func _refresh_connectivity():
+	_connectivity_groups.clear()
+	_connected_cells.clear()
+
+	if party.is_empty():
+		return
+
+	var slots : Array = []
+	for i in range(party.size()):
+		slots.append(party[i].armor_slots)
+
+	_connectivity_groups = ConnectedGroupCalculator.compute_groups(slots)
+
+	for gi in range(_connectivity_groups.size()):
+		var g = _connectivity_groups[gi]
+		for c in g.cells:
+			_connected_cells["%d_%d" % [c.unit_index, c.row]] = gi
+
+
+# ★ v5.0：连通格的样式（金色边框）
+func _get_connectivity_style(unit_idx: int, slot_idx: int) -> StyleBox:
+	var key : String = "%d_%d" % [unit_idx, slot_idx]
+	if not _connected_cells.has(key):
+		return null
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(0, 0, 0, 0)
+	sb.border_color = Color(1.0, 0.85, 0.3)
+	sb.border_width_left = 1
+	sb.border_width_right = 1
+	sb.border_width_top = 1
+	sb.border_width_bottom = 1
+	sb.content_margin_left = 0
+	sb.content_margin_right = 0
+	sb.content_margin_top = 0
+	sb.content_margin_bottom = 0
+	return sb
+
 
 func _build_unit_columns():
 	if not unit_container: return
@@ -618,6 +692,13 @@ func _build_unit_columns():
 		for slot_idx in range(unit.armor_slots.size()):
 			var armor_btn : Button = _create_item_button(unit.armor_slots[slot_idx], "armor", i, slot_idx)
 			if unit.is_dead: _disable_button(armor_btn)
+
+			# ★ v5.0：连通格加金色边框
+			var conn_style : StyleBox = _get_connectivity_style(i, slot_idx)
+			if conn_style != null:
+				armor_btn.add_theme_stylebox_override("normal", conn_style)
+				armor_btn.add_theme_stylebox_override("hover", conn_style)
+
 			armor_group.add_child(armor_btn)
 
 		# 4. 特技槽
@@ -639,7 +720,6 @@ func _is_level_up_enabled() -> bool:
 
 func _get_level_up_cost(cur_level: int) -> int:
 	var cfg : Dictionary = GameConfigManager.get_file("economy_config.json")
-	# 保留一个简短的保底防崩溃，优先读取 JSON 里的配置
 	var costs : Array = cfg.get("unit_level_up_cost", [50, 100, 200, 400, 800])
 	var idx : int = cur_level - 1
 	if idx < 0 or idx >= costs.size():
@@ -648,7 +728,6 @@ func _get_level_up_cost(cur_level: int) -> int:
 
 
 func _create_level_btn(unit: UnitData, unit_idx: int) -> Button:
-	# 修改 1：尺寸放宽到 52x24，字号使用 FONT_SMALL (6)
 	var btn : Button = Style.create_styled_button(Style.FONT_SMALL, Vector2(52, 24))
 	btn.set_meta("slot_type", "level_btn")
 	btn.set_meta("unit_idx", unit_idx)
@@ -679,7 +758,6 @@ func _create_level_btn(unit: UnitData, unit_idx: int) -> Button:
 	var cost : int = _get_level_up_cost(cur)
 	var has_gold : bool = _context.get_gold() >= cost
 	
-	# 两行文字：当前等级 / 升级费用
 	btn.text = "L%d\n%dG" % [cur, cost]
 	btn.tooltip_text = ""
 	btn.disabled = not has_gold
@@ -718,7 +796,6 @@ func _update_gold_display():
 
 func _build_aura_panel():
 	_clear_container(shop_container)
-	# ★ 改为和商店一致的 3 列网格布局
 	shop_container.columns = 3
 	shop_container.add_theme_constant_override("h_separation", 2)
 	shop_container.add_theme_constant_override("v_separation", 2)
@@ -810,7 +887,6 @@ func _make_aura_icon_btn(aid: String, cur_sf: int, is_equipped: bool, _empty_slo
 	var buy_cost : int = int(ad.get("buy_cost", 0))
 	if buy_cost <= 0: buy_cost = 6
 
-	# 价格 / 状态文字
 	var label = Label.new()
 	label.add_theme_font_size_override("font_size", 6)
 	label.add_theme_color_override("font_outline_color", Color.BLACK)
@@ -829,7 +905,6 @@ func _make_aura_icon_btn(aid: String, cur_sf: int, is_equipped: bool, _empty_slo
 	else:
 		label.text = "%d魂" % buy_cost
 		label.add_theme_color_override("font_color", Color.WHITE)
-		# 如果钱不够或者槽满，不可点击且变灰
 		if cur_sf < buy_cost:
 			btn.modulate = Color(0.5, 0.5, 0.5)
 			btn.disabled = true
@@ -1000,7 +1075,6 @@ func _build_sacrifice_panel():
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	shop_container.add_child(title)
 
-	# 列出存活单位及其将获得的防具
 	var alive_names : Array = []
 	for u in party:
 		if u.is_dead: continue
@@ -1170,6 +1244,34 @@ func _create_unit_icon(unit: UnitData, unit_idx: int) -> Control:
 	
 	wrapper.add_child(texture_rect)
 
+	# ★ v5.0：单位交换按钮（⇄）
+	if party.size() > 1:
+		var swap_btn := Button.new()
+		swap_btn.name = "UnitSwapBtn"
+		swap_btn.text = "⇄"
+		swap_btn.add_theme_font_size_override("font_size", 7)
+		swap_btn.focus_mode = Control.FOCUS_NONE
+		swap_btn.custom_minimum_size = Vector2(12, 12)
+		swap_btn.size = Vector2(12, 12)
+		swap_btn.tooltip_text = "与下一个单位交换位置（循环）"
+		swap_btn.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+		swap_btn.offset_left = -12
+		swap_btn.offset_top = 0
+		swap_btn.offset_right = 0
+		swap_btn.offset_bottom = 12
+		var empty_sb := StyleBoxEmpty.new()
+		empty_sb.content_margin_left = 0
+		empty_sb.content_margin_right = 0
+		empty_sb.content_margin_top = 0
+		empty_sb.content_margin_bottom = 0
+		swap_btn.add_theme_stylebox_override("normal", empty_sb)
+		swap_btn.add_theme_stylebox_override("hover", empty_sb)
+		swap_btn.add_theme_stylebox_override("pressed", empty_sb)
+		swap_btn.add_theme_stylebox_override("focus", empty_sb)
+		swap_btn.modulate = Color(0.8, 0.8, 0.9)
+		swap_btn.pressed.connect(_swap_units_cyclic.bind(unit_idx))
+		wrapper.add_child(swap_btn)
+
 	wrapper.mouse_entered.connect(_on_unit_hover_entered.bind(unit_idx))
 	wrapper.mouse_exited.connect(_on_unit_hover_exited)
 
@@ -1215,8 +1317,34 @@ func _create_item_button(inst: ItemInstance, slot_type: String, unit_idx: int, s
 			btn.icon = data.icon
 			btn.text = ""
 		else:
-			# ★ 武器升级功能永久移除，upgrade_level 只用于防具出售价（此处不再显示）
 			btn.text = base_name
+
+		# ★ v5.0：方向角标（右下角）
+		if inst.direction != Direction.Value.NONE:
+			var arrow_label := Label.new()
+			arrow_label.name = "DirectionBadge"
+			arrow_label.text = Direction.get_display_symbol(inst.direction)
+			arrow_label.add_theme_font_size_override("font_size", 6)
+			arrow_label.add_theme_color_override("font_color", Color(1.0, 1.0, 0.7))
+			arrow_label.add_theme_color_override("font_outline_color", Color.BLACK)
+			arrow_label.add_theme_constant_override("outline_size", 2)
+			arrow_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			arrow_label.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
+			arrow_label.offset_left = -8
+			arrow_label.offset_top = -8
+			arrow_label.offset_right = 0
+			arrow_label.offset_bottom = 0
+			arrow_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+			arrow_label.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
+			btn.add_child(arrow_label)
+
+			# ★ v5.0：右键按钮弹出重 roll
+			btn.gui_input.connect(func(event: InputEvent):
+				if event is InputEventMouseButton and event.pressed \
+						and event.button_index == MOUSE_BUTTON_RIGHT:
+					_show_direction_reroll_dialog(inst)
+					btn.get_viewport().set_input_as_handled()
+			)
 	else:
 		btn.text = "空"
 	btn.set_meta("slot_type", slot_type)
@@ -1262,9 +1390,7 @@ func _create_talent_button(inst: TalentInstance, unit_idx: int, slot_idx: int) -
 				btn.icon = icon
 				btn.text = ""
 			else:
-				# 兜底：极端情况下没有图标，取前两个字，避免完全空白
 				btn.text = data.display_name.substr(0, mini(2, data.display_name.length()))
-			# ★ 不染色，保留图标原色（与防具图标一致）
 			btn.set_meta("talent_id", inst.talent_id)
 			btn.mouse_entered.connect(_on_talent_hover_entered.bind(inst.talent_id))
 			btn.mouse_exited.connect(_on_talent_hover_exited)
@@ -1290,7 +1416,6 @@ func _build_passive_slots():
 
 
 func _create_passive_button(inst: Variant, slot_index: int) -> Button:
-	# 强制使用和其他防具相同的 BTN_ITEM_SIZE (20x20)
 	var btn : Button = Style.create_styled_button(Style.FONT_SMALL, Style.BTN_ITEM_SIZE)
 	btn.clip_text = true
 	btn.expand_icon = true
@@ -1298,7 +1423,6 @@ func _create_passive_button(inst: Variant, slot_index: int) -> Button:
 	btn.set_meta("slot_type", "passive_slot")
 	btn.set_meta("passive_index", slot_index)
 	
-	# ★ 核心修复：清除默认内边距，让图标撑满 20x20
 	var empty_sb := StyleBoxEmpty.new()
 	empty_sb.content_margin_left = 0
 	empty_sb.content_margin_right = 0
@@ -1387,7 +1511,6 @@ func _is_valid_drop(data: Dictionary, target: Control) -> bool:
 	var target_type : String = target.get_meta("slot_type", "")
 	var discard : bool = target == discard_zone
 
-	# ★ 步 2：熔铸防具不可丢弃
 	if discard:
 		if source_type == "armor":
 			var uidx : int = data.get("unit_idx", -1)
@@ -1410,7 +1533,6 @@ func _is_valid_drop(data: Dictionary, target: Control) -> bool:
 					if pdata != null and pdata.no_sell:
 						return false
 
-	# ★ 新增：光环只能拖拽到空的被动槽，拖拽到空白处（丢弃区）无效
 	if source_type in ["aura_shop", "aura_equipped"]:
 		if target_type == "passive_slot":
 			var tgt_idx = target.get_meta("passive_index", -1)
@@ -1530,7 +1652,6 @@ func _execute_drop(data: Dictionary, target: Control):
 	var source_type : String = data.get("slot_type", "")
 	var target_type : String = target.get_meta("slot_type", "")
 
-	# ★ 新增光环处理
 	if source_type == "aura_shop" and target_type == "passive_slot":
 		_buy_and_equip_aura(data, target); return
 	if source_type == "aura_equipped" and target_type == "passive_slot":
@@ -1713,9 +1834,6 @@ func _sync_all():
 		if u.is_dead and tu.is_dead:
 			continue
 		
-		# ★ v4.8 清理：彻底移除 weapon_slot 的同步
-		# tu.weapon_slot = _clone_item_inst(u.weapon_slot)
-		
 		tu.armor_slots = _clone_inst_array(u.armor_slots)
 		tu.max_armor_slots = u.max_armor_slots
 		tu.talent_slots = _clone_talent_array(u.talent_slots)
@@ -1735,6 +1853,7 @@ func _sync_all():
 		tu.arcane = u.arcane
 		tu.move_range = u.move_range
 
+
 static func _clone_item_inst(src: ItemInstance) -> ItemInstance:
 	if src == null: return null
 	var inst = ItemInstance.new()
@@ -1743,6 +1862,8 @@ static func _clone_item_inst(src: ItemInstance) -> ItemInstance:
 	inst.upgrade_level = src.upgrade_level
 	# ★ 修复：深拷贝词条，避免原装备与新装备共享同一数组
 	inst.affixes = src.affixes.duplicate(true)
+	# ★ v5.0：复制方向
+	inst.direction = src.direction
 	return inst
 
 static func _clone_inst_array(src: Array) -> Array:
@@ -1801,7 +1922,6 @@ func _switch_tab(tab: String):
 			_build_aura_panel()
 	shop_container.visible = true
 	
-	# ★ 确保按钮在正确的 tab 显示
 	reset_btn.visible = (tab == "arena_shop")
 	if reset_btn.visible and shop_manager:
 		reset_btn.text = "刷新商店 (" + str(shop_manager.get_reset_cost()) + "G)"
@@ -2013,7 +2133,7 @@ func _ensure_upgrade_shop_btn():
 	_upgrade_shop_btn = Style.create_styled_button(Style.FONT_LARGE, Vector2(120, 24))
 	_upgrade_shop_btn.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	_upgrade_shop_btn.size_flags_vertical = Control.SIZE_SHRINK_END
-	_upgrade_shop_btn.clip_text = true # ★ 确保开启裁切
+	_upgrade_shop_btn.clip_text = true
 	_upgrade_shop_btn.pressed.connect(_on_upgrade_shop_pressed)
 	right_container.add_child(_upgrade_shop_btn)
 	var reset_idx : int = reset_btn.get_index()
@@ -2063,7 +2183,6 @@ func _create_advanced_talent_button(unit: UnitData, unit_idx: int) -> Button:
 	_apply_icon_button_style(btn)
 	btn.set_meta("slot_type", "advanced_talent")
 	btn.set_meta("unit_idx", unit_idx)
-	# ★ 保留 disabled：转职专属词条不可替换/拖拽（功能不变）
 	btn.disabled = true
 
 	if unit.advanced_talent_id == "":
@@ -2084,7 +2203,6 @@ func _create_advanced_talent_button(unit: UnitData, unit_idx: int) -> Button:
 	else:
 		btn.text = data.display_name.substr(0, mini(2, data.display_name.length()))
 
-	# ★ 不染色；disabled 状态由引擎自动做暗化，视觉上就能区分"不可操作"
 	btn.set_meta("talent_id", unit.advanced_talent_id)
 	btn.mouse_entered.connect(_on_talent_hover_entered.bind(unit.advanced_talent_id))
 	btn.mouse_exited.connect(_on_talent_hover_exited)
@@ -2106,3 +2224,380 @@ func _trigger_forge_enter() -> void:
 		"npc_interact_count": StoryManager.get_npc_interact_count("forge"),
 	}
 	StoryManager.trigger("forge_enter", ctx)
+
+
+# ============================================================
+#  ★ v5.0：方向重 roll
+# ============================================================
+func _show_direction_reroll_dialog(inst: ItemInstance):
+	if inst == null or not is_instance_valid(inst):
+		return
+	if inst.direction == Direction.Value.NONE:
+		Globals.show_confirm(self, "该防具没有方向，无法重 roll", "确定", "",
+			func(): pass, func(): pass, false)
+		return
+	var data = ItemManager.get_item_data(inst.item_id)
+	if data == null or not data.enable_direction:
+		Globals.show_confirm(self, "该防具不可重 roll 方向", "确定", "",
+			func(): pass, func(): pass, false)
+		return
+
+	var cost : int = DIRECTION_REROLL_COST
+	if _context.get_gold() < cost:
+		Globals.show_confirm(self, "金币不足（需 %d）" % cost, "确定", "",
+			func(): pass, func(): pass, false)
+		return
+
+	var cur_sym : String = Direction.get_display_symbol(inst.direction)
+	var cur_type : String = Direction.get_arrow_type_name(inst.direction)
+	var msg : String = "重 roll 方向\n\n当前方向：%s（%s）\n花费：%d 金币\n\n" % [cur_sym, cur_type, cost]
+	msg += "说明：\n"
+	msg += "  · 单箭头会变成其他单箭头\n"
+	msg += "  · 双箭头会在 ↕/⤢/⤡ 之间切换\n"
+	msg += "  · 不会变回无箭头，也不会从单变双"
+
+	Globals.show_confirm(
+		self, msg,
+		"重 roll（%dG）" % cost, "取消",
+		func():
+			if not _context.subtract_gold(cost):
+				return
+			inst.direction = Direction.reroll_direction(inst.direction)
+			SoundManager.play_get_item_sound()
+			_update_gold_display()
+			_refresh_connectivity()
+			_build_unit_columns()
+			_sync_all()
+			_schedule_build_ui()
+			_show_detail_in_zone("重 roll 成功：%s → %s" % [cur_sym, Direction.get_display_symbol(inst.direction)]),
+		func(): pass
+	)
+
+
+# ============================================================
+#  ★ v5.0：单位交换
+# ============================================================
+func _swap_units_cyclic(unit_idx: int):
+	if unit_idx < 0 or unit_idx >= party.size(): return
+	if party.size() <= 1: return
+
+	var next_idx : int = (unit_idx + 1) % party.size()
+	_apply_unit_swap(unit_idx, next_idx)
+
+
+func _apply_unit_swap(a: int, b: int):
+	if a == b: return
+	if a < 0 or a >= party.size(): return
+	if b < 0 or b >= party.size(): return
+
+	if party[a].is_dead or party[b].is_dead:
+		Globals.show_confirm(self, "已阵亡的单位无法交换", "确定", "",
+			func(): pass, func(): pass, false)
+		return
+
+	SoundManager.play_select_sound()
+
+	var name_a : String = party[a].display_name if party[a].display_name != "" else party[a].unit_name
+	var name_b : String = party[b].display_name if party[b].display_name != "" else party[b].unit_name
+
+	var temp = party[a]
+	party[a] = party[b]
+	party[b] = temp
+
+	_refresh_connectivity()
+	_build_unit_columns()
+	_sync_all()
+	_schedule_build_ui()
+
+	_show_detail_in_zone("已交换单位位置：%s ↔ %s" % [name_a, name_b])
+
+
+# ============================================================
+#  ★ v5.0：自动配装
+# ============================================================
+func _open_auto_config_dialog():
+	if party.is_empty():
+		return
+	if party.size() < 2:
+		Globals.show_confirm(self, "至少需要 2 个单位才能自动配装", "确定", "",
+			func(): pass, func(): pass, false)
+		return
+
+	var msg : String = "自动配装\n\n将根据「连通组 + 套装 + 属性」生成 3 个方案。\n\n"
+	msg += "允许交换单位位置会显著增加搜索空间（耗时 5~10 秒），但结果更优。"
+
+	Globals.show_confirm(
+		self, msg,
+		"允许交换（慢）", "不交换（快）",
+		func(): _run_auto_config(true),
+		func(): _run_auto_config(false),
+		true
+	)
+
+
+func _run_auto_config(allow_swap_units: bool):
+	var progress = Globals.get_reward_summary()
+	if progress:
+		progress.show_text("自动配装计算中…（%s）" % ("含单位交换" if allow_swap_units else "仅防具"))
+		progress.open()
+		await get_tree().process_frame
+
+	var options : Array = _generate_auto_options(allow_swap_units)
+
+	if progress:
+		progress.close()
+
+	if options.is_empty():
+		Globals.show_confirm(self, "自动配装失败（无有效方案）", "确定", "",
+			func(): pass, func(): pass, false)
+		return
+
+	_show_auto_config_result_dialog(options, allow_swap_units)
+
+
+func _generate_auto_options(allow_swap_units: bool) -> Array:
+	var base_layout := _snapshot_layout()
+
+	var weight_sets : Array = [
+		{"name": "攻击流", "atk": 1.0, "def": 0.3, "hp": 0.3},
+		{"name": "防御流", "atk": 0.3, "def": 1.0, "hp": 0.8},
+		{"name": "平衡流", "atk": 0.6, "def": 0.6, "hp": 0.6},
+	]
+
+	var results : Array = []
+	for ws in weight_sets:
+		var result = _run_simulated_annealing(
+			base_layout, allow_swap_units,
+			ws["atk"], ws["def"], ws["hp"], 2000)
+		if result != null:
+			result["weight_name"] = ws["name"]
+			results.append(result)
+
+	return results
+
+
+func _snapshot_layout() -> Dictionary:
+	var slots : Array = []
+	for i in range(party.size()):
+		var unit_slots : Array = []
+		for slot in party[i].armor_slots:
+			if slot == null:
+				unit_slots.append(null)
+			else:
+				unit_slots.append(_clone_item_inst(slot))
+		slots.append(unit_slots)
+	var unit_order : Array = []
+	for u in party:
+		unit_order.append(u)
+	return {"slots": slots, "unit_order": unit_order}
+
+
+func _apply_layout(layout: Dictionary):
+	var slots : Array = layout["slots"]
+	var unit_order : Array = layout["unit_order"]
+	for i in range(party.size()):
+		if i >= slots.size(): break
+		party[i].armor_slots = slots[i]
+	party.clear()
+	for u in unit_order:
+		party.append(u)
+
+
+func _evaluate_layout(layout: Dictionary, atk_w: float, def_w: float, hp_w: float) -> float:
+	var slots : Array = layout["slots"]
+	var groups : Array = ConnectedGroupCalculator.compute_groups(slots)
+	var bonus : Dictionary = ConnectedGroupCalculator.evaluate_groups(groups)
+
+	var score : float = 0.0
+	score += bonus["attack_pct"] * 10.0 * atk_w
+	score += bonus["defense_pct"] * 8.0 * def_w
+	score += bonus["hp_pct"] * 5.0 * hp_w
+	score += bonus["total_groups"] * 2.0
+	score += bonus["cross_3_groups"] * 3.0
+
+	var set_counts : Dictionary = {}
+	for unit_slots in slots:
+		for slot in unit_slots:
+			if slot == null: continue
+			var d = ItemManager.get_item_data(slot.item_id)
+			if d == null: continue
+			for tag in d.tags:
+				set_counts[tag] = set_counts.get(tag, 0) + 1
+	for tag in set_counts:
+		if set_counts[tag] >= 3:
+			score += 3.0
+
+	return score
+
+
+func _run_simulated_annealing(base_layout: Dictionary, allow_swap: bool,
+		atk_w: float, def_w: float, hp_w: float, iterations: int) -> Dictionary:
+	var current : Dictionary = {
+		"slots": base_layout["slots"].duplicate(true),
+		"unit_order": base_layout["unit_order"].duplicate(),
+	}
+	var best : Dictionary = {
+		"slots": current["slots"].duplicate(true),
+		"unit_order": current["unit_order"].duplicate(),
+	}
+	var best_score : float = _evaluate_layout(current, atk_w, def_w, hp_w)
+	var cur_score : float = best_score
+
+	var T : float = 10.0
+	var T_min : float = 0.1
+	var alpha : float = 0.997
+
+	for it in range(iterations):
+		var neighbor : Dictionary = {
+			"slots": current["slots"].duplicate(true),
+			"unit_order": current["unit_order"].duplicate(),
+		}
+
+		var op_roll : float = randf()
+		if op_roll < 0.5 or not allow_swap:
+			_swap_items_in_layout(neighbor)
+		elif op_roll < 0.85:
+			_rotate_item_in_layout(neighbor)
+		else:
+			_swap_units_in_layout(neighbor)
+
+		var n_score : float = _evaluate_layout(neighbor, atk_w, def_w, hp_w)
+		var delta : float = n_score - cur_score
+
+		if delta > 0 or randf() < exp(delta / maxf(T, 0.001)):
+			current = neighbor
+			cur_score = n_score
+			if cur_score > best_score:
+				best = {
+					"slots": neighbor["slots"].duplicate(true),
+					"unit_order": neighbor["unit_order"].duplicate(),
+				}
+				best_score = cur_score
+
+		T = maxf(T * alpha, T_min)
+
+	return {
+		"slots": best["slots"],
+		"unit_order": best["unit_order"],
+		"score": best_score,
+	}
+
+
+func _swap_items_in_layout(layout: Dictionary):
+	var slots : Array = layout["slots"]
+	var flat : Array = []
+	for u in range(slots.size()):
+		for r in range(slots[u].size()):
+			flat.append(Vector2i(u, r))
+	if flat.size() < 2: return
+	var a : Vector2i = flat[randi() % flat.size()]
+	var b : Vector2i = flat[randi() % flat.size()]
+	if a == b: return
+	var tmp = slots[a.x][a.y]
+	slots[a.x][a.y] = slots[b.x][b.y]
+	slots[b.x][b.y] = tmp
+
+
+func _rotate_item_in_layout(layout: Dictionary):
+	var slots : Array = layout["slots"]
+	var candidates : Array = []
+	for u in range(slots.size()):
+		for r in range(slots[u].size()):
+			if slots[u][r] != null and slots[u][r].direction != Direction.Value.NONE:
+				candidates.append(Vector2i(u, r))
+	if candidates.is_empty(): return
+	var pick : Vector2i = candidates[randi() % candidates.size()]
+	var inst : ItemInstance = slots[pick.x][pick.y]
+	inst.direction = Direction.reroll_direction(inst.direction)
+
+
+func _swap_units_in_layout(layout: Dictionary):
+	var order : Array = layout["unit_order"]
+	var slots : Array = layout["slots"]
+	if order.size() < 2: return
+	var a : int = randi() % order.size()
+	var b : int = randi() % order.size()
+	if a == b: return
+	var t_order = order[a]; order[a] = order[b]; order[b] = t_order
+	var t_slots = slots[a]; slots[a] = slots[b]; slots[b] = t_slots
+
+
+func _show_auto_config_result_dialog(options: Array, allow_swap: bool):
+	if options.is_empty(): return
+
+	var overlay := Control.new()
+	overlay.name = "AutoConfigOverlay"
+	overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+	overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+	add_child(overlay)
+
+	var bg := ColorRect.new()
+	bg.color = Color(0, 0, 0, 0.7)
+	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
+	overlay.add_child(bg)
+
+	var center := CenterContainer.new()
+	center.set_anchors_preset(Control.PRESET_FULL_RECT)
+	overlay.add_child(center)
+
+	var panel := PanelContainer.new()
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(0.12, 0.12, 0.15, 1)
+	sb.border_color = Color(0.5, 0.5, 0.6, 1)
+	sb.border_width_left = 2
+	sb.border_width_right = 2
+	sb.border_width_top = 2
+	sb.border_width_bottom = 2
+	sb.content_margin_left = 12
+	sb.content_margin_right = 12
+	sb.content_margin_top = 12
+	sb.content_margin_bottom = 12
+	panel.add_theme_stylebox_override("panel", sb)
+	panel.custom_minimum_size = Vector2(420, 0)
+	center.add_child(panel)
+
+	var vbox := VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 8)
+	panel.add_child(vbox)
+
+	var title := Label.new()
+	title.text = "自动配装方案（%s）" % ("含单位交换" if allow_swap else "仅防具重排")
+	title.add_theme_font_size_override("font_size", 11)
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vbox.add_child(title)
+
+	for opt in options:
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 8)
+		vbox.add_child(row)
+
+		var info := Label.new()
+		info.text = "[%s] 评分 %.1f" % [opt.get("weight_name", "?"), opt.get("score", 0.0)]
+		info.add_theme_font_size_override("font_size", 8)
+		info.custom_minimum_size = Vector2(150, 0)
+		info.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		row.add_child(info)
+
+		var apply_btn := Button.new()
+		apply_btn.text = "应用此方案"
+		apply_btn.add_theme_font_size_override("font_size", 8)
+		apply_btn.custom_minimum_size = Vector2(90, 20)
+		apply_btn.pressed.connect(func():
+			_apply_layout(opt)
+			_refresh_connectivity()
+			_build_unit_columns()
+			_sync_all()
+			_schedule_build_ui()
+			SoundManager.play_select_sound()
+			overlay.queue_free()
+			_show_detail_in_zone("已应用自动配装方案：%s" % opt.get("weight_name", "?"))
+		)
+		row.add_child(apply_btn)
+
+	var cancel_btn := Button.new()
+	cancel_btn.text = "取消"
+	cancel_btn.add_theme_font_size_override("font_size", 8)
+	cancel_btn.custom_minimum_size = Vector2(80, 20)
+	cancel_btn.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	cancel_btn.pressed.connect(func(): overlay.queue_free())
+	vbox.add_child(cancel_btn)
