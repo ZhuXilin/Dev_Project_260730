@@ -324,7 +324,7 @@ func _build_ui_inner():
 	# ★ 左侧：锁死 110 宽度，强行折叠文本
 	var left_info = get_node_or_null("VBoxContainer/MainHBox/LeftInfoColumn")
 	if left_info:
-		left_info.custom_minimum_size = Vector2(100, 0) 
+		left_info.custom_minimum_size = Vector2(90, 0) 
 		left_info.size_flags_horizontal = Control.SIZE_FILL 
 		left_info.size_flags_vertical = Control.SIZE_EXPAND_FILL
 		left_info.clip_contents = true
@@ -363,7 +363,7 @@ func _build_ui_inner():
 	# ★ 右侧：锁死 130 宽度，防爆
 	var r_scroll = get_node_or_null("VBoxContainer/MainHBox/RightScroll")
 	if r_scroll and r_scroll is ScrollContainer:
-		r_scroll.custom_minimum_size = Vector2(120, 0) 
+		r_scroll.custom_minimum_size = Vector2(110, 0) 
 		r_scroll.size_flags_horizontal = Control.SIZE_FILL
 		r_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 		r_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
@@ -579,9 +579,9 @@ func _build_ui_inner():
 	
 	if reset_btn:
 		reset_btn.add_theme_font_size_override("font_size", Style.FONT_LARGE)
-		reset_btn.custom_minimum_size = Vector2(0, 20) # ★ 增加保底高度防挤没
-		reset_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL # ★ 撑满宽度
-		reset_btn.size_flags_vertical = Control.SIZE_SHRINK_END # ★ 靠底
+		reset_btn.custom_minimum_size = Vector2(0, 20) # 保底高度
+		reset_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL 
+		reset_btn.size_flags_vertical = Control.SIZE_SHRINK_END 
 		reset_btn.clip_text = true
 
 	_ensure_upgrade_shop_btn()
@@ -1373,12 +1373,13 @@ func _create_item_button(inst: ItemInstance, slot_type: String, unit_idx: int, s
 	return btn
 
 # ★ 绘制 8 方位箭头辅助函数
+# ★ 绘制 8 方位实心小三角
 func _draw_direction_badges(btn: Button, dir: int):
 	var create_arrow := func(text: String, anchor: int, ox: float, oy: float):
 		var lbl := Label.new()
 		lbl.text = text
 		lbl.add_theme_font_size_override("font_size", 7)
-		lbl.add_theme_color_override("font_color", Color(1.0, 1.0, 0.7))
+		lbl.add_theme_color_override("font_color", Color(1.0, 1.0, 0.3)) # 亮黄色实心
 		lbl.add_theme_color_override("font_outline_color", Color.BLACK)
 		lbl.add_theme_constant_override("outline_size", 2)
 		lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -1392,23 +1393,24 @@ func _draw_direction_badges(btn: Button, dir: int):
 		btn.add_child(lbl)
 
 	match dir:
-		Direction.Value.UP: create_arrow.call("↑", Control.PRESET_CENTER_TOP, 0, 0)
-		Direction.Value.DOWN: create_arrow.call("↓", Control.PRESET_CENTER_BOTTOM, 0, 0)
-		Direction.Value.LEFT: create_arrow.call("←", Control.PRESET_CENTER_LEFT, 0, 0)
-		Direction.Value.RIGHT: create_arrow.call("→", Control.PRESET_CENTER_RIGHT, 0, 0)
+		Direction.Value.UP: create_arrow.call("▲", Control.PRESET_CENTER_TOP, 0, 1)
+		Direction.Value.DOWN: create_arrow.call("▼", Control.PRESET_CENTER_BOTTOM, 0, -1)
+		Direction.Value.LEFT: create_arrow.call("◀", Control.PRESET_CENTER_LEFT, 1, 0)
+		Direction.Value.RIGHT: create_arrow.call("▶", Control.PRESET_CENTER_RIGHT, -1, 0)
 		
 		Direction.Value.VERTICAL:
-			create_arrow.call("↑", Control.PRESET_CENTER_TOP, 0, 0)
-			create_arrow.call("↓", Control.PRESET_CENTER_BOTTOM, 0, 0)
+			create_arrow.call("▲", Control.PRESET_CENTER_TOP, 0, 1)
+			create_arrow.call("▼", Control.PRESET_CENTER_BOTTOM, 0, -1)
 		Direction.Value.HORIZONTAL:
-			create_arrow.call("←", Control.PRESET_CENTER_LEFT, 0, 0)
-			create_arrow.call("→", Control.PRESET_CENTER_RIGHT, 0, 0)
+			create_arrow.call("◀", Control.PRESET_CENTER_LEFT, 1, 0)
+			create_arrow.call("▶", Control.PRESET_CENTER_RIGHT, -1, 0)
+			
 		Direction.Value.DIAG_NE_SW:
-			create_arrow.call("⤢", Control.PRESET_TOP_RIGHT, -4, 4)
-			create_arrow.call("⤡", Control.PRESET_BOTTOM_LEFT, 4, -4)
+			create_arrow.call("◥", Control.PRESET_TOP_RIGHT, -2, 2)
+			create_arrow.call("◣", Control.PRESET_BOTTOM_LEFT, 2, -2)
 		Direction.Value.DIAG_NW_SE:
-			create_arrow.call("⤡", Control.PRESET_TOP_LEFT, 4, 4)
-			create_arrow.call("⤢", Control.PRESET_BOTTOM_RIGHT, -4, -4)
+			create_arrow.call("◤", Control.PRESET_TOP_LEFT, 2, 2)
+			create_arrow.call("◢", Control.PRESET_BOTTOM_RIGHT, -2, -2)
 
 
 # 与 _create_item_button 完全一致的图标按钮基础样式
@@ -2206,8 +2208,7 @@ func _ensure_upgrade_shop_btn():
 
 	_upgrade_shop_btn = Style.create_styled_button(Style.FONT_LARGE, Vector2(100, 20))
 	_upgrade_shop_btn.name = "UpgradeShopBtn" 
-	# ★ 增加保底尺寸，防止被 ShopScroll 挤扁
-	_upgrade_shop_btn.custom_minimum_size = Vector2(0, 20)
+	_upgrade_shop_btn.custom_minimum_size = Vector2(0, 20) # 保底高度
 	_upgrade_shop_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_upgrade_shop_btn.size_flags_vertical = Control.SIZE_SHRINK_END 
 	_upgrade_shop_btn.clip_text = true
