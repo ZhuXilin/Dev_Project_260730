@@ -46,5 +46,10 @@
 
   "rare_drop_chance": {
 	"START": 0.05, "NORMAL": 0.05, "ELITE": 0.25, "BOSS": 0.80
+  },
+  "soul_fire_gain": {
+	"hit": 1,
+	"kill": 3,
+	"multi_kill_bonus": 2
   }
 }

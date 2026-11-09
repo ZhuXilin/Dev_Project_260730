@@ -1,7 +1,12 @@
 extends Node
 
 # ============================================================
-#  SoulFireManager — 魂火（局内唯一核心资源）
+#  SoulFireManager — 魂火（局内唯一核心战斗资源）
+#  v5.0：
+#    - 获得：命中 +N，击杀 +M，一击多杀额外 +K（全部来自战斗）
+#    - 消耗：技能 / 急救 / 局内购买光环
+#    - 兑现：删除（不再 1:1 换魂）
+#    - 状态：DEPLETED 不再放大受伤
 # ============================================================
 
 enum State { NORMAL, BURNING, DEPLETED, ZERO }
@@ -11,22 +16,10 @@ const UPGRADE_COSTS      : Array[int] = [0, 30, 80, 180, 350, 600, 1000]
 const INITIAL_LEVELS     : Array[int] = [0, 1, 2, 3]
 const INITIAL_COSTS      : Array[int] = [0, 50, 200, 800]
 
-var REWARD_ON_KILL : Dictionary = {
-	MapNode.NodeType.START:   1,
-	MapNode.NodeType.NORMAL:  1,
-	MapNode.NodeType.ELITE:   2,
-	MapNode.NodeType.BOSS:    4,
-}
-var REWARD_EXTRA_BOSS : int = 2
-var REWARD_KILL_STREAK : int = 1
-var REWARD_NO_DAMAGE : int = 1
-
-const COST_SKILL_MIN : int = 2
-const COST_SKILL_MAX : int = 3
-const COST_AURA_MIN : int = 5
-const COST_AURA_MAX : int = 8
-const COST_ATTR_BASE : int = 1
-const COST_SHOP_RESET : int = 5
+# ★ v5.0：从 combat_config.json 读取，下列是默认值
+var HIT_GAIN : int = 1
+var KILL_GAIN : int = 3
+var MULTI_KILL_BONUS : int = 2
 
 var current : int = 0
 var altar_level : int = 0
@@ -39,6 +32,18 @@ signal state_changed(new_state: State)
 func _ready():
 	altar_level = GameState.soul_fire_altar_level
 	current = clampi(GameState.soul_fire_current, 0, get_max_carried())
+	_load_config()
+
+
+func _load_config():
+	var cfg : Dictionary = GameConfigManager.get_value("combat_config.json", "soul_fire_gain", {})
+	if cfg.is_empty():
+		return
+	HIT_GAIN = int(cfg.get("hit", HIT_GAIN))
+	KILL_GAIN = int(cfg.get("kill", KILL_GAIN))
+	MULTI_KILL_BONUS = int(cfg.get("multi_kill_bonus", MULTI_KILL_BONUS))
+	print("[SoulFire] 获得配置: hit=%d, kill=%d, multi_kill_bonus=%d" % [
+		HIT_GAIN, KILL_GAIN, MULTI_KILL_BONUS])
 
 
 func get_max_carried() -> int:
@@ -101,8 +106,9 @@ func get_splash_percent() -> float:
 func get_crit_damage_bonus() -> float:
 	return 0.5 if get_state() == State.DEPLETED else 0.0
 
+# ★ v5.0：删除 DEPLETED 的受伤放大，始终 1.0
 func get_damage_taken_mult() -> float:
-	return 1.3 if get_state() == State.DEPLETED else 1.0
+	return 1.0
 
 
 func can_spend(amount: int) -> bool:
@@ -122,8 +128,6 @@ func get_initial_upgrade_cost() -> int:
 	return INITIAL_COSTS[lv + 1]
 
 
-## 急救的魂火消耗：按当前上限算固定值，不按当前拥有量算百分比。
-## 上限 8→2 / 12→2 / 16→3 / 22→4 / 30→5 / 40→6 / 50→8
 func get_emergency_heal_cost() -> int:
 	var cap : int = get_max_carried()
 	return maxi(2, int(ceil(float(cap) * 0.15)))
@@ -147,13 +151,13 @@ func spend(amount: int) -> bool:
 	return true
 
 
+# ★ v5.0：settle() 不再把魂火兑换成魂，仅清空
+# 保留 API 以兼容 GameState.finish_day / abandon_and_return_to_camp
 func settle() -> int:
-	var gained : int = current
-	GameState.soul += gained
 	current = 0
 	GameState.soul_fire_current = 0
 	_emit_changes()
-	return gained
+	return 0
 
 
 func reset_for_new_run():
@@ -183,23 +187,41 @@ func upgrade_initial() -> bool:
 
 
 # ============================================================
-#  回合开始钩子
-#  v4.6：去掉"归零扣 5% max HP"惩罚。归零不再有战斗惩罚，
-#  只保留 State.ZERO 状态用于 UI 显示"魂火耗尽"。
-#  保留函数签名，TurnManager 继续调它，行为为空。
+#  ★ v5.0：战斗中获得魂火
 # ============================================================
-func tick_turn_start(_units: Array) -> void:
-	pass
+## 攻击命中敌人（未击杀）。由 CombatManager 在每次命中结算完成后调用。
+## hit_count：本次攻击命中多少个敌人（AOE 时 > 1）
+## 返回实际获得的魂火
+func on_hit(hit_count: int = 1) -> int:
+	if hit_count <= 0:
+		return 0
+	return add(HIT_GAIN * hit_count)
 
 
-func on_kill() -> void:
+## 攻击击杀敌人。由 CombatManager 在击杀结算完成后调用。
+## kill_count：本次攻击击杀多少个敌人（AOE 时 > 1）
+## 返回实际获得的魂火
+func on_kill(kill_count: int = 1) -> int:
+	if kill_count <= 0:
+		return 0
+	var base : int = KILL_GAIN * kill_count
+	if kill_count > 1:
+		base += (kill_count - 1) * MULTI_KILL_BONUS
+
 	var mult : float = 1.0
 	if GameState.current_map_data != null:
 		mult = maxf(1.0, GameState.current_map_data.reward_multiplier)
-	var gain : int = maxi(1, int(round(1.0 * mult)))
+	var gain : int = maxi(1, int(round(float(base) * mult)))
 	if get_state() == State.ZERO:
 		gain += 1
-	add(gain)
+	return add(gain)
+
+
+# ============================================================
+#  回合开始钩子（保留空实现以兼容 TurnManager 调用）
+# ============================================================
+func tick_turn_start(_units: Array) -> void:
+	pass
 
 
 func _has_eternal_flame() -> bool:

@@ -1,8 +1,8 @@
 extends Node
 
 # ============================================================
-#  EconomyManager — 战斗奖励（金币 + 魂火）
-#  v4.2：删除废弃的 reward_soul 读取（魂只由魂火 1:1 结算而来）
+#  EconomyManager — 战斗奖励（金币 + 魂）
+#  v5.0：魂火不再兑现，战后直接发魂；数值走 economy_config.json
 # ============================================================
 
 const TYPE_NAME_TO_ID : Dictionary = {
@@ -16,7 +16,7 @@ const TYPE_NAME_TO_ID : Dictionary = {
 }
 
 var REWARD_GOLD : Dictionary = {}
-var REWARD_SOUL_FIRE : Dictionary = {}
+var REWARD_SOUL : Dictionary = {}
 var BOSS_EXTRA_SOUL : int = 5
 
 
@@ -33,21 +33,26 @@ func reload_config():
 		if TYPE_NAME_TO_ID.has(key):
 			REWARD_GOLD[TYPE_NAME_TO_ID[key]] = int(raw_gold[key])
 
-	REWARD_SOUL_FIRE = SoulFireManager.REWARD_ON_KILL.duplicate()
+	REWARD_SOUL.clear()
+	var raw_soul : Dictionary = cfg.get("reward_soul", {})
+	for key in raw_soul:
+		if TYPE_NAME_TO_ID.has(key):
+			REWARD_SOUL[TYPE_NAME_TO_ID[key]] = int(raw_soul[key])
+
 	BOSS_EXTRA_SOUL = int(cfg.get("boss_extra_soul", 5))
 
-	print("[EconomyManager] 已加载: %d 金 / %d 魂火" % [
-		REWARD_GOLD.size(), REWARD_SOUL_FIRE.size()])
+	print("[EconomyManager] 已加载: %d 金 / %d 魂" % [
+		REWARD_GOLD.size(), REWARD_SOUL.size()])
 
 
 func get_battle_reward(node_type: int, is_boss: bool) -> Dictionary:
 	var gold : int = REWARD_GOLD.get(node_type, 0)
-	var soul_fire : int = REWARD_SOUL_FIRE.get(node_type, 0)
+	var soul : int = REWARD_SOUL.get(node_type, 0)
 	if is_boss and node_type == MapNode.NodeType.BOSS:
-		soul_fire += SoulFireManager.REWARD_EXTRA_BOSS
+		soul += BOSS_EXTRA_SOUL
 	return {
 		"gold": gold,
-		"soul_fire": soul_fire,
+		"soul": soul,
 	}
 
 

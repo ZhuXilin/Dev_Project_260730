@@ -74,10 +74,9 @@ func get_active_skill_range_bonus(unit: Unit) -> int:
 
 
 func get_attackable_targets(unit: Unit) -> Array:
-	# ★ v4.8 修复：直接读内联数据
 	var s = unit.unit_stats
 	if s == null or s.weapon_name == "": return []
-	
+
 	var max_range : int = s.attack_range + unit.bonus_attack_range
 	var min_range : int = s.min_attack_range
 	max_range += get_active_skill_range_bonus(unit)
@@ -162,7 +161,6 @@ func _calc_reduction(defender: Unit, is_magic: bool) -> float:
 	var buff_bonus : float = (defender.buff_magic_reduction if is_magic else defender.buff_physical_reduction)
 	buff_bonus += defender.buff_damage_reduction
 
-	# ★ v4.6：地形减伤（与面板减伤加法叠加，受 75% 上限约束）
 	var terrain_bonus : float = 0.0
 	if defender != null and defender.grid_cell.x >= 0 and defender.grid_cell.y >= 0:
 		var t : int = TerrainManager.get_terrain(defender.grid_cell)
@@ -190,8 +188,6 @@ func _calc_penetration(attacker: Unit, is_magic: bool) -> float:
 		affix_pen = attacker.get_total_affix_value_float("physical_penetration")
 
 	var temp_pen : float = attacker.temp_magic_penetration if is_magic else attacker.temp_physical_penetration
-
-	# ★ 步 4-B：升级带来的固定穿透
 	var static_pen : float = attacker.bonus_static_magic_penetration if is_magic else attacker.bonus_static_physical_penetration
 
 	return weapon_pen + affix_pen + temp_pen + static_pen
@@ -200,7 +196,7 @@ func _calc_penetration(attacker: Unit, is_magic: bool) -> float:
 func calculate_damage(attacker: Unit, defender: Unit, apply_heavy: bool = true) -> int:
 	var s = attacker.unit_stats
 	if s.weapon_name == "": return 0
-	
+
 	var is_magic : bool = _is_magic_attack(s)
 	var quality_mult : float = QUALITY_MULT.get(s.weapon_quality, 1.0)
 	var base_attack : float = s.attack * quality_mult
@@ -350,8 +346,9 @@ func execute_attack(attacker: Unit, defender: Unit, forced_skill_id: String = ""
 		Globals.is_performing_action = false
 		return true
 
-	if attacker.unit_stats.team_id == 0:
-		SoulFireManager.add(1)
+	# ★ v5.0：删除旧的"每次攻击 +1 魂火"，改为命中/击杀分别结算
+	# if attacker.unit_stats.team_id == 0:
+	#     SoulFireManager.add(1)
 
 	await _play_lunge_attack(attacker, defender)
 
@@ -507,6 +504,12 @@ func execute_attack(attacker: Unit, defender: Unit, forced_skill_id: String = ""
 	var defeated = _apply_damage_with_effects(defender, damage, attacker, is_crit)
 	await _wait_dialogue()
 
+	# ★ v5.0：主伤害命中但未击杀 → on_hit(1)
+	#   击杀由下方 defeated 分支的 _on_kill(1) 统一处理（互斥）
+	if attacker.unit_stats.team_id == 0 and not defeated:
+		SoulFireManager.on_hit(1)
+
+	# 被动火焰伤害（flame_damage 词条）——被动效果，不计入 on_hit
 	var flame_bonus : int = 0
 	for slot in attacker.armor_slots:
 		if slot: flame_bonus += slot.get_affix_value("flame_damage")
@@ -515,6 +518,7 @@ func execute_attack(attacker: Unit, defender: Unit, forced_skill_id: String = ""
 		SignalBus.request_damage_popup.emit(defender.global_position, flame_bonus, false, false, false)
 		if extra_flame_dead: defeated = true
 
+	# BURNING 状态被动溅射——被动效果，不计入 on_hit
 	var splash_sf : float = SoulFireManager.get_splash_percent()
 	if splash_sf > 0.0 and attacker.unit_stats.team_id == 0 and defender.hit_points > 0:
 		await _apply_burning_splash(attacker, defender, damage, splash_sf)
@@ -524,10 +528,14 @@ func execute_attack(attacker: Unit, defender: Unit, forced_skill_id: String = ""
 
 	if defeated:
 		if _try_boss_revive(defender, attacker):
+			# ★ v5.0：boss 变形复活 → 算命中不算击杀
+			if attacker.unit_stats.team_id == 0:
+				SoulFireManager.on_hit(1)
 			_finish_attack(attacker, defender)
 			Globals.is_performing_action = false
 			return true
 
+		# ★ v5.0：真击杀，_on_kill 内部统一 on_kill(1)
 		var cleave_triggered: bool = await _on_kill(attacker, defender)
 		await _play_death_animation(defender)
 		UnitManager.unregister_unit(defender)
@@ -589,6 +597,9 @@ func execute_attack(attacker: Unit, defender: Unit, forced_skill_id: String = ""
 		await get_tree().create_timer(POST_DAMAGE_DELAY, true, false, true).timeout
 		if extra_dead:
 			if _try_boss_revive(defender, attacker):
+				# ★ v5.0：boss 变形复活 → 算命中
+				if attacker.unit_stats.team_id == 0:
+					SoulFireManager.on_hit(1)
 				_finish_attack(attacker, defender)
 				Globals.is_performing_action = false
 				return true
@@ -603,6 +614,10 @@ func execute_attack(attacker: Unit, defender: Unit, forced_skill_id: String = ""
 			_finish_attack(attacker, defender)
 			Globals.is_performing_action = false
 			return true
+		else:
+			# ★ v5.0：额外攻击命中但未击杀
+			if attacker.unit_stats.team_id == 0:
+				SoulFireManager.on_hit(1)
 
 	if not _is_alive(attacker):
 		Globals.is_performing_action = false
@@ -627,6 +642,9 @@ func execute_attack(attacker: Unit, defender: Unit, forced_skill_id: String = ""
 			await get_tree().create_timer(POST_DAMAGE_DELAY, true, false, true).timeout
 			if extra_dead:
 				if _try_boss_revive(defender, attacker):
+					# ★ v5.0：boss 变形复活 → 算命中
+					if attacker.unit_stats.team_id == 0:
+						SoulFireManager.on_hit(1)
 					_finish_attack(attacker, defender)
 					Globals.is_performing_action = false
 					return true
@@ -641,6 +659,10 @@ func execute_attack(attacker: Unit, defender: Unit, forced_skill_id: String = ""
 				_finish_attack(attacker, defender)
 				Globals.is_performing_action = false
 				return true
+			else:
+				# ★ v5.0：法术连击命中但未击杀
+				if attacker.unit_stats.team_id == 0:
+					SoulFireManager.on_hit(1)
 
 	if not _is_alive(attacker):
 		Globals.is_performing_action = false
@@ -663,6 +685,14 @@ func execute_attack(attacker: Unit, defender: Unit, forced_skill_id: String = ""
 					await _play_death_animation(defender)
 					UnitManager.unregister_unit(defender)
 					defender.queue_free()
+				else:
+					# ★ v5.0：boss 变形复活 → 算命中
+					if attacker.unit_stats.team_id == 0:
+						SoulFireManager.on_hit(1)
+			else:
+				# ★ v5.0：追击命中但未击杀
+				if attacker.unit_stats.team_id == 0:
+					SoulFireManager.on_hit(1)
 
 	if _can_counter_attack(attacker, defender):
 		await _execute_counter(attacker, defender)
@@ -681,7 +711,6 @@ func _execute_heal(attacker: Unit, defender: Unit, forced_skill_id: String = "")
 		Globals.is_performing_action = false
 		return false
 
-	# ★ 满血直接拒绝：播取消音 + 提示 + 不消耗行动
 	if defender.hit_points >= defender.unit_stats.max_hp:
 		SoundManager.play_cancel_sound()
 		SignalBus.request_hint_override.emit("目标未受伤", 1.0)
@@ -722,7 +751,6 @@ func _execute_heal(attacker: Unit, defender: Unit, forced_skill_id: String = "")
 
 	await get_tree().create_timer(PERFORMANCE_DURATION, true, false, true).timeout
 
-	# ★ 修正 B：staff 的 spell_chain 二次治疗（真正治疗友军时触发）
 	if TalentManager.is_talent_ready(attacker, "spell_chain"):
 		if attacker.get_weapon_type() == "staff":
 			var level = _get_effective_talent_level(attacker, "spell_chain")
@@ -816,11 +844,9 @@ func _play_death_animation(unit: Unit) -> void:
 func _on_kill(attacker: Unit, _defender: Unit) -> bool:
 	if not is_instance_valid(attacker): return false
 
-	# ★ 敌方死亡生成血球
 	if is_instance_valid(_defender) and _defender.unit_stats.team_id == 1:
 		ItemBattlefieldManager.try_spawn_orb(_defender.grid_cell)
 
-	# ★ 触发 Boss 死亡专属对话（仅限专属钩子）
 	if is_instance_valid(_defender) and _defender.unit_stats.is_boss:
 		var hook_id : String = str(_defender.unit_stats.boss_dialogue_hooks.get("on_death", ""))
 		if hook_id != "" and StoryManager.play_dialogue_by_id(hook_id):
@@ -879,7 +905,9 @@ func _on_kill(attacker: Unit, _defender: Unit) -> bool:
 			var val : int = int(cb.get("value", 0))
 			if val > 0: SoulFireManager.add(val)
 
-	if attacker.unit_stats.team_id == 0: SoulFireManager.on_kill()
+	# ★ v5.0：击杀奖励统一在此结算（互斥，不再额外 on_hit）
+	if attacker.unit_stats.team_id == 0:
+		SoulFireManager.on_kill(1)
 	return cleave_triggered
 
 
@@ -903,13 +931,14 @@ func _apply_aura_kill_effect(attacker : Unit, aura_id : String):
 
 
 func _apply_burning_splash(attacker : Unit, center : Unit, base_damage : int, percent : float):
+	# ★ v5.0：BURNING 被动溅射不奖励魂火（被动效果，避免滚雪球）
 	for d in [Vector2i(1,0), Vector2i(-1,0), Vector2i(0,1), Vector2i(0,-1)]:
 		var t : Unit = UnitManager.get_unit_at_cell(center.grid_cell + d)
 		if not t or t.hit_points <= 0: continue
 		if t.unit_stats.team_id == attacker.unit_stats.team_id: continue
 		var splash_dmg : int = maxi(1, int(base_damage * percent))
 		var dead : bool = _apply_damage_with_effects(t, splash_dmg, attacker, false)
-		await _wait_dialogue()   # ★ 新增
+		await _wait_dialogue()
 		if dead:
 			if _try_boss_revive(t, attacker): continue
 			_on_kill(attacker, t)
@@ -925,9 +954,15 @@ func _apply_splash(attacker: Unit, defender: Unit, base_damage: int, percent: fl
 	if splash_target.unit_stats.team_id == attacker.unit_stats.team_id: return
 	var splash_dmg = int(base_damage * percent)
 	var dead = _apply_damage_with_effects(splash_target, splash_dmg, attacker, is_crit)
-	await _wait_dialogue()   # ★ 新增
+	await _wait_dialogue()
+	# ★ v5.0：贯穿溅射命中但未击杀 → on_hit
+	if attacker.unit_stats.team_id == 0 and not dead:
+		SoulFireManager.on_hit(1)
 	if dead:
-		if _try_boss_revive(splash_target, attacker): return
+		if _try_boss_revive(splash_target, attacker):
+			if attacker.unit_stats.team_id == 0:
+				SoulFireManager.on_hit(1)
+			return
 		_on_kill(attacker, splash_target)
 		await _play_death_animation(splash_target)
 		UnitManager.unregister_unit(splash_target)
@@ -941,9 +976,15 @@ func _apply_aoe(attacker: Unit, center: Unit, base_damage: int, percent: float, 
 		if target.unit_stats.team_id == attacker.unit_stats.team_id: continue
 		var aoe_dmg = int(base_damage * percent)
 		var dead = _apply_damage_with_effects(target, aoe_dmg, attacker, is_crit)
-		await _wait_dialogue()   # ★ 新增
+		await _wait_dialogue()
+		# ★ v5.0：AOE 命中但未击杀 → on_hit
+		if attacker.unit_stats.team_id == 0 and not dead:
+			SoulFireManager.on_hit(1)
 		if dead:
-			if _try_boss_revive(target, attacker): continue
+			if _try_boss_revive(target, attacker):
+				if attacker.unit_stats.team_id == 0:
+					SoulFireManager.on_hit(1)
+				continue
 			_on_kill(attacker, target)
 			await _play_death_animation(target)
 			UnitManager.unregister_unit(target)
@@ -951,7 +992,6 @@ func _apply_aoe(attacker: Unit, center: Unit, base_damage: int, percent: float, 
 
 
 func _apply_damage_with_effects(defender: Unit, damage: int, attacker: Unit, is_crit: bool = false) -> bool:
-	# ★ GM 无敌拦截
 	if defender.unit_stats.team_id == 0 and defender.get_meta("gm_god", false):
 		damage = 0
 
@@ -996,7 +1036,6 @@ func _apply_damage_with_effects(defender: Unit, damage: int, attacker: Unit, is_
 			attacker.get_equipped_weapon_id() if attacker else "-"
 		])
 
-	# ★ 核心修复：在扣血前记录原血量，用于多阶段血量计算
 	var old_hp : int = defender.hit_points
 
 	var defeated = defender.apply_damage(damage)
@@ -1004,7 +1043,6 @@ func _apply_damage_with_effects(defender: Unit, damage: int, attacker: Unit, is_
 	_play_hurt_effect(defender, attacker)
 
 	if BossMechanicManager and BossMechanicManager.has_method("process_damage_phase"):
-		# ★ 传入 old_hp
 		var phase_result: Dictionary = BossMechanicManager.process_damage_phase(defender, attacker, damage, old_hp)
 		if phase_result.get("prevent_death", false):
 			defeated = false
@@ -1041,7 +1079,7 @@ func _apply_damage_with_effects(defender: Unit, damage: int, attacker: Unit, is_
 		return false
 
 	if defeated and _try_revive(defender): return false
-	
+
 	if damage > 0 and is_instance_valid(attacker):
 		var active_sets : Array = SetBonusManager.get_active_sets_for_unit(attacker)
 		for entry in active_sets:
@@ -1050,14 +1088,13 @@ func _apply_damage_with_effects(defender: Unit, damage: int, attacker: Unit, is_
 				var pct : float = float(b.get("value", 0.0))
 				var heal : int = int(damage * pct)
 				if heal > 0:
-					# ★ 修复命名冲突：改名为 prev_hp
 					var prev_hp : int = attacker.hit_points
 					attacker.hit_points = mini(attacker.hit_points + heal, attacker.unit_stats.max_hp)
 					var actual : int = attacker.hit_points - prev_hp
 					if actual > 0:
 						attacker.update_hp_label()
 						SignalBus.request_damage_popup.emit(attacker.global_position, actual, false, false, true)
-	
+
 	return defeated
 
 
@@ -1120,11 +1157,19 @@ func _execute_counter(attacker: Unit, defender: Unit) -> void:
 	SignalBus.request_damage_popup.emit(attacker.global_position, counter_damage, false, false, false)
 	await get_tree().create_timer(POST_DAMAGE_DELAY, true, false, true).timeout
 	if attacker_dead:
-		if _try_boss_revive(attacker, defender): return
-		_on_kill(defender, attacker)
+		if _try_boss_revive(attacker, defender):
+			# ★ v5.0：反击把 boss 打到变形复活 → 反击方算命中
+			if defender.unit_stats.team_id == 0:
+				SoulFireManager.on_hit(1)
+			return
+		_on_kill(defender, attacker)   # 内部 on_kill(1)（team 0 时）
 		await _play_death_animation(attacker)
 		UnitManager.unregister_unit(attacker)
 		attacker.queue_free()
+	else:
+		# ★ v5.0：反击命中但未击杀 → 反击方算命中
+		if defender.unit_stats.team_id == 0:
+			SoulFireManager.on_hit(1)
 
 
 func _is_alive(u: Unit) -> bool:
@@ -1196,39 +1241,36 @@ func _calc_staff_heal(attacker: Unit, defender: Unit) -> int:
 	var s = attacker.unit_stats
 	if s.weapon_name == "":
 		return 0
-	
+
 	var base_pct : float = float(s.heal_effect.get("base_heal_percent", 0.0))
 	if base_pct > 0.0:
 		var faith_pct : float = float(s.heal_effect.get("faith_percent_per_point", 0.01))
 		var heal_pct : float = base_pct + s.faith * faith_pct
 		return maxi(1, int(defender.unit_stats.max_hp * heal_pct))
-		
-	# 旧格式回退
+
 	var base_heal : int = int(s.heal_effect.get("base_heal", 0))
 	var faith_bonus : float = s.faith * float(s.heal_effect.get("faith_multiplier", 1.0))
 	return maxi(1, int(base_heal + faith_bonus))
 
-## 获取包含遗物、词条、天赋在内的最终治疗量（供预估面板和实际执行共用）
+
 func get_expected_heal_amount(attacker: Unit, defender: Unit) -> int:
 	var total_heal : int = _calc_staff_heal(attacker, defender)
-	
+
 	if attacker.relic_heal_bonus > 0.0:
 		total_heal = int(total_heal * (1.0 + attacker.relic_heal_bonus))
-		
+
 	var heal_affix_bonus : float = 0.0
 	for slot in attacker.armor_slots:
 		if slot: heal_affix_bonus += slot.get_affix_value_float("heal_boost")
 	total_heal = int(total_heal * (1.0 + heal_affix_bonus))
-	
+
 	if TalentManager.is_talent_ready(attacker, "heal_boost"):
 		var level = _get_effective_talent_level(attacker, "heal_boost")
 		total_heal = int(total_heal * HEAL_BOOST_MULT[level - 1])
-		
-	return total_heal
-	
 
-## 急救：任何单位可用，消耗行动 + 魂火，治疗受伤友军。
-## 返回 true 表示施放成功。
+	return total_heal
+
+
 func execute_emergency_heal(attacker: Unit, target: Unit) -> bool:
 	if not is_instance_valid(attacker) or not is_instance_valid(target):
 		return false
@@ -1246,10 +1288,9 @@ func execute_emergency_heal(attacker: Unit, target: Unit) -> bool:
 	SoulFireManager.spend(cost)
 	Globals.is_performing_action = true
 
-	var heal_amount : int = get_expected_emergency_heal(attacker, target)   # ★ 替换原公式
+	var heal_amount : int = get_expected_emergency_heal(attacker, target)
 	var old_hp : int = target.hit_points
 
-	# 受遗物 / 词条加成
 	if attacker.relic_heal_bonus > 0.0:
 		heal_amount = int(heal_amount * (1.0 + attacker.relic_heal_bonus))
 	var heal_affix_bonus : float = 0.0
@@ -1265,7 +1306,6 @@ func execute_emergency_heal(attacker: Unit, target: Unit) -> bool:
 	SignalBus.request_hint_override.emit("急救 +%d（-%d 魂火）" % [actual, cost], 1.5)
 	SoundManager.play_heal_sound()
 
-	# 消耗行动
 	attacker.mark_attacked()
 	_finish_attack(attacker, target)
 
@@ -1273,7 +1313,7 @@ func execute_emergency_heal(attacker: Unit, target: Unit) -> bool:
 	Globals.is_performing_action = false
 	return true
 
-## 预估急救回复量（与实际执行共用同一公式，避免两处公式漂移）
+
 func get_expected_emergency_heal(attacker: Unit, target: Unit) -> int:
 	if not is_instance_valid(attacker) or not is_instance_valid(target):
 		return 0

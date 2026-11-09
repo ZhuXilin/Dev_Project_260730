@@ -84,6 +84,14 @@ func _compute_rating() -> String:
 	return "C"
 
 
+# ★ v5.0：评级魂 bonus 完全由 economy_config.json 控制，不再硬编码
+func _compute_rating_soul_bonus(rating: String) -> int:
+	var cfg : Dictionary = GameConfigManager.get_value("economy_config.json", "rating_soul_bonus", {})
+	if cfg.is_empty():
+		return 0
+	return int(cfg.get(rating, 0))
+
+
 func on_request_show_victory(winning_team: int) -> void:
 	# ★ 战斗结束（无论胜负），关闭自动战斗
 	Globals.is_auto_battle = false
@@ -139,11 +147,11 @@ func on_request_show_victory(winning_team: int) -> void:
 	var player_units = []
 	for unit in UnitManager.unit_list:
 		if unit.unit_stats.team_id == 0 and unit.hit_points > 0:
-			# ★ 核心修改：活着的单位战后直接满血
+			# 活着的单位战后直接满血
 			unit.hit_points = unit.unit_stats.max_hp
 			unit.update_hp_label()
 			player_units.append(unit)
-	
+
 	# 将满血状态同步回局外队伍，阵亡的会自动标记 is_dead = true
 	GameState.sync_units_from_battlefield(player_units)
 
@@ -163,22 +171,23 @@ func on_request_show_victory(winning_team: int) -> void:
 
 				var reward = EconomyManager.get_battle_reward(_bf.current_node_type, is_boss)
 				var gold_gain = int(round(float(reward.gold) * mult))
-				var soul_fire_gain = int(round(float(reward.get("soul_fire", 0)) * mult))
+				# ★ v5.0：战后直接发魂
+				var soul_gain = int(round(float(reward.get("soul", 0)) * mult))
 
 				print("--- 奖励配置（倍率 %.2f）---" % mult)
 				print("gold_gain: ", gold_gain)
-				print("soul_fire_gain: ", soul_fire_gain)
+				print("soul_gain: ", soul_gain)
 
 				GameState.current_reward_gold = gold_gain
-				GameState.current_reward_soul = 0
+				GameState.current_reward_soul = soul_gain
 				GameState.current_reward_materials = {}
 
 				EconomyManager.add_temp_gold(gold_gain)
-				SoulFireManager.add(soul_fire_gain)
-				
-				# ★ v4.6：战斗胜利，把战斗层魂火写回持久层
+				GameState.soul += soul_gain
+
+				# ★ v5.0：魂火不再兑现，仅持久化当前值（跨战斗保留）
 				GameState.soul_fire_current = SoulFireManager.current
-				
+
 				GameState.current_reward_rare_datas.clear()
 				var rare_drops : Array = roll_rare_drop_for_node(_bf.current_node_type)
 				for drop in rare_drops:
@@ -191,7 +200,7 @@ func on_request_show_victory(winning_team: int) -> void:
 
 				print("--- 资源累加完成 ---")
 				print("temp_gold: ", GameState.temp_gold)
-				print("soul_fire: ", SoulFireManager.current)
+				print("soul: ", GameState.soul)
 			else:
 				print("非战斗地图，不累加资源")
 				GameState.current_reward_gold = 0
@@ -255,15 +264,14 @@ func on_map_victory_continue() -> void:
 	var reward_gold = GameState.current_reward_gold
 	var reward_soul = GameState.current_reward_soul
 	var rating : String = _compute_rating()
-	var rating_soul_bonus : int = 0
-	if rating == "S":
-		var mult : float = 1.0
-		if GameState.current_map_data != null:
-			mult = maxf(1.0, GameState.current_map_data.reward_multiplier)
-		# ★ v4.5：用 sqrt 让"高收益 + S"是两条独立增益路径，避免成为唯一最优解
-		rating_soul_bonus = int(round(3.0 * sqrt(mult)))
-	reward_soul += rating_soul_bonus
-	print("[评级] %s（额外 +%d 魂）" % [rating, rating_soul_bonus])
+
+	# ★ v5.0：评级 bonus 走 config，且真正加到 GameState.soul
+	var rating_soul_bonus : int = _compute_rating_soul_bonus(rating)
+	if rating_soul_bonus > 0:
+		GameState.soul += rating_soul_bonus
+		reward_soul += rating_soul_bonus
+	print("[评级] %s（额外 +%d 魂，来自 economy_config.rating_soul_bonus）" % [
+		rating, rating_soul_bonus])
 
 	var reward_item_datas: Array = []
 	for item_id in GameState.reward_items:
@@ -289,7 +297,7 @@ func on_map_victory_continue() -> void:
 	var rating_item := ItemData.new()
 	rating_item.id = "rating"
 	rating_item.name = "评级：%s" % rating
-	if rating == "S":
+	if rating_soul_bonus > 0:
 		rating_item.name += "（+%d 魂）" % rating_soul_bonus
 	rating_item.description = ""
 	reward_item_datas.append(rating_item)
@@ -321,7 +329,6 @@ func on_map_victory_continue() -> void:
 			virtual_data.id = "unlock_relic_" + rid
 			virtual_data.name = "★ 新遗物：" + rd.get("name", rid)
 			virtual_data.description = rd.get("description", "")
-			# ★ 修复类型报错：兼容 Texture2D 和 String
 			var icon_res = rd.get("icon", null)
 			if icon_res is Texture2D:
 				virtual_data.icon = icon_res
@@ -395,7 +402,7 @@ func on_map_victory_continue() -> void:
 		GameState.should_advance_day = true
 		print("Boss 胜利，设置 should_advance_day = true")
 
-		# v4.5 修复：按天数解锁对应遗物，补上 6.4 的两层结构
+		# v4.5 修复：按天数解锁对应遗物
 		var relics_to_unlock : Array = []
 		match GameState.current_day:
 			1: relics_to_unlock = ["relic_attack", "relic_defense", "relic_health"]
@@ -481,8 +488,7 @@ func on_retry_battle() -> void:
 
 
 # ============================================================
-#  v4.5 修复：稀有掉落数量 × reward_multiplier
-#  返回 Array（0 / 1 / 2 件），调用方循环 apply_rare_drop
+#  稀有掉落（未改动）
 # ============================================================
 func roll_rare_drop_for_node(node_type: int) -> Array:
 	var chance : float = RARE_DROP_CHANCE.get(node_type, 0.0)
@@ -542,7 +548,6 @@ func apply_rare_drop(drop : Dictionary) -> ItemData:
 			virtual_data.id = "rare_relic_" + rid
 			virtual_data.name = "★ 遗物：" + rd.get("name", rid)
 			virtual_data.description = rd.get("description", "")
-			# ★ 修复类型报错：兼容 Texture2D 和 String
 			var icon_res2 = rd.get("icon", null)
 			if icon_res2 is Texture2D:
 				virtual_data.icon = icon_res2

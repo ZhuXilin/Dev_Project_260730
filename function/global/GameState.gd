@@ -471,7 +471,6 @@ func start_new_cycle():
 
 
 func finish_day(grant_slot: bool = true):
-	soul += SoulFireManager.settle()
 	if grant_slot:
 		for unit_data in party:
 			if unit_data.max_armor_slots < MAX_ARMOR_SLOTS_CAP:
@@ -480,6 +479,7 @@ func finish_day(grant_slot: bool = true):
 
 func finish_cycle():
 	finish_day(false)
+	SoulFireManager.settle()
 	revive_all_units()
 	if tutorial_stage < 3:
 		tutorial_stage += 1

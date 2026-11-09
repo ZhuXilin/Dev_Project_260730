@@ -1,6 +1,13 @@
 {
   "reward_gold": { "START": 75, "NORMAL": 175, "ELITE": 350, "BOSS": 750 },
-  "boss_extra_soul": 2,
+  "reward_soul": { "START": 2, "NORMAL": 3, "ELITE": 6, "BOSS": 15 },
+  "boss_extra_soul": 5,
+  "rating_soul_bonus": {
+	"S": 5,
+	"A": 1,
+	"B": 0,
+	"C": 0
+  },
   "unit_level_up_cost": [250, 400, 1000, 2500, 6000],
 
   "shop": {
