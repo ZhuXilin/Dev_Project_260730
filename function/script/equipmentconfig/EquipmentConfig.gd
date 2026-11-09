@@ -321,17 +321,17 @@ func _build_ui_inner():
 		bottom_hbox.custom_minimum_size = Vector2(0, 20)
 		bottom_hbox.alignment = BoxContainer.ALIGNMENT_CENTER
 
-	# ★ 左侧：锁死 110 宽度，强行折叠文本
+	# ★ 左侧：进一步锁死 75 宽度
 	var left_info = get_node_or_null("VBoxContainer/MainHBox/LeftInfoColumn")
 	if left_info:
-		left_info.custom_minimum_size = Vector2(90, 0) 
+		left_info.custom_minimum_size = Vector2(75, 0) 
 		left_info.size_flags_horizontal = Control.SIZE_FILL 
 		left_info.size_flags_vertical = Control.SIZE_EXPAND_FILL
 		left_info.clip_contents = true
 
 	var detail_zone = get_node_or_null("VBoxContainer/MainHBox/LeftInfoColumn/DetailZone")
 	if detail_zone:
-		detail_zone.custom_minimum_size = Vector2(110, 150) 
+		detail_zone.custom_minimum_size = Vector2(75, 150) # ★ 这里也要同步改小
 		detail_zone.size_flags_horizontal = Control.SIZE_FILL
 		detail_zone.size_flags_vertical = Control.SIZE_EXPAND_FILL 
 		detail_zone.clip_contents = true
@@ -352,7 +352,6 @@ func _build_ui_inner():
 				lb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 				lb.autowrap_mode = TextServer.AUTOWRAP_ARBITRARY
 
-	# ★ 中间：吃掉所有剩余空间
 	var left_vbox = get_node_or_null("VBoxContainer/MainHBox/LeftVBox")
 	if left_vbox:
 		left_vbox.custom_minimum_size = Vector2(0, 0)
@@ -360,10 +359,9 @@ func _build_ui_inner():
 		left_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		left_vbox.clip_contents = true
 
-	# ★ 右侧：锁死 130 宽度，防爆
 	var r_scroll = get_node_or_null("VBoxContainer/MainHBox/RightScroll")
 	if r_scroll and r_scroll is ScrollContainer:
-		r_scroll.custom_minimum_size = Vector2(110, 0) 
+		r_scroll.custom_minimum_size = Vector2(95, 0)
 		r_scroll.size_flags_horizontal = Control.SIZE_FILL
 		r_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 		r_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
@@ -1372,15 +1370,15 @@ func _create_item_button(inst: ItemInstance, slot_type: String, unit_idx: int, s
 		btn.mouse_exited.connect(_on_button_hover_exited)
 	return btn
 
-# ★ 绘制 8 方位箭头辅助函数
 # ★ 绘制 8 方位实心小三角
 func _draw_direction_badges(btn: Button, dir: int):
 	var create_arrow := func(text: String, anchor: int, ox: float, oy: float):
 		var lbl := Label.new()
 		lbl.text = text
 		lbl.add_theme_font_size_override("font_size", 7)
-		lbl.add_theme_color_override("font_color", Color(1.0, 1.0, 0.3)) # 亮黄色实心
-		lbl.add_theme_color_override("font_outline_color", Color.BLACK)
+		# ★ 修改：降低饱和度与亮度，改用暗金色
+		lbl.add_theme_color_override("font_color", Color(0.918, 0.839, 0.475, 1.0)) 
+		lbl.add_theme_color_override("font_outline_color", Color(0.1, 0.1, 0.1, 0.8)) # 描边也暗一点
 		lbl.add_theme_constant_override("outline_size", 2)
 		lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		lbl.set_anchors_preset(anchor)
