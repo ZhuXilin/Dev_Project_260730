@@ -19,7 +19,7 @@ var CRAFT_QUALITY_TABLE : Array = []
 var panel = null
 var forge_slots : Array = []
 var _forge_btn_row : HBoxContainer = null
-var forge_matched_recipe : String = ""
+var forge_matched_recipe : String = "" 
 
 func _init(p):
 	panel = p
@@ -27,7 +27,7 @@ func _init(p):
 
 func reload_config():
 	var cfg : Dictionary = GameConfigManager.get_value("economy_config.json", "forge", {})
-	MAX_SLOTS = 3 # 固定最多 3 件
+	MAX_SLOTS = 3 
 	CRAFT_COST = int(cfg.get("craft_cost", 200))
 	REFORGE_COST = int(cfg.get("reforge_cost", 500))
 	QUALITY_SCORE = cfg.get("quality_score", {"common":1,"rare":3,"epic":6,"legendary":10}).duplicate()
@@ -57,60 +57,6 @@ func has_pending() -> bool:
 	return false
 
 # ============================================================
-#  归还 / 清空
-# ============================================================
-func _return_armor_to_unit(unit: UnitData, inst: ItemInstance, prefer_slot: int) -> bool:
-	var need : int = panel._inst_slots(inst)
-	var used : int = panel._used_slots_of(unit)
-	if used + need > unit.max_armor_slots:
-		return false
-	if prefer_slot >= 0 and prefer_slot < unit.armor_slots.size() and unit.armor_slots[prefer_slot] == null:
-		unit.armor_slots[prefer_slot] = inst
-		return true
-	for i in range(unit.armor_slots.size()):
-		if unit.armor_slots[i] == null:
-			unit.armor_slots[i] = inst
-			return true
-	return false
-
-
-func return_all_forge_slots() -> int:
-	var unresolved : int = 0
-	for i in range(forge_slots.size()):
-		var entry : Variant = forge_slots[i]
-		if entry == null: continue
-		var entry_dict : Dictionary = entry
-		var ou : UnitData = panel.party[entry_dict["origin_unit"]]
-		var origin_slot : int = entry_dict["origin_slot"]
-		if _return_armor_to_unit(ou, entry_dict["inst"], origin_slot):
-			forge_slots[i] = null
-		else:
-			unresolved += 1
-	return unresolved
-
-
-func execute_forge_slot_return(_data: Dictionary):
-	# 拖拽堆叠槽到空白处，直接全部归还
-	var unresolved : int = return_all_forge_slots()
-	panel._build_unit_columns()
-	if unresolved > 0:
-		panel._show_detail_in_zone("有 %d 件防具无法归还" % unresolved)
-	else:
-		panel._show_detail_in_zone("已清空合成槽")
-	build_forge_slots()
-	panel._schedule_build_ui()
-
-
-func on_forge_clear_pressed():
-	var unresolved_count : int = return_all_forge_slots()
-	panel._build_unit_columns()
-	if unresolved_count > 0:
-		panel._show_detail_in_zone("有 %d 件防具无法归还，已保留在合成槽" % unresolved_count)
-	build_forge_slots()
-	panel._schedule_build_ui()
-
-
-# ============================================================
 #  构建铁匠铺 UI
 # ============================================================
 func build_forge_slots():
@@ -122,7 +68,7 @@ func build_forge_slots():
 	_forge_btn_row = null
 	panel._clear_container(panel.shop_container)
 
-	panel.shop_container.columns = 1
+	# HFlowContainer 不需要 columns
 	panel.shop_container.visible = true
 	panel.shop_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	panel.shop_container.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
@@ -133,53 +79,34 @@ func build_forge_slots():
 		panel.shop_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		panel.shop_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
 		panel.shop_scroll.scroll_vertical = 0
+		panel.shop_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 
-	# 生成唯一的 Stack 按钮
-	var stack_btn : Button = Style.create_styled_button(Style.FONT_SMALL, Vector2(32, 32))
-	stack_btn.custom_minimum_size = Vector2(32, 32)
+	var center_wrap = CenterContainer.new()
+	center_wrap.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	center_wrap.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	center_wrap.custom_minimum_size = Vector2(0, 46)
+	panel.shop_container.add_child(center_wrap)
+
+	var stack_btn : Button = Style.create_styled_button(Style.FONT_SMALL, Vector2(40, 40))
+	stack_btn.custom_minimum_size = Vector2(40, 40)
 	stack_btn.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	stack_btn.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	stack_btn.expand_icon = false 
 	stack_btn.set_meta("slot_type", "forge_slot")
 	stack_btn.set_meta("forge_slot_index", -1)
 
 	var count = 0
-	var first_inst = null
 	for entry in forge_slots:
-		if entry != null:
-			count += 1
-			if first_inst == null: first_inst = entry["inst"]
+		if entry != null: count += 1
 			
-	if first_inst != null:
-		var data : ItemData = ItemManager.get_item_data(first_inst.item_id)
-		if data and data.icon:
-			stack_btn.icon = data.icon
-			stack_btn.expand_icon = true
-			stack_btn.text = ""
-		else:
-			stack_btn.text = data.name if data else first_inst.item_id
-		
-		# 右下角显示数量
-		var lbl = Label.new()
-		lbl.text = "x%d" % count
-		lbl.add_theme_font_size_override("font_size", 7)
-		lbl.add_theme_color_override("font_color", Color.WHITE)
-		lbl.add_theme_color_override("font_outline_color", Color.BLACK)
-		lbl.add_theme_constant_override("outline_size", 2)
-		lbl.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
-		lbl.offset_left = -12
-		lbl.offset_top = -12
-		lbl.offset_right = 0
-		lbl.offset_bottom = 0
-		lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-		lbl.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
-		lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		stack_btn.add_child(lbl)
-		
-		if data:
-			stack_btn.modulate = UIConst.QUALITY_COLORS.get(data.quality, Color.WHITE)
+	if count > 0:
+		stack_btn.text = "已放入\n%d件" % count
+		stack_btn.add_theme_font_size_override("font_size", 7)
+		stack_btn.modulate = Color(1.0, 0.8, 0.4) 
 	else:
-		stack_btn.text = "空槽"
-		stack_btn.modulate = Color(0.5, 0.5, 0.5)
-		stack_btn.set_meta("item_id", "")
+		stack_btn.text = "放入\n防具"
+		stack_btn.add_theme_font_size_override("font_size", 7)
+		stack_btn.modulate = Color(0.6, 0.6, 0.6)
 
 	panel.shop_container.add_child(stack_btn)
 
@@ -228,7 +155,6 @@ func _refresh_forge_action_btns():
 		_forge_btn_row.add_child(hint)
 		return
 
-	# 清空按钮
 	var clear_btn := Style.create_styled_button(Style.FONT_SMALL, Style.BTN_ITEM_SIZE)
 	clear_btn.clip_text = true
 	clear_btn.custom_minimum_size = Vector2(40, 16)
@@ -236,32 +162,27 @@ func _refresh_forge_action_btns():
 	clear_btn.pressed.connect(on_forge_clear_pressed)
 	_forge_btn_row.add_child(clear_btn)
 
-	# 单件
 	if input_insts.size() == 1:
 		var inst : ItemInstance = input_insts[0]
 		var d : ItemData = ItemManager.get_item_data(inst.item_id)
 		if d == null: return
 		
-		# 锻造 (roll 词条)
 		if not d.no_affix and d.quality == "epic":
 			var forge_btn := Style.create_styled_button(Style.FONT_SMALL, Style.BTN_ITEM_SIZE)
 			forge_btn.clip_text = true
-			forge_btn.custom_minimum_size = Vector2(50, 16)
-			forge_btn.text = "锻造 (%dG)" % REFORGE_COST
-			# ★ 修复：显式加上 : bool 标注
+			forge_btn.custom_minimum_size = Vector2(45, 16)
+			forge_btn.text = "重铸 (%dG)" % REFORGE_COST
 			var can_afford : bool = panel._context.get_gold() >= REFORGE_COST
 			forge_btn.disabled = not can_afford
 			forge_btn.modulate = Color(0.8, 0.6, 1.0) if can_afford else Color(0.5, 0.5, 0.5)
 			forge_btn.pressed.connect(_on_forge_action_single.bind(inst))
 			_forge_btn_row.add_child(forge_btn)
 			
-		# 调整 (roll 箭头)
 		if inst.direction != Direction.Value.NONE:
 			var dir_btn := Style.create_styled_button(Style.FONT_SMALL, Style.BTN_ITEM_SIZE)
 			dir_btn.clip_text = true
-			dir_btn.custom_minimum_size = Vector2(50, 16)
+			dir_btn.custom_minimum_size = Vector2(45, 16)
 			dir_btn.text = "调整 (%dG)" % REROLL_DIR_COST
-			# ★ 修复：显式加上 : bool 标注
 			var can_afford_d : bool = panel._context.get_gold() >= REROLL_DIR_COST
 			dir_btn.disabled = not can_afford_d
 			dir_btn.modulate = Color(0.6, 0.8, 1.0) if can_afford_d else Color(0.5, 0.5, 0.5)
@@ -270,7 +191,6 @@ func _refresh_forge_action_btns():
 			
 		return
 
-	# 多件（重铸）
 	var cost : int = CRAFT_COST
 	var txt : String = "重铸 (%dG)" % cost
 	
@@ -284,7 +204,6 @@ func _refresh_forge_action_btns():
 	craft_btn.clip_text = true
 	craft_btn.custom_minimum_size = Vector2(80, 16)
 	craft_btn.text = txt
-	# ★ 修复：显式加上 : bool 标注
 	var can_afford_c : bool = panel._context.get_gold() >= cost
 	craft_btn.disabled = not can_afford_c
 	craft_btn.modulate = Color(1.0, 0.6, 0.2) if can_afford_c else Color(0.5, 0.5, 0.5)
@@ -304,15 +223,11 @@ func _on_forge_action_single(inst : ItemInstance):
 	var d = ItemManager.get_item_data(inst.item_id)
 	inst.affixes = AffixManager.roll_affixes(d.quality, d.tags)
 
+	# ★ 直接进待领取区
+	GameState.pending_forge_rewards.append(inst)
 	for i in range(forge_slots.size()):
 		var entry : Variant = forge_slots[i]
 		if entry != null and entry["inst"] == inst:
-			var ou : UnitData = panel.party[entry["origin_unit"]]
-			var os : int = entry["origin_slot"]
-			if os < ou.armor_slots.size() and ou.armor_slots[os] == null:
-				ou.armor_slots[os] = inst
-			else:
-				GameState.pending_forge_rewards.append(inst)
 			forge_slots[i] = null
 			break
 
@@ -321,7 +236,7 @@ func _on_forge_action_single(inst : ItemInstance):
 	panel._build_unit_columns()
 	panel._build_pending_slots()
 	panel._update_gold_display()
-	panel._show_detail_in_zone("★ %s 已锻造" % d.name)
+	panel._show_detail_in_zone("★ %s 已重铸\n（请在上方领取）" % d.name)
 	SoundManager.play_select_sound()
 	panel._schedule_build_ui()
 
@@ -335,15 +250,11 @@ func _on_forge_action_reroll_dir(inst : ItemInstance):
 	var old_dir := inst.direction
 	inst.direction = Direction.reroll_direction(inst.direction)
 
+	# ★ 直接进待领取区
+	GameState.pending_forge_rewards.append(inst)
 	for i in range(forge_slots.size()):
 		var entry : Variant = forge_slots[i]
 		if entry != null and entry["inst"] == inst:
-			var ou : UnitData = panel.party[entry["origin_unit"]]
-			var os : int = entry["origin_slot"]
-			if os < ou.armor_slots.size() and ou.armor_slots[os] == null:
-				ou.armor_slots[os] = inst
-			else:
-				GameState.pending_forge_rewards.append(inst)
 			forge_slots[i] = null
 			break
 
@@ -355,7 +266,7 @@ func _on_forge_action_reroll_dir(inst : ItemInstance):
 	
 	var old_sym := Direction.get_display_symbol(old_dir)
 	var new_sym := Direction.get_display_symbol(inst.direction)
-	panel._show_detail_in_zone("★ 方向已重roll：%s → %s" % [old_sym, new_sym])
+	panel._show_detail_in_zone("★ 方向已调整：%s → %s\n（请在上方领取）" % [old_sym, new_sym])
 	SoundManager.play_select_sound()
 	panel._schedule_build_ui()
 
@@ -410,45 +321,14 @@ func _on_forge_action_multi():
 	for i in range(forge_slots.size()):
 		forge_slots[i] = null
 
-	var target_unit_idx : int = -1
-	var target_slot : int = -1
-	for i in range(panel.party.size()):
-		var pu : UnitData = panel.party[i]
-		if pu.is_dead: continue
-		for s in range(pu.armor_slots.size()):
-			if pu.armor_slots[s] == null:
-				target_unit_idx = i
-				target_slot = s
-				break
-		if target_unit_idx >= 0: break
-
-	var can_place_in_unit : int = 0
-	if target_unit_idx >= 0:
-		var pu : UnitData = panel.party[target_unit_idx]
-		for s in range(target_slot, pu.armor_slots.size()):
-			if pu.armor_slots[s] == null:
-				can_place_in_unit += 1
-
-	if can_place_in_unit >= out_ids.size():
-		var out_unit : UnitData = panel.party[target_unit_idx]
-		for item_id in out_ids:
-			if target_slot >= out_unit.armor_slots.size(): break
-			var inst : ItemInstance = ItemManager.create_instance_with_affixes(item_id)
-			if inst == null:
-				inst = ItemInstance.new()
-				inst.item_id = item_id
-				inst.count = 1
-			if out_unit.armor_slots[target_slot] == null:
-				out_unit.armor_slots[target_slot] = inst
-				target_slot += 1
-	else:
-		for item_id in out_ids:
-			var inst : ItemInstance = ItemManager.create_instance_with_affixes(item_id)
-			if inst == null:
-				inst = ItemInstance.new()
-				inst.item_id = item_id
-				inst.count = 1
-			GameState.pending_forge_rewards.append(inst)
+	# ★ 修复：重铸产物全部放入待领取区，不再优先放入单位
+	for item_id in out_ids:
+		var inst : ItemInstance = ItemManager.create_instance_with_affixes(item_id)
+		if inst == null:
+			inst = ItemInstance.new()
+			inst.item_id = item_id
+			inst.count = 1
+		GameState.pending_forge_rewards.append(inst)
 
 	forge_matched_recipe = ""
 	SaveManager.auto_save()
@@ -457,6 +337,66 @@ func _on_forge_action_multi():
 	panel._build_pending_slots()
 	panel._update_gold_display()
 	panel._show_craft_result(result)
+	panel._schedule_build_ui()
+
+
+# ============================================================
+#  归还 / 清空
+# ============================================================
+func _return_armor_to_unit(unit: UnitData, inst: ItemInstance, prefer_slot: int) -> bool:
+	var need : int = panel._inst_slots(inst)
+	var used : int = panel._used_slots_of(unit)
+	if used + need > unit.max_armor_slots:
+		return false
+	if prefer_slot >= 0 and prefer_slot < unit.armor_slots.size() and unit.armor_slots[prefer_slot] == null:
+		unit.armor_slots[prefer_slot] = inst
+		return true
+	for i in range(unit.armor_slots.size()):
+		if unit.armor_slots[i] == null:
+			unit.armor_slots[i] = inst
+			return true
+	return false
+
+
+func return_all_forge_slots() -> int:
+	var unresolved : int = 0
+	for i in range(forge_slots.size()):
+		var entry : Variant = forge_slots[i]
+		if entry == null: continue
+		var entry_dict : Dictionary = entry
+		
+		# ★ 如果来自待领取，直接退还到待领取区
+		if entry_dict["origin_unit"] == -1:
+			GameState.pending_forge_rewards.append(entry_dict["inst"])
+			forge_slots[i] = null
+			continue
+			
+		var ou : UnitData = panel.party[entry_dict["origin_unit"]]
+		var origin_slot : int = entry_dict["origin_slot"]
+		if _return_armor_to_unit(ou, entry_dict["inst"], origin_slot):
+			forge_slots[i] = null
+		else:
+			unresolved += 1
+	return unresolved
+
+
+func execute_forge_slot_return(_data: Dictionary):
+	var unresolved : int = return_all_forge_slots()
+	panel._build_unit_columns()
+	if unresolved > 0:
+		panel._show_detail_in_zone("有 %d 件防具无法归还" % unresolved)
+	else:
+		panel._show_detail_in_zone("已清空合成槽")
+	build_forge_slots()
+	panel._schedule_build_ui()
+
+
+func on_forge_clear_pressed():
+	var unresolved_count : int = return_all_forge_slots()
+	panel._build_unit_columns()
+	if unresolved_count > 0:
+		panel._show_detail_in_zone("有 %d 件防具无法归还，已保留在合成槽" % unresolved_count)
+	build_forge_slots()
 	panel._schedule_build_ui()
 
 
@@ -544,7 +484,7 @@ func execute_forge_drop(data: Dictionary, target: Control):
 
 
 # ============================================================
-#  熔合 / 合成计算（原有逻辑，保持不变）
+#  熔合 / 合成计算
 # ============================================================
 func _check_fusion(input_insts : Array) -> Dictionary:
 	if input_insts.size() != 2: return {"ok": false}

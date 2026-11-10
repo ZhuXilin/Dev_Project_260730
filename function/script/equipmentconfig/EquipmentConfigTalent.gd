@@ -8,7 +8,7 @@ var panel = null
 func _init(p):
 	panel = p
 
-func build_talent_grid(container: GridContainer):
+func build_talent_grid(container: Container):
 	for child in container.get_children():
 		container.remove_child(child)
 		child.free()
@@ -81,9 +81,6 @@ func _use_context_units() -> Array:
 	if panel._context: return panel._context.get_units()
 	return []
 
-# ★ 修改：放宽 is_talent_unlocked 限制，允许装备自带的词条
-# ★ 修改：放宽 is_talent_unlocked 限制，允许装备自带的词条
-#   + 增加防御：目标单位已有同 id 进阶特技时拒绝普通槽装备
 func execute_talent_drop(data: Dictionary, target: Control):
 	var source_type : String = data.get("slot_type", "")
 	var target_type : String = target.get_meta("slot_type", "")
@@ -94,7 +91,6 @@ func execute_talent_drop(data: Dictionary, target: Control):
 		var slot_idx : int = target.get_meta("slot_idx", -1)
 		if unit_idx == -1 or slot_idx == -1: return
 		
-		# ★ 修复：即使是队伍默认自带的词条也允许装备，不再死板要求全局解锁
 		var is_unlocked = Globals.is_talent_unlocked(talent_id)
 		if not is_unlocked:
 			for u in panel.party:
@@ -105,7 +101,6 @@ func execute_talent_drop(data: Dictionary, target: Control):
 					break
 		if not is_unlocked: return
 		
-		# ★ 新增防御：目标单位已有同 id 的进阶特技（转职授予），禁止重复装入普通槽
 		var target_unit : UnitData = panel.party[unit_idx]
 		if target_unit.advanced_talent_id == talent_id:
 			var tdata = TalentManager.get_talent_data(talent_id)
@@ -189,7 +184,6 @@ func check_talent_compatibility(data: Dictionary, target: Control) -> bool:
 	if target_unit_idx == -1: return false
 	var target_unit : UnitData = panel.party[target_unit_idx]
 	
-	# ★ 强制传入 advanced_class，确保兼容性匹配正确
 	if not TalentManager.is_talent_compatible_with_unit(talent_id, target_unit.unit_name, target_unit.advanced_class):
 		return false
 		

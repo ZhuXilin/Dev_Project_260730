@@ -244,11 +244,9 @@ func _hint_shop_purchase_failed(data: Dictionary, target: Control) -> void:
 func _collect_targets() -> Array:
 	var targets : Array = []
 
-	# ---- 1. 丢弃区（最具体区域）----
 	if panel.discard_zone and panel.discard_zone.visible:
 		targets.append(panel.discard_zone)
 
-	# ---- 2. 单位列（递归收集，防嵌套遗漏）----
 	if panel.unit_container:
 		_collect_controls_recursive(panel.unit_container, targets)
 
@@ -269,6 +267,11 @@ func _collect_targets() -> Array:
 		for btn in panel.shop_container.get_children():
 			if btn is Button:
 				targets.append(btn)
+
+	if panel.current_tab == "sacrifice" and panel.shop_container and panel.shop_container.visible:
+		var dz = panel.shop_container.get_node_or_null("SacrificeDropZone")
+		if dz: 
+			targets.append(dz)
 
 	return targets
 

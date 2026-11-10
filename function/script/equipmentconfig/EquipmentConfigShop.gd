@@ -44,14 +44,20 @@ func build_shop_items():
 			child.free()
 
 	# ---- 4. 重置容器属性 ----
-	panel.shop_container.columns = 3
-	panel.shop_container.add_theme_constant_override("h_separation", 2)
-	panel.shop_container.add_theme_constant_override("v_separation", 2)
+	panel.shop_container.add_theme_constant_override("h_separation", 4)
+	panel.shop_container.add_theme_constant_override("v_separation", 4)
 	panel.shop_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	panel.shop_container.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 	panel.shop_container.visible = true
 
-	# ---- 5. 生成按钮 ----
+	# ---- 5. 防具区（内嵌 HFlow 独占一行）----
+	var armor_flow = HFlowContainer.new()
+	armor_flow.alignment = FlowContainer.ALIGNMENT_CENTER
+	armor_flow.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	armor_flow.add_theme_constant_override("h_separation", 4)
+	armor_flow.add_theme_constant_override("v_separation", 4)
+	panel.shop_container.add_child(armor_flow)
+
 	var items : Array = panel.shop_manager.get_shop_items()
 	for i in range(items.size()):
 		var entry : Variant = items[i]
@@ -62,7 +68,6 @@ func build_shop_items():
 			var item_data : ItemData = entry_dict["item_data"]
 			var price : int = entry_dict["price"]
 			
-			# ★ 修复：通过全局字典锁定方向
 			var shop_dir : int = 0
 			if item_data.type == "armor" and item_data.enable_direction:
 				if panel._shop_direction_cache.has(i):
@@ -71,7 +76,6 @@ func build_shop_items():
 					shop_dir = Direction.roll_drop_direction()
 					panel._shop_direction_cache[i] = shop_dir
 			
-			# 借用 panel 的生成逻辑（自带方向箭头和连通星星）
 			var temp_inst = ItemInstance.new()
 			temp_inst.item_id = item_data.id
 			temp_inst.direction = shop_dir
@@ -80,14 +84,12 @@ func build_shop_items():
 			btn.custom_minimum_size = Style.BTN_SHOP_SIZE
 			btn.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 			
-			# 覆盖 meta，确保拖拽购买逻辑能找到 shop_index
 			btn.set_meta("slot_type", "shop_item")
 			btn.set_meta("shop_index", i)
 			btn.set_meta("item_price", price)
 			btn.set_meta("item_id", item_data.id)
 			btn.set_meta("shop_direction", shop_dir)
 			
-			# 价格标签
 			var price_label = Label.new()
 			price_label.text = str(price)
 			price_label.add_theme_font_size_override("font_size", 6) 
@@ -110,9 +112,31 @@ func build_shop_items():
 			btn.set_meta("slot_type", "")
 			btn.set_meta("shop_index", i)
 			
-		panel.shop_container.add_child(btn)
+		armor_flow.add_child(btn)
 
-	# ---- 6. 强制重排 ----
+	# ---- 6. 追加光环售卖区（分上下行）----
+	if panel._context.get_context_id() != "arena":
+		var candidates : Array = GameState.current_aura_candidates.duplicate()
+		if not candidates.is_empty():
+			# 间隙占位，强制撑满整行引发换行
+			var spacer = Control.new()
+			spacer.custom_minimum_size = Vector2(0, 10)
+			spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			panel.shop_container.add_child(spacer)
+
+			# 光环区
+			var aura_flow = HFlowContainer.new()
+			aura_flow.alignment = FlowContainer.ALIGNMENT_CENTER
+			aura_flow.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			aura_flow.add_theme_constant_override("h_separation", 4)
+			aura_flow.add_theme_constant_override("v_separation", 4)
+			panel.shop_container.add_child(aura_flow)
+
+			for aid in candidates:
+				var aura_btn : Button = panel._make_aura_icon_btn(aid, SoulFireManager.current, false, panel._get_first_empty_passive_slot())
+				aura_flow.add_child(aura_btn)
+
+	# ---- 7. 强制重排 ----
 	if panel.shop_container:
 		panel.shop_container.queue_sort()
 		panel.shop_container.call_deferred("queue_sort")
@@ -124,9 +148,8 @@ func build_shop_items():
 # ============================================================
 #  武器库 / 精炼库网格
 # ============================================================
-func build_weapon_grid(container: GridContainer):
+func build_weapon_grid(container: Container):
 	for child in container.get_children(): container.remove_child(child); child.free()
-	container.columns = 3
 	for item_id in Globals.unlocked_items:
 		var data : ItemData = ItemManager.get_item_data(item_id)
 		if data and data.type == "weapon":
@@ -220,13 +243,11 @@ func swap_armor(data: Dictionary, target: Control):
 #  商店刷新 / 清空插槽
 # ============================================================
 func on_reset_shop_pressed():
-	# 只有 forge tab 才走"清空插槽"
 	if panel.current_tab == "arena_forge":
 		if panel.current_mode == panel.Mode.FORGE or panel._is_shop_rest_mode():
 			panel._forge.on_forge_clear_pressed()
 			return
 
-	# 商店刷新：FORGE+arena_shop / MAP_SHOP_REST+arena_shop
 	if not (panel._is_shop_rest_mode() and panel.current_tab == "arena_shop") \
 			and not (panel.current_mode == panel.Mode.FORGE and panel.current_tab == "arena_shop"):
 		return
