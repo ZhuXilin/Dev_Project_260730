@@ -16,7 +16,7 @@ func _init(p):
 func build_shop_items():
 	if not panel.shop_manager: return
 
-	# ---- 1. 清理铁匠铺残留（按名字精确清理） ----
+	# ---- 1. 清理铁匠铺残留 ----
 	var forge_nodes : Array = [
 		"ForgeCraftRow", "ForgeUpgradeLabel", "ForgeUpgradeBtn",
 		"ForgeUpgradeSpacer1", "ForgeUpgradeSpacer2",
@@ -27,7 +27,6 @@ func build_shop_items():
 		if old:
 			panel.right_container.remove_child(old)
 			old.queue_free()
-	panel._forge.inline_craft_btn = null
 
 	# ---- 2. 重置 ShopScroll ----
 	if panel.shop_scroll:
@@ -38,7 +37,7 @@ func build_shop_items():
 		panel.shop_scroll.scroll_vertical = 0
 		panel.shop_scroll.scroll_horizontal = 0
 
-	# ---- 3. 立即清空 shop_container ----
+	# ---- 3. 清空 shop_container ----
 	if panel.shop_container:
 		for child in panel.shop_container.get_children():
 			panel.shop_container.remove_child(child)
@@ -63,10 +62,14 @@ func build_shop_items():
 			var item_data : ItemData = entry_dict["item_data"]
 			var price : int = entry_dict["price"]
 			
-			# ★ 为商店商品临时生成方向
-			var shop_dir = 0
+			# ★ 修复：通过全局字典锁定方向
+			var shop_dir : int = 0
 			if item_data.type == "armor" and item_data.enable_direction:
-				shop_dir = Direction.roll_drop_direction()
+				if panel._shop_direction_cache.has(i):
+					shop_dir = panel._shop_direction_cache[i]
+				else:
+					shop_dir = Direction.roll_drop_direction()
+					panel._shop_direction_cache[i] = shop_dir
 			
 			# 借用 panel 的生成逻辑（自带方向箭头和连通星星）
 			var temp_inst = ItemInstance.new()
@@ -82,7 +85,7 @@ func build_shop_items():
 			btn.set_meta("shop_index", i)
 			btn.set_meta("item_price", price)
 			btn.set_meta("item_id", item_data.id)
-			btn.set_meta("shop_direction", shop_dir) # 记录方向，方便购买时读取
+			btn.set_meta("shop_direction", shop_dir)
 			
 			# 价格标签
 			var price_label = Label.new()
@@ -97,8 +100,6 @@ func build_shop_items():
 			price_label.offset_bottom = 1
 			price_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 			btn.add_child(price_label)
-			
-			# ★ 注意：此处不要再 connect mouse_entered / mouse_exited，_create_item_button 内部已经连过了
 			
 		else:
 			btn = Style.create_styled_button(Style.FONT_SMALL, Style.BTN_SHOP_SIZE)
@@ -118,6 +119,7 @@ func build_shop_items():
 	if panel.shop_scroll:
 		panel.shop_scroll.queue_sort()
 		panel.shop_scroll.call_deferred("queue_sort")
+
 
 # ============================================================
 #  武器库 / 精炼库网格
@@ -183,11 +185,8 @@ func buy_shop_item(data: Dictionary, target: Control):
 
 	var inst : ItemInstance = buy_result["item_instance"]
 
-	# ★ 修复：从字典读取方向
 	if data.has("shop_direction") and inst != null:
-		var sdir = int(data["shop_direction"])
-		if sdir != 0:
-			inst.direction = sdir
+		inst.direction = int(data["shop_direction"])
 
 	if item_data.type == "armor":
 		var tu2 : UnitData = panel.party[target_unit_idx]

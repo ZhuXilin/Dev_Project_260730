@@ -7,8 +7,8 @@ const QUALITY_ORDER : Array = ["common", "rare", "epic", "legendary"]
 
 const FUSION_COST : int = 2000
 var REFORGE_COST : int = 500
-
-var MAX_SLOTS : int = 9
+var REROLL_DIR_COST : int = 120
+var MAX_SLOTS : int = 3
 var CRAFT_COST : int = 200
 var QUALITY_SCORE : Dictionary = {"common": 1, "rare": 3, "epic": 6, "legendary": 10}
 var LUCKY_CHANCE : float = 0.05
@@ -18,10 +18,8 @@ var CRAFT_QUALITY_TABLE : Array = []
 
 var panel = null
 var forge_slots : Array = []
+var _forge_btn_row : HBoxContainer = null
 var forge_matched_recipe : String = ""
-var inline_craft_btn : Button = null
-var _last_drag_unit_idx : int = -1
-
 
 func _init(p):
 	panel = p
@@ -29,7 +27,7 @@ func _init(p):
 
 func reload_config():
 	var cfg : Dictionary = GameConfigManager.get_value("economy_config.json", "forge", {})
-	MAX_SLOTS = int(cfg.get("max_slots", 9))
+	MAX_SLOTS = 3 # 固定最多 3 件
 	CRAFT_COST = int(cfg.get("craft_cost", 200))
 	REFORGE_COST = int(cfg.get("reforge_cost", 500))
 	QUALITY_SCORE = cfg.get("quality_score", {"common":1,"rare":3,"epic":6,"legendary":10}).duplicate()
@@ -51,367 +49,12 @@ func init_slots():
 	forge_slots.clear()
 	for i in range(MAX_SLOTS):
 		forge_slots.append(null)
-	forge_matched_recipe = ""
-	_last_drag_unit_idx = -1
-
+	_forge_btn_row = null
 
 func has_pending() -> bool:
 	for entry in forge_slots:
 		if entry != null: return true
 	return false
-
-
-# ============================================================
-#  熔合检测
-# ============================================================
-func _check_fusion(input_insts : Array) -> Dictionary:
-	if input_insts.size() != 2:
-		return {"ok": false}
-	var a : ItemInstance = input_insts[0]
-	var b : ItemInstance = input_insts[1]
-	var da : ItemData = ItemManager.get_item_data(a.item_id)
-	var db : ItemData = ItemManager.get_item_data(b.item_id)
-	if not da or not db:
-		return {"ok": false}
-	if da.no_fusion or db.no_fusion:
-		return {"ok": false}
-	if da.quality != "epic" or db.quality != "epic":
-		return {"ok": false}
-	for tag in da.tags:
-		if tag in db.tags:
-			var product : ItemData = ItemManager.get_fusion_product(tag)
-			if product:
-				return {"ok": true, "tag": tag, "product_id": product.id}
-	return {"ok": false}
-
-func _do_fusion(product_id : String, cost : int):
-	# ★ 修复：先检查扣金，失败则立即返回，避免白嫖产出
-	if not panel._context.subtract_gold(cost):
-		panel._show_buy_failure_message("not_enough_gold")
-		return
-
-	for i in range(forge_slots.size()):
-		forge_slots[i] = null
-
-	var out_unit_idx : int = -1
-	var out_slot : int = -1
-	for i in range(panel.party.size()):
-		var pu : UnitData = panel.party[i]
-		if pu.is_dead: continue
-		for s in range(pu.armor_slots.size()):
-			if pu.armor_slots[s] == null:
-				out_unit_idx = i
-				out_slot = s
-				break
-		if out_unit_idx >= 0:
-			break
-
-	if out_unit_idx >= 0:
-		var out_unit : UnitData = panel.party[out_unit_idx]
-		var inst : ItemInstance = ItemManager.create_instance_with_affixes(product_id)
-		if inst == null:
-			inst = ItemInstance.new()
-			inst.item_id = product_id
-			inst.count = 1
-		out_unit.armor_slots[out_slot] = inst
-	else:
-		var inst : ItemInstance = ItemManager.create_instance_with_affixes(product_id)
-		if inst == null:
-			inst = ItemInstance.new()
-			inst.item_id = product_id
-			inst.count = 1
-		GameState.pending_forge_rewards.append(inst)
-
-	forge_matched_recipe = ""
-	SaveManager.auto_save()
-	panel._sync_all()
-	panel._build_unit_columns()
-	panel._build_pending_slots()
-	panel._update_gold_display()
-	var out_data : ItemData = ItemManager.get_item_data(product_id)
-	var name : String = out_data.name if out_data else product_id
-	panel._show_detail_in_zone("★ 熔合成功！\n产出：" + name)
-	panel._schedule_build_ui()
-
-
-# ============================================================
-#  构建铁匠铺 UI
-# ============================================================
-func build_forge_slots():
-	for child in panel.right_container.get_children():
-		if "Forge" in child.name:
-			panel.right_container.remove_child(child)
-			child.queue_free()
-
-	inline_craft_btn = null
-
-	panel._clear_container(panel.shop_container)
-
-	panel.shop_container.columns = 3
-	panel.shop_container.visible = true
-	panel.shop_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	panel.shop_container.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
-
-	panel.shop_container.add_theme_constant_override("h_separation", 2)
-	panel.shop_container.add_theme_constant_override("v_separation", 2)
-
-	if panel.shop_scroll:
-		panel.shop_scroll.custom_minimum_size = Vector2.ZERO
-		panel.shop_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-		panel.shop_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		panel.shop_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
-		panel.shop_scroll.scroll_vertical = 0
-
-	for i in range(MAX_SLOTS):
-		var slot_btn : Button = Style.create_styled_button(Style.FONT_SMALL, Style.BTN_ITEM_SIZE)
-		slot_btn.clip_text = true
-		slot_btn.expand_icon = true
-		slot_btn.set_meta("slot_type", "forge_slot")
-		slot_btn.set_meta("forge_slot_index", i)
-		slot_btn.text = "空槽 %d" % (i + 1)
-		slot_btn.modulate = Color(0.5, 0.5, 0.5)
-
-		var entry : Variant = forge_slots[i] if i < forge_slots.size() else null
-		if entry != null:
-			var entry_dict : Dictionary = entry
-			var inst : ItemInstance = entry_dict["inst"]
-			var data : ItemData = ItemManager.get_item_data(inst.item_id)
-
-			if data and data.icon:
-				slot_btn.icon = data.icon
-				slot_btn.text = ""
-			else:
-				slot_btn.text = data.name if data else inst.item_id
-				
-			slot_btn.set_meta("item_id", inst.item_id)
-
-			if data:
-				slot_btn.modulate = UIConst.QUALITY_COLORS.get(data.quality, Color.WHITE)
-
-			slot_btn.mouse_entered.connect(panel._on_button_hover_entered.bind(inst.item_id))
-			slot_btn.mouse_exited.connect(panel._on_button_hover_exited)
-		else:
-			slot_btn.set_meta("item_id", "")
-
-		panel.shop_container.add_child(slot_btn)
-
-	_ensure_forge_craft_row()
-	_refresh_inline_craft_btn()
-
-
-func _ensure_forge_craft_row():
-	var should_show : bool = panel._is_shop_rest_mode() or panel.is_forge_mode()
-	var existing : Node = panel.right_container.get_node_or_null("ForgeCraftRow")
-
-	if not should_show:
-		if existing: existing.queue_free()
-		inline_craft_btn = null
-		return
-
-	var row : HBoxContainer = existing
-	if row == null:
-		row = HBoxContainer.new()
-		row.name = "ForgeCraftRow"
-		row.alignment = BoxContainer.ALIGNMENT_CENTER
-		row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		row.add_theme_constant_override("separation", 4)
-		panel.right_container.add_child(row)
-		var scroll_idx : int = panel.shop_scroll.get_index()
-		panel.right_container.move_child(row, scroll_idx + 1)
-
-	for c in row.get_children():
-		c.queue_free()
-
-	# 合成按钮（既当信息展示，又当点击按钮）
-	inline_craft_btn = Style.create_styled_button(Style.FONT_SMALL, Style.BTN_ITEM_SIZE)
-	inline_craft_btn.clip_text = true
-	inline_craft_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	inline_craft_btn.custom_minimum_size = Vector2(0, 16)
-	inline_craft_btn.text = "合成"
-	inline_craft_btn.set_meta("slot_type", "forge_craft_btn")
-	inline_craft_btn.pressed.connect(on_forge_craft_pressed)
-	row.add_child(inline_craft_btn)
-
-	# 清空按钮（取代外部的 ResetBtn，节省一行）
-	var clear_btn := Style.create_styled_button(Style.FONT_SMALL, Style.BTN_ITEM_SIZE)
-	clear_btn.clip_text = true
-	clear_btn.custom_minimum_size = Vector2(40, 16)
-	clear_btn.size_flags_horizontal = Control.SIZE_SHRINK_END
-	clear_btn.text = "清空"
-	clear_btn.pressed.connect(on_forge_clear_pressed)
-	row.add_child(clear_btn)
-
-func display_recipe_info():
-	var input_ids : Array = []
-	var input_insts : Array = []
-	for entry in forge_slots:
-		if entry != null:
-			var entry_dict : Dictionary = entry
-			var inst : ItemInstance = entry_dict["inst"]
-			input_ids.append(inst.item_id)
-			input_insts.append(inst)
-
-	if input_ids.is_empty():
-		panel._show_detail_in_zone("放入 1 件紫装 = 重铸词条\n放入 2 件 = 熔合 / 配方合成 / 通用合成\n放入 3 件以上 = 通用合成")
-		forge_matched_recipe = ""
-		_refresh_inline_craft_btn()
-		return
-
-	# ★ 单件紫装：重铸信息
-	if input_insts.size() == 1:
-		var d : ItemData = ItemManager.get_item_data(input_insts[0].item_id)
-		if d == null:
-			panel._show_detail_in_zone("未知物品")
-		elif d.no_affix or d.no_fusion:
-			panel._show_detail_in_zone("熔铸防具不可重铸")
-		elif d.quality != "epic":
-			panel._show_detail_in_zone("仅紫装可以重铸\n当前品质：%s" % d.quality)
-		else:
-			panel._show_detail_in_zone("★ 重铸：%s\n消耗：%dG\n效果：随机重新生成该装备的 2 条词条" % [d.name, REFORGE_COST])
-		forge_matched_recipe = ""
-		_refresh_inline_craft_btn()
-		return
-
-	# 检查 no_fusion
-	for inst in input_insts:
-		var d2 : ItemData = ItemManager.get_item_data(inst.item_id)
-		if d2 and d2.no_fusion:
-			panel._show_detail_in_zone("熔铸防具不可加工")
-			forge_matched_recipe = ""
-			_refresh_inline_craft_btn()
-			return
-
-	forge_matched_recipe = RecipeManager.match_recipe(input_ids)
-
-	if forge_matched_recipe != "":
-		var recipe : RecipeData = RecipeManager.get_recipe(forge_matched_recipe)
-		var out_data : ItemData = ItemManager.get_item_data(forge_matched_recipe)
-		var lines : Array = []
-		lines.append("★ 匹配图纸: " + (out_data.name if out_data else forge_matched_recipe))
-		lines.append("")
-		lines.append("消耗:")
-		for id in recipe.inputs:
-			var d : ItemData = ItemManager.get_item_data(id)
-			lines.append("  " + (d.name if d else id))
-		lines.append("")
-		lines.append("金币: %dG" % CRAFT_COST)
-		lines.append("→ 产物: " + (out_data.name if out_data else forge_matched_recipe) + "（固定）")
-		panel._show_detail_in_zone("\n".join(lines))
-		_refresh_inline_craft_btn()
-		return
-
-	var score : int = _calc_input_score(input_insts)
-	var weights : Array = _get_quality_weights(score)
-	var names : Array = ["普通", "稀有", "史诗", "传说"]
-	var total : int = 0
-	for w in weights:
-		total += w
-
-	var lines2 : Array = []
-	lines2.append("通用合成（随机）")
-	lines2.append("")
-	lines2.append("输入评分: %d" % score)
-	lines2.append("")
-	lines2.append("产出概率:")
-	if total > 0:
-		for i in range(4):
-			var pct : int = int(weights[i] * 100.0 / total)
-			if pct > 0:
-				lines2.append("  %s: %d%%" % [names[i], pct])
-	lines2.append("")
-	lines2.append("金币: %dG" % CRAFT_COST)
-	panel._show_detail_in_zone("\n".join(lines2))
-	_refresh_inline_craft_btn()
-
-func _refresh_inline_craft_btn():
-	if not inline_craft_btn or not is_instance_valid(inline_craft_btn):
-		return
-
-	var input_insts : Array = []
-	for entry in forge_slots:
-		if entry != null:
-			var entry_dict : Dictionary = entry
-			input_insts.append(entry_dict["inst"])
-
-	if input_insts.is_empty():
-		inline_craft_btn.text = "放入防具以操作"
-		inline_craft_btn.disabled = true
-		inline_craft_btn.modulate = Color(0.5, 0.5, 0.5)
-		return
-
-	# 检查不可熔合
-	for inst in input_insts:
-		var d : ItemData = ItemManager.get_item_data(inst.item_id)
-		if d and d.no_fusion:
-			inline_craft_btn.text = "熔铸防具不可加工"
-			inline_craft_btn.disabled = true
-			inline_craft_btn.modulate = Color(0.5, 0.5, 0.5)
-			return
-
-	# ★ 单件 → 重铸
-	if input_insts.size() == 1:
-		var inst : ItemInstance = input_insts[0]
-		var d : ItemData = ItemManager.get_item_data(inst.item_id)
-		if d == null:
-			inline_craft_btn.text = "未知物品"
-			inline_craft_btn.disabled = true
-			inline_craft_btn.modulate = Color(0.5, 0.5, 0.5)
-			return
-		if d.no_affix:
-			inline_craft_btn.text = "该装备不可重铸"
-			inline_craft_btn.disabled = true
-			inline_craft_btn.modulate = Color(0.5, 0.5, 0.5)
-			return
-		if d.quality != "epic":
-			inline_craft_btn.text = "需紫装才能重铸"
-			inline_craft_btn.disabled = true
-			inline_craft_btn.modulate = Color(0.5, 0.5, 0.5)
-			return
-		inline_craft_btn.text = "重铸：%s（%dG）" % [d.name, REFORGE_COST]
-		var can_afford_r : bool = panel._context.get_gold() >= REFORGE_COST
-		inline_craft_btn.disabled = not can_afford_r
-		inline_craft_btn.modulate = Color(0.8, 0.6, 1.0) if can_afford_r else Color(0.5, 0.5, 0.5)
-		return
-
-	# ★ 2 件 → 熔合优先，否则配方/随机
-	if input_insts.size() == 2:
-		var fusion : Dictionary = _check_fusion(input_insts)
-		if fusion.get("ok", false):
-			var product : ItemData = ItemManager.get_item_data(fusion["product_id"])
-			var pname : String = product.name if product else fusion["product_id"]
-			inline_craft_btn.text = "熔合：%s（%dG）" % [pname, FUSION_COST]
-			var can_afford_f : bool = panel._context.get_gold() >= FUSION_COST
-			inline_craft_btn.disabled = not can_afford_f
-			inline_craft_btn.modulate = Color(1.0, 0.6, 0.2) if can_afford_f else Color(0.5, 0.5, 0.5)
-			return
-
-	var input_ids : Array = []
-	for inst in input_insts:
-		input_ids.append(inst.item_id)
-
-	var matched : String = RecipeManager.match_recipe(input_ids)
-	if matched != "":
-		var out_data : ItemData = ItemManager.get_item_data(matched)
-		var out_name : String = out_data.name if out_data else matched
-		inline_craft_btn.text = "合成：%s（%dG）" % [out_name, CRAFT_COST]
-		var can_afford_c : bool = panel._context.get_gold() >= CRAFT_COST
-		inline_craft_btn.disabled = not can_afford_c
-		inline_craft_btn.modulate = Color.WHITE if can_afford_c else Color(0.5, 0.5, 0.5)
-		return
-
-	var score : int = _calc_input_score(input_insts)
-	inline_craft_btn.text = "通用合成（评分 %d，%dG）" % [score, CRAFT_COST]
-	var can_afford_g : bool = panel._context.get_gold() >= CRAFT_COST
-	inline_craft_btn.disabled = not can_afford_g
-	inline_craft_btn.modulate = Color(1.0, 0.85, 0.3) if can_afford_g else Color(0.5, 0.5, 0.5)
-
-
-func cleanup():
-	var n : Node = panel.right_container.get_node_or_null("ForgeCraftRow")
-	if n:
-		panel.right_container.remove_child(n)
-		n.queue_free()
-	inline_craft_btn = null
 
 # ============================================================
 #  归还 / 清空
@@ -443,29 +86,18 @@ func return_all_forge_slots() -> int:
 			forge_slots[i] = null
 		else:
 			unresolved += 1
-	if unresolved == 0:
-		forge_matched_recipe = ""
 	return unresolved
 
 
-func execute_forge_slot_return(data: Dictionary):
-	var idx : int = data.get("forge_slot_index", -1)
-	if idx < 0 or idx >= forge_slots.size():
-		return
-	var entry : Variant = forge_slots[idx]
-	if entry == null:
-		display_recipe_info()
-		panel._schedule_build_ui()
-		return
-	var entry_dict : Dictionary = entry
-	var ou : UnitData = panel.party[entry_dict["origin_unit"]]
-	var origin_slot : int = entry_dict["origin_slot"]
-	if not _return_armor_to_unit(ou, entry_dict["inst"], origin_slot):
-		panel._show_detail_in_zone("原槽已被占用且没有空槽，请先腾出空间")
-		return
-	forge_slots[idx] = null
+func execute_forge_slot_return(_data: Dictionary):
+	# 拖拽堆叠槽到空白处，直接全部归还
+	var unresolved : int = return_all_forge_slots()
 	panel._build_unit_columns()
-	display_recipe_info()
+	if unresolved > 0:
+		panel._show_detail_in_zone("有 %d 件防具无法归还" % unresolved)
+	else:
+		panel._show_detail_in_zone("已清空合成槽")
+	build_forge_slots()
 	panel._schedule_build_ui()
 
 
@@ -473,38 +105,274 @@ func on_forge_clear_pressed():
 	var unresolved_count : int = return_all_forge_slots()
 	panel._build_unit_columns()
 	if unresolved_count > 0:
-		panel._show_detail_in_zone("有 %d 件防具无法归还（单位已满），已保留在合成槽" % unresolved_count)
-	else:
-		display_recipe_info()
+		panel._show_detail_in_zone("有 %d 件防具无法归还，已保留在合成槽" % unresolved_count)
+	build_forge_slots()
 	panel._schedule_build_ui()
 
 
 # ============================================================
-#  合成 / 熔合入口
+#  构建铁匠铺 UI
 # ============================================================
-func on_forge_craft_pressed():
+func build_forge_slots():
+	for child in panel.right_container.get_children():
+		if "Forge" in child.name:
+			panel.right_container.remove_child(child)
+			child.queue_free()
+
+	_forge_btn_row = null
+	panel._clear_container(panel.shop_container)
+
+	panel.shop_container.columns = 1
+	panel.shop_container.visible = true
+	panel.shop_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	panel.shop_container.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+
+	if panel.shop_scroll:
+		panel.shop_scroll.custom_minimum_size = Vector2.ZERO
+		panel.shop_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		panel.shop_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		panel.shop_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+		panel.shop_scroll.scroll_vertical = 0
+
+	# 生成唯一的 Stack 按钮
+	var stack_btn : Button = Style.create_styled_button(Style.FONT_SMALL, Vector2(32, 32))
+	stack_btn.custom_minimum_size = Vector2(32, 32)
+	stack_btn.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	stack_btn.set_meta("slot_type", "forge_slot")
+	stack_btn.set_meta("forge_slot_index", -1)
+
+	var count = 0
+	var first_inst = null
+	for entry in forge_slots:
+		if entry != null:
+			count += 1
+			if first_inst == null: first_inst = entry["inst"]
+			
+	if first_inst != null:
+		var data : ItemData = ItemManager.get_item_data(first_inst.item_id)
+		if data and data.icon:
+			stack_btn.icon = data.icon
+			stack_btn.expand_icon = true
+			stack_btn.text = ""
+		else:
+			stack_btn.text = data.name if data else first_inst.item_id
+		
+		# 右下角显示数量
+		var lbl = Label.new()
+		lbl.text = "x%d" % count
+		lbl.add_theme_font_size_override("font_size", 7)
+		lbl.add_theme_color_override("font_color", Color.WHITE)
+		lbl.add_theme_color_override("font_outline_color", Color.BLACK)
+		lbl.add_theme_constant_override("outline_size", 2)
+		lbl.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
+		lbl.offset_left = -12
+		lbl.offset_top = -12
+		lbl.offset_right = 0
+		lbl.offset_bottom = 0
+		lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+		lbl.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
+		lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		stack_btn.add_child(lbl)
+		
+		if data:
+			stack_btn.modulate = UIConst.QUALITY_COLORS.get(data.quality, Color.WHITE)
+	else:
+		stack_btn.text = "空槽"
+		stack_btn.modulate = Color(0.5, 0.5, 0.5)
+		stack_btn.set_meta("item_id", "")
+
+	panel.shop_container.add_child(stack_btn)
+
+	_ensure_forge_craft_row()
+	_refresh_forge_action_btns()
+
+
+func _ensure_forge_craft_row():
+	var should_show : bool = panel._is_shop_rest_mode() or panel.is_forge_mode()
+	var existing : Node = panel.right_container.get_node_or_null("ForgeCraftRow")
+
+	if not should_show:
+		if existing: existing.queue_free()
+		_forge_btn_row = null
+		return
+
+	_forge_btn_row = existing
+	if _forge_btn_row == null:
+		_forge_btn_row = HBoxContainer.new()
+		_forge_btn_row.name = "ForgeCraftRow"
+		_forge_btn_row.alignment = BoxContainer.ALIGNMENT_CENTER
+		_forge_btn_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		_forge_btn_row.add_theme_constant_override("separation", 4)
+		panel.right_container.add_child(_forge_btn_row)
+		var scroll_idx : int = panel.shop_scroll.get_index()
+		panel.right_container.move_child(_forge_btn_row, scroll_idx + 1)
+
+
+func _refresh_forge_action_btns():
+	if not _forge_btn_row or not is_instance_valid(_forge_btn_row):
+		return
+		
+	for c in _forge_btn_row.get_children():
+		c.queue_free()
+
 	var input_insts : Array = []
 	for entry in forge_slots:
 		if entry != null:
-			var entry_dict : Dictionary = entry
-			input_insts.append(entry_dict["inst"])
+			input_insts.append(entry["inst"])
 
 	if input_insts.is_empty():
-		Globals.show_confirm(panel, "请先放入防具", "确定", "", func(): pass, func(): pass, false)
+		var hint := Label.new()
+		hint.text = "放入防具"
+		hint.add_theme_font_size_override("font_size", 7)
+		hint.modulate = Color(0.5, 0.5, 0.5)
+		_forge_btn_row.add_child(hint)
 		return
 
+	# 清空按钮
+	var clear_btn := Style.create_styled_button(Style.FONT_SMALL, Style.BTN_ITEM_SIZE)
+	clear_btn.clip_text = true
+	clear_btn.custom_minimum_size = Vector2(40, 16)
+	clear_btn.text = "清空"
+	clear_btn.pressed.connect(on_forge_clear_pressed)
+	_forge_btn_row.add_child(clear_btn)
+
+	# 单件
+	if input_insts.size() == 1:
+		var inst : ItemInstance = input_insts[0]
+		var d : ItemData = ItemManager.get_item_data(inst.item_id)
+		if d == null: return
+		
+		# 锻造 (roll 词条)
+		if not d.no_affix and d.quality == "epic":
+			var forge_btn := Style.create_styled_button(Style.FONT_SMALL, Style.BTN_ITEM_SIZE)
+			forge_btn.clip_text = true
+			forge_btn.custom_minimum_size = Vector2(50, 16)
+			forge_btn.text = "锻造 (%dG)" % REFORGE_COST
+			# ★ 修复：显式加上 : bool 标注
+			var can_afford : bool = panel._context.get_gold() >= REFORGE_COST
+			forge_btn.disabled = not can_afford
+			forge_btn.modulate = Color(0.8, 0.6, 1.0) if can_afford else Color(0.5, 0.5, 0.5)
+			forge_btn.pressed.connect(_on_forge_action_single.bind(inst))
+			_forge_btn_row.add_child(forge_btn)
+			
+		# 调整 (roll 箭头)
+		if inst.direction != Direction.Value.NONE:
+			var dir_btn := Style.create_styled_button(Style.FONT_SMALL, Style.BTN_ITEM_SIZE)
+			dir_btn.clip_text = true
+			dir_btn.custom_minimum_size = Vector2(50, 16)
+			dir_btn.text = "调整 (%dG)" % REROLL_DIR_COST
+			# ★ 修复：显式加上 : bool 标注
+			var can_afford_d : bool = panel._context.get_gold() >= REROLL_DIR_COST
+			dir_btn.disabled = not can_afford_d
+			dir_btn.modulate = Color(0.6, 0.8, 1.0) if can_afford_d else Color(0.5, 0.5, 0.5)
+			dir_btn.pressed.connect(_on_forge_action_reroll_dir.bind(inst))
+			_forge_btn_row.add_child(dir_btn)
+			
+		return
+
+	# 多件（重铸）
+	var cost : int = CRAFT_COST
+	var txt : String = "重铸 (%dG)" % cost
+	
+	if input_insts.size() == 2:
+		var fusion : Dictionary = _check_fusion(input_insts)
+		if fusion.get("ok", false):
+			cost = FUSION_COST
+			txt = "重铸:熔合(%dG)" % cost
+			
+	var craft_btn := Style.create_styled_button(Style.FONT_SMALL, Style.BTN_ITEM_SIZE)
+	craft_btn.clip_text = true
+	craft_btn.custom_minimum_size = Vector2(80, 16)
+	craft_btn.text = txt
+	# ★ 修复：显式加上 : bool 标注
+	var can_afford_c : bool = panel._context.get_gold() >= cost
+	craft_btn.disabled = not can_afford_c
+	craft_btn.modulate = Color(1.0, 0.6, 0.2) if can_afford_c else Color(0.5, 0.5, 0.5)
+	craft_btn.pressed.connect(_on_forge_action_multi)
+	_forge_btn_row.add_child(craft_btn)
+
+
+# ============================================================
+#  操作逻辑
+# ============================================================
+func _on_forge_action_single(inst : ItemInstance):
+	if panel._context.get_gold() < REFORGE_COST:
+		panel._show_buy_failure_message("not_enough_gold"); return
+	if not panel._context.subtract_gold(REFORGE_COST):
+		return
+
+	var d = ItemManager.get_item_data(inst.item_id)
+	inst.affixes = AffixManager.roll_affixes(d.quality, d.tags)
+
+	for i in range(forge_slots.size()):
+		var entry : Variant = forge_slots[i]
+		if entry != null and entry["inst"] == inst:
+			var ou : UnitData = panel.party[entry["origin_unit"]]
+			var os : int = entry["origin_slot"]
+			if os < ou.armor_slots.size() and ou.armor_slots[os] == null:
+				ou.armor_slots[os] = inst
+			else:
+				GameState.pending_forge_rewards.append(inst)
+			forge_slots[i] = null
+			break
+
+	SaveManager.auto_save()
+	panel._sync_all()
+	panel._build_unit_columns()
+	panel._build_pending_slots()
+	panel._update_gold_display()
+	panel._show_detail_in_zone("★ %s 已锻造" % d.name)
+	SoundManager.play_select_sound()
+	panel._schedule_build_ui()
+
+
+func _on_forge_action_reroll_dir(inst : ItemInstance):
+	if panel._context.get_gold() < REROLL_DIR_COST:
+		panel._show_buy_failure_message("not_enough_gold"); return
+	if not panel._context.subtract_gold(REROLL_DIR_COST):
+		return
+
+	var old_dir := inst.direction
+	inst.direction = Direction.reroll_direction(inst.direction)
+
+	for i in range(forge_slots.size()):
+		var entry : Variant = forge_slots[i]
+		if entry != null and entry["inst"] == inst:
+			var ou : UnitData = panel.party[entry["origin_unit"]]
+			var os : int = entry["origin_slot"]
+			if os < ou.armor_slots.size() and ou.armor_slots[os] == null:
+				ou.armor_slots[os] = inst
+			else:
+				GameState.pending_forge_rewards.append(inst)
+			forge_slots[i] = null
+			break
+
+	SaveManager.auto_save()
+	panel._sync_all()
+	panel._build_unit_columns()
+	panel._build_pending_slots()
+	panel._update_gold_display()
+	
+	var old_sym := Direction.get_display_symbol(old_dir)
+	var new_sym := Direction.get_display_symbol(inst.direction)
+	panel._show_detail_in_zone("★ 方向已重roll：%s → %s" % [old_sym, new_sym])
+	SoundManager.play_select_sound()
+	panel._schedule_build_ui()
+
+
+func _on_forge_action_multi():
+	var input_insts : Array = []
+	for entry in forge_slots:
+		if entry != null:
+			input_insts.append(entry["inst"])
+
+	if input_insts.size() < 2: return
 	for inst in input_insts:
 		var d : ItemData = ItemManager.get_item_data(inst.item_id)
 		if d and d.no_fusion:
 			panel._show_detail_in_zone("熔铸防具不可加工")
 			return
 
-	# ★ 单件：重铸
-	if input_insts.size() == 1:
-		_do_reforge_single(input_insts[0])
-		return
-
-	# 2 件：熔合优先
 	if input_insts.size() == 2:
 		var fusion : Dictionary = _check_fusion(input_insts)
 		if fusion.get("ok", false):
@@ -514,7 +382,6 @@ func on_forge_craft_pressed():
 			_do_fusion(fusion["product_id"], FUSION_COST)
 			return
 
-	# 配方/随机
 	if panel._context.get_gold() < CRAFT_COST:
 		panel._show_buy_failure_message("not_enough_gold")
 		return
@@ -553,8 +420,7 @@ func on_forge_craft_pressed():
 				target_unit_idx = i
 				target_slot = s
 				break
-		if target_unit_idx >= 0:
-			break
+		if target_unit_idx >= 0: break
 
 	var can_place_in_unit : int = 0
 	if target_unit_idx >= 0:
@@ -595,44 +461,26 @@ func on_forge_craft_pressed():
 
 
 # ============================================================
-#  拖拽合法性
+#  拖拽合法性 & 执行
 # ============================================================
 func is_valid_forge_drop(data: Dictionary, target: Control) -> bool:
 	var src_type : String = data.get("slot_type", "")
 	var tgt_type : String = target.get_meta("slot_type", "")
 
-	# forge_reforge_slot 分支已删除
-
-	if src_type == "weapon" and tgt_type == "weapon":
-		return false
-
-	if src_type == "weapon" and target == panel.discard_zone:
-		return false
-
 	if src_type == "armor" and tgt_type == "forge_slot":
-		var slot_idx : int = target.get_meta("forge_slot_index", -1)
-		if slot_idx < 0: return false
+		var count = 0
+		for entry in forge_slots:
+			if entry != null: count += 1
+		if count >= MAX_SLOTS:
+			return false
+			
 		var uidx2 : int = data.get("unit_idx", -1)
 		var src_slot : int = data.get("slot_idx", -1)
 		if uidx2 < 0 or src_slot < 0: return false
-		if uidx2 >= panel.party.size(): return false
 		var u2 : UnitData = panel.party[uidx2]
 		if u2.is_dead: return false
 		if src_slot >= u2.armor_slots.size(): return false
 		if u2.armor_slots[src_slot] == null: return false
-		var src_inst : ItemInstance = u2.armor_slots[src_slot]
-		var src_data : ItemData = ItemManager.get_item_data(src_inst.item_id)
-		if src_data != null and src_data.no_fusion: return false
-		var existing : Variant = forge_slots[slot_idx]
-		if existing != null:
-			var existing_dict : Dictionary = existing
-			var old_ou_idx : int = existing_dict.get("origin_unit", -1)
-			if old_ou_idx < 0 or old_ou_idx >= panel.party.size(): return false
-			var old_ou : UnitData = panel.party[old_ou_idx]
-			var old_inst : ItemInstance = existing_dict["inst"]
-			var need : int = panel._inst_slots(old_inst)
-			var used : int = panel._used_slots_of(old_ou)
-			if used + need > old_ou.max_armor_slots: return false
 		return true
 
 	if src_type == "armor" and tgt_type == "armor":
@@ -641,34 +489,12 @@ func is_valid_forge_drop(data: Dictionary, target: Control) -> bool:
 	if src_type == "armor" and target == panel.discard_zone:
 		return true
 
-	if src_type == "forge_slot":
-		if tgt_type == "armor":
-			var tu3 : int = target.get_meta("unit_idx", -1)
-			var ts3 : int = target.get_meta("slot_idx", -1)
-			if tu3 < 0 or ts3 < 0: return false
-			if tu3 >= panel.party.size(): return false
-			var unit3 : UnitData = panel.party[tu3]
-			if unit3.is_dead: return false
-			if ts3 >= unit3.armor_slots.size(): return false
-			var idx : int = data.get("forge_slot_index", -1)
-			if idx < 0 or idx >= forge_slots.size(): return false
-			if forge_slots[idx] == null: return false
-			var entry_dict : Dictionary = forge_slots[idx]
-			var inst : ItemInstance = entry_dict["inst"]
-			var need : int = panel._inst_slots(inst)
-			var used : int = panel._used_slots_excluding(unit3, [ts3])
-			return used + need <= unit3.max_armor_slots
-		if tgt_type == "forge_slot":
-			return true
-		if target == panel.discard_zone:
-			return true
-		return false
-
+	if src_type == "forge_slot" and target == panel.discard_zone:
+		return true 
+		
 	return false
 
-# ============================================================
-#  执行 drop
-# ============================================================
+
 func execute_forge_drop(data: Dictionary, target: Control):
 	var src_type : String = data.get("slot_type", "")
 	var tgt_type : String = target.get_meta("slot_type", "")
@@ -678,9 +504,9 @@ func execute_forge_drop(data: Dictionary, target: Control):
 
 	if target == panel.discard_zone:
 		if src_type == "forge_slot":
-			var src_idx : int = data.get("forge_slot_index", -1)
-			if src_idx >= 0 and src_idx < forge_slots.size(): forge_slots[src_idx] = null
-			display_recipe_info(); panel._schedule_build_ui(); return
+			return_all_forge_slots()
+			panel._build_unit_columns()
+			panel._schedule_build_ui(); return
 		if src_type == "armor":
 			var uidx2 : int = data.get("unit_idx", -1)
 			var sidx : int = data.get("slot_idx", -1)
@@ -691,54 +517,99 @@ func execute_forge_drop(data: Dictionary, target: Control):
 			panel._sync_all(); panel._schedule_build_ui(); return
 		return
 
-	if src_type == "forge_slot" and tgt_type == "armor":
-		var from_idx : int = data.get("forge_slot_index", -1)
-		if from_idx < 0 or from_idx >= forge_slots.size(): return
-		var entry : Variant = forge_slots[from_idx]
-		if entry == null: return
-		var entry_dict : Dictionary = entry
-		var tgt_unit : int = target.get_meta("unit_idx", -1)
-		var tgt_slot : int = target.get_meta("slot_idx", -1)
-		if tgt_unit < 0 or tgt_slot < 0: return
-		var tgt_unit_data : UnitData = panel.party[tgt_unit]
-		tgt_unit_data.armor_slots[tgt_slot] = entry_dict["inst"]
-		forge_slots[from_idx] = null
-		panel._build_unit_columns()
-		display_recipe_info(); panel._schedule_build_ui(); return
-
-	if src_type == "forge_slot" and tgt_type == "forge_slot":
-		var from_idx : int = data.get("forge_slot_index", -1)
-		var to_idx : int = target.get_meta("forge_slot_index", -1)
-		if from_idx < 0 or to_idx < 0 or from_idx == to_idx: return
-		var temp : Variant = forge_slots[from_idx]
-		forge_slots[from_idx] = forge_slots[to_idx]
-		forge_slots[to_idx] = temp
-		display_recipe_info(); panel._schedule_build_ui(); return
-
 	if src_type == "armor" and tgt_type == "forge_slot":
-		var slot_idx : int = target.get_meta("forge_slot_index", -1)
-		if slot_idx < 0 or slot_idx >= forge_slots.size(): return
+		var empty_idx = -1
+		for i in range(forge_slots.size()):
+			if forge_slots[i] == null:
+				empty_idx = i
+				break
+				
+		if empty_idx < 0:
+			panel._show_detail_in_zone("最多只能放入 %d 件" % MAX_SLOTS)
+			return
+
 		var uidx : int = data.get("unit_idx", -1)
 		var src_slot : int = data.get("slot_idx", -1)
 		if uidx < 0 or src_slot < 0: return
 		var u : UnitData = panel.party[uidx]
 		var inst : ItemInstance = u.armor_slots[src_slot]
 		if inst == null: return
-		var existing : Variant = forge_slots[slot_idx]
-		if existing != null:
-			var existing_dict : Dictionary = existing
-			var old_ou : UnitData = panel.party[existing_dict["origin_unit"]]
-			if not _return_armor_to_unit(old_ou, existing_dict["inst"], existing_dict["origin_slot"]):
-				panel._show_detail_in_zone("无法替换：原防具无处归还")
-				return
+		
 		u.armor_slots[src_slot] = null
-		forge_slots[slot_idx] = {"inst": inst, "origin_unit": uidx, "origin_slot": src_slot}
+		forge_slots[empty_idx] = {"inst": inst, "origin_unit": uidx, "origin_slot": src_slot}
 		panel._build_unit_columns()
-		display_recipe_info(); panel._schedule_build_ui(); return
+		build_forge_slots()
+		panel._schedule_build_ui()
+		return
+
 
 # ============================================================
-#  合成计算
+#  熔合 / 合成计算（原有逻辑，保持不变）
 # ============================================================
+func _check_fusion(input_insts : Array) -> Dictionary:
+	if input_insts.size() != 2: return {"ok": false}
+	var a : ItemInstance = input_insts[0]
+	var b : ItemInstance = input_insts[1]
+	var da : ItemData = ItemManager.get_item_data(a.item_id)
+	var db : ItemData = ItemManager.get_item_data(b.item_id)
+	if not da or not db: return {"ok": false}
+	if da.no_fusion or db.no_fusion: return {"ok": false}
+	if da.quality != "epic" or db.quality != "epic": return {"ok": false}
+	for tag in da.tags:
+		if tag in db.tags:
+			var product : ItemData = ItemManager.get_fusion_product(tag)
+			if product:
+				return {"ok": true, "tag": tag, "product_id": product.id}
+	return {"ok": false}
+
+func _do_fusion(product_id : String, cost : int):
+	if not panel._context.subtract_gold(cost):
+		panel._show_buy_failure_message("not_enough_gold")
+		return
+
+	for i in range(forge_slots.size()):
+		forge_slots[i] = null
+
+	var out_unit_idx : int = -1
+	var out_slot : int = -1
+	for i in range(panel.party.size()):
+		var pu : UnitData = panel.party[i]
+		if pu.is_dead: continue
+		for s in range(pu.armor_slots.size()):
+			if pu.armor_slots[s] == null:
+				out_unit_idx = i
+				out_slot = s
+				break
+		if out_unit_idx >= 0: break
+
+	if out_unit_idx >= 0:
+		var out_unit : UnitData = panel.party[out_unit_idx]
+		var inst : ItemInstance = ItemManager.create_instance_with_affixes(product_id)
+		if inst == null:
+			inst = ItemInstance.new()
+			inst.item_id = product_id
+			inst.count = 1
+		out_unit.armor_slots[out_slot] = inst
+	else:
+		var inst : ItemInstance = ItemManager.create_instance_with_affixes(product_id)
+		if inst == null:
+			inst = ItemInstance.new()
+			inst.item_id = product_id
+			inst.count = 1
+		GameState.pending_forge_rewards.append(inst)
+
+	forge_matched_recipe = ""
+	SaveManager.auto_save()
+	panel._sync_all()
+	panel._build_unit_columns()
+	panel._build_pending_slots()
+	panel._update_gold_display()
+	var out_data : ItemData = ItemManager.get_item_data(product_id)
+	var name : String = out_data.name if out_data else product_id
+	panel._show_detail_in_zone("★ 熔合成功！\n产出：" + name)
+	panel._schedule_build_ui()
+
+
 func _compute_recipe_result(recipe_id: String) -> Dictionary:
 	var out_data : ItemData = ItemManager.get_item_data(recipe_id)
 	var quality : String = out_data.quality if out_data else "common"
@@ -851,53 +722,9 @@ func _collect_armor_candidates(quality: String, out: Array):
 		out.append(iid)
 
 
-func _get_quality_weights(score: int) -> Array:
-	var weights : Array = CRAFT_QUALITY_TABLE[0][1]
-	for row in CRAFT_QUALITY_TABLE:
-		if score >= row[0]:
-			weights = row[1]
-		else:
-			break
-	return weights
-
-func _do_reforge_single(inst : ItemInstance):
-	var d : ItemData = ItemManager.get_item_data(inst.item_id)
-	if d == null:
-		panel._show_detail_in_zone("未知物品")
-		return
-	if d.no_affix or d.no_fusion:
-		panel._show_detail_in_zone("该装备不可重铸")
-		return
-	if d.quality != "epic":
-		panel._show_detail_in_zone("仅紫装可以重铸")
-		return
-	if panel._context.get_gold() < REFORGE_COST:
-		panel._show_buy_failure_message("not_enough_gold")
-		return
-	if not panel._context.subtract_gold(REFORGE_COST):
-		panel._show_buy_failure_message("not_enough_gold")
-		return
-
-	inst.affixes = AffixManager.roll_affixes(d.quality, d.tags)
-
-	# 归还到原单位原槽（原槽被占则进 pending）
-	for i in range(forge_slots.size()):
-		var entry : Variant = forge_slots[i]
-		if entry != null and entry["inst"] == inst:
-			var ou : UnitData = panel.party[entry["origin_unit"]]
-			var os : int = entry["origin_slot"]
-			if os < ou.armor_slots.size() and ou.armor_slots[os] == null:
-				ou.armor_slots[os] = inst
-			else:
-				GameState.pending_forge_rewards.append(inst)
-			forge_slots[i] = null
-			break
-
-	SaveManager.auto_save()
-	panel._sync_all()
-	panel._build_unit_columns()
-	panel._build_pending_slots()
-	panel._update_gold_display()
-	panel._show_detail_in_zone("★ %s 已重铸" % d.name)
-	SoundManager.play_select_sound()
-	panel._schedule_build_ui()
+func cleanup():
+	var n : Node = panel.right_container.get_node_or_null("ForgeCraftRow")
+	if n:
+		panel.right_container.remove_child(n)
+		n.queue_free()
+	_forge_btn_row = null
