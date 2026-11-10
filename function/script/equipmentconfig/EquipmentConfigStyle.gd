@@ -10,7 +10,7 @@ const FONT_NORMAL = 6
 const FONT_LARGE  = 8
 const FONT_TITLE  = 10
 
-# ★ 统一插槽为 20x20 正方形
+# 统一插槽为 20x20 正方形
 const BTN_ITEM_SIZE = Vector2(20, 20)
 const BTN_TALENT_SIZE = Vector2(20, 20)
 const BTN_SHOP_SIZE = Vector2(20, 20)
@@ -28,8 +28,6 @@ static func create_styled_button(font_size: int, min_size: Vector2) -> Button:
 	btn.custom_minimum_size = min_size
 	btn.focus_mode = Control.FOCUS_NONE
 	btn.mouse_filter = Control.MOUSE_FILTER_STOP
-	
-	# ★ 移除了强制的 StyleBoxEmpty，恢复默认的内边距，保证文字按钮能正常显示
 	return btn
 
 static func create_drag_preview(btn: Button) -> Control:
@@ -38,8 +36,9 @@ static func create_drag_preview(btn: Button) -> Control:
 		tex_rect.texture = btn.icon
 		tex_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		tex_rect.stretch_mode = TextureRect.STRETCH_SCALE 
-		tex_rect.custom_minimum_size = btn.custom_minimum_size
-		tex_rect.size = btn.custom_minimum_size 
+		# ★ 核心修改：强制拖拽预览框为统一大小（20x20），不要跟随源按钮尺寸
+		tex_rect.custom_minimum_size = Vector2(20, 20)
+		tex_rect.size = Vector2(20, 20)
 		tex_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		tex_rect.modulate = btn.get_meta("_original_modulate", Color.WHITE)
 		return tex_rect

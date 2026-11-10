@@ -55,7 +55,7 @@ var shop_scroll: ScrollContainer = null
 @onready var furnace_tab_btn : Button = get_node_or_null("VBoxContainer/MainHBox/RightScroll/RightContainer/TabBar/FurnaceTabBtn")
 
 var _pending_section : VBoxContainer = null
-var _pending_container : HFlowContainer = null
+var _pending_container : GridContainer = null
 
 var _connectivity_groups : Array = []
 var _connected_cells : Dictionary = {}
@@ -78,7 +78,6 @@ func _ready():
 	custom_theme.set_stylebox("panel", "TooltipPanel", tip_sb)
 	theme = custom_theme
 	
-	# ★ 初始化 shop_container 并替换为 HFlowContainer
 	shop_container = get_node_or_null("VBoxContainer/MainHBox/RightScroll/RightContainer/ShopScroll/ShopContainer")
 	shop_scroll = get_node_or_null("VBoxContainer/MainHBox/RightScroll/RightContainer/ShopScroll")
 	
@@ -357,19 +356,31 @@ func _build_ui_inner():
 		left_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		left_vbox.clip_contents = true
 
+	# ★ 核心修复 1：外层右侧区域，绝对禁用滑动条
 	var r_scroll = get_node_or_null("VBoxContainer/MainHBox/RightScroll")
 	if r_scroll and r_scroll is ScrollContainer:
 		r_scroll.custom_minimum_size = Vector2(110, 0) 
 		r_scroll.size_flags_horizontal = Control.SIZE_FILL
-		r_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		r_scroll.size_flags_vertical = Control.SIZE_FILL # ★ 核心修复 2：不要用 EXPAND_FILL，不要让它撑爆外层
 		r_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-		r_scroll.clip_contents = true
+		r_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_NEVER
+		r_scroll.clip_contents = true 
 
 	var r_container = get_node_or_null("VBoxContainer/MainHBox/RightScroll/RightContainer")
 	if r_container:
 		r_container.custom_minimum_size = Vector2(0, 0)
 		r_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		r_container.clip_contents = true
+
+	# ★ 核心修复 2：内层 ShopScroll 绝对禁用滑动条
+	var inner_shop_scroll = get_node_or_null("VBoxContainer/MainHBox/RightScroll/RightContainer/ShopScroll")
+	if inner_shop_scroll and inner_shop_scroll is ScrollContainer:
+		inner_shop_scroll.custom_minimum_size = Vector2(0, 0)
+		inner_shop_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		inner_shop_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		inner_shop_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+		inner_shop_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED # 绝对禁止滚动
+		inner_shop_scroll.clip_contents = true # 超出部分直接裁切
 
 	var t_bar = get_node_or_null("VBoxContainer/MainHBox/RightScroll/RightContainer/TabBar")
 	if t_bar:
@@ -379,13 +390,13 @@ func _build_ui_inner():
 		for child in t_bar.get_children():
 			if child is Button:
 				child.clip_text = true
-				child.custom_minimum_size = Vector2(0, 16)
+				child.custom_minimum_size = Vector2(0, 16) 
 				child.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 				child.add_theme_font_size_override("font_size", 7)
 
 	var d_zone = get_node_or_null("VBoxContainer/MainHBox/RightScroll/RightContainer/DiscardZone")
 	if d_zone:
-		d_zone.custom_minimum_size = Vector2(0, 30)
+		d_zone.custom_minimum_size = Vector2(0, 20) 
 		var lbl = d_zone.get_node_or_null("DiscardLabel")
 		if lbl:
 			lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -399,8 +410,24 @@ func _build_ui_inner():
 	if show_passive:
 		_build_passive_slots()
 
-	_ensure_pending_section()
-	_build_pending_slots()
+	# ★ 核心修复：确保切到商店时，立刻物理删除待领取区，防止延迟 free 导致占位撑爆界面
+	var show_pending : bool = false
+	if current_mode == Mode.FORGE or current_mode == Mode.MAP_SHOP_REST:
+		if current_tab != "arena_shop" and current_tab != "weapon":
+			show_pending = true
+			
+	if show_pending:
+		_ensure_pending_section()
+		_build_pending_slots()
+		if _pending_section:
+			_pending_section.visible = true
+	else:
+		if _pending_section and is_instance_valid(_pending_section):
+			var p = _pending_section.get_parent()
+			if p: p.remove_child(_pending_section) # ★ 立即从父节点拔除，瞬间腾出空间
+			_pending_section.queue_free()
+			_pending_section = null
+			_pending_container = null
 
 	if not mode_label: return
 
@@ -585,7 +612,7 @@ func _build_ui_inner():
 	
 	if reset_btn:
 		reset_btn.add_theme_font_size_override("font_size", Style.FONT_LARGE)
-		reset_btn.custom_minimum_size = Vector2(0, 20) 
+		reset_btn.custom_minimum_size = Vector2(0, 16) 
 		reset_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL 
 		reset_btn.size_flags_vertical = Control.SIZE_SHRINK_END 
 		reset_btn.clip_text = true 
@@ -1014,21 +1041,18 @@ func _ensure_pending_section():
 	_pending_section.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_pending_section.clip_contents = true
 	
-	if discard_zone:
-		var dz_idx : int = discard_zone.get_index()
+	if shop_scroll:
+		var sc_idx : int = shop_scroll.get_index()
 		right_container.add_child(_pending_section)
-		right_container.move_child(_pending_section, dz_idx)
+		right_container.move_child(_pending_section, sc_idx + 1)
 	else:
 		right_container.add_child(_pending_section)
-		right_container.move_child(_pending_section, right_container.get_child_count() - 1)
 
 	var title := Label.new()
 	title.name = "PendingTitle"
 	title.text = "待领取"
 	title.add_theme_font_size_override("font_size", 6)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	title.modulate = Color(1.0, 0.85, 0.3)
 	_pending_section.add_child(title)
 
@@ -1036,18 +1060,20 @@ func _ensure_pending_section():
 	center_wrap.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_pending_section.add_child(center_wrap)
 
-	_pending_container = HFlowContainer.new()
+	_pending_container = GridContainer.new()
 	_pending_container.name = "PendingContainer"
-	_pending_container.add_theme_constant_override("h_separation", 3)
-	_pending_container.add_theme_constant_override("v_separation", 3)
+	_pending_container.columns = 3
+	_pending_container.add_theme_constant_override("h_separation", 4)
+	_pending_container.add_theme_constant_override("v_separation", 4)
 	_pending_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_pending_container.clip_contents = true
-	_pending_container.alignment = FlowContainer.ALIGNMENT_CENTER
 	center_wrap.add_child(_pending_container)
 
 
 func _build_pending_slots():
-	if not _pending_container: return
+	# 如果是商店模式，或者没有容器（已经被销毁），直接跳过，绝对不重建
+	if not _pending_container or not is_instance_valid(_pending_container): 
+		return
+		
 	for child in _pending_container.get_children():
 		_pending_container.remove_child(child)
 		child.free()
@@ -1058,31 +1084,48 @@ func _build_pending_slots():
 	for i in range(GameState.pending_forge_rewards.size()):
 		all_pending.append({"inst": GameState.pending_forge_rewards[i], "idx": i, "src": "forge"})
 
-	if all_pending.is_empty():
-		if _pending_section: _pending_section.visible = false
-		return
-
-	if _pending_section: _pending_section.visible = true
-
 	var title = _pending_section.get_node_or_null("PendingTitle")
 	if title:
 		title.text = "待领取（%d）" % all_pending.size()
 
-	for entry in all_pending:
-		var btn := _create_pending_button(entry["inst"], entry["idx"], entry["src"])
-		_pending_container.add_child(btn)
+	# ★ 强制补齐 6 个格子（3x2 排列）
+	var MAX_SLOTS : int = 6
+	for i in range(MAX_SLOTS):
+		if i < all_pending.size():
+			var entry = all_pending[i]
+			var btn := _create_pending_button(entry["inst"], entry["idx"], entry["src"])
+			_pending_container.add_child(btn)
+		else:
+			# 用透明的空按钮占位，锁死高度
+			var empty_btn : Button = Style.create_styled_button(Style.FONT_SMALL, Style.BTN_ITEM_SIZE)
+			empty_btn.custom_minimum_size = Style.BTN_ITEM_SIZE
+			empty_btn.disabled = true
+			empty_btn.modulate = Color(1, 1, 1, 0) 
+			_pending_container.add_child(empty_btn)
 
 
 func _create_pending_button(inst: ItemInstance, idx: int, src: String) -> Button:
 	var btn : Button = Style.create_styled_button(Style.FONT_SMALL, Style.BTN_ITEM_SIZE)
 	btn.expand_icon = true
-	btn.custom_minimum_size = Vector2(20, 20)
+	btn.custom_minimum_size = Style.BTN_ITEM_SIZE
 	btn.set_meta("slot_type", "pending_reward")
 	btn.set_meta("pending_idx", idx)
 	btn.set_meta("pending_src", src)
 	btn.clip_text = true
 	btn.clip_contents = false
-	
+
+	# ★ 修复：清空内边距，让图标可以占满 20x20，与防具槽位一致
+	var empty_sb := StyleBoxEmpty.new()
+	empty_sb.content_margin_left = 0
+	empty_sb.content_margin_right = 0
+	empty_sb.content_margin_top = 0
+	empty_sb.content_margin_bottom = 0
+	btn.add_theme_stylebox_override("normal", empty_sb)
+	btn.add_theme_stylebox_override("hover", empty_sb)
+	btn.add_theme_stylebox_override("pressed", empty_sb)
+	btn.add_theme_stylebox_override("focus", empty_sb)
+	btn.add_theme_stylebox_override("disabled", empty_sb)
+
 	if inst:
 		var data : ItemData = ItemManager.get_item_data(inst.item_id)
 		if data and data.icon:
@@ -1092,7 +1135,7 @@ func _create_pending_button(inst: ItemInstance, idx: int, src: String) -> Button
 			btn.text = data.name if data else inst.item_id
 			
 		btn.set_meta("item_id", inst.item_id)
-		btn.modulate = Color.WHITE # 移除紫光遮罩
+		btn.modulate = Color.WHITE 
 		
 		if inst.direction != Direction.Value.NONE:
 			_draw_direction_badges(btn, inst.direction)
@@ -1106,6 +1149,7 @@ func _create_pending_button(inst: ItemInstance, idx: int, src: String) -> Button
 func _build_sacrifice_panel():
 	_clear_container(shop_container)
 	shop_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	shop_container.size_flags_vertical = Control.SIZE_EXPAND_FILL
 
 	if GameState.has_pending_sacrifice_rewards():
 		var hint := Label.new()
@@ -1117,19 +1161,24 @@ func _build_sacrifice_panel():
 		hint.modulate = Color(1.0, 0.85, 0.3)
 		shop_container.add_child(hint)
 		return
+	
+	var main_vbox = VBoxContainer.new()
+	main_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	main_vbox.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	main_vbox.add_theme_constant_override("separation", 4) # 间距改小
+	main_vbox.alignment = BoxContainer.ALIGNMENT_CENTER
+	shop_container.add_child(main_vbox)
 
 	var title := Label.new()
 	title.text = "熔铸一个单位\n获得该职业专属 buff 防具"
 	title.add_theme_font_size_override("font_size", 8)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	shop_container.add_child(title)
-	
-	# ★ 拖拽接收区
+	main_vbox.add_child(title)
+
 	var drop_zone := PanelContainer.new()
 	drop_zone.name = "SacrificeDropZone"
-	drop_zone.custom_minimum_size = Vector2(0, 60)
+	drop_zone.custom_minimum_size = Vector2(0, 35) # ★ 核心修改：从 70 改为 35
 	drop_zone.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	
 	var stylebox := StyleBoxFlat.new()
@@ -1139,24 +1188,20 @@ func _build_sacrifice_panel():
 	drop_zone.add_theme_stylebox_override("panel", stylebox)
 	
 	var drop_lbl := Label.new()
-	drop_lbl.text = "将左侧单位拖拽至此\n确认熔铸"
+	drop_lbl.text = "拖拽单位至此确认熔铸"
 	drop_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	drop_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	drop_lbl.add_theme_font_size_override("font_size", 7)
 	drop_lbl.modulate = Color(0.7, 0.8, 0.9)
 	drop_zone.add_child(drop_lbl)
-	
-	shop_container.add_child(drop_zone)
+	main_vbox.add_child(drop_zone)
 
 	var warn := Label.new()
-	warn.text = "⚠ 熔铸第 3 个单位将导致全灭，本局结束"
+	warn.text = "⚠ 熔铸第 3 个单位将导致全灭"
 	warn.add_theme_font_size_override("font_size", 6)
 	warn.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	warn.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	warn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	warn.modulate = Color(1.0, 0.5, 0.5)
-	shop_container.add_child(warn)
-
+	main_vbox.add_child(warn)
 
 func _on_open_sacrifice_ui():
 	pass
@@ -1535,6 +1580,7 @@ func _create_passive_button(inst: Variant, slot_index: int) -> Button:
 		else:
 			btn.text = "✦ " + ad.get("name", aid)
 		btn.set_meta("item_id", "")
+		btn.set_meta("aura_id", aid) 
 		btn.modulate = Color(0.7, 0.9, 1.0)
 	else:
 		btn.text = "空"
@@ -1922,6 +1968,7 @@ func _copy_party_data():
 	
 	_ensure_armor_directions()
 
+
 func _ensure_armor_directions():
 	for u in party:
 		for slot in u.armor_slots:
@@ -2009,6 +2056,7 @@ static func _clone_talent_array(src: Array) -> Array:
 	for s in src: out.append(_clone_talent_inst(s))
 	return out
 
+
 func _switch_tab(tab: String):
 	SoundManager.play_select_sound()
 	
@@ -2029,6 +2077,26 @@ func _switch_tab(tab: String):
 	var is_forge_tab : bool = (tab == "arena_forge")
 	if not is_forge_tab:
 		_forge.cleanup()
+		
+	# ★ 核心修复 1：切换页签时，立刻销毁或重建待领取区，防止串台
+	var show_pending : bool = false
+	if current_mode == Mode.FORGE or is_shop_rest_mode():
+		if tab != "arena_shop" and tab != "weapon":
+			show_pending = true
+			
+	if show_pending:
+		_ensure_pending_section()
+		_build_pending_slots()
+		if _pending_section:
+			_pending_section.visible = true
+	else:
+		if _pending_section and is_instance_valid(_pending_section):
+			var p = _pending_section.get_parent()
+			if p: p.remove_child(_pending_section)
+			_pending_section.queue_free()
+			_pending_section = null
+			_pending_container = null
+
 	match tab:
 		"weapon": _shop.build_weapon_grid(shop_container)
 		"talent": _talent.build_talent_grid(shop_container)
@@ -2268,9 +2336,9 @@ func _ensure_upgrade_shop_btn():
 		return
 	if not reset_btn: return
 
-	_upgrade_shop_btn = Style.create_styled_button(Style.FONT_LARGE, Vector2(100, 20))
+	_upgrade_shop_btn = Style.create_styled_button(Style.FONT_LARGE, Vector2(100, 16)) # ★ 高度减小
 	_upgrade_shop_btn.name = "UpgradeShopBtn" 
-	_upgrade_shop_btn.custom_minimum_size = Vector2(0, 20) 
+	_upgrade_shop_btn.custom_minimum_size = Vector2(0, 16) # ★ 高度减小
 	_upgrade_shop_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_upgrade_shop_btn.size_flags_vertical = Control.SIZE_SHRINK_END 
 	_upgrade_shop_btn.clip_text = true

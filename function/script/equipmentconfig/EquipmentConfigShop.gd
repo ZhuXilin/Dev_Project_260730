@@ -16,7 +16,6 @@ func _init(p):
 func build_shop_items():
 	if not panel.shop_manager: return
 
-	# ---- 1. 清理铁匠铺残留 ----
 	var forge_nodes : Array = [
 		"ForgeCraftRow", "ForgeUpgradeLabel", "ForgeUpgradeBtn",
 		"ForgeUpgradeSpacer1", "ForgeUpgradeSpacer2",
@@ -28,35 +27,40 @@ func build_shop_items():
 			panel.right_container.remove_child(old)
 			old.queue_free()
 
-	# ---- 2. 重置 ShopScroll ----
+	# ★ 核心修复：强制关死 ShopScroll 的滚动功能，只留裁切
 	if panel.shop_scroll:
 		panel.shop_scroll.custom_minimum_size = Vector2.ZERO
 		panel.shop_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		panel.shop_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-		panel.shop_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+		panel.shop_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+		panel.shop_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 		panel.shop_scroll.scroll_vertical = 0
 		panel.shop_scroll.scroll_horizontal = 0
+		panel.shop_scroll.clip_contents = true
 
-	# ---- 3. 清空 shop_container ----
 	if panel.shop_container:
 		for child in panel.shop_container.get_children():
 			panel.shop_container.remove_child(child)
 			child.free()
 
-	# ---- 4. 重置容器属性 ----
-	panel.shop_container.add_theme_constant_override("h_separation", 4)
-	panel.shop_container.add_theme_constant_override("v_separation", 4)
+	panel.shop_container.add_theme_constant_override("h_separation", 0)
+	panel.shop_container.add_theme_constant_override("v_separation", 0)
 	panel.shop_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	panel.shop_container.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	panel.shop_container.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	panel.shop_container.visible = true
 
-	# ---- 5. 防具区（内嵌 HFlow 独占一行）----
-	var armor_flow = HFlowContainer.new()
-	armor_flow.alignment = FlowContainer.ALIGNMENT_CENTER
-	armor_flow.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	armor_flow.add_theme_constant_override("h_separation", 4)
-	armor_flow.add_theme_constant_override("v_separation", 4)
-	panel.shop_container.add_child(armor_flow)
+	var main_vbox = VBoxContainer.new()
+	main_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	main_vbox.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	main_vbox.add_theme_constant_override("separation", 6)
+	panel.shop_container.add_child(main_vbox)
+
+	var armor_grid = GridContainer.new()
+	armor_grid.columns = 3
+	armor_grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	armor_grid.add_theme_constant_override("h_separation", 6)
+	armor_grid.add_theme_constant_override("v_separation", 6)
+	main_vbox.add_child(armor_grid)
 
 	var items : Array = panel.shop_manager.get_shop_items()
 	for i in range(items.size()):
@@ -112,42 +116,31 @@ func build_shop_items():
 			btn.set_meta("slot_type", "")
 			btn.set_meta("shop_index", i)
 			
-		armor_flow.add_child(btn)
+		armor_grid.add_child(btn)
 
-	# ---- 6. 追加光环售卖区（分上下行）----
+	var spacer = Control.new()
+	spacer.custom_minimum_size = Vector2(0, 4)
+	main_vbox.add_child(spacer)
+
 	if panel._context.get_context_id() != "arena":
 		var candidates : Array = GameState.current_aura_candidates.duplicate()
 		if not candidates.is_empty():
-			# 间隙占位，强制撑满整行引发换行
-			var spacer = Control.new()
-			spacer.custom_minimum_size = Vector2(0, 10)
-			spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-			panel.shop_container.add_child(spacer)
-
-			# 光环区
-			var aura_flow = HFlowContainer.new()
-			aura_flow.alignment = FlowContainer.ALIGNMENT_CENTER
-			aura_flow.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-			aura_flow.add_theme_constant_override("h_separation", 4)
-			aura_flow.add_theme_constant_override("v_separation", 4)
-			panel.shop_container.add_child(aura_flow)
+			var aura_grid = GridContainer.new()
+			aura_grid.columns = 3
+			aura_grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			aura_grid.add_theme_constant_override("h_separation", 6)
+			aura_grid.add_theme_constant_override("v_separation", 6)
+			main_vbox.add_child(aura_grid)
 
 			for aid in candidates:
 				var aura_btn : Button = panel._make_aura_icon_btn(aid, SoulFireManager.current, false, panel._get_first_empty_passive_slot())
-				aura_flow.add_child(aura_btn)
+				aura_grid.add_child(aura_btn)
 
-	# ---- 7. 强制重排 ----
 	if panel.shop_container:
 		panel.shop_container.queue_sort()
 		panel.shop_container.call_deferred("queue_sort")
-	if panel.shop_scroll:
-		panel.shop_scroll.queue_sort()
-		panel.shop_scroll.call_deferred("queue_sort")
 
 
-# ============================================================
-#  武器库 / 精炼库网格
-# ============================================================
 func build_weapon_grid(container: Container):
 	for child in container.get_children(): container.remove_child(child); child.free()
 	for item_id in Globals.unlocked_items:
@@ -168,9 +161,6 @@ func build_weapon_grid(container: Container):
 			container.add_child(btn)
 
 
-# ============================================================
-#  商店购买
-# ============================================================
 func buy_shop_item(data: Dictionary, target: Control):
 	if target == null: return
 	if not panel.shop_manager: return
@@ -221,9 +211,6 @@ func buy_shop_item(data: Dictionary, target: Control):
 	panel._schedule_build_ui()
 
 
-# ============================================================
-#  交换
-# ============================================================
 func swap_armor(data: Dictionary, target: Control):
 	var src_unit : int = data["unit_idx"]
 	var src_slot : int = data["slot_idx"]
@@ -239,9 +226,6 @@ func swap_armor(data: Dictionary, target: Control):
 	panel._sync_all(); panel._schedule_build_ui()
 
 
-# ============================================================
-#  商店刷新 / 清空插槽
-# ============================================================
 func on_reset_shop_pressed():
 	if panel.current_tab == "arena_forge":
 		if panel.current_mode == panel.Mode.FORGE or panel._is_shop_rest_mode():

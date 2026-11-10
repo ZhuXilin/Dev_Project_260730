@@ -68,27 +68,34 @@ func build_forge_slots():
 	_forge_btn_row = null
 	panel._clear_container(panel.shop_container)
 
-	# HFlowContainer 不需要 columns
 	panel.shop_container.visible = true
 	panel.shop_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	panel.shop_container.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	panel.shop_container.size_flags_vertical = Control.SIZE_EXPAND_FILL
 
+	# ★ 核心修复：强制关死 ShopScroll 的滚动功能，只留裁切
 	if panel.shop_scroll:
 		panel.shop_scroll.custom_minimum_size = Vector2.ZERO
 		panel.shop_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 		panel.shop_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		panel.shop_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
-		panel.shop_scroll.scroll_vertical = 0
+		panel.shop_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 		panel.shop_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+		panel.shop_scroll.scroll_vertical = 0
+		panel.shop_scroll.clip_contents = true
+
+	var wrap_vbox = VBoxContainer.new()
+	wrap_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	wrap_vbox.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	wrap_vbox.alignment = BoxContainer.ALIGNMENT_CENTER
+	panel.shop_container.add_child(wrap_vbox)
 
 	var center_wrap = CenterContainer.new()
 	center_wrap.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	center_wrap.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
-	center_wrap.custom_minimum_size = Vector2(0, 46)
-	panel.shop_container.add_child(center_wrap)
+	center_wrap.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	center_wrap.custom_minimum_size = Vector2(0, 40) # ★ 缩小原本的 120 高度，定死
+	wrap_vbox.add_child(center_wrap)
 
-	var stack_btn : Button = Style.create_styled_button(Style.FONT_SMALL, Vector2(40, 40))
-	stack_btn.custom_minimum_size = Vector2(40, 40)
+	var stack_btn : Button = Style.create_styled_button(Style.FONT_SMALL, Vector2(32, 32))
+	stack_btn.custom_minimum_size = Vector2(32, 32)
 	stack_btn.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	stack_btn.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	stack_btn.expand_icon = false 
@@ -100,15 +107,15 @@ func build_forge_slots():
 		if entry != null: count += 1
 			
 	if count > 0:
-		stack_btn.text = "已放入\n%d件" % count
-		stack_btn.add_theme_font_size_override("font_size", 7)
+		stack_btn.text = "已放\n%d件" % count
+		stack_btn.add_theme_font_size_override("font_size", 6)
 		stack_btn.modulate = Color(1.0, 0.8, 0.4) 
 	else:
 		stack_btn.text = "放入\n防具"
-		stack_btn.add_theme_font_size_override("font_size", 7)
+		stack_btn.add_theme_font_size_override("font_size", 6)
 		stack_btn.modulate = Color(0.6, 0.6, 0.6)
 
-	panel.shop_container.add_child(stack_btn)
+	center_wrap.add_child(stack_btn)
 
 	_ensure_forge_craft_row()
 	_refresh_forge_action_btns()
@@ -147,12 +154,8 @@ func _refresh_forge_action_btns():
 		if entry != null:
 			input_insts.append(entry["inst"])
 
+	# ★ 核心修改：直接返回，不要输出任何文字
 	if input_insts.is_empty():
-		var hint := Label.new()
-		hint.text = "放入防具"
-		hint.add_theme_font_size_override("font_size", 7)
-		hint.modulate = Color(0.5, 0.5, 0.5)
-		_forge_btn_row.add_child(hint)
 		return
 
 	var clear_btn := Style.create_styled_button(Style.FONT_SMALL, Style.BTN_ITEM_SIZE)
@@ -167,17 +170,19 @@ func _refresh_forge_action_btns():
 		var d : ItemData = ItemManager.get_item_data(inst.item_id)
 		if d == null: return
 		
-		if not d.no_affix and d.quality == "epic":
+		# ★ 修改点：只要不是特殊不可附魔防具，都显示“锻造”按钮
+		if not d.no_affix:
 			var forge_btn := Style.create_styled_button(Style.FONT_SMALL, Style.BTN_ITEM_SIZE)
 			forge_btn.clip_text = true
 			forge_btn.custom_minimum_size = Vector2(45, 16)
-			forge_btn.text = "重铸 (%dG)" % REFORGE_COST
+			forge_btn.text = "锻造 (%dG)" % REFORGE_COST
 			var can_afford : bool = panel._context.get_gold() >= REFORGE_COST
 			forge_btn.disabled = not can_afford
 			forge_btn.modulate = Color(0.8, 0.6, 1.0) if can_afford else Color(0.5, 0.5, 0.5)
 			forge_btn.pressed.connect(_on_forge_action_single.bind(inst))
 			_forge_btn_row.add_child(forge_btn)
 			
+		# ★ 修改点：只有带箭头的防具才显示“调整”按钮
 		if inst.direction != Direction.Value.NONE:
 			var dir_btn := Style.create_styled_button(Style.FONT_SMALL, Style.BTN_ITEM_SIZE)
 			dir_btn.clip_text = true
@@ -192,13 +197,13 @@ func _refresh_forge_action_btns():
 		return
 
 	var cost : int = CRAFT_COST
-	var txt : String = "重铸 (%dG)" % cost
+	var txt : String = "锻造 (%dG)" % cost
 	
 	if input_insts.size() == 2:
 		var fusion : Dictionary = _check_fusion(input_insts)
 		if fusion.get("ok", false):
 			cost = FUSION_COST
-			txt = "重铸:熔合(%dG)" % cost
+			txt = "锻造:熔合(%dG)" % cost
 			
 	var craft_btn := Style.create_styled_button(Style.FONT_SMALL, Style.BTN_ITEM_SIZE)
 	craft_btn.clip_text = true
@@ -223,7 +228,7 @@ func _on_forge_action_single(inst : ItemInstance):
 	var d = ItemManager.get_item_data(inst.item_id)
 	inst.affixes = AffixManager.roll_affixes(d.quality, d.tags)
 
-	# ★ 直接进待领取区
+	# 直接进待领取区
 	GameState.pending_forge_rewards.append(inst)
 	for i in range(forge_slots.size()):
 		var entry : Variant = forge_slots[i]
@@ -236,7 +241,7 @@ func _on_forge_action_single(inst : ItemInstance):
 	panel._build_unit_columns()
 	panel._build_pending_slots()
 	panel._update_gold_display()
-	panel._show_detail_in_zone("★ %s 已重铸\n（请在上方领取）" % d.name)
+	panel._show_detail_in_zone("★ %s 已锻造\n（请在上方领取）" % d.name)
 	SoundManager.play_select_sound()
 	panel._schedule_build_ui()
 
@@ -250,7 +255,7 @@ func _on_forge_action_reroll_dir(inst : ItemInstance):
 	var old_dir := inst.direction
 	inst.direction = Direction.reroll_direction(inst.direction)
 
-	# ★ 直接进待领取区
+	# 直接进待领取区
 	GameState.pending_forge_rewards.append(inst)
 	for i in range(forge_slots.size()):
 		var entry : Variant = forge_slots[i]
@@ -321,7 +326,7 @@ func _on_forge_action_multi():
 	for i in range(forge_slots.size()):
 		forge_slots[i] = null
 
-	# ★ 修复：重铸产物全部放入待领取区，不再优先放入单位
+	# 重铸产物全部放入待领取区，不再优先放入单位
 	for item_id in out_ids:
 		var inst : ItemInstance = ItemManager.create_instance_with_affixes(item_id)
 		if inst == null:
@@ -365,7 +370,6 @@ func return_all_forge_slots() -> int:
 		if entry == null: continue
 		var entry_dict : Dictionary = entry
 		
-		# ★ 如果来自待领取，直接退还到待领取区
 		if entry_dict["origin_unit"] == -1:
 			GameState.pending_forge_rewards.append(entry_dict["inst"])
 			forge_slots[i] = null
@@ -406,6 +410,25 @@ func on_forge_clear_pressed():
 func is_valid_forge_drop(data: Dictionary, target: Control) -> bool:
 	var src_type : String = data.get("slot_type", "")
 	var tgt_type : String = target.get_meta("slot_type", "")
+
+	# ★ 新增：待领取防具 → 合成槽（允许再次合成）
+	if src_type == "pending_reward" and tgt_type == "forge_slot":
+		var count = 0
+		for entry in forge_slots:
+			if entry != null: count += 1
+		if count >= MAX_SLOTS:
+			return false
+		var pending_idx : int = data.get("pending_idx", -1)
+		var pending_src : String = data.get("pending_src", "sacrifice")
+		var list : Array = (GameState.pending_sacrifice_rewards if pending_src == "sacrifice" else GameState.pending_forge_rewards)
+		if pending_idx < 0 or pending_idx >= list.size(): return false
+		var inst : ItemInstance = list[pending_idx]
+		if inst == null: return false
+		var idata : ItemData = ItemManager.get_item_data(inst.item_id)
+		if idata == null: return false
+		if idata.type != "armor": return false
+		if idata.no_fusion: return false
+		return true
 
 	if src_type == "armor" and tgt_type == "forge_slot":
 		var count = 0

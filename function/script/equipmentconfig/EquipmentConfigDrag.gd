@@ -5,7 +5,7 @@ const Style = preload("res://function/script/equipmentconfig/EquipmentConfigStyl
 
 var panel = null
 var is_dragging : bool = false
-var drag_source : Control = null # 改为 Control 以支持单位图标
+var drag_source : Control = null 
 var drag_meta : Dictionary = {}
 var drag_preview : Control = null
 var drag_grab_offset : Vector2 = Vector2.ZERO
@@ -23,7 +23,6 @@ func start_drag(btn: Control):
 	if btn is Button and btn.disabled: return
 	var slot_type : String = btn.get_meta("slot_type", "")
 	
-	# ★ 拦截武器相关拖拽
 	if slot_type == "weapon" or slot_type == "library_weapon":
 		return
 		
@@ -32,23 +31,21 @@ func start_drag(btn: Control):
 	var item_id : String = btn.get_meta("item_id", "")
 	var talent_id : String = btn.get_meta("talent_id", "")
 	var refine_id : String = btn.get_meta("refine_id", "")
+	var aura_id : String = btn.get_meta("aura_id", "") # ★ 新增获取光环ID
 	
-	# ★ 单位图标拖拽
 	if slot_type == "unit_icon":
 		drag_source = btn
 		drag_meta = {
 			"slot_type": slot_type,
 			"unit_idx": btn.get_meta("unit_idx", -1),
 			"source_control": btn,
-			"col_node": btn.get_parent() # 记录整列，以便生成整列预览
+			"col_node": btn.get_parent()
 		}
-		# 抓取偏移基于整列的左上角，这样拖拽时鼠标能对上整列
 		var col : Control = drag_meta["col_node"]
 		drag_grab_offset = panel.get_global_mouse_position() - col.global_position
 		_begin_dragging()
 		return
 
-	# ★ 光环拖拽
 	if slot_type in ["aura_shop", "aura_equipped"]:
 		drag_source = btn
 		drag_meta = {
@@ -61,13 +58,17 @@ func start_drag(btn: Control):
 		drag_grab_offset = panel.get_global_mouse_position() - btn_rect2.position
 		_begin_dragging()
 		return
-		
-	if slot_type == "passive_slot" and item_id == "" and refine_id == "": return
-	if slot_type in ["library_talent", "talent"] and talent_id == "": return
-	if slot_type == "shop_item" and item_id == "": return
-	if slot_type == "forge_slot" and item_id == "": return
-	if slot_type == "armor" and item_id == "": return
-	if slot_type == "pending_reward" and item_id == "": return
+
+	# ★ 核心修改：如果是被动槽（passive_slot），只要不是全空就允许拖拽
+	if slot_type == "passive_slot":
+		if item_id == "" and refine_id == "" and aura_id == "":
+			return
+	else:
+		if slot_type == "library_talent" and talent_id == "": return
+		if slot_type == "shop_item" and item_id == "": return
+		if slot_type == "forge_slot" and item_id == "": return
+		if slot_type == "armor" and item_id == "": return
+		if slot_type == "pending_reward" and item_id == "": return
 
 	drag_source = btn
 	drag_meta = {
@@ -83,9 +84,9 @@ func start_drag(btn: Control):
 		"forge_slot_index": btn.get_meta("forge_slot_index", -1),
 		"pending_idx": btn.get_meta("pending_idx", -1),
 		"pending_src": btn.get_meta("pending_src", ""),
+		"aura_id": aura_id, # ★ 存入 drag_meta
 	}
 	
-	# ★ 修复：如果拖拽的是商店物品，记录它的方向，防止购买时节点被释放导致读不到
 	if slot_type == "shop_item":
 		drag_meta["shop_direction"] = btn.get_meta("shop_direction", 0)
 		
@@ -117,7 +118,6 @@ func _begin_dragging():
 		var col : Control = drag_meta.get("col_node")
 		var u_idx : int = drag_meta.get("unit_idx", -1)
 		if col and u_idx >= 0 and u_idx < panel.party.size():
-			# ★ 直接复用原版的列生成，生成完美预览
 			drag_preview = panel._create_unit_column(u_idx, true)
 			drag_preview.custom_minimum_size = col.size
 			drag_preview.size = col.size
@@ -126,11 +126,9 @@ func _begin_dragging():
 			if canvas and canvas is CanvasLayer: canvas.add_child(drag_preview)
 			else: panel.add_child(drag_preview)
 			
-			# ★ 修复占位塌陷：改变透明度而不是隐藏，保住原有布局空间
 			btn.set_meta("_original_modulate", col.modulate)
 			col.modulate = Color(1, 1, 1, 0.15)
 	else:
-		# 原有普通拖拽逻辑
 		var btn_as_button := btn as Button
 		if btn_as_button:
 			drag_preview = Style.create_drag_preview(btn_as_button)
@@ -176,7 +174,6 @@ func end_drag():
 	var drop_data : Dictionary = drag_meta.duplicate()
 	var source_type : String = drop_data.get("slot_type", "")
 	
-	# 清理拖拽视觉
 	if drag_preview: drag_preview.queue_free(); drag_preview = null
 	is_dragging = false
 	_reset_targets_visuals()
@@ -239,7 +236,7 @@ func _hint_shop_purchase_failed(data: Dictionary, target: Control) -> void:
 
 
 # ============================================================
-#  目标收集（按优先级从"具体"到"一般"）
+#  目标收集
 # ============================================================
 func _collect_targets() -> Array:
 	var targets : Array = []
@@ -250,37 +247,40 @@ func _collect_targets() -> Array:
 	if panel.unit_container:
 		_collect_controls_recursive(panel.unit_container, targets)
 
-	# ---- 3. 被动槽 ----
 	if panel.relic_container:
 		for btn in panel.relic_container.get_children():
 			if btn is Button:
 				targets.append(btn)
 
-	# ---- 4. 待领取区 ----
 	if panel._pending_container and panel._pending_section and panel._pending_section.visible:
 		for btn in panel._pending_container.get_children():
 			if btn is Button:
 				targets.append(btn)
 
-	# ---- 5. 商店容器（一般目标）----
+	# ★ 核心修复：递归收集商店容器内的所有按钮（不管嵌套多深）
 	if panel.shop_container and panel.shop_container.visible:
-		for btn in panel.shop_container.get_children():
-			if btn is Button:
-				targets.append(btn)
+		_collect_buttons_recursive(panel.shop_container, targets)
 
+	# ★ 核心修复：熔铸拖拽目标也通过深度查找
 	if panel.current_tab == "sacrifice" and panel.shop_container and panel.shop_container.visible:
-		var dz = panel.shop_container.get_node_or_null("SacrificeDropZone")
+		var dz = panel.shop_container.find_child("SacrificeDropZone", true, false)
 		if dz: 
 			targets.append(dz)
 
 	return targets
 
-# ★ 新增：递归收集子节点
 func _collect_controls_recursive(node: Node, out: Array):
 	if node is Control and (node is Button or node.get_meta("slot_type", "") == "unit_icon"):
 		out.append(node)
 	for child in node.get_children():
 		_collect_controls_recursive(child, out)
+
+# ★ 新增：只收集 Button 的递归函数
+func _collect_buttons_recursive(node: Node, out: Array):
+	if node is Button and not node.disabled:
+		out.append(node)
+	for child in node.get_children():
+		_collect_buttons_recursive(child, out)
 
 
 # ============================================================
@@ -301,14 +301,17 @@ func _get_all_target_controls() -> Array[Control]:
 			if btn is Button: targets.append(btn)
 			
 	if (panel.current_mode == panel.Mode.DEPLOY or panel.current_mode == panel.Mode.MAP) and panel.shop_container.visible:
-		for btn in panel.shop_container.get_children():
-			if btn is Button and not btn.disabled: targets.append(btn)
-			
+		_collect_buttons_recursive(panel.shop_container, targets)
+		
 	if panel._is_shop_rest_mode() and panel.current_tab == "arena_shop" and panel.shop_container.visible:
-		for btn in panel.shop_container.get_children():
-			if btn is Button and not btn.disabled: targets.append(btn)
-			
+		_collect_buttons_recursive(panel.shop_container, targets)
+		
 	if panel.discard_zone.visible: targets.append(panel.discard_zone)
+	
+	if panel.current_tab == "sacrifice" and panel.shop_container and panel.shop_container.visible:
+		var dz = panel.shop_container.find_child("SacrificeDropZone", true, false)
+		if dz: targets.append(dz)
+		
 	return targets
 
 
