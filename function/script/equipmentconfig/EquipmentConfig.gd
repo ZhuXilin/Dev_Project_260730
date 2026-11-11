@@ -1048,13 +1048,14 @@ func _ensure_pending_section():
 	else:
 		right_container.add_child(_pending_section)
 
-	var title := Label.new()
-	title.name = "PendingTitle"
-	title.text = "待领取"
-	title.add_theme_font_size_override("font_size", 6)
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.modulate = Color(1.0, 0.85, 0.3)
-	_pending_section.add_child(title)
+	# ★ 核心修改：将标题改为按钮
+	var btn_claim := Style.create_styled_button(Style.FONT_SMALL, Vector2(0, 16))
+	btn_claim.name = "PendingTitleBtn"
+	btn_claim.text = "一键领取 (0)"
+	btn_claim.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	btn_claim.add_theme_color_override("font_color", Color(1.0, 0.85, 0.3))
+	btn_claim.pressed.connect(_on_claim_all_pending)
+	_pending_section.add_child(btn_claim)
 
 	var center_wrap := CenterContainer.new()
 	center_wrap.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -1070,7 +1071,6 @@ func _ensure_pending_section():
 
 
 func _build_pending_slots():
-	# 如果是商店模式，或者没有容器（已经被销毁），直接跳过，绝对不重建
 	if not _pending_container or not is_instance_valid(_pending_container): 
 		return
 		
@@ -1084,11 +1084,12 @@ func _build_pending_slots():
 	for i in range(GameState.pending_forge_rewards.size()):
 		all_pending.append({"inst": GameState.pending_forge_rewards[i], "idx": i, "src": "forge"})
 
-	var title = _pending_section.get_node_or_null("PendingTitle")
-	if title:
-		title.text = "待领取（%d）" % all_pending.size()
+	# ★ 更新按钮状态
+	var title_btn = _pending_section.get_node_or_null("PendingTitleBtn")
+	if title_btn:
+		title_btn.text = "一键领取 (%d)" % all_pending.size()
+		title_btn.disabled = all_pending.is_empty()
 
-	# ★ 强制补齐 6 个格子（3x2 排列）
 	var MAX_SLOTS : int = 6
 	for i in range(MAX_SLOTS):
 		if i < all_pending.size():
@@ -1096,7 +1097,6 @@ func _build_pending_slots():
 			var btn := _create_pending_button(entry["inst"], entry["idx"], entry["src"])
 			_pending_container.add_child(btn)
 		else:
-			# 用透明的空按钮占位，锁死高度
 			var empty_btn : Button = Style.create_styled_button(Style.FONT_SMALL, Style.BTN_ITEM_SIZE)
 			empty_btn.custom_minimum_size = Style.BTN_ITEM_SIZE
 			empty_btn.disabled = true
@@ -1277,18 +1277,27 @@ func _equip_pending_reward(data: Dictionary, target: Control):
 		if item_data.type != "armor": return
 		var slot_idx : int = target.get_meta("slot_idx", -1)
 		if slot_idx < 0 or slot_idx >= u.armor_slots.size(): return
+		
+		# ★ 新增：处理被覆盖的旧装备
+		var old_inst : ItemInstance = u.armor_slots[slot_idx]
+		if old_inst:
+			var old_data = ItemManager.get_item_data(old_inst.item_id)
+			if old_data and not old_data.no_sell:
+				var sell_price = old_inst.get_sell_price()
+				_context.add_gold(sell_price)
+				_show_detail_in_zone("替换下旧防具，自动折算 %d 金币" % sell_price)
+				
 		u.armor_slots[slot_idx] = inst
 	else:
 		return
 
 	list.erase(inst)
-
 	SaveManager.auto_save()
 
 	_build_unit_columns()
 	_build_pending_slots()
 	_sync_all()
-	_show_detail_in_zone("已装备：%s → %s" % [item_data.name, u.display_name])
+	_update_gold_display()
 
 	if current_tab == "sacrifice" and shop_container and shop_container.visible:
 		_build_sacrifice_panel()
@@ -1306,6 +1315,14 @@ func _discard_pending_reward(data: Dictionary):
 	if idata != null and idata.no_sell:
 		_show_detail_in_zone("熔铸防具不可丢弃，请装备到单位防具槽")
 		return
+	
+	# ★ 新增：折算金币
+	var sell_price = inst.get_sell_price()
+	if sell_price > 0:
+		_context.add_gold(sell_price)
+		_update_gold_display()
+		_show_detail_in_zone("已出售 %s，获得 %d 金币" % [idata.name if idata else inst.item_id, sell_price])
+
 	list.erase(inst)
 	SaveManager.auto_save()
 	_build_pending_slots()
@@ -2741,3 +2758,86 @@ func _show_auto_config_result_dialog(options: Array, allow_swap: bool):
 	cancel_btn.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	cancel_btn.pressed.connect(func(): overlay.queue_free())
 	vbox.add_child(cancel_btn)
+
+
+func _on_claim_all_pending():
+	var all_pending : Array = []
+	for inst in GameState.pending_sacrifice_rewards:
+		all_pending.append({"inst": inst, "src": "sacrifice"})
+	for inst in GameState.pending_forge_rewards:
+		all_pending.append({"inst": inst, "src": "forge"})
+
+	if all_pending.is_empty(): return
+
+	var sold_gold = 0
+
+	for entry in all_pending:
+		var inst : ItemInstance = entry["inst"]
+		var data : ItemData = ItemManager.get_item_data(inst.item_id)
+		if not data: continue
+		
+		var new_price = inst.get_sell_price()
+		var placed = false
+
+		# 1. 优先找全队的空槽位
+		for u in party:
+			if u.is_dead: continue
+			for i in range(u.armor_slots.size()):
+				if u.armor_slots[i] == null:
+					u.armor_slots[i] = inst
+					placed = true
+					break
+			if placed: break
+
+		# 2. 如果没有空槽，找全队“可替换且价值最低”的防具
+		if not placed:
+			var worst_u : UnitData = null
+			var worst_idx : int = -1
+			var worst_price : int = 999999
+
+			for u in party:
+				if u.is_dead: continue
+				for i in range(u.armor_slots.size()):
+					var old_inst : ItemInstance = u.armor_slots[i]
+					if old_inst:
+						var old_data = ItemManager.get_item_data(old_inst.item_id)
+						# ★ 关键修复：不可丢弃的防具，绝对不能被一键替换掉
+						if old_data and old_data.no_sell:
+							continue
+							
+						var p = old_inst.get_sell_price()
+						if p < worst_price:
+							worst_price = p
+							worst_u = u
+							worst_idx = i
+							# ★ 删掉了这行：worst_inst = old_inst
+
+			# 如果找到了可替换的旧装备，且新装备价值 >= 旧装备，则替换
+			if worst_u != null and new_price >= worst_price:
+				_context.add_gold(worst_price)
+				sold_gold += worst_price
+				worst_u.armor_slots[worst_idx] = inst
+				placed = true
+		
+		# 3. 如果还是没装上（说明新装备不如身上最差的，或者全队都无法被替换），直接卖掉换钱
+		if not placed:
+			_context.add_gold(new_price)
+			sold_gold += new_price
+
+		# 从原列表中移除
+		if entry["src"] == "sacrifice":
+			GameState.pending_sacrifice_rewards.erase(inst)
+		else:
+			GameState.pending_forge_rewards.erase(inst)
+
+	# 刷新界面
+	_build_unit_columns()
+	_build_pending_slots()
+	_update_gold_display()
+	_sync_all()
+	
+	if sold_gold > 0:
+		_show_detail_in_zone("一键领取完成。\n替换/多余装备已折算为 %d 金币。" % sold_gold)
+	else:
+		_show_detail_in_zone("已领取所有装备。")
+	SoundManager.play_get_item_sound()

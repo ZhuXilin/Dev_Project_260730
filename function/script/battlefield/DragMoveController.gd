@@ -22,7 +22,6 @@ var _last_click_unit : Unit = null
 
 var _is_show_original_range : bool = false
 
-# ★ 拖拽中敌人危险区的虚拟落点缓存，避免同格重复计算
 var _last_danger_virtual_cell : Vector2i = Vector2i(-9999, -9999)
 
 func _init(bf : Node2D):
@@ -88,7 +87,6 @@ func _notification(what):
 #  输入入口
 # ============================================================
 func handle_input(event : InputEvent) -> bool:
-	# 只要有任何一个全局锁开启，直接拒绝处理任何输入
 	if not _can_handle():
 		return false
 
@@ -146,7 +144,6 @@ func _can_handle() -> bool:
 #  按下 / 移动 / 松开
 # ============================================================
 func _on_left_press() -> bool:
-	# 再次强校验，防止在这极短的瞬间状态被改变
 	if not _can_handle(): return true
 	
 	var world_pos = _bf.get_global_mouse_position()
@@ -302,7 +299,6 @@ func _start_drag():
 	InputManager.selected_unit = unit
 	InputManager.interaction_phase = InputManager.Phase.DRAGGING_MOVE
 
-	# ★ 拖拽开始时，重置缓存，按玩家单位真实位置重算一次
 	_last_danger_virtual_cell = Vector2i(-9999, -9999)
 	_refresh_danger_zones(unit.grid_cell)
 
@@ -337,27 +333,21 @@ func _update_drag():
 	var hovered = UnitManager.get_unit_at_cell(cell)
 	_hovered_target = hovered
 
-	# ★ 先根据「若此刻松手会落在哪」确定虚拟落点，再重算敌人威胁区
 	var virtual_cell : Vector2i = _pressing_unit.grid_cell
 	if hovered != null and hovered != _pressing_unit:
-		# 拖到单位上：攻击 / 治疗，玩家不移动
 		virtual_cell = _pressing_unit.grid_cell
 	elif _reachable.has(cell):
 		virtual_cell = cell
 	else:
-		# 不在可达区：按「最近可达格」作为虚拟落点（和松手时的落点一致）
 		virtual_cell = _find_closest_reachable_cell(cell)
 	_refresh_danger_zones(virtual_cell)
 
-	# 悬停危险格，且格子上没单位时，显示敌人头顶的 `!`
-	# ★ 增加 _reachable.has(cell) 条件，只有在移动范围内的格子才提示
 	if hovered == null and _bf._enemy_danger_zones.has(cell) and _reachable.has(cell):
 		var attackers = _bf._enemy_danger_zones[cell]
 		_bf.show_danger_indicators(attackers)
 	else:
 		_bf.clear_danger_indicators()
 
-	# ---- 以下保持原逻辑不变 ----
 	if hovered != null and hovered != _pressing_unit:
 		_mouse_out_of_range = false
 		_is_show_original_range = false
@@ -432,7 +422,6 @@ func _redraw_highlights(attack_cells : Dictionary, origin_cell: Vector2i):
 	var color = MapConst.HIGHLIGHT_ATTACK
 	var danger_color = Color(MapConst.HIGHLIGHT_ATTACK.r, MapConst.HIGHLIGHT_ATTACK.g, MapConst.HIGHLIGHT_ATTACK.b, 1.0)
 	
-	# ★ 核心修改：只保留存在于移动范围内的红叉，避免满屏幕都是叉
 	var filtered_danger := {}
 	for c in _bf._enemy_danger_zones:
 		if _reachable.has(c):
@@ -523,7 +512,7 @@ func _cancel():
 
 
 # ============================================================
-#  攻击 / 治疗判定 (★ 修复 get_weapon_data)
+#  攻击 / 治疗判定
 # ============================================================
 func _is_target_in_range(target : Unit) -> bool:
 	var unit = _pressing_unit
@@ -740,10 +729,17 @@ func _show_attack_menu(attacker: Unit, target: Unit, _is_after_move: bool) -> vo
 	var normal_heal_available : bool = is_healer and target_is_ally and target_wounded
 	var normal_available : bool = normal_attack_available or normal_heal_available
 
+	# ★ 新增：魂火爆发判定（仅针对敌人，且非治疗）
+	var sf_cost : int = SoulFireManager.current
+	var sf_burst_available : bool = false
+	if not target_is_ally and sf_cost >= 3:
+		sf_burst_available = true
+
 	var total_options : int = 0
 	if normal_available: total_options += 1
 	total_options += available_skills.size()
 	if emergency_available: total_options += 1
+	if sf_burst_available: total_options += 1
 
 	if total_options == 0:
 		if target_is_ally:
@@ -758,11 +754,11 @@ func _show_attack_menu(attacker: Unit, target: Unit, _is_after_move: bool) -> vo
 
 	if total_options == 1:
 		if emergency_available and available_skills.is_empty() \
-				and not normal_attack_available and not normal_heal_available:
+				and not normal_attack_available and not normal_heal_available and not sf_burst_available:
 			call_deferred("_do_emergency_heal_async", attacker, target)
 			return
 		if available_skills.size() == 1 and not emergency_available \
-				and not normal_attack_available and not normal_heal_available:
+				and not normal_attack_available and not normal_heal_available and not sf_burst_available:
 			call_deferred("_do_combat_async", attacker, target, available_skills[0].id)
 			return
 		call_deferred("_do_combat_async", attacker, target, "")
@@ -787,7 +783,6 @@ func _show_attack_menu(attacker: Unit, target: Unit, _is_after_move: bool) -> vo
 	var next_id : int = 0
 	var meta_by_id : Dictionary = {}
 
-	# 简化选项文字，加入伤害/回复预估
 	if normal_attack_available:
 		var est_dmg = CombatManager.calculate_damage(attacker, target)
 		popup.add_item("普通攻击 (伤害: %d)" % est_dmg, next_id)
@@ -825,6 +820,15 @@ func _show_attack_menu(attacker: Unit, target: Unit, _is_after_move: bool) -> vo
 		meta_by_id[next_id] = {"kind": "emergency_heal"}
 		next_id += 1
 
+	# ★ 新增：添加魂火爆发的 UI 按钮
+	if sf_burst_available:
+		var est_dmg = CombatManager.calculate_damage(attacker, target)
+		var extra_dmg = int(attacker.unit_stats.attack * 0.15 * sf_cost) + (3 * sf_cost)
+		est_dmg += extra_dmg
+		popup.add_item("🔥 魂火爆发 (伤害: %d，消耗全部 %d 魂火)" % [est_dmg, sf_cost], next_id)
+		meta_by_id[next_id] = {"kind": "attack", "skill_id": "soul_fire_burst"}
+		next_id += 1
+
 	popup.id_pressed.connect(func(id):
 		state["confirmed"] = true
 		Globals.is_attack_menu_active = false
@@ -848,14 +852,12 @@ func _show_attack_menu(attacker: Unit, target: Unit, _is_after_move: bool) -> vo
 			_on_attack_canceled(attacker)
 	)
 
-	# ★ 核心修复 1：专门监听 PopupMenu 自身的右键（防止被原生窗口吃掉）
 	popup.window_input.connect(func(event):
 		if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT:
 			popup.hide()
 			get_viewport().set_input_as_handled()
 	)
 
-	# 点击空白处（blocker）关闭
 	blocker.gui_input.connect(func(event):
 		if event is InputEventMouseButton and event.pressed:
 			if event.button_index == MOUSE_BUTTON_RIGHT or event.button_index == MOUSE_BUTTON_LEFT:
@@ -868,7 +870,6 @@ func _show_attack_menu(attacker: Unit, target: Unit, _is_after_move: bool) -> vo
 	popup.popup()
 
 
-# 处理取消攻击后的状态复位
 func _on_attack_canceled(attacker: Unit):
 	SoundManager.play_cancel_sound()
 	SignalBus.request_clear_highlight.emit()
@@ -878,9 +879,6 @@ func _on_attack_canceled(attacker: Unit):
 	InputManager.selected_unit = null
 	
 	if is_instance_valid(attacker):
-		# ★ 修复：取消攻击时，不要强制把单位瞬移回原位。
-		# 而是让单位留在当前位置，玩家如果想撤回，可以自己按右键撤销。
-		# 如果玩家不撤销而是点了其他地方，后续的右键逻辑依然能帮他撤回（因为 has_moved=true 且未攻击）。
 		_bf.suppress_range_for_unit(attacker)
 
 
@@ -928,8 +926,7 @@ func _do_emergency_heal_async(attacker : Unit, target : Unit):
 	if is_instance_valid(target):
 		_bf.suppress_range_for_unit(target)
 
-## 根据当前拖拽虚拟落点刷新敌人威胁区。
-## 同一格只算一次；落点一旦变化就立即重算，`!` 图标与红色危险格随之刷新。
+
 func _refresh_danger_zones(virtual_cell : Vector2i) -> void:
 	if not is_instance_valid(_pressing_unit):
 		return

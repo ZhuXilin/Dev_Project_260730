@@ -203,6 +203,16 @@ func buy_shop_item(data: Dictionary, target: Control):
 
 	if item_data.type == "armor":
 		var tu2 : UnitData = panel.party[target_unit_idx]
+		
+		# ★ 新增：处理被覆盖的旧装备
+		var old_inst : ItemInstance = tu2.armor_slots[target_slot_idx]
+		if old_inst:
+			var old_data = ItemManager.get_item_data(old_inst.item_id)
+			if old_data and not old_data.no_sell:
+				var sell_price = old_inst.get_sell_price()
+				panel._context.add_gold(sell_price)
+				panel._show_detail_in_zone("替换下旧防具，自动折算 %d 金币" % sell_price)
+				
 		tu2.armor_slots[target_slot_idx] = inst
 
 	panel._build_unit_columns()

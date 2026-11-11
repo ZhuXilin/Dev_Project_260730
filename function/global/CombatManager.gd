@@ -355,7 +355,16 @@ func execute_attack(attacker: Unit, defender: Unit, forced_skill_id: String = ""
 	var has_skill : bool = false
 	var active_skill_id : String = ""
 	var active_skill_data = null
-	if forced_skill_id != "":
+	var is_soul_fire_burst : bool = false
+	var burst_cost : int = 0
+
+	if forced_skill_id == "soul_fire_burst":
+		burst_cost = SoulFireManager.current
+		if burst_cost >= 3:
+			is_soul_fire_burst = true
+			has_skill = true # 用于阻断部分普攻逻辑
+			# 这里不需要 active_skill_data，因为它是全局机制
+	elif forced_skill_id != "":
 		var sdata = TalentManager.get_talent_data(forced_skill_id)
 		if sdata:
 			if sdata.effect_type == "heal" and defender.unit_stats.team_id != attacker.unit_stats.team_id:
@@ -432,6 +441,18 @@ func execute_attack(attacker: Unit, defender: Unit, forced_skill_id: String = ""
 		var per_hit = COMBO_MULT_PER_HIT[clampi(lv_combo - 1, 0, COMBO_MULT_PER_HIT.size() - 1)]
 		damage = int(damage * (1.0 + (attacker.combo_count - 1) * per_hit))
 		TalentManager.reset_talent(attacker, "combo")
+
+	if is_soul_fire_burst:
+		# 额外伤害 = (攻击力 * 15% * 魂火数量) + (3 * 魂火数量)
+		var extra_dmg = int(attacker.unit_stats.attack * 0.15 * burst_cost) + (3 * burst_cost)
+		damage += extra_dmg
+		
+		# 为了爽感，强制暴击
+		force_crit = true
+		
+		# 扣除全部魂火
+		SoulFireManager.spend(burst_cost)
+		SignalBus.request_hint_override.emit("🔥 魂火爆发！消耗了 %d 点魂火！" % burst_cost, 1.5)
 
 	var is_crit := false
 	var crit_mult : float = CRIT_DAMAGE_MULT
@@ -701,6 +722,12 @@ func execute_attack(attacker: Unit, defender: Unit, forced_skill_id: String = ""
 		return true
 
 	var free_action : bool = _consume_first_spell_free(attacker)
+	# 如果是魂火爆发，绝对不允许“免费行动”（比如某些法术的被动），强制结束该单位回合
+	if is_soul_fire_burst:
+		attacker.has_acted = true
+		attacker.has_moved = true
+		attacker.can_act_this_turn = false
+
 	_finish_attack(attacker, defender, free_action)
 	Globals.is_performing_action = false
 	return true

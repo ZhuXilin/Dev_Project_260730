@@ -3,8 +3,6 @@ extends RefCounted
 
 # ============================================================
 #  ConnectedGroupCalculator — 防具连通组计算
-#  输入：3 个单位的防具槽（含空槽）
-#  输出：连通组列表（每组：防具集合、跨单位数、是否含双箭头）
 # ============================================================
 
 ## 一个"格位"= (unit_index, row)
@@ -31,8 +29,6 @@ class Group:
 
 
 ## 主入口
-## slots: Array[Array[ItemInstance]]  长度=3，每个内层长度=该单位的槽数
-## 返回：Array[Group]
 static func compute_groups(slots: Array) -> Array:
 	var nodes : Dictionary = {}    # cell_key -> Cell
 	var items : Dictionary = {}    # cell_key -> ItemInstance
@@ -132,13 +128,13 @@ static func _linked_horizontal(a_dir: int, b_dir: int) -> bool:
 
 
 static func _linked_diag_ur(a_dir: int, b_dir: int) -> bool:
-	# A 的 DIAG_NE_SW (⤢) → B 的 DIAG_NW_SE (⤡)（A 在左，B 在右上方）
-	return a_dir == Direction.Value.DIAG_NE_SW and b_dir == Direction.Value.DIAG_NW_SE
+	# ★ 修复：A 的右上(◥) 与 B 的左下(◣) 对接，两者属于同一种方向枚举 DIAG_NE_SW
+	return a_dir == Direction.Value.DIAG_NE_SW and b_dir == Direction.Value.DIAG_NE_SW
 
 
 static func _linked_diag_dr(a_dir: int, b_dir: int) -> bool:
-	# A 的 DIAG_NW_SE (⤡) → B 的 DIAG_NE_SW (⤢)（A 在左，B 在右下方）
-	return a_dir == Direction.Value.DIAG_NW_SE and b_dir == Direction.Value.DIAG_NE_SW
+	# ★ 修复：A 的右下(◢) 与 B 的左上(◤) 对接，两者属于同一种方向枚举 DIAG_NW_SE
+	return a_dir == Direction.Value.DIAG_NW_SE and b_dir == Direction.Value.DIAG_NW_SE
 
 
 # ============================================================
@@ -160,7 +156,6 @@ static func _union(parent: Dictionary, a: String, b: String):
 # ============================================================
 #  ★ 评分：连通组 → buff 数值
 # ============================================================
-## 返回：{ attack_pct, defense_pct, hp_pct, total_groups, cross_3_groups }
 static func evaluate_groups(groups: Array) -> Dictionary:
 	var result : Dictionary = {
 		"attack_pct": 0.0,
@@ -206,7 +201,6 @@ static func evaluate_groups(groups: Array) -> Dictionary:
 		3, 4, 5, 6, 7, 8: multi_mult = 1.5
 		_: multi_mult = 1.0
 
-	# 总倍率封顶 2.5（跨三+双箭头已封顶）
 	var final_attack : float = total_attack * multi_mult
 	var final_defense : float = total_defense * multi_mult
 	var final_hp : float = total_hp * multi_mult

@@ -102,6 +102,21 @@ func build_forge_slots():
 	stack_btn.set_meta("slot_type", "forge_slot")
 	stack_btn.set_meta("forge_slot_index", -1)
 
+	# ★ 新增：加个深色底和金色边框，防止看不清
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(0.12, 0.12, 0.15, 1.0)
+	sb.border_color = Color(0.8, 0.6, 0.3, 1.0) # 醒目的亮边框
+	sb.set_border_width_all(1)
+	sb.corner_radius_top_left = 2
+	sb.corner_radius_top_right = 2
+	sb.corner_radius_bottom_left = 2
+	sb.corner_radius_bottom_right = 2
+	stack_btn.add_theme_stylebox_override("normal", sb)
+	stack_btn.add_theme_stylebox_override("hover", sb)
+	stack_btn.add_theme_stylebox_override("pressed", sb)
+	stack_btn.add_theme_stylebox_override("focus", sb)
+	stack_btn.add_theme_stylebox_override("disabled", sb)
+
 	var count = 0
 	for entry in forge_slots:
 		if entry != null: count += 1
@@ -160,7 +175,7 @@ func _refresh_forge_action_btns():
 
 	var clear_btn := Style.create_styled_button(Style.FONT_SMALL, Style.BTN_ITEM_SIZE)
 	clear_btn.clip_text = true
-	clear_btn.custom_minimum_size = Vector2(40, 16)
+	clear_btn.custom_minimum_size = Vector2(32, 24) # ★ 变窄
 	clear_btn.text = "清空"
 	clear_btn.pressed.connect(on_forge_clear_pressed)
 	_forge_btn_row.add_child(clear_btn)
@@ -170,24 +185,28 @@ func _refresh_forge_action_btns():
 		var d : ItemData = ItemManager.get_item_data(inst.item_id)
 		if d == null: return
 		
-		# ★ 修改点：只要不是特殊不可附魔防具，都显示“锻造”按钮
 		if not d.no_affix:
 			var forge_btn := Style.create_styled_button(Style.FONT_SMALL, Style.BTN_ITEM_SIZE)
-			forge_btn.clip_text = true
-			forge_btn.custom_minimum_size = Vector2(45, 16)
-			forge_btn.text = "锻造 (%dG)" % REFORGE_COST
+			forge_btn.clip_text = false # ★ 取消裁切以允许换行
+			forge_btn.custom_minimum_size = Vector2(36, 28) # ★ 宽度定死，高度增加
+			forge_btn.text = "锻造\n(%dG)" % REFORGE_COST # ★ 强制换行
+			forge_btn.alignment = HORIZONTAL_ALIGNMENT_CENTER
+			forge_btn.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			
 			var can_afford : bool = panel._context.get_gold() >= REFORGE_COST
 			forge_btn.disabled = not can_afford
 			forge_btn.modulate = Color(0.8, 0.6, 1.0) if can_afford else Color(0.5, 0.5, 0.5)
 			forge_btn.pressed.connect(_on_forge_action_single.bind(inst))
 			_forge_btn_row.add_child(forge_btn)
 			
-		# ★ 修改点：只有带箭头的防具才显示“调整”按钮
 		if inst.direction != Direction.Value.NONE:
 			var dir_btn := Style.create_styled_button(Style.FONT_SMALL, Style.BTN_ITEM_SIZE)
-			dir_btn.clip_text = true
-			dir_btn.custom_minimum_size = Vector2(45, 16)
-			dir_btn.text = "调整 (%dG)" % REROLL_DIR_COST
+			dir_btn.clip_text = false
+			dir_btn.custom_minimum_size = Vector2(36, 28)
+			dir_btn.text = "调整\n(%dG)" % REROLL_DIR_COST
+			dir_btn.alignment = HORIZONTAL_ALIGNMENT_CENTER
+			dir_btn.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			
 			var can_afford_d : bool = panel._context.get_gold() >= REROLL_DIR_COST
 			dir_btn.disabled = not can_afford_d
 			dir_btn.modulate = Color(0.6, 0.8, 1.0) if can_afford_d else Color(0.5, 0.5, 0.5)
@@ -196,19 +215,22 @@ func _refresh_forge_action_btns():
 			
 		return
 
+	# 多件合成（2件或以上）
 	var cost : int = CRAFT_COST
-	var txt : String = "锻造 (%dG)" % cost
+	var txt : String = "锻造\n(%dG)" % cost
 	
 	if input_insts.size() == 2:
 		var fusion : Dictionary = _check_fusion(input_insts)
 		if fusion.get("ok", false):
 			cost = FUSION_COST
-			txt = "锻造:熔合(%dG)" % cost
+			txt = "熔合\n(%dG)" % cost
 			
 	var craft_btn := Style.create_styled_button(Style.FONT_SMALL, Style.BTN_ITEM_SIZE)
-	craft_btn.clip_text = true
-	craft_btn.custom_minimum_size = Vector2(80, 16)
+	craft_btn.clip_text = false # ★ 取消裁切
+	craft_btn.custom_minimum_size = Vector2(48, 28) # ★ 宽度定死
 	craft_btn.text = txt
+	craft_btn.alignment = HORIZONTAL_ALIGNMENT_CENTER
+	craft_btn.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	var can_afford_c : bool = panel._context.get_gold() >= cost
 	craft_btn.disabled = not can_afford_c
 	craft_btn.modulate = Color(1.0, 0.6, 0.2) if can_afford_c else Color(0.5, 0.5, 0.5)
