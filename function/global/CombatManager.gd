@@ -452,7 +452,7 @@ func execute_attack(attacker: Unit, defender: Unit, forced_skill_id: String = ""
 		
 		# 扣除全部魂火
 		SoulFireManager.spend(burst_cost)
-		SignalBus.request_hint_override.emit("🔥 魂火爆发！消耗了 %d 点魂火！" % burst_cost, 1.5)
+		SignalBus.request_hint_override.emit("魂火爆发！消耗了 %d 点魂火！" % burst_cost, 1.5)
 
 	var is_crit := false
 	var crit_mult : float = CRIT_DAMAGE_MULT
@@ -932,9 +932,9 @@ func _on_kill(attacker: Unit, _defender: Unit) -> bool:
 			var val : int = int(cb.get("value", 0))
 			if val > 0: SoulFireManager.add(val)
 
-	# ★ v5.0：击杀奖励统一在此结算（互斥，不再额外 on_hit）
+	# ★ 击杀也算一次命中，不再发放击杀额外奖励
 	if attacker.unit_stats.team_id == 0:
-		SoulFireManager.on_kill(1)
+		SoulFireManager.on_hit(1)
 	return cleave_triggered
 
 

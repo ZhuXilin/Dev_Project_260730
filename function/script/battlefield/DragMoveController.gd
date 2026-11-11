@@ -825,7 +825,7 @@ func _show_attack_menu(attacker: Unit, target: Unit, _is_after_move: bool) -> vo
 		var est_dmg = CombatManager.calculate_damage(attacker, target)
 		var extra_dmg = int(attacker.unit_stats.attack * 0.15 * sf_cost) + (3 * sf_cost)
 		est_dmg += extra_dmg
-		popup.add_item("🔥 魂火爆发 (伤害: %d，消耗全部 %d 魂火)" % [est_dmg, sf_cost], next_id)
+		popup.add_item("魂火爆发 (伤害: %d，消耗全部 %d 魂火)" % [est_dmg, sf_cost], next_id)
 		meta_by_id[next_id] = {"kind": "attack", "skill_id": "soul_fire_burst"}
 		next_id += 1
 

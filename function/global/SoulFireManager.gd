@@ -25,6 +25,9 @@ var current : int = 0
 var altar_level : int = 0
 var _boss_penalty : int = 0
 
+# ★ 我方单位阵亡时的魂火补偿
+var ALLY_DEATH_GAIN : int = 5
+
 signal soul_fire_changed(current: int, max_carried: int)
 signal state_changed(new_state: State)
 
@@ -42,8 +45,9 @@ func _load_config():
 	HIT_GAIN = int(cfg.get("hit", HIT_GAIN))
 	KILL_GAIN = int(cfg.get("kill", KILL_GAIN))
 	MULTI_KILL_BONUS = int(cfg.get("multi_kill_bonus", MULTI_KILL_BONUS))
-	print("[SoulFire] 获得配置: hit=%d, kill=%d, multi_kill_bonus=%d" % [
-		HIT_GAIN, KILL_GAIN, MULTI_KILL_BONUS])
+	ALLY_DEATH_GAIN = int(cfg.get("ally_death", ALLY_DEATH_GAIN))
+	print("[SoulFire] 获得配置: hit=%d, kill=%d, multi_kill_bonus=%d, ally_death=%d" % [
+		HIT_GAIN, KILL_GAIN, MULTI_KILL_BONUS, ALLY_DEATH_GAIN])
 
 
 func get_max_carried() -> int:

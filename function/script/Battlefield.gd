@@ -537,6 +537,14 @@ func _on_unit_removed_death(unit: Unit, team: int):
 	if team != 0: return
 	if not is_instance_valid(unit): return
 	if unit.hit_points > 0: return
+
+	# ★ 新增：我方单位阵亡 → 补偿大量魂火（让玩家有机会反打/魂火爆发）
+	if SoulFireManager:
+		var gain : int = SoulFireManager.ALLY_DEATH_GAIN
+		if gain > 0:
+			SoulFireManager.add(gain)
+			SignalBus.request_hint_override.emit("★ 队友阵亡，魂火 +%d" % gain, 1.5)
+
 	for ud in GameState.party:
 		if ud.unit_name == unit.unit_stats.unit_name and ud.display_name == unit.unit_stats.display_name:
 			ud.is_dead = true

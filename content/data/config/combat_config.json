@@ -50,6 +50,7 @@
   "soul_fire_gain": {
 	"hit": 1,
 	"kill": 3,
-	"multi_kill_bonus": 2
+	"multi_kill_bonus": 2,
+	"ally_death": 5
   }
 }
