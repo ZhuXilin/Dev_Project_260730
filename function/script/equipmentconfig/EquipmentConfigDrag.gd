@@ -192,6 +192,19 @@ func end_drag():
 			SoundManager.play_select_sound()
 		else:
 			SoundManager.play_cancel_sound()
+			# ★ 新增：熔铸防具拖入熔炉槽 → 明确告知
+			if source_type == "armor" and target != null \
+					and target.get_meta("slot_type", "") == "forge_slot":
+				var uidx : int = drop_data.get("unit_idx", -1)
+				var sidx : int = drop_data.get("slot_idx", -1)
+				if uidx >= 0 and uidx < panel.party.size() \
+						and sidx >= 0 and sidx < panel.party[uidx].armor_slots.size():
+					var src_inst = panel.party[uidx].armor_slots[sidx]
+					if src_inst != null:
+						var idata = ItemManager.get_item_data(src_inst.item_id)
+						if idata and idata.no_fusion:
+							panel._show_detail_in_zone("熔铸防具不可加工")
+							return
 			if source_type == "shop_item":
 				_hint_shop_purchase_failed(drop_data, target)
 			
@@ -341,7 +354,21 @@ func _reset_targets_visuals():
 # ============================================================
 func _find_control_at_position(pos: Vector2) -> Control:
 	const BUFFER : int = 4
-	for t in _collect_targets():
+	var targets : Array = _collect_targets()
+
+	# 第一遍：精确匹配
+	for t in targets:
+		if t == null or not is_instance_valid(t):
+			continue
+		if t is Button:
+			var b : Button = t
+			if b.disabled:
+				continue
+		if t.get_global_rect().has_point(pos):
+			return t
+
+	# 第二遍：宽容匹配
+	for t in targets:
 		if t == null or not is_instance_valid(t):
 			continue
 		if t is Button:
@@ -350,12 +377,29 @@ func _find_control_at_position(pos: Vector2) -> Control:
 				continue
 		if t.get_global_rect().grow(BUFFER).has_point(pos):
 			return t
+
 	return null
 
 
 func _get_target_from_position(global_pos: Vector2) -> Control:
 	const BUFFER : int = 4
-	for t in _collect_targets():
+	var targets : Array = _collect_targets()
+
+	# 第一遍：精确匹配（鼠标明确落在控件矩形内 → 不再被相邻 BUFFER 抢）
+	for t in targets:
+		if t == null or not is_instance_valid(t):
+			continue
+		if t is Button:
+			var b : Button = t
+			var st : String = b.get_meta("slot_type", "")
+			var allow_disabled : bool = (st == "forge_slot")
+			if b.disabled and not allow_disabled:
+				continue
+		if t.get_global_rect().has_point(global_pos):
+			return t
+
+	# 第二遍：宽容匹配（用于边缘/缝隙，此时才用 BUFFER）
+	for t in targets:
 		if t == null or not is_instance_valid(t):
 			continue
 		if t is Button:
@@ -366,4 +410,5 @@ func _get_target_from_position(global_pos: Vector2) -> Control:
 				continue
 		if t.get_global_rect().grow(BUFFER).has_point(global_pos):
 			return t
+
 	return null

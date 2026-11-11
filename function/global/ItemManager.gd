@@ -129,8 +129,11 @@ func create_instance_with_affixes(item_id: String) -> ItemInstance:
 	inst.count = 1
 	inst.upgrade_level = 0
 	if data.type == "armor":
-		inst.affixes = AffixManager.roll_affixes(data.quality, data.tags)
-		# ★ 新增：掉落时生成方向
+		if data.no_affix:
+			inst.affixes = []
+		else:
+			inst.affixes = AffixManager.roll_affixes(data.quality, data.tags)
+
 		if data.enable_direction:
 			inst.direction = Direction.roll_drop_direction()
 		else:

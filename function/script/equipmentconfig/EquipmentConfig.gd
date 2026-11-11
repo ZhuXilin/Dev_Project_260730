@@ -648,7 +648,7 @@ func _ensure_auto_config_btn():
 	top_bar.add_child(_auto_config_btn)
 
 
-func _refresh_connectivity():
+func _refresh_connectivity(silent: bool = false):
 	_connectivity_groups.clear()
 	_connected_cells.clear()
 
@@ -668,8 +668,8 @@ func _refresh_connectivity():
 			max_size = g.size()
 		for c in g.cells:
 			_connected_cells["%d_%d" % [c.unit_index, c.row]] = gi
-			
-	if max_size >= 5:
+
+	if max_size >= 5 and not silent:
 		_show_detail_in_zone("★ 形成超级连通网！(%d 件防具连通)" % max_size)
 
 
@@ -707,6 +707,7 @@ func _get_connectivity_style(unit_idx: int, slot_idx: int) -> StyleBox:
 
 func _build_unit_columns():
 	if not unit_container: return
+	_refresh_connectivity(true)   # ★ 每次重建列前先更新连通组（静默）
 	unit_container.alignment = BoxContainer.ALIGNMENT_CENTER
 	for child in unit_container.get_children():
 		unit_container.remove_child(child); child.free()
@@ -1006,7 +1007,7 @@ func _on_buy_aura(aid: String, cost: int):
 		_show_detail_in_zone("被动槽已满")
 		return
 	GameState.remove_aura_candidate(aid)
-	SoundManager.play_get_item_sound()
+	SoundManager.play_select_sound()   # ★ 由 play_get_item_sound 改为 select
 	_sync_all()
 	_update_gold_display()
 	_schedule_build_ui()
@@ -1277,8 +1278,13 @@ func _equip_pending_reward(data: Dictionary, target: Control):
 		if item_data.type != "armor": return
 		var slot_idx : int = target.get_meta("slot_idx", -1)
 		if slot_idx < 0 or slot_idx >= u.armor_slots.size(): return
-		
-		# ★ 新增：处理被覆盖的旧装备
+
+		# ★ 新增：目标槽是熔铸防具，拒绝覆盖
+		if _is_slot_occupied_by_unsellable(unit_idx, slot_idx):
+			_show_detail_in_zone("该槽位是不可丢弃的熔铸防具，无法覆盖")
+			return
+
+		# 原有：处理被覆盖的旧装备（此时旧的必然是可出售的）
 		var old_inst : ItemInstance = u.armor_slots[slot_idx]
 		if old_inst:
 			var old_data = ItemManager.get_item_data(old_inst.item_id)
@@ -1286,7 +1292,7 @@ func _equip_pending_reward(data: Dictionary, target: Control):
 				var sell_price = old_inst.get_sell_price()
 				_context.add_gold(sell_price)
 				_show_detail_in_zone("替换下旧防具，自动折算 %d 金币" % sell_price)
-				
+
 		u.armor_slots[slot_idx] = inst
 	else:
 		return
@@ -1421,7 +1427,7 @@ func _create_item_button(inst: ItemInstance, slot_type: String, unit_idx: int, s
 				
 				var star := Label.new()
 				star.text = "★"
-				
+
 				if group_size >= 5:
 					star.add_theme_font_size_override("font_size", 10)
 					star.add_theme_color_override("font_color", Color(1.0, 0.8, 0.1))
@@ -1431,15 +1437,20 @@ func _create_item_button(inst: ItemInstance, slot_type: String, unit_idx: int, s
 				else:
 					star.add_theme_font_size_override("font_size", 7)
 					star.add_theme_color_override("font_color", Color(0.8, 0.8, 0.8))
-					
+
 				star.add_theme_color_override("font_outline_color", Color.BLACK)
 				star.add_theme_constant_override("outline_size", 2)
 				star.mouse_filter = Control.MOUSE_FILTER_IGNORE
-				star.set_anchors_preset(Control.PRESET_CENTER_TOP)
-				star.offset_left = -8
-				star.offset_right = 8
-				star.offset_top = -10 if group_size >= 5 else -8
+
+				# ★ 改为填满按钮并垂直居中（原来是 PRESET_CENTER_TOP 顶在顶端）
+				star.set_anchors_preset(Control.PRESET_FULL_RECT)
+				star.offset_left = 0
+				star.offset_right = 0
+				star.offset_top = 0
+				star.offset_bottom = 0
 				star.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+				star.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+
 				btn.add_child(star)
 
 	else:
@@ -1631,6 +1642,16 @@ func _can_equip_armor_to(unit_idx: int, item_id: String, exclude_slot_idx: int =
 		if s == null: return true
 	return false
 
+## 判断某单位某槽位是否被"不可丢弃防具"占据（如熔铸防具）
+## 被占据 → 任何覆盖型操作都必须拒绝
+func _is_slot_occupied_by_unsellable(unit_idx: int, slot_idx: int) -> bool:
+	if unit_idx < 0 or unit_idx >= party.size(): return false
+	if slot_idx < 0 or slot_idx >= party[unit_idx].armor_slots.size(): return false
+	var inst : ItemInstance = party[unit_idx].armor_slots[slot_idx]
+	if inst == null: return false
+	var idata : ItemData = ItemManager.get_item_data(inst.item_id)
+	return idata != null and idata.no_sell
+
 func _inst_slots_for_id(_item_id: String) -> int:
 	return 1
 
@@ -1718,6 +1739,8 @@ func _is_valid_drop(data: Dictionary, target: Control) -> bool:
 			if idata.type != "armor": return false
 			var ts_p : int = target.get_meta("slot_idx", -1)
 			if ts_p < 0 or ts_p >= party[tu_p].armor_slots.size(): return false
+			# ★ 新增：目标槽是熔铸防具，禁止覆盖
+			if _is_slot_occupied_by_unsellable(tu_p, ts_p): return false
 			var need_p : int = _inst_slots(inst)
 			var used_p : int = _used_slots_excluding(party[tu_p], [ts_p])
 			return used_p + need_p <= party[tu_p].max_armor_slots
@@ -1772,6 +1795,8 @@ func _is_valid_drop(data: Dictionary, target: Control) -> bool:
 			elif item_data.type == "armor":
 				if target_type != "armor": return false
 				if tu2 < 0 or ts2 < 0: return false
+				# ★ 新增：目标槽是熔铸防具，禁止覆盖
+				if _is_slot_occupied_by_unsellable(tu2, ts2): return false
 				return _can_equip_armor_to(tu2, item_data.id, ts2)
 			return false
 		if source_type == "weapon" and target_type == "weapon": return false
@@ -1865,16 +1890,16 @@ func _buy_and_equip_aura(data: Dictionary, target: Control):
 	var cost : int = data.get("aura_price", 0)
 	var tgt_idx : int = target.get_meta("passive_index", -1)
 	if tgt_idx < 0 or aid == "": return
-	
+
 	var passives : Array = _context.get_passives()
 	if passives[tgt_idx] != null: return
-	
+
 	if not SoulFireManager.spend(cost):
 		return
-		
+
 	_context.set_passive_at_slot(tgt_idx, {"type": "aura", "aura_id": aid})
 	GameState.remove_aura_candidate(aid)
-	SoundManager.play_get_item_sound()
+	# ★ 删除 SoundManager.play_get_item_sound()，沿用 end_drag 的 play_select_sound
 	_sync_all()
 	_update_gold_display()
 	_schedule_build_ui()
@@ -2769,15 +2794,17 @@ func _on_claim_all_pending():
 
 	if all_pending.is_empty(): return
 
-	var sold_gold = 0
+	var sold_gold : int = 0
+	var kept_count : int = 0
 
 	for entry in all_pending:
 		var inst : ItemInstance = entry["inst"]
 		var data : ItemData = ItemManager.get_item_data(inst.item_id)
 		if not data: continue
-		
-		var new_price = inst.get_sell_price()
-		var placed = false
+
+		var new_price : int = inst.get_sell_price()
+		var is_unsellable : bool = data.no_sell
+		var placed : bool = false
 
 		# 1. 优先找全队的空槽位
 		for u in party:
@@ -2789,7 +2816,7 @@ func _on_claim_all_pending():
 					break
 			if placed: break
 
-		# 2. 如果没有空槽，找全队“可替换且价值最低”的防具
+		# 2. 没有空槽 → 尝试替换"价值最低的可卖防具"
 		if not placed:
 			var worst_u : UnitData = null
 			var worst_idx : int = -1
@@ -2801,30 +2828,34 @@ func _on_claim_all_pending():
 					var old_inst : ItemInstance = u.armor_slots[i]
 					if old_inst:
 						var old_data = ItemManager.get_item_data(old_inst.item_id)
-						# ★ 关键修复：不可丢弃的防具，绝对不能被一键替换掉
+						# 不可丢弃的防具（熔铸）绝不能被一键替换掉
 						if old_data and old_data.no_sell:
 							continue
-							
-						var p = old_inst.get_sell_price()
+						var p : int = old_inst.get_sell_price()
 						if p < worst_price:
 							worst_price = p
 							worst_u = u
 							worst_idx = i
-							# ★ 删掉了这行：worst_inst = old_inst
 
-			# 如果找到了可替换的旧装备，且新装备价值 >= 旧装备，则替换
-			if worst_u != null and new_price >= worst_price:
+			# ★ 新增：熔铸防具（no_sell）不参与"替换"路径
+			# 否则会出现"用 0 金的熔铸防具去覆盖可卖的普通防具"→普通防具反而被抹掉
+			if worst_u != null and not is_unsellable and new_price >= worst_price:
 				_context.add_gold(worst_price)
 				sold_gold += worst_price
 				worst_u.armor_slots[worst_idx] = inst
 				placed = true
-		
-		# 3. 如果还是没装上（说明新装备不如身上最差的，或者全队都无法被替换），直接卖掉换钱
+
+		# 3. 仍没装上
 		if not placed:
+			if is_unsellable:
+				# ★ 新增：熔铸防具不能卖也不能丢，原样保留在 pending 里
+				kept_count += 1
+				continue
+			# 可卖防具：卖成金币
 			_context.add_gold(new_price)
 			sold_gold += new_price
 
-		# 从原列表中移除
+		# 真正处理完（放上槽位 / 卖掉换钱）才从 pending 中移除
 		if entry["src"] == "sacrifice":
 			GameState.pending_sacrifice_rewards.erase(inst)
 		else:
@@ -2835,9 +2866,13 @@ func _on_claim_all_pending():
 	_build_pending_slots()
 	_update_gold_display()
 	_sync_all()
-	
-	if sold_gold > 0:
+
+	if sold_gold > 0 and kept_count > 0:
+		_show_detail_in_zone("一键领取完成。\n替换/多余装备已折算为 %d 金币。\n★ 有 %d 件熔铸防具因无处装备，已保留在待领取区。" % [sold_gold, kept_count])
+	elif kept_count > 0:
+		_show_detail_in_zone("一键领取完成。\n★ 有 %d 件熔铸防具因无处装备，已保留在待领取区。" % kept_count)
+	elif sold_gold > 0:
 		_show_detail_in_zone("一键领取完成。\n替换/多余装备已折算为 %d 金币。" % sold_gold)
 	else:
 		_show_detail_in_zone("已领取所有装备。")
-	SoundManager.play_get_item_sound()
+	SoundManager.play_select_sound()   # ★ 由 play_get_item_sound 改为 drag 成功的 select 音效

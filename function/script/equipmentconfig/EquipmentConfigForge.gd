@@ -199,7 +199,7 @@ func _refresh_forge_action_btns():
 			forge_btn.pressed.connect(_on_forge_action_single.bind(inst))
 			_forge_btn_row.add_child(forge_btn)
 			
-		if inst.direction != Direction.Value.NONE:
+		if inst.direction != Direction.Value.NONE and not d.no_fusion:
 			var dir_btn := Style.create_styled_button(Style.FONT_SMALL, Style.BTN_ITEM_SIZE)
 			dir_btn.clip_text = false
 			dir_btn.custom_minimum_size = Vector2(36, 28)
@@ -433,7 +433,6 @@ func is_valid_forge_drop(data: Dictionary, target: Control) -> bool:
 	var src_type : String = data.get("slot_type", "")
 	var tgt_type : String = target.get_meta("slot_type", "")
 
-	# ★ 新增：待领取防具 → 合成槽（允许再次合成）
 	if src_type == "pending_reward" and tgt_type == "forge_slot":
 		var count = 0
 		for entry in forge_slots:
@@ -458,7 +457,7 @@ func is_valid_forge_drop(data: Dictionary, target: Control) -> bool:
 			if entry != null: count += 1
 		if count >= MAX_SLOTS:
 			return false
-			
+
 		var uidx2 : int = data.get("unit_idx", -1)
 		var src_slot : int = data.get("slot_idx", -1)
 		if uidx2 < 0 or src_slot < 0: return false
@@ -466,6 +465,13 @@ func is_valid_forge_drop(data: Dictionary, target: Control) -> bool:
 		if u2.is_dead: return false
 		if src_slot >= u2.armor_slots.size(): return false
 		if u2.armor_slots[src_slot] == null: return false
+
+		# ★ 新增：熔铸防具 / 融合产物不可二次加工
+		var src_inst : ItemInstance = u2.armor_slots[src_slot]
+		var src_data : ItemData = ItemManager.get_item_data(src_inst.item_id)
+		if src_data == null or src_data.no_fusion:
+			return false
+
 		return true
 
 	if src_type == "armor" and tgt_type == "armor":

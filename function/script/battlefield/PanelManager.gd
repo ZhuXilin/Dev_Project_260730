@@ -259,7 +259,24 @@ func update_relic_icons() -> void:
 			btn.pressed.connect(_on_aura_icon_clicked.bind(aid))
 			btn.mouse_entered.connect(func(): _show_aura_hover_info(aid))
 			btn.mouse_exited.connect(_hide_relic_hover_info)
-			
+
+			# ★ 临时识别：在光环图标上叠加"释放"两字，与遗物区分
+			var release_lb := Label.new()
+			release_lb.text = "释放"
+			release_lb.add_theme_font_size_override("font_size", 5)
+			release_lb.add_theme_color_override("font_color", Color(0.45, 0.95, 1.0))
+			release_lb.add_theme_color_override("font_outline_color", Color.BLACK)
+			release_lb.add_theme_constant_override("outline_size", 2)
+			release_lb.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			release_lb.set_anchors_preset(Control.PRESET_FULL_RECT)
+			release_lb.offset_left = 0
+			release_lb.offset_right = 0
+			release_lb.offset_top = 0
+			release_lb.offset_bottom = 0
+			release_lb.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			release_lb.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+			btn.add_child(release_lb)
+
 			_bf.relic_icon_container.add_child(btn)
 			has_any = true
 
