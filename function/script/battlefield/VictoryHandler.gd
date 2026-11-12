@@ -68,13 +68,10 @@ func _compute_rating() -> String:
 			var extra_turns : int = maxi(0, turns - hold_turns)
 			var hold_score : float = clampf(1.0 - float(extra_turns) / 15.0, 0.0, 1.0)
 			score = alive_ratio * 0.2 + (1.0 - hp_loss_ratio) * 0.2 + hold_score * 0.6
-
 		MapData.ObjectiveType.FLAG:
 			score = alive_ratio * 0.15 + (1.0 - hp_loss_ratio) * 0.15 + turn_score * 0.7
-
 		MapData.ObjectiveType.ASSAULT:
 			score = alive_ratio * 0.15 + (1.0 - hp_loss_ratio) * 0.15 + turn_score * 0.7
-
 		_:
 			score = alive_ratio * 0.4 + (1.0 - hp_loss_ratio) * 0.4 + turn_score * 0.2
 
@@ -84,7 +81,6 @@ func _compute_rating() -> String:
 	return "C"
 
 
-# ★ v5.0：评级魂 bonus 完全由 economy_config.json 控制，不再硬编码
 func _compute_rating_soul_bonus(rating: String) -> int:
 	var cfg : Dictionary = GameConfigManager.get_value("economy_config.json", "rating_soul_bonus", {})
 	if cfg.is_empty():
@@ -93,7 +89,6 @@ func _compute_rating_soul_bonus(rating: String) -> int:
 
 
 func on_request_show_victory(winning_team: int) -> void:
-	# ★ 战斗结束（无论胜负），关闭自动战斗
 	Globals.is_auto_battle = false
 
 	print("=== _on_request_show_victory 被调用, _victory_processed: ", _bf._victory_processed)
@@ -152,8 +147,13 @@ func on_request_show_victory(winning_team: int) -> void:
 			unit.update_hp_label()
 			player_units.append(unit)
 
-	# 将满血状态同步回局外队伍，阵亡的会自动标记 is_dead = true
-	GameState.sync_units_from_battlefield(player_units)
+	# ★ v5.0：接收阵亡单位装备回收统计（含熔铸防具）
+	var sync_stats : Dictionary = GameState.sync_units_from_battlefield(player_units)
+	var reclaimed_count : int = int(sync_stats.get("reclaimed_count", 0))
+	if reclaimed_count > 0:
+		SignalBus.request_hint_override.emit(
+			"★ 阵亡单位回收了 %d 件防具到待领取区（含熔铸防具，可在铁匠铺装备配置中处理）" % reclaimed_count,
+			3.5)
 
 	if Globals.is_map_mode:
 		print("当前地图节点类型: ", _bf.current_node_type, " 是否为BOSS: ", is_boss)
@@ -171,7 +171,6 @@ func on_request_show_victory(winning_team: int) -> void:
 
 				var reward = EconomyManager.get_battle_reward(_bf.current_node_type, is_boss)
 				var gold_gain = int(round(float(reward.gold) * mult))
-				# ★ v5.0：战后直接发魂
 				var soul_gain = int(round(float(reward.get("soul", 0)) * mult))
 
 				print("--- 奖励配置（倍率 %.2f）---" % mult)
@@ -265,7 +264,6 @@ func on_map_victory_continue() -> void:
 	var reward_soul = GameState.current_reward_soul
 	var rating : String = _compute_rating()
 
-	# ★ v5.0：评级 bonus 走 config，且真正加到 GameState.soul
 	var rating_soul_bonus : int = _compute_rating_soul_bonus(rating)
 	if rating_soul_bonus > 0:
 		GameState.soul += rating_soul_bonus
@@ -402,7 +400,6 @@ func on_map_victory_continue() -> void:
 		GameState.should_advance_day = true
 		print("Boss 胜利，设置 should_advance_day = true")
 
-		# v4.5 修复：按天数解锁对应遗物
 		var relics_to_unlock : Array = []
 		match GameState.current_day:
 			1: relics_to_unlock = ["relic_attack", "relic_defense", "relic_health"]
@@ -487,9 +484,6 @@ func on_retry_battle() -> void:
 	get_tree().change_scene_to_file(Config.PATHS.MAP_SCENE)
 
 
-# ============================================================
-#  稀有掉落（未改动）
-# ============================================================
 func roll_rare_drop_for_node(node_type: int) -> Array:
 	var chance : float = RARE_DROP_CHANCE.get(node_type, 0.0)
 	if randf() > chance:

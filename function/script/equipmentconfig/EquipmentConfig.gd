@@ -34,6 +34,9 @@ const ShopManagerScript = preload(Config.PATHS.SHOP_MANAGER_SCRIPT)
 const DETAIL_ZONE_PATH : String = "VBoxContainer/MainHBox/LeftInfoColumn/DetailZone"
 const DIRECTION_REROLL_COST : int = 120
 
+# ★★★ v5.0 连通组悬停高亮：槽位原始样式备份 ★★★
+var _armor_btn_default_style : Dictionary = {}
+
 @onready var mode_label = get_node_or_null("VBoxContainer/TopBar/ModeLabel")
 @onready var gold_label = get_node_or_null("VBoxContainer/GoldLabel")
 @onready var close_btn = get_node_or_null("VBoxContainer/BottomHBox/CloseBtn")
@@ -113,6 +116,7 @@ func _ready():
 
 	_connectivity_groups.clear()
 	_connected_cells.clear()
+	_armor_btn_default_style.clear()
 
 
 func _ensure_aura_tab_btn():
@@ -206,15 +210,17 @@ func _on_shop_updated():
 		_schedule_build_ui()
 
 
+# ============================================================
+#  v5.0：只强制检查熔铸奖励（pending_sacrifice_rewards）
+#  合成产物 + 阵亡回收的防具（pending_forge_rewards）允许带着离开，
+#  玩家可在下次进入 FORGE / MAP_SHOP_REST 时再处理。
+# ============================================================
 func _on_close_pressed():
-	if GameState.has_any_pending_rewards():
-		var total : int = (
-			GameState.pending_sacrifice_rewards.size()
-			+ GameState.pending_forge_rewards.size()
-		)
+	if GameState.has_pending_sacrifice_rewards():
+		var total : int = GameState.pending_sacrifice_rewards.size()
 		Globals.show_confirm(
 			self,
-			"还有 %d 件待领取奖励。\n请先把它们装备到单位防具槽后再离开。" % total,
+			"还有 %d 件熔铸奖励待领取。\n请先把它们装备到单位防具槽后再离开。" % total,
 			"好的", "",
 			func(): pass,
 			func(): pass,
@@ -264,12 +270,12 @@ func _do_close_normal():
 	else: queue_free()
 
 
+# ============================================================
+#  v5.0：只检查 pending_sacrifice_rewards
+# ============================================================
 func _check_pending_before_leave() -> bool:
 	if GameState.has_pending_sacrifice_rewards():
 		_show_detail_in_zone("请先领取熔铸奖励（%d 件）" % GameState.pending_sacrifice_rewards.size())
-		return false
-	if GameState.has_pending_forge_rewards():
-		_show_detail_in_zone("请先领取合成产出（%d 件）" % GameState.pending_forge_rewards.size())
 		return false
 	return true
 
@@ -356,12 +362,11 @@ func _build_ui_inner():
 		left_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		left_vbox.clip_contents = true
 
-	# ★ 核心修复 1：外层右侧区域，绝对禁用滑动条
 	var r_scroll = get_node_or_null("VBoxContainer/MainHBox/RightScroll")
 	if r_scroll and r_scroll is ScrollContainer:
 		r_scroll.custom_minimum_size = Vector2(110, 0) 
 		r_scroll.size_flags_horizontal = Control.SIZE_FILL
-		r_scroll.size_flags_vertical = Control.SIZE_FILL # ★ 核心修复 2：不要用 EXPAND_FILL，不要让它撑爆外层
+		r_scroll.size_flags_vertical = Control.SIZE_FILL
 		r_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 		r_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_NEVER
 		r_scroll.clip_contents = true 
@@ -372,15 +377,14 @@ func _build_ui_inner():
 		r_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		r_container.clip_contents = true
 
-	# ★ 核心修复 2：内层 ShopScroll 绝对禁用滑动条
 	var inner_shop_scroll = get_node_or_null("VBoxContainer/MainHBox/RightScroll/RightContainer/ShopScroll")
 	if inner_shop_scroll and inner_shop_scroll is ScrollContainer:
 		inner_shop_scroll.custom_minimum_size = Vector2(0, 0)
 		inner_shop_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		inner_shop_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 		inner_shop_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-		inner_shop_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED # 绝对禁止滚动
-		inner_shop_scroll.clip_contents = true # 超出部分直接裁切
+		inner_shop_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+		inner_shop_scroll.clip_contents = true
 
 	var t_bar = get_node_or_null("VBoxContainer/MainHBox/RightScroll/RightContainer/TabBar")
 	if t_bar:
@@ -410,7 +414,6 @@ func _build_ui_inner():
 	if show_passive:
 		_build_passive_slots()
 
-	# ★ 核心修复：确保切到商店时，立刻物理删除待领取区，防止延迟 free 导致占位撑爆界面
 	var show_pending : bool = false
 	if current_mode == Mode.FORGE or current_mode == Mode.MAP_SHOP_REST:
 		if current_tab != "arena_shop" and current_tab != "weapon":
@@ -424,7 +427,7 @@ func _build_ui_inner():
 	else:
 		if _pending_section and is_instance_valid(_pending_section):
 			var p = _pending_section.get_parent()
-			if p: p.remove_child(_pending_section) # ★ 立即从父节点拔除，瞬间腾出空间
+			if p: p.remove_child(_pending_section)
 			_pending_section.queue_free()
 			_pending_section = null
 			_pending_container = null
@@ -707,13 +710,116 @@ func _get_connectivity_style(unit_idx: int, slot_idx: int) -> StyleBox:
 
 func _build_unit_columns():
 	if not unit_container: return
-	_refresh_connectivity(true)   # ★ 每次重建列前先更新连通组（静默）
+	_refresh_connectivity(true)
 	unit_container.alignment = BoxContainer.ALIGNMENT_CENTER
 	for child in unit_container.get_children():
 		unit_container.remove_child(child); child.free()
 
 	for i in range(party.size()):
 		unit_container.add_child(_create_unit_column(i))
+
+	_backup_all_armor_styles()
+
+
+func _backup_all_armor_styles():
+	_armor_btn_default_style.clear()
+	if not unit_container: return
+	for child in unit_container.get_children():
+		_recursive_backup_armor_styles(child)
+
+func _recursive_backup_armor_styles(node: Node):
+	if node is Button:
+		var b : Button = node
+		if b.get_meta("slot_type", "") == "armor":
+			var u = int(b.get_meta("unit_idx", -1))
+			var s = int(b.get_meta("slot_idx", -1))
+			if u >= 0 and s >= 0:
+				var key = "%d_%d" % [u, s]
+				_armor_btn_default_style[key] = {
+					"normal": b.get_theme_stylebox("normal"),
+					"hover": b.get_theme_stylebox("hover"),
+				}
+	for c in node.get_children():
+		_recursive_backup_armor_styles(c)
+
+func _on_armor_hover_entered(item_id: String, unit_idx: int, slot_idx: int):
+	var key : String = "%d_%d" % [unit_idx, slot_idx]
+	var group_size : int = 0
+	var unit_count : int = 0
+	if _connected_cells.has(key):
+		var gi : int = _connected_cells[key]
+		if gi >= 0 and gi < _connectivity_groups.size():
+			var g = _connectivity_groups[gi]
+			group_size = g.size()
+			unit_count = g.unit_count()
+			_apply_group_highlight(gi)
+		else:
+			_restore_all_armor_styles()
+	else:
+		_restore_all_armor_styles()
+	_detail.on_button_hover_entered_with_link(item_id, group_size, unit_count)
+
+func _on_armor_hover_exited():
+	_detail.on_button_hover_exited()
+	_restore_all_armor_styles()
+
+func _apply_group_highlight(group_idx: int):
+	_restore_all_armor_styles()
+	if group_idx < 0 or group_idx >= _connectivity_groups.size():
+		return
+	var g = _connectivity_groups[group_idx]
+	var hl := StyleBoxFlat.new()
+	hl.bg_color = Color(1.0, 0.9, 0.3, 0.25)
+	hl.border_color = Color(1.0, 0.9, 0.3)
+	hl.set_border_width_all(2)
+	hl.corner_radius_top_left = 2
+	hl.corner_radius_top_right = 2
+	hl.corner_radius_bottom_left = 2
+	hl.corner_radius_bottom_right = 2
+	hl.content_margin_left = 0
+	hl.content_margin_right = 0
+	hl.content_margin_top = 0
+	hl.content_margin_bottom = 0
+	for cell in g.cells:
+		var btn = _find_armor_button_at(cell.unit_index, cell.row)
+		if btn:
+			btn.add_theme_stylebox_override("normal", hl)
+			btn.add_theme_stylebox_override("hover", hl)
+
+func _restore_all_armor_styles():
+	for key in _armor_btn_default_style:
+		var parts : PackedStringArray = String(key).split("_", false)
+		if parts.size() != 2: continue
+		var u : int = int(parts[0])
+		var s : int = int(parts[1])
+		var btn = _find_armor_button_at(u, s)
+		if btn == null: continue
+		var st : Dictionary = _armor_btn_default_style[key]
+		var normal_sb = st.get("normal", null)
+		var hover_sb = st.get("hover", null)
+		if normal_sb != null:
+			btn.add_theme_stylebox_override("normal", normal_sb)
+		if hover_sb != null:
+			btn.add_theme_stylebox_override("hover", hover_sb)
+
+func _find_armor_button_at(unit_idx: int, slot_idx: int) -> Button:
+	if not unit_container: return null
+	for child in unit_container.get_children():
+		var found = _recursive_find_armor(child, unit_idx, slot_idx)
+		if found: return found
+	return null
+
+func _recursive_find_armor(node: Node, unit_idx: int, slot_idx: int) -> Button:
+	if node is Button:
+		var b : Button = node
+		if b.get_meta("slot_type", "") == "armor" \
+				and int(b.get_meta("unit_idx", -1)) == unit_idx \
+				and int(b.get_meta("slot_idx", -1)) == slot_idx:
+			return b
+	for c in node.get_children():
+		var found = _recursive_find_armor(c, unit_idx, slot_idx)
+		if found: return found
+	return null
 
 
 func _create_unit_column(unit_idx: int, is_preview: bool = false) -> Control:
@@ -1007,7 +1113,7 @@ func _on_buy_aura(aid: String, cost: int):
 		_show_detail_in_zone("被动槽已满")
 		return
 	GameState.remove_aura_candidate(aid)
-	SoundManager.play_select_sound()   # ★ 由 play_get_item_sound 改为 select
+	SoundManager.play_select_sound()
 	_sync_all()
 	_update_gold_display()
 	_schedule_build_ui()
@@ -1049,7 +1155,6 @@ func _ensure_pending_section():
 	else:
 		right_container.add_child(_pending_section)
 
-	# ★ 核心修改：将标题改为按钮
 	var btn_claim := Style.create_styled_button(Style.FONT_SMALL, Vector2(0, 16))
 	btn_claim.name = "PendingTitleBtn"
 	btn_claim.text = "一键领取 (0)"
@@ -1085,7 +1190,6 @@ func _build_pending_slots():
 	for i in range(GameState.pending_forge_rewards.size()):
 		all_pending.append({"inst": GameState.pending_forge_rewards[i], "idx": i, "src": "forge"})
 
-	# ★ 更新按钮状态
 	var title_btn = _pending_section.get_node_or_null("PendingTitleBtn")
 	if title_btn:
 		title_btn.text = "一键领取 (%d)" % all_pending.size()
@@ -1115,7 +1219,6 @@ func _create_pending_button(inst: ItemInstance, idx: int, src: String) -> Button
 	btn.clip_text = true
 	btn.clip_contents = false
 
-	# ★ 修复：清空内边距，让图标可以占满 20x20，与防具槽位一致
 	var empty_sb := StyleBoxEmpty.new()
 	empty_sb.content_margin_left = 0
 	empty_sb.content_margin_right = 0
@@ -1166,7 +1269,7 @@ func _build_sacrifice_panel():
 	var main_vbox = VBoxContainer.new()
 	main_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	main_vbox.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	main_vbox.add_theme_constant_override("separation", 4) # 间距改小
+	main_vbox.add_theme_constant_override("separation", 4) 
 	main_vbox.alignment = BoxContainer.ALIGNMENT_CENTER
 	shop_container.add_child(main_vbox)
 
@@ -1179,7 +1282,7 @@ func _build_sacrifice_panel():
 
 	var drop_zone := PanelContainer.new()
 	drop_zone.name = "SacrificeDropZone"
-	drop_zone.custom_minimum_size = Vector2(0, 35) # ★ 核心修改：从 70 改为 35
+	drop_zone.custom_minimum_size = Vector2(0, 35)
 	drop_zone.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	
 	var stylebox := StyleBoxFlat.new()
@@ -1279,12 +1382,10 @@ func _equip_pending_reward(data: Dictionary, target: Control):
 		var slot_idx : int = target.get_meta("slot_idx", -1)
 		if slot_idx < 0 or slot_idx >= u.armor_slots.size(): return
 
-		# ★ 新增：目标槽是熔铸防具，拒绝覆盖
 		if _is_slot_occupied_by_unsellable(unit_idx, slot_idx):
 			_show_detail_in_zone("该槽位是不可丢弃的熔铸防具，无法覆盖")
 			return
 
-		# 原有：处理被覆盖的旧装备（此时旧的必然是可出售的）
 		var old_inst : ItemInstance = u.armor_slots[slot_idx]
 		if old_inst:
 			var old_data = ItemManager.get_item_data(old_inst.item_id)
@@ -1322,7 +1423,6 @@ func _discard_pending_reward(data: Dictionary):
 		_show_detail_in_zone("熔铸防具不可丢弃，请装备到单位防具槽")
 		return
 	
-	# ★ 新增：折算金币
 	var sell_price = inst.get_sell_price()
 	if sell_price > 0:
 		_context.add_gold(sell_price)
@@ -1442,7 +1542,6 @@ func _create_item_button(inst: ItemInstance, slot_type: String, unit_idx: int, s
 				star.add_theme_constant_override("outline_size", 2)
 				star.mouse_filter = Control.MOUSE_FILTER_IGNORE
 
-				# ★ 改为填满按钮并垂直居中（原来是 PRESET_CENTER_TOP 顶在顶端）
 				star.set_anchors_preset(Control.PRESET_FULL_RECT)
 				star.offset_left = 0
 				star.offset_right = 0
@@ -1461,8 +1560,13 @@ func _create_item_button(inst: ItemInstance, slot_type: String, unit_idx: int, s
 	btn.set_meta("item_id", inst.item_id if inst else "")
 	if inst and inst.item_id != "":
 		var item_id : String = inst.item_id
-		btn.mouse_entered.connect(_on_button_hover_entered.bind(item_id))
-		btn.mouse_exited.connect(_on_button_hover_exited)
+		# ★★★ v5.0：armor 类型走连通组感知 hover ★★★
+		if slot_type == "armor" and unit_idx >= 0 and slot_idx >= 0:
+			btn.mouse_entered.connect(_on_armor_hover_entered.bind(item_id, unit_idx, slot_idx))
+			btn.mouse_exited.connect(_on_armor_hover_exited)
+		else:
+			btn.mouse_entered.connect(_on_button_hover_entered.bind(item_id))
+			btn.mouse_exited.connect(_on_button_hover_exited)
 	return btn
 
 
@@ -1642,8 +1746,6 @@ func _can_equip_armor_to(unit_idx: int, item_id: String, exclude_slot_idx: int =
 		if s == null: return true
 	return false
 
-## 判断某单位某槽位是否被"不可丢弃防具"占据（如熔铸防具）
-## 被占据 → 任何覆盖型操作都必须拒绝
 func _is_slot_occupied_by_unsellable(unit_idx: int, slot_idx: int) -> bool:
 	if unit_idx < 0 or unit_idx >= party.size(): return false
 	if slot_idx < 0 or slot_idx >= party[unit_idx].armor_slots.size(): return false
@@ -1739,7 +1841,6 @@ func _is_valid_drop(data: Dictionary, target: Control) -> bool:
 			if idata.type != "armor": return false
 			var ts_p : int = target.get_meta("slot_idx", -1)
 			if ts_p < 0 or ts_p >= party[tu_p].armor_slots.size(): return false
-			# ★ 新增：目标槽是熔铸防具，禁止覆盖
 			if _is_slot_occupied_by_unsellable(tu_p, ts_p): return false
 			var need_p : int = _inst_slots(inst)
 			var used_p : int = _used_slots_excluding(party[tu_p], [ts_p])
@@ -1795,7 +1896,6 @@ func _is_valid_drop(data: Dictionary, target: Control) -> bool:
 			elif item_data.type == "armor":
 				if target_type != "armor": return false
 				if tu2 < 0 or ts2 < 0: return false
-				# ★ 新增：目标槽是熔铸防具，禁止覆盖
 				if _is_slot_occupied_by_unsellable(tu2, ts2): return false
 				return _can_equip_armor_to(tu2, item_data.id, ts2)
 			return false
@@ -1899,7 +1999,6 @@ func _buy_and_equip_aura(data: Dictionary, target: Control):
 
 	_context.set_passive_at_slot(tgt_idx, {"type": "aura", "aura_id": aid})
 	GameState.remove_aura_candidate(aid)
-	# ★ 删除 SoundManager.play_get_item_sound()，沿用 end_drag 的 play_select_sound
 	_sync_all()
 	_update_gold_display()
 	_schedule_build_ui()
@@ -2118,7 +2217,6 @@ func _switch_tab(tab: String):
 	if not is_forge_tab:
 		_forge.cleanup()
 		
-	# ★ 核心修复 1：切换页签时，立刻销毁或重建待领取区，防止串台
 	var show_pending : bool = false
 	if current_mode == Mode.FORGE or is_shop_rest_mode():
 		if tab != "arena_shop" and tab != "weapon":
@@ -2376,9 +2474,9 @@ func _ensure_upgrade_shop_btn():
 		return
 	if not reset_btn: return
 
-	_upgrade_shop_btn = Style.create_styled_button(Style.FONT_LARGE, Vector2(100, 16)) # ★ 高度减小
+	_upgrade_shop_btn = Style.create_styled_button(Style.FONT_LARGE, Vector2(100, 16))
 	_upgrade_shop_btn.name = "UpgradeShopBtn" 
-	_upgrade_shop_btn.custom_minimum_size = Vector2(0, 16) # ★ 高度减小
+	_upgrade_shop_btn.custom_minimum_size = Vector2(0, 16)
 	_upgrade_shop_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_upgrade_shop_btn.size_flags_vertical = Control.SIZE_SHRINK_END 
 	_upgrade_shop_btn.clip_text = true
@@ -2804,7 +2902,6 @@ func _on_claim_all_pending():
 		var is_unsellable : bool = data.no_sell
 		var placed : bool = false
 
-		# 1. 优先找全队的空槽位
 		for u in party:
 			if u.is_dead: continue
 			for i in range(u.armor_slots.size()):
@@ -2814,7 +2911,6 @@ func _on_claim_all_pending():
 					break
 			if placed: break
 
-		# 2. 没有空槽 → 尝试替换"价值最低的可卖防具"
 		if not placed:
 			var worst_u : UnitData = null
 			var worst_idx : int = -1
@@ -2826,7 +2922,6 @@ func _on_claim_all_pending():
 					var old_inst : ItemInstance = u.armor_slots[i]
 					if old_inst:
 						var old_data = ItemManager.get_item_data(old_inst.item_id)
-						# 不可丢弃的防具（熔铸）绝不能被一键替换掉
 						if old_data and old_data.no_sell:
 							continue
 						var p : int = old_inst.get_sell_price()
@@ -2835,31 +2930,24 @@ func _on_claim_all_pending():
 							worst_u = u
 							worst_idx = i
 
-			# ★ 新增：熔铸防具（no_sell）不参与"替换"路径
-			# 否则会出现"用 0 金的熔铸防具去覆盖可卖的普通防具"→普通防具反而被抹掉
 			if worst_u != null and not is_unsellable and new_price >= worst_price:
 				_context.add_gold(worst_price)
 				sold_gold += worst_price
 				worst_u.armor_slots[worst_idx] = inst
 				placed = true
 
-		# 3. 仍没装上
 		if not placed:
 			if is_unsellable:
-				# ★ 新增：熔铸防具不能卖也不能丢，原样保留在 pending 里
 				kept_count += 1
 				continue
-			# 可卖防具：卖成金币
 			_context.add_gold(new_price)
 			sold_gold += new_price
 
-		# 真正处理完（放上槽位 / 卖掉换钱）才从 pending 中移除
 		if entry["src"] == "sacrifice":
 			GameState.pending_sacrifice_rewards.erase(inst)
 		else:
 			GameState.pending_forge_rewards.erase(inst)
 
-	# 刷新界面
 	_build_unit_columns()
 	_build_pending_slots()
 	_update_gold_display()
@@ -2873,4 +2961,4 @@ func _on_claim_all_pending():
 		_show_detail_in_zone("一键领取完成。\n替换/多余装备已折算为 %d 金币。" % sold_gold)
 	else:
 		_show_detail_in_zone("已领取所有装备。")
-	SoundManager.play_select_sound()   # ★ 由 play_get_item_sound 改为 drag 成功的 select 音效
+	SoundManager.play_select_sound()

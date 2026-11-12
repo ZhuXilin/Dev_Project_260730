@@ -91,7 +91,10 @@ func show_unit(unit : UnitData):
 	_show_raw(display, type_name, desc, "", "\n".join(stats))
 
 
-func show_item(item_id: String, affixes: Array = []):
+# ============================================================
+#  show_item（v5.0 扩展：连通组信息）
+# ============================================================
+func show_item(item_id: String, affixes: Array = [], link_group_size: int = 0, link_unit_count: int = 0):
 	_hover_ref = {"kind": "item", "id": item_id}
 
 	var relic_data : Dictionary = RelicManager.get_relic_data(item_id)
@@ -131,6 +134,12 @@ func show_item(item_id: String, affixes: Array = []):
 			var mods = []
 			for k in data.modifier: mods.append(Style.get_attr_display_name(k) + "+" + str(data.modifier[k]))
 			stats_arr.append("属性: " + " ".join(mods))
+
+		# ★ v5.0：连通组反馈
+		if link_group_size >= 2:
+			stats_arr.append("★ 当前已链接：%d 件防具（跨 %d 个单位）" % [link_group_size, link_unit_count])
+		elif data.enable_direction:
+			stats_arr.append("· 未形成连通组（相邻槽位方向不对接）")
 	
 	if not affixes.is_empty():
 		stats_arr.append("--- 词条 ---")
@@ -141,6 +150,14 @@ func show_item(item_id: String, affixes: Array = []):
 	if set_hint != "": stats_arr.append(set_hint)
 
 	_show_raw(data.name, type_str, desc, "", "\n".join(stats_arr), data.icon, UIConst.QUALITY_COLORS.get(data.quality, Color.WHITE))
+
+
+# ============================================================
+#  v5.0 新增：带连通组信息的防具 hover 入口
+# ============================================================
+func on_button_hover_entered_with_link(item_id: String, group_size: int, unit_count: int):
+	show_item(item_id, [], group_size, unit_count)
+
 
 func show_relic(data: Dictionary, item_id: String = ""):
 	_hover_ref = {"kind": "relic", "id": item_id}
@@ -157,7 +174,6 @@ func show_relic(data: Dictionary, item_id: String = ""):
 	var desc = data.get("description", "")
 	if item_id != "" and GameState.is_relic_refined(item_id): desc += "\n（已精炼）"
 	
-	# ★ 修复：RelicManager 里已经存成 Texture2D 了，做一下类型兼容判断
 	var icon : Texture2D = null
 	var icon_data = data.get("icon", null)
 	if icon_data is Texture2D:
@@ -188,7 +204,6 @@ func show_talent(data: TalentData):
 	else:
 		stats += "\n可装备: 全部"
 
-	# ★ 统一调用
 	var icon : Texture2D = TalentManager.get_talent_icon(data.id)
 
 	_show_raw(data.display_name, type_str, data.description, "", stats, icon, Style.get_rarity_color(data.rarity))
@@ -208,7 +223,6 @@ func show_aura(aura_id: String):
 		return
 
 	var type_str = "光环 [" + str(ad.get("tag", "")) + "]"
-	# ★ 修改：单位变成“魂火”
 	var stats = "研究时长: %d 天\n购买价: %d 魂火" % [int(ad.get("research_time", 2)), int(ad.get("buy_cost", 6))]
 	
 	_show_raw(ad.get("name", aura_id), type_str, ad.get("description", ""), "", stats, null, Color(0.7, 0.9, 1.0))

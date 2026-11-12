@@ -27,7 +27,14 @@ func get_main_unit() -> UnitData:
 	return null
 
 
-func sync_units_from_battlefield(battle_units: Array):
+# ============================================================
+#  战后同步（v5.0：阵亡单位装备自动回收）
+#  返回 { "reclaimed_count": N }
+#  - 所有防具（含熔铸防具）统一回收进 GameState.pending_forge_rewards
+#  - 回收后原槽位清空，单位保留 is_dead=true，需英灵殿/圣坛复活
+# ============================================================
+func sync_units_from_battlefield(battle_units: Array) -> Dictionary:
+	var result : Dictionary = {"reclaimed_count": 0}
 	var battle_map : Dictionary = {}
 	for bu in battle_units:
 		if bu == null or not is_instance_valid(bu): continue
@@ -38,12 +45,38 @@ func sync_units_from_battlefield(battle_units: Array):
 		if battle_map.has(key):
 			var bu = battle_map[key]
 			party_unit.hit_points = bu.hit_points
-			# ★ v4.8 清理：weapon_slot 已被彻底删除，直接同步防具即可
 			party_unit.armor_slots = bu.armor_slots.duplicate()
 			party_unit.max_armor_slots = bu.max_armor_slots
 		else:
+			var stats : Dictionary = _reclaim_dead_unit_armor(party_unit)
+			result["reclaimed_count"] += int(stats.get("reclaimed", 0))
 			party_unit.hit_points = 0
 			party_unit.is_dead = true
+	return result
+
+
+# ============================================================
+#  v5.0：阵亡单位装备回收
+#  - 所有防具（含熔铸防具）回收进 GameState.pending_forge_rewards
+#  - 熔铸防具的"不可覆盖"限制只在"已装备到槽位"时生效；
+#    回收进待领取区后，玩家可重新拖到任意存活单位槽位
+# ============================================================
+func _reclaim_dead_unit_armor(unit_data: UnitData) -> Dictionary:
+	var result : Dictionary = {"reclaimed": 0}
+	if unit_data == null:
+		return result
+	if not GameState:
+		return result
+	for i in range(unit_data.armor_slots.size()):
+		var inst = unit_data.armor_slots[i]
+		if inst == null:
+			continue
+		GameState.pending_forge_rewards.append(inst)
+		unit_data.armor_slots[i] = null
+		result["reclaimed"] += 1
+	if result["reclaimed"] > 0:
+		SaveManager.auto_save()
+	return result
 
 
 func init_passive_slots():
