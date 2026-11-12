@@ -10,7 +10,7 @@ signal confirmed
 @onready var confirm_button = $Panel/VBoxContainer/ConfirmButton
 
 var _confirmed_guard : bool = false
-var rating_label : Label = null # ★ 新增：独立的评级标签
+var rating_label : Label = null # ★ 独立的评级标签
 
 func _ready():
 	visible = false
@@ -18,6 +18,7 @@ func _ready():
 		confirm_button.pressed.disconnect(conn.callable)
 	confirm_button.pressed.connect(_on_confirm_pressed)
 	confirm_button.disabled = false
+	confirm_button.focus_mode = Control.FOCUS_NONE # 去除焦点，防止回车误触发
 	_confirmed_guard = false
 	
 	# ★ 动态创建评级标签，并放在物品列表和横线下方
@@ -36,9 +37,19 @@ func _ready():
 			vbox.move_child(rating_label, idx - 1)
 	rating_label.visible = false
 
+# ★ 核心修复：拦截回车和空格，防止穿透到底层场景反复触发 open()
+func _input(event: InputEvent):
+	if not visible:
+		return
+	if event is InputEventKey and event.pressed and not event.echo:
+		if event.keycode == KEY_ENTER or event.keycode == KEY_KP_ENTER or event.keycode == KEY_SPACE:
+			get_viewport().set_input_as_handled() # 吞掉按键，防止穿透
+			_on_confirm_pressed()
+
 
 func setup_reward(gold: int, soul: int, items: Array, hide_gold: bool = false, title: String = "关卡结算"):
 	confirm_button.disabled = false
+	confirm_button.visible = true   # ★ 修复：强行重置为显示
 	_confirmed_guard = false
 
 	title_label.text = title
@@ -138,6 +149,7 @@ func setup_reward(gold: int, soul: int, items: Array, hide_gold: bool = false, t
 
 func open():
 	confirm_button.disabled = false
+	confirm_button.visible = true  # ★ 修复：打开时必定可见
 	_confirmed_guard = false
 	visible = true
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
@@ -147,6 +159,7 @@ func open():
 func close():
 	visible = false
 	confirm_button.disabled = false
+	confirm_button.visible = true  # 还原可见
 	_confirmed_guard = false
 	Globals.is_reward_summary_active = false
 
@@ -235,6 +248,7 @@ func show_simple_item(item_id: String, count: int):
 	await get_tree().create_timer(2.0, true, false, true).timeout
 	if is_instance_valid(self) and visible:
 		visible = false
+		confirm_button.visible = true # ★ 修复：恢复按钮
 		Globals.is_reward_summary_active = false
 		Globals.is_item_get_popup_active = false
 		confirmed.emit()
@@ -268,6 +282,7 @@ func show_text(text: String):
 	await get_tree().create_timer(2.0, true, false, true).timeout
 	if is_instance_valid(self) and visible:
 		visible = false
+		confirm_button.visible = true # ★ 修复：恢复按钮
 		Globals.is_reward_summary_active = false
 		Globals.is_item_get_popup_active = false
 		confirmed.emit()

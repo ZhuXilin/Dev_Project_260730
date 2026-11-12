@@ -637,18 +637,25 @@ func _build_ui_inner():
 func _ensure_auto_config_btn():
 	if _auto_config_btn and is_instance_valid(_auto_config_btn):
 		return
-	var top_bar = get_node_or_null("VBoxContainer/TopBar")
-	if not top_bar:
-		return
+		
 	_auto_config_btn = Button.new()
 	_auto_config_btn.name = "AutoConfigBtn"
-	_auto_config_btn.text = "⚙ 自动配装"
-	_auto_config_btn.add_theme_font_size_override("font_size", 7)
+	_auto_config_btn.text = "自动配装"
+	_auto_config_btn.add_theme_font_size_override("font_size", 5) # 极小字号
 	_auto_config_btn.focus_mode = Control.FOCUS_NONE
-	_auto_config_btn.custom_minimum_size = Vector2(64, 16)
+	_auto_config_btn.custom_minimum_size = Vector2(40, 14)
 	_auto_config_btn.tooltip_text = "根据连通组 + 套装 + 属性，生成 3 个自动配置方案"
 	_auto_config_btn.pressed.connect(_open_auto_config_dialog)
-	top_bar.add_child(_auto_config_btn)
+	
+	add_child(_auto_config_btn)
+	_auto_config_btn.z_index = 100 # 顶层防遮挡
+	
+	_auto_config_btn.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
+	# 强行贴到最右下角的像素位置
+	_auto_config_btn.offset_left = -44.0
+	_auto_config_btn.offset_top = -18.0
+	_auto_config_btn.offset_right = -4.0
+	_auto_config_btn.offset_bottom = -4.0
 
 
 func _refresh_connectivity(silent: bool = false):
@@ -972,7 +979,10 @@ func _on_level_up_pressed(unit_idx: int):
 
 func _update_gold_display():
 	if gold_label:
-		gold_label.text = "金币: " + str(_context.get_gold())
+		var soul_fire_str: String = ""
+		if SoulFireManager:
+			soul_fire_str = "    |    魂火: %d/%d" % [SoulFireManager.current, SoulFireManager.get_max_carried()]
+		gold_label.text = "金币: " + str(_context.get_gold()) + soul_fire_str
 
 
 func _build_aura_panel():
