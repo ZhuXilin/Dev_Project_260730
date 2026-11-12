@@ -220,8 +220,29 @@ func play_miss_sound():
 func play_heal_sound():
 	if config: _play_sfx("heal", config.heal)
 
-func play_death_sound():
-	if config: _play_sfx("death", config.death)
+## 播放阵亡音效。
+## team_id: 0 = 我方；1 = 敌方；-1（默认）= 通用（走 death_ally）。
+## 回落顺序：
+##   1) team_id == 1 且 death_enemy 非空 → death_enemy
+##   2) 其他情况 → death_ally
+##   3) death_ally 也为空 → 静默
+func play_death_sound(team_id: int = -1):
+	if config == null:
+		return
+
+	var stream : AudioStream = null
+	var slot : String = "death_ally"
+
+	if team_id == 1 and config.death_enemy != null:
+		stream = config.death_enemy
+		slot = "death_enemy"
+	else:
+		stream = config.death_ally
+		slot = "death_ally"
+
+	if stream == null:
+		return
+	_play_sfx(slot, stream)
 
 func play_cancel_sound():
 	if config: _play_sfx("cancel", config.cancel)

@@ -148,7 +148,6 @@ func _apply_override_dict(stats: UnitData, ov: Dictionary) -> void:
 			"dexterity": stats.dexterity = int(v)
 			"intelligence": stats.intelligence = int(v)
 			"faith": stats.faith = int(v)
-			"arcane": stats.arcane = int(v)
 			"move_range": stats.move_range = int(v)
 			"physical_reduction": stats.physical_reduction = float(v)
 			"magic_reduction": stats.magic_reduction = float(v)

@@ -128,9 +128,6 @@ var unit_attr_cap : Dictionary:
 var unit_level_cap : Dictionary:
 	get: return resource_state.unit_level_cap
 	set(value): resource_state.unit_level_cap = value
-var unit_attr_points : Dictionary:
-	get: return resource_state.unit_attr_points
-	set(value): resource_state.unit_attr_points = value
 var tag_purchase_count : Dictionary:
 	get: return resource_state.tag_purchase_count
 	set(value): resource_state.tag_purchase_count = value

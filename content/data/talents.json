@@ -43,7 +43,7 @@
   "bleed": {
 	"id": "bleed", "display_name": "出血", "description": "攻击累积出血层数，5层触发15%生命值伤害",
 	"flavor": "血会流。血会累积。血会记住。\n\n五层之后，血会替你还。",
-	"school": "感应", "rarity": "rare",
+	"school": "敏捷", "rarity": "rare",
 	"icon": "item_104.png",
 	"accumulation_threshold": 1, "cooldown_after_trigger": 0,
 	"effect_type": "attack", "effect_params": { "max_stacks": 5, "damage_percent": 0.15 },
@@ -83,7 +83,7 @@
   "lifesteal": {
 	"id": "lifesteal", "display_name": "吸血", "description": "攻击后恢复 30% 伤害的 HP",
 	"flavor": "喝敌人的血续命。\n\n——这算活着吗？\n——这算活着。",
-	"school": "感应", "rarity": "rare",
+	"school": "力量", "rarity": "rare",
 	"icon": "item_108.png",
 	"accumulation_threshold": 3, "cooldown_after_trigger": 2,
 	"effect_type": "attack", "effect_params": { "lifesteal_percent": 0.3 },
@@ -237,7 +237,7 @@
   "active_dragon_breath": {
 	"id": "active_dragon_breath", "display_name": "龙息", "description": "下次攻击伤害 ×1.5 且攻击距离 +1",
 	"flavor": "",
-	"school": "感应", "rarity": "legendary",
+	"school": "信仰", "rarity": "legendary",
 	"icon": "item_122.png",
 	"is_active_skill": true, "skill_cooldown": 3,
 	"accumulation_threshold": 1, "cooldown_after_trigger": 3,

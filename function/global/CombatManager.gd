@@ -846,9 +846,11 @@ func _play_hurt_effect(defender: Unit, attacker: Unit) -> void:
 
 func _play_death_animation(unit: Unit) -> void:
 	if not is_instance_valid(unit): return
+	# ★ 在 unit 被 free 之前先捕获 team_id（值拷贝），避免 tween 延迟回调时访问失效对象
+	var team_id : int = unit.unit_stats.team_id
 	var snd_tween = unit.create_tween()
 	snd_tween.set_ignore_time_scale(true)
-	snd_tween.tween_callback(func(): SoundManager.play_death_sound()).set_delay(0.05)
+	snd_tween.tween_callback(func(): SoundManager.play_death_sound(team_id)).set_delay(0.05)
 	var hp_label = unit.get_node_or_null("HPLabel")
 	if hp_label: hp_label.visible = false
 	if not unit.animated_sprite: return
@@ -1157,13 +1159,13 @@ func _can_counter_attack(attacker: Unit, defender: Unit) -> bool:
 	if not defender.can_counter(): return false
 	var def_weapon_type = defender.get_weapon_type()
 	if def_weapon_type == "" or def_weapon_type == "staff": return false
-	var defender_weapon = defender.get_weapon_data()
-	if not defender_weapon: return false
-	var def_min_range = defender_weapon.min_attack_range
-	var def_max_range = defender_weapon.attack_range
+	# ★ v4.8：武器内联 unit_stats，无武器直接不能反击
+	if defender.unit_stats.weapon_name == "": return false
+	var def_min_range : int = defender.get_effective_min_attack_range()
+	var def_max_range : int = defender.get_effective_attack_range()
 	var dist = abs(defender.grid_cell.x - attacker.grid_cell.x) + abs(defender.grid_cell.y - attacker.grid_cell.y)
 	return dist >= def_min_range and dist <= def_max_range
-
+	
 
 func _execute_counter(attacker: Unit, defender: Unit) -> void:
 	var counter_damage = calculate_damage(defender, attacker)

@@ -18,7 +18,7 @@
 [ext_resource type="AudioStream" uid="uid://c1jei0hu4cdeg" path="res://content/music/15 Battle Map 3 - Victory Nears (Player).mp3" id="7_xqkk7"]
 [ext_resource type="AudioStream" uid="uid://bhxk4aqwkwny2" path="res://content/music/19 Shop 3 - Coliseum.mp3" id="10_ojyag"]
 [ext_resource type="AudioStream" uid="uid://lnpidexicnb4" path="res://content/music/25 Unit Change.mp3" id="11_2hdij"]
-[ext_resource type="AudioStream" uid="uid://c0bl5cdk3atex" path="res://content/music/03. Story 5 - Village.mp3" id="12_hd217"]
+[ext_resource type="AudioStream" uid="uid://c0bl5cdk3atex" path="res://content/music/03 Story 5 - Village.mp3" id="12_hd217"]
 [ext_resource type="AudioStream" uid="uid://cyuaacekbee34" path="res://content/music/22 Story 3 - Conversation.mp3" id="16_7bx0x"]
 [ext_resource type="AudioStream" uid="uid://cde3c5ppv4p5r" path="res://content/music/09 Story 5 - Theme of Encounter.mp3" id="19_r2ggk"]
 

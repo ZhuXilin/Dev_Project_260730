@@ -83,22 +83,12 @@ func _ready():
 	performance_layer.visible = false
 	cost_label.text = "  |  转职：免费"
 	
-	# ★ 修改：不再放大，与其他界面保持一致
 	var sprite_box = get_node_or_null("PerformanceLayer/CenterBox/SpriteBox")
 	if sprite_box:
 		sprite_box.custom_minimum_size = Vector2(32, 32)
 	if perf_sprite:
-		perf_sprite.position = Vector2(16, 16) # 在 32x32 容器中居中
-		perf_sprite.scale = Vector2(1, 1) # 恢复 1 倍缩放
-
-	# ★ 绑定英灵殿复活按钮
-	var revive_btn = get_node_or_null("Panel/VBox/ChapelActions/ReviveBtn")
-	var actions_box = get_node_or_null("Panel/VBox/ChapelActions")
-	
-	if actions_box:
-		actions_box.visible = _is_chapel_mode
-	if revive_btn:
-		revive_btn.pressed.connect(_on_chapel_revive)
+		perf_sprite.position = Vector2(16, 16)
+		perf_sprite.scale = Vector2(1, 1)
 
 	MusicManager.play_hero_shrine_music()
 	_refresh_soul_display()
@@ -108,55 +98,18 @@ func _ready():
 func setup_as_chapel():
 	_is_chapel_mode = true
 	if is_node_ready():
-		var actions_box = get_node_or_null("Panel/VBox/ChapelActions")
-		if actions_box: actions_box.visible = true
-	if hint_label:
-		hint_label.text = "英灵殿赐福：可免费复活或转职一次"
-
-
-func _on_chapel_revive():
-	var dead : Array = GameState.get_dead_party()
-	if dead.is_empty():
+		# 修改顶部提示语
 		if hint_label:
-			hint_label.text = "当前没有阵亡单位需要复活"
-		return
-		
-	_show_revive_submenu()
-
-
-func _show_revive_submenu():
-	for child in unit_row.get_children():
-		unit_row.remove_child(child)
-		child.queue_free()
-		
-	if hint_label:
-		hint_label.text = "选择一名单位复活"
-		
-	var dead_units : Array = GameState.get_dead_party()
-	for ud in dead_units:
-		var btn := Button.new()
-		btn.text = "%s（%s）" % [
-			ud.display_name,
-			UnitDataManager.get_unit_type_display_name(ud.unit_name)
-		]
-		btn.custom_minimum_size = Vector2(100, 40)
-		btn.add_theme_font_size_override("font_size", 8)
-		btn.pressed.connect(_on_revive_unit.bind(ud.unit_name, ud.display_name))
-		unit_row.add_child(btn)
-
-	var back := Button.new()
-	back.text = "返回转职"
-	back.custom_minimum_size = Vector2(80, 40)
-	back.add_theme_font_size_override("font_size", 8)
-	back.pressed.connect(_build_unit_row)
-	unit_row.add_child(back)
+			hint_label.text = "选择一个单位转职或复活"
+		# 重新构建UI以应用阵亡单位的点击逻辑
+		_build_unit_row()
 
 
 func _on_revive_unit(unit_name: String, display_name: String):
 	if GameState.revive_unit(unit_name, display_name):
 		SaveManager.auto_save()
 		if hint_label:
-			hint_label.text = "%s 已复活" % display_name
+			hint_label.text = "%s 已复活，现在可以选择转职" % display_name
 		_build_unit_row()
 		SoundManager.play_heal_sound()
 
@@ -193,7 +146,6 @@ func _build_unit_card(unit_idx: int) -> PanelContainer:
 	vbox.add_theme_constant_override("separation", 3)
 	card.add_child(vbox)
 
-	# ★ 修复：传入 unit.override_sprite_path，确保转职后刷新外观
 	var texture_rect = UnitDataManager.create_idle_texture_rect(unit.unit_name, Vector2(32, 32), unit.override_sprite_path)
 	texture_rect.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	vbox.add_child(texture_rect)
@@ -233,10 +185,22 @@ func _build_unit_card(unit_idx: int) -> PanelContainer:
 	if unit.is_dead:
 		name_lb.text = unit_display + "\n" + type_cn
 		name_lb.modulate = Color(0.4, 0.4, 0.4, 1)
-		status_lb.text = "已阵亡 / 已熔铸"
-		status_lb.modulate = Color(0.4, 0.4, 0.4, 1)
-		card.modulate = Color(0.5, 0.5, 0.5, 1)
-		texture_rect.modulate = Color(0.4, 0.4, 0.4, 1)
+		
+		if _is_chapel_mode:
+			status_lb.text = "已阵亡\n(点击复活)"
+			status_lb.modulate = Color(0.8, 0.6, 0.6, 1)
+			card.modulate = Color(0.8, 0.8, 0.8, 1)
+			texture_rect.modulate = Color(0.6, 0.6, 0.6, 1)
+			
+			card.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+			card.gui_input.connect(_on_dead_card_input.bind(unit_idx))
+			card.mouse_entered.connect(_on_card_hover_enter.bind(card))
+			card.mouse_exited.connect(_on_card_hover_exit.bind(card))
+		else:
+			status_lb.text = "已阵亡 / 已熔铸"
+			status_lb.modulate = Color(0.4, 0.4, 0.4, 1)
+			card.modulate = Color(0.5, 0.5, 0.5, 1)
+			texture_rect.modulate = Color(0.4, 0.4, 0.4, 1)
 		return card
 
 	# ---- 无进阶定义 ----
@@ -277,7 +241,6 @@ func _attr_short(key: String) -> String:
 		"dexterity":    return "灵"
 		"intelligence": return "智"
 		"faith":        return "信"
-		"arcane":       return "感"
 		"move_range":   return "移"
 		_:              return key
 
@@ -288,6 +251,20 @@ func _on_card_hover_enter(card: PanelContainer):
 
 func _on_card_hover_exit(card: PanelContainer):
 	card.modulate = Color.WHITE
+
+
+func _on_dead_card_input(event: InputEvent, unit_idx: int):
+	if _is_performing:
+		return
+	if not (event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT):
+		return
+		
+	var party : Array = _get_party()
+	if unit_idx < 0 or unit_idx >= party.size(): return
+	var unit : UnitData = party[unit_idx]
+	
+	# 直接调用复活逻辑
+	_on_revive_unit(unit.unit_name, unit.display_name)
 
 
 func _on_card_input(event: InputEvent, unit_idx: int):
@@ -310,6 +287,7 @@ func _on_card_clicked(unit_idx: int):
 
 	var unit : UnitData = party[unit_idx]
 	if unit.advanced_class != "": return
+	if unit.is_dead: return # 阵亡单位走 _on_dead_card_input，这里拦截一下防误触
 
 	var branches : Array = AdvancedClassManager.get_branches_for_unit(unit.unit_name)
 	if branches.is_empty():
@@ -330,13 +308,11 @@ func _make_picker_panel(unit : UnitData, branches : Array) -> Control:
 	overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
 	overlay.mouse_filter = Control.MOUSE_FILTER_STOP
 
-	# ★ 完全不透明黑底，彻底遮住底层界面防错位
 	var bg := ColorRect.new()
 	bg.color = Color(0.06, 0.06, 0.08, 1)
 	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
 	overlay.add_child(bg)
 
-	# 绝对居中
 	var center_box := CenterContainer.new()
 	center_box.set_anchors_preset(Control.PRESET_FULL_RECT)
 	center_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -346,8 +322,8 @@ func _make_picker_panel(unit : UnitData, branches : Array) -> Control:
 	picker_panel.custom_minimum_size = Vector2(440, 0)
 	
 	var sb := StyleBoxFlat.new()
-	sb.bg_color = Color(0, 0, 0, 0) # 去掉背景
-	sb.border_width_left = 0        # 去掉边框
+	sb.bg_color = Color(0, 0, 0, 0)
+	sb.border_width_left = 0
 	sb.border_width_right = 0
 	sb.border_width_top = 0
 	sb.border_width_bottom = 0
@@ -380,14 +356,12 @@ func _make_picker_panel(unit : UnitData, branches : Array) -> Control:
 		col.add_theme_constant_override("separation", 6)
 		col.alignment = BoxContainer.ALIGNMENT_BEGIN
 		
-		# 1. 单位图标
 		var sprite_wrapper := Control.new()
 		sprite_wrapper.custom_minimum_size = Vector2(32, 32) 
 		sprite_wrapper.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 		col.add_child(sprite_wrapper)
 
 		var texture_rect = null
-		# 如果转职有独立贴图，这里临时加载转职贴图，否则使用原单位贴图
 		if adv.sprite_frames_path != "" and ResourceLoader.exists(adv.sprite_frames_path):
 			var frames = load(adv.sprite_frames_path) as SpriteFrames
 			if frames:
@@ -396,7 +370,6 @@ func _make_picker_panel(unit : UnitData, branches : Array) -> Control:
 				texture_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 				texture_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 				texture_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
-				# 借用动画
 				if frames.has_animation("idle"):
 					texture_rect.texture = frames.get_frame_texture("idle", 0)
 					var timer := Timer.new()
@@ -417,7 +390,6 @@ func _make_picker_panel(unit : UnitData, branches : Array) -> Control:
 
 		sprite_wrapper.add_child(texture_rect)
 
-		# 2. 文字
 		var name_lb := Label.new()
 		name_lb.text = "★ " + adv.name
 		name_lb.add_theme_font_size_override("font_size", 10)
@@ -445,7 +417,6 @@ func _make_picker_panel(unit : UnitData, branches : Array) -> Control:
 		spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
 		col.add_child(spacer)
 
-		# 3. 按钮 (水平居中)
 		var btn := Button.new()
 		btn.text = "选择"
 		btn.add_theme_font_size_override("font_size", 9)
@@ -490,7 +461,6 @@ func _begin_convert(unit : UnitData, adv : AdvancedClassData):
 	_subtract_soul(COST_PER_CLASS)
 	unit.advanced_class = adv.id
 
-	_apply_growth_rolls(unit)
 	unit.tags.clear()
 	for t in adv.tags:
 		unit.tags.append(t)
@@ -505,7 +475,6 @@ func _begin_convert(unit : UnitData, adv : AdvancedClassData):
 			"dexterity":    unit.dexterity += val
 			"intelligence": unit.intelligence += val
 			"faith":        unit.faith += val
-			"arcane":       unit.arcane += val
 			"move_range":   unit.move_range += val
 
 	if adv.granted_talent != "":
@@ -617,39 +586,10 @@ func _sync_advanced_class_to_gamestate(src_unit: UnitData):
 			u.dexterity = src_unit.dexterity
 			u.intelligence = src_unit.intelligence
 			u.faith = src_unit.faith
-			u.arcane = src_unit.arcane
+			# ★ 已移除：u.arcane = src_unit.arcane（UnitData无此字段）
 			u.move_range = src_unit.move_range
 
 			u.tags.clear()
 			for t in src_unit.tags:
 				u.tags.append(t)
 			return
-
-
-func _apply_growth_rolls(unit : UnitData):
-	var points_dict : Dictionary = GameState.unit_attr_points.get(unit.unit_name, {})
-	if points_dict.is_empty(): return
-	for attr_key in points_dict:
-		if not _is_attr_key(attr_key): continue
-		var points : int = int(points_dict[attr_key])
-		if points <= 0: continue
-		var bonus : int = 0
-		for i in range(points):
-			if randf() < 0.3: bonus += 1
-		if bonus > 0:
-			_apply_attr_bonus(unit, attr_key, bonus)
-
-
-func _is_attr_key(key : String) -> bool:
-	return key in ["max_hp", "strength", "dexterity", "intelligence", "faith", "arcane", "move_range"]
-
-
-func _apply_attr_bonus(unit : UnitData, key : String, amount : int):
-	match key:
-		"max_hp": unit.max_hp += amount; unit.hit_points += amount
-		"strength":     unit.strength += amount
-		"dexterity":    unit.dexterity += amount
-		"intelligence": unit.intelligence += amount
-		"faith":        unit.faith += amount
-		"arcane":       unit.arcane += amount
-		"move_range":   unit.move_range += amount

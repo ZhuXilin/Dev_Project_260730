@@ -2064,9 +2064,7 @@ func _sync_all():
 		tu.dexterity = u.dexterity
 		tu.intelligence = u.intelligence
 		tu.faith = u.faith
-		tu.arcane = u.arcane
 		tu.move_range = u.move_range
-
 
 static func _clone_item_inst(src: ItemInstance) -> ItemInstance:
 	if src == null: return null

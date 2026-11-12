@@ -81,7 +81,6 @@ static func get_default_stats(unit_name: String) -> UnitData:
 	data.dexterity = dict.get("dexterity", 5)
 	data.intelligence = dict.get("intelligence", 3)
 	data.faith = dict.get("faith", 3)
-	data.arcane = dict.get("arcane", 3)
 	data.move_range = dict.get("move_range", 5)
 	data.ignore_terrain_cost = dict.get("ignore_terrain_cost", false)
 	data.physical_reduction = float(dict.get("physical_reduction", 0.0))
@@ -100,7 +99,7 @@ static func get_default_stats(unit_name: String) -> UnitData:
 
 	data.phases = UnitData.normalize_phases(dict.get("phases", []))
 
-	# ★ v4.8：武器数值直接内联
+	# ★ v4.8：武器数值直接内联（无 arcane 字段）
 	data.weapon_name = str(dict.get("weapon_name", ""))
 	data.attack = float(dict.get("attack", 0.0))
 	data.weapon_quality = str(dict.get("weapon_quality", "common"))
@@ -278,7 +277,6 @@ static func apply_growth(stats: UnitData, unit_type: String) -> void:
 	stats.dexterity += int(g.get("dexterity", 0))
 	stats.intelligence += int(g.get("intelligence", 0))
 	stats.faith += int(g.get("faith", 0))
-	stats.arcane += int(g.get("arcane", 0))
 
 static var _sprite_frames_cache : Dictionary = {}
 static var _idle_texture_cache : Dictionary = {}

@@ -54,7 +54,6 @@ const EDITABLE_ATTRS : Array = [
 	{"key": "dexterity",    "label": "灵巧",   "min": 0, "max": 99},
 	{"key": "intelligence", "label": "智力",   "min": 0, "max": 99},
 	{"key": "faith",        "label": "信仰",   "min": 0, "max": 99},
-	{"key": "arcane",       "label": "感应",   "min": 0, "max": 99},
 	{"key": "move_range",   "label": "移动",   "min": 0, "max": 20},
 ]
 
@@ -82,19 +81,19 @@ const SAC_BUFF_TYPES_CN : Dictionary = {
 
 const CAP_ATTRS : Array = [
 	"vitality", "strength", "dexterity",
-	"intelligence", "faith", "arcane"
+	"intelligence", "faith"
 ]
 const CAP_ATTR_LABELS : Dictionary = {
 	"vitality": "生命", "strength": "力量", "dexterity": "灵巧",
-	"intelligence": "智力", "faith": "信仰", "arcane": "感应"
+	"intelligence": "智力", "faith": "信仰"
 }
 const BRANCH_STAT_KEYS : Array = [
 	"max_hp", "strength", "dexterity",
-	"intelligence", "faith", "arcane", "move_range"
+	"intelligence", "faith", "move_range"
 ]
 const BRANCH_STAT_LABELS : Dictionary = {
 	"max_hp": "生命", "strength": "力量", "dexterity": "灵巧",
-	"intelligence": "智力", "faith": "信仰", "arcane": "感应", "move_range": "移动"
+	"intelligence": "智力", "faith": "信仰", "move_range": "移动"
 }
 const CAP_MAX_LEVEL : int = 5
 
@@ -3173,7 +3172,6 @@ func _make_blank_unit_data(unit_key : String) -> Dictionary:
 		"dexterity": 5,
 		"intelligence": 3,
 		"faith": 3,
-		"arcane": 3,
 		"move_range": 5,
 		"ignore_terrain_cost": false,
 		"physical_reduction": 0.0,

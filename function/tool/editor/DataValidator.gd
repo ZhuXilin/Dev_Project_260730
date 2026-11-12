@@ -19,7 +19,7 @@ const VALID_UNIT_TAGS : Array = ["物理", "法术", "烈焰", "轮回", "灰烬
 const VALID_SET_TAGS : Array = ["烈焰", "轮回", "灰烬", "守护", "献祭", "余烬"]
 
 const VALID_CORE_TRAITS : Array = ["charge", "dragon_might", "bulwark"]
-const VALID_CAP_ATTRS : Array = ["vitality", "strength", "dexterity", "intelligence", "faith", "arcane"]
+const VALID_CAP_ATTRS : Array = ["vitality", "strength", "dexterity", "intelligence", "faith"]
 const VALID_AFFIX_TYPES : Array = [
 	"attack_flat", "defense_flat", "hp_flat", "crit_chance", "crit_damage",
 	"dodge", "lifesteal", "counter", "soul_fire_gain", "heal_boost",

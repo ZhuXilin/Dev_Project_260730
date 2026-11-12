@@ -13,7 +13,6 @@ class_name UnitData
 @export var dexterity: int = 5
 @export var intelligence: int = 3
 @export var faith: int = 3
-@export var arcane: int = 3
 @export var move_range: int = 5
 @export var ignore_terrain_cost: bool = false
 
@@ -207,7 +206,6 @@ func get_effective_attr(attr_name: String) -> int:
 		"dexterity":    base = dexterity
 		"intelligence": base = intelligence
 		"faith":        base = faith
-		"arcane":       base = arcane
 		"move_range":   base = move_range
 		"max_hp":       base = max_hp
 		_:              return 0
@@ -229,7 +227,6 @@ func apply_level_up() -> bool:
 			"dexterity":    dexterity += int(attr[k])
 			"intelligence": intelligence += int(attr[k])
 			"faith":        faith += int(attr[k])
-			"arcane":       arcane += int(attr[k])
 			"move_range":   move_range += int(attr[k])
 
 	var mech : Dictionary = UnitDataManager.get_level_mechanics(unit_name, idx)
@@ -244,14 +241,13 @@ func apply_level_up() -> bool:
 	level += 1
 	return true
 
-
 func to_dict() -> Dictionary:
 	var d: Dictionary = {
 		"unit_name": unit_name, "display_name": display_name,
 		"faction": faction, "team_id": team_id, "avatar": avatar,
 		"max_hp": max_hp, "hit_points": hit_points,
 		"strength": strength, "dexterity": dexterity, "intelligence": intelligence,
-		"faith": faith, "arcane": arcane, "move_range": move_range,
+		"faith": faith, "move_range": move_range,
 		"physical_reduction": physical_reduction, "magic_reduction": magic_reduction,
 		"ignore_terrain_cost": ignore_terrain_cost, "experience": experience, "level": level,
 		"attack_range_bonus": attack_range_bonus, "static_physical_penetration": static_physical_penetration,
@@ -290,7 +286,6 @@ static func from_dict(d: Dictionary) -> UnitData:
 	data.dexterity = d.get("dexterity", 5)
 	data.intelligence = d.get("intelligence", 3)
 	data.faith = d.get("faith", 3)
-	data.arcane = d.get("arcane", 3)
 	data.move_range = d.get("move_range", 5)
 	data.physical_reduction = float(d.get("physical_reduction", 0.0))
 	data.magic_reduction = float(d.get("magic_reduction", 0.0))
@@ -317,7 +312,7 @@ static func from_dict(d: Dictionary) -> UnitData:
 	if adv_raw is String: data.advanced_class = adv_raw
 	elif adv_raw is Dictionary: data.advanced_class = str((adv_raw as Dictionary).get("id", ""))
 	else: data.advanced_class = ""
-	
+
 	data.advanced_talent_id = d.get("advanced_talent_id", "")
 	data.override_sprite_path = d.get("override_sprite_path", "")
 	data.avatar_override = d.get("avatar_override", "")
@@ -353,7 +348,7 @@ static func from_dict(d: Dictionary) -> UnitData:
 		if tdata and tdata.is_active_skill: t_inst.is_ready = true
 		data.advanced_talent_inst = t_inst
 
-	# ★ 读取纯战斗属性
+	# ★ 读取纯战斗属性（无 arcane）
 	data.weapon_name = str(d.get("weapon_name", ""))
 	data.attack = float(d.get("attack", 0.0))
 	data.weapon_quality = str(d.get("weapon_quality", "common"))

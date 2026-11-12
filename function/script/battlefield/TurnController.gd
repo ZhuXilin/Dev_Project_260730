@@ -175,7 +175,6 @@ func apply_team_buffs() -> void:
 		s.dexterity    += int(relic_stats.get("dexterity", 0))
 		s.intelligence += int(relic_stats.get("intelligence", 0))
 		s.faith        += int(relic_stats.get("faith", 0))
-		s.arcane       += int(relic_stats.get("arcane", 0))
 		s.move_range   += int(relic_stats.get("move_range", 0))
 		unit.buff_attack_flat       += int(relic_stats.get("attack", 0))
 		var def_bonus : int = int(relic_stats.get("defense", 0))

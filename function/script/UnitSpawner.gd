@@ -120,7 +120,6 @@ static func _apply_advanced_class(stats: UnitData, adv_id: String) -> void:
 			stats.dexterity = int(standalone.get("dexterity", stats.dexterity))
 			stats.intelligence = int(standalone.get("intelligence", stats.intelligence))
 			stats.faith = int(standalone.get("faith", stats.faith))
-			stats.arcane = int(standalone.get("arcane", stats.arcane))
 			stats.move_range = int(standalone.get("move_range", stats.move_range))
 			stats.core_trait = str(standalone.get("core_trait", stats.core_trait))
 			var s_tags : Variant = standalone.get("tags", [])
@@ -141,7 +140,6 @@ static func _apply_advanced_class(stats: UnitData, adv_id: String) -> void:
 				"dexterity":    stats.dexterity += val
 				"intelligence": stats.intelligence += val
 				"faith":        stats.faith += val
-				"arcane":       stats.arcane += val
 				"move_range":   stats.move_range += val
 		if not adv.tags.is_empty():
 			stats.tags.clear()

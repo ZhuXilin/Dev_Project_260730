@@ -185,6 +185,14 @@ func _act_one_unit(unit: Unit) -> void:
 		if TurnManager.is_game_over: return
 		if TurnManager.current_turn_team != TurnManager.Team.PLAYER: return
 
+	# ★ 新增：优先去捡血瓶（避免去用加血技能/魂火）
+	var orb_cell = _enemy_ai._find_reachable_orb(unit)
+	if orb_cell != Vector2i(-1, -1):
+		var path = UnitManager.calculate_path(unit.grid_cell, orb_cell, unit)
+		if path.size() > 0:
+			await _exec_move(unit, path)
+			return
+
 	# 1. 优先检查急救
 	if await _try_ai_emergency_heal(unit):
 		return
@@ -247,7 +255,7 @@ func _try_ai_emergency_heal(unit: Unit) -> bool:
 	for u in UnitManager.unit_list:
 		if u.unit_stats.team_id != 0: continue
 		if u.hit_points <= 0: continue
-		if u == unit: continue
+		# ★ v4.8 修复：允许 AI 急救自己（原逻辑跳过 u == unit）
 		var ratio = float(u.hit_points) / float(u.unit_stats.max_hp)
 		if ratio < lowest_ratio:
 			lowest_ratio = ratio
@@ -260,12 +268,15 @@ func _try_ai_emergency_heal(unit: Unit) -> bool:
 	var dist = abs(unit.grid_cell.x - best_target.grid_cell.x) + abs(unit.grid_cell.y - best_target.grid_cell.y)
 	
 	# 如果自己是纯正的奶妈，且目标在技能射程内，让 AI 正常治疗即可，不要乱花魂火
-	if unit.get_weapon_type() == "staff":
-		var weapon = unit.get_weapon_data()
-		if weapon and dist >= weapon.min_attack_range and dist <= weapon.attack_range:
+	# ★ v4.8：跳过 "急救自己" 的场景（staff 自愈走普攻治疗即可）
+	if unit.get_weapon_type() == "staff" and unit != best_target:
+		var max_r : int = unit.get_effective_attack_range()
+		var min_r : int = unit.get_effective_min_attack_range()
+		if dist >= min_r and dist <= max_r:
 			return false
 			
-	if dist == 1:
+	# ★ v4.8：dist <= 1 覆盖"自己（dist=0）"和"相邻友军（dist=1）"
+	if dist <= 1:
 		await CombatManager.execute_emergency_heal(unit, best_target)
 		if is_instance_valid(unit) and unit.hit_points > 0 and unit.can_act_this_turn:
 			SignalBus.request_hide_info.emit()
@@ -298,7 +309,6 @@ func _try_ai_emergency_heal(unit: Unit) -> bool:
 					
 	return false
 
-
 # ============================================================
 #  执行攻击
 # ============================================================
@@ -307,18 +317,48 @@ func _exec_attack(unit: Unit, target) -> void:
 		_finish_unit(unit)
 		return
 	
+	var is_ally_target : bool = (target.unit_stats.team_id == unit.unit_stats.team_id)
+	
 	var skill_id := ""
 	var ready_skills := TalentManager.get_ready_active_skills(unit)
 	for sid in ready_skills:
 		var sdata = TalentManager.get_talent_data(sid)
 		if sdata == null: continue
-		if sdata.effect_type == "heal": continue 
+		
+		# ★ v4.8 修复：按目标类型筛选主动技能
+		#   - 友军目标：只允许 heal 类技能（群体治愈等）
+		#   - 敌人目标：只允许非 heal 类技能（攻击技能）
+		if sdata.effect_type == "heal":
+			if not is_ally_target: continue
+		else:
+			if is_ally_target: continue
 		
 		var cost : int = CombatManager._get_active_skill_cost(sdata)
 		if SoulFireManager.can_spend(cost):
 			skill_id = sid
 			break
+	
+	# ★ v4.8 新增：我方 AI 魂火爆发决策（仅针对敌人）
+	#   保守规则：Boss 需 ≥5 魂火、强敌需 ≥6 魂火，避免无脑清场
+	if skill_id == "" and not is_ally_target and unit.unit_stats.team_id == 0:
+		var sf_cost : int = SoulFireManager.current
+		if sf_cost >= 3:
+			var should_burst := false
+			var est_damage : int = CombatManager.calculate_damage(unit, target)
 			
+			if target.unit_stats.is_boss:
+				if sf_cost >= 5:
+					should_burst = true
+			elif sf_cost >= 6 and target.hit_points > est_damage * 2.0:
+				should_burst = true
+			
+			# 若这一击普通攻击已经够杀，不浪费爆发
+			if target.hit_points <= est_damage:
+				should_burst = false
+			
+			if should_burst:
+				skill_id = "soul_fire_burst"
+	
 	await CombatManager.execute_attack(unit, target, skill_id)
 	
 	if is_instance_valid(unit) and unit.hit_points > 0 and unit.can_act_this_turn:

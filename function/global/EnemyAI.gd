@@ -230,6 +230,15 @@ func run_enemy_ai():
 #  决策统一入口
 # ============================================================
 func _decide_action(unit: Unit):
+	# ★ 新增：血量不满时，优先去捡血瓶
+	var hp_ratio = float(unit.hit_points) / float(unit.unit_stats.max_hp)
+	if hp_ratio < 0.9:
+		var orb_cell = _find_reachable_orb(unit)
+		if orb_cell != Vector2i(-1, -1):
+			var path = UnitManager.calculate_path(unit.grid_cell, orb_cell, unit)
+			if path.size() > 0:
+				return {"type": "move", "unit": unit, "path": path}
+
 	# 0. 嘲讽
 	if unit.taunt_by != null and is_instance_valid(unit.taunt_by) \
 			and unit.taunt_rounds_left > 0 and unit.taunt_by.hit_points > 0:
@@ -240,8 +249,6 @@ func _decide_action(unit: Unit):
 	# ★ 绝望机制
 	if _is_desperate(unit):
 		return _decide_desperate_action(unit)
-
-	var hp_ratio = float(unit.hit_points) / float(unit.unit_stats.max_hp)
 
 	# 1. 治疗者
 	if unit.get_weapon_type() == "staff":
@@ -575,33 +582,10 @@ func _evaluate_move(unit: Unit):
 	var best_score = -999
 
 	var hp_ratio = float(unit.hit_points) / float(unit.unit_stats.max_hp)
-	if hp_ratio < 0.7 and _turn_manager != null:
-		var heal_cells = []
-		for cell in reachable.keys():
-			if cell == unit.grid_cell: continue
-			if _turn_manager.map_functions.has(cell):
-				var cfg = _turn_manager.map_functions[cell]
-				if cfg.has("event_id"):
-					var event_id = cfg["event_id"]
-					if EventManager.is_event_completed(event_id): continue
-					var event_def = EventManager.get_event(event_id)
-					if event_def.is_empty(): continue
-					var actions = event_def.get("actions", [])
-					for action in actions:
-						if action.get("type") == "heal" and action.get("amount", 0) > 0:
-							heal_cells.append(cell)
-							break
 
-		if heal_cells.size() > 0:
-			heal_cells.sort_custom(func(a, b):
-				var da = abs(a.x - unit.grid_cell.x) + abs(a.y - unit.grid_cell.y)
-				var db = abs(b.x - unit.grid_cell.x) + abs(b.y - unit.grid_cell.y)
-				return da < db
-			)
-			var target_cell = heal_cells[0]
-			var path = UnitManager.calculate_path(unit.grid_cell, target_cell, unit)
-			if path.size() > 0:
-				return {"type": "move", "unit": unit, "path": path}
+	# ★ v4.8 修复：删除 "HP<70% 无条件跑去回血点" 的分支。
+	#   回血点只在 _evaluate_survival_move（HP<40% 或特定濒死条件）中生效，
+	#   避免 AI 为了占回血点 / buff 地形放弃战斗。
 
 	if hp_ratio < 0.4:
 		var healers = []
@@ -664,6 +648,10 @@ func _evaluate_move(unit: Unit):
 			if ally_near:
 				score += 5
 			score -= _get_cell_danger_score(cell, unit)
+
+			if hp_ratio < 0.9 and ItemBattlefieldManager.get_active_orbs().has(cell):
+				score += 200
+
 			if score > best_score:
 				best_score = score
 				best_cell = cell
@@ -705,16 +693,16 @@ func _evaluate_move(unit: Unit):
 		if is_ranged:
 			var can_attack := _can_attack_from_cell(unit, cell)
 			if can_attack:
-				score = 100 + int(terrain_score / 2.0)
+				# ★ v4.8：能攻击到敌人的格，基础分从 100 提到 300，确保攻击位优先于地形
+				score = 300 + int(terrain_score / 2.0)
 				var nd := _nearest_enemy_dist(unit, cell)
 				if nd < 999:
 					score += nd * 25
 			else:
-				# ★ 修复远程“怯战”：如果队友能打，我后撤；如果全队都摸不到敌人，我主动往前压
 				if all_ally_cannot_attack:
 					var nd := _nearest_enemy_dist(unit, cell)
 					if nd < 999:
-						score = -nd * 10 + int(terrain_score / 2.0) # 距离越近分越高
+						score = -nd * 10 + int(terrain_score / 2.0)
 					else:
 						score = -80 + int(terrain_score / 2.0)
 				else:
@@ -724,7 +712,8 @@ func _evaluate_move(unit: Unit):
 			if ally_dist < 999:
 				score += maxi(-15, 10 - ally_dist * 3)
 		else:
-			score = terrain_score
+			# ★ v4.8：近战地形分减半，避免 AI 为 10% 减伤放弃进攻位
+			score = int(terrain_score * 0.5)
 
 			var dist_to_enemy = 999
 			for p in UnitManager.unit_list:
@@ -733,14 +722,15 @@ func _evaluate_move(unit: Unit):
 					if d < dist_to_enemy:
 						dist_to_enemy = d
 
+			# ★ v4.8：能从该格攻击到敌人 → +250（原 +120），确保贴脸优先于地形
 			if dist_to_enemy <= 1:
-				score += 120
+				score += 250
 			elif dist_to_enemy == 2:
-				score += 60
+				score += 100
 			elif dist_to_enemy == 3:
-				score += 20
+				score += 30
 			else:
-				score -= (dist_to_enemy - 3) * 10
+				score -= (dist_to_enemy - 3) * 20   # 远离惩罚加重
 
 			var ally_dist := _nearest_ally_dist(unit, cell)
 			if ally_dist < 999:
@@ -1186,3 +1176,32 @@ func _evaluate_taunt_attack(unit: Unit, taunter: Unit) -> Dictionary:
 		return {"type": "move", "unit": unit, "path": greedy}
 
 	return {}
+
+# 寻找移动范围内可达的最近血瓶
+func _find_reachable_orb(unit: Unit) -> Vector2i:
+	# 满血不找血瓶
+	if unit.hit_points >= unit.unit_stats.max_hp:
+		return Vector2i(-1, -1)
+		
+	var orbs = ItemBattlefieldManager.get_active_orbs()
+	if orbs.is_empty():
+		return Vector2i(-1, -1)
+		
+	var move_mv = unit.remaining_move
+	if move_mv <= 0:
+		return Vector2i(-1, -1)
+		
+	var reachable = UnitManager.get_reachable_cells(unit.grid_cell, move_mv, unit)
+	
+	var best_cell = Vector2i(-1, -1)
+	var min_dist = 9999
+	for cell in orbs:
+		if reachable.has(cell):
+			if UnitManager.is_cell_occupied(cell):
+				continue
+			var d = abs(cell.x - unit.grid_cell.x) + abs(cell.y - unit.grid_cell.y)
+			if d < min_dist:
+				min_dist = d
+				best_cell = cell
+				
+	return best_cell

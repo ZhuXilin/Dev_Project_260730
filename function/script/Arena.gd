@@ -706,3 +706,29 @@ func _refresh_streak_label():
 
 func _get_net_gain() -> int:
 	return _earned_soul - _total_paid - _retreat_fee
+
+
+func _sync_advanced_class_to_gamestate(src_unit: UnitData):
+	if src_unit == null: return
+	print("[HeroShrine][DEBUG] _sync_advanced_class_to_gamestate src=%s/%s class=%s talent=%s" % [
+		src_unit.unit_name, src_unit.display_name,
+		src_unit.advanced_class, src_unit.advanced_talent_id])
+
+	for i in range(GameState.party.size()):
+		var u : UnitData = GameState.party[i]
+		if u.unit_name == src_unit.unit_name and u.display_name == src_unit.display_name:
+			u.advanced_class = src_unit.advanced_class
+			u.advanced_talent_id = src_unit.advanced_talent_id
+			u.advanced_talent_inst = src_unit.advanced_talent_inst
+			u.override_sprite_path = src_unit.override_sprite_path
+			u.max_hp = src_unit.max_hp
+			u.strength = src_unit.strength
+			u.dexterity = src_unit.dexterity
+			u.intelligence = src_unit.intelligence
+			u.faith = src_unit.faith
+			u.move_range = src_unit.move_range
+
+			u.tags.clear()
+			for t in src_unit.tags:
+				u.tags.append(t)
+			return

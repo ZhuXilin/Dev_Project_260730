@@ -38,8 +38,6 @@ func apply_override(stats: UnitData):
 		stats.intelligence = override_stats["intelligence"]
 	if override_stats.has("faith"):
 		stats.faith = override_stats["faith"]
-	if override_stats.has("arcane"):
-		stats.arcane = override_stats["arcane"]
 
 	if override_stats.has("defense"):
 		stats.strength += override_stats["defense"]
@@ -51,4 +49,4 @@ func apply_override(stats: UnitData):
 	if override_stats.has("speed"):
 		stats.dexterity += override_stats["speed"]
 	if override_stats.has("luck"):
-		stats.arcane += override_stats["luck"]
+		stats.faith += override_stats["luck"]

@@ -34,7 +34,6 @@
 		]
 	  }
 	],
-	"arcane": 4.0,
 	"arena_exp": 30.0,
 	"attack": 4.0,
 	"attack_range": 3.0,
@@ -91,8 +90,7 @@
 	"max_talent_slots": 1.0,
 	"min_attack_range": 2.0,
 	"modifier": {
-	  "arcane": 0.2,
-	  "dexterity": 0.5
+	  "dexterity": 0.7
 	},
 	"move_range": 5.0,
 	"physical_penetration": 0.0,
@@ -139,7 +137,6 @@
 		"name": "焚身者",
 		"sprite_frames_path": "res://content/images/characters/unit_flamebearer_frames.tres",
 		"stat_bonus": {
-		  "arcane": 2.0,
 		  "max_hp": 8.0,
 		  "strength": 4.0
 		},
@@ -149,7 +146,6 @@
 		]
 	  }
 	],
-	"arcane": 3.0,
 	"arena_exp": 55.0,
 	"attack": 4.0,
 	"attack_range": 1.0,
@@ -263,7 +259,6 @@
 		]
 	  }
 	],
-	"arcane": 2.0,
 	"arena_exp": 25.0,
 	"attack": 5.0,
 	"attack_range": 2.0,
@@ -346,7 +341,6 @@
 	"weapon_quality": "rare"
   },
   "boss_dragonlord": {
-	"arcane": 10,
 	"arena_exp": 30,
 	"attack": 3.0,
 	"attack_range": 4.0,
@@ -397,8 +391,7 @@
 	"max_talent_slots": 1,
 	"min_attack_range": 1.0,
 	"modifier": {
-	  "arcane": 0.18,
-	  "intelligence": 0.05
+	  "intelligence": 0.23
 	},
 	"move_range": 3,
 	"phases": [
@@ -443,7 +436,6 @@
 	"weapon_quality": "legendary"
   },
   "boss_dragonlord_form2": {
-	"arcane": 12.0,
 	"attack": 9.0,
 	"attack_range": 1.0,
 	"attack_style": "standard",
@@ -498,7 +490,6 @@
 	"weapon_quality": "legendary"
   },
   "boss_dragonlord_form3": {
-	"arcane": 14.0,
 	"attack": 3.0,
 	"attack_range": 4.0,
 	"attack_style": "magic",
@@ -539,8 +530,7 @@
 	"max_hp": 220.0,
 	"min_attack_range": 1.0,
 	"modifier": {
-	  "arcane": 0.18,
-	  "intelligence": 0.05
+	  "intelligence": 0.23
 	},
 	"move_range": 3.0,
 	"physical_penetration": 0.0,
@@ -556,7 +546,6 @@
   },
   "boss_heavyrider_001": {
 	"advanced_class": "spearman_ironshield",
-	"arcane": 3.0,
 	"arena_exp": 35.0,
 	"attack": 6.0,
 	"attack_range": 1.0,
@@ -635,7 +624,6 @@
   },
   "boss_magic_001": {
 	"advanced_class": "mage_archmage",
-	"arcane": 6.0,
 	"arena_exp": 35.0,
 	"attack": 3.0,
 	"attack_range": 2.0,
@@ -691,8 +679,7 @@
 	"max_talent_slots": 1.0,
 	"min_attack_range": 1.0,
 	"modifier": {
-	  "arcane": 0.1,
-	  "intelligence": 0.22
+	  "intelligence": 0.32
 	},
 	"move_range": 5.0,
 	"physical_penetration": 0.0,
@@ -748,7 +735,6 @@
 		]
 	  }
 	],
-	"arcane": 4.0,
 	"arena_exp": 30.0,
 	"attack": 0.0,
 	"attack_range": 3.0,
@@ -840,7 +826,6 @@
 		"name": "龙领主",
 		"sprite_frames_path": "res://content/images/characters/unit_dragonlord_frames.tres",
 		"stat_bonus": {
-		  "arcane": 2.0,
 		  "max_hp": 10.0,
 		  "strength": 3.0
 		},
@@ -857,7 +842,6 @@
 		"name": "灰烬吐息者",
 		"sprite_frames_path": "res://content/images/characters/unit_dragonlord_frames.tres",
 		"stat_bonus": {
-		  "arcane": 4.0,
 		  "dexterity": 2.0,
 		  "max_hp": 6.0
 		},
@@ -867,7 +851,6 @@
 		]
 	  }
 	],
-	"arcane": 9.0,
 	"arena_exp": 60.0,
 	"attack": 3.0,
 	"attack_range": 4.0,
@@ -930,8 +913,7 @@
 	"max_talent_slots": 1.0,
 	"min_attack_range": 1.0,
 	"modifier": {
-	  "arcane": 0.18,
-	  "intelligence": 0.05
+	  "intelligence": 0.23
 	},
 	"move_range": 3.0,
 	"physical_penetration": 0.0,
@@ -978,7 +960,6 @@
 		"name": "咒术师",
 		"sprite_frames_path": "res://content/images/characters/unit_curser_frames.tres",
 		"stat_bonus": {
-		  "arcane": 2.0,
 		  "intelligence": 3.0,
 		  "max_hp": 4.0
 		},
@@ -988,7 +969,6 @@
 		]
 	  }
 	],
-	"arcane": 6.0,
 	"arena_exp": 35.0,
 	"attack": 3.0,
 	"attack_range": 2.0,
@@ -1048,8 +1028,7 @@
 	"max_talent_slots": 1.0,
 	"min_attack_range": 1.0,
 	"modifier": {
-	  "arcane": 0.1,
-	  "intelligence": 0.22
+	  "intelligence": 0.32
 	},
 	"move_range": 5.0,
 	"physical_penetration": 0.0,
@@ -1106,7 +1085,6 @@
 		]
 	  }
 	],
-	"arcane": 5.0,
 	"arena_exp": 40.0,
 	"attack": 6.0,
 	"attack_range": 1.0,
@@ -1223,7 +1201,6 @@
 		]
 	  }
 	],
-	"arcane": 3.0,
 	"arena_exp": 35.0,
 	"attack": 6.0,
 	"attack_range": 1.0,
@@ -1359,7 +1336,6 @@
 		]
 	  }
 	],
-	"arcane": 4.0,
 	"arena_exp": 30.0,
 	"attack": 4.0,
 	"attack_range": 1.0,

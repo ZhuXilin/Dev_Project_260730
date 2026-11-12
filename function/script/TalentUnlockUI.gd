@@ -8,7 +8,7 @@ extends CanvasLayer
 
 signal closed
 
-const SCHOOLS : Array = ["敏捷", "力量", "智力", "信仰", "感应"]
+const SCHOOLS : Array = ["敏捷", "力量", "智力", "信仰"]
 
 @onready var panel : Panel = $Panel
 @onready var title_label : Label = $Panel/VBox/Title

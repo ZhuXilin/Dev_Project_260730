@@ -405,7 +405,6 @@ func get_total_stats() -> Dictionary:
 		"dexterity": unit_stats.dexterity,
 		"intelligence": unit_stats.intelligence,
 		"faith": unit_stats.faith,
-		"arcane": unit_stats.arcane,
 		"move_range": unit_stats.move_range,
 		"attack": 0, "magic_attack": 0, "heal_amount": 0,
 		"attack_range": 0, "min_attack_range": 0, "attack_style": "standard"
@@ -606,7 +605,6 @@ func _apply_one_attr(attr_key: String, amount: int) -> void:
 		"dexterity":    unit_stats.dexterity += amount
 		"intelligence": unit_stats.intelligence += amount
 		"faith":        unit_stats.faith += amount
-		"arcane":       unit_stats.arcane += amount
 		"move_range":   unit_stats.move_range += amount
 
 
