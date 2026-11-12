@@ -2,7 +2,6 @@
 
 [ext_resource type="Script" uid="uid://cpgg1d57qh6bf" path="res://function/script/Camp.gd" id="1"]
 [ext_resource type="StyleBox" uid="uid://6qbsaxkfwg3o" path="res://content/resource/stylebox/8bit_style_box_flat.tres" id="2"]
-[ext_resource type="Texture2D" uid="uid://ch2l2vr0uw075" path="res://content/images/ui/mainui_camp_001.png" id="2_g44fj"]
 
 [node name="Camp" type="CanvasLayer" unique_id=1348850475]
 script = ExtResource("1")
@@ -14,11 +13,6 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 color = Color(0.08, 0.07, 0.06, 1)
-
-[node name="TextureRect" type="TextureRect" parent="." unique_id=1113408760]
-offset_right = 400.0
-offset_bottom = 240.0
-texture = ExtResource("2_g44fj")
 
 [node name="Title" type="Label" parent="." unique_id=936389542]
 modulate = Color(0.7, 0.65, 0.55, 1)
@@ -58,9 +52,9 @@ stretch_mode = 5
 
 [node name="EntranceGate" type="TextureButton" parent="." unique_id=2000000002]
 offset_left = 303.0
-offset_top = 19.0
+offset_top = 23.0
 offset_right = 367.0
-offset_bottom = 83.0
+offset_bottom = 87.0
 
 [node name="GateLabel" type="Label" parent="EntranceGate" unique_id=2000000003]
 layout_mode = 1
@@ -87,10 +81,10 @@ mouse_filter = 2
 
 [node name="SoulKeeperBtn" type="TextureButton" parent="NpcGrid" unique_id=2000000010]
 layout_mode = 0
-offset_left = 292.0
-offset_top = 120.0
-offset_right = 348.0
-offset_bottom = 175.0
+offset_left = 294.0
+offset_top = 116.0
+offset_right = 350.0
+offset_bottom = 171.0
 
 [node name="NamePlate" type="Label" parent="NpcGrid/SoulKeeperBtn" unique_id=2000000011]
 layout_mode = 0
@@ -111,9 +105,9 @@ horizontal_alignment = 1
 [node name="BlacksmithBtn" type="TextureButton" parent="NpcGrid" unique_id=2000000020]
 layout_mode = 0
 offset_left = 176.0
-offset_top = 32.0
+offset_top = 37.0
 offset_right = 232.0
-offset_bottom = 88.0
+offset_bottom = 93.0
 
 [node name="NamePlate" type="Label" parent="NpcGrid/BlacksmithBtn" unique_id=2000000021]
 layout_mode = 0
@@ -133,10 +127,10 @@ horizontal_alignment = 1
 
 [node name="GuideBtn" type="TextureButton" parent="NpcGrid" unique_id=2000000030]
 layout_mode = 0
-offset_left = 224.0
-offset_top = 164.0
-offset_right = 280.0
-offset_bottom = 218.0
+offset_left = 221.0
+offset_top = 159.0
+offset_right = 277.0
+offset_bottom = 213.0
 
 [node name="NamePlate" type="Label" parent="NpcGrid/GuideBtn" unique_id=2000000031]
 layout_mode = 0
@@ -157,9 +151,9 @@ horizontal_alignment = 1
 [node name="GladiatorBtn" type="TextureButton" parent="NpcGrid" unique_id=2000000040]
 layout_mode = 0
 offset_left = 43.0
-offset_top = 170.0
+offset_top = 168.0
 offset_right = 99.0
-offset_bottom = 227.0
+offset_bottom = 225.0
 
 [node name="NamePlate" type="Label" parent="NpcGrid/GladiatorBtn" unique_id=2000000041]
 layout_mode = 0
