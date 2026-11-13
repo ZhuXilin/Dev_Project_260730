@@ -2038,13 +2038,16 @@ func clear_danger_indicators() -> void:
 	_danger_indicators.clear()
 
 func _show_unit_ranges(unit: Unit):
-	var move_range : int = unit.get_total_move_range()
-	if unit.unit_stats.team_id != 0:
-		move_range = unit.get_total_move_range()
-
+	# ★ 核心修复：使用剩余移动力 remaining_move，而不是总移动力
+	var move_range : int = unit.remaining_move
+	
+	# 如果处于非玩家回合或者单位不可行动，则不显示移动范围（避免误导）
+	if unit.unit_stats.team_id == 0 and (not unit.can_act_this_turn or unit.has_acted):
+		move_range = 0
+		
 	var reachable = UnitManager.get_reachable_cells(unit.grid_cell, move_range, unit)
 
-	# ★ 修复：不再 get_weapon_data，直接读内联字段
+	# 修复：直接读内联字段
 	var s = unit.unit_stats
 	if s == null or s.weapon_name == "":
 		highlight_manager.clear_highlight(unit.grid_cell)
@@ -2082,7 +2085,7 @@ func _show_unit_ranges(unit: Unit):
 		_enemy_danger_zones = _calc_enemy_danger_zones()
 		danger_cells = _enemy_danger_zones
 		
-	# ★ 新增：过滤掉不在移动范围内的危险区，只显示移动范围内可能被打的格子
+	# 过滤掉不在移动范围内的危险区，只显示移动范围内可能被打的格子
 	var filtered_danger = {}
 	for c in danger_cells:
 		if reachable.has(c):
