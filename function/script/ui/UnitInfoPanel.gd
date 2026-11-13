@@ -21,6 +21,7 @@ func set_unit(unit_name: String):
 func clear_info():
 	current_unit_name = ""
 	refresh()
+	_hide_avatar_both()
 
 func toggle_mode():
 	if show_mode == 1: show_mode = 2
@@ -41,32 +42,29 @@ func refresh():
 		if scroll_box: scroll_box.visible = true
 		if hsep: hsep.visible = true
 
+	# 面板内不显示头像
+	_hide_avatar_both()
+
 	if show_mode == 2:
 		var flavor : String = FlavorManager.get_flavor("units", current_unit_name)
 		if flavor == "": flavor = "（暂无叙事）"
-		_update_avatar(current_unit_name)
 		if info_name: info_name.text = ""
 		if info_stats: info_stats.text = ""
 		if info_desc: info_desc.text = flavor
 		return
 
-	# 1. 尝试从当前局内队伍中寻找已经升级过的单位实例
 	var display_unit: UnitData = null
 	for u in GameState.party:
 		if u.unit_name == current_unit_name:
 			display_unit = u
 			break
 
-	# 2. 获取基础 JSON 数据作为后备
 	var unit_dict = UnitDataManager.get_unit_data(current_unit_name)
 	if display_unit == null and unit_dict.is_empty():
-		_hide_avatar_both()
 		if info_name: info_name.text = "（无数据）"
 		if info_stats: info_stats.text = ""
 		if info_desc: info_desc.text = "该单位在 unit_data.json 中未定义。"
 		return
-
-	_update_avatar(current_unit_name)
 
 	var display = ""
 	var faction = ""
@@ -75,11 +73,8 @@ func refresh():
 	var desc = ""
 
 	if display_unit != null:
-		# ★ 优先显示局内队伍中实际成长后的属性
 		display = display_unit.display_name if display_unit.display_name != "" else current_unit_name
 		faction = display_unit.faction if display_unit.faction != "" else "无"
-		
-		# 在名字右侧带上当前局内等级（方便魂栈、备战时查看）
 		if info_name: info_name.text = "%s\n（%s｜%s Lv.%d）" % [display, faction, type_cn, display_unit.level]
 		
 		lines.append("HP      %d" % display_unit.max_hp)
@@ -88,10 +83,8 @@ func refresh():
 		lines.append("智力    %d" % display_unit.intelligence)
 		lines.append("信仰    %d" % display_unit.faith)
 		lines.append("移动力  %d" % display_unit.move_range)
-		
 		desc = unit_dict.get("description", "")
 	else:
-		# ★ 后备：显示 JSON 中的基础 1 级属性（用于未入队的图鉴查看）
 		display = unit_dict.get("display_name", current_unit_name)
 		faction = unit_dict.get("faction", "无")
 		if info_name: info_name.text = "%s\n（%s｜%s）" % [display, faction, type_cn]
@@ -102,11 +95,9 @@ func refresh():
 		lines.append("智力    %d" % unit_dict.get("intelligence", 0))
 		lines.append("信仰    %d" % unit_dict.get("faith", 0))
 		lines.append("移动力  %d" % unit_dict.get("move_range", 0))
-		
 		desc = unit_dict.get("description", "")
 
 	lines.append("")
-
 	if DispatchManager.is_unit_dispatched(current_unit_name):
 		lines.append("【派遣中，本局不能出战】")
 		lines.append("")
@@ -117,34 +108,24 @@ func refresh():
 	if info_desc:
 		info_desc.text = desc
 
-
-# ★ 兼容装备界面/物品详情的显示
 func show_info(data: Dictionary):
 	current_unit_name = "" 
-	
 	if info_name:
 		info_name.text = data.get("name", "")
 		info_name.add_theme_color_override("font_color", data.get("name_color", Color.WHITE))
-	
 	if info_stats:
 		info_stats.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 		info_stats.text = data.get("stats", "")
 		info_stats.add_theme_color_override("font_color", Color.WHITE)
-		
 	if info_desc:
 		info_desc.text = data.get("desc", "")
-
-	var icon_tex = data.get("icon")
-	if icon_tex and avatar_rect and avatar_bg:
-		avatar_rect.texture = icon_tex
-		avatar_rect.custom_minimum_size = Vector2(48, 48)
-		avatar_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-		_show_avatar_raw()
-	else:
-		_hide_avatar_both()
+	
+	# 强制隐藏头像
+	_hide_avatar_both()
 		
 	if scroll_box: scroll_box.visible = true
 	if hsep: hsep.visible = true
+
 
 func _update_avatar(unit_name: String):
 	if not avatar_rect or not avatar_bg: return

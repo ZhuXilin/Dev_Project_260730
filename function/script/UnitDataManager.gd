@@ -380,5 +380,84 @@ static func get_avatar_by_speaker(speaker: String) -> String:
 
 
 static func _apply_weapon_to_unit_stats(_data: UnitData, _weapon_id: String) -> void:
-	# v4.8 废弃接口：武器数值已经内联进 unit_data.json，无需通过此函数查表
 	pass
+
+
+# ============================================================
+#  ★ 统一生成带画框的单位 Avatar（比例一致，不缩放）
+# ============================================================
+static func create_unit_avatar_rect(unit_name: String, avatar_size: Vector2 = Vector2(48, 48)) -> TextureRect:
+	var rect := TextureRect.new()
+	rect.custom_minimum_size = avatar_size
+	rect.size = avatar_size
+	# EXPAND_IGNORE_SIZE：忽略图片自带的尺寸，严格使用我们给的
+	rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	# KEEP_ASPECT_CENTERED：保持原图比例并居中（不会拉伸变形）
+	rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	
+	var avatar_id = GameState.get_unit_avatar(unit_name)
+	var tex = IconManager.get_icon_or_null(avatar_id)
+	if tex:
+		rect.texture = tex
+	else:
+		# 兜底：如果没有配置头像，用序列帧的第一帧
+		var fallback = get_idle_texture(unit_name)
+		if fallback:
+			rect.texture = fallback
+		else:
+			rect.modulate = Color(1, 1, 1, 0) # 全透明
+	return rect
+
+# 生成带边框垫底的复合控件
+static func create_unit_avatar_with_frame(unit_name: String, frame_size: Vector2 = Vector2(54, 54), avatar_size: Vector2 = Vector2(48, 48)) -> Control:
+	var wrapper := Control.new()
+	wrapper.custom_minimum_size = frame_size
+	wrapper.size = frame_size
+	wrapper.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	
+	# 垫底层（画框）
+	var bg := Panel.new()
+	bg.custom_minimum_size = frame_size
+	bg.size = frame_size
+	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var stylebox = load(Config.PATHS.STYLEBOX_8BIT)
+	if stylebox:
+		bg.add_theme_stylebox_override("panel", stylebox)
+	else:
+		var sb := StyleBoxFlat.new()
+		sb.bg_color = Color(0.15, 0.15, 0.15)
+		bg.add_theme_stylebox_override("panel", sb)
+	wrapper.add_child(bg)
+	
+	# 头像层
+	var tex_rect = create_unit_avatar_rect(unit_name, avatar_size)
+	tex_rect.position = (frame_size - avatar_size) / 2.0
+	wrapper.add_child(tex_rect)
+	
+	return wrapper
+
+# 生成带画框的按钮（供列表使用）
+static func create_unit_avatar_button(unit_name: String, frame_size: Vector2 = Vector2(54, 54), avatar_size: Vector2 = Vector2(48, 48)) -> Button:
+	var btn := Button.new()
+	btn.custom_minimum_size = frame_size
+	btn.focus_mode = Control.FOCUS_NONE
+	
+	# 清除默认样式
+	var empty_sb := StyleBoxEmpty.new()
+	empty_sb.content_margin_left = 0
+	empty_sb.content_margin_right = 0
+	empty_sb.content_margin_top = 0
+	empty_sb.content_margin_bottom = 0
+	btn.add_theme_stylebox_override("normal", empty_sb)
+	btn.add_theme_stylebox_override("hover", empty_sb)
+	btn.add_theme_stylebox_override("pressed", empty_sb)
+	btn.add_theme_stylebox_override("focus", empty_sb)
+	btn.add_theme_stylebox_override("disabled", empty_sb)
+	
+	var framed_avatar = create_unit_avatar_with_frame(unit_name, frame_size, avatar_size)
+	framed_avatar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	framed_avatar.set_anchors_preset(Control.PRESET_FULL_RECT)
+	btn.add_child(framed_avatar)
+	
+	return btn

@@ -288,7 +288,295 @@ func _build_ui():
 	_is_building_ui = false
 	if current_mode == Mode.FORGE or current_mode == Mode.MAP_SHOP_REST:
 		_setup_forge_narrative_ui()
+		
 
+func _ensure_auto_config_btn():
+	if _auto_config_btn and is_instance_valid(_auto_config_btn):
+		return
+		
+	_auto_config_btn = Button.new()
+	_auto_config_btn.name = "AutoConfigBtn"
+	_auto_config_btn.text = "自动配装"
+	_auto_config_btn.add_theme_font_size_override("font_size", 5) # 极小字号
+	_auto_config_btn.focus_mode = Control.FOCUS_NONE
+	_auto_config_btn.custom_minimum_size = Vector2(40, 14)
+	_auto_config_btn.tooltip_text = "根据连通组 + 套装 + 属性，生成 3 个自动配置方案"
+	_auto_config_btn.pressed.connect(_open_auto_config_dialog)
+	
+	add_child(_auto_config_btn)
+	_auto_config_btn.z_index = 100 # 顶层防遮挡
+	
+	_auto_config_btn.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
+	# 强行贴到最右下角的像素位置
+	_auto_config_btn.offset_left = -44.0
+	_auto_config_btn.offset_top = -18.0
+	_auto_config_btn.offset_right = -4.0
+	_auto_config_btn.offset_bottom = -4.0
+
+
+func _refresh_connectivity(silent: bool = false):
+	_connectivity_groups.clear()
+	_connected_cells.clear()
+
+	if party.is_empty():
+		return
+
+	var slots : Array = []
+	for i in range(party.size()):
+		slots.append(party[i].armor_slots)
+
+	_connectivity_groups = ConnectedGroupCalculator.compute_groups(slots)
+
+	var max_size = 0
+	for gi in range(_connectivity_groups.size()):
+		var g = _connectivity_groups[gi]
+		if g.size() > max_size:
+			max_size = g.size()
+		for c in g.cells:
+			_connected_cells["%d_%d" % [c.unit_index, c.row]] = gi
+
+	if max_size >= 5 and not silent:
+		_show_detail_in_zone("★ 形成超级连通网！(%d 件防具连通)" % max_size)
+
+
+func _get_connectivity_style(unit_idx: int, slot_idx: int) -> StyleBox:
+	var key : String = "%d_%d" % [unit_idx, slot_idx]
+	if not _connected_cells.has(key):
+		return null
+		
+	var gi = _connected_cells[key]
+	var g = _connectivity_groups[gi]
+	var group_size = g.size()
+	
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(0, 0, 0, 0)
+	
+	if group_size >= 5:
+		sb.border_color = Color(1.0, 0.8, 0.1) 
+		sb.border_width_left = 2
+		sb.border_width_right = 2
+		sb.border_width_top = 2
+		sb.border_width_bottom = 2
+	else:
+		sb.border_color = Color(0.9, 0.75, 0.3) 
+		sb.border_width_left = 1
+		sb.border_width_right = 1
+		sb.border_width_top = 1
+		sb.border_width_bottom = 1
+		
+	sb.content_margin_left = 0
+	sb.content_margin_right = 0
+	sb.content_margin_top = 0
+	sb.content_margin_bottom = 0
+	return sb
+
+
+func _build_unit_columns():
+	if not unit_container: return
+	_refresh_connectivity(true)
+	unit_container.alignment = BoxContainer.ALIGNMENT_CENTER
+	for child in unit_container.get_children():
+		unit_container.remove_child(child); child.free()
+
+	for i in range(party.size()):
+		unit_container.add_child(_create_unit_column(i))
+
+	_backup_all_armor_styles()
+
+
+func _backup_all_armor_styles():
+	_armor_btn_default_style.clear()
+	if not unit_container: return
+	for child in unit_container.get_children():
+		_recursive_backup_armor_styles(child)
+
+func _recursive_backup_armor_styles(node: Node):
+	if node is Button:
+		var b : Button = node
+		if b.get_meta("slot_type", "") == "armor":
+			var u = int(b.get_meta("unit_idx", -1))
+			var s = int(b.get_meta("slot_idx", -1))
+			if u >= 0 and s >= 0:
+				var key = "%d_%d" % [u, s]
+				_armor_btn_default_style[key] = {
+					"normal": b.get_theme_stylebox("normal"),
+					"hover": b.get_theme_stylebox("hover"),
+				}
+	for c in node.get_children():
+		_recursive_backup_armor_styles(c)
+
+func _on_armor_hover_entered(item_id: String, unit_idx: int, slot_idx: int):
+	var key : String = "%d_%d" % [unit_idx, slot_idx]
+	var group_size : int = 0
+	var unit_count : int = 0
+	if _connected_cells.has(key):
+		var gi : int = _connected_cells[key]
+		if gi >= 0 and gi < _connectivity_groups.size():
+			var g = _connectivity_groups[gi]
+			group_size = g.size()
+			unit_count = g.unit_count()
+			_apply_group_highlight(gi)
+		else:
+			_restore_all_armor_styles()
+	else:
+		_restore_all_armor_styles()
+	_detail.on_button_hover_entered_with_link(item_id, group_size, unit_count)
+
+func _on_armor_hover_exited():
+	_detail.on_button_hover_exited()
+	_restore_all_armor_styles()
+
+func _apply_group_highlight(group_idx: int):
+	_restore_all_armor_styles()
+	if group_idx < 0 or group_idx >= _connectivity_groups.size():
+		return
+	var g = _connectivity_groups[group_idx]
+	var hl := StyleBoxFlat.new()
+	hl.bg_color = Color(1.0, 0.9, 0.3, 0.25)
+	hl.border_color = Color(1.0, 0.9, 0.3)
+	hl.set_border_width_all(2)
+	hl.corner_radius_top_left = 2
+	hl.corner_radius_top_right = 2
+	hl.corner_radius_bottom_left = 2
+	hl.corner_radius_bottom_right = 2
+	hl.content_margin_left = 0
+	hl.content_margin_right = 0
+	hl.content_margin_top = 0
+	hl.content_margin_bottom = 0
+	for cell in g.cells:
+		var btn = _find_armor_button_at(cell.unit_index, cell.row)
+		if btn:
+			btn.add_theme_stylebox_override("normal", hl)
+			btn.add_theme_stylebox_override("hover", hl)
+
+func _restore_all_armor_styles():
+	for key in _armor_btn_default_style:
+		var parts : PackedStringArray = String(key).split("_", false)
+		if parts.size() != 2: continue
+		var u : int = int(parts[0])
+		var s : int = int(parts[1])
+		var btn = _find_armor_button_at(u, s)
+		if btn == null: continue
+		var st : Dictionary = _armor_btn_default_style[key]
+		var normal_sb = st.get("normal", null)
+		var hover_sb = st.get("hover", null)
+		if normal_sb != null:
+			btn.add_theme_stylebox_override("normal", normal_sb)
+		if hover_sb != null:
+			btn.add_theme_stylebox_override("hover", hover_sb)
+
+func _find_armor_button_at(unit_idx: int, slot_idx: int) -> Button:
+	if not unit_container: return null
+	for child in unit_container.get_children():
+		var found = _recursive_find_armor(child, unit_idx, slot_idx)
+		if found: return found
+	return null
+
+func _recursive_find_armor(node: Node, unit_idx: int, slot_idx: int) -> Button:
+	if node is Button:
+		var b : Button = node
+		if b.get_meta("slot_type", "") == "armor" \
+				and int(b.get_meta("unit_idx", -1)) == unit_idx \
+				and int(b.get_meta("slot_idx", -1)) == slot_idx:
+			return b
+	for c in node.get_children():
+		var found = _recursive_find_armor(c, unit_idx, slot_idx)
+		if found: return found
+	return null
+
+
+func _create_unit_column(unit_idx: int, is_preview: bool = false) -> Control:
+	var wrapper: PanelContainer = PanelContainer.new()
+	wrapper.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	wrapper.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	
+	if is_preview:
+		var sb = StyleBoxFlat.new()
+		sb.bg_color = Color(0.1, 0.1, 0.15, 0.9)
+		sb.border_width_left = 1
+		sb.border_width_right = 1
+		sb.border_width_top = 1
+		sb.border_width_bottom = 1
+		sb.border_color = Color(0.6, 0.6, 0.8)
+		# 强制边距为 0
+		sb.content_margin_left = 0
+		sb.content_margin_right = 0
+		sb.content_margin_top = 0
+		sb.content_margin_bottom = 0
+		wrapper.add_theme_stylebox_override("panel", sb)
+	else:
+		var sb_empty = StyleBoxEmpty.new()
+		sb_empty.content_margin_left = 0
+		sb_empty.content_margin_right = 0
+		sb_empty.content_margin_top = 0
+		sb_empty.content_margin_bottom = 0
+		wrapper.add_theme_stylebox_override("panel", sb_empty)
+
+	var col := VBoxContainer.new()
+	col.add_theme_constant_override("separation", 2)
+	# ★ 核心修复：统一改为 ALIGNMENT_BEGIN 贴顶对齐，绝不居中，防止拖拽时因高度变化导致下沉
+	col.alignment = BoxContainer.ALIGNMENT_BEGIN
+	col.clip_contents = false
+	wrapper.add_child(col)
+
+	var unit = party[unit_idx]
+
+	# 头像
+	var icon_ctrl = _create_unit_icon(unit, unit_idx)
+	if unit.is_dead: icon_ctrl.modulate = Color(0.4, 0.4, 0.4, 1)
+	col.add_child(icon_ctrl)
+
+	# 升级按钮
+	if _is_level_up_enabled():
+		var level_btn = _create_level_btn(unit, unit_idx)
+		if unit.is_dead: _disable_button(level_btn)
+		col.add_child(level_btn)
+
+	# 防具槽位
+	var armor_group := VBoxContainer.new()
+	armor_group.add_theme_constant_override("separation", 2)
+	armor_group.alignment = BoxContainer.ALIGNMENT_CENTER
+	col.add_child(armor_group)
+	
+	for slot_idx in range(unit.armor_slots.size()):
+		var armor_btn = _create_item_button(unit.armor_slots[slot_idx], "armor", unit_idx, slot_idx)
+		if unit.is_dead: _disable_button(armor_btn)
+		var conn_style = _get_connectivity_style(unit_idx, slot_idx)
+		if conn_style != null:
+			armor_btn.add_theme_stylebox_override("normal", conn_style)
+			armor_btn.add_theme_stylebox_override("hover", conn_style)
+		armor_group.add_child(armor_btn)
+
+	# 特技槽位
+	var talent_inst = unit.talent_slots[0] if unit.talent_slots.size() > 0 else null
+	var talent_btn = _create_talent_button(talent_inst, unit_idx, 0)
+	if unit.is_dead: _disable_button(talent_btn)
+	col.add_child(talent_btn)
+
+	# 进阶特技
+	var adv_btn = _create_advanced_talent_button(unit, unit_idx)
+	if unit.is_dead: _disable_button(adv_btn)
+	col.add_child(adv_btn)
+
+	if is_preview:
+		_disable_all_input_recursive(wrapper)
+		wrapper.modulate = Color(1, 1, 1, 0.9)
+
+	return wrapper
+
+
+func _disable_all_input_recursive(node: Node):
+	if node is Control:
+		node.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		if node is Button:
+			node.disabled = true
+	for child in node.get_children():
+		_disable_all_input_recursive(child)
+
+
+func _is_level_up_enabled() -> bool:
+	# ★ 核心修复：在所有需要查看单位的地方都允许升级
+	return current_mode in [Mode.FORGE, Mode.MAP_SHOP_REST, Mode.ARENA_REST, Mode.MAP, Mode.DEPLOY]
 
 func _build_ui_inner():
 	var vbox = $VBoxContainer
@@ -315,7 +603,7 @@ func _build_ui_inner():
 	if main_hbox:
 		main_hbox.size_flags_vertical = Control.SIZE_EXPAND_FILL
 		main_hbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		main_hbox.clip_contents = true
+		main_hbox.clip_contents = false
 
 	var bottom_hbox = get_node_or_null("VBoxContainer/BottomHBox")
 	if bottom_hbox:
@@ -360,7 +648,23 @@ func _build_ui_inner():
 		left_vbox.custom_minimum_size = Vector2(0, 0)
 		left_vbox.size_flags_vertical = Control.SIZE_EXPAND_FILL 
 		left_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		left_vbox.clip_contents = true
+		left_vbox.clip_contents = false
+
+		# ★ 核心修复：直接使用类顶部的成员变量 unit_container，不再用 var 声明，防止变量遮蔽
+		if unit_container and unit_container.get_parent() == left_vbox:
+			if not left_vbox.has_node("UnitScroll"):
+				var scroll = ScrollContainer.new()
+				scroll.name = "UnitScroll"
+				scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+				scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+				scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+				scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+				
+				left_vbox.remove_child(unit_container)
+				left_vbox.add_child(scroll)
+				scroll.add_child(unit_container)
+				unit_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+				unit_container.size_flags_vertical = Control.SIZE_EXPAND_FILL
 
 	var r_scroll = get_node_or_null("VBoxContainer/MainHBox/RightScroll")
 	if r_scroll and r_scroll is ScrollContainer:
@@ -632,276 +936,6 @@ func _build_ui_inner():
 	if shop_container: shop_container.queue_sort()
 	if right_container: right_container.queue_sort()
 	if tab_bar: tab_bar.queue_sort()
-
-
-func _ensure_auto_config_btn():
-	if _auto_config_btn and is_instance_valid(_auto_config_btn):
-		return
-		
-	_auto_config_btn = Button.new()
-	_auto_config_btn.name = "AutoConfigBtn"
-	_auto_config_btn.text = "自动配装"
-	_auto_config_btn.add_theme_font_size_override("font_size", 5) # 极小字号
-	_auto_config_btn.focus_mode = Control.FOCUS_NONE
-	_auto_config_btn.custom_minimum_size = Vector2(40, 14)
-	_auto_config_btn.tooltip_text = "根据连通组 + 套装 + 属性，生成 3 个自动配置方案"
-	_auto_config_btn.pressed.connect(_open_auto_config_dialog)
-	
-	add_child(_auto_config_btn)
-	_auto_config_btn.z_index = 100 # 顶层防遮挡
-	
-	_auto_config_btn.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
-	# 强行贴到最右下角的像素位置
-	_auto_config_btn.offset_left = -44.0
-	_auto_config_btn.offset_top = -18.0
-	_auto_config_btn.offset_right = -4.0
-	_auto_config_btn.offset_bottom = -4.0
-
-
-func _refresh_connectivity(silent: bool = false):
-	_connectivity_groups.clear()
-	_connected_cells.clear()
-
-	if party.is_empty():
-		return
-
-	var slots : Array = []
-	for i in range(party.size()):
-		slots.append(party[i].armor_slots)
-
-	_connectivity_groups = ConnectedGroupCalculator.compute_groups(slots)
-
-	var max_size = 0
-	for gi in range(_connectivity_groups.size()):
-		var g = _connectivity_groups[gi]
-		if g.size() > max_size:
-			max_size = g.size()
-		for c in g.cells:
-			_connected_cells["%d_%d" % [c.unit_index, c.row]] = gi
-
-	if max_size >= 5 and not silent:
-		_show_detail_in_zone("★ 形成超级连通网！(%d 件防具连通)" % max_size)
-
-
-func _get_connectivity_style(unit_idx: int, slot_idx: int) -> StyleBox:
-	var key : String = "%d_%d" % [unit_idx, slot_idx]
-	if not _connected_cells.has(key):
-		return null
-		
-	var gi = _connected_cells[key]
-	var g = _connectivity_groups[gi]
-	var group_size = g.size()
-	
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = Color(0, 0, 0, 0)
-	
-	if group_size >= 5:
-		sb.border_color = Color(1.0, 0.8, 0.1) 
-		sb.border_width_left = 2
-		sb.border_width_right = 2
-		sb.border_width_top = 2
-		sb.border_width_bottom = 2
-	else:
-		sb.border_color = Color(0.9, 0.75, 0.3) 
-		sb.border_width_left = 1
-		sb.border_width_right = 1
-		sb.border_width_top = 1
-		sb.border_width_bottom = 1
-		
-	sb.content_margin_left = 0
-	sb.content_margin_right = 0
-	sb.content_margin_top = 0
-	sb.content_margin_bottom = 0
-	return sb
-
-
-func _build_unit_columns():
-	if not unit_container: return
-	_refresh_connectivity(true)
-	unit_container.alignment = BoxContainer.ALIGNMENT_CENTER
-	for child in unit_container.get_children():
-		unit_container.remove_child(child); child.free()
-
-	for i in range(party.size()):
-		unit_container.add_child(_create_unit_column(i))
-
-	_backup_all_armor_styles()
-
-
-func _backup_all_armor_styles():
-	_armor_btn_default_style.clear()
-	if not unit_container: return
-	for child in unit_container.get_children():
-		_recursive_backup_armor_styles(child)
-
-func _recursive_backup_armor_styles(node: Node):
-	if node is Button:
-		var b : Button = node
-		if b.get_meta("slot_type", "") == "armor":
-			var u = int(b.get_meta("unit_idx", -1))
-			var s = int(b.get_meta("slot_idx", -1))
-			if u >= 0 and s >= 0:
-				var key = "%d_%d" % [u, s]
-				_armor_btn_default_style[key] = {
-					"normal": b.get_theme_stylebox("normal"),
-					"hover": b.get_theme_stylebox("hover"),
-				}
-	for c in node.get_children():
-		_recursive_backup_armor_styles(c)
-
-func _on_armor_hover_entered(item_id: String, unit_idx: int, slot_idx: int):
-	var key : String = "%d_%d" % [unit_idx, slot_idx]
-	var group_size : int = 0
-	var unit_count : int = 0
-	if _connected_cells.has(key):
-		var gi : int = _connected_cells[key]
-		if gi >= 0 and gi < _connectivity_groups.size():
-			var g = _connectivity_groups[gi]
-			group_size = g.size()
-			unit_count = g.unit_count()
-			_apply_group_highlight(gi)
-		else:
-			_restore_all_armor_styles()
-	else:
-		_restore_all_armor_styles()
-	_detail.on_button_hover_entered_with_link(item_id, group_size, unit_count)
-
-func _on_armor_hover_exited():
-	_detail.on_button_hover_exited()
-	_restore_all_armor_styles()
-
-func _apply_group_highlight(group_idx: int):
-	_restore_all_armor_styles()
-	if group_idx < 0 or group_idx >= _connectivity_groups.size():
-		return
-	var g = _connectivity_groups[group_idx]
-	var hl := StyleBoxFlat.new()
-	hl.bg_color = Color(1.0, 0.9, 0.3, 0.25)
-	hl.border_color = Color(1.0, 0.9, 0.3)
-	hl.set_border_width_all(2)
-	hl.corner_radius_top_left = 2
-	hl.corner_radius_top_right = 2
-	hl.corner_radius_bottom_left = 2
-	hl.corner_radius_bottom_right = 2
-	hl.content_margin_left = 0
-	hl.content_margin_right = 0
-	hl.content_margin_top = 0
-	hl.content_margin_bottom = 0
-	for cell in g.cells:
-		var btn = _find_armor_button_at(cell.unit_index, cell.row)
-		if btn:
-			btn.add_theme_stylebox_override("normal", hl)
-			btn.add_theme_stylebox_override("hover", hl)
-
-func _restore_all_armor_styles():
-	for key in _armor_btn_default_style:
-		var parts : PackedStringArray = String(key).split("_", false)
-		if parts.size() != 2: continue
-		var u : int = int(parts[0])
-		var s : int = int(parts[1])
-		var btn = _find_armor_button_at(u, s)
-		if btn == null: continue
-		var st : Dictionary = _armor_btn_default_style[key]
-		var normal_sb = st.get("normal", null)
-		var hover_sb = st.get("hover", null)
-		if normal_sb != null:
-			btn.add_theme_stylebox_override("normal", normal_sb)
-		if hover_sb != null:
-			btn.add_theme_stylebox_override("hover", hover_sb)
-
-func _find_armor_button_at(unit_idx: int, slot_idx: int) -> Button:
-	if not unit_container: return null
-	for child in unit_container.get_children():
-		var found = _recursive_find_armor(child, unit_idx, slot_idx)
-		if found: return found
-	return null
-
-func _recursive_find_armor(node: Node, unit_idx: int, slot_idx: int) -> Button:
-	if node is Button:
-		var b : Button = node
-		if b.get_meta("slot_type", "") == "armor" \
-				and int(b.get_meta("unit_idx", -1)) == unit_idx \
-				and int(b.get_meta("slot_idx", -1)) == slot_idx:
-			return b
-	for c in node.get_children():
-		var found = _recursive_find_armor(c, unit_idx, slot_idx)
-		if found: return found
-	return null
-
-
-func _create_unit_column(unit_idx: int, is_preview: bool = false) -> Control:
-	var wrapper: PanelContainer = PanelContainer.new()
-	wrapper.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	wrapper.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
-	if is_preview:
-		var sb = StyleBoxFlat.new()
-		sb.bg_color = Color(0.1, 0.1, 0.15, 0.9)
-		sb.border_width_left = 1
-		sb.border_width_right = 1
-		sb.border_width_top = 1
-		sb.border_width_bottom = 1
-		sb.border_color = Color(0.6, 0.6, 0.8)
-		wrapper.add_theme_stylebox_override("panel", sb)
-	else:
-		wrapper.add_theme_stylebox_override("panel", StyleBoxEmpty.new())
-
-	var col := VBoxContainer.new()
-	col.add_theme_constant_override("separation", 2)
-	col.alignment = BoxContainer.ALIGNMENT_CENTER
-	wrapper.add_child(col)
-
-	var unit = party[unit_idx]
-
-	var icon_ctrl = _create_unit_icon(unit, unit_idx)
-	if unit.is_dead: icon_ctrl.modulate = Color(0.4, 0.4, 0.4, 1)
-	col.add_child(icon_ctrl)
-
-	if _is_level_up_enabled():
-		var level_btn = _create_level_btn(unit, unit_idx)
-		if unit.is_dead: _disable_button(level_btn)
-		col.add_child(level_btn)
-
-	var armor_group := VBoxContainer.new()
-	armor_group.add_theme_constant_override("separation", 2)
-	armor_group.alignment = BoxContainer.ALIGNMENT_CENTER
-	col.add_child(armor_group)
-	
-	for slot_idx in range(unit.armor_slots.size()):
-		var armor_btn = _create_item_button(unit.armor_slots[slot_idx], "armor", unit_idx, slot_idx)
-		if unit.is_dead: _disable_button(armor_btn)
-		var conn_style = _get_connectivity_style(unit_idx, slot_idx)
-		if conn_style != null:
-			armor_btn.add_theme_stylebox_override("normal", conn_style)
-			armor_btn.add_theme_stylebox_override("hover", conn_style)
-		armor_group.add_child(armor_btn)
-
-	var talent_inst = unit.talent_slots[0] if unit.talent_slots.size() > 0 else null
-	var talent_btn = _create_talent_button(talent_inst, unit_idx, 0)
-	if unit.is_dead: _disable_button(talent_btn)
-	col.add_child(talent_btn)
-
-	var adv_btn = _create_advanced_talent_button(unit, unit_idx)
-	if unit.is_dead: _disable_button(adv_btn)
-	col.add_child(adv_btn)
-
-	if is_preview:
-		_disable_all_input_recursive(wrapper)
-		wrapper.modulate = Color(1, 1, 1, 0.9)
-
-	return wrapper
-
-func _disable_all_input_recursive(node: Node):
-	if node is Control:
-		node.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		if node is Button:
-			node.disabled = true
-	for child in node.get_children():
-		_disable_all_input_recursive(child)
-
-
-func _is_level_up_enabled() -> bool:
-	return current_mode in [Mode.FORGE, Mode.MAP_SHOP_REST, Mode.ARENA_REST]
-
 
 func _get_level_up_cost(cur_level: int) -> int:
 	var cfg : Dictionary = GameConfigManager.get_file("economy_config.json")
@@ -1448,29 +1482,12 @@ func _discard_pending_reward(data: Dictionary):
 
 
 func _create_unit_icon(unit: UnitData, unit_idx: int) -> Control:
-	var icon_size : float = 32
-	var y_offset : float = -8
-
-	var wrapper := Control.new()
-	wrapper.custom_minimum_size = Vector2(0, icon_size)
-	wrapper.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	wrapper.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
-	wrapper.mouse_filter = Control.MOUSE_FILTER_STOP
+	# 使用带画框的 54x54，避免尺寸过小
+	var wrapper = UnitDataManager.create_unit_avatar_with_frame(unit.unit_name, Vector2(54, 54), Vector2(48, 48))
 	wrapper.set_meta("slot_type", "unit_icon")
 	wrapper.set_meta("unit_idx", unit_idx)
-
-	var texture_rect = UnitDataManager.create_idle_texture_rect(unit.unit_name, Vector2(icon_size, icon_size), unit.override_sprite_path)
-	
-	texture_rect.anchor_left = 0.5
-	texture_rect.anchor_right = 0.5
-	texture_rect.offset_left = -icon_size / 2.0
-	texture_rect.offset_right = icon_size / 2.0
-	texture_rect.anchor_top = 0.0
-	texture_rect.anchor_bottom = 0.0
-	texture_rect.offset_top = y_offset
-	texture_rect.offset_bottom = y_offset + icon_size
-	texture_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	wrapper.add_child(texture_rect)
+	wrapper.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	wrapper.mouse_filter = Control.MOUSE_FILTER_STOP
 
 	wrapper.mouse_entered.connect(_on_unit_hover_entered.bind(unit_idx))
 	wrapper.mouse_exited.connect(_on_unit_hover_exited)

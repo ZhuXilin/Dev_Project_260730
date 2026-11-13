@@ -14,7 +14,6 @@ var last_moved_unit : Unit = null
 var enemy_ai : EnemyAI = null
 var map_functions: Dictionary = {}
 var _battle_ready : bool = false
-var _wave_clear_notified : bool = false
 
 func _ready():
 	UnitManager.unit_removed.connect(_on_unit_removed)
@@ -47,6 +46,7 @@ func check_victory():
 		if u.hit_points > 0:
 			if u.unit_stats.team_id == 0: player_count += 1
 			else: enemy_count += 1
+			
 	if player_count == 0 and enemy_count == 0: return
 	if player_count == 0:
 		_trigger_victory(1)
@@ -58,13 +58,19 @@ func check_victory():
 		
 	if (not ObjectiveManager) or ObjectiveManager.is_annihilate():
 		if enemy_count == 0:
+			# ★ 核心修复：首波全灭时，直接触发下一波，而不等玩家结束回合
 			if WaveManager and WaveManager.has_pending_waves():
-				if not _wave_clear_notified:
-					_wave_clear_notified = true
-					# ★ 使用较长的覆盖提示，并且重置周期设为 5 秒
-					SignalBus.request_hint_override.emit("★ 当前波次清空，敌方增援即将抵达（请结束回合）", 5.0)
-					get_tree().create_timer(5.0).timeout.connect(func(): _wave_clear_notified = false)
-				return
+				WaveManager.activate_next_wave_immediately()
+				
+				# 刷新后再次检查是否已有新敌人出场
+				var new_enemy_count = 0
+				for u in UnitManager.unit_list:
+					if u.hit_points > 0 and u.unit_stats.team_id == 1:
+						new_enemy_count += 1
+				
+				if new_enemy_count > 0:
+					return # 成功刷出敌人，当前并未完全通关
+					
 			_trigger_victory(0)
 
 

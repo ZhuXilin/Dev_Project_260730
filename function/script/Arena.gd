@@ -610,8 +610,6 @@ func _refresh_hint_label():
 	if hint_label:
 		hint_label.text = "免费入场 · %d 胜通关 · 生存 %d 魂入场" % [CLEAR_TARGET, ENTRY_COST_SURVIVAL]
 
-# function/script/Arena.gd
-
 func _build_unit_list():
 	for child in unit_list.get_children():
 		unit_list.remove_child(child)
@@ -625,12 +623,10 @@ func _build_unit_list():
 
 	for unit_type in unlocked_list:
 		var hbox := HBoxContainer.new()
-		hbox.custom_minimum_size = Vector2(0, 36) # ★ 增大到 36
+		hbox.custom_minimum_size = Vector2(0, 56) # 加大高度
 		hbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		
-		# ★ 32x32 统一
-		var btn = UnitDataManager.create_unit_icon_button(unit_type, Vector2(32, 32))
-		btn.custom_minimum_size = Vector2(32, 32)
+		var btn = UnitDataManager.create_unit_avatar_button(unit_type, Vector2(54, 54), Vector2(48, 48))
 		btn.toggle_mode = true
 		btn.set_meta("unit_type", unit_type)
 		

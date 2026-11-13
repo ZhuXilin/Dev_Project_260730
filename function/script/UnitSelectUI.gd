@@ -27,6 +27,13 @@ func _ready():
 	
 	if unit_buttons:
 		unit_buttons.alignment = BoxContainer.ALIGNMENT_BEGIN
+		unit_buttons.add_theme_constant_override("separation", 2) # 缩小间距
+	
+	# ★ 核心修改：扩展左侧列表可视区域，确保至少能同时完整显示三个 54x54 头像
+	var scroll = get_node_or_null("UnitListContainer")
+	if scroll:
+		scroll.offset_top = 34.0
+		scroll.offset_bottom = -36.0
 	
 	if main_label: _make_label_clickable(main_label, 0)
 	if slot1_label: _make_label_clickable(slot1_label, 1)
@@ -80,12 +87,10 @@ func _setup_unit_buttons():
 		if UnitDataManager.get_unit_data(unit_name).is_empty(): continue
 		
 		var hbox := HBoxContainer.new()
-		hbox.custom_minimum_size = Vector2(0, 36) # ★ 增大高度
+		hbox.custom_minimum_size = Vector2(0, 54) # ★ 高度调整为 54
 		hbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		
-		# ★ 统一使用 32x32 图标
-		var btn = UnitDataManager.create_unit_icon_button(unit_name, Vector2(32, 32))
-		btn.custom_minimum_size = Vector2(32, 32)
+		var btn = UnitDataManager.create_unit_avatar_button(unit_name, Vector2(54, 54), Vector2(48, 48))
 		btn.set_meta("unit_name", unit_name)
 		
 		if unit_name in dispatched:
@@ -128,7 +133,6 @@ func _on_unit_hover_exit():
 		elif selected_units.size() > 0:
 			info_panel.set_unit(selected_units[0])
 
-# ★ 修复：不重建 UI，直接更新颜色
 func _on_unit_selected(unit_name: String, _btn: Button):
 	if unit_name in selected_units:
 		_remove_unit(unit_name)
@@ -149,7 +153,6 @@ func _on_unit_selected(unit_name: String, _btn: Button):
 					btn.modulate = COLOR_DISABLED
 	_update_labels()
 
-# ★ 修复：直接更新颜色
 func _on_slot_clicked(index: int):
 	if index < selected_units.size():
 		var unit_name = selected_units[index]
@@ -171,17 +174,37 @@ func _remove_unit(unit_name: String):
 						btn.modulate = COLOR_DISABLED
 		_update_labels()
 
+
 func _update_labels():
 	if not main_label: return
 	var slots = ["主单位", "辅助1", "辅助2"]
 	var labels = [main_label, slot1_label, slot2_label]
+	
 	for i in range(max_selection):
-		if labels[i] == null: continue
+		var lb = labels[i]
+		if lb == null: continue
+		
+		# 清理之前动态生成的图标
+		for child in lb.get_children():
+			if child is TextureRect:
+				child.queue_free()
+				
 		if i < selected_units.size():
-			labels[i].text = slots[i] + ": " + UnitDataManager.get_display_name(selected_units[i])
+			var uname = selected_units[i]
+			# 不显示名字，只显示槽位名
+			lb.text = slots[i] + "   "
+			
+			# 创建局内动态序列帧图标
+			var icon = UnitDataManager.create_idle_texture_rect(uname, Vector2(32, 32))
+			# ★ 核心修改：Y轴偏移量改为 -18，稍微往下移一点
+			icon.position = Vector2(40, -18) 
+			lb.add_child(icon)
 		else:
-			labels[i].text = slots[i] + ": (未选择)"
-	if confirm_btn: confirm_btn.disabled = selected_units.size() < max_selection
+			lb.text = slots[i] + ": (未选择)"
+			
+	if confirm_btn: 
+		confirm_btn.disabled = selected_units.size() < max_selection
+
 
 func _on_confirm_pressed():
 	if selected_units.size() < max_selection: return

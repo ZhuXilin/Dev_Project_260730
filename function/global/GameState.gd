@@ -298,7 +298,7 @@ func initialize_party(selected_units: Array[String], main_index: int):
 func get_party_units() -> Array[UnitData]: return party_state.get_party_units()
 func get_main_unit() -> UnitData: return party_state.get_main_unit()
 func sync_units_from_battlefield(battle_units: Array):
-	party_state.sync_units_from_battlefield(battle_units)
+	return party_state.sync_units_from_battlefield(battle_units)
 
 func has_pending_sacrifice_rewards() -> bool:
 	return not resource_state.pending_sacrifice_rewards.is_empty()

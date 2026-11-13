@@ -112,6 +112,100 @@ func _on_revive_unit(unit_name: String, display_name: String):
 			hint_label.text = "%s 已复活，现在可以选择转职" % display_name
 		_build_unit_row()
 		SoundManager.play_heal_sound()
+		# ★ 核心修复：重置回英灵殿正常音乐
+		MusicManager.play_hero_shrine_music()
+
+func _build_unit_card(unit_idx: int) -> PanelContainer:
+	var party : Array = _get_party()
+	if unit_idx < 0 or unit_idx >= party.size():
+		return PanelContainer.new()
+	var unit : UnitData = party[unit_idx]
+	var unit_display : String = unit.display_name if unit.display_name != "" else unit.unit_name
+	var type_cn : String = UnitDataManager.get_unit_type_display_name(unit.unit_name)
+
+	var card = PanelContainer.new()
+	card.custom_minimum_size = Vector2(130, 0)
+	card.mouse_filter = Control.MOUSE_FILTER_STOP
+
+	var vbox = VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 3)
+	card.add_child(vbox)
+
+	# 局内序列帧动画
+	var texture_rect = UnitDataManager.create_idle_texture_rect(unit.unit_name, Vector2(32, 32), unit.override_sprite_path)
+	texture_rect.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	vbox.add_child(texture_rect)
+
+	var name_lb = Label.new()
+	name_lb.add_theme_font_size_override("font_size", 9)
+	name_lb.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vbox.add_child(name_lb)
+
+	var status_lb = Label.new()
+	status_lb.add_theme_font_size_override("font_size", 7)
+	status_lb.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	status_lb.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	vbox.add_child(status_lb)
+
+	if unit.advanced_class != "":
+		var adv_name : String = AdvancedClassManager.get_display_name(unit.advanced_class)
+		name_lb.text = unit_display + "\n" + type_cn
+		var suffix : String = "（已转职）"
+		var dim_color : Color = Color(0.55, 0.55, 0.55, 1)
+		var card_color : Color = Color(0.7, 0.7, 0.7, 1)
+		if unit.is_dead:
+			suffix = "（已转职 · 已阵亡）"
+			dim_color = Color(0.4, 0.4, 0.4, 1)
+			card_color = Color(0.5, 0.5, 0.5, 1)
+		name_lb.modulate = dim_color
+		status_lb.text = "★ " + adv_name + "\n" + suffix
+		status_lb.modulate = dim_color
+		card.modulate = card_color
+		texture_rect.modulate = card_color
+		return card
+
+	if unit.is_dead:
+		name_lb.text = unit_display + "\n" + type_cn
+		name_lb.modulate = Color(0.4, 0.4, 0.4, 1)
+		
+		# ★ 核心修复：移除 _is_chapel_mode 判断，所有阵亡单位都可以点击复活
+		status_lb.text = "已阵亡\n(点击复活)"
+		status_lb.modulate = Color(0.8, 0.6, 0.6, 1)
+		card.modulate = Color(0.8, 0.8, 0.8, 1)
+		texture_rect.modulate = Color(0.6, 0.6, 0.6, 1)
+		
+		card.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+		card.gui_input.connect(_on_dead_card_input.bind(unit_idx))
+		card.mouse_entered.connect(_on_card_hover_enter.bind(card))
+		card.mouse_exited.connect(_on_card_hover_exit.bind(card))
+		return card
+
+	var branches : Array = AdvancedClassManager.get_branches_for_unit(unit.unit_name)
+	if branches.is_empty():
+		name_lb.text = unit_display + "\n" + type_cn
+		status_lb.text = "无转职"
+		status_lb.modulate = Color(0.55, 0.55, 0.55, 1)
+		card.modulate = Color(0.7, 0.7, 0.7, 1)
+		return card
+
+	name_lb.text = unit_display + "\n" + type_cn
+	var branch_names : Array = []
+	for b in branches:
+		branch_names.append("★ " + b.name)
+	status_lb.text = "可转职：\n" + "\n".join(branch_names) + "\n（点击查看）"
+
+	var reached : bool = _reached_limit()
+	if reached:
+		status_lb.modulate = Color(0.55, 0.55, 0.55, 1)
+		card.modulate = Color(0.7, 0.7, 0.7, 1)
+		status_lb.text += "\n（本次已转职）"
+	else:
+		card.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+		card.gui_input.connect(_on_card_input.bind(unit_idx))
+		card.mouse_entered.connect(_on_card_hover_enter.bind(card))
+		card.mouse_exited.connect(_on_card_hover_exit.bind(card))
+
+	return card
 
 
 func _refresh_soul_display():
@@ -130,109 +224,147 @@ func _build_unit_row():
 		unit_row.add_child(_build_unit_card(i))
 
 
-func _build_unit_card(unit_idx: int) -> PanelContainer:
-	var party : Array = _get_party()
-	if unit_idx < 0 or unit_idx >= party.size():
-		return PanelContainer.new()
-	var unit : UnitData = party[unit_idx]
-	var unit_display : String = unit.display_name if unit.display_name != "" else unit.unit_name
-	var type_cn : String = UnitDataManager.get_unit_type_display_name(unit.unit_name)
+func _make_picker_panel(unit : UnitData, branches : Array) -> Control:
+	var overlay := Control.new()
+	overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+	overlay.mouse_filter = Control.MOUSE_FILTER_STOP
 
-	var card = PanelContainer.new()
-	card.custom_minimum_size = Vector2(130, 0)
-	card.mouse_filter = Control.MOUSE_FILTER_STOP
+	var bg := ColorRect.new()
+	bg.color = Color(0.06, 0.06, 0.08, 1)
+	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
+	overlay.add_child(bg)
 
-	var vbox = VBoxContainer.new()
-	vbox.add_theme_constant_override("separation", 3)
-	card.add_child(vbox)
+	var center_box := CenterContainer.new()
+	center_box.set_anchors_preset(Control.PRESET_FULL_RECT)
+	center_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	overlay.add_child(center_box)
 
-	var texture_rect = UnitDataManager.create_idle_texture_rect(unit.unit_name, Vector2(32, 32), unit.override_sprite_path)
-	texture_rect.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	vbox.add_child(texture_rect)
+	var picker_panel := PanelContainer.new()
+	picker_panel.custom_minimum_size = Vector2(440, 0)
+	
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(0, 0, 0, 0)
+	sb.border_width_left = 0
+	sb.border_width_right = 0
+	sb.border_width_top = 0
+	sb.border_width_bottom = 0
+	sb.content_margin_left = 16
+	sb.content_margin_right = 16
+	sb.content_margin_top = 12
+	sb.content_margin_bottom = 12
+	picker_panel.add_theme_stylebox_override("panel", sb)
+	center_box.add_child(picker_panel)
 
-	var name_lb = Label.new()
-	name_lb.add_theme_font_size_override("font_size", 9)
-	name_lb.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	vbox.add_child(name_lb)
+	var vbox := VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 10)
+	picker_panel.add_child(vbox)
 
-	var status_lb = Label.new()
-	status_lb.add_theme_font_size_override("font_size", 7)
-	status_lb.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	status_lb.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	vbox.add_child(status_lb)
+	var title := Label.new()
+	title.text = "选择转职方向"
+	title.add_theme_font_size_override("font_size", 12)
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vbox.add_child(title)
 
-	# ---- 已转职 ----
-	if unit.advanced_class != "":
-		var adv_name : String = AdvancedClassManager.get_display_name(unit.advanced_class)
-		name_lb.text = unit_display + "\n" + type_cn
+	var row := HBoxContainer.new()
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_theme_constant_override("separation", 20)
+	vbox.add_child(row)
 
-		var suffix : String = "（已转职）"
-		var dim_color : Color = Color(0.55, 0.55, 0.55, 1)
-		var card_color : Color = Color(0.7, 0.7, 0.7, 1)
-		if unit.is_dead:
-			suffix = "（已转职 · 已阵亡）"
-			dim_color = Color(0.4, 0.4, 0.4, 1)
-			card_color = Color(0.5, 0.5, 0.5, 1)
-
-		name_lb.modulate = dim_color
-		status_lb.text = "★ " + adv_name + "\n" + suffix
-		status_lb.modulate = dim_color
-		card.modulate = card_color
-		texture_rect.modulate = card_color
-		return card
-
-	# ---- 阵亡 ----
-	if unit.is_dead:
-		name_lb.text = unit_display + "\n" + type_cn
-		name_lb.modulate = Color(0.4, 0.4, 0.4, 1)
-		
-		if _is_chapel_mode:
-			status_lb.text = "已阵亡\n(点击复活)"
-			status_lb.modulate = Color(0.8, 0.6, 0.6, 1)
-			card.modulate = Color(0.8, 0.8, 0.8, 1)
-			texture_rect.modulate = Color(0.6, 0.6, 0.6, 1)
-			
-			card.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
-			card.gui_input.connect(_on_dead_card_input.bind(unit_idx))
-			card.mouse_entered.connect(_on_card_hover_enter.bind(card))
-			card.mouse_exited.connect(_on_card_hover_exit.bind(card))
-		else:
-			status_lb.text = "已阵亡 / 已熔铸"
-			status_lb.modulate = Color(0.4, 0.4, 0.4, 1)
-			card.modulate = Color(0.5, 0.5, 0.5, 1)
-			texture_rect.modulate = Color(0.4, 0.4, 0.4, 1)
-		return card
-
-	# ---- 无进阶定义 ----
-	var branches : Array = AdvancedClassManager.get_branches_for_unit(unit.unit_name)
-	if branches.is_empty():
-		name_lb.text = unit_display + "\n" + type_cn
-		status_lb.text = "无转职"
-		status_lb.modulate = Color(0.55, 0.55, 0.55, 1)
-		card.modulate = Color(0.7, 0.7, 0.7, 1)
-		return card
-
-	# ---- 可转职 ----
-	name_lb.text = unit_display + "\n" + type_cn
-	var branch_names : Array = []
 	for b in branches:
-		branch_names.append("★ " + b.name)
-	status_lb.text = "可转职：\n" + "\n".join(branch_names) + "\n（点击查看）"
+		var adv : AdvancedClassData = b
+		var col := VBoxContainer.new()
+		col.custom_minimum_size = Vector2(130, 0)
+		col.add_theme_constant_override("separation", 6)
+		col.alignment = BoxContainer.ALIGNMENT_BEGIN
+		
+		var sprite_wrapper := Control.new()
+		sprite_wrapper.custom_minimum_size = Vector2(32, 32) 
+		sprite_wrapper.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		col.add_child(sprite_wrapper)
 
-	var reached : bool = _reached_limit()
+		# ★ 恢复为读取序列帧动画（局内图标）
+		var texture_rect = null
+		if adv.sprite_frames_path != "" and ResourceLoader.exists(adv.sprite_frames_path):
+			var frames = load(adv.sprite_frames_path) as SpriteFrames
+			if frames and frames.has_animation("idle"):
+				texture_rect = TextureRect.new()
+				texture_rect.custom_minimum_size = Vector2(32, 32)
+				texture_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+				texture_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+				texture_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+				
+				# 初始帧
+				texture_rect.texture = frames.get_frame_texture("idle", 0)
+				
+				# 加入动画循环逻辑
+				var timer := Timer.new()
+				timer.wait_time = 0.25
+				timer.autostart = true
+				texture_rect.add_child(timer)
+				var frame_count := frames.get_frame_count("idle")
+				var idx := {"value": 0}
+				timer.timeout.connect(func():
+					if not is_instance_valid(texture_rect): return
+					idx["value"] = (idx["value"] + 1) % frame_count
+					var t = frames.get_frame_texture("idle", idx["value"])
+					if t: texture_rect.texture = t
+				)
+		
+		# 如果没有专属转职动画，则显示基础单位的局内动画
+		if not texture_rect:
+			texture_rect = UnitDataManager.create_idle_texture_rect(unit.unit_name, Vector2(32, 32))
 
-	if reached:
-		status_lb.modulate = Color(0.55, 0.55, 0.55, 1)
-		card.modulate = Color(0.7, 0.7, 0.7, 1)
-		status_lb.text += "\n（本次已转职）"
-	else:
-		card.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
-		card.gui_input.connect(_on_card_input.bind(unit_idx))
-		card.mouse_entered.connect(_on_card_hover_enter.bind(card))
-		card.mouse_exited.connect(_on_card_hover_exit.bind(card))
+		sprite_wrapper.add_child(texture_rect)
 
-	return card
+		var name_lb := Label.new()
+		name_lb.text = "★ " + adv.name
+		name_lb.add_theme_font_size_override("font_size", 10)
+		name_lb.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		col.add_child(name_lb)
 
+		var desc_lb := Label.new()
+		desc_lb.text = adv.description
+		desc_lb.add_theme_font_size_override("font_size", 7)
+		desc_lb.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		desc_lb.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		col.add_child(desc_lb)
+
+		var stats_lb := Label.new()
+		var stats_text : Array = []
+		for k in adv.stat_bonus:
+			stats_text.append("%s +%d" % [_attr_short(k), int(adv.stat_bonus[k])])
+		stats_lb.text = "\n".join(stats_text)
+		stats_lb.add_theme_font_size_override("font_size", 7)
+		stats_lb.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		stats_lb.modulate = Color(0.7, 0.9, 0.7)
+		col.add_child(stats_lb)
+
+		var spacer := Control.new()
+		spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		col.add_child(spacer)
+
+		var btn := Button.new()
+		btn.text = "选择"
+		btn.add_theme_font_size_override("font_size", 9)
+		btn.custom_minimum_size = Vector2(80, 22)
+		btn.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		btn.pressed.connect(func():
+			overlay.queue_free()
+			_begin_convert(unit, adv)
+		)
+		col.add_child(btn)
+
+		row.add_child(col)
+
+	var cancel := Button.new()
+	cancel.text = "取消"
+	cancel.add_theme_font_size_override("font_size", 8)
+	cancel.custom_minimum_size = Vector2(80, 20)
+	cancel.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	cancel.pressed.connect(func(): overlay.queue_free())
+	vbox.add_child(cancel)
+
+	return overlay
 
 func _attr_short(key: String) -> String:
 	match key:
@@ -301,144 +433,6 @@ func _on_card_clicked(unit_idx: int):
 func _show_branch_picker(unit : UnitData, branches : Array):
 	var picker := _make_picker_panel(unit, branches)
 	add_child(picker)
-
-
-func _make_picker_panel(unit : UnitData, branches : Array) -> Control:
-	var overlay := Control.new()
-	overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
-	overlay.mouse_filter = Control.MOUSE_FILTER_STOP
-
-	var bg := ColorRect.new()
-	bg.color = Color(0.06, 0.06, 0.08, 1)
-	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
-	overlay.add_child(bg)
-
-	var center_box := CenterContainer.new()
-	center_box.set_anchors_preset(Control.PRESET_FULL_RECT)
-	center_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	overlay.add_child(center_box)
-
-	var picker_panel := PanelContainer.new()
-	picker_panel.custom_minimum_size = Vector2(440, 0)
-	
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = Color(0, 0, 0, 0)
-	sb.border_width_left = 0
-	sb.border_width_right = 0
-	sb.border_width_top = 0
-	sb.border_width_bottom = 0
-	sb.content_margin_left = 16
-	sb.content_margin_right = 16
-	sb.content_margin_top = 12
-	sb.content_margin_bottom = 12
-	picker_panel.add_theme_stylebox_override("panel", sb)
-	center_box.add_child(picker_panel)
-
-	var vbox := VBoxContainer.new()
-	vbox.add_theme_constant_override("separation", 10)
-	picker_panel.add_child(vbox)
-
-	var title := Label.new()
-	title.text = "选择转职方向"
-	title.add_theme_font_size_override("font_size", 12)
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	vbox.add_child(title)
-
-	var row := HBoxContainer.new()
-	row.alignment = BoxContainer.ALIGNMENT_CENTER
-	row.add_theme_constant_override("separation", 20)
-	vbox.add_child(row)
-
-	for b in branches:
-		var adv : AdvancedClassData = b
-		var col := VBoxContainer.new()
-		col.custom_minimum_size = Vector2(130, 0)
-		col.add_theme_constant_override("separation", 6)
-		col.alignment = BoxContainer.ALIGNMENT_BEGIN
-		
-		var sprite_wrapper := Control.new()
-		sprite_wrapper.custom_minimum_size = Vector2(32, 32) 
-		sprite_wrapper.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-		col.add_child(sprite_wrapper)
-
-		var texture_rect = null
-		if adv.sprite_frames_path != "" and ResourceLoader.exists(adv.sprite_frames_path):
-			var frames = load(adv.sprite_frames_path) as SpriteFrames
-			if frames:
-				texture_rect = TextureRect.new()
-				texture_rect.custom_minimum_size = Vector2(32, 32)
-				texture_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-				texture_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-				texture_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
-				if frames.has_animation("idle"):
-					texture_rect.texture = frames.get_frame_texture("idle", 0)
-					var timer := Timer.new()
-					timer.wait_time = 0.25
-					timer.autostart = true
-					texture_rect.add_child(timer)
-					var frame_count := frames.get_frame_count("idle")
-					var idx := {"value": 0}
-					timer.timeout.connect(func():
-						if not is_instance_valid(texture_rect): return
-						idx["value"] = (idx["value"] + 1) % frame_count
-						var t = frames.get_frame_texture("idle", idx["value"])
-						if t: texture_rect.texture = t
-					)
-		
-		if not texture_rect:
-			texture_rect = UnitDataManager.create_idle_texture_rect(unit.unit_name, Vector2(32, 32), unit.override_sprite_path)
-
-		sprite_wrapper.add_child(texture_rect)
-
-		var name_lb := Label.new()
-		name_lb.text = "★ " + adv.name
-		name_lb.add_theme_font_size_override("font_size", 10)
-		name_lb.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		col.add_child(name_lb)
-
-		var desc_lb := Label.new()
-		desc_lb.text = adv.description
-		desc_lb.add_theme_font_size_override("font_size", 7)
-		desc_lb.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		desc_lb.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		col.add_child(desc_lb)
-
-		var stats_lb := Label.new()
-		var stats_text : Array = []
-		for k in adv.stat_bonus:
-			stats_text.append("%s +%d" % [_attr_short(k), int(adv.stat_bonus[k])])
-		stats_lb.text = "\n".join(stats_text)
-		stats_lb.add_theme_font_size_override("font_size", 7)
-		stats_lb.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		stats_lb.modulate = Color(0.7, 0.9, 0.7)
-		col.add_child(stats_lb)
-
-		var spacer := Control.new()
-		spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
-		col.add_child(spacer)
-
-		var btn := Button.new()
-		btn.text = "选择"
-		btn.add_theme_font_size_override("font_size", 9)
-		btn.custom_minimum_size = Vector2(80, 22)
-		btn.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-		btn.pressed.connect(func():
-			overlay.queue_free()
-			_begin_convert(unit, adv)
-		)
-		col.add_child(btn)
-
-		row.add_child(col)
-
-	var cancel := Button.new()
-	cancel.text = "取消"
-	cancel.add_theme_font_size_override("font_size", 8)
-	cancel.custom_minimum_size = Vector2(80, 20)
-	cancel.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	cancel.pressed.connect(func(): overlay.queue_free())
-	vbox.add_child(cancel)
-
-	return overlay
 
 
 # ============================================================

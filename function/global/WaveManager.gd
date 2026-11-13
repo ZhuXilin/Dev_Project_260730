@@ -135,6 +135,11 @@ func _show_unit(u: Unit):
 	if not is_instance_valid(u):
 		return
 
+	# 先强制重置所有状态，保证出场后绝对可见
+	u.visible = true
+	u.process_mode = Node.PROCESS_MODE_INHERIT
+	u.hit_points = u.unit_stats.max_hp
+	
 	# 冲突推挤逻辑
 	var conflicting : Unit = null
 	for other in UnitManager.unit_list:
@@ -146,23 +151,19 @@ func _show_unit(u: Unit):
 
 	if conflicting != null:
 		var new_cell : Vector2i = UnitManager.find_nearest_empty_cell(u.grid_cell)
-		if new_cell == Vector2i(-1, -1):
-			push_warning("[Wave] %s 找不到空位出场，本波跳过" % u.unit_stats.unit_name)
-			u.hit_points = 0
-			return
-		u.grid_cell = new_cell
-		if _battlefield != null and _battlefield.has_method("grid_to_world"):
-			u.position = _battlefield.grid_to_world(new_cell)
+		if new_cell != Vector2i(-1, -1):
+			u.grid_cell = new_cell
+			if _battlefield != null and _battlefield.has_method("grid_to_world"):
+				u.position = _battlefield.grid_to_world(new_cell)
+		# 如果找不到空位，也不再强制 hit_points=0，避免直接“消失”
 
-	u.visible = true
-	u.process_mode = Node.PROCESS_MODE_INHERIT
-	u.hit_points = u.unit_stats.max_hp
 	u.can_act_this_turn = true
 	u.has_moved = false
 	u.has_attacked = false
 	u.has_acted = false
 	u.remaining_move = u.get_total_move_range()
 	u.set_gray(false)
+	
 	if u is CollisionObject2D:
 		(u as CollisionObject2D).set_collision_layer_value(1, true)
 
@@ -170,25 +171,54 @@ func _show_unit(u: Unit):
 # ============================================================
 #  回合结束钩子（触发下一波）
 # ============================================================
+# 替换此函数
 func on_player_turn_end() -> void:
-	if not is_active() or _pending_groups.is_empty():
+	# ★ 已废弃：由 TurnManager.check_victory() 实时触发，不再在这里做波次判断
+	pass
+
+
+# ★ 新增：立即激活下一波
+func activate_next_wave_immediately():
+	if _pending_groups.is_empty():
 		return
-
-	var alive_enemies : int = 0
-	for u in UnitManager.unit_list:
-		if not is_instance_valid(u): continue
-		if u.unit_stats.team_id != 1: continue
-		if u.hit_points <= 0: continue
-		if u.visible == false: continue
-		alive_enemies += 1
-
-	# 只要场上还有活着的可见敌人，就不激活下一波
-	if alive_enemies > 0:
-		return
-
-	# ★ 核心修复：直接激活下一波，移除 _warning_shown 和延迟机制
-	_activate_next_wave()
 	
+	while not _pending_groups.is_empty():
+		var next_group : Array = _pending_groups.pop_front()
+		_current_wave += 1
+
+		var activated : Array = []
+		for u in next_group:
+			if not is_instance_valid(u): continue
+			_show_unit(u)
+			activated.append(u)
+
+		if activated.is_empty():
+			print("[Wave] 第 %d 波触发动态增援（空组）" % _current_wave)
+			var spawn_count : int = 3
+			_spawn_reinforcements(spawn_count)
+			
+			var spawned_check = false
+			for u in UnitManager.unit_list:
+				if is_instance_valid(u) and u.unit_stats.team_id == 1 and u.visible and u.hit_points > 0:
+					spawned_check = true
+					break
+					
+			if spawned_check:
+				_warning_shown = false
+				_next_wave_delay = 0
+				wave_advanced.emit(_current_wave, _type_total_waves)
+				return
+			else:
+				continue # 增援失败，尝试继续激活下一组
+				
+		_warning_shown = false
+		_next_wave_delay = 0
+		wave_advanced.emit(_current_wave, _type_total_waves)
+
+		if _map_data != null and _map_data.reinforcement_count > 0:
+			_spawn_reinforcements(_map_data.reinforcement_count)
+		return
+
 
 func _activate_next_wave():
 	while not _pending_groups.is_empty():

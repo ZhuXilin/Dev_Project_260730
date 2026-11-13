@@ -24,7 +24,7 @@ const COLOR_UNIT_ON : Color = Color(1.0, 1.0, 1.0, 1)
 const COLOR_UNIT_OFF : Color = Color(0.4, 0.4, 0.4, 1)
 const COLOR_UNIT_DISABLED : Color = Color(0.2, 0.2, 0.2, 1)
 const COLOR_ROUTE_ON : Color = Color(0.4, 0.9, 0.5, 1)
-const BTN_HEIGHT : int = 36
+const BTN_HEIGHT : int = 56
 
 func _ready():
 	layer = 24
@@ -110,6 +110,7 @@ func _refresh_hint():
 		var rn : String = DispatchManager.ROUTES.get(_selected_route, {}).get("name", _selected_route)
 		hint_label.text = "%s → 「%s」，点【派遣】确认" % [_get_unit_display(_selected_unit), rn]
 
+
 func _refresh_units():
 	for c in unit_row.get_children():
 		unit_row.remove_child(c); c.queue_free()
@@ -125,7 +126,6 @@ func _refresh_units():
 		unit_row.add_child(lb)
 		return
 
-	# ★ 核心修复：把默认选中的逻辑提前到生成按钮之前，解决第一次不亮的问题
 	if _selected_unit == "":
 		for u in all_unlocked:
 			if u not in dispatched:
@@ -137,9 +137,7 @@ func _refresh_units():
 		hbox.custom_minimum_size = Vector2(0, BTN_HEIGHT)
 		hbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		
-		var btn = UnitDataManager.create_unit_icon_button(unit_key, Vector2(32, 32))
-		btn.custom_minimum_size = Vector2(32, 32)
-		btn.toggle_mode = true
+		var btn = UnitDataManager.create_unit_avatar_button(unit_key, Vector2(54, 54), Vector2(48, 48))
 		btn.set_meta("unit_key", unit_key)
 		
 		var is_dispatched : bool = unit_key in dispatched
@@ -163,6 +161,7 @@ func _refresh_units():
 		hbox.add_child(spacer)
 		
 		unit_row.add_child(hbox)
+
 
 func _on_unit_clicked(unit_key : String):
 	if _selected_unit == unit_key:

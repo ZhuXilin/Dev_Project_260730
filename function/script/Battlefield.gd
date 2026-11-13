@@ -1980,12 +1980,12 @@ func _calc_enemy_danger_zones() -> Dictionary:
 	for u in UnitManager.unit_list:
 		if not is_instance_valid(u) or u.unit_stats.team_id != 1 or u.hit_points <= 0:
 			continue
+		if not u.visible: # ★ 核心修复：跳过隐藏的波次敌人
+			continue
 			
-		# 使用 get_total_move_range 确保计入额外的移动加成
 		var move_range = u.get_total_move_range()
 		var reach = UnitManager.get_reachable_cells(u.grid_cell, move_range, u)
 		
-		# ★ v4.8 修复：直接读取内联武器数据
 		var stats = u.unit_stats
 		if stats.weapon_name == "":
 			continue

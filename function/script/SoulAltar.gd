@@ -238,6 +238,7 @@ func _clear_unit_list():
 	for c in unit_list.get_children():
 		unit_list.remove_child(c); c.queue_free()
 
+
 func _build_unit_list():
 	for c in unit_list.get_children():
 		unit_list.remove_child(c); c.queue_free()
@@ -248,11 +249,10 @@ func _build_unit_list():
 		if not UnitDataManager.has_attr_cap_levels(unit_type): continue
 
 		var hbox := HBoxContainer.new()
-		hbox.custom_minimum_size = Vector2(0, 36)
+		hbox.custom_minimum_size = Vector2(0, 56)
 		hbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		
-		var btn = UnitDataManager.create_unit_icon_button(unit_type, Vector2(32, 32))
-		btn.custom_minimum_size = Vector2(32, 32)
+		var btn = UnitDataManager.create_unit_avatar_button(unit_type, Vector2(54, 54), Vector2(48, 48))
 		btn.set_meta("unit_type", unit_type)
 		btn.modulate = Color.WHITE if unit_type == _current_unit_type else Color(0.4, 0.4, 0.4, 1)
 		
@@ -271,28 +271,6 @@ func _build_unit_list():
 				if ut != "":
 					_current_unit_type = ut
 					break
-
-func _is_unit_in_list(unit_type: String) -> bool:
-	for child in unit_list.get_children():
-		if child.get_child_count() > 0 and child.get_child(0) is Button:
-			if child.get_child(0).get_meta("unit_type", "") == unit_type:
-				return true
-	return false
-
-func _on_unit_selected(unit_type: String):
-	_current_unit_type = unit_type
-	for child in unit_list.get_children():
-		if child.get_child_count() > 0 and child.get_child(0) is Button:
-			var btn = child.get_child(0)
-			var ut = btn.get_meta("unit_type", "")
-			if ut != "":
-				btn.modulate = Color.WHITE if ut == unit_type else Color(0.4, 0.4, 0.4, 1)
-	_refresh_attr_cap_panel()
-	
-	# ★ 新增：选中单位时，右侧信息面板强制显示该单位
-	_hover_type = "unit"
-	_hover_id = unit_type
-	_refresh_info_panel()
 
 func _build_locked_unit_list():
 	for c in unit_list.get_children():
@@ -322,11 +300,10 @@ func _build_locked_unit_list():
 
 	for unit_type in locked:
 		var hbox := HBoxContainer.new()
-		hbox.custom_minimum_size = Vector2(0, 36)
+		hbox.custom_minimum_size = Vector2(0, 56)
 		hbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		
-		var btn = UnitDataManager.create_unit_icon_button(unit_type, Vector2(32, 32))
-		btn.custom_minimum_size = Vector2(32, 32)
+		var btn = UnitDataManager.create_unit_avatar_button(unit_type, Vector2(54, 54), Vector2(48, 48))
 		btn.set_meta("unit_type", unit_type)
 		btn.modulate = Color.WHITE if unit_type == _current_unit_type else Color(0.4, 0.4, 0.4, 1)
 		
@@ -343,6 +320,52 @@ func _build_locked_unit_list():
 			_current_unit_type = locked[0]
 		else:
 			_current_unit_type = ""
+
+# 替换右侧大图刷新函数
+func _update_right_panel_avatar(unit_type: String):
+	var sprite_container = $Panel/VBox/MainHBox/InfoPanel/UnitHeader/SpriteContainer
+	if not sprite_container: return
+	
+	unit_sprite.visible = false
+	
+	var tex_rect = sprite_container.get_node_or_null("AvatarDisplay")
+	if tex_rect == null:
+		tex_rect = UnitDataManager.create_unit_avatar_with_frame(unit_type, Vector2(54, 54), Vector2(48, 48))
+		tex_rect.name = "AvatarDisplay"
+		sprite_container.add_child(tex_rect)
+		sprite_container.custom_minimum_size = Vector2(54, 54)
+	else:
+		var avatar_rect = tex_rect.get_child(1)
+		if avatar_rect is TextureRect:
+			var tex = IconManager.get_icon_or_null(GameState.get_unit_avatar(unit_type))
+			if tex: avatar_rect.texture = tex
+			else: avatar_rect.texture = UnitDataManager.get_idle_texture(unit_type)
+	
+	tex_rect.visible = true
+
+
+func _is_unit_in_list(unit_type: String) -> bool:
+	for child in unit_list.get_children():
+		if child.get_child_count() > 0 and child.get_child(0) is Button:
+			if child.get_child(0).get_meta("unit_type", "") == unit_type:
+				return true
+	return false
+
+func _on_unit_selected(unit_type: String):
+	_current_unit_type = unit_type
+	for child in unit_list.get_children():
+		if child.get_child_count() > 0 and child.get_child(0) is Button:
+			var btn = child.get_child(0)
+			var ut = btn.get_meta("unit_type", "")
+			if ut != "":
+				btn.modulate = Color.WHITE if ut == unit_type else Color(0.4, 0.4, 0.4, 1)
+	_refresh_attr_cap_panel()
+	
+	# ★ 新增：选中单位时，右侧信息面板强制显示该单位
+	_hover_type = "unit"
+	_hover_id = unit_type
+	_refresh_info_panel()
+
 
 func _on_locked_unit_selected(unit_type: String):
 	_current_unit_type = unit_type
