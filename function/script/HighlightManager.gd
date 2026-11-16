@@ -160,7 +160,8 @@ func _process_incoming(target_cells: Dictionary, color: Color, z_index: int, ori
 			rect.z_index = z_index
 			data["is_attack"] = is_attack_type
 			
-			# ★ 动态刷新已存在格子的点
+			# ★ 动态刷新已存在格子的点（v5.9：改用 visible 切换，不再 queue_free 后重建，
+			#   否则同一帧多次重绘会拿到"待删除"节点，红点会闪烁/漏画）
 			var existing_cross = rect.get_node_or_null("DangerCross")
 			var should_have_cross = danger_cells.has(cell)
 			
@@ -176,10 +177,11 @@ func _process_incoming(target_cells: Dictionary, color: Color, z_index: int, ori
 					dot.z_index = 10 # 保证在最上层
 					rect.add_child(dot)
 				else:
+					existing_cross.visible = true
 					existing_cross.color = danger_color
 					existing_cross.z_index = 10
-			elif not should_have_cross and existing_cross != null:
-				existing_cross.queue_free()
+			elif existing_cross != null:
+				existing_cross.visible = false
 			
 			if instant:
 				data["current_a"] = 1.0

@@ -22,8 +22,6 @@ var _last_click_unit : Unit = null
 
 var _is_show_original_range : bool = false
 
-var _last_danger_virtual_cell : Vector2i = Vector2i(-9999, -9999)
-
 func _init(bf : Node2D):
 	_bf = bf
 
@@ -299,8 +297,8 @@ func _start_drag():
 	InputManager.selected_unit = unit
 	InputManager.interaction_phase = InputManager.Phase.DRAGGING_MOVE
 
-	_last_danger_virtual_cell = Vector2i(-9999, -9999)
-	_refresh_danger_zones(unit.grid_cell)
+	# ★ v5.9：敌方威胁区只在拖拽开始时按真实棋盘算一次，会话内固定不变
+	_bf.refresh_enemy_danger_zones()
 
 	_reachable = UnitManager.get_reachable_cells(
 		unit.grid_cell, unit.remaining_move, unit)
@@ -309,7 +307,7 @@ func _start_drag():
 
 	var danger_color = Color(MapConst.HIGHLIGHT_ATTACK.r, MapConst.HIGHLIGHT_ATTACK.g, MapConst.HIGHLIGHT_ATTACK.b, 1.0)
 	_bf.highlight_manager.show_move_highlight(
-		_reachable, MapConst.HIGHLIGHT_MOVE, 0, true, unit.grid_cell, _bf._enemy_danger_zones, danger_color)
+		_reachable, MapConst.HIGHLIGHT_MOVE, 0, true, unit.grid_cell, _filtered_danger(), danger_color)
 
 	_current_target_cell = unit.grid_cell
 	_current_path = []
@@ -333,14 +331,10 @@ func _update_drag():
 	var hovered = UnitManager.get_unit_at_cell(cell)
 	_hovered_target = hovered
 
-	var virtual_cell : Vector2i = _pressing_unit.grid_cell
-	if hovered != null and hovered != _pressing_unit:
-		virtual_cell = _pressing_unit.grid_cell
-	elif _reachable.has(cell):
-		virtual_cell = cell
-	else:
-		virtual_cell = _find_closest_reachable_cell(cell)
-	_refresh_danger_zones(virtual_cell)
+	# ★ v5.9：不再按光标位置重算敌方威胁区。
+	#   旧逻辑把我方单位临时瞬移到光标格，改变了敌人寻路的占位阻挡，
+	#   于是同一批敌人在不同光标位置算出不同危险区，红点跟着漂移。
+	#   现在整个拖拽会话共用 _start_drag 里算好的静态表。
 
 	if hovered == null and _bf._enemy_danger_zones.has(cell) and _reachable.has(cell):
 		var attackers = _bf._enemy_danger_zones[cell]
@@ -381,7 +375,7 @@ func _update_drag():
 		var color = MapConst.HIGHLIGHT_HEAL if is_heal_action else MapConst.HIGHLIGHT_ATTACK
 		var danger_color = Color(MapConst.HIGHLIGHT_ATTACK.r, MapConst.HIGHLIGHT_ATTACK.g, MapConst.HIGHLIGHT_ATTACK.b, 1.0)
 
-		_bf.highlight_manager.show_enemy_preview({}, single_cell_dict, color, cell, true, _bf._enemy_danger_zones, danger_color)
+		_bf.highlight_manager.show_enemy_preview({}, single_cell_dict, color, cell, true, _filtered_danger(), danger_color)
 		return
 
 	if hovered == _pressing_unit:
@@ -422,12 +416,16 @@ func _redraw_highlights(attack_cells : Dictionary, origin_cell: Vector2i):
 	var color = MapConst.HIGHLIGHT_ATTACK
 	var danger_color = Color(MapConst.HIGHLIGHT_ATTACK.r, MapConst.HIGHLIGHT_ATTACK.g, MapConst.HIGHLIGHT_ATTACK.b, 1.0)
 	
-	var filtered_danger := {}
+	_bf.highlight_manager.show_enemy_preview(_reachable, attack_cells, color, origin_cell, true, _filtered_danger(), danger_color)
+
+
+## 威胁区只标注在可移动到的格子上；供所有重绘分支共用同一份口径（v5.9）。
+func _filtered_danger() -> Dictionary:
+	var out := {}
 	for c in _bf._enemy_danger_zones:
 		if _reachable.has(c):
-			filtered_danger[c] = _bf._enemy_danger_zones[c]
-	
-	_bf.highlight_manager.show_enemy_preview(_reachable, attack_cells, color, origin_cell, true, filtered_danger, danger_color)
+			out[c] = _bf._enemy_danger_zones[c]
+	return out
 
 func _reset_state():
 	_is_pressing = false
@@ -439,7 +437,6 @@ func _reset_state():
 	_reachable.clear()
 	_current_path.clear()
 	_current_target_cell = Vector2i(-1, -1)
-	_last_danger_virtual_cell = Vector2i(-9999, -9999)
 	if _arrow:
 		_arrow.hide_path()
 	if _bf:
@@ -963,12 +960,3 @@ func _do_emergency_heal_async(attacker : Unit, target : Unit):
 	await CombatManager.execute_emergency_heal(attacker, target)
 	if is_instance_valid(target):
 		_bf.suppress_range_for_unit(target)
-
-
-func _refresh_danger_zones(virtual_cell : Vector2i) -> void:
-	if not is_instance_valid(_pressing_unit):
-		return
-	if virtual_cell == _last_danger_virtual_cell:
-		return
-	_last_danger_virtual_cell = virtual_cell
-	_bf._enemy_danger_zones = _bf.calc_enemy_danger_zones_with_virtual(_pressing_unit, virtual_cell)

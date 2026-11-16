@@ -2098,18 +2098,12 @@ func _toggle_auto_battle():
 	_auto_battle_manager.set_enabled(next_on)
 	
 	
-## 基于「虚拟位置」重算敌人危险区：把 virtual_unit 临时放到 virtual_cell 上，再调用原逻辑。
-## 仅用于拖拽预览时的实时刷新，计算是纯同步的，恢复后无副作用。
-func calc_enemy_danger_zones_with_virtual(virtual_unit: Unit, virtual_cell: Vector2i) -> Dictionary:
-	if not is_instance_valid(virtual_unit):
-		return _calc_enemy_danger_zones()
-	if virtual_cell == virtual_unit.grid_cell:
-		return _calc_enemy_danger_zones()
-	var old_cell : Vector2i = virtual_unit.grid_cell
-	virtual_unit.grid_cell = virtual_cell
-	var result : Dictionary = _calc_enemy_danger_zones()
-	virtual_unit.grid_cell = old_cell
-	return result
+## 敌方威胁区是客观静态数据：只由当前已激活敌人的位置、移动力与射程决定，
+## 与玩家光标 / 预览落点无关。旧实现把玩家单位临时瞬移到光标格再计算，
+## 会改变 UnitManager.get_reachable_cells 的占位阻挡，使红点随鼠标移动漂移（v5.9 修复）。
+## 每次进入选中 / 拖拽会话刷新一次，会话内全程复用同一份结果。
+func refresh_enemy_danger_zones() -> void:
+	_enemy_danger_zones = _calc_enemy_danger_zones()
 	
 	
 # ============================================================
@@ -2222,7 +2216,7 @@ func _show_unit_ranges(unit: Unit):
 	
 	var danger_cells = {}
 	if unit.unit_stats.team_id == 0:
-		_enemy_danger_zones = _calc_enemy_danger_zones()
+		refresh_enemy_danger_zones()
 		danger_cells = _enemy_danger_zones
 		
 	# 过滤掉不在移动范围内的危险区，只显示移动范围内可能被打的格子
