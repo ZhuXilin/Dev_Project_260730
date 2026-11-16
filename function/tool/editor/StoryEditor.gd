@@ -13,15 +13,13 @@ var _event_graph : StoryEventGraph = null
 const UNLOCK_TYPES : Array = ["unit", "relic", "aura", "route", "talent", "transform_branch"]
 const NUM_CONDITIONS : Array = [
 	"min_run_count", "min_altar_level", "min_initial_level",
-	"min_weapon_max_level", "min_dispatch_count", "min_arena_clear",
-	"min_dialogue_count"
+	"min_dispatch_count", "min_arena_clear", "min_dialogue_count"
 ]
 
 const CONDITION_HELP : Dictionary = {
 	"min_run_count": "累计通关局数 ≥ N",
 	"min_altar_level": "魂火上限等级 ≥ N（0-6）",
 	"min_initial_level": "初始魂火等级 ≥ N（0-3）",
-	"min_weapon_max_level": "任意单位武器最高等级 ≥ N（0-5）",
 	"min_dispatch_count": "累计派遣次数 ≥ N",
 	"min_arena_clear": "竞技场通关次数 ≥ N",
 	"min_dialogue_count": "与该 NPC 已看对话数 ≥ N",

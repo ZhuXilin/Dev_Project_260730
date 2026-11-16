@@ -4,11 +4,12 @@ extends Node
 #  AffixManager — 装备词条
 # ============================================================
 
+# v5.1「明显梯度」：所有品质都有词条，且数量拉开差距
 const QUALITY_AFFIX_COUNT : Dictionary = {
-	"common": 0,
-	"rare": 1,
-	"epic": 2,
-	"legendary": 3,
+	"common": 1,
+	"rare": 2,
+	"epic": 3,
+	"legendary": 4,
 }
 
 var _affixes : Dictionary = {}
@@ -55,53 +56,68 @@ func format_description(affix_id: String, value: int) -> String:
 	return str(d.get("description", "")).replace("{v}", str(value))
 
 
+## v5.1：两阶段抽取——先「标签专属池」，再用「通用池」补满。
+## 目的：带标签的防具一眼能看出流派基因（烈焰必出攻击/暴击/穿透），
+## 同时低品质/冷门标签不会因为专属池不足而开天窗。
 func roll_affixes(quality: String, item_tags: Array) -> Array:
 	var count : int = get_affix_count_for_quality(quality)
 	if count <= 0:
 		return []
 
-	var candidates : Array = []
+	var tagged_pool : Array = []      # 与 item_tags 匹配的专属词条
+	var universal_pool : Array = []   # 无标签限制的通用词条
+
 	for aid in _affixes:
 		var d : Dictionary = _affixes[aid]
 		var min_q : String = d.get("min_quality", "rare")
 		if not _quality_ok(quality, min_q):
 			continue
 		var affix_tags : Array = d.get("tags", [])
+		var is_tagged : bool = false
 		if not affix_tags.is_empty():
-			var matched : bool = false
 			for t in affix_tags:
 				if t in item_tags:
-					matched = true
+					is_tagged = true
 					break
-			if not matched:
+			# 有标签限制但都不匹配 → 跳过（专属词条不进通用池）
+			if not is_tagged:
 				continue
-		candidates.append(aid)
+		if is_tagged:
+			tagged_pool.append(aid)
+		else:
+			universal_pool.append(aid)
 
-	if candidates.is_empty():
-		return []
+	tagged_pool.shuffle()
+	universal_pool.shuffle()
 
-	candidates.shuffle()
 	var result : Array = []
 	var used_types : Dictionary = {}
-	for i in range(count):
-		var picked : String = ""
-		for aid in candidates:
-			var d : Dictionary = _affixes[aid]
-			var t : String = d.get("type", "")
-			if used_types.has(t):
-				continue
-			picked = aid
+
+	# 第一阶段：优先吃标签专属词条
+	for aid in tagged_pool:
+		if result.size() >= count:
 			break
-		if picked == "":
+		_try_append_affix(aid, used_types, result)
+
+	# 第二阶段：通用池补满
+	for aid in universal_pool:
+		if result.size() >= count:
 			break
-		used_types[_affixes[picked].get("type", "")] = true
-		var d2 : Dictionary = _affixes[picked]
-		var vmin : int = int(d2.get("value_min", 1))
-		var vmax : int = int(d2.get("value_max", 1))
-		var value : int = vmin if vmin == vmax else (randi() % (vmax - vmin + 1) + vmin)
-		result.append({"id": picked, "value": value})
+		_try_append_affix(aid, used_types, result)
 
 	return result
+
+
+func _try_append_affix(aid: String, used_types: Dictionary, result: Array) -> void:
+	var d : Dictionary = _affixes[aid]
+	var t : String = d.get("type", "")
+	if used_types.has(t):
+		return
+	used_types[t] = true
+	var vmin : int = int(d.get("value_min", 1))
+	var vmax : int = int(d.get("value_max", 1))
+	var value : int = vmin if vmin == vmax else (randi() % (vmax - vmin + 1) + vmin)
+	result.append({"id": aid, "value": value})
 
 
 func _quality_ok(q : String, min_q : String) -> bool:

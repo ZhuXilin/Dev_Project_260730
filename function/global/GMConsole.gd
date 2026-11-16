@@ -478,7 +478,7 @@ func _cmd_unlock(args: Array):
 				_out("解锁所有单位", "green")
 			else:
 				Globals.unlock_unit(target); _out("解锁单位 " + target, "green")
-		"weapon", "armor", "item":
+		"armor", "item":
 			if target == "all":
 				for i in ItemManager.get_all_item_ids():
 					var d = ItemManager.get_item_data(i)
@@ -506,7 +506,6 @@ func _cmd_unlock(args: Array):
 
 func _cmd_unlock_all(_args: Array):
 	_cmd_unlock(["unit", "all"])
-	_cmd_unlock(["weapon", "all"])
 	_cmd_unlock(["armor", "all"])
 	_cmd_unlock(["talent", "all"])
 	_cmd_unlock(["relic", "all"])

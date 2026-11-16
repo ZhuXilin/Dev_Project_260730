@@ -58,10 +58,8 @@ func get_max_carried() -> int:
 	var flame_bonus : int = 0
 	if _has_eternal_flame():
 		flame_bonus = 5
-	var set_bonus : int = 0
-	if SetBonusManager.team_has_set("余烬"):
-		var b : Dictionary = SetBonusManager.get_bonus("余烬")
-		set_bonus = int(b.get("value", 3))
+	# v5.1：余烬套装 2 件生效（+3），含史诗质变（+6），随 tier 自动取档
+	var set_bonus : int = int(SetBonusManager.get_team_tag_effect_value("余烬", "soul_fire_max"))
 	base += maxi(flame_bonus, set_bonus)
 
 	if StoryManager.get_affinity("soul_keeper") >= 10:

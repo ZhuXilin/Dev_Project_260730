@@ -181,12 +181,6 @@ static func create_unit_data(unit_name: String, _for_boss: bool = false) -> Unit
 	data.max_talent_slots = talent_cap
 	return data
 
-static func get_default_weapon_id(_unit_name: String) -> String:
-	return "" # 废弃接口保留防止报错，永远返回空
-
-static func build_weapon_item_data(_ud: UnitData) -> ItemData:
-	return null # 废弃接口保留防止报错，永远返回空
-
 static func get_sacrifice_buff(unit_name: String) -> Dictionary:
 	return get_unit_data(unit_name).get("sacrifice_buff", {})
 
@@ -377,10 +371,6 @@ static func get_avatar_by_speaker(speaker: String) -> String:
 		if str(d.get("display_name", "")) == speaker: return str(d.get("avatar", ""))
 	if _unit_data_cache.has(speaker): return str(_unit_data_cache[speaker].get("avatar", ""))
 	return ""
-
-
-static func _apply_weapon_to_unit_stats(_data: UnitData, _weapon_id: String) -> void:
-	pass
 
 
 # ============================================================

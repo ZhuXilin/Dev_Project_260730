@@ -231,7 +231,6 @@
 		},
 		{
 		  "condition": {
-			"min_weapon_max_level": 1.0
 		  },
 		  "id": "smith_01",
 		  "lines": [
@@ -245,7 +244,6 @@
 		},
 		{
 		  "condition": {
-			"min_weapon_max_level": 2.0
 		  },
 		  "id": "smith_02",
 		  "lines": [
@@ -327,7 +325,6 @@
 		},
 		{
 		  "condition": {
-			"min_weapon_max_level": 3.0
 		  },
 		  "id": "smith_chat_5",
 		  "lines": [
@@ -355,7 +352,6 @@
 			}
 		  ],
 		  "condition": {
-			"min_weapon_max_level": 2.0
 		  },
 		  "id": "smith_curious",
 		  "lines": [
@@ -371,8 +367,7 @@
 		  "condition": {
 			"flags": [
               "smith_asked_old_world"
-			],
-			"min_weapon_max_level": 3.0
+			]
 		  },
 		  "id": "smith_truth",
 		  "lines": [
@@ -417,8 +412,7 @@
 		  "condition": {
 			"flags": [
               "smith_asked_old_world"
-			],
-			"min_weapon_max_level": 4.0
+			]
 		  },
 		  "id": "smith_final",
 		  "lines": [
@@ -454,8 +448,7 @@
 			"flags": [
               "smith_asked_old_world"
 			],
-			"min_dialogue_count": 5.0,
-			"min_weapon_max_level": 4.0
+			"min_dialogue_count": 5.0
 		  },
 		  "id": "relic_phoenix",
 		  "type": "relic"

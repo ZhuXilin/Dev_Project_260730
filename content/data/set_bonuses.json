@@ -1,74 +1,120 @@
 {
   "烈焰": {
-	"name": "焚天之怒",
-	"description": "攻击 +10%",
-	"effect": "attack_percent",
-	"value": 0.10
+    "name": "焚天之怒",
+    "description": "攻击 +10%（2件）/ +25% 且暴击伤害 +30%（含史诗质变）",
+    "effect": "attack_percent",
+    "value": 0.10,
+    "effects": [
+      { "effect": "attack_percent", "value": 0.10 }
+    ],
+    "tier2_description": "攻击 +25%，暴击伤害 +30%",
+    "tier2_effects": [
+      { "effect": "attack_percent", "value": 0.25 },
+      { "effect": "crit_damage", "value": 0.30 }
+    ]
   },
   "轮回": {
-	"name": "生生不息",
-	"description": "每回合回复 5% 最大 HP",
-	"effect": "turn_regen",
-	"value": 0.05
+    "name": "生生不息",
+    "description": "每回合回复 5% 最大 HP（2件）/ 10% 且 HP 上限 +10（含史诗质变）",
+    "effect": "turn_regen",
+    "value": 0.05,
+    "effects": [
+      { "effect": "turn_regen", "value": 0.05 }
+    ],
+    "tier2_description": "每回合回复 10%，HP 上限 +10",
+    "tier2_effects": [
+      { "effect": "turn_regen", "value": 0.10 },
+      { "effect": "hp_flat", "value": 10 }
+    ]
   },
   "灰烬": {
-	"name": "灰烬之舞",
-	"description": "移动 +1，防御 +2",
-	"effect": "move_and_defense",
-	"move": 1,
-	"defense": 2
+    "name": "灰烬之舞",
+    "description": "移动 +1，防御 +2（2件）/ 移动 +2，防御 +5（含史诗质变）",
+    "effect": "move_and_defense",
+    "move": 1,
+    "defense": 2,
+    "effects": [
+      { "effect": "move_flat", "value": 1 },
+      { "effect": "defense_flat", "value": 2 }
+    ],
+    "tier2_description": "移动 +2，防御 +5",
+    "tier2_effects": [
+      { "effect": "move_flat", "value": 2 },
+      { "effect": "defense_flat", "value": 5 }
+    ]
   },
   "守护": {
-	"name": "不破壁垒",
-	"description": "防御 +5",
-	"effect": "defense_flat",
-	"value": 5
+    "name": "不破壁垒",
+    "description": "防御 +5（2件）/ +12（含史诗质变）",
+    "effect": "defense_flat",
+    "value": 5,
+    "effects": [
+      { "effect": "defense_flat", "value": 5 }
+    ],
+    "tier2_description": "防御 +12",
+    "tier2_effects": [
+      { "effect": "defense_flat", "value": 12 }
+    ]
   },
   "献祭": {
-	"name": "血之回响",
-	"description": "造成伤害的 8% 回复为 HP",
-	"effect": "damage_lifesteal",
-	"value": 0.08
+    "name": "血之回响",
+    "description": "造成伤害的 8% 回复为 HP（2件）/ 15%（含史诗质变）",
+    "effect": "damage_lifesteal",
+    "value": 0.08,
+    "effects": [
+      { "effect": "damage_lifesteal", "value": 0.08 }
+    ],
+    "tier2_description": "造成伤害的 15% 回复为 HP",
+    "tier2_effects": [
+      { "effect": "damage_lifesteal", "value": 0.15 }
+    ]
   },
   "余烬": {
-	"name": "不灭薪火",
-	"description": "魂火上限 +3",
-	"effect": "soul_fire_max",
-	"value": 3
+    "name": "不灭薪火",
+    "description": "魂火上限 +3（2件）/ +6（含史诗质变）",
+    "effect": "soul_fire_max",
+    "value": 3,
+    "effects": [
+      { "effect": "soul_fire_max", "value": 3 }
+    ],
+    "tier2_description": "魂火上限 +6",
+    "tier2_effects": [
+      { "effect": "soul_fire_max", "value": 6 }
+    ]
   },
 
   "cross_bonuses": {
-	"flame_ash": {
-	  "tags": ["烈焰", "灰烬"],
-	  "min_each": 2,
-	  "name": "爆燃",
-	  "description": "全队攻击 +10%",
-	  "effect": "attack_percent",
-	  "value": 0.10
-	},
-	"guard_sacrifice": {
-	  "tags": ["守护", "献祭"],
-	  "min_each": 2,
-	  "name": "血誓",
-	  "description": "全队 HP 上限 +5",
-	  "effect": "hp_flat",
-	  "value": 5
-	},
-	"cycle_ember": {
-	  "tags": ["轮回", "余烬"],
-	  "min_each": 2,
-	  "name": "轮回不息",
-	  "description": "每回合回复 3% HP",
-	  "effect": "turn_regen",
-	  "value": 0.03
-	},
-	"sacrifice_flame": {
-	  "tags": ["献祭", "烈焰"],
-	  "min_each": 2,
-	  "name": "血脉沸腾",
-	  "description": "击杀 +1 魂火",
-	  "effect": "kill_soul_fire",
-	  "value": 1
-	}
+    "flame_ash": {
+      "tags": ["烈焰", "灰烬"],
+      "min_each": 2,
+      "name": "爆燃",
+      "description": "全队攻击 +10%",
+      "effect": "attack_percent",
+      "value": 0.10
+    },
+    "guard_sacrifice": {
+      "tags": ["守护", "献祭"],
+      "min_each": 2,
+      "name": "血誓",
+      "description": "全队 HP 上限 +5",
+      "effect": "hp_flat",
+      "value": 5
+    },
+    "cycle_ember": {
+      "tags": ["轮回", "余烬"],
+      "min_each": 2,
+      "name": "轮回不息",
+      "description": "每回合回复 3% HP",
+      "effect": "turn_regen",
+      "value": 0.03
+    },
+    "sacrifice_flame": {
+      "tags": ["献祭", "烈焰"],
+      "min_each": 2,
+      "name": "血脉沸腾",
+      "description": "击杀 +1 魂火",
+      "effect": "kill_soul_fire",
+      "value": 1
+    }
   }
 }

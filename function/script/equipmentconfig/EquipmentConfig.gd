@@ -15,7 +15,7 @@ var _context : EquipContext = null
 
 const MAX_PASSIVE_SLOTS : int = 4
 
-var current_tab: String = "weapon"
+var current_tab: String = "talent"  # ★ v5.1：武器库已移除，默认特技库
 var shop_manager = null
 
 var _forge : EquipmentConfigForge = null
@@ -64,6 +64,9 @@ var _connectivity_groups : Array = []
 var _connected_cells : Dictionary = {}
 var _shop_direction_cache : Dictionary = {}
 
+# ★ v5.1：队伍标签统计槽（Build 引导）
+var _tag_stats_container : HBoxContainer = null
+
 
 func _ready():
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -89,8 +92,8 @@ func _ready():
 		var new_flow = HFlowContainer.new()
 		new_flow.name = old_sc.name
 		new_flow.alignment = FlowContainer.ALIGNMENT_CENTER
-		new_flow.add_theme_constant_override("h_separation", 4)
-		new_flow.add_theme_constant_override("v_separation", 4)
+		new_flow.add_theme_constant_override("h_separation", Style.ITEM_GRID_GAP)
+		new_flow.add_theme_constant_override("v_separation", Style.ITEM_GRID_GAP)
 		new_flow.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		old_sc.get_parent().add_child(new_flow)
 		old_sc.get_parent().remove_child(old_sc)
@@ -138,9 +141,8 @@ func _is_shop_rest_mode() -> bool:
 
 
 func _on_weapon_tab_pressed():
-	if is_shop_rest_mode(): _switch_tab("arena_shop")
-	elif current_mode == Mode.FORGE: _switch_tab("arena_shop")
-	else: _switch_tab("weapon")
+	# ★ v5.1：武器库已移除，此按钮在各模式统一作为「商店」入口
+	_switch_tab("arena_shop")
 
 
 func _on_talent_tab_pressed():
@@ -339,6 +341,63 @@ func _refresh_connectivity(silent: bool = false):
 		_show_detail_in_zone("★ 形成超级连通网！(%d 件防具连通)" % max_size)
 
 
+# ★★★ v5.1 修复：连线黄框改画在按钮子节点最上层 ★★★
+# 防具图标已改为全尺寸 TextureRect 子节点（见 _draw_build_tag_backdrop），
+# 它会盖住按钮自身 stylebox 的边框，所以原来的 normal/hover stylebox 边框不可见。
+# 这里把连线框做成独立 Panel 子节点并最后加入，保证绘制在图标与色块之上。
+const LINK_FRAME_NODE_NAME : String = "__link_frame"
+
+func _set_slot_link_frame(btn: Button, unit_idx: int, slot_idx: int, highlight: bool = false):
+	if btn == null:
+		return
+	var key : String = "%d_%d" % [unit_idx, slot_idx]
+	var connected : bool = _connected_cells.has(key)
+
+	var frame : Panel = btn.get_node_or_null(NodePath(LINK_FRAME_NODE_NAME)) as Panel
+	if frame == null:
+		if not connected:
+			return
+		frame = Panel.new()
+		frame.name = LINK_FRAME_NODE_NAME
+		frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		# 与 24×24 Build 色块同尺寸，正好框住色块
+		frame.set_anchors_preset(Control.PRESET_CENTER)
+		frame.offset_left = -12
+		frame.offset_right = 12
+		frame.offset_top = -12
+		frame.offset_bottom = 12
+		btn.add_child(frame)  # 最后添加 → 绘制在图标之上
+
+	if not connected:
+		frame.visible = false
+		return
+	frame.visible = true
+
+	var group_size : int = 0
+	var gi : int = _connected_cells[key]
+	if gi >= 0 and gi < _connectivity_groups.size():
+		group_size = _connectivity_groups[gi].size()
+
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(0, 0, 0, 0)
+	if highlight:
+		sb.bg_color = Color(1.0, 0.9, 0.3, 0.25)
+		sb.border_color = Color(1.0, 0.9, 0.3)
+		sb.set_border_width_all(2)
+	else:
+		if group_size >= 5:
+			sb.border_color = Color(1.0, 0.8, 0.1)
+			sb.set_border_width_all(2)
+		else:
+			sb.border_color = Color(0.9, 0.75, 0.3)
+			sb.set_border_width_all(1)
+	sb.content_margin_left = 0
+	sb.content_margin_right = 0
+	sb.content_margin_top = 0
+	sb.content_margin_bottom = 0
+	frame.add_theme_stylebox_override("panel", sb)
+
+
 func _get_connectivity_style(unit_idx: int, slot_idx: int) -> StyleBox:
 	var key : String = "%d_%d" % [unit_idx, slot_idx]
 	if not _connected_cells.has(key):
@@ -375,6 +434,7 @@ func _build_unit_columns():
 	if not unit_container: return
 	_refresh_connectivity(true)
 	unit_container.alignment = BoxContainer.ALIGNMENT_CENTER
+	unit_container.add_theme_constant_override("separation", Style.ITEM_GRID_GAP)
 	for child in unit_container.get_children():
 		unit_container.remove_child(child); child.free()
 
@@ -382,6 +442,61 @@ func _build_unit_columns():
 		unit_container.add_child(_create_unit_column(i))
 
 	_backup_all_armor_styles()
+	# ★ v5.1：重建完毕后刷新标签统计（Build 引导反馈）
+	_refresh_tag_stats()
+
+
+# ============================================================
+#  v5.1：队伍标签统计槽（Build 引导）
+#  统计全队防具各标签件数，达 2 件（套装激活阈值）即高亮
+# ============================================================
+func _refresh_tag_stats():
+	var left_vbox = get_node_or_null("VBoxContainer/MainHBox/LeftVBox")
+	if left_vbox == null: return
+	# 复用已有容器，避免重复创建
+	if _tag_stats_container == null or not is_instance_valid(_tag_stats_container):
+		_tag_stats_container = HBoxContainer.new()
+		_tag_stats_container.name = "TagStatsBar"
+		_tag_stats_container.add_theme_constant_override("separation", 3)
+		left_vbox.add_child(_tag_stats_container)
+		# 置顶：统计条放在单位栏上方
+		left_vbox.move_child(_tag_stats_container, 0)
+	else:
+		for c in _tag_stats_container.get_children():
+			_tag_stats_container.remove_child(c); c.free()
+
+	# 统计全队防具标签件数
+	var counts : Dictionary = {}
+	for u in party:
+		for slot in u.armor_slots:
+			if slot == null: continue
+			var data = ItemManager.get_item_data(slot.item_id)
+			if data == null: continue
+			for tag in data.tags:
+				counts[tag] = int(counts.get(tag, 0)) + 1
+
+	# 标题
+	var title := Label.new()
+	title.text = "Build:"
+	title.add_theme_font_size_override("font_size", Style.FONT_SMALL)
+	title.add_theme_color_override("font_color", Color(0.75, 0.75, 0.75))
+	title.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_tag_stats_container.add_child(title)
+
+	# 按固定顺序输出 6 个标签
+	for tag in UIConst.BUILD_TAG_ORDER:
+		var n : int = int(counts.get(tag, 0))
+		if n <= 0: continue
+		var active : bool = n >= SetBonusManager.SET_THRESHOLD
+		var col : Color = UIConst.BUILD_TAG_COLORS.get(tag, Color.WHITE)
+		var lbl := Label.new()
+		lbl.text = "%s %d" % [tag, n]
+		lbl.add_theme_font_size_override("font_size", Style.FONT_SMALL)
+		lbl.add_theme_color_override("font_color", col if active else Color(0.55, 0.55, 0.55))
+		if active:
+			lbl.tooltip_text = "已激活 2 件套效果"
+		lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_tag_stats_container.add_child(lbl)
 
 
 func _backup_all_armor_styles():
@@ -420,7 +535,16 @@ func _on_armor_hover_entered(item_id: String, unit_idx: int, slot_idx: int):
 			_restore_all_armor_styles()
 	else:
 		_restore_all_armor_styles()
-	_detail.on_button_hover_entered_with_link(item_id, group_size, unit_count)
+
+	# ★ v5.1：从队伍实例读取该防具实际 roll 出的词条（词条挂在实例上，不在 ItemData 上）
+	var affixes_snapshot : Array = []
+	if unit_idx >= 0 and unit_idx < party.size():
+		var ud : UnitData = party[unit_idx]
+		if ud and slot_idx >= 0 and slot_idx < ud.armor_slots.size():
+			var worn : ItemInstance = ud.armor_slots[slot_idx]
+			if worn and worn.affixes:
+				affixes_snapshot = worn.affixes.duplicate(true)
+	_detail.on_button_hover_entered_with_link(item_id, group_size, unit_count, affixes_snapshot)
 
 func _on_armor_hover_exited():
 	_detail.on_button_hover_exited()
@@ -431,39 +555,23 @@ func _apply_group_highlight(group_idx: int):
 	if group_idx < 0 or group_idx >= _connectivity_groups.size():
 		return
 	var g = _connectivity_groups[group_idx]
-	var hl := StyleBoxFlat.new()
-	hl.bg_color = Color(1.0, 0.9, 0.3, 0.25)
-	hl.border_color = Color(1.0, 0.9, 0.3)
-	hl.set_border_width_all(2)
-	hl.corner_radius_top_left = 2
-	hl.corner_radius_top_right = 2
-	hl.corner_radius_bottom_left = 2
-	hl.corner_radius_bottom_right = 2
-	hl.content_margin_left = 0
-	hl.content_margin_right = 0
-	hl.content_margin_top = 0
-	hl.content_margin_bottom = 0
+	# ★ v5.1：高亮同样走子节点边框层，避免被图标/色块遮挡
 	for cell in g.cells:
 		var btn = _find_armor_button_at(cell.unit_index, cell.row)
 		if btn:
-			btn.add_theme_stylebox_override("normal", hl)
-			btn.add_theme_stylebox_override("hover", hl)
+			_set_slot_link_frame(btn, cell.unit_index, cell.row, true)
 
 func _restore_all_armor_styles():
-	for key in _armor_btn_default_style:
+	# ★ v5.1：高亮画在子节点边框层，恢复时把所有连通格边框还原为常态黄框。
+	# 直接遍历 _connected_cells，不再依赖从未被调用的样式备份字典。
+	for key in _connected_cells:
 		var parts : PackedStringArray = String(key).split("_", false)
 		if parts.size() != 2: continue
 		var u : int = int(parts[0])
 		var s : int = int(parts[1])
 		var btn = _find_armor_button_at(u, s)
-		if btn == null: continue
-		var st : Dictionary = _armor_btn_default_style[key]
-		var normal_sb = st.get("normal", null)
-		var hover_sb = st.get("hover", null)
-		if normal_sb != null:
-			btn.add_theme_stylebox_override("normal", normal_sb)
-		if hover_sb != null:
-			btn.add_theme_stylebox_override("hover", hover_sb)
+		if btn:
+			_set_slot_link_frame(btn, u, s, false)
 
 func _find_armor_button_at(unit_idx: int, slot_idx: int) -> Button:
 	if not unit_container: return null
@@ -487,7 +595,9 @@ func _recursive_find_armor(node: Node, unit_idx: int, slot_idx: int) -> Button:
 
 func _create_unit_column(unit_idx: int, is_preview: bool = false) -> Control:
 	var wrapper: PanelContainer = PanelContainer.new()
-	wrapper.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	# 按内容宽度收拢，避免三列被 HBoxContainer 拉伸后头像间距过大；
+	# 列间统一使用 Style.ITEM_GRID_GAP（与商店一致）。
+	wrapper.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	wrapper.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 	
 	if is_preview:
@@ -513,7 +623,9 @@ func _create_unit_column(unit_idx: int, is_preview: bool = false) -> Control:
 		wrapper.add_theme_stylebox_override("panel", sb_empty)
 
 	var col := VBoxContainer.new()
-	col.add_theme_constant_override("separation", 2)
+	# v5.1：单位列内各段（头像/等级/防具/特技）统一使用商店格间距，
+	# 避免等级按钮与防具槽贴在一起。
+	col.add_theme_constant_override("separation", Style.ITEM_GRID_GAP)
 	# ★ 核心修复：统一改为 ALIGNMENT_BEGIN 贴顶对齐，绝不居中，防止拖拽时因高度变化导致下沉
 	col.alignment = BoxContainer.ALIGNMENT_BEGIN
 	col.clip_contents = false
@@ -534,17 +646,15 @@ func _create_unit_column(unit_idx: int, is_preview: bool = false) -> Control:
 
 	# 防具槽位
 	var armor_group := VBoxContainer.new()
-	armor_group.add_theme_constant_override("separation", 2)
+	armor_group.add_theme_constant_override("separation", Style.ITEM_GRID_GAP)
 	armor_group.alignment = BoxContainer.ALIGNMENT_CENTER
 	col.add_child(armor_group)
 	
 	for slot_idx in range(unit.armor_slots.size()):
 		var armor_btn = _create_item_button(unit.armor_slots[slot_idx], "armor", unit_idx, slot_idx)
 		if unit.is_dead: _disable_button(armor_btn)
-		var conn_style = _get_connectivity_style(unit_idx, slot_idx)
-		if conn_style != null:
-			armor_btn.add_theme_stylebox_override("normal", conn_style)
-			armor_btn.add_theme_stylebox_override("hover", conn_style)
+		# ★ v5.1：连线框用子节点画在图标之上（stylebox 边框会被全尺寸图标盖住）
+		_set_slot_link_frame(armor_btn, unit_idx, slot_idx)
 		armor_group.add_child(armor_btn)
 
 	# 特技槽位
@@ -720,7 +830,7 @@ func _build_ui_inner():
 
 	var show_pending : bool = false
 	if current_mode == Mode.FORGE or current_mode == Mode.MAP_SHOP_REST:
-		if current_tab != "arena_shop" and current_tab != "weapon":
+		if current_tab != "arena_shop":
 			show_pending = true
 			
 	if show_pending:
@@ -767,7 +877,7 @@ func _build_ui_inner():
 			talent_tab_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 			talent_tab_btn.disabled = false
 			talent_tab_btn.text = "特技库"
-			if current_tab == "weapon" or current_tab == "":
+			if current_tab == "":
 				current_tab = "talent"
 			_update_tab_style()
 			_build_talent_grid(shop_container)
@@ -947,7 +1057,8 @@ func _get_level_up_cost(cur_level: int) -> int:
 
 
 func _create_level_btn(unit: UnitData, unit_idx: int) -> Button:
-	var btn : Button = Style.create_styled_button(Style.FONT_SMALL, Vector2(52, 24))
+	# 与 54x54 头像框同宽，保证灰框之间的间距 = UnitContainer 的 ITEM_GRID_GAP
+	var btn : Button = Style.create_styled_button(Style.FONT_SMALL, Vector2(54, 24))
 	btn.set_meta("slot_type", "level_btn")
 	btn.set_meta("unit_idx", unit_idx)
 	btn.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
@@ -1419,9 +1530,7 @@ func _equip_pending_reward(data: Dictionary, target: Control):
 	var item_data = ItemManager.get_item_data(inst.item_id)
 	if not item_data: return
 
-	if target_type == "weapon":
-		return
-	elif target_type == "armor":
+	if target_type == "armor":
 		if item_data.type != "armor": return
 		var slot_idx : int = target.get_meta("slot_idx", -1)
 		if slot_idx < 0 or slot_idx >= u.armor_slots.size(): return
@@ -1536,6 +1645,10 @@ func _create_item_button(inst: ItemInstance, slot_type: String, unit_idx: int, s
 		else:
 			btn.text = base_name
 
+		# ★ v5.1：防具图标背后 24x24 Build 方向色块（取第一个标签配色）
+		if slot_type == "armor" or (data and data.type == "armor"):
+			_draw_build_tag_backdrop(btn, data)
+
 		var dir = inst.direction
 		if is_shop:
 			dir = shop_dir
@@ -1587,14 +1700,55 @@ func _create_item_button(inst: ItemInstance, slot_type: String, unit_idx: int, s
 	btn.set_meta("item_id", inst.item_id if inst else "")
 	if inst and inst.item_id != "":
 		var item_id : String = inst.item_id
+		# ★ v5.1：商店商品悬浮显示本次 roll 出的词条（词条在实例上，不在 ItemData 上）
+		var affixes_snapshot : Array = (inst.affixes.duplicate(true) if inst.affixes else [])
 		# ★★★ v5.0：armor 类型走连通组感知 hover ★★★
 		if slot_type == "armor" and unit_idx >= 0 and slot_idx >= 0:
 			btn.mouse_entered.connect(_on_armor_hover_entered.bind(item_id, unit_idx, slot_idx))
 			btn.mouse_exited.connect(_on_armor_hover_exited)
+		elif slot_type == "shop_item":
+			btn.mouse_entered.connect(_on_shop_item_hover_entered.bind(item_id, affixes_snapshot))
+			btn.mouse_exited.connect(_on_button_hover_exited)
 		else:
 			btn.mouse_entered.connect(_on_button_hover_entered.bind(item_id))
 			btn.mouse_exited.connect(_on_button_hover_exited)
 	return btn
+
+
+## v5.1：防具图标背后画 24x24 Build 方向方块（标签配色，统一读 UIConst）
+## 注意：Button.icon 属于按钮自身绘制，子节点无法垫到它后面；
+## 因此把图标转成 TextureRect 子节点，先加色块再加图标，保证色块在图标下层。
+func _draw_build_tag_backdrop(btn: Button, data):
+	var backdrop := ColorRect.new()
+	backdrop.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	backdrop.color = UIConst.NO_TAG_COLOR
+	if data != null and not data.tags.is_empty():
+		var first_tag : String = str(data.tags[0])
+		backdrop.color = UIConst.BUILD_TAG_COLORS.get(first_tag, UIConst.NO_TAG_COLOR)
+	backdrop.set_anchors_preset(Control.PRESET_CENTER)
+	backdrop.offset_left = -12
+	backdrop.offset_right = 12
+	backdrop.offset_top = -12
+	backdrop.offset_bottom = 12
+	btn.add_child(backdrop)
+
+	# 图标移到独立 TextureRect 子节点，叠在色块之上
+	if btn.icon:
+		var icon_texture : Texture2D = btn.icon
+		var icon_rect := TextureRect.new()
+		icon_rect.texture = icon_texture
+		icon_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		icon_rect.stretch_mode = TextureRect.STRETCH_SCALE
+		icon_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		icon_rect.set_anchors_preset(Control.PRESET_FULL_RECT)
+		icon_rect.offset_left = 0
+		icon_rect.offset_right = 0
+		icon_rect.offset_top = 0
+		icon_rect.offset_bottom = 0
+		btn.add_child(icon_rect)
+		# 拖拽预览仍要拿到原图标
+		btn.set_meta("_item_icon", icon_texture)
+		btn.icon = null
 
 
 func _draw_direction_badges(btn: Button, dir: int):
@@ -1849,7 +2003,7 @@ func _is_valid_drop(data: Dictionary, target: Control) -> bool:
 		if discard: return true
 		if target_type == "forge_slot":
 			return _forge.is_valid_forge_drop(data, target)
-		if target_type not in ["weapon", "armor"]: return false
+		if target_type != "armor": return false
 		var tu_p : int = target.get_meta("unit_idx", -1)
 		if tu_p < 0 or tu_p >= party.size(): return false
 		if party[tu_p].is_dead: return false
@@ -1862,9 +2016,7 @@ func _is_valid_drop(data: Dictionary, target: Control) -> bool:
 		if inst == null: return false
 		var idata = ItemManager.get_item_data(inst.item_id)
 		if not idata: return false
-		if target_type == "weapon":
-			return false
-		elif target_type == "armor":
+		if target_type == "armor":
 			if idata.type != "armor": return false
 			var ts_p : int = target.get_meta("slot_idx", -1)
 			if ts_p < 0 or ts_p >= party[tu_p].armor_slots.size(): return false
@@ -1888,8 +2040,6 @@ func _is_valid_drop(data: Dictionary, target: Control) -> bool:
 
 	if current_mode == Mode.DEPLOY:
 		if discard: return false
-		if source_type == "library_weapon": return false
-		if source_type == "weapon" and target_type == "weapon": return false
 		if source_type == "library_talent" and target_type == "talent": return _talent.check_talent_compatibility(data, target)
 		if source_type == "talent" and target_type == "talent": return _talent.check_talent_compatibility(data, target)
 		return false
@@ -1898,7 +2048,6 @@ func _is_valid_drop(data: Dictionary, target: Control) -> bool:
 		if discard:
 			if source_type == "armor": return true
 			return false
-		if source_type == "weapon" and target_type == "weapon": return false 
 		if source_type == "armor" and target_type == "armor":
 			return _check_armor_swap_budget(data, target)
 		if source_type == "library_talent" and target_type == "talent": return _talent.check_talent_compatibility(data, target)
@@ -1911,22 +2060,19 @@ func _is_valid_drop(data: Dictionary, target: Control) -> bool:
 	)
 	if is_shop_ctx:
 		if discard:
-			if source_type in ["shop_item", "weapon", "library_talent", "talent"]: return false
+			if source_type in ["shop_item", "library_talent", "talent"]: return false
 			return true
 		if source_type == "shop_item":
 			var item_data : ItemData = data.get("item_data")
 			if not item_data: return false
 			var tu2 : int = target.get_meta("unit_idx", -1)
 			var ts2 : int = target.get_meta("slot_idx", -1)
-			if item_data.type == "weapon":
-				return false
-			elif item_data.type == "armor":
+			if item_data.type == "armor":
 				if target_type != "armor": return false
 				if tu2 < 0 or ts2 < 0: return false
 				if _is_slot_occupied_by_unsellable(tu2, ts2): return false
 				return _can_equip_armor_to(tu2, item_data.id, ts2)
 			return false
-		if source_type == "weapon" and target_type == "weapon": return false
 		if source_type == "armor" and target_type == "armor":
 			return _check_armor_swap_budget(data, target)
 		return false
@@ -1986,7 +2132,7 @@ func _execute_drop(data: Dictionary, target: Control):
 	if source_type == "aura_equipped" and target_type == "passive_slot":
 		_swap_aura(data, target); return
 
-	if source_type == "pending_reward" and target_type in ["weapon", "armor"]:
+	if source_type == "pending_reward" and target_type == "armor":
 		_equip_pending_reward(data, target); return
 	if source_type == "pending_reward" and target == discard_zone:
 		_discard_pending_reward(data); return
@@ -2074,7 +2220,6 @@ func _swap_passives(data: Dictionary, target: Control):
 
 func _discard_item(data: Dictionary):
 	var source_type : String = data["slot_type"]
-	if source_type == "library_weapon" or source_type == "weapon": return
 	var unit_idx : int = data["unit_idx"]
 	var slot_idx : int = data["slot_idx"]
 	var u : UnitData = party[unit_idx]
@@ -2246,7 +2391,7 @@ func _switch_tab(tab: String):
 		
 	var show_pending : bool = false
 	if current_mode == Mode.FORGE or is_shop_rest_mode():
-		if tab != "arena_shop" and tab != "weapon":
+		if tab != "arena_shop":
 			show_pending = true
 			
 	if show_pending:
@@ -2263,7 +2408,6 @@ func _switch_tab(tab: String):
 			_pending_container = null
 
 	match tab:
-		"weapon": _shop.build_weapon_grid(shop_container)
 		"talent": _talent.build_talent_grid(shop_container)
 		"arena_shop":
 			if shop_manager and shop_manager.get_shop_items().is_empty():
@@ -2357,7 +2501,7 @@ func _update_tab_style():
 			_aura_tab_btn.modulate = Color.WHITE if current_tab == "aura" else Color(0.5, 0.5, 0.5)
 		return
 
-	weapon_tab_btn.modulate = Color.WHITE if current_tab == "weapon" else Color(0.5, 0.5, 0.5)
+	weapon_tab_btn.modulate = Color.WHITE if current_tab == "arena_shop" else Color(0.5, 0.5, 0.5)
 	talent_tab_btn.modulate = Color.WHITE if current_tab == "talent" else Color(0.5, 0.5, 0.5)
 	if sacrifice_tab_btn: sacrifice_tab_btn.visible = false
 	if _aura_tab_btn: _aura_tab_btn.visible = false
@@ -2452,6 +2596,11 @@ func _is_talent_equipped_anywhere(talent_id: String) -> bool:
 func show_item_detail(item_id: String): _detail.show_item(item_id)
 func hide_item_detail(): _detail.clear_zone()
 func _on_button_hover_entered(item_id: String): _detail.on_button_hover_entered(item_id)
+
+## v5.1：商店商品悬浮——把实例上的词条传给详情面板
+func _on_shop_item_hover_entered(item_id: String, affixes: Array):
+	if _detail:
+		_detail.show_item(item_id, affixes)
 func _on_button_hover_exited(): _detail.on_button_hover_exited()
 func _on_talent_hover_entered(talent_id: String): _detail.on_talent_hover_entered(talent_id)
 func _on_aura_hover_entered(aura_id: String) -> void:

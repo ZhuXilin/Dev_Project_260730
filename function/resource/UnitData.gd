@@ -367,25 +367,7 @@ static func from_dict(d: Dictionary) -> UnitData:
 	var whe_raw : Variant = d.get("heal_effect", {})
 	data.heal_effect = (whe_raw as Dictionary).duplicate(true) if whe_raw is Dictionary else {}
 
-	# ★ 旧档迁移：若只有 weapon_id（旧版），则去查表补全基础战斗属性
-	if data.weapon_name == "" and d.has("weapon_id") and d["weapon_id"] != "":
-		var wdata = ItemManager.get_item_data(d["weapon_id"])
-		if wdata:
-			data.weapon_name = wdata.name
-			data.attack = wdata.base_attack
-			data.weapon_quality = wdata.quality
-			data.attack_style = wdata.attack_style
-			data.attack_range = wdata.attack_range
-			data.min_attack_range = wdata.min_attack_range
-			data.weapon_category = wdata.category
-			data.modifier = wdata.modifier.duplicate(true)
-			data.physical_penetration = wdata.physical_penetration
-			data.magic_penetration = wdata.magic_penetration
-			data.heavy_attack = wdata.heavy_attack.duplicate(true)
-			data.magic_attack = wdata.magic_attack.duplicate(true)
-			data.heal_effect = wdata.heal_effect.duplicate(true)
-			if OS.is_debug_build():
-				print("[UnitData] 旧档迁移武器概念：%s → 单位固有属性" % data.weapon_name)
+	# ★ v5.1：武器数值已彻底内联单位，独立武器物品与 weapon_id 旧档迁移已移除
 
 	return data
 

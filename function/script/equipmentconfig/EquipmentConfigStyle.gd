@@ -17,6 +17,9 @@ const BTN_SHOP_SIZE = Vector2(20, 20)
 const BTN_LIBRARY_SIZE = Vector2(20, 20)
 const BTN_RELIC_SIZE = Vector2(20, 20)
 
+# 统一物品格子间距：商店防具网格 / 单位列 / 防具槽共用
+const ITEM_GRID_GAP : int = 6
+
 const SEPARATOR_TEXT = "──────"
 
 
@@ -31,9 +34,14 @@ static func create_styled_button(font_size: int, min_size: Vector2) -> Button:
 	return btn
 
 static func create_drag_preview(btn: Button) -> Control:
-	if btn.icon:
+	# 防具按钮为做 24x24 底色方块，会把 icon 转成子节点纹理；
+	# 这里优先取缓存的 _item_icon，保证拖拽预览正常显示。
+	var icon : Texture2D = btn.icon
+	if btn.has_meta("_item_icon"):
+		icon = btn.get_meta("_item_icon") as Texture2D
+	if icon:
 		var tex_rect = TextureRect.new()
-		tex_rect.texture = btn.icon
+		tex_rect.texture = icon
 		tex_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		tex_rect.stretch_mode = TextureRect.STRETCH_SCALE 
 		# ★ 核心修改：强制拖拽预览框为统一大小（20x20），不要跟随源按钮尺寸

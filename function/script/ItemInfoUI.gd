@@ -48,13 +48,9 @@ func _refresh_list():
 	_fill_armor_column()
 	_fill_relic_column()
 
+# ★ v5.1：武器概念已移除，武器列不再填充（保留节点引用避免路径报错）
 func _fill_weapon_column():
-	var title = Label.new(); title.text = "武器"; title.add_theme_font_size_override("font_size", 9)
-	weapon_list.add_child(title)
-	for item_id in ItemManager._item_db.keys():
-		var data = ItemManager.get_item_data(item_id)
-		if not data or data.type != "weapon" or not _matches_filter(data): continue
-		weapon_list.add_child(_make_item_button(data, true))
+	pass
 
 func _fill_armor_column():
 	var title = Label.new(); title.text = "防具"; title.add_theme_font_size_override("font_size", 9)
@@ -113,10 +109,7 @@ func _show_item_detail(data):
 	if data.tags: type_str += "[" + "/".join(data.tags) + "]"
 
 	var stats_arr : Array = []
-	if data.type == "weapon":
-		stats_arr.append("攻击: %d" % data.base_attack)
-		stats_arr.append("射程: %d~%d" % [data.min_attack_range, data.attack_range])
-	elif data.type == "armor":
+	if data.type == "armor":
 		if data.defense > 0: stats_arr.append("防御: +%d" % data.defense)
 
 	info_panel.show_info({

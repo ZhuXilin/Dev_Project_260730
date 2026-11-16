@@ -29,8 +29,7 @@ static func check(cond: Dictionary, context: Dictionary, npc_id: String = "") ->
 		return false
 	if not _check_num(cond, "min_initial_level", ">=", GameState.soul_fire_initial_level):
 		return false
-	if not _check_num(cond, "min_weapon_max_level", ">=", _get_max_weapon_level()):
-		return false
+	# ★ v5.1：min_weapon_max_level 武器升级已删除，不再判定（旧档字段被忽略）
 	if not _check_num(cond, "min_dialogue_count", ">=", _get_seen_count(npc_id)):
 		return false
 	if not _check_num(cond, "tutorial_stage_gte", ">=", GameState.tutorial_stage):
@@ -171,11 +170,4 @@ static func _has_seen_dialogue(npc_id: String, dialogue_id: String) -> bool:
 	return dialogue_id in seen
 
 
-static func _get_max_weapon_level() -> int:
-	var max_lv: int = 0
-	for unit_key in GameState.unit_growth:
-		var d: Dictionary = GameState.unit_growth[unit_key]
-		for k in d:
-			if k.begins_with("weapon_lv_"):
-				max_lv = maxi(max_lv, int(d[k]))
-	return max_lv
+# ★ v5.1：武器升级已删除，_get_max_weapon_level 移除

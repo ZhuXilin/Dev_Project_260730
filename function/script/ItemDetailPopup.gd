@@ -29,7 +29,7 @@ func show_item(item_id: String, _unit: Unit = null):
 
 	# ★ 碎片化叙事分支
 	if FlavorManager.is_narrative_mode():
-		var cat : String = "weapons" if data.type == "weapon" else ("armors" if data.type == "armor" else "items")
+		var cat : String = "armors" if data.type == "armor" else "items"  # ★ v5.1：武器概念已移除
 		var flavor : String = FlavorManager.get_flavor(cat, item_id)
 		if flavor == "":
 			flavor = "（暂无叙事）"

@@ -187,12 +187,7 @@ func _apply_turn_start_regen():
 		var regen_from_affix : float = 0.0
 		for slot in u.armor_slots:
 			if slot: regen_from_affix += slot.get_affix_value_float("turn_regen")
-		var regen_from_set : float = 0.0
-		var active : Array = SetBonusManager.get_active_sets_for_unit(u)
-		for entry in active:
-			var b : Dictionary = entry["bonus"]
-			if b.get("effect", "") == "turn_regen":
-				regen_from_set = maxf(regen_from_set, float(b.get("value", 0.0)))
+		var regen_from_set : float = SetBonusManager.get_unit_set_effect_value(u, "turn_regen")
 		var regen_from_cross : float = 0.0
 		var cross_active : Array = SetBonusManager.get_active_cross_bonuses()
 		for entry in cross_active:

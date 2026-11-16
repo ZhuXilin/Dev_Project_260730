@@ -17,6 +17,12 @@ const NARRATIVE_PATH : String = "res://content/data/narrative.json"
 
 const VALID_UNIT_TAGS : Array = ["物理", "法术", "烈焰", "轮回", "灰烬", "守护", "献祭", "余烬"]
 const VALID_SET_TAGS : Array = ["烈焰", "轮回", "灰烬", "守护", "献祭", "余烬"]
+# v5.1 套装 tier1/tier2 + 交叉套装效果白名单
+const VALID_SET_EFFECTS : Array = [
+	"attack_percent", "defense_flat", "move_flat", "hp_flat",
+	"crit_damage", "turn_regen", "damage_lifesteal", "soul_fire_max",
+	"kill_soul_fire", "move_and_defense", "kill_heal"
+]
 
 const VALID_CORE_TRAITS : Array = ["charge", "dragon_might", "bulwark"]
 const VALID_CAP_ATTRS : Array = ["vitality", "strength", "dexterity", "intelligence", "faith"]
@@ -136,13 +142,6 @@ func _validate_units():
 	for unit_key in _unit_db:
 		var u : Dictionary = _unit_db[unit_key]
 		if not (u is Dictionary): continue
-
-		var dw : String = str(u.get("default_weapon", ""))
-		if dw != "":
-			if not _item_db.has(dw):
-				_error(fname, "%s.default_weapon" % unit_key, "武器不存在: %s" % dw)
-			elif _item_db[dw].get("type", "") != "weapon":
-				_error(fname, "%s.default_weapon" % unit_key, "不是武器: %s" % dw)
 
 		var armors : Array = u.get("default_armors", [])
 		for i in range(armors.size()):
@@ -343,7 +342,8 @@ func _validate_items():
 			_warn(fname, "%s.quality" % item_id, "未知品质: %s" % q)
 
 		var t : String = str(dd.get("type", ""))
-		if t != "" and t not in ["weapon", "armor", "relic"]:
+		# ★ v5.1：武器概念已移除，合法物品类型只剩 armor / relic
+		if t != "" and t not in ["armor", "relic"]:
 			_warn(fname, "%s.type" % item_id, "未知类型: %s" % t)
 
 		var fid : String = str(dd.get("fusion_id", ""))
@@ -444,9 +444,33 @@ func _validate_set_bonuses():
 						var t2 : String = str(tags[i])
 						if t2 not in VALID_SET_TAGS:
 							_warn(fname, "cross_bonuses.%s.tags[%d]" % [cid, i], "未知标签: %s" % t2)
+					_validate_set_effect_list(fname, "cross_bonuses.%s" % cid, [c.get("effect", "")])
 		else:
 			if tag not in VALID_SET_TAGS:
 				_warn(fname, tag, "未知标签: %s" % tag)
+			var sb : Dictionary = _set_bonus_db[tag]
+			# v5.1：tier1（effects）与 tier2（tier2_effects）效果枚举校验
+			_validate_set_effect_list(fname, "%s.effects" % tag, _collect_effect_ids(sb.get("effects", [])))
+			_validate_set_effect_list(fname, "%s.tier2_effects" % tag, _collect_effect_ids(sb.get("tier2_effects", [])))
+
+
+## v5.1：从效果字典数组里抽出 effect 字符串列表
+func _collect_effect_ids(arr: Array) -> Array:
+	var out : Array = []
+	for e in arr:
+		if e is Dictionary:
+			out.append(str((e as Dictionary).get("effect", "")))
+	return out
+
+
+## v5.1：校验一组套装效果 id 是否都在白名单内
+func _validate_set_effect_list(fname: String, path: String, ids: Array) -> void:
+	for i in range(ids.size()):
+		var eid : String = str(ids[i])
+		if eid == "":
+			continue
+		if eid not in VALID_SET_EFFECTS:
+			_warn(fname, "%s[%d]" % [path, i], "未知套装效果: %s" % eid)
 
 
 func _validate_auras():

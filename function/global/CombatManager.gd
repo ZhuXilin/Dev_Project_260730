@@ -463,6 +463,9 @@ func execute_attack(attacker: Unit, defender: Unit, forced_skill_id: String = ""
 
 	var crit_talent_triggered : bool = false
 	if force_crit:
+		# v5.1：魂火爆发也走统一暴伤通道（烈焰 tier2 质变 crit_damage 写入 buff_crit_damage_bonus）
+		# 之前只有普通/遗物/天赋暴击读该字段，爆发时烈焰 4 件套暴伤不生效
+		crit_mult += attacker.buff_crit_damage_bonus
 		is_crit = true
 	elif TalentManager.is_talent_ready(attacker, "crit"):
 		var lv_crit = _get_effective_talent_level(attacker, "crit")
@@ -914,18 +917,8 @@ func _on_kill(attacker: Unit, _defender: Unit) -> bool:
 		if slot: bonus_sf += slot.get_affix_value("soul_fire_gain")
 	if bonus_sf > 0: SoulFireManager.add(bonus_sf)
 
-	var active_sets : Array = SetBonusManager.get_active_sets_for_unit(attacker)
-	for entry in active_sets:
-		var b : Dictionary = entry["bonus"]
-		if b.get("effect", "") == "kill_heal":
-			var heal_pct : float = float(b.get("value", 0.15))
-			var heal : int = int(attacker.unit_stats.max_hp * heal_pct)
-			var old : int = attacker.hit_points
-			attacker.hit_points = mini(attacker.hit_points + heal, attacker.unit_stats.max_hp)
-			var actual2 : int = attacker.hit_points - old
-			if actual2 > 0:
-				attacker.update_hp_label()
-				SignalBus.request_damage_popup.emit(attacker.global_position, actual2, false, false, true)
+	# v5.1：献祭套装吸血统一走 damage_lifesteal（见 _apply_damage_with_effects），
+	# 旧的 kill_heal 分支已移除，避免命名分裂与重复回血。
 
 	var cross_bonuses : Array = SetBonusManager.get_active_cross_bonuses()
 	for entry in cross_bonuses:
@@ -1110,19 +1103,17 @@ func _apply_damage_with_effects(defender: Unit, damage: int, attacker: Unit, is_
 	if defeated and _try_revive(defender): return false
 
 	if damage > 0 and is_instance_valid(attacker):
-		var active_sets : Array = SetBonusManager.get_active_sets_for_unit(attacker)
-		for entry in active_sets:
-			var b : Dictionary = entry["bonus"]
-			if b.get("effect", "") == "damage_lifesteal":
-				var pct : float = float(b.get("value", 0.0))
-				var heal : int = int(damage * pct)
-				if heal > 0:
-					var prev_hp : int = attacker.hit_points
-					attacker.hit_points = mini(attacker.hit_points + heal, attacker.unit_stats.max_hp)
-					var actual : int = attacker.hit_points - prev_hp
-					if actual > 0:
-						attacker.update_hp_label()
-						SignalBus.request_damage_popup.emit(attacker.global_position, actual, false, false, true)
+		# v5.1：吸血走统一出口（tier 后的值），命名统一为 damage_lifesteal
+		var pct : float = SetBonusManager.get_unit_set_effect_value(attacker, "damage_lifesteal")
+		if pct > 0.0:
+			var heal : int = int(damage * pct)
+			if heal > 0:
+				var prev_hp : int = attacker.hit_points
+				attacker.hit_points = mini(attacker.hit_points + heal, attacker.unit_stats.max_hp)
+				var actual : int = attacker.hit_points - prev_hp
+				if actual > 0:
+					attacker.update_hp_label()
+					SignalBus.request_damage_popup.emit(attacker.global_position, actual, false, false, true)
 
 	return defeated
 

@@ -153,10 +153,8 @@ func _apply_override_dict(stats: UnitData, ov: Dictionary) -> void:
 			"magic_reduction": stats.magic_reduction = float(v)
 			"sprite_frames_path": stats.override_sprite_path = str(v)
 			"weapon_id":
-				var inst := ItemInstance.new()
-				inst.item_id = str(v)
-				inst.count = 1
-				stats.weapon_slot = inst
+				# ★ v5.1：武器概念已移除，武器数值内联单位，忽略旧档 weapon_id override
+				pass
 			"tags":
 				stats.tags.clear()
 				if v is Array:

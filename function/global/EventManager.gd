@@ -93,20 +93,17 @@ func trigger_event(event_id: String, unit: Unit = null, _default_music: AudioStr
 					continue
 				if item_data.type in ["heal", "cure", "buff", "attack"]:
 					continue
-				if item_data.type in ["weapon", "armor"]:
+				if item_data.type == "armor":
 					Globals.unlock_item(item_id)
 					GameState.add_reward_item(item_id)
-				if equip:
+				if equip and item_data.type == "armor":
 					var inst2 := ItemInstance.new()
 					inst2.item_id = item_id
 					inst2.count = 1
-					if item_data.equipment_slot == "weapon":
-						unit.weapon_slot = inst2
-					elif item_data.equipment_slot == "armor":
-						for i in range(unit.armor_slots.size()):
-							if unit.armor_slots[i] == null:
-								unit.armor_slots[i] = inst2
-								break
+					for i in range(unit.armor_slots.size()):
+						if unit.armor_slots[i] == null:
+							unit.armor_slots[i] = inst2
+							break
 				await show_item_get_popup(item_id, count)
 
 			"heal":

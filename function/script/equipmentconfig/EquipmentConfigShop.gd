@@ -58,8 +58,8 @@ func build_shop_items():
 	var armor_grid = GridContainer.new()
 	armor_grid.columns = 3
 	armor_grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	armor_grid.add_theme_constant_override("h_separation", 6)
-	armor_grid.add_theme_constant_override("v_separation", 6)
+	armor_grid.add_theme_constant_override("h_separation", Style.ITEM_GRID_GAP)
+	armor_grid.add_theme_constant_override("v_separation", Style.ITEM_GRID_GAP)
 	main_vbox.add_child(armor_grid)
 
 	var items : Array = panel.shop_manager.get_shop_items()
@@ -71,7 +71,7 @@ func build_shop_items():
 			var entry_dict : Dictionary = entry
 			var item_data : ItemData = entry_dict["item_data"]
 			var price : int = entry_dict["price"]
-			
+
 			var shop_dir : int = 0
 			if item_data.type == "armor" and item_data.enable_direction:
 				if panel._shop_direction_cache.has(i):
@@ -79,12 +79,18 @@ func build_shop_items():
 				else:
 					shop_dir = Direction.roll_drop_direction()
 					panel._shop_direction_cache[i] = shop_dir
-			
-			var temp_inst = ItemInstance.new()
-			temp_inst.item_id = item_data.id
-			temp_inst.direction = shop_dir
-			
-			btn = panel._create_item_button(temp_inst, "shop_item", -1, -1, shop_dir, true)
+
+			# ★ v5.1：显示与购买必须用同一个实例，否则玩家看不到新 roll 的词条
+			# ShopManager.generate_shop_items 已用 create_instance_with_affixes 生成带词条实例
+			var shop_inst : ItemInstance = entry_dict.get("item_instance", null) as ItemInstance
+			if shop_inst == null:
+				shop_inst = ItemInstance.new()
+				shop_inst.item_id = item_data.id
+				shop_inst.count = 1
+			if item_data.type == "armor":
+				shop_inst.direction = shop_dir
+
+			btn = panel._create_item_button(shop_inst, "shop_item", -1, -1, shop_dir, true)
 			btn.custom_minimum_size = Style.BTN_SHOP_SIZE
 			btn.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 			
@@ -128,8 +134,8 @@ func build_shop_items():
 			var aura_grid = GridContainer.new()
 			aura_grid.columns = 3
 			aura_grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-			aura_grid.add_theme_constant_override("h_separation", 6)
-			aura_grid.add_theme_constant_override("v_separation", 6)
+			aura_grid.add_theme_constant_override("h_separation", Style.ITEM_GRID_GAP)
+			aura_grid.add_theme_constant_override("v_separation", Style.ITEM_GRID_GAP)
 			main_vbox.add_child(aura_grid)
 
 			for aid in candidates:
@@ -139,26 +145,6 @@ func build_shop_items():
 	if panel.shop_container:
 		panel.shop_container.queue_sort()
 		panel.shop_container.call_deferred("queue_sort")
-
-
-func build_weapon_grid(container: Container):
-	for child in container.get_children(): container.remove_child(child); child.free()
-	for item_id in Globals.unlocked_items:
-		var data : ItemData = ItemManager.get_item_data(item_id)
-		if data and data.type == "weapon":
-			var btn : Button = Style.create_styled_button(Style.FONT_SMALL, Style.BTN_LIBRARY_SIZE)
-			btn.expand_icon = true
-			if data.icon:
-				btn.icon = data.icon
-				btn.text = ""
-				btn.tooltip_text = data.name
-			else:
-				btn.text = data.name
-			btn.set_meta("slot_type", "library_weapon")
-			btn.set_meta("item_id", item_id)
-			btn.mouse_entered.connect(panel._on_button_hover_entered.bind(item_id))
-			btn.mouse_exited.connect(panel._on_button_hover_exited)
-			container.add_child(btn)
 
 
 func buy_shop_item(data: Dictionary, target: Control):
@@ -182,9 +168,7 @@ func buy_shop_item(data: Dictionary, target: Control):
 	var target_unit_idx : int = target.get_meta("unit_idx", -1)
 	var target_slot_idx : int = target.get_meta("slot_idx", -1)
 
-	if item_data.type == "weapon":
-		return
-	elif item_data.type == "armor":
+	if item_data.type == "armor":
 		if target_type != "armor": return
 		if target_unit_idx < 0 or target_slot_idx < 0: return
 		if not panel._can_equip_armor_to(target_unit_idx, item_data.id, target_slot_idx):

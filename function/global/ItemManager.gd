@@ -115,7 +115,6 @@ func get_items_by_type(item_type: String) -> Array[ItemData]:
 	return result
 
 
-func get_weapons() -> Array[ItemData]: return get_items_by_type("weapon")
 func get_armors() -> Array[ItemData]: return get_items_by_type("armor")
 func get_all_item_ids() -> Array: return _item_db.keys()
 

@@ -44,7 +44,12 @@ func sync_units_from_battlefield(battle_units: Array) -> Dictionary:
 		var key = "%s|%s" % [party_unit.unit_name, party_unit.display_name]
 		if battle_map.has(key):
 			var bu = battle_map[key]
-			party_unit.hit_points = bu.hit_points
+			# v5.1：先把本场战斗的临时 HP/移动加成从持久层扣回。
+			# 词条/套装/交叉/连通直接改了 unit_stats.max_hp / move_range，
+			# 而 unit_stats 与 party_unit 是同一引用，不回滚就会跨战斗累加。
+			# 该操作幂等（计数清零后无副作用），失败/退出路径在 Battlefield._exit_tree 兜底。
+			bu.revert_battle_temp_stats()
+			party_unit.hit_points = clampi(bu.hit_points, 0, party_unit.max_hp)
 			party_unit.armor_slots = bu.armor_slots.duplicate()
 			party_unit.max_armor_slots = bu.max_armor_slots
 		else:

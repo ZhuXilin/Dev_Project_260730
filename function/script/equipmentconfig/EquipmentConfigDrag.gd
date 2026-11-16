@@ -22,10 +22,7 @@ func _init(p):
 func start_drag(btn: Control):
 	if btn is Button and btn.disabled: return
 	var slot_type : String = btn.get_meta("slot_type", "")
-	
-	if slot_type == "weapon" or slot_type == "library_weapon":
-		return
-		
+
 	if panel.current_mode == panel.Mode.DEPLOY and slot_type == "armor": return
 	
 	var item_id : String = btn.get_meta("item_id", "")
@@ -208,9 +205,6 @@ func end_drag():
 			if source_type == "shop_item":
 				_hint_shop_purchase_failed(drop_data, target)
 			
-	if source_type == "weapon" and (panel.current_mode == panel.Mode.FORGE or (panel._is_shop_rest_mode() and panel.current_tab == "arena_forge")):
-		panel._forge.refresh_forge_upgrade_ui()
-		
 	drag_source = null
 	drag_meta = {}
 
@@ -243,8 +237,6 @@ func _hint_shop_purchase_failed(data: Dictionary, target: Control) -> void:
 		var used : int = panel._used_slots_excluding(unit, [ts])
 		var free : int = unit.max_armor_slots - used
 		panel._show_detail_in_zone("无法购买 %s\n需要 %d 格，单位只剩 %d 格" % [item_name, need, free]); return
-	if ttype == "weapon":
-		panel._show_detail_in_zone("无法购买 %s\n该物品不是防具，且不支持武器" % item_name); return
 	panel._show_detail_in_zone("无法购买 %s\n请拖到对应的单位槽位" % item_name)
 
 

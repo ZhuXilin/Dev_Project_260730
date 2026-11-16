@@ -163,6 +163,8 @@ static func evaluate_groups(groups: Array) -> Dictionary:
 		"hp_pct": 0.0,
 		"total_groups": groups.size(),
 		"cross_3_groups": 0,
+		"start_shield": 0,       # v5.1 功能奖励：连成组→开局护盾
+		"start_soul_fire": 0,    # v5.1 功能奖励：超级网→开局魂火
 	}
 
 	if groups.is_empty():
@@ -205,10 +207,16 @@ static func evaluate_groups(groups: Array) -> Dictionary:
 	var final_defense : float = total_defense * multi_mult
 	var final_hp : float = total_hp * multi_mult
 
-	# 属性封顶 +30%
-	result["attack_pct"] = minf(final_attack, 30.0) / 100.0
-	result["defense_pct"] = minf(final_defense, 30.0) / 100.0
-	result["hp_pct"] = minf(final_hp, 30.0) / 100.0
+	# v5.1：属性封顶从 +30% 降到 +15%，连线从「必修课」降级为「加分项」
+	result["attack_pct"] = minf(final_attack, 15.0) / 100.0
+	result["defense_pct"] = minf(final_defense, 15.0) / 100.0
+	result["hp_pct"] = minf(final_hp, 15.0) / 100.0
+
+	# v5.1：功能奖励——连不上不亏，连上就是白赚
+	if groups.size() >= 1:
+		result["start_shield"] = 2                    # 至少连成 1 组：全队开局 +2 护盾
+	if result["cross_3_groups"] > 0:
+		result["start_soul_fire"] = 1                 # 出现跨 3 单位超级网：开局 +1 魂火
 	return result
 
 

@@ -115,7 +115,7 @@ var _relic_db : Dictionary = {}
 var _relic_keys : Array = []
 var _refine_db : Dictionary = {}
 var _refine_keys : Array = []
-var _weapon_ids : Array = []
+# ★ v5.1：武器概念已移除，武器数值内联单位，不再有独立武器物品池
 var _armor_ids : Array = []
 var _talent_ids : Array = []
 var _avatar_ids : Array = []
@@ -137,7 +137,6 @@ var _edit_is_boss_cb : CheckBox = null
 var _edit_boss_mechanic_edit : LineEdit = null
 var _edit_boss_mechanic_params_edit : LineEdit = null
 var _edit_attr_spins : Dictionary = {}
-var _edit_weapon_opt : OptionButton = null
 var _edit_armor_opts : Array = []
 var _edit_talent_opts : Array = []
 var _edit_tags_cbs : Dictionary = {}
@@ -168,8 +167,6 @@ var _sim_player_opt : OptionButton = null
 var _sim_enemy_opt : OptionButton = null
 var _sim_log : RichTextLabel = null
 var _sim_status : Label = null
-var _sim_p_weapon : OptionButton = null
-var _sim_p_weapon_lv : OptionButton = null
 var _sim_p_armor1 : OptionButton = null
 var _sim_p_armor2 : OptionButton = null
 var _sim_p_talent1 : OptionButton = null
@@ -178,8 +175,6 @@ var _sim_p_relics : Array = []
 var _sim_p_refines : Array = []
 var _sim_p_skills : Array = []
 
-var _sim_e_weapon : OptionButton = null
-var _sim_e_weapon_lv : OptionButton = null
 var _sim_e_armor1 : OptionButton = null
 var _sim_e_armor2 : OptionButton = null
 var _sim_e_talent1 : OptionButton = null
@@ -382,14 +377,11 @@ func _load_all_data():
 	_unit_unlock_data = _load_json(UNIT_UNLOCK_PATH)
 	_events_db = _load_json(EVENT_PATH_FOR_EDITOR)
 
-	_weapon_ids.clear()
 	_armor_ids.clear()
 	for iid in ItemManager.get_all_item_ids():
 		var d = ItemManager.get_item_data(iid)
 		if d == null: continue
-		if d.type == "weapon": _weapon_ids.append(iid)
-		elif d.type == "armor": _armor_ids.append(iid)
-	_weapon_ids.sort()
+		if d.type == "armor": _armor_ids.append(iid)
 	_armor_ids.sort()
 	_talent_ids = TalentManager.get_all_talent_ids()
 
@@ -729,9 +721,6 @@ func _build_edit_tab(parent : Control) -> Control:
 	_edit_sac_display_edit = LineEdit.new()
 	_edit_sac_display_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	sac_disp_row.add_child(_edit_sac_display_edit)
-
-	content.add_child(_section("— 默认装备 —"))
-	_edit_weapon_opt = _add_option_row(content, "武器", _weapon_ids, "（无）")
 
 	content.add_child(_section("— 默认防具 —"))
 	_edit_armor_opts.clear()
@@ -1601,8 +1590,6 @@ func _select_edit_unit(key : String):
 	_edit_sac_value_spin.value = float(sac.get("value", 0))
 	_edit_sac_display_edit.text = sac.get("display", "")
 
-	if _edit_weapon_opt:
-		_select_option_by_meta(_edit_weapon_opt, d.get("default_weapon", ""))
 	var armor_list : Array = d.get("default_armors", [])
 	for i in range(_edit_armor_opts.size()):
 		var aid : String = armor_list[i] if i < armor_list.size() else ""
@@ -1722,8 +1709,7 @@ func _save_unit_db():
 	else:
 		d.erase("sacrifice_buff")
 
-	if _edit_weapon_opt:
-		d["default_weapon"] = _get_meta(_edit_weapon_opt)
+	d.erase("default_weapon")  # ★ v5.1：武器概念已移除，清理旧档字段
 
 	var armor_ids : Array = []
 	for opt in _edit_armor_opts:
@@ -1841,8 +1827,6 @@ func _build_sim_side(title : String, is_player : bool) -> VBoxContainer:
 	inner.add_child(unit_opt)
 
 	_add_sep_label(inner, "装备")
-	var weapon_opt := _add_option_row(inner, "武器", _weapon_ids, "默认")
-	var up_lv_opt := _add_int_option_row(inner, "武器强化", 0, 5)
 	var a1 := _add_option_row(inner, "防具1", _armor_ids, "默认")
 	var a2 := _add_option_row(inner, "防具2", _armor_ids, "默认")
 
@@ -1884,16 +1868,12 @@ func _build_sim_side(title : String, is_player : bool) -> VBoxContainer:
 		skill_checks.append(cb)
 
 	if is_player:
-		_sim_p_weapon = weapon_opt
-		_sim_p_weapon_lv = up_lv_opt
 		_sim_p_armor1 = a1; _sim_p_armor2 = a2
 		_sim_p_talent1 = t1; _sim_p_talent2 = t2
 		_sim_p_relics = relic_checks
 		_sim_p_refines = refine_checks
 		_sim_p_skills = skill_checks
 	else:
-		_sim_e_weapon = weapon_opt
-		_sim_e_weapon_lv = up_lv_opt
 		_sim_e_armor1 = a1; _sim_e_armor2 = a2
 		_sim_e_talent1 = t1; _sim_e_talent2 = t2
 		_sim_e_relics = relic_checks
@@ -2004,7 +1984,7 @@ func _build_cfg_tab(parent : Control) -> Control:
 	var cfg_files : Array = [
 		{"name": "遗物", "path": RELIC_DATA_PATH},
 		{"name": "精炼", "path": REFINE_DATA_PATH},
-		{"name": "武器防具", "path": ITEM_DATA_PATH},
+		{"name": "防具", "path": ITEM_DATA_PATH},
 		{"name": "特技", "path": TALENT_DATA_PATH},
 	]
 	_cfg_tab_panels.clear()
@@ -2663,11 +2643,7 @@ func _run_simulation():
 		_sim_status.text = "请选择双方单位"
 		return
 
-	var p_lv : int = _get_option_int(_sim_p_weapon_lv)
-	var e_lv : int = _get_option_int(_sim_e_weapon_lv)
-
 	var p : UnitData = _build_runtime_unit(p_key,
-		_get_meta(_sim_p_weapon), p_lv,
 		_collect_armors(_sim_p_armor1, _sim_p_armor2),
 		_collect_talents(_sim_p_talent1, _sim_p_talent2),
 		_collect_checked(_sim_p_relics),
@@ -2675,7 +2651,6 @@ func _run_simulation():
 		_collect_checked(_sim_p_skills))
 
 	var e : UnitData = _build_runtime_unit(e_key,
-		_get_meta(_sim_e_weapon), e_lv,
 		_collect_armors(_sim_e_armor1, _sim_e_armor2),
 		_collect_talents(_sim_e_talent1, _sim_e_talent2),
 		_collect_checked(_sim_e_relics),
@@ -2735,7 +2710,7 @@ func _collect_checked(checks : Array) -> Array:
 	return result
 
 
-func _build_runtime_unit(key : String, weapon_override : String, weapon_upgrade : int,
+func _build_runtime_unit(key : String,
 		armors_override : Array, talents_override : Array, relic_ids : Array,
 		refine_ids : Array, _active_skills : Array) -> UnitData:
 	if not _unit_db.has(key): return null
@@ -2743,12 +2718,7 @@ func _build_runtime_unit(key : String, weapon_override : String, weapon_upgrade 
 	var ud : UnitData = UnitData.from_dict(base)
 	ud.hit_points = ud.max_hp
 
-	if weapon_override != "":
-		var inst := ItemInstance.new()
-		inst.item_id = weapon_override
-		inst.count = 1
-		inst.upgrade_level = weapon_upgrade
-		ud.weapon_slot = inst
+	# ★ v5.1：武器数值已内联单位，不再有 weapon_slot / weapon_override
 
 	if not armors_override.is_empty():
 		ud.armor_slots.clear()
@@ -3187,7 +3157,6 @@ func _make_blank_unit_data(unit_key : String) -> Dictionary:
 		"description": "",
 		"flavor": "",
 		"sprite_frames_path": "",
-		"default_weapon": "",
 		"default_armors": [],
 		"default_talents": [],
 		"attr_cap_levels": [{}, {}, {}, {}, {}],
@@ -3725,10 +3694,9 @@ func _on_auto_fix_pressed():
 		var ud : Dictionary = _unit_db[uk]
 		if ud.is_empty(): continue
 
-		var dw : String = str(ud.get("default_weapon", ""))
-		if dw != "" and ItemManager.get_item_data(dw) == null:
-			fix_logs.append("单位 [%s] 的默认武器不存在 (%s)，将移除该武器" % [uk, dw])
-			ud["default_weapon"] = ""
+		# ★ v5.1：武器概念已移除，清理旧档 default_weapon 残留字段
+		if ud.has("default_weapon"):
+			ud.erase("default_weapon")
 
 		var armors : Array = ud.get("default_armors", [])
 		var valid_armors : Array = []

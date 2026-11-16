@@ -280,10 +280,12 @@ func _apply_affix_buffs() -> void:
 			shield += slot.get_affix_value("start_shield")
 		if hp_bonus > 0:
 			unit.unit_stats.max_hp += hp_bonus
+			unit.battle_temp_hp_bonus += hp_bonus
 			unit.hit_points += hp_bonus
 			unit.update_hp_label()
 		if move_bonus > 0:
 			unit.unit_stats.move_range += move_bonus
+			unit.battle_temp_move_bonus += move_bonus
 			unit.remaining_move += move_bonus
 		if shield > 0:
 			unit.buff_physical_reduction += float(shield) * 0.01
@@ -291,22 +293,31 @@ func _apply_affix_buffs() -> void:
 
 
 func _apply_set_bonuses() -> void:
+	# v5.1：套装效果统一从 SetBonusManager 出口读取，tier 判定已在该处完成。
+	# 这里只落地「即时 buff 型」效果；turn_regen / damage_lifesteal / soul_fire_max
+	# 分别由 TurnManager / CombatManager / SoulFireManager 各自读取。
 	for unit in UnitManager.unit_list:
 		if unit.unit_stats.team_id != 0: continue
-		var active : Array = SetBonusManager.get_active_sets_for_unit(unit)
-		for entry in active:
-			var b : Dictionary = entry["bonus"]
-			match b.get("effect", ""):
+		for e in SetBonusManager.get_unit_set_effects(unit):
+			var effect : String = str(e.get("effect", ""))
+			var value : float = float(e.get("value", 0.0))
+			match effect:
 				"attack_percent":
-					unit.buff_attack_percent += float(b.get("value", 0.0))
-				"move_and_defense":
-					unit.unit_stats.move_range += int(b.get("move", 0))
-					unit.remaining_move += int(b.get("move", 0))
-					unit.buff_physical_reduction += float(b.get("defense", 0)) * 0.01
-					unit.buff_magic_reduction += float(b.get("defense", 0)) * 0.01
+					unit.buff_attack_percent += value
 				"defense_flat":
-					unit.buff_physical_reduction += float(b.get("value", 0)) * 0.01
-					unit.buff_magic_reduction += float(b.get("value", 0)) * 0.01
+					unit.buff_physical_reduction += value * 0.01
+					unit.buff_magic_reduction += value * 0.01
+				"crit_damage":
+					unit.buff_crit_damage_bonus += value
+				"move_flat":
+					unit.unit_stats.move_range += int(value)
+					unit.battle_temp_move_bonus += int(value)
+					unit.remaining_move += int(value)
+				"hp_flat":
+					unit.unit_stats.max_hp += int(value)
+					unit.battle_temp_hp_bonus += int(value)
+					unit.hit_points += int(value)
+					unit.update_hp_label()
 
 
 func _apply_cross_bonuses():
@@ -322,6 +333,7 @@ func _apply_cross_bonuses():
 				"attack_percent": unit.buff_attack_percent += float(value)
 				"hp_flat":
 					unit.unit_stats.max_hp += int(value)
+					unit.battle_temp_hp_bonus += int(value)
 					unit.hit_points += int(value)
 					unit.update_hp_label()
 
@@ -390,6 +402,12 @@ func _apply_connected_group_buffs():
 
 	var bonus : Dictionary = ConnectedGroupCalculator.evaluate_groups(groups)
 
+	# v5.1：功能奖励——超级网开局 +1 魂火（全队一次，不是每单位）
+	var sf_bonus : int = int(bonus.get("start_soul_fire", 0))
+	if sf_bonus > 0:
+		SoulFireManager.add(sf_bonus)
+	var shield_bonus : int = int(bonus.get("start_shield", 0))
+
 	# 3. 应用到所有活着的我方单位
 	for u in UnitManager.unit_list:
 		if not is_instance_valid(u): continue
@@ -403,12 +421,19 @@ func _apply_connected_group_buffs():
 		var hp_bonus : int = int(u.unit_stats.max_hp * bonus["hp_pct"])
 		if hp_bonus > 0:
 			u.unit_stats.max_hp += hp_bonus
+			u.battle_temp_hp_bonus += hp_bonus
 			u.hit_points = mini(u.hit_points + hp_bonus, u.unit_stats.max_hp)
 			u.update_hp_label()
 
-	print("[连通组] 组数=%d，跨三=%d，攻击+%.1f%% 防御+%.1f%% HP+%.1f%%" % [
+		# v5.1：连通组功能奖励——连成组则开局 +N 护盾（走减伤率通道，与 start_shield 词条同源）
+		if shield_bonus > 0:
+			u.buff_physical_reduction += float(shield_bonus) * 0.01
+			u.buff_magic_reduction += float(shield_bonus) * 0.01
+
+	print("[连通组] 组数=%d，跨三=%d，攻击+%.1f%% 防御+%.1f%% HP+%.1f%%，护盾+%d 魂火+%d" % [
 		bonus["total_groups"], bonus["cross_3_groups"],
-		bonus["attack_pct"] * 100, bonus["defense_pct"] * 100, bonus["hp_pct"] * 100])
+		bonus["attack_pct"] * 100, bonus["defense_pct"] * 100, bonus["hp_pct"] * 100,
+		shield_bonus, sf_bonus])
 
 
 # ============================================================

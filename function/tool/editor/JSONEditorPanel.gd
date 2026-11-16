@@ -4,6 +4,7 @@ extends VBoxContainer
 # ============================================================
 #  JSONEditorPanel — 通用 JSON 编辑器（手动保存）
 #  v4.6：增加英文字段名自动转中文；flavor 使用多行文本框
+#  v5.1：根字典全为记录字典时启用左侧条目列表，选择后右侧只编辑当前条目
 # ============================================================
 
 signal saved(path : String)
@@ -56,17 +57,42 @@ const FIELD_TRANSLATIONS : Dictionary = {
 	"soul_fire_gain": "魂火获取",
 	"heal_percent": "治疗百分比",
 	"effect": "效果代码",
+	# v5.1 防具系统：套装 tier1/tier2 + 交叉套装
+	"tier2_description": "质变效果说明",
+	"tier2_effects": "质变效果（含史诗+触发）",
+	"min_each": "每标签最少件数",
+	"cross_bonuses": "交叉套装（全队辅助层）",
+	# v5.1 防具系统：词条 / 套装效果枚举值
+	"crit_damage": "暴击伤害加成",
+	"defense_flat": "防御（物减/魔减点）",
+	"move_flat": "移动力",
+	"hp_flat": "HP 上限",
+	"turn_regen": "每回合回血比例",
+	"damage_lifesteal": "吸血比例",
+	"soul_fire_max": "魂火上限",
+	"kill_soul_fire": "击杀回魂火",
+	"move_and_defense": "移动+防御（旧版兼容）",
 }
+
+const ITEM_ICON_DIR : String = "res://content/images/item/"
 
 var _path : String = ""
 var _cfg : Dictionary = {}
 var _editor_vbox : VBoxContainer = null
 var _status : Label = null
 var _dirty : bool = false
+var _item_icon_ids : Array = []
+
+# v5.1：条目列表模式（类似 GameDataEditor 单位编辑界面）
+var _list_panel : VBoxContainer = null
+var _list_vbox : VBoxContainer = null
+var _record_keys : Array = []
+var _current_record_key : String = ""
 
 
 func setup(path : String, title : String = ""):
 	_path = path
+	_scan_item_icons()
 	_apply_compact_theme()
 	if title != "":
 		var lb := Label.new()
@@ -229,10 +255,40 @@ func _build_ui():
 	save_btn.pressed.connect(_save)
 	bar.add_child(save_btn)
 
+	var main := HBoxContainer.new()
+	main.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	main.add_theme_constant_override("separation", 4)
+	add_child(main)
+
+	# 左侧：条目列表（根字典全为记录字典时启用）
+	_list_panel = VBoxContainer.new()
+	_list_panel.custom_minimum_size = Vector2(110, 0)
+	_list_panel.add_theme_constant_override("separation", 1)
+	_list_panel.visible = false
+	main.add_child(_list_panel)
+
+	var list_title := Label.new()
+	list_title.text = "— 条目列表 —"
+	list_title.add_theme_font_size_override("font_size", FS_SMALL)
+	list_title.modulate = Color(0.7, 0.8, 1.0)
+	_list_panel.add_child(list_title)
+
+	var l_scroll := ScrollContainer.new()
+	l_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	l_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	_list_panel.add_child(l_scroll)
+
+	_list_vbox = VBoxContainer.new()
+	_list_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_list_vbox.add_theme_constant_override("separation", 1)
+	l_scroll.add_child(_list_vbox)
+
+	# 右侧：编辑区
 	var scroll := ScrollContainer.new()
+	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	add_child(scroll)
+	main.add_child(scroll)
 
 	_editor_vbox = VBoxContainer.new()
 	_editor_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -262,10 +318,87 @@ func _load():
 
 
 func _refresh():
+	_detect_record_keys()
+	_rebuild_record_list()
+	_refresh_editor_content()
+
+
+# v5.1：根字典全为「记录字典」时启用左侧列表，避免一次平铺所有条目
+func _detect_record_keys():
+	_record_keys.clear()
+	if _cfg.is_empty(): return
+	for k in _cfg.keys():
+		if not (_cfg[k] is Dictionary):
+			_record_keys.clear()
+			return
+		_record_keys.append(str(k))
+	_record_keys.sort()
+	if _current_record_key != "" and _record_keys.has(_current_record_key):
+		return
+	_current_record_key = _record_keys[0] if not _record_keys.is_empty() else ""
+
+
+func _rebuild_record_list():
+	if _list_vbox == null: return
+	for c in _list_vbox.get_children():
+		_list_vbox.remove_child(c)
+		c.queue_free()
+
+	var show_list : bool = not _record_keys.is_empty()
+	if _list_panel: _list_panel.visible = show_list
+	if not show_list: return
+
+	for key in _record_keys:
+		var d : Dictionary = _cfg[key]
+		var btn := Button.new()
+		var label : String = str(d.get("name", d.get("display_name", key)))
+		btn.text = label + "  [" + key + "]"
+		btn.toggle_mode = true
+		btn.focus_mode = Control.FOCUS_NONE
+		btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		btn.clip_text = true
+		btn.set_meta("record_key", key)
+
+		var icon_id : String = str(d.get("icon", ""))
+		if icon_id != "":
+			var tex : Texture2D = IconManager.get_icon_or_null(_normalize_icon_id(icon_id))
+			if tex:
+				btn.icon = tex
+				btn.add_theme_constant_override("icon_max_width", 14)
+
+		btn.pressed.connect(_select_record.bind(key))
+		_list_vbox.add_child(btn)
+
+	_update_record_list_selection()
+
+
+func _update_record_list_selection():
+	if _list_vbox == null: return
+	for btn in _list_vbox.get_children():
+		var k : String = str(btn.get_meta("record_key", ""))
+		var selected : bool = (k == _current_record_key)
+		btn.button_pressed = selected
+		btn.modulate = Color.WHITE if selected else Color(0.72, 0.72, 0.72)
+
+
+func _select_record(key : String):
+	if not _cfg.has(key): return
+	_current_record_key = key
+	_update_record_list_selection()
+	_refresh_editor_content()
+	_set_status("已选择：" + key)
+
+
+func _refresh_editor_content():
+	if _editor_vbox == null: return
 	for c in _editor_vbox.get_children():
 		_editor_vbox.remove_child(c)
 		c.queue_free()
-	_render_dict(_editor_vbox, _cfg, "", 0)
+
+	if not _record_keys.is_empty() and _current_record_key != "" and _cfg.has(_current_record_key):
+		_render_group(_editor_vbox, _cfg[_current_record_key], _current_record_key, 0)
+	else:
+		_render_dict(_editor_vbox, _cfg, "", 0)
 
 
 func _save():
@@ -512,6 +645,94 @@ func _render_array_index_editor(parent : Node, arr : Array, i : int, path : Stri
 		row.add_child(le)
 
 
+# ============================================================
+#  v5.1：防具图片选择器（仿 avatar：下拉带缩略图 + 右侧预览）
+# ============================================================
+func _scan_item_icons():
+	_item_icon_ids.clear()
+	if not DirAccess.dir_exists_absolute(ITEM_ICON_DIR): return
+	var dir := DirAccess.open(ITEM_ICON_DIR)
+	if dir == null: return
+	dir.list_dir_begin()
+	var fname : String = dir.get_next()
+	while fname != "":
+		if not dir.current_is_dir() and fname.ends_with(".png"):
+			_item_icon_ids.append(fname.get_basename())
+		fname = dir.get_next()
+	dir.list_dir_end()
+	_item_icon_ids.sort()
+
+
+func _render_icon_picker_row(row : HBoxContainer, target_dict : Dictionary, key : String, current : String):
+	# 归一化当前值：允许 "item_005" / "item_005.png" / 完整 res:// 路径
+	var current_id : String = _normalize_icon_id(current)
+
+	var opt := OptionButton.new()
+	opt.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	opt.custom_minimum_size = Vector2(120, 0)
+	opt.add_theme_font_size_override("font_size", FS_BUTTON)
+	opt.add_theme_constant_override("icon_max_width", 18)
+	var popup := opt.get_popup()
+	if popup:
+		popup.add_theme_constant_override("icon_max_width", 18)
+
+	var selected_idx : int = 0
+	opt.add_item("（无）", 0)
+	opt.set_item_metadata(0, "")
+	if current_id == "":
+		selected_idx = 0
+
+	# 若当前值不在扫描列表里（例如临时/外部路径），插为第 1 项保证不丢配置
+	if current_id != "" and not _item_icon_ids.has(current_id):
+		var cur_tex : Texture2D = IconManager.get_icon_or_null(current_id)
+		if cur_tex:
+			opt.add_icon_item(cur_tex, current_id, 1)
+		else:
+			opt.add_item(current_id, 1)
+		opt.set_item_metadata(1, current_id)
+		selected_idx = 1
+
+	for i in range(_item_icon_ids.size()):
+		var iid : String = _item_icon_ids[i]
+		var tex : Texture2D = IconManager.get_icon_or_null(iid)
+		var idx : int = opt.item_count
+		if tex:
+			opt.add_icon_item(tex, iid, idx)
+		else:
+			opt.add_item(iid, idx)
+		opt.set_item_metadata(idx, iid)
+		if iid == current_id:
+			selected_idx = idx
+
+	opt.selected = selected_idx
+	row.add_child(opt)
+
+	# 右侧预览
+	var preview := TextureRect.new()
+	preview.custom_minimum_size = Vector2(20, 14)
+	preview.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	preview.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	var init_tex : Texture2D = IconManager.get_icon_or_null(current_id) if current_id != "" else null
+	if init_tex: preview.texture = init_tex
+	row.add_child(preview)
+
+	opt.item_selected.connect(func(idx: int):
+		var v : String = str(opt.get_item_metadata(idx))
+		target_dict[key] = v
+		_dirty = true
+		var tex : Texture2D = IconManager.get_icon_or_null(v) if v != "" else null
+		preview.texture = tex
+	)
+
+
+func _normalize_icon_id(value: String) -> String:
+	var v : String = value.strip_edges()
+	if v == "": return ""
+	if v.begins_with("res://"):
+		return v.get_file().get_basename()
+	return v.get_basename()
+
+
 func _render_simple_row(parent : Node, target_dict : Dictionary, key : String, value, path : String):
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 3)
@@ -549,8 +770,11 @@ func _render_simple_row(parent : Node, target_dict : Dictionary, key : String, v
 			)
 			row.add_child(cb)
 		TYPE_STRING:
+			# ★ v5.1：icon 字段做成图片下拉 + 预览（仿单位 avatar 配置体验）
+			if key == "icon" and _path.find("item_data") >= 0:
+				_render_icon_picker_row(row, target_dict, key, str(value))
 			# ★ 如果是 flavor（叙事），使用多行 TextEdit，并修复左侧 Label 被挤压的问题
-			if key == "flavor":
+			elif key == "flavor":
 				var te := TextEdit.new()
 				te.text = str(value)
 				te.custom_minimum_size = Vector2(200, 64) # 加大高度

@@ -121,14 +121,7 @@ func show_item(item_id: String, affixes: Array = [], link_group_size: int = 0, l
 	var desc = data.description if data.description else ""
 	
 	var stats_arr : Array = []
-	if data.type == "weapon":
-		stats_arr.append("攻击: %d" % data.base_attack)
-		stats_arr.append("射程: %d~%d" % [data.min_attack_range, data.attack_range])
-		if data.modifier and not data.modifier.is_empty():
-			var mods = []
-			for k in data.modifier: mods.append(Style.get_attr_display_name(k) + "+" + str(data.modifier[k]))
-			stats_arr.append("补正: " + " ".join(mods))
-	elif data.type == "armor":
+	if data.type == "armor":
 		if data.defense > 0: stats_arr.append("防御: +%d" % data.defense)
 		if data.modifier and not data.modifier.is_empty():
 			var mods = []
@@ -155,8 +148,8 @@ func show_item(item_id: String, affixes: Array = [], link_group_size: int = 0, l
 # ============================================================
 #  v5.0 新增：带连通组信息的防具 hover 入口
 # ============================================================
-func on_button_hover_entered_with_link(item_id: String, group_size: int, unit_count: int):
-	show_item(item_id, [], group_size, unit_count)
+func on_button_hover_entered_with_link(item_id: String, group_size: int, unit_count: int, affixes: Array = []):
+	show_item(item_id, affixes, group_size, unit_count)
 
 
 func show_relic(data: Dictionary, item_id: String = ""):
@@ -245,9 +238,15 @@ func _build_set_hint(data : ItemData) -> String:
 	var parts : Array = []
 	for tag in data.tags:
 		var b : Dictionary = SetBonusManager.get_bonus(tag)
-		if not b.is_empty(): parts.append("【%s】%s" % [tag, b.get("description", "")])
+		if b.is_empty(): continue
+		var line : String = "【%s】%s" % [tag, b.get("description", "")]
+		# v5.1：质变条件提示（2 件中含史诗及以上即可触发强化）
+		var t2_desc : String = str(b.get("tier2_description", ""))
+		if t2_desc != "":
+			line += "\n    ★ 质变（2件含史诗+）：" + t2_desc
+		parts.append(line)
 	if parts.is_empty(): return ""
-	return "--- 套装（3件）---\n" + "\n".join(parts)
+	return "--- 套装（同单位 2 件激活）---\n" + "\n".join(parts)
 
 func show_in_zone(text: String):
 	if _info_ui: _info_ui.show_info({"name": "", "desc": text})

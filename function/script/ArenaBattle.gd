@@ -446,9 +446,8 @@ func _do_attack(attacker: UnitData, defender: UnitData):
 		_refresh_hp_labels()
 
 	# ---- 法杖自愈 ----
-	# ★ v4.8：从内联字段构造虚拟 ItemData
-	var weapon_data = UnitDataManager.build_weapon_item_data(attacker)
-	if weapon_data and weapon_data.category == "staff":
+	# ★ v5.1：武器数值已内联单位，直接读 weapon_category
+	if attacker.weapon_category == "staff":
 		var self_heal_pct = STAFF_SELF_HEAL_PERCENT
 		if _is_talent_ready(attacker, "heal_boost"):
 			var lv_hb = _get_talent_level(attacker, "heal_boost")
@@ -528,21 +527,21 @@ func _do_attack(attacker: UnitData, defender: UnitData):
 func _calc_damage(attacker: UnitData, defender: UnitData) -> int:
 	if attacker == null or defender == null:
 		return 0
-	# ★ v4.8：内联字段读武器
-	if attacker.weapon_id == "":
+	# ★ v5.1：武器数值已内联单位，无武器直接保底伤害
+	if attacker.weapon_name == "":
 		return 1
 
 	var is_magic : bool = (attacker.attack_style == "magic") \
 		or (attacker.weapon_category == "staff") \
-		or attacker.weapon_magic_attack.get("ignore_defense", false)
+		or attacker.magic_attack.get("ignore_defense", false)
 
 	# ---- 1. 攻击力 ----
 	var quality_mult : float = QUALITY_MULT.get(attacker.weapon_quality, 1.0)
-	var base_attack : float = attacker.base_attack * quality_mult
+	var base_attack : float = attacker.attack * quality_mult
 
 	var atk_bonus : float = 0.0
-	for attr in attacker.weapon_modifier:
-		atk_bonus += attacker.get_effective_attr(attr) * attacker.weapon_modifier[attr]
+	for attr in attacker.modifier:
+		atk_bonus += attacker.get_effective_attr(attr) * attacker.modifier[attr]
 
 	var total_attack : float = base_attack + atk_bonus + attacker.buff_attack_flat
 	if is_magic:
@@ -574,7 +573,7 @@ func _calc_damage(attacker: UnitData, defender: UnitData) -> int:
 		0.0, REDUCTION_CAP)
 
 	# ---- 3. 穿透 ----
-	var weapon_pen : float = attacker.weapon_magic_penetration if is_magic else attacker.weapon_physical_penetration
+	var weapon_pen : float = attacker.magic_penetration if is_magic else attacker.physical_penetration
 	var affix_pen : float = 0.0
 	for slot in attacker.armor_slots:
 		if slot:
@@ -593,8 +592,8 @@ func _calc_damage(attacker: UnitData, defender: UnitData) -> int:
 func _roll_crit(attacker: UnitData) -> bool:
 	var chance : float = CRIT_BASE_CHANCE
 	chance += attacker.get_effective_attr("dexterity") * CRIT_PER_DEXTERITY
-	# ★ v4.8：品质从内联字段读
-	if attacker.weapon_id != "":
+	# ★ v5.1：品质从内联字段读
+	if attacker.weapon_name != "":
 		chance += CRIT_CHANCE_BY_QUALITY.get(attacker.weapon_quality, 0.0)
 	return randf() < chance
 

@@ -85,6 +85,14 @@ var zeal_stacks: int = 0
 var armor_slots: Array[ItemInstance] = []
 var max_armor_slots: int = 2
 
+# ---- v5.1：战斗临时属性增量 ----
+# 战斗层 unit_stats 与 GameState.party 的 UnitData 是同一引用。
+# 词条/套装/连通的 hp_flat / move_flat / hp_pct 会直接改 max_hp / move_range，
+# 若不记录并在战后回滚，这些临时加成会跨战斗累加。
+# level up 等持久成长走 _apply_one_attr，不计入这里，仍正常写回持久层。
+var battle_temp_hp_bonus : int = 0
+var battle_temp_move_bonus : int = 0
+
 # ---- 词条 ----
 var talent_slots: Array[TalentInstance] = []
 var advanced_talent_inst : TalentInstance = null
@@ -168,6 +176,8 @@ func setup_unit(stats_data: UnitData, start_cell: Vector2i, initial_items: Array
 	reset_combat_buffs()
 	reset_relic_effects()
 	reset_chain_talents()
+	battle_temp_hp_bonus = 0
+	battle_temp_move_bonus = 0
 
 	unit_stats = stats_data
 	grid_cell = start_cell
@@ -453,6 +463,8 @@ func restore_from_unit_data(data: UnitData, cell: Vector2i):
 	reset_combat_buffs()
 	reset_relic_effects()
 	reset_chain_talents()
+	battle_temp_hp_bonus = 0
+	battle_temp_move_bonus = 0
 
 	unit_stats = data
 	grid_cell = cell
@@ -918,6 +930,20 @@ func reset_combat_buffs():
 	buff_defense_shred = 0.0
 	charge_stacks = 0
 	active_auras.clear()
+
+
+## v5.1：把本场战斗累计的临时 max_hp / move_range 加成从持久层扣回。
+## 由于 unit_stats 与 GameState.party 的 UnitData 是同一引用，战斗中的
+## 词条/套装/连通加成会直接写进持久层；这里只回滚被记录过的临时增量，
+## level up 走 _apply_one_attr 的持久成长不计入，因此不会被误伤。
+## 幂等：计数清零后重复调用无副作用。
+func revert_battle_temp_stats() -> void:
+	if battle_temp_hp_bonus != 0:
+		unit_stats.max_hp = maxi(1, unit_stats.max_hp - battle_temp_hp_bonus)
+		battle_temp_hp_bonus = 0
+	if battle_temp_move_bonus != 0:
+		unit_stats.move_range = maxi(0, unit_stats.move_range - battle_temp_move_bonus)
+		battle_temp_move_bonus = 0
 
 
 func can_counter() -> bool:

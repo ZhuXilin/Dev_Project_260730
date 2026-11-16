@@ -90,3 +90,16 @@ const QUALITY_COLORS : Dictionary = {
 	"epic":      Color(0.7, 0.3, 1.0),
 	"legendary": Color(1.0, 0.7, 0.0),
 }
+
+## v5.1：Build 标签颜色（临时配色，统一来源）
+## 用于防具图标背后的方向方块 + 队伍标签统计槽
+const BUILD_TAG_COLORS : Dictionary = {
+	"烈焰": Color(0.95, 0.35, 0.20),  # 火焰红橙
+	"轮回": Color(0.30, 0.75, 0.65),  # 轮回青绿
+	"灰烬": Color(0.65, 0.65, 0.68),  # 灰烬灰
+	"守护": Color(0.30, 0.55, 0.95),  # 守护蓝
+	"献祭": Color(0.80, 0.20, 0.40),  # 献祭暗红
+	"余烬": Color(0.98, 0.75, 0.25),  # 余烬金
+}
+const BUILD_TAG_ORDER : Array = ["烈焰", "轮回", "灰烬", "守护", "献祭", "余烬"]
+const NO_TAG_COLOR : Color = Color(0.35, 0.35, 0.35)  # 无标签（熔铸防具等）

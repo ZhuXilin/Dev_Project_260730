@@ -19,6 +19,9 @@ const ARMOR_TAGS : Array = ["守护", "烈焰", "灰烬", "轮回", "献祭", "�
 
 const TAG_SLOT_RATIO : float = 0.8
 const TAG_PURCHASE_WEIGHT_CAP : int = 10   # ★ v4.2：单标签购买权重上限
+# ★ v5.1：单页同标签上限。保留"押注标签多供货"，但避免一屏刷满同一 build。
+# 6 格商店上限 3 件；9 格上限 4 件。
+const SAME_TAG_RATIO_CAP : float = 0.45
 
 func _ready():
 	reload_config()
@@ -126,6 +129,21 @@ func _get_top_tags(weights : Dictionary, n : int = 2) -> Array:
 	return result
 
 
+## v5.1：过滤掉本页已经达到同标签上限的防具；返回空数组表示整池都超限。
+## 调用方需要继续尝试通用池 / 低品质池，最后才退回原池避免空格。
+func _exclude_capped_tags(pool : Array, counts : Dictionary, cap : int) -> Array:
+	var out : Array = []
+	for p in pool:
+		var capped : bool = false
+		for tag in p.tags:
+			if int(counts.get(tag, 0)) >= cap:
+				capped = true
+				break
+		if not capped:
+			out.append(p)
+	return out
+
+
 func generate_shop_items():
 	shop_items.clear()
 	var lv : int = _get_shop_level()
@@ -172,6 +190,8 @@ func generate_shop_items():
 
 	var order : Array = ["common", "rare", "epic", "legendary"]
 	var generated_ids : Dictionary = {} # ★ 记录本页已生成，防止刷出同款
+	var generated_tag_counts : Dictionary = {}
+	var same_tag_cap : int = maxi(2, int(ceil(float(SHOP_SIZE) * SAME_TAG_RATIO_CAP)))
 
 	for i in range(SHOP_SIZE):
 		var quality : String = "common"
@@ -201,16 +221,34 @@ func generate_shop_items():
 			shop_items.append(null)
 			continue
 			
-		# ★ 剔除当前页面已经刷出来的物品
+		# ★ 先按同标签上限过滤；热门标签已刷满时改走通用池/低品质池，避免继续刷同款 build
+		var tag_limited_pool : Array = _exclude_capped_tags(pool, generated_tag_counts, same_tag_cap)
+		if tag_limited_pool.is_empty() and i < tag_slot_count:
+			tag_limited_pool = _exclude_capped_tags(all_pools.get(quality, []), generated_tag_counts, same_tag_cap)
+		if tag_limited_pool.is_empty():
+			var fallback_idx : int = order.find(quality)
+			while tag_limited_pool.is_empty() and fallback_idx > 0:
+				fallback_idx -= 1
+				tag_limited_pool = _exclude_capped_tags(all_pools.get(order[fallback_idx], []), generated_tag_counts, same_tag_cap)
+		if not tag_limited_pool.is_empty():
+			pool = tag_limited_pool
+
+		# 再剔除当前页面已经刷出来的物品
 		var valid_pool : Array = []
 		for p in pool:
 			if not generated_ids.has(p.id):
 				valid_pool.append(p)
 		if valid_pool.is_empty():
+			for p in pool:
+				if not generated_ids.has(p.id):
+					valid_pool.append(p)
+		if valid_pool.is_empty():
 			valid_pool = pool
 
 		var pick : ItemData = valid_pool[randi() % valid_pool.size()]
 		generated_ids[pick.id] = true
+		for tag in pick.tags:
+			generated_tag_counts[tag] = int(generated_tag_counts.get(tag, 0)) + 1
 		
 		# ★ 生成带随机词条的装备实例
 		var inst : ItemInstance = ItemManager.create_instance_with_affixes(pick.id)

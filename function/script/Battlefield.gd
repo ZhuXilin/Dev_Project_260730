@@ -56,6 +56,10 @@ const ENEMY_THREAT_INCLUDE_OCCUPIED : bool = false
 var _last_middle_click_time: int = 0
 const DOUBLE_CLICK_MS: int = 300
 
+# v5.1 输入锁死看门狗：防止偶发的 transition/lock 状态永久卡住导致无法操作
+var _input_lock_watchdog_ms : int = 0
+const INPUT_LOCK_WATCHDOG_TIMEOUT_MS : int = 12000
+
 var _blood_orbs : Dictionary = {}   # cell -> Node2D
 const BLOOD_ORB_ICON_ID : String = "item_089"
 const BLOOD_ORB_HEAL_PERCENT : float = 0.10
@@ -297,8 +301,12 @@ func _ready():
 				continue
 			var hook_id : String = str(u.unit_stats.boss_dialogue_hooks.get("battle_start", ""))
 			if hook_id != "" and StoryManager.play_dialogue_by_id(hook_id):
-				await DialogueManager.dialogue_finished
-				# ★ 核心修改：对话一结束，立刻锁死过渡状态和光标，不给任何钻空子的机会
+				# ★ v5.1 修复：不能用裸 await dialogue_finished。
+				# 若对话 UI 未加载、信号在 await 建立前已发出、或对话被别处打断，
+				# 该信号将永不触发 → _ready() 永久挂起 → start_turn() 不执行
+				# → is_battle_ready 恒 false + is_transitioning 恒 true → 进战斗后点击/空格/拖拽全失效。
+				await _await_dialogue_with_timeout(6.0)
+				# 对话一结束，立刻锁死过渡状态和光标，不给任何钻空子的机会
 				Globals.is_transitioning = true
 				_cursor_controller.set_locked(true)
 			break
@@ -545,6 +553,9 @@ func _on_unit_removed_death(unit: Unit, team: int):
 			SoulFireManager.add(gain)
 			SignalBus.request_hint_override.emit("★ 队友阵亡，魂火 +%d" % gain, 1.5)
 
+	# v5.1：阵亡单位不走战后同步，先在此把临时属性增量从持久层扣回
+	unit.revert_battle_temp_stats()
+
 	for ud in GameState.party:
 		if ud.unit_name == unit.unit_stats.unit_name and ud.display_name == unit.unit_stats.display_name:
 			ud.is_dead = true
@@ -556,6 +567,14 @@ func _on_request_clear_highlight():
 	highlight_manager.clear_highlight(mouse_cell)
 
 func _exit_tree():
+	# v5.1：兜底回滚全场临时属性加成，覆盖战斗失败 / 放弃 / 中途退出路径。
+	# 胜利路径已在 PartyState.sync_units_from_battlefield 回滚过，计数已清零，此处幂等。
+	if UnitManager:
+		for u in UnitManager.unit_list:
+			if not is_instance_valid(u): continue
+			if u.unit_stats == null: continue
+			if u.unit_stats.team_id != 0: continue
+			u.revert_battle_temp_stats()
 	Globals.is_fading = false
 	Globals.is_transitioning = false
 	Globals.is_performing_action = false
@@ -609,6 +628,7 @@ func _process(_delta):
 	_cursor_controller.update_cursor_and_mouse()
 	_update_hint_label()
 	_refresh_objective_status()
+	_watchdog_check_input_lock()
 
 	var should_pause = (
 		victory_panel.visible or
@@ -625,6 +645,66 @@ func _process(_delta):
 		camera_controller.is_smooth_moving()
 	)
 	camera_controller.set_paused(should_pause)
+
+
+## v5.1 看门狗：我方回合、战斗已就绪、且无任何正当阻塞 UI 时，
+## 若 is_transitioning / 光标锁定状态持续超过阈值，判定为偶发死锁并强制恢复。
+## 覆盖 _turn_changed_locked 重入提前 return、await 链中途异常等导致的永久锁输入。
+func _watchdog_check_input_lock() -> void:
+	# 只在玩家回合 + 战斗已就绪时监督
+	if not TurnManager.is_battle_ready():
+		_input_lock_watchdog_ms = 0
+		return
+	if TurnManager.is_game_over:
+		_input_lock_watchdog_ms = 0
+		return
+	if TurnManager.current_turn_team != TurnManager.Team.PLAYER:
+		_input_lock_watchdog_ms = 0
+		return
+
+	# 存在正当阻塞（对话/弹窗/过场动画/战斗表演）时不干预
+	var legit_blocked : bool = (
+		Globals.is_dialogue_active or
+		Globals.is_item_get_popup_active or
+		Globals.is_fading or
+		Globals.is_attack_menu_active or
+		Globals.is_confirm_ui_active or
+		Globals.is_reward_summary_active or
+		Globals.is_performing_action or
+		TurnManager.is_moving or
+		TurnManager.is_ai_moving or
+		camera_controller.is_smooth_moving() or
+		(turn_overlay and turn_overlay.visible) or
+		victory_panel.visible
+	)
+	var input_locked : bool = Globals.is_transitioning or (_cursor_controller and _cursor_controller.is_locked)
+	if legit_blocked or not input_locked:
+		_input_lock_watchdog_ms = 0
+		return
+
+	var now : int = Time.get_ticks_msec()
+	if _input_lock_watchdog_ms == 0:
+		_input_lock_watchdog_ms = now
+		return
+	if now - _input_lock_watchdog_ms < INPUT_LOCK_WATCHDOG_TIMEOUT_MS:
+		return
+
+	push_warning("[Battlefield] 看门狗触发：玩家回合输入锁定超时，强制恢复操作")
+	Globals.is_transitioning = false
+	Globals.is_fading = false
+	Globals.is_performing_action = false
+	TurnManager.is_moving = false
+	TurnManager.is_ai_moving = false
+	if _turn_controller:
+		_turn_controller.force_unlock()
+	if _cursor_controller:
+		_cursor_controller.set_locked(false)
+	if turn_overlay:
+		turn_overlay.visible = false
+		turn_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	InputManager.interaction_phase = InputManager.Phase.IDLE
+	_input_lock_watchdog_ms = 0
+
 
 func _input(event: InputEvent):
 	# ★ 若攻击菜单激活，拦截除了鼠标点击外的所有快捷键、滚轮和中键
@@ -1302,6 +1382,35 @@ func _end_player_turn():
 	InputManager.current_highlight_cells = {}
 
 	TurnManager.start_turn(TurnManager.Team.ENEMY)
+
+
+## v5.1 修复：等待战前对话结束，带超时兜底 + 信号竞态保护。
+## 覆盖三种会永久挂起的场景：
+##  1) play_dialogue_by_id 返回 true 但 DialogueUI 未加载 → 信号永不发出
+##  2) dialogue_finished 在 await 建立前就发出 → await 永远等不到
+##  3) 对话被其他系统中途打断/重置 → 信号丢失
+func _await_dialogue_with_timeout(timeout_sec: float = 6.0) -> void:
+	# 场景 2：进入时对话已经结束，直接返回，不再等待
+	if not Globals.is_dialogue_active:
+		return
+	var finished : bool = false
+	var on_finished := func(): finished = true
+	if not DialogueManager.dialogue_finished.is_connected(on_finished):
+		DialogueManager.dialogue_finished.connect(on_finished, CONNECT_ONE_SHOT)
+
+	var start_ms : int = Time.get_ticks_msec()
+	var timeout_ms : int = int(timeout_sec * 1000.0)
+	while not finished and Globals.is_dialogue_active:
+		if not is_inside_tree():
+			break
+		if Time.get_ticks_msec() - start_ms > timeout_ms:
+			push_warning("[Battlefield] 战前对话等待超时(%ds)，强制关闭以避免输入锁死" % int(timeout_sec))
+			DialogueManager.reset()
+			Globals.is_dialogue_active = false
+			break
+		await get_tree().process_frame
+	if DialogueManager.dialogue_finished.is_connected(on_finished):
+		DialogueManager.dialogue_finished.disconnect(on_finished)
 
 
 func _wait_for_ui_clear(timeout_ms: int = 5000) -> void:

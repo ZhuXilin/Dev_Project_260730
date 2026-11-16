@@ -214,8 +214,8 @@ func _do_attack(atk : UnitData, dfd : UnitData, is_counter : bool):
 		_add("  [color=yellow]暴击词条！倍率 %.1f[/color]" % crit_mult)
 	else:
 		var crit_chance : float = CRIT_BASE_CHANCE + atk.get_effective_attr("dexterity") * CRIT_PER_DEXTERITY
-		var wd = _get_weapon_data(atk)
-		if wd: crit_chance += CRIT_QUALITY_BONUS.get(wd.quality, 0.0)
+		# ★ v5.1：武器品质从内联字段读
+		if atk.weapon_name != "": crit_chance += CRIT_QUALITY_BONUS.get(atk.weapon_quality, 0.0)
 		if randf() < crit_chance:
 			is_crit = true
 
@@ -470,12 +470,12 @@ func _on_kill(killer : UnitData, killer_is_p : bool):
 
 
 func _calc_damage(atk : UnitData, dfd : UnitData) -> int:
-	var wd = _get_weapon_data(atk)
-	if wd == null: return 1
+	# ★ v5.1：武器数值已内联单位，无武器直接保底伤害
+	if atk.weapon_name == "": return 1
 
-	var qm : float = QUALITY_MULT.get(wd.quality, 1.0)
-	var base : float = wd.base_attack * qm
-	var eff_mod : Dictionary = wd.modifier
+	var qm : float = QUALITY_MULT.get(atk.weapon_quality, 1.0)
+	var base : float = atk.attack * qm
+	var eff_mod : Dictionary = atk.modifier
 	var bonus : float = 0.0
 	for attr in eff_mod:
 		bonus += atk.get_effective_attr(attr) * eff_mod[attr]
@@ -493,11 +493,11 @@ func _calc_damage(atk : UnitData, dfd : UnitData) -> int:
 	return max(1, int(total - def_val))
 
 func _calc_damage_no_defense(atk : UnitData, damage_mult : float) -> int:
-	var wd = _get_weapon_data(atk)
-	if wd == null: return 1
-	var qm : float = QUALITY_MULT.get(wd.quality, 1.0)
-	var base : float = wd.base_attack * qm
-	var eff_mod : Dictionary = wd.modifier
+	# ★ v5.1：武器数值已内联单位，无武器直接保底伤害
+	if atk.weapon_name == "": return 1
+	var qm : float = QUALITY_MULT.get(atk.weapon_quality, 1.0)
+	var base : float = atk.attack * qm
+	var eff_mod : Dictionary = atk.modifier
 	var bonus : float = 0.0
 	for attr in eff_mod:
 		bonus += atk.get_effective_attr(attr) * eff_mod[attr]
@@ -528,13 +528,6 @@ func _get_ready_skills(u : UnitData) -> Array:
 		if td and td.is_active_skill and u.advanced_talent_inst.is_ready:
 			result.append(u.advanced_talent_inst.talent_id)
 	return result
-
-
-func _get_weapon_data(u : UnitData) -> ItemData:
-	# ★ v4.8：从内联字段构造虚拟 ItemData
-	if u == null or u.weapon_id == "":
-		return null
-	return UnitDataManager.build_weapon_item_data(u)
 
 
 func _display(u : UnitData) -> String:
