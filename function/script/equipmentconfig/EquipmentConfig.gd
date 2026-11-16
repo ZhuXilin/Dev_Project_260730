@@ -4,6 +4,29 @@ enum Mode { DEPLOY, MAP, FORGE, ARENA_REST, MAP_SHOP_REST }
 
 const Style = preload("res://function/script/equipmentconfig/EquipmentConfigStyle.gd")
 
+## 连通方向箭头（v5.4）：矢量绘制的等腰直角三角形，箭头尖 90°、两腰等长。
+## 尖端落在 20x20 图标色块的边沿中点（正交）或四角（斜向），其余部分完全在色块内部。
+## v5.4：半宽由 12 改 10，与按钮/色块/图标统一的 20x20 基准一致，
+##       解决商店格子里箭尖贴着看不见的 24x24 边、视觉上偏离图标的问题。
+class LinkArrow extends Control:
+	var angle_deg : float = 0.0                       # Godot 坐标：0=右, 90=下, -90=上
+	var fill_color : Color = Color(1.0, 0.88, 0.35)   # 与连通黄框统一的黄色
+	var arm : float = 4.0                             # 两腰在轴向/横向的投影（决定三角形大小）
+
+	func _draw() -> void:
+		var c := size * 0.5                           # 图标色块中心 (10,10)
+		var rad := deg_to_rad(angle_deg)
+		var dir := Vector2(cos(rad), sin(rad))
+		var perp := Vector2(-dir.y, dir.x)
+		var half : float = minf(size.x, size.y) * 0.5  # 与自身控件等宽（20x20 → 10）
+		# 射线与正方形边界求交：正交命中边中点(t=10)，45° 命中四角(t=10√2)
+		var t : float = half / maxf(absf(dir.x), absf(dir.y))
+		var tip := c + dir * t                        # 箭尖贴图标色块边沿/角
+		var base := c + dir * (t - arm)               # 底边中点内缩 arm
+		var p1 := base + perp * arm                   # 两腰等长 + 顶角 90°
+		var p2 := base - perp * arm
+		draw_colored_polygon(PackedVector2Array([tip, p1, p2]), fill_color)
+
 var current_mode: Mode = Mode.DEPLOY
 var selected_units: Array = []
 var target_slot: int = -1
@@ -91,7 +114,10 @@ func _ready():
 		var old_sc = shop_container
 		var new_flow = HFlowContainer.new()
 		new_flow.name = old_sc.name
-		new_flow.alignment = FlowContainer.ALIGNMENT_CENTER
+		# 网格逐行左对齐：FlowContainer 的 ALIGNMENT_CENTER 是「每一行各自居中」，
+		# 最后一行不满时会整体偏移（第二排不从第一格开始）。改用 BEGIN 让所有行
+		# 都从最左第一格开始；满行时与原来视觉位置一致，不影响商店/熔炉等页。
+		new_flow.alignment = FlowContainer.ALIGNMENT_BEGIN
 		new_flow.add_theme_constant_override("h_separation", Style.ITEM_GRID_GAP)
 		new_flow.add_theme_constant_override("v_separation", Style.ITEM_GRID_GAP)
 		new_flow.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -360,12 +386,12 @@ func _set_slot_link_frame(btn: Button, unit_idx: int, slot_idx: int, highlight: 
 		frame = Panel.new()
 		frame.name = LINK_FRAME_NODE_NAME
 		frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		# 与 24×24 Build 色块同尺寸，正好框住色块
+		# v5.4：与 20×20 Build 色块/图标同尺寸，正好框住色块（原 24×24 会外扩 2px）
 		frame.set_anchors_preset(Control.PRESET_CENTER)
-		frame.offset_left = -12
-		frame.offset_right = 12
-		frame.offset_top = -12
-		frame.offset_bottom = 12
+		frame.offset_left = -10
+		frame.offset_right = 10
+		frame.offset_top = -10
+		frame.offset_bottom = 10
 		btn.add_child(frame)  # 最后添加 → 绘制在图标之上
 
 	if not connected:
@@ -434,7 +460,8 @@ func _build_unit_columns():
 	if not unit_container: return
 	_refresh_connectivity(true)
 	unit_container.alignment = BoxContainer.ALIGNMENT_CENTER
-	unit_container.add_theme_constant_override("separation", Style.ITEM_GRID_GAP)
+	# 三个单位之间改为 1px 间距（原 ITEM_GRID_GAP=6 太宽）
+	unit_container.add_theme_constant_override("separation", 1)
 	for child in unit_container.get_children():
 		unit_container.remove_child(child); child.free()
 
@@ -477,7 +504,7 @@ func _refresh_tag_stats():
 
 	# 标题
 	var title := Label.new()
-	title.text = "Build:"
+	title.text = "流派:"
 	title.add_theme_font_size_override("font_size", Style.FONT_SMALL)
 	title.add_theme_color_override("font_color", Color(0.75, 0.75, 0.75))
 	title.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -492,7 +519,8 @@ func _refresh_tag_stats():
 		var lbl := Label.new()
 		lbl.text = "%s %d" % [tag, n]
 		lbl.add_theme_font_size_override("font_size", Style.FONT_SMALL)
-		lbl.add_theme_color_override("font_color", col if active else Color(0.55, 0.55, 0.55))
+		# v5.3：数量文字始终使用该流派防具小方块的标识色，保证色系统一
+		lbl.add_theme_color_override("font_color", col)
 		if active:
 			lbl.tooltip_text = "已激活 2 件套效果"
 		lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -596,7 +624,7 @@ func _recursive_find_armor(node: Node, unit_idx: int, slot_idx: int) -> Button:
 func _create_unit_column(unit_idx: int, is_preview: bool = false) -> Control:
 	var wrapper: PanelContainer = PanelContainer.new()
 	# 按内容宽度收拢，避免三列被 HBoxContainer 拉伸后头像间距过大；
-	# 列间统一使用 Style.ITEM_GRID_GAP（与商店一致）。
+	# 列间距已在 _build_unit_columns 收到 1px。
 	wrapper.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	wrapper.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 	
@@ -633,21 +661,29 @@ func _create_unit_column(unit_idx: int, is_preview: bool = false) -> Control:
 
 	var unit = party[unit_idx]
 
+	# 头像 + 升级按钮放进紧凑子容器：两者间距压到 1px，
+	# 不影响下方防具/特技段仍用 ITEM_GRID_GAP。
+	var head_group := VBoxContainer.new()
+	head_group.add_theme_constant_override("separation", 1)
+	head_group.alignment = BoxContainer.ALIGNMENT_BEGIN
+	col.add_child(head_group)
+
 	# 头像
 	var icon_ctrl = _create_unit_icon(unit, unit_idx)
 	if unit.is_dead: icon_ctrl.modulate = Color(0.4, 0.4, 0.4, 1)
-	col.add_child(icon_ctrl)
+	head_group.add_child(icon_ctrl)
 
 	# 升级按钮
 	if _is_level_up_enabled():
 		var level_btn = _create_level_btn(unit, unit_idx)
 		if unit.is_dead: _disable_button(level_btn)
-		col.add_child(level_btn)
+		head_group.add_child(level_btn)
 
 	# 防具槽位
 	var armor_group := VBoxContainer.new()
 	armor_group.add_theme_constant_override("separation", Style.ITEM_GRID_GAP)
-	armor_group.alignment = BoxContainer.ALIGNMENT_CENTER
+	# v5.6：贴顶对齐，避免不同单位防具槽数不同时 ALIGNMENT_CENTER 把首排整体下推
+	armor_group.alignment = BoxContainer.ALIGNMENT_BEGIN
 	col.add_child(armor_group)
 	
 	for slot_idx in range(unit.armor_slots.size()):
@@ -692,9 +728,10 @@ func _build_ui_inner():
 	var vbox = $VBoxContainer
 	if vbox:
 		vbox.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-		vbox.offset_left = 2
+		# 左右各留 4px 安全边距：防止左栏长标题/右栏内容贴死画面边界被裁切
+		vbox.offset_left = 4
 		vbox.offset_top = 2
-		vbox.offset_right = -2
+		vbox.offset_right = -4
 		vbox.offset_bottom = -2
 		vbox.size_flags_vertical = Control.SIZE_EXPAND_FILL
 		vbox.add_theme_constant_override("separation", 2)
@@ -1057,8 +1094,8 @@ func _get_level_up_cost(cur_level: int) -> int:
 
 
 func _create_level_btn(unit: UnitData, unit_idx: int) -> Button:
-	# 与 54x54 头像框同宽，保证灰框之间的间距 = UnitContainer 的 ITEM_GRID_GAP
-	var btn : Button = Style.create_styled_button(Style.FONT_SMALL, Vector2(54, 24))
+	# 与 54x54 头像框同宽；高度从 24 收到 16，减少纵向占用
+	var btn : Button = Style.create_styled_button(Style.FONT_SMALL, Vector2(54, 16))
 	btn.set_meta("slot_type", "level_btn")
 	btn.set_meta("unit_idx", unit_idx)
 	btn.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
@@ -1076,14 +1113,18 @@ func _create_level_btn(unit: UnitData, unit_idx: int) -> Button:
 	sb.corner_radius_top_right = 2
 	sb.corner_radius_bottom_left = 2
 	sb.corner_radius_bottom_right = 2
-	btn.add_theme_stylebox_override("normal", sb)
-	btn.add_theme_stylebox_override("hover", sb)
+	# v5.6：禁用/按下/焦点状态必须共用同一个 stylebox。
+	# 之前只覆盖 normal + hover，disabled 会回落到引擎默认 Button 样式（带 4px 内容边距），
+	# 使满级/金币不足的按钮最小高度大于 16，head_group 被撑高，
+	# 该单位下方第一排防具图标就比其他单位低 —— 横向对不齐。
+	for state in ["normal", "hover", "pressed", "disabled", "focus"]:
+		btn.add_theme_stylebox_override(state, sb)
 
 	var cap : int = int(GameState.unit_level_cap.get(unit.unit_name, 3))
 	var cur : int = int(unit.level)
 
 	if cur >= 6 or cur >= cap:
-		btn.text = "L%d\n满级" % cur
+		btn.text = "L%d\nMAX" % cur
 		btn.disabled = true
 		btn.modulate = Color(0.5, 0.5, 0.5)
 		return btn
@@ -1658,39 +1699,7 @@ func _create_item_button(inst: ItemInstance, slot_type: String, unit_idx: int, s
 			_draw_direction_badges(btn, dir)
 			btn.tooltip_text = "可在铁匠铺单件放入重roll方向"
 
-		if unit_idx >= 0 and slot_idx >= 0:
-			var key : String = "%d_%d" % [unit_idx, slot_idx]
-			if _connected_cells.has(key):
-				var gi = _connected_cells[key]
-				var g = _connectivity_groups[gi]
-				var group_size = g.size()
-				
-				var star := Label.new()
-				star.text = "★"
-
-				if group_size >= 5:
-					star.add_theme_font_size_override("font_size", 10)
-					star.add_theme_color_override("font_color", Color(1.0, 0.8, 0.1))
-				elif group_size >= 3:
-					star.add_theme_font_size_override("font_size", 8)
-					star.add_theme_color_override("font_color", Color(1.0, 0.9, 0.4))
-				else:
-					star.add_theme_font_size_override("font_size", 7)
-					star.add_theme_color_override("font_color", Color(0.8, 0.8, 0.8))
-
-				star.add_theme_color_override("font_outline_color", Color.BLACK)
-				star.add_theme_constant_override("outline_size", 2)
-				star.mouse_filter = Control.MOUSE_FILTER_IGNORE
-
-				star.set_anchors_preset(Control.PRESET_FULL_RECT)
-				star.offset_left = 0
-				star.offset_right = 0
-				star.offset_top = 0
-				star.offset_bottom = 0
-				star.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-				star.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-
-				btn.add_child(star)
+		# v5.3：连通成功仅由黄色边框标识，已移除星标（边框已足够醒目）
 
 	else:
 		btn.text = "空"
@@ -1725,11 +1734,12 @@ func _draw_build_tag_backdrop(btn: Button, data):
 	if data != null and not data.tags.is_empty():
 		var first_tag : String = str(data.tags[0])
 		backdrop.color = UIConst.BUILD_TAG_COLORS.get(first_tag, UIConst.NO_TAG_COLOR)
+	# v5.4：与按钮/图标统一 20x20 基准（±10），勿用 24x24——否则箭尖贴看不见的外框
 	backdrop.set_anchors_preset(Control.PRESET_CENTER)
-	backdrop.offset_left = -12
-	backdrop.offset_right = 12
-	backdrop.offset_top = -12
-	backdrop.offset_bottom = 12
+	backdrop.offset_left = -10
+	backdrop.offset_right = 10
+	backdrop.offset_top = -10
+	backdrop.offset_bottom = 10
 	btn.add_child(backdrop)
 
 	# 图标移到独立 TextureRect 子节点，叠在色块之上
@@ -1740,11 +1750,14 @@ func _draw_build_tag_backdrop(btn: Button, data):
 		icon_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		icon_rect.stretch_mode = TextureRect.STRETCH_SCALE
 		icon_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		icon_rect.set_anchors_preset(Control.PRESET_FULL_RECT)
-		icon_rect.offset_left = 0
-		icon_rect.offset_right = 0
-		icon_rect.offset_top = 0
-		icon_rect.offset_bottom = 0
+		# v5.4：与色块/箭头严格共用「按钮中心 20x20」基准（±10）。
+		# 原 PRESET_FULL_RECT 会铺满按钮实际尺寸，商店按钮在 GridContainer 中被拉伸时
+		# 图标尺寸 ≠ 色块/箭头固定尺寸，箭尖便偏离图标边角。
+		icon_rect.set_anchors_preset(Control.PRESET_CENTER)
+		icon_rect.offset_left = -10
+		icon_rect.offset_right = 10
+		icon_rect.offset_top = -10
+		icon_rect.offset_bottom = 10
 		btn.add_child(icon_rect)
 		# 拖拽预览仍要拿到原图标
 		btn.set_meta("_item_icon", icon_texture)
@@ -1752,41 +1765,40 @@ func _draw_build_tag_backdrop(btn: Button, data):
 
 
 func _draw_direction_badges(btn: Button, dir: int):
-	var create_arrow := func(text: String, anchor: int, ox: float, oy: float):
-		var lbl := Label.new()
-		lbl.text = text
-		lbl.add_theme_font_size_override("font_size", 7)
-		lbl.add_theme_color_override("font_color", Color(0.8, 0.7, 0.4))
-		lbl.add_theme_color_override("font_outline_color", Color(0.1, 0.1, 0.1, 0.8))
-		lbl.add_theme_constant_override("outline_size", 2)
-		lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		lbl.set_anchors_preset(anchor)
-		lbl.offset_left = ox - 4
-		lbl.offset_right = ox + 4
-		lbl.offset_top = oy - 4
-		lbl.offset_bottom = oy + 4
-		lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		btn.add_child(lbl)
+	# v5.4：弃用像素字体 rotation（旋转产生锯齿、各方向歪斜不一致），
+	# 改为矢量绘制等腰直角三角形：箭尖贴 20x20 色块边沿（正交）/四角（斜向），
+	# 与色块/图标/黄框共用按钮中心 20x20 基准，商店格子不再偏移。
+	# 三角形本体完全落在色块内部，正交居中、斜向严格 45°，箭尖 90° 两腰等腰。
 
+	var add := func(deg: float):
+		var arrow := LinkArrow.new()
+		arrow.angle_deg = deg
+		arrow.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		# v5.4：与按钮/色块/图标统一 20x20 基准（±10）
+		arrow.set_anchors_preset(Control.PRESET_CENTER)
+		arrow.offset_left = -10
+		arrow.offset_right = 10
+		arrow.offset_top = -10
+		arrow.offset_bottom = 10
+		arrow.z_index = 20
+		btn.add_child(arrow)
+
+	# Godot 角度：0=右, 90=下, 180=左, -90=上；斜向 ±45/±135
 	match dir:
-		Direction.Value.UP: create_arrow.call("▲", Control.PRESET_CENTER_TOP, 0, 1)
-		Direction.Value.DOWN: create_arrow.call("▼", Control.PRESET_CENTER_BOTTOM, 0, -1)
-		Direction.Value.LEFT: create_arrow.call("◀", Control.PRESET_CENTER_LEFT, 1, 0)
-		Direction.Value.RIGHT: create_arrow.call("▶", Control.PRESET_CENTER_RIGHT, -1, 0)
+		Direction.Value.UP:    add.call(-90.0)
+		Direction.Value.DOWN:  add.call(90.0)
+		Direction.Value.LEFT:  add.call(180.0)
+		Direction.Value.RIGHT: add.call(0.0)
 		Direction.Value.VERTICAL:
-			create_arrow.call("▲", Control.PRESET_CENTER_TOP, 0, 1)
-			create_arrow.call("▼", Control.PRESET_CENTER_BOTTOM, 0, -1)
+			add.call(-90.0); add.call(90.0)
 		Direction.Value.HORIZONTAL:
-			create_arrow.call("◀", Control.PRESET_CENTER_LEFT, 1, 0)
-			create_arrow.call("▶", Control.PRESET_CENTER_RIGHT, -1, 0)
+			add.call(180.0); add.call(0.0)
 		Direction.Value.DIAG_NE_SW:
-			create_arrow.call("◥", Control.PRESET_TOP_RIGHT, -2, 2)
-			create_arrow.call("◣", Control.PRESET_BOTTOM_LEFT, 2, -2)
+			add.call(-45.0)   # 右上角
+			add.call(135.0)   # 左下角
 		Direction.Value.DIAG_NW_SE:
-			create_arrow.call("◤", Control.PRESET_TOP_LEFT, 2, 2)
-			create_arrow.call("◢", Control.PRESET_BOTTOM_RIGHT, -2, -2)
-
+			add.call(-135.0)  # 左上角
+			add.call(45.0)    # 右下角
 
 func _apply_icon_button_style(btn: Button):
 	btn.expand_icon = true
@@ -2089,7 +2101,15 @@ func _check_armor_swap_budget(data: Dictionary, target: Control) -> bool:
 	return true
 
 
-func _execute_drop(data: Dictionary, target: Control):
+# v5.5：target 参数去掉 Control 类型注解。此函数经 call_deferred 延迟执行，
+# 拖放过程中 UI 可能重建（_schedule_build_ui / build_forge_slots）导致按钮被 queue_free，
+# freed 实例在消息队列做 Object→Control 转换时报
+# "Cannot convert argument 2 from Object to Object"，这里改为执行前显式校验。
+func _execute_drop(data: Dictionary, target) -> void:
+	if target == null or not is_instance_valid(target):
+		return
+	if not (target is Control):
+		return
 	var source_type : String = data.get("slot_type", "")
 	var target_type : String = target.get_meta("slot_type", "")
 
@@ -2792,12 +2812,10 @@ func _open_auto_config_dialog():
 			func(): pass, func(): pass, false)
 		return
 
-	var msg : String = "自动配装\n\n将根据「连通组 + 套装 + 属性」生成 3 个方案。\n\n"
-	msg += "允许交换单位位置会显著增加搜索空间（耗时 5~10 秒），但结果更优。"
-
+	# v5.5：只显示选项，去掉说明长文与括号注释；选项本身写明「单位位置」含义
 	Globals.show_confirm(
-		self, msg,
-		"允许交换（慢）", "不交换（快）",
+		self, "自动配装",
+		"允许交换单位位置", "不交换单位位置",
 		func(): _run_auto_config(true),
 		func(): _run_auto_config(false),
 		true
@@ -2983,6 +3001,9 @@ func _show_auto_config_result_dialog(options: Array, allow_swap: bool):
 	overlay.name = "AutoConfigOverlay"
 	overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
 	overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+	# v5.5：防具上的连通箭头 z_index=20，会把同画布层的弹窗穿透；
+	# ConfirmUI 是 CanvasLayer(layer=99) 不受影响，这个手搭的 overlay 需要显式抬层级。
+	overlay.z_index = 100
 	add_child(overlay)
 
 	var bg := ColorRect.new()

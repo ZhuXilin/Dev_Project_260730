@@ -9,6 +9,8 @@ var _current_wave : int = 1
 var _pending_groups : Array = []          # Array[Array[Unit]]
 var _next_wave_delay : int = 0
 var _warning_shown : bool = false
+var _build_retry : int = 0            # 分组构建时单位尚未注册的重试次数
+var _groups_built : bool = false      # 防止 deferred 重试/重复 setup 导致二次分组
 
 var _map_data : MapData = null
 var _battlefield : Node2D = null
@@ -25,6 +27,7 @@ func setup_for_node(map_data : MapData, battlefield : Node2D = null) -> void:
 
 	# 注意：这里不再直接读取 map_data.max_waves 作为总数
 	# 留给 _build_groups 进行动态推导
+	_build_retry = 0
 	call_deferred("_build_groups")
 
 
@@ -34,6 +37,8 @@ func reset() -> void:
 	_pending_groups.clear()
 	_next_wave_delay = 0
 	_warning_shown = false
+	_build_retry = 0
+	_groups_built = false
 	_map_data = null
 	_battlefield = null
 
@@ -55,6 +60,7 @@ func is_active() -> bool:
 #  分组核心算法
 # ============================================================
 func _build_groups():
+	if _groups_built: return
 	var enemies : Array = []
 	for u in UnitManager.unit_list:
 		if not is_instance_valid(u): continue
@@ -63,7 +69,15 @@ func _build_groups():
 		enemies.append(u)
 
 	if enemies.is_empty():
+		# 导出包里单位注册可能晚于本次 deferred 调用；此时直接放弃会导致
+		# _pending_groups 永远为空（后续波次不刷、首波全灭后直接判胜）。
+		# 有限帧数内重试，等单位注册完成后再分组。
+		if _build_retry < 10:
+			_build_retry += 1
+			call_deferred("_build_groups")
 		return
+	_build_retry = 0
+	_groups_built = true
 
 	var explicit_map : Dictionary = {}
 	var max_wave_in_scene : int = 1

@@ -206,6 +206,8 @@ var _validator_raw_log : String = ""
 
 
 func _ready():
+	# v5.4：编辑器界面整体用最近邻过滤——16x16 像素图标在线性过滤 + 窗口 2x 缩放下会发糊
+	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	_apply_compact_theme()
 	_load_all_data()
 	_build_ui()
@@ -1981,11 +1983,12 @@ func _build_cfg_tab(parent : Control) -> Control:
 	bar.add_theme_constant_override("separation", 3)
 	panel.add_child(bar)
 
+	# v5.4：按使用频率排序——防具第一、特技次之、遗物最后；
+	# 移除「精炼」（refine_data.json 不存在，页签一直为空无数据）
 	var cfg_files : Array = [
-		{"name": "遗物", "path": RELIC_DATA_PATH},
-		{"name": "精炼", "path": REFINE_DATA_PATH},
 		{"name": "防具", "path": ITEM_DATA_PATH},
 		{"name": "特技", "path": TALENT_DATA_PATH},
+		{"name": "遗物", "path": RELIC_DATA_PATH},
 	]
 	_cfg_tab_panels.clear()
 	var btns : Array = []
@@ -2007,6 +2010,8 @@ func _build_cfg_tab(parent : Control) -> Control:
 		editor.visible = false
 		container.add_child(editor)
 		_cfg_tab_panels[cfg_files[i]["path"]] = editor
+		# v5.4：数值编辑保存后，同步重载编辑器内存缓存，让战斗模拟/校验立即用到新数据
+		editor.saved.connect(func(_p): _load_all_data())
 
 	for i in range(btns.size()):
 		var idx : int = i

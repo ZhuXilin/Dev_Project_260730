@@ -1,384 +1,752 @@
 {
-  "wooden_shield": {
-	"id": "wooden_shield", "name": "木盾", "type": "armor", "use_type": "equipment",
-	"icon": "item_050",
-	"description": "物理减伤 +10%",
-	"flavor": "木盾。木头是从某个村庄的老树上砍的。\n\n村里的人不知道。",
-	"equipment_slot": "armor",
-	"price": 30, "quality": "common",
-	"defense": 0, "physical_reduction": 0.10, "magic_reduction": 0.0,
-	"slot_count": 1,
-	"modifier": {}, "tags": ["守护"]
-  },
-  "iron_armor": {
-	"id": "iron_armor", "name": "铁甲", "type": "armor", "use_type": "equipment",
-	"icon": "item_007",
-	"description": "物理减伤 +15%",
-	"flavor": "铁甲。胸甲上有一道锤印，是打造时锤的，不是战斗留下的。\n\n铁匠是个完美主义者。",
-	"equipment_slot": "armor",
-	"price": 60, "quality": "common",
-	"defense": 0, "physical_reduction": 0.15, "magic_reduction": 0.0,
-	"slot_count": 1,
-	"modifier": {}, "tags": ["守护"]
-  },
-  "steel_armor": {
-	"id": "steel_armor", "name": "钢甲", "type": "armor", "use_type": "equipment",
-	"icon": "item_001",
-	"description": "物理减伤 +18%",
-	"flavor": "钢甲。比铁甲冷，比铁甲硬。\n\n穿它的人说：「冷一点好，会醒着。」",
-	"equipment_slot": "armor",
-	"price": 120, "quality": "rare",
-	"defense": 0, "physical_reduction": 0.18, "magic_reduction": 0.0,
-	"slot_count": 1,
-	"modifier": { "strength": 1 }, "tags": ["守护"]
-  },
-  "knight_armor": {
-	"id": "knight_armor", "name": "骑士甲", "type": "armor", "use_type": "equipment",
-	"icon": "item_066",
-	"description": "物理减伤 +22%，魔法减伤 +8%",
-	"flavor": "骑士甲。肩甲上刻着一句失传的誓言。\n\n没人认得全，但所有穿过它的人，都懂。",
-	"equipment_slot": "armor",
-	"price": 100, "quality": "epic",
-	"defense": 0, "physical_reduction": 0.22, "magic_reduction": 0.08,
-	"slot_count": 1,
-	"modifier": { "strength": 1, "faith": 1 }, "tags": ["守护"]
-  },
-  "power_ring": {
-	"id": "power_ring", "name": "力量戒指", "type": "armor", "use_type": "equipment",
-	"icon": "item_033",
-	"description": "力量+2",
-	"flavor": "",
-	"equipment_slot": "armor",
-	"price": 80, "quality": "rare",
-	"defense": 0, "physical_reduction": 0.0, "magic_reduction": 0.0,
-	"slot_count": 1,
-	"modifier": { "strength": 2 }, "tags": ["烈焰"]
-  },
-  "guard_ring": {
-	"id": "guard_ring", "name": "守护戒指", "type": "armor", "use_type": "equipment",
-	"icon": "item_020",
-	"description": "物理减伤 +8%，力量+1",
-	"flavor": "",
-	"equipment_slot": "armor",
-	"price": 80, "quality": "rare",
-	"defense": 0, "physical_reduction": 0.08, "magic_reduction": 0.0,
-	"slot_count": 1,
-	"modifier": { "strength": 1 }, "tags": ["守护"]
-  },
-  "speed_boots": {
-	"id": "speed_boots", "name": "疾风靴", "type": "armor", "use_type": "equipment",
-	"icon": "item_031",
-	"description": "敏捷+1",
-	"flavor": "",
-	"equipment_slot": "armor",
-	"price": 100, "quality": "rare",
-	"defense": 0, "physical_reduction": 0.0, "magic_reduction": 0.0,
-	"slot_count": 1,
-	"modifier": { "dexterity": 1 }, "tags": ["灰烬"]
-  },
-  "leather_armor": {
-	"id": "leather_armor", "name": "皮甲", "type": "armor", "use_type": "equipment",
-	"icon": "item_006",
-	"description": "物理减伤 +8%，敏捷+1",
-	"flavor": "皮甲。皮是某种动物的。\n\n它原本叫什么名字，只有杀死它的人记得。",
-	"equipment_slot": "armor",
-	"price": 25, "quality": "common",
-	"defense": 0, "physical_reduction": 0.08, "magic_reduction": 0.0,
-	"slot_count": 1,
-	"modifier": { "dexterity": 1 }, "tags": ["灰烬"]
-  },
-  "iron_helmet": {
-	"id": "iron_helmet", "name": "铁盔", "type": "armor", "use_type": "equipment",
-	"icon": "item_002",
-	"description": "防护头部的铁盔，物理减伤 +8%",
-	"flavor": "",
-	"equipment_slot": "armor",
-	"price": 45, "quality": "common",
-	"defense": 0, "physical_reduction": 0.08, "magic_reduction": 0.0,
-	"slot_count": 1,
-	"modifier": {}, "tags": ["守护"]
-  },
-  "mage_robe": {
-	"id": "mage_robe", "name": "法袍", "type": "armor", "use_type": "equipment",
-	"icon": "item_012",
-	"description": "魔法减伤 +20%，智力+1，信仰+1",
-	"flavor": "法袍。袖口绣着一行看不懂的符文。\n\n穿它的人说：那是名字，我的名字。",
-	"equipment_slot": "armor",
-	"price": 70, "quality": "rare",
-	"defense": 0, "physical_reduction": 0.05, "magic_reduction": 0.20,
-	"slot_count": 1,
-	"modifier": { "intelligence": 1, "faith": 1 }, "tags": ["轮回"]
-  },
-  "traveler_boots": {
-	"id": "traveler_boots", "name": "旅行靴", "type": "armor", "use_type": "equipment",
-	"icon": "item_026",
-	"description": "物理减伤 +5%，敏捷+1，移动力+1",
-	"flavor": "",
-	"equipment_slot": "armor",
-	"price": 55, "quality": "rare",
-	"defense": 0, "physical_reduction": 0.05, "magic_reduction": 0.0,
-	"slot_count": 1,
-	"modifier": { "dexterity": 1, "move_range": 1 }, "tags": ["灰烬"]
-  },
-  "soul_guardian_plate": {
-	"id": "soul_guardian_plate", "name": "魂守铠", "type": "armor", "use_type": "equipment",
-	"icon": "item_023",
-	"description": "以魂力浇筑的守护铠甲，物减 +25%，魔减 +20%",
-	"flavor": "",
-	"equipment_slot": "armor",
-	"price": 320, "quality": "legendary",
-	"defense": 0, "physical_reduction": 0.25, "magic_reduction": 0.20,
-	"slot_count": 1,
-	"modifier": { "strength": 2, "faith": 2 }, "tags": ["守护"]
-  },
-  "dragon_scale_armor": {
-	"id": "dragon_scale_armor", "name": "龙鳞甲", "type": "armor", "use_type": "equipment",
-	"icon": "item_008",
-	"description": "以龙鳞打造的重甲，物减 +22%，魔减 +15%",
-	"flavor": "",
-	"equipment_slot": "armor",
-	"price": 360, "quality": "legendary",
-	"defense": 0, "physical_reduction": 0.22, "magic_reduction": 0.15,
-	"slot_count": 1,
-	"modifier": { "strength": 2, "faith": 1 }, "tags": ["余烬"]
-  },
-  "phoenix_cloak": {
-	"id": "phoenix_cloak", "name": "凤凰披风", "type": "armor", "use_type": "equipment",
-	"icon": "item_009",
-	"description": "轻灵的披风，物减 +12%，魔减 +12%，敏捷+2，移动+1",
-	"flavor": "",
-	"equipment_slot": "armor",
-	"price": 280, "quality": "legendary",
-	"defense": 0, "physical_reduction": 0.12, "magic_reduction": 0.12,
-	"slot_count": 1,
-	"modifier": { "dexterity": 2, "move_range": 1 }, "tags": ["烈焰"]
-  },
   "arcane_crown": {
-	"id": "arcane_crown", "name": "奥术王冠", "type": "armor", "use_type": "equipment",
-	"icon": "item_065",
+	"defense": 0.0,
 	"description": "蕴含奥术力量的王冠，魔减 +20%",
-	"flavor": "",
 	"equipment_slot": "armor",
-	"price": 300, "quality": "legendary",
-	"defense": 0, "physical_reduction": 0.08, "magic_reduction": 0.20,
-	"slot_count": 1,
-	"modifier": { "intelligence": 2, "faith": 1 }, "tags": ["轮回"]
-  },
-  "phoenix_feather": {
-	"id": "phoenix_feather", "name": "凤凰之羽", "type": "armor", "use_type": "equipment",
-	"icon": "item_061",
-	"description": "熔合产物（烈焰）：击杀时消耗 1 魂火，对相邻敌人造成 3 火焰伤害",
 	"flavor": "",
-	"equipment_slot": "armor",
-	"price": 0, "quality": "legendary",
-	"defense": 0, "physical_reduction": 0.12, "magic_reduction": 0.08,
-	"slot_count": 1,
-	"modifier": { "dexterity": 2 }, "tags": ["烈焰"],
-	"fusion_id": "phoenix_feather",
-	"fusion_effect": "phoenix_flame_splash"
-  },
-  "endless_cycle": {
-	"id": "endless_cycle", "name": "无尽轮回", "type": "armor", "use_type": "equipment",
-	"icon": "item_070",
-	"description": "熔合产物（轮回）：击杀 +1 魂火，魂火 < 3 时额外 +1",
-	"flavor": "",
-	"equipment_slot": "armor",
-	"price": 0, "quality": "legendary",
-	"defense": 0, "physical_reduction": 0.08, "magic_reduction": 0.12,
-	"slot_count": 1,
-	"modifier": { "intelligence": 2 }, "tags": ["轮回"],
-	"fusion_id": "endless_cycle",
-	"fusion_effect": "cycle_soul_fire_bonus"
+	"icon": "item_065",
+	"id": "arcane_crown",
+	"magic_reduction": 0.2,
+	"modifier": {
+	  "faith": 1.0,
+	  "intelligence": 2.0
+	},
+	"name": "奥术王冠",
+	"physical_reduction": 0.08,
+	"price": 300.0,
+	"quality": "legendary",
+	"slot_count": 1.0,
+	"tags": [
+      "轮回"
+	],
+	"type": "armor",
+	"use_type": "equipment"
   },
   "burning_core": {
-	"id": "burning_core", "name": "爆燃之核", "type": "armor", "use_type": "equipment",
-	"icon": "item_069",
+	"defense": 0.0,
 	"description": "熔合产物（灰烬）：魂火 < 3 时，主动技能伤害 ×1.5",
-	"flavor": "",
 	"equipment_slot": "armor",
-	"price": 0, "quality": "legendary",
-	"defense": 0, "physical_reduction": 0.15, "magic_reduction": 0.08,
-	"slot_count": 1,
-	"modifier": { "strength": 2 }, "tags": ["灰烬"],
+	"flavor": "",
+	"fusion_effect": "ash_skill_amplify",
 	"fusion_id": "burning_core",
-	"fusion_effect": "ash_skill_amplify"
+	"icon": "item_062",
+	"id": "burning_core",
+	"magic_reduction": 0.08,
+	"modifier": {
+	  "strength": 2.0
+	},
+	"name": "爆燃之核",
+	"physical_reduction": 0.15,
+	"price": 0.0,
+	"quality": "legendary",
+	"slot_count": 1.0,
+	"tags": [
+      "灰烬"
+	],
+	"type": "armor",
+	"use_type": "equipment"
   },
-  "lava_bastion": {
-	"id": "lava_bastion", "name": "熔岩壁垒", "type": "armor", "use_type": "equipment",
-	"icon": "item_076",
-	"description": "熔合产物（守护）：受击时消耗 1 魂火，反弹 15% 伤害",
-	"flavor": "",
+  "dragon_scale_armor": {
+	"defense": 0.0,
+	"description": "以龙鳞打造的重甲，物减 +22%，魔减 +15%",
 	"equipment_slot": "armor",
-	"price": 0, "quality": "legendary",
-	"defense": 0, "physical_reduction": 0.22, "magic_reduction": 0.12,
-	"slot_count": 1,
-	"modifier": { "strength": 2, "faith": 1 }, "tags": ["守护"],
-	"fusion_id": "lava_bastion",
-	"fusion_effect": "guard_counter_burn"
-  },
-  "undying_ember": {
-	"id": "undying_ember", "name": "不灭余烬", "type": "armor", "use_type": "equipment",
-	"icon": "item_072",
-	"description": "熔合产物（献祭）：每回合开始若魂火 = 0，+1 魂火",
 	"flavor": "",
-	"equipment_slot": "armor",
-	"price": 0, "quality": "legendary",
-	"defense": 0, "physical_reduction": 0.08, "magic_reduction": 0.15,
-	"slot_count": 1,
-	"modifier": { "faith": 3 }, "tags": ["献祭"],
-	"fusion_id": "undying_ember",
-	"fusion_effect": "sacrifice_zero_recover"
-  },
-  "eternal_flame": {
-	"id": "eternal_flame", "name": "不灭薪火", "type": "armor", "use_type": "equipment",
-	"icon": "item_063",
-	"description": "熔合产物（余烬）：魂火上限 +5，战斗开始 +2 魂火",
-	"flavor": "",
-	"equipment_slot": "armor",
-	"price": 0, "quality": "legendary",
-	"defense": 0, "physical_reduction": 0.12, "magic_reduction": 0.15,
-	"slot_count": 1,
-	"modifier": {}, "tags": ["余烬"],
-	"fusion_id": "eternal_flame",
-	"fusion_effect": "ember_max_and_start"
+	"icon": "item_008",
+	"id": "dragon_scale_armor",
+	"magic_reduction": 0.15,
+	"modifier": {
+	  "faith": 1.0,
+	  "strength": 2.0
+	},
+	"name": "龙鳞甲",
+	"physical_reduction": 0.22,
+	"price": 360.0,
+	"quality": "legendary",
+	"slot_count": 1.0,
+	"tags": [
+      "余烬"
+	],
+	"type": "armor",
+	"use_type": "equipment"
   },
   "ember_ring": {
-	"id": "ember_ring", "name": "余烬戒指", "type": "armor", "use_type": "equipment",
-	"icon": "item_068",
+	"defense": 0.0,
 	"description": "余烬的余温，物减 +8%",
-	"flavor": "",
 	"equipment_slot": "armor",
-	"price": 90, "quality": "rare",
-	"defense": 0, "physical_reduction": 0.08, "magic_reduction": 0.0,
-	"slot_count": 1,
-	"modifier": {}, "tags": ["余烬"]
+	"flavor": "",
+	"icon": "item_068",
+	"id": "ember_ring",
+	"magic_reduction": 0.0,
+	"modifier": {},
+	"name": "余烬戒指",
+	"physical_reduction": 0.08,
+	"price": 90.0,
+	"quality": "rare",
+	"slot_count": 1.0,
+	"tags": [
+      "余烬"
+	],
+	"type": "armor",
+	"use_type": "equipment"
   },
-  "sacrificial_mask": {
-	"id": "sacrificial_mask", "name": "献祭面具", "type": "armor", "use_type": "equipment",
-	"icon": "item_010",
-	"description": "以血为墨，物减 +5%，信仰+1",
-	"flavor": "",
+  "endless_cycle": {
+	"defense": 0.0,
+	"description": "熔合产物（轮回）：击杀 +1 魂火，魂火 < 3 时额外 +1",
 	"equipment_slot": "armor",
-	"price": 85, "quality": "rare",
-	"defense": 0, "physical_reduction": 0.05, "magic_reduction": 0.0,
-	"slot_count": 1,
-	"modifier": { "faith": 1 }, "tags": ["献祭"]
+	"flavor": "",
+	"fusion_effect": "cycle_soul_fire_bonus",
+	"fusion_id": "endless_cycle",
+	"icon": "item_063",
+	"id": "endless_cycle",
+	"magic_reduction": 0.12,
+	"modifier": {
+	  "intelligence": 2.0
+	},
+	"name": "无尽轮回",
+	"physical_reduction": 0.08,
+	"price": 0.0,
+	"quality": "legendary",
+	"slot_count": 1.0,
+	"tags": [
+      "轮回"
+	],
+	"type": "armor",
+	"use_type": "equipment"
+  },
+  "eternal_flame": {
+	"defense": 0.0,
+	"description": "熔合产物（余烬）：魂火上限 +5，战斗开始 +2 魂火",
+	"equipment_slot": "armor",
+	"flavor": "",
+	"fusion_effect": "ember_max_and_start",
+	"fusion_id": "eternal_flame",
+	"icon": "item_030",
+	"id": "eternal_flame",
+	"magic_reduction": 0.15,
+	"modifier": {},
+	"name": "不灭薪火",
+	"physical_reduction": 0.12,
+	"price": 0.0,
+	"quality": "legendary",
+	"slot_count": 1.0,
+	"tags": [
+      "余烬"
+	],
+	"type": "armor",
+	"use_type": "equipment"
+  },
+  "guard_ring": {
+	"defense": 0.0,
+	"description": "物理减伤 +8%，力量+1",
+	"equipment_slot": "armor",
+	"flavor": "",
+	"icon": "item_020",
+	"id": "guard_ring",
+	"magic_reduction": 0.0,
+	"modifier": {
+	  "strength": 1.0
+	},
+	"name": "守护戒指",
+	"physical_reduction": 0.08,
+	"price": 80.0,
+	"quality": "rare",
+	"slot_count": 1.0,
+	"tags": [
+      "守护"
+	],
+	"type": "armor",
+	"use_type": "equipment"
+  },
+  "iron_armor": {
+	"defense": 0.0,
+	"description": "物理减伤 +15%",
+	"equipment_slot": "armor",
+	"flavor": "铁甲。胸甲上有一道锤印，是打造时锤的，不是战斗留下的。\n\n铁匠是个完美主义者。",
+	"icon": "item_007",
+	"id": "iron_armor",
+	"magic_reduction": 0.0,
+	"modifier": {},
+	"name": "铁甲",
+	"physical_reduction": 0.15,
+	"price": 60.0,
+	"quality": "common",
+	"slot_count": 1.0,
+	"tags": [
+      "守护"
+	],
+	"type": "armor",
+	"use_type": "equipment"
+  },
+  "iron_helmet": {
+	"defense": 0.0,
+	"description": "防护头部的铁盔，物理减伤 +8%",
+	"equipment_slot": "armor",
+	"flavor": "",
+	"icon": "item_002",
+	"id": "iron_helmet",
+	"magic_reduction": 0.0,
+	"modifier": {},
+	"name": "铁盔",
+	"physical_reduction": 0.08,
+	"price": 45.0,
+	"quality": "common",
+	"slot_count": 1.0,
+	"tags": [
+      "守护"
+	],
+	"type": "armor",
+	"use_type": "equipment"
+  },
+  "knight_armor": {
+	"defense": 0.0,
+	"description": "物理减伤 +22%，魔法减伤 +8%",
+	"equipment_slot": "armor",
+	"flavor": "骑士甲。肩甲上刻着一句失传的誓言。\n\n没人认得全，但所有穿过它的人，都懂。",
+	"icon": "item_004",
+	"id": "knight_armor",
+	"magic_reduction": 0.08,
+	"modifier": {
+	  "faith": 1.0,
+	  "strength": 1.0
+	},
+	"name": "骑士甲",
+	"physical_reduction": 0.22,
+	"price": 100.0,
+	"quality": "epic",
+	"slot_count": 1.0,
+	"tags": [
+      "守护"
+	],
+	"type": "armor",
+	"use_type": "equipment"
+  },
+  "lava_bastion": {
+	"defense": 0.0,
+	"description": "熔合产物（守护）：受击时消耗 1 魂火，反弹 15% 伤害",
+	"equipment_slot": "armor",
+	"flavor": "",
+	"fusion_effect": "guard_counter_burn",
+	"fusion_id": "lava_bastion",
+	"icon": "item_076",
+	"id": "lava_bastion",
+	"magic_reduction": 0.12,
+	"modifier": {
+	  "faith": 1.0,
+	  "strength": 2.0
+	},
+	"name": "熔岩壁垒",
+	"physical_reduction": 0.22,
+	"price": 0.0,
+	"quality": "legendary",
+	"slot_count": 1.0,
+	"tags": [
+      "守护"
+	],
+	"type": "armor",
+	"use_type": "equipment"
+  },
+  "leather_armor": {
+	"defense": 0.0,
+	"description": "物理减伤 +8%，敏捷+1",
+	"equipment_slot": "armor",
+	"flavor": "皮甲。皮是某种动物的。\n\n它原本叫什么名字，只有杀死它的人记得。",
+	"icon": "item_006",
+	"id": "leather_armor",
+	"magic_reduction": 0.0,
+	"modifier": {
+	  "dexterity": 1.0
+	},
+	"name": "皮甲",
+	"physical_reduction": 0.08,
+	"price": 25.0,
+	"quality": "common",
+	"slot_count": 1.0,
+	"tags": [
+      "灰烬"
+	],
+	"type": "armor",
+	"use_type": "equipment"
+  },
+  "mage_robe": {
+	"defense": 0.0,
+	"description": "魔法减伤 +20%，智力+1，信仰+1",
+	"equipment_slot": "armor",
+	"flavor": "法袍。袖口绣着一行看不懂的符文。\n\n穿它的人说：那是名字，我的名字。",
+	"icon": "item_012",
+	"id": "mage_robe",
+	"magic_reduction": 0.2,
+	"modifier": {
+	  "faith": 1.0,
+	  "intelligence": 1.0
+	},
+	"name": "法袍",
+	"physical_reduction": 0.05,
+	"price": 70.0,
+	"quality": "rare",
+	"slot_count": 1.0,
+	"tags": [
+      "轮回"
+	],
+	"type": "armor",
+	"use_type": "equipment"
   },
   "melt_archer": {
-	"id": "melt_archer", "name": "残羽护甲", "type": "armor", "use_type": "equipment",
-	"icon": "item_031",
+	"defense": 0.0,
 	"description": "熔铸弓兵残留的羽毛护甲。攻击 +5，暴击伤害 +20%",
-	"flavor": "弓弦断了。缠在护甲上的，是她最后一次拉弓的姿势。",
 	"equipment_slot": "armor",
-	"price": 0, "quality": "legendary",
-	"defense": 0, "physical_reduction": 0.08, "magic_reduction": 0.08,
-	"slot_count": 1,
-	"modifier": {}, "tags": [],
-	"melt_armor_effect": { "attack_flat": 5, "special_type": "crit_damage_bonus", "special_value": 0.20 },
-	"no_affix": true, "no_fusion": true, "no_sell": true
+	"flavor": "弓弦断了。缠在护甲上的，是她最后一次拉弓的姿势。",
+	"icon": "item_031",
+	"id": "melt_archer",
+	"magic_reduction": 0.08,
+	"melt_armor_effect": {
+	  "attack_flat": 5.0,
+	  "special_type": "crit_damage_bonus",
+	  "special_value": 0.2
+	},
+	"modifier": {},
+	"name": "残羽护甲",
+	"no_affix": true,
+	"no_fusion": true,
+	"no_sell": true,
+	"physical_reduction": 0.08,
+	"price": 0.0,
+	"quality": "legendary",
+	"slot_count": 1.0,
+	"tags": [],
+	"type": "armor",
+	"use_type": "equipment"
   },
   "melt_armored": {
-	"id": "melt_armored", "name": "残余重铠", "type": "armor", "use_type": "equipment",
-	"icon": "item_007",
+	"defense": 0.0,
 	"description": "熔铸重甲兵残留的残铠。攻击 +5，防御 +3",
-	"flavor": "胸甲上那道裂缝，不是战斗留下的。是他自己不想再补的。",
 	"equipment_slot": "armor",
-	"price": 0, "quality": "legendary",
-	"defense": 0, "physical_reduction": 0.12, "magic_reduction": 0.08,
-	"slot_count": 1,
-	"modifier": {}, "tags": [],
-	"melt_armor_effect": { "attack_flat": 5, "special_type": "defense_flat", "special_value": 3.0 },
-	"no_affix": true, "no_fusion": true, "no_sell": true
+	"flavor": "胸甲上那道裂缝，不是战斗留下的。是他自己不想再补的。",
+	"icon": "item_007",
+	"id": "melt_armored",
+	"magic_reduction": 0.08,
+	"melt_armor_effect": {
+	  "attack_flat": 5.0,
+	  "special_type": "defense_flat",
+	  "special_value": 3.0
+	},
+	"modifier": {},
+	"name": "残余重铠",
+	"no_affix": true,
+	"no_fusion": true,
+	"no_sell": true,
+	"physical_reduction": 0.12,
+	"price": 0.0,
+	"quality": "legendary",
+	"slot_count": 1.0,
+	"tags": [],
+	"type": "armor",
+	"use_type": "equipment"
   },
   "melt_axeman": {
-	"id": "melt_axeman", "name": "残焰胸甲", "type": "armor", "use_type": "equipment",
-	"icon": "item_072",
+	"defense": 0.0,
 	"description": "熔铸斧兵残留的胸甲。攻击 +5，暴击伤害 +40%",
-	"flavor": "斧头没有名字。但火焰记得每一次挥砍的轨迹。",
 	"equipment_slot": "armor",
-	"price": 0, "quality": "legendary",
-	"defense": 0, "physical_reduction": 0.08, "magic_reduction": 0.08,
-	"slot_count": 1,
-	"modifier": {}, "tags": [],
-	"melt_armor_effect": { "attack_flat": 5, "special_type": "crit_damage_bonus", "special_value": 0.40 },
-	"no_affix": true, "no_fusion": true, "no_sell": true
+	"flavor": "斧头没有名字。但火焰记得每一次挥砍的轨迹。",
+	"icon": "item_072",
+	"id": "melt_axeman",
+	"magic_reduction": 0.08,
+	"melt_armor_effect": {
+	  "attack_flat": 5.0,
+	  "special_type": "crit_damage_bonus",
+	  "special_value": 0.4
+	},
+	"modifier": {},
+	"name": "残焰胸甲",
+	"no_affix": true,
+	"no_fusion": true,
+	"no_sell": true,
+	"physical_reduction": 0.08,
+	"price": 0.0,
+	"quality": "legendary",
+	"slot_count": 1.0,
+	"tags": [],
+	"type": "armor",
+	"use_type": "equipment"
   },
   "melt_cleric": {
-	"id": "melt_cleric", "name": "残光法袍", "type": "armor", "use_type": "equipment",
-	"icon": "item_046",
+	"defense": 0.0,
 	"description": "熔铸修女残留的法袍。攻击 +5，治疗量 +40%",
-	"flavor": "光比咒语更快。即使施法的人已经不在了，光还在。",
 	"equipment_slot": "armor",
-	"price": 0, "quality": "legendary",
-	"defense": 0, "physical_reduction": 0.08, "magic_reduction": 0.12,
-	"slot_count": 1,
-	"modifier": {}, "tags": [],
-	"melt_armor_effect": { "attack_flat": 5, "special_type": "heal_bonus", "special_value": 0.40 },
-	"no_affix": true, "no_fusion": true, "no_sell": true
+	"flavor": "光比咒语更快。即使施法的人已经不在了，光还在。",
+	"icon": "item_046",
+	"id": "melt_cleric",
+	"magic_reduction": 0.12,
+	"melt_armor_effect": {
+	  "attack_flat": 5.0,
+	  "special_type": "heal_bonus",
+	  "special_value": 0.4
+	},
+	"modifier": {},
+	"name": "残光法袍",
+	"no_affix": true,
+	"no_fusion": true,
+	"no_sell": true,
+	"physical_reduction": 0.08,
+	"price": 0.0,
+	"quality": "legendary",
+	"slot_count": 1.0,
+	"tags": [],
+	"type": "armor",
+	"use_type": "equipment"
   },
   "melt_dragonborn": {
-	"id": "melt_dragonborn", "name": "残鳞鳞甲", "type": "armor", "use_type": "equipment",
-	"icon": "item_008",
+	"defense": 0.0,
 	"description": "熔铸龙人残留的鳞甲。攻击 +5，全队减伤 +15%",
-	"flavor": "龙血不冷。只是没人听得到它还在烧。",
 	"equipment_slot": "armor",
-	"price": 0, "quality": "legendary",
-	"defense": 0, "physical_reduction": 0.10, "magic_reduction": 0.10,
-	"slot_count": 1,
-	"modifier": {}, "tags": [],
-	"melt_armor_effect": { "attack_flat": 5, "special_type": "damage_reduction", "special_value": 0.15 },
-	"no_affix": true, "no_fusion": true, "no_sell": true
+	"flavor": "龙血不冷。只是没人听得到它还在烧。",
+	"icon": "item_066",
+	"id": "melt_dragonborn",
+	"magic_reduction": 0.1,
+	"melt_armor_effect": {
+	  "attack_flat": 5.0,
+	  "special_type": "damage_reduction",
+	  "special_value": 0.15
+	},
+	"modifier": {},
+	"name": "残鳞鳞甲",
+	"no_affix": true,
+	"no_fusion": true,
+	"no_sell": true,
+	"physical_reduction": 0.1,
+	"price": 0.0,
+	"quality": "legendary",
+	"slot_count": 1.0,
+	"tags": [],
+	"type": "armor",
+	"use_type": "equipment"
   },
   "melt_mage": {
-	"id": "melt_mage", "name": "残智长袍", "type": "armor", "use_type": "equipment",
-	"icon": "item_012",
+	"defense": 0.0,
 	"description": "熔铸法师残留的长袍。攻击 +5，攻击 +25%",
-	"flavor": "书页被烧掉了。但读过的字，会留在读的人身上。",
 	"equipment_slot": "armor",
-	"price": 0, "quality": "legendary",
-	"defense": 0, "physical_reduction": 0.08, "magic_reduction": 0.10,
-	"slot_count": 1,
-	"modifier": {}, "tags": [],
-	"melt_armor_effect": { "attack_flat": 5, "special_type": "attack_percent", "special_value": 0.25 },
-	"no_affix": true, "no_fusion": true, "no_sell": true
+	"flavor": "书页被烧掉了。但读过的字，会留在读的人身上。",
+	"icon": "item_014",
+	"id": "melt_mage",
+	"magic_reduction": 0.1,
+	"melt_armor_effect": {
+	  "attack_flat": 5.0,
+	  "special_type": "attack_percent",
+	  "special_value": 0.25
+	},
+	"modifier": {},
+	"name": "残智长袍",
+	"no_affix": true,
+	"no_fusion": true,
+	"no_sell": true,
+	"physical_reduction": 0.08,
+	"price": 0.0,
+	"quality": "legendary",
+	"slot_count": 1.0,
+	"tags": [],
+	"type": "armor",
+	"use_type": "equipment"
   },
   "melt_pegasus": {
-	"id": "melt_pegasus", "name": "残风轻羽", "type": "armor", "use_type": "equipment",
-	"icon": "item_009",
+	"defense": 0.0,
 	"description": "熔铸飞马残留的轻羽。攻击 +5，反击伤害 +25%",
-	"flavor": "天马嘶鸣后，风会留下一阵。只有站得近的人能感觉到。",
 	"equipment_slot": "armor",
-	"price": 0, "quality": "legendary",
-	"defense": 0, "physical_reduction": 0.08, "magic_reduction": 0.08,
-	"slot_count": 1,
-	"modifier": {}, "tags": [],
-	"melt_armor_effect": { "attack_flat": 5, "special_type": "counter_damage_bonus", "special_value": 0.25 },
-	"no_affix": true, "no_fusion": true, "no_sell": true
+	"flavor": "天马嘶鸣后，风会留下一阵。只有站得近的人能感觉到。",
+	"icon": "item_005",
+	"id": "melt_pegasus",
+	"magic_reduction": 0.08,
+	"melt_armor_effect": {
+	  "attack_flat": 5.0,
+	  "special_type": "counter_damage_bonus",
+	  "special_value": 0.25
+	},
+	"modifier": {},
+	"name": "残风轻羽",
+	"no_affix": true,
+	"no_fusion": true,
+	"no_sell": true,
+	"physical_reduction": 0.08,
+	"price": 0.0,
+	"quality": "legendary",
+	"slot_count": 1.0,
+	"tags": [],
+	"type": "armor",
+	"use_type": "equipment"
   },
   "melt_spearman": {
-	"id": "melt_spearman", "name": "残锋长枪甲", "type": "armor", "use_type": "equipment",
-	"icon": "item_066",
+	"defense": 0.0,
 	"description": "熔铸枪兵残留的枪甲。攻击 +5，反击伤害 +40%",
-	"flavor": "「向前，不要回头。」刻在枪尖的字，也刻在了甲上。",
 	"equipment_slot": "armor",
-	"price": 0, "quality": "legendary",
-	"defense": 0, "physical_reduction": 0.10, "magic_reduction": 0.08,
-	"slot_count": 1,
-	"modifier": {}, "tags": [],
-	"melt_armor_effect": { "attack_flat": 5, "special_type": "counter_damage_bonus", "special_value": 0.40 },
-	"no_affix": true, "no_fusion": true, "no_sell": true
+	"flavor": "「向前，不要回头。」刻在枪尖的字，也刻在了甲上。",
+	"icon": "item_016",
+	"id": "melt_spearman",
+	"magic_reduction": 0.08,
+	"melt_armor_effect": {
+	  "attack_flat": 5.0,
+	  "special_type": "counter_damage_bonus",
+	  "special_value": 0.4
+	},
+	"modifier": {},
+	"name": "残锋长枪甲",
+	"no_affix": true,
+	"no_fusion": true,
+	"no_sell": true,
+	"physical_reduction": 0.1,
+	"price": 0.0,
+	"quality": "legendary",
+	"slot_count": 1.0,
+	"tags": [],
+	"type": "armor",
+	"use_type": "equipment"
   },
   "melt_swordsman": {
-	"id": "melt_swordsman", "name": "残锋战甲", "type": "armor", "use_type": "equipment",
-	"icon": "item_001",
+	"defense": 0.0,
 	"description": "熔铸剑士残留的战甲。攻击 +5，攻击 +20%",
-	"flavor": "剑还在。剑柄上那块褪色的布也还在。",
 	"equipment_slot": "armor",
-	"price": 0, "quality": "legendary",
-	"defense": 0, "physical_reduction": 0.10, "magic_reduction": 0.08,
-	"slot_count": 1,
-	"modifier": {}, "tags": [],
-	"melt_armor_effect": { "attack_flat": 5, "special_type": "attack_percent", "special_value": 0.20 },
-	"no_affix": true, "no_fusion": true, "no_sell": true
+	"flavor": "剑还在。剑柄上那块褪色的布也还在。",
+	"icon": "item_001",
+	"id": "melt_swordsman",
+	"magic_reduction": 0.08,
+	"melt_armor_effect": {
+	  "attack_flat": 5.0,
+	  "special_type": "attack_percent",
+	  "special_value": 0.2
+	},
+	"modifier": {},
+	"name": "残锋战甲",
+	"no_affix": true,
+	"no_fusion": true,
+	"no_sell": true,
+	"physical_reduction": 0.1,
+	"price": 0.0,
+	"quality": "legendary",
+	"slot_count": 1.0,
+	"tags": [],
+	"type": "armor",
+	"use_type": "equipment"
+  },
+  "phoenix_cloak": {
+	"defense": 0.0,
+	"description": "轻灵的披风，物减 +12%，魔减 +12%，敏捷+2，移动+1",
+	"equipment_slot": "armor",
+	"flavor": "",
+	"icon": "item_009",
+	"id": "phoenix_cloak",
+	"magic_reduction": 0.12,
+	"modifier": {
+	  "dexterity": 2.0,
+	  "move_range": 1.0
+	},
+	"name": "凤凰披风",
+	"physical_reduction": 0.12,
+	"price": 280.0,
+	"quality": "legendary",
+	"slot_count": 1.0,
+	"tags": [
+      "烈焰"
+	],
+	"type": "armor",
+	"use_type": "equipment"
+  },
+  "phoenix_feather": {
+	"defense": 0.0,
+	"description": "熔合产物（烈焰）：击杀时消耗 1 魂火，对相邻敌人造成 3 火焰伤害",
+	"equipment_slot": "armor",
+	"flavor": "",
+	"fusion_effect": "phoenix_flame_splash",
+	"fusion_id": "phoenix_feather",
+	"icon": "item_027",
+	"id": "phoenix_feather",
+	"magic_reduction": 0.08,
+	"modifier": {
+	  "dexterity": 2.0
+	},
+	"name": "烈焰之羽",
+	"physical_reduction": 0.12,
+	"price": 0.0,
+	"quality": "legendary",
+	"slot_count": 1.0,
+	"tags": [
+      "烈焰"
+	],
+	"type": "armor",
+	"use_type": "equipment"
+  },
+  "power_ring": {
+	"defense": 0.0,
+	"description": "力量+2",
+	"equipment_slot": "armor",
+	"flavor": "",
+	"icon": "item_033",
+	"id": "power_ring",
+	"magic_reduction": 0.0,
+	"modifier": {
+	  "strength": 2.0
+	},
+	"name": "力量戒指",
+	"physical_reduction": 0.0,
+	"price": 80.0,
+	"quality": "rare",
+	"slot_count": 1.0,
+	"tags": [
+      "烈焰"
+	],
+	"type": "armor",
+	"use_type": "equipment"
+  },
+  "sacrificial_mask": {
+	"defense": 0.0,
+	"description": "以血为墨，物减 +5%，信仰+1",
+	"equipment_slot": "armor",
+	"flavor": "",
+	"icon": "item_010",
+	"id": "sacrificial_mask",
+	"magic_reduction": 0.0,
+	"modifier": {
+	  "faith": 1.0
+	},
+	"name": "献祭面具",
+	"physical_reduction": 0.05,
+	"price": 85.0,
+	"quality": "rare",
+	"slot_count": 1.0,
+	"tags": [
+      "献祭"
+	],
+	"type": "armor",
+	"use_type": "equipment"
+  },
+  "soul_guardian_plate": {
+	"defense": 0.0,
+	"description": "以魂力浇筑的守护铠甲，物减 +25%，魔减 +20%",
+	"equipment_slot": "armor",
+	"flavor": "",
+	"icon": "item_015",
+	"id": "soul_guardian_plate",
+	"magic_reduction": 0.2,
+	"modifier": {
+	  "faith": 2.0,
+	  "strength": 2.0
+	},
+	"name": "魂守铠",
+	"physical_reduction": 0.25,
+	"price": 320.0,
+	"quality": "legendary",
+	"slot_count": 1.0,
+	"tags": [
+      "守护"
+	],
+	"type": "armor",
+	"use_type": "equipment"
+  },
+  "speed_boots": {
+	"defense": 0.0,
+	"description": "敏捷+1",
+	"equipment_slot": "armor",
+	"flavor": "",
+	"icon": "item_031",
+	"id": "speed_boots",
+	"magic_reduction": 0.0,
+	"modifier": {
+	  "dexterity": 1.0
+	},
+	"name": "疾风靴",
+	"physical_reduction": 0.0,
+	"price": 100.0,
+	"quality": "rare",
+	"slot_count": 1.0,
+	"tags": [
+      "灰烬"
+	],
+	"type": "armor",
+	"use_type": "equipment"
+  },
+  "steel_armor": {
+	"defense": 0.0,
+	"description": "物理减伤 +18%",
+	"equipment_slot": "armor",
+	"flavor": "钢甲。比铁甲冷，比铁甲硬。\n\n穿它的人说：「冷一点好，会醒着。」",
+	"icon": "item_001",
+	"id": "steel_armor",
+	"magic_reduction": 0.0,
+	"modifier": {
+	  "strength": 1.0
+	},
+	"name": "钢甲",
+	"physical_reduction": 0.18,
+	"price": 120.0,
+	"quality": "rare",
+	"slot_count": 1.0,
+	"tags": [
+      "守护"
+	],
+	"type": "armor",
+	"use_type": "equipment"
+  },
+  "traveler_boots": {
+	"defense": 0.0,
+	"description": "物理减伤 +5%，敏捷+1，移动力+1",
+	"equipment_slot": "armor",
+	"flavor": "",
+	"icon": "item_026",
+	"id": "traveler_boots",
+	"magic_reduction": 0.0,
+	"modifier": {
+	  "dexterity": 1.0,
+	  "move_range": 1.0
+	},
+	"name": "旅行靴",
+	"physical_reduction": 0.05,
+	"price": 55.0,
+	"quality": "rare",
+	"slot_count": 1.0,
+	"tags": [
+      "灰烬"
+	],
+	"type": "armor",
+	"use_type": "equipment"
+  },
+  "undying_ember": {
+	"defense": 0.0,
+	"description": "熔合产物（献祭）：每回合开始若魂火 = 0，+1 魂火",
+	"equipment_slot": "armor",
+	"flavor": "",
+	"fusion_effect": "sacrifice_zero_recover",
+	"fusion_id": "undying_ember",
+	"icon": "item_072",
+	"id": "undying_ember",
+	"magic_reduction": 0.15,
+	"modifier": {
+	  "faith": 3.0
+	},
+	"name": "不灭余烬",
+	"physical_reduction": 0.08,
+	"price": 0.0,
+	"quality": "legendary",
+	"slot_count": 1.0,
+	"tags": [
+      "献祭"
+	],
+	"type": "armor",
+	"use_type": "equipment"
+  },
+  "wooden_shield": {
+	"defense": 0.0,
+	"description": "物理减伤 +10%",
+	"equipment_slot": "armor",
+	"flavor": "木盾。木头是从某个村庄的老树上砍的。\n\n村里的人不知道。",
+	"icon": "item_075",
+	"id": "wooden_shield",
+	"magic_reduction": 0.0,
+	"modifier": {},
+	"name": "木盾",
+	"physical_reduction": 0.1,
+	"price": 30.0,
+	"quality": "common",
+	"slot_count": 1.0,
+	"tags": [
+      "守护"
+	],
+	"type": "armor",
+	"use_type": "equipment"
   }
 }

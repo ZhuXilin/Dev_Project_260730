@@ -94,6 +94,8 @@ func setup(path : String, title : String = ""):
 	_path = path
 	_scan_item_icons()
 	_apply_compact_theme()
+	# v5.4：像素图（16x16 item 图标）必须用最近邻过滤，否则窗口 2x 缩放下线性过滤发糊
+	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	if title != "":
 		var lb := Label.new()
 		lb.text = title
@@ -161,7 +163,9 @@ func _apply_compact_theme():
 	t.set_constant("item_end_padding", "PopupMenu", 3)
 	t.set_constant("v_separation", "PopupMenu", 0)
 	t.set_constant("h_separation", "PopupMenu", 0)
-	t.set_constant("icon_max_width", "PopupMenu", 6)
+	# v5.4：item 图标为 16x16 像素图，popup 宽度限制须等于真实像素，
+	# 否则 6 会缩小、18 会放大，两者都让最近邻像素图变糊。
+	t.set_constant("icon_max_width", "PopupMenu", 16)
 
 	var popup_panel := StyleBoxFlat.new()
 	popup_panel.bg_color = Color(0.13, 0.13, 0.16, 1)
@@ -273,6 +277,29 @@ func _build_ui():
 	list_title.modulate = Color(0.7, 0.8, 1.0)
 	_list_panel.add_child(list_title)
 
+	# v5.4：参考单位编辑界面——刷新/新建/保存直接放在条目列表上方，保存途径一目了然
+	var list_btns := HBoxContainer.new()
+	list_btns.add_theme_constant_override("separation", 3)
+	_list_panel.add_child(list_btns)
+
+	var refresh_btn := Button.new()
+	refresh_btn.text = "刷新"
+	refresh_btn.modulate = Color(0.8, 0.9, 1.0)
+	refresh_btn.pressed.connect(_load)
+	list_btns.add_child(refresh_btn)
+
+	var add_btn := Button.new()
+	add_btn.text = "+ 新建"
+	add_btn.modulate = Color(0.6, 1.0, 0.6)
+	add_btn.pressed.connect(_on_new_record_pressed)
+	list_btns.add_child(add_btn)
+
+	var list_save_btn := Button.new()
+	list_save_btn.text = "保存"
+	list_save_btn.modulate = Color(0.7, 1.0, 0.7)
+	list_save_btn.pressed.connect(_save)
+	list_btns.add_child(list_save_btn)
+
 	var l_scroll := ScrollContainer.new()
 	l_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	l_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
@@ -364,7 +391,8 @@ func _rebuild_record_list():
 			var tex : Texture2D = IconManager.get_icon_or_null(_normalize_icon_id(icon_id))
 			if tex:
 				btn.icon = tex
-				btn.add_theme_constant_override("icon_max_width", 14)
+				# 与底部图标选择器统一：16x16 像素图按真实像素显示，避免缩放发糊
+				btn.add_theme_constant_override("icon_max_width", 16)
 
 		btn.pressed.connect(_select_record.bind(key))
 		_list_vbox.add_child(btn)
@@ -412,6 +440,135 @@ func _save():
 	_dirty = false
 	_set_status("✓ 已保存")
 	saved.emit(_path)
+
+
+# ============================================================
+#  v5.4：新建条目（参考单位编辑界面的新建弹窗）
+# ============================================================
+func _on_new_record_pressed():
+	if _record_keys.is_empty():
+		_set_status("❌ 当前文件不是记录字典结构，无法新建条目")
+		return
+	if get_node_or_null("NewRecordOverlay"):
+		return
+
+	# 挂到最顶层 Control 上，保证遮罩覆盖整个编辑器窗口（VBox 内 anchors 无效）
+	var top : Control = self
+	while top.get_parent() is Control:
+		top = top.get_parent() as Control
+
+	var overlay := Control.new()
+	overlay.name = "NewRecordOverlay"
+	overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+	overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+	top.add_child(overlay)
+
+	var bg := ColorRect.new()
+	bg.color = Color(0, 0, 0, 0.7)
+	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
+	overlay.add_child(bg)
+
+	var panel := PanelContainer.new()
+	panel.set_anchors_preset(Control.PRESET_CENTER)
+	panel.offset_left = -150
+	panel.offset_right = 150
+	panel.offset_top = -80
+	panel.offset_bottom = 80
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(0.12, 0.12, 0.15, 1)
+	sb.border_color = Color(0.4, 0.4, 0.5, 1)
+	sb.set_border_width_all(1)
+	sb.set_corner_radius_all(4)
+	sb.content_margin_left = 14
+	sb.content_margin_right = 14
+	sb.content_margin_top = 12
+	sb.content_margin_bottom = 12
+	panel.add_theme_stylebox_override("panel", sb)
+	overlay.add_child(panel)
+
+	var vbox := VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 6)
+	panel.add_child(vbox)
+
+	var title := Label.new()
+	title.text = "新建条目（%s）" % _path.get_file().get_basename()
+	title.add_theme_font_size_override("font_size", FS_PANEL)
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vbox.add_child(title)
+
+	var id_row := HBoxContainer.new()
+	id_row.add_theme_constant_override("separation", 6)
+	vbox.add_child(id_row)
+	var id_lb := Label.new()
+	id_lb.text = "唯一ID:"
+	id_lb.custom_minimum_size = Vector2(52, 0)
+	id_lb.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	id_row.add_child(id_lb)
+	var le := LineEdit.new()
+	le.placeholder_text = "例如: item_new_1"
+	le.custom_minimum_size = Vector2(0, 20)
+	le.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	le.select_all_on_focus = true
+	id_row.add_child(le)
+
+	var tpl_row := HBoxContainer.new()
+	tpl_row.add_theme_constant_override("separation", 6)
+	vbox.add_child(tpl_row)
+	var tpl_lb := Label.new()
+	tpl_lb.text = "模板:"
+	tpl_lb.custom_minimum_size = Vector2(52, 0)
+	tpl_lb.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	tpl_row.add_child(tpl_lb)
+	var opt := OptionButton.new()
+	opt.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	opt.add_theme_font_size_override("font_size", FS_BUTTON)
+	tpl_row.add_child(opt)
+	# ★ 第一项：空白条目；其余：复制现有条目
+	opt.add_item("★ 空白条目（只有 id）")
+	opt.set_item_metadata(opt.item_count - 1, "")
+	for k in _record_keys:
+		var d : Dictionary = _cfg[k]
+		var nm : String = str(d.get("name", d.get("display_name", k)))
+		opt.add_item("复制：%s (%s)" % [nm, k])
+		opt.set_item_metadata(opt.item_count - 1, k)
+	opt.selected = 0
+
+	var btn_row := HBoxContainer.new()
+	btn_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	btn_row.add_theme_constant_override("separation", 8)
+	vbox.add_child(btn_row)
+
+	var cancel_btn := Button.new()
+	cancel_btn.text = "取消"
+	cancel_btn.pressed.connect(func(): overlay.queue_free())
+	btn_row.add_child(cancel_btn)
+
+	var create_btn := Button.new()
+	create_btn.text = "创建"
+	create_btn.modulate = Color(0.6, 1.0, 0.6)
+	create_btn.pressed.connect(func():
+		var new_id : String = le.text.strip_edges()
+		if new_id == "":
+			_set_status("❌ 请输入唯一 ID")
+			return
+		if _cfg.has(new_id):
+			_set_status("❌ ID 已存在：%s" % new_id)
+			return
+		var tpl_key : String = str(opt.get_item_metadata(opt.selected))
+		var new_data : Dictionary = {}
+		if tpl_key != "" and _cfg.has(tpl_key) and _cfg[tpl_key] is Dictionary:
+			new_data = (_cfg[tpl_key] as Dictionary).duplicate(true)
+		new_data["id"] = new_id
+		_cfg[new_id] = new_data
+		_current_record_key = new_id
+		_dirty = true
+		_refresh()
+		_set_status("✓ 已创建 %s（改动尚未落盘，请点保存）" % new_id)
+		overlay.queue_free()
+	)
+	btn_row.add_child(create_btn)
+
+	le.text_submitted.connect(func(_t): create_btn.emit_signal("pressed"))
 
 
 func _set_status(text : String):
@@ -663,6 +820,13 @@ func _scan_item_icons():
 	_item_icon_ids.sort()
 
 
+func _is_icon_picker_file() -> bool:
+	# v5.5：防具 / 遗物 / 特技三个数据文件的 icon 字段都用 item_* 图标下拉
+	return _path.contains("item_data") \
+		or _path.contains("relic_data") \
+		or _path.contains("talents")
+
+
 func _render_icon_picker_row(row : HBoxContainer, target_dict : Dictionary, key : String, current : String):
 	# 归一化当前值：允许 "item_005" / "item_005.png" / 完整 res:// 路径
 	var current_id : String = _normalize_icon_id(current)
@@ -671,10 +835,11 @@ func _render_icon_picker_row(row : HBoxContainer, target_dict : Dictionary, key 
 	opt.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	opt.custom_minimum_size = Vector2(120, 0)
 	opt.add_theme_font_size_override("font_size", FS_BUTTON)
-	opt.add_theme_constant_override("icon_max_width", 18)
+	# v5.4：与 16x16 真实像素一致，不放大不缩小
+	opt.add_theme_constant_override("icon_max_width", 16)
 	var popup := opt.get_popup()
 	if popup:
-		popup.add_theme_constant_override("icon_max_width", 18)
+		popup.add_theme_constant_override("icon_max_width", 16)
 
 	var selected_idx : int = 0
 	opt.add_item("（无）", 0)
@@ -722,6 +887,8 @@ func _render_icon_picker_row(row : HBoxContainer, target_dict : Dictionary, key 
 		_dirty = true
 		var tex : Texture2D = IconManager.get_icon_or_null(v) if v != "" else null
 		preview.texture = tex
+		# v5.5：改图标后立即刷新左侧条目列表的图标显示（防具/遗物/特技通用）
+		_rebuild_record_list()
 	)
 
 
@@ -771,7 +938,8 @@ func _render_simple_row(parent : Node, target_dict : Dictionary, key : String, v
 			row.add_child(cb)
 		TYPE_STRING:
 			# ★ v5.1：icon 字段做成图片下拉 + 预览（仿单位 avatar 配置体验）
-			if key == "icon" and _path.find("item_data") >= 0:
+			# v5.5：防具/遗物/特技的 icon 都走 item_* 图标下拉，不再只限防具
+			if key == "icon" and _is_icon_picker_file():
 				_render_icon_picker_row(row, target_dict, key, str(value))
 			# ★ 如果是 flavor（叙事），使用多行 TextEdit，并修复左侧 Label 被挤压的问题
 			elif key == "flavor":

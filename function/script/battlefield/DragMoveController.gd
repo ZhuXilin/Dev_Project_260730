@@ -521,16 +521,20 @@ func _is_target_in_range(target : Unit) -> bool:
 	var s = unit.unit_stats
 	if s.weapon_name == "": return false
 
+	# 与 CombatManager.get_attackable_targets 保持同一口径：就绪主动技能的
+	# range_bonus 会临时扩大可攻击范围（如「狙击」+2、「龙息」+1）。
+	var skill_bonus : int = CombatManager.get_active_skill_range_bonus(unit)
+
 	if target.unit_stats.team_id == unit.unit_stats.team_id:
 		if s.weapon_category == "staff":
-			var max_range : int = s.attack_range + unit.bonus_attack_range
+			var max_range : int = s.attack_range + unit.bonus_attack_range + skill_bonus
 			var dist = abs(unit.grid_cell.x - target.grid_cell.x) + abs(unit.grid_cell.y - target.grid_cell.y)
 			return dist >= s.min_attack_range and dist <= max_range
 		else:
 			var dist = abs(unit.grid_cell.x - target.grid_cell.x) + abs(unit.grid_cell.y - target.grid_cell.y)
 			return dist <= 1
 	else:
-		var max_range : int = s.attack_range + unit.bonus_attack_range
+		var max_range : int = s.attack_range + unit.bonus_attack_range + skill_bonus
 		var dist = abs(unit.grid_cell.x - target.grid_cell.x) + abs(unit.grid_cell.y - target.grid_cell.y)
 		return dist >= s.min_attack_range and dist <= max_range
 
@@ -653,7 +657,10 @@ func _do_move_and_attack_async(unit : Unit, path : Array, target : Unit):
 		if s.weapon_name != "":
 			var dist = abs(unit.grid_cell.x - target.grid_cell.x) \
 					+ abs(unit.grid_cell.y - target.grid_cell.y)
-			if dist >= s.min_attack_range and dist <= (s.attack_range + unit.bonus_attack_range):
+			# ★ v5.9：移动后攻击也要算上就绪主动技能的射程加成（狙击 +2）
+			var max_r : int = s.attack_range + unit.bonus_attack_range \
+					+ CombatManager.get_active_skill_range_bonus(unit)
+			if dist >= s.min_attack_range and dist <= max_r:
 				_show_attack_menu(unit, target, true)
 
 
@@ -735,6 +742,24 @@ func _show_attack_menu(attacker: Unit, target: Unit, _is_after_move: bool) -> vo
 	if not target_is_ally and sf_cost >= 3:
 		sf_burst_available = true
 
+	# 目标只因主动技能 range_bonus 才可达时（如狙击 +2），禁用普攻与魂火爆发，
+	# 并且只保留射程加成足以覆盖该距离的技能，避免越距普攻。
+	if not target_is_ally:
+		var atk_s = attacker.unit_stats
+		var base_max : int = atk_s.attack_range + attacker.bonus_attack_range
+		var dist : int = abs(attacker.grid_cell.x - target.grid_cell.x) \
+			+ abs(attacker.grid_cell.y - target.grid_cell.y)
+		if dist > base_max or dist < atk_s.min_attack_range:
+			normal_attack_available = false
+			normal_available = normal_heal_available
+			sf_burst_available = false
+			var ranged_skills : Array = []
+			for sd in available_skills:
+				var bonus : int = int(sd.effect_params.get("range_bonus", 0))
+				if base_max + bonus >= dist:
+					ranged_skills.append(sd)
+			available_skills = ranged_skills
+
 	var total_options : int = 0
 	if normal_available: total_options += 1
 	total_options += available_skills.size()
@@ -748,6 +773,17 @@ func _show_attack_menu(attacker: Unit, target: Unit, _is_after_move: bool) -> vo
 				SignalBus.request_hint_override.emit("目标未受伤", 1.0)
 			else:
 				SignalBus.request_hint_override.emit("魂火不足", 1.0)
+			return
+		# ★ v5.9：目标只因技能射程加成才够得着、但魂火不足或技能未就绪时，
+		#   不能静默回退成普通攻击（会越距且看不出魂火是否消耗）。
+		var atk_s0 = attacker.unit_stats
+		var base_max0 : int = atk_s0.attack_range + attacker.bonus_attack_range
+		var dist0 : int = abs(attacker.grid_cell.x - target.grid_cell.x) \
+			+ abs(attacker.grid_cell.y - target.grid_cell.y)
+		if dist0 > base_max0:
+			SoundManager.play_cancel_sound()
+			SignalBus.request_hint_override.emit("魂火不足或技能未就绪，无法远程攻击", 1.2)
+			_on_attack_canceled(attacker)
 			return
 		call_deferred("_do_combat_async", attacker, target, "")
 		return
@@ -797,18 +833,20 @@ func _show_attack_menu(attacker: Unit, target: Unit, _is_after_move: bool) -> vo
 
 	for sdata in available_skills:
 		var ep : Dictionary = sdata.effect_params
+		# ★ v5.9：技能项明确标出魂火消耗，与急救/魂火爆发口径一致
+		var skill_cost : int = CombatManager._get_active_skill_cost(sdata)
 		var skill_text = sdata.display_name
 		if sdata.effect_type == "heal" or ep.has("heal_multiplier"):
 			var mult = float(ep.get("heal_multiplier", 1.0))
 			var est_heal = int(CombatManager.get_expected_heal_amount(attacker, target) * mult)
-			skill_text += " (回复: %d)" % est_heal
+			skill_text += " (回复: %d，耗%d魂火)" % [est_heal, skill_cost]
 		else:
 			var est_dmg = CombatManager.calculate_damage(attacker, target)
 			if ep.get("ignore_defense", false):
 				est_dmg = CombatManager._calculate_damage_ignore_defense(attacker, target, false)
 			var mult = float(ep.get("damage_mult", 1.0))
 			est_dmg = int(est_dmg * mult)
-			skill_text += " (伤害: %d)" % est_dmg
+			skill_text += " (伤害: %d，耗%d魂火)" % [est_dmg, skill_cost]
 			
 		popup.add_item(skill_text, next_id)
 		meta_by_id[next_id] = {"kind": "attack", "skill_id": sdata.id}

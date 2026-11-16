@@ -76,10 +76,12 @@ size_flags_vertical = 0
 theme_override_constants/separation = 2
 
 [node name="RelicTitle" type="Label" parent="MainPanel/VBoxContainer/MainHBox/LeftInfoColumn/RelicSection" unique_id=1515137034]
+custom_minimum_size = Vector2(0, 0)
 layout_mode = 2
 theme_override_font_sizes/font_size = 6
-text = "───── 团队遗物装备 ─────"
+text = "── 团队遗物 ──"
 horizontal_alignment = 1
+clip_text = true
 
 [node name="RelicContainer" type="HBoxContainer" parent="MainPanel/VBoxContainer/MainHBox/LeftInfoColumn/RelicSection" unique_id=1750737001]
 layout_mode = 2

@@ -314,6 +314,18 @@ func _get_active_skill_cost(sdata) -> int:
 	if sdata.effect_type == "heal": return SoulFireManager.COST_SKILL_MAX
 	return SoulFireManager.COST_SKILL_MIN
 
+
+## 主动技能结算：把就绪状态转为冷却。
+## 魂火已在 execute_attack 技能确认时预扣（v5.9），此处不再重复扣，
+## 否则会二次扣费、且被命中/击杀收益抵消成"看不到消耗"。
+## 击杀 / 攻击者阵亡等分支会提前 return，必须在每条 return 路径显式调用，
+## 否则技能不进冷却，可无限连发（v5.8 修复）。
+func _settle_active_skill(attacker: Unit, skill_id: String, sdata) -> void:
+	if skill_id == "" or sdata == null:
+		return
+	if is_instance_valid(attacker):
+		TalentManager.consume_active_skill(attacker, skill_id)
+
 func _try_boss_revive(defender : Unit, _attacker : Unit) -> bool:
 	if not BossMechanicManager.on_boss_defeated(defender): return false
 	SignalBus.request_screen_shake.emit(0.4, 8.0, Vector2.ZERO)
@@ -350,8 +362,10 @@ func execute_attack(attacker: Unit, defender: Unit, forced_skill_id: String = ""
 	# if attacker.unit_stats.team_id == 0:
 	#     SoulFireManager.add(1)
 
-	await _play_lunge_attack(attacker, defender)
-
+	# ★ v5.9：主动技能先确认并预扣魂火，再播放攻击动画。
+	#   旧实现在攻击结算末尾才扣，而命中(+1)/击杀(+3)收益在它之前结算：
+	#   狙击这类高伤技能经常直接击杀，+3 正好抵消 -3，魂火条看起来完全没变。
+	#   前移后 HUD 会先减少，之后命中/击杀再补回，玩家能明确看到消耗。
 	var has_skill : bool = false
 	var active_skill_id : String = ""
 	var active_skill_data = null
@@ -375,8 +389,15 @@ func execute_attack(attacker: Unit, defender: Unit, forced_skill_id: String = ""
 					active_skill_id = forced_skill_id
 					active_skill_data = sdata
 					has_skill = true
+					SoulFireManager.spend(cost)
+					SignalBus.request_hint_override.emit(
+						"%s 消耗 %d 魂火" % [sdata.display_name, cost], 1.2)
 				else:
 					print("[主动技能] %s 魂火不足" % attacker.unit_stats.unit_name)
+					SignalBus.request_hint_override.emit(
+						"魂火不足（需 %d），本次改为普通攻击" % cost, 1.2)
+
+	await _play_lunge_attack(attacker, defender)
 
 	var s = attacker.unit_stats
 	var heavy_mult : float = 1.0
@@ -555,6 +576,7 @@ func execute_attack(attacker: Unit, defender: Unit, forced_skill_id: String = ""
 			# ★ v5.0：boss 变形复活 → 算命中不算击杀
 			if attacker.unit_stats.team_id == 0:
 				SoulFireManager.on_hit(1)
+			_settle_active_skill(attacker, active_skill_id, active_skill_data)
 			_finish_attack(attacker, defender)
 			Globals.is_performing_action = false
 			return true
@@ -564,6 +586,7 @@ func execute_attack(attacker: Unit, defender: Unit, forced_skill_id: String = ""
 		await _play_death_animation(defender)
 		UnitManager.unregister_unit(defender)
 		defender.queue_free()
+		_settle_active_skill(attacker, active_skill_id, active_skill_data)
 		if cleave_triggered:
 			_show_menu_after_action(attacker)
 			Globals.is_performing_action = false
@@ -573,6 +596,7 @@ func execute_attack(attacker: Unit, defender: Unit, forced_skill_id: String = ""
 		return true
 
 	if not _is_alive(attacker):
+		_settle_active_skill(attacker, active_skill_id, active_skill_data)
 		Globals.is_performing_action = false
 		return true
 
@@ -587,8 +611,7 @@ func execute_attack(attacker: Unit, defender: Unit, forced_skill_id: String = ""
 				if e and e.unit_stats.team_id != attacker.unit_stats.team_id and e.hit_points > 0:
 					e.taunt_by = attacker
 					e.taunt_rounds_left = taunt_rounds
-		TalentManager.consume_active_skill(attacker, active_skill_id)
-		SoulFireManager.spend(_get_active_skill_cost(active_skill_data))
+		_settle_active_skill(attacker, active_skill_id, active_skill_data)
 
 	if TalentManager.is_talent_ready(attacker, "lifesteal"):
 		var lv_ls = _get_effective_talent_level(attacker, "lifesteal")
@@ -778,6 +801,11 @@ func _execute_heal(attacker: Unit, defender: Unit, forced_skill_id: String = "")
 							SignalBus.request_damage_popup.emit(u.global_position, real, false, false, true)
 					TalentManager.consume_active_skill(attacker, forced_skill_id)
 					SoulFireManager.spend(cost)
+					SignalBus.request_hint_override.emit(
+						"%s 消耗 %d 魂火" % [skill_data.display_name, cost], 1.2)
+				else:
+					SignalBus.request_hint_override.emit(
+						"魂火不足（需 %d），%s 未发动" % [cost, skill_data.display_name], 1.2)
 
 	await get_tree().create_timer(PERFORMANCE_DURATION, true, false, true).timeout
 

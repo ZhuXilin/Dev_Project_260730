@@ -9,11 +9,10 @@
 		"name": "神射手",
 		"sprite_frames_path": "res://content/images/characters/unit_sniper_frames.tres",
 		"stat_bonus": {
-		  "dexterity": 4.0,
-		  "max_hp": 3.0
+		  "dexterity": 4,
+		  "max_hp": 3
 		},
 		"tags": [
-		  "物理",
           "灰烬"
 		]
 	  },
@@ -25,55 +24,56 @@
 		"name": "猎杀者",
 		"sprite_frames_path": "res://content/images/characters/unit_archer_frames.tres",
 		"stat_bonus": {
-		  "dexterity": 3.0,
-		  "max_hp": 4.0,
-		  "strength": 2.0
+		  "dexterity": 3,
+		  "max_hp": 4,
+		  "strength": 2
 		},
-		"tags": [
-          "物理"
-		]
+		"tags": []
 	  }
 	],
-	"arena_exp": 30.0,
+	"arena_exp": 30,
 	"attack": 4.0,
 	"attack_range": 3.0,
 	"attack_style": "ranged",
 	"attr_cap_levels": [
 	  {
-		"dexterity": 1.0,
-		"vitality": 1.0
+		"dexterity": 1,
+		"vitality": 1
 	  },
 	  {
-		"dexterity": 2.0
+		"dexterity": 2
 	  },
 	  {
-		"dexterity": 1.0,
-		"strength": 1.0,
-		"vitality": 1.0
+		"dexterity": 1,
+		"strength": 1,
+		"vitality": 1
 	  },
 	  {
-		"dexterity": 2.0,
-		"vitality": 1.0
+		"dexterity": 2,
+		"vitality": 1
 	  },
 	  {
-		"dexterity": 3.0,
-		"vitality": 2.0
+		"dexterity": 3,
+		"vitality": 2
 	  }
 	],
 	"avatar": "avatar_013",
+	"default_armors": [],
 	"default_talents": [
       "crit"
 	],
 	"description": "远程物理单位，可攻击远处敌人。",
-	"dexterity": 9.0,
+	"dexterity": 9,
 	"display_name": "莉安娜",
 	"faction": "王国",
-	"faith": 2.0,
+	"faith": 2,
 	"flavor": "莉安娜闭着眼射箭。不是装的，是真射得好。\n\n她说：眼睛会骗人，风不会。",
 	"heal_effect": {},
 	"heavy_attack": {},
+	"hidden_from_roster": false,
 	"ignore_terrain_cost": false,
-	"intelligence": 2.0,
+	"intelligence": 2,
+	"is_boss": false,
 	"level_mechanics": [
 	  {},
 	  {},
@@ -86,13 +86,14 @@
 	"magic_attack": {},
 	"magic_penetration": 0.0,
 	"magic_reduction": 0.05,
-	"max_hp": 28.0,
-	"max_talent_slots": 1.0,
+	"max_armor_slots": 2,
+	"max_hp": 28,
+	"max_talent_slots": 1,
 	"min_attack_range": 2.0,
 	"modifier": {
 	  "dexterity": 0.7
 	},
-	"move_range": 5.0,
+	"move_range": 5,
 	"physical_penetration": 0.0,
 	"physical_reduction": 0.12,
 	"sacrifice_buff": {
@@ -101,11 +102,11 @@
 	  "value": 0.2
 	},
 	"sprite_frames_path": "res://content/images/characters/unit_crossbow_frames.tres",
-	"strength": 4.0,
+	"strength": 4,
 	"tags": [
-	  "物理",
       "灰烬"
 	],
+	"unit_name": "archer",
 	"weapon_category": "bow",
 	"weapon_name": "长弓",
 	"weapon_quality": "rare"
@@ -341,7 +342,7 @@
 	"weapon_quality": "rare"
   },
   "boss_dragonlord": {
-	"arena_exp": 30,
+	"arena_exp": 30.0,
 	"attack": 3.0,
 	"attack_range": 4.0,
 	"attack_style": "magic",
@@ -362,16 +363,16 @@
 	"default_armors": [],
 	"default_talents": [],
 	"description": "",
-	"dexterity": 6,
+	"dexterity": 6.0,
 	"display_name": "深渊龙主",
 	"faction": "龙族",
-	"faith": 4,
+	"faith": 4.0,
 	"flavor": "",
 	"heal_effect": {},
 	"heavy_attack": {},
 	"hidden_from_roster": false,
 	"ignore_terrain_cost": false,
-	"intelligence": 8,
+	"intelligence": 8.0,
 	"is_boss": true,
 	"level_mechanics": [
 	  {},
@@ -385,21 +386,21 @@
 	},
 	"magic_penetration": 0.35,
 	"magic_reduction": 0.15,
-	"max_armor_slots": 2,
-	"max_hp": 120,
-	"max_talent_slots": 1,
+	"max_armor_slots": 2.0,
+	"max_hp": 120.0,
+	"max_talent_slots": 1.0,
 	"min_attack_range": 1.0,
 	"modifier": {
 	  "intelligence": 0.23
 	},
-	"move_range": 3,
+	"move_range": 3.0,
 	"phases": [
 	  {
 		"form_unit_id": "",
 		"hp_mode": "keep_ratio",
 		"mechanic_id": "",
 		"mechanic_params": {},
-		"min_hp": 1,
+		"min_hp": 1.0,
 		"override": {},
 		"preserve_buffs": true,
 		"reset_turn_state": true,
@@ -414,7 +415,7 @@
 		  "damage_reduction": 0.5,
 		  "max_stacks": 3.0
 		},
-		"min_hp": 1,
+		"min_hp": 1.0,
 		"override": {},
 		"preserve_buffs": true,
 		"reset_turn_state": false,
@@ -425,7 +426,7 @@
 	"physical_penetration": 0.0,
 	"physical_reduction": 0.15,
 	"sprite_frames_path": "res://content/images/characters/unit_dragonborn_frames.tres",
-	"strength": 12,
+	"strength": 12.0,
 	"tags": [
       "余烬"
 	],

@@ -15,7 +15,7 @@
   "affix_cycle_regen": {"id": "affix_cycle_regen", "name": "轮回", "description": "每回合回复 {v}% 最大 HP", "type": "turn_regen", "value_min": 3, "value_max": 6, "min_quality": "epic", "tags": ["轮回"]},
   "affix_pierce_magic": {"id": "affix_pierce_magic", "name": "奥术穿透", "description": "魔法穿透 +{v}%", "type": "magic_penetration", "value_min": 5, "value_max": 10, "min_quality": "epic", "tags": ["轮回"]},
 
-  "affix_anti_crit": {"id": "affix_anti_crit", "name": "坚韧", "description": "受到暴击伤害 -{v}%", "type": "anti_crit", "value_min": 20, "value_max": 40, "min_quality": "common", "tags": ["守护"]},
+  "affix_anti_crit": {"id": "affix_anti_crit", "name": "抗暴", "description": "受到暴击伤害 -{v}%", "type": "anti_crit", "value_min": 20, "value_max": 40, "min_quality": "common", "tags": ["守护"]},
   "affix_counter": {"id": "affix_counter", "name": "反击", "description": "反击伤害 +{v}%", "type": "counter", "value_min": 15, "value_max": 40, "min_quality": "epic", "tags": ["守护"]},
   "affix_guard_shield": {"id": "affix_guard_shield", "name": "护盾", "description": "战斗开始获得 {v} 点护盾", "type": "start_shield", "value_min": 2, "value_max": 5, "min_quality": "epic", "tags": ["守护"]},
 

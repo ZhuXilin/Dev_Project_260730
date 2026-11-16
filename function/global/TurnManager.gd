@@ -38,16 +38,29 @@ func _on_unit_removed(unit: Unit, team: int):
 	check_victory()
 	
 
+## 后续波次单位在激活前被 WaveManager 隐藏（visible=false / PROCESS_MODE_DISABLED），
+## 但 hit_points 仍是满的。统计存活敌人时必须排除它们，否则首波全灭后 enemy_count
+## 恒 > 0：既不推进下一波、也不触发胜利，战斗永久卡死（v5.8 修复）。
+static func _is_active_enemy(u) -> bool:
+	return u.visible and u.process_mode != Node.PROCESS_MODE_DISABLED
+
+
 func check_victory():
 	if not _battle_ready: return
 	var player_count = 0
-	var enemy_count = 0
+	var enemy_count = 0                 # 已激活敌人：用于「敌人全灭 / 推进下一波」
+	var total_enemy_count = 0           # 含未激活波次：用于「玩家全灭」判定
 	for u in UnitManager.unit_list:
-		if u.hit_points > 0:
-			if u.unit_stats.team_id == 0: player_count += 1
-			else: enemy_count += 1
-			
-	if player_count == 0 and enemy_count == 0: return
+		if not is_instance_valid(u): continue
+		if u.hit_points <= 0: continue
+		if u.unit_stats.team_id == 0:
+			player_count += 1
+		else:
+			total_enemy_count += 1
+			if _is_active_enemy(u):
+				enemy_count += 1
+
+	if player_count == 0 and total_enemy_count == 0: return
 	if player_count == 0:
 		_trigger_victory(1)
 		return
@@ -65,7 +78,8 @@ func check_victory():
 				# 刷新后再次检查是否已有新敌人出场
 				var new_enemy_count = 0
 				for u in UnitManager.unit_list:
-					if u.hit_points > 0 and u.unit_stats.team_id == 1:
+					if not is_instance_valid(u): continue
+					if u.unit_stats.team_id == 1 and u.hit_points > 0 and _is_active_enemy(u):
 						new_enemy_count += 1
 				
 				if new_enemy_count > 0:

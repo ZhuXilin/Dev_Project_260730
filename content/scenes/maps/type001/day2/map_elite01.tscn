@@ -16,7 +16,6 @@ position = Vector2(112, 112)
 script = ExtResource("2_jb1u7")
 team = 1
 unit_name = "cleric"
-immobile = true
 metadata/_custom_type_script = "uid://cjvddjaj43chx"
 
 [node name="Enemy02" type="Node2D" parent="." unique_id=801576404]

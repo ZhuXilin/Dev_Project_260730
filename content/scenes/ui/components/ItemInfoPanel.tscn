@@ -15,10 +15,11 @@ theme_override_constants/separation = 4
 
 [node name="NameLabel" type="Label" parent="VBox" unique_id=1413592662]
 layout_mode = 2
-theme_override_font_sizes/font_size = 10
+theme_override_font_sizes/font_size = 8
 text = "物品名称"
 horizontal_alignment = 1
 autowrap_mode = 3
+clip_text = true
 
 [node name="TypeLabel" type="Label" parent="VBox" unique_id=424158476]
 layout_mode = 2

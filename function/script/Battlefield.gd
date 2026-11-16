@@ -60,6 +60,11 @@ const DOUBLE_CLICK_MS: int = 300
 var _input_lock_watchdog_ms : int = 0
 const INPUT_LOCK_WATCHDOG_TIMEOUT_MS : int = 12000
 
+# v5.2 战斗就绪看门狗：_ready() 的 await 链若在导出包里因资源加载/信号竞态挂起，
+# is_battle_ready() 会恒为 false，原看门狗在该分支直接 return，导致输入永久锁死。
+var _battle_ready_watchdog_ms : int = 0
+const BATTLE_READY_WATCHDOG_TIMEOUT_MS : int = 12000
+
 var _blood_orbs : Dictionary = {}   # cell -> Node2D
 const BLOOD_ORB_ICON_ID : String = "item_089"
 const BLOOD_ORB_HEAL_PERCENT : float = 0.10
@@ -653,8 +658,31 @@ func _process(_delta):
 func _watchdog_check_input_lock() -> void:
 	# 只在玩家回合 + 战斗已就绪时监督
 	if not TurnManager.is_battle_ready():
-		_input_lock_watchdog_ms = 0
+		# v5.2 兜底：导出包里 _ready() 的 await 链（Boss 对话/UI 清理）
+		# 可能因资源加载时序差异挂起，start_turn() 永远执行不到。
+		# 原逻辑在此直接 return，使「未就绪」成为永久锁死状态且看门狗永不介入。
+		# 这里按真实时间计时，超时后强制解锁并进入玩家回合。
+		var now_ms : int = Time.get_ticks_msec()
+		if _battle_ready_watchdog_ms == 0:
+			_battle_ready_watchdog_ms = now_ms
+			return
+		if now_ms - _battle_ready_watchdog_ms < BATTLE_READY_WATCHDOG_TIMEOUT_MS:
+			return
+		push_warning("[Battlefield] 战斗就绪看门狗触发：导出环境 await 链超时，强制进入玩家回合")
+		Globals.is_dialogue_active = false
+		Globals.is_item_get_popup_active = false
+		Globals.is_fading = false
+		Globals.is_transitioning = false
+		Globals.is_performing_action = false
+		if _cursor_controller:
+			_cursor_controller.set_locked(false)
+		if _turn_controller:
+			_turn_controller.force_unlock()
+		TurnManager.start_turn(TurnManager.Team.PLAYER)
+		_battle_ready_watchdog_ms = 0
 		return
+
+	_battle_ready_watchdog_ms = 0
 	if TurnManager.is_game_over:
 		_input_lock_watchdog_ms = 0
 		return
@@ -1393,14 +1421,17 @@ func _await_dialogue_with_timeout(timeout_sec: float = 6.0) -> void:
 	# 场景 2：进入时对话已经结束，直接返回，不再等待
 	if not Globals.is_dialogue_active:
 		return
-	var finished : bool = false
-	var on_finished := func(): finished = true
+	# v5.5：GDScript 的 lambda 捕获是「按值」的，在 lambda 里给外部局部变量赋值
+	# 既不会生效、也会触发 CONFUSABLE_CAPTURE_REASSIGNMENT 编译错误。
+	# 改用单元素字典做 holder（与 Arena.gd 的 holder["value"] 写法一致），引用语义可写。
+	var holder : Dictionary = {"finished": false}
+	var on_finished := func(): holder["finished"] = true
 	if not DialogueManager.dialogue_finished.is_connected(on_finished):
 		DialogueManager.dialogue_finished.connect(on_finished, CONNECT_ONE_SHOT)
 
 	var start_ms : int = Time.get_ticks_msec()
 	var timeout_ms : int = int(timeout_sec * 1000.0)
-	while not finished and Globals.is_dialogue_active:
+	while not holder["finished"] and Globals.is_dialogue_active:
 		if not is_inside_tree():
 			break
 		if Time.get_ticks_msec() - start_ms > timeout_ms:
