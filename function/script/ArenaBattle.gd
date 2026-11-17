@@ -695,7 +695,10 @@ func _calc_damage(attacker: UnitData, defender: UnitData) -> int:
 	var total_pen : float = weapon_pen + affix_pen + static_pen
 
 	# ---- 4. 伤害结算 ----
-	var effective_reduction : float = clampf(total_reduction - total_pen, 0.0, 1.0)
+	# ★ v5.11 对齐正式战场：无视防御的攻击（magic_attack.ignore_defense）跳过减伤与穿透，
+	# effective_reduction 直接置 0（对齐 CombatManager 第 214-219 行）
+	var ignore_def : bool = attacker.magic_attack.get("ignore_defense", false)
+	var effective_reduction : float = 0.0 if ignore_def else clampf(total_reduction - total_pen, 0.0, 1.0)
 	var damage_raw : float = total_attack * (1.0 - effective_reduction)
 	var floor_raw : float = total_attack * MIN_DAMAGE_FLOOR
 	var damage : int = max(1, int(max(damage_raw, floor_raw)))

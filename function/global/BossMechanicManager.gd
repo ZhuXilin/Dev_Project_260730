@@ -131,12 +131,38 @@ func _apply_phase(unit: Unit, phase_idx: int) -> void:
 		var hook_key : String = "phase_%d" % (phase_idx + 1)
 		var dlg_id : String = str(new_stats.boss_dialogue_hooks.get(hook_key, ""))
 		if dlg_id != "" and StoryManager.play_dialogue_by_id(dlg_id):
-			await DialogueManager.dialogue_finished
+			await _await_dialogue_with_timeout()
 
 	# ★ 对话结束后再刷新一次（兜底：若对话期间有其他效果改变了 unit 状态）
 	if is_instance_valid(unit):
 		unit.update_hp_label()
 		SignalBus.request_show_info.emit(unit)
+
+
+## v5.11：等待转阶段对话结束，带超时兜底 + 信号竞态保护（对齐 Battlefield._await_dialogue_with_timeout）。
+## 防止对话 UI 未加载 / 信号竞态丢失时永久挂起，导致战斗输入锁死。
+func _await_dialogue_with_timeout(timeout_sec: float = 6.0) -> void:
+	if not Globals.is_dialogue_active:
+		return
+	# GDScript lambda 按值捕获，用单元素字典做 holder 获得引用语义（避免 CONFUSABLE_CAPTURE_REASSIGNMENT）
+	var holder : Dictionary = {"finished": false}
+	var on_finished := func(): holder["finished"] = true
+	if not DialogueManager.dialogue_finished.is_connected(on_finished):
+		DialogueManager.dialogue_finished.connect(on_finished, CONNECT_ONE_SHOT)
+
+	var start_ms : int = Time.get_ticks_msec()
+	var timeout_ms : int = int(timeout_sec * 1000.0)
+	while not holder["finished"] and Globals.is_dialogue_active:
+		if not is_instance_valid(self):
+			break
+		if Time.get_ticks_msec() - start_ms > timeout_ms:
+			push_warning("[BossMechanicManager] 转阶段对话等待超时(%ds)，强制关闭以避免输入锁死" % int(timeout_sec))
+			DialogueManager.reset()
+			Globals.is_dialogue_active = false
+			break
+		await get_tree().process_frame
+	if DialogueManager.dialogue_finished.is_connected(on_finished):
+		DialogueManager.dialogue_finished.disconnect(on_finished)
 
 
 func _apply_override_dict(stats: UnitData, ov: Dictionary) -> void:

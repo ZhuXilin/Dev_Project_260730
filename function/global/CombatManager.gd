@@ -910,7 +910,7 @@ func _on_kill(attacker: Unit, _defender: Unit) -> bool:
 	if is_instance_valid(_defender) and _defender.unit_stats.is_boss:
 		var hook_id : String = str(_defender.unit_stats.boss_dialogue_hooks.get("on_death", ""))
 		if hook_id != "" and StoryManager.play_dialogue_by_id(hook_id):
-			await DialogueManager.dialogue_finished
+			await _await_dialogue_with_timeout()
 
 	if TalentManager.is_talent_ready(attacker, "blood_rage"):
 		var lv = _get_effective_talent_level(attacker, "blood_rage")
@@ -1228,6 +1228,34 @@ func _wait_dialogue() -> void:
 		await get_tree().process_frame
 		if not is_instance_valid(self):
 			return
+
+## v5.11：等待对话结束，带超时兜底 + 信号竞态保护（对齐 Battlefield._await_dialogue_with_timeout）。
+## 覆盖三种会永久挂起、进而锁死战斗输入的场景：
+##  1) play_dialogue_by_id 返回 true 但 DialogueUI 未加载 → dialogue_finished 永不发出
+##  2) dialogue_finished 在 await 建立前就发出 → 永远等不到该信号
+##  3) 对话被其他系统中途打断/重置 → 信号丢失
+func _await_dialogue_with_timeout(timeout_sec: float = 6.0) -> void:
+	if not Globals.is_dialogue_active:
+		return
+	# GDScript lambda 按值捕获，用单元素字典做 holder 获得引用语义（避免 CONFUSABLE_CAPTURE_REASSIGNMENT）
+	var holder : Dictionary = {"finished": false}
+	var on_finished := func(): holder["finished"] = true
+	if not DialogueManager.dialogue_finished.is_connected(on_finished):
+		DialogueManager.dialogue_finished.connect(on_finished, CONNECT_ONE_SHOT)
+
+	var start_ms : int = Time.get_ticks_msec()
+	var timeout_ms : int = int(timeout_sec * 1000.0)
+	while not holder["finished"] and Globals.is_dialogue_active:
+		if not is_instance_valid(self):
+			break
+		if Time.get_ticks_msec() - start_ms > timeout_ms:
+			push_warning("[CombatManager] 击杀对话等待超时(%ds)，强制关闭以避免输入锁死" % int(timeout_sec))
+			DialogueManager.reset()
+			Globals.is_dialogue_active = false
+			break
+		await get_tree().process_frame
+	if DialogueManager.dialogue_finished.is_connected(on_finished):
+		DialogueManager.dialogue_finished.disconnect(on_finished)
 
 func _finish_attack(attacker: Unit, _defender: Unit, free_action: bool = false) -> void:
 	if free_action:

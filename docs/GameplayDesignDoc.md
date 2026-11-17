@@ -313,7 +313,7 @@ Day3 → BOSS3（双形态）
 | 2 | 500 | 1 | 1.6 |
 | 3 | 800 | 1 | 1.9 |
 
-生存模式倍率 `[1.8,2.1,2.4]`。竞技场是纯 Build 验证场所，1v1 单挑，不涉及地形/站位；词条就绪即触发；主动技能就绪即触发，不受玩家手动控制。**代码事实**：竞技场 `ArenaBattle._calc_damage` 仍使用减法公式（`total_attack - defense`），与主线乘法不一致，为本版技术债；文档目标为统一乘法，但代码未完全切换。
+生存模式倍率 `[1.8,2.1,2.4]`。竞技场是纯 Build 验证场所，1v1 单挑，不涉及地形/站位；词条就绪即触发；主动技能就绪即触发，不受玩家手动控制。**代码事实（v5.10 已对齐）**：竞技场 `ArenaBattle._calc_damage` 与主线 `CombatManager` 同样采用减伤率乘区 + 保底口径（`total_attack × (1 - effective_reduction)`，保底 `攻击×10%`），不再使用旧减法公式；保留的简化为无魂火、无地形、无全局遗物/光环 buff。
 
 **Arena 暴击口径对齐（v5.11）**：暴击倍率基线与正式战场统一为 `1.5`、上限 `2.0`（`CRIT_DAMAGE_MULT`/`CRIT_DAMAGE_CAP`，缺省回退 `combat_config.json` 顶层），暴伤词条/静态/ buff/抗暴/暴击天赋 `1.5+(lv-1)×0.25` 与破甲 debuff 均按主线通道结算；竞技场无魂火系统，故不含 `SoulFireManager` 暴伤加成。遗物 `relic_attack`「首击必暴」已同步至竞技场：`setup()` 时按 `GameState.get_global_relic_effects()` 结算，精炼则前 2 次、否则前 1 次必暴击，用 `ArenaBattle` 独立成员跟踪剩余次数（不污染外部复用的 `UnitData`），判定顺序为 强制暴击技能 → 暴击天赋 → 遗物首攻必暴 → 普通 roll；日志显示「首攻暴击！」。编辑器战斗模拟 `BattleSimEngine` 早支持该效果，无需改动。
 
@@ -441,7 +441,7 @@ GameDataEditor 的 JSON 配置页不再把全部条目一次性平铺：根字�
 | 面板属性数 | 6 项 |
 | 减伤率总上限 | 75% |
 | 最低伤害保底 | 攻击×10% |
-| 伤害公式 | 乘法（主线）；竞技场仍减法（技术债） |
+| 伤害公式 | 减伤率乘区 + 保底（主线与竞技场一致，v5.10 对齐） |
 | 暴击基础 | 0.05 |
 | 每点灵巧暴击 | 0.005 |
 | 暴击伤害倍率 | 1.5（上限 2.0） |
@@ -591,7 +591,7 @@ v5.0 增量：魂火跨节点继承让长线规划更重；删除武器升级让
 12. 献祭直接给魂火 5/8/10：v5.0 已改为"熔铸产防具"，不再给魂火。
 13. 枯竭 ×1.3 受伤倍率：已删除，`get_damage_taken_mult` 恒 1.0。
 14. 击杀 +3 魂火：主路径已改为"命中 +1，击杀不额外"；`on_kill` 只给装备/光环/套装钩子；`SoulFireManager.KILL_GAIN` 字段仍存在但主战斗路径不调用。
-15. 竞技场减法公式：`ArenaBattle._calc_damage` 仍用 `total_attack - defense`，与主线乘法不一致，为本版技术债。
+15. 竞技场减法公式：**v5.10 已解决**——`ArenaBattle._calc_damage` 已改为减伤率乘区 + 保底，与主线 `CombatManager` 一致（详见附录第 34 条）。
 16. 战斗奖励口径：`EconomyManager` 发放的是"魂"，不是魂火；旧文档 START/NORMAL 魂火 +2/+3 已废弃。
 17. `SoulFireManager.settle()` 仅清空当前魂火，不转魂；用于周期结束/放弃回营地等。
 18. 感应 ARC：内部次级字段保留，不出现在面板/属性上限/战斗主路径。
@@ -617,6 +617,8 @@ v5.0 增量：魂火跨节点继承让长线规划更重；删除武器升级让
 
 34. **v5.10 竞技场伤害计算对齐正式战场**：竞技场（`ArenaBattle`）与正式战场（`CombatManager`）此前存在计算差异，本次逐项对齐（保留竞技场无魂火、无地形、无遗物全局 buff 的合理简化）：① `_calc_damage` 补遗物力量缩放、破甲 debuff（`buff_defense_shred`，仅物理侧）、静态穿透（`static_*_penetration`）、攻击方 `attack_flat` 词条——此前竞技场攻击词条完全不生效。② 暴击改为统一暴伤通道：`crit_mult = 1.5 + 词条crit_damage + static + buff_crit_damage_bonus`，暴击天赋改 `1.5+(lv-1)*0.25` 并吃同一通道，加 `CRIT_DAMAGE_CAP=2.0` 上限、`anti_crit` 抗暴减免、暴击天赋触发破甲；主动技能 `force_crit` 改为标记走统一通道，不再单独乘 1.5（避免与暴伤通道重复）。③ 暴击率补 `crit_chance` 词条。④ 吸血改为"天赋+buff 走 CD + 词条 lifesteal 每次命中独立生效"（对齐 `CombatManager._apply_damage_with_effects`）。⑤ 补被动 `flame_damage` 火焰词条。⑥ 重击倍率 `heavy_attack.damage_multiplier` 对齐：与主动技能 `damage_mult` 取 max 不叠加；竞技场无 charge 叠层。⑦ 修复法术连击判定里武器系统删除后的残留未定义变量 `weapon_data`（导致连击永不触发），改用内联 `weapon_category=="spellbook"`。因竞技场用 `UnitData` 无 `Unit.get_total_affix_value_float`，新增本文件 `_total_affix()` 直接聚合防具槽（同量纲）。`UnitData` 新增 `buff_defense_shred` 字段并纳入 `reset_combat_buffs()`。
 
-**维护说明**：代码变更后本文档应同步更新，重点关注第七章、第九章、第十章；派遣/光环研究推进单位已统一为"天"；单位属性面板为 6 项；光环为局内一次性消耗品；防御采用减伤率乘区，总上限 75%，最低保底 10%；`buff_damage_reduction` 与减伤率同源，加法叠加，受 75% 上限约束；主线与竞技场伤害公式均已统一为减伤率乘区 + 保底口径（v5.10 竞技场对齐正式战场）；品质倍率统一读 `CombatManager.QUALITY_MULT`；heavy_attack 与 charge 联动按累积型实现；魂火获得：命中 +1、阵亡 +5，击杀不再额外；熔铸防具不可修改/不可卖/不可合成/不可熔合/不可覆盖；遗物精炼第 2 tab，光环研究第 1 tab。
+35. **v5.11 对话等待超时 + 竞技场 ignore_defense 对齐**：① 战斗流程中两处裸 `await DialogueManager.dialogue_finished`（`CombatManager._on_kill` 的 Boss 击杀对话、`BossMechanicManager` 转阶段对话）改为各自内置的 `_await_dialogue_with_timeout()`（6s 超时 + 信号竞态保护 + 超时强制 `DialogueManager.reset()` 并清 `is_dialogue_active`），机制对齐 `Battlefield._await_dialogue_with_timeout()`，根治此前偶发"进入战斗后无法操作"的输入锁死残留。② `ArenaBattle._calc_damage` 伤害结算补 `ignore_defense` 短路：`magic_attack.ignore_defense` 为真时 `effective_reduction=0`，与 `CombatManager` 第 214-219 行一致；此前无视防御类法术在竞技场仍照常吃减伤，伤害偏低。③ 附录第 15 条"竞技场减法公式技术债"与正文 7.9/口径表同步标记为已解决（v5.10 起代码已是减伤率乘区）。
+
+**维护说明**：代码变更后本文档应同步更新，重点关注第七章、第九章、第十章；战斗流程中所有 `await DialogueManager.dialogue_finished` 必须走带超时 + 竞态保护的封装，禁止裸 await 以防输入锁死；派遣/光环研究推进单位已统一为"天"；单位属性面板为 6 项；光环为局内一次性消耗品；防御采用减伤率乘区，总上限 75%，最低保底 10%；`buff_damage_reduction` 与减伤率同源，加法叠加，受 75% 上限约束；主线与竞技场伤害公式均已统一为减伤率乘区 + 保底口径（v5.10 竞技场对齐正式战场）；品质倍率统一读 `CombatManager.QUALITY_MULT`；heavy_attack 与 charge 联动按累积型实现；魂火获得：命中 +1、阵亡 +5，击杀不再额外；熔铸防具不可修改/不可卖/不可合成/不可熔合/不可覆盖；遗物精炼第 2 tab，光环研究第 1 tab。
 
 **文档结束。**
