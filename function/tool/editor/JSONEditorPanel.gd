@@ -821,10 +821,12 @@ func _scan_item_icons():
 
 
 func _is_icon_picker_file() -> bool:
-	# v5.5：防具 / 遗物 / 特技三个数据文件的 icon 字段都用 item_* 图标下拉
+	# v5.6：防具 / 遗物 / 特技 / 光环四类配置的 icon 字段统一用 item_* 图标下拉 + 预览。
+	# 套装、词条池没有 icon 字段，不需要图标选择器。
 	return _path.contains("item_data") \
 		or _path.contains("relic_data") \
-		or _path.contains("talents")
+		or _path.contains("talents") \
+		or _path.contains("auras")
 
 
 func _render_icon_picker_row(row : HBoxContainer, target_dict : Dictionary, key : String, current : String):

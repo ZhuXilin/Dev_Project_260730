@@ -1,7 +1,8 @@
 extends Control
 
 # ============================================================
-#  GameDataEditor — 单位 / 战斗模拟 / 数值 / 套装 / 词条池 / 光环 / 单位解锁 / 校验
+#  GameDataEditor — 单位 / 数值编辑 / 战斗模拟 / 数据校验
+#  顶层 4 页；单位与数值编辑内部各有一组二级页签，统一由 _build_subtabs 构建。
 #  v4.8：
 #    - 单位列表带 idle 缩略图
 #    - 头像下拉带图标 + 预览
@@ -167,6 +168,7 @@ var _sim_player_opt : OptionButton = null
 var _sim_enemy_opt : OptionButton = null
 var _sim_log : RichTextLabel = null
 var _sim_status : Label = null
+var _sim_popup : Control = null   # v5.8：模拟结果弹窗，点遮罩/ESC/关闭按钮退出
 var _sim_p_armor1 : OptionButton = null
 var _sim_p_armor2 : OptionButton = null
 var _sim_p_talent1 : OptionButton = null
@@ -186,7 +188,7 @@ var _sim_e_skills : Array = []
 var _sim_talent_cb : CheckBox = null
 var _sim_counter_cb : CheckBox = null
 
-var _cfg_tab_panels : Dictionary = {}
+var _cfg_tab_panels : Dictionary = {}  # v5.6：path -> JSONEditorPanel 映射，供保存后定位刷新
 
 var _validator_output : RichTextLabel = null
 var _validator_status : Label = null
@@ -216,6 +218,14 @@ func _ready():
 	if _unit_keys.size() > 0:
 		_select_edit_unit(_unit_keys[0])
 	call_deferred("_auto_validate")
+
+
+func _unhandled_input(event: InputEvent):
+	# v5.8：ESC 关闭模拟结果弹窗（仅当弹窗存在时消费事件，不影响其它交互）
+	if _sim_popup != null and is_instance_valid(_sim_popup):
+		if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
+			_close_sim_popup()
+			get_viewport().set_input_as_handled()
 
 
 func _apply_compact_theme():
@@ -430,17 +440,31 @@ func _build_ui():
 	root.add_theme_constant_override("separation", 2)
 	add_child(root)
 
+	var top_row := HBoxContainer.new()
+	top_row.add_theme_constant_override("separation", 4)
+	root.add_child(top_row)
+
 	var tab_scroll := ScrollContainer.new()
+	tab_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	tab_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
 	tab_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	tab_scroll.custom_minimum_size = Vector2(0, 20)
-	root.add_child(tab_scroll)
+	top_row.add_child(tab_scroll)
+
+	# v5.7：常驻退出按钮，不随页签横向滚动；与 MapLayoutEditor 一致用 get_tree().quit()
+	var quit_btn := Button.new()
+	quit_btn.text = "✕ 退出编辑器"
+	quit_btn.add_theme_font_size_override("font_size", FS_PANEL)
+	quit_btn.focus_mode = Control.FOCUS_NONE
+	quit_btn.pressed.connect(func(): get_tree().quit())
+	top_row.add_child(quit_btn)
 
 	var tab_bar := HBoxContainer.new()
 	tab_bar.add_theme_constant_override("separation", 2)
 	tab_scroll.add_child(tab_bar)
 
-	var tab_names : Array = ["单位编辑", "战斗模拟", "数值编辑", "套装", "词条池", "光环", "单位解锁", "校验"]
+	# v5.6：顶层 4 页 —— 单位（单位编辑/单位解锁）、数值编辑（6 类配置）、战斗模拟、数据校验
+	var tab_names : Array = ["单位", "数值编辑", "战斗模拟", "数据校验"]
 	for i in range(tab_names.size()):
 		var btn := Button.new()
 		btn.text = tab_names[i]
@@ -458,14 +482,10 @@ func _build_ui():
 	root.add_child(body)
 
 	_tab_panels.clear()
-	_tab_panels.append(_build_edit_tab(body))
-	_tab_panels.append(_build_sim_tab(body))
-	_tab_panels.append(_build_cfg_tab(body))
-	_tab_panels.append(_build_set_bonus_tab(body))
-	_tab_panels.append(_build_affix_tab(body))
-	_tab_panels.append(_build_aura_tab(body))
-	_tab_panels.append(_build_unit_unlock_tab(body))
-	_tab_panels.append(_build_validator_tab(body))
+	_tab_panels.append(_build_unit_group_tab(body))   # 0 单位（含二级：单位编辑/单位解锁）
+	_tab_panels.append(_build_cfg_tab(body))          # 1 数值编辑（含二级：防具/特技/遗物/光环/套装/词条池）
+	_tab_panels.append(_build_sim_tab(body))          # 2 战斗模拟
+	_tab_panels.append(_build_validator_tab(body))    # 3 数据校验
 
 	_switch_tab(0)
 
@@ -475,6 +495,77 @@ func _switch_tab(idx : int):
 		_tab_btns[i].button_pressed = (i == idx)
 	for i in range(_tab_panels.size()):
 		_tab_panels[i].visible = (i == idx)
+
+
+# ============================================================
+#  通用二级页签宿主：所有「一组子页」共用同一套切换逻辑
+#  tabs: Array[Dictionary] = [{"name": String, "panel": Control}, ...]
+# ============================================================
+func _build_subtab_group(parent : Control, tabs : Array) -> Control:
+	var panel := VBoxContainer.new()
+	panel.set_anchors_preset(Control.PRESET_FULL_RECT)
+	panel.add_theme_constant_override("separation", 3)
+	parent.add_child(panel)
+
+	var bar := HBoxContainer.new()
+	bar.add_theme_constant_override("separation", 4)
+	panel.add_child(bar)
+
+	var container := Control.new()
+	container.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	panel.add_child(container)
+
+	var btns : Array = []
+	for i in range(tabs.size()):
+		var btn := Button.new()
+		btn.text = tabs[i]["name"]
+		btn.toggle_mode = true
+		btn.focus_mode = Control.FOCUS_NONE
+		bar.add_child(btn)
+		btns.append(btn)
+		var sub : Control = tabs[i]["panel"]
+		sub.set_anchors_preset(Control.PRESET_FULL_RECT)
+		sub.visible = false
+		# v5.6 修复：部分构建函数（_build_edit_tab / _build_unit_unlock_tab）内部
+		# 已经 parent.add_child(panel)。Godot 4 的 add_child 不接受已有父节点的子节点，
+		# 直接加会报 "already has a parent" 并跳过挂载，导致面板留在 body 下层层叠加。
+		# 这里先摘除旧父节点，再由宿主容器统一挂载。
+		var old_parent : Node = sub.get_parent()
+		if old_parent != null:
+			old_parent.remove_child(sub)
+		container.add_child(sub)
+
+	for i in range(btns.size()):
+		var idx : int = i
+		btns[i].pressed.connect(func():
+			for j in range(btns.size()):
+				btns[j].button_pressed = (j == idx)
+			for k in range(tabs.size()):
+				tabs[k]["panel"].visible = (k == idx)
+		)
+	btns[0].button_pressed = true
+	tabs[0]["panel"].visible = true
+	return panel
+
+
+## 数值编辑统一入口：6 类配置全部用同一个 JSONEditorPanel 创建器
+func _make_json_editor(path : String, title : String = "") -> Control:
+	var editor = preload(JSON_EDITOR_SCRIPT).new()
+	editor.setup(path, title)
+	editor.set_anchors_preset(Control.PRESET_FULL_RECT)
+	# 保存后重载内存缓存，让战斗模拟/校验立即用到新数据
+	editor.saved.connect(func(_p): _load_all_data())
+	return editor
+
+
+#  单位组：二级页签 = 单位编辑 / 单位解锁
+func _build_unit_group_tab(parent : Control) -> Control:
+	var tabs : Array = [
+		{"name": "单位编辑", "panel": _build_edit_tab(parent)},
+		{"name": "单位解锁", "panel": _build_unit_unlock_tab(parent)},
+	]
+	# 子面板在各自构建函数里已挂到 parent；_build_subtab_group 会统一摘除并移入二级宿主容器。
+	return _build_subtab_group(parent, tabs)
 
 
 # ============================================================
@@ -1911,12 +2002,26 @@ func _add_int_option_row(parent : Node, label : String, min_v : int, max_v : int
 
 
 func _build_sim_center() -> VBoxContainer:
+	# v5.8：模拟页只保留配置入口；战斗日志改到带边框弹窗展示，关闭弹窗即回到此页
 	var vbox := VBoxContainer.new()
 	vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	vbox.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	vbox.add_theme_constant_override("separation", 2)
+	vbox.size_flags_vertical = Control.SIZE_EXPAND_FILL   # v5.8.1：撑满列高，spacer 才能把控件组下推
+	vbox.add_theme_constant_override("separation", 3)
 
-	vbox.add_child(_center_label("— 战斗日志 —"))
+	# v5.8.1：顶部可伸缩空白，把整组控件从页顶推到中下部；底部留固定空隙避免贴底
+	var top_spacer := Control.new()
+	top_spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	vbox.add_child(top_spacer)
+
+	vbox.add_child(_center_label("— 战斗模拟 —"))
+
+	var hint := Label.new()
+	hint.text = "配置左右双方后点【开始模拟】，战斗过程会在弹窗中展示。\n关闭弹窗：点弹窗外空白 / 按 ESC / 点【关闭】。"
+	hint.add_theme_font_size_override("font_size", FS_HINT)
+	hint.modulate = Color(0.66, 0.7, 0.76)
+	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	vbox.add_child(hint)
 
 	var ctrl := HBoxContainer.new()
 	ctrl.add_theme_constant_override("separation", 4)
@@ -1933,39 +2038,23 @@ func _build_sim_center() -> VBoxContainer:
 	_sim_counter_cb.button_pressed = true
 	ctrl.add_child(_sim_counter_cb)
 
-	var scroll := ScrollContainer.new()
-	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	vbox.add_child(scroll)
-
-	_sim_log = RichTextLabel.new()
-	_sim_log.bbcode_enabled = true
-	_sim_log.fit_content = true
-	_sim_log.scroll_following = true
-	_sim_log.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_sim_log.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	scroll.add_child(_sim_log)
-
-	var btn_row := HBoxContainer.new()
-	btn_row.alignment = BoxContainer.ALIGNMENT_CENTER
-	btn_row.add_theme_constant_override("separation", 4)
-	vbox.add_child(btn_row)
-
 	var start_btn := Button.new()
 	start_btn.text = "开始模拟"
+	start_btn.custom_minimum_size = Vector2(80, 0)
 	start_btn.pressed.connect(_run_simulation)
-	btn_row.add_child(start_btn)
-
-	var clear_btn := Button.new()
-	clear_btn.text = "清空日志"
-	clear_btn.pressed.connect(func(): _sim_log.clear())
-	btn_row.add_child(clear_btn)
+	start_btn.alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vbox.add_child(start_btn)
 
 	_sim_status = Label.new()
-	_sim_status.modulate = Color(0.7, 0.9, 0.7)
+	_sim_status.add_theme_font_size_override("font_size", FS_PANEL)
+	_sim_status.modulate = Color(0.7, 0.95, 0.7)
 	_sim_status.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_sim_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	vbox.add_child(_sim_status)
+
+	var bottom_spacer := Control.new()
+	bottom_spacer.custom_minimum_size = Vector2(0, 6)
+	vbox.add_child(bottom_spacer)
 
 	return vbox
 
@@ -1974,88 +2063,24 @@ func _build_sim_center() -> VBoxContainer:
 #  数值编辑
 # ============================================================
 func _build_cfg_tab(parent : Control) -> Control:
-	var panel := VBoxContainer.new()
-	panel.set_anchors_preset(Control.PRESET_FULL_RECT)
-	panel.add_theme_constant_override("separation", 3)
-	parent.add_child(panel)
-
-	var bar := HBoxContainer.new()
-	bar.add_theme_constant_override("separation", 3)
-	panel.add_child(bar)
-
-	# v5.4：按使用频率排序——防具第一、特技次之、遗物最后；
-	# 移除「精炼」（refine_data.json 不存在，页签一直为空无数据）
+	# v5.6：防具 / 特技 / 遗物 / 光环 / 套装 / 词条池统一走同一套 JSONEditorPanel。
+	# 光环从原顶层 tab 合并进来，排在遗物之后；套装、词条池亦并入，去掉各自的硬编码构建函数。
 	var cfg_files : Array = [
 		{"name": "防具", "path": ITEM_DATA_PATH},
 		{"name": "特技", "path": TALENT_DATA_PATH},
 		{"name": "遗物", "path": RELIC_DATA_PATH},
+		{"name": "光环", "path": AURA_PATH},
+		{"name": "套装", "path": SET_BONUS_PATH},
+		{"name": "词条池", "path": AFFIX_PATH},
 	]
 	_cfg_tab_panels.clear()
-	var btns : Array = []
-	for i in range(cfg_files.size()):
-		var btn := Button.new()
-		btn.text = cfg_files[i]["name"]
-		btn.toggle_mode = true
-		btn.focus_mode = Control.FOCUS_NONE
-		bar.add_child(btn)
-		btns.append(btn)
-
-	var container := Control.new()
-	container.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	panel.add_child(container)
-
-	for i in range(cfg_files.size()):
-		var editor := _build_json_editor(cfg_files[i]["path"])
-		editor.set_anchors_preset(Control.PRESET_FULL_RECT)
-		editor.visible = false
-		container.add_child(editor)
-		_cfg_tab_panels[cfg_files[i]["path"]] = editor
-		# v5.4：数值编辑保存后，同步重载编辑器内存缓存，让战斗模拟/校验立即用到新数据
-		editor.saved.connect(func(_p): _load_all_data())
-
-	for i in range(btns.size()):
-		var idx : int = i
-		btns[i].pressed.connect(func():
-			for j in range(btns.size()):
-				btns[j].button_pressed = (j == idx)
-			for path in _cfg_tab_panels:
-				_cfg_tab_panels[path].visible = (path == cfg_files[idx]["path"])
-		)
-
-	btns[0].button_pressed = true
-	_cfg_tab_panels[cfg_files[0]["path"]].visible = true
-
-	return panel
-
-
-func _build_json_editor(path : String) -> Control:
-	var editor = preload(JSON_EDITOR_SCRIPT).new()
-	editor.setup(path)
-	return editor
-
-
-func _build_set_bonus_tab(parent : Control) -> Control:
-	var editor = preload(JSON_EDITOR_SCRIPT).new()
-	editor.setup(SET_BONUS_PATH, "套装 + 交叉效果")
-	editor.set_anchors_preset(Control.PRESET_FULL_RECT)
-	parent.add_child(editor)
-	return editor
-
-
-func _build_affix_tab(parent : Control) -> Control:
-	var editor = preload(JSON_EDITOR_SCRIPT).new()
-	editor.setup(AFFIX_PATH, "防具词条池")
-	editor.set_anchors_preset(Control.PRESET_FULL_RECT)
-	parent.add_child(editor)
-	return editor
-
-
-func _build_aura_tab(parent : Control) -> Control:
-	var editor = preload(JSON_EDITOR_SCRIPT).new()
-	editor.setup(AURA_PATH, "光环")
-	editor.set_anchors_preset(Control.PRESET_FULL_RECT)
-	parent.add_child(editor)
-	return editor
+	var tabs : Array = []
+	for cf in cfg_files:
+		var path : String = cf["path"]
+		var editor : Control = _make_json_editor(path)
+		_cfg_tab_panels[path] = editor
+		tabs.append({"name": cf["name"], "panel": editor})
+	return _build_subtab_group(parent, tabs)
 
 
 # ============================================================
@@ -2608,9 +2633,9 @@ func _auto_validate():
 
 
 func _update_tab_validation_marker():
-	if _tab_btns.size() < 8: return
-	var tab_idx : int = 7
-	var base_name : String = "校验"
+	if _tab_btns.size() < 4: return
+	var tab_idx : int = 3
+	var base_name : String = "数据校验"
 	if _validator_last_errors > 0:
 		_tab_btns[tab_idx].text = "%s (%d)" % [base_name, _validator_last_errors]
 		_tab_btns[tab_idx].modulate = Color(1.0, 0.6, 0.6)
@@ -2671,12 +2696,145 @@ func _run_simulation():
 	engine.set_talent_mode("auto" if _sim_talent_cb.button_pressed else "disabled")
 	engine.set_counter_enabled(_sim_counter_cb.button_pressed)
 	var lines : Array = engine.run(p, e)
+	var result : String = engine.get_result_text()
+	_sim_status.text = "模拟结束：%s  ｜  过程见弹窗" % result
+	_show_sim_popup(lines, result)
 
-	_sim_log.clear()
+
+# ============================================================
+#  v5.8：模拟结果弹窗 —— 带边框、点遮罩/ESC/关闭按钮均可退出
+# ============================================================
+func _close_sim_popup():
+	if _sim_popup != null and is_instance_valid(_sim_popup):
+		_sim_popup.queue_free()
+	_sim_popup = null
+	_sim_log = null
+
+
+func _show_sim_popup(lines : Array, result : String):
+	_close_sim_popup()   # 重复点击开始模拟时先关掉上一个
+
+	# 全屏遮罩层，拦截点击；点遮罩空白处关闭
+	var overlay := Control.new()
+	overlay.name = "SimResultOverlay"
+	overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+	overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+	add_child(overlay)
+	_sim_popup = overlay
+
+	var bg := ColorRect.new()
+	bg.color = Color(0, 0, 0, 0.72)
+	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
+	# 用 gui_input 捕获点击：只有点在遮罩本身（面板之外）才关闭
+	bg.gui_input.connect(func(ev):
+		if ev is InputEventMouseButton and ev.button_index == MOUSE_BUTTON_LEFT and ev.pressed:
+			_close_sim_popup()
+	)
+	overlay.add_child(bg)
+
+	var panel := PanelContainer.new()
+	panel.set_anchors_preset(Control.PRESET_CENTER)
+	panel.offset_left = -205
+	panel.offset_right = 205
+	panel.offset_top = -145
+	panel.offset_bottom = 145
+	panel.mouse_filter = Control.MOUSE_FILTER_STOP   # 阻止点击穿透到遮罩
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(0.11, 0.11, 0.14, 1)
+	sb.border_color = Color(0.55, 0.6, 0.72, 1)
+	sb.border_width_left = 1
+	sb.border_width_right = 1
+	sb.border_width_top = 1
+	sb.border_width_bottom = 1
+	sb.corner_radius_top_left = 4
+	sb.corner_radius_top_right = 4
+	sb.corner_radius_bottom_left = 4
+	sb.corner_radius_bottom_right = 4
+	sb.content_margin_left = 10
+	sb.content_margin_right = 10
+	sb.content_margin_top = 8
+	sb.content_margin_bottom = 8
+	panel.add_theme_stylebox_override("panel", sb)
+	overlay.add_child(panel)
+
+	var vbox := VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 4)
+	panel.add_child(vbox)
+
+	var title := Label.new()
+	title.text = "战斗模拟结果  —  %s" % result
+	title.add_theme_font_size_override("font_size", FS_PANEL + 2)
+	title.modulate = Color(0.85, 0.92, 1.0)
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vbox.add_child(title)
+
+	# v5.8.2：外层 ScrollContainer 提供可靠滑杆；log_box 用 fit_content 撑出内容高度
+	var log_scroll := ScrollContainer.new()
+	log_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	log_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	log_scroll.custom_minimum_size = Vector2(0, 170)
+	log_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	# 弹窗专属滚动条：加宽 + 提亮，避免全局 4px 暗条在深色弹窗里看不见
+	var scr_theme := Theme.new()
+	var sb_track := StyleBoxFlat.new()
+	sb_track.bg_color = Color(0.06, 0.06, 0.08, 1)
+	var sb_grab := StyleBoxFlat.new()
+	sb_grab.bg_color = Color(0.6, 0.66, 0.78, 1)
+	sb_grab.corner_radius_top_left = 3
+	sb_grab.corner_radius_top_right = 3
+	sb_grab.corner_radius_bottom_left = 3
+	sb_grab.corner_radius_bottom_right = 3
+	scr_theme.set_stylebox("scroll", "VScrollBar", sb_track)
+	scr_theme.set_stylebox("scroll_focus", "VScrollBar", sb_track)
+	scr_theme.set_stylebox("grabber", "VScrollBar", sb_grab)
+	scr_theme.set_stylebox("grabber_highlight", "VScrollBar", sb_grab)
+	scr_theme.set_stylebox("grabber_pressed", "VScrollBar", sb_grab)
+	scr_theme.set_constant("scroll_width", "VScrollBar", 8)
+	scr_theme.set_constant("minimum_grab_size", "VScrollBar", 12)
+	log_scroll.theme = scr_theme
+	vbox.add_child(log_scroll)
+
+	# 不用内置函数名 log，改用 log_box（Godot 有全局 log() 函数，重名会 SHADOWED_GLOBAL_IDENTIFIER 警告）
+	var log_box := RichTextLabel.new()
+	log_box.bbcode_enabled = true
+	log_box.fit_content = true      # 内容高度由文本撑开，交给外层 ScrollContainer 滚动
+	log_box.scroll_active = false   # 关闭 RichTextLabel 自带滚动，避免双重滚动
+	# 显式覆盖字号，避免继承 Godot 默认大字号（与之前满屏大字同因）
+	log_box.add_theme_font_size_override("normal_font_size", FS_LABEL)
+	log_box.add_theme_font_size_override("bold_font_size", FS_LABEL)
+	log_box.add_theme_constant_override("line_separation", 2)
+	log_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	log_scroll.add_child(log_box)
+	_sim_log = log_box   # 保留引用兼容
+
+	# v5.8.1：用 bbcode [center] 让战斗日志居中（bbcode 已启用，日志本身也用 bbcode）
+	log_box.append_text("[center]")
 	for line in lines:
-		_sim_log.append_text(line + "\n")
+		log_box.append_text(str(line) + "\n")
+	log_box.append_text("\n[b]═══ 模拟结束：%s ═══[/b]\n[/center]" % result)
+	# 等一帧布局算完内容高度后再滚到底（fit_content 需一帧才生效），滑杆可随时上滚
+	call_deferred("_defer_sim_scroll_bottom")
 
-	_sim_status.text = "模拟完成：" + engine.get_result_text()
+	var btn_row := HBoxContainer.new()
+	btn_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	btn_row.add_theme_constant_override("separation", 8)
+	vbox.add_child(btn_row)
+	var close_btn := Button.new()
+	close_btn.text = "关闭（ESC / 点窗外）"
+	close_btn.add_theme_font_size_override("font_size", FS_BUTTON)
+	close_btn.pressed.connect(_close_sim_popup)
+	btn_row.add_child(close_btn)
+
+	close_btn.grab_focus()
+
+
+## 等一帧布局算完内容高度后再把弹窗日志滚到底（fit_content 需一帧才生效）
+func _defer_sim_scroll_bottom():
+	await get_tree().process_frame
+	if _sim_log == null or not is_instance_valid(_sim_log): return
+	var sc := _sim_log.get_parent() as ScrollContainer
+	if sc != null:
+		sc.set_v_scroll(1 << 30)
 
 
 func _get_option_int(opt : OptionButton) -> int:
