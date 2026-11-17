@@ -128,26 +128,17 @@ func _on_sacrifice(u: UnitData):
 	var melt_data : ItemData = ItemManager.get_item_data(melt_id)
 	var melt_name : String = melt_data.name if melt_data else "专属防具"
 
-	var equip_count : int = 0
-	# ★ v4.8 清理：weapon_slot 已被删除，武器为内联属性，不再计入熔铸丢失
-	for s in u.armor_slots:
-		if s != null: equip_count += 1
-
 	var alive_count := 0
 	for member in _party:
 		if not member.is_dead:
 			alive_count += 1
 
-	var msg : String = ""
-	if equip_count > 0:
-		msg += "该单位仍有 %d 件防具，熔铸后将被锁定（需通过英灵殿复活取回）。\n\n" % equip_count
-
-	msg += "确定熔铸 %s？\n将获得：【%s】（请在上方领取）" % [u.display_name, melt_name]
+	var msg : String = "确定熔铸 %s？\n将获得：【%s】" % [u.display_name, melt_name]
 
 	if alive_count <= 1:
 		msg += "\n\n⚠ 熔铸后全灭，本局将结束并返回营地。"
 
-	Globals.show_confirm(
+	var confirm_ui = Globals.show_confirm(
 		self,
 		msg,
 		"熔铸",
@@ -155,6 +146,8 @@ func _on_sacrifice(u: UnitData):
 		func(): _do_sacrifice(u),
 		func(): pass
 	)
+	if confirm_ui and melt_data:
+		confirm_ui.set_item_icon(melt_data.icon)  # ★ v5.13：展示将获得的防具图标
 
 
 func _do_sacrifice(u: UnitData):

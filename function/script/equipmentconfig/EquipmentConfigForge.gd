@@ -364,6 +364,7 @@ func _on_forge_action_multi():
 	panel._build_pending_slots()
 	panel._update_gold_display()
 	panel._show_craft_result(result)
+	SoundManager.play_select_sound()  # ★ v5.13：合成成功播放拖拽成功音效
 	panel._schedule_build_ui()
 
 
@@ -598,6 +599,7 @@ func _do_fusion(product_id : String, cost : int):
 	var out_data : ItemData = ItemManager.get_item_data(product_id)
 	var name : String = out_data.name if out_data else product_id
 	panel._show_detail_in_zone("★ 熔合成功！\n产出：" + name)
+	SoundManager.play_select_sound()  # ★ v5.13：合成/熔铸成功播放拖拽成功音效
 	panel._schedule_build_ui()
 
 

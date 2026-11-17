@@ -493,6 +493,7 @@ func show_confirm(parent: Node, message: String, confirm_text: String = "确定"
 	var instance = ui.instantiate()
 	parent.add_child(instance)
 	instance.show_confirm(message, confirm_text, cancel_text, confirm_cb, cancel_cb, show_cancel)
+	return instance  # ★ v5.13：返回实例，调用方可设置奖励图标等额外内容
 
 
 # ============================================================

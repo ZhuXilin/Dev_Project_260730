@@ -66,6 +66,12 @@ func build_shop_items():
 	for i in range(items.size()):
 		var entry : Variant = items[i]
 		var btn : Button = null
+		# ★ v5.14：每个商店格子用 VBox 包裹「图标按钮 + 价格」，价格落在色块外下方，
+		# 避免与中心 20x20 色块内的连线箭头重叠（递归收集按钮，拖拽不受影响）。
+		var cell := VBoxContainer.new()
+		cell.add_theme_constant_override("separation", 0)
+		cell.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		cell.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 		
 		if entry != null:
 			var entry_dict : Dictionary = entry
@@ -77,7 +83,7 @@ func build_shop_items():
 				if panel._shop_direction_cache.has(i):
 					shop_dir = panel._shop_direction_cache[i]
 				else:
-					shop_dir = Direction.roll_drop_direction()
+					shop_dir = Direction.roll_birth_direction(item_data.quality)
 					panel._shop_direction_cache[i] = shop_dir
 
 			# ★ v5.1：显示与购买必须用同一个实例，否则玩家看不到新 roll 的词条
@@ -93,6 +99,7 @@ func build_shop_items():
 			btn = panel._create_item_button(shop_inst, "shop_item", -1, -1, shop_dir, true)
 			btn.custom_minimum_size = Style.BTN_SHOP_SIZE
 			btn.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+			cell.add_child(btn)
 			
 			btn.set_meta("slot_type", "shop_item")
 			btn.set_meta("shop_index", i)
@@ -102,16 +109,15 @@ func build_shop_items():
 			
 			var price_label = Label.new()
 			price_label.text = str(price)
-			price_label.add_theme_font_size_override("font_size", 6) 
+			price_label.add_theme_font_size_override("font_size", 6)
 			price_label.add_theme_color_override("font_color", Color.WHITE)
 			price_label.add_theme_color_override("font_outline_color", Color.BLACK)
 			price_label.add_theme_constant_override("outline_size", 3)
 			price_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-			price_label.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
-			price_label.set_anchors_preset(Control.PRESET_FULL_RECT)
-			price_label.offset_bottom = 1
+			price_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+			price_label.custom_minimum_size = Vector2(Style.BTN_SHOP_SIZE.x, 8)
 			price_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-			btn.add_child(price_label)
+			cell.add_child(price_label)
 			
 		else:
 			btn = Style.create_styled_button(Style.FONT_SMALL, Style.BTN_SHOP_SIZE)
@@ -121,8 +127,9 @@ func build_shop_items():
 			btn.disabled = true
 			btn.set_meta("slot_type", "")
 			btn.set_meta("shop_index", i)
+			cell.add_child(btn)
 			
-		armor_grid.add_child(btn)
+		armor_grid.add_child(cell)
 
 	var spacer = Control.new()
 	spacer.custom_minimum_size = Vector2(0, 4)

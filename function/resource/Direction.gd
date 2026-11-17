@@ -62,6 +62,21 @@ static func roll_drop_direction() -> int:
 		return ALL_DIAGONAL[randi() % ALL_DIAGONAL.size()]
 
 
+## 出生方向 roll（v5.12）：epic/legendary 普通防具必带箭头，作为品质奖励。
+## 其余品质沿用 roll_drop_direction 的 30% 带方向概率。
+## 熔铸类/融合产物/无词条特殊装已在 ItemManager 强制 enable_direction=false，不会走到这里。
+static func roll_birth_direction(quality: String) -> int:
+	if quality == "epic" or quality == "legendary":
+		var r : float = randf()
+		if r < 0.50:       # 50% 单箭头
+			return ALL_SINGLE[randi() % ALL_SINGLE.size()]
+		elif r < 0.65:     # 15% 直线双箭头
+			return [Value.VERTICAL, Value.HORIZONTAL][randi() % 2]
+		else:              # 35% 斜线双箭头
+			return ALL_DIAGONAL[randi() % ALL_DIAGONAL.size()]
+	return roll_drop_direction()
+
+
 ## 重 roll 方向：
 ##   单箭头 → 从另外 3 个单箭头里选
 ##   双直  → 从另外 1 个双直里选（永远变）

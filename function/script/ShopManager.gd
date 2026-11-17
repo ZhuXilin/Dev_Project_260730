@@ -238,12 +238,18 @@ func generate_shop_items():
 		for p in pool:
 			if not generated_ids.has(p.id):
 				valid_pool.append(p)
+
+		# ★ v5.12：去重后为空时，跨品质降级补位（从当前品质往低一档品质池找还没刷过的），
+		#   而不是直接 valid_pool = pool 允许同页重复同款。全品质都刷过才允许重复，避免空格。
 		if valid_pool.is_empty():
-			for p in pool:
-				if not generated_ids.has(p.id):
-					valid_pool.append(p)
-		if valid_pool.is_empty():
-			valid_pool = pool
+			var q_idx : int = order.find(quality)
+			while q_idx > 0 and valid_pool.is_empty():
+				q_idx -= 1
+				for p in all_pools.get(order[q_idx], []):
+					if not generated_ids.has(p.id):
+						valid_pool.append(p)
+			if valid_pool.is_empty():
+				valid_pool = pool
 
 		var pick : ItemData = valid_pool[randi() % valid_pool.size()]
 		generated_ids[pick.id] = true

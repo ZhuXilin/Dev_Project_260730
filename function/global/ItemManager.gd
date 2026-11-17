@@ -134,7 +134,7 @@ func create_instance_with_affixes(item_id: String) -> ItemInstance:
 			inst.affixes = AffixManager.roll_affixes(data.quality, data.tags)
 
 		if data.enable_direction:
-			inst.direction = Direction.roll_drop_direction()
+			inst.direction = Direction.roll_birth_direction(data.quality)
 		else:
 			inst.direction = Direction.Value.NONE
 	return inst

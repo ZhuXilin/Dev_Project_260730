@@ -119,6 +119,15 @@ var _auto_battle_manager : AllyAutoBattleManager = null
 func _ready():
 	TurnManager.set_battle_ready(false)
 	Globals.is_transitioning = true
+	# ★ v5.15：开局强制清零所有「跨场景弹窗/演出」标志。
+	# 这些标志是 autoload 全局量，若上一段流程（营地/装备界面/对话）未正常收尾，
+	# 会被带进战斗，使 _wait_for_ui_clear 永久等待、CursorController 锁死输入。
+	Globals.is_dialogue_active = false
+	Globals.is_item_get_popup_active = false
+	Globals.is_confirm_ui_active = false
+	Globals.is_reward_summary_active = false
+	Globals.is_attack_menu_active = false
+	Globals.is_equip_menu_active = false
 
 	SoulFireManager.reset_boss_penalty()
 	SoulFireManager.current = clampi(GameState.soul_fire_current, 0, SoulFireManager.get_max_carried())
@@ -1452,7 +1461,14 @@ func _wait_for_ui_clear(timeout_ms: int = 5000) -> void:
 		if not is_inside_tree():
 			return
 		if Time.get_ticks_msec() - start > timeout_ms:
-			push_warning("Battlefield: 等待 UI 结束超时")
+			# ★ v5.15：超时说明标志异常残留，必须强制清除。
+			# 原逻辑仅 break、标志仍为 true → CursorController 持续锁光标、
+			# 看门狗 legit_blocked 恒真不介入 → 换回合后永久无法操作单位。
+			push_warning("Battlefield: 等待 UI 结束超时，强制清理残留 UI 状态")
+			if Globals.is_dialogue_active:
+				DialogueManager.reset()
+			Globals.is_dialogue_active = false
+			Globals.is_item_get_popup_active = false
 			break
 		await get_tree().process_frame
 

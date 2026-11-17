@@ -79,3 +79,30 @@ func show_confirm(message: String, confirm_text: String = "确定", cancel_text:
 		cancel_button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	else:
 		confirm_button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+
+
+## v5.13：在弹窗中展示"将获得"的防具图标（水平居中，位于文字与按钮之间）。
+## texture 为 ItemData.icon（ItemManager 加载时已转好的 Texture2D），传空则不显示。
+func set_item_icon(texture: Texture2D) -> void:
+	if texture == null:
+		return
+	var rect := TextureRect.new()
+	rect.name = "RewardIcon"
+	rect.texture = texture
+	# ★ v5.14：保持图标原始尺寸（16x16），不放大；按纹理原大小绘制。
+	rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	# 水平居中，垂直放在中下部（文字区在下边界之上、按钮行之上）
+	rect.anchor_left = 0.5
+	rect.anchor_right = 0.5
+	rect.anchor_top = 0.5
+	rect.anchor_bottom = 0.5
+	var tex_size : Vector2 = texture.get_size()
+	var half_w : float = tex_size.x * 0.5
+	var half_h : float = tex_size.y * 0.5
+	rect.offset_left = -half_w
+	rect.offset_right = half_w
+	rect.offset_top = 8.0 - half_h
+	rect.offset_bottom = 8.0 + half_h
+	$Panel.add_child(rect)

@@ -223,6 +223,8 @@ Day3 → BOSS3（双形态）
 
 **防具**：无升级，只计算减伤率、附加属性、品质倍率、词条、方向连通。方向系统：每件防具实例有 `direction`（UP/DOWN/LEFT/RIGHT/VERTICAL/HORIZONTAL/DIAG_NE_SW/DIAG_NW_SE）；掉落时按 `enable_direction=true` 30% 概率带方向。方向重 roll：铁匠铺 120G；单箭头换另 3 个单箭头之一；双箭头在 ↕/⤢/⤡ 三选一。
 
+**连线箭头与品质的关系（v5.12 分析）**：箭头来自 `ItemInstance.direction` 实例字段（**不是** ItemData 静态数据，也不看 `tags`），由 `Direction.roll_drop_direction()` 按固定 70% 无方向 / 15% 单箭头 / 5% 双直线 / 10% 斜线 roll 出，**与 quality 无关**。所以"高品质天然带箭头"并不成立。部分 legendary 无箭头是熔铸属性所致——`ItemManager` 对 `melt_` 前缀 / `fusion_id` / `no_affix` / `no_fusion` 的物品强制 `enable_direction=false`，这 15 件（6 熔合产物 + 9 献祭熔铸）本就不该参与连通。**铁匠铺已有"调整方向"按钮**（`EquipmentConfigForge.gd`，120G/次，改的就是 `inst.direction`），可以把无方向的普通防具 roll 出箭头；但重 roll 规则保证单箭头只换单箭头、双箭头只在三种双箭头间换，**无方向（NONE）不可直接 roll 出箭头**——想给无方向防具加箭头，需确认 `Direction.reroll_direction()` 是否放行 NONE（当前设计下 NONE 是独立状态，建议后续补一个"首次开方向"入口，或让高品质普通防具出生即带方向作为品质奖励）。
+
 **连通组（v5.1 降权）**：跨单位相邻槽位方向对接时连成一组，按组大小 + 跨单位数提供攻击%/防御%/HP% buff。**数值封顶从 +30% 降到 +15%**——连线从"必修课"降级为"加分项"：玩家连不成线也能靠标签套装成型，连上就是白赚。跨 3 单位超级网额外给**功能性奖励**（全队开局 +2 护盾；超级网 +1 魂火）。星号标识组等级（★★★为 5 件以上超级连通网）。UI：悬停带箭头防具时同组槽位亮黄框，左侧显示"★ 已链接：X 件防具（跨 Y 个单位）"。支持一键自动配装，生成攻击流/防御流/平衡流三方案，可选是否允许交换单位位置。
 
 **套装判定（v5.1）**：同标签套装按**单位内**统计（每单位 2 防具槽），2 件即生效（tier1 基础数值）；2 件中只要有 1 件 epic+ 即触发 tier2 质变（强力机制）。全队交叉套装（两标签各 2 件）作为辅助层并行存在，不抢单位 Build 特色。效果统一从 `SetBonusManager.get_unit_set_effects()` 出口读取，tier 判定只做一次。
@@ -233,11 +235,28 @@ Day3 → BOSS3（双形态）
 
 **商店标签供货（v5.1 平衡）**：商店仍按队伍标签 / 购买记录 / 低语定向给热门标签加权供货（默认 80% 格子给前 2 标签），但单页增加同标签上限——6 格商店同一标签最多 3 件（约为 `SHOP_SIZE × 45%`，最低 2）。达到上限后该标签退出本页候选，改由次热门标签或通用池补位；若整池都是该标签则允许溢出，避免空格。这样"押守护"仍比冷门标签更容易出货，但不会一屏全是守护蓝。
 
+**防具池扩充（v5.12）**：此前 `item_data.json` 32 件防具中真正可买（`price>0`、非 `fusion_id`、非 `melt_` 前缀）仅 17 件——epic 只有 1 件（守护·骑士甲）、legendary 4 件，6 流派中 4 个没有 epic、献祭没有 legendary。商店 6 格且高等级 epic+legendary 权重合计 50%~85%，`ShopManager` 的去重在池子抽干后兜底 `valid_pool = pool`（第 245-246 行）重新允许重复，导致"经常卖重复防具"。本次新增 18 件可买防具（epic 6 / legendary 5 / common 4 / rare 3），覆盖 6 流派齐全的 epic+legendary，可买防具 17→35 件。数值梯度：common 物减 0.02-0.06 / rare 0.02-0.12 / epic 0.06-0.22 / legendary 0.08-0.24，属性点 0-1/1-2/2-3/2-3，价格 22-28/95-110/170-200/340-380；均为普通防具（无 `fusion_id`/`no_affix`，不写入 `enable_direction`），因此可正常 roll 词条与方向、按 30% 概率带箭头。新增 ID：flamebrand_plate / cinder_boots / samsara_robe / blood_oath_mask / emberheart_plate / bulwark_helm（epic）、ash_devourer / blood_moon_crown / eternal_flame_robe / flame_sovereign / wheel_of_samsara（legendary）、padded_coat / ember_shard / ash_cloak / novice_robe（common）、flame_glaive_armor / samsara_beads / sacrificial_bracer（rare）。注意：新防具需经宝箱/事件/熔铸/GM `unlock` 进入 `Globals.unlocked_items` 才会进普通商店池（`ShopManager._get_pool_ids()` 只取已解锁集；默认 `item_unlock.json` 仅 13 件、0 legendary）。
+
+**高品质防具产出途径澄清（v5.12）**：epic/legendary **并非只能合成得到**，共 6 条途径：① 商店按品质权重抽取（等级越高 epic/legendary 权重越大，含 rare/epic 保底）；② 战斗胜利稀有掉落（START/NORMAL 5%、ELITE 25%、BOSS 80%，只掉 epic+ 且 `price>0`）；③ 宝箱（普通 day1 出 epic、premium/day2 出 epic+legendary）；④ 剧情/事件直接给（如 `direct_get_knight_armor`）；⑤ 熔铸合成（配方树 + 同标签 2 件 epic 熔合固定 legendary + 随机锻造按分数 roll 品质、5% lucky 提档）；⑥ 献祭熔铸防具（`melt_` 前缀，legendary）。**不存在"给已有防具升级品质"的机制**——重铸只重掷词条、品质取原值，`upgrade_level` 字段无提升逻辑；品质只在"新产物"生成时确定。
+
 **三层合成配方树**：Tier1 common+common→rare；Tier2 rare+common/rare→epic；Tier3 epic+epic→legendary。配方无门槛，匹配直接产出。  
 **熔合**：2 件同标签紫装→橙装：烈焰→烈焰之羽、轮回→无尽轮回、灰烬→爆燃之核、守护→熔岩壁垒、献祭→不灭余烬、余烬→不灭薪火。  
 **重铸**：epic 防具 500 金币重 roll 词条。  
 **熔炉**：合成产物/熔铸产物进熔炉二次处理。  
 **熔铸防具**：`melt_` 前缀；无词条、无方向、不可卖、不可合成、不可熔合、不可被其他装备覆盖；数值由 `melt_armor_effect` 提供（攻击 +N + 特殊效果：暴击伤害/防御/攻击%/减伤/治疗/反击）；出产进 `pending_sacrifice_rewards`，需手动装备或丢弃。
+
+### 7.2.1 装备系统可玩性分析与改进方向（v5.12）
+结合代码事实与文档目标，当前系统的优势与待改进点如下（**标记为已做/建议，未做的不改动既有行为**）：
+
+**已修复的硬伤**：① 随机池过薄、商店重复——v5.12 已补 18 件防具，可买池 17→35、每流派 epic+legendary 齐全（见上）。② 套装死规则（同标签 3 件但只有 2 槽）——v5.1 改 2 件生效 + epic+ 质变。③ common 无词条——v5.1 全品质给词条 1/2/3/4。
+
+**仍存在的可玩性问题与建议**：
+1. **无方向防具无法"开方向"**（高优，低成本）——**v5.13 已做方案 (b)**：`ItemInstance.direction=NONE` 时铁匠铺"调整方向"按钮不显示（`EquipmentConfigForge.gd:202`），且 `Direction.reroll_direction(NONE)` 直接返回 NONE（`Direction.gd:72-73`），无箭头防具本无补救入口。现新增 `Direction.roll_birth_direction(quality)`：epic/legendary 普通防具出生必带箭头（50% 单 / 15% 直双 / 35% 斜双），作为品质奖励；common/rare 仍走原 30% 掉落 roll。三个生成入口（`ItemManager.create_instance_with_affixes`、`EquipmentConfigShop` 展示/购买、`EquipmentConfig._ensure_armor_directions` 补方向）统一改调该函数；熔铸/融合产物/`no_affix`/`no_fusion` 已被 `ItemManager` 强制 `enable_direction=false`，不受影响。方案 (a)（NONE 付费开方向按钮）本次未做。
+2. **商店购买越买越单一**（中优）：`tag_purchase_count` 累计加权（每次购买 +1，权重上限 10）是正反馈，叠加 80% 热门标签供货，长期趋向单一流派、`same_tag_cap` 只拦单页不拦长期。建议给累计权重衰减/封顶更低，或让"换流派"有显式引导（标签定向器已存在，可提高曝光）。
+3. **去重兜底允许重复**（中优）——**v5.13 已做**：`ShopManager._generate_shop_items` 去重池抽空后不再直接 `valid_pool = pool` 允许同页重复，改为跨品质降级补位（从当前品质往低一档品质池找未刷过的 item），全品质都刷过才允许重复以避免空格；同时删除了原 241-244 行与去重逻辑完全相同的冗余死循环。
+4. **新防具默认不解锁**（需注意）——**v5.13 已做（新 common/rare + epic + legendary 全解锁）**：`item_unlock.json` 的 `default_unlocked` 从 13 件增至 31 件：先加入 7 件新 common/rare（棉甲/余烬碎片/灰烬披风/学徒法袍/焰刃胸甲/轮回念珠/祭刃护腕），再把 5 件新 legendary（噬灰者/血月王冠/永焰长袍/焚天战铠/轮回之轮）与 6 件新 epic（焰纹铠/烬火战靴/轮回法衣/血誓面具/余烬之心/壁垒头盔）全部加入，早期商店即可买到新 epic + legendary；其余原有 legendary（熔铸产物/融合产物）仍不可买、不解锁。
+5. **连通组数值封顶后激励偏弱**（低优，设计权衡）：v5.1 已从 +30% 降到 +15% 变"加分项"，功能性奖励（开局护盾/魂火）是补偿。利是非必修、不逼氪；弊是高级玩家可能完全忽略连线。建议保留现状，靠自动配装三方案降低连线门槛即可。
+6. **品质无成长路径**（设计取舍）：防具不可升级、品质只在产出时定，符合"防具无成长路径"的原始约束；当前靠熔合/配方树提供纵向深度。建议维持，避免违背早期设计决议。
 
 ### 7.3 词条系统
 累积型（crit/bleed/parry 等）和主动型（active_charge/active_fireball 等）。解锁路径：default 5 个（教程自动）、soul 19 个（竞技场通关选择）、story 0 个。
@@ -618,6 +637,14 @@ v5.0 增量：魂火跨节点继承让长线规划更重；删除武器升级让
 34. **v5.10 竞技场伤害计算对齐正式战场**：竞技场（`ArenaBattle`）与正式战场（`CombatManager`）此前存在计算差异，本次逐项对齐（保留竞技场无魂火、无地形、无遗物全局 buff 的合理简化）：① `_calc_damage` 补遗物力量缩放、破甲 debuff（`buff_defense_shred`，仅物理侧）、静态穿透（`static_*_penetration`）、攻击方 `attack_flat` 词条——此前竞技场攻击词条完全不生效。② 暴击改为统一暴伤通道：`crit_mult = 1.5 + 词条crit_damage + static + buff_crit_damage_bonus`，暴击天赋改 `1.5+(lv-1)*0.25` 并吃同一通道，加 `CRIT_DAMAGE_CAP=2.0` 上限、`anti_crit` 抗暴减免、暴击天赋触发破甲；主动技能 `force_crit` 改为标记走统一通道，不再单独乘 1.5（避免与暴伤通道重复）。③ 暴击率补 `crit_chance` 词条。④ 吸血改为"天赋+buff 走 CD + 词条 lifesteal 每次命中独立生效"（对齐 `CombatManager._apply_damage_with_effects`）。⑤ 补被动 `flame_damage` 火焰词条。⑥ 重击倍率 `heavy_attack.damage_multiplier` 对齐：与主动技能 `damage_mult` 取 max 不叠加；竞技场无 charge 叠层。⑦ 修复法术连击判定里武器系统删除后的残留未定义变量 `weapon_data`（导致连击永不触发），改用内联 `weapon_category=="spellbook"`。因竞技场用 `UnitData` 无 `Unit.get_total_affix_value_float`，新增本文件 `_total_affix()` 直接聚合防具槽（同量纲）。`UnitData` 新增 `buff_defense_shred` 字段并纳入 `reset_combat_buffs()`。
 
 35. **v5.11 对话等待超时 + 竞技场 ignore_defense 对齐**：① 战斗流程中两处裸 `await DialogueManager.dialogue_finished`（`CombatManager._on_kill` 的 Boss 击杀对话、`BossMechanicManager` 转阶段对话）改为各自内置的 `_await_dialogue_with_timeout()`（6s 超时 + 信号竞态保护 + 超时强制 `DialogueManager.reset()` 并清 `is_dialogue_active`），机制对齐 `Battlefield._await_dialogue_with_timeout()`，根治此前偶发"进入战斗后无法操作"的输入锁死残留。② `ArenaBattle._calc_damage` 伤害结算补 `ignore_defense` 短路：`magic_attack.ignore_defense` 为真时 `effective_reduction=0`，与 `CombatManager` 第 214-219 行一致；此前无视防御类法术在竞技场仍照常吃减伤，伤害偏低。③ 附录第 15 条"竞技场减法公式技术债"与正文 7.9/口径表同步标记为已解决（v5.10 起代码已是减伤率乘区）。
+
+36. **v5.12 防具池扩充 + 装备系统可玩性分析**：① `item_data.json` 新增 18 件可买防具（epic 6 / legendary 5 / common 4 / rare 3），可买池 17→35、6 流派 epic+legendary 齐全，解决随机池过薄/商店重复；均为普通防具（带词条与方向 roll）。② 澄清高品质防具 6 条产出途径（商店/掉落/宝箱/事件/熔铸/献祭），非"只能合成"，且不存在已有防具升品质的机制。③ 分析连线箭头：来自 `ItemInstance.direction` 实例字段、30% 概率、与 quality 无关；熔铸类被强制无方向；铁匠铺"调整方向"120G 但 `reroll_direction(NONE)=NONE`，无方向防具无入口补箭头。④ 7.2.1 新增可玩性分析（无方向开方向入口 / 购买正反馈 / 去重兜底 / 新防具默认不解锁等改进建议）。
+37. **v5.13 装备可玩性改进（按 7.2.1 建议落地 1b / 3 / 4b）**：① 建议 1 方案 (b)——新增 `Direction.roll_birth_direction(quality)`，epic/legendary 普通防具出生必带箭头（50% 单 / 15% 直双 / 35% 斜双），common/rare 沿用 30% roll；三个生成入口（ItemManager / 商店展示购买 / 已装备补方向）统一改调，熔铸等无方向装不受影响；方案 (a) 开方向按钮未做。② 建议 3——`ShopManager` 去重池抽空改跨品质降级补位、删冗余循环，不再同页重复同款。③ 建议 4——`item_unlock.json` 默认解锁 13→25 件：先加 7 件新 common/rare（方案 b），再按需求把 5 件新 legendary（噬灰者/血月王冠/永焰长袍/焚天战铠/轮回之轮）全部加入默认解锁，早期商店即可买到新 legendary；epic 档新防具仍维持需解锁。建议 2（购买正反馈衰减）、5（连通组激励）、6（品质成长）经评估维持现状。校验：JSON 合法、5 个 .gd 括号平衡、方向生成入口全覆盖、解锁表无重复无幽灵 id、5 件新 legendary 全解锁。无 Godot CLI，未实机编译。
+38. **v5.13 锻造反馈 + epic 解锁**：① 合成/熔合/熔铸成功补播拖拽成功音效 `SoundManager.play_select_sound()`（`EquipmentConfigForge` 多件合成 367 行、熔合 602 行；`EquipmentConfig._do_sacrifice` 1555 行；单件重铸/调整方向原本已有）。② 熔铸确认弹窗展示"将获得"防具图标并居中：`Globals.show_confirm` 改为返回实例，`ConfirmUI.set_item_icon(texture: Texture2D)` 直接接收 `ItemData.icon`（加载时已转好的贴图），动态插入居中 TextureRect（文字与按钮之间空白区），两处熔铸确认（EquipmentConfig / SacrificeUI）均调用；图标保持原始尺寸（v5.14 修正，见附录 39）。③ `item_unlock.json` 默认解锁 25→31 件，6 件新 epic 全部加入，早期商店可买 epic。校验：JSON 合法、7 个 .gd 括号平衡、音效成功路径 3 处新增、图标调用 2 处、无重复无幽灵 id。无 Godot CLI，未实机编译。
+
+39. **v5.14 装备界面 UI 修正（截图反馈）**：① 商店售价与连线箭头重叠——`EquipmentConfigShop.build_shop_items` 把每个格子改为 `VBoxContainer`（图标按钮在上、价格 Label 在下），价格落到中心 20×20 色块外的下方，不再与箭头叠压；拖拽靠递归收集 Button，包裹层不影响命中。② 待领取奖励缺流派色块——`EquipmentConfig._create_pending_button` 补调 `_draw_build_tag_backdrop`，与商店/已装备格子一致垫 20×20 标签色块。③ 熔铸确认图标保持原大——`ConfirmUI.set_item_icon` 由 40×40 改为按纹理原尺寸（16×16）绘制（`EXPAND_IGNORE_SIZE` + `STRETCH_KEEP_ASPECT_CENTERED`），不再放大。④ 熔铸确认弹窗删除与实际不符的"该单位仍有 X 件防具，熔铸后将被锁定（需通过英灵殿复活取回）"及"（请在上方领取）"两处文案（实际为回收防具到待领取区 + 单位标记死亡）。校验：3 个 .gd 括号平衡、商店 cell 结构完整、待领取色块与确认弹窗尺寸到位。无 Godot CLI，未实机验证。
+
+40. **v5.15 战场输入锁死修复（`_wait_for_ui_clear` 超时残留）**：换回合 `on_turn_changed` 会 `set_locked(true)` 后 `await _wait_for_ui_clear()`；该函数超时原仅 `break`、未清 `is_dialogue_active`/`is_item_get_popup_active`，导致 `CursorController` 持续锁光标、看门狗 `legit_blocked` 恒真不介入 → 无法操作单位、悬停无反应。修复：① `_wait_for_ui_clear` 超时分支强制 `DialogueManager.reset()` + 清两个标志；② `Battlefield._ready` 开头强制清零全部跨场景弹窗/演出标志（dialogue/item_get/confirm/reward_summary/attack_menu/equip_menu），防止营地/装备界面残留状态带入战斗。战前 Boss 对话在 `_ready` 后段触发，不受开头清零影响。校验：Battlefield.gd 括号平衡、清零早于战前对话、DialogueManager 为 autoload。无 Godot CLI，未实机验证。
 
 **维护说明**：代码变更后本文档应同步更新，重点关注第七章、第九章、第十章；战斗流程中所有 `await DialogueManager.dialogue_finished` 必须走带超时 + 竞态保护的封装，禁止裸 await 以防输入锁死；派遣/光环研究推进单位已统一为"天"；单位属性面板为 6 项；光环为局内一次性消耗品；防御采用减伤率乘区，总上限 75%，最低保底 10%；`buff_damage_reduction` 与减伤率同源，加法叠加，受 75% 上限约束；主线与竞技场伤害公式均已统一为减伤率乘区 + 保底口径（v5.10 竞技场对齐正式战场）；品质倍率统一读 `CombatManager.QUALITY_MULT`；heavy_attack 与 charge 联动按累积型实现；魂火获得：命中 +1、阵亡 +5，击杀不再额外；熔铸防具不可修改/不可卖/不可合成/不可熔合/不可覆盖；遗物精炼第 2 tab，光环研究第 1 tab。
 
