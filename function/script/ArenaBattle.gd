@@ -7,6 +7,7 @@ var CRIT_BASE_CHANCE : float = 0.05
 var CRIT_PER_DEXTERITY : float = 0.005
 var CRIT_CHANCE_BY_QUALITY : Dictionary = {"common":0.0,"rare":0.03,"epic":0.05,"legendary":0.08}
 var CRIT_DAMAGE_MULT : float = 1.5
+var CRIT_DAMAGE_CAP : float = 2.0  # ★ v5.10 对齐正式战场：暴伤倍率上限
 var QUALITY_MULT : Dictionary = {"common":1.0,"rare":1.25,"epic":1.5,"legendary":1.8}
 var STRENGTH_DEF_FACTOR : float = 0.3
 var REDUCTION_CAP : float = 0.75
@@ -47,6 +48,12 @@ var _player_zeal_stacks : int = 0
 var _enemy_zeal_target : String = ""
 var _enemy_zeal_stacks : int = 0
 
+# ★ 对齐正式战场：遗物"首攻必暴击"剩余次数
+# 用独立成员跟踪，避免污染外部传入、竞技场连续多场复用的 UnitData
+var _player_first_attack_crit_remaining : int = 0
+var _enemy_first_attack_crit_remaining : int = 0
+var _first_crit_this_hit : bool = false  # 本次攻击是否由首攻必暴击触发（用于日志提示）
+
 var _player_bleed_stacks : int = 0
 var _enemy_bleed_stacks : int = 0
 
@@ -82,6 +89,9 @@ func _apply_config():
 	CRIT_PER_DEXTERITY = float(cfg.get("crit_per_dexterity", CRIT_PER_DEXTERITY))
 	CRIT_CHANCE_BY_QUALITY = cfg.get("crit_chance_by_quality", CRIT_CHANCE_BY_QUALITY).duplicate()
 	CRIT_DAMAGE_MULT = float(cfg.get("crit_damage_mult", CRIT_DAMAGE_MULT))
+	# ★ v5.10 对齐正式战场：竞技场配置段若无该键，回退到 combat_config 顶层值
+	CRIT_DAMAGE_CAP = float(cfg.get("crit_damage_cap",
+		GameConfigManager.get_value("combat_config.json", "crit_damage_cap", CRIT_DAMAGE_CAP)))
 	QUALITY_MULT = cfg.get("quality_mult", QUALITY_MULT).duplicate()
 	STRENGTH_DEF_FACTOR = float(cfg.get("strength_def_factor", STRENGTH_DEF_FACTOR))
 	REDUCTION_CAP = float(cfg.get("reduction_cap", REDUCTION_CAP))
@@ -108,6 +118,14 @@ func setup(player_data: UnitData, enemy_data: UnitData, crystal_reward: int = 0,
 
 	_player_hp = player_data.hit_points
 	_enemy_hp = enemy_data.max_hp
+
+	# ★ 对齐正式战场：遗物"首攻必暴击"（TurnController.apply_team_buffs 同源）
+	# 每场竞技场战斗重新结算；精炼 relic_attack 时 2 次，否则 1 次
+	var relic_effects : Dictionary = GameState.get_global_relic_effects()
+	_player_first_attack_crit_remaining = 0
+	if bool(relic_effects.get("first_attack_crit", false)):
+		_player_first_attack_crit_remaining = 2 if GameState.is_relic_equipped_and_refined("relic_attack") else 1
+	_enemy_first_attack_crit_remaining = 0
 
 	var p_display = player_data.display_name if player_data.display_name != "" else player_data.unit_name
 	var e_display = enemy_data.display_name if enemy_data.display_name != "" else enemy_data.unit_name
@@ -184,6 +202,20 @@ func _apply_team_shader(sprite: AnimatedSprite2D, team_id: int) -> ShaderMateria
 func _is_talent_ready(data: UnitData, talent_id: String) -> bool:
 	var inst = _get_talent_inst(data, talent_id)
 	return inst != null and inst.is_ready and inst.is_active
+
+
+# ★ 对齐正式战场：遗物"首攻必暴击"剩余次数读取（竞技场用独立成员，避免污染 UnitData）
+func _get_first_attack_crit_remaining(data: UnitData) -> int:
+	if data == _player:
+		return _player_first_attack_crit_remaining
+	return _enemy_first_attack_crit_remaining
+
+
+func _consume_first_attack_crit(data: UnitData) -> void:
+	if data == _player:
+		_player_first_attack_crit_remaining = maxi(0, _player_first_attack_crit_remaining - 1)
+	else:
+		_enemy_first_attack_crit_remaining = maxi(0, _enemy_first_attack_crit_remaining - 1)
 
 
 func _reset_talent(data: UnitData, talent_id: String):
@@ -279,23 +311,37 @@ func _do_attack(attacker: UnitData, defender: UnitData):
 		return
 
 	var is_player_attacker = (attacker == _player)
+	var force_crit_skill : bool = false  # 主动技能强制暴击标记（v5.10 改为走统一暴伤通道）
+	_first_crit_this_hit = false
 
 	var damage = _calc_damage(attacker, defender)
 
+	# ★ v5.10 对齐正式战场：重击倍率。竞技场无 charge 叠层，用普通 damage_multiplier；
+	# 与主动技能倍率取 max（不叠加），与 CombatManager 第 438 行口径一致。
+	var heavy_mult : float = 1.0
+	if not attacker.heavy_attack.is_empty():
+		heavy_mult = float(attacker.heavy_attack.get("damage_multiplier", 1.0))
+
 	# ---- 主动技能 ----
 	var ready_skills : Array = TalentManager.get_ready_active_skills(attacker)
+	var has_active_skill : bool = false
 	if ready_skills.size() > 0:
 		var skill_id : String = ready_skills[0]
 		var skill_data = TalentManager.get_talent_data(skill_id)
 		if skill_data:
+			has_active_skill = true
 			var ep : Dictionary = skill_data.effect_params
-			damage = int(damage * float(ep.get("damage_mult", 1.0)))
+			var skill_mult : float = float(ep.get("damage_mult", 1.0))
+			damage = int(damage * maxf(skill_mult, heavy_mult))
 			if bool(ep.get("force_crit", false)):
-				damage = int(damage * CRIT_DAMAGE_MULT)
+				force_crit_skill = true
 				print("[Arena] 主动技能 %s 触发：强制暴击" % skill_data.display_name)
 			else:
 				print("[Arena] 主动技能 %s 触发" % skill_data.display_name)
 			TalentManager.consume_active_skill(attacker, skill_id)
+
+	if not has_active_skill and heavy_mult > 1.0:
+		damage = int(damage * heavy_mult)
 
 	# ---- 狂热 ----
 	var target_key = defender.unit_name
@@ -322,20 +368,54 @@ func _do_attack(attacker: UnitData, defender: UnitData):
 		damage = int(damage * bonus)
 		_reset_talent(attacker, "zeal")
 
-	# ---- 暴击 ----
+	# ---- 暴击（v5.10 全面对齐正式战场统一暴伤通道）----
 	var is_crit := false
+	var crit_talent_triggered : bool = false
+	# 竞技场无魂火系统，故不含 SoulFireManager 暴伤；其余加成与正式战场一致
 	var crit_mult : float = CRIT_DAMAGE_MULT
+	crit_mult += _total_affix(attacker, "crit_damage")
+	crit_mult += attacker.static_crit_damage_bonus
+	crit_mult += attacker.buff_crit_damage_bonus
 
-	if _is_talent_ready(attacker, "crit"):
-		var lv_crit = _get_talent_level(attacker, "crit")
-		crit_mult = 2.0 + (lv_crit - 1) * 0.5
+	if force_crit_skill:
 		is_crit = true
+	elif _is_talent_ready(attacker, "crit"):
+		var lv_crit = _get_talent_level(attacker, "crit")
+		var cdata = TalentManager.get_talent_data("crit")
+		var base_mult : float = 1.5
+		if cdata:
+			base_mult = float(cdata.effect_params.get("damage_multiplier", 1.5))
+		crit_mult = base_mult + (lv_crit - 1) * 0.25 \
+			+ attacker.buff_crit_damage_bonus \
+			+ _total_affix(attacker, "crit_damage") \
+			+ attacker.static_crit_damage_bonus
+		is_crit = true
+		crit_talent_triggered = true
 		_reset_talent(attacker, "crit")
+	elif _get_first_attack_crit_remaining(attacker) > 0:
+		# ★ 对齐正式战场：遗物"首攻必暴击"（CombatManager 第 503 行）
+		# crit_mult 开头已含 buff_crit_damage_bonus，与局内该分支口径一致，不重复叠加
+		is_crit = true
+		_first_crit_this_hit = true
+		_consume_first_attack_crit(attacker)
 	elif _roll_crit(attacker):
 		is_crit = true
 
 	if is_crit:
-		damage = int(damage * crit_mult)
+		crit_mult = minf(crit_mult, CRIT_DAMAGE_CAP)
+		# 抗暴词条（对齐正式战场）
+		var anti_crit : float = clampf(_total_affix(defender, "anti_crit"), 0.0, 0.8)
+		var effective_crit_mult : float = 1.0 + (crit_mult - 1.0) * (1.0 - anti_crit)
+		damage = int(damage * effective_crit_mult)
+		# ★ v5.10：暴击天赋触发破甲 debuff（对齐正式战场，写入防守方下次受击生效）
+		if crit_talent_triggered:
+			var cdata2 = TalentManager.get_talent_data("crit")
+			var shred_amt : float = 0.20
+			var shred_cap : float = 0.50
+			if cdata2:
+				shred_amt = float(cdata2.effect_params.get("defense_shred", 0.20))
+				shred_cap = float(cdata2.effect_params.get("shred_cap", 0.50))
+			defender.buff_defense_shred = minf(defender.buff_defense_shred + shred_amt, shred_cap)
 		if is_player_attacker:
 			_crit_count += 1
 
@@ -393,14 +473,24 @@ func _do_attack(attacker: UnitData, defender: UnitData):
 
 	var atk_name = attacker.display_name if attacker.display_name != "" else attacker.unit_name
 	var def_name = defender.display_name if defender.display_name != "" else defender.unit_name
-	var crit_str : String = "（暴击！）" if is_crit else ""
+	var crit_str : String = ""
+	if _first_crit_this_hit:
+		crit_str = "（首攻暴击！）"
+	elif is_crit:
+		crit_str = "（暴击！）"
 	log_label.text = "%s 攻击 %s%s，造成 %d 伤害" % [atk_name, def_name, crit_str, damage]
 
-	# ---- 吸血 ----
+	# ---- 吸血（v5.10 对齐正式战场：天赋 + buff 走 CD，词条独立每次生效）----
+	var ls_pct : float = 0.0
 	if _is_talent_ready(attacker, "lifesteal"):
 		var lv_ls = _get_talent_level(attacker, "lifesteal")
-		var pct = 0.2 + (lv_ls - 1) * 0.1
-		var heal = int(damage * pct)
+		ls_pct = 0.2 + (lv_ls - 1) * 0.1
+		ls_pct += attacker.buff_lifesteal_percent
+		_reset_talent(attacker, "lifesteal")
+	# 词条吸血不依赖天赋 CD，对齐 CombatManager._apply_damage_with_effects
+	ls_pct += _total_affix(attacker, "lifesteal")
+	if ls_pct > 0.0:
+		var heal = int(damage * ls_pct)
 		if is_player_attacker:
 			var old = _player_hp
 			_player_hp = mini(_player_hp + heal, _player.max_hp)
@@ -415,7 +505,21 @@ func _do_attack(attacker: UnitData, defender: UnitData):
 			if actual > 0:
 				enemy_hp_bar.value = _enemy_hp
 				log_label.text += "  [吸血 +%d]" % actual
-		_reset_talent(attacker, "lifesteal")
+
+	# ---- 火焰伤害词条（v5.10 对齐正式战场被动 flame_damage）----
+	var flame_bonus : int = 0
+	for slot in attacker.armor_slots:
+		if slot: flame_bonus += slot.get_affix_value("flame_damage")
+	if flame_bonus > 0:
+		if is_player_attacker:
+			_enemy_hp = maxi(0, _enemy_hp - flame_bonus)
+			enemy_hp_bar.value = _enemy_hp
+			_total_damage_dealt += flame_bonus
+		else:
+			_player_hp = maxi(0, _player_hp - flame_bonus)
+			player_hp_bar.value = _player_hp
+			_total_damage_taken += flame_bonus
+		log_label.text += "  [灼烧 +%d]" % flame_bonus
 
 	_refresh_hp_labels()
 	await get_tree().create_timer(0.6, true, false, true).timeout
@@ -472,7 +576,9 @@ func _do_attack(attacker: UnitData, defender: UnitData):
 
 	# ---- 法术连击 ----
 	if _is_talent_ready(attacker, "spell_chain"):
-		if weapon_data and (weapon_data.category == "spellbook" or weapon_data.category == "staff"):
+		# ★ v5.10 修复：原 weapon_data 为武器系统删除后的残留未定义变量，导致法术连击永不触发；
+		# 对齐正式战场 get_weapon_type()=="spellbook"，竞技场用内联 weapon_category
+		if attacker.weapon_category == "spellbook":
 			var lv_sc = _get_talent_level(attacker, "spell_chain")
 			var mult = SPELL_CHAIN_BASE + (lv_sc - 1) * SPELL_CHAIN_PER_LEVEL
 			var extra = maxi(1, int(damage * mult))
@@ -547,6 +653,10 @@ func _calc_damage(attacker: UnitData, defender: UnitData) -> int:
 	if is_magic:
 		total_attack += attacker.buff_magic_attack_flat
 	total_attack *= (1.0 + attacker.buff_attack_percent)
+	# ★ v5.10 对齐正式战场：遗物力量缩放伤害
+	if attacker.relic_strength_scale_damage > 0.0:
+		var str_val : int = attacker.get_effective_attr("strength")
+		total_attack *= (1.0 + str_val * attacker.relic_strength_scale_damage)
 
 	# ---- 2. 减伤率 ----
 	var base_reduction : float = defender.magic_reduction if is_magic else defender.physical_reduction
@@ -568,8 +678,10 @@ func _calc_damage(attacker: UnitData, defender: UnitData) -> int:
 
 	var buff_reduction : float = (defender.buff_magic_reduction if is_magic else defender.buff_physical_reduction) \
 		+ defender.buff_damage_reduction
+	# ★ v5.10 对齐正式战场：破甲 debuff 只在物理减伤侧生效（UnitData 现已带 buff_defense_shred）
+	var shred : float = 0.0 if is_magic else defender.buff_defense_shred
 	var total_reduction : float = clampf(
-		base_reduction + armor_reduction + affix_reduction + buff_reduction,
+		base_reduction + armor_reduction + affix_reduction + buff_reduction - shred,
 		0.0, REDUCTION_CAP)
 
 	# ---- 3. 穿透 ----
@@ -578,7 +690,9 @@ func _calc_damage(attacker: UnitData, defender: UnitData) -> int:
 	for slot in attacker.armor_slots:
 		if slot:
 			affix_pen += slot.get_affix_value_float("magic_penetration" if is_magic else "physical_penetration")
-	var total_pen : float = weapon_pen + affix_pen
+	# ★ v5.10 对齐正式战场：静态穿透（竞技场入场已清零，商店/成长可写入）
+	var static_pen : float = attacker.static_magic_penetration if is_magic else attacker.static_physical_penetration
+	var total_pen : float = weapon_pen + affix_pen + static_pen
 
 	# ---- 4. 伤害结算 ----
 	var effective_reduction : float = clampf(total_reduction - total_pen, 0.0, 1.0)
@@ -586,7 +700,24 @@ func _calc_damage(attacker: UnitData, defender: UnitData) -> int:
 	var floor_raw : float = total_attack * MIN_DAMAGE_FLOOR
 	var damage : int = max(1, int(max(damage_raw, floor_raw)))
 
-	return damage
+	# ★ v5.10 对齐正式战场：攻击方 attack_flat 词条（此前竞技场漏算）
+	var atk_affix_bonus : int = 0
+	for slot in attacker.armor_slots:
+		if slot: atk_affix_bonus += slot.get_affix_value("attack_flat")
+	damage += atk_affix_bonus
+
+	return max(1, damage)
+
+
+## v5.10：竞技场用 UnitData，无 Unit.get_total_affix_value_float，这里自行聚合防具槽词条
+## （ItemInstance.get_affix_value_float 已 /100，与正式战场 get_total_affix_value_float 同量纲）
+func _total_affix(data: UnitData, affix_type: String) -> float:
+	if data == null: return 0.0
+	var total : float = 0.0
+	for slot in data.armor_slots:
+		if slot:
+			total += slot.get_affix_value_float(affix_type)
+	return total
 
 
 func _roll_crit(attacker: UnitData) -> bool:
@@ -595,6 +726,8 @@ func _roll_crit(attacker: UnitData) -> bool:
 	# ★ v5.1：品质从内联字段读
 	if attacker.weapon_name != "":
 		chance += CRIT_CHANCE_BY_QUALITY.get(attacker.weapon_quality, 0.0)
+	# ★ v5.10 对齐正式战场：暴击率词条
+	chance += _total_affix(attacker, "crit_chance")
 	return randf() < chance
 
 

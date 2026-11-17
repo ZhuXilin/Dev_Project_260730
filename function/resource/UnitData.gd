@@ -60,6 +60,8 @@ var buff_attack_flat : int = 0
 var buff_magic_attack_flat : int = 0
 var buff_lifesteal_percent : float = 0.0
 var buff_defense_flat : int = 0
+# v5.10：破甲 debuff（暴击天赋命中后写入防守方，下次受击生效；对齐正式战场 Unit.buff_defense_shred）
+var buff_defense_shred : float = 0.0
 
 var relic_first_attack_crit_available : bool = false
 var relic_low_hp_damage_reduce : float = 0.0
@@ -120,6 +122,7 @@ func reset_combat_buffs():
 	buff_magic_attack_flat = 0
 	buff_lifesteal_percent = 0.0
 	buff_defense_flat = 0
+	buff_defense_shred = 0.0
 	relic_first_attack_crit_available = false
 	relic_low_hp_damage_reduce = 0.0
 	relic_kill_grants_extra_move = 0
