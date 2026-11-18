@@ -1590,7 +1590,11 @@ func _build_ui():
 	_canvas.mouse_filter = Control.MOUSE_FILTER_STOP
 	_scroll.add_child(_canvas)
 
-	_canvas.gui_input.connect(_on_canvas_input)
+	# ★ v5.17.2：删除此处 gui_input.connect(_on_canvas_input)。
+	# Godot 4 的 Control::_call_gui_input() 会先 emit gui_input 信号、再调用脚本的 _gui_input()，
+	# 二者都会执行；而 MapLayoutCanvas._gui_input() 内部已调用 editor._on_canvas_input(e)。
+	# 两处并存导致每次点击被处理两次——连线是两段式状态机，第一次选中起点会被第二次立即抵消，
+	# 表现为「连线功能坏掉」。现统一由 MapLayoutCanvas._gui_input() 单一入口转发。
 
 
 func _on_canvas_input(event: InputEvent):

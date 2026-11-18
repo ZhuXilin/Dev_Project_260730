@@ -662,6 +662,8 @@ v5.0 增量：魂火跨节点继承让长线规划更重；删除武器升级让
 
 **42. v5.17 魂火四态精简为三态**：基于玩法分析讨论结论，砍掉独立 `State.ZERO`，归零并入 `State.NORMAL`（无暴伤、无战斗惩罚），仅保留"魂火耗尽"作为 HUD/浮字标记，不再占状态枚举。① `SoulFireManager`：删 `ZERO` 枚举；`get_state()` 归零返回 NORMAL，且 `current<=0` 时不落入枯竭分支（避免归零反触发暴伤）；新增 `is_exhausted()`（`current<=0`）作归零判定。② **触底反弹补偿口径变更**：原 ZERO 态击杀 +1 魂火保留，但改由 `is_exhausted()` 判定（附录第 14 条"击杀不额外发魂火"仅指常态，归零态例外）。③ HUD（`Battlefield._on_soul_fire_changed`）归零显示"X/Y 熄"+ 醒目红色；`SoulFireVisualController` 同时监听 `state_changed` 与 `soul_fire_changed`（因 NORMAL→归零时 state 不变，只监听 state 会漏提示），走统一 `_refresh_visual()` 决定三态文字/归零标记。④ `AnalyticsLogger` 归零采样改用 `is_exhausted()`（保留 `sf_samples_zero` 字段名兼容历史数据）；`EnemyAI` 只读 BURNING/DEPLETED，归零等价于 NORMAL，无需改。校验：全局无 `State.ZERO` 残留引用、5 个改动 .gd 括号平衡。无 Godot CLI，未实机编译验证。
 
+**43. v5.17.2 MapLayoutEditor 连线失效修复**：连线点击失效（两段式"先选起点再选终点"永远选不中起点）根因是 canvas 输入事件被处理两次——`MapLayoutEditor._build_ui()` 里 `_canvas.gui_input.connect(_on_canvas_input)` 与 `MapLayoutCanvas._gui_input()` 内部的 `editor._on_canvas_input(e)` 并存。Godot 4 的 `Control::_call_gui_input()` 先 emit `gui_input` 信号、再调 GDScript `_gui_input()`，二者都会执行；第一次点击置 `_selected_link=idx`，第二次立刻 `from_idx==idx` 抵消清空，导致连不上线（编辑模式影响较小，仅撤销栈多一份快照）。修复：删除 Editor 的信号 connect，统一由 `MapLayoutCanvas._gui_input()` 单一入口转发；测试模式 hover 拦截逻辑不变（仅 MouseMotion 被拦，点击/滚轮仍转发）。校验：入口唯一、两 .gd 括号平衡。无 Godot CLI，未实机验证。
+
 **维护说明**：代码变更后本文档应同步更新，重点关注第七章、第九章、第十章；战斗流程中所有 `await DialogueManager.dialogue_finished` 必须走带超时 + 竞态保护的封装，禁止裸 await 以防输入锁死；派遣/光环研究推进单位已统一为"天"；单位属性面板为 6 项；光环为局内一次性消耗品；防御采用减伤率乘区，总上限 75%，最低保底 10%；`buff_damage_reduction` 与减伤率同源，加法叠加，受 75% 上限约束；主线与竞技场伤害公式均已统一为减伤率乘区 + 保底口径（v5.10 竞技场对齐正式战场）；品质倍率统一读 `CombatManager.QUALITY_MULT`；heavy_attack 与 charge 联动按累积型实现；魂火获得：命中 +1、阵亡 +5，击杀不再额外；熔铸防具不可修改/不可卖/不可合成/不可熔合/不可覆盖；遗物精炼第 2 tab，光环研究第 1 tab。
 
 **文档结束。**
