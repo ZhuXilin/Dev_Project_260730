@@ -423,27 +423,19 @@ func get_unlocked_talents() -> Array:
 	return unlocked_talents.duplicate()
 
 
-func can_soul_unlock_talent(talent_id: String) -> bool:
-	if talent_id in unlocked_talents:
-		return false
-	var cost = TalentManager.get_soul_cost(talent_id)
-	if cost < 0:
-		return false
-	return GameState.soul >= cost
+# ★ v5.16 废弃：魂解锁天赋通道已移除，改由地图进度解锁（ProgressUnlockManager）。
+# 以下接口保留签名以兼容旧存档 / 编辑器 / 外部调用，不再消耗魂、不再直接解锁。
+func can_soul_unlock_talent(_talent_id: String) -> bool:
+	return false
 
 
-func get_talent_soul_cost(talent_id: String) -> int:
-	return TalentManager.get_soul_cost(talent_id)
+func get_talent_soul_cost(_talent_id: String) -> int:
+	return -1
 
 
 func soul_unlock_talent(talent_id: String) -> bool:
-	if not can_soul_unlock_talent(talent_id):
-		return false
-	var cost = get_talent_soul_cost(talent_id)
-	GameState.soul -= cost
-	unlock_talent(talent_id)
-	SaveManager.auto_save()
-	return true
+	push_warning("[Globals] 魂解锁天赋已废弃（%s），请通过地图进度解锁" % talent_id)
+	return false
 
 
 func is_talent_story_locked(talent_id: String) -> bool:

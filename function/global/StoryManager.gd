@@ -101,7 +101,11 @@ func trigger(trigger_type: String, context: Dictionary = {}) -> bool:
 	return true
 
 
-func play_dialogue_by_id(dialogue_id: String) -> bool:
+## 按 id 播放对话。
+## v5.16 修复：此前本接口不检查 repeatable/播放次数，导致 Boss 战前/阶段/死亡对话
+## 每局重播，绕过了 _is_playable 的"跨局不重复"契约。现与 trigger() 路径一致：
+## 默认尊重去重并计播放次数；force=true 仅用于 GM / 测试显式重播。
+func play_dialogue_by_id(dialogue_id: String, force: bool = false) -> bool:
 	if dialogue_id == "":
 		return false
 	if not _dialogue_index.has(dialogue_id):
@@ -112,11 +116,16 @@ func play_dialogue_by_id(dialogue_id: String) -> bool:
 	var lines: Array = d.get("lines", [])
 	if lines.is_empty():
 		return false
+	if not force and not _is_playable(d):
+		return false
+	var npc_id: String = str(entry.get("npc_id", ""))
 	var choices: Array = d.get("choices", [])
 	if choices.is_empty():
 		DialogueManager.start_inline_dialogue(lines)
 	else:
 		DialogueManager.start_inline_dialogue_with_choices(lines, choices)
+	_record_play(d, npc_id, str(d.get("trigger_type", "by_id")))
+	_apply_effect(d.get("effect", {}))
 	return true
 
 
@@ -245,7 +254,15 @@ func _record_play(d: Dictionary, npc_id: String, trigger_type: String) -> void:
 			if not (did in seen):
 				seen.append(did)
 				
-	# ★ v4.6：记录亲密度（暂缓实装，但保留接口扩展位）
+	# ★ v5.16：接通亲密度成长死线。
+	# 亲密度直接由 npc_interact_counts 派生（一次完整 NPC 互动 = 一次对话播放），
+	# 上限 TIER_3=15，避免重复对话无限刷。一次性对话已被 _is_playable 去重。
+	# 消费点已存在：守火者≥10 魂火上限+1 / ≥15 初始+1；游魂向导≥10 派遣-1；角斗士≥10 竞技场费-50%。
+	if npc_id != "" and trigger_type in INTERACT_TRIGGERS:
+		var interactions : int = int(GameState.npc_interact_counts.get(npc_id, 0))
+		var derived : int = mini(interactions, AFFINITY_TIER_3)
+		if derived > int(GameState.npc_affinity.get(npc_id, 0)):
+			GameState.npc_affinity[npc_id] = derived
 
 	SaveManager.auto_save()
 

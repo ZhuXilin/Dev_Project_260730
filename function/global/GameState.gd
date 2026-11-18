@@ -227,6 +227,10 @@ var total_run_count : int:
 var total_dispatch_count : int:
 	get: return resource_state.total_dispatch_count
 	set(value): resource_state.total_dispatch_count = value
+# v5.16：跨局累计通关节点数（地图进度解锁锚点）
+var campaign_progress : int:
+	get: return resource_state.campaign_progress
+	set(value): resource_state.campaign_progress = value
 var keys : int:
 	get: return resource_state.keys
 	set(value): resource_state.keys = value

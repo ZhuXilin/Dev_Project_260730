@@ -129,7 +129,7 @@ func _do_load_and_go_camp(slot: int):
 
 func _on_new_game_pressed(slot: int):
 	GameState.reset_all()
-	GameState.start_new_cycle()
+	# v5.16 修复：开局计数统一由 UnitSelectUI 确认队伍后的 start_new_cycle() 触发一次。
 	GameState.interrupt_state = GameState.InterruptState.CAMP
 	Globals.pending_save_slot = slot
 	SaveManager.save_game(slot, false)

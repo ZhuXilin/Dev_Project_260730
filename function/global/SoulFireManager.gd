@@ -6,15 +6,22 @@ extends Node
 #    - 获得：命中 +N，击杀 +M，一击多杀额外 +K（全部来自战斗）
 #    - 消耗：技能 / 急救 / 局内购买光环
 #    - 兑现：删除（不再 1:1 换魂）
-#    - 状态：DEPLETED 不再放大受伤
+#    - 状态（v5.17 三态）：DEPLETED 不再放大受伤；ZERO 不再是独立状态，
+#      归零并入 NORMAL，仅通过 HUD「魂火耗尽」标记提示，不再占状态枚举。
 # ============================================================
 
-enum State { NORMAL, BURNING, DEPLETED, ZERO }
+enum State { NORMAL, BURNING, DEPLETED }
 
 const MAX_CARRIED_LEVELS : Array[int] = [8, 12, 16, 22, 30, 40, 50]
 const UPGRADE_COSTS      : Array[int] = [0, 30, 80, 180, 350, 600, 1000]
 const INITIAL_LEVELS     : Array[int] = [0, 1, 2, 3]
 const INITIAL_COSTS      : Array[int] = [0, 50, 200, 800]
+
+# ★ 主动技能魂火消耗兜底常量（CombatManager._get_active_skill_cost 使用）
+# 技能在 talents.json 里显式配 soul_fire_cost（2 或 3）时走显式值；
+# 未配置时按效果类型兜底：普通攻击类 2、治疗类 3。
+const COST_SKILL_MIN : int = 2
+const COST_SKILL_MAX : int = 3
 
 # ★ v5.0：从 combat_config.json 读取，下列是默认值
 var HIT_GAIN : int = 1
@@ -82,8 +89,7 @@ func get_ratio() -> float:
 
 
 func get_state() -> State:
-	if current <= 0:
-		return State.ZERO
+	# ★ v5.17：归零并入 NORMAL，不再单独成态；「魂火耗尽」由 is_exhausted() + HUD 标记表达
 	var r : float = get_ratio()
 
 	var burning_threshold : float = 0.5
@@ -94,9 +100,15 @@ func get_state() -> State:
 
 	if r > burning_threshold:
 		return State.BURNING
-	elif r < depleted_threshold:
+	elif r < depleted_threshold and current > 0:
+		# current <= 0 时保持 NORMAL（无暴伤），避免归零反而触发枯竭暴伤
 		return State.DEPLETED
 	return State.NORMAL
+
+
+## 归零标记（不占状态枚举）：当前魂火为 0
+func is_exhausted() -> bool:
+	return current <= 0
 
 
 func get_move_bonus() -> int:
@@ -214,7 +226,8 @@ func on_kill(kill_count: int = 1) -> int:
 	if GameState.current_map_data != null:
 		mult = maxf(1.0, GameState.current_map_data.reward_multiplier)
 	var gain : int = maxi(1, int(round(float(base) * mult)))
-	if get_state() == State.ZERO:
+	# ★ v5.17：原 ZERO 态击杀 +1 的「触底反弹」补偿保留，改用 is_exhausted() 判定
+	if is_exhausted():
 		gain += 1
 	return add(gain)
 

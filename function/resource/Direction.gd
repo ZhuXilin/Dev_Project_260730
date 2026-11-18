@@ -30,7 +30,10 @@ enum Value {
 
 const ALL_SINGLE : Array[int] = [Value.UP, Value.RIGHT, Value.DOWN, Value.LEFT]
 const ALL_DOUBLE : Array[int] = [Value.VERTICAL, Value.HORIZONTAL, Value.DIAG_NE_SW, Value.DIAG_NW_SE]
-const ALL_DOUBLE_ARROW : Array[int] = [Value.VERTICAL, Value.DIAG_NE_SW, Value.DIAG_NW_SE]
+# v5.16 修复：↔(HORIZONTAL) 此前被排除在 ALL_DOUBLE_ARROW 之外，导致它生成后
+# is_double_arrow()=false → 不可 reroll、不计入连通组跨单位倍率，但 has_dir() 又认它左右连通，
+# 形成"半死"孤儿值。现纳入双箭头家族，与 ↕/⤢/⤡ 同为合法双箭头。
+const ALL_DOUBLE_ARROW : Array[int] = [Value.VERTICAL, Value.HORIZONTAL, Value.DIAG_NE_SW, Value.DIAG_NW_SE]
 const ALL_DIAGONAL : Array[int] = [Value.DIAG_NE_SW, Value.DIAG_NW_SE]
 
 
@@ -79,9 +82,7 @@ static func roll_birth_direction(quality: String) -> int:
 
 ## 重 roll 方向：
 ##   单箭头 → 从另外 3 个单箭头里选
-##   双直  → 从另外 1 个双直里选（永远变）
-##   斜线  → 从另外 1 个斜线里选（永远变）
-##   双箭头跨类型：允许 ↕ / ⤢ / ⤡ 三选一，但**永远不会变回单箭头**
+##   双箭头 → 从 ↕ / ↔ / ⤢ / ⤡ 里选一个不同的（永远不会变回单箭头）
 ## 返回新方向；若不可重 roll 返回原方向
 static func reroll_direction(old_dir: int) -> int:
 	if old_dir == Value.NONE:
@@ -91,7 +92,7 @@ static func reroll_direction(old_dir: int) -> int:
 		pool.erase(old_dir)
 		return pool[randi() % pool.size()]
 	if is_double_arrow(old_dir):
-		# ★ 跨类型：↕ / ⤢ / ⤡ 三选一，排除自己
+		# ★ 跨类型：↕ / ↔ / ⤢ / ⤡ 四选一，排除自己（v5.16：↔ 不再被跳过）
 		var pool2 : Array = ALL_DOUBLE_ARROW.duplicate()
 		pool2.erase(old_dir)
 		return pool2[randi() % pool2.size()]

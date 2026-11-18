@@ -59,6 +59,8 @@ var npc_dialogue_seen : Dictionary = {}
 var npc_dialogue_flags : Array = []
 var total_run_count : int = 0
 var total_dispatch_count : int = 0
+# v5.16：跨局累计通关节点数，作为天赋/遗物"地图进度解锁"的唯一锚点
+var campaign_progress : int = 0
 
 var unlocked_avatars : Dictionary = {}
 var unlocked_npc_avatars : Dictionary = {}

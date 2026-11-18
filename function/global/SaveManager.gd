@@ -158,6 +158,8 @@ func _build_save_data() -> SaveData:
 	save.npc_dialogue_flags = GameState.npc_dialogue_flags.duplicate()
 	save.total_run_count = GameState.total_run_count
 	save.total_dispatch_count = GameState.total_dispatch_count
+	save.campaign_progress = GameState.campaign_progress
+	save.progress_unlock_claimed = ProgressUnlockManager.get_claimed()
 	save.npc_affinity = GameState.npc_affinity.duplicate(true)
 
 	save.npc_interact_counts = GameState.npc_interact_counts.duplicate(true)
@@ -283,6 +285,9 @@ func _apply_save_data(save: SaveData):
 	GameState.npc_dialogue_flags = _safe_array(save.npc_dialogue_flags)
 	GameState.total_run_count = save.total_run_count
 	GameState.total_dispatch_count = save.total_dispatch_count
+	GameState.campaign_progress = save.campaign_progress
+	ProgressUnlockManager.set_claimed(_safe_dict(save.progress_unlock_claimed))
+	ProgressUnlockManager.sync_progress(false)
 	GameState.npc_affinity = _safe_dict(save.npc_affinity)
 
 	if Globals.unlocked_items.is_empty():

@@ -130,28 +130,17 @@ func unlock_relics_by_ids(relic_ids: Array) -> Array:
 
 
 # ============================================================
-#  魂解锁
+#  魂解锁（v5.16 废弃：改由地图进度解锁 ProgressUnlockManager）
+#  保留签名兼容旧存档/编辑器；不再消耗魂、不再直接解锁。
 # ============================================================
-func get_soul_cost(relic_id: String) -> int:
-	var d : Dictionary = get_relic_data(relic_id)
-	return int(d.get("soul_cost", 0))
+func get_soul_cost(_relic_id: String) -> int:
+	return -1
 
 
-func can_soul_unlock_relic(relic_id: String) -> bool:
-	if is_relic_unlocked(relic_id):
-		return false
-	var cost : int = get_soul_cost(relic_id)
-	if cost <= 0:
-		return false
-	return GameState.soul >= cost
+func can_soul_unlock_relic(_relic_id: String) -> bool:
+	return false
 
 
 func soul_unlock_relic(relic_id: String) -> bool:
-	if not can_soul_unlock_relic(relic_id):
-		return false
-	var cost : int = get_soul_cost(relic_id)
-	GameState.soul -= cost
-	unlock_relic(relic_id)
-	SaveManager.auto_save()
-	print("[RelicManager] 魂解锁遗物：%s（花费 %d 魂）" % [relic_id, cost])
-	return true
+	push_warning("[RelicManager] 魂解锁遗物已废弃（%s），请通过地图进度解锁" % relic_id)
+	return false

@@ -1362,14 +1362,16 @@ func _on_soul_fire_changed(current: int, max_carried: int):
 		soul_fire_bar.value = current
 	if soul_fire_label and is_instance_valid(soul_fire_label):
 		soul_fire_label.text = "%d/%d" % [current, max_carried]
-
+		# ★ v5.17：归零不再单独成态，改为 HUD「熄」标记 + 醒目色
+		if SoulFireManager.is_exhausted():
+			soul_fire_label.text += " 熄"
+			soul_fire_label.modulate = Color(0.95, 0.45, 0.45, 1.0)
+			return
 		match SoulFireManager.get_state():
 			SoulFireManager.State.BURNING:
 				soul_fire_label.modulate = Color(1.0, 0.302, 0.302, 1.0)
 			SoulFireManager.State.DEPLETED:
 				soul_fire_label.modulate = Color(0.708, 0.499, 0.0, 1.0)
-			SoulFireManager.State.ZERO:
-				soul_fire_label.modulate = Color(1.0, 1.0, 1.0, 1.0)
 			_:
 				soul_fire_label.modulate = Color.WHITE
 

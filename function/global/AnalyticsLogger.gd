@@ -60,8 +60,10 @@ func record_soul_fire_sample():
 			_current["sf_samples_burning"] += 1
 		SoulFireManager.State.DEPLETED:
 			_current["sf_samples_depleted"] += 1
-		SoulFireManager.State.ZERO:
-			_current["sf_samples_zero"] += 1
+		_:
+			# ★ v5.17：归零并入 NORMAL，用 is_exhausted() 单独采样（保留字段名兼容历史数据）
+			if SoulFireManager.is_exhausted():
+				_current["sf_samples_zero"] += 1
 	_current["sf_peak_ratio"] = maxf(_current["sf_peak_ratio"], r)
 	_current["sf_lowest_ratio"] = minf(_current["sf_lowest_ratio"], r)
 

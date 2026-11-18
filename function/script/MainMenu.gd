@@ -20,7 +20,9 @@ func _on_start_pressed():
 		return
 	Globals.pending_save_slot = slot
 	GameState.reset_all()
-	GameState.start_new_cycle()
+	# v5.16 修复：开局计数/新手福利/埋点 begin_run 统一由 UnitSelectUI 确认队伍后
+	# 的 start_new_cycle() 触发一次。此处若调用会让一次新游戏累计 +3 局、
+	# 首局误领 +600 魂。这里只重置状态并存入营地。
 	GameState.interrupt_state = GameState.InterruptState.CAMP
 	SaveManager.save_game(slot, false)
 	SaveManager.current_slot = slot

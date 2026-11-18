@@ -184,6 +184,9 @@ func on_request_show_victory(winning_team: int) -> void:
 				EconomyManager.add_temp_gold(gold_gain)
 				GameState.soul += soul_gain
 
+				# ★ v5.16：地图进度 +1（跨局累计通关节点），驱动天赋/遗物进度解锁
+				ProgressUnlockManager.advance(true)
+
 				# ★ v5.0：魂火不再兑现，仅持久化当前值（跨战斗保留）
 				GameState.soul_fire_current = SoulFireManager.current
 

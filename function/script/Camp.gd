@@ -605,7 +605,8 @@ func _on_deploy_pressed():
 
 func _confirm_deploy():
 	GameState.reset_all()
-	GameState.start_new_cycle()
+	# v5.16 修复：不在此处计数。真正开局在 UnitSelectUI 确认队伍后调用
+	# start_new_cycle()（此时 party 已初始化，重置单位才有意义）。
 	SaveManager.save_game(SaveManager.current_slot, false)
 	get_tree().change_scene_to_file("res://content/scenes/ui/UnitSelectUI.tscn")
 

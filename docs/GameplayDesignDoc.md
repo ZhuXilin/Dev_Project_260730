@@ -41,17 +41,18 @@ v5.0 的所有机制都围绕三个问题：它是否让魂火状态更有意义
 | 身份 | 表现形式 | 玩家心理 |
 |---|---|---|
 | 资源 | 技能/加点/光环/破盾消耗 | 「花不花？」 |
-| 状态 | 燃烧/正常/枯竭/归零 | 「我现在是什么？」 |
+| 状态 | 燃烧/正常/枯竭（归零并入正常，仅 HUD 标记） | 「我现在是什么？」 |
 | 续航 | 战后数值 100% 保留至下个节点 | 「留不留？」 |
 
-**四状态**
+**三状态（v5.17 精简）**
 
 | 状态 | 触发 | 效果 |
 |---|---|---|
 | 燃烧 | > 50% 上限 | 移速 +1，攻击溅射 50% |
-| 正常 | 20%–50% | 无 |
-| 枯竭 | < 20% | 暴击伤害 +50% |
-| 归零 | =0 | 无战斗惩罚 |
+| 正常 | 20%–50%，或 =0 归零 | 无 |
+| 枯竭 | 0 < 魂火 < 20% | 暴击伤害 +50% |
+
+> 归零不再单独成态：代码删除 `State.ZERO`，归零返回 `State.NORMAL`（无暴伤、无战斗惩罚），仅由 HUD「熄」文字标记 + 「魂火耗尽」浮字提示。触底反弹补偿（归零时击杀 +1 魂火）改由 `is_exhausted()` 判定保留。
 
 枯竭不再放大受伤；归零不再扣血。压力来自主动技能不可用、燃烧态失效、破盾成本、魂火爆发消耗不可回收。
 
@@ -151,7 +152,7 @@ Day3 → BOSS3（双形态）
 | 游魂向导 | 派遣路线（剧情解锁） | 亲密度 ≥10 派遣时长 -1 天 |
 | 角斗士 | 竞技场/隐藏转职/词条解锁 | 亲密度 ≥10 参与费 -50% |
 
-亲密度本版不会自动增长；所有阈值判定保留，数值需 GM 或剧情 effect 手动设置。隐藏 NPC 每 3 局出现一次，出售死眠之钥、标签定向器、Boss 情报、魂火阈值调节器；不卖直接橙装。
+**亲密度死线已接通（v5.16）**：`StoryManager._record_play()` 中，每次 NPC 对话首次播放会使 `npc_affinity[npc_id]` 增长（ derived = min(互动次数, 15)，上限 15 对应最高阈值 T3）。四条已存在的阈值消费（守火者 ≥10/≥15、游魂向导 ≥10、角斗士 ≥10）现全部玩家可达；灰烬铁匠 -20% 仍为未实现项。亲密度随存档持久化，GM `affinity` 命令仍可用于调试。隐藏 NPC 每 3 局出现一次（以开局数 `total_run_count % 3 == 0` 判定，v5.16 修复后计数准确），出售死眠之钥、标签定向器、Boss 情报、魂火阈值调节器；不卖直接橙装。
 
 ---
 
@@ -221,7 +222,7 @@ Day3 → BOSS3（双形态）
 
 **武器（内联单位）**：武器数值（攻击/品质/补正/射程/穿透/heavy/magic/heal）直接内联到 `unit_data.json`；升级系统删除，铁匠铺不再提供武器升级。heavy 类武器基础倍率 ×1.2；携带 charge 核心特性且 `charge_stacks>0` 时，最终伤害 `×min(1.0+0.2×层数,1.6)`——1 层 ×1.2、2 层 ×1.4、3 层及以上 1.6 上限；攻击后清空层数。charge_stacks 上限 5，但受 1.6 约束，3 层到顶。
 
-**防具**：无升级，只计算减伤率、附加属性、品质倍率、词条、方向连通。方向系统：每件防具实例有 `direction`（UP/DOWN/LEFT/RIGHT/VERTICAL/HORIZONTAL/DIAG_NE_SW/DIAG_NW_SE）；掉落时按 `enable_direction=true` 30% 概率带方向。方向重 roll：铁匠铺 120G；单箭头换另 3 个单箭头之一；双箭头在 ↕/⤢/⤡ 三选一。
+**防具**：无升级，只计算减伤率、附加属性、品质倍率、词条、方向连通。方向系统：每件防具实例有 `direction`（UP/DOWN/LEFT/RIGHT/VERTICAL/HORIZONTAL/DIAG_NE_SW/DIAG_NW_SE）；掉落时按 `enable_direction=true` 30% 概率带方向。方向重 roll：铁匠铺 120G；单箭头换另 3 个单箭头之一；双箭头在 ↕/↔/⤢/⤡ 四选一（v5.16 修复：此前 ↔ 被排除在双箭头家族外，导致它不可重 roll、不计入连通组跨单位倍率，是"半死"孤儿方向，现已纳入）。
 
 **连线箭头与品质的关系（v5.12 分析）**：箭头来自 `ItemInstance.direction` 实例字段（**不是** ItemData 静态数据，也不看 `tags`），由 `Direction.roll_drop_direction()` 按固定 70% 无方向 / 15% 单箭头 / 5% 双直线 / 10% 斜线 roll 出，**与 quality 无关**。所以"高品质天然带箭头"并不成立。部分 legendary 无箭头是熔铸属性所致——`ItemManager` 对 `melt_` 前缀 / `fusion_id` / `no_affix` / `no_fusion` 的物品强制 `enable_direction=false`，这 15 件（6 熔合产物 + 9 献祭熔铸）本就不该参与连通。**铁匠铺已有"调整方向"按钮**（`EquipmentConfigForge.gd`，120G/次，改的就是 `inst.direction`），可以把无方向的普通防具 roll 出箭头；但重 roll 规则保证单箭头只换单箭头、双箭头只在三种双箭头间换，**无方向（NONE）不可直接 roll 出箭头**——想给无方向防具加箭头，需确认 `Direction.reroll_direction()` 是否放行 NONE（当前设计下 NONE 是独立状态，建议后续补一个"首次开方向"入口，或让高品质普通防具出生即带方向作为品质奖励）。
 
@@ -259,7 +260,9 @@ Day3 → BOSS3（双形态）
 6. **品质无成长路径**（设计取舍）：防具不可升级、品质只在产出时定，符合"防具无成长路径"的原始约束；当前靠熔合/配方树提供纵向深度。建议维持，避免违背早期设计决议。
 
 ### 7.3 词条系统
-累积型（crit/bleed/parry 等）和主动型（active_charge/active_fireball 等）。解锁路径：default 5 个（教程自动）、soul 19 个（竞技场通关选择）、story 0 个。
+累积型（crit/bleed/parry 等）和主动型（active_charge/active_fireball 等）。解锁路径：default 5 个（教程自动）、soul 19 个、story 0 个。
+
+**soul 19 个的解锁来源已改为地图进度（v5.16）**：原"魂解锁"（`Globals.soul_unlock_talent`）为未接线死代码，已废弃（接口保留返回 false 以兼容旧档/编辑器）。现由 `ProgressUnlockManager` 按 `campaign_progress`（跨局累计通关节点数）里程碑自动永久解锁，配置见 `progress_unlocks.json`：进度 3→初火（bleed/spell_chain/heal_boost）、6→余烬（counter_boost/combo/vengeance）、10→炎势（blood_rage/zeal/revive）、15→锋刃（cleave/active_charge/active_heavy_slash）、21→术式（active_pierce/active_snipe/active_fireball）、28→终焰（active_dive/active_mass_heal/active_taunt/active_dragon_breath）。竞技场通关三选一仍是额外的提前解锁渠道，两条通道并存、互不冲突。`soul_cost` 字段保留仅为旧档兼容，不再消耗魂。
 
 **词条数量梯度（v5.1「明显」方案）**：所有品质都有词条且数量拉开——`common 1 / rare 2 / epic 3 / legendary 4`（旧版 common 0 / rare 1 / epic 2 / legendary 3 已废弃）。基础词条（攻击/防御/HP）降为 common 作为通用池。
 
@@ -274,6 +277,8 @@ Day3 → BOSS3（双形态）
 
 ### 7.5 遗物系统
 9 个遗物，两层结构：局外解锁（BOSS 完成→加入可随机池）+局内获取（每局一次，BOSS 后从已解锁池抽 3 个三选一）。未解锁不会出现在三选一。
+
+**局外解锁的双通道（v5.16）**：原"魂解锁遗物"接口（`soul_unlock_relic`）为未接线死代码，已废弃；遗物改由 **地图进度解锁** 驱动。锚点 `GameState.campaign_progress` = 跨局累计通关节点数（战斗胜利 +1，存档持久化），里程碑见 `content/data/config/progress_unlocks.json`：进度 5 解锁 relic_health、12 解锁 relic_faith、20 解锁 relic_strength、30 解锁 relic_phoenix；已通过 BOSS/事件解锁的不重复发放。这样即使某局未打到对应 BOSS，也能靠累计推进拿到遗物，"推进地图→永久成长"闭环在代码上真实可达。
 
 | ID | 效果 | 解锁 |
 |---|---|---|
@@ -596,7 +601,7 @@ v5.0 增量：魂火跨节点继承让长线规划更重；删除武器升级让
 ## 附录：代码事实与文档差异声明
 
 以下设计仅停留在文档层或与代码存在差异，特此声明：
-1. 亲密度自动增长：未实现；无"每次看新对话 +1"机制，数值需 GM/剧情 effect。
+1. 亲密度自动增长：**v5.16 已接通**——`StoryManager._record_play()` 按 `npc_interact_counts` 派生亲密度（上限 15），守火者/游魂向导/角斗士阈值消费全部可达；仅铁匠 -20% 仍未实现（见第 2 条）。历史版本为未实现。
 2. 铁匠亲密度 10 点升级 -20%：未实现。
 3. Boss/ELITE/杂兵/Day 强度倍率：总开关 `ENABLE_STRENGTH_MULTIPLIERS=false`，全部 1.0。
 4. Day1 Boss 魂火窃贼：`boss_magic_001` 未配置 mechanic。
@@ -645,6 +650,17 @@ v5.0 增量：魂火跨节点继承让长线规划更重；删除武器升级让
 39. **v5.14 装备界面 UI 修正（截图反馈）**：① 商店售价与连线箭头重叠——`EquipmentConfigShop.build_shop_items` 把每个格子改为 `VBoxContainer`（图标按钮在上、价格 Label 在下），价格落到中心 20×20 色块外的下方，不再与箭头叠压；拖拽靠递归收集 Button，包裹层不影响命中。② 待领取奖励缺流派色块——`EquipmentConfig._create_pending_button` 补调 `_draw_build_tag_backdrop`，与商店/已装备格子一致垫 20×20 标签色块。③ 熔铸确认图标保持原大——`ConfirmUI.set_item_icon` 由 40×40 改为按纹理原尺寸（16×16）绘制（`EXPAND_IGNORE_SIZE` + `STRETCH_KEEP_ASPECT_CENTERED`），不再放大。④ 熔铸确认弹窗删除与实际不符的"该单位仍有 X 件防具，熔铸后将被锁定（需通过英灵殿复活取回）"及"（请在上方领取）"两处文案（实际为回收防具到待领取区 + 单位标记死亡）。校验：3 个 .gd 括号平衡、商店 cell 结构完整、待领取色块与确认弹窗尺寸到位。无 Godot CLI，未实机验证。
 
 40. **v5.15 战场输入锁死修复（`_wait_for_ui_clear` 超时残留）**：换回合 `on_turn_changed` 会 `set_locked(true)` 后 `await _wait_for_ui_clear()`；该函数超时原仅 `break`、未清 `is_dialogue_active`/`is_item_get_popup_active`，导致 `CursorController` 持续锁光标、看门狗 `legit_blocked` 恒真不介入 → 无法操作单位、悬停无反应。修复：① `_wait_for_ui_clear` 超时分支强制 `DialogueManager.reset()` + 清两个标志；② `Battlefield._ready` 开头强制清零全部跨场景弹窗/演出标志（dialogue/item_get/confirm/reward_summary/attack_menu/equip_menu），防止营地/装备界面残留状态带入战斗。战前 Boss 对话在 `_ready` 后段触发，不受开头清零影响。校验：Battlefield.gd 括号平衡、清零早于战前对话、DialogueManager 为 autoload。无 Godot CLI，未实机验证。
+
+41. **v5.16 超循环接通 + 代码级修复（玩法分析 P0 第一批）**：基于 `docs/GameplayAnalysis.md` 的代码审计结论落地。
+    - **① 魂解锁天赋/遗物 → 地图进度解锁**：新增 `campaign_progress`（跨局累计通关节点数，`ResourceState`/`GameState`/`SaveData`/`SaveManager` 全链路持久化）。新增 autoload `ProgressUnlockManager` + 配置 `content/data/config/progress_unlocks.json`（19 天赋 6 档里程碑 3/6/10/15/21/28、4 遗物 4 档 5/12/20/30）。战斗胜利 `VictoryHandler` 调 `advance()` 累加并按阈值永久解锁；读档 `SaveManager` 调 `sync_progress(false)` 补发。`Globals.soul_unlock_talent` / `RelicManager.soul_unlock_relic` 及 `can_*`/`get_soul_cost` 全部废弃（保留签名返回 false/-1 兼容旧档与编辑器），`soul_cost` 字段仅为旧档兼容保留。超循环"推进地图→永久成长→下一局"在代码上首次真实可达。
+    - **② 亲密度死线接通**：`StoryManager._record_play()` 由 `npc_interact_counts` 派生亲密度（上限 15），四条阈值消费（守火者 ≥10/≥15、游魂向导 ≥10、角斗士 ≥10）全部可达；铁匠 -20% 仍未实现。
+    - **③ 开局计数污染修复**：原一次新游戏 `start_new_cycle()` 被 MainMenu / Camp / SaveSelectUI / UnitSelectUI 调用 3 次，致 `total_run_count` 首局 +3、新手首局误领 +600 魂、隐藏商人 3 局节奏失真、埋点 `begin_run` 重复。现仅保留 `UnitSelectUI._on_confirm_pressed()` 一次调用（此时 party 已初始化，重置才有意义）。
+    - **④ `COST_SKILL_MIN/MAX` 未定义修复**：`SoulFireManager` 补常量 2/3（技能未显式配 `soul_fire_cost` 时的兜底），消除潜在运行时崩溃点。
+    - **⑤ 方向半死修复**：`Direction.ALL_DOUBLE_ARROW` 纳入 `HORIZONTAL`（↔），使其可 reroll、计入连通组跨单位倍率；`reroll_direction` 改双箭头四选一，文档同步。
+    - **⑥ 叙事绕过去重修复**：`StoryManager.play_dialogue_by_id()` 增加 `_is_playable` 去重与 `_record_play`/`_apply_effect` 记录，Boss 战前/阶段/死亡对话不再每局重播；新增 `force=true` 参数供 GM/测试显式重播。
+    - 校验：`progress_unlocks.json` 合法、19+4 个 id 全部存在于天赋/遗物库、15 个改动 .gd 括号平衡、SignalBus 信号签名匹配、无重复 `start_new_cycle` 调用。无 Godot CLI，未实机编译验证。
+
+**42. v5.17 魂火四态精简为三态**：基于玩法分析讨论结论，砍掉独立 `State.ZERO`，归零并入 `State.NORMAL`（无暴伤、无战斗惩罚），仅保留"魂火耗尽"作为 HUD/浮字标记，不再占状态枚举。① `SoulFireManager`：删 `ZERO` 枚举；`get_state()` 归零返回 NORMAL，且 `current<=0` 时不落入枯竭分支（避免归零反触发暴伤）；新增 `is_exhausted()`（`current<=0`）作归零判定。② **触底反弹补偿口径变更**：原 ZERO 态击杀 +1 魂火保留，但改由 `is_exhausted()` 判定（附录第 14 条"击杀不额外发魂火"仅指常态，归零态例外）。③ HUD（`Battlefield._on_soul_fire_changed`）归零显示"X/Y 熄"+ 醒目红色；`SoulFireVisualController` 同时监听 `state_changed` 与 `soul_fire_changed`（因 NORMAL→归零时 state 不变，只监听 state 会漏提示），走统一 `_refresh_visual()` 决定三态文字/归零标记。④ `AnalyticsLogger` 归零采样改用 `is_exhausted()`（保留 `sf_samples_zero` 字段名兼容历史数据）；`EnemyAI` 只读 BURNING/DEPLETED，归零等价于 NORMAL，无需改。校验：全局无 `State.ZERO` 残留引用、5 个改动 .gd 括号平衡。无 Godot CLI，未实机编译验证。
 
 **维护说明**：代码变更后本文档应同步更新，重点关注第七章、第九章、第十章；战斗流程中所有 `await DialogueManager.dialogue_finished` 必须走带超时 + 竞态保护的封装，禁止裸 await 以防输入锁死；派遣/光环研究推进单位已统一为"天"；单位属性面板为 6 项；光环为局内一次性消耗品；防御采用减伤率乘区，总上限 75%，最低保底 10%；`buff_damage_reduction` 与减伤率同源，加法叠加，受 75% 上限约束；主线与竞技场伤害公式均已统一为减伤率乘区 + 保底口径（v5.10 竞技场对齐正式战场）；品质倍率统一读 `CombatManager.QUALITY_MULT`；heavy_attack 与 charge 联动按累积型实现；魂火获得：命中 +1、阵亡 +5，击杀不再额外；熔铸防具不可修改/不可卖/不可合成/不可熔合/不可覆盖；遗物精炼第 2 tab，光环研究第 1 tab。
 

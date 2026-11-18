@@ -17,6 +17,8 @@ const FADE_OUT : float = 0.4
 func _ready():
 	_setup_ui()
 	SoulFireManager.state_changed.connect(_on_state_changed)
+	# ★ v5.17：NORMAL→归零时 state 不变，需同时监听数值变化才能触发「魂火耗尽」提示
+	SoulFireManager.soul_fire_changed.connect(_on_soul_fire_changed)
 
 
 func _setup_ui():
@@ -42,16 +44,26 @@ func _setup_ui():
 	_canvas.add_child(_state_label)
 
 
-func _on_state_changed(new_state: int):
-	match new_state:
+func _on_state_changed(_new_state: int):
+	_refresh_visual()
+
+
+func _on_soul_fire_changed(_current: int, _max_carried: int):
+	_refresh_visual()
+
+
+func _refresh_visual():
+	if SoulFireManager.is_exhausted():
+		# ★ v5.17：归零不再单独成态，用「魂火耗尽」浮字标记提示
+		_show_state_text("魂火耗尽", COLOR_ZERO)
+		return
+	match SoulFireManager.get_state():
 		SoulFireManager.State.BURNING:
 			_show_state_text("燃烧", COLOR_BURNING)
 		SoulFireManager.State.DEPLETED:
 			_show_state_text("枯竭", COLOR_DEPLETED)
-		SoulFireManager.State.ZERO:
-			_show_state_text("魂火耗尽", COLOR_ZERO)
 		_:
-			# 回落到正常态：不显示任何文字，避免遮挡
+			# 回落到正常态且不归零：不显示任何文字，避免遮挡
 			_hide_immediately()
 
 

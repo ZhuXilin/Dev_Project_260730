@@ -6,6 +6,7 @@ const FILES : Array = [
 	"combat_config.json",
 	"progression_config.json",
 	"arena_config.json",
+	"progress_unlocks.json",
 ]
 
 var _data : Dictionary = {}   # {filename: Dictionary}

@@ -100,6 +100,8 @@ const CURRENT_VERSION = 11
 @export var npc_dialogue_flags: Array = []
 @export var total_run_count: int = 0
 @export var total_dispatch_count: int = 0
+@export var campaign_progress: int = 0
+@export var progress_unlock_claimed: Dictionary = {}
 
 # ---- 时间戳 ----
 @export var save_time: int = 0
