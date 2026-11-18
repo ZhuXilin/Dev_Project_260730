@@ -57,7 +57,13 @@ func _ensure_icon():
 		add_child(_icon_rect)
 
 func _update_icon_visual(node: MapNode):
-	var tex = MapConst.get_node_texture(node.node_type, node.hidden_node_type)
+	# ★ v5.18：问号节点在地图上始终显示问号图标，不用 hidden_node_type 剧透真实类型。
+	# hidden_node_type 在生成期就被 roll 出（服务于保底/地图数据分配/点击结算），
+	# 若把它传给 get_node_texture，问号会直接显示成真实类型，玩家永远看不到问号。
+	var hidden_for_icon : int = node.hidden_node_type
+	if node.node_type == MapNode.NodeType.QUESTION:
+		hidden_for_icon = -1
+	var tex = MapConst.get_node_texture(node.node_type, hidden_for_icon)
 	if tex:
 		_icon_rect.texture = tex
 	else:

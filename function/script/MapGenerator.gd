@@ -82,6 +82,10 @@ static func _generate_from_layout(day: int, day_layout: MapLayoutDay) -> MapLeve
 			resolved_types[idx] = pick
 			used_types[pick] = true
 
+	# ★ v5.18 问号保底：布局把 QUESTION 放进 random_pool 后，"同层不重复"会挤压问号，
+	# 部分轮次一个问号都不出。只要布局里有问号候选，本轮就强制保留至少一个。
+	_ensure_question_spawn(day_layout, resolved_types)
+
 	# ---- 创建节点 ----
 	for i in range(day_layout.nodes.size()):
 		var ln : MapLayoutNode = day_layout.nodes[i]
@@ -132,6 +136,32 @@ static func _generate_from_layout(day: int, day_layout: MapLayoutDay) -> MapLeve
 	data.root_node = root
 	data.map_name = "第%d天" % day
 	return data
+
+
+# ============================================================
+#  ★ v5.18 问号保底：布局含 QUESTION 候选 → 本轮至少生成一个问号
+#  原因：random_pool 里的 QUESTION 会被"同层不重复"挤压。
+#  做法：若 resolved_types 里没有 QUESTION，但布局某节点的 random_pool
+#  含 QUESTION，则挑一个候选节点强制定为 QUESTION。
+# ============================================================
+static func _ensure_question_spawn(day_layout: MapLayoutDay, resolved_types: Array) -> void:
+	if day_layout == null or resolved_types.size() != day_layout.nodes.size():
+		return
+	# 已有问号，无需保底
+	for t in resolved_types:
+		if t == MapNode.NodeType.QUESTION:
+			return
+	# 收集含问号候选的节点索引（优先 layer>0，避免影响起始层语义）
+	var candidates : Array = []
+	for i in range(day_layout.nodes.size()):
+		var ln : MapLayoutNode = day_layout.nodes[i]
+		if ln.random_pool.has(MapNode.NodeType.QUESTION):
+			candidates.append(i)
+	if candidates.is_empty():
+		return
+	var pick_idx : int = candidates[randi() % candidates.size()]
+	resolved_types[pick_idx] = MapNode.NodeType.QUESTION
+	print("[MapGenerator] 问号保底：node[%d] 强制为 QUESTION（布局含候选但本轮未 roll 出）" % pick_idx)
 
 
 # ============================================================
