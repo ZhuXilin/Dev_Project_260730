@@ -7,7 +7,7 @@ const SlotMachineUI = preload("res://function/script/build/SlotMachineUI.gd")
 ##  战后结算确认后弹出：
 ##   - 花金币 roll 防具（100G 起，每次 +50G，离开界面重置）
 ##   - 可花金币升级 roll 品质等级
-##   - 领取台：装备 / 并入 / 重铸流派 / 覆盖 / 放弃
+##   - 领取台：装备 / 并入 / 覆盖 / 放弃
 ##   - 满流派槽时必须覆盖或放弃；覆盖二次确认
 ##  战斗不再直接送防具，所有防具都从这里获取。
 ## ============================================================
@@ -24,16 +24,16 @@ var _dim_color := Color(0.55, 0.55, 0.58)
 var _roll_count: int = 0
 var _quality_level: int = 0
 var _current: Dictionary = {}          # 当前待领取防具 {item_id,quality,school,name,mechanic}
-var _reforge_school: String = ""       # 重铸后的流派（空=用原流派）
 
 var _root: Panel = null
 var _gold_label: Label = null
-var _quality_label: Label = null
 var _machine = null
 var _cost_label: Label = null
 var _upgrade_btn: Button = null
 var _back_btn: Button = null
 var _close_btn: Button = null
+var _action_row: HBoxContainer = null
+var _discard_fixed_btn: Button = null
 var _result_box: VBoxContainer = null
 var _msg: Label = null
 var _closing: bool = false   # ★ 防两个关闭按钮同帧重复触发
@@ -150,21 +150,30 @@ func _build_ui() -> void:
 	btn_row.add_child(back)
 	_back_btn = back
 
-	_quality_label = Label.new()
-	_quality_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_quality_label.add_theme_font_size_override("font_size", FS_SMALL)
-	_quality_label.add_theme_color_override("font_color", _dim_color)
-	vbox.add_child(_quality_label)
-
+	# ★ 中间信息压缩：品质并入金币行，删除单独的 _quality_label，减少一行占用
 	_msg = Label.new()
 	_msg.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_msg.add_theme_font_size_override("font_size", FS_SMALL)
 	_msg.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	vbox.add_child(_msg)
 
+	# ★ v6.19：放弃按钮（滚动区外，始终可见）——金币不足无法落位时的兜底出口。
+	#   短按钮 + 居中收缩，绝不横跨整屏。
+	_action_row = HBoxContainer.new()
+	_action_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	vbox.add_child(_action_row)
+
+	var discard_fixed := Button.new()
+	discard_fixed.text = "放弃防具"
+	discard_fixed.add_theme_font_size_override("font_size", FS_SMALL)
+	BuildUI.style_button(discard_fixed)
+	discard_fixed.pressed.connect(_on_discard)
+	_action_row.add_child(discard_fixed)
+	_discard_fixed_btn = discard_fixed
+
 	var scroll := ScrollContainer.new()
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	scroll.custom_minimum_size = Vector2(0, 130)
+	scroll.custom_minimum_size = Vector2(0, 140)   # ★ 信息压缩后从 190→140，给头像行留足空间避免被挤出画面
 	vbox.add_child(scroll)
 	_result_box = VBoxContainer.new()
 	_result_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -190,6 +199,9 @@ func _update_action_buttons() -> void:
 		_back_btn.disabled = locked
 	if _close_btn != null:
 		_close_btn.disabled = locked
+	# ★ 操作行：有待领取结果时整体显示（放弃按钮），给金币不足等死局一个明确出口
+	if _action_row != null:
+		_action_row.visible = has_pending
 	if _upgrade_btn != null:
 		var up: int = BuildManager.get_upgrade_cost(_quality_level)
 		_upgrade_btn.disabled = locked or up < 0 or _gold() < up
@@ -198,7 +210,8 @@ func _update_action_buttons() -> void:
 func _refresh() -> void:
 	_update_action_buttons()
 	var gold := _gold()
-	_gold_label.text = "金币：%d" % gold
+	# ★ 品质并入金币行，省一整行高度
+	_gold_label.text = "金币：%d · 品质 %d/5（%s）" % [gold, _quality_level, _quality_desc()]
 	var cost := BuildManager.get_roll_cost(_roll_count)
 	_cost_label.text = "本次抽取 %dG" % cost
 	_machine.set_start_enabled(gold >= cost)
@@ -210,7 +223,6 @@ func _refresh() -> void:
 	else:
 		_upgrade_btn.text = "升级品质（%dG）" % up
 	# ★ disabled 由 _update_action_buttons 统一门控（含转动中/待领取锁定）
-	_quality_label.text = "当前品质等级 %d/5：%s" % [_quality_level, _quality_desc()]
 
 	_render_result()
 	if _current.is_empty():
@@ -262,7 +274,6 @@ func _on_spin_started() -> void:
 	_spend(cost)
 	_roll_count += 1
 	_current = {}
-	_reforge_school = ""
 	_msg.text = "点「停！」选择这次抽到的防具"
 	_refresh()
 
@@ -279,8 +290,8 @@ func _on_machine_stopped(entry: Dictionary) -> void:
 		"name": str(entry.get("name", iid)),
 		"mechanic": str(entry.get("mechanic", "")),
 	}
-	_reforge_school = ""
-	_msg.text = "抽到：%s（%s）" % [_current.get("name", ""), _current.get("quality", "")]
+	# ★ 摘要行已显示抽到的防具，msg 留空避免重复占行
+	_msg.text = ""
 	_refresh()
 
 
@@ -293,33 +304,31 @@ func _render_result() -> void:
 	if _current.is_empty():
 		return
 
-	var school := _effective_school()
+	var school := str(_current.get("school", ""))
 	var quality := str(_current.get("quality", "common"))
 	var cap := BuildManager.get_quality_cap(quality)
+	# ★ v6.19：防具详情压缩为一行摘要（名字/品质/流派/上限/机制全并），省两行高度
+	var mech_txt := BuildManager.get_school_mechanic(school) if school != "" else "无流派·仅属性"
 	var line := Label.new()
-	line.text = "【%s】品质 %s · 流派 %s（机制 Lv 上限 %d）" % [
-		_current.get("name", ""), quality, school if school != "" else "无", cap]
+	line.text = "抽到【%s】%s · %s(Lv≤%d)｜%s" % [
+		_current.get("name", ""), quality, school if school != "" else "无", cap, mech_txt]
 	line.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	line.add_theme_font_size_override("font_size", FS_BODY)
 	line.add_theme_color_override("font_color", BuildManager.get_school_color(school))
 	_result_box.add_child(line)
-	var mech := Label.new()
-	mech.text = "机制：%s" % (BuildManager.get_school_mechanic(school) if school != "" else "无流派 · 仅属性")
-	mech.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	mech.add_theme_font_size_override("font_size", FS_SMALL)
-	mech.add_theme_color_override("font_color", _dim_color)
-	_result_box.add_child(mech)
 
-	# 落位动作：三个单位头像横排，与技能 roll 界面一致
+	# 落位动作：三个单位头像横排（落位引导并入头像行上方一行短句）
 	var actions := Label.new()
-	actions.text = "选择落位单位（点击头像决定给谁）："
+	actions.text = "点击头像选择落位单位："
 	actions.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	actions.add_theme_font_size_override("font_size", FS_SMALL)
 	_result_box.add_child(actions)
 
 	var unit_row := HBoxContainer.new()
 	unit_row.alignment = BoxContainer.ALIGNMENT_CENTER
-	unit_row.add_theme_constant_override("separation", 8)
+	unit_row.add_theme_constant_override("separation", 6)
+	# ★ 收缩到内容宽度并居中，避免被 ScrollContainer 拉伸导致最右单位被裁
+	unit_row.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	_result_box.add_child(unit_row)
 
 	var school_color := BuildManager.get_school_color(school)
@@ -330,7 +339,7 @@ func _render_result() -> void:
 		card.alignment = BoxContainer.ALIGNMENT_CENTER
 		card.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 		card.add_theme_constant_override("separation", 1)
-		card.custom_minimum_size = Vector2(96, 0)
+		card.custom_minimum_size = Vector2(120, 0)
 		var avatar := UnitDataManager.create_unit_avatar_button(
 			ud.unit_name, Vector2(46, 46), Vector2(40, 40))
 		avatar.disabled = ud.is_dead
@@ -341,7 +350,7 @@ func _render_result() -> void:
 			avatar.pressed.connect(_on_place.bind(ud))
 		card.add_child(avatar)
 		var name_lbl := Label.new()
-		# ★ v6.15：单位名 + Lv + 已有防具数/槽位数 + 现有防具对应流派
+		# ★ v6.15c：单位名 + Lv + 防具数/槽位 + 流派，压到单行显示，彻底避免换行被裁
 		var armor_used: int = ud.count_used_armor_slots()
 		var armor_slots: int = ud.max_armor_slots
 		var mechs := BuildManager.get_unit_mechanisms(ud)
@@ -349,60 +358,23 @@ func _render_result() -> void:
 		for m in mechs:
 			school_parts.append("%s%d" % [str(m.get("school", "")), int(m.get("level", 1))])
 		var school_txt: String = " ".join(school_parts) if not school_parts.is_empty() else "无流派"
-		name_lbl.text = "%s Lv%d\n防具 %d/%d\n%s" % [
+		name_lbl.text = "%s Lv%d 防%d/%d %s" % [
 			ud.display_name, int(ud.level), armor_used, armor_slots, school_txt]
 		name_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		name_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		name_lbl.custom_minimum_size = Vector2(96, 30)
+		name_lbl.custom_minimum_size = Vector2(120, 10)
 		name_lbl.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 		name_lbl.clip_text = false
-		name_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		name_lbl.autowrap_mode = TextServer.AUTOWRAP_OFF
 		name_lbl.add_theme_font_size_override("font_size", FS_SMALL)
 		name_lbl.add_theme_color_override("font_color", _dim_color if ud.is_dead else school_color)
 		name_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		card.add_child(name_lbl)
 		unit_row.add_child(card)
 
-	# 重铸 / 放弃
-	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 6)
-	var reforge := Button.new()
-	reforge.text = "重铸流派（%dG）" % BuildManager.get_reforge_cost()
-	reforge.add_theme_font_size_override("font_size", FS_SMALL)
-	BuildUI.style_button(reforge)
-	reforge.pressed.connect(_on_reforge)
-	if school == "":
-		reforge.disabled = true
-	row.add_child(reforge)
-	var discard := Button.new()
-	discard.text = "放弃"
-	discard.add_theme_font_size_override("font_size", FS_SMALL)
-	BuildUI.style_button(discard)
-	discard.pressed.connect(_on_discard)
-	row.add_child(discard)
-	_result_box.add_child(row)
-
-
-func _effective_school() -> String:
-	if _reforge_school != "":
-		return _reforge_school
-	return str(_current.get("school", ""))
-
-
-func _on_reforge() -> void:
-	var cost := BuildManager.get_reforge_cost()
-	if _gold() < cost:
-		_msg.text = "金币不足，无法重铸"
-		return
-	_spend(cost)
-	_reforge_school = BuildManager.reforge_school(_effective_school())
-	_msg.text = "重铸为流派：%s" % _reforge_school
-	_render_result()
-
 
 func _on_discard() -> void:
 	_current = {}
-	_reforge_school = ""
 	_msg.text = "已放弃该防具"
 	_refresh()   # ★ 走 _refresh 才能重新装填转轮 + 恢复离开按钮（原来只 render 会卡在「已停止」）
 
@@ -412,15 +384,15 @@ func _on_place(ud: UnitData) -> void:
 	var quality := str(_current.get("quality", "common"))
 	# ★ v6.8：同流派并入升 Lv 收 200G（文档 6.2 / 5.5）。
 	#   在 apply_armor 之前预判是否 merge 并扣费，避免合并已执行却扣不起。
-	var school: String = _reforge_school if _reforge_school != "" else BuildManager.get_school_of_item(item_id)
+	var school: String = BuildManager.get_school_of_item(item_id)
 	var will_merge: bool = school != "" and BuildManager.has_school(ud, school)
 	if will_merge:
 		var merge_cost := BuildManager.get_merge_cost_instance()
 		if _gold() < merge_cost:
-			_msg.text = "金币不足，并入 %s 需 %dG" % [school, merge_cost]
+			_msg.text = "金币不足，并入 %s 需 %dG；可点「放弃防具」" % [school, merge_cost]
 			return
 		_spend(merge_cost)
-	var result := BuildManager.apply_armor(ud, item_id, quality, _reforge_school)
+	var result := BuildManager.apply_armor(ud, item_id, quality)
 	match str(result.get("result", "")):
 		"awaken", "merge", "plain":
 			school = str(result.get("school", ""))
@@ -433,7 +405,6 @@ func _on_place(ud: UnitData) -> void:
 			else:
 				_msg.text = "%s 觉醒【%s】" % [ud.display_name, school]
 			_current = {}
-			_reforge_school = ""
 			_refresh()
 		"full":
 			_show_overwrite_choices(ud)
@@ -441,28 +412,94 @@ func _on_place(ud: UnitData) -> void:
 			_msg.text = "无法落位"
 
 
+## 找到单位身上某流派对应的防具图标（用于覆盖选项的目标是哪一个）
+func _find_armor_icon_for_school(unit: UnitData, school: String) -> Texture2D:
+	if unit == null:
+		return null
+	for slot_v in unit.armor_slots:
+		if slot_v == null:
+			continue
+		var inst: ItemInstance = slot_v
+		if BuildManager.get_school_of_item(inst.item_id) == school:
+			var data: ItemData = ItemManager.get_item_data(inst.item_id)
+			if data != null:
+				return data.icon
+	return null
+
+
+## 紧凑图标框：图标缺失时用流派色描边兜底，仍可一眼分辨目标
+func _make_icon_box(icon: Texture2D, tint: Color) -> PanelContainer:
+	var box := PanelContainer.new()
+	box.custom_minimum_size = Vector2(22, 22)
+	box.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(0.06, 0.06, 0.09)
+	sb.set_border_width_all(1)
+	sb.border_color = tint
+	sb.content_margin_left = 0
+	sb.content_margin_right = 0
+	sb.content_margin_top = 0
+	sb.content_margin_bottom = 0
+	box.add_theme_stylebox_override("panel", sb)
+	var rect := TextureRect.new()
+	rect.set_anchors_preset(Control.PRESET_FULL_RECT)
+	rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	if icon != null:
+		rect.texture = icon
+	box.add_child(rect)
+	return box
+
+
 func _show_overwrite_choices(ud: UnitData) -> void:
 	_update_action_buttons()   # ★ 待领取结果仍在，保持离开按钮锁定
+	# ★ 覆盖场景用滚动区内的专用按钮，隐藏外部放弃行避免两个"放弃"并存
+	if _action_row != null:
+		_action_row.visible = false
 	for c in _result_box.get_children():
 		c.queue_free()
-	var warn := Label.new()
-	warn.text = "%s 的流派槽已满，选择覆盖一个机制或放弃" % ud.display_name
-	warn.add_theme_font_size_override("font_size", FS_BODY)
-	warn.add_theme_color_override("font_color", Color(1.0, 0.7, 0.5))
-	_result_box.add_child(warn)
-	for m in BuildManager.get_unit_mechanisms(ud):
-		var b := Button.new()
-		b.text = "覆盖 %s Lv%d" % [m["school"], int(m["level"])]
-		b.add_theme_font_size_override("font_size", FS_BODY)
-		BuildUI.style_button(b, m["color"])
-		b.pressed.connect(_on_confirm_overwrite.bind(ud, str(m["school"])))
-		_result_box.add_child(b)
+
+	# 顶部：新抽到的防具（要么覆盖、要么放弃的那一件）——图标 + 说明 + 放弃按钮，同一区域
+	var incoming_school := str(_current.get("school", ""))
+	var incoming_item: ItemData = ItemManager.get_item_data(str(_current.get("item_id", "")))
+	var incoming_icon: Texture2D = incoming_item.icon if incoming_item != null else null
+	var src_row := HBoxContainer.new()
+	src_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	src_row.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	src_row.add_theme_constant_override("separation", 4)
+	src_row.add_child(_make_icon_box(incoming_icon, BuildManager.get_school_color(incoming_school)))
+	var src_lbl := Label.new()
+	src_lbl.text = "%s 流派已满 · 用【%s】覆盖或放弃：" % [ud.display_name, str(_current.get("name", ""))]
+	src_lbl.add_theme_font_size_override("font_size", FS_BODY)
+	src_lbl.add_theme_color_override("font_color", Color(1.0, 0.7, 0.5))
+	src_row.add_child(src_lbl)
+	# ★ 放弃按钮与要放弃的新防具放同一区域，不再孤立在列表最下方
 	var cancel := Button.new()
 	cancel.text = "放弃这件防具"
-	cancel.add_theme_font_size_override("font_size", FS_BODY)
+	cancel.add_theme_font_size_override("font_size", FS_SMALL)
 	BuildUI.style_button(cancel)
 	cancel.pressed.connect(_on_discard)
-	_result_box.add_child(cancel)
+	src_row.add_child(cancel)
+	_result_box.add_child(src_row)
+
+	# 每个覆盖目标：目标防具图标 + 按钮，整行收缩居中
+	for m in BuildManager.get_unit_mechanisms(ud):
+		var school := str(m.get("school", ""))
+		var tint := BuildManager.get_school_color(school)
+		var target_icon := _find_armor_icon_for_school(ud, school)
+		var row := HBoxContainer.new()
+		row.alignment = BoxContainer.ALIGNMENT_CENTER
+		row.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		row.add_theme_constant_override("separation", 4)
+		row.add_child(_make_icon_box(target_icon, tint))
+		var b := Button.new()
+		b.text = "覆盖 %s Lv%d" % [school, int(m.get("level", 1))]
+		b.add_theme_font_size_override("font_size", FS_BODY)
+		BuildUI.style_button(b, tint)
+		b.pressed.connect(_on_confirm_overwrite.bind(ud, school))
+		row.add_child(b)
+		_result_box.add_child(row)
 
 
 func _on_confirm_overwrite(ud: UnitData, school_to_remove: String) -> void:
@@ -474,10 +511,9 @@ func _on_confirm_overwrite(ud: UnitData, school_to_remove: String) -> void:
 
 func _do_overwrite(ud: UnitData, school_to_remove: String) -> void:
 	var result := BuildManager.overwrite_school(ud, school_to_remove,
-		str(_current.get("item_id", "")), str(_current.get("quality", "common")), _reforge_school)
+		str(_current.get("item_id", "")), str(_current.get("quality", "common")))
 	_msg.text = "已用 %s 覆盖【%s】" % [str(result.get("school", "")), school_to_remove]
 	_current = {}
-	_reforge_school = ""
 	_refresh()
 
 
@@ -489,7 +525,7 @@ func _on_close() -> void:
 	if _machine != null and _machine.is_spinning():
 		return
 	if not _current.is_empty():
-		_msg.text = "请先为抽到的防具选择落位单位，或点「放弃」"
+		_msg.text = "请先为抽到的防具选择落位单位，或点「放弃防具」"
 		return
 	_closing = true
 	SaveManager.auto_save()
