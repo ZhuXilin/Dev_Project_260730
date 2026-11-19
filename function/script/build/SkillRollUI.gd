@@ -291,6 +291,37 @@ func _show_units(tid: String) -> void:
 		name_lbl.add_theme_color_override("font_color", _gold_color if can_pick else _dim_color)
 		name_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		card.add_child(name_lbl)
+
+		# ★ v6.21：头像下方的流派方向文字，颜色与流派一致。
+		#   ① 本次 roll 技能的共鸣流派（让玩家看懂这张技能属于哪个流派方向）；
+		#   ② 该单位已觉醒的流派（开局通常为空）。都用各自流派色，方便对应。
+		var school_row := HBoxContainer.new()
+		school_row.alignment = BoxContainer.ALIGNMENT_CENTER
+		school_row.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		school_row.add_theme_constant_override("separation", 3)
+
+		var resonance := BuildManager.get_school_of_skill(tid)
+		var mechs := BuildManager.get_unit_mechanisms(ud)
+		if resonance == "" and mechs.is_empty():
+			var none_lbl := Label.new()
+			none_lbl.text = "无流派"
+			none_lbl.add_theme_font_size_override("font_size", FS_SMALL)
+			none_lbl.add_theme_color_override("font_color", _dim_color)
+			school_row.add_child(none_lbl)
+		else:
+			if resonance != "":
+				var rl := Label.new()
+				rl.text = "共鸣·%s" % resonance
+				rl.add_theme_font_size_override("font_size", FS_SMALL)
+				rl.add_theme_color_override("font_color", BuildManager.get_school_color(resonance))
+				school_row.add_child(rl)
+			for m in mechs:
+				var ml := Label.new()
+				ml.text = "%s Lv%d" % [str(m.get("school", "")), int(m.get("level", 1))]
+				ml.add_theme_font_size_override("font_size", FS_SMALL)
+				ml.add_theme_color_override("font_color", m.get("color", Color.WHITE))
+				school_row.add_child(ml)
+		card.add_child(school_row)
 		_unit_row.add_child(card)
 
 	_skip_btn.visible = not any_ok

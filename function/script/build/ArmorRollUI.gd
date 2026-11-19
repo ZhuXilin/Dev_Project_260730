@@ -99,8 +99,8 @@ func _build_ui() -> void:
 	margin.set_anchors_preset(Control.PRESET_FULL_RECT)
 	margin.add_theme_constant_override("margin_left", 12)
 	margin.add_theme_constant_override("margin_right", 12)
-	margin.add_theme_constant_override("margin_top", 6)
-	margin.add_theme_constant_override("margin_bottom", 6)
+	margin.add_theme_constant_override("margin_top", 3)
+	margin.add_theme_constant_override("margin_bottom", 3)
 	_root.add_child(margin)
 
 	var vbox := VBoxContainer.new()
@@ -130,7 +130,8 @@ func _build_ui() -> void:
 	btn_row.add_child(_cost_label)
 
 	_machine = SlotMachineUI.new()
-	_machine.custom_minimum_size = Vector2(0, 96)
+	# ★ v6.23：400x240 小视口，轮盘从 96 压到 72，给下方单位信息腾出高度
+	_machine.custom_minimum_size = Vector2(0, 72)
 	vbox.add_child(_machine)
 	_machine.stopped.connect(_on_machine_stopped)
 	_machine.started.connect(_on_spin_started)
@@ -154,6 +155,7 @@ func _build_ui() -> void:
 	_msg = Label.new()
 	_msg.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_msg.add_theme_font_size_override("font_size", FS_SMALL)
+	_msg.custom_minimum_size = Vector2(0, 10)   # ★ 固定矮高度，避免 autowrap 撑高挤掉单位区
 	_msg.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	vbox.add_child(_msg)
 
@@ -173,7 +175,9 @@ func _build_ui() -> void:
 
 	var scroll := ScrollContainer.new()
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	scroll.custom_minimum_size = Vector2(0, 140)   # ★ 信息压缩后从 190→140，给头像行留足空间避免被挤出画面
+	# ★ v6.23：不再强制 140 最小高度——400x240 视口里固定高度累加会溢出，
+	#   底部（单位卡第二行）被挤出视口裁切。改用 EXPAND_FILL 吃剩余空间，内容超出时内部滚动。
+	scroll.custom_minimum_size = Vector2(0, 80)   # 单位卡约60px + 摘要行，安全下限；配合上方压缩不溢出视口
 	vbox.add_child(scroll)
 	_result_box = VBoxContainer.new()
 	_result_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -365,7 +369,7 @@ func _render_result() -> void:
 		card.add_theme_constant_override("separation", 1)
 		card.custom_minimum_size = Vector2(120, 0)
 		var avatar := UnitDataManager.create_unit_avatar_button(
-			ud.unit_name, Vector2(46, 46), Vector2(40, 40))
+			ud.unit_name, Vector2(40, 40), Vector2(36, 36))
 		avatar.disabled = ud.is_dead
 		avatar.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 		if ud.is_dead:
@@ -374,7 +378,38 @@ func _render_result() -> void:
 			avatar.pressed.connect(_on_place.bind(ud))
 		card.add_child(avatar)
 
-		# 第一行：单位名 + Lv + 防具数/槽位（普通色，不再整行染成抽到防具的流派色）
+		# ★ v6.22：avatar 正下方第一行就是"流派徽标 + 流派文字"（玩家要的当前在用流派）。
+		#   用流派色色块 + 同名色文字，与顶部抽到防具的流派徽标同色对应。
+		var mechs := BuildManager.get_unit_mechanisms(ud)
+		var school_row := HBoxContainer.new()
+		school_row.alignment = BoxContainer.ALIGNMENT_CENTER
+		school_row.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		school_row.add_theme_constant_override("separation", 2)
+		if mechs.is_empty():
+			var none_mark := ColorRect.new()
+			none_mark.color = Color(0.35, 0.35, 0.38)
+			none_mark.custom_minimum_size = Vector2(7, 7)
+			school_row.add_child(none_mark)
+			var none_lbl := Label.new()
+			none_lbl.text = "无流派"
+			none_lbl.add_theme_font_size_override("font_size", FS_BODY)
+			none_lbl.add_theme_color_override("font_color", _dim_color)
+			school_row.add_child(none_lbl)
+		else:
+			for m in mechs:
+				var mcolor: Color = m.get("color", Color.WHITE)
+				var mark := ColorRect.new()
+				mark.color = mcolor
+				mark.custom_minimum_size = Vector2(7, 7)
+				school_row.add_child(mark)
+				var tag := Label.new()
+				tag.text = "%s Lv%d" % [str(m.get("school", "")), int(m.get("level", 1))]
+				tag.add_theme_font_size_override("font_size", FS_BODY)
+				tag.add_theme_color_override("font_color", mcolor)
+				school_row.add_child(tag)
+		card.add_child(school_row)
+
+		# 第二行：单位名 + Lv + 防具数/槽位（普通色）
 		var armor_used: int = ud.count_used_armor_slots()
 		var armor_slots: int = ud.max_armor_slots
 		var name_lbl := Label.new()
@@ -390,30 +425,6 @@ func _render_result() -> void:
 		name_lbl.add_theme_color_override("font_color", _dim_color if ud.is_dead else Color.WHITE)
 		name_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		card.add_child(name_lbl)
-
-		# ★ v6.20：第二行——该单位已有的流派标签，每个流派用"自己的"流派色，
-		#   与顶部抽到防具的流派徽标同色对应。玩家看到红色【烈焰】防具，
-		#   再看哪个单位挂着红色【烈焰】标签，就知道并入给谁能升 Lv。
-		var tag_row := HBoxContainer.new()
-		tag_row.alignment = BoxContainer.ALIGNMENT_CENTER
-		tag_row.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-		tag_row.add_theme_constant_override("separation", 3)
-		var mechs := BuildManager.get_unit_mechanisms(ud)
-		if mechs.is_empty():
-			var none_lbl := Label.new()
-			none_lbl.text = "无流派"
-			none_lbl.add_theme_font_size_override("font_size", FS_SMALL)
-			none_lbl.add_theme_color_override("font_color", _dim_color)
-			tag_row.add_child(none_lbl)
-		else:
-			for m in mechs:
-				var tag := Label.new()
-				var mcolor: Color = m.get("color", Color.WHITE)
-				tag.text = "【%s】Lv%d" % [str(m.get("school", "")), int(m.get("level", 1))]
-				tag.add_theme_font_size_override("font_size", FS_SMALL)
-				tag.add_theme_color_override("font_color", mcolor)
-				tag_row.add_child(tag)
-		card.add_child(tag_row)
 		unit_row.add_child(card)
 
 
