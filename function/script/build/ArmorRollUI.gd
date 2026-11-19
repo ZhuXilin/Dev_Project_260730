@@ -307,15 +307,40 @@ func _render_result() -> void:
 	var school := str(_current.get("school", ""))
 	var quality := str(_current.get("quality", "common"))
 	var cap := BuildManager.get_quality_cap(quality)
-	# ★ v6.19：防具详情压缩为一行摘要（名字/品质/流派/上限/机制全并），省两行高度
+	var school_color := BuildManager.get_school_color(school)
 	var mech_txt := BuildManager.get_school_mechanic(school) if school != "" else "无流派·仅属性"
+
+	# ★ v6.20：抽到的防具做成"流派徽标"卡——流派文字用流派色 + 同名色描边，
+	#   玩家一眼认出这是什么流派，再对照下方单位的流派色决定落给谁。
+	var card_row := HBoxContainer.new()
+	card_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	card_row.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	card_row.add_theme_constant_override("separation", 4)
+	_result_box.add_child(card_row)
+
+	# 流派徽标：填流派色的小方块
+	var badge := ColorRect.new()
+	badge.color = school_color if school != "" else Color(0.35, 0.35, 0.38)
+	badge.custom_minimum_size = Vector2(8, 8)
+	card_row.add_child(badge)
+
 	var line := Label.new()
-	line.text = "抽到【%s】%s · %s(Lv≤%d)｜%s" % [
-		_current.get("name", ""), quality, school if school != "" else "无", cap, mech_txt]
-	line.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	# 名字去掉轮盘带来的【流派】前缀避免重复，流派单独一段强调
+	var raw_name := str(_current.get("name", ""))
+	var item_name := raw_name
+	if school != "" and item_name.begins_with("【%s】" % school):
+		item_name = item_name.substr(("【%s】" % school).length())
+	line.text = "抽到 %s" % item_name
 	line.add_theme_font_size_override("font_size", FS_BODY)
-	line.add_theme_color_override("font_color", BuildManager.get_school_color(school))
-	_result_box.add_child(line)
+	line.add_theme_color_override("font_color", Color.WHITE)
+	card_row.add_child(line)
+
+	# 流派名 + 机制：统一用流派色，与下方单位流派标签同色对应
+	var school_lbl := Label.new()
+	school_lbl.text = ("【%s】Lv≤%d · %s" % [school, cap, mech_txt]) if school != "" else ("无流派 · 仅属性")
+	school_lbl.add_theme_font_size_override("font_size", FS_BODY)
+	school_lbl.add_theme_color_override("font_color", school_color)
+	card_row.add_child(school_lbl)
 
 	# 落位动作：三个单位头像横排（落位引导并入头像行上方一行短句）
 	var actions := Label.new()
@@ -331,7 +356,6 @@ func _render_result() -> void:
 	unit_row.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	_result_box.add_child(unit_row)
 
-	var school_color := BuildManager.get_school_color(school)
 	for ud in _get_units():
 		if ud == null:
 			continue
@@ -349,17 +373,13 @@ func _render_result() -> void:
 		else:
 			avatar.pressed.connect(_on_place.bind(ud))
 		card.add_child(avatar)
-		var name_lbl := Label.new()
-		# ★ v6.15c：单位名 + Lv + 防具数/槽位 + 流派，压到单行显示，彻底避免换行被裁
+
+		# 第一行：单位名 + Lv + 防具数/槽位（普通色，不再整行染成抽到防具的流派色）
 		var armor_used: int = ud.count_used_armor_slots()
 		var armor_slots: int = ud.max_armor_slots
-		var mechs := BuildManager.get_unit_mechanisms(ud)
-		var school_parts := PackedStringArray()
-		for m in mechs:
-			school_parts.append("%s%d" % [str(m.get("school", "")), int(m.get("level", 1))])
-		var school_txt: String = " ".join(school_parts) if not school_parts.is_empty() else "无流派"
-		name_lbl.text = "%s Lv%d 防%d/%d %s" % [
-			ud.display_name, int(ud.level), armor_used, armor_slots, school_txt]
+		var name_lbl := Label.new()
+		name_lbl.text = "%s Lv%d 防%d/%d" % [
+			ud.display_name, int(ud.level), armor_used, armor_slots]
 		name_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		name_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		name_lbl.custom_minimum_size = Vector2(120, 10)
@@ -367,9 +387,33 @@ func _render_result() -> void:
 		name_lbl.clip_text = false
 		name_lbl.autowrap_mode = TextServer.AUTOWRAP_OFF
 		name_lbl.add_theme_font_size_override("font_size", FS_SMALL)
-		name_lbl.add_theme_color_override("font_color", _dim_color if ud.is_dead else school_color)
+		name_lbl.add_theme_color_override("font_color", _dim_color if ud.is_dead else Color.WHITE)
 		name_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		card.add_child(name_lbl)
+
+		# ★ v6.20：第二行——该单位已有的流派标签，每个流派用"自己的"流派色，
+		#   与顶部抽到防具的流派徽标同色对应。玩家看到红色【烈焰】防具，
+		#   再看哪个单位挂着红色【烈焰】标签，就知道并入给谁能升 Lv。
+		var tag_row := HBoxContainer.new()
+		tag_row.alignment = BoxContainer.ALIGNMENT_CENTER
+		tag_row.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		tag_row.add_theme_constant_override("separation", 3)
+		var mechs := BuildManager.get_unit_mechanisms(ud)
+		if mechs.is_empty():
+			var none_lbl := Label.new()
+			none_lbl.text = "无流派"
+			none_lbl.add_theme_font_size_override("font_size", FS_SMALL)
+			none_lbl.add_theme_color_override("font_color", _dim_color)
+			tag_row.add_child(none_lbl)
+		else:
+			for m in mechs:
+				var tag := Label.new()
+				var mcolor: Color = m.get("color", Color.WHITE)
+				tag.text = "【%s】Lv%d" % [str(m.get("school", "")), int(m.get("level", 1))]
+				tag.add_theme_font_size_override("font_size", FS_SMALL)
+				tag.add_theme_color_override("font_color", mcolor)
+				tag_row.add_child(tag)
+		card.add_child(tag_row)
 		unit_row.add_child(card)
 
 

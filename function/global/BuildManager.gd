@@ -495,6 +495,29 @@ func build_skill_pool(unit_names: Array) -> Array:
 	return pool
 
 
+## 某技能能被给定单位列表中的几个单位装备
+func compatible_count_for(talent_id: String, unit_names: Array) -> int:
+	var units: Array = _compatible_units_of(talent_id)
+	var n: int = 0
+	for uname in unit_names:
+		var key := UnitDataManager.normalize_unit_key(str(uname))
+		if key in units:
+			n += 1
+	return n
+
+
+## 高兼容优先的技能池：优先返回能被多个剩余单位装备的技能，
+## 让轮盘转出的每张卡天然有多个落点，避免"技能—单位 1 对 1"。
+## min_cover=2 表示只收兼容≥2个单位的技能；不足时由调用方降级补单兼容技能。
+func build_skill_pool_ranked(unit_names: Array, min_cover: int = 2) -> Array:
+	var all := build_skill_pool(unit_names)
+	var ranked: Array = []
+	for sid in all:
+		if compatible_count_for(str(sid), unit_names) >= min_cover:
+			ranked.append(str(sid))
+	return ranked
+
+
 ## 某单位可装备的全部主动技能 id（随机打乱，增加每局变化）
 func _compatible_active_skills(unit_key: String) -> Array:
 	var list: Array = []
@@ -553,6 +576,58 @@ func _match_bt(order: Array, idx: int, cand: Dictionary, assign: Dictionary, use
 			return
 
 
+## 枚举前 limit 套"覆盖全部单位"的匹配，供 roll 挑选冗余度最高的一套。
+## 只保留完整匹配（assign.size()==units.size()），避免半匹配混入。
+func _enumerate_matchings(units: Array, cand: Dictionary, limit: int) -> Array:
+	var order := _sorted_by_candidate_count(units, cand)
+	var results: Array = []
+	var assign: Dictionary = {}
+	var used: Dictionary = {}
+	_enum_bt(order, 0, cand, assign, used, results, limit)
+	return results
+
+
+func _enum_bt(order: Array, idx: int, cand: Dictionary, assign: Dictionary, used: Dictionary, results: Array, limit: int) -> void:
+	if results.size() >= limit:
+		return
+	if idx >= order.size():
+		if assign.size() == order.size():
+			results.append(assign.duplicate())
+		return
+	var u: String = str(order[idx])
+	for tid in (cand.get(u, []) as Array):
+		var sid: String = str(tid)
+		if used.has(sid):
+			continue
+		used[sid] = true
+		assign[u] = sid
+		_enum_bt(order, idx + 1, cand, assign, used, results, limit)
+		assign.erase(u)
+		used.erase(sid)
+		if results.size() >= limit:
+			return
+
+
+## 一套匹配中，每张技能卡可被几个"已选单位"装备。
+## 返回 min_cover（最窄那张卡的单位数），越大表示每张卡的选择越多。
+func _matching_min_cover(matching: Dictionary, all_units: Array) -> int:
+	var skills: Array = []
+	for u in matching:
+		skills.append(str(matching[u]))
+	if skills.is_empty():
+		return 0
+	var min_cover: int = 9999
+	for sid in skills:
+		var data := TalentManager.get_talent_data(sid)
+		var cover: int = 0
+		if data:
+			for u in all_units:
+				if str(u) in data.compatible_units:
+					cover += 1
+		min_cover = mini(min_cover, cover)
+	return min_cover
+
+
 ## 从当前队伍找单位数据（roll 时排除第 1 格已被占用的单位）
 func _find_party_unit(unit_key: String) -> UnitData:
 	for ud in GameState.party:
@@ -594,7 +669,24 @@ func roll_active_skills(unit_names: Array, count: int = 3, unit_data_override: A
 	for u in units:
 		cand[u] = _compatible_active_skills(str(u))
 
-	var assign := _match_units_to_skills(units, cand)
+	# ★ v6.17：不再取"第一套"完美匹配（那会组成紧耦合技能集，每张卡只有一个落点）。
+	#   枚举多套完整匹配，挑"最窄技能卡也能被最多单位装备"的一套，
+	#   让每张 roll 出的技能卡都有更多可选单位，同时仍保证无人无技能。
+	var candidates: Array = _enumerate_matchings(units, cand, 240)
+	var assign: Dictionary = {}
+	if candidates.is_empty():
+		assign = _match_units_to_skills(units, cand)
+	else:
+		var best_cover: int = -1
+		var best_idx: int = 0
+		for i in range(candidates.size()):
+			var m: Dictionary = candidates[i]
+			var cover: int = _matching_min_cover(m, units)
+			if cover > best_cover:
+				best_cover = cover
+				best_idx = i
+		assign = candidates[best_idx]
+
 	var result: Array = []
 	for u in assign:
 		result.append(str(assign[u]))
@@ -637,6 +729,57 @@ func is_safe_placement(unit: UnitData, talent_id: String, remaining_unit_names: 
 		cand[u] = lst
 	var assign := _match_units_to_skills(left_units, cand)
 	return assign.size() >= left_units.size()
+
+
+## ★ v6.18：贴合"老虎机逐轮重 roll"模型的落位判定。
+## 当前 SkillRollUI 每轮都从全体技能池重新 roll（不是一次性发完固定几张），
+## 因此落位时不必用"剩余那几张固定技能"去精确覆盖——那是旧模型的过紧约束，
+## 会把每张技能卡的可落位单位压到只剩 1 个（1 对 1）。
+## 新口径：只要 ①目标兼容且第 1 格空；②把该技能给目标后，
+## 其余每个空槽单位在"全体技能池"里都能分到一个互不相同的可装备技能（二分匹配），
+## 就允许落位。这样每张卡通常有 2~4 个可选单位，同时仍杜绝任何单位最终无技能。
+func can_place_with_future(unit: UnitData, talent_id: String, remaining_unit_names: Array) -> bool:
+	if not can_place_skill(unit, talent_id):
+		return false
+	# 剩余单位（排除当前目标）
+	var left_units: Array = []
+	for un in remaining_unit_names:
+		var key := UnitDataManager.normalize_unit_key(str(un))
+		if key != UnitDataManager.normalize_unit_key(unit.unit_name):
+			left_units.append(key)
+	if left_units.is_empty():
+		return true
+	# 从全体主动技能池为每个剩余单位建候选（当前技能已被目标占用，排除掉）
+	var all_pool: Array = _all_active_skill_ids()
+	var cand: Dictionary = {}
+	for u in left_units:
+		var lst: Array = []
+		for sid in all_pool:
+			if str(sid) == talent_id:
+				continue
+			if str(u) in _compatible_units_of(str(sid)):
+				lst.append(str(sid))
+		cand[u] = lst
+	var assign := _match_units_to_skills(left_units, cand)
+	return assign.size() >= left_units.size()
+
+
+## 全体主动技能 id（去重）
+func _all_active_skill_ids() -> Array:
+	TalentManager.load_talent_data()
+	var out: Array = []
+	for tid in TalentManager._talent_db.keys():
+		var data := TalentManager._talent_db[tid] as TalentData
+		if data and data.is_active_skill and not out.has(str(data.id)):
+			out.append(str(data.id))
+	return out
+
+
+func _compatible_units_of(talent_id: String) -> Array:
+	var data := TalentManager.get_talent_data(talent_id)
+	if data == null:
+		return []
+	return data.compatible_units if data.compatible_units != null else []
 
 
 ## 某技能对某单位是否可落位（兼容 + 该单位尚未占用第 1 技能格）
@@ -771,10 +914,14 @@ func get_armor_roll_pool(quality_level: int, count: int = 8) -> Array:
 		if school != "":
 			color = get_school_color(school)
 		var quality := str(rolled.get("quality", "common"))
+		# ★ v6.20：轮盘符号直接带流派文字 —— 玩家转动时就能看到"哪个流派"，
+		#   配合流派色（color）形成文字+颜色双重识别，避免"铁甲"这类看不出流派的名字。
+		var base_name := str(rolled.get("name", iid))
+		var display_name := ("【%s】%s" % [school, base_name]) if school != "" else base_name
 		entries.append({
 			"id": iid,
 			"item_id": iid,
-			"name": str(rolled.get("name", iid)),
+			"name": display_name,
 			"quality": quality,
 			"school": school,
 			"mechanic": str(rolled.get("mechanic", "")),

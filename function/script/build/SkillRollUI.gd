@@ -152,30 +152,27 @@ func _show_step() -> void:
 
 func _build_skill_entries() -> Array:
 	var entries: Array = []
-	# ★ v6.12：轮盘池在构建阶段就用 is_safe_placement 预筛，杜绝两类坏词条：
-	#   ① 只有唯一单位能装且会挤掉别人 → 图1；② 没有任何单位能安全落位 → 图2。
-	#   口径与落位时 _show_units 一致：remaining_skills = _skills 中未落位技能，
-	#   且把当前这张替换成候选技能（玩家停下会改写当前格）。
+	# ★ v6.18：轮盘池预筛改用 can_place_with_future（全池匹配），
+	#   与落位判定口径一致。旧版用固定剩余技能精确覆盖，把池子压得只剩少数技能、
+	#   每张卡又只剩 1 个落点 → 1 对 1。现在只要存在一个单位能安全落位即可入池。
 	var remaining_names: Array = []
 	for uname in _unit_names:
 		var u: UnitData = _find_unit(str(uname))
 		if u != null and (u.talent_slots.is_empty() or u.talent_slots[0] == null):
 			remaining_names.append(str(uname))
 
-	# 先把候选分成"安全可落"与"仅兼容兜底"两档，避免全过滤后空池死锁。
+	# ★ v6.19：轮盘池优先取"能被至少 2 个剩余单位装备"的技能，
+	#   从源头避免转出只对应单一单位的技能卡。仅当这类技能不足时降级到全池。
+	var source_pool: Array = BuildManager.build_skill_pool_ranked(remaining_names, 2)
+	if source_pool.is_empty():
+		source_pool = BuildManager.build_skill_pool(remaining_names)
+
 	var safe_pool: Array = []       # 至少一个单位能安全落位（首选）
-	var fallback_pool: Array = []   # 仅兼容但落位后剩余单位无法覆盖（兜底）
-	for tid in BuildManager.build_skill_pool(remaining_names):
+	var fallback_pool: Array = []   # 仅兼容但无法保证后续覆盖（兜底）
+	for tid in source_pool:
 		var sid := str(tid)
 		if _placed_skills.has(sid):
 			continue
-		# 模拟停下后的剩余技能集：当前格换成 sid
-		var sim_remaining: Array = []
-		for i in range(_skills.size()):
-			if i == _index:
-				sim_remaining.append(sid)
-			elif not _placed_skills.has(str(_skills[i])):
-				sim_remaining.append(str(_skills[i]))
 		var has_safe := false
 		var has_placeable := false
 		for uname in remaining_names:
@@ -184,7 +181,7 @@ func _build_skill_entries() -> Array:
 				continue
 			if BuildManager.can_place_skill(ud, sid):
 				has_placeable = true
-			if BuildManager.is_safe_placement(ud, sid, remaining_names, sim_remaining):
+			if BuildManager.can_place_with_future(ud, sid, remaining_names):
 				has_safe = true
 				break
 		if has_safe:
@@ -246,28 +243,23 @@ func _on_machine_stopped(entry: Dictionary) -> void:
 
 func _show_units(tid: String) -> void:
 	_clear_picks()
-	# ★ v6.8：安全落位过滤——本次落位后，剩余单位仍须能被剩余技能覆盖，
-	#   否则该单位灰显（接线 BuildManager.is_safe_placement，文档 5.3）。
+	# 收集尚未占用第 1 技能格的单位
 	var remaining_names: Array = []
 	for uname in _unit_names:
 		var u: UnitData = _find_unit(str(uname))
 		if u != null and (u.talent_slots.is_empty() or u.talent_slots[0] == null):
 			remaining_names.append(str(uname))
-	var remaining_skills: Array = []
-	for sid in _skills:
-		if not _placed_skills.has(str(sid)):
-			remaining_skills.append(str(sid))
-	# 三个单位头像横向排开；不可装备的 gray out，但仍显示，方便玩家知道选择范围
+	# ★ v6.19：只显示"尚未装备技能"的单位——已落位的单位不再出现在本界面选项里。
+	# ★ v6.18：落位判定用 can_place_with_future（全池匹配），取代过紧的 is_safe_placement。
 	var any_ok := false
-	for uname in _unit_names:
+	for uname in remaining_names:
 		var ud: UnitData = _find_unit(str(uname))
 		if ud == null:
 			continue
-		var slot_empty := ud.talent_slots.is_empty() or ud.talent_slots[0] == null
 		var adv := str(ud.advanced_class)
 		var compatible := TalentManager.is_talent_compatible_with_unit(tid, ud.unit_name, adv)
-		var safe := BuildManager.is_safe_placement(ud, tid, remaining_names, remaining_skills)
-		var can_pick := slot_empty and compatible and safe
+		var safe := BuildManager.can_place_with_future(ud, tid, remaining_names)
+		var can_pick := compatible and safe
 
 		var card := VBoxContainer.new()
 		card.alignment = BoxContainer.ALIGNMENT_CENTER

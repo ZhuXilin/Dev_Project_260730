@@ -243,8 +243,10 @@ func _make_reel_row(k: int) -> PanelContainer:
 	name_label.add_theme_font_size_override("font_size", FS_BODY)
 	name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	name_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	name_label.custom_minimum_size = Vector2(96, 0)
+	name_label.custom_minimum_size = Vector2(104, 0)
 	name_label.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	# ★ v6.20：防具名带流派前缀后可能偏长，截断尾部但保证开头流派字可见
+	name_label.clip_text = true
 	hb.add_child(name_label)
 
 	_strip_rows.append({"box": box, "label": name_label, "icon": icon_rect})

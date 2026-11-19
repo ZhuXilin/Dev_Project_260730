@@ -73,8 +73,16 @@ func get_active_skill_range_bonus(unit: Unit) -> int:
 	var bonus : int = 0
 	for skill_id in ready_skills:
 		var data = TalentManager.get_talent_data(skill_id)
-		if data:
-			bonus = maxi(bonus, int(data.effect_params.get("range_bonus", 0)))
+		if data == null:
+			continue
+		# ★ v6.17：射程加成必须同时满足"技能就绪 + 魂火付得起"。
+		#   旧实现只看就绪，导致魂火不足时预览显示"可攻击"（射程+2），
+		#   松手后 _show_attack_menu 因 can_spend 过滤掉技能、普攻又被射程限制，
+		#   total_options==0 只弹提示不攻击——表现为"拖拽攻击有时不生效"。
+		#   这里与菜单的 can_spend 口径统一，魂火不足时不再虚增预览射程。
+		if not SoulFireManager.can_spend(_get_active_skill_cost(data)):
+			continue
+		bonus = maxi(bonus, int(data.effect_params.get("range_bonus", 0)))
 	return bonus
 
 
@@ -613,7 +621,7 @@ func execute_attack(attacker: Unit, defender: Unit, forced_skill_id: String = ""
 		Globals.is_performing_action = false
 		return true
 
-	if not _is_alive(attacker):
+	if not _is_alive(attacker) or not _is_alive(defender):
 		_settle_active_skill(attacker, active_skill_id, active_skill_data)
 		Globals.is_performing_action = false
 		return true
@@ -651,7 +659,7 @@ func execute_attack(attacker: Unit, defender: Unit, forced_skill_id: String = ""
 		TalentManager.reset_talent(attacker, "double_attack")
 		await get_tree().create_timer(EXTRA_HIT_DELAY, true, false, true).timeout
 		await _wait_dialogue()
-		if not _is_alive(attacker):
+		if not _is_alive(attacker) or not _is_alive(defender):
 			Globals.is_performing_action = false
 			return true
 		await _play_lunge_attack(attacker, defender)
@@ -684,7 +692,7 @@ func execute_attack(attacker: Unit, defender: Unit, forced_skill_id: String = ""
 			if attacker.unit_stats.team_id == 0:
 				SoulFireManager.on_hit(1)
 
-	if not _is_alive(attacker):
+	if not _is_alive(attacker) or not _is_alive(defender):
 		Globals.is_performing_action = false
 		return true
 
@@ -696,7 +704,7 @@ func execute_attack(attacker: Unit, defender: Unit, forced_skill_id: String = ""
 			TalentManager.reset_talent(attacker, "spell_chain")
 			await get_tree().create_timer(EXTRA_HIT_DELAY, true, false, true).timeout
 			await _wait_dialogue()
-			if not _is_alive(attacker):
+			if not _is_alive(attacker) or not _is_alive(defender):
 				Globals.is_performing_action = false
 				return true
 			await _play_lunge_attack(attacker, defender)
@@ -729,7 +737,7 @@ func execute_attack(attacker: Unit, defender: Unit, forced_skill_id: String = ""
 				if attacker.unit_stats.team_id == 0:
 					SoulFireManager.on_hit(1)
 
-	if not _is_alive(attacker):
+	if not _is_alive(attacker) or not _is_alive(defender):
 		Globals.is_performing_action = false
 		return true
 
@@ -737,9 +745,12 @@ func execute_attack(attacker: Unit, defender: Unit, forced_skill_id: String = ""
 		var follow_dmg : int = int(calculate_damage(attacker, defender) * FOLLOW_UP_DAMAGE_MULT)
 		await get_tree().create_timer(EXTRA_HIT_DELAY, true, false, true).timeout
 		await _wait_dialogue()
-		if _is_alive(attacker):
+		if _is_alive(attacker) and _is_alive(defender):
 			await _play_lunge_attack(attacker, defender)
 			await get_tree().create_timer(PRE_DAMAGE_DELAY, true, false, true).timeout
+			if not is_instance_valid(defender):
+				Globals.is_performing_action = false
+				return true
 			var follow_dead = defender.apply_damage(follow_dmg)
 			_play_hurt_effect(defender, attacker)
 			SignalBus.request_damage_popup.emit(defender.global_position, follow_dmg, false, false, false)
@@ -759,9 +770,14 @@ func execute_attack(attacker: Unit, defender: Unit, forced_skill_id: String = ""
 				if attacker.unit_stats.team_id == 0:
 					SoulFireManager.on_hit(1)
 
+	# ★ 反击 / 收尾前确认双方对象仍有效（追击击杀会 queue_free defender，
+	#   跨 await 后成为 freed 对象，传给类型化 Unit 参数会在调用处直接报错）
+	if not is_instance_valid(attacker) or not is_instance_valid(defender):
+		Globals.is_performing_action = false
+		return true
 	if _can_counter_attack(attacker, defender):
 		await _execute_counter(attacker, defender)
-	if not _is_alive(attacker):
+	if not _is_alive(attacker) or not _is_alive(defender):
 		Globals.is_performing_action = false
 		return true
 
@@ -833,7 +849,7 @@ func _execute_heal(attacker: Unit, defender: Unit, forced_skill_id: String = "")
 			var mult = SPELL_CHAIN_MULT[level - 1]
 			TalentManager.reset_talent(attacker, "spell_chain")
 			await get_tree().create_timer(EXTRA_HIT_DELAY, true, false, true).timeout
-			if not _is_alive(attacker):
+			if not _is_alive(attacker) or not is_instance_valid(defender):
 				Globals.is_performing_action = false
 				return true
 			var base_heal_val : int = _calc_staff_heal(attacker, defender)
@@ -921,6 +937,14 @@ func _play_death_animation(unit: Unit) -> void:
 
 func _on_kill(attacker: Unit, _defender: Unit) -> bool:
 	if not is_instance_valid(attacker): return false
+
+	# ★ v6.17：击杀确认的瞬间（HP 已归零、格子占位已失效）立即排队一次胜利判定。
+	#   旧实现只在 unregister_unit 时经 unit_removed 信号触发 check_victory，
+	#   而 Boss 死亡对话在这里 await，unregister 被推后 → 期间玩家能走上 boss 格子、
+	#   胜利判定拖到对话结束 / 下一回合 start_turn 才补做。
+	#   现在判定与本段对话/动画解耦；_trigger_victory 有 is_game_over 守卫，重复调用安全。
+	if TurnManager and TurnManager.is_battle_ready():
+		TurnManager.call_deferred("check_victory")
 
 	if is_instance_valid(_defender) and _defender.unit_stats.team_id == 1:
 		ItemBattlefieldManager.try_spawn_orb(_defender.grid_cell)
@@ -1343,8 +1367,15 @@ func _execute_counter(attacker: Unit, defender: Unit) -> void:
 			SoulFireManager.on_hit(1)
 
 
-func _is_alive(u: Unit) -> bool:
-	return u != null and is_instance_valid(u) and u.hit_points > 0
+## 参数故意不写 Unit 类型：execute_attack 是一长串 await，
+## 期间 attacker/defender 可能被连锁击杀并 queue_free。
+## 若参数是类型化的 Unit，GDScript 会在调用处就对已释放对象做类型检查并报错
+## （"previously freed ... not a subclass of expected class"），
+## 函数体里的 is_instance_valid 根本没机会执行。改成无类型后由函数内自己判活。
+func _is_alive(u) -> bool:
+	if u == null or not is_instance_valid(u):
+		return false
+	return u.hit_points > 0
 
 func _wait_dialogue() -> void:
 	while Globals.is_dialogue_active:

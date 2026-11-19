@@ -86,6 +86,19 @@ func _notification(what):
 # ============================================================
 func handle_input(event : InputEvent) -> bool:
 	if not _can_handle():
+		# ★ v6.17：战斗守卫未通过时，若正处于按下/拖拽状态，必须清理状态，
+		#   否则松手事件被吞、_is_pressing 永远为 true，后续所有拖拽都失效。
+		#   （攻击 await 链中 is_performing_action 持有较久，快速连点时易触发）
+		if _is_pressing or _is_dragging:
+			if event is InputEventMouseButton \
+					and not event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+				_cancel()
+				_reset_state()
+				return true
+			if event is InputEventMouseButton \
+					and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT:
+				_cancel()
+				return true
 		return false
 
 	if event is InputEventKey and event.pressed and not event.echo:
@@ -197,7 +210,17 @@ func _on_left_release() -> bool:
 	if _is_dragging:
 		var world_pos = _bf.get_global_mouse_position()
 		var cell = _bf.world_to_grid(world_pos)
-		var hovered_any = UnitManager.get_unit_at_cell(cell)
+		# ★ v6.17：优先用拖拽预览期间锁定的目标（玩家看到"释放左键攻击"的那个单位）。
+		#   旧实现在松手瞬间用鼠标位置重算 cell，motion 与 release 是不同事件、
+		#   坐标可能微移（相机平滑/震屏时更明显），导致目标变 null 或他人 →
+		#   攻击落空或变成移动，表现为"拖拽攻击有时不生效"。
+		#   仅当预览目标失效时才回退到按鼠标位置重算。
+		var hovered_any : Unit = null
+		if is_instance_valid(_hovered_target) and _hovered_target.hit_points > 0:
+			hovered_any = _hovered_target
+			cell = _hovered_target.grid_cell
+		else:
+			hovered_any = UnitManager.get_unit_at_cell(cell)
 
 		if hovered_any != null:
 			if not _is_valid_target(hovered_any):
