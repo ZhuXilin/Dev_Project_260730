@@ -98,6 +98,8 @@ var zeal_stacks : int = 0
 
 @export var armor_slots: Array = []
 @export var max_armor_slots: int = 2
+## v6：流派机制视图 —— {school: {level, cap, count}}，玩家层唯一 Build 数据源
+@export var mechanisms: Dictionary = {}
 @export var talent_slots: Array = []
 @export var max_talent_slots: int = 1
 
@@ -257,6 +259,7 @@ func to_dict() -> Dictionary:
 		"static_magic_penetration": static_magic_penetration, "static_crit_damage_bonus": static_crit_damage_bonus,
 		"max_armor_slots": max_armor_slots, "max_talent_slots": max_talent_slots,
 		"advancement": advancement.duplicate(), "armor_slots": _item_instance_array_to_array(armor_slots),
+		"mechanisms": mechanisms.duplicate(true),
 		"talent_slots": _talent_instance_array_to_array(talent_slots),
 		"advanced_class": advanced_class, "advanced_talent_id": advanced_talent_id,
 		"override_sprite_path": override_sprite_path, "avatar_override": avatar_override,
@@ -336,6 +339,8 @@ static func from_dict(d: Dictionary) -> UnitData:
 	var armor_arr : Array = []
 	if d.has("armor_slots") and d["armor_slots"] is Array: armor_arr = d["armor_slots"]
 	data.armor_slots = _array_to_item_instance_array(armor_arr)
+	var mech_raw : Variant = d.get("mechanisms", {})
+	data.mechanisms = (mech_raw as Dictionary).duplicate(true) if mech_raw is Dictionary else {}
 	var talent_arr : Array = []
 	if d.has("talent_slots") and d["talent_slots"] is Array: talent_arr = d["talent_slots"]
 	data.talent_slots = _array_to_talent_instance_array(talent_arr)

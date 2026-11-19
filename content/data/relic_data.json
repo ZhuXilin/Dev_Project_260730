@@ -8,7 +8,8 @@
     "icon": "item_021",
     "id": "relic_attack",
     "name": "力量遗物",
-    "price": 150.0
+    "price": 150.0,
+    "lifetime": "persistent"
   },
   "relic_defense": {
     "description": "全队单位 HP<30% 时，受到伤害 -50%",
@@ -19,7 +20,8 @@
     "icon": "item_053",
     "id": "relic_defense",
     "name": "守护遗物",
-    "price": 150.0
+    "price": 150.0,
+    "lifetime": "persistent"
   },
   "relic_dexterity": {
     "description": "全队反击伤害 +50%",
@@ -30,7 +32,8 @@
     "icon": "item_043",
     "id": "relic_dexterity",
     "name": "迅捷遗物",
-    "price": 200.0
+    "price": 200.0,
+    "lifetime": "persistent"
   },
   "relic_faith": {
     "description": "全队治疗量 +50%",
@@ -41,7 +44,8 @@
     "icon": "item_017",
     "id": "relic_faith",
     "name": "信仰遗物",
-    "price": 200.0
+    "price": 200.0,
+    "lifetime": "persistent"
   },
   "relic_health": {
     "description": "全队每回合首次受伤，回复该伤害 30%",
@@ -52,7 +56,8 @@
     "icon": "item_057",
     "id": "relic_health",
     "name": "生命遗物",
-    "price": 200.0
+    "price": 200.0,
+    "lifetime": "persistent"
   },
   "relic_magic": {
     "description": "全队每场战斗第一次施法不消耗行动",
@@ -63,7 +68,8 @@
     "icon": "item_080",
     "id": "relic_magic",
     "name": "魔力遗物",
-    "price": 150.0
+    "price": 150.0,
+    "lifetime": "persistent"
   },
   "relic_phoenix": {
     "description": "每个单位每场战斗首次阵亡后，满血复活一次",
@@ -74,7 +80,8 @@
     "icon": "item_061",
     "id": "relic_phoenix",
     "name": "凤凰之羽",
-    "price": 200.0
+    "price": 200.0,
+    "lifetime": "persistent"
   },
   "relic_speed": {
     "description": "全队击杀敌人后，本回合可再移动 2 格",
@@ -85,7 +92,8 @@
     "icon": "item_003",
     "id": "relic_speed",
     "name": "疾风遗物",
-    "price": 150.0
+    "price": 150.0,
+    "lifetime": "persistent"
   },
   "relic_strength": {
     "description": "全队攻击时，每 1 点力量额外 +2% 伤害",
@@ -96,6 +104,87 @@
     "icon": "item_071",
     "id": "relic_strength",
     "name": "巨力遗物",
-    "price": 200.0
+    "price": 200.0,
+    "lifetime": "persistent"
+  },
+  "aura_ash": {
+    "id": "aura_ash",
+    "name": "灰烬之拥",
+    "description": "全队受伤 -10%，反击伤害 +30%",
+    "flavor": "灰烬之拥。受到的伤害少了，但反击更痛了。\n\n——灰烬记得每一把火。",
+    "icon": "item_038",
+    "price": 100.0,
+    "lifetime": "persistent",
+    "effects": {
+      "damage_reduction": 0.1,
+      "counter_bonus": 0.3
+    },
+    "from_aura": true
+  },
+  "aura_cycle": {
+    "id": "aura_cycle",
+    "name": "轮回流转",
+    "description": "击杀敌人回 1 魂火",
+    "flavor": "轮回流转。击杀的敌人会回来一点。\n\n——作为一个数字，而不是作为一个人。",
+    "icon": "item_044",
+    "price": 160.0,
+    "lifetime": "consumable",
+    "effects": {
+      "kill_gain_soul_fire": 1.0
+    },
+    "from_aura": true
+  },
+  "aura_ember": {
+    "id": "aura_ember",
+    "name": "薪火相传",
+    "description": "每回合开始全队 +1 魂火",
+    "flavor": "薪火相传。每回合开始，魂火+1。\n\n——火不需要解释，火只需要柴。",
+    "icon": "item_077",
+    "price": 160.0,
+    "lifetime": "consumable",
+    "effects": {
+      "turn_start_gain_soul_fire": 1.0
+    },
+    "from_aura": true
+  },
+  "aura_flame": {
+    "id": "aura_flame",
+    "name": "焚身",
+    "description": "全队攻击 +15%",
+    "flavor": "焚身。攻击时不再需要消耗魂火。\n\n——火焰自己会找燃料。",
+    "icon": "item_045",
+    "price": 120.0,
+    "lifetime": "persistent",
+    "effects": {
+      "attack_percent": 0.15
+    },
+    "from_aura": true
+  },
+  "aura_guardian": {
+    "id": "aura_guardian",
+    "name": "铁壁",
+    "description": "全队物理/魔法减伤 +10%",
+    "flavor": "铁壁。全队防御增加。\n\n——当有人愿意为你站成一堵墙，你才明白铁壁不是墙。",
+    "icon": "item_051",
+    "price": 80.0,
+    "lifetime": "persistent",
+    "effects": {
+      "physical_reduction": 0.1,
+      "magic_reduction": 0.1
+    },
+    "from_aura": true
+  },
+  "aura_sacrifice": {
+    "id": "aura_sacrifice",
+    "name": "血脉燃烧",
+    "description": "全队击杀时治疗 15% 最大 HP",
+    "flavor": "血脉燃烧。击杀时回血。\n\n——用的别人的血。",
+    "icon": "item_089",
+    "price": 100.0,
+    "lifetime": "persistent",
+    "effects": {
+      "kill_heal_percent": 0.15
+    },
+    "from_aura": true
   }
 }

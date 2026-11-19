@@ -450,7 +450,8 @@ func start_new_cycle():
 	for unit_data in party:
 		unit_data.sacrifice_buff_sources.clear()
 		unit_data.armor_slots.clear()
-		unit_data.max_armor_slots = 2
+		# ★ v6：流派槽上限按单位名单初始化，不再统一 2 槽；机制视图清空
+		BuildManager.reset_unit_build(unit_data)
 		unit_data.is_dead = false
 		unit_data.hit_points = unit_data.max_hp
 		unit_data.level = 1              # ★ 步 4-A
@@ -472,11 +473,11 @@ func start_new_cycle():
 
 
 func finish_day(grant_slot: bool = true):
-	if grant_slot:
-		for unit_data in party:
-			if unit_data.max_armor_slots < MAX_ARMOR_SLOTS_CAP:
-				unit_data.armor_slots.append(null)
-				unit_data.max_armor_slots += 1
+	# ★ v6：流派槽固定（按单位名单），过天不再 +1；并入升 Lv 取代加槽。
+	#   仅补齐 null 占位，维持 armor_slots.size()==max_armor_slots 的旧不变量。
+	for unit_data in party:
+		while unit_data.armor_slots.size() < unit_data.max_armor_slots:
+			unit_data.armor_slots.append(null)
 
 func finish_cycle():
 	finish_day(false)

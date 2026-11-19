@@ -6,6 +6,7 @@ class_name TalentInstance
 @export var is_ready: bool = false
 @export var is_active: bool = true
 @export var cooldown_remaining: int = 0      # ★ 新增
+@export var locked: bool = false             # ★ v6：roll 技能选定离手，锁定不可覆盖 / 互换
 
 func reset():
 	current_stack = 0

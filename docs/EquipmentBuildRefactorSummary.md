@@ -1,7 +1,7 @@
 # v6.0 装备减负重构 · 冻结总结
 
 > 版本：v6.0 设计冻结版 · 日期：2026-11-18  
-> 状态：**仅设计冻结，代码尚未修改**。  
+> 状态：**设计已冻结，主线代码已落地（2026-11-18）**；落地清单见 `GameplayDesignDoc.md` 第十章。  
 > 承接文档：`EquipmentSlimPlan.md`、`EquipmentOneClickPlan.md`、`EquipmentUIIterationPlan.md`、`GameplayDesignDoc.md`。
 
 ---

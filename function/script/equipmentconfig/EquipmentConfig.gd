@@ -721,8 +721,8 @@ func _disable_all_input_recursive(node: Node):
 
 
 func _is_level_up_enabled() -> bool:
-	# ★ 核心修复：在所有需要查看单位的地方都允许升级
-	return current_mode in [Mode.FORGE, Mode.MAP_SHOP_REST, Mode.ARENA_REST, Mode.MAP, Mode.DEPLOY]
+	# ★ v6：单位升级改为战斗累计经验 + 战后自动升级，装备界面不再提供手动升级按钮
+	return false
 
 func _build_ui_inner():
 	var vbox = $VBoxContainer

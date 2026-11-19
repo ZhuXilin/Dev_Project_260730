@@ -540,6 +540,28 @@ v6 不再把熔铸防具作为普通防具来源；它是伤亡价值化出口�
 6. 铺开其余五个流派机制。
 7. 试玩调参后再考虑竞技场同步。
 
-**维护说明**：v6 新规则尚未落地代码。实施时必须同步更新本文、冻结摘要与工作日志；所有“第一件觉醒 / 同流派并入 / 技能 2 格 / 遗物 lifetime / 机制槽”口径不得在多处自行分化。
+**维护说明**：所有“第一件觉醒 / 同流派并入 / 技能 2 格 / 遗物 lifetime / 机制槽”口径不得在多处自行分化。
+
+---
+
+## 十、代码落地状态（2026-11-18）
+
+v6 主线已落地代码，核心计算集中在 `BuildManager`（autoload）。实现与本文口径的对应关系：
+
+| 本文规则 | 代码落点 | 状态 |
+|---|---|---|
+| 只读 Build 查看器 | `BuildViewer.gd/.tscn`，`MapScene._on_config_btn_pressed` | 已落地 |
+| 魂栈只留熔铸 | `ForgeAltar.gd/.tscn`，`MapScene._open_forge` | 已落地 |
+| 开局技能 roll 3 次 / 落位锁定 | `SkillRollUI.gd`、`BuildManager.build_skill_pool/place_skill`、`TalentInstance.locked` | 已落地 |
+| 机制槽 / 觉醒 / 并入 / 覆盖 | `BuildManager.apply_armor/overwrite_school`、`UnitData.mechanisms` | 已落地 |
+| 战后防具 roll + 领取台 | `ArmorRollUI.gd`、`VictoryHandler`（去稀有掉落 + 插入 roll） | 已落地 |
+| 宝箱去防具 | `Treasure.gd`（防具选项改魂） | 已落地 |
+| 经验自动升级 | `BuildManager.grant_exp_and_auto_level`、`_is_level_up_enabled=false` | 已落地 |
+| 光环并入遗物 lifetime | `relic_data.json` + `BuildManager.get_relic_lifetime` | 已落地 |
+| 烈焰机制（样板） | `CombatManager._apply_damage_with_effects` 追加灼烧 | 已落地 |
+| 其余五流派战斗机制 | — | 待铺开 |
+| 竞技场同步 | — | 本轮不同步，主线稳定后做 |
+
+已知保留：出战准备（DEPLOY）界面仍保留防具 / 词条拖拽交互，但新局无散件可拖；不影响主线 build 流程。所有规则仍以本文为唯一口径来源。
 
 **文档结束。**

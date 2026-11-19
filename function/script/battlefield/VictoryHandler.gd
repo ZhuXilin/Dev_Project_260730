@@ -190,12 +190,14 @@ func on_request_show_victory(winning_team: int) -> void:
 				# ★ v5.0：魂火不再兑现，仅持久化当前值（跨战斗保留）
 				GameState.soul_fire_current = SoulFireManager.current
 
+				# ★ v6：战后经验自动升级（战斗内累计 → 结算兑现，无手动操作）
+				var exp_gain := BuildManager.battle_exp_reward(_bf.current_node_type, _compute_rating())
+				for ud in GameState.party:
+					if ud != null and not ud.is_dead:
+						BuildManager.grant_exp_and_auto_level(ud, exp_gain)
+
+				# ★ v6：战后不再直接掉落防具。防具改为战后金币 roll（ArmorRollUI）。
 				GameState.current_reward_rare_datas.clear()
-				var rare_drops : Array = roll_rare_drop_for_node(_bf.current_node_type)
-				for drop in rare_drops:
-					var rare_data : ItemData = apply_rare_drop(drop)
-					if rare_data:
-						GameState.current_reward_rare_datas.append(rare_data)
 
 				if is_win and mult > 1.0:
 					AnalyticsLogger.record_high_reward_win()
@@ -398,6 +400,15 @@ func on_map_victory_continue() -> void:
 			print("结算界面已确认，summary 保持可见")
 		else:
 			push_error("Battlefield: 无法获取 RewardSummaryUI 实例")
+
+	# ★ v6：普通 / 精英战后弹出防具 roll（金币抽取）；BOSS 战改走遗物三选一，不抽防具
+	if not is_boss and has_reward:
+		var armor_roll_scene = load(Config.PATHS.ARMOR_ROLL_UI)
+		if armor_roll_scene:
+			var armor_roll = armor_roll_scene.instantiate()
+			_bf.add_child(armor_roll)
+			await armor_roll.closed
+			print("防具抽取结束")
 
 	if is_boss:
 		GameState.should_advance_day = true

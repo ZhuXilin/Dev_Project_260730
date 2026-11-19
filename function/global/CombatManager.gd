@@ -1092,6 +1092,22 @@ func _apply_damage_with_effects(defender: Unit, damage: int, attacker: Unit, is_
 	SignalBus.request_damage_popup.emit(defender.global_position, damage, is_crit, false, false)
 	_play_hurt_effect(defender, attacker)
 
+	# ★ v6 烈焰样板：攻击附带灼烧（按本次伤害的比例追加一次无视减伤的伤害）
+	#   机制 Lv 由 BuildManager 从防具流派并入结果计算；一件即生效、同流派并入升 Lv。
+	if not defeated and is_instance_valid(attacker) and damage > 0 \
+		and defender.unit_stats.team_id != attacker.unit_stats.team_id:
+		var flame_lv := BuildManager.get_flame_level(attacker)
+		if flame_lv > 0:
+			var burn : int = maxi(1, int(damage * BuildManager.get_flame_burn_ratio(flame_lv)))
+			if DEBUG_DAMAGE_LOG:
+				print("[烈焰] Lv%d 灼烧 %s → %d" % [
+					flame_lv, defender.unit_stats.unit_name, burn])
+			SignalBus.request_damage_popup.emit(defender.global_position, burn, false, false, false)
+			var burn_dead := defender.apply_damage(burn)
+			if burn_dead:
+				if not _try_revive(defender):
+					defeated = true
+
 	if BossMechanicManager and BossMechanicManager.has_method("process_damage_phase"):
 		var phase_result: Dictionary = BossMechanicManager.process_damage_phase(defender, attacker, damage, old_hp)
 		if phase_result.get("prevent_death", false):

@@ -91,11 +91,10 @@ func _roll_three_options() -> Array:
 			"gold":
 				result.append(_roll_gold_option())
 			"armor":
-				var armor_opt = _roll_armor_option()
-				if armor_opt.is_empty():
-					result.append(_roll_gold_option())
-				else:
-					result.append(armor_opt)
+				# ★ v6：宝箱不再给防具，改为魂奖励
+				result.append(_roll_soul_option())
+			"soul":
+				result.append(_roll_soul_option())
 			"relic":
 				var r : Dictionary = _roll_relic_option()
 				if r.is_empty():
@@ -108,11 +107,10 @@ func _roll_three_options() -> Array:
 
 
 func _roll_option_types() -> Array:
-	var weights : Dictionary = _treasure_cfg.get(
-		"option_weights", {"gold": 3, "armor": 2, "relic": 1})
-
+	# ★ v6：宝箱去掉防具选项，三类改为 金币 / 魂 / 遗物
+	var weights : Dictionary = {"gold": 3, "soul": 2, "relic": 1}
 	if _is_premium:
-		weights = {"gold": 1, "armor": 2, "relic": 8}
+		weights = {"gold": 1, "soul": 2, "relic": 8}
 
 	var pool : Array = []
 	for k in weights:
@@ -120,7 +118,7 @@ func _roll_option_types() -> Array:
 			pool.append(k)
 
 	if pool.is_empty():
-		pool = ["gold", "armor", "relic"]
+		pool = ["gold", "soul", "relic"]
 
 	var result : Array = []
 	var safety : int = 0
@@ -162,6 +160,16 @@ func _roll_gold_option() -> Dictionary:
 		soul = int(soul * 1.8)
 
 	return {"kind": "gold", "gold": gold, "soul": soul}
+
+
+## ★ v6：宝箱魂选项（替代原防具选项）
+func _roll_soul_option() -> Dictionary:
+	var soul_base : int = int(_treasure_cfg.get("soul_base", 2))
+	var soul_var : int = int(_treasure_cfg.get("soul_var", 3))
+	var soul : int = (soul_base + randi() % maxi(1, soul_var)) * 3
+	if _is_premium:
+		soul = int(soul * 1.8)
+	return {"kind": "soul", "soul": soul}
 
 
 func _roll_armor_option() -> Dictionary:
@@ -324,6 +332,8 @@ func _format_option_text(option : Dictionary) -> String:
 	match kind:
 		"gold":
 			lines.append("【金币奖励】")
+		"soul":
+			lines.append("【魂之馈赠】")
 		"armor":
 			lines.append("【史诗防具】" if _is_premium else "【强力防具】")
 		"relic":

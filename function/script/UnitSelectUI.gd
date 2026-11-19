@@ -218,6 +218,14 @@ func _on_confirm_pressed():
 	GameState.start_new_cycle(); GameState.reset_progress()
 	GameState.interrupt_state = GameState.InterruptState.MAP
 
+	# ★ v6：选完 3 单位先做开局主动技能 roll，再进入出战准备
+	var roll_ui = load(Config.PATHS.SKILL_ROLL_UI).instantiate()
+	add_child(roll_ui)
+	roll_ui.setup(selected_units)
+	roll_ui.finished.connect(func(): _open_deploy_config(selected_units, target_slot))
+
+
+func _open_deploy_config(selected_units: Array, target_slot: int) -> void:
 	var config = load(Config.PATHS.EQUIPMENT_CONFIG).instantiate()
 	add_child(config)
 	_equipment_config_instance = config

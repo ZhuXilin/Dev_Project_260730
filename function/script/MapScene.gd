@@ -620,7 +620,7 @@ func _load_combat_for_node(node: MapNode):
 
 
 func _open_forge(node: MapNode):
-	print("=== 打开铁匠铺 ===")
+	print("=== 打开魂栈（熔铸单位）===")
 
 	var key = "%d_%d" % [node.position.x, node.position.y]
 	GameState.visited_nodes[key] = true
@@ -631,29 +631,16 @@ func _open_forge(node: MapNode):
 	_update_availability(map_data.root_node)
 	_save_game()
 
-	var config = load(Config.PATHS.EQUIPMENT_CONFIG).instantiate()
-	add_child(config)
-	var panel = config.get_node("MainPanel")
+	# ★ v6：魂栈去掉商店 / 铁匠 / 光环，只保留熔铸单位为单一功能节点
+	var altar = load(Config.PATHS.FORGE_ALTAR).instantiate()
+	add_child(altar)
 
-	var unit_names: Array[String] = []
-	for unit_data in GameState.party:
-		unit_names.append(unit_data.unit_name)
-
-	var slot = SaveManager.current_slot
-	if slot == -1:
-		slot = SaveManager.find_empty_slot()
-
-	if GameState.current_day >= 3:
-		panel.init(unit_names, slot, EquipmentConfig.Mode.MAP_SHOP_REST)
-	else:
-		panel.init(unit_names, slot, EquipmentConfig.Mode.FORGE)
-
-	await panel.tree_exited
+	await altar.tree_exited
 
 	if not is_inside_tree():
 		return
 
-	print("铁匠铺已关闭")
+	print("魂栈已关闭")
 	_restore_map_music()
 	GameState.current_node_key = ""
 	_save_game()
@@ -826,27 +813,17 @@ func _apply_visited_state():
 
 
 func _on_config_btn_pressed():
+	# ★ v6：地图装备界面改为只读 Build 查看器（不能调整装备/词条/方向/升级）
 	if _equipment_config_instance != null:
 		_equipment_config_instance.show()
 		_equipment_config_instance.move_to_front()
 		return
 
-	var config = load(Config.PATHS.EQUIPMENT_CONFIG).instantiate()
-	add_child(config)
-	_equipment_config_instance = config
-	var panel = config.get_node("MainPanel")
-
-	var unit_names: Array[String] = []
-	for unit_data in GameState.party:
-		unit_names.append(unit_data.unit_name)
-
-	var slot = SaveManager.current_slot
-	if slot == -1:
-		slot = SaveManager.find_empty_slot()
-
-	panel.init(unit_names, slot, EquipmentConfig.Mode.MAP)
-
-	config.tree_exited.connect(func():
+	var viewer = load(Config.PATHS.BUILD_VIEWER).instantiate()
+	add_child(viewer)
+	_equipment_config_instance = viewer
+	viewer.closed.connect(func(): pass)
+	viewer.tree_exited.connect(func():
 		_equipment_config_instance = null
 	)
 

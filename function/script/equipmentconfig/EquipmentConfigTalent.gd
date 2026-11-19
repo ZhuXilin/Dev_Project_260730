@@ -102,6 +102,12 @@ func execute_talent_drop(data: Dictionary, target: Control):
 		if not is_unlocked: return
 		
 		var target_unit : UnitData = panel.party[unit_idx]
+		# ★ v6：开局 roll 技能锁定，选定离手，不可被配装覆盖
+		if slot_idx >= 0 and slot_idx < target_unit.talent_slots.size():
+			var locked_inst = target_unit.talent_slots[slot_idx]
+			if locked_inst != null and locked_inst.locked:
+				Globals.show_confirm(panel, "该技能由开局抉择获得，已锁定，无法覆盖", "确定", "", func(): pass, func(): pass, false)
+				return
 		if target_unit.advanced_talent_id == talent_id:
 			var tdata = TalentManager.get_talent_data(talent_id)
 			var tname : String = tdata.display_name if tdata else talent_id
@@ -135,6 +141,10 @@ func execute_talent_drop(data: Dictionary, target: Control):
 		if src_unit == -1 or tgt_unit == -1: return
 		var su : UnitData = panel.party[src_unit]
 		var tu : UnitData = panel.party[tgt_unit]
+		# ★ v6：锁定技能不可被移动 / 交换 / 覆盖（选定离手）
+		if (src_slot < su.talent_slots.size() and su.talent_slots[src_slot] != null and su.talent_slots[src_slot].locked) \
+			or (tgt_slot < tu.talent_slots.size() and tu.talent_slots[tgt_slot] != null and tu.talent_slots[tgt_slot].locked):
+			return
 		var src_inst : TalentInstance = su.talent_slots[src_slot]
 		var tgt_inst : TalentInstance = tu.talent_slots[tgt_slot]
 		var src_tid : String = src_inst.talent_id if src_inst and src_inst.is_active else ""
@@ -161,6 +171,8 @@ func execute_talent_remove(data: Dictionary):
 	var slot_idx : int = data.get("slot_idx", -1)
 	if unit_idx == -1 or slot_idx == -1: return
 	var u : UnitData = panel.party[unit_idx]
+	if slot_idx < u.talent_slots.size() and u.talent_slots[slot_idx] != null and u.talent_slots[slot_idx].locked:
+		return
 	u.talent_slots[slot_idx] = null
 	panel._sync_all(); panel._schedule_build_ui()
 
@@ -172,6 +184,8 @@ func discard_talent(data: Dictionary):
 		var slot_idx : int = data.get("slot_idx", -1)
 		if unit_idx == -1 or slot_idx == -1: return
 		var u : UnitData = panel.party[unit_idx]
+		if slot_idx < u.talent_slots.size() and u.talent_slots[slot_idx] != null and u.talent_slots[slot_idx].locked:
+			return
 		u.talent_slots[slot_idx] = null
 		panel._sync_all(); panel._schedule_build_ui()
 
@@ -183,6 +197,11 @@ func check_talent_compatibility(data: Dictionary, target: Control) -> bool:
 	var target_slot_idx : int = target.get_meta("slot_idx", -1)
 	if target_unit_idx == -1: return false
 	var target_unit : UnitData = panel.party[target_unit_idx]
+	# ★ v6：锁定技能槽不接受任何落位
+	if target_slot_idx >= 0 and target_slot_idx < target_unit.talent_slots.size():
+		var locked_tgt = target_unit.talent_slots[target_slot_idx]
+		if locked_tgt != null and locked_tgt.locked:
+			return false
 	
 	if not TalentManager.is_talent_compatible_with_unit(talent_id, target_unit.unit_name, target_unit.advanced_class):
 		return false
