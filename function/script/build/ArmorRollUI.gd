@@ -34,6 +34,41 @@ var _cost_label: Label = null
 var _upgrade_btn: Button = null
 var _result_box: VBoxContainer = null
 var _msg: Label = null
+var _closing: bool = false   # ★ 防两个关闭按钮同帧重复触发
+
+# ★ Arena 统一：注入单单位 + 独立金币（主线不调用则完全走 GameState/EconomyManager）
+var _arena_mode: bool = false
+var _unit_override: Array = []
+var _get_gold_cb: Callable = Callable()
+var _set_gold_cb: Callable = Callable()
+
+
+## Arena 模式：用竞技场单单位与独立金币，界面与主线完全共用。
+## 必须在 add_child 之前调用（_ready 会 _build_ui/_refresh）。
+func setup_for_arena(unit: UnitData, get_gold: Callable, set_gold: Callable) -> void:
+	_arena_mode = true
+	_unit_override = [unit] if unit != null else []
+	_get_gold_cb = get_gold
+	_set_gold_cb = set_gold
+
+
+func _gold() -> int:
+	if _arena_mode and _get_gold_cb.is_valid():
+		return maxi(0, int(_get_gold_cb.call()))
+	return EconomyManager.get_temp_gold()
+
+
+func _spend(amount: int) -> void:
+	if _arena_mode and _set_gold_cb.is_valid():
+		_set_gold_cb.call(maxi(0, _gold() - amount))
+	else:
+		EconomyManager.subtract_temp_gold(amount)
+
+
+func _get_units() -> Array:
+	if _arena_mode:
+		return _unit_override
+	return GameState.party
 
 
 func _ready() -> void:
@@ -71,7 +106,7 @@ func _build_ui() -> void:
 	margin.add_child(vbox)
 
 	var title := Label.new()
-	title.text = "战后 · 防具抽取"
+	title.text = "竞技场 · 防具抽取" if _arena_mode else "战后 · 防具抽取"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.add_theme_font_size_override("font_size", FS_TITLE)
 	title.add_theme_color_override("font_color", _gold_color)
@@ -106,13 +141,14 @@ func _build_ui() -> void:
 
 	# ★ 顶部常驻返回键：金币不足、无法继续 roll 时也能退出
 	var back := Button.new()
-	back.text = "返回地图"
+	back.text = "离开竞技场" if _arena_mode else "返回地图"
 	back.add_theme_font_size_override("font_size", FS_SMALL)
 	BuildUI.style_button(back, _gold_color)
 	back.pressed.connect(_on_close)
 	btn_row.add_child(back)
 
 	_quality_label = Label.new()
+	_quality_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_quality_label.add_theme_font_size_override("font_size", FS_SMALL)
 	_quality_label.add_theme_color_override("font_color", _dim_color)
 	vbox.add_child(_quality_label)
@@ -133,7 +169,7 @@ func _build_ui() -> void:
 	scroll.add_child(_result_box)
 
 	var close := Button.new()
-	close.text = "结束抽取 · 返回地图"
+	close.text = "结束抽取 · 离开竞技场" if _arena_mode else "结束抽取 · 返回地图"
 	close.add_theme_font_size_override("font_size", FS_BODY)
 	BuildUI.style_button(close)
 	close.pressed.connect(_on_close)
@@ -141,13 +177,13 @@ func _build_ui() -> void:
 
 
 func _refresh() -> void:
-	var gold := EconomyManager.get_temp_gold()
+	var gold := _gold()
 	_gold_label.text = "金币：%d" % gold
 	var cost := BuildManager.get_roll_cost(_roll_count)
 	_cost_label.text = "本次抽取 %dG" % cost
 	_machine.set_start_enabled(gold >= cost)
 	if gold < cost and _msg.text == "":
-		_msg.text = "金币不足，可点右上角「返回地图」结束抽取"
+		_msg.text = "金币不足，可点右上角按钮结束抽取"
 	var up := BuildManager.get_upgrade_cost(_quality_level)
 	if up < 0:
 		_upgrade_btn.text = "品质已满"
@@ -183,10 +219,10 @@ func _on_upgrade_quality() -> void:
 	var up := BuildManager.get_upgrade_cost(_quality_level)
 	if up < 0:
 		return
-	if EconomyManager.get_temp_gold() < up:
+	if _gold() < up:
 		_msg.text = "金币不足"
 		return
-	EconomyManager.subtract_temp_gold(up)
+	_spend(up)
 	_quality_level += 1
 	_msg.text = "品质等级提升至 %d" % _quality_level
 	_refresh()
@@ -194,11 +230,11 @@ func _on_upgrade_quality() -> void:
 
 func _on_spin_started() -> void:
 	var cost := BuildManager.get_roll_cost(_roll_count)
-	if EconomyManager.get_temp_gold() < cost:
+	if _gold() < cost:
 		_msg.text = "金币不足"
 		_machine.request_stop()
 		return
-	EconomyManager.subtract_temp_gold(cost)
+	_spend(cost)
 	_roll_count += 1
 	_current = {}
 	_reforge_school = ""
@@ -237,11 +273,13 @@ func _render_result() -> void:
 	var line := Label.new()
 	line.text = "【%s】品质 %s · 流派 %s（机制 Lv 上限 %d）" % [
 		_current.get("name", ""), quality, school if school != "" else "无", cap]
+	line.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	line.add_theme_font_size_override("font_size", FS_BODY)
 	line.add_theme_color_override("font_color", BuildManager.get_school_color(school))
 	_result_box.add_child(line)
 	var mech := Label.new()
 	mech.text = "机制：%s" % (BuildManager.get_school_mechanic(school) if school != "" else "无流派 · 仅属性")
+	mech.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	mech.add_theme_font_size_override("font_size", FS_SMALL)
 	mech.add_theme_color_override("font_color", _dim_color)
 	_result_box.add_child(mech)
@@ -259,7 +297,7 @@ func _render_result() -> void:
 	_result_box.add_child(unit_row)
 
 	var school_color := BuildManager.get_school_color(school)
-	for ud in GameState.party:
+	for ud in _get_units():
 		if ud == null:
 			continue
 		var card := VBoxContainer.new()
@@ -277,14 +315,22 @@ func _render_result() -> void:
 			avatar.pressed.connect(_on_place.bind(ud))
 		card.add_child(avatar)
 		var name_lbl := Label.new()
-		var used := BuildManager.get_used_mechanism_slots(ud)
-		var slots := BuildManager.get_mechanism_slots(ud.unit_name)
-		name_lbl.text = "%s %d/%d" % [ud.display_name, used, slots]
+		# ★ v6.15：单位名 + Lv + 已有防具数/槽位数 + 现有防具对应流派
+		var armor_used: int = ud.count_used_armor_slots()
+		var armor_slots: int = ud.max_armor_slots
+		var mechs := BuildManager.get_unit_mechanisms(ud)
+		var school_parts := PackedStringArray()
+		for m in mechs:
+			school_parts.append("%s%d" % [str(m.get("school", "")), int(m.get("level", 1))])
+		var school_txt: String = " ".join(school_parts) if not school_parts.is_empty() else "无流派"
+		name_lbl.text = "%s Lv%d\n防具 %d/%d\n%s" % [
+			ud.display_name, int(ud.level), armor_used, armor_slots, school_txt]
 		name_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		name_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		name_lbl.custom_minimum_size = Vector2(96, 12)
+		name_lbl.custom_minimum_size = Vector2(96, 30)
 		name_lbl.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-		name_lbl.clip_text = true
+		name_lbl.clip_text = false
+		name_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		name_lbl.add_theme_font_size_override("font_size", FS_SMALL)
 		name_lbl.add_theme_color_override("font_color", _dim_color if ud.is_dead else school_color)
 		name_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -319,10 +365,10 @@ func _effective_school() -> String:
 
 func _on_reforge() -> void:
 	var cost := BuildManager.get_reforge_cost()
-	if EconomyManager.get_temp_gold() < cost:
+	if _gold() < cost:
 		_msg.text = "金币不足，无法重铸"
 		return
-	EconomyManager.subtract_temp_gold(cost)
+	_spend(cost)
 	_reforge_school = BuildManager.reforge_school(_effective_school())
 	_msg.text = "重铸为流派：%s" % _reforge_school
 	_render_result()
@@ -338,14 +384,26 @@ func _on_discard() -> void:
 func _on_place(ud: UnitData) -> void:
 	var item_id := str(_current.get("item_id", ""))
 	var quality := str(_current.get("quality", "common"))
+	# ★ v6.8：同流派并入升 Lv 收 200G（文档 6.2 / 5.5）。
+	#   在 apply_armor 之前预判是否 merge 并扣费，避免合并已执行却扣不起。
+	var school: String = _reforge_school if _reforge_school != "" else BuildManager.get_school_of_item(item_id)
+	var will_merge: bool = school != "" and BuildManager.has_school(ud, school)
+	if will_merge:
+		var merge_cost := BuildManager.get_merge_cost_instance()
+		if _gold() < merge_cost:
+			_msg.text = "金币不足，并入 %s 需 %dG" % [school, merge_cost]
+			return
+		_spend(merge_cost)
 	var result := BuildManager.apply_armor(ud, item_id, quality, _reforge_school)
 	match str(result.get("result", "")):
 		"awaken", "merge", "plain":
-			var school := str(result.get("school", ""))
+			school = str(result.get("school", ""))
 			if school == "":
 				_msg.text = "%s 装备了普通防具" % ud.display_name
 			elif str(result.get("result")) == "merge":
-				_msg.text = "%s 并入 %s → Lv%d" % [ud.display_name, school, int(result.get("level", 1))]
+				_msg.text = "%s 并入 %s → Lv%d（花 %dG）" % [
+					ud.display_name, school, int(result.get("level", 1)),
+					BuildManager.get_merge_cost_instance()]
 			else:
 				_msg.text = "%s 觉醒【%s】" % [ud.display_name, school]
 			_current = {}
@@ -397,6 +455,9 @@ func _do_overwrite(ud: UnitData, school_to_remove: String) -> void:
 
 
 func _on_close() -> void:
+	if _closing:
+		return
+	_closing = true
 	SaveManager.auto_save()
 	closed.emit()
 	queue_free()

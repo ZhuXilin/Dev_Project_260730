@@ -256,16 +256,23 @@ func _unit_skill_ids(unit) -> Array:
 		slots_v = (unit as UnitData).talent_slots
 	else:
 		slots_v = unit.get("talent_slots")
-	if not (slots_v is Array):
-		return ids
-	for inst in (slots_v as Array):
-		if inst == null:
-			continue
-		if inst is TalentInstance and not (inst as TalentInstance).is_active:
-			continue
-		var tid: String = str(inst.get("talent_id"))
-		if tid != "" and not ids.has(tid):
-			ids.append(tid)
+	if slots_v is Array:
+		for inst in (slots_v as Array):
+			if inst == null:
+				continue
+			if inst is TalentInstance and not (inst as TalentInstance).is_active:
+				continue
+			var tid: String = str(inst.get("talent_id"))
+			if tid != "" and not ids.has(tid):
+				ids.append(tid)
+	# ★ v6.8：第 2 格转职技能也参与流派共鸣
+	var adv_v: Variant = unit.get("advanced_talent_inst")
+	if adv_v is TalentInstance:
+		var adv: TalentInstance = adv_v as TalentInstance
+		if adv.is_active:
+			var adv_tid: String = str(adv.talent_id)
+			if adv_tid != "" and not ids.has(adv_tid):
+				ids.append(adv_tid)
 	return ids
 
 
@@ -563,14 +570,24 @@ func _has_empty_skill_slot(unit_key: String) -> bool:
 
 ## roll count 次主动技能：先按单位做匹配，保证存在一套"每个单位各得一个可装备技能"的分配，
 ## 再把这套技能打乱顺序返回。杜绝"roll 出无人能装的技能 → 跳过 → 单位无技能"。
-func roll_active_skills(unit_names: Array, count: int = 3) -> Array:
+func roll_active_skills(unit_names: Array, count: int = 3, unit_data_override: Array = []) -> Array:
 	TalentManager.load_talent_data()
 	var units: Array = []
 	for uname in unit_names:
 		var key := UnitDataManager.normalize_unit_key(str(uname))
 		# ★ v6 修复：默认词条/旧档可能占住第 1 格，这类单位不能参与 roll 匹配，
 		#   否则会 roll 出一个"唯一兼容者技能格已满"的死卡。
-		if not units.has(key) and _has_empty_skill_slot(key):
+		# ★ v6.16：Arena 单单位注入——用注入对象的槽位状态，不从 GameState.party 查，
+		#   避免主线队伍里同名单位已占格导致竞技场单位被误排除（空池秒关）。
+		var slot_free: bool = true
+		if not unit_data_override.is_empty():
+			for ud in unit_data_override:
+				if ud != null and UnitDataManager.normalize_unit_key(str(ud.unit_name)) == key:
+					slot_free = (ud.talent_slots.is_empty() or ud.talent_slots[0] == null)
+					break
+		else:
+			slot_free = _has_empty_skill_slot(key)
+		if not units.has(key) and slot_free:
 			units.append(key)
 
 	var cand: Dictionary = {}

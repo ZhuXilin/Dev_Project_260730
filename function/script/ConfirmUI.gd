@@ -43,6 +43,12 @@ func _on_cancel_button_pressed() -> void:
 		cancel_callback.call()
 	queue_free.call_deferred()
 
+func _exit_tree():
+	# ★ 兜底：若确认框因场景切换/父节点释放而消失（非用户点击），
+	#   也要清标志，否则会永久屏蔽战斗输入。正常点击时已提前清过，重复清无害。
+	Globals.is_confirm_ui_active = false
+
+
 func _input(event):
 	if not visible:
 		return

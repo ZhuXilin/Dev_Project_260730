@@ -380,14 +380,20 @@ v6 不再把熔铸防具作为普通防具来源；它是伤亡价值化出口�
 
 ### 5.11 竞技场
 
-本轮竞技场保持 v5 规则：
+★ v6.10 起竞技场同步局内机制（原 v5 口径已废止）：
 
-- 4 场普通战 → 4 连胜 → 撤离 / 生存。
-- 无魂火、无地形、无全局遗物 / 光环 buff。
-- 伤害公式与主线一致：减伤率乘区 + 保底。
-- 商店 / 铁匠铺 / 词条解锁等暂不同步 v6。
+- 战斗内核 `ArenaBattle` 接入简化魂火与六流派机制，复用 `BuildManager.get_effective_school_level` 与各 ratio 纯函数：烈焰灼烧、守护反弹、献祭扣血换攻、轮回击杀回魂火、余烬魂火耗尽必暴；灰烬因 1v1 无移动故不触发地块。
+- 每场胜利后弹 `ArenaRollUI`（竞技场专用防具老虎机，复用 `SlotMachineUI`），用独立 `arena_gold` 抽防具并落位到单单位，满槽覆盖最早流派；不碰主线 `GameState.party` / `temp_gold`。
+- 胜利奖励接入单位经验自动升级（`BuildManager.grant_exp_and_auto_level`），与主线 `VictoryHandler` 对齐。
+- ★ v6.14 竞技场防具老虎机**统一用主线 `ArmorRollUI`**（`setup_for_arena(unit, get_gold, set_gold)` 注入单单位 + 独立 arena_gold），不再维护单独的 ArenaRollUI 版本；金币/落位/重铸/覆盖等交互与局内完全一致。
+- ★ v6.13 开局流程与主线对齐：选人后先用单单位技能老虎机（`SkillRollUI` 注入单单位对象 + roll 1 次）选定第 1 技能格，**去掉每场战前的 EquipmentConfig 装备界面**；防具等装备只在战后 `ArenaRollUI` 获取。节奏 = 开局 roll 技能 → 战斗 → 战后防具 roll。`SkillRollUI.setup(unit_names, unit_data_override, roll_count)` 新增后两个可选参数，主线三单位调用零改动。
+- 保留竞技场原有流程：4 场普通 → 4 连胜 → 撤离 / 生存（3 场），伤害公式与主线一致（减伤乘区 + 保底）。
 
-等主线 build 规则稳定后，再单独做竞技场对齐。
+<details><summary>原 v5 口径（已废止，留档）</summary>
+
+4 场普通战 → 4 连胜 → 撤离 / 生存；无魂火、无地形、无全局遗物 / 光环 buff；商店 / 铁匠铺 / 词条解锁暂不同步 v6。
+
+</details>
 
 ### 5.12 数据与编辑器
 
@@ -572,7 +578,7 @@ v6 主线已落地代码，核心计算集中在 `BuildManager`（autoload）。
 | 其余五流派战斗机制 | 守护/轮回：受击与击杀钩子；献祭：`TurnManager._apply_school_turn_start`；灰烬：`CombatManager.drop/trigger_ash_tile` + 移动完成钩子；余烬：暴击链 | 已落地（2026-11-19，v6.2） |
 | 主动技能 × 流派共鸣 | `TalentData.resonance_school` + `BuildManager.get_effective_school_level`（+1 Lv，上限 4）+ roll 卡/查看器提示 | 已落地（2026-11-19，v6.2） |
 | 通用轮盘老虎机 | `SlotMachineUI.gd`（候选图标 + 转轮 + 开始/停止 + 加速/减速 + stopped 回调），`SkillRollUI` / `ArmorRollUI` 已接入；技能池扩至 17 个 | 已落地（2026-11-19，v6.3） |
-| 竞技场同步 | — | 本轮不同步，主线稳定后做 |
+| 竞技场同步 | v6.10 已同步：`ArenaBattle` 接简化魂火 + 六流派机制（灰烬因 1v1 无移动跳过）；每场胜利弹 `ArenaRollUI` 防具老虎机（独立 arena_gold）；胜利接单位经验自动升级 | 已落地（2026-11-19，v6.10） |
 
 已知保留：出战准备（DEPLOY）界面仍保留防具 / 词条拖拽交互，但新局无散件可拖；不影响主线 build 流程。所有规则仍以本文为唯一口径来源。
 

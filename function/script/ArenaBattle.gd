@@ -61,6 +61,15 @@ var _total_damage_dealt : int = 0
 var _total_damage_taken : int = 0
 var _crit_count : int = 0
 
+# ★ v6.10：六流派机制同步（竞技场简化版，复用 BuildManager 数值表）
+var _player_soul: int = 0          # 简化魂火：命中+1、击杀按轮回额外，上限 6
+var _enemy_soul: int = 0
+const ARENA_SOUL_CAP: int = 6
+var _player_sacrifice_bonus: float = 0.0   # 献祭本轮攻击加成
+var _enemy_sacrifice_bonus: float = 0.0
+var _player_ember_charged: bool = false    # 余烬：魂火耗尽后的必暴标记
+var _enemy_ember_charged: bool = false
+
 @onready var panel : Panel = $Panel
 @onready var enemy_sprite : AnimatedSprite2D = $Panel/EnemySpriteContainer/EnemySprite
 @onready var enemy_name : Label = $Panel/EnemyName
@@ -118,6 +127,14 @@ func setup(player_data: UnitData, enemy_data: UnitData, crystal_reward: int = 0,
 
 	_player_hp = player_data.hit_points
 	_enemy_hp = enemy_data.max_hp
+
+	# ★ v6.10：简化魂火初始化；双方按流派机制生效
+	_player_soul = 1
+	_enemy_soul = 1
+	_player_sacrifice_bonus = 0.0
+	_enemy_sacrifice_bonus = 0.0
+	_player_ember_charged = false
+	_enemy_ember_charged = false
 
 	# ★ 对齐正式战场：遗物"首攻必暴击"（TurnController.apply_team_buffs 同源）
 	# 每场竞技场战斗重新结算；精炼 relic_attack 时 2 次，否则 1 次
@@ -261,6 +278,15 @@ func _run_battle():
 		turn += 1
 		_accumulate_talents(_player)
 		_accumulate_talents(_enemy)
+		# ★ v6.10：献祭流派——回合开始扣血换本回合攻击加成
+		_apply_sacrifice(_player, true)
+		_apply_sacrifice(_enemy, false)
+
+	# ★ v6.10：击杀方的轮回流派回魂火
+	if _enemy_hp <= 0 and _player_hp > 0:
+		_arena_on_kill(_player, true)
+	elif _player_hp <= 0 and _enemy_hp > 0:
+		_arena_on_kill(_enemy, false)
 
 	if _player_hp > 0 and _enemy_hp <= 0:
 		winner_team = 0
@@ -339,6 +365,16 @@ func _do_attack(attacker: UnitData, defender: UnitData):
 			else:
 				print("[Arena] 主动技能 %s 触发" % skill_data.display_name)
 			TalentManager.consume_active_skill(attacker, skill_id)
+			# ★ v6.10：主动技能消耗简化魂火（对齐主线 2 点），归零则给余烬必暴标记
+			var soul_cost: int = int(skill_data.effect_params.get("soul_fire_cost", 2))
+			if is_player_attacker:
+				_player_soul = maxi(0, _player_soul - soul_cost)
+				if _player_soul <= 0 and BuildManager.get_effective_school_level(_player, "余烬") > 0:
+					_player_ember_charged = true
+			else:
+				_enemy_soul = maxi(0, _enemy_soul - soul_cost)
+				if _enemy_soul <= 0 and BuildManager.get_effective_school_level(_enemy, "余烬") > 0:
+					_enemy_ember_charged = true
 
 	if not has_active_skill and heavy_mult > 1.0:
 		damage = int(damage * heavy_mult)
@@ -400,6 +436,17 @@ func _do_attack(attacker: UnitData, defender: UnitData):
 		_consume_first_attack_crit(attacker)
 	elif _roll_crit(attacker):
 		is_crit = true
+	# ★ v6.10：余烬流派——魂火耗尽后本次必暴，并追加暴伤
+	var ember_charged: bool = _player_ember_charged if is_player_attacker else _enemy_ember_charged
+	if ember_charged:
+		var ember_lv: int = BuildManager.get_effective_school_level(attacker, "余烬")
+		if ember_lv > 0:
+			is_crit = true
+			crit_mult += BuildManager.get_ember_crit_bonus(ember_lv)
+			if is_player_attacker:
+				_player_ember_charged = false
+			else:
+				_enemy_ember_charged = false
 
 	if is_crit:
 		crit_mult = minf(crit_mult, CRIT_DAMAGE_CAP)
@@ -471,6 +518,20 @@ func _do_attack(attacker: UnitData, defender: UnitData):
 
 	SoundManager.play_hit_sound()
 
+	# ★ v6.10：守护流派机制——受击反弹（对齐 BuildManager 有效 Lv 曲线）
+	var guard_lv: int = BuildManager.get_effective_school_level(defender, "守护")
+	if guard_lv > 0 and damage > 0:
+		var reflect: int = maxi(1, int(damage * BuildManager.get_guard_reflect_ratio(guard_lv)))
+		if is_player_attacker:
+			_player_hp = maxi(0, _player_hp - reflect)
+			player_hp_bar.value = _player_hp
+			_total_damage_taken += reflect
+		else:
+			_enemy_hp = maxi(0, _enemy_hp - reflect)
+			enemy_hp_bar.value = _enemy_hp
+			_total_damage_dealt += reflect
+		log_label.text += "  [守护反弹 Lv%d +%d]" % [guard_lv, reflect]
+
 	var atk_name = attacker.display_name if attacker.display_name != "" else attacker.unit_name
 	var def_name = defender.display_name if defender.display_name != "" else defender.unit_name
 	var crit_str : String = ""
@@ -520,6 +581,20 @@ func _do_attack(attacker: UnitData, defender: UnitData):
 			player_hp_bar.value = _player_hp
 			_total_damage_taken += flame_bonus
 		log_label.text += "  [灼烧 +%d]" % flame_bonus
+
+	# ★ v6.10：烈焰流派机制——按本次伤害追加灼烧（对齐 BuildManager 有效 Lv 曲线）
+	var flame_lv: int = BuildManager.get_effective_school_level(attacker, "烈焰")
+	if flame_lv > 0:
+		var burn: int = maxi(1, int(damage * BuildManager.get_flame_burn_ratio(flame_lv)))
+		if is_player_attacker:
+			_enemy_hp = maxi(0, _enemy_hp - burn)
+			enemy_hp_bar.value = _enemy_hp
+			_total_damage_dealt += burn
+		else:
+			_player_hp = maxi(0, _player_hp - burn)
+			player_hp_bar.value = _player_hp
+			_total_damage_taken += burn
+		log_label.text += "  [烈焰灼烧 Lv%d +%d]" % [flame_lv, burn]
 
 	_refresh_hp_labels()
 	await get_tree().create_timer(0.6, true, false, true).timeout
@@ -629,6 +704,57 @@ func _do_attack(attacker: UnitData, defender: UnitData):
 		_refresh_hp_labels()
 		await get_tree().create_timer(0.4, true, false, true).timeout
 
+	# ★ v6.10：简化魂火——命中 +1，魂火归零则给余烬必暴标记
+	_arena_on_hit(attacker, is_player_attacker)
+
+
+func _arena_on_hit(_attacker: UnitData, is_player: bool):
+	# 命中 +1 魂火；魂火归零时给余烬必暴标记
+	if is_player:
+		_player_soul = mini(_player_soul + 1, ARENA_SOUL_CAP)
+		if _player_soul <= 0 and BuildManager.get_effective_school_level(_player, "余烬") > 0:
+			_player_ember_charged = true
+	else:
+		_enemy_soul = mini(_enemy_soul + 1, ARENA_SOUL_CAP)
+		if _enemy_soul <= 0 and BuildManager.get_effective_school_level(_enemy, "余烬") > 0:
+			_enemy_ember_charged = true
+
+
+## ★ v6.10：轮回流派——击杀时额外回魂火
+func _arena_on_kill(killer: UnitData, is_player: bool):
+	var lv: int = BuildManager.get_effective_school_level(killer, "轮回")
+	if lv <= 0:
+		return
+	var gain: int = BuildManager.get_cycle_soul_gain(lv)
+	if is_player:
+		_player_soul = mini(_player_soul + gain, ARENA_SOUL_CAP)
+	else:
+		_enemy_soul = mini(_enemy_soul + gain, ARENA_SOUL_CAP)
+	log_label.text += "  [轮回回魂 +%d]" % gain
+
+
+## ★ v6.10：献祭流派——回合开始扣血，写入本回合攻击加成
+func _apply_sacrifice(unit: UnitData, is_player: bool):
+	var lv: int = BuildManager.get_effective_school_level(unit, "献祭")
+	if lv <= 0:
+		if is_player: _player_sacrifice_bonus = 0.0
+		else: _enemy_sacrifice_bonus = 0.0
+		return
+	var cost_ratio: float = BuildManager.get_sacrifice_hp_cost_ratio(lv)
+	var hp: int = _player_hp if is_player else _enemy_hp
+	var max_hp: int = maxi(1, unit.max_hp)
+	var cost: int = maxi(1, int(max_hp * cost_ratio))
+	cost = mini(cost, maxi(0, hp - 1))   # 保底留 1 HP
+	if is_player:
+		_player_hp = maxi(1, hp - cost)
+		player_hp_bar.value = _player_hp
+		_player_sacrifice_bonus = BuildManager.get_sacrifice_attack_bonus(lv)
+	else:
+		_enemy_hp = maxi(1, hp - cost)
+		enemy_hp_bar.value = _enemy_hp
+		_enemy_sacrifice_bonus = BuildManager.get_sacrifice_attack_bonus(lv)
+	_refresh_hp_labels()
+
 
 func _calc_damage(attacker: UnitData, defender: UnitData) -> int:
 	if attacker == null or defender == null:
@@ -653,6 +779,9 @@ func _calc_damage(attacker: UnitData, defender: UnitData) -> int:
 	if is_magic:
 		total_attack += attacker.buff_magic_attack_flat
 	total_attack *= (1.0 + attacker.buff_attack_percent)
+	# ★ v6.10：献祭流派本回合攻击加成
+	var sac_bonus: float = _player_sacrifice_bonus if attacker == _player else _enemy_sacrifice_bonus
+	total_attack *= (1.0 + sac_bonus)
 	# ★ v5.10 对齐正式战场：遗物力量缩放伤害
 	if attacker.relic_strength_scale_damage > 0.0:
 		var str_val : int = attacker.get_effective_attr("strength")

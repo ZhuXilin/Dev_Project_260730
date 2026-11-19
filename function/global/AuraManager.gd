@@ -95,20 +95,47 @@ func _finish_research(aura_id: String):
 func use_aura_in_battle(aura_id: String) -> bool:
 	if aura_id == "" or not aura_id in GameState.get_auras_from_passives():
 		return false
-
 	var d : Dictionary = get_aura(aura_id)
 	if d.is_empty():
 		return false
+	_apply_aura_to_units(aura_id, d)
+	# 用完即毁：从被动槽中移除
+	GameState.remove_aura_from_passives(aura_id)
+	SaveManager.auto_save()
+	print("[AuraManager] 光环已激活并消耗: " + aura_id)
+	return true
 
+
+## ★ v6.8：消耗型遗物（薪火相传/轮回流转）以 ItemInstance 形式发放，
+##   点击后按同款光环效果作用全队，并从对应被动槽移除该遗物（用完即毁）。
+func use_consumable_relic(item_id: String, slot_idx: int) -> bool:
+	if item_id == "" or not BuildManager.is_consumable_relic(item_id):
+		return false
+	var d : Dictionary = get_aura(item_id)   # 效果定义仍在 auras.json
+	if d.is_empty():
+		return false
+	_apply_aura_to_units(item_id, d)
+	# 从被动槽移除这件 ItemInstance 遗物
+	var passives : Array = GameState.get_passives()
+	if slot_idx < 0 or slot_idx >= passives.size():
+		return false
+	var p : Variant = passives[slot_idx]
+	if not (p is ItemInstance) or str((p as ItemInstance).item_id) != item_id:
+		return false
+	GameState.remove_passive_at_slot(slot_idx)
+	SaveManager.auto_save()
+	print("[AuraManager] 消耗型遗物已激活并消耗: " + item_id)
+	return true
+
+
+## 把光环/消耗遗物的效果作用到全队（active_auras 钩子驱动魂火/治疗类）
+func _apply_aura_to_units(aura_id: String, d: Dictionary) -> void:
 	var params : Dictionary = d.get("params", {})
 	var effect_type : String = d.get("effect", "")
-
 	for u in UnitManager.unit_list:
 		if not is_instance_valid(u) or u.unit_stats.team_id != 0 or u.hit_points <= 0:
 			continue
-
 		u.active_auras[aura_id] = true
-
 		match effect_type:
 			"attack_plus":
 				u.buff_attack_percent += float(params.get("attack_percent", 0.15))
@@ -121,10 +148,3 @@ func use_aura_in_battle(aura_id: String) -> bool:
 			"turn_start_gain_soul_fire", "kill_gain_soul_fire", "kill_heal_percent":
 				# 这些由 TurnManager/CombatManager 根据 active_auras 钩子自动触发
 				pass
-
-	# 用完即毁：从被动槽中移除
-	GameState.remove_aura_from_passives(aura_id)
-	SaveManager.auto_save()
-
-	print("[AuraManager] 光环已激活并消耗: " + aura_id)
-	return true

@@ -11,6 +11,7 @@ var _current_player_data : UnitData = null
 var _locked_talent_id : String = ""
 var _streak_active : bool = false
 var _earned_soul : int = 0
+var _arena_level_gain : int = 0   # ★ v6.10：本局单位自动升级次数（结算展示用）
 var _total_paid : int = 0
 var _retreat_fee : int = 0
 var _arena_passives : Array = [null, null, null, null]
@@ -60,10 +61,8 @@ func _ready():
 	_refresh_center_panel()
 	_refresh_streak_label()
 	
-	if not start_btn.pressed.is_connected(_on_start_pressed):
-		start_btn.pressed.connect(_on_start_pressed)
-	if not back_btn.pressed.is_connected(_on_back_pressed):
-		back_btn.pressed.connect(_on_back_pressed)
+	# 注意：StartBtn/BackButton 的 pressed 已在 Arena.tscn 中静态连接，
+	# 这里不再重复 connect（is_connected 用未绑定 Callable 检查可能与 tscn 连接判定不一致导致重复触发）。
 
 func _input(event: InputEvent):
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT:
@@ -104,6 +103,41 @@ func _on_start_pressed():
 	SaveManager.auto_save()
 
 	_init_arena_state()
+	# ★ v6.13：选人后先像主线一样 roll 技能词条（单单位，1 次），
+	#   不再先进装备界面；装备只在战后 ArenaRollUI 获取。
+	_show_opening_skill_roll()
+
+
+## 开局单单位技能 roll：复用主线 SkillRollUI（注入 Arena 单位对象 + roll 1 次）
+## ★ 用回调式而非 await：SkillRollUI.setup() 内若空池会同步 emit finished，
+##   await 因建立在 setup 之后会漏接导致卡死；先 connect 再 setup 可覆盖同步/异步两种情况。
+func _show_opening_skill_roll():
+	var scene = load(Config.PATHS.SKILL_ROLL_UI)
+	if not scene:
+		push_warning("[Arena] 技能轮盘场景缺失，跳过开局 roll")
+		_run_battle_loop()
+		return
+	# 确保第 1 技能格为空，才能走 roll 落位
+	_current_player_data.talent_slots = [null]
+	var ui = scene.instantiate()
+	add_child(ui)
+	# ★ 先连接信号（ONE_SHOT），再 setup —— 空池同步 emit 也能接住
+	ui.finished.connect(_on_opening_roll_finished, CONNECT_ONE_SHOT)
+	ui.setup([_current_player_data.unit_name], [_current_player_data], 1)
+	print("[Arena] 开局技能roll已拉起: unit=%s, visible=%s" % [
+		_current_player_data.unit_name, str(ui.visible)])
+
+
+
+func _on_opening_roll_finished():
+	if not is_inside_tree(): return
+	# roll 落位的技能已由 SkillRollUI 通过 place_skill 写入 _current_player_data 第 1 格
+	var picked: String = ""
+	if not _current_player_data.talent_slots.is_empty() and _current_player_data.talent_slots[0] != null:
+		picked = str(_current_player_data.talent_slots[0].talent_id)
+	if picked != "":
+		GameState.arena_target_talents[_current_player_data.unit_name] = picked
+		_locked_talent_id = picked
 	_run_battle_loop()
 
 func _init_arena_state():
@@ -114,6 +148,7 @@ func _init_arena_state():
 	_survival_round = 0
 	_streak_active = false
 	_earned_soul = 0
+	_arena_level_gain = 0
 	_total_paid = 0
 	_retreat_fee = 0
 	_arena_passives = [null, null, null, null]
@@ -140,22 +175,17 @@ func _init_arena_state():
 
 func _run_battle_loop():
 	while _phase != Phase.END:
-		var entry_choice : String = await _check_entry_fee()
+		var entry_choice : String = ""
+		entry_choice = await _check_entry_fee()
 		if not is_inside_tree(): return
 		if entry_choice == "decline":
 			_show_summary(true, "及时止损")
 			return
 
-		var shop_action : String = await _show_shop()
-		if not is_inside_tree(): return
-		if shop_action == "quit":
-			if _streak == 0:
-				_return_to_idle()
-			else:
-				_show_summary(true, "放弃")
-			return
-
-		var winner : int = await _do_one_battle()
+		# ★ v6.13：去掉每场战前的装备界面（原 _show_shop），装备只在战后 ArenaRollUI 获取。
+		#   开局已 roll 好技能，战斗节奏与主线一致：roll → 战斗 → 战后防具 roll。
+		var winner : int = 0
+		winner = await _do_one_battle()
 		if not is_inside_tree(): return
 
 		if winner != 0:
@@ -333,11 +363,20 @@ func _do_one_battle() -> int:
 			_earned_soul += soul_gain
 
 		var talent_results : Array = _add_talent_exp_to_all(exp_gain)
+		# ★ v6.10：奖励机制同步——单位经验自动升级（对齐主线 VictoryHandler）
+		var old_level: int = _current_player_data.level
+		BuildManager.grant_exp_and_auto_level(_current_player_data, exp_gain)
+		if _current_player_data.level > old_level:
+			_arena_level_gain += _current_player_data.level - old_level
 		_current_player_data.hit_points = _current_player_data.max_hp
 		_streak_active = true
 		SaveManager.auto_save()
 
 		await _show_battle_rewards(gold_gain, soul_gain, talent_results, battle_index, result)
+		if not is_inside_tree(): return 1
+
+		# ★ v6.10：同步局内老虎机——每场胜利后可花 arena_gold 抽防具
+		await _show_arena_roll()
 		if not is_inside_tree(): return 1
 		return 0
 	else:
@@ -361,6 +400,30 @@ func _calc_exp_gain(enemy_type: String) -> int:
 	if _is_mini_boss_battle(): return int(base * 2.0)
 	if _is_elite_battle(): return int(base * 2.5)
 	return base
+
+## ★ v6.14：竞技场防具老虎机统一用主线 ArmorRollUI（注入单单位 + 独立 arena_gold），
+##   不再维护 ArenaRollUI 单独版本。
+func _show_arena_roll():
+	var scene = load(Config.PATHS.ARMOR_ROLL_UI)
+	if not scene or _current_player_data == null:
+		return
+	var ui = scene.instantiate()
+	# ★ setup_for_arena 必须在 add_child 之前（_ready 会构建 UI）
+	var get_cb := Callable(self, "_get_arena_gold")
+	var set_cb := Callable(self, "_set_arena_gold")
+	ui.setup_for_arena(_current_player_data, get_cb, set_cb)
+	add_child(ui)
+	await ui.closed
+
+
+func _get_arena_gold() -> int:
+	return _arena_gold
+
+
+func _set_arena_gold(v: int) -> void:
+	_arena_gold = maxi(0, v)
+	_refresh_streak_label()
+
 
 func _show_battle_rewards(gold_gain: int, soul_gain: int, talent_results: Array, battle_index: int, stats: Dictionary = {}):
 	var summary = Globals.get_reward_summary()

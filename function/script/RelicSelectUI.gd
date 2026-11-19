@@ -12,6 +12,7 @@ var _relic_options: Array = []
 var _selected_candidate: String = ""
 var _slots_full: bool = false
 var _candidate_buttons: Dictionary = {}
+var _no_options: bool = false   # ★ 候选池为空：显示「跳过」，避免永久 await
 
 func _ready():
 	cancel_btn.pressed.connect(_on_cancel_pressed)
@@ -54,6 +55,9 @@ func setup_options(exclude_ids: Array = []):
 	_relic_options = pool.slice(0, min(3, pool.size()))
 
 	_build_candidates()
+	# ★ 死锁修复：真正的按钮数可能为 0（候选虽非空但遗物数据为空），
+	#   按实际生成的按钮判断，而不是按 _relic_options.size()。
+	_no_options = _candidate_buttons.is_empty()
 	_update_ui_state()
 
 
@@ -119,6 +123,16 @@ func _on_candidate_clicked(relic_id: String):
 
 
 func _update_ui_state():
+	# ★ 死锁修复：无可选项时必须给出「跳过」出口，让玩家能离开界面
+	if _no_options:
+		hint_label.text = "暂无可选取的遗物"
+		hint_label.visible = true
+		separator2.visible = false
+		existing_container.visible = false
+		cancel_btn.visible = true
+		cancel_btn.text = "跳过"
+		return
+
 	if not _slots_full:
 		hint_label.visible = false
 		separator2.visible = false

@@ -187,6 +187,15 @@ func _on_aura_icon_clicked(aid: String):
 		update_relic_icons()
 
 
+## ★ v6.8：消耗型遗物点击释放
+func _on_consumable_relic_clicked(item_id: String, slot_idx: int):
+	if AuraManager.use_consumable_relic(item_id, slot_idx):
+		var relic_name: String = str(RelicManager.get_relic_data(item_id).get("name", item_id))
+		SignalBus.request_hint_override.emit("★ 遗物生效：%s（已消耗）" % relic_name, 1.5)
+		SoundManager.play_get_item_sound()
+		update_relic_icons()
+
+
 # ============ PanelManager.gd ============
 
 func update_relic_icons() -> void:
@@ -239,7 +248,22 @@ func update_relic_icons() -> void:
 			var r_id = p.item_id
 			btn.mouse_entered.connect(func(): _show_relic_hover_info(r_id))
 			btn.mouse_exited.connect(_hide_relic_hover_info)
-			
+
+			# ★ v6.8：消耗型遗物（薪火相传/轮回流转）可点击释放，用完即毁
+			if BuildManager.is_consumable_relic(r_id):
+				btn.pressed.connect(_on_consumable_relic_clicked.bind(r_id, i))
+				var rel_lb := Label.new()
+				rel_lb.text = "释放"
+				rel_lb.add_theme_font_size_override("font_size", 5)
+				rel_lb.add_theme_color_override("font_color", Color(0.45, 0.95, 1.0))
+				rel_lb.add_theme_color_override("font_outline_color", Color.BLACK)
+				rel_lb.add_theme_constant_override("outline_size", 2)
+				rel_lb.mouse_filter = Control.MOUSE_FILTER_IGNORE
+				rel_lb.set_anchors_preset(Control.PRESET_FULL_RECT)
+				rel_lb.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+				rel_lb.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+				btn.add_child(rel_lb)
+
 			_bf.relic_icon_container.add_child(btn)
 			has_any = true
 			

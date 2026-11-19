@@ -615,6 +615,11 @@ func _load_combat_for_node(node: MapNode):
 
 	var map_to_load = node.map_data
 	if not map_to_load:
+		# ★ 死锁修复：战斗节点却无 map_data（问号节点解析成战斗最常见），
+		#   必须复位加载锁并清掉已写入的节点 key，否则地图所有节点永久点不动。
+		push_warning("[MapScene] 节点 %d_%d 无 map_data，跳过战斗" % [node.position.x, node.position.y])
+		_is_loading_combat = false
+		GameState.current_node_key = ""
 		return
 	_load_combat(map_to_load)
 

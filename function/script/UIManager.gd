@@ -4,6 +4,7 @@ class_name UIManager
 var victory_panel : Panel
 var victory_label : Label
 var victory_button : Button
+var _victory_bound_callback: Callable = Callable()   # ★ 当前绑定的回调，用于正确去重
 
 
 func initialize(ui_nodes: Dictionary):
@@ -17,9 +18,11 @@ func show_victory(label_text: String, button_text: String, callback: Callable):
 		return
 	victory_label.text = label_text
 	victory_button.text = button_text
-	if victory_button.pressed.is_connected(_on_victory_button_pressed):
-		victory_button.pressed.disconnect(_on_victory_button_pressed)
-	victory_button.pressed.connect(_on_victory_button_pressed.bind(callback))
+	# ★ 去重必须用「已绑定的 Callable」：旧代码检查未绑定版本永远 false，导致连接叠加
+	if _victory_bound_callback.is_valid() and victory_button.pressed.is_connected(_victory_bound_callback):
+		victory_button.pressed.disconnect(_victory_bound_callback)
+	_victory_bound_callback = _on_victory_button_pressed.bind(callback)
+	victory_button.pressed.connect(_victory_bound_callback)
 
 	PanelRevealer.show_panel(victory_panel)
 

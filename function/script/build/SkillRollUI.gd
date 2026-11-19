@@ -33,12 +33,21 @@ var _unit_row: HBoxContainer = null
 var _skip_btn: Button = null
 var _msg: Label = null
 var _safe_picks: Array = []
+# ★ Arena 单单位适配：外部注入单位对象（不注入则回退 GameState.party，主线零改动）
+var _unit_override: Array = []
+var _roll_count: int = 3
 
 
-func setup(unit_names: Array) -> void:
+func setup(unit_names: Array, unit_data_override: Array = [], roll_count: int = 3) -> void:
 	_unit_names = unit_names.duplicate()
+	_unit_override = unit_data_override.duplicate()
+	_roll_count = maxi(1, roll_count)
 	# 保留一份原本的匹配结果作兜底；玩家停轮后可以改写当前这张
-	_skills = BuildManager.roll_active_skills(_unit_names, 3)
+	# ★ v6.16：把注入的单位对象传给 roll_active_skills，用其自身槽位状态判空，
+	#   避免 Arena 单单位因 GameState.party 同名单位占格被排除导致空池秒关。
+	_skills = BuildManager.roll_active_skills(_unit_names, _roll_count, _unit_override)
+	print("[SkillRollUI] setup: units=%s, skills=%d, override=%d" % [
+		str(_unit_names), _skills.size(), _unit_override.size()])
 	_index = 0
 	_placed_skills.clear()
 	_build_ui()
@@ -126,38 +135,65 @@ func _show_step() -> void:
 	if _index >= _skills.size():
 		_finish()
 		return
+	# ★ 死锁修复：没有可落位技能时绝不能用空池 setup（轮盘转不起来、
+	#   本界面又无退出按钮）。直接跳过剩余次数并正常结束，进入地图。
+	var entries: Array = _build_skill_entries()
+	if entries.is_empty():
+		push_warning("[SkillRollUI] 第 %d 次无可用技能，跳过本次及后续" % (_index + 1))
+		_index = _skills.size()
+		_finish()
+		return
 	_current_skill = str(_skills[_index])
 	_clear_picks()
-	_machine.setup(_build_skill_entries(), "主动技能轮盘 · 第 %d 次" % (_index + 1))
+	_machine.setup(entries, "主动技能轮盘 · 第 %d 次" % (_index + 1))
 	_msg.text = "玩家决定结果：点开始，看准技能图标再点停"
 	_msg.add_theme_color_override("font_color", _dim_color)
 
 
 func _build_skill_entries() -> Array:
 	var entries: Array = []
-	# ★ 轮盘池 = 当前尚未落位单位能装备的全部技能（尽量多给选择）。
-	#   不再用「后续是否还能完美匹配」把池子压小；真正落位时仍由 _show_units 校验，
-	#   若这张无人可用则提供「重转」，不推进次数。
+	# ★ v6.12：轮盘池在构建阶段就用 is_safe_placement 预筛，杜绝两类坏词条：
+	#   ① 只有唯一单位能装且会挤掉别人 → 图1；② 没有任何单位能安全落位 → 图2。
+	#   口径与落位时 _show_units 一致：remaining_skills = _skills 中未落位技能，
+	#   且把当前这张替换成候选技能（玩家停下会改写当前格）。
 	var remaining_names: Array = []
 	for uname in _unit_names:
 		var u: UnitData = _find_unit(str(uname))
 		if u != null and (u.talent_slots.is_empty() or u.talent_slots[0] == null):
 			remaining_names.append(str(uname))
+
+	# 先把候选分成"安全可落"与"仅兼容兜底"两档，避免全过滤后空池死锁。
+	var safe_pool: Array = []       # 至少一个单位能安全落位（首选）
+	var fallback_pool: Array = []   # 仅兼容但落位后剩余单位无法覆盖（兜底）
 	for tid in BuildManager.build_skill_pool(remaining_names):
 		var sid := str(tid)
 		if _placed_skills.has(sid):
 			continue
-		var placeable := false
+		# 模拟停下后的剩余技能集：当前格换成 sid
+		var sim_remaining: Array = []
+		for i in range(_skills.size()):
+			if i == _index:
+				sim_remaining.append(sid)
+			elif not _placed_skills.has(str(_skills[i])):
+				sim_remaining.append(str(_skills[i]))
+		var has_safe := false
+		var has_placeable := false
 		for uname in remaining_names:
 			var ud: UnitData = _find_unit(str(uname))
 			if ud == null:
 				continue
-			var adv := str(ud.advanced_class)
-			if TalentManager.is_talent_compatible_with_unit(sid, ud.unit_name, adv):
-				placeable = true
+			if BuildManager.can_place_skill(ud, sid):
+				has_placeable = true
+			if BuildManager.is_safe_placement(ud, sid, remaining_names, sim_remaining):
+				has_safe = true
 				break
-		if not placeable:
-			continue
+		if has_safe:
+			safe_pool.append(sid)
+		elif has_placeable:
+			fallback_pool.append(sid)
+
+	var chosen: Array = safe_pool if not safe_pool.is_empty() else fallback_pool
+	for sid in chosen:
 		var data := TalentManager.get_talent_data(sid)
 		if data == null:
 			continue
@@ -190,9 +226,14 @@ func _clear_picks() -> void:
 func _on_machine_stopped(entry: Dictionary) -> void:
 	var tid := str(entry.get("id", ""))
 	if tid == "" or _placed_skills.has(tid):
+		var entries: Array = _build_skill_entries()
+		if entries.is_empty():
+			_index = _skills.size()
+			_finish()
+			return
 		_msg.text = "这张已用过，请再转一次"
 		_msg.add_theme_color_override("font_color", _dim_color)
-		_machine.setup(_build_skill_entries(), "主动技能轮盘 · 第 %d 次" % (_index + 1))
+		_machine.setup(entries, "主动技能轮盘 · 第 %d 次" % (_index + 1))
 		return
 	_skills[_index] = tid
 	_current_skill = tid
@@ -205,6 +246,17 @@ func _on_machine_stopped(entry: Dictionary) -> void:
 
 func _show_units(tid: String) -> void:
 	_clear_picks()
+	# ★ v6.8：安全落位过滤——本次落位后，剩余单位仍须能被剩余技能覆盖，
+	#   否则该单位灰显（接线 BuildManager.is_safe_placement，文档 5.3）。
+	var remaining_names: Array = []
+	for uname in _unit_names:
+		var u: UnitData = _find_unit(str(uname))
+		if u != null and (u.talent_slots.is_empty() or u.talent_slots[0] == null):
+			remaining_names.append(str(uname))
+	var remaining_skills: Array = []
+	for sid in _skills:
+		if not _placed_skills.has(str(sid)):
+			remaining_skills.append(str(sid))
 	# 三个单位头像横向排开；不可装备的 gray out，但仍显示，方便玩家知道选择范围
 	var any_ok := false
 	for uname in _unit_names:
@@ -214,7 +266,8 @@ func _show_units(tid: String) -> void:
 		var slot_empty := ud.talent_slots.is_empty() or ud.talent_slots[0] == null
 		var adv := str(ud.advanced_class)
 		var compatible := TalentManager.is_talent_compatible_with_unit(tid, ud.unit_name, adv)
-		var can_pick := slot_empty and compatible
+		var safe := BuildManager.is_safe_placement(ud, tid, remaining_names, remaining_skills)
+		var can_pick := slot_empty and compatible and safe
 
 		var card := VBoxContainer.new()
 		card.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -255,6 +308,12 @@ func _show_units(tid: String) -> void:
 
 
 func _find_unit(unit_name: String) -> UnitData:
+	# ★ 优先从外部注入的单位对象找（Arena 单单位），否则回退主线 GameState.party
+	if not _unit_override.is_empty():
+		for ud in _unit_override:
+			if ud != null and ud.unit_name == unit_name:
+				return ud
+		return null
 	for ud in GameState.party:
 		if ud != null and ud.unit_name == unit_name:
 			return ud
@@ -269,8 +328,13 @@ func _on_pick(ud: UnitData, tid: String) -> void:
 
 func _on_skip() -> void:
 	if _safe_picks.is_empty():
-		# 无人可用：重新开一轮，不推进次数
-		_machine.setup(_build_skill_entries(), "主动技能轮盘 · 第 %d 次" % (_index + 1))
+		# 无人可用：重新开一轮，不推进次数；但若池已空则直接结束，避免卡死
+		var entries: Array = _build_skill_entries()
+		if entries.is_empty():
+			_index = _skills.size()
+			_finish()
+			return
+		_machine.setup(entries, "主动技能轮盘 · 第 %d 次" % (_index + 1))
 		return
 	_next()
 

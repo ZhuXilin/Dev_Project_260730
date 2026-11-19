@@ -387,6 +387,9 @@ func get_global_relic_effects() -> Dictionary:
 	var effects := {}
 	var equipped_ids : Dictionary = {}
 	for relic in get_relics_from_passives():
+		# ★ v6.8：消耗型遗物改为战场主动释放才生效，不在此被动常驻（避免双重结算）
+		if BuildManager.is_consumable_relic(relic.item_id):
+			continue
 		var data = RelicManager.get_relic_data(relic.item_id)
 		if data.is_empty(): continue
 		equipped_ids[relic.item_id] = true
