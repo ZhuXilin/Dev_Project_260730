@@ -152,7 +152,7 @@ func on_request_show_victory(winning_team: int) -> void:
 	var reclaimed_count : int = int(sync_stats.get("reclaimed_count", 0))
 	if reclaimed_count > 0:
 		SignalBus.request_hint_override.emit(
-			"★ 阵亡单位回收了 %d 件防具到待领取区（含熔铸防具，可在铁匠铺装备配置中处理）" % reclaimed_count,
+			"★ 阵亡单位回收了 %d 件防具到待领取区（含熔铸防具，可在装备配置界面处理）" % reclaimed_count,
 			3.5)
 
 	if Globals.is_map_mode:

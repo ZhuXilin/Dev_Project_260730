@@ -32,6 +32,8 @@ var _quality_label: Label = null
 var _machine = null
 var _cost_label: Label = null
 var _upgrade_btn: Button = null
+var _back_btn: Button = null
+var _close_btn: Button = null
 var _result_box: VBoxContainer = null
 var _msg: Label = null
 var _closing: bool = false   # ★ 防两个关闭按钮同帧重复触发
@@ -146,6 +148,7 @@ func _build_ui() -> void:
 	BuildUI.style_button(back, _gold_color)
 	back.pressed.connect(_on_close)
 	btn_row.add_child(back)
+	_back_btn = back
 
 	_quality_label = Label.new()
 	_quality_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -174,9 +177,26 @@ func _build_ui() -> void:
 	BuildUI.style_button(close)
 	close.pressed.connect(_on_close)
 	vbox.add_child(close)
+	_close_btn = close
+
+
+## ★ v6.17：操作门控——转轮进行中 / 有待领取防具时，禁止离开与升级，
+##   防止中途退出丢结果、或转动中改品质导致转轮池与品质不符。
+func _update_action_buttons() -> void:
+	var spinning: bool = (_machine != null and _machine.is_spinning())
+	var has_pending: bool = not _current.is_empty()
+	var locked: bool = spinning or has_pending
+	if _back_btn != null:
+		_back_btn.disabled = locked
+	if _close_btn != null:
+		_close_btn.disabled = locked
+	if _upgrade_btn != null:
+		var up: int = BuildManager.get_upgrade_cost(_quality_level)
+		_upgrade_btn.disabled = locked or up < 0 or _gold() < up
 
 
 func _refresh() -> void:
+	_update_action_buttons()
 	var gold := _gold()
 	_gold_label.text = "金币：%d" % gold
 	var cost := BuildManager.get_roll_cost(_roll_count)
@@ -187,10 +207,9 @@ func _refresh() -> void:
 	var up := BuildManager.get_upgrade_cost(_quality_level)
 	if up < 0:
 		_upgrade_btn.text = "品质已满"
-		_upgrade_btn.disabled = true
 	else:
 		_upgrade_btn.text = "升级品质（%dG）" % up
-		_upgrade_btn.disabled = gold < up
+	# ★ disabled 由 _update_action_buttons 统一门控（含转动中/待领取锁定）
 	_quality_label.text = "当前品质等级 %d/5：%s" % [_quality_level, _quality_desc()]
 
 	_render_result()
@@ -216,6 +235,12 @@ func _quality_desc() -> String:
 
 
 func _on_upgrade_quality() -> void:
+	# ★ 转动中/待领取时禁止升级（防止转轮池与品质档位不一致、或结果丢失）
+	if _machine != null and _machine.is_spinning():
+		return
+	if not _current.is_empty():
+		_msg.text = "请先处理待领取的防具"
+		return
 	var up := BuildManager.get_upgrade_cost(_quality_level)
 	if up < 0:
 		return
@@ -260,6 +285,7 @@ func _on_machine_stopped(entry: Dictionary) -> void:
 
 
 func _render_result() -> void:
+	_update_action_buttons()   # ★ 放弃/覆盖取消后也要恢复离开按钮
 	if _result_box == null:
 		return
 	for c in _result_box.get_children():
@@ -378,7 +404,7 @@ func _on_discard() -> void:
 	_current = {}
 	_reforge_school = ""
 	_msg.text = "已放弃该防具"
-	_render_result()
+	_refresh()   # ★ 走 _refresh 才能重新装填转轮 + 恢复离开按钮（原来只 render 会卡在「已停止」）
 
 
 func _on_place(ud: UnitData) -> void:
@@ -416,6 +442,7 @@ func _on_place(ud: UnitData) -> void:
 
 
 func _show_overwrite_choices(ud: UnitData) -> void:
+	_update_action_buttons()   # ★ 待领取结果仍在，保持离开按钮锁定
 	for c in _result_box.get_children():
 		c.queue_free()
 	var warn := Label.new()
@@ -456,6 +483,13 @@ func _do_overwrite(ud: UnitData, school_to_remove: String) -> void:
 
 func _on_close() -> void:
 	if _closing:
+		return
+	# ★ v6.17：防御性门控——转轮进行中或有待领取防具时不允许离开
+	#   （按钮已 disabled，这里再挡一层，防止信号绕过 UI 直接调用）
+	if _machine != null and _machine.is_spinning():
+		return
+	if not _current.is_empty():
+		_msg.text = "请先为抽到的防具选择落位单位，或点「放弃」"
 		return
 	_closing = true
 	SaveManager.auto_save()
