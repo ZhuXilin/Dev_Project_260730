@@ -560,6 +560,7 @@ v6 主线已落地代码，核心计算集中在 `BuildManager`（autoload）。
 | 本文规则 | 代码落点 | 状态 |
 |---|---|---|
 | 地图装备界面 | `MapScene._on_config_btn_pressed` 恢复 `EquipmentConfig.Mode.MAP`；装备/遗物可拖拽，技能词条与特技库禁用（v6.4 回退只读方案） |
+| 自动配装 | v6.6 重写：评分改为流派觉醒 + 有效 Lv（含技能共鸣 +1）+ 机制槽利用率，按 hook 分攻击/防御/功能三套权重；只重排防具，单位顺序锁定；写回 GameState 真单位并用 `apply_armor` 重建机制 |
 | 魂栈只留熔铸 | `ForgeAltar.gd/.tscn`，`MapScene._open_forge` | 已落地 |
 | 开局技能 roll 3 次 / 落位锁定 | `SkillRollUI.gd`、`BuildManager.build_skill_pool/place_skill`、`TalentInstance.locked`；新局清空 v5 默认词条、roll 匹配跳过已占格单位；点技能卡可一键落到第一个合法单位 | 已落地（v6.2.1 修复） |
 | 机制槽 / 觉醒 / 并入 / 覆盖 | `BuildManager.apply_armor/overwrite_school`、`UnitData.mechanisms` | 已落地 |

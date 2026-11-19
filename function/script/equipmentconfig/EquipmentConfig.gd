@@ -2725,31 +2725,21 @@ func _apply_unit_swap(a: int, b: int):
 
 
 func _open_auto_config_dialog():
-	if party.is_empty():
-		return
+	# ★ v6.6：去掉确认弹窗，点「自动配装」直接执行（单位位置锁定，只重排防具）
 	if party.size() < 2:
-		Globals.show_confirm(self, "至少需要 2 个单位才能自动配装", "确定", "",
-			func(): pass, func(): pass, false)
+		_show_detail_in_zone("至少需要 2 个单位才能自动配装")
 		return
-
-	# v5.5：只显示选项，去掉说明长文与括号注释；选项本身写明「单位位置」含义
-	Globals.show_confirm(
-		self, "自动配装",
-		"允许交换单位位置", "不交换单位位置",
-		func(): _run_auto_config(true),
-		func(): _run_auto_config(false),
-		true
-	)
+	_run_auto_config()
 
 
-func _run_auto_config(allow_swap_units: bool):
+func _run_auto_config():
 	var progress = Globals.get_reward_summary()
 	if progress:
-		progress.show_text("自动配装计算中…（%s）" % ("含单位交换" if allow_swap_units else "仅防具"))
+		progress.show_text("自动配装计算中…（按 v6 流派机制重排防具）")
 		progress.open()
 		await get_tree().process_frame
 
-	var options : Array = _generate_auto_options(allow_swap_units)
+	var options: Array = _generate_auto_options()
 
 	if progress:
 		progress.close()
@@ -2759,170 +2749,198 @@ func _run_auto_config(allow_swap_units: bool):
 			func(): pass, func(): pass, false)
 		return
 
-	_show_auto_config_result_dialog(options, allow_swap_units)
+	_show_auto_config_result_dialog(options)
 
 
-func _generate_auto_options(allow_swap_units: bool) -> Array:
-	var base_layout := _snapshot_layout()
+func _generate_auto_options() -> Array:
+	var base_layout: Dictionary = _snapshot_layout()
 
-	var weight_sets : Array = [
+	var weight_sets: Array = [
 		{"name": "攻击流", "atk": 1.0, "def": 0.3, "hp": 0.3},
 		{"name": "防御流", "atk": 0.3, "def": 1.0, "hp": 0.8},
 		{"name": "平衡流", "atk": 0.6, "def": 0.6, "hp": 0.6},
 	]
 
-	var results : Array = []
+	var results: Array = []
 	for ws in weight_sets:
 		var result = _run_simulated_annealing(
-			base_layout, allow_swap_units,
-			ws["atk"], ws["def"], ws["hp"], 2000)
+			base_layout, float(ws["atk"]), float(ws["def"]), float(ws["hp"]), 2000)
 		if result != null:
 			result["weight_name"] = ws["name"]
 			results.append(result)
-
 	return results
 
 
+## v6：layout 只记录每单位持有的 item_id；单位顺序 = party 顺序，永不改变
 func _snapshot_layout() -> Dictionary:
-	var slots : Array = []
-	for i in range(party.size()):
-		var unit_slots : Array = []
-		for slot in party[i].armor_slots:
-			if slot == null:
-				unit_slots.append(null)
-			else:
-				unit_slots.append(_clone_item_inst(slot))
-		slots.append(unit_slots)
-	var unit_order : Array = []
+	var slots: Array = []
 	for u in party:
-		unit_order.append(u)
-	return {"slots": slots, "unit_order": unit_order}
+		var ids: Array = []
+		for slot in u.armor_slots:
+			ids.append(str(slot.item_id) if slot != null else "")
+		slots.append(ids)
+	return {"slots": slots}
 
 
-func _apply_layout(layout: Dictionary):
-	var slots : Array = layout["slots"]
-	var unit_order : Array = layout["unit_order"]
-	for i in range(party.size()):
-		if i >= slots.size(): break
-		party[i].armor_slots = slots[i]
-	party.clear()
-	for u in unit_order:
-		party.append(u)
+## 流派按 hook 分类到三套权重：攻击(烈焰/献祭/余烬) / 防御(守护/轮回) / 功能(灰烬)
+func _school_weight(school: String, atk_w: float, def_w: float, hp_w: float) -> float:
+	match school:
+		"烈焰", "献祭", "余烬":
+			return atk_w
+		"守护", "轮回":
+			return def_w
+		"灰烬":
+			return hp_w
+		_:
+			return 0.5
 
 
+## 从防具 id 列表模拟 v6 机制：{school: {level, cap, count}}
+func _simulate_mechanisms(unit: UnitData, ids: Array) -> Dictionary:
+	var result: Dictionary = {}
+	var slots_max: int = BuildManager.get_mechanism_slots(unit.unit_name)
+	for iid_v in ids:
+		var iid: String = str(iid_v)
+		if iid == "":
+			continue
+		var school: String = BuildManager.get_school_of_item(iid)
+		if school == "":
+			continue
+		var data: ItemData = ItemManager.get_item_data(iid)
+		var cap: int = BuildManager.get_quality_cap(data.quality) if data != null else 1
+		if result.has(school):
+			var e: Dictionary = result[school]
+			var count: int = int(e.get("count", 1)) + 1
+			e["count"] = count
+			e["cap"] = maxi(int(e.get("cap", 1)), cap)
+			e["level"] = mini(count, int(e["cap"]))
+		elif result.size() < slots_max:
+			result[school] = {"level": 1, "cap": cap, "count": 1}
+		# 满槽：新流派无法觉醒（与 apply_armor 的 full 口径一致）
+	return result
+
+
+## ★ v6 评分：觉醒流派 + 有效 Lv（含技能共鸣） + 机制槽利用率，按 hook 分类加权
 func _evaluate_layout(layout: Dictionary, atk_w: float, def_w: float, hp_w: float) -> float:
-	var slots : Array = layout["slots"]
-	var groups : Array = ConnectedGroupCalculator.compute_groups(slots)
-	var bonus : Dictionary = ConnectedGroupCalculator.evaluate_groups(groups)
+	var slots: Array = layout["slots"]
+	var total: float = 0.0
+	for i in range(party.size()):
+		var unit: UnitData = party[i]
+		if unit == null:
+			continue
+		var ids: Array = slots[i] if i < slots.size() else []
+		var mechs: Dictionary = _simulate_mechanisms(unit, ids)
+		var slots_max: int = maxi(BuildManager.get_mechanism_slots(unit.unit_name), 1)
+		total += float(mechs.size()) / float(slots_max) * 2.0
+		for school in mechs:
+			var e: Dictionary = mechs[school]
+			var lv: int = int(e.get("level", 1))
+			var cap: int = int(e.get("cap", 1))
+			var eff: int = lv
+			if BuildManager.has_skill_resonance(unit, school):
+				# 与 BuildManager 的 RESONANCE_LEVEL_BONUS/MAX_LEVEL 同口径（v6.2 共鸣 +1，上限 4）
+				eff = mini(lv + 1, 4)
+			var w: float = _school_weight(str(school), atk_w, def_w, hp_w)
+			total += w                          # 觉醒基础分
+			total += w * float(eff) * 2.0       # 有效 Lv
+			if lv >= cap:
+				total += 1.5                    # 升到品质上限
+	return total
 
-	var score : float = 0.0
-	score += bonus["attack_pct"] * 10.0 * atk_w
-	score += bonus["defense_pct"] * 8.0 * def_w
-	score += bonus["hp_pct"] * 5.0 * hp_w
-	score += bonus["total_groups"] * 2.0
-	score += bonus["cross_3_groups"] * 3.0
 
-	var set_counts : Dictionary = {}
-	for unit_slots in slots:
-		for slot in unit_slots:
-			if slot == null: continue
-			var d = ItemManager.get_item_data(slot.item_id)
-			if d == null: continue
-			for tag in d.tags:
-				set_counts[tag] = set_counts.get(tag, 0) + 1
-	for tag in set_counts:
-		if set_counts[tag] >= 3:
-			score += 3.0
-
-	return score
-
-
-func _run_simulated_annealing(base_layout: Dictionary, allow_swap: bool,
+func _run_simulated_annealing(base_layout: Dictionary,
 		atk_w: float, def_w: float, hp_w: float, iterations: int) -> Dictionary:
-	var current : Dictionary = {
-		"slots": base_layout["slots"].duplicate(true),
-		"unit_order": base_layout["unit_order"].duplicate(),
+	var current: Dictionary = {
+		"slots": (base_layout["slots"] as Array).duplicate(true),
 	}
-	var best : Dictionary = {
-		"slots": current["slots"].duplicate(true),
-		"unit_order": current["unit_order"].duplicate(),
+	var best: Dictionary = {
+		"slots": (current["slots"] as Array).duplicate(true),
 	}
-	var best_score : float = _evaluate_layout(current, atk_w, def_w, hp_w)
-	var cur_score : float = best_score
+	var best_score: float = _evaluate_layout(current, atk_w, def_w, hp_w)
+	var cur_score: float = best_score
 
-	var T : float = 10.0
-	var T_min : float = 0.1
-	var alpha : float = 0.997
+	var T: float = 10.0
+	var T_min: float = 0.1
+	var alpha: float = 0.997
 
 	for it in range(iterations):
-		var neighbor : Dictionary = {
-			"slots": current["slots"].duplicate(true),
-			"unit_order": current["unit_order"].duplicate(),
+		var neighbor: Dictionary = {
+			"slots": (current["slots"] as Array).duplicate(true),
 		}
-
-		var op_roll : float = randf()
-		if op_roll < 0.6 or not allow_swap:
-			_swap_items_in_layout(neighbor)
-		else:
-			_swap_units_in_layout(neighbor)
-
-		var n_score : float = _evaluate_layout(neighbor, atk_w, def_w, hp_w)
-		var delta : float = n_score - cur_score
+		_swap_items_in_layout(neighbor)
+		var n_score: float = _evaluate_layout(neighbor, atk_w, def_w, hp_w)
+		var delta: float = n_score - cur_score
 
 		if delta > 0 or randf() < exp(delta / maxf(T, 0.001)):
 			current = neighbor
 			cur_score = n_score
 			if cur_score > best_score:
-				best = {
-					"slots": neighbor["slots"].duplicate(true),
-					"unit_order": neighbor["unit_order"].duplicate(),
-				}
+				best = {"slots": (neighbor["slots"] as Array).duplicate(true)}
 				best_score = cur_score
 
 		T = maxf(T * alpha, T_min)
 
 	return {
 		"slots": best["slots"],
-		"unit_order": best["unit_order"],
 		"score": best_score,
 	}
 
 
+## ★ 只在防具之间交换位置，单位归属/顺序完全不变
 func _swap_items_in_layout(layout: Dictionary):
-	var slots : Array = layout["slots"]
-	var flat : Array = []
+	var slots: Array = layout["slots"]
+	var flat: Array = []
 	for u in range(slots.size()):
-		for r in range(slots[u].size()):
-			flat.append(Vector2i(u, r))
-	if flat.size() < 2: return
-	var a : Vector2i = flat[randi() % flat.size()]
-	var b : Vector2i = flat[randi() % flat.size()]
-	if a == b: return
-	var tmp = slots[a.x][a.y]
-	slots[a.x][a.y] = slots[b.x][b.y]
-	slots[b.x][b.y] = tmp
+		var row: Array = slots[u]
+		for r in range(row.size()):
+			if str(row[r]) != "":
+				flat.append(Vector2i(u, r))
+	if flat.size() < 2:
+		return
+	var a: Vector2i = flat[randi() % flat.size()]
+	var b: Vector2i = flat[randi() % flat.size()]
+	if a == b:
+		return
+	var row_a: Array = slots[a.x]
+	var row_b: Array = slots[b.x]
+	var tmp: String = str(row_a[a.y])
+	row_a[a.y] = row_b[b.y]
+	row_b[b.y] = tmp
 
 
-func _swap_units_in_layout(layout: Dictionary):
-	var order : Array = layout["unit_order"]
-	var slots : Array = layout["slots"]
-	if order.size() < 2: return
-	var a : int = randi() % order.size()
-	var b : int = randi() % order.size()
-	if a == b: return
-	var t_order = order[a]; order[a] = order[b]; order[b] = t_order
-	var t_slots = slots[a]; slots[a] = slots[b]; slots[b] = t_slots
+## ★ v6 应用：写回 GameState 单位并用 apply_armor 重建机制，单位顺序完全不动。
+##   注意：party 是 GameState 的深拷贝，_sync_all 不回写 mechanisms，
+##   必须直接改 _context.get_units() 里的真单位，否则战斗层读到的机制不会更新。
+func _apply_layout(layout: Dictionary):
+	var slots: Array = layout["slots"]
+	var real_units: Array = _context.get_units()
+	for i in range(real_units.size()):
+		var unit: UnitData = real_units[i]
+		if unit == null:
+			continue
+		var ids: Array = slots[i] if i < slots.size() else []
+		unit.armor_slots = []
+		unit.mechanisms = {}
+		for iid_v in ids:
+			var iid: String = str(iid_v)
+			if iid == "":
+				continue
+			var data: ItemData = ItemManager.get_item_data(iid)
+			if data == null:
+				continue
+			BuildManager.apply_armor(unit, iid, data.quality)
+	# 同步回 party 副本供界面重建显示（armor_slots + mechanisms 都刷）
+	_copy_party_data()
 
 
-func _show_auto_config_result_dialog(options: Array, allow_swap: bool):
-	if options.is_empty(): return
+func _show_auto_config_result_dialog(options: Array):
+	if options.is_empty():
+		return
 
 	var overlay := Control.new()
 	overlay.name = "AutoConfigOverlay"
 	overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
 	overlay.mouse_filter = Control.MOUSE_FILTER_STOP
-	# v5.5：防具上的连通箭头 z_index=20，会把同画布层的弹窗穿透；
-	# ConfirmUI 是 CanvasLayer(layer=99) 不受影响，这个手搭的 overlay 需要显式抬层级。
 	overlay.z_index = 100
 	add_child(overlay)
 
@@ -2939,10 +2957,7 @@ func _show_auto_config_result_dialog(options: Array, allow_swap: bool):
 	var sb := StyleBoxFlat.new()
 	sb.bg_color = Color(0.12, 0.12, 0.15, 1)
 	sb.border_color = Color(0.5, 0.5, 0.6, 1)
-	sb.border_width_left = 2
-	sb.border_width_right = 2
-	sb.border_width_top = 2
-	sb.border_width_bottom = 2
+	sb.set_border_width_all(2)
 	sb.content_margin_left = 12
 	sb.content_margin_right = 12
 	sb.content_margin_top = 12
@@ -2956,7 +2971,7 @@ func _show_auto_config_result_dialog(options: Array, allow_swap: bool):
 	panel.add_child(vbox)
 
 	var title := Label.new()
-	title.text = "自动配装方案（%s）" % ("含单位交换" if allow_swap else "仅防具重排")
+	title.text = "自动配装方案（v6 流派机制 · 单位不变）"
 	title.add_theme_font_size_override("font_size", 11)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	vbox.add_child(title)
@@ -2979,13 +2994,12 @@ func _show_auto_config_result_dialog(options: Array, allow_swap: bool):
 		apply_btn.custom_minimum_size = Vector2(90, 20)
 		apply_btn.pressed.connect(func():
 			_apply_layout(opt)
-			_refresh_connectivity()
 			_build_unit_columns()
 			_sync_all()
 			_schedule_build_ui()
 			SoundManager.play_select_sound()
 			overlay.queue_free()
-			_show_detail_in_zone("已应用自动配装方案：%s" % opt.get("weight_name", "?"))
+			_show_detail_in_zone("已应用自动配装方案：%s（单位位置不变）" % opt.get("weight_name", "?"))
 		)
 		row.add_child(apply_btn)
 
