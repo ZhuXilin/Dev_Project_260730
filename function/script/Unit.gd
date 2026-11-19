@@ -41,6 +41,12 @@ var buff_attack_flat : int = 0
 var buff_magic_attack_flat : int = 0
 var buff_lifesteal_percent : float = 0.0
 
+# ---- v6.2 流派机制临时状态（只在本场战斗有效） ----
+## 献祭：本回合攻击加成，TurnManager 每回合重算，不写存档
+var school_sacrifice_attack_bonus : float = 0.0
+## 余烬：魂火耗尽后的下一次攻击必暴，魂火恢复后自动重置
+var ember_crit_consumed : bool = false
+
 # ---- v4.7 临时穿透 ----
 var temp_physical_penetration : float = 0.0
 var temp_magic_penetration : float = 0.0

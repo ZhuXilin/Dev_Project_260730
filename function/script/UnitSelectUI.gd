@@ -218,19 +218,31 @@ func _on_confirm_pressed():
 	GameState.start_new_cycle(); GameState.reset_progress()
 	GameState.interrupt_state = GameState.InterruptState.MAP
 
-	# ★ v6：选完 3 单位先做开局主动技能 roll，再进入出战准备
+	# ★ v6.3：选完 3 单位 → 技能轮盘 → 直接进地图，不再经过战前装备界面
 	var roll_ui = load(Config.PATHS.SKILL_ROLL_UI).instantiate()
 	add_child(roll_ui)
 	roll_ui.setup(selected_units)
-	roll_ui.finished.connect(func(): _open_deploy_config(selected_units, target_slot))
+	roll_ui.finished.connect(func(): _enter_map_after_roll(selected_units))
 
 
-func _open_deploy_config(selected_units: Array, target_slot: int) -> void:
+func _open_deploy_config(_chosen_units: Array, target_slot: int) -> void:
 	var config = load(Config.PATHS.EQUIPMENT_CONFIG).instantiate()
 	add_child(config)
 	_equipment_config_instance = config
-	config.get_node("MainPanel").init(selected_units, target_slot, EquipmentConfig.Mode.DEPLOY)
+	config.get_node("MainPanel").init(_chosen_units, target_slot, EquipmentConfig.Mode.DEPLOY)
 	config.tree_exited.connect(func(): _equipment_config_instance = null)
+
+
+## v6.3：技能 roll 结束后直接进地图，跳过 DEPLOY（不能在特技库里替换 roll 结果）
+func _enter_map_after_roll(chosen_units: Array) -> void:
+	if chosen_units.size() > 0:
+		var main_data: Dictionary = UnitDataManager.get_unit_data(str(chosen_units[0]))
+		GameState.current_faction = str(main_data.get("faction", "王国"))
+	GameState.interrupt_state = GameState.InterruptState.MAP
+	GameState.reset_progress()
+	SaveManager.auto_save()
+	LevelManager.start_game()
+
 
 func _on_back_pressed():
 	MusicManager.stop_music()

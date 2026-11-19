@@ -22,9 +22,8 @@ func _register_all():
 	var plugin_scripts : Array = [
 		preload("res://function/tool/checker/plugins/NodeTestPlugin.gd"),
 		preload("res://function/tool/checker/plugins/MapSceneTestPlugin.gd"),
-		preload("res://function/tool/checker/plugins/RewardSummaryTestPlugin.gd"),
-		preload("res://function/tool/checker/plugins/DialogueTestPlugin.gd"),
-		preload("res://function/tool/checker/plugins/HeroShrineTestPlugin.gd"),
+		preload("res://function/tool/checker/plugins/SkillRollTestPlugin.gd"),
+		preload("res://function/tool/checker/plugins/ArmorRollTestPlugin.gd"),
 	]
 	for s in plugin_scripts:
 		var p = s.new()

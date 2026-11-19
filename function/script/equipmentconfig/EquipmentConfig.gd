@@ -59,6 +59,8 @@ const DIRECTION_REROLL_COST : int = 120
 
 # ★★★ v5.0 连通组悬停高亮：槽位原始样式备份 ★★★
 var _armor_btn_default_style : Dictionary = {}
+## v6.5：单位列防具区固定行数，技能图标始终落在同一水平线（红线下方）
+var _unit_column_armor_rows : int = 0
 
 @onready var mode_label = get_node_or_null("VBoxContainer/TopBar/ModeLabel")
 @onready var gold_label = get_node_or_null("VBoxContainer/GoldLabel")
@@ -342,7 +344,7 @@ func _ensure_auto_config_btn():
 	_auto_config_btn.offset_bottom = -4.0
 
 
-func _refresh_connectivity(silent: bool = false):
+func _refresh_connectivity(_silent: bool = false):
 	_connectivity_groups.clear()
 	_connected_cells.clear()
 
@@ -355,17 +357,12 @@ func _refresh_connectivity(silent: bool = false):
 
 	_connectivity_groups = ConnectedGroupCalculator.compute_groups(slots)
 
-	var max_size = 0
 	for gi in range(_connectivity_groups.size()):
 		var g = _connectivity_groups[gi]
-		if g.size() > max_size:
-			max_size = g.size()
 		for c in g.cells:
 			_connected_cells["%d_%d" % [c.unit_index, c.row]] = gi
 
-	if max_size >= 5 and not silent:
-		_show_detail_in_zone("★ 形成超级连通网！(%d 件防具连通)" % max_size)
-
+	# v6.5：连通提示已移除
 
 # ★★★ v5.1 修复：连线黄框改画在按钮子节点最上层 ★★★
 # 防具图标已改为全尺寸 TextureRect 子节点（见 _draw_build_tag_backdrop），
@@ -373,55 +370,9 @@ func _refresh_connectivity(silent: bool = false):
 # 这里把连线框做成独立 Panel 子节点并最后加入，保证绘制在图标与色块之上。
 const LINK_FRAME_NODE_NAME : String = "__link_frame"
 
-func _set_slot_link_frame(btn: Button, unit_idx: int, slot_idx: int, highlight: bool = false):
-	if btn == null:
-		return
-	var key : String = "%d_%d" % [unit_idx, slot_idx]
-	var connected : bool = _connected_cells.has(key)
-
-	var frame : Panel = btn.get_node_or_null(NodePath(LINK_FRAME_NODE_NAME)) as Panel
-	if frame == null:
-		if not connected:
-			return
-		frame = Panel.new()
-		frame.name = LINK_FRAME_NODE_NAME
-		frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		# v5.4：与 20×20 Build 色块/图标同尺寸，正好框住色块（原 24×24 会外扩 2px）
-		frame.set_anchors_preset(Control.PRESET_CENTER)
-		frame.offset_left = -10
-		frame.offset_right = 10
-		frame.offset_top = -10
-		frame.offset_bottom = 10
-		btn.add_child(frame)  # 最后添加 → 绘制在图标之上
-
-	if not connected:
-		frame.visible = false
-		return
-	frame.visible = true
-
-	var group_size : int = 0
-	var gi : int = _connected_cells[key]
-	if gi >= 0 and gi < _connectivity_groups.size():
-		group_size = _connectivity_groups[gi].size()
-
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = Color(0, 0, 0, 0)
-	if highlight:
-		sb.bg_color = Color(1.0, 0.9, 0.3, 0.25)
-		sb.border_color = Color(1.0, 0.9, 0.3)
-		sb.set_border_width_all(2)
-	else:
-		if group_size >= 5:
-			sb.border_color = Color(1.0, 0.8, 0.1)
-			sb.set_border_width_all(2)
-		else:
-			sb.border_color = Color(0.9, 0.75, 0.3)
-			sb.set_border_width_all(1)
-	sb.content_margin_left = 0
-	sb.content_margin_right = 0
-	sb.content_margin_top = 0
-	sb.content_margin_bottom = 0
-	frame.add_theme_stylebox_override("panel", sb)
+func _set_slot_link_frame(_btn: Button, _unit_idx: int, _slot_idx: int, _highlight: bool = false):
+	# v6.5：连通黄框/箭头功能已移除，不再绘制连线提示
+	pass
 
 
 func _get_connectivity_style(unit_idx: int, slot_idx: int) -> StyleBox:
@@ -462,6 +413,12 @@ func _build_unit_columns():
 	unit_container.alignment = BoxContainer.ALIGNMENT_CENTER
 	# 三个单位之间改为 1px 间距（原 ITEM_GRID_GAP=6 太宽）
 	unit_container.add_theme_constant_override("separation", 1)
+	# 先算全队最大防具槽数，给每列防具区补齐占位，技能槽才能统一落在红线下方
+	# 固定 4 行防具区（超过则取实际最大），保证三列技能始终同一排
+	_unit_column_armor_rows = 4
+	for u in party:
+		if u != null:
+			_unit_column_armor_rows = maxi(_unit_column_armor_rows, u.armor_slots.size())
 	for child in unit_container.get_children():
 		unit_container.remove_child(child); child.free()
 
@@ -692,6 +649,13 @@ func _create_unit_column(unit_idx: int, is_preview: bool = false) -> Control:
 		# ★ v5.1：连线框用子节点画在图标之上（stylebox 边框会被全尺寸图标盖住）
 		_set_slot_link_frame(armor_btn, unit_idx, slot_idx)
 		armor_group.add_child(armor_btn)
+	# 防具不足的列用透明占位补齐，保证下方技能行统一高度
+	var missing_rows: int = maxi(0, _unit_column_armor_rows - unit.armor_slots.size())
+	for i in range(missing_rows):
+		var spacer := Control.new()
+		spacer.custom_minimum_size = Vector2(Style.BTN_ITEM_SIZE.x, Style.BTN_ITEM_SIZE.y)
+		spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		armor_group.add_child(spacer)
 
 	# 特技槽位
 	var talent_inst = unit.talent_slots[0] if unit.talent_slots.size() > 0 else null
@@ -929,14 +893,15 @@ func _build_ui_inner():
 			tab_bar.visible = true
 			tab_bar.alignment = BoxContainer.ALIGNMENT_BEGIN
 			weapon_tab_btn.visible = false
-			talent_tab_btn.visible = true
+			talent_tab_btn.visible = false
 			talent_tab_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-			talent_tab_btn.disabled = false
-			talent_tab_btn.text = "特技库"
+			# ★ v6.4：技能词条开局 roll 后锁定，地图界面不再提供特技库替换/交换
+			talent_tab_btn.disabled = true
+			talent_tab_btn.text = "技能（已锁定）"
 			current_tab = "talent"
 			_update_tab_style()
 			_build_talent_grid(shop_container)
-			shop_container.visible = true
+			shop_container.visible = false
 
 		Mode.ARENA_REST:
 			mode_label.text = "魂之竞技场 · 备战"
@@ -1012,51 +977,33 @@ func _build_ui_inner():
 					shop_container.visible = true
 
 		Mode.FORGE:
-			mode_label.text = "魂栈"
+			mode_label.text = "魂栈 · 熔铸"
 			close_btn.visible = true
-			close_btn.text = "继续探索"
+			close_btn.text = "离开"
 			confirm_btn.visible = false
-			gold_label.visible = true
+			gold_label.visible = false
 			tab_bar.visible = true
 			tab_bar.alignment = BoxContainer.ALIGNMENT_BEGIN
-			weapon_tab_btn.visible = true
-			weapon_tab_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-			weapon_tab_btn.text = "商店"
-			talent_tab_btn.visible = true
-			talent_tab_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-			talent_tab_btn.text = "铁匠铺"
+			# ★ v6.5：魂栈只有熔铸一个页签
+			weapon_tab_btn.visible = false
+			talent_tab_btn.visible = false
+			if _aura_tab_btn: _aura_tab_btn.visible = false
 			if sacrifice_tab_btn:
 				sacrifice_tab_btn.visible = true
 				sacrifice_tab_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-			if _aura_tab_btn:
-				_aura_tab_btn.visible = true
-				_aura_tab_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-
-			if current_tab == "" or (not current_tab in ["arena_shop", "arena_forge", "sacrifice", "aura"]):
-				current_tab = "arena_shop"
-
+				sacrifice_tab_btn.disabled = false
+				sacrifice_tab_btn.text = "熔铸"
+			current_tab = "sacrifice"
 			_update_tab_style()
 			_forge.cleanup()
-
-			match current_tab:
-				"arena_shop":
-					_build_shop_items()
-					shop_container.visible = true
-				"arena_forge":
-					_forge.build_forge_slots()
-					shop_container.visible = true
-				"sacrifice":
-					_build_sacrifice_panel()
-					shop_container.visible = true
-				"aura":
-					_build_aura_panel()
-					shop_container.visible = true
+			_build_sacrifice_panel()
+			shop_container.visible = true
 
 	reset_btn.visible = (current_tab == "arena_shop")
 	if reset_btn.visible and shop_manager:
 		reset_btn.text = "刷新 (" + str(shop_manager.get_reset_cost()) + "G)"
 		
-	discard_zone.visible = (current_tab != "arena_forge" and current_tab != "sacrifice" and current_tab != "aura" and current_mode != Mode.DEPLOY)
+	discard_zone.visible = (current_tab != "arena_forge" and current_tab != "sacrifice" and current_tab != "aura" and current_mode != Mode.DEPLOY and current_mode != Mode.MAP)
 
 	if current_mode == Mode.FORGE or is_shop_rest_mode():
 		_setup_forge_narrative_ui()
@@ -1765,41 +1712,10 @@ func _draw_build_tag_backdrop(btn: Button, data):
 		btn.icon = null
 
 
-func _draw_direction_badges(btn: Button, dir: int):
-	# v5.4：弃用像素字体 rotation（旋转产生锯齿、各方向歪斜不一致），
-	# 改为矢量绘制等腰直角三角形：箭尖贴 20x20 色块边沿（正交）/四角（斜向），
-	# 与色块/图标/黄框共用按钮中心 20x20 基准，商店格子不再偏移。
-	# 三角形本体完全落在色块内部，正交居中、斜向严格 45°，箭尖 90° 两腰等腰。
+func _draw_direction_badges(_btn: Button, _dir: int):
+	# v6.5：箭头连通功能已移除，不再绘制方向箭头
+	pass
 
-	var add := func(deg: float):
-		var arrow := LinkArrow.new()
-		arrow.angle_deg = deg
-		arrow.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		# v5.4：与按钮/色块/图标统一 20x20 基准（±10）
-		arrow.set_anchors_preset(Control.PRESET_CENTER)
-		arrow.offset_left = -10
-		arrow.offset_right = 10
-		arrow.offset_top = -10
-		arrow.offset_bottom = 10
-		arrow.z_index = 20
-		btn.add_child(arrow)
-
-	# Godot 角度：0=右, 90=下, 180=左, -90=上；斜向 ±45/±135
-	match dir:
-		Direction.Value.UP:    add.call(-90.0)
-		Direction.Value.DOWN:  add.call(90.0)
-		Direction.Value.LEFT:  add.call(180.0)
-		Direction.Value.RIGHT: add.call(0.0)
-		Direction.Value.VERTICAL:
-			add.call(-90.0); add.call(90.0)
-		Direction.Value.HORIZONTAL:
-			add.call(180.0); add.call(0.0)
-		Direction.Value.DIAG_NE_SW:
-			add.call(-45.0)   # 右上角
-			add.call(135.0)   # 左下角
-		Direction.Value.DIAG_NW_SE:
-			add.call(-135.0)  # 左上角
-			add.call(45.0)    # 右下角
 
 func _apply_icon_button_style(btn: Button):
 	btn.expand_icon = true
@@ -1823,6 +1739,10 @@ func _create_talent_button(inst: TalentInstance, unit_idx: int, slot_idx: int) -
 	btn.set_meta("slot_type", "talent")
 	btn.set_meta("unit_idx", unit_idx)
 	btn.set_meta("slot_idx", slot_idx)
+	# ★ v6.4：地图界面技能已锁定，拖拽/丢弃已在 Drag 与 drop 层拦截；
+	#   这里只做轻度灰化，保留图标可读性（不要压到全黑）。
+	if current_mode == Mode.MAP:
+		btn.modulate = Color(0.72, 0.72, 0.75, 1.0)
 
 	if inst and inst.is_active:
 		var data : TalentData = TalentManager.get_talent_data(inst.talent_id)
@@ -2063,8 +1983,7 @@ func _is_valid_drop(data: Dictionary, target: Control) -> bool:
 			return false
 		if source_type == "armor" and target_type == "armor":
 			return _check_armor_swap_budget(data, target)
-		if source_type == "library_talent" and target_type == "talent": return _talent.check_talent_compatibility(data, target)
-		if source_type == "talent" and target_type == "talent": return _talent.check_talent_compatibility(data, target)
+		# 技能词条已锁定：不接受任何技能拖入/交换
 		return false
 
 	var is_shop_ctx = (
@@ -2446,7 +2365,7 @@ func _switch_tab(tab: String):
 	if reset_btn.visible and shop_manager:
 		reset_btn.text = "刷新商店 (" + str(shop_manager.get_reset_cost()) + "G)"
 		
-	discard_zone.visible = (tab != "arena_forge" and tab != "sacrifice" and tab != "aura" and current_mode != Mode.DEPLOY)
+	discard_zone.visible = (tab != "arena_forge" and tab != "sacrifice" and tab != "aura" and current_mode != Mode.DEPLOY and current_mode != Mode.MAP)
 	
 	_refresh_bottom_buttons()
 	_refresh_upgrade_shop_btn()
@@ -2514,12 +2433,12 @@ func _update_tab_style():
 		return
 
 	if current_mode == Mode.FORGE:
-		weapon_tab_btn.modulate = Color.WHITE if current_tab == "arena_shop" else Color(0.5, 0.5, 0.5)
-		talent_tab_btn.modulate = Color.WHITE if current_tab == "arena_forge" else Color(0.5, 0.5, 0.5)
+		weapon_tab_btn.visible = false
+		talent_tab_btn.visible = false
+		if _aura_tab_btn: _aura_tab_btn.visible = false
 		if sacrifice_tab_btn:
-			sacrifice_tab_btn.modulate = Color.WHITE if current_tab == "sacrifice" else Color(0.5, 0.5, 0.5)
-		if _aura_tab_btn:
-			_aura_tab_btn.modulate = Color.WHITE if current_tab == "aura" else Color(0.5, 0.5, 0.5)
+			sacrifice_tab_btn.visible = true
+			sacrifice_tab_btn.modulate = Color.WHITE
 		return
 
 	weapon_tab_btn.modulate = Color.WHITE if current_tab == "arena_shop" else Color(0.5, 0.5, 0.5)

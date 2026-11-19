@@ -130,7 +130,7 @@ func _make_unit_card(ud: UnitData) -> Control:
 			dot.custom_minimum_size = Vector2(6, 6)
 			row.add_child(dot)
 			var ml := Label.new()
-			ml.text = "%s Lv%d" % [m["school"], int(m["level"])]
+			ml.text = BuildManager.get_effective_mechanic_text(ud, str(m["school"]))
 			ml.add_theme_font_size_override("font_size", FS_BODY)
 			ml.add_theme_color_override("font_color", m["color"])
 			row.add_child(ml)
@@ -170,7 +170,11 @@ func _make_skill_label(ud: UnitData, slot: int, source: String) -> Label:
 		inst = ud.advanced_talent_inst
 	if inst != null:
 		var tdata := TalentManager.get_talent_data(inst.talent_id)
-		var nm := tdata.display_name if tdata else inst.talent_id
+		var nm: String = ""
+		if tdata != null:
+			nm = str(tdata.display_name)
+		else:
+			nm = str(inst.talent_id)
 		lbl.text = "  %d · %s (%s)" % [slot + 1, nm, source]
 		lbl.add_theme_color_override("font_color", Color.WHITE)
 	else:

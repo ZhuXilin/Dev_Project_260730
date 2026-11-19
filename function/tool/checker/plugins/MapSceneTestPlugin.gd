@@ -34,6 +34,7 @@ func validate() -> String:
 # ============================================================
 func build_params(container: VBoxContainer, on_ready: Callable):
 	_on_ready_cb = on_ready
+	_day_buttons.clear()
 
 	container.add_child(_make_label("选择天数，进入当天地图节点链路：", 7))
 
@@ -77,9 +78,10 @@ func build_params(container: VBoxContainer, on_ready: Callable):
 func _on_day_selected(d: int):
 	_day = d
 	for item in _day_buttons:
-		var b = item["btn"] as Button
-		if b:
-			b.button_pressed = (item["day"] == _day)
+		var obj: Variant = item.get("btn", null)
+		if obj is Button and is_instance_valid(obj):
+			var b := obj as Button
+			b.button_pressed = (int(item.get("day", -1)) == _day)
 	_notify_status_changed()
 	if _on_ready_cb.is_valid():
 		_on_ready_cb.call()

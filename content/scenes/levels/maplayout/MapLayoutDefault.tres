@@ -4,122 +4,109 @@
 [ext_resource type="Script" path="res://function/resource/MapLayoutDay.gd" id="2_day"]
 [ext_resource type="Script" path="res://function/resource/MapLayoutNode.gd" id="3_node"]
 
-[sub_resource type="Resource" id="Resource_wp7x6"]
+[sub_resource type="Resource" id="Resource_fhvae"]
 script = ExtResource("3_node")
 node_type = 0
-position = Vector2(200, 174)
+position = Vector2(200, 146)
 connects_to = Array[int]([1, 2])
 
+[sub_resource type="Resource" id="Resource_bgprm"]
+script = ExtResource("3_node")
+position = Vector2(133.33333, 118)
+layer = 1
+connects_to = Array[int]([3])
+
+[sub_resource type="Resource" id="Resource_wp7x6"]
+script = ExtResource("3_node")
+position = Vector2(266.66666, 118)
+layer = 1
+connects_to = Array[int]([4])
+
 [sub_resource type="Resource" id="Resource_283bp"]
-script = ExtResource("3_node")
-position = Vector2(133.33333, 146)
-layer = 1
-connects_to = Array[int]([3])
-
-[sub_resource type="Resource" id="Resource_q0oey"]
-script = ExtResource("3_node")
-position = Vector2(266.66666, 146)
-layer = 1
-connects_to = Array[int]([3])
-
-[sub_resource type="Resource" id="Resource_cg2l3"]
-script = ExtResource("3_node")
-node_type = 5
-position = Vector2(200, 118)
-layer = 2
-connects_to = Array[int]([4, 5])
-
-[sub_resource type="Resource" id="Resource_hqnab"]
 script = ExtResource("3_node")
 node_type = 2
 random_pool = Array[int]([2, 6, 7])
 position = Vector2(133.33333, 90)
-layer = 3
-connects_to = Array[int]([6])
+layer = 2
+connects_to = Array[int]([5])
 max_waves = 2
 reward_multiplier = 2.0
 enemy_hp_multiplier = 1.2
 
-[sub_resource type="Resource" id="Resource_0agyh"]
+[sub_resource type="Resource" id="Resource_q0oey"]
 script = ExtResource("3_node")
 node_type = 2
-random_pool = Array[int]([2, 3, 7])
+random_pool = Array[int]([2, 3, 5, 7])
 position = Vector2(266.66666, 90)
-layer = 3
-connects_to = Array[int]([6])
+layer = 2
+connects_to = Array[int]([5])
 max_waves = 2
 reward_multiplier = 2.0
 enemy_hp_multiplier = 1.2
 
-[sub_resource type="Resource" id="Resource_trai5"]
+[sub_resource type="Resource" id="Resource_cg2l3"]
 script = ExtResource("3_node")
-node_type = 5
+node_type = 2
+random_pool = Array[int]([2, 5])
 position = Vector2(200, 62)
-layer = 4
-connects_to = Array[int]([7])
+layer = 3
+connects_to = Array[int]([6])
 
-[sub_resource type="Resource" id="Resource_2wkgu"]
+[sub_resource type="Resource" id="Resource_hqnab"]
 script = ExtResource("3_node")
 node_type = 4
 position = Vector2(200, 34)
-layer = 5
+layer = 4
 unlock_relics = Array[String](["relic_attack", "relic_defense", "relic_health"])
 
 [sub_resource type="Resource" id="D1V1"]
 script = ExtResource("2_day")
-nodes = Array[ExtResource("3_node")]([SubResource("Resource_wp7x6"), SubResource("Resource_283bp"), SubResource("Resource_q0oey"), SubResource("Resource_cg2l3"), SubResource("Resource_hqnab"), SubResource("Resource_0agyh"), SubResource("Resource_trai5"), SubResource("Resource_2wkgu")])
+nodes = Array[ExtResource("3_node")]([SubResource("Resource_fhvae"), SubResource("Resource_bgprm"), SubResource("Resource_wp7x6"), SubResource("Resource_283bp"), SubResource("Resource_q0oey"), SubResource("Resource_cg2l3"), SubResource("Resource_hqnab")])
 
 [sub_resource type="Resource" id="D2N0"]
 script = ExtResource("3_node")
 node_type = 0
-position = Vector2(200, 174)
+position = Vector2(200, 146)
 connects_to = Array[int]([1])
 
 [sub_resource type="Resource" id="D2N2"]
 script = ExtResource("3_node")
-position = Vector2(200, 146)
+position = Vector2(200, 118)
 layer = 1
 connects_to = Array[int]([2, 3])
 
 [sub_resource type="Resource" id="D2N4"]
 script = ExtResource("3_node")
 node_type = 6
-position = Vector2(133.33333, 118)
+position = Vector2(133.33333, 90)
 layer = 2
 connects_to = Array[int]([4])
 
 [sub_resource type="Resource" id="D2N5"]
 script = ExtResource("3_node")
 node_type = 3
-position = Vector2(266.66666, 118)
+position = Vector2(266.66666, 90)
 layer = 2
-connects_to = Array[int]([6])
+connects_to = Array[int]([5])
 
 [sub_resource type="Resource" id="Resource_6xn0r"]
 script = ExtResource("3_node")
 node_type = 2
 random_pool = Array[int]([2, 7])
-position = Vector2(133.33333, 90)
+position = Vector2(133.33333, 62)
 layer = 3
-connects_to = Array[int]([5])
+connects_to = Array[int]([6])
 max_waves = 3
 reward_multiplier = 2.0
 enemy_hp_multiplier = 1.2
-
-[sub_resource type="Resource" id="Resource_fhvae"]
-script = ExtResource("3_node")
-node_type = 5
-position = Vector2(200, 62)
-layer = 4
-connects_to = Array[int]([7])
 
 [sub_resource type="Resource" id="Resource_ou5fc"]
 script = ExtResource("3_node")
 node_type = 2
 random_pool = Array[int]([2, 7])
-position = Vector2(266.66666, 90)
+position = Vector2(266.66666, 62)
 layer = 3
-connects_to = Array[int]([5])
+connects_to = Array[int]([6])
 max_waves = 3
 reward_multiplier = 2.0
 enemy_hp_multiplier = 1.2
@@ -128,30 +115,22 @@ enemy_hp_multiplier = 1.2
 script = ExtResource("3_node")
 node_type = 4
 position = Vector2(200, 34)
-layer = 5
+layer = 4
 unlock_relics = Array[String](["relic_strength", "relic_faith"])
 
 [sub_resource type="Resource" id="D2V1"]
 script = ExtResource("2_day")
-nodes = Array[ExtResource("3_node")]([SubResource("D2N0"), SubResource("D2N2"), SubResource("D2N4"), SubResource("D2N5"), SubResource("Resource_6xn0r"), SubResource("Resource_fhvae"), SubResource("Resource_ou5fc"), SubResource("Resource_0wb03")])
-
-[sub_resource type="Resource" id="Resource_bgprm"]
-script = ExtResource("3_node")
-node_type = 5
-position = Vector2(200, 62)
-connects_to = Array[int]([1])
-unlock_relics = Array[String](["relic_phoenix"])
+nodes = Array[ExtResource("3_node")]([SubResource("D2N0"), SubResource("D2N2"), SubResource("D2N4"), SubResource("D2N5"), SubResource("Resource_6xn0r"), SubResource("Resource_ou5fc"), SubResource("Resource_0wb03")])
 
 [sub_resource type="Resource" id="Resource_7x32t"]
 script = ExtResource("3_node")
 node_type = 4
 position = Vector2(200, 34)
-layer = 1
 unlock_relics = Array[String](["relic_phoenix"])
 
 [sub_resource type="Resource" id="D3V1"]
 script = ExtResource("2_day")
-nodes = Array[ExtResource("3_node")]([SubResource("Resource_bgprm"), SubResource("Resource_7x32t")])
+nodes = Array[ExtResource("3_node")]([SubResource("Resource_7x32t")])
 
 [resource]
 script = ExtResource("1_layout")

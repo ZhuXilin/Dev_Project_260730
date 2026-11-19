@@ -136,6 +136,7 @@ func _get_center_position() -> Vector2:
 #  战斗开始 buff（含光环）
 # ============================================================
 func apply_team_buffs() -> void:
+	CombatManager.reset_ash_tiles()   # ★ v6.2 灰烬地块不跨战斗
 	var relic_stats = GameState.get_global_relic_stats()
 	var relic_effects = GameState.get_global_relic_effects()
 	_sync_auras_to_units()

@@ -888,6 +888,8 @@ func _on_ai_move_along_path(unit: Unit, path: Array):
 func _on_player_movement_finished(unit: Unit):
 	_function_handler.clear_function_trigger(unit)
 	TurnManager.on_movement_finished(unit)
+	CombatManager.drop_ash_tile(unit)     # ★ v6.2 灰烬：离开的格子留下地块
+	CombatManager.trigger_ash_tile(unit)  # ★ v6.2 灰烬：踩中敌方地块受伤
 	camera_controller.follow_mouse()
 	SignalBus.request_clear_highlight.emit()
 	ItemBattlefieldManager.try_pickup(unit)
@@ -896,6 +898,8 @@ func _on_player_movement_finished(unit: Unit):
 func _on_ai_movement_finished(unit: Unit):
 	_function_handler.clear_function_trigger(unit)
 	TurnManager.on_ai_movement_finished(unit)
+	CombatManager.drop_ash_tile(unit)
+	CombatManager.trigger_ash_tile(unit)
 	camera_controller.follow_mouse()
 	SignalBus.request_clear_highlight.emit()
 

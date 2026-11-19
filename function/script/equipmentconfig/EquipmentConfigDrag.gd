@@ -24,6 +24,8 @@ func start_drag(btn: Control):
 	var slot_type : String = btn.get_meta("slot_type", "")
 
 	if panel.current_mode == panel.Mode.DEPLOY and slot_type == "armor": return
+	# ★ v6.4：地图装备界面的技能词条开局已锁定，不可拖拽/丢弃
+	if panel.current_mode == panel.Mode.MAP and (slot_type == "talent" or slot_type == "library_talent"): return
 	
 	var item_id : String = btn.get_meta("item_id", "")
 	var talent_id : String = btn.get_meta("talent_id", "")

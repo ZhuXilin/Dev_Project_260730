@@ -17,6 +17,8 @@ class_name TalentData
 
 @export var is_active_skill: bool = false
 @export var skill_cooldown: int = 0
+## v6.2：主动技能 × 流派共鸣标签（六流派之一；空 = 不共鸣）
+@export var resonance_school: String = ""
 
 @export var unlock_type: String = "default"
 @export var soul_cost: int = 0

@@ -161,6 +161,7 @@ func start_turn(team: Team):
 
 	if team == Team.PLAYER:
 		AnalyticsLogger.record_soul_fire_sample()
+		CombatManager.tick_ash_tiles()   # ★ v6.2 灰烬地块只活到下一次我方回合
 
 	for unit in UnitManager.unit_list:
 		if unit.hit_points > 0:
@@ -185,10 +186,37 @@ func start_turn(team: Team):
 		if unit.hit_points > 0 and unit.unit_stats.team_id == team:
 			unit.reset_turn()
 
+	# ★ v6.2 献祭：在 reset_turn 之后写入，保证本回合攻击加成不被清掉
+	if team == Team.PLAYER:
+		_apply_school_turn_start()
+
 	if team == Team.PLAYER: BossMechanicManager.on_player_turn_start()
 	else: BossMechanicManager.on_enemy_turn_start()
 
 	SignalBus.turn_changed.emit(team)
+
+
+## ★ v6.2 献祭机制：回合开始扣血换本回合攻击力，扣到 1 HP 为止（不自杀）。
+func _apply_school_turn_start() -> void:
+	for unit in UnitManager.unit_list:
+		if not is_instance_valid(unit) or unit.hit_points <= 0:
+			continue
+		if unit.unit_stats.team_id != Team.PLAYER:
+			continue
+		var lv: int = BuildManager.get_effective_school_level(unit, "献祭")
+		if lv <= 0:
+			unit.school_sacrifice_attack_bonus = 0.0
+			continue
+		var ratio: float = BuildManager.get_sacrifice_hp_cost_ratio(lv)
+		var cost: int = maxi(1, int(float(unit.unit_stats.max_hp) * ratio))
+		cost = mini(cost, maxi(0, unit.hit_points - 1))
+		if cost > 0:
+			unit.apply_damage(cost)
+			SignalBus.request_damage_popup.emit(unit.global_position, cost, false, false, false)
+		unit.school_sacrifice_attack_bonus = BuildManager.get_sacrifice_attack_bonus(lv)
+		SignalBus.request_hint_override.emit(
+			"献祭 · 扣 %d HP，本回合攻击 +%d%%" % [
+				cost, int(unit.school_sacrifice_attack_bonus * 100.0)], 0.9)
 
 func _refresh_all_unit_colors():
 	for unit in UnitManager.unit_list:

@@ -31,6 +31,11 @@ const EXTRA_HIT_DELAY : float = 0.15
 
 const DEBUG_DAMAGE_LOG : bool = true
 
+# ★ v6.2 灰烬：本场战斗的燃烧地块（cell -> {damage, team, owner, expire_clock}）
+const ASH_TILE_MAX : int = 12
+var ash_tiles : Dictionary = {}
+var ash_turn_clock : int = 0
+
 func _ready():
 	reload_config()
 
@@ -206,7 +211,7 @@ func calculate_damage(attacker: Unit, defender: Unit, apply_heavy: bool = true) 
 		atk_bonus += s.get_effective_attr(attr) * modifier[attr]
 	var total_attack = base_attack + atk_bonus + attacker.buff_attack_flat
 	if is_magic: total_attack += attacker.buff_magic_attack_flat
-	total_attack *= (1.0 + attacker.buff_attack_percent)
+	total_attack *= (1.0 + attacker.buff_attack_percent + attacker.school_sacrifice_attack_bonus)
 	if attacker.relic_strength_scale_damage > 0.0:
 		var str_val = s.get_effective_attr("strength")
 		total_attack *= (1.0 + str_val * attacker.relic_strength_scale_damage)
@@ -259,7 +264,7 @@ func _calculate_damage_ignore_defense(attacker: Unit, defender: Unit, apply_heav
 	var total_attack : float = base_attack + atk_bonus + attacker.buff_attack_flat
 	if is_magic:
 		total_attack += attacker.buff_magic_attack_flat
-	total_attack *= (1.0 + attacker.buff_attack_percent)
+	total_attack *= (1.0 + attacker.buff_attack_percent + attacker.school_sacrifice_attack_bonus)
 	if attacker.relic_strength_scale_damage > 0.0:
 		var str_val : int = s.get_effective_attr("strength")
 		total_attack *= (1.0 + str_val * attacker.relic_strength_scale_damage)
@@ -475,6 +480,10 @@ func execute_attack(attacker: Unit, defender: Unit, forced_skill_id: String = ""
 		SoulFireManager.spend(burst_cost)
 		SignalBus.request_hint_override.emit("魂火爆发！消耗了 %d 点魂火！" % burst_cost, 1.5)
 
+	# ★ v6.2 余烬：魂火恢复后重新装填「下一次必暴」
+	if attacker.unit_stats.team_id == 0 and not SoulFireManager.is_exhausted():
+		attacker.ember_crit_consumed = false
+
 	var is_crit := false
 	var crit_mult : float = CRIT_DAMAGE_MULT
 	if attacker.unit_stats.team_id == 0:
@@ -506,6 +515,15 @@ func execute_attack(attacker: Unit, defender: Unit, forced_skill_id: String = ""
 		attacker.relic_first_attack_crit_remaining -= 1
 		if attacker.relic_first_attack_crit_remaining <= 0:
 			attacker.relic_first_attack_crit_available = false
+	elif attacker.unit_stats.team_id == 0 and SoulFireManager.is_exhausted() \
+			and not attacker.ember_crit_consumed \
+			and BuildManager.get_effective_school_level(attacker, "余烬") > 0:
+		# ★ v6.2 余烬：魂火耗尽后下一次攻击必暴（含共鸣有效 Lv）
+		var ember_lv := BuildManager.get_effective_school_level(attacker, "余烬")
+		crit_mult += BuildManager.get_ember_crit_bonus(ember_lv)
+		is_crit = true
+		attacker.ember_crit_consumed = true
+		SignalBus.request_hint_override.emit("余烬 · 魂火耗尽，本次必暴", 1.0)
 	elif _roll_crit(attacker):
 		crit_mult += attacker.buff_crit_damage_bonus
 		is_crit = true
@@ -957,6 +975,12 @@ func _on_kill(attacker: Unit, _defender: Unit) -> bool:
 
 	# ★ 击杀也算一次命中，不再发放击杀额外奖励
 	if attacker.unit_stats.team_id == 0:
+		# ★ v6.2 轮回：击杀额外回魂火（与命中 +1 分开结算，玩家能看到两段收益）
+		var cycle_lv := BuildManager.get_effective_school_level(attacker, "轮回")
+		if cycle_lv > 0:
+			var cycle_gain : int = BuildManager.get_cycle_soul_gain(cycle_lv)
+			SoulFireManager.add(cycle_gain)
+			SignalBus.request_hint_override.emit("轮回 · 击杀回 %d 魂火" % cycle_gain, 0.9)
 		SoulFireManager.on_hit(1)
 	return cleave_triggered
 
@@ -1054,11 +1078,30 @@ func _apply_damage_with_effects(defender: Unit, damage: int, attacker: Unit, is_
 		SignalBus.request_damage_popup.emit(attacker.global_position, parry_damage, false, false, false)
 		TalentManager.reset_talent(defender, "parry")
 
+	var blocked : bool = false
 	if TalentManager.is_talent_ready(defender, "block"):
+		blocked = true
 		var level = _get_effective_talent_level(defender, "block")
 		var reduction = 0.5 + (level - 1) * 0.1
 		damage = int(damage * (1.0 - reduction))
 		TalentManager.reset_talent(defender, "block")
+
+	# ★ v6.2 守护：受击反弹；格挡生效的当次反弹翻倍。
+	#   直接扣血，不再递归调用本函数，避免互相反弹死循环。
+	if is_instance_valid(attacker) and damage > 0 \
+			and defender.unit_stats.team_id != attacker.unit_stats.team_id:
+		var guard_lv := BuildManager.get_effective_school_level(defender, "守护")
+		if guard_lv > 0:
+			var reflect_ratio : float = BuildManager.get_guard_reflect_ratio(guard_lv)
+			if blocked:
+				reflect_ratio *= 2.0
+			var reflect_dmg : int = maxi(1, int(damage * reflect_ratio))
+			attacker.apply_damage(reflect_dmg)
+			SignalBus.request_damage_popup.emit(attacker.global_position, reflect_dmg, false, false, false)
+			if DEBUG_DAMAGE_LOG:
+				print("[守护] Lv%d 反弹 %s → %d%s" % [
+					guard_lv, attacker.unit_stats.unit_name, reflect_dmg,
+					"（格挡翻倍）" if blocked else ""])
 
 	if TalentManager.is_talent_ready(attacker, "bleed"):
 		if defender.unit_stats.team_id != attacker.unit_stats.team_id:
@@ -1160,6 +1203,70 @@ func _apply_damage_with_effects(defender: Unit, damage: int, attacker: Unit, is_
 					SignalBus.request_damage_popup.emit(attacker.global_position, actual, false, false, true)
 
 	return defeated
+
+
+# ============================================================
+#  ★ v6.2 灰烬：移动留下燃烧地块
+# ============================================================
+
+func reset_ash_tiles() -> void:
+	ash_tiles.clear()
+	ash_turn_clock = 0
+
+
+func tick_ash_tiles() -> void:
+	ash_turn_clock += 1
+	var expired: Array = []
+	for cell in ash_tiles:
+		var tile: Dictionary = ash_tiles[cell]
+		if int(tile.get("expire_clock", 0)) <= ash_turn_clock:
+			expired.append(cell)
+	for cell in expired:
+		ash_tiles.erase(cell)
+
+
+func drop_ash_tile(unit: Unit) -> void:
+	if not is_instance_valid(unit):
+		return
+	var lv := BuildManager.get_effective_school_level(unit, "灰烬")
+	if lv <= 0:
+		return
+	var origin: Vector2i = unit.previous_grid_cell
+	if origin == unit.grid_cell:
+		return
+	var dmg: int = BuildManager.get_ash_tile_damage(lv)
+	ash_tiles[origin] = {
+		"damage": dmg,
+		"team": unit.unit_stats.team_id,
+		"owner": unit,
+		"expire_clock": ash_turn_clock + 2,
+	}
+	while ash_tiles.size() > ASH_TILE_MAX:
+		ash_tiles.erase(ash_tiles.keys()[0])
+	SignalBus.request_hint_override.emit("灰烬 · 起点留下燃烧地块（%d 伤害）" % dmg, 0.9)
+
+
+func trigger_ash_tile(unit: Unit) -> void:
+	if not is_instance_valid(unit) or unit.hit_points <= 0:
+		return
+	var cell: Vector2i = unit.grid_cell
+	if not ash_tiles.has(cell):
+		return
+	var tile: Dictionary = ash_tiles[cell]
+	if int(tile.get("team", -1)) == unit.unit_stats.team_id:
+		return
+	ash_tiles.erase(cell)
+	var dmg: int = int(tile.get("damage", 0))
+	if dmg <= 0:
+		return
+	var dead: bool = unit.apply_damage(dmg)
+	SignalBus.request_damage_popup.emit(unit.global_position, dmg, false, false, false)
+	if dead:
+		var owner_v: Variant = tile.get("owner", null)
+		if owner_v is Unit and is_instance_valid(owner_v as Unit):
+			_on_kill(owner_v as Unit, unit)
+		UnitManager.unregister_unit(unit)
+		unit.queue_free()
 
 
 func _consume_first_spell_free(attacker: Unit) -> bool:

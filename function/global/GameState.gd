@@ -472,7 +472,7 @@ func start_new_cycle():
 	AnalyticsLogger.begin_run()
 
 
-func finish_day(grant_slot: bool = true):
+func finish_day(_grant_slot: bool = true):
 	# ★ v6：流派槽固定（按单位名单），过天不再 +1；并入升 Lv 取代加槽。
 	#   仅补齐 null 占位，维持 armor_slots.size()==max_armor_slots 的旧不变量。
 	for unit_data in party:

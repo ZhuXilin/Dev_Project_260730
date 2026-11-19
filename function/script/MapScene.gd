@@ -631,11 +631,14 @@ func _open_forge(node: MapNode):
 	_update_availability(map_data.root_node)
 	_save_game()
 
-	# ★ v6：魂栈去掉商店 / 铁匠 / 光环，只保留熔铸单位为单一功能节点
-	var altar = load(Config.PATHS.FORGE_ALTAR).instantiate()
-	add_child(altar)
-
-	await altar.tree_exited
+	# ★ v6.5：魂栈沿用 EquipmentConfig，只保留「熔铸」页签
+	var config = load(Config.PATHS.EQUIPMENT_CONFIG).instantiate()
+	add_child(config)
+	config.get_node("MainPanel").init(GameState.party, SaveManager.current_slot, EquipmentConfig.Mode.FORGE)
+	config.tree_exited.connect(func(): _equipment_config_instance = null)
+	await config.tree_exited
+	if _equipment_config_instance != null:
+		_equipment_config_instance = null
 
 	if not is_inside_tree():
 		return
@@ -813,19 +816,18 @@ func _apply_visited_state():
 
 
 func _on_config_btn_pressed():
-	# ★ v6：地图装备界面改为只读 Build 查看器（不能调整装备/词条/方向/升级）
-	if _equipment_config_instance != null:
+	# ★ v6.4：地图装备界面恢复 EquipmentConfig（可拖拽装备 / 遗物位置），
+	#   但技能词条已在开局 roll 时锁定，不再允许拖拽或特技库替换。
+	if _equipment_config_instance != null and is_instance_valid(_equipment_config_instance):
 		_equipment_config_instance.show()
 		_equipment_config_instance.move_to_front()
 		return
 
-	var viewer = load(Config.PATHS.BUILD_VIEWER).instantiate()
-	add_child(viewer)
-	_equipment_config_instance = viewer
-	viewer.closed.connect(func(): pass)
-	viewer.tree_exited.connect(func():
-		_equipment_config_instance = null
-	)
+	var config = load(Config.PATHS.EQUIPMENT_CONFIG).instantiate()
+	add_child(config)
+	_equipment_config_instance = config
+	config.get_node("MainPanel").init(GameState.party, SaveManager.current_slot, EquipmentConfig.Mode.MAP)
+	config.tree_exited.connect(func(): _equipment_config_instance = null)
 
 
 func show_item_detail(item_id: String):

@@ -31,6 +31,37 @@ const SCHOOLS: Dictionary = {
 }
 const SCHOOL_ORDER: Array = ["烈焰", "轮回", "灰烬", "守护", "献祭", "余烬"]
 
+## ============================================================
+##  v6.2 主动技能 × 流派共鸣
+## ============================================================
+##  口径（唯一）：单位身上有「共鸣流派 = 该流派」的主动技能时，
+##  该流派的战斗机制按「有效 Lv = 防具 Lv + 1」结算，上限 4。
+##  - 不新增第二套数值曲线：共鸣只借用已有的 Lv1~Lv4 机制表；
+##  - 不叠层：同流派多个技能也只 +1；不占槽、不写存档；
+##  - 技能标签写在 talents.json 的 resonance_school 字段；
+##    下表只作旧数据 / 新建技能遗漏字段时的兜底。
+const RESONANCE_LEVEL_BONUS: int = 1
+const RESONANCE_MAX_LEVEL: int = 4
+const SCHOOL_BY_SKILL: Dictionary = {
+	"active_fireball": "烈焰",
+	"active_dragon_breath": "灰烬",
+	"active_dive": "灰烬",
+	"active_taunt": "守护",
+	"active_charge": "献祭",
+	"active_heavy_slash": "献祭",
+	"active_mass_heal": "轮回",
+	"active_pierce": "余烬",
+	"active_snipe": "余烬",
+	"active_cleave": "献祭",
+	"active_guard_break": "余烬",
+	"active_swift_shot": "灰烬",
+	"active_whirlwind": "烈焰",
+	"active_battle_cry": "守护",
+	"active_soul_burn": "献祭",
+	"active_magic_pierce": "余烬",
+	"active_execute": "轮回",
+}
+
 ## 单位流派槽名单（v6 冻结）。未列出的单位默认 2 槽。
 const MECHANISM_SLOTS: Dictionary = {
 	"armored": 1, "dragonborn": 1,
@@ -80,36 +111,41 @@ func _reload_config() -> void:
 #  流派 / 槽位 / 品质
 # ============================================================
 
-static func is_school(tag: String) -> bool:
+func is_school(tag: String) -> bool:
 	return SCHOOL_ORDER.has(tag)
 
 
-static func get_school_color(school: String) -> Color:
+func get_school_color(school: String) -> Color:
 	return UIConst.BUILD_TAG_COLORS.get(school, UIConst.NO_TAG_COLOR)
 
 
-static func get_school_mechanic(school: String) -> String:
+func get_school_mechanic(school: String) -> String:
 	var info: Dictionary = SCHOOLS.get(school, {})
 	return str(info.get("mechanic", ""))
 
 
-static func get_mechanism_slots(unit_name: String) -> int:
+func get_mechanism_slots(unit_name: String) -> int:
 	return int(MECHANISM_SLOTS.get(unit_name, DEFAULT_MECHANISM_SLOTS))
 
 
 ## 新局重置一个单位的 v6 build 状态：清空机制、按名单重置流派槽上限。
-static func reset_unit_build(unit: UnitData) -> void:
+func reset_unit_build(unit: UnitData) -> void:
 	if not unit:
 		return
 	unit.mechanisms = {}
 	unit.max_armor_slots = get_mechanism_slots(unit.unit_name)
+	# ★ v6 口径：第 1 格留给开局 roll，第 2 格由转职（advanced_talent_inst）承载。
+	#   旧 v5 的 default_talents（crit/block 等）会占住第 1 格，导致 roll 时无人可落位；
+	#   新局必须先清空，否则 SkillRollUI 三个单位全灰。
+	unit.talent_slots = [null]
+	unit.max_talent_slots = 1
 
 
-static func get_quality_cap(quality: String) -> int:
+func get_quality_cap(quality: String) -> int:
 	return int(QUALITY_CAP.get(quality, 1))
 
 
-static func get_mechanic_lv_text(school: String, level: int) -> String:
+func get_mechanic_lv_text(school: String, level: int) -> String:
 	var mech := get_school_mechanic(school)
 	if level <= 1:
 		return "觉醒 · %s" % mech
@@ -131,7 +167,7 @@ func get_school_of_item(item_id: String) -> String:
 #  机制视图（从 UnitData.mechanisms 读取，玩家层唯一数据源）
 # ============================================================
 
-static func _ensure_mechanisms(unit: UnitData) -> Dictionary:
+func _ensure_mechanisms(unit: UnitData) -> Dictionary:
 	if not unit:
 		return {}
 	if not (unit.mechanisms is Dictionary):
@@ -140,7 +176,7 @@ static func _ensure_mechanisms(unit: UnitData) -> Dictionary:
 
 
 ## 返回 [{school, level, cap, count, color, mechanic, text}, ...]，按 SCHOOL_ORDER 排序
-static func get_unit_mechanisms(unit: UnitData) -> Array:
+func get_unit_mechanisms(unit: UnitData) -> Array:
 	var result: Array = []
 	if not unit:
 		return result
@@ -164,17 +200,17 @@ static func get_unit_mechanisms(unit: UnitData) -> Array:
 	return result
 
 
-static func get_used_mechanism_slots(unit: UnitData) -> int:
+func get_used_mechanism_slots(unit: UnitData) -> int:
 	return get_unit_mechanisms(unit).size()
 
 
-static func has_school(unit: UnitData, school: String) -> bool:
+func has_school(unit: UnitData, school: String) -> bool:
 	if not unit:
 		return false
 	return _ensure_mechanisms(unit).has(school)
 
 
-static func get_school_level(unit: UnitData, school: String) -> int:
+func get_school_level(unit: UnitData, school: String) -> int:
 	if not unit:
 		return 0
 	var mechs: Dictionary = _ensure_mechanisms(unit)
@@ -184,25 +220,136 @@ static func get_school_level(unit: UnitData, school: String) -> int:
 	return int(entry.get("level", 0)) if entry is Dictionary else 0
 
 
-## 战斗单位 / UnitData 的烈焰机制 Lv（战斗层唯一接线口）
-static func get_flame_level(unit) -> int:
+# ============================================================
+#  战斗层统一入口：有效 Lv 与六流派机制数值表
+# ============================================================
+
+## Unit / UnitData 都接受；战斗层只认这里给出的有效 Lv。
+func _unit_data_of(unit) -> UnitData:
 	if unit == null:
-		return 0
-	var ud: UnitData = null
+		return null
 	if unit is UnitData:
-		ud = unit
+		return unit as UnitData
+	var v: Variant = unit.get("unit_stats")
+	if v is UnitData:
+		return v as UnitData
+	return null
+
+
+## 技能 → 共鸣流派：优先读数据字段，缺失时读兜底表。
+func get_school_of_skill(talent_id: String) -> String:
+	if talent_id == "":
+		return ""
+	var data: TalentData = TalentManager.get_talent_data(talent_id)
+	if data != null and is_school(data.resonance_school):
+		return data.resonance_school
+	return str(SCHOOL_BY_SKILL.get(talent_id, ""))
+
+
+## 单位当前装备的主动技能 id（第 1 格 roll + 第 2 格转职；只读取用）。
+func _unit_skill_ids(unit) -> Array:
+	var ids: Array = []
+	if unit == null:
+		return ids
+	var slots_v: Variant = null
+	if unit is UnitData:
+		slots_v = (unit as UnitData).talent_slots
 	else:
-		var stats_variant: Variant = unit.get("unit_stats")
-		if stats_variant is UnitData:
-			ud = stats_variant
-	return get_school_level(ud, "烈焰")
+		slots_v = unit.get("talent_slots")
+	if not (slots_v is Array):
+		return ids
+	for inst in (slots_v as Array):
+		if inst == null:
+			continue
+		if inst is TalentInstance and not (inst as TalentInstance).is_active:
+			continue
+		var tid: String = str(inst.get("talent_id"))
+		if tid != "" and not ids.has(tid):
+			ids.append(tid)
+	return ids
 
 
-## 烈焰灼烧伤害倍率：Lv1 15% / Lv2 25% / Lv3 35% / Lv4 45%（按攻击力）
-static func get_flame_burn_ratio(level: int) -> float:
+func has_skill_resonance(unit, school: String) -> bool:
+	if not is_school(school):
+		return false
+	for tid in _unit_skill_ids(unit):
+		if get_school_of_skill(str(tid)) == school:
+			return true
+	return false
+
+
+## 共鸣生效后的 Lv；无该机制返回 0，绝不为「只有技能没有防具」凭空开机制。
+func get_effective_school_level(unit, school: String) -> int:
+	var lv: int = get_school_level(_unit_data_of(unit), school)
+	if lv <= 0:
+		return 0
+	if has_skill_resonance(unit, school):
+		return mini(lv + RESONANCE_LEVEL_BONUS, RESONANCE_MAX_LEVEL)
+	return lv
+
+
+## 烈焰有效 Lv（战斗层旧接口，语义升级为含共鸣）。
+func get_flame_level(unit) -> int:
+	return get_effective_school_level(unit, "烈焰")
+
+
+## 烈焰灼烧伤害倍率：Lv1 15% / Lv2 25% / Lv3 35% / Lv4 45%（按本次伤害）
+func get_flame_burn_ratio(level: int) -> float:
 	if level <= 0:
 		return 0.0
-	return 0.15 + 0.10 * float(level - 1)
+	return 0.15 + 0.10 * float(mini(level, RESONANCE_MAX_LEVEL) - 1)
+
+
+## 守护：受击反弹比例，触发格挡时翻倍（在 CombatManager 处理）
+func get_guard_reflect_ratio(level: int) -> float:
+	if level <= 0:
+		return 0.0
+	return 0.30 + 0.15 * float(mini(level, RESONANCE_MAX_LEVEL) - 1)
+
+
+## 轮回：击杀额外回魂火（_on_kill 已有命中 +1，此处是额外量）
+func get_cycle_soul_gain(level: int) -> int:
+	if level <= 0:
+		return 0
+	return mini(level + 1, 5)
+
+
+## 献祭：回合开始扣血比例 / 本回合攻击加成
+func get_sacrifice_hp_cost_ratio(level: int) -> float:
+	if level <= 0:
+		return 0.0
+	return 0.03 + 0.01 * float(mini(level, RESONANCE_MAX_LEVEL) - 1)
+
+
+func get_sacrifice_attack_bonus(level: int) -> float:
+	if level <= 0:
+		return 0.0
+	return 0.10 + 0.05 * float(mini(level, RESONANCE_MAX_LEVEL) - 1)
+
+
+## 灰烬：移动后在起点留下燃烧地块，敌人踩中受伤（一次性）
+func get_ash_tile_damage(level: int) -> int:
+	if level <= 0:
+		return 0
+	return 3 + 2 * (mini(level, RESONANCE_MAX_LEVEL) - 1)
+
+
+## 余烬：魂火耗尽后下一次攻击必暴，并追加暴伤
+func get_ember_crit_bonus(level: int) -> float:
+	if level <= 0:
+		return 0.0
+	return 0.10 * float(mini(level, RESONANCE_MAX_LEVEL))
+
+
+## BuildViewer / 提示统一文案
+func get_effective_mechanic_text(unit, school: String) -> String:
+	var base: int = get_school_level(_unit_data_of(unit), school)
+	var eff: int = get_effective_school_level(unit, school)
+	if base <= 0:
+		return ""
+	if eff > base:
+		return "%s Lv%d（共鸣 +1）· %s" % [school, eff, get_school_mechanic(school)]
+	return "%s Lv%d · %s" % [school, eff, get_school_mechanic(school)]
 
 
 # ============================================================
@@ -255,7 +402,6 @@ func overwrite_school(unit: UnitData, school_to_remove: String, item_id: String,
 	if not unit:
 		return {"result": "full", "school": "", "level": 0, "replaced": ""}
 	var mechs: Dictionary = _ensure_mechanisms(unit)
-	var school := forced_school if forced_school != "" else get_school_of_item(item_id)
 	if not mechs.has(school_to_remove):
 		return apply_armor(unit, item_id, quality, forced_school)
 	mechs.erase(school_to_remove)
@@ -267,7 +413,7 @@ func overwrite_school(unit: UnitData, school_to_remove: String, item_id: String,
 
 ## 把防具实例塞进底层 armor_slots（供战斗层读属性 / 词条）。
 ## 玩家层不操作该数组；满则扩展，永不因物理槽拒绝。
-static func _append_armor_instance(unit: UnitData, item_id: String) -> void:
+func _append_armor_instance(unit: UnitData, item_id: String) -> void:
 	if not unit:
 		return
 	var inst := ItemInstance.new()
@@ -281,7 +427,7 @@ static func _append_armor_instance(unit: UnitData, item_id: String) -> void:
 
 
 ## 公开：挂一件无流派防具（熔铸专属等），供熔铸面板调用
-static func append_plain_armor(unit: UnitData, item_id: String) -> void:
+func append_plain_armor(unit: UnitData, item_id: String) -> void:
 	_append_armor_instance(unit, item_id)
 
 
@@ -290,12 +436,12 @@ static func append_plain_armor(unit: UnitData, item_id: String) -> void:
 # ============================================================
 
 ## 升到下一级所需经验（按当前等级递增；目标每局净增 1~2 级）
-static func exp_to_next_level(current_level: int) -> int:
+func exp_to_next_level(current_level: int) -> int:
 	return 60 + maxi(0, current_level - 1) * 40
 
 
 ## 战斗贡献折算经验：胜利基础 + 评级加成
-static func battle_exp_reward(node_type: int, rating: String) -> int:
+func battle_exp_reward(node_type: int, rating: String) -> int:
 	var base := 40
 	match node_type:
 		MapNode.NodeType.START:   base = 40
@@ -308,7 +454,7 @@ static func battle_exp_reward(node_type: int, rating: String) -> int:
 
 
 ## 战后给单个单位加经验并自动升级；返回本次升到的等级
-static func grant_exp_and_auto_level(unit: UnitData, amount: int) -> int:
+func grant_exp_and_auto_level(unit: UnitData, amount: int) -> int:
 	if unit == null or unit.is_dead:
 		return unit.level if unit else 0
 	unit.experience += maxi(0, amount)
@@ -343,7 +489,7 @@ func build_skill_pool(unit_names: Array) -> Array:
 
 
 ## 某单位可装备的全部主动技能 id（随机打乱，增加每局变化）
-static func _compatible_active_skills(unit_key: String) -> Array:
+func _compatible_active_skills(unit_key: String) -> Array:
 	var list: Array = []
 	for tid in TalentManager._talent_db.keys():
 		var data := TalentManager._talent_db[tid] as TalentData
@@ -354,7 +500,7 @@ static func _compatible_active_skills(unit_key: String) -> Array:
 
 
 ## 按候选数从少到多排序（单位数很少，O(n²) 选择排序即可，避免 lambda 推断问题）
-static func _sorted_by_candidate_count(units: Array, cand: Dictionary) -> Array:
+func _sorted_by_candidate_count(units: Array, cand: Dictionary) -> Array:
 	var arr: Array = units.duplicate()
 	for i in range(arr.size()):
 		for j in range(i + 1, arr.size()):
@@ -369,7 +515,7 @@ static func _sorted_by_candidate_count(units: Array, cand: Dictionary) -> Array:
 
 ## 二分图回溯匹配：给 units 中每个单位分配一个互不相同的技能。
 ## cand: unit_key -> 候选技能 id 数组；返回 {unit_key: talent_id}（尽量多匹配）。
-static func _match_units_to_skills(units: Array, cand: Dictionary) -> Dictionary:
+func _match_units_to_skills(units: Array, cand: Dictionary) -> Dictionary:
 	var order := _sorted_by_candidate_count(units, cand)
 	var best: Dictionary = {}
 	var assign: Dictionary = {}
@@ -378,7 +524,7 @@ static func _match_units_to_skills(units: Array, cand: Dictionary) -> Dictionary
 	return best
 
 
-static func _match_bt(order: Array, idx: int, cand: Dictionary, assign: Dictionary, used: Dictionary, best: Dictionary) -> void:
+func _match_bt(order: Array, idx: int, cand: Dictionary, assign: Dictionary, used: Dictionary, best: Dictionary) -> void:
 	if assign.size() > best.size():
 		best.clear()
 		for k in assign:
@@ -400,6 +546,21 @@ static func _match_bt(order: Array, idx: int, cand: Dictionary, assign: Dictiona
 			return
 
 
+## 从当前队伍找单位数据（roll 时排除第 1 格已被占用的单位）
+func _find_party_unit(unit_key: String) -> UnitData:
+	for ud in GameState.party:
+		if ud != null and UnitDataManager.normalize_unit_key(ud.unit_name) == unit_key:
+			return ud
+	return null
+
+
+func _has_empty_skill_slot(unit_key: String) -> bool:
+	var ud := _find_party_unit(unit_key)
+	if ud == null:
+		return true   # 找不到数据时保持旧行为，避免误伤其他调用
+	return ud.talent_slots.is_empty() or ud.talent_slots[0] == null
+
+
 ## roll count 次主动技能：先按单位做匹配，保证存在一套"每个单位各得一个可装备技能"的分配，
 ## 再把这套技能打乱顺序返回。杜绝"roll 出无人能装的技能 → 跳过 → 单位无技能"。
 func roll_active_skills(unit_names: Array, count: int = 3) -> Array:
@@ -407,7 +568,9 @@ func roll_active_skills(unit_names: Array, count: int = 3) -> Array:
 	var units: Array = []
 	for uname in unit_names:
 		var key := UnitDataManager.normalize_unit_key(str(uname))
-		if not units.has(key):
+		# ★ v6 修复：默认词条/旧档可能占住第 1 格，这类单位不能参与 roll 匹配，
+		#   否则会 roll 出一个"唯一兼容者技能格已满"的死卡。
+		if not units.has(key) and _has_empty_skill_slot(key):
 			units.append(key)
 
 	var cand: Dictionary = {}
@@ -426,7 +589,7 @@ func roll_active_skills(unit_names: Array, count: int = 3) -> Array:
 
 ## 落位安全检查：把 talent_id 给 unit 后，剩余单位是否仍能被剩余技能覆盖。
 ## remaining_unit_names / remaining_skill_ids 均为尚未落位的单位与技能（含当前这一个）。
-static func is_safe_placement(unit: UnitData, talent_id: String, remaining_unit_names: Array, remaining_skill_ids: Array) -> bool:
+func is_safe_placement(unit: UnitData, talent_id: String, remaining_unit_names: Array, remaining_skill_ids: Array) -> bool:
 	if not can_place_skill(unit, talent_id):
 		return false
 	# 剩余单位（排除当前单位）
@@ -460,7 +623,7 @@ static func is_safe_placement(unit: UnitData, talent_id: String, remaining_unit_
 
 
 ## 某技能对某单位是否可落位（兼容 + 该单位尚未占用第 1 技能格）
-static func can_place_skill(unit: UnitData, talent_id: String) -> bool:
+func can_place_skill(unit: UnitData, talent_id: String) -> bool:
 	if not unit:
 		return false
 	var adv := str(unit.advanced_class)
@@ -471,7 +634,7 @@ static func can_place_skill(unit: UnitData, talent_id: String) -> bool:
 
 
 ## 把 roll 到的主动技能写入单位第 1 格（锁定，不提供互换）
-static func place_skill(unit: UnitData, talent_id: String) -> bool:
+func place_skill(unit: UnitData, talent_id: String) -> bool:
 	if not can_place_skill(unit, talent_id):
 		return false
 	var inst := TalentInstance.new()
@@ -508,7 +671,7 @@ func get_max_quality_level() -> int:
 	return maxi(0, int(_shop.get("max_level", 5)))
 
 
-static func get_merge_cost() -> int:
+func get_merge_cost() -> int:
 	# 单例方法无法读 _forge，走实例接口；保留静态兜底
 	return FALLBACK_MERGE_COST
 
@@ -571,8 +734,41 @@ func roll_armor(quality_level: int) -> Dictionary:
 	}
 
 
+## v6.3：给老虎机提供一池可选防具（每个条目都是一次合法 roll 结果）
+func get_armor_roll_pool(quality_level: int, count: int = 8) -> Array:
+	var entries: Array = []
+	var seen: Dictionary = {}
+	var guard: int = 0
+	while entries.size() < count and guard < count * 20:
+		guard += 1
+		var rolled: Dictionary = roll_armor(quality_level)
+		if rolled.is_empty():
+			break
+		var iid := str(rolled.get("item_id", ""))
+		if seen.has(iid):
+			continue
+		seen[iid] = true
+		var data: ItemData = ItemManager.get_item_data(iid)
+		var school := str(rolled.get("school", ""))
+		var color := Color(0.82, 0.82, 0.86)
+		if school != "":
+			color = get_school_color(school)
+		var quality := str(rolled.get("quality", "common"))
+		entries.append({
+			"id": iid,
+			"item_id": iid,
+			"name": str(rolled.get("name", iid)),
+			"quality": quality,
+			"school": school,
+			"mechanic": str(rolled.get("mechanic", "")),
+			"color": color,
+			"icon": data.icon if data != null else null,
+		})
+	return entries
+
+
 ## 重铸流派：保留品质与词条，只改流派。返回新的 school。
-static func reforge_school(from_school: String) -> String:
+func reforge_school(from_school: String) -> String:
 	var pool: Array = []
 	for s in SCHOOL_ORDER:
 		if s != from_school:
