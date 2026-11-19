@@ -34,6 +34,11 @@ func _on_ui_closed():
 
 func launch():
 	_close_ui()
+	# GM 面板 layer=200 会盖住轮盘 layer=30，启动后保持隐藏；按 1 键仍可随时唤出
+	set_keep_hidden(true)
+	var harness := _get_harness()
+	if harness:
+		harness.visible = false
 	if GameState.party.is_empty():
 		for key in ["swordsman", "archer", "axeman"]:
 			var ud := UnitDataManager.create_unit_data(key)

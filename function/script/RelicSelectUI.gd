@@ -25,7 +25,20 @@ func setup_options(exclude_ids: Array = []):
 	for relic in GameState.get_relics_from_passives():
 		owned_ids.append(relic.item_id)
 
-	var unlocked = RelicManager.get_unlocked_relics()
+	# ★ v6：光环并入遗物池——原光环的解锁走 GameState.unlocked_auras，
+	#   与 RelicManager 的遗物解锁是两套。这里把已解锁且有遗物条目的光环
+	#   一并作为候选源，否则解锁的光环永远进不了遗物三选一。
+	var unlocked : Array = RelicManager.get_unlocked_relics()
+	for aid_v in GameState.unlocked_auras:
+		var aid: String = str(aid_v)
+		if aid == "":
+			continue
+		if unlocked.has(aid):
+			continue
+		if RelicManager.get_relic_data(aid).is_empty():
+			continue
+		unlocked.append(aid)
+
 	var pool = []
 	for relic_id in unlocked:
 		if relic_id in exclude_ids:

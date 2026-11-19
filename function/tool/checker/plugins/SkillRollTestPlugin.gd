@@ -35,6 +35,11 @@ func _on_ui_finished():
 
 func launch():
 	_close_ui()
+	# GM 面板 layer=200 会盖住轮盘 layer=30，启动后保持隐藏；按 1 键仍可随时唤出
+	set_keep_hidden(true)
+	var harness := _get_harness()
+	if harness:
+		harness.visible = false
 	# 测试用队伍：清空技能槽，确保 roll 池可用
 	if GameState.party.is_empty():
 		for key in ["swordsman", "archer", "axeman"]:

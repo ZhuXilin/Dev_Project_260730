@@ -130,6 +130,7 @@ func _show_step() -> void:
 	_clear_picks()
 	_machine.setup(_build_skill_entries(), "主动技能轮盘 · 第 %d 次" % (_index + 1))
 	_msg.text = "玩家决定结果：点开始，看准技能图标再点停"
+	_msg.add_theme_color_override("font_color", _dim_color)
 
 
 func _build_skill_entries() -> Array:
@@ -190,11 +191,15 @@ func _on_machine_stopped(entry: Dictionary) -> void:
 	var tid := str(entry.get("id", ""))
 	if tid == "" or _placed_skills.has(tid):
 		_msg.text = "这张已用过，请再转一次"
+		_msg.add_theme_color_override("font_color", _dim_color)
 		_machine.setup(_build_skill_entries(), "主动技能轮盘 · 第 %d 次" % (_index + 1))
 		return
 	_skills[_index] = tid
 	_current_skill = tid
 	_msg.text = str(entry.get("desc", ""))
+	# ★ 选出的技能说明用正常亮色，不再灰显
+	var cv: Variant = entry.get("color", null)
+	_msg.add_theme_color_override("font_color", cv if cv is Color else Color.WHITE)
 	_show_units(tid)
 
 
@@ -246,6 +251,7 @@ func _show_units(tid: String) -> void:
 	_skip_btn.visible = not any_ok
 	if not any_ok:
 		_msg.text = "这张技能当前队伍无人可用，请重转"
+		_msg.add_theme_color_override("font_color", _dim_color)
 
 
 func _find_unit(unit_name: String) -> UnitData:
