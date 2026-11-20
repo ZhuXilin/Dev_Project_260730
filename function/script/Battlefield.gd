@@ -222,6 +222,10 @@ func _ready():
 	# ★ v6.34（B1）：build 觉醒仪式反馈
 	if not SignalBus.build_awakened.is_connected(_on_build_awakened):
 		SignalBus.build_awakened.connect(_on_build_awakened)
+	# ★ v6.37：阵型配合变化 → 刷新连线
+	if not SignalBus.request_formation_changed.is_connected(_refresh_formation_lines):
+		SignalBus.request_formation_changed.connect(_refresh_formation_lines)
+	_ensure_formation_line_layer()
 
 	if turn_overlay:
 		turn_overlay.modulate = Color(1, 1, 1, 0)
@@ -386,6 +390,8 @@ func _ready():
 			return
 
 	_turn_controller.apply_team_buffs()
+	FormationManager.reset_battle()
+	FormationManager.rebuild()
 
 	if _victory_handler:
 		_victory_handler.record_battle_start_hp()
@@ -893,6 +899,7 @@ func _on_player_movement_finished(unit: Unit):
 	TurnManager.on_movement_finished(unit)
 	CombatManager.drop_ash_tile(unit)     # ★ v6.2 灰烬：离开的格子留下地块
 	CombatManager.trigger_ash_tile(unit)  # ★ v6.2 灰烬：踩中敌方地块受伤
+	FormationManager.rebuild()            # ★ v6.37：落格后重算站位阵型
 	camera_controller.follow_mouse()
 	SignalBus.request_clear_highlight.emit()
 	ItemBattlefieldManager.try_pickup(unit)
@@ -903,6 +910,7 @@ func _on_ai_movement_finished(unit: Unit):
 	TurnManager.on_ai_movement_finished(unit)
 	CombatManager.drop_ash_tile(unit)
 	CombatManager.trigger_ash_tile(unit)
+	FormationManager.rebuild()            # ★ v6.37：落格后重算站位阵型
 	camera_controller.follow_mouse()
 	SignalBus.request_clear_highlight.emit()
 
@@ -1024,6 +1032,44 @@ func _display_name_of(unit_data) -> String:
 		return "单位"
 	var dn := str(unit_data.display_name)
 	return dn if dn != "" else str(unit_data.unit_name)
+
+
+## ★ v6.37：阵型连线层（代码动态创建，不改场景文件）
+var _formation_line_layer : Node2D = null
+
+func _ensure_formation_line_layer() -> void:
+	if _formation_line_layer != null and is_instance_valid(_formation_line_layer):
+		return
+	_formation_line_layer = Node2D.new()
+	_formation_line_layer.name = "FormationLineLayer"
+	_formation_line_layer.z_index = 2
+	add_child(_formation_line_layer)
+
+func _refresh_formation_lines() -> void:
+	_ensure_formation_line_layer()
+	for child in _formation_line_layer.get_children():
+		child.queue_free()
+	var colors : Dictionary = {
+		"F1_燎原": Color(1.0, 0.55, 0.15, 0.85),
+		"F2_铁壁护卫": Color(0.2, 0.7, 1.0, 0.85),
+		"F3_轮回链": Color(0.55, 0.4, 1.0, 0.85),
+		"F4_血祭传递": Color(0.9, 0.2, 0.3, 0.85),
+		"F5_余烬引爆": Color(1.0, 0.85, 0.2, 0.85),
+		"F6_灰烬火墙": Color(0.9, 0.45, 0.1, 0.85),
+	}
+	for pair in FormationManager.all_formation_pairs():
+		var beneficiary : Unit = pair[0]
+		var anchor : Unit = pair[1]
+		var key : String = str(pair[2])
+		if not is_instance_valid(beneficiary) or not is_instance_valid(anchor):
+			continue
+		var line := Line2D.new()
+		line.points = PackedVector2Array([
+			grid_to_world(beneficiary.grid_cell),
+			grid_to_world(anchor.grid_cell)])
+		line.width = 3.0
+		line.default_color = colors.get(key, Color.WHITE)
+		_formation_line_layer.add_child(line)
 
 
 func _active_cd_tag(inst: TalentInstance) -> String:
@@ -1241,6 +1287,14 @@ func _on_request_show_info(unit: Unit):
 		lines.append("技能: " + ", ".join(active_skill_parts))
 	if passive_parts.size() > 0:
 		lines.append("词条: " + ", ".join(passive_parts))
+	# ★ v6.37：阵型配合（站位相邻才显示，走散即消失）
+	var syn_keys : Array = FormationManager.keys_at(unit.grid_cell)
+	if syn_keys.size() > 0:
+		var syn_names : Array = []
+		for k in syn_keys:
+			var short_name : String = str(k).substr(str(k).find("_") + 1)
+			syn_names.append(short_name)
+		lines.append("阵型: " + ", ".join(syn_names))
 
 	var unit_cell = unit.grid_cell
 	var terrain_type = TerrainManager.get_terrain(unit_cell)

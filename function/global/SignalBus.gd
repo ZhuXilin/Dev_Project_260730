@@ -49,6 +49,9 @@ signal request_setting_right_click()
 @warning_ignore("unused_signal")
 signal request_hint_override(text: String, duration: float)
 @warning_ignore("unused_signal")
+## ★ v6.37：阵型配合变化（移动/阵亡后重算），供连线层刷新
+signal request_formation_changed()
+@warning_ignore("unused_signal")
 ## ★ v6.34（B1）：build 觉醒/升 Lv 质变瞬间，携带单位/流派/新 Lv/颜色，供战斗层播仪式反馈
 signal build_awakened(unit, school: String, new_level: int, color: Color)
 @warning_ignore("unused_signal")

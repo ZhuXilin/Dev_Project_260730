@@ -214,6 +214,23 @@ func _apply_school_turn_start() -> void:
 			unit.apply_damage(cost)
 			SignalBus.request_damage_popup.emit(unit.global_position, cost, false, false, false)
 		unit.school_sacrifice_attack_bonus = BuildManager.get_sacrifice_attack_bonus(lv)
+		# ★ v6.37（F4 血祭传递）：相邻献祭的队友获得一次额外行动（每对每战限一次）
+		#   受益方是"相邻献祭单位的队友"，故遍历队友并检查其 F4 锚点是否为本献祭单位。
+		for receiver in UnitManager.unit_list:
+			if not is_instance_valid(receiver) or receiver == unit or receiver.hit_points <= 0:
+				continue
+			if receiver.unit_stats.team_id != Team.PLAYER:
+				continue
+			if not FormationManager.has_synergy(receiver, "F4_血祭传递"):
+				continue
+			if FormationManager.get_anchor(receiver, "F4_血祭传递") != unit:
+				continue
+			if FormationManager.consume_bloodrite(receiver, unit):
+				receiver.can_act_this_turn = true
+				receiver.has_attacked = false
+				receiver.has_moved = false
+				SignalBus.request_hint_override.emit(
+					"血祭传递 · %s 获得额外行动" % receiver.unit_stats.display_name, 1.0)
 		# ★ v6.34（B2）献祭 Lv4 质变：残血(<30%)时本回合攻击加成翻倍
 		if BuildManager.has_breakthrough(unit, "献祭", "sacrifice_rage") \
 				and float(unit.hit_points) / float(maxi(1, unit.unit_stats.max_hp)) < 0.30:
