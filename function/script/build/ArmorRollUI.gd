@@ -30,7 +30,6 @@ var _gold_label: Label = null
 var _machine = null
 var _cost_label: Label = null
 var _upgrade_btn: Button = null
-var _back_btn: Button = null
 var _close_btn: Button = null
 var _action_row: HBoxContainer = null
 var _discard_fixed_btn: Button = null
@@ -142,14 +141,8 @@ func _build_ui() -> void:
 	_upgrade_btn.pressed.connect(_on_upgrade_quality)
 	btn_row.add_child(_upgrade_btn)
 
-	# ★ 顶部常驻返回键：金币不足、无法继续 roll 时也能退出
-	var back := Button.new()
-	back.text = "离开竞技场" if _arena_mode else "返回地图"
-	back.add_theme_font_size_override("font_size", FS_SMALL)
-	BuildUI.style_button(back, _gold_color)
-	back.pressed.connect(_on_close)
-	btn_row.add_child(back)
-	_back_btn = back
+	# ★ v6.25：删除顶部常驻返回键，只保留最下方"结束抽取"按钮，避免两个"返回地图"重复。
+	#   金币不足时无待领取→最下方按钮可用；待领取时可用"放弃防具"脱困，不会死锁。
 
 	# ★ 中间信息压缩：品质并入金币行，删除单独的 _quality_label，减少一行占用
 	_msg = Label.new()
@@ -199,8 +192,6 @@ func _update_action_buttons() -> void:
 	var spinning: bool = (_machine != null and _machine.is_spinning())
 	var has_pending: bool = not _current.is_empty()
 	var locked: bool = spinning or has_pending
-	if _back_btn != null:
-		_back_btn.disabled = locked
 	if _close_btn != null:
 		_close_btn.disabled = locked
 	# ★ 操作行：有待领取结果时整体显示（放弃按钮），给金币不足等死局一个明确出口
@@ -220,7 +211,7 @@ func _refresh() -> void:
 	_cost_label.text = "本次抽取 %dG" % cost
 	_machine.set_start_enabled(gold >= cost)
 	if gold < cost and _msg.text == "":
-		_msg.text = "金币不足，可点右上角按钮结束抽取"
+		_msg.text = "金币不足，可点最下方「结束抽取」离开"
 	var up := BuildManager.get_upgrade_cost(_quality_level)
 	if up < 0:
 		_upgrade_btn.text = "品质已满"
@@ -437,16 +428,8 @@ func _on_discard() -> void:
 func _on_place(ud: UnitData) -> void:
 	var item_id := str(_current.get("item_id", ""))
 	var quality := str(_current.get("quality", "common"))
-	# ★ v6.8：同流派并入升 Lv 收 200G（文档 6.2 / 5.5）。
-	#   在 apply_armor 之前预判是否 merge 并扣费，避免合并已执行却扣不起。
+	# ★ v6.27：同流派并入升 Lv 免费，不再收 200G（原预判扣费块已删除）
 	var school: String = BuildManager.get_school_of_item(item_id)
-	var will_merge: bool = school != "" and BuildManager.has_school(ud, school)
-	if will_merge:
-		var merge_cost := BuildManager.get_merge_cost_instance()
-		if _gold() < merge_cost:
-			_msg.text = "金币不足，并入 %s 需 %dG；可点「放弃防具」" % [school, merge_cost]
-			return
-		_spend(merge_cost)
 	var result := BuildManager.apply_armor(ud, item_id, quality)
 	match str(result.get("result", "")):
 		"awaken", "merge", "plain":
@@ -454,9 +437,8 @@ func _on_place(ud: UnitData) -> void:
 			if school == "":
 				_msg.text = "%s 装备了普通防具" % ud.display_name
 			elif str(result.get("result")) == "merge":
-				_msg.text = "%s 并入 %s → Lv%d（花 %dG）" % [
-					ud.display_name, school, int(result.get("level", 1)),
-					BuildManager.get_merge_cost_instance()]
+				_msg.text = "%s 并入 %s → Lv%d" % [
+					ud.display_name, school, int(result.get("level", 1))]
 			else:
 				_msg.text = "%s 觉醒【%s】" % [ud.display_name, school]
 			_current = {}

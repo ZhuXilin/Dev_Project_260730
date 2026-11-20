@@ -1,5 +1,5 @@
 {
-  "reward_gold": { "START": 500, "NORMAL": 500, "ELITE": 800, "BOSS": 1200 },
+  "reward_gold": { "START": 250, "NORMAL": 250, "ELITE": 400, "BOSS": 600 },
   "reward_soul": { "START": 2, "NORMAL": 3, "ELITE": 6, "BOSS": 15 },
   "boss_extra_soul": 5,
   "rating_soul_bonus": {
@@ -47,10 +47,10 @@
   },
 
   "treasure": {
-	"day1_gold_base": 600, "day1_gold_var": 400,
-	"day2_gold_base": 1000, "day2_gold_var": 400,
+	"day1_gold_base": 300, "day1_gold_var": 200,
+	"day2_gold_base": 500, "day2_gold_var": 200,
 	"soul_base": 2, "soul_var": 3,
-	"armor_gold_base": 150, "armor_gold_var": 150,
+	"armor_gold_base": 75, "armor_gold_var": 75,
 	"relic_soul_base": 3, "relic_soul_var": 3,
 	"option_weights": { "gold": 3, "armor": 2, "relic": 1 }
   },

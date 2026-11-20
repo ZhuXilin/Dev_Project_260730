@@ -1878,6 +1878,9 @@ func _get_item_name(inst: ItemInstance) -> String:
 
 
 func _is_valid_drop(data: Dictionary, target: Control) -> bool:
+	# ★ v6.22：地图装备配置界面为纯查看页，拒绝任何拖放落点（防具/遗物/光环等）
+	if current_mode == Mode.MAP:
+		return false
 	var source_type : String = data["slot_type"]
 	var target_type : String = target.get_meta("slot_type", "")
 	var discard : bool = target == discard_zone
@@ -2771,7 +2774,7 @@ func _generate_auto_options() -> Array:
 	return results
 
 
-## v6：layout 只记录每单位持有的 item_id；单位顺序 = party 顺序，永不改变
+## v6.26：layout 记录每单位持有的 item_id + 待领取区（临时仓库）可分配装备池；单位顺序永不变
 func _snapshot_layout() -> Dictionary:
 	var slots: Array = []
 	for u in party:
@@ -2779,7 +2782,13 @@ func _snapshot_layout() -> Dictionary:
 		for slot in u.armor_slots:
 			ids.append(str(slot.item_id) if slot != null else "")
 		slots.append(ids)
-	return {"slots": slots}
+	# ★ 待领取区（熔铸奖励 + 锻造产物）装备纳入可分配池，自动配装会择优装上
+	var pool: Array = []
+	for inst in GameState.pending_sacrifice_rewards:
+		if inst != null: pool.append(str(inst.item_id))
+	for inst in GameState.pending_forge_rewards:
+		if inst != null: pool.append(str(inst.item_id))
+	return {"slots": slots, "pool": pool}
 
 
 ## 流派按 hook 分类到三套权重：攻击(烈焰/献祭/余烬) / 防御(守护/轮回) / 功能(灰烬)
@@ -2852,9 +2861,11 @@ func _run_simulated_annealing(base_layout: Dictionary,
 		atk_w: float, def_w: float, hp_w: float, iterations: int) -> Dictionary:
 	var current: Dictionary = {
 		"slots": (base_layout["slots"] as Array).duplicate(true),
+		"pool": (base_layout.get("pool", []) as Array).duplicate(true),
 	}
 	var best: Dictionary = {
 		"slots": (current["slots"] as Array).duplicate(true),
+		"pool": (current["pool"] as Array).duplicate(true),
 	}
 	var best_score: float = _evaluate_layout(current, atk_w, def_w, hp_w)
 	var cur_score: float = best_score
@@ -2866,6 +2877,7 @@ func _run_simulated_annealing(base_layout: Dictionary,
 	for it in range(iterations):
 		var neighbor: Dictionary = {
 			"slots": (current["slots"] as Array).duplicate(true),
+			"pool": (current["pool"] as Array).duplicate(true),
 		}
 		_swap_items_in_layout(neighbor)
 		var n_score: float = _evaluate_layout(neighbor, atk_w, def_w, hp_w)
@@ -2875,20 +2887,83 @@ func _run_simulated_annealing(base_layout: Dictionary,
 			current = neighbor
 			cur_score = n_score
 			if cur_score > best_score:
-				best = {"slots": (neighbor["slots"] as Array).duplicate(true)}
+				best = {"slots": (neighbor["slots"] as Array).duplicate(true),
+					"pool": (neighbor["pool"] as Array).duplicate(true)}
 				best_score = cur_score
 
 		T = maxf(T * alpha, T_min)
 
 	return {
 		"slots": best["slots"],
+		"pool": best.get("pool", []),
 		"score": best_score,
 	}
 
 
-## ★ 只在防具之间交换位置，单位归属/顺序完全不变
+## ★ 防具重排：① 已装备之间换位；② 从待领取池取装备填入空槽/替换（被替换的回池）
 func _swap_items_in_layout(layout: Dictionary):
 	var slots: Array = layout["slots"]
+	var pool: Array = layout.get("pool", [])
+	# 装备总数（已装备 + 待领取池）；池非空时约 40% 概率做"取装备"操作
+	var total_items: int = 0
+	for row in slots:
+		for v in row:
+			if str(v) != "": total_items += 1
+	for v in pool:
+		if str(v) != "": total_items += 1
+	if total_items < 1:
+		return
+
+	var pool_valid: Array = []
+	for v in pool:
+		if str(v) != "": pool_valid.append(str(v))
+
+	# 操作②：从池取一件装备放进某单位槽位（空槽优先），被替换的装备退回池
+	if not pool_valid.is_empty() and randf() < 0.4:
+		var pick_iid: String = str(pool_valid[randi() % pool_valid.size()])
+		# 从池中移除该件（按值找第一个）
+		var removed: bool = false
+		for i in range(pool.size()):
+			if str(pool[i]) == pick_iid:
+				pool[i] = ""
+				removed = true
+				break
+		if not removed:
+			return
+		# 收集所有槽位，优先选空槽；没有空槽则随机替换一个可卖装备
+		var empties: Array = []
+		var occupied: Array = []
+		for u in range(slots.size()):
+			var row: Array = slots[u]
+			for r in range(row.size()):
+				if str(row[r]) == "":
+					empties.append(Vector2i(u, r))
+				else:
+					occupied.append(Vector2i(u, r))
+		var target: Vector2i = Vector2i(-1, -1)
+		if not empties.is_empty():
+			target = empties[randi() % empties.size()]
+		elif not occupied.is_empty():
+			target = occupied[randi() % occupied.size()]
+		if target.x < 0:
+			# 无槽位可放，退回池
+			for i in range(pool.size()):
+				if str(pool[i]) == "":
+					pool[i] = pick_iid
+					break
+			return
+		var row_t: Array = slots[target.x]
+		var old: String = str(row_t[target.y])
+		row_t[target.y] = pick_iid
+		if old != "":
+			# 被替换的退回池（占用刚才清空的那个池位）
+			for i in range(pool.size()):
+				if str(pool[i]) == "":
+					pool[i] = old
+					break
+		return
+
+	# 操作①：已有装备之间换位（原逻辑）
 	var flat: Array = []
 	for u in range(slots.size()):
 		var row: Array = slots[u]
@@ -2913,7 +2988,31 @@ func _swap_items_in_layout(layout: Dictionary):
 ##   必须直接改 _context.get_units() 里的真单位，否则战斗层读到的机制不会更新。
 func _apply_layout(layout: Dictionary):
 	var slots: Array = layout["slots"]
+	var final_pool: Array = layout.get("pool", [])
 	var real_units: Array = _context.get_units()
+
+	# ★ v6.26：先记录"被自动装上"的装备（原待领取区里、但不在最终池中的 item_id），
+	#   用于从待领取区精确移除这些实例（按 item_id 计数匹配）。
+	var original_pool: Array = []
+	for inst in GameState.pending_sacrifice_rewards:
+		if inst != null: original_pool.append({"iid": str(inst.item_id), "src": "sacrifice", "inst": inst})
+	for inst in GameState.pending_forge_rewards:
+		if inst != null: original_pool.append({"iid": str(inst.item_id), "src": "forge", "inst": inst})
+	# 最终池里保留的 id 计数（多重集）
+	var keep_count: Dictionary = {}
+	for v in final_pool:
+		var k: String = str(v)
+		if k != "": keep_count[k] = int(keep_count.get(k, 0)) + 1
+	# 待移除实例：原池每件若在 keep_count 中还有余量则保留，否则视为"被装上"
+	var used_instances: Array = []
+	var keep_counter: Dictionary = keep_count.duplicate()
+	for entry in original_pool:
+		var k: String = str(entry["iid"])
+		if int(keep_counter.get(k, 0)) > 0:
+			keep_counter[k] = int(keep_counter[k]) - 1
+		else:
+			used_instances.append(entry)
+
 	for i in range(real_units.size()):
 		var unit: UnitData = real_units[i]
 		if unit == null:
@@ -2929,6 +3028,36 @@ func _apply_layout(layout: Dictionary):
 			if data == null:
 				continue
 			BuildManager.apply_armor(unit, iid, data.quality)
+
+	# ★ 从待领取区移除被自动装上的实例
+	for entry in used_instances:
+		var inst: ItemInstance = entry["inst"]
+		if str(entry["src"]) == "sacrifice":
+			GameState.pending_sacrifice_rewards.erase(inst)
+		else:
+			GameState.pending_forge_rewards.erase(inst)
+
+	# ★ v6.26：把"从单位替换下来、退回池中"的装备写回待领取区。
+	#   final_pool 里不在 original_pool id 计数内的部分即为新退回装备。
+	var original_count: Dictionary = {}
+	for entry in original_pool:
+		var k0: String = str(entry["iid"])
+		original_count[k0] = int(original_count.get(k0, 0)) + 1
+	var return_counter: Dictionary = original_count.duplicate()
+	for v in final_pool:
+		var k1: String = str(v)
+		if k1 == "": continue
+		if int(return_counter.get(k1, 0)) > 0:
+			return_counter[k1] = int(return_counter[k1]) - 1
+		else:
+			# 这件是多出来的（从单位退下来的），写回待领取区
+			var new_inst: ItemInstance = ItemManager.create_instance_with_affixes(k1)
+			if new_inst == null:
+				new_inst = ItemInstance.new()
+				new_inst.item_id = k1
+				new_inst.count = 1
+			GameState.pending_forge_rewards.append(new_inst)
+
 	# 同步回 party 副本供界面重建显示（armor_slots + mechanisms 都刷）
 	_copy_party_data()
 
@@ -2971,7 +3100,7 @@ func _show_auto_config_result_dialog(options: Array):
 	panel.add_child(vbox)
 
 	var title := Label.new()
-	title.text = "自动配装方案（v6 流派机制 · 单位不变）"
+	title.text = "自动配装方案（v6 流派 · 含待领取区装备择优）"
 	title.add_theme_font_size_override("font_size", 11)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	vbox.add_child(title)
@@ -2995,11 +3124,12 @@ func _show_auto_config_result_dialog(options: Array):
 		apply_btn.pressed.connect(func():
 			_apply_layout(opt)
 			_build_unit_columns()
+			_build_pending_slots()   # ★ v6.26：待领取区被取用/退回后刷新显示
 			_sync_all()
 			_schedule_build_ui()
 			SoundManager.play_select_sound()
 			overlay.queue_free()
-			_show_detail_in_zone("已应用自动配装方案：%s（单位位置不变）" % opt.get("weight_name", "?"))
+			_show_detail_in_zone("已应用自动配装方案：%s\n（单位位置不变，已优先取用待领取区装备）" % opt.get("weight_name", "?"))
 		)
 		row.add_child(apply_btn)
 

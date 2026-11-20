@@ -143,6 +143,12 @@ func _show_step() -> void:
 		_index = _skills.size()
 		_finish()
 		return
+	# ★ v6.22：池子只剩 1 个技能时，转轮里全是同一个、没有选择意义——
+	#   直接当作已停在该技能，进入落位单位选择（仍由玩家点头像决定给谁）
+	if entries.size() == 1:
+		_clear_picks()
+		_apply_skill_entry(entries[0])
+		return
 	_current_skill = str(_skills[_index])
 	_clear_picks()
 	_machine.setup(entries, "主动技能轮盘 · 第 %d 次" % (_index + 1))
@@ -161,11 +167,10 @@ func _build_skill_entries() -> Array:
 		if u != null and (u.talent_slots.is_empty() or u.talent_slots[0] == null):
 			remaining_names.append(str(uname))
 
-	# ★ v6.19：轮盘池优先取"能被至少 2 个剩余单位装备"的技能，
-	#   从源头避免转出只对应单一单位的技能卡。仅当这类技能不足时降级到全池。
-	var source_pool: Array = BuildManager.build_skill_pool_ranked(remaining_names, 2)
-	if source_pool.is_empty():
-		source_pool = BuildManager.build_skill_pool(remaining_names)
+	# ★ v6.22：池子改用全池并集，不再用 ranked(兼容≥2单位) 的交集。
+	#   旧版第 2 次剩 2 个单位时交集常只剩 1 个技能 → 轮盘全是同一个。
+	#   全池并集配合下面的 can_place_with_future 安全过滤，池子大且不会转出死卡。
+	var source_pool: Array = BuildManager.build_skill_pool(remaining_names)
 
 	var safe_pool: Array = []       # 至少一个单位能安全落位（首选）
 	var fallback_pool: Array = []   # 仅兼容但无法保证后续覆盖（兜底）
@@ -220,6 +225,17 @@ func _clear_picks() -> void:
 	_skip_btn.visible = false
 
 
+func _apply_skill_entry(entry: Dictionary) -> void:
+	var tid := str(entry.get("id", ""))
+	_skills[_index] = tid
+	_current_skill = tid
+	_msg.text = str(entry.get("desc", ""))
+	# ★ 选出的技能说明用正常亮色，不再灰显
+	var cv: Variant = entry.get("color", null)
+	_msg.add_theme_color_override("font_color", cv if cv is Color else Color.WHITE)
+	_show_units(tid)
+
+
 func _on_machine_stopped(entry: Dictionary) -> void:
 	var tid := str(entry.get("id", ""))
 	if tid == "" or _placed_skills.has(tid):
@@ -228,17 +244,15 @@ func _on_machine_stopped(entry: Dictionary) -> void:
 			_index = _skills.size()
 			_finish()
 			return
+		# ★ v6.22：重转后若只剩 1 个技能，同样直接落位，不再转全同轮盘
+		if entries.size() == 1:
+			_apply_skill_entry(entries[0])
+			return
 		_msg.text = "这张已用过，请再转一次"
 		_msg.add_theme_color_override("font_color", _dim_color)
 		_machine.setup(entries, "主动技能轮盘 · 第 %d 次" % (_index + 1))
 		return
-	_skills[_index] = tid
-	_current_skill = tid
-	_msg.text = str(entry.get("desc", ""))
-	# ★ 选出的技能说明用正常亮色，不再灰显
-	var cv: Variant = entry.get("color", null)
-	_msg.add_theme_color_override("font_color", cv if cv is Color else Color.WHITE)
-	_show_units(tid)
+	_apply_skill_entry(entry)
 
 
 func _show_units(tid: String) -> void:
@@ -356,6 +370,11 @@ func _on_skip() -> void:
 		if entries.is_empty():
 			_index = _skills.size()
 			_finish()
+			return
+		# ★ v6.22：重转后若只剩 1 个技能，直接落位，不再转全同轮盘
+		if entries.size() == 1:
+			_clear_picks()
+			_apply_skill_entry(entries[0])
 			return
 		_machine.setup(entries, "主动技能轮盘 · 第 %d 次" % (_index + 1))
 		return

@@ -872,6 +872,43 @@ func _show_attack_menu(attacker: Unit, target: Unit, _is_after_move: bool) -> vo
 		meta_by_id[next_id] = {"kind": "attack", "skill_id": sdata.id}
 		next_id += 1
 
+	# ★ v6.24：把「冷却中 / 魂火不足」的主动技能也列进菜单并灰显，标出原因，
+	#   让玩家看懂"技能还在、只是没就绪"，而不是从菜单里凭空消失。
+	#   灰显项用独立 kind 占位，不计入 total_options，也不触发任何攻击。
+	var equipped_active : Array = []  # [{data, inst}]
+	for slot in attacker.talent_slots:
+		var slot_inst: TalentInstance = slot as TalentInstance
+		if slot_inst and slot_inst.is_active:
+			var slot_data = TalentManager.get_talent_data(slot_inst.talent_id)
+			if slot_data and slot_data.is_active_skill:
+				equipped_active.append({"data": slot_data, "inst": slot_inst})
+	var adv_inst: TalentInstance = attacker.advanced_talent_inst as TalentInstance
+	if adv_inst and adv_inst.is_active:
+		var adv_data = TalentManager.get_talent_data(adv_inst.talent_id)
+		if adv_data and adv_data.is_active_skill:
+			equipped_active.append({"data": adv_data, "inst": adv_inst})
+
+	var available_ids : Array = []
+	for sd in available_skills:
+		available_ids.append(sd.id)
+
+	for entry in equipped_active:
+		var sd = entry["data"]
+		if available_ids.has(sd.id):
+			continue  # 已在正常可用列表
+		if sd.effect_type in ally_only_effects and not target_is_ally:
+			continue  # 治疗/增益对敌人不显示
+		var einst: TalentInstance = entry["inst"]
+		var reason : String = ""
+		if einst.cooldown_remaining > 0:
+			reason = "冷却 %d 回合" % einst.cooldown_remaining
+		else:
+			reason = "魂火不足"
+		popup.add_item("%s（%s，不可用）" % [sd.display_name, reason], next_id)
+		popup.set_item_disabled(popup.item_count - 1, true)
+		meta_by_id[next_id] = {"kind": "disabled"}
+		next_id += 1
+
 	if emergency_available:
 		var em_heal = CombatManager.get_expected_emergency_heal(attacker, target)
 		popup.add_item("急救 (回复: %d，耗%d魂火)" % [em_heal, emergency_cost], next_id)
@@ -888,10 +925,12 @@ func _show_attack_menu(attacker: Unit, target: Unit, _is_after_move: bool) -> vo
 		next_id += 1
 
 	popup.id_pressed.connect(func(id):
-		state["confirmed"] = true
-		Globals.is_attack_menu_active = false
 		var meta : Dictionary = meta_by_id.get(id, {})
 		var kind : String = str(meta.get("kind", "attack"))
+		if kind == "disabled":
+			return   # 灰显的冷却/魂火不足技能不可选
+		state["confirmed"] = true
+		Globals.is_attack_menu_active = false
 		var skill_id : String = str(meta.get("skill_id", ""))
 		popup.queue_free()
 		blocker.queue_free()

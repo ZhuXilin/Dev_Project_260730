@@ -450,31 +450,83 @@ func _get_node_layout_width() -> float:
 	return maxf(vp.x - 80.0, 200.0)
 
 
-func _update_availability(_start_node: MapNode):
-	var max_visited_layer = -1
-	for node in map_data.nodes:
-		if node.is_visited and node.layer > max_visited_layer:
-			max_visited_layer = node.layer
-	print("最大已访问层: ", max_visited_layer)
+## ★ v6.29：从给定前沿节点沿 connected_nodes 向前传播，收集所有"当前路线还能走到"的未访问节点。
+##   地图是有向分支图（底层起点→逐层向上→顶部分叉/汇合），不能用纯 layer 判断可选，
+##   否则走了一条线，另一条平行线上更高层的节点仍会被点亮。返回 Dictionary<node, true>。
+func _collect_reachable(frontier: Array) -> Dictionary:
+	var reachable: Dictionary = {}
+	if not map_data:
+		return reachable
+	var queue: Array = []
+	for f in frontier:
+		if f == null:
+			continue
+		for nxt in f.connected_nodes:
+			if nxt != null and not nxt.is_visited and not reachable.has(nxt):
+				reachable[nxt] = true
+				queue.append(nxt)
+	var qi: int = 0
+	while qi < queue.size():
+		var cur: MapNode = queue[qi]
+		qi += 1
+		for nxt in cur.connected_nodes:
+			if nxt != null and not nxt.is_visited and not reachable.has(nxt):
+				reachable[nxt] = true
+				queue.append(nxt)
+	return reachable
 
+
+## ★ v6.29：按"连通路线"重算可选状态（替代旧的纯 layer 判断）。
+##   前沿 = 已访问节点中 layer 最大的那批（当前路线末端）。
+##   只有从前沿沿连线可达的节点才可能可选；不在可达集合里的未访问节点整条分支变灰（is_passed）。
+func _update_availability(_start_node: MapNode):
+	if not map_data:
+		return
 	for node in map_data.nodes:
 		node.is_available = false
 		node.is_passed = false
-	for node in map_data.nodes:
-		if node.layer <= max_visited_layer and not node.is_visited:
-			node.is_passed = true
 
-	if max_visited_layer == -1:
+	# 已访问节点
+	var visited: Array = []
+	for node in map_data.nodes:
+		if node.is_visited:
+			visited.append(node)
+
+	if visited.is_empty():
+		# 开局：layer 0 起点全部可选
 		for node in map_data.nodes:
 			if node.layer == 0:
 				node.is_available = true
-		print("初始节点层：layer 0 全部可用")
-	else:
-		var next_layer = max_visited_layer + 1
-		for node in map_data.nodes:
-			if node.layer == next_layer and not node.is_visited:
-				node.is_available = true
-				print("解锁节点: ", node.custom_label, " 层: ", node.layer)
+		_update_buttons()
+		return
+
+	# 前沿 = 已访问节点中 layer 最大者（当前路线末端）
+	var frontier_layer: int = -1
+	for node in visited:
+		if node.layer > frontier_layer:
+			frontier_layer = node.layer
+	var frontier: Array = []
+	for node in visited:
+		if node.layer == frontier_layer:
+			frontier.append(node)
+
+	var reachable := _collect_reachable(frontier)
+
+	# 不在当前路线可达集合里的未访问节点 → 整条分支灰掉
+	for node in map_data.nodes:
+		if not node.is_visited and not reachable.has(node):
+			node.is_passed = true
+
+	# 可达节点中只开放最靠前的一层（防止跨层跳选）
+	var min_layer: int = 999999
+	for node_v in reachable:
+		var rn: MapNode = node_v
+		if rn.layer < min_layer:
+			min_layer = rn.layer
+	for node_v in reachable:
+		var rn: MapNode = node_v
+		if rn.layer == min_layer:
+			rn.is_available = true
 
 	_update_buttons()
 
@@ -488,6 +540,21 @@ func _update_buttons():
 		if child is MapNodeButton:
 			var btn : MapNodeButton = child
 			btn.setup(btn.map_node, self, pos_map.get(btn.map_node, btn.map_node.position))
+
+
+## ★ v6.29：选中某节点后立即封锁其它路线（整条线，而非仅同层）——即时视觉反馈。
+##   战斗/事件界面打开期间地图仍在背景，避免返回前其它分支还亮着可点。
+func _lock_other_routes(selected: MapNode):
+	if not map_data or selected == null:
+		return
+	var reachable := _collect_reachable([selected])
+	for node in map_data.nodes:
+		if node == selected or node.is_visited:
+			continue
+		if not reachable.has(node):
+			node.is_available = false
+			node.is_passed = true
+	_update_buttons()
 
 
 func generate_map(day: int):
@@ -571,6 +638,11 @@ func on_node_selected(node: MapNode):
 
 	_is_loading_combat = true
 
+	# ★ v6.29：选定节点后立即封锁其它整条分支——一条线只能走到底。
+	#   战斗/事件界面打开期间地图仍在背景，避免返回前其它分支还亮着可点。
+	#   返回地图时 _apply_visited_state + _update_availability 会按存档重算，不会残留错误状态。
+	_lock_other_routes(node)
+
 	var key = "%d_%d" % [node.position.x, node.position.y]
 
 	var real_type : int = node.node_type
@@ -620,6 +692,8 @@ func _load_combat_for_node(node: MapNode):
 		push_warning("[MapScene] 节点 %d_%d 无 map_data，跳过战斗" % [node.position.x, node.position.y])
 		_is_loading_combat = false
 		GameState.current_node_key = ""
+		# ★ 未真正进入节点，按存档重算可选状态，避免被灰掉的分支卡死
+		_update_availability(map_data.root_node if map_data else null)
 		return
 	_load_combat(map_to_load)
 

@@ -21,11 +21,11 @@ func _init(p):
 # ============================================================
 func start_drag(btn: Control):
 	if btn is Button and btn.disabled: return
+	# ★ v6.22：地图装备配置界面为纯查看页——禁止一切拖拽（防具/遗物/光环/技能/单位/丢弃）
+	if panel.current_mode == panel.Mode.MAP: return
 	var slot_type : String = btn.get_meta("slot_type", "")
 
 	if panel.current_mode == panel.Mode.DEPLOY and slot_type == "armor": return
-	# ★ v6.4：地图装备界面的技能词条开局已锁定，不可拖拽/丢弃
-	if panel.current_mode == panel.Mode.MAP and (slot_type == "talent" or slot_type == "library_talent"): return
 	
 	var item_id : String = btn.get_meta("item_id", "")
 	var talent_id : String = btn.get_meta("talent_id", "")

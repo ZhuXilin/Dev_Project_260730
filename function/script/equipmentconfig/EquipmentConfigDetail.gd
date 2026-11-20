@@ -88,6 +88,25 @@ func show_unit(unit : UnitData):
 	if unit.weapon_name != "":
 		stats.append("武器: %s" % unit.weapon_name)
 
+	# ★ v6.22：单位详情里列出已装备的技能词条名字（hover 单位卡时一眼看清）
+	#   技能词条按钮只显示 2 字缩写/图标，这里补全名为 descriptor。
+	var skill_names : Array = []
+	for slot in unit.talent_slots:
+		var inst: TalentInstance = slot as TalentInstance
+		if inst and inst.is_active and inst.talent_id != "":
+			var td: TalentData = TalentManager.get_talent_data(inst.talent_id)
+			if td:
+				skill_names.append(td.display_name)
+	var adv_inst: TalentInstance = unit.advanced_talent_inst as TalentInstance
+	if adv_inst and adv_inst.is_active and adv_inst.talent_id != "":
+		var adv_td: TalentData = TalentManager.get_talent_data(adv_inst.talent_id)
+		if adv_td:
+			skill_names.append(adv_td.display_name)
+	if skill_names.is_empty():
+		stats.append("技能: 无")
+	else:
+		stats.append("技能: " + " / ".join(skill_names))
+
 	_show_raw(display, type_name, desc, "", "\n".join(stats))
 
 
@@ -185,7 +204,9 @@ func show_talent(data: TalentData):
 		_show_raw(data.display_name, "", "", flavor, "")
 		return
 
-	var type_str = "稀有度: " + data.rarity + " | 流派: " + data.school
+	# ★ v6.24：技能名显式拼进详情首行。name_label 在部分面板下渲染为空，
+	#   把名字放到必定可见的 type_str 里，保证 hover 技能词条时一眼看到词条名。
+	var type_str = data.display_name + "　|　稀有度: " + data.rarity + " | 流派: " + data.school
 	var stats = "积累: %d回合" % data.accumulation_threshold
 	if data.is_active_skill: stats = "主动技能 | 冷却: %d" % data.skill_cooldown
 	

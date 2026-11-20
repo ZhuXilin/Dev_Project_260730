@@ -162,6 +162,11 @@ static func reset_talent(unit, talent_id: String):
 		cd = maxi(0, cd - reduction)
 	if cd > 0:
 		inst.cooldown_remaining = cd
+	else:
+		# ★ v6.24：零冷却主动技能显式归零，避免残留上次冷却值；
+		#   就绪态交给每回合 accumulate_talents 恢复，不能在这里置 true
+		#   （本函数也被 cd=0 的被动词条调用，置 true 会导致其每回合反复触发）。
+		inst.cooldown_remaining = 0
 
 
 static func get_cooldown_after_trigger(talent_id: String) -> int:
@@ -183,8 +188,10 @@ static func accumulate_talents(talent_slots: Array) -> void:
 				continue
 			if inst.cooldown_remaining > 0:
 				inst.cooldown_remaining -= 1
-				if inst.cooldown_remaining == 0:
-					inst.is_ready = true
+			# ★ v6.24：冷却归零（含 cd=0 的零冷却技能）即恢复就绪。
+			#   旧逻辑只在"递减到 0 的那一帧"置 ready，导致 0 冷却技能释放后永久锁死。
+			if inst.cooldown_remaining <= 0:
+				inst.is_ready = true
 			continue
 		if inst.cooldown_remaining >= 9999:
 			continue

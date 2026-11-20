@@ -996,6 +996,18 @@ func get_suppressed_range_unit() -> Unit:
 	return _suppressed_range_unit
 
 
+## ★ v6.31：主动技能在信息面板上的 CD 状态标签。
+##   冷却中显示剩余回合数（醒目），就绪显示 ★，零冷却未就绪（同回合刚放）标注待机。
+func _active_cd_tag(inst: TalentInstance) -> String:
+	if inst == null:
+		return ""
+	if inst.cooldown_remaining > 0:
+		return "（冷却 %d 回合）" % inst.cooldown_remaining
+	if inst.is_ready:
+		return "（可用）"
+	return "（本回合已用）"
+
+
 func _on_request_show_info(unit: Unit):
 	# ★ 核心修复：如果光标被锁定，或者在开场过渡中，绝对不处理任何悬停请求，防止 Boss 头像闪烁
 	if _cursor_controller and _cursor_controller.is_locked:
@@ -1177,17 +1189,30 @@ func _on_request_show_info(unit: Unit):
 	mag_red = clampf(mag_red, 0.0, 0.75)
 	lines.append("物减 %d%% | 魔减 %d%%" % [int(phys_red*100), int(mag_red*100)])
 
-	var talent_names : Array = []
+	# ★ v6.31：主动技能单独一行并标注 CD 回合数（战场 hover/选中单位即可看到）。
+	#   之前只把技能名塞进"词条"行、没有任何 CD 信息，玩家在战场上无法判断技能何时可用。
+	var active_skill_parts : Array = []
+	var passive_parts : Array = []
 	if unit.talent_slots != null:
 		for inst in unit.talent_slots:
 			if inst and inst.is_active:
 				var tdata = TalentManager.get_talent_data(inst.talent_id)
-				if tdata: talent_names.append(tdata.display_name)
+				if tdata:
+					if tdata.is_active_skill:
+						active_skill_parts.append(tdata.display_name + _active_cd_tag(inst))
+					else:
+						passive_parts.append(tdata.display_name)
 	if unit.advanced_talent_inst and unit.advanced_talent_inst.is_active:
 		var adv_tdata = TalentManager.get_talent_data(unit.advanced_talent_inst.talent_id)
-		if adv_tdata: talent_names.append("★" + adv_tdata.display_name)
-	if talent_names.size() > 0:
-		lines.append("词条: " + ", ".join(talent_names))
+		if adv_tdata:
+			if adv_tdata.is_active_skill:
+				active_skill_parts.append("★" + adv_tdata.display_name + _active_cd_tag(unit.advanced_talent_inst))
+			else:
+				passive_parts.append("★" + adv_tdata.display_name)
+	if active_skill_parts.size() > 0:
+		lines.append("技能: " + ", ".join(active_skill_parts))
+	if passive_parts.size() > 0:
+		lines.append("词条: " + ", ".join(passive_parts))
 
 	var unit_cell = unit.grid_cell
 	var terrain_type = TerrainManager.get_terrain(unit_cell)
