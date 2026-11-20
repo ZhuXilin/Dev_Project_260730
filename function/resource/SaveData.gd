@@ -68,7 +68,6 @@ const CURRENT_VERSION = 11
 
 # ---- 成长 ----
 @export var unit_growth: Dictionary = {}
-@export var unit_blessings: Dictionary = {}
 @export var talent_exp: Dictionary = {}
 
 # ---- 队伍 ----

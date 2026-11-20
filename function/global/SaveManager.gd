@@ -134,7 +134,6 @@ func _build_save_data() -> SaveData:
 	save.current_node_unlock_units = GameState.current_node_unlock_units.duplicate()
 
 	save.unit_growth = GameState.unit_growth.duplicate(true)
-	save.unit_blessings = GameState.unit_blessings.duplicate(true)
 	save.talent_exp = GameState.talent_exp.duplicate(true)
 
 	save.arena_target_talents = GameState.arena_target_talents.duplicate(true)
@@ -254,7 +253,6 @@ func _apply_save_data(save: SaveData):
 	GameState.current_node_unlock_units = _safe_string_array(save.current_node_unlock_units)
 
 	GameState.unit_growth = _safe_dict(save.unit_growth)
-	GameState.unit_blessings = _safe_dict(save.unit_blessings)
 	GameState.talent_exp = _safe_dict(save.talent_exp)
 
 	GameState.arena_target_talents = _safe_dict(save.arena_target_talents)

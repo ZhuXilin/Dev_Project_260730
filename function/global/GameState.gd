@@ -167,9 +167,6 @@ var unlocked_stories : Array:
 var unit_growth : Dictionary:
 	get: return resource_state.unit_growth
 	set(value): resource_state.unit_growth = value
-var unit_blessings : Dictionary:
-	get: return resource_state.unit_blessings
-	set(value): resource_state.unit_blessings = value
 var talent_exp : Dictionary:
 	get: return resource_state.talent_exp
 	set(value): resource_state.talent_exp = value
@@ -294,51 +291,6 @@ func refine_relic(relic_id: String) -> bool:
 	AnalyticsLogger.record_relic_refine(relic_id)
 	return true
 
-
-# ============================================================
-#  ★ v6.35：局外祝福（unit_blessings）——购买 + 成本 + 等级查询
-# ============================================================
-func get_blessing_level(unit_name: String, attr: String) -> int:
-	var key := UnitDataManager.normalize_unit_key(unit_name)
-	var ub: Dictionary = unit_blessings.get(key, {})
-	return clampi(int(ub.get("blessing_" + attr, 0)), 0, 3)
-
-
-## 某单位某属性升到下一级的花费；已满级返回 -1
-func get_blessing_cost_for(unit_name: String, attr: String) -> int:
-	var cfg: Dictionary = GameConfigManager.get_file("progression_config.json")
-	var costs: Array = []
-	for b in cfg.get("blessings", []):
-		if str(b.get("attr", "")) == attr:
-			costs = b.get("costs", [])
-			break
-	if costs.is_empty():
-		return -1
-	var lv := get_blessing_level(unit_name, attr)
-	if lv >= costs.size():
-		return -1
-	return int(costs[lv])
-
-
-## 购买一级祝福：扣魂、写数据、vitality 直接加 max_hp
-func buy_blessing(unit_name: String, attr: String) -> bool:
-	var cost := get_blessing_cost_for(unit_name, attr)
-	if cost < 0 or soul < cost:
-		return false
-	soul -= cost
-	var key := UnitDataManager.normalize_unit_key(unit_name)
-	if not unit_blessings.has(key):
-		unit_blessings[key] = {}
-	var bkey := "blessing_" + attr
-	unit_blessings[key][bkey] = get_blessing_level(unit_name, attr) + 1
-	# vitality 直接加到单位 max_hp（战斗层 hp_ratio 读字段），同时 party 单位实例也要同步
-	if attr == "vitality":
-		for ud in get_party_units():
-			if ud != null and UnitDataManager.normalize_unit_key(ud.unit_name) == key:
-				ud.max_hp += 1
-				ud.hit_points += 1
-	SaveManager.auto_save()
-	return true
 
 var pending_save_slot : int = -1
 

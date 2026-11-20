@@ -292,7 +292,6 @@ func _register_commands():
 	register("lose", _cmd_lose, "lose  直接失败", ["l"])
 	register("god", _cmd_god, "god  我方 HP 设为 9999")
 	register("goto", _cmd_goto, "goto <camp|map|arena|main>")
-	register("blessing", _cmd_blessing, "blessing <unit> <attr> <level>")
 	register("adv_class", _cmd_adv_class, "adv_class <unit_index>  给队伍成员转职")
 	register("clear_adv_class", _cmd_clear_adv_class, "clear_adv_class  清空所有单位转职状态")
 	register("max_armor", _cmd_max_armor, "max_armor <n>  全员防具槽 = n")
@@ -673,18 +672,6 @@ func _cmd_goto(args: Array):
 		"main": get_tree().change_scene_to_file(Config.PATHS.MAIN_MENU)
 		_: _out("未知场景", "red"); return
 	_out("跳转 → " + args[0], "green")
-
-
-func _cmd_blessing(args: Array):
-	if args.size() < 3:
-		_out("用法: blessing <unit> <attr> <level>", "red"); return
-	var unit = args[0]
-	var attr = args[1]
-	var lv = clampi(_parse_int(args[2]), 0, 3)
-	var key = UnitDataManager.normalize_unit_key(unit)
-	if not GameState.unit_blessings.has(key): GameState.unit_blessings[key] = {}
-	GameState.unit_blessings[key]["blessing_" + attr] = lv
-	_out("祝福 %s.%s → Lv%d" % [unit, attr, lv], "green")
 
 
 func _cmd_adv_class(args: Array):

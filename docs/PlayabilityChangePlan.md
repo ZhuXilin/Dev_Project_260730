@@ -218,11 +218,31 @@ H1 击杀魂火未跟进：Arena 本就是简化魂火（命中+1），`_arena_o
 ### B. 局外经济修复
 | 项 | 落点 | 说明 |
 |---|---|---|
-| 祝福入口 | `GameState.buy_blessing/get_blessing_*` + `UnitData.get_effective_attr` + `SoulAltar` | 祝福原是纸面系统（仅 GM 命令写、战斗层不读）。现补购买 UI（魂栈属性页）、扣魂、写入 unit_blessings、战斗属性生效；vitality 购买即加 max_hp |
+| ~~祝福入口~~（已整体移除，见文末 v6.36） | ~~`GameState.buy_blessing/get_blessing_*` + `UnitData.get_effective_attr` + `SoulAltar`~~ | 曾补购买 UI 与战斗生效；因与「局外属性上限升级 + 局内单位升级」重复，已全部移除 |
 | 光环设计债 | `AuraManager.start_research/accelerate_research` 停用；`CombatManager`/`TurnManager` 删光环战斗接线；`LevelManager` 停研究推进；`GameState.refresh_aura_candidates` 返回空；`AnvilTavern` 按钮改提示 | aura_* 6 个光环已完整迁移到 `relic_data.json`（effects + lifetime + from_aura），独立系统纯重复。保留数据/存档字段兼容，仅切断扣魂与双重结算 |
 | 金币沉淀 | `GameState.finish_cycle/abandon_cycle` | 通关时剩余金币 10% 折算魂（上限 50），弃局 5%（上限 25），消除"最后局花不完浪费" |
 | 竞技场防刷 | `Arena.gd` 进度反哺条件 | 仅当 `_streak` 刷新历史最佳（`arena_best_streak`）才推进进度，且补上 best_streak 更新；反复重开不再刷进度 |
 
 ### 校验与待验证
-14 个脚本 gdtoolkit 解析全通过，JSON 合法，光环扣魂残留已清除。需实机验证：Arena 觉醒技释放节奏、祝福属性是否进入战斗计算、光环移除后 aura_* 遗物三选一能否正常获取、金币折算比例是否合适。
+14 个脚本 gdtoolkit 解析全通过，JSON 合法，光环扣魂残留已清除。需实机验证：Arena 觉醒技释放节奏、光环移除后 aura_* 遗物三选一能否正常获取、金币折算比例是否合适。（祝福相关验证项已随 v6.36 系统移除作废）
+
+---
+
+## 补充记录 v6.36：祝福系统整体移除
+
+**决定**：局外属性成长统一由两条既有链路承担——「局外属性上限升级」（`SoulAltar` 属性上限页 + `GameState.unit_attr_cap` + `UnitDataManager.get_attr_cap_level_bonus`）与「局内单位升级」（`BuildManager.add_experience` → `Unit.apply_level_up`，等级上限 Lv6）。祝福（每单位每属性 0~3 级、+1 属性）功能重复，整体移除。
+
+**移除范围**（8 个文件）：
+- `GameState`：`unit_blessings` 字段代理 + `get_blessing_level/get_blessing_cost_for/buy_blessing`
+- `SaveManager` / `SaveData` / `ResourceState`：`unit_blessings` 字段与读写
+- `UnitData.get_effective_attr`：祝福加成分支与 `_get_blessing_level`
+- `SoulAltar`：祝福购买区 UI + `_on_buy_blessing`（否则调用已删函数会崩）
+- `GMConsole`：`blessing` 命令注册与 `_cmd_blessing`（否则访问已删字段会崩）
+- `progression_config.json`：`blessings` 与 `blessing_max_level`（保留 growth/talent 字段，仍被 `UnitDataManager`/`TalentManager` 使用）
+
+**Arena 核对**：Arena 原本无祝福接口，玩家数据经 `create_unit_data` 构建、属性走 `get_effective_attr`；祝福加成删除后自动回到净状态，无需额外改动。两条替代成长链（属性上限 / 单位升级）在 Arena 与主线共用同一套 `UnitData` 与 `UnitDataManager`，口径一致。
+
+**注意**：老存档中残留的 `unit_blessings` 字段会被 Godot 反序列化忽略（无副作用）；被祝福改动过的 `max_hp` 已固化在存档单位属性里，不会因移除而回退。
+
+**校验**：9 个相关脚本 gdtoolkit 解析全通过，配置 JSON 合法，代码/配置零 `blessing` 残留（剩余 3 处「祝福」为英灵殿复活文案、遗物 flavor、转职文案，属其它系统）。
 

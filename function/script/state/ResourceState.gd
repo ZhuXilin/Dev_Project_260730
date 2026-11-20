@@ -26,7 +26,6 @@ var active_aura_research : Dictionary = {}
 var aura_research_progress : Dictionary = {}
 
 var unit_growth : Dictionary = {}
-var unit_blessings : Dictionary = {}
 
 var unlocked_recipes : Array = []
 var unlocked_stories : Array = []
