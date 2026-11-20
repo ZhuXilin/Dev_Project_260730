@@ -90,6 +90,10 @@ func _compute_rating_soul_bonus(rating: String) -> int:
 
 func on_request_show_victory(winning_team: int) -> void:
 	Globals.is_auto_battle = false
+	# ★ v6.40：战斗一结束就清空对话保存的战场曲。必须在 _wait_for_ui_clear 之前——
+	#   Boss 死亡对话把 is_dialogue_active 置 false 后会先 resume_saved()（延时后播回 boss 曲），
+	#   胜利处理若等它返回才清就晚了，胜利/失败曲会被覆盖。
+	MusicManager.clear_saved()
 
 	print("=== _on_request_show_victory 被调用, _victory_processed: ", _bf._victory_processed)
 	await _bf._wait_for_ui_clear()

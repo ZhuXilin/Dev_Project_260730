@@ -300,6 +300,15 @@ func pause_and_save() -> bool:
 	return false
 
 
+## ★ v6.40：清空"对话前保存的音乐"。战斗结束播胜利/失败曲时必须调用，
+##   否则 Boss 死亡对话的 resume_saved() 会在胜利曲之后把战场曲播回来。
+func clear_saved() -> void:
+	_saved_stream = null
+	_saved_position = 0.0
+	_saved_chip_path = ""
+	_saved_chip_slot = ""
+
+
 func resume_saved():
 	# ★ 优先恢复 chip
 	if _saved_chip_path != "":
