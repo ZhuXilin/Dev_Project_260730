@@ -24,6 +24,7 @@ var _dim_color := Color(0.55, 0.55, 0.58)
 var _roll_count: int = 0
 var _quality_level: int = 0
 var _current: Dictionary = {}          # 当前待领取防具 {item_id,quality,school,name,mechanic}
+var _settlement: Dictionary = {}       # ★ v6.38：合并结算 {unit,school,old_lv,new_lv,result}，结果卡停留展示前后对比
 
 var _root: Panel = null
 var _gold_label: Label = null
@@ -191,10 +192,11 @@ func _build_ui() -> void:
 func _update_action_buttons() -> void:
 	var spinning: bool = (_machine != null and _machine.is_spinning())
 	var has_pending: bool = not _current.is_empty()
-	var locked: bool = spinning or has_pending
+	var has_settlement: bool = not _settlement.is_empty()
+	var locked: bool = spinning or has_pending or has_settlement
 	if _close_btn != null:
 		_close_btn.disabled = locked
-	# ★ 操作行：有待领取结果时整体显示（放弃按钮），给金币不足等死局一个明确出口
+	# ★ 操作行：有待领取结果时整体显示（放弃按钮）；结算态隐藏，改由结算卡的"继续抽取"推进
 	if _action_row != null:
 		_action_row.visible = has_pending
 	if _upgrade_btn != null:
@@ -220,7 +222,8 @@ func _refresh() -> void:
 	# ★ disabled 由 _update_action_buttons 统一门控（含转动中/待领取锁定）
 
 	_render_result()
-	if _current.is_empty():
+	# ★ v6.38：结算态停留展示前后对比，不自动重滚；点"继续抽取"才进下一轮
+	if _current.is_empty() and _settlement.is_empty():
 		_prepare_spin()
 
 
@@ -296,6 +299,10 @@ func _render_result() -> void:
 		return
 	for c in _result_box.get_children():
 		c.queue_free()
+	# ★ v6.38：合并结算态——结果卡停留，显示"前 → 后"，玩家点继续才进下一轮
+	if not _settlement.is_empty():
+		_render_settlement()
+		return
 	if _current.is_empty():
 		return
 
@@ -459,8 +466,72 @@ func _preview_placement(ud: UnitData, school: String, cap: int) -> String:
 	return "覆盖 → 删 %d 件旧防具" % remove_n
 
 
+## ★ v6.38：合并结算卡——停留在结果区，显式展示"前 → 后"，点继续才进下一轮。
+func _render_settlement() -> void:
+	# ★ v6.38：本地反馈——防具 roll 发生在战后覆盖层、战场 B1 震屏/飘字看不到，
+	#   故用结算卡的流派色 + 获得物品音效强化"发生了大事"的感知。
+	SoundManager.play_get_item_sound()
+	var s: Dictionary = _settlement
+	var unit_name: String = str(s.get("unit", ""))
+	var school: String = str(s.get("school", ""))
+	var result: String = str(s.get("result", ""))
+	var old_lv: int = int(s.get("old_lv", 0))
+	var new_lv: int = int(s.get("new_lv", 0))
+	var cap: int = int(s.get("cap", 0))
+	var color: Color = BuildManager.get_school_color(school)
+
+	var title := Label.new()
+	title.text = "✓ 落位完成"
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_font_size_override("font_size", FS_BODY)
+	title.add_theme_color_override("font_color", Color(0.55, 0.85, 0.55))
+	_result_box.add_child(title)
+
+	var detail := Label.new()
+	if school == "":
+		detail.text = "%s 装备了普通防具" % unit_name
+	else:
+		var change: String = ""
+		if result == "merge":
+			change = "Lv%d → Lv%d" % [old_lv, new_lv]
+		elif result == "覆盖":
+			change = "覆盖【%s】→ 觉醒 Lv%d" % [str(s.get("replaced", "")), new_lv]
+		elif result == "awaken":
+			change = "觉醒 Lv%d" % new_lv
+		var cap_txt: String = "（上限 Lv%d）" % cap if cap > 0 else ""
+		detail.text = "%s · 【%s】%s %s" % [unit_name, school, change, cap_txt]
+	detail.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	detail.add_theme_font_size_override("font_size", FS_BODY)
+	detail.add_theme_color_override("font_color", color if school != "" else Color.WHITE)
+	detail.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_result_box.add_child(detail)
+
+	var mech_txt: String = BuildManager.get_school_mechanic(school) if school != "" else "仅属性加成"
+	var mech := Label.new()
+	mech.text = "效果：%s" % mech_txt
+	mech.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	mech.add_theme_font_size_override("font_size", FS_SMALL)
+	mech.add_theme_color_override("font_color", _dim_color)
+	_result_box.add_child(mech)
+
+	var cont := Button.new()
+	cont.text = "继续抽取"
+	cont.add_theme_font_size_override("font_size", FS_SMALL)
+	BuildUI.style_button(cont, _gold_color)
+	cont.pressed.connect(_on_settlement_continue)
+	cont.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	_result_box.add_child(cont)
+	_msg.text = ""
+
+
+func _on_settlement_continue() -> void:
+	_settlement.clear()
+	_refresh()   # current/settlement 均空 → _refresh 内自动 _prepare_spin 装填下一轮
+
+
 func _on_discard() -> void:
 	_current = {}
+	_settlement.clear()
 	_msg.text = "已放弃该防具"
 	_refresh()   # ★ 走 _refresh 才能重新装填转轮 + 恢复离开按钮（原来只 render 会卡在「已停止」）
 
@@ -470,17 +541,25 @@ func _on_place(ud: UnitData) -> void:
 	var quality := str(_current.get("quality", "common"))
 	# ★ v6.27：同流派并入升 Lv 免费，不再收 200G（原预判扣费块已删除）
 	var school: String = BuildManager.get_school_of_item(item_id)
+	# ★ v6.38：记录落位前的 Lv，结算卡显示"前 → 后"
+	var old_lv: int = 0
+	for m in BuildManager.get_unit_mechanisms(ud):
+		if str(m.get("school", "")) == school:
+			old_lv = int(m.get("level", 0))
+			break
 	var result := BuildManager.apply_armor(ud, item_id, quality)
 	match str(result.get("result", "")):
 		"awaken", "merge", "plain":
 			school = str(result.get("school", ""))
-			if school == "":
-				_msg.text = "%s 装备了普通防具" % ud.display_name
-			elif str(result.get("result")) == "merge":
-				_msg.text = "%s 并入 %s → Lv%d" % [
-					ud.display_name, school, int(result.get("level", 1))]
-			else:
-				_msg.text = "%s 觉醒【%s】" % [ud.display_name, school]
+			# ★ v6.38：写结算态，结果卡停留展示，不用一闪而过的 msg
+			_settlement = {
+				"unit": ud.display_name,
+				"school": school,
+				"result": str(result.get("result", "")),
+				"old_lv": old_lv,
+				"new_lv": int(result.get("level", 0)),
+				"cap": int(result.get("cap", 0)),
+			}
 			_current = {}
 			_refresh()
 		"full":
@@ -595,7 +674,16 @@ func _on_confirm_overwrite(ud: UnitData, school_to_remove: String) -> void:
 func _do_overwrite(ud: UnitData, school_to_remove: String) -> void:
 	var result := BuildManager.overwrite_school(ud, school_to_remove,
 		str(_current.get("item_id", "")), str(_current.get("quality", "common")))
-	_msg.text = "已用 %s 覆盖【%s】" % [str(result.get("school", "")), school_to_remove]
+	# ★ v6.38：覆盖也走结算卡，写明"覆盖【旧流派】→ 觉醒【新流派】"
+	_settlement = {
+		"unit": ud.display_name,
+		"school": str(result.get("school", "")),
+		"result": "覆盖" if str(result.get("result", "")) != "full" else "full",
+		"old_lv": 0,
+		"new_lv": int(result.get("level", 0)),
+		"cap": int(result.get("cap", 0)),
+		"replaced": school_to_remove,
+	}
 	_current = {}
 	_refresh()
 
@@ -609,6 +697,9 @@ func _on_close() -> void:
 		return
 	if not _current.is_empty():
 		_msg.text = "请先为抽到的防具选择落位单位，或点「放弃防具」"
+		return
+	if not _settlement.is_empty():
+		_msg.text = "请先点结算卡的「继续抽取」"
 		return
 	_closing = true
 	SaveManager.auto_save()

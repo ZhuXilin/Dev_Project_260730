@@ -46,6 +46,7 @@ var _strip: Control = null
 var _strip_rows: Array = []      # 5 个 {box,label,icon}
 var _button: Button = null
 var _hint: Label = null
+var _payline_style: StyleBoxFlat = null   # ★ v6.38：停下时染成流派色，与结果卡徽标因果连贯
 
 var _gold_color := Color(0.98, 0.75, 0.25)
 var _dim_color := Color(0.55, 0.55, 0.58)
@@ -164,6 +165,7 @@ func _build_ui(title: String) -> void:
 	p_sb.content_margin_top = 0
 	p_sb.content_margin_bottom = 0
 	payline.add_theme_stylebox_override("panel", p_sb)
+	_payline_style = p_sb   # ★ v6.38：保存引用，_finish 时按流派色染色
 	payline.position = Vector2(0, ROW_H)
 	payline.size = Vector2(REEL_W, ROW_H)
 	payline.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -405,6 +407,11 @@ func _finish() -> void:
 	_strip.position.y = -ROW_H
 	_phase = 0.0
 	_update_highlight()
-	_hint.text = "已停：%s" % str(get_current_entry().get("name", "?"))
+	# ★ v6.38：中奖线边框染成抽到防具的流派色，与下方结果卡徽标同色，因果连贯
+	var entry := get_current_entry()
+	var school_color: Variant = entry.get("color", null)
+	if _payline_style != null:
+		_payline_style.border_color = school_color if school_color is Color else _gold_color
+	_hint.text = "已停：%s" % str(entry.get("name", "?"))
 	_refresh_button()
-	stopped.emit(get_current_entry())
+	stopped.emit(entry)
