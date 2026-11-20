@@ -104,7 +104,7 @@ func _on_start_pressed():
 
 	_init_arena_state()
 	# ★ v6.13：选人后先像主线一样 roll 技能词条（单单位，1 次），
-	#   不再先进装备界面；装备只在战后 ArenaRollUI 获取。
+	#   不再先进装备界面；装备只在战后防具 roll（ArmorRollUI）获取。
 	_show_opening_skill_roll()
 
 
@@ -182,7 +182,7 @@ func _run_battle_loop():
 			_show_summary(true, "及时止损")
 			return
 
-		# ★ v6.13：去掉每场战前的装备界面（原 _show_shop），装备只在战后 ArenaRollUI 获取。
+		# ★ v6.13：去掉每场战前的装备界面（原 _show_shop），装备只在战后防具 roll（ArmorRollUI）获取。
 		#   开局已 roll 好技能，战斗节奏与主线一致：roll → 战斗 → 战后防具 roll。
 		var winner : int = 0
 		winner = await _do_one_battle()
@@ -401,8 +401,7 @@ func _calc_exp_gain(enemy_type: String) -> int:
 	if _is_elite_battle(): return int(base * 2.5)
 	return base
 
-## ★ v6.14：竞技场防具老虎机统一用主线 ArmorRollUI（注入单单位 + 独立 arena_gold），
-##   不再维护 ArenaRollUI 单独版本。
+## ★ v6.14：竞技场防具老虎机统一用主线 ArmorRollUI（注入单单位 + 独立 arena_gold）。
 func _show_arena_roll():
 	var scene = load(Config.PATHS.ARMOR_ROLL_UI)
 	if not scene or _current_player_data == null:
