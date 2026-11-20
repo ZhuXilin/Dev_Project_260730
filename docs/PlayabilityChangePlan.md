@@ -143,17 +143,11 @@
 
 - 与 M2 配合：Lv2 质变让"升到 Lv2"成为明确目标，解决 common cap=1 升不动的痛点。
 
-### B3 流派联动 · 1+1>2（成本：中，进阶）
-- 核心：让"选哪两个流派"产生化学反应，制造构筑欲。
-- 落地：`BuildManager` 加 `get_active_synergies(unit)` 扫描已觉醒流派组合，返回联动列表；触发走 B1 仪式反馈。数量克制（6~8 组），每组一句文案 + 一个明确效果：
-
-| 组合 | 联动效果 | 主题 |
-|---|---|---|
-| 烈焰 + 灰烬 | 燃烧地块附带灼烧 | 野火 |
-| 轮回 + 献祭 | 献祭扣血转化为回魂火 | 血祭 |
-| 守护 + 余烬 | 格挡后下次攻击必暴 | 背水 |
-| 轮回 + 余烬 | 击杀重置必暴装填 | 收割 |
-| 烈焰 + 献祭 | 扣血时点燃自身周围 | 焚身 |
+### ~~B3 流派联动 · 1+1>2~~（v6.36 已移除）
+- ~~核心：让"选哪两个流派"产生化学反应，制造构筑欲。~~
+- **移除决定**：用户明确 build 配合方向是**单位之间**（不同单位穿不同流派互补），而非**单单位堆多流派**。v6.34 实验的双流派联动与方向相反，且只有数据层 + 竞技场简化数值、主线从未接线，故整体移除。设计原则已写入 `GameplayDesignDoc.md` §5.2。
+- 曾实验的 5 组（均已删除）：野火（烈焰+灰烬）/ 血祭（轮回+献祭）/ 背水（守护+余烬）/ 收割（轮回+余烬）/ 焚身（烈焰+献祭）。
+- 后续配合类设计应落在**队伍级/跨单位效果**（光环、遗物全队增益、前后排联动），不再做单单位双流派组合技。
 
 ### B4 主动引爆 · Build 觉醒技（成本：较高，旗舰）
 - 核心：给玩家主动权——攒能量，按键释放属于自己 build 的大招。
@@ -163,7 +157,7 @@
 - 与魂火爆发区别：魂火爆发是通用小爆发（≥3 魂火），觉醒技是 build 专属大招，两者并存定位不同。
 
 ### 爽感实施顺序
-B1 + B2 优先（解决"升 Lv 没感觉/build 无高光"），B3 试玩后加，B4 作为大版本亮点最后做。与 1-3 档同期实施时，B1/B2 依附的 M2（cap 前移）需先落地。
+B1 + B2 优先（解决"升 Lv 没感觉/build 无高光"），B4 作为大版本亮点最后做。与 1-3 档同期实施时，B1/B2 依附的 M2（cap 前移）需先落地。B3 已移除，不再实施。
 
 ---
 
@@ -182,7 +176,7 @@ B1 + B2 优先（解决"升 Lv 没感觉/build 无高光"），B3 试玩后加�
 | L1 | `progress_unlocks.json` / `progression_config.json` | 解锁阈值后移（天赋 5/10/18/28/40/55、遗物 8/18/32/50）、祝福三级 800→350 |
 | B1 | `SignalBus.build_awakened` + `BuildManager.apply_armor` + `Battlefield._on_build_awakened` | 首次觉醒 / 跨 Lv2·4 阈值发信号，战斗层播震屏+流派色飘字+单格高亮 |
 | B2 | `BuildManager.has_breakthrough` + 战斗钩子 | 已接：守护 Lv2 反弹回血、轮回 Lv2 击杀治疗最低血队友、献祭 Lv4 残血攻击翻倍；其余质变函数已备、待试玩后接 |
-| B3 | `BuildManager.SYNERGIES` / `get_active_synergies` | 5 组联动数据层完成，战斗触发待试玩后接 |
+| ~~B3~~ | ~~`BuildManager.SYNERGIES` / `get_active_synergies`~~ | v6.36 整体移除（方向改为单位间配合，且原实现仅数据层+竞技场简化数值） |
 | B4 | `CombatManager` build_energy 三函数 + `DragMoveController` 菜单项 | 完整闭环：击杀+2/烈焰触发+1，满 100 攻击菜单出"Build 觉醒技"，按最高流派释放全场效果并消耗行动 |
 | M1(部分) | `BuildManager.get_ash_tile_damage` 等 | 灰烬/守护数值项并入 B2 质变体系处理；未直接改基础曲线 |
 
@@ -210,7 +204,7 @@ Arena 用独立战斗内核 `ArenaBattle.gd`（非主线 CombatManager），且�
 |---|---|---|
 | A-B1 | `Arena.gd._ready/_on_build_awakened_arena` | 监听 `build_awakened`，用 hint_label 显示觉醒提示 2 秒 + 震屏（Arena 无世界坐标，不做单位高亮） |
 | A-B2 | `ArenaBattle` 守护反弹段 + `_apply_sacrifice` | 守护 Lv2 反弹回血、献祭 Lv4 残血攻翻倍（轮回 Lv2 治疗队友在 1v1 无队友，跳过） |
-| A-B3 | `ArenaBattle._apply_synergies` + `_calc_damage` | 5 组联动按组合给本回合攻击加成/回血，新增 `_player/enemy_synergy_bonus` |
+| ~~A-B3~~ | ~~`ArenaBattle._apply_synergies` + `_calc_damage`~~ | v6.36 随 B3 一并移除（字段/初始化/回合调用/函数/伤害加成全删） |
 | A-B4 | `ArenaBattle` build 能量 + `_try_release_build_burst` | 命中+1/击杀+2，满 100 在回合开始自动释放（攻击型伤敌/防御型回血/献祭加攻），按最高流派 |
 
 H1 击杀魂火未跟进：Arena 本就是简化魂火（命中+1），`_arena_on_kill` 只有轮回额外回魂，保持设计差异。
@@ -245,4 +239,18 @@ H1 击杀魂火未跟进：Arena 本就是简化魂火（命中+1），`_arena_o
 **注意**：老存档中残留的 `unit_blessings` 字段会被 Godot 反序列化忽略（无副作用）；被祝福改动过的 `max_hp` 已固化在存档单位属性里，不会因移除而回退。
 
 **校验**：9 个相关脚本 gdtoolkit 解析全通过，配置 JSON 合法，代码/配置零 `blessing` 残留（剩余 3 处「祝福」为英灵殿复活文案、遗物 flavor、转职文案，属其它系统）。
+
+---
+
+## 补充记录 v6.36：流派联动（B3）整体移除
+
+**决定**：用户明确 build 配合应强调**单位之间**（不同单位不同流派互补），而非**单单位多流派堆叠**。v6.34 实验的"同单位双流派联动"方向相反，且实现不完整（主线战场从未接线，只有 Arena 简化数值），整体移除。设计原则写入 `GameplayDesignDoc.md` §5.2。
+
+**移除范围**（2 个文件）：
+- `BuildManager.gd`：`SYNERGIES` 常量（野火/血祭/背水/收割/焚身）、`get_active_synergies()`、相关注释。
+- `ArenaBattle.gd`：`_player/enemy_synergy_bonus` 字段与初始化、`_run_battle` 的 `_apply_synergies` 调用、`_apply_synergies()` 函数、`_calc_damage` 里的联动加成。
+
+**保留**：B1 觉醒仪式、B2 Lv 阈值质变（守护 Lv2 回血 / 轮回 Lv2 治疗 / 献祭 Lv4 残血翻倍）、B4 觉醒技——这些是**单流派内部**的强化，与"单位间配合"方向不冲突。
+
+**校验`：2 个脚本解析通过，代码零 `SYNERGIES`/`get_active_synergies`/`synergy` 残留（仅剩一句无关的转职注释）。
 

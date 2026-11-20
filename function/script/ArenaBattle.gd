@@ -67,8 +67,6 @@ var _enemy_soul: int = 0
 const ARENA_SOUL_CAP: int = 6
 var _player_sacrifice_bonus: float = 0.0   # 献祭本轮攻击加成
 var _enemy_sacrifice_bonus: float = 0.0
-var _player_synergy_bonus: float = 0.0     # ★ v6.35：流派联动本回合攻击加成
-var _enemy_synergy_bonus: float = 0.0
 # ★ v6.35（A-B4）：build 能量与觉醒技（1v1 自动战斗版，攒满自动释放）
 const ARENA_BUILD_ENERGY_MAX: int = 100
 var _player_build_energy: int = 0
@@ -139,8 +137,6 @@ func setup(player_data: UnitData, enemy_data: UnitData, crystal_reward: int = 0,
 	_enemy_soul = 1
 	_player_sacrifice_bonus = 0.0
 	_enemy_sacrifice_bonus = 0.0
-	_player_synergy_bonus = 0.0
-	_enemy_synergy_bonus = 0.0
 	_player_build_energy = 0
 	_enemy_build_energy = 0
 	_player_ember_charged = false
@@ -291,9 +287,6 @@ func _run_battle():
 		# ★ v6.10：献祭流派——回合开始扣血换本回合攻击加成
 		_apply_sacrifice(_player, true)
 		_apply_sacrifice(_enemy, false)
-		# ★ v6.35（A-B3）：流派联动——回合开始按组合给一次性小效果
-		_apply_synergies(_player, true)
-		_apply_synergies(_enemy, false)
 		# ★ v6.35（A-B4）：Build 觉醒技——能量满则自动释放
 		_try_release_build_burst(_player, true)
 		_try_release_build_burst(_enemy, false)
@@ -801,36 +794,6 @@ func _apply_sacrifice(unit: UnitData, is_player: bool):
 	_refresh_hp_labels()
 
 
-## ★ v6.35（A-B3）：流派联动——每回合按已激活组合给一次性小增益（1v1 简化版）。
-func _apply_synergies(unit: UnitData, is_player: bool) -> void:
-	var syns: Array = BuildManager.get_active_synergies(unit)
-	var atk_bonus: float = 0.0
-	var heal_pct: float = 0.0
-	for syn in syns:
-		match str(syn.get("key", "")):
-			"wildfire": atk_bonus += 0.10
-			"bloodrite": heal_pct += 0.05
-			"laststand": atk_bonus += 0.12
-			"reaper":   atk_bonus += 0.08
-			"immolate": atk_bonus += 0.10
-	if is_player:
-		_player_synergy_bonus = atk_bonus
-		if heal_pct > 0.0:
-			var h := maxi(1, int(maxi(1, unit.max_hp) * heal_pct))
-			_player_hp = mini(_player_hp + h, maxi(1, unit.max_hp))
-			player_hp_bar.value = _player_hp
-			log_label.text += "  [血祭回血 +%d]" % h
-	else:
-		_enemy_synergy_bonus = atk_bonus
-		if heal_pct > 0.0:
-			var h := maxi(1, int(maxi(1, unit.max_hp) * heal_pct))
-			_enemy_hp = mini(_enemy_hp + h, maxi(1, unit.max_hp))
-			enemy_hp_bar.value = _enemy_hp
-			log_label.text += "  [血祭回血 +%d]" % h
-	if syns.size() > 0:
-		_refresh_hp_labels()
-
-
 ## ★ v6.35（A-B4）：觉醒技自动释放（1v1 简化）——攒满能量在回合开始触发，效果按最高流派。
 func _try_release_build_burst(unit: UnitData, is_player: bool) -> void:
 	var energy: int = _player_build_energy if is_player else _enemy_build_energy
@@ -905,9 +868,6 @@ func _calc_damage(attacker: UnitData, defender: UnitData) -> int:
 	# ★ v6.10：献祭流派本回合攻击加成
 	var sac_bonus: float = _player_sacrifice_bonus if attacker == _player else _enemy_sacrifice_bonus
 	total_attack *= (1.0 + sac_bonus)
-	# ★ v6.35（A-B3）：流派联动本回合攻击加成
-	var syn_bonus: float = _player_synergy_bonus if attacker == _player else _enemy_synergy_bonus
-	total_attack *= (1.0 + syn_bonus)
 	# ★ v5.10 对齐正式战场：遗物力量缩放伤害
 	if attacker.relic_strength_scale_damage > 0.0:
 		var str_val : int = attacker.get_effective_attr("strength")

@@ -370,7 +370,7 @@ func has_breakthrough(unit, school: String, key: String) -> bool:
 	return false
 
 
-## 取某单位所有已解锁的质变 key（供 UI 展示 / 联动判定）
+## 取某单位所有已解锁的质变 key（供 UI 展示）
 func get_breakthroughs(unit, school: String) -> Array:
 	var eff := get_effective_school_level(unit, school)
 	var keys: Array = []
@@ -389,29 +389,6 @@ func get_breakthroughs(unit, school: String) -> Array:
 			keys.append(k)
 	return keys
 
-
-# ============================================================
-#  ★ v6.34：流派联动（B3）——两流派同时觉醒触发 1+1>2 的组合效果。
-#   返回 [{key, name, desc, schools}]，数量克制（5 组），触发走 build_awakened 反馈。
-# ============================================================
-const SYNERGIES: Array = [
-	{"key": "wildfire", "name": "野火", "schools": ["烈焰", "灰烬"], "desc": "燃烧地块附带灼烧"},
-	{"key": "bloodrite", "name": "血祭", "schools": ["轮回", "献祭"], "desc": "献祭扣血转化为回魂火"},
-	{"key": "laststand", "name": "背水", "schools": ["守护", "余烬"], "desc": "格挡后下次攻击必暴"},
-	{"key": "reaper", "name": "收割", "schools": ["轮回", "余烬"], "desc": "击杀重置必暴装填"},
-	{"key": "immolate", "name": "焚身", "schools": ["烈焰", "献祭"], "desc": "扣血时点燃自身周围"},
-]
-
-## 取单位已激活的流派联动（两个流派都 effective Lv>0 才算）
-func get_active_synergies(unit) -> Array:
-	var result: Array = []
-	for syn in SYNERGIES:
-		var schools: Array = syn["schools"]
-		if schools.size() < 2:
-			continue
-		if get_effective_school_level(unit, schools[0]) > 0 and get_effective_school_level(unit, schools[1]) > 0:
-			result.append(syn)
-	return result
 
 
 ## BuildViewer / 提示统一文案
