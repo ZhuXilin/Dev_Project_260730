@@ -219,6 +219,9 @@ func _ready():
 		SignalBus.request_clear_blood_orbs.connect(_on_clear_blood_orbs)
 	if not SignalBus.turn_changed.is_connected(_on_turn_changed_blood_orbs):
 		SignalBus.turn_changed.connect(_on_turn_changed_blood_orbs)
+	# ★ v6.34（B1）：build 觉醒仪式反馈
+	if not SignalBus.build_awakened.is_connected(_on_build_awakened):
+		SignalBus.build_awakened.connect(_on_build_awakened)
 
 	if turn_overlay:
 		turn_overlay.modulate = Color(1, 1, 1, 0)
@@ -998,6 +1001,31 @@ func get_suppressed_range_unit() -> Unit:
 
 ## ★ v6.31：主动技能在信息面板上的 CD 状态标签。
 ##   冷却中显示剩余回合数（醒目），就绪显示 ★，零冷却未就绪（同回合刚放）标注待机。
+## ★ v6.34（B1）：build 觉醒仪式反馈——震屏 + 流派色飘字 + 单位高亮。
+##   防具 roll 多在战后结算触发，此时战场可能无对应单位；hint 始终生效，高亮仅在单位存在时执行。
+func _on_build_awakened(unit_data, school: String, new_level: int, color: Color) -> void:
+	var tag := "觉醒" if new_level <= 1 else "Lv%d 质变" % new_level
+	SignalBus.request_hint_override.emit("★ %s · %s %s！" % [_display_name_of(unit_data), school, tag], 1.6)
+	SignalBus.request_screen_shake.emit(0.25, 5.0, Vector2.ZERO)
+	# 战场存在该单位则高亮其所在格
+	var uname := str(unit_data.unit_name) if unit_data != null else ""
+	var live_unit: Unit = null
+	for u in UnitManager.unit_list:
+		if is_instance_valid(u) and str(u.unit_stats.unit_name) == uname:
+			live_unit = u
+			break
+	if live_unit != null and highlight_manager != null:
+		# show_move_highlight 会自行管理高亮生命周期；传单格字典做短促高亮，随后交给正常流程清理
+		highlight_manager.show_move_highlight({live_unit.grid_cell: true}, Color(color.r, color.g, color.b, 0.55), -1, true)
+
+
+func _display_name_of(unit_data) -> String:
+	if unit_data == null:
+		return "单位"
+	var dn := str(unit_data.display_name)
+	return dn if dn != "" else str(unit_data.unit_name)
+
+
 func _active_cd_tag(inst: TalentInstance) -> String:
 	if inst == null:
 		return ""

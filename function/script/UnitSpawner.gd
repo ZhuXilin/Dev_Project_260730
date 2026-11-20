@@ -3,7 +3,9 @@ class_name UnitSpawner
 
 const UNIT_PATH = Config.PATHS.UNIT_SCENE
 
-const ENABLE_STRENGTH_MULTIPLIERS : bool = false
+## ★ v6.33：开启敌方难度倍率（原 false 导致三天难度恒定、Boss 不比杂兵肉）。
+##   day1/day2/day3 敌人属性 0.8/1.0/1.2，Boss 血量 ×2.0。试玩后可调整表内数值。
+const ENABLE_STRENGTH_MULTIPLIERS : bool = true
 const BOSS_HP_MULT : float = 2.0
 const ELITE_SCRUB_HP_MULT : float = 1.5
 const BOSS_SCRUB_HP_MULT : float = 1.2

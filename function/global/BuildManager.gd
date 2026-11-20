@@ -70,8 +70,9 @@ const MECHANISM_SLOTS: Dictionary = {
 }
 const DEFAULT_MECHANISM_SLOTS: int = 2
 
-## 品质 → 机制 Lv 上限
-const QUALITY_CAP: Dictionary = {"common": 1, "rare": 2, "epic": 3, "legendary": 4}
+## 品质 → 机制 Lv 上限（v6.34：cap 前移一档，让 common 也能升到 Lv2，
+##   解决早期 common 占 60% 却 cap=1 导致"同流派并入升 Lv"毫无反馈的痛点）
+const QUALITY_CAP: Dictionary = {"common": 2, "rare": 3, "epic": 4, "legendary": 4}
 
 ## 价格兜底（读取 economy_config.json 失败时使用）
 const FALLBACK_ROLL_BASE: int = 100
@@ -348,6 +349,71 @@ func get_ember_crit_bonus(level: int) -> float:
 	return 0.10 * float(mini(level, RESONANCE_MAX_LEVEL))
 
 
+# ============================================================
+#  ★ v6.34：Lv 阈值质变（B2）——Lv2/Lv4 解锁定性能力，而非纯数值。
+#   战斗层各钩子通过 has_breakthrough(unit, school, key) 读取。
+# ============================================================
+const BREAKTHROUGH_LV2: int = 2
+const BREAKTHROUGH_LV4: int = 4
+
+## 某流派在当前有效 Lv 下是否解锁了指定质变能力。
+## key 见下表：flame_stack / flame_spread / guard_lifesteal / guard_teamshield /
+##   cycle_heal / cycle_reset / ash_persist / ash_burst /
+##   sacrifice_shieldfirst / sacrifice_rage / ember_pierce / ember_burnout
+func has_breakthrough(unit, school: String, key: String) -> bool:
+	var lv := get_effective_school_level(unit, school)
+	match key:
+		"flame_stack", "guard_lifesteal", "cycle_heal", "ash_persist", "sacrifice_shieldfirst", "ember_pierce":
+			return lv >= BREAKTHROUGH_LV2
+		"flame_spread", "guard_teamshield", "cycle_reset", "ash_burst", "sacrifice_rage", "ember_burnout":
+			return lv >= BREAKTHROUGH_LV4
+	return false
+
+
+## 取某单位所有已解锁的质变 key（供 UI 展示 / 联动判定）
+func get_breakthroughs(unit, school: String) -> Array:
+	var eff := get_effective_school_level(unit, school)
+	var keys: Array = []
+	if eff <= 0:
+		return keys
+	var all: Dictionary = {
+		"烈焰": ["flame_stack", "flame_spread"],
+		"守护": ["guard_lifesteal", "guard_teamshield"],
+		"轮回": ["cycle_heal", "cycle_reset"],
+		"灰烬": ["ash_persist", "ash_burst"],
+		"献祭": ["sacrifice_shieldfirst", "sacrifice_rage"],
+		"余烬": ["ember_pierce", "ember_burnout"],
+	}
+	for k in all.get(school, []):
+		if has_breakthrough(unit, school, k):
+			keys.append(k)
+	return keys
+
+
+# ============================================================
+#  ★ v6.34：流派联动（B3）——两流派同时觉醒触发 1+1>2 的组合效果。
+#   返回 [{key, name, desc, schools}]，数量克制（5 组），触发走 build_awakened 反馈。
+# ============================================================
+const SYNERGIES: Array = [
+	{"key": "wildfire", "name": "野火", "schools": ["烈焰", "灰烬"], "desc": "燃烧地块附带灼烧"},
+	{"key": "bloodrite", "name": "血祭", "schools": ["轮回", "献祭"], "desc": "献祭扣血转化为回魂火"},
+	{"key": "laststand", "name": "背水", "schools": ["守护", "余烬"], "desc": "格挡后下次攻击必暴"},
+	{"key": "reaper", "name": "收割", "schools": ["轮回", "余烬"], "desc": "击杀重置必暴装填"},
+	{"key": "immolate", "name": "焚身", "schools": ["烈焰", "献祭"], "desc": "扣血时点燃自身周围"},
+]
+
+## 取单位已激活的流派联动（两个流派都 effective Lv>0 才算）
+func get_active_synergies(unit) -> Array:
+	var result: Array = []
+	for syn in SYNERGIES:
+		var schools: Array = syn["schools"]
+		if schools.size() < 2:
+			continue
+		if get_effective_school_level(unit, schools[0]) > 0 and get_effective_school_level(unit, schools[1]) > 0:
+			result.append(syn)
+	return result
+
+
 ## BuildViewer / 提示统一文案
 func get_effective_mechanic_text(unit, school: String) -> String:
 	var base: int = get_school_level(_unit_data_of(unit), school)
@@ -381,6 +447,7 @@ func apply_armor(unit: UnitData, item_id: String, quality: String, forced_school
 		var entry: Dictionary = mechs[school]
 		if not (entry is Dictionary):
 			entry = {}
+		var old_level := int(entry.get("level", 1))
 		var count := int(entry.get("count", 1)) + 1
 		var old_cap := int(entry.get("cap", 1))
 		var new_cap := maxi(old_cap, cap)
@@ -391,6 +458,9 @@ func apply_armor(unit: UnitData, item_id: String, quality: String, forced_school
 		mechs[school] = entry
 		_append_armor_instance(unit, item_id)
 		build_changed.emit(unit.unit_name)
+		# ★ v6.34（B1）：升 Lv 跨过 2/4 质变阈值才发觉醒反馈，普通并入不刷屏
+		if _crossed_breakthrough(old_level, level):
+			SignalBus.build_awakened.emit(unit, school, level, get_school_color(school))
 		return {"result": "merge", "school": school, "level": level, "cap": new_cap, "replaced": ""}
 
 	var used := mechs.size()
@@ -401,7 +471,15 @@ func apply_armor(unit: UnitData, item_id: String, quality: String, forced_school
 	mechs[school] = {"level": 1, "cap": cap, "count": 1}
 	_append_armor_instance(unit, item_id)
 	build_changed.emit(unit.unit_name)
+	# ★ v6.34（B1）：首次觉醒即仪式反馈
+	SignalBus.build_awakened.emit(unit, school, 1, get_school_color(school))
 	return {"result": "awaken", "school": school, "level": 1, "cap": cap, "replaced": ""}
+
+
+## 升 Lv 是否跨过 2/4 质变阈值
+func _crossed_breakthrough(old_lv: int, new_lv: int) -> bool:
+	return (old_lv < BREAKTHROUGH_LV2 and new_lv >= BREAKTHROUGH_LV2) or \
+		(old_lv < BREAKTHROUGH_LV4 and new_lv >= BREAKTHROUGH_LV4)
 
 
 ## 满槽时覆盖某流派：移除被覆盖流派，觉醒新流派。0G。
@@ -412,6 +490,16 @@ func overwrite_school(unit: UnitData, school_to_remove: String, item_id: String,
 	if not mechs.has(school_to_remove):
 		return apply_armor(unit, item_id, quality, forced_school)
 	mechs.erase(school_to_remove)
+	# ★ v6.34：同步移除 armor_slots 中属于被覆盖流派的防具实例，
+	#   否则 SetBonusManager 按 armor_slots 统计 tag 时，被覆盖的流派仍在贡献套装/词条，
+	#   造成"机制视图已删、底层数据还在"的口径脱节。
+	for i in range(unit.armor_slots.size() - 1, -1, -1):
+		var slot_v = unit.armor_slots[i]
+		if slot_v == null:
+			continue
+		var slot_inst: ItemInstance = slot_v as ItemInstance
+		if slot_inst and get_school_of_item(slot_inst.item_id) == school_to_remove:
+			unit.armor_slots[i] = null
 	build_changed.emit(unit.unit_name)
 	var applied := apply_armor(unit, item_id, quality, forced_school)
 	applied["replaced"] = school_to_remove
@@ -928,7 +1016,46 @@ func get_armor_roll_pool(quality_level: int, count: int = 8) -> Array:
 			"color": color,
 			"icon": data.icon if data != null else null,
 		})
+
+	# ★ v6.34：品质保底——若整池全是 common，强制把第一个条目替换为一件 rare+ 防具，
+	#   避免早期 8 个候选全是 Lv 上限低的价值重复项。重 roll 保证 item_id 与 quality 一致。
+	var has_high: bool = false
+	for e in entries:
+		if str(e.get("quality", "common")) != "common":
+			has_high = true
+			break
+	if not has_high and not entries.is_empty():
+		var hi: Dictionary = {}
+		for attempt in range(30):
+			var q: String = ["rare", "epic", "legendary"][randi() % 3]
+			var r: Dictionary = roll_armor(_quality_index_for(q))
+			if not r.is_empty() and str(r.get("quality", "common")) != "common" and not seen.has(str(r.get("item_id", ""))):
+				hi = r
+				break
+		if not hi.is_empty():
+			var hd: ItemData = ItemManager.get_item_data(str(hi.get("item_id", "")))
+			var hs: String = str(hi.get("school", ""))
+			var hcolor := get_school_color(hs) if hs != "" else Color(0.82, 0.82, 0.86)
+			entries[0] = {
+				"id": str(hi.get("item_id", "")),
+				"item_id": str(hi.get("item_id", "")),
+				"name": ("【%s】%s" % [hs, str(hi.get("name", ""))]) if hs != "" else str(hi.get("name", "")),
+				"quality": str(hi.get("quality", "rare")),
+				"school": hs,
+				"mechanic": str(hi.get("mechanic", "")),
+				"color": hcolor,
+				"icon": hd.icon if hd != null else null,
+			}
 	return entries
+
+
+## 品质字符串 → quality_level 索引（用于保底重 roll）
+func _quality_index_for(q: String) -> int:
+	match q:
+		"rare": return 2
+		"epic": return 4
+		"legendary": return 5
+	return 0
 
 
 ## 重铸流派：保留品质与词条，只改流派。返回新的 school。

@@ -909,6 +909,20 @@ func _show_attack_menu(attacker: Unit, target: Unit, _is_after_move: bool) -> vo
 		meta_by_id[next_id] = {"kind": "disabled"}
 		next_id += 1
 
+	# ★ v6.34（B4）：Build 觉醒技——攒满 100 能量可主动释放 build 专属大招
+	if attacker.unit_stats.team_id == 0:
+		var be := CombatManager.get_build_energy(attacker)
+		var dom := CombatManager.get_dominant_school(attacker)
+		if CombatManager.can_release_build_burst(attacker) and dom != "":
+			popup.add_item("★ %s · Build 觉醒技（能量满）！" % dom, next_id)
+			meta_by_id[next_id] = {"kind": "build_burst"}
+		else:
+			popup.add_item("Build 觉醒技（能量 %d/100%s）" % [
+				be, " · 需先觉醒流派" if dom == "" else ""], next_id)
+			popup.set_item_disabled(popup.item_count - 1, true)
+			meta_by_id[next_id] = {"kind": "disabled"}
+		next_id += 1
+
 	if emergency_available:
 		var em_heal = CombatManager.get_expected_emergency_heal(attacker, target)
 		popup.add_item("急救 (回复: %d，耗%d魂火)" % [em_heal, emergency_cost], next_id)
@@ -937,6 +951,8 @@ func _show_attack_menu(attacker: Unit, target: Unit, _is_after_move: bool) -> vo
 
 		if kind == "emergency_heal":
 			call_deferred("_do_emergency_heal_async", attacker, target)
+		elif kind == "build_burst":
+			call_deferred("_do_build_burst_async", attacker)
 		else:
 			call_deferred("_do_combat_async", attacker, target, skill_id)
 	)
@@ -1022,3 +1038,14 @@ func _do_emergency_heal_async(attacker : Unit, target : Unit):
 	await CombatManager.execute_emergency_heal(attacker, target)
 	if is_instance_valid(target):
 		_bf.suppress_range_for_unit(target)
+
+
+## ★ v6.34（B4）：释放 build 觉醒技并消耗该单位本回合行动
+func _do_build_burst_async(attacker : Unit):
+	if not is_instance_valid(attacker):
+		return
+	CombatManager.release_build_burst(attacker)
+	if is_instance_valid(attacker):
+		attacker.has_attacked = true
+		attacker.has_acted = true
+		_bf.suppress_range_for_unit(attacker)

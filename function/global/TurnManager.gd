@@ -214,6 +214,11 @@ func _apply_school_turn_start() -> void:
 			unit.apply_damage(cost)
 			SignalBus.request_damage_popup.emit(unit.global_position, cost, false, false, false)
 		unit.school_sacrifice_attack_bonus = BuildManager.get_sacrifice_attack_bonus(lv)
+		# ★ v6.34（B2）献祭 Lv4 质变：残血(<30%)时本回合攻击加成翻倍
+		if BuildManager.has_breakthrough(unit, "献祭", "sacrifice_rage") \
+				and float(unit.hit_points) / float(maxi(1, unit.unit_stats.max_hp)) < 0.30:
+			unit.school_sacrifice_attack_bonus *= 2.0
+			SignalBus.request_hint_override.emit("献祭·焚尽 · 残血攻击翻倍！", 1.0)
 		SignalBus.request_hint_override.emit(
 			"献祭 · 扣 %d HP，本回合攻击 +%d%%" % [
 				cost, int(unit.school_sacrifice_attack_bonus * 100.0)], 0.9)

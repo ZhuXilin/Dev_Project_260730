@@ -997,16 +997,129 @@ func _on_kill(attacker: Unit, _defender: Unit) -> bool:
 			var val : int = int(cb.get("value", 0))
 			if val > 0: SoulFireManager.add(val)
 
-	# ★ 击杀也算一次命中，不再发放击杀额外奖励
+	# ★ v6.33：击杀走 on_kill（配置 kill=3 / 多杀+2 / 触底反弹+1），
+	#   而非 on_hit(1)——后者只是命中收益，旧实现让击杀魂火配置完全失效。
+	#   其余 8 处 on_hit(1) 均为"命中未击杀"分支，保持不变。
 	if attacker.unit_stats.team_id == 0:
-		# ★ v6.2 轮回：击杀额外回魂火（与命中 +1 分开结算，玩家能看到两段收益）
+		# ★ v6.2 轮回：击杀额外回魂火（与基础击杀收益分开结算，玩家能看到两段收益）
 		var cycle_lv := BuildManager.get_effective_school_level(attacker, "轮回")
 		if cycle_lv > 0:
 			var cycle_gain : int = BuildManager.get_cycle_soul_gain(cycle_lv)
 			SoulFireManager.add(cycle_gain)
 			SignalBus.request_hint_override.emit("轮回 · 击杀回 %d 魂火" % cycle_gain, 0.9)
-		SoulFireManager.on_hit(1)
+			# ★ v6.34（B2）轮回 Lv2 质变：击杀同时治疗最低血队友
+			if BuildManager.has_breakthrough(attacker, "轮回", "cycle_heal"):
+				var ally := _lowest_hp_ally(attacker)
+				if ally != null:
+					var heal := maxi(1, int(ally.unit_stats.max_hp * 0.08))
+					ally.hit_points = mini(ally.hit_points + heal, ally.unit_stats.max_hp)
+					SignalBus.request_damage_popup.emit(ally.global_position, heal, false, false, true)
+		SoulFireManager.on_kill(1)
+		# ★ v6.34（B4）：击杀攒 build 能量 +2
+		add_build_energy(attacker, 2)
 	return cleave_triggered
+
+
+# ============================================================
+#  ★ v6.34（B4）：Build 觉醒技——攒能量，玩家主动释放 build 专属大招。
+#   能量存于 Unit meta（不进存档/序列化，战斗内临时），与魂火经济隔离。
+# ============================================================
+const BUILD_ENERGY_MAX: int = 100
+const BUILD_ENERGY_META: String = "build_energy"
+
+func get_build_energy(unit: Unit) -> int:
+	if not is_instance_valid(unit):
+		return 0
+	return int(unit.get_meta(BUILD_ENERGY_META, 0))
+
+func add_build_energy(unit: Unit, amount: int) -> void:
+	if not is_instance_valid(unit):
+		return
+	var cur: int = mini(BUILD_ENERGY_MAX, get_build_energy(unit) + amount)
+	unit.set_meta(BUILD_ENERGY_META, cur)
+
+func can_release_build_burst(unit: Unit) -> bool:
+	return is_instance_valid(unit) and get_build_energy(unit) >= BUILD_ENERGY_MAX
+
+## 取单位有效 Lv 最高的流派（共鸣后），决定觉醒技效果
+func get_dominant_school(unit: Unit) -> String:
+	var best: String = ""
+	var best_lv: int = 0
+	for s in BuildManager.SCHOOL_ORDER:
+		var lv := BuildManager.get_effective_school_level(unit, s)
+		if lv > best_lv:
+			best_lv = lv
+			best = s
+	return best
+
+## 释放 build 觉醒技：按最高流派对全场产生效果，清空能量。返回释放的流派名。
+func release_build_burst(unit: Unit) -> String:
+	if not can_release_build_burst(unit):
+		return ""
+	var school := get_dominant_school(unit)
+	if school == "":
+		return ""
+	unit.set_meta(BUILD_ENERGY_META, 0)
+	var allies: Array = []
+	var enemies: Array = []
+	for u in UnitManager.unit_list:
+		if not is_instance_valid(u) or u.hit_points <= 0:
+			continue
+		if u.unit_stats.team_id == unit.unit_stats.team_id:
+			allies.append(u)
+		else:
+			enemies.append(u)
+	match school:
+		"烈焰":
+			for e in enemies:
+				var d := maxi(5, int(unit.unit_stats.attack * 0.6))
+				e.apply_damage(d)
+				SignalBus.request_damage_popup.emit(e.global_position, d, true, false, false)
+		"守护":
+			for a in allies:
+				var h := maxi(5, int(a.unit_stats.max_hp * 0.2))
+				a.hit_points = mini(a.hit_points + h, a.unit_stats.max_hp)
+				SignalBus.request_damage_popup.emit(a.global_position, h, false, false, true)
+		"轮回":
+			SoulFireManager.add(3)
+			for a in allies:
+				var h := maxi(5, int(a.unit_stats.max_hp * 0.15))
+				a.hit_points = mini(a.hit_points + h, a.unit_stats.max_hp)
+				SignalBus.request_damage_popup.emit(a.global_position, h, false, false, true)
+		"灰烬":
+			for e in enemies:
+				var d := maxi(5, int(unit.unit_stats.attack * 0.45))
+				e.apply_damage(d)
+				SignalBus.request_damage_popup.emit(e.global_position, d, true, false, false)
+		"献祭":
+			for a in allies:
+				a.buff_attack_percent = a.buff_attack_percent + 0.30
+		"余烬":
+			for e in enemies:
+				var d := maxi(5, int(unit.unit_stats.attack * 0.5))
+				e.apply_damage(d)
+				SignalBus.request_damage_popup.emit(e.global_position, d, true, false, false)
+	SignalBus.request_hint_override.emit("★ %s · Build 觉醒技释放！" % school, 1.8)
+	SignalBus.request_screen_shake.emit(0.45, 9.0, Vector2.ZERO)
+	return school
+
+
+## 找同队中"当前 HP 比例最低且存活"的队友（用于轮回 Lv2 治疗质变）
+func _lowest_hp_ally(unit: Unit) -> Unit:
+	if not is_instance_valid(unit):
+		return null
+	var best: Unit = null
+	var best_ratio: float = 2.0
+	for u in UnitManager.unit_list:
+		if not is_instance_valid(u) or u.hit_points <= 0:
+			continue
+		if u.unit_stats.team_id != unit.unit_stats.team_id:
+			continue
+		var ratio: float = float(u.hit_points) / float(maxi(1, u.unit_stats.max_hp))
+		if ratio < best_ratio:
+			best_ratio = ratio
+			best = u
+	return best
 
 
 func _apply_aura_kill_effect(attacker : Unit, aura_id : String):
@@ -1122,6 +1235,11 @@ func _apply_damage_with_effects(defender: Unit, damage: int, attacker: Unit, is_
 			var reflect_dmg : int = maxi(1, int(damage * reflect_ratio))
 			attacker.apply_damage(reflect_dmg)
 			SignalBus.request_damage_popup.emit(attacker.global_position, reflect_dmg, false, false, false)
+			# ★ v6.34（B2）守护 Lv2 质变：反弹同时为自身回血（反弹量 50%）
+			if BuildManager.has_breakthrough(defender, "守护", "guard_lifesteal"):
+				var ls := maxi(1, int(reflect_dmg * 0.5))
+				defender.hit_points = mini(defender.hit_points + ls, defender.unit_stats.max_hp)
+				SignalBus.request_damage_popup.emit(defender.global_position, ls, false, false, true)
 			if DEBUG_DAMAGE_LOG:
 				print("[守护] Lv%d 反弹 %s → %d%s" % [
 					guard_lv, attacker.unit_stats.unit_name, reflect_dmg,
@@ -1165,6 +1283,7 @@ func _apply_damage_with_effects(defender: Unit, damage: int, attacker: Unit, is_
 		and defender.unit_stats.team_id != attacker.unit_stats.team_id:
 		var flame_lv := BuildManager.get_flame_level(attacker)
 		if flame_lv > 0:
+			add_build_energy(attacker, 1)
 			var burn : int = maxi(1, int(damage * BuildManager.get_flame_burn_ratio(flame_lv)))
 			if DEBUG_DAMAGE_LOG:
 				print("[烈焰] Lv%d 灼烧 %s → %d" % [

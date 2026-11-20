@@ -361,6 +361,10 @@ func _do_one_battle() -> int:
 		if soul_gain > 0:
 			GameState.soul += soul_gain
 			_earned_soul += soul_gain
+		# ★ v6.34（L2）：竞技场反哺主线——每 2 场胜利推进 1 点地图进度（解锁曲线共用），
+		#   让竞技场不再是纯独立小游戏。频率减半避免刷进度过快。
+		if _streak > 0 and _streak % 2 == 0:
+			ProgressUnlockManager.advance(true)
 
 		var talent_results : Array = _add_talent_exp_to_all(exp_gain)
 		# ★ v6.10：奖励机制同步——单位经验自动升级（对齐主线 VictoryHandler）

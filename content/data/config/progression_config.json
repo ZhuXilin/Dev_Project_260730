@@ -7,7 +7,7 @@
 	  "costs": [
 		50.0,
 		200.0,
-		800.0
+		350.0
 	  ],
 	  "id": "blessing_vitality",
 	  "levels": [
@@ -23,7 +23,7 @@
 	  "costs": [
 		50.0,
 		200.0,
-		800.0
+		350.0
 	  ],
 	  "id": "blessing_strength",
 	  "levels": [
@@ -39,7 +39,7 @@
 	  "costs": [
 		50.0,
 		200.0,
-		800.0
+		350.0
 	  ],
 	  "id": "blessing_dexterity",
 	  "levels": [
@@ -55,7 +55,7 @@
 	  "costs": [
 		50.0,
 		200.0,
-		800.0
+		350.0
 	  ],
 	  "id": "blessing_intelligence",
 	  "levels": [
@@ -71,7 +71,7 @@
 	  "costs": [
 		50.0,
 		200.0,
-		800.0
+		350.0
 	  ],
 	  "id": "blessing_faith",
 	  "levels": [
@@ -87,7 +87,7 @@
 	  "costs": [
 		50.0,
 		200.0,
-		800.0
+		350.0
 	  ],
 	  "id": "blessing_arcane",
 	  "levels": [

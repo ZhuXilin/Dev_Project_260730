@@ -2,54 +2,54 @@
   "_comment": "v5.16 地图进度解锁：campaign_progress 为跨局累计通关节点数，达到 threshold 自动永久解锁对应天赋/遗物，替代原未接线的魂解锁通道。",
   "talent_milestones": [
     {
-      "threshold": 3,
+      "threshold": 5,
       "title": "初火",
       "talents": ["bleed", "spell_chain", "heal_boost"]
     },
     {
-      "threshold": 6,
+      "threshold": 10,
       "title": "余烬",
       "talents": ["counter_boost", "combo", "vengeance"]
     },
     {
-      "threshold": 10,
+      "threshold": 18,
       "title": "炎势",
       "talents": ["blood_rage", "zeal", "revive"]
     },
     {
-      "threshold": 15,
+      "threshold": 28,
       "title": "锋刃",
       "talents": ["cleave", "active_charge", "active_heavy_slash"]
     },
     {
-      "threshold": 21,
+      "threshold": 40,
       "title": "术式",
       "talents": ["active_pierce", "active_snipe", "active_fireball"]
     },
     {
-      "threshold": 28,
+      "threshold": 55,
       "title": "终焰",
       "talents": ["active_dive", "active_mass_heal", "active_taunt", "active_dragon_breath"]
     }
   ],
   "relic_milestones": [
     {
-      "threshold": 5,
+      "threshold": 8,
       "title": "拾遗",
       "relics": ["relic_health"]
     },
     {
-      "threshold": 12,
+      "threshold": 18,
       "title": "蓄能",
       "relics": ["relic_faith"]
     },
     {
-      "threshold": 20,
+      "threshold": 32,
       "title": "淬炼",
       "relics": ["relic_strength"]
     },
     {
-      "threshold": 30,
+      "threshold": 50,
       "title": "浴火",
       "relics": ["relic_phoenix"]
     }
