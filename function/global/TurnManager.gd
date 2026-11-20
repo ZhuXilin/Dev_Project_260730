@@ -178,7 +178,7 @@ func start_turn(team: Team):
 	if team == Team.PLAYER:
 		SoulFireManager.tick_turn_start(UnitManager.unit_list)
 		_apply_turn_start_regen()
-		_apply_turn_start_auras()
+		# ★ v6.35：独立光环回合效果已移除（aura_* 并入遗物 effects，避免双重结算）
 		_apply_turn_start_fusion()
 		_apply_charge_stacks()
 

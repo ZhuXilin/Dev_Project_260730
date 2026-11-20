@@ -464,6 +464,31 @@ func _refresh_attr_cap_panel():
 		attr_container.add_child(HSeparator.new())
 		attr_container.add_child(_make_info("— 已达上限 Lv6 —"))
 
+	# ★ v6.35：局外祝福购买区（每级 +1 属性，vitality +1 最大 HP）
+	attr_container.add_child(HSeparator.new())
+	attr_container.add_child(_make_title("— 局外祝福（永久，按单位）—"))
+	var bless_attrs: Array = ["vitality", "strength", "dexterity", "intelligence", "faith"]
+	var bless_cn: Dictionary = {"vitality": "生命", "strength": "力量", "dexterity": "灵巧", "intelligence": "智力", "faith": "信仰"}
+	for attr in bless_attrs:
+		var blv := GameState.get_blessing_level(_current_unit_type, attr)
+		var bcost := GameState.get_blessing_cost_for(_current_unit_type, attr)
+		if bcost < 0:
+			attr_container.add_child(_make_info("%s 祝福 Lv%d（已满）" % [bless_cn.get(attr, attr), blv]))
+		else:
+			var a: String = attr
+			attr_container.add_child(_make_upgrade_row(
+				"%s 祝福 Lv%d→%d" % [bless_cn.get(attr, attr), blv, blv + 1],
+				bcost, func(): _on_buy_blessing(a)))
+
+
+func _on_buy_blessing(attr: String):
+	if GameState.buy_blessing(_current_unit_type, attr):
+		_show_msg("祝福购买成功：%s" % attr)
+		_refresh_attr_cap_panel()
+		_refresh_soul()
+	else:
+		_show_msg("魂不足或已满级")
+
 
 func _add_attr_row(grid: GridContainer, attr_name: String, base_v: int, cur_v: int):
 	var lb1 = _make_info(attr_name)

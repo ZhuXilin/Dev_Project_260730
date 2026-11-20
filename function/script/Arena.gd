@@ -50,6 +50,9 @@ func _ready():
 	MusicManager.play_arena_music()
 	_refresh_hint_label()
 	_build_unit_list()
+	# ★ v6.35（A-B1）：监听 build 觉醒信号，竞技场也给仪式反馈
+	if not SignalBus.build_awakened.is_connected(_on_build_awakened_arena):
+		SignalBus.build_awakened.connect(_on_build_awakened_arena)
 	
 	if selected_unit_label: selected_unit_label.visible = false
 	if info_label: info_label.visible = false
@@ -361,10 +364,12 @@ func _do_one_battle() -> int:
 		if soul_gain > 0:
 			GameState.soul += soul_gain
 			_earned_soul += soul_gain
-		# ★ v6.34（L2）：竞技场反哺主线——每 2 场胜利推进 1 点地图进度（解锁曲线共用），
-		#   让竞技场不再是纯独立小游戏。频率减半避免刷进度过快。
-		if _streak > 0 and _streak % 2 == 0:
+		# ★ v6.35（防刷）：竞技场进度反哺仅在刷新历史最佳连胜时给，
+		#   避免反复重开竞技场刷解锁进度（每 run 最多 streak=4，共 +2 进度）。
+		if _streak > 0 and _streak % 2 == 0 and _streak > GameState.arena_best_streak:
 			ProgressUnlockManager.advance(true)
+		if _streak > GameState.arena_best_streak:
+			GameState.arena_best_streak = _streak
 
 		var talent_results : Array = _add_talent_exp_to_all(exp_gain)
 		# ★ v6.10：奖励机制同步——单位经验自动升级（对齐主线 VictoryHandler）
@@ -671,6 +676,22 @@ func _on_back_pressed():
 		MusicManager.play_music(MusicManager.config.camp_music)
 	closed.emit()
 	queue_free()
+
+## ★ v6.35（A-B1）：build 觉醒仪式反馈（竞技场版，无世界坐标，用 hint_label + 震屏）
+func _on_build_awakened_arena(unit_data, school: String, new_level: int, color: Color) -> void:
+	if not is_inside_tree():
+		return
+	var tag := "觉醒" if new_level <= 1 else "Lv%d 质变" % new_level
+	var uname := str(unit_data.display_name) if unit_data != null and str(unit_data.display_name) != "" else "单位"
+	if hint_label:
+		hint_label.text = "★ %s · %s %s！" % [uname, school, tag]
+		hint_label.add_theme_color_override("font_color", color)
+		# 2 秒后恢复默认 hint
+		await get_tree().create_timer(2.0, true, false, true).timeout
+		if is_instance_valid(hint_label) and is_inside_tree():
+			_refresh_hint_label()
+	SignalBus.request_screen_shake.emit(0.25, 5.0, Vector2.ZERO)
+
 
 func _refresh_hint_label():
 	if hint_label:

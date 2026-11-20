@@ -216,7 +216,21 @@ func get_effective_attr(attr_name: String) -> int:
 		_:              return 0
 	var bonus : Dictionary = get_armor_modifier_bonus()
 	var bonus_val : int = int(bonus.get(attr_name, 0))
-	return base + bonus_val
+	# ★ v6.35：局外祝福加成（unit_blessings，每级 +1；vitality 映射到 max_hp）
+	var blessed: int = _get_blessing_level(attr_name)
+	return base + bonus_val + blessed
+
+
+## 取本单位某属性的祝福等级（0~3）
+func _get_blessing_level(attr_name: String) -> int:
+	var key := UnitDataManager.normalize_unit_key(unit_name)
+	var ub: Dictionary = GameState.unit_blessings.get(key, {})
+	var bkey := "blessing_" + attr_name
+	if attr_name == "max_hp":
+		bkey = "blessing_vitality"
+	elif attr_name == "vitality":
+		bkey = "blessing_vitality"
+	return clampi(int(ub.get(bkey, 0)), 0, 3)
 
 func apply_level_up() -> bool:
 	if level >= 6 or is_dead: return false

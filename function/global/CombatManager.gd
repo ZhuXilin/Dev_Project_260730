@@ -978,9 +978,7 @@ func _on_kill(attacker: Unit, _defender: Unit) -> bool:
 		attacker.remaining_move += attacker.relic_kill_grants_extra_move
 		attacker.has_moved = false
 
-	for aid in attacker.active_auras:
-		if not attacker.active_auras[aid]: continue
-		_apply_aura_kill_effect(attacker, aid)
+	# ★ v6.35：光环已并入遗物（relic_data.json 的 aura_* + effects），独立光环击杀效果已移除。
 
 	var bonus_sf : int = 0
 	for slot in attacker.armor_slots:

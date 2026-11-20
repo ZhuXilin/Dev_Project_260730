@@ -53,17 +53,9 @@ func get_research_time(aura_id: String) -> int:
 func get_unlock_cost(aura_id: String) -> int:
 	return int(get_aura(aura_id).get("unlock_cost", 100))
 
-func start_research(aura_id: String) -> bool:
-	if is_unlocked(aura_id): return false
-	if is_researching(aura_id): return false
-	if not GameState.active_aura_research.is_empty(): return false
-	var cost : int = get_unlock_cost(aura_id)
-	if GameState.soul < cost: return false
-	GameState.soul -= cost
-	GameState.active_aura_research = {"aura_id": aura_id}
-	GameState.aura_research_progress[aura_id] = 0
-	SaveManager.auto_save()
-	return true
+func start_research(_aura_id: String) -> bool:
+	# ★ v6.35：独立光环研究已移除（aura_* 并入遗物池），不再扣魂/开启研究。
+	return false
 
 func advance_research():
 	var aid : String = GameState.active_aura_research.get("aura_id", "")
@@ -75,16 +67,8 @@ func advance_research():
 	SaveManager.auto_save()
 
 func accelerate_research() -> bool:
-	var aid : String = GameState.active_aura_research.get("aura_id", "")
-	if aid == "": return false
-	if GameState.soul < ACCEL_COST: return false
-	GameState.soul -= ACCEL_COST
-	var cur : int = get_research_progress(aid) + 1
-	var need : int = get_research_time(aid)
-	GameState.aura_research_progress[aid] = cur
-	if cur >= need: _finish_research(aid)
-	SaveManager.auto_save()
-	return true
+	# ★ v6.35：独立光环研究已移除，不再扣魂加速。
+	return false
 
 func _finish_research(aura_id: String):
 	if aura_id not in GameState.unlocked_auras:

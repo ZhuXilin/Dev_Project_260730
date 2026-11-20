@@ -67,6 +67,12 @@ var _enemy_soul: int = 0
 const ARENA_SOUL_CAP: int = 6
 var _player_sacrifice_bonus: float = 0.0   # 献祭本轮攻击加成
 var _enemy_sacrifice_bonus: float = 0.0
+var _player_synergy_bonus: float = 0.0     # ★ v6.35：流派联动本回合攻击加成
+var _enemy_synergy_bonus: float = 0.0
+# ★ v6.35（A-B4）：build 能量与觉醒技（1v1 自动战斗版，攒满自动释放）
+const ARENA_BUILD_ENERGY_MAX: int = 100
+var _player_build_energy: int = 0
+var _enemy_build_energy: int = 0
 var _player_ember_charged: bool = false    # 余烬：魂火耗尽后的必暴标记
 var _enemy_ember_charged: bool = false
 
@@ -133,6 +139,10 @@ func setup(player_data: UnitData, enemy_data: UnitData, crystal_reward: int = 0,
 	_enemy_soul = 1
 	_player_sacrifice_bonus = 0.0
 	_enemy_sacrifice_bonus = 0.0
+	_player_synergy_bonus = 0.0
+	_enemy_synergy_bonus = 0.0
+	_player_build_energy = 0
+	_enemy_build_energy = 0
 	_player_ember_charged = false
 	_enemy_ember_charged = false
 
@@ -281,6 +291,14 @@ func _run_battle():
 		# ★ v6.10：献祭流派——回合开始扣血换本回合攻击加成
 		_apply_sacrifice(_player, true)
 		_apply_sacrifice(_enemy, false)
+		# ★ v6.35（A-B3）：流派联动——回合开始按组合给一次性小效果
+		_apply_synergies(_player, true)
+		_apply_synergies(_enemy, false)
+		# ★ v6.35（A-B4）：Build 觉醒技——能量满则自动释放
+		_try_release_build_burst(_player, true)
+		_try_release_build_burst(_enemy, false)
+		if _player_hp <= 0 or _enemy_hp <= 0:
+			break
 
 	# ★ v6.10：击杀方的轮回流派回魂火
 	if _enemy_hp <= 0 and _player_hp > 0:
@@ -531,6 +549,16 @@ func _do_attack(attacker: UnitData, defender: UnitData):
 			enemy_hp_bar.value = _enemy_hp
 			_total_damage_dealt += reflect
 		log_label.text += "  [守护反弹 Lv%d +%d]" % [guard_lv, reflect]
+		# ★ v6.35（A-B2）守护 Lv2 质变：反弹同时为自身回血（对齐主线）
+		if BuildManager.has_breakthrough(defender, "守护", "guard_lifesteal"):
+			var ls := maxi(1, int(reflect * 0.5))
+			if is_player_attacker:
+				_enemy_hp = mini(_enemy_hp + ls, maxi(1, defender.max_hp))
+				enemy_hp_bar.value = _enemy_hp
+			else:
+				_player_hp = mini(_player_hp + ls, maxi(1, defender.max_hp))
+				player_hp_bar.value = _player_hp
+			log_label.text += "  [守护回血 +%d]" % ls
 
 	var atk_name = attacker.display_name if attacker.display_name != "" else attacker.unit_name
 	var def_name = defender.display_name if defender.display_name != "" else defender.unit_name
@@ -710,18 +738,26 @@ func _do_attack(attacker: UnitData, defender: UnitData):
 
 func _arena_on_hit(_attacker: UnitData, is_player: bool):
 	# 命中 +1 魂火；魂火归零时给余烬必暴标记
+	# ★ v6.35（A-B4）：命中攒 build 能量 +1
 	if is_player:
 		_player_soul = mini(_player_soul + 1, ARENA_SOUL_CAP)
+		_player_build_energy = mini(ARENA_BUILD_ENERGY_MAX, _player_build_energy + 1)
 		if _player_soul <= 0 and BuildManager.get_effective_school_level(_player, "余烬") > 0:
 			_player_ember_charged = true
 	else:
 		_enemy_soul = mini(_enemy_soul + 1, ARENA_SOUL_CAP)
+		_enemy_build_energy = mini(ARENA_BUILD_ENERGY_MAX, _enemy_build_energy + 1)
 		if _enemy_soul <= 0 and BuildManager.get_effective_school_level(_enemy, "余烬") > 0:
 			_enemy_ember_charged = true
 
 
 ## ★ v6.10：轮回流派——击杀时额外回魂火
 func _arena_on_kill(killer: UnitData, is_player: bool):
+	# ★ v6.35（A-B4）：击杀攒 build 能量 +2（所有流派，放在轮回提前返回之前）
+	if is_player:
+		_player_build_energy = mini(ARENA_BUILD_ENERGY_MAX, _player_build_energy + 2)
+	else:
+		_enemy_build_energy = mini(ARENA_BUILD_ENERGY_MAX, _enemy_build_energy + 2)
 	var lv: int = BuildManager.get_effective_school_level(killer, "轮回")
 	if lv <= 0:
 		return
@@ -749,11 +785,98 @@ func _apply_sacrifice(unit: UnitData, is_player: bool):
 		_player_hp = maxi(1, hp - cost)
 		player_hp_bar.value = _player_hp
 		_player_sacrifice_bonus = BuildManager.get_sacrifice_attack_bonus(lv)
+		# ★ v6.35（A-B2）献祭 Lv4 质变：残血(<30%)攻击加成翻倍
+		if BuildManager.has_breakthrough(unit, "献祭", "sacrifice_rage") \
+				and float(_player_hp) / float(max_hp) < 0.30:
+			_player_sacrifice_bonus *= 2.0
+			log_label.text += "  [献祭·焚尽 残血攻翻倍]"
 	else:
 		_enemy_hp = maxi(1, hp - cost)
 		enemy_hp_bar.value = _enemy_hp
 		_enemy_sacrifice_bonus = BuildManager.get_sacrifice_attack_bonus(lv)
+		if BuildManager.has_breakthrough(unit, "献祭", "sacrifice_rage") \
+				and float(_enemy_hp) / float(max_hp) < 0.30:
+			_enemy_sacrifice_bonus *= 2.0
+			log_label.text += "  [献祭·焚尽 残血攻翻倍]"
 	_refresh_hp_labels()
+
+
+## ★ v6.35（A-B3）：流派联动——每回合按已激活组合给一次性小增益（1v1 简化版）。
+func _apply_synergies(unit: UnitData, is_player: bool) -> void:
+	var syns: Array = BuildManager.get_active_synergies(unit)
+	var atk_bonus: float = 0.0
+	var heal_pct: float = 0.0
+	for syn in syns:
+		match str(syn.get("key", "")):
+			"wildfire": atk_bonus += 0.10
+			"bloodrite": heal_pct += 0.05
+			"laststand": atk_bonus += 0.12
+			"reaper":   atk_bonus += 0.08
+			"immolate": atk_bonus += 0.10
+	if is_player:
+		_player_synergy_bonus = atk_bonus
+		if heal_pct > 0.0:
+			var h := maxi(1, int(maxi(1, unit.max_hp) * heal_pct))
+			_player_hp = mini(_player_hp + h, maxi(1, unit.max_hp))
+			player_hp_bar.value = _player_hp
+			log_label.text += "  [血祭回血 +%d]" % h
+	else:
+		_enemy_synergy_bonus = atk_bonus
+		if heal_pct > 0.0:
+			var h := maxi(1, int(maxi(1, unit.max_hp) * heal_pct))
+			_enemy_hp = mini(_enemy_hp + h, maxi(1, unit.max_hp))
+			enemy_hp_bar.value = _enemy_hp
+			log_label.text += "  [血祭回血 +%d]" % h
+	if syns.size() > 0:
+		_refresh_hp_labels()
+
+
+## ★ v6.35（A-B4）：觉醒技自动释放（1v1 简化）——攒满能量在回合开始触发，效果按最高流派。
+func _try_release_build_burst(unit: UnitData, is_player: bool) -> void:
+	var energy: int = _player_build_energy if is_player else _enemy_build_energy
+	if energy < ARENA_BUILD_ENERGY_MAX:
+		return
+	var school := _dominant_school(unit)
+	if school == "":
+		return
+	if is_player:
+		_player_build_energy = 0
+	else:
+		_enemy_build_energy = 0
+	var my_hp: int = _player_hp if is_player else _enemy_hp
+	var foe_hp: int = _enemy_hp if is_player else _player_hp
+	var atk: int = maxi(5, int(unit.attack * 0.6))
+	match school:
+		"烈焰", "灰烬", "余烬":
+			foe_hp = maxi(0, foe_hp - atk)
+		"守护", "轮回":
+			my_hp = mini(my_hp + maxi(5, int(maxi(1, unit.max_hp) * 0.20)), maxi(1, unit.max_hp))
+		"献祭":
+			if is_player: _player_sacrifice_bonus += 0.30
+			else: _enemy_sacrifice_bonus += 0.30
+	if is_player:
+		_player_hp = my_hp
+		_enemy_hp = foe_hp
+		enemy_hp_bar.value = _enemy_hp
+	else:
+		_enemy_hp = my_hp
+		_player_hp = foe_hp
+		player_hp_bar.value = _player_hp
+	_refresh_hp_labels()
+	_shake_panel(Vector2.ZERO, 8.0, 0.4)
+	log_label.text += "  ★ Build 觉醒技【%s】！" % school
+
+
+## 取单位有效 Lv 最高的流派
+func _dominant_school(unit: UnitData) -> String:
+	var best: String = ""
+	var best_lv: int = 0
+	for s in BuildManager.SCHOOL_ORDER:
+		var lv := BuildManager.get_effective_school_level(unit, s)
+		if lv > best_lv:
+			best_lv = lv
+			best = s
+	return best
 
 
 func _calc_damage(attacker: UnitData, defender: UnitData) -> int:
@@ -782,6 +905,9 @@ func _calc_damage(attacker: UnitData, defender: UnitData) -> int:
 	# ★ v6.10：献祭流派本回合攻击加成
 	var sac_bonus: float = _player_sacrifice_bonus if attacker == _player else _enemy_sacrifice_bonus
 	total_attack *= (1.0 + sac_bonus)
+	# ★ v6.35（A-B3）：流派联动本回合攻击加成
+	var syn_bonus: float = _player_synergy_bonus if attacker == _player else _enemy_synergy_bonus
+	total_attack *= (1.0 + syn_bonus)
 	# ★ v5.10 对齐正式战场：遗物力量缩放伤害
 	if attacker.relic_strength_scale_damage > 0.0:
 		var str_val : int = attacker.get_effective_attr("strength")

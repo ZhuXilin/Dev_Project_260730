@@ -294,6 +294,52 @@ func refine_relic(relic_id: String) -> bool:
 	AnalyticsLogger.record_relic_refine(relic_id)
 	return true
 
+
+# ============================================================
+#  ★ v6.35：局外祝福（unit_blessings）——购买 + 成本 + 等级查询
+# ============================================================
+func get_blessing_level(unit_name: String, attr: String) -> int:
+	var key := UnitDataManager.normalize_unit_key(unit_name)
+	var ub: Dictionary = unit_blessings.get(key, {})
+	return clampi(int(ub.get("blessing_" + attr, 0)), 0, 3)
+
+
+## 某单位某属性升到下一级的花费；已满级返回 -1
+func get_blessing_cost_for(unit_name: String, attr: String) -> int:
+	var cfg: Dictionary = GameConfigManager.get_file("progression_config.json")
+	var costs: Array = []
+	for b in cfg.get("blessings", []):
+		if str(b.get("attr", "")) == attr:
+			costs = b.get("costs", [])
+			break
+	if costs.is_empty():
+		return -1
+	var lv := get_blessing_level(unit_name, attr)
+	if lv >= costs.size():
+		return -1
+	return int(costs[lv])
+
+
+## 购买一级祝福：扣魂、写数据、vitality 直接加 max_hp
+func buy_blessing(unit_name: String, attr: String) -> bool:
+	var cost := get_blessing_cost_for(unit_name, attr)
+	if cost < 0 or soul < cost:
+		return false
+	soul -= cost
+	var key := UnitDataManager.normalize_unit_key(unit_name)
+	if not unit_blessings.has(key):
+		unit_blessings[key] = {}
+	var bkey := "blessing_" + attr
+	unit_blessings[key][bkey] = get_blessing_level(unit_name, attr) + 1
+	# vitality 直接加到单位 max_hp（战斗层 hp_ratio 读字段），同时 party 单位实例也要同步
+	if attr == "vitality":
+		for ud in get_party_units():
+			if ud != null and UnitDataManager.normalize_unit_key(ud.unit_name) == key:
+				ud.max_hp += 1
+				ud.hit_points += 1
+	SaveManager.auto_save()
+	return true
+
 var pending_save_slot : int = -1
 
 func initialize_party(selected_units: Array[String], main_index: int):
@@ -485,6 +531,15 @@ func finish_day(_grant_slot: bool = true):
 func finish_cycle():
 	finish_day(false)
 	SoulFireManager.settle()
+	# ★ v6.35（金币沉淀）：通关时把剩余金币的 10% 折算为永久魂（上限 50），
+	#   避免最后一局金币花不完即清零的浪费感。折算后清零。
+	var leftover: int = temp_gold
+	if leftover > 0:
+		var converted: int = mini(50, int(leftover * 0.10))
+		if converted > 0:
+			soul += converted
+			SignalBus.request_hint_override.emit("★ 剩余金币折算：+%d 魂" % converted, 2.0)
+		temp_gold = 0
 	revive_all_units()
 	if tutorial_stage < 3:
 		tutorial_stage += 1
@@ -492,6 +547,10 @@ func finish_cycle():
 	AnalyticsLogger.finish_run(true)
 
 func abandon_cycle():
+	# ★ v6.35（金币沉淀）：弃局也给 5% 折算（上限 25），降低浪费感
+	var leftover: int = temp_gold
+	if leftover > 0:
+		soul += mini(25, int(leftover * 0.05))
 	temp_gold = 0
 
 func abandon_and_return_to_camp():
@@ -546,16 +605,9 @@ func reset_all():
 var current_aura_candidates : Array = []
 
 func refresh_aura_candidates():
-	var equipped : Array = get_auras_from_passives()
-	var pool : Array = []
-	for aid in unlocked_auras:
-		if aid in equipped: continue
-		pool.append(aid)
-	pool.shuffle()
-	var picked : Array = []
-	for i in range(mini(3, pool.size())):
-		picked.append(pool[i])
-	current_aura_candidates = picked
+	# ★ v6.35：独立光环系统已移除（aura_* 并入遗物池，走遗物三选一获取），
+	#   不再生成光环购买候选，避免与遗物双重扣魂。
+	current_aura_candidates = []
 
 func remove_aura_candidate(aid: String):
 	current_aura_candidates.erase(aid)

@@ -198,3 +198,31 @@ B1 + B2 优先（解决"升 Lv 没感觉/build 无高光"），B3 试玩后加�
 2. H2 后 day1 敌人 0.8 倍偏弱、day3 1.2 倍，Boss×2.0 是否过肉。
 3. M2 cap 前移后早期就能升 Lv2 触发 B2 质变，观察 build 成型速度。
 4. B4 觉醒技满 100 能量的节奏（当前击杀+2、烈焰触发+1）——可能偏慢，试玩后调 `BUILD_ENERGY_MAX` 或增量。
+
+---
+
+## A+B 补充实施记录（2026-11-20 v6.35）
+
+### A. Arena 跟进爽感四层
+Arena 用独立战斗内核 `ArenaBattle.gd`（非主线 CombatManager），且为**自动战斗无玩家操作**，故 B4 改为"能量满自动释放"：
+
+| 层 | 落点 | 说明 |
+|---|---|---|
+| A-B1 | `Arena.gd._ready/_on_build_awakened_arena` | 监听 `build_awakened`，用 hint_label 显示觉醒提示 2 秒 + 震屏（Arena 无世界坐标，不做单位高亮） |
+| A-B2 | `ArenaBattle` 守护反弹段 + `_apply_sacrifice` | 守护 Lv2 反弹回血、献祭 Lv4 残血攻翻倍（轮回 Lv2 治疗队友在 1v1 无队友，跳过） |
+| A-B3 | `ArenaBattle._apply_synergies` + `_calc_damage` | 5 组联动按组合给本回合攻击加成/回血，新增 `_player/enemy_synergy_bonus` |
+| A-B4 | `ArenaBattle` build 能量 + `_try_release_build_burst` | 命中+1/击杀+2，满 100 在回合开始自动释放（攻击型伤敌/防御型回血/献祭加攻），按最高流派 |
+
+H1 击杀魂火未跟进：Arena 本就是简化魂火（命中+1），`_arena_on_kill` 只有轮回额外回魂，保持设计差异。
+
+### B. 局外经济修复
+| 项 | 落点 | 说明 |
+|---|---|---|
+| 祝福入口 | `GameState.buy_blessing/get_blessing_*` + `UnitData.get_effective_attr` + `SoulAltar` | 祝福原是纸面系统（仅 GM 命令写、战斗层不读）。现补购买 UI（魂栈属性页）、扣魂、写入 unit_blessings、战斗属性生效；vitality 购买即加 max_hp |
+| 光环设计债 | `AuraManager.start_research/accelerate_research` 停用；`CombatManager`/`TurnManager` 删光环战斗接线；`LevelManager` 停研究推进；`GameState.refresh_aura_candidates` 返回空；`AnvilTavern` 按钮改提示 | aura_* 6 个光环已完整迁移到 `relic_data.json`（effects + lifetime + from_aura），独立系统纯重复。保留数据/存档字段兼容，仅切断扣魂与双重结算 |
+| 金币沉淀 | `GameState.finish_cycle/abandon_cycle` | 通关时剩余金币 10% 折算魂（上限 50），弃局 5%（上限 25），消除"最后局花不完浪费" |
+| 竞技场防刷 | `Arena.gd` 进度反哺条件 | 仅当 `_streak` 刷新历史最佳（`arena_best_streak`）才推进进度，且补上 best_streak 更新；反复重开不再刷进度 |
+
+### 校验与待验证
+14 个脚本 gdtoolkit 解析全通过，JSON 合法，光环扣魂残留已清除。需实机验证：Arena 觉醒技释放节奏、祝福属性是否进入战斗计算、光环移除后 aura_* 遗物三选一能否正常获取、金币折算比例是否合适。
+

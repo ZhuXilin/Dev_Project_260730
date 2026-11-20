@@ -171,8 +171,7 @@ func _clone_map_data(src: MapData, node_type: int) -> MapData:
 # ============================================================
 func advance_day() -> bool:
 	DispatchManager.advance_run()
-	AuraManager.advance_research()
-
+	# ★ v6.35：光环研究已移除（aura_* 并入遗物），不再推进独立研究
 	current_day += 1
 	if current_day >= 3:
 		all_days_completed.emit()

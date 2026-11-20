@@ -271,15 +271,12 @@ func _refresh_info_panel():
 		})
 
 
-func _on_start_research(aura_id: String):
-	if AuraManager.start_research(aura_id):
-		_refresh_resource_label()
-		_switch_tab(Tab.AURA_RESEARCH)
+func _on_start_research(_aura_id: String):
+	# ★ v6.35：独立光环研究已移除，aura_* 已并入遗物池（走 BOSS 后遗物三选一 / 宝箱获取）
+	SignalBus.request_hint_override.emit("光环研究已并入遗物系统，请通过遗物三选一获取", 2.5)
 
 func _on_accelerate_research():
-	if AuraManager.accelerate_research():
-		_refresh_resource_label()
-		_switch_tab(Tab.AURA_RESEARCH)
+	SignalBus.request_hint_override.emit("光环研究已并入遗物系统", 2.0)
 
 func _clear_content():
 	_hover_type = ""
