@@ -189,7 +189,7 @@ func _refresh_forge_action_btns():
 			var forge_btn := Style.create_styled_button(Style.FONT_SMALL, Style.BTN_ITEM_SIZE)
 			forge_btn.clip_text = false # ★ 取消裁切以允许换行
 			forge_btn.custom_minimum_size = Vector2(36, 28) # ★ 宽度定死，高度增加
-			forge_btn.text = "锻造\n(%dG)" % REFORGE_COST # ★ 强制换行
+			forge_btn.text = "重铸词条\n(%dG)" % REFORGE_COST # ★ v6.38：明确是重掷词条，非已移除的重铸流派
 			forge_btn.alignment = HORIZONTAL_ALIGNMENT_CENTER
 			forge_btn.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 			
@@ -217,7 +217,7 @@ func _refresh_forge_action_btns():
 
 	# 多件合成（2件或以上）
 	var cost : int = CRAFT_COST
-	var txt : String = "锻造\n(%dG)" % cost
+	var txt : String = "合成防具\n(%dG)" % cost
 	
 	if input_insts.size() == 2:
 		var fusion : Dictionary = _check_fusion(input_insts)
@@ -263,7 +263,7 @@ func _on_forge_action_single(inst : ItemInstance):
 	panel._build_unit_columns()
 	panel._build_pending_slots()
 	panel._update_gold_display()
-	panel._show_detail_in_zone("★ %s 已锻造\n（请在上方领取）" % d.name)
+	panel._show_detail_in_zone("★ %s 词条已重铸\n（请在上方领取）" % d.name)
 	SoundManager.play_select_sound()
 	panel._schedule_build_ui()
 

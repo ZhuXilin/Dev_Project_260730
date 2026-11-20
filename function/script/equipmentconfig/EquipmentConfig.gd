@@ -467,19 +467,17 @@ func _refresh_tag_stats():
 	title.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_tag_stats_container.add_child(title)
 
-	# 按固定顺序输出 6 个标签
+	# ★ v6.38（A4）：这是"全队防具分布"，不是套装激活——真实套装判定是同单位 2 件
+	#   (SetBonusManager.get_unit_set_tier)。旧版按全队件数标"已激活 2 件套"是假提示。
 	for tag in UIConst.BUILD_TAG_ORDER:
 		var n : int = int(counts.get(tag, 0))
 		if n <= 0: continue
-		var active : bool = n >= SetBonusManager.SET_THRESHOLD
 		var col : Color = UIConst.BUILD_TAG_COLORS.get(tag, Color.WHITE)
 		var lbl := Label.new()
 		lbl.text = "%s %d" % [tag, n]
 		lbl.add_theme_font_size_override("font_size", Style.FONT_SMALL)
-		# v5.3：数量文字始终使用该流派防具小方块的标识色，保证色系统一
 		lbl.add_theme_color_override("font_color", col)
-		if active:
-			lbl.tooltip_text = "已激活 2 件套效果"
+		lbl.tooltip_text = "全队 %d 件【%s】防具（套装需同一单位 2 件才激活）" % [n, tag]
 		lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		_tag_stats_container.add_child(lbl)
 
@@ -2536,7 +2534,7 @@ func _get_unit_with_talent(talent_id: String) -> String:
 func _is_talent_equipped_anywhere(talent_id: String) -> bool:
 	return _talent.is_talent_equipped_anywhere(talent_id)
 
-func show_item_detail(item_id: String): _detail.show_item(item_id)
+func show_item_detail(item_id: String): _detail.show_item(item_id, [], true)
 func hide_item_detail(): _detail.clear_zone()
 func _on_button_hover_entered(item_id: String): _detail.on_button_hover_entered(item_id)
 

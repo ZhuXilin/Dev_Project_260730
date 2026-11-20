@@ -4,12 +4,13 @@ extends Node
 #  AffixManager — 装备词条
 # ============================================================
 
-# v5.1「明显梯度」：所有品质都有词条，且数量拉开差距
+# v6.38（C1）：词条池 20→16（按 type 去重，乘区全保留），
+# 品质梯度温和收缩（原 1/2/3/4 → 1/2/2/3），减少"高品质要读4条"的负担。
 const QUALITY_AFFIX_COUNT : Dictionary = {
 	"common": 1,
 	"rare": 2,
-	"epic": 3,
-	"legendary": 4,
+	"epic": 2,
+	"legendary": 3,
 }
 
 var _affixes : Dictionary = {}

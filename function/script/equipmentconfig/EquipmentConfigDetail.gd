@@ -111,9 +111,9 @@ func show_unit(unit : UnitData):
 
 
 # ============================================================
-#  show_item（v5.0 扩展：连通组信息）
+#  show_item（v6.38：词条默认折叠，v5 连通组参数已移除）
 # ============================================================
-func show_item(item_id: String, affixes: Array = [], link_group_size: int = 0, link_unit_count: int = 0):
+func show_item(item_id: String, affixes: Array = [], detailed: bool = false):
 	_hover_ref = {"kind": "item", "id": item_id}
 
 	var relic_data : Dictionary = RelicManager.get_relic_data(item_id)
@@ -135,40 +135,47 @@ func show_item(item_id: String, affixes: Array = [], link_group_size: int = 0, l
 
 	var type_str = ""
 	if data.quality: type_str += Style.get_quality_display_name(data.quality) + " "
-	if data.tags: type_str += "[" + "/".join(data.tags) + "]"
-
 	var desc = data.description if data.description else ""
-	
+	var name_color : Color = UIConst.QUALITY_COLORS.get(data.quality, Color.WHITE)
+
 	var stats_arr : Array = []
 	if data.type == "armor":
-		if data.defense > 0: stats_arr.append("防御: +%d" % data.defense)
-		if data.modifier and not data.modifier.is_empty():
-			var mods = []
-			for k in data.modifier: mods.append(Style.get_attr_display_name(k) + "+" + str(data.modifier[k]))
-			stats_arr.append("属性: " + " ".join(mods))
+		# ★ v6.38（A1）：统一为 v6 口径——流派色 + 一句话机制，一眼看懂。
+		#   移除 v5 遗留的连通组/词条列表/套装说明（与 v6 机制视图口径打架）。
+		var schools : Array = []
+		for tag in data.tags:
+			if BuildManager.is_school(tag):
+				schools.append(tag)
+		if schools.size() > 0:
+			var primary : String = str(schools[0])
+			name_color = BuildManager.get_school_color(primary)
+			var mech : String = str(BuildManager.SCHOOLS.get(primary, {}).get("mechanic", ""))
+			stats_arr.append("【%s】%s" % [primary, mech])
+			if schools.size() > 1:
+				stats_arr.append("兼: " + "/".join(schools.slice(1)))
+		else:
+			stats_arr.append("无流派 · 仅属性")
+		if data.defense > 0:
+			stats_arr.append("防御 +%d" % data.defense)
+		# 品质 → 机制 Lv 上限（合并决策的关键信息）
+		var cap : int = int(BuildManager.QUALITY_CAP.get(data.quality, 1))
+		stats_arr.append("机制上限 Lv%d" % cap)
+		# ★ v6.38（A3）：词条默认折叠；详细视图才展开，且隐藏 tag（tag 只用于抽取池不参与共鸣）
+		if detailed and not affixes.is_empty():
+			stats_arr.append("—— 词条详情 ——")
+			for a in affixes:
+				stats_arr.append("· " + AffixManager.format_description(a.get("id", ""), int(a.get("value", 0))))
+		elif not affixes.is_empty():
+			stats_arr.append("（含 %d 条词条，点击查看详细）" % affixes.size())
 
-		# ★ v5.0：连通组反馈
-		if link_group_size >= 2:
-			stats_arr.append("★ 当前已链接：%d 件防具（跨 %d 个单位）" % [link_group_size, link_unit_count])
-		elif data.enable_direction:
-			stats_arr.append("· 未形成连通组（相邻槽位方向不对接）")
-	
-	if not affixes.is_empty():
-		stats_arr.append("--- 词条 ---")
-		for a in affixes:
-			stats_arr.append("· " + AffixManager.format_description(a.get("id", ""), int(a.get("value", 0))))
-
-	var set_hint : String = _build_set_hint(data)
-	if set_hint != "": stats_arr.append(set_hint)
-
-	_show_raw(data.name, type_str, desc, "", "\n".join(stats_arr), data.icon, UIConst.QUALITY_COLORS.get(data.quality, Color.WHITE))
+	_show_raw(data.name, type_str, desc, "", "\n".join(stats_arr), data.icon, name_color)
 
 
 # ============================================================
-#  v5.0 新增：带连通组信息的防具 hover 入口
+#  兼容入口（v5 曾传连通组参数，v6.38 起连通组已从玩家层移除，忽略后两参）
 # ============================================================
-func on_button_hover_entered_with_link(item_id: String, group_size: int, unit_count: int, affixes: Array = []):
-	show_item(item_id, affixes, group_size, unit_count)
+func on_button_hover_entered_with_link(item_id: String, _group_size: int, _unit_count: int, affixes: Array = []):
+	show_item(item_id, affixes)
 
 
 func show_relic(data: Dictionary, item_id: String = ""):

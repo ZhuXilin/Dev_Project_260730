@@ -416,7 +416,47 @@ func _render_result() -> void:
 		name_lbl.add_theme_color_override("font_color", _dim_color if ud.is_dead else Color.WHITE)
 		name_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		card.add_child(name_lbl)
+		# ★ v6.38（A2）：落位结果预判——并入后 Lv / 觉醒 / 覆盖删几件，一眼可见
+		var preview := Label.new()
+		preview.text = _preview_placement(ud, school, cap)
+		preview.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		preview.custom_minimum_size = Vector2(120, 10)
+		preview.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		preview.add_theme_font_size_override("font_size", FS_SMALL)
+		var is_merge : bool = preview.text.begins_with("并入")
+		preview.add_theme_color_override("font_color",
+			Color(0.55, 0.85, 1.0) if is_merge else Color(1.0, 0.75, 0.4))
+		preview.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		card.add_child(preview)
 		unit_row.add_child(card)
+
+
+## ★ v6.38（A2）：预判落位结果，让"该给谁"一眼可见（不改动任何状态）。
+## 口径与 BuildManager.apply_armor 完全一致。
+func _preview_placement(ud: UnitData, school: String, cap: int) -> String:
+	if ud == null:
+		return ""
+	if school == "" or not BuildManager.is_school(school):
+		return "仅属性防具"
+	var mechs: Array = BuildManager.get_unit_mechanisms(ud)
+	for m in mechs:
+		if str(m.get("school", "")) != school:
+			continue
+		var count: int = int(m.get("count", 1)) + 1
+		var new_cap: int = maxi(int(m.get("cap", 1)), cap)
+		var new_lv: int = mini(count, new_cap)
+		return "并入 → Lv%d（上限 Lv%d）" % [new_lv, new_cap]
+	var used: int = mechs.size()
+	var slots: int = BuildManager.get_mechanism_slots(ud.unit_name)
+	if used < slots:
+		return "觉醒 Lv1"
+	# 槽满：覆盖会删掉该流派所有旧防具，统计件数
+	var remove_n: int = 0
+	for slot in ud.armor_slots:
+		if slot == null: continue
+		if BuildManager.get_school_of_item(slot.item_id) == school:
+			remove_n += 1
+	return "覆盖 → 删 %d 件旧防具" % remove_n
 
 
 func _on_discard() -> void:
@@ -540,8 +580,14 @@ func _show_overwrite_choices(ud: UnitData) -> void:
 
 
 func _on_confirm_overwrite(ud: UnitData, school_to_remove: String) -> void:
+	# ★ v6.38（A2）：写明实际删除件数（overwrite_school 会删光该流派所有防具）
+	var remove_n: int = 0
+	for slot in ud.armor_slots:
+		if slot == null: continue
+		if BuildManager.get_school_of_item(slot.item_id) == school_to_remove:
+			remove_n += 1
 	Globals.show_confirm(self,
-		"确定用这件防具替换【%s】？原机制将消失。" % school_to_remove,
+		"确定用这件防具替换【%s】？将删除 %d 件旧防具并清空该流派机制。" % [school_to_remove, remove_n],
 		"覆盖", "取消",
 		func(): _do_overwrite(ud, school_to_remove), func(): _render_result())
 

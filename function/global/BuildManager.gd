@@ -79,7 +79,6 @@ const FALLBACK_ROLL_BASE: int = 100
 const FALLBACK_ROLL_STEP: int = 50
 const FALLBACK_UPGRADE_COSTS: Array = [200, 500, 1200, 2500, 5000]
 const FALLBACK_MERGE_COST: int = 200
-const FALLBACK_REFORGE_COST: int = 500
 
 var _econ: Dictionary = {}
 var _shop: Dictionary = {}
@@ -905,10 +904,6 @@ func get_merge_cost_instance() -> int:
 	return int(_forge.get("craft_cost", FALLBACK_MERGE_COST))
 
 
-func get_reforge_cost() -> int:
-	return int(_forge.get("reforge_cost", FALLBACK_REFORGE_COST))
-
-
 ## 按品质权重表抽一个品质；quality_level 为 0..5 级
 func roll_quality(quality_level: int) -> String:
 	var lv := clampi(quality_level, 0, _quality_weights.size() - 1)
@@ -1036,16 +1031,6 @@ func _quality_index_for(q: String) -> int:
 
 
 ## 重铸流派：保留品质与词条，只改流派。返回新的 school。
-func reforge_school(from_school: String) -> String:
-	var pool: Array = []
-	for s in SCHOOL_ORDER:
-		if s != from_school:
-			pool.append(s)
-	if pool.is_empty():
-		return from_school
-	return str(pool[randi() % pool.size()])
-
-
 # ============================================================
 #  遗物生命周期（光环并入）
 # ============================================================
