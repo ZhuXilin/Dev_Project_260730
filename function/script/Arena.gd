@@ -11,7 +11,6 @@ var _current_player_data : UnitData = null
 var _locked_talent_id : String = ""
 var _streak_active : bool = false
 var _earned_soul : int = 0
-var _arena_level_gain : int = 0   # ★ v6.10：本局单位自动升级次数（结算展示用）
 var _total_paid : int = 0
 var _retreat_fee : int = 0
 var _arena_passives : Array = [null, null, null, null]
@@ -153,7 +152,6 @@ func _init_arena_state():
 	_survival_round = 0
 	_streak_active = false
 	_earned_soul = 0
-	_arena_level_gain = 0
 	_total_paid = 0
 	_retreat_fee = 0
 	_arena_passives = [null, null, null, null]
@@ -373,12 +371,9 @@ func _do_one_battle() -> int:
 		if _streak > GameState.arena_best_streak:
 			GameState.arena_best_streak = _streak
 
+		# ★ v6.61：竞技场战后不再给单位经验——唯一来源是击杀（ArenaBattle._arena_on_kill）。
+		#   天赋经验（技能升级）仍按 exp_gain 发放，与单位等级无关。
 		var talent_results : Array = _add_talent_exp_to_all(exp_gain)
-		# ★ v6.10：奖励机制同步——单位经验自动升级（对齐主线 VictoryHandler）
-		var old_level: int = _current_player_data.level
-		BuildManager.grant_exp_and_auto_level(_current_player_data, exp_gain)
-		if _current_player_data.level > old_level:
-			_arena_level_gain += _current_player_data.level - old_level
 		_current_player_data.hit_points = _current_player_data.max_hp
 		_streak_active = true
 		SaveManager.auto_save()

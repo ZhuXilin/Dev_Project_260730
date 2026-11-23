@@ -216,16 +216,13 @@ func on_request_show_victory(winning_team: int) -> void:
 				# ★ v5.16：地图进度 +1（跨局累计通关节点），驱动天赋/遗物进度解锁
 				ProgressUnlockManager.advance(true)
 
-				# ★ v5.0：魂火不再兑现，仅持久化当前值（跨战斗保留）
-				GameState.soul_fire_current = SoulFireManager.current
+			# ★ v5.0：魂火不再兑现，仅持久化当前值（跨战斗保留）
+			GameState.soul_fire_current = SoulFireManager.current
 
-				# ★ v6：战后经验自动升级（战斗内累计 → 结算兑现，无手动操作）
-				var exp_gain := BuildManager.battle_exp_reward(_bf.current_node_type, _compute_rating())
-				for ud in GameState.party:
-					if ud != null and not ud.is_dead:
-						BuildManager.grant_exp_and_auto_level(ud, exp_gain)
+			# ★ v6.61：战后不再发经验——经验唯一来源是击杀（见 5.7）。
+			#   旧 battle_exp_reward 按人头发的额外经验已移除。
 
-				# ★ v6：战后不再直接掉落防具。防具改为战后金币 roll（ArmorRollUI）。
+			# ★ v6：战后不再直接掉落防具。防具改为战后金币 roll（ArmorRollUI）。
 				GameState.current_reward_rare_datas.clear()
 
 				if is_win and mult > 1.0:
@@ -242,10 +239,6 @@ func on_request_show_victory(winning_team: int) -> void:
 
 		if is_win and is_boss:
 			GameState.should_advance_day = true
-
-		# ★ v6.60：战后经验升级（上面 grant_exp_and_auto_level）也会触发升级跳字，
-		#   弹面板前再等一次，避免结算表演与胜利面板重叠。
-		await _wait_for_all_show_performances()
 
 		SignalBus.battle_completed.emit(winning_team, is_boss)
 

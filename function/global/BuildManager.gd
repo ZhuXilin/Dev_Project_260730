@@ -627,7 +627,7 @@ func append_plain_armor(unit: UnitData, item_id: String) -> bool:
 
 
 # ============================================================
-#  单位成长：击杀得经验 + 战后额外经验 → 自动升级
+#  单位成长：击杀得经验 → 自动升级（v6.61 起经验唯一来源）
 # ============================================================
 
 const LEVEL_CAP: int = 6   ## 单位等级上限（UI 显示 / 升级封顶统一口径）
@@ -644,17 +644,8 @@ func exp_to_next_remaining(unit: UnitData) -> int:
 	return maxi(0, exp_to_next_level(unit.level) - unit.experience)
 
 
-## 关卡战后额外经验：节点类型基础 + 评级加成（击杀经验之外的额外一笔）
-func battle_exp_reward(node_type: int, rating: String) -> int:
-	var base := 40
-	match node_type:
-		MapNode.NodeType.NORMAL:  base = 60
-		MapNode.NodeType.ELITE:   base = 90
-		MapNode.NodeType.BOSS:    base = 120
-		_:                        base = 40
-	var bonus : int = int({"S": 30, "A": 15, "B": 0, "C": 0}.get(rating, 0))
-	return base + bonus
-
+## v6.61：战后额外经验已移除——经验唯一来源是击杀（grant_kill_exp）。
+## 旧的 battle_exp_reward(node_type, rating) 已删除。
 
 ## 给单个单位加经验并自动升级；返回本次升到的等级。
 ## 每次升级发 SignalBus.request_level_up_popup，战场据此播仪式感。
