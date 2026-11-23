@@ -278,6 +278,7 @@ func _on_machine_stopped(entry: Dictionary) -> void:
 		"item_id": iid,
 		"quality": str(entry.get("quality", "common")),
 		"school": str(entry.get("school", "")),
+		"affixes": (entry.get("affixes", []) as Array).duplicate(),
 		"name": str(entry.get("name", iid)),
 		"mechanic": str(entry.get("mechanic", "")),
 	}
@@ -452,7 +453,7 @@ func _preview_placement(ud: UnitData, school: String, cap: int) -> String:
 	var remove_n: int = 0
 	for slot in ud.armor_slots:
 		if slot == null: continue
-		if BuildManager.get_school_of_item(slot.item_id) == school:
+		if BuildManager.get_school_of_instance(slot) == school:
 			remove_n += 1
 	return "覆盖 → 删 %d 件旧防具" % remove_n
 
@@ -491,8 +492,6 @@ func _open_equipment_for_pick() -> void:
 		panel.armor_slot_picked.connect(_on_pick_unit)
 	if panel.has_signal("armor_discard_requested"):
 		panel.armor_discard_requested.connect(_on_pick_discard)
-	if panel.has_signal("armor_overwrite_requested"):
-		panel.armor_overwrite_requested.connect(_on_pick_overwrite)
 	# 落位模式：展示全貌，除防具槽外只读
 	panel.init(_get_units(), SaveManager.current_slot, EquipCfg.Mode.ARMOR_ROLL, null)
 	# ★ v6.43：把待落袋防具传给装备界面，高亮槽位 + 顶部展示
@@ -503,14 +502,14 @@ func _open_equipment_for_pick() -> void:
 		c.queue_free()
 
 
-func _on_pick_unit(unit_idx: int) -> void:
+func _on_pick_unit(unit_idx: int, slot_idx: int = -1) -> void:
 	var units := _get_units()
 	if unit_idx < 0 or unit_idx >= units.size():
 		return
 	var ud = units[unit_idx]
 	if ud == null or ud.is_dead:
 		return
-	_on_place(ud)
+	_on_place(ud, slot_idx)
 	_close_pick_ui()
 
 
@@ -520,78 +519,105 @@ func _on_pick_discard() -> void:
 	_close_pick_ui()
 
 
-## ★ v6.47：EquipmentConfig 内确认覆盖 → 执行 overwrite 并关闭浮层进下一轮
-func _on_pick_overwrite(unit_idx: int, school_to_remove: String) -> void:
-	var units := _get_units()
-	if unit_idx < 0 or unit_idx >= units.size():
-		return
-	_do_overwrite(units[unit_idx], school_to_remove)
-	_close_pick_ui()
-
-
-func _close_pick_ui() -> void:
-	if _pick_ui == null:
-		return
-	# ★ v6.43：只释放装备浮层本身。旧版误 queue_free 了 parent(current_scene=Battlefield)，
-	#   导致落位后整个战场被销毁 → 黑屏且无法操作。
-	if is_instance_valid(_pick_ui):
-		_pick_ui.queue_free()
-	_pick_ui = null
-
-
-func _on_place(ud: UnitData) -> void:
+func _on_place(ud: UnitData, slot_idx: int = -1) -> void:
 	var item_id := str(_current.get("item_id", ""))
 	var quality := str(_current.get("quality", "common"))
-	var school : String = BuildManager.get_school_of_item(item_id)
+	var affixes : Array = _current.get("affixes", [])
+	var school : String = str(_current.get("school", ""))
 	var cap : int = BuildManager.get_quality_cap(quality)
+	var idata : ItemData = ItemManager.get_item_data(item_id)
+	var icon : Texture2D = idata.icon if idata != null else null
+	var color : Color = BuildManager.get_school_color(school) if school != "" else Color.WHITE
+	var affix_text : String = _affix_summary(affixes)
+	var mechs : Array = BuildManager.get_unit_mechanisms(ud)
+	var used : int = mechs.size()
+	var slots : int = ud.max_armor_slots
 
-	# ★ v6.52：合并（同流派并入升 Lv）也先弹 ConfirmUI 确认/取消，确认后才真正 apply。
-	#   先预判再执行，避免"先合并再问、取消无法撤销"。
-	if school != "" and BuildManager.is_school(school):
-		var mechs : Array = BuildManager.get_unit_mechanisms(ud)
+	# 点击槽位当前流派
+	var slot_school : String = ""
+	if slot_idx >= 0 and slot_idx < ud.armor_slots.size():
+		var slot_inst = ud.armor_slots[slot_idx]
+		if slot_inst != null:
+			slot_school = BuildManager.get_school_of_instance(slot_inst)
+
+	# 空槽且流派未满 → 纯觉醒，无取舍，直接落位不弹面板
+	if slot_school == "" and used < slots:
+		_do_apply_armor(ud, item_id, quality, affixes)
+		return
+
+	# ---- 选项A：强化（并入同流派升 Lv，词条不动） ----
+	var same : Dictionary = {}
+	for m in mechs:
+		if str(m.get("school", "")) == school:
+			same = m
+			break
+	var can_strengthen : bool = not same.is_empty()
+	var a_title : String = ""
+	var a_detail : String = ""
+	if can_strengthen:
+		var old_cap : int = maxi(int(same.get("cap", 1)), cap)
+		var new_lv : int = mini(int(same.get("count", 1)) + 1, old_cap)
+		a_title = "强化 · %s Lv%d → Lv%d" % [school, int(same.get("level", 1)), new_lv]
+		a_detail = "机制升 Lv，已有词条与搭配不变"
+	else:
+		a_title = "觉醒 · 新流派 %s Lv1" % school
+		a_detail = "占 1 个流派槽，词条生效"
+	var cb_a := func(): _do_apply_armor(ud, item_id, quality, affixes)
+
+	# ---- 选项B：转向（替换点击槽的流派，100% 继承等级，用新词条） ----
+	if slot_school == "":
 		for m in mechs:
-			if str(m.get("school", "")) != school:
-				continue
-			var old_cap : int = maxi(int(m.get("cap", 1)), cap)
-			var new_lv : int = mini(int(m.get("count", 1)) + 1, old_cap)
-			var confirm_parent : Node = get_tree().current_scene if get_tree() != null else self
-			Globals.show_confirm(confirm_parent,
-				"把【%s】并入【%s】？机制升到 Lv%d（上限 Lv%d）。" % [
-					str(_current.get("name", item_id)), school, new_lv, old_cap],
-				"合并", "取消",
-				func(): _do_apply_armor(ud, item_id, quality),
-				func(): _on_merge_cancelled(),
-				true)
-			return
+			slot_school = str(m.get("school", ""))
+			break
+	var inherit_lv : int = 1
+	for m in mechs:
+		if str(m.get("school", "")) == slot_school:
+			inherit_lv = maxi(1, int(m.get("level", 1)))
+			break
+	var b_title : String = "转向 · %s → %s Lv%d" % [slot_school if slot_school != "" else "空槽", school, inherit_lv]
+	var b_detail : String = "100% 继承等级，新词条：" + affix_text
+	var cb_b := func(): _do_overwrite_at(ud, slot_idx, slot_school, item_id, quality, affixes, inherit_lv)
 
-	_do_apply_armor(ud, item_id, quality)
+	var confirm_parent : Node = get_tree().current_scene if get_tree() != null else self
+	Globals.show_choice(confirm_parent,
+		"抽到：%s  【%s】%s" % [str(_current.get("name", item_id)), school, quality],
+		{"title": a_title, "detail": a_detail, "icon": icon, "color": color, "cb": cb_a},
+		{"title": b_title, "detail": b_detail, "icon": icon, "color": color, "cb": cb_b},
+		func(): _on_merge_cancelled())
 
 
-## 取消合并确认后，重新打开装备界面让玩家另选落位单位
+func _affix_summary(affixes: Array) -> String:
+	var parts : Array = []
+	for a in affixes:
+		if not (a is Dictionary):
+			continue
+		var d : Dictionary = AffixManager.get_affix(str(a.get("id", "")))
+		var label : String = str(d.get("name", a.get("id", "?")))
+		parts.append("%s+%s" % [label, str(a.get("value", ""))])
+	return " / ".join(parts) if not parts.is_empty() else "无词条"
+
+
+## 取消选择后，重新打开装备界面让玩家另选落位单位
 func _on_merge_cancelled() -> void:
 	if not _current.is_empty():
 		_open_equipment_for_pick()
 
 
-## 真正执行落位（合并确认后 / 直接落位共用）
-func _do_apply_armor(ud: UnitData, item_id: String, quality: String) -> void:
-	var result := BuildManager.apply_armor(ud, item_id, quality)
+func _do_apply_armor(ud: UnitData, item_id: String, quality: String, affixes: Array = []) -> void:
+	var result := BuildManager.apply_armor(ud, item_id, quality, "", affixes)
 	match str(result.get("result", "")):
 		"awaken", "merge", "plain":
 			SoundManager.play_get_item_sound()
 			_current = {}
 			_refresh()
-		"full":
-			# ★ v6.47：槽满覆盖已下沉到 EquipmentConfig，此分支仅兜底
-			_msg.text = "请在装备界面选择要覆盖的流派"
 		_:
 			_msg.text = "无法落位"
 
 
-func _do_overwrite(ud: UnitData, school_to_remove: String) -> void:
-	BuildManager.overwrite_school(ud, school_to_remove,
-		str(_current.get("item_id", "")), str(_current.get("quality", "common")))
-	# ★ v6.45：覆盖后同样直接进下一轮，不停留结算态
+## ★ v6.53：转向执行——替换点击槽的流派，100% 继承等级，新词条
+func _do_overwrite_at(ud: UnitData, slot_idx: int, slot_school: String,item_id: String, quality: String, affixes: Array, inherit_lv: int) -> void:
+	BuildManager.overwrite_at_slot(ud, slot_idx, slot_school, item_id, quality, affixes, inherit_lv)
+	SoundManager.play_get_item_sound()
 	_current = {}
 	_refresh()
 

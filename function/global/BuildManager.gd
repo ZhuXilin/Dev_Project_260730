@@ -163,6 +163,32 @@ func get_school_of_item(item_id: String) -> String:
 	return ""
 
 
+## ★ v6.53：词条即流派——从词条 tags 推导流派（fallback 到防具本身 tags）。
+##   优先取第一个词条的流派 tag；多词条时按 SCHOOL_ORDER 优先级取"最靠前"的流派，
+##   保证同一件防具判定稳定。
+func get_school_of_affixes(affixes: Array, fallback_item_id: String = "") -> String:
+	var found : Array = []
+	for a in affixes:
+		if not (a is Dictionary):
+			continue
+		var data : Dictionary = AffixManager.get_affix(str(a.get("id", "")))
+		for tag in data.get("tags", []):
+			var t : String = str(tag)
+			if is_school(t) and not found.has(t):
+				found.append(t)
+	for school in SCHOOL_ORDER:
+		if found.has(school):
+			return school
+	# 词条无流派（罕见，如旧存档）→ 回退防具 tag
+	return get_school_of_item(fallback_item_id)
+
+
+func get_school_of_instance(inst: ItemInstance) -> String:
+	if inst == null:
+		return ""
+	return get_school_of_affixes(inst.affixes, inst.item_id)
+
+
 # ============================================================
 #  机制视图（从 UnitData.mechanisms 读取，玩家层唯一数据源）
 # ============================================================
@@ -409,17 +435,17 @@ func get_effective_mechanic_text(unit, school: String) -> String:
 ## 返回 Dictionary：
 ##   {result: "awaken"|"merge"|"full"|"plain", school, level, cap, replaced}
 ##  "full" 表示流派槽已满且是新流派，需要玩家选择覆盖 / 放弃（不自动执行）。
-func apply_armor(unit: UnitData, item_id: String, quality: String, forced_school: String = "") -> Dictionary:
-	var school := forced_school if forced_school != "" else get_school_of_item(item_id)
+func apply_armor(unit: UnitData, item_id: String, quality: String, forced_school: String = "", affixes: Array = []) -> Dictionary:
+	# ★ v6.53：流派由词条决定（词条即流派）；fallback 防具 tag 兼容熔铸专属等无词条件
+	var school := forced_school if forced_school != "" else get_school_of_affixes(affixes, item_id)
 	var cap := get_quality_cap(quality)
 	if school == "" or not unit:
-		# 无流派防具（熔铸专属等）：仅作为普通属性防具
-		_append_armor_instance(unit, item_id)
+		_append_armor_instance(unit, item_id, affixes)
 		return {"result": "plain", "school": "", "level": 0, "cap": cap, "replaced": ""}
 
 	var mechs: Dictionary = _ensure_mechanisms(unit)
 	if mechs.has(school):
-		# 并入升 Lv，不占新槽
+		# ★ v6.53 强化：并入只升机制 Lv，不 append 实例、不改已有防具词条
 		var entry: Dictionary = mechs[school]
 		if not (entry is Dictionary):
 			entry = {}
@@ -432,26 +458,19 @@ func apply_armor(unit: UnitData, item_id: String, quality: String, forced_school
 		entry["cap"] = new_cap
 		entry["level"] = level
 		mechs[school] = entry
-		# ★ v6.48：并入的防具仍 append 到底层 armor_slots 以贡献属性/词条；
-		#   槽位显示由 EquipmentConfig 按 max_armor_slots 截断，不再让数组撑大 UI。
-		_append_armor_instance(unit, item_id)
 		build_changed.emit(unit.unit_name)
-		# ★ v6.34（B1）：升 Lv 跨过 2/4 质变阈值才发觉醒反馈，普通并入不刷屏
 		if _crossed_breakthrough(old_level, level):
 			SignalBus.build_awakened.emit(unit, school, level, get_school_color(school))
 		return {"result": "merge", "school": school, "level": level, "cap": new_cap, "replaced": ""}
 
 	var used := mechs.size()
-	# ★ v6.51：用单位的当前槽上限（过天+1会涨 max_armor_slots），
-	#   而非按单位名查的固定表——否则第二天新增的槽无法落位新流派。
 	var slots := unit.max_armor_slots
 	if used >= slots:
 		return {"result": "full", "school": school, "level": 0, "cap": cap, "replaced": ""}
 
 	mechs[school] = {"level": 1, "cap": cap, "count": 1}
-	_append_armor_instance(unit, item_id)
+	_append_armor_instance(unit, item_id, affixes)
 	build_changed.emit(unit.unit_name)
-	# ★ v6.34（B1）：首次觉醒即仪式反馈
 	SignalBus.build_awakened.emit(unit, school, 1, get_school_color(school))
 	return {"result": "awaken", "school": school, "level": 1, "cap": cap, "replaced": ""}
 
@@ -463,6 +482,44 @@ func _crossed_breakthrough(old_lv: int, new_lv: int) -> bool:
 
 
 ## 满槽时覆盖某流派：移除被覆盖流派，觉醒新流派。0G。
+## ★ v6.53 转向：替换指定槽位的流派，100% 继承旧流派等级，用新防具词条。
+##   新流派以旧流派 Lv/cap/count 起步（不归零），新实例带 affixes。
+func overwrite_at_slot(unit: UnitData, slot_idx: int, school_to_remove: String, item_id: String, quality: String, affixes: Array = [], inherit_level: int = 1) -> Dictionary:
+	if not unit:
+		return {"result": "full", "school": "", "level": 0, "replaced": ""}
+	var mechs: Dictionary = _ensure_mechanisms(unit)
+	var old := mechs.get(school_to_remove, {}) as Dictionary
+	var lvl : int = maxi(1, inherit_level if not old.is_empty() else 1)
+	var cap : int = maxi(int(old.get("cap", 1)), get_quality_cap(quality))
+	var count : int = maxi(1, int(old.get("count", 1)))
+	# 移除被替换流派的所有实例（避免套装/词条口径脱节）
+	for i in range(unit.armor_slots.size() - 1, -1, -1):
+		var sv = unit.armor_slots[i]
+		if sv == null:
+			continue
+		var sinst : ItemInstance = sv as ItemInstance
+		if sinst and get_school_of_instance(sinst) == school_to_remove:
+			unit.armor_slots[i] = null
+	var new_school : String = get_school_of_affixes(affixes, item_id)
+	mechs.erase(school_to_remove)
+	if new_school != "":
+		mechs[new_school] = {"level": lvl, "cap": cap, "count": count}
+	# 把新防具（带新词条）放进玩家点击的那个槽
+	var inst := ItemInstance.new()
+	inst.item_id = item_id
+	inst.count = 1
+	if not affixes.is_empty():
+		inst.affixes = affixes.duplicate()
+	if slot_idx >= 0 and slot_idx < unit.armor_slots.size():
+		unit.armor_slots[slot_idx] = inst
+	else:
+		var free := unit.armor_slots.find(null)
+		if free >= 0: unit.armor_slots[free] = inst
+		else: unit.armor_slots.append(inst)
+	build_changed.emit(unit.unit_name)
+	return {"result": "overwrite", "school": new_school, "level": lvl, "cap": cap, "replaced": school_to_remove}
+
+
 func overwrite_school(unit: UnitData, school_to_remove: String, item_id: String, quality: String, forced_school: String = "") -> Dictionary:
 	if not unit:
 		return {"result": "full", "school": "", "level": 0, "replaced": ""}
@@ -478,7 +535,7 @@ func overwrite_school(unit: UnitData, school_to_remove: String, item_id: String,
 		if slot_v == null:
 			continue
 		var slot_inst: ItemInstance = slot_v as ItemInstance
-		if slot_inst and get_school_of_item(slot_inst.item_id) == school_to_remove:
+		if slot_inst and get_school_of_instance(slot_inst) == school_to_remove:
 			unit.armor_slots[i] = null
 	build_changed.emit(unit.unit_name)
 	var applied := apply_armor(unit, item_id, quality, forced_school)
@@ -488,12 +545,15 @@ func overwrite_school(unit: UnitData, school_to_remove: String, item_id: String,
 
 ## 把防具实例塞进底层 armor_slots（供战斗层读属性 / 词条）。
 ## 玩家层不操作该数组；满则扩展，永不因物理槽拒绝。
-func _append_armor_instance(unit: UnitData, item_id: String) -> void:
+func _append_armor_instance(unit: UnitData, item_id: String, affixes: Array = []) -> void:
 	if not unit:
 		return
 	var inst := ItemInstance.new()
 	inst.item_id = item_id
 	inst.count = 1
+	# ★ v6.53：落位时带上 roll 出的词条（词条即流派，且词条数值要生效）
+	if not affixes.is_empty():
+		inst.affixes = affixes.duplicate()
 	var idx := unit.armor_slots.find(null)
 	if idx >= 0:
 		unit.armor_slots[idx] = inst
@@ -947,12 +1007,15 @@ func roll_armor(quality_level: int) -> Dictionary:
 	if candidates.is_empty():
 		return {}
 	var item_id := str(candidates[randi() % candidates.size()])
-	var school := get_school_of_item(item_id)
+	var idata : ItemData = ItemManager.get_item_data(item_id)
+	var affixes : Array = [] if idata != null and idata.no_affix else AffixManager.roll_affixes(quality, idata.tags if idata != null else [])
+	var school := get_school_of_affixes(affixes, item_id)
 	return {
 		"item_id": item_id,
 		"quality": quality,
 		"school": school,
-		"name": ItemManager.get_item_data(item_id).name,
+		"affixes": affixes,
+		"name": idata.name if idata != null else item_id,
 		"mechanic": get_school_mechanic(school),
 	}
 

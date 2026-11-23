@@ -1,5 +1,5 @@
 {
-  "affix_attack": {"id": "affix_attack", "name": "锋锐", "description": "攻击 +{v}", "type": "attack_flat", "value_min": 1, "value_max": 3, "min_quality": "common", "tags": []},
+  "affix_attack": {"id": "affix_attack", "name": "锋锐", "description": "攻击 +{v}", "type": "attack_flat", "value_min": 1, "value_max": 3, "min_quality": "common", "tags": ["烈焰"]},
 
   "affix_crit_chance": {"id": "affix_crit_chance", "name": "锐眼", "description": "暴击率 +{v}%", "type": "crit_chance", "value_min": 3, "value_max": 8, "min_quality": "rare", "tags": ["烈焰"]},
   "affix_crit_damage": {"id": "affix_crit_damage", "name": "残暴", "description": "暴击伤害 +{v}%", "type": "crit_damage", "value_min": 10, "value_max": 25, "min_quality": "epic", "tags": ["烈焰"]},

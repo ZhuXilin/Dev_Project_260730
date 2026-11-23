@@ -3,11 +3,9 @@ extends Panel
 enum Mode { DEPLOY, MAP, FORGE, ARENA_REST, MAP_SHOP_REST, ARMOR_ROLL }
 
 ## ★ v6.41：战后防具落位模式——点防具槽回传单位 index，供 ArmorRollUI 执行落位
-signal armor_slot_picked(unit_idx: int)
+signal armor_slot_picked(unit_idx: int, slot_idx: int)
 ## ★ v6.44：落位模式下请求放弃待落袋防具
 signal armor_discard_requested()
-## ★ v6.47：落位模式槽满时请求覆盖某流派（unit_idx, school_to_remove）
-signal armor_overwrite_requested(unit_idx: int, school_to_remove: String)
 
 const Style = preload("res://function/script/equipmentconfig/EquipmentConfigStyle.gd")
 
@@ -740,7 +738,8 @@ func _gray_unit_columns_except_armor(node: Node):
 	for child in node.get_children():
 		if child is Button and str(child.get_meta("slot_type", "")) == "armor":
 			# 防具槽：保持可点，接落位回调
-			child.pressed.connect(_on_armor_pick_pressed.bind(int(child.get_meta("unit_idx", -1))))
+			child.pressed.connect(_on_armor_pick_pressed.bind(
+				int(child.get_meta("unit_idx", -1)), int(child.get_meta("slot_idx", -1))))
 			continue
 		# ★ v6.50：单位头像整体保留 hover——内部子节点设 IGNORE，且**不要**再递归
 		#   灰显逻辑（旧版递归把子节点又设回 STOP，吞掉事件，导致 avatar 悬停无信息）
@@ -802,6 +801,9 @@ func set_pending_armor(info: Dictionary) -> void:
 	var temp_inst := ItemInstance.new()
 	temp_inst.item_id = iid
 	temp_inst.count = 1
+	var pending_affixes : Array = _pending_armor.get("affixes", [])
+	if not pending_affixes.is_empty():
+		temp_inst.affixes = pending_affixes.duplicate()
 	var armor_btn := _create_item_button(temp_inst, "pending", -1, -1)
 	armor_btn.disabled = false
 	row.add_child(armor_btn)
@@ -853,7 +855,7 @@ func _highlight_armor_slots_recursive(node: Node) -> void:
 		_highlight_armor_slots_recursive(child)
 
 
-func _on_armor_pick_pressed(unit_idx: int):
+func _on_armor_pick_pressed(unit_idx: int, slot_idx: int):
 	if current_mode != Mode.ARMOR_ROLL:
 		return
 	if unit_idx < 0 or unit_idx >= party.size():
@@ -861,64 +863,9 @@ func _on_armor_pick_pressed(unit_idx: int):
 	var ud : UnitData = (_context.get_units()[unit_idx] if _context.get_units().size() > unit_idx else party[unit_idx])
 	if ud != null and ud.is_dead:
 		return
-	# ★ v6.47：槽满且是新流派 → 在界面内渲染覆盖选项，不再关闭浮层
-	var incoming_school : String = str(_pending_armor.get("school", ""))
-	var mechs : Dictionary = ud.mechanisms if ud else {}
-	var slots : int = ud.max_armor_slots if ud else 0   # ★ v6.51：当前槽上限（随天数+1）
-	if not mechs.has(incoming_school) and mechs.size() >= slots and slots > 0:
-		_show_overwrite_options(ud, unit_idx)
-		return
-	armor_slot_picked.emit(unit_idx)
-
-
-## ★ v6.47：落位界面内渲染覆盖选项（替代原 ArmorRollUI 的独立覆盖界面）
-func _show_overwrite_options(ud: UnitData, unit_idx: int) -> void:
-	# ★ v6.49：不再生成任何内联覆盖按钮——直接进入居中 ConfirmUI。
-	#   单流派直接确认；多流派默认选等级最低（最不值钱）的那个，message 里写明。
-	_clear_overwrite_rows()
-	var mechs : Array = BuildManager.get_unit_mechanisms(ud)
-	if mechs.is_empty():
-		return
-	var target : Dictionary = mechs[0]
-	for m in mechs:
-		if int(m.get("level", 1)) < int(target.get("level", 1)):
-			target = m
-	_on_confirm_overwrite_in_panel(unit_idx, str(target.get("school", "")))
-
-
-func _on_confirm_overwrite_in_panel(unit_idx: int, school_to_remove: String) -> void:
-	var ud : UnitData = (_context.get_units()[unit_idx] if _context.get_units().size() > unit_idx else party[unit_idx])
-	var remove_n : int = 0
-	for slot in ud.armor_slots:
-		if slot != null and BuildManager.get_school_of_item(slot.item_id) == school_to_remove:
-			remove_n += 1
-	# ★ v6.48：parent 用 current_scene 而非 self——避免 show_confirm 的"已有ConfirmUI则跳过"
-	#   检测被装备界面内残留实例误触发；同时保证 CanvasLayer 全屏居中。
-	var confirm_parent : Node = get_tree().current_scene if get_tree() != null else self
-	Globals.show_confirm(confirm_parent,
-		"确定用【%s】覆盖【%s】？将删除 %d 件旧防具并清空该流派机制。" % [
-			str(_pending_armor.get("name", "新防具")), school_to_remove, remove_n],
-		"覆盖", "取消",
-		func(): armor_overwrite_requested.emit(unit_idx, school_to_remove),
-		func(): _clear_overwrite_rows(),
-		true)
-
-
-func _clear_overwrite_rows() -> void:
-	if not unit_container:
-		return
-	var to_free : Array = []
-	_find_and_collect_overwrite(unit_container, to_free)
-	for n in to_free:
-		if is_instance_valid(n):
-			n.queue_free()
-
-
-func _find_and_collect_overwrite(node: Node, out: Array) -> void:
-	for c in node.get_children():
-		if c.has_meta("overwrite_row"):
-			out.append(c)
-		_find_and_collect_overwrite(c, out)
+	# ★ v6.53：所有落位决策统一由 ArmorRollUI._on_place 弹 show_choice（强化/转向），
+	#   这里只回传"点的是哪个单位、哪个槽"，转向时就替换该槽的流派。
+	armor_slot_picked.emit(unit_idx, slot_idx)
 
 
 func _is_level_up_enabled() -> bool:
