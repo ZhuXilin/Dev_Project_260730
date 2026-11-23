@@ -1,7 +1,9 @@
 @tool
 extends Control
 
-const LAYER_HEIGHT : float = 28.0
+## ★ v6.56：层高 28→44——原 28 与节点高 24 只留 4px 缝隙，层间几乎无法操作；
+##   加高后层间留 20px，便于把节点拖到层间插入新层。
+const LAYER_HEIGHT : float = 44.0
 const NODE_W : float = 24.0
 const NODE_H : float = 24.0
 const NODE_FONT_SIZE : int = 6
@@ -42,6 +44,10 @@ var _in_test_mode : bool = false
 var _test_map_assignment : Dictionary = {}
 var _levellist_btn : Button = null
 var _test_btn : Button = null
+## ★ v6.56：节点树剪贴板——跨 day / 跨变体 / 跨 day 的变体之间拷贝粘贴
+var _clipboard_nodes : Array = []
+var _copy_btn : Button = null
+var _paste_btn : Button = null
 
 var _day_buttons : Array[Button] = []
 var _tool_buttons : Array[Button] = []
@@ -363,12 +369,52 @@ func _get_entry_for_faction(faction_cn: String) -> UnitLevelMapEntry:
 	return null
 
 
-func _snapshot_current() -> Dictionary:
+## 底部提示条显示临时消息
+func _show_hint(text: String):
+	if _hint_label != null and is_instance_valid(_hint_label):
+		_hint_label.text = text
+	print("[MapLayoutEditor] " + text)
+
+
+## ★ v6.56：拷贝当前 day/变体的完整节点树到剪贴板（含连接关系与全部字段）。
+func _copy_node_tree():
 	var day_layout : MapLayoutDay = _get_current_day_layout()
-	if day_layout == null:
-		return {}
-	var nodes_copy : Array = []
-	for n in day_layout.nodes:
+	if day_layout == null or day_layout.nodes.is_empty():
+		_show_hint("当前变体没有节点可拷贝")
+		return
+	_clipboard_nodes = _clone_nodes(day_layout.nodes)
+	_show_hint("已拷贝 %d 个节点（Day%d·变体%d）" % [_clipboard_nodes.size(), _current_day, _variant_idx + 1])
+
+
+## ★ v6.56：把剪贴板节点树粘贴到当前 day/变体（覆盖其节点），支持跨 day/跨变体。
+func _paste_node_tree():
+	if _clipboard_nodes.is_empty():
+		_show_hint("剪贴板为空，请先拷贝")
+		return
+	_push_undo()
+	var arr : Array = _get_variant_array_for_day(_current_day)
+	while arr.size() <= _variant_idx:
+		arr.append(MapLayoutDay.new())
+	var day_layout : MapLayoutDay = arr[_variant_idx]
+	# nodes 是类型化数组 Array[MapLayoutNode]，不能直接整体赋值无类型 Array
+	var pasted : Array = _clone_nodes(_clipboard_nodes)
+	day_layout.nodes.clear()
+	for n in pasted:
+		day_layout.nodes.append(n)
+	_dragging_idx = -1
+	_selected_link = -1
+	_update_all_labels()
+	_refresh_canvas_size()
+	if _canvas:
+		_canvas.queue_redraw()
+	_show_hint("已粘贴 %d 个节点到 Day%d·变体%d" % [day_layout.nodes.size(), _current_day, _variant_idx + 1])
+
+
+## ★ v6.56：深拷贝整棵节点树（connects_to 为索引，整体复制天然保留连接关系）。
+##   供撤销快照、跨 day/变体拷贝粘贴共用。
+func _clone_nodes(nodes: Array) -> Array:
+	var out : Array = []
+	for n in nodes:
 		var cp := MapLayoutNode.new()
 		cp.node_type = n.node_type
 		cp.random_pool = n.random_pool.duplicate()
@@ -384,10 +430,17 @@ func _snapshot_current() -> Dictionary:
 		cp.reward_multiplier = n.reward_multiplier
 		cp.enemy_hp_multiplier = n.enemy_hp_multiplier
 		cp.intensity = n.intensity
-		# ★ 修复：补齐动态目标字段，避免撤销/重做丢失
 		cp.allow_dynamic_objective = n.allow_dynamic_objective
 		cp.dynamic_objective_pool = n.dynamic_objective_pool.duplicate()
-		nodes_copy.append(cp)
+		out.append(cp)
+	return out
+
+
+func _snapshot_current() -> Dictionary:
+	var day_layout : MapLayoutDay = _get_current_day_layout()
+	if day_layout == null:
+		return {}
+	var nodes_copy : Array = _clone_nodes(day_layout.nodes)
 	return {
 		"day": _current_day,
 		"variant_idx": _variant_idx,
@@ -1542,6 +1595,17 @@ func _build_ui():
 	_test_btn.pressed.connect(_on_test_toggle)
 	top.add_child(_test_btn)
 
+	# ★ v6.56：跨 day / 跨变体 / 跨 day 的变体——拷贝粘贴完整节点树
+	_copy_btn = _make_btn("拷贝", "拷贝当前变体的完整节点树（可粘贴到任意 day/变体）")
+	_copy_btn.add_theme_font_size_override("font_size", 6)
+	_copy_btn.pressed.connect(_copy_node_tree)
+	top.add_child(_copy_btn)
+
+	_paste_btn = _make_btn("粘贴", "把剪贴板节点树粘贴到当前变体（覆盖）")
+	_paste_btn.add_theme_font_size_override("font_size", 6)
+	_paste_btn.pressed.connect(_paste_node_tree)
+	top.add_child(_paste_btn)
+
 	var new_btn := _make_btn("新建", "新建一个空布局")
 	new_btn.add_theme_font_size_override("font_size", 6)
 	new_btn.pressed.connect(_new_layout)
@@ -1655,12 +1719,26 @@ func _compute_insert_layer_at_y(y: float) -> int:
 	var center_y : float = CANVAS_PADDING_TOP + (max_layer - layer_idx + 0.5) * LAYER_HEIGHT
 	var dist : float = abs(y - center_y)
 
-	if dist < NODE_H / 2.0 + 2.0:
+	# ★ v6.56：层中心容差从 NODE_H/2+2 收紧到 NODE_H/2，让层间缝隙可判定
+	if dist < NODE_H / 2.0:
 		return -1
 
 	if y < center_y:
 		return layer_idx + 1
 	return layer_idx
+
+
+## ★ v6.56：插入层预览线的 y——落在相邻两层中心的中点（缝隙正中），
+##   即用户鼠标所在的层间位置；边界处落在最顶/最底层外侧半层。
+func _gap_y_for_insert(insert_at: int) -> float:
+	var max_layer : int = _get_max_layer()
+	var center := func(l: int) -> float:
+		return CANVAS_PADDING_TOP + (max_layer - l + 0.5) * LAYER_HEIGHT
+	if insert_at <= 0:
+		return center.call(0) + LAYER_HEIGHT * 0.5
+	if insert_at > max_layer:
+		return center.call(max_layer) - LAYER_HEIGHT * 0.5
+	return (center.call(insert_at) + center.call(insert_at - 1)) * 0.5
 
 
 func _try_insert_layer_at_mouse(local: Vector2):
@@ -1762,10 +1840,10 @@ func _node_pos(idx: int) -> Vector2:
 			same_layer.append(i)
 	var my_pos : int = same_layer.find(idx)
 	var count : int = same_layer.size()
-	var ratio : float = float(my_pos + 1) / float(count + 1)
-	var x : float = _canvas_width() * ratio
+	# ★ v6.56：横向分布走 MapConst 共用函数，与局内 MapScene 菱形布局统一
+	var x : float = MapConst.compute_layer_node_x(my_pos, count, _canvas_width(), NODE_W)
 	var max_layer : int = _get_max_layer()
-	var y : float = CANVAS_PADDING_TOP + (max_layer - node.layer + 0.5) * LAYER_HEIGHT
+	var y : float = MapConst.compute_layer_node_y(node.layer, max_layer, CANVAS_PADDING_TOP, LAYER_HEIGHT)
 	return Vector2(x, y)
 
 
@@ -1846,9 +1924,22 @@ func _end_drag(local: Vector2):
 	if _dragging_idx < 0 or _dragging_idx >= day_layout.nodes.size():
 		_dragging_idx = -1
 		return
-	var new_layer : int = _layer_at_y(local.y)
-	day_layout.nodes[_dragging_idx].layer = new_layer
+	var dragged : MapLayoutNode = day_layout.nodes[_dragging_idx]
+	var insert_at : int = _compute_insert_layer_at_y(local.y)
+	if insert_at >= 0:
+		# ★ v6.56：松手在层间缝隙 → 插入一个新层并把被拖节点放进去
+		#   （不额外生成空白节点；其它 layer>=insert_at 的节点顺延一层）
+		_push_undo()
+		for n in day_layout.nodes:
+			if n != dragged and n.layer >= insert_at:
+				n.layer += 1
+		dragged.layer = insert_at
+	else:
+		# 松手在层中心附近 → 普通换层
+		dragged.layer = _layer_at_y(local.y)
 	_dragging_idx = -1
+	_update_all_labels()
+	_refresh_canvas_size()
 	_canvas.queue_redraw()
 
 
@@ -2149,10 +2240,9 @@ func _node_pos_for_variant(day_layout: MapLayoutDay, idx: int) -> Vector2:
 			same_layer.append(i)
 	var my_pos : int = same_layer.find(idx)
 	var count : int = same_layer.size()
-	var ratio : float = float(my_pos + 1) / float(count + 1)
-
-	var x : float = BAKE_WIDTH * ratio
-	var y : float = CANVAS_PADDING_TOP + (max_layer - node.layer + 0.5) * LAYER_HEIGHT
+	# ★ v6.56：与局内、编辑器画布统一走同一排列函数（Bake 宽度作画布）
+	var x : float = MapConst.compute_layer_node_x(my_pos, count, BAKE_WIDTH, NODE_W)
+	var y : float = MapConst.compute_layer_node_y(node.layer, max_layer, CANVAS_PADDING_TOP, LAYER_HEIGHT)
 	return Vector2(x, y)
 
 

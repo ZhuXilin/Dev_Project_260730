@@ -206,7 +206,7 @@ func stop_looping():
 #  具体音效（全部走 _play_sfx）
 # ============================================================
 func play_select_sound():
-	if config: _play_sfx("select_unit", config.select_unit)
+	if config: _play_sfx("click", config.click)
 
 func play_attack_sound():
 	if config: _play_sfx("attack", config.attack)

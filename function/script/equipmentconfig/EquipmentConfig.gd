@@ -2082,6 +2082,17 @@ func _is_valid_drop(data: Dictionary, target: Control) -> bool:
 	# ★ v6.22：地图装备配置界面为纯查看页，拒绝任何拖放落点（防具/遗物/光环等）
 	if current_mode == Mode.MAP:
 		return false
+	# ★ v6.56：魂栈（熔铸/休整）模式——完全参考地图装备界面的"只读"口径：
+	#   遗物/防具/单位一律不可拖拽移动或交换；唯一例外是"拖拽单位到献祭熔铸槽"
+	#   （unit_icon → SacrificeDropZone）。注意这不是单位间换位（unit_icon→unit_icon）。
+	var forge_ctx : bool = (current_mode == Mode.FORGE or is_shop_rest_mode())
+	if forge_ctx:
+		if data.get("slot_type", "") == "unit_icon" and target.name == "SacrificeDropZone":
+			var fidx : int = data.get("unit_idx", -1)
+			if fidx >= 0 and fidx < party.size():
+				return not party[fidx].is_dead
+			return false
+		return false
 	var source_type : String = data["slot_type"]
 	var target_type : String = target.get_meta("slot_type", "")
 	var discard : bool = target == discard_zone
@@ -2236,6 +2247,11 @@ func _execute_drop(data: Dictionary, target) -> void:
 		return
 	var source_type : String = data.get("slot_type", "")
 	var target_type : String = target.get_meta("slot_type", "")
+
+	# ★ v6.56：魂栈模式只放行"拖单位入献祭熔铸槽"，与 _is_valid_drop 口径一致
+	if (current_mode == Mode.FORGE or is_shop_rest_mode()):
+		if not (source_type == "unit_icon" and target.name == "SacrificeDropZone"):
+			return
 
 	if source_type == "unit_icon" and target.name == "SacrificeDropZone":
 		var uidx = data.get("unit_idx", -1)

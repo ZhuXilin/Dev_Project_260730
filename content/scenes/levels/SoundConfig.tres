@@ -14,7 +14,8 @@
 
 [resource]
 script = ExtResource("1_mfb7o")
-select_unit = ExtResource("5_q3nft")
+click = ExtResource("5_q3nft")
+cancel = ExtResource("1_8l24p")
 attack = ExtResource("2_ttjgu")
 hit = ExtResource("9_fn40i")
 miss = ExtResource("3_8l24p")
@@ -22,7 +23,6 @@ heal = ExtResource("1_q3nft")
 death_ally = ExtResource("3_28w17")
 death_enemy = ExtResource("4_bvd16")
 move_sound = ExtResource("4_ttjgu")
-cancel = ExtResource("1_8l24p")
 wait = ExtResource("9_fn40i")
 get_item = ExtResource("2_jnutg")
 metadata/_custom_type_script = "uid://lw1x2a7w3gui"

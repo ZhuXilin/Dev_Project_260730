@@ -176,6 +176,14 @@ func get_school_of_affixes(affixes: Array, fallback_item_id: String = "") -> Str
 			var t : String = str(tag)
 			if is_school(t) and not found.has(t):
 				found.append(t)
+	# ★ v6.54 方案A：专精防具（affix_schools 非空）优先取锁定池内的流派，
+	#   避免"防具锁守护、词条是灰烬护体(灰烬+守护)"时判定打架。
+	var fallback_data : ItemData = ItemManager.get_item_data(fallback_item_id)
+	var locked : Array = fallback_data.affix_schools if fallback_data != null else []
+	if not locked.is_empty():
+		for school in SCHOOL_ORDER:
+			if found.has(school) and locked.has(school):
+				return school
 	for school in SCHOOL_ORDER:
 		if found.has(school):
 			return school
@@ -435,6 +443,34 @@ func get_effective_mechanic_text(unit, school: String) -> String:
 ## 返回 Dictionary：
 ##   {result: "awaken"|"merge"|"full"|"plain", school, level, cap, replaced}
 ##  "full" 表示流派槽已满且是新流派，需要玩家选择覆盖 / 放弃（不自动执行）。
+## ★ v6.54：封顶补偿——把新防具词条注入该流派代表防具（按 id 去重，避免叠同一条）。
+##   返回实际注入条数。找不到代表件时返回 0（此时仍不算浪费：Lv 已满且词条无处可挂，属数据边界）。
+func _inject_affixes_to_school(unit: UnitData, school: String, affixes: Array) -> int:
+	var target : ItemInstance = null
+	for slot in unit.armor_slots:
+		var inst : ItemInstance = slot as ItemInstance
+		if inst != null and get_school_of_instance(inst) == school:
+			target = inst
+			break
+	if target == null:
+		return 0
+	var existing : Dictionary = {}
+	for a in target.affixes:
+		if a is Dictionary:
+			existing[str(a.get("id", ""))] = true
+	var added : int = 0
+	for a in affixes:
+		if not (a is Dictionary):
+			continue
+		var aid : String = str(a.get("id", ""))
+		if aid == "" or existing.has(aid):
+			continue
+		target.affixes.append(a.duplicate())
+		existing[aid] = true
+		added += 1
+	return added
+
+
 func apply_armor(unit: UnitData, item_id: String, quality: String, forced_school: String = "", affixes: Array = []) -> Dictionary:
 	# ★ v6.53：流派由词条决定（词条即流派）；fallback 防具 tag 兼容熔铸专属等无词条件
 	var school := forced_school if forced_school != "" else get_school_of_affixes(affixes, item_id)
@@ -458,10 +494,17 @@ func apply_armor(unit: UnitData, item_id: String, quality: String, forced_school
 		entry["cap"] = new_cap
 		entry["level"] = level
 		mechs[school] = entry
+		var was_capped : bool = old_level >= old_cap and level >= old_cap
+		# ★ v6.54：封顶后并入不再浪费——把新词条注入该流派代表防具（按 id 去重）。
+		#   常规并入仍不动已有词条；只有 Lv 已到 cap、再升无意义时才走此补偿。
+		var injected : int = 0
+		if was_capped and not affixes.is_empty():
+			injected = _inject_affixes_to_school(unit, school, affixes)
 		build_changed.emit(unit.unit_name)
-		if _crossed_breakthrough(old_level, level):
+		if not was_capped and _crossed_breakthrough(old_level, level):
 			SignalBus.build_awakened.emit(unit, school, level, get_school_color(school))
-		return {"result": "merge", "school": school, "level": level, "cap": new_cap, "replaced": ""}
+		return {"result": "merge", "school": school, "level": level, "cap": new_cap,
+				"replaced": "", "capped": was_capped, "affixes_injected": injected}
 
 	var used := mechs.size()
 	var slots := unit.max_armor_slots
@@ -1008,7 +1051,7 @@ func roll_armor(quality_level: int) -> Dictionary:
 		return {}
 	var item_id := str(candidates[randi() % candidates.size()])
 	var idata : ItemData = ItemManager.get_item_data(item_id)
-	var affixes : Array = [] if idata != null and idata.no_affix else AffixManager.roll_affixes(quality, idata.tags if idata != null else [])
+	var affixes : Array = [] if idata != null and idata.no_affix else AffixManager.roll_affixes(quality, idata.tags if idata != null else [], idata.affix_schools if idata != null else [])
 	var school := get_school_of_affixes(affixes, item_id)
 	return {
 		"item_id": item_id,

@@ -60,13 +60,16 @@ func format_description(affix_id: String, value: int) -> String:
 ## v5.1：两阶段抽取——先「标签专属池」，再用「通用池」补满。
 ## 目的：带标签的防具一眼能看出流派基因（烈焰必出攻击/暴击/穿透），
 ## 同时低品质/冷门标签不会因为专属池不足而开天窗。
-func roll_affixes(quality: String, item_tags: Array) -> Array:
+## ★ v6.54：allowed_schools 非空时，只允许这些流派的词条（专精防具锁定池）；
+##   否则回退用 item_tags 匹配。空 tag 词条仍作通用池补位。
+func roll_affixes(quality: String, item_tags: Array, allowed_schools: Array = []) -> Array:
 	var count : int = get_affix_count_for_quality(quality)
 	if count <= 0:
 		return []
 
-	var tagged_pool : Array = []      # 与 item_tags 匹配的专属词条
-	var universal_pool : Array = []   # 无标签限制的通用词条
+	var tagged_pool : Array = []
+	var universal_pool : Array = []
+	var pool_tags : Array = allowed_schools if not allowed_schools.is_empty() else item_tags
 
 	for aid in _affixes:
 		var d : Dictionary = _affixes[aid]
@@ -77,7 +80,7 @@ func roll_affixes(quality: String, item_tags: Array) -> Array:
 		var is_tagged : bool = false
 		if not affix_tags.is_empty():
 			for t in affix_tags:
-				if t in item_tags:
+				if t in pool_tags:
 					is_tagged = true
 					break
 			# 有标签限制但都不匹配 → 跳过（专属词条不进通用池）

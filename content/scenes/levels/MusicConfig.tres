@@ -21,6 +21,7 @@
 [ext_resource type="AudioStream" uid="uid://c0bl5cdk3atex" path="res://content/music/03 Story 5 - Village.mp3" id="12_hd217"]
 [ext_resource type="AudioStream" uid="uid://cyuaacekbee34" path="res://content/music/22 Story 3 - Conversation.mp3" id="16_7bx0x"]
 [ext_resource type="AudioStream" uid="uid://cde3c5ppv4p5r" path="res://content/music/09 Story 5 - Theme of Encounter.mp3" id="19_r2ggk"]
+[ext_resource type="AudioStream" uid="uid://d2jd5e1dh2uv6" path="res://content/music/17 Story 4 - Victory of Each Map.mp3" id="20_r2ggk"]
 
 [resource]
 script = ExtResource("5_ncngl")
@@ -36,6 +37,7 @@ boss_enemy_turn_music = ExtResource("2_isu17")
 victory_music = ExtResource("6_xqkk7")
 defeat_music = ExtResource("1_21sig")
 win_game_music = ExtResource("7_g5mal")
+roll_music = ExtResource("20_r2ggk")
 soul_altar_music = ExtResource("16_7bx0x")
 anvil_tavern_music = ExtResource("10_ojyag")
 arena_music = ExtResource("2_wof56")

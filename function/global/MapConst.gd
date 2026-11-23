@@ -141,3 +141,33 @@ const FACTION_CN = {
 
 static func get_faction_cn(f: int) -> String:
 	return FACTION_CN.get(f, "未知")
+
+
+# ============================================================
+#  节点排列（局内 MapScene 与地图编辑器 MapLayoutEditor 共用）
+# ============================================================
+
+## ★ v6.56：某层内第 index 个节点的横向 x 坐标（菱形对称布局）。
+##   节点越多该层铺得越开：n=1 居中、n=2 中等、n=3 最宽、n>=4 更宽；
+##   层内以中心为轴左右对称（t 从 -1 到 +1）。canvas_width 由调用方给
+##   （局内=视口宽-80，编辑器=画布宽），BakeWidth 也走同一入口，杜绝两边不一致。
+static func compute_layer_node_x(index: int, count: int, canvas_width: float, node_width: float) -> float:
+	var center_x : float = canvas_width * 0.5
+	if count <= 1:
+		return center_x
+	var spread_ratio : float = 0.0
+	if count == 2:
+		spread_ratio = 0.30
+	elif count == 3:
+		spread_ratio = 0.62
+	else:
+		spread_ratio = 0.84
+	var side_guard : float = node_width * 2.0
+	var half : float = minf(canvas_width * spread_ratio * 0.5, canvas_width * 0.5 - side_guard)
+	var t : float = float(index) / float(count - 1) * 2.0 - 1.0  # -1..+1
+	return center_x + t * half
+
+
+## ★ v6.56：层内节点的纵向 y 坐标（局内与编辑器共用）。layer 越大越靠上。
+static func compute_layer_node_y(layer: int, max_layer: int, top_offset: float, layer_height: float) -> float:
+	return top_offset + (max_layer - layer + 0.5) * layer_height

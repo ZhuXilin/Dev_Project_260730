@@ -37,49 +37,48 @@ static func _generate_from_layout(day: int, day_layout: MapLayoutDay) -> MapLeve
 
 	var nodes: Array[MapNode] = []
 
-	# ---- 按层分组 ----
-	var by_layer : Dictionary = {}
-	for i in range(day_layout.nodes.size()):
-		var ln : MapLayoutNode = day_layout.nodes[i]
-		if not by_layer.has(ln.layer):
-			by_layer[ln.layer] = []
-		by_layer[ln.layer].append(i)
-
-	# ---- 逐层解析类型（同层不重复） ----
+	# ---- ★ v6.57：整天去重解析类型 ----
+	#   旧版按层去重，同一天不同层仍会出现多个相同类型（如 3 个精英分布在不同层）。
+	#   新版整天共享 used_types：每种类型在一天内最多出现一次（问号也参与）。
+	#   固定节点（random_pool 空）不可改，先占位；随机节点按候选池从小到大解析，
+	#   尽量避开已用类型；类型数不够时回退到允许重复（数据限制，无法避免）。
 	var resolved_types : Array = []
 	resolved_types.resize(day_layout.nodes.size())
 
-	for layer_key in by_layer:
-		var indices : Array = by_layer[layer_key]
+	var used_types : Dictionary = {}
+	# 1) 固定节点先占位
+	for i in range(day_layout.nodes.size()):
+		var ln_fixed : MapLayoutNode = day_layout.nodes[i]
+		if ln_fixed.random_pool.is_empty():
+			resolved_types[i] = ln_fixed.node_type
+			used_types[ln_fixed.node_type] = true
 
-		indices.sort_custom(func(a, b):
-			var pa : Array = day_layout.nodes[a].random_pool
-			var pb : Array = day_layout.nodes[b].random_pool
-			var sa : int = pa.size() if not pa.is_empty() else 999
-			var sb : int = pb.size() if not pb.is_empty() else 999
-			return sa < sb
-		)
+	# 2) 随机节点按候选池大小排序（池小的先定，降低冲突概率）
+	var random_indices : Array = []
+	for i in range(day_layout.nodes.size()):
+		if not day_layout.nodes[i].random_pool.is_empty():
+			random_indices.append(i)
+	random_indices.sort_custom(func(a, b):
+		var sa : int = day_layout.nodes[a].random_pool.size()
+		var sb : int = day_layout.nodes[b].random_pool.size()
+		if sa == sb:
+			return a < b  # 同大小按索引稳定排序，避免随机抖动
+		return sa < sb
+	)
 
-		var used_types : Dictionary = {}
-		for idx in indices:
-			var ln : MapLayoutNode = day_layout.nodes[idx]
-			if ln.random_pool.is_empty():
-				used_types[ln.node_type] = true
-
-		for idx in indices:
-			var ln : MapLayoutNode = day_layout.nodes[idx]
-			if ln.random_pool.is_empty():
-				resolved_types[idx] = ln.node_type
-				continue
-			var available : Array = []
-			for t in ln.random_pool:
-				if not used_types.has(t):
-					available.append(t)
-			if available.is_empty():
-				available = ln.random_pool.duplicate()
-			var pick : int = available[randi() % available.size()]
-			resolved_types[idx] = pick
-			used_types[pick] = true
+	# 3) 逐个挑未用类型
+	for idx in random_indices:
+		var ln : MapLayoutNode = day_layout.nodes[idx]
+		var available : Array = []
+		for t in ln.random_pool:
+			if not used_types.has(t):
+				available.append(t)
+		if available.is_empty():
+			# 类型已被用完 → 整池回退（无法去重，保持有节点可生成）
+			available = ln.random_pool.duplicate()
+		var pick : int = available[randi() % available.size()]
+		resolved_types[idx] = pick
+		used_types[pick] = true
 
 	# ★ v5.18 问号保底：布局把 QUESTION 放进 random_pool 后，"同层不重复"会挤压问号，
 	# 部分轮次一个问号都不出。只要布局里有问号候选，本轮就强制保留至少一个。

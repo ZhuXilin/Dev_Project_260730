@@ -248,7 +248,7 @@ func _on_forge_action_single(inst : ItemInstance):
 		return
 
 	var d = ItemManager.get_item_data(inst.item_id)
-	inst.affixes = AffixManager.roll_affixes(d.quality, d.tags)
+	inst.affixes = AffixManager.roll_affixes(d.quality, d.tags, d.affix_schools)
 
 	# 直接进待领取区
 	GameState.pending_forge_rewards.append(inst)
@@ -475,11 +475,14 @@ func is_valid_forge_drop(data: Dictionary, target: Control) -> bool:
 
 		return true
 
+	# ★ v6.55：魂栈(熔铸页)内已装备防具只读——不允许槽位间移动/交换，
+	#   与地图装备界面口径一致（技能/词条早已锁定，防具也不再能随意重排）。
+	#   仅保留 armor→forge_slot（投入熔炉）与 pending_reward→forge_slot。
 	if src_type == "armor" and tgt_type == "armor":
-		return panel._check_armor_swap_budget(data, target)
+		return false
 
 	if src_type == "armor" and target == panel.discard_zone:
-		return true
+		return false
 
 	if src_type == "forge_slot" and target == panel.discard_zone:
 		return true 
@@ -492,7 +495,8 @@ func execute_forge_drop(data: Dictionary, target: Control):
 	var tgt_type : String = target.get_meta("slot_type", "")
 
 	if src_type == "armor" and tgt_type == "armor":
-		panel._shop.swap_armor(data, target); return
+		# ★ v6.55：魂栈内防具槽只读，禁止移动/交换（与 is_valid_forge_drop 一致）
+		return
 
 	if target == panel.discard_zone:
 		if src_type == "forge_slot":

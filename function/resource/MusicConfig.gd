@@ -17,6 +17,10 @@ class_name MusicConfig
 @export var defeat_music : AudioStream
 @export var win_game_music : AudioStream
 
+# ---- Roll 界面音乐 ----
+## 【Roll轮盘音乐】技能与防具轮盘共用（两个 Roll 界面已合并为同一场景）
+@export var roll_music : AudioStream
+
 # ---- 营地子界面音乐 ----
 @export var soul_altar_music : AudioStream
 @export var anvil_tavern_music : AudioStream

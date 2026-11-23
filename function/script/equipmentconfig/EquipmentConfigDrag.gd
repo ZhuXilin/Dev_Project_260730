@@ -23,6 +23,11 @@ func start_drag(btn: Control):
 	if btn is Button and btn.disabled: return
 	# ★ v6.22：地图装备配置界面为纯查看页——禁止一切拖拽（防具/遗物/光环/技能/单位/丢弃）
 	if panel.current_mode == panel.Mode.MAP: return
+	# ★ v6.56：魂栈（熔铸）模式——只放行"拖拽单位入献祭熔铸槽"，其余一律不许起拖。
+	#   从起点就拦，避免玩家能把遗物/防具/技能拖起来（视觉上像能操作）。
+	if (panel.current_mode == panel.Mode.FORGE or panel._is_shop_rest_mode()):
+		if btn.get_meta("slot_type", "") != "unit_icon":
+			return
 	var slot_type : String = btn.get_meta("slot_type", "")
 
 	if panel.current_mode == panel.Mode.DEPLOY and slot_type == "armor": return
@@ -183,8 +188,12 @@ func end_drag():
 		SoundManager.play_select_sound()
 	else:
 		if source_type == "talent" and target == null:
-			panel._talent.execute_talent_remove.call_deferred(drop_data)
-			SoundManager.play_select_sound()
+			# ★ v6.56：魂栈模式禁止丢弃技能（此处绕过 _is_valid_drop，需单独挡）
+			if (panel.current_mode == panel.Mode.FORGE or panel._is_shop_rest_mode()):
+				pass
+			else:
+				panel._talent.execute_talent_remove.call_deferred(drop_data)
+				SoundManager.play_select_sound()
 		elif (panel.current_mode == panel.Mode.FORGE or (panel._is_shop_rest_mode() and panel.current_tab == "arena_forge")) \
 				and source_type == "forge_slot" and target == null:
 			panel._forge.execute_forge_slot_return.call_deferred(drop_data)

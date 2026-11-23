@@ -52,7 +52,8 @@
 	"soul_base": 2, "soul_var": 3,
 	"armor_gold_base": 75, "armor_gold_var": 75,
 	"relic_soul_base": 3, "relic_soul_var": 3,
-	"option_weights": { "gold": 3, "armor": 2, "relic": 1 }
+	"option_weights": { "gold": 3, "soul": 2, "relic": 1 },
+	"premium_option_weights": { "gold": 1, "soul": 2, "relic": 8 }
   },
 
   "aura_research": {

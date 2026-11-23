@@ -39,6 +39,8 @@ class_name ItemData
 @export var price: int = 0
 
 @export var tags: Array[String] = []
+## ★ v6.54：允许的词条流派池。空=跟随 tags；非空=只允许这些流派的词条（专精防具）
+@export var affix_schools: Array[String] = []
 
 @export var fusion_id: String = ""
 @export var fusion_effect: String = ""

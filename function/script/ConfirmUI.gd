@@ -167,17 +167,17 @@ func _make_choice_card(data: Dictionary, is_a: bool) -> PanelContainer:
 	icon_box.add_child(color_rect)
 	var tex : Texture2D = data.get("icon")
 	if tex:
-		var tr := TextureRect.new()
-		tr.texture = tex
-		tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-		tr.stretch_mode = TextureRect.STRETCH_KEEP_CENTERED
-		tr.set_anchors_preset(Control.PRESET_CENTER)
-		tr.offset_left = -10
-		tr.offset_right = 10
-		tr.offset_top = -10
-		tr.offset_bottom = 10
-		tr.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		icon_box.add_child(tr)
+		var icon_rect := TextureRect.new()
+		icon_rect.texture = tex
+		icon_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		icon_rect.stretch_mode = TextureRect.STRETCH_KEEP_CENTERED
+		icon_rect.set_anchors_preset(Control.PRESET_CENTER)
+		icon_rect.offset_left = -10
+		icon_rect.offset_right = 10
+		icon_rect.offset_top = -10
+		icon_rect.offset_bottom = 10
+		icon_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		icon_box.add_child(icon_rect)
 	icon_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	row.add_child(icon_box)
 

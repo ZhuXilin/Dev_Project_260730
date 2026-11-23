@@ -220,9 +220,11 @@ func _on_confirm_pressed():
 
 	# ★ v6.3：选完 3 单位 → 技能轮盘 → 直接进地图，不再经过战前装备界面
 	var roll_ui = load(Config.PATHS.SKILL_ROLL_UI).instantiate()
+	# ★ v6.57：SkillRollUI 已合入 ArmorRollUI——先标记技能模式，再进树
+	roll_ui.set_skill_mode()
 	add_child(roll_ui)
-	roll_ui.setup(selected_units)
-	roll_ui.finished.connect(func(): _enter_map_after_roll(selected_units))
+	roll_ui.skill_finished.connect(func(): _enter_map_after_roll(selected_units))
+	roll_ui.setup_skill(selected_units)
 
 
 func _open_deploy_config(_chosen_units: Array, target_slot: int) -> void:

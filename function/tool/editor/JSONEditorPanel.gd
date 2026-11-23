@@ -38,6 +38,7 @@ const FIELD_TRANSLATIONS : Dictionary = {
 	"value_max": "最大值",
 	"icon": "图标",
 	"tags": "标签",
+	"affix_schools": "词条流派池（空=跟随标签）",
 	"stats": "属性",
 	"effects": "效果",
 	"params": "参数",
@@ -763,13 +764,49 @@ func _render_simple_array(parent : Node, _target_dict : Dictionary, _key : Strin
 			)
 			row.add_child(sp)
 		else:
-			var le := LineEdit.new()
-			le.text = str(v)
-			le.custom_minimum_size = Vector2(44, ROW_H)
-			le.text_changed.connect(func(t2):
-				arr[i] = t2; _dirty = true
+			# ★ v6.54：词条流派池用六流派下拉，避免手输错字
+			if path.ends_with("affix_schools"):
+				var schools : Array = ["烈焰", "轮回", "灰烬", "守护", "献祭", "余烬"]
+				var ob := OptionButton.new()
+				for s in schools:
+					ob.add_item(str(s))
+					if str(v) == str(s):
+						ob.select(ob.item_count - 1)
+				ob.custom_minimum_size = Vector2(56, ROW_H)
+				ob.item_selected.connect(func(idx):
+					arr[i] = schools[idx]; _dirty = true
+				)
+				row.add_child(ob)
+			else:
+				var le := LineEdit.new()
+				le.text = str(v)
+				le.custom_minimum_size = Vector2(44, ROW_H)
+				le.text_changed.connect(func(t2):
+					arr[i] = t2; _dirty = true
+				)
+				row.add_child(le)
+
+	# ★ v6.54：词条流派池支持添加/删除元素（通用数组编辑器无此能力）
+	if path.ends_with("affix_schools"):
+		var add_btn := Button.new()
+		add_btn.text = "+ 流派"
+		add_btn.custom_minimum_size = Vector2(48, ROW_H)
+		add_btn.pressed.connect(func():
+			arr.append("烈焰")
+			_dirty = true
+			_refresh_editor_content()
+		)
+		row.add_child(add_btn)
+		if not arr.is_empty():
+			var del_btn := Button.new()
+			del_btn.text = "−"
+			del_btn.custom_minimum_size = Vector2(20, ROW_H)
+			del_btn.pressed.connect(func():
+				arr.pop_back()
+				_dirty = true
+				_refresh_editor_content()
 			)
-			row.add_child(le)
+			row.add_child(del_btn)
 
 
 func _render_array_index_editor(parent : Node, arr : Array, i : int, path : String):

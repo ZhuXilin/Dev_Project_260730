@@ -1,7 +1,10 @@
 extends Resource
 class_name SoundConfig
 
-@export var select_unit : AudioStream
+## ★ v6.54：Click 为选中/点击音效（原 Select Unit），Cancel 紧随其后。
+@export var click : AudioStream
+@export var cancel : AudioStream
+
 @export var attack : AudioStream
 @export var hit : AudioStream
 @export var miss : AudioStream
@@ -13,6 +16,5 @@ class_name SoundConfig
 @export var death_enemy : AudioStream
 
 @export var move_sound : AudioStream
-@export var cancel : AudioStream
 @export var wait : AudioStream
 @export var get_item : AudioStream

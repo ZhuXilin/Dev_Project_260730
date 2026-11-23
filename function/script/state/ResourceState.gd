@@ -52,6 +52,8 @@ var tutorial_stage : int = 0
 
 var pending_sacrifice_rewards : Array = []
 var pending_forge_rewards : Array = []
+## ★ v6.54：战后 roll 抽到但未落位的防具（异常退出不丢）
+var pending_armor_roll : Dictionary = {}
 var sacrifice_count : int = 0
 
 var npc_dialogue_seen : Dictionary = {}

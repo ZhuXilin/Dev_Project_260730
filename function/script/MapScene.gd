@@ -317,9 +317,6 @@ func _draw_connections():
 			_create_directed_line(from_pos, to_pos)
 
 func _create_directed_line(from_pos: Vector2, to_pos: Vector2):
-	var dx = to_pos.x - from_pos.x
-	var dy = to_pos.y - from_pos.y
-	
 	var line := Line2D.new()
 	line.width = MapConst.MAP_LINE_WIDTH
 	line.default_color = MapConst.MAP_LINE_COLOR
@@ -327,24 +324,9 @@ func _create_directed_line(from_pos: Vector2, to_pos: Vector2):
 	line.begin_cap_mode = Line2D.LINE_CAP_ROUND
 	line.end_cap_mode = Line2D.LINE_CAP_ROUND
 	
-	# 如果几乎垂直，直接走直线
-	if abs(dx) < 2.0:
-		line.add_point(from_pos)
-		line.add_point(to_pos)
-	else:
-		# 核心：控制点的 Y 轴设定在中点，X 轴沿两端。
-		# 这会形成经典的 S 形树枝状曲线，垂直进出节点，完美对称，绝不纠缠。
-		var mid_y = from_pos.y + dy * 0.5
-		var p1 = Vector2(from_pos.x, mid_y)
-		var p2 = Vector2(to_pos.x, mid_y)
-		
-		var segments : int = 24
-		for i in range(segments + 1):
-			var t : float = float(i) / float(segments)
-			# 三次贝塞尔公式
-			var p : Vector2 = pow(1 - t, 3) * from_pos + 3 * pow(1 - t, 2) * t * p1 + 3 * (1 - t) * pow(t, 2) * p2 + pow(t, 3) * to_pos
-			line.add_point(p)
-		
+	# ★ v6.56：节点连线改为直线（原 S 形贝塞尔曲线去掉），与编辑器测试模式统一
+	line.add_point(from_pos)
+	line.add_point(to_pos)
 	line_container.add_child(line)
 
 func _exit_gap_distance(dir: Vector2, hw: float, hh: float) -> float:
@@ -1102,13 +1084,14 @@ func _compute_node_positions() -> Dictionary:
 			by_layer[n.layer] = []
 		by_layer[n.layer].append(n)
 
+	# ★ v6.56：菱形对称布局——横向分布走 MapConst 共用函数，与地图编辑器统一
 	for layer_key in by_layer:
 		var arr : Array = by_layer[layer_key]
-		for i in range(arr.size()):
+		var cnt : int = arr.size()
+		for i in range(cnt):
 			var n : MapNode = arr[i]
-			var ratio : float = float(i + 1) / float(arr.size() + 1)
-			var px : float = canvas_width * ratio
-			var py : float = top_offset + (max_layer - n.layer + 0.5) * layer_height
+			var px : float = MapConst.compute_layer_node_x(i, cnt, canvas_width, MapConst.MAP_NODE_SIZE.x)
+			var py : float = MapConst.compute_layer_node_y(n.layer, max_layer, top_offset, layer_height)
 			pos_map[n] = Vector2(px, py)
 	return pos_map
 

@@ -20,7 +20,8 @@
       "轮回"
 	],
 	"type": "armor",
-	"use_type": "equipment"
+	"use_type": "equipment",
+	"affix_schools": []
   },
   "ash_cloak": {
 	"defense": 0.0,
@@ -40,7 +41,8 @@
       "灰烬"
 	],
 	"type": "armor",
-	"use_type": "equipment"
+	"use_type": "equipment",
+	"affix_schools": []
   },
   "ash_devourer": {
 	"defense": 0.0,
@@ -63,7 +65,8 @@
       "灰烬"
 	],
 	"type": "armor",
-	"use_type": "equipment"
+	"use_type": "equipment",
+	"affix_schools": []
   },
   "blood_moon_crown": {
 	"defense": 0.0,
@@ -86,7 +89,8 @@
       "献祭"
 	],
 	"type": "armor",
-	"use_type": "equipment"
+	"use_type": "equipment",
+	"affix_schools": []
   },
   "blood_oath_mask": {
 	"defense": 0.0,
@@ -109,7 +113,8 @@
       "献祭"
 	],
 	"type": "armor",
-	"use_type": "equipment"
+	"use_type": "equipment",
+	"affix_schools": []
   },
   "bulwark_helm": {
 	"defense": 0.0,
@@ -132,7 +137,8 @@
       "守护"
 	],
 	"type": "armor",
-	"use_type": "equipment"
+	"use_type": "equipment",
+	"affix_schools": []
   },
   "burning_core": {
 	"defense": 0.0,
@@ -156,7 +162,8 @@
       "灰烬"
 	],
 	"type": "armor",
-	"use_type": "equipment"
+	"use_type": "equipment",
+	"affix_schools": []
   },
   "cinder_boots": {
 	"defense": 0.0,
@@ -179,7 +186,8 @@
       "灰烬"
 	],
 	"type": "armor",
-	"use_type": "equipment"
+	"use_type": "equipment",
+	"affix_schools": []
   },
   "dragon_scale_armor": {
 	"defense": 0.0,
@@ -202,7 +210,8 @@
       "余烬"
 	],
 	"type": "armor",
-	"use_type": "equipment"
+	"use_type": "equipment",
+	"affix_schools": []
   },
   "ember_ring": {
 	"defense": 0.0,
@@ -222,7 +231,8 @@
       "余烬"
 	],
 	"type": "armor",
-	"use_type": "equipment"
+	"use_type": "equipment",
+	"affix_schools": []
   },
   "ember_shard": {
 	"defense": 0.0,
@@ -244,7 +254,8 @@
       "余烬"
 	],
 	"type": "armor",
-	"use_type": "equipment"
+	"use_type": "equipment",
+	"affix_schools": []
   },
   "emberheart_plate": {
 	"defense": 0.0,
@@ -267,7 +278,8 @@
       "余烬"
 	],
 	"type": "armor",
-	"use_type": "equipment"
+	"use_type": "equipment",
+	"affix_schools": []
   },
   "endless_cycle": {
 	"defense": 0.0,
@@ -291,7 +303,8 @@
       "轮回"
 	],
 	"type": "armor",
-	"use_type": "equipment"
+	"use_type": "equipment",
+	"affix_schools": []
   },
   "eternal_flame": {
 	"defense": 0.0,
@@ -313,7 +326,8 @@
       "余烬"
 	],
 	"type": "armor",
-	"use_type": "equipment"
+	"use_type": "equipment",
+	"affix_schools": []
   },
   "eternal_flame_robe": {
 	"defense": 0.0,
@@ -336,7 +350,8 @@
       "余烬"
 	],
 	"type": "armor",
-	"use_type": "equipment"
+	"use_type": "equipment",
+	"affix_schools": []
   },
   "flame_glaive_armor": {
 	"defense": 0.0,
@@ -358,7 +373,8 @@
       "烈焰"
 	],
 	"type": "armor",
-	"use_type": "equipment"
+	"use_type": "equipment",
+	"affix_schools": []
   },
   "flame_sovereign": {
 	"defense": 0.0,
@@ -381,7 +397,8 @@
       "烈焰"
 	],
 	"type": "armor",
-	"use_type": "equipment"
+	"use_type": "equipment",
+	"affix_schools": []
   },
   "flamebrand_plate": {
 	"defense": 0.0,
@@ -404,7 +421,8 @@
       "烈焰"
 	],
 	"type": "armor",
-	"use_type": "equipment"
+	"use_type": "equipment",
+	"affix_schools": []
   },
   "guard_ring": {
 	"defense": 0.0,
@@ -426,7 +444,8 @@
       "守护"
 	],
 	"type": "armor",
-	"use_type": "equipment"
+	"use_type": "equipment",
+	"affix_schools": []
   },
   "iron_armor": {
 	"defense": 0.0,
@@ -446,7 +465,8 @@
       "守护"
 	],
 	"type": "armor",
-	"use_type": "equipment"
+	"use_type": "equipment",
+	"affix_schools": []
   },
   "iron_helmet": {
 	"defense": 0.0,
@@ -466,7 +486,8 @@
       "守护"
 	],
 	"type": "armor",
-	"use_type": "equipment"
+	"use_type": "equipment",
+	"affix_schools": []
   },
   "knight_armor": {
 	"defense": 0.0,
@@ -489,7 +510,8 @@
       "守护"
 	],
 	"type": "armor",
-	"use_type": "equipment"
+	"use_type": "equipment",
+	"affix_schools": []
   },
   "lava_bastion": {
 	"defense": 0.0,
@@ -514,7 +536,8 @@
       "守护"
 	],
 	"type": "armor",
-	"use_type": "equipment"
+	"use_type": "equipment",
+	"affix_schools": []
   },
   "leather_armor": {
 	"defense": 0.0,
@@ -536,7 +559,8 @@
       "灰烬"
 	],
 	"type": "armor",
-	"use_type": "equipment"
+	"use_type": "equipment",
+	"affix_schools": []
   },
   "mage_robe": {
 	"defense": 0.0,
@@ -559,7 +583,8 @@
       "轮回"
 	],
 	"type": "armor",
-	"use_type": "equipment"
+	"use_type": "equipment",
+	"affix_schools": []
   },
   "melt_archer": {
 	"defense": 0.0,
@@ -585,7 +610,8 @@
 	"slot_count": 1.0,
 	"tags": [],
 	"type": "armor",
-	"use_type": "equipment"
+	"use_type": "equipment",
+	"affix_schools": []
   },
   "melt_armored": {
 	"defense": 0.0,
@@ -611,7 +637,8 @@
 	"slot_count": 1.0,
 	"tags": [],
 	"type": "armor",
-	"use_type": "equipment"
+	"use_type": "equipment",
+	"affix_schools": []
   },
   "melt_axeman": {
 	"defense": 0.0,
@@ -637,7 +664,8 @@
 	"slot_count": 1.0,
 	"tags": [],
 	"type": "armor",
-	"use_type": "equipment"
+	"use_type": "equipment",
+	"affix_schools": []
   },
   "melt_cleric": {
 	"defense": 0.0,
@@ -663,7 +691,8 @@
 	"slot_count": 1.0,
 	"tags": [],
 	"type": "armor",
-	"use_type": "equipment"
+	"use_type": "equipment",
+	"affix_schools": []
   },
   "melt_dragonborn": {
 	"defense": 0.0,
@@ -689,7 +718,8 @@
 	"slot_count": 1.0,
 	"tags": [],
 	"type": "armor",
-	"use_type": "equipment"
+	"use_type": "equipment",
+	"affix_schools": []
   },
   "melt_mage": {
 	"defense": 0.0,
@@ -715,7 +745,8 @@
 	"slot_count": 1.0,
 	"tags": [],
 	"type": "armor",
-	"use_type": "equipment"
+	"use_type": "equipment",
+	"affix_schools": []
   },
   "melt_pegasus": {
 	"defense": 0.0,
@@ -741,7 +772,8 @@
 	"slot_count": 1.0,
 	"tags": [],
 	"type": "armor",
-	"use_type": "equipment"
+	"use_type": "equipment",
+	"affix_schools": []
   },
   "melt_spearman": {
 	"defense": 0.0,
@@ -767,7 +799,8 @@
 	"slot_count": 1.0,
 	"tags": [],
 	"type": "armor",
-	"use_type": "equipment"
+	"use_type": "equipment",
+	"affix_schools": []
   },
   "melt_swordsman": {
 	"defense": 0.0,
@@ -793,7 +826,8 @@
 	"slot_count": 1.0,
 	"tags": [],
 	"type": "armor",
-	"use_type": "equipment"
+	"use_type": "equipment",
+	"affix_schools": []
   },
   "novice_robe": {
 	"defense": 0.0,
@@ -815,7 +849,8 @@
       "轮回"
 	],
 	"type": "armor",
-	"use_type": "equipment"
+	"use_type": "equipment",
+	"affix_schools": []
   },
   "padded_coat": {
 	"defense": 0.0,
@@ -835,7 +870,8 @@
       "守护"
 	],
 	"type": "armor",
-	"use_type": "equipment"
+	"use_type": "equipment",
+	"affix_schools": []
   },
   "phoenix_cloak": {
 	"defense": 0.0,
@@ -858,7 +894,8 @@
       "烈焰"
 	],
 	"type": "armor",
-	"use_type": "equipment"
+	"use_type": "equipment",
+	"affix_schools": []
   },
   "phoenix_feather": {
 	"defense": 0.0,
@@ -882,7 +919,8 @@
       "烈焰"
 	],
 	"type": "armor",
-	"use_type": "equipment"
+	"use_type": "equipment",
+	"affix_schools": []
   },
   "power_ring": {
 	"defense": 0.0,
@@ -904,7 +942,8 @@
       "烈焰"
 	],
 	"type": "armor",
-	"use_type": "equipment"
+	"use_type": "equipment",
+	"affix_schools": []
   },
   "sacrificial_bracer": {
 	"defense": 0.0,
@@ -926,7 +965,8 @@
       "献祭"
 	],
 	"type": "armor",
-	"use_type": "equipment"
+	"use_type": "equipment",
+	"affix_schools": []
   },
   "sacrificial_mask": {
 	"defense": 0.0,
@@ -948,7 +988,8 @@
       "献祭"
 	],
 	"type": "armor",
-	"use_type": "equipment"
+	"use_type": "equipment",
+	"affix_schools": []
   },
   "samsara_beads": {
 	"defense": 0.0,
@@ -970,7 +1011,8 @@
       "轮回"
 	],
 	"type": "armor",
-	"use_type": "equipment"
+	"use_type": "equipment",
+	"affix_schools": []
   },
   "samsara_robe": {
 	"defense": 0.0,
@@ -993,7 +1035,8 @@
       "轮回"
 	],
 	"type": "armor",
-	"use_type": "equipment"
+	"use_type": "equipment",
+	"affix_schools": []
   },
   "soul_guardian_plate": {
 	"defense": 0.0,
@@ -1016,7 +1059,8 @@
       "守护"
 	],
 	"type": "armor",
-	"use_type": "equipment"
+	"use_type": "equipment",
+	"affix_schools": []
   },
   "speed_boots": {
 	"defense": 0.0,
@@ -1038,7 +1082,8 @@
       "灰烬"
 	],
 	"type": "armor",
-	"use_type": "equipment"
+	"use_type": "equipment",
+	"affix_schools": []
   },
   "steel_armor": {
 	"defense": 0.0,
@@ -1060,7 +1105,8 @@
       "守护"
 	],
 	"type": "armor",
-	"use_type": "equipment"
+	"use_type": "equipment",
+	"affix_schools": []
   },
   "traveler_boots": {
 	"defense": 0.0,
@@ -1083,7 +1129,8 @@
       "灰烬"
 	],
 	"type": "armor",
-	"use_type": "equipment"
+	"use_type": "equipment",
+	"affix_schools": []
   },
   "undying_ember": {
 	"defense": 0.0,
@@ -1107,7 +1154,8 @@
       "献祭"
 	],
 	"type": "armor",
-	"use_type": "equipment"
+	"use_type": "equipment",
+	"affix_schools": []
   },
   "wheel_of_samsara": {
 	"defense": 0.0,
@@ -1130,7 +1178,8 @@
       "轮回"
 	],
 	"type": "armor",
-	"use_type": "equipment"
+	"use_type": "equipment",
+	"affix_schools": []
   },
   "wooden_shield": {
 	"defense": 0.0,
@@ -1150,6 +1199,7 @@
       "守护"
 	],
 	"type": "armor",
-	"use_type": "equipment"
+	"use_type": "equipment",
+	"affix_schools": []
   }
 }

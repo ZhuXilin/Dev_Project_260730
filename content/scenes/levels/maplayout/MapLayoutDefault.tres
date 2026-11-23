@@ -6,13 +6,13 @@
 
 [sub_resource type="Resource" id="Resource_fhvae"]
 script = ExtResource("3_node")
-position = Vector2(200, 90)
+position = Vector2(200, 130)
 connects_to = Array[int]([1, 2])
 
 [sub_resource type="Resource" id="Resource_283bp"]
 script = ExtResource("3_node")
 random_pool = Array[int]([1, 2, 6, 7])
-position = Vector2(133.33333, 62)
+position = Vector2(140, 86)
 layer = 1
 connects_to = Array[int]([3])
 max_waves = 2
@@ -22,7 +22,7 @@ enemy_hp_multiplier = 1.2
 [sub_resource type="Resource" id="Resource_q0oey"]
 script = ExtResource("3_node")
 random_pool = Array[int]([1, 2, 3, 5, 7])
-position = Vector2(266.66666, 62)
+position = Vector2(260, 86)
 layer = 1
 connects_to = Array[int]([3])
 max_waves = 2
@@ -32,7 +32,7 @@ enemy_hp_multiplier = 1.2
 [sub_resource type="Resource" id="Resource_hqnab"]
 script = ExtResource("3_node")
 node_type = 4
-position = Vector2(200, 34)
+position = Vector2(200, 42)
 layer = 2
 unlock_relics = Array[String](["relic_attack", "relic_defense", "relic_health"])
 
@@ -40,16 +40,88 @@ unlock_relics = Array[String](["relic_attack", "relic_defense", "relic_health"])
 script = ExtResource("2_day")
 nodes = Array[ExtResource("3_node")]([SubResource("Resource_fhvae"), SubResource("Resource_283bp"), SubResource("Resource_q0oey"), SubResource("Resource_hqnab")])
 
+[sub_resource type="Resource" id="Resource_ux5fr"]
+script = ExtResource("3_node")
+position = Vector2(200, 130)
+connects_to = Array[int]([1])
+
+[sub_resource type="Resource" id="Resource_fr5s5"]
+script = ExtResource("3_node")
+random_pool = Array[int]([1, 2, 6, 7])
+position = Vector2(200, 86)
+layer = 1
+connects_to = Array[int]([2])
+max_waves = 2
+reward_multiplier = 2.0
+enemy_hp_multiplier = 1.2
+
+[sub_resource type="Resource" id="Resource_coedh"]
+script = ExtResource("3_node")
+node_type = 4
+position = Vector2(200, 42)
+layer = 2
+unlock_relics = Array[String](["relic_attack", "relic_defense", "relic_health"])
+
+[sub_resource type="Resource" id="Resource_1olaj"]
+script = ExtResource("2_day")
+nodes = Array[ExtResource("3_node")]([SubResource("Resource_ux5fr"), SubResource("Resource_fr5s5"), SubResource("Resource_coedh")])
+
+[sub_resource type="Resource" id="Resource_3nlp0"]
+script = ExtResource("3_node")
+position = Vector2(200, 174)
+connects_to = Array[int]([1, 2])
+
+[sub_resource type="Resource" id="Resource_x8h80"]
+script = ExtResource("3_node")
+node_type = 2
+random_pool = Array[int]([2, 3, 5, 7])
+position = Vector2(140, 130)
+layer = 1
+connects_to = Array[int]([4])
+max_waves = 2
+reward_multiplier = 2.0
+enemy_hp_multiplier = 1.2
+
+[sub_resource type="Resource" id="Resource_vaint"]
+script = ExtResource("3_node")
+node_type = 2
+random_pool = Array[int]([2, 6, 7])
+position = Vector2(260, 130)
+layer = 1
+connects_to = Array[int]([4])
+max_waves = 2
+reward_multiplier = 2.0
+enemy_hp_multiplier = 1.2
+
+[sub_resource type="Resource" id="Resource_o4kcj"]
+script = ExtResource("3_node")
+node_type = 4
+position = Vector2(200, 42)
+layer = 3
+unlock_relics = Array[String](["relic_attack", "relic_defense", "relic_health"])
+
+[sub_resource type="Resource" id="Resource_5ggca"]
+script = ExtResource("3_node")
+node_type = 2
+random_pool = Array[int]([2, 7])
+position = Vector2(200, 86)
+layer = 2
+connects_to = Array[int]([3])
+
+[sub_resource type="Resource" id="Resource_y1nlf"]
+script = ExtResource("2_day")
+nodes = Array[ExtResource("3_node")]([SubResource("Resource_3nlp0"), SubResource("Resource_x8h80"), SubResource("Resource_vaint"), SubResource("Resource_o4kcj"), SubResource("Resource_5ggca")])
+
 [sub_resource type="Resource" id="Resource_6xn0r"]
 script = ExtResource("3_node")
-position = Vector2(200, 146)
+position = Vector2(200, 218)
 connects_to = Array[int]([1, 5])
 
 [sub_resource type="Resource" id="Resource_ou5fc"]
 script = ExtResource("3_node")
 node_type = 2
 random_pool = Array[int]([2, 6])
-position = Vector2(133.33333, 118)
+position = Vector2(140, 174)
 layer = 1
 connects_to = Array[int]([2, 3])
 
@@ -57,7 +129,7 @@ connects_to = Array[int]([2, 3])
 script = ExtResource("3_node")
 node_type = 2
 random_pool = Array[int]([2, 7])
-position = Vector2(100, 90)
+position = Vector2(76, 130)
 layer = 2
 connects_to = Array[int]([7])
 max_waves = 3
@@ -68,7 +140,7 @@ enemy_hp_multiplier = 1.2
 script = ExtResource("3_node")
 node_type = 2
 random_pool = Array[int]([2, 5])
-position = Vector2(200, 90)
+position = Vector2(200, 130)
 layer = 2
 connects_to = Array[int]([7, 8])
 max_waves = 3
@@ -78,7 +150,7 @@ enemy_hp_multiplier = 1.2
 [sub_resource type="Resource" id="Resource_wp7x6"]
 script = ExtResource("3_node")
 node_type = 4
-position = Vector2(200, 34)
+position = Vector2(200, 42)
 layer = 4
 unlock_relics = Array[String](["relic_strength", "relic_faith"])
 
@@ -86,14 +158,14 @@ unlock_relics = Array[String](["relic_strength", "relic_faith"])
 script = ExtResource("3_node")
 node_type = 2
 random_pool = Array[int]([2, 3])
-position = Vector2(266.66666, 118)
+position = Vector2(260, 174)
 layer = 1
 connects_to = Array[int]([3, 6])
 
 [sub_resource type="Resource" id="Resource_0agyh"]
 script = ExtResource("3_node")
 random_pool = Array[int]([1, 2])
-position = Vector2(300, 90)
+position = Vector2(324, 130)
 layer = 2
 connects_to = Array[int]([8])
 
@@ -101,7 +173,7 @@ connects_to = Array[int]([8])
 script = ExtResource("3_node")
 node_type = 2
 random_pool = Array[int]([2, 3])
-position = Vector2(133.33333, 62)
+position = Vector2(140, 86)
 layer = 3
 connects_to = Array[int]([4])
 
@@ -109,7 +181,7 @@ connects_to = Array[int]([4])
 script = ExtResource("3_node")
 node_type = 2
 random_pool = Array[int]([2, 7])
-position = Vector2(266.66666, 62)
+position = Vector2(260, 86)
 layer = 3
 connects_to = Array[int]([4])
 
@@ -117,10 +189,117 @@ connects_to = Array[int]([4])
 script = ExtResource("2_day")
 nodes = Array[ExtResource("3_node")]([SubResource("Resource_6xn0r"), SubResource("Resource_ou5fc"), SubResource("Resource_0wb03"), SubResource("Resource_bgprm"), SubResource("Resource_wp7x6"), SubResource("Resource_cg2l3"), SubResource("Resource_0agyh"), SubResource("Resource_trai5"), SubResource("Resource_2wkgu")])
 
+[sub_resource type="Resource" id="Resource_hy14a"]
+script = ExtResource("3_node")
+position = Vector2(200, 174)
+connects_to = Array[int]([1, 3])
+
+[sub_resource type="Resource" id="Resource_hnnrf"]
+script = ExtResource("3_node")
+node_type = 2
+random_pool = Array[int]([2, 6])
+position = Vector2(140, 130)
+layer = 1
+connects_to = Array[int]([4])
+
+[sub_resource type="Resource" id="Resource_66imu"]
+script = ExtResource("3_node")
+node_type = 4
+position = Vector2(200, 42)
+layer = 3
+unlock_relics = Array[String](["relic_strength", "relic_faith"])
+
+[sub_resource type="Resource" id="Resource_l4de7"]
+script = ExtResource("3_node")
+node_type = 2
+random_pool = Array[int]([2, 3])
+position = Vector2(260, 130)
+layer = 1
+connects_to = Array[int]([5])
+
+[sub_resource type="Resource" id="Resource_gvtlr"]
+script = ExtResource("3_node")
+node_type = 2
+random_pool = Array[int]([2, 3])
+position = Vector2(140, 86)
+layer = 2
+connects_to = Array[int]([2])
+
+[sub_resource type="Resource" id="Resource_dc4fp"]
+script = ExtResource("3_node")
+node_type = 2
+random_pool = Array[int]([2, 7])
+position = Vector2(260, 86)
+layer = 2
+connects_to = Array[int]([2])
+
+[sub_resource type="Resource" id="Resource_cxnk0"]
+script = ExtResource("2_day")
+nodes = Array[ExtResource("3_node")]([SubResource("Resource_hy14a"), SubResource("Resource_hnnrf"), SubResource("Resource_66imu"), SubResource("Resource_l4de7"), SubResource("Resource_gvtlr"), SubResource("Resource_dc4fp")])
+
+[sub_resource type="Resource" id="Resource_r1n4l"]
+script = ExtResource("3_node")
+position = Vector2(200, 218)
+connects_to = Array[int]([1, 4])
+
+[sub_resource type="Resource" id="Resource_0lo3v"]
+script = ExtResource("3_node")
+node_type = 2
+random_pool = Array[int]([2, 6])
+position = Vector2(140, 174)
+layer = 1
+connects_to = Array[int]([2])
+
+[sub_resource type="Resource" id="Resource_d50nw"]
+script = ExtResource("3_node")
+node_type = 2
+random_pool = Array[int]([2, 5])
+position = Vector2(200, 130)
+layer = 2
+connects_to = Array[int]([5, 6])
+max_waves = 3
+reward_multiplier = 2.0
+enemy_hp_multiplier = 1.2
+
+[sub_resource type="Resource" id="Resource_yuyb1"]
+script = ExtResource("3_node")
+node_type = 4
+position = Vector2(200, 42)
+layer = 4
+unlock_relics = Array[String](["relic_strength", "relic_faith"])
+
+[sub_resource type="Resource" id="Resource_rpp3a"]
+script = ExtResource("3_node")
+node_type = 2
+random_pool = Array[int]([2, 3])
+position = Vector2(260, 174)
+layer = 1
+connects_to = Array[int]([2])
+
+[sub_resource type="Resource" id="Resource_wat1m"]
+script = ExtResource("3_node")
+node_type = 2
+random_pool = Array[int]([2, 3])
+position = Vector2(140, 86)
+layer = 3
+connects_to = Array[int]([3])
+
+[sub_resource type="Resource" id="Resource_rhgho"]
+script = ExtResource("3_node")
+node_type = 2
+random_pool = Array[int]([2, 7])
+position = Vector2(260, 86)
+layer = 3
+connects_to = Array[int]([3])
+
+[sub_resource type="Resource" id="Resource_7cltr"]
+script = ExtResource("2_day")
+nodes = Array[ExtResource("3_node")]([SubResource("Resource_r1n4l"), SubResource("Resource_0lo3v"), SubResource("Resource_d50nw"), SubResource("Resource_yuyb1"), SubResource("Resource_rpp3a"), SubResource("Resource_wat1m"), SubResource("Resource_rhgho")])
+
 [sub_resource type="Resource" id="Resource_7x32t"]
 script = ExtResource("3_node")
 node_type = 4
-position = Vector2(200, 34)
+position = Vector2(200, 42)
 unlock_relics = Array[String](["relic_phoenix"])
 
 [sub_resource type="Resource" id="D3V1"]
@@ -129,6 +308,6 @@ nodes = Array[ExtResource("3_node")]([SubResource("Resource_7x32t")])
 
 [resource]
 script = ExtResource("1_layout")
-day1_variants = Array[ExtResource("2_day")]([SubResource("D1V1")])
-day2_variants = Array[ExtResource("2_day")]([SubResource("D2V1")])
+day1_variants = Array[ExtResource("2_day")]([SubResource("D1V1"), SubResource("Resource_1olaj"), SubResource("Resource_y1nlf")])
+day2_variants = Array[ExtResource("2_day")]([SubResource("D2V1"), SubResource("Resource_cxnk0"), SubResource("Resource_7cltr")])
 day3_variants = Array[ExtResource("2_day")]([SubResource("D3V1")])

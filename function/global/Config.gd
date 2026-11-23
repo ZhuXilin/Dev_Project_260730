@@ -41,7 +41,9 @@ const PATHS : Dictionary = {
 	"EQUIPMENT_CONFIG":     "res://content/scenes/ui/EquipmentConfig.tscn",
 	"BUILD_VIEWER":         "res://content/scenes/ui/BuildViewer.tscn",
 	"FORGE_ALTAR":          "res://content/scenes/ui/ForgeAltar.tscn",
-	"SKILL_ROLL_UI":        "res://content/scenes/ui/SkillRollUI.tscn",
+	# ★ v6.57：技能/防具 Roll 完全合并——同一场景、同一脚本（ArmorRollUI.gd），
+	#   通过 set_skill_mode()/setup_skill() 进入技能模式。
+	"SKILL_ROLL_UI":        "res://content/scenes/ui/ArmorRollUI.tscn",
 	"ARMOR_ROLL_UI":        "res://content/scenes/ui/ArmorRollUI.tscn",
 	"SAVE_SELECT_UI":       "res://content/scenes/ui/SaveSelectUI.tscn",
 	"UNIT_INFO_UI":         "res://content/scenes/ui/UnitInfoUI.tscn",

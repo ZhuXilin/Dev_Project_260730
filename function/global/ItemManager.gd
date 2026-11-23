@@ -69,6 +69,14 @@ func load_items():
 				if t is String:
 					item.tags.append(t)
 
+		# ★ v6.54：可选的词条流派池（专精防具）；空则跟随 tags
+		item.affix_schools.clear()
+		var affix_schools_raw : Variant = dict.get("affix_schools", [])
+		if affix_schools_raw is Array:
+			for s in affix_schools_raw:
+				if s is String:
+					item.affix_schools.append(s)
+
 		item.fusion_id = dict.get("fusion_id", "")
 		item.fusion_effect = dict.get("fusion_effect", "")
 
@@ -131,7 +139,7 @@ func create_instance_with_affixes(item_id: String) -> ItemInstance:
 		if data.no_affix:
 			inst.affixes = []
 		else:
-			inst.affixes = AffixManager.roll_affixes(data.quality, data.tags)
+			inst.affixes = AffixManager.roll_affixes(data.quality, data.tags, data.affix_schools)
 
 		if data.enable_direction:
 			inst.direction = Direction.roll_birth_direction(data.quality)

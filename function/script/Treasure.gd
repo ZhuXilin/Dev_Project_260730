@@ -107,10 +107,13 @@ func _roll_three_options() -> Array:
 
 
 func _roll_option_types() -> Array:
-	# ★ v6：宝箱去掉防具选项，三类改为 金币 / 魂 / 遗物
-	var weights : Dictionary = {"gold": 3, "soul": 2, "relic": 1}
-	if _is_premium:
-		weights = {"gold": 1, "soul": 2, "relic": 8}
+	# ★ v6.54：权重从 economy_config.json 读取（普通/高级两档），不再写死。
+	#   宝箱三类为 金币 / 魂 / 遗物（防具选项 v6 已移除）。
+	var weights_variant : Variant = _treasure_cfg.get(
+		"premium_option_weights" if _is_premium else "option_weights", {})
+	var weights : Dictionary = weights_variant if weights_variant is Dictionary else {}
+	if weights.is_empty():
+		weights = {"gold": 1, "soul": 2, "relic": 8} if _is_premium else {"gold": 3, "soul": 2, "relic": 1}
 
 	var pool : Array = []
 	for k in weights:

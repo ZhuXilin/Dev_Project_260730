@@ -24,8 +24,8 @@ func save_game(slot: int, auto: bool = false) -> bool:
 	if not save: return false
 	save.save_time = Time.get_unix_time_from_system()
 	var path = _get_slot_path(slot)
-	var err = ResourceSaver.save(save, path)
-	if err != OK:
+	# ★ v6.54：原子写——先存临时文件再 rename 覆盖，避免异常中断留下半截存档
+	if not _atomic_save(save, path):
 		push_error("保存失败: " + path); return false
 	current_slot = slot
 	print("存档已保存 (槽", slot, ", ", "自动" if auto else "手动", ")")
@@ -150,6 +150,7 @@ func _build_save_data() -> SaveData:
 	save.pending_forge_rewards = []
 	for inst in GameState.pending_forge_rewards:
 		save.pending_forge_rewards.append(_serialize_item_instance(inst))
+	save.pending_armor_roll = GameState.resource_state.pending_armor_roll.duplicate(true)
 	save.sacrifice_count = GameState.sacrifice_count
 	save.tutorial_stage = GameState.tutorial_stage
 
@@ -277,6 +278,7 @@ func _apply_save_data(save: SaveData):
 			if inst != null:
 				GameState.pending_forge_rewards.append(inst)
 
+	GameState.resource_state.pending_armor_roll = save.pending_armor_roll.duplicate(true) if save.pending_armor_roll is Dictionary else {}
 	GameState.sacrifice_count = save.sacrifice_count
 
 	GameState.npc_dialogue_seen = _safe_dict(save.npc_dialogue_seen)
@@ -422,7 +424,33 @@ func clean_invalid_progress(slot: int):
 	save.selected_node_id = ""
 	save.interrupt_state = 1
 	save.temp_gold = 0
-	ResourceSaver.save(save, _get_slot_path(slot))
+	_atomic_save(save, _get_slot_path(slot))
+
+
+## ★ v6.54：原子写——先写 .tmp，成功后 rename 覆盖目标。
+##   rename 在同分区是原子操作，异常中断时目标保持旧档而非半截新档。
+func _atomic_save(res: Resource, path: String) -> bool:
+	# ★ 临时文件必须保留 .tres 扩展名：ResourceSaver 按扩展名选资源格式，
+	#   用 .tmp 结尾会被判为未知格式导致保存失败。
+	var tmp_path : String = path.trim_suffix(".tres") + ".tmp.tres"
+	var err := ResourceSaver.save(res, tmp_path)
+	if err != OK:
+		push_error("临时存档写入失败: " + tmp_path)
+		return false
+	var dir := DirAccess.open(SAVE_DIR)
+	if dir == null:
+		push_error("无法打开存档目录: " + SAVE_DIR)
+		return false
+	# 目标已存在时 rename_absolute 会覆盖（Godot 4 行为）
+	var ren_err := DirAccess.rename_absolute(tmp_path, path)
+	if ren_err != OK:
+		# 部分平台 rename 不允许覆盖目标 → 先删目标再 rename
+		dir.remove(path)
+		ren_err = DirAccess.rename_absolute(tmp_path, path)
+	if ren_err != OK:
+		push_error("存档 rename 失败: " + path)
+		return false
+	return true
 
 
 func _get_slot_path(slot: int) -> String:

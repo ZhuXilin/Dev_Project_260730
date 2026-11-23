@@ -73,6 +73,8 @@ const CURRENT_VERSION = 11
 # ---- 队伍 ----
 @export var party_data: Array = []
 @export var equipped_passives: Array = []
+## ★ v6.54：战后防具 roll 抽到但尚未落位的防具（异常退出不丢结果）
+@export var pending_armor_roll: Dictionary = {}
 
 # ---- 地图 ----
 @export var interrupt_state: int = 0

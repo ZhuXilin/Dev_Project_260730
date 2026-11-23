@@ -123,10 +123,12 @@ func _show_opening_skill_roll():
 	# 确保第 1 技能格为空，才能走 roll 落位
 	_current_player_data.talent_slots = [null]
 	var ui = scene.instantiate()
+	# ★ v6.57：SkillRollUI 已合入 ArmorRollUI——先标记技能模式，再进树
+	ui.set_skill_mode()
 	add_child(ui)
 	# ★ 先连接信号（ONE_SHOT），再 setup —— 空池同步 emit 也能接住
-	ui.finished.connect(_on_opening_roll_finished, CONNECT_ONE_SHOT)
-	ui.setup([_current_player_data.unit_name], [_current_player_data], 1)
+	ui.skill_finished.connect(_on_opening_roll_finished, CONNECT_ONE_SHOT)
+	ui.setup_skill([_current_player_data.unit_name], [_current_player_data], 1)
 	print("[Arena] 开局技能roll已拉起: unit=%s, visible=%s" % [
 		_current_player_data.unit_name, str(ui.visible)])
 

@@ -23,6 +23,12 @@ var _chip_current_slot : String = ""
 var _saved_chip_path : String = ""
 var _saved_chip_slot : String = ""
 
+## ★ v6.54：终局曲（胜利/失败/通关）标记。Boss 死亡对话会在终局曲之前
+##   pause_and_save 战场曲，若对话结束 resume_saved 播回战场曲就会盖掉终局曲。
+##   记录终局曲 stream，resume 时优先恢复它。
+var _final_music_stream : AudioStream = null
+var _final_music_active : bool = false
+
 
 # ============================================================
 #  生命周期
@@ -173,6 +179,12 @@ func play_music(stream: AudioStream):
 	if player == null or not player.is_inside_tree():
 		return
 
+	# ★ v6.54：播放非终局曲时清除终局标记（回营地/地图/新战斗），
+	#   否则后续对话 resume 会错误地恢复上一局的胜利曲。
+	if _final_music_active and stream != _final_music_stream:
+		_final_music_active = false
+		_final_music_stream = null
+
 	print("播放音乐：", stream.resource_path if stream.resource_path else "未命名流")
 	if player.stream == stream and player.playing:
 		print("音乐已在播放中，跳过")
@@ -221,19 +233,34 @@ func play_main_menu_music():
 	if config: _play_slot("main_menu", config.main_menu_music)
 
 func play_player_turn_music():
+	_final_music_active = false   # ★ v6.54：进入新战斗，清除上一局的终局曲标记
 	if config: _play_slot("player_turn", config.player_turn_music)
 
 func play_enemy_turn_music():
+	_final_music_active = false
 	if config: _play_slot("enemy_turn", config.enemy_turn_music)
 
 func play_victory_music():
+	_final_music_stream = config.victory_music if config else null
+	_final_music_active = true
 	if config: _play_slot("victory", config.victory_music)
 
 func play_defeat_music():
+	_final_music_stream = config.defeat_music if config else null
+	_final_music_active = true
 	if config: _play_slot("defeat", config.defeat_music)
 
 func play_win_game_music():
+	_final_music_stream = config.win_game_music if config else null
+	_final_music_active = true
 	if config: _play_slot("win_game", config.win_game_music)
+
+
+# ============================================================
+#  Roll 界面音乐（技能/防具轮盘共用同一场景与同一首曲子）
+# ============================================================
+func play_roll_music():
+	if config: _play_slot("roll", config.roll_music)
 
 
 # ============================================================
@@ -310,6 +337,17 @@ func clear_saved() -> void:
 
 
 func resume_saved():
+	# ★ v6.54：终局曲优先——Boss 死亡对话 resume 时，若终局曲已激活，
+	#   播终局曲而非对话前存的战场曲（否则战场曲会盖掉 victory）。
+	if _final_music_active and _final_music_stream != null:
+		if _chip_player and _chip_player.is_playing():
+			_chip_player.stop()
+		player.stop()
+		player.stream = _final_music_stream
+		player.play()
+		print("恢复终局曲（忽略对话前保存的战场曲）")
+		return
+
 	# ★ 优先恢复 chip
 	if _saved_chip_path != "":
 		if _play_chip(_saved_chip_path):

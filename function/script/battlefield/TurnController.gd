@@ -33,6 +33,8 @@ func handle_turn_change_async(team : int) -> void:
 		Globals.increment_battle_turn()
 		_bf.turn_count_label.text = "第 " + str(Globals.current_battle_turn) + " 回合"
 
+	# ★ v6.54：游戏已结束(胜利/失败)时不再切战场曲——否则胜利面板出现后，
+	#   残留的回合切换事件会把 player_turn/enemy_turn 战场乐盖掉 victory。
 	if TurnManager.is_game_over: return
 	if _turn_changed_locked: return
 	_turn_changed_locked = true

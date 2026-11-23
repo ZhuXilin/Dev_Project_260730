@@ -59,7 +59,9 @@ func launch():
 			names.append(key)
 
 	_ui = load(Config.PATHS.SKILL_ROLL_UI).instantiate()
+	# ★ v6.57：SkillRollUI 已合入 ArmorRollUI——先标记技能模式，再进树
+	_ui.set_skill_mode()
 	_attach_to_root(_ui)
-	_ui.setup(names)
-	_ui.finished.connect(_on_ui_finished)
+	_ui.skill_finished.connect(_on_ui_finished)
+	_ui.setup_skill(names)
 	print("[SkillRollTestPlugin] 技能轮盘已启动")

@@ -131,33 +131,24 @@ func _draw():
 		draw_rect(rect2, Color.YELLOW, false, 2)
 
 	if not in_test and editor._dragging_idx >= 0:
-		var new_layer : int = editor._layer_at_y(editor._mouse_pos.y)
-		var preview_y : float = editor.CANVAS_PADDING_TOP + (max_layer - new_layer + 0.5) * editor.LAYER_HEIGHT
-		draw_line(Vector2(0, preview_y), Vector2(canvas_w, preview_y), Color(1, 1, 0, 0.5), 1)
+		# ★ v6.56：区分两种落点——层中心(黄色虚线=换层) / 层间缝隙(青色实线=插入新层)
+		var insert_at : int = editor._compute_insert_layer_at_y(editor._mouse_pos.y)
+		if insert_at >= 0:
+			# 缝隙正中（相邻两层中心中点）：与鼠标所在的层间位置一致
+			var gap_y : float = editor._gap_y_for_insert(insert_at)
+			draw_line(Vector2(0, gap_y), Vector2(canvas_w, gap_y), Color(0.3, 1, 0.95, 0.9), 2)
+		else:
+			var new_layer : int = editor._layer_at_y(editor._mouse_pos.y)
+			var preview_y : float = editor.CANVAS_PADDING_TOP + (max_layer - new_layer + 0.5) * editor.LAYER_HEIGHT
+			draw_line(Vector2(0, preview_y), Vector2(canvas_w, preview_y), Color(1, 1, 0, 0.5), 1)
 
 func _draw_directed_line(from_pos: Vector2, to_pos: Vector2, color: Color, width: float = 1.0):
-	var dx = to_pos.x - from_pos.x
-	var dy = to_pos.y - from_pos.y
+	# ★ v6.56：连线改直线（与 MapScene 游戏内统一），保留细分点供箭头取切线
 	var points : PackedVector2Array = PackedVector2Array()
-	
 	var segments : int = 24
-	
-	if abs(dx) < 2.0:
-		# 垂直直线也细分点，方便后面算切线方向
-		for i in range(segments + 1):
-			var t : float = float(i) / float(segments)
-			points.append(from_pos.lerp(to_pos, t))
-	else:
-		# S 型曲线
-		var mid_y = from_pos.y + dy * 0.5
-		var p1 = Vector2(from_pos.x, mid_y)
-		var p2 = Vector2(to_pos.x, mid_y)
-		
-		for i in range(segments + 1):
-			var t : float = float(i) / float(segments)
-			var p : Vector2 = pow(1 - t, 3) * from_pos + 3 * pow(1 - t, 2) * t * p1 + 3 * (1 - t) * pow(t, 2) * p2 + pow(t, 3) * to_pos
-			points.append(p)
-			
+	for i in range(segments + 1):
+		var t : float = float(i) / float(segments)
+		points.append(from_pos.lerp(to_pos, t))
 	draw_polyline(points, color, width)
 	
 	# ★ 绘制箭头：放在 65% 的位置，防止被两端节点遮挡

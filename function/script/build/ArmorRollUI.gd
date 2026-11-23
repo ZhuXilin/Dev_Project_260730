@@ -14,6 +14,7 @@ const EquipCfg = preload("res://function/script/equipmentconfig/EquipmentConfig.
 ## ============================================================
 
 signal closed
+signal skill_finished  # ★ v6.57：技能 Roll 模式完成
 
 const FS_TITLE: int = 10
 const FS_BODY: int = 7
@@ -26,15 +27,18 @@ var _roll_count: int = 0
 var _quality_level: int = 0
 var _current: Dictionary = {}          # 当前待领取防具 {item_id,quality,school,name,mechanic}
 
-var _root: Panel = null
-var _gold_label: Label = null
+# ★ v6.57：防具模式 UI 节点来自 ArmorRollUI.tscn 场景（原全代码生成）
+@onready var _root: Panel = $Root
+@onready var _gold_label: Label = $Root/Margin/VBox/GoldLabel
+@onready var _cost_label: Label = $Root/Margin/VBox/BtnRow/CostLabel
+@onready var _upgrade_btn: Button = $Root/Margin/VBox/BtnRow/UpgradeBtn
+@onready var _close_btn: Button = $Root/Margin/VBox/CloseBtn
+@onready var _action_row: HBoxContainer = $Root/Margin/VBox/ActionRow
+@onready var _result_box: VBoxContainer = $Root/Margin/VBox/Scroll/ResultBox
+@onready var _msg: Label = $Root/Margin/VBox/Msg
+@onready var _title_label: Label = $Root/Margin/VBox/Title
+@onready var _machine_slot: Control = $Root/Margin/VBox/MachineSlot
 var _machine = null
-var _cost_label: Label = null
-var _upgrade_btn: Button = null
-var _close_btn: Button = null
-var _action_row: HBoxContainer = null
-var _result_box: VBoxContainer = null
-var _msg: Label = null
 var _closing: bool = false   # ★ 防两个关闭按钮同帧重复触发
 
 # ★ Arena 统一：注入单单位 + 独立金币（主线不调用则完全走 GameState/EconomyManager）
@@ -74,110 +78,48 @@ func _get_units() -> Array:
 
 func _ready() -> void:
 	layer = 30
-	_build_ui()
-	_refresh()
+	# ★ v6.56：Roll 界面共用 BGM（关闭后由目标场景音乐覆盖恢复）
+	MusicManager.play_roll_music()
+	if _skill_mode:
+		# ★ v6.57：只建 UI；show_step 由 setup_skill 调用（那时信号已连接，避免空池同步 emit 漏接）
+		if _unit_row == null:
+			_sk_build_ui()
+	else:
+		_build_ui()
+		_refresh()
 
 
 func _build_ui() -> void:
-	var bg := ColorRect.new()
-	bg.color = Color(0, 0, 0, 0.92)
-	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
-	add_child(bg)
-
-	_root = Panel.new()
-	_root.set_anchors_preset(Control.PRESET_FULL_RECT)
+	# ★ v6.57：UI 结构已在 ArmorRollUI.tscn（Root/Margin/VBox 全节点），
+	#   这里只补：样式、信号、动态文字、轮盘实例（SlotMachineUI 是自定义控件无法在 tscn 直接放）。
+	_root.visible = true
 	var root_sb := StyleBoxFlat.new()
-	root_sb.bg_color = Color(0.06, 0.06, 0.09, 0.98)
+	root_sb.bg_color = Color(0, 0, 0, 0)   # 透明，让场景背景图透出
 	root_sb.set_border_width_all(0)
 	root_sb.content_margin_left = 2.0
 	root_sb.content_margin_right = 2.0
 	_root.add_theme_stylebox_override("panel", root_sb)
-	add_child(_root)
 
-	var margin := MarginContainer.new()
-	margin.set_anchors_preset(Control.PRESET_FULL_RECT)
-	margin.add_theme_constant_override("margin_left", 12)
-	margin.add_theme_constant_override("margin_right", 12)
-	margin.add_theme_constant_override("margin_top", 3)
-	margin.add_theme_constant_override("margin_bottom", 3)
-	_root.add_child(margin)
-
-	var vbox := VBoxContainer.new()
-	vbox.add_theme_constant_override("separation", 2)
-	margin.add_child(vbox)
-
-	var title := Label.new()
-	title.text = "竞技场 · 防具抽取" if _arena_mode else "战后 · 防具抽取"
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.add_theme_font_size_override("font_size", FS_TITLE)
-	title.add_theme_color_override("font_color", _gold_color)
-	vbox.add_child(title)
-
-	_gold_label = Label.new()
-	_gold_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_gold_label.add_theme_font_size_override("font_size", FS_BODY)
-	vbox.add_child(_gold_label)
-
-	var btn_row := HBoxContainer.new()
-	btn_row.add_theme_constant_override("separation", 6)
-	btn_row.alignment = BoxContainer.ALIGNMENT_CENTER
-	vbox.add_child(btn_row)
-
-	_cost_label = Label.new()
-	_cost_label.add_theme_font_size_override("font_size", FS_SMALL)
+	# 动态标题（竞技场/主线）
+	_title_label.text = "竞技场 · 防具抽取" if _arena_mode else "战后 · 防具抽取"
+	_title_label.add_theme_color_override("font_color", _gold_color)
+	_gold_label.add_theme_color_override("font_color", Color.WHITE)
 	_cost_label.add_theme_color_override("font_color", _gold_color)
-	btn_row.add_child(_cost_label)
 
+	# 轮盘：代码创建（自定义控件）塞进场景的 MachineSlot 占位
 	_machine = SlotMachineUI.new()
-	# ★ v6.23：400x240 小视口，轮盘从 96 压到 72，给下方单位信息腾出高度
 	_machine.custom_minimum_size = Vector2(0, 72)
-	vbox.add_child(_machine)
+	_machine_slot.add_child(_machine)
+	# ★ 必须铺满 MachineSlot，否则轮盘宽度塌成内容宽、内部居中整体贴左
+	_machine.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_machine.stopped.connect(_on_machine_stopped)
 	_machine.started.connect(_on_spin_started)
 
-	_upgrade_btn = Button.new()
-	_upgrade_btn.add_theme_font_size_override("font_size", FS_BODY)
+	# 按钮样式 + 信号
 	BuildUI.style_button(_upgrade_btn)
 	_upgrade_btn.pressed.connect(_on_upgrade_quality)
-	btn_row.add_child(_upgrade_btn)
-
-	# ★ v6.25：删除顶部常驻返回键，只保留最下方"结束抽取"按钮，避免两个"返回地图"重复。
-	#   金币不足时无待领取→最下方按钮可用；待领取时可用"放弃防具"脱困，不会死锁。
-
-	# ★ 中间信息压缩：品质并入金币行，删除单独的 _quality_label，减少一行占用
-	_msg = Label.new()
-	_msg.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_msg.add_theme_font_size_override("font_size", FS_SMALL)
-	_msg.custom_minimum_size = Vector2(0, 10)   # ★ 固定矮高度，避免 autowrap 撑高挤掉单位区
-	_msg.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	vbox.add_child(_msg)
-
-	# ★ v6.44：放弃防具按钮已移入 EquipmentConfig 落位界面，此处不再创建
-	_action_row = HBoxContainer.new()
-	_action_row.alignment = BoxContainer.ALIGNMENT_CENTER
-	vbox.add_child(_action_row)
-
-	var scroll := ScrollContainer.new()
-	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	# ★ v6.23：不再强制 140 最小高度——400x240 视口里固定高度累加会溢出，
-	#   底部（单位卡第二行）被挤出视口裁切。改用 EXPAND_FILL 吃剩余空间，内容超出时内部滚动。
-	scroll.custom_minimum_size = Vector2(0, 80)   # 单位卡约60px + 摘要行，安全下限；配合上方压缩不溢出视口
-	vbox.add_child(scroll)
-	_result_box = VBoxContainer.new()
-	_result_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_result_box.add_theme_constant_override("separation", 1)
-	scroll.add_child(_result_box)
-
-	var close := Button.new()
-	close.text = "结束抽取"
-	close.add_theme_font_size_override("font_size", FS_BODY)
-	BuildUI.style_button(close)
-	close.pressed.connect(_on_close)
-	# ★ v6.44：收窄为约 1/6 视口宽（400px → 66px），不再占满整行
-	close.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	close.custom_minimum_size = Vector2(66, 0)
-	vbox.add_child(close)
-	_close_btn = close
+	BuildUI.style_button(_close_btn)
+	_close_btn.pressed.connect(_on_close)
 
 
 ## ★ v6.17：操作门控——转轮进行中 / 有待领取防具时，禁止离开与升级，
@@ -204,8 +146,7 @@ func _refresh() -> void:
 	var cost := BuildManager.get_roll_cost(_roll_count)
 	_cost_label.text = "本次抽取 %dG" % cost
 	_machine.set_start_enabled(gold >= cost)
-	if gold < cost and _msg.text == "":
-		_msg.text = "金币不足，可点最下方「结束抽取」离开"
+	# ★ 金币不足提示移到结果区显示（见 _render_result），轮盘下方 Msg 不再占用
 	var up := BuildManager.get_upgrade_cost(_quality_level)
 	if up < 0:
 		_upgrade_btn.text = "品质已满"
@@ -263,25 +204,35 @@ func _on_spin_started() -> void:
 		return
 	_spend(cost)
 	_roll_count += 1
-	_current = {}
+	_set_current({})
 	# ★ v6.43：移除老虎机状态文字（点「停！」提示），轮盘自身已有按钮反馈
 	_msg.text = ""
 	_refresh()
 
 
+## ★ v6.54：统一更新待落袋防具并即时落盘，避免异常退出丢失 roll 结果
+func _set_current(value: Dictionary) -> void:
+	_current = value.duplicate(true)
+	GameState.resource_state.pending_armor_roll = _current.duplicate(true)
+	SaveManager.auto_save()
+
+
 func _on_machine_stopped(entry: Dictionary) -> void:
+	if _skill_mode:
+		_sk_on_machine_stopped(entry)
+		return
 	var iid := str(entry.get("item_id", ""))
 	if iid == "":
 		_msg.text = "抽取失败（防具池为空）"
 		return
-	_current = {
+	_set_current({
 		"item_id": iid,
 		"quality": str(entry.get("quality", "common")),
 		"school": str(entry.get("school", "")),
 		"affixes": (entry.get("affixes", []) as Array).duplicate(),
 		"name": str(entry.get("name", iid)),
 		"mechanic": str(entry.get("mechanic", "")),
-	}
+	})
 	# ★ v6.43：抽到后直接跳转装备界面落位，不再显示三个 avatar 让玩家选
 	_msg.text = ""
 	_refresh()
@@ -295,6 +246,15 @@ func _render_result() -> void:
 	for c in _result_box.get_children():
 		c.queue_free()
 	if _current.is_empty():
+		# ★ 金币不足时把提示放到结果区（黄框位置），居中显示
+		if _gold() < BuildManager.get_roll_cost(_roll_count):
+			var hint := Label.new()
+			hint.text = "金币不足，可点最下方「结束抽取」离开"
+			hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			hint.add_theme_font_size_override("font_size", FS_SMALL)
+			hint.add_theme_color_override("font_color", _gold_color)
+			hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			_result_box.add_child(hint)
 		return
 
 	var school := str(_current.get("school", ""))
@@ -459,13 +419,20 @@ func _preview_placement(ud: UnitData, school: String, cap: int) -> String:
 
 
 func _on_discard() -> void:
-	_current = {}
+	_set_current({})
 	_msg.text = "已放弃该防具"
 	_refresh()   # ★ 走 _refresh 才能重新装填转轮 + 恢复离开按钮（原来只 render 会卡在「已停止」）
 
 
 ## ★ v6.41：弹出只读 EquipmentConfig（防具落位模式），玩家看三单位装备全貌后点防具槽决定落位
 var _pick_ui = null
+
+## 关闭落位用的装备界面浮层（取消/落位/放弃/异常路径共用）
+func _close_pick_ui() -> void:
+	if _pick_ui != null and is_instance_valid(_pick_ui):
+		_pick_ui.queue_free()
+	_pick_ui = null
+
 
 func _open_equipment_for_pick() -> void:
 	if _current.is_empty():
@@ -557,8 +524,13 @@ func _on_place(ud: UnitData, slot_idx: int = -1) -> void:
 	if can_strengthen:
 		var old_cap : int = maxi(int(same.get("cap", 1)), cap)
 		var new_lv : int = mini(int(same.get("count", 1)) + 1, old_cap)
-		a_title = "强化 · %s Lv%d → Lv%d" % [school, int(same.get("level", 1)), new_lv]
-		a_detail = "机制升 Lv，已有词条与搭配不变"
+		if int(same.get("level", 1)) >= old_cap:
+			# ★ v6.54：封顶并入改为词条注入，不再显示无效的 Lv+N
+			a_title = "强化 · %s 已满 Lv%d" % [school, new_lv]
+			a_detail = "Lv 已满，新词条注入该流派：" + affix_text
+		else:
+			a_title = "强化 · %s Lv%d → Lv%d" % [school, int(same.get("level", 1)), new_lv]
+			a_detail = "机制升 Lv，已有词条与搭配不变"
 	else:
 		a_title = "觉醒 · 新流派 %s Lv1" % school
 		a_detail = "占 1 个流派槽，词条生效"
@@ -608,7 +580,7 @@ func _do_apply_armor(ud: UnitData, item_id: String, quality: String, affixes: Ar
 	match str(result.get("result", "")):
 		"awaken", "merge", "plain":
 			SoundManager.play_get_item_sound()
-			_current = {}
+			_set_current({})
 			_refresh()
 		_:
 			_msg.text = "无法落位"
@@ -618,7 +590,7 @@ func _do_apply_armor(ud: UnitData, item_id: String, quality: String, affixes: Ar
 func _do_overwrite_at(ud: UnitData, slot_idx: int, slot_school: String,item_id: String, quality: String, affixes: Array, inherit_lv: int) -> void:
 	BuildManager.overwrite_at_slot(ud, slot_idx, slot_school, item_id, quality, affixes, inherit_lv)
 	SoundManager.play_get_item_sound()
-	_current = {}
+	_set_current({})
 	_refresh()
 
 
@@ -635,4 +607,403 @@ func _on_close() -> void:
 	_closing = true
 	SaveManager.auto_save()
 	closed.emit()
+	queue_free()
+
+
+# ===== v6.57：技能 Roll 模式（SkillRollUI 合入） =====
+var _unit_names: Array = []
+var _skills: Array = []
+var _index: int = 0
+var _placed_skills: Array = []
+var _current_skill: String = ""
+var _title: Label = null
+var _progress: Label = null
+var _unit_row: HBoxContainer = null
+var _skip_btn: Button = null
+var _picked_icon: TextureRect = null
+var _safe_picks: Array = []
+var sk_roll_count: int = 3
+var _skill_mode: bool = false
+
+## ★ v6.57：在 add_child 之前调用，标记本实例进入技能 Roll 模式，
+##   让 _ready 跳过防具 UI 构建（信号仍可在 add_child 后、setup_skill 前连接）
+func set_skill_mode() -> void:
+	_skill_mode = true
+	# ★ v6.57：隐藏场景里的防具 UI（技能模式用代码自建 UI），保留背景图/底色
+	var scene_root : Node = get_node_or_null("Root")
+	if scene_root != null:
+		scene_root.visible = false
+
+
+func setup_skill(unit_names: Array, unit_data_override: Array = [], roll_count: int = 3) -> void:
+	_unit_names = unit_names.duplicate()
+	_unit_override = unit_data_override.duplicate()
+	sk_roll_count = maxi(1, roll_count)
+	# 保留一份原本的匹配结果作兜底；玩家停轮后可以改写当前这张
+	# ★ v6.16：把注入的单位对象传给 roll_active_skills，用其自身槽位状态判空，
+	#   避免 Arena 单单位因 GameState.party 同名单位占格被排除导致空池秒关。
+	_skills = BuildManager.roll_active_skills(_unit_names, sk_roll_count, _unit_override)
+	print("[SkillRollUI] setup: units=%s, skills=%d, override=%d" % [
+		str(_unit_names), _skills.size(), _unit_override.size()])
+	_index = 0
+	_placed_skills.clear()
+	_skill_mode = true
+	# _ready 可能已建过 UI；避免重复构建
+	if _unit_row == null:
+		_sk_build_ui()
+	_sk_show_step()
+
+
+
+
+func _sk_build_ui() -> void:
+	# ★ v6.57：底色与背景图已在共用场景 ArmorRollUI.tscn（BackgroundImage，同 EquipmentConfig 图）
+	var root := Panel.new()
+	root.set_anchors_preset(Control.PRESET_FULL_RECT)
+	var root_sb := StyleBoxFlat.new()   # 透明面板，让场景背景图透出
+	root_sb.bg_color = Color(0, 0, 0, 0)
+	root.add_theme_stylebox_override("panel", root_sb)
+	add_child(root)
+
+	var margin := MarginContainer.new()
+	margin.set_anchors_preset(Control.PRESET_FULL_RECT)
+	margin.add_theme_constant_override("margin_left", 12)
+	margin.add_theme_constant_override("margin_right", 12)
+	margin.add_theme_constant_override("margin_top", 6)
+	margin.add_theme_constant_override("margin_bottom", 6)
+	root.add_child(margin)
+
+	var vbox := VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 2)
+	margin.add_child(vbox)
+
+	_title = Label.new()
+	_title.text = "开局技能抉择"
+	_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_title.add_theme_font_size_override("font_size", FS_TITLE)
+	_title.add_theme_color_override("font_color", _gold_color)
+	vbox.add_child(_title)
+
+	_progress = Label.new()
+	_progress.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_progress.add_theme_font_size_override("font_size", FS_SMALL)
+	_progress.add_theme_color_override("font_color", _dim_color)
+	vbox.add_child(_progress)
+
+	# ★ 技能说明放到标题区（参考图的黄框位置）：图标 + 文字，和防具落袋卡同样的居中方式
+	var pick_row := HBoxContainer.new()
+	pick_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	# ★ 整行收缩到「图标+文字」的实际宽度再在 VBox 里居中，不要铺满画面两侧
+	pick_row.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	pick_row.add_theme_constant_override("separation", 6)
+	pick_row.custom_minimum_size = Vector2(0, 24)
+	vbox.add_child(pick_row)
+
+	# 技能图标（20x20，与装备界面落袋防具图标统一）
+	_picked_icon = TextureRect.new()
+	_picked_icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_picked_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	_picked_icon.custom_minimum_size = Vector2(20, 20)
+	_picked_icon.visible = false
+	pick_row.add_child(_picked_icon)
+
+	_msg = Label.new()
+	_msg.text = ""
+	_msg.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	# ★ 关自动换行：让 Label 的最小宽度=整行文字宽度，HBox 才能收缩到内容宽并居中。
+	#   若开 WORD_SMART 且宽度塌窄会逐字竖排；若给 EXPAND_FILL 又会把图标推到画面最左。
+	_msg.autowrap_mode = TextServer.AUTOWRAP_OFF
+	_msg.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	_msg.add_theme_font_size_override("font_size", FS_SMALL)
+	_msg.add_theme_color_override("font_color", _dim_color)
+	pick_row.add_child(_msg)
+
+	_machine = SlotMachineUI.new()
+	_machine.custom_minimum_size = Vector2(0, 96)
+	_machine.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	vbox.add_child(_machine)
+	_machine.stopped.connect(_on_machine_stopped)
+
+	# ★ v6.57：移除"停下后选落位单位"提示文字（红框处，界面已足够直观）
+
+	_unit_row = HBoxContainer.new()
+	_unit_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	_unit_row.add_theme_constant_override("separation", 8)
+	_unit_row.custom_minimum_size = Vector2(0, 46)
+	vbox.add_child(_unit_row)
+
+	_skip_btn = Button.new()
+	_skip_btn.text = "无人可落位 · 重转"
+	_skip_btn.add_theme_font_size_override("font_size", FS_SMALL)
+	BuildUI.style_button(_skip_btn)
+	_skip_btn.pressed.connect(_sk_on_skip)
+	_skip_btn.visible = false
+	vbox.add_child(_skip_btn)
+
+
+func _sk_show_step() -> void:
+	# ★ 进入新一次 roll：清掉上一件已落袋技能的图标与描述，避免残留到本次
+	if _picked_icon != null:
+		_picked_icon.texture = null
+		_picked_icon.visible = false
+	if _msg != null:
+		_msg.text = ""
+	_progress.text = "第 %d / %d 次" % [mini(_index + 1, _skills.size()), maxi(_skills.size(), 1)]
+	if _index >= _skills.size():
+		_sk_finish()
+		return
+	# ★ 死锁修复：没有可落位技能时绝不能用空池 setup（轮盘转不起来、
+	#   本界面又无退出按钮）。直接跳过剩余次数并正常结束，进入地图。
+	var entries: Array = _sk_build_entries()
+	if entries.is_empty():
+		push_warning("[SkillRollUI] 第 %d 次无可用技能，跳过本次及后续" % (_index + 1))
+		_index = _skills.size()
+		_sk_finish()
+		return
+	# ★ v6.22：池子只剩 1 个技能时，转轮里全是同一个、没有选择意义——
+	#   直接当作已停在该技能，进入落位单位选择（仍由玩家点头像决定给谁）
+	if entries.size() == 1:
+		_sk_clear_picks()
+		_sk_apply_entry(entries[0])
+		return
+	_current_skill = str(_skills[_index])
+	_sk_clear_picks()
+	_machine.setup(entries, "主动技能轮盘 · 第 %d 次" % (_index + 1))
+	_msg.text = "玩家决定结果：点开始，看准技能图标再点停"
+	_msg.add_theme_color_override("font_color", _dim_color)
+
+
+func _sk_build_entries() -> Array:
+	var entries: Array = []
+	# ★ v6.18：轮盘池预筛改用 can_place_with_future（全池匹配），
+	#   与落位判定口径一致。旧版用固定剩余技能精确覆盖，把池子压得只剩少数技能、
+	#   每张卡又只剩 1 个落点 → 1 对 1。现在只要存在一个单位能安全落位即可入池。
+	var remaining_names: Array = []
+	for uname in _unit_names:
+		var u: UnitData = _sk_find_unit(str(uname))
+		if u != null and (u.talent_slots.is_empty() or u.talent_slots[0] == null):
+			remaining_names.append(str(uname))
+
+	# ★ v6.22：池子改用全池并集，不再用 ranked(兼容≥2单位) 的交集。
+	#   旧版第 2 次剩 2 个单位时交集常只剩 1 个技能 → 轮盘全是同一个。
+	#   全池并集配合下面的 can_place_with_future 安全过滤，池子大且不会转出死卡。
+	var source_pool: Array = BuildManager.build_skill_pool(remaining_names)
+
+	var safe_pool: Array = []       # 至少一个单位能安全落位（首选）
+	var fallback_pool: Array = []   # 仅兼容但无法保证后续覆盖（兜底）
+	for tid in source_pool:
+		var sid := str(tid)
+		if _placed_skills.has(sid):
+			continue
+		var has_safe := false
+		var has_placeable := false
+		for uname in remaining_names:
+			var ud: UnitData = _sk_find_unit(str(uname))
+			if ud == null:
+				continue
+			if BuildManager.can_place_skill(ud, sid):
+				has_placeable = true
+			if BuildManager.can_place_with_future(ud, sid, remaining_names):
+				has_safe = true
+				break
+		if has_safe:
+			safe_pool.append(sid)
+		elif has_placeable:
+			fallback_pool.append(sid)
+
+	var chosen: Array = safe_pool if not safe_pool.is_empty() else fallback_pool
+	for sid in chosen:
+		var data := TalentManager.get_talent_data(sid)
+		if data == null:
+			continue
+		# ★ v6.57：技能统一亮色，不按流派上色
+		var color := Color(0.85, 0.85, 0.9)
+		var desc := data.description
+		var cost := int(data.effect_params.get("soul_fire_cost", data.soul_cost))
+		desc += "｜消耗 %d 魂火" % cost
+		# ★ v6.57：技能不展示流派（无流派色/无共鸣文字），仅保留数值描述
+		entries.append({
+			"id": sid,
+			"name": data.display_name,
+			"desc": desc,
+			"color": color,
+			"icon": TalentManager.get_talent_icon(sid),
+		})
+	return entries
+
+
+func _sk_clear_picks() -> void:
+	for c in _unit_row.get_children():
+		c.queue_free()
+	_safe_picks.clear()
+	_skip_btn.visible = false
+
+
+func _sk_apply_entry(entry: Dictionary) -> void:
+	var tid := str(entry.get("id", ""))
+	_skills[_index] = tid
+	_current_skill = tid
+	# ★ v6.57：图标 + 文字展示（参考防具落袋）；技能无流派，文字统一白色不加流派色
+	var icon_tex : Texture2D = entry.get("icon") as Texture2D
+	if _picked_icon != null:
+		_picked_icon.texture = icon_tex
+		_picked_icon.visible = icon_tex != null
+	_msg.text = str(entry.get("desc", ""))
+	_msg.add_theme_color_override("font_color", Color.WHITE)
+	_sk_show_units(tid)
+
+
+func _sk_on_machine_stopped(entry: Dictionary) -> void:
+	var tid := str(entry.get("id", ""))
+	if tid == "" or _placed_skills.has(tid):
+		var entries: Array = _sk_build_entries()
+		if entries.is_empty():
+			_index = _skills.size()
+			_sk_finish()
+			return
+		# ★ v6.22：重转后若只剩 1 个技能，同样直接落位，不再转全同轮盘
+		if entries.size() == 1:
+			_sk_apply_entry(entries[0])
+			return
+		_msg.text = "这张已用过，请再转一次"
+		_msg.add_theme_color_override("font_color", _dim_color)
+		_machine.setup(entries, "主动技能轮盘 · 第 %d 次" % (_index + 1))
+		return
+	_sk_apply_entry(entry)
+
+
+func _sk_show_units(tid: String) -> void:
+	_sk_clear_picks()
+	# 收集尚未占用第 1 技能格的单位
+	var remaining_names: Array = []
+	for uname in _unit_names:
+		var u: UnitData = _sk_find_unit(str(uname))
+		if u != null and (u.talent_slots.is_empty() or u.talent_slots[0] == null):
+			remaining_names.append(str(uname))
+	# ★ v6.19：只显示"尚未装备技能"的单位——已落位的单位不再出现在本界面选项里。
+	# ★ v6.18：落位判定用 can_place_with_future（全池匹配），取代过紧的 is_safe_placement。
+	var any_ok := false
+	for uname in remaining_names:
+		var ud: UnitData = _sk_find_unit(str(uname))
+		if ud == null:
+			continue
+		var adv := str(ud.advanced_class)
+		var compatible := TalentManager.is_talent_compatible_with_unit(tid, ud.unit_name, adv)
+		var safe := BuildManager.can_place_with_future(ud, tid, remaining_names)
+		var can_pick := compatible and safe
+
+		var card := VBoxContainer.new()
+		card.alignment = BoxContainer.ALIGNMENT_CENTER
+		card.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		card.size_flags_vertical = Control.SIZE_FILL
+		card.add_theme_constant_override("separation", 1)
+		card.custom_minimum_size = Vector2(64, 0)
+		# 头像按钮自带画框，不再额外套 PanelContainer，避免双层边框
+		var avatar := UnitDataManager.create_unit_avatar_button(
+			ud.unit_name, Vector2(46, 46), Vector2(40, 40))
+		avatar.disabled = not can_pick
+		avatar.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		if can_pick:
+			avatar.pressed.connect(_sk_on_pick.bind(ud, tid))
+			any_ok = true
+			_safe_picks.append({"ud": ud, "tid": tid})
+		else:
+			avatar.modulate = Color(0.35, 0.35, 0.38)
+		card.add_child(avatar)
+
+		var name_lbl := Label.new()
+		name_lbl.text = ud.display_name
+		name_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		name_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		name_lbl.custom_minimum_size = Vector2(64, 12)
+		name_lbl.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		name_lbl.clip_text = true
+		name_lbl.add_theme_font_size_override("font_size", FS_SMALL)
+		name_lbl.add_theme_color_override("font_color", _gold_color if can_pick else _dim_color)
+		name_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		card.add_child(name_lbl)
+
+		# ★ v6.21：头像下方的流派方向文字，颜色与流派一致。
+		#   ① 本次 roll 技能的共鸣流派（让玩家看懂这张技能属于哪个流派方向）；
+		#   ② 该单位已觉醒的流派（开局通常为空）。都用各自流派色，方便对应。
+		var school_row := HBoxContainer.new()
+		school_row.alignment = BoxContainer.ALIGNMENT_CENTER
+		school_row.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		school_row.add_theme_constant_override("separation", 3)
+
+		var resonance := BuildManager.get_school_of_skill(tid)
+		var mechs := BuildManager.get_unit_mechanisms(ud)
+		if resonance == "" and mechs.is_empty():
+			var none_lbl := Label.new()
+			none_lbl.text = "无流派"
+			none_lbl.add_theme_font_size_override("font_size", FS_SMALL)
+			none_lbl.add_theme_color_override("font_color", _dim_color)
+			school_row.add_child(none_lbl)
+		else:
+			if resonance != "":
+				var rl := Label.new()
+				rl.text = "共鸣·%s" % resonance
+				rl.add_theme_font_size_override("font_size", FS_SMALL)
+				rl.add_theme_color_override("font_color", BuildManager.get_school_color(resonance))
+				school_row.add_child(rl)
+			for m in mechs:
+				var ml := Label.new()
+				ml.text = "%s Lv%d" % [str(m.get("school", "")), int(m.get("level", 1))]
+				ml.add_theme_font_size_override("font_size", FS_SMALL)
+				ml.add_theme_color_override("font_color", m.get("color", Color.WHITE))
+				school_row.add_child(ml)
+		card.add_child(school_row)
+		_unit_row.add_child(card)
+
+	_skip_btn.visible = not any_ok
+	if not any_ok:
+		_msg.text = "这张技能当前队伍无人可用，请重转"
+		_msg.add_theme_color_override("font_color", _dim_color)
+
+
+func _sk_find_unit(unit_name: String) -> UnitData:
+	# ★ 优先从外部注入的单位对象找（Arena 单单位），否则回退主线 GameState.party
+	if not _unit_override.is_empty():
+		for ud in _unit_override:
+			if ud != null and ud.unit_name == unit_name:
+				return ud
+		return null
+	for ud in GameState.party:
+		if ud != null and ud.unit_name == unit_name:
+			return ud
+	return null
+
+
+func _sk_on_pick(ud: UnitData, tid: String) -> void:
+	BuildManager.place_skill(ud, tid)
+	_placed_skills.append(tid)
+	_sk_next()
+
+
+func _sk_on_skip() -> void:
+	if _safe_picks.is_empty():
+		# 无人可用：重新开一轮，不推进次数；但若池已空则直接结束，避免卡死
+		var entries: Array = _sk_build_entries()
+		if entries.is_empty():
+			_index = _skills.size()
+			_sk_finish()
+			return
+		# ★ v6.22：重转后若只剩 1 个技能，直接落位，不再转全同轮盘
+		if entries.size() == 1:
+			_sk_clear_picks()
+			_sk_apply_entry(entries[0])
+			return
+		_machine.setup(entries, "主动技能轮盘 · 第 %d 次" % (_index + 1))
+		return
+	_sk_next()
+
+
+func _sk_next() -> void:
+	_index += 1
+	_sk_show_step()
+
+
+func _sk_finish() -> void:
+	SaveManager.auto_save()
+	skill_finished.emit()
 	queue_free()
