@@ -542,11 +542,42 @@ func _close_pick_ui() -> void:
 func _on_place(ud: UnitData) -> void:
 	var item_id := str(_current.get("item_id", ""))
 	var quality := str(_current.get("quality", "common"))
-	# ★ v6.27：同流派并入升 Lv 免费，不再收 200G（原预判扣费块已删除）
+	var school : String = BuildManager.get_school_of_item(item_id)
+	var cap : int = BuildManager.get_quality_cap(quality)
+
+	# ★ v6.52：合并（同流派并入升 Lv）也先弹 ConfirmUI 确认/取消，确认后才真正 apply。
+	#   先预判再执行，避免"先合并再问、取消无法撤销"。
+	if school != "" and BuildManager.is_school(school):
+		var mechs : Array = BuildManager.get_unit_mechanisms(ud)
+		for m in mechs:
+			if str(m.get("school", "")) != school:
+				continue
+			var old_cap : int = maxi(int(m.get("cap", 1)), cap)
+			var new_lv : int = mini(int(m.get("count", 1)) + 1, old_cap)
+			var confirm_parent : Node = get_tree().current_scene if get_tree() != null else self
+			Globals.show_confirm(confirm_parent,
+				"把【%s】并入【%s】？机制升到 Lv%d（上限 Lv%d）。" % [
+					str(_current.get("name", item_id)), school, new_lv, old_cap],
+				"合并", "取消",
+				func(): _do_apply_armor(ud, item_id, quality),
+				func(): _on_merge_cancelled(),
+				true)
+			return
+
+	_do_apply_armor(ud, item_id, quality)
+
+
+## 取消合并确认后，重新打开装备界面让玩家另选落位单位
+func _on_merge_cancelled() -> void:
+	if not _current.is_empty():
+		_open_equipment_for_pick()
+
+
+## 真正执行落位（合并确认后 / 直接落位共用）
+func _do_apply_armor(ud: UnitData, item_id: String, quality: String) -> void:
 	var result := BuildManager.apply_armor(ud, item_id, quality)
 	match str(result.get("result", "")):
 		"awaken", "merge", "plain":
-			# ★ v6.45：落位后直接进下一轮——不写结算态、不停留，_refresh 自动装填新转轮
 			SoundManager.play_get_item_sound()
 			_current = {}
 			_refresh()
