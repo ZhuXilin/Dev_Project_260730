@@ -23,6 +23,8 @@ func load_map(new_map_data: MapData) -> void:
 	print("地图名称：", new_map_data.map_name)
 	GameState.current_map_data = new_map_data
 	_bf.current_node_type = new_map_data.node_type
+	# ★ v6.58：每场加载先清零胜利条件，避免上一场 trigger 残留到无 trigger 的地图
+	_bf.victory_objective_config = {}
 
 	var map_pixel_rect : Rect2
 	var tilemap : TileMapLayer = null
@@ -177,6 +179,8 @@ func _generate_default_terrain(map_size: Vector2i) -> void:
 # ============================================================
 func _extract_map_unit_placers(node: Node) -> void:
 	_bf.map_functions.clear()
+	# ★ v6.58：先提取地图级胜利条件（VictoryObjectiveTrigger），这是唯一权威源
+	_bf.victory_objective_config = _extract_victory_objective(node)
 	var tool_nodes: Array[Node] = []
 	_find_tools(node, tool_nodes)
 
@@ -219,11 +223,42 @@ func _extract_map_unit_placers(node: Node) -> void:
 
 
 func _find_tools(node: Node, result: Array) -> void:
-	# v4.6：BattleStartEvent 已删除，只保留两类
-	if node is EventTrigger or node is HpFunction:
+	# v4.6：BattleStartEvent 已删除
+	# v6.58：VictoryObjectiveTrigger 也加进来——它 export_config 无 position，会被上面的循环跳过，
+	#        这样能在末尾统一 queue_free（配置已由 _extract_victory_objective 单独读取）
+	if node is EventTrigger or node is HpFunction or node is VictoryObjectiveTrigger:
 		result.append(node)
 	for child in node.get_children():
 		_find_tools(child, result)
+
+
+## ★ v6.58：从地图场景里找 VictoryObjectiveTrigger，导出胜利条件配置。
+## 找不到 / 导出为空 → 返回空字典，ObjectiveManager 会回退默认全灭。
+func _extract_victory_objective(node: Node) -> Dictionary:
+	var trigger : Node = _find_victory_trigger(node)
+	if trigger == null:
+		return {}
+	var cfg : Variant = trigger.export_config()
+	if not (cfg is Dictionary):
+		return {}
+	var cd : Dictionary = cfg
+	var t : int = int(cd.get("objective_type", MapData.ObjectiveType.ANNIHILATE))
+	# 全灭且无参数、无动态 → 视为未配置，回退空字典（默认全灭，等价）
+	if t == MapData.ObjectiveType.ANNIHILATE \
+			and (cd.get("objective_params", {}) as Dictionary).is_empty() \
+			and not bool(cd.get("allow_dynamic_objective", false)):
+		return {}
+	return cd
+
+
+func _find_victory_trigger(node: Node) -> Node:
+	if node is VictoryObjectiveTrigger:
+		return node
+	for child in node.get_children():
+		var found : Node = _find_victory_trigger(child)
+		if found != null:
+			return found
+	return null
 
 
 func _extract_spawn_points(node: Node) -> Array[Vector2i]:

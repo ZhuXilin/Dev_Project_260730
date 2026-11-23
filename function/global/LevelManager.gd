@@ -154,15 +154,12 @@ func _clone_map_data(src: MapData, node_type: int) -> MapData:
 	copy.required_unit = src.required_unit
 	copy.unlock_relics = src.unlock_relics.duplicate()
 	copy.unlock_units = src.unlock_units.duplicate()
-	copy.objective_type = src.objective_type
-	copy.objective_params = src.objective_params.duplicate(true)
+	# ★ v6.58：胜利条件不再随 map_data 复制——存于地图场景的 VictoryObjectiveTrigger
 	copy.max_waves = src.max_waves
 	copy.reinforcement_count = src.reinforcement_count
 	copy.reinforcement_pool = src.reinforcement_pool.duplicate()
 	copy.reward_multiplier = src.reward_multiplier
 	copy.enemy_hp_multiplier = src.enemy_hp_multiplier
-	copy.allow_dynamic_objective = src.allow_dynamic_objective
-	copy.dynamic_objective_pool = src.dynamic_objective_pool.duplicate()
 	return copy
 
 

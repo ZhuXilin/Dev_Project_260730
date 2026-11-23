@@ -32,6 +32,11 @@ var connected_nodes: Array = []
 var is_completed: bool = false
 var is_passed: bool = false
 
+## ★ v6.58：胜利目标类型（从本节点 map_data.scene 的 VictoryObjectiveTrigger 预读）。
+## 仅用于地图界面标记显示；实际判胜仍以战场加载的 trigger 为准。
+## 非 @export：运行时派生数据，不进存档/编辑器资源。
+var objective_type: int = MapData.ObjectiveType.ANNIHILATE
+
 func _init():
 	if node_id.is_empty():
 		_node_counter += 1

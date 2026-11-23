@@ -3,6 +3,7 @@
 [ext_resource type="TileSet" uid="uid://bmko3nha5eqoa" path="res://content/scenes/tilemap/TerrainTileSet01.tres" id="1_4t7b0"]
 [ext_resource type="Script" uid="uid://cjvddjaj43chx" path="res://function/tool/mapplacer/UnitPlacer.gd" id="2_v07jm"]
 [ext_resource type="Script" uid="uid://bwbaxyrughsfk" path="res://function/tool/mapplacer/HpFunction.gd" id="5_pypuo"]
+[ext_resource type="Script" path="res://function/tool/mapplacer/VictoryObjectiveTrigger.gd" id="99_vicobj"]
 
 [node name="Level01" type="Node2D" unique_id=1730342054]
 
@@ -86,3 +87,7 @@ placement_mode = 1
 avatar_id = "avatar_003"
 spawn_index = 2
 metadata/_custom_type_script = "uid://cjvddjaj43chx"
+
+
+[node name="VictoryObjectiveTrigger" type="Node2D" parent="."]
+script = ExtResource("99_vicobj")

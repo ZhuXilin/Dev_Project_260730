@@ -124,7 +124,7 @@ func _add_objective_badge(node: MapNode):
 	var parts : Array = []
 	var int_text : String = _intensity_badge_text(node.map_data.intensity)
 	if int_text != "": parts.append(int_text)
-	var obj_text : String = _objective_badge_text(node.map_data.objective_type)
+	var obj_text : String = _objective_badge_text(node.objective_type)
 	if obj_text != "": parts.append(obj_text)
 	if node.map_data.max_waves > 1:
 		if node.map_data.reinforcement_count > 0: parts.append("波%d+援%d" % [node.map_data.max_waves, node.map_data.reinforcement_count])

@@ -21,6 +21,7 @@ const HIGHLIGHT_BATTLE_START : Color = Color(0.7, 0.3, 0.9, 0.5)
 const HIGHLIGHT_EVENT : Color = Color(0.3, 0.6, 1.0, 0.5)
 const HIGHLIGHT_HP_HEAL : Color = Color(0.0, 1.0, 0.0, 0.5)
 const HIGHLIGHT_HP_DAMAGE : Color = Color(1.0, 0.0, 0.0, 0.5)
+const HIGHLIGHT_OBJECTIVE : Color = Color(1.0, 0.78, 0.2, 0.6)
 
 
 # ============================================================

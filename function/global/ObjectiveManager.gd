@@ -1,8 +1,10 @@
 extends Node
 
 # ============================================================
-#  ObjectiveManager — 胜利目标管理器（v4.3）
-#  解析 map_data.objective_type，追踪进度，通知胜利
+#  ObjectiveManager — 胜利目标管理器（v4.3 / v6.58 改造）
+#  从战场地图的 VictoryObjectiveTrigger 配置读取胜利目标，追踪进度，通知胜利。
+#  唯一权威数据源 = 地图场景里的 trigger（见 setup_for_config）。
+#  没有配置 / 空配置 → 默认全灭（ANNIHILATE）。
 # ============================================================
 
 enum State { INACTIVE, ACTIVE, COMPLETED, FAILED }
@@ -28,35 +30,45 @@ var _assault_target_name : String = ""
 # ============================================================
 #  初始化
 # ============================================================
-func setup_for_node(map_data : MapData) -> void:
+## ★ v6.58：主入口——从战场地图的 VictoryObjectiveTrigger 配置初始化。
+## config 为空 / 没有 trigger → 默认全灭，保持兼容（老战场、默认地图不会崩）。
+func setup_for_config(config : Dictionary) -> void:
 	_reset()
-	if map_data == null:
+	if config.is_empty():
+		_state = State.ACTIVE
+		print("[Objective] 无胜利条件 trigger，默认全灭")
 		return
 
-	_type = map_data.objective_type
-	if map_data.objective_params:
-		_params = map_data.objective_params.duplicate(true)
-	else:
-		_params = {}
+	_type = int(config.get("objective_type", MapData.ObjectiveType.ANNIHILATE))
+	var raw_params : Variant = config.get("objective_params", {})
+	_params = _normalize_params(raw_params)
 
 	# ★ v4.7：动态目标改为"显式开启"。
 	#   必须同时满足：
-	#     1) map_data.allow_dynamic_objective == true
+	#     1) allow_dynamic_objective == true
 	#     2) 未显式配置具体目标（_type == ANNIHILATE）
 	#     3) objective_params 为空
 	#   否则战斗节点一律全灭。
 	var allows_dynamic : bool = (
-		map_data.allow_dynamic_objective
+		bool(config.get("allow_dynamic_objective", false))
 		and _type == MapData.ObjectiveType.ANNIHILATE
 		and _params.is_empty()
 	)
 
 	if allows_dynamic:
-		_type = _roll_dynamic_objective(map_data.dynamic_objective_pool)
+		var pool : Variant = config.get("dynamic_objective_pool", [])
+		_type = _roll_dynamic_objective(pool if pool is Array else [])
 		print("[Objective] 动态目标已启用，roll 结果：%s" % _type_name())
 
 	_state = State.ACTIVE
 
+	_init_by_type()
+
+	print("[Objective] 目标：%s — %s" % [_type_name(), get_description()])
+
+
+## 按当前 _type 初始化各目标子系统。
+func _init_by_type() -> void:
 	match _type:
 		MapData.ObjectiveType.CAPTURE:
 			_init_capture()
@@ -67,7 +79,27 @@ func setup_for_node(map_data : MapData) -> void:
 		_:
 			pass
 
-	print("[Objective] 目标：%s — %s" % [_type_name(), get_description()])
+
+## 把 trigger 导出的 JSON 友好参数规范化：坐标数组 [x,y] → Vector2i。
+## ObjectiveManager 内部各 _init_* 都按 Vector2i 读，这里统一转换。
+func _normalize_params(raw : Variant) -> Dictionary:
+	if not (raw is Dictionary):
+		return {}
+	var out : Dictionary = {}
+	for k in (raw as Dictionary):
+		var v : Variant = (raw as Dictionary)[k]
+		if v is Array and (v as Array).size() == 2:
+			var a : Array = v
+			var t0 : int = typeof(a[0])
+			var t1 : int = typeof(a[1])
+			if (t0 == TYPE_INT or t0 == TYPE_FLOAT) and (t1 == TYPE_INT or t1 == TYPE_FLOAT):
+				out[k] = Vector2i(int(a[0]), int(a[1]))
+				continue
+		if typeof(v) == TYPE_FLOAT:
+			out[k] = int(v)
+		else:
+			out[k] = v
+	return out
 
 
 func _roll_dynamic_objective(pool : Array) -> int:

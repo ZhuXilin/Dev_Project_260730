@@ -98,6 +98,9 @@ var _damage_preview_label : Label = null
 var map_grid_size : Vector2i = MapConst.DEFAULT_MAP_SIZE
 var _initialized : bool = false
 var map_functions : Dictionary = {}
+## ★ v6.58：胜利条件配置，由 MapLoader 从地图场景的 VictoryObjectiveTrigger 提取。
+## ObjectiveManager 以此为准（唯一权威源），空字典=默认全灭。
+var victory_objective_config : Dictionary = {}
 var is_non_combat_mode: bool = false
 var non_combat_back_button: Button = null
 var current_node_type: int = MapNode.NodeType.NORMAL
@@ -305,7 +308,7 @@ func _ready():
 
 		BossMechanicManager.setup_for_node(false)
 		if ObjectiveManager:
-			ObjectiveManager.setup_for_node(null)
+			ObjectiveManager.setup_for_config({})
 
 		TurnManager.start_turn(TurnManager.Team.PLAYER)
 		_panel_manager.update_relic_icons()
@@ -340,7 +343,8 @@ func _ready():
 	BossMechanicManager.setup_for_node(is_boss)
 
 	if ObjectiveManager:
-		ObjectiveManager.setup_for_node(GameState.current_map_data)
+		# ★ v6.58：胜利条件以地图场景里的 VictoryObjectiveTrigger 为准
+		ObjectiveManager.setup_for_config(victory_objective_config)
 
 	if WaveManager:
 		_connect_wave_signals()
@@ -633,7 +637,7 @@ func _exit_tree():
 		SoulFireManager.soul_fire_changed.disconnect(_on_soul_fire_changed)
 
 	if ObjectiveManager:
-		ObjectiveManager.setup_for_node(null)
+		ObjectiveManager.setup_for_config({})
 
 	if WaveManager:
 		WaveManager.reset()
@@ -1704,7 +1708,7 @@ func _render_capture_marker():
 
 func _render_flag_markers():
 	var flag_cell : Vector2i = ObjectiveManager.get_flag_cell()
-	var goal_cell : Vector2i = ObjectiveManager.get_goal_cell()
+	var goal_cell : Vector2i = ObjectiveManager.get_flag_goal_cell()
 	if flag_cell != Vector2i(-1, -1):
 		_draw_cell_marker(flag_cell, Color(0.9, 0.3, 0.3, 0.4), "旗", Color(1.0, 0.4, 0.4))
 	if goal_cell != Vector2i(-1, -1):

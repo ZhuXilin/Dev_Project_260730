@@ -124,8 +124,9 @@ static func _generate_from_layout(day: int, day_layout: MapLayoutDay) -> MapLeve
 
 	_assign_map_data_to_all_nodes(nodes)
 
-	# ★ 把 layout 层的胜利目标覆盖到 map_data 上
-	_apply_objective_from_layout(nodes, day_layout)
+	# ★ v6.58：胜利目标唯一数据源=地图场景的 VictoryObjectiveTrigger。
+	#   预读到 MapNode.objective_type 仅供地图界面标记；判胜仍由战场加载 trigger 决定。
+	_read_objective_from_scenes(nodes)
 
 	# ★ 把 layout 层的波次/增援写入 map_data
 	_apply_wave_from_layout(nodes, day_layout)
@@ -274,42 +275,43 @@ static func _apply_question_guarantee(nodes: Array) -> void:
 			layer_key, MapConst.get_node_display_name(target.hidden_node_type)])
 
 
-static func _apply_objective_from_layout(nodes: Array, day_layout: MapLayoutDay) -> void:
-	if day_layout == null:
-		return
-	if nodes.size() != day_layout.nodes.size():
-		push_warning("[MapGenerator] objective 应用失败：nodes 数量与 layout 不一致")
-		return
-
-	for i in range(nodes.size()):
-		var map_node : MapNode = nodes[i]
-		var layout_node : MapLayoutNode = day_layout.nodes[i]
-		if map_node == null or layout_node == null:
+static func _read_objective_from_scenes(nodes: Array) -> void:
+	# ★ v6.58：胜利条件唯一数据源=每张战场地图 .tscn 里的 VictoryObjectiveTrigger。
+	#   这里在生成地图节点时预读一次，缓存到 MapNode.objective_type 供地图界面显示标记。
+	#   缓存按 scene.resource_path 去重，避免同一张地图重复 instantiate。
+	var cache : Dictionary = {}
+	for node in nodes:
+		var map_node : MapNode = node as MapNode
+		if map_node == null or map_node.map_data == null:
 			continue
-		if map_node.map_data == null:
+		var scene : PackedScene = map_node.map_data.scene
+		if scene == null:
 			continue
+		var key : String = scene.resource_path
+		if not cache.has(key):
+			cache[key] = _peek_objective_type(scene)
+		map_node.objective_type = int(cache[key])
 
-		var real_type : int = map_node.node_type
-		if real_type == MapNode.NodeType.QUESTION and map_node.hidden_node_type != -1:
-			real_type = map_node.hidden_node_type
-		if real_type in NON_COMBAT_TYPES:
-			continue
 
-		# 显式目标：仅当 layout 显式配置了具体类型或参数时才覆盖 .tres
-		var has_explicit : bool = (
-			layout_node.objective_type != MapData.ObjectiveType.ANNIHILATE
-			or not layout_node.objective_params.is_empty()
-		)
-		if has_explicit:
-			map_node.map_data.objective_type = layout_node.objective_type
-			if layout_node.objective_params.is_empty():
-				map_node.map_data.objective_params = {}
-			else:
-				map_node.map_data.objective_params = layout_node.objective_params.duplicate(true)
-
-		# ★ v4.7：动态目标配置（无论是否显式目标，都要传递）
-		map_node.map_data.allow_dynamic_objective = layout_node.allow_dynamic_objective
-		map_node.map_data.dynamic_objective_pool = layout_node.dynamic_objective_pool.duplicate()
+## 从 PackedScene 里找 VictoryObjectiveTrigger，读它的 objective_type。
+## 只读取导出属性，不进入场景树（PackedScene.get_state 无需 instantiate）。
+static func _peek_objective_type(scene: PackedScene) -> int:
+	var state : SceneState = scene.get_state()
+	for i in range(state.get_node_count()):
+		var is_trigger : bool = false
+		var obj_type : int = MapData.ObjectiveType.ANNIHILATE
+		for j in range(state.get_node_property_count(i)):
+			var pname : String = state.get_node_property_name(i, j)
+			var pval : Variant = state.get_node_property_value(i, j)
+			if pname == "script" and pval is Script:
+				# 用脚本路径识别，避免依赖全局类名注册顺序
+				if (pval as Script).resource_path.ends_with("VictoryObjectiveTrigger.gd"):
+					is_trigger = true
+			elif pname == "objective_type":
+				obj_type = int(pval)
+		if is_trigger:
+			return obj_type
+	return MapData.ObjectiveType.ANNIHILATE
 
 
 # ============================================================

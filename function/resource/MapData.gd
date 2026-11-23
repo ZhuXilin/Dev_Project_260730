@@ -18,17 +18,9 @@ enum ObjectiveType {
 @export var unlock_relics: Array[String] = []
 @export var unlock_units: Array[String] = []
 
-@export var objective_type: ObjectiveType = ObjectiveType.ANNIHILATE
-@export var objective_params: Dictionary = {}
-
-## v4.7：是否允许该战斗节点动态分配目标。
-## 默认 false —— 战斗节点强制全灭，除非显式开启。
-@export var allow_dynamic_objective: bool = false
-
-## v4.7：动态目标的候选池（ObjectiveType 整数值）。
-## 空数组 = 使用默认池 [CAPTURE, FLAG, ASSAULT]。
-## 仅当 allow_dynamic_objective = true 时生效。
-@export var dynamic_objective_pool: Array[int] = []
+## ★ v6.58：胜利条件字段已移除。
+## 胜利目标现在唯一存于战场地图 .tscn 的 VictoryObjectiveTrigger 节点，
+## 由 ObjectiveManager 从 trigger 读取；ObjectiveType 枚举保留作为公共类型定义。
 
 @export var max_waves: int = 1
 @export var reinforcement_count: int = 0

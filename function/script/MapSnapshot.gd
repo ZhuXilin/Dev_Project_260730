@@ -44,16 +44,7 @@ static func _serialize_map_data(map_data: MapData) -> Dictionary:
 	for sp in map_data.spawn_points:
 		spawn_points_serialized.append([int(sp.x), int(sp.y)])
 
-	var params_serialized : Dictionary = {}
-	for k in map_data.objective_params:
-		var v : Variant = map_data.objective_params[k]
-		if v is Vector2i:
-			params_serialized[k] = [int(v.x), int(v.y)]
-		elif v is Vector2:
-			params_serialized[k] = [int(v.x), int(v.y)]
-		else:
-			params_serialized[k] = v
-
+	# ★ v6.58：胜利条件不再随 map_data 存档——加载时从地图场景的 VictoryObjectiveTrigger 读取。
 	return {
 		"map_name": map_data.map_name,
 		"scene_path": map_data.scene.resource_path if map_data.scene else "",
@@ -64,16 +55,12 @@ static func _serialize_map_data(map_data: MapData) -> Dictionary:
 		"required_unit": map_data.required_unit,
 		"unlock_relics": map_data.unlock_relics.duplicate(),
 		"unlock_units": map_data.unlock_units.duplicate(),
-		"objective_type": int(map_data.objective_type),
-		"objective_params": params_serialized,
 		"max_waves": int(map_data.max_waves),
 		"reinforcement_count": int(map_data.reinforcement_count),
 		"reinforcement_pool": map_data.reinforcement_pool.duplicate(),
 		"reward_multiplier": float(map_data.reward_multiplier),
 		"enemy_hp_multiplier": float(map_data.enemy_hp_multiplier),
 		"intensity": int(map_data.intensity),
-		"allow_dynamic_objective": map_data.allow_dynamic_objective,
-		"dynamic_objective_pool": map_data.dynamic_objective_pool.duplicate(),
 	}
 
 
@@ -115,25 +102,7 @@ static func _deserialize_map_data(data: Dictionary) -> MapData:
 			unit_arr.append(uid)
 	map.unlock_units = unit_arr
 
-	map.objective_type = int(data.get("objective_type", 0)) as MapData.ObjectiveType
-	var params_raw : Dictionary = data.get("objective_params", {})
-	map.objective_params = {}
-	for k in params_raw:
-		var v : Variant = params_raw[k]
-		if v is Array and (v as Array).size() == 2:
-			var arr : Array = v
-			var t0 : int = typeof(arr[0])
-			var t1 : int = typeof(arr[1])
-			var is_num0 : bool = (t0 == TYPE_INT or t0 == TYPE_FLOAT)
-			var is_num1 : bool = (t1 == TYPE_INT or t1 == TYPE_FLOAT)
-			if is_num0 and is_num1:
-				map.objective_params[k] = Vector2i(int(arr[0]), int(arr[1]))
-				continue
-		if typeof(v) == TYPE_FLOAT:
-			map.objective_params[k] = int(v)
-		else:
-			map.objective_params[k] = v
-
+	# ★ v6.58：objective_* 旧存档字段已忽略；胜利条件从下面恢复的 scene 的 trigger 读取
 	map.max_waves = maxi(1, int(data.get("max_waves", 1)))
 	map.reinforcement_count = maxi(0, int(data.get("reinforcement_count", 0)))
 	var raw_pool : Array = data.get("reinforcement_pool", [])
@@ -146,14 +115,6 @@ static func _deserialize_map_data(data: Dictionary) -> MapData:
 	map.reward_multiplier = maxf(1.0, float(data.get("reward_multiplier", 1.0)))
 	map.enemy_hp_multiplier = maxf(1.0, float(data.get("enemy_hp_multiplier", 1.0)))
 	map.intensity = clampi(int(data.get("intensity", 0)), 0, 3)
-
-	map.allow_dynamic_objective = bool(data.get("allow_dynamic_objective", false))
-	var raw_dyn_pool : Array = data.get("dynamic_objective_pool", [])
-	var dyn_pool_arr : Array[int] = []
-	for v in raw_dyn_pool:
-		if v is int or v is float:
-			dyn_pool_arr.append(int(v))
-	map.dynamic_objective_pool = dyn_pool_arr
 
 	var scene_path = data.get("scene_path", "")
 	if scene_path != "" and ResourceLoader.exists(scene_path):

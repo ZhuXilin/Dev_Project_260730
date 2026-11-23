@@ -423,15 +423,12 @@ func _clone_nodes(nodes: Array) -> Array:
 		cp.connects_to = n.connects_to.duplicate()
 		cp.unlock_relics = n.unlock_relics.duplicate()
 		cp.unlock_units = n.unlock_units.duplicate()
-		cp.objective_type = n.objective_type
-		cp.objective_params = n.objective_params.duplicate(true)
+		# ★ v6.58：胜利条件已移至地图场景 trigger，MapLayoutNode 不再有这些字段
 		cp.max_waves = n.max_waves
 		cp.reinforcement_count = n.reinforcement_count
 		cp.reward_multiplier = n.reward_multiplier
 		cp.enemy_hp_multiplier = n.enemy_hp_multiplier
 		cp.intensity = n.intensity
-		cp.allow_dynamic_objective = n.allow_dynamic_objective
-		cp.dynamic_objective_pool = n.dynamic_objective_pool.duplicate()
 		out.append(cp)
 	return out
 
@@ -1116,19 +1113,9 @@ func _show_type_picker_popup(node_idx: int):
 				unit_checks.append(btn_o)
 
 	# ============================================================
-	# 目标、波次、奖励、倍率行
+	# 波次、奖励、倍率行
+	# ★ v6.58：胜利目标不再在地图节点配置，改由战场地图的 VictoryObjectiveTrigger 决定
 	# ============================================================
-	var obj_row := HBoxContainer.new()
-	obj_row.add_theme_constant_override("separation", 4)
-	obj_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	vbox.add_child(obj_row)
-
-	var dyn_row := HBoxContainer.new()
-	dyn_row.add_theme_constant_override("separation", 4)
-	dyn_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	vbox.add_child(dyn_row)
-	vbox.move_child(dyn_row, obj_row.get_index() + 1)
-
 	var intensity_row := HBoxContainer.new()
 	intensity_row.add_theme_constant_override("separation", 4)
 	intensity_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -1156,69 +1143,13 @@ func _show_type_picker_popup(node_idx: int):
 	wave_row.add_theme_constant_override("separation", 4)
 	vbox.add_child(wave_row)
 
-	var obj_opt := OptionButton.new()
-	obj_opt.add_theme_font_size_override("font_size", 7)
-	obj_opt.add_item("全灭", int(MapData.ObjectiveType.ANNIHILATE))
-	obj_opt.add_item("占领", int(MapData.ObjectiveType.CAPTURE))
-	obj_opt.add_item("夺旗", int(MapData.ObjectiveType.FLAG))
-	obj_opt.add_item("突进", int(MapData.ObjectiveType.ASSAULT))
-	obj_opt.selected = int(node.objective_type)
-	obj_opt.disabled = not can_unlock
-	obj_opt.custom_minimum_size = Vector2(56, 16)
-	obj_row.add_child(obj_opt)
-
-	var obj_param_lb := Label.new()
-	obj_param_lb.text = "参数:"
-	obj_param_lb.add_theme_font_size_override("font_size", 7)
-	obj_param_lb.custom_minimum_size = Vector2(0, 16)
-	obj_param_lb.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	obj_row.add_child(obj_param_lb)
-
-	var obj_param_edit := LineEdit.new()
-	obj_param_edit.add_theme_font_size_override("font_size", 7)
-	obj_param_edit.custom_minimum_size = Vector2(0, 16)
-	obj_param_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	obj_param_edit.editable = can_unlock
-	obj_param_edit.placeholder_text = "JSON，如 {\"target_cell\": [10, 7], \"hold_turns\": 3}"
-	obj_param_edit.tooltip_text = "CAPTURE: {\"target_cell\": [x, y], \"hold_turns\": n}\nFLAG: {\"flag_cell\": [x, y], \"goal_cell\": [x, y]}\nASSAULT: {\"target_unit_name\": \"id\"}\n留空：由 ObjectiveManager 智能 fallback"
-	if not node.objective_params.is_empty():
-		obj_param_edit.text = JSON.stringify(node.objective_params)
-	obj_row.add_child(obj_param_edit)
-
-	var dyn_cb := CheckBox.new()
-	dyn_cb.text = "允许动态目标"
-	dyn_cb.add_theme_font_size_override("font_size", 7)
-	dyn_cb.button_pressed = node.allow_dynamic_objective
-	dyn_cb.disabled = not can_unlock
-	dyn_cb.tooltip_text = "开启后，未显式配置目标的节点会从候选池中按队伍主标签分配目标"
-	dyn_row.add_child(dyn_cb)
-
-	var dyn_pool_lb := Label.new()
-	dyn_pool_lb.text = "候选池:"
-	dyn_pool_lb.add_theme_font_size_override("font_size", 7)
-	dyn_pool_lb.custom_minimum_size = Vector2(0, 16)
-	dyn_pool_lb.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	dyn_row.add_child(dyn_pool_lb)
-
-	var dyn_pool_edit := LineEdit.new()
-	dyn_pool_edit.add_theme_font_size_override("font_size", 7)
-	dyn_pool_edit.custom_minimum_size = Vector2(0, 16)
-	dyn_pool_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	dyn_pool_edit.editable = can_unlock and node.allow_dynamic_objective
-	dyn_pool_edit.placeholder_text = "CAPTURE,FLAG,ASSAULT（空=全部）"
-	dyn_pool_edit.tooltip_text = "逗号分隔，可选 CAPTURE / FLAG / ASSAULT"
-	var dyn_init_parts : Array = []
-	for v in node.dynamic_objective_pool:
-		match int(v):
-			MapData.ObjectiveType.CAPTURE: dyn_init_parts.append("CAPTURE")
-			MapData.ObjectiveType.FLAG: dyn_init_parts.append("FLAG")
-			MapData.ObjectiveType.ASSAULT: dyn_init_parts.append("ASSAULT")
-	dyn_pool_edit.text = ",".join(dyn_init_parts)
-	dyn_row.add_child(dyn_pool_edit)
-
-	dyn_cb.toggled.connect(func(p):
-		dyn_pool_edit.editable = p and can_unlock
-	)
+	var hint_lb := Label.new()
+	hint_lb.text = "胜利条件：在战场地图的 VictoryObjectiveTrigger 节点配置"
+	hint_lb.add_theme_font_size_override("font_size", 7)
+	hint_lb.custom_minimum_size = Vector2(0, 16)
+	hint_lb.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	hint_lb.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	vbox.add_child(hint_lb)
 
 	var wave_lb := Label.new()
 	wave_lb.text = "波次:"
@@ -1411,58 +1342,13 @@ func _show_type_picker_popup(node_idx: int):
 			node.unlock_units.clear()
 
 		if can_unlock:
-			var new_pool : Array[int] = []
-			var raw_pool : String = dyn_pool_edit.text.strip_edges()
-			if raw_pool != "":
-				for part in raw_pool.split(",", false):
-					var s : String = part.strip_edges().to_upper()
-					match s:
-						"CAPTURE": new_pool.append(MapData.ObjectiveType.CAPTURE)
-						"FLAG": new_pool.append(MapData.ObjectiveType.FLAG)
-						"ASSAULT": new_pool.append(MapData.ObjectiveType.ASSAULT)
-			node.allow_dynamic_objective = dyn_cb.button_pressed
-			node.dynamic_objective_pool = new_pool
-		else:
-			node.allow_dynamic_objective = false
-			node.dynamic_objective_pool = []
-
-		if can_unlock:
-			node.objective_type = obj_opt.selected as MapData.ObjectiveType
-			var param_text : String = obj_param_edit.text.strip_edges()
-			if param_text == "":
-				node.objective_params = {}
-			else:
-				var parsed = JSON.parse_string(param_text)
-				if parsed is Dictionary:
-					var cleaned : Dictionary = {}
-					for k in parsed:
-						var v : Variant = parsed[k]
-						var t : int = typeof(v)
-						if t == TYPE_ARRAY and (v as Array).size() == 2:
-							var arr : Array = v
-							var t0 : int = typeof(arr[0])
-							var t1 : int = typeof(arr[1])
-							var is_num0 : bool = (t0 == TYPE_INT or t0 == TYPE_FLOAT)
-							var is_num1 : bool = (t1 == TYPE_INT or t1 == TYPE_FLOAT)
-							if is_num0 and is_num1:
-								cleaned[k] = Vector2i(int(arr[0]), int(arr[1]))
-								continue
-						if t == TYPE_FLOAT:
-							cleaned[k] = int(v)
-						else:
-							cleaned[k] = v
-					node.objective_params = cleaned
-				else:
-					node.objective_params = {}
-
+			# ★ v6.58：胜利条件不再在地图节点保存（由战场地图 trigger 决定）
 			node.max_waves = clampi(int(wave_spin.value), 1, 3)
 			node.reinforcement_count = clampi(int(reinf_spin.value), 0, 5)
 			node.reward_multiplier = clampf(float(reward_spin.value), 1.0, 2.0)
 			node.enemy_hp_multiplier = clampf(float(enemy_hp_spin.value), 1.0, 1.5)
 			node.intensity = clampi(int_opt.selected, 0, 3)
 		else:
-			node.objective_type = MapData.ObjectiveType.ANNIHILATE
-			node.objective_params = {}
 			node.max_waves = 1
 			node.reinforcement_count = 0
 			node.reward_multiplier = 1.0
@@ -2180,19 +2066,6 @@ func _run_layout_validation():
 				if node.reward_multiplier > 1.0 and node.enemy_hp_multiplier <= 1.0:
 					errors.append("Day%d V%d Node[%d]%s  有奖励倍率但没有负面代价，建议配 enemy_hp_multiplier"
 						% [day_num, vi, ni, pos_str])
-
-				# ★ v4.7：动态目标校验
-				if node.allow_dynamic_objective:
-					for v in node.dynamic_objective_pool:
-						var ot : int = int(v)
-						if ot != MapData.ObjectiveType.CAPTURE \
-								and ot != MapData.ObjectiveType.FLAG \
-								and ot != MapData.ObjectiveType.ASSAULT:
-							errors.append("Day%d V%d Node[%d]%s  动态目标池含非法值: %d"
-								% [day_num, vi, ni, pos_str, ot])
-					if node.objective_type != MapData.ObjectiveType.ANNIHILATE:
-						print("[校验][MapLayoutEditor] ⚠ Day%d V%d Node[%d]%s  已显式配置目标，动态开关将被忽略"
-							% [day_num, vi, ni, pos_str])
 
 				for rid in node.unlock_relics:
 					if not valid_relics.has(rid):

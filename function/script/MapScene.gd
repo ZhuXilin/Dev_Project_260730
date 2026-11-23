@@ -394,8 +394,9 @@ func _get_node_description(node: MapNode) -> String:
 		if int_str != "":
 			base += "\n强度：" + int_str
 
-	if node.map_data and node.map_data.objective_type != MapData.ObjectiveType.ANNIHILATE:
-		base += "\n★ 目标：" + _objective_display_name(node.map_data.objective_type)
+	# ★ v6.58：胜利目标从节点预读的 trigger 配置读（不再是 map_data 字段）
+	if node.objective_type != MapData.ObjectiveType.ANNIHILATE:
+		base += "\n★ 目标：" + _objective_display_name(node.objective_type)
 
 	if node.map_data and node.map_data.max_waves > 1:
 		base += "\n波次：" + str(node.map_data.max_waves)
