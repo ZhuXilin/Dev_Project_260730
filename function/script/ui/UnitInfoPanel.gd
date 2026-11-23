@@ -77,6 +77,13 @@ func refresh():
 		faction = display_unit.faction if display_unit.faction != "" else "无"
 		if info_name: info_name.text = "%s\n（%s｜%s Lv.%d）" % [display, faction, type_cn, display_unit.level]
 		
+		# ★ v6.58：等级与经验进度
+		if display_unit.level >= BuildManager.LEVEL_CAP:
+			lines.append("等级    Lv%d/%d  MAX" % [display_unit.level, BuildManager.LEVEL_CAP])
+		else:
+			lines.append("等级    Lv%d/%d  经验%d/%d" % [
+				display_unit.level, BuildManager.LEVEL_CAP, display_unit.experience,
+				BuildManager.exp_to_next_level(display_unit.level)])
 		lines.append("HP      %d" % display_unit.max_hp)
 		lines.append("力量    %d" % display_unit.strength)
 		lines.append("灵巧    %d" % display_unit.dexterity)
@@ -89,6 +96,9 @@ func refresh():
 		faction = unit_dict.get("faction", "无")
 		if info_name: info_name.text = "%s\n（%s｜%s）" % [display, faction, type_cn]
 
+		# ★ v6.58：非 party 单位（选人/竞技场/派遣/魂祭坛悬停）按初始 Lv1/0 经验显示
+		lines.append("等级    Lv1/%d  经验0/%d" % [
+			BuildManager.LEVEL_CAP, BuildManager.exp_to_next_level(1)])
 		lines.append("HP      %d" % unit_dict.get("max_hp", 0))
 		lines.append("力量    %d" % unit_dict.get("strength", 0))
 		lines.append("灵巧    %d" % unit_dict.get("dexterity", 0))

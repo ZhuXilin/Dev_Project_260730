@@ -476,8 +476,10 @@ func apply_armor(unit: UnitData, item_id: String, quality: String, forced_school
 	var school := forced_school if forced_school != "" else get_school_of_affixes(affixes, item_id)
 	var cap := get_quality_cap(quality)
 	if school == "" or not unit:
-		_append_armor_instance(unit, item_id, affixes)
-		return {"result": "plain", "school": "", "level": 0, "cap": cap, "replaced": ""}
+		# ★ v6.55：无流派防具也要占物理槽，满槽时拒绝（否则越界后战斗被裁掉）
+		if _append_armor_instance(unit, item_id, affixes):
+			return {"result": "plain", "school": "", "level": 0, "cap": cap, "replaced": ""}
+		return {"result": "full", "school": "", "level": 0, "cap": cap, "replaced": ""}
 
 	var mechs: Dictionary = _ensure_mechanisms(unit)
 	if mechs.has(school):
@@ -508,11 +510,16 @@ func apply_armor(unit: UnitData, item_id: String, quality: String, forced_school
 
 	var used := mechs.size()
 	var slots := unit.max_armor_slots
-	if used >= slots:
+	# ★ v6.55：双重校验——流派数未满，但物理槽（含无流派防具）已满也要拒绝
+	var used_phys : int = unit.count_used_armor_slots()
+	if used >= slots or used_phys >= slots:
 		return {"result": "full", "school": school, "level": 0, "cap": cap, "replaced": ""}
 
 	mechs[school] = {"level": 1, "cap": cap, "count": 1}
-	_append_armor_instance(unit, item_id, affixes)
+	if not _append_armor_instance(unit, item_id, affixes):
+		# 写入失败则回滚机制，避免出现"机制已觉醒但没有防具"的口径脱节
+		mechs.erase(school)
+		return {"result": "full", "school": school, "level": 0, "cap": cap, "replaced": ""}
 	build_changed.emit(unit.unit_name)
 	SignalBus.build_awakened.emit(unit, school, 1, get_school_color(school))
 	return {"result": "awaken", "school": school, "level": 1, "cap": cap, "replaced": ""}
@@ -587,38 +594,57 @@ func overwrite_school(unit: UnitData, school_to_remove: String, item_id: String,
 
 
 ## 把防具实例塞进底层 armor_slots（供战斗层读属性 / 词条）。
-## 玩家层不操作该数组；满则扩展，永不因物理槽拒绝。
-func _append_armor_instance(unit: UnitData, item_id: String, affixes: Array = []) -> void:
+## ★ v6.55 修复"落第二槽后防具掉了"：绝不越界 append 到 max_armor_slots 之外。
+##   旧实现无空位就 append 到第3位，玩家可见槽只显示前2个，
+##   进战斗时 Unit.restore_from_unit_data 的 pop_back 把第3件裁掉、同步后永久丢失。
+## 返回 bool：true=写入成功，false=槽位已满拒绝写入。
+func _append_armor_instance(unit: UnitData, item_id: String, affixes: Array = []) -> bool:
 	if not unit:
-		return
+		return false
 	var inst := ItemInstance.new()
 	inst.item_id = item_id
 	inst.count = 1
 	# ★ v6.53：落位时带上 roll 出的词条（词条即流派，且词条数值要生效）
 	if not affixes.is_empty():
 		inst.affixes = affixes.duplicate()
-	var idx := unit.armor_slots.find(null)
-	if idx >= 0:
-		unit.armor_slots[idx] = inst
-	else:
+	# 只在可见槽位范围内找空位
+	var limit : int = mini(unit.armor_slots.size(), unit.max_armor_slots)
+	for i in range(limit):
+		if unit.armor_slots[i] == null:
+			unit.armor_slots[i] = inst
+			return true
+	# 数组还没到上限才扩容；已满则拒绝，绝不越界
+	if unit.armor_slots.size() < unit.max_armor_slots:
 		unit.armor_slots.append(inst)
+		return true
+	push_warning("[BuildManager] 防具槽已满(%d)，拒绝写入 %s" % [unit.max_armor_slots, item_id])
+	return false
 
 
 ## 公开：挂一件无流派防具（熔铸专属等），供熔铸面板调用
-func append_plain_armor(unit: UnitData, item_id: String) -> void:
-	_append_armor_instance(unit, item_id)
+func append_plain_armor(unit: UnitData, item_id: String) -> bool:
+	return _append_armor_instance(unit, item_id)
 
 
 # ============================================================
-#  单位成长：战斗累计经验 → 战后自动升级
+#  单位成长：击杀得经验 + 战后额外经验 → 自动升级
 # ============================================================
 
-## 升到下一级所需经验（按当前等级递增；目标每局净增 1~2 级）
+const LEVEL_CAP: int = 6   ## 单位等级上限（UI 显示 / 升级封顶统一口径）
+
+## 升到下一级所需经验（按当前等级递增）
 func exp_to_next_level(current_level: int) -> int:
 	return 60 + maxi(0, current_level - 1) * 40
 
 
-## 战斗贡献折算经验：胜利基础 + 评级加成
+## 到下一级还差多少经验（UI 显示用；满级返回 0）
+func exp_to_next_remaining(unit: UnitData) -> int:
+	if unit == null or unit.level >= LEVEL_CAP:
+		return 0
+	return maxi(0, exp_to_next_level(unit.level) - unit.experience)
+
+
+## 关卡战后额外经验：节点类型基础 + 评级加成（击杀经验之外的额外一笔）
 func battle_exp_reward(node_type: int, rating: String) -> int:
 	var base := 40
 	match node_type:
@@ -630,7 +656,8 @@ func battle_exp_reward(node_type: int, rating: String) -> int:
 	return base + bonus
 
 
-## 战后给单个单位加经验并自动升级；返回本次升到的等级
+## 给单个单位加经验并自动升级；返回本次升到的等级。
+## 每次升级发 SignalBus.request_level_up_popup，战场据此播仪式感。
 func grant_exp_and_auto_level(unit: UnitData, amount: int) -> int:
 	if unit == null or unit.is_dead:
 		return unit.level if unit else 0
@@ -639,11 +666,20 @@ func grant_exp_and_auto_level(unit: UnitData, amount: int) -> int:
 	while guard < 10:
 		guard += 1
 		var need := exp_to_next_level(unit.level)
-		if unit.experience < need or unit.level >= 6:
+		if unit.experience < need or unit.level >= LEVEL_CAP:
 			break
 		unit.experience -= need
-		unit.apply_level_up()
+		if unit.apply_level_up():
+			SignalBus.request_level_up_popup.emit(unit.unit_name, unit.level)
 	return unit.level
+
+
+## ★ v6.58：击杀经验——从被击杀单位的 exp 字段取值给击杀者。
+## victim 是敌方 Unit/UnitData；exp 由 unit_data.json 按强度配置。
+func grant_kill_exp(killer: UnitData, victim_exp: int) -> int:
+	if killer == null or killer.is_dead or victim_exp <= 0:
+		return killer.level if killer else 0
+	return grant_exp_and_auto_level(killer, victim_exp)
 
 
 # ============================================================

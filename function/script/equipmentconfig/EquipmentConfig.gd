@@ -1665,14 +1665,16 @@ func _trigger_sacrifice_confirm(u: UnitData):
 	for member in party:
 		if not member.is_dead: alive_count += 1
 		
-	var msg : String = "确定熔铸 %s？\n将获得：【%s】" % [u.display_name, melt_name]
+	# ★ v6.56：标题一句 + 结构化奖励预览（图标/名字/数值分区分行），避免文字挤在一起
+	var msg : String = "确定熔铸 %s？" % u.display_name
 	if alive_count <= 1:
-		msg += "\n\n⚠ 熔铸后全灭，本局将结束并返回营地。"
-
-	var confirm_ui = Globals.show_confirm(self, msg, "熔铸", "取消", 
+		msg += "\n（熔铸后全灭，本局将结束并返回营地）"
+	var confirm_ui = Globals.show_confirm(self, msg, "熔铸", "取消",
 		func(): _do_sacrifice(u, [], 0), func(): pass)
 	if confirm_ui and melt_data:
-		confirm_ui.set_item_icon(melt_data.icon)  # ★ v5.13：展示将获得的防具图标
+		var qcolor : Color = UIConst.QUALITY_COLORS.get(melt_data.quality, Color.WHITE)
+		confirm_ui.set_reward_detail(melt_data.icon, melt_name,
+			SacrificeHelper.describe_melt_reward(melt_id), qcolor)
 
 
 func _do_sacrifice(u: UnitData, _armors_ignored: Array, _discard_count: int):

@@ -54,6 +54,7 @@ func _connect_signal_bus() -> void:
 	_safe_connect(SignalBus.turn_changed, _bf._turn_controller.on_turn_changed)
 	_safe_connect(SignalBus.request_screen_shake, _bf._on_request_screen_shake)
 	_safe_connect(SignalBus.request_damage_popup, _bf._on_request_damage_popup)
+	_safe_connect(SignalBus.request_level_up_popup, _bf._on_request_level_up_popup)
 	_safe_connect(SignalBus.request_show_info, _bf._on_request_show_info)
 	_safe_connect(SignalBus.request_hide_info, _bf._on_request_hide_info)
 	_safe_connect(SignalBus.request_show_setting, _bf._on_request_show_setting)

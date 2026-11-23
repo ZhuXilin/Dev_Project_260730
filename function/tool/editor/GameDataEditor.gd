@@ -161,6 +161,7 @@ var _edit_ignore_terrain_cb : CheckBox = null
 var _edit_max_armor_spin : SpinBox = null
 var _edit_max_talent_spin : SpinBox = null
 var _edit_arena_exp_spin : SpinBox = null
+var _edit_exp_spin : SpinBox = null   ## v6.58：击杀提供经验（单位数值编辑器跟进）
 var _frames_texture_cache : Dictionary = {}
 
 # ---- 战斗模拟 ----
@@ -756,6 +757,16 @@ func _build_edit_tab(parent : Control) -> Control:
 	_edit_arena_exp_spin.custom_minimum_size = Vector2(60, 16)
 	combat_grid.add_child(_edit_arena_exp_spin)
 	_style_spin(_edit_arena_exp_spin)
+
+	# ★ v6.58：击杀提供经验（击杀该单位时给击杀者的经验，按强度配置）
+	combat_grid.add_child(_lbl("击杀经验", 50))
+	_edit_exp_spin = SpinBox.new()
+	_edit_exp_spin.min_value = 0
+	_edit_exp_spin.max_value = 999
+	_edit_exp_spin.step = 1
+	_edit_exp_spin.custom_minimum_size = Vector2(60, 16)
+	combat_grid.add_child(_edit_exp_spin)
+	_style_spin(_edit_exp_spin)
 
 	content.add_child(_section("— 单位标签 —"))
 	var tag_flow := HFlowContainer.new()
@@ -1670,6 +1681,8 @@ func _select_edit_unit(key : String):
 		_edit_max_talent_spin.value = int(d.get("max_talent_slots", 1))
 	if _edit_arena_exp_spin:
 		_edit_arena_exp_spin.value = int(d.get("arena_exp", 30))
+	if _edit_exp_spin:
+		_edit_exp_spin.value = int(d.get("exp", 30))
 
 	var unit_tags : Array = d.get("tags", [])
 	for tag in UNIT_TAGS:
@@ -1779,6 +1792,8 @@ func _save_unit_db():
 		d["max_talent_slots"] = int(_edit_max_talent_spin.value)
 	if _edit_arena_exp_spin:
 		d["arena_exp"] = int(_edit_arena_exp_spin.value)
+	if _edit_exp_spin:
+		d["exp"] = int(_edit_exp_spin.value)   # ★ v6.58：击杀经验随编辑器保存
 
 	var tags : Array = []
 	for tag in UNIT_TAGS:
@@ -3312,6 +3327,7 @@ func _make_blank_unit_data(unit_key : String) -> Dictionary:
 		"max_armor_slots": 2,
 		"max_talent_slots": 1,
 		"arena_exp": 30,
+		"exp": 30,   # ★ v6.58：击杀提供经验
 		"is_boss": false,
 		"hidden_from_roster": false,
 		"core_trait": "",

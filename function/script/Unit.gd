@@ -499,6 +499,9 @@ func restore_from_unit_data(data: UnitData, cell: Vector2i):
 	while armor_slots.size() < max_armor_slots:
 		armor_slots.append(null)
 	while armor_slots.size() > max_armor_slots:
+		# ★ v6.55：越界裁剪会静默丢失防具，加日志便于发现其他越界写入点
+		push_warning("[Unit] %s 防具槽数组越界(%d>%d)，裁剪可能丢失防具" % [
+			unit_stats.display_name if unit_stats else "?", armor_slots.size(), max_armor_slots])
 		armor_slots.pop_back()
 
 	_init_talent_slots_from_data(data)
@@ -680,11 +683,20 @@ func update_position(new_cell: Vector2i): grid_cell = new_cell
 func apply_damage(damage_amount : int) -> bool:
 	if get_meta("gm_god", false):
 		return hit_points <= 0
+	var was_alive : bool = hit_points > 0
 	hit_points -= damage_amount
 	if hit_points < 0: hit_points = 0
 	update_hp_label()
 	update_hp_bar()
-	return hit_points <= 0
+	var now_dead : bool = hit_points <= 0
+	# ★ v6.57：把"击杀即判胜"做成全局不变量——任何伤害来源（普攻/觉醒爆发/溅射/DoT）
+	#   只要让敌方单位 HP 从>0变0，就排队一次胜利判定，不再依赖 _on_kill 单一路径。
+	#   deferred 在本帧末执行；Boss 一形态死亡会被 BossMechanicManager.process_damage_phase
+	#   在同帧同步拉回 HP（复活），届时判定看到 HP>0 不会误判。最终形态归零则立即判胜。
+	if was_alive and now_dead and unit_stats != null and unit_stats.team_id != 0 \
+			and TurnManager and TurnManager.is_battle_ready():
+		TurnManager.call_deferred("check_victory")
+	return now_dead
 
 
 func play_animation(anim_name: String, force: bool = false):

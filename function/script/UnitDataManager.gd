@@ -87,6 +87,8 @@ static func get_default_stats(unit_name: String) -> UnitData:
 	data.magic_reduction = float(dict.get("magic_reduction", 0.0))
 	data.hidden_from_roster = bool(dict.get("hidden_from_roster", false))
 	data.is_boss = bool(dict.get("is_boss", false))
+	# ★ v6.58：击杀提供经验（来自 unit_data.json 的 exp，按敌人强度配置）
+	data.kill_exp = int(dict.get("exp", 0))
 	data.boss_mechanic_id = str(dict.get("boss_mechanic_id", ""))
 	data.avatar = str(dict.get("avatar", ""))
 

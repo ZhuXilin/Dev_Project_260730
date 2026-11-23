@@ -2,5 +2,7 @@
   "drop_chance": 0.3,
   "heal_percent": 0.25,
   "icon_id": "item_079",
-  "despawn_turns": 999
+  "despawn_turns": 999,
+  "name": "血球",
+  "description": "拾取后回复 {v}% 最大生命\n（至少 1 点，回合开始消失）"
 }

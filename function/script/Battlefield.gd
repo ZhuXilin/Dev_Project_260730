@@ -75,6 +75,7 @@ var _danger_indicators : Array[Node] = []
 
 var _cached_info_unit: Unit = null
 var _cached_info_cell: Vector2i = Vector2i(-999, -999)
+var _cached_info_has_orb: bool = false   ## 该格掉落物缓存，避免静止时 tooltip 不刷新
 
 var _terrain_info_panel : PanelContainer = null
 var _terrain_info_label : Label = null
@@ -225,10 +226,7 @@ func _ready():
 	# ★ v6.34（B1）：build 觉醒仪式反馈
 	if not SignalBus.build_awakened.is_connected(_on_build_awakened):
 		SignalBus.build_awakened.connect(_on_build_awakened)
-	# ★ v6.37：阵型配合变化 → 刷新连线
-	if not SignalBus.request_formation_changed.is_connected(_refresh_formation_lines):
-		SignalBus.request_formation_changed.connect(_refresh_formation_lines)
-	_ensure_formation_line_layer()
+	# ★ v6.59：阵型系统已移除，不再监听阵型连线
 
 	if turn_overlay:
 		turn_overlay.modulate = Color(1, 1, 1, 0)
@@ -394,8 +392,7 @@ func _ready():
 			return
 
 	_turn_controller.apply_team_buffs()
-	FormationManager.reset_battle()
-	FormationManager.rebuild()
+	# ★ v6.59：阵型系统已移除
 
 	if _victory_handler:
 		_victory_handler.record_battle_start_hp()
@@ -903,7 +900,6 @@ func _on_player_movement_finished(unit: Unit):
 	TurnManager.on_movement_finished(unit)
 	CombatManager.drop_ash_tile(unit)     # ★ v6.2 灰烬：离开的格子留下地块
 	CombatManager.trigger_ash_tile(unit)  # ★ v6.2 灰烬：踩中敌方地块受伤
-	FormationManager.rebuild()            # ★ v6.37：落格后重算站位阵型
 	camera_controller.follow_mouse()
 	SignalBus.request_clear_highlight.emit()
 	ItemBattlefieldManager.try_pickup(unit)
@@ -914,7 +910,6 @@ func _on_ai_movement_finished(unit: Unit):
 	TurnManager.on_ai_movement_finished(unit)
 	CombatManager.drop_ash_tile(unit)
 	CombatManager.trigger_ash_tile(unit)
-	FormationManager.rebuild()            # ★ v6.37：落格后重算站位阵型
 	camera_controller.follow_mouse()
 	SignalBus.request_clear_highlight.emit()
 
@@ -944,6 +939,39 @@ func _on_request_screen_shake(duration: float, intensity: float, direction: Vect
 	var shake_node = $Camera2D.get_node_or_null("ScreenShake") as ScreenShake
 	if shake_node:
 		shake_node.shake(duration, intensity, direction)
+
+
+## ★ v6.58：单位升级仪式感——get_item 音效 + 0.25s 真实时间停顿 + 单位上方白色 LV 跳字
+func _on_request_level_up_popup(unit_name: String, new_level: int) -> void:
+	if _damage_popup_layer == null:
+		return
+	# ★ v6.58：标记升级表演进行中，胜利界面会等计数归零再弹出
+	Globals.level_up_performing_count += 1
+	# 找到战场中的我方单位（按 unit_name）
+	var target : Unit = null
+	for u in UnitManager.unit_list:
+		if is_instance_valid(u) and u.unit_stats != null \
+				and u.unit_stats.team_id == 0 and u.unit_stats.unit_name == unit_name:
+			target = u
+			break
+	var world_pos : Vector2 = target.global_position if target != null else Vector2.ZERO
+
+	# 音效立即播（复用 get_item，无需单独 sound 槽）
+	SoundManager.play_get_item_sound()
+	# 0.25 秒真实时间停顿，不受倍速影响
+	await get_tree().create_timer(0.25, true, false, true).timeout
+	if not is_inside_tree():
+		Globals.level_up_performing_count = maxi(0, Globals.level_up_performing_count - 1)
+		return
+
+	# 白色 LV 跳字（与伤害跳字同字号 12，custom_text 走白色分支）
+	var popup = preload(Config.PATHS.DAMAGE_POPUP_SCRIPT).new()
+	_damage_popup_layer.add_child(popup)
+	popup.setup(world_pos, 0, false, false, false, -8.0, "LV%d" % new_level)
+
+	# 等跳字动画完成（上浮0.3+停留0.15≈0.45s）再结束表演，之后胜利界面才可出现
+	await get_tree().create_timer(0.45, true, false, true).timeout
+	Globals.level_up_performing_count = maxi(0, Globals.level_up_performing_count - 1)
 
 
 func _on_request_damage_popup(world_pos: Vector2, damage: int, is_crit: bool, is_miss: bool, is_heal: bool):
@@ -1038,43 +1066,7 @@ func _display_name_of(unit_data) -> String:
 	return dn if dn != "" else str(unit_data.unit_name)
 
 
-## ★ v6.37：阵型连线层（代码动态创建，不改场景文件）
-var _formation_line_layer : Node2D = null
-
-func _ensure_formation_line_layer() -> void:
-	if _formation_line_layer != null and is_instance_valid(_formation_line_layer):
-		return
-	_formation_line_layer = Node2D.new()
-	_formation_line_layer.name = "FormationLineLayer"
-	_formation_line_layer.z_index = 2
-	add_child(_formation_line_layer)
-
-func _refresh_formation_lines() -> void:
-	_ensure_formation_line_layer()
-	for child in _formation_line_layer.get_children():
-		child.queue_free()
-	var colors : Dictionary = {
-		"F1_燎原": Color(1.0, 0.55, 0.15, 0.85),
-		"F2_铁壁护卫": Color(0.2, 0.7, 1.0, 0.85),
-		"F3_轮回链": Color(0.55, 0.4, 1.0, 0.85),
-		"F4_血祭传递": Color(0.9, 0.2, 0.3, 0.85),
-		"F5_余烬引爆": Color(1.0, 0.85, 0.2, 0.85),
-		"F6_灰烬火墙": Color(0.9, 0.45, 0.1, 0.85),
-	}
-	for pair in FormationManager.all_formation_pairs():
-		var beneficiary : Unit = pair[0]
-		var anchor : Unit = pair[1]
-		var key : String = str(pair[2])
-		if not is_instance_valid(beneficiary) or not is_instance_valid(anchor):
-			continue
-		var line := Line2D.new()
-		line.points = PackedVector2Array([
-			grid_to_world(beneficiary.grid_cell),
-			grid_to_world(anchor.grid_cell)])
-		line.width = 3.0
-		line.default_color = colors.get(key, Color.WHITE)
-		_formation_line_layer.add_child(line)
-
+## ★ v6.59：阵型系统已移除——阵型连线层及相关函数一并删除
 
 func _active_cd_tag(inst: TalentInstance) -> String:
 	if inst == null:
@@ -1108,7 +1100,10 @@ func _on_request_show_info(unit: Unit):
 	else:
 		var mouse_pos = get_global_mouse_position()
 		var t_cell = world_to_grid(mouse_pos)
+		# ★ 掉落物在鼠标静止时生成/消失，格子不变也需刷新，故把 has_orb 纳入缓存键
+		var now_has_orb : bool = ItemBattlefieldManager.has_orb(t_cell)
 		if t_cell == _cached_info_cell and _cached_info_unit == null \
+				and _cached_info_has_orb == now_has_orb \
 				and _is_panel_stable(_terrain_info_panel):
 			return
 
@@ -1124,6 +1119,7 @@ func _on_request_show_info(unit: Unit):
 	else:
 		_cached_info_cell = world_to_grid(get_global_mouse_position())
 		_cached_info_unit = null
+		_cached_info_has_orb = ItemBattlefieldManager.has_orb(_cached_info_cell)
 
 	var avatar_rect := get_node_or_null("Info/AvatarRect") as TextureRect
 	var avatar_bg := get_node_or_null("Info/AvatarBg") as Panel
@@ -1137,6 +1133,21 @@ func _on_request_show_info(unit: Unit):
 		# ★ 地形信息走独立面板（同款 stylebox + 同款 PanelRevealer）
 		if _terrain_info_label == null:
 			return
+
+		# ★ 掉落物优先于地形：复用同一面板/标签/动画，描述来自 JSON 不硬编码
+		var orb_info : Dictionary = ItemBattlefieldManager.get_orb_info(_cached_info_cell)
+		if not orb_info.is_empty():
+			var orb_name : String = str(orb_info.get("name", "掉落物"))
+			var orb_desc : String = str(orb_info.get("description", ""))
+			# {v} 占位符用 heal_percent*100 替换，数值仍由 JSON 的 heal_percent 决定
+			if orb_desc.contains("{v}"):
+				orb_desc = orb_desc.format({"v": int(float(orb_info.get("heal_percent", 0.25)) * 100)})
+			_terrain_info_label.text = orb_name + "\n" + orb_desc
+			_adjust_terrain_info_panel(force_replay)
+			if not is_dragging:
+				highlight_manager.clear_highlight()
+			return
+
 		var t_type = TerrainManager.get_terrain(_cached_info_cell)
 		var t_name = TerrainManager.get_terrain_name(t_type)
 		var td : Dictionary = TerrainManager.TERRAIN_DATA.get(t_type, {})
@@ -1212,8 +1223,14 @@ func _on_request_show_info(unit: Unit):
 	lines.append("HP: " + str(unit.hit_points) + "/" + str(unit.unit_stats.max_hp))
 
 	if unit.unit_stats.team_id == 0:
-		var cap : int = int(GameState.unit_level_cap.get(unit.unit_stats.unit_name, 1))
-		lines.append("Lv %d / %d" % [unit.current_level, cap])
+		# ★ v6.58：当前/最大等级 + 当前经验/升级所需经验
+		var us = unit.unit_stats
+		if us.level >= BuildManager.LEVEL_CAP:
+			lines.append("Lv %d / %d  MAX" % [us.level, BuildManager.LEVEL_CAP])
+		else:
+			lines.append("Lv %d / %d  经验 %d/%d" % [
+				us.level, BuildManager.LEVEL_CAP, us.experience,
+				BuildManager.exp_to_next_level(us.level)])
 
 	var status_str : String = ""
 	if unit.hit_points <= 0: status_str = "【已阵亡】"
@@ -1291,14 +1308,7 @@ func _on_request_show_info(unit: Unit):
 		lines.append("技能: " + ", ".join(active_skill_parts))
 	if passive_parts.size() > 0:
 		lines.append("词条: " + ", ".join(passive_parts))
-	# ★ v6.37：阵型配合（站位相邻才显示，走散即消失）
-	var syn_keys : Array = FormationManager.keys_at(unit.grid_cell)
-	if syn_keys.size() > 0:
-		var syn_names : Array = []
-		for k in syn_keys:
-			var short_name : String = str(k).substr(str(k).find("_") + 1)
-			syn_names.append(short_name)
-		lines.append("阵型: " + ", ".join(syn_names))
+	# ★ v6.59：阵型系统已移除，不再显示阵型配合
 
 	var unit_cell = unit.grid_cell
 	var terrain_type = TerrainManager.get_terrain(unit_cell)
@@ -1399,6 +1409,7 @@ func _on_request_hide_info():
 	# 重置缓存，以便再次悬停时重新触发
 	_cached_info_unit = null
 	_cached_info_cell = Vector2i(-999, -999)
+	_cached_info_has_orb = false
 
 	if _drag_move_controller == null or not _drag_move_controller.is_dragging():
 		highlight_manager.clear_highlight() # ★ 不传参数，它会自动使用上面记录的中心点
@@ -1574,7 +1585,8 @@ func _wait_for_ui_clear(timeout_ms: int = 5000) -> void:
 	var start = Time.get_ticks_msec()
 	# ★ 核心修改：去除对 Globals.is_transitioning 的判断，只等待真正需要玩家交互的 UI
 	# 因为 is_transitioning 是 TurnController 接下来要自己处理的状态，不能用来阻塞自己
-	while Globals.is_dialogue_active or Globals.is_item_get_popup_active:
+	while Globals.is_dialogue_active or Globals.is_item_get_popup_active \
+			or Globals.level_up_performing_count > 0:
 		if not is_inside_tree():
 			return
 		if Time.get_ticks_msec() - start > timeout_ms:
@@ -1586,6 +1598,7 @@ func _wait_for_ui_clear(timeout_ms: int = 5000) -> void:
 				DialogueManager.reset()
 			Globals.is_dialogue_active = false
 			Globals.is_item_get_popup_active = false
+			Globals.level_up_performing_count = 0   # ★ v6.58：超时兜底，避免胜利永久被卡
 			break
 		await get_tree().process_frame
 

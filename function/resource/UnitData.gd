@@ -88,6 +88,9 @@ var zeal_stacks : int = 0
 @export var override_sprite_path: String = ""
 
 @export var level: int = 1
+## 该单位被击杀时提供的经验值（来自 unit_data.json 的 exp 字段，按强度配置）
+## 注意：变量名不能叫 exp（GDScript 内置 exp() 函数会 SHADOWED_GLOBAL_IDENTIFIER）
+@export var kill_exp: int = 0
 @export var attack_range_bonus: int = 0
 @export var static_physical_penetration: float = 0.0
 @export var static_magic_penetration: float = 0.0
@@ -254,7 +257,7 @@ func to_dict() -> Dictionary:
 		"strength": strength, "dexterity": dexterity, "intelligence": intelligence,
 		"faith": faith, "move_range": move_range,
 		"physical_reduction": physical_reduction, "magic_reduction": magic_reduction,
-		"ignore_terrain_cost": ignore_terrain_cost, "experience": experience, "level": level,
+		"ignore_terrain_cost": ignore_terrain_cost, "experience": experience, "level": level, "exp": kill_exp,
 		"attack_range_bonus": attack_range_bonus, "static_physical_penetration": static_physical_penetration,
 		"static_magic_penetration": static_magic_penetration, "static_crit_damage_bonus": static_crit_damage_bonus,
 		"max_armor_slots": max_armor_slots, "max_talent_slots": max_talent_slots,
@@ -298,6 +301,7 @@ static func from_dict(d: Dictionary) -> UnitData:
 	data.ignore_terrain_cost = d.get("ignore_terrain_cost", false)
 	data.experience = d.get("experience", 0)
 	data.level = int(d.get("level", 1))
+	data.kill_exp = int(d.get("exp", 0))
 	data.attack_range_bonus = int(d.get("attack_range_bonus", 0))
 	data.static_physical_penetration = float(d.get("static_physical_penetration", 0.0))
 	data.static_magic_penetration = float(d.get("static_magic_penetration", 0.0))

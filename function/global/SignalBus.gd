@@ -27,6 +27,9 @@ signal request_screen_shake(duration: float, intensity: float, direction: Vector
 @warning_ignore("unused_signal")
 signal request_damage_popup(world_pos: Vector2, damage: int, is_crit: bool, is_miss: bool, is_heal: bool)
 @warning_ignore("unused_signal")
+## v6.58：单位在战场升级时发（unit_name + 新等级），战场播升级仪式感（暂停/跳字/音效）
+signal request_level_up_popup(unit_name: String, new_level: int)
+@warning_ignore("unused_signal")
 signal request_show_info(unit)
 @warning_ignore("unused_signal")
 signal request_hide_info()
@@ -48,9 +51,6 @@ signal non_combat_complete()
 signal request_setting_right_click()
 @warning_ignore("unused_signal")
 signal request_hint_override(text: String, duration: float)
-@warning_ignore("unused_signal")
-## ★ v6.37：阵型配合变化（移动/阵亡后重算），供连线层刷新
-signal request_formation_changed()
 @warning_ignore("unused_signal")
 ## ★ v6.34（B1）：build 觉醒/升 Lv 质变瞬间，携带单位/流派/新 Lv/颜色，供战斗层播仪式反馈
 signal build_awakened(unit, school: String, new_level: int, color: Color)

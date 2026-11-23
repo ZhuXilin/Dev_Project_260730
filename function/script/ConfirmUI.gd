@@ -233,3 +233,82 @@ func set_item_icon(texture: Texture2D) -> void:
 	rect.offset_top = 8.0 - half_h
 	rect.offset_bottom = 8.0 + half_h
 	$Panel.add_child(rect)
+
+
+## ★ v6.56：结构化奖励预览——把"将获得"的图标/名字/数值词条分区分行显示，
+##   替代旧 set_item_icon（绝对定位在顶部 y≈8，与塞进 message 的多行文字重叠）。
+##   用法：先 show_confirm(简短标题...) 再调本方法，传入奖励详情；
+##   本方法会隐藏 message_label，用独立 VBox 占满消息区，分区清晰不重叠。
+func set_reward_detail(icon: Texture2D, reward_name: String, detail: String, quality_color: Color = Color.WHITE) -> void:
+	message_label.visible = false
+	# 旧的 set_item_icon 图标若已存在先移除，避免重复/重叠
+	var old_icon := $Panel.get_node_or_null("RewardIcon")
+	if old_icon:
+		old_icon.queue_free()
+
+	var root := VBoxContainer.new()
+	root.name = "RewardDetail"
+	root.set_anchors_preset(Control.PRESET_FULL_RECT)
+	root.offset_left = 48
+	root.offset_right = -48
+	root.offset_top = 8
+	root.offset_bottom = -42
+	root.add_theme_constant_override("separation", 4)
+	$Panel.add_child(root)
+
+	# 分区1：图标 + 名字（横排）
+	var head := HBoxContainer.new()
+	head.alignment = BoxContainer.ALIGNMENT_CENTER
+	head.add_theme_constant_override("separation", 8)
+	root.add_child(head)
+	if icon != null:
+		var box := PanelContainer.new()
+		var sb := StyleBoxFlat.new()
+		sb.bg_color = Color(0.06, 0.06, 0.09)
+		sb.border_color = quality_color
+		sb.set_border_width_all(1)
+		sb.content_margin_left = 2
+		sb.content_margin_right = 2
+		sb.content_margin_top = 2
+		sb.content_margin_bottom = 2
+		box.add_theme_stylebox_override("panel", sb)
+		var rect := TextureRect.new()
+		rect.texture = icon
+		rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		rect.custom_minimum_size = Vector2(20, 20)
+		rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		box.add_child(rect)
+		head.add_child(box)
+	var name_lbl := Label.new()
+	name_lbl.text = reward_name
+	name_lbl.add_theme_font_size_override("font_size", 10)
+	name_lbl.add_theme_color_override("font_color", quality_color)
+	name_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	head.add_child(name_lbl)
+
+	# 分区2：数值/词条（每行一条，左对齐，独立区域）
+	var detail_box := PanelContainer.new()
+	var dsb := StyleBoxFlat.new()
+	dsb.bg_color = Color(0.10, 0.10, 0.14, 0.9)
+	dsb.set_border_width_all(1)
+	dsb.border_color = Color(0.30, 0.30, 0.36)
+	dsb.content_margin_left = 6
+	dsb.content_margin_right = 6
+	dsb.content_margin_top = 4
+	dsb.content_margin_bottom = 4
+	detail_box.add_theme_stylebox_override("panel", dsb)
+	var dvbox := VBoxContainer.new()
+	dvbox.add_theme_constant_override("separation", 2)
+	detail_box.add_child(dvbox)
+	for line in detail.split("\n"):
+		var txt := str(line).strip_edges()
+		if txt == "":
+			continue
+		var dl := Label.new()
+		dl.text = "· " + txt
+		dl.add_theme_font_size_override("font_size", 8)
+		dl.add_theme_color_override("font_color", Color(0.85, 0.88, 0.92))
+		dl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		dvbox.add_child(dl)
+	root.add_child(detail_box)

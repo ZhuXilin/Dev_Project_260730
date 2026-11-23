@@ -295,9 +295,9 @@ func _run_battle():
 
 	# ★ v6.10：击杀方的轮回流派回魂火
 	if _enemy_hp <= 0 and _player_hp > 0:
-		_arena_on_kill(_player, true)
+		_arena_on_kill(_player, _enemy, true)
 	elif _player_hp <= 0 and _enemy_hp > 0:
-		_arena_on_kill(_enemy, false)
+		_arena_on_kill(_enemy, _player, false)
 
 	if _player_hp > 0 and _enemy_hp <= 0:
 		winner_team = 0
@@ -745,7 +745,10 @@ func _arena_on_hit(_attacker: UnitData, is_player: bool):
 
 
 ## ★ v6.10：轮回流派——击杀时额外回魂火
-func _arena_on_kill(killer: UnitData, is_player: bool):
+func _arena_on_kill(killer: UnitData, victim: UnitData, is_player: bool):
+	# ★ v6.58：击杀得经验——按被击杀者强度(exp)给击杀者，与主线一致
+	if is_player and victim != null:
+		BuildManager.grant_kill_exp(killer, victim.kill_exp)
 	# ★ v6.35（A-B4）：击杀攒 build 能量 +2（所有流派，放在轮回提前返回之前）
 	if is_player:
 		_player_build_energy = mini(ARENA_BUILD_ENERGY_MAX, _player_build_energy + 2)

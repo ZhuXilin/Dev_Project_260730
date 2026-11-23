@@ -936,18 +936,14 @@ func _play_death_animation(unit: Unit) -> void:
 
 
 func _on_kill(attacker: Unit, _defender: Unit) -> bool:
-	if not is_instance_valid(attacker): return false
-
-	# ★ v6.17：击杀确认的瞬间（HP 已归零、格子占位已失效）立即排队一次胜利判定。
-	#   旧实现只在 unregister_unit 时经 unit_removed 信号触发 check_victory，
-	#   而 Boss 死亡对话在这里 await，unregister 被推后 → 期间玩家能走上 boss 格子、
-	#   胜利判定拖到对话结束 / 下一回合 start_turn 才补做。
-	#   现在判定与本段对话/动画解耦；_trigger_victory 有 is_game_over 守卫，重复调用安全。
+	# ★ v6.57：判胜提到早退之前——即使攻击者已失效（如连锁反击致死），
+	#   也要排队一次胜利判定。v6.17 的判定原在早退后，攻击者失效时会漏判。
+	#   （v6.57 起 Unit.apply_damage 也会在 HP 归零时兜底判胜，此处是双保险）
 	if TurnManager and TurnManager.is_battle_ready():
 		TurnManager.call_deferred("check_victory")
+	if not is_instance_valid(attacker): return false
 
-	# ★ v6.37：阵亡单位可能撑着阵型，立即重算（非法单位占位已失效）
-	FormationManager.rebuild()
+	# ★ v6.59：阵型系统已移除（见 FormationManager），不再重算
 
 	if is_instance_valid(_defender) and _defender.unit_stats.team_id == 1:
 		ItemBattlefieldManager.try_spawn_orb(_defender.grid_cell)
@@ -1002,6 +998,11 @@ func _on_kill(attacker: Unit, _defender: Unit) -> bool:
 	#   而非 on_hit(1)——后者只是命中收益，旧实现让击杀魂火配置完全失效。
 	#   其余 8 处 on_hit(1) 均为"命中未击杀"分支，保持不变。
 	if attacker.unit_stats.team_id == 0:
+		# ★ v6.58：击杀得经验——按被击杀敌人的强度(exp，来自 unit_data.json)给击杀者。
+		#   升级会在 grant_exp_and_auto_level 内发信号，战场播升级仪式感。
+		var kill_exp : int = _defender.unit_stats.kill_exp if is_instance_valid(_defender) and _defender.unit_stats != null else 0
+		if kill_exp > 0:
+			BuildManager.grant_kill_exp(attacker.unit_stats, kill_exp)
 		# ★ v6.2 轮回：击杀额外回魂火（与基础击杀收益分开结算，玩家能看到两段收益）
 		var cycle_lv := BuildManager.get_effective_school_level(attacker, "轮回")
 		if cycle_lv > 0:
@@ -1016,26 +1017,7 @@ func _on_kill(attacker: Unit, _defender: Unit) -> bool:
 					ally.hit_points = mini(ally.hit_points + heal, ally.unit_stats.max_hp)
 					SignalBus.request_damage_popup.emit(ally.global_position, heal, false, false, true)
 		SoulFireManager.on_kill(1)
-		# ★ v6.37（F3 轮回链）：相邻轮回队友时，以队友格为圆心范围回魂+治疗
-		if FormationManager.has_synergy(attacker, "F3_轮回链"):
-			var anchor : Unit = FormationManager.get_anchor(attacker, "F3_轮回链")
-			if is_instance_valid(anchor):
-				SoulFireManager.add(1)
-				var healed : int = 0
-				for ally in UnitManager.unit_list:
-					if not is_instance_valid(ally) or ally.hit_points <= 0:
-						continue
-					if ally.unit_stats.team_id != 0:
-						continue
-					var d : int = absi(ally.grid_cell.x - anchor.grid_cell.x) + absi(ally.grid_cell.y - anchor.grid_cell.y)
-					if d > 1:
-						continue
-					var amt : int = maxi(1, int(ally.unit_stats.max_hp * 0.05))
-					ally.hit_points = mini(ally.hit_points + amt, ally.unit_stats.max_hp)
-					ally.update_hp_label()
-					SignalBus.request_damage_popup.emit(ally.global_position, amt, false, false, true)
-					healed += 1
-				SignalBus.request_hint_override.emit("轮回链 · 队友阵地回魂 +1，治疗 %d 人" % healed, 1.0)
+		# ★ v6.59：F3 轮回链阵型效果已移除（轮回自身击杀回魂火仍保留）
 		# ★ v6.34（B4）：击杀攒 build 能量 +2
 		add_build_energy(attacker, 2)
 	return cleave_triggered
@@ -1227,26 +1209,7 @@ func _apply_damage_with_effects(defender: Unit, damage: int, attacker: Unit, is_
 	if defender.unit_stats.team_id == 0 and defender.get_meta("gm_god", false):
 		damage = 0
 
-	# ★ v6.37（F2 铁壁护卫）：相邻守护友军代为承伤（机制变化，非减伤数值）。
-	#   转嫁量上限 = 守护当前 HP 的 50%，避免守护被一击秒杀；守护承伤会触发它自己的反弹。
-	#   用 meta 标记防止转嫁后的伤害再次触发护卫（递归）。
-	if damage > 0 and is_instance_valid(attacker) and not defender.get_meta("formation_guard_redirect", false) \
-			and defender.unit_stats.team_id == 0:
-		var guardian : Unit = FormationManager.get_anchor(defender, "F2_铁壁护卫")
-		if is_instance_valid(guardian) and guardian != defender and guardian.hit_points > 1:
-			var cap : int = maxi(1, int(guardian.hit_points * 0.5))
-			var redirect : int = mini(damage, cap)
-			var remain : int = damage - redirect
-			defender.set_meta("formation_guard_redirect", true)
-			guardian.set_meta("formation_guard_redirect", true)
-			guardian.apply_damage(redirect)
-			SignalBus.request_damage_popup.emit(guardian.global_position, redirect, false, false, false)
-			SignalBus.request_hint_override.emit("铁壁护卫 · %s 代承 %d 伤害" % [guardian.unit_stats.display_name, redirect], 0.9)
-			guardian.remove_meta("formation_guard_redirect")
-			defender.remove_meta("formation_guard_redirect")
-			damage = remain
-			if damage <= 0:
-				return false
+	# ★ v6.59：F2 铁壁护卫阵型效果已移除
 
 	if TalentManager.is_talent_ready(defender, "parry"):
 		var level = _get_effective_talent_level(defender, "parry")
@@ -1286,17 +1249,7 @@ func _apply_damage_with_effects(defender: Unit, damage: int, attacker: Unit, is_
 				print("[守护] Lv%d 反弹 %s → %d%s" % [
 					guard_lv, attacker.unit_stats.unit_name, reflect_dmg,
 					"（格挡翻倍）" if blocked else ""])
-			# ★ v6.37（F5 余烬引爆）：相邻余烬单位处于装填待发时，消耗装填追加一次必暴反击
-			if FormationManager.has_synergy(defender, "F5_余烬引爆"):
-				var ember : Unit = FormationManager.get_anchor(defender, "F5_余烬引爆")
-				if is_instance_valid(ember) and not ember.ember_crit_consumed \
-						and is_instance_valid(attacker) and attacker.hit_points > 0:
-					ember.ember_crit_consumed = true
-					var burst : int = maxi(1, int(reflect_dmg * CRIT_DAMAGE_MULT))
-					attacker.apply_damage(burst)
-					SignalBus.request_damage_popup.emit(attacker.global_position, burst, true, false, false)
-					SignalBus.request_screen_shake.emit(0.2, 6.0, Vector2.ZERO)
-					SignalBus.request_hint_override.emit("余烬引爆 · 必暴反击 %d" % burst, 1.0)
+			# ★ v6.59：F5 余烬引爆阵型效果已移除
 
 	if TalentManager.is_talent_ready(attacker, "bleed"):
 		if defender.unit_stats.team_id != attacker.unit_stats.team_id:
@@ -1346,20 +1299,7 @@ func _apply_damage_with_effects(defender: Unit, damage: int, attacker: Unit, is_
 			if burn_dead:
 				if not _try_revive(defender):
 					defeated = true
-			# ★ v6.37（F1 燎原）：相邻灰烬队友时，在队友脚下生成火场（地形扩散而非数值加成）
-			if FormationManager.has_synergy(attacker, "F1_燎原"):
-				var anchor : Unit = FormationManager.get_anchor(attacker, "F1_燎原")
-				if is_instance_valid(anchor):
-					ash_tiles[anchor.grid_cell] = {
-						"damage": maxi(1, int(burn * 0.5)),
-						"team": attacker.unit_stats.team_id,
-						"owner": attacker,
-						"expire_clock": ash_turn_clock + 2,
-						"synergy": "F1_燎原",
-					}
-					while ash_tiles.size() > ASH_TILE_MAX:
-						ash_tiles.erase(ash_tiles.keys()[0])
-					SignalBus.request_hint_override.emit("燎原 · 灰烬队友脚下燃起火场", 0.9)
+			# ★ v6.59：F1 燎原阵型效果已移除（烈焰自身灼烧仍保留）
 
 	if BossMechanicManager and BossMechanicManager.has_method("process_damage_phase"):
 		var phase_result: Dictionary = BossMechanicManager.process_damage_phase(defender, attacker, damage, old_hp)
@@ -1446,22 +1386,17 @@ func drop_ash_tile(unit: Unit) -> void:
 		return
 	var dmg: int = BuildManager.get_ash_tile_damage(lv)
 	var expire : int = ash_turn_clock + 2
-	var tile_synergy : String = ""
-	# ★ v6.37（F6 灰烬火墙）：相邻烈焰队友时，地块延长 1 回合 + 踩中附加灼烧
-	if FormationManager.has_synergy(unit, "F6_灰烬火墙"):
-		expire += 1
-		tile_synergy = "F6_灰烬火墙"
+	# ★ v6.59：F6 灰烬火墙阵型效果已移除（灰烬自身燃烧地块仍保留）
 	ash_tiles[origin] = {
 		"damage": dmg,
 		"team": unit.unit_stats.team_id,
 		"owner": unit,
 		"expire_clock": expire,
-		"synergy": tile_synergy,
 	}
 	while ash_tiles.size() > ASH_TILE_MAX:
 		ash_tiles.erase(ash_tiles.keys()[0])
 	SignalBus.request_hint_override.emit(
-		"灰烬%s · 起点留下燃烧地块（%d 伤害）" % ["火墙" if tile_synergy != "" else "", dmg], 0.9)
+		"灰烬 · 起点留下燃烧地块（%d 伤害）" % dmg, 0.9)
 
 
 func trigger_ash_tile(unit: Unit) -> void:
@@ -1479,13 +1414,7 @@ func trigger_ash_tile(unit: Unit) -> void:
 		return
 	var dead: bool = unit.apply_damage(dmg)
 	SignalBus.request_damage_popup.emit(unit.global_position, dmg, false, false, false)
-	# ★ v6.37（F6 灰烬火墙）：带火墙标记的地块，踩中后追加灼烧 DoT
-	if str(tile.get("synergy", "")) == "F6_灰烬火墙" and unit.hit_points > 0:
-		var dot : int = maxi(1, int(dmg * 0.5))
-		var dot_dead : bool = unit.apply_damage(dot)
-		SignalBus.request_damage_popup.emit(unit.global_position, dot, false, false, false)
-		SignalBus.request_hint_override.emit("灰烬火墙 · 附加灼烧 %d" % dot, 0.9)
-		dead = dead or dot_dead
+	# ★ v6.59：F6 灰烬火墙附加 DoT 已移除
 	if dead:
 		var owner_v: Variant = tile.get("owner", null)
 		if owner_v is Unit and is_instance_valid(owner_v as Unit):

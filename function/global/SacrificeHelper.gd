@@ -14,6 +14,56 @@ static func get_melt_item_id(unit_name: String) -> String:
 	return "melt_" + unit_name
 
 
+## ★ 生成熔铸奖励的"数值+词条"说明文本，供确认弹窗展示判断是否值得。
+##   item_data 的 description 已由策划写好数值文案（如"攻击 +5，攻击 +20%"），
+##   这里再补结构化的减伤/特效，确保玩家一眼看清收益。
+static func describe_melt_reward(item_id: String) -> String:
+	var data: ItemData = ItemManager.get_item_data(item_id)
+	if data == null:
+		return "（无数值信息）"
+	var lines: Array = []
+	# 1) 策划描述（已含核心数值词条）
+	if data.description != "":
+		lines.append(data.description)
+	# 2) 结构化特效（melt_armor_effect）——description 未覆盖的补上
+	var eff: Dictionary = data.melt_armor_effect
+	if not eff.is_empty():
+		var bits: Array = []
+		var special_type := str(eff.get("special_type", ""))
+		var special_value := float(eff.get("special_value", 0.0))
+		if special_type != "" and special_value != 0.0:
+			var label := _effect_label(special_type)
+			bits.append("%s +%d%%" % [label, int(special_value * 100.0)])
+		if not bits.is_empty():
+			var extra := " / ".join(bits)
+			if lines.is_empty() or not str(lines[0]).contains(extra):
+				lines.append(extra)
+	# 3) 减伤
+	var reductions: Array = []
+	if data.physical_reduction > 0.0:
+		reductions.append("物减 +%d%%" % int(data.physical_reduction * 100.0))
+	if data.magic_reduction > 0.0:
+		reductions.append("魔减 +%d%%" % int(data.magic_reduction * 100.0))
+	if not reductions.is_empty():
+		lines.append(" / ".join(reductions))
+	if lines.is_empty():
+		return "（该防具无额外数值）"
+	return "\n".join(lines)
+
+
+static func _effect_label(effect_type: String) -> String:
+	match effect_type:
+		"attack_percent":     return "攻击"
+		"attack_flat":        return "攻击"
+		"crit_damage_bonus":  return "暴伤"
+		"crit_chance":        return "暴击"
+		"damage_reduction":   return "减伤"
+		"heal_bonus":         return "治疗"
+		"lifesteal":          return "吸血"
+		"counter_bonus":      return "反击"
+		_:                    return effect_type
+
+
 static func do_sacrifice(_party: Array, unit: UnitData) -> Dictionary:
 	if unit == null:
 		return {

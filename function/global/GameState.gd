@@ -456,6 +456,7 @@ func start_new_cycle():
 		unit_data.is_dead = false
 		unit_data.hit_points = unit_data.max_hp
 		unit_data.level = 1              # ★ 步 4-A
+		unit_data.experience = 0         # ★ v6.58：经验与等级同步重置，避免残留经验带入新局
 		unit_data.attack_range_bonus = 0 # ★ 步 4-A
 		unit_data.static_physical_penetration = 0.0
 		unit_data.static_magic_penetration = 0.0

@@ -40,6 +40,7 @@ var _current: Dictionary = {}          # 当前待领取防具 {item_id,quality,
 @onready var _machine_slot: Control = $Root/Margin/VBox/MachineSlot
 var _machine = null
 var _closing: bool = false   # ★ 防两个关闭按钮同帧重复触发
+var _revealing: bool = false # ★ v6.58：roll 结果展示停留中，锁定一切操作
 
 # ★ Arena 统一：注入单单位 + 独立金币（主线不调用则完全走 GameState/EconomyManager）
 var _arena_mode: bool = false
@@ -127,7 +128,7 @@ func _build_ui() -> void:
 func _update_action_buttons() -> void:
 	var spinning: bool = (_machine != null and _machine.is_spinning())
 	var has_pending: bool = not _current.is_empty()
-	var locked: bool = spinning or has_pending
+	var locked: bool = spinning or has_pending or _revealing
 	if _close_btn != null:
 		_close_btn.disabled = locked
 	# ★ 操作行：v6.44 放弃按钮已移入装备界面，此行保留为空容器兼容布局
@@ -233,7 +234,16 @@ func _on_machine_stopped(entry: Dictionary) -> void:
 		"name": str(entry.get("name", iid)),
 		"mechanic": str(entry.get("mechanic", "")),
 	})
-	# ★ v6.43：抽到后直接跳转装备界面落位，不再显示三个 avatar 让玩家选
+	# ★ v6.58：roll 出结果后停留 0.5 秒（真实时间、不受倍速影响）展示中奖结果，
+	#   期间轮盘保持停止画面、不接受操作（返回/放弃键已被 _update_action_buttons 因待领取锁定），
+	#   之后才进入落袋界面。让玩家看清抽到了什么。
+	_revealing = true
+	var result_name : String = str(entry.get("name", iid))
+	_msg.text = "抽到：%s" % result_name
+	await get_tree().create_timer(0.5, true, false, true).timeout
+	if not is_instance_valid(self) or not is_inside_tree():
+		return
+	_revealing = false
 	_msg.text = ""
 	_refresh()
 	_open_equipment_for_pick()
@@ -359,12 +369,14 @@ func _render_result() -> void:
 				school_row.add_child(tag)
 		card.add_child(school_row)
 
-		# 第二行：单位名 + Lv + 防具数/槽位（普通色）
-		var armor_used: int = ud.count_used_armor_slots()
-		var armor_slots: int = ud.max_armor_slots
+		# 第二行：单位名 + 当前LV/最大LV + 当前/所需经验（普通色）
+		var lv_txt : String = "Lv%d/%d" % [ud.level, BuildManager.LEVEL_CAP]
+		if ud.level >= BuildManager.LEVEL_CAP:
+			lv_txt += " MAX"
+		else:
+			lv_txt += "·%d/%d" % [ud.experience, BuildManager.exp_to_next_level(ud.level)]
 		var name_lbl := Label.new()
-		name_lbl.text = "%s Lv%d 防%d/%d" % [
-			ud.display_name, int(ud.level), armor_used, armor_slots]
+		name_lbl.text = "%s %s" % [ud.display_name, lv_txt]
 		name_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		name_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		name_lbl.custom_minimum_size = Vector2(120, 10)
@@ -582,6 +594,9 @@ func _do_apply_armor(ud: UnitData, item_id: String, quality: String, affixes: Ar
 			SoundManager.play_get_item_sound()
 			_set_current({})
 			_refresh()
+		"full":
+			# ★ v6.55：槽位满时明确告知，防具保留在领取台，可换单位或覆盖/放弃
+			_msg.text = "%s 的防具槽已满，请选其他单位或覆盖" % ud.display_name
 		_:
 			_msg.text = "无法落位"
 
@@ -897,7 +912,7 @@ func _sk_show_units(tid: String) -> void:
 		card.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 		card.size_flags_vertical = Control.SIZE_FILL
 		card.add_theme_constant_override("separation", 1)
-		card.custom_minimum_size = Vector2(64, 0)
+		card.custom_minimum_size = Vector2(84, 0)
 		# 头像按钮自带画框，不再额外套 PanelContainer，避免双层边框
 		var avatar := UnitDataManager.create_unit_avatar_button(
 			ud.unit_name, Vector2(46, 46), Vector2(40, 40))
@@ -912,10 +927,16 @@ func _sk_show_units(tid: String) -> void:
 		card.add_child(avatar)
 
 		var name_lbl := Label.new()
-		name_lbl.text = ud.display_name
+		# ★ v6.58：紧凑显示当前/最大等级 + 当前/所需经验
+		var lv_short : String = "L%d/%d" % [ud.level, BuildManager.LEVEL_CAP]
+		if ud.level >= BuildManager.LEVEL_CAP:
+			lv_short += " MAX"
+		else:
+			lv_short += "·%d/%d" % [ud.experience, BuildManager.exp_to_next_level(ud.level)]
+		name_lbl.text = "%s %s" % [ud.display_name, lv_short]
 		name_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		name_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		name_lbl.custom_minimum_size = Vector2(64, 12)
+		name_lbl.custom_minimum_size = Vector2(84, 12)
 		name_lbl.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 		name_lbl.clip_text = true
 		name_lbl.add_theme_font_size_override("font_size", FS_SMALL)

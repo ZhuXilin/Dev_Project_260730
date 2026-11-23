@@ -10,7 +10,7 @@ var _rise_offset : float = 0.0
 var _base_offset : float = 0.0          # ★ 新增：同位置多个跳字的纵向错开
 
 func setup(world_pos: Vector2, damage: int, is_crit: bool, is_miss: bool, is_heal: bool,
-		vertical_offset: float = 0.0):   # ★ 新增参数
+		vertical_offset: float = 0.0, custom_text: String = ""):   # ★ v6.58 新增 custom_text
 	_world_pos = world_pos
 	_base_offset = vertical_offset
 
@@ -27,7 +27,11 @@ func setup(world_pos: Vector2, damage: int, is_crit: bool, is_miss: bool, is_hea
 	custom_minimum_size = POPUP_SIZE
 	size = POPUP_SIZE
 
-	if is_heal:
+	if custom_text != "":
+		# ★ v6.58：自定义文字（如升级 "LV2"），白色、与伤害同字号
+		text = custom_text
+		self_modulate = Color.WHITE
+	elif is_heal:
 		text = "+" + str(damage)
 		self_modulate = Color(0.4, 1.0, 0.4)
 	elif is_miss:

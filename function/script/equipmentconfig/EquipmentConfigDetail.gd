@@ -73,6 +73,14 @@ func show_unit(unit : UnitData):
 			return "%d(+%d)" % [cur_v, diff]
 		return str(cur_v)
 
+	# ★ v6.58：等级与经验进度（当前/最大 LV + 当前经验/所需经验）
+	if unit.level >= BuildManager.LEVEL_CAP:
+		stats.append("等级: Lv%d/%d  MAX" % [unit.level, BuildManager.LEVEL_CAP])
+	else:
+		stats.append("等级: Lv%d/%d  经验%d/%d" % [
+			unit.level, BuildManager.LEVEL_CAP, unit.experience,
+			BuildManager.exp_to_next_level(unit.level)])
+
 	# 精简字段名，压缩宽度
 	stats.append("HP: %s" % fmt_attr.call(base_hp, unit.max_hp))
 	stats.append("力:%s  灵:%s" % [

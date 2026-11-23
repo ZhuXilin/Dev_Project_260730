@@ -46,6 +46,9 @@ var is_performing_action : bool = false
 var is_transitioning : bool = false
 var is_dialogue_active : bool = false
 var is_item_get_popup_active : bool = false
+## v6.58：升级表演进行中计数（0.25s 停顿 + LV 跳字），胜利界面需等其结束再弹出。
+## 用计数而非 bool：多个单位同时升级时，等所有表演都结束。
+var level_up_performing_count : int = 0
 var is_equip_menu_active : bool = false
 var suppress_sound: bool = false
 var is_map_mode: bool = false

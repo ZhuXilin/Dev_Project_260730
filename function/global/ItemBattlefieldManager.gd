@@ -90,3 +90,21 @@ func get_active_orbs() -> Array[Vector2i]:
 		if is_instance_valid(_orbs[cell]):
 			result.append(cell)
 	return result
+
+
+## ★ 该格是否有掉落物（供 hover 缓存判定，避免鼠标静止时 tooltip 不刷新）
+func has_orb(cell: Vector2i) -> bool:
+	return _orbs.has(cell) and is_instance_valid(_orbs[cell])
+
+
+## ★ 该格掉落物的展示信息（name/description 来自 item_battlefield_data.json，不硬编码）
+##   description 支持 {v} 占位符，UI 端用 heal_percent*100 替换。
+func get_orb_info(cell: Vector2i) -> Dictionary:
+	if not has_orb(cell):
+		return {}
+	return {
+		"name": str(_config.get("name", "掉落物")),
+		"description": str(_config.get("description", "")),
+		"heal_percent": float(_config.get("heal_percent", 0.25)),
+		"icon_id": str(_config.get("icon_id", "")),
+	}
