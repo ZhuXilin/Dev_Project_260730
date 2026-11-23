@@ -45,11 +45,9 @@ var _window: Control = null
 var _strip: Control = null
 var _strip_rows: Array = []      # 5 个 {box,label,icon}
 var _button: Button = null
-var _hint: Label = null
 var _payline_style: StyleBoxFlat = null   # ★ v6.38：停下时染成流派色，与结果卡徽标因果连贯
 
 var _gold_color := Color(0.98, 0.75, 0.25)
-var _dim_color := Color(0.55, 0.55, 0.58)
 
 
 func _ready() -> void:
@@ -83,7 +81,6 @@ func _clear_children() -> void:
 	_window = null
 	_strip = null
 	_button = null
-	_hint = null
 
 
 func _build_ui(title: String) -> void:
@@ -180,13 +177,6 @@ func _build_ui(title: String) -> void:
 	marker_r.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	viewport.add_child(marker_r)
 
-	_hint = Label.new()
-	_hint.text = ""
-	_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_hint.add_theme_font_size_override("font_size", FS_SMALL)
-	_hint.add_theme_color_override("font_color", _dim_color)
-	left.add_child(_hint)
-
 	# 右侧拉杆式按钮：固定尺寸，转动时不拉伸
 	var right := VBoxContainer.new()
 	right.custom_minimum_size = Vector2(60, 0)
@@ -275,7 +265,6 @@ func start_spin() -> void:
 	_decel_ticks = 0
 	_stop_at_boundary = false
 	_last_tick_usec = Time.get_ticks_usec()
-	_hint.text = "看准中奖线，按右侧按钮停"
 	_refresh_button()
 	started.emit()
 
@@ -285,7 +274,6 @@ func request_stop() -> void:
 		return
 	_state = SpinState.STOPPING
 	_decel_ticks = 0
-	_hint.text = "减速中……"
 	_refresh_button()
 
 
@@ -412,6 +400,5 @@ func _finish() -> void:
 	var school_color: Variant = entry.get("color", null)
 	if _payline_style != null:
 		_payline_style.border_color = school_color if school_color is Color else _gold_color
-	_hint.text = "已停：%s" % str(entry.get("name", "?"))
 	_refresh_button()
 	stopped.emit(entry)

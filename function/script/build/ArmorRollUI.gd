@@ -1,6 +1,7 @@
 extends CanvasLayer
 const BuildUI = preload("res://function/script/build/BuildUI.gd")
 const SlotMachineUI = preload("res://function/script/build/SlotMachineUI.gd")
+const EquipCfg = preload("res://function/script/equipmentconfig/EquipmentConfig.gd")
 ## ============================================================
 ##  ArmorRollUI — v6 战后防具 roll + 领取台
 ## ============================================================
@@ -24,7 +25,6 @@ var _dim_color := Color(0.55, 0.55, 0.58)
 var _roll_count: int = 0
 var _quality_level: int = 0
 var _current: Dictionary = {}          # 当前待领取防具 {item_id,quality,school,name,mechanic}
-var _settlement: Dictionary = {}       # ★ v6.38：合并结算 {unit,school,old_lv,new_lv,result}，结果卡停留展示前后对比
 
 var _root: Panel = null
 var _gold_label: Label = null
@@ -33,7 +33,6 @@ var _cost_label: Label = null
 var _upgrade_btn: Button = null
 var _close_btn: Button = null
 var _action_row: HBoxContainer = null
-var _discard_fixed_btn: Button = null
 var _result_box: VBoxContainer = null
 var _msg: Label = null
 var _closing: bool = false   # ★ 防两个关闭按钮同帧重复触发
@@ -153,19 +152,10 @@ func _build_ui() -> void:
 	_msg.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	vbox.add_child(_msg)
 
-	# ★ v6.19：放弃按钮（滚动区外，始终可见）——金币不足无法落位时的兜底出口。
-	#   短按钮 + 居中收缩，绝不横跨整屏。
+	# ★ v6.44：放弃防具按钮已移入 EquipmentConfig 落位界面，此处不再创建
 	_action_row = HBoxContainer.new()
 	_action_row.alignment = BoxContainer.ALIGNMENT_CENTER
 	vbox.add_child(_action_row)
-
-	var discard_fixed := Button.new()
-	discard_fixed.text = "放弃防具"
-	discard_fixed.add_theme_font_size_override("font_size", FS_SMALL)
-	BuildUI.style_button(discard_fixed)
-	discard_fixed.pressed.connect(_on_discard)
-	_action_row.add_child(discard_fixed)
-	_discard_fixed_btn = discard_fixed
 
 	var scroll := ScrollContainer.new()
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -179,10 +169,13 @@ func _build_ui() -> void:
 	scroll.add_child(_result_box)
 
 	var close := Button.new()
-	close.text = "结束抽取 · 离开竞技场" if _arena_mode else "结束抽取 · 返回地图"
+	close.text = "结束抽取"
 	close.add_theme_font_size_override("font_size", FS_BODY)
 	BuildUI.style_button(close)
 	close.pressed.connect(_on_close)
+	# ★ v6.44：收窄为约 1/6 视口宽（400px → 66px），不再占满整行
+	close.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	close.custom_minimum_size = Vector2(66, 0)
 	vbox.add_child(close)
 	_close_btn = close
 
@@ -192,11 +185,10 @@ func _build_ui() -> void:
 func _update_action_buttons() -> void:
 	var spinning: bool = (_machine != null and _machine.is_spinning())
 	var has_pending: bool = not _current.is_empty()
-	var has_settlement: bool = not _settlement.is_empty()
-	var locked: bool = spinning or has_pending or has_settlement
+	var locked: bool = spinning or has_pending
 	if _close_btn != null:
 		_close_btn.disabled = locked
-	# ★ 操作行：有待领取结果时整体显示（放弃按钮）；结算态隐藏，改由结算卡的"继续抽取"推进
+	# ★ 操作行：v6.44 放弃按钮已移入装备界面，此行保留为空容器兼容布局
 	if _action_row != null:
 		_action_row.visible = has_pending
 	if _upgrade_btn != null:
@@ -222,8 +214,8 @@ func _refresh() -> void:
 	# ★ disabled 由 _update_action_buttons 统一门控（含转动中/待领取锁定）
 
 	_render_result()
-	# ★ v6.38：结算态停留展示前后对比，不自动重滚；点"继续抽取"才进下一轮
-	if _current.is_empty() and _settlement.is_empty():
+	# ★ v6.38：结算态停留展示前后对比，不自动重滚；点轮盘"已停止·继续"才进下一轮
+	if _current.is_empty():
 		_prepare_spin()
 
 
@@ -272,7 +264,8 @@ func _on_spin_started() -> void:
 	_spend(cost)
 	_roll_count += 1
 	_current = {}
-	_msg.text = "点「停！」选择这次抽到的防具"
+	# ★ v6.43：移除老虎机状态文字（点「停！」提示），轮盘自身已有按钮反馈
+	_msg.text = ""
 	_refresh()
 
 
@@ -288,9 +281,10 @@ func _on_machine_stopped(entry: Dictionary) -> void:
 		"name": str(entry.get("name", iid)),
 		"mechanic": str(entry.get("mechanic", "")),
 	}
-	# ★ 摘要行已显示抽到的防具，msg 留空避免重复占行
+	# ★ v6.43：抽到后直接跳转装备界面落位，不再显示三个 avatar 让玩家选
 	_msg.text = ""
 	_refresh()
+	_open_equipment_for_pick()
 
 
 func _render_result() -> void:
@@ -299,10 +293,6 @@ func _render_result() -> void:
 		return
 	for c in _result_box.get_children():
 		c.queue_free()
-	# ★ v6.38：合并结算态——结果卡停留，显示"前 → 后"，玩家点继续才进下一轮
-	if not _settlement.is_empty():
-		_render_settlement()
-		return
 	if _current.is_empty():
 		return
 
@@ -344,9 +334,9 @@ func _render_result() -> void:
 	school_lbl.add_theme_color_override("font_color", school_color)
 	card_row.add_child(school_lbl)
 
-	# 落位动作：三个单位头像横排（落位引导并入头像行上方一行短句）
+	# ★ v6.41：点头像弹出装备配置全貌，再点防具槽落位
 	var actions := Label.new()
-	actions.text = "点击头像选择落位单位："
+	actions.text = "点击头像查看装备全貌，再点防具槽落位："
 	actions.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	actions.add_theme_font_size_override("font_size", FS_SMALL)
 	_result_box.add_child(actions)
@@ -373,7 +363,8 @@ func _render_result() -> void:
 		if ud.is_dead:
 			avatar.modulate = Color(0.35, 0.35, 0.38)
 		else:
-			avatar.pressed.connect(_on_place.bind(ud))
+			# ★ v6.41：点头像弹出只读 EquipmentConfig，让玩家看全貌后点防具槽落位
+			avatar.pressed.connect(_open_equipment_for_pick)
 		card.add_child(avatar)
 
 		# ★ v6.22：avatar 正下方第一行就是"流派徽标 + 流派文字"（玩家要的当前在用流派）。
@@ -454,7 +445,7 @@ func _preview_placement(ud: UnitData, school: String, cap: int) -> String:
 		var new_lv: int = mini(count, new_cap)
 		return "并入 → Lv%d（上限 Lv%d）" % [new_lv, new_cap]
 	var used: int = mechs.size()
-	var slots: int = BuildManager.get_mechanism_slots(ud.unit_name)
+	var slots: int = ud.max_armor_slots   # ★ v6.51：当前槽上限（随天数+1）
 	if used < slots:
 		return "觉醒 Lv1"
 	# 槽满：覆盖会删掉该流派所有旧防具，统计件数
@@ -466,224 +457,110 @@ func _preview_placement(ud: UnitData, school: String, cap: int) -> String:
 	return "覆盖 → 删 %d 件旧防具" % remove_n
 
 
-## ★ v6.38：合并结算卡——停留在结果区，显式展示"前 → 后"，点继续才进下一轮。
-func _render_settlement() -> void:
-	# ★ v6.38：本地反馈——防具 roll 发生在战后覆盖层、战场 B1 震屏/飘字看不到，
-	#   故用结算卡的流派色 + 获得物品音效强化"发生了大事"的感知。
-	SoundManager.play_get_item_sound()
-	var s: Dictionary = _settlement
-	var unit_name: String = str(s.get("unit", ""))
-	var school: String = str(s.get("school", ""))
-	var result: String = str(s.get("result", ""))
-	var old_lv: int = int(s.get("old_lv", 0))
-	var new_lv: int = int(s.get("new_lv", 0))
-	var cap: int = int(s.get("cap", 0))
-	var color: Color = BuildManager.get_school_color(school)
-
-	var title := Label.new()
-	title.text = "✓ 落位完成"
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.add_theme_font_size_override("font_size", FS_BODY)
-	title.add_theme_color_override("font_color", Color(0.55, 0.85, 0.55))
-	_result_box.add_child(title)
-
-	var detail := Label.new()
-	if school == "":
-		detail.text = "%s 装备了普通防具" % unit_name
-	else:
-		var change: String = ""
-		if result == "merge":
-			change = "Lv%d → Lv%d" % [old_lv, new_lv]
-		elif result == "覆盖":
-			change = "覆盖【%s】→ 觉醒 Lv%d" % [str(s.get("replaced", "")), new_lv]
-		elif result == "awaken":
-			change = "觉醒 Lv%d" % new_lv
-		var cap_txt: String = "（上限 Lv%d）" % cap if cap > 0 else ""
-		detail.text = "%s · 【%s】%s %s" % [unit_name, school, change, cap_txt]
-	detail.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	detail.add_theme_font_size_override("font_size", FS_BODY)
-	detail.add_theme_color_override("font_color", color if school != "" else Color.WHITE)
-	detail.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_result_box.add_child(detail)
-
-	var mech_txt: String = BuildManager.get_school_mechanic(school) if school != "" else "仅属性加成"
-	var mech := Label.new()
-	mech.text = "效果：%s" % mech_txt
-	mech.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	mech.add_theme_font_size_override("font_size", FS_SMALL)
-	mech.add_theme_color_override("font_color", _dim_color)
-	_result_box.add_child(mech)
-
-	var cont := Button.new()
-	cont.text = "继续抽取"
-	cont.add_theme_font_size_override("font_size", FS_SMALL)
-	BuildUI.style_button(cont, _gold_color)
-	cont.pressed.connect(_on_settlement_continue)
-	cont.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	_result_box.add_child(cont)
-	_msg.text = ""
-
-
-func _on_settlement_continue() -> void:
-	_settlement.clear()
-	_refresh()   # current/settlement 均空 → _refresh 内自动 _prepare_spin 装填下一轮
-
-
 func _on_discard() -> void:
 	_current = {}
-	_settlement.clear()
 	_msg.text = "已放弃该防具"
 	_refresh()   # ★ 走 _refresh 才能重新装填转轮 + 恢复离开按钮（原来只 render 会卡在「已停止」）
+
+
+## ★ v6.41：弹出只读 EquipmentConfig（防具落位模式），玩家看三单位装备全貌后点防具槽决定落位
+var _pick_ui = null
+
+func _open_equipment_for_pick() -> void:
+	if _current.is_empty():
+		return
+	if _pick_ui != null and is_instance_valid(_pick_ui):
+		return
+	var scene = load(Config.PATHS.EQUIPMENT_CONFIG)
+	if scene == null:
+		push_error("ArmorRollUI: 无法加载 EquipmentConfig 场景")
+		# 降级：直接落位到第一个存活单位
+		for ud in _get_units():
+			if ud != null and not ud.is_dead:
+				_on_place(ud)
+				return
+		return
+	_pick_ui = scene.instantiate()
+	get_tree().current_scene.add_child(_pick_ui)
+	var panel = _pick_ui.get_node_or_null("MainPanel")
+	if panel == null:
+		push_error("ArmorRollUI: EquipmentConfig 缺少 MainPanel")
+		_close_pick_ui()
+		return
+	if panel.has_signal("armor_slot_picked"):
+		panel.armor_slot_picked.connect(_on_pick_unit)
+	if panel.has_signal("armor_discard_requested"):
+		panel.armor_discard_requested.connect(_on_pick_discard)
+	if panel.has_signal("armor_overwrite_requested"):
+		panel.armor_overwrite_requested.connect(_on_pick_overwrite)
+	# 落位模式：展示全貌，除防具槽外只读
+	panel.init(_get_units(), SaveManager.current_slot, EquipCfg.Mode.ARMOR_ROLL, null)
+	# ★ v6.43：把待落袋防具传给装备界面，高亮槽位 + 顶部展示
+	if panel.has_method("set_pending_armor"):
+		panel.set_pending_armor(_current)
+	# 底层不再显示三 avatar 结果卡（信息已移到装备界面）
+	for c in _result_box.get_children():
+		c.queue_free()
+
+
+func _on_pick_unit(unit_idx: int) -> void:
+	var units := _get_units()
+	if unit_idx < 0 or unit_idx >= units.size():
+		return
+	var ud = units[unit_idx]
+	if ud == null or ud.is_dead:
+		return
+	_on_place(ud)
+	_close_pick_ui()
+
+
+## ★ v6.44：在装备界面点"放弃防具"——放弃当前防具并关闭浮层
+func _on_pick_discard() -> void:
+	_on_discard()
+	_close_pick_ui()
+
+
+## ★ v6.47：EquipmentConfig 内确认覆盖 → 执行 overwrite 并关闭浮层进下一轮
+func _on_pick_overwrite(unit_idx: int, school_to_remove: String) -> void:
+	var units := _get_units()
+	if unit_idx < 0 or unit_idx >= units.size():
+		return
+	_do_overwrite(units[unit_idx], school_to_remove)
+	_close_pick_ui()
+
+
+func _close_pick_ui() -> void:
+	if _pick_ui == null:
+		return
+	# ★ v6.43：只释放装备浮层本身。旧版误 queue_free 了 parent(current_scene=Battlefield)，
+	#   导致落位后整个战场被销毁 → 黑屏且无法操作。
+	if is_instance_valid(_pick_ui):
+		_pick_ui.queue_free()
+	_pick_ui = null
 
 
 func _on_place(ud: UnitData) -> void:
 	var item_id := str(_current.get("item_id", ""))
 	var quality := str(_current.get("quality", "common"))
 	# ★ v6.27：同流派并入升 Lv 免费，不再收 200G（原预判扣费块已删除）
-	var school: String = BuildManager.get_school_of_item(item_id)
-	# ★ v6.38：记录落位前的 Lv，结算卡显示"前 → 后"
-	var old_lv: int = 0
-	for m in BuildManager.get_unit_mechanisms(ud):
-		if str(m.get("school", "")) == school:
-			old_lv = int(m.get("level", 0))
-			break
 	var result := BuildManager.apply_armor(ud, item_id, quality)
 	match str(result.get("result", "")):
 		"awaken", "merge", "plain":
-			school = str(result.get("school", ""))
-			# ★ v6.38：写结算态，结果卡停留展示，不用一闪而过的 msg
-			_settlement = {
-				"unit": ud.display_name,
-				"school": school,
-				"result": str(result.get("result", "")),
-				"old_lv": old_lv,
-				"new_lv": int(result.get("level", 0)),
-				"cap": int(result.get("cap", 0)),
-			}
+			# ★ v6.45：落位后直接进下一轮——不写结算态、不停留，_refresh 自动装填新转轮
+			SoundManager.play_get_item_sound()
 			_current = {}
 			_refresh()
 		"full":
-			_show_overwrite_choices(ud)
+			# ★ v6.47：槽满覆盖已下沉到 EquipmentConfig，此分支仅兜底
+			_msg.text = "请在装备界面选择要覆盖的流派"
 		_:
 			_msg.text = "无法落位"
 
 
-## 找到单位身上某流派对应的防具图标（用于覆盖选项的目标是哪一个）
-func _find_armor_icon_for_school(unit: UnitData, school: String) -> Texture2D:
-	if unit == null:
-		return null
-	for slot_v in unit.armor_slots:
-		if slot_v == null:
-			continue
-		var inst: ItemInstance = slot_v
-		if BuildManager.get_school_of_item(inst.item_id) == school:
-			var data: ItemData = ItemManager.get_item_data(inst.item_id)
-			if data != null:
-				return data.icon
-	return null
-
-
-## 紧凑图标框：图标缺失时用流派色描边兜底，仍可一眼分辨目标
-func _make_icon_box(icon: Texture2D, tint: Color) -> PanelContainer:
-	var box := PanelContainer.new()
-	box.custom_minimum_size = Vector2(22, 22)
-	box.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = Color(0.06, 0.06, 0.09)
-	sb.set_border_width_all(1)
-	sb.border_color = tint
-	sb.content_margin_left = 0
-	sb.content_margin_right = 0
-	sb.content_margin_top = 0
-	sb.content_margin_bottom = 0
-	box.add_theme_stylebox_override("panel", sb)
-	var rect := TextureRect.new()
-	rect.set_anchors_preset(Control.PRESET_FULL_RECT)
-	rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	if icon != null:
-		rect.texture = icon
-	box.add_child(rect)
-	return box
-
-
-func _show_overwrite_choices(ud: UnitData) -> void:
-	_update_action_buttons()   # ★ 待领取结果仍在，保持离开按钮锁定
-	# ★ 覆盖场景用滚动区内的专用按钮，隐藏外部放弃行避免两个"放弃"并存
-	if _action_row != null:
-		_action_row.visible = false
-	for c in _result_box.get_children():
-		c.queue_free()
-
-	# 顶部：新抽到的防具（要么覆盖、要么放弃的那一件）——图标 + 说明 + 放弃按钮，同一区域
-	var incoming_school := str(_current.get("school", ""))
-	var incoming_item: ItemData = ItemManager.get_item_data(str(_current.get("item_id", "")))
-	var incoming_icon: Texture2D = incoming_item.icon if incoming_item != null else null
-	var src_row := HBoxContainer.new()
-	src_row.alignment = BoxContainer.ALIGNMENT_CENTER
-	src_row.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	src_row.add_theme_constant_override("separation", 4)
-	src_row.add_child(_make_icon_box(incoming_icon, BuildManager.get_school_color(incoming_school)))
-	var src_lbl := Label.new()
-	src_lbl.text = "%s 流派已满 · 用【%s】覆盖或放弃：" % [ud.display_name, str(_current.get("name", ""))]
-	src_lbl.add_theme_font_size_override("font_size", FS_BODY)
-	src_lbl.add_theme_color_override("font_color", Color(1.0, 0.7, 0.5))
-	src_row.add_child(src_lbl)
-	# ★ 放弃按钮与要放弃的新防具放同一区域，不再孤立在列表最下方
-	var cancel := Button.new()
-	cancel.text = "放弃这件防具"
-	cancel.add_theme_font_size_override("font_size", FS_SMALL)
-	BuildUI.style_button(cancel)
-	cancel.pressed.connect(_on_discard)
-	src_row.add_child(cancel)
-	_result_box.add_child(src_row)
-
-	# 每个覆盖目标：目标防具图标 + 按钮，整行收缩居中
-	for m in BuildManager.get_unit_mechanisms(ud):
-		var school := str(m.get("school", ""))
-		var tint := BuildManager.get_school_color(school)
-		var target_icon := _find_armor_icon_for_school(ud, school)
-		var row := HBoxContainer.new()
-		row.alignment = BoxContainer.ALIGNMENT_CENTER
-		row.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-		row.add_theme_constant_override("separation", 4)
-		row.add_child(_make_icon_box(target_icon, tint))
-		var b := Button.new()
-		b.text = "覆盖 %s Lv%d" % [school, int(m.get("level", 1))]
-		b.add_theme_font_size_override("font_size", FS_BODY)
-		BuildUI.style_button(b, tint)
-		b.pressed.connect(_on_confirm_overwrite.bind(ud, school))
-		row.add_child(b)
-		_result_box.add_child(row)
-
-
-func _on_confirm_overwrite(ud: UnitData, school_to_remove: String) -> void:
-	# ★ v6.38（A2）：写明实际删除件数（overwrite_school 会删光该流派所有防具）
-	var remove_n: int = 0
-	for slot in ud.armor_slots:
-		if slot == null: continue
-		if BuildManager.get_school_of_item(slot.item_id) == school_to_remove:
-			remove_n += 1
-	Globals.show_confirm(self,
-		"确定用这件防具替换【%s】？将删除 %d 件旧防具并清空该流派机制。" % [school_to_remove, remove_n],
-		"覆盖", "取消",
-		func(): _do_overwrite(ud, school_to_remove), func(): _render_result())
-
-
 func _do_overwrite(ud: UnitData, school_to_remove: String) -> void:
-	var result := BuildManager.overwrite_school(ud, school_to_remove,
+	BuildManager.overwrite_school(ud, school_to_remove,
 		str(_current.get("item_id", "")), str(_current.get("quality", "common")))
-	# ★ v6.38：覆盖也走结算卡，写明"覆盖【旧流派】→ 觉醒【新流派】"
-	_settlement = {
-		"unit": ud.display_name,
-		"school": str(result.get("school", "")),
-		"result": "覆盖" if str(result.get("result", "")) != "full" else "full",
-		"old_lv": 0,
-		"new_lv": int(result.get("level", 0)),
-		"cap": int(result.get("cap", 0)),
-		"replaced": school_to_remove,
-	}
+	# ★ v6.45：覆盖后同样直接进下一轮，不停留结算态
 	_current = {}
 	_refresh()
 
@@ -696,10 +573,7 @@ func _on_close() -> void:
 	if _machine != null and _machine.is_spinning():
 		return
 	if not _current.is_empty():
-		_msg.text = "请先为抽到的防具选择落位单位，或点「放弃防具」"
-		return
-	if not _settlement.is_empty():
-		_msg.text = "请先点结算卡的「继续抽取」"
+		_msg.text = "请在装备界面选择防具槽落位，或点「放弃防具」"
 		return
 	_closing = true
 	SaveManager.auto_save()

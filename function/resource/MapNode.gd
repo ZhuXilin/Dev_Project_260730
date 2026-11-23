@@ -2,7 +2,7 @@ extends Resource
 class_name MapNode
 
 enum NodeType {
-	START,
+	START, # ★ v6.47：已废弃占位（保留以维持后续枚举整数值/存档兼容），不再作为可配置节点类型
 	NORMAL,
 	ELITE,
 	TREASURE,

@@ -86,7 +86,6 @@ const AI_SCORE_TERRAIN_DEF_WEIGHT : float = 2.0
 # ============================================================
 static func get_node_display_name(node_type: int) -> String:
 	match node_type:
-		MapNode.NodeType.START:    return "起始"
 		MapNode.NodeType.NORMAL:   return "普通"
 		MapNode.NodeType.ELITE:    return "精英"
 		MapNode.NodeType.BOSS:     return "首领"
@@ -109,7 +108,6 @@ static func get_node_texture(node_type: int, hidden_type: int = -1) -> Texture2D
 	# 这里根据你的美术资源命名进行对应，后续新增只需改这里
 	var icon_name := ""
 	match real_type:
-		MapNode.NodeType.START:    icon_name = "mapscene_node_001.png" # 起始
 		MapNode.NodeType.NORMAL:   icon_name = "mapscene_node_002.png" # 普通战斗
 		MapNode.NodeType.ELITE:    icon_name = "mapscene_node_003.png" # 精英
 		MapNode.NodeType.BOSS:     icon_name = "mapscene_node_004.png" # 首领

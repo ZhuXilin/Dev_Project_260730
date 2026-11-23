@@ -247,9 +247,6 @@ func play_death_sound(team_id: int = -1):
 func play_cancel_sound():
 	if config: _play_sfx("cancel", config.cancel)
 
-func play_invalid_sound():
-	if config: _play_sfx("invalid_click", config.invalid_click)
-
 func play_wait_sound():
 	if config: _play_sfx("wait", config.wait)
 

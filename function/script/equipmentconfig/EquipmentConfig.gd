@@ -1,6 +1,13 @@
 extends Panel
 
-enum Mode { DEPLOY, MAP, FORGE, ARENA_REST, MAP_SHOP_REST }
+enum Mode { DEPLOY, MAP, FORGE, ARENA_REST, MAP_SHOP_REST, ARMOR_ROLL }
+
+## ★ v6.41：战后防具落位模式——点防具槽回传单位 index，供 ArmorRollUI 执行落位
+signal armor_slot_picked(unit_idx: int)
+## ★ v6.44：落位模式下请求放弃待落袋防具
+signal armor_discard_requested()
+## ★ v6.47：落位模式槽满时请求覆盖某流派（unit_idx, school_to_remove）
+signal armor_overwrite_requested(unit_idx: int, school_to_remove: String)
 
 const Style = preload("res://function/script/equipmentconfig/EquipmentConfigStyle.gd")
 
@@ -49,9 +56,9 @@ var _talent : EquipmentConfigTalent = null
 
 var _upgrade_shop_btn : Button = null
 var _aura_tab_btn : Button = null
-var _auto_config_btn : Button = null
-
 var _forge_enter_done : bool = false
+## ★ v6.43：待落袋防具 {item_id,quality,school,name,mechanic}，落位模式下显示并高亮槽位
+var _pending_armor : Dictionary = {}
 
 const ShopManagerScript = preload(Config.PATHS.SHOP_MANAGER_SCRIPT)
 const DETAIL_ZONE_PATH : String = "VBoxContainer/MainHBox/LeftInfoColumn/DetailZone"
@@ -185,7 +192,9 @@ func _on_sacrifice_tab_pressed(): _switch_tab("sacrifice")
 func init(units: Array, slot: int, mode: int, context: EquipContext = null):
 	var canvas_layer : Node = get_parent()
 	if canvas_layer is CanvasLayer:
-		if context != null and context.get_context_id() == "arena":
+		if mode == Mode.ARMOR_ROLL:
+			(canvas_layer as CanvasLayer).layer = 32   # 盖住 ArmorRollUI(30)
+		elif context != null and context.get_context_id() == "arena":
 			(canvas_layer as CanvasLayer).layer = 30
 		else:
 			(canvas_layer as CanvasLayer).layer = 20
@@ -284,6 +293,14 @@ func _do_close_normal():
 				"确定", "", func(): pass, func(): pass, false)
 			return
 
+	# ★ v6.41：落位模式只读，关闭时不回写 party、不触发 context 生命周期
+	if current_mode == Mode.ARMOR_ROLL:
+		_is_closing = true
+		var cl : Node = get_parent()
+		if cl: cl.queue_free()
+		else: queue_free()
+		return
+
 	_sync_all()
 	_context.mark_cancelled()
 	_is_closing = true
@@ -316,33 +333,11 @@ func _build_ui():
 	_is_building_ui = true
 	_build_ui_inner()
 	_is_building_ui = false
+	if current_mode == Mode.ARMOR_ROLL:
+		_apply_armor_pick_readonly()
 	if current_mode == Mode.FORGE or current_mode == Mode.MAP_SHOP_REST:
 		_setup_forge_narrative_ui()
 		
-
-func _ensure_auto_config_btn():
-	if _auto_config_btn and is_instance_valid(_auto_config_btn):
-		return
-		
-	_auto_config_btn = Button.new()
-	_auto_config_btn.name = "AutoConfigBtn"
-	_auto_config_btn.text = "自动配装"
-	_auto_config_btn.add_theme_font_size_override("font_size", 5) # 极小字号
-	_auto_config_btn.focus_mode = Control.FOCUS_NONE
-	_auto_config_btn.custom_minimum_size = Vector2(40, 14)
-	_auto_config_btn.tooltip_text = "根据连通组 + 套装 + 属性，生成 3 个自动配置方案"
-	_auto_config_btn.pressed.connect(_open_auto_config_dialog)
-	
-	add_child(_auto_config_btn)
-	_auto_config_btn.z_index = 100 # 顶层防遮挡
-	
-	_auto_config_btn.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
-	# 强行贴到最右下角的像素位置
-	_auto_config_btn.offset_left = -44.0
-	_auto_config_btn.offset_top = -18.0
-	_auto_config_btn.offset_right = -4.0
-	_auto_config_btn.offset_bottom = -4.0
-
 
 func _refresh_connectivity(_silent: bool = false):
 	_connectivity_groups.clear()
@@ -413,12 +408,12 @@ func _build_unit_columns():
 	unit_container.alignment = BoxContainer.ALIGNMENT_CENTER
 	# 三个单位之间改为 1px 间距（原 ITEM_GRID_GAP=6 太宽）
 	unit_container.add_theme_constant_override("separation", 1)
-	# 先算全队最大防具槽数，给每列防具区补齐占位，技能槽才能统一落在红线下方
-	# 固定 4 行防具区（超过则取实际最大），保证三列技能始终同一排
-	_unit_column_armor_rows = 4
+	# ★ v6.48：按全队实际最大防具槽数补齐（不再固定4格）。双列布局下 2 槽=1 行，
+	#   避免每单位显示 4 个格子（2真+2占位）让人误以为槽位很多。三列技能仍同一排。
+	_unit_column_armor_rows = 2
 	for u in party:
 		if u != null:
-			_unit_column_armor_rows = maxi(_unit_column_armor_rows, u.armor_slots.size())
+			_unit_column_armor_rows = maxi(_unit_column_armor_rows, u.max_armor_slots)
 	for child in unit_container.get_children():
 		unit_container.remove_child(child); child.free()
 
@@ -634,43 +629,79 @@ func _create_unit_column(unit_idx: int, is_preview: bool = false) -> Control:
 		if unit.is_dead: _disable_button(level_btn)
 		head_group.add_child(level_btn)
 
-	# 防具槽位
-	var armor_group := VBoxContainer.new()
-	armor_group.add_theme_constant_override("separation", Style.ITEM_GRID_GAP)
-	# v5.6：贴顶对齐，避免不同单位防具槽数不同时 ALIGNMENT_CENTER 把首排整体下推
-	armor_group.alignment = BoxContainer.ALIGNMENT_BEGIN
+	# 防具槽位 ★ v6.41：由每单位每行 1 个改为每行 2 个（GridContainer 双列，节约纵向空间）
+	var armor_group := GridContainer.new()
+	armor_group.columns = 2
+	armor_group.add_theme_constant_override("h_separation", Style.ITEM_GRID_GAP)
+	armor_group.add_theme_constant_override("v_separation", Style.ITEM_GRID_GAP)
+	# ★ v6.42：按内容宽度收拢并居中，使防具槽区对齐在头像正下方（默认 FILL 会左对齐）
+	armor_group.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	col.add_child(armor_group)
-	
-	for slot_idx in range(unit.armor_slots.size()):
+
+	# ★ v6.48：按机制槽上限(max_armor_slots)显示，而非 armor_slots.size()——
+	#   底层数组会因同流派并入累积多个实例(贡献属性)，但玩家可见槽位 = 机制槽数。
+	var visible_slots : int = clampi(unit.max_armor_slots, 0, unit.armor_slots.size())
+	for slot_idx in range(visible_slots):
 		var armor_btn = _create_item_button(unit.armor_slots[slot_idx], "armor", unit_idx, slot_idx)
 		if unit.is_dead: _disable_button(armor_btn)
 		# ★ v5.1：连线框用子节点画在图标之上（stylebox 边框会被全尺寸图标盖住）
 		_set_slot_link_frame(armor_btn, unit_idx, slot_idx)
 		armor_group.add_child(armor_btn)
-	# 防具不足的列用透明占位补齐，保证下方技能行统一高度
-	var missing_rows: int = maxi(0, _unit_column_armor_rows - unit.armor_slots.size())
+	# 防具不足的列用透明占位补齐到固定格数，保证下方技能行统一高度（双列下 N 格）
+	var missing_rows: int = maxi(0, _unit_column_armor_rows - visible_slots)
 	for i in range(missing_rows):
 		var spacer := Control.new()
 		spacer.custom_minimum_size = Vector2(Style.BTN_ITEM_SIZE.x, Style.BTN_ITEM_SIZE.y)
 		spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		armor_group.add_child(spacer)
 
-	# 特技槽位
+	# ★ v6.49：技能槽与防具一致——每行 2 个（GridContainer 双列）
+	var talent_group := GridContainer.new()
+	talent_group.columns = 2
+	talent_group.add_theme_constant_override("h_separation", Style.ITEM_GRID_GAP)
+	talent_group.add_theme_constant_override("v_separation", Style.ITEM_GRID_GAP)
+	talent_group.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	col.add_child(talent_group)
+
 	var talent_inst = unit.talent_slots[0] if unit.talent_slots.size() > 0 else null
 	var talent_btn = _create_talent_button(talent_inst, unit_idx, 0)
 	if unit.is_dead: _disable_button(talent_btn)
-	col.add_child(talent_btn)
+	talent_group.add_child(talent_btn)
 
-	# 进阶特技
 	var adv_btn = _create_advanced_talent_button(unit, unit_idx)
 	if unit.is_dead: _disable_button(adv_btn)
-	col.add_child(adv_btn)
+	talent_group.add_child(adv_btn)
+
+	# ★ v6.45：落位模式单位流派标签移到最下方（技能/进阶之后）
+	if current_mode == Mode.ARMOR_ROLL:
+		var school_lbl := Label.new()
+		var mechs : Array = BuildManager.get_unit_mechanisms(unit)
+		var parts : Array = []
+		for m in mechs:
+			parts.append("%s Lv%d" % [str(m.get("school", "")), int(m.get("level", 1))])
+		school_lbl.text = " / ".join(parts) if not parts.is_empty() else "无流派"
+		school_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		school_lbl.add_theme_font_size_override("font_size", Style.FONT_SMALL)
+		school_lbl.add_theme_color_override("font_color",
+			BuildManager.get_school_color(str(mechs[0].get("school", ""))) if not parts.is_empty() else Color(0.55, 0.55, 0.58))
+		school_lbl.set_meta("slot_type", "school_label")
+		col.add_child(school_lbl)
 
 	if is_preview:
 		_disable_all_input_recursive(wrapper)
 		wrapper.modulate = Color(1, 1, 1, 0.9)
 
 	return wrapper
+
+
+## ★ v6.44：灰显但保留鼠标悬停 / 右键切换信息（mouse_filter 用 STOP 不用 IGNORE）
+func _disable_all_input_recursive_keep_hover(node: Node):
+	if node is Control:
+		node.mouse_filter = Control.MOUSE_FILTER_STOP
+		if node is Button:
+			node.disabled = true
+	for child in node.get_children():
+		_disable_all_input_recursive_keep_hover(child)
 
 
 func _disable_all_input_recursive(node: Node):
@@ -680,6 +711,214 @@ func _disable_all_input_recursive(node: Node):
 			node.disabled = true
 	for child in node.get_children():
 		_disable_all_input_recursive(child)
+
+
+## ★ v6.41：防具落位模式——灰显除"防具槽按钮"外的一切交互，
+##   让玩家看着全貌（遗物/技能词条）但只能点防具槽决定落位单位。
+func _apply_armor_pick_readonly():
+	if current_mode != Mode.ARMOR_ROLL:
+		return
+	# ★ v6.44：灰显保留 mouse_filter=STOP，让悬停信息 / 右键切换仍能工作
+	for node in [tab_bar, confirm_btn]:
+		if node is Node:
+			_disable_all_input_recursive_keep_hover(node)
+	# ★ v6.45：落位模式隐藏右栏（含出售区），只留装备全貌
+	if right_container is CanvasItem:
+		(right_container as CanvasItem).visible = false
+	# 左侧遗物栏：展示但不可操作（保留 hover）
+	if relic_container is Node:
+		_disable_all_input_recursive_keep_hover(relic_container)
+	# ★ v6.44：落位模式隐藏"全队流派统计条"，改由每单位列显示自己的流派
+	if _tag_stats_container and is_instance_valid(_tag_stats_container):
+		_tag_stats_container.visible = false
+	# 单位列：逐列处理——头像/等级/技能/进阶按钮灰掉，只留防具槽按钮可点
+	if unit_container is Node:
+		_gray_unit_columns_except_armor(unit_container)
+
+
+func _gray_unit_columns_except_armor(node: Node):
+	for child in node.get_children():
+		if child is Button and str(child.get_meta("slot_type", "")) == "armor":
+			# 防具槽：保持可点，接落位回调
+			child.pressed.connect(_on_armor_pick_pressed.bind(int(child.get_meta("unit_idx", -1))))
+			continue
+		# ★ v6.50：单位头像整体保留 hover——内部子节点设 IGNORE，且**不要**再递归
+		#   灰显逻辑（旧版递归把子节点又设回 STOP，吞掉事件，导致 avatar 悬停无信息）
+		if child is Control and str(child.get_meta("slot_type", "")) == "unit_icon":
+			_set_children_mouse_ignore(child)
+			child.mouse_filter = Control.MOUSE_FILTER_STOP
+			child.modulate = Color(0.45, 0.45, 0.48, 1)   # 视觉灰显（落位模式只读）
+			continue
+		# ★ v6.44：灰显但保留 hover / 右键（STOP），只灰视觉不改 mouse_filter
+		if child is Control and not (child is Container):
+			child.mouse_filter = Control.MOUSE_FILTER_STOP
+			if child is Button:
+				child.disabled = true
+			if child is CanvasItem:
+				(child as CanvasItem).modulate = Color(0.45, 0.45, 0.48, 1)
+		_gray_unit_columns_except_armor(child)
+
+
+func _set_children_mouse_ignore(node: Node):
+	for c in node.get_children():
+		if c is Control:
+			c.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_set_children_mouse_ignore(c)
+
+
+## ★ v6.43：由 ArmorRollUI 注入待落袋防具，更新顶部提示并高亮所有防具槽
+func set_pending_armor(info: Dictionary) -> void:
+	_pending_armor = info.duplicate()
+	if current_mode != Mode.ARMOR_ROLL:
+		return
+	var item_name : String = str(_pending_armor.get("name", "防具"))
+	var school : String = str(_pending_armor.get("school", ""))
+	var top_bar = get_node_or_null("VBoxContainer/TopBar")
+	if top_bar == null:
+		return
+
+	# ★ v6.46：清空旧的落袋栏（图标/文字/放弃按钮），整段重建
+	for node_name in ["PendingCenter", "PendingArmorIcon", "PendingArmorSwatch"]:
+		var old = top_bar.get_node_or_null(node_name)
+		if old: old.queue_free()
+	# 隐藏原 mode_label（改用自定义居中行）
+	if mode_label: mode_label.visible = false
+	top_bar.custom_minimum_size = Vector2(0, 26)   # 容纳 20x20 图标 + 色块
+
+	# ---- 居中行：CenterContainer 包 HBox[防具按钮 + 文字] ----
+	var center := CenterContainer.new()
+	center.name = "PendingCenter"
+	center.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	center.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	top_bar.add_child(center)
+
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 6)
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	center.add_child(row)
+
+	# 防具按钮：复用 _create_item_button —— 自带流派色块 + 图标 + 悬停信息，与其他防具完全一致
+	var iid : String = str(_pending_armor.get("item_id", ""))
+	var temp_inst := ItemInstance.new()
+	temp_inst.item_id = iid
+	temp_inst.count = 1
+	var armor_btn := _create_item_button(temp_inst, "pending", -1, -1)
+	armor_btn.disabled = false
+	row.add_child(armor_btn)
+
+	var desc := Label.new()
+	desc.text = "【%s】%s" % [school, item_name] if school != "" else item_name
+	desc.add_theme_font_size_override("font_size", Style.FONT_NORMAL)
+	desc.add_theme_color_override("font_color", Color.WHITE)
+	desc.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	desc.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_child(desc)
+
+	# ★ v6.50：放弃防具按钮并入居中行，紧跟文字之后（不再被 EXPAND_FILL 挤到最右）
+	var discard := Button.new()
+	discard.name = "DiscardArmorBtn"
+	discard.text = "放弃防具"
+	discard.add_theme_font_size_override("font_size", Style.FONT_SMALL)
+	discard.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	discard.pressed.connect(func(): armor_discard_requested.emit())
+	row.add_child(discard)
+
+	_highlight_armor_slots()
+
+
+## ★ v6.43：给所有防具槽套高亮框（脉动），让玩家一眼知道要点这里落位
+func _highlight_armor_slots() -> void:
+	if not unit_container:
+		return
+	_highlight_armor_slots_recursive(unit_container)
+
+
+func _highlight_armor_slots_recursive(node: Node) -> void:
+	for child in node.get_children():
+		if child is Button and str(child.get_meta("slot_type", "")) == "armor":
+			var btn := child as Button
+			var sb := StyleBoxFlat.new()
+			sb.bg_color = Color(0.20, 0.18, 0.10, 0.55)
+			sb.set_border_width_all(2)
+			sb.border_color = Color(1.0, 0.82, 0.28, 1.0)
+			sb.content_margin_left = 1
+			sb.content_margin_right = 1
+			sb.content_margin_top = 1
+			sb.content_margin_bottom = 1
+			btn.add_theme_stylebox_override("normal", sb)
+			var hover_sb := sb.duplicate()
+			(hover_sb as StyleBoxFlat).bg_color = Color(0.35, 0.30, 0.12, 0.8)
+			btn.add_theme_stylebox_override("hover", hover_sb)
+			continue
+		_highlight_armor_slots_recursive(child)
+
+
+func _on_armor_pick_pressed(unit_idx: int):
+	if current_mode != Mode.ARMOR_ROLL:
+		return
+	if unit_idx < 0 or unit_idx >= party.size():
+		return
+	var ud : UnitData = (_context.get_units()[unit_idx] if _context.get_units().size() > unit_idx else party[unit_idx])
+	if ud != null and ud.is_dead:
+		return
+	# ★ v6.47：槽满且是新流派 → 在界面内渲染覆盖选项，不再关闭浮层
+	var incoming_school : String = str(_pending_armor.get("school", ""))
+	var mechs : Dictionary = ud.mechanisms if ud else {}
+	var slots : int = ud.max_armor_slots if ud else 0   # ★ v6.51：当前槽上限（随天数+1）
+	if not mechs.has(incoming_school) and mechs.size() >= slots and slots > 0:
+		_show_overwrite_options(ud, unit_idx)
+		return
+	armor_slot_picked.emit(unit_idx)
+
+
+## ★ v6.47：落位界面内渲染覆盖选项（替代原 ArmorRollUI 的独立覆盖界面）
+func _show_overwrite_options(ud: UnitData, unit_idx: int) -> void:
+	# ★ v6.49：不再生成任何内联覆盖按钮——直接进入居中 ConfirmUI。
+	#   单流派直接确认；多流派默认选等级最低（最不值钱）的那个，message 里写明。
+	_clear_overwrite_rows()
+	var mechs : Array = BuildManager.get_unit_mechanisms(ud)
+	if mechs.is_empty():
+		return
+	var target : Dictionary = mechs[0]
+	for m in mechs:
+		if int(m.get("level", 1)) < int(target.get("level", 1)):
+			target = m
+	_on_confirm_overwrite_in_panel(unit_idx, str(target.get("school", "")))
+
+
+func _on_confirm_overwrite_in_panel(unit_idx: int, school_to_remove: String) -> void:
+	var ud : UnitData = (_context.get_units()[unit_idx] if _context.get_units().size() > unit_idx else party[unit_idx])
+	var remove_n : int = 0
+	for slot in ud.armor_slots:
+		if slot != null and BuildManager.get_school_of_item(slot.item_id) == school_to_remove:
+			remove_n += 1
+	# ★ v6.48：parent 用 current_scene 而非 self——避免 show_confirm 的"已有ConfirmUI则跳过"
+	#   检测被装备界面内残留实例误触发；同时保证 CanvasLayer 全屏居中。
+	var confirm_parent : Node = get_tree().current_scene if get_tree() != null else self
+	Globals.show_confirm(confirm_parent,
+		"确定用【%s】覆盖【%s】？将删除 %d 件旧防具并清空该流派机制。" % [
+			str(_pending_armor.get("name", "新防具")), school_to_remove, remove_n],
+		"覆盖", "取消",
+		func(): armor_overwrite_requested.emit(unit_idx, school_to_remove),
+		func(): _clear_overwrite_rows(),
+		true)
+
+
+func _clear_overwrite_rows() -> void:
+	if not unit_container:
+		return
+	var to_free : Array = []
+	_find_and_collect_overwrite(unit_container, to_free)
+	for n in to_free:
+		if is_instance_valid(n):
+			n.queue_free()
+
+
+func _find_and_collect_overwrite(node: Node, out: Array) -> void:
+	for c in node.get_children():
+		if c.has_meta("overwrite_row"):
+			out.append(c)
+		_find_and_collect_overwrite(c, out)
 
 
 func _is_level_up_enabled() -> bool:
@@ -901,6 +1140,22 @@ func _build_ui_inner():
 			_build_talent_grid(shop_container)
 			shop_container.visible = false
 
+		Mode.ARMOR_ROLL:
+			# ★ v6.41：战后落位决策——展示全貌（防具/遗物/技能词条），除防具槽外只读
+			mode_label.text = "防具落位 · 选择单位"
+			# ★ v6.44：取消落位按钮去掉（改为顶部"放弃防具"），关闭只能先做决定
+			close_btn.visible = false
+			confirm_btn.visible = false
+			gold_label.visible = false
+			tab_bar.visible = false
+			weapon_tab_btn.visible = false
+			talent_tab_btn.visible = false
+			if sacrifice_tab_btn: sacrifice_tab_btn.visible = false
+			if furnace_tab_btn: furnace_tab_btn.visible = false
+			if _aura_tab_btn: _aura_tab_btn.visible = false
+			shop_container.visible = false
+			# 展示遗物与技能词条供综合考虑（右侧 TabBar 虽隐藏，左侧遗物栏 + 单位列技能照常显示）
+
 		Mode.ARENA_REST:
 			mode_label.text = "魂之竞技场 · 备战"
 			gold_label.visible = true
@@ -1019,7 +1274,6 @@ func _build_ui_inner():
 	_ensure_upgrade_shop_btn()
 	_refresh_upgrade_shop_btn()
 
-	_ensure_auto_config_btn()
 	_refresh_connectivity()
 
 	_build_unit_columns()
@@ -1578,11 +1832,13 @@ func _discard_pending_reward(data: Dictionary):
 
 
 func _create_unit_icon(unit: UnitData, unit_idx: int) -> Control:
-	# 使用带画框的 54x54，避免尺寸过小
-	var wrapper = UnitDataManager.create_unit_avatar_with_frame(unit.unit_name, Vector2(54, 54), Vector2(48, 48))
+	# ★ v6.50：改用 create_unit_avatar_button（Button）——纯 Control 的 mouse_entered
+	#   在本场景不稳定，Button 的悬停信号可靠（遗物/技能也是 Button，故它们能显示信息）。
+	var wrapper = UnitDataManager.create_unit_avatar_button(unit.unit_name, Vector2(54, 54), Vector2(48, 48))
 	wrapper.set_meta("slot_type", "unit_icon")
 	wrapper.set_meta("unit_idx", unit_idx)
 	wrapper.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	wrapper.focus_mode = Control.FOCUS_NONE
 	wrapper.mouse_filter = Control.MOUSE_FILTER_STOP
 
 	wrapper.mouse_entered.connect(_on_unit_hover_entered.bind(unit_idx))
@@ -2459,6 +2715,9 @@ func _input(event: InputEvent):
 			return
 
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+		# ★ v6.41：落位模式不走拖拽，让防具槽 Button 的 pressed 正常触发
+		if current_mode == Mode.ARMOR_ROLL:
+			return
 		var mouse_pos : Vector2 = get_global_mouse_position()
 		var btn : Control = _drag._find_control_at_position(mouse_pos)
 		if btn and (btn is Button or btn.get_meta("slot_type", "") == "unit_icon"):
@@ -2723,421 +2982,6 @@ func _apply_unit_swap(a: int, b: int):
 	_schedule_build_ui.call_deferred()
 
 	_show_detail_in_zone("已交换单位位置：%s ↔ %s" % [name_a, name_b])
-
-
-func _open_auto_config_dialog():
-	# ★ v6.6：去掉确认弹窗，点「自动配装」直接执行（单位位置锁定，只重排防具）
-	if party.size() < 2:
-		_show_detail_in_zone("至少需要 2 个单位才能自动配装")
-		return
-	_run_auto_config()
-
-
-func _run_auto_config():
-	var progress = Globals.get_reward_summary()
-	if progress:
-		progress.show_text("自动配装计算中…（按 v6 流派机制重排防具）")
-		progress.open()
-		await get_tree().process_frame
-
-	var options: Array = _generate_auto_options()
-
-	if progress:
-		progress.close()
-
-	if options.is_empty():
-		Globals.show_confirm(self, "自动配装失败（无有效方案）", "确定", "",
-			func(): pass, func(): pass, false)
-		return
-
-	_show_auto_config_result_dialog(options)
-
-
-func _generate_auto_options() -> Array:
-	var base_layout: Dictionary = _snapshot_layout()
-
-	var weight_sets: Array = [
-		{"name": "攻击流", "atk": 1.0, "def": 0.3, "hp": 0.3},
-		{"name": "防御流", "atk": 0.3, "def": 1.0, "hp": 0.8},
-		{"name": "平衡流", "atk": 0.6, "def": 0.6, "hp": 0.6},
-	]
-
-	var results: Array = []
-	for ws in weight_sets:
-		var result = _run_simulated_annealing(
-			base_layout, float(ws["atk"]), float(ws["def"]), float(ws["hp"]), 2000)
-		if result != null:
-			result["weight_name"] = ws["name"]
-			results.append(result)
-	return results
-
-
-## v6.26：layout 记录每单位持有的 item_id + 待领取区（临时仓库）可分配装备池；单位顺序永不变
-func _snapshot_layout() -> Dictionary:
-	var slots: Array = []
-	for u in party:
-		var ids: Array = []
-		for slot in u.armor_slots:
-			ids.append(str(slot.item_id) if slot != null else "")
-		slots.append(ids)
-	# ★ 待领取区（熔铸奖励 + 锻造产物）装备纳入可分配池，自动配装会择优装上
-	var pool: Array = []
-	for inst in GameState.pending_sacrifice_rewards:
-		if inst != null: pool.append(str(inst.item_id))
-	for inst in GameState.pending_forge_rewards:
-		if inst != null: pool.append(str(inst.item_id))
-	return {"slots": slots, "pool": pool}
-
-
-## 流派按 hook 分类到三套权重：攻击(烈焰/献祭/余烬) / 防御(守护/轮回) / 功能(灰烬)
-func _school_weight(school: String, atk_w: float, def_w: float, hp_w: float) -> float:
-	match school:
-		"烈焰", "献祭", "余烬":
-			return atk_w
-		"守护", "轮回":
-			return def_w
-		"灰烬":
-			return hp_w
-		_:
-			return 0.5
-
-
-## 从防具 id 列表模拟 v6 机制：{school: {level, cap, count}}
-func _simulate_mechanisms(unit: UnitData, ids: Array) -> Dictionary:
-	var result: Dictionary = {}
-	var slots_max: int = BuildManager.get_mechanism_slots(unit.unit_name)
-	for iid_v in ids:
-		var iid: String = str(iid_v)
-		if iid == "":
-			continue
-		var school: String = BuildManager.get_school_of_item(iid)
-		if school == "":
-			continue
-		var data: ItemData = ItemManager.get_item_data(iid)
-		var cap: int = BuildManager.get_quality_cap(data.quality) if data != null else 1
-		if result.has(school):
-			var e: Dictionary = result[school]
-			var count: int = int(e.get("count", 1)) + 1
-			e["count"] = count
-			e["cap"] = maxi(int(e.get("cap", 1)), cap)
-			e["level"] = mini(count, int(e["cap"]))
-		elif result.size() < slots_max:
-			result[school] = {"level": 1, "cap": cap, "count": 1}
-		# 满槽：新流派无法觉醒（与 apply_armor 的 full 口径一致）
-	return result
-
-
-## ★ v6 评分：觉醒流派 + 有效 Lv（含技能共鸣） + 机制槽利用率，按 hook 分类加权
-func _evaluate_layout(layout: Dictionary, atk_w: float, def_w: float, hp_w: float) -> float:
-	var slots: Array = layout["slots"]
-	var total: float = 0.0
-	for i in range(party.size()):
-		var unit: UnitData = party[i]
-		if unit == null:
-			continue
-		var ids: Array = slots[i] if i < slots.size() else []
-		var mechs: Dictionary = _simulate_mechanisms(unit, ids)
-		var slots_max: int = maxi(BuildManager.get_mechanism_slots(unit.unit_name), 1)
-		total += float(mechs.size()) / float(slots_max) * 2.0
-		for school in mechs:
-			var e: Dictionary = mechs[school]
-			var lv: int = int(e.get("level", 1))
-			var cap: int = int(e.get("cap", 1))
-			var eff: int = lv
-			if BuildManager.has_skill_resonance(unit, school):
-				# 与 BuildManager 的 RESONANCE_LEVEL_BONUS/MAX_LEVEL 同口径（v6.2 共鸣 +1，上限 4）
-				eff = mini(lv + 1, 4)
-			var w: float = _school_weight(str(school), atk_w, def_w, hp_w)
-			total += w                          # 觉醒基础分
-			total += w * float(eff) * 2.0       # 有效 Lv
-			if lv >= cap:
-				total += 1.5                    # 升到品质上限
-	return total
-
-
-func _run_simulated_annealing(base_layout: Dictionary,
-		atk_w: float, def_w: float, hp_w: float, iterations: int) -> Dictionary:
-	var current: Dictionary = {
-		"slots": (base_layout["slots"] as Array).duplicate(true),
-		"pool": (base_layout.get("pool", []) as Array).duplicate(true),
-	}
-	var best: Dictionary = {
-		"slots": (current["slots"] as Array).duplicate(true),
-		"pool": (current["pool"] as Array).duplicate(true),
-	}
-	var best_score: float = _evaluate_layout(current, atk_w, def_w, hp_w)
-	var cur_score: float = best_score
-
-	var T: float = 10.0
-	var T_min: float = 0.1
-	var alpha: float = 0.997
-
-	for it in range(iterations):
-		var neighbor: Dictionary = {
-			"slots": (current["slots"] as Array).duplicate(true),
-			"pool": (current["pool"] as Array).duplicate(true),
-		}
-		_swap_items_in_layout(neighbor)
-		var n_score: float = _evaluate_layout(neighbor, atk_w, def_w, hp_w)
-		var delta: float = n_score - cur_score
-
-		if delta > 0 or randf() < exp(delta / maxf(T, 0.001)):
-			current = neighbor
-			cur_score = n_score
-			if cur_score > best_score:
-				best = {"slots": (neighbor["slots"] as Array).duplicate(true),
-					"pool": (neighbor["pool"] as Array).duplicate(true)}
-				best_score = cur_score
-
-		T = maxf(T * alpha, T_min)
-
-	return {
-		"slots": best["slots"],
-		"pool": best.get("pool", []),
-		"score": best_score,
-	}
-
-
-## ★ 防具重排：① 已装备之间换位；② 从待领取池取装备填入空槽/替换（被替换的回池）
-func _swap_items_in_layout(layout: Dictionary):
-	var slots: Array = layout["slots"]
-	var pool: Array = layout.get("pool", [])
-	# 装备总数（已装备 + 待领取池）；池非空时约 40% 概率做"取装备"操作
-	var total_items: int = 0
-	for row in slots:
-		for v in row:
-			if str(v) != "": total_items += 1
-	for v in pool:
-		if str(v) != "": total_items += 1
-	if total_items < 1:
-		return
-
-	var pool_valid: Array = []
-	for v in pool:
-		if str(v) != "": pool_valid.append(str(v))
-
-	# 操作②：从池取一件装备放进某单位槽位（空槽优先），被替换的装备退回池
-	if not pool_valid.is_empty() and randf() < 0.4:
-		var pick_iid: String = str(pool_valid[randi() % pool_valid.size()])
-		# 从池中移除该件（按值找第一个）
-		var removed: bool = false
-		for i in range(pool.size()):
-			if str(pool[i]) == pick_iid:
-				pool[i] = ""
-				removed = true
-				break
-		if not removed:
-			return
-		# 收集所有槽位，优先选空槽；没有空槽则随机替换一个可卖装备
-		var empties: Array = []
-		var occupied: Array = []
-		for u in range(slots.size()):
-			var row: Array = slots[u]
-			for r in range(row.size()):
-				if str(row[r]) == "":
-					empties.append(Vector2i(u, r))
-				else:
-					occupied.append(Vector2i(u, r))
-		var target: Vector2i = Vector2i(-1, -1)
-		if not empties.is_empty():
-			target = empties[randi() % empties.size()]
-		elif not occupied.is_empty():
-			target = occupied[randi() % occupied.size()]
-		if target.x < 0:
-			# 无槽位可放，退回池
-			for i in range(pool.size()):
-				if str(pool[i]) == "":
-					pool[i] = pick_iid
-					break
-			return
-		var row_t: Array = slots[target.x]
-		var old: String = str(row_t[target.y])
-		row_t[target.y] = pick_iid
-		if old != "":
-			# 被替换的退回池（占用刚才清空的那个池位）
-			for i in range(pool.size()):
-				if str(pool[i]) == "":
-					pool[i] = old
-					break
-		return
-
-	# 操作①：已有装备之间换位（原逻辑）
-	var flat: Array = []
-	for u in range(slots.size()):
-		var row: Array = slots[u]
-		for r in range(row.size()):
-			if str(row[r]) != "":
-				flat.append(Vector2i(u, r))
-	if flat.size() < 2:
-		return
-	var a: Vector2i = flat[randi() % flat.size()]
-	var b: Vector2i = flat[randi() % flat.size()]
-	if a == b:
-		return
-	var row_a: Array = slots[a.x]
-	var row_b: Array = slots[b.x]
-	var tmp: String = str(row_a[a.y])
-	row_a[a.y] = row_b[b.y]
-	row_b[b.y] = tmp
-
-
-## ★ v6 应用：写回 GameState 单位并用 apply_armor 重建机制，单位顺序完全不动。
-##   注意：party 是 GameState 的深拷贝，_sync_all 不回写 mechanisms，
-##   必须直接改 _context.get_units() 里的真单位，否则战斗层读到的机制不会更新。
-func _apply_layout(layout: Dictionary):
-	var slots: Array = layout["slots"]
-	var final_pool: Array = layout.get("pool", [])
-	var real_units: Array = _context.get_units()
-
-	# ★ v6.26：先记录"被自动装上"的装备（原待领取区里、但不在最终池中的 item_id），
-	#   用于从待领取区精确移除这些实例（按 item_id 计数匹配）。
-	var original_pool: Array = []
-	for inst in GameState.pending_sacrifice_rewards:
-		if inst != null: original_pool.append({"iid": str(inst.item_id), "src": "sacrifice", "inst": inst})
-	for inst in GameState.pending_forge_rewards:
-		if inst != null: original_pool.append({"iid": str(inst.item_id), "src": "forge", "inst": inst})
-	# 最终池里保留的 id 计数（多重集）
-	var keep_count: Dictionary = {}
-	for v in final_pool:
-		var k: String = str(v)
-		if k != "": keep_count[k] = int(keep_count.get(k, 0)) + 1
-	# 待移除实例：原池每件若在 keep_count 中还有余量则保留，否则视为"被装上"
-	var used_instances: Array = []
-	var keep_counter: Dictionary = keep_count.duplicate()
-	for entry in original_pool:
-		var k: String = str(entry["iid"])
-		if int(keep_counter.get(k, 0)) > 0:
-			keep_counter[k] = int(keep_counter[k]) - 1
-		else:
-			used_instances.append(entry)
-
-	for i in range(real_units.size()):
-		var unit: UnitData = real_units[i]
-		if unit == null:
-			continue
-		var ids: Array = slots[i] if i < slots.size() else []
-		unit.armor_slots = []
-		unit.mechanisms = {}
-		for iid_v in ids:
-			var iid: String = str(iid_v)
-			if iid == "":
-				continue
-			var data: ItemData = ItemManager.get_item_data(iid)
-			if data == null:
-				continue
-			BuildManager.apply_armor(unit, iid, data.quality)
-
-	# ★ 从待领取区移除被自动装上的实例
-	for entry in used_instances:
-		var inst: ItemInstance = entry["inst"]
-		if str(entry["src"]) == "sacrifice":
-			GameState.pending_sacrifice_rewards.erase(inst)
-		else:
-			GameState.pending_forge_rewards.erase(inst)
-
-	# ★ v6.26：把"从单位替换下来、退回池中"的装备写回待领取区。
-	#   final_pool 里不在 original_pool id 计数内的部分即为新退回装备。
-	var original_count: Dictionary = {}
-	for entry in original_pool:
-		var k0: String = str(entry["iid"])
-		original_count[k0] = int(original_count.get(k0, 0)) + 1
-	var return_counter: Dictionary = original_count.duplicate()
-	for v in final_pool:
-		var k1: String = str(v)
-		if k1 == "": continue
-		if int(return_counter.get(k1, 0)) > 0:
-			return_counter[k1] = int(return_counter[k1]) - 1
-		else:
-			# 这件是多出来的（从单位退下来的），写回待领取区
-			var new_inst: ItemInstance = ItemManager.create_instance_with_affixes(k1)
-			if new_inst == null:
-				new_inst = ItemInstance.new()
-				new_inst.item_id = k1
-				new_inst.count = 1
-			GameState.pending_forge_rewards.append(new_inst)
-
-	# 同步回 party 副本供界面重建显示（armor_slots + mechanisms 都刷）
-	_copy_party_data()
-
-
-func _show_auto_config_result_dialog(options: Array):
-	if options.is_empty():
-		return
-
-	var overlay := Control.new()
-	overlay.name = "AutoConfigOverlay"
-	overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
-	overlay.mouse_filter = Control.MOUSE_FILTER_STOP
-	overlay.z_index = 100
-	add_child(overlay)
-
-	var bg := ColorRect.new()
-	bg.color = Color(0, 0, 0, 0.7)
-	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
-	overlay.add_child(bg)
-
-	var center := CenterContainer.new()
-	center.set_anchors_preset(Control.PRESET_FULL_RECT)
-	overlay.add_child(center)
-
-	var panel := PanelContainer.new()
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = Color(0.12, 0.12, 0.15, 1)
-	sb.border_color = Color(0.5, 0.5, 0.6, 1)
-	sb.set_border_width_all(2)
-	sb.content_margin_left = 12
-	sb.content_margin_right = 12
-	sb.content_margin_top = 12
-	sb.content_margin_bottom = 12
-	panel.add_theme_stylebox_override("panel", sb)
-	panel.custom_minimum_size = Vector2(420, 0)
-	center.add_child(panel)
-
-	var vbox := VBoxContainer.new()
-	vbox.add_theme_constant_override("separation", 8)
-	panel.add_child(vbox)
-
-	var title := Label.new()
-	title.text = "自动配装方案（v6 流派 · 含待领取区装备择优）"
-	title.add_theme_font_size_override("font_size", 11)
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	vbox.add_child(title)
-
-	for opt in options:
-		var row := HBoxContainer.new()
-		row.add_theme_constant_override("separation", 8)
-		vbox.add_child(row)
-
-		var info := Label.new()
-		info.text = "[%s] 评分 %.1f" % [opt.get("weight_name", "?"), opt.get("score", 0.0)]
-		info.add_theme_font_size_override("font_size", 8)
-		info.custom_minimum_size = Vector2(150, 0)
-		info.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		row.add_child(info)
-
-		var apply_btn := Button.new()
-		apply_btn.text = "应用此方案"
-		apply_btn.add_theme_font_size_override("font_size", 8)
-		apply_btn.custom_minimum_size = Vector2(90, 20)
-		apply_btn.pressed.connect(func():
-			_apply_layout(opt)
-			_build_unit_columns()
-			_build_pending_slots()   # ★ v6.26：待领取区被取用/退回后刷新显示
-			_sync_all()
-			_schedule_build_ui()
-			SoundManager.play_select_sound()
-			overlay.queue_free()
-			_show_detail_in_zone("已应用自动配装方案：%s\n（单位位置不变，已优先取用待领取区装备）" % opt.get("weight_name", "?"))
-		)
-		row.add_child(apply_btn)
-
-	var cancel_btn := Button.new()
-	cancel_btn.text = "取消"
-	cancel_btn.add_theme_font_size_override("font_size", 8)
-	cancel_btn.custom_minimum_size = Vector2(80, 20)
-	cancel_btn.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	cancel_btn.pressed.connect(func(): overlay.queue_free())
-	vbox.add_child(cancel_btn)
 
 
 func _on_claim_all_pending():

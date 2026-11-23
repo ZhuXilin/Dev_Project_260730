@@ -8,7 +8,6 @@ const NON_COMBAT_TYPES : Array = [
 ]
 
 const COMBAT_TYPES : Array = [
-	MapNode.NodeType.START,
 	MapNode.NodeType.NORMAL,
 	MapNode.NodeType.ELITE,
 	MapNode.NodeType.BOSS,

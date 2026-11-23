@@ -364,7 +364,6 @@ func _get_node_description(node: MapNode) -> String:
 	
 	# 判断是否为战斗节点
 	var is_combat = node.node_type in [
-		MapNode.NodeType.START,
 		MapNode.NodeType.NORMAL,
 		MapNode.NodeType.ELITE,
 		MapNode.NodeType.BOSS,
@@ -387,8 +386,6 @@ func _get_node_description(node: MapNode) -> String:
 
 	# 后面拼接具体的描述
 	match node.node_type:
-		MapNode.NodeType.START:
-			base += "\n起始点进入战斗"
 		MapNode.NodeType.NORMAL:
 			base += "\n普通战斗"
 		MapNode.NodeType.ELITE:
@@ -657,7 +654,6 @@ func on_node_selected(node: MapNode):
 		AnalyticsLogger.record_high_reward_node_enter()
 
 	if real_type in [
-		MapNode.NodeType.START,
 		MapNode.NodeType.NORMAL,
 		MapNode.NodeType.ELITE,
 		MapNode.NodeType.BOSS,

@@ -13,7 +13,6 @@ const RELIC_DATA_PATH : String = "res://content/data/relic_data.json"
 const UNIT_LEVEL_MAP_PATH : String = "res://content/scenes/levels/UnitLevelMap.tres"
 
 const COMBAT_NODE_TYPES : Array = [
-	MapNode.NodeType.START,
 	MapNode.NodeType.NORMAL,
 	MapNode.NodeType.ELITE,
 	MapNode.NodeType.BOSS,
@@ -836,7 +835,6 @@ func _show_type_picker_popup(node_idx: int):
 	type_scroll.add_child(type_list)
 
 	var types := [
-		[MapNode.NodeType.START, "起始"],
 		[MapNode.NodeType.NORMAL, "普通"],
 		[MapNode.NodeType.ELITE, "精英"],
 		[MapNode.NodeType.TREASURE, "宝箱"],
@@ -1718,7 +1716,7 @@ func _ensure_variant_exists():
 	var day_layout : MapLayoutDay = arr[_variant_idx]
 	if day_layout.nodes.is_empty():
 		var n := MapLayoutNode.new()
-		n.node_type = MapNode.NodeType.START
+		n.node_type = MapNode.NodeType.NORMAL
 		n.layer = 0
 		day_layout.nodes.append(n)
 
@@ -2160,7 +2158,6 @@ func _node_pos_for_variant(day_layout: MapLayoutDay, idx: int) -> Vector2:
 
 func _node_type_short(t: int) -> String:
 	match t:
-		MapNode.NodeType.START: return "START"
 		MapNode.NodeType.NORMAL: return "NORMAL"
 		MapNode.NodeType.ELITE: return "ELITE"
 		MapNode.NodeType.TREASURE: return "TREASURE"

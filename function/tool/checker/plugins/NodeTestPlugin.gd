@@ -5,7 +5,6 @@ extends TestPlugin
 # ============================================================
 
 const NODE_TYPES : Array = [
-	MapNode.NodeType.START,
 	MapNode.NodeType.NORMAL,
 	MapNode.NodeType.ELITE,
 	MapNode.NodeType.BOSS,

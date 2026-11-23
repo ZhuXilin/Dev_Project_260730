@@ -103,7 +103,7 @@ func _make_unit_card(ud: UnitData) -> Control:
 
 	# 单位名 + 流派槽数
 	var head := Label.new()
-	var slots := BuildManager.get_mechanism_slots(ud.unit_name)
+	var slots := ud.max_armor_slots   # ★ v6.51：当前槽上限（随天数+1）
 	var used := BuildManager.get_used_mechanism_slots(ud)
 	head.text = "%s   流派槽 %d/%d" % [ud.display_name, used, slots]
 	head.add_theme_font_size_override("font_size", FS_BODY)

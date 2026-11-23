@@ -8,7 +8,6 @@
 [ext_resource type="AudioStream" uid="uid://led5njnffbde" path="res://content/sound/Ladder.wav" id="3_8l24p"]
 [ext_resource type="AudioStream" uid="uid://0gnl08ephje6" path="res://content/sound/Falls.mp3" id="3_28w17"]
 [ext_resource type="AudioStream" uid="uid://c2t1k2k2cvu2l" path="res://content/sound/Fanfare.mp3" id="4_bvd16"]
-[ext_resource type="AudioStream" uid="uid://dige4cmigsdgi" path="res://content/sound/Cursor2.wav" id="4_sfmkp"]
 [ext_resource type="AudioStream" uid="uid://djyve7l6ivlxb" path="res://content/sound/Walk1.mp3" id="4_ttjgu"]
 [ext_resource type="AudioStream" uid="uid://o0rx80tymr1y" path="res://content/sound/Cursor1.wav" id="5_q3nft"]
 [ext_resource type="AudioStream" uid="uid://b5gy0dcii8vxf" path="res://content/sound/Wait.mp3" id="9_fn40i"]
@@ -24,7 +23,6 @@ death_ally = ExtResource("3_28w17")
 death_enemy = ExtResource("4_bvd16")
 move_sound = ExtResource("4_ttjgu")
 cancel = ExtResource("1_8l24p")
-invalid_click = ExtResource("4_sfmkp")
 wait = ExtResource("9_fn40i")
 get_item = ExtResource("2_jnutg")
 metadata/_custom_type_script = "uid://lw1x2a7w3gui"

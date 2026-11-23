@@ -194,7 +194,6 @@ func _node_color(node) -> Color:
 	if not node.random_pool.is_empty():
 		return Color(0.9, 0.85, 0.3)
 	match node.node_type:
-		MapNode.NodeType.START: return Color(0.3, 0.9, 0.3)
 		MapNode.NodeType.NORMAL: return Color(0.85, 0.85, 0.85)
 		MapNode.NodeType.ELITE: return Color(1.0, 0.4, 0.4)
 		MapNode.NodeType.TREASURE: return Color(0.7, 0.5, 1.0)
@@ -216,7 +215,6 @@ func _node_label(node) -> String:
 
 func _node_type_short(t: int) -> String:
 	match t:
-		MapNode.NodeType.START: return "ST"
 		MapNode.NodeType.NORMAL: return "NM"
 		MapNode.NodeType.ELITE: return "EL"
 		MapNode.NodeType.TREASURE: return "TR"

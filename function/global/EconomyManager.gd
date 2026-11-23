@@ -6,7 +6,6 @@ extends Node
 # ============================================================
 
 const TYPE_NAME_TO_ID : Dictionary = {
-	"START":    0,
 	"NORMAL":   1,
 	"ELITE":    2,
 	"TREASURE": 3,

@@ -432,6 +432,8 @@ func apply_armor(unit: UnitData, item_id: String, quality: String, forced_school
 		entry["cap"] = new_cap
 		entry["level"] = level
 		mechs[school] = entry
+		# ★ v6.48：并入的防具仍 append 到底层 armor_slots 以贡献属性/词条；
+		#   槽位显示由 EquipmentConfig 按 max_armor_slots 截断，不再让数组撑大 UI。
 		_append_armor_instance(unit, item_id)
 		build_changed.emit(unit.unit_name)
 		# ★ v6.34（B1）：升 Lv 跨过 2/4 质变阈值才发觉醒反馈，普通并入不刷屏
@@ -440,7 +442,9 @@ func apply_armor(unit: UnitData, item_id: String, quality: String, forced_school
 		return {"result": "merge", "school": school, "level": level, "cap": new_cap, "replaced": ""}
 
 	var used := mechs.size()
-	var slots := get_mechanism_slots(unit.unit_name)
+	# ★ v6.51：用单位的当前槽上限（过天+1会涨 max_armor_slots），
+	#   而非按单位名查的固定表——否则第二天新增的槽无法落位新流派。
+	var slots := unit.max_armor_slots
 	if used >= slots:
 		return {"result": "full", "school": school, "level": 0, "cap": cap, "replaced": ""}
 
@@ -515,7 +519,6 @@ func exp_to_next_level(current_level: int) -> int:
 func battle_exp_reward(node_type: int, rating: String) -> int:
 	var base := 40
 	match node_type:
-		MapNode.NodeType.START:   base = 40
 		MapNode.NodeType.NORMAL:  base = 60
 		MapNode.NodeType.ELITE:   base = 90
 		MapNode.NodeType.BOSS:    base = 120

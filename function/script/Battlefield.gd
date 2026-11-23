@@ -420,7 +420,7 @@ func _build_battle_start_context() -> Dictionary:
 	var node_type: int = md.node_type if md != null else MapNode.NodeType.NORMAL
 	var is_boss: bool = (node_type == MapNode.NodeType.BOSS)
 	var is_elite: bool = (node_type == MapNode.NodeType.ELITE)
-	var is_start: bool = (node_type == MapNode.NodeType.START)
+	var is_start: bool = false  # ★ v6.47：START节点类型已废弃
 
 	var tags: Array = []
 	for ud in GameState.party:

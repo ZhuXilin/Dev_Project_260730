@@ -17,8 +17,8 @@ const CONFIG_FILES : Array = [
 	{"name": "竞技场", "file": "arena_config.json"},
 ]
 
-const COMBAT_TYPES : Array = ["START", "NORMAL", "ELITE", "BOSS"]
-const TYPE_NAMES : Array = ["START", "NORMAL", "ELITE", "SHOP", "TREASURE", "BOSS", "FORGE", "CHAPEL"]
+const COMBAT_TYPES : Array = ["NORMAL", "ELITE", "BOSS"]
+const TYPE_NAMES : Array = ["NORMAL", "ELITE", "SHOP", "TREASURE", "BOSS", "FORGE", "CHAPEL"]
 
 # ---- 状态 ----
 var _current_file_idx : int = 0

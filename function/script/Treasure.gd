@@ -313,6 +313,8 @@ func _on_option_selected(idx : int):
 	if idx < 0 or idx >= _reward_options.size():
 		return
 
+	# ★ v6.41：选择音效（此前宝箱点击完全无声）
+	SoundManager.play_select_sound()
 	_applied = true
 	var option : Dictionary = _reward_options[idx]
 	
@@ -379,6 +381,9 @@ func _apply_reward(option : Dictionary):
 	var items : Array = option.get("items", [])
 	for item_id in items:
 		_grant_item(item_id)
+
+	# ★ v6.41：获得奖励音效（金币/魂火/道具统一播一次，不随道具数重复）
+	SoundManager.play_get_item_sound()
 
 
 func _grant_item(item_id: String):
