@@ -20,6 +20,31 @@ func _init(bf: Node2D):
 	if cfg.has("BOSS"): RARE_DROP_CHANCE[MapNode.NodeType.BOSS] = float(cfg["BOSS"])
 
 
+## ★ v6.60：等待所有"胜利表演"收尾后再弹面板，并留一段缓冲避免节奏太快。
+##   背景：v6.57 击杀即判胜把胜利信号提前到 HP 归零帧末，此时攻击链
+##   （Boss 死亡对话 → 死亡动画 → 击杀升级跳字）才刚要开始。若只看当时的标志，
+##   它们全是 false，面板会在表演开始前就弹出。
+##   所以：先等 2 帧让表演启动并置位，再循环等所有标志清空，最后留缓冲。
+const VICTORY_SETTLE_BUFFER : float = 0.4   ## 表演全结束后的额外停顿（真实时间，不受倍速）
+const VICTORY_SETTLE_TIMEOUT_MS : int = 8000
+
+func _wait_for_all_show_performances() -> void:
+	# 1) 等 2 帧：攻击链协程从这里开始跑，对话/升级标志会在此时置位
+	for _i in range(2):
+		await get_tree().process_frame
+	# 2) 循环等所有表演收尾（含整条攻击链 is_performing_action、死亡动画、对话、升级、淡入淡出）
+	var start := Time.get_ticks_msec()
+	while Globals.is_performing_action or Globals.is_dialogue_active \
+			or Globals.is_item_get_popup_active or Globals.level_up_performing_count > 0 \
+			or Globals.is_fading:
+		if Time.get_ticks_msec() - start > VICTORY_SETTLE_TIMEOUT_MS:
+			push_warning("VictoryHandler: 等待胜利表演超时(%dms)，强制继续" % VICTORY_SETTLE_TIMEOUT_MS)
+			break
+		await get_tree().process_frame
+	# 3) 缓冲：让最后一个表演有呼吸感，节奏不那么急
+	await get_tree().create_timer(VICTORY_SETTLE_BUFFER, true, false, true).timeout
+
+
 func record_battle_start_hp():
 	_battle_start_hp.clear()
 	for u in UnitManager.unit_list:
@@ -95,6 +120,8 @@ func on_request_show_victory(winning_team: int) -> void:
 
 	print("=== _on_request_show_victory 被调用, _victory_processed: ", _bf._victory_processed)
 	await _bf._wait_for_ui_clear()
+	# ★ v6.60：等所有胜利表演（Boss 死亡对话/死亡动画/击杀升级跳字）收尾 + 缓冲
+	await _wait_for_all_show_performances()
 
 	if _bf._victory_processed:
 		print("胜利已处理，跳过重复调用")
@@ -215,6 +242,10 @@ func on_request_show_victory(winning_team: int) -> void:
 
 		if is_win and is_boss:
 			GameState.should_advance_day = true
+
+		# ★ v6.60：战后经验升级（上面 grant_exp_and_auto_level）也会触发升级跳字，
+		#   弹面板前再等一次，避免结算表演与胜利面板重叠。
+		await _wait_for_all_show_performances()
 
 		SignalBus.battle_completed.emit(winning_team, is_boss)
 

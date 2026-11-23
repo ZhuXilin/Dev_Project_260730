@@ -1,8 +1,8 @@
 # 《魂火》v6 玩法设计文档（装备减负 · 选择组成 Build）
 
-> 状态：v6 主玩法已落地代码，最新修订 v6.59（2026-11-24）。  
+> 状态：v6 主玩法已落地代码，最新修订 v6.60（2026-11-24）。  
 > 本文描述**当前玩法**。v5 骨架（战斗/地图/魂火/存档/编辑器）与 v6 新规则均已实现，代码落点见第十章。  
-> 近期变更：v6.55「防具槽越界修复 + 熔铸奖励数值提示」、v6.56「熔铸确认分区 + 掉落物悬停信息」、v6.57「Boss 死亡即时胜利 + 升级仪式感」、v6.58「等级系统重做：击杀得经验 + 显示 + 阵型移除准备」、v6.59「阵型系统移除」。可玩性评估见第十一章。  
+> 近期变更：v6.55「防具槽越界修复 + 熔铸奖励数值提示」、v6.56「熔铸确认分区 + 掉落物悬停信息」、v6.57「Boss 死亡即时胜利 + 升级仪式感」、v6.58「等级系统重做：击杀得经验 + 显示」、v6.59「阵型系统移除」、v6.60「胜利界面等全部表演结束 + 缓冲」。可玩性评估见第十一章。  
 > 承接方案：`EquipmentSlimPlan.md`、`EquipmentOneClickPlan.md`、`EquipmentUIIterationPlan.md`；冻结摘要见 `EquipmentBuildRefactorSummary.md`。
 
 ---
@@ -115,8 +115,8 @@ v6 的体验重点从“我把装备摆对了吗”转为：
 ### 3.3 战后循环
 
 ```text
-战斗胜利
-  → 等待所有表演结束（Boss 死亡对话 + 升级跳字，见 5.8）
+战斗胜利（击杀即判胜，信号在 HP 归零帧末发出）
+  → 等待全部表演收尾 + 缓冲（v6.60，见 5.8）
   → 结算金币 / 魂 / 解锁 + 战后额外经验
   → 防具轮盘（金币，玩家停轮选结果，每次 +50G）
   → 停轮后停留 0.5s 展示抽到的防具（期间不可操作）
@@ -124,7 +124,7 @@ v6 的体验重点从“我把装备摆对了吗”转为：
   → 继续地图
 ```
 
-战后结算不再出现防具卡片，不再有稀有防具掉落。胜利界面会等场上所有表演（对话、升级跳字）结束后才弹出，避免玩家在"已判胜但看不到面板"的窗口里误操作。防具轮盘停轮后固定停留 0.5 秒真实时间（不受倍速影响）展示结果，让玩家看清抽到了什么。
+战后结算不再出现防具卡片，不再有稀有防具掉落。胜利界面（v6.60）会先等 2 帧让击杀触发的攻击链启动，再等到**所有表演标志清空**——整条攻击链 `is_performing_action`（覆盖 Boss 死亡对话、死亡动画 0.58s）、获得物品弹窗、升级跳字计数、淡入淡出——最后再留 **0.4 秒真实时间缓冲**（不受倍速），节奏不急促；战后经验升级的跳字在弹面板前会再等一次。8 秒超时兜底防止标志残留卡死。这样避免"已判胜但面板在表演前就弹出/节奏太快"。防具轮盘停轮后固定停留 0.5 秒真实时间（不受倍速影响）展示结果，让玩家看清抽到了什么。
 
 ### 3.4 节点循环
 
@@ -601,7 +601,7 @@ v6 不再把熔铸防具作为普通防具来源；它是伤亡价值化出口�
 
 ---
 
-## 十、代码落地状态（2026-11-24，v6.59）
+## 十、代码落地状态（2026-11-24，v6.60）
 
 v6 主线已落地代码，核心计算集中在 `BuildManager`（autoload）。实现与本文口径的对应关系：
 
@@ -615,7 +615,7 @@ v6 主线已落地代码，核心计算集中在 `BuildManager`（autoload）。
 | 战后防具 roll + 领取台 | `ArmorRollUI.gd`、`VictoryHandler`（去稀有掉落 + 插入 roll） | 已落地 |
 | 宝箱去防具 | `Treasure.gd`（防具选项改魂） | 已落地 |
 | 经验自动升级 | `BuildManager.grant_exp_and_auto_level`、`_is_level_up_enabled=false`；v6.58 起经验来源改为击杀（`CombatManager._on_kill` 按 `kill_exp`）+ 战后额外（`VictoryHandler`），敌方 exp 配在 `unit_data.json`，`start_new_cycle` 同步重置 level/experience | 已落地（v6.58 重做） |
-| 升级仪式感 + 胜利时序 | `SignalBus.request_level_up_popup` → `Battlefield` 播 0.25s 停顿 + LV 跳字 + get_item 音效；`Globals.level_up_performing_count` 让 `_wait_for_ui_clear` 等所有表演结束 | 已落地（v6.57/58） |
+| 升级仪式感 + 胜利时序 | `SignalBus.request_level_up_popup` → `Battlefield` 播 0.25s 停顿 + LV 跳字 + get_item 音效；`VictoryHandler._wait_for_all_show_performances`（v6.60）等 2 帧启动表演后循环等 `is_performing_action`/对话/弹窗/升级/淡入淡出全清，再留 0.4s 缓冲；弹面板前二次等待覆盖战后经验升级。8s 超时兜底。`clear_saved()` 保持在等待前（v6.40 Boss 音乐时序） | 已落地（v6.57/58/60） |
 | 阵型系统移除 | v6.59 删除 `FormationManager` autoload 与全部 6 组配合、连线 UI、信号；效果触发从 `CombatManager`/`TurnManager` 清除，各流派自身机制保留 | 已移除（v6.59） |
 | 掉落物悬停信息 | `item_battlefield_data.json` 的 name/description → `ItemBattlefieldManager.get_orb_info` → `Battlefield._on_request_show_info` 复用地形面板显示 | 已落地（v6.56） |
 | 防具槽越界修复 | `BuildManager._append_armor_instance` 容量校验，满槽拒绝并返回 full | 已落地（v6.55） |
