@@ -445,6 +445,11 @@ func _refresh_editor_content():
 		c.queue_free()
 
 	if not _record_keys.is_empty() and _current_record_key != "" and _cfg.has(_current_record_key):
+		# ★ v6.62o：遗物缺 slot_machine 字段时补默认值 false，保证每件遗物都有「类型」复选框可切换
+		if _path.contains("relic_data") and _cfg[_current_record_key] is Dictionary:
+			var rec : Dictionary = _cfg[_current_record_key]
+			if not rec.has("slot_machine"):
+				rec["slot_machine"] = false
 		_render_group(_editor_vbox, _cfg[_current_record_key], _current_record_key, 0)
 	else:
 		_render_dict(_editor_vbox, _cfg, "", 0)
@@ -493,8 +498,8 @@ func _on_new_record_pressed():
 	panel.set_anchors_preset(Control.PRESET_CENTER)
 	panel.offset_left = -150
 	panel.offset_right = 150
-	panel.offset_top = -80
-	panel.offset_bottom = 80
+	panel.offset_top = -100  # v6.62o：加遗物类型选择行，面板加高
+	panel.offset_bottom = 100
 	var sb := StyleBoxFlat.new()
 	sb.bg_color = Color(0.12, 0.12, 0.15, 1)
 	sb.border_color = Color(0.4, 0.4, 0.5, 1)
@@ -554,6 +559,27 @@ func _on_new_record_pressed():
 		opt.set_item_metadata(opt.item_count - 1, k)
 	opt.selected = 0
 
+	# ★ v6.62o：遗物新建面板直接选类型（团队遗物 / 防具遗物-老虎机），写入 slot_machine
+	var is_relic_file : bool = _path.contains("relic_data")
+	var type_opt : OptionButton = null
+	if is_relic_file:
+		var type_row := HBoxContainer.new()
+		type_row.add_theme_constant_override("separation", 6)
+		vbox.add_child(type_row)
+		var type_lb := Label.new()
+		type_lb.text = "遗物类型:"
+		type_lb.custom_minimum_size = Vector2(52, 0)
+		type_lb.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		type_row.add_child(type_lb)
+		type_opt = OptionButton.new()
+		type_opt.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		type_opt.add_theme_font_size_override("font_size", FS_BUTTON)
+		type_opt.add_item("团队遗物")
+		type_opt.set_item_metadata(0, false)
+		type_opt.add_item("防具遗物（老虎机）")
+		type_opt.set_item_metadata(1, true)
+		type_row.add_child(type_opt)
+
 	var btn_row := HBoxContainer.new()
 	btn_row.alignment = BoxContainer.ALIGNMENT_CENTER
 	btn_row.add_theme_constant_override("separation", 8)
@@ -579,9 +605,9 @@ func _on_new_record_pressed():
 		var new_data : Dictionary = {}
 		if tpl_key != "" and _cfg.has(tpl_key) and _cfg[tpl_key] is Dictionary:
 			new_data = (_cfg[tpl_key] as Dictionary).duplicate(true)
-		# ★ v6.62l：遗物空白模板补 slot_machine 字段，便于新建后直接切换团队/防具遗物类型
-		if tpl_key == "" and _path.contains("relic_data") and not new_data.has("slot_machine"):
-			new_data["slot_machine"] = false
+		# ★ v6.62o：遗物类型以新建面板的用户选择为准（覆盖模板带来的值）
+		if is_relic_file and type_opt != null:
+			new_data["slot_machine"] = bool(type_opt.get_item_metadata(type_opt.selected))
 		new_data["id"] = new_id
 		_cfg[new_id] = new_data
 		_current_record_key = new_id
@@ -962,6 +988,42 @@ func _normalize_icon_id(value: String) -> String:
 	return v.get_basename()
 
 
+## ★ v6.62n：枚举字段下拉（中文显示 + 英文值存储），避免手输字符串出错。
+##   options: [[显示名, 实际值], ...]；当前值不在列表里时插为特殊项保留，不丢配置。
+func _render_enum_picker_row(row : HBoxContainer, target_dict : Dictionary, key : String, current : String, options : Array):
+	var opt := OptionButton.new()
+	opt.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	opt.custom_minimum_size = Vector2(120, 0)
+	opt.add_theme_font_size_override("font_size", FS_BUTTON)
+
+	var selected_idx : int = 0
+	for i in range(options.size()):
+		var pair : Array = options[i]
+		opt.add_item(str(pair[0]))
+		opt.set_item_metadata(i, str(pair[1]))
+		if str(pair[1]) == current:
+			selected_idx = i
+	# 当前值不在选项里（如旧数据/空值）：追加为特殊项保留，避免保存时丢配置
+	if current != "" and not _enum_has_value(options, current):
+		var special_idx : int = opt.item_count
+		opt.add_item("（原值）" + current, special_idx)
+		opt.set_item_metadata(special_idx, current)
+		selected_idx = special_idx
+	opt.selected = selected_idx
+	row.add_child(opt)
+
+	opt.item_selected.connect(func(idx: int):
+		target_dict[key] = str(opt.get_item_metadata(idx))
+		_dirty = true
+	)
+
+
+func _enum_has_value(options : Array, value: String) -> bool:
+	for pair in options:
+		if str(pair[1]) == value: return true
+	return false
+
+
 func _render_simple_row(parent : Node, target_dict : Dictionary, key : String, value, path : String):
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 3)
@@ -1006,6 +1068,12 @@ func _render_simple_row(parent : Node, target_dict : Dictionary, key : String, v
 			# v5.5：防具/遗物/特技的 icon 都走 item_* 图标下拉，不再只限防具
 			if key == "icon" and _is_icon_picker_file():
 				_render_icon_picker_row(row, target_dict, key, str(value))
+			# ★ v6.62n：遗物的 lifetime 用中文下拉（持续型/消耗型），避免手输 persistent/consumable 出错
+			elif key == "lifetime" and _path.contains("relic_data"):
+				_render_enum_picker_row(row, target_dict, key, str(value), [
+					["持续型", "persistent"],
+					["消耗型（战场主动释放）", "consumable"],
+				])
 			# ★ 如果是 flavor（叙事），使用多行 TextEdit，并修复左侧 Label 被挤压的问题
 			elif key == "flavor":
 				var te := TextEdit.new()
