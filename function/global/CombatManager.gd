@@ -388,6 +388,20 @@ func execute_attack(attacker: Unit, defender: Unit, forced_skill_id: String = ""
 	#   旧实现在攻击结算末尾才扣，而命中(+1)/击杀(+3)收益在它之前结算：
 	#   狙击这类高伤技能经常直接击杀，+3 正好抵消 -3，魂火条看起来完全没变。
 	#   前移后 HUD 会先减少，之后命中/击杀再补回，玩家能明确看到消耗。
+	# ★ v6.63：魂火 ≥3 时技能自动爆发——所有入口（手动菜单 / 托管 AI）在此统一收敛。
+	#   只有"对敌方的非治疗技能"会转为爆发；普攻与治疗技能不触发，不新增第三个攻击指令。
+	var _burst_target_ally : bool = defender.unit_stats.team_id == attacker.unit_stats.team_id
+	if forced_skill_id != "" and forced_skill_id != "soul_fire_burst" \
+			and not _burst_target_ally and attacker.unit_stats.team_id == 0 \
+			and SoulFireManager.current >= 3:
+		var _burst_src = TalentManager.get_talent_data(forced_skill_id)
+		if _burst_src != null:
+			var _is_heal : bool = str(_burst_src.effect_type) == "heal" \
+				or (_burst_src.effect_params is Dictionary \
+					and ( _burst_src.effect_params as Dictionary).has("heal_multiplier"))
+			if not _is_heal:
+				forced_skill_id = "soul_fire_burst"
+
 	var has_skill : bool = false
 	var active_skill_id : String = ""
 	var active_skill_data = null
@@ -1167,7 +1181,7 @@ func _apply_burning_splash(attacker : Unit, center : Unit, base_damage : int, pe
 		if not t or t.hit_points <= 0: continue
 		if t.unit_stats.team_id == attacker.unit_stats.team_id: continue
 		var splash_dmg : int = maxi(1, int(base_damage * percent))
-		var dead : bool = _apply_damage_with_effects(t, splash_dmg, attacker, false)
+		var dead : bool = _apply_damage_with_effects(t, splash_dmg, attacker, false, false)
 		await _wait_dialogue()
 		if dead:
 			if _try_boss_revive(t, attacker): continue
@@ -1183,7 +1197,7 @@ func _apply_splash(attacker: Unit, defender: Unit, base_damage: int, percent: fl
 	if not splash_target or splash_target.hit_points <= 0: return
 	if splash_target.unit_stats.team_id == attacker.unit_stats.team_id: return
 	var splash_dmg = int(base_damage * percent)
-	var dead = _apply_damage_with_effects(splash_target, splash_dmg, attacker, is_crit)
+	var dead = _apply_damage_with_effects(splash_target, splash_dmg, attacker, is_crit, false)
 	await _wait_dialogue()
 	# ★ v5.0：贯穿溅射命中但未击杀 → on_hit
 	if attacker.unit_stats.team_id == 0 and not dead:
@@ -1205,7 +1219,7 @@ func _apply_aoe(attacker: Unit, center: Unit, base_damage: int, percent: float, 
 		if not target or target.hit_points <= 0: continue
 		if target.unit_stats.team_id == attacker.unit_stats.team_id: continue
 		var aoe_dmg = int(base_damage * percent)
-		var dead = _apply_damage_with_effects(target, aoe_dmg, attacker, is_crit)
+		var dead = _apply_damage_with_effects(target, aoe_dmg, attacker, is_crit, false)
 		await _wait_dialogue()
 		# ★ v5.0：AOE 命中但未击杀 → on_hit
 		if attacker.unit_stats.team_id == 0 and not dead:
@@ -1221,7 +1235,9 @@ func _apply_aoe(attacker: Unit, center: Unit, base_damage: int, percent: float, 
 			target.queue_free()
 
 
-func _apply_damage_with_effects(defender: Unit, damage: int, attacker: Unit, is_crit: bool = false) -> bool:
+## ★ v6.63：trigger_abnormal 控制异常施加/消费——只有普攻/技能主伤害触发；
+##   溅射 / AOE / 追击 / 反击只算附加伤害，不触发异常（体系的统一出口约束）。
+func _apply_damage_with_effects(defender: Unit, damage: int, attacker: Unit, is_crit: bool = false, trigger_abnormal: bool = true) -> bool:
 	if defender.unit_stats.team_id == 0 and defender.get_meta("gm_god", false):
 		damage = 0
 
@@ -1317,9 +1333,9 @@ func _apply_damage_with_effects(defender: Unit, damage: int, attacker: Unit, is_
 					defeated = true
 			# ★ v6.59：F1 燎原阵型效果已移除（烈焰自身灼烧仍保留）
 
-	# ★ v6.62y：异常状态——攻击后按施加端概率挂层，消费端引爆/融化/魂火汲取。
-	#   异常是防具词条的运行时表现（见 AbnormalManager / GameplayDesignDoc 5.4.1）。
-	if not defeated and is_instance_valid(attacker) and damage > 0 \
+	# ★ v6.62y / v6.63：异常状态——只由普攻/技能主伤害触发施加/消费；
+	#   溅射 / AOE / 追击 / 反击传 trigger_abnormal=false，只结算附加伤害。
+	if trigger_abnormal and not defeated and is_instance_valid(attacker) and damage > 0 \
 			and defender.unit_stats.team_id != attacker.unit_stats.team_id:
 		# 消费端优先：目标已有对应异常且攻击方有消费词条时引爆（DOT 击杀归引爆者）
 		var consume_dmg : int = AbnormalManager.consume_on_attack(attacker, defender)

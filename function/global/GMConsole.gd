@@ -686,7 +686,7 @@ func _cmd_adv_class(args: Array):
 		_out("该单位无转职", "red"); return
 	u.advanced_class = adv.id
 	if adv.granted_talent != "":
-		u.advanced_talent_id = adv.granted_talent
+		u.advanced_talent_id = TalentManager.resolve_granted_talent(adv.granted_talent)  # v6.63 主动转残响被动
 	for k in adv.stat_bonus:
 		match k:
 			"max_hp":

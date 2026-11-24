@@ -368,10 +368,12 @@ static func from_dict(d: Dictionary) -> UnitData:
 
 	data.advanced_talent_inst = null
 	if data.advanced_talent_id != "":
+		# ★ v6.63：旧存档里的主动转职技能统一降为残响被动（combo），不占第二个攻击按钮。
+		var resolved_id : String = TalentManager.resolve_granted_talent(data.advanced_talent_id)
 		var t_inst := TalentInstance.new()
-		t_inst.talent_id = data.advanced_talent_id
+		t_inst.talent_id = resolved_id
 		t_inst.is_active = true
-		var tdata = TalentManager.get_talent_data(data.advanced_talent_id)
+		var tdata = TalentManager.get_talent_data(resolved_id)
 		if tdata and tdata.is_active_skill: t_inst.is_ready = true
 		data.advanced_talent_inst = t_inst
 

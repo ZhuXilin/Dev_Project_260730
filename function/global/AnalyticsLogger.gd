@@ -292,7 +292,6 @@ func dump_summary():
 	var forge_time_total : float = 0.0
 	var forge_visits_total : int = 0
 	var sf_burning_total : float = 0.0
-	var sf_depleted_total : float = 0.0
 	var sf_zero_total : float = 0.0
 	var dispatch_total : int = 0
 	var dispatch_match_total : int = 0
@@ -330,7 +329,6 @@ func dump_summary():
 		forge_time_total += float(d.get("forge_total_time_sec", 0.0))
 		forge_visits_total += int(d.get("forge_visits", 0))
 		sf_burning_total += float(d.get("sf_time_in_burning", 0.0))
-		sf_depleted_total += float(d.get("sf_time_in_depleted", 0.0))
 		sf_zero_total += float(d.get("sf_time_in_zero", 0.0))
 		dispatch_total += int(d.get("dispatch_count", 0))
 		dispatch_match_total += int(d.get("dispatch_tag_match_count", 0))

@@ -756,13 +756,12 @@ func _show_attack_menu(attacker: Unit, target: Unit, _is_after_move: bool) -> vo
 	var normal_heal_available : bool = is_healer and target_is_ally and target_wounded
 	var normal_available : bool = normal_attack_available or normal_heal_available
 
-	# ★ 新增：魂火爆发判定（仅针对敌人，且非治疗）
+	# ★ v6.63：魂火爆发并入技能按钮，不再有独立爆发按钮。
+	#   魂火 ≥3 时技能自动爆发（见下方技能项文案与 skill_id 替换）。
 	var sf_cost : int = SoulFireManager.current
-	var sf_burst_available : bool = false
-	if not target_is_ally and sf_cost >= 3:
-		sf_burst_available = true
+	var will_burst : bool = sf_cost >= 3
 
-	# 目标只因主动技能 range_bonus 才可达时（如狙击 +2），禁用普攻与魂火爆发，
+	# 目标只因主动技能 range_bonus 才可达时（如狙击 +2），禁用普攻，
 	# 并且只保留射程加成足以覆盖该距离的技能，避免越距普攻。
 	if not target_is_ally:
 		var atk_s = attacker.unit_stats
@@ -772,7 +771,6 @@ func _show_attack_menu(attacker: Unit, target: Unit, _is_after_move: bool) -> vo
 		if dist > base_max or dist < atk_s.min_attack_range:
 			normal_attack_available = false
 			normal_available = normal_heal_available
-			sf_burst_available = false
 			var ranged_skills : Array = []
 			for sd in available_skills:
 				var bonus : int = int(sd.effect_params.get("range_bonus", 0))
@@ -784,7 +782,6 @@ func _show_attack_menu(attacker: Unit, target: Unit, _is_after_move: bool) -> vo
 	if normal_available: total_options += 1
 	total_options += available_skills.size()
 	if emergency_available: total_options += 1
-	if sf_burst_available: total_options += 1
 
 	if total_options == 0:
 		if target_is_ally:
@@ -810,12 +807,17 @@ func _show_attack_menu(attacker: Unit, target: Unit, _is_after_move: bool) -> vo
 
 	if total_options == 1:
 		if emergency_available and available_skills.is_empty() \
-				and not normal_attack_available and not normal_heal_available and not sf_burst_available:
+				and not normal_attack_available and not normal_heal_available:
 			call_deferred("_do_emergency_heal_async", attacker, target)
 			return
 		if available_skills.size() == 1 and not emergency_available \
-				and not normal_attack_available and not normal_heal_available and not sf_burst_available:
-			call_deferred("_do_combat_async", attacker, target, available_skills[0].id)
+				and not normal_attack_available and not normal_heal_available:
+			var only_skill = available_skills[0]
+			var only_heal : bool = str(only_skill.effect_type) == "heal" \
+				or (only_skill.effect_params is Dictionary and (only_skill.effect_params as Dictionary).has("heal_multiplier"))
+			# ★ v6.63：唯一技能项同样遵循"魂火≥3 自动爆发"
+			var final_id : String = "soul_fire_burst" if (will_burst and not target_is_ally and not only_heal) else str(only_skill.id)
+			call_deferred("_do_combat_async", attacker, target, final_id)
 			return
 		call_deferred("_do_combat_async", attacker, target, "")
 		return
@@ -840,36 +842,30 @@ func _show_attack_menu(attacker: Unit, target: Unit, _is_after_move: bool) -> vo
 	var meta_by_id : Dictionary = {}
 
 	if normal_attack_available:
-		var est_dmg = CombatManager.calculate_damage(attacker, target)
-		popup.add_item("普通攻击 (伤害: %d)" % est_dmg, next_id)
+		popup.add_item("普攻", next_id)
 		meta_by_id[next_id] = {"kind": "attack", "skill_id": ""}
 		next_id += 1
 
 	if normal_heal_available:
-		var est_heal = CombatManager.get_expected_heal_amount(attacker, target)
-		popup.add_item("普通治疗 (回复: %d)" % est_heal, next_id)
+		popup.add_item("治疗", next_id)
 		meta_by_id[next_id] = {"kind": "attack", "skill_id": ""}
 		next_id += 1
 
 	for sdata in available_skills:
-		var ep : Dictionary = sdata.effect_params
-		# ★ v5.9：技能项明确标出魂火消耗，与急救/魂火爆发口径一致
+		# ★ v6.63c：极简文案——「名称·状态」一个短词，不写满一行。
+		#   爆发态只标「·爆发」；普通态只标「·N魂」。伤害/回复数字省略，
+		#   玩家要判断的是"这次花几魂 / 会不会爆发"，不是看数值预览。
 		var skill_cost : int = CombatManager._get_active_skill_cost(sdata)
-		var skill_text = sdata.display_name
-		if sdata.effect_type == "heal" or ep.has("heal_multiplier"):
-			var mult = float(ep.get("heal_multiplier", 1.0))
-			var est_heal = int(CombatManager.get_expected_heal_amount(attacker, target) * mult)
-			skill_text += " (回复: %d，耗%d魂火)" % [est_heal, skill_cost]
+		var ep : Dictionary = sdata.effect_params
+		var is_heal : bool = sdata.effect_type == "heal" or ep.has("heal_multiplier")
+		var bursting : bool = will_burst and not target_is_ally and not is_heal
+		var skill_text : String = sdata.display_name
+		if bursting:
+			skill_text += "·爆发"
 		else:
-			var est_dmg = CombatManager.calculate_damage(attacker, target)
-			if ep.get("ignore_defense", false):
-				est_dmg = CombatManager._calculate_damage_ignore_defense(attacker, target, false)
-			var mult = float(ep.get("damage_mult", 1.0))
-			est_dmg = int(est_dmg * mult)
-			skill_text += " (伤害: %d，耗%d魂火)" % [est_dmg, skill_cost]
-			
+			skill_text += "·%d魂" % skill_cost
 		popup.add_item(skill_text, next_id)
-		meta_by_id[next_id] = {"kind": "attack", "skill_id": sdata.id}
+		meta_by_id[next_id] = {"kind": "attack", "skill_id": sdata.id, "is_skill": true}
 		next_id += 1
 
 	# ★ v6.24：把「冷却中 / 魂火不足」的主动技能也列进菜单并灰显，标出原因，
@@ -901,10 +897,10 @@ func _show_attack_menu(attacker: Unit, target: Unit, _is_after_move: bool) -> vo
 		var einst: TalentInstance = entry["inst"]
 		var reason : String = ""
 		if einst.cooldown_remaining > 0:
-			reason = "冷却 %d 回合" % einst.cooldown_remaining
+			reason = "冷%d" % einst.cooldown_remaining
 		else:
 			reason = "魂火不足"
-		popup.add_item("%s（%s，不可用）" % [sd.display_name, reason], next_id)
+		popup.add_item("%s·%s" % [sd.display_name, reason], next_id)
 		popup.set_item_disabled(popup.item_count - 1, true)
 		meta_by_id[next_id] = {"kind": "disabled"}
 		next_id += 1
@@ -914,29 +910,20 @@ func _show_attack_menu(attacker: Unit, target: Unit, _is_after_move: bool) -> vo
 		var be := CombatManager.get_build_energy(attacker)
 		var dom := CombatManager.get_dominant_school(attacker)
 		if CombatManager.can_release_build_burst(attacker) and dom != "":
-			popup.add_item("★ %s · Build 觉醒技（能量满）！" % dom, next_id)
+			popup.add_item("★%s觉醒" % dom, next_id)
 			meta_by_id[next_id] = {"kind": "build_burst"}
 		else:
-			popup.add_item("Build 觉醒技（能量 %d/100%s）" % [
-				be, " · 需先觉醒流派" if dom == "" else ""], next_id)
+			popup.add_item("觉醒%d/100" % be, next_id)
 			popup.set_item_disabled(popup.item_count - 1, true)
 			meta_by_id[next_id] = {"kind": "disabled"}
 		next_id += 1
 
 	if emergency_available:
-		var em_heal = CombatManager.get_expected_emergency_heal(attacker, target)
-		popup.add_item("急救 (回复: %d，耗%d魂火)" % [em_heal, emergency_cost], next_id)
+		popup.add_item("急救·%d魂" % emergency_cost, next_id)
 		meta_by_id[next_id] = {"kind": "emergency_heal"}
 		next_id += 1
 
-	# ★ 新增：添加魂火爆发的 UI 按钮
-	if sf_burst_available:
-		var est_dmg = CombatManager.calculate_damage(attacker, target)
-		var extra_dmg = int(attacker.unit_stats.attack * 0.15 * sf_cost) + (3 * sf_cost)
-		est_dmg += extra_dmg
-		popup.add_item("魂火爆发 (伤害: %d，消耗全部 %d 魂火)" % [est_dmg, sf_cost], next_id)
-		meta_by_id[next_id] = {"kind": "attack", "skill_id": "soul_fire_burst"}
-		next_id += 1
+	# ★ v6.63：独立「魂火爆发」按钮已移除——爆发并入技能按钮（见上方技能项）。
 
 	popup.id_pressed.connect(func(id):
 		var meta : Dictionary = meta_by_id.get(id, {})
@@ -946,6 +933,15 @@ func _show_attack_menu(attacker: Unit, target: Unit, _is_after_move: bool) -> vo
 		state["confirmed"] = true
 		Globals.is_attack_menu_active = false
 		var skill_id : String = str(meta.get("skill_id", ""))
+		# ★ v6.63：魂火 ≥3 时技能自动爆发——替换 skill_id，走 CombatManager 统一爆发通道。
+		#   仅技能项（is_skill）触发，普攻不自动爆发；治疗技能不触发爆发。
+		var picked_skill = TalentManager.get_talent_data(skill_id)
+		var is_heal_skill : bool = false
+		if picked_skill != null:
+			is_heal_skill = str(picked_skill.effect_type) == "heal" \
+				or (picked_skill.effect_params is Dictionary and (picked_skill.effect_params as Dictionary).has("heal_multiplier"))
+		if bool(meta.get("is_skill", false)) and will_burst and not target_is_ally and not is_heal_skill:
+			skill_id = "soul_fire_burst"
 		popup.queue_free()
 		blocker.queue_free()
 

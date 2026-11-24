@@ -582,11 +582,14 @@ func _begin_convert(unit : UnitData, adv : AdvancedClassData):
 			"move_range":   unit.move_range += val
 
 	if adv.granted_talent != "":
-		unit.advanced_talent_id = adv.granted_talent
+		# ★ v6.63：体系「1 主动 + 1 转职被动」——转职主动一律降为残响被动（combo），
+		#   不再产生第二个攻击按钮；原 active 的流派标签由防具词条承载。
+		var granted : String = TalentManager.resolve_granted_talent(adv.granted_talent)
+		unit.advanced_talent_id = granted
 		var t_inst := TalentInstance.new()
-		t_inst.talent_id = adv.granted_talent
+		t_inst.talent_id = granted
 		t_inst.is_active = true
-		var tdata = TalentManager.get_talent_data(adv.granted_talent)
+		var tdata = TalentManager.get_talent_data(granted)
 		if tdata and tdata.is_active_skill:
 			t_inst.is_ready = true
 			t_inst.cooldown_remaining = 0

@@ -59,6 +59,20 @@ static func load_talent_data():
 	print("成功加载 ", _talent_db.size(), " 个词条")
 
 
+## ★ v6.63：体系「1 主动 + 1 转职被动」——转职不得给第二个主动攻击技能。
+## 若转职配置授予的是主动技能，转成通用残响被动 `combo`（普攻追加伤害，自动结算、不占按钮）。
+## 原主动的流派标签由防具词条承载，残响只保留一个小自动效果，不写第二个 active。
+const ECHO_PASSIVE_ID: String = "combo"
+
+static func resolve_granted_talent(talent_id: String) -> String:
+	if talent_id == "":
+		return ""
+	var d := get_talent_data(talent_id)
+	if d != null and d.is_active_skill:
+		return ECHO_PASSIVE_ID
+	return talent_id
+
+
 static func reload_all() -> void:
 	_talent_data_loaded = false
 	_talent_db.clear()

@@ -338,27 +338,10 @@ func _exec_attack(unit: Unit, target) -> void:
 			skill_id = sid
 			break
 	
-	# ★ v4.8 新增：我方 AI 魂火爆发决策（仅针对敌人）
-	#   保守规则：Boss 需 ≥5 魂火、强敌需 ≥6 魂火，避免无脑清场
-	if skill_id == "" and not is_ally_target and unit.unit_stats.team_id == 0:
-		var sf_cost : int = SoulFireManager.current
-		if sf_cost >= 3:
-			var should_burst := false
-			var est_damage : int = CombatManager.calculate_damage(unit, target)
-			
-			if target.unit_stats.is_boss:
-				if sf_cost >= 5:
-					should_burst = true
-			elif sf_cost >= 6 and target.hit_points > est_damage * 2.0:
-				should_burst = true
-			
-			# 若这一击普通攻击已经够杀，不浪费爆发
-			if target.hit_points <= est_damage:
-				should_burst = false
-			
-			if should_burst:
-				skill_id = "soul_fire_burst"
-	
+	# ★ v6.63：魂火爆发不再有独立决策——爆发只走技能按钮出口。
+	#   托管下若有可用技能且魂火 ≥3，execute_attack 内部按"技能自动爆发"处理；
+	#   无技能可用时就是普攻，不另起第三个攻击指令。
+
 	await CombatManager.execute_attack(unit, target, skill_id)
 	
 	if is_instance_valid(unit) and unit.hit_points > 0 and unit.can_act_this_turn:
