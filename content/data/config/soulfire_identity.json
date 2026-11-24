@@ -1,0 +1,224 @@
+{
+  "_doc": "v6.64 魂火身份表：燃烧态特有效果 + 爆发附加 + 转职身份改造。燃烧(移动+1/溅射50%)为通用底盘，单位额外叠加 burn_trait；爆发=原技能效果×倍率+burst_trait+清空魂火+结束行动。数值字段由 CombatManager 解释，未知字段安全忽略。",
+  "units": {
+    "swordsman": {
+      "name": "剑士",
+      "burn_trait": {
+        "id": "cleave_adjacent",
+        "desc": "普攻后对相邻敌人追加50%攻击横扫",
+        "adjacent_multiplier": 0.5
+      },
+      "burst_trait": {
+        "id": "sweep_knockback",
+        "desc": "横扫相邻敌人80%攻击并击退1格",
+        "adjacent_multiplier": 0.8,
+        "knockback": 1
+      }
+    },
+    "mage": {
+      "name": "法师",
+      "burn_trait": {
+        "id": "spell_amp",
+        "desc": "技能范围+1、技能伤害+20%",
+        "range_bonus": 1,
+        "damage_bonus": 0.2
+      },
+      "burst_trait": {
+        "id": "magic_nova",
+        "desc": "目标周围范围爆炸并附加2层灼烧",
+        "aoe_multiplier": 0.6,
+        "burn_stacks": 2
+      }
+    },
+    "cleric": {
+      "name": "牧师",
+      "burn_trait": {
+        "id": "heal_engine",
+        "desc": "治疗量+30%，治疗时给目标回1魂火",
+        "heal_bonus": 0.3,
+        "soulfire_on_heal": 1
+      },
+      "burst_trait": {
+        "id": "mass_heal_purify",
+        "desc": "全队回复15%HP、净化1负面、回2魂火",
+        "team_heal_ratio": 0.15,
+        "cleanse": 1,
+        "soulfire_gain": 2
+      }
+    },
+    "armored": {
+      "name": "重甲",
+      "burn_trait": {
+        "id": "thorns",
+        "desc": "受击减伤+15%、反弹+30%",
+        "damage_reduction": 0.15,
+        "reflect": 0.3
+      },
+      "burst_trait": {
+        "id": "taunt_shield",
+        "desc": "嘲讽全场+30%最大HP护盾+反击强化",
+        "taunt_rounds": 1,
+        "shield_damage_reduction": 0.3,
+        "counter_boost": true
+      }
+    },
+    "archer": {
+      "name": "弓手",
+      "burn_trait": {
+        "id": "pierce_shot",
+        "desc": "射程+1，普攻可穿透一个目标",
+        "range_bonus": 1,
+        "pierce_targets": 1
+      },
+      "burst_trait": {
+        "id": "snipe_armorbreak",
+        "desc": "无视50%减伤的穿甲狙击",
+        "ignore_reduction": 0.5,
+        "armor_break": true
+      }
+    },
+    "spearman": {
+      "name": "枪兵",
+      "burn_trait": {
+        "id": "line_pierce",
+        "desc": "普攻贯穿直线，对第二目标50%伤害",
+        "second_target_multiplier": 0.5
+      },
+      "burst_trait": {
+        "id": "line_sweep_knockback",
+        "desc": "直线贯穿所有敌人并击退2格",
+        "knockback": 2
+      }
+    },
+    "pegasus": {
+      "name": "飞马",
+      "burn_trait": {
+        "id": "swift_charge",
+        "desc": "移动+2（替代+1），可穿越敌方单位",
+        "move_bonus_override": 2,
+        "pass_through": true
+      },
+      "burst_trait": {
+        "id": "dive_stun",
+        "desc": "俯冲目标并眩晕1回合",
+        "stun_rounds": 1
+      }
+    },
+    "axeman": {
+      "name": "斧手",
+      "burn_trait": {
+        "id": "armor_shred",
+        "desc": "普攻附带破甲（减防20%，1回合）",
+        "defense_shred": 0.2
+      },
+      "burst_trait": {
+        "id": "execute_again",
+        "desc": "200%攻击斩击，击杀则再行动一次（每场1次）",
+        "damage_multiplier": 2.0,
+        "reset_action_on_kill": true,
+        "per_battle_once": true
+      }
+    },
+    "dragonborn": {
+      "name": "龙裔",
+      "burn_trait": {
+        "id": "dragon_breath",
+        "desc": "普攻/技能附带锥形龙息（额外30%伤害）",
+        "breath_multiplier": 0.3
+      },
+      "burst_trait": {
+        "id": "dragon_nova",
+        "desc": "锥形龙息+3层灼烧+地面燃烧地块",
+        "burn_stacks": 3,
+        "leave_ash_tile": true
+      }
+    }
+  },
+  "advanced_overrides": {
+    "_doc": "转职分支对魂火身份的改造：burn_trait/burst_trait 覆盖或追加，name=转职后名号，tint=外观色调(hex)，hud_icon=魂火HUD图标，burst_label=技能按钮爆发文案。仅列 P0 剑士三分支样板，其余分支后续补。",
+    "archer_sniper": {
+      "name": "神射手",
+      "hud_icon": "焰",
+      "burst_label": "穿甲狙击"
+    },
+    "armored_paladin": {
+      "name": "圣骑士",
+      "hud_icon": "盾",
+      "burst_label": "嘲讽护盾"
+    },
+    "armored_flamebearer": {
+      "name": "焚身者",
+      "hud_icon": "焰",
+      "burst_label": "烈焰横扫"
+    },
+    "swordsman_flame_saint": {
+      "name": "烈焰剑圣",
+      "hud_icon": "焰",
+      "tint": "#C0392B",
+      "burst_label": "横扫引爆",
+      "burn_trait": {
+        "id": "cleave_adjacent_burn",
+        "desc": "横扫附带灼烧",
+        "adjacent_multiplier": 0.5,
+        "burn_stacks": 1
+      },
+      "burst_trait": {
+        "id": "sweep_knockback_detonate",
+        "desc": "横扫+击退+引爆灼烧",
+        "adjacent_multiplier": 0.8,
+        "knockback": 1,
+        "detonate_burn": true
+      }
+    },
+    "swordsman_guard": {
+      "name": "守护剑卫",
+      "hud_icon": "盾",
+      "tint": "#D4AC0D",
+      "burst_label": "嘲讽护盾",
+      "burn_trait": {
+        "id": "parry_reflect",
+        "desc": "受击反弹30%",
+        "reflect": 0.3
+      },
+      "burst_trait": {
+        "id": "taunt_shield_counter",
+        "desc": "嘲讽+护盾+反击强化",
+        "taunt_rounds": 1,
+        "shield_damage_reduction": 0.3,
+        "counter_boost": true
+      }
+    },
+    "swordsman_swift": {
+      "name": "疾风剑客",
+      "hud_icon": "风",
+      "tint": "#1ABC9C",
+      "burst_label": "三段突进",
+      "burn_trait": {
+        "id": "swift_step",
+        "desc": "移动+2，普攻后可再移动1格",
+        "move_bonus_override": 2,
+        "move_after_attack": 1
+      },
+      "burst_trait": {
+        "id": "triple_dash",
+        "desc": "多段突进（3段），每段60%",
+        "hit_count": 3,
+        "hit_multiplier": 0.6
+      }
+    }
+  },
+  "common_base": {
+    "_doc": "魂火通用底盘（所有单位共用，不在各单位身份里重复）：燃烧阈值/移动/溅射；非燃烧态无增益、归零不补负面。",
+    "burning_threshold": 0.5,
+    "move_bonus": 1,
+    "splash_percent": 0.5
+  },
+  "burst_multiplier": {
+    "_doc": "爆发倍率与触发：threshold=技能自动爆发的魂火阈值；额外伤害按消耗魂火数缩放（extra_damage_per_soulfire 为攻击力系数，魂火上限天然封顶）；force_crit=爆发强制暴击；shield_reduction_cap=护盾近似减伤的上限。",
+    "threshold": 3,
+    "extra_damage_per_soulfire": 0.15,
+    "flat_damage_per_soulfire": 3,
+    "force_crit": true,
+    "shield_reduction_cap": 0.75
+  }
+}

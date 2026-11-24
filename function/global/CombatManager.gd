@@ -173,6 +173,10 @@ func _calc_reduction(defender: Unit, is_magic: bool) -> float:
 
 	var buff_bonus : float = (defender.buff_magic_reduction if is_magic else defender.buff_physical_reduction)
 	buff_bonus += defender.buff_damage_reduction
+	# ★ v6.64：重甲燃烧态身份增益——受击减伤（数据项 damage_reduction）
+	if SoulFireManager.get_state() == SoulFireManager.State.BURNING:
+		var bt : Dictionary = SoulFireIdentity.get_burn_trait(defender.unit_stats.unit_name, defender.unit_stats.advanced_class)
+		buff_bonus += float(bt.get("damage_reduction", 0.0))
 
 	var terrain_bonus : float = 0.0
 	if defender != null and defender.grid_cell.x >= 0 and defender.grid_cell.y >= 0:
@@ -388,19 +392,16 @@ func execute_attack(attacker: Unit, defender: Unit, forced_skill_id: String = ""
 	#   旧实现在攻击结算末尾才扣，而命中(+1)/击杀(+3)收益在它之前结算：
 	#   狙击这类高伤技能经常直接击杀，+3 正好抵消 -3，魂火条看起来完全没变。
 	#   前移后 HUD 会先减少，之后命中/击杀再补回，玩家能明确看到消耗。
-	# ★ v6.63：魂火 ≥3 时技能自动爆发——所有入口（手动菜单 / 托管 AI）在此统一收敛。
-	#   只有"对敌方的非治疗技能"会转为爆发；普攻与治疗技能不触发，不新增第三个攻击指令。
-	var _burst_target_ally : bool = defender.unit_stats.team_id == attacker.unit_stats.team_id
-	if forced_skill_id != "" and forced_skill_id != "soul_fire_burst" \
-			and not _burst_target_ally and attacker.unit_stats.team_id == 0 \
-			and SoulFireManager.current >= 3:
-		var _burst_src = TalentManager.get_talent_data(forced_skill_id)
-		if _burst_src != null:
-			var _is_heal : bool = str(_burst_src.effect_type) == "heal" \
-				or (_burst_src.effect_params is Dictionary \
-					and ( _burst_src.effect_params as Dictionary).has("heal_multiplier"))
-			if not _is_heal:
-				forced_skill_id = "soul_fire_burst"
+	# ★ v6.64：魂火 ≥3 时技能自动爆发——但不再替换 skill_id，而是保留原技能 + burst_requested 标志。
+	#   爆发 = 原技能效果（保留功能）× 爆发倍率 + 单位/转职特有附加 + 清空魂火 + 结束行动。
+	#   治疗技能同样有爆发形态（群体治疗/净化/回魂火），不再被排除。
+	var burst_requested : bool = forced_skill_id != "" \
+		and attacker.unit_stats.team_id == 0 \
+		and SoulFireManager.current >= SoulFireIdentity.get_burst_threshold()
+	# 兼容旧入口：显式 soul_fire_burst 视作请求爆发，但没有原技能可保留 → 退化为普攻形态的爆发
+	if forced_skill_id == "soul_fire_burst":
+		burst_requested = true
+		forced_skill_id = ""
 
 	var has_skill : bool = false
 	var active_skill_id : String = ""
@@ -408,30 +409,35 @@ func execute_attack(attacker: Unit, defender: Unit, forced_skill_id: String = ""
 	var is_soul_fire_burst : bool = false
 	var burst_cost : int = 0
 
-	if forced_skill_id == "soul_fire_burst":
-		burst_cost = SoulFireManager.current
-		if burst_cost >= 3:
-			is_soul_fire_burst = true
-			has_skill = true # 用于阻断部分普攻逻辑
-			# 这里不需要 active_skill_data，因为它是全局机制
-	elif forced_skill_id != "":
+	if forced_skill_id != "":
 		var sdata = TalentManager.get_talent_data(forced_skill_id)
 		if sdata:
 			if sdata.effect_type == "heal" and defender.unit_stats.team_id != attacker.unit_stats.team_id:
 				print("[主动技能] %s 是治疗技能，不能对敌人释放，已回退为普攻" % sdata.display_name)
 			else:
-				var cost : int = _get_active_skill_cost(sdata)
-				if SoulFireManager.can_spend(cost):
-					active_skill_id = forced_skill_id
-					active_skill_data = sdata
-					has_skill = true
-					SoulFireManager.spend(cost)
+				active_skill_id = forced_skill_id
+				active_skill_data = sdata   # ★ v6.64：爆发也保留原技能，溅射/AOE/嘲讽/治疗照常生效
+				has_skill = true
+				if burst_requested:
+					burst_cost = SoulFireManager.current
+					is_soul_fire_burst = true
+					# 爆发消耗全部魂火（不在此 spend，稍后与倍率一起结算）
 					SignalBus.request_hint_override.emit(
-						"%s 消耗 %d 魂火" % [sdata.display_name, cost], 1.2)
+						"%s · 爆发（消耗 %d 魂火）" % [sdata.display_name, burst_cost], 1.2)
 				else:
-					print("[主动技能] %s 魂火不足" % attacker.unit_stats.unit_name)
-					SignalBus.request_hint_override.emit(
-						"魂火不足（需 %d），本次改为普通攻击" % cost, 1.2)
+					var cost : int = _get_active_skill_cost(sdata)
+					if SoulFireManager.can_spend(cost):
+						SoulFireManager.spend(cost)
+						SignalBus.request_hint_override.emit(
+							"%s 消耗 %d 魂火" % [sdata.display_name, cost], 1.2)
+					else:
+						print("[主动技能] %s 魂火不足" % attacker.unit_stats.unit_name)
+						SignalBus.request_hint_override.emit(
+							"魂火不足（需 %d），本次改为普通攻击" % cost, 1.2)
+	elif burst_requested:
+		# 无原技能的旧入口：退化为普攻形态爆发
+		burst_cost = SoulFireManager.current
+		is_soul_fire_burst = true
 
 	await _play_lunge_attack(attacker, defender)
 
@@ -471,6 +477,10 @@ func execute_attack(attacker: Unit, defender: Unit, forced_skill_id: String = ""
 	if active_skill_data:
 		var ep2 : Dictionary = active_skill_data.effect_params
 		var skill_mult : float = float(ep2.get("damage_mult", 1.0))
+		# ★ v6.64：法师燃烧态身份增益——技能伤害 +20%
+		if SoulFireManager.get_state() == SoulFireManager.State.BURNING:
+			var bt : Dictionary = SoulFireIdentity.get_burn_trait(attacker.unit_stats.unit_name, attacker.unit_stats.advanced_class)
+			skill_mult *= (1.0 + float(bt.get("damage_bonus", 0.0)))
 		damage = int(damage * maxf(skill_mult, heavy_mult))
 
 	if attacker.has_core_trait("charge") and attacker.charge_stacks > 0:
@@ -499,17 +509,25 @@ func execute_attack(attacker: Unit, defender: Unit, forced_skill_id: String = ""
 		damage = int(damage * (1.0 + (attacker.combo_count - 1) * per_hit))
 		TalentManager.reset_talent(attacker, "combo")
 
+	var burst_trait : Dictionary = {}
 	if is_soul_fire_burst:
-		# 额外伤害 = (攻击力 * 15% * 魂火数量) + (3 * 魂火数量)
-		var extra_dmg = int(attacker.unit_stats.attack * 0.15 * burst_cost) + (3 * burst_cost)
-		damage += extra_dmg
-		
-		# 为了爽感，强制暴击
-		force_crit = true
-		
-		# 扣除全部魂火
+		var bc : Dictionary = SoulFireIdentity.get_burst_config()
+		var per_soul : float = float(bc.get("extra_damage_per_soulfire", 0.15))
+		var flat_soul : int = int(bc.get("flat_damage_per_soulfire", 3))
+		# 爆发倍率：额外伤害按消耗魂火数缩放
+		var extra_dmg = int(attacker.unit_stats.attack * per_soul * burst_cost) + flat_soul * burst_cost
+		# 单位特有爆发附加：damage_multiplier（如斧手 200% 斩击）
+		burst_trait = SoulFireIdentity.get_burst_trait(
+			attacker.unit_stats.unit_name, attacker.unit_stats.advanced_class)
+		var trait_mult : float = float(burst_trait.get("damage_multiplier", 1.0))
+		damage = int((damage + extra_dmg) * maxf(trait_mult, 1.0))
+
+		# 强制暴击（爆发倍率的一部分）
+		if bool(bc.get("force_crit", true)):
+			force_crit = true
+
+		# 清空魂火
 		SoulFireManager.spend(burst_cost)
-		SignalBus.request_hint_override.emit("魂火爆发！消耗了 %d 点魂火！" % burst_cost, 1.5)
 
 	# ★ v6.2 余烬：魂火恢复后重新装填「下一次必暴」
 	if attacker.unit_stats.team_id == 0 and not SoulFireManager.is_exhausted():
@@ -652,6 +670,9 @@ func execute_attack(attacker: Unit, defender: Unit, forced_skill_id: String = ""
 	if active_skill_data:
 		if splash_percent > 0.0: await _apply_splash(attacker, defender, damage, splash_percent, is_crit)
 		if aoe_percent > 0.0: await _apply_aoe(attacker, defender, damage, aoe_percent, is_crit)
+		# ★ v6.64：爆发=true 时叠加单位/转职特有的爆发附加（横扫 / AOE灼烧 / 团队治疗 / 嘲讽）
+		if is_soul_fire_burst and not burst_trait.is_empty():
+			await _apply_burst_trait_effects(attacker, defender, damage, is_crit, burst_trait)
 		if taunt_rounds > 0:
 			attacker.taunt_rounds = taunt_rounds
 			for d in [Vector2i(1,0), Vector2i(-1,0), Vector2i(0,1), Vector2i(0,-1)]:
@@ -835,6 +856,14 @@ func _execute_heal(attacker: Unit, defender: Unit, forced_skill_id: String = "")
 		return false
 
 	var total_heal : int = get_expected_heal_amount(attacker, defender)
+	# ★ v6.64：牧师燃烧态身份增益——治疗量 +30%
+	if SoulFireManager.get_state() == SoulFireManager.State.BURNING:
+		var bt : Dictionary = SoulFireIdentity.get_burn_trait(attacker.unit_stats.unit_name, attacker.unit_stats.advanced_class)
+		total_heal = int(total_heal * (1.0 + float(bt.get("heal_bonus", 0.0))))
+		# 治疗时给目标回魂火（牧师魂火引擎）
+		var sfo : int = int(bt.get("soulfire_on_heal", 0))
+		if sfo > 0:
+			SoulFireManager.add(sfo)
 
 	if TalentManager.is_talent_ready(attacker, "heal_boost"):
 		TalentManager.reset_talent(attacker, "heal_boost")
@@ -1211,6 +1240,66 @@ func _apply_splash(attacker: Unit, defender: Unit, base_damage: int, percent: fl
 		await _play_death_animation(splash_target)
 		UnitManager.unregister_unit(splash_target)
 		splash_target.queue_free()
+
+
+## ★ v6.64：单位/转职特有的爆发附加效果。
+##   只处理有现成接口的字段；击退/眩晕/护盾/再行动/破甲等字段在数据里保留为设计口径，
+##   待对应系统接入后再消费，此处安全忽略，不影响爆发主流程。
+func _apply_burst_trait_effects(attacker: Unit, defender: Unit, base_damage: int, is_crit: bool, cfg: Dictionary) -> void:
+	if not is_instance_valid(attacker) or cfg.is_empty():
+		return
+	# 1) 相邻横扫（剑士：对目标相邻敌人追加伤害）
+	var adj : float = float(cfg.get("adjacent_multiplier", 0.0))
+	if adj > 0.0 and is_instance_valid(defender):
+		for d in [Vector2i(1,0), Vector2i(-1,0), Vector2i(0,1), Vector2i(0,-1)]:
+			var t : Unit = UnitManager.get_unit_at_cell(defender.grid_cell + d)
+			if t == null or t.hit_points <= 0: continue
+			if t.unit_stats.team_id == attacker.unit_stats.team_id: continue
+			var dmg : int = maxi(1, int(base_damage * adj))
+			var dead : bool = _apply_damage_with_effects(t, dmg, attacker, is_crit, false)
+			await _wait_dialogue()
+			if dead:
+				_on_kill(attacker, t)
+				await _play_death_animation(t)
+				UnitManager.unregister_unit(t)
+				t.queue_free()
+	# 2) 范围爆炸 + 灼烧层数（法师/龙裔）
+	var aoe : float = float(cfg.get("aoe_multiplier", 0.0))
+	if aoe > 0.0 and is_instance_valid(defender):
+		await _apply_aoe(attacker, defender, base_damage, aoe, is_crit)
+	var burn_stacks : int = int(cfg.get("burn_stacks", 0))
+	if burn_stacks > 0 and is_instance_valid(defender) and defender.hit_points > 0:
+		AbnormalManager.apply_burn_stacks(attacker, defender, burn_stacks)
+	# 3) 团队治疗 + 回魂火（牧师爆发）
+	var team_heal : float = float(cfg.get("team_heal_ratio", 0.0))
+	if team_heal > 0.0:
+		for u in UnitManager.unit_list:
+			if not is_instance_valid(u) or u.hit_points <= 0: continue
+			if u.unit_stats.team_id != attacker.unit_stats.team_id: continue
+			var heal : int = int(u.unit_stats.max_hp * team_heal)
+			var old_hp : int = u.hit_points
+			u.hit_points = mini(u.hit_points + heal, u.unit_stats.max_hp)
+			var actual : int = u.hit_points - old_hp
+			if actual > 0:
+				u.update_hp_label()
+				SignalBus.request_damage_popup.emit(u.global_position, actual, false, false, true)
+	var sf_gain : int = int(cfg.get("soulfire_gain", 0))
+	if sf_gain > 0:
+		SoulFireManager.add(sf_gain)
+	# 4) 嘲讽（重甲爆发站场）
+	var taunt : int = int(cfg.get("taunt_rounds", 0))
+	if taunt > 0:
+		attacker.taunt_rounds = taunt
+		for d in [Vector2i(1,0), Vector2i(-1,0), Vector2i(0,1), Vector2i(0,-1)]:
+			var e : Unit = UnitManager.get_unit_at_cell(attacker.grid_cell + d)
+			if e != null and e.hit_points > 0 and e.unit_stats.team_id != attacker.unit_stats.team_id:
+				e.taunt_by = attacker
+				e.taunt_rounds_left = taunt
+	# 5) 减伤强化（重甲燃烧/爆发近似"护盾"，用现有 buff_damage_reduction）
+	var dr : float = float(cfg.get("shield_damage_reduction", 0.0))
+	if dr > 0.0:
+		var cap : float = float(SoulFireIdentity.get_burst_config().get("shield_reduction_cap", 0.75))
+		attacker.buff_damage_reduction = minf(attacker.buff_damage_reduction + dr, cap)
 
 
 func _apply_aoe(attacker: Unit, center: Unit, base_damage: int, percent: float, is_crit: bool = false) -> void:

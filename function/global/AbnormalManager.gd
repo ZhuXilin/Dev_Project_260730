@@ -183,6 +183,14 @@ static func apply_frost_on_hit(defender: Unit, attacker: Unit) -> void:
 			str(e.get("apply_quality", "common")), int(e.get("apply_cap", MAX_STACKS)))
 
 
+## 外部强制挂层（不掷概率）：爆发附加 / 技能固定效果用。
+static func apply_burn_stacks(source: Unit, target: Unit, stacks: int) -> void:
+	if not is_instance_valid(source) or not is_instance_valid(target) or stacks <= 0:
+		return
+	_add_stack(target, TYPE_BURN, stacks, source,
+		BuildManager.get_effective_school_level(source, "烈焰"), "epic", MAX_STACKS)
+
+
 ## 给目标加层（外部也可直接调用，如受击触发的冻寒）。
 static func _add_stack(unit: Unit, type: String, stacks: int, source: Unit, level: int,
 		quality: String = "common", cap: int = MAX_STACKS) -> void:

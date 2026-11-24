@@ -93,8 +93,10 @@ func get_ratio() -> float:
 func get_state() -> State:
 	# ★ v6.62z：两态——燃烧 / 正常。归零并入正常（无增益、无惩罚），
 	#   仅用 is_exhausted() + HUD「熄」标记提示，不再有枯竭态与枯竭暴伤。
+	# ★ v6.64：阈值改为读 soulfire_identity.json 的 common_base.burning_threshold。
 	var r : float = get_ratio()
-	var burning_threshold : float = 0.5
+	var base : Dictionary = SoulFireIdentity.get_common_base()
+	var burning_threshold : float = float(base.get("burning_threshold", 0.5))
 	var override : float = GameState.soul_fire_threshold_override
 	if override > 0.0 and override < burning_threshold:
 		burning_threshold = override
@@ -109,10 +111,14 @@ func is_exhausted() -> bool:
 
 
 func get_move_bonus() -> int:
-	return 1 if get_state() == State.BURNING else 0
+	if get_state() != State.BURNING:
+		return 0
+	return int(SoulFireIdentity.get_common_base().get("move_bonus", 1))
 
 func get_splash_percent() -> float:
-	return 0.5 if get_state() == State.BURNING else 0.0
+	if get_state() != State.BURNING:
+		return 0.0
+	return float(SoulFireIdentity.get_common_base().get("splash_percent", 0.5))
 
 ## ★ v6.62z：删除枯竭暴伤——低魂火/归零不提供任何额外增益。
 ##   保留 API 返回 0 供旧调用点兼容；余烬「耗尽必暴」走 CombatManager 的独立机制。

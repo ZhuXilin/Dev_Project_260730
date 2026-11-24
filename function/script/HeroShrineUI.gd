@@ -446,6 +446,20 @@ func _make_picker_panel(unit : UnitData, branches : Array) -> Control:
 		stats_lb.modulate = Color(0.7, 0.9, 0.7)
 		col.add_child(stats_lb)
 
+		# ★ v6.64：转职爽点预告——让玩家在选之前就看到"魂火玩法怎么变"
+		var ident_lb := Label.new()
+		var ident : Dictionary = SoulFireIdentity.resolve(unit.unit_name, adv.id)
+		var burn_d : Dictionary = ident.get("burn_trait", {})
+		var burst_d : Dictionary = ident.get("burst_trait", {})
+		var burn_desc : String = str(burn_d.get("desc", "")) if burn_d is Dictionary else ""
+		var burst_desc : String = str(burst_d.get("desc", "")) if burst_d is Dictionary else ""
+		ident_lb.text = "燃烧：%s\n爆发：%s" % [burn_desc if burn_desc != "" else "—", burst_desc if burst_desc != "" else "—"]
+		ident_lb.add_theme_font_size_override("font_size", 6)
+		ident_lb.add_theme_color_override("font_color", Color(1.0, 0.72, 0.35))
+		ident_lb.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		ident_lb.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		col.add_child(ident_lb)
+
 		var spacer := Control.new()
 		spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
 		col.add_child(spacer)
@@ -564,6 +578,11 @@ func _begin_convert(unit : UnitData, adv : AdvancedClassData):
 	# 1. 立即扣魂 + 记录
 	_subtract_soul(COST_PER_CLASS)
 	unit.advanced_class = adv.id
+	# ★ v6.64：转职 = 魂火身份升级——名号变化 + 定格提示（爆发/燃烧玩法已由身份表接管）
+	var adv_name : String = SoulFireIdentity.get_advanced_name(adv.id)
+	if adv_name != "":
+		unit.display_name = adv_name
+		SignalBus.request_hint_override.emit("转职完成 · %s" % adv_name, 1.0)
 
 	unit.tags.clear()
 	for t in adv.tags:

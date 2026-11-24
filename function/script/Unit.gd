@@ -1037,8 +1037,11 @@ func set_hp_label_visible(v: bool) -> void:
 # ============================================================
 func get_total_move_range() -> int:
 	var base : int = unit_stats.get_effective_attr("move_range")
-	if unit_stats.team_id == 0:
-		base += SoulFireManager.get_move_bonus()
+	if unit_stats.team_id == 0 and SoulFireManager.get_state() == SoulFireManager.State.BURNING:
+		# ★ v6.64：燃烧底盘移动 +1；单位身份可覆盖（飞马 +2）。非燃烧态无加成。
+		var bt : Dictionary = SoulFireIdentity.get_burn_trait(unit_stats.unit_name, unit_stats.advanced_class)
+		var override : int = int(bt.get("move_bonus_override", 0))
+		base += override if override > 0 else SoulFireManager.get_move_bonus()
 	# ★ v6.62y：冻寒每层移动 -1，封顶 -2，至少保留 1 格（不硬控、不跳过行动）
 	var frost : int = int(abnormal_stacks.get("冻寒", {}).get("stacks", 0))
 	if frost > 0:

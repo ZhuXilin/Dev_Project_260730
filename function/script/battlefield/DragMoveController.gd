@@ -759,7 +759,7 @@ func _show_attack_menu(attacker: Unit, target: Unit, _is_after_move: bool) -> vo
 	# ★ v6.63：魂火爆发并入技能按钮，不再有独立爆发按钮。
 	#   魂火 ≥3 时技能自动爆发（见下方技能项文案与 skill_id 替换）。
 	var sf_cost : int = SoulFireManager.current
-	var will_burst : bool = sf_cost >= 3
+	var will_burst : bool = sf_cost >= SoulFireIdentity.get_burst_threshold()
 
 	# 目标只因主动技能 range_bonus 才可达时（如狙击 +2），禁用普攻，
 	# 并且只保留射程加成足以覆盖该距离的技能，避免越距普攻。
@@ -856,12 +856,13 @@ func _show_attack_menu(attacker: Unit, target: Unit, _is_after_move: bool) -> vo
 		#   爆发态只标「·爆发」；普通态只标「·N魂」。伤害/回复数字省略，
 		#   玩家要判断的是"这次花几魂 / 会不会爆发"，不是看数值预览。
 		var skill_cost : int = CombatManager._get_active_skill_cost(sdata)
-		var ep : Dictionary = sdata.effect_params
-		var is_heal : bool = sdata.effect_type == "heal" or ep.has("heal_multiplier")
-		var bursting : bool = will_burst and not target_is_ally and not is_heal
+		var bursting : bool = will_burst and attacker.unit_stats.team_id == 0
 		var skill_text : String = sdata.display_name
 		if bursting:
-			skill_text += "·爆发"
+			# ★ v6.64：爆发文案写单位/转职身份（如"横扫击退"/"嘲讽护盾"）
+			var label : String = SoulFireIdentity.get_burst_label(
+				attacker.unit_stats.unit_name, attacker.unit_stats.advanced_class)
+			skill_text += "·" + label
 		else:
 			skill_text += "·%d魂" % skill_cost
 		popup.add_item(skill_text, next_id)
