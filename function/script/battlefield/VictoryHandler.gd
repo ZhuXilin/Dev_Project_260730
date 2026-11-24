@@ -87,7 +87,12 @@ func _compute_rating() -> String:
 		MapData.ObjectiveType.CAPTURE:
 			var hold_turns : int = 3
 			if ObjectiveManager != null:
-				hold_turns = maxi(1, ObjectiveManager.get_capture_hold_turns())
+				# ★ 先把 autoload 方法调用的结果存入类型化局部变量，再传给 maxi。
+				#   直接把无 class_name 的 autoload 方法调用作为内置函数实参，
+				#   Godot 全局类解析阶段无法推断其返回类型，会报
+				#   "Could not parse global class VictoryHandler"（错位报到调用处）。
+				var raw_hold_turns : int = ObjectiveManager.get_capture_hold_turns()
+				hold_turns = maxi(1, raw_hold_turns)
 			var extra_turns : int = maxi(0, turns - hold_turns)
 			var hold_score : float = clampf(1.0 - float(extra_turns) / 15.0, 0.0, 1.0)
 			score = alive_ratio * 0.2 + (1.0 - hp_loss_ratio) * 0.2 + hold_score * 0.6
@@ -216,13 +221,13 @@ func on_request_show_victory(winning_team: int) -> void:
 				# ★ v5.16：地图进度 +1（跨局累计通关节点），驱动天赋/遗物进度解锁
 				ProgressUnlockManager.advance(true)
 
-			# ★ v5.0：魂火不再兑现，仅持久化当前值（跨战斗保留）
-			GameState.soul_fire_current = SoulFireManager.current
+				# ★ v5.0：魂火不再兑现，仅持久化当前值（跨战斗保留）
+				GameState.soul_fire_current = SoulFireManager.current
 
-			# ★ v6.61：战后不再发经验——经验唯一来源是击杀（见 5.7）。
-			#   旧 battle_exp_reward 按人头发的额外经验已移除。
+				# ★ v6.61：战后不再发经验——经验唯一来源是击杀（见 5.7）。
+				#   旧 battle_exp_reward 按人头发的额外经验已移除。
 
-			# ★ v6：战后不再直接掉落防具。防具改为战后金币 roll（ArmorRollUI）。
+				# ★ v6：战后不再直接掉落防具。防具改为战后金币 roll（ArmorRollUI）。
 				GameState.current_reward_rare_datas.clear()
 
 				if is_win and mult > 1.0:

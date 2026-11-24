@@ -127,8 +127,9 @@ func _build_unit_card(unit_idx: int) -> PanelContainer:
 	vbox.add_theme_constant_override("separation", 3)
 	card.add_child(vbox)
 
-	# 局内序列帧动画
-	var texture_rect = UnitDataManager.create_idle_texture_rect(unit.unit_name, Vector2(32, 32), unit.override_sprite_path)
+	# ★ v6.62p：赋能单位统一用 overlord 图片/动画
+	var idle_path : String = UnitDataManager.EMPOWERED_FRAMES_PATH if unit.is_empowered else unit.override_sprite_path
+	var texture_rect = UnitDataManager.create_idle_texture_rect(unit.unit_name, Vector2(32, 32), idle_path)
 	texture_rect.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	vbox.add_child(texture_rect)
 

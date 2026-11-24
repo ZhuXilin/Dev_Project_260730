@@ -1927,7 +1927,8 @@ func _discard_pending_reward(data: Dictionary):
 func _create_unit_icon(unit: UnitData, unit_idx: int) -> Control:
 	# ★ v6.50：改用 create_unit_avatar_button（Button）——纯 Control 的 mouse_entered
 	#   在本场景不稳定，Button 的悬停信号可靠（遗物/技能也是 Button，故它们能显示信息）。
-	var wrapper = UnitDataManager.create_unit_avatar_button(unit.unit_name, Vector2(54, 54), Vector2(48, 48))
+	# ★ v6.62p：赋能单位头像统一用 overlord 图片
+	var wrapper = UnitDataManager.create_unit_avatar_button(unit.unit_name, Vector2(54, 54), Vector2(48, 48), unit.is_empowered)
 	wrapper.set_meta("slot_type", "unit_icon")
 	wrapper.set_meta("unit_idx", unit_idx)
 	wrapper.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
@@ -2219,6 +2220,17 @@ func _build_roll_relic_slots() -> void:
 		roll_relic_container.add_child(btn)
 
 
+## ★ v6.62q：只读遗物槽——把 hover/pressed/focus 样式覆盖为 normal，
+##   消除一切"可点击"视觉反馈（外观变静态展示块），但保留 mouse_filter=STOP
+##   让 mouse_entered/exited 悬停详情照常工作。从祖先节点取项目主题 normal 样式。
+func _apply_readonly_button_visual(btn: Button) -> void:
+	var normal_sb : StyleBox = get_theme_stylebox("normal", "Button")
+	if normal_sb == null:
+		normal_sb = StyleBoxFlat.new()
+	for state in ["hover", "pressed", "focus"]:
+		btn.add_theme_stylebox_override(state, normal_sb)
+
+
 func _create_passive_button(inst: Variant, slot_index: int) -> Button:
 	var btn : Button = Style.create_styled_button(Style.FONT_SMALL, Style.BTN_ITEM_SIZE)
 	btn.clip_text = true
@@ -2264,6 +2276,16 @@ func _create_passive_button(inst: Variant, slot_index: int) -> Button:
 	else:
 		btn.text = "空"
 		btn.set_meta("item_id", "")
+
+	# ★ v6.62q：装备配置（MAP）界面是纯查看页——遗物槽只能悬停显示信息，不可点击。
+	#   这些槽本就没有 pressed 信号，点击唯一效果是 start_drag（MAP 已在起点拦截）。
+	#   这里进一步消除 Button 的 hover/pressed 视觉反馈，让外观像静态展示块，
+	#   避免"看起来能点"。mouse_entered/exited 保持启用，悬停详情正常显示。
+	#   ★ 不用 disabled：Godot 4 中 disabled Button 不接收鼠标事件，会连带丢失悬停信息。
+	#   魂栈（FORGE）等需要拖拽遗物出售的模式不动，仍保持可交互。
+	if current_mode == Mode.MAP:
+		btn.set_meta("readonly_hover_only", true)
+		_apply_readonly_button_visual(btn)
 	return btn
 
 
@@ -2935,6 +2957,10 @@ func _input(event: InputEvent):
 			return
 		var mouse_pos : Vector2 = get_global_mouse_position()
 		var btn : Control = _drag._find_control_at_position(mouse_pos)
+		# ★ v6.62q：只读悬停槽（MAP 遗物槽）——点击不触发任何拖拽，直接吞掉
+		if btn and bool(btn.get_meta("readonly_hover_only", false)):
+			get_viewport().set_input_as_handled()
+			return
 		if btn and (btn is Button or btn.get_meta("slot_type", "") == "unit_icon"):
 			_drag.start_drag(btn)
 	elif event is InputEventMouseButton and not event.pressed and event.button_index == MOUSE_BUTTON_LEFT:

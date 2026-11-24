@@ -166,6 +166,11 @@ func update_hp_bar():
 
 
 func _resolve_sprite_path() -> String:
+	# ★ v6.62p：赋能单位统一替换为 overlord 图片/动画（最高优先级，覆盖转职/override）
+	#   此处用路径字面量而非 UnitDataManager.EMPOWERED_FRAMES_PATH——后者是编译期常量，
+	#   与 UnitDataManager(引用 Unit 类型)形成 class_name 循环依赖，会导致全局类解析失败。
+	if unit_stats and unit_stats.is_empowered:
+		return "res://content/images/characters/unit_overlord_frames.tres"
 	if unit_stats and unit_stats.override_sprite_path != "":
 		if ResourceLoader.exists(unit_stats.override_sprite_path):
 			return unit_stats.override_sprite_path

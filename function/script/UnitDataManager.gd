@@ -1,6 +1,9 @@
 class_name UnitDataManager
 extends RefCounted
 
+## ★ v6.62p：献祭赋能单位的统一图片/动画资源——所有显示入口都用它替换原单位资源
+const EMPOWERED_FRAMES_PATH : String = "res://content/images/characters/unit_overlord_frames.tres"
+
 static var GROWTH_HP_PER_POINT : int = 1
 static var _growth_loaded : bool = false
 
@@ -298,6 +301,16 @@ static func get_idle_texture(unit_name: String) -> Texture2D:
 		return tex
 	return null
 
+
+## ★ v6.62p：赋能单位的头像纹理（overlord frames 的 idle 首帧），带缓存
+static var _empowered_idle_texture : Texture2D = null
+static func get_empowered_idle_texture() -> Texture2D:
+	if _empowered_idle_texture != null: return _empowered_idle_texture
+	var sf := load(EMPOWERED_FRAMES_PATH) as SpriteFrames
+	if sf and sf.has_animation("idle") and sf.get_frame_count("idle") > 0:
+		_empowered_idle_texture = sf.get_frame_texture("idle", 0)
+	return _empowered_idle_texture
+
 static func create_idle_texture_rect(unit_name: String, icon_size: Vector2 = Vector2(32, 32), override_path: String = "") -> TextureRect:
 	var rect := TextureRect.new()
 	rect.custom_minimum_size = icon_size
@@ -378,7 +391,7 @@ static func get_avatar_by_speaker(speaker: String) -> String:
 # ============================================================
 #  ★ 统一生成带画框的单位 Avatar（比例一致，不缩放）
 # ============================================================
-static func create_unit_avatar_rect(unit_name: String, avatar_size: Vector2 = Vector2(48, 48)) -> TextureRect:
+static func create_unit_avatar_rect(unit_name: String, avatar_size: Vector2 = Vector2(48, 48), empowered: bool = false) -> TextureRect:
 	var rect := TextureRect.new()
 	rect.custom_minimum_size = avatar_size
 	rect.size = avatar_size
@@ -387,9 +400,12 @@ static func create_unit_avatar_rect(unit_name: String, avatar_size: Vector2 = Ve
 	# KEEP_ASPECT_CENTERED：保持原图比例并居中（不会拉伸变形）
 	rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	
-	var avatar_id = GameState.get_unit_avatar(unit_name)
-	var tex = IconManager.get_icon_or_null(avatar_id)
+
+	# ★ v6.62p：赋能单位统一用 overlord 纹理，跳过原头像/序列帧
+	var tex : Texture2D = get_empowered_idle_texture() if empowered else null
+	if tex == null:
+		var avatar_id = GameState.get_unit_avatar(unit_name)
+		tex = IconManager.get_icon_or_null(avatar_id)
 	if tex:
 		rect.texture = tex
 	else:
@@ -402,7 +418,7 @@ static func create_unit_avatar_rect(unit_name: String, avatar_size: Vector2 = Ve
 	return rect
 
 # 生成带边框垫底的复合控件
-static func create_unit_avatar_with_frame(unit_name: String, frame_size: Vector2 = Vector2(54, 54), avatar_size: Vector2 = Vector2(48, 48)) -> Control:
+static func create_unit_avatar_with_frame(unit_name: String, frame_size: Vector2 = Vector2(54, 54), avatar_size: Vector2 = Vector2(48, 48), empowered: bool = false) -> Control:
 	var wrapper := Control.new()
 	wrapper.custom_minimum_size = frame_size
 	wrapper.size = frame_size
@@ -423,14 +439,14 @@ static func create_unit_avatar_with_frame(unit_name: String, frame_size: Vector2
 	wrapper.add_child(bg)
 	
 	# 头像层
-	var tex_rect = create_unit_avatar_rect(unit_name, avatar_size)
+	var tex_rect = create_unit_avatar_rect(unit_name, avatar_size, empowered)
 	tex_rect.position = (frame_size - avatar_size) / 2.0
 	wrapper.add_child(tex_rect)
 	
 	return wrapper
 
 # 生成带画框的按钮（供列表使用）
-static func create_unit_avatar_button(unit_name: String, frame_size: Vector2 = Vector2(54, 54), avatar_size: Vector2 = Vector2(48, 48)) -> Button:
+static func create_unit_avatar_button(unit_name: String, frame_size: Vector2 = Vector2(54, 54), avatar_size: Vector2 = Vector2(48, 48), empowered: bool = false) -> Button:
 	var btn := Button.new()
 	btn.custom_minimum_size = frame_size
 	btn.focus_mode = Control.FOCUS_NONE
@@ -447,7 +463,7 @@ static func create_unit_avatar_button(unit_name: String, frame_size: Vector2 = V
 	btn.add_theme_stylebox_override("focus", empty_sb)
 	btn.add_theme_stylebox_override("disabled", empty_sb)
 	
-	var framed_avatar = create_unit_avatar_with_frame(unit_name, frame_size, avatar_size)
+	var framed_avatar = create_unit_avatar_with_frame(unit_name, frame_size, avatar_size, empowered)
 	framed_avatar.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	framed_avatar.set_anchors_preset(Control.PRESET_FULL_RECT)
 	btn.add_child(framed_avatar)

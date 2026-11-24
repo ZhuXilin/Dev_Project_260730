@@ -1,8 +1,8 @@
 # 《魂火》v6 玩法设计文档（装备减负 · 选择组成 Build）
 
-> 状态：v6 主玩法已落地代码，最新修订 v6.62o（2026-11-24）。  
+> 状态：v6 主玩法已落地代码，最新修订 v6.62q（2026-11-24）。  
 > 本文描述**当前玩法**。v5 骨架（战斗/地图/魂火/存档/编辑器）与 v6 新规则均已实现，代码落点见第十章。  
-> 近期变更：v6.55「防具槽越界修复 + 熔铸奖励数值提示」、v6.56「熔铸确认分区 + 掉落物悬停信息」、v6.57「Boss 死亡即时胜利 + 升级仪式感」、v6.58「等级系统重做：击杀得经验 + 显示」、v6.59「阵型系统移除」、v6.60「胜利界面等全部表演结束 + 缓冲」、v6.61「移除战后经验，击杀成唯一经验来源」、v6.62「胜利条件改地图场景 trigger + 遗物槽重排 + 老虎机专用遗物 + 魂栈遗物商店 + 献祭熔铸改单位赋能」、v6.62b「按参考图回调装备/魂栈/英灵殿/献祭四界面布局 + 修两个编译错误」、v6.62c「遗物槽改底部两区域 + 右上角老虎机图标；魂栈去熔铸/分类/一键领取，改商店格子拖拽购买」、v6.62d~o「团队遗物槽逐列对齐 + 商店分行/去老虎机图标/空槽恒定/按钮反馈 + 槽图标尺寸统一 + 金币显示与格子固定 + 英灵殿隐藏持有资源 + 出售金币显示修复 + 出售返还率可配置与遗物加成 + 编辑器遗物分组 + 去光环页签 + 持续类型下拉 + 遗物类型可选」。可玩性评估见第十一章。  
+> 近期变更：v6.55「防具槽越界修复 + 熔铸奖励数值提示」、v6.56「熔铸确认分区 + 掉落物悬停信息」、v6.57「Boss 死亡即时胜利 + 升级仪式感」、v6.58「等级系统重做：击杀得经验 + 显示」、v6.59「阵型系统移除」、v6.60「胜利界面等全部表演结束 + 缓冲」、v6.61「移除战后经验，击杀成唯一经验来源」、v6.62「胜利条件改地图场景 trigger + 遗物槽重排 + 老虎机专用遗物 + 魂栈遗物商店 + 献祭熔铸改单位赋能」、v6.62b「按参考图回调装备/魂栈/英灵殿/献祭四界面布局 + 修两个编译错误」、v6.62c「遗物槽改底部两区域 + 右上角老虎机图标；魂栈去熔铸/分类/一键领取，改商店格子拖拽购买」、v6.62d~q「团队遗物槽逐列对齐 + 商店分行/去老虎机图标/空槽恒定/按钮反馈 + 槽图标尺寸统一 + 金币显示与格子固定 + 英灵殿隐藏持有资源 + 出售金币显示修复 + 出售返还率可配置与遗物加成 + 编辑器遗物分组 + 去光环页签 + 持续类型下拉 + 遗物类型可选 + 赋能单位 overlord 外观 + 遗物槽只读悬停」。可玩性评估见第十一章。  
 > 承接方案：`EquipmentSlimPlan.md`、`EquipmentOneClickPlan.md`、`EquipmentUIIterationPlan.md`；冻结摘要见 `EquipmentBuildRefactorSummary.md`。
 
 ---
@@ -467,6 +467,7 @@ FORGE（魂栈）右侧**去掉了**旧熔铸标题、"购买战场遗物 / 购�
    - v6.62b 起单位卡片的"可转职 ★分支列表 / 点击查看"详情**不再显示**，只留简短「可转职」状态，避免信息过载。
 4. 候选只剩 1 个存活单位时改用普通 `show_confirm` 单卡片确认。
 5. 赋能结果通过 `UnitData.is_empowered` / `empowerment_source`（含 to_dict/from_dict）持久化，此后局内各界面（战场、装备、roll 卡）读同一单位数据，信息自动同步。
+6. **赋能单位外观统一替换（v6.62p）**：所有显示赋能单位图片/动画的地方改用 `res://content/images/characters/unit_overlord_frames.tres`（含 idle/down/side/up 四动画，与战场动画名一致）：战场 `Unit._resolve_sprite_path()` 判 `is_empowered` 优先返回该资源（覆盖转职/override/Boss 变形）；竞技场 `ArenaBattle._setup_unit_sprite` 同步；装备界面头像 `create_unit_avatar_button(..., empowered)` 与英灵殿卡片 `create_idle_texture_rect(..., overlord_path)` 走同款。路径常量 `UnitDataManager.EMPOWERED_FRAMES_PATH`，头像 idle 首帧带缓存 `get_empowered_idle_texture()`。
 
 **取消赋能 = 复活献祭单位**：被献祭单位一直躺在英灵殿；玩家点复活它时，`GameState.revive_unit()` 找到持有其快照的被赋能单位，调 `SacrificeHelper.restore_empowerment()`——从幸存单位**扣回**数值增量、清赋能标记、把冻结的装备 / 技能 / 流派 / 转职还原给复活的献祭单位。这是唯一的取消赋能入口（不另设独立按钮）。
 
@@ -680,13 +681,13 @@ FORGE（魂栈）右侧**去掉了**旧熔铸标题、"购买战场遗物 / 购�
 
 ---
 
-## 十、代码落地状态（2026-11-24，v6.62o）
+## 十、代码落地状态（2026-11-24，v6.62q）
 
 v6 主线已落地代码，核心计算集中在 `BuildManager`（autoload）。实现与本文口径的对应关系：
 
 | 本文规则 | 代码落点 | 状态 |
 |---|---|---|
-| 地图装备界面 | `MapScene._on_config_btn_pressed` 恢复 `EquipmentConfig.Mode.MAP`；装备/遗物可拖拽，技能词条与特技库禁用（v6.4 回退只读方案） |
+| 地图装备界面 | `MapScene._on_config_btn_pressed` 恢复 `EquipmentConfig.Mode.MAP`；**纯查看页**（v6.22 起）：所有拖拽在 `start_drag`/`_is_valid_drop` 起点拦截，技能词条/特技库禁用；v6.62q 遗物槽（团队 `passive_slot`/防具 `roll_relic_slot`）进一步只读——`_apply_readonly_button_visual` 把 hover/pressed/focus 样式覆盖为 normal 消除"可点击"视觉，`_input` 对 `readonly_hover_only` 槽吞掉点击不调 `start_drag`，仅保留 `mouse_entered/exited` 悬停详情（不用 `disabled`，否则 Godot 4 会连带丢失悬停） |
 | 自动配装 | v6.6 重写：评分改为流派觉醒 + 有效 Lv（含技能共鸣 +1）+ 机制槽利用率，按 hook 分攻击/防御/功能三套权重；只重排防具，单位顺序锁定；写回 GameState 真单位并用 `apply_armor` 重建机制 |
 | 魂栈只留熔铸 | `ForgeAltar.gd/.tscn`，`MapScene._open_forge` | 已落地 |
 | 开局技能 roll 3 次 / 落位锁定 | `SkillRollUI.gd`、`BuildManager.build_skill_pool/place_skill`、`TalentInstance.locked`；新局清空 v5 默认词条、roll 匹配跳过已占格单位；点技能卡可一键落到第一个合法单位 | 已落地（v6.2.1 修复） |

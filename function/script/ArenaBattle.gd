@@ -170,7 +170,12 @@ func setup(player_data: UnitData, enemy_data: UnitData, crystal_reward: int = 0,
 
 
 func _setup_unit_sprite(sprite: AnimatedSprite2D, unit_data: UnitData, team_id: int) -> ShaderMaterial:
-	var frames = UnitDataManager.get_sprite_frames(unit_data.unit_name)
+	# ★ v6.62p：赋能单位统一用 overlord 图片/动画
+	var frames : SpriteFrames = null
+	if unit_data != null and unit_data.is_empowered:
+		frames = load(UnitDataManager.EMPOWERED_FRAMES_PATH) as SpriteFrames
+	if frames == null:
+		frames = UnitDataManager.get_sprite_frames(unit_data.unit_name)
 
 	if frames:
 		sprite.sprite_frames = frames
