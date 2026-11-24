@@ -92,6 +92,16 @@ func _build_ui(title: String) -> void:
 	root.add_theme_constant_override("separation", 6)
 	add_child(root)
 
+	# ★ v6.62u：让转轮窗口在整个界面横向居中（竖向不变）。
+	#   root 是 CENTER 对齐的 HBox，内容 = [轮盘148]+[间距6]+[按钮区60]，
+	#   此前整体居中导致轮盘中心偏左约 33px（按钮区一半+间距）。
+	#   左侧插入宽度 = 按钮区(60)+间距(6)=66 的 spacer 后，轮盘中心恰好落在容器中心，
+	#   开始按钮随之右移到轮盘右侧，符合标注的目标位置。
+	var left_spacer := Control.new()
+	left_spacer.custom_minimum_size = Vector2(66, 0)
+	left_spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	root.add_child(left_spacer)
+
 	var left := VBoxContainer.new()
 	left.custom_minimum_size = Vector2(REEL_W + 16, 0)
 	left.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
@@ -326,15 +336,19 @@ func _process(_delta: float) -> void:
 	_phase += real_delta / maxf(_interval, 0.01)
 
 	# 连续滚动：整数格推进时换内容；STOPPING 每格递增间隔做减速
-	while _phase >= 1.0:
-		_phase -= 1.0
-		_index = (_index + 1) % _entries.size()
-		_update_reel()
-		if _state == SpinState.STOPPING:
-			_interval = minf(0.30 / maxf(0.05, speed_scale), _interval + 0.05 / maxf(0.05, speed_scale))
-		_decel_ticks += 1
-		if _decel_ticks >= 8:
-			_stop_at_boundary = true
+		while _phase >= 1.0:
+			_phase -= 1.0
+			_index = (_index + 1) % _entries.size()
+			_update_reel()
+			# ★ v6.62v：减速计数只在 STOPPING（玩家点了停止）时进行。
+			#   原实现把 _decel_ticks 累加和 8 格触发放在 STOPPING 判断块外，
+			#   导致 SPINNING 状态滚过 8 格就自动 _stop_at_boundary→_finish，
+			#   玩家没点停止轮盘也自己停了。移进块内后，SPINNING 会一直匀速滚动直到玩家点停。
+			if _state == SpinState.STOPPING:
+				_interval = minf(0.30 / maxf(0.05, speed_scale), _interval + 0.05 / maxf(0.05, speed_scale))
+				_decel_ticks += 1
+				if _decel_ticks >= 8:
+					_stop_at_boundary = true
 
 	# 落到整格后才真正停止，保证中奖线对准一个符号
 	if _stop_at_boundary:

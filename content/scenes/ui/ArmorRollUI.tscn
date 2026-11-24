@@ -67,6 +67,13 @@ theme_override_font_sizes/font_size = 7
 [node name="MachineSlot" type="Control" parent="Root/Margin/VBox"]
 custom_minimum_size = Vector2(0, 72)
 
+[node name="RelicSpacer" type="Control" parent="Root/Margin/VBox"]
+custom_minimum_size = Vector2(0, 8)
+
+[node name="RollRelicRow" type="HBoxContainer" parent="Root/Margin/VBox"]
+alignment = 1
+theme_override_constants/separation = 6
+
 [node name="Msg" type="Label" parent="Root/Margin/VBox"]
 custom_minimum_size = Vector2(0, 10)
 text = ""
@@ -78,7 +85,7 @@ autowrap_mode = 3
 alignment = 1
 
 [node name="Scroll" type="ScrollContainer" parent="Root/Margin/VBox"]
-custom_minimum_size = Vector2(0, 80)
+custom_minimum_size = Vector2(0, 64)
 size_flags_vertical = 3
 
 [node name="ResultBox" type="VBoxContainer" parent="Root/Margin/VBox/Scroll"]

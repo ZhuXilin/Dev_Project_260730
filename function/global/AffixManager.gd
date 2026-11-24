@@ -94,6 +94,19 @@ func roll_affixes(quality: String, item_tags: Array, allowed_schools: Array = []
 	tagged_pool.shuffle()
 	universal_pool.shuffle()
 
+	# ★ v6.62x：专精防具（allowed_schools 非空）优先出异常词条——
+	#   让玩家有"主动追求异常 build"的可控入口，而不是纯随机抽卡。
+	#   只调整优先级，不保证必出（保持词条 1/2/2/3 与流派判定不变）。
+	if not allowed_schools.is_empty():
+		var priority : Array = []
+		var rest : Array = []
+		for aid in tagged_pool:
+			if _affixes[aid].has("abnormal"):
+				priority.append(aid)
+			else:
+				rest.append(aid)
+		tagged_pool = priority + rest
+
 	var result : Array = []
 	var used_types : Dictionary = {}
 
@@ -101,27 +114,35 @@ func roll_affixes(quality: String, item_tags: Array, allowed_schools: Array = []
 	for aid in tagged_pool:
 		if result.size() >= count:
 			break
-		_try_append_affix(aid, used_types, result)
+		_try_append_affix(aid, used_types, result, quality)
 
 	# 第二阶段：通用池补满
 	for aid in universal_pool:
 		if result.size() >= count:
 			break
-		_try_append_affix(aid, used_types, result)
+		_try_append_affix(aid, used_types, result, quality)
 
 	return result
 
 
-func _try_append_affix(aid: String, used_types: Dictionary, result: Array) -> void:
+func _try_append_affix(aid: String, used_types: Dictionary, result: Array, quality: String = "") -> void:
 	var d : Dictionary = _affixes[aid]
 	var t : String = d.get("type", "")
 	if used_types.has(t):
 		return
 	used_types[t] = true
-	var vmin : int = int(d.get("value_min", 1))
-	var vmax : int = int(d.get("value_max", 1))
-	var value : int = vmin if vmin == vmax else (randi() % (vmax - vmin + 1) + vmin)
-	result.append({"id": aid, "value": value})
+	var value : int = 1
+	# ★ v6.62x：异常词条按品质取分档数值（quality_values），实现"品质决定上限与变体"
+	var qv : Variant = d.get("quality_values", null)
+	if qv is Dictionary and quality != "":
+		value = int((qv as Dictionary).get(quality, (qv as Dictionary).get("common", 1)))
+	else:
+		var vmin : int = int(d.get("value_min", 1))
+		var vmax : int = int(d.get("value_max", 1))
+		value = vmin if vmin == vmax else (randi() % (vmax - vmin + 1) + vmin)
+	# ★ v6.62y：写入 quality，供异常品质变体（禁疗/减速/免耗层/额外治疗）直接读取；
+	#   同时保留 value 供数值显示与旧存档兼容。
+	result.append({"id": aid, "value": value, "quality": quality})
 
 
 func _quality_ok(q : String, min_q : String) -> bool:

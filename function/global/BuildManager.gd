@@ -77,7 +77,9 @@ const QUALITY_CAP: Dictionary = {"common": 2, "rare": 3, "epic": 4, "legendary":
 ## 价格兜底（读取 economy_config.json 失败时使用）
 const FALLBACK_ROLL_BASE: int = 100
 const FALLBACK_ROLL_STEP: int = 50
-const FALLBACK_UPGRADE_COSTS: Array = [200, 500, 1200, 2500, 5000]
+const FALLBACK_UPGRADE_COSTS: Array = [150, 400, 900, 1800, 3500]
+## ★ v6.62z：每场战斗首次防具 roll 固定 50G（不参与 100+50n 递增）
+const FIRST_ROLL_COST: int = 50
 const FALLBACK_MERGE_COST: int = 200
 
 var _econ: Dictionary = {}
@@ -445,6 +447,44 @@ func get_effective_mechanic_text(unit, school: String) -> String:
 ##  "full" 表示流派槽已满且是新流派，需要玩家选择覆盖 / 放弃（不自动执行）。
 ## ★ v6.54：封顶补偿——把新防具词条注入该流派代表防具（按 id 去重，避免叠同一条）。
 ##   返回实际注入条数。找不到代表件时返回 0（此时仍不算浪费：Lv 已满且词条无处可挂，属数据边界）。
+## ★ v6.62z：封顶「注入词条」选项的落点——把新防具词条写入机制槽对应的代表防具，
+##   Lv 不变（只换词条，不改机制）。按 id 去重，返回实际注入条数。
+##   slot_idx 传 -1 时自动找该流派代表件；每场战斗限 1 次由 ArmorRollUI 门控。
+func inject_affixes(unit: UnitData, school: String, affixes: Array, slot_idx: int = -1) -> int:
+	if unit == null or school == "" or affixes.is_empty():
+		return 0
+	var target : ItemInstance = null
+	if slot_idx >= 0 and slot_idx < unit.armor_slots.size():
+		var sv : Variant = unit.armor_slots[slot_idx]
+		if sv is ItemInstance and get_school_of_instance(sv as ItemInstance) == school:
+			target = sv as ItemInstance
+	if target == null:
+		for slot in unit.armor_slots:
+			var inst : ItemInstance = slot as ItemInstance
+			if inst != null and get_school_of_instance(inst) == school:
+				target = inst
+				break
+	if target == null:
+		return 0
+	var existing : Dictionary = {}
+	for a in target.affixes:
+		if a is Dictionary:
+			existing[str(a.get("id", ""))] = true
+	var added : int = 0
+	for a in affixes:
+		if not (a is Dictionary):
+			continue
+		var aid : String = str(a.get("id", ""))
+		if aid == "" or existing.has(aid):
+			continue
+		target.affixes.append(a.duplicate())
+		existing[aid] = true
+		added += 1
+	if added > 0:
+		build_changed.emit(unit.unit_name)
+	return added
+
+
 func _inject_affixes_to_school(unit: UnitData, school: String, affixes: Array) -> int:
 	var target : ItemInstance = null
 	for slot in unit.armor_slots:
@@ -496,17 +536,18 @@ func apply_armor(unit: UnitData, item_id: String, quality: String, forced_school
 		entry["cap"] = new_cap
 		entry["level"] = level
 		mechs[school] = entry
-		var was_capped : bool = old_level >= old_cap and level >= old_cap
-		# ★ v6.54：封顶后并入不再浪费——把新词条注入该流派代表防具（按 id 去重）。
-		#   常规并入仍不动已有词条；只有 Lv 已到 cap、再升无意义时才走此补偿。
-		var injected : int = 0
-		if was_capped and not affixes.is_empty():
-			injected = _inject_affixes_to_school(unit, school, affixes)
+		# ★ v6.62z：封顶判定改为「Lv 未真正提升」。cap 已取 max(旧cap, 新cap)，
+		#   高品质防具强化低品质槽时 cap 提升、Lv 可继续升——这种不算封顶，照常强化。
+		var level_raised : bool = level > old_level
+		var was_capped : bool = not level_raised
+		# ★ v6.62z：封顶不再自动注入/静默浪费——由 ArmorRollUI 弹「返还金币 / 注入词条」二选一。
+		#   这里只标记 capped，不改词条；玩家选择注入时才调用 inject_affixes。
 		build_changed.emit(unit.unit_name)
-		if not was_capped and _crossed_breakthrough(old_level, level):
+		if level_raised and _crossed_breakthrough(old_level, level):
 			SignalBus.build_awakened.emit(unit, school, level, get_school_color(school))
 		return {"result": "merge", "school": school, "level": level, "cap": new_cap,
-				"replaced": "", "capped": was_capped, "affixes_injected": injected}
+				"replaced": "", "capped": was_capped, "level_raised": level_raised,
+				"affixes_injected": 0}
 
 	var used := mechs.size()
 	var slots := unit.max_armor_slots
@@ -1015,11 +1056,17 @@ func get_roll_cost(roll_count_in_session: int) -> int:
 	var base := int(_shop.get("base_reset_cost", FALLBACK_ROLL_BASE))
 	var step := int(_shop.get("reset_step", FALLBACK_ROLL_STEP))
 	var n := maxi(0, roll_count_in_session)
+	# ★ v6.62z：每场首次 roll 固定 50G，不参与 100+50n 递增；离开结算重置计数。
+	#   _roll_count 是 ArmorRollUI 的场结算内成员，UI 关闭即销毁，天然实现"离开结算重置"。
 	# ★ v6.59：老虎机遗物——定额筹码（价格不随连续 roll 递增）
 	var sm: Dictionary = GameState.get_slot_machine_relic_effects()
-	if bool(sm.get("roll_no_price_growth", false)):
-		n = 0
-	var cost := float(base + step * n)
+	var cost : float
+	if n == 0:
+		cost = float(FIRST_ROLL_COST)
+	else:
+		if bool(sm.get("roll_no_price_growth", false)):
+			n = 0
+		cost = float(base + step * n)
 	# ★ 节俭之轮：花费 -N（效果值存 0.2 表示 20%）
 	var discount := float(sm.get("roll_cost_discount", 0.0))
 	if discount > 0.0:

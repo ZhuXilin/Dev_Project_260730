@@ -6,6 +6,14 @@ var _relic_db: Dictionary = {}          # relic_id -> Dictionary
 var _unlocked_relics: Array = []        # 已解锁的 relic_id
 var _default_unlocked: Array = []       # ★ 从 relic_unlock.json 读的默认解锁（用于合并）
 
+## ★ v6.62r：稀有度抽取权重——越稀有权重越低，掉率越小。
+##   遗物数据里用 rarity 字段（common/rare/epic）；缺字段按 common 处理（向后兼容）。
+const RARITY_WEIGHTS : Dictionary = {
+	"common": 10.0,
+	"rare": 4.0,
+	"epic": 1.0,
+}
+
 func _ready():
 	load_relics()
 	load_unlock_config()
@@ -81,6 +89,44 @@ func get_all_relic_ids() -> Array:
 	for key in _relic_db.keys():
 		ids.append(key)
 	return ids
+
+
+## ★ v6.62r：取遗物的抽取权重（按 rarity 档位；缺字段/未知档按 common）。
+func get_relic_weight(relic_id: String) -> float:
+	var d : Dictionary = get_relic_data(relic_id)
+	if d.is_empty(): return float(RARITY_WEIGHTS["common"])
+	var rarity : String = str(d.get("rarity", "common"))
+	return float(RARITY_WEIGHTS.get(rarity, RARITY_WEIGHTS["common"]))
+
+
+## ★ v6.62r：按稀有度权重做不放回抽取，返回 count 个 relic_id。
+##   轮盘赌：每个候选被抽中概率 = 其权重 / 当前池权重总和；抽走后从池移除。
+##   池不足 count 时返回全部；总权重为 0 时退化为等概率。
+func weighted_pick(ids: Array, count: int) -> Array:
+	var pool : Array = ids.duplicate()
+	var picked : Array = []
+	var n : int = mini(count, pool.size())
+	for _i in range(n):
+		var total : float = 0.0
+		for rid in pool:
+			total += get_relic_weight(str(rid))
+		if total <= 0.0:
+			# 兜底：等概率取一个
+			var idx : int = randi() % pool.size()
+			picked.append(pool[idx])
+			pool.remove_at(idx)
+			continue
+		var roll : float = randf() * total
+		var acc : float = 0.0
+		var chosen : int = 0
+		for j in range(pool.size()):
+			acc += get_relic_weight(str(pool[j]))
+			if roll <= acc:
+				chosen = j
+				break
+		picked.append(pool[chosen])
+		pool.remove_at(chosen)
+	return picked
 
 
 func unlock_relic(relic_id: String):

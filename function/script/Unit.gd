@@ -17,6 +17,16 @@ var remaining_move : int = 0
 var used_move : int = 0
 var is_gray : bool = false
 var bleed_stacks : int = 0
+## ★ v6.62x：异常状态层数（战斗内临时，不写存档）。
+##   结构 {type: {"stacks": int, "source": Unit}}；type ∈ {灼烧, 冻寒, 灰烬附着}。
+##   异常是防具词条的运行时表现，详见 AbnormalManager。
+var abnormal_stacks : Dictionary = {}
+## ★ v6.62y：异常品质变体的战斗内临时状态（同样不写存档）。
+## no_heal_rounds：引爆 epic+ 禁疗剩余回合；abnormal_slow_rounds：融雪 epic+ 减速剩余回合；
+## abnormal_free_detonate_used：引爆 legendary「每场首次不耗层」是否已用。
+var no_heal_rounds : int = 0
+var abnormal_slow_rounds : int = 0
+var abnormal_free_detonate_used : bool = false
 var movement_after_attack : bool = false
 var previous_flip_h : bool = false
 var used_non_attack_item_this_turn : bool = false
@@ -29,7 +39,9 @@ var facing_dir : Vector2i = Vector2i(1, 0)
 @onready var hp_bar_container = $HPBar
 @onready var hp_bar_fill = $HPBar/Fill
 @onready var hp_bar_bg = $HPBar/Background
+@onready var abnormal_icons_root : Node2D = $AbnormalIcons
 var _hp_bar_visible : bool = true
+var _abnormal_icon_nodes : Dictionary = {}   # type -> Label
 
 # ---- Buff（v4.6：减伤率） ----
 var buff_attack_percent : float = 0.0
@@ -163,6 +175,43 @@ func update_hp_bar():
 	var ratio = float(hit_points) / float(max(1, unit_stats.max_hp))
 	hp_bar_fill.size.x = 12.0 * clampf(ratio, 0.0, 1.0)
 	hp_bar_fill.color = Color(0.9, 0.1, 0.1)
+
+
+## ★ v6.62x：刷新头顶异常状态小标记（敌我单位共用此场景，都会显示）。
+##   每种异常一个小色块：焰(灼烧)/霜(冻寒)/烬(灰烬附着)，后缀层数；无层则隐藏。
+func refresh_abnormal_icons() -> void:
+	if not is_instance_valid(abnormal_icons_root):
+		return
+	# 三种状态的显示配置：字 / 底色
+	var cfg : Dictionary = {
+		"灼烧": ["焰", Color(0.95, 0.42, 0.18)],
+		"冻寒": ["霜", Color(0.45, 0.75, 0.95)],
+		"灰烬附着": ["烬", Color(0.60, 0.55, 0.50)],
+	}
+	var order : Array = ["灼烧", "冻寒", "灰烬附着"]
+	var slot : int = 0
+	for t in order:
+		var stacks : int = int(abnormal_stacks.get(t, {}).get("stacks", 0))
+		var icon : Label = _abnormal_icon_nodes.get(t, null) as Label
+		if stacks <= 0:
+			if icon != null: icon.visible = false
+			continue
+		if icon == null:
+			icon = Label.new()
+			icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			icon.z_index = 11
+			icon.add_theme_font_size_override("font_size", 6)
+			icon.add_theme_color_override("font_color", Color.WHITE)
+			icon.add_theme_color_override("font_outline_color", Color(0, 0, 0))
+			icon.add_theme_constant_override("outline_size", 2)
+			abnormal_icons_root.add_child(icon)
+			_abnormal_icon_nodes[t] = icon
+		var pair : Array = cfg[t]
+		icon.text = str(pair[0]) + str(stacks)
+		icon.add_theme_color_override("font_color", pair[1])
+		icon.position = Vector2(slot * 11.0, 0)
+		icon.visible = true
+		slot += 1
 
 
 func _resolve_sprite_path() -> String:
@@ -953,6 +1002,11 @@ func reset_combat_buffs():
 	buff_defense_shred = 0.0
 	charge_stacks = 0
 	active_auras.clear()
+	abnormal_stacks.clear()
+	no_heal_rounds = 0
+	abnormal_slow_rounds = 0
+	abnormal_free_detonate_used = false
+	refresh_abnormal_icons()
 
 
 ## v5.1：把本场战斗累计的临时 max_hp / move_range 加成从持久层扣回。
@@ -985,6 +1039,13 @@ func get_total_move_range() -> int:
 	var base : int = unit_stats.get_effective_attr("move_range")
 	if unit_stats.team_id == 0:
 		base += SoulFireManager.get_move_bonus()
+	# ★ v6.62y：冻寒每层移动 -1，封顶 -2，至少保留 1 格（不硬控、不跳过行动）
+	var frost : int = int(abnormal_stacks.get("冻寒", {}).get("stacks", 0))
+	if frost > 0:
+		base = maxi(1, base - mini(AbnormalManager.FROST_MOVE_PENALTY_MAX, frost * AbnormalManager.FROST_MOVE_PENALTY))
+	# ★ v6.62y：融雪 epic+ 减速 2 回合，额外 -1（与冻寒惩罚叠加但不跳过行动）
+	if abnormal_slow_rounds > 0:
+		base = maxi(1, base - 1)
 	return base
 
 

@@ -7,6 +7,7 @@
     "flavor": "力量遗物。每一次战斗，第一次攻击必定命中要害。\n\n有人说，这是死者的祝福。",
     "icon": "item_021",
     "id": "relic_attack",
+    "rarity": "common",
     "name": "力量遗物",
     "price": 150.0,
     "lifetime": "persistent"
@@ -19,6 +20,7 @@
     "flavor": "守护遗物。它会让血在最深的伤口处凝固。\n\n代价是：你会记得每一次受伤。",
     "icon": "item_053",
     "id": "relic_defense",
+    "rarity": "common",
     "name": "守护遗物",
     "price": 150.0,
     "lifetime": "persistent"
@@ -31,6 +33,7 @@
     "flavor": "迅捷遗物。反击时，你的手比你的意识更快。\n\n——手没有忘记。",
     "icon": "item_043",
     "id": "relic_dexterity",
+    "rarity": "rare",
     "name": "迅捷遗物",
     "price": 200.0,
     "lifetime": "persistent"
@@ -43,6 +46,7 @@
     "flavor": "信仰遗物。治疗时，光更亮了一点。\n\n——是有人在替你祈祷。",
     "icon": "item_017",
     "id": "relic_faith",
+    "rarity": "rare",
     "name": "信仰遗物",
     "price": 200.0,
     "lifetime": "persistent"
@@ -55,6 +59,7 @@
     "flavor": "生命遗物。受第一次伤时，它会还你三成血。\n\n剩下的七成，要自己扛。",
     "icon": "item_057",
     "id": "relic_health",
+    "rarity": "rare",
     "name": "生命遗物",
     "price": 200.0,
     "lifetime": "persistent"
@@ -67,6 +72,7 @@
     "flavor": "魔力遗物。第一次施法不需要言语。\n\n——「这是谁的？」\n——「一个不会说话的人。」",
     "icon": "item_080",
     "id": "relic_magic",
+    "rarity": "common",
     "name": "魔力遗物",
     "price": 150.0,
     "lifetime": "persistent"
@@ -79,6 +85,7 @@
     "flavor": "凤凰之羽。第一次阵亡，会满血复活。\n\n第二次不会。",
     "icon": "item_061",
     "id": "relic_phoenix",
+    "rarity": "epic",
     "name": "凤凰之羽",
     "price": 200.0,
     "lifetime": "persistent"
@@ -91,6 +98,7 @@
     "flavor": "一枚古老的纹章。握着它时，脚步会变得轻盈。\n\n不是魔法。是有人记得你走过的路。",
     "icon": "item_003",
     "id": "relic_speed",
+    "rarity": "common",
     "name": "疾风遗物",
     "price": 150.0,
     "lifetime": "persistent"
@@ -103,12 +111,14 @@
     "flavor": "巨力遗物。它不会让你变强，只会让你记得自己有多强。\n\n——很多人都不记得。",
     "icon": "item_071",
     "id": "relic_strength",
+    "rarity": "rare",
     "name": "巨力遗物",
     "price": 200.0,
     "lifetime": "persistent"
   },
   "aura_ash": {
     "id": "aura_ash",
+    "rarity": "common",
     "name": "灰烬之拥",
     "description": "全队受伤 -10%，反击伤害 +30%",
     "flavor": "灰烬之拥。受到的伤害少了，但反击更痛了。\n\n——灰烬记得每一把火。",
@@ -123,6 +133,7 @@
   },
   "aura_cycle": {
     "id": "aura_cycle",
+    "rarity": "rare",
     "name": "轮回流转",
     "description": "击杀敌人回 1 魂火",
     "flavor": "轮回流转。击杀的敌人会回来一点。\n\n——作为一个数字，而不是作为一个人。",
@@ -136,6 +147,7 @@
   },
   "aura_ember": {
     "id": "aura_ember",
+    "rarity": "rare",
     "name": "薪火相传",
     "description": "每回合开始全队 +1 魂火",
     "flavor": "薪火相传。每回合开始，魂火+1。\n\n——火不需要解释，火只需要柴。",
@@ -149,6 +161,7 @@
   },
   "aura_flame": {
     "id": "aura_flame",
+    "rarity": "common",
     "name": "焚身",
     "description": "全队攻击 +15%",
     "flavor": "焚身。攻击时不再需要消耗魂火。\n\n——火焰自己会找燃料。",
@@ -162,6 +175,7 @@
   },
   "aura_guardian": {
     "id": "aura_guardian",
+    "rarity": "common",
     "name": "铁壁",
     "description": "全队物理/魔法减伤 +10%",
     "flavor": "铁壁。全队防御增加。\n\n——当有人愿意为你站成一堵墙，你才明白铁壁不是墙。",
@@ -176,6 +190,7 @@
   },
   "aura_sacrifice": {
     "id": "aura_sacrifice",
+    "rarity": "common",
     "name": "血脉燃烧",
     "description": "全队击杀时治疗 15% 最大 HP",
     "flavor": "血脉燃烧。击杀时回血。\n\n——用的别人的血。",
@@ -189,6 +204,7 @@
   },
   "relic_roll_discount": {
     "id": "relic_roll_discount",
+    "rarity": "common",
     "name": "节俭之轮",
     "description": "老虎机 roll 花费 -20%",
     "flavor": "一枚磨得发亮的旧齿轮。它转得慢，但从不乱花主人的钱。",
@@ -202,6 +218,7 @@
   },
   "relic_roll_slow": {
     "id": "relic_roll_slow",
+    "rarity": "common",
     "name": "缓速发条",
     "description": "老虎机转速减半，更容易看准时机按下停止",
     "flavor": "把急切轻轻按住。看得清，才按得准。",
@@ -215,6 +232,7 @@
   },
   "relic_roll_quality": {
     "id": "relic_roll_quality",
+    "rarity": "epic",
     "name": "命运透镜",
     "description": "老虎机 roll 高品质防具的概率提升",
     "flavor": "透过它，命运露出了一点缝隙。",
@@ -228,6 +246,7 @@
   },
   "relic_roll_school": {
     "id": "relic_roll_school",
+    "rarity": "rare",
     "name": "流派罗盘",
     "description": "老虎机 roll 时，烈焰流派防具出现率大幅提升",
     "flavor": "指针不指向北，指向火。",
@@ -242,6 +261,7 @@
   },
   "relic_roll_rebate": {
     "id": "relic_roll_rebate",
+    "rarity": "rare",
     "name": "返利硬币",
     "description": "每次老虎机 roll 后返还 20% 金币",
     "flavor": "花出去的钱，总有一部分惦记着回家。",
@@ -255,6 +275,7 @@
   },
   "relic_roll_flat": {
     "id": "relic_roll_flat",
+    "rarity": "epic",
     "name": "定额筹码",
     "description": "老虎机连续 roll 价格不再递增",
     "flavor": "无论转多少次，价钱都像第一次那样诚实。",
@@ -268,6 +289,7 @@
   },
   "relic_trade": {
     "id": "relic_trade",
+    "rarity": "rare",
     "name": "交易遗物",
     "description": "出售遗物时返还比例 +20%（基础 50% → 70%）",
     "flavor": "它教会你：一件东西真正的价值，在于你放手时能换回多少。",

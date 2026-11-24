@@ -55,15 +55,12 @@ func record_soul_fire_sample():
 	var r : float = SoulFireManager.get_ratio()
 	var state : int = SoulFireManager.get_state()
 	_current["sf_samples_total"] += 1
-	match state:
-		SoulFireManager.State.BURNING:
-			_current["sf_samples_burning"] += 1
-		SoulFireManager.State.DEPLETED:
-			_current["sf_samples_depleted"] += 1
-		_:
-			# ★ v5.17：归零并入 NORMAL，用 is_exhausted() 单独采样（保留字段名兼容历史数据）
-			if SoulFireManager.is_exhausted():
-				_current["sf_samples_zero"] += 1
+	# ★ v6.62z：两态采样——只统计燃烧占比；归零用 is_exhausted() 单独记录，
+	#   不再有"枯竭态"负面指标。DEPLETED 字段保留仅为兼容历史数据（恒为 0）。
+	if state == SoulFireManager.State.BURNING:
+		_current["sf_samples_burning"] += 1
+	elif SoulFireManager.is_exhausted():
+		_current["sf_samples_zero"] += 1
 	_current["sf_peak_ratio"] = maxf(_current["sf_peak_ratio"], r)
 	_current["sf_lowest_ratio"] = minf(_current["sf_lowest_ratio"], r)
 
@@ -356,9 +353,9 @@ func dump_summary():
 	print("FORGE：平均 %.1f 秒/次，共 %d 次" % [
 		forge_time_total / maxf(1.0, float(forge_visits_total)),
 		forge_visits_total])
-	print("魂火时间占比：燃烧 %.1f%% ｜ 枯竭 %.1f%% ｜ 归零 %.1f%%" % [
+	# ★ v6.62z：两态——只观察燃烧占比与归零占比，不再输出"枯竭"负面指标
+	print("魂火时间占比：燃烧 %.1f%% ｜ 归零 %.1f%%" % [
 		100.0 * sf_burning_total / total_f,
-		100.0 * sf_depleted_total / total_f,
 		100.0 * sf_zero_total / total_f])
 	print("派遣：共 %d，匹配 %d（%.1f%%）" % [
 		dispatch_total, dispatch_match_total,

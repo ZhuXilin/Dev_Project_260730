@@ -1,24 +1,334 @@
 {
-  "affix_attack": {"id": "affix_attack", "name": "锋锐", "description": "攻击 +{v}", "type": "attack_flat", "value_min": 1, "value_max": 3, "min_quality": "common", "tags": ["烈焰"]},
-
-  "affix_crit_chance": {"id": "affix_crit_chance", "name": "锐眼", "description": "暴击率 +{v}%", "type": "crit_chance", "value_min": 3, "value_max": 8, "min_quality": "rare", "tags": ["烈焰"]},
-  "affix_crit_damage": {"id": "affix_crit_damage", "name": "残暴", "description": "暴击伤害 +{v}%", "type": "crit_damage", "value_min": 10, "value_max": 25, "min_quality": "epic", "tags": ["烈焰"]},
-  "affix_flame_damage": {"id": "affix_flame_damage", "name": "焚身", "description": "对敌造成额外 {v} 火焰伤害", "type": "flame_damage", "value_min": 2, "value_max": 5, "min_quality": "rare", "tags": ["烈焰"]},
-  "affix_pierce_physical": {"id": "affix_pierce_physical", "name": "破甲", "description": "物理穿透 +{v}%", "type": "physical_penetration", "value_min": 5, "value_max": 10, "min_quality": "epic", "tags": ["烈焰"]},
-
-  "affix_move": {"id": "affix_move", "name": "疾行", "description": "移动力 +{v}", "type": "move_flat", "value_min": 1, "value_max": 1, "min_quality": "common", "tags": ["灰烬"]},
-  "affix_ember_guard": {"id": "affix_ember_guard", "name": "灰烬护体", "description": "防御 +{v}", "type": "defense_flat", "value_min": 1, "value_max": 4, "min_quality": "common", "tags": ["灰烬", "守护"]},
-
-  "affix_cycle_droplet": {"id": "affix_cycle_droplet", "name": "点滴", "description": "每回合回复 {v}% 最大 HP", "type": "turn_regen", "value_min": 1, "value_max": 6, "min_quality": "common", "tags": ["轮回"]},
-  "affix_pierce_magic": {"id": "affix_pierce_magic", "name": "奥术穿透", "description": "魔法穿透 +{v}%", "type": "magic_penetration", "value_min": 5, "value_max": 10, "min_quality": "epic", "tags": ["轮回"]},
-
-  "affix_anti_crit": {"id": "affix_anti_crit", "name": "抗暴", "description": "受到暴击伤害 -{v}%", "type": "anti_crit", "value_min": 20, "value_max": 40, "min_quality": "common", "tags": ["守护"]},
-  "affix_counter": {"id": "affix_counter", "name": "反击", "description": "反击伤害 +{v}%", "type": "counter", "value_min": 15, "value_max": 40, "min_quality": "epic", "tags": ["守护"]},
-  "affix_guard_shield": {"id": "affix_guard_shield", "name": "护盾", "description": "战斗开始获得 {v} 点护盾", "type": "start_shield", "value_min": 2, "value_max": 5, "min_quality": "epic", "tags": ["守护"]},
-
-  "affix_lifesteal": {"id": "affix_lifesteal", "name": "吸血", "description": "攻击时回复伤害 {v}% 的 HP", "type": "lifesteal", "value_min": 5, "value_max": 15, "min_quality": "rare", "tags": ["献祭"]},
-  "affix_heal_boost": {"id": "affix_heal_boost", "name": "恩泽", "description": "治疗量 +{v}%", "type": "heal_boost", "value_min": 15, "value_max": 30, "min_quality": "epic", "tags": ["献祭"]},
-
-  "affix_ember_spark": {"id": "affix_ember_spark", "name": "余温", "description": "最大 HP +{v}", "type": "hp_flat", "value_min": 3, "value_max": 8, "min_quality": "common", "tags": ["余烬", "献祭"]},
-  "affix_soul_fire_gain": {"id": "affix_soul_fire_gain", "name": "余烬", "description": "击杀回魂火 +{v}", "type": "soul_fire_gain", "value_min": 1, "value_max": 1, "min_quality": "legendary", "tags": ["余烬"]}
+  "affix_attack": {
+	"id": "affix_attack",
+	"name": "锋锐",
+	"description": "攻击 +{v}",
+	"type": "attack_flat",
+	"value_min": 1,
+	"value_max": 3,
+	"min_quality": "common",
+	"tags": [
+      "烈焰"
+	]
+  },
+  "affix_crit_chance": {
+	"id": "affix_crit_chance",
+	"name": "锐眼",
+	"description": "暴击率 +{v}%",
+	"type": "crit_chance",
+	"value_min": 3,
+	"value_max": 8,
+	"min_quality": "rare",
+	"tags": [
+      "烈焰"
+	]
+  },
+  "affix_crit_damage": {
+	"id": "affix_crit_damage",
+	"name": "残暴",
+	"description": "暴击伤害 +{v}%",
+	"type": "crit_damage",
+	"value_min": 10,
+	"value_max": 25,
+	"min_quality": "epic",
+	"tags": [
+      "烈焰"
+	]
+  },
+  "affix_flame_damage": {
+	"id": "affix_flame_damage",
+	"name": "焚身",
+	"description": "对敌造成额外 {v} 火焰伤害",
+	"type": "flame_damage",
+	"value_min": 2,
+	"value_max": 5,
+	"min_quality": "rare",
+	"tags": [
+      "烈焰"
+	]
+  },
+  "affix_pierce_physical": {
+	"id": "affix_pierce_physical",
+	"name": "破甲",
+	"description": "物理穿透 +{v}%",
+	"type": "physical_penetration",
+	"value_min": 5,
+	"value_max": 10,
+	"min_quality": "epic",
+	"tags": [
+      "烈焰"
+	]
+  },
+  "affix_move": {
+	"id": "affix_move",
+	"name": "疾行",
+	"description": "移动力 +{v}",
+	"type": "move_flat",
+	"value_min": 1,
+	"value_max": 1,
+	"min_quality": "common",
+	"tags": [
+      "灰烬"
+	]
+  },
+  "affix_ember_guard": {
+	"id": "affix_ember_guard",
+	"name": "灰烬护体",
+	"description": "防御 +{v}",
+	"type": "defense_flat",
+	"value_min": 1,
+	"value_max": 4,
+	"min_quality": "common",
+	"tags": [
+	  "灰烬",
+      "守护"
+	]
+  },
+  "affix_cycle_droplet": {
+	"id": "affix_cycle_droplet",
+	"name": "点滴",
+	"description": "每回合回复 {v}% 最大 HP",
+	"type": "turn_regen",
+	"value_min": 1,
+	"value_max": 6,
+	"min_quality": "common",
+	"tags": [
+      "轮回"
+	]
+  },
+  "affix_pierce_magic": {
+	"id": "affix_pierce_magic",
+	"name": "奥术穿透",
+	"description": "魔法穿透 +{v}%",
+	"type": "magic_penetration",
+	"value_min": 5,
+	"value_max": 10,
+	"min_quality": "epic",
+	"tags": [
+      "轮回"
+	]
+  },
+  "affix_anti_crit": {
+	"id": "affix_anti_crit",
+	"name": "抗暴",
+	"description": "受到暴击伤害 -{v}%",
+	"type": "anti_crit",
+	"value_min": 20,
+	"value_max": 40,
+	"min_quality": "common",
+	"tags": [
+      "守护"
+	]
+  },
+  "affix_counter": {
+	"id": "affix_counter",
+	"name": "反击",
+	"description": "反击伤害 +{v}%",
+	"type": "counter",
+	"value_min": 15,
+	"value_max": 40,
+	"min_quality": "epic",
+	"tags": [
+      "守护"
+	]
+  },
+  "affix_guard_shield": {
+	"id": "affix_guard_shield",
+	"name": "护盾",
+	"description": "战斗开始获得 {v} 点护盾",
+	"type": "start_shield",
+	"value_min": 2,
+	"value_max": 5,
+	"min_quality": "epic",
+	"tags": [
+      "守护"
+	]
+  },
+  "affix_lifesteal": {
+	"id": "affix_lifesteal",
+	"name": "吸血",
+	"description": "攻击时回复伤害 {v}% 的 HP",
+	"type": "lifesteal",
+	"value_min": 5,
+	"value_max": 15,
+	"min_quality": "rare",
+	"tags": [
+      "献祭"
+	]
+  },
+  "affix_heal_boost": {
+	"id": "affix_heal_boost",
+	"name": "恩泽",
+	"description": "治疗量 +{v}%",
+	"type": "heal_boost",
+	"value_min": 15,
+	"value_max": 30,
+	"min_quality": "epic",
+	"tags": [
+      "献祭"
+	]
+  },
+  "affix_ember_spark": {
+	"id": "affix_ember_spark",
+	"name": "余温",
+	"description": "最大 HP +{v}",
+	"type": "hp_flat",
+	"value_min": 3,
+	"value_max": 8,
+	"min_quality": "common",
+	"tags": [
+	  "余烬",
+      "献祭"
+	]
+  },
+  "affix_soul_fire_gain": {
+	"id": "affix_soul_fire_gain",
+	"name": "余烬",
+	"description": "击杀回魂火 +{v}",
+	"type": "soul_fire_gain",
+	"value_min": 1,
+	"value_max": 1,
+	"min_quality": "legendary",
+	"tags": [
+      "余烬"
+	]
+  },
+  "affix_burn_blade": {
+	"id": "affix_burn_blade",
+	"name": "灼热之刃",
+	"description": "攻击有概率上灼烧，全队打带灼烧目标更疼",
+	"type": "abnormal_burn_apply",
+	"value_min": 25,
+	"value_max": 25,
+	"min_quality": "common",
+	"tags": [
+      "烈焰"
+	],
+	"abnormal": {
+	  "type": "灼烧",
+	  "role": "apply",
+	  "school": "烈焰"
+	},
+	"quality_values": {
+	  "common": 25,
+	  "rare": 35,
+	  "epic": 45,
+	  "legendary": 55
+	}
+  },
+  "affix_detonate": {
+	"id": "affix_detonate",
+	"name": "引爆专精",
+	"description": "引爆灼烧层数造成大量伤害并清层",
+	"type": "abnormal_burn_consume",
+	"value_min": 25,
+	"value_max": 25,
+	"min_quality": "rare",
+	"tags": [
+      "余烬"
+	],
+	"abnormal": {
+	  "type": "灼烧",
+	  "role": "consume",
+	  "school": "余烬"
+	},
+	"quality_values": {
+	  "common": 25,
+	  "rare": 50,
+	  "epic": 75,
+	  "legendary": 100
+	}
+  },
+  "affix_frost_armor": {
+	"id": "affix_frost_armor",
+	"name": "寒霜护甲",
+	"description": "受击有概率上冻寒，目标易伤且减速",
+	"type": "abnormal_frost_apply",
+	"value_min": 25,
+	"value_max": 25,
+	"min_quality": "rare",
+	"tags": [
+      "守护"
+	],
+	"abnormal": {
+	  "type": "冻寒",
+	  "role": "apply",
+	  "school": "守护"
+	},
+	"quality_values": {
+	  "common": 25,
+	  "rare": 35,
+	  "epic": 45,
+	  "legendary": 55
+	}
+  },
+  "affix_thaw": {
+	"id": "affix_thaw",
+	"name": "融雪",
+	"description": "融化冻寒层数造成大量伤害并清层",
+	"type": "abnormal_frost_consume",
+	"value_min": 25,
+	"value_max": 25,
+	"min_quality": "rare",
+	"tags": [
+      "烈焰"
+	],
+	"abnormal": {
+	  "type": "冻寒",
+	  "role": "consume",
+	  "school": "烈焰"
+	},
+	"quality_values": {
+	  "common": 25,
+	  "rare": 50,
+	  "epic": 75,
+	  "legendary": 100
+	}
+  },
+  "affix_ash_trail": {
+	"id": "affix_ash_trail",
+	"name": "余烬足迹",
+	"description": "攻击有概率附加灰烬附着，全队易伤",
+	"type": "abnormal_ash_apply",
+	"value_min": 50,
+	"value_max": 50,
+	"min_quality": "rare",
+	"tags": [
+      "灰烬"
+	],
+	"abnormal": {
+	  "type": "灰烬附着",
+	  "role": "apply",
+	  "school": "灰烬"
+	},
+	"quality_values": {
+	  "common": 50,
+	  "rare": 75,
+	  "epic": 100,
+	  "legendary": 100
+	}
+  },
+  "affix_soul_drain": {
+	"id": "affix_soul_drain",
+	"name": "魂火汲取",
+	"description": "汲取灰烬附着：每层回魂火并治疗最低血队友",
+	"type": "abnormal_ash_consume",
+	"value_min": 25,
+	"value_max": 25,
+	"min_quality": "rare",
+	"tags": [
+      "轮回"
+	],
+	"abnormal": {
+	  "type": "灰烬附着",
+	  "role": "consume",
+	  "school": "轮回"
+	},
+	"quality_values": {
+	  "common": 25,
+	  "rare": 50,
+	  "epic": 75,
+	  "legendary": 100
+	}
+  }
 }

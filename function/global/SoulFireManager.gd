@@ -6,11 +6,13 @@ extends Node
 #    - 获得：命中 +N，击杀 +M，一击多杀额外 +K（全部来自战斗）
 #    - 消耗：技能 / 急救 / 局内购买光环
 #    - 兑现：删除（不再 1:1 换魂）
-#    - 状态（v5.17 三态）：DEPLETED 不再放大受伤；ZERO 不再是独立状态，
-#      归零并入 NORMAL，仅通过 HUD「魂火耗尽」标记提示，不再占状态枚举。
+#    - 状态（v6.62z 两态）：BURNING（燃烧）/ NORMAL（正常无增益）。
+#      归零并入 NORMAL，仅通过 HUD「熄」标记提示，不是负面状态、也不给额外增益。
+#      余烬「魂火耗尽下击必暴」是该流派机制，不是通用低魂火收益。
 # ============================================================
 
-enum State { NORMAL, BURNING, DEPLETED }
+## ★ v6.62z：两态——燃烧 / 正常。归零并入 NORMAL（无增益、无惩罚）。
+enum State { NORMAL, BURNING }
 
 const MAX_CARRIED_LEVELS : Array[int] = [8, 12, 16, 22, 30, 40, 50]
 const UPGRADE_COSTS      : Array[int] = [0, 30, 80, 180, 350, 600, 1000]
@@ -89,20 +91,15 @@ func get_ratio() -> float:
 
 
 func get_state() -> State:
-	# ★ v5.17：归零并入 NORMAL，不再单独成态；「魂火耗尽」由 is_exhausted() + HUD 标记表达
+	# ★ v6.62z：两态——燃烧 / 正常。归零并入正常（无增益、无惩罚），
+	#   仅用 is_exhausted() + HUD「熄」标记提示，不再有枯竭态与枯竭暴伤。
 	var r : float = get_ratio()
-
 	var burning_threshold : float = 0.5
-	var depleted_threshold : float = 0.2
 	var override : float = GameState.soul_fire_threshold_override
 	if override > 0.0 and override < burning_threshold:
 		burning_threshold = override
-
 	if r > burning_threshold:
 		return State.BURNING
-	elif r < depleted_threshold and current > 0:
-		# current <= 0 时保持 NORMAL（无暴伤），避免归零反而触发枯竭暴伤
-		return State.DEPLETED
 	return State.NORMAL
 
 
@@ -117,8 +114,10 @@ func get_move_bonus() -> int:
 func get_splash_percent() -> float:
 	return 0.5 if get_state() == State.BURNING else 0.0
 
+## ★ v6.62z：删除枯竭暴伤——低魂火/归零不提供任何额外增益。
+##   保留 API 返回 0 供旧调用点兼容；余烬「耗尽必暴」走 CombatManager 的独立机制。
 func get_crit_damage_bonus() -> float:
-	return 0.5 if get_state() == State.DEPLETED else 0.0
+	return 0.0
 
 # ★ v5.0：删除 DEPLETED 的受伤放大，始终 1.0
 func get_damage_taken_mult() -> float:

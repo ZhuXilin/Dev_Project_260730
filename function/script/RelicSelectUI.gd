@@ -51,8 +51,8 @@ func setup_options(exclude_ids: Array = []):
 	if pool.size() < 3:
 		print("警告：可选的遗物不足 3 个，仅 ", pool.size(), " 个")
 
-	pool.shuffle()
-	_relic_options = pool.slice(0, min(3, pool.size()))
+	# ★ v6.62r：按稀有度权重不放回抽取（稀有遗物掉率低），替代等概率 shuffle
+	_relic_options = RelicManager.weighted_pick(pool, 3)
 
 	_build_candidates()
 	# ★ 死锁修复：真正的按钮数可能为 0（候选虽非空但遗物数据为空），

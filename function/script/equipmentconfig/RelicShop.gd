@@ -54,15 +54,14 @@ func _roll_candidates() -> void:
 			roll_pool.append(key)
 		else:
 			team_pool.append(key)
-	team_pool.shuffle()
-	roll_pool.shuffle()
+	# ★ v6.62r：按稀有度权重不放回抽取（稀有遗物掉率低），替代等概率 shuffle
+	var team_pick : Array = RelicManager.weighted_pick(team_pool, 3)
+	var roll_pick : Array = RelicManager.weighted_pick(roll_pool, 3)
 	# 上排 3 个团队遗物，下排 3 个老虎机遗物
-	for i in range(3):
-		if i < team_pool.size():
-			_candidates.append(_make_entry(team_pool[i], false))
-	for i in range(3):
-		if i < roll_pool.size():
-			_candidates.append(_make_entry(roll_pool[i], true))
+	for rid in team_pick:
+		_candidates.append(_make_entry(str(rid), false))
+	for rid in roll_pick:
+		_candidates.append(_make_entry(str(rid), true))
 
 
 func _make_entry(relic_id: String, is_roll: bool) -> Dictionary:

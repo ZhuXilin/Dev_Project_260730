@@ -42,6 +42,7 @@ const FIELD_TRANSLATIONS : Dictionary = {
 	"stats": "属性",
 	"effects": "效果",
 	"slot_machine": "防具遗物（老虎机）",
+	"rarity": "稀有度",
 	"lifetime": "持续类型",
 	"from_aura": "源自光环",
 	"params": "参数",
@@ -445,11 +446,13 @@ func _refresh_editor_content():
 		c.queue_free()
 
 	if not _record_keys.is_empty() and _current_record_key != "" and _cfg.has(_current_record_key):
-		# ★ v6.62o：遗物缺 slot_machine 字段时补默认值 false，保证每件遗物都有「类型」复选框可切换
+		# ★ v6.62o/r：遗物缺字段时补默认值，保证每件遗物都有「类型」复选框 + 「稀有度」下拉
 		if _path.contains("relic_data") and _cfg[_current_record_key] is Dictionary:
 			var rec : Dictionary = _cfg[_current_record_key]
 			if not rec.has("slot_machine"):
 				rec["slot_machine"] = false
+			if not rec.has("rarity"):
+				rec["rarity"] = "common"
 		_render_group(_editor_vbox, _cfg[_current_record_key], _current_record_key, 0)
 	else:
 		_render_dict(_editor_vbox, _cfg, "", 0)
@@ -608,6 +611,9 @@ func _on_new_record_pressed():
 		# ★ v6.62o：遗物类型以新建面板的用户选择为准（覆盖模板带来的值）
 		if is_relic_file and type_opt != null:
 			new_data["slot_machine"] = bool(type_opt.get_item_metadata(type_opt.selected))
+		# ★ v6.62r：新建遗物补默认稀有度，保证右侧 rarity 下拉可见可改
+		if is_relic_file and not new_data.has("rarity"):
+			new_data["rarity"] = "common"
 		new_data["id"] = new_id
 		_cfg[new_id] = new_data
 		_current_record_key = new_id
@@ -1073,6 +1079,13 @@ func _render_simple_row(parent : Node, target_dict : Dictionary, key : String, v
 				_render_enum_picker_row(row, target_dict, key, str(value), [
 					["持续型", "persistent"],
 					["消耗型（战场主动释放）", "consumable"],
+				])
+			# ★ v6.62r：遗物稀有度用中文下拉（普通/稀有/史诗），底层存 common/rare/epic，控制商店掉率
+			elif key == "rarity" and _path.contains("relic_data"):
+				_render_enum_picker_row(row, target_dict, key, str(value), [
+					["普通（常见）", "common"],
+					["稀有（较低掉率）", "rare"],
+					["史诗（极低掉率）", "epic"],
 				])
 			# ★ 如果是 flavor（叙事），使用多行 TextEdit，并修复左侧 Label 被挤压的问题
 			elif key == "flavor":

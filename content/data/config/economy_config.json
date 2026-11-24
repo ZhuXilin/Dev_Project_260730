@@ -1,5 +1,5 @@
 {
-  "reward_gold": { "START": 250, "NORMAL": 250, "ELITE": 400, "BOSS": 600 },
+  "reward_gold": { "START": 300, "NORMAL": 300, "ELITE": 500, "BOSS": 700 },
   "reward_soul": { "START": 2, "NORMAL": 3, "ELITE": 6, "BOSS": 15 },
   "boss_extra_soul": 5,
   "rating_soul_bonus": {
@@ -15,7 +15,7 @@
 	"base_reset_cost": 100,
 	"reset_step": 50,
 	"max_level": 5,
-	"upgrade_costs": [200, 500, 1200, 2500, 5000],
+	"upgrade_costs": [150, 400, 900, 1800, 3500],
 	"quality_weights": [
 	  { "common": 60, "rare": 30, "epic": 10, "legendary": 0 },
 	  { "common": 45, "rare": 35, "epic": 18, "legendary": 2 },

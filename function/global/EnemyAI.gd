@@ -388,9 +388,8 @@ func _decide_healer_action(unit: Unit):
 
 	var sf_state : int = SoulFireManager.get_state()
 	var is_burning : bool = (sf_state == SoulFireManager.State.BURNING)
-	var is_depleted : bool = (sf_state == SoulFireManager.State.DEPLETED)
-
-	var danger_tolerance : int = 1 if is_depleted else 0
+	# ★ v6.62z：删除枯竭态——归零只是无燃烧增益，不给 AI 额外的"低魂火更保守"行为。
+	var danger_tolerance : int = 0
 
 	var best_ally : Unit = null
 	var best_ally_score : float = 0.0
@@ -493,7 +492,16 @@ func _evaluate_attack(unit: Unit, allow_healer: bool = false):
 
 		var is_kill = damage >= enemy.hit_points
 		var score = damage * 2
-		
+
+		# ★ v6.62y：异常链路——本单位有消费词条且目标已叠 ≥2 层时优先攻击，
+		#   否则托管下三条「施加→消费」短链路都不会被触发。
+		var abn_profile : Dictionary = AbnormalManager.get_profile(unit)
+		for abn_type : String in AbnormalManager.ALL_TYPES:
+			var can_consume : bool = int(abn_profile.get(abn_type, {}).get("consume_value", 0)) > 0
+			if can_consume and AbnormalManager.get_stacks(enemy, abn_type) >= 2:
+				score += 120
+				break
+
 		if is_kill:
 			score += 1000
 		else:

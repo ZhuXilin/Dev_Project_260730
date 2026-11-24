@@ -1493,13 +1493,11 @@ func _on_soul_fire_changed(current: int, max_carried: int):
 			soul_fire_label.text += " 熄"
 			soul_fire_label.modulate = Color(0.95, 0.45, 0.45, 1.0)
 			return
-		match SoulFireManager.get_state():
-			SoulFireManager.State.BURNING:
-				soul_fire_label.modulate = Color(1.0, 0.302, 0.302, 1.0)
-			SoulFireManager.State.DEPLETED:
-				soul_fire_label.modulate = Color(0.708, 0.499, 0.0, 1.0)
-			_:
-				soul_fire_label.modulate = Color.WHITE
+		# ★ v6.62z：两态——燃烧红 / 正常白；归零已在上方标「熄」，不再有枯竭色
+		if SoulFireManager.get_state() == SoulFireManager.State.BURNING:
+			soul_fire_label.modulate = Color(1.0, 0.302, 0.302, 1.0)
+		else:
+			soul_fire_label.modulate = Color.WHITE
 
 
 func _on_speed_changed(new_speed: int):

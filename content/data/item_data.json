@@ -25,7 +25,7 @@
   },
   "ash_cloak": {
 	"defense": 0.0,
-	"description": "灰烬织就的披风，魔减 +6%",
+	"description": "灰烬织就的披风，魔减 +6%【异常专精：优先出该流派异常词条】",
 	"equipment_slot": "armor",
 	"flavor": "",
 	"icon": "item_036",
@@ -42,7 +42,9 @@
 	],
 	"type": "armor",
 	"use_type": "equipment",
-	"affix_schools": []
+	"affix_schools": [
+      "灰烬"
+	]
   },
   "ash_devourer": {
 	"defense": 0.0,
@@ -215,7 +217,7 @@
   },
   "ember_ring": {
 	"defense": 0.0,
-	"description": "余烬的余温，物减 +8%",
+	"description": "余烬的余温，物减 +8%【异常专精：优先出该流派异常词条】",
 	"equipment_slot": "armor",
 	"flavor": "",
 	"icon": "item_068",
@@ -232,7 +234,9 @@
 	],
 	"type": "armor",
 	"use_type": "equipment",
-	"affix_schools": []
+	"affix_schools": [
+      "余烬"
+	]
   },
   "ember_shard": {
 	"defense": 0.0,
@@ -402,7 +406,7 @@
   },
   "flamebrand_plate": {
 	"defense": 0.0,
-	"description": "烙印着火焰纹路的板甲，物减 +18%、魔减 +10%",
+	"description": "烙印着火焰纹路的板甲，物减 +18%、魔减 +10%【异常专精：优先出该流派异常词条】",
 	"equipment_slot": "armor",
 	"flavor": "",
 	"icon": "item_017",
@@ -422,11 +426,13 @@
 	],
 	"type": "armor",
 	"use_type": "equipment",
-	"affix_schools": []
+	"affix_schools": [
+      "烈焰"
+	]
   },
   "guard_ring": {
 	"defense": 0.0,
-	"description": "物理减伤 +8%，力量+1",
+	"description": "物理减伤 +8%，力量+1【异常专精：优先出该流派异常词条】",
 	"equipment_slot": "armor",
 	"flavor": "",
 	"icon": "item_020",
@@ -445,7 +451,9 @@
 	],
 	"type": "armor",
 	"use_type": "equipment",
-	"affix_schools": []
+	"affix_schools": [
+      "守护"
+	]
   },
   "iron_armor": {
 	"defense": 0.0,
@@ -924,7 +932,7 @@
   },
   "power_ring": {
 	"defense": 0.0,
-	"description": "力量+2",
+	"description": "力量+2【异常专精：优先出该流派异常词条】",
 	"equipment_slot": "armor",
 	"flavor": "",
 	"icon": "item_033",
@@ -943,7 +951,9 @@
 	],
 	"type": "armor",
 	"use_type": "equipment",
-	"affix_schools": []
+	"affix_schools": [
+      "烈焰"
+	]
   },
   "sacrificial_bracer": {
 	"defense": 0.0,
@@ -1201,5 +1211,28 @@
 	"type": "armor",
 	"use_type": "equipment",
 	"affix_schools": []
+  },
+  "soulfire_ring": {
+	"defense": 0.0,
+	"description": "轮回的余响，魔减 +6%【异常专精：优先出轮回异常词条】",
+	"equipment_slot": "armor",
+	"flavor": "",
+	"icon": "item_069",
+	"id": "soulfire_ring",
+	"magic_reduction": 0.06,
+	"modifier": {},
+	"name": "轮回之戒",
+	"physical_reduction": 0.0,
+	"price": 90.0,
+	"quality": "rare",
+	"slot_count": 1.0,
+	"tags": [
+      "轮回"
+	],
+	"type": "armor",
+	"use_type": "equipment",
+	"affix_schools": [
+      "轮回"
+	]
   }
 }

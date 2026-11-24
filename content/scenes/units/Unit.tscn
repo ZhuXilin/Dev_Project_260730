@@ -27,6 +27,10 @@ offset_right = 12.0
 offset_bottom = 1.0
 color = Color(0, 0.36019146, 0.7086734, 1)
 
+[node name="AbnormalIcons" type="Node2D" parent="."]
+z_index = 11
+position = Vector2(-9, -21)
+
 [node name="HPLabel" type="Label" parent="." unique_id=1464611416]
 visible = false
 z_index = 9

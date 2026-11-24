@@ -141,6 +141,17 @@ func start_turn(team: Team):
 	if Globals.is_non_combat_mode and team == Team.ENEMY:
 		start_turn(Team.PLAYER)
 		return
+	# ★ v6.62y：异常品质变体（禁疗/减速）在「目标所属队伍回合结束」时递减，
+	#   避免敌方回合一开始就归零导致 epic 效果打不出收益。
+	if team != current_turn_team:
+		for u in UnitManager.unit_list:
+			if not is_instance_valid(u) or u.unit_stats == null:
+				continue
+			if u.unit_stats.team_id != current_turn_team:
+				continue
+			if u.no_heal_rounds > 0: u.no_heal_rounds -= 1
+			if u.abnormal_slow_rounds > 0: u.abnormal_slow_rounds -= 1
+
 	if team == Team.ENEMY and current_turn_team == Team.PLAYER:
 		if ObjectiveManager: ObjectiveManager.on_player_turn_end()
 		check_victory()
@@ -174,6 +185,14 @@ func start_turn(team: Team):
 	for unit in UnitManager.unit_list:
 		if unit.hit_points > 0 and unit.unit_stats.team_id == team:
 			unit.accumulate_all_talents()
+
+	# ★ v6.62x：异常 DOT 结算（灼烧/灰烬附着每回合掉层伤害，击杀归施加者）。
+	#   放在 buff 累积之后、reset_turn 之前；结算后先判胜，避免死单位继续行动。
+	for unit in UnitManager.unit_list:
+		if unit.hit_points > 0 and unit.unit_stats.team_id == team:
+			AbnormalManager.tick_dot(unit)
+	check_victory()
+	if is_game_over: return
 
 	if team == Team.PLAYER:
 		SoulFireManager.tick_turn_start(UnitManager.unit_list)

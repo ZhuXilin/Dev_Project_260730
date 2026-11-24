@@ -232,6 +232,15 @@ func calculate_damage(attacker: Unit, defender: Unit, apply_heavy: bool = true) 
 		effective_reduction = clampf(reduction - penetration, 0.0, 1.0)
 
 	var damage_raw : float = total_attack * (1.0 - effective_reduction)
+	# ★ v6.62y：易伤层（全队通用）——灼烧/冻寒每层 +3%、灰烬附着每层 +2%，上限 3 层。
+	#   任何伤害来源都吃：普攻/技能/DOT/反击/溅射/灰烬地块都走这条公式。
+	var abnormal_vuln : float = AbnormalManager.get_damage_taken_bonus(defender)
+	if abnormal_vuln > 0.0:
+		damage_raw *= (1.0 + abnormal_vuln)
+	# ★ v6.62y：献祭收益者——对带异常目标额外 +5% 攻击
+	var sacrifice_abn_bonus : float = AbnormalManager.get_sacrifice_abnormal_bonus(attacker, defender)
+	if sacrifice_abn_bonus > 0.0:
+		damage_raw *= (1.0 + sacrifice_abn_bonus)
 	var floor_raw : float = total_attack * MIN_DAMAGE_FLOOR
 	var damage : int = max(1, int(max(damage_raw, floor_raw)))
 
@@ -493,9 +502,9 @@ func execute_attack(attacker: Unit, defender: Unit, forced_skill_id: String = ""
 		attacker.ember_crit_consumed = false
 
 	var is_crit := false
+	# ★ v6.62z：删除通用枯竭暴伤——低魂火/归零不提供暴伤增益。
+	#   余烬「魂火耗尽下击必暴」在下方独立分支保留（流派机制）。
 	var crit_mult : float = CRIT_DAMAGE_MULT
-	if attacker.unit_stats.team_id == 0:
-		crit_mult += SoulFireManager.get_crit_damage_bonus()
 	crit_mult += attacker.get_total_affix_value_float("crit_damage")
 	crit_mult += attacker.static_crit_damage_bonus
 
@@ -801,6 +810,13 @@ func _execute_heal(attacker: Unit, defender: Unit, forced_skill_id: String = "")
 	if defender.hit_points >= defender.unit_stats.max_hp:
 		SoundManager.play_cancel_sound()
 		SignalBus.request_hint_override.emit("目标未受伤", 1.0)
+		Globals.is_performing_action = false
+		return false
+
+	# ★ v6.62y：引爆 epic+ 禁疗——目标在禁疗回合内无法接受主动治疗（被动吸血/再生不受影响）。
+	if defender.no_heal_rounds > 0:
+		SoundManager.play_cancel_sound()
+		SignalBus.request_hint_override.emit("目标被禁疗", 1.0)
 		Globals.is_performing_action = false
 		return false
 
@@ -1300,6 +1316,21 @@ func _apply_damage_with_effects(defender: Unit, damage: int, attacker: Unit, is_
 				if not _try_revive(defender):
 					defeated = true
 			# ★ v6.59：F1 燎原阵型效果已移除（烈焰自身灼烧仍保留）
+
+	# ★ v6.62y：异常状态——攻击后按施加端概率挂层，消费端引爆/融化/魂火汲取。
+	#   异常是防具词条的运行时表现（见 AbnormalManager / GameplayDesignDoc 5.4.1）。
+	if not defeated and is_instance_valid(attacker) and damage > 0 \
+			and defender.unit_stats.team_id != attacker.unit_stats.team_id:
+		# 消费端优先：目标已有对应异常且攻击方有消费词条时引爆（DOT 击杀归引爆者）
+		var consume_dmg : int = AbnormalManager.consume_on_attack(attacker, defender)
+		if consume_dmg > 0 and defender.hit_points <= 0:
+			defeated = true
+			if not _try_revive(defender):
+				return true
+		# 施加端：按概率给目标挂层（放在消费之后，避免刚上的层被自己立刻引爆吃掉）
+		AbnormalManager.apply_from_attack(attacker, defender)
+		# 受击端：守护「寒霜护甲」按概率给攻击方上冻寒
+		AbnormalManager.apply_frost_on_hit(defender, attacker)
 
 	if BossMechanicManager and BossMechanicManager.has_method("process_damage_phase"):
 		var phase_result: Dictionary = BossMechanicManager.process_damage_phase(defender, attacker, damage, old_hp)

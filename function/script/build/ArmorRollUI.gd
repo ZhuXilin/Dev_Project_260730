@@ -2,6 +2,7 @@ extends CanvasLayer
 const BuildUI = preload("res://function/script/build/BuildUI.gd")
 const SlotMachineUI = preload("res://function/script/build/SlotMachineUI.gd")
 const EquipCfg = preload("res://function/script/equipmentconfig/EquipmentConfig.gd")
+const Style = preload("res://function/script/equipmentconfig/EquipmentConfigStyle.gd")
 ## ============================================================
 ##  ArmorRollUI — v6 战后防具 roll + 领取台
 ## ============================================================
@@ -26,6 +27,9 @@ var _dim_color := Color(0.55, 0.55, 0.58)
 var _roll_count: int = 0
 var _quality_level: int = 0
 var _current: Dictionary = {}          # 当前待领取防具 {item_id,quality,school,name,mechanic}
+## ★ v6.62z：封顶二选一相关（离开结算 UI 销毁即重置，天然"每场限 1 次"）
+var _last_roll_cost: int = 0           # 本次抽取实际花费，封顶时全额退还
+var _inject_used_this_session: bool = false  # 本场是否已用过「注入词条」
 
 # ★ v6.57：防具模式 UI 节点来自 ArmorRollUI.tscn 场景（原全代码生成）
 @onready var _root: Panel = $Root
@@ -38,6 +42,7 @@ var _current: Dictionary = {}          # 当前待领取防具 {item_id,quality,
 @onready var _msg: Label = $Root/Margin/VBox/Msg
 @onready var _title_label: Label = $Root/Margin/VBox/Title
 @onready var _machine_slot: Control = $Root/Margin/VBox/MachineSlot
+@onready var _roll_relic_row: HBoxContainer = $Root/Margin/VBox/RollRelicRow
 var _machine = null
 var _closing: bool = false   # ★ 防两个关闭按钮同帧重复触发
 var _revealing: bool = false # ★ v6.58：roll 结果展示停留中，锁定一切操作
@@ -121,11 +126,65 @@ func _build_ui() -> void:
 	_machine.stopped.connect(_on_machine_stopped)
 	_machine.started.connect(_on_spin_started)
 
+	# ★ v6.62s：轮盘下方显示 4 个已装备老虎机遗物槽（有遗物显示自身图标），
+	#   让玩家直观看到哪些遗物正在影响本次防具 roll。竞技场模式无队伍遗物，隐藏整行。
+	_build_roll_relic_row()
+
 	# 按钮样式 + 信号
 	BuildUI.style_button(_upgrade_btn)
 	_upgrade_btn.pressed.connect(_on_upgrade_quality)
 	BuildUI.style_button(_close_btn)
 	_close_btn.pressed.connect(_on_close)
+
+
+## ★ v6.62s：填充轮盘下方的 4 个老虎机遗物槽（纯展示，有遗物显示自身图标）。
+##   竞技场模式用单单位、不走队伍遗物，隐藏整行；主线按 GameState.get_roll_relics() 渲染。
+func _build_roll_relic_row() -> void:
+	if _roll_relic_row == null:
+		return
+	for c in _roll_relic_row.get_children():
+		_roll_relic_row.remove_child(c)
+		c.free()
+	if _arena_mode:
+		_roll_relic_row.visible = false
+		return
+	_roll_relic_row.visible = true
+	var relics : Array = GameState.get_roll_relics()
+	for i in range(4):
+		# ★ v6.62t：与其他防具/遗物槽同款标准按钮——空槽显示「空」、有图标显示自身图标，
+		#   大小 20×20、主题默认方块边框，不再自创 PanelContainer 样式。
+		var btn : Button = Style.create_styled_button(Style.FONT_SMALL, Style.BTN_ITEM_SIZE)
+		btn.expand_icon = true
+		btn.alignment = HORIZONTAL_ALIGNMENT_CENTER
+		btn.clip_text = true
+		btn.disabled = true  # 纯展示，不可点击（保留 mouse_filter=STOP 供 tooltip）
+		var inst : Variant = relics[i] if i < relics.size() else null
+		var item_id : String = ""
+		if inst is ItemInstance:
+			item_id = (inst as ItemInstance).item_id
+		if item_id == "":
+			btn.text = "空"
+		else:
+			var d : Dictionary = RelicManager.get_relic_data(item_id)
+			var icon = d.get("icon")
+			if icon is Texture2D:
+				# 固定 20×20 TextureRect 子节点，口径同装备界面 _attach_fixed_icon
+				var icon_rect := TextureRect.new()
+				icon_rect.texture = icon
+				icon_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+				icon_rect.stretch_mode = TextureRect.STRETCH_SCALE
+				icon_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+				icon_rect.set_anchors_preset(Control.PRESET_CENTER)
+				icon_rect.offset_left = -10
+				icon_rect.offset_right = 10
+				icon_rect.offset_top = -10
+				icon_rect.offset_bottom = 10
+				btn.add_child(icon_rect)
+				btn.text = ""
+			else:
+				btn.text = str(d.get("name", "遗物")).substr(0, 2)
+			btn.tooltip_text = "%s\n%s" % [str(d.get("name", item_id)), str(d.get("description", ""))]
+		_roll_relic_row.add_child(btn)
 
 
 ## ★ v6.17：操作门控——转轮进行中 / 有待领取防具时，禁止离开与升级，
@@ -209,6 +268,8 @@ func _on_spin_started() -> void:
 		_machine.request_stop()
 		return
 	_spend(cost)
+	# ★ v6.62z：记录本次抽取实付，封顶二选一「返还金币」按此全额退回
+	_last_roll_cost = cost
 	# ★ v6.59：返利硬币遗物——roll 后按比例返还金币
 	var rebate := BuildManager.get_roll_gold_rebate(cost)
 	if rebate > 0:
@@ -543,22 +604,30 @@ func _on_place(ud: UnitData, slot_idx: int = -1) -> void:
 			same = m
 			break
 	var can_strengthen : bool = not same.is_empty()
-	var a_title : String = ""
-	var a_detail : String = ""
+	# ★ v6.62z：封顶判定与 BuildManager.apply_armor 一致——cap 取 max 后 Lv 未提升才算封顶
+	var is_capped : bool = false
 	if can_strengthen:
 		var old_cap : int = maxi(int(same.get("cap", 1)), cap)
 		var new_lv : int = mini(int(same.get("count", 1)) + 1, old_cap)
-		if int(same.get("level", 1)) >= old_cap:
-			# ★ v6.54：封顶并入改为词条注入，不再显示无效的 Lv+N
-			a_title = "强化 · %s 已满 Lv%d" % [school, new_lv]
-			a_detail = "Lv 已满，新词条注入该流派：" + affix_text
+		is_capped = new_lv <= int(same.get("level", 1))
+	var a_title : String = ""
+	var a_detail : String = ""
+	if can_strengthen:
+		if is_capped:
+			a_title = "强化 · %s 已满 Lv%d" % [school, int(same.get("level", 1))]
+			a_detail = "Lv 已达上限，选「返还金币」或「注入词条」"
 		else:
+			var new_lv : int = mini(int(same.get("count", 1)) + 1, maxi(int(same.get("cap", 1)), cap))
 			a_title = "强化 · %s Lv%d → Lv%d" % [school, int(same.get("level", 1)), new_lv]
 			a_detail = "机制升 Lv，已有词条与搭配不变"
 	else:
 		a_title = "觉醒 · 新流派 %s Lv1" % school
 		a_detail = "占 1 个流派槽，词条生效"
-	var cb_a := func(): _do_apply_armor(ud, item_id, quality, affixes)
+	var cb_a := func():
+		if is_capped:
+			_show_capped_choice(ud, slot_idx, school, affixes)
+		else:
+			_do_apply_armor(ud, item_id, quality, affixes)
 
 	# ---- 选项B：转向（替换点击槽的流派，100% 继承等级，用新词条） ----
 	if slot_school == "":
@@ -582,6 +651,55 @@ func _on_place(ud: UnitData, slot_idx: int = -1) -> void:
 		func(): _on_merge_cancelled())
 
 
+## ★ v6.62z：强化封顶二选一——返还本次 roll 金币 / 注入新词条（Lv 不变）。
+##   注入每场限 1 次；退款不受限（封顶本就该全额退，避免"白花钱"负反馈）。
+func _show_capped_choice(ud: UnitData, slot_idx: int, school: String, affixes: Array) -> void:
+	var refund_gold : int = _last_roll_cost
+	var can_inject : bool = not _inject_used_this_session and not affixes.is_empty()
+	var inject_text : String = "用新防具词条替换该槽旧词条，Lv 不变"
+	if _inject_used_this_session:
+		inject_text = "本场已用过注入，本次只能返还金币"
+	var a_detail : String = "退回本次抽取花费 %dG（该流派已满级）" % refund_gold
+	var b_detail : String = inject_text + "：" + _affix_summary(affixes)
+	var refund_cb := func():
+		_refund_capped_roll(refund_gold)
+	var inject_cb := func():
+		if not can_inject:
+			_refund_capped_roll(refund_gold)
+			return
+		var n : int = BuildManager.inject_affixes(ud, school, affixes, slot_idx)
+		if n <= 0:
+			_msg.text = "该槽无可注入词条，已返还金币"
+			_refund_capped_roll(refund_gold)
+			return
+		_inject_used_this_session = true
+		SoundManager.play_get_item_sound()
+		_msg.text = "已注入 %d 条新词条（Lv 不变，本场不再注入）" % n
+		_set_current({})
+		_refresh()
+	var cancel_cb := func():
+		_open_equipment_for_pick()
+	var parent : Node = get_tree().current_scene if get_tree() != null else self
+	Globals.show_choice(parent,
+		"%s · %s 已满级，如何处理？" % [ud.display_name, school],
+		{"title": "返还金币 +%dG" % refund_gold, "detail": a_detail, "cb": refund_cb},
+		{"title": "注入词条（每场 1 次）" if can_inject else "注入词条（本场已用）", "detail": b_detail, "cb": inject_cb},
+		cancel_cb)
+
+
+func _refund_capped_roll(amount: int) -> void:
+	if amount <= 0:
+		return
+	if _arena_mode and _set_gold_cb.is_valid():
+		_set_gold_cb.call(_gold() + amount)
+	else:
+		EconomyManager.add_temp_gold(amount)
+	SoundManager.play_get_item_sound()
+	_msg.text = "该流派已满级，本次强化不消耗金币（已返还 %dG）。可转向其他槽，或放弃。" % amount
+	_set_current({})
+	_refresh()
+
+
 func _affix_summary(affixes: Array) -> String:
 	var parts : Array = []
 	for a in affixes:
@@ -589,7 +707,11 @@ func _affix_summary(affixes: Array) -> String:
 			continue
 		var d : Dictionary = AffixManager.get_affix(str(a.get("id", "")))
 		var label : String = str(d.get("name", a.get("id", "?")))
-		parts.append("%s+%s" % [label, str(a.get("value", ""))])
+		# ★ v6.62x：异常词条用「名称（一句话描述）」，其他词条保持「名称+数值」
+		if d.has("abnormal"):
+			parts.append("%s（%s）" % [label, AffixManager.format_description(str(a.get("id", "")), int(a.get("value", 0)))])
+		else:
+			parts.append("%s+%s" % [label, str(a.get("value", ""))])
 	return " / ".join(parts) if not parts.is_empty() else "无词条"
 
 
