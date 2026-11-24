@@ -373,13 +373,13 @@ func _get_node_description(node: MapNode) -> String:
 		MapNode.NodeType.ELITE:
 			base += "\n精英战斗，敌人更强，奖励更好"
 		MapNode.NodeType.FORGE:
-			base += "\n熔铸单位（牺牲一名换其专属防具）"
+			base += "\n遗物商店（购买/出售团队遗物与老虎机遗物，可刷新）"
 		MapNode.NodeType.TREASURE:
 			base += "\n金币 / 魂 / 遗物三选一"
 		MapNode.NodeType.BOSS:
 			base += "\nBoss战及丰厚奖励"
 		MapNode.NodeType.CHAPEL:
-			base += "\n全队回满 HP，复活一名阵亡单位"
+			base += "\n英灵殿：转职 / 复活 / 献祭赋能（献祭单位超级化幸存者）"
 
 	# 保留原有的战力评估等附加信息
 	if node.map_data and node.map_data.scene and not node.is_visited:

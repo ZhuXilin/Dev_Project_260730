@@ -1014,7 +1014,25 @@ func place_skill(unit: UnitData, talent_id: String) -> bool:
 func get_roll_cost(roll_count_in_session: int) -> int:
 	var base := int(_shop.get("base_reset_cost", FALLBACK_ROLL_BASE))
 	var step := int(_shop.get("reset_step", FALLBACK_ROLL_STEP))
-	return base + step * maxi(0, roll_count_in_session)
+	var n := maxi(0, roll_count_in_session)
+	# ★ v6.59：老虎机遗物——定额筹码（价格不随连续 roll 递增）
+	var sm: Dictionary = GameState.get_slot_machine_relic_effects()
+	if bool(sm.get("roll_no_price_growth", false)):
+		n = 0
+	var cost := float(base + step * n)
+	# ★ 节俭之轮：花费 -N（效果值存 0.2 表示 20%）
+	var discount := float(sm.get("roll_cost_discount", 0.0))
+	if discount > 0.0:
+		cost *= (1.0 - clampf(discount, 0.0, 0.9))
+	return maxi(1, int(round(cost)))
+
+
+## ★ v6.59：老虎机遗物——每次 roll 后的金币返还（ArmorRollUI 调用）
+func get_roll_gold_rebate(cost_paid: int) -> int:
+	var sm: Dictionary = GameState.get_slot_machine_relic_effects()
+	var rate := float(sm.get("roll_gold_rebate", 0.0))
+	if rate <= 0.0: return 0
+	return maxi(0, int(round(float(cost_paid) * clampf(rate, 0.0, 1.0))))
 
 
 func get_upgrade_cost(quality_level: int) -> int:
@@ -1040,7 +1058,13 @@ func get_merge_cost_instance() -> int:
 ## 按品质权重表抽一个品质；quality_level 为 0..5 级
 func roll_quality(quality_level: int) -> String:
 	var lv := clampi(quality_level, 0, _quality_weights.size() - 1)
-	var weights: Dictionary = _quality_weights[lv]
+	var weights: Dictionary = (_quality_weights[lv] as Dictionary).duplicate()
+	# ★ v6.59：命运透镜——高品质权重翻倍（rare/epic/legendary）
+	var sm: Dictionary = GameState.get_slot_machine_relic_effects()
+	if int(sm.get("roll_high_quality_boost", 0)) > 0:
+		for hq in ["rare", "epic", "legendary"]:
+			if weights.has(hq):
+				weights[hq] = int(weights[hq]) * 2
 	var total := 0
 	for q in weights:
 		total += int(weights[q])
@@ -1124,6 +1148,19 @@ func get_armor_roll_pool(quality_level: int, count: int = 8) -> Array:
 			"color": color,
 			"icon": data.icon if data != null else null,
 		})
+
+	# ★ v6.59：流派罗盘——目标流派条目在池里重复 N 份，提高轮盘停在该流派的概率
+	var sm: Dictionary = GameState.get_slot_machine_relic_effects()
+	var boost := float(sm.get("roll_school_boost", 0.0))
+	var target_school := str(sm.get("roll_school_target", ""))
+	if boost > 0.0 and target_school != "":
+		var extra_count := clampi(int(boost), 1, 4)
+		var originals : Array = entries.duplicate()
+		for e in originals:
+			if str(e.get("school", "")) == target_school:
+				for _i in range(extra_count):
+					if entries.size() >= count * 3: break
+					entries.append((e as Dictionary).duplicate(true))
 
 	# ★ v6.34：品质保底——若整池全是 common，强制把第一个条目替换为一件 rare+ 防具，
 	#   避免早期 8 个候选全是 Lv 上限低的价值重复项。重 roll 保证 item_id 与 quality 一致。

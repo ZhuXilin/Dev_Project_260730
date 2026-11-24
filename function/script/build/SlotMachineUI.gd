@@ -39,6 +39,8 @@ var _decel_ticks: int = 0
 var _stop_at_boundary: bool = false
 var _start_enabled: bool = true
 var _last_tick_usec: int = 0
+## ★ v6.59：转速系数（1.0=原速；0.5=减半，来自缓速发条遗物）。可在 setup 前设置。
+var speed_scale: float = 1.0
 
 var _title: Label = null
 var _window: Control = null
@@ -60,7 +62,7 @@ func setup(entries: Array, title: String = "轮盘") -> void:
 	_index = 0
 	_state = SpinState.IDLE
 	_phase = 0.0
-	_interval = 0.16
+	_interval = 0.16 / maxf(0.05, speed_scale)
 	_spin_elapsed = 0.0
 	_decel_ticks = 0
 	_stop_at_boundary = false
@@ -260,7 +262,7 @@ func start_spin() -> void:
 		return
 	_state = SpinState.SPINNING
 	_phase = 0.0
-	_interval = 0.16
+	_interval = 0.16 / maxf(0.05, speed_scale)
 	_spin_elapsed = 0.0
 	_decel_ticks = 0
 	_stop_at_boundary = false
@@ -320,7 +322,7 @@ func _process(_delta: float) -> void:
 	_last_tick_usec = now
 	_spin_elapsed += real_delta
 	if _state == SpinState.SPINNING:
-		_interval = maxf(0.085, 0.16 - _spin_elapsed * 0.10)
+		_interval = maxf(0.085 / maxf(0.05, speed_scale), (0.16 - _spin_elapsed * 0.10) / maxf(0.05, speed_scale))
 	_phase += real_delta / maxf(_interval, 0.01)
 
 	# 连续滚动：整数格推进时换内容；STOPPING 每格递增间隔做减速
@@ -329,10 +331,10 @@ func _process(_delta: float) -> void:
 		_index = (_index + 1) % _entries.size()
 		_update_reel()
 		if _state == SpinState.STOPPING:
-			_interval = minf(0.30, _interval + 0.05)
-			_decel_ticks += 1
-			if _decel_ticks >= 8:
-				_stop_at_boundary = true
+			_interval = minf(0.30 / maxf(0.05, speed_scale), _interval + 0.05 / maxf(0.05, speed_scale))
+		_decel_ticks += 1
+		if _decel_ticks >= 8:
+			_stop_at_boundary = true
 
 	# 落到整格后才真正停止，保证中奖线对准一个符号
 	if _stop_at_boundary:

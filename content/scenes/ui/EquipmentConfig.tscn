@@ -70,24 +70,6 @@ size_flags_horizontal = 0
 size_flags_vertical = 0
 theme_override_constants/separation = 4
 
-[node name="RelicSection" type="VBoxContainer" parent="MainPanel/VBoxContainer/MainHBox/LeftInfoColumn" unique_id=818878612]
-layout_mode = 2
-size_flags_vertical = 0
-theme_override_constants/separation = 2
-
-[node name="RelicTitle" type="Label" parent="MainPanel/VBoxContainer/MainHBox/LeftInfoColumn/RelicSection" unique_id=1515137034]
-custom_minimum_size = Vector2(0, 0)
-layout_mode = 2
-theme_override_font_sizes/font_size = 6
-text = "── 团队遗物 ──"
-horizontal_alignment = 1
-clip_text = true
-
-[node name="RelicContainer" type="HBoxContainer" parent="MainPanel/VBoxContainer/MainHBox/LeftInfoColumn/RelicSection" unique_id=1750737001]
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_constants/separation = 2
-
 [node name="DetailZone" type="Panel" parent="MainPanel/VBoxContainer/MainHBox/LeftInfoColumn" unique_id=34327919]
 custom_minimum_size = Vector2(0, 120)
 layout_mode = 2
@@ -103,6 +85,26 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 
+[node name="RollRelicSection" type="VBoxContainer" parent="MainPanel/VBoxContainer/MainHBox/LeftInfoColumn" unique_id=818878613]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 0
+theme_override_constants/separation = 1
+
+[node name="RollRelicTitle" type="Label" parent="MainPanel/VBoxContainer/MainHBox/LeftInfoColumn/RollRelicSection" unique_id=1515137035]
+custom_minimum_size = Vector2(0, 0)
+layout_mode = 2
+theme_override_font_sizes/font_size = 6
+text = "防具遗物"
+horizontal_alignment = 1
+clip_text = true
+
+[node name="RollRelicContainer" type="HBoxContainer" parent="MainPanel/VBoxContainer/MainHBox/LeftInfoColumn/RollRelicSection" unique_id=1750737002]
+layout_mode = 2
+size_flags_horizontal = 3
+alignment = 1
+theme_override_constants/separation = 4
+
 [node name="LeftVBox" type="VBoxContainer" parent="MainPanel/VBoxContainer/MainHBox" unique_id=1748417651]
 layout_mode = 2
 size_flags_horizontal = 3
@@ -113,6 +115,25 @@ layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 alignment = 1
+
+[node name="RelicSection" type="VBoxContainer" parent="MainPanel/VBoxContainer/MainHBox/LeftVBox" unique_id=818878612]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 0
+theme_override_constants/separation = 1
+
+[node name="RelicTitle" type="Label" parent="MainPanel/VBoxContainer/MainHBox/LeftVBox/RelicSection" unique_id=1515137034]
+custom_minimum_size = Vector2(0, 0)
+layout_mode = 2
+theme_override_font_sizes/font_size = 6
+text = "团队遗物"
+horizontal_alignment = 1
+clip_text = true
+
+[node name="RelicContainer" type="Control" parent="MainPanel/VBoxContainer/MainHBox/LeftVBox/RelicSection" unique_id=1750737001]
+layout_mode = 2
+size_flags_horizontal = 3
+custom_minimum_size = Vector2(0, 24)
 
 [node name="RightScroll" type="ScrollContainer" parent="MainPanel/VBoxContainer/MainHBox" unique_id=2000000000]
 custom_minimum_size = Vector2(120, 160)
@@ -189,7 +210,7 @@ horizontal_scroll_mode = 0
 
 [node name="ShopContainer" type="GridContainer" parent="MainPanel/VBoxContainer/MainHBox/RightScroll/RightContainer/ShopScroll" unique_id=114385080]
 layout_mode = 2
-size_flags_horizontal = 3
+size_flags_horizontal = 4
 size_flags_vertical = 0
 columns = 3
 

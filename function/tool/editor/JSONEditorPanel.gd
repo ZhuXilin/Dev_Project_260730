@@ -41,6 +41,9 @@ const FIELD_TRANSLATIONS : Dictionary = {
 	"affix_schools": "词条流派池（空=跟随标签）",
 	"stats": "属性",
 	"effects": "效果",
+	"slot_machine": "防具遗物（老虎机）",
+	"lifetime": "持续类型",
+	"from_aura": "源自光环",
 	"params": "参数",
 	"unlock_type": "解锁类型",
 	"tutorial_stage": "教程阶段",
@@ -376,27 +379,42 @@ func _rebuild_record_list():
 	if _list_panel: _list_panel.visible = show_list
 	if not show_list: return
 
-	for key in _record_keys:
-		var d : Dictionary = _cfg[key]
-		var btn := Button.new()
-		var label : String = str(d.get("name", d.get("display_name", key)))
-		btn.text = label + "  [" + key + "]"
-		btn.toggle_mode = true
-		btn.focus_mode = Control.FOCUS_NONE
-		btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
-		btn.clip_text = true
-		btn.set_meta("record_key", key)
+	# ★ v6.62l：遗物配置按「团队遗物 / 防具遗物（老虎机）」分两组，组间加标题
+	var group_relics : bool = _path.contains("relic_data")
+	var group_order : Array = [false, true]  # 先团队(false)，后防具遗物/老虎机(true)
+	for is_roll in group_order:
+		if group_relics:
+			var head := Label.new()
+			head.text = ("── 防具遗物（老虎机） ──" if is_roll else "── 团队遗物 ──")
+			head.add_theme_font_size_override("font_size", FS_BUTTON)
+			head.modulate = Color(0.85, 0.78, 0.45) if is_roll else Color(0.65, 0.78, 0.9)
+			head.set_meta("group_header", true)  # 让 _update_record_list_selection 跳过
+			_list_vbox.add_child(head)
 
-		var icon_id : String = str(d.get("icon", ""))
-		if icon_id != "":
-			var tex : Texture2D = IconManager.get_icon_or_null(_normalize_icon_id(icon_id))
-			if tex:
-				btn.icon = tex
-				# 与底部图标选择器统一：16x16 像素图按真实像素显示，避免缩放发糊
-				btn.add_theme_constant_override("icon_max_width", 16)
+		for key in _record_keys:
+			var d : Dictionary = _cfg[key]
+			# 遗物文件按 slot_machine 过滤到对应组；非遗物文件全部显示
+			if group_relics and bool(d.get("slot_machine", false)) != bool(is_roll):
+				continue
+			var btn := Button.new()
+			var label : String = str(d.get("name", d.get("display_name", key)))
+			btn.text = label + "  [" + key + "]"
+			btn.toggle_mode = true
+			btn.focus_mode = Control.FOCUS_NONE
+			btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
+			btn.clip_text = true
+			btn.set_meta("record_key", key)
 
-		btn.pressed.connect(_select_record.bind(key))
-		_list_vbox.add_child(btn)
+			var icon_id : String = str(d.get("icon", ""))
+			if icon_id != "":
+				var tex : Texture2D = IconManager.get_icon_or_null(_normalize_icon_id(icon_id))
+				if tex:
+					btn.icon = tex
+					# 与底部图标选择器统一：16x16 像素图按真实像素显示，避免缩放发糊
+					btn.add_theme_constant_override("icon_max_width", 16)
+
+			btn.pressed.connect(_select_record.bind(key))
+			_list_vbox.add_child(btn)
 
 	_update_record_list_selection()
 
@@ -404,6 +422,8 @@ func _rebuild_record_list():
 func _update_record_list_selection():
 	if _list_vbox == null: return
 	for btn in _list_vbox.get_children():
+		if not (btn is Button) or not btn.has_meta("record_key"):
+			continue  # 跳过分组标题 Label
 		var k : String = str(btn.get_meta("record_key", ""))
 		var selected : bool = (k == _current_record_key)
 		btn.button_pressed = selected
@@ -559,6 +579,9 @@ func _on_new_record_pressed():
 		var new_data : Dictionary = {}
 		if tpl_key != "" and _cfg.has(tpl_key) and _cfg[tpl_key] is Dictionary:
 			new_data = (_cfg[tpl_key] as Dictionary).duplicate(true)
+		# ★ v6.62l：遗物空白模板补 slot_machine 字段，便于新建后直接切换团队/防具遗物类型
+		if tpl_key == "" and _path.contains("relic_data") and not new_data.has("slot_machine"):
+			new_data["slot_machine"] = false
 		new_data["id"] = new_id
 		_cfg[new_id] = new_data
 		_current_record_key = new_id
@@ -973,6 +996,9 @@ func _render_simple_row(parent : Node, target_dict : Dictionary, key : String, v
 			cb.button_pressed = value
 			cb.toggled.connect(func(p):
 				target_dict[key] = p; _dirty = true
+				# ★ v6.62l：改遗物类型后自动归组（重建左侧列表）
+				if key == "slot_machine" and _path.contains("relic_data"):
+					_rebuild_record_list()
 			)
 			row.add_child(cb)
 		TYPE_STRING:

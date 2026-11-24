@@ -110,6 +110,11 @@ func _build_ui() -> void:
 	# 轮盘：代码创建（自定义控件）塞进场景的 MachineSlot 占位
 	_machine = SlotMachineUI.new()
 	_machine.custom_minimum_size = Vector2(0, 72)
+	# ★ v6.59：缓速发条遗物——防具 roll 转速放慢（技能模式共用轮盘但不受影响）
+	var sm: Dictionary = GameState.get_slot_machine_relic_effects()
+	var slower := float(sm.get("roll_spin_slower", 0.0))
+	if slower > 0.0:
+		_machine.speed_scale = clampf(slower, 0.05, 1.0)
 	_machine_slot.add_child(_machine)
 	# ★ 必须铺满 MachineSlot，否则轮盘宽度塌成内容宽、内部居中整体贴左
 	_machine.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -204,6 +209,13 @@ func _on_spin_started() -> void:
 		_machine.request_stop()
 		return
 	_spend(cost)
+	# ★ v6.59：返利硬币遗物——roll 后按比例返还金币
+	var rebate := BuildManager.get_roll_gold_rebate(cost)
+	if rebate > 0:
+		if _arena_mode and _set_gold_cb.is_valid():
+			_set_gold_cb.call(_gold() + rebate)
+		else:
+			EconomyManager.add_temp_gold(rebate)
 	_roll_count += 1
 	_set_current({})
 	# ★ v6.43：移除老虎机状态文字（点「停！」提示），轮盘自身已有按钮反馈

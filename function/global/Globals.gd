@@ -492,7 +492,7 @@ func show_confirm(parent: Node, message: String, confirm_text: String = "确定"
 
 
 ## ★ v6.53：双选项选择面板（强化/转向），data_a/data_b 见 ConfirmUI.show_choice
-func show_choice(parent: Node, title: String, data_a: Dictionary, data_b: Dictionary, cancel_cb: Callable = Callable()):
+func show_choice(parent: Node, title: String, data_a: Dictionary, data_b: Dictionary, cancel_cb: Callable = Callable(), horizontal: bool = false):
 	for child in parent.get_children():
 		if child is CanvasLayer:
 			var script = child.get_script()
@@ -503,7 +503,7 @@ func show_choice(parent: Node, title: String, data_a: Dictionary, data_b: Dictio
 		return null
 	var instance = ui.instantiate()
 	parent.add_child(instance)
-	instance.show_choice(title, data_a, data_b, cancel_cb)
+	instance.show_choice(title, data_a, data_b, cancel_cb, horizontal)
 	return instance
 
 

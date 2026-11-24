@@ -26,7 +26,14 @@ func start_drag(btn: Control):
 	# ★ v6.56：魂栈（熔铸）模式——只放行"拖拽单位入献祭熔铸槽"，其余一律不许起拖。
 	#   从起点就拦，避免玩家能把遗物/防具/技能拖起来（视觉上像能操作）。
 	if (panel.current_mode == panel.Mode.FORGE or panel._is_shop_rest_mode()):
-		if btn.get_meta("slot_type", "") != "unit_icon":
+		var st : String = btn.get_meta("slot_type", "")
+		# ★ v6.62c：魂栈商店格子可拖起（拖到遗物槽购买）
+		if panel.current_mode == panel.Mode.FORGE and st == "relic_shop_item":
+			pass
+		# ★ v6.59：魂栈遗物商店下，允许遗物槽起拖（拖到出售区卖钱）；熔铸已移至英灵殿
+		elif panel.current_mode == panel.Mode.FORGE and st in ["passive_slot", "roll_relic_slot"]:
+			if btn.get_meta("item_id", "") == "": return
+		elif st != "unit_icon":
 			return
 	var slot_type : String = btn.get_meta("slot_type", "")
 
@@ -84,6 +91,9 @@ func start_drag(btn: Control):
 		"shop_index": btn.get_meta("shop_index", -1),
 		"talent_id": talent_id,
 		"passive_index": btn.get_meta("passive_index", -1),
+		"roll_index": btn.get_meta("roll_index", -1),
+		"shop_candidate_idx": btn.get_meta("shop_candidate_idx", -1),
+		"is_roll_relic": btn.get_meta("slot_machine", false),
 		"item_price": btn.get_meta("item_price", 0),
 		"forge_slot_index": btn.get_meta("forge_slot_index", -1),
 		"pending_idx": btn.get_meta("pending_idx", -1),
@@ -267,6 +277,11 @@ func _collect_targets() -> Array:
 		for btn in panel.relic_container.get_children():
 			if btn is Button:
 				targets.append(btn)
+	# ★ v6.62c：老虎机遗物槽也要作为拖拽目标（商店格子拖入购买）
+	if panel.roll_relic_container:
+		for btn in panel.roll_relic_container.get_children():
+			if btn is Button:
+				targets.append(btn)
 
 	if panel._pending_container and panel._pending_section and panel._pending_section.visible:
 		for btn in panel._pending_container.get_children():
@@ -311,7 +326,12 @@ func _get_all_target_controls() -> Array[Control]:
 	if panel.relic_container:
 		for btn in panel.relic_container.get_children():
 			if btn is Button: targets.append(btn)
-			
+
+	# ★ v6.62f：防具遗物槽也要纳入变灰/高亮，否则拖商店防具遗物时这些槽无反馈
+	if panel.roll_relic_container:
+		for btn in panel.roll_relic_container.get_children():
+			if btn is Button: targets.append(btn)
+
 	if panel._pending_container and panel._pending_section and panel._pending_section.visible:
 		for btn in panel._pending_container.get_children():
 			if btn is Button: targets.append(btn)

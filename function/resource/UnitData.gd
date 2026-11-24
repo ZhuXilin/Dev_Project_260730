@@ -99,6 +99,17 @@ var zeal_stacks : int = 0
 @export var is_dead: bool = false
 @export var experience: int = 0
 
+# ============================================================
+#  ★ v6.59 献祭赋能（熔铸改为单位超级化）
+# ============================================================
+#  is_empowered：本单位是否已被赋能（超级化）。
+#  empowerment_source：被献祭单位的快照 —— {unit_name, display_name,
+#     stat_gains:{max_hp,strength,...}, armor_slots, talent_slots,
+#     mechanisms, advanced_class, level, experience, attack ...}
+#  （原献祭单位的 is_dead=true 躺在英灵殿；复活它时读取此快照还原数值并解冻装备/技能/流派）
+@export var is_empowered: bool = false
+@export var empowerment_source: Dictionary = {}
+
 @export var armor_slots: Array = []
 @export var max_armor_slots: int = 2
 ## v6：流派机制视图 —— {school: {level, cap, count}}，玩家层唯一 Build 数据源
@@ -267,6 +278,7 @@ func to_dict() -> Dictionary:
 		"advanced_class": advanced_class, "advanced_talent_id": advanced_talent_id,
 		"override_sprite_path": override_sprite_path, "avatar_override": avatar_override,
 		"is_dead": is_dead, "sacrifice_buff_sources": sacrifice_buff_sources.duplicate(),
+		"is_empowered": is_empowered, "empowerment_source": empowerment_source.duplicate(true),
 		"tags": tags.duplicate(), "core_trait": core_trait, "is_boss": is_boss,
 		"hidden_from_roster": hidden_from_roster, "boss_mechanic_id": boss_mechanic_id,
 		"boss_mechanic_params": boss_mechanic_params.duplicate(true),
@@ -327,6 +339,9 @@ static func from_dict(d: Dictionary) -> UnitData:
 	data.override_sprite_path = d.get("override_sprite_path", "")
 	data.avatar_override = d.get("avatar_override", "")
 	data.is_dead = d.get("is_dead", false)
+	data.is_empowered = bool(d.get("is_empowered", false))
+	var emp_raw : Variant = d.get("empowerment_source", {})
+	data.empowerment_source = (emp_raw as Dictionary).duplicate(true) if emp_raw is Dictionary else {}
 
 	var buff_arr : Variant = d.get("sacrifice_buff_sources", [])
 	data.sacrifice_buff_sources = (buff_arr as Array).duplicate() if buff_arr is Array else []

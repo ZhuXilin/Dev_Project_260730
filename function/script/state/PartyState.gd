@@ -1,7 +1,8 @@
 class_name PartyState
 extends RefCounted
 
-const MAX_PASSIVE_SLOTS : int = 4
+const MAX_PASSIVE_SLOTS : int = 6       # ★ v6.59：团队遗物槽 4→6
+const MAX_ROLL_RELIC_SLOTS : int = 4    # ★ v6.59：老虎机专用遗物槽
 
 var party : Array[UnitData] = []
 var max_party_size : int = 3
@@ -10,6 +11,8 @@ var main_unit_index : int = 0
 var current_faction : String = ""
 
 var equipped_passives : Array = []
+## ★ v6.59：老虎机专用遗物槽（与团队遗物分开，独立生效在 roll 机制上）
+var equipped_roll_relics : Array = []
 
 func initialize_party(selected_units: Array[String], main_index: int):
 	party.clear()
@@ -88,6 +91,9 @@ func init_passive_slots():
 	equipped_passives.clear()
 	for i in range(MAX_PASSIVE_SLOTS):
 		equipped_passives.append(null)
+	equipped_roll_relics.clear()
+	for i in range(MAX_ROLL_RELIC_SLOTS):
+		equipped_roll_relics.append(null)
 
 func _ensure_passive_size():
 	while equipped_passives.size() < MAX_PASSIVE_SLOTS:
@@ -164,3 +170,40 @@ func remove_aura_from_passives(aura_id: String) -> bool:
 			equipped_passives[i] = null
 			return true
 	return false
+
+
+# ============================================================
+#  ★ v6.59 老虎机专用遗物槽
+# ============================================================
+func _ensure_roll_relic_size():
+	while equipped_roll_relics.size() < MAX_ROLL_RELIC_SLOTS:
+		equipped_roll_relics.append(null)
+	while equipped_roll_relics.size() > MAX_ROLL_RELIC_SLOTS:
+		equipped_roll_relics.pop_back()
+
+func get_roll_relics() -> Array:
+	_ensure_roll_relic_size()
+	return equipped_roll_relics
+
+func set_roll_relic_at_slot(idx: int, value) -> void:
+	if idx < 0 or idx >= MAX_ROLL_RELIC_SLOTS: return
+	_ensure_roll_relic_size()
+	equipped_roll_relics[idx] = value
+
+func remove_roll_relic_at_slot(idx: int) -> void:
+	set_roll_relic_at_slot(idx, null)
+
+func add_roll_relic(inst: ItemInstance) -> bool:
+	_ensure_roll_relic_size()
+	for i in range(MAX_ROLL_RELIC_SLOTS):
+		if equipped_roll_relics[i] == null:
+			equipped_roll_relics[i] = inst
+			return true
+	return false
+
+func get_roll_relic_instances() -> Array:
+	var result : Array = []
+	for p in get_roll_relics():
+		if p is ItemInstance:
+			result.append(p)
+	return result

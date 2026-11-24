@@ -41,12 +41,14 @@ var _build_ui_pending: bool = false
 var _is_closing: bool = false
 var _context : EquipContext = null
 
-const MAX_PASSIVE_SLOTS : int = 4
+const MAX_PASSIVE_SLOTS : int = 6  # ★ 与 PartyState 一致：团队遗物6槽
 
 var current_tab: String = "talent"  # ★ v5.1：武器库已移除，默认特技库
 var shop_manager = null
 
 var _forge : EquipmentConfigForge = null
+## ★ v6.59：魂栈遗物商店
+var _relic_shop = null
 var _drag : EquipmentConfigDrag = null
 var _detail : EquipmentConfigDetail = null
 var _shop : EquipmentConfigShop = null
@@ -66,6 +68,8 @@ const DIRECTION_REROLL_COST : int = 120
 var _armor_btn_default_style : Dictionary = {}
 ## v6.5：单位列防具区固定行数，技能图标始终落在同一水平线（红线下方）
 var _unit_column_armor_rows : int = 0
+## v6.62d：团队遗物槽对齐布局稳定后才执行，且只连接一次尺寸变化监听
+var _relic_align_connected : bool = false
 
 @onready var mode_label = get_node_or_null("VBoxContainer/TopBar/ModeLabel")
 @onready var gold_label = get_node_or_null("VBoxContainer/GoldLabel")
@@ -82,8 +86,11 @@ var shop_scroll: ScrollContainer = null
 @onready var tab_bar = get_node_or_null("VBoxContainer/MainHBox/RightScroll/RightContainer/TabBar")
 @onready var weapon_tab_btn = get_node_or_null("VBoxContainer/MainHBox/RightScroll/RightContainer/TabBar/WeaponTabBtn")
 @onready var talent_tab_btn = get_node_or_null("VBoxContainer/MainHBox/RightScroll/RightContainer/TabBar/TalentTabBtn")
-@onready var relic_section: VBoxContainer = get_node_or_null("VBoxContainer/MainHBox/LeftInfoColumn/RelicSection")
-@onready var relic_container: HBoxContainer = get_node_or_null("VBoxContainer/MainHBox/LeftInfoColumn/RelicSection/RelicContainer")
+# ★ 团队遗物与单位/防具/技能共享 LeftVBox；老虎机遗物与商店共享 RightContainer
+@onready var relic_section: VBoxContainer = get_node_or_null("VBoxContainer/MainHBox/LeftVBox/RelicSection")
+@onready var relic_container: Control = get_node_or_null("VBoxContainer/MainHBox/LeftVBox/RelicSection/RelicContainer")
+@onready var roll_relic_section: VBoxContainer = get_node_or_null("VBoxContainer/MainHBox/LeftInfoColumn/RollRelicSection")
+@onready var roll_relic_container: HBoxContainer = get_node_or_null("VBoxContainer/MainHBox/LeftInfoColumn/RollRelicSection/RollRelicContainer")
 @onready var sacrifice_tab_btn : Button = get_node_or_null("VBoxContainer/MainHBox/RightScroll/RightContainer/TabBar/SacrificeTabBtn")
 @onready var furnace_tab_btn : Button = get_node_or_null("VBoxContainer/MainHBox/RightScroll/RightContainer/TabBar/FurnaceTabBtn")
 
@@ -216,6 +223,12 @@ func init(units: Array, slot: int, mode: int, context: EquipContext = null):
 
 	if mode == Mode.FORGE or is_shop_rest_mode():
 		_forge.init_slots()
+
+	# ★ v6.59：魂栈改为遗物商店
+	if mode == Mode.FORGE:
+		var RelicShopScript = preload("res://function/script/equipmentconfig/RelicShop.gd")
+		_relic_shop = RelicShopScript.new(self)
+		_relic_shop.generate()
 
 	if is_shop_rest_mode():
 		current_tab = "arena_shop"
@@ -629,6 +642,7 @@ func _create_unit_column(unit_idx: int, is_preview: bool = false) -> Control:
 
 	# 防具槽位 ★ v6.41：由每单位每行 1 个改为每行 2 个（GridContainer 双列，节约纵向空间）
 	var armor_group := GridContainer.new()
+	armor_group.name = "ArmorGroup"
 	armor_group.columns = 2
 	armor_group.add_theme_constant_override("h_separation", Style.ITEM_GRID_GAP)
 	armor_group.add_theme_constant_override("v_separation", Style.ITEM_GRID_GAP)
@@ -957,6 +971,10 @@ func _build_ui_inner():
 				
 				left_vbox.remove_child(unit_container)
 				left_vbox.add_child(scroll)
+				# ★ 保证单位栏在团队遗物区上方：scroll 插到 RelicSection 之前，
+				#   否则 add_child 默认加到末尾会把遗物顶到单位上方
+				if relic_section and relic_section.get_parent() == left_vbox:
+					left_vbox.move_child(scroll, relic_section.get_index())
 				scroll.add_child(unit_container)
 				unit_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 				unit_container.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -1006,15 +1024,22 @@ func _build_ui_inner():
 			lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 
 	var show_passive : bool = (_context.get_context_id() != "arena")
+	# ★ v6.62c：底部两个遗物区域（团队 6 槽 / 老虎机 4 槽），区域内直接放插槽
 	if relic_section: relic_section.visible = show_passive
-	if relic_container: 
+	if relic_container:
 		relic_container.visible = show_passive
-		relic_container.add_theme_constant_override("separation", 2) 
+		relic_container.add_theme_constant_override("separation", 2)
+	if roll_relic_section: roll_relic_section.visible = show_passive
+	if roll_relic_container:
+		roll_relic_container.visible = show_passive
+		roll_relic_container.add_theme_constant_override("separation", 2)
 	if show_passive:
 		_build_passive_slots()
+		_build_roll_relic_slots()
 
 	var show_pending : bool = false
-	if current_mode == Mode.FORGE or current_mode == Mode.MAP_SHOP_REST:
+	# ★ v6.62c：魂栈（FORGE）已无熔铸奖励，"一键领取"整段移除；仅 MAP_SHOP_REST 保留
+	if current_mode == Mode.MAP_SHOP_REST:
 		if current_tab != "arena_shop":
 			show_pending = true
 			
@@ -1177,33 +1202,37 @@ func _build_ui_inner():
 					shop_container.visible = true
 
 		Mode.FORGE:
-			mode_label.text = "魂栈 · 熔铸"
+			mode_label.text = "魂栈"
 			close_btn.visible = true
 			close_btn.text = "离开"
 			confirm_btn.visible = false
 			gold_label.visible = false
-			tab_bar.visible = true
-			tab_bar.alignment = BoxContainer.ALIGNMENT_BEGIN
-			# ★ v6.5：魂栈只有熔铸一个页签
+			# ★ 魂栈只需遗物商店，不要页签切换（用户划掉"熔铸"页签）
+			tab_bar.visible = false
 			weapon_tab_btn.visible = false
 			talent_tab_btn.visible = false
 			if _aura_tab_btn: _aura_tab_btn.visible = false
-			if sacrifice_tab_btn:
-				sacrifice_tab_btn.visible = true
-				sacrifice_tab_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-				sacrifice_tab_btn.disabled = false
-				sacrifice_tab_btn.text = "熔铸"
+			if sacrifice_tab_btn: sacrifice_tab_btn.visible = false
 			current_tab = "sacrifice"
-			_update_tab_style()
 			_forge.cleanup()
-			_build_sacrifice_panel()
+			# 清掉可能残留的旧熔铸/一键领取动态节点（用户划掉的两个宽框）
+			_clear_forge_leftovers()
+			# ★ 魂栈改为遗物商店（献祭赋能已合入英灵殿）
+			if _relic_shop:
+				_build_relic_shop_panel()
+			else:
+				_build_sacrifice_panel()
 			shop_container.visible = true
 
-	reset_btn.visible = (current_tab == "arena_shop")
-	if reset_btn.visible and shop_manager:
+	# ★ v6.59：魂栈遗物商店显示刷新按钮
+	reset_btn.visible = (current_tab == "arena_shop") or (current_mode == Mode.FORGE and _relic_shop != null)
+	if reset_btn.visible and current_mode == Mode.FORGE and _relic_shop != null:
+		reset_btn.text = "刷新商店（%dG）" % _relic_shop.get_refresh_cost()
+	elif reset_btn.visible and shop_manager:
 		reset_btn.text = "刷新 (" + str(shop_manager.get_reset_cost()) + "G)"
 		
-	discard_zone.visible = (current_tab != "arena_forge" and current_tab != "sacrifice" and current_tab != "aura" and current_mode != Mode.DEPLOY and current_mode != Mode.MAP)
+	# ★ v6.59：魂栈遗物商店需要出售区
+	discard_zone.visible = (current_mode == Mode.FORGE and _relic_shop != null) or (current_tab != "arena_forge" and current_tab != "sacrifice" and current_tab != "aura" and current_mode != Mode.DEPLOY and current_mode != Mode.MAP)
 
 	if current_mode == Mode.FORGE or is_shop_rest_mode():
 		_setup_forge_narrative_ui()
@@ -1213,10 +1242,33 @@ func _build_ui_inner():
 	
 	if reset_btn:
 		reset_btn.add_theme_font_size_override("font_size", Style.FONT_LARGE)
-		reset_btn.custom_minimum_size = Vector2(0, 16) 
-		reset_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL 
-		reset_btn.size_flags_vertical = Control.SIZE_SHRINK_END 
-		reset_btn.clip_text = true 
+		reset_btn.custom_minimum_size = Vector2(0, 16)
+		reset_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		reset_btn.size_flags_vertical = Control.SIZE_SHRINK_END
+		reset_btn.clip_text = true
+		# ★ v6.62f：刷新按钮补悬停/按下反馈（场景里五态共用同一 stylebox，原本无反馈）
+		var btn_normal := StyleBoxFlat.new()
+		btn_normal.bg_color = Color(0.111, 0.111, 0.111, 1)
+		btn_normal.set_content_margin_all(4)
+		btn_normal.anti_aliasing = false
+		var btn_hover := StyleBoxFlat.new()
+		btn_hover.bg_color = Color(0.22, 0.22, 0.26, 1)
+		btn_hover.border_width_left = 1; btn_hover.border_width_right = 1
+		btn_hover.border_width_top = 1; btn_hover.border_width_bottom = 1
+		btn_hover.border_color = Color(0.55, 0.55, 0.65, 1)
+		btn_hover.set_content_margin_all(4)
+		btn_hover.anti_aliasing = false
+		var btn_pressed := StyleBoxFlat.new()
+		btn_pressed.bg_color = Color(0.32, 0.30, 0.18, 1)
+		btn_pressed.border_width_left = 1; btn_pressed.border_width_right = 1
+		btn_pressed.border_width_top = 1; btn_pressed.border_width_bottom = 1
+		btn_pressed.border_color = Color(0.9, 0.78, 0.3, 1)
+		btn_pressed.set_content_margin_all(4)
+		btn_pressed.anti_aliasing = false
+		reset_btn.add_theme_stylebox_override("normal", btn_normal)
+		reset_btn.add_theme_stylebox_override("hover", btn_hover)
+		reset_btn.add_theme_stylebox_override("pressed", btn_pressed)
+		reset_btn.add_theme_stylebox_override("focus", btn_normal)
 
 	_ensure_upgrade_shop_btn()
 	_refresh_upgrade_shop_btn()
@@ -1315,6 +1367,9 @@ func _update_gold_display():
 		if SoulFireManager:
 			soul_fire_str = "    |    魂火: %d/%d" % [SoulFireManager.current, SoulFireManager.get_max_carried()]
 		gold_label.text = "金币: " + str(_context.get_gold()) + soul_fire_str
+	# ★ v6.62j：同步魂栈商店上方的持有金币（出售/购买不重建商店格，需单独刷新）
+	if _relic_shop:
+		_relic_shop.refresh_gold_label()
 
 
 func _build_aura_panel():
@@ -1653,6 +1708,95 @@ func _build_sacrifice_panel():
 	warn.modulate = Color(1.0, 0.5, 0.5)
 	main_vbox.add_child(warn)
 
+## ★ v6.62：魂栈遗物商店面板（按参考图4——右侧四区：购买战场遗物/购买防具遗物/刷新商店/出售遗物）
+var _relic_shop_section : String = "team"   # "team" 战场遗物 / "roll" 防具遗物
+
+## ★ 魂栈：清掉旧熔铸/一键领取遗留在 right_container 的动态宽框节点
+func _clear_forge_leftovers() -> void:
+	if not right_container: return
+	for n_name in ["ForgeCraftRow", "PendingSection", "PendingCenter"]:
+		var n : Node = right_container.get_node_or_null(n_name)
+		if n:
+			right_container.remove_child(n)
+			n.queue_free()
+
+
+func _build_relic_shop_panel() -> void:
+	if _relic_shop == null or shop_container == null: return
+	# ★ 魂栈只有 6 格（HFlow 自动换 2 行），ShopScroll 不能 EXPAND_FILL 撑满，
+	#   否则会把下方「刷新商店 / 出售区」功能区挤出可视范围。
+	if shop_scroll:
+		shop_scroll.custom_minimum_size = Vector2(0, 0)
+		shop_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		shop_scroll.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+		shop_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	# ★ 回归最简结构：shop_container 是运行时 HFlowContainer（见 init），
+	#   直接渲染 6 个遗物格（上排 3 团队 / 下排 3 老虎机），不再嵌套 VBox/Grid。
+	_relic_shop.render(shop_container, null)
+
+	# 刷新商店（复用 right_container 的 ResetBtn）
+	if reset_btn:
+		reset_btn.visible = true
+		reset_btn.text = "刷新商店（%dG）" % _relic_shop.get_refresh_cost()
+
+	# 出售遗物（右下出售区）
+	if discard_zone:
+		discard_zone.visible = true
+		var dl = discard_zone.get_node_or_null("DiscardLabel")
+		if dl:
+			var rate_pct : int = int(RelicShop.get_sell_rate() * 100.0)
+			dl.text = "出售遗物（返还 %d%%）\n拖入遗物换金币" % rate_pct
+
+
+func _on_relic_shop_section(section: String) -> void:
+	_relic_shop_section = section
+	_build_relic_shop_panel()
+
+
+func _on_relic_shop_reset() -> void:
+	if _relic_shop == null: return
+	var cost : int = _relic_shop.get_refresh_cost()
+	if _context.get_gold() < cost:
+		_show_detail_in_zone("金币不足，无法刷新")
+		return
+	_context.subtract_gold(cost)
+	_relic_shop.generate()
+	_build_relic_shop_panel()
+	_update_gold_display()
+	_show_detail_in_zone("商店已刷新")
+
+
+## ★ v6.59：魂栈出售遗物（团队槽 / 老虎机槽）
+## ★ v6.62c：魂栈商店格子拖到遗物槽——执行购买
+func _buy_relic_by_drag(data: Dictionary) -> void:
+	if _relic_shop == null: return
+	var idx : int = int(data.get("shop_candidate_idx", -1))
+	var is_roll : bool = bool(data.get("is_roll_relic", false))
+	_relic_shop.buy_to_slot(idx, is_roll)
+	_build_passive_slots()
+	_build_roll_relic_slots()
+
+
+func _sell_relic(data: Dictionary) -> void:
+	var relic_id : String = str(data.get("item_id", ""))
+	if relic_id == "": return
+	var price : int = RelicShop.get_relic_sell_price(relic_id)
+	var st : String = str(data.get("slot_type", ""))
+	if st == "roll_relic_slot":
+		var idx : int = int(data.get("roll_index", -1))
+		if idx >= 0: GameState.remove_roll_relic_at_slot(idx)
+	else:
+		var idx : int = int(data.get("passive_index", -1))
+		if idx >= 0: _context.remove_passive_at_slot(idx)
+	_context.add_gold(price)
+	_context.auto_save()
+	SoundManager.play_select_sound()  # ★ v6.62j：出售反馈用 click 音效
+	_show_detail_in_zone("出售遗物，获得 %d 金币" % price)
+	_update_gold_display()
+	_build_passive_slots()
+	_build_roll_relic_slots()
+
+
 func _on_open_sacrifice_ui():
 	pass
 
@@ -1915,6 +2059,25 @@ func _draw_build_tag_backdrop(btn: Button, data):
 		btn.icon = null
 
 
+## ★ v6.62g：把图标作为固定 20×20 的 TextureRect 子节点挂到按钮上，
+##   与防具槽 `_draw_build_tag_backdrop` 的图标绘制口径一致，统一图标显示大小；
+##   同时保留原图标到 meta 供拖拽预览使用。按钮自身 stylebox 不动（空槽边框不变）。
+func _attach_fixed_icon(btn: Button, icon_texture: Texture2D) -> void:
+	if btn == null or icon_texture == null: return
+	var icon_rect := TextureRect.new()
+	icon_rect.texture = icon_texture
+	icon_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	icon_rect.stretch_mode = TextureRect.STRETCH_SCALE
+	icon_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	icon_rect.set_anchors_preset(Control.PRESET_CENTER)
+	icon_rect.offset_left = -10
+	icon_rect.offset_right = 10
+	icon_rect.offset_top = -10
+	icon_rect.offset_bottom = 10
+	btn.add_child(icon_rect)
+	btn.set_meta("_item_icon", icon_texture)
+
+
 func _draw_direction_badges(_btn: Button, _dir: int):
 	# v6.5：箭头连通功能已移除，不再绘制方向箭头
 	pass
@@ -1978,6 +2141,82 @@ func _build_passive_slots():
 		var inst : Variant = passives[i] if i < passives.size() else null
 		var btn : Button = _create_passive_button(inst, i)
 		relic_container.add_child(btn)
+	# ★ 团队遗物槽与上方防具槽逐列对齐：等布局完成后读取每个单位列ArmorGroup的槽x
+	call_deferred("_deferred_align_relic_slots")
+
+## ★ v6.62d：ScrollContainer / VBox 在帧末才完成布局，call_deferred 一帧不够。
+##   等几帧读到稳定的 global_position 后再对齐，并监听尺寸变化重算，防止父级重排后漂移。
+func _deferred_align_relic_slots() -> void:
+	for _i in range(3):
+		await get_tree().process_frame
+		if not is_instance_valid(self): return
+	_align_relic_slots_to_armor()
+	if not _relic_align_connected:
+		_relic_align_connected = true
+		if unit_container and is_instance_valid(unit_container):
+			unit_container.resized.connect(_on_relic_layout_changed)
+		if roll_relic_container and is_instance_valid(roll_relic_container):
+			roll_relic_container.resized.connect(_on_relic_layout_changed)
+
+func _on_relic_layout_changed() -> void:
+	call_deferred("_align_relic_slots_to_armor")
+
+## ★ 团队遗物槽：x 逐列对齐每个单位列防具槽第一行，y 对齐防具遗物槽那一行
+func _align_relic_slots_to_armor() -> void:
+	if not relic_container or not unit_container: return
+	# 1) 每个单位列的 ArmorGroup 只取第一行两个槽的 global x（从左到右按单位遍历顺序）
+	var armor_xs : Array = []
+	_collect_armor_slots_x(unit_container, armor_xs)
+	if armor_xs.is_empty(): return
+	# 2) 目标 y = 防具遗物区已生成槽的 global y（没有则用容器 y）
+	var target_y : float = 0.0
+	if roll_relic_container:
+		if roll_relic_container.get_child_count() > 0:
+			var first : Node = roll_relic_container.get_child(0)
+			target_y = (first as Control).global_position.y if first is Control else roll_relic_container.global_position.y
+		else:
+			target_y = roll_relic_container.global_position.y
+	# 3) 逐槽对齐；防具列数不足时，多余槽在最后一个 x 后按槽宽顺延，保证 6 槽都可见
+	var slot_w : float = float(Style.BTN_ITEM_SIZE.x)
+	var step : float = float(Style.ITEM_GRID_GAP) + slot_w
+	var last_x : float = armor_xs[armor_xs.size() - 1] if not armor_xs.is_empty() else 0.0
+	var children := relic_container.get_children()
+	for i in range(children.size()):
+		var btn : Control = children[i] as Control
+		if btn == null: continue
+		btn.visible = true
+		var x : float = float(armor_xs[i]) if i < armor_xs.size() else (last_x + step * float(i - armor_xs.size() + 1))
+		btn.global_position = Vector2(x, target_y)
+
+## ★ 每个 ArmorGroup 只取前两个（第一行）槽的 global x，双列布局正好对应团队遗物 6 槽
+func _collect_armor_slots_x(node: Node, out: Array) -> void:
+	if node == null: return
+	if node.name == "ArmorGroup" and node is GridContainer:
+		var taken : int = 0
+		for c in node.get_children():
+			if c is Control:
+				out.append((c as Control).global_position.x)
+				taken += 1
+				if taken >= 2: break
+		return
+	for c in node.get_children():
+		_collect_armor_slots_x(c, out)
+
+
+## ★ v6.59：老虎机专用遗物槽（4 个），空槽显示老虎机图标作占位提示
+func _build_roll_relic_slots() -> void:
+	if not roll_relic_container: return
+	for child in roll_relic_container.get_children():
+		roll_relic_container.remove_child(child); child.free()
+	var relics : Array = GameState.get_roll_relics()
+	var count : int = 4
+	for i in range(count):
+		var inst : Variant = relics[i] if i < relics.size() else null
+		var btn : Button = _create_passive_button(inst, i)
+		btn.set_meta("slot_type", "roll_relic_slot")
+		btn.set_meta("roll_index", i)
+		# ★ 不再用老虎机图标占位：空槽沿用_create_passive_button的方块+"空"字，与其他槽视觉统一
+		roll_relic_container.add_child(btn)
 
 
 func _create_passive_button(inst: Variant, slot_index: int) -> Button:
@@ -1987,17 +2226,7 @@ func _create_passive_button(inst: Variant, slot_index: int) -> Button:
 	btn.alignment = HORIZONTAL_ALIGNMENT_CENTER
 	btn.set_meta("slot_type", "passive_slot")
 	btn.set_meta("passive_index", slot_index)
-	
-	var empty_sb := StyleBoxEmpty.new()
-	empty_sb.content_margin_left = 0
-	empty_sb.content_margin_right = 0
-	empty_sb.content_margin_top = 0
-	empty_sb.content_margin_bottom = 0
-	btn.add_theme_stylebox_override("normal", empty_sb)
-	btn.add_theme_stylebox_override("hover", empty_sb)
-	btn.add_theme_stylebox_override("pressed", empty_sb)
-	btn.add_theme_stylebox_override("focus", empty_sb)
-	btn.add_theme_stylebox_override("disabled", empty_sb)
+	# ★ 不覆盖 StyleBoxEmpty：沿用主题默认按钮样式（与防具槽等其它插槽视觉统一）
 
 	if inst == null:
 		btn.text = "空"
@@ -2009,7 +2238,8 @@ func _create_passive_button(inst: Variant, slot_index: int) -> Button:
 			var prefix : String = "★ " if GameState.is_relic_refined(item_inst.item_id) else ""
 			var icon = data.get("icon")
 			if icon is Texture2D:
-				btn.icon = icon
+				# ★ v6.62g：与防具槽同款「固定 20×20 图标子节点」，避免 Button.icon 受默认 stylebox margin 影响而显小
+				_attach_fixed_icon(btn, icon)
 				btn.text = ""
 			else:
 				btn.text = prefix + data.get("name", "?")
@@ -2024,7 +2254,7 @@ func _create_passive_button(inst: Variant, slot_index: int) -> Button:
 		var ad : Dictionary = AuraManager.get_aura(aid)
 		var icon = ad.get("icon")
 		if icon is Texture2D:
-			btn.icon = icon
+			_attach_fixed_icon(btn, icon)
 			btn.text = ""
 		else:
 			btn.text = "✦ " + ad.get("name", aid)
@@ -2089,6 +2319,17 @@ func _is_valid_drop(data: Dictionary, target: Control) -> bool:
 	#   （unit_icon → SacrificeDropZone）。注意这不是单位间换位（unit_icon→unit_icon）。
 	var forge_ctx : bool = (current_mode == Mode.FORGE or is_shop_rest_mode())
 	if forge_ctx:
+		# ★ v6.62c：魂栈商店格子拖到遗物槽购买（团队→团队槽，老虎机→老虎机槽）
+		if current_mode == Mode.FORGE and data.get("slot_type", "") == "relic_shop_item":
+			var is_roll : bool = bool(data.get("is_roll_relic", false))
+			var tt : String = target.get_meta("slot_type", "")
+			if is_roll:
+				return tt == "roll_relic_slot"
+			return tt == "passive_slot"
+		# ★ v6.59：魂栈遗物商店——团队/老虎机遗物可拖到出售区换金币
+		if current_mode == Mode.FORGE and target == discard_zone \
+				and data.get("slot_type", "") in ["passive_slot", "roll_relic_slot"]:
+			return true
 		if data.get("slot_type", "") == "unit_icon" and target.name == "SacrificeDropZone":
 			var fidx : int = data.get("unit_idx", -1)
 			if fidx >= 0 and fidx < party.size():
@@ -2252,6 +2493,15 @@ func _execute_drop(data: Dictionary, target) -> void:
 
 	# ★ v6.56：魂栈模式只放行"拖单位入献祭熔铸槽"，与 _is_valid_drop 口径一致
 	if (current_mode == Mode.FORGE or is_shop_rest_mode()):
+		# ★ v6.62c：商店格子拖到遗物槽 → 购买并装入
+		if current_mode == Mode.FORGE and source_type == "relic_shop_item":
+			_buy_relic_by_drag(data)
+			return
+		# ★ v6.59：遗物拖到出售区 → 售出换金币
+		if current_mode == Mode.FORGE and target == discard_zone \
+				and source_type in ["passive_slot", "roll_relic_slot"]:
+			_sell_relic(data)
+			return
 		if not (source_type == "unit_icon" and target.name == "SacrificeDropZone"):
 			return
 
@@ -2733,7 +2983,12 @@ func _build_shop_items():
 func _build_weapon_grid(container: Container): 
 	_shop.build_weapon_grid(container)
 
-func _on_reset_shop_pressed(): 
+func _on_reset_shop_pressed():
+	SoundManager.play_select_sound()  # ★ v6.62f：刷新按钮点击反馈
+	# ★ v6.59：魂栈遗物商店刷新走独立逻辑
+	if current_mode == Mode.FORGE and _relic_shop != null:
+		_on_relic_shop_reset()
+		return
 	_shop_direction_cache.clear()
 	_shop.on_reset_shop_pressed()
 

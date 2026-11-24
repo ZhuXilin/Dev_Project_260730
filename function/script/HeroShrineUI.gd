@@ -9,8 +9,6 @@ const POST_SWITCH_DURATION : float = 0.8
 
 @onready var panel : Panel = $Panel
 @onready var title_label : Label = $Panel/VBox/TopBar/TitleLabel
-@onready var gold_label : Label = $Panel/VBox/TopBar/GoldLabel
-@onready var cost_label : Label = $Panel/VBox/TopBar/CostLabel
 @onready var hint_label : Label = $Panel/VBox/HintLabel
 @onready var unit_row : HBoxContainer = $Panel/VBox/UnitRow
 @onready var close_btn : Button = $Panel/VBox/BottomBar/CloseButton
@@ -53,7 +51,6 @@ func setup_map(max_conversions: int = 1) -> void:
 
 
 func _rebuild():
-	_refresh_soul_display()
 	_build_unit_row()
 
 
@@ -79,9 +76,9 @@ func _reached_limit() -> bool:
 #  初始化
 # ============================================================
 func _ready():
-	COST_PER_CLASS = 0 
+	COST_PER_CLASS = 0
+	# ★ v6.62i：英灵殿无资源消费（转职免费 / 献祭赋能不花钱），已删除持有魂与费用文字节点
 	performance_layer.visible = false
-	cost_label.text = "  |  转职：免费"
 	
 	var sprite_box = get_node_or_null("PerformanceLayer/CenterBox/SpriteBox")
 	if sprite_box:
@@ -91,7 +88,6 @@ func _ready():
 		perf_sprite.scale = Vector2(1, 1)
 
 	MusicManager.play_hero_shrine_music()
-	_refresh_soul_display()
 	_build_unit_row()
 
 
@@ -189,16 +185,20 @@ func _build_unit_card(unit_idx: int) -> PanelContainer:
 		return card
 
 	name_lb.text = unit_display + "\n" + type_cn
-	var branch_names : Array = []
-	for b in branches:
-		branch_names.append("★ " + b.name)
-	status_lb.text = "可转职：\n" + "\n".join(branch_names) + "\n（点击查看）"
+	if unit.is_empowered:
+		# ★ v6.59：已赋能单位显示超级化标记，不能转职
+		status_lb.text = "★ 已超级化\n（不可转职）\nHP %d / 攻 %d" % [unit.max_hp, int(unit.attack)]
+		status_lb.modulate = Color(1.0, 0.82, 0.3)
+		card.modulate = Color(1.0, 0.95, 0.75)
+		return card
+	# ★ v6.62：红框的转职分支详情（★分支列表 / 点击查看）不再显示，只留极简状态
+	status_lb.text = "可转职"
 
 	var reached : bool = _reached_limit()
 	if reached:
 		status_lb.modulate = Color(0.55, 0.55, 0.55, 1)
 		card.modulate = Color(0.7, 0.7, 0.7, 1)
-		status_lb.text += "\n（本次已转职）"
+		status_lb.text = "本次已转职"
 	else:
 		card.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 		card.gui_input.connect(_on_card_input.bind(unit_idx))
@@ -206,11 +206,6 @@ func _build_unit_card(unit_idx: int) -> PanelContainer:
 		card.mouse_exited.connect(_on_card_hover_exit.bind(card))
 
 	return card
-
-
-func _refresh_soul_display():
-	if gold_label:
-		gold_label.text = "魂: %d" % GameState.soul
 
 
 func _build_unit_row():
@@ -221,7 +216,118 @@ func _build_unit_row():
 	var party : Array = _get_party()
 	print("[HeroShrine] 构建单位列表：", party.size(), " 个，mode=", _mode)
 	for i in range(party.size()):
-		unit_row.add_child(_build_unit_card(i))
+		# ★ v6.59：每个单位卡片下方加献祭按钮（献祭=赋能到幸存单位）
+		var wrapper := VBoxContainer.new()
+		wrapper.add_theme_constant_override("separation", 4)
+		wrapper.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		var card_ctrl : PanelContainer = _build_unit_card(i)
+		card_ctrl.custom_minimum_size = Vector2(118, 0)  # 三卡并排需适配 400px 视口
+		wrapper.add_child(card_ctrl)
+		var sac_btn := Button.new()
+		var unit : UnitData = party[i]
+		if unit == null: continue
+		# 献祭按钮与卡片等宽，紧随卡片下方
+		sac_btn.custom_minimum_size = Vector2(118, 20)
+		sac_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		sac_btn.add_theme_font_size_override("font_size", 9)
+		if unit.is_dead:
+			sac_btn.text = "（已阵亡）"
+			sac_btn.disabled = true
+		elif unit.is_empowered:
+			sac_btn.text = "（已赋能）"
+			sac_btn.disabled = true
+		else:
+			sac_btn.text = "献祭"
+			sac_btn.disabled = false
+			sac_btn.pressed.connect(_on_sacrifice_requested.bind(i))
+		wrapper.add_child(sac_btn)
+		unit_row.add_child(wrapper)
+
+
+# ============================================================
+#  ★ v6.59 献祭赋能流程（合入英灵殿）
+# ============================================================
+func _on_sacrifice_requested(source_idx: int) -> void:
+	var party : Array = _get_party()
+	if source_idx < 0 or source_idx >= party.size(): return
+	var source : UnitData = party[source_idx]
+	if source == null or source.is_dead or source.is_empowered: return
+
+	# 候选 = 其余存活、且未被赋能的单位
+	var candidates : Array = []
+	for i in range(party.size()):
+		if i == source_idx: continue
+		var u : UnitData = party[i]
+		if u != null and not u.is_dead and not u.is_empowered:
+			candidates.append({"idx": i, "unit": u})
+	if candidates.is_empty():
+		_show_hint("没有可赋能的存活单位")
+		return
+
+	var src_name : String = source.display_name if source.display_name != "" else source.unit_name
+	# 两张候选卡片（用单位头像 + 名称），点击即赋能
+	var data_a : Dictionary = {}
+	var data_b : Dictionary = {}
+	if candidates.size() >= 1:
+		data_a = _make_empower_choice(candidates[0], source)
+	if candidates.size() >= 2:
+		data_b = _make_empower_choice(candidates[1], source)
+	if data_a.is_empty():
+		_show_hint("至少需要一名存活单位接受赋能")
+		return
+
+	var picked_cb : Callable = data_a.get("cb", Callable())
+	if data_b.is_empty():
+		Globals.show_confirm(self,
+			"献祭 %s —— 让 %s 接受赋能？" % [src_name, data_a.get("title", "")],
+			"确认赋能", "取消", picked_cb, func(): _show_hint("已取消献祭"))
+	else:
+		# ★ v6.62：两个候选左右并排，均为单位头像按钮
+		Globals.show_choice(self,
+			"献祭 %s —— 选择接受赋能的单位" % src_name,
+			data_a, data_b,
+			func(): _show_hint("已取消献祭"), true)
+
+
+func _make_empower_choice(candidate: Dictionary, source: UnitData) -> Dictionary:
+	var u : UnitData = candidate["unit"]
+	var dname : String = u.display_name if u.display_name != "" else u.unit_name
+	# ★ v6.62d：头像下方数据区显示"赋能后"的单位数值，作为玩家判断依据
+	var idx : int = int(candidate["idx"])
+	var lines : Array = ["【%s 赋能后】" % dname]
+	lines.append("HP   %d → %d" % [u.max_hp, u.max_hp + int(source.max_hp)])
+	lines.append("攻击 %d → %d" % [int(u.attack), int(u.attack + source.attack)])
+	lines.append("力量 %d → %d" % [int(u.strength), int(u.strength + source.strength)])
+	lines.append("敏捷 %d → %d" % [int(u.dexterity), int(u.dexterity + source.dexterity)])
+	lines.append("智力 %d → %d" % [int(u.intelligence), int(u.intelligence + source.intelligence)])
+	lines.append("信仰 %d → %d" % [int(u.faith), int(u.faith + source.faith)])
+	return {
+		"title": dname,
+		"detail": "\n".join(lines),
+		"avatar_unit": u.unit_name,
+		"color": Color(0.6, 0.65, 0.72),
+		"cb": func(): _do_empower(source, u, idx),
+	}
+
+
+func _do_empower(source: UnitData, target: UnitData, _target_idx: int) -> void:
+	var result : Dictionary = SacrificeHelper.empower_unit(source, target)
+	if not bool(result.get("ok", false)):
+		_show_hint("赋能失败")
+		return
+	SoundManager.play_get_item_sound()
+	_show_hint("%s 已超级化（献祭 %s）" % [
+		target.display_name if target.display_name != "" else target.unit_name,
+		source.display_name if source.display_name != "" else source.unit_name])
+	_build_unit_row()
+	# 同步竞技场上下文（若在竞技场模式）
+	if _mode == "arena" and not _custom_party.is_empty():
+		_custom_party = _get_party().duplicate()
+
+
+func _show_hint(text: String) -> void:
+	if hint_label:
+		hint_label.text = text
 
 
 func _make_picker_panel(unit : UnitData, branches : Array) -> Control:
@@ -420,6 +526,9 @@ func _on_card_clicked(unit_idx: int):
 	var unit : UnitData = party[unit_idx]
 	if unit.advanced_class != "": return
 	if unit.is_dead: return # 阵亡单位走 _on_dead_card_input，这里拦截一下防误触
+	if unit.is_empowered:
+		_show_hint("已赋能单位不能转职，复活被献祭单位解除赋能后再转职")
+		return
 
 	var branches : Array = AdvancedClassManager.get_branches_for_unit(unit.unit_name)
 	if branches.is_empty():
@@ -519,7 +628,6 @@ func _begin_convert(unit : UnitData, adv : AdvancedClassData):
 	panel.visible = true
 	MusicManager.play_hero_shrine_music()
 
-	_refresh_soul_display()
 	_build_unit_row()
 
 	if _reached_limit():

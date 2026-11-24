@@ -51,6 +51,13 @@ func add_relic_to_passive_slot(inst: ItemInstance) -> bool:
 	return party_state.add_relic_to_passive_slot(inst)
 func get_relics_from_passives() -> Array: return party_state.get_relics_from_passives()
 
+# ★ v6.59：老虎机专用遗物槽转发
+func get_roll_relics() -> Array: return party_state.get_roll_relics()
+func set_roll_relic_at_slot(idx: int, value): party_state.set_roll_relic_at_slot(idx, value)
+func remove_roll_relic_at_slot(idx: int): party_state.remove_roll_relic_at_slot(idx)
+func add_roll_relic(inst: ItemInstance) -> bool: return party_state.add_roll_relic(inst)
+func get_roll_relic_instances() -> Array: return party_state.get_roll_relic_instances()
+
 func add_aura_to_passive_slot(aura_id: String) -> bool:
 	return party_state.add_aura_to_passive_slot(aura_id)
 func get_auras_from_passives() -> Array:
@@ -342,6 +349,15 @@ func revive_unit(unit_name: String, display_name: String) -> bool:
 		if ud.unit_name == unit_name and ud.display_name == display_name:
 			if not ud.is_dead:
 				return false
+			# ★ v6.59：复活被献祭单位 → 先还原它赋予其它单位的超级化数值
+			for other in party:
+				if other == null or other == ud: continue
+				if other.is_empowered and not other.empowerment_source.is_empty():
+					var snap : Dictionary = other.empowerment_source
+					if str(snap.get("unit_name", "")) == unit_name \
+							and str(snap.get("display_name", "")) == display_name:
+						SacrificeHelper.restore_empowerment(other, ud)
+						break
 			ud.is_dead = false
 			ud.hit_points = ud.max_hp
 			return true
@@ -380,6 +396,32 @@ func is_relic_equipped_and_refined(relic_id : String) -> bool:
 	for relic in get_relics_from_passives():
 		if relic.item_id == relic_id: return true
 	return false
+
+## ★ v6.59：老虎机专用遗物效果聚合。
+## 只取 slot_machine=true 的遗物；roll_* 效果键不与战斗效果冲突。
+## 数值键相加，bool 取或，字符串（如 roll_school_target）取最后一个。
+func get_slot_machine_relic_effects() -> Dictionary:
+	var effects := {}
+	# ★ 老虎机专用槽 + 装备在团队槽里的 slot_machine 遗物，都生效
+	var all_relics : Array = get_roll_relic_instances()
+	for r in get_relics_from_passives():
+		if not all_relics.has(r): all_relics.append(r)
+	for relic in all_relics:
+		var data = RelicManager.get_relic_data(relic.item_id)
+		if data.is_empty(): continue
+		if not bool(data.get("slot_machine", false)): continue
+		var e : Dictionary = data.get("effects", {})
+		for key in e:
+			var add = e[key]
+			if not effects.has(key):
+				effects[key] = add
+			else:
+				var cur = effects[key]
+				if cur is bool and add is bool: effects[key] = cur or add
+				elif cur is float or add is float: effects[key] = float(cur) + float(add)
+				elif cur is int and add is int: effects[key] = cur + add
+				else: effects[key] = add
+	return effects
 
 func get_global_relic_effects() -> Dictionary:
 	var effects := {}

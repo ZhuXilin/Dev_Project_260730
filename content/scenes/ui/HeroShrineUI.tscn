@@ -23,21 +23,27 @@ anchor_left = 0.5
 anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
-offset_left = -190.0
-offset_top = -115.0
-offset_right = 190.0
-offset_bottom = 115.0
+offset_left = -196.0
+offset_top = -116.0
+offset_right = 196.0
+offset_bottom = 116.0
 grow_horizontal = 2
 grow_vertical = 2
 theme_override_styles/panel = ExtResource("2_style")
 
 [node name="BackgroundImage" type="TextureRect" parent="Panel" unique_id=180050290]
-layout_mode = 0
-offset_left = -10.0
-offset_top = -5.0
-offset_right = 390.0
-offset_bottom = 235.0
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 0.0
+offset_top = 0.0
+offset_right = 0.0
+offset_bottom = 0.0
+grow_horizontal = 2
+grow_vertical = 2
 texture = ExtResource("3_ue3lo")
+expand_mode = 1
+stretch_mode = 1
 
 [node name="VBox" type="VBoxContainer" parent="Panel" unique_id=999000004]
 layout_mode = 1
@@ -55,24 +61,31 @@ theme_override_constants/separation = 4
 [node name="TopBar" type="HBoxContainer" parent="Panel/VBox" unique_id=999000005]
 layout_mode = 2
 
-[node name="TitleLabel" type="Label" parent="Panel/VBox/TopBar" unique_id=999000006]
-layout_mode = 2
-theme_override_font_sizes/font_size = 12
-text = "英灵殿"
-
-[node name="Spacer" type="Control" parent="Panel/VBox/TopBar" unique_id=999000007]
+[node name="LeftSpacer" type="Control" parent="Panel/VBox/TopBar" unique_id=999000007]
 layout_mode = 2
 size_flags_horizontal = 3
 
-[node name="GoldLabel" type="Label" parent="Panel/VBox/TopBar" unique_id=999000008]
-layout_mode = 2
-theme_override_font_sizes/font_size = 9
-text = "金币: 0"
+[node name="TitleLabel" type="Label" parent="Panel/VBox/TopBar" unique_id=999000006]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -30.0
+offset_top = -9.0
+offset_right = 30.0
+offset_bottom = 9.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_font_sizes/font_size = 12
+text = "英灵殿"
+horizontal_alignment = 1
+vertical_alignment = 1
 
-[node name="CostLabel" type="Label" parent="Panel/VBox/TopBar" unique_id=999000009]
+[node name="RightSpacer" type="Control" parent="Panel/VBox/TopBar" unique_id=999000099]
 layout_mode = 2
-theme_override_font_sizes/font_size = 8
-text = "  |  转职: 0G"
+size_flags_horizontal = 3
 
 [node name="HintLabel" type="Label" parent="Panel/VBox" unique_id=999000010]
 modulate = Color(0.75, 0.75, 0.75, 1)
@@ -100,11 +113,12 @@ modulate = Color(0.5, 0.5, 0.5, 0.5)
 layout_mode = 2
 
 [node name="UnitRow" type="HBoxContainer" parent="Panel/VBox" unique_id=999000012]
-custom_minimum_size = Vector2(380, 0)
-custom_maximum_size = Vector2(380, -1)
+custom_minimum_size = Vector2(0, 0)
+custom_maximum_size = Vector2(388, -1)
 layout_mode = 2
+size_flags_horizontal = 3
 size_flags_vertical = 3
-theme_override_constants/separation = 4
+theme_override_constants/separation = 6
 alignment = 1
 
 [node name="Separator2" type="HSeparator" parent="Panel/VBox" unique_id=999000013]

@@ -94,6 +94,10 @@ func _build_save_data() -> SaveData:
 	save.equipped_passives = []
 	for p in GameState.get_passives():
 		save.equipped_passives.append(_serialize_passive(p))
+	# ★ v6.59：老虎机专用遗物槽
+	save.equipped_roll_relics = []
+	for p in GameState.get_roll_relics():
+		save.equipped_roll_relics.append(_serialize_passive(p))
 
 	save.soul = GameState.soul
 	save.keys = GameState.keys
@@ -200,8 +204,13 @@ func _apply_save_data(save: SaveData):
 	GameState.init_passive_slots()
 	var arr = save.equipped_passives
 	if arr is Array:
-		for i in range(min(arr.size(), 4)):
+		for i in range(min(arr.size(), 6)):  # ★ v6.59：团队遗物槽 4→6
 			GameState.set_passive_at_slot(i, _deserialize_passive(arr[i]))
+	# ★ v6.59：老虎机专用遗物槽
+	var roll_arr = save.equipped_roll_relics
+	if roll_arr is Array:
+		for i in range(min(roll_arr.size(), 4)):
+			GameState.set_roll_relic_at_slot(i, _deserialize_passive(roll_arr[i]))
 
 	GameState.soul = save.soul
 	GameState.keys = save.keys

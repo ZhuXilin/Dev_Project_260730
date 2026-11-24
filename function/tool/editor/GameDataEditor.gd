@@ -23,7 +23,6 @@ const TALENT_DATA_PATH : String = "res://content/data/talents.json"
 const REFINE_DATA_PATH : String = "res://content/data/refine_data.json"
 const SET_BONUS_PATH : String = "res://content/data/set_bonuses.json"
 const AFFIX_PATH : String = "res://content/data/affixes.json"
-const AURA_PATH : String = "res://content/data/auras.json"
 const UNIT_UNLOCK_PATH : String = "res://content/data/unit_unlock.json"
 const EVENT_PATH_FOR_EDITOR : String = "res://content/data/events.json"
 const AVATAR_DIR : String = "res://content/images/characters/avatar/"
@@ -484,7 +483,7 @@ func _build_ui():
 
 	_tab_panels.clear()
 	_tab_panels.append(_build_unit_group_tab(body))   # 0 单位（含二级：单位编辑/单位解锁）
-	_tab_panels.append(_build_cfg_tab(body))          # 1 数值编辑（含二级：防具/特技/遗物/光环/套装/词条池）
+	_tab_panels.append(_build_cfg_tab(body))          # 1 数值编辑（含二级：防具/特技/遗物/套装/词条池）
 	_tab_panels.append(_build_sim_tab(body))          # 2 战斗模拟
 	_tab_panels.append(_build_validator_tab(body))    # 3 数据校验
 
@@ -2078,13 +2077,12 @@ func _build_sim_center() -> VBoxContainer:
 #  数值编辑
 # ============================================================
 func _build_cfg_tab(parent : Control) -> Control:
-	# v5.6：防具 / 特技 / 遗物 / 光环 / 套装 / 词条池统一走同一套 JSONEditorPanel。
-	# 光环从原顶层 tab 合并进来，排在遗物之后；套装、词条池亦并入，去掉各自的硬编码构建函数。
+	# v5.6：防具 / 特技 / 遗物 / 套装 / 词条池统一走同一套 JSONEditorPanel。
+	# ★ v6.62m：光环已并入遗物 lifetime（auras.json 效果定义仍由底层读取，但不再有独立编辑页签）。
 	var cfg_files : Array = [
 		{"name": "防具", "path": ITEM_DATA_PATH},
 		{"name": "特技", "path": TALENT_DATA_PATH},
 		{"name": "遗物", "path": RELIC_DATA_PATH},
-		{"name": "光环", "path": AURA_PATH},
 		{"name": "套装", "path": SET_BONUS_PATH},
 		{"name": "词条池", "path": AFFIX_PATH},
 	]

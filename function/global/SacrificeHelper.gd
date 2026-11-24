@@ -14,6 +14,130 @@ static func get_melt_item_id(unit_name: String) -> String:
 	return "melt_" + unit_name
 
 
+# ============================================================
+#  ★ v6.59 献祭赋能（熔铸新机制）
+#  不再产出 buff 防具，而是把献祭单位的基础数值加到存活单位上，
+#  存活单位"超级化"；献祭单位的装备/技能/流派冻结记录、暂不可用，
+#  复活献祭单位时完整还原。
+# ============================================================
+
+## 可赋能的基础数值字段（含升级后数值，不含经验/等级——用户方案：经验等级保持不变）
+const EMPOWER_STAT_KEYS : Array = [
+	"max_hp", "strength", "dexterity", "intelligence", "faith", "move_range",
+	"attack", "physical_reduction", "magic_reduction",
+	"physical_penetration", "magic_penetration", "static_crit_damage_bonus",
+]
+
+
+## 执行赋能：source=被献祭单位，target=接受赋能的存活单位。
+## 返回 {ok, stat_gains, source_key}。
+static func empower_unit(source: UnitData, target: UnitData) -> Dictionary:
+	var empty := {"ok": false, "stat_gains": {}, "source_key": ""}
+	if source == null or target == null or source == target:
+		return empty
+	if source.is_dead or target.is_dead:
+		return empty
+	if target.is_empowered:
+		return empty   # 已赋能单位不能再次作为接受者（也不能再次献祭，调用方拦截）
+
+	# 1) 记录被献祭单位的完整快照（数值增量 + 被冻结的装备/技能/流派）
+	var gains : Dictionary = {}
+	for k in EMPOWER_STAT_KEYS:
+		gains[k] = source.get(k)
+	var snapshot : Dictionary = {
+		"unit_name": source.unit_name,
+		"display_name": source.display_name,
+		"stat_gains": gains.duplicate(true),
+		"level": source.level,
+		"experience": source.experience,
+		"armor_slots": UnitData._item_instance_array_to_array(source.armor_slots),
+		"talent_slots": UnitData._talent_instance_array_to_array(source.talent_slots),
+		"mechanisms": source.mechanisms.duplicate(true),
+		"advanced_class": source.advanced_class,
+		"advanced_talent_id": source.advanced_talent_id,
+		"max_armor_slots": source.max_armor_slots,
+	}
+	target.empowerment_source = snapshot
+	target.is_empowered = true
+
+	# 2) 基础数值相加（含升级后数值；经验/等级保持不变）
+	for k in EMPOWER_STAT_KEYS:
+		var add : Variant = gains.get(k, 0)
+		if add is int or add is float:
+			target.set(k, target.get(k) + add)
+	# HP 上限增加时当前 HP 同步增加，避免"超级化但残血"
+	target.hit_points = mini(target.max_hp, target.hit_points + int(gains.get("max_hp", 0)))
+
+	# 3) 记录献祭来源（沿用既有 key 机制，便于展示/统计）
+	var key : String = UnitData.make_sacrifice_key(source)
+	if not target.sacrifice_buff_sources.has(key):
+		target.sacrifice_buff_sources.append(key)
+
+	# 4) 冻结被献祭单位的装备/技能/流派（暂不可用，复活时恢复）
+	source.armor_slots.clear()
+	source.talent_slots.clear()
+	source.mechanisms.clear()
+	source.advanced_class = ""
+	source.advanced_talent_id = ""
+	source.advanced_talent_inst = null
+	source.is_dead = true
+	source.hit_points = 0
+
+	GameState.sacrifice_count += 1
+	AnalyticsLogger.record_sacrifice()
+	SaveManager.auto_save()
+
+	return {"ok": true, "stat_gains": gains, "source_key": key}
+
+
+## 还原赋能：复活献祭单位时调用。empowered=被赋能单位，source=被复活的献祭单位。
+## 返回是否还原成功。
+static func restore_empowerment(empowered: UnitData, source: UnitData) -> bool:
+	if empowered == null or source == null:
+		return false
+	if not empowered.is_empowered or empowered.empowerment_source.is_empty():
+		return false
+	var snap : Dictionary = empowered.empowerment_source
+	# 确认这张快照确实属于要复活的单位
+	if str(snap.get("unit_name", "")) != source.unit_name \
+			or str(snap.get("display_name", "")) != source.display_name:
+		return false
+
+	# 1) 从被赋能单位扣回数值增量
+	var gains : Dictionary = snap.get("stat_gains", {})
+	for k in EMPOWER_STAT_KEYS:
+		var add : Variant = gains.get(k, 0)
+		if add is int or add is float:
+			empowered.set(k, empowered.get(k) - add)
+	empowered.hit_points = mini(empowered.hit_points, empowered.max_hp)
+	# 2) 清赋能标记与来源记录
+	empowered.is_empowered = false
+	empowered.empowerment_source = {}
+	var key : String = UnitData.make_sacrifice_key(source)
+	empowered.sacrifice_buff_sources.erase(key)
+
+	# 3) 把冻结的装备/技能/流派还原给复活的献祭单位
+	var armor_raw : Variant = snap.get("armor_slots", [])
+	source.armor_slots = UnitData._array_to_item_instance_array(armor_raw if armor_raw is Array else [])
+	var talent_raw : Variant = snap.get("talent_slots", [])
+	source.talent_slots = UnitData._array_to_talent_instance_array(talent_raw if talent_raw is Array else [])
+	var mech_raw : Variant = snap.get("mechanisms", {})
+	source.mechanisms = (mech_raw as Dictionary).duplicate(true) if mech_raw is Dictionary else {}
+	source.advanced_class = str(snap.get("advanced_class", ""))
+	source.advanced_talent_id = str(snap.get("advanced_talent_id", ""))
+	source.max_armor_slots = int(snap.get("max_armor_slots", source.max_armor_slots))
+	# 4) 复活
+	source.is_dead = false
+	source.hit_points = source.max_hp
+	SaveManager.auto_save()
+	return true
+
+
+## 查询：某单位是否处于"被赋能"状态（UI 拦截再次献祭/转职用）
+static func is_empowered(unit: UnitData) -> bool:
+	return unit != null and unit.is_empowered
+
+
 ## ★ 生成熔铸奖励的"数值+词条"说明文本，供确认弹窗展示判断是否值得。
 ##   item_data 的 description 已由策划写好数值文案（如"攻击 +5，攻击 +20%"），
 ##   这里再补结构化的减伤/特效，确保玩家一眼看清收益。

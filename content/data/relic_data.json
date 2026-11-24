@@ -186,5 +186,96 @@
       "kill_heal_percent": 0.15
     },
     "from_aura": true
+  },
+  "relic_roll_discount": {
+    "id": "relic_roll_discount",
+    "name": "节俭之轮",
+    "description": "老虎机 roll 花费 -20%",
+    "flavor": "一枚磨得发亮的旧齿轮。它转得慢，但从不乱花主人的钱。",
+    "icon": "item_100",
+    "price": 120.0,
+    "lifetime": "persistent",
+    "slot_machine": true,
+    "effects": {
+      "roll_cost_discount": 0.2
+    }
+  },
+  "relic_roll_slow": {
+    "id": "relic_roll_slow",
+    "name": "缓速发条",
+    "description": "老虎机转速减半，更容易看准时机按下停止",
+    "flavor": "把急切轻轻按住。看得清，才按得准。",
+    "icon": "item_101",
+    "price": 120.0,
+    "lifetime": "persistent",
+    "slot_machine": true,
+    "effects": {
+      "roll_spin_slower": 0.5
+    }
+  },
+  "relic_roll_quality": {
+    "id": "relic_roll_quality",
+    "name": "命运透镜",
+    "description": "老虎机 roll 高品质防具的概率提升",
+    "flavor": "透过它，命运露出了一点缝隙。",
+    "icon": "item_102",
+    "price": 200.0,
+    "lifetime": "persistent",
+    "slot_machine": true,
+    "effects": {
+      "roll_high_quality_boost": 1
+    }
+  },
+  "relic_roll_school": {
+    "id": "relic_roll_school",
+    "name": "流派罗盘",
+    "description": "老虎机 roll 时，烈焰流派防具出现率大幅提升",
+    "flavor": "指针不指向北，指向火。",
+    "icon": "item_103",
+    "price": 180.0,
+    "lifetime": "persistent",
+    "slot_machine": true,
+    "effects": {
+      "roll_school_boost": 2.0,
+      "roll_school_target": "烈焰"
+    }
+  },
+  "relic_roll_rebate": {
+    "id": "relic_roll_rebate",
+    "name": "返利硬币",
+    "description": "每次老虎机 roll 后返还 20% 金币",
+    "flavor": "花出去的钱，总有一部分惦记着回家。",
+    "icon": "item_104",
+    "price": 160.0,
+    "lifetime": "persistent",
+    "slot_machine": true,
+    "effects": {
+      "roll_gold_rebate": 0.2
+    }
+  },
+  "relic_roll_flat": {
+    "id": "relic_roll_flat",
+    "name": "定额筹码",
+    "description": "老虎机连续 roll 价格不再递增",
+    "flavor": "无论转多少次，价钱都像第一次那样诚实。",
+    "icon": "item_105",
+    "price": 220.0,
+    "lifetime": "persistent",
+    "slot_machine": true,
+    "effects": {
+      "roll_no_price_growth": true
+    }
+  },
+  "relic_trade": {
+    "id": "relic_trade",
+    "name": "交易遗物",
+    "description": "出售遗物时返还比例 +20%（基础 50% → 70%）",
+    "flavor": "它教会你：一件东西真正的价值，在于你放手时能换回多少。",
+    "icon": "item_106",
+    "price": 180.0,
+    "lifetime": "persistent",
+    "effects": {
+      "relic_sell_rate_bonus": 0.2
+    }
   }
 }

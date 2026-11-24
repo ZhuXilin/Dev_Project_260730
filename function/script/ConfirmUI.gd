@@ -94,7 +94,8 @@ func show_confirm(message: String, confirm_text: String = "确定", cancel_text:
 ## ★ v6.53：双选项模式——展示两个"结果预览卡片"，各带 图标/流派色块/数值/词条，
 ##   玩家点卡片即选对应动作（强化/转向），底部另有正常大小的取消按钮。
 ## data_a/data_b: {icon:Texture2D, school:String, color:Color, title:String, detail:String, affixes:Array, cb:Callable}
-func show_choice(title: String, data_a: Dictionary, data_b: Dictionary, cancel_cb: Callable = Callable()) -> void:
+## ★ v6.62：新增 horizontal（两卡左右排列）+ avatar_unit（用单位头像而非图标/战场图）
+func show_choice(title: String, data_a: Dictionary, data_b: Dictionary, cancel_cb: Callable = Callable(), horizontal: bool = false) -> void:
 	message_label.visible = false
 	$Panel/HBoxContainer.visible = false
 
@@ -118,8 +119,20 @@ func show_choice(title: String, data_a: Dictionary, data_b: Dictionary, cancel_c
 	choice_b_callback = data_b.get("cb", Callable())
 	cancel_callback = cancel_cb
 
-	_choice_root.add_child(_make_choice_card(data_a, true))
-	_choice_root.add_child(_make_choice_card(data_b, false))
+	# ★ v6.62：横向模式用 HBox 并排两张卡；默认仍 VBox（兼容防具强化/转向）
+	var cards_box : BoxContainer
+	if horizontal:
+		var hbox := HBoxContainer.new()
+		hbox.add_theme_constant_override("separation", 12)
+		hbox.alignment = BoxContainer.ALIGNMENT_CENTER
+		hbox.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		cards_box = hbox
+	else:
+		cards_box = _choice_root
+	if cards_box != _choice_root:
+		_choice_root.add_child(cards_box)
+	cards_box.add_child(_make_choice_card(data_a, true))
+	cards_box.add_child(_make_choice_card(data_b, false))
 
 	var cancel := Button.new()
 	cancel.text = "取消"
@@ -133,11 +146,15 @@ func show_choice(title: String, data_a: Dictionary, data_b: Dictionary, cancel_c
 
 func _make_choice_card(data: Dictionary, is_a: bool) -> PanelContainer:
 	var card := PanelContainer.new()
-	card.custom_minimum_size = Vector2(0, 56)
+	var avatar_unit : String = str(data.get("avatar_unit", ""))
+	# ★ v6.62e：avatar 模式两张卡固定同宽（画面 400px，两卡+间距放得下），保证大小统一
+	card.custom_minimum_size = Vector2(140, 96) if avatar_unit != "" else Vector2(0, 56)
 	var sb := StyleBoxFlat.new()
 	sb.bg_color = Color(0.12, 0.12, 0.15, 0.95)
 	var c : Color = data.get("color", Color.WHITE)
-	sb.border_color = c
+	# ★ v6.62d：avatar 模式去掉黄色描边——边框用低调灰；非 avatar 保留原流派色
+	var border_base : Color = Color(0.35, 0.35, 0.4) if avatar_unit != "" else c
+	sb.border_color = border_base
 	sb.set_border_width_all(2)
 	sb.content_margin_left = 8
 	sb.content_margin_right = 8
@@ -148,38 +165,57 @@ func _make_choice_card(data: Dictionary, is_a: bool) -> PanelContainer:
 	card.gui_input.connect(func(ev):
 		if ev is InputEventMouseButton and ev.pressed and ev.button_index == MOUSE_BUTTON_LEFT:
 			_on_choice_picked(is_a))
+	# ★ v6.62：卡片 hover 时整体提亮 + 边框变色，明确可点击
+	var hover_border : Color = Color(1.0, 0.95, 0.6) if avatar_unit == "" else Color(0.7, 0.7, 0.8)
+	card.mouse_entered.connect(func():
+		card.modulate = Color(1.15, 1.15, 1.15, 1)
+		sb.border_color = hover_border)
+	card.mouse_exited.connect(func():
+		card.modulate = Color.WHITE
+		sb.border_color = border_base)
+	card.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 
+	# ★ v6.62d：avatar 模式改成上下结构——上：头像+标题，下：赋能数据区
+	var card_vbox := VBoxContainer.new()
+	card_vbox.add_theme_constant_override("separation", 6)
+	card.add_child(card_vbox)
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 8)
-	card.add_child(row)
+	card_vbox.add_child(row)
 
-	# 流派色块 + 防具图标（叠放，样式与其他防具一致）
-	var icon_box := Control.new()
-	icon_box.custom_minimum_size = Vector2(20, 20)
-	var color_rect := ColorRect.new()
-	color_rect.color = c
-	color_rect.set_anchors_preset(Control.PRESET_CENTER)
-	color_rect.offset_left = -10
-	color_rect.offset_right = 10
-	color_rect.offset_top = -10
-	color_rect.offset_bottom = 10
-	color_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	icon_box.add_child(color_rect)
-	var tex : Texture2D = data.get("icon")
-	if tex:
-		var icon_rect := TextureRect.new()
-		icon_rect.texture = tex
-		icon_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-		icon_rect.stretch_mode = TextureRect.STRETCH_KEEP_CENTERED
-		icon_rect.set_anchors_preset(Control.PRESET_CENTER)
-		icon_rect.offset_left = -10
-		icon_rect.offset_right = 10
-		icon_rect.offset_top = -10
-		icon_rect.offset_bottom = 10
-		icon_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		icon_box.add_child(icon_rect)
-	icon_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	row.add_child(icon_box)
+	if avatar_unit != "":
+		# ★ v6.62e：头像用只读展示（不是按钮），mouse_filter=IGNORE 让点击穿透到卡片，
+		#   这样鼠标在头像图片上点击也能选中卡片，且不会双重触发
+		var avatar_ctrl : Control = UnitDataManager.create_unit_avatar_rect(avatar_unit, Vector2(48, 48))
+		row.add_child(avatar_ctrl)
+	else:
+		# 流派色块 + 防具图标（叠放，样式与其他防具一致）
+		var icon_box := Control.new()
+		icon_box.custom_minimum_size = Vector2(20, 20)
+		var color_rect := ColorRect.new()
+		color_rect.color = c
+		color_rect.set_anchors_preset(Control.PRESET_CENTER)
+		color_rect.offset_left = -10
+		color_rect.offset_right = 10
+		color_rect.offset_top = -10
+		color_rect.offset_bottom = 10
+		color_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		icon_box.add_child(color_rect)
+		var tex : Texture2D = data.get("icon")
+		if tex:
+			var icon_rect := TextureRect.new()
+			icon_rect.texture = tex
+			icon_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+			icon_rect.stretch_mode = TextureRect.STRETCH_KEEP_CENTERED
+			icon_rect.set_anchors_preset(Control.PRESET_CENTER)
+			icon_rect.offset_left = -10
+			icon_rect.offset_right = 10
+			icon_rect.offset_top = -10
+			icon_rect.offset_bottom = 10
+			icon_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			icon_box.add_child(icon_rect)
+		icon_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		row.add_child(icon_box)
 
 	var text_col := VBoxContainer.new()
 	text_col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -189,12 +225,36 @@ func _make_choice_card(data: Dictionary, is_a: bool) -> PanelContainer:
 	t1.text = str(data.get("title", ""))
 	t1.add_theme_font_size_override("font_size", 9)
 	text_col.add_child(t1)
-	var t2 := Label.new()
-	t2.text = str(data.get("detail", ""))
-	t2.add_theme_font_size_override("font_size", 7)
-	t2.add_theme_color_override("font_color", Color(0.75, 0.75, 0.78))
-	t2.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	text_col.add_child(t2)
+
+	if avatar_unit != "":
+		# ★ v6.62d：下方数据区（红框位置）——显示赋能后的单位数据作为判断依据
+		var data_box := PanelContainer.new()
+		data_box.custom_minimum_size = Vector2(0, 60)
+		data_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		data_box.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		var dsb := StyleBoxFlat.new()
+		dsb.bg_color = Color(0.08, 0.08, 0.11, 0.9)
+		dsb.border_color = Color(0.3, 0.3, 0.35)
+		dsb.set_border_width_all(1)
+		data_box.add_theme_stylebox_override("panel", dsb)
+		data_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		var data_lb := Label.new()
+		data_lb.text = str(data.get("detail", ""))
+		data_lb.add_theme_font_size_override("font_size", 7)
+		data_lb.add_theme_color_override("font_color", Color(0.85, 0.88, 0.92))
+		data_lb.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+		data_lb.vertical_alignment = VERTICAL_ALIGNMENT_TOP
+		data_lb.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		data_lb.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		data_box.add_child(data_lb)
+		card_vbox.add_child(data_box)
+	else:
+		var t2 := Label.new()
+		t2.text = str(data.get("detail", ""))
+		t2.add_theme_font_size_override("font_size", 7)
+		t2.add_theme_color_override("font_color", Color(0.75, 0.75, 0.78))
+		t2.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		text_col.add_child(t2)
 	return card
 
 
