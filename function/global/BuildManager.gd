@@ -151,10 +151,21 @@ func reset_unit_build(unit: UnitData) -> void:
 		return
 	unit.mechanisms = {}
 	unit.max_armor_slots = get_mechanism_slots(unit.unit_name)
-	# ★ v6 口径：第 1 格留给开局 roll，第 2 格由转职（advanced_talent_inst）承载。
-	#   旧 v5 的 default_talents（crit/block 等）会占住第 1 格，导致 roll 时无人可落位；
-	#   新局必须先清空，否则 SkillRollUI 三个单位全灰。
-	unit.talent_slots = [null]
+	unit.basic_enhancements = []   # ★ v6.71：清空上一轮的普攻强化模板
+	# ★ v6.71：第 1 格常驻单位的「基础魂火技能」（特质层，不可被配装移除、可被 roll 强化/替换）。
+	#   第 2 格仍由转职（advanced_talent_inst）承载。基础技能来自 unit_data.json.base_soul_skill。
+	unit.talent_slots = []
+	if unit.base_soul_skill != "" and TalentManager.get_talent_data(unit.base_soul_skill) != null:
+		var base_inst := TalentInstance.new()
+		base_inst.talent_id = unit.base_soul_skill
+		base_inst.is_active = true
+		base_inst.is_ready = true
+		base_inst.is_base = true
+		base_inst.locked = false   # 基础技能可被引擎/roll 替换，但配装 UI 不允许手改（is_base 拦截）
+		unit.talent_slots.append(base_inst)
+	else:
+		# 无基础技能配置（敌方/旧档）→ 留空，走旧的 roll 落位
+		unit.talent_slots.append(null)
 	unit.max_talent_slots = 1
 
 
@@ -893,11 +904,28 @@ func _find_party_unit(unit_key: String) -> UnitData:
 	return null
 
 
+## ★ v6.71：该单位是否还能接受一次 roll 落位。
+##   开局 slot0 是基础技能（可替换）；一旦落过 roll（soul_skill 替换 或 basic_attack 强化）
+##   就不再接受第二次。basic_attack 不占 slot0，但用 basic_enhancements 标记"已 roll 过"。
+static func is_skill_slot_replaceable(unit: UnitData) -> bool:
+	if unit == null:
+		return false
+	# 已用 basic_attack 模板强化过普攻 → 本次 roll 机会已用
+	if not unit.basic_enhancements.is_empty():
+		return false
+	if unit.talent_slots.is_empty() or unit.talent_slots[0] == null:
+		return true
+	var inst = unit.talent_slots[0]
+	if inst is TalentInstance:
+		return (inst as TalentInstance).is_base
+	return false
+
+
 func _has_empty_skill_slot(unit_key: String) -> bool:
 	var ud := _find_party_unit(unit_key)
 	if ud == null:
 		return true   # 找不到数据时保持旧行为，避免误伤其他调用
-	return ud.talent_slots.is_empty() or ud.talent_slots[0] == null
+	return is_skill_slot_replaceable(ud)
 
 
 ## roll count 次主动技能：先按单位做匹配，保证存在一套"每个单位各得一个可装备技能"的分配，
@@ -915,7 +943,7 @@ func roll_active_skills(unit_names: Array, count: int = 3, unit_data_override: A
 		if not unit_data_override.is_empty():
 			for ud in unit_data_override:
 				if ud != null and UnitDataManager.normalize_unit_key(str(ud.unit_name)) == key:
-					slot_free = (ud.talent_slots.is_empty() or ud.talent_slots[0] == null)
+					slot_free = is_skill_slot_replaceable(ud)   # ★ v6.71：基础技能槽可被 roll 替换
 					break
 		else:
 			slot_free = _has_empty_skill_slot(key)
@@ -1120,24 +1148,47 @@ func can_place_skill(unit: UnitData, talent_id: String) -> bool:
 	var key := UnitDataManager.normalize_unit_key(str(unit.unit_name))
 	if not _skill_cost_allowed_for_unit(talent_id, key):
 		return false
-	# 第 1 格空 = 未被 roll 技能占用
-	return unit.talent_slots.is_empty() or unit.talent_slots[0] == null
+	# ★ v6.71：anchor=basic_attack 的模板只做普攻强化（被动），不占技能位，
+	#   但仍要求该单位的本次 roll 机会未用（避免同一单位被 roll 两次）。
+	var tdata := TalentManager.get_talent_data(talent_id)
+	var anchor : String = tdata.get_anchor() if tdata else "soul_skill"
+	if anchor == "basic_attack":
+		return is_skill_slot_replaceable(unit) and not unit.basic_enhancements.has(talent_id)
+	# 第 1 格为空或仍是基础魂火技能 = 可被 roll 强化/替换
+	return is_skill_slot_replaceable(unit)
 
 
-## 把 roll 到的主动技能写入单位第 1 格（锁定，不提供互换）
+## 把 roll 到的技能按锚点落到单位：
+##   soul_skill   → 替换第 1 格基础魂火技能（技能按钮内容）
+##   basic_attack → 记入 basic_enhancements（普攻被动强化，不占按钮）
+##   both         → 两者都做
 func place_skill(unit: UnitData, talent_id: String) -> bool:
 	if not can_place_skill(unit, talent_id):
 		return false
+	var tdata := TalentManager.get_talent_data(talent_id)
+	var anchor : String = tdata.get_anchor() if tdata else "soul_skill"
+	if anchor == "":
+		anchor = "soul_skill"
+	# 普攻强化：记入被动增强列表，不写技能位
+	if anchor == "basic_attack":
+		if not unit.basic_enhancements.has(talent_id):
+			unit.basic_enhancements.append(talent_id)
+		return true
+	# soul_skill / both：写第 1 格技能位（替换基础技能）
 	var inst := TalentInstance.new()
 	inst.talent_id = talent_id
 	inst.is_active = true
 	inst.locked = true   # ★ roll 技能选定离手
-	var tdata := TalentManager.get_talent_data(talent_id)
 	if tdata and tdata.is_active_skill:
 		inst.is_ready = true
+	inst.roll_anchor = anchor
+	inst.is_base = false
 	while unit.talent_slots.size() < 1:
 		unit.talent_slots.append(null)
 	unit.talent_slots[0] = inst
+	# both：额外再加一份普攻强化
+	if anchor == "both" and not unit.basic_enhancements.has(talent_id):
+		unit.basic_enhancements.append(talent_id)
 	return true
 
 

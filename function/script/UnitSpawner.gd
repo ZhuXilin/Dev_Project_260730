@@ -149,7 +149,8 @@ static func _apply_advanced_class(stats: UnitData, adv_id: String) -> void:
 				stats.tags.append(t)
 
 	if adv.granted_talent != "":
-		stats.advanced_talent_id = adv.granted_talent
+		# ★ v6.71：与 HeroShrineUI / 存档恢复口径统一，转职授予的主动技能降为残响被动
+		stats.advanced_talent_id = TalentManager.resolve_granted_talent(adv.granted_talent)
 	if adv.sprite_frames_path != "":
 		stats.override_sprite_path = adv.sprite_frames_path
 	stats.advanced_class = adv.id

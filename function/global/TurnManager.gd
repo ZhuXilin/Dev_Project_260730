@@ -159,9 +159,6 @@ func start_turn(team: Team):
 			# ★ v6.67：撞墙眩晕递减（在目标所属队伍回合结束时）
 			if u.stun_rounds > 0:
 				u.stun_rounds -= 1
-			# ★ v6.69：Build 觉醒技冷却递减（按单位自身队伍回合）
-			if u.awakening_cooldown > 0:
-				u.awakening_cooldown -= 1
 
 	if team == Team.ENEMY and current_turn_team == Team.PLAYER:
 		if ObjectiveManager: ObjectiveManager.on_player_turn_end()

@@ -55,6 +55,13 @@ static func load_talent_data():
 		talent.skill_cooldown = int(dict.get("skill_cooldown", 0))
 		talent.resonance_school = str(dict.get("resonance_school", ""))
 		talent.tutorial_stage = int(dict.get("tutorial_stage", 3))
+		# ★ v6.71：技能池三层新字段
+		talent.anchor = str(dict.get("anchor", ""))
+		talent.unit_type_scaling = dict.get("unit_type_scaling", {})
+		talent.tags = dict.get("tags", [])
+		talent.scaling = str(dict.get("scaling", ""))
+		talent.cost = int(dict.get("cost", 0))
+		talent.cooldown = int(dict.get("cooldown", 0))
 		_talent_db[talent.id] = talent
 	print("成功加载 ", _talent_db.size(), " 个词条")
 

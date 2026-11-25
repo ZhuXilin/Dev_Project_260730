@@ -184,6 +184,8 @@ static func create_unit_data(unit_name: String, _for_boss: bool = false) -> Unit
 		data.talent_slots.append(null)
 
 	data.max_talent_slots = talent_cap
+	# ★ v6.71：单位固定基础魂火技能（开局常驻 slot0，roll 可强化/替换）
+	data.base_soul_skill = str(dict.get("base_soul_skill", ""))
 	return data
 
 static func get_sacrifice_buff(unit_name: String) -> Dictionary:

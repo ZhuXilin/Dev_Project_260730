@@ -7,6 +7,10 @@ class_name TalentInstance
 @export var is_active: bool = true
 @export var cooldown_remaining: int = 0      # ★ 新增
 @export var locked: bool = false             # ★ v6：roll 技能选定离手，锁定不可覆盖 / 互换
+## ★ v6.71：是否单位基础魂火技能（常驻 slot0，不可被配装移除，可被 roll 替换）
+@export var is_base: bool = false
+## ★ v6.71：roll 结果锚点 basic_attack / soul_skill / both（空=非 roll 技能）
+@export var roll_anchor: String = ""
 
 func reset():
 	current_stack = 0

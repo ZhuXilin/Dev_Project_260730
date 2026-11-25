@@ -1038,7 +1038,8 @@ func _sk_build_entries() -> Array:
 	var remaining_names: Array = []
 	for uname in _unit_names:
 		var u: UnitData = _sk_find_unit(str(uname))
-		if u != null and (u.talent_slots.is_empty() or u.talent_slots[0] == null):
+		# ★ v6.71：基础魂火技能常驻 slot0，但可被引擎/roll 强化替换
+		if u != null and BuildManager.is_skill_slot_replaceable(u):
 			remaining_names.append(str(uname))
 
 	# ★ v6.22：池子改用全池并集，不再用 ranked(兼容≥2单位) 的交集。
@@ -1156,7 +1157,8 @@ func _sk_show_units(tid: String) -> void:
 	var remaining_names: Array = []
 	for uname in _unit_names:
 		var u: UnitData = _sk_find_unit(str(uname))
-		if u != null and (u.talent_slots.is_empty() or u.talent_slots[0] == null):
+		# ★ v6.71：基础魂火技能常驻 slot0，但可被引擎/roll 强化替换
+		if u != null and BuildManager.is_skill_slot_replaceable(u):
 			remaining_names.append(str(uname))
 	# ★ v6.19：只显示"尚未装备技能"的单位——已落位的单位不再出现在本界面选项里。
 	# ★ v6.18：落位判定用 can_place_with_future（全池匹配），取代过紧的 is_safe_placement。

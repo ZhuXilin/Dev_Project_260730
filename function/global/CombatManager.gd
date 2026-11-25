@@ -23,10 +23,7 @@ var BLOOD_RAGE_HEAL_PERCENT : Array = [0.15, 0.20, 0.25]
 var ZEAL_PER_STACK : Array = [0.10, 0.15, 0.20]
 var ZEAL_MAX_STACKS : int = 5
 
-# ★ v6.69：觉醒技改为魂火消费 + 回合冷却（取消能量充能）
-var AWAKENING_SOUL_COST : int = 6
-var AWAKENING_COOLDOWN_ROUNDS : int = 3
-var AWAKENING_MIN_DOMINANT_LEVEL : int = 1
+# ★ v6.71：Build 觉醒技已删除（其流派全场质变由魂火爆发 + unit 身份 burst_trait 接管）
 
 const PERFORMANCE_DURATION : float = 0.5
 const LUNGE_DURATION : float = 0.15
@@ -70,10 +67,6 @@ func reload_config():
 	ZEAL_PER_STACK = tp.get("zeal_per_stack", ZEAL_PER_STACK).duplicate()
 	ZEAL_MAX_STACKS = int(tp.get("zeal_max_stacks", ZEAL_MAX_STACKS))
 
-	var aw : Dictionary = cfg.get("awakening", {})
-	AWAKENING_SOUL_COST = maxi(1, int(aw.get("soul_fire_cost", AWAKENING_SOUL_COST)))
-	AWAKENING_COOLDOWN_ROUNDS = maxi(0, int(aw.get("cooldown_rounds", AWAKENING_COOLDOWN_ROUNDS)))
-	AWAKENING_MIN_DOMINANT_LEVEL = maxi(0, int(aw.get("min_dominant_level", AWAKENING_MIN_DOMINANT_LEVEL)))
 	print("[CombatManager] 已加载")
 
 
@@ -478,6 +471,18 @@ func execute_attack(attacker: Unit, defender: Unit, forced_skill_id: String = ""
 		taunt_rounds = int(ep0.get("taunt_rounds", 0))
 
 	var damage = calculate_damage(attacker, defender, not has_skill)
+
+	# ★ v6.71：初始 roll 的普攻强化模板（anchor=basic_attack/both）——被动结算，不占按钮。
+	#   只吃 damage_mult（倍率），不额外消耗魂火、不进冷却、不触发异常。
+	#   穿透/必暴类效果沿用技能按钮路径（anchor=soul_skill），避免与临时穿透清零时序冲突。
+	var basic_enh : Array = attacker.unit_stats.basic_enhancements if attacker.unit_stats else []
+	for enh_id in basic_enh:
+		var edata := TalentManager.get_talent_data(str(enh_id))
+		if edata == null: continue
+		var eep : Dictionary = edata.effect_params if edata.effect_params is Dictionary else {}
+		var emult : float = float(eep.get("damage_mult", 1.0))
+		if emult > 1.0:
+			damage = int(damage * emult)
 
 	if active_skill_data:
 		var ep : Dictionary = active_skill_data.effect_params
@@ -1107,112 +1112,8 @@ func _on_kill(attacker: Unit, _defender: Unit) -> bool:
 	return cleave_triggered
 
 
-# ============================================================
-#  ★ v6.69：Build 觉醒技——取消能量充能，改为消费魂火 + 按回合冷却。
-#   条件：主流派 Lv 达标 + 魂火够付 + 冷却归零；释放后扣魂火并进入冷却。
-#   数值全部读 combat_config.json 的 awakening 段。
-# ============================================================
-func get_awakening_soul_cost() -> int:
-	return AWAKENING_SOUL_COST
-
-func get_awakening_cooldown_rounds() -> int:
-	return AWAKENING_COOLDOWN_ROUNDS
-
-func get_dominant_school_level(unit: Unit) -> int:
-	var school := get_dominant_school(unit)
-	if school == "":
-		return 0
-	return BuildManager.get_effective_school_level(unit, school)
-
-func can_release_build_burst(unit: Unit) -> bool:
-	if not is_instance_valid(unit) or unit.hit_points <= 0:
-		return false
-	if get_dominant_school(unit) == "":
-		return false
-	if get_dominant_school_level(unit) < AWAKENING_MIN_DOMINANT_LEVEL:
-		return false
-	if unit.awakening_cooldown > 0:
-		return false
-	return SoulFireManager.can_spend(AWAKENING_SOUL_COST)
-
-## 觉醒不可用原因：冷却中返回剩余回合；魂火不足返回需要数；无流派返回 -1。
-func get_awakening_block_reason(unit: Unit) -> Dictionary:
-	if not is_instance_valid(unit):
-		return {"reason": "none", "value": 0}
-	if get_dominant_school(unit) == "":
-		return {"reason": "no_school", "value": 0}
-	if get_dominant_school_level(unit) < AWAKENING_MIN_DOMINANT_LEVEL:
-		return {"reason": "low_level", "value": AWAKENING_MIN_DOMINANT_LEVEL}
-	if unit.awakening_cooldown > 0:
-		return {"reason": "cooldown", "value": unit.awakening_cooldown}
-	if not SoulFireManager.can_spend(AWAKENING_SOUL_COST):
-		return {"reason": "soul", "value": AWAKENING_SOUL_COST}
-	return {"reason": "", "value": 0}
-
-## 取单位有效 Lv 最高的流派（共鸣后），决定觉醒技效果
-func get_dominant_school(unit: Unit) -> String:
-	var best: String = ""
-	var best_lv: int = 0
-	for s in BuildManager.SCHOOL_ORDER:
-		var lv := BuildManager.get_effective_school_level(unit, s)
-		if lv > best_lv:
-			best_lv = lv
-			best = s
-	return best
-
-## 释放 build 觉醒技：按最高流派对全场产生效果。扣魂火 + 按回合冷却。返回释放的流派名。
-func release_build_burst(unit: Unit) -> String:
-	if not can_release_build_burst(unit):
-		return ""
-	var school := get_dominant_school(unit)
-	if school == "":
-		return ""
-	# ★ v6.69：先扣魂火再结算效果；失败则不进入冷却（避免白扣）。
-	if not SoulFireManager.spend(AWAKENING_SOUL_COST):
-		return ""
-	unit.awakening_cooldown = AWAKENING_COOLDOWN_ROUNDS
-	var allies: Array = []
-	var enemies: Array = []
-	for u in UnitManager.unit_list:
-		if not is_instance_valid(u) or u.hit_points <= 0:
-			continue
-		if u.unit_stats.team_id == unit.unit_stats.team_id:
-			allies.append(u)
-		else:
-			enemies.append(u)
-	match school:
-		"烈焰":
-			for e in enemies:
-				var d := maxi(5, int(unit.unit_stats.attack * 0.6))
-				e.apply_damage(d)
-				SignalBus.request_damage_popup.emit(e.global_position, d, true, false, false)
-		"守护":
-			for a in allies:
-				var h := maxi(5, int(a.unit_stats.max_hp * 0.2))
-				a.hit_points = mini(a.hit_points + h, a.unit_stats.max_hp)
-				SignalBus.request_damage_popup.emit(a.global_position, h, false, false, true)
-		"轮回":
-			SoulFireManager.add(3)
-			for a in allies:
-				var h := maxi(5, int(a.unit_stats.max_hp * 0.15))
-				a.hit_points = mini(a.hit_points + h, a.unit_stats.max_hp)
-				SignalBus.request_damage_popup.emit(a.global_position, h, false, false, true)
-		"灰烬":
-			for e in enemies:
-				var d := maxi(5, int(unit.unit_stats.attack * 0.45))
-				e.apply_damage(d)
-				SignalBus.request_damage_popup.emit(e.global_position, d, true, false, false)
-		"献祭":
-			for a in allies:
-				a.buff_attack_percent = a.buff_attack_percent + 0.30
-		"余烬":
-			for e in enemies:
-				var d := maxi(5, int(unit.unit_stats.attack * 0.5))
-				e.apply_damage(d)
-				SignalBus.request_damage_popup.emit(e.global_position, d, true, false, false)
-	SignalBus.request_hint_override.emit("★ %s · Build 觉醒技释放！" % school, 1.8)
-	SignalBus.request_screen_shake.emit(0.45, 9.0, Vector2.ZERO)
-	return school
+# ★ v6.71：Build 觉醒技已删除。流派全场质变由魂火爆发（burst_requested）
+#   + 单位身份 burst_trait（SoulFireIdentity）接管；防具 build 回归被动机制层。
 
 
 ## 找同队中"当前 HP 比例最低且存活"的队友（用于轮回 Lv2 治疗质变）

@@ -119,6 +119,10 @@ var zeal_stacks : int = 0
 @export var mechanisms: Dictionary = {}
 @export var talent_slots: Array = []
 @export var max_talent_slots: int = 1
+## ★ v6.71：单位固定基础魂火技能（来自 unit_data.json.base_soul_skill），开局常驻 slot0
+@export var base_soul_skill: String = ""
+## ★ v6.71：初始 roll 的普攻强化模板 id 列表（anchor=basic_attack/both，被动自动结算，不占按钮）
+@export var basic_enhancements: Array = []
 
 @export var advanced_talent_id : String = ""
 var advanced_talent_inst : TalentInstance = null
@@ -277,6 +281,7 @@ func to_dict() -> Dictionary:
 		"attack_range_bonus": attack_range_bonus, "static_physical_penetration": static_physical_penetration,
 		"static_magic_penetration": static_magic_penetration, "static_crit_damage_bonus": static_crit_damage_bonus,
 		"max_armor_slots": max_armor_slots, "max_talent_slots": max_talent_slots,
+		"base_soul_skill": base_soul_skill, "basic_enhancements": basic_enhancements.duplicate(),
 		"advancement": advancement.duplicate(), "armor_slots": _item_instance_array_to_array(armor_slots),
 		"mechanisms": mechanisms.duplicate(true),
 		"talent_slots": _talent_instance_array_to_array(talent_slots),
@@ -325,6 +330,9 @@ static func from_dict(d: Dictionary) -> UnitData:
 	data.static_crit_damage_bonus = float(d.get("static_crit_damage_bonus", 0.0))
 	data.max_armor_slots = d.get("max_armor_slots", 2)
 	data.max_talent_slots = d.get("max_talent_slots", 1)
+	data.base_soul_skill = str(d.get("base_soul_skill", ""))
+	var be_raw = d.get("basic_enhancements", [])
+	data.basic_enhancements = be_raw.duplicate() if be_raw is Array else []
 	data.core_trait = d.get("core_trait", "")
 	data.is_boss = d.get("is_boss", false)
 	data.hidden_from_roster = bool(d.get("hidden_from_roster", false))
@@ -448,7 +456,9 @@ static func _array_to_item_instance_array(arr: Array) -> Array:
 
 static func _talent_instance_to_dict(inst) -> Dictionary:
 	if not inst or not (inst is TalentInstance) or not (inst as TalentInstance).is_active: return {}
-	return {"talent_id": inst.talent_id, "current_stack": inst.current_stack, "is_ready": inst.is_ready, "is_active": inst.is_active}
+	return {"talent_id": inst.talent_id, "current_stack": inst.current_stack, "is_ready": inst.is_ready,
+			"is_active": inst.is_active, "locked": inst.locked, "is_base": inst.is_base,
+			"roll_anchor": inst.roll_anchor}
 
 static func _dict_to_talent_instance(d: Dictionary) -> TalentInstance:
 	if d.is_empty(): return null
@@ -459,6 +469,10 @@ static func _dict_to_talent_instance(d: Dictionary) -> TalentInstance:
 	inst.current_stack = d.get("current_stack", 0)
 	inst.is_ready = d.get("is_ready", false)
 	inst.is_active = d.get("is_active", true)
+	# ★ v6.71：基础技能/roll 锚点标记需随存档保留，否则读档后基础技能可被误判为可替换
+	inst.locked = d.get("locked", false)
+	inst.is_base = d.get("is_base", false)
+	inst.roll_anchor = str(d.get("roll_anchor", ""))
 	return inst
 
 static func _talent_instance_array_to_array(arr: Array) -> Array:

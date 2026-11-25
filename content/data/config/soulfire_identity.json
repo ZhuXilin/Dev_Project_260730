@@ -145,7 +145,7 @@
     }
   },
   "advanced_overrides": {
-    "_doc": "转职分支对魂火身份的改造：burn_trait/burst_trait 覆盖或追加，name=转职后名号，tint=外观色调(hex)，hud_icon=魂火HUD图标，burst_label=技能按钮爆发文案。仅列 P0 剑士三分支样板，其余分支后续补。",
+    "_doc": "转职分支对魂火身份的改造：burn_trait/burst_trait 覆盖或追加，name=转职后名号，tint=外观色调(hex)，hud_icon=魂火HUD图标，burst_label=技能按钮爆发文案。id 严格对应 unit_data.json.advanced_branches[].id（v6.71 修正剑士三分支孤儿id）。",
     "archer_sniper": {
       "name": "神射手",
       "hud_icon": "焰",
@@ -161,8 +161,8 @@
       "hud_icon": "焰",
       "burst_label": "烈焰横扫"
     },
-    "swordsman_flame_saint": {
-      "name": "烈焰剑圣",
+    "swordsman_hidden_branch": {
+      "name": "灰烬剑圣",
       "hud_icon": "焰",
       "tint": "#C0392B",
       "burst_label": "横扫引爆",
@@ -181,8 +181,8 @@
       },
       "burst_threshold": 3
     },
-    "swordsman_guard": {
-      "name": "守护剑卫",
+    "swordsman_guardian": {
+      "name": "盾卫",
       "hud_icon": "盾",
       "tint": "#D4AC0D",
       "burst_label": "嘲讽护盾",
@@ -201,8 +201,8 @@
       "burst_threshold": 4,
       "zoc": true
     },
-    "swordsman_swift": {
-      "name": "疾风剑客",
+    "swordsman_berserker": {
+      "name": "狂战士",
       "hud_icon": "风",
       "tint": "#1ABC9C",
       "burst_label": "三段突进",
@@ -267,8 +267,12 @@
     },
     "zoc": {
       "enabled": true,
-      "providers": ["armored"],
-      "provider_advanced": ["swordsman_guard"],
+      "providers": [
+        "armored"
+      ],
+      "provider_advanced": [
+        "swordsman_guard"
+      ],
       "stop_on_enter": true,
       "block_leave": true,
       "ignore_flying": true,

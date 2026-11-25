@@ -67,11 +67,7 @@ var _enemy_soul: int = 0
 const ARENA_SOUL_CAP: int = 6
 var _player_sacrifice_bonus: float = 0.0   # 献祭本轮攻击加成
 var _enemy_sacrifice_bonus: float = 0.0
-# ★ v6.69：觉醒技改为魂火消费 + 按回合冷却（1v1 自动战斗版，条件满足自动释放）
-var _player_awakening_cd: int = 0
-var _enemy_awakening_cd: int = 0
-var _arena_awakening_cost: int = 6
-var _arena_awakening_cd_rounds: int = 3
+# ★ v6.71：Build 觉醒技已删除（竞技场 1v1 同步移除）
 var _player_ember_charged: bool = false    # 余烬：魂火耗尽后的必暴标记
 var _enemy_ember_charged: bool = false
 
@@ -98,9 +94,6 @@ func _ready():
 
 
 func _apply_config():
-	var aw_cfg : Dictionary = GameConfigManager.get_value("combat_config.json", "awakening", {})
-	_arena_awakening_cost = maxi(1, int(aw_cfg.get("soul_fire_cost", _arena_awakening_cost)))
-	_arena_awakening_cd_rounds = maxi(0, int(aw_cfg.get("cooldown_rounds", _arena_awakening_cd_rounds)))
 	var cfg : Dictionary = GameConfigManager.get_value("combat_config.json", "arena_battle", {})
 	CRIT_BASE_CHANCE = float(cfg.get("crit_base_chance", CRIT_BASE_CHANCE))
 	CRIT_PER_DEXTERITY = float(cfg.get("crit_per_dexterity", CRIT_PER_DEXTERITY))
@@ -141,8 +134,6 @@ func setup(player_data: UnitData, enemy_data: UnitData, crystal_reward: int = 0,
 	_enemy_soul = 1
 	_player_sacrifice_bonus = 0.0
 	_enemy_sacrifice_bonus = 0.0
-	_player_awakening_cd = 0
-	_enemy_awakening_cd = 0
 	_player_ember_charged = false
 	_enemy_ember_charged = false
 
@@ -296,11 +287,6 @@ func _run_battle():
 		# ★ v6.10：献祭流派——回合开始扣血换本回合攻击加成
 		_apply_sacrifice(_player, true)
 		_apply_sacrifice(_enemy, false)
-		# ★ v6.69：觉醒技冷却按回合递减；魂火够 + 冷却归零则自动释放
-		if _player_awakening_cd > 0: _player_awakening_cd -= 1
-		if _enemy_awakening_cd > 0: _enemy_awakening_cd -= 1
-		_try_release_build_burst(_player, true)
-		_try_release_build_burst(_enemy, false)
 		if _player_hp <= 0 or _enemy_hp <= 0:
 			break
 
@@ -802,57 +788,7 @@ func _apply_sacrifice(unit: UnitData, is_player: bool):
 	_refresh_hp_labels()
 
 
-## ★ v6.69：觉醒技自动释放（1v1 简化）——魂火够付 + 冷却归零时触发，效果按最高流派。
-func _try_release_build_burst(unit: UnitData, is_player: bool) -> void:
-	var cd: int = _player_awakening_cd if is_player else _enemy_awakening_cd
-	var soul: int = _player_soul if is_player else _enemy_soul
-	if cd > 0 or soul < _arena_awakening_cost:
-		return
-	var school := _dominant_school(unit)
-	if school == "":
-		return
-	# 扣魂火 + 进入冷却（按回合递减，见主循环）
-	if is_player:
-		_player_soul -= _arena_awakening_cost
-		_player_awakening_cd = _arena_awakening_cd_rounds
-	else:
-		_enemy_soul -= _arena_awakening_cost
-		_enemy_awakening_cd = _arena_awakening_cd_rounds
-	var my_hp: int = _player_hp if is_player else _enemy_hp
-	var foe_hp: int = _enemy_hp if is_player else _player_hp
-	var atk: int = maxi(5, int(unit.attack * 0.6))
-	match school:
-		"烈焰", "灰烬", "余烬":
-			foe_hp = maxi(0, foe_hp - atk)
-		"守护", "轮回":
-			my_hp = mini(my_hp + maxi(5, int(maxi(1, unit.max_hp) * 0.20)), maxi(1, unit.max_hp))
-		"献祭":
-			if is_player: _player_sacrifice_bonus += 0.30
-			else: _enemy_sacrifice_bonus += 0.30
-	if is_player:
-		_player_hp = my_hp
-		_enemy_hp = foe_hp
-		enemy_hp_bar.value = _enemy_hp
-	else:
-		_enemy_hp = my_hp
-		_player_hp = foe_hp
-		player_hp_bar.value = _player_hp
-	_refresh_hp_labels()
-	_shake_panel(Vector2.ZERO, 8.0, 0.4)
-	log_label.text += "  ★ Build 觉醒技【%s】！" % school
-
-
-## 取单位有效 Lv 最高的流派
-func _dominant_school(unit: UnitData) -> String:
-	var best: String = ""
-	var best_lv: int = 0
-	for s in BuildManager.SCHOOL_ORDER:
-		var lv := BuildManager.get_effective_school_level(unit, s)
-		if lv > best_lv:
-			best_lv = lv
-			best = s
-	return best
-
+# ★ v6.71：Build 觉醒技已删除（竞技场 1v1 同步移除自动释放与 dominant_school）
 
 func _calc_damage(attacker: UnitData, defender: UnitData) -> int:
 	if attacker == null or defender == null:

@@ -763,16 +763,12 @@ func _show_attack_menu(attacker: Unit, target: Unit, _is_after_move: bool) -> vo
 		and SoulFireManager.can_spend(emergency_cost)
 
 	# ★ v6.63：魂火爆发并入技能按钮，不再有独立爆发按钮。
-	#   魂火 ≥3 时技能自动爆发（见下方技能项文案与 skill_id 替换）。
+	#   魂火 ≥ 单位阈值时技能自动爆发（见下方技能项文案与 skill_id 替换）。
 	var sf_cost : int = SoulFireManager.current
 	var burst_threshold : int = SoulFireIdentity.get_burst_threshold(attacker.unit_stats.unit_name, attacker.unit_stats.advanced_class)
 	var will_burst : bool = sf_cost >= burst_threshold
 
-	# ★ v6.69：觉醒技改为魂火消费 + 回合冷却；不再有"充能进度"概念。
-	#   觉醒可用时占技能位；冷却/魂不足时技能位灰显并在文本后附倒数数字。
-	var dom_school : String = CombatManager.get_dominant_school(attacker)
-	var build_ready : bool = attacker.unit_stats.team_id == 0 and dom_school != "" \
-		and CombatManager.can_release_build_burst(attacker) and not emergency_available
+	# ★ v6.71：Build 觉醒技已删除，技能位不再被觉醒顶替。
 
 	# 目标只因主动技能 range_bonus 才可达时（如狙击 +2），禁用普攻，
 	# 并且只保留射程加成足以覆盖该距离的技能，避免越距普攻。
@@ -791,44 +787,15 @@ func _show_attack_menu(attacker: Unit, target: Unit, _is_after_move: bool) -> vo
 					ranged_skills.append(sd)
 			available_skills = ranged_skills
 
-	# ★ v6.68j：只保留一个技能项——优先转职主动，其次列表首个。
-	#   觉醒攒满时这个技能项直接变成觉醒，不额外增加一行。
+	# ★ v6.71：只保留一个技能项——转职主动已统一降残响被动，不再参与按钮选择；
+	#   取列表首个（技能位唯一来源是基础魂火技能 / roll 替换技能）。
 	if available_skills.size() > 1:
-		var adv_id : String = ""
-		var adv_slot = attacker.advanced_talent_inst
-		if adv_slot and adv_slot.is_active:
-			adv_id = str(adv_slot.talent_id)
-		var chosen = null
-		for sd in available_skills:
-			if adv_id != "" and str(sd.id) == adv_id:
-				chosen = sd
-				break
-		if chosen == null:
-			chosen = available_skills[0]
-		available_skills = [chosen]
-
-	# ★ v6.69：技能位状态——"觉醒可用 > 普通技能 > 灰显(带倒数)"。
-	#   灰显项不占可执行指令数，只在已有多项动作时展示原因，保持菜单最多两项。
-	var aw_block : Dictionary = CombatManager.get_awakening_block_reason(attacker)
-	var aw_reason : String = str(aw_block.get("reason", ""))
-	var aw_value : int = int(aw_block.get("value", 0))
-	# 倒数文案：冷却剩余回合 / 魂火不足差额。
-	var aw_suffix : String = ""
-	match aw_reason:
-		"cooldown": aw_suffix = "·冷%d" % aw_value
-		"soul": aw_suffix = "·需%d魂" % aw_value
-		"low_level": aw_suffix = "·需Lv%d" % aw_value
-	var show_awakening_gray : bool = attacker.unit_stats.team_id == 0 \
-		and dom_school != "" and aw_suffix != "" and not build_ready \
-		and available_skills.is_empty() and not emergency_available
+		available_skills = [available_skills[0]]
 
 	var total_options : int = 0
 	if normal_available: total_options += 1
 	total_options += available_skills.size()
-	if build_ready and available_skills.is_empty(): total_options += 1
 	if emergency_available: total_options += 1
-	# ★ v6.69：灰显觉醒作为"可见但不可点"的展示项计入，让玩家看到倒数。
-	if show_awakening_gray: total_options += 1
 
 	if total_options == 0:
 		if target_is_ally:
@@ -852,24 +819,7 @@ func _show_attack_menu(attacker: Unit, target: Unit, _is_after_move: bool) -> vo
 		call_deferred("_do_combat_async", attacker, target, "")
 		return
 
-	if total_options == 1 and show_awakening_gray and not normal_available:
-		# ★ v6.69：唯一可见项是灰显觉醒——直接提示原因，不静默普攻。
-		SoundManager.play_cancel_sound()
-		var hint : String = "觉醒未就绪"
-		match aw_reason:
-			"cooldown": hint = "觉醒冷却 %d 回合" % aw_value
-			"soul": hint = "觉醒需 %d 魂火" % aw_value
-			"low_level": hint = "觉醒需流派 Lv%d" % aw_value
-		SignalBus.request_hint_override.emit(hint, 1.2)
-		_on_attack_canceled(attacker)
-		return
-
 	if total_options == 1:
-		# ★ v6.68j：唯一动作是觉醒时直接释放，不再弹菜单。
-		if build_ready and available_skills.is_empty() and not emergency_available \
-				and not normal_available:
-			call_deferred("_do_build_burst_async", attacker)
-			return
 		if emergency_available and available_skills.is_empty() \
 				and not normal_attack_available and not normal_heal_available:
 			call_deferred("_do_emergency_heal_async", attacker, target)
@@ -929,31 +879,12 @@ func _show_attack_menu(attacker: Unit, target: Unit, _is_after_move: bool) -> vo
 			skill_text += "·" + label
 		else:
 			skill_text += "·%d魂▶%d" % [skill_cost, burst_threshold]
-		# ★ v6.69：觉醒可用占技能位，文案带魂火成本（如"★烈焰觉醒·6魂"）。
-		if build_ready:
-			skill_text = "★%s觉醒·%d魂" % [dom_school, CombatManager.get_awakening_soul_cost()]
 		popup.add_item(skill_text, next_id)
-		if build_ready:
-			meta_by_id[next_id] = {"kind": "build_burst"}
-		else:
-			meta_by_id[next_id] = {"kind": "attack", "skill_id": sdata.id, "is_skill": true}
+		meta_by_id[next_id] = {"kind": "attack", "skill_id": sdata.id, "is_skill": true}
 		next_id += 1
 
-	# 无可用技能但觉醒可用：觉醒占据技能位。
-	if build_ready and available_skills.is_empty():
-		popup.add_item("★%s觉醒·%d魂" % [dom_school, CombatManager.get_awakening_soul_cost()], next_id)
-		meta_by_id[next_id] = {"kind": "build_burst"}
-		next_id += 1
-
-	# ★ v6.69：觉醒冷却/魂火不足时，技能位灰显并在文本后附倒数数字。
-	#   仅当已有其他可执行动作（普攻/治疗）时才出现，不单独成为一项，保持菜单最多两项。
-	if show_awakening_gray:
-		popup.add_item("★%s觉醒%s" % [dom_school, aw_suffix], next_id)
-		popup.set_item_disabled(popup.item_count - 1, true)
-		meta_by_id[next_id] = {"kind": "disabled"}
-		next_id += 1
-
-	# ★ v6.68j / v6.69：菜单最多两项——普攻/治疗 + 技能位（觉醒可用/普通技能/灰显倒数）。
+	# ★ v6.71：Build 觉醒技已删除，技能位不再有觉醒项/灰显倒数。
+	# ★ v6.68j / v6.71：菜单最多两项——普攻/治疗 + 技能位。
 
 	popup.id_pressed.connect(func(id):
 		var meta : Dictionary = meta_by_id.get(id, {})
@@ -979,8 +910,6 @@ func _show_attack_menu(attacker: Unit, target: Unit, _is_after_move: bool) -> vo
 
 		if kind == "emergency_heal":
 			call_deferred("_do_emergency_heal_async", attacker, target)
-		elif kind == "build_burst":
-			call_deferred("_do_build_burst_async", attacker)
 		else:
 			call_deferred("_do_combat_async", attacker, target, skill_id)
 	)
@@ -1083,12 +1012,4 @@ func _do_emergency_heal_async(attacker : Unit, target : Unit):
 		_bf.suppress_range_for_unit(target)
 
 
-## ★ v6.34（B4）：释放 build 觉醒技并消耗该单位本回合行动
-func _do_build_burst_async(attacker : Unit):
-	if not is_instance_valid(attacker):
-		return
-	CombatManager.release_build_burst(attacker)
-	if is_instance_valid(attacker):
-		attacker.has_attacked = true
-		attacker.has_acted = true
-		_bf.suppress_range_for_unit(attacker)
+# ★ v6.71：Build 觉醒技已删除，_do_build_burst_async 一并移除。

@@ -29,8 +29,6 @@ var abnormal_slow_rounds : int = 0
 var abnormal_free_detonate_used : bool = false
 ## ★ v6.67：击退撞墙眩晕（只在本场战斗有效，跳过行动）
 var stun_rounds : int = 0
-## ★ v6.69：Build 觉醒技冷却（按回合递减，释放后需等待若干回合）
-var awakening_cooldown : int = 0
 var movement_after_attack : bool = false
 var previous_flip_h : bool = false
 var used_non_attack_item_this_turn : bool = false
@@ -885,6 +883,10 @@ func _init_talent_slots_from_data(data: UnitData):
 				new_inst.talent_id = slot_data.talent_id
 				new_inst.current_stack = 0
 				new_inst.is_active = true
+				# ★ v6.71：保留基础技能/roll 锚点标记（配装 UI 与后续判定需要）
+				new_inst.is_base = (slot_data as TalentInstance).is_base
+				new_inst.roll_anchor = (slot_data as TalentInstance).roll_anchor
+				new_inst.locked = (slot_data as TalentInstance).locked
 				var tdata = TalentManager.get_talent_data(slot_data.talent_id)
 				if tdata and tdata.is_active_skill:
 					new_inst.is_ready = true
