@@ -67,10 +67,11 @@ var _enemy_soul: int = 0
 const ARENA_SOUL_CAP: int = 6
 var _player_sacrifice_bonus: float = 0.0   # 献祭本轮攻击加成
 var _enemy_sacrifice_bonus: float = 0.0
-# ★ v6.35（A-B4）：build 能量与觉醒技（1v1 自动战斗版，攒满自动释放）
-const ARENA_BUILD_ENERGY_MAX: int = 100
-var _player_build_energy: int = 0
-var _enemy_build_energy: int = 0
+# ★ v6.69：觉醒技改为魂火消费 + 按回合冷却（1v1 自动战斗版，条件满足自动释放）
+var _player_awakening_cd: int = 0
+var _enemy_awakening_cd: int = 0
+var _arena_awakening_cost: int = 6
+var _arena_awakening_cd_rounds: int = 3
 var _player_ember_charged: bool = false    # 余烬：魂火耗尽后的必暴标记
 var _enemy_ember_charged: bool = false
 
@@ -97,6 +98,9 @@ func _ready():
 
 
 func _apply_config():
+	var aw_cfg : Dictionary = GameConfigManager.get_value("combat_config.json", "awakening", {})
+	_arena_awakening_cost = maxi(1, int(aw_cfg.get("soul_fire_cost", _arena_awakening_cost)))
+	_arena_awakening_cd_rounds = maxi(0, int(aw_cfg.get("cooldown_rounds", _arena_awakening_cd_rounds)))
 	var cfg : Dictionary = GameConfigManager.get_value("combat_config.json", "arena_battle", {})
 	CRIT_BASE_CHANCE = float(cfg.get("crit_base_chance", CRIT_BASE_CHANCE))
 	CRIT_PER_DEXTERITY = float(cfg.get("crit_per_dexterity", CRIT_PER_DEXTERITY))
@@ -137,8 +141,8 @@ func setup(player_data: UnitData, enemy_data: UnitData, crystal_reward: int = 0,
 	_enemy_soul = 1
 	_player_sacrifice_bonus = 0.0
 	_enemy_sacrifice_bonus = 0.0
-	_player_build_energy = 0
-	_enemy_build_energy = 0
+	_player_awakening_cd = 0
+	_enemy_awakening_cd = 0
 	_player_ember_charged = false
 	_enemy_ember_charged = false
 
@@ -292,7 +296,9 @@ func _run_battle():
 		# ★ v6.10：献祭流派——回合开始扣血换本回合攻击加成
 		_apply_sacrifice(_player, true)
 		_apply_sacrifice(_enemy, false)
-		# ★ v6.35（A-B4）：Build 觉醒技——能量满则自动释放
+		# ★ v6.69：觉醒技冷却按回合递减；魂火够 + 冷却归零则自动释放
+		if _player_awakening_cd > 0: _player_awakening_cd -= 1
+		if _enemy_awakening_cd > 0: _enemy_awakening_cd -= 1
 		_try_release_build_burst(_player, true)
 		_try_release_build_burst(_enemy, false)
 		if _player_hp <= 0 or _enemy_hp <= 0:
@@ -736,15 +742,13 @@ func _do_attack(attacker: UnitData, defender: UnitData):
 
 func _arena_on_hit(_attacker: UnitData, is_player: bool):
 	# 命中 +1 魂火；魂火归零时给余烬必暴标记
-	# ★ v6.35（A-B4）：命中攒 build 能量 +1
+	# ★ v6.69：取消 build 能量累计，觉醒改由魂火支付（魂火同时是技能/觉醒唯一资源）
 	if is_player:
 		_player_soul = mini(_player_soul + 1, ARENA_SOUL_CAP)
-		_player_build_energy = mini(ARENA_BUILD_ENERGY_MAX, _player_build_energy + 1)
 		if _player_soul <= 0 and BuildManager.get_effective_school_level(_player, "余烬") > 0:
 			_player_ember_charged = true
 	else:
 		_enemy_soul = mini(_enemy_soul + 1, ARENA_SOUL_CAP)
-		_enemy_build_energy = mini(ARENA_BUILD_ENERGY_MAX, _enemy_build_energy + 1)
 		if _enemy_soul <= 0 and BuildManager.get_effective_school_level(_enemy, "余烬") > 0:
 			_enemy_ember_charged = true
 
@@ -754,11 +758,7 @@ func _arena_on_kill(killer: UnitData, victim: UnitData, is_player: bool):
 	# ★ v6.58：击杀得经验——按被击杀者强度(exp)给击杀者，与主线一致
 	if is_player and victim != null:
 		BuildManager.grant_kill_exp(killer, victim.kill_exp)
-	# ★ v6.35（A-B4）：击杀攒 build 能量 +2（所有流派，放在轮回提前返回之前）
-	if is_player:
-		_player_build_energy = mini(ARENA_BUILD_ENERGY_MAX, _player_build_energy + 2)
-	else:
-		_enemy_build_energy = mini(ARENA_BUILD_ENERGY_MAX, _enemy_build_energy + 2)
+	# ★ v6.69：觉醒不再靠击杀攒能量——统一由魂火支付。
 	var lv: int = BuildManager.get_effective_school_level(killer, "轮回")
 	if lv <= 0:
 		return
@@ -802,18 +802,22 @@ func _apply_sacrifice(unit: UnitData, is_player: bool):
 	_refresh_hp_labels()
 
 
-## ★ v6.35（A-B4）：觉醒技自动释放（1v1 简化）——攒满能量在回合开始触发，效果按最高流派。
+## ★ v6.69：觉醒技自动释放（1v1 简化）——魂火够付 + 冷却归零时触发，效果按最高流派。
 func _try_release_build_burst(unit: UnitData, is_player: bool) -> void:
-	var energy: int = _player_build_energy if is_player else _enemy_build_energy
-	if energy < ARENA_BUILD_ENERGY_MAX:
+	var cd: int = _player_awakening_cd if is_player else _enemy_awakening_cd
+	var soul: int = _player_soul if is_player else _enemy_soul
+	if cd > 0 or soul < _arena_awakening_cost:
 		return
 	var school := _dominant_school(unit)
 	if school == "":
 		return
+	# 扣魂火 + 进入冷却（按回合递减，见主循环）
 	if is_player:
-		_player_build_energy = 0
+		_player_soul -= _arena_awakening_cost
+		_player_awakening_cd = _arena_awakening_cd_rounds
 	else:
-		_enemy_build_energy = 0
+		_enemy_soul -= _arena_awakening_cost
+		_enemy_awakening_cd = _arena_awakening_cd_rounds
 	var my_hp: int = _player_hp if is_player else _enemy_hp
 	var foe_hp: int = _enemy_hp if is_player else _player_hp
 	var atk: int = maxi(5, int(unit.attack * 0.6))

@@ -90,6 +90,14 @@ var _forge: Dictionary = {}
 ## quality_level(0..5) -> {quality: weight}
 var _quality_weights: Array = []
 
+## ★ v6.70 方案E 软保底（隐藏概率修正）
+var _pity_armor_miss_threshold: int = 2
+var _pity_armor_boost_mult: float = 3.0
+var _pity_skill_last_guarantee: bool = true
+var _pity_max_day: int = 2
+## 连续未出新流派次数（战斗内/本场会话有效，不写存档）
+var _armor_no_new_school_streak: int = 0
+
 
 func _ready() -> void:
 	_reload_config()
@@ -99,6 +107,11 @@ func _reload_config() -> void:
 	_econ = GameConfigManager.get_file("economy_config.json")
 	_shop = _econ.get("shop", {})
 	_forge = _econ.get("forge", {})
+	var pity : Dictionary = _econ.get("soft_pity", {})
+	_pity_armor_miss_threshold = maxi(1, int(pity.get("armor_miss_threshold", _pity_armor_miss_threshold)))
+	_pity_armor_boost_mult = maxf(1.0, float(pity.get("armor_boost_mult", _pity_armor_boost_mult)))
+	_pity_skill_last_guarantee = bool(pity.get("skill_last_roll_guarantee", _pity_skill_last_guarantee))
+	_pity_max_day = maxi(0, int(pity.get("max_day", _pity_max_day)))
 	_quality_weights = _shop.get("quality_weights", [])
 	if _quality_weights.is_empty():
 		_quality_weights = [
@@ -937,7 +950,52 @@ func roll_active_skills(unit_names: Array, count: int = 3, unit_data_override: A
 	result.shuffle()
 	if result.size() > count:
 		result = result.slice(0, count)
+	# ★ v6.70 方案E：软保底——开局技能最后一次 roll 优先保证至少一张能衔接
+	#   已有消费链的技能（共鸣流派 ∈ 队伍已觉醒流派）。仅窗口期内、且未满足时替换末张。
+	if _pity_skill_last_guarantee and _is_pity_window() and result.size() > 0:
+		var owned: Dictionary = _owned_school_set()
+		var has_chain: bool = false
+		for tid in result:
+			var s: String = get_school_of_skill(str(tid))
+			if s != "" and owned.has(s):
+				has_chain = true
+				break
+		if not has_chain and not owned.is_empty():
+			# 末张对应的落位单位必须仍兼容替换技能，避免保底制造死卡。
+			var last_sid: String = str(result[result.size() - 1])
+			var target_key: String = ""
+			for u in assign:
+				if str(assign[u]) == last_sid:
+					target_key = str(u)
+					break
+			var rep: String = _find_chain_skill(owned, [target_key] if target_key != "" else units, result)
+			if rep != "" and not result.has(rep):
+				result[result.size() - 1] = rep
 	return result
+
+
+## ★ v6.70：找一个共鸣流派属于已觉醒流派、且兼容本次 roll 单位的技能（软保底替换用）。
+func _find_chain_skill(owned: Dictionary, units: Array, exclude: Array) -> String:
+	TalentManager.load_talent_data()
+	var fallback: String = ""
+	for tid in TalentManager._talent_db.keys():
+		var sid: String = str(tid)
+		if exclude.has(sid):
+			continue
+		var data: TalentData = TalentManager._talent_db[tid]
+		if data == null or not data.is_active_skill:
+			continue
+		var s: String = get_school_of_skill(sid)
+		if s == "" or not owned.has(s):
+			continue
+		for u in units:
+			var key: String = str(u)
+			if TalentManager.is_talent_compatible_with_unit(sid, key) \
+					and _skill_cost_allowed_for_unit(sid, key):
+				return sid
+		if fallback == "":
+			fallback = sid
+	return fallback
 
 
 ## 落位安全检查：把 talent_id 给 unit 后，剩余单位是否仍能被剩余技能覆盖。
@@ -1164,6 +1222,26 @@ func roll_quality(quality_level: int) -> String:
 
 
 ## roll 一件防具，返回 {item_id, quality, school, name, mechanic}
+## ★ v6.70：新局重置软保底计数（不写存档）。
+func reset_soft_pity() -> void:
+	_armor_no_new_school_streak = 0
+
+## ★ v6.70：软保底窗口——仅当前天数 <= max_day 时生效（第一天到第二天之间）。
+func _is_pity_window() -> bool:
+	if _pity_max_day <= 0:
+		return true
+	return GameState.current_day <= _pity_max_day
+
+## ★ v6.70：队伍已觉醒流派集合（从 UnitData.mechanisms 读取）。
+func _owned_school_set() -> Dictionary:
+	var owned: Dictionary = {}
+	for u in GameState.get_party_units():
+		if u == null:
+			continue
+		for s in get_unit_mechanisms(u):
+			owned[str(s)] = true
+	return owned
+
 func roll_armor(quality_level: int) -> Dictionary:
 	var quality := roll_quality(quality_level)
 	var candidates: Array = []
@@ -1184,10 +1262,42 @@ func roll_armor(quality_level: int) -> Dictionary:
 		quality = "common"
 	if candidates.is_empty():
 		return {}
-	var item_id := str(candidates[randi() % candidates.size()])
+	# ★ v6.70 方案E：软保底——连续 N 次未出新流派时，给"队伍尚未觉醒流派"的防具加权。
+	#   隐藏概率修正，不改 UI 文案与规则表述；窗口仅在 max_day 之前。
+	var weighted: Array = []
+	var pity_active: bool = _is_pity_window() and _armor_no_new_school_streak >= _pity_armor_miss_threshold
+	var owned_schools: Dictionary = _owned_school_set()
+	if pity_active:
+		for iid in candidates:
+			var d: ItemData = ItemManager.get_item_data(iid)
+			if d == null:
+				continue
+			var sid: String = str(d.id)
+			var locked: Array = d.affix_schools if d.affix_schools is Array else []
+			var pool_tags: Array = locked if not locked.is_empty() else d.tags
+			var fresh: bool = false
+			for t in pool_tags:
+				if is_school(str(t)) and not owned_schools.has(str(t)):
+					fresh = true
+					break
+			if fresh:
+				for _w in range(int(_pity_armor_boost_mult * 2.0)):
+					weighted.append(iid)
+			else:
+				weighted.append(iid)
+	var item_id: String = ""
+	if weighted.is_empty():
+		item_id = str(candidates[randi() % candidates.size()])
+	else:
+		item_id = str(weighted[randi() % weighted.size()])
 	var idata : ItemData = ItemManager.get_item_data(item_id)
 	var affixes : Array = [] if idata != null and idata.no_affix else AffixManager.roll_affixes(quality, idata.tags if idata != null else [], idata.affix_schools if idata != null else [])
 	var school := get_school_of_affixes(affixes, item_id)
+	# 更新连续未出新流派计数
+	if school != "" and not owned_schools.has(school):
+		_armor_no_new_school_streak = 0
+	else:
+		_armor_no_new_school_streak += 1
 	return {
 		"item_id": item_id,
 		"quality": quality,

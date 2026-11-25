@@ -73,6 +73,9 @@ var relic_strength_scale_damage : float = 0.0
 var relic_counter_damage_bonus : float = 0.0
 var relic_heal_bonus : float = 0.0
 var relic_auto_revive_available : bool = false
+## ★ v6.70 方案A 钩子遗物（编辑器/模拟器可见；真实异常结算在 Unit.gd）
+var relic_cycle_kill_burn : int = 0
+var relic_counter_frost : int = 0
 var relic_first_attack_crit_remaining : int = 0
 var relic_first_spell_free_remaining : int = 0
 var relic_low_hp_threshold : float = 0.3
@@ -149,6 +152,8 @@ func reset_combat_buffs():
 	relic_counter_damage_bonus = 0.0
 	relic_heal_bonus = 0.0
 	relic_auto_revive_available = false
+	relic_cycle_kill_burn = 0
+	relic_counter_frost = 0
 	relic_first_attack_crit_remaining = 0
 	relic_first_spell_free_remaining = 0
 	relic_low_hp_threshold = 0.3

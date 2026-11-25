@@ -29,6 +29,8 @@ var abnormal_slow_rounds : int = 0
 var abnormal_free_detonate_used : bool = false
 ## ★ v6.67：击退撞墙眩晕（只在本场战斗有效，跳过行动）
 var stun_rounds : int = 0
+## ★ v6.69：Build 觉醒技冷却（按回合递减，释放后需等待若干回合）
+var awakening_cooldown : int = 0
 var movement_after_attack : bool = false
 var previous_flip_h : bool = false
 var used_non_attack_item_this_turn : bool = false
@@ -93,6 +95,9 @@ var relic_strength_scale_damage: float = 0.0
 var relic_counter_damage_bonus: float = 0.0
 var relic_heal_bonus: float = 0.0
 var relic_auto_revive_available: bool = false
+## ★ v6.70 方案A 钩子遗物：轮回击杀后给最近敌人挂灼烧层数；守护反击后给攻击者挂冻寒层数。
+var relic_cycle_kill_burn : int = 0
+var relic_counter_frost : int = 0
 
 var relic_first_attack_crit_remaining : int = 0
 var relic_first_spell_free_remaining : int = 0
@@ -351,6 +356,8 @@ func reset_relic_effects():
 	relic_counter_damage_bonus = 0.0
 	relic_heal_bonus = 0.0
 	relic_auto_revive_available = false
+	relic_cycle_kill_burn = 0
+	relic_counter_frost = 0
 	relic_first_attack_crit_remaining = 0
 	relic_first_spell_free_remaining = 0
 	relic_low_hp_threshold = 0.3

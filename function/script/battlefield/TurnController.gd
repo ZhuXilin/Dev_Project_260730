@@ -199,6 +199,9 @@ func apply_team_buffs() -> void:
 		unit.relic_counter_damage_bonus = float(relic_effects.get("counter_damage_bonus", 0.0))
 		unit.relic_heal_bonus = float(relic_effects.get("heal_bonus", 0.0))
 		unit.relic_auto_revive_available = bool(relic_effects.get("auto_revive_once", false))
+		# ★ v6.70 方案A 钩子遗物：只在已有流派钩子上挂异常，不新增按钮。
+		unit.relic_cycle_kill_burn = int(relic_effects.get("cycle_kill_burn", 0))
+		unit.relic_counter_frost = int(relic_effects.get("counter_frost", 0))
 
 		if unit.relic_first_attack_crit_available:
 			unit.relic_first_attack_crit_remaining = 2 if GameState.is_relic_equipped_and_refined("relic_attack") else 1

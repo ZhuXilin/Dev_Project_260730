@@ -77,6 +77,9 @@ const FIELD_TRANSLATIONS : Dictionary = {
 	"soul_fire_max": "魂火上限",
 	"kill_soul_fire": "击杀回魂火",
 	"move_and_defense": "移动+防御（旧版兼容）",
+	# ★ v6.70 钩子型遗物（方案A）：联动效果 key
+	"cycle_kill_burn": "轮回击杀挂灼烧层数",
+	"counter_frost": "守护反击挂冻寒层数",
 }
 
 const ITEM_ICON_DIR : String = "res://content/images/item/"

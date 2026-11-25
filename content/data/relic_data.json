@@ -299,5 +299,31 @@
     "effects": {
       "relic_sell_rate_bonus": 0.2
     }
+  },
+  "relic_cycle_ember": {
+    "id": "relic_cycle_ember",
+    "name": "轮回余烬",
+    "description": "轮回击杀回魂火时，给最近的存活敌人挂 2 层灼烧。队友的余烬「引爆专精」可引爆这些层数——这是队伍间的乘法联动，不是数值相加。",
+    "flavor": "火从死亡里借来一点余温。\n\n它不是为了烧尽谁，而是为了提醒：还有下一场。",
+    "icon": "item_046",
+    "rarity": "rare",
+    "price": 180.0,
+    "lifetime": "persistent",
+    "effects": {
+      "cycle_kill_burn": 2
+    }
+  },
+  "relic_guard_frost": {
+    "id": "relic_guard_frost",
+    "name": "霜铁反噬",
+    "description": "守护反击命中时，给攻击者挂 2 层冻寒。队友的烈焰「融雪」可引爆这些层数——这是队伍间的乘法联动，不是数值相加。",
+    "flavor": "盾牌不说话。\n\n它只是让打它的人，慢下来。",
+    "icon": "item_054",
+    "rarity": "rare",
+    "price": 180.0,
+    "lifetime": "persistent",
+    "effects": {
+      "counter_frost": 2
+    }
   }
 }

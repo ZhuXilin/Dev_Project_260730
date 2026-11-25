@@ -25,6 +25,9 @@ const SET_BONUS_PATH : String = "res://content/data/set_bonuses.json"
 const AFFIX_PATH : String = "res://content/data/affixes.json"
 const UNIT_UNLOCK_PATH : String = "res://content/data/unit_unlock.json"
 const EVENT_PATH_FOR_EDITOR : String = "res://content/data/events.json"
+## ★ v6.70b：经济/战斗配置也纳入可视化编辑（软保底、轮盘速度、觉醒技成本与冷却）
+const ECONOMY_CONFIG_PATH : String = "res://content/data/config/economy_config.json"
+const COMBAT_CONFIG_PATH : String = "res://content/data/config/combat_config.json"
 const AVATAR_DIR : String = "res://content/images/characters/avatar/"
 const MAP_ROOT_DIR : String = "res://content/scenes/maps/"
 const SPRITE_FRAMES_DIR : String = "res://content/images/characters/"
@@ -2085,6 +2088,9 @@ func _build_cfg_tab(parent : Control) -> Control:
 		{"name": "遗物", "path": RELIC_DATA_PATH},
 		{"name": "套装", "path": SET_BONUS_PATH},
 		{"name": "词条池", "path": AFFIX_PATH},
+		# ★ v6.70b：配置类文件也用同一个 JSONEditorPanel 打开（通用字典渲染）
+		{"name": "经济配置", "path": ECONOMY_CONFIG_PATH},
+		{"name": "战斗配置", "path": COMBAT_CONFIG_PATH},
 	]
 	_cfg_tab_panels.clear()
 	var tabs : Array = []
@@ -2955,6 +2961,11 @@ func _apply_relics(ud : UnitData, relic_ids : Array):
 			ud.relic_heal_bonus = float(effects["heal_bonus"])
 		if effects.get("auto_revive_once", false):
 			ud.relic_auto_revive_available = true
+		# ★ v6.70 方案A 钩子遗物：编辑器模拟单位同步联动字段（真实异常结算在战斗层）。
+		if effects.has("cycle_kill_burn"):
+			ud.relic_cycle_kill_burn = int(effects["cycle_kill_burn"])
+		if effects.has("counter_frost"):
+			ud.relic_counter_frost = int(effects["counter_frost"])
 
 
 func _apply_refines(ud : UnitData, refine_ids : Array):

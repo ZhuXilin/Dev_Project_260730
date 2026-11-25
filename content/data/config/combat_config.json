@@ -52,5 +52,12 @@
 	"kill": 3,
 	"multi_kill_bonus": 2,
 	"ally_death": 5
+  },
+
+  "awakening": {
+	"_doc": "v6.69 觉醒技：取消能量充能，改为消费魂火 + 按回合冷却。soul_fire_cost=释放消耗魂火；cooldown_rounds=释放后冷却回合（按单位自身回合递减）；min_dominant_level=主流派最低有效Lv(0=无门槛)。",
+	"soul_fire_cost": 6,
+	"cooldown_rounds": 3,
+	"min_dominant_level": 1
   }
 }

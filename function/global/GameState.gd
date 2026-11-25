@@ -531,6 +531,7 @@ func start_new_cycle():
 	init_passive_slots()
 	clear_all_pending_rewards()
 	SoulFireManager.reset_for_new_run()
+	BuildManager.reset_soft_pity()   # ★ v6.70：软保底计数按新局重置
 	if BossMechanicManager:
 		BossMechanicManager.setup_for_node(false)
 	clear_narrative_effects_for_new_run()

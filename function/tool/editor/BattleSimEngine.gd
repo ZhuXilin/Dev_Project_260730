@@ -545,6 +545,9 @@ func _log_buffs(u : UnitData, _side : String):
 	if u.relic_turn_first_hit_regen > 0.0: parts.append("回合首伤回%.0f%%" % (u.relic_turn_first_hit_regen*100))
 	if u.relic_strength_scale_damage > 0.0: parts.append("力量×%.2f%%" % (u.relic_strength_scale_damage*100))
 	if u.relic_auto_revive_available: parts.append("凤凰")
+	# ★ v6.70 方案A 钩子遗物：模拟器只展示标记（模拟器无异常层数结算链路）
+	if u.relic_cycle_kill_burn > 0: parts.append("轮回余烬×%d" % u.relic_cycle_kill_burn)
+	if u.relic_counter_frost > 0: parts.append("霜铁反噬×%d" % u.relic_counter_frost)
 	if u.buff_attack_percent > 0.0: parts.append("攻%.0f%%" % (u.buff_attack_percent*100))
 	if u.buff_damage_reduction > 0.0: parts.append("减伤%.0f%%" % (u.buff_damage_reduction*100))
 	if parts.size() > 0:

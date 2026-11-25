@@ -388,7 +388,9 @@ func _validate_talents():
 const VALID_RELIC_EFFECTS : Array = [
 	"first_attack_crit", "low_hp_damage_reduce", "kill_grants_extra_move",
 	"first_spell_free", "turn_first_hit_regen", "strength_scale_damage",
-	"counter_damage_bonus", "heal_bonus", "auto_revive_once"
+	"counter_damage_bonus", "heal_bonus", "auto_revive_once",
+	# ★ v6.70 钩子型遗物（方案A）
+	"cycle_kill_burn", "counter_frost"
 ]
 
 func _validate_relics():

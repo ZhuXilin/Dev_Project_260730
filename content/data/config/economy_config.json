@@ -19,7 +19,15 @@
 	"decel_step": 0.035,
 	"decel_ticks": 6,
 	"max_interval": 0.20,
-	"slow_relic_min_scale": 0.7
+    "slow_relic_min_scale": 0.7
+  },
+
+  "soft_pity": {
+    "_doc": "v6.70/v6.70b 方案E 软保底（隐藏概率修正，不改规则表述）：armor_miss_threshold=防具连续 N 次未出新流派后提高未拥有流派权重（v6.70b 由 2 前移到 1，首次未出即触发）；armor_boost_mult=命中阈值后未拥有流派候选的额外权重倍率；skill_last_roll_guarantee=最后一次技能 roll 优先保留能衔接消费链的技能；max_day=仅在当前天数<=该值时生效（窗口覆盖第一天起）。",
+    "armor_miss_threshold": 1,
+    "armor_boost_mult": 3.0,
+    "skill_last_roll_guarantee": true,
+    "max_day": 2
   },
 
   "shop": {

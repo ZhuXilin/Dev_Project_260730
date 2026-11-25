@@ -23,6 +23,11 @@ var BLOOD_RAGE_HEAL_PERCENT : Array = [0.15, 0.20, 0.25]
 var ZEAL_PER_STACK : Array = [0.10, 0.15, 0.20]
 var ZEAL_MAX_STACKS : int = 5
 
+# ★ v6.69：觉醒技改为魂火消费 + 回合冷却（取消能量充能）
+var AWAKENING_SOUL_COST : int = 6
+var AWAKENING_COOLDOWN_ROUNDS : int = 3
+var AWAKENING_MIN_DOMINANT_LEVEL : int = 1
+
 const PERFORMANCE_DURATION : float = 0.5
 const LUNGE_DURATION : float = 0.15
 const PRE_DAMAGE_DELAY : float = 0.10
@@ -64,6 +69,11 @@ func reload_config():
 	BLOOD_RAGE_HEAL_PERCENT = tp.get("blood_rage_heal_percent", BLOOD_RAGE_HEAL_PERCENT).duplicate()
 	ZEAL_PER_STACK = tp.get("zeal_per_stack", ZEAL_PER_STACK).duplicate()
 	ZEAL_MAX_STACKS = int(tp.get("zeal_max_stacks", ZEAL_MAX_STACKS))
+
+	var aw : Dictionary = cfg.get("awakening", {})
+	AWAKENING_SOUL_COST = maxi(1, int(aw.get("soul_fire_cost", AWAKENING_SOUL_COST)))
+	AWAKENING_COOLDOWN_ROUNDS = maxi(0, int(aw.get("cooldown_rounds", AWAKENING_COOLDOWN_ROUNDS)))
+	AWAKENING_MIN_DOMINANT_LEVEL = maxi(0, int(aw.get("min_dominant_level", AWAKENING_MIN_DOMINANT_LEVEL)))
 	print("[CombatManager] 已加载")
 
 
@@ -1085,33 +1095,59 @@ func _on_kill(attacker: Unit, _defender: Unit) -> bool:
 				var heal := maxi(1, int(ally.unit_stats.max_hp * heal_ratio))
 				ally.hit_points = mini(ally.hit_points + heal, ally.unit_stats.max_hp)
 				SignalBus.request_damage_popup.emit(ally.global_position, heal, false, false, true)
+		# ★ v6.70 方案A：钩子遗物「轮回余烬」——轮回击杀回魂火时给最近存活敌人挂灼烧，
+		#   把轮回(施加端)与余烬(消费端)在同一时间轴上咬合，形成乘法式协同。
+		if attacker.relic_cycle_kill_burn > 0:
+			var near: Unit = _nearest_enemy(attacker)
+			if near != null:
+				AbnormalManager.apply_burn_stacks(attacker, near, attacker.relic_cycle_kill_burn)
+				SignalBus.request_hint_override.emit("轮回余烬 · %s 灼烧" % near.unit_stats.unit_name, 0.8)
 		SoulFireManager.on_kill(1)
 		# ★ v6.59：F3 轮回链阵型效果已移除（轮回自身击杀回魂火仍保留）
-		# ★ v6.34（B4）：击杀攒 build 能量 +2
-		add_build_energy(attacker, 2)
 	return cleave_triggered
 
 
 # ============================================================
-#  ★ v6.34（B4）：Build 觉醒技——攒能量，玩家主动释放 build 专属大招。
-#   能量存于 Unit meta（不进存档/序列化，战斗内临时），与魂火经济隔离。
+#  ★ v6.69：Build 觉醒技——取消能量充能，改为消费魂火 + 按回合冷却。
+#   条件：主流派 Lv 达标 + 魂火够付 + 冷却归零；释放后扣魂火并进入冷却。
+#   数值全部读 combat_config.json 的 awakening 段。
 # ============================================================
-const BUILD_ENERGY_MAX: int = 100
-const BUILD_ENERGY_META: String = "build_energy"
+func get_awakening_soul_cost() -> int:
+	return AWAKENING_SOUL_COST
 
-func get_build_energy(unit: Unit) -> int:
-	if not is_instance_valid(unit):
+func get_awakening_cooldown_rounds() -> int:
+	return AWAKENING_COOLDOWN_ROUNDS
+
+func get_dominant_school_level(unit: Unit) -> int:
+	var school := get_dominant_school(unit)
+	if school == "":
 		return 0
-	return int(unit.get_meta(BUILD_ENERGY_META, 0))
-
-func add_build_energy(unit: Unit, amount: int) -> void:
-	if not is_instance_valid(unit):
-		return
-	var cur: int = mini(BUILD_ENERGY_MAX, get_build_energy(unit) + amount)
-	unit.set_meta(BUILD_ENERGY_META, cur)
+	return BuildManager.get_effective_school_level(unit, school)
 
 func can_release_build_burst(unit: Unit) -> bool:
-	return is_instance_valid(unit) and get_build_energy(unit) >= BUILD_ENERGY_MAX
+	if not is_instance_valid(unit) or unit.hit_points <= 0:
+		return false
+	if get_dominant_school(unit) == "":
+		return false
+	if get_dominant_school_level(unit) < AWAKENING_MIN_DOMINANT_LEVEL:
+		return false
+	if unit.awakening_cooldown > 0:
+		return false
+	return SoulFireManager.can_spend(AWAKENING_SOUL_COST)
+
+## 觉醒不可用原因：冷却中返回剩余回合；魂火不足返回需要数；无流派返回 -1。
+func get_awakening_block_reason(unit: Unit) -> Dictionary:
+	if not is_instance_valid(unit):
+		return {"reason": "none", "value": 0}
+	if get_dominant_school(unit) == "":
+		return {"reason": "no_school", "value": 0}
+	if get_dominant_school_level(unit) < AWAKENING_MIN_DOMINANT_LEVEL:
+		return {"reason": "low_level", "value": AWAKENING_MIN_DOMINANT_LEVEL}
+	if unit.awakening_cooldown > 0:
+		return {"reason": "cooldown", "value": unit.awakening_cooldown}
+	if not SoulFireManager.can_spend(AWAKENING_SOUL_COST):
+		return {"reason": "soul", "value": AWAKENING_SOUL_COST}
+	return {"reason": "", "value": 0}
 
 ## 取单位有效 Lv 最高的流派（共鸣后），决定觉醒技效果
 func get_dominant_school(unit: Unit) -> String:
@@ -1124,14 +1160,17 @@ func get_dominant_school(unit: Unit) -> String:
 			best = s
 	return best
 
-## 释放 build 觉醒技：按最高流派对全场产生效果，清空能量。返回释放的流派名。
+## 释放 build 觉醒技：按最高流派对全场产生效果。扣魂火 + 按回合冷却。返回释放的流派名。
 func release_build_burst(unit: Unit) -> String:
 	if not can_release_build_burst(unit):
 		return ""
 	var school := get_dominant_school(unit)
 	if school == "":
 		return ""
-	unit.set_meta(BUILD_ENERGY_META, 0)
+	# ★ v6.69：先扣魂火再结算效果；失败则不进入冷却（避免白扣）。
+	if not SoulFireManager.spend(AWAKENING_SOUL_COST):
+		return ""
+	unit.awakening_cooldown = AWAKENING_COOLDOWN_ROUNDS
 	var allies: Array = []
 	var enemies: Array = []
 	for u in UnitManager.unit_list:
@@ -1190,6 +1229,24 @@ func _lowest_hp_ally(unit: Unit) -> Unit:
 		var ratio: float = float(u.hit_points) / float(maxi(1, u.unit_stats.max_hp))
 		if ratio < best_ratio:
 			best_ratio = ratio
+			best = u
+	return best
+
+
+## ★ v6.70 方案A：找离 origin 最近的存活敌对单位（用于"轮回击杀溅灼烧"钩子）。
+func _nearest_enemy(origin: Unit) -> Unit:
+	if not is_instance_valid(origin):
+		return null
+	var best: Unit = null
+	var best_dist: int = 2147483647
+	for u in UnitManager.unit_list:
+		if not is_instance_valid(u) or u.hit_points <= 0:
+			continue
+		if u.unit_stats.team_id == origin.unit_stats.team_id:
+			continue
+		var d: int = absi(u.grid_cell.x - origin.grid_cell.x) + absi(u.grid_cell.y - origin.grid_cell.y)
+		if d < best_dist:
+			best_dist = d
 			best = u
 	return best
 
@@ -1472,7 +1529,6 @@ func _apply_damage_with_effects(defender: Unit, damage: int, attacker: Unit, is_
 		and defender.unit_stats.team_id != attacker.unit_stats.team_id:
 		var flame_lv := BuildManager.get_flame_level(attacker)
 		if flame_lv > 0:
-			add_build_energy(attacker, 1)
 			var burn : int = maxi(1, int(damage * BuildManager.get_flame_burn_ratio(flame_lv)))
 			if DEBUG_DAMAGE_LOG:
 				print("[烈焰] Lv%d 灼烧 %s → %d" % [
@@ -1722,6 +1778,13 @@ func _execute_counter(attacker: Unit, defender: Unit) -> void:
 		# ★ v5.0：反击命中但未击杀 → 反击方算命中
 		if defender.unit_stats.team_id == 0:
 			SoulFireManager.on_hit(1)
+		# ★ v6.70 方案A：钩子遗物「霜铁反噬」——守护反击命中后给攻击者挂冻寒，
+		#   让守护(施加端)与烈焰「融雪」(消费端)在反击链路咬合。
+		if defender.relic_counter_frost > 0:
+			AbnormalManager._add_stack(attacker, AbnormalManager.TYPE_FROST,
+				defender.relic_counter_frost, defender,
+				BuildManager.get_effective_school_level(defender, "守护"), "epic", AbnormalManager.MAX_STACKS)
+			SignalBus.request_hint_override.emit("霜铁反噬 · %s 冻寒" % attacker.unit_stats.unit_name, 0.8)
 
 
 ## 参数故意不写 Unit 类型：execute_attack 是一长串 await，
