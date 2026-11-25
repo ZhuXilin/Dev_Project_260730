@@ -476,7 +476,7 @@ func reload_talent_unlock():
 # ============================================================
 #  确认对话框
 # ============================================================
-func show_confirm(parent: Node, message: String, confirm_text: String = "确定", cancel_text: String = "取消", confirm_cb: Callable = Callable(), cancel_cb: Callable = Callable(), show_cancel: bool = true):
+func show_confirm(parent: Node, message: String, confirm_text: String = "确定", cancel_text: String = "取消", confirm_cb: Callable = Callable(), cancel_cb: Callable = Callable(), show_cancel: bool = true, esc_cancel: bool = true):
 	for child in parent.get_children():
 		if child is CanvasLayer:
 			var script = child.get_script()
@@ -487,7 +487,7 @@ func show_confirm(parent: Node, message: String, confirm_text: String = "确定"
 		return
 	var instance = ui.instantiate()
 	parent.add_child(instance)
-	instance.show_confirm(message, confirm_text, cancel_text, confirm_cb, cancel_cb, show_cancel)
+	instance.show_confirm(message, confirm_text, cancel_text, confirm_cb, cancel_cb, show_cancel, 0, esc_cancel)
 	return instance  # ★ v5.13：返回实例，调用方可设置奖励图标等额外内容
 
 

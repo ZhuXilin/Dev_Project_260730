@@ -43,9 +43,17 @@ func get_reachable_cells(start_cell: Vector2i, max_move: int, unit: Unit) -> Dic
 	var team_id = unit.unit_stats.team_id
 	var ignore_cost = unit.unit_stats.ignore_terrain_cost
 
+	# ★ v6.68 ZOC：已处于敌方守护单位控制区时无法离开，只保留起始格。
+	if PositionManager.zoc_block_leave() and PositionManager.is_zoc_cell(unit, start_cell):
+		return result
+
 	while queue.size() > 0:
 		var cell = queue.pop_front()
 		var current_cost = cost_so_far[cell]
+		# ★ v6.68 ZOC：踏入控制区即停步，该格可作为落点但不再作为中转扩展。
+		if PositionManager.zoc_stop_on_enter() and cell != start_cell \
+				and PositionManager.is_zoc_cell(unit, cell):
+			continue
 
 		var dirs = [Vector2i(1,0), Vector2i(-1,0), Vector2i(0,1), Vector2i(0,-1)]
 		for d in dirs:
@@ -68,24 +76,33 @@ func get_reachable_cells(start_cell: Vector2i, max_move: int, unit: Unit) -> Dic
 			if updated_cost > max_move:
 				continue
 
+			var enters_zoc: bool = PositionManager.zoc_stop_on_enter() \
+					and PositionManager.is_zoc_cell(unit, neighbor)
 			var occupant = get_unit_at_cell(neighbor)
 			if occupant:
 				if occupant.unit_stats.team_id != team_id:
 					continue
 				if not cost_so_far.has(neighbor) or updated_cost < cost_so_far[neighbor]:
 					cost_so_far[neighbor] = updated_cost
-					queue.append(neighbor)
+					if not enters_zoc:
+						queue.append(neighbor)
 				continue
 
 			if not cost_so_far.has(neighbor) or updated_cost < cost_so_far[neighbor]:
 				cost_so_far[neighbor] = updated_cost
-				queue.append(neighbor)
+				if not enters_zoc:
+					queue.append(neighbor)
 				result[neighbor] = true
 
 	return result
 
 func calculate_path(start_cell: Vector2i, goal_cell: Vector2i, unit: Unit) -> Array:
 	if is_cell_occupied(goal_cell):
+		return []
+
+	# ★ v6.68 ZOC：处于敌方控制区时无法离开（目标就是当前格除外）。
+	if PositionManager.zoc_block_leave() and start_cell != goal_cell \
+			and PositionManager.is_zoc_cell(unit, start_cell):
 		return []
 
 	var team_id = unit.unit_stats.team_id
@@ -110,6 +127,11 @@ func calculate_path(start_cell: Vector2i, goal_cell: Vector2i, unit: Unit) -> Ar
 
 		if cell == goal_cell:
 			break
+
+		# ★ v6.68 ZOC：控制区内的格子只能作为终点，不能穿过去继续走。
+		if PositionManager.zoc_stop_on_enter() and cell != start_cell \
+				and PositionManager.is_zoc_cell(unit, cell):
+			continue
 
 		var dirs = [Vector2i(1,0), Vector2i(-1,0), Vector2i(0,1), Vector2i(0,-1)]
 		for d in dirs:

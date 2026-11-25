@@ -2,6 +2,7 @@
   "reward_gold": { "START": 300, "NORMAL": 300, "ELITE": 500, "BOSS": 700 },
   "reward_soul": { "START": 2, "NORMAL": 3, "ELITE": 6, "BOSS": 15 },
   "boss_extra_soul": 5,
+  "revive_gold_cost": 400,
   "rating_soul_bonus": {
 	"S": 5,
 	"A": 1,
@@ -10,12 +11,24 @@
   },
   "unit_level_up_cost": [250, 400, 1000, 2500, 6000],
 
+  "slot_machine": {
+	"_doc": "v6.68f 轮盘速度曲线（真实秒，不受游戏倍速影响）：base_interval=起步每格用时；min_interval=最快每格用时；accel_per_sec=每秒缩短的每格用时；decel_step=点停止后每格递增的间隔；decel_ticks=递增几格后落位；max_interval=减速间隔上限；slow_relic_min_scale=缓速发条的有效速度下限（0.5 原始效果过慢，夹到 0.7 仍明显变慢但加减速不拖沓）。",
+	"base_interval": 0.12,
+	"min_interval": 0.055,
+	"accel_per_sec": 0.14,
+	"decel_step": 0.035,
+	"decel_ticks": 6,
+	"max_interval": 0.20,
+	"slow_relic_min_scale": 0.7
+  },
+
   "shop": {
 	"size": 6,
 	"base_reset_cost": 100,
 	"reset_step": 50,
 	"max_level": 5,
-	"upgrade_costs": [150, 400, 900, 1800, 3500],
+	"upgrade_costs": [100, 300, 900, 1800, 3500],
+	"roll_cost_floor": 30,
 	"quality_weights": [
 	  { "common": 60, "rare": 30, "epic": 10, "legendary": 0 },
 	  { "common": 45, "rare": 35, "epic": 18, "legendary": 2 },

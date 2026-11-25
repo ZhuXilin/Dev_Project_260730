@@ -27,6 +27,8 @@ var abnormal_stacks : Dictionary = {}
 var no_heal_rounds : int = 0
 var abnormal_slow_rounds : int = 0
 var abnormal_free_detonate_used : bool = false
+## ★ v6.67：击退撞墙眩晕（只在本场战斗有效，跳过行动）
+var stun_rounds : int = 0
 var movement_after_attack : bool = false
 var previous_flip_h : bool = false
 var used_non_attack_item_this_turn : bool = false
@@ -52,6 +54,9 @@ var buff_damage_reduction : float = 0.0
 var buff_attack_flat : int = 0
 var buff_magic_attack_flat : int = 0
 var buff_lifesteal_percent : float = 0.0
+## ★ v6.66：守护团队减伤——守护受击给全队 1 回合减伤（独立字段，不并入 buff_damage_reduction）
+var guard_team_dr : float = 0.0
+var guard_team_dr_rounds : int = 0
 
 # ---- v6.2 流派机制临时状态（只在本场战斗有效） ----
 ## 献祭：本回合攻击加成，TurnManager 每回合重算，不写存档
@@ -623,6 +628,9 @@ func mark_non_attack_action(): has_acted = true
 
 func reset_turn():
 	can_act_this_turn = true
+	# ★ v6.67：撞墙眩晕——跳过本回合行动（灰显），不清除 stun_rounds（由 TurnManager 回合结束递减）
+	if stun_rounds > 0:
+		can_act_this_turn = false
 	has_moved = false
 	has_attacked = false
 	has_acted = false
@@ -634,7 +642,7 @@ func reset_turn():
 	moves_since_act = 0
 	previous_remaining_move = total_move
 	relic_turn_first_hit_regen_used = false
-	set_gray(false)
+	set_gray(stun_rounds > 0)
 	play_animation("idle")
 
 
@@ -994,6 +1002,8 @@ func reset_combat_buffs():
 	buff_physical_reduction = 0.0
 	buff_magic_reduction = 0.0
 	buff_damage_reduction = 0.0
+	guard_team_dr = 0.0
+	guard_team_dr_rounds = 0
 	buff_attack_flat = 0
 	buff_magic_attack_flat = 0
 	buff_defense_flat = 0
@@ -1006,6 +1016,7 @@ func reset_combat_buffs():
 	no_heal_rounds = 0
 	abnormal_slow_rounds = 0
 	abnormal_free_detonate_used = false
+	stun_rounds = 0
 	refresh_abnormal_icons()
 
 

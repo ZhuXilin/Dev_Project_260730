@@ -173,6 +173,8 @@ func _calc_reduction(defender: Unit, is_magic: bool) -> float:
 
 	var buff_bonus : float = (defender.buff_magic_reduction if is_magic else defender.buff_physical_reduction)
 	buff_bonus += defender.buff_damage_reduction
+	# ★ v6.66：守护团队减伤（全队共享，1 回合）
+	buff_bonus += defender.guard_team_dr
 	# ★ v6.64：重甲燃烧态身份增益——受击减伤（数据项 damage_reduction）
 	if SoulFireManager.get_state() == SoulFireManager.State.BURNING:
 		var bt : Dictionary = SoulFireIdentity.get_burn_trait(defender.unit_stats.unit_name, defender.unit_stats.advanced_class)
@@ -395,9 +397,10 @@ func execute_attack(attacker: Unit, defender: Unit, forced_skill_id: String = ""
 	# ★ v6.64：魂火 ≥3 时技能自动爆发——但不再替换 skill_id，而是保留原技能 + burst_requested 标志。
 	#   爆发 = 原技能效果（保留功能）× 爆发倍率 + 单位/转职特有附加 + 清空魂火 + 结束行动。
 	#   治疗技能同样有爆发形态（群体治疗/净化/回魂火），不再被排除。
+	var burst_threshold : int = SoulFireIdentity.get_burst_threshold(attacker.unit_stats.unit_name, attacker.unit_stats.advanced_class)
 	var burst_requested : bool = forced_skill_id != "" \
 		and attacker.unit_stats.team_id == 0 \
-		and SoulFireManager.current >= SoulFireIdentity.get_burst_threshold()
+		and SoulFireManager.current >= burst_threshold
 	# 兼容旧入口：显式 soul_fire_burst 视作请求爆发，但没有原技能可保留 → 退化为普攻形态的爆发
 	if forced_skill_id == "soul_fire_burst":
 		burst_requested = true
@@ -528,6 +531,13 @@ func execute_attack(attacker: Unit, defender: Unit, forced_skill_id: String = ""
 
 		# 清空魂火
 		SoulFireManager.spend(burst_cost)
+
+	# ★ v6.68：夹击——目标四周≥2 名攻击方阵营单位时主伤害加成；
+	#   仅修正本次主伤害，不施加异常，也不影响溅射/AOE（位置后果口径）。
+	var flank_bonus : float = PositionManager.flanking_bonus(attacker, defender)
+	if flank_bonus > 0.0:
+		damage = int(float(damage) * (1.0 + flank_bonus))
+		SignalBus.request_hint_override.emit(PositionManager.flanking_hint(), 0.9)
 
 	# ★ v6.2 余烬：魂火恢复后重新装填「下一次必暴」
 	if attacker.unit_stats.team_id == 0 and not SoulFireManager.is_exhausted():
@@ -1068,13 +1078,13 @@ func _on_kill(attacker: Unit, _defender: Unit) -> bool:
 			var cycle_gain : int = BuildManager.get_cycle_soul_gain(cycle_lv)
 			SoulFireManager.add(cycle_gain)
 			SignalBus.request_hint_override.emit("轮回 · 击杀回 %d 魂火" % cycle_gain, 0.9)
-			# ★ v6.34（B2）轮回 Lv2 质变：击杀同时治疗最低血队友
-			if BuildManager.has_breakthrough(attacker, "轮回", "cycle_heal"):
-				var ally := _lowest_hp_ally(attacker)
-				if ally != null:
-					var heal := maxi(1, int(ally.unit_stats.max_hp * 0.08))
-					ally.hit_points = mini(ally.hit_points + heal, ally.unit_stats.max_hp)
-					SignalBus.request_damage_popup.emit(ally.global_position, heal, false, false, true)
+			# ★ v6.66：轮回团队价值显性——Lv≥1 击杀即治疗最低血队友（4%HP），Lv2 质变 8%。
+			var ally := _lowest_hp_ally(attacker)
+			if ally != null:
+				var heal_ratio : float = 0.08 if BuildManager.has_breakthrough(attacker, "轮回", "cycle_heal") else 0.04
+				var heal := maxi(1, int(ally.unit_stats.max_hp * heal_ratio))
+				ally.hit_points = mini(ally.hit_points + heal, ally.unit_stats.max_hp)
+				SignalBus.request_damage_popup.emit(ally.global_position, heal, false, false, true)
 		SoulFireManager.on_kill(1)
 		# ★ v6.59：F3 轮回链阵型效果已移除（轮回自身击杀回魂火仍保留）
 		# ★ v6.34（B4）：击杀攒 build 能量 +2
@@ -1300,6 +1310,49 @@ func _apply_burst_trait_effects(attacker: Unit, defender: Unit, base_damage: int
 	if dr > 0.0:
 		var cap : float = float(SoulFireIdentity.get_burst_config().get("shield_reduction_cap", 0.75))
 		attacker.buff_damage_reduction = minf(attacker.buff_damage_reduction + dr, cap)
+	# 6) ★ v6.68：击退 / 撞墙 / 连撞 / 危险地形——从攻击者指向目标的主轴方向推开。
+	#    GridPushManager 只产出伤害事件；这里统一结算，全部 trigger_abnormal=false。
+	var kb : int = int(cfg.get("knockback", 0))
+	if kb > 0 and is_instance_valid(defender) and defender.hit_points > 0:
+		var diff : Vector2i = defender.grid_cell - attacker.grid_cell
+		var dir : Vector2i = Vector2i.ZERO
+		if absi(diff.x) >= absi(diff.y):
+			dir = Vector2i(1 if diff.x >= 0 else -1, 0)
+		else:
+			dir = Vector2i(0, 1 if diff.y >= 0 else -1)
+		if dir != Vector2i.ZERO:
+			var kb_res: Dictionary = await GridPushManager.push(attacker, defender, kb, dir)
+			var events: Array = kb_res.get("events", [])
+			var hints: Array[String] = []
+			for ev_v in events:
+				if not (ev_v is Dictionary):
+					continue
+				var ev: Dictionary = ev_v as Dictionary
+				var victim_v: Variant = ev.get("unit", null)
+				if not (victim_v is Unit):
+					continue
+				var victim: Unit = victim_v as Unit
+				if not is_instance_valid(victim) or victim.hit_points <= 0:
+					continue
+				var source: Unit = attacker
+				var source_v: Variant = ev.get("source", null)
+				if source_v is Unit and is_instance_valid(source_v as Unit):
+					source = source_v as Unit
+				var dmg: int = int(ev.get("damage", 0))
+				if dmg > 0:
+					match str(ev.get("kind", "")):
+						"wall":
+							hints.append("撞墙！额外 %d 伤害" % dmg)
+						"unit_collision":
+							hints.append("连撞！%s 受 %d 伤害" % [victim.unit_stats.unit_name, dmg])
+						"danger":
+							hints.append("推入危险地形！额外 %d 伤害" % dmg)
+					await apply_position_damage(victim, dmg, source)
+				var st: int = int(ev.get("stun", 0))
+				if st > 0 and is_instance_valid(victim) and victim.hit_points > 0:
+					victim.stun_rounds = maxi(victim.stun_rounds, st)
+			if hints.size() > 0:
+				SignalBus.request_hint_override.emit(hints[hints.size() - 1], 0.9)
 
 
 func _apply_aoe(attacker: Unit, center: Unit, base_damage: int, percent: float, is_crit: bool = false) -> void:
@@ -1366,6 +1419,15 @@ func _apply_damage_with_effects(defender: Unit, damage: int, attacker: Unit, is_
 				var ls := maxi(1, int(reflect_dmg * 0.5))
 				defender.hit_points = mini(defender.hit_points + ls, defender.unit_stats.max_hp)
 				SignalBus.request_damage_popup.emit(defender.global_position, ls, false, false, true)
+			# ★ v6.66：守护团队价值——受击时全队获得 1 回合减伤（守护是团队护盾）。
+			var team_dr : float = 0.05 * float(guard_lv)
+			for u in UnitManager.unit_list:
+				if not is_instance_valid(u) or u.hit_points <= 0:
+					continue
+				if u.unit_stats.team_id == defender.unit_stats.team_id:
+					u.guard_team_dr = maxf(u.guard_team_dr, team_dr)
+					u.guard_team_dr_rounds = 2
+			SignalBus.request_hint_override.emit("守护 · 全队减伤 %d%%（1 回合）" % int(team_dr * 100.0), 0.8)
 			if DEBUG_DAMAGE_LOG:
 				print("[守护] Lv%d 反弹 %s → %d%s" % [
 					guard_lv, attacker.unit_stats.unit_name, reflect_dmg,
@@ -1491,6 +1553,27 @@ func _apply_damage_with_effects(defender: Unit, damage: int, attacker: Unit, is_
 	return defeated
 
 
+## ★ v6.68：位置后果伤害统一出口（撞墙 / 连撞 / 危险地形）。
+##   不触发异常、不触发异常消费，只算附加伤害；击杀归属 source，死亡清理与主伤害同口径。
+func apply_position_damage(victim: Unit, damage: int, source: Unit) -> void:
+	if not is_instance_valid(victim) or victim.hit_points <= 0 or damage <= 0:
+		return
+	var real_source: Unit = source
+	if not is_instance_valid(real_source):
+		real_source = victim
+	var defeated: bool = _apply_damage_with_effects(victim, damage, real_source, false, false)
+	if not defeated:
+		return
+	if _try_boss_revive(victim, real_source):
+		return
+	_on_kill(real_source, victim)
+	await _play_death_animation(victim)
+	if not is_instance_valid(victim):
+		return
+	UnitManager.unregister_unit(victim)
+	victim.queue_free()
+
+
 # ============================================================
 #  ★ v6.2 灰烬：移动留下燃烧地块
 # ============================================================
@@ -1543,6 +1626,11 @@ func trigger_ash_tile(unit: Unit) -> void:
 		return
 	var tile: Dictionary = ash_tiles[cell]
 	if int(tile.get("team", -1)) == unit.unit_stats.team_id:
+		# ★ v6.66：灰烬团队价值——友方踩自己的燃烧地块回 1 魂火（地块是团队资源）。
+		if unit.unit_stats.team_id == 0:
+			SoulFireManager.add(1)
+			SignalBus.request_hint_override.emit("灰烬 · 队友借火回 1 魂火", 0.8)
+		ash_tiles.erase(cell)
 		return
 	ash_tiles.erase(cell)
 	var dmg: int = int(tile.get("damage", 0))
@@ -1589,6 +1677,9 @@ func _get_effective_talent_level(unit: Unit, talent_id: String) -> int:
 
 func _can_counter_attack(attacker: Unit, defender: Unit) -> bool:
 	if not defender.can_counter(): return false
+	# ★ v6.68：被夹击（四周≥2 名攻击方单位）时无法反击
+	if PositionManager.flanking_denies_counter() and PositionManager.is_flanked(defender, attacker):
+		return false
 	var def_weapon_type = defender.get_weapon_type()
 	if def_weapon_type == "" or def_weapon_type == "staff": return false
 	# ★ v4.8：武器内联 unit_stats，无武器直接不能反击

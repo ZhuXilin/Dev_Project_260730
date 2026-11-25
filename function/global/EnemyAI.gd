@@ -8,6 +8,11 @@ var _processing : bool = false
 var _turn_manager : TurnManager = null
 var first_ai_unit : Unit = null
 
+## ★ v6.68b：敌方队列看门狗与序列校验，防止 await 卡住 / 旧协程跨回合改状态。
+const AI_WATCHDOG_MS : int = 15000
+var _run_serial : int = 0
+var _started_ms : int = 0
+
 # ---- AI 随机选择参数 ----
 const AI_SCORE_TOLERANCE : int = 10
 const AI_WEIGHT_OFFSET : int = 20
@@ -20,6 +25,19 @@ func initialize(turn_manager: TurnManager):
 	_turn_manager = turn_manager
 	if _turn_manager:
 		_turn_manager.move_completed.connect(_on_move_completed)
+
+
+func _process(_delta: float) -> void:
+	if not _processing:
+		return
+	if _turn_manager == null or _turn_manager.is_game_over:
+		clear_state()
+		ai_queue_finished.emit()
+		return
+	if Time.get_ticks_msec() - _started_ms > AI_WATCHDOG_MS:
+		push_warning("[AI] 队列执行超时，强制收尾以避免回合锁死")
+		clear_state()
+		ai_queue_finished.emit()
 
 
 # ============================================================
@@ -52,6 +70,9 @@ func _terrain_score(cell: Vector2i) -> int:
 
 func _get_cell_danger_score(cell: Vector2i, unit: Unit) -> int:
 	var danger := 0
+	# ★ v6.68：危险地形（敌方灰烬地块）按潜在伤害计入落点风险
+	if PositionManager.is_danger_cell(cell):
+		danger += PositionManager.danger_damage(cell) * 4
 	for enemy in UnitManager.unit_list:
 		if not is_instance_valid(enemy) or enemy.unit_stats.team_id == unit.unit_stats.team_id:
 			continue
@@ -193,6 +214,9 @@ func run_enemy_ai():
 	if _processing:
 		return
 	_processing = true
+	_run_serial += 1
+	_started_ms = Time.get_ticks_msec()
+	var serial: int = _run_serial
 
 	_focus_targets.clear()
 
@@ -223,7 +247,7 @@ func run_enemy_ai():
 	for action in cached_actions:
 		if action: ai_queue.append(action)
 
-	_process_ai_queue()
+	_process_ai_queue(serial)
 
 
 # ============================================================
@@ -502,6 +526,11 @@ func _evaluate_attack(unit: Unit, allow_healer: bool = false):
 				score += 120
 				break
 
+		# ★ v6.67：击退落点评分——有击退能力时，预判把目标推入墙/危险地块的收益。
+		score += _knockback_position_bonus(unit, enemy)
+		# ★ v6.68：夹击评分——目标四周已有足够我方单位时优先打，贴身可凑成夹击时次优。
+		score += _flanking_position_bonus(unit, enemy)
+
 		if is_kill:
 			score += 1000
 		else:
@@ -574,6 +603,86 @@ func _evaluate_attack(unit: Unit, allow_healer: bool = false):
 	var picked_normal : Dictionary = _pick_target_by_weight(candidates)
 	var best_target : Unit = picked_normal["target"]
 	return {"type": "attack", "unit": unit, "target": best_target, "weapon_id": unit.get_equipped_weapon_id()}
+
+
+## ★ v6.68：击退落点评分——撞墙 / 连撞 / 危险地形三类收益的静态预判。
+##   不依赖动画，只做静态预判：沿主轴方向推 N 格，优先撞墙、其次连撞、再次危险地块。
+func _knockback_position_bonus(unit: Unit, target: Unit) -> int:
+	var trait_d: Dictionary = SoulFireIdentity.get_burst_trait(unit.unit_stats.unit_name, unit.unit_stats.advanced_class)
+	var kb: int = int(trait_d.get("knockback", 0))
+	if kb <= 0:
+		return 0
+	var diff: Vector2i = target.grid_cell - unit.grid_cell
+	var dir: Vector2i = Vector2i.ZERO
+	if absi(diff.x) >= absi(diff.y):
+		dir = Vector2i(1 if diff.x >= 0 else -1, 0)
+	else:
+		dir = Vector2i(0, 1 if diff.y >= 0 else -1)
+	if dir == Vector2i.ZERO:
+		return 0
+	var cfg: Dictionary = GridPushManager.get_config()
+	var cur: Vector2i = target.grid_cell
+	for _i in range(kb):
+		var nxt: Vector2i = cur + dir
+		var gs: Vector2i = TerrainManager.grid_size
+		var out: bool = nxt.x < 0 or nxt.y < 0 or nxt.x >= gs.x or nxt.y >= gs.y
+		var terrain_block: bool = false
+		if not out:
+			var td: Dictionary = TerrainManager.TERRAIN_DATA.get(TerrainManager.get_terrain(nxt), {})
+			terrain_block = not bool(td.get("passable", true))
+		if out or terrain_block:
+			return 90 + 30 * int(cfg.get("wall_stun_rounds", 1))
+		# ★ v6.68：撞到单位不再简单按撞墙算——连撞可继续推，按深度给收益。
+		if UnitManager.get_unit_at_cell(nxt) != null:
+			return 60 + 20 * clampi(int(cfg.get("max_chain_depth", 3)), 1, 8)
+		if PositionManager.is_danger_cell(nxt):
+			return 70
+		cur = nxt
+	return 0
+
+
+## ★ v6.68：夹击攻击评分——已经夹住优先打；贴身能凑成夹击次之。
+func _flanking_position_bonus(unit: Unit, target: Unit) -> int:
+	if not PositionManager.flanking_enabled():
+		return 0
+	var need: int = maxi(1, int(PositionManager.flanking_config().get("min_allies", 2)))
+	var count: int = PositionManager.allies_adjacent_to(target, unit)
+	if count >= need:
+		return 60
+	var dist: int = absi(unit.grid_cell.x - target.grid_cell.x) \
+			+ absi(unit.grid_cell.y - target.grid_cell.y)
+	return 20 if dist == 1 else 0
+
+
+## ★ v6.68：夹击站位评分——移动到敌人相邻格，且已有友军贴住同一目标。
+func _flanking_setup_score(unit: Unit, cell: Vector2i) -> int:
+	if not PositionManager.flanking_enabled():
+		return 0
+	if unit.unit_stats == null:
+		return 0
+	var need: int = maxi(1, int(PositionManager.flanking_config().get("min_allies", 2)))
+	var weight: int = maxi(1, int(200.0 * float(PositionManager.flanking_config().get("damage_bonus", 0.15))))
+	var dirs := [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]
+	for enemy in UnitManager.unit_list:
+		if not is_instance_valid(enemy) or enemy.hit_points <= 0 or enemy.unit_stats == null:
+			continue
+		if enemy.unit_stats.team_id == unit.unit_stats.team_id:
+			continue
+		var dist: int = absi(cell.x - enemy.grid_cell.x) + absi(cell.y - enemy.grid_cell.y)
+		if dist != 1:
+			continue
+		var allies: int = 0
+		for d in dirs:
+			var u: Unit = UnitManager.get_unit_at_cell(enemy.grid_cell + d)
+			if u == null or not is_instance_valid(u) or u.hit_points <= 0 or u.unit_stats == null:
+				continue
+			if u == unit:
+				continue
+			if u.unit_stats.team_id == unit.unit_stats.team_id:
+				allies += 1
+		if allies + 1 >= need:
+			return weight
+	return 0
 
 # ============================================================
 #  移动评估（修复远程无限后退问题）
@@ -722,6 +831,8 @@ func _evaluate_move(unit: Unit):
 		else:
 			# ★ v4.8：近战地形分减半，避免 AI 为 10% 减伤放弃进攻位
 			score = int(terrain_score * 0.5)
+			# ★ v6.68：优先站到能与友军夹住同一敌人的格子
+			score += _flanking_setup_score(unit, cell)
 
 			var dist_to_enemy = 999
 			for p in UnitManager.unit_list:
@@ -1050,14 +1161,24 @@ func _retry_find_path(unit: Unit) -> Array:
 # ============================================================
 #  AI 队列执行
 # ============================================================
-func _process_ai_queue():
+func _process_ai_queue(serial: int):
 	while ai_queue.size() > 0:
 		await get_tree().create_timer(0.25).timeout
+		if serial != _run_serial:
+			return
 
-		while Globals.is_dialogue_active:
+		# 有界等待对话；标志残留时不无限挂起（看门狗也会兜底）。
+		var dialogue_wait: float = 0.0
+		while Globals.is_dialogue_active and dialogue_wait < 5.0:
 			await get_tree().process_frame
-			if not is_instance_valid(self): return
-			if _turn_manager == null or _turn_manager.is_game_over: return
+			dialogue_wait += get_process_delta_time()
+			if serial != _run_serial:
+				return
+			if not is_instance_valid(self):
+				return
+			if _turn_manager == null or _turn_manager.is_game_over:
+				_processing = false
+				return
 
 		if _turn_manager.is_game_over:
 			_processing = false
@@ -1096,10 +1217,15 @@ func _process_ai_queue():
 						unit.unit_stats.unit_name, target.unit_stats.unit_name])
 				SignalBus.request_highlight_unit.emit(target)
 				await get_tree().create_timer(0.3).timeout
+				if serial != _run_serial:
+					return
 				await CombatManager.execute_attack(unit, target)
-				unit.can_act_this_turn = false
-				unit.has_attacked = true
-				unit.set_gray(true)
+				if serial != _run_serial:
+					return
+				if is_instance_valid(unit):
+					unit.can_act_this_turn = false
+					unit.has_attacked = true
+					unit.set_gray(true)
 				SignalBus.request_clear_highlight_unit.emit()
 			"move":
 				var path = task["path"]
@@ -1110,14 +1236,24 @@ func _process_ai_queue():
 				print("[AI] %s 移动 %d 格" % [unit.unit_stats.unit_name, path.size()])
 				_turn_manager.start_ai_movement(unit, path)
 				await _turn_manager.move_completed
+				if serial != _run_serial:
+					return
 			"wait":
 				unit.can_act_this_turn = false
 				unit.set_gray(true)
 
+	if serial != _run_serial:
+		return
+	# 队列结束：残留可行动单位统一置灰，避免敌方回合结束后仍显示为可操作。
 	for u in UnitManager.unit_list:
-		if is_instance_valid(u) and u.unit_stats.team_id == 1:
+		if not is_instance_valid(u) or u.unit_stats == null:
+			continue
+		if u.unit_stats.team_id == 1:
+			u.can_act_this_turn = false
 			u.taunt_rounds_left = 0
 			u.taunt_by = null
+			if u.hit_points > 0:
+				u.set_gray(true)
 
 	_processing = false
 	print("[AI] 队列处理完毕")
@@ -1128,6 +1264,7 @@ func _on_move_completed():
 	pass
 
 func clear_state():
+	_run_serial += 1
 	ai_queue.clear()
 	_processing = false
 	first_ai_unit = null

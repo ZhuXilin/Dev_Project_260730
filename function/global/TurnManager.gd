@@ -151,6 +151,14 @@ func start_turn(team: Team):
 				continue
 			if u.no_heal_rounds > 0: u.no_heal_rounds -= 1
 			if u.abnormal_slow_rounds > 0: u.abnormal_slow_rounds -= 1
+			# ★ v6.66：守护团队减伤 1 回合递减
+			if u.guard_team_dr_rounds > 0:
+				u.guard_team_dr_rounds -= 1
+				if u.guard_team_dr_rounds <= 0:
+					u.guard_team_dr = 0.0
+			# ★ v6.67：撞墙眩晕递减（在目标所属队伍回合结束时）
+			if u.stun_rounds > 0:
+				u.stun_rounds -= 1
 
 	if team == Team.ENEMY and current_turn_team == Team.PLAYER:
 		if ObjectiveManager: ObjectiveManager.on_player_turn_end()

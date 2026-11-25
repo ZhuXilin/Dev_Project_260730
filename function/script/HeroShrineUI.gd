@@ -102,14 +102,17 @@ func setup_as_chapel():
 
 
 func _on_revive_unit(unit_name: String, display_name: String):
-	if GameState.revive_unit(unit_name, display_name):
+	# ★ v6.66：复活统一 400G（资源成本代替次数限制）
+	var res: Dictionary = GameState.revive_unit_with_cost(unit_name, display_name)
+	if bool(res.get("ok", false)):
 		SaveManager.auto_save()
 		if hint_label:
-			hint_label.text = "%s 已复活，现在可以选择转职" % display_name
+			hint_label.text = "%s 已复活（花费 %dG），现在可以选择转职" % [display_name, int(res.get("cost", 0))]
 		_build_unit_row()
 		SoundManager.play_heal_sound()
-		# ★ 核心修复：重置回英灵殿正常音乐
 		MusicManager.play_hero_shrine_music()
+	else:
+		_show_hint(str(res.get("reason", "复活失败")))
 
 func _build_unit_card(unit_idx: int) -> PanelContainer:
 	var party : Array = _get_party()

@@ -40,7 +40,35 @@ var _stop_at_boundary: bool = false
 var _start_enabled: bool = true
 var _last_tick_usec: int = 0
 ## ★ v6.59：转速系数（1.0=原速；0.5=减半，来自缓速发条遗物）。可在 setup 前设置。
+## ★ v6.68f：原始 0.5 会让加/减速翻倍过慢，实际生效时夹到配置下限 0.7。
 var speed_scale: float = 1.0
+
+const CFG_FILE: String = "economy_config.json"
+var _base_interval: float = 0.12
+var _min_interval: float = 0.055
+var _accel_per_sec: float = 0.14
+var _decel_step: float = 0.035
+var _decel_tick_limit: int = 6
+var _max_interval: float = 0.20
+var _slow_relic_min_scale: float = 0.7
+
+
+func _load_speed_config() -> void:
+	var cfg: Dictionary = GameConfigManager.get_value(CFG_FILE, "slot_machine", {})
+	if cfg.is_empty():
+		return
+	_base_interval = maxf(0.01, float(cfg.get("base_interval", _base_interval)))
+	_min_interval = maxf(0.01, float(cfg.get("min_interval", _min_interval)))
+	_accel_per_sec = maxf(0.01, float(cfg.get("accel_per_sec", _accel_per_sec)))
+	_decel_step = maxf(0.005, float(cfg.get("decel_step", _decel_step)))
+	_decel_tick_limit = maxi(1, int(cfg.get("decel_ticks", _decel_tick_limit)))
+	_max_interval = maxf(_min_interval, float(cfg.get("max_interval", _max_interval)))
+	_slow_relic_min_scale = clampf(float(cfg.get("slow_relic_min_scale", _slow_relic_min_scale)), 0.05, 1.0)
+
+
+## 实际转速系数：缓速遗物夹到下限，避免加/减速拖沓。
+func _eff_scale() -> float:
+	return maxf(speed_scale, _slow_relic_min_scale)
 
 var _title: Label = null
 var _window: Control = null
@@ -53,16 +81,18 @@ var _gold_color := Color(0.98, 0.75, 0.25)
 
 
 func _ready() -> void:
+	_load_speed_config()
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	set_process(true)
 
 
 func setup(entries: Array, title: String = "轮盘") -> void:
+	_load_speed_config()
 	_entries = entries.duplicate()
 	_index = 0
 	_state = SpinState.IDLE
 	_phase = 0.0
-	_interval = 0.16 / maxf(0.05, speed_scale)
+	_interval = _base_interval / _eff_scale()
 	_spin_elapsed = 0.0
 	_decel_ticks = 0
 	_stop_at_boundary = false
@@ -272,7 +302,7 @@ func start_spin() -> void:
 		return
 	_state = SpinState.SPINNING
 	_phase = 0.0
-	_interval = 0.16 / maxf(0.05, speed_scale)
+	_interval = _base_interval / _eff_scale()
 	_spin_elapsed = 0.0
 	_decel_ticks = 0
 	_stop_at_boundary = false
@@ -332,7 +362,8 @@ func _process(_delta: float) -> void:
 	_last_tick_usec = now
 	_spin_elapsed += real_delta
 	if _state == SpinState.SPINNING:
-		_interval = maxf(0.085 / maxf(0.05, speed_scale), (0.16 - _spin_elapsed * 0.10) / maxf(0.05, speed_scale))
+		_interval = maxf(_min_interval / _eff_scale(), \
+				(_base_interval - _spin_elapsed * _accel_per_sec) / _eff_scale())
 	_phase += real_delta / maxf(_interval, 0.01)
 
 	# 连续滚动：整数格推进时换内容；STOPPING 每格递增间隔做减速
@@ -340,14 +371,12 @@ func _process(_delta: float) -> void:
 		_phase -= 1.0
 		_index = (_index + 1) % _entries.size()
 		_update_reel()
-		# ★ v6.62v：减速计数只在 STOPPING（玩家点了停止）时进行。
-		#   原实现把 _decel_ticks 累加和 8 格触发放在 STOPPING 判断块外，
-		#   导致 SPINNING 状态滚过 8 格就自动 _stop_at_boundary→_finish，
-		#   玩家没点停止轮盘也自己停了。移进块内后，SPINNING 会一直匀速滚动直到玩家点停。
+		# ★ v6.62v：减速计数只在 STOPPING（玩家点了停止）时进行，SPINNING 一直匀速滚到玩家点停。
+		# ★ v6.68f：触发格数改读配置 decel_ticks（默认 6），不再硬编码 8。
 		if _state == SpinState.STOPPING:
-			_interval = minf(0.30 / maxf(0.05, speed_scale), _interval + 0.05 / maxf(0.05, speed_scale))
+			_interval = minf(_max_interval / _eff_scale(), _interval + _decel_step / _eff_scale())
 			_decel_ticks += 1
-			if _decel_ticks >= 8:
+			if _decel_ticks >= _decel_tick_limit:
 				_stop_at_boundary = true
 
 	# 落到整格后才真正停止，保证中奖线对准一个符号

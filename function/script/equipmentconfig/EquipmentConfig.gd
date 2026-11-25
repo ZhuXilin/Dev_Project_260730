@@ -2106,12 +2106,11 @@ func _create_talent_button(inst: TalentInstance, unit_idx: int, slot_idx: int) -
 	btn.set_meta("slot_type", "talent")
 	btn.set_meta("unit_idx", unit_idx)
 	btn.set_meta("slot_idx", slot_idx)
-	# ★ v6.4：地图界面技能已锁定，拖拽/丢弃已在 Drag 与 drop 层拦截；
-	#   这里只做轻度灰化，保留图标可读性（不要压到全黑）。
-	if current_mode == Mode.MAP:
-		btn.modulate = Color(0.72, 0.72, 0.75, 1.0)
-
 	if inst and inst.is_active:
+		# ★ v6.4：地图界面技能已锁定，拖拽/丢弃已在 Drag 与 drop 层拦截；
+		#   只对已装备技能轻度灰化，保留图标可读性；空槽不加任何色调，口径同防具空槽。
+		if current_mode == Mode.MAP:
+			btn.modulate = Color(0.72, 0.72, 0.75, 1.0)
 		var data : TalentData = TalentManager.get_talent_data(inst.talent_id)
 		if data:
 			var icon : Texture2D = TalentManager.get_talent_icon(inst.talent_id)
@@ -2124,12 +2123,13 @@ func _create_talent_button(inst: TalentInstance, unit_idx: int, slot_idx: int) -
 			btn.mouse_entered.connect(_on_talent_hover_entered.bind(inst.talent_id))
 			btn.mouse_exited.connect(_on_talent_hover_exited)
 		else:
+			# ★ v6.68b：空槽与防具槽同款——不加灰化、不换色调，仅显示「空」。
 			btn.text = "空"
-			btn.modulate = Color(0.5, 0.5, 0.5, 1)
+			btn.add_theme_font_size_override("font_size", Style.FONT_SMALL)
 			btn.set_meta("talent_id", "")
 	else:
 		btn.text = "空"
-		btn.modulate = Color(0.5, 0.5, 0.5, 1)
+		btn.add_theme_font_size_override("font_size", Style.FONT_SMALL)
 		btn.set_meta("talent_id", "")
 	return btn
 
@@ -3148,15 +3148,16 @@ func _on_upgrade_shop_pressed():
 
 
 func _create_advanced_talent_button(unit: UnitData, unit_idx: int) -> Button:
-	var btn : Button = Style.create_styled_button(Style.FONT_TINY, Style.BTN_ITEM_SIZE)
+	# ★ v6.68d：转职技能空槽与防具/普通技能空槽统一——字号 FONT_SMALL、文案「空」、不加灰化。
+	var btn : Button = Style.create_styled_button(Style.FONT_SMALL, Style.BTN_ITEM_SIZE)
 	_apply_icon_button_style(btn)
 	btn.set_meta("slot_type", "advanced_talent")
 	btn.set_meta("unit_idx", unit_idx)
-	btn.disabled = true
+	# 已获得转职技能后保持锁定（无 pressed 回调）；空槽不禁用，外观与其他空槽一致。
+	btn.disabled = unit.advanced_talent_id != ""
 
 	if unit.advanced_talent_id == "":
-		btn.text = "无"
-		btn.modulate = Color(0.5, 0.5, 0.5, 1)
+		btn.text = "空"
 		return btn
 
 	var data : TalentData = TalentManager.get_talent_data(unit.advanced_talent_id)

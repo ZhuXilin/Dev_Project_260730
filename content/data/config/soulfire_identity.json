@@ -1,5 +1,5 @@
 {
-  "_doc": "v6.64 魂火身份表：燃烧态特有效果 + 爆发附加 + 转职身份改造。燃烧(移动+1/溅射50%)为通用底盘，单位额外叠加 burn_trait；爆发=原技能效果×倍率+burst_trait+清空魂火+结束行动。数值字段由 CombatManager 解释，未知字段安全忽略。",
+  "_doc": "v6.64 魂火身份表：燃烧态特有效果 + 爆发附加 + 转职身份改造。燃烧(移动+1/溅射50%)为通用底盘，单位额外叠加 burn_trait；爆发=原技能效果×倍率+burst_trait+清空魂火+结束行动。数值字段由 CombatManager 解释，未知字段安全忽略。 【v6.66：burst_threshold=该单位技能自动爆发阈值（快爆3/中节奏4/慢攒5），转职覆盖可改阈值；缺省回退 burst_multiplier.threshold=3】",
   "units": {
     "swordsman": {
       "name": "剑士",
@@ -13,7 +13,8 @@
         "desc": "横扫相邻敌人80%攻击并击退1格",
         "adjacent_multiplier": 0.8,
         "knockback": 1
-      }
+      },
+      "burst_threshold": 4
     },
     "mage": {
       "name": "法师",
@@ -28,7 +29,8 @@
         "desc": "目标周围范围爆炸并附加2层灼烧",
         "aoe_multiplier": 0.6,
         "burn_stacks": 2
-      }
+      },
+      "burst_threshold": 3
     },
     "cleric": {
       "name": "牧师",
@@ -44,7 +46,8 @@
         "team_heal_ratio": 0.15,
         "cleanse": 1,
         "soulfire_gain": 2
-      }
+      },
+      "burst_threshold": 5
     },
     "armored": {
       "name": "重甲",
@@ -60,7 +63,9 @@
         "taunt_rounds": 1,
         "shield_damage_reduction": 0.3,
         "counter_boost": true
-      }
+      },
+      "burst_threshold": 5,
+      "zoc": true
     },
     "archer": {
       "name": "弓手",
@@ -75,7 +80,8 @@
         "desc": "无视50%减伤的穿甲狙击",
         "ignore_reduction": 0.5,
         "armor_break": true
-      }
+      },
+      "burst_threshold": 4
     },
     "spearman": {
       "name": "枪兵",
@@ -88,7 +94,8 @@
         "id": "line_sweep_knockback",
         "desc": "直线贯穿所有敌人并击退2格",
         "knockback": 2
-      }
+      },
+      "burst_threshold": 4
     },
     "pegasus": {
       "name": "飞马",
@@ -102,7 +109,8 @@
         "id": "dive_stun",
         "desc": "俯冲目标并眩晕1回合",
         "stun_rounds": 1
-      }
+      },
+      "burst_threshold": 3
     },
     "axeman": {
       "name": "斧手",
@@ -117,7 +125,8 @@
         "damage_multiplier": 2.0,
         "reset_action_on_kill": true,
         "per_battle_once": true
-      }
+      },
+      "burst_threshold": 4
     },
     "dragonborn": {
       "name": "龙裔",
@@ -131,7 +140,8 @@
         "desc": "锥形龙息+3层灼烧+地面燃烧地块",
         "burn_stacks": 3,
         "leave_ash_tile": true
-      }
+      },
+      "burst_threshold": 3
     }
   },
   "advanced_overrides": {
@@ -168,7 +178,8 @@
         "adjacent_multiplier": 0.8,
         "knockback": 1,
         "detonate_burn": true
-      }
+      },
+      "burst_threshold": 3
     },
     "swordsman_guard": {
       "name": "守护剑卫",
@@ -186,7 +197,9 @@
         "taunt_rounds": 1,
         "shield_damage_reduction": 0.3,
         "counter_boost": true
-      }
+      },
+      "burst_threshold": 4,
+      "zoc": true
     },
     "swordsman_swift": {
       "name": "疾风剑客",
@@ -204,7 +217,8 @@
         "desc": "多段突进（3段），每段60%",
         "hit_count": 3,
         "hit_multiplier": 0.6
-      }
+      },
+      "burst_threshold": 3
     }
   },
   "common_base": {
@@ -220,5 +234,45 @@
     "flat_damage_per_soulfire": 3,
     "force_crit": true,
     "shield_reduction_cap": 0.75
+  },
+  "knockback": {
+    "_doc": "v6.68 击退/撞墙/连撞配置：cells_by_threshold=按爆发阈值给的基础击退格数；wall_damage_per_cell=撞墙时每多推一格造成的额外伤害(按攻击者攻击力比例)；wall_stun_rounds=撞墙眩晕回合；push_damage=撞到单位时按攻击者攻击力比例的碰撞伤害基数；max_chain_depth=连撞递归最大层数；chain_damage_falloff=每深入一层碰撞伤害的衰减系数；min_chain_cells=被撞单位至少被继续推的格数；step_frames=逐格位移帧数提示(表现)。",
+    "cells_by_threshold": {
+      "3": 1,
+      "4": 2,
+      "5": 1
+    },
+    "wall_damage_per_cell": 0.2,
+    "wall_stun_rounds": 1,
+    "push_damage": 0.15,
+    "max_chain_depth": 3,
+    "chain_damage_falloff": 0.6,
+    "min_chain_cells": 1,
+    "step_frames": 3
+  },
+  "position": {
+    "_doc": "v6.68 位置后果统一配置。flanking=夹击（攻击者阵营在目标四周的存活单位数≥min_allies 即成立，damage_bonus 为主伤害加成，no_counter=被夹击者不可反击）；danger_terrain=危险地形（灰烬地块作为危险地块，push_damage_multiplier=被推入时按地块基础伤害的倍数追加，trigger_abnormal=false）；zoc=守护卡位（providers=单位 key 列表，provider_advanced=转职 key 列表，单位身份里的 zoc=true 亦可；stop_on_enter=进入敌方控制区即停步，block_leave=处于敌方控制区时无法离开，ignore_flying=飞行单位无视）。",
+    "flanking": {
+      "enabled": true,
+      "min_allies": 2,
+      "damage_bonus": 0.15,
+      "no_counter": true,
+      "hint": "夹击！伤害 +15%，目标无法反击"
+    },
+    "danger_terrain": {
+      "enabled": true,
+      "ash_tile_as_danger": true,
+      "push_damage_multiplier": 1.0,
+      "hint": "推入危险地形！额外伤害"
+    },
+    "zoc": {
+      "enabled": true,
+      "providers": ["armored"],
+      "provider_advanced": ["swordsman_guard"],
+      "stop_on_enter": true,
+      "block_leave": true,
+      "ignore_flying": true,
+      "hint": "ZOC 卡位！进入敌方控制区后无法继续移动"
+    }
   }
 }

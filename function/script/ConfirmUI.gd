@@ -10,6 +10,8 @@ var cancel_callback: Callable
 var choice_a_callback: Callable = Callable()
 var choice_b_callback: Callable = Callable()
 var _choice_root: Control = null
+## ★ v6.68b：二选一场景可关闭 ESC/右键的"取消"语义，避免误触把选择当成取消。
+var _esc_cancel_enabled: bool = true
 
 # function/script/ConfirmUI.gd
 
@@ -54,7 +56,7 @@ func _exit_tree():
 
 
 func _input(event):
-	if not visible:
+	if not visible or not _esc_cancel_enabled:
 		return
 		
 	# ★ 统一处理 ESC 和 鼠标右键，均视为“取消”
@@ -72,7 +74,8 @@ func _input(event):
 		SoundManager.play_cancel_sound()
 		_on_cancel_button_pressed()
 
-func show_confirm(message: String, confirm_text: String = "确定", cancel_text: String = "取消", confirm_cb: Callable = Callable(), cancel_cb: Callable = Callable(), show_cancel: bool = true, font_size: int = 0):
+func show_confirm(message: String, confirm_text: String = "确定", cancel_text: String = "取消", confirm_cb: Callable = Callable(), cancel_cb: Callable = Callable(), show_cancel: bool = true, font_size: int = 0, esc_cancel: bool = true):
+	_esc_cancel_enabled = esc_cancel
 	message_label.text = message
 	confirm_button.text = confirm_text
 	cancel_button.text = cancel_text
@@ -96,6 +99,7 @@ func show_confirm(message: String, confirm_text: String = "确定", cancel_text:
 ## data_a/data_b: {icon:Texture2D, school:String, color:Color, title:String, detail:String, affixes:Array, cb:Callable}
 ## ★ v6.62：新增 horizontal（两卡左右排列）+ avatar_unit（用单位头像而非图标/战场图）
 func show_choice(title: String, data_a: Dictionary, data_b: Dictionary, cancel_cb: Callable = Callable(), horizontal: bool = false) -> void:
+	_esc_cancel_enabled = true
 	message_label.visible = false
 	$Panel/HBoxContainer.visible = false
 

@@ -809,13 +809,15 @@ func _open_chapel_revive_dialog(dead_units: Array, healed_count: int):
 
 
 func _on_chapel_revive_unit(unit_name: String, display_name: String, dlg: Window):
-	if GameState.revive_unit(unit_name, display_name):
+	# ★ v6.66：复活统一 400G（资源成本代替次数限制）
+	var res: Dictionary = GameState.revive_unit_with_cost(unit_name, display_name)
+	if bool(res.get("ok", false)):
 		SaveManager.auto_save()
 		if is_instance_valid(dlg):
 			dlg.queue_free()
 		Globals.show_confirm(
 			self,
-			"%s 已在英灵殿的祝福中复活！\nHP 全满。" % display_name,
+			"%s 已在英灵殿的祝福中复活！\nHP 全满。\n花费 %dG。" % [display_name, int(res.get("cost", 0))],
 			"确定",
 			"",
 			func(): pass,
@@ -823,6 +825,8 @@ func _on_chapel_revive_unit(unit_name: String, display_name: String, dlg: Window
 			false
 		)
 		update_all_displays()
+	else:
+		Globals.show_confirm(self, str(res.get("reason", "复活失败")), "确定", "", func(): pass, func(): pass, false)
 
 
 func _load_combat(map_data_arg: MapData):

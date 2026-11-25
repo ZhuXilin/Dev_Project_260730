@@ -22,6 +22,10 @@ var _last_click_unit : Unit = null
 
 var _is_show_original_range : bool = false
 
+## ★ v6.68b：记录当前攻击菜单弹窗，供自动战斗开关强制收起。
+var _active_attack_popup : PopupMenu = null
+var _active_attack_blocker : Control = null
+
 func _init(bf : Node2D):
 	_bf = bf
 
@@ -759,7 +763,8 @@ func _show_attack_menu(attacker: Unit, target: Unit, _is_after_move: bool) -> vo
 	# ★ v6.63：魂火爆发并入技能按钮，不再有独立爆发按钮。
 	#   魂火 ≥3 时技能自动爆发（见下方技能项文案与 skill_id 替换）。
 	var sf_cost : int = SoulFireManager.current
-	var will_burst : bool = sf_cost >= SoulFireIdentity.get_burst_threshold()
+	var burst_threshold : int = SoulFireIdentity.get_burst_threshold(attacker.unit_stats.unit_name, attacker.unit_stats.advanced_class)
+	var will_burst : bool = sf_cost >= burst_threshold
 
 	# 目标只因主动技能 range_bonus 才可达时（如狙击 +2），禁用普攻，
 	# 并且只保留射程加成足以覆盖该距离的技能，避免越距普攻。
@@ -836,6 +841,8 @@ func _show_attack_menu(attacker: Unit, target: Unit, _is_after_move: bool) -> vo
 	blocker.mouse_filter = Control.MOUSE_FILTER_STOP
 	_bf.add_child(blocker)
 	_bf.add_child(popup)
+	_active_attack_popup = popup
+	_active_attack_blocker = blocker
 
 	var state = {"confirmed": false}
 	var next_id : int = 0
@@ -864,7 +871,8 @@ func _show_attack_menu(attacker: Unit, target: Unit, _is_after_move: bool) -> vo
 				attacker.unit_stats.unit_name, attacker.unit_stats.advanced_class)
 			skill_text += "·" + label
 		else:
-			skill_text += "·%d魂" % skill_cost
+			# ★ v6.66：阈值身份化——普通态标"N魂▶M"（当前消耗 / 爆发阈值），玩家自算还差几魂。
+			skill_text += "·%d魂▶%d" % [skill_cost, burst_threshold]
 		popup.add_item(skill_text, next_id)
 		meta_by_id[next_id] = {"kind": "attack", "skill_id": sdata.id, "is_skill": true}
 		next_id += 1
@@ -900,7 +908,7 @@ func _show_attack_menu(attacker: Unit, target: Unit, _is_after_move: bool) -> vo
 		if einst.cooldown_remaining > 0:
 			reason = "冷%d" % einst.cooldown_remaining
 		else:
-			reason = "魂火不足"
+			reason = "魂不足▶%d" % burst_threshold
 		popup.add_item("%s·%s" % [sd.display_name, reason], next_id)
 		popup.set_item_disabled(popup.item_count - 1, true)
 		meta_by_id[next_id] = {"kind": "disabled"}
@@ -945,6 +953,8 @@ func _show_attack_menu(attacker: Unit, target: Unit, _is_after_move: bool) -> vo
 			skill_id = "soul_fire_burst"
 		popup.queue_free()
 		blocker.queue_free()
+		_active_attack_popup = null
+		_active_attack_blocker = null
 
 		if kind == "emergency_heal":
 			call_deferred("_do_emergency_heal_async", attacker, target)
@@ -959,6 +969,8 @@ func _show_attack_menu(attacker: Unit, target: Unit, _is_after_move: bool) -> vo
 			Globals.is_attack_menu_active = false
 			popup.queue_free()
 			blocker.queue_free()
+			_active_attack_popup = null
+			_active_attack_blocker = null
 			_on_attack_canceled(attacker)
 	)
 
@@ -978,6 +990,19 @@ func _show_attack_menu(attacker: Unit, target: Unit, _is_after_move: bool) -> vo
 	var mouse_pos = _bf.get_viewport().get_mouse_position()
 	popup.position = Vector2i(mouse_pos)
 	popup.popup()
+
+
+## ★ v6.68b：自动战斗开关强制收起攻击菜单，避免弹窗吞掉空格与阻塞流水线。
+func force_close_attack_menu() -> void:
+	var popup: PopupMenu = _active_attack_popup
+	var blocker: Control = _active_attack_blocker
+	_active_attack_popup = null
+	_active_attack_blocker = null
+	Globals.is_attack_menu_active = false
+	if popup != null and is_instance_valid(popup):
+		popup.hide()   # 触发 popup_hide 的清理回调
+	elif blocker != null and is_instance_valid(blocker):
+		blocker.queue_free()
 
 
 func _on_attack_canceled(attacker: Unit):

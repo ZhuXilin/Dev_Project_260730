@@ -7,7 +7,8 @@ extends Node
 ##   2. 单位流派槽名单（1 / 2 / 3）
 ##   3. 防具 → 流派映射、品质 → 机制 Lv 上限
 ##   4. 觉醒 / 并入 / 覆盖 的统一结算
-##   5. 开局主动技能 roll 池（已选单位 compatible_units 并集）
+##   5. 开局主动技能 roll 池（v6.66 全技能通用：主动技能不绑定单位；
+##      单位特化由 SoulFireIdentity 的燃烧/爆发身份表提供，费用3技能仍按阈值过滤）
 ##   6. 战后防具 roll（价格曲线复用 economy_config.json）
 ##
 ##  设计口径（与 EquipmentBuildRefactorSummary.md 一致）：
@@ -77,7 +78,8 @@ const QUALITY_CAP: Dictionary = {"common": 2, "rare": 3, "epic": 4, "legendary":
 ## 价格兜底（读取 economy_config.json 失败时使用）
 const FALLBACK_ROLL_BASE: int = 100
 const FALLBACK_ROLL_STEP: int = 50
-const FALLBACK_UPGRADE_COSTS: Array = [150, 400, 900, 1800, 3500]
+const FALLBACK_UPGRADE_COSTS: Array = [100, 300, 900, 1800, 3500]
+const FALLBACK_ROLL_COST_FLOOR: int = 30
 ## ★ v6.62z：每场战斗首次防具 roll 固定 50G（不参与 100+50n 递增）
 const FIRST_ROLL_COST: int = 50
 const FALLBACK_MERGE_COST: int = 200
@@ -718,7 +720,8 @@ func grant_kill_exp(killer: UnitData, victim_exp: int) -> int:
 #  开局主动技能 roll 池
 # ============================================================
 
-## 已选单位 compatible_units 的并集（去重、保序），只取主动技能。
+## 开局主动技能 roll 池（v6.66 全技能通用：所有主动技能对全部单位开放，
+##   仍按单位阈值过滤费用3技能；单位特化见 SoulFireIdentity）。去重、保序。
 func build_skill_pool(unit_names: Array) -> Array:
 	TalentManager.load_talent_data()   # 确保技能库已加载
 	var pool: Array = []
@@ -728,7 +731,8 @@ func build_skill_pool(unit_names: Array) -> Array:
 			var data: TalentData = TalentManager._talent_db[tid]
 			if not data or not data.is_active_skill:
 				continue
-			if key in data.compatible_units and not pool.has(data.id):
+			if TalentManager.is_talent_compatible_with_unit(data.id, key) and not pool.has(data.id) \
+					and _skill_cost_allowed_for_unit(data.id, key):
 				pool.append(data.id)
 	return pool
 
@@ -761,7 +765,9 @@ func _compatible_active_skills(unit_key: String) -> Array:
 	var list: Array = []
 	for tid in TalentManager._talent_db.keys():
 		var data := TalentManager._talent_db[tid] as TalentData
-		if data and data.is_active_skill and unit_key in data.compatible_units:
+		if data and data.is_active_skill \
+				and TalentManager.is_talent_compatible_with_unit(data.id, unit_key) \
+				and _skill_cost_allowed_for_unit(data.id, unit_key):
 			list.append(str(data.id))
 	list.shuffle()
 	return list
@@ -860,7 +866,7 @@ func _matching_min_cover(matching: Dictionary, all_units: Array) -> int:
 		var cover: int = 0
 		if data:
 			for u in all_units:
-				if str(u) in data.compatible_units:
+				if TalentManager.is_talent_compatible_with_unit(str(sid), str(u)):
 					cover += 1
 		min_cover = mini(min_cover, cover)
 	return min_cover
@@ -962,7 +968,9 @@ func is_safe_placement(unit: UnitData, talent_id: String, remaining_unit_names: 
 		var lst: Array = []
 		for sid in left_skills:
 			var data := TalentManager.get_talent_data(sid)
-			if data and data.is_active_skill and str(u) in data.compatible_units:
+			if data and data.is_active_skill \
+					and TalentManager.is_talent_compatible_with_unit(str(sid), str(u)) \
+					and _skill_cost_allowed_for_unit(str(sid), str(u)):
 				lst.append(str(sid))
 		cand[u] = lst
 	var assign := _match_units_to_skills(left_units, cand)
@@ -995,7 +1003,8 @@ func can_place_with_future(unit: UnitData, talent_id: String, remaining_unit_nam
 		for sid in all_pool:
 			if str(sid) == talent_id:
 				continue
-			if str(u) in _compatible_units_of(str(sid)):
+			if str(u) in _compatible_units_of(str(sid)) \
+					and _skill_cost_allowed_for_unit(str(sid), str(u)):
 				lst.append(str(sid))
 		cand[u] = lst
 	var assign := _match_units_to_skills(left_units, cand)
@@ -1017,7 +1026,29 @@ func _compatible_units_of(talent_id: String) -> Array:
 	var data := TalentManager.get_talent_data(talent_id)
 	if data == null:
 		return []
-	return data.compatible_units if data.compatible_units != null else []
+	var cu: Array = data.compatible_units if data.compatible_units != null else []
+	# ★ v6.66：全技能通用——兼容列表为空的主动技能视为全部玩家单位可装。
+	if cu.is_empty() and data.is_active_skill:
+		return ["swordsman", "mage", "cleric", "armored", "archer",
+				"spearman", "pegasus", "axeman", "dragonborn"]
+	return cu
+
+
+## ★ v6.66：费用3技能只配阈值≥4的单位（快爆型阈值3单位永远在爆发态，
+##   费用3技能会让它失去"普通释放窗口"，故从这类单位的 roll 池排除）。
+##   数据源：技能 effect_params.soul_fire_cost == 3；单位阈值走 SoulFireIdentity。
+func _skill_cost_allowed_for_unit(talent_id: String, unit_key: String) -> bool:
+	var data := TalentManager.get_talent_data(talent_id)
+	if data == null:
+		return false
+	var ep: Dictionary = data.effect_params if data.effect_params != null else {}
+	var cost: int = int(ep.get("soul_fire_cost", 0))
+	if cost <= 0:
+		cost = 3 if data.effect_type == "heal" else 2
+	if cost < 3:
+		return true
+	var threshold: int = SoulFireIdentity.get_burst_threshold(unit_key)
+	return threshold >= 4
 
 
 ## 某技能对某单位是否可落位（兼容 + 该单位尚未占用第 1 技能格）
@@ -1026,6 +1057,10 @@ func can_place_skill(unit: UnitData, talent_id: String) -> bool:
 		return false
 	var adv := str(unit.advanced_class)
 	if not TalentManager.is_talent_compatible_with_unit(talent_id, unit.unit_name, adv):
+		return false
+	# ★ v6.66：费用3技能不落阈值3（快爆）单位
+	var key := UnitDataManager.normalize_unit_key(str(unit.unit_name))
+	if not _skill_cost_allowed_for_unit(talent_id, key):
 		return false
 	# 第 1 格空 = 未被 roll 技能占用
 	return unit.talent_slots.is_empty() or unit.talent_slots[0] == null
@@ -1071,7 +1106,9 @@ func get_roll_cost(roll_count_in_session: int) -> int:
 	var discount := float(sm.get("roll_cost_discount", 0.0))
 	if discount > 0.0:
 		cost *= (1.0 - clampf(discount, 0.0, 0.9))
-	return maxi(1, int(round(cost)))
+	# ★ v6.65：经济上限——任何折扣后成本仍 ≥30G（防止集齐经济遗物后无限廉价 roll）。
+	var floor_cost := int(_shop.get("roll_cost_floor", FALLBACK_ROLL_COST_FLOOR))
+	return maxi(floor_cost, int(round(cost)))
 
 
 ## ★ v6.59：老虎机遗物——每次 roll 后的金币返还（ArmorRollUI 调用）

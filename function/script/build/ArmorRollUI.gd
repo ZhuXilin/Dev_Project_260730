@@ -30,6 +30,11 @@ var _current: Dictionary = {}          # 当前待领取防具 {item_id,quality,
 ## ★ v6.62z：封顶二选一相关（离开结算 UI 销毁即重置，天然"每场限 1 次"）
 var _last_roll_cost: int = 0           # 本次抽取实际花费，封顶时全额退还
 var _inject_used_this_session: bool = false  # 本场是否已用过「注入词条」
+## ★ v6.68c：唯一一次免费重掷只用于开局技能 roll；防具 roll 停轮后直接落位。
+var _reroll_used_this_session: bool = false
+var _free_reroll_pending: bool = false
+## ★ v6.66：返利硬币每场限 3 次（离开结算 UI 销毁即重置）
+var _rebate_count: int = 0
 
 # ★ v6.57：防具模式 UI 节点来自 ArmorRollUI.tscn 场景（原全代码生成）
 @onready var _root: Panel = $Root
@@ -44,6 +49,10 @@ var _inject_used_this_session: bool = false  # 本场是否已用过「注入词
 @onready var _machine_slot: Control = $Root/Margin/VBox/MachineSlot
 @onready var _roll_relic_row: HBoxContainer = $Root/Margin/VBox/RollRelicRow
 var _machine = null
+## ★ v6.65：遗物悬停描述——复用通用 ItemDetailPopup，动态实例化；不改 tscn 现有布局。
+var _relic_detail_popup = null
+## ★ v6.68h：当前悬停的遗物 id，供右键切换玩法/叙事信息后立即刷新面板。
+var _hovered_relic_id: String = ""
 var _closing: bool = false   # ★ 防两个关闭按钮同帧重复触发
 var _revealing: bool = false # ★ v6.58：roll 结果展示停留中，锁定一切操作
 
@@ -126,6 +135,10 @@ func _build_ui() -> void:
 	_machine.stopped.connect(_on_machine_stopped)
 	_machine.started.connect(_on_spin_started)
 
+	# ★ v6.65：遗物悬停描述——复用装备界面的通用描述弹窗，定位到界面左侧，
+	#   不改动 tscn 现有节点树；只有悬停遗物槽时才显示。
+	_ensure_relic_detail_popup()
+
 	# ★ v6.62s：轮盘下方显示 4 个已装备老虎机遗物槽（有遗物显示自身图标），
 	#   让玩家直观看到哪些遗物正在影响本次防具 roll。竞技场模式无队伍遗物，隐藏整行。
 	_build_roll_relic_row()
@@ -135,6 +148,88 @@ func _build_ui() -> void:
 	_upgrade_btn.pressed.connect(_on_upgrade_quality)
 	BuildUI.style_button(_close_btn)
 	_close_btn.pressed.connect(_on_close)
+
+
+## ★ v6.65：实例化通用遗物/道具描述弹窗，定位到界面左侧（400×240 视口）。
+##   复用 MapScene 同款 Config.PATHS.ITEM_DETAIL_POPUP，show_item 已支持遗物。
+func _ensure_relic_detail_popup() -> void:
+	if _relic_detail_popup != null and is_instance_valid(_relic_detail_popup):
+		return
+	var popup_scene = load(Config.PATHS.ITEM_DETAIL_POPUP)
+	if popup_scene == null:
+		push_warning("[ArmorRollUI] 无法加载遗物信息面板")
+		return
+	_relic_detail_popup = popup_scene.instantiate()
+	# ★ v6.68g：改为父节点下的同级 CanvasLayer 并抬高 layer，
+	#   原先作为本界面子 CanvasLayer（同为 layer=30）会被本界面内容盖住，悬停看不到。
+	var host: Node = get_parent()
+	if host == null:
+		host = self
+	host.add_child(_relic_detail_popup)
+	_relic_detail_popup.layer = 31
+	_relic_detail_popup.visible = false
+	# 定位到左侧：Panel 默认居中 208×112，改锚点到左上、留出边距，避免遮住居中的轮盘。
+	var panel = _relic_detail_popup.get_panel()
+	if panel != null:
+		# 绕过 reveal Shader 动画，直接控制 visible，避免动画未播完时看起来"没有面板"。
+		PanelRevealer.force_hide(panel)
+		# ★ v6.68h/i：移到界面左侧红框区域（400×240 基准坐标）。
+		panel.set_anchors_preset(Control.PRESET_TOP_LEFT)
+		panel.offset_left = 13.0
+		panel.offset_top = 55.0
+		panel.offset_right = 119.0
+		panel.offset_bottom = 214.0
+		panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+
+func _on_relic_hover(item_id: String) -> void:
+	if _relic_detail_popup == null or not is_instance_valid(_relic_detail_popup):
+		return
+	if item_id == "":
+		_hide_relic_detail()
+		return
+	_hovered_relic_id = item_id
+	_relic_detail_popup.show_item(item_id)
+	# ★ v6.68g：清掉 show_item 内部启动的 reveal 动画，直接显示面板。
+	var panel = _relic_detail_popup.get_panel()
+	if panel != null:
+		PanelRevealer.force_hide(panel)
+		panel.visible = true
+	_relic_detail_popup.visible = true
+
+
+func _hide_relic_detail() -> void:
+	_hovered_relic_id = ""
+	if _relic_detail_popup == null or not is_instance_valid(_relic_detail_popup):
+		return
+	var panel = _relic_detail_popup.get_panel()
+	if panel != null:
+		PanelRevealer.force_hide(panel)
+	_relic_detail_popup.visible = false
+
+
+func _on_relic_hover_exit() -> void:
+	_hide_relic_detail()
+
+
+func _exit_tree() -> void:
+	# 面板挂在父节点上，本界面销毁时须显式回收，避免跨场景残留。
+	if _relic_detail_popup != null and is_instance_valid(_relic_detail_popup):
+		_relic_detail_popup.queue_free()
+		_relic_detail_popup = null
+
+
+## ★ v6.68h：与装备界面一致——悬停信息面板时右键切换「玩法 / 叙事」信息。
+func _input(event: InputEvent) -> void:
+	if not (event is InputEventMouseButton) or not event.pressed \
+			or event.button_index != MOUSE_BUTTON_RIGHT:
+		return
+	if _hovered_relic_id == "" or _relic_detail_popup == null \
+			or not is_instance_valid(_relic_detail_popup) or not _relic_detail_popup.visible:
+		return
+	Globals.toggle_info_mode()
+	_on_relic_hover(_hovered_relic_id)   # 立即按新模式重刷，不必移开再悬停
+	get_viewport().set_input_as_handled()
 
 
 ## ★ v6.62s：填充轮盘下方的 4 个老虎机遗物槽（纯展示，有遗物显示自身图标）。
@@ -157,12 +252,12 @@ func _build_roll_relic_row() -> void:
 		btn.expand_icon = true
 		btn.alignment = HORIZONTAL_ALIGNMENT_CENTER
 		btn.clip_text = true
-		btn.disabled = true  # 纯展示，不可点击（保留 mouse_filter=STOP 供 tooltip）
 		var inst : Variant = relics[i] if i < relics.size() else null
 		var item_id : String = ""
 		if inst is ItemInstance:
 			item_id = (inst as ItemInstance).item_id
 		if item_id == "":
+			btn.disabled = true  # 空槽纯占位
 			btn.text = "空"
 		else:
 			var d : Dictionary = RelicManager.get_relic_data(item_id)
@@ -183,7 +278,11 @@ func _build_roll_relic_row() -> void:
 				btn.text = ""
 			else:
 				btn.text = str(d.get("name", "遗物")).substr(0, 2)
-			btn.tooltip_text = "%s\n%s" % [str(d.get("name", item_id)), str(d.get("description", ""))]
+			# ★ v6.68e：去掉原生 tooltip_text——它与装备界面口径不一致，
+			#   悬停只走左侧 ItemDetailPopup 信息面板（与装备界面遗物槽一致）。
+			btn.mouse_filter = Control.MOUSE_FILTER_STOP
+			btn.mouse_entered.connect(_on_relic_hover.bind(item_id))
+			btn.mouse_exited.connect(_on_relic_hover_exit)
 		_roll_relic_row.add_child(btn)
 
 
@@ -262,6 +361,13 @@ func _on_upgrade_quality() -> void:
 
 
 func _on_spin_started() -> void:
+	# ★ v6.68c：技能重掷触发的 spin——已付过费，跳过扣费与 roll 递增。
+	if _free_reroll_pending:
+		_free_reroll_pending = false
+		_set_current({})
+		_msg.text = "重掷中…"
+		_refresh()
+		return
 	var cost := BuildManager.get_roll_cost(_roll_count)
 	if _gold() < cost:
 		_msg.text = "金币不足"
@@ -270,9 +376,10 @@ func _on_spin_started() -> void:
 	_spend(cost)
 	# ★ v6.62z：记录本次抽取实付，封顶二选一「返还金币」按此全额退回
 	_last_roll_cost = cost
-	# ★ v6.59：返利硬币遗物——roll 后按比例返还金币
-	var rebate := BuildManager.get_roll_gold_rebate(cost)
+	# ★ v6.59：返利硬币遗物——roll 后按比例返还金币；★ v6.66 每场限 3 次
+	var rebate := BuildManager.get_roll_gold_rebate(cost) if _rebate_count < 3 else 0
 	if rebate > 0:
+		_rebate_count += 1
 		if _arena_mode and _set_gold_cb.is_valid():
 			_set_gold_cb.call(_gold() + rebate)
 		else:
@@ -319,6 +426,7 @@ func _on_machine_stopped(entry: Dictionary) -> void:
 	_revealing = false
 	_msg.text = ""
 	_refresh()
+	# ★ v6.68c：防具 roll 不提供重掷，唯一一次重掷留给开局技能 roll。
 	_open_equipment_for_pick()
 
 
@@ -1018,7 +1126,28 @@ func _sk_on_machine_stopped(entry: Dictionary) -> void:
 		_msg.add_theme_color_override("font_color", _dim_color)
 		_machine.setup(entries, "主动技能轮盘 · 第 %d 次" % (_index + 1))
 		return
+	# ★ v6.68b：技能重掷二选一直接复用 ConfirmUI 标准确认框（不再自建卡片式选择面板）。
+	#   左键二选一；关闭 ESC/右键的"取消"语义，避免误触把确认当重掷。
+	if not _reroll_used_this_session:
+		Globals.show_confirm(self, "本次技能抽取：接受结果，还是免费重掷 1/1？",
+			"接受技能", "重掷 1/1",
+			func(): _sk_apply_entry(entry),
+			func(): _sk_do_free_reroll(),
+			true, false)
+		return
 	_sk_apply_entry(entry)
+
+
+func _sk_do_free_reroll() -> void:
+	if _reroll_used_this_session or _machine == null:
+		return
+	_reroll_used_this_session = true
+	_free_reroll_pending = true
+	var entries: Array = _sk_build_entries()
+	if entries.is_empty():
+		return
+	_machine.setup(entries, "主动技能轮盘 · 第 %d 次（重掷）" % (_index + 1))
+	_machine.start_spin()
 
 
 func _sk_show_units(tid: String) -> void:

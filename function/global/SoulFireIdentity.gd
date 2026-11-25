@@ -117,6 +117,13 @@ static func get_common_base() -> Dictionary:
 	return raw as Dictionary if raw is Dictionary else {}
 
 
-## 技能自动爆发的魂火阈值（默认 3，取 JSON 配置）
-static func get_burst_threshold() -> int:
+## 技能自动爆发的魂火阈值（v6.66 身份化）。
+##   优先：单位身份 burst_threshold → 转职覆盖 → 全局 burst_multiplier.threshold（默认 3）。
+##   无参调用保留兼容（返回全局阈值）。
+static func get_burst_threshold(unit_name: String = "", advanced_class: String = "") -> int:
+	if unit_name != "":
+		var ident: Dictionary = resolve(unit_name, advanced_class)
+		var v: Variant = ident.get("burst_threshold", null)
+		if v != null and int(v) > 0:
+			return maxi(1, int(v))
 	return maxi(1, int(get_burst_config().get("threshold", 3)))

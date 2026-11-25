@@ -364,6 +364,18 @@ func revive_unit(unit_name: String, display_name: String) -> bool:
 	return false
 	
 
+## ★ v6.66：带金币成本的复活入口（400G，每局不限次；用资源成本代替次数限制）。
+##   返回 {ok: bool, reason: String, cost: int}。UI 入口统一走这里。
+func revive_unit_with_cost(unit_name: String, display_name: String) -> Dictionary:
+	var cost: int = int(GameConfigManager.get_value("economy_config.json", "revive_gold_cost", 400))
+	if temp_gold < cost:
+		return {"ok": false, "reason": "金币不足（需 %dG）" % cost, "cost": cost}
+	if not revive_unit(unit_name, display_name):
+		return {"ok": false, "reason": "该单位不需要复活", "cost": cost}
+	temp_gold -= cost
+	return {"ok": true, "reason": "", "cost": cost}
+
+
 func get_alive_party() -> Array:
 	var result : Array = []
 	for ud in party:
@@ -406,10 +418,20 @@ func get_slot_machine_relic_effects() -> Dictionary:
 	var all_relics : Array = get_roll_relic_instances()
 	for r in get_relics_from_passives():
 		if not all_relics.has(r): all_relics.append(r)
+	# ★ v6.66：互斥——节俭之轮(relic_roll_discount) 与 定额筹码(relic_roll_flat) 同时装备时，
+	#   只让节俭之轮的折扣生效，屏蔽定额筹码的"价格不递增"，避免双重经济收益叠加。
+	var has_discount : bool = false
+	var has_flat : bool = false
+	for relic in all_relics:
+		var rid: String = str((relic as ItemInstance).item_id) if relic is ItemInstance else ""
+		if rid == "relic_roll_discount": has_discount = true
+		elif rid == "relic_roll_flat": has_flat = true
+	var skip_flat : bool = has_discount and has_flat
 	for relic in all_relics:
 		var data = RelicManager.get_relic_data(relic.item_id)
 		if data.is_empty(): continue
 		if not bool(data.get("slot_machine", false)): continue
+		if skip_flat and str(relic.item_id) == "relic_roll_flat": continue
 		var e : Dictionary = data.get("effects", {})
 		for key in e:
 			var add = e[key]

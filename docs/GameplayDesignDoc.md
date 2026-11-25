@@ -1,8 +1,8 @@
 # 《魂火》v6 玩法设计文档（装备减负 · 选择组成 Build）
 
-> 状态：v6 主玩法已落地代码，最新修订 v6.64（2026-11-24）。  
+> 状态：v6 主玩法已落地代码，最新修订 v6.68（2026-11-25）。  
 > 本文描述**当前玩法**。v5 骨架（战斗/地图/魂火/存档/编辑器）与 v6 新规则均已实现，代码落点见第十章。  
-> 近期变更：v6.55「防具槽越界修复 + 熔铸奖励数值提示」、v6.56「熔铸确认分区 + 掉落物悬停信息」、v6.57「Boss 死亡即时胜利 + 升级仪式感」、v6.58「等级系统重做：击杀得经验 + 显示」、v6.59「阵型系统移除」、v6.60「胜利界面等全部表演结束 + 缓冲」、v6.61「移除战后经验，击杀成唯一经验来源」、v6.62「胜利条件改地图场景 trigger + 遗物槽重排 + 老虎机专用遗物 + 魂栈遗物商店 + 献祭熔铸改单位赋能」、v6.62b「按参考图回调装备/魂栈/英灵殿/献祭四界面布局 + 修两个编译错误」、v6.62c「遗物槽改底部两区域 + 右上角老虎机图标；魂栈去熔铸/分类/一键领取，改商店格子拖拽购买」、v6.62d~x「团队遗物槽逐列对齐 + 商店分行/去老虎机图标/空槽恒定/按钮反馈 + 槽图标尺寸统一 + 金币显示与格子固定 + 英灵殿隐藏持有资源 + 出售金币显示修复 + 出售返还率可配置与遗物加成 + 编辑器遗物分组 + 去光环页签 + 持续类型下拉 + 遗物类型可选 + 赋能单位 overlord 外观 + 遗物槽只读悬停 + 稀有度权重掉率 + roll界面遗物展示与轮盘居中 + 停止逻辑修复」；**v6.62w/x 异常状态合入防具词条：设计方向写入并落地**；**v6.62y 按三层机制修订异常系统：易伤改为全异常通用、灰烬消费者改轮回「魂火汲取」、消费按层数×攻击百分比、层数封顶 3、epic/legendary 品质变体、献祭作 +5% 收益者**；**v6.62z 金币经济与魂火两态：每场首次 roll 50G + 产出上调 + 品质升级降价，强化封顶 cap 取 max 且退款/注入二选一，魂火删枯竭态改两态（燃烧/正常，归零无增益无惩罚），余烬耗尽必暴保留为流派机制**（见 5.1/5.5/6，已落地待实机验证）；**v6.63 一句话体系定稿：一次攻击只有普攻/技能两指令、1 主动 + 1 转职被动、魂火 ≥3 技能自动爆发（无独立按钮）、异常只由普攻/技能触发**（见 5.0，已落地待实机验证）；**v6.64 转职=魂火身份升级：爆发改技能爆发形态（原技能保留+倍率+单位附加），9 单位燃烧/爆发身份表，剑士/法师/牧师/重甲 4 样板，转职预告与名号变化**（见 5.4.2，已落地待实机验证；击退/眩晕/护盾实体等待接入）。可玩性评估见第十一章。  
+> 近期变更：v6.55「防具槽越界修复 + 熔铸奖励数值提示」、v6.56「熔铸确认分区 + 掉落物悬停信息」、v6.57「Boss 死亡即时胜利 + 升级仪式感」、v6.58「等级系统重做：击杀得经验 + 显示」、v6.59「阵型系统移除」、v6.60「胜利界面等全部表演结束 + 缓冲」、v6.61「移除战后经验，击杀成唯一经验来源」、v6.62「胜利条件改地图场景 trigger + 遗物槽重排 + 老虎机专用遗物 + 魂栈遗物商店 + 献祭熔铸改单位赋能」、v6.62b「按参考图回调装备/魂栈/英灵殿/献祭四界面布局 + 修两个编译错误」、v6.62c「遗物槽改底部两区域 + 右上角老虎机图标；魂栈去熔铸/分类/一键领取，改商店格子拖拽购买」、v6.62d~x「团队遗物槽逐列对齐 + 商店分行/去老虎机图标/空槽恒定/按钮反馈 + 槽图标尺寸统一 + 金币显示与格子固定 + 英灵殿隐藏持有资源 + 出售金币显示修复 + 出售返还率可配置与遗物加成 + 编辑器遗物分组 + 去光环页签 + 持续类型下拉 + 遗物类型可选 + 赋能单位 overlord 外观 + 遗物槽只读悬停 + 稀有度权重掉率 + roll界面遗物展示与轮盘居中 + 停止逻辑修复」；**v6.62w/x 异常状态合入防具词条：设计方向写入并落地**；**v6.62y 按三层机制修订异常系统：易伤改为全异常通用、灰烬消费者改轮回「魂火汲取」、消费按层数×攻击百分比、层数封顶 3、epic/legendary 品质变体、献祭作 +5% 收益者**；**v6.62z 金币经济与魂火两态：每场首次 roll 50G + 产出上调 + 品质升级降价，强化封顶 cap 取 max 且退款/注入二选一，魂火删枯竭态改两态（燃烧/正常，归零无增益无惩罚），余烬耗尽必暴保留为流派机制**（见 5.1/5.5/6，已落地待实机验证）；**v6.63 一句话体系定稿：一次攻击只有普攻/技能两指令、1 主动 + 1 转职被动、魂火 ≥3 技能自动爆发（无独立按钮）、异常只由普攻/技能触发**（见 5.0，已落地待实机验证）；**v6.64 转职=魂火身份升级：爆发改技能爆发形态（原技能保留+倍率+单位附加），9 单位燃烧/爆发身份表，剑士/法师/牧师/重甲 4 样板，转职预告与名号变化**（见 5.4.2，已落地待实机验证；击退/眩晕/护盾实体等待接入）；**v6.65 五短板+位置后果可行性评估（见第十二章：A 层遗物悬停描述/roll 成本下限 30G/品质升级降价已落地，B 层阈值身份化等待裁决冲突，C 层击退/撞墙/夹击/危险地形/ZOC 需新系统分期）**；**v6.66 B 层落地：阈值身份化（快爆3/中节奏4/慢攒5）、费用3技能按阈值过滤、全技能通用、一次全局重掷、轮回/守护/灰烬团队价值、返利限次3与节俭/定额互斥、复活统一400G**（见 5.0/5.3/12，已落地待实机验证）；**v6.67 C 层专项一：击退/撞墙系统落地——GridPushManager（逐格推+边界/地形/单位碰撞+撞墙伤害+眩晕），接入爆发 knockback，AI 评分推入墙/危险地块**（见 5.4.2/12.7，已落地待实机验证）；**v6.68 C 层收尾：夹击（四周≥2 友军→主伤害+15%且不可反击）+ 危险地形（推入灰烬地块追加伤害）+ ZOC 守护卡位（进入即停/身处控制区无法离开）+ 连撞递归推链（撞人继续推、碰撞伤害逐层衰减、深度与防循环上限），统一查询层 PositionManager，全部位置伤害不触发异常**（见 5.4.2/12.8，已落地待实机验证）；**v6.68b 自动战斗可靠性：空格开关改为全局前置+待生效重试+面板强制收起，我方/敌方 AI 均加序列校验与超时看门狗；技能空槽视觉对齐防具空槽，技能重掷确认复用 ConfirmUI 标准确认框**（见 12.9，已落地待实机验证）；**v6.68c 重掷范围收口：唯一 1 次免费重掷只用于开局技能 roll，防具 roll 停轮后直接落位，不再弹重掷选择**（见 5.1/12.6/12.9）；**v6.68d 转职技能空槽对齐：文案从「无」改「空」、字号 `FONT_TINY→FONT_SMALL`、去灰化，与普通技能/防具空槽一致**（见 12.9）；**v6.68e 遗物悬停统一：防具 roll 界面移除原生 tooltip 气泡，悬停只显示左侧 ItemDetailPopup 信息面板（同装备界面遗物槽）**（见 12.9）；**v6.68f 轮盘提速：加速/减速曲线参数化到 `economy_config.slot_machine`，起步 0.16→0.12s、最快 0.085→0.055s、减速 8→6 格且步进 0.05→0.035s，缓速发条有效系数下限 0.7（原 0.5 过慢）**（见 5.3/12.9）；**v6.68g 遗物信息面板修复：弹窗挂到父节点同级 CanvasLayer（layer 31）并跳过 reveal 动画直接显示，解决悬停看不到描述的问题**（见 12.9）；**v6.68h 遗物信息面板移到左侧红框区域，并支持悬停时右键切换「玩法 / 叙事」信息（同装备界面口径）**（见 12.9）。可玩性评估见第十一章。  
 > 承接方案：`EquipmentSlimPlan.md`、`EquipmentOneClickPlan.md`、`EquipmentUIIterationPlan.md`；冻结摘要见 `EquipmentBuildRefactorSummary.md`。
 
 ---
@@ -82,9 +82,9 @@ v6 的体验重点从“我把装备摆对了吗”转为：
   → 进入地图
 ```
 
-- roll 池 = 已选 3 单位 `compatible_units` 的并集。
+- roll 池 = 全技能通用（v6.66：主动技能不绑定单位；费用3技能按单位阈值过滤，阈值3快爆单位不出现费用3技能）。
 - 3 次 roll 不重复同一技能 ID。
-- 不提供重掷。
+- ★ v6.68c：开局技能 roll 提供唯一 1 次免费重掷（二选一确认框），防具 roll 不提供重掷、停轮后直接落位。
 - 不兼容单位灰显并说明原因。
 - 点击单位即锁定，不能互换、不能撤销。
 - 转职后获得第 2 格技能词条，固定内容、灰显不可操作。
@@ -168,7 +168,7 @@ FORGE（魂栈）不再是“铁匠铺 + 合成 + 光环 + 熔铸”的高压节
 
 ### 5.0 一句话体系：一次攻击两个选择（v6.63 定稿）
 
-> **一次攻击只有两个选择，所以技能按钮只能有一个；技能按钮只有一个，所以技能词条必须是“1 主动 + 1 被动”，转职不能给第二个主动；技能按钮唯一，所以魂火爆发不能另设按钮，只能并入技能按钮——魂火 ≥3 时自动爆发。三者不是三个独立改动，而是同一条决策链上的三个咬合点。**
+> **一次攻击只有两个选择，所以技能按钮只能有一个；技能按钮只有一个，所以技能词条必须是“1 主动 + 1 被动”，转职不能给第二个主动；技能按钮唯一，所以魂火爆发不能另设按钮，只能并入技能按钮——魂火达到单位阈值（v6.66 快爆3/中节奏4/慢攒5）时自动爆发。三者不是三个独立改动，而是同一条决策链上的三个咬合点。**
 
 #### 5.0.1 体系因果链
 
@@ -177,7 +177,7 @@ FORGE（魂栈）不再是“铁匠铺 + 合成 + 光环 + 熔铸”的高压节
 → 只允许两个指令：普攻 / 技能
 → 技能按钮必须唯一，不能有第二个主动按钮、不能长按、不能切换
 → 技能词条固定 1 主动 + 1 转职被动，转职不再给第二个主动
-→ 魂火爆发不能是独立按钮，只能并入技能按钮：魂火 ≥3 自动爆发
+→ 魂火爆发不能是独立按钮，只能并入技能按钮：魂火达单位阈值自动爆发（v6.66 身份化）
 → 魂火只剩两态：燃烧（保留魂火的收益）/ 正常（无增益，归零不补负面）
 → 玩家每回合只做一个决策：普攻保魂火维持燃烧，还是技能花魂火（可能自动爆发）
 ```
@@ -196,7 +196,7 @@ FORGE（魂栈）不再是“铁匠铺 + 合成 + 光环 + 熔铸”的高压节
 
 | | 普攻 | 技能 |
 |---|---|---|
-| 消耗 | 无 | 2~3 魂火；魂火 ≥3 自动爆发 |
+| 消耗 | 无 | 2~3 魂火；魂火达单位阈值自动爆发（费用3技能仅配阈值≥4单位） |
 | 回魂火 | 命中 +1 | 命中 +1 |
 | 燃烧增益 | 吃燃烧态溅射 50% | 吃燃烧强化溅射 |
 | 触发被动 | 是 | 是 |
@@ -241,7 +241,7 @@ FORGE（魂栈）不再是“铁匠铺 + 合成 + 光环 + 熔铸”的高压节
 2. 看技能按钮：
 - 魂火不足 → 按钮灰显
 - 魂火 2~3 → “技能：消耗 2 魂火”
-- 魂火 ≥3 → “技能：将爆发（消耗 5 魂火，强制暴击）”
+- 魂火达单位阈值 → “技能·身份爆发文案”（不写当前魂火，见下方阈值口径）
 3. 二选一：
 - 点普攻 → 无消耗，命中回 1 魂火，燃烧态带溅射，自动触发被动
 - 点技能 → 按魂火自动普通/爆发，自动触发被动
@@ -268,7 +268,7 @@ FORGE（魂栈）不再是“铁匠铺 + 合成 + 光环 + 熔铸”的高压节
 | 攻击手段 | 一次攻击只有 **普攻 / 技能** 两个选择；被动全部自动结算 |
 | 技能词条 | **1 主动 + 1 转职被动**；转职不再给第二个主动攻击技能；必须替换时旧主动转残响被动 |
 | 魂火状态 | **两态**：燃烧（>50%，移动+1、溅射50%）/ 正常（无增益，归零不补负面） |
-| 魂火爆发 | **并入技能按钮**：魂火 ≥3 时技能自动爆发，清空魂火，强制暴击 + 额外伤害，结束行动 |
+| 魂火爆发 | **并入技能按钮**：魂火达**单位阈值**（v6.66：快爆3/中节奏4/慢攒5）时技能自动爆发，清空魂火，强制暴击 + 额外伤害，结束行动 |
 | 魂火决策 | 每回合只选：普攻保魂火维持燃烧，还是技能花魂火（可能自动爆发） |
 | 异常状态 | 合入防具词条；施加给全队易伤，消费引发大量伤害/特殊效果；只由普攻/技能触发 |
 | 转职 | 只给被动，不增加攻击按钮；不 gate 等级，免费 |
@@ -628,7 +628,7 @@ FORGE（魂栈）不再是“铁匠铺 + 合成 + 光环 + 熔铸”的高压节
 |---|---|
 | 一次攻击只有普攻/技能两个指令 | 不变，爆发仍在技能按钮内 |
 | 技能按钮唯一 | 不变，爆发不新增按钮，只改效果 |
-| 魂火爆发并入技能按钮，≥3 自动爆发 | 不变，触发条件、消耗、结束行动都不变 |
+| 魂火爆发并入技能按钮，达阈值自动爆发 | 入口不变（技能按钮内），触发阈值 v6.66 改为单位身份值，消耗/结束行动不变 |
 | 1 主动 + 1 转职被动 | 不变，转职仍只给被动，但被动可改造魂火身份 |
 | 转职不给第二个主动 | 不变，转职改的是燃烧态/爆发，不是新增主动 |
 | 异常只由普攻/技能触发 | 不变，爆发是技能，可触发异常 |
@@ -636,7 +636,7 @@ FORGE（魂栈）不再是“铁匠铺 + 合成 + 光环 + 熔铸”的高压节
 | 被动自动结算、不占按钮 | 不变，燃烧态增益、爆发附加都自动结算 |
 | 信息透明 | 增强，爆发按钮写明身份文案，转职面板预告魂火变化 |
 
-**必要改动**：`soul_fire_burst` 从"统一替换 skill_id"改为"技能爆发形态"——原技能执行 → 魂火≥3 且为技能 → 应用爆发倍率 → 附加单位特有爆发效果（查表：单位类型/转职分支）→ 清空魂火、结束行动。爆发定义从"对敌技能"扩展为"技能爆发形态"，治疗技能也有爆发形态。
+**必要改动**：`soul_fire_burst` 从"统一替换 skill_id"改为"技能爆发形态"——原技能执行 → 魂火达单位阈值且为技能 → 应用爆发倍率 → 附加单位特有爆发效果（查表：单位类型/转职分支）→ 清空魂火、结束行动。爆发定义从"对敌技能"扩展为"技能爆发形态"，治疗技能也有爆发形态。
 
 #### 五、落地优先级与风险
 
@@ -654,7 +654,7 @@ FORGE（魂栈）不再是“铁匠铺 + 合成 + 光环 + 熔铸”的高压节
 | 配置字段（禁止硬编码） | 所有可调数值均在 JSON：`common_base.burning_threshold/move_bonus/splash_percent`、`burst_multiplier.threshold/extra_damage_per_soulfire/flat_damage_per_soulfire/force_crit/shield_reduction_cap`、`units.*.burn_trait/burst_trait`、`advanced_overrides.*.name/tint/hud_icon/burst_label/burn_trait/burst_trait`。代码仅保留缺省 fallback（`threshold=3` 等），实际值一律读配置 |
 | 身份查询 | `function/global/SoulFireIdentity.gd`（class_name 静态类）：`resolve`/`get_burn_trait`/`get_burst_trait`/`get_burst_label`/`get_advanced_name`/`get_common_base`/`get_burst_threshold`/`get_burst_config`，基础 + 转职覆盖合成 |
 | 爆发形态 | `CombatManager.execute_attack` 用 `burst_requested` 标志代替替换 skill_id，`active_skill_data` 爆发时保留（原技能溅射/AOE/嘲讽/治疗照常生效）；爆发倍率 + 单位 `damage_multiplier` 叠加；清空魂火、强制暴击、结束行动不变 |
-| 爆发附加 | `_apply_burst_trait_effects` 消费：`adjacent_multiplier`（相邻横扫）/`aoe_multiplier`+`burn_stacks`（范围爆炸+灼烧）/`team_heal_ratio`+`soulfire_gain`（团队治疗回魂）/`taunt_rounds`（嘲讽）/`shield_damage_reduction`（护盾近似为减伤 buff）；**击退/眩晕/护盾实体/再行动/破甲/射程+1/穿越/龙息/反弹字段暂保留为设计口径，待对应系统接入** |
+| 爆发附加 | `_apply_burst_trait_effects` 消费：`adjacent_multiplier`（相邻横扫）/`aoe_multiplier`+`burn_stacks`（范围爆炸+灼烧）/`team_heal_ratio`+`soulfire_gain`（团队治疗回魂）/`taunt_rounds`（嘲讽）/`shield_damage_reduction`（护盾近似为减伤 buff）；**击退/撞墙/眩晕于 v6.67 接入（见 12.7），v6.68 补齐连撞递归/危险地形/夹击/ZOC（见 12.8）；护盾实体/再行动/破甲/射程+1/穿越/龙息/反弹字段暂保留为设计口径待接入** |
 | 燃烧态差异 | `Unit.get_total_move_range` 飞马 `move_bonus_override`；`CombatManager._calc_reduction` 重甲 `damage_reduction`；`_execute_heal` 牧师 `heal_bonus`+`soulfire_on_heal`；技能伤害法师 `damage_bonus`；通用底盘（移动+1、溅射50%）读 `common_base` |
 | 转职表现 | `HeroShrineUI` 转职卡片显示"燃烧/爆发"预告；转职瞬间改 `display_name` 为身份名号 + 提示；技能按钮爆发文案读 `get_burst_label`（如"横扫击退"/"嘲讽护盾"） |
 
@@ -1039,7 +1039,7 @@ FORGE（魂栈）右侧**去掉了**旧熔铸标题、"购买战场遗物 / 购�
 
 1. 六流派机制接线与竞技场对齐工作量大。
 2. 防具 roll 价格沿用商店数据，节奏可能偏贵或偏便宜。
-3. 开局无重掷增加运气方差。
+3. 开局技能仅 1 次重掷，运气方差仍需试玩确认是否足够。
 4. 技能与流派共鸣数值已冻结为「有效 Lv +1，上限 4」；待试玩确认是否会掩盖品质差异（common + 共鸣相当于 rare）。
 5. 3 槽单位前期可能过强或信息过载。
 6. 删除连通 / 方向后，部分老玩家可能感到深度下降。
@@ -1095,8 +1095,8 @@ v6 主线已落地代码，核心计算集中在 `BuildManager`（autoload）。
 
 | 本文规则 | 代码落点 | 状态 |
 |---|---|---|
-| 魂火身份升级（v6.64） | `soulfire_identity.json` + `SoulFireIdentity.gd`（class_name 静态类）；`CombatManager.execute_attack` 用 `burst_requested` 保留原技能 + `_apply_burst_trait_effects` 消费单位附加；`Unit.get_total_move_range`/`_calc_reduction`/`_execute_heal`/技能伤害接入燃烧态差异；`HeroShrineUI` 转职预告 + 名号变化 | 已落地（静态校验，待实机验证；击退/眩晕/护盾实体/再行动等待接入） |
-| 一句话体系（v6.63） | `DragMoveController` 删独立爆发项 + 技能项「将爆发」文案；`CombatManager.execute_attack` 统一「对敌非治疗技能 + 魂火≥3 → soul_fire_burst」；`AllyAutoBattleManager` 删独立爆发决策；`TalentManager.resolve_granted_talent` 把转职主动降为残响被动 `combo`（HeroShrineUI / UnitData / GMConsole 三处调用）；`_apply_damage_with_effects(..., trigger_abnormal)` 门控溅射/AOE 不触发异常 | 已落地（静态校验，待实机验证） |
+| 魂火身份升级（v6.64） | `soulfire_identity.json` + `SoulFireIdentity.gd`（class_name 静态类）；`CombatManager.execute_attack` 用 `burst_requested` 保留原技能 + `_apply_burst_trait_effects` 消费单位附加；`Unit.get_total_move_range`/`_calc_reduction`/`_execute_heal`/技能伤害接入燃烧态差异；`HeroShrineUI` 转职预告 + 名号变化 | 已落地（静态校验，待实机验证；击退/眩晕/连撞/夹击/ZOC 已接，护盾实体/再行动仍待接入） |
+| 一句话体系（v6.63） | `DragMoveController` 删独立爆发项 + 技能项「将爆发」文案；`CombatManager.execute_attack` 统一「技能 + 魂火达单位阈值 → 爆发」；`AllyAutoBattleManager` 删独立爆发决策；`TalentManager.resolve_granted_talent` 把转职主动降为残响被动 `combo`（HeroShrineUI / UnitData / GMConsole 三处调用）；`_apply_damage_with_effects(..., trigger_abnormal)` 门控溅射/AOE 不触发异常 | 已落地（静态校验，待实机验证） |
 | 地图装备界面 | `MapScene._on_config_btn_pressed` 恢复 `EquipmentConfig.Mode.MAP`；**纯查看页**（v6.22 起）：所有拖拽在 `start_drag`/`_is_valid_drop` 起点拦截，技能词条/特技库禁用；v6.62q 遗物槽（团队 `passive_slot`/防具 `roll_relic_slot`）进一步只读——`_apply_readonly_button_visual` 把 hover/pressed/focus 样式覆盖为 normal 消除"可点击"视觉，`_input` 对 `readonly_hover_only` 槽吞掉点击不调 `start_drag`，仅保留 `mouse_entered/exited` 悬停详情（不用 `disabled`，否则 Godot 4 会连带丢失悬停） |
 | 自动配装 | v6.6 重写：评分改为流派觉醒 + 有效 Lv（含技能共鸣 +1）+ 机制槽利用率，按 hook 分攻击/防御/功能三套权重；只重排防具，单位顺序锁定；写回 GameState 真单位并用 `apply_armor` 重建机制 |
 | 魂栈只留熔铸 | `ForgeAltar.gd/.tscn`，`MapScene._open_forge` | 已落地 |
@@ -1225,5 +1225,153 @@ v6 主线已落地代码，核心计算集中在 `BuildManager`（autoload）。
 **最终判断**：v6 的设计方向是对的，且代码落地程度高（六流派、轮盘、共鸣、竞技场同步、击杀经验与升级仪式感均已接线；v6.59 移除理解成本高的阵型系统，build 深度回归单单位流派；v6.62 把胜利条件归属到地图场景、把魂栈改为遗物商店 + 老虎机遗物、把献祭改为单位赋能，进一步补齐结构与经济）。v6.62z 已补上 **中后期正反馈断裂（金币紧 + 封顶浪费 + 枯竭无代价）** 的规则调整，当前重点转为 **数值平衡验证（超级化强度 / 老虎机遗物收益 / 首次 50G 后的 roll 节奏）**，均不需要推翻现有架构。
 
 > ⚠️ v6.62 ~ i 全部改动仅经静态校验（GDScript 括号配对、关键符号、场景节点与 unique_id、JSON 合法性），**尚未在 Godot 编辑器中实机运行**。需在编辑器实测确认：① 两个编译错误已消失（`SlotMachineUI.gd` 解析正常、`_do_empower` 无警告）；② 13 张地图 trigger 注入后无脚本 uid 警告、`setup_for_config` 判胜无报错；③ 装备界面团队遗物槽逐列对齐防具槽、与防具遗物行齐平、三类槽图标尺寸一致，在 400×240 下不挤占；④ 魂栈商店严格分两行、上方金币显示、买后留空槽、格子位置固定、拖拽购买时不可入槽变灰、出售区拖拽、刷新按钮 hover/pressed + 音效；⑤ 英灵殿抬头居中、献祭按钮间距、转职详情已隐藏、不显示持有资源；⑥ 献祭选择横排头像与 hover 反馈、赋能 / 还原流程。
+
+---
+
+## 十二、五短板 + 位置后果系统可行性评估（v6.65，2026-11-25）
+
+> 针对"位置后果系统贯穿五短板"方案的可行性分析。核心判断：**位置后果不是第六个独立系统，而是五个短板的共同考题**——方向成立，但它依赖的底层（推人/撞墙/危险地形/夹击/ZOC）在当前代码中**完全不存在**，全部以 JSON 字段形式"预留而未消费"。因此按"可直接落地 / 需中等改造 / 需新系统"三层拆开执行，避免一次性铺开引入大面积回归。
+
+### 12.1 现状核对（代码事实）
+
+| 方案要素 | 当前代码状态 | 结论 |
+|---|---|---|
+| 全局爆发阈值 | `soulfire_identity.json` 的 `burst_multiplier.threshold=3`（回退）；v6.66 每单位 `burst_threshold` + 剑士三转职覆盖，`get_burst_threshold(unit,adv)` 按单位读 | **v6.66 已落地**（快爆3/中4/慢5） |
+| 技能费用 | 17 主动技能：费用 2 共 10 个、费用 3 共 7 个；`_get_active_skill_cost` 读 `effect_params.soul_fire_cost` | **v6.66 已落地**：`_skill_cost_allowed_for_unit` 在 roll 池与落位 5 处过滤，阈值3单位不出费用3技能 |
+| 技能兼容池 | v6.66 `talents.json` 17 主动技能 `compatible_units` 清空；`is_talent_compatible_with_unit` 空=全通用，BuildManager 各处改走它 | **v6.66 已落地**（全技能通用，单位特化由 SoulFireIdentity 身份表提供） |
+| 一次免费重掷 | v6.66 起 ArmorRollUI 每场 1 次；★ v6.68c 收口为**仅开局技能 roll**，防具 roll 直接落位；`_free_reroll_pending` 跳过扣费与计数 | **v6.68c 已落地**（每场限1次，仅技能） |
+| 击退 / 撞墙 | v6.67 `GridPushManager.gd` 逐格推 + 边界/地形/单位碰撞 + 撞墙伤害/眩晕；JSON `knockback` 段配置 | **v6.67 已落地**（爆发接入 + AI 落点评分） |
+| 危险地形 / 地块 | v6.68 灰烬地块作为危险地块，被推入时按地块伤害×倍率追加伤害并消费地块 | **v6.68 已落地**（`PositionManager` 查询 + 推链事件） |
+| 夹击 / 侧翼 | v6.68 四周（上下左右）攻击者阵营存活单位≥2 即夹击：主伤害+15%、被夹击者无法反击；不做八方向背击 | **v6.68 已落地**（不依赖朝向） |
+| 守护 ZOC 卡位 | v6.68 重甲/守护剑卫四周产生控制区：进入即停步、身处控制区无法离开、飞行单位无视；不是阵型系统，是单位身份的被动场 | **v6.68 已落地**（与 v6.59 移除阵型不冲突） |
+| 撞人连撞 | v6.68 撞到单位沿同向递归推，碰撞伤害逐层衰减，深度上限 3 + 防循环 | **v6.68 已落地** |
+| 异常链路可控化 | v6.62y/z 已实现专精防具 `affix_schools`、施加/消费词条、六流派配对 | **大部分已落地**，仅剩"消费预览 UI" |
+| 团队价值（轮回/守护/灰烬） | v6.66 轮回击杀治疗最低血队友（Lv1 4%/Lv2 8%）、守护受击全队1回合减伤、友方踩灰烬地块回1魂 | **v6.66 已落地**（魂火全局单值，方案"最低魂火队友"适配为全局池+最低血治疗） |
+| 献祭复活成本 | 原免费复活；v6.66 `economy_config.revive_gold_cost=400`，`GameState.revive_unit_with_cost` 统一入口，HeroShrine/MapScene 接入 | **v6.66 已落地**（400G每局不限次）；"单核无法夹击"依赖 C 层夹击 |
+| 经济遗物 | v6.65 成本下限30G；v6.66 返利硬币每场限3次、节俭之轮与定额筹码运行时互斥 | **已全部落地** |
+| 位置词条防具 | 无（"撞墙专精/推击/夹击强化/地形利用/击退延长"均不存在） | **需新词条 + 位置系统支撑** |
+| 遗物悬停描述 | 老虎机遗物槽原为纯展示，仅 tooltip | **已落地**（复用 ItemDetailPopup，左侧显示，不改现有布局） |
+
+### 12.2 分层可行性结论
+
+**A 层——可直接落地（无新系统依赖，本轮已执行）**
+
+1. **遗物悬停描述**（界面调整）：`/build/ArmorRollUI` 复用 `Config.PATHS.ITEM_DETAIL_POPUP`，动态实例化到左侧；4 个老虎机遗物槽 hover 显示描述，空槽保持禁用。未改 tscn 布局、未改现有节点树。
+2. **经济上限之成本下限**：`economy_config.json` 新增 `roll_cost_floor=30`，`BuildManager.get_roll_cost` 折扣后取 `max(floor, cost)`，防止集齐经济遗物后无限廉价 roll。
+3. **品质升级降价**：`upgrade_costs` 前两级 150/400 → 100/300（对应方案短板三 4.4）。
+
+**B 层——需中等改造（数据 + 局部逻辑，建议下一轮）**
+
+| 项 | 改造点 | 风险 |
+|---|---|---|
+| 阈值身份化（快爆3/中节奏4/慢攒5） | `soulfire_identity.json` 每单位加 `burst_threshold`；`get_burst_threshold(unit)` 按单位读；改 2 处调用 + UI 文案显示阈值 | 中：与 v6.63"≥3 自动爆发"口径需同步文档 5.0/5.1 |
+| 费用 3 技能只配阈值 4/5 | 按单位重配 `talents.json` 的 `soul_fire_cost`，并加校验 | 中：需与阈值身份化同时做，否则规则不自洽 |
+| 全技能通用 + 单位特化 | 放空 `compatible_units` 或改 roll 池为全表；技能效果改"通用基础 + 单位特化 + 位置效果" | 中高：BuildManager 8 处过滤 + 单位特化数据量大 |
+| 一次全局重掷 | 技能/防具 roll 加 1 次重掷状态（停轮后落位前），UI 显示"重掷 1/1" | 中：新交互状态，需防重复重掷 |
+| 团队价值（轮回/守护/灰烬） | 轮回击杀给最低魂火队友 +1、守护受击全队减伤、灰烬地块回魂火 | 中：改触发点，有现成 hook 可挂 |
+| 遗物限次/互斥 | 返利硬币每场限 3 次；节俭之轮与定额筹码互斥 | 低中：需加计数状态与互斥校验 |
+| 献祭复活成本 | 先核对现有 HP-cost 实现，再决定是否改统一 400G | 中：涉及献祭/还原数值链路 |
+
+**C 层——需新系统（工作量大，建议专项分期，不建议本轮铺开）**
+
+| 系统 | 为什么是新系统 | 前置条件 |
+|---|---|---|
+| 击退 / 撞墙伤害 | v6.67 已建 `GridPushManager`（推人路径+可通行判定+撞墙伤害+眩晕+位移动画），爆发 knockback 已接入 | **已落地**，待实机验证 |
+| 危险地形 | 灰烬地块目前不做"进入即受伤" | 先建地块类型表（危险/安全）+ 单位进入判定 + 伤害钩子 |
+| 夹击 / 侧翼 | 无邻接计数、无朝向概念（v6.59 移除阵型后更彻底） | 先建邻接查询（上下左右）+ "≥2 友军相邻"判定 + 伤害/无法反击加成 + 8bit 图标 |
+| 守护 ZOC 卡位 | 无移动拦截机制 | 先建移动阶段拦截钩子 + 守护相邻判定；需重新对齐"v6.59 移除阵型"的设计口径 |
+| 位置词条防具 | 词条可加数据，但效果依赖上述所有系统 | 等 C 层底层就绪后再加词条，否则是"配了不生效"的假配置 |
+
+### 12.3 方案内部需先裁决的冲突
+
+1. **"全技能通用" vs "费用 3 只给阈值 4/5 单位"**【v6.66 已裁决】：采用**按单位阈值过滤 roll 池**——技能费用固定不变，阈值3快爆单位的池/落位均排除费用3技能。
+2. **阈值身份化 vs v6.63"魂火 ≥3 自动爆发"**【v6.66 已裁决】：咬合点改为"达单位阈值自动爆发"，5.0/5.3/6/第十章口径已同步，UI 普通态标 `N魂▶M`、灰显标 `魂不足▶M`、爆发态标身份文案（位置效果属 C 层暂不显示）。
+3. **"不做八方向背击、做夹击/侧翼" vs 当前无朝向系统**【v6.68 已裁决】：只做夹击（四周≥2 友军相邻，不依赖朝向），不做侧翼/背击。赋能单位按队伍归属计入夹击人数，因此献祭"单核"阵容仍可能因单核+敌人站位而夹击失败，逻辑自洽（无需另加 `can_flank=false`）。
+4. **位置后果"不触发异常"铁律**：与 v6.63"异常只由普攻/技能主伤害触发"一致——实现时必须让撞墙/夹击伤害走 `trigger_abnormal=false` 通道（该参数 v6.63 已加好，可直接复用）。
+5. ** numa 献祭"单核无法夹击"**：依赖夹击系统，且需定义赋能单位是否算"我方单位"（若算，则单核 + 敌人仍无法夹击敌人，逻辑自洽；若不算，则需显式标记 `can_flank=false`）。
+
+### 12.4 建议执行顺序
+
+1. **v6.65 已完成**：遗物悬停描述、roll 成本下限 30G、品质升级前两级降价。
+2. **v6.66 已完成（B 层）**：阈值身份化 + 费用3按阈值过滤 + 全技能通用 + 一次重掷（v6.68c 起仅技能）+ 团队价值 + 返利限次/遗物互斥 + 复活400G。文档 5.0/5.3/6/12 已同步。
+3. **专项分期（C 层）**：v6.67 已完成"击退 + 撞墙"（地基）；v6.68 已完成"夹击 + 危险地形 + ZOC + 连撞递归推链"，C 层底层全部收口。每期单独实机验证。
+4. **验收口径沿用方案**：差 1 魂火时选择 50/50、重掷使用率 20~50%、roll 8~10 次、夹击自然发生不需教学、8bit 撞墙反馈可读。
+
+### 12.5 本轮落地实现（v6.65）
+
+| 项 | 实现 | 状态 |
+|---|---|---|
+| 遗物悬停描述 | `ArmorRollUI._ensure_relic_detail_popup` 动态实例化 `ItemDetailPopup` 并定位左侧（4,22,208×112）；`_build_roll_relic_row` 有遗物按钮接 `mouse_entered/exited` → `_on_relic_hover/show_item`，空槽保持 disabled | 已落地（静态校验，待实机验证） |
+| roll 成本下限 | `economy_config.json` `shop.roll_cost_floor=30`；`BuildManager.get_roll_cost` 折扣后 `maxi(floor, cost)`；回退常量 `FALLBACK_ROLL_COST_FLOOR=30` | 已落地 |
+| 品质升级降价 | `upgrade_costs` 前两级 150/400 → 100/300；`FALLBACK_UPGRADE_COSTS` 同步 | 已落地 |
+
+**未落地项**（截至 v6.68c）：B 层与 C 层底层均已落地（见 12.6/12.7/12.8/12.9）；仅剩**位置词条防具**（依赖底层已就绪，待补词条数据）与方案中的"消费预览 UI"。此前的"未落地"表述为 v6.65 当时状态，已被 v6.66~v6.68c 覆盖。
+
+
+### 12.6 B 层落地实现（v6.66，静态校验，待实机验证）
+
+| 项 | 实现 |
+|---|---|
+| 阈值身份化 | `soulfire_identity.json` 每单位 `burst_threshold`（快爆3：mage/dragonborn/pegasus；中节奏4：swordsman/archer/spearman/axeman；慢攒5：cleric/armored）+ 剑士三转职覆盖（烈焰剑圣3/守护剑卫4/疾风剑客3）；`SoulFireIdentity.get_burst_threshold(unit,adv)` 优先单位→转职→全局回退3；`CombatManager` / `DragMoveController` 两调用点传单位 |
+| 费用3过滤 | `BuildManager._skill_cost_allowed_for_unit(tid,unit_key)`：费用3技能仅阈值≥4单位可用；接入 `build_skill_pool`/`_compatible_active_skills`/`can_place_skill`/`can_place_with_future`/`is_safe_placement` 共5处 |
+| 全技能通用 | `talents.json` 17 主动技能 `compatible_units` 清空；`is_talent_compatible_with_unit` 空=全通用；`_compatible_units_of` 空兼容主动技能返回9单位全集；单位特化由 `SoulFireIdentity` 燃烧/爆发身份表提供（不另建第二套系统） |
+| 一次免费重掷（v6.68c 口径） | `ArmorRollUI` 仅**技能**停轮后弹「接受技能 / 重掷 1/1」；防具停轮 reveal 后直接 `_open_equipment_for_pick()`；`_reroll_used_this_session` 每场限1、`_free_reroll_pending` 让重掷 spin 跳过扣费与 `_roll_count` 递增 |
+| 团队价值 | 轮回：击杀治疗最低血队友 Lv1 4%/Lv2 8%（原仅Lv2）；守护：`Unit.guard_team_dr/rounds` 字段，受击给全队 `0.05×Lv` 减伤、`TurnManager` 队伍回合结束递减；灰烬：友方踩自己地块回1魂（原同队直接 return） |
+| 遗物限次/互斥 | `ArmorRollUI._rebate_count` 返利硬币每场限3次；`GameState.get_slot_machine_relic_effects` 同时装备节俭之轮+定额筹码时屏蔽后者的价格不递增 |
+| 复活成本 | `economy_config.revive_gold_cost=400`；`GameState.revive_unit_with_cost` 统一入口（金币不足拒绝），`HeroShrineUI._on_revive_unit` / `MapScene._on_chapel_revive_unit` 改调它；取消赋能仍免费还原快照 |
+
+**与方案的偏差**（待实测评估）：① 魂火是全局单值、无"每队友魂火"，轮回团队价值适配为"全局魂火池 + 最低血队友治疗"，非方案的"最低魂火队友"；② 守护团队减伤用独立字段 `guard_team_dr` 而非 `buff_damage_reduction`（避免与重甲燃烧/护盾叠加混淆），1回合=到下个队伍回合结束；③ "侧翼"未做（依赖朝向/格位，属 C 层）；④ 单位特化不另建"技能×单位"数据表，复用已有 `SoulFireIdentity` 身份表；⑤ 重掷不退款——它是"重转当前这次"，原付费那次的结果被替换，符合方案"重掷后必须接受"。
+
+
+### 12.7 C 层专项一：击退 / 撞墙落地（v6.67，静态校验，待实机验证）
+
+| 项 | 实现 |
+|---|---|
+| 击退核心 | 新建 `function/global/GridPushManager.gd`（class_name 静态类）：`push(attacker,target,cells,dir)` async 逐格推；`_can_stand` 判边界（`TerrainManager.grid_size`）/地形 `TERRAIN_DATA.passable`/单位占位（`UnitManager.get_unit_at_cell`）；受阻停在最后一格，按剩余格数 × 攻击者攻击 × `wall_damage_per_cell` 算撞墙伤害，`wall_stun_rounds` 眩晕；tween 短促位移（约2~4帧），撞墙 `Unit.play_hit_effect` 白闪+抖动 |
+| 配置 | `soulfire_identity.json` 新增 `knockback` 段：`cells_by_threshold`（快爆3→1格/中节奏4→2格/慢攒5→1格）、`wall_damage_per_cell=0.2`、`wall_stun_rounds=1`、`push_damage`、`step_frames=3`；全部数值化，无硬编码 |
+| 爆发接入 | `_apply_burst_trait_effects` 消费 `knockback` 字段：从攻击者→目标主轴方向推；撞墙伤害走 `_apply_damage_with_effects(defender, wall_dmg, attacker, false, false)`——**`trigger_abnormal=false`，不触发异常**（符合位置后果铁律）；击杀归属施加者（爆发者），眩晕写 `Unit.stun_rounds` |
+| 眩晕 | `Unit.stun_rounds` 新增；`reset_turn` 眩晕时 `can_act_this_turn=false`+灰显；`TurnManager` 在目标队伍回合结束递减；`reset_combat_buffs` 清空 |
+| AI 评分 | `EnemyAI._knockback_position_bonus`：有击退能力时沿主轴预判推 N 格，撞墙/占位 +90~120 分、推入灰烬地块 +70 分；接入 `_evaluate_attack` |
+| 单位特化 | 击退格数由 `SoulFireIdentity` 身份表的 `burst_trait.knockback` 决定（剑士爆发1格横扫击退、枪兵2格贯穿击退等），转职覆盖可改 |
+
+**与方案的偏差 / 待接入**（实测后评估）：① 危险地形部分已于 v6.68 接入（见 12.8）；② 撞到**单位**原按撞墙处理，已于 v6.68 改为递归连撞（见 12.8）；③ 击退方向取攻击→目标的主轴（非精确向量），斜向推会贴主轴；④ 8bit 表现复用现有 shader 白闪+短促 tween，未新增尘土粒子；⑤ 慢攒型"拉拽/嘲讽卡位"中的嘲讽已由重甲爆发实现，ZOC 卡位于 v6.68 接入，主动拉拽未做。
+
+
+### 12.8 C 层收尾：夹击 / 危险地形 / ZOC / 连撞（v6.68，静态校验，待实机验证）
+
+> 一次性收口 C 层剩余四块。原则不变：**位置后果只改站位与伤害，不新增攻击指令、不触发异常**。
+
+| 项 | 实现 |
+|---|---|
+| 统一查询层 | 新建 `function/global/PositionManager.gd`（class_name 静态类）：夹击邻接计数 / 危险地块判定 / ZOC 控制区判定 / 配置读取。`CombatManager`、`UnitManager`、`EnemyAI`、`GridPushManager`、`Battlefield` 共用，杜绝多处各写一套口径 |
+| 夹击 | `PositionManager.allies_adjacent_to` 数目标四周（上下左右）攻击者阵营存活单位（含贴身攻击者本人）；≥`min_allies=2` 即成立，主伤害 ×(1+`damage_bonus=0.15`)。**不依赖朝向**，因此 v6.59 移除阵型后仍自洽；不做八方向背击/侧翼 |
+| 被夹击不可反击 | `CombatManager._can_counter_attack` 首段读 `flanking_denies_counter()`，目标被夹击时直接返回 false（与武器射程反击判定叠加） |
+| 危险地形 | 灰烬地块即危险地块：推链最终落点为敌方地块时，按 `danger_damage = 地块基础伤害 × push_damage_multiplier` 生成伤害事件并消费地块；己方地块不伤自己（保留给敌人踩）。击杀归属地块 owner |
+| ZOC 卡位 | 重甲（`units.armored.zoc=true`）与守护剑卫（转职覆盖 `zoc=true`）四周产生控制区；`UnitManager.get_reachable_cells` / `calculate_path` 同时加两道钩子：`stop_on_enter` 进入即停步（格子可落、不再中转），`block_leave` 身处控制区无法离开；飞行单位（`ignore_terrain_cost`）无视。玩家拖拽与 AI 共用同一寻路，落点由 `Battlefield` 提示。不是阵型系统，是单位身份的被动场 |
+| 连撞递归 | `GridPushManager._push_chain` 深度优先：撞到单位先沿同向递归推前面那个（它让开后本单位重算路径继续前进），再按 `push_damage × chain_damage_falloff^depth` 给被撞单位计碰撞伤害；`max_chain_depth=3` + `visited` 防循环；仍被墙/边界/不可通行阻挡时按剩余格数算撞墙伤害与眩晕。视觉顺序为"前面先走、后面跟上" |
+| 统一伤害出口 | `GridPushManager.push` 只返回结构化事件 `{unit, source, kind, damage, stun, cell}`；新增 `CombatManager.apply_position_damage` 统一走 `_apply_damage_with_effects(..., trigger_abnormal=false)`，负责击杀归属、Boss 复活与死亡清理。撞墙/连撞/危险地形全部**不触发异常**，符合位置后果铁律 |
+| AI 评分 | `_evaluate_attack` 增加 `_flanking_position_bonus`（已夹住 +60、贴身可凑 +20）；`_evaluate_move` 近战分支增加 `_flanking_setup_score`（站到目标相邻且已有友军贴住时加分）；`_knockback_position_bonus` 区分撞墙（+90~120）/连撞（+60~120）/危险地形（+70）；`_get_cell_danger_score` 计入灰烬地块风险 |
+| 配置 | `soulfire_identity.json` 新增 `position` 段（flanking / danger_terrain / zoc 三个子段）并扩展 `knockback` 段（`max_chain_depth` / `chain_damage_falloff` / `min_chain_cells`）；所有数值与提示文案均可配，无新硬编码 |
+
+**与方案的偏差 / 待实测评估**：① 夹击只做"四周≥2 友军"，不做侧翼/背击，赋能单位按队伍归属计入人数；② ZOC 是硬卡位——身处控制区完全不能移动但可原地攻击，若实测过强可关 `zoc.block_leave` 或整体 `zoc.enabled`；③ 连撞中碰撞伤害默认归攻击方，危险地形归地块 owner，被撞单位自身落入地块时会再触发一次危险地形，不会无限递归；④ 击退/连撞仍取攻击→目标主轴，斜向推贴主轴，未做精确向量；⑤ 8bit 表现复用现有白闪 + 短促 tween，未新增尘土粒子；⑥ 环境无 Godot CLI，以上为静态校验结论，需在编辑器实机验证（重点看夹击触发频率、ZOC 是否过度锁死、连撞动画顺序）。
+
+
+### 12.9 自动战斗可靠性、UI 一致性与重掷范围（v6.68b~c，静态校验，待实机验证）
+
+| 项 | 实现 |
+|---|---|
+| 空格开关 | `Battlefield._input` 把 KEY_SPACE 提到面板/过场判断之前；结算页/确认页/输入框仍优先。开关先于任何 await 生效，不再被对话、淡入淡出、攻击菜单吞掉 |
+| 待生效重试 | `AllyAutoBattleManager._desired` 为唯一真值；面板/表演/敌方回合期间只登记 `_pending_start`，`_process` 每 0.15s 重试，我方回合到来自动启动；HUD 显示「自动战斗待生效」。胜利/战斗清理统一走 `disable_auto_battle()`，避免新旧场景状态错位 |
+| 面板强制收起 | 开关切换时 `Battlefield.force_close_transient_ui()` 收起攻击菜单与设置/队伍面板；`DragMoveController.force_close_attack_menu()` 用 `popup.hide()` 走原清理回调 |
+| 我方流水线 | 主循环统一走 `_can_run()`（对话/道具弹窗/攻击菜单/确认框/结算页/表演/过场），不再只看 `is_moving`；移动等待改有界轮询，超时强制解锁；每次 await 后校验 `_run_serial`，关闭或换回合后旧协程不再改状态 |
+| 敌方流水线 | `EnemyAI` 加 `_run_serial` + `AI_WATCHDOG_MS=15000`，队列卡住自动收尾并 `ai_queue_finished`；对话等待有界；每个任务 await 后校验序列；回合结束残留敌方单位统一置灰 |
+| UI 一致性 | `EquipmentConfig._create_talent_button` 空槽去掉 0.5 灰化与地图态色调，字号覆写为 `Style.FONT_SMALL`，边框/尺寸/文字与防具空槽一致；地图态灰化只作用于已装备技能。★ v6.68d `_create_advanced_talent_button` 同步：空槽文案「无」→「空」、字号 `FONT_TINY`→`FONT_SMALL`、去灰化，已获得的转职技能仍保持锁定 |
+| 轮盘速度（v6.68f） | `SlotMachineUI` 加/减速全部读 `economy_config.slot_machine`：`base_interval=0.12`、`min_interval=0.055`、`accel_per_sec=0.14`、`decel_step=0.035`、`decel_ticks=6`、`max_interval=0.20`；`_eff_scale()` 把缓速发条的 0.5 夹到 `slow_relic_min_scale=0.7`，避免加/减速翻倍。约 0.45s 到最快、0.9s 完成减速（带遗物约 1.3s） |
+| 遗物悬停（v6.68e/g/h） | 防具 roll 界面遗物槽移除 `tooltip_text`，不再弹原生气泡文字；悬停只显示 `ItemDetailPopup` 信息面板，口径与装备界面遗物槽一致。v6.68g：改为父节点下同级 `CanvasLayer`（layer 31）并绕过 reveal Shader 动画直接显示，销毁时回收。★ v6.68h/i：面板位置移到左侧红框区并微调边界（400×240 基准 `(13,55)-(119,214)`）；悬停面板时右键调 `Globals.toggle_info_mode()` 并立即重刷，切换玩法/叙事信息，与装备界面右键口径一致 |
+| 重掷范围（v6.68c） | 唯一 1 次免费重掷**只给开局技能 roll**；防具 roll 移除 `_offer_reroll_or_accept` / `_do_free_reroll`，停轮后直接进落位界面，不消耗也不提示重掷 |
+| 重掷确认 | 技能模式「接受技能 / 重掷 1/1」从卡片式 `show_choice` 改为 `Globals.show_confirm` 标准 ConfirmUI 双按钮；`ConfirmUI` / `Globals.show_confirm` 新增 `esc_cancel` 参数，本场景关闭 ESC/右键的取消语义，避免误触消耗唯一重掷次数 |
+
+**待实测**：空格在对话/过场中的即时反馈、自动战斗与手动接管切换是否干净、敌方看门狗 15s 是否过长或过短、ConfirmUI 新参数不影响其他调用点。
+
 
 **文档结束。**

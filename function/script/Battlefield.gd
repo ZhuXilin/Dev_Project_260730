@@ -462,6 +462,9 @@ func _update_hint_label():
 
 	# 0.5 自动战斗提示（轮流播报，不再提示中键）
 	if Globals.is_auto_battle:
+		if _auto_battle_manager and _auto_battle_manager.is_pending():
+			hint_label.text = "自动战斗待生效（空格键关闭）"
+			return
 		var cycle = int(Time.get_ticks_msec() / 3000.0) % 2
 		if cycle == 0:
 			hint_label.text = "空格键取消自动战斗"
@@ -640,8 +643,7 @@ func _exit_tree():
 		WaveManager.reset()
 		_disconnect_wave_signals()
 
-	if Globals.is_auto_battle:
-		Globals.is_auto_battle = false
+	disable_auto_battle()
 
 	_on_clear_blood_orbs()
 
@@ -754,6 +756,21 @@ func _watchdog_check_input_lock() -> void:
 
 
 func _input(event: InputEvent):
+	# ★ v6.68b：空格是自动战斗专用开关，先于面板/过场判断处理，
+	#   避免被攻击菜单、对话、await 链或过场标志吞掉。结算/确认页优先。
+	if event is InputEventKey and event.pressed and not event.echo \
+			and event.keycode == KEY_SPACE:
+		var focus = get_viewport().gui_get_focus_owner()
+		if focus is LineEdit or focus is TextEdit:
+			return
+		if Globals.is_confirm_ui_active or Globals.is_reward_summary_active:
+			return
+		if victory_panel and victory_panel.visible:
+			return
+		_toggle_auto_battle()
+		get_viewport().set_input_as_handled()
+		return
+
 	# ★ 若攻击菜单激活，拦截除了鼠标点击外的所有快捷键、滚轮和中键
 	if Globals.is_attack_menu_active:
 		if event is InputEventKey and event.pressed and not event.echo:
@@ -776,18 +793,6 @@ func _input(event: InputEvent):
 				_end_player_turn()
 				get_viewport().set_input_as_handled()
 				return
-
-	# 自动战斗开关：Space 键
-	if event is InputEventKey and event.pressed and not event.echo \
-			and event.keycode == KEY_SPACE:
-		if Globals.is_item_get_popup_active:
-			return
-		var focus = get_viewport().gui_get_focus_owner()
-		if focus is LineEdit or focus is TextEdit:
-			return
-		_toggle_auto_battle()
-		get_viewport().set_input_as_handled()
-		return
 
 	if Globals.is_item_get_popup_active:
 		return
@@ -900,6 +905,8 @@ func _on_player_movement_finished(unit: Unit):
 	TurnManager.on_movement_finished(unit)
 	CombatManager.drop_ash_tile(unit)     # ★ v6.2 灰烬：离开的格子留下地块
 	CombatManager.trigger_ash_tile(unit)  # ★ v6.2 灰烬：踩中敌方地块受伤
+	if PositionManager.zoc_stop_on_enter() and PositionManager.is_zoc_cell(unit, unit.grid_cell):
+		SignalBus.request_hint_override.emit(PositionManager.zoc_hint(), 1.0)  # ★ v6.68 ZOC
 	camera_controller.follow_mouse()
 	SignalBus.request_clear_highlight.emit()
 	ItemBattlefieldManager.try_pickup(unit)
@@ -910,6 +917,8 @@ func _on_ai_movement_finished(unit: Unit):
 	TurnManager.on_ai_movement_finished(unit)
 	CombatManager.drop_ash_tile(unit)
 	CombatManager.trigger_ash_tile(unit)
+	if PositionManager.zoc_stop_on_enter() and PositionManager.is_zoc_cell(unit, unit.grid_cell):
+		SignalBus.request_hint_override.emit(PositionManager.zoc_hint(), 1.0)  # ★ v6.68 ZOC
 	camera_controller.follow_mouse()
 	SignalBus.request_clear_highlight.emit()
 
@@ -2235,11 +2244,32 @@ func _try_pickup_blood_orb(unit: Unit) -> void:
 		SignalBus.request_damage_popup.emit(unit.global_position, actual, false, false, true)
 		SoundManager.play_heal_sound()
 
+func disable_auto_battle() -> void:
+	if _auto_battle_manager != null:
+		_auto_battle_manager.set_enabled(false)
+	else:
+		Globals.is_auto_battle = false
+
+
 func _toggle_auto_battle():
 	if _auto_battle_manager == null:
 		return
-	var next_on : bool = not Globals.is_auto_battle
-	_auto_battle_manager.set_enabled(next_on)
+	_auto_battle_manager.request_toggle()
+
+
+## ★ v6.68b：开启自动战斗时主动收掉会挡住操作的瞬态面板，
+##   供 AllyAutoBattleManager 在开关切换时调用。
+func force_close_transient_ui() -> void:
+	if _drag_move_controller and _drag_move_controller.has_method("force_close_attack_menu"):
+		_drag_move_controller.force_close_attack_menu()
+	if setting_panel:
+		PanelRevealer.force_hide(setting_panel)
+	if team_view_panel:
+		PanelRevealer.force_hide(team_view_panel)
+	if setting_menu_panel:
+		PanelRevealer.force_hide(setting_menu_panel)
+	SignalBus.request_hide_setting.emit()
+	SignalBus.request_hide_info.emit()
 	
 	
 ## 敌方威胁区是客观静态数据：只由当前已激活敌人的位置、移动力与射程决定，
