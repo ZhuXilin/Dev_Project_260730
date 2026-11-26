@@ -40,7 +40,7 @@ var _node_power_cache : Dictionary = {}
 @onready var soul_label = $TopBar/SoulLabel
 @onready var gold_label = $TopBar/GoldLabel
 @onready var soul_fire_label = $TopBar/SoulFireLabel
-@onready var resonance_label = $TopBar/ResonanceLabel
+# ★ v6.72：每日祝福已删除，ResonanceLabel 不再使用
 
 
 func _apply_compact_theme():
@@ -583,7 +583,7 @@ func _setup_ui():
 	if MusicManager.config and MusicManager.config.map_music:
 		MusicManager.play_music(MusicManager.config.map_music)
 	_update_soul_fire_display()
-	_show_resonance_hint()
+	# ★ v6.72：每日祝福已删除，不再显示共鸣提示
 
 
 func _restore_map_music():
@@ -1112,14 +1112,7 @@ func _update_soul_fire_display():
 	soul_fire_label.text = "魂火: %d / %d" % [cur, mx]
 
 
-func _show_resonance_hint():
-	var r : Dictionary = LevelManager.current_resonance
-	if resonance_label:
-		resonance_label.text = "" if r.is_empty() else "共鸣 " + str(r.get("display", ""))
-	if r.is_empty():
-		return
-	_show_bottom_hint("共鸣：" + str(r.get("display", "")))
-
+# ★ v6.72：每日祝福 _show_resonance_hint 已删除
 
 func _show_floating_toast(text : String):
 	var toast := Label.new()

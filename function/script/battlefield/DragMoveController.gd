@@ -792,10 +792,34 @@ func _show_attack_menu(attacker: Unit, target: Unit, _is_after_move: bool) -> vo
 	if available_skills.size() > 1:
 		available_skills = [available_skills[0]]
 
+	# ★ v6.72：找出单位的主动技能槽（slot0 基础/roll 技能），用于攻击菜单显示冷却倒数。
+	#   即使技能当前不可用（冷却中/魂火不足），也把它的状态记下来，好在菜单里灰显提示。
+	var skill_inst : TalentInstance = null
+	var skill_data = null
+	for inst in attacker.talent_slots:
+		if inst == null or not inst.is_active: continue
+		var d = TalentManager.get_talent_data(inst.talent_id)
+		if d != null and d.is_active_skill:
+			skill_inst = inst
+			skill_data = d
+			break
+	# 不可用原因：冷却中 / 魂火不足（用于灰显文案）
+	var skill_block_text : String = ""
+	if skill_inst != null and skill_data != null and available_skills.is_empty():
+		var need_cost : int = CombatManager._get_active_skill_cost(skill_data)
+		if skill_inst.cooldown_remaining > 0:
+			skill_block_text = "冷%d" % skill_inst.cooldown_remaining
+		elif not SoulFireManager.can_spend(need_cost):
+			skill_block_text = "需%d魂" % need_cost
+
 	var total_options : int = 0
 	if normal_available: total_options += 1
 	total_options += available_skills.size()
 	if emergency_available: total_options += 1
+	# ★ v6.72：冷却/魂火不足的技能作为「可见但不可点」灰显项，让玩家看到倒数。
+	#   仅当有普攻/治疗/急救等其他动作时才显示，不单独占一个菜单项。
+	var show_skill_gray : bool = skill_block_text != "" and (normal_available or emergency_available)
+	if show_skill_gray: total_options += 1
 
 	if total_options == 0:
 		if target_is_ally:
@@ -883,8 +907,16 @@ func _show_attack_menu(attacker: Unit, target: Unit, _is_after_move: bool) -> vo
 		meta_by_id[next_id] = {"kind": "attack", "skill_id": sdata.id, "is_skill": true}
 		next_id += 1
 
+	# ★ v6.72：技能冷却/魂火不足时，技能位灰显并显示倒数（如「冲锋·冷2」/「火球·需3魂」）。
+	#   不可点，只让玩家看到还要等几回合；普攻仍可用。
+	if show_skill_gray and skill_data != null:
+		popup.add_item("%s·%s" % [skill_data.display_name, skill_block_text], next_id)
+		popup.set_item_disabled(popup.item_count - 1, true)
+		meta_by_id[next_id] = {"kind": "disabled"}
+		next_id += 1
+
 	# ★ v6.71：Build 觉醒技已删除，技能位不再有觉醒项/灰显倒数。
-	# ★ v6.68j / v6.71：菜单最多两项——普攻/治疗 + 技能位。
+	# ★ v6.68j / v6.72：菜单最多两项——普攻/治疗 + 技能位（就绪可点 / 冷却灰显）。
 
 	popup.id_pressed.connect(func(id):
 		var meta : Dictionary = meta_by_id.get(id, {})

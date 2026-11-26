@@ -25,13 +25,25 @@ var _gold_color := Color(0.98, 0.75, 0.25)
 var _dim_color := Color(0.55, 0.55, 0.58)
 
 var _roll_count: int = 0
-var _quality_level: int = 0
+## ★ v6.72：防具 roll 品质等级改为跨场持久（存 GameState/SaveData）；
+##   竞技场用独立金币，品质等级保持本地（不污染主线存档）。
+##   计算属性转发，保留原有 `_quality_level` 所有使用点不变。
+var _arena_quality_level: int = 0
+var _quality_level: int:
+	get: return _arena_quality_level if _arena_mode else GameState.armor_roll_quality_level
+	set(value):
+		if _arena_mode:
+			_arena_quality_level = clampi(value, 0, 5)
+		else:
+			GameState.armor_roll_quality_level = clampi(value, 0, 5)
 var _current: Dictionary = {}          # 当前待领取防具 {item_id,quality,school,name,mechanic}
 ## ★ v6.62z：封顶二选一相关（离开结算 UI 销毁即重置，天然"每场限 1 次"）
 var _last_roll_cost: int = 0           # 本次抽取实际花费，封顶时全额退还
 var _inject_used_this_session: bool = false  # 本场是否已用过「注入词条」
-## ★ v6.68c：唯一一次免费重掷只用于开局技能 roll；防具 roll 停轮后直接落位。
-var _reroll_used_this_session: bool = false
+## ★ v6.68c / v6.72：唯一一次免费重掷只用于开局技能 roll；防具 roll 停轮后直接落位。
+##   v6.72：改为剩余次数计数（默认 1），确认框实时显示「重掷 N/M」。
+var _free_rerolls_total: int = 1
+var _free_rerolls_left: int = 1
 var _free_reroll_pending: bool = false
 ## ★ v6.66：返利硬币每场限 3 次（离开结算 UI 销毁即重置）
 var _rebate_count: int = 0
@@ -904,6 +916,7 @@ func setup_skill(unit_names: Array, unit_data_override: Array = [], roll_count: 
 		str(_unit_names), _skills.size(), _unit_override.size()])
 	_index = 0
 	_placed_skills.clear()
+	_free_rerolls_left = _free_rerolls_total   # ★ v6.72：每次开局重置重掷次数
 	_skill_mode = true
 	# _ready 可能已建过 UI；避免重复构建
 	if _unit_row == null:
@@ -1127,22 +1140,39 @@ func _sk_on_machine_stopped(entry: Dictionary) -> void:
 		_msg.add_theme_color_override("font_color", _dim_color)
 		_machine.setup(entries, "主动技能轮盘 · 第 %d 次" % (_index + 1))
 		return
-	# ★ v6.68b：技能重掷二选一直接复用 ConfirmUI 标准确认框（不再自建卡片式选择面板）。
+	# ★ v6.68b / v6.72：技能重掷二选一复用 ConfirmUI 标准确认框，
+	#   ★ v6.72：确认框内展示本次抽到的技能（图标 + 名字 + 描述），与 roll 结果界面口径一致，
+	#   让玩家在"接受/重掷"前先看清抽到了什么。
 	#   左键二选一；关闭 ESC/右键的"取消"语义，避免误触把确认当重掷。
-	if not _reroll_used_this_session:
-		Globals.show_confirm(self, "本次技能抽取：接受结果，还是免费重掷 1/1？",
-			"接受技能", "重掷 1/1",
+	if _free_rerolls_left > 0:
+		var reroll_label : String = "重掷 %d/%d" % [_free_rerolls_left, _free_rerolls_total]
+		var confirm_ui = Globals.show_confirm(self,
+			"本次技能抽取——接受，还是免费重掷？剩余 %d 次" % _free_rerolls_left,
+			"接受技能", reroll_label,
 			func(): _sk_apply_entry(entry),
 			func(): _sk_do_free_reroll(),
 			true, false)
+		# v6.72：在确认框里展示抽到的技能（图标+名字+描述），同 roll 结果条目
+		if confirm_ui != null and confirm_ui.has_method("set_reward_detail"):
+			var skill_name : String = str(entry.get("name", ""))
+			var skill_desc : String = str(entry.get("desc", ""))
+			# 与 roll 结果界面一致：补一行流派倾向（纯方向提示，不加 Lv）
+			var skill_affinity : String = BuildManager.get_school_of_skill(str(entry.get("id", "")))
+			if skill_affinity != "":
+				skill_desc += "\n倾向·%s" % skill_affinity
+			var skill_icon : Texture2D = entry.get("icon") as Texture2D
+			var skill_color : Color = Color(0.85, 0.85, 0.9)
+			if entry.get("color") is Color:
+				skill_color = entry.get("color") as Color
+			confirm_ui.set_reward_detail(skill_icon, skill_name, skill_desc, skill_color)
 		return
 	_sk_apply_entry(entry)
 
 
 func _sk_do_free_reroll() -> void:
-	if _reroll_used_this_session or _machine == null:
+	if _free_rerolls_left <= 0 or _machine == null:
 		return
-	_reroll_used_this_session = true
+	_free_rerolls_left -= 1
 	_free_reroll_pending = true
 	var entries: Array = _sk_build_entries()
 	if entries.is_empty():
@@ -1209,28 +1239,28 @@ func _sk_show_units(tid: String) -> void:
 		name_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		card.add_child(name_lbl)
 
-		# ★ v6.21：头像下方的流派方向文字，颜色与流派一致。
-		#   ① 本次 roll 技能的共鸣流派（让玩家看懂这张技能属于哪个流派方向）；
+		# ★ v6.21 / v6.72：头像下方的流派方向文字，颜色与流派一致。
+		#   ① 本次 roll 技能的流派倾向（纯方向提示，共鸣已删除、不加 Lv）；
 		#   ② 该单位已觉醒的流派（开局通常为空）。都用各自流派色，方便对应。
 		var school_row := HBoxContainer.new()
 		school_row.alignment = BoxContainer.ALIGNMENT_CENTER
 		school_row.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 		school_row.add_theme_constant_override("separation", 3)
 
-		var resonance := BuildManager.get_school_of_skill(tid)
+		var affinity := BuildManager.get_school_of_skill(tid)
 		var mechs := BuildManager.get_unit_mechanisms(ud)
-		if resonance == "" and mechs.is_empty():
+		if affinity == "" and mechs.is_empty():
 			var none_lbl := Label.new()
 			none_lbl.text = "无流派"
 			none_lbl.add_theme_font_size_override("font_size", FS_SMALL)
 			none_lbl.add_theme_color_override("font_color", _dim_color)
 			school_row.add_child(none_lbl)
 		else:
-			if resonance != "":
+			if affinity != "":
 				var rl := Label.new()
-				rl.text = "共鸣·%s" % resonance
+				rl.text = "倾向·%s" % affinity
 				rl.add_theme_font_size_override("font_size", FS_SMALL)
-				rl.add_theme_color_override("font_color", BuildManager.get_school_color(resonance))
+				rl.add_theme_color_override("font_color", BuildManager.get_school_color(affinity))
 				school_row.add_child(rl)
 			for m in mechs:
 				var ml := Label.new()

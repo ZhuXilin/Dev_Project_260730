@@ -17,8 +17,9 @@ class_name TalentData
 
 @export var is_active_skill: bool = false
 @export var skill_cooldown: int = 0
-## v6.2：主动技能 × 流派共鸣标签（六流派之一；空 = 不共鸣）
-@export var resonance_school: String = ""
+## v6.72：技能流派倾向（六流派之一；空 = 无倾向）。
+## 纯数据字段，仅供软保底挑技能 / roll 卡方向提示，不参与任何战斗数值（共鸣已删除）。
+@export var school_affinity: String = ""
 
 @export var unlock_type: String = "default"
 @export var soul_cost: int = 0

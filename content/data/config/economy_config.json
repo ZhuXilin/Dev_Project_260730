@@ -19,15 +19,15 @@
 	"decel_step": 0.035,
 	"decel_ticks": 6,
 	"max_interval": 0.20,
-    "slow_relic_min_scale": 0.7
+	"slow_relic_min_scale": 0.7
   },
 
   "soft_pity": {
-    "_doc": "v6.70/v6.70b 方案E 软保底（隐藏概率修正，不改规则表述）：armor_miss_threshold=防具连续 N 次未出新流派后提高未拥有流派权重（v6.70b 由 2 前移到 1，首次未出即触发）；armor_boost_mult=命中阈值后未拥有流派候选的额外权重倍率；skill_last_roll_guarantee=最后一次技能 roll 优先保留能衔接消费链的技能；max_day=仅在当前天数<=该值时生效（窗口覆盖第一天起）。",
-    "armor_miss_threshold": 1,
-    "armor_boost_mult": 3.0,
-    "skill_last_roll_guarantee": true,
-    "max_day": 2
+	"_doc": "v6.70/v6.70b 方案E 软保底（隐藏概率修正，不改规则表述）：armor_miss_threshold=防具连续 N 次未出新流派后提高未拥有流派权重（v6.70b 由 2 前移到 1，首次未出即触发）；armor_boost_mult=命中阈值后未拥有流派候选的额外权重倍率；skill_last_roll_guarantee=最后一次技能 roll 优先保留能衔接消费链的技能；max_day=仅在当前天数<=该值时生效（窗口覆盖第一天起）。",
+	"armor_miss_threshold": 1,
+	"armor_boost_mult": 3.0,
+	"skill_last_roll_guarantee": true,
+	"max_day": 2
   },
 
   "shop": {
@@ -36,6 +36,8 @@
 	"reset_step": 50,
 	"max_level": 5,
 	"upgrade_costs": [100, 300, 900, 1800, 3500],
+	"roll_upgrade_costs": [150, 350, 650, 1000, 1400],
+	"_roll_upgrade_doc": "v6.72：防具 roll 品质升级独立曲线（与魂栈商店 upgrade_costs 分离）。等级跨场持久，累计 150/500/1150/2150/3550——第一天升到 lv3，第二天初 lv4，第二天中后期满级 lv5。",
 	"roll_cost_floor": 30,
 	"quality_weights": [
 	  { "common": 60, "rare": 30, "epic": 10, "legendary": 0 },

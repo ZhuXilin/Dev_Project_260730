@@ -2,7 +2,7 @@ extends Node
 
 signal all_levels_completed()
 signal all_days_completed()
-signal flame_resonance_rolled(resonance: Dictionary)
+# ★ v6.72：flame_resonance_rolled 信号已删除（每日祝福系统移除）
 
 const UNIT_LEVEL_MAP_PATH = "res://content/scenes/levels/UnitLevelMap.tres"
 const DEFAULT_FACTION = "王国"
@@ -14,16 +14,7 @@ var current_level_index: int = 0
 var is_map_mode: bool = false
 var current_day: int = 0
 
-# ★ 批次 1：火焰共鸣
-var current_resonance : Dictionary = {}
-var _resonance_pool : Array = [
-	{"type": "attack_percent",    "value": 0.05, "display": "攻击 +5%"},
-	{"type": "soul_fire_max",     "value": 1,    "display": "魂火上限 +1"},
-	{"type": "soul_fire_initial", "value": 1,    "display": "初始魂火 +1"},
-	{"type": "crit_damage",       "value": 0.10, "display": "暴击伤害 +10%"},
-	{"type": "defense_flat",      "value": 1,    "display": "防御 +1"},
-	{"type": "heal_bonus",        "value": 0.15, "display": "治疗量 +15%"},
-]
+# ★ v6.72：每日祝福（火焰共鸣）已删除——current_resonance / _resonance_pool 一并移除
 
 
 func _ready():
@@ -176,7 +167,7 @@ func advance_day() -> bool:
 	GameState.visited_nodes.clear()
 	GameState.cached_map_level_data = null
 	GameState.cached_day = -1
-	_roll_flame_resonance()   # ★ 批次 1
+	# ★ v6.72：过天不再 roll 每日祝福
 	return true
 
 
@@ -186,7 +177,7 @@ func start_game():
 	current_day = 0
 	is_map_mode = true
 	Globals.is_map_mode = true
-	_roll_flame_resonance()   # ★ 批次 1
+	# ★ v6.72：开局不再 roll 每日祝福
 	get_tree().change_scene_to_file("res://content/scenes/ui/MapScene.tscn")
 
 
@@ -246,17 +237,4 @@ func reset():
 	current_day = 0
 	current_level_index = 0
 	is_map_mode = false
-	current_resonance = {}   # ★ 批次 1
-
-
-# ============================================================
-#  火焰共鸣（批次 1）
-# ============================================================
-func _roll_flame_resonance():
-	if _resonance_pool.is_empty():
-		current_resonance = {}
-		return
-	var pick : Dictionary = _resonance_pool[randi() % _resonance_pool.size()]
-	current_resonance = pick.duplicate()
-	print("[火焰共鸣] 第 %d 天：%s" % [current_day + 1, pick.get("display", "")])
-	flame_resonance_rolled.emit(current_resonance)
+	# ★ v6.72：每日祝福已删除，无需重置 current_resonance

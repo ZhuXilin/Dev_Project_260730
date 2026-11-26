@@ -33,16 +33,13 @@ const SCHOOLS: Dictionary = {
 const SCHOOL_ORDER: Array = ["烈焰", "轮回", "灰烬", "守护", "献祭", "余烬"]
 
 ## ============================================================
-##  v6.2 主动技能 × 流派共鸣
+##  流派机制 Lv 上限 + 技能流派倾向（原共鸣已删除，v6.72）
 ## ============================================================
-##  口径（唯一）：单位身上有「共鸣流派 = 该流派」的主动技能时，
-##  该流派的战斗机制按「有效 Lv = 防具 Lv + 1」结算，上限 4。
-##  - 不新增第二套数值曲线：共鸣只借用已有的 Lv1~Lv4 机制表；
-##  - 不叠层：同流派多个技能也只 +1；不占槽、不写存档；
-##  - 技能标签写在 talents.json 的 resonance_school 字段；
-##    下表只作旧数据 / 新建技能遗漏字段时的兜底。
-const RESONANCE_LEVEL_BONUS: int = 1
-const RESONANCE_MAX_LEVEL: int = 4
+##  v6.72：删除「技能让流派有效 Lv +1」的共鸣机制。
+##  流派 Lv 现在只由防具机制决定（Lv1~4）；技能不再加 Lv。
+##  下表保留为「技能流派倾向」的兜底，仅供软保底与方向提示使用，
+##  不再参与任何战斗数值。主数据来自 talents.json 的 school_affinity 字段。
+const SCHOOL_MECH_MAX_LEVEL: int = 4
 const SCHOOL_BY_SKILL: Dictionary = {
 	"active_fireball": "烈焰",
 	"active_dragon_breath": "灰烬",
@@ -78,7 +75,9 @@ const QUALITY_CAP: Dictionary = {"common": 2, "rare": 3, "epic": 4, "legendary":
 ## 价格兜底（读取 economy_config.json 失败时使用）
 const FALLBACK_ROLL_BASE: int = 100
 const FALLBACK_ROLL_STEP: int = 50
-const FALLBACK_UPGRADE_COSTS: Array = [100, 300, 900, 1800, 3500]
+const FALLBACK_UPGRADE_COSTS: Array = [100, 300, 900, 1800, 3500]  # 魂栈商店等级（共用旧键，不动）
+## ★ v6.72：防具 roll 品质升级独立曲线（跨场持久，第二天初中期到顶）
+const FALLBACK_ROLL_UPGRADE_COSTS: Array = [150, 350, 650, 1000, 1400]
 const FALLBACK_ROLL_COST_FLOOR: int = 30
 ## ★ v6.62z：每场战斗首次防具 roll 固定 50G（不参与 100+50n 递增）
 const FIRST_ROLL_COST: int = 50
@@ -298,66 +297,24 @@ func _unit_data_of(unit) -> UnitData:
 	return null
 
 
-## 技能 → 共鸣流派：优先读数据字段，缺失时读兜底表。
+## 技能 → 流派倾向（纯数据，v6.72）：仅供软保底挑选/roll 卡方向提示，
+##   不再参与任何战斗数值（共鸣已删除）。优先读数据字段，缺失读兜底表。
 func get_school_of_skill(talent_id: String) -> String:
 	if talent_id == "":
 		return ""
 	var data: TalentData = TalentManager.get_talent_data(talent_id)
-	if data != null and is_school(data.resonance_school):
-		return data.resonance_school
+	if data != null and is_school(data.school_affinity):
+		return data.school_affinity
 	return str(SCHOOL_BY_SKILL.get(talent_id, ""))
 
 
-## 单位当前装备的主动技能 id（第 1 格 roll + 第 2 格转职；只读取用）。
-func _unit_skill_ids(unit) -> Array:
-	var ids: Array = []
-	if unit == null:
-		return ids
-	var slots_v: Variant = null
-	if unit is UnitData:
-		slots_v = (unit as UnitData).talent_slots
-	else:
-		slots_v = unit.get("talent_slots")
-	if slots_v is Array:
-		for inst in (slots_v as Array):
-			if inst == null:
-				continue
-			if inst is TalentInstance and not (inst as TalentInstance).is_active:
-				continue
-			var tid: String = str(inst.get("talent_id"))
-			if tid != "" and not ids.has(tid):
-				ids.append(tid)
-	# ★ v6.8：第 2 格转职技能也参与流派共鸣
-	var adv_v: Variant = unit.get("advanced_talent_inst")
-	if adv_v is TalentInstance:
-		var adv: TalentInstance = adv_v as TalentInstance
-		if adv.is_active:
-			var adv_tid: String = str(adv.talent_id)
-			if adv_tid != "" and not ids.has(adv_tid):
-				ids.append(adv_tid)
-	return ids
-
-
-func has_skill_resonance(unit, school: String) -> bool:
-	if not is_school(school):
-		return false
-	for tid in _unit_skill_ids(unit):
-		if get_school_of_skill(str(tid)) == school:
-			return true
-	return false
-
-
-## 共鸣生效后的 Lv；无该机制返回 0，绝不为「只有技能没有防具」凭空开机制。
+## 流派有效 Lv（v6.72：= 防具机制 Lv，共鸣 +1 已删除）。
+##   保留此函数壳是为了战斗层几十处调用点无需改动；语义现在是"直接返回防具 Lv"。
 func get_effective_school_level(unit, school: String) -> int:
-	var lv: int = get_school_level(_unit_data_of(unit), school)
-	if lv <= 0:
-		return 0
-	if has_skill_resonance(unit, school):
-		return mini(lv + RESONANCE_LEVEL_BONUS, RESONANCE_MAX_LEVEL)
-	return lv
+	return get_school_level(_unit_data_of(unit), school)
 
 
-## 烈焰有效 Lv（战斗层旧接口，语义升级为含共鸣）。
+## 烈焰有效 Lv（战斗层旧接口）。
 func get_flame_level(unit) -> int:
 	return get_effective_school_level(unit, "烈焰")
 
@@ -366,14 +323,14 @@ func get_flame_level(unit) -> int:
 func get_flame_burn_ratio(level: int) -> float:
 	if level <= 0:
 		return 0.0
-	return 0.15 + 0.10 * float(mini(level, RESONANCE_MAX_LEVEL) - 1)
+	return 0.15 + 0.10 * float(mini(level, SCHOOL_MECH_MAX_LEVEL) - 1)
 
 
 ## 守护：受击反弹比例，触发格挡时翻倍（在 CombatManager 处理）
 func get_guard_reflect_ratio(level: int) -> float:
 	if level <= 0:
 		return 0.0
-	return 0.30 + 0.15 * float(mini(level, RESONANCE_MAX_LEVEL) - 1)
+	return 0.30 + 0.15 * float(mini(level, SCHOOL_MECH_MAX_LEVEL) - 1)
 
 
 ## 轮回：击杀额外回魂火（_on_kill 已有命中 +1，此处是额外量）
@@ -387,27 +344,27 @@ func get_cycle_soul_gain(level: int) -> int:
 func get_sacrifice_hp_cost_ratio(level: int) -> float:
 	if level <= 0:
 		return 0.0
-	return 0.03 + 0.01 * float(mini(level, RESONANCE_MAX_LEVEL) - 1)
+	return 0.03 + 0.01 * float(mini(level, SCHOOL_MECH_MAX_LEVEL) - 1)
 
 
 func get_sacrifice_attack_bonus(level: int) -> float:
 	if level <= 0:
 		return 0.0
-	return 0.10 + 0.05 * float(mini(level, RESONANCE_MAX_LEVEL) - 1)
+	return 0.10 + 0.05 * float(mini(level, SCHOOL_MECH_MAX_LEVEL) - 1)
 
 
 ## 灰烬：移动后在起点留下燃烧地块，敌人踩中受伤（一次性）
 func get_ash_tile_damage(level: int) -> int:
 	if level <= 0:
 		return 0
-	return 3 + 2 * (mini(level, RESONANCE_MAX_LEVEL) - 1)
+	return 3 + 2 * (mini(level, SCHOOL_MECH_MAX_LEVEL) - 1)
 
 
 ## 余烬：魂火耗尽后下一次攻击必暴，并追加暴伤
 func get_ember_crit_bonus(level: int) -> float:
 	if level <= 0:
 		return 0.0
-	return 0.10 * float(mini(level, RESONANCE_MAX_LEVEL))
+	return 0.10 * float(mini(level, SCHOOL_MECH_MAX_LEVEL))
 
 
 # ============================================================
@@ -452,15 +409,12 @@ func get_breakthroughs(unit, school: String) -> Array:
 
 
 
-## BuildViewer / 提示统一文案
+## BuildViewer / 提示统一文案（v6.72：共鸣 +1 已删除，只显示防具机制 Lv）
 func get_effective_mechanic_text(unit, school: String) -> String:
-	var base: int = get_school_level(_unit_data_of(unit), school)
-	var eff: int = get_effective_school_level(unit, school)
-	if base <= 0:
+	var lv: int = get_school_level(_unit_data_of(unit), school)
+	if lv <= 0:
 		return ""
-	if eff > base:
-		return "%s Lv%d（共鸣 +1）· %s" % [school, eff, get_school_mechanic(school)]
-	return "%s Lv%d · %s" % [school, eff, get_school_mechanic(school)]
+	return "%s Lv%d · %s" % [school, lv, get_school_mechanic(school)]
 
 
 # ============================================================
@@ -907,7 +861,7 @@ func _find_party_unit(unit_key: String) -> UnitData:
 ## ★ v6.71：该单位是否还能接受一次 roll 落位。
 ##   开局 slot0 是基础技能（可替换）；一旦落过 roll（soul_skill 替换 或 basic_attack 强化）
 ##   就不再接受第二次。basic_attack 不占 slot0，但用 basic_enhancements 标记"已 roll 过"。
-static func is_skill_slot_replaceable(unit: UnitData) -> bool:
+func is_skill_slot_replaceable(unit: UnitData) -> bool:
 	if unit == null:
 		return false
 	# 已用 basic_attack 模板强化过普攻 → 本次 roll 机会已用
@@ -979,7 +933,7 @@ func roll_active_skills(unit_names: Array, count: int = 3, unit_data_override: A
 	if result.size() > count:
 		result = result.slice(0, count)
 	# ★ v6.70 方案E：软保底——开局技能最后一次 roll 优先保证至少一张能衔接
-	#   已有消费链的技能（共鸣流派 ∈ 队伍已觉醒流派）。仅窗口期内、且未满足时替换末张。
+	#   已有消费链的技能（流派倾向 ∈ 队伍已觉醒流派）。仅窗口期内、且未满足时替换末张。
 	if _pity_skill_last_guarantee and _is_pity_window() and result.size() > 0:
 		var owned: Dictionary = _owned_school_set()
 		var has_chain: bool = false
@@ -1002,7 +956,7 @@ func roll_active_skills(unit_names: Array, count: int = 3, unit_data_override: A
 	return result
 
 
-## ★ v6.70：找一个共鸣流派属于已觉醒流派、且兼容本次 roll 单位的技能（软保底替换用）。
+## ★ v6.70：找一个流派倾向属于已觉醒流派、且兼容本次 roll 单位的技能（软保底替换用）。
 func _find_chain_skill(owned: Dictionary, units: Array, exclude: Array) -> String:
 	TalentManager.load_talent_data()
 	var fallback: String = ""
@@ -1228,8 +1182,10 @@ func get_roll_gold_rebate(cost_paid: int) -> int:
 	return maxi(0, int(round(float(cost_paid) * clampf(rate, 0.0, 1.0))))
 
 
+## ★ v6.72：防具 roll 品质升级用独立曲线 roll_upgrade_costs，
+##   与魂栈商店等级 upgrade_costs 分离（后者保持不变）。
 func get_upgrade_cost(quality_level: int) -> int:
-	var costs: Array = _shop.get("upgrade_costs", FALLBACK_UPGRADE_COSTS)
+	var costs: Array = _shop.get("roll_upgrade_costs", FALLBACK_ROLL_UPGRADE_COSTS)
 	if quality_level < 0 or quality_level >= costs.size():
 		return -1
 	return int(costs[quality_level])
@@ -1284,13 +1240,19 @@ func _is_pity_window() -> bool:
 	return GameState.current_day <= _pity_max_day
 
 ## ★ v6.70：队伍已觉醒流派集合（从 UnitData.mechanisms 读取）。
+##   ★ v6.71 修复：get_unit_mechanisms 返回 Array[Dictionary]，必须取 s["school"]，
+##     旧代码 owned[str(s)] 把整个字典字符串化当 key，导致 owned.has("烈焰") 恒 false，
+##     技能/防具两处软保底全部空转。
 func _owned_school_set() -> Dictionary:
 	var owned: Dictionary = {}
 	for u in GameState.get_party_units():
 		if u == null:
 			continue
 		for s in get_unit_mechanisms(u):
-			owned[str(s)] = true
+			if s is Dictionary:
+				var school_name : String = str((s as Dictionary).get("school", ""))
+				if school_name != "":
+					owned[school_name] = true
 	return owned
 
 func roll_armor(quality_level: int) -> Dictionary:
@@ -1323,7 +1285,7 @@ func roll_armor(quality_level: int) -> Dictionary:
 			var d: ItemData = ItemManager.get_item_data(iid)
 			if d == null:
 				continue
-			var sid: String = str(d.id)
+			# ★ v6.72：sid 未使用（加权只用 tags），删除避免 UNUSED_VARIABLE 警告
 			var locked: Array = d.affix_schools if d.affix_schools is Array else []
 			var pool_tags: Array = locked if not locked.is_empty() else d.tags
 			var fresh: bool = false

@@ -5,6 +5,8 @@ var npc_affinity : Dictionary = {}
 
 var soul : int = 0
 var temp_gold : int = 0
+## ★ v6.72：防具 roll 品质等级跨场持久（不再每场战斗归零）
+var armor_roll_quality_level : int = 0
 var keys : int = 0
 var keys_bought : int = 0
 

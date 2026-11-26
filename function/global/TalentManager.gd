@@ -53,7 +53,8 @@ static func load_talent_data():
 		talent.soul_cost = int(dict.get("soul_cost", 0))
 		talent.is_active_skill = bool(dict.get("is_active_skill", false))
 		talent.skill_cooldown = int(dict.get("skill_cooldown", 0))
-		talent.resonance_school = str(dict.get("resonance_school", ""))
+		# ★ v6.72：共鸣字段改名 school_affinity（纯流派倾向数据，不再加 Lv）
+		talent.school_affinity = str(dict.get("school_affinity", dict.get("resonance_school", "")))
 		talent.tutorial_stage = int(dict.get("tutorial_stage", 3))
 		# ★ v6.71：技能池三层新字段
 		talent.anchor = str(dict.get("anchor", ""))
@@ -176,9 +177,12 @@ static func reset_talent(unit, talent_id: String):
 	var inst = get_talent_instance(unit, talent_id)
 	if not inst: return
 	inst.reset()
+	# ★ v6.72：优先读新字段 cooldown（兼容旧 cooldown_after_trigger），
+	#   让 v6.71 全量迁移的字段真正生效；否则改 JSON 的 cooldown 不起作用。
 	var cd = get_cooldown_after_trigger(talent_id)
 	var data = get_talent_data(talent_id)
 	if data:
+		cd = data.get_cooldown()   # 新字段优先，内部回退 cooldown_after_trigger
 		var reduction : int = int(data.effect_params.get("cooldown_reduction", 0))
 		cd = maxi(0, cd - reduction)
 	if cd > 0:

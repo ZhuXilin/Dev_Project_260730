@@ -107,6 +107,7 @@ func _build_save_data() -> SaveData:
 	save.soul_fire_threshold_override = GameState.soul_fire_threshold_override
 	save.cycle_start_soul = GameState.cycle_start_soul
 	save.temp_gold = GameState.temp_gold
+	save.armor_roll_quality_level = GameState.armor_roll_quality_level   # ★ v6.72
 
 	save.relic_levels = GameState.relic_levels.duplicate(true)
 
@@ -220,6 +221,7 @@ func _apply_save_data(save: SaveData):
 	GameState.soul_fire_threshold_override = save.soul_fire_threshold_override
 	GameState.cycle_start_soul = save.cycle_start_soul
 	GameState.temp_gold = save.temp_gold
+	GameState.armor_roll_quality_level = save.armor_roll_quality_level   # ★ v6.72（旧档默认0，自然兼容）
 
 	GameState.relic_levels = _safe_dict(save.relic_levels)
 

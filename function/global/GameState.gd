@@ -120,6 +120,10 @@ var soul : int:
 var temp_gold : int:
 	get: return resource_state.temp_gold
 	set(value): resource_state.temp_gold = value
+## ★ v6.72：防具 roll 品质等级（跨场持久）
+var armor_roll_quality_level : int:
+	get: return resource_state.armor_roll_quality_level
+	set(value): resource_state.armor_roll_quality_level = clampi(value, 0, 5)
 var soul_fire_current : int:
 	get: return resource_state.soul_fire_current
 	set(value): resource_state.soul_fire_current = value
@@ -490,6 +494,7 @@ func clear_current_reward():
 func start_new_cycle():
 	total_run_count += 1
 	temp_gold = 0
+	armor_roll_quality_level = 0   # ★ v6.72：新局品质等级从 0 开始
 	shop_level = 0
 	sacrifice_count = 0
 	keys = 0

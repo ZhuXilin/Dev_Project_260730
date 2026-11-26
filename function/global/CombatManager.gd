@@ -339,6 +339,11 @@ func _can_follow_up(attacker: Unit, defender: Unit) -> bool:
 
 func _get_active_skill_cost(sdata) -> int:
 	if sdata == null: return SoulFireManager.COST_SKILL_MIN
+	# ★ v6.72：优先读新字段 cost（兼容旧 effect_params.soul_fire_cost），
+	#   让 v6.71 全量迁移的字段真正生效。
+	if sdata is TalentData:
+		var new_cost : int = (sdata as TalentData).get_cost()
+		if new_cost > 0: return new_cost
 	var ep : Dictionary = sdata.effect_params if sdata.effect_params else {}
 	var explicit : int = int(ep.get("soul_fire_cost", 0))
 	if explicit > 0: return explicit
@@ -904,9 +909,15 @@ func _execute_heal(attacker: Unit, defender: Unit, forced_skill_id: String = "")
 		var skill_data = TalentManager.get_talent_data(forced_skill_id)
 		if skill_data:
 			var mass_pct = float(skill_data.effect_params.get("mass_heal_percent", 0.0))
+			var cost : int = _get_active_skill_cost(skill_data)
+			# ★ v6.72：治疗技能付费成功后就进冷却（不再只在 mass_heal_percent>0 分支写），
+			#   否则未来新增单体主动治疗技能时冷却永远不生效。
+			if mass_pct <= 0.0 and SoulFireManager.can_spend(cost):
+				TalentManager.consume_active_skill(attacker, forced_skill_id)
+				SoulFireManager.spend(cost)
 			if mass_pct > 0.0:
-				var cost : int = _get_active_skill_cost(skill_data)
 				if SoulFireManager.can_spend(cost):
+					TalentManager.consume_active_skill(attacker, forced_skill_id)
 					var mass_heal = int(actual_heal * mass_pct)
 					for u in UnitManager.unit_list:
 						if u.unit_stats.team_id != attacker.unit_stats.team_id: continue
@@ -917,13 +928,12 @@ func _execute_heal(attacker: Unit, defender: Unit, forced_skill_id: String = "")
 						if real > 0:
 							u.update_hp_label()
 							SignalBus.request_damage_popup.emit(u.global_position, real, false, false, true)
-					TalentManager.consume_active_skill(attacker, forced_skill_id)
 					SoulFireManager.spend(cost)
 					SignalBus.request_hint_override.emit(
 						"%s 消耗 %d 魂火" % [skill_data.display_name, cost], 1.2)
 				else:
 					SignalBus.request_hint_override.emit(
-						"魂火不足（需 %d），%s 未发动" % [cost, skill_data.display_name], 1.2)
+						"魂火不足（需 %d），%s 群疗未发动" % [cost, skill_data.display_name], 1.2)
 
 	await get_tree().create_timer(PERFORMANCE_DURATION, true, false, true).timeout
 
@@ -1757,6 +1767,9 @@ func _post_attack_check(unit: Unit):
 		return
 	InputManager.selected_unit = unit
 	InputManager.interaction_phase = InputManager.Phase.IDLE
+	# ★ v6.72：技能释放后冷却数已变化——先清 hover info 缓存再刷新，
+	#   否则鼠标停在同一单位时 _on_request_show_info 会 early-return，看不到新倒数。
+	SignalBus.request_hide_info.emit()
 	SignalBus.request_show_info.emit(unit)
 
 

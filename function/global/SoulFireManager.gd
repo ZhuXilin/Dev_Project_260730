@@ -61,8 +61,7 @@ func _load_config():
 
 func get_max_carried() -> int:
 	var base : int = MAX_CARRIED_LEVELS[clampi(altar_level, 0, MAX_CARRIED_LEVELS.size() - 1)]
-	if LevelManager.current_resonance.get("type", "") == "soul_fire_max":
-		base += int(LevelManager.current_resonance.get("value", 0))
+	# ★ v6.72：每日祝福已删除，不再有 soul_fire_max 加成
 
 	var flame_bonus : int = 0
 	if _has_eternal_flame():
@@ -78,8 +77,7 @@ func get_max_carried() -> int:
 
 func get_initial_soul_fire() -> int:
 	var base : int = INITIAL_LEVELS[clampi(GameState.soul_fire_initial_level, 0, INITIAL_LEVELS.size() - 1)]
-	if LevelManager.current_resonance.get("type", "") == "soul_fire_initial":
-		base += int(LevelManager.current_resonance.get("value", 0))
+	# ★ v6.72：每日祝福已删除，不再有 soul_fire_initial 加成
 	if StoryManager.get_affinity("soul_keeper") >= 15:
 		base += 1
 	return base

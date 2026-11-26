@@ -35,6 +35,8 @@ const CURRENT_VERSION = 11
 @export var soul: int = 0
 @export var cycle_start_soul: int = 0
 @export var temp_gold: int = 0
+## ★ v6.72：防具 roll 品质等级跨场持久（第一天低、第二天慢慢升到顶）
+@export var armor_roll_quality_level: int = 0
 @export var keys: int = 0
 @export var keys_bought: int = 0
 

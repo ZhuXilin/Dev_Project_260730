@@ -1099,7 +1099,21 @@ func apply_boss_form(new_stats: UnitData, hp_mode: String, min_hp: int,
 	while armor_slots.size() < max_armor_slots:
 		armor_slots.append(null)
 
+	# ★ v6.72：Boss 变形复活不要清空技能冷却——先按 id 快照旧冷却，重建后恢复。
+	#   同一场战斗内变形不应让正在冷却的技能瞬间满状态（冷却绕过 bug）。
+	var prev_cd: Dictionary = {}
+	var prev_ready: Dictionary = {}
+	for old_inst in talent_slots:
+		if old_inst and old_inst.is_active:
+			prev_cd[old_inst.talent_id] = old_inst.cooldown_remaining
+			prev_ready[old_inst.talent_id] = old_inst.is_ready
+
 	_init_talent_slots_from_data(unit_stats)
+
+	for new_inst in talent_slots:
+		if new_inst and new_inst.is_active and prev_cd.has(new_inst.talent_id):
+			new_inst.cooldown_remaining = int(prev_cd[new_inst.talent_id])
+			new_inst.is_ready = bool(prev_ready[new_inst.talent_id]) and new_inst.cooldown_remaining <= 0
 
 	var frames_path: String = _resolve_sprite_path()
 	if frames_path != "" and ResourceLoader.exists(frames_path):

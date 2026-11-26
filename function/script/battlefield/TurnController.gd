@@ -218,7 +218,7 @@ func apply_team_buffs() -> void:
 
 		unit.update_hp_label()
 
-	_apply_flame_resonance()
+	# ★ v6.72：每日祝福已删除，不再 _apply_flame_resonance
 	_apply_aura_buffs()
 	_apply_affix_buffs()
 	_apply_set_bonuses()
@@ -234,19 +234,7 @@ func _sync_auras_to_units() -> void:
 	pass
 
 
-func _apply_flame_resonance() -> void:
-	var resonance : Dictionary = LevelManager.current_resonance
-	if resonance.is_empty(): return
-	var rtype : String = resonance.get("type", "")
-	var rvalue : Variant = resonance.get("value", 0)
-	for unit in UnitManager.unit_list:
-		if unit.unit_stats.team_id != 0: continue
-		match rtype:
-			"attack_percent": unit.buff_attack_percent += float(rvalue)
-			"crit_damage":    unit.buff_crit_damage_bonus += float(rvalue)
-			"defense_flat":   unit.buff_physical_reduction += float(rvalue) * 0.01; unit.buff_magic_reduction += float(rvalue) * 0.01
-			"heal_bonus":     unit.relic_heal_bonus += float(rvalue)
-
+# ★ v6.72：每日祝福 _apply_flame_resonance 已删除
 
 func _apply_aura_buffs() -> void:
 	for unit in UnitManager.unit_list:

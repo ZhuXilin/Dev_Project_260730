@@ -349,7 +349,6 @@
     "icon": "item_115.png",
     "is_active_skill": true,
     "skill_cooldown": 2,
-    "resonance_school": "献祭",
     "accumulation_threshold": 1,
     "cooldown_after_trigger": 2,
     "effect_type": "attack",
@@ -376,7 +375,8 @@
       "远程": 1.0
     },
     "cost": 2,
-    "cooldown": 2
+    "cooldown": 2,
+    "school_affinity": "献祭"
   },
   "active_pierce": {
     "id": "active_pierce",
@@ -388,7 +388,6 @@
     "icon": "item_116.png",
     "is_active_skill": true,
     "skill_cooldown": 2,
-    "resonance_school": "余烬",
     "accumulation_threshold": 1,
     "cooldown_after_trigger": 2,
     "effect_type": "attack",
@@ -415,7 +414,8 @@
       "远程": 1.0
     },
     "cost": 2,
-    "cooldown": 2
+    "cooldown": 2,
+    "school_affinity": "余烬"
   },
   "active_heavy_slash": {
     "id": "active_heavy_slash",
@@ -427,7 +427,6 @@
     "icon": "item_117.png",
     "is_active_skill": true,
     "skill_cooldown": 2,
-    "resonance_school": "献祭",
     "accumulation_threshold": 1,
     "cooldown_after_trigger": 2,
     "effect_type": "attack",
@@ -453,7 +452,8 @@
       "远程": 1.0
     },
     "cost": 2,
-    "cooldown": 2
+    "cooldown": 2,
+    "school_affinity": "献祭"
   },
   "active_snipe": {
     "id": "active_snipe",
@@ -465,7 +465,6 @@
     "icon": "item_118.png",
     "is_active_skill": true,
     "skill_cooldown": 2,
-    "resonance_school": "余烬",
     "accumulation_threshold": 1,
     "cooldown_after_trigger": 2,
     "effect_type": "attack",
@@ -494,7 +493,8 @@
       "远程": 1.0
     },
     "cost": 3,
-    "cooldown": 2
+    "cooldown": 2,
+    "school_affinity": "余烬"
   },
   "active_dive": {
     "id": "active_dive",
@@ -506,7 +506,6 @@
     "icon": "item_119.png",
     "is_active_skill": true,
     "skill_cooldown": 2,
-    "resonance_school": "灰烬",
     "accumulation_threshold": 1,
     "cooldown_after_trigger": 2,
     "effect_type": "attack",
@@ -532,7 +531,8 @@
       "远程": 1.0
     },
     "cost": 2,
-    "cooldown": 2
+    "cooldown": 2,
+    "school_affinity": "灰烬"
   },
   "active_fireball": {
     "id": "active_fireball",
@@ -544,7 +544,6 @@
     "icon": "item_120.png",
     "is_active_skill": true,
     "skill_cooldown": 2,
-    "resonance_school": "烈焰",
     "accumulation_threshold": 1,
     "cooldown_after_trigger": 2,
     "effect_type": "attack",
@@ -570,7 +569,8 @@
       "远程": 1.0
     },
     "cost": 3,
-    "cooldown": 2
+    "cooldown": 2,
+    "school_affinity": "烈焰"
   },
   "active_mass_heal": {
     "id": "active_mass_heal",
@@ -582,7 +582,6 @@
     "icon": "item_121.png",
     "is_active_skill": true,
     "skill_cooldown": 2,
-    "resonance_school": "轮回",
     "accumulation_threshold": 1,
     "cooldown_after_trigger": 2,
     "effect_type": "heal",
@@ -608,7 +607,8 @@
       "远程": 1.0
     },
     "cost": 3,
-    "cooldown": 2
+    "cooldown": 2,
+    "school_affinity": "轮回"
   },
   "active_dragon_breath": {
     "id": "active_dragon_breath",
@@ -620,7 +620,6 @@
     "icon": "item_122.png",
     "is_active_skill": true,
     "skill_cooldown": 2,
-    "resonance_school": "灰烬",
     "accumulation_threshold": 1,
     "cooldown_after_trigger": 2,
     "effect_type": "attack",
@@ -647,7 +646,8 @@
       "远程": 1.0
     },
     "cost": 3,
-    "cooldown": 2
+    "cooldown": 2,
+    "school_affinity": "灰烬"
   },
   "active_taunt": {
     "id": "active_taunt",
@@ -659,7 +659,6 @@
     "icon": "item_123.png",
     "is_active_skill": true,
     "skill_cooldown": 3,
-    "resonance_school": "守护",
     "accumulation_threshold": 1,
     "cooldown_after_trigger": 3,
     "effect_type": "attack",
@@ -685,7 +684,8 @@
       "远程": 1.0
     },
     "cost": 2,
-    "cooldown": 3
+    "cooldown": 3,
+    "school_affinity": "守护"
   },
   "active_cleave": {
     "id": "active_cleave",
@@ -697,7 +697,6 @@
     "icon": "item_115.png",
     "is_active_skill": true,
     "skill_cooldown": 2,
-    "resonance_school": "献祭",
     "accumulation_threshold": 1,
     "cooldown_after_trigger": 2,
     "effect_type": "attack",
@@ -723,7 +722,8 @@
       "远程": 1.0
     },
     "cost": 2,
-    "cooldown": 2
+    "cooldown": 2,
+    "school_affinity": "献祭"
   },
   "active_guard_break": {
     "id": "active_guard_break",
@@ -735,7 +735,6 @@
     "icon": "item_116.png",
     "is_active_skill": true,
     "skill_cooldown": 2,
-    "resonance_school": "余烬",
     "accumulation_threshold": 1,
     "cooldown_after_trigger": 2,
     "effect_type": "attack",
@@ -760,7 +759,8 @@
       "远程": 1.0
     },
     "cost": 2,
-    "cooldown": 2
+    "cooldown": 2,
+    "school_affinity": "余烬"
   },
   "active_swift_shot": {
     "id": "active_swift_shot",
@@ -772,7 +772,6 @@
     "icon": "item_118.png",
     "is_active_skill": true,
     "skill_cooldown": 1,
-    "resonance_school": "灰烬",
     "accumulation_threshold": 1,
     "cooldown_after_trigger": 1,
     "effect_type": "attack",
@@ -797,7 +796,8 @@
       "远程": 1.0
     },
     "cost": 2,
-    "cooldown": 1
+    "cooldown": 1,
+    "school_affinity": "灰烬"
   },
   "active_whirlwind": {
     "id": "active_whirlwind",
@@ -809,7 +809,6 @@
     "icon": "item_117.png",
     "is_active_skill": true,
     "skill_cooldown": 2,
-    "resonance_school": "烈焰",
     "accumulation_threshold": 1,
     "cooldown_after_trigger": 2,
     "effect_type": "attack",
@@ -835,7 +834,8 @@
       "远程": 1.0
     },
     "cost": 3,
-    "cooldown": 2
+    "cooldown": 2,
+    "school_affinity": "烈焰"
   },
   "active_battle_cry": {
     "id": "active_battle_cry",
@@ -847,7 +847,6 @@
     "icon": "item_123.png",
     "is_active_skill": true,
     "skill_cooldown": 2,
-    "resonance_school": "守护",
     "accumulation_threshold": 1,
     "cooldown_after_trigger": 2,
     "effect_type": "attack",
@@ -872,7 +871,8 @@
       "远程": 1.0
     },
     "cost": 2,
-    "cooldown": 2
+    "cooldown": 2,
+    "school_affinity": "守护"
   },
   "active_soul_burn": {
     "id": "active_soul_burn",
@@ -884,7 +884,6 @@
     "icon": "item_120.png",
     "is_active_skill": true,
     "skill_cooldown": 2,
-    "resonance_school": "献祭",
     "accumulation_threshold": 1,
     "cooldown_after_trigger": 2,
     "effect_type": "attack",
@@ -910,7 +909,8 @@
       "远程": 1.0
     },
     "cost": 2,
-    "cooldown": 2
+    "cooldown": 2,
+    "school_affinity": "献祭"
   },
   "active_magic_pierce": {
     "id": "active_magic_pierce",
@@ -922,7 +922,6 @@
     "icon": "item_121.png",
     "is_active_skill": true,
     "skill_cooldown": 2,
-    "resonance_school": "余烬",
     "accumulation_threshold": 1,
     "cooldown_after_trigger": 2,
     "effect_type": "attack",
@@ -948,7 +947,8 @@
       "远程": 1.0
     },
     "cost": 3,
-    "cooldown": 2
+    "cooldown": 2,
+    "school_affinity": "余烬"
   },
   "active_execute": {
     "id": "active_execute",
@@ -960,7 +960,6 @@
     "icon": "item_122.png",
     "is_active_skill": true,
     "skill_cooldown": 2,
-    "resonance_school": "轮回",
     "accumulation_threshold": 1,
     "cooldown_after_trigger": 2,
     "effect_type": "attack",
@@ -986,6 +985,7 @@
       "远程": 1.0
     },
     "cost": 3,
-    "cooldown": 2
+    "cooldown": 2,
+    "school_affinity": "轮回"
   }
 }
