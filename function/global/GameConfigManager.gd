@@ -7,6 +7,7 @@ const FILES : Array = [
 	"progression_config.json",
 	"arena_config.json",
 	"progress_unlocks.json",
+	"enemy_intent.json",   # ★ v6.70e：敌人蓄力意图（位置后果 P0）
 ]
 
 var _data : Dictionary = {}   # {filename: Dictionary}

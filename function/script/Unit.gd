@@ -29,6 +29,12 @@ var abnormal_slow_rounds : int = 0
 var abnormal_free_detonate_used : bool = false
 ## ★ v6.67：击退撞墙眩晕（只在本场战斗有效，跳过行动）
 var stun_rounds : int = 0
+## ★ v6.70e：敌人蓄力意图（位置后果 P0：击退可打断；战斗内临时，不写存档）
+var intent_label : String = ""
+var intent_charge_rounds : int = 0
+var intent_rounds_left : int = 0
+var intent_release_mult : float = 1.0
+var intent_ready : bool = false
 var movement_after_attack : bool = false
 var previous_flip_h : bool = false
 var used_non_attack_item_this_turn : bool = false
@@ -44,6 +50,7 @@ var facing_dir : Vector2i = Vector2i(1, 0)
 @onready var abnormal_icons_root : Node2D = $AbnormalIcons
 var _hp_bar_visible : bool = true
 var _abnormal_icon_nodes : Dictionary = {}   # type -> Label
+var _intent_icon_node : Label = null           # ★ v6.70e：蓄力意图头顶标记
 
 # ---- Buff（v4.6：减伤率） ----
 var buff_attack_percent : float = 0.0
@@ -220,6 +227,34 @@ func refresh_abnormal_icons() -> void:
 		icon.position = Vector2(slot * 11.0, 0)
 		icon.visible = true
 		slot += 1
+	_refresh_intent_icon()
+
+
+## ★ v6.70e：供 EnemyIntentManager 在意图状态变更后刷新头顶标记。
+func refresh_intent_icon() -> void:
+	_refresh_intent_icon()
+
+
+## ★ v6.70e：刷新头顶蓄力意图标记（⚡N=还需N回合，⚡! =就绪待释放）。
+func _refresh_intent_icon() -> void:
+	if not is_instance_valid(abnormal_icons_root):
+		return
+	if intent_charge_rounds <= 0:
+		if _intent_icon_node != null and is_instance_valid(_intent_icon_node):
+			_intent_icon_node.visible = false
+		return
+	if _intent_icon_node == null or not is_instance_valid(_intent_icon_node):
+		_intent_icon_node = Label.new()
+		_intent_icon_node.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_intent_icon_node.z_index = 12
+		_intent_icon_node.add_theme_font_size_override("font_size", 7)
+		_intent_icon_node.add_theme_color_override("font_color", Color(1.0, 0.85, 0.3))
+		_intent_icon_node.add_theme_color_override("font_outline_color", Color(0, 0, 0))
+		_intent_icon_node.add_theme_constant_override("outline_size", 2)
+		abnormal_icons_root.add_child(_intent_icon_node)
+	_intent_icon_node.text = "⚡!" if intent_ready else ("⚡%d" % intent_rounds_left)
+	_intent_icon_node.position = Vector2(-6.0, -9.0)
+	_intent_icon_node.visible = true
 
 
 func _resolve_sprite_path() -> String:
@@ -1026,6 +1061,12 @@ func reset_combat_buffs():
 	abnormal_slow_rounds = 0
 	abnormal_free_detonate_used = false
 	stun_rounds = 0
+	# ★ v6.70e：蓄力意图状态清空
+	intent_label = ""
+	intent_charge_rounds = 0
+	intent_rounds_left = 0
+	intent_release_mult = 1.0
+	intent_ready = false
 	refresh_abnormal_icons()
 
 

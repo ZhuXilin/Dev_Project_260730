@@ -530,6 +530,8 @@ func _evaluate_attack(unit: Unit, allow_healer: bool = false):
 		score += _knockback_position_bonus(unit, enemy)
 		# ★ v6.68：夹击评分——目标四周已有足够我方单位时优先打，贴身可凑成夹击时次优。
 		score += _flanking_position_bonus(unit, enemy)
+		# ★ v6.70e：位置后果 P0——目标正在蓄力时，击退可打断，给高额加分（打造反制窗口）。
+		score += EnemyIntentManager.ai_interrupt_bonus(enemy)
 
 		if is_kill:
 			score += 1000
