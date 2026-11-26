@@ -437,38 +437,7 @@ func _apply_connected_group_buffs():
 
 # ============================================================
 #  回合开始钩子
+#  ★ v6.72c：删除 _apply_turn_start_auras / _apply_turn_start_aura_effect /
+#    _apply_turn_start_fusion / _apply_charge_stacks 四个无人调用的旧副本。
+#    真正生效的同名实现在 TurnManager.gd（有实际调用），本文件不再保留镜像。
 # ============================================================
-func _apply_turn_start_auras():
-	var active_auras : Dictionary = {}
-	for u in UnitManager.unit_list:
-		if u.unit_stats.team_id != 0 or u.hit_points <= 0: continue
-		for aid in u.active_auras:
-			if u.active_auras[aid]: active_auras[aid] = true
-	for aid in active_auras:
-		_apply_turn_start_aura_effect(aid)
-
-
-func _apply_turn_start_aura_effect(aid : String):
-	var d : Dictionary = AuraManager.get_aura(aid)
-	if d.is_empty(): return
-	match d.get("effect", ""):
-		"turn_start_gain_soul_fire":
-			var gain : int = int(d.get("params", {}).get("soul_fire_gain", 1))
-			SoulFireManager.add(gain)
-		_: pass
-
-
-func _apply_turn_start_fusion():
-	if SoulFireManager.current > 0: return
-	for u in UnitManager.unit_list:
-		if u.unit_stats.team_id != 0 or u.hit_points <= 0: continue
-		if u.has_fusion_effect("sacrifice_zero_recover"):
-			SoulFireManager.add(1)
-			return
-
-
-func _apply_charge_stacks():
-	for u in UnitManager.unit_list:
-		if u.unit_stats.team_id != 0 or u.hit_points <= 0: continue
-		if u.has_core_trait("charge") and not u.has_attacked:
-			u.charge_stacks = mini(u.charge_stacks + 1, 5)

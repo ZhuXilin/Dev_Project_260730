@@ -83,20 +83,12 @@
 	"accel_cost": 50
   },
 
-  "soul_altar": {
-	"weapon_forge_cost": 500
-  },
-
   "params": {
 	"drop_mult": 1.0,
 	"shop_spend": 500,
 	"craft_count": 1,
 	"melt_count": 0,
 	"melt_per": 30,
-	"melt_gold_per_soul": 6,
-	"runs": 20,
-	"soul_per_run": 30
-  },
-
-  "selected_layout": "MapLayoutDefault.tres"
+	"melt_gold_per_soul": 6
+  }
 }

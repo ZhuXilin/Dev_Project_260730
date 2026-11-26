@@ -4,6 +4,7 @@ const CONFIG_DIR : String = "res://content/data/config/"
 const FILES : Array = [
 	"economy_config.json",
 	"combat_config.json",
+	"soulfire_identity.json",   # ★ v6.72c：修复死配置——身份表/击退/位置后果此前从未加载，全部走空兜底
 	"progression_config.json",
 	"arena_config.json",
 	"progress_unlocks.json",

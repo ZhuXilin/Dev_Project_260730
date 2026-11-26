@@ -442,61 +442,6 @@
 	"weapon_name": "火龙石",
 	"weapon_quality": "legendary"
   },
-  "boss_dragonlord_form2": {
-	"attack": 9.0,
-	"attack_range": 1.0,
-	"attack_style": "standard",
-	"attr_cap_levels": [
-	  {},
-	  {},
-	  {},
-	  {},
-	  {}
-	],
-	"avatar": "avatar_022",
-	"core_trait": "dragon_might",
-	"default_armors": [],
-	"default_talents": [],
-	"description": "",
-	"dexterity": 8.0,
-	"display_name": "深渊龙主·翼焰",
-	"faction": "龙族",
-	"faith": 4.0,
-	"flavor": "",
-	"heal_effect": {},
-	"heavy_attack": {},
-	"hidden_from_roster": true,
-	"intelligence": 8.0,
-	"is_boss": true,
-	"level_mechanics": [
-	  {},
-	  {},
-	  {},
-	  {},
-	  {}
-	],
-	"magic_attack": {},
-	"magic_penetration": 0.0,
-	"magic_reduction": 0.2,
-	"max_hp": 160.0,
-	"min_attack_range": 1.0,
-	"modifier": {
-	  "dexterity": 0.7,
-	  "strength": 0.2
-	},
-	"move_range": 4.0,
-	"physical_penetration": 0.15,
-	"physical_reduction": 0.15,
-	"sprite_frames_path": "res://content/images/characters/unit_flyingdragon_frames.tres",
-	"strength": 16.0,
-	"tags": [
-      "烈焰"
-	],
-	"weapon_category": "sword",
-	"weapon_name": "大师剑",
-	"weapon_quality": "legendary",
-	"exp": 150
-  },
   "boss_dragonlord_form3": {
 	"attack": 3.0,
 	"attack_range": 4.0,

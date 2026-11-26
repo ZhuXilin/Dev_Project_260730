@@ -262,8 +262,7 @@
     "danger_terrain": {
       "enabled": true,
       "ash_tile_as_danger": true,
-      "push_damage_multiplier": 1.0,
-      "hint": "推入危险地形！额外伤害"
+      "push_damage_multiplier": 1.0
     },
     "zoc": {
       "enabled": true,

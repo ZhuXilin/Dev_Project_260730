@@ -25,10 +25,12 @@ static var _loaded: bool = false
 static func _ensure_loaded() -> void:
 	if _loaded:
 		return
-	_loaded = true
 	var raw: Variant = GameConfigManager.get_value(CFG_FILE, "units", null)
-	if raw is Dictionary:
+	# ★ v6.72c：读空不锁定——若首次访问早于 GameConfigManager.load_all()，
+	#   旧实现会把 _loaded 永久置 true，导致配置永远读不到（此前死配置根因之一）。
+	if raw is Dictionary and not (raw as Dictionary).is_empty():
 		_data = raw as Dictionary
+		_loaded = true
 
 
 static func reload() -> void:
