@@ -1318,7 +1318,7 @@ v6 主线已落地代码，核心计算集中在 `BuildManager`（autoload）。
 | 方案元素 | 优先级 | 落地状态 | 代码证据 / 缺口 |
 |---|---|---|---|
 | 击退 + 撞墙（额外伤害/眩晕） | P0 | ✅ 已落地 v6.67 | `GridPushManager.push` 逐格推 + 撞墙 `wall_damage_per_cell` + `wall_stun_rounds`；`soulfire_identity.json.knockback` 配格数 |
-| 敌人意图可被位置反制（蓄力被打断 / 后排推出掩体） | P0 | ✅ **v6.72b 已落地** | `EnemyIntentManager.gd` + `enemy_intent.json`：按单位 key / boss mechanic 配蓄力意图；敌方回合推进、就绪后下次攻击按倍率释放；**被推动 ≥1 格即打断**（清蓄力 + 1 回合硬直）；头顶 ⚡N/⚡! 标记；AI 打断加分 +45。见下方落地表 |
+| 敌人意图可被位置反制（蓄力被打断 / 后排推出掩体） | P0 | ❌ **v6.72k 已移除** | 曾于 v6.72b 落地（`EnemyIntentManager.gd` + `enemy_intent.json`：蓄力 2 回合、就绪 ×1.8~2.2 释放、击退打断、AI 加分）。实机发现敌方"蓄力爆发"伤害失衡（观感如秒杀），且头顶 ⚡N 被误读为我方技能倒数。**v6.72k 按用户决定整体移除**：删静态类/配置/加载项/释放倍率/击退打断/AI 评分；⚡N 标记改挂我方，变为魂火爆发就绪提示。击退的撞墙/连撞/危险地形后果全部保留，仅去掉"打断蓄力"这一条 |
 | 夹击/侧翼（额外伤害 + 无法反击） | P1 | ✅ 已落地 v6.68 | `PositionManager.is_flanked` 四周≥2 友军；主伤害 +15%、被夹击者不可反击（`CombatManager._can_counter_attack`） |
 | 夹击「命中下降」 | P1 | ❌ **未落地** | 只做了额外伤害 + 不可反击，未做命中率下降（当前伤害模型可能无命中判定） |
 | 危险地形 / 灰烬联动 | P1 | ✅ 已落地 v6.68 | 推入敌方灰烬地块追加伤害、消费地块；`PositionManager.is_danger_cell` + `danger_damage` |
@@ -1602,5 +1602,44 @@ v6.72c 修复 `soulfire_identity.json` 加载后，文件活了，但其中大�
 **保留未删（有回归风险）**：`treasure_rewards` 删除但保留 economy_config.treasure 真实路径；`events.json` 11 事件数据/触发代码完整但地图无 EventTrigger 节点配置——需设计决定挂点，保留并在审计节标注；`overwrite_school`（完整实现但当前无调用）、`GridPushManager.get_cells_for_threshold`（击退查询 API）、`DialogueManager.start_dialogue`（废弃桩有重定向）、`move_and_defense` 白名单（set_bonuses 旧 effect 兜底仍用）、其余约 190 个 autoload/private/public 预留 API 与 6 个单边信号——按减负方向可后续分批清理，本轮不动以避免回归。
 
 **校验**：23 个 JSON 全合法、14 个改动脚本括号配平全 0、静态调用一致性无 static 误用、15 项 P0 字段接入断言全 PASS。环境无 Godot CLI，需编辑器实机验证 P0 新机制节奏（尤其多段/贯穿/再动是否过强、飞马穿越寻路是否正常）。
+
+## v6.72k：移除敌人蓄力意图 + ⚡ 标记改挂我方（用户决定）
+- **背景**：实机反馈——敌方头顶 `⚡N` 被误读为"我方技能倒数"，且蓄力就绪后 ×1.8~2.2 释放伤害失衡（观感如秒杀）。用户拍板：移除整个敌人蓄力意图系统，倒数标记改到我方法。
+- **移除清单**（全库已无残留引用）：
+  - 删 `function/global/EnemyIntentManager.gd`（class_name 静态类）、`content/data/config/enemy_intent.json`。
+  - `GameConfigManager.gd`：FILES 去 `enemy_intent.json`；`_after_reload` 去 `EnemyIntentManager.reload_config()`，注释同步。
+  - `CombatManager.gd`：删 `execute_attack` 的释放倍率块（原 482-486）；删 `_apply_burst_trait_effects` 击退段里主目标与连撞受害者的两处 `interrupt_on_push` 调用（撞墙/连撞/危险地形伤害与眩晕全部保留）。
+  - `TurnManager.gd`：删敌方回合 `advance_turn` 推进；`TurnController.gd`：删开场 `setup_for_unit`；`EnemyAI.gd`：删 `ai_interrupt_bonus` 评分。
+  - `Unit.gd`：删 5 个 `intent_*` 字段、`refresh_intent_icon()`/`_refresh_intent_icon()`、`reset_combat_buffs` 里的意图清空。
+- **新增：我方魂火爆发就绪标记**（`Unit.gd`）：`refresh_burst_ready_icon()` 取代旧标记——只在我方存活单位且 `SoulFireManager.current>0` 时显示；阈值取 `SoulFireIdentity.get_burst_threshold(unit)`，`当前<阈值` 显示 `⚡N`（还差 N 点），`当前≥阈值` 显示 `⚡!`（可爆发）。`soul_fire_changed` 信号（CONNECT_DEFERRED）驱动刷新，复用已校准的居中定位 `Vector2(1,9)`。
+- **校验**：6 个改动脚本括号配平全 0；全部配置 JSON 合法；全库 `EnemyIntentManager`/`enemy_intent`/`intent_*` 零残留（仅文档历史记录保留）。环境无 Godot CLI，待编辑器实机确认：敌方不再有 ⚡ 标记与蓄力秒杀、我方魂火标记随魂火增减正确切换 N→!、标记仍居中贴顶。
+
+## v6.72l：压低魂火爆发伤害（接 v6.72k 日志复核）
+- **背景**：实机战斗日志出现「axeman → mage 最终=129」「axeman → pegasus 最终=72」，而斧手基础攻击仅 5——观感如秒杀。定位为爆发三重叠加：斧手 `burst_trait.damage_multiplier=2.0` × 爆发额外伤害（每点魂火 `攻击×0.15+3`，消耗全部魂火）× `force_crit` 1.5，再叠重击 1.6。敌方无爆发（`EnemyAI` 不传技能 ID），伤害 7~10 属正常普攻；我方 archer 阵亡是被敌方三单位集火 8+10+10=28（满血）所致，非秒杀。
+- **调整**（`soulfire_identity.json`，最小 diff）：斧手 `damage_multiplier` 2.0 → **1.5**（v6.72m 再压到 **1.2**）；全局 `extra_damage_per_soulfire` 0.15 → **0.10**、`flat_damage_per_soulfire` 3 → **2**。JSON 合法性校验通过。
+- **复算**（attack=5、rare=1.25、重击后 base≈16）：魂火 4 → 58、8 → 81、12 → 103、22 → 159（含暴击）；调整前魂火 8 约 129 起步。低魂火段降幅约 40%，高魂火段因「消耗全部魂火 + 线性叠加」仍会偏高（上限 Lv0=8 / 满级 50），属已知设计权衡。
+- 待编辑器实测：确认爆发伤害观感、低魂火爆发是否仍值得攒、高魂火段是否需要额外封顶（可加 `burst_extra_cap` 配置）。
+
+## v6.72m：斧手爆发倍率再压 + 全技能倍率扫描
+- 用户要求：斧手 `damage_multiplier` 1.5 → **1.2**（`soulfire_identity.json`，已是最小 diff）。校验配置确认 `damage_multiplier=1.2` / `extra_damage_per_soulfire=0.10` / `flat_damage_per_soulfire=2`。
+- **全库伤害倍率扫描**（>`1.5` 的技能 `effect_params.damage_mult`）：仅 4 项——`active_charge` 冲锋 1.8、`active_heavy_slash` 蓄力斩 **2.5**、`active_dive` 俯冲 1.6、`active_execute` 斩杀 1.6；其余 10 个主动技能均在 1.1~1.45。
+- **为何暂不动这些技能倍率**：`CombatManager.gd:531` 用 `maxf(skill_mult, heavy_mult)`——技能倍率与重击取较大值、不叠乘；技能是主动消耗 2~3 魂火的付费资源，1.8~2.5 的倍率属合理回报。真正的"秒杀"来自**普攻形态爆发**（日志 `skill=-`），那时技能倍率根本没参与，是 `burst_trait.damage_multiplier` × 爆发额外伤害 × `force_crit` 三层叠出来的，v6.72l/m 已针对性压低。
+- **唯一需留意的点**：`active_heavy_slash`(2.5) 是斧手基础魂火技能，也由重甲/斧手转职授予。若玩家主动点它且魂火≥阈值，会叠 `skill_mult 2.5 × burst 1.2 × 暴击 1.5 = 4.5 倍`——但这是"花钱主动放大招"，且需 2 魂火 + 攒满阈值，属可控的高峰爆发，本轮保留。如后续实测仍过强，优先压 `active_heavy_slash.damage_mult` 2.5 → 1.8。
+- 待编辑器实测：斧手爆发实机伤害（魂火 8 约 81、12 约 126 含暴击，普攻形态）；主动技能+爆发叠乘是否过强。
+
+## v6.72n（已撤销封顶，改为纯乘算值）：高峰爆发压制
+- **背景**：v6.72l/m 压了 `damage_multiplier` 2.0→1.2、技能 `active_heavy_slash` 2.5→1.8，但高魂火爆发仍因叠乘偏高。曾短暂加过 `damage_mult_cap` 全局封顶（裸伤害×3），**用户否决"不要加封顶，直接改乘算值"，已完整撤销**代码与配置（无残留）。
+- **最终方案**（纯乘算值，`soulfire_identity.json.burst_multiplier`）：
+  - `extra_damage_per_soulfire` 0.15 → 0.10（v6.72l）→ 0.04（本轮）
+  - `flat_damage_per_soulfire` 3 → 2（v6.72l）→ **0**（本轮，高魂火段失控主因——每点魂火固定 +1，魂火 30 就 +30）
+- **复算**（斧手裸基准≈10，普攻=重击1.6×暴击1.5=24）：爆发全魂火段 3~50 → 普攻形态 28~46（1.2~1.9×普攻）、技能形态 32~50（1.3~2.1×普攻），全程守住 3 倍以内且爆发仍有 20%~110% 收益。
+- 校验：JSON 合法、CombatManager 括号配平全 0、封顶相关符号全清。待编辑器实测：爆发手感（是否仍值得攒魂火）、高魂火段是否符合预期。
+
+## v6.72o：遗物商店分组标题 + 槽位外观统一
+- **背景**（实机截图）：商店右侧两排商品图标无文字说明，用户要求在红框位置标注「团队遗物」「防具抽取遗物」，会把原有两行图标/按钮往下推；另底部两行遗物槽比其它槽多一层圆角灰底，要求统一。
+- **分组标题**（`RelicShop.gd:render`）：VBox 结构改为 金币标签 → `TeamRelicTitle`(── 团队遗物 ──) → TeamRow → `RollRelicTitle`(── 防具抽取遗物 ──) → RollRow。标题 font_size 8、居中、整宽独立行，自然把两行商品往下推。沿用现有金币标题样式；`refresh_gold_label` 按 `ShopGoldLabel` 名字查找，不受新标题影响。
+- **槽位外观统一**（`EquipmentConfig.gd:_create_passive_button`）：此前团队遗物槽(`_build_passive_slots`)与防具抽取遗物槽(`_build_roll_relic_slots`)都走此函数，但不覆盖 stylebox → 用主题默认按钮样式，比防具槽/天赋槽多一层圆角灰底。改为在 normal/hover/pressed/focus/disabled 全状态覆盖 `StyleBoxEmpty`（与 `_make_aura_icon_btn` 一致）。注意 `_apply_readonly_button_visual` 会把 hover/pressed/focus 覆盖为 normal，正好取到 empty，一致。
+- **滚动兜底**：`_build_relic_shop_panel` 的 `shop_scroll.vertical_scroll_mode` 从 DISABLED 改为 AUTO，标题多占两行时允许滚动，避免「刷新商店/出售区」被挤出可视范围。
+- 校验：RelicShop/EquipmentConfig 括号配平全 0。待编辑器实测：两行标题位置与红框对齐、下方按钮不被挤出、槽位灰底消除后与其它槽视觉一致。
 
 **文档结束。**

@@ -143,11 +143,6 @@ func apply_team_buffs() -> void:
 	var relic_effects = GameState.get_global_relic_effects()
 	_sync_auras_to_units()
 
-	# ★ v6.70e：敌方蓄力意图初始化（位置后果 P0，可被击退打断）
-	for u in UnitManager.unit_list:
-		if is_instance_valid(u) and u.unit_stats.team_id == 1 and u.hit_points > 0:
-			EnemyIntentManager.setup_for_unit(u)
-
 	for unit in UnitManager.unit_list:
 		if unit.unit_stats.team_id != 0: continue
 

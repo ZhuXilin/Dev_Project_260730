@@ -122,7 +122,7 @@
       "burst_trait": {
         "id": "execute_again",
         "desc": "200%攻击斩击，击杀则再行动一次（每场1次）",
-        "damage_multiplier": 2.0,
+        "damage_multiplier": 1.2,
         "reset_action_on_kill": true,
         "per_battle_once": true
       },
@@ -230,8 +230,8 @@
   "burst_multiplier": {
     "_doc": "爆发倍率与触发：threshold=技能自动爆发的魂火阈值；额外伤害按消耗魂火数缩放（extra_damage_per_soulfire 为攻击力系数，魂火上限天然封顶）；force_crit=爆发强制暴击；shield_reduction_cap=护盾近似减伤的上限。",
     "threshold": 3,
-    "extra_damage_per_soulfire": 0.15,
-    "flat_damage_per_soulfire": 3,
+    "extra_damage_per_soulfire": 0.04,
+    "flat_damage_per_soulfire": 0,
     "force_crit": true,
     "shield_reduction_cap": 0.75
   },

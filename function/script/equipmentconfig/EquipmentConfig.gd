@@ -1729,6 +1729,8 @@ func _build_relic_shop_panel() -> void:
 		shop_scroll.custom_minimum_size = Vector2(0, 0)
 		shop_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		shop_scroll.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+		# ★ v6.72o-p1：必须 DISABLED——SHRINK_BEGIN + AUTO 会让 ScrollContainer 最小高度塌缩为 0，
+		#   商品格全被裁掉（实机「商品没有了」）。右侧中部有大片留白，两行标题挤不掉功能按钮。
 		shop_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	# ★ 回归最简结构：shop_container 是运行时 HFlowContainer（见 init），
 	#   直接渲染 6 个遗物格（上排 3 团队 / 下排 3 老虎机），不再嵌套 VBox/Grid。
@@ -2238,7 +2240,16 @@ func _create_passive_button(inst: Variant, slot_index: int) -> Button:
 	btn.alignment = HORIZONTAL_ALIGNMENT_CENTER
 	btn.set_meta("slot_type", "passive_slot")
 	btn.set_meta("passive_index", slot_index)
-	# ★ 不覆盖 StyleBoxEmpty：沿用主题默认按钮样式（与防具槽等其它插槽视觉统一）
+	# ★ v6.72o：统一槽位外观——团队遗物槽/防具抽取遗物槽此前用主题默认按钮样式，
+	#   比防具槽/天赋槽多出一层圆角灰底。改为与 _make_aura_icon_btn 等一致的 StyleBoxEmpty，
+	#   全状态（normal/hover/pressed/focus/disabled）去底，视觉与其它插槽统一。
+	var empty_sb := StyleBoxEmpty.new()
+	empty_sb.content_margin_left = 0
+	empty_sb.content_margin_right = 0
+	empty_sb.content_margin_top = 0
+	empty_sb.content_margin_bottom = 0
+	for state in ["normal", "hover", "pressed", "focus", "disabled"]:
+		btn.add_theme_stylebox_override(state, empty_sb)
 
 	if inst == null:
 		btn.text = "空"

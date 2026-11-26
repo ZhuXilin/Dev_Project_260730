@@ -417,7 +417,7 @@
 	"cooldown_after_trigger": 2,
 	"effect_type": "attack",
 	"effect_params": {
-	  "damage_mult": 2.5,
+	  "damage_mult": 1.8,
 	  "soul_fire_cost": 2
 	},
 	"compatible_units": [],

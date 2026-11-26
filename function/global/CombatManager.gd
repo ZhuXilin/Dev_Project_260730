@@ -477,13 +477,6 @@ func execute_attack(attacker: Unit, defender: Unit, forced_skill_id: String = ""
 
 	var damage = calculate_damage(attacker, defender, not has_skill)
 
-	# ★ v6.70e：敌人蓄力意图释放——就绪时本次主攻击按倍率加成并消费。
-	#   放在 calculate_damage 之后、技能/暴击倍率之前，避免被反击/追击重复消费。
-	if attacker.unit_stats.team_id == 1 and attacker.intent_ready:
-		var release_mult: float = EnemyIntentManager.consume_release_mult(attacker)
-		if release_mult > 1.0:
-			damage = int(float(damage) * release_mult)
-
 	# ★ v6.71：初始 roll 的普攻强化模板（anchor=basic_attack/both）——被动结算，不占按钮。
 	#   只吃 damage_mult（倍率），不额外消耗魂火、不进冷却、不触发异常。
 	#   穿透/必暴类效果沿用技能按钮路径（anchor=soul_skill），避免与临时穿透清零时序冲突。
@@ -1408,12 +1401,6 @@ func _apply_burst_trait_effects(attacker: Unit, defender: Unit, base_damage: int
 			var kb_res: Dictionary = await GridPushManager.push(attacker, defender, kb, dir)
 			var events: Array = kb_res.get("events", [])
 			var hints: Array[String] = []
-			# ★ v6.70e：位置后果 P0——被推动(位移≥1格)即打断敌人蓄力意图。
-			#   主目标不一定出现在 events（只有撞墙/撞单位/危险地形才有事件），
-			#   所以用 kb_res.moved 单独判定主目标，事件里再判连撞受害者。
-			if int(kb_res.get("moved", 0)) > 0:
-				if EnemyIntentManager.interrupt_on_push(defender, attacker):
-					hints.append("⚡ %s 蓄力被打断" % defender.unit_stats.unit_name)
 			for ev_v in events:
 				if not (ev_v is Dictionary):
 					continue
@@ -1441,9 +1428,6 @@ func _apply_burst_trait_effects(attacker: Unit, defender: Unit, base_damage: int
 				var st: int = int(ev.get("stun", 0))
 				if st > 0 and is_instance_valid(victim) and victim.hit_points > 0:
 					victim.stun_rounds = maxi(victim.stun_rounds, st)
-				# ★ v6.70e：连撞受害者同样会打断蓄力
-				if EnemyIntentManager.interrupt_on_push(victim, source):
-					hints.append("⚡ %s 蓄力被打断" % victim.unit_stats.unit_name)
 			if hints.size() > 0:
 				SignalBus.request_hint_override.emit(hints[hints.size() - 1], 0.9)
 	# 7) ★ v6.72h-P0：飞马爆发眩晕（stun_rounds）

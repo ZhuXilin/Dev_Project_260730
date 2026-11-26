@@ -22,7 +22,7 @@
 		"granted_talent": "double_attack",
 		"id": "archer_hunter",
 		"name": "猎杀者",
-		"sprite_frames_path": "res://content/images/characters/unit_archer_frames.tres",
+		"sprite_frames_path": "res://content/images/characters/unit_shooter_frames.tres",
 		"stat_bonus": {
 		  "dexterity": 3.0,
 		  "max_hp": 4.0,

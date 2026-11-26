@@ -29,12 +29,6 @@ var abnormal_slow_rounds : int = 0
 var abnormal_free_detonate_used : bool = false
 ## ★ v6.67：击退撞墙眩晕（只在本场战斗有效，跳过行动）
 var stun_rounds : int = 0
-## ★ v6.70e：敌人蓄力意图（位置后果 P0：击退可打断；战斗内临时，不写存档）
-var intent_label : String = ""
-var intent_charge_rounds : int = 0
-var intent_rounds_left : int = 0
-var intent_release_mult : float = 1.0
-var intent_ready : bool = false
 var movement_after_attack : bool = false
 var previous_flip_h : bool = false
 
@@ -48,7 +42,7 @@ var facing_dir : Vector2i = Vector2i(1, 0)
 @onready var abnormal_icons_root : Node2D = $AbnormalIcons
 var _hp_bar_visible : bool = true
 var _abnormal_icon_nodes : Dictionary = {}   # type -> Label
-var _intent_icon_node : Label = null           # ★ v6.70e：蓄力意图头顶标记
+var _burst_ready_icon_node : Label = null      # ★ v6.72k：我方魂火爆发就绪头顶标记
 
 # ---- Buff（v4.6：减伤率） ----
 var buff_attack_percent : float = 0.0
@@ -173,6 +167,14 @@ func _ready():
 	update_hp_label()
 	if hp_bar_container:
 		hp_bar_container.visible = _hp_bar_visible
+	# ★ v6.72k：魂火变化时刷新我方爆发就绪标记（⚡N/⚡!）。
+	#   用 CONNECT_DEFERRED 避免在 SoulFireManager 信号发射链中重入。
+	if not SoulFireManager.soul_fire_changed.is_connected(_on_soul_fire_changed):
+		SoulFireManager.soul_fire_changed.connect(_on_soul_fire_changed, CONNECT_DEFERRED)
+
+
+func _on_soul_fire_changed(_current: int, _max_carried: int) -> void:
+	refresh_burst_ready_icon()
 
 
 func update_hp_label():
@@ -224,34 +226,39 @@ func refresh_abnormal_icons() -> void:
 		icon.position = Vector2(slot * 11.0, 0)
 		icon.visible = true
 		slot += 1
-	_refresh_intent_icon()
+	refresh_burst_ready_icon()
 
 
-## ★ v6.70e：供 EnemyIntentManager 在意图状态变更后刷新头顶标记。
-func refresh_intent_icon() -> void:
-	_refresh_intent_icon()
-
-
-## ★ v6.70e：刷新头顶蓄力意图标记（⚡N=还需N回合，⚡! =就绪待释放）。
-func _refresh_intent_icon() -> void:
+## ★ v6.72k：我方魂火爆发就绪头顶标记（⚡N=还差N点魂火，⚡! =已就绪可爆发）。
+##   取代旧「敌人蓄力意图」标记：只在我方单位、且有魂火积累时显示。
+func refresh_burst_ready_icon() -> void:
 	if not is_instance_valid(abnormal_icons_root):
 		return
-	if intent_charge_rounds <= 0:
-		if _intent_icon_node != null and is_instance_valid(_intent_icon_node):
-			_intent_icon_node.visible = false
+	var show_icon : bool = unit_stats != null and unit_stats.team_id == 0 \
+			and SoulFireManager.current > 0 and hit_points > 0
+	if not show_icon:
+		if _burst_ready_icon_node != null and is_instance_valid(_burst_ready_icon_node):
+			_burst_ready_icon_node.visible = false
 		return
-	if _intent_icon_node == null or not is_instance_valid(_intent_icon_node):
-		_intent_icon_node = Label.new()
-		_intent_icon_node.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		_intent_icon_node.z_index = 12
-		_intent_icon_node.add_theme_font_size_override("font_size", 7)
-		_intent_icon_node.add_theme_color_override("font_color", Color(1.0, 0.85, 0.3))
-		_intent_icon_node.add_theme_color_override("font_outline_color", Color(0, 0, 0))
-		_intent_icon_node.add_theme_constant_override("outline_size", 2)
-		abnormal_icons_root.add_child(_intent_icon_node)
-	_intent_icon_node.text = "⚡!" if intent_ready else ("⚡%d" % intent_rounds_left)
-	_intent_icon_node.position = Vector2(-6.0, -9.0)
-	_intent_icon_node.visible = true
+	var threshold : int = SoulFireIdentity.get_burst_threshold(
+		unit_stats.unit_name, unit_stats.advanced_class)
+	var remain : int = maxi(0, threshold - SoulFireManager.current)
+	if _burst_ready_icon_node == null or not is_instance_valid(_burst_ready_icon_node):
+		_burst_ready_icon_node = Label.new()
+		_burst_ready_icon_node.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_burst_ready_icon_node.z_index = 12
+		_burst_ready_icon_node.add_theme_font_size_override("font_size", 7)
+		_burst_ready_icon_node.add_theme_color_override("font_color", Color(1.0, 0.85, 0.3))
+		_burst_ready_icon_node.add_theme_color_override("font_outline_color", Color(0, 0, 0))
+		_burst_ready_icon_node.add_theme_constant_override("outline_size", 2)
+		_burst_ready_icon_node.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		_burst_ready_icon_node.custom_minimum_size.x = 16.0
+		abnormal_icons_root.add_child(_burst_ready_icon_node)
+	_burst_ready_icon_node.text = "⚡!" if remain <= 0 else ("⚡%d" % remain)
+	# 父节点 AbnormalIcons 位于 (-9,-21)，局部 (1,9) → 全局 (-8,-12)，
+	# 宽 16 居中对齐单位 sprite 中心 x=0，紧贴头顶。
+	_burst_ready_icon_node.position = Vector2(1.0, 9.0)
+	_burst_ready_icon_node.visible = true
 
 
 func _resolve_sprite_path() -> String:
@@ -1076,12 +1083,6 @@ func reset_combat_buffs():
 	abnormal_slow_rounds = 0
 	abnormal_free_detonate_used = false
 	stun_rounds = 0
-	# ★ v6.70e：蓄力意图状态清空
-	intent_label = ""
-	intent_charge_rounds = 0
-	intent_rounds_left = 0
-	intent_release_mult = 1.0
-	intent_ready = false
 	refresh_abnormal_icons()
 
 

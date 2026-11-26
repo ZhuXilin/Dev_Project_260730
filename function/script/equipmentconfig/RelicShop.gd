@@ -105,12 +105,32 @@ func render(container: Control, filter_roll = null) -> void:
 	gold_lb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	rows.add_child(gold_lb)
 
+	# ★ v6.72o：商品区分组标题——明确上排是团队遗物、下排是防具抽取遗物。
+	#   标题占独立行，把原有两行图标/按钮自然往下推。
+	var team_title := Label.new()
+	team_title.name = "TeamRelicTitle"
+	team_title.text = "── 团队遗物 ──"
+	team_title.add_theme_font_size_override("font_size", 8)
+	team_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	team_title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	rows.add_child(team_title)
+
 	var team_row := HBoxContainer.new()
 	team_row.name = "TeamRow"
 	team_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	team_row.alignment = BoxContainer.ALIGNMENT_CENTER
 	team_row.add_theme_constant_override("separation", Style.ITEM_GRID_GAP)
 	rows.add_child(team_row)
+
+	# ★ v6.72o：下排标题（防具抽取遗物），位于两排商品之间。
+	var roll_title := Label.new()
+	roll_title.name = "RollRelicTitle"
+	roll_title.text = "── 防具抽取遗物 ──"
+	roll_title.add_theme_font_size_override("font_size", 8)
+	roll_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	roll_title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	rows.add_child(roll_title)
+
 	var roll_row := HBoxContainer.new()
 	roll_row.name = "RollRow"
 	roll_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL

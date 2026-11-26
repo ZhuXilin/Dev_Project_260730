@@ -219,10 +219,6 @@ func start_turn(team: Team):
 	if team == Team.PLAYER: BossMechanicManager.on_player_turn_start()
 	else:
 		BossMechanicManager.on_enemy_turn_start()
-		# ★ v6.70e：敌方回合推进蓄力意图（满 N 回合后就绪，下次攻击按倍率释放）
-		for u in UnitManager.unit_list:
-			if is_instance_valid(u) and u.hit_points > 0 and u.unit_stats.team_id == 1:
-				EnemyIntentManager.advance_turn(u)
 
 	SignalBus.turn_changed.emit(team)
 
