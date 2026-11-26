@@ -45,6 +45,8 @@ var _inject_used_this_session: bool = false  # 本场是否已用过「注入词
 var _free_rerolls_total: int = 1
 var _free_rerolls_left: int = 1
 var _free_reroll_pending: bool = false
+## ★ v6.72d：技能重掷改为常驻按钮（红框位置），不再弹确认框。仅在"已停轮未落位且有次数"时显示。
+var _sk_reroll_btn: Button = null
 ## ★ v6.66：返利硬币每场限 3 次（离开结算 UI 销毁即重置）
 var _rebate_count: int = 0
 
@@ -967,7 +969,7 @@ func _sk_build_ui() -> void:
 	pick_row.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	pick_row.add_theme_constant_override("separation", 6)
 	pick_row.custom_minimum_size = Vector2(0, 24)
-	vbox.add_child(pick_row)
+	# ★ v6.72e：信息行下移——在轮盘 add_child 之后再挂到 vbox（见下方），实现"轮盘在上、信息行在下"
 
 	# 技能图标（20x20，与装备界面落袋防具图标统一）
 	_picked_icon = TextureRect.new()
@@ -980,19 +982,34 @@ func _sk_build_ui() -> void:
 	_msg = Label.new()
 	_msg.text = ""
 	_msg.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	# ★ 关自动换行：让 Label 的最小宽度=整行文字宽度，HBox 才能收缩到内容宽并居中。
-	#   若开 WORD_SMART 且宽度塌窄会逐字竖排；若给 EXPAND_FILL 又会把图标推到画面最左。
+	# ★ v6.72g：撤销 v6.72f 的固定宽度+自动折行（会把 SHRINK_CENTER 信息行撑宽、
+	#   挤歪整体布局）。改回关自动换行，长描述在拼装处手动插 \n 分行，布局宽度不变、信息居中。
 	_msg.autowrap_mode = TextServer.AUTOWRAP_OFF
 	_msg.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	_msg.add_theme_font_size_override("font_size", FS_SMALL)
 	_msg.add_theme_color_override("font_color", _dim_color)
 	pick_row.add_child(_msg)
 
+	# ★ v6.72d/e：技能重掷常驻按钮——放进信息行（图标+描述之后），
+	#   停轮后直接展示技能并落位，玩家想换就点它；不再每次弹 ConfirmUI 打断节奏。
+	#   ★ v6.72e：作为 pick_row 子节点，随信息行一起下移到轮盘下方，不再用绝对锚点（避免分辨率错位）。
+	_sk_reroll_btn = Button.new()
+	_sk_reroll_btn.text = "重掷"
+	_sk_reroll_btn.add_theme_font_size_override("font_size", FS_SMALL)
+	BuildUI.style_button(_sk_reroll_btn)
+	_sk_reroll_btn.pressed.connect(_sk_do_free_reroll)
+	_sk_reroll_btn.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	_sk_reroll_btn.visible = false
+	pick_row.add_child(_sk_reroll_btn)
+
 	_machine = SlotMachineUI.new()
 	_machine.custom_minimum_size = Vector2(0, 96)
 	_machine.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	vbox.add_child(_machine)
 	_machine.stopped.connect(_on_machine_stopped)
+
+	# ★ v6.72e：交换后信息行（图标+描述+重掷按钮）在轮盘下方
+	vbox.add_child(pick_row)
 
 	# ★ v6.57：移除"停下后选落位单位"提示文字（红框处，界面已足够直观）
 
@@ -1012,6 +1029,8 @@ func _sk_build_ui() -> void:
 
 
 func _sk_show_step() -> void:
+	# ★ v6.72d：新一轮开始，重掷按钮重置为隐藏（停轮后才显示）
+	_sk_refresh_reroll_btn(false)
 	# ★ 进入新一次 roll：清掉上一件已落袋技能的图标与描述，避免残留到本次
 	if _picked_icon != null:
 		_picked_icon.texture = null
@@ -1091,7 +1110,12 @@ func _sk_build_entries() -> Array:
 		var color := Color(0.85, 0.85, 0.9)
 		var desc := data.description
 		var cost := int(data.effect_params.get("soul_fire_cost", data.soul_cost))
-		desc += "｜消耗 %d 魂火" % cost
+		# ★ v6.72g：长描述分两行（效果一行 / 消耗一行），避免撑宽整行挤歪居中布局。
+		#   只在描述本身已较长时换行；短描述保持单行，不浪费高度。
+		if desc.length() > 24:
+			desc += "\n消耗 %d 魂火" % cost
+		else:
+			desc += "｜消耗 %d 魂火" % cost
 		# ★ v6.57：技能不展示流派（无流派色/无共鸣文字），仅保留数值描述
 		entries.append({
 			"id": sid,
@@ -1138,35 +1162,24 @@ func _sk_on_machine_stopped(entry: Dictionary) -> void:
 			return
 		_msg.text = "这张已用过，请再转一次"
 		_msg.add_theme_color_override("font_color", _dim_color)
+		_sk_refresh_reroll_btn(false)
 		_machine.setup(entries, "主动技能轮盘 · 第 %d 次" % (_index + 1))
 		return
-	# ★ v6.68b / v6.72：技能重掷二选一复用 ConfirmUI 标准确认框，
-	#   ★ v6.72：确认框内展示本次抽到的技能（图标 + 名字 + 描述），与 roll 结果界面口径一致，
-	#   让玩家在"接受/重掷"前先看清抽到了什么。
-	#   左键二选一；关闭 ESC/右键的"取消"语义，避免误触把确认当重掷。
-	if _free_rerolls_left > 0:
-		var reroll_label : String = "重掷 %d/%d" % [_free_rerolls_left, _free_rerolls_total]
-		var confirm_ui = Globals.show_confirm(self,
-			"本次技能抽取——接受，还是免费重掷？剩余 %d 次" % _free_rerolls_left,
-			"接受技能", reroll_label,
-			func(): _sk_apply_entry(entry),
-			func(): _sk_do_free_reroll(),
-			true, false)
-		# v6.72：在确认框里展示抽到的技能（图标+名字+描述），同 roll 结果条目
-		if confirm_ui != null and confirm_ui.has_method("set_reward_detail"):
-			var skill_name : String = str(entry.get("name", ""))
-			var skill_desc : String = str(entry.get("desc", ""))
-			# 与 roll 结果界面一致：补一行流派倾向（纯方向提示，不加 Lv）
-			var skill_affinity : String = BuildManager.get_school_of_skill(str(entry.get("id", "")))
-			if skill_affinity != "":
-				skill_desc += "\n倾向·%s" % skill_affinity
-			var skill_icon : Texture2D = entry.get("icon") as Texture2D
-			var skill_color : Color = Color(0.85, 0.85, 0.9)
-			if entry.get("color") is Color:
-				skill_color = entry.get("color") as Color
-			confirm_ui.set_reward_detail(skill_icon, skill_name, skill_desc, skill_color)
-		return
+	# ★ v6.72d：不再弹 ConfirmUI——停轮即展示本次技能并进入落位，
+	#   想换的玩家点右上角常驻「重掷 N/M」按钮即可（仅在落位前可见）。
 	_sk_apply_entry(entry)
+	_sk_refresh_reroll_btn(true)
+
+
+## ★ v6.72d：刷新右上角重掷按钮。show=true 仅在"已停轮未落位"时由停轮回调置位；
+##   落位/新一轮/重掷中都隐藏，避免误点。
+func _sk_refresh_reroll_btn(can_show: bool) -> void:
+	if _sk_reroll_btn == null:
+		return
+	var show_btn: bool = can_show and _skill_mode and _free_rerolls_left > 0
+	_sk_reroll_btn.text = "重掷 %d/%d" % [_free_rerolls_left, _free_rerolls_total]
+	_sk_reroll_btn.visible = show_btn
+	_sk_reroll_btn.disabled = not show_btn
 
 
 func _sk_do_free_reroll() -> void:
@@ -1174,6 +1187,7 @@ func _sk_do_free_reroll() -> void:
 		return
 	_free_rerolls_left -= 1
 	_free_reroll_pending = true
+	_sk_refresh_reroll_btn(false)
 	var entries: Array = _sk_build_entries()
 	if entries.is_empty():
 		return
@@ -1275,6 +1289,8 @@ func _sk_show_units(tid: String) -> void:
 	if not any_ok:
 		_msg.text = "这张技能当前队伍无人可用，请重转"
 		_msg.add_theme_color_override("font_color", _dim_color)
+		# ★ v6.72d：无人可落位时，右上角重掷按钮保持可见，玩家可直接重掷/或点下方重转
+		_sk_refresh_reroll_btn(true)
 
 
 func _sk_find_unit(unit_name: String) -> UnitData:
@@ -1293,6 +1309,7 @@ func _sk_find_unit(unit_name: String) -> UnitData:
 func _sk_on_pick(ud: UnitData, tid: String) -> void:
 	BuildManager.place_skill(ud, tid)
 	_placed_skills.append(tid)
+	_sk_refresh_reroll_btn(false)   # ★ v6.72d：已落位，本次技能定案，隐藏重掷
 	_sk_next()
 
 

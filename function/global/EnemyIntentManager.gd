@@ -15,30 +15,30 @@ extends RefCounted
 
 const CONFIG_FILE := "enemy_intent.json"
 
-var _cfg: Dictionary = {}
-var _loaded: bool = false
+static var _cfg: Dictionary = {}
+static var _loaded: bool = false
 
 
-func _ensure_loaded() -> void:
+static func _ensure_loaded() -> void:
 	if _loaded:
 		return
 	_cfg = GameConfigManager.get_file(CONFIG_FILE)
 	_loaded = true
 
 
-func reload_config() -> void:
+static func reload_config() -> void:
 	_loaded = false
 	_cfg = {}
 	_ensure_loaded()
 
 
-func _global(key: String, fallback) -> Variant:
+static func _global(key: String, fallback) -> Variant:
 	_ensure_loaded()
 	return _cfg.get(key, fallback)
 
 
 ## 取单位的意图配置（按 unit key 优先，其次 boss mechanic id）；无配置返回空。
-func get_intent_config(unit) -> Dictionary:
+static func get_intent_config(unit) -> Dictionary:
 	if unit == null or not is_instance_valid(unit):
 		return {}
 	_ensure_loaded()
@@ -59,7 +59,7 @@ func get_intent_config(unit) -> Dictionary:
 
 
 ## 战斗开场给有意图配置的敌人挂初始蓄力状态。
-func setup_for_unit(unit) -> void:
+static func setup_for_unit(unit) -> void:
 	if unit == null or not is_instance_valid(unit):
 		return
 	var d: Dictionary = get_intent_config(unit)
@@ -74,7 +74,7 @@ func setup_for_unit(unit) -> void:
 
 
 ## 敌方回合推进：倒计时 -1，归零则就绪（下次攻击按倍率释放）。
-func advance_turn(unit) -> void:
+static func advance_turn(unit) -> void:
 	if unit == null or not is_instance_valid(unit) or unit.hit_points <= 0:
 		return
 	if unit.intent_charge_rounds <= 0:
@@ -92,7 +92,7 @@ func advance_turn(unit) -> void:
 
 
 ## 被推动打断（击退位移 ≥1 格）：清蓄力/就绪状态，返回是否成功打断。
-func interrupt_on_push(unit, source = null) -> bool:
+static func interrupt_on_push(unit, _source = null) -> bool:
 	if not bool(_global("interrupt_on_push", true)):
 		return false
 	if unit == null or not is_instance_valid(unit) or unit.hit_points <= 0:
@@ -113,14 +113,14 @@ func interrupt_on_push(unit, source = null) -> bool:
 
 
 ## 是否处于蓄力中（含就绪待释放）
-func is_charging(unit) -> bool:
+static func is_charging(unit) -> bool:
 	if unit == null or not is_instance_valid(unit):
 		return false
 	return unit.intent_charge_rounds > 0 and (unit.intent_rounds_left > 0 or unit.intent_ready)
 
 
 ## 攻击时消费就绪意图：返回本次攻击的伤害倍率（未就绪返回 1.0）。
-func consume_release_mult(unit) -> float:
+static func consume_release_mult(unit) -> float:
 	if unit == null or not is_instance_valid(unit) or not unit.intent_ready:
 		return 1.0
 	var mult: float = maxf(1.0, unit.intent_release_mult)
@@ -134,7 +134,7 @@ func consume_release_mult(unit) -> float:
 
 
 ## AI 评分：目标正在蓄力时的打断加分（击退可打断）。
-func ai_interrupt_bonus(unit) -> int:
+static func ai_interrupt_bonus(unit) -> int:
 	if not is_charging(unit):
 		return 0
 	return maxi(0, int(_global("ai_interrupt_bonus", 45)))
