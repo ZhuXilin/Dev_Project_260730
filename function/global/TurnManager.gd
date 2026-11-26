@@ -99,7 +99,6 @@ func start_movement(unit: Unit, path: Array):
 	if path.size() == 0: return
 	unit.save_previous_position()
 	unit.consume_move(path.size())
-	unit.moves_since_act += 1
 	SignalBus.request_move_along_path.emit(unit, path)
 	is_moving = true
 
@@ -285,24 +284,6 @@ func _apply_turn_start_regen():
 				if actual > 0:
 					u.update_hp_label()
 					SignalBus.request_damage_popup.emit(u.global_position, actual, false, false, true)
-
-func _apply_turn_start_auras():
-	var active_auras : Dictionary = {}
-	for u in UnitManager.unit_list:
-		if u.unit_stats.team_id != 0 or u.hit_points <= 0: continue
-		for aid in u.active_auras:
-			if u.active_auras[aid]: active_auras[aid] = true
-	for aid in active_auras:
-		_apply_turn_start_aura_effect(aid)
-
-func _apply_turn_start_aura_effect(aid : String):
-	var d : Dictionary = AuraManager.get_aura(aid)
-	if d.is_empty(): return
-	match d.get("effect", ""):
-		"turn_start_gain_soul_fire":
-			var gain : int = int(d.get("params", {}).get("soul_fire_gain", 1))
-			SoulFireManager.add(gain)
-		_: pass
 
 func _apply_turn_start_fusion():
 	if SoulFireManager.current > 0: return

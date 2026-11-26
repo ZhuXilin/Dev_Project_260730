@@ -32,6 +32,20 @@ func get_unit_at_cell(cell: Vector2i) -> Unit:
 func is_cell_occupied(cell: Vector2i) -> bool:
 	return get_unit_at_cell(cell) != null
 
+
+## ★ v6.72h-P0：飞马燃烧态「穿越敌方单位」（身份 pass_through）。
+##   返回 true 时允许寻路把敌方占格作为中转穿过，但落点仍不可停在该格。
+func _unit_can_pass_through(unit: Unit) -> bool:
+	if unit == null or not is_instance_valid(unit) or unit.unit_stats == null:
+		return false
+	if SoulFireManager.get_state() != SoulFireManager.State.BURNING:
+		return false
+	if unit.unit_stats.team_id != 0:
+		return false
+	var bt: Dictionary = SoulFireIdentity.get_burn_trait(unit.unit_stats.unit_name, unit.unit_stats.advanced_class)
+	return bool(bt.get("pass_through", false))
+
+
 func get_reachable_cells(start_cell: Vector2i, max_move: int, unit: Unit) -> Dictionary:
 	var result = {}
 	var queue = []
@@ -81,6 +95,12 @@ func get_reachable_cells(start_cell: Vector2i, max_move: int, unit: Unit) -> Dic
 			var occupant = get_unit_at_cell(neighbor)
 			if occupant:
 				if occupant.unit_stats.team_id != team_id:
+					# ★ v6.72h-P0：飞马燃烧穿越——敌方格可中转、不可停靠
+					if _unit_can_pass_through(unit):
+						if not cost_so_far.has(neighbor) or updated_cost < cost_so_far[neighbor]:
+							cost_so_far[neighbor] = updated_cost
+							if not enters_zoc:
+								queue.append(neighbor)
 					continue
 				if not cost_so_far.has(neighbor) or updated_cost < cost_so_far[neighbor]:
 					cost_so_far[neighbor] = updated_cost
@@ -148,7 +168,9 @@ func calculate_path(start_cell: Vector2i, goal_cell: Vector2i, unit: Unit) -> Ar
 
 			var occupant = get_unit_at_cell(neighbor)
 			if occupant and occupant.unit_stats.team_id != team_id:
-				continue
+				# ★ v6.72h-P0：飞马燃烧穿越——允许穿过敌方格（不作为终点）
+				if not _unit_can_pass_through(unit):
+					continue
 
 			var step_cost : int = 1 if ignore_cost else TerrainManager.TERRAIN_DATA[terrain_type]["move_cost"]
 			var new_cost : int = cost_so_far[cell] + step_cost

@@ -1,6 +1,6 @@
 # 《魂火》v6 玩法设计文档（装备减负 · 选择组成 Build）
 
-> 状态：v6 主玩法已落地代码，最新修订 v6.72g（2026-11-26）。  
+> 状态：v6 主玩法已落地代码，最新修订 v6.72i（2026-11-26）。  
 > 本文描述**当前玩法**。v5 骨架（战斗/地图/魂火/存档/编辑器）与 v6 新规则均已实现，代码落点见第十章。  
 > 近期变更：v6.55「防具槽越界修复 + 熔铸奖励数值提示」、v6.56「熔铸确认分区 + 掉落物悬停信息」、v6.57「Boss 死亡即时胜利 + 升级仪式感」、v6.58「等级系统重做：击杀得经验 + 显示」、v6.59「阵型系统移除」、v6.60「胜利界面等全部表演结束 + 缓冲」、v6.61「移除战后经验，击杀成唯一经验来源」、v6.62「胜利条件改地图场景 trigger + 遗物槽重排 + 老虎机专用遗物 + 魂栈遗物商店 + 献祭熔铸改单位赋能」、v6.62b「按参考图回调装备/魂栈/英灵殿/献祭四界面布局 + 修两个编译错误」、v6.62c「遗物槽改底部两区域 + 右上角老虎机图标；魂栈去熔铸/分类/一键领取，改商店格子拖拽购买」、v6.62d~x「团队遗物槽逐列对齐 + 商店分行/去老虎机图标/空槽恒定/按钮反馈 + 槽图标尺寸统一 + 金币显示与格子固定 + 英灵殿隐藏持有资源 + 出售金币显示修复 + 出售返还率可配置与遗物加成 + 编辑器遗物分组 + 去光环页签 + 持续类型下拉 + 遗物类型可选 + 赋能单位 overlord 外观 + 遗物槽只读悬停 + 稀有度权重掉率 + roll界面遗物展示与轮盘居中 + 停止逻辑修复」；**v6.62w/x 异常状态合入防具词条：设计方向写入并落地**；**v6.62y 按三层机制修订异常系统：易伤改为全异常通用、灰烬消费者改轮回「魂火汲取」、消费按层数×攻击百分比、层数封顶 3、epic/legendary 品质变体、献祭作 +5% 收益者**；**v6.62z 金币经济与魂火两态：每场首次 roll 50G + 产出上调 + 品质升级降价，强化封顶 cap 取 max 且退款/注入二选一，魂火删枯竭态改两态（燃烧/正常，归零无增益无惩罚），余烬耗尽必暴保留为流派机制**（见 5.1/5.5/6，已落地待实机验证）；**v6.63 一句话体系定稿：一次攻击只有普攻/技能两指令、1 主动 + 1 转职被动、魂火 ≥3 技能自动爆发（无独立按钮）、异常只由普攻/技能触发**（见 5.0，已落地待实机验证）；**v6.64 转职=魂火身份升级：爆发改技能爆发形态（原技能保留+倍率+单位附加），9 单位燃烧/爆发身份表，剑士/法师/牧师/重甲 4 样板，转职预告与名号变化**（见 5.4.2，已落地待实机验证；击退/眩晕/护盾实体等待接入）；**v6.65 五短板+位置后果可行性评估（见第十二章：A 层遗物悬停描述/roll 成本下限 30G/品质升级降价已落地，B 层阈值身份化等待裁决冲突，C 层击退/撞墙/夹击/危险地形/ZOC 需新系统分期）**；**v6.66 B 层落地：阈值身份化（快爆3/中节奏4/慢攒5）、费用3技能按阈值过滤、全技能通用、一次全局重掷、轮回/守护/灰烬团队价值、返利限次3与节俭/定额互斥、复活统一400G**（见 5.0/5.3/12，已落地待实机验证）；**v6.67 C 层专项一：击退/撞墙系统落地——GridPushManager（逐格推+边界/地形/单位碰撞+撞墙伤害+眩晕），接入爆发 knockback，AI 评分推入墙/危险地块**（见 5.4.2/12.7，已落地待实机验证）；**v6.68 C 层收尾：夹击（四周≥2 友军→主伤害+15%且不可反击）+ 危险地形（推入灰烬地块追加伤害）+ ZOC 守护卡位（进入即停/身处控制区无法离开）+ 连撞递归推链（撞人继续推、碰撞伤害逐层衰减、深度与防循环上限），统一查询层 PositionManager，全部位置伤害不触发异常**（见 5.4.2/12.8，已落地待实机验证）；**v6.68b 自动战斗可靠性：空格开关改为全局前置+待生效重试+面板强制收起，我方/敌方 AI 均加序列校验与超时看门狗；技能空槽视觉对齐防具空槽，技能重掷确认复用 ConfirmUI 标准确认框**（见 12.9，已落地待实机验证）；**v6.68c 重掷范围收口：唯一 1 次免费重掷只用于开局技能 roll，防具 roll 停轮后直接落位，不再弹重掷选择**（见 5.1/12.6/12.9）；**v6.68d 转职技能空槽对齐：文案从「无」改「空」、字号 `FONT_TINY→FONT_SMALL`、去灰化，与普通技能/防具空槽一致**（见 12.9）；**v6.68e 遗物悬停统一：防具 roll 界面移除原生 tooltip 气泡，悬停只显示左侧 ItemDetailPopup 信息面板（同装备界面遗物槽）**（见 12.9）；**v6.68f 轮盘提速：加速/减速曲线参数化到 `economy_config.slot_machine`，起步 0.16→0.12s、最快 0.085→0.055s、减速 8→6 格且步进 0.05→0.035s，缓速发条有效系数下限 0.7（原 0.5 过慢）**（见 5.3/12.9）；**v6.68g 遗物信息面板修复：弹窗挂到父节点同级 CanvasLayer（layer 31）并跳过 reveal 动画直接显示，解决悬停看不到描述的问题**（见 12.9）；**v6.68h 遗物信息面板移到左侧红框区域，并支持悬停时右键切换「玩法 / 叙事」信息（同装备界面口径）**（见 12.9）；**v6.68j 攻击菜单回归两指令：移除灰显技能/觉醒进度/急救独立项，多个就绪技能只保留一个（优先转职主动），觉醒攒满时直接占用技能位**（见 5.0/12.9）；**v6.69 觉醒技取消能量充能：改为消费魂火 6 + 按回合冷却 3（主流派 Lv≥1），技能位灰显时文本后附倒数（「冷N / 需N魂 / 需LvN」），主战场与竞技场口径一致**（见 5.4.2/12.9）；**v6.70 可玩性改进 P0/P1 落地：钩子型遗物 2 件（轮回击杀溅灼烧 / 守护反击挂冻寒）+ 软保底（防具未出新流派加权 / 技能末 roll 衔接消费链，窗口前两天）+ 专精防具补到 8 件**（见「十一·补」）；**v6.70b 钩子遗物 tooltip 写明联动关系（可感知性验证）+ 软保底触发门槛 2→1 前移**（见「十一·补」观察指标）；**v6.70c 编辑器跟进：遗物新 effects 字段/校验白名单/中文标签 + 经济与战斗配置页签**（见「十一·补」编辑器跟进）；**v6.70d 位置后果方案复核：P0/P1/P2 主体已落地，敌人意图位置反制/夹击命中下降/Boss 位置伤害保护/8bit 表现细节为缺口**（见「十一·补」位置后果方案复核）。**v6.71 技能池三层重构：删除 Build 觉醒技（流派全场质变并入魂火爆发+单位身份）；新建「单位基础魂火技能层」（9 单位各配固定基础魂火技能，常驻唯一技能位）；初始 roll 改为强化/替换模板（anchor=basic_attack/soul_skill/both，按单位类型适配，不新增按钮），普攻强化记为被动；技能 JSON 全量迁移 anchor/tags/scaling/unit_type_scaling/cost/cooldown；转职以代码现有分支为准，修正剑士三分支孤儿 id 并统一降残响**（见 5.0/5.1/5.3/5.4.2/5.12，已落地待实机验证）；**v6.71b 共鸣代码审计 + 修2缺陷**（软保底 `_owned_school_set` 字典字符串化致保底空转、`basic_attack` 强化带标签却不共鸣）；**v6.72 删除共鸣系统与每日祝福**：技能不再给流派 Lv+1（流派 Lv 只由防具决定），`resonance_school` 改名 `school_affinity` 仅作软保底/方向提示纯数据；每日祝福（`LevelManager.current_resonance` 按天 roll 攻击/魂火/暴伤等祝福）整套移除，含魂火加成、战斗 buff、地图 HUD 节点（见 5.0/5.3/5.12）；**v6.72 补**：重掷确认框显示技能图标/文字 + 剩余次数、攻击菜单技能冷却灰显倒数、hover info 释放后刷新、冷却生效审计与3处修复（新字段死代码/Boss变形清冷却/治疗漏写冷却，见 5.1）；**v6.72 防具 roll 品质升级改为跨场持久 + 递增曲线**：新增独立 `economy_config.shop.roll_upgrade_costs`（150/350/650/1000/1400，不连带改魂栈商店），等级写入 SaveData/ResourceState（新局重置、竞技场隔离），第一天 lv3、第二天初 lv4、第二天中后期满级（见 5.5/6.2）。可玩性评估见第十一章。  
 > 承接方案：`EquipmentSlimPlan.md`、`EquipmentOneClickPlan.md`、`EquipmentUIIterationPlan.md`；冻结摘要见 `EquipmentBuildRefactorSummary.md`。
@@ -1531,5 +1531,76 @@ v6 主线已落地代码，核心计算集中在 `BuildManager`（autoload）。
 
 **待实测**：空格在对话/过场中的即时反馈、自动战斗与手动接管切换是否干净、敌方看门狗 15s 是否过长或过短、ConfirmUI 新参数不影响其他调用点、觉醒 6 魂 / 3 回合的节奏是否合适（魂火上限初始仅 8，6 魂偏贵可下调 `soul_fire_cost`）。
 
+
+### 「做了但没起作用」全库审计（v6.72g，2026-11-26，只读检查）
+
+三个维度并行扫描（配置层 / 函数·信号·类 / 数据字段）+ 人工复核。分级口径：**P0 = 玩家可感知的功能缺口**，P1 = 数据冗余或预留但当前不生效，P2 = 死代码/预留 API（按减负方向可清）。
+
+#### P0：身份表字段配了但战斗层不读（玩家可感知）
+
+v6.72c 修复 `soulfire_identity.json` 加载后，文件活了，但其中大量 `burn_trait`/`burst_trait` 字段**战斗层没有消费分支**——配置改动仍不生效。复核确认零 `.get()`（同名的 `counter_boost`/`range_bonus`/`defense_shred` 命中均属天赋或技能 effect_params，与身份表无关）：
+
+| 字段 | 所属身份 | 设计意图 | 现状 |
+|---|---|---|---|
+| `cleanse` | 牧师爆发 | 净化 1 负面 | 无消费 |
+| `reflect` / `counter_boost` | 重甲燃烧 · 盾卫爆发 | 反弹 30% / 反击强化 | 无消费（反弹走遗物字段，非身份） |
+| `pierce_targets` | 弓手燃烧 | 普攻穿透 1 目标 | 无消费 |
+| `ignore_reduction` / `armor_break` | 弓手爆发 | 无视 50% 减伤 / 破甲 | 无消费 |
+| `second_target_multiplier` | 枪兵燃烧 | 直线贯穿第二目标 50% | 无消费 |
+| `pass_through` | 飞马燃烧 | 穿越敌方单位 | 无消费 |
+| `stun_rounds` | 飞马爆发 | 俯冲眩晕 1 回合 | 无消费 |
+| `reset_action_on_kill` / `per_battle_once` | 斧手爆发 | 击杀再行动 / 每场 1 次 | 无消费 |
+| `breath_multiplier` | 龙裔燃烧 | 锥形龙息 +30% | 无消费 |
+| `leave_ash_tile` | 龙裔爆发 | 留燃烧地块 | 无消费 |
+| `detonate_burn` | 灰烬剑圣爆发 | 引爆灼烧 | 无消费 |
+| `move_after_attack` | 狂战士燃烧 | 攻击后再移 1 格 | 无消费 |
+| `hit_count` / `hit_multiplier` | 狂战士爆发 | 三段突进各 60% | 无消费 |
+| `tint` | 3 个转职覆盖 | 外观色调 | 无消费 |
+
+**对比已生效字段**（有 `.get()` 分支）：`damage_bonus`、`damage_reduction`、`heal_bonus`、`soulfire_on_heal`、`adjacent_multiplier`、`aoe_multiplier`、`burn_stacks`、`team_heal_ratio`、`soulfire_gain`、`taunt_rounds`、`shield_damage_reduction`、`knockback`、`move_bonus_override`、`zoc`、`burst_threshold` 等。也就是说 v6.64 设计的 9 单位身份**只有约一半真正落地**。
+
+#### P1：配置/数据冗余（改了不生效，但不是功能缺失）
+
+| 项 | 说明 |
+|---|---|
+| `talents.json.unit_type_scaling` | 4 类（回复/魔法/近战/远程）× 17 词条整段，只加载进 `TalentData` 字段，无消费；伤害缩放实际走 `combat_config.talent_params` |
+| `talents.json.effect_params` | 与 `combat_config.talent_params` 重复的陈旧副本，11 个键（extra_attack_multiplier/reflect_multiplier/damage_reduction/max_stacks 等）无读取 |
+| `relic_data.json` 的 aura effects | 6 件 aura 遗物的 8 个 effects 键（damage_reduction/counter_bonus/kill_gain_soul_fire/turn_start_gain_soul_fire/attack_percent/physical_reduction/magic_reduction/kill_heal_percent）是 `auras.json` 的冗余镜像；真实效果读 auras.json |
+| `treasure_rewards.json` | 整个文件未被加载（Config.PATHS 有定义但 0 引用）；宝箱实际走 `economy_config.treasure` |
+| `events.json` | 11 个事件数据完整、触发代码完整，但全库地图场景无 EventTrigger 节点配 event_id → 运行时不可达（编辑器现场摆放才能触发） |
+| `set_bonuses.json` | 6 套装的 `name`、旧式 `effect`/`value`（被新 `effects` 覆盖）、`cross_bonuses` 的 name/description 无读取 |
+| 其他单键 | `forge.max_slots`（代码写死 3）、`rare_drop_chance.START`（已废弃）、`item_battlefield_data.despawn_turns`（写死 1）、`special_items.key_of_sleep.max_stack`（拼错，代码读 max_stacks）、`narrative.__meta__` |
+| Unit/UnitData 只写不读字段 | `facing_dir`（背击未实现的预留）、`used_move`、`movement_after_attack`、`active_skill_ready_consumed`、`used_non_attack_item_this_turn`、`moves_since_act`、`advancement`（存档残留）、`ItemData.use_type`/`slot_count`/`base_attack` 等 |
+| 单位 `description` | 13 个单位都配了，`get_description()` 函数存在但 0 调用；详情面板自己拼 desc |
+
+#### P2：死代码 / 单边信号（预留 API，删有回归风险，暂保留）
+
+- **静态类无调用方法（24）**：`AbnormalManager.clear_stacks`、`GridPushManager.get_cells_for_threshold`、`SoulFireIdentity.get_hud_icon`、`TalentManager.get_talents_by_school`/`get_soul_cost`/`is_active_skill_ready` 等；`Direction` 4 个对角 helper；`UnitDataManager` 7 个显示/成长函数。
+- **高确认死链（13）**：`TurnManager._apply_turn_start_auras`→`_apply_turn_start_aura_effect`（v6.72c 只删了 TurnController 的副本，TurnManager 本体调用也已删）、`AbnormalManager.is_type_active`、`GridPushManager._can_stand`、`BuildManager.overwrite_school`/`is_safe_placement`、`Arena._show_shop`、`DialogueManager.start_dialogue`（废弃桩）、`UIManager.show_message`/`show_modal_message`、`SoulFireIdentity.reload` 与 `EnemyIntentManager.reload_config`（配置 reload 时不通知这两个静态缓存）。
+- **autoload / private / public 无调用（约 190）**：AuraManager 研究三函数（已并入遗物）、EconomyManager.get_soul、GameState 一批 get_* 辅助、Music/Sound 芯片 API、各 EquipContext 接口桩等——大多是历史预留 API。
+- **单边信号（10）**：只 emit 无 connect：`info_mode_changed`、`battle_completed`；只 connect 无 emit：`request_show_enemy_preview`、`request_dialogue_check`、`request_select_unit`、`request_spawn_blood_orb`、`request_clear_blood_orbs`、`request_end_turn_confirm`（血球 HUD 因此永不触发）；既无 emit 也无 connect：`unit_moved`、`request_highlight`。
+- **编辑器白名单残留**：`three_forms`、`kill_heal`、`dodge` 允许编辑但代码/数据都不支持。
+
+#### 明确复核为「正常生效」（排除误报）
+
+`intent_*`（蓄力/打断/释放全链）、`abnormal_*`/`no_heal_rounds`/`stun_rounds`/`guard_*`、`relic_*`（Unit 侧 11 个键）、`affixes.json` 全部 22 个 type、slot_machine 遗物 7 个键、`unit_data.json` 的 core_trait/avatar/tags/arena_exp/advanced_branches——均有真实消费。94 个 class_name 全部有活跃引用，无孤儿类。
+
+**建议优先级**：① P0 身份表字段——要么补战斗层消费分支（让 v6.64 转职承诺兑现），要么从 JSON 删掉这些字段避免误导；② P1 里的 `events.json` 不可达——若事件系统还要用需在地图摆节点，否则删系统；③ P2 按减负方向批量清理，但注意 SoulFireIdentity.reload / EnemyIntentManager.reload_config 是配置热重载的正确性缺口，建议接入 `GameConfigManager._after_reload` 而非删除。
+
+### 死机制审计修复落地（v6.72i）
+
+对上节 v6.72h 审计的 P0/P1/P2 逐项修复（保留项见文末说明）：
+
+**P0 身份表字段消费补齐（18 个）**——`soulfire_identity.json` 加载后真正生效的字段从约 15 个扩到 33 个：
+- 爆发附加（`CombatManager._apply_burst_trait_effects`）：`cleanse`（全队清异常/禁疗/减速）、`stun_rounds`（目标眩晕）、`armor_break`（目标破甲 30%）、`detonate_burn`（消费目标灼烧层 ×0.25/层追加伤害）、`leave_ash_tile`（目标格留燃烧地块）、`hit_count`/`hit_multiplier`（狂战士多段突进）、`reset_action_on_kill`/`per_battle_once`（斧手击杀再动，在 `_on_kill` 消费并置 meta 防重复）；`ignore_reduction`（弓手爆发按配置比例无视减伤重算主伤害）。
+- 燃烧被动：`reflect`（重甲燃烧态受击独立反弹）、`pierce_targets`/`second_target_multiplier`（弓手/枪兵沿主轴贯穿第二目标，新 `_apply_burning_pierce`）、`pass_through`（飞马燃烧态寻路可穿过敌方格但不停靠，`UnitManager._unit_can_pass_through`）、`breath_multiplier`（龙裔锥形龙息）、`move_after_attack`（狂战士燃烧态攻击后再移动 1 格，`Unit.can_move` + meta 防重复）；`tint`（转职外观色调，`Color.is_valid_html_color` 解析后应用 sprite modulate）。
+
+**P1 冗余配置清理**：`talents.json` 删 `scaling` + `unit_type_scaling` 各 17 处；`relic_data.json` 删 6 件 aura 遗物的 effects 冗余镜像（真实效果仍读 `auras.json`）；`set_bonuses.json` 删 6+4 个 `name`、`move`/`defense` 死字段（保留 effect/value 兜底与 description 供 UI）；`special_items.json` 删无消费的 `max_stack`；`economy_config` 删 `forge.max_slots`、`combat_config` 删 `rare_drop_chance.START`、`item_battlefield_data` 删 `despawn_turns`；删除从未加载的 `treasure_rewards.json` 及 `Config.PATHS` 条目；删 `Unit` 三个纯死字段（`moves_since_act`/`active_skill_ready_consumed`/`used_non_attack_item_this_turn`）及赋值点。
+
+**P2 死代码与信号**：`GameConfigManager._after_reload` 接入 `SoulFireIdentity.reload()` 与 `EnemyIntentManager.reload_config()`（修配置热重载缺口）；删除 `Battlefield` 里重复的血球 HUD 死实现（信号未 emit 导致永不显示，真实血球走 `ItemBattlefieldManager` 自带 sprite 实体）与 SignalBus 两个血球信号；删零引用信号 `unit_moved`/`request_highlight`；删死函数 `SoulFireIdentity.get_hud_icon`、`BuildManager.is_safe_placement`、`TurnManager._apply_turn_start_auras`/`_apply_turn_start_aura_effect`；编辑器白名单删 `three_forms`/`kill_heal`/`dodge`。
+
+**保留未删（有回归风险）**：`treasure_rewards` 删除但保留 economy_config.treasure 真实路径；`events.json` 11 事件数据/触发代码完整但地图无 EventTrigger 节点配置——需设计决定挂点，保留并在审计节标注；`overwrite_school`（完整实现但当前无调用）、`GridPushManager.get_cells_for_threshold`（击退查询 API）、`DialogueManager.start_dialogue`（废弃桩有重定向）、`move_and_defense` 白名单（set_bonuses 旧 effect 兜底仍用）、其余约 190 个 autoload/private/public 预留 API 与 6 个单边信号——按减负方向可后续分批清理，本轮不动以避免回归。
+
+**校验**：23 个 JSON 全合法、14 个改动脚本括号配平全 0、静态调用一致性无 static 误用、15 项 P0 字段接入断言全 PASS。环境无 Godot CLI，需编辑器实机验证 P0 新机制节奏（尤其多段/贯穿/再动是否过强、飞马穿越寻路是否正常）。
 
 **文档结束。**

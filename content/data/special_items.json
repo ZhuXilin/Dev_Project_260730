@@ -6,7 +6,6 @@
 	"desc": "可在宝箱高级隐藏开启，单局1把",
 	"price": 200,
 	"effect_type": "grant_key",
-	"max_stack": 1,
 	"disabled_reason": "已达上限"
   },
   "tag_pin": {

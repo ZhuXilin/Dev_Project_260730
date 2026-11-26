@@ -501,6 +501,30 @@ func execute_attack(attacker: Unit, defender: Unit, forced_skill_id: String = ""
 		if bool(ep.get("ignore_defense", false)):
 			damage = _calculate_damage_ignore_defense(attacker, defender, false)
 
+	# ★ v6.72h-P0：提前取身份爆发词条，供穿甲重算与后续爆发附加共用（一次查询、两处消费）。
+	var burst_trait : Dictionary = {}
+	attacker.set_meta("burst_reset_pending", false)
+	if is_soul_fire_burst:
+		burst_trait = SoulFireIdentity.get_burst_trait(
+			attacker.unit_stats.unit_name, attacker.unit_stats.advanced_class)
+		# ★ v6.72h-P0：斧手爆发击杀再动——必须在击杀结算前预置。
+		#   此前写在 _apply_burst_trait_effects 内（defeated 分支之后），击杀时永远赶不上 _on_kill。
+		if bool(burst_trait.get("reset_action_on_kill", false)):
+			var once_ok : bool = not bool(burst_trait.get("per_battle_once", false)) \
+					or not attacker.get_meta("burst_reset_used", false)
+			attacker.set_meta("burst_reset_pending", once_ok)
+
+	# ★ v6.72h-P0：弓手爆发穿甲（身份 ignore_reduction）——按配置比例无视目标减伤重算主伤害。
+	#   is_soul_fire_burst 为爆发态；已走完全无视的技能不重复处理。
+	if is_soul_fire_burst and not burst_trait.is_empty():
+		var ignore_ratio : float = float(burst_trait.get("ignore_reduction", 0.0))
+		if ignore_ratio > 0.0 and is_instance_valid(defender):
+			var was_magic : bool = _is_magic_attack(attacker.unit_stats)
+			var eff_reduction : float = clampf(_calc_reduction(defender, was_magic) * (1.0 - ignore_ratio), 0.0, 1.0)
+			var atk_raw : float = attacker.unit_stats.attack * QUALITY_MULT.get(attacker.unit_stats.weapon_quality, 1.0)
+			damage = maxi(1, int(atk_raw * (1.0 - eff_reduction)))
+			SignalBus.request_hint_override.emit("穿甲 · 无视 %d%% 减伤" % int(ignore_ratio * 100.0), 0.9)
+
 	attacker.temp_physical_penetration = 0.0
 	attacker.temp_magic_penetration = 0.0
 
@@ -539,16 +563,13 @@ func execute_attack(attacker: Unit, defender: Unit, forced_skill_id: String = ""
 		damage = int(damage * (1.0 + (attacker.combo_count - 1) * per_hit))
 		TalentManager.reset_talent(attacker, "combo")
 
-	var burst_trait : Dictionary = {}
 	if is_soul_fire_burst:
 		var bc : Dictionary = SoulFireIdentity.get_burst_config()
 		var per_soul : float = float(bc.get("extra_damage_per_soulfire", 0.15))
 		var flat_soul : int = int(bc.get("flat_damage_per_soulfire", 3))
 		# 爆发倍率：额外伤害按消耗魂火数缩放
 		var extra_dmg = int(attacker.unit_stats.attack * per_soul * burst_cost) + flat_soul * burst_cost
-		# 单位特有爆发附加：damage_multiplier（如斧手 200% 斩击）
-		burst_trait = SoulFireIdentity.get_burst_trait(
-			attacker.unit_stats.unit_name, attacker.unit_stats.advanced_class)
+		# 单位特有爆发附加：damage_multiplier（如斧手 200% 斩击）；词条已在上方提前取好
 		var trait_mult : float = float(burst_trait.get("damage_multiplier", 1.0))
 		damage = int((damage + extra_dmg) * maxf(trait_mult, 1.0))
 
@@ -672,12 +693,28 @@ func execute_attack(attacker: Unit, defender: Unit, forced_skill_id: String = ""
 	if splash_sf > 0.0 and attacker.unit_stats.team_id == 0 and defender.hit_points > 0:
 		await _apply_burning_splash(attacker, defender, damage, splash_sf)
 
+	# ★ v6.72h-P0：燃烧态直线贯穿（弓手 pierce_targets / 枪兵 second_target_multiplier）
+	if is_soul_fire_burst == false and SoulFireManager.get_state() == SoulFireManager.State.BURNING \
+			and attacker.unit_stats.team_id == 0 and is_instance_valid(defender):
+		await _apply_burning_pierce(attacker, defender, damage)
+
+	# ★ v6.72h-P0：龙裔燃烧态锥形龙息（breath_multiplier）——对目标相邻敌人追加伤害
+	if is_soul_fire_burst == false and SoulFireManager.get_state() == SoulFireManager.State.BURNING \
+			and attacker.unit_stats.team_id == 0 and is_instance_valid(defender) and defender.hit_points > 0:
+		var bt_breath : Dictionary = SoulFireIdentity.get_burn_trait(
+			attacker.unit_stats.unit_name, attacker.unit_stats.advanced_class)
+		var breath_mult : float = float(bt_breath.get("breath_multiplier", 0.0))
+		if breath_mult > 0.0:
+			await _apply_aoe(attacker, defender, damage, breath_mult, false)
+			SignalBus.request_hint_override.emit("龙息 · 锥形 %d%% 追加" % int(breath_mult * 100.0), 0.8)
+
 	await get_tree().create_timer(POST_DAMAGE_DELAY, true, false, true).timeout
 	await _wait_dialogue()
 
 	if defeated:
 		if _try_boss_revive(defender, attacker):
 			# ★ v5.0：boss 变形复活 → 算命中不算击杀
+			attacker.set_meta("burst_reset_pending", false)
 			if attacker.unit_stats.team_id == 0:
 				SoulFireManager.on_hit(1)
 			_settle_active_skill(attacker, active_skill_id, active_skill_data)
@@ -1073,6 +1110,14 @@ func _on_kill(attacker: Unit, _defender: Unit) -> bool:
 		attacker.movement_after_attack = false
 		TalentManager.reset_talent(attacker, "cleave")
 		cleave_triggered = true
+	# ★ v6.72h-P0：斧手爆发击杀再动（reset_action_on_kill/per_battle_once）
+	if attacker.get_meta("burst_reset_pending", false):
+		attacker.set_meta("burst_reset_pending", false)
+		attacker.set_meta("burst_reset_used", true)
+		attacker.has_attacked = false
+		attacker.has_acted = false
+		attacker.movement_after_attack = false
+		SignalBus.request_hint_override.emit("斩杀再动 · %s 可再行动" % attacker.unit_stats.unit_name, 1.0)
 
 	if attacker.relic_kill_grants_extra_move > 0:
 		attacker.remaining_move += attacker.relic_kill_grants_extra_move
@@ -1205,6 +1250,47 @@ func _apply_burning_splash(attacker : Unit, center : Unit, base_damage : int, pe
 			t.queue_free()
 
 
+## ★ v6.72h-P0：燃烧态直线贯穿——弓手 pierce_targets / 枪兵 second_target_multiplier。
+##   沿攻击者→目标的主轴方向，对目标身后第 1..N 格的第一个敌人追加伤害。
+func _apply_burning_pierce(attacker: Unit, target: Unit, base_damage: int) -> void:
+	if not is_instance_valid(attacker) or not is_instance_valid(target):
+		return
+	var bt : Dictionary = SoulFireIdentity.get_burn_trait(attacker.unit_stats.unit_name, attacker.unit_stats.advanced_class)
+	var pierce_n : int = maxi(0, int(bt.get("pierce_targets", 0)))
+	var second_mult : float = float(bt.get("second_target_multiplier", 0.0))
+	if pierce_n <= 0 and second_mult <= 0.0:
+		return
+	var diff : Vector2i = target.grid_cell - attacker.grid_cell
+	var dir : Vector2i = Vector2i.ZERO
+	if absi(diff.x) >= absi(diff.y):
+		dir = Vector2i(1 if diff.x >= 0 else -1, 0)
+	else:
+		dir = Vector2i(0, 1 if diff.y >= 0 else -1)
+	if dir == Vector2i.ZERO:
+		return
+	var hit_count : int = maxi(pierce_n, 1 if second_mult > 0.0 else 0)
+	var dmg : int = maxi(1, int(base_damage * (second_mult if second_mult > 0.0 else 0.5)))
+	var found : int = 0
+	for step in range(1, hit_count + 2):
+		var cell : Vector2i = target.grid_cell + dir * step
+		var t : Unit = UnitManager.get_unit_at_cell(cell)
+		if t == null or not is_instance_valid(t) or t.hit_points <= 0:
+			continue
+		if t.unit_stats.team_id == attacker.unit_stats.team_id:
+			continue
+		var dead : bool = _apply_damage_with_effects(t, dmg, attacker, false, false)
+		await _wait_dialogue()
+		SignalBus.request_hint_override.emit("贯穿 · %s 受 %d 伤害" % [t.unit_stats.unit_name, dmg], 0.8)
+		if dead:
+			_on_kill(attacker, t)
+			await _play_death_animation(t)
+			UnitManager.unregister_unit(t)
+			t.queue_free()
+		found += 1
+		if found >= hit_count:
+			break
+
+
 func _apply_splash(attacker: Unit, defender: Unit, base_damage: int, percent: float, is_crit: bool = false) -> void:
 	var behind = defender.grid_cell + (defender.grid_cell - attacker.grid_cell)
 	var splash_target = UnitManager.get_unit_at_cell(behind)
@@ -1233,6 +1319,29 @@ func _apply_splash(attacker: Unit, defender: Unit, base_damage: int, percent: fl
 func _apply_burst_trait_effects(attacker: Unit, defender: Unit, base_damage: int, is_crit: bool, cfg: Dictionary) -> void:
 	if not is_instance_valid(attacker) or cfg.is_empty():
 		return
+	# ★ v6.72h-P0：身份表此前配了但无消费的字段，逐项补实现。
+	# 0) 净化（牧师爆发 cleanse）：清自身异常层数 + 禁疗/减速负面，给全队也清 1 层。
+	var cleanse : int = int(cfg.get("cleanse", 0))
+	if cleanse > 0:
+		for u in UnitManager.unit_list:
+			if not is_instance_valid(u) or u.unit_stats.team_id != attacker.unit_stats.team_id:
+				continue
+			for _i in range(cleanse):
+				# 优先清灼烧/冻寒/灰烬（异常层数），再清禁疗回合
+				var types : Array = AbnormalManager.ALL_TYPES
+				var cleared : bool = false
+				for t in types:
+					if AbnormalManager.get_stacks(u, str(t)) > 0:
+						AbnormalManager.clear_stacks(u, str(t))
+						cleared = true
+						break
+				if not cleared and u.no_heal_rounds > 0:
+					u.no_heal_rounds -= 1
+					cleared = true
+				if not cleared and u.abnormal_slow_rounds > 0:
+					u.abnormal_slow_rounds = maxi(0, u.abnormal_slow_rounds - 1)
+					break
+		SignalBus.request_hint_override.emit("净化 · 全队清除 %d 层负面" % cleanse, 1.0)
 	# 1) 相邻横扫（剑士：对目标相邻敌人追加伤害）
 	var adj : float = float(cfg.get("adjacent_multiplier", 0.0))
 	if adj > 0.0 and is_instance_valid(defender):
@@ -1337,6 +1446,58 @@ func _apply_burst_trait_effects(attacker: Unit, defender: Unit, base_damage: int
 					hints.append("⚡ %s 蓄力被打断" % victim.unit_stats.unit_name)
 			if hints.size() > 0:
 				SignalBus.request_hint_override.emit(hints[hints.size() - 1], 0.9)
+	# 7) ★ v6.72h-P0：飞马爆发眩晕（stun_rounds）
+	var bstun : int = int(cfg.get("stun_rounds", 0))
+	if bstun > 0 and is_instance_valid(defender) and defender.hit_points > 0:
+		defender.stun_rounds = maxi(defender.stun_rounds, bstun)
+		SignalBus.request_hint_override.emit("眩晕 · %s 跳过 %d 回合" % [defender.unit_stats.unit_name, bstun], 0.9)
+	# 8) ★ v6.72h-P0：弓手爆发破甲（armor_break）——给目标挂破甲 debuff
+	if bool(cfg.get("armor_break", false)) and is_instance_valid(defender) and defender.hit_points > 0:
+		var shred_cap : float = 0.5
+		defender.buff_defense_shred = minf(defender.buff_defense_shred + 0.3, shred_cap)
+		SignalBus.request_hint_override.emit("破甲 · %s 减防 30%%" % defender.unit_stats.unit_name, 0.9)
+	# 9) ★ v6.72h-P0：灰烬剑圣爆发引爆灼烧（detonate_burn）——消费目标灼烧层造成追加伤害
+	if bool(cfg.get("detonate_burn", false)) and is_instance_valid(defender) and defender.hit_points > 0:
+		var burn_n : int = AbnormalManager.get_stacks(defender, AbnormalManager.TYPE_BURN)
+		if burn_n > 0:
+			var det_dmg : int = maxi(1, int(base_damage * 0.25 * burn_n))
+			AbnormalManager.clear_stacks(defender, AbnormalManager.TYPE_BURN)
+			var det_dead : bool = _apply_damage_with_effects(defender, det_dmg, attacker, false, false)
+			SignalBus.request_hint_override.emit("引爆 · %d 层灼烧 → %d 伤害" % [burn_n, det_dmg], 0.9)
+			if det_dead:
+				_on_kill(attacker, defender)
+				await _play_death_animation(defender)
+				UnitManager.unregister_unit(defender)
+				defender.queue_free()
+				return
+	# 10) ★ v6.72h-P0：龙裔爆发留灰烬地块（leave_ash_tile）——目标格留下燃烧地块
+	if bool(cfg.get("leave_ash_tile", false)) and is_instance_valid(defender):
+		var lv : int = BuildManager.get_effective_school_level(attacker, "灰烬")
+		var dmg : int = BuildManager.get_ash_tile_damage(maxi(1, lv))
+		ash_tiles[defender.grid_cell] = {
+			"damage": dmg, "team": attacker.unit_stats.team_id,
+			"owner": attacker, "expire_clock": ash_turn_clock + 2,
+		}
+		while ash_tiles.size() > ASH_TILE_MAX:
+			ash_tiles.erase(ash_tiles.keys()[0])
+		SignalBus.request_hint_override.emit("龙息 · 留下燃烧地块（%d 伤害）" % dmg, 0.9)
+	# 11) ★ v6.72h-P0：狂战士爆发多段突进（hit_count/hit_multiplier）——追加 N-1 段
+	var hit_count : int = maxi(1, int(cfg.get("hit_count", 1)))
+	var hit_mult : float = float(cfg.get("hit_multiplier", 1.0))
+	if hit_count > 1 and hit_mult > 0.0 and is_instance_valid(defender) and defender.hit_points > 0:
+		for _i in range(hit_count - 1):
+			if not is_instance_valid(defender) or defender.hit_points <= 0:
+				break
+			var seg_dmg : int = maxi(1, int(base_damage * hit_mult))
+			var seg_dead : bool = _apply_damage_with_effects(defender, seg_dmg, attacker, false, false)
+			await _wait_dialogue()
+			if seg_dead:
+				_on_kill(attacker, defender)
+				await _play_death_animation(defender)
+				UnitManager.unregister_unit(defender)
+				defender.queue_free()
+				return
+	# 12) 击杀再动已在 execute_attack 击杀结算前预置（见 burst_trait 读取处），此处不再写 meta。
 
 
 func _apply_aoe(attacker: Unit, center: Unit, base_damage: int, percent: float, is_crit: bool = false) -> void:
@@ -1417,6 +1578,20 @@ func _apply_damage_with_effects(defender: Unit, damage: int, attacker: Unit, is_
 					guard_lv, attacker.unit_stats.unit_name, reflect_dmg,
 					"（格挡翻倍）" if blocked else ""])
 			# ★ v6.59：F5 余烬引爆阵型效果已移除
+
+	# ★ v6.72h-P0：重甲燃烧态身份反弹（burn_trait.reflect）——独立于守护流派，不递归。
+	if is_instance_valid(attacker) and damage > 0 \
+			and defender.unit_stats.team_id != attacker.unit_stats.team_id \
+			and SoulFireManager.get_state() == SoulFireManager.State.BURNING \
+			and defender.unit_stats.team_id == 0:
+		var bt_reflect : Dictionary = SoulFireIdentity.get_burn_trait(
+			defender.unit_stats.unit_name, defender.unit_stats.advanced_class)
+		var rr : float = float(bt_reflect.get("reflect", 0.0))
+		if rr > 0.0:
+			var rd : int = maxi(1, int(damage * rr))
+			attacker.apply_damage(rd)
+			SignalBus.request_damage_popup.emit(attacker.global_position, rd, false, false, false)
+			SignalBus.request_hint_override.emit("重甲 · 反伤 %d" % rd, 0.7)
 
 	if TalentManager.is_talent_ready(attacker, "bleed"):
 		if defender.unit_stats.team_id != attacker.unit_stats.team_id:

@@ -110,7 +110,7 @@ const LEVEL_MECHANICS_LIST : Array = [
 
 const BOSS_TRIGGERS : Array = ["initial", "hp_below", "on_death"]
 const BOSS_HP_MODES : Array = ["full", "keep_ratio", "keep_absolute", "custom_ratio"]
-const BOSS_MECHANICS : Array = ["", "ash_shield", "soul_drain", "three_forms"]
+const BOSS_MECHANICS : Array = ["", "ash_shield", "soul_drain"]
 
 var _unit_db : Dictionary = {}
 var _unit_keys : Array = []
@@ -661,7 +661,7 @@ func _build_edit_tab(parent : Control) -> Control:
 	flags_row.add_child(_edit_is_boss_cb)
 
 	_edit_boss_mechanic_edit = _add_edit_row(content, "boss_mechanic_id")
-	_edit_boss_mechanic_edit.placeholder_text = "ash_shield / soul_drain / three_forms（空=无）"
+	_edit_boss_mechanic_edit.placeholder_text = "ash_shield / soul_drain（空=无）"
 	_edit_boss_mechanic_params_edit = _add_edit_row(content, "boss_mechanic_params")
 	_edit_boss_mechanic_params_edit.placeholder_text = 'JSON，如 {"max_stacks":3,"damage_reduction":0.5}'
 

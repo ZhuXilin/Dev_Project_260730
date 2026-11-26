@@ -125,10 +125,6 @@
     "icon": "item_038",
     "price": 100.0,
     "lifetime": "persistent",
-    "effects": {
-      "damage_reduction": 0.1,
-      "counter_bonus": 0.3
-    },
     "from_aura": true
   },
   "aura_cycle": {
@@ -140,9 +136,6 @@
     "icon": "item_044",
     "price": 160.0,
     "lifetime": "consumable",
-    "effects": {
-      "kill_gain_soul_fire": 1.0
-    },
     "from_aura": true
   },
   "aura_ember": {
@@ -154,9 +147,6 @@
     "icon": "item_077",
     "price": 160.0,
     "lifetime": "consumable",
-    "effects": {
-      "turn_start_gain_soul_fire": 1.0
-    },
     "from_aura": true
   },
   "aura_flame": {
@@ -168,9 +158,6 @@
     "icon": "item_045",
     "price": 120.0,
     "lifetime": "persistent",
-    "effects": {
-      "attack_percent": 0.15
-    },
     "from_aura": true
   },
   "aura_guardian": {
@@ -182,10 +169,6 @@
     "icon": "item_051",
     "price": 80.0,
     "lifetime": "persistent",
-    "effects": {
-      "physical_reduction": 0.1,
-      "magic_reduction": 0.1
-    },
     "from_aura": true
   },
   "aura_sacrifice": {
@@ -197,9 +180,6 @@
     "icon": "item_089",
     "price": 100.0,
     "lifetime": "persistent",
-    "effects": {
-      "kill_heal_percent": 0.15
-    },
     "from_aura": true
   },
   "relic_roll_discount": {

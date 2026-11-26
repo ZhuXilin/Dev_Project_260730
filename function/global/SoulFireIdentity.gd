@@ -95,11 +95,6 @@ static func get_burst_label(unit_name: String, advanced_class: String = "") -> S
 
 
 ## 魂火 HUD 图标字符
-static func get_hud_icon(unit_name: String, advanced_class: String = "") -> String:
-	var d: Dictionary = resolve(unit_name, advanced_class)
-	return str(d.get("hud_icon", ""))
-
-
 ## 转职后名号（无覆盖时返回空串）
 static func get_advanced_name(advanced_class: String) -> String:
 	return str(get_advanced_override(advanced_class).get("name", ""))

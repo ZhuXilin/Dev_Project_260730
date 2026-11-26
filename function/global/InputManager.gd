@@ -88,7 +88,6 @@ func _handle_right_click():
 	if m != null and is_instance_valid(m) and m.has_moved and not m.has_attacked and not m.has_acted and m.can_act_this_turn:
 		SoundManager.play_cancel_sound()
 		TurnManager.cancel_movement(m)
-		m.moves_since_act -= 1
 		SignalBus.request_hint_override.emit("已撤销操作", 1.0)
 		SignalBus.request_clear_highlight.emit()
 		SignalBus.request_clear_highlight_unit.emit()

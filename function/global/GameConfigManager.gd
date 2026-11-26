@@ -84,6 +84,12 @@ func _after_reload(fname : String):
 	if fname == "" or fname == "combat_config.json":
 		if has_node("/root/CombatManager"):
 			CombatManager.reload_config()
+	# ★ v6.72h-P2：静态缓存类热重载——此前改配置后身份表/敌人意图不刷新。
+	#   SoulFireIdentity 与 EnemyIntentManager 均为 class_name 静态类（非 autoload），直接调 reload。
+	if fname == "" or fname == "soulfire_identity.json":
+		SoulFireIdentity.reload()
+	if fname == "" or fname == "enemy_intent.json":
+		EnemyIntentManager.reload_config()
 	# progression → 影响 TalentManager 的 EXP 阈值
 	# （AdvancedClassManager 没有 COST_PER_CLASS 字段，v4.5 转职已免费，不再联动）
 	if fname == "" or fname == "progression_config.json":

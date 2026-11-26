@@ -980,41 +980,6 @@ func _find_chain_skill(owned: Dictionary, units: Array, exclude: Array) -> Strin
 	return fallback
 
 
-## 落位安全检查：把 talent_id 给 unit 后，剩余单位是否仍能被剩余技能覆盖。
-## remaining_unit_names / remaining_skill_ids 均为尚未落位的单位与技能（含当前这一个）。
-func is_safe_placement(unit: UnitData, talent_id: String, remaining_unit_names: Array, remaining_skill_ids: Array) -> bool:
-	if not can_place_skill(unit, talent_id):
-		return false
-	# 剩余单位（排除当前单位）
-	var left_units: Array = []
-	for un in remaining_unit_names:
-		var key := UnitDataManager.normalize_unit_key(str(un))
-		if key != UnitDataManager.normalize_unit_key(unit.unit_name):
-			left_units.append(key)
-	if left_units.is_empty():
-		return true
-	# 剩余技能（消耗掉当前技能一次）
-	var left_skills: Array = []
-	var consumed := false
-	for tid in remaining_skill_ids:
-		var sid: String = str(tid)
-		if not consumed and sid == talent_id:
-			consumed = true
-			continue
-		left_skills.append(sid)
-	# 剩余单位必须各能分到一个剩余技能
-	var cand: Dictionary = {}
-	for u in left_units:
-		var lst: Array = []
-		for sid in left_skills:
-			var data := TalentManager.get_talent_data(sid)
-			if data and data.is_active_skill \
-					and TalentManager.is_talent_compatible_with_unit(str(sid), str(u)) \
-					and _skill_cost_allowed_for_unit(str(sid), str(u)):
-				lst.append(str(sid))
-		cand[u] = lst
-	var assign := _match_units_to_skills(left_units, cand)
-	return assign.size() >= left_units.size()
 
 
 ## ★ v6.18：贴合"老虎机逐轮重 roll"模型的落位判定。

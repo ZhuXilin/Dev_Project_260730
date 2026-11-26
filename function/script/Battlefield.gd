@@ -65,9 +65,6 @@ const INPUT_LOCK_WATCHDOG_TIMEOUT_MS : int = 12000
 var _battle_ready_watchdog_ms : int = 0
 const BATTLE_READY_WATCHDOG_TIMEOUT_MS : int = 12000
 
-var _blood_orbs : Dictionary = {}   # cell -> Node2D
-const BLOOD_ORB_ICON_ID : String = "item_089"
-const BLOOD_ORB_HEAL_PERCENT : float = 0.10
 
 # 缓存敌人危险区，避免每帧重算
 var _enemy_danger_zones : Dictionary = {}
@@ -217,12 +214,6 @@ func _ready():
 
 	_ui_binder.bind_all()
 
-	if not SignalBus.request_spawn_blood_orb.is_connected(_on_spawn_blood_orb):
-		SignalBus.request_spawn_blood_orb.connect(_on_spawn_blood_orb)
-	if not SignalBus.request_clear_blood_orbs.is_connected(_on_clear_blood_orbs):
-		SignalBus.request_clear_blood_orbs.connect(_on_clear_blood_orbs)
-	if not SignalBus.turn_changed.is_connected(_on_turn_changed_blood_orbs):
-		SignalBus.turn_changed.connect(_on_turn_changed_blood_orbs)
 	# ★ v6.34（B1）：build 觉醒仪式反馈
 	if not SignalBus.build_awakened.is_connected(_on_build_awakened):
 		SignalBus.build_awakened.connect(_on_build_awakened)
@@ -645,7 +636,6 @@ func _exit_tree():
 
 	disable_auto_battle()
 
-	_on_clear_blood_orbs()
 
 # ============================================================
 #  主循环
@@ -2190,59 +2180,6 @@ func hide_damage_preview():
 	if _damage_preview_panel:
 		_damage_preview_panel.visible = false
 
-
-func _on_spawn_blood_orb(cell: Vector2i) -> void:
-	if _blood_orbs.has(cell):
-		return
-	var sprite := Sprite2D.new()
-	var tex : Texture2D = IconManager.get_icon_or_null(BLOOD_ORB_ICON_ID)
-	if tex:
-		sprite.texture = tex
-		sprite.scale = Vector2(0.5, 0.5)  # item 图是 16x16，缩到 8x8 左右
-	else:
-		# 兜底：无图时用白色方块，避免完全隐形
-		var img := Image.create(8, 8, false, Image.FORMAT_RGBA8)
-		img.fill(Color(1.0, 0.3, 0.3, 0.9))
-		sprite.texture = ImageTexture.create_from_image(img)
-	sprite.position = grid_to_world(cell)
-	sprite.z_index = 5
-	add_child(sprite)
-	_blood_orbs[cell] = sprite
-
-
-func _on_clear_blood_orbs() -> void:
-	for cell in _blood_orbs:
-		var s = _blood_orbs[cell]
-		if is_instance_valid(s):
-			s.queue_free()
-	_blood_orbs.clear()
-
-
-func _on_turn_changed_blood_orbs(team: int) -> void:
-	# 我方回合结束时（切到敌方）清理血球
-	if team == TurnManager.Team.ENEMY:
-		_on_clear_blood_orbs()
-
-
-## 单位移动结束 / 落地后检测是否踩到血球；只对我方单位生效
-func _try_pickup_blood_orb(unit: Unit) -> void:
-	if not is_instance_valid(unit) or unit.unit_stats.team_id != 0:
-		return
-	if not _blood_orbs.has(unit.grid_cell):
-		return
-	var s = _blood_orbs[unit.grid_cell]
-	_blood_orbs.erase(unit.grid_cell)
-	if is_instance_valid(s):
-		s.queue_free()
-
-	var heal : int = maxi(1, int(unit.unit_stats.max_hp * BLOOD_ORB_HEAL_PERCENT))
-	var old : int = unit.hit_points
-	unit.hit_points = mini(unit.hit_points + heal, unit.unit_stats.max_hp)
-	var actual : int = unit.hit_points - old
-	if actual > 0:
-		unit.update_hp_label()
-		SignalBus.request_damage_popup.emit(unit.global_position, actual, false, false, true)
-		SoundManager.play_heal_sound()
 
 func disable_auto_battle() -> void:
 	if _auto_battle_manager != null:

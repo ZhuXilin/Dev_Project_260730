@@ -37,8 +37,6 @@ var intent_release_mult : float = 1.0
 var intent_ready : bool = false
 var movement_after_attack : bool = false
 var previous_flip_h : bool = false
-var used_non_attack_item_this_turn : bool = false
-var moves_since_act: int = 0
 
 # ★ 新增：记录完整的 4 向朝向（用于未来的背击判定）
 var facing_dir : Vector2i = Vector2i(1, 0)
@@ -82,7 +80,6 @@ var buff_defense_shred : float = 0.0
 var buff_defense_flat : int = 0
 
 # ---- 主动技能 ----
-var active_skill_ready_consumed: Dictionary = {}
 
 # ---- 嘲讽 ----
 var taunt_rounds: int = 0
@@ -361,7 +358,6 @@ func setup_unit(stats_data: UnitData, start_cell: Vector2i, initial_items: Array
 
 	combo_last_target = ""
 	combo_count = 0
-	active_skill_ready_consumed.clear()
 	taunt_rounds = 0
 	taunt_by = null
 	taunt_rounds_left = 0
@@ -647,7 +643,6 @@ func restore_from_unit_data(data: UnitData, cell: Vector2i):
 
 	combo_last_target = ""
 	combo_count = 0
-	active_skill_ready_consumed.clear()
 	taunt_rounds = 0
 	taunt_by = null
 	taunt_rounds_left = 0
@@ -667,6 +662,9 @@ func mark_non_attack_action(): has_acted = true
 
 
 func reset_turn():
+	# ★ v6.72h-P0：清除燃烧态攻击后再移动的每回合标记
+	if has_meta("burn_move_after_used"):
+		set_meta("burn_move_after_used", false)
 	can_act_this_turn = true
 	# ★ v6.67：撞墙眩晕——跳过本回合行动（灰显），不清除 stun_rounds（由 TurnManager 回合结束递减）
 	if stun_rounds > 0:
@@ -674,12 +672,10 @@ func reset_turn():
 	has_moved = false
 	has_attacked = false
 	has_acted = false
-	used_non_attack_item_this_turn = false
 	movement_after_attack = false
 	var total_move : int = get_total_move_range()
 	remaining_move = total_move
 	used_move = 0
-	moves_since_act = 0
 	previous_remaining_move = total_move
 	relic_turn_first_hit_regen_used = false
 	set_gray(stun_rounds > 0)
@@ -744,6 +740,9 @@ func get_effective_min_attack_range() -> int:
 
 
 func consume_move(cost: int):
+	# ★ v6.72h-P0：攻击后移动已实际发生，标记本次燃烧再动已用
+	if has_attacked and get_meta("burn_move_after_used", false) == false:
+		set_meta("burn_move_after_used", true)
 	remaining_move -= cost
 	if remaining_move < 0: remaining_move = 0
 	# 原代码： used_move = unit_stats.move_range - remaining_move
@@ -755,6 +754,15 @@ func consume_move(cost: int):
 
 
 func can_move() -> bool:
+	# ★ v6.72h-P0：狂战士燃烧态「攻击后再移动1格」（身份 move_after_attack）。
+	#   攻击后 has_attacked=true 通常锁移动；身份加成时放行一次，用 meta 防重复。
+	if has_attacked and can_act_this_turn and remaining_move > 0:
+		if SoulFireManager.get_state() == SoulFireManager.State.BURNING and unit_stats != null:
+			var bt: Dictionary = SoulFireIdentity.get_burn_trait(unit_stats.unit_name, unit_stats.advanced_class)
+			var after: int = int(bt.get("move_after_attack", 0))
+			if after > 0 and not get_meta("burn_move_after_used", false):
+				return true
+		return false
 	return can_act_this_turn and remaining_move > 0 and not has_attacked
 
 
@@ -857,7 +865,14 @@ func update_color():
 	mat.set_shader_parameter("assign_color_2", color2)
 	animated_sprite.material = mat
 	_color_material = mat
-	animated_sprite.modulate = Color.WHITE
+	# ★ v6.72h-P0：转职身份外观色调（soulfire_identity.json advanced_overrides.tint）
+	var tint_hex : String = ""
+	if unit_stats != null and unit_stats.advanced_class != "":
+		tint_hex = str(SoulFireIdentity.get_advanced_override(unit_stats.advanced_class).get("tint", ""))
+	if tint_hex != "" and tint_hex.is_valid_html_color():
+		animated_sprite.modulate = Color.from_string(tint_hex, Color.WHITE)
+	else:
+		animated_sprite.modulate = Color.WHITE
 
 
 func play_hit_effect(direction: Vector2, is_hit: bool):
@@ -1175,7 +1190,6 @@ func apply_boss_form(new_stats: UnitData, hp_mode: String, min_hp: int,
 		has_acted = false
 		remaining_move = get_total_move_range()
 		used_move = 0
-		moves_since_act = 0
 		previous_remaining_move = remaining_move
 
 	update_hp_label()

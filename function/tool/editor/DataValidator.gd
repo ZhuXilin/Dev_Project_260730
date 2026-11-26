@@ -21,14 +21,14 @@ const VALID_SET_TAGS : Array = ["烈焰", "轮回", "灰烬", "守护", "献祭"
 const VALID_SET_EFFECTS : Array = [
 	"attack_percent", "defense_flat", "move_flat", "hp_flat",
 	"crit_damage", "turn_regen", "damage_lifesteal", "soul_fire_max",
-	"kill_soul_fire", "move_and_defense", "kill_heal"
+	"kill_soul_fire", "move_and_defense"
 ]
 
 const VALID_CORE_TRAITS : Array = ["charge", "dragon_might", "bulwark"]
 const VALID_CAP_ATTRS : Array = ["vitality", "strength", "dexterity", "intelligence", "faith"]
 const VALID_AFFIX_TYPES : Array = [
 	"attack_flat", "defense_flat", "hp_flat", "crit_chance", "crit_damage",
-	"dodge", "lifesteal", "counter", "soul_fire_gain", "heal_boost",
+	"lifesteal", "counter", "soul_fire_gain", "heal_boost",
 	"flame_damage", "move_flat", "turn_regen", "start_shield",
 	"physical_penetration", "magic_penetration", "anti_crit"
 ]
@@ -719,5 +719,5 @@ func _validate_boss_phases(fname: String, unit_key: String, u: Dictionary) -> vo
 				_error(fname, "%s.phases[%d].form_unit_id" % [unit_key, i], "形态单位不存在: %s" % form_id)
 
 		var mid: String = str(d.get("mechanic_id", ""))
-		if mid != "" and mid not in ["ash_shield", "soul_drain", "three_forms"]:
+		if mid != "" and mid not in ["ash_shield", "soul_drain"]:
 			_warn(fname, "%s.phases[%d].mechanic_id" % [unit_key, i], "未注册的机制: %s" % mid)
