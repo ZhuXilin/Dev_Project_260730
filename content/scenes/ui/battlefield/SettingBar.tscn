@@ -1,6 +1,6 @@
 [gd_scene format=3 uid="uid://coywhlbv4e5xs"]
 
-[ext_resource type="StyleBox" uid="uid://6qbsaxkfwg3o" path="res://content/resource/stylebox/8bit_style_box_flat.tres" id="1_style"]
+[ext_resource type="StyleBox" uid="uid://6qbsaxkfwg3o" path="res://content/resource/stylebox/8bit_style_box_texture.tres" id="1_style"]
 
 [node name="SettingBar" type="CanvasLayer" unique_id=976224142]
 

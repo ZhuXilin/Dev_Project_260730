@@ -1681,4 +1681,68 @@ v6.72c 修复 `soulfire_identity.json` 加载后，文件活了，但其中大�
 - **修复**（`EquipmentConfigDrag.gd`）：加 `drag_start_mouse`/`drag_moved`，`start_drag` 重置，`update_drag_preview` 中位移>6px 置 `drag_moved=true`。`RelicShop._on_buy` 开头若 `panel._drag.drag_moved` 则 return（拖动过就忽略点击购买，只走拖到遗物槽的 buy_to_slot）。`end_drag` 对纯点击的商店格跳过取消音效与失败提示（交给 pressed 正常处理）。
 - 校验：两脚本括号配平全 0。待编辑器实测：不再报错、拖到空白区不买、点击购买仍正常、拖到槽位购买正常不重复。
 
+## v6.72v：8bit 面板升级为真实自定义边框（StyleBoxTexture）
+- **背景**：`8bit_style_box_flat.tres` 原是 StyleBoxFlat（纯色 bg + 4px margin），被 30+ 场景/脚本引用。用户提供 `frames.png`（18×19）——只有左边框+装饰柱、上下横边，右边框缺失。
+- **处理**：①用 Python 标准库解析 PIL 不可用的 PNG，确认装饰柱占 x=0..3；把左侧装饰柱**水平镜像**到右侧，生成 22×19 的完整对称边框 `content/resource/stylebox/8bit_frame.png`（左 x=0..3、右 x=18..21 装饰柱，中间 x=4..17 纯黑可拉伸）。②把 `.tres` 从 StyleBoxFlat 改为 **StyleBoxTexture**，保留原 uid `uid://6qbsaxkfwg3o`（所有场景靠 uid 引用，零改动自动生效），patch_margin 5/2/5/2、content_margin 5/4/5/4、draw_center=true。
+- **兼容性核对**：全部 `load(STYLEBOX_8BIT)` 调用点只做 `add_theme_stylebox_override("panel", ...)`，无类型假设/无 bg_color 修改，替换安全；项目全局 `default_texture_filter=0`(Nearest)，像素边框不会被插值糊掉。
+- 待编辑器实测：所有引用该 stylebox 的面板显示新边框、9-slice 拉伸无变形、装饰柱不被切断。若要调内容缩进改 content_margin，若装饰被切改 patch_margin。
+
+## v6.72w：移除头像灰底
+- 三处 `AvatarBg`(Panel) 节点都挂了 `theme_override_styles/panel = 8bit_style_box_flat.tres`，在头像图片下垫了一层方块底（原为深灰 StyleBoxFlat，v6.72v 后变成 8bit 边框）。用户要求删掉。
+- 处理：仅删除三处 AvatarBg 节点的 `theme_override_styles/panel` 行（节点本身保留——代码 `DialogueManager._update_dialogue_avatar` / `Battlefield._show_avatar/_hide_avatar` 依赖它控制显隐与布局；代码未设 bg_color，无残留）。涉及 `DialogueUI.tscn`、`battlefield/BattlefieldInfo.tscn`、`components/UnitInfoPanel.tscn`。
+- 三个 `ext_resource` 仍被各自主 Panel 使用，无悬空引用。校验：三处 AvatarBg 块内已无 style 覆盖。
+- 附：日志中 `[Battlefield] 战前对话等待超时(6s)` 是既有的超时保护警告（避免对话未关闭锁死输入），与本次改动无关，未改动。
+
+## v6.72x/y：边框 9-slice 修复（.tres 未生效 → 代码兜底）
+- 用户更新 `8bit_frame.png`：22×19 → **22×22**，上下横边加厚到 3px。同步把 `.tres` patch 改 5/3/5/3、content 5/4→5/5。
+- **实机问题**：截图显示整张 22px 图被非等比拉伸到面板（装饰柱放大 21×、顶边 32×），9-slice 完全没生效。像素测量证实是整图拉伸而非 9-slice。
+- **根因**（用户查 Inspector）：选中 `.tres` 时 Patch Margin 显示 **4/4/4/4**，而文件里写的是 5/3/5/3 → **Godot 没加载手写 `.tres` 的改动**（缓存/资源未刷新）。
+- **修复**（`Config.gd:_ready`，v6.72y）：Config 是首个 autoload，运行时 `load(STYLEBOX_8BIT)` 后强制设 `patch_margin=5/3/5/3`、`content_margin=5`、draw_center=true。资源单例缓存，30+ 场景 load 同一路径拿到已改好的同一实例，绕开不生效的 .tres。
+- 待编辑器实测：面板装饰柱保持约 5px 原始像素、边条不被拉宽、内容不压边框。若仍拉伸说明 load 拿到的不是同一实例，需进一步排查。
+
+## v6.72z：清除所有头像列表的图片垫底 UI 块
+- **问题**（4 张实机截图：装备配置 / 战场 / 选择队伍 / 旅程向导）：头像图片下垫了一层 UI 方块（8bit 深棕画框，实测颜色 RGB(32,3,0)），用户要求去掉并检查其它界面。
+- **根因**：所有头像按钮走 `UnitDataManager.create_unit_avatar_button` → `create_unit_avatar_with_frame`，后者在头像 TextureRect 下加了一个 `Panel` 并套 `STYLEBOX_8BIT` 画框（就是那层块）。调用点覆盖 Arena / ArmorRollUI / DispatchUI / EquipmentConfig / SoulAltar / UnitSelectUI 全部门户，以及 SoulAltar 直接调 with_frame。
+- **修复**（`UnitDataManager.gd:create_unit_avatar_with_frame`）：删除垫底 Panel + stylebox（含 fallback StyleBoxFlat）整段，wrapper 只保留居中头像 TextureRect。一处改动全局生效。
+- **排查确认**：另三处 `AvatarBg` 节点（DialogueUI / BattlefieldInfo / UnitInfoPanel）样式此前已删、本次复核仍为无样式；战场深绿头像框是图片自带（avatar_024.png 边缘 RGB(19,184,0)），非 UI 块，未改；`ConfirmUI` 走 `create_unit_avatar_rect`（本就无框）。剩余 `STYLEBOX_8BIT` 引用均为地形/伤害预览/菜单/确认面板，与头像无关。
+- 校验：UnitDataManager.gd 括号配平 ()/[]/{} 全 0。待编辑器实测：4 个界面头像块消失、hover/选中态正常。
+
+## v6.72aa：修复 StyleBoxTexture 属性名错误（patch_margin → texture_margin）
+- **报错**：`Config.gd:84 Invalid assignment of property 'patch_margin_left' on StyleBoxTexture`。
+- **根因**：`patch_margin_*` 是 `NinePatchRect` 的属性；`StyleBoxTexture` 的 9-slice 属性名是 **`texture_margin_*`**。此前 .tres 和 Config 兜底代码全写成 patch_margin，被 Godot 静默忽略（这正好解释了 Inspector 显示默认 4/4/4/4、整图被拉伸成色块的老问题）。
+- **修复**：`8bit_style_box_flat.tres` 的 4 行 `patch_margin_*` → `texture_margin_*`；`Config.gd:_ready` 兜底代码同样改用 `texture_margin_*`。全库无 patch_margin 赋值残留（仅注释文字提及）。
+- **意义**：这很可能同时解决了困扰多轮的"边框非等比拉伸、装饰柱放大成色块"——之前 patch margin 根本没被读取。9-slice 参数（left/right=5、top/bottom=3）现在真正生效。
+- 校验：Config.gd 括号配平全 0。待编辑器实测：无报错、面板 9-slice 生效（装饰柱保持原始像素、不再整图拉伸）、Inspector 显示 texture margin 5/3/5/3。
+
+## v6.72ab：Inspector 显示 StyleBoxFlat 的缓存问题排查
+- **现象**：用户截图 Inspector 打开 `8bit_style_box_flat.tres` 显示的是 StyleBoxFlat（BG Color/Border Width/Corner Radius），看不到 `8bit_frame.png`，怀疑没用上图。
+- **排查**：磁盘 .tres 内容确为 StyleBoxTexture（14:07 修改、引用 `8bit_frame.png`、texture_margin 5/3/5/3），全库仅一份文件、无重复。根因是资源**类型从 StyleBoxFlat 改成 StyleBoxTexture 时保留了同一 uid `6qbsaxkfwg3o`**，而 `.godot/uid_cache.bin`（13:50）缓存的仍是旧类型；29 个场景按 uid 引用，编辑器按缓存把资源当 StyleBoxFlat 显示。
+- **处理**：删除 `.godot/uid_cache.bin`（Godot 纯缓存，重启编辑器自动重建）。待用户重启编辑器后确认 Inspector 显示 StyleBoxTexture + texture margin 5/3/5/3 + 能看到 frame 纹理。若仍显示旧类型，备选方案是换新 uid 并批量改 29 个场景引用。
+- **补充**：移除头像垫底块后，头像不再套这个 stylebox，但 29 个面板/确认框仍用它，所以边框修复仍有意义。
+
+## v6.72ac：边框 9-slice 二次校准 + 头像半透明底彻底去除
+- **边框仍拉伸**（截图1）：`8bit_frame.png`(22×22) 的编织纹在 y=3~7 / y=14~18，而 texture_margin_top/bottom=3 只固定了 y=0~2，带花纹的 y=3~7 落入可拉伸区被纵向拉成条纹。修正为 **texture_margin_top/bottom=8**（整段编织纹进角部固定区，仅中间 y=8~13 均匀竖条被拉伸，不变形），content_margin_top/bottom 同步 8。`.tres` 与 Config 兜底同步。
+- **头像半透明底**（截图2）：此前删 `theme_override_styles/panel` 后，Panel 回退到 Godot 默认主题的灰色 panel 样式，形成半透明底。修正为在三处场景内联 `StyleBoxEmpty` 子资源并显式覆盖 `theme_override_styles/panel`（BattlefieldInfo / DialogueUI / UnitInfoPanel 的 AvatarBg）。
+- 校验：3 场景 sub_resource 定义与引用一一匹配、Config 括号配平全 0。待编辑器实测：边框装饰纹不再被拉长、头像半透明底消失。
+
+## v6.72ae：修复 DialogueUI 场景解析报错（sub_resource 多余方括号）
+- **报错**：`DialogueManager.gd:358 Invalid scene: root node DialoguePanel cannot specify a parent node` + `null instance` name 赋值。
+- **根因**：v6.72ac 给三个场景加内联 `StyleBoxEmpty` 时，我在 `[sub_resource ...]` 段后多写了一行孤立的 `]`。Godot tscn 资源段**没有 `]` 结束符**（下一个 `[` 即为段结束），这个非法 `]` 破坏解析、节点树错乱、根节点被误判成 DialoguePanel。DialogueUI 是启动首个加载的场景故先报。
+- **修复**：删除三个场景（DialogueUI / BattlefieldInfo / UnitInfoPanel）中 sub_resource 段后的孤立 `]`。校验：首节点均为无 parent 的根节点、无孤立方括号、sub_resource def/ref 一一匹配。
+- 教训：Godot tscn 的 `[sub_resource]` / `[resource]` 段不需要 `]` 结束符，下一个 `[` 自动分隔；手写时别套 JSON 式括号。
+
+## v6.72af：Inspector 改 9-slice 参数不生效（代码兜底覆盖）
+- **现象**：用户在 Inspector 把 `8bit_style_box_texture.tres` 设为 texture_margin 9/9/9/9、Axis Stretch=Tile（Horizontal/Vertical）、region_rect 22×22 并保存（14:24 磁盘确认），但运行时光边框横边仍有很多点，改动看似无效。
+- **根因**：`Config.gd:_ready()` 里我早前加的代码兜底（v6.72aa 修 patch_margin 属性名时），运行时强制把 margin 设回 5/8/5/8、content 5/8/5/8，覆盖了 Inspector 的 9/9/9/9。Axis Stretch 没被碰，但 margin 被改回导致 Tile 效果不对。
+- **修复**：删除 `Config.gd:_ready()` 整段兜底代码（连同专为它加的空 _ready）。9-slice 参数完全由 `.tres` 自身配置决定，编辑器所见即运行时所得。
+- **补充**：确认磁盘 .tres 已含用户改动（margin 9、axis_stretch 1=Tile、region_rect 22×22）；源图 22×22 未放大（用户明确不要放大分辨率）。全库其它 content_margin 赋值都是各自独立的 stylebox，不冲突。
+- 校验：Config.gd 括号配平全 0、无 texture_margin 赋值残留。待编辑器实测：横边的点状纹理按 Tile 平铺、Inspector 改动运行时生效。
+
+## v6.72ag：地图界面底部按钮被裁切
+- **现象**（截图）：MapScene 底部「装备配置/回到营地/中断保存」三个按钮下半部分被画面下缘裁掉，第三个按钮右侧也贴边显示不全。
+- **根因**：按钮用 `8bit_style_box_texture.tres`（用户把 content_margin 调到 9/9/9/9），按钮最小高度 = 9+字体6+9 = 24px；而 `MapScene.tscn:BottomBar` 给的 offset 高度只有 `235-218=17px`，按钮溢出容器被裁。同时按钮栏 x 范围 272~384（宽112），在 771px 宽截图里右边界 384×2=768 几乎贴边。
+- **修复**（`MapScene.tscn:BottomBar`）：`offset_top` 218 → **211**（高度 235-211=24px，容纳按钮）；`offset_left/right` 272/384 → **240/352**（整栏左移 32px，右侧留 67px 余量）。不动 stylebox（遵循"设置交给引擎/资源"约定）。
+- 排查：HUD.tscn 的 offset_top 224/216 元素是锚定底部的 Label/图标容器、不用该按钮 stylebox，不受影响，未改。
+- 校验：改动仅 MapScene.tscn 一处。待编辑器实测：三按钮完整显示、不被裁切。
+
 **文档结束。**

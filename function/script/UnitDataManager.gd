@@ -419,28 +419,17 @@ static func create_unit_avatar_rect(unit_name: String, avatar_size: Vector2 = Ve
 			rect.modulate = Color(1, 1, 1, 0) # 全透明
 	return rect
 
-# 生成带边框垫底的复合控件
+# 生成头像复合控件（★ v6.72z：移除垫底画框 Panel —— 头像图片不再垫 UI 块）
 static func create_unit_avatar_with_frame(unit_name: String, frame_size: Vector2 = Vector2(54, 54), avatar_size: Vector2 = Vector2(48, 48), empowered: bool = false) -> Control:
 	var wrapper := Control.new()
 	wrapper.custom_minimum_size = frame_size
 	wrapper.size = frame_size
 	wrapper.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	
-	# 垫底层（画框）
-	var bg := Panel.new()
-	bg.custom_minimum_size = frame_size
-	bg.size = frame_size
-	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var stylebox = load(Config.PATHS.STYLEBOX_8BIT)
-	if stylebox:
-		bg.add_theme_stylebox_override("panel", stylebox)
-	else:
-		var sb := StyleBoxFlat.new()
-		sb.bg_color = Color(0.15, 0.15, 0.15)
-		bg.add_theme_stylebox_override("panel", sb)
-	wrapper.add_child(bg)
+	# ★ v6.72z：删除原垫底层（Panel + STYLEBOX_8BIT 画框）。
+	#   用户要求头像图片下不垫任何 UI 块，只保留纯头像图。
 	
-	# 头像层
+	# 头像层（居中）
 	var tex_rect = create_unit_avatar_rect(unit_name, avatar_size, empowered)
 	tex_rect.position = (frame_size - avatar_size) / 2.0
 	wrapper.add_child(tex_rect)

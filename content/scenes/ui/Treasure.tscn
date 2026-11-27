@@ -1,7 +1,7 @@
 [gd_scene format=3 uid="uid://bsrqugcbp0rnm"]
 
 [ext_resource type="Script" uid="uid://bugjwfbcjnfga" path="res://function/script/Treasure.gd" id="1"]
-[ext_resource type="StyleBox" uid="uid://6qbsaxkfwg3o" path="res://content/resource/stylebox/8bit_style_box_flat.tres" id="2"]
+[ext_resource type="StyleBox" uid="uid://6qbsaxkfwg3o" path="res://content/resource/stylebox/8bit_style_box_texture.tres" id="2"]
 [ext_resource type="Texture2D" uid="uid://dpqfsnfh13m4d" path="res://content/images/ui/subui_treasure_01.png" id="3_k4vp1"]
 
 [node name="Treasure" type="CanvasLayer" unique_id=388540412]

@@ -1,7 +1,7 @@
 [gd_scene format=3 uid="uid://c41l2ybryfqfh"]
 
 [ext_resource type="Script" uid="uid://c7g4rpghr64yd" path="res://function/script/ui/ItemInfoPanel.gd" id="1_script"]
-[ext_resource type="StyleBox" uid="uid://6qbsaxkfwg3o" path="res://content/resource/stylebox/8bit_style_box_flat.tres" id="2_style"]
+[ext_resource type="StyleBox" uid="uid://6qbsaxkfwg3o" path="res://content/resource/stylebox/8bit_style_box_texture.tres" id="2_style"]
 
 [node name="ItemInfoPanel" type="PanelContainer" unique_id=1590245498]
 custom_minimum_size = Vector2(100, 0)

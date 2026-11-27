@@ -32,7 +32,6 @@
 	  }
 	],
 	"arena_exp": 30.0,
-	"exp": 30,
 	"attack": 4.0,
 	"attack_range": 3.0,
 	"attack_style": "ranged",
@@ -59,6 +58,7 @@
 	  }
 	],
 	"avatar": "avatar_013",
+	"base_soul_skill": "active_snipe",
 	"default_armors": [],
 	"default_talents": [
       "crit"
@@ -66,6 +66,7 @@
 	"description": "远程物理单位，可攻击远处敌人。",
 	"dexterity": 9.0,
 	"display_name": "莉安娜",
+	"exp": 30.0,
 	"faction": "王国",
 	"faith": 2.0,
 	"flavor": "莉安娜闭着眼射箭。不是装的，是真射得好。\n\n她说：眼睛会骗人，风不会。",
@@ -90,7 +91,6 @@
 	"max_armor_slots": 2.0,
 	"max_hp": 28.0,
 	"max_talent_slots": 1.0,
-	"base_soul_skill": "active_snipe",
 	"min_attack_range": 2.0,
 	"modifier": {
 	  "dexterity": 0.7
@@ -150,7 +150,6 @@
 	  }
 	],
 	"arena_exp": 55.0,
-	"exp": 55,
 	"attack": 4.0,
 	"attack_range": 1.0,
 	"attack_style": "standard",
@@ -178,6 +177,7 @@
 	  }
 	],
 	"avatar": "avatar_010",
+	"base_soul_skill": "active_taunt",
 	"core_trait": "bulwark",
 	"default_talents": [
       "block"
@@ -185,6 +185,7 @@
 	"description": "重装步兵，高物理防御和生命值，移动力较低。",
 	"dexterity": 3.0,
 	"display_name": "巴尔",
+	"exp": 55.0,
 	"faction": "王国",
 	"faith": 4.0,
 	"flavor": "巴尔的铠甲有一道旧裂缝，在左肋。没人知道那是哪场战斗留下的。\n\n他自己记得。",
@@ -206,7 +207,6 @@
 	"magic_reduction": 0.05,
 	"max_hp": 45.0,
 	"max_talent_slots": 1.0,
-	"base_soul_skill": "active_taunt",
 	"min_attack_range": 1.0,
 	"modifier": {
 	  "dexterity": 0.3,
@@ -265,7 +265,6 @@
 	  }
 	],
 	"arena_exp": 25.0,
-	"exp": 25,
 	"attack": 5.0,
 	"attack_range": 2.0,
 	"attack_style": "heavy",
@@ -291,6 +290,7 @@
 	  }
 	],
 	"avatar": "avatar_020",
+	"base_soul_skill": "active_heavy_slash",
 	"core_trait": "charge",
 	"default_armors": [],
 	"default_talents": [
@@ -299,6 +299,7 @@
 	"description": "狂战士，高攻击力但命中率低，适合破甲。",
 	"dexterity": 4.0,
 	"display_name": "格伦",
+	"exp": 25.0,
 	"faction": "海盗",
 	"faith": 1.0,
 	"flavor": "格伦的斧头没有名字。他说，给杀人的东西起名字是活人才干的蠢事。\n\n但他每天晚上都用那块旧布擦它，擦得很仔细。",
@@ -325,7 +326,6 @@
 	"magic_reduction": 0.03,
 	"max_hp": 32.0,
 	"max_talent_slots": 1.0,
-	"base_soul_skill": "active_heavy_slash",
 	"min_attack_range": 1.0,
 	"modifier": {
 	  "strength": 0.5
@@ -349,7 +349,6 @@
   },
   "boss_dragonlord": {
 	"arena_exp": 30.0,
-	"exp": 120,
 	"attack": 3.0,
 	"attack_range": 4.0,
 	"attack_style": "magic",
@@ -372,6 +371,7 @@
 	"description": "",
 	"dexterity": 6.0,
 	"display_name": "深渊龙主",
+	"exp": 120.0,
 	"faction": "龙族",
 	"faith": 4.0,
 	"flavor": "",
@@ -460,6 +460,7 @@
 	"description": "",
 	"dexterity": 10.0,
 	"display_name": "深渊龙主·终焉",
+	"exp": 200.0,
 	"faction": "龙族",
 	"faith": 4.0,
 	"flavor": "",
@@ -495,34 +496,32 @@
 	],
 	"weapon_category": "dragonstone",
 	"weapon_name": "火龙石",
-	"weapon_quality": "legendary",
-	"exp": 200
+	"weapon_quality": "legendary"
   },
   "boss_heavyrider_001": {
 	"advanced_class": "spearman_ironshield",
-	"arena_exp": 35.0,
-	"exp": 90,
+	"arena_exp": 35,
 	"attack": 6.0,
 	"attack_range": 1.0,
 	"attack_style": "standard",
 	"attr_cap_levels": [
 	  {
-		"strength": 1.0,
-		"vitality": 2.0
+		"strength": 1,
+		"vitality": 2
 	  },
 	  {
-		"dexterity": 1.0,
-		"strength": 1.0
+		"dexterity": 1,
+		"strength": 1
 	  },
 	  {
-		"dexterity": 1.0,
-		"strength": 1.0,
-		"vitality": 2.0
+		"dexterity": 1,
+		"strength": 1,
+		"vitality": 2
 	  },
 	  {},
 	  {}
 	],
-	"avatar": "avatar_023",
+	"avatar": "avatar_026",
 	"boss_dialogue_hooks": {
 	  "battle_start": "boss_intro_day2",
 	  "on_death": "boss_day2_death"
@@ -532,16 +531,17 @@
       "parry"
 	],
 	"description": "长枪兵，攻击力高，移动距离远。",
-	"dexterity": 5.0,
+	"dexterity": 5,
 	"display_name": "铁砧黑骑士",
+	"exp": 90,
 	"faction": "王国",
-	"faith": 4.0,
+	"faith": 4,
 	"flavor": "枪比他的身高还长。他把枪当作丈量身高的尺子，从七岁量到十七岁。\n\n枪尖刻着两行字，是他自己刻的：「向前，不要回头。」",
 	"heal_effect": {},
 	"heavy_attack": {},
 	"hidden_from_roster": false,
 	"ignore_terrain_cost": false,
-	"intelligence": 2.0,
+	"intelligence": 2,
 	"is_boss": true,
 	"level_mechanics": [
 	  {},
@@ -553,14 +553,15 @@
 	"magic_attack": {},
 	"magic_penetration": 0.0,
 	"magic_reduction": 0.05,
-	"max_hp": 44.0,
-	"max_talent_slots": 1.0,
+	"max_armor_slots": 2,
+	"max_hp": 44,
+	"max_talent_slots": 1,
 	"min_attack_range": 1.0,
 	"modifier": {
 	  "dexterity": 0.5,
 	  "strength": 0.5
 	},
-	"move_range": 7.0,
+	"move_range": 7,
 	"physical_penetration": 0.0,
 	"physical_reduction": 0.12,
 	"sacrifice_buff": {
@@ -569,10 +570,11 @@
 	  "value": 0.4
 	},
 	"sprite_frames_path": "res://content/images/characters/unit_heavyknight_frames.tres",
-	"strength": 11.0,
+	"strength": 11,
 	"tags": [
       "守护"
 	],
+	"unit_name": "boss_heavyrider_001",
 	"weapon_category": "spear",
 	"weapon_name": "钢枪",
 	"weapon_quality": "rare"
@@ -580,7 +582,6 @@
   "boss_magic_001": {
 	"advanced_class": "mage_archmage",
 	"arena_exp": 35.0,
-	"exp": 80,
 	"attack": 3.0,
 	"attack_range": 2.0,
 	"attack_style": "magic",
@@ -610,6 +611,7 @@
 	"description": "魔法攻击单位，拥有魔法防御力，攻击力较高。",
 	"dexterity": 5.0,
 	"display_name": "暗黑神官",
+	"exp": 80.0,
 	"faction": "王国",
 	"faith": 4.0,
 	"flavor": "魔法书是手抄的。抄书的人已经死了。\n\n「你在读什么？」\n「别人的命。」",
@@ -692,7 +694,6 @@
 	  }
 	],
 	"arena_exp": 30.0,
-	"exp": 30,
 	"attack": 0.0,
 	"attack_range": 3.0,
 	"attack_style": "heal",
@@ -720,12 +721,14 @@
 	  }
 	],
 	"avatar": "avatar_007",
+	"base_soul_skill": "active_mass_heal",
 	"default_talents": [
       "heal_boost"
 	],
 	"description": "治疗单位，可恢复队友生命值，魔法防御高。",
 	"dexterity": 4.0,
 	"display_name": "菲奥娜",
+	"exp": 30.0,
 	"faction": "王国",
 	"faith": 10.0,
 	"flavor": "菲奥娜的治疗不需要咒语。她只是把手放在伤口上，然后等待。\n\n「你不念咒吗？」\n「光比咒语更快。」",
@@ -750,7 +753,6 @@
 	"magic_reduction": 0.15,
 	"max_hp": 30.0,
 	"max_talent_slots": 1.0,
-	"base_soul_skill": "active_mass_heal",
 	"min_attack_range": 0.0,
 	"modifier": {
 	  "faith": 0.8,
@@ -784,8 +786,8 @@
 		"name": "龙领主",
 		"sprite_frames_path": "res://content/images/characters/unit_dragonlord_frames.tres",
 		"stat_bonus": {
-		  "max_hp": 10,
-		  "strength": 3
+		  "max_hp": 10.0,
+		  "strength": 3.0
 		},
 		"tags": [
           "余烬"
@@ -799,61 +801,62 @@
 		"name": "灰烬吐息者",
 		"sprite_frames_path": "res://content/images/characters/unit_dragonlord_frames.tres",
 		"stat_bonus": {
-		  "dexterity": 2,
-		  "max_hp": 6
+		  "dexterity": 2.0,
+		  "max_hp": 6.0
 		},
 		"tags": [
           "灰烬"
 		]
 	  }
 	],
-	"arena_exp": 60,
-	"exp": 60,
+	"arena_exp": 60.0,
 	"attack": 3.0,
 	"attack_range": 4.0,
 	"attack_style": "magic",
 	"attr_cap_levels": [
 	  {
-		"faith": 1,
-		"strength": 1
+		"faith": 1.0,
+		"strength": 1.0
 	  },
 	  {
-		"faith": 1,
-		"vitality": 3
+		"faith": 1.0,
+		"vitality": 3.0
 	  },
 	  {
-		"faith": 2,
-		"intelligence": 1,
-		"strength": 1
+		"faith": 2.0,
+		"intelligence": 1.0,
+		"strength": 1.0
 	  },
 	  {
-		"faith": 2,
-		"strength": 2,
-		"vitality": 2
+		"faith": 2.0,
+		"strength": 2.0,
+		"vitality": 2.0
 	  },
 	  {
-		"faith": 3,
-		"strength": 3,
-		"vitality": 3
+		"faith": 3.0,
+		"strength": 3.0,
+		"vitality": 3.0
 	  }
 	],
 	"avatar": "avatar_025",
+	"base_soul_skill": "active_dragon_breath",
 	"core_trait": "dragon_might",
 	"default_armors": [],
 	"default_talents": [
       "parry"
 	],
 	"description": "龙族后裔，拥有极高防御和魔法防御，移动缓慢但顽强。",
-	"dexterity": 3,
+	"dexterity": 3.0,
 	"display_name": "拉兹",
+	"exp": 60.0,
 	"faction": "龙族",
-	"faith": 4,
+	"faith": 4.0,
 	"flavor": "拉兹从不提他的父亲。但每次战斗前，他会低语一句谁也听不懂的话。\n\n那是龙语。翻译过来是：「我来晚了。」",
 	"heal_effect": {},
 	"heavy_attack": {},
 	"hidden_from_roster": false,
 	"ignore_terrain_cost": false,
-	"intelligence": 6,
+	"intelligence": 6.0,
 	"is_boss": false,
 	"level_mechanics": [
 	  {},
@@ -869,15 +872,14 @@
 	},
 	"magic_penetration": 0.35,
 	"magic_reduction": 0.15,
-	"max_armor_slots": 2,
-	"max_hp": 45,
-	"max_talent_slots": 1,
-	"base_soul_skill": "active_dragon_breath",
+	"max_armor_slots": 2.0,
+	"max_hp": 45.0,
+	"max_talent_slots": 1.0,
 	"min_attack_range": 1.0,
 	"modifier": {
 	  "intelligence": 0.23
 	},
-	"move_range": 3,
+	"move_range": 3.0,
 	"physical_penetration": 0.0,
 	"physical_reduction": 0.15,
 	"sacrifice_buff": {
@@ -886,7 +888,7 @@
 	  "value": 0.15
 	},
 	"sprite_frames_path": "res://content/images/characters/unit_dragonborn_frames.tres",
-	"strength": 8,
+	"strength": 8.0,
 	"tags": [
       "余烬"
 	],
@@ -932,7 +934,6 @@
 	  }
 	],
 	"arena_exp": 35.0,
-	"exp": 35,
 	"attack": 3.0,
 	"attack_range": 2.0,
 	"attack_style": "magic",
@@ -960,12 +961,14 @@
 	  }
 	],
 	"avatar": "avatar_009",
+	"base_soul_skill": "active_fireball",
 	"default_talents": [
       "spell_chain"
 	],
 	"description": "魔法攻击单位，拥有魔法防御力，攻击力较高。",
 	"dexterity": 5.0,
 	"display_name": "梅林",
+	"exp": 35.0,
 	"faction": "王国",
 	"faith": 3.0,
 	"flavor": "梅林的魔法书是手抄的。抄书的人已经死了。\n\n「你在读什么？」\n「别人的命。」",
@@ -989,7 +992,6 @@
 	"magic_reduction": 0.15,
 	"max_hp": 30.0,
 	"max_talent_slots": 1.0,
-	"base_soul_skill": "active_fireball",
 	"min_attack_range": 1.0,
 	"modifier": {
 	  "intelligence": 0.32
@@ -1050,7 +1052,6 @@
 	  }
 	],
 	"arena_exp": 40.0,
-	"exp": 40,
 	"attack": 6.0,
 	"attack_range": 1.0,
 	"attack_style": "standard",
@@ -1077,12 +1078,14 @@
 	  }
 	],
 	"avatar": "avatar_005",
+	"base_soul_skill": "active_dive",
 	"default_talents": [
       "crit"
 	],
 	"description": "飞行骑兵，无视地形移动，机动性极强。",
 	"dexterity": 7.0,
 	"display_name": "塞拉",
+	"exp": 40.0,
 	"faction": "海盗",
 	"faith": 2.0,
 	"flavor": "塞拉的天马叫「灰烬」。因为它的第一任主人是在灰烬里找到它的。\n\n「灰烬，走。」她说。天马回应一声低鸣。",
@@ -1106,7 +1109,6 @@
 	"magic_reduction": 0.08,
 	"max_hp": 34.0,
 	"max_talent_slots": 1.0,
-	"base_soul_skill": "active_dive",
 	"min_attack_range": 1.0,
 	"modifier": {
 	  "dexterity": 0.5,
@@ -1168,7 +1170,6 @@
 	  }
 	],
 	"arena_exp": 35.0,
-	"exp": 35,
 	"attack": 6.0,
 	"attack_range": 1.0,
 	"attack_style": "standard",
@@ -1197,12 +1198,14 @@
 	  }
 	],
 	"avatar": "avatar_008",
+	"base_soul_skill": "active_pierce",
 	"default_talents": [
       "crit"
 	],
 	"description": "长枪兵，攻击力高，移动距离远。",
 	"dexterity": 5.0,
 	"display_name": "罗兰",
+	"exp": 35.0,
 	"faction": "王国",
 	"faith": 2.0,
 	"flavor": "罗兰的枪比他的身高还长。他把枪当作丈量身高的尺子，从七岁量到十七岁。\n\n枪尖刻着两行字，是他自己刻的：「向前，不要回头。」",
@@ -1224,7 +1227,6 @@
 	"magic_reduction": 0.05,
 	"max_hp": 38.0,
 	"max_talent_slots": 1.0,
-	"base_soul_skill": "active_pierce",
 	"min_attack_range": 1.0,
 	"modifier": {
 	  "dexterity": 0.5,
@@ -1305,7 +1307,6 @@
 	  }
 	],
 	"arena_exp": 30.0,
-	"exp": 30,
 	"attack": 4.0,
 	"attack_range": 1.0,
 	"attack_style": "standard",
@@ -1335,12 +1336,14 @@
 	  }
 	],
 	"avatar": "avatar_003",
+	"base_soul_skill": "active_charge",
 	"default_talents": [
       "crit"
 	],
 	"description": "平衡型近战单位，擅长剑术，攻守兼备。",
 	"dexterity": 8.0,
 	"display_name": "艾琳",
+	"exp": 30.0,
 	"faction": "王国",
 	"faith": 3.0,
 	"flavor": "她记得第一次握住剑时，手心全是汗。现在不会了。\n\n——「艾琳，你的剑在抖。」\n——「是风吹的。」",
@@ -1362,7 +1365,6 @@
 	"magic_reduction": 0.05,
 	"max_hp": 35.0,
 	"max_talent_slots": 1.0,
-	"base_soul_skill": "active_charge",
 	"min_attack_range": 1.0,
 	"modifier": {
 	  "dexterity": 0.3,

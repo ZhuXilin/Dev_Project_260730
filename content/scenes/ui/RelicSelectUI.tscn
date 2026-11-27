@@ -1,7 +1,7 @@
 [gd_scene format=3 uid="uid://banfrokerql2v"]
 
 [ext_resource type="Script" uid="uid://q5ra6f8bxewk" path="res://function/script/RelicSelectUI.gd" id="1"]
-[ext_resource type="StyleBox" uid="uid://6qbsaxkfwg3o" path="res://content/resource/stylebox/8bit_style_box_flat.tres" id="2"]
+[ext_resource type="StyleBox" uid="uid://6qbsaxkfwg3o" path="res://content/resource/stylebox/8bit_style_box_texture.tres" id="2"]
 
 [node name="RelicSelectUI" type="CanvasLayer" unique_id=2025224505]
 layer = 21

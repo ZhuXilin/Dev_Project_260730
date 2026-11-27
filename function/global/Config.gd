@@ -24,7 +24,7 @@ const PATHS : Dictionary = {
 	"UNIT_LEVEL_MAP":   "res://content/scenes/levels/UnitLevelMap.tres",
 
 	# 样式 / 着色器
-	"STYLEBOX_8BIT":        "res://content/resource/stylebox/8bit_style_box_flat.tres",
+	"STYLEBOX_8BIT":        "res://content/resource/stylebox/8bit_style_box_texture.tres",
 	"SHADER_REPLACE_COLOR": "res://content/resource/shader/replace_color.gdshader",
 
 	# 场景：关卡 / 单位

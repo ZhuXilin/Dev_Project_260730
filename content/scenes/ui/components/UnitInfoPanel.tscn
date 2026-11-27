@@ -1,7 +1,9 @@
 [gd_scene format=3 uid="uid://dinsoae8vsksx"]
 
 [ext_resource type="Script" uid="uid://njfmfvhm12v4" path="res://function/script/ui/UnitInfoPanel.gd" id="1_script"]
-[ext_resource type="StyleBox" uid="uid://6qbsaxkfwg3o" path="res://content/resource/stylebox/8bit_style_box_flat.tres" id="2_style"]
+[ext_resource type="StyleBox" uid="uid://6qbsaxkfwg3o" path="res://content/resource/stylebox/8bit_style_box_texture.tres" id="2_style"]
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_avatar"]
 
 [node name="UnitInfoPanel" type="PanelContainer" unique_id=1929269653]
 custom_minimum_size = Vector2(104, 224)
@@ -22,7 +24,7 @@ custom_minimum_size = Vector2(48, 48)
 layout_mode = 2
 size_flags_horizontal = 4
 size_flags_vertical = 0
-theme_override_styles/panel = ExtResource("2_style")
+theme_override_styles/panel = SubResource("StyleBoxEmpty_avatar")
 
 [node name="AvatarRect" type="TextureRect" parent="VBox/AvatarBg" unique_id=1603980859]
 layout_mode = 1

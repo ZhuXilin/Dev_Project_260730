@@ -1,6 +1,6 @@
 [gd_scene format=3 uid="uid://dxarudp4psg6b"]
 
-[ext_resource type="StyleBox" uid="uid://6qbsaxkfwg3o" path="res://content/resource/stylebox/8bit_style_box_flat.tres" id="1_fg5bo"]
+[ext_resource type="StyleBox" uid="uid://6qbsaxkfwg3o" path="res://content/resource/stylebox/8bit_style_box_texture.tres" id="1_fg5bo"]
 [ext_resource type="Script" uid="uid://cnpydxvklmlne" path="res://function/script/ConfirmUI.gd" id="2_c2j6i"]
 
 [node name="ConfirmUI" type="CanvasLayer" unique_id=271728603]

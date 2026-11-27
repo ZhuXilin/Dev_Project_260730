@@ -1,8 +1,8 @@
 [gd_scene format=3 uid="uid://dkoufwsb44wry"]
 
 [ext_resource type="Script" uid="uid://iyg1ok5wntbj" path="res://function/script/ItemInfoUI.gd" id="1"]
-[ext_resource type="StyleBox" uid="uid://6qbsaxkfwg3o" path="res://content/resource/stylebox/8bit_style_box_flat.tres" id="2"]
-[ext_resource type="PackedScene" path="res://content/scenes/ui/components/ItemInfoPanel.tscn" id="3_item"]
+[ext_resource type="StyleBox" uid="uid://6qbsaxkfwg3o" path="res://content/resource/stylebox/8bit_style_box_texture.tres" id="2"]
+[ext_resource type="PackedScene" uid="uid://c41l2ybryfqfh" path="res://content/scenes/ui/components/ItemInfoPanel.tscn" id="3_item"]
 
 [node name="ItemInfoUI" type="PanelContainer" unique_id=1052308406]
 anchors_preset = 15

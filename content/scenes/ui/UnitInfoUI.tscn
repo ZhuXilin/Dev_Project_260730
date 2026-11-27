@@ -1,8 +1,8 @@
 [gd_scene format=3]
 
-[ext_resource type="Script" path="res://function/script/UnitInfoUI.gd" id="1"]
-[ext_resource type="StyleBox" path="res://content/resource/stylebox/8bit_style_box_flat.tres" id="1_ks8yl"]
-[ext_resource type="PackedScene" path="res://content/scenes/ui/components/UnitInfoPanel.tscn" id="2_info"]
+[ext_resource type="Script" uid="uid://d1b3lwij3hsde" path="res://function/script/UnitInfoUI.gd" id="1"]
+[ext_resource type="StyleBox" uid="uid://6qbsaxkfwg3o" path="res://content/resource/stylebox/8bit_style_box_texture.tres" id="1_ks8yl"]
+[ext_resource type="PackedScene" uid="uid://dinsoae8vsksx" path="res://content/scenes/ui/components/UnitInfoPanel.tscn" id="2_info"]
 
 [node name="UnitInfoUI" type="PanelContainer"]
 anchors_preset = 15

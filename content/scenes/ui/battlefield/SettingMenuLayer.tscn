@@ -1,6 +1,6 @@
 [gd_scene format=3 uid="uid://dnpuqss31s4ae"]
 
-[ext_resource type="StyleBox" uid="uid://6qbsaxkfwg3o" path="res://content/resource/stylebox/8bit_style_box_flat.tres" id="1_style"]
+[ext_resource type="StyleBox" uid="uid://6qbsaxkfwg3o" path="res://content/resource/stylebox/8bit_style_box_texture.tres" id="1_style"]
 [ext_resource type="Script" uid="uid://d0m4rrsfv7ll3" path="res://function/script/SettingMenu.gd" id="2_menu"]
 
 [node name="SettingMenuLayer" type="CanvasLayer" unique_id=1745572386]

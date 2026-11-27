@@ -1,7 +1,7 @@
 [gd_scene format=3 uid="uid://dw16do7llyxru"]
 
 [ext_resource type="Script" uid="uid://o6cwea18dlbl" path="res://function/script/MapScene.gd" id="1"]
-[ext_resource type="StyleBox" uid="uid://6qbsaxkfwg3o" path="res://content/resource/stylebox/8bit_style_box_flat.tres" id="2"]
+[ext_resource type="StyleBox" uid="uid://6qbsaxkfwg3o" path="res://content/resource/stylebox/8bit_style_box_texture.tres" id="2"]
 
 [node name="MapScene" type="CanvasLayer" unique_id=310431039]
 layer = 10
@@ -86,9 +86,9 @@ autowrap_mode = 3
 [node name="BottomBar" type="HBoxContainer" parent="." unique_id=1204253379]
 anchors_preset = 9
 anchor_bottom = 1.0
-offset_left = 272.0
-offset_top = 218.0
-offset_right = 384.0
+offset_left = 240.0
+offset_top = 211.0
+offset_right = 352.0
 offset_bottom = -5.0
 theme_override_constants/separation = 8
 

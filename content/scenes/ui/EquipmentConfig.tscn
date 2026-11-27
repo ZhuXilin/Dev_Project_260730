@@ -2,7 +2,7 @@
 
 [ext_resource type="Script" uid="uid://d31iuj7lsa4c6" path="res://function/script/equipmentconfig/EquipmentConfig.gd" id="1"]
 [ext_resource type="Texture2D" uid="uid://cfuanmvb8e6am" path="res://content/images/ui/subui_equipment_01.png" id="1_vuhrr"]
-[ext_resource type="StyleBox" uid="uid://6qbsaxkfwg3o" path="res://content/resource/stylebox/8bit_style_box_flat.tres" id="2"]
+[ext_resource type="StyleBox" uid="uid://6qbsaxkfwg3o" path="res://content/resource/stylebox/8bit_style_box_texture.tres" id="2"]
 [ext_resource type="PackedScene" uid="uid://c41l2ybryfqfh" path="res://content/scenes/ui/components/ItemInfoPanel.tscn" id="3_item"]
 
 [node name="EquipmentConfig" type="CanvasLayer" unique_id=7633716]
@@ -92,7 +92,6 @@ size_flags_vertical = 0
 theme_override_constants/separation = 1
 
 [node name="RollRelicTitle" type="Label" parent="MainPanel/VBoxContainer/MainHBox/LeftInfoColumn/RollRelicSection" unique_id=1515137035]
-custom_minimum_size = Vector2(0, 0)
 layout_mode = 2
 theme_override_font_sizes/font_size = 6
 text = "防具遗物"
@@ -102,8 +101,8 @@ clip_text = true
 [node name="RollRelicContainer" type="HBoxContainer" parent="MainPanel/VBoxContainer/MainHBox/LeftInfoColumn/RollRelicSection" unique_id=1750737002]
 layout_mode = 2
 size_flags_horizontal = 3
-alignment = 1
 theme_override_constants/separation = 4
+alignment = 1
 
 [node name="LeftVBox" type="VBoxContainer" parent="MainPanel/VBoxContainer/MainHBox" unique_id=1748417651]
 layout_mode = 2
@@ -123,7 +122,6 @@ size_flags_vertical = 0
 theme_override_constants/separation = 1
 
 [node name="RelicTitle" type="Label" parent="MainPanel/VBoxContainer/MainHBox/LeftVBox/RelicSection" unique_id=1515137034]
-custom_minimum_size = Vector2(0, 0)
 layout_mode = 2
 theme_override_font_sizes/font_size = 6
 text = "团队遗物"
@@ -131,9 +129,9 @@ horizontal_alignment = 1
 clip_text = true
 
 [node name="RelicContainer" type="Control" parent="MainPanel/VBoxContainer/MainHBox/LeftVBox/RelicSection" unique_id=1750737001]
+custom_minimum_size = Vector2(0, 24)
 layout_mode = 2
 size_flags_horizontal = 3
-custom_minimum_size = Vector2(0, 24)
 
 [node name="RightScroll" type="ScrollContainer" parent="MainPanel/VBoxContainer/MainHBox" unique_id=2000000000]
 custom_minimum_size = Vector2(120, 160)

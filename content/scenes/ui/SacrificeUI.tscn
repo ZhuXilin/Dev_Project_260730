@@ -1,7 +1,7 @@
 [gd_scene format=3 uid="uid://3xw20ta50hur"]
 
 [ext_resource type="Script" uid="uid://c104ofj2pfbuu" path="res://function/script/SacrificeUI.gd" id="1"]
-[ext_resource type="StyleBox" uid="uid://6qbsaxkfwg3o" path="res://content/resource/stylebox/8bit_style_box_flat.tres" id="2"]
+[ext_resource type="StyleBox" uid="uid://6qbsaxkfwg3o" path="res://content/resource/stylebox/8bit_style_box_texture.tres" id="2"]
 
 [node name="SacrificeUI" type="CanvasLayer" unique_id=1796263301]
 layer = 25

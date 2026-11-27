@@ -1,7 +1,7 @@
 [gd_scene format=3 uid="uid://dm63qe7tllbg7"]
 
 [ext_resource type="Script" uid="uid://c6wgtih24ugdi" path="res://function/script/TalentUnlockUI.gd" id="1_script"]
-[ext_resource type="StyleBox" uid="uid://6qbsaxkfwg3o" path="res://content/resource/stylebox/8bit_style_box_flat.tres" id="2_style"]
+[ext_resource type="StyleBox" uid="uid://6qbsaxkfwg3o" path="res://content/resource/stylebox/8bit_style_box_texture.tres" id="2_style"]
 
 [node name="TalentUnlockUI" type="CanvasLayer" unique_id=999000101]
 layer = 28

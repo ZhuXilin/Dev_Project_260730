@@ -1,7 +1,7 @@
 [gd_scene format=3 uid="uid://l3dlacj25tkb"]
 
 [ext_resource type="Script" uid="uid://bg2ifrj8qlbcv" path="res://function/script/RewardSummaryUI.gd" id="1"]
-[ext_resource type="StyleBox" uid="uid://6qbsaxkfwg3o" path="res://content/resource/stylebox/8bit_style_box_flat.tres" id="2"]
+[ext_resource type="StyleBox" uid="uid://6qbsaxkfwg3o" path="res://content/resource/stylebox/8bit_style_box_texture.tres" id="2"]
 [ext_resource type="Texture2D" uid="uid://damc5su6pig37" path="res://content/images/ui/subui_reward_01.png" id="3_qc04u"]
 
 [node name="RewardSummaryUI" type="CanvasLayer" unique_id=1189025735]

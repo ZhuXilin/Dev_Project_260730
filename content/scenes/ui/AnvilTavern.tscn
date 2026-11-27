@@ -1,7 +1,7 @@
 [gd_scene format=3 uid="uid://bbt41d4ks0gwj"]
 
 [ext_resource type="Script" uid="uid://cjt5d53gw446v" path="res://function/script/AnvilTavern.gd" id="1"]
-[ext_resource type="StyleBox" uid="uid://6qbsaxkfwg3o" path="res://content/resource/stylebox/8bit_style_box_flat.tres" id="2"]
+[ext_resource type="StyleBox" uid="uid://6qbsaxkfwg3o" path="res://content/resource/stylebox/8bit_style_box_texture.tres" id="2"]
 [ext_resource type="Texture2D" uid="uid://66181vrfu1rg" path="res://content/images/ui/subui_anviltavern_01.png" id="3_unx0t"]
 
 [node name="AnvilTavern" type="CanvasLayer" unique_id=1380384670]
