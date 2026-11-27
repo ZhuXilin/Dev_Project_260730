@@ -12,6 +12,7 @@ const CHIP_POOL_SIZE : int = 8   # 同时最多 8 个 chip 音效
 var config : SoundConfig
 var player : AudioStreamPlayer
 var looping_player : AudioStreamPlayer
+var _last_select_sound_ms : int = 0   # click 音效去抖（见 play_select_sound）
 
 # ---- chip 音效 ----
 var _chip_players: Array[ChipMusicPlayer] = []
@@ -206,6 +207,13 @@ func stop_looping():
 #  具体音效（全部走 _play_sfx）
 # ============================================================
 func play_select_sound():
+	# ★ v6.72aj：短去抖——UIButtonManager 统一给所有按钮接了 click 音效，
+	#   而很多业务回调里也已有同名调用，同一次点击会连播两次。
+	#   40ms 内的重复调用视为同一次点击，只播一次。
+	var now : int = Time.get_ticks_msec()
+	if now - _last_select_sound_ms < 40:
+		return
+	_last_select_sound_ms = now
 	if config: _play_sfx("click", config.click)
 
 func play_attack_sound():

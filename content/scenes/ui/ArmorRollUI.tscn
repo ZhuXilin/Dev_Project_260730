@@ -82,7 +82,7 @@ custom_minimum_size = Vector2(0, 72)
 layout_mode = 2
 
 [node name="RelicSpacer" type="Control" parent="Root/Margin/VBox" unique_id=110397239]
-custom_minimum_size = Vector2(0, 8)
+custom_minimum_size = Vector2(0, 4)
 layout_mode = 2
 
 [node name="RollRelicRow" type="HBoxContainer" parent="Root/Margin/VBox" unique_id=1947830835]
@@ -102,9 +102,10 @@ layout_mode = 2
 alignment = 1
 
 [node name="Scroll" type="ScrollContainer" parent="Root/Margin/VBox" unique_id=257123016]
-custom_minimum_size = Vector2(0, 64)
+custom_minimum_size = Vector2(0, 44)
 layout_mode = 2
 size_flags_vertical = 3
+horizontal_scroll_mode = 0
 
 [node name="ResultBox" type="VBoxContainer" parent="Root/Margin/VBox/Scroll" unique_id=1681112504]
 layout_mode = 2

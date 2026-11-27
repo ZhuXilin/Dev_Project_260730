@@ -269,7 +269,10 @@ func _build_options():
 		var items = option.get("items", [])
 		
 		var btn := Button.new()
-		btn.custom_minimum_size = Vector2(150, card_height)
+		# ★ v6.72ak：三张卡必须挤进 400px 视口——不再写死 150 宽（3×150+间距=462 会溢出画面），
+		#   改为按容器等分宽度，文字自动换行。
+		btn.custom_minimum_size = Vector2(0, card_height)
+		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		btn.add_theme_font_size_override("font_size", 7)
 		_apply_btn_style(btn)
 		

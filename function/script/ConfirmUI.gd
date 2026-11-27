@@ -140,7 +140,7 @@ func show_choice(title: String, data_a: Dictionary, data_b: Dictionary, cancel_c
 
 	var cancel := Button.new()
 	cancel.text = "取消"
-	cancel.custom_minimum_size = Vector2(60, 20)
+	cancel.custom_minimum_size = Vector2(64, 24)
 	cancel.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	cancel.focus_mode = Control.FOCUS_NONE
 	cancel.add_theme_font_size_override("font_size", 8)
@@ -153,30 +153,21 @@ func _make_choice_card(data: Dictionary, is_a: bool) -> PanelContainer:
 	var avatar_unit : String = str(data.get("avatar_unit", ""))
 	# ★ v6.62e：avatar 模式两张卡固定同宽（画面 400px，两卡+间距放得下），保证大小统一
 	card.custom_minimum_size = Vector2(140, 96) if avatar_unit != "" else Vector2(0, 56)
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = Color(0.12, 0.12, 0.15, 0.95)
 	var c : Color = data.get("color", Color.WHITE)
-	# ★ v6.62d：avatar 模式去掉黄色描边——边框用低调灰；非 avatar 保留原流派色
-	var border_base : Color = Color(0.35, 0.35, 0.4) if avatar_unit != "" else c
-	sb.border_color = border_base
-	sb.set_border_width_all(2)
-	sb.content_margin_left = 8
-	sb.content_margin_right = 8
-	sb.content_margin_top = 6
-	sb.content_margin_bottom = 6
-	card.add_theme_stylebox_override("panel", sb)
+	# ★ v6.72ak：卡片不再硬编码 StyleBoxFlat（bg/边框/圆角/边距），
+	#   统一套 8bit 卡片皮肤——样式参数全在 8bit_style_box_card.tres 里。
+	var card_sb := load(Config.PATHS.STYLEBOX_8BIT_CARD)
+	if card_sb:
+		card.add_theme_stylebox_override("panel", card_sb)
 	card.mouse_filter = Control.MOUSE_FILTER_STOP
 	card.gui_input.connect(func(ev):
 		if ev is InputEventMouseButton and ev.pressed and ev.button_index == MOUSE_BUTTON_LEFT:
 			_on_choice_picked(is_a))
-	# ★ v6.62：卡片 hover 时整体提亮 + 边框变色，明确可点击
-	var hover_border : Color = Color(1.0, 0.95, 0.6) if avatar_unit == "" else Color(0.7, 0.7, 0.8)
+	# ★ v6.62：卡片 hover 时整体提亮，明确可点击（不再改边框色）
 	card.mouse_entered.connect(func():
-		card.modulate = Color(1.15, 1.15, 1.15, 1)
-		sb.border_color = hover_border)
+		card.modulate = Color(1.15, 1.15, 1.15, 1))
 	card.mouse_exited.connect(func():
-		card.modulate = Color.WHITE
-		sb.border_color = border_base)
+		card.modulate = Color.WHITE)
 	card.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 
 	# ★ v6.62d：avatar 模式改成上下结构——上：头像+标题，下：赋能数据区

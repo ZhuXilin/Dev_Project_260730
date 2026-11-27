@@ -125,9 +125,11 @@ func _build_unit_card(unit_idx: int) -> PanelContainer:
 	var card = PanelContainer.new()
 	card.custom_minimum_size = Vector2(130, 0)
 	card.mouse_filter = Control.MOUSE_FILTER_STOP
+	# ★ v6.72ak：单位卡片统一套 8bit 卡片皮肤（原先回落引擎默认灰色 panel）
+	UIButtonManager.apply_card_style(card)
 
 	var vbox = VBoxContainer.new()
-	vbox.add_theme_constant_override("separation", 3)
+	vbox.add_theme_constant_override("separation", 2)
 	card.add_child(vbox)
 
 	# ★ v6.62p：赋能单位统一用 overlord 图片/动画
@@ -222,7 +224,7 @@ func _build_unit_row():
 	for i in range(party.size()):
 		# ★ v6.59：每个单位卡片下方加献祭按钮（献祭=赋能到幸存单位）
 		var wrapper := VBoxContainer.new()
-		wrapper.add_theme_constant_override("separation", 4)
+		wrapper.add_theme_constant_override("separation", 2)
 		wrapper.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 		var card_ctrl : PanelContainer = _build_unit_card(i)
 		card_ctrl.custom_minimum_size = Vector2(118, 0)  # 三卡并排需适配 400px 视口
@@ -231,7 +233,7 @@ func _build_unit_row():
 		var unit : UnitData = party[i]
 		if unit == null: continue
 		# 献祭按钮与卡片等宽，紧随卡片下方
-		sac_btn.custom_minimum_size = Vector2(118, 20)
+		sac_btn.custom_minimum_size = Vector2(118, 24)
 		sac_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		sac_btn.add_theme_font_size_override("font_size", 9)
 		if unit.is_dead:
@@ -344,13 +346,24 @@ func _make_picker_panel(unit : UnitData, branches : Array) -> Control:
 	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
 	overlay.add_child(bg)
 
+	# ★ v6.72an：内容高度会随按钮/文案变化，直接放在 CenterContainer 里一旦超高
+	#   就会上下同时溢出（「取消」被顶出画面下边沿）。套一层 ScrollContainer 兜底：
+	#   装得下时居中显示（无滚动条），装不下时可滚动，永远不会被画面切掉。
+	var scroll := ScrollContainer.new()
+	scroll.set_anchors_preset(Control.PRESET_FULL_RECT)
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+	overlay.add_child(scroll)
+
 	var center_box := CenterContainer.new()
-	center_box.set_anchors_preset(Control.PRESET_FULL_RECT)
+	center_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	center_box.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	center_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	overlay.add_child(center_box)
+	scroll.add_child(center_box)
 
 	var picker_panel := PanelContainer.new()
-	picker_panel.custom_minimum_size = Vector2(440, 0)
+	# ★ v6.72ak：原 440 宽 + 3×130 列 + 40 间距 = 超出 400px 视口，收窄到 360
+	picker_panel.custom_minimum_size = Vector2(360, 0)
 	
 	var sb := StyleBoxFlat.new()
 	sb.bg_color = Color(0, 0, 0, 0)
@@ -360,15 +373,19 @@ func _make_picker_panel(unit : UnitData, branches : Array) -> Control:
 	sb.border_width_bottom = 0
 	sb.content_margin_left = 16
 	sb.content_margin_right = 16
-	sb.content_margin_top = 12
-	sb.content_margin_bottom = 12
+	# ★ v6.72an：上下内边距 12 → 8，为按钮增高后腾出竖向空间
+	sb.content_margin_top = 8
+	sb.content_margin_bottom = 8
 	picker_panel.add_theme_stylebox_override("panel", sb)
 	center_box.add_child(picker_panel)
 
 	var vbox := VBoxContainer.new()
-	vbox.add_theme_constant_override("separation", 10)
+	vbox.add_theme_constant_override("separation", 8)
 	picker_panel.add_child(vbox)
 
+	# ★ v6.72ao：「取消」回到画面正下方居中。
+	#   竖向压缩 + ScrollContainer 兜底之后内容约 185px，加回按钮（27+8）仍 < 240，
+	#   不再溢出；这里只负责排版，溢出防护交给外层 ScrollContainer。
 	var title := Label.new()
 	title.text = "选择转职方向"
 	title.add_theme_font_size_override("font_size", 12)
@@ -377,14 +394,14 @@ func _make_picker_panel(unit : UnitData, branches : Array) -> Control:
 
 	var row := HBoxContainer.new()
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
-	row.add_theme_constant_override("separation", 20)
+	row.add_theme_constant_override("separation", 12)
 	vbox.add_child(row)
 
 	for b in branches:
 		var adv : AdvancedClassData = b
 		var col := VBoxContainer.new()
-		col.custom_minimum_size = Vector2(130, 0)
-		col.add_theme_constant_override("separation", 6)
+		col.custom_minimum_size = Vector2(108, 0)
+		col.add_theme_constant_override("separation", 4)
 		col.alignment = BoxContainer.ALIGNMENT_BEGIN
 		
 		var sprite_wrapper := Control.new()
@@ -414,10 +431,13 @@ func _make_picker_panel(unit : UnitData, branches : Array) -> Control:
 				var frame_count := frames.get_frame_count("idle")
 				var idx := {"value": 0}
 				timer.timeout.connect(func():
-					if not is_instance_valid(texture_rect): return
-					idx["value"] = (idx["value"] + 1) % frame_count
-					var t = frames.get_frame_texture("idle", idx["value"])
-					if t: texture_rect.texture = t
+					# ★ v6.72aj：不用裸 return——GDScript 把它算进外层
+					#   _make_picker_panel() -> Control 的路径分析，报
+					#   "Not all code paths return a value"（337,1）。
+					if is_instance_valid(texture_rect):
+						idx["value"] = (idx["value"] + 1) % frame_count
+						var t = frames.get_frame_texture("idle", idx["value"])
+						if t: texture_rect.texture = t
 				)
 		
 		# 如果没有专属转职动画，则显示基础单位的局内动画
@@ -470,7 +490,7 @@ func _make_picker_panel(unit : UnitData, branches : Array) -> Control:
 		var btn := Button.new()
 		btn.text = "选择"
 		btn.add_theme_font_size_override("font_size", 9)
-		btn.custom_minimum_size = Vector2(80, 22)
+		btn.custom_minimum_size = Vector2(84, 24)
 		btn.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 		_apply_btn_style(btn)
 		btn.pressed.connect(func():
@@ -481,10 +501,11 @@ func _make_picker_panel(unit : UnitData, branches : Array) -> Control:
 
 		row.add_child(col)
 
+	# ★ v6.72ao：「取消」放在面板最底部、水平居中（画面正下方）
 	var cancel := Button.new()
 	cancel.text = "取消"
 	cancel.add_theme_font_size_override("font_size", 8)
-	cancel.custom_minimum_size = Vector2(80, 20)
+	cancel.custom_minimum_size = Vector2(72, 24)
 	cancel.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	_apply_btn_style(cancel)
 	cancel.pressed.connect(func(): overlay.queue_free())

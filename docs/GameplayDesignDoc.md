@@ -1775,4 +1775,55 @@ v6.72c 修复 `soulfire_identity.json` 加载后，文件活了，但其中大�
 - **关键坑**：手写 .tres 的 uid `8bitbtn0000001` 被 Godot 重生成为 `coiwrbgx8d7aa`，8 个场景引用全部失效——已统一改为真实 uid。教训：新建 .tres 别手写 uid，或用后读回真实 uid 再写引用。
 - 校验：7 脚本括号配平全 0、8 场景引用无缺失、资源/纹理 uid 路径一致。
 
+## v6.72aj：按钮专用图片 + 全局按钮统筹（UIButtonManager）
+- **起因**：用户指出两张截图（献祭二选一弹窗的「取消」、英灵殿的「献祭/离开」）按钮没换成 8bit 皮肤；并要求复制 8bit_frame.png 做按钮专用图，两种非黑颜色按明度区间替换为 RGB(251,240,184) 亮色 / RGB(100,86,73) 暗色；所有按钮统一 button stylebox + hover/pressed 反馈 + click 音效。
+- **按钮专用图片** `content/images/ui/element/8bit_frame_button.png`（22×22，同尺寸）：源图 4 色——黑 290px（保留）、透明 8px（保留）、`(32,3,0)` lum≈11 → **`RGB(100,86,73)` 98px（暗目标）**、`(132,71,51)` lum≈87 → **`RGB(251,240,184)` 88px（亮目标）**。按明度区间对应：暗→暗、亮→亮。
+- **三份 stylebox 资源**（同一张按钮图，texture_margin 6 / content_margin 2 / Tile / region 22×22）：
+  - `8bit_style_box_button.tres`（normal/focus/disabled，无 modulate）
+  - `8bit_style_box_button_hover.tres`（`modulate_color=1.25` 提亮）
+  - `8bit_style_box_button_pressed.tres`（`modulate_color=0.72` 压暗）
+  - 新建 .tres **不手写 uid**（沿用上一版教训）；纹理 ext_resource 只写 path 不写 uid，让 Godot 自己生成，避免引用失效。
+- **全局统筹** 新 autoload `UIButtonManager.gd`（project.godot 注册在 SoundManager 之后）：挂 `get_tree().node_added`，任意 Button 入树后 `call_deferred` 统一套五态样式（hover/pressed 用 Godot 原生状态机 + 不同资源，不用 self_modulate 避免和业务 modulate 状态色打架），并接 `pressed → SoundManager.play_select_sound()`。启动时 `_setup_existing` 补扫已入树按钮。
+  - 排除：normal 是 `StyleBoxEmpty` 的（头像/图标按钮）→ 保留透明底；脚本路径含 `/tool/` 的节点子树（编辑器工具 UI）→ 不套游戏皮肤。
+  - 这一层自动覆盖所有动态按钮，包括两张截图里的：ConfirmUI.show_choice 的「取消」、HeroShrineUI._build_unit_row 的「献祭」、HeroShrineUI.tscn 的「离开」，以及轮盘/BuildUI/装备配置等所有按钮。
+- **click 音效去抖** `SoundManager.play_select_sound()` 加 40ms 去抖（`_last_select_sound_ms`）：管理器统一接了音效，很多业务回调里也已有同名调用，同一次点击会连播两次。
+- **Config** 新增 `STYLEBOX_8BIT_BUTTON_HOVER` / `STYLEBOX_8BIT_BUTTON_PRESSED` / `IMAGE_8BIT_BUTTON_FRAME`。
+- **顺带修编译错误** `HeroShrineUI.gd` (337,1) "Not all code paths return a value"：根因是 `_make_picker_panel()->Control` 内 timer lambda 的裸 `return` 被 GDScript 算进外层函数路径分析；改成 `if is_instance_valid(...):` 包住函数体，去掉裸 return。
+- 校验：新 PNG 解码后颜色精确匹配（4 色计数）、3 个 tres 纹理路径存在、4 个脚本括号配平全 0、autoload 注册成功、SoundConfig.click 资源存在。
+
+## v6.72ak：修按钮被压扁 / 卡片溢出 / 单位卡片无皮肤
+- **截图反馈三连**：①英灵殿「献祭」按钮被压扁 ②「选择奖励」三张卡溢出画面 ③单位卡片没换 stylebox。
+- **按钮图颜色修正**：磁盘上的 `8bit_frame_button.png` 实际是 `(24,16,7)` / `(168,162,125)`（不是要求的 RGB(100,86,73) / RGB(251,240,184)），已重新生成并回读校验：4 色 = 黑 290 / 透明 8 / (100,86,73) 98 / (251,240,184) 88。
+- **按钮 stylebox 边距重定**（三份 button tres 同改）：`content_margin` 2 → **5/5/5/5**。原来 2px 太小，文字直接压在 22px 图的 3px 边框上、按钮最小高只有 14px，看起来"被压窄"；改为 5 后文字按钮自动落到 18~19px，边框留出黑底呼吸。`texture_margin` 保持 **6**——不能降到 3：图里 (3,0)/(0,3)/(18,0)… 共 8 个角部透明缺口落在 6px 切片范围内，降到 3 会让这些透明像素进入边缘 tile 区，沿边重复出现缺口。
+- **新增卡片皮肤** `8bit_style_box_card.tres`（同一张按钮图，content_margin 5/4，texture_margin 6）+ `Config.PATHS.STYLEBOX_8BIT_CARD`。`UIButtonManager` 新增 `apply_card_style(ctrl)`，专给「代码动态创建、写不进 tscn」的卡片套皮肤。
+- **三处具体修复**：
+  - `Treasure.gd` 奖励卡：`custom_minimum_size` 150 → **0 + SIZE_EXPAND_FILL**。3×150+2×6=462 > Treasure 面板内宽（368 面板 - 边距 ≈ 344），必然溢出；改成等分后每张 ≈110，落在视口内。
+  - `ConfirmUI._make_choice_card`：删掉硬编码 StyleBoxFlat（bg 0.12 / 2px 灰边 / content_margin 8,6），改 `load(Config.PATHS.STYLEBOX_8BIT_CARD)`；hover 只保留 modulate 提亮，不再改边框色（避免每张卡各持一份可变的 StyleBoxFlat）。
+  - `HeroShrineUI._build_unit_card`：单位卡片原先完全没设样式 → 回落引擎默认灰 panel。现在套 `UIButtonManager.apply_card_style()`。
+- **溢出/压扁的布局配套调整**：
+  - 献祭按钮 118×20 → **118×24**；选择/取消按钮 80×22、80×20 → **84×24**；ConfirmUI 取消 60×20 → **64×24**；HeroShrine 离开按钮补 `custom_minimum_size = (0,24)`。
+  - `UnitRow.custom_maximum_size` 388 → **372**（VBox 内宽 380，留边距，按钮不再压到面板边框）。
+  - 转职选择面板 `picker_panel` 440 → **360**、3 列 130 → **108**、列间距 20 → **12**（=348 总宽），原来 440+430 必然超出 400px 视口。
+  - HeroShrine 竖向压缩补偿按钮增高：VBox 内边距 3 → 2、separation 4 → 3；卡片内 VBox separation 3 → 2；卡片与按钮 wrapper separation 4 → 2。
+- 校验：5 个脚本括号配平、8 个场景 ext 引用无缺失、3 份按钮 tres + 卡片 tres 纹理路径存在、PNG import `compress/mode=0`（无损，颜色不会被压缩改变）。
+
+## v6.72am：按钮仍被挤压（竖长条）——加大左右内边距
+- **现象**：确认弹窗（放弃/取消）按钮呈竖长条，框被竖着拉扁。像素实测：每个按钮 **23.8 × 27 px**（1110px 截图 ÷ 2.775 缩放）。
+- **根因**：按钮最小宽度 = 左内边距 + 文字宽 + 右内边距 = 5 + 14 + 5 = **23.8**；最小高度 = 上 + 行高 + 下 = 5 + 17 + 5 = **27**。宽 < 高 → 横 22×22 的九宫格被竖着拉伸，视觉上"挤压"。行高 17 是主题字体的线路高度决定的，改不动，只能加宽。
+- **修复**（资源层，不动代码）：
+  - 三份按钮 stylebox 的 `content_margin_left/right` **5 → 10**（top/bottom 保持 5）。两个字按钮 → 20+14 = **34 × 27**，变成横长条。全部文字按钮自动生效。
+  - `ConfirmUI.tscn` 的 ConfirmButton / CancelButton 补 `custom_minimum_size = Vector2(64, 26)`，弹窗里的按钮更饱满（约 2.4:1）。
+- **图片修正**：`8bit_frame_button.png` 又被改回了 `(24,16,7)` / `(168,162,125)`（黑 320 / 色 84+78 / 透明 2——连 8 个透明角都掉到 2 个，结构也坏了）。已从 `8bit_frame.png` 重新生成并逐像素回读：**黑 290 / 透明 8 / (100,86,73) 98 / (251,240,184) 88**，结构与原图一致。
+- 审计：tscn 里已无「预估宽 < 高」的按钮；代码动态创建的 17 处按钮均有 ≥2 字标签，新内边距下自动 ≥34 宽。
+
+## v6.72an：转职选择面板「取消」被顶出画面下边沿
+- **现象**：献祭二选一转职面板里，最底部的「取消」按钮超出 240 画面高度被切掉。
+- **根因**：`_make_picker_panel` 用 CenterContainer 直接装 PanelContainer，内容（标题 + 两列卡片 + 底部取消）总高约 233px，超过 240 视口后 CenterContainer 会**上下同时外溢**，底部按钮被画面切掉；按钮换成 8bit 皮肤后变高（24→27），直接把最后一根稻草压断。
+- **修复**（`HeroShrineUI._make_picker_panel`）：
+  - 「取消」从 vbox 底部单独一行移到**标题行 HBox**（标题 SIZE_EXPAND_FILL 居中 + 取消 56×22 靠右），省掉「按钮 27 + 间距 8」共 35px 竖向空间。
+  - 竖向再压：panel content_margin 上下 12→8、vbox separation 10→8、列 separation 6→4，合计再省约 18px。
+  - **兜底**：面板外面套一层 ScrollContainer（`horizontal=DISABLED` / `vertical=AUTO`），装得下时无滚动条、照常居中；以后文案或按钮再变高也不会被画面切掉，而是可滚动。
+- 校验：脚本括号配平 340/340、41/41、7/7；`cancel` 仅在 header 内定义并使用（9 处），无残留旧引用。
+- **v6.72ao 回改**：用户要求「取消」仍在画面正下方。移到标题行后内容压到约 185px，加回按钮（27+8）= 220 < 240，可以放回去了。取消改回 `vbox` 末尾 + `SIZE_SHRINK_CENTER`、尺寸 72×24。溢出防护不再依赖排版，而由外层 ScrollContainer 保证。
+
 **文档结束。**
