@@ -1,6 +1,9 @@
 [gd_scene format=3 uid="uid://w2hsguxvq2ky"]
 
 [ext_resource type="StyleBox" uid="uid://6qbsaxkfwg3o" path="res://content/resource/stylebox/8bit_style_box_texture.tres" id="1_style"]
+[ext_resource type="StyleBox" path="res://content/resource/stylebox/8bit_style_box_borderless.tres" id="2_plain"]
+[ext_resource type="StyleBox" path="res://content/resource/stylebox/8bit_style_box_borderless_hover.tres" id="3_hover"]
+[ext_resource type="StyleBox" path="res://content/resource/stylebox/8bit_style_box_borderless_pressed.tres" id="4_pressed"]
 
 [node name="VictoryLayer" type="CanvasLayer" unique_id=1011119984]
 
@@ -30,11 +33,11 @@ offset_right = -8.0
 grow_horizontal = 2
 grow_vertical = 2
 theme_override_font_sizes/font_size = 10
-theme_override_styles/normal = ExtResource("1_style")
-theme_override_styles/pressed = ExtResource("1_style")
-theme_override_styles/hover = ExtResource("1_style")
-theme_override_styles/disabled = ExtResource("1_style")
-theme_override_styles/focus = ExtResource("1_style")
+theme_override_styles/normal = ExtResource("2_plain")
+theme_override_styles/pressed = ExtResource("4_pressed")
+theme_override_styles/hover = ExtResource("3_hover")
+theme_override_styles/disabled = ExtResource("2_plain")
+theme_override_styles/focus = ExtResource("2_plain")
 text = "NEXT LEVEL"
 
 [node name="VictoryLabel" type="Label" parent="VictoryPanel" unique_id=1247278772]

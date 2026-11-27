@@ -21,17 +21,31 @@ extends Node
 ##     只要它可点击就出声。皮肤归皮肤、音效归音效，两件事分开判断，
 ##     别用一个排除开关同时管两头（v6.72ao 之前就是被同一个排除开关一起挡掉的）。
 ##   - 编辑器工具 UI：脚本路径含 /tool/ 的节点及其子树完全不介入（不套皮肤也不播音效）。
+##
+## 分层处理（★ v6.72au）：
+##   - 在 `8bit_style_box_texture.tres` 窗口框内的按钮：用「无边框」三态资源
+##     （normal 全透明 / hover 棕色半透明 / pressed 深褐半透明）。
+##     父级是谁不重要——沿祖先链找到任何套着该窗口框的 Panel/PanelContainer 即命中，
+##     战场 SettingMenu / SettingBar / 队伍查看子菜单、胜利失败面板、动态弹窗都覆盖。
+##   - click 音效对所有 BaseButton 一视同仁，与用哪套皮肤无关。
 
 const STYLE_NORMAL  : String = "res://content/resource/stylebox/8bit_style_box_button.tres"
 const STYLE_HOVER   : String = "res://content/resource/stylebox/8bit_style_box_button_hover.tres"
 const STYLE_PRESSED : String = "res://content/resource/stylebox/8bit_style_box_button_pressed.tres"
 const STYLE_CARD    : String = "res://content/resource/stylebox/8bit_style_box_card.tres"
+## 无边框三态（用于 8bit_style_box_texture.tres 窗口框内部）
+const STYLE_BORDER_NORMAL  : String = "res://content/resource/stylebox/8bit_style_box_borderless.tres"
+const STYLE_BORDER_HOVER   : String = "res://content/resource/stylebox/8bit_style_box_borderless_hover.tres"
+const STYLE_BORDER_PRESSED : String = "res://content/resource/stylebox/8bit_style_box_borderless_pressed.tres"
 const META_DONE : StringName = &"ui_button_manager_done"
 
 var _sb_normal  : StyleBox = null
 var _sb_hover   : StyleBox = null
 var _sb_pressed : StyleBox = null
 var _sb_card    : StyleBox = null
+var _sb_border_normal  : StyleBox = null
+var _sb_border_hover   : StyleBox = null
+var _sb_border_pressed : StyleBox = null
 
 # 待处理按钮队列（WeakRef）：用弱引用入队，避免持有已释放节点的强引用
 var _queue : Array = []
@@ -43,6 +57,9 @@ func _ready() -> void:
 	_sb_hover   = load(STYLE_HOVER)
 	_sb_pressed = load(STYLE_PRESSED)
 	_sb_card    = load(STYLE_CARD)
+	_sb_border_normal  = load(STYLE_BORDER_NORMAL)
+	_sb_border_hover   = load(STYLE_BORDER_HOVER)
+	_sb_border_pressed = load(STYLE_BORDER_PRESSED)
 	get_tree().node_added.connect(_on_node_added)
 	# autoload 可能晚于首批 UI 入树，补扫一次
 	call_deferred("_setup_existing")
@@ -114,14 +131,23 @@ func _setup_button(btn : BaseButton) -> void:
 	#    只处理 Button（TextureButton 没有 stylebox 概念，靠贴图本身出反馈）；
 	#    头像 / 图标按钮（显式 StyleBoxEmpty 透明底）跳过——套皮肤会在图片下垫出框。
 	if btn is Button and not _is_transparent_button(btn):
-		if _sb_normal != null:
-			btn.add_theme_stylebox_override("normal", _sb_normal)
-			btn.add_theme_stylebox_override("focus", _sb_normal)
-			btn.add_theme_stylebox_override("disabled", _sb_normal)
-		if _sb_hover != null:
-			btn.add_theme_stylebox_override("hover", _sb_hover)
-		if _sb_pressed != null:
-			btn.add_theme_stylebox_override("pressed", _sb_pressed)
+		# ★ v6.72au：窗口框内的按钮不要第二层边框，改用无边框三态资源；
+		#   窗口框外的按钮仍用原来带 8bit 边框的按钮资源。
+		var normal_s : StyleBox = _sb_normal
+		var hover_s : StyleBox = _sb_hover
+		var pressed_s : StyleBox = _sb_pressed
+		if _is_in_framed_panel(btn):
+			normal_s = _sb_border_normal
+			hover_s = _sb_border_hover
+			pressed_s = _sb_border_pressed
+		if normal_s != null:
+			btn.add_theme_stylebox_override("normal", normal_s)
+			btn.add_theme_stylebox_override("focus", normal_s)
+			btn.add_theme_stylebox_override("disabled", normal_s)
+		if hover_s != null:
+			btn.add_theme_stylebox_override("hover", hover_s)
+		if pressed_s != null:
+			btn.add_theme_stylebox_override("pressed", pressed_s)
 
 	# 2) 点击音效：所有可点击按钮都接（含头像 / 图标按钮）。
 	#    去抖在 SoundManager 内，兼容业务回调里已有的播放调用。
@@ -144,6 +170,21 @@ func _is_transparent_button(btn : Button) -> bool:
 	#   （本 Godot 版本没有 get_theme_stylebox_override / has_theme_style_override）
 	var cur : StyleBox = btn.get_theme_stylebox("normal")
 	return cur is StyleBoxEmpty
+
+
+## 按钮是否位于 8bit_style_box_texture.tres 窗口框内。
+## 沿祖先链找 Panel / PanelContainer，比对它实际生效的 panel stylebox 资源路径；
+## 只按路径比对，不缓存实例，避免编辑器重载资源后旧引用失效。
+func _is_in_framed_panel(btn : BaseButton) -> bool:
+	var frame_path : String = Config.PATHS.STYLEBOX_8BIT
+	var node : Node = btn.get_parent()
+	while node != null:
+		if node is Panel or node is PanelContainer:
+			var sb : StyleBox = (node as Control).get_theme_stylebox("panel")
+			if sb != null and sb.resource_path == frame_path:
+				return true
+		node = node.get_parent()
+	return false
 
 
 ## 编辑器工具 UI：向上遍历，脚本路径含 /tool/ 则判为工具节点。
