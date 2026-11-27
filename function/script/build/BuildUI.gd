@@ -17,27 +17,14 @@ const BTN_TEXT      : Color = Color(0.95, 0.95, 0.97, 1.0)
 const BTN_TEXT_DIM  : Color = Color(0.45, 0.45, 0.48, 1.0)
 
 
-static func style_button(btn: Button, accent: Color = Color(0, 0, 0, 0)) -> void:
-	var border := BTN_BORDER if accent.a <= 0.0 else accent
-	btn.add_theme_stylebox_override("normal", _make(BTN_BG, border))
-	btn.add_theme_stylebox_override("hover", _make(BTN_HOVER, border))
-	btn.add_theme_stylebox_override("pressed", _make(BTN_PRESSED, border))
-	btn.add_theme_stylebox_override("disabled", _make(BTN_DISABLED, border))
-	btn.add_theme_stylebox_override("focus", _make(BTN_HOVER, border))
+## ★ v6.72ai：按钮样式统一用 8bit 按钮 stylebox（样式参数全在 .tres 资源里，不硬编码）。
+##   accent 参数保留以兼容调用方，但不再用于边框色（边框样式由资源决定）。
+static func style_button(btn: Button, _accent: Color = Color(0, 0, 0, 0)) -> void:
+	var sb := load(Config.PATHS.STYLEBOX_8BIT_BUTTON)
+	if sb == null: return
+	for state in ["normal", "hover", "pressed", "focus", "disabled"]:
+		btn.add_theme_stylebox_override(state, sb)
 	btn.add_theme_color_override("font_color", BTN_TEXT)
 	btn.add_theme_color_override("font_hover_color", BTN_TEXT)
 	btn.add_theme_color_override("font_pressed_color", BTN_TEXT)
 	btn.add_theme_color_override("font_disabled_color", BTN_TEXT_DIM)
-
-
-static func _make(bg: Color, border: Color) -> StyleBoxFlat:
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = bg
-	sb.border_color = border
-	sb.set_border_width_all(1)
-	sb.content_margin_left = 4.0
-	sb.content_margin_right = 4.0
-	sb.content_margin_top = 2.0
-	sb.content_margin_bottom = 2.0
-	sb.anti_aliasing = false
-	return sb

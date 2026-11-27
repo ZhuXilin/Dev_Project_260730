@@ -2,6 +2,7 @@
 
 [ext_resource type="Script" uid="uid://d1b3lwij3hsde" path="res://function/script/UnitInfoUI.gd" id="1"]
 [ext_resource type="StyleBox" uid="uid://6qbsaxkfwg3o" path="res://content/resource/stylebox/8bit_style_box_texture.tres" id="1_ks8yl"]
+[ext_resource type="StyleBox" uid="uid://coiwrbgx8d7aa" path="res://content/resource/stylebox/8bit_style_box_button.tres" id="8bit_btn"]
 [ext_resource type="PackedScene" uid="uid://dinsoae8vsksx" path="res://content/scenes/ui/components/UnitInfoPanel.tscn" id="2_info"]
 
 [node name="UnitInfoUI" type="PanelContainer"]
@@ -45,5 +46,10 @@ layout_mode = 2
 size_flags_vertical = 0
 theme_override_font_sizes/font_size = 8
 text = "返回"
+theme_override_styles/normal = ExtResource("8bit_btn")
+theme_override_styles/pressed = ExtResource("8bit_btn")
+theme_override_styles/hover = ExtResource("8bit_btn")
+theme_override_styles/disabled = ExtResource("8bit_btn")
+theme_override_styles/focus = ExtResource("8bit_btn")
 
 [connection signal="pressed" from="VBoxContainer/BackButton" to="." method="_on_back_button_pressed"]

@@ -1745,4 +1745,34 @@ v6.72c 修复 `soulfire_identity.json` 加载后，文件活了，但其中大�
 - 排查：HUD.tscn 的 offset_top 224/216 元素是锚定底部的 Label/图标容器、不用该按钮 stylebox，不受影响，未改。
 - 校验：改动仅 MapScene.tscn 一处。待编辑器实测：三按钮完整显示、不被裁切。
 
+## v6.72ah：界面类 UI 统一 8bit stylebox（用户要求，含例外）
+- **要求**：所有界面类 UI 用 `8bit_style_box_texture.tres`，除①avatar ②有图片背景图 UI 层 ③不用系统默认样式/硬编码 UI style。用户确认范围：**场景补全 + 游戏界面静态面板**；工具 UI（GameDataEditor/JSONEditor/ChipMusicEditor 等 function/tool）不套。
+- **审计**：.tscn 里 Panel/PanelContainer 32 个中 31 个已用 8bit；Button 45 个中 33 已用。代码里 StyleBoxFlat.new() 几十处，分三类——静态面板 / 状态高亮 / 透明层。
+- **改动**：
+  - 场景：给 12 个系统默认按钮补五态 8bit 覆盖（ArmorRollUI×2 / ConfirmUI×2 / ItemInfoUI / SecretMerchantUI×2 / SoulAltar×2 / UnitInfoUI / UnitSelectUI×2）；ArmorRollUI、UnitSelectUI 新增 8bit ext_resource。
+  - 代码静态面板：`SecretMerchantUI.gd` 标签选择弹窗面板、`EquipmentConfig.gd` 单位升级按钮（五态共用）改为 `load(Config.PATHS.STYLEBOX_8BIT)` + apply，去除硬编码 bg_color/border/corner_radius。
+- **保留的例外**（按用户确认）：
+  - `EquipmentConfig::MainPanel` 有 BackgroundImage（subui_equipment_01.png）——图片背景层例外。
+  - 3 处 AvatarBg 的 StyleBoxEmpty——头像例外。
+  - 状态高亮/语义色：ConfirmUI 品质色边框、连通组预览紫框、BuildUI 五态按钮、老虎机聚焦金框、拖拽落点半透明。
+  - 透明底板（bg_color=0,0,0,0 让背景图透出）：ArmorRoll root、EquipmentConfig 空槽。
+  - 全部 function/tool 编辑器工具 UI。
+- 校验：7 个改动场景 ext 引用有效、无孤括号；2 个脚本括号配平全 0、Config 为 autoload 可用。
+- 待编辑器实测：12 按钮显示 8bit 框、弹窗/单位按钮视觉正常、无布局错位（content_margin=9 会撑大按钮，注意对齐）。
+
+## v6.72ai：按钮专用 8bit stylebox（紧凑版）+ 消除硬编码按钮样式
+- **起因**：用户问"是否需要为按钮定制 stylebox"。面板版 content_margin=9 会把按钮最小高度撑到 24~27px（原本 16~30px），导致布局裁切；且五态共用面板版无反馈。用户确认：新建紧凑版 button.tres、五态共用同一图。
+- **新资源** `content/resource/stylebox/8bit_style_box_button.tres`：同一张 8bit_frame.png、texture_margin 6/6/6/6（保装饰角）、**content_margin 2/2/2/2**（紧凑）、Tile、region 22×22。独立 uid `coiwrbgx8d7aa`。
+- **Config** 新增 `PATHS.STYLEBOX_8BIT_BUTTON`。
+- **场景按钮**（8 个场景、约 60 行引用）：新增按钮版 ext_resource并把 Button 五态引用从面板版改按钮版——ArmorRollUI/UnitSelectUI/ConfirmUI/ItemInfoUI/SecretMerchantUI/SoulAltar/UnitInfoUI/HeroShrineUI(CloseButton)。
+- **代码动态按钮**改为 `load(STYLEBOX_8BIT_BUTTON)` 应用（不硬编码 bg_color/border）：
+  - `HeroShrineUI.gd` 转职"选择/取消"按钮（新增 `_apply_btn_style`）
+  - `Treasure.gd` 宝箱普通/高级开启 + 三个奖励卡按钮（新增 `_apply_btn_style`）
+  - `BuildUI.gd:style_button` 轮盘/熔铸所有按钮（删除 `_make()` StyleBoxFlat，accent 参数保留兼容但不再用于边框）——覆盖 ArmorRollUI 升级/关闭/重掷/跳过、SlotMachineUI、ForgeAltar、BuildViewer
+  - `EquipmentConfig.gd` 单位升级按钮(1305)、刷新按钮(1250 去掉三态硬编码色)、`_apply_readonly_button_visual` fallback
+  - `EquipmentConfigForge.gd` 熔铸槽按钮（去金边框硬编码）
+- **保留例外**：armor 按钮掉落高亮(856 状态色)、头像/空槽的 StyleBoxEmpty、透明背景层、工具 UI(function/tool)。
+- **关键坑**：手写 .tres 的 uid `8bitbtn0000001` 被 Godot 重生成为 `coiwrbgx8d7aa`，8 个场景引用全部失效——已统一改为真实 uid。教训：新建 .tres 别手写 uid，或用后读回真实 uid 再写引用。
+- 校验：7 脚本括号配平全 0、8 场景引用无缺失、资源/纹理 uid 路径一致。
+
 **文档结束。**

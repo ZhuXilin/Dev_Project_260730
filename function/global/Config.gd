@@ -25,6 +25,7 @@ const PATHS : Dictionary = {
 
 	# 样式 / 着色器
 	"STYLEBOX_8BIT":        "res://content/resource/stylebox/8bit_style_box_texture.tres",
+	"STYLEBOX_8BIT_BUTTON": "res://content/resource/stylebox/8bit_style_box_button.tres",
 	"SHADER_REPLACE_COLOR": "res://content/resource/shader/replace_color.gdshader",
 
 	# 场景：关卡 / 单位

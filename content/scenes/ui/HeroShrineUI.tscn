@@ -2,6 +2,7 @@
 
 [ext_resource type="Script" uid="uid://b4jqrj5ynrqe" path="res://function/script/HeroShrineUI.gd" id="1_script"]
 [ext_resource type="StyleBox" uid="uid://6qbsaxkfwg3o" path="res://content/resource/stylebox/8bit_style_box_texture.tres" id="2_style"]
+[ext_resource type="StyleBox" uid="uid://coiwrbgx8d7aa" path="res://content/resource/stylebox/8bit_style_box_button.tres" id="8bit_btn"]
 [ext_resource type="Texture2D" uid="uid://blse78ub2cov1" path="res://content/images/ui/subui_heroshrine_01.png" id="3_ue3lo"]
 [ext_resource type="Texture2D" uid="uid://c1r1ek7v0uthi" path="res://content/images/ui/subui_heroshrine_02.png" id="4_mdwkw"]
 
@@ -132,11 +133,11 @@ alignment = 1
 [node name="CloseButton" type="Button" parent="Panel/VBox/BottomBar" unique_id=999000015]
 layout_mode = 2
 theme_override_font_sizes/font_size = 9
-theme_override_styles/normal = ExtResource("2_style")
-theme_override_styles/pressed = ExtResource("2_style")
-theme_override_styles/hover = ExtResource("2_style")
-theme_override_styles/disabled = ExtResource("2_style")
-theme_override_styles/focus = ExtResource("2_style")
+theme_override_styles/normal = ExtResource("8bit_btn")
+theme_override_styles/pressed = ExtResource("8bit_btn")
+theme_override_styles/hover = ExtResource("8bit_btn")
+theme_override_styles/disabled = ExtResource("8bit_btn")
+theme_override_styles/focus = ExtResource("8bit_btn")
 text = "离开"
 
 [node name="PerformanceLayer" type="Control" parent="." unique_id=999000016]

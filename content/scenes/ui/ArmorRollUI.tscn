@@ -2,6 +2,8 @@
 
 [ext_resource type="Script" uid="uid://6ira4xlye0su" path="res://function/script/build/ArmorRollUI.gd" id="1"]
 [ext_resource type="Texture2D" uid="uid://cfuanmvb8e6am" path="res://content/images/ui/subui_equipment_01.png" id="2_bg"]
+[ext_resource type="StyleBox" uid="uid://6qbsaxkfwg3o" path="res://content/resource/stylebox/8bit_style_box_texture.tres" id="8bit_sb"]
+[ext_resource type="StyleBox" uid="uid://coiwrbgx8d7aa" path="res://content/resource/stylebox/8bit_style_box_button.tres" id="8bit_btn"]
 
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_m4hqk"]
 
@@ -69,6 +71,11 @@ text = "转轮 100G"
 layout_mode = 2
 theme_override_font_sizes/font_size = 7
 text = "升级品质"
+theme_override_styles/normal = ExtResource("8bit_btn")
+theme_override_styles/pressed = ExtResource("8bit_btn")
+theme_override_styles/hover = ExtResource("8bit_btn")
+theme_override_styles/disabled = ExtResource("8bit_btn")
+theme_override_styles/focus = ExtResource("8bit_btn")
 
 [node name="MachineSlot" type="Control" parent="Root/Margin/VBox" unique_id=1982309853]
 custom_minimum_size = Vector2(0, 72)
@@ -110,3 +117,8 @@ layout_mode = 2
 size_flags_horizontal = 4
 theme_override_font_sizes/font_size = 7
 text = "结束抽取"
+theme_override_styles/normal = ExtResource("8bit_btn")
+theme_override_styles/pressed = ExtResource("8bit_btn")
+theme_override_styles/hover = ExtResource("8bit_btn")
+theme_override_styles/disabled = ExtResource("8bit_btn")
+theme_override_styles/focus = ExtResource("8bit_btn")

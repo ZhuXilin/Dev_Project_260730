@@ -102,19 +102,11 @@ func build_forge_slots():
 	stack_btn.set_meta("slot_type", "forge_slot")
 	stack_btn.set_meta("forge_slot_index", -1)
 
-	# ★ 新增：加个深色底和金色边框，防止看不清
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = Color(0.12, 0.12, 0.15, 1.0)
-	sb.border_color = Color(0.8, 0.6, 0.3, 1.0) # 醒目的亮边框
-	sb.set_border_width_all(1)
-	sb.corner_radius_top_left = 2
-	sb.corner_radius_top_right = 2
-	sb.corner_radius_bottom_left = 2
-	sb.corner_radius_bottom_right = 2
-	stack_btn.add_theme_stylebox_override("normal", sb)
-	stack_btn.add_theme_stylebox_override("hover", sb)
-	stack_btn.add_theme_stylebox_override("pressed", sb)
-	stack_btn.add_theme_stylebox_override("focus", sb)
+	# ★ v6.72ai：熔铸槽按钮用 8bit 按钮 stylebox（去掉硬编码金边框）
+	var sb := load(Config.PATHS.STYLEBOX_8BIT_BUTTON)
+	if sb:
+		for state in ["normal", "hover", "pressed", "focus"]:
+			stack_btn.add_theme_stylebox_override(state, sb)
 	stack_btn.add_theme_stylebox_override("disabled", sb)
 
 	var count = 0

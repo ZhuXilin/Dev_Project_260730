@@ -1,6 +1,7 @@
 [gd_scene format=3 uid="uid://dxarudp4psg6b"]
 
 [ext_resource type="StyleBox" uid="uid://6qbsaxkfwg3o" path="res://content/resource/stylebox/8bit_style_box_texture.tres" id="1_fg5bo"]
+[ext_resource type="StyleBox" uid="uid://coiwrbgx8d7aa" path="res://content/resource/stylebox/8bit_style_box_button.tres" id="8bit_btn"]
 [ext_resource type="Script" uid="uid://cnpydxvklmlne" path="res://function/script/ConfirmUI.gd" id="2_c2j6i"]
 
 [node name="ConfirmUI" type="CanvasLayer" unique_id=271728603]
@@ -50,11 +51,21 @@ metadata/_edit_use_anchors_ = true
 layout_mode = 2
 theme_override_font_sizes/font_size = 8
 text = "确定"
+theme_override_styles/normal = ExtResource("8bit_btn")
+theme_override_styles/pressed = ExtResource("8bit_btn")
+theme_override_styles/hover = ExtResource("8bit_btn")
+theme_override_styles/disabled = ExtResource("8bit_btn")
+theme_override_styles/focus = ExtResource("8bit_btn")
 
 [node name="CancelButton" type="Button" parent="Panel/HBoxContainer" unique_id=1869161643]
 layout_mode = 2
 theme_override_font_sizes/font_size = 8
 text = "取消"
+theme_override_styles/normal = ExtResource("8bit_btn")
+theme_override_styles/pressed = ExtResource("8bit_btn")
+theme_override_styles/hover = ExtResource("8bit_btn")
+theme_override_styles/disabled = ExtResource("8bit_btn")
+theme_override_styles/focus = ExtResource("8bit_btn")
 
 [connection signal="pressed" from="Panel/HBoxContainer/ConfirmButton" to="." method="_on_confirm_button_pressed"]
 [connection signal="pressed" from="Panel/HBoxContainer/CancelButton" to="." method="_on_cancel_button_pressed"]

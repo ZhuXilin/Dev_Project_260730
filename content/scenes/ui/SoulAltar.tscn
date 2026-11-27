@@ -2,6 +2,7 @@
 
 [ext_resource type="Script" uid="uid://ce5qy4g4mxbtt" path="res://function/script/SoulAltar.gd" id="1"]
 [ext_resource type="StyleBox" uid="uid://6qbsaxkfwg3o" path="res://content/resource/stylebox/8bit_style_box_texture.tres" id="2"]
+[ext_resource type="StyleBox" uid="uid://coiwrbgx8d7aa" path="res://content/resource/stylebox/8bit_style_box_button.tres" id="8bit_btn"]
 [ext_resource type="Texture2D" uid="uid://dsv0lkhq5lvn2" path="res://content/images/ui/subui_soulaltar_01.png" id="3_nulh0"]
 
 [node name="SoulAltar" type="CanvasLayer" unique_id=1227648888]
@@ -72,12 +73,22 @@ layout_mode = 2
 size_flags_horizontal = 3
 theme_override_font_sizes/font_size = 7
 text = "魂火"
+theme_override_styles/normal = ExtResource("8bit_btn")
+theme_override_styles/pressed = ExtResource("8bit_btn")
+theme_override_styles/hover = ExtResource("8bit_btn")
+theme_override_styles/disabled = ExtResource("8bit_btn")
+theme_override_styles/focus = ExtResource("8bit_btn")
 
 [node name="AttrCapTabBtn" type="Button" parent="Panel/VBox/TabBar" unique_id=922914872]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_font_sizes/font_size = 7
 text = "属性上限"
+theme_override_styles/normal = ExtResource("8bit_btn")
+theme_override_styles/pressed = ExtResource("8bit_btn")
+theme_override_styles/hover = ExtResource("8bit_btn")
+theme_override_styles/disabled = ExtResource("8bit_btn")
+theme_override_styles/focus = ExtResource("8bit_btn")
 
 [node name="MainHBox" type="HBoxContainer" parent="Panel/VBox" unique_id=1885705594]
 layout_mode = 2
@@ -169,11 +180,11 @@ theme_override_font_sizes/font_size = 6
 layout_mode = 2
 size_flags_horizontal = 4
 theme_override_font_sizes/font_size = 7
-theme_override_styles/normal = ExtResource("2")
-theme_override_styles/pressed = ExtResource("2")
-theme_override_styles/hover = ExtResource("2")
-theme_override_styles/disabled = ExtResource("2")
-theme_override_styles/focus = ExtResource("2")
+theme_override_styles/normal = ExtResource("8bit_btn")
+theme_override_styles/pressed = ExtResource("8bit_btn")
+theme_override_styles/hover = ExtResource("8bit_btn")
+theme_override_styles/disabled = ExtResource("8bit_btn")
+theme_override_styles/focus = ExtResource("8bit_btn")
 text = "返回"
 
 [connection signal="pressed" from="Panel/VBox/TabBar/SoulFireTabBtn" to="." method="_on_soul_fire_tab_pressed"]

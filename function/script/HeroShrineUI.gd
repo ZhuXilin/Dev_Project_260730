@@ -472,6 +472,7 @@ func _make_picker_panel(unit : UnitData, branches : Array) -> Control:
 		btn.add_theme_font_size_override("font_size", 9)
 		btn.custom_minimum_size = Vector2(80, 22)
 		btn.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		_apply_btn_style(btn)
 		btn.pressed.connect(func():
 			overlay.queue_free()
 			_begin_convert(unit, adv)
@@ -485,10 +486,20 @@ func _make_picker_panel(unit : UnitData, branches : Array) -> Control:
 	cancel.add_theme_font_size_override("font_size", 8)
 	cancel.custom_minimum_size = Vector2(80, 20)
 	cancel.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	_apply_btn_style(cancel)
 	cancel.pressed.connect(func(): overlay.queue_free())
 	vbox.add_child(cancel)
 
 	return overlay
+
+
+## 给动态创建的按钮套 8bit 按钮 stylebox（样式参数全在资源里，不硬编码）
+func _apply_btn_style(btn: Button) -> void:
+	var sb := load(Config.PATHS.STYLEBOX_8BIT_BUTTON)
+	if sb == null: return
+	for state in ["normal", "hover", "pressed", "focus", "disabled"]:
+		btn.add_theme_stylebox_override(state, sb)
+
 
 func _attr_short(key: String) -> String:
 	match key:

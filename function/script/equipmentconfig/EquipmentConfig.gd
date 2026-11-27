@@ -1246,29 +1246,11 @@ func _build_ui_inner():
 		reset_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		reset_btn.size_flags_vertical = Control.SIZE_SHRINK_END
 		reset_btn.clip_text = true
-		# ★ v6.62f：刷新按钮补悬停/按下反馈（场景里五态共用同一 stylebox，原本无反馈）
-		var btn_normal := StyleBoxFlat.new()
-		btn_normal.bg_color = Color(0.111, 0.111, 0.111, 1)
-		btn_normal.set_content_margin_all(4)
-		btn_normal.anti_aliasing = false
-		var btn_hover := StyleBoxFlat.new()
-		btn_hover.bg_color = Color(0.22, 0.22, 0.26, 1)
-		btn_hover.border_width_left = 1; btn_hover.border_width_right = 1
-		btn_hover.border_width_top = 1; btn_hover.border_width_bottom = 1
-		btn_hover.border_color = Color(0.55, 0.55, 0.65, 1)
-		btn_hover.set_content_margin_all(4)
-		btn_hover.anti_aliasing = false
-		var btn_pressed := StyleBoxFlat.new()
-		btn_pressed.bg_color = Color(0.32, 0.30, 0.18, 1)
-		btn_pressed.border_width_left = 1; btn_pressed.border_width_right = 1
-		btn_pressed.border_width_top = 1; btn_pressed.border_width_bottom = 1
-		btn_pressed.border_color = Color(0.9, 0.78, 0.3, 1)
-		btn_pressed.set_content_margin_all(4)
-		btn_pressed.anti_aliasing = false
-		reset_btn.add_theme_stylebox_override("normal", btn_normal)
-		reset_btn.add_theme_stylebox_override("hover", btn_hover)
-		reset_btn.add_theme_stylebox_override("pressed", btn_pressed)
-		reset_btn.add_theme_stylebox_override("focus", btn_normal)
+		# ★ v6.72ai：刷新按钮用 8bit 按钮 stylebox（五态共用，去掉硬编码状态色）
+		var sb_reset := load(Config.PATHS.STYLEBOX_8BIT_BUTTON)
+		if sb_reset:
+			for state in ["normal", "hover", "pressed", "focus", "disabled"]:
+				reset_btn.add_theme_stylebox_override(state, sb_reset)
 
 	_ensure_upgrade_shop_btn()
 	_refresh_upgrade_shop_btn()
@@ -1300,23 +1282,12 @@ func _create_level_btn(unit: UnitData, unit_idx: int) -> Button:
 	btn.alignment = HORIZONTAL_ALIGNMENT_CENTER
 	btn.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = Color(0.1, 0.1, 0.12, 0.8)
-	sb.border_color = Color(0.3, 0.3, 0.3)
-	sb.border_width_bottom = 1
-	sb.border_width_top = 1
-	sb.border_width_left = 1
-	sb.border_width_right = 1
-	sb.corner_radius_top_left = 2
-	sb.corner_radius_top_right = 2
-	sb.corner_radius_bottom_left = 2
-	sb.corner_radius_bottom_right = 2
-	# v5.6：禁用/按下/焦点状态必须共用同一个 stylebox。
-	# 之前只覆盖 normal + hover，disabled 会回落到引擎默认 Button 样式（带 4px 内容边距），
-	# 使满级/金币不足的按钮最小高度大于 16，head_group 被撑高，
-	# 该单位下方第一排防具图标就比其他单位低 —— 横向对不齐。
-	for state in ["normal", "hover", "pressed", "disabled", "focus"]:
-		btn.add_theme_stylebox_override(state, sb)
+	# ★ v6.72ai：单位按钮用 8bit 按钮 stylebox（紧凑版，不硬编码参数）
+	#   五态共用同一资源实例：避免某态回落到引擎默认样式导致尺寸不一致、布局错位。
+	var sb := load(Config.PATHS.STYLEBOX_8BIT_BUTTON)
+	if sb:
+		for state in ["normal", "hover", "pressed", "disabled", "focus"]:
+			btn.add_theme_stylebox_override(state, sb)
 
 	var cap : int = int(GameState.unit_level_cap.get(unit.unit_name, 3))
 	var cur : int = int(unit.level)
@@ -2228,7 +2199,8 @@ func _build_roll_relic_slots() -> void:
 func _apply_readonly_button_visual(btn: Button) -> void:
 	var normal_sb : StyleBox = get_theme_stylebox("normal", "Button")
 	if normal_sb == null:
-		normal_sb = StyleBoxFlat.new()
+		normal_sb = load(Config.PATHS.STYLEBOX_8BIT_BUTTON) as StyleBox
+	if normal_sb == null: return
 	for state in ["hover", "pressed", "focus"]:
 		btn.add_theme_stylebox_override(state, normal_sb)
 

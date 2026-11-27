@@ -344,18 +344,9 @@ func _show_option_picker(item_data : Dictionary):
 	panel.offset_right = 140
 	panel.offset_top = -80
 	panel.offset_bottom = 80
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = Color(0.08, 0.05, 0.12)
-	sb.border_color = Color(0.6, 0.5, 0.8)
-	sb.border_width_left = 1
-	sb.border_width_right = 1
-	sb.border_width_top = 1
-	sb.border_width_bottom = 1
-	sb.content_margin_left = 10
-	sb.content_margin_right = 10
-	sb.content_margin_top = 8
-	sb.content_margin_bottom = 8
-	panel.add_theme_stylebox_override("panel", sb)
+	# ★ v6.72ah：界面面板统一用 8bit stylebox（不硬编码颜色/边框参数）
+	var sb := load(Config.PATHS.STYLEBOX_8BIT)
+	if sb: panel.add_theme_stylebox_override("panel", sb)
 	_tag_picker_overlay.add_child(panel)
 
 	var vbox := VBoxContainer.new()
