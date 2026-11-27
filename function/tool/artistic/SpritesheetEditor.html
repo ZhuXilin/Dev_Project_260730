@@ -486,6 +486,8 @@ var drag = {
   selStart:{x:0,y:0}, selCur:{x:0,y:0}, selMode:SEL_REPLACE, square:false,
   fixedW:null, fixedH:null,
   lastPx:null, drawErase:false,
+  // ★ Shift 直线绘制：起点 + 绘制前像素快照 + 固定笔宽
+  drawLineStart:null, drawLineSnapshot:null, drawLineActive:false, drawLineSize:1,
   moveOrigin:{x:0,y:0}, floatOrigin:{x:0,y:0},
   guideIdx:-1, guideAxis:0, guideStart:0,
   guideNew:false, guideStartPos:0,
@@ -755,6 +757,7 @@ function makeSnapshot(){
 function restoreSnapshot(s){
   drag.mode = null; drag.guideIdx = -1; drag.lastPx = null; drag.guideNew = false;
   drag.lassoPoints = null; drag.selBackup = null; drag.lastPenPressure = undefined;
+  endDrawLine();
   if(s.w !== doc.width || s.h !== doc.height){
     doc.width = s.w; doc.height = s.h;
     doc.imageCanvas = document.createElement('canvas');
@@ -1314,6 +1317,8 @@ function deselectAll(){
   recalcBounds(); requestRender(); commitHistory();
 }
 function invertSelection(){
+  // 浮动选区时先落回图层，否则 selMask 已被 beginFloat 清空、反选会变成“全选”
+  if(doc.floating){ commitFloat(); commitHistory(); }
   for(var i=0;i<doc.selMask.length;i++) doc.selMask[i] = doc.selMask[i] ? 0 : 1;
   doc.preciseCx = null; doc.preciseCy = null;
   recalcBounds(); requestRender(); commitHistory();
@@ -2163,6 +2168,41 @@ function bresenham(a,b){
     if(e2 <= dx){ err += dx; y0 += sy; }
   }
   return pts;
+}
+
+/* ★ Shift 直线绘制：从起点到当前点画水平/垂直直线，拖动时先还原快照再重画，
+   因此只有一条直线、不会留下拖动轨迹。竖直 or 横向由首帧移动方向锁定。 */
+function beginDrawLine(px, py, erase){
+  ensureWritable();
+  drag.drawLineActive = true;
+  drag.drawLineStart = {x:px, y:py};
+  drag.drawLineSnapshot = new Uint8ClampedArray(doc.imageData.data);
+  drag.drawLineSize = getPressureBrushSizeFor(Math.max(penPressure, 0.3));
+  drag.drawLineAxis = null; // null=尚未锁定，0=横向，1=竖直
+  drag.drawErase = erase;
+}
+function _constrainLineEnd(px, py){
+  var s = drag.drawLineStart, dx = px - s.x, dy = py - s.y;
+  if(drag.drawLineAxis === null && (dx !== 0 || dy !== 0))
+    drag.drawLineAxis = Math.abs(dx) >= Math.abs(dy) ? 0 : 1;
+  if(drag.drawLineAxis === 0) return {x:px, y:s.y};
+  if(drag.drawLineAxis === 1) return {x:s.x, y:py};
+  return {x:px, y:py};
+}
+function redrawDrawLine(px, py){
+  if(!drag.drawLineActive || !drag.drawLineStart || !drag.drawLineSnapshot) return;
+  doc.imageData.data.set(drag.drawLineSnapshot);           // 还原绘制前像素
+  var end = _constrainLineEnd(px, py);
+  var pts = bresenham(drag.drawLineStart, end);
+  var col = drag.drawErase ? [0,0,0,0] : ui.primary;
+  for(var i=0;i<pts.length;i++) stampBrush(pts[i].x, pts[i].y, col, drag.drawLineSize);
+  drag.lastPx = {x:end.x, y:end.y};
+}
+function endDrawLine(){
+  drag.drawLineActive = false;
+  drag.drawLineStart = null;
+  drag.drawLineSnapshot = null;
+  drag.drawLineAxis = null;
 }
 function floodFill(start){
   if(start.x<0||start.y<0||start.x>=doc.width||start.y>=doc.height) return false;
@@ -3497,7 +3537,12 @@ function onCanvasMouseDown(e){
       drag.lastPx = {x:m.px, y:m.py};
       var rp = Math.max(penPressure, 0.3);
       drag.lastPenPressure = rp;
-      stampBrush(m.px, m.py, drag.drawErase ? [0,0,0,0] : ui.primary, getPressureBrushSizeFor(rp));
+      if(e.shiftKey){
+        beginDrawLine(m.px, m.py, drag.drawErase);
+        redrawDrawLine(m.px, m.py);
+      } else {
+        stampBrush(m.px, m.py, drag.drawErase ? [0,0,0,0] : ui.primary, getPressureBrushSizeFor(rp));
+      }
       requestRender();
       e.preventDefault(); return;
     }
@@ -3670,7 +3715,13 @@ function onCanvasMouseDown(e){
       var initP = Math.max(penPressure, 0.3);
       var initSz = getPressureBrushSizeFor(initP);
       drag.lastPenPressure = initP;
-      stampBrush(m.px, m.py, drag.drawErase ? [0,0,0,0] : ui.primary, initSz);
+      if(e.shiftKey){
+        // ★ Shift：直线模式——落笔只记起点+快照，等移动时画约束直线
+        beginDrawLine(m.px, m.py, drag.drawErase);
+        redrawDrawLine(m.px, m.py);
+      } else {
+        stampBrush(m.px, m.py, drag.drawErase ? [0,0,0,0] : ui.primary, initSz);
+      }
       requestRender(); break;
     }
     case TOOL.ERASER: {
@@ -3679,7 +3730,12 @@ function onCanvasMouseDown(e){
       var initP2 = Math.max(penPressure, 0.3);
       var initSz2 = getPressureBrushSizeFor(initP2);
       drag.lastPenPressure = initP2;
-      stampBrush(m.px, m.py, drag.drawErase ? [0,0,0,0] : ui.primary, initSz2);
+      if(e.shiftKey){
+        beginDrawLine(m.px, m.py, drag.drawErase);
+        redrawDrawLine(m.px, m.py);
+      } else {
+        stampBrush(m.px, m.py, drag.drawErase ? [0,0,0,0] : ui.primary, initSz2);
+      }
       requestRender(); break;
     }
     case TOOL.BUCKET:
@@ -3886,6 +3942,11 @@ function onCanvasMouseMove(e){
     requestRender(); return;
   }
   if(drag.mode === 'draw' && drag.lastPx){
+    // ★ Shift 直线模式：还原快照后从起点重画一条水平/垂直直线，不留拖动轨迹
+    if(drag.drawLineActive){
+      redrawDrawLine(m.px, m.py);
+      requestRender(); return;
+    }
     // ★ 关键改进：用 getCoalescedEvents 取回笔的所有高频采样点
     var evs = null;
     if (e.getCoalescedEvents) {
@@ -3978,6 +4039,10 @@ function onCanvasMouseUp(e){
     }
     drag.lassoPoints = null;
   } else if(drag.mode === 'draw'){
+    if(drag.drawLineActive){
+      redrawDrawLine(mouse.px, mouse.py);  // 收笔定格到最后约束点
+      endDrawLine();
+    }
     doc.imageDirty = true; _highlightDirty = true;
     commitHistory(); refreshColorUsage();
   } else if(drag.mode === 'guide'){
@@ -4011,6 +4076,14 @@ function onKeyDown(e){
   if(isInput){
     if(isNumberInput && isAnimKey){ try { e.target.blur(); } catch(err){} }
     else return;
+  }
+  // 文档级快捷键：与当前工具/变换态无关，所有选择工具下都生效
+  //   Ctrl+I 反选选区 / Ctrl+E 向下合并图层 / Ctrl+N 新建图层
+  if(e.ctrlKey || e.metaKey){
+    var dk = k.toLowerCase();
+    if(dk === 'i'){ e.preventDefault(); if(!e.repeat) invertSelection(); return; }
+    if(dk === 'e'){ e.preventDefault(); if(!e.repeat) mergeDown(); return; }
+    if(dk === 'n'){ e.preventDefault(); if(!e.repeat) addLayer(); return; }
   }
   if (transformState && transformState.active) {
     if (e.ctrlKey || e.metaKey) {
@@ -4051,7 +4124,6 @@ function onKeyDown(e){
       case 'y': e.preventDefault(); doRedo(); return;
       case 'a': e.preventDefault(); selectAll(); return;
       case 'd': e.preventDefault(); deselectAll(); return;
-      case 'i': e.preventDefault(); invertSelection(); return;
       case 'c': e.preventDefault(); doCopy(); return;
       case 'x': e.preventDefault(); doCut(); return;
       case 's': e.preventDefault(); savePng(false); return;
@@ -4963,8 +5035,8 @@ var I18N = {
   'tool.replace': {zh:'换', en:'Rep'},
   'tool.hints.select': {zh: '选择 (V)', en: 'Select (V)'},
   'tool.hints.lasso': {zh: '套索 (M)', en: 'Lasso (M)'},
-  'tool.hints.pencil': {zh: '铅笔 (B) · 左键绘制 / 右键擦除 / Alt 吸色 · [ ] 大小', en: 'Pencil (B) · LMB Paint / RMB Erase / Alt Pick · [ ] Size'},
-  'tool.hints.eraser': {zh: '橡皮 (E) · 左键擦除 / 右键绘制 / Alt 吸色 · [ ] 大小', en: 'Eraser (E) · LMB Erase / RMB Paint / Alt Pick · [ ] Size'},
+  'tool.hints.pencil': {zh: '铅笔 (B) · 左键绘制 / 右键擦除 / Shift 直线 / Alt 吸色 · [ ] 大小', en: 'Pencil (B) · LMB Paint / RMB Erase / Shift Line / Alt Pick · [ ] Size'},
+  'tool.hints.eraser': {zh: '橡皮 (E) · 左键擦除 / 右键绘制 / Shift 直线 / Alt 吸色 · [ ] 大小', en: 'Eraser (E) · LMB Erase / RMB Paint / Shift Line / Alt Pick · [ ] Size'},
   'tool.hints.picker': {zh: '取色 (I)', en: 'Picker (I)'},
   'tool.hints.bucket': {zh: '填充 (G)', en: 'Bucket (G)'},
   'tool.hints.replace': {zh: '替换 (H)', en: 'Replace (H)'},

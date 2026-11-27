@@ -1642,4 +1642,43 @@ v6.72c 修复 `soulfire_identity.json` 加载后，文件活了，但其中大�
 - **滚动兜底**：`_build_relic_shop_panel` 的 `shop_scroll.vertical_scroll_mode` 从 DISABLED 改为 AUTO，标题多占两行时允许滚动，避免「刷新商店/出售区」被挤出可视范围。
 - 校验：RelicShop/EquipmentConfig 括号配平全 0。待编辑器实测：两行标题位置与红框对齐、下方按钮不被挤出、槽位灰底消除后与其它槽视觉一致。
 
+## v6.72p：战场闪电标记样式调整 + 商店商品消失修复
+- **闪电标记**（`Unit.gd:refresh_burst_ready_icon`）：可用态从 `⚡!` 改为仅 `⚡`（保留橙黄色 `Color(1,0.85,0.3)`，无感叹号，居中）；不可用态从 `⚡N`（橙闪电+黄数字）改为 `⚡︎N` 全白——`⚡`(U+26A1) 是 emoji 自带橙色、`font_color` 染不白，故用文本呈现变体 `⚡︎`(U+FE0E) 使闪电与数字一起变白。位置 `Vector2(1,9)` → `Vector2(1,5)`（整体上移 4px）。
+- **商店商品消失修复**（`EquipmentConfig.gd:_build_relic_shop_panel`）：v6.72o 把 `shop_scroll.vertical_scroll_mode` 从 DISABLED 改为 AUTO，但 `SIZE_SHRINK_BEGIN + AUTO` 使 ScrollContainer 最小高度塌缩为 0、商品格全被裁掉。已改回 `SCROLL_MODE_DISABLED`（右侧中部留白足够，两行标题挤不掉功能按钮）。
+- 校验：Unit.gd / EquipmentConfig.gd 括号配平全 0。待编辑器实测：不可用态 `⚡︎`(U+FE0E) 是否按文本字形渲染成白色（取决于主题字体是否含该字形，若仍显橙色需换字体或改用纯文字标记）、闪电标记上移后贴合度、商店商品恢复显示。
+
+## v6.72q：SpritesheetEditor 快捷键补全
+- 工具 `function/tool/artistic/SpritesheetEditor.html`，在 `onKeyDown` 的 isInput 判断后、变换态判断前插入文档级 Ctrl 快捷键（与当前工具/变换态无关，所有选择工具下均生效）：
+  - **Ctrl+I** 反选选区（`invertSelection`）
+  - **Ctrl+E** 向下合并图层（`mergeDown`）
+  - **Ctrl+N** 新建图层（`addLayer`）
+- 均 `preventDefault` 拦截浏览器默认行为，且 `!e.repeat` 防长按重复触发。从原 Ctrl switch 中移除旧的 `case 'i'`（非 Ctrl 的 `i`=拾色器工具键保留）。
+- 加固 `invertSelection`：浮动选区（`doc.floating`）时先 `commitFloat()` + `commitHistory()`，否则 selMask 已被 beginFloat 清空、反选会变成"全选"。
+- 校验：Node `new Function` 解析内嵌脚本通过。待浏览器实测三个快捷键（注意 Ctrl+E/Ctrl+N 是浏览器保留键，preventDefault 在页面聚焦时可拦截）。
+
+## v6.72r：攻击菜单爆发标签简化
+- **问题**（实机截图）：攻击菜单 hover 提示显示「普攻 / 旋风斩 · 200%攻击斩击，击杀则再行动一次（每场1次）」，描述过长。根因：`SoulFireIdentity.get_burst_label()` 在单位无 `burst_label` 字段时回退到整个 `burst_trait.desc`；转职单位都有 4 字短标签，但 9 个基础单位全都没有，故基础单位爆发时显示完整长描述（且"200%"已因 v6.72l/m 压制倍率而过时）。
+- **修复**（`soulfire_identity.json`）：给 9 个基础单位各补一个 4 字 `burst_label`（横扫击退/范围灼烧/治疗净化/嘲讽护盾/穿甲狙击/贯穿击退/俯冲眩晕/斩杀再动/龙息灼烧）。`get_burst_label()` 优先取此字段，菜单即显示「旋风斩·斩杀再动」。desc 保留给英雄 shrine 等需完整说明的 UI。
+- 校验：JSON 合法、diff 仅 9 行新增。待编辑器实测 hover 提示是否变为短标签。
+
+## v6.72s：魂栈遗物商店三处修复
+- **背景**（三张实机截图）：①右侧商店格"空"插槽比防具空槽多圆角灰底；②拖拽购买 preview 图标偏离鼠标起点；③拖到空白区释放后商品消失、槽里却没东西、刷新商店才出现，状态错乱。
+- **1. 空槽样式统一**（`RelicShop.gd:_make_shop_cell`）：商店格此前用 `create_styled_button` 默认样式带圆角灰底。改为全状态覆盖 `StyleBoxEmpty`（与 `_create_passive_button` 一致）。
+- **2. 预览偏移**（`EquipmentConfigDrag.gd:_begin_dragging`）：图标类 preview 是居中 20×20，但 `drag_grab_offset` 按整按钮左上角算，导致预览相对鼠标偏左上（商店格 36px 宽尤甚）。改为 `drag_grab_offset = preview.size/2`，让图标中心对齐鼠标抓取点。
+- **3. 购买状态错乱**：根因是**点击购买 `_on_buy` 成功后只 render 商店格、没重建遗物槽 UI**——数据已写入 GameState，但槽位视觉没更新，刷新商店/重开才显示。已在 `_on_buy` 成功后补 `panel._build_passive_slots()` + `_build_roll_relic_slots()`（`buy_to_slot` 拖拽路径本就由 `_buy_relic_by_drag` 重建，不受影响）。另：`end_drag` 对 `relic_shop_item` 落空补明确提示（此前静默无提示，误以为"买了但没到账"）；`_get_target_from_position` 对商店商品拖拽禁用 BUFFER 宽容匹配，避免擦边误命中相邻出售区/按钮触发非预期交易。
+- 校验：3 脚本括号配平全 0。待编辑器实测：空槽灰底消除、preview 居中、拖空白区无误购、点击购买后槽位立即显示。
+
+## v6.72t：SpritesheetEditor 画笔 Shift 直线
+- 工具 `SpritesheetEditor.html`。B 键画笔早已绑定（`case 'b': setTool(TOOL.PENCIL)`），本轮新增 Shift 直线约束。
+- **实现**：`drag` 增 `drawLineStart/drawLineSnapshot/drawLineActive/drawLineAxis/drawLineSize`。新增三个函数——`beginDrawLine`（落笔时 ensureWritable + 保存像素快照 + 锁定笔宽）、`redrawDrawLine`（先 `doc.imageData.data.set(快照)` 还原，再从起点 bresenham 重画直线）、`endDrawLine`（清理）。
+- **方向锁定**：首次移动时按 `|dx|>=|dy|` 锁定横向(axis=0)/竖向(axis=1)，之后终点强制 `y=start.y` 或 `x=start.x`，避免画到一半方向跳变。
+- **接入点**：PENCIL/ERASER 的左键与右键 mousedown（shift 时 begin+redraw）、mousemove draw 分支（直线激活时早 return 走重画）、mouseup（收笔定格+endDrawLine+commitHistory）、restoreSnapshot（endDrawLine 防快照残留）。提示文案加 "Shift 直线"。
+- 绕开 coalesced events 路径（直线用全量重画，不需要高频采样）。校验：Node `new Function` 解析通过。待浏览器实测：Shift+拖动画水平/垂直线、拖动时无轨迹残留、方向中途不跳变、右键擦除直线。
+
+## v6.72u：商店 free() 报错 + 拖到空白区误购买
+- **报错**：`RelicShop.gd:86 render()` 用 `c.free()` 释放正在发射 pressed 信号的按钮 → "Object was freed while a signal is being emitted"。改为 `c.queue_free()`（点击购买/刷新时都会走到）。
+- **拖拽误购买**：商店格同时有 `btn.pressed.connect(_on_buy)`(点击购买) 与拖拽购买(buy_to_slot) 两条路径。拖拽释放时若落点仍在按钮矩形内，Button 原生 pressed 也触发 → "拖到空白区却完成购买"（最后一个防具抽取遗物尤甚）。
+- **修复**（`EquipmentConfigDrag.gd`）：加 `drag_start_mouse`/`drag_moved`，`start_drag` 重置，`update_drag_preview` 中位移>6px 置 `drag_moved=true`。`RelicShop._on_buy` 开头若 `panel._drag.drag_moved` 则 return（拖动过就忽略点击购买，只走拖到遗物槽的 buy_to_slot）。`end_drag` 对纯点击的商店格跳过取消音效与失败提示（交给 pressed 正常处理）。
+- 校验：两脚本括号配平全 0。待编辑器实测：不再报错、拖到空白区不买、点击购买仍正常、拖到槽位购买正常不重复。
+
 **文档结束。**

@@ -229,7 +229,8 @@ func refresh_abnormal_icons() -> void:
 	refresh_burst_ready_icon()
 
 
-## ★ v6.72k：我方魂火爆发就绪头顶标记（⚡N=还差N点魂火，⚡! =已就绪可爆发）。
+## ★ v6.72k：我方魂火爆发就绪头顶标记。
+##   v6.72p：可用态=橙色⚡（无!号，居中）；不可用态=⚡︎+数字（全白）。整体上移 4px。
 ##   取代旧「敌人蓄力意图」标记：只在我方单位、且有魂火积累时显示。
 func refresh_burst_ready_icon() -> void:
 	if not is_instance_valid(abnormal_icons_root):
@@ -254,10 +255,17 @@ func refresh_burst_ready_icon() -> void:
 		_burst_ready_icon_node.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		_burst_ready_icon_node.custom_minimum_size.x = 16.0
 		abnormal_icons_root.add_child(_burst_ready_icon_node)
-	_burst_ready_icon_node.text = "⚡!" if remain <= 0 else ("⚡%d" % remain)
-	# 父节点 AbnormalIcons 位于 (-9,-21)，局部 (1,9) → 全局 (-8,-12)，
-	# 宽 16 居中对齐单位 sprite 中心 x=0，紧贴头顶。
-	_burst_ready_icon_node.position = Vector2(1.0, 9.0)
+	# ★ v6.72p：可用态只显示橙色闪电（emoji 自带色）并居中；不可用态闪电+数字全白。
+	#   ⚡ 是 emoji 自带橙色、font_color 染不白，故不可用态用文本呈现变体 ⚡︎(U+FE0E)。
+	if remain <= 0:
+		_burst_ready_icon_node.text = "⚡"
+		_burst_ready_icon_node.add_theme_color_override("font_color", Color(1.0, 0.85, 0.3))
+	else:
+		_burst_ready_icon_node.text = "⚡\uFE0E%d" % remain
+		_burst_ready_icon_node.add_theme_color_override("font_color", Color(1.0, 1.0, 1.0))
+	# 父节点 AbnormalIcons 位于 (-9,-21)，局部 (1,5) → 全局 (-8,-16)，
+	# 宽 16 居中对齐单位 sprite 中心 x=0；较 v6.72j 整体上移 4px。
+	_burst_ready_icon_node.position = Vector2(1.0, 5.0)
 	_burst_ready_icon_node.visible = true
 
 

@@ -2,6 +2,7 @@
   "_doc": "v6.64 魂火身份表：燃烧态特有效果 + 爆发附加 + 转职身份改造。燃烧(移动+1/溅射50%)为通用底盘，单位额外叠加 burn_trait；爆发=原技能效果×倍率+burst_trait+清空魂火+结束行动。数值字段由 CombatManager 解释，未知字段安全忽略。 【v6.66：burst_threshold=该单位技能自动爆发阈值（快爆3/中节奏4/慢攒5），转职覆盖可改阈值；缺省回退 burst_multiplier.threshold=3】",
   "units": {
     "swordsman": {
+      "burst_label": "横扫击退",
       "name": "剑士",
       "burn_trait": {
         "id": "cleave_adjacent",
@@ -17,6 +18,7 @@
       "burst_threshold": 4
     },
     "mage": {
+      "burst_label": "范围灼烧",
       "name": "法师",
       "burn_trait": {
         "id": "spell_amp",
@@ -33,6 +35,7 @@
       "burst_threshold": 3
     },
     "cleric": {
+      "burst_label": "治疗净化",
       "name": "牧师",
       "burn_trait": {
         "id": "heal_engine",
@@ -50,6 +53,7 @@
       "burst_threshold": 5
     },
     "armored": {
+      "burst_label": "嘲讽护盾",
       "name": "重甲",
       "burn_trait": {
         "id": "thorns",
@@ -68,6 +72,7 @@
       "zoc": true
     },
     "archer": {
+      "burst_label": "穿甲狙击",
       "name": "弓手",
       "burn_trait": {
         "id": "pierce_shot",
@@ -84,6 +89,7 @@
       "burst_threshold": 4
     },
     "spearman": {
+      "burst_label": "贯穿击退",
       "name": "枪兵",
       "burn_trait": {
         "id": "line_pierce",
@@ -98,6 +104,7 @@
       "burst_threshold": 4
     },
     "pegasus": {
+      "burst_label": "俯冲眩晕",
       "name": "飞马",
       "burn_trait": {
         "id": "swift_charge",
@@ -113,6 +120,7 @@
       "burst_threshold": 3
     },
     "axeman": {
+      "burst_label": "斩杀再动",
       "name": "斧手",
       "burn_trait": {
         "id": "armor_shred",
@@ -129,6 +137,7 @@
       "burst_threshold": 4
     },
     "dragonborn": {
+      "burst_label": "龙息灼烧",
       "name": "龙裔",
       "burn_trait": {
         "id": "dragon_breath",

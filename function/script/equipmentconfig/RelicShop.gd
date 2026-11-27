@@ -83,7 +83,10 @@ func _mark_candidate_sold(idx: int) -> void:
 func render(container: Control, filter_roll = null) -> void:
 	if container == null: return
 	for c in container.get_children():
-		container.remove_child(c); c.free()
+		container.remove_child(c)
+		# ★ v6.72u：必须 queue_free——此前用 free() 会在按钮 pressed 信号发射途中
+		#   释放对象，报 "Object was freed or unreferenced while a signal is being emitted"。
+		c.queue_free()
 	# 容器本身占满宽度，垂直按内容收缩（ShopScroll 已在魂栈模式设 SHRINK）
 	container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	container.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
@@ -160,6 +163,14 @@ func _make_shop_cell(idx: int, e: Dictionary) -> VBoxContainer:
 	btn.custom_minimum_size = Vector2(CELL_WIDTH - 4, Style.BTN_ITEM_SIZE.y)
 	btn.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	btn.clip_contents = false
+	# ★ v6.72s：商店格与防具/遗物槽外观统一——全状态去底，去掉圆角灰底
+	var empty_sb := StyleBoxEmpty.new()
+	empty_sb.content_margin_left = 0
+	empty_sb.content_margin_right = 0
+	empty_sb.content_margin_top = 0
+	empty_sb.content_margin_bottom = 0
+	for state in ["normal", "hover", "pressed", "focus", "disabled"]:
+		btn.add_theme_stylebox_override(state, empty_sb)
 	var d : Dictionary = RelicManager.get_relic_data(str(e.get("relic_id", "")))
 	var is_roll : bool = bool(e.get("slot_machine", false))
 	var sold_out : bool = bool(e.get("sold_out", false)) or str(e.get("relic_id", "")) == ""
@@ -209,6 +220,12 @@ func _make_shop_cell(idx: int, e: Dictionary) -> VBoxContainer:
 
 
 func _on_buy(idx: int) -> void:
+	# ★ v6.72u：商店格同时有 pressed(点击购买) 与拖拽购买两条路径。
+	#   拖拽释放时若落点仍在该按钮矩形内，Button 原生 pressed 也会触发，造成
+	#   "拖到空白区却完成购买"。这里用拖拽位移标志拦截：拖动过就忽略点击购买，
+	#   购买只走拖到遗物槽的 buy_to_slot 路径；纯点击(drag_moved=false)仍可购买。
+	if panel != null and panel._drag != null and panel._drag.drag_moved:
+		return
 	if idx < 0 or idx >= _candidates.size(): return
 	var e : Dictionary = _candidates[idx]
 	var relic_id : String = str(e.get("relic_id", ""))
@@ -234,6 +251,11 @@ func _on_buy(idx: int) -> void:
 	SoundManager.play_select_sound()
 	_mark_candidate_sold(idx)
 	render(panel.shop_container)
+	# ★ v6.72s：点击购买后必须重建遗物槽 UI——数据已写入 GameState，
+	#   但此前只 render 商店格、没重建槽位，导致"商品消失但槽里没东西，
+	#   刷新商店/重开界面后才出现"的状态错乱。
+	panel._build_passive_slots()
+	panel._build_roll_relic_slots()
 	panel._update_gold_display()
 
 

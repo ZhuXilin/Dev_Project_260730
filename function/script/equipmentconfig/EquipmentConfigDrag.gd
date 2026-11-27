@@ -10,6 +10,8 @@ var drag_meta : Dictionary = {}
 var drag_preview : Control = null
 var drag_grab_offset : Vector2 = Vector2.ZERO
 var target_states : Dictionary = {}
+var drag_start_mouse : Vector2 = Vector2.ZERO   # ★ v6.72u：区分点击与拖拽
+var drag_moved : bool = false
 
 
 func _init(p):
@@ -20,6 +22,8 @@ func _init(p):
 #  启动拖拽
 # ============================================================
 func start_drag(btn: Control):
+	drag_start_mouse = panel.get_global_mouse_position()
+	drag_moved = false
 	if btn is Button and btn.disabled: return
 	# ★ v6.22：地图装备配置界面为纯查看页——禁止一切拖拽（防具/遗物/光环/技能/单位/丢弃）
 	if panel.current_mode == panel.Mode.MAP: return
@@ -146,6 +150,13 @@ func _begin_dragging():
 		var btn_as_button := btn as Button
 		if btn_as_button:
 			drag_preview = Style.create_drag_preview(btn_as_button)
+			# ★ v6.72s：图标类 preview 要以"图标中心"对齐鼠标抓取点。
+			#   原来 grab_offset 按整按钮左上角算，而 preview 是居中的 20×20 图标，
+			#   导致预览相对鼠标偏左上（商店格 36px 宽尤其明显）。
+			if drag_preview:
+				var ps : Vector2 = drag_preview.size
+				if ps.x <= 0.0 or ps.y <= 0.0: ps = Vector2(20, 20)
+				drag_grab_offset = ps / 2.0
 			var canvas : Node = panel.get_parent()
 			if canvas and canvas is CanvasLayer: canvas.add_child(drag_preview)
 			else: panel.add_child(drag_preview)
@@ -175,6 +186,9 @@ func slot_type_is_unit_icon() -> bool:
 
 func end_drag():
 	if not is_dragging: return
+	# ★ v6.72u：纯点击（未拖动）商店格不播放取消音效/失败提示——
+	#   购买由按钮 pressed(_on_buy) 处理；这里若也提示会与正常购买冲突。
+	var _was_click_not_drag : bool = (not drag_moved) and drag_meta.get("slot_type", "") in ["shop_item", "relic_shop_item"]
 	if panel._has_active_confirm_ui():
 		if drag_preview: drag_preview.queue_free(); drag_preview = null
 		is_dragging = false
@@ -209,7 +223,8 @@ func end_drag():
 			panel._forge.execute_forge_slot_return.call_deferred(drop_data)
 			SoundManager.play_select_sound()
 		else:
-			SoundManager.play_cancel_sound()
+			if not _was_click_not_drag:
+				SoundManager.play_cancel_sound()
 			# ★ 新增：熔铸防具拖入熔炉槽 → 明确告知
 			if source_type == "armor" and target != null \
 					and target.get_meta("slot_type", "") == "forge_slot":
@@ -223,16 +238,22 @@ func end_drag():
 						if idata and idata.no_fusion:
 							panel._show_detail_in_zone("熔铸防具不可加工")
 							return
-			if source_type == "shop_item":
+			# ★ v6.72s：商店/遗物商品拖到空白区或错误落点——明确提示，绝不改数据。
+			#   ★ v6.72u：纯点击交给 pressed(_on_buy) 处理，这里不提示。
+			if source_type in ["shop_item", "relic_shop_item"] and not _was_click_not_drag:
 				_hint_shop_purchase_failed(drop_data, target)
-			
+
 	drag_source = null
 	drag_meta = {}
 
 
 func update_drag_preview():
 	if not drag_preview: return
-	drag_preview.global_position = panel.get_global_mouse_position() - drag_grab_offset
+	var mp : Vector2 = panel.get_global_mouse_position()
+	# ★ v6.72u：记录是否真正拖动过（阈值 6px），供 _on_buy 区分点击/拖拽
+	if mp.distance_to(drag_start_mouse) > 6.0:
+		drag_moved = true
+	drag_preview.global_position = mp - drag_grab_offset
 	drag_preview.z_index = 100
 
 
@@ -407,7 +428,10 @@ func _find_control_at_position(pos: Vector2) -> Control:
 func _get_target_from_position(global_pos: Vector2) -> Control:
 	const BUFFER : int = 4
 	var targets : Array = _collect_targets()
-
+	# ★ v6.72s：商店商品拖拽只认精确落点——禁止 BUFFER 宽容匹配，
+	#   避免在空白区/出售区边缘擦边时误命中相邻按钮，触发非预期的购买/出售。
+	var strict_only : bool = drag_meta.get("slot_type", "") in ["relic_shop_item", "shop_item"]
+	
 	# 第一遍：精确匹配（鼠标明确落在控件矩形内 → 不再被相邻 BUFFER 抢）
 	for t in targets:
 		if t == null or not is_instance_valid(t):
@@ -421,6 +445,9 @@ func _get_target_from_position(global_pos: Vector2) -> Control:
 		if t.get_global_rect().has_point(global_pos):
 			return t
 
+	# 第二遍：宽容匹配（用于边缘/缝隙，此时才用 BUFFER）——商店拖拽禁用
+	if strict_only:
+		return null
 	# 第二遍：宽容匹配（用于边缘/缝隙，此时才用 BUFFER）
 	for t in targets:
 		if t == null or not is_instance_valid(t):
