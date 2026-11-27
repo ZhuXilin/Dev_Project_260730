@@ -106,10 +106,12 @@ func show_choice(title: String, data_a: Dictionary, data_b: Dictionary, cancel_c
 	_choice_root = VBoxContainer.new()
 	_choice_root.name = "ChoiceRoot"
 	_choice_root.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_choice_root.offset_left = 48
-	_choice_root.offset_right = -48
-	_choice_root.offset_top = 32
-	_choice_root.offset_bottom = -24
+	# ★ v6.72at：ConfirmUI 回到「全屏无边框」形态（400×240 铺底图），
+	#   动态内容按全屏给内缩：左右 40、上 36、下 48（给取消按钮留出位置）。
+	_choice_root.offset_left = 40
+	_choice_root.offset_right = -40
+	_choice_root.offset_top = 36
+	_choice_root.offset_bottom = -48
 	_choice_root.add_theme_constant_override("separation", 10)
 	$Panel.add_child(_choice_root)
 
@@ -304,10 +306,10 @@ func set_reward_detail(icon: Texture2D, reward_name: String, detail: String, qua
 	var root := VBoxContainer.new()
 	root.name = "RewardDetail"
 	root.set_anchors_preset(Control.PRESET_FULL_RECT)
-	root.offset_left = 48
-	root.offset_right = -48
-	root.offset_top = 8
-	root.offset_bottom = -42
+	root.offset_left = 40
+	root.offset_right = -40
+	root.offset_top = 32
+	root.offset_bottom = -56
 	root.add_theme_constant_override("separation", 4)
 	$Panel.add_child(root)
 

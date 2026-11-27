@@ -2,6 +2,7 @@
 
 [ext_resource type="Script" uid="uid://c104ofj2pfbuu" path="res://function/script/SacrificeUI.gd" id="1"]
 [ext_resource type="StyleBox" uid="uid://6qbsaxkfwg3o" path="res://content/resource/stylebox/8bit_style_box_texture.tres" id="2"]
+[ext_resource type="Texture2D" uid="uid://cfuanmvb8e6am" path="res://content/images/ui/subui_equipment_01.png" id="bg_equip"]
 
 [node name="SacrificeUI" type="CanvasLayer" unique_id=1796263301]
 layer = 25
@@ -12,6 +13,16 @@ anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 color = Color(0.10980392, 0.10980392, 0.10980392, 1)
+
+[node name="BackgroundImage" type="TextureRect" parent="." unique_id=4120002]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+expand_mode = 1
+texture = ExtResource("bg_equip")
 
 [node name="Panel" type="Panel" parent="." unique_id=467727842]
 anchors_preset = 8

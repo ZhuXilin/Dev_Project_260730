@@ -10,7 +10,9 @@ const BOSS_NODE_TYPE = MapNode.NodeType.BOSS
 @onready var victory_panel : Panel = $VictoryLayer/VictoryPanel
 @onready var victory_label : Label = $VictoryLayer/VictoryPanel/VictoryLabel
 @onready var victory_button : Button = $VictoryLayer/VictoryPanel/VictoryButton
-@onready var turn_overlay : ColorRect = $TurnLayer/TurnRect
+# ★ v6.72at：回合提示底图由 ColorRect 换成 Panel（8bit_style_box_info.tres），
+#   节点名与路径不变，类型收到 Control 以免类型不匹配。
+@onready var turn_overlay : Control = $TurnLayer/TurnRect
 @onready var cursor_layer : CanvasLayer = $CursorLayer
 @onready var cursor : TextureRect = $CursorLayer/Cursor
 @onready var highlight_manager : HighlightManager = $HighlightManager

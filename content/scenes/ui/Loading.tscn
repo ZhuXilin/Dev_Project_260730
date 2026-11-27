@@ -1,6 +1,7 @@
 [gd_scene format=3 uid="uid://p1uigghifdg2"]
 
 [ext_resource type="Script" uid="uid://co36xeo7r6mki" path="res://function/script/Loading.gd" id="1_eppwq"]
+[ext_resource type="Texture2D" uid="uid://cfuanmvb8e6am" path="res://content/images/ui/subui_equipment_01.png" id="bg_equip"]
 
 [node name="Loading" type="Control" unique_id=1926892029]
 layout_mode = 3
@@ -19,6 +20,17 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 color = Color(0, 0, 0, 1)
+
+[node name="BackgroundImage" type="TextureRect" parent="." unique_id=4120004]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+expand_mode = 1
+texture = ExtResource("bg_equip")
 
 [node name="MapNameLabel" type="Label" parent="." unique_id=1721455626]
 layout_mode = 1

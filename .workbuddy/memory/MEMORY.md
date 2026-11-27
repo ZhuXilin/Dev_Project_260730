@@ -10,6 +10,13 @@
 - **规则**：任何图片/资源（`*.png`、`*.tres` 等）在"重新生成 / 修色 / 覆盖"之前，先看 mtime、先问用户——**用户手改过的素材以用户版本为准，不要按旧规则重刷**（v6.72ap 事故：用户手改的 `8bit_frame_button.png` 被我按旧配色覆盖，旧 ctex 被 Godot 重导入清掉、git untracked，原图不可恢复）。
 - 曾经的"必改配色"之类的规则若与用户手改冲突，一律以用户当前文件为准，先确认再动。
 
+## 界面背景层写法（v6.72aq 定）
+- 全屏界面 = 最底 `Background` ColorRect（纯色兜底）+ 其上 `BackgroundImage` TextureRect（400×240 subui_*_0X.png）+ 再上 `Panel`（全屏但留 6~8px 边距，套 `8bit_style_box_texture.tres` 当窗口框）。
+- **禁止**把 `8bit_style_box_texture.tres` 当背景铺满全屏（九宫格会被拉成整屏花框、中间死黑）。边框资源只做窗口框。
+- 没有专属背景图的界面统一用 `subui_equipment_01.png`（暗色石拱门，400×240）。MainMenu 用自己的 `mainmenu_001.png`，不改。
+- **例外（v6.72at）**：ConfirmUI 是「全屏 + 无 stylebox」——`Panel` 全屏铺 `StyleBoxEmpty`（加 `sub_resource StyleBoxEmpty`，不能删 override，否则回退 Godot 默认灰底），里面 `WindowBg` 纯色兜底 + `BackgroundImage` 400×240 铺底。弹窗不再套窗口框。
+- 换「全屏/窗口」形态时，**`ConfirmUI.gd` 里动态内容的内缩量（`_choice_root`、`set_reward_detail` 的 root）必须跟着改**，否则双卡/奖励详情会撑出界。
+
 ## 9-slice 边框（8bit_style_box_texture.tres）
 - 源图 `8bit_frame.png` 保持 22×22，**用户明确不要放大分辨率**；编织装饰纹要保留。
 - 9-slice 参数全部在 `.tres` 里配（texture_margin / axis_stretch Tile / region_rect），由用户在 Inspector 调整，代码不介入。
