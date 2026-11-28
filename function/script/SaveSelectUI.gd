@@ -49,7 +49,7 @@ func _refresh_slots():
 		hbox.add_child(info_label)
 
 		var load_btn = Button.new()
-		load_btn.add_theme_font_size_override("font_size", 8)
+		load_btn.add_theme_font_size_override("font_size", UIConst.BUTTON_FONT_SIZE)
 		load_btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
 
 		if has_save:
@@ -63,7 +63,7 @@ func _refresh_slots():
 
 		var delete_btn = Button.new()
 		delete_btn.text = "删除"
-		delete_btn.add_theme_font_size_override("font_size", 8)
+		delete_btn.add_theme_font_size_override("font_size", UIConst.BUTTON_FONT_SIZE)
 		delete_btn.visible = has_save
 		delete_btn.disabled = not has_save
 		if has_save:

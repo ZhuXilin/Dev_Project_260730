@@ -242,6 +242,7 @@ A pixel sprite-sheet / frame animation editor supporting multiple layers, select
 
 - **模式**：新建 / 加选 / 减选。
 - **全选 / 取消 / 反选 / 选格 / 删除**：快捷按钮。
+- **Ctrl+A**：V/M 选择工具状态下全选「当前画布区域」——单格视图只选当前格，全图视图选整张图，类似 PS 的 Select All；其他工具下仍全选整张精灵表。工具栏「All」和编辑菜单「Select All」保持整张图不变。
 - **移动选区**：按住 `V` 或 `M` 在选区内拖动（仅移动选区）。
 - **浮起像素移动**：直接拖动选区内（默认替换模式），像素浮起并可移动，`Shift` 锁定轴。
 - **旋转浮起像素**：按住 `R` 并移动鼠标。
@@ -251,6 +252,7 @@ A pixel sprite-sheet / frame animation editor supporting multiple layers, select
 
 - **Modes**: Replace / Add / Subtract.
 - **All / None / Invert / Cell / Del**: quick buttons.
+- **Ctrl+A**: with V/M selection tools, selects the current canvas area (current cell in single-cell view, whole sheet in full view), like Photoshop's Select All; other tools keep whole-sheet select all. The toolbar "All" and Edit "Select All" remain whole-sheet.
 - **Move selection**: hold `V` or `M` and drag inside (selection only).
 - **Float & move pixels**: directly drag inside (Replace mode); pixels float and can move, `Shift` locks axis.
 - **Rotate floating pixels**: hold `R` and move mouse.
@@ -290,7 +292,7 @@ A pixel sprite-sheet / frame animation editor supporting multiple layers, select
 | `空格` + 拖动 | 平移画布 |
 | `←` / `→` / `A` / `D` | 逐帧切换 |
 | `Ctrl+Z` / `Ctrl+Shift+Z` / `Ctrl+Y` | 撤销 / 重做 |
-| `Ctrl+A` / `Ctrl+D` / `Ctrl+I` | 全选 / 取消 / 反选 |
+| `Ctrl+A` / `Ctrl+D` / `Ctrl+I` | 全选画布区域（V/M 下选当前格）/ 取消 / 反选 |
 | `Ctrl+C` / `Ctrl+X` / `Ctrl+V` | 复制 / 剪切 / 粘贴 |
 | `Ctrl+Shift+V` | 粘贴为新图层 |
 | `Ctrl+S` | 保存 PNG |
@@ -311,7 +313,7 @@ A pixel sprite-sheet / frame animation editor supporting multiple layers, select
 | `Space` + drag | Pan canvas |
 | `←` / `→` / `A` / `D` | Frame step |
 | `Ctrl+Z` / `Ctrl+Shift+Z` / `Ctrl+Y` | Undo / Redo |
-| `Ctrl+A` / `Ctrl+D` / `Ctrl+I` | Select All / Deselect / Invert |
+| `Ctrl+A` / `Ctrl+D` / `Ctrl+I` | Select canvas area (current cell with V/M) / Deselect / Invert |
 | `Ctrl+C` / `Ctrl+X` / `Ctrl+V` | Copy / Cut / Paste |
 | `Ctrl+Shift+V` | Paste as new layer |
 | `Ctrl+S` | Save PNG |

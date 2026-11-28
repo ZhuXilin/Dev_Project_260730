@@ -166,7 +166,7 @@ func refresh_team_view() -> void:
 			var talent_line = format_unit_talents(unit)
 			if talent_line != "":
 				btn.text += "  [ " + talent_line + " ]"
-			btn.add_theme_font_size_override("font_size", 6)
+			btn.add_theme_font_size_override("font_size", UIConst.BUTTON_FONT_SIZE)   # ★ v6.72 统一按钮字号
 			btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
 			if color != Color.WHITE:
 				btn.add_theme_color_override("font_color", color)

@@ -2,6 +2,7 @@
 
 [ext_resource type="Script" uid="uid://cjt5d53gw446v" path="res://function/script/AnvilTavern.gd" id="1"]
 [ext_resource type="StyleBox" uid="uid://6qbsaxkfwg3o" path="res://content/resource/stylebox/8bit_style_box_texture.tres" id="2"]
+[ext_resource type="StyleBox" uid="uid://coiwrbgx8d7aa" path="res://content/resource/stylebox/8bit_style_box_button.tres" id="8bit_btn"]
 [ext_resource type="Texture2D" uid="uid://66181vrfu1rg" path="res://content/images/ui/subui_anviltavern_01.png" id="3_unx0t"]
 
 [node name="AnvilTavern" type="CanvasLayer" unique_id=1380384670]
@@ -74,14 +75,15 @@ size_flags_horizontal = 3
 theme_override_constants/separation = 4
 
 [node name="BackButton" type="Button" parent="Panel/VBox" unique_id=1882773225]
+custom_minimum_size = Vector2(64, 24)
 layout_mode = 2
 size_flags_horizontal = 4
 theme_override_font_sizes/font_size = 8
-theme_override_styles/normal = ExtResource("2")
-theme_override_styles/pressed = ExtResource("2")
-theme_override_styles/hover = ExtResource("2")
-theme_override_styles/disabled = ExtResource("2")
-theme_override_styles/focus = ExtResource("2")
+theme_override_styles/normal = ExtResource("8bit_btn")
+theme_override_styles/pressed = ExtResource("8bit_btn")
+theme_override_styles/hover = ExtResource("8bit_btn")
+theme_override_styles/disabled = ExtResource("8bit_btn")
+theme_override_styles/focus = ExtResource("8bit_btn")
 text = "返回"
 
 [connection signal="pressed" from="Panel/VBox/BackButton" to="." method="_on_back_pressed"]

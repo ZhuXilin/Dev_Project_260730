@@ -71,7 +71,7 @@ theme_override_constants/separation = 3
 [node name="SoulFireTabBtn" type="Button" parent="Panel/VBox/TabBar" unique_id=1256886633]
 layout_mode = 2
 size_flags_horizontal = 3
-theme_override_font_sizes/font_size = 7
+theme_override_font_sizes/font_size = 8
 text = "魂火"
 theme_override_styles/normal = ExtResource("8bit_btn")
 theme_override_styles/pressed = ExtResource("8bit_btn")
@@ -82,7 +82,7 @@ theme_override_styles/focus = ExtResource("8bit_btn")
 [node name="AttrCapTabBtn" type="Button" parent="Panel/VBox/TabBar" unique_id=922914872]
 layout_mode = 2
 size_flags_horizontal = 3
-theme_override_font_sizes/font_size = 7
+theme_override_font_sizes/font_size = 8
 text = "属性上限"
 theme_override_styles/normal = ExtResource("8bit_btn")
 theme_override_styles/pressed = ExtResource("8bit_btn")
@@ -177,9 +177,10 @@ size_flags_horizontal = 3
 theme_override_font_sizes/font_size = 6
 
 [node name="BackButton" type="Button" parent="Panel/VBox" unique_id=1091288172]
+custom_minimum_size = Vector2(64, 24)
 layout_mode = 2
 size_flags_horizontal = 4
-theme_override_font_sizes/font_size = 7
+theme_override_font_sizes/font_size = 8
 theme_override_styles/normal = ExtResource("8bit_btn")
 theme_override_styles/pressed = ExtResource("8bit_btn")
 theme_override_styles/hover = ExtResource("8bit_btn")

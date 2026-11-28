@@ -2,6 +2,7 @@
 
 [ext_resource type="Script" uid="uid://bg2ifrj8qlbcv" path="res://function/script/RewardSummaryUI.gd" id="1"]
 [ext_resource type="StyleBox" uid="uid://6qbsaxkfwg3o" path="res://content/resource/stylebox/8bit_style_box_texture.tres" id="2"]
+[ext_resource type="StyleBox" uid="uid://coiwrbgx8d7aa" path="res://content/resource/stylebox/8bit_style_box_button.tres" id="8bit_btn"]
 [ext_resource type="Texture2D" uid="uid://damc5su6pig37" path="res://content/images/ui/subui_reward_01.png" id="3_qc04u"]
 
 [node name="RewardSummaryUI" type="CanvasLayer" unique_id=1189025735]
@@ -108,15 +109,16 @@ horizontal_alignment = 1
 layout_mode = 2
 
 [node name="ConfirmButton" type="Button" parent="Panel/VBoxContainer" unique_id=1028763869]
+custom_minimum_size = Vector2(64, 24)
 layout_mode = 2
 size_flags_horizontal = 4
 size_flags_vertical = 4
-theme_override_font_sizes/font_size = 10
-theme_override_styles/normal = ExtResource("2")
-theme_override_styles/pressed = ExtResource("2")
-theme_override_styles/hover = ExtResource("2")
-theme_override_styles/disabled = ExtResource("2")
-theme_override_styles/focus = ExtResource("2")
+theme_override_font_sizes/font_size = 8
+theme_override_styles/normal = ExtResource("8bit_btn")
+theme_override_styles/pressed = ExtResource("8bit_btn")
+theme_override_styles/hover = ExtResource("8bit_btn")
+theme_override_styles/disabled = ExtResource("8bit_btn")
+theme_override_styles/focus = ExtResource("8bit_btn")
 text = "确认"
 
 [connection signal="pressed" from="Panel/VBoxContainer/ConfirmButton" to="." method="_on_confirm_pressed"]

@@ -222,7 +222,8 @@ func _add_item_row(item_data : Dictionary, can_buy : bool, disabled_reason : Str
 	info.add_child(desc_lb)
 
 	var buy_btn := Button.new()
-	buy_btn.add_theme_font_size_override("font_size", 7)
+	buy_btn.add_theme_font_size_override("font_size", UIConst.BUTTON_FONT_SIZE)   # ★ v6.72 统一按钮字号
+	UIConst.style_button(buy_btn)
 	buy_btn.custom_minimum_size = Vector2(54, 18)
 	buy_btn.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	buy_btn.size_flags_horizontal = Control.SIZE_SHRINK_END
@@ -372,7 +373,8 @@ func _show_option_picker(item_data : Dictionary):
 	var options : Array = item_data.get("options", [])
 	for opt in options:
 		var btn := Button.new()
-		btn.add_theme_font_size_override("font_size", 8)
+		btn.add_theme_font_size_override("font_size", UIConst.BUTTON_FONT_SIZE)
+		UIConst.style_button(btn)
 		btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
 		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		btn.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -397,7 +399,9 @@ func _show_option_picker(item_data : Dictionary):
 
 	var cancel := Button.new()
 	cancel.text = "取消"
-	cancel.add_theme_font_size_override("font_size", 7)
+	cancel.add_theme_font_size_override("font_size", UIConst.BUTTON_FONT_SIZE)   # ★ v6.72 统一
+	UIConst.style_button(cancel)
+	cancel.custom_minimum_size = UIConst.BUTTON_CONFIRM_SIZE
 	cancel.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	cancel.pressed.connect(_close_overlay)
 	vbox.add_child(cancel)

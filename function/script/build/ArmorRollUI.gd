@@ -995,7 +995,7 @@ func _sk_build_ui() -> void:
 	#   ★ v6.72e：作为 pick_row 子节点，随信息行一起下移到轮盘下方，不再用绝对锚点（避免分辨率错位）。
 	_sk_reroll_btn = Button.new()
 	_sk_reroll_btn.text = "重掷"
-	_sk_reroll_btn.add_theme_font_size_override("font_size", FS_SMALL)
+	_sk_reroll_btn.add_theme_font_size_override("font_size", UIConst.BUTTON_FONT_SIZE)   # ★ v6.72 统一按钮字号
 	BuildUI.style_button(_sk_reroll_btn)
 	_sk_reroll_btn.pressed.connect(_sk_do_free_reroll)
 	_sk_reroll_btn.size_flags_vertical = Control.SIZE_SHRINK_CENTER
@@ -1021,7 +1021,7 @@ func _sk_build_ui() -> void:
 
 	_skip_btn = Button.new()
 	_skip_btn.text = "无人可落位 · 重转"
-	_skip_btn.add_theme_font_size_override("font_size", FS_SMALL)
+	_skip_btn.add_theme_font_size_override("font_size", UIConst.BUTTON_FONT_SIZE)   # ★ v6.72 统一按钮字号
 	BuildUI.style_button(_skip_btn)
 	_skip_btn.pressed.connect(_sk_on_skip)
 	_skip_btn.visible = false

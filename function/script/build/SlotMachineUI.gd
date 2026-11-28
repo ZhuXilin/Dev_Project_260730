@@ -231,7 +231,7 @@ func _build_ui(title: String) -> void:
 	_button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	_button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	_button.clip_text = true
-	_button.add_theme_font_size_override("font_size", FS_BODY)
+	_button.add_theme_font_size_override("font_size", UIConst.BUTTON_FONT_SIZE)   # ★ v6.72 统一按钮字号
 	BuildUI.style_button(_button, _gold_color)
 	_button.pressed.connect(_on_button_pressed)
 	right.add_child(_button)

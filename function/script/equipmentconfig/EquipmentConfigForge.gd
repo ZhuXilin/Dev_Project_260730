@@ -115,11 +115,11 @@ func build_forge_slots():
 			
 	if count > 0:
 		stack_btn.text = "已放\n%d件" % count
-		stack_btn.add_theme_font_size_override("font_size", 6)
+		stack_btn.add_theme_font_size_override("font_size", UIConst.BUTTON_FONT_SIZE)   # ★ v6.72 统一按钮字号
 		stack_btn.modulate = Color(1.0, 0.8, 0.4) 
 	else:
 		stack_btn.text = "放入\n防具"
-		stack_btn.add_theme_font_size_override("font_size", 6)
+		stack_btn.add_theme_font_size_override("font_size", UIConst.BUTTON_FONT_SIZE)   # ★ v6.72 统一按钮字号
 		stack_btn.modulate = Color(0.6, 0.6, 0.6)
 
 	center_wrap.add_child(stack_btn)

@@ -235,7 +235,8 @@ func _build_unit_row():
 		# 献祭按钮与卡片等宽，紧随卡片下方
 		sac_btn.custom_minimum_size = Vector2(118, 24)
 		sac_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		sac_btn.add_theme_font_size_override("font_size", 9)
+		sac_btn.add_theme_font_size_override("font_size", UIConst.BUTTON_FONT_SIZE)   # ★ v6.72 统一按钮字号
+		UIConst.style_button(sac_btn)
 		if unit.is_dead:
 			sac_btn.text = "（已阵亡）"
 			sac_btn.disabled = true
@@ -489,7 +490,7 @@ func _make_picker_panel(unit : UnitData, branches : Array) -> Control:
 
 		var btn := Button.new()
 		btn.text = "选择"
-		btn.add_theme_font_size_override("font_size", 9)
+		btn.add_theme_font_size_override("font_size", UIConst.BUTTON_FONT_SIZE)   # ★ v6.72 统一按钮字号
 		btn.custom_minimum_size = Vector2(84, 24)
 		btn.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 		_apply_btn_style(btn)
@@ -504,8 +505,8 @@ func _make_picker_panel(unit : UnitData, branches : Array) -> Control:
 	# ★ v6.72ao：「取消」放在面板最底部、水平居中（画面正下方）
 	var cancel := Button.new()
 	cancel.text = "取消"
-	cancel.add_theme_font_size_override("font_size", 8)
-	cancel.custom_minimum_size = Vector2(72, 24)
+	cancel.add_theme_font_size_override("font_size", UIConst.BUTTON_FONT_SIZE)   # ★ v6.72 统一
+	cancel.custom_minimum_size = UIConst.BUTTON_CONFIRM_SIZE
 	cancel.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	_apply_btn_style(cancel)
 	cancel.pressed.connect(func(): overlay.queue_free())
@@ -516,10 +517,7 @@ func _make_picker_panel(unit : UnitData, branches : Array) -> Control:
 
 ## 给动态创建的按钮套 8bit 按钮 stylebox（样式参数全在资源里，不硬编码）
 func _apply_btn_style(btn: Button) -> void:
-	var sb := load(Config.PATHS.STYLEBOX_8BIT_BUTTON)
-	if sb == null: return
-	for state in ["normal", "hover", "pressed", "focus", "disabled"]:
-		btn.add_theme_stylebox_override(state, sb)
+	UIConst.style_button(btn)
 
 
 func _attr_short(key: String) -> String:

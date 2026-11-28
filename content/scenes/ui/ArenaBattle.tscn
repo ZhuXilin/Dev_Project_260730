@@ -2,6 +2,7 @@
 
 [ext_resource type="Script" uid="uid://b6s4gamqusww5" path="res://function/script/ArenaBattle.gd" id="1_script"]
 [ext_resource type="StyleBox" uid="uid://6qbsaxkfwg3o" path="res://content/resource/stylebox/8bit_style_box_texture.tres" id="2_style"]
+[ext_resource type="StyleBox" uid="uid://coiwrbgx8d7aa" path="res://content/resource/stylebox/8bit_style_box_button.tres" id="8bit_btn"]
 [ext_resource type="Texture2D" uid="uid://cvorst4lx4vqi" path="res://content/images/ui/subui_arena_02.png" id="3_mj7ca"]
 
 [node name="ArenaBattle" type="CanvasLayer" unique_id=880540422]
@@ -171,26 +172,28 @@ alignment = 1
 
 [node name="ContinueButton" type="Button" parent="Panel/BottomBar" unique_id=1740747777]
 visible = false
+custom_minimum_size = Vector2(64, 24)
 layout_mode = 2
 size_flags_horizontal = 4
-theme_override_font_sizes/font_size = 10
-theme_override_styles/normal = ExtResource("2_style")
-theme_override_styles/pressed = ExtResource("2_style")
-theme_override_styles/hover = ExtResource("2_style")
-theme_override_styles/disabled = ExtResource("2_style")
-theme_override_styles/focus = ExtResource("2_style")
+theme_override_font_sizes/font_size = 8
+theme_override_styles/normal = ExtResource("8bit_btn")
+theme_override_styles/pressed = ExtResource("8bit_btn")
+theme_override_styles/hover = ExtResource("8bit_btn")
+theme_override_styles/disabled = ExtResource("8bit_btn")
+theme_override_styles/focus = ExtResource("8bit_btn")
 text = "继续挑战"
 
 [node name="ReturnButton" type="Button" parent="Panel/BottomBar" unique_id=173700675]
 visible = false
+custom_minimum_size = Vector2(64, 24)
 layout_mode = 2
 size_flags_horizontal = 4
-theme_override_font_sizes/font_size = 10
-theme_override_styles/normal = ExtResource("2_style")
-theme_override_styles/pressed = ExtResource("2_style")
-theme_override_styles/hover = ExtResource("2_style")
-theme_override_styles/disabled = ExtResource("2_style")
-theme_override_styles/focus = ExtResource("2_style")
+theme_override_font_sizes/font_size = 8
+theme_override_styles/normal = ExtResource("8bit_btn")
+theme_override_styles/pressed = ExtResource("8bit_btn")
+theme_override_styles/hover = ExtResource("8bit_btn")
+theme_override_styles/disabled = ExtResource("8bit_btn")
+theme_override_styles/focus = ExtResource("8bit_btn")
 text = "返回"
 
 [connection signal="pressed" from="Panel/BottomBar/ContinueButton" to="." method="_on_continue_pressed"]

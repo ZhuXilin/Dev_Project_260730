@@ -801,6 +801,7 @@ func _open_chapel_revive_dialog(dead_units: Array, healed_count: int):
 	for ud in dead_units:
 		var btn := Button.new()
 		btn.text = "%s（%s）" % [ud.display_name, UnitDataManager.get_unit_type_display_name(ud.unit_name)]
+		btn.add_theme_font_size_override("font_size", UIConst.BUTTON_FONT_SIZE)
 		btn.pressed.connect(_on_chapel_revive_unit.bind(ud.unit_name, ud.display_name, dlg))
 		vbox.add_child(btn)
 

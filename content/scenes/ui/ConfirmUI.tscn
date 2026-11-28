@@ -67,8 +67,10 @@ alignment = 1
 metadata/_edit_use_anchors_ = true
 
 [node name="ConfirmButton" type="Button" parent="Panel/HBoxContainer" unique_id=1088194302]
-custom_minimum_size = Vector2(64, 26)
+custom_minimum_size = Vector2(64, 24)
 layout_mode = 2
+size_flags_horizontal = 2
+size_flags_vertical = 2
 theme_override_font_sizes/font_size = 8
 text = "确定"
 theme_override_styles/normal = ExtResource("8bit_btn")
@@ -78,8 +80,10 @@ theme_override_styles/disabled = ExtResource("8bit_btn")
 theme_override_styles/focus = ExtResource("8bit_btn")
 
 [node name="CancelButton" type="Button" parent="Panel/HBoxContainer" unique_id=1869161643]
-custom_minimum_size = Vector2(64, 26)
+custom_minimum_size = Vector2(64, 24)
 layout_mode = 2
+size_flags_horizontal = 2
+size_flags_vertical = 2
 theme_override_font_sizes/font_size = 8
 text = "取消"
 theme_override_styles/normal = ExtResource("8bit_btn")

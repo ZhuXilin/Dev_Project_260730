@@ -25,3 +25,10 @@
 ## 头像列表
 - 所有头像按钮走 `UnitDataManager.create_unit_avatar_button` / `create_unit_avatar_with_frame`；头像下不垫任何 UI 块（v6.72z 已删画框 Panel）。
 - 对话/信息面板的 AvatarBg 用内联 `StyleBoxEmpty` 显式透明（删 style override 会回退 Godot 默认灰底）。
+
+## 按钮统一口径（v6.72 起，2026-11-28 全量收口）
+- 唯一来源：`UIConst.BUTTON_FONT_SIZE = 8`、`UIConst.BUTTON_CONFIRM_SIZE = Vector2(64, 24)`；不要在脚本里写死 6/7/9/10 作为按钮字号。
+- 场景 `.tscn` 里所有**文本按钮**都要有 `theme_override_font_sizes/font_size = 8`；确认/取消/关闭/返回/离开这类标准操作按钮还要有 `custom_minimum_size = Vector2(64, 24)`。
+- 动态创建的按钮统一用上面两个 UIConst 常量；`EquipmentConfigStyle.create_styled_button` 已忽略调用方字号参数，保持该签名不要回退。
+- 例外：**纯图标按钮**（头像、`UnitDataManager.create_unit_avatar_button`、图标格）和 Camp 的场景切换箭头（字号 20 是符号本身）不套 8 号规则。
+- 改按钮尺寸时**必须同步检查父容器宽度**：MapScene BottomBar 已从 112px 加宽到 224px；SettingBar SettingPanel 已从 48px 加宽到 88px，否则 64px 按钮会溢出。

@@ -25,6 +25,23 @@ const FONT_SIZE_NORMAL : int = 8
 const FONT_SIZE_LARGE : int = 10
 const FONT_SIZE_TITLE : int = 12
 
+# ============================================================
+#  按钮统一口径（v6.72：所有按钮文字统一 8 号；确认/取消按钮尺寸统一）
+# ============================================================
+## 所有按钮文字统一字号（不传字号时也用这个）
+const BUTTON_FONT_SIZE : int = 8
+## 确认 / 取消 / 关闭 这类标准操作按钮的统一最小尺寸
+const BUTTON_CONFIRM_SIZE : Vector2 = Vector2(64, 24)
+
+## 动态创建的文本按钮统一套 8bit 按钮皮肤。
+## 注意：只给代码 new 出来的按钮用；场景里的按钮在 .tscn 配，不用代码兜底覆盖。
+static func style_button(btn: Button) -> void:
+	var sb := load(Config.PATHS.STYLEBOX_8BIT_BUTTON) as StyleBox
+	if sb == null:
+		return
+	for state in ["normal", "pressed", "hover", "disabled", "focus"]:
+		btn.add_theme_stylebox_override(state, sb)
+
 
 # ============================================================
 #  UI 动画 / 计时时长（秒）

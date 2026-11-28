@@ -86,17 +86,18 @@ autowrap_mode = 3
 [node name="BottomBar" type="HBoxContainer" parent="." unique_id=1204253379]
 anchors_preset = 9
 anchor_bottom = 1.0
-offset_left = 240.0
+offset_left = 168.0
 offset_top = 211.0
-offset_right = 352.0
+offset_right = 392.0
 offset_bottom = -5.0
-theme_override_constants/separation = 8
+theme_override_constants/separation = 16
 
 [node name="ConfigBtn" type="Button" parent="BottomBar" unique_id=1611350033]
+custom_minimum_size = Vector2(64, 24)
 layout_mode = 2
 size_flags_horizontal = 0
 size_flags_vertical = 0
-theme_override_font_sizes/font_size = 6
+theme_override_font_sizes/font_size = 8
 theme_override_styles/normal = ExtResource("2")
 theme_override_styles/pressed = ExtResource("2")
 theme_override_styles/hover = ExtResource("2")
@@ -105,10 +106,11 @@ theme_override_styles/focus = ExtResource("2")
 text = "装备配置"
 
 [node name="AbandonButton" type="Button" parent="BottomBar" unique_id=181992724]
+custom_minimum_size = Vector2(64, 24)
 layout_mode = 2
 size_flags_horizontal = 0
 size_flags_vertical = 0
-theme_override_font_sizes/font_size = 6
+theme_override_font_sizes/font_size = 8
 theme_override_styles/normal = ExtResource("2")
 theme_override_styles/pressed = ExtResource("2")
 theme_override_styles/hover = ExtResource("2")
@@ -117,10 +119,11 @@ theme_override_styles/focus = ExtResource("2")
 text = "回到营地"
 
 [node name="InterruptButton" type="Button" parent="BottomBar" unique_id=257109087]
+custom_minimum_size = Vector2(64, 24)
 layout_mode = 2
 size_flags_horizontal = 0
 size_flags_vertical = 0
-theme_override_font_sizes/font_size = 6
+theme_override_font_sizes/font_size = 8
 theme_override_styles/normal = ExtResource("2")
 theme_override_styles/pressed = ExtResource("2")
 theme_override_styles/hover = ExtResource("2")

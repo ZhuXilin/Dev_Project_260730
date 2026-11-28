@@ -30,6 +30,8 @@ const PATHS : Dictionary = {
 	"STYLEBOX_8BIT_BUTTON_PRESSED": "res://content/resource/stylebox/8bit_style_box_button_pressed.tres",
 	"STYLEBOX_8BIT_CARD":   "res://content/resource/stylebox/8bit_style_box_card.tres",
 	"IMAGE_8BIT_BUTTON_FRAME": "res://content/images/ui/element/8bit_frame_button.png",
+	"IMAGE_VICTORY_INFO":   "res://content/images/ui/element/victory_info.png",
+	"IMAGE_DEFEAT_INFO":    "res://content/images/ui/element/defeat_info.png",
 	"SHADER_REPLACE_COLOR": "res://content/resource/shader/replace_color.gdshader",
 
 	# 场景：关卡 / 单位

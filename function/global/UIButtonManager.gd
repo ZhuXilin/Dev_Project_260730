@@ -22,11 +22,11 @@ extends Node
 ##     别用一个排除开关同时管两头（v6.72ao 之前就是被同一个排除开关一起挡掉的）。
 ##   - 编辑器工具 UI：脚本路径含 /tool/ 的节点及其子树完全不介入（不套皮肤也不播音效）。
 ##
-## 分层处理（★ v6.72au）：
-##   - 在 `8bit_style_box_texture.tres` 窗口框内的按钮：用「无边框」三态资源
-##     （normal 全透明 / hover 棕色半透明 / pressed 深褐半透明）。
-##     父级是谁不重要——沿祖先链找到任何套着该窗口框的 Panel/PanelContainer 即命中，
-##     战场 SettingMenu / SettingBar / 队伍查看子菜单、胜利失败面板、动态弹窗都覆盖。
+## 分层处理（★ v6.72av）：
+##   - 皮肤以「按钮自身配置的 normal 样式」为准：配了无边框资源就保留无边框，
+##     配了 8bit 按钮资源（确认/返回/动态文本按钮）就保留按钮框。
+##     不再按祖先窗口框一刀切——那会把 .tscn 里配好的按钮皮肤覆盖成透明底，
+##     表现为"确认/返回按钮是默认灰底、动态按钮没皮肤"。
 ##   - click 音效对所有 BaseButton 一视同仁，与用哪套皮肤无关。
 
 const STYLE_NORMAL  : String = "res://content/resource/stylebox/8bit_style_box_button.tres"
@@ -131,12 +131,13 @@ func _setup_button(btn : BaseButton) -> void:
 	#    只处理 Button（TextureButton 没有 stylebox 概念，靠贴图本身出反馈）；
 	#    头像 / 图标按钮（显式 StyleBoxEmpty 透明底）跳过——套皮肤会在图片下垫出框。
 	if btn is Button and not _is_transparent_button(btn):
-		# ★ v6.72au：窗口框内的按钮不要第二层边框，改用无边框三态资源；
-		#   窗口框外的按钮仍用原来带 8bit 边框的按钮资源。
+		# ★ v6.72av：以按钮自己配的 normal 样式为准，别再按祖先窗口框一刀切。
+		#   只有明确配置了无边框皮肤的按钮（如战场 SettingBar）才继续用无边框三态；
+		#   其余按钮保留/套上 8bit 按钮专用皮肤。
 		var normal_s : StyleBox = _sb_normal
 		var hover_s : StyleBox = _sb_hover
 		var pressed_s : StyleBox = _sb_pressed
-		if _is_in_framed_panel(btn):
+		if _wants_borderless(btn):
 			normal_s = _sb_border_normal
 			hover_s = _sb_border_hover
 			pressed_s = _sb_border_pressed
@@ -172,19 +173,11 @@ func _is_transparent_button(btn : Button) -> bool:
 	return cur is StyleBoxEmpty
 
 
-## 按钮是否位于 8bit_style_box_texture.tres 窗口框内。
-## 沿祖先链找 Panel / PanelContainer，比对它实际生效的 panel stylebox 资源路径；
-## 只按路径比对，不缓存实例，避免编辑器重载资源后旧引用失效。
-func _is_in_framed_panel(btn : BaseButton) -> bool:
-	var frame_path : String = Config.PATHS.STYLEBOX_8BIT
-	var node : Node = btn.get_parent()
-	while node != null:
-		if node is Panel or node is PanelContainer:
-			var sb : StyleBox = (node as Control).get_theme_stylebox("panel")
-			if sb != null and sb.resource_path == frame_path:
-				return true
-		node = node.get_parent()
-	return false
+## 按钮是否显式配置了无边框皮肤（只在 .tscn / 代码里明确这么配过才成立）。
+## 按资源路径比对，不缓存实例，避免编辑器重载资源后旧引用失效。
+func _wants_borderless(btn : BaseButton) -> bool:
+	var cur : StyleBox = btn.get_theme_stylebox("normal")
+	return cur != null and cur.resource_path == STYLE_BORDER_NORMAL
 
 
 ## 编辑器工具 UI：向上遍历，脚本路径含 /tool/ 则判为工具节点。

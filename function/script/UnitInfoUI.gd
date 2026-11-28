@@ -17,7 +17,7 @@ func populate_list():
 		var btn = Button.new()
 		btn.text = UnitDataManager.get_display_name_full(unit_name)
 		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		btn.add_theme_font_size_override("font_size", 8)
+		btn.add_theme_font_size_override("font_size", UIConst.BUTTON_FONT_SIZE)
 		btn.pressed.connect(_on_unit_selected.bind(unit_name))
 		btn.mouse_entered.connect(_on_unit_selected.bind(unit_name))
 		unit_list.add_child(btn)

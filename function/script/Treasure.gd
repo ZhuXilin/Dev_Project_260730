@@ -44,14 +44,18 @@ func _show_choice_ui():
 
 	var btn_normal := Button.new()
 	btn_normal.text = "普通开启（随机 3 选 1）"
+	btn_normal.add_theme_font_size_override("font_size", UIConst.BUTTON_FONT_SIZE)
 	btn_normal.custom_minimum_size = Vector2(150, 30)
+	btn_normal.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	_apply_btn_style(btn_normal)
 	btn_normal.pressed.connect(_on_open_normal)
 	reward_container.add_child(btn_normal)
 
 	var btn_premium := Button.new()
 	btn_premium.text = "高级隐藏开启（消耗 1 钥匙）\n必出史诗 / 极高概率出遗物"
+	btn_premium.add_theme_font_size_override("font_size", UIConst.BUTTON_FONT_SIZE)
 	btn_premium.custom_minimum_size = Vector2(150, 40)
+	btn_premium.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	_apply_btn_style(btn_premium)
 	btn_premium.disabled = (GameState.keys <= 0)
 
@@ -69,10 +73,7 @@ func _show_choice_ui():
 # ============================================================
 ## 给动态创建的按钮套 8bit 按钮 stylebox（样式参数全在资源里，不硬编码）
 func _apply_btn_style(btn: Button) -> void:
-	var sb := load(Config.PATHS.STYLEBOX_8BIT_BUTTON)
-	if sb == null: return
-	for state in ["normal", "hover", "pressed", "focus", "disabled"]:
-		btn.add_theme_stylebox_override(state, sb)
+	UIConst.style_button(btn)
 
 
 func _on_open_normal():
@@ -273,7 +274,7 @@ func _build_options():
 		#   改为按容器等分宽度，文字自动换行。
 		btn.custom_minimum_size = Vector2(0, card_height)
 		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		btn.add_theme_font_size_override("font_size", 7)
+		btn.add_theme_font_size_override("font_size", UIConst.BUTTON_FONT_SIZE)   # ★ v6.72 统一按钮字号
 		_apply_btn_style(btn)
 		
 		# ★ 获取图标

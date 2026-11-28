@@ -102,7 +102,7 @@ func _build_candidates():
 
 		var btn = Button.new()
 		btn.text = "选择"
-		btn.add_theme_font_size_override("font_size", 8)
+		btn.add_theme_font_size_override("font_size", UIConst.BUTTON_FONT_SIZE)
 		btn.custom_minimum_size = Vector2(80, 20)
 		btn.pressed.connect(_on_candidate_clicked.bind(relic_id))
 		vbox.add_child(btn)
@@ -164,7 +164,7 @@ func _build_existing_relics():
 	for i in range(passives.size()):
 		var p = passives[i]
 		var btn = Button.new()
-		btn.add_theme_font_size_override("font_size", 8)
+		btn.add_theme_font_size_override("font_size", UIConst.BUTTON_FONT_SIZE)
 		btn.custom_minimum_size = Vector2(80, 20)
 
 		if p == null:

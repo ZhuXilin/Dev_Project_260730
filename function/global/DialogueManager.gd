@@ -236,7 +236,7 @@ func _show_choices():
 		var c : Dictionary = _pending_choices[i]
 		var btn := Button.new()
 		btn.text = "· " + str(c.get("text", "..."))
-		btn.add_theme_font_size_override("font_size", 8)
+		btn.add_theme_font_size_override("font_size", UIConst.BUTTON_FONT_SIZE)
 		btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
 		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		btn.focus_mode = Control.FOCUS_NONE

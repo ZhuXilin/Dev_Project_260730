@@ -64,13 +64,14 @@ grow_vertical = 2
 theme_override_constants/separation = 4
 
 [node name="BackButton" type="Button" parent="Panel" unique_id=1317041276]
+custom_minimum_size = Vector2(64, 24)
 layout_mode = 1
 anchors_preset = 9
 anchor_bottom = 1.0
-offset_left = 136.0
-offset_top = 186.0
-offset_right = 248.0
-offset_bottom = -22.0
+offset_left = 160.0
+offset_top = 190.0
+offset_right = 224.0
+offset_bottom = -26.0
 grow_vertical = 2
 theme_override_font_sizes/font_size = 8
 theme_override_styles/normal = ExtResource("8bit_btn")

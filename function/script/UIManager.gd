@@ -3,20 +3,31 @@ class_name UIManager
 
 var victory_panel : Panel
 var victory_label : Label
+var victory_image : TextureRect
 var victory_button : Button
+var _tex_victory : Texture2D = null
+var _tex_defeat : Texture2D = null
 var _victory_bound_callback: Callable = Callable()   # ★ 当前绑定的回调，用于正确去重
 
 
 func initialize(ui_nodes: Dictionary):
 	victory_panel = ui_nodes.get("victory_panel")
 	victory_label = ui_nodes.get("victory_label")
+	victory_image = ui_nodes.get("victory_image")
 	victory_button = ui_nodes.get("victory_button")
+	_tex_victory = load(Config.PATHS.IMAGE_VICTORY_INFO) as Texture2D
+	_tex_defeat = load(Config.PATHS.IMAGE_DEFEAT_INFO) as Texture2D
 
 
-func show_victory(label_text: String, button_text: String, callback: Callable):
-	if not victory_label or not victory_button:
+## is_defeat=true 显示 defeat_info.png，否则显示 victory_info.png。
+## label_text 仍写入隐藏的 VictoryLabel，保留旧调用方口径。
+func show_victory(label_text: String, button_text: String, callback: Callable, is_defeat: bool = false):
+	if not victory_button:
 		return
-	victory_label.text = label_text
+	if victory_image:
+		victory_image.texture = _tex_defeat if is_defeat else _tex_victory
+	if victory_label:
+		victory_label.text = label_text
 	victory_button.text = button_text
 	# ★ 去重必须用「已绑定的 Callable」：旧代码检查未绑定版本永远 false，导致连接叠加
 	if _victory_bound_callback.is_valid() and victory_button.pressed.is_connected(_victory_bound_callback):
@@ -56,10 +67,11 @@ func show_modal_message(text: String, callback_after: Callable = Callable()):
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	panel.add_child(label)
 
-	var btn_size = Vector2(50, 20)
+	var btn_size = UIConst.BUTTON_CONFIRM_SIZE   # ★ v6.72：统一确认按钮尺寸
 	var btn = Button.new()
 	btn.text = "确定"
-	btn.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_SMALL)
+	btn.add_theme_font_size_override("font_size", UIConst.BUTTON_FONT_SIZE)
+	UIConst.style_button(btn)
 	btn.size = btn_size
 	btn.position = Vector2(
 		(UIConst.MODAL_PANEL_SIZE.x - btn_size.x) / 2,

@@ -86,9 +86,8 @@ func _ensure_layout():
 	var back_btn = vbox.get_node_or_null("BackButton")
 	if back_btn:
 		vbox.move_child(hbox, back_btn.get_index())
-		# 让返回按钮沉底，并设置最小高度防止被挤压
+		# 让返回按钮沉底；尺寸统一由场景里的 64×24 决定，代码不再覆盖
 		back_btn.size_flags_vertical = Control.SIZE_SHRINK_END
-		back_btn.custom_minimum_size = Vector2(0, 20)
 	else:
 		vbox.move_child(hbox, 2) # 兜底
 
@@ -123,14 +122,16 @@ func _switch_tab(tab: Tab):
 
 	var ab := Button.new()
 	ab.text = "光环研究"
-	ab.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_NORMAL)
+	ab.add_theme_font_size_override("font_size", UIConst.BUTTON_FONT_SIZE)
+	UIConst.style_button(ab)
 	ab.modulate = Color.WHITE if tab == Tab.AURA_RESEARCH else Color(0.5, 0.5, 0.5, 1)
 	ab.pressed.connect(func(): _switch_tab(Tab.AURA_RESEARCH))
 	_sub_tab_bar.add_child(ab)
 
 	var rb := Button.new()
 	rb.text = "遗物精炼"
-	rb.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_NORMAL)
+	rb.add_theme_font_size_override("font_size", UIConst.BUTTON_FONT_SIZE)
+	UIConst.style_button(rb)
 	rb.modulate = Color.WHITE if tab == Tab.RELIC_REFINE else Color(0.5, 0.5, 0.5, 1)
 	rb.pressed.connect(func(): _switch_tab(Tab.RELIC_REFINE))
 	_sub_tab_bar.add_child(rb)
@@ -156,7 +157,8 @@ func _build_aura_research_list():
 
 		var accel_btn : Button = Button.new()
 		accel_btn.text = "加速 1 局（%d 魂）" % AuraManager.ACCEL_COST
-		accel_btn.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_SMALL)
+		accel_btn.add_theme_font_size_override("font_size", UIConst.BUTTON_FONT_SIZE)
+		UIConst.style_button(accel_btn)
 		accel_btn.custom_minimum_size = Vector2(120, 22)
 		accel_btn.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 		accel_btn.disabled = (GameState.soul < AuraManager.ACCEL_COST)
@@ -204,7 +206,8 @@ func _build_aura_row(aura_id: String) -> HBoxContainer:
 	row.add_child(name_lb)
 
 	var btn := Button.new()
-	btn.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_SMALL)
+	btn.add_theme_font_size_override("font_size", UIConst.BUTTON_FONT_SIZE)
+	UIConst.style_button(btn)
 	btn.custom_minimum_size = Vector2(60, 0)
 	btn.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	if unlocked:
@@ -350,7 +353,8 @@ func _build_relic_refine_list():
 		else:
 			var btn := Button.new()
 			btn.text = "精炼(%d)" % GameState.REFINE_COST
-			btn.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_SMALL)
+			btn.add_theme_font_size_override("font_size", UIConst.BUTTON_FONT_SIZE)
+			UIConst.style_button(btn)
 			btn.custom_minimum_size = Vector2(56, 16)
 			btn.size_flags_horizontal = Control.SIZE_SHRINK_END
 			btn.size_flags_vertical = Control.SIZE_SHRINK_CENTER

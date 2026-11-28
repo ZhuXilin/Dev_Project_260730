@@ -2,6 +2,7 @@
 
 [ext_resource type="Script" uid="uid://ch06ikl42g0ou" path="res://function/script/Arena.gd" id="1_script"]
 [ext_resource type="StyleBox" uid="uid://6qbsaxkfwg3o" path="res://content/resource/stylebox/8bit_style_box_texture.tres" id="2_style"]
+[ext_resource type="StyleBox" uid="uid://coiwrbgx8d7aa" path="res://content/resource/stylebox/8bit_style_box_button.tres" id="8bit_btn"]
 [ext_resource type="PackedScene" uid="uid://dinsoae8vsksx" path="res://content/scenes/ui/components/UnitInfoPanel.tscn" id="3_info"]
 [ext_resource type="Texture2D" uid="uid://b7uf7o2w50jp7" path="res://content/images/ui/subui_arena_01.png" id="3_pfvru"]
 
@@ -118,25 +119,27 @@ theme_override_constants/separation = 12
 alignment = 1
 
 [node name="StartBtn" type="Button" parent="Panel/VBox/BottomBar" unique_id=354568327]
+custom_minimum_size = Vector2(64, 24)
 layout_mode = 2
 size_flags_horizontal = 4
 theme_override_font_sizes/font_size = 8
-theme_override_styles/normal = ExtResource("2_style")
-theme_override_styles/pressed = ExtResource("2_style")
-theme_override_styles/hover = ExtResource("2_style")
-theme_override_styles/disabled = ExtResource("2_style")
-theme_override_styles/focus = ExtResource("2_style")
+theme_override_styles/normal = ExtResource("8bit_btn")
+theme_override_styles/pressed = ExtResource("8bit_btn")
+theme_override_styles/hover = ExtResource("8bit_btn")
+theme_override_styles/disabled = ExtResource("8bit_btn")
+theme_override_styles/focus = ExtResource("8bit_btn")
 text = "开始挑战"
 
 [node name="BackButton" type="Button" parent="Panel/VBox/BottomBar" unique_id=664638350]
+custom_minimum_size = Vector2(64, 24)
 layout_mode = 2
 size_flags_horizontal = 4
 theme_override_font_sizes/font_size = 8
-theme_override_styles/normal = ExtResource("2_style")
-theme_override_styles/pressed = ExtResource("2_style")
-theme_override_styles/hover = ExtResource("2_style")
-theme_override_styles/disabled = ExtResource("2_style")
-theme_override_styles/focus = ExtResource("2_style")
+theme_override_styles/normal = ExtResource("8bit_btn")
+theme_override_styles/pressed = ExtResource("8bit_btn")
+theme_override_styles/hover = ExtResource("8bit_btn")
+theme_override_styles/disabled = ExtResource("8bit_btn")
+theme_override_styles/focus = ExtResource("8bit_btn")
 text = "返回"
 
 [node name="InfoPanelContainer" parent="." unique_id=1929269653 instance=ExtResource("3_info")]

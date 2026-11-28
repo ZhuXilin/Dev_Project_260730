@@ -72,8 +72,8 @@ func _build_ui() -> void:
 
 	var close := Button.new()
 	close.text = "关闭"
-	close.custom_minimum_size = Vector2(0, 14)
-	close.add_theme_font_size_override("font_size", FS_BODY)
+	close.custom_minimum_size = UIConst.BUTTON_CONFIRM_SIZE   # ★ v6.72 统一关闭按钮尺寸
+	close.add_theme_font_size_override("font_size", UIConst.BUTTON_FONT_SIZE)
 	BuildUI.style_button(close, _gold_color)
 	close.pressed.connect(_on_close)
 	vbox.add_child(close)

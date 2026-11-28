@@ -142,10 +142,12 @@ func show_choice(title: String, data_a: Dictionary, data_b: Dictionary, cancel_c
 
 	var cancel := Button.new()
 	cancel.text = "取消"
-	cancel.custom_minimum_size = Vector2(64, 24)
+	cancel.custom_minimum_size = UIConst.BUTTON_CONFIRM_SIZE   # ★ v6.72：统一确认/取消按钮尺寸
 	cancel.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	cancel.size_flags_vertical = Control.SIZE_SHRINK_CENTER   # 防止被 VBox 剩余空间拉高，保持与其他界面 24px 一致
 	cancel.focus_mode = Control.FOCUS_NONE
-	cancel.add_theme_font_size_override("font_size", 8)
+	cancel.add_theme_font_size_override("font_size", UIConst.BUTTON_FONT_SIZE)
+	UIConst.style_button(cancel)
 	cancel.pressed.connect(_on_cancel_button_pressed)
 	_choice_root.add_child(cancel)
 

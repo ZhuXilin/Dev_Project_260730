@@ -9,6 +9,7 @@ const BOSS_NODE_TYPE = MapNode.NodeType.BOSS
 
 @onready var victory_panel : Panel = $VictoryLayer/VictoryPanel
 @onready var victory_label : Label = $VictoryLayer/VictoryPanel/VictoryLabel
+@onready var victory_image : TextureRect = $VictoryLayer/VictoryPanel/ResultImage
 @onready var victory_button : Button = $VictoryLayer/VictoryPanel/VictoryButton
 # ★ v6.72at：回合提示底图由 ColorRect 换成 Panel（8bit_style_box_info.tres），
 #   节点名与路径不变，类型收到 Control 以免类型不匹配。

@@ -265,7 +265,7 @@ func on_request_show_victory(winning_team: int) -> void:
 				else:
 					_bf.ui_manager.show_victory("战斗胜利！", "继续旅程", on_map_victory_continue)
 			else:
-				_bf.ui_manager.show_victory("战斗失败", "重启旅程", on_map_defeat_gameover)
+				_bf.ui_manager.show_victory("战斗失败", "重启旅程", on_map_defeat_gameover, true)
 		else:
 			if is_win:
 				tree.change_scene_to_file(Config.PATHS.MAP_SCENE)
@@ -288,7 +288,7 @@ func on_request_show_victory(winning_team: int) -> void:
 		else:
 			_bf.ui_manager.show_victory("战斗胜利", "下一关", LevelManager.on_victory)
 	else:
-		_bf.ui_manager.show_victory("战斗失败", "回到营地", on_non_map_defeat)
+		_bf.ui_manager.show_victory("战斗失败", "回到营地", on_non_map_defeat, true)
 
 
 func on_map_victory_continue() -> void:

@@ -50,7 +50,8 @@ func _ready():
 		
 		unit_unlock_tab_btn = Button.new()
 		unit_unlock_tab_btn.text = "唤醒残魂"
-		unit_unlock_tab_btn.add_theme_font_size_override("font_size", 7)
+		unit_unlock_tab_btn.add_theme_font_size_override("font_size", UIConst.BUTTON_FONT_SIZE)   # ★ v6.72 统一按钮字号
+		UIConst.style_button(unit_unlock_tab_btn)
 		tab_bar.add_child(unit_unlock_tab_btn)
 		unit_unlock_tab_btn.pressed.connect(_on_unit_unlock_tab_pressed)
 		
@@ -649,7 +650,8 @@ func _refresh_unit_unlock_panel():
 	row.add_child(_make_info("唤醒此残魂？"))
 	var btn := Button.new()
 	btn.text = "唤醒"
-	btn.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_SMALL)
+	btn.add_theme_font_size_override("font_size", UIConst.BUTTON_FONT_SIZE)
+	UIConst.style_button(btn)
 	btn.custom_minimum_size = Vector2(50, 0)
 	btn.disabled = not can_afford
 	if can_afford:
@@ -701,8 +703,9 @@ func _make_upgrade_row(label_text: String, cost: int, cb: Callable) -> HBoxConta
 
 	var btn = Button.new()
 	btn.text = "升级"
-	btn.add_theme_font_size_override("font_size", UIConst.FONT_SIZE_SMALL)
-	btn.custom_minimum_size = Vector2(40, 16)
+	btn.add_theme_font_size_override("font_size", UIConst.BUTTON_FONT_SIZE)
+	UIConst.style_button(btn)
+	btn.custom_minimum_size = UIConst.BUTTON_CONFIRM_SIZE
 	btn.disabled = (GameState.soul < cost)
 	btn.pressed.connect(cb)
 	row.add_child(btn)

@@ -44,7 +44,7 @@ func _build_tabs():
 		btn.toggle_mode = true
 		btn.focus_mode = Control.FOCUS_NONE
 		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		btn.add_theme_font_size_override("font_size", 8)
+		btn.add_theme_font_size_override("font_size", UIConst.BUTTON_FONT_SIZE)
 		btn.pressed.connect(_switch_school.bind(s))
 		tab_bar.add_child(btn)
 		_tab_buttons[s] = btn
@@ -99,7 +99,7 @@ func _make_talent_card(tid : String) -> Control:
 	var card := Button.new()
 	card.custom_minimum_size = Vector2(0, 40)
 	card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	card.add_theme_font_size_override("font_size", 7)
+	card.add_theme_font_size_override("font_size", UIConst.BUTTON_FONT_SIZE)
 	card.focus_mode = Control.FOCUS_NONE
 	card.alignment = HORIZONTAL_ALIGNMENT_LEFT
 	card.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART

@@ -1311,6 +1311,14 @@ function selectAll(){
   doc.preciseCx = null; doc.preciseCy = null;
   doc.selMask.fill(1); recalcBounds(); requestRender(); commitHistory();
 }
+// ★ 选择工具（V/M）下的 Ctrl+A：全选"当前画布区域"——单格视图只选当前格，
+//   全图视图等价于整张图。语义对齐 PS 的 Select All（选的是你正在看的画布）。
+function selectCanvasArea(){
+  if(doc.floating){ commitFloat(); }
+  doc.preciseCx = null; doc.preciseCy = null;
+  applyRectSelection({x:0, y:0, w:doc.width, h:doc.height}, SEL_REPLACE);
+  requestRender(); commitHistory();
+}
 function deselectAll(){
   doc.selMask.fill(0);
   doc.preciseCx = null; doc.preciseCy = null;
@@ -4122,7 +4130,14 @@ function onKeyDown(e){
     switch(k.toLowerCase()){
       case 'z': e.preventDefault(); if(e.shiftKey) doRedo(); else doUndo(); return;
       case 'y': e.preventDefault(); doRedo(); return;
-      case 'a': e.preventDefault(); selectAll(); return;
+      case 'a':
+        e.preventDefault();
+        if(!e.repeat){
+          // V/M 选择工具状态（含按住 V/M 做选区移动时）下，Ctrl+A 全选当前画布区域
+          if(ui.tool === TOOL.SELECT || ui.tool === TOOL.LASSO || vDown || mDown) selectCanvasArea();
+          else selectAll();
+        }
+        return;
       case 'd': e.preventDefault(); deselectAll(); return;
       case 'c': e.preventDefault(); doCopy(); return;
       case 'x': e.preventDefault(); doCut(); return;

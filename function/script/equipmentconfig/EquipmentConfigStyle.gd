@@ -23,11 +23,12 @@ const ITEM_GRID_GAP : int = 6
 const SEPARATOR_TEXT = "──────"
 
 
-static func create_styled_button(font_size: int, min_size: Vector2) -> Button:
+static func create_styled_button(_font_size: int, min_size: Vector2) -> Button:
 	var btn := Button.new()
 	btn.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	btn.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	btn.add_theme_font_size_override("font_size", font_size)
+	# ★ v6.72：所有按钮文字统一字号（忽略调用方传入的差异值，签名保留避免改几十处调用）
+	btn.add_theme_font_size_override("font_size", UIConst.BUTTON_FONT_SIZE)
 	btn.custom_minimum_size = min_size
 	btn.focus_mode = Control.FOCUS_NONE
 	btn.mouse_filter = Control.MOUSE_FILTER_STOP

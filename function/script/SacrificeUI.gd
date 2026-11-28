@@ -113,7 +113,7 @@ func _build_unit_card(u: UnitData) -> Control:
 
 	var btn := Button.new()
 	btn.text = "熔铸"
-	btn.add_theme_font_size_override("font_size", 8)
+	btn.add_theme_font_size_override("font_size", UIConst.BUTTON_FONT_SIZE)
 	btn.pressed.connect(_on_sacrifice.bind(u))
 	vbox.add_child(btn)
 

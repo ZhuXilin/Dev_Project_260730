@@ -834,7 +834,7 @@ func set_pending_armor(info: Dictionary) -> void:
 	var discard := Button.new()
 	discard.name = "DiscardArmorBtn"
 	discard.text = "放弃防具"
-	discard.add_theme_font_size_override("font_size", Style.FONT_SMALL)
+	discard.add_theme_font_size_override("font_size", UIConst.BUTTON_FONT_SIZE)
 	discard.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	discard.pressed.connect(func(): armor_discard_requested.emit())
 	row.add_child(discard)
@@ -1013,7 +1013,7 @@ func _build_ui_inner():
 				child.clip_text = true
 				child.custom_minimum_size = Vector2(0, 16) 
 				child.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-				child.add_theme_font_size_override("font_size", 7)
+				child.add_theme_font_size_override("font_size", UIConst.BUTTON_FONT_SIZE)
 
 	var d_zone = get_node_or_null("VBoxContainer/MainHBox/RightScroll/RightContainer/DiscardZone")
 	if d_zone:
@@ -1097,6 +1097,9 @@ func _build_ui_inner():
 			mode_label.text = "装备配置"
 			close_btn.visible = true
 			close_btn.text = "返回"
+			# 只有一个返回按钮时，明确按画面水平居中（不跟其他模式的按钮排在一起）
+			close_btn.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+			close_btn.alignment = HORIZONTAL_ALIGNMENT_CENTER
 			confirm_btn.visible = false
 			gold_label.visible = false
 			tab_bar.visible = true
@@ -1205,6 +1208,9 @@ func _build_ui_inner():
 			mode_label.text = "魂栈"
 			close_btn.visible = true
 			close_btn.text = "离开"
+			# 卖遗物的魂栈只有一个离开按钮，按画面水平居中
+			close_btn.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+			close_btn.alignment = HORIZONTAL_ALIGNMENT_CENTER
 			confirm_btn.visible = false
 			gold_label.visible = false
 			# ★ 魂栈只需遗物商店，不要页签切换（用户划掉"熔铸"页签）
@@ -1237,11 +1243,11 @@ func _build_ui_inner():
 	if current_mode == Mode.FORGE or is_shop_rest_mode():
 		_setup_forge_narrative_ui()
 
-	close_btn.add_theme_font_size_override("font_size", Style.FONT_LARGE)
-	confirm_btn.add_theme_font_size_override("font_size", Style.FONT_LARGE)
+	close_btn.add_theme_font_size_override("font_size", UIConst.BUTTON_FONT_SIZE)
+	confirm_btn.add_theme_font_size_override("font_size", UIConst.BUTTON_FONT_SIZE)
 	
 	if reset_btn:
-		reset_btn.add_theme_font_size_override("font_size", Style.FONT_LARGE)
+		reset_btn.add_theme_font_size_override("font_size", UIConst.BUTTON_FONT_SIZE)
 		reset_btn.custom_minimum_size = Vector2(0, 16)
 		reset_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		reset_btn.size_flags_vertical = Control.SIZE_SHRINK_END
@@ -2098,11 +2104,11 @@ func _create_talent_button(inst: TalentInstance, unit_idx: int, slot_idx: int) -
 		else:
 			# ★ v6.68b：空槽与防具槽同款——不加灰化、不换色调，仅显示「空」。
 			btn.text = "空"
-			btn.add_theme_font_size_override("font_size", Style.FONT_SMALL)
+			btn.add_theme_font_size_override("font_size", UIConst.BUTTON_FONT_SIZE)
 			btn.set_meta("talent_id", "")
 	else:
 		btn.text = "空"
-		btn.add_theme_font_size_override("font_size", Style.FONT_SMALL)
+		btn.add_theme_font_size_override("font_size", UIConst.BUTTON_FONT_SIZE)
 		btn.set_meta("talent_id", "")
 	return btn
 

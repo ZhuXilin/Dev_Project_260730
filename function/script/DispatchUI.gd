@@ -232,7 +232,8 @@ func _refresh_routes():
 		btn.custom_minimum_size = Vector2(0, 24)
 		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
-		btn.add_theme_font_size_override("font_size", 7)
+		btn.add_theme_font_size_override("font_size", UIConst.BUTTON_FONT_SIZE)   # ★ v6.72 统一按钮字号
+		UIConst.style_button(btn)
 		btn.focus_mode = Control.FOCUS_NONE
 
 		if is_busy:

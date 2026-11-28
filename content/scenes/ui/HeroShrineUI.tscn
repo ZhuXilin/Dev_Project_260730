@@ -104,9 +104,11 @@ alignment = 1
 [node name="ReviveBtn" type="Button" parent="Panel/VBox/ChapelActions" unique_id=127438541]
 layout_mode = 2
 theme_override_font_sizes/font_size = 8
-theme_override_styles/normal = ExtResource("2_style")
-theme_override_styles/pressed = ExtResource("2_style")
-theme_override_styles/hover = ExtResource("2_style")
+theme_override_styles/normal = ExtResource("8bit_btn")
+theme_override_styles/pressed = ExtResource("8bit_btn")
+theme_override_styles/hover = ExtResource("8bit_btn")
+theme_override_styles/disabled = ExtResource("8bit_btn")
+theme_override_styles/focus = ExtResource("8bit_btn")
 text = "复活阵亡单位"
 
 [node name="Separator1" type="HSeparator" parent="Panel/VBox" unique_id=999000011]
@@ -131,9 +133,9 @@ layout_mode = 2
 alignment = 1
 
 [node name="CloseButton" type="Button" parent="Panel/VBox/BottomBar" unique_id=999000015]
-custom_minimum_size = Vector2(0, 24)
+custom_minimum_size = Vector2(64, 24)
 layout_mode = 2
-theme_override_font_sizes/font_size = 9
+theme_override_font_sizes/font_size = 8
 theme_override_styles/normal = ExtResource("8bit_btn")
 theme_override_styles/pressed = ExtResource("8bit_btn")
 theme_override_styles/hover = ExtResource("8bit_btn")

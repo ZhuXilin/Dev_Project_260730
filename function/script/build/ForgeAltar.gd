@@ -74,7 +74,10 @@ func _build_ui() -> void:
 
 	var close := Button.new()
 	close.text = "离开"
-	close.custom_minimum_size = Vector2(0, 14)
+	close.add_theme_font_size_override("font_size", UIConst.BUTTON_FONT_SIZE)
+	close.custom_minimum_size = UIConst.BUTTON_CONFIRM_SIZE
+	close.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	close.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	BuildUI.style_button(close, _gold_color)
 	close.pressed.connect(_on_close)
 	vbox.add_child(close)
@@ -102,7 +105,7 @@ func _refresh() -> void:
 		var melt_data: ItemData = ItemManager.get_item_data(melt_id)
 		var melt_name := melt_data.name if melt_data else "专属防具"
 		btn.text = "熔铸 %s → %s" % [ud.display_name, melt_name]
-		btn.add_theme_font_size_override("font_size", FS_BODY)
+		btn.add_theme_font_size_override("font_size", UIConst.BUTTON_FONT_SIZE)   # ★ v6.72 统一按钮字号
 		BuildUI.style_button(btn, _gold_color)
 		btn.pressed.connect(_on_sacrifice.bind(ud))
 		_list.add_child(btn)

@@ -26,6 +26,7 @@ func _initialize_managers() -> void:
 	_bf.ui_manager.initialize({
 		"victory_panel": _bf.victory_panel,
 		"victory_label": _bf.victory_label,
+		"victory_image": _bf.victory_image,
 		"victory_button": _bf.victory_button,
 	})
 	_bf.highlight_manager.initialize(_bf)

@@ -22,7 +22,7 @@ func _build_filter_bar():
 	for opt in options:
 		var btn = Button.new()
 		btn.text = opt[0]
-		btn.add_theme_font_size_override("font_size", 6)
+		btn.add_theme_font_size_override("font_size", UIConst.BUTTON_FONT_SIZE)   # ★ v6.72 统一按钮字号
 		btn.pressed.connect(_on_filter_pressed.bind(opt[1]))
 		filter_bar.add_child(btn)
 
@@ -78,7 +78,7 @@ func _make_item_button(data, unlocked: bool) -> Button:
 		btn.tooltip_text = data.name
 	else:
 		btn.text = data.name
-	btn.add_theme_font_size_override("font_size", 8)
+	btn.add_theme_font_size_override("font_size", UIConst.BUTTON_FONT_SIZE)
 	btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
 	btn.pressed.connect(_show_item_detail.bind(data))
 	btn.mouse_entered.connect(_show_item_detail.bind(data))
@@ -96,7 +96,7 @@ func _make_relic_button(relic_id: String, data: Dictionary, unlocked: bool) -> B
 	else:
 		var prefix : String = "★ " if GameState.is_relic_refined(relic_id) else ""
 		btn.text = prefix + data.get("name", relic_id)
-	btn.add_theme_font_size_override("font_size", 8)
+	btn.add_theme_font_size_override("font_size", UIConst.BUTTON_FONT_SIZE)
 	btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
 	btn.pressed.connect(_show_relic_detail.bind(relic_id))
 	btn.mouse_entered.connect(_show_relic_detail.bind(relic_id))
